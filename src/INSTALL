@@ -1,0 +1,34 @@
+------------------------------------------------------------------------------
+Building tough requires CMake 2.8, found at http://www.cmake.org/, as
+well as GNU make. To build Charybdis on a UNIX-like system, use the following
+commands:
+
+     $ make config
+     $ make
+
+Installation
+------------
+To install tough, run
+
+    $ make install
+
+The default installation prefix is /usr/local. To pick an installation 
+prefix for brick pass prefix=[path] to make config. For example,
+
+    $ make config prefix=~/myroot/
+
+will cause tough to be installed in ~/myroot/ when make install is run.
+
+
+Other make commands
+-------------------
+   $ make uninstall 
+          Removes all files installed by 'make install'.
+   
+   $ make clean 
+          Removes all object files but retains the configuration options.
+   
+   $ make distclean 
+          Performs clean and completely removes the build directory.
+
+------------------------------------------------------------------------------
