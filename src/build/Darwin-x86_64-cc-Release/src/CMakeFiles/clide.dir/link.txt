@@ -1,0 +1,2 @@
+/usr/bin/ar cr libclide.a  CMakeFiles/clide.dir/clide.c.o
+/usr/bin/ranlib libclide.a
