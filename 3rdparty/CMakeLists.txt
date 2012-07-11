@@ -1,5 +1,12 @@
 include_directories(${PROJECT_BINARY_DIR}/include)
 
+if (NOT USE_MPI EQUAL 1)
+  # We need the MPI stubs library.
+  include_directories("${PROJECT_SOURCE_DIR}/3rdparty/mpi_stubs")
+  add_library(mpi_stubs mpi_stubs.c)
+  set(CLIDE_TP_LIBS mpi_stubs)
+endif()
+
 # Install libgc, the C garbage collector library.
 #if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libgc.a)
 #  set(GC_CONFIG_OPTS --prefix=${PROJECT_BINARY_DIR} --enable-static --disable-shared --disable-gcj-support)
@@ -15,7 +22,7 @@ include_directories(${PROJECT_BINARY_DIR}/include)
 #  add_library(gc STATIC IMPORTED)
 #  set_target_properties(gc PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libgc.a)
 #endif()
-#set(BRICK_TP_LIBS ${BRICK_TP_LIBS};gc)
+#set(CLIDE_TP_LIBS ${CLIDE_TP_LIBS};gc)
 
 # Install zeromq.
 #if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libzmq.a)
@@ -32,7 +39,7 @@ include_directories(${PROJECT_BINARY_DIR}/include)
 #  add_library(zmq STATIC IMPORTED)
 #  set_target_properties(zmq PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libzmq.a)
 #endif()
-#set(BRICK_TP_LIBS ${BRICK_TP_LIBS};zmq;stdc++)
+#set(CLIDE_TP_LIBS ${CLIDE_TP_LIBS};zmq;stdc++)
 
 # Install cvode.
 if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libsundials_cvode.a)
@@ -45,15 +52,16 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libsundials_cvode.a)
   execute_process(COMMAND env CC=${CC} CXX=${CXX} ./configure ${CVODE_CONFIG_OPTS}
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/cvode-2.6.0)
   execute_process(COMMAND make install
-                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/cvode-2.6.0)
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/cvode-2.6.0
+                  OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
   add_library(cvode STATIC IMPORTED)
   set_target_properties(cvode PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libsundials_cvode.a)
 endif()
-set(BRICK_TP_LIBS ${BRICK_TP_LIBS};cvode)
+set(CLIDE_TP_LIBS ${CLIDE_TP_LIBS};cvode)
 
-# Install cvode.
+# Install netcdf. 
 if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libnetcdf.a)
-  set(NETCDF_CONFIG_OPTS --prefix=${PROJECT_BINARY_DIR} --enable-static --disable-shared --disable-netcdf-4)
+  set(NETCDF_CONFIG_OPTS --prefix=${PROJECT_BINARY_DIR} --enable-static --disable-shared --disable-netcdf-4 --disable-doxygen)
   if (${CMAKE_BUILD_TYPE} STREQUAL "Debug")
     set(NETCDF_CONFIG_OPTS ${NETCDF_CONFIG_OPTS} --enable-debug)
   endif()
@@ -66,7 +74,7 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libnetcdf.a)
   add_library(netcdf STATIC IMPORTED)
   set_target_properties(netcdf PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libnetcdf.a)
 endif()
-set(BRICK_TP_LIBS ${BRICK_TP_LIBS};netcdf)
+set(CLIDE_TP_LIBS ${CLIDE_TP_LIBS};netcdf)
 
 # Install Metis if necessary.
 #if (NOT EXISTS ${CMAKE_BINARY_DIR}/lib/libmetis.a)
@@ -83,6 +91,6 @@ set(BRICK_TP_LIBS ${BRICK_TP_LIBS};netcdf)
 #  add_library(metis STATIC IMPORTED)
 #  set_target_properties(metis PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libmetis.a)
 #endif()
-#set(BRICK_TP_LIBS ${BRICK_TP_LIBS};metis)
+#set(CLIDE_TP_LIBS ${CLIDE_TP_LIBS};metis)
 
-set(BRICK_LIBS ${BRICK_LIBS};${BRICK_TP_LIBS} PARENT_SCOPE)
+set(CLIDE_LIBS ${CLIDE_LIBS};${CLIDE_TP_LIBS} PARENT_SCOPE)

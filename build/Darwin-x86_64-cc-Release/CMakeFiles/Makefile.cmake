@@ -37,15 +37,10 @@ SET(CMAKE_MAKEFILE_DEPENDS
   "/Applications/CMake 2.8-5.app/Contents/share/cmake-2.8/Modules/Platform/Darwin.cmake"
   "/Applications/CMake 2.8-5.app/Contents/share/cmake-2.8/Modules/Platform/UnixPaths.cmake"
   "../../3rdparty/CMakeLists.txt"
-  "../../3rdparty/mpi_stubs/CMakeLists.txt"
   "../../CMakeLists.txt"
   "CMakeFiles/CMakeCCompiler.cmake"
   "CMakeFiles/CMakeCXXCompiler.cmake"
   "CMakeFiles/CMakeSystem.cmake"
-  "../../cmake/Modules/FindHDF5.cmake"
-  "../../cmake/Modules/FindPackageHandleStandardArgs.cmake"
-  "../../cmake/Modules/FindSilo.cmake"
-  "../../cmake/Modules/SelectLibraryConfigurations.cmake"
   "../../src/CMakeLists.txt"
   )
 
@@ -58,13 +53,12 @@ SET(CMAKE_MAKEFILE_OUTPUTS
 # Byproducts of CMake generate step:
 SET(CMAKE_MAKEFILE_PRODUCTS
   "CMakeFiles/CMakeDirectoryInformation.cmake"
-  "3rdparty/mpi_stubs/CMakeFiles/CMakeDirectoryInformation.cmake"
   "3rdparty/CMakeFiles/CMakeDirectoryInformation.cmake"
   "src/CMakeFiles/CMakeDirectoryInformation.cmake"
   )
 
 # Dependency information for all targets:
 SET(CMAKE_DEPEND_INFO_FILES
-  "3rdparty/mpi_stubs/CMakeFiles/mpi_stubs.dir/DependInfo.cmake"
+  "3rdparty/CMakeFiles/mpi_stubs.dir/DependInfo.cmake"
   "src/CMakeFiles/clide.dir/DependInfo.cmake"
   )

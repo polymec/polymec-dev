@@ -1,7 +1,7 @@
-#ifndef TOUGH_SOLN_VECTOR_H
-#define TOUGH_SOLN_VECTOR_H
+#ifndef CLIDE_SOLN_VECTOR_H
+#define CLIDE_SOLN_VECTOR_H
 
-#include "brick.h"
+#include "clide.h"
 
 #ifdef __cplusplus
 extern "C" {

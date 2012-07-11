@@ -1,8 +1,9 @@
-#ifndef TOUGH_SIMULATION_H
-#define TOUGH_SIMULATION_H
+#ifndef CLIDE_SIMULATION_H
+#define CLIDE_SIMULATION_H
 
-#include "tough.h"
+#include "clide.h"
 #include "options.h"
+#include "soln_vector.h"
 
 #ifdef __cplusplus
 extern "C" {

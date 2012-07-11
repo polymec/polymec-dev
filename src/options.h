@@ -1,7 +1,7 @@
-#ifndef TOUGH_OPTIONS_H
-#define TOUGH_OPTIONS_H
+#ifndef CLIDE_OPTIONS_H
+#define CLIDE_OPTIONS_H
 
-#include "tough.h"
+#include "clide.h"
 
 #ifdef __cplusplus
 extern "C" {

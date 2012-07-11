@@ -111,6 +111,44 @@ depend:
 	cd /Users/jjphatt/clide/build/Darwin-x86_64-cc-Release && $(CMAKE_COMMAND) -H$(CMAKE_SOURCE_DIR) -B$(CMAKE_BINARY_DIR) --check-build-system CMakeFiles/Makefile.cmake 1
 .PHONY : depend
 
+# Convenience name for target.
+3rdparty/CMakeFiles/mpi_stubs.dir/rule:
+	cd /Users/jjphatt/clide/build/Darwin-x86_64-cc-Release && $(MAKE) -f CMakeFiles/Makefile2 3rdparty/CMakeFiles/mpi_stubs.dir/rule
+.PHONY : 3rdparty/CMakeFiles/mpi_stubs.dir/rule
+
+# Convenience name for target.
+mpi_stubs: 3rdparty/CMakeFiles/mpi_stubs.dir/rule
+.PHONY : mpi_stubs
+
+# fast build rule for target.
+mpi_stubs/fast:
+	cd /Users/jjphatt/clide/build/Darwin-x86_64-cc-Release && $(MAKE) -f 3rdparty/CMakeFiles/mpi_stubs.dir/build.make 3rdparty/CMakeFiles/mpi_stubs.dir/build
+.PHONY : mpi_stubs/fast
+
+mpi_stubs.o: mpi_stubs.c.o
+.PHONY : mpi_stubs.o
+
+# target to build an object file
+mpi_stubs.c.o:
+	cd /Users/jjphatt/clide/build/Darwin-x86_64-cc-Release && $(MAKE) -f 3rdparty/CMakeFiles/mpi_stubs.dir/build.make 3rdparty/CMakeFiles/mpi_stubs.dir/mpi_stubs.c.o
+.PHONY : mpi_stubs.c.o
+
+mpi_stubs.i: mpi_stubs.c.i
+.PHONY : mpi_stubs.i
+
+# target to preprocess a source file
+mpi_stubs.c.i:
+	cd /Users/jjphatt/clide/build/Darwin-x86_64-cc-Release && $(MAKE) -f 3rdparty/CMakeFiles/mpi_stubs.dir/build.make 3rdparty/CMakeFiles/mpi_stubs.dir/mpi_stubs.c.i
+.PHONY : mpi_stubs.c.i
+
+mpi_stubs.s: mpi_stubs.c.s
+.PHONY : mpi_stubs.s
+
+# target to generate assembly for a file
+mpi_stubs.c.s:
+	cd /Users/jjphatt/clide/build/Darwin-x86_64-cc-Release && $(MAKE) -f 3rdparty/CMakeFiles/mpi_stubs.dir/build.make 3rdparty/CMakeFiles/mpi_stubs.dir/mpi_stubs.c.s
+.PHONY : mpi_stubs.c.s
+
 # Help Target
 help:
 	@echo "The following are some of the valid targets for this Makefile:"
@@ -118,8 +156,12 @@ help:
 	@echo "... clean"
 	@echo "... depend"
 	@echo "... edit_cache"
+	@echo "... mpi_stubs"
 	@echo "... rebuild_cache"
 	@echo "... test"
+	@echo "... mpi_stubs.o"
+	@echo "... mpi_stubs.i"
+	@echo "... mpi_stubs.s"
 .PHONY : help
 
 

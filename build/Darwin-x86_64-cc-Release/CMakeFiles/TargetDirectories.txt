@@ -1,2 +1,2 @@
 /Users/jjphatt/clide/build/Darwin-x86_64-cc-Release/src/CMakeFiles/clide.dir
-/Users/jjphatt/clide/build/Darwin-x86_64-cc-Release/3rdparty/mpi_stubs/CMakeFiles/mpi_stubs.dir
+/Users/jjphatt/clide/build/Darwin-x86_64-cc-Release/3rdparty/CMakeFiles/mpi_stubs.dir

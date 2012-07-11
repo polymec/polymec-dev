@@ -1,2 +1,1 @@
-/usr/bin/ar cr libclide.a  CMakeFiles/clide.dir/clide.c.o
-/usr/bin/ranlib libclide.a
+/usr/bin/cc   -DAPPLE=1 -Wall -Wextra -Wno-sign-compare -std=c99 -O3 -DNDEBUG -Wl,-search_paths_first -Wl,-headerpad_max_install_names   CMakeFiles/clide.dir/clide.c.o  -o clide  

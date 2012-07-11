@@ -244,7 +244,7 @@ SUBDIRS = images
 
 #Doxyfile.tmp: Doxyfile
 #	sed -e 's|$$[({]rootdir[})]|$(abs_top_srcdir)|g' <Doxyfile > ./Doxyfile.tmp
-CLEANFILES = doxyfile.stamp html latex man
+#CLEANFILES = doxyfile.stamp html latex man
 all: all-recursive
 
 .SUFFIXES:
@@ -482,7 +482,7 @@ distdir: $(DISTFILES)
 	done
 check-am: all-am
 check: check-recursive
-#all-local:
+all-local:
 all-am: Makefile all-local
 installdirs: installdirs-recursive
 installdirs-am:
@@ -512,7 +512,7 @@ distclean-generic:
 maintainer-clean-generic:
 	@echo "This command is intended for maintainers to use"
 	@echo "it deletes files that may require special tools to rebuild."
-#clean-local:
+clean-local:
 clean: clean-recursive
 
 clean-am: clean-generic clean-libtool clean-local mostlyclean-am
@@ -607,23 +607,23 @@ uninstall-am:
 # $(directory)/man_page_2.3: doxyfile.stamp
 
 # Timestamp to prevent rebuilds.
-doxyfile.stamp:
-	$(DOXYGEN) Doxyfile
-	echo Timestamp > doxyfile.stamp
+#doxyfile.stamp:
+#	$(DOXYGEN) Doxyfile
+#	echo Timestamp > doxyfile.stamp
 
-all-local: doxyfile.stamp
-clean-local:
-	rm -rf $(top_builddir)/man4/man
-	rm -rf $(top_builddir)/man4/html
-	rm -rf $(top_builddir)/man4/latex
+#all-local: doxyfile.stamp
+#clean-local:
+#	rm -rf $(top_builddir)/man4/man
+#	rm -rf $(top_builddir)/man4/html
+#	rm -rf $(top_builddir)/man4/latex
 
 # This builds the docs from source, if necessary, and tars up
 # everything needed for the website. Run this and copy the resulting
 # tarball to the /contents/netcdf/docs directory to update the on-line
 # docs.
-web-tarball: doxyfile.stamp
-	cd html; tar cf ../netcdf_docs.tar *
-	gzip -f netcdf_docs.tar
+#web-tarball: doxyfile.stamp
+#	cd html; tar cf ../netcdf_docs.tar *
+#	gzip -f netcdf_docs.tar
 
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.
