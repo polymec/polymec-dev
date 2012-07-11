@@ -1,7 +1,7 @@
 FILE(REMOVE_RECURSE
   "CMakeFiles/clide.dir/clide.c.o"
-  "libclide.pdb"
-  "libclide.a"
+  "clide.pdb"
+  "clide"
 )
 
 # Per-language clean rules from dependency scanning.

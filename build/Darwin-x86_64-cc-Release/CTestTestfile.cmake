@@ -4,6 +4,5 @@
 # 
 # This file includes the relevent testing commands required for 
 # testing this directory and lists subdirectories to be tested as well.
-SUBDIRS(3rdparty/mpi_stubs)
 SUBDIRS(3rdparty)
 SUBDIRS(src)

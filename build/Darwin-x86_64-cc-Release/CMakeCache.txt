@@ -183,62 +183,6 @@ CMAKE_XCODE_SELECT:FILEPATH=/usr/bin/xcode-select
 //No help, variable specified on the command line.
 CXX:UNINITIALIZED=c++
 
-//HDF5 C++ Wrapper compiler.  Used only to detect HDF5 compile
-// flags.
-HDF5_CXX_COMPILER_EXECUTABLE:FILEPATH=HDF5_CXX_COMPILER_EXECUTABLE-NOTFOUND
-
-//HDF5 Wrapper compiler.  Used only to detect HDF5 compile flags.
-HDF5_C_COMPILER_EXECUTABLE:FILEPATH=/Users/jjphatt/apps/bin/h5cc
-
-//Path to a file.
-HDF5_C_INCLUDE_DIR:PATH=/Users/jjphatt/apps/include
-
-//HDF5 file differencing tool.
-HDF5_DIFF_EXECUTABLE:FILEPATH=/Users/jjphatt/apps/bin/h5diff
-
-//The directory containing a CMake configuration file for HDF5.
-HDF5_DIR:PATH=HDF5_DIR-NOTFOUND
-
-//HDF5 Fortran Wrapper compiler.  Used only to detect HDF5 compile
-// flags.
-HDF5_Fortran_COMPILER_EXECUTABLE:FILEPATH=HDF5_Fortran_COMPILER_EXECUTABLE-NOTFOUND
-
-//HDF5 library compiled with parallel IO support
-HDF5_IS_PARALLEL:BOOL=FALSE
-
-//The HDF5_hdf5 library
-HDF5_hdf5_LIBRARY:FILEPATH=optimized;/Users/jjphatt/apps/lib/libhdf5.a;debug;/Users/jjphatt/apps/lib/libhdf5.a
-
-//Path to a library.
-HDF5_hdf5_LIBRARY_DEBUG:FILEPATH=HDF5_hdf5_LIBRARY_DEBUG-NOTFOUND
-
-//Path to a library.
-HDF5_hdf5_LIBRARY_RELEASE:FILEPATH=/Users/jjphatt/apps/lib/libhdf5.a
-
-//The HDF5_m library
-HDF5_m_LIBRARY:FILEPATH=optimized;/usr/lib/libm.dylib;debug;/usr/lib/libm.dylib
-
-//Path to a library.
-HDF5_m_LIBRARY_DEBUG:FILEPATH=HDF5_m_LIBRARY_DEBUG-NOTFOUND
-
-//Path to a library.
-HDF5_m_LIBRARY_RELEASE:FILEPATH=/usr/lib/libm.dylib
-
-//The HDF5_z library
-HDF5_z_LIBRARY:FILEPATH=optimized;/usr/lib/libz.dylib;debug;/usr/lib/libz.dylib
-
-//Path to a library.
-HDF5_z_LIBRARY_DEBUG:FILEPATH=HDF5_z_LIBRARY_DEBUG-NOTFOUND
-
-//Path to a library.
-HDF5_z_LIBRARY_RELEASE:FILEPATH=/usr/lib/libz.dylib
-
-//Path to a file.
-SILO_INCLUDE_DIRS:PATH=/Users/jjphatt/apps/include
-
-//Path to a library.
-SILO_LIBRARIES:FILEPATH=/Users/jjphatt/apps/lib/libsiloh5.a
-
 //No help, variable specified on the command line.
 UNIX:UNINITIALIZED=1
 
@@ -248,17 +192,11 @@ USE_MPI:UNINITIALIZED=0
 //Value Computed by CMake
 clide_BINARY_DIR:STATIC=/Users/jjphatt/clide/build/Darwin-x86_64-cc-Release
 
-//Dependencies for target
-clide_LIB_DEPENDS:STATIC=
-
 //Value Computed by CMake
 clide_SOURCE_DIR:STATIC=/Users/jjphatt/clide
 
 //Dependencies for target
 mpi_stubs_LIB_DEPENDS:STATIC=
-
-//Silodiff program.
-silodiff_exe:FILEPATH=/Users/jjphatt/apps/bin/silodiff
 
 
 ########################
@@ -361,7 +299,7 @@ CMAKE_MODULE_LINKER_FLAGS_RELWITHDEBINFO-ADVANCED:INTERNAL=1
 //ADVANCED property for variable: CMAKE_NM
 CMAKE_NM-ADVANCED:INTERNAL=1
 //number of local generators
-CMAKE_NUMBER_OF_LOCAL_GENERATORS:INTERNAL=4
+CMAKE_NUMBER_OF_LOCAL_GENERATORS:INTERNAL=3
 //ADVANCED property for variable: CMAKE_OBJCOPY
 CMAKE_OBJCOPY-ADVANCED:INTERNAL=1
 //ADVANCED property for variable: CMAKE_OBJDUMP
@@ -390,36 +328,4 @@ CMAKE_UNAME:INTERNAL=/usr/bin/uname
 CMAKE_USE_RELATIVE_PATHS-ADVANCED:INTERNAL=1
 //ADVANCED property for variable: CMAKE_VERBOSE_MAKEFILE
 CMAKE_VERBOSE_MAKEFILE-ADVANCED:INTERNAL=1
-//ADVANCED property for variable: HDF5_CXX_COMPILER_EXECUTABLE
-HDF5_CXX_COMPILER_EXECUTABLE-ADVANCED:INTERNAL=1
-//ADVANCED property for variable: HDF5_C_COMPILER_EXECUTABLE
-HDF5_C_COMPILER_EXECUTABLE-ADVANCED:INTERNAL=1
-//ADVANCED property for variable: HDF5_C_INCLUDE_DIR
-HDF5_C_INCLUDE_DIR-ADVANCED:INTERNAL=1
-//ADVANCED property for variable: HDF5_DIFF_EXECUTABLE
-HDF5_DIFF_EXECUTABLE-ADVANCED:INTERNAL=1
-//ADVANCED property for variable: HDF5_Fortran_COMPILER_EXECUTABLE
-HDF5_Fortran_COMPILER_EXECUTABLE-ADVANCED:INTERNAL=1
-//ADVANCED property for variable: HDF5_IS_PARALLEL
-HDF5_IS_PARALLEL-ADVANCED:INTERNAL=1
-//ADVANCED property for variable: HDF5_hdf5_LIBRARY
-HDF5_hdf5_LIBRARY-ADVANCED:INTERNAL=1
-//ADVANCED property for variable: HDF5_hdf5_LIBRARY_DEBUG
-HDF5_hdf5_LIBRARY_DEBUG-ADVANCED:INTERNAL=1
-//ADVANCED property for variable: HDF5_hdf5_LIBRARY_RELEASE
-HDF5_hdf5_LIBRARY_RELEASE-ADVANCED:INTERNAL=1
-//ADVANCED property for variable: HDF5_m_LIBRARY
-HDF5_m_LIBRARY-ADVANCED:INTERNAL=1
-//ADVANCED property for variable: HDF5_m_LIBRARY_DEBUG
-HDF5_m_LIBRARY_DEBUG-ADVANCED:INTERNAL=1
-//ADVANCED property for variable: HDF5_m_LIBRARY_RELEASE
-HDF5_m_LIBRARY_RELEASE-ADVANCED:INTERNAL=1
-//ADVANCED property for variable: HDF5_z_LIBRARY
-HDF5_z_LIBRARY-ADVANCED:INTERNAL=1
-//ADVANCED property for variable: HDF5_z_LIBRARY_DEBUG
-HDF5_z_LIBRARY_DEBUG-ADVANCED:INTERNAL=1
-//ADVANCED property for variable: HDF5_z_LIBRARY_RELEASE
-HDF5_z_LIBRARY_RELEASE-ADVANCED:INTERNAL=1
-//ADVANCED property for variable: silodiff_exe
-silodiff_exe-ADVANCED:INTERNAL=1
 

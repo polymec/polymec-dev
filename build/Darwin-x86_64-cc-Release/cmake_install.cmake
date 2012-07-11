@@ -29,7 +29,6 @@ ENDIF(NOT CMAKE_INSTALL_COMPONENT)
 
 IF(NOT CMAKE_INSTALL_LOCAL_ONLY)
   # Include the install script for each subdirectory.
-  INCLUDE("/Users/jjphatt/clide/build/Darwin-x86_64-cc-Release/3rdparty/mpi_stubs/cmake_install.cmake")
   INCLUDE("/Users/jjphatt/clide/build/Darwin-x86_64-cc-Release/3rdparty/cmake_install.cmake")
   INCLUDE("/Users/jjphatt/clide/build/Darwin-x86_64-cc-Release/src/cmake_install.cmake")
 

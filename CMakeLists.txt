@@ -43,39 +43,9 @@ if (USE_MPI EQUAL 1)
   set(MPIEXEC mpirun)
   set(MPIEXEC_NUMPROC_FLAG -np)
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DHAVE_MPI")
-else ()
-  # We need the MPI stubs library.
-  include_directories("${PROJECT_SOURCE_DIR}/3rdparty/mpi_stubs")
-  add_subdirectory(3rdparty/mpi_stubs)
-  set(CLIDE_LIBS mpi_stubs)
 endif ()
 
-# Find HDF5.
-set(HDF5_USE_STATIC_LIBRARIES TRUE)
-find_package(HDF5)
-if (${HDF5_FOUND})
-  include_directories("${HDF5_INCLUDE_DIRS}")
-  link_directories("${HDF5_LIBRARY_DIRS}")
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DHAVE_HDF5")
-
-  # Get rid of 'debug' and 'optimized' detritis.
-  list(REMOVE_ITEM HDF5_LIBRARIES debug optimized)
-endif ()
-
-# If HDF5 is here, look for Silo.
-if (${HDF5_FOUND})
-  find_package(Silo)
-  if (${SILO_FOUND})
-    include_directories("${SILO_INCLUDE_DIRS}")
-#   FIXME: For now, we assume libsiloh5 lives with libhdf5.
-#    link_directories("${SILO_LIBRARY_DIRS}")
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DHAVE_SILO")
-  endif ()
-else ()
-  set(SILO_FOUND FALSE)
-endif ()
-
-# Other third-party libraries.
+# Third-party libraries.
 add_subdirectory(3rdparty)
 
 # Include the binary directory in the header file search path,

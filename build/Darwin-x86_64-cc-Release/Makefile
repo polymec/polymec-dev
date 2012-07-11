@@ -121,7 +121,7 @@ mpi_stubs: cmake_check_build_system
 
 # fast build rule for target.
 mpi_stubs/fast:
-	$(MAKE) -f 3rdparty/mpi_stubs/CMakeFiles/mpi_stubs.dir/build.make 3rdparty/mpi_stubs/CMakeFiles/mpi_stubs.dir/build
+	$(MAKE) -f 3rdparty/CMakeFiles/mpi_stubs.dir/build.make 3rdparty/CMakeFiles/mpi_stubs.dir/build
 .PHONY : mpi_stubs/fast
 
 #=============================================================================

@@ -1,2 +1,0 @@
-/usr/bin/ar cr libmpi_stubs.a  CMakeFiles/mpi_stubs.dir/mpi_stubs.c.o
-/usr/bin/ranlib libmpi_stubs.a

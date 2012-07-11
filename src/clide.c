@@ -55,7 +55,7 @@ int main(int argc, char** argv)
   char* filename = options_file(opts);
   if (filename != NULL)
   {
-    FILE* file = fopen(options_file, "r");
+    FILE* file = fopen(filename, "r");
     sim = simulation_from_file(file, opts);
     fclose(file);
     ASSERT(sim != NULL);
