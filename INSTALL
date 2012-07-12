@@ -1,5 +1,5 @@
 ------------------------------------------------------------------------------
-Building tough requires CMake 2.8, found at http://www.cmake.org/, as
+Building clide requires CMake 2.8, found at http://www.cmake.org/, as
 well as GNU make. To build Charybdis on a UNIX-like system, use the following
 commands:
 
@@ -8,16 +8,16 @@ commands:
 
 Installation
 ------------
-To install tough, run
+To install clide, run
 
     $ make install
 
 The default installation prefix is /usr/local. To pick an installation 
-prefix for brick pass prefix=[path] to make config. For example,
+prefix for clide pass prefix=[path] to make config. For example,
 
     $ make config prefix=~/myroot/
 
-will cause tough to be installed in ~/myroot/ when make install is run.
+will cause clide to be installed in ~/myroot/ when make install is run.
 
 
 Other make commands
