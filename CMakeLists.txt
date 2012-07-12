@@ -51,6 +51,7 @@ add_subdirectory(3rdparty)
 # Include the binary directory in the header file search path,
 # since it's where we place the third-party libraries.
 include_directories("${PROJECT_BINARY_DIR}/include")
+link_directories("${PROJECT_BINARY_DIR}/lib")
 
 # Unit testing.
 enable_testing()
