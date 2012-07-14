@@ -2,8 +2,8 @@
 cmake_minimum_required (VERSION 2.8.5)
 
 # Parameters
-set (CLIDE_REAL double)
-set (CLIDE_MPI_REAL MPI_DOUBLE)
+set (ARBI_REAL double)
+set (ARBI_MPI_REAL MPI_DOUBLE)
 
 # Adjust CMake's module path.
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/Modules/")
@@ -18,9 +18,9 @@ message("-- C++ compiler is ${CMAKE_CXX_COMPILER}")
 set (BUILD_SHARED_LIBS OFF)
 
 # Project and version numbers.
-project (clide)
-set (CLIDE_VERSION_MAJOR 1)
-set (CLIDE_VERSION_MINOR 0)
+project (arbi)
+set (ARBI_VERSION_MAJOR 1)
+set (ARBI_VERSION_MINOR 0)
 
 # Figure out the system type.
 if (${APPLE})
