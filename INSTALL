@@ -13,12 +13,11 @@ To install arbi, run
     $ make install
 
 The default installation prefix is /usr/local. To pick an installation 
-prefix for brick pass prefix=[path] to make config. For example,
+prefix for clide pass prefix=[path] to make config. For example,
 
     $ make config prefix=~/myroot/
 
 will cause arbi to be installed in ~/myroot/ when make install is run.
-
 
 Other make commands
 -------------------
