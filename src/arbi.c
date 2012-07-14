@@ -1,6 +1,6 @@
 #include <stdlib.h>
 #include <mpi.h>
-#include "clide.h"
+#include "arbi.h"
 #include "options.h"
 #include "simulation.h"
 #include "soln_vector.h"
@@ -29,7 +29,7 @@ extern "C" {
 #endif
 
 // Error handler.
-static clide_error_handler_function error_handler = NULL;
+static arbi_error_handler_function error_handler = NULL;
 
 //------------------------------------------------------------------------
 static void shutdown()
@@ -69,7 +69,7 @@ int main(int argc, char** argv)
   // Initialize the problem.
   soln_vector_t* solution = simulation_create_vector(sim);
   double t = simulation_start_time(sim);
-  if (simulation_init(sim, solution, t) != CLIDE_SUCCESS)
+  if (simulation_init(sim, solution, t) != ARBI_SUCCESS)
     exit(-1);
 
   // Run the simulation.
@@ -79,7 +79,7 @@ int main(int argc, char** argv)
   while ((t < max_time) && (step < num_steps))
   {
     simulation_invoke_callbacks(sim, solution, t, step);
-    if (simulation_step(sim, solution, &t) != CLIDE_SUCCESS)
+    if (simulation_step(sim, solution, &t) != ARBI_SUCCESS)
       exit(-1);
     ++step;
   }
@@ -99,14 +99,14 @@ int main(int argc, char** argv)
 static void default_error_handler(const char* message)
 {
   printf("Error: %s\n", message);
-  printf("encountered in clide. Exiting with status -1\n");
+  printf("encountered in arbi. Exiting with status -1\n");
   exit(-1);
 }
 //------------------------------------------------------------------------
 
 //------------------------------------------------------------------------
 void 
-clide_error(const char* message)
+arbi_error(const char* message)
 {
   // Set the default error handler if no handler is set.
   if (error_handler == NULL)
@@ -119,7 +119,7 @@ clide_error(const char* message)
 
 //------------------------------------------------------------------------
 void 
-clide_set_error_handler(clide_error_handler_function handler)
+arbi_set_error_handler(arbi_error_handler_function handler)
 {
   error_handler = handler;
 }
@@ -127,7 +127,7 @@ clide_set_error_handler(clide_error_handler_function handler)
 
 //------------------------------------------------------------------------
 void 
-clide_warn(const char* message)
+arbi_warn(const char* message)
 {
   fprintf(stderr, "%s\n", message);
 }
@@ -135,7 +135,7 @@ clide_warn(const char* message)
 
 //-----------------------------------------------------------------------
 void 
-clide_enable_fpe_exceptions()
+arbi_enable_fpe_exceptions()
 {
 #ifndef NDEBUG
 
@@ -160,7 +160,7 @@ clide_enable_fpe_exceptions()
 
 //-----------------------------------------------------------------------
 void 
-clide_disable_fpe_exceptions()
+arbi_disable_fpe_exceptions()
 {
 #ifdef Linux
 #ifndef NDEBUG

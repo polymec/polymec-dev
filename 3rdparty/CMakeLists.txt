@@ -4,7 +4,7 @@ if (NOT USE_MPI EQUAL 1)
   # We need the MPI stubs library.
   include_directories("${PROJECT_SOURCE_DIR}/3rdparty/mpi_stubs")
   add_library(mpi_stubs mpi_stubs.c)
-  set(CLIDE_TP_LIBS mpi_stubs)
+  set(ARBI_TP_LIBS mpi_stubs)
 endif()
 
 # Install libgc, the C garbage collector library.
@@ -22,7 +22,7 @@ endif()
 #  add_library(gc STATIC IMPORTED)
 #  set_target_properties(gc PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libgc.a)
 #endif()
-#set(CLIDE_TP_LIBS ${CLIDE_TP_LIBS};gc)
+#set(ARBI_TP_LIBS ${ARBI_TP_LIBS};gc)
 
 # Install zeromq.
 #if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libzmq.a)
@@ -39,7 +39,7 @@ endif()
 #  add_library(zmq STATIC IMPORTED)
 #  set_target_properties(zmq PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libzmq.a)
 #endif()
-#set(CLIDE_TP_LIBS ${CLIDE_TP_LIBS};zmq;stdc++)
+#set(ARBI_TP_LIBS ${ARBI_TP_LIBS};zmq;stdc++)
 
 # Install cvode.
 if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libsundials_cvode.a)
@@ -57,7 +57,7 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libsundials_cvode.a)
 endif()
 add_library(sundials_cvode STATIC IMPORTED)
 set_target_properties(sundials_cvode PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libsundials_cvode.a)
-set(CLIDE_TP_LIBS ${CLIDE_TP_LIBS};sundials_cvode)
+set(ARBI_TP_LIBS ${ARBI_TP_LIBS};sundials_cvode)
 
 # Install netcdf. 
 if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libnetcdf.a)
@@ -74,7 +74,7 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libnetcdf.a)
 endif()
 add_library(netcdf STATIC IMPORTED)
 set_target_properties(netcdf PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libnetcdf.a)
-set(CLIDE_TP_LIBS ${CLIDE_TP_LIBS};netcdf)
+set(ARBI_TP_LIBS ${ARBI_TP_LIBS};netcdf)
 
 # Install Metis if necessary.
 #if (NOT EXISTS ${CMAKE_BINARY_DIR}/lib/libmetis.a)
@@ -91,6 +91,6 @@ set(CLIDE_TP_LIBS ${CLIDE_TP_LIBS};netcdf)
 #  add_library(metis STATIC IMPORTED)
 #  set_target_properties(metis PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libmetis.a)
 #endif()
-#set(CLIDE_TP_LIBS ${CLIDE_TP_LIBS};metis)
+#set(ARBI_TP_LIBS ${ARBI_TP_LIBS};metis)
 
-set(CLIDE_LIBS ${CLIDE_LIBS};${CLIDE_TP_LIBS} PARENT_SCOPE)
+set(ARBI_LIBS ${ARBI_LIBS};${ARBI_TP_LIBS} PARENT_SCOPE)

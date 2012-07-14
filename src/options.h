@@ -1,7 +1,7 @@
-#ifndef CLIDE_OPTIONS_H
-#define CLIDE_OPTIONS_H
+#ifndef ARBI_OPTIONS_H
+#define ARBI_OPTIONS_H
 
-#include "clide.h"
+#include "arbi.h"
 
 #ifdef __cplusplus
 extern "C" {

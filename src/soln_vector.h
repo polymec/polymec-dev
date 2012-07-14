@@ -1,7 +1,7 @@
-#ifndef CLIDE_SOLN_VECTOR_H
-#define CLIDE_SOLN_VECTOR_H
+#ifndef ARBI_SOLN_VECTOR_H
+#define ARBI_SOLN_VECTOR_H
 
-#include "clide.h"
+#include "arbi.h"
 
 #ifdef __cplusplus
 extern "C" {

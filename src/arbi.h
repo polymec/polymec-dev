@@ -1,5 +1,5 @@
-#ifndef CLIDE_H
-#define CLIDE_H
+#ifndef ARBI_H
+#define ARBI_H
 
 #include <stdio.h>
 #include <stdbool.h>
@@ -23,7 +23,7 @@
 // This macro allows us to explicate that a function argument is not used
 // in a C-friendly way. Some people point out that using this macro with 
 // a "volatile" variable changes the structure of memory barriers. Perhaps 
-// now you understand why clide isn't intended to be thread-safe.
+// now you understand why arbi isn't intended to be thread-safe.
 #ifndef UNUSED_ARG
 #define UNUSED_ARG(x) (void)(x)
 #endif
@@ -36,31 +36,31 @@ for (int i = start; i < start + num; ++i) \
 #define real_t double
 
 // Error codes.
-#define CLIDE_SUCCESS 0
-#define CLIDE_FAILURE -1
-#define CLIDE_NO_EFFECT 1
+#define ARBI_SUCCESS 0
+#define ARBI_FAILURE -1
+#define ARBI_NO_EFFECT 1
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-typedef void (*clide_error_handler_function)(const char*);
+typedef void (*arbi_error_handler_function)(const char*);
 
 // Issues an error with the given message. By default, an error issues a 
 // message to stdout and exits the program with status -1.
-void clide_error(const char* message);
+void arbi_error(const char* message);
 
-// Sets the error handler for the clide library.
-void clide_set_error_handler(clide_error_handler_function handler);
+// Sets the error handler for the arbi library.
+void arbi_set_error_handler(arbi_error_handler_function handler);
 
 // Issues a warning to stderr.
-void clide_warning(const char* message);
+void arbi_warning(const char* message);
 
 // This function enables floating point exceptions where available.
-void clide_enable_fpe_exceptions();
+void arbi_enable_fpe_exceptions();
 
 //! This function disables floating point exceptions.
-void clide_disable_fpe_exceptions();
+void arbi_disable_fpe_exceptions();
 
 #ifdef __cplusplus
 }

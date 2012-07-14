@@ -1,7 +1,7 @@
-#ifndef CLIDE_SIMULATION_H
-#define CLIDE_SIMULATION_H
+#ifndef ARBI_SIMULATION_H
+#define ARBI_SIMULATION_H
 
-#include "clide.h"
+#include "arbi.h"
 #include "options.h"
 #include "soln_vector.h"
 
