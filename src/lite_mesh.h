@@ -1,7 +1,7 @@
-#ifndef CLIDE_LITE_MESH_H
-#define CLIDE_LITE_MESH_H
+#ifndef ARBI_LITE_MESH_H
+#define ARBI_LITE_MESH_H
 
-#include "clide.h"
+#include "arbi.h"
 
 #ifdef __cplusplus
 extern "C" {

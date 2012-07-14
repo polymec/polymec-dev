@@ -58,7 +58,7 @@ double simulation_max_time(simulation_t* sim)
 //------------------------------------------------------------------------
 int simulation_init(simulation_t* sim, soln_vector_t* solution, double t)
 {
-  return CLIDE_SUCCESS;
+  return ARBI_SUCCESS;
 }
 //------------------------------------------------------------------------
 
@@ -71,7 +71,7 @@ void simulation_invoke_callbacks(simulation_t* sim, soln_vector_t* solution, dou
 //------------------------------------------------------------------------
 int simulation_step(simulation_t* sim, soln_vector_t* solution, double* t)
 {
-  return CLIDE_SUCCESS;
+  return ARBI_SUCCESS;
 }
 //------------------------------------------------------------------------
 
