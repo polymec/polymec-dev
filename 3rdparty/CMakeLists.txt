@@ -54,10 +54,10 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libsundials_cvode.a)
   execute_process(COMMAND make install
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/cvode-2.6.0
                   OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
-  add_library(cvode STATIC IMPORTED)
-  set_target_properties(cvode PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libsundials_cvode.a)
 endif()
-set(CLIDE_TP_LIBS ${CLIDE_TP_LIBS};cvode)
+add_library(sundials_cvode STATIC IMPORTED)
+set_target_properties(sundials_cvode PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libsundials_cvode.a)
+set(CLIDE_TP_LIBS ${CLIDE_TP_LIBS};sundials_cvode)
 
 # Install netcdf. 
 if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libnetcdf.a)
@@ -71,9 +71,9 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libnetcdf.a)
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/netcdf-4.2)
   execute_process(COMMAND make install
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/netcdf-4.2)
-  add_library(netcdf STATIC IMPORTED)
-  set_target_properties(netcdf PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libnetcdf.a)
 endif()
+add_library(netcdf STATIC IMPORTED)
+set_target_properties(netcdf PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libnetcdf.a)
 set(CLIDE_TP_LIBS ${CLIDE_TP_LIBS};netcdf)
 
 # Install Metis if necessary.
