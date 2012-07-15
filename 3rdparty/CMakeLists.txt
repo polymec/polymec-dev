@@ -2,7 +2,8 @@ include_directories(${PROJECT_BINARY_DIR}/include)
 
 if (NOT USE_MPI EQUAL 1)
   # We need the MPI stubs library.
-  include_directories("${PROJECT_SOURCE_DIR}/3rdparty/mpi_stubs")
+  file(COPY mpi.h DESTINATION ${PROJECT_BINARY_DIR}/include)
+  file(COPY mpi_stubs.h DESTINATION ${PROJECT_BINARY_DIR}/include)
   add_library(mpi_stubs mpi_stubs.c)
   set(ARBI_TP_LIBS mpi_stubs)
 endif()
