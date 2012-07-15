@@ -25,7 +25,11 @@ void        avl_tree_free(avl_tree_t* tree);
 void        avl_tree_clear(avl_tree_t* tree);
 avl_node_t* avl_tree_find(avl_tree_t* tree, void* datum);
 void        avl_tree_insert(avl_tree_t* tree, void* datum);
-void        avl_tree_delete(avl_tree_t* tree, void* datum);
+void        avl_tree_delete(avl_tree_t* tree, avl_node_t* node);
+
+// Visit a node and its subtree.
+typedef void (*avl_node_visitor)(avl_node_t*, void*);
+void        avl_node_visit(avl_node_t* node, avl_node_visitor visit, void*);
 
 #ifdef __cplusplus
 }
