@@ -12,8 +12,7 @@ typedef struct face_t face_t;
 // A node in 1, 2, or 3D space.
 typedef struct
 {
-  // Position in space.
-  double x[3];
+  double x, y, z;
 } node_t;
 
 // An edge, which belongs to a face and which is bounded by two nodes.
@@ -82,7 +81,9 @@ typedef struct
 } mesh_t;
 
 // Construct a new mesh with the given number of cells, ghost cells, 
-// faces, edges, and nodes.
+// faces, edges, and nodes. This function does not provide any description
+// of the mesh's topology and is only useful in the construction of mesh 
+// generation algorithms.
 mesh_t* mesh_new(int num_cells, int num_ghost_cells, int num_faces,
                  int num_edges, int num_nodes);
 
