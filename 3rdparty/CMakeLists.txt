@@ -77,21 +77,21 @@ add_library(netcdf STATIC IMPORTED)
 set_target_properties(netcdf PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libnetcdf.a)
 set(ARBI_TP_LIBS ${ARBI_TP_LIBS};netcdf)
 
-# Install Metis if necessary.
-#if (NOT EXISTS ${CMAKE_BINARY_DIR}/lib/libmetis.a)
-#  set(METIS_CONFIG_OPTS prefix=${CMAKE_BINARY_DIR} cc=${CMAKE_C_COMPILER})
+# Install Parmetis if necessary.
+#if (NOT EXISTS ${CMAKE_BINARY_DIR}/lib/libparmetis.a)
+#  set(PARMETIS_CONFIG_OPTS prefix=${CMAKE_BINARY_DIR} cc=${CMAKE_C_COMPILER})
 #  if (${CMAKE_BUILD_TYPE} STREQUAL "Debug")
-#    set(METIS_CONFIG_OPTS ${METIS_CONFIG_OPTS} debug=1 assert=1)
+#    set(METIS_CONFIG_OPTS ${PARMETIS_CONFIG_OPTS} debug=1 assert=1)
 #  endif()
-#  execute_process(COMMAND cmake -E tar xzvf ${CMAKE_CURRENT_SOURCE_DIR}/metis-5.0.2.tar.gz
+#  execute_process(COMMAND cmake -E tar xzvf ${CMAKE_CURRENT_SOURCE_DIR}/parmetis-4.0.2.tar.gz
 #                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 #  execute_process(COMMAND make config ${METIS_CONFIG_OPTS}
-#                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/metis-5.0.2)
+#                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/parmetis-4.0.2)
 #  execute_process(COMMAND make install
-#                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/metis-5.0.2)
-#  add_library(metis STATIC IMPORTED)
-#  set_target_properties(metis PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libmetis.a)
+#                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/parmetis-4.0.2)
+#  add_library(parmetis STATIC IMPORTED)
+#  set_target_properties(parmetis PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libparmetis.a)
 #endif()
-#set(ARBI_TP_LIBS ${ARBI_TP_LIBS};metis)
+set(ARBI_TP_LIBS ${ARBI_TP_LIBS};parmetis)
 
 set(ARBI_LIBS ${ARBI_LIBS};${ARBI_TP_LIBS} PARENT_SCOPE)

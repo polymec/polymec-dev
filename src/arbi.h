@@ -59,8 +59,12 @@ void arbi_warning(const char* message);
 // This function enables floating point exceptions where available.
 void arbi_enable_fpe_exceptions();
 
-//! This function disables floating point exceptions.
+// This function disables floating point exceptions.
 void arbi_disable_fpe_exceptions();
+
+// Call this function to indicate that something is not implemented
+// with a fatal exit.
+void arbi_not_implemented(const char* component);
 
 #ifdef __cplusplus
 }

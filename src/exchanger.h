@@ -66,7 +66,10 @@ int exchanger_start_exchange(exchanger_t* ex, void* data, int stride, int tag, M
 void exchanger_finish_exchange(exchanger_t* ex, int token);
 
 // Transfers data between processes, creating new received elements 
-// and deleting old sent elements where needed.
+// and deleting old sent elements where needed. The array data initially 
+// contains a number of elements compatible with the exchanger, while the 
+// final number of elements in data (the initial count minus those sent 
+// elements, which are jettisoned) is stored in count.
 void exchanger_transfer(exchanger_t* ex, void* data, int* count, int stride, int tag, MPI_Datatype type);
 
 // Begins the asynchronous transfer of data between processes, returning
