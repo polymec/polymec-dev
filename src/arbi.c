@@ -31,14 +31,18 @@ extern "C" {
 // Error handler.
 static arbi_error_handler_function error_handler = NULL;
 
-//------------------------------------------------------------------------
 static void shutdown()
 {
   MPI_Finalize();
 }
-//------------------------------------------------------------------------
 
-//------------------------------------------------------------------------
+static void usage()
+{
+  fprintf(stderr, "arbi: usage:\n");
+  fprintf(stderr, "arbi [options] <input_file>\n");
+  exit(-1);
+}
+
 int main(int argc, char** argv)
 {
   // Start everything up.
@@ -49,6 +53,8 @@ int main(int argc, char** argv)
 
   // Parse options on the command line.
   options_t* opts = options_parse(argc, argv);
+  if (opts == NULL)
+    usage();
 
   // If we are given an input file, read it.
   simulation_t* sim = NULL;
@@ -91,20 +97,15 @@ int main(int argc, char** argv)
   // That's it.
   return 0;
 }
-//------------------------------------------------------------------------
 
-//------------------------------------------------------------------------
 // Default error handler.
-//------------------------------------------------------------------------
 static void default_error_handler(const char* message)
 {
   printf("Error: %s\n", message);
   printf("encountered in arbi. Exiting with status -1\n");
-  exit(-1);
+  MPI_Abort(MPI_COMM_WORLD, -1);
 }
-//------------------------------------------------------------------------
 
-//------------------------------------------------------------------------
 void 
 arbi_error(const char* message)
 {
@@ -115,25 +116,19 @@ arbi_error(const char* message)
   // Call it.
   error_handler(message);
 }
-//------------------------------------------------------------------------
 
-//------------------------------------------------------------------------
 void 
 arbi_set_error_handler(arbi_error_handler_function handler)
 {
   error_handler = handler;
 }
-//------------------------------------------------------------------------
 
-//------------------------------------------------------------------------
 void 
 arbi_warn(const char* message)
 {
   fprintf(stderr, "%s\n", message);
 }
-//-----------------------------------------------------------------------
 
-//-----------------------------------------------------------------------
 void 
 arbi_enable_fpe_exceptions()
 {
@@ -156,9 +151,7 @@ arbi_enable_fpe_exceptions()
 #endif
 #endif
 }
-//-----------------------------------------------------------------------
 
-//-----------------------------------------------------------------------
 void 
 arbi_disable_fpe_exceptions()
 {
@@ -168,7 +161,13 @@ arbi_disable_fpe_exceptions()
 #endif
 #endif
 }
-//-----------------------------------------------------------------------
+
+void arbi_not_implemented(const char* component)
+{
+  char err[1024];
+  snprintf(err, 1024, "arbi: not implemented: %s\n", component);
+  default_error_handler(err);
+}
 
 #ifdef __cplusplus
 }
