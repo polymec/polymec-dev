@@ -12,7 +12,9 @@ extern "C" {
 typedef struct planar_voronoi_t planar_voronoi_t;
 
 // This function creates a planar Voronoi graph using the Triangle library.
-planar_voronoi_t* planar_voronoi_new(point_t* points, int num_points, bbox_t* bounding_box);
+// Voronoi cells at the boundary are infinite and are marked as such in 
+// the graph.
+planar_voronoi_t* planar_voronoi_from_points(point_t* points, int num_points);
 
 // This function creates a Voronoi tessellation of the given points in 
 // three-dimensional space, returning a fully-featured mesh.
