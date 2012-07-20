@@ -82,7 +82,6 @@ planar_voronoi_t* planar_voronoi_from_points(point_t* points, int num_points)
 {
   ASSERT(points != NULL);
   ASSERT(num_points >= 2);
-  ASSERT(bounding_box != NULL);
 
   // Now we use Triangle to obtain a Voronoi graph.
   struct triangulateio in, delaunay, voro;
