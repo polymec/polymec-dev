@@ -4,6 +4,8 @@
 
 # include "mpi_stubs.h"
 
+static int s_mpi_initialized = 0;
+
 /******************************************************************************/
 
 void MPI_Abort ( MPI_Comm comm, int error_code )
@@ -1105,6 +1107,7 @@ int MPI_Init ( int *argc, char **argv[] )
 {
   int ierror;
 
+  s_mpi_initialized = 1;
   ierror = MPI_SUCCESS;
 
   return ierror;
@@ -2109,6 +2112,11 @@ void timestamp ( void )
 
   return;
 # undef TIME_SIZE
+}
+int MPI_Initialized(int* flag)
+{
+  *flag = s_mpi_initialized;
+  return MPI_SUCCESS;
 }
 
 //-------------------------------------------------------------------
