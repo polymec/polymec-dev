@@ -1,3 +1,4 @@
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DARBI_C_COMPILER=${CMAKE_C_COMPILER} -DARBI_INCLUDE_DIR=${PROJECT_SOURCE_DIR}/src")
 add_library(arbi arbi.c lite_mesh.c mesh.c simulation.c soln_vector.c
             exchanger.c repartition.c planar_voronoi.c voronoi.cc 
             st_func.c dl_st_func.c options.c string_utils.c avl_tree.c)
