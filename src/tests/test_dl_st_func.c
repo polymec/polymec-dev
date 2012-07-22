@@ -21,19 +21,9 @@ void test_construction(void** state)
 {
   UNUSED_ARG(state);
   
-  // Write the source code to a temporary file.
-  static char tempfile[128];
-  strcpy(tempfile, "sourceXXXXXX.c");
-  int fd = mkstemps(tempfile, 2);
-  assert_true(fd != -1);
-  FILE* f = fdopen(fd, "w");
-  assert_true(f != NULL);
-  fprintf(f, "%s", source);
-  fclose(f);
-
-  // Now compile an object file from the source.
+  // Compile an object file from the source.
   dl_st_func_set_compiler("cc", "-shared");
-  dl_st_func_register("example", tempfile);
+  dl_st_func_register("example", source);
 
   // Create an st_func and make sure it has the right metadata.
   st_func_t* func = dl_st_func_new("example");
@@ -48,9 +38,6 @@ void test_construction(void** state)
   st_func_eval(func, &x, 1.0, result);
   assert_true(fabs(result[0] - 6.0*sin(1.0)) < 1e-14);
   assert_true(fabs(result[1] - 6.0*cos(1.0)) < 1e-14);
-
-  // Clean up.
-  unlink(tempfile);
 }
 
 int main(int argc, char* argv[]) 

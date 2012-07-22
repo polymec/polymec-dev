@@ -85,32 +85,22 @@ static char* compile_so(const char* name, const char* source_file)
   return strdup(obj_name);
 }
 
-static void preprocess_file(const char* filename, char* pp_file)
+static void preprocess_source(const char* source_code, char* pp_file)
 {
   const char* header = 
     "#include <math.h>\n"
-    "#include \"st_func.h\"\n";
-  int headerlen = strlen(header);
-  FILE* f = fopen(filename, "r");
-  if (f == NULL)
-  {
-    char err[1024];
-    snprintf(err, 1024, "dl_st_func_register: Could not open source file '%s'.", filename);
-    arbi_error(err);
-    return;
-  }
-  fseek(f, 0L, SEEK_END);
-  long size = ftell(f);
-  char source[headerlen+size+1];
-  sprintf(source, "%s", header);
-  fseek(f, 0L, SEEK_SET);
-  fread(source + strlen(header), sizeof(char), size, f);
-  source[headerlen+size] = '\0';
-  fclose(f);
+    "#include \"st_func.h\"\n\n"
+    "#ifdef __cplusplus\n"
+    "extern \"C\" {\n"
+    "#endif\n\n";
+  const char* footer = 
+    "#ifdef __cplusplus\n"
+    "}\n"
+    "#endif\n";
   int fd = mkstemps(pp_file, 2);
   ASSERT(fd != -1);
-  f = fdopen(fd, "w");
-  fprintf(f, "%s", source);
+  FILE* f = fdopen(fd, "w");
+  fprintf(f, "%s%s%s", header, source_code, footer);
   fclose(f);
 }
 
@@ -121,7 +111,7 @@ void dl_st_func_set_so_dir(const char* path)
   _so_dir = strdup(path);
 }
 
-void dl_st_func_register(const char* name, const char* source_file)
+void dl_st_func_register(const char* name, const char* source_code)
 {
   arbi_atexit(&dl_st_atexit);
   if (_func_names == NULL)
@@ -137,10 +127,10 @@ void dl_st_func_register(const char* name, const char* source_file)
     _func_objects = realloc(_func_objects, _capacity*sizeof(char*));
   }
 
-  // First, we preprocess the source file to add some smarts.
+  // First, we preprocess the source to add some smarts.
   char pp_file[128];
   snprintf(pp_file, 128, "%sXXXXXX.c", name);
-  preprocess_file(source_file, pp_file);
+  preprocess_source(source_code, pp_file);
 
   // Now Try to compile the thing to a shared object.
   _func_objects[_num_funcs] = compile_so(name, pp_file);
@@ -148,7 +138,7 @@ void dl_st_func_register(const char* name, const char* source_file)
   if (_func_objects[_num_funcs] == NULL)
   {
     char err[1024];
-    snprintf(err, 1024, "dl_st_func_register: Could not compile %s into a shared object.", source_file);
+    snprintf(err, 1024, "dl_st_func_register: Could not compile %s into a shared object.", name);
     arbi_error(err);
     return;
   }

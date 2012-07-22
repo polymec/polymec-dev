@@ -19,8 +19,8 @@ void dl_st_func_set_compiler(const char* cc,
 void dl_st_func_set_so_dir(const char* path);
 
 // Registers the dynamically-loaded function with the given name with 
-// Arbi, building its shared object using the given source file.
-void dl_st_func_register(const char* name, const char* source_file);
+// Arbi, building its shared object using the given source code.
+void dl_st_func_register(const char* name, const char* source_code);
 
 #ifdef __cplusplus
 }
