@@ -5,4 +5,5 @@ include(add_arbi_test)
 include_directories(${PROJECT_SOURCE_DIR}/src)
 
 add_arbi_test(test_string_utils test_string_utils.c)
+add_arbi_test(test_dl_st_func test_dl_st_func.c)
 

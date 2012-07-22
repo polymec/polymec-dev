@@ -1,7 +1,15 @@
-#include <dlfcn.h>
 #include <string.h>
 #include <stdlib.h>
+#include <unistd.h>
+#include <dlfcn.h>
 #include "dl_st_func.h"
+
+// Compiler defaults
+#define xstr(s) str(s)
+#define str(s) #s
+#define DEFAULT_CC xstr(ARBI_C_COMPILER)
+#define DEFAULT_CFLAGS "-shared"
+#define INCLUDE_DIR xstr(ARBI_INCLUDE_DIR)
 
 #ifdef __cplusplus
 extern "C" {
@@ -13,7 +21,6 @@ static char* _cflags = NULL;
 
 // A database of compiled functions.
 static char** _func_names   = NULL;
-static char** _func_sources = NULL;
 static char** _func_objects = NULL;
 static int    _num_funcs = 0;
 static int    _capacity = 0;
@@ -29,11 +36,9 @@ static void dl_st_atexit()
     for (int i = 0; i < _num_funcs; ++i)
     {
       free(_func_names[i]);
-      free(_func_sources[i]);
       free(_func_objects[i]);
     }
     free(_func_names);
-    free(_func_sources);
     free(_func_objects);
   }
   if (_so_dir != NULL)
@@ -65,12 +70,48 @@ static char* compile_so(const char* name, const char* source_file)
     // FIXME: This is lousy.
     _so_dir = strdup(".");
   }
+
+  if (_cc == NULL)
+  {
+    _cc = strdup(DEFAULT_CC);
+    _cflags = strdup(DEFAULT_CFLAGS);
+  }
+
   char obj_name[128];
   snprintf(obj_name, 128, "%s/%s.so", _so_dir, name);
   char cmd[1024];
-  snprintf(cmd, 1024, "%s %s -o %s %s", _cc, _cflags, obj_name, source_file);
+  snprintf(cmd, 1024, "%s %s -o %s -I%s %s", _cc, _cflags, obj_name, INCLUDE_DIR, source_file);
   system(cmd);
   return strdup(obj_name);
+}
+
+static void preprocess_file(const char* filename, char* pp_file)
+{
+  const char* header = 
+    "#include <math.h>\n"
+    "#include \"st_func.h\"\n";
+  int headerlen = strlen(header);
+  FILE* f = fopen(filename, "r");
+  if (f == NULL)
+  {
+    char err[1024];
+    snprintf(err, 1024, "dl_st_func_register: Could not open source file '%s'.", filename);
+    arbi_error(err);
+    return;
+  }
+  fseek(f, 0L, SEEK_END);
+  long size = ftell(f);
+  char source[headerlen+size+1];
+  sprintf(source, "%s", header);
+  fseek(f, 0L, SEEK_SET);
+  fread(source + strlen(header), sizeof(char), size, f);
+  source[headerlen+size] = '\0';
+  fclose(f);
+  int fd = mkstemps(pp_file, 2);
+  ASSERT(fd != -1);
+  f = fdopen(fd, "w");
+  fprintf(f, "%s", source);
+  fclose(f);
 }
 
 void dl_st_func_set_so_dir(const char* path)
@@ -87,19 +128,23 @@ void dl_st_func_register(const char* name, const char* source_file)
   {
     _capacity = 32;
     _func_names = malloc(_capacity*sizeof(char*));
-    _func_sources = malloc(_capacity*sizeof(char*));
     _func_objects = malloc(_capacity*sizeof(char*));
   }
   else if (_num_funcs == _capacity)
   {
     _capacity *= 2;
     _func_names = realloc(_func_names, _capacity*sizeof(char*));
-    _func_sources = realloc(_func_sources, _capacity*sizeof(char*));
     _func_objects = realloc(_func_objects, _capacity*sizeof(char*));
   }
 
-  // Try to compile the thing to a shared object.
-  _func_objects[_num_funcs] = compile_so(name, source_file);
+  // First, we preprocess the source file to add some smarts.
+  char pp_file[128];
+  snprintf(pp_file, 128, "%sXXXXXX.c", name);
+  preprocess_file(source_file, pp_file);
+
+  // Now Try to compile the thing to a shared object.
+  _func_objects[_num_funcs] = compile_so(name, pp_file);
+  unlink(pp_file);
   if (_func_objects[_num_funcs] == NULL)
   {
     char err[1024];
@@ -108,10 +153,8 @@ void dl_st_func_register(const char* name, const char* source_file)
     return;
   }
 
-  // Register the function and its source file.
+  // Register the function.
   _func_names[_num_funcs] = strdup(name);
-  _func_sources[_num_funcs] = strdup(source_file);
-
   ++_num_funcs;
 }
 
@@ -122,12 +165,6 @@ static void dl_st_dtor(void* handle)
 
 st_func_t* dl_st_func_new(const char* name)
 {
-  if (_cc == NULL)
-  {
-    arbi_error("dl_st_func_new: No C compiler is set!");
-    return NULL;
-  }
-
   // Search for the object that implements this function.
   char* obj_path = func_object(name);
   if (obj_path == NULL)
@@ -151,6 +188,13 @@ st_func_t* dl_st_func_new(const char* name)
   // Look for the proper symbols.
   st_vtable vtable;
   vtable.eval = dlsym(handle, "eval");
+  if (vtable.eval == NULL)
+  {
+    char err[1024];
+    snprintf(err, 1024, "dl_st_func_new: Could not load eval function for st_func '%s'", name);
+    arbi_error(err);
+    return NULL;
+  }
   vtable.dtor = &dl_st_dtor;
   int* h = dlsym(handle, "homogeneous");
   int* c = dlsym(handle, "constant");
