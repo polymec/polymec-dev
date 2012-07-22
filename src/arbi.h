@@ -66,6 +66,9 @@ void arbi_disable_fpe_exceptions();
 // with a fatal exit.
 void arbi_not_implemented(const char* component);
 
+// Initialize arbi's services.
+void arbi_init(int argc, char** argv);
+
 // Register a function to be called upon exit.
 void arbi_atexit(void (*func)());
 
