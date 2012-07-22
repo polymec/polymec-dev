@@ -31,8 +31,15 @@ extern "C" {
 // Error handler.
 static arbi_error_handler_function error_handler = NULL;
 
+// Functions to call on exit.
+typedef (*at_exit_func)();
+static at_exit_func _atexit_funcs[32];
+static int _num_atexit_funcs = 0;
+
 static void shutdown()
 {
+  for (int i = 0; i < _num_atexit_funcs; ++i)
+    _atexit_funcs[i]();
   MPI_Finalize();
 }
 
@@ -167,6 +174,12 @@ void arbi_not_implemented(const char* component)
   char err[1024];
   snprintf(err, 1024, "arbi: not implemented: %s\n", component);
   default_error_handler(err);
+}
+
+void arbi_atexit(void (*func)()) 
+{
+  ASSERT(_num_atexit_funcs <= 32);
+  _atexit_funcs[_num_atexit_funcs++] = func;
 }
 
 #ifdef __cplusplus
