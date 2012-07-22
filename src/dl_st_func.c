@@ -155,8 +155,12 @@ st_func_t* dl_st_func_new(const char* name)
   int* h = dlsym(handle, "homogeneous");
   int* c = dlsym(handle, "constant");
   int* n = dlsym(handle, "num_comp");
-  st_func_homogeneity_t homogenity = (h != NULL) ? *h : ST_INHOMOGENEOUS;
-  st_func_constancy_t constancy = (c != NULL) ? *c : ST_NONCONSTANT;
+  st_func_homogeneity_t homogenity = ST_INHOMOGENEOUS;
+  if ((h != NULL) && (*h == 1))
+    homogenity = ST_HOMOGENEOUS;
+  st_func_constancy_t constancy = ST_NONCONSTANT;
+  if ((c != NULL) && (*c == 1))
+    constancy = ST_CONSTANT;
   int num_comp = (n != NULL) ? *n : 1;
 
   return st_func_new(name, handle, vtable, homogenity, constancy, num_comp);
