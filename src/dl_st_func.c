@@ -186,14 +186,14 @@ st_func_t* dl_st_func_new(const char* name)
     return NULL;
   }
   vtable.dtor = &dl_st_dtor;
-  int* h = dlsym(handle, "homogeneous");
-  int* c = dlsym(handle, "constant");
+  bool* h = dlsym(handle, "homogeneous");
+  bool* c = dlsym(handle, "constant");
   int* n = dlsym(handle, "num_comp");
   st_func_homogeneity_t homogenity = ST_INHOMOGENEOUS;
-  if ((h != NULL) && (*h == 1))
+  if ((h != NULL) && (*h))
     homogenity = ST_HOMOGENEOUS;
   st_func_constancy_t constancy = ST_NONCONSTANT;
-  if ((c != NULL) && (*c == 1))
+  if ((c != NULL) && (*c))
     constancy = ST_CONSTANT;
   int num_comp = (n != NULL) ? *n : 1;
 
