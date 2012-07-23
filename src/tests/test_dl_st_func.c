@@ -14,7 +14,7 @@ static const char* source =
 "  result[0] = (x->x + x->y + x->z) * sin(t);\n"
 "  result[1] = (x->x + x->y + x->z) * cos(t);\n"
 "}\n"
-"int homogeneous = 0;\n"
+"bool homogeneous = false;\n"
 "int num_comp = 2;\n";
 
 void test_construction(void** state)

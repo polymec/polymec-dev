@@ -21,16 +21,8 @@ typedef enum
   IO_WRITE
 } io_mode_t;
 
-// This iterator allows one to traverse the data sets on heavy meshes 
-// in a descriptor.
-typedef struct io_mesh_iter io_mesh_iter;
-
-// This iterator allows one to traverse the data sets on light meshes 
-// in a descriptor.
-typedef struct io_lite_mesh_iter io_lite_mesh_iter;
-
-// This iterator allows one to traverse fields on a mesh.
-typedef struct io_field_iter io_field_iter;
+// This descriptor allows one to retrieve data for a given dataset.
+typedef struct io_dataset_t io_dataset_t;
 
 // Field centerings.
 typedef enum
@@ -42,16 +34,10 @@ typedef enum
 } io_field_centering_t;
 
 // A function pointer type for opening file descriptors.
-typedef int (*io_open_func)(void*, const char*, const char*, io_mode_t, int, MPI_Comm, int, int);
+typedef int (*io_open_func)(void*, const char*, const char*, io_mode_t, MPI_Comm, int, int);
 
 // A function pointer type for closing file descriptors.
 typedef int (*io_close_func)(void*);
-
-// Function pointer types for querying meshes from a descriptor.
-typedef int (*io_query_num_meshes_func)(void*, int*);
-typedef int (*io_query_mesh_names_func)(void*, char**);
-typedef int (*io_query_num_lite_meshes_func)(void*, int*);
-typedef int (*io_query_lite_meshe_names_func)(void*, char**);
 
 // A function pointer type for reading a (heavy) mesh from an open descriptor.
 typedef int (*io_read_mesh_func)(void*, const char*, mesh_t*);
@@ -60,8 +46,6 @@ typedef int (*io_read_mesh_func)(void*, const char*, mesh_t*);
 typedef int (*io_read_lite_mesh_func)(void*, const char*, lite_mesh_t*);
 
 // Function pointer types for querying data fields from a descriptor.
-typedef int (*io_query_num_fields_func)(void*, const char*, int*);
-typedef int (*io_query_field_names_func)(void*, const char*, char**);
 typedef int (*io_query_field_func)(void*, const char*, const char*, int*, io_field_centering_t*);
 
 // A function pointer type for reading a data field from a descriptor.
@@ -74,7 +58,7 @@ typedef int (*io_write_mesh_func)(void*, const char*, mesh_t*);
 typedef int (*io_write_lite_mesh_func)(void*, const char*, lite_mesh_t*);
 
 // A function pointer type for writing a data field to a descriptor.
-typedef int (*io_write_field_func)(void*, const char*, double*, int, int);
+typedef int (*io_write_field_func)(void*, const char*, const char*, double*, int, int);
 
 // A destructor function for the context object (if any).
 typedef void (*io_dtor)(void*);
@@ -85,16 +69,8 @@ typedef struct
 {
   io_open_func                  open;
   io_close_func                 close;
-  io_query_num_meshes_func      query_num_meshes;
-  io_query_mesh_names_func      query_mesh_names;
-  io_query_mesh_func            query_mesh;
-  io_query_num_lite_meshes_func query_num_lite_meshes;
-  io_query_lite_mesh_names_func query_lite_mesh_names;
-  io_query_lite_mesh_func       query_lite_mesh;
   io_read_mesh_func             read_mesh;
   io_read_lite_mesh_func        read_lite_mesh;
-  io_query_num_fields_func      query_field_names;
-  io_query_field_names_func     query_field_names;
   io_query_field_func           query_field;
   io_read_field_func            read_field;
   io_write_mesh_func            write_mesh;
@@ -122,64 +98,35 @@ void io_open(io_interface_t* interface,
 // Close the given file descriptor.
 void io_close(io_interface_t* interface);
 
-// Returns an iterator that can be used to traverse the heavy mesh 
-// datasets available to this descriptor.
-io_mesh_iter* io_meshes(io_interface_t* interface);
+// Returns a dataset descriptor that can be used to retrieve data from the
+// open file descriptor. If there is no dataset by the given name, this 
+// returns NULL.
+io_dataset_t* io_dataset(io_interface_t* interface, const char* dataset);
 
-// Returns true if the given mesh iterator points to a mesh/dataset, 
-// false if it does not.
-bool io_mesh_iter_ok(io_mesh_iter* iter);
+// Frees the given dataset descriptor.
+void io_dataset_free(io_dataset_t* dataset);
 
-// Reads the heavy mesh from the descriptor, setting mesh_name to the name 
-// of the mesh/dataset.
-void io_mesh_iter_read(io_mesh_iter* iter, char** mesh_name, mesh_t* mesh);
+// Reads a heavy mesh from the descriptor.
+void io_dataset_read_mesh(io_dataset_t* dataset, mesh_t* mesh);
 
-// Writes a (heavy) mesh to an open descriptor via the given iterator.
-void io_mesh_iter_write(io_mesh_iter* iter, const char* mesh_name, mesh_t* mesh);
+// Writes a heavy mesh the descriptor.
+void io_dataset_write_mesh(io_dataset_t* dataset, mesh_t* mesh);
 
-// Increments the iterator.
-void io_mesh_iter_next(io_mesh_iter* iter);
+// Reads a lite mesh from the descriptor.
+void io_dataset_read_lite_mesh(io_dataset_t* dataset, lite_mesh_t* mesh);
 
-// Returns an iterator that can traverse the fields for the dataset.
-io_field_iter* io_mesh_iter_fields(io_mesh_iter* iter);
+// Writes a lite mesh to the descriptor.
+void io_dataset_write_lite_mesh(io_dataset_t* dataset, lite_mesh_t* mesh);
 
-// Returns an iterator that can be used to traverse the lite mesh
-// datasets available to this descriptor.
-io_lite_mesh_iter* io_lite_meshes(io_interface_t* interface);
+// Gathers metadata about the given field in the dataset. The size of the 
+// field is consistent with its associated mesh.
+void io_dataset_query_field(io_dataset_t* dataset, const char* field_name, int* num_components, io_field_centering_t* centering);
 
-// Returns true if the given mesh iterator points to a lite mesh/dataset, 
-// false if it does not.
-bool io_lite_mesh_iter_ok(io_lite_mesh_iter* iter);
+// Reads field data from the descriptor.
+void io_dataset_read_field(io_dataset_t* dataset, const char* field_name, double* field_data);
 
-// Reads the lite mesh from the descriptor, setting mesh_name to the name 
-// of the mesh/dataset.
-void io_lite_mesh_iter_read(io_lite_mesh_iter* interface, char** mesh_name, lite_mesh_t* lite_mesh);
-
-// Writes a lite mesh to an open descriptor via the given iterator.
-void io_lite_mesh_iter_write(io_lite_mesh_iter* iter, const char* mesh_name, mesh_t* mesh);
-
-// Increments the iterator.
-void io_lite_mesh_iter_next(io_lite_mesh_iter* iter);
-
-// Returns an iterator that can traverse the fields for the dataset.
-io_field_iter* io_lite_mesh_iter_fields(io_lite_mesh_iter* iter);
-
-// Returns true if the given field iterator points to a field
-// false if it does not.
-bool io_field_iter_ok(io_field_iter* iter);
-
-// Increments the iterator.
-void io_field_iter_next(io_field_iter* iter);
-
-// Gathers metadata about the current field. The size of the field is 
-// consistent with its associated mesh.
-void io_query_field(io_field_iter* iter, const char** field_name, int* num_components, io_field_centering_t* centering);
-
-// Reads the field data from the iterator.
-void io_field_iter_read(io_field_iter* iter, double* field_data);
-
-// Writes a field to an open descriptor via the iterator.
-void io_field_iter_write(io_field_iter* iter, const char* field_name, double* field_data, int num_data, int num_components);
+// Writes field data to the descriptor.
+void io_dataset_write_field(io_dataset_t* dataset, const char* field_name, double* field_data, int num_components, io_field_centering_t centering);
 
 #ifdef __cplusplus
 }
