@@ -59,6 +59,24 @@ set(ARBI_TP_LIBS ${ARBI_TP_LIBS};tetgen)
 #set(ARBI_TP_LIBS ${ARBI_TP_LIBS};zmq;stdc++)
 
 # Install cvode.
+if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libsilo.a)
+  set(SILO_CONFIG_OPTS --prefix=${PROJECT_BINARY_DIR} --enable-static --disable-shared)
+  if (${CMAKE_BUILD_TYPE} STREQUAL "Debug")
+    set(SILO_CONFIG_OPTS ${SILO_CONFIG_OPTS} --enable-debug)
+  endif()
+  execute_process(COMMAND cmake -E tar xzvf ${CMAKE_CURRENT_SOURCE_DIR}/silo-4.8-bsd.tar.gz
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+  execute_process(COMMAND env CC=${CC} CXX=${CXX} ./configure ${SILO_CONFIG_OPTS}
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/silo-4.8-bsd)
+  execute_process(COMMAND make install
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/silo-4.8-bsd
+                  OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
+endif()
+add_library(silo STATIC IMPORTED)
+set_target_properties(silo PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libsilo.a)
+set(ARBI_TP_LIBS ${ARBI_TP_LIBS};silo)
+
+# Install cvode.
 if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libsundials_cvode.a)
   set(CVODE_CONFIG_OPTS --prefix=${PROJECT_BINARY_DIR} --enable-static --disable-shared)
   if (${CMAKE_BUILD_TYPE} STREQUAL "Debug")
