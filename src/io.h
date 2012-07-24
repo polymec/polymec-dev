@@ -49,7 +49,13 @@ typedef int (*io_read_lite_mesh_func)(void*, const char*, lite_mesh_t*);
 typedef int (*io_query_field_func)(void*, const char*, const char*, int*, io_field_centering_t*);
 
 // A function pointer type for reading a data field from a descriptor.
-typedef int (*io_read_field_func)(void*, const char*, double*);
+typedef int (*io_read_field_func)(void*, const char*, const char*, double*);
+
+// A function pointer for reading a block of source code from a descriptor.
+typedef int (*io_query_source_code_func)(void*, const char*, const char*, int*);
+
+// A function pointer for reading a block of source code from a descriptor.
+typedef int (*io_read_source_code_func)(void*, const char*, const char*, char*);
 
 // A function pointer type for writing a (heavy) mesh to an open descriptor.
 typedef int (*io_write_mesh_func)(void*, const char*, mesh_t*);
@@ -59,6 +65,9 @@ typedef int (*io_write_lite_mesh_func)(void*, const char*, lite_mesh_t*);
 
 // A function pointer type for writing a data field to a descriptor.
 typedef int (*io_write_field_func)(void*, const char*, const char*, double*, int, int);
+
+// A function pointer for writing a block of source code from a descriptor.
+typedef int (*io_write_source_code_func)(void*, const char*, const char*, const char*);
 
 // A destructor function for the context object (if any).
 typedef void (*io_dtor)(void*);
@@ -73,9 +82,12 @@ typedef struct
   io_read_lite_mesh_func        read_lite_mesh;
   io_query_field_func           query_field;
   io_read_field_func            read_field;
+  io_query_source_code_func     query_source_code;
+  io_read_source_code_func      read_source_code;
   io_write_mesh_func            write_mesh;
   io_write_lite_mesh_func       write_lite_mesh;
   io_write_field_func           write_field;
+  io_write_source_code_func     write_source_code;
   io_dtor                       dtor;
 } io_vtable;
 
@@ -127,6 +139,15 @@ void io_dataset_read_field(io_dataset_t* dataset, const char* field_name, double
 
 // Writes field data to the descriptor.
 void io_dataset_write_field(io_dataset_t* dataset, const char* field_name, double* field_data, int num_components, io_field_centering_t centering);
+
+// Queries the dataset descriptor for a named block of source code, retrieving its length.
+void io_dataset_query_source_code(io_dataset_t* dataset, const char* code_name, int* len);
+
+// Reads a named block of source code from the dataset descriptor.
+void io_dataset_read_source_code(io_dataset_t* dataset, const char* code_name, char* source_code);
+
+// Writes a named block of source code to the dataset descriptor.
+void io_dataset_write_source_code(io_dataset_t* dataset, const char* code_name, const char* source_code);
 
 #ifdef __cplusplus
 }
