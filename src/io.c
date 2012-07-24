@@ -185,7 +185,7 @@ void io_dataset_query_field(io_dataset_t* dataset, const char* field_name, int* 
 void io_dataset_read_field(io_dataset_t* dataset, const char* field_name, double* field_data)
 {
   ASSERT(dataset->interface->mode == IO_READ);
-  if (dataset->interface->vtable.read_field(dataset->interface->context, field_name, field_data) != ARBI_SUCCESS)
+  if (dataset->interface->vtable.read_field(dataset->interface->context, dataset->name, field_name, field_data) != ARBI_SUCCESS)
   {
     char err[1024];
     snprintf(err, 1024, "Could not read field '%s' from dataset '%s'.\n", field_name, dataset->name);
@@ -203,6 +203,39 @@ void io_dataset_write_field(io_dataset_t* dataset, const char* field_name, doubl
   {
     char err[1024];
     snprintf(err, 1024, "Could not write field '%s' to dataset '%s'.\n", field_name, dataset->name);
+    arbi_error(err);
+  }
+}
+
+void io_dataset_query_source_code(io_dataset_t* dataset, const char* code_name, int* len)
+{
+  ASSERT(dataset->interface->mode == IO_READ);
+  if (dataset->interface->vtable.query_source_code(dataset->interface->context, dataset->name, code_name, len) != ARBI_SUCCESS)
+  {
+    char err[1024];
+    snprintf(err, 1024, "Could not query source code '%s' from dataset '%s'.\n", code_name, dataset->name);
+    arbi_error(err);
+  }
+}
+
+void io_dataset_read_source_code(io_dataset_t* dataset, const char* code_name, char* source_code)
+{
+  ASSERT(dataset->interface->mode == IO_READ);
+  if (dataset->interface->vtable.read_source_code(dataset->interface->context, dataset->name, code_name, source_code) != ARBI_SUCCESS)
+  {
+    char err[1024];
+    snprintf(err, 1024, "Could not read source code '%s' from dataset '%s'.\n", code_name, dataset->name);
+    arbi_error(err);
+  }
+}
+
+void io_dataset_write_source_code(io_dataset_t* dataset, const char* code_name, const char* source_code)
+{
+  ASSERT(dataset->interface->mode == IO_WRITE);
+  if (dataset->interface->vtable.write_source_code(dataset->interface->context, dataset->name, code_name, source_code) != ARBI_SUCCESS)
+  {
+    char err[1024];
+    snprintf(err, 1024, "Could not write source code '%s' to dataset '%s'.\n", code_name, dataset->name);
     arbi_error(err);
   }
 }
