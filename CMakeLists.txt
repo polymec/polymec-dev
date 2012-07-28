@@ -57,5 +57,11 @@ link_directories("${PROJECT_BINARY_DIR}/lib")
 enable_testing()
 
 include_directories("${PROJECT_SOURCE_DIR}")
-add_subdirectory(src)
+add_subdirectory(core)
+add_subdirectory(poisson)
+
+# Executable.
+add_executable(arbi_exe main.c)
+set_target_properties(arbi_exe PROPERTIES OUTPUT_NAME arbi)
+target_link_libraries(arbi_exe ${ARBI_LIBS})
 
