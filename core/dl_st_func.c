@@ -81,7 +81,14 @@ static char* compile_so(const char* name, const char* source_file)
   snprintf(obj_name, 128, "%s/%s.so", _so_dir, name);
   char cmd[1024];
   snprintf(cmd, 1024, "%s %s -o %s -I%s %s", _cc, _cflags, obj_name, INCLUDE_DIR, source_file);
-  system(cmd);
+  int status = system(cmd);
+  if (status != 0)
+  {
+    char err[1024];
+    snprintf(err, 1024, "compile_so: Compilation errors while building %s.", name);
+    arbi_error(err);
+    return NULL;
+  }
   return strdup(obj_name);
 }
 
@@ -89,7 +96,7 @@ static void preprocess_source(const char* source_code, char* pp_file)
 {
   const char* header = 
     "#include <math.h>\n"
-    "#include \"st_func.h\"\n\n"
+    "#include \"core/st_func.h\"\n\n"
     "#ifdef __cplusplus\n"
     "extern \"C\" {\n"
     "#endif\n\n";
