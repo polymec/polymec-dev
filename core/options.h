@@ -10,11 +10,14 @@ extern "C" {
 // A type that stores command line options.
 typedef struct options_t options_t;
 
-// Parse options from the command line.
+// Parse options from the command line, returning an options object.
 options_t* options_parse(int argc, char** argv);
 
 // Free the storage allocated to the given options.
 void options_free(options_t* opts);
+
+// Returns the name of the computational model passed to the command line.
+char* options_model(options_t* opts);
 
 // Returns the input file passed to the command line, or NULL if no such 
 // input file was given.

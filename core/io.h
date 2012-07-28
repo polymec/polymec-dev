@@ -1,9 +1,9 @@
 #ifndef ARBI_IO_H
 #define ARBI_IO_H
 
-#include "arbi.h"
-#include "mesh.h"
-#include "lite_mesh.h"
+#include "core/arbi.h"
+#include "core/mesh.h"
+#include "core/lite_mesh.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -24,15 +24,6 @@ typedef enum
 // This descriptor allows one to retrieve data for a given dataset.
 typedef struct io_dataset_t io_dataset_t;
 
-// Field centerings.
-typedef enum
-{
-  IO_NODE,
-  IO_EDGE,
-  IO_FACE,
-  IO_CELL
-} io_field_centering_t;
-
 // A function pointer type for opening file descriptors.
 typedef int (*io_open_func)(void*, const char*, const char*, io_mode_t, MPI_Comm, int, int);
 
@@ -46,7 +37,7 @@ typedef int (*io_read_mesh_func)(void*, const char*, mesh_t*);
 typedef int (*io_read_lite_mesh_func)(void*, const char*, lite_mesh_t*);
 
 // Function pointer types for querying data fields from a descriptor.
-typedef int (*io_query_field_func)(void*, const char*, const char*, int*, io_field_centering_t*);
+typedef int (*io_query_field_func)(void*, const char*, const char*, int*, mesh_centering_t*);
 
 // A function pointer type for reading a data field from a descriptor.
 typedef int (*io_read_field_func)(void*, const char*, const char*, double*);
@@ -132,13 +123,13 @@ void io_dataset_write_lite_mesh(io_dataset_t* dataset, lite_mesh_t* mesh);
 
 // Gathers metadata about the given field in the dataset. The size of the 
 // field is consistent with its associated mesh.
-void io_dataset_query_field(io_dataset_t* dataset, const char* field_name, int* num_components, io_field_centering_t* centering);
+void io_dataset_query_field(io_dataset_t* dataset, const char* field_name, int* num_components, mesh_centering_t* centering);
 
 // Reads field data from the descriptor.
 void io_dataset_read_field(io_dataset_t* dataset, const char* field_name, double* field_data);
 
 // Writes field data to the descriptor.
-void io_dataset_write_field(io_dataset_t* dataset, const char* field_name, double* field_data, int num_components, io_field_centering_t centering);
+void io_dataset_write_field(io_dataset_t* dataset, const char* field_name, double* field_data, int num_components, mesh_centering_t centering);
 
 // Queries the dataset descriptor for a named block of source code, retrieving its length.
 void io_dataset_query_source_code(io_dataset_t* dataset, const char* code_name, int* len);

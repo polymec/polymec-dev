@@ -1,11 +1,18 @@
 #ifndef ARBI_LITE_MESH_H
 #define ARBI_LITE_MESH_H
 
-#include "arbi.h"
+#include "core/arbi.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+// Mesh centerings.
+typedef enum
+{
+  LITE_MESH_FACE,
+  LITE_MESH_CELL
+} lite_mesh_centering_t;
 
 typedef struct lite_face_t lite_face_t;
 
