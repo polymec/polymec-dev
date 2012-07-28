@@ -24,6 +24,11 @@ void options_free(options_t* opts)
   free(opts);
 }
 
+char* options_model(options_t* opts)
+{
+  return NULL;
+}
+
 char* options_file(options_t* opts)
 {
   return NULL;

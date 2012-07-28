@@ -1,5 +1,7 @@
+#include <stdlib.h>
 #include "core/arbi.h"
 #include "core/options.h"
+#include "core/model.h"
 #include "core/simulation.h"
 #include "core/soln_vector.h"
 
@@ -24,27 +26,33 @@ int main(int argc, char** argv)
   if (opts == NULL)
     usage();
 
-  // If we are given an input file, read it.
-  simulation_t* sim = NULL;
-  char* filename = options_file(opts);
-  if (filename != NULL)
-  {
-    FILE* file = fopen(filename, "r");
-    sim = simulation_from_file(file, opts);
-    fclose(file);
-    ASSERT(sim != NULL);
-  }
-  else
-  {
-    ASSERT(false);
-  }
-  options_free(opts);
+  // Extract the name of the desired model.
+  char* model_name = options_model(opts);
 
-  // Initialize the problem.
-  soln_vector_t* solution = simulation_create_vector(sim);
-  double t = simulation_start_time(sim);
-  if (simulation_init(sim, solution, t) != ARBI_SUCCESS)
+  // Attempt to construct the model.
+  model_t* model = arbi_model(model_name, opts);
+
+  // Have we been asked for help with the model?
+  if (options_help(opts))
+  {
+    model_usage(model, stdout);
     exit(-1);
+  }
+
+  // Have we been asked to run a benchmark?
+  char* benchmark = options_benchmark(opts);
+  if (benchmark != NULL)
+  {
+    model_run_benchmark(model, benchmark);
+    exit(0);
+  }
+
+  // Create a simulation in which to execute the model.
+  simulation_t* sim = simulation_new(model, opts);
+
+  // Initialize the simulation.
+  double t = simulation_start_time(sim);
+  simulation_init(sim, model, t);
 
   // Run the simulation.
   int num_steps = simulation_num_steps(sim);
@@ -52,15 +60,15 @@ int main(int argc, char** argv)
   int step = 0;
   while ((t < max_time) && (step < num_steps))
   {
-    simulation_invoke_callbacks(sim, solution, t, step);
-    if (simulation_step(sim, solution, &t) != ARBI_SUCCESS)
-      exit(-1);
+    simulation_invoke_callbacks(sim, model, t, step);
+    simulation_step(sim, model, &t);
     ++step;
   }
 
   // Clean up.
-  soln_vector_free(solution);
+  model_free(model);
   simulation_free(sim);
+  options_free(opts);
 
   // That's it.
   return 0;

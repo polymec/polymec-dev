@@ -1,6 +1,6 @@
 #include <stdlib.h>
 #include <string.h>
-#include "io.h"
+#include "core/io.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -171,7 +171,7 @@ void io_dataset_write_lite_mesh(io_dataset_t* dataset, lite_mesh_t* mesh)
   }
 }
 
-void io_dataset_query_field(io_dataset_t* dataset, const char* field_name, int* num_components, io_field_centering_t* centering)
+void io_dataset_query_field(io_dataset_t* dataset, const char* field_name, int* num_components, mesh_centering_t* centering)
 {
   ASSERT(dataset->interface->mode == IO_READ);
   if (dataset->interface->vtable.query_field(dataset->interface->context, dataset->name, field_name, num_components, centering) != ARBI_SUCCESS)
@@ -193,7 +193,7 @@ void io_dataset_read_field(io_dataset_t* dataset, const char* field_name, double
   }
 }
 
-void io_dataset_write_field(io_dataset_t* dataset, const char* field_name, double* field_data, int num_components, io_field_centering_t centering)
+void io_dataset_write_field(io_dataset_t* dataset, const char* field_name, double* field_data, int num_components, mesh_centering_t centering)
 {
   ASSERT(dataset->interface->mode == IO_WRITE);
   ASSERT(field_data != NULL);

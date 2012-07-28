@@ -1,11 +1,20 @@
 #ifndef ARBI_MESH_H
 #define ARBI_MESH_H
 
-#include "arbi.h"
+#include "core/arbi.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+// Mesh centerings.
+typedef enum
+{
+  MESH_NODE,
+  MESH_EDGE,
+  MESH_FACE,
+  MESH_CELL
+} mesh_centering_t;
 
 typedef struct face_t face_t;
 
