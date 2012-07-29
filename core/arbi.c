@@ -1,9 +1,9 @@
 #include <stdlib.h>
 #include <mpi.h>
-#include "arbi.h"
-#include "options.h"
-#include "simulation.h"
-#include "soln_vector.h"
+#include "core/arbi.h"
+#include "core/options.h"
+#include "core/simulation.h"
+#include "core/model.h"
 
 #ifdef Linux
 #include <fenv.h>
@@ -32,7 +32,7 @@ extern "C" {
 static arbi_error_handler_function error_handler = NULL;
 
 // Functions to call on exit.
-typedef (*at_exit_func)();
+typedef void (*at_exit_func)();
 static at_exit_func _atexit_funcs[32];
 static int _num_atexit_funcs = 0;
 
@@ -127,6 +127,11 @@ void arbi_atexit(void (*func)())
 {
   ASSERT(_num_atexit_funcs <= 32);
   _atexit_funcs[_num_atexit_funcs++] = func;
+}
+
+model_t* arbi_model(const char* model_name, options_t* options)
+{
+  return NULL;
 }
 
 #ifdef __cplusplus

@@ -34,6 +34,16 @@ char* options_file(options_t* opts)
   return NULL;
 }
 
+bool options_help(options_t* opts)
+{
+  return false;
+}
+
+char* options_benchmark(options_t* opts)
+{
+  return NULL;
+}
+
 #ifdef __cplusplus
 }
 #endif
