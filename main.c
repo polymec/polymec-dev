@@ -1,18 +1,29 @@
+#include <string.h>
 #include <stdlib.h>
 #include "core/arbi.h"
 #include "core/options.h"
 #include "core/model.h"
 #include "core/simulation.h"
-#include "core/soln_vector.h"
+
+// Models.
+#include "poisson/poisson.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+static const char* usage_str = 
+"arbi: usage:\n"
+"arbi [model] [command] [args]\n\n"
+"Here, [model] is a name that identifies a numerical model, and [command]\n"
+"is one of the following:\n\n"
+"   run [filename]       -- Runs a simulation with input from the given file.\n"
+"   benchmark [name]     -- Runs the given benchmark problem.\n"
+"   help                 -- Prints information about the given model.\n";
+
 static void usage()
 {
-  fprintf(stderr, "arbi: usage:\n");
-  fprintf(stderr, "arbi [options] <input_file>\n");
+  fprintf(stderr, "%s\n", usage_str);
   exit(-1);
 }
 
@@ -21,40 +32,77 @@ int main(int argc, char** argv)
   // Start everything up.
   arbi_init(argc, argv);
 
+  // Register some models.
+  register_poisson();
+
   // Parse options on the command line.
   options_t* opts = options_parse(argc, argv);
   if (opts == NULL)
     usage();
 
-  // Extract the name of the desired model.
+  // Extract the name of the desired model and the command.
   char* model_name = options_model(opts);
+  char* command = options_command(opts);
+  char* input = options_input(opts);
+  if ((model_name == NULL) && (!strcmp(command, "help")))
+    usage();
 
-  // Attempt to construct the model.
-  model_t* model = NULL;
-  if (model_exists(model_name))
+  // Validate our inputs.
+  if (!model_exists(model_name))
   {
-    model = model_new(model_name, opts);
+    fprintf(stderr, "arbi: invalid model: '%s'\n", model_name);
+    exit(-1);
   }
-  else
+  if (command == NULL)
   {
-    char err[1024];
-    snprintf(err, 1024, "Invalid model: '%s'", model_name);
-    arbi_error(err);
+    fprintf(stderr, "arbi: no command given!\n");
+    exit(-1);
   }
-
-  // Have we been asked for help with the model?
-  if (options_help(opts))
+  static const char* valid_commands[] = {"run", "benchmark", "help", NULL};
+  int c = 0;
+  while (valid_commands[c] != NULL)
   {
-    model_usage(model, stdout);
+    if (!strcmp(command, valid_commands[c]))
+      break;
+    ++c;
+  }
+  if (valid_commands[c] == NULL)
+  {
+    fprintf(stderr, "arbi: invalid command: '%s'\n", command);
     exit(-1);
   }
 
-  // Have we been asked to run a benchmark?
-  char* benchmark = options_benchmark(opts);
-  if (benchmark != NULL)
+  // Attempt to construct the model.
+  model_t* model = model_new(model_name, opts);
+  ASSERT(model != NULL);
+
+  // Have we been asked for help with the model?
+  if (!strcmp(command, "help"))
   {
-    model_run_benchmark(model, benchmark);
+    model_usage(model, stderr);
     exit(0);
+  }
+
+  // Have we been asked to run a benchmark?
+  if (!strcmp(command, "benchmark"))
+  {
+    if (input == NULL)
+    {
+      fprintf(stderr, "arbi: No benchmark problem given! Usage:\n");
+      fprintf(stderr, "arbi %s benchmark [problem]\n", model_name);
+      exit(-1);
+    }
+    model_run_benchmark(model, input);
+    exit(0);
+  }
+
+  // We are asked to run a simulation.
+  ASSERT(!strcmp(command, "run"));
+  if (input == NULL)
+  {
+    fprintf(stderr, "arbi: No input file given! Usage:\n");
+    fprintf(stderr, "arbi %s run [input file]\n", model_name);
+    exit(-1);
   }
 
   // Create a simulation in which to execute the model.
