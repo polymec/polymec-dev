@@ -3,6 +3,7 @@
 
 #include "arbi.h"
 #include "options.h"
+#include "model.h"
 #include "soln_vector.h"
 
 #ifdef __cplusplus
@@ -12,15 +13,11 @@ extern "C" {
 // A simulation represents a numerical problem to be solved.
 typedef struct simulation_t simulation_t;
 
-// Construct a new simulation from the data in an input file, along with 
-// any command-line arguments.
-simulation_t* simulation_from_file(FILE* file, options_t* opts);
+// Construct a new simulation with the given model and options.
+simulation_t* simulation_new(model_t* model, options_t* options);
 
 // Destroy the simulation.
 void simulation_free(simulation_t* sim);
-
-// Create a solution vector to store the solution for this simulation.
-soln_vector_t* simulation_create_vector(simulation_t* sim);
 
 // Returns the (simulation) time at which the simulation commences.
 double simulation_start_time(simulation_t* sim);
@@ -31,15 +28,23 @@ int simulation_num_steps(simulation_t* sim);
 // Returns the maximum time to which the simulation will run.
 double simulation_max_time(simulation_t* sim);
 
-// Initializes the given simulation and solution vector at the given time.
-int simulation_init(simulation_t* sim, soln_vector_t* solution, double t);
+// Returns the model bound to the simulation.
+model_t* simulation_model(simulation_t* sim);
 
-// Invokes all callbacks (periodic work, etc) to be called by the simulation
-// at the given simulation time and/or step.
-void simulation_invoke_callbacks(simulation_t* sim, soln_vector_t* solution, double t, int step);
+// Initializes the given simulation and solution vector at the given time.
+void simulation_init(simulation_t* sim, double t);
 
 // Advances the solution in the simulation by a single time step.
-int simulation_step(simulation_t* sim, soln_vector_t* solution, double* t);
+void simulation_advance(simulation_t* sim);
+
+// Returns the current simulation time.
+double simulation_time(simulation_t* sim);
+
+// Returns the current simulation step.
+int simulation_step(simulation_t* sim);
+
+// Runs the current simulation to completion.
+void simulation_run(simulation_t* sim);
 
 #ifdef __cplusplus
 }

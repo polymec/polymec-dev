@@ -30,7 +30,17 @@ int main(int argc, char** argv)
   char* model_name = options_model(opts);
 
   // Attempt to construct the model.
-  model_t* model = arbi_model(model_name, opts);
+  model_t* model = NULL;
+  if (model_exists(model_name))
+  {
+    model = model_new(model_name, opts);
+  }
+  else
+  {
+    char err[1024];
+    snprintf(err, 1024, "Invalid model: '%s'", model_name);
+    arbi_error(err);
+  }
 
   // Have we been asked for help with the model?
   if (options_help(opts))
@@ -52,22 +62,14 @@ int main(int argc, char** argv)
 
   // Initialize the simulation.
   double t = simulation_start_time(sim);
-  simulation_init(sim, model, t);
+  simulation_init(sim, t);
 
   // Run the simulation.
-  int num_steps = simulation_num_steps(sim);
-  double max_time = simulation_max_time(sim);
-  int step = 0;
-  while ((t < max_time) && (step < num_steps))
-  {
-    simulation_invoke_callbacks(sim, model, t, step);
-    simulation_step(sim, model, &t);
-    ++step;
-  }
+  simulation_run(sim);
 
   // Clean up.
-  model_free(model);
   simulation_free(sim);
+  model_free(model);
   options_free(opts);
 
   // That's it.

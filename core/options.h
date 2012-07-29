@@ -19,6 +19,13 @@ void options_free(options_t* opts);
 // Returns the name of the computational model passed to the command line.
 char* options_model(options_t* opts);
 
+// Returns true if the command line requested help.
+bool options_help(options_t* opts);
+
+// Returns the name of any requested benchmark calculation, or NULL if no 
+// such benchmark was requested.
+char* options_benchmark(options_t* opts);
+
 // Returns the input file passed to the command line, or NULL if no such 
 // input file was given.
 char* options_file(options_t* opts);
