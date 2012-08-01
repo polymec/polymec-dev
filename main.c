@@ -55,7 +55,8 @@ int main(int argc, char** argv)
   }
   if (command == NULL)
   {
-    fprintf(stderr, "arbi: no command given!\n");
+    fprintf(stderr, "arbi: no command given for model '%s'! Usage:\n", model_name);
+    fprintf(stderr, "arbi %s [command] [command args]\n", model_name);
     exit(-1);
   }
   static const char* valid_commands[] = {"run", "benchmark", "help", NULL};
@@ -92,7 +93,7 @@ int main(int argc, char** argv)
       fprintf(stderr, "arbi %s benchmark [problem]\n", model_name);
       exit(-1);
     }
-    model_run_benchmark(model, input);
+    model_run_benchmark(model, input, opts);
     exit(0);
   }
 
