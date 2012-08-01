@@ -28,17 +28,9 @@ char* options_command(options_t* opts);
 // input file. If the command was "benchmark", this identifies a problem.
 char* options_input(options_t* opts);
 
-// Returns true if the option with the given name is specified, false if not.
-bool options_has(options_t* opts, const char* name);
-
-// Returns a string value for the given option.
+// Returns a string value for the given parameter, or NULL if no such 
+// parameter exists within opts.
 char* options_value(options_t* opts, const char* name);
-
-// Returns the value for the given option, interpreted as a double.
-double options_as_double(options_t* opts, const char* name);
-
-// Returns the value for the given option, interpreted as a double.
-int options_as_int(options_t* opts, const char* name);
 
 #ifdef __cplusplus
 }

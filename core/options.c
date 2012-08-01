@@ -123,36 +123,11 @@ char* options_input(options_t* opts)
   return opts->input;
 }
 
-bool options_has(options_t* opts, const char* name)
-{
-  options_kv_t* data;
-  HASH_FIND_STR(opts->params, name, data);
-  return (data != NULL);
-}
-
 char* options_value(options_t* opts, const char* name)
 {
   options_kv_t* data;
   HASH_FIND_STR(opts->params, name, data);
   return data->value;
-}
-
-double options_as_double(options_t* opts, const char* name)
-{
-  char* val = options_value(opts, name);
-  if (val != NULL)
-    return atof(val);
-  else
-    return -FLT_MAX;
-}
-
-int options_as_int(options_t* opts, const char* name)
-{
-  char* val = options_value(opts, name);
-  if (val != NULL)
-    return atoi(val);
-  else
-    return -INT_MAX;
 }
 
 #ifdef __cplusplus

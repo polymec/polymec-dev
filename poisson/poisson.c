@@ -15,7 +15,7 @@ typedef struct
 // Benchmarks
 static void run_paraboloid(poisson_t* p, options_t* opts)
 {
-  // 
+  printf("rat = %s\n", options_value(opts, "rat"));
   printf("poo\n");
 }
 
