@@ -114,10 +114,10 @@ void model_usage(model_t* model, FILE* stream)
   fprintf(stream, "%s\n", model->usage);
 }
 
-void model_run_benchmark(model_t* model, const char* benchmark)
+void model_run_benchmark(model_t* model, const char* benchmark, options_t* opts)
 {
   if (model->vtable.run_benchmark != NULL)
-    model->vtable.run_benchmark(model->context, benchmark);
+    model->vtable.run_benchmark(model->context, benchmark, opts);
   else
   {
     char err[1024];
