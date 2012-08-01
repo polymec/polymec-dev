@@ -43,6 +43,8 @@ if (USE_MPI EQUAL 1)
   set(MPIEXEC mpirun)
   set(MPIEXEC_NUMPROC_FLAG -np)
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DHAVE_MPI")
+else()
+  set(USE_MPI 0)
 endif ()
 
 # Third-party libraries.

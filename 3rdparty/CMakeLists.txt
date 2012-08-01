@@ -131,5 +131,12 @@ if (USE_MPI EQUAL 1)
   set(ARBI_TP_LIBS ${ARBI_TP_LIBS};parmetis)
 endif()
 
+# Install CSparse.
+if (USE_MPI EQUAL 0)
+  file(GLOB csparse_sources "CSparse/*.c")
+  file(COPY CSparse/cs.h DESTINATION ${PROJECT_BINARY_DIR}/include)
+  add_library(csparse ${csparse_sources})
+endif()
+
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${ARBI_TP_C_FLAGS}" PARENT_SCOPE)
 set(ARBI_LIBS ${ARBI_LIBS};${ARBI_TP_LIBS} PARENT_SCOPE)
