@@ -13,11 +13,12 @@ struct simulation_t
   double t;      // Current time.
   int max_steps; // Max number of steps.
   int step;      // Current step.
+  char* input;   // Input file.
   model_t* model;// Simulation model.
   char dt_expl[ARBI_MODEL_MAXDT_REASON_SIZE]; // Explanation of latest dt.
 };
 
-simulation_t* simulation_new(model_t* model, options_t* options)
+simulation_t* simulation_new(model_t* model, const char* input, options_t* options)
 {
   ASSERT(model != NULL);
   simulation_t* s = malloc(sizeof(simulation_t));
@@ -25,6 +26,7 @@ simulation_t* simulation_new(model_t* model, options_t* options)
   s->step = 0;
   s->tmax = FLT_MAX;
   s->max_steps = INT_MAX;
+  s->input = strdup(input);
   s->model = model;
   return s;
 }
@@ -32,6 +34,7 @@ simulation_t* simulation_new(model_t* model, options_t* options)
 void simulation_free(simulation_t* sim)
 {
   // We don't own the model, so we don't delete it.
+  free(sim->input);
   free(sim);
 }
 
@@ -55,10 +58,13 @@ double simulation_time(simulation_t* sim)
   return sim->t;
 }
 
-void simulation_init(simulation_t* sim, double t)
+void simulation_init(simulation_t* sim)
 {
-  sim->t = t;
-  model_init(sim->model, t);
+  // FIXME: Load inputs here:
+  io_interface_t* io = NULL;
+  model_load(sim->model, io, &sim->t0, &sim->step);
+  sim->t = sim->t0;
+  model_init(sim->model, sim->t);
 }
 
 static void simulation_invoke_callbacks(simulation_t* sim)

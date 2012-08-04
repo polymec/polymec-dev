@@ -14,7 +14,7 @@ extern "C" {
 typedef struct simulation_t simulation_t;
 
 // Construct a new simulation with the given model and options.
-simulation_t* simulation_new(model_t* model, options_t* options);
+simulation_t* simulation_new(model_t* model, const char* input, options_t* options);
 
 // Destroy the simulation.
 void simulation_free(simulation_t* sim);
@@ -31,8 +31,8 @@ double simulation_max_time(simulation_t* sim);
 // Returns the model bound to the simulation.
 model_t* simulation_model(simulation_t* sim);
 
-// Initializes the given simulation and solution vector at the given time.
-void simulation_init(simulation_t* sim, double t);
+// Initializes the given simulation.
+void simulation_init(simulation_t* sim);
 
 // Advances the solution in the simulation by a single time step.
 void simulation_advance(simulation_t* sim);

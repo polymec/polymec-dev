@@ -126,7 +126,7 @@ void model_usage(model_t* model, FILE* stream)
 void model_run_benchmark(model_t* model, const char* benchmark, options_t* opts)
 {
   if (model->vtable.run_benchmark != NULL)
-    model->vtable.run_benchmark(model->context, benchmark, opts);
+    model->vtable.run_benchmark(benchmark, opts);
   else
   {
     char err[1024];
