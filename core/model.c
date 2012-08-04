@@ -174,6 +174,24 @@ void model_plot(model_t* model, plot_interface_t* plot, double t, int step)
   model->vtable.plot(model->context, plot, t, step);
 }
 
+void model_run(model_t* model, double t1, double t2)
+{
+  double t = t1;
+  model_init(model, t);
+  while (t < t2)
+  {
+    char reason[ARBI_MODEL_MAXDT_REASON_SIZE];
+    double dt = model_max_dt(model, t, reason);
+    model_advance(model, t, dt);
+    t += dt;
+  }
+}
+
+void* model_context(model_t* model)
+{
+  return model->context;
+}
+
 #ifdef __cplusplus
 }
 #endif

@@ -4,7 +4,6 @@
 #include "arbi.h"
 #include "options.h"
 #include "model.h"
-#include "soln_vector.h"
 
 #ifdef __cplusplus
 extern "C" {

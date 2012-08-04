@@ -81,6 +81,9 @@ void model_free(model_t* model);
 // Returns the name of the model.
 char* model_name(model_t* model);
 
+// Returns the context object associated with the model (if any).
+void* model_context(model_t* model);
+
 // Print usage information for the model to the given file stream.
 void model_usage(model_t* model, FILE* stream);
 
@@ -105,6 +108,9 @@ void model_dump(model_t* model, io_interface_t* io, double t, int step);
 
 // Plot the model's state to the given plot interface.
 void model_plot(model_t* model, plot_interface_t* plot, double t, int step);
+
+// Run a simulation of the model from time t1 to t2.
+void model_run(model_t* model, double t1, double t2);
 
 #ifdef __cplusplus
 }
