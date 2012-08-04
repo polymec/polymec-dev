@@ -3,6 +3,13 @@
 #include <string.h>
 #include "exchanger.h"
 
+#if !USE_MPI
+// These have to be defined here because PETSc's MPIUni is incomplete. :-/
+#define MPI_LONG_LONG MPI_LONG
+#define MPI_ERR_IN_STATUS 0
+#define MPI_ERR_TRUNCATE 0
+#endif
+
 typedef struct 
 {
   MPI_Datatype type;
@@ -38,6 +45,7 @@ static mpi_message_t* mpi_message_new(MPI_Datatype type, int stride, int tag)
   else if (type == MPI_CHAR)
     msg->data_size = sizeof(char);
   return msg;
+  return NULL;
 }
 
 static void mpi_message_pack(mpi_message_t* msg, void* data, 
@@ -775,7 +783,7 @@ void test8Procs()
 //-------------------------------------------------------------------
 int main(int argc, char** argv)
 {
-#ifdef HAVE_MPI
+#ifdef USE_MPI
 
   // Run on 2, 4, and 8 processes.
   TEST_MPI_PROCESSES(2,4,8);

@@ -1,8 +1,8 @@
 #ifndef ARBI_VORONOI_H
 #define ARBI_VORONOI_H
 
-#include "mesh.h"
-#include "point.h"
+#include "core/mesh.h"
+#include "core/point.h"
 
 #ifdef __cplusplus
 extern "C" {

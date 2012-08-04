@@ -1,13 +1,5 @@
 include_directories(${PROJECT_BINARY_DIR}/include)
 
-if (NOT USE_MPI EQUAL 1)
-  # We need the MPI stubs library.
-  file(COPY mpi.h DESTINATION ${PROJECT_BINARY_DIR}/include)
-  file(COPY mpi_stubs.h DESTINATION ${PROJECT_BINARY_DIR}/include)
-  add_library(mpi_stubs mpi_stubs.c)
-  set(ARBI_TP_LIBS mpi_stubs)
-endif()
-
 # Build Triangle.
 file(COPY triangle.h DESTINATION ${PROJECT_BINARY_DIR}/include)
 add_library(triangle triangle.c)
@@ -101,3 +93,6 @@ set(ARBI_TP_LIBS ${ARBI_TP_LIBS};petsc;ctetgen)
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${ARBI_TP_C_FLAGS}" PARENT_SCOPE)
 set(ARBI_LIBS ${ARBI_LIBS};${ARBI_TP_LIBS} PARENT_SCOPE)
+if (USE_MPI EQUAL 0)
+  set(ARBI_INCDIRS ${ARBI_INCDIRS};${CMAKE_BINARY_DIR}/include/mpiuni PARENT_SCOPE)
+endif()

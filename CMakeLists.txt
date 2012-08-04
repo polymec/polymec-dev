@@ -54,6 +54,7 @@ add_subdirectory(3rdparty)
 # since it's where we place the third-party libraries.
 include_directories("${PROJECT_BINARY_DIR}/include")
 link_directories("${PROJECT_BINARY_DIR}/lib")
+include_directories(${ARBI_INCDIRS})
 
 # Unit testing.
 enable_testing()
