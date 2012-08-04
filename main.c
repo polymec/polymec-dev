@@ -14,12 +14,14 @@ extern "C" {
 
 static const char* usage_str = 
 "arbi: usage:\n"
-"arbi [model] [command] [args]\n\n"
+"arbi [model] [command] [args] OR\n"
+"arbi list\n\n"
 "Here, [model] is a name that identifies a numerical model, and [command]\n"
 "is one of the following:\n\n"
 "   run [filename]       -- Runs a simulation with input from the given file.\n"
 "   benchmark [name]     -- Runs the given benchmark problem.\n"
-"   help                 -- Prints information about the given model.\n";
+"   help                 -- Prints information about the given model.\n\n"
+"If the list command is given, a list of available models is written to stdout.\n\n";
 
 static void usage()
 {
@@ -46,6 +48,19 @@ int main(int argc, char** argv)
   char* input = options_input(opts);
   if ((model_name == NULL) && (!strcmp(command, "help")))
     usage();
+
+  // List mode.
+  if (!strcmp(model_name, "list"))
+  {
+    int num_models;
+    char** model_names = registered_models(&num_models);
+    printf("Available models:\n");
+    for (int i = 0; i < num_models; ++i)
+      printf("   %s\n", model_names[i]);
+    printf("\n");
+    free(model_names);
+    exit(0);
+  }
 
   // Validate our inputs.
   if (!model_exists(model_name))

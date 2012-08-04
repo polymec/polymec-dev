@@ -63,6 +63,11 @@ void register_model(const char* name,
                     const char* usage_string,
                     model_vtable vtable);
 
+// Returns a pointer to an array of names of registered models of 
+// length num_models. This pointer must be freed (but the strings 
+// therein must not).
+char** registered_models(int* num_models);
+
 // Returns true if a model with the given name has been registered with 
 // register_model, false if not.
 bool model_exists(const char* name);

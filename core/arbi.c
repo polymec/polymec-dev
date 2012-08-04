@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <stdarg.h>
 #include <mpi.h>
 #include "core/arbi.h"
 #include "core/options.h"
@@ -61,14 +62,21 @@ static void default_error_handler(const char* message)
 }
 
 void 
-arbi_error(const char* message)
+arbi_error(const char* message, ...)
 {
   // Set the default error handler if no handler is set.
   if (error_handler == NULL)
     error_handler = &default_error_handler;
 
-  // Call it.
-  error_handler(message);
+  // Extract the variadic arguments and splat them into a string.
+  char err[1024];
+  va_list argp;
+  va_start(argp, message);
+  vsnprintf(err, 1024, message, argp);
+  va_end(argp);
+
+  // Call the handler.
+  error_handler(err);
 }
 
 void 
@@ -78,9 +86,13 @@ arbi_set_error_handler(arbi_error_handler_function handler)
 }
 
 void 
-arbi_warn(const char* message)
+arbi_warn(const char* message, ...)
 {
-  fprintf(stderr, "%s\n", message);
+  // Extract the variadic arguments and splat them into a string.
+  va_list argp;
+  va_start(argp, message);
+  vfprintf(stderr, message, argp);
+  va_end(argp);
 }
 
 void 

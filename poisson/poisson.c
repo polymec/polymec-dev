@@ -15,8 +15,10 @@ typedef struct
 // Benchmarks
 static void run_paraboloid(poisson_t* p, options_t* opts)
 {
-  printf("rat = %s\n", options_value(opts, "rat"));
-  printf("poo\n");
+  // Extract the dimension of the benchmark.
+  int dim = atoi(options_value(opts, "dim"));
+  if ((dim < 1) || (dim > 3))
+    arbi_error("Invalid dimension: %d", dim);
 }
 
 // Vtable stuff
