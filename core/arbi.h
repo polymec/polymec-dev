@@ -48,13 +48,13 @@ typedef void (*arbi_error_handler_function)(const char*);
 
 // Issues an error with the given message. By default, an error issues a 
 // message to stdout and exits the program with status -1.
-void arbi_error(const char* message);
+void arbi_error(const char* message, ...);
 
 // Sets the error handler for the arbi library.
 void arbi_set_error_handler(arbi_error_handler_function handler);
 
 // Issues a warning to stderr.
-void arbi_warning(const char* message);
+void arbi_warning(const char* message, ...);
 
 // This function enables floating point exceptions where available.
 void arbi_enable_fpe_exceptions();

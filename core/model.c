@@ -67,6 +67,15 @@ void register_model(const char* name,
   model_db_size++;
 }
  
+char** registered_models(int* num_models)
+{
+  *num_models = model_db_size;
+  char** array = malloc(model_db_size*sizeof(char*));
+  for (int i = 0; i < model_db_size; ++i)
+    array[i] = model_db[i]->name;
+  return array;
+}
+
 bool model_exists(const char* name)
 {
   for (int i = 0; i < model_db_size; ++i)
