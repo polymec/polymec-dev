@@ -19,11 +19,6 @@ set(TRIANGLE_CFLAGS "-DTRILIBRARY -DREDUCED -DCDT_ONLY -DANSI_DECLARATORS -DREAL
 set_target_properties(triangle PROPERTIES COMPILE_FLAGS ${TRIANGLE_CFLAGS})
 set(ARBI_TP_LIBS ${ARBI_TP_LIBS};triangle)
 
-# Build Tetgen.
-file(COPY tetgen.h DESTINATION ${PROJECT_BINARY_DIR}/include)
-add_library(tetgen tetgen.cxx)
-set(ARBI_TP_LIBS ${ARBI_TP_LIBS};tetgen)
-
 # Install libgc, the C garbage collector library.
 #if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libgc.a)
 #  set(GC_CONFIG_OPTS --prefix=${PROJECT_BINARY_DIR} --enable-static --disable-shared --disable-gcj-support)
@@ -58,7 +53,7 @@ set(ARBI_TP_LIBS ${ARBI_TP_LIBS};tetgen)
 #endif()
 #set(ARBI_TP_LIBS ${ARBI_TP_LIBS};zmq;stdc++)
 
-# Install cvode.
+# Install silo.
 if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libsilo.a)
   set(SILO_CONFIG_OPTS --prefix=${PROJECT_BINARY_DIR} --enable-static --disable-shared)
   if (${CMAKE_BUILD_TYPE} STREQUAL "Debug")
@@ -76,67 +71,33 @@ add_library(silo STATIC IMPORTED)
 set_target_properties(silo PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libsilo.a)
 set(ARBI_TP_LIBS ${ARBI_TP_LIBS};silo)
 
-# Install cvode.
-if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libsundials_cvode.a)
-  set(CVODE_CONFIG_OPTS --prefix=${PROJECT_BINARY_DIR} --enable-static --disable-shared)
-  if (${CMAKE_BUILD_TYPE} STREQUAL "Debug")
-    set(CVODE_CONFIG_OPTS ${CVODE_CONFIG_OPTS} --enable-debug)
+# Install PETSc.
+if (NOT EXISTS ${CMAKE_BINARY_DIR}/lib/libpetsc.a)
+  set(PETSC_CONFIG_OPTS PETSC_DIR=${CMAKE_CURRENT_BINARY_DIR}/petsc-3.3-p2 PETSC_ARCH=${CMAKE_BUILD_TYPE} --prefix=${CMAKE_BINARY_DIR} --CC=${CMAKE_C_COMPILER} --CFLAGS=${CMAKE_C_FLAGS} --with-mpi=${USE_MPI})
+  set(PETSC_CONFIG_OPTS ${PETSC_CONFIG_OPTS} --with-fortran=0)
+  set(PETSC_CONFIG_OPTS ${PETSC_CONFIG_OPTS} --with-x=0)
+  set(PETSC_CONFIG_OPTS ${PETSC_CONFIG_OPTS} --download-ctetgen=yes)
+  # This is broken:
+  #set(PETSC_CONFIG_OPTS ${PETSC_CONFIG_OPTS} --download-triangle=yes)
+#  set(PETSC_CONFIG_OPTS ${PETSC_CONFIG_OPTS} --download-sundials=yes)
+  if (USE_MPI EQUAL 1)
+    set(PETSC_CONFIG_OPTS ${PETSC_CONFIG_OPTS} --download-parmetis=yes)
+    set(PETSC_CONFIG_OPTS ${PETSC_CONFIG_OPTS} --download-hdf5=yes)
   endif()
-  execute_process(COMMAND cmake -E tar xzvf ${CMAKE_CURRENT_SOURCE_DIR}/cvode-2.6.0.tar.gz
+  execute_process(COMMAND cmake -E tar xzvf ${CMAKE_CURRENT_SOURCE_DIR}/petsc-lite-3.3-p2.tar.gz
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
-  execute_process(COMMAND env CC=${CC} CXX=${CXX} ./configure ${CVODE_CONFIG_OPTS}
-                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/cvode-2.6.0)
-  execute_process(COMMAND make install
-                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/cvode-2.6.0
+  message("Configuring PETSc...")
+  execute_process(COMMAND ./configure ${PETSC_CONFIG_OPTS}
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/petsc-3.3-p2
                   OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
+  execute_process(COMMAND make PETSC_DIR=${CMAKE_CURRENT_BINARY_DIR}/petsc-3.3-p2 PETSC_ARCH=${CMAKE_BUILD_TYPE} all install
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/petsc-3.3-p2)
 endif()
-add_library(sundials_cvode STATIC IMPORTED)
-set_target_properties(sundials_cvode PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libsundials_cvode.a)
-set(ARBI_TP_LIBS ${ARBI_TP_LIBS};sundials_cvode)
-
-# Install netcdf. 
-if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libnetcdf.a)
-  set(NETCDF_CONFIG_OPTS --prefix=${PROJECT_BINARY_DIR} --enable-static --disable-shared --disable-netcdf-4 --disable-doxygen)
-  if (${CMAKE_BUILD_TYPE} STREQUAL "Debug")
-    set(NETCDF_CONFIG_OPTS ${NETCDF_CONFIG_OPTS} --enable-debug)
-  endif()
-  execute_process(COMMAND cmake -E tar xzvf ${CMAKE_CURRENT_SOURCE_DIR}/netcdf.tar.gz
-                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
-  execute_process(COMMAND env CC=${CC} CXX=${CXX} ./configure ${NETCDF_CONFIG_OPTS}
-                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/netcdf-4.2)
-  execute_process(COMMAND make install
-                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/netcdf-4.2)
-endif()
-add_library(netcdf STATIC IMPORTED)
-set_target_properties(netcdf PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libnetcdf.a)
-set(ARBI_TP_LIBS ${ARBI_TP_LIBS};netcdf)
-
-# Install Parmetis if necessary.
-if (USE_MPI EQUAL 1)
-  if (NOT EXISTS ${CMAKE_BINARY_DIR}/lib/libparmetis.a)
-    set(PARMETIS_CONFIG_OPTS prefix=${CMAKE_BINARY_DIR} cc=${CMAKE_C_COMPILER})
-    if (${CMAKE_BUILD_TYPE} STREQUAL "Debug")
-      set(PARMETIS_CONFIG_OPTS ${PARMETIS_CONFIG_OPTS} debug=1 assert=1)
-    endif()
-    execute_process(COMMAND cmake -E tar xzvf ${CMAKE_CURRENT_SOURCE_DIR}/parmetis-4.0.2.tar.gz
-                    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
-    execute_process(COMMAND make config ${PARMETIS_CONFIG_OPTS}
-                    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/parmetis-4.0.2)
-    execute_process(COMMAND make install
-                    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/parmetis-4.0.2)
-    add_library(parmetis STATIC IMPORTED)
-    set_target_properties(parmetis PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libparmetis.a)
-  endif()
-  set(ARBI_TP_CFLAGS "${ARBI_TP_CFLAGS} -DHAVE_PARMETIS")
-  set(ARBI_TP_LIBS ${ARBI_TP_LIBS};parmetis)
-endif()
-
-# Install CSparse.
-if (USE_MPI EQUAL 0)
-  file(GLOB csparse_sources "CSparse/*.c")
-  file(COPY CSparse/cs.h DESTINATION ${PROJECT_BINARY_DIR}/include)
-  add_library(csparse ${csparse_sources})
-endif()
+add_library(petsc STATIC IMPORTED)
+set_target_properties(petsc PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libpetsc.a)
+add_library(ctetgen STATIC IMPORTED)
+set_target_properties(ctetgen PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libctetgen.a)
+set(ARBI_TP_LIBS ${ARBI_TP_LIBS};petsc;ctetgen)
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${ARBI_TP_C_FLAGS}" PARENT_SCOPE)
 set(ARBI_LIBS ${ARBI_LIBS};${ARBI_TP_LIBS} PARENT_SCOPE)

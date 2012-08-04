@@ -1,4 +1,5 @@
-#include "tetgen.h"
+#include "mpi.h"
+#include "ctetgen.h"
 #include "point.h"
 #include "mesh.h"
 

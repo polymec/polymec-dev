@@ -1,4 +1,5 @@
 # define MPI_COMM_WORLD 0
+# define MPI_COMM_SELF 1
 
 # define MPI_FAILURE 1
 # define MPI_SUCCESS 0
@@ -15,6 +16,7 @@
 # define MPI_Comm int
 # define MPI_Request int
 # define MPI_Errhandler int
+# define MPI_Group int
 
 # define MPI_Datatype int
 # define MPI_Op int
@@ -107,6 +109,7 @@ int MPI_Test(MPI_Request *request, int *flag, MPI_Status *status);
 int MPI_Cancel(MPI_Request* request);
 int MPI_Error_string(int errorcode, char *string, int *resultlen);
 int MPI_Comm_set_errhandler(MPI_Comm comm, MPI_Errhandler *errhandler);
+int MPI_Type_size(MPI_Datatype datatype, int *size);
 double MPI_Wtick ( void );
 double MPI_Wtime ( void );
 void timestamp ( void );

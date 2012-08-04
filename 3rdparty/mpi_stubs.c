@@ -2182,3 +2182,8 @@ int MPI_Ssend ( void *buf, int count, MPI_Datatype datatype,
   return ierror;
 }
 //-------------------------------------------------------------------
+
+int MPI_Type_size(MPI_Datatype datatype, int *size)
+{
+  return 0;
+}
