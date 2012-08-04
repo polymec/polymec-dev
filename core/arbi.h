@@ -54,7 +54,7 @@ void arbi_error(const char* message, ...);
 void arbi_set_error_handler(arbi_error_handler_function handler);
 
 // Issues a warning to stderr.
-void arbi_warning(const char* message, ...);
+void arbi_warn(const char* message, ...);
 
 // This function enables floating point exceptions where available.
 void arbi_enable_fpe_exceptions();
