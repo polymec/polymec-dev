@@ -1,7 +1,6 @@
+#include "core/voronoi.h"
 #include "mpi.h"
 #include "ctetgen.h"
-#include "point.h"
-#include "mesh.h"
 
 #ifdef __cplusplus
 extern "C" {
