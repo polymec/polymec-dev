@@ -21,7 +21,7 @@ typedef struct model_t model_t;
 typedef void* (*model_ctor)(options_t* options);
 
 // A function for running a benchmark calculation.
-typedef void (*model_run_bench_func)(void*, const char*, options_t*);
+typedef void (*model_run_bench_func)(const char*, options_t*);
 
 // A function for initializing the model.
 typedef void (*model_init_func)(void*, double);

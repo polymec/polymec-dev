@@ -2,6 +2,7 @@
 
 #include <stdlib.h>
 #include "poisson/poisson.h"
+#include "core/st_func.h"
 //#include "core/lin_solver.h"
 
 #ifdef __cplusplus
@@ -10,15 +11,24 @@ extern "C" {
 
 typedef struct 
 {
+  mesh_t* mesh;         // Mesh.
+  st_func_t* RHS;       // Right-hand side function.
 } poisson_t;
 
 // Benchmarks
-static void run_paraboloid(poisson_t* p, options_t* opts)
+
+static void run_paraboloid(options_t* opts)
 {
   // Extract the dimension of the benchmark.
   int dim = atoi(options_value(opts, "dim"));
   if ((dim < 1) || (dim > 3))
     arbi_error("Invalid dimension: %d", dim);
+
+  // Create the model.
+  model_t* poisson = model_new("poisson", opts);
+
+  // Clean up.
+  model_free(poisson);
 }
 
 // Vtable stuff
@@ -28,11 +38,11 @@ static void* poisson_ctor(options_t* opts)
   return p;
 }
 
-static void poisson_run_benchmark(void* p, const char* benchmark, options_t* opts)
+static void poisson_run_benchmark(const char* benchmark, options_t* opts)
 {
   if (!strcmp(benchmark, "paraboloid"))
   {
-    run_paraboloid(p, opts);
+    run_paraboloid(opts);
   }
   else
   {

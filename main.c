@@ -122,11 +122,10 @@ int main(int argc, char** argv)
   }
 
   // Create a simulation in which to execute the model.
-  simulation_t* sim = simulation_new(model, opts);
+  simulation_t* sim = simulation_new(model, input, opts);
 
   // Initialize the simulation.
-  double t = simulation_start_time(sim);
-  simulation_init(sim, t);
+  simulation_init(sim);
 
   // Run the simulation.
   simulation_run(sim);
