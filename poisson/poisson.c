@@ -3,7 +3,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include "poisson/poisson.h"
-#include "core/st_func.h"
+#include "core/constant_st_func.h"
 #include "geometry/create_box_mesh.h"
 #include "geometry/create_cyl_mesh.h"
 #include "geometry/create_sphere_mesh.h"
@@ -75,26 +75,33 @@ static void run_paraboloid(options_t* opts)
   // Create the mesh.
   if ((dim == 1) || !strcmp(geom, "box"))
   {
-    int N[3] = {10, 10, 10};
+    int N[3] = {10, 1, 1};
+    if (dim >= 2)
+      N[1] = 10;
+    if (dim == 3)
+      N[2] = 10;
     double low[3] = {0.0, 0.0, 0.0};
     double high[3] = {1.0, 1.0, 1.0};
-    p->mesh = create_box_mesh(dim, N, low, high);
+    p->mesh = create_box_mesh(N, low, high);
   }
   else if (!strcmp(geom, "cylinder"))
   {
     int Ncenter = 10, Nradial = 10, Naxial = 10;
+    if (dim == 2) 
+      Naxial = 1;
     double Lbox = 0.5, R = 1.0, Lz = 1.0;
-    p->mesh = create_cyl_mesh(dim, Ncenter, Nradial, Naxial, Lbox, R, Lz);
+    p->mesh = create_cyl_mesh(Ncenter, Nradial, Naxial, Lbox, R, Lz);
   }
   else if (!strcmp(geom, "sphere"))
   {
     int Ncenter = 10, Nradial = 10;
     double Lbox = 0.5, R = 1.0;
-    p->mesh = create_sphere_mesh(dim, Ncenter, Nradial, Lbox, R);
+    p->mesh = create_sphere_mesh(Ncenter, Nradial, Lbox, R);
   }
 
   // Create the RHS function.
-  p->RHS = constant_st_func_new(2.0);
+  double rho = 2.0;
+  p->RHS = constant_st_func_new(1, &rho);
 
   // Set boundary conditions.
   // FIXME

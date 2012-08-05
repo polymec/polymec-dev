@@ -38,7 +38,7 @@ typedef void (*st_dtor)(void*);
 typedef struct 
 {
   st_eval_func              eval;
-  st_dtor                       dtor;
+  st_dtor                   dtor;
 } st_vtable;
 
 // Construct a space-time function from the given context, metadata and vtable.

@@ -1,4 +1,4 @@
-#include "core/voronoi.h"
+#include "geometry/voronoi.h"
 #include "mpi.h"
 #include "ctetgen.h"
 
