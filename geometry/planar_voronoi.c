@@ -1,6 +1,6 @@
 #include <stdlib.h>
-#include "voronoi.h"
-#include "mesh.h"
+#include "geometry/voronoi.h"
+#include "core/mesh.h"
 
 #define MIN(a, b) ((a > b) ? b : a)
 #define MAX(a, b) ((a > b) ? a : b)
