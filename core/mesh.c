@@ -47,11 +47,19 @@ void mesh_free(mesh_t* mesh)
   ASSERT(mesh != NULL);
 
   for (int i = 0; i < (mesh->num_cells + mesh->num_ghost_cells); ++i)
+  {
+    if (mesh->cells[i]->faces != NULL)
+      free(mesh->cells[i]->faces);
     free(mesh->cells[i]);
+  }
   free(mesh->cells);
 
   for (int i = 0; i < mesh->num_faces; ++i)
+  {
+    if (mesh->faces[i]->edges != NULL)
+      free(mesh->faces[i]->edges);
     free(mesh->faces[i]);
+  }
   free(mesh->faces);
 
   for (int i = 0; i < mesh->num_edges; ++i)

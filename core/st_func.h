@@ -3,6 +3,7 @@
 
 #include "arbi.h"
 #include "point.h"
+#include "sp_func.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -70,6 +71,9 @@ int st_func_num_comp(st_func_t* func);
 
 // Evaluates the function at the given point, placing the result in result.
 void st_func_eval(st_func_t* func, point_t* x, double t, double* result);
+
+// Creates an sp_func from this st_func by "freezing" it at the given time.
+sp_func_t* st_func_freeze(st_func_t* func, double t);
 
 #ifdef __cplusplus
 }

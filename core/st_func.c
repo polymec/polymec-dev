@@ -84,6 +84,36 @@ void st_func_eval(st_func_t* func, point_t* x, double t, double* result)
   func->vtable.eval(func->context, x, t, result);
 }
 
+typedef struct
+{
+  st_func_t* f; // Borrowed ref
+  double t;
+} st_frozen_ctx;
+
+static void st_frozen_eval(void* ctx, point_t* x, double* result)
+{
+  st_frozen_ctx* c = (st_frozen_ctx*)ctx;
+  st_func_eval(c->f, x, c->t, result); 
+}
+
+static void st_frozen_dtor(void* ctx)
+{
+  st_frozen_ctx* c = (st_frozen_ctx*)ctx;
+  free(c);
+}
+
+sp_func_t* st_func_freeze(st_func_t* func, double t)
+{
+  sp_vtable vtable = {.eval = &st_frozen_eval, .dtor = &st_frozen_dtor };
+  char name[1024];
+  snprintf(name, 1024, "%s (frozen at %g)", st_func_name(func), t);
+  st_frozen_ctx* c = malloc(sizeof(st_frozen_ctx));
+  c->f = func;
+  c->t = t;
+  sp_func_homogeneity_t homog = (st_func_is_homogeneous(func)) ? SP_HOMOGENEOUS : SP_INHOMOGENEOUS;
+  return sp_func_new(name, (void*)c, vtable, homog, st_func_num_comp(func));
+}
+
 #ifdef __cplusplus
 }
 #endif

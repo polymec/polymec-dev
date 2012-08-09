@@ -10,14 +10,14 @@ typedef struct
   double *comp;
 } const_st_func_t;
 
-static constant_eval(void* ctx, point_t* x, double t, double* res)
+static void constant_eval(void* ctx, point_t* x, double t, double* res)
 {
   const_st_func_t* f = (const_st_func_t*)ctx;
   for (int i = 0; i < f->num_comp; ++i)
     res[i] = f->comp[i];
 }
 
-static constant_dtor(void* ctx)
+static void constant_dtor(void* ctx)
 {
   const_st_func_t* f = (const_st_func_t*)ctx;
   free(f->comp);
@@ -35,6 +35,12 @@ st_func_t* constant_st_func_new(int num_comp, double comp[])
   for (int i = 0; i < num_comp; ++i)
     f->comp[i] = comp[i];
   return st_func_new(name, (void*)f, vtable, ST_HOMOGENEOUS, ST_CONSTANT, num_comp);
+}
+
+// For free!
+sp_func_t* constant_sp_func_new(int num_comp, double comp[])
+{
+  return st_func_freeze(constant_st_func_new(num_comp, comp), 0.0);
 }
 
 #ifdef __cplusplus
