@@ -29,9 +29,7 @@ extern "C" {
 #define incircle triangle_incircle
 #include "triangle.h"
 
-// This represents an edge in a planar Voronoi graph. The edge is a 
-// semi-infinite ray if node2/cell2 are NULL, in which case normal contains 
-// the components of the outward vector.
+// This represents an edge in a planar Voronoi graph.
 typedef struct planar_voronoi_cell_t planar_voronoi_cell_t;
 typedef struct 
 {
@@ -39,7 +37,6 @@ typedef struct
   node_t* node2;
   planar_voronoi_cell_t* cell1;
   planar_voronoi_cell_t* cell2;
-  point_t normal;
 } planar_voronoi_edge_t;
 
 struct planar_voronoi_cell_t
@@ -78,10 +75,12 @@ static void planar_voronoi_free(planar_voronoi_t* v)
   free(v);
 }
 
-planar_voronoi_t* planar_voronoi_from_points(point_t* points, int num_points)
+planar_voronoi_t* planar_voronoi_graph(point_t* points, int num_points, sp_func_t* F)
 {
   ASSERT(points != NULL);
   ASSERT(num_points >= 2);
+  ASSERT(F != NULL);
+  ASSERT(!sp_func_is_homogeneous(F));
 
   // Now we use Triangle to obtain a Voronoi graph.
   struct triangulateio in, delaunay, voro;
@@ -154,26 +153,58 @@ planar_voronoi_t* planar_voronoi_from_points(point_t* points, int num_points)
   int num_cells = num_points;
   int num_edges = delaunay.numberofedges;
   int num_nodes = voro.numberofpoints;
-  planar_voronoi_t* v = planar_voronoi_new(num_cells, num_edges, num_nodes);
+
+  // Count up the semi-infinite edge rays, add corresponding boundary nodes,
+  // and count the number of boundary edges we need.
+  int num_bnodes = 0, num_bedges = 0;
+  int cell_bedge[num_cells];
+  memset(cell_needs_edge, -1, num_cells*sizeof(int));
+  for (int e = 0; e < num_edges; ++e)
+  {
+    if (voro.edgelist[2*e+1] == -1)
+    {
+      ++num_bnodes;
+      int cell1 = delaunay.edgelist[2*e],
+          cell2 = delaunay.edgelist[2*e+1];
+      if (!cell_needs_edge[cell1] && !cell_needs_edge[cell2])
+      {
+        cell_bedge[cell1] = cell_bedge[cell2] = num_bedges;
+        ++num_bedges;
+      }
+    }
+  }
+
+  // Construct the graph.
+  int num_ghost_cells = num_bedges;
+  planar_voronoi_t* v = planar_voronoi_new(num_cells + num_bedges, 
+                                           num_edges + num_bedges, 
+                                           num_nodes + num_bnodes);
   for (int n = 0; n < num_nodes; ++n)
   {
     v->nodes[n].x = voro.pointlist[2*n+0];
     v->nodes[n].y = voro.pointlist[2*n+1];
     v->nodes[n].z = 0.0;
   }
+  for (int n = num_nodes; n < num_nodes + num_bnodes; ++n)
+  {
+    // Trace back from the given node to the boundary along the
+    // gradient of the implicit function F.
+    // FIXME
+    v->nodes[n].x = 0.0, v->nodes[n].y = 0.0;
+  }
+
+  int bnode = 0;
   for (int e = 0; e < num_edges; ++e)
   {
     // Hook up the nodes.
     v->edges[e].node1 = &(v->nodes[voro.edgelist[2*e]]);
     int node2 = voro.edgelist[2*e+1];
-    if (node2 == -1) // Semi-infinite ray! We encode this edge accordingly.
+    if (node2 == -1) // Semi-infinite ray!
     {
-      // FIXME: Is this indexing right??
-      v->edges[e].normal.x = voro.normlist[2*e]; 
-      v->edges[e].normal.y = voro.normlist[2*e+1]; 
-      v->edges[e].normal.z = 0.0;
-      v->edges[e].node2 = NULL;
+      // This cell is adjacent to the boundary.
+      v->edges[e].node2 = num_nodes + bnode;
       v->edges[e].cell2 = NULL;
+      ++bnode;
     }
     else
     {
@@ -189,6 +220,19 @@ planar_voronoi_t* planar_voronoi_from_points(point_t* points, int num_points)
     ++(v->cells[cell2].num_edges);
   }
 
+  // Add any needed boundary edges.
+  for (int c = 0; c < num_cells; ++c)
+  {
+    int be = cell_bedges[c];
+    if (be >= 0)
+    {
+      v->cells[c].edges[v->cells[cell1].num_edges] = &(v->edges[be]);
+      ++(v->cells[c].num_edges);
+      v->edges[be].cell1 = &(v->cells[c]);
+      v->edges[be].cell2 = &(v->cells[be]);
+    }
+  }
+
   // Clean up our Triangle data structures.
   free(in.pointlist);
   free(delaunay.pointlist);
@@ -201,7 +245,7 @@ planar_voronoi_t* planar_voronoi_from_points(point_t* points, int num_points)
   return v;
 }
 
-mesh_t* extrusion(planar_voronoi_t* planar_graph, int num_extruded_cells, double length)
+mesh_t* voronoi_extrusion(planar_voronoi_t* planar_graph, int num_layers, double length)
 {
   ASSERT(planar_graph != NULL);
   ASSERT(num_extruded_cells > 0);
