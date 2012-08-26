@@ -16,8 +16,10 @@ struct sp_func_t
   bool homogeneous;
 };
 
-static void sp_func_free(sp_func_t* func)
+static void sp_func_free(void* ctx, void* dummy)
 {
+  UNUSED_ARG(dummy);
+  sp_func_t* func = (sp_func_t*)ctx;
   if (func->vtable.dtor)
     free(func->context);
   free(func->name);
