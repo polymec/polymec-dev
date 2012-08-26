@@ -24,16 +24,19 @@ typedef struct
 } cvt_opt_context_t;
 
 // This computes the function F and its gradient in the parlance of TAO.
-static PetscErrorCode compute_F_and_gradF(TaoSolver solver, 
+static PetscErrorCode compute_F_and_gradF(TaoSolver optimizer, 
                                           Vec X, 
                                           PetscReal* F,
                                           Vec gradF,
                                           void* context)
 {
+  UNUSED_ARG(optimizer);
   cvt_opt_context_t* data = (cvt_opt_context_t*)context;
 
   // Copy local data from X to the points.
-  // FIXME
+  PetscScalar* Xi;
+  VecGetArray(X, &Xi);
+  memcpy((double*)data->points, (double*)Xi, 3*data->num_points*sizeof(double));
 
   // Figure out the ghost points if we're in parallel.
   int Nghost = 0;
@@ -47,9 +50,9 @@ static PetscErrorCode compute_F_and_gradF(TaoSolver solver,
                                     ghost_points, Nghost);
 
   // Evaluate the objective function.
-  double Fval;
-  double* gradFval; // FIXME
-  data->F(data->mesh, data->rho, data->B, &Fval, gradFval);
+  PetscScalar* gradFi;
+  VecGetArray(gradF, &gradFi);
+  data->F(data->mesh, data->rho, data->B, (double*)F, (double*)gradFi);
 
   // Clean up.
   if (ghost_points != NULL)
@@ -85,7 +88,9 @@ mesh_t* create_bounded_cvt(int N,
   // Allocate storage for the solution and populate it with initial data.
   Vec X; 
   VecCreateSeq(PETSC_COMM_SELF, 3*N, &X);
-  // FIXME
+  PetscScalar* Xi;
+  VecGetArray(X, &Xi);
+  memcpy(Xi, (double*)points, 3*N);
 
   // Set up a context for Tao.
   cvt_opt_context_t data = {.points = points, .num_points = N, .mesh = NULL, 
