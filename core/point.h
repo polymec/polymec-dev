@@ -13,6 +13,12 @@ typedef struct
   double x, y, z;
 } point_t;
 
+// A vector in 1, 2, or 3D space.
+typedef struct
+{
+  double x, y, z;
+} vector_t;
+
 // A bounding box.
 typedef struct
 {

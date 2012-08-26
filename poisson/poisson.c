@@ -4,9 +4,11 @@
 #include <stdlib.h>
 #include "poisson/poisson.h"
 #include "core/constant_st_func.h"
-#include "geometry/create_box_mesh.h"
-#include "geometry/create_cyl_mesh.h"
-#include "geometry/create_sphere_mesh.h"
+#include "geometry/create_cvt.h"
+#include "geometry/plane.h"
+#include "geometry/cylinder.h"
+#include "geometry/sphere.h"
+#include "geometry/intersection.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -68,40 +70,64 @@ static void run_paraboloid(options_t* opts)
   else
     bcond = (char*)bc_default;
 
+  // Resolution.
+  int N = 100;
+
   // Create the model.
   model_t* model = model_new("poisson", opts);
   poisson_t* p = model_context(model);
 
-  // Create the mesh.
-  if ((dim == 1) || !strcmp(geom, "box"))
+  // Create the (constant density) mesh.
+  sp_func_t* boundary = NULL;
+  if (!strcmp(geom, "box"))
   {
-    int N[3] = {10, 1, 1};
-    if (dim >= 2)
-      N[1] = 10;
-    if (dim == 3)
-      N[2] = 10;
-    double low[3] = {0.0, 0.0, 0.0};
-    double high[3] = {1.0, 1.0, 1.0};
-    p->mesh = create_box_mesh(N, low, high);
+    sp_func_t* planes[6];
+    vector_t n = {-1.0, 0.0, 0.0};
+    point_t x = { 0.0, 0.5, 0.5};
+    planes[0] = plane_new(n, x);
+    n.x = 1.0, n.y = 0.0, n.z = 0.0;
+    x.x = 1.0, x.y = 0.5, x.z = 0.5;
+    planes[1] = plane_new(n, x);
+    n.x = 0.0, n.y = -1.0, n.z = 0.0;
+    x.x = 0.5, x.y = 0.0, x.z = 0.5;
+    planes[2] = plane_new(n, x);
+    n.x = 0.0, n.y = 1.0, n.z = 0.0;
+    x.x = 0.5, x.y = 1.0, x.z = 0.5;
+    planes[3] = plane_new(n, x);
+    n.x = 0.0, n.y = 0.0, n.z = -1.0;
+    x.x = 0.5, x.y = 0.5, x.z = 0.0;
+    planes[4] = plane_new(n, x);
+    n.x = 0.0, n.y = 0.0, n.z = 1.0;
+    x.x = 0.5, x.y = 0.5, x.z = 1.0;
+    planes[5] = plane_new(n, x);
+    boundary = intersection_new(planes, 6);
   }
   else if (!strcmp(geom, "cylinder"))
   {
-    int Ncenter = 10, Nradial = 10, Naxial = 10;
-    if (dim == 2) 
-      Naxial = 1;
-    double Lbox = 0.5, R = 1.0, Lz = 1.0;
-    p->mesh = create_cyl_mesh(Ncenter, Nradial, Naxial, Lbox, R, Lz);
+    sp_func_t* cyl[3];
+    vector_t n = { 0.0, 0.0,-1.0};
+    point_t x = { 0.5, 0.5, 0.0};
+    cyl[0] = plane_new(n, x);
+    n.x = 0.0, n.y = 0.0, n.z = 1.0;
+    x.x = 0.5, x.y = 0.5, x.z = 1.0;
+    cyl[1] = plane_new(n, x);
+    cyl[2] = cylinder_new(n, x, 1.0);
+    boundary = intersection_new(cyl, 3);
   }
   else if (!strcmp(geom, "sphere"))
   {
-    int Ncenter = 10, Nradial = 10;
-    double Lbox = 0.5, R = 1.0;
-    p->mesh = create_sphere_mesh(Ncenter, Nradial, Lbox, R);
+    point_t x = { 0.5, 0.5, 0.5};
+    boundary = sphere_new(x, 1.0);
   }
+  double one = 1.0;
+  sp_func_t* rho = constant_sp_func_new(1, &one);
+  p->mesh = create_bounded_cvt(N, rho, &cvt_energy_function, boundary);
+  sp_func_free(rho);
+  sp_func_free(boundary);
 
   // Create the RHS function.
-  double rho = 2.0;
-  p->RHS = constant_st_func_new(1, &rho);
+  double two = 2.0;
+  p->RHS = constant_st_func_new(1, &two);
 
   // Set boundary conditions.
   // FIXME
