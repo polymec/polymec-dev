@@ -35,7 +35,7 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${SYS_FLAGS}")
 
 # General compiler flags.
 if (CMAKE_C_COMPILER_ID STREQUAL "GNU")
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c99 -Wall -Wextra -Wno-sign-compare -Werror-implicit-function-declaration")
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c99 -Wall -Wextra -Wno-sign-compare -Wno-unused-parameter -Werror-implicit-function-declaration")
 endif ()
 
 # Figure out MPI.

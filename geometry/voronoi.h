@@ -24,6 +24,12 @@ extern "C" {
 mesh_t* voronoi_tessellation(point_t* points, int num_points, 
                              point_t* ghost_points, int num_ghost_points);
 
+// This function intersects the given Voronoi tessellation (mesh) with the 
+// given signed distance function representing a domain boundary, adding the 
+// necessary faces and vertices. It is assumed that all generators fall within
+// the domain.
+void voronoi_intersect_with_boundary(mesh_t* mesh, sp_func_t* boundary);
+
 #ifdef __cplusplus
 }
 #endif
