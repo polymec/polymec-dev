@@ -20,7 +20,7 @@ typedef int (*plot_time_series_func)(void*, const char*, double*, int);
 typedef int (*plot_mesh_field_func)(void*, const char*, mesh_centering_t, double*, mesh_t*);
 
 // A function pointer type for plotting field data on a lite mesh.
-typedef int (*plot_lite_mesh_field_func)(void*, const char*, lite_mesh_centering_t, double*, mesh_t*);
+typedef int (*plot_lite_mesh_field_func)(void*, const char*, lite_mesh_centering_t, double*, lite_mesh_t*);
 
 // A destructor function for the context object (if any).
 typedef void (*plot_dtor)(void*);
