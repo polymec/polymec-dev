@@ -7,11 +7,12 @@ extern "C" {
 #endif
 
 //------------------------------------------------------------------------
-mesh_t* voronoi_tessellation(point_t* points, int num_points, sp_func_t* F)
+mesh_t* voronoi_tessellation(point_t* points, int num_points, 
+                             point_t* ghost_points, int num_ghost_points)
 {
   ASSERT(points != NULL);
   ASSERT(num_points >= 2);
-  ASSERT(bounding_box != NULL);
+  ASSERT(num_ghost_points >= 0);
 
   // Not yet implemented!
   return NULL;

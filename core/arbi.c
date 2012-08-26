@@ -5,6 +5,7 @@
 #include "core/options.h"
 #include "core/simulation.h"
 #include "core/model.h"
+#include "tao.h"
 
 #ifdef Linux
 #include <fenv.h>
@@ -41,6 +42,8 @@ static void shutdown()
 {
   for (int i = 0; i < _num_atexit_funcs; ++i)
     _atexit_funcs[i]();
+
+  TaoFinalize();
   MPI_Finalize();
 }
 
@@ -48,6 +51,9 @@ void arbi_init(int argc, char** argv)
 {
   // Start everything up.
   MPI_Init(&argc, &argv);
+
+  // Start up Tao.
+  TaoInitialize(&argc, &argv, (char*)NULL, 0);
 
   // Register a shutdown function.
   arbi_atexit(&shutdown);
@@ -139,11 +145,6 @@ void arbi_atexit(void (*func)())
 {
   ASSERT(_num_atexit_funcs <= 32);
   _atexit_funcs[_num_atexit_funcs++] = func;
-}
-
-model_t* arbi_model(const char* model_name, options_t* options)
-{
-  return NULL;
 }
 
 #ifdef __cplusplus
