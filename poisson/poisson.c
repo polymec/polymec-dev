@@ -122,8 +122,6 @@ static void run_paraboloid(options_t* opts)
   double one = 1.0;
   sp_func_t* rho = constant_sp_func_new(1, &one);
   p->mesh = create_bounded_cvt(N, rho, &cvt_energy_function, boundary);
-  sp_func_free(rho);
-  sp_func_free(boundary);
 
   // Create the RHS function.
   double two = 2.0;

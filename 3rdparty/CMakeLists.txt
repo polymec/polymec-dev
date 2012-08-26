@@ -1,5 +1,22 @@
 include_directories(${PROJECT_BINARY_DIR}/include)
 
+# Build libgc, the C garbage collector library.
+if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libgc.a)
+  set(GC_CONFIG_OPTS --prefix=${PROJECT_BINARY_DIR} --enable-static --disable-shared --disable-gcj-support)
+  if (${CMAKE_BUILD_TYPE} STREQUAL "Debug")
+    set(GC_CONFIG_OPTS ${GC_CONFIG_OPTS} --enable-gc-debug)
+  endif()
+  execute_process(COMMAND cmake -E tar xzvf ${CMAKE_CURRENT_SOURCE_DIR}/gc-7.2.tar.gz
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+  execute_process(COMMAND env CC=${CC} ./configure ${GC_CONFIG_OPTS}
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/gc-7.2)
+  execute_process(COMMAND make install
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/gc-7.2)
+  add_library(gc STATIC IMPORTED)
+  set_target_properties(gc PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libgc.a)
+endif()
+set(ARBI_TP_LIBS ${ARBI_TP_LIBS};gc)
+
 # Build Triangle.
 file(COPY triangle.h DESTINATION ${PROJECT_BINARY_DIR}/include)
 add_library(triangle triangle.c)

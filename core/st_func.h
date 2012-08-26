@@ -13,6 +13,7 @@ extern "C" {
 // This opaque type encapsulates the notion of such an analytic function 
 // and any associated metadata (whether it is homogeneous, constant in 
 // time, etc).
+// st_func objects are garbage-collected.
 typedef struct st_func_t st_func_t;
 
 // Enumerated type indicating whether a function is homogeneous in space.
@@ -53,9 +54,6 @@ st_func_t* st_func_from_func(const char* name, st_eval_func func,
                              st_func_homogeneity_t homogeneity,
                              st_func_constancy_t constancy,
                              int num_comp);
-
-// Frees the resources used by the function.
-void st_func_free(st_func_t* func);
 
 // Returns the name of the function.
 const char* st_func_name(st_func_t* func);

@@ -11,6 +11,7 @@ extern "C" {
 // A "space" function (or "spatial" function) is an analytic function of 
 // space only. This opaque type encapsulates the notion of such an analytic 
 // function and any associated metadata (whether it is homogeneous or not, etc).
+// sp_func objects are garbage-collected.
 typedef struct sp_func_t sp_func_t;
 
 // Enumerated type indicating whether a function is homogeneous.
@@ -42,9 +43,6 @@ sp_func_t* sp_func_new(const char* name, void* context, sp_vtable vtable,
 sp_func_t* sp_func_from_func(const char* name, sp_eval_func func, 
                              sp_func_homogeneity_t homogeneity,
                              int num_comp);
-
-// Frees the resources used by the function.
-void sp_func_free(sp_func_t* func);
 
 // Returns the name of the function.
 const char* sp_func_name(sp_func_t* func);
