@@ -24,11 +24,9 @@ typedef struct
   double x, y, z;
 } node_t;
 
-// An edge, which belongs to a face and which is bounded by two nodes.
+// An edge, which is bounded by two nodes.
 typedef struct 
 {
-  // The face for this edge.
-  face_t* face;
   // Nodes that bound this edge. node1 is always the node with the lower index.
   node_t* node1;
   node_t* node2;

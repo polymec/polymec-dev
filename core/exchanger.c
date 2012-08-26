@@ -25,6 +25,7 @@ typedef struct
   MPI_Request* requests;
 } mpi_message_t;
 
+#if USE_MPI
 static mpi_message_t* mpi_message_new(MPI_Datatype type, int stride, int tag)
 {
   ASSERT(stride > 0);
@@ -45,7 +46,6 @@ static mpi_message_t* mpi_message_new(MPI_Datatype type, int stride, int tag)
   else if (type == MPI_CHAR)
     msg->data_size = sizeof(char);
   return msg;
-  return NULL;
 }
 
 static void mpi_message_pack(mpi_message_t* msg, void* data, 
@@ -191,7 +191,7 @@ static void mpi_message_free(mpi_message_t* msg)
   free(msg);
 }
 
-void mpi_message_fprintf(mpi_message_t* msg, FILE* stream)
+static void mpi_message_fprintf(mpi_message_t* msg, FILE* stream)
 {
   char typeStr[1024];
   if (msg->type == MPI_DOUBLE)
@@ -217,6 +217,7 @@ void mpi_message_fprintf(mpi_message_t* msg, FILE* stream)
   for (int i = 0; i < msg->num_receives; ++i)
     fprintf(stream, " %d: %d bytes\n", i, msg->receive_buffer_sizes[i]);
 }
+#endif
 
 struct exchanger_t
 {
@@ -365,6 +366,7 @@ void exchanger_exchange(exchanger_t* ex, void* data, int stride, int tag, MPI_Da
 
 int exchanger_start_exchange(exchanger_t* ex, void* data, int stride, int tag, MPI_Datatype type)
 {
+#if USE_MPI
   // Create a message for this array.
   mpi_message_t* msg = mpi_message_new(type, stride, tag);
   mpi_message_pack(msg, data, 
@@ -423,8 +425,12 @@ int exchanger_start_exchange(exchanger_t* ex, void* data, int stride, int tag, M
   ex->pending_msgs[token] = msg;
   ex->orig_buffers[token] = data;
   return token;
+#else
+  return 0;
+#endif
 }
 
+#if USE_MPI
 static int exchanger_waitall(exchanger_t* ex, mpi_message_t* msg)
 {
   // Allocate storage for statuses of sends/receives.
@@ -609,9 +615,11 @@ static int exchanger_waitall(exchanger_t* ex, mpi_message_t* msg)
   // That's it.
   return err;
 }
+#endif
 
 void exchanger_finish_exchange(exchanger_t* ex, int token) 
 {
+#if USE_MPI
   ASSERT(token >= 0);
   ASSERT(token < ex->num_pending_msgs);
 
@@ -628,25 +636,33 @@ void exchanger_finish_exchange(exchanger_t* ex, int token)
   ex->pending_msgs[token] = NULL;
   ex->orig_buffers[token] = NULL;
   mpi_message_free(msg);
+#endif
 }
 
 void exchanger_transfer(exchanger_t* ex, void* data, int* count, int stride, int tag, MPI_Datatype type)
 {
+#if USE_MPI
   int token = exchanger_start_transfer(ex, data, count, stride, tag, type);
   exchanger_finish_transfer(ex, token);
+#endif
 }
 
 int exchanger_start_transfer(exchanger_t* ex, void* data, int* count, int stride, int tag, MPI_Datatype type)
 {
+#if USE_MPI
   // This is the same as an exchange, with an additional datum (the length 
   // of data) stored.
   int token = exchanger_start_exchange(ex, data, stride, tag, type);
   ex->transfer_counts[token] = count; 
   return token;
+#else
+  return 0;
+#endif
 }
 
 void exchanger_finish_transfer(exchanger_t* ex, int token)
 {
+#if USE_MPI
   ASSERT(token >= 0);
   ASSERT(token < ex->num_pending_msgs);
 
@@ -691,11 +707,13 @@ void exchanger_finish_transfer(exchanger_t* ex, int token)
   ex->orig_buffers[token] = NULL;
   ex->transfer_counts[token] = NULL;
   mpi_message_free(msg);
+#endif
 }
 
 void
 exchanger_fprintf(exchanger_t* ex, FILE* stream)
 {
+#if USE_MPI
   fprintf(stream, "Exchanger(");
   if (ex->comm == MPI_COMM_WORLD)
     fprintf(stream, "MPI_COMM_WORLD");
@@ -722,6 +740,9 @@ exchanger_fprintf(exchanger_t* ex, FILE* stream)
       fprintf(stream, "\n");
     }
   }
+#else
+  fprintf(stream, "Exchanger(dummy)\n");
+#endif
 }
 //-------------------------------------------------------------------
 
