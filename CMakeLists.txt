@@ -25,6 +25,7 @@ set (ARBI_VERSION_MINOR 0)
 # Figure out the system type.
 if (${APPLE})
   set(SYS_FLAGS "-DAPPLE=1")
+  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -framework Veclib")
 else ()
   if (${LINUX})
     set(SYS_FLAGS "-DLINUX=1")
