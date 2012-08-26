@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <string.h>
+#include <gc/gc.h>
 #include "sp_func.h"
 
 #ifdef __cplusplus
@@ -15,6 +16,14 @@ struct sp_func_t
   bool homogeneous;
 };
 
+static void sp_func_free(sp_func_t* func)
+{
+  if (func->vtable.dtor)
+    free(func->context);
+  free(func->name);
+  free(func);
+}
+
 sp_func_t* sp_func_new(const char* name, void* context, sp_vtable vtable,
                        sp_func_homogeneity_t homogeneity,
                        int num_comp)
@@ -22,12 +31,13 @@ sp_func_t* sp_func_new(const char* name, void* context, sp_vtable vtable,
   ASSERT(context != NULL);
   ASSERT(vtable.eval != NULL);
   ASSERT(num_comp > 0);
-  sp_func_t* f = malloc(sizeof(sp_func_t));
+  sp_func_t* f = GC_MALLOC(sizeof(sp_func_t));
   f->name = strdup(name);
   f->context = context;
   f->vtable = vtable;
   f->homogeneous = (homogeneity == SP_HOMOGENEOUS);
   f->num_comp = num_comp;
+  GC_register_finalizer(f, &sp_func_free, f, NULL, NULL);
   return f;
 }
 
@@ -37,21 +47,14 @@ sp_func_t* sp_func_from_func(const char* name, sp_eval_func func,
 {
   ASSERT(func != NULL);
   ASSERT(num_comp > 0);
-  sp_func_t* f = malloc(sizeof(sp_func_t));
+  sp_func_t* f = GC_MALLOC(sizeof(sp_func_t));
   f->name = strdup(name);
   f->context = NULL;
   f->vtable.eval = func;
   f->homogeneous = (homogeneity == SP_HOMOGENEOUS);
   f->num_comp = num_comp;
+  GC_register_finalizer(f, &sp_func_free, f, NULL, NULL);
   return f;
-}
-
-void sp_func_free(sp_func_t* func)
-{
-  if (func->vtable.dtor)
-    free(func->context);
-  free(func->name);
-  free(func);
 }
 
 const char* sp_func_name(sp_func_t* func)

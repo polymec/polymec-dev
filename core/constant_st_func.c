@@ -1,3 +1,4 @@
+#include <stdlib.h>
 #include "core/constant_st_func.h"
 
 #ifdef __cplusplus

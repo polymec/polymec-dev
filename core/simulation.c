@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <float.h>
+#include <string.h>
 #include "simulation.h"
 
 #ifdef __cplusplus
