@@ -82,6 +82,7 @@ if (NOT EXISTS ${CMAKE_BINARY_DIR}/lib/libpetsc.a)
   execute_process(COMMAND ./configure ${PETSC_CONFIG_OPTS}
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/petsc-3.3-p2
                   OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
+  message("Building PETSc...")
   execute_process(COMMAND make PETSC_DIR=${CMAKE_CURRENT_BINARY_DIR}/petsc-3.3-p2 PETSC_ARCH=${CMAKE_BUILD_TYPE} all install
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/petsc-3.3-p2)
 endif()
@@ -91,6 +92,19 @@ add_library(ctetgen STATIC IMPORTED)
 set_target_properties(ctetgen PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libctetgen.a)
 set(ARBI_TP_LIBS ${ARBI_TP_LIBS};petsc;ctetgen)
 
+# Install TAO (for optimization problems).
+if (NOT EXISTS ${CMAKE_BINARY_DIR}/lib/libtao.a)
+  execute_process(COMMAND cmake -E tar xzvf ${CMAKE_CURRENT_SOURCE_DIR}/tao-2.1-p0.tar.gz
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+  message("Building TAO...")
+  execute_process(COMMAND make PETSC_DIR=${CMAKE_CURRENT_BINARY_DIR}/petsc-3.3-p2 PETSC_ARCH=${CMAKE_BUILD_TYPE} TAO_DIR=${CMAKE_CURRENT_BINARY_DIR}/tao-2.1-p0 all install
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/tao-2.1-p0)
+endif()
+add_library(tao STATIC IMPORTED)
+set_target_properties(tao PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libtao.a)
+set(ARBI_TP_LIBS ${ARBI_TP_LIBS};tao)
+
+# Add all the libraries to the build system at large.
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${ARBI_TP_C_FLAGS}" PARENT_SCOPE)
 set(ARBI_LIBS ${ARBI_LIBS};${ARBI_TP_LIBS} PARENT_SCOPE)
 if (USE_MPI EQUAL 0)
