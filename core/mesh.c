@@ -72,7 +72,8 @@ static void mesh_tags_free(mesh_tags_t* tags)
     HASH_ITER(hh, data->properties, prop, ptmp)
     {
       free(prop->key);
-      prop->dtor(prop->data);
+      if (prop->dtor != NULL)
+        prop->dtor(prop->data);
       HASH_DEL(data->properties, prop);
     }
     free(data);
@@ -198,7 +199,8 @@ bool mesh_tag_set_property(mesh_tags_t* tagger, const char* tag, const char* pro
   if (prop != NULL)
   {
     // Overwrite the property with this one.
-    prop->dtor(prop->data);
+    if (prop->dtor != NULL)
+      prop->dtor(prop->data);
     prop->data = data;
     prop->dtor = destructor;
   }
@@ -234,7 +236,8 @@ void mesh_tag_delete_property(mesh_tags_t* tagger, const char* tag, const char* 
   if (prop != NULL)
   {
     free(prop->key);
-    prop->dtor(prop->data);
+    if (prop->dtor != NULL)
+      prop->dtor(prop->data);
     HASH_DEL(tag_data->properties, prop);
   }
 }
