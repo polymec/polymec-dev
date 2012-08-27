@@ -17,7 +17,6 @@ struct avl_tree_t
   avl_tree_attribute_dtor dtor;
 };
 
-//------------------------------------------------------------------------
 avl_tree_t* avl_tree_new(avl_tree_attribute_cmp cmp, avl_tree_attribute_dtor dtor)
 {
   ASSERT(cmp != NULL);
@@ -27,9 +26,7 @@ avl_tree_t* avl_tree_new(avl_tree_attribute_cmp cmp, avl_tree_attribute_dtor dto
   tree->dtor = dtor;
   return tree;
 }
-//------------------------------------------------------------------------
 
-//------------------------------------------------------------------------
 static void avl_tree_clear_node(avl_node_t* node, avl_tree_attribute_dtor dtor)
 {
   if (node != NULL)
@@ -41,24 +38,18 @@ static void avl_tree_clear_node(avl_node_t* node, avl_tree_attribute_dtor dtor)
     free(node);
   }
 }
-//------------------------------------------------------------------------
 
-//------------------------------------------------------------------------
 void avl_tree_free(avl_tree_t* tree)
 {
   avl_tree_clear(tree);
   free(tree);
 }
-//------------------------------------------------------------------------
 
-//------------------------------------------------------------------------
 void avl_tree_clear(avl_tree_t* tree)
 {
   avl_tree_clear_node(tree->root, tree->dtor);
 }
-//------------------------------------------------------------------------
 
-//------------------------------------------------------------------------
 static avl_node_t* avl_tree_find_node(avl_node_t* node, void* datum, avl_tree_attribute_cmp cmp)
 {
   if (node == NULL)
@@ -71,16 +62,12 @@ static avl_node_t* avl_tree_find_node(avl_node_t* node, void* datum, avl_tree_at
   else
     return avl_tree_find_node(node->right, datum, cmp);
 }
-//------------------------------------------------------------------------
 
-//------------------------------------------------------------------------
 avl_node_t* avl_tree_find(avl_tree_t* tree, void* datum)
 {
   return avl_tree_find_node(tree->root, datum, tree->cmp);
 }
-//------------------------------------------------------------------------
 
-//------------------------------------------------------------------------
 static avl_node_t* single_rotate_with_left(avl_node_t* node)
 {
   avl_node_t* n = node->left;
@@ -91,9 +78,7 @@ static avl_node_t* single_rotate_with_left(avl_node_t* node)
   n->depth = MAX(n->left->depth, node->depth) + 1;
   return n;
 }
-//------------------------------------------------------------------------
 
-//------------------------------------------------------------------------
 static avl_node_t* single_rotate_with_right(avl_node_t* node)
 {
   avl_node_t* n = node->right;
@@ -104,25 +89,19 @@ static avl_node_t* single_rotate_with_right(avl_node_t* node)
   n->depth = MAX(n->right->depth, node->depth) + 1;
   return n;
 }
-//------------------------------------------------------------------------
 
-//------------------------------------------------------------------------
 static avl_node_t* double_rotate_with_left(avl_node_t* node)
 {
   node->left = single_rotate_with_right(node->left);
   return single_rotate_with_left(node);
 }
-//------------------------------------------------------------------------
 
-//------------------------------------------------------------------------
 static avl_node_t* double_rotate_with_right(avl_node_t* node)
 {
   node->right = single_rotate_with_left(node->right);
   return single_rotate_with_right(node);
 }
-//------------------------------------------------------------------------
 
-//------------------------------------------------------------------------
 static avl_node_t* avl_tree_insert_node(avl_node_t* node, void* datum, 
                                         avl_tree_attribute_cmp cmp, int depth)
 {
@@ -166,16 +145,12 @@ static avl_node_t* avl_tree_insert_node(avl_node_t* node, void* datum,
     return node;
   }
 }
-//------------------------------------------------------------------------
 
-//------------------------------------------------------------------------
 void avl_tree_insert(avl_tree_t* tree, void* datum)
 {
   avl_tree_insert_node(tree->root, datum, tree->cmp, 0);
 }
-//------------------------------------------------------------------------
 
-//------------------------------------------------------------------------
 static avl_node_t* avl_tree_find_node_parent(avl_node_t* root, 
                                              avl_node_t* node,
                                              avl_tree_attribute_cmp cmp)
@@ -201,17 +176,13 @@ static avl_node_t* avl_tree_find_node_parent(avl_node_t* root,
       return avl_tree_find_node(root->right, node, cmp);
   }
 }
-//------------------------------------------------------------------------
 
-//------------------------------------------------------------------------
 static void demote_node(avl_node_t* node, void* dummy)
 {
   UNUSED_ARG(dummy);
   node->depth -= 1;
 }
-//------------------------------------------------------------------------
 
-//------------------------------------------------------------------------
 void avl_tree_delete(avl_tree_t* tree, avl_node_t* node)
 {
   ASSERT(node != NULL);
@@ -296,9 +267,7 @@ void avl_tree_delete(avl_tree_t* tree, avl_node_t* node)
     tree->dtor(node->attribute);
   free(node);
 }
-//------------------------------------------------------------------------
 
-//------------------------------------------------------------------------
 void avl_node_visit(avl_node_t* node, avl_node_visitor visit, void* arg)
 {
   if (node == NULL) return;
@@ -308,7 +277,22 @@ void avl_node_visit(avl_node_t* node, avl_node_visitor visit, void* arg)
   if (node->right != NULL)
     avl_node_visit(node->right, visit, arg);
 }
-//------------------------------------------------------------------------
+
+static int avl_tree_int_cmp(void* left, void* right)
+{
+  int l = (int)left, r = (int)right;
+  return (l < r) ? -1 : (l > r) ? 1 : 0;
+}
+
+avl_node_t* avl_tree_root(avl_tree_t* tree)
+{
+  return tree->root;
+}
+
+avl_tree_t* int_avl_tree_new()
+{
+  return avl_tree_new(&avl_tree_int_cmp, NULL);
+}
 
 #ifdef __cplusplus
 }

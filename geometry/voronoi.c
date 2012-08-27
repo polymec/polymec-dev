@@ -1,10 +1,19 @@
 #include "geometry/voronoi.h"
 #include "mpi.h"
 #include "ctetgen.h"
+#include "core/avl_tree.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+// This AVL node visitor appends the tree's data to a tag.
+static void append_to_tag(avl_node_t* node, void* p)
+{
+  int* tag_p = (int*)p;
+  *tag_p = (int)node->attribute;
+  ++tag_p;
+}
 
 mesh_t* voronoi_tessellation(point_t* points, int num_points, 
                              point_t* ghost_points, int num_ghost_points)
@@ -51,11 +60,31 @@ mesh_t* voronoi_tessellation(point_t* points, int num_points,
   }
 
   // Edge <-> node connectivity.
+  // NOTE: We keep track of "outer" edges and tag them accordingly.
+  avl_tree_t* outer_edges = int_avl_tree_new();
+  int num_outer_edges = 0;
   for (int i = 0; i < mesh->num_edges; ++i)
   {
     mesh->edges[i]->node1 = mesh->nodes[out->vedgelist[i].v1];
     int n2 = out->vedgelist[i].v2; // -1 if ghost
-    mesh->edges[i]->node2 = (n2 == -1) ? NULL : mesh->nodes[n2];
+    if (n2 == -1)
+    {
+      avl_tree_insert(outer_edges, (void*)i);
+      ++num_outer_edges;
+      mesh->edges[i]->node2 = NULL;
+    }
+    else
+    {
+      mesh->edges[i]->node2 = mesh->nodes[n2];
+    }
+  }
+  // Tag the outer edges as such.
+  if (num_outer_edges > 0)
+  {
+    int* outer_edge_tag = mesh_create_tag(mesh->edge_tags, "outer", num_outer_edges);
+    avl_node_t* root = avl_tree_root(outer_edges);
+    int* tag_p = outer_edge_tag;
+    avl_node_visit(root, &append_to_tag, (void*)tag_p);
   }
 
   // Face <-> edge/cell connectivity.
