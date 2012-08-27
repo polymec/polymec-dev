@@ -6,11 +6,30 @@
 extern "C" {
 #endif
 
+typedef struct
+{
+  char* key;
+  void* data;
+  void (*dtor)(void*);
+  UT_hash_handle hh; // For uthash
+} mesh_tags_data_property_t;
+
+static mesh_tags_data_property_t* mesh_tags_data_property_new(const char* key, void* data, void (*dtor)(void*))
+{
+  ASSERT(data != NULL);
+  mesh_tags_data_property_t* prop = malloc(sizeof(mesh_tags_data_property_t));
+  prop->key = strdup(key);
+  prop->data = data;
+  prop->dtor = dtor;
+  return prop;
+}
+
 typedef struct 
 {
   char* key;
   int* indices;
   int  num_indices;
+  mesh_tags_data_property_t* properties;
   UT_hash_handle hh; // For uthash
 } mesh_tags_data_t;
 
@@ -22,6 +41,7 @@ static mesh_tags_data_t* mesh_tags_data_new(const char* key, int* indices, int n
   data->key = strdup(key);
   data->indices = indices; // YOINK!
   data->num_indices = num_indices;
+  data->properties = NULL;
   return data;
 }
 
@@ -43,9 +63,18 @@ static void mesh_tags_free(mesh_tags_t* tags)
   mesh_tags_data_t *data, *tmp;
   HASH_ITER(hh, tags->data, data, tmp)
   {
+    free(data->key);
     free(data->indices);
     HASH_DEL(tags->data, data);
-    free(data->key);
+
+    // Delete all properties.
+    mesh_tags_data_property_t *prop, *ptmp;
+    HASH_ITER(hh, data->properties, prop, ptmp)
+    {
+      free(prop->key);
+      prop->dtor(prop->data);
+      HASH_DEL(data->properties, prop);
+    }
     free(data);
   }
   free(tags);
@@ -158,12 +187,65 @@ int* mesh_tag(mesh_tags_t* tagger, const char* tag, int* num_indices)
   }
 }
 
+bool mesh_tag_set_property(mesh_tags_t* tagger, const char* tag, const char* property, void* data, void (*destructor)(void*))
+{
+  ASSERT(data != NULL);
+  mesh_tags_data_t* tag_data;
+  HASH_FIND_STR(tagger->data, tag, tag_data);
+  if (tag_data == NULL) return false;
+  mesh_tags_data_property_t* prop;
+  HASH_FIND_STR(tag_data->properties, property, prop);
+  if (prop != NULL)
+  {
+    // Overwrite the property with this one.
+    prop->dtor(prop->data);
+    prop->data = data;
+    prop->dtor = destructor;
+  }
+  else
+  {
+    prop = mesh_tags_data_property_new(property, data, destructor);
+    HASH_ADD_KEYPTR(hh, tag_data->properties, property, strlen(property), prop);
+  }
+  return true;
+}
+
+void* mesh_tag_property(mesh_tags_t* tagger, const char* tag, const char* property)
+{
+  mesh_tags_data_t* tag_data;
+  HASH_FIND_STR(tagger->data, tag, tag_data);
+  if (tag_data == NULL) 
+    return NULL;
+  mesh_tags_data_property_t* prop;
+  HASH_FIND_STR(tag_data->properties, property, prop);
+  if (prop != NULL)
+    return prop->data;
+  else
+    return NULL;
+}
+
+void mesh_tag_delete_property(mesh_tags_t* tagger, const char* tag, const char* property)
+{
+  mesh_tags_data_t* tag_data;
+  HASH_FIND_STR(tagger->data, tag, tag_data);
+  if (tag_data == NULL) return;
+  mesh_tags_data_property_t* prop;
+  HASH_FIND_STR(tag_data->properties, property, prop);
+  if (prop != NULL)
+  {
+    free(prop->key);
+    prop->dtor(prop->data);
+    HASH_DEL(tag_data->properties, prop);
+  }
+}
+
 void mesh_delete_tag(mesh_tags_t* tagger, const char* tag)
 {
   mesh_tags_data_t* data;
   HASH_FIND_STR(tagger->data, tag, data);
   if (data != NULL)
   {
+    free(data->key);
     free(data->indices);
     HASH_DEL(tagger->data, data);
   }
