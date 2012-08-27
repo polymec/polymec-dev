@@ -26,10 +26,14 @@ void        avl_tree_clear(avl_tree_t* tree);
 avl_node_t* avl_tree_find(avl_tree_t* tree, void* datum);
 void        avl_tree_insert(avl_tree_t* tree, void* datum);
 void        avl_tree_delete(avl_tree_t* tree, avl_node_t* node);
+avl_node_t* avl_tree_root(avl_tree_t* tree);
 
 // Visit a node and its subtree.
 typedef void (*avl_node_visitor)(avl_node_t*, void*);
 void        avl_node_visit(avl_node_t* node, avl_node_visitor visit, void*);
+
+// Some specialized AVL tree constructors.
+avl_tree_t* int_avl_tree_new();
 
 #ifdef __cplusplus
 }

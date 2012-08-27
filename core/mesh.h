@@ -16,6 +16,10 @@ typedef enum
   MESH_CELL
 } mesh_centering_t;
 
+// A tagging mechanism for tagging mesh nodes/edges/faces/cells 
+// with attributes. 
+typedef struct mesh_tags_t mesh_tags_t;
+
 typedef struct face_t face_t;
 
 // A node in 1, 2, or 3D space.
@@ -85,6 +89,11 @@ typedef struct
   node_t** nodes;
   // Total number of nodes in the mesh.
   int num_nodes;
+  // Mesh tagging mechanisms.
+  mesh_tags_t* cell_tags;
+  mesh_tags_t* face_tags;
+  mesh_tags_t* edge_tags;
+  mesh_tags_t* node_tags;
 } mesh_t;
 
 // Construct a new mesh with the given number of cells, ghost cells, 
@@ -96,6 +105,18 @@ mesh_t* mesh_new(int num_cells, int num_ghost_cells, int num_faces,
 
 // Destroys the given mesh.
 void mesh_free(mesh_t* mesh);
+
+// Returns a newly-allocated list of indices that will define a tags for 
+// cells/faces/edges/nodes with the given descriptor. If the tag already 
+// exists, returns NULL.
+int* mesh_create_tag(mesh_tags_t* tagger, const char* tag, int num_indices);
+
+// Retrieves the given tag, returning an array of indices if found (and 
+// writing the number of tagged elements to num_elements), or NULL if not.
+int* mesh_tag(mesh_tags_t* tagger, const char* tag, int* num_indices);
+
+// Deletes the given tag. This has no effect if the tag is not found.
+void mesh_delete_tag(mesh_tags_t* tagger, const char* tag);
 
 #ifdef __cplusplus
 }
