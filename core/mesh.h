@@ -115,6 +115,22 @@ int* mesh_create_tag(mesh_tags_t* tagger, const char* tag, int num_indices);
 // writing the number of tagged elements to num_elements), or NULL if not.
 int* mesh_tag(mesh_tags_t* tagger, const char* tag, int* num_indices);
 
+// Associates a named piece of metadata (a "property") with the given tag.
+// This can be used to store data related to tagged indices.
+// A destructor function can be passed in to handle freeing of resources.
+// If the tag is not found, this function has no effect. If the given property
+// exists on the tag, it is overwritten. Returns true if the property was 
+// added, false if not.
+bool mesh_tag_set_property(mesh_tags_t* tagger, const char* tag, const char* property, void* data, void (*destructor)(void*));
+
+// Retrieves the given property associated with the given tag, if any. If the 
+// tag or property are not found, this returns NULL.
+void* mesh_tag_property(mesh_tags_t* tagger, const char* tag, const char* property);
+
+// Deletes the given property from the tag. This has no effect if the tag
+// or property are not found.
+void mesh_tag_delete_property(mesh_tags_t* tagger, const char* tag, const char* property);
+
 // Deletes the given tag. This has no effect if the tag is not found.
 void mesh_delete_tag(mesh_tags_t* tagger, const char* tag);
 
