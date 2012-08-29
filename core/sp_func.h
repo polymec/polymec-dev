@@ -56,6 +56,15 @@ int sp_func_num_comp(sp_func_t* func);
 // Evaluates the function at the given point, placing the result in result.
 void sp_func_eval(sp_func_t* func, point_t* x, double* result);
 
+// Compute the gradient of the function using a centered difference 
+// approximation about x0 using the spacing dx.
+void sp_func_grad_centered_diff(sp_func_t* func, point_t* x0, vector_t* dx, vector_t* gradient);
+
+// Compute the gradient of the function using Richardson extrapolation 
+// applied to a centered difference approximation about x0 using the spacing
+// dx.
+void sp_func_grad_richardson(sp_func_t* func, point_t* x0, vector_t* dx, vector_t* gradient);
+
 #ifdef __cplusplus
 }
 #endif

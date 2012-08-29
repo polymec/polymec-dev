@@ -79,6 +79,45 @@ void sp_func_eval(sp_func_t* func, point_t* x, double* result)
   func->vtable.eval(func->context, x, result);
 }
 
+void sp_func_grad_centered_diff(sp_func_t* func, point_t* x0, vector_t* dx, vector_t* gradient)
+{
+  point_t x1 = {x0->x-dx->x, x0->y, x0->z}, 
+          x2 = {x0->x+dx->x, x0->y, x0->z};
+  double f1, f2;
+  sp_func_eval(func, &x1, &f1);
+  sp_func_eval(func, &x2, &f2);
+  gradient->x = (f2-f1) / dx->x;
+  x1.x = x0->x, x2.x = x0->x;
+  x1.y = x0->y-dx->y, x2.y = x0->y+dx->y;
+  sp_func_eval(func, &x1, &f1);
+  sp_func_eval(func, &x2, &f2);
+  gradient->y = (f2-f1) / dx->y;
+  x1.y = x0->y, x2.y = x0->y;
+  x1.z = x0->z-dx->z, x2.z = x0->z+dx->z;
+  sp_func_eval(func, &x1, &f1);
+  sp_func_eval(func, &x2, &f2);
+  gradient->z = (f2-f1) / dx->z;
+}
+
+void sp_func_grad_richardson(sp_func_t* func, point_t* x0, vector_t* dx, vector_t* gradient)
+{
+  // Form the low-res finite difference approximation of the gradient.
+  vector_t Gl;
+  sp_func_grad_centered_diff(func, x0, dx, &Gl);
+
+  // Form the hi-res finite difference approximation of the gradient.
+  vector_t Gh;
+  vector_t dx1 = {0.5*dx->x, 0.5*dx->y, 0.5*dx->z};
+  sp_func_grad_centered_diff(func, x0, &dx1, &Gh);
+
+  // Form the Richardson extrapolation.
+  static int N = 2;
+  double twoN = pow(2.0, N);
+  gradient->x = (twoN * Gh.x - Gl.x) / (twoN - 1.0);
+  gradient->y = (twoN * Gh.y - Gl.y) / (twoN - 1.0);
+  gradient->z = (twoN * Gh.z - Gl.z) / (twoN - 1.0);
+}
+
 #ifdef __cplusplus
 }
 #endif

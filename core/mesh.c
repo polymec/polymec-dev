@@ -188,6 +188,12 @@ int* mesh_tag(mesh_tags_t* tagger, const char* tag, int* num_indices)
   }
 }
 
+bool mesh_has_tag(mesh_tags_t* tagger, const char* tag)
+{
+  int dummy;
+  return (mesh_tag(tagger, tag, &dummy) != NULL);
+}
+
 bool mesh_tag_set_property(mesh_tags_t* tagger, const char* tag, const char* property, void* data, void (*destructor)(void*))
 {
   ASSERT(data != NULL);
