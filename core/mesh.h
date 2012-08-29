@@ -115,6 +115,9 @@ int* mesh_create_tag(mesh_tags_t* tagger, const char* tag, int num_indices);
 // writing the number of tagged elements to num_elements), or NULL if not.
 int* mesh_tag(mesh_tags_t* tagger, const char* tag, int* num_indices);
 
+// Returns true if the given tag exists, false if not.
+bool mesh_has_tag(mesh_tags_t* tagger, const char* tag);
+
 // Associates a named piece of metadata (a "property") with the given tag.
 // This can be used to store data related to tagged indices.
 // A destructor function can be passed in to handle freeing of resources.

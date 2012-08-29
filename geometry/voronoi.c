@@ -2,6 +2,7 @@
 #include "mpi.h"
 #include "ctetgen.h"
 #include "core/avl_tree.h"
+#include "core/newton.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -81,10 +82,22 @@ mesh_t* voronoi_tessellation(point_t* points, int num_points,
   // Tag the outer edges as such.
   if (num_outer_edges > 0)
   {
-    int* outer_edge_tag = mesh_create_tag(mesh->edge_tags, "outer", num_outer_edges);
+    int* outer_edge_tag = mesh_create_tag(mesh->edge_tags, "outer_edges", num_outer_edges);
     avl_node_t* root = avl_tree_root(outer_edges);
     int* tag_p = outer_edge_tag;
     avl_node_visit(root, &append_to_tag, (void*)tag_p);
+
+    // Stick the outward rays in a "rays" property on this tag.
+    double* rays = malloc(3*num_outer_edges*sizeof(double));
+    mesh_tag_set_property(mesh->edge_tags, "outer_edges", "rays", rays, &free);
+    for (int i = 0; i < num_outer_edges; ++i)
+    {
+      int j = outer_edge_tag[i];
+      ASSERT(out->vedgelist[j].v2 == -1);
+      rays[3*i+0] = out->vedgelist[j].vnormal[0]; 
+      rays[3*i+1] = out->vedgelist[j].vnormal[1]; 
+      rays[3*i+2] = out->vedgelist[j].vnormal[2]; 
+    }
   }
 
   // Face <-> edge/cell connectivity.
@@ -116,8 +129,69 @@ mesh_t* voronoi_tessellation(point_t* points, int num_points,
   return mesh;
 }
 
+typedef struct 
+{
+  sp_func_t* B;
+  node_t* node;
+  vector_t ray;
+} boundary_int_context;
+
+// Boundary function and derivative, parametrized to parameter s.
+static void boundary_intersection_and_deriv(void* context, double s, double* F, double* dFds)
+{
+  boundary_int_context* C = (boundary_int_context*)context;
+  point_t x = {C->node->x + C->ray.x*s, 
+               C->node->y + C->ray.y*s, 
+               C->node->z + C->ray.z*s};
+  double val;
+  sp_func_eval(C->B, &x, &val);
+  *F = val;
+
+  double ds = fmax(0.1*s, 1e-3);
+  vector_t G, dx = {C->ray.x*ds, C->ray.y*ds, C->ray.z*ds};
+  sp_func_grad_richardson(C->B, &x, &dx, &G);
+  *dFds = G.x*C->ray.x + G.y*C->ray.y + G.z*C->ray.z;
+}
+
 void voronoi_intersect_with_boundary(mesh_t* mesh, sp_func_t* boundary)
 {
+  // We use the outer edges to find the intersection.
+  int num_outer_edges;
+  int* outer_edges = mesh_tag(mesh->edge_tags, "outer_edges", &num_outer_edges);
+  ASSERT(outer_edges != NULL);
+
+  // We will be creating a number of nodes equal to the number of outer edges
+  // in the mesh. 
+  int current_num_nodes = mesh->num_nodes;
+//  mesh_add_nodes(mesh, num_outer_edges);
+
+  // Get the rays and use them to parametrize the intersection of the 
+  // boundary.
+  double* rays = mesh_tag_property(mesh->edge_tags, "outer_edges", "rays");
+  ASSERT(rays != NULL);
+
+  // We compute their positions by finding those points for which
+  // our boundary function is zero.
+  boundary_int_context ctx;
+  ctx.B = boundary;
+  for (int i = 0; i < num_outer_edges; ++i)
+  {
+    // Set up the context to do a nonlinear solve.
+    edge_t* edge = mesh->edges[outer_edges[i]];
+    ctx.node = edge->node1;
+    ctx.ray.x = rays[3*i];
+    ctx.ray.y = rays[3*i+1];
+    ctx.ray.z = rays[3*i+2];
+
+    // Do a Newton-Picard iteration until we achieve the desired 
+    // tolerance.
+    double tol = 1e-5;
+    double s = 0.0; // Start at the node.
+    int n_iters = 5;  // 5 Newton iterations, followed by
+    int p_iters = 10; // 10 Picard iterations.
+    int n_cycles = 5; 
+    newton_picard_solve(&boundary_intersection_and_deriv, &ctx, s, 0.0, FLT_MAX, tol, n_iters, p_iters, n_cycles);
+  }
 }
 
 #ifdef __cplusplus
