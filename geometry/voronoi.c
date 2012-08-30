@@ -113,16 +113,43 @@ mesh_t* voronoi_tessellation(point_t* points, int num_points,
   }
 
   // Cell <-> face connectivity.
+  // Also, find and tag the "outer cells", which are the cells 
+  // attached to outer edges.
+  avl_tree_t* outer_cells = int_avl_tree_new();
+  int num_outer_cells = 0;
   for (int i = 0; i < mesh->num_cells; ++i)
   {
     int Nf = out->vcelllist[i][0];
     mesh->cells[i]->num_faces = Nf;
     mesh->cells[i]->faces = malloc(Nf*sizeof(face_t*));
-    for (int j = 0; j < Nf; ++j)
-      mesh->cells[i]->faces[j] = mesh->faces[out->vcelllist[i][j+1]];
+    for (int f = 0; f < Nf; ++f)
+    {
+      int faceid = out->vcelllist[i][f+1];
+      face_t* face = mesh->faces[faceid];
+      mesh->cells[i]->faces[f] = face;
+      for (int e = 0; e < face->num_edges; ++e)
+      {
+        int edgeid = out->vfacetlist[faceid].elist[e+1];
+        if (avl_tree_find(outer_edges, (void*)edgeid) != NULL)
+        {
+          // We found an outer edge attached to this cell, which 
+          // makes it an outer cell
+          avl_tree_insert(outer_cells, (void*)i);
+          ++num_outer_cells;
+        }
+      }
+    }
   }
+  // Tag the outer cells as such.
+  ASSERT(num_outer_cells > 0);
+  int* outer_cell_tag = mesh_create_tag(mesh->cell_tags, "outer_cells", num_outer_cells);
+  avl_node_t* root = avl_tree_root(outer_cells);
+  int* tag_p = outer_cell_tag;
+  avl_node_visit(root, &append_to_tag, (void*)tag_p);
 
   // Clean up.
+  avl_tree_free(outer_cells);
+  avl_tree_free(outer_edges);
   PLCDestroy(&in);
   PLCDestroy(&out);
 
@@ -162,7 +189,7 @@ void voronoi_intersect_with_boundary(mesh_t* mesh, sp_func_t* boundary)
 
   // We will be creating a number of nodes equal to the number of outer edges
   // in the mesh. 
-  int current_num_nodes = mesh->num_nodes;
+  int old_num_nodes = mesh->num_nodes;
 //  mesh_add_nodes(mesh, num_outer_edges);
 
   // Get the rays and use them to parametrize the intersection of the 
@@ -190,8 +217,17 @@ void voronoi_intersect_with_boundary(mesh_t* mesh, sp_func_t* boundary)
     int n_iters = 5;  // 5 Newton iterations, followed by
     int p_iters = 10; // 10 Picard iterations.
     int n_cycles = 5; 
-    newton_picard_solve(&boundary_intersection_and_deriv, &ctx, s, 0.0, FLT_MAX, tol, n_iters, p_iters, n_cycles);
+    newton_picard_solve(&boundary_intersection_and_deriv, &ctx, &s, 0.0, FLT_MAX, tol, n_iters, p_iters, n_cycles);
+
+    // Wire up the boundary node.
+    mesh->nodes[old_num_nodes+i]->x = ctx.node->x + s*ctx.ray.x;
+    mesh->nodes[old_num_nodes+i]->y = ctx.node->y + s*ctx.ray.y;
+    mesh->nodes[old_num_nodes+i]->z = ctx.node->z + s*ctx.ray.z;
+    edge->node2 = mesh->nodes[old_num_nodes+i];
   }
+
+  // Now we add boundary faces and their bounding edges.
+  // FIXME
 }
 
 #ifdef __cplusplus
