@@ -72,21 +72,21 @@ struct face_t
 typedef struct 
 {
   // Mesh cells, indexed from 0 to C-1.
-  cell_t** cells;
+  cell_t* cells;
   // Total number of (locally-owned) cells in the mesh.
   int num_cells;
   // Total number of ghost cells in the mesh.
   int num_ghost_cells;
   // Mesh faces, indexed from 0 to F-1.
-  face_t** faces;
+  face_t* faces;
   // Total number of faces in the mesh.
   int num_faces;
   // Mesh edges, indexed from 0 to E-1.
-  edge_t** edges;
+  edge_t* edges;
   // Total number of edges in the mesh.
   int num_edges;
   // Mesh nodes, indexed from 0 to N-1.
-  node_t** nodes;
+  node_t* nodes;
   // Total number of nodes in the mesh.
   int num_nodes;
   // Mesh tagging mechanisms.
