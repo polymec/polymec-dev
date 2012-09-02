@@ -3,6 +3,7 @@
 #include "ctetgen.h"
 #include "core/avl_tree.h"
 #include "core/newton.h"
+#include "core/slist.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -136,6 +137,7 @@ mesh_t* voronoi_tessellation(point_t* points, int num_points,
           // makes it an outer cell
           avl_tree_insert(outer_cells, (void*)i);
           ++num_outer_cells;
+          break;
         }
       }
     }
@@ -146,6 +148,30 @@ mesh_t* voronoi_tessellation(point_t* points, int num_points,
   avl_node_t* root = avl_tree_root(outer_cells);
   int* tag_p = outer_cell_tag;
   avl_node_visit(root, &append_to_tag, (void*)tag_p);
+
+  // Finally, we create properties on the outer_edges and outer_cells tags 
+  // that associate one with the other.
+  slist_t* outer_cell_edges = slist_new(NULL);
+  for (int i = 0; i < num_outer_cells; ++i)
+  {
+    int num_edges = 0;
+    slist_node_t* pos = slist_back(outer_cell_edges);
+    for (int f = 0; f < mesh->cells[i]->num_faces; ++f)
+    {
+      int faceid = out->vcelllist[i][f+1];
+      for (int e = 0; e < mesh->faces[f]->num_edges; ++e)
+      {
+        int edgeid = out->vfacetlist[faceid].elist[e+1];
+        if (avl_tree_find(outer_edges, (void*)edgeid) != NULL)
+        {
+          slist_append(outer_cell_edges, (void*)edgeid);
+          ++num_edges;
+        }
+      }
+    }
+    pos = pos->next;
+    slist_insert(outer_cell_edges, pos, (void*)num_edges);
+  }
 
   // Clean up.
   avl_tree_free(outer_cells);
