@@ -2,8 +2,8 @@
 #include "mpi.h"
 #include "ctetgen.h"
 #include "core/avl_tree.h"
-#include "core/newton.h"
 #include "core/slist.h"
+#include "core/brent.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -56,9 +56,9 @@ mesh_t* voronoi_tessellation(point_t* points, int num_points,
   // Node coordinates.
   for (int i = 0; i < mesh->num_nodes; ++i)
   {
-    mesh->nodes[i]->x = out->vpointlist[3*i];
-    mesh->nodes[i]->y = out->vpointlist[3*i+1];
-    mesh->nodes[i]->z = out->vpointlist[3*i+2];
+    mesh->nodes[i].x = out->vpointlist[3*i];
+    mesh->nodes[i].y = out->vpointlist[3*i+1];
+    mesh->nodes[i].z = out->vpointlist[3*i+2];
   }
 
   // Edge <-> node connectivity.
@@ -67,17 +67,17 @@ mesh_t* voronoi_tessellation(point_t* points, int num_points,
   int num_outer_edges = 0;
   for (int i = 0; i < mesh->num_edges; ++i)
   {
-    mesh->edges[i]->node1 = mesh->nodes[out->vedgelist[i].v1];
+    mesh->edges[i].node1 = &mesh->nodes[out->vedgelist[i].v1];
     int n2 = out->vedgelist[i].v2; // -1 if ghost
     if (n2 == -1)
     {
       avl_tree_insert(outer_edges, (void*)i);
       ++num_outer_edges;
-      mesh->edges[i]->node2 = NULL;
+      mesh->edges[i].node2 = NULL;
     }
     else
     {
-      mesh->edges[i]->node2 = mesh->nodes[n2];
+      mesh->edges[i].node2 = &mesh->nodes[n2];
     }
   }
   // Tag the outer edges as such.
@@ -104,13 +104,13 @@ mesh_t* voronoi_tessellation(point_t* points, int num_points,
   // Face <-> edge/cell connectivity.
   for (int i = 0; i < mesh->num_faces; ++i)
   {
-    mesh->faces[i]->cell1 = mesh->cells[out->vfacetlist[i].c1];
-    mesh->faces[i]->cell2 = mesh->cells[out->vfacetlist[i].c2];
+    mesh->faces[i].cell1 = &mesh->cells[out->vfacetlist[i].c1];
+    mesh->faces[i].cell2 = &mesh->cells[out->vfacetlist[i].c2];
     int Ne = out->vfacetlist[i].elist[0];
-    mesh->faces[i]->num_edges = Ne;
-    mesh->faces[i]->edges = malloc(Ne*sizeof(edge_t*));
+    mesh->faces[i].num_edges = Ne;
+    mesh->faces[i].edges = malloc(Ne*sizeof(edge_t*));
     for (int j = 0; j < Ne; ++j)
-      mesh->faces[i]->edges[j] = mesh->edges[out->vfacetlist[i].elist[j+1]];
+      mesh->faces[i].edges[j] = &mesh->edges[out->vfacetlist[i].elist[j+1]];
   }
 
   // Cell <-> face connectivity.
@@ -121,13 +121,13 @@ mesh_t* voronoi_tessellation(point_t* points, int num_points,
   for (int i = 0; i < mesh->num_cells; ++i)
   {
     int Nf = out->vcelllist[i][0];
-    mesh->cells[i]->num_faces = Nf;
-    mesh->cells[i]->faces = malloc(Nf*sizeof(face_t*));
+    mesh->cells[i].num_faces = Nf;
+    mesh->cells[i].faces = malloc(Nf*sizeof(face_t*));
     for (int f = 0; f < Nf; ++f)
     {
       int faceid = out->vcelllist[i][f+1];
-      face_t* face = mesh->faces[faceid];
-      mesh->cells[i]->faces[f] = face;
+      face_t* face = &mesh->faces[faceid];
+      mesh->cells[i].faces[f] = face;
       for (int e = 0; e < face->num_edges; ++e)
       {
         int edgeid = out->vfacetlist[faceid].elist[e+1];
@@ -156,10 +156,10 @@ mesh_t* voronoi_tessellation(point_t* points, int num_points,
   {
     int num_edges = 0;
     slist_node_t* pos = slist_back(outer_cell_edges);
-    for (int f = 0; f < mesh->cells[i]->num_faces; ++f)
+    for (int f = 0; f < mesh->cells[i].num_faces; ++f)
     {
       int faceid = out->vcelllist[i][f+1];
-      for (int e = 0; e < mesh->faces[f]->num_edges; ++e)
+      for (int e = 0; e < mesh->faces[f].num_edges; ++e)
       {
         int edgeid = out->vfacetlist[faceid].elist[e+1];
         if (avl_tree_find(outer_edges, (void*)edgeid) != NULL)
@@ -189,8 +189,8 @@ typedef struct
   vector_t ray;
 } boundary_int_context;
 
-// Boundary function and derivative, parametrized to parameter s.
-static void boundary_intersection_and_deriv(void* context, double s, double* F, double* dFds)
+// Boundary function, parametrized to parameter s.
+static double boundary_intersection(void* context, double s)
 {
   boundary_int_context* C = (boundary_int_context*)context;
   point_t x = {C->node->x + C->ray.x*s, 
@@ -198,12 +198,7 @@ static void boundary_intersection_and_deriv(void* context, double s, double* F, 
                C->node->z + C->ray.z*s};
   double val;
   sp_func_eval(C->B, &x, &val);
-  *F = val;
-
-  double ds = fmax(0.1*s, 1e-3);
-  vector_t G, dx = {C->ray.x*ds, C->ray.y*ds, C->ray.z*ds};
-  sp_func_grad_richardson(C->B, &x, &dx, &G);
-  *dFds = G.x*C->ray.x + G.y*C->ray.y + G.z*C->ray.z;
+  return val;
 }
 
 void voronoi_intersect_with_boundary(mesh_t* mesh, sp_func_t* boundary)
@@ -230,26 +225,23 @@ void voronoi_intersect_with_boundary(mesh_t* mesh, sp_func_t* boundary)
   for (int i = 0; i < num_outer_edges; ++i)
   {
     // Set up the context to do a nonlinear solve.
-    edge_t* edge = mesh->edges[outer_edges[i]];
+    edge_t* edge = &mesh->edges[outer_edges[i]];
     ctx.node = edge->node1;
     ctx.ray.x = rays[3*i];
     ctx.ray.y = rays[3*i+1];
     ctx.ray.z = rays[3*i+2];
 
-    // Do a Newton-Picard iteration until we achieve the desired 
+    // Use Brent's method to find s within the given tolerance.
     // tolerance.
     double tol = 1e-5;
-    double s = 0.0; // Start at the node.
-    int n_iters = 5;  // 5 Newton iterations, followed by
-    int p_iters = 10; // 10 Picard iterations.
-    int n_cycles = 5; 
-    newton_picard_solve(&boundary_intersection_and_deriv, &ctx, &s, 0.0, FLT_MAX, tol, n_iters, p_iters, n_cycles);
+    double s, error; 
+    s = brent_solve(&boundary_intersection, &ctx, 0.0, FLT_MAX, tol, 10, &error);
 
     // Wire up the boundary node.
-    mesh->nodes[old_num_nodes+i]->x = ctx.node->x + s*ctx.ray.x;
-    mesh->nodes[old_num_nodes+i]->y = ctx.node->y + s*ctx.ray.y;
-    mesh->nodes[old_num_nodes+i]->z = ctx.node->z + s*ctx.ray.z;
-    edge->node2 = mesh->nodes[old_num_nodes+i];
+    mesh->nodes[old_num_nodes+i].x = ctx.node->x + s*ctx.ray.x;
+    mesh->nodes[old_num_nodes+i].y = ctx.node->y + s*ctx.ray.y;
+    mesh->nodes[old_num_nodes+i].z = ctx.node->z + s*ctx.ray.z;
+    edge->node2 = &mesh->nodes[old_num_nodes+i];
   }
 
   // Now we add boundary faces and their bounding edges.
