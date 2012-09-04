@@ -101,7 +101,7 @@ void io_dataset_free(io_dataset_t* dataset)
   free(dataset);
 }
 
-void io_dataset_read_mesh(io_dataset_t* dataset, mesh_t* mesh)
+void io_dataset_read_mesh(io_dataset_t* dataset, mesh_t** mesh)
 {
   ASSERT(dataset->interface->mode == IO_READ);
   if (dataset->interface->vtable.read_mesh == NULL)
@@ -136,7 +136,7 @@ void io_dataset_write_mesh(io_dataset_t* dataset, mesh_t* mesh)
   }
 }
 
-void io_dataset_read_lite_mesh(io_dataset_t* dataset, lite_mesh_t* mesh)
+void io_dataset_read_lite_mesh(io_dataset_t* dataset, lite_mesh_t** mesh)
 {
   ASSERT(dataset->interface->mode == IO_READ);
   if (dataset->interface->vtable.read_lite_mesh == NULL)
