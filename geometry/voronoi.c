@@ -173,7 +173,25 @@ mesh_t* voronoi_tessellation(point_t* points, int num_points,
     slist_insert(outer_cell_edges, pos, (void*)num_edges);
   }
 
+  // Add 'outer_edges' as a property of the outer_cells.
+  int* oce = malloc(slist_size(outer_cell_edges)*sizeof(double));
+  mesh_tag_set_property(mesh->edge_tags, "outer_cells", "outer_edges", outer_cell_edges, &free);
+  int offset = 0;
+  for (slist_node_t* n = slist_front(outer_cell_edges); n != NULL;)
+  {
+    // Read the number of edges for the cell.
+    int num_edges = (int)n->value;
+    n = n->next;
+    oce[offset++] = num_edges;
+    for (int e = 0; e < num_edges; ++e)
+    {
+      oce[offset++] = (int)n->value;
+      n = n->next;
+    }
+  }
+
   // Clean up.
+  slist_free(outer_cell_edges);
   avl_tree_free(outer_cells);
   avl_tree_free(outer_edges);
   PLCDestroy(&in);
