@@ -105,16 +105,16 @@ mesh_t* voronoi_plane(point_t* points, int num_points,
 
   // Make sure we got something.
   if (delaunay.numberoftriangles == 0)
-    arbi_error("planar_voronoi_stack: delaunay triangulation produced 0 triangles!");
+    arbi_error("voronoi_plane: delaunay triangulation produced 0 triangles!");
   if (delaunay.numberofpoints != num_points)
   {
     char err[1024];
-    snprintf(err, 1024, "planar_voronoi_stack: delaunay triangulation produced %d triangles\n(%d generating points given)", 
+    snprintf(err, 1024, "voronoi_plane: delaunay triangulation produced %d triangles\n(%d generating points given)", 
              delaunay.numberofpoints, num_points);
     arbi_error(err);
   }
   if (voro.numberofpoints <= 0)
-    arbi_error("planar_voronoi_stack: Error occurred generating Voronoi graph.");
+    arbi_error("voronoi_plane: Error occurred generating Voronoi graph.");
 
   // Now assemble the mesh.
   int num_cells = num_points;
