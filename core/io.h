@@ -31,10 +31,10 @@ typedef int (*io_open_func)(void*, const char*, const char*, io_mode_t, MPI_Comm
 typedef int (*io_close_func)(void*);
 
 // A function pointer type for reading a (heavy) mesh from an open descriptor.
-typedef int (*io_read_mesh_func)(void*, const char*, mesh_t*);
+typedef int (*io_read_mesh_func)(void*, const char*, mesh_t**);
 
 // A function pointer type for reading a light mesh from an open descriptor.
-typedef int (*io_read_lite_mesh_func)(void*, const char*, lite_mesh_t*);
+typedef int (*io_read_lite_mesh_func)(void*, const char*, lite_mesh_t**);
 
 // Function pointer types for querying data fields from a descriptor.
 typedef int (*io_query_field_func)(void*, const char*, const char*, int*, mesh_centering_t*);
@@ -55,7 +55,7 @@ typedef int (*io_write_mesh_func)(void*, const char*, mesh_t*);
 typedef int (*io_write_lite_mesh_func)(void*, const char*, lite_mesh_t*);
 
 // A function pointer type for writing a data field to a descriptor.
-typedef int (*io_write_field_func)(void*, const char*, const char*, double*, int, int);
+typedef int (*io_write_field_func)(void*, const char*, const char*, double*, int, mesh_centering_t);
 
 // A function pointer for writing a block of source code from a descriptor.
 typedef int (*io_write_source_code_func)(void*, const char*, const char*, const char*);
@@ -110,13 +110,13 @@ io_dataset_t* io_dataset(io_interface_t* interface, const char* dataset);
 void io_dataset_free(io_dataset_t* dataset);
 
 // Reads a heavy mesh from the descriptor.
-void io_dataset_read_mesh(io_dataset_t* dataset, mesh_t* mesh);
+void io_dataset_read_mesh(io_dataset_t* dataset, mesh_t** mesh);
 
 // Writes a heavy mesh the descriptor.
 void io_dataset_write_mesh(io_dataset_t* dataset, mesh_t* mesh);
 
 // Reads a lite mesh from the descriptor.
-void io_dataset_read_lite_mesh(io_dataset_t* dataset, lite_mesh_t* mesh);
+void io_dataset_read_lite_mesh(io_dataset_t* dataset, lite_mesh_t** mesh);
 
 // Writes a lite mesh to the descriptor.
 void io_dataset_write_lite_mesh(io_dataset_t* dataset, lite_mesh_t* mesh);
