@@ -44,11 +44,11 @@ for (int i = start; i < start + num; ++i) \
 extern "C" {
 #endif
 
-typedef void (*arbi_error_handler_function)(const char*);
+typedef int (*arbi_error_handler_function)(const char*);
 
 // Issues an error with the given message. By default, an error issues a 
 // message to stdout and exits the program with status -1.
-void arbi_error(const char* message, ...);
+int arbi_error(const char* message, ...);
 
 // Sets the error handler for the arbi library.
 void arbi_set_error_handler(arbi_error_handler_function handler);

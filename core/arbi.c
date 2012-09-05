@@ -60,14 +60,15 @@ void arbi_init(int argc, char** argv)
 }
 
 // Default error handler.
-static void default_error_handler(const char* message)
+static int default_error_handler(const char* message)
 {
   printf("Error: %s\n", message);
   printf("encountered in arbi. Exiting with status -1\n");
   MPI_Abort(MPI_COMM_WORLD, -1);
+  return -1; // Not reached.
 }
 
-void 
+int 
 arbi_error(const char* message, ...)
 {
   // Set the default error handler if no handler is set.
@@ -82,7 +83,7 @@ arbi_error(const char* message, ...)
   va_end(argp);
 
   // Call the handler.
-  error_handler(err);
+  return error_handler(err);
 }
 
 void 

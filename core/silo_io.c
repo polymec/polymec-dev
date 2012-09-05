@@ -13,11 +13,13 @@
 extern "C" {
 #endif
 
-#ifdef USE_MPI
+typedef struct
+{
+} silo_context;
 
-void* pmpio_create_file(const char* filename,
-                        const char* dirname,
-                        void* userData)
+void* silo_create_file(const char* filename,
+                       const char* dirname,
+                       void* userData)
 {
   int driver = DB_HDF5;
   DBfile* file = DBCreate(filename, 0, DB_LOCAL, 0, driver);
@@ -26,14 +28,14 @@ void* pmpio_create_file(const char* filename,
   return (void*)file;
 }
 
-void* pmpio_open_file(const char* filename, 
-                      const char* dirname,
-                      PMPIO_iomode_t iomode, 
-                      void* userData)
+void* silo_open_file(const char* filename, 
+                     const char* dirname,
+                     io_mode_t mode, 
+                     void* userData)
 {
   int driver = DB_HDF5;
   DBfile* file;
-  if (iomode == PMPIO_WRITE)
+  if (mode == IO_WRITE)
   { 
     file = DBCreate(filename, 0, DB_LOCAL, 0, driver);
     DBMkDir(file, dirname);
@@ -47,87 +49,12 @@ void* pmpio_open_file(const char* filename,
   return (void*)file;
 }
 
-void pmpio_close_file(void* file, void* userData)
+void silo_close_file(void* context, void* file)
 {
-  DBClose((DBfile*)file);
-}
-
-#endif
-
-typedef struct
-{
-  char filename[1024];
-  char dir[1024];
-#ifdef USE_MPI
-  PMPIO_baton_t* baton;
-#endif
-  DBfile* file;
-} silo_context;
-
-static int silo_open(void* context, const char* prefix, const char* directory, io_mode_t mode, MPI_Comm comm, int num_files, int mpi_tag)
-{
+  // In this method, we do all the writing.
   silo_context* silo = (silo_context*)context;
 
-  // Open a file in Silo/HDF5 format.
-  char filename[1024];
-#ifdef USE_MPI
-  int nproc = 1, rank = 0;
-  MPI_Comm_size(comm, &nproc);
-  MPI_Comm_rank(comm, &rank);
-  if (num_files == -1)
-    num_files = nproc;
-  ASSERT(num_files <= nproc);
-
-  // We put the entire data set into a directory named after the 
-  // prefix, and every process gets its own subdirectory therein.
-
-  // Initialize poor man's I/O and figure out group ranks.
-  PMPIO_iomode_t pmpio_mode = (mode == IO_READ) ? PMPIO_READ : PMPIO_WRITE;
-  silo->baton = PMPIO_Init(num_files, pmpio_mode, comm, mpi_tag, 
-                           &pmpio_createFile, &pmpio_openFile, 
-                           &pmpio_closeFile, 0);
-  int group_rank = PMPIO_group_rank(baton, rank);
-  int rank_in_group = PMPIO_rank_in_group(baton, rank);
-
-  // Create a subdirectory for each group.
-  char group_dirname[1024];
-  snprintf(group_dirname, 1024, "%s/%d", directory, group_rank);
-  if ((rank_in_group == 0) && (mode == IO_WRITE))
-  {
-    DIR* group_dir = opendir(group_dirname);
-    if (group_dir == 0)
-      mkdir((char*)group_dirname, S_IRWXU | S_IRWXG);
-    else
-      closedir(group_dir);
-    MPI_Barrier(comm);
-  }
-  else if (mode == IO_WRITE)
-  {
-    MPI_Barrier(comm);
-  }
-
-  // Determine a file name.
-  snprintf(silo->filename, 1024, "%s/%s.silo", group_dirname, prefix);
-  snprintf(silo->dir, 1024, "domain_%d", rank_in_group);
-#else
-
-  snprintf(silo->filename, 1024, "%s/%s.silo", directory, prefix);
-
-  int driver = DB_HDF5;
-  silo->file = DBCreate(silo->filename, 0, DB_LOCAL, 0, driver);
-  DBSetDir(silo->file, "/");
-#endif
-
-  return 0;
-}
-
-static int silo_close(void* context)
-{
-  //silo->file = (DBfile*)PMPIO_WaitForBaton(silo->baton, silo->filename, silo->dir);
-  //PMPIO_HandOffBaton(silo->baton, (void*)silo->file); // FIXME
-  //PMPIO_Finish(silo->baton);
-  //DBClose(file);
-  return 0;
+  DBClose(file);
 }
 
 static int silo_read_mesh(void* context, const char* dataset, mesh_t** mesh)
@@ -178,8 +105,9 @@ static void silo_dtor(void* context)
 io_interface_t* silo_io_new()
 {
   silo_context* context = malloc(sizeof(silo_context));
-  io_vtable vtable = {.open = &silo_open, 
-                      .close = &silo_close,
+  io_vtable vtable = {.create_file = &silo_create_file,
+                      .open_file = &silo_open_file, 
+                      .close_file = &silo_close_file,
                       .read_mesh = &silo_read_mesh,
                       .query_field = &silo_query_field,
                       .read_field = &silo_read_field,
