@@ -24,11 +24,14 @@ typedef enum
 // This descriptor allows one to retrieve data for a given dataset.
 typedef struct io_dataset_t io_dataset_t;
 
+// A function pointer type for creating file descriptors.
+typedef void* (*io_create_file_func)(void*, const char*, const char*);
+
 // A function pointer type for opening file descriptors.
-typedef int (*io_open_func)(void*, const char*, const char*, io_mode_t, MPI_Comm, int, int);
+typedef void* (*io_open_file_func)(void*, const char* , const char*, io_mode_t);
 
 // A function pointer type for closing file descriptors.
-typedef int (*io_close_func)(void*);
+typedef void (*io_close_file_func)(void*, void*);
 
 // A function pointer type for reading a (heavy) mesh from an open descriptor.
 typedef int (*io_read_mesh_func)(void*, const char*, mesh_t**);
@@ -67,8 +70,9 @@ typedef void (*io_dtor)(void*);
 // within arbi.
 typedef struct 
 {
-  io_open_func                  open;
-  io_close_func                 close;
+  io_create_file_func           create_file;
+  io_open_file_func             open_file;
+  io_close_file_func            close_file;
   io_read_mesh_func             read_mesh;
   io_read_lite_mesh_func        read_lite_mesh;
   io_query_field_func           query_field;

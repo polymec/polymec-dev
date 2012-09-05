@@ -1,6 +1,13 @@
 #include <stdlib.h>
 #include <string.h>
+#include <dirent.h>
+#include <sys/stat.h>
 #include "core/io.h"
+
+#ifdef USE_MPI
+#include <mpi.h>
+#include "pmpio.h"
+#endif
 
 #ifdef __cplusplus
 extern "C" {
@@ -14,13 +21,20 @@ struct io_interface_t
   char* name;
   io_mode_t mode;
   io_vtable vtable;
+  void* file;
+  char filename[1024];
+#ifdef USE_MPI
+  PMPIO_baton_t* baton;
+  char dir[1024];
+#endif
 };
 
 io_interface_t* io_interface_new(void* context, const char* name, io_vtable vtable)
 {
   // Check the vtable.
-  ASSERT(vtable.open != NULL);
-  ASSERT(vtable.close != NULL);
+  ASSERT(vtable.create_file != NULL);
+  ASSERT(vtable.open_file != NULL);
+  ASSERT(vtable.close_file != NULL);
   ASSERT((vtable.read_mesh != NULL) || (vtable.read_lite_mesh != NULL));
   ASSERT(vtable.query_field != NULL);
   ASSERT(vtable.read_field != NULL);
@@ -46,6 +60,33 @@ void io_free(io_interface_t* interface)
   free(interface);
 }
 
+#if USE_MPI
+static void* pmpio_create_file(const char* filename, 
+                               const char* dirname,
+                               void* userData)
+{
+  io_interface_t* io = (io_interface_t*)userData;
+  return io->vtable.create_file(io->context, filename, dirname);
+}
+
+static void* pmpio_open_file(const char* filename, 
+                             const char* dirname,
+                             PMPIO_iomode_t iomode, 
+                             void* userData)
+{
+  io_mode_t mode = (pmpio_mode == PMPIO_READ) ? IO_READ : IO_WRITE;
+  io_interface_t* io = (io_interface_t*)userData;
+  return io->vtable.open_file(io->context, filename, dirname, io_mode);
+}
+
+static void* pmpio_close_file(void* file,
+                              void* userData)
+{
+  io_interface_t* io = (io_interface_t*)userData;
+  io->vtable.close_file(io->context, io->file);
+}
+#endif
+
 void io_open(io_interface_t* interface, 
              const char* prefix, 
              const char* directory,  
@@ -56,10 +97,82 @@ void io_open(io_interface_t* interface,
 {
   ASSERT(interface->mode == IO_CLOSED);
   ASSERT(mode != IO_CLOSED);
-  if (interface->vtable.open(interface->context, prefix, directory, mode, comm, num_files, mpi_tag) != ARBI_SUCCESS)
+
+  // If we're reading a file, make sure the master directory exists.
+  // If we're writing a file, create the directory if it doesn't exist.
+#if USE_MPI
+  if (rank == 0)
+  {
+#endif
+    DIR* dir = opendir(directory);
+    if (dir == NULL)
+    {
+      if (mode == IO_READ)
+        arbi_error("io_open: directory %s does not exist.", directory);
+      else 
+        mkdir((char*)directory, S_IRWXU | S_IRWXG);
+    }
+    else
+    {
+      closedir(dir);
+    }
+#if USE_MPI
+    MPI_Barrier(comm);
+  }
+  else
+  {
+    MPI_Barrier(comm);
+  }
+
+  int nproc = 1, rank = 0;
+  MPI_Comm_size(comm, &nproc);
+  MPI_Comm_rank(comm, &rank);
+  if (num_files == -1)
+    num_files = nproc;
+  ASSERT(num_files <= nproc);
+
+  // We put the entire data set into a directory named after the 
+  // prefix, and every process gets its own subdirectory therein.
+
+  // Initialize poor man's I/O and figure out group ranks.
+  PMPIO_iomode_t pmpio_mode = (mode == IO_READ) ? PMPIO_READ : PMPIO_WRITE;
+  silo->baton = PMPIO_Init(num_files, pmpio_mode, comm, mpi_tag, 
+                           &pmpio_create_file,
+                           &pmpio_open_file,
+                           &pmpio_close_file, (void*)interface);
+  int group_rank = PMPIO_group_rank(baton, rank);
+  int rank_in_group = PMPIO_rank_in_group(baton, rank);
+
+  // Create a subdirectory for each group.
+  char group_dirname[1024];
+  snprintf(group_dirname, 1024, "%s/%d", directory, group_rank);
+  if ((rank_in_group == 0) && (mode == IO_WRITE))
+  {
+    DIR* group_dir = opendir(group_dirname);
+    if (group_dir == 0)
+      mkdir((char*)group_dirname, S_IRWXU | S_IRWXG);
+    else
+      closedir(group_dir);
+    MPI_Barrier(comm);
+  }
+  else if (mode == IO_WRITE)
+  {
+    MPI_Barrier(comm);
+  }
+
+  // Determine a file name.
+  snprintf(interface->filename, 1024, "%s/%s.silo", group_dirname, prefix);
+  snprintf(interface->dir, 1024, "domain_%d", rank_in_group);
+  interface->file = PMPIO_WaitForBaton(interface->baton, interface->filename, interface->dir);
+#else
+  snprintf(interface->filename, 1024, "%s/%s.silo", directory, prefix);
+  interface->file = interface->vtable.create_file(interface->filename, "/", NULL);
+#endif
+
+  if (interface->file == NULL)
   {
     char err[1024];
-    snprintf(err, 1024, "Could not open file descriptor for %s\n", prefix);
+    snprintf(err, 1024, "io_open: Could not open file descriptor for %s\n", prefix);
     arbi_error(err);
   }
   else
@@ -71,14 +184,13 @@ void io_open(io_interface_t* interface,
 void io_close(io_interface_t* interface)
 {
   ASSERT(interface->mode != IO_CLOSED);
-  if (interface->vtable.close(interface->context) != ARBI_SUCCESS)
-  {
-    arbi_error("Could not close file descriptor.\n");
-  }
-  else
-  {
-    interface->mode = IO_CLOSED;
-  }
+#if USE_MPI
+  PMPIO_HandOffBaton(interface->baton, interface->file);
+  PMPIO_Finish(interface->baton);
+#else
+  interface->vtable.close_file(interface->context, interface->file);
+#endif
+  interface->mode = IO_CLOSED;
 }
 
 struct io_dataset_t
