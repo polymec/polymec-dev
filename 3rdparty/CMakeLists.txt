@@ -28,23 +28,6 @@ set(TRIANGLE_CFLAGS "-DTRILIBRARY -DREDUCED -DCDT_ONLY -DANSI_DECLARATORS -DREAL
 set_target_properties(triangle PROPERTIES COMPILE_FLAGS ${TRIANGLE_CFLAGS})
 set(ARBI_TP_LIBS ${ARBI_TP_LIBS};triangle)
 
-# Install libgc, the C garbage collector library.
-#if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libgc.a)
-#  set(GC_CONFIG_OPTS --prefix=${PROJECT_BINARY_DIR} --enable-static --disable-shared --disable-gcj-support)
-#  if (${CMAKE_BUILD_TYPE} STREQUAL "Debug")
-#    set(GC_CONFIG_OPTS ${GC_CONFIG_OPTS} --enable-gc-debug)
-#  endif()
-#  execute_process(COMMAND cmake -E tar xzvf ${CMAKE_CURRENT_SOURCE_DIR}/gc-7.2.tar.gz
-#                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
-#  execute_process(COMMAND env CC=${CC} ./configure ${GC_CONFIG_OPTS}
-#                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/gc-7.2)
-#  execute_process(COMMAND make install
-#                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/gc-7.2)
-#  add_library(gc STATIC IMPORTED)
-#  set_target_properties(gc PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libgc.a)
-#endif()
-#set(ARBI_TP_LIBS ${ARBI_TP_LIBS};gc)
-
 # Install zeromq.
 #if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libzmq.a)
 #  set(ZMQ_CONFIG_OPTS --prefix=${PROJECT_BINARY_DIR} --enable-static --disable-shared)
@@ -61,6 +44,30 @@ set(ARBI_TP_LIBS ${ARBI_TP_LIBS};triangle)
 #  set_target_properties(zmq PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libzmq.a)
 #endif()
 #set(ARBI_TP_LIBS ${ARBI_TP_LIBS};zmq;stdc++)
+
+# Install cprops -- A fast prototyping C library.
+if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libcprops.a)
+  set(CPROPS_CONFIG_OPTS --prefix=${PROJECT_BINARY_DIR} --enable-static --disable-shared --disable-ssl --disable-cp-dbms --disable-cpsvc --disable-cpsp)
+  if (${CMAKE_BUILD_TYPE} STREQUAL "Debug")
+    set(CPROPS_CONFIG_OPTS ${SILO_CONFIG_OPTS} --enable-debug)
+  endif()
+  execute_process(COMMAND cmake -E tar xzvf ${CMAKE_CURRENT_SOURCE_DIR}/libcprops-0.1.12.zip
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+  execute_process(COMMAND env CC=${CC} CXX=${CXX} ./configure ${CPROPS_CONFIG_OPTS}
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/libcprops-0.1.12)
+  file(GLOB includes "${CMAKE_CURRENT_BINARY_DIR}/libcprops-0.1.12/*.h")
+  foreach(inc ${includes})
+    execute_process(COMMAND cmake -E copy ${inc} ${PROJECT_BINARY_DIR}/include)
+  endforeach()
+  execute_process(COMMAND cmake -E copy libcprops.a ${PROJECT_BINARY_DIR}/lib
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/libcprops-0.1.12/.libs)
+#  execute_process(COMMAND make install
+#                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/libcprops-0.1.12
+#                  OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
+endif()
+add_library(cprops STATIC IMPORTED)
+set_target_properties(cprops PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libcprops.a)
+set(ARBI_TP_LIBS ${ARBI_TP_LIBS};cprops)
 
 # Install silo.
 if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libsilo.a)
