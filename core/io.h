@@ -21,6 +21,16 @@ typedef enum
   IO_WRITE
 } io_mode_t;
 
+// A struct holding buffered data that has been read from or is to 
+// be dumped to a file descriptor.
+typedef struct
+{
+  // Heavy meshes.
+  // Light meshes.
+  // Fields.
+  // Source code fragments.
+} io_buffered_data_t;
+
 // This descriptor allows one to retrieve data for a given dataset.
 typedef struct io_dataset_t io_dataset_t;
 
@@ -33,35 +43,11 @@ typedef void* (*io_open_file_func)(void*, const char* , const char*, io_mode_t);
 // A function pointer type for closing file descriptors.
 typedef void (*io_close_file_func)(void*, void*);
 
-// A function pointer type for reading a (heavy) mesh from an open descriptor.
-typedef int (*io_read_mesh_func)(void*, const char*, mesh_t**);
+// A function pointer for reading data from an open file descriptor.
+typedef void (*io_read_data_func)(void*, void*, io_buffered_data_t* data);
 
-// A function pointer type for reading a light mesh from an open descriptor.
-typedef int (*io_read_lite_mesh_func)(void*, const char*, lite_mesh_t**);
-
-// Function pointer types for querying data fields from a descriptor.
-typedef int (*io_query_field_func)(void*, const char*, const char*, int*, mesh_centering_t*);
-
-// A function pointer type for reading a data field from a descriptor.
-typedef int (*io_read_field_func)(void*, const char*, const char*, double*);
-
-// A function pointer for reading a block of source code from a descriptor.
-typedef int (*io_query_source_code_func)(void*, const char*, const char*, int*);
-
-// A function pointer for reading a block of source code from a descriptor.
-typedef int (*io_read_source_code_func)(void*, const char*, const char*, char*);
-
-// A function pointer type for writing a (heavy) mesh to an open descriptor.
-typedef int (*io_write_mesh_func)(void*, const char*, mesh_t*);
-
-// A function pointer type for writing a light mesh to an open descriptor.
-typedef int (*io_write_lite_mesh_func)(void*, const char*, lite_mesh_t*);
-
-// A function pointer type for writing a data field to a descriptor.
-typedef int (*io_write_field_func)(void*, const char*, const char*, double*, int, mesh_centering_t);
-
-// A function pointer for writing a block of source code from a descriptor.
-typedef int (*io_write_source_code_func)(void*, const char*, const char*, const char*);
+// A function pointer for dumping data to an open file descriptor.
+typedef void (*io_write_data_func)(void*, void*, io_buffered_data_t* data);
 
 // A destructor function for the context object (if any).
 typedef void (*io_dtor)(void*);
@@ -73,16 +59,8 @@ typedef struct
   io_create_file_func           create_file;
   io_open_file_func             open_file;
   io_close_file_func            close_file;
-  io_read_mesh_func             read_mesh;
-  io_read_lite_mesh_func        read_lite_mesh;
-  io_query_field_func           query_field;
-  io_read_field_func            read_field;
-  io_query_source_code_func     query_source_code;
-  io_read_source_code_func      read_source_code;
-  io_write_mesh_func            write_mesh;
-  io_write_lite_mesh_func       write_lite_mesh;
-  io_write_field_func           write_field;
-  io_write_source_code_func     write_source_code;
+  io_read_data_func             read_data;
+  io_write_data_func            write_data;
   io_dtor                       dtor;
 } io_vtable;
 
