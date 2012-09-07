@@ -180,29 +180,28 @@ void io_open(io_interface_t* interface,
   // Determine a file name.
   snprintf(interface->filename, 1024, "%s/%s.silo", group_dirname, prefix);
   snprintf(interface->dir, 1024, "domain_%d", rank_in_group);
-  interface->file = PMPIO_WaitForBaton(interface->baton, interface->filename, interface->dir);
 #else
   snprintf(interface->filename, 1024, "%s/%s.silo", directory, prefix);
-  interface->file = interface->vtable.create_file(interface->filename, "/", NULL);
 #endif
-
-  if (interface->file == NULL)
-  {
-    char err[1024];
-    snprintf(err, 1024, "io_open: Could not open file descriptor for %s\n", prefix);
-    arbi_error(err);
-  }
-  else
-  {
-    interface->mode = mode;
-  }
 
   // If we're reading from the file, read the contents.
   if (mode == IO_READ)
   {
+#if USE_MPI
+    interface->file = PMPIO_WaitForBaton(interface->baton, interface->filename, interface->dir);
+#else 
+    interface->file = interface->vtable.create_file(interface->filename, "/", NULL);
+#endif
+    if (interface->file == NULL)
+    {
+      char err[1024];
+      snprintf(err, 1024, "io_open: Could not open file descriptor for %s\n", prefix);
+      arbi_error(err);
+    }
     interface->buffered_data = malloc(sizeof(io_buffered_data_t));
     interface->vtable.read_data(interface->context, interface->file, interface->buffered_data);
   }
+  interface->mode = mode;
 }
 
 void io_close(io_interface_t* interface)
