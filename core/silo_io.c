@@ -17,9 +17,9 @@ typedef struct
 {
 } silo_context;
 
-static void* silo_create_file(const char* filename,
-                              const char* dirname,
-                              void* userData)
+static void* silo_create_file(void* context, 
+                              const char* filename,
+                              const char* dirname)
 {
   int driver = DB_HDF5;
   DBfile* file = DBCreate(filename, 0, DB_LOCAL, 0, driver);
@@ -28,10 +28,10 @@ static void* silo_create_file(const char* filename,
   return (void*)file;
 }
 
-static void* silo_open_file(const char* filename, 
+static void* silo_open_file(void* context, 
+                            const char* filename, 
                             const char* dirname,
-                            io_mode_t mode, 
-                            void* userData)
+                            io_mode_t mode)
 {
   int driver = DB_HDF5;
   DBfile* file;
@@ -57,11 +57,16 @@ static void silo_close_file(void* context, void* file)
   DBClose(file);
 }
 
-static void silo_write_data(void* context, void* file, io_buffered_data_t* data)
+static int silo_get_num_datasets(void* context, void* file, int* num_datasets)
+{
+  return 1; // FIXME
+}
+
+static void silo_read_datasets(void* context, void* file, io_dataset_t** datasets, int num_datasets)
 {
 }
 
-static void silo_read_data(void* context, void* file, io_buffered_data_t* data)
+static void silo_write_datasets(void* context, void* file, io_dataset_t** datasets, int num_datasets)
 {
 }
 
@@ -76,8 +81,9 @@ io_interface_t* silo_io_new()
   io_vtable vtable = {.create_file = &silo_create_file,
                       .open_file = &silo_open_file, 
                       .close_file = &silo_close_file,
-                      .read_data = &silo_read_data,
-                      .write_data = &silo_write_data,
+                      .get_num_datasets = &silo_get_num_datasets,
+                      .read_datasets = &silo_read_datasets,
+                      .write_datasets = &silo_write_datasets,
                       .dtor = &silo_dtor};
   return io_interface_new(context, "SILO", vtable);
 }
