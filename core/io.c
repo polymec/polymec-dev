@@ -32,41 +32,9 @@ struct io_interface_t
 #endif
 
   // Intermediate storage.
-  tommy_allocator* alloc;
-  tommy_trie* datasets;
+  io_dataset_t** datasets;
+  int num_datasets;
 };
-
-// Trie entries.
-typedef struct 
-{
-  tommy_node node;
-  mesh_t* mesh;
-} mesh_trie_entry;
-
-typedef struct
-{
-  tommy_node node;
-  lite_mesh_t* mesh;
-} lite_mesh_trie_entry;
-
-typedef struct
-{
-  tommy_node node;
-  double* field;
-  int size;
-} field_trie_entry;
-
-typedef struct
-{
-  tommy_node node;
-  char* source;
-} source_trie_entry;
-
-typedef struct
-{
-  tommy_node node;
-  io_buffered_data_t* data;
-} data_trie_entry;
 
 io_interface_t* io_interface_new(void* context, const char* name, io_vtable vtable)
 {
@@ -74,8 +42,8 @@ io_interface_t* io_interface_new(void* context, const char* name, io_vtable vtab
   ASSERT(vtable.create_file != NULL);
   ASSERT(vtable.open_file != NULL);
   ASSERT(vtable.close_file != NULL);
-  ASSERT(vtable.read_data != NULL);
-  ASSERT(vtable.write_data != NULL);
+  ASSERT(vtable.read_datasets != NULL);
+  ASSERT(vtable.write_datasets != NULL);
 
   // Allocate the interface.
   io_interface_t* i = malloc(sizeof(io_interface_t));
@@ -84,14 +52,14 @@ io_interface_t* io_interface_new(void* context, const char* name, io_vtable vtab
   i->vtable = vtable;
   i->mode = IO_CLOSED;
   i->file = NULL;
-  i->buffered_data = NULL;
 
 #if USE_MPI
   i->baton = NULL;
 #endif
 
-  tommy_allocator_init(i->alloc, TOMMY_TRIE_BLOCK_SIZE, TOMMY_TRIE_BLOCK_SIZE);
-  tommy_trie_init(i->datasets, i->alloc);
+  // Dataset storage.
+  i->datasets = NULL;
+  i->num_datasets = 0;
 
   return i;
 }
@@ -106,8 +74,10 @@ void io_free(io_interface_t* interface)
   if (interface->vtable.dtor != NULL)
     interface->vtable.dtor(interface->context);
 
-  tommy_trie_done(interface->datasets);
-  tommy_allocator_done(interface->alloc);
+  for (int i = 0; i < interface->num_datasets; ++i)
+    io_dataset_free(interface->datasets[i]);
+  free(interface->datasets);
+
   free(interface);
 }
 
@@ -237,7 +207,13 @@ void io_open(io_interface_t* interface,
       snprintf(err, 1024, "io_open: Could not open file descriptor for %s\n", prefix);
       arbi_error(err);
     }
-    interface->vtable.read_data(interface->context, interface->file, interface->datasets);
+    if (interface->vtable.get_num_datasets != NULL)
+      interface->vtable.get_num_datasets(interface->context, interface->file, &interface->num_datasets);
+    else
+      interface->num_datasets = 1;
+    interface->datasets = malloc(interface->num_datasets*sizeof(io_dataset_t*));
+    memset(interface->datasets, 0, interface->num_datasets*sizeof(io_dataset_t*));
+    interface->vtable.read_datasets(interface->context, interface->file, interface->datasets, interface->num_datasets);
   }
   interface->mode = mode;
 }
@@ -247,8 +223,8 @@ void io_close(io_interface_t* interface)
   ASSERT(interface->mode != IO_CLOSED);
 
   // Flush any buffered data.
-  if ((interface->mode == IO_WRITE) && (interface->buffered_data != NULL))
-    interface->vtable.write_data(interface->context, interface->file, interface->datasets);
+  if ((interface->mode == IO_WRITE) && (interface->datasets != NULL))
+    interface->vtable.write_datasets(interface->context, interface->file, interface->datasets, interface->num_datasets);
 
 #if USE_MPI
   PMPIO_HandOffBaton(interface->baton, interface->file);
@@ -257,141 +233,180 @@ void io_close(io_interface_t* interface)
   interface->vtable.close_file(interface->context, interface->file);
 #endif
   interface->mode = IO_CLOSED;
-
-  // Clean up any buffered data.
-  if (interface->buffered_data != NULL)
-  {
-    free(interface->buffered_data);
-    interface->buffered_data = NULL;
-  }
 }
 
 struct io_dataset_t
 {
   io_interface_t* interface;
   char* name;
+  mesh_t* mesh;
+  lite_mesh_t* lite_mesh;
+
+  double** fields;
+  char** field_names;
+  int* field_num_comps;
+  mesh_centering_t* field_centerings;
+  int num_fields;
+
+  char** sources;
+  char** source_names;
+  int* source_lengths;
+  int num_sources;
 };
+
+int io_num_datasets(io_interface_t* interface)
+{
+  return interface->num_datasets;
+}
+
+const char* io_dataset_name(io_interface_t* interface, int index)
+{
+  ASSERT(index >= 0);
+  ASSERT(index < io_num_datasets(interface));
+  return interface->datasets[index]->name;
+}
+
+void io_set_num_datasets(io_interface_t* interface, int num_datasets)
+{
+  ASSERT(interface->mode == IO_WRITE);
+  ASSERT(num_datasets >= 1);
+  ASSERT(interface->datasets == NULL);
+  interface->num_datasets = num_datasets;
+  interface->datasets = malloc(num_datasets*num_datasets);
+  memset(interface->datasets, 0, interface->num_datasets*sizeof(io_dataset_t*));
+}
 
 io_dataset_t* io_dataset(io_interface_t* interface, const char* dataset)
 {
-  io_dataset_t* d = malloc(sizeof(io_dataset_t));
-  d->interface = interface;
-  d->name = strdup(dataset);
-  return d;
+  // Find the dataset with this name within the interface.
+  for (int i = 0; i < interface->num_datasets; ++i)
+  {
+    if (!strcmp(interface->datasets[i]->name, dataset))
+      return interface->datasets[i];
+  }
+  return NULL;
 }
 
 io_dataset_t* io_default_dataset(io_interface_t* interface)
 {
-  return io_dataset(interface, "default");
+  if (interface->num_datasets == 0)
+    return NULL;
+  else
+    return interface->datasets[0];
+}
+
+io_dataset_t* io_dataset_new(io_interface_t* interface, const char* name,
+                             int num_fields, int num_sources)
+{
+  ASSERT(num_fields >= 0);
+  ASSERT(num_sources >= 0);
+  int index = 0;
+  while ((index < interface->num_datasets) && (interface->datasets[index] == NULL))
+    ++index;
+  if (index == interface->num_datasets) // No room!
+    return NULL;
+
+  io_dataset_t* d = malloc(sizeof(io_dataset_t));
+  d->interface = interface;
+  d->name = strdup(name);
+  d->mesh = NULL;
+  d->lite_mesh = NULL;
+  d->fields = malloc(num_fields*sizeof(double*));
+  d->field_names = malloc(num_fields*sizeof(char*));
+  d->num_fields = 0;
+  d->sources = malloc(num_sources*sizeof(char*));
+  d->source_names = malloc(num_sources*sizeof(char*));
+  d->num_sources = 0;
+
+  // Place the dataset in its proper place within the interface.
+  interface->datasets[index] = d;
+
+  return d;
 }
 
 void io_dataset_free(io_dataset_t* dataset)
 {
   free(dataset->name);
+  if (dataset->mesh != NULL)
+    mesh_free(dataset->mesh);
+  if (dataset->lite_mesh != NULL)
+    lite_mesh_free(dataset->lite_mesh);
+
+  for (int i = 0; i < dataset->num_fields; ++i)
+  {
+    if (dataset->fields[i] != NULL)
+      free(dataset->fields[i]);
+    free(dataset->field_names[i]);
+  }
+  free(dataset->fields);
+  free(dataset->field_names);
+
+  for (int i = 0; i < dataset->num_sources; ++i)
+  {
+    if (dataset->sources[i] != NULL)
+      free(dataset->sources[i]);
+    free(dataset->source_names[i]);
+  }
+  free(dataset->sources);
+  free(dataset->source_names);
+
   free(dataset);
 }
 
 void io_dataset_read_mesh(io_dataset_t* dataset, mesh_t** mesh)
 {
   ASSERT(dataset->interface->mode == IO_READ);
-  io_trie_dataset_t* dataset = tommy_trie_search(dataset->interface->datasets
-  {
-    char err[1024];
-    snprintf(err, 1024, "The '%s' I/O interface does not support reading heavy meshes.\n", dataset->interface->name);
-    arbi_error(err);
-  }
-  if (dataset->interface->vtable.read_mesh(dataset->interface->context, dataset->name, mesh) != ARBI_SUCCESS)
-  {
-    char err[1024];
-    snprintf(err, 1024, "Could not read mesh from dataset '%s'.\n", dataset->name);
-    arbi_error(err);
-  }
-#endif
+  *mesh = dataset->mesh;
+  dataset->mesh = NULL;
 }
 
 void io_dataset_write_mesh(io_dataset_t* dataset, mesh_t* mesh)
 {
   ASSERT(dataset->interface->mode == IO_WRITE);
   ASSERT(mesh != NULL);
-#if 0
-  if (dataset->interface->vtable.write_mesh == NULL)
-  {
-    char err[1024];
-    snprintf(err, 1024, "The '%s' I/O interface does not support writing heavy meshes.\n", dataset->interface->name);
-    arbi_error(err);
-  }
-  if (dataset->interface->vtable.write_mesh(dataset->interface->context, dataset->name, mesh) != ARBI_SUCCESS)
-  {
-    char err[1024];
-    snprintf(err, 1024, "Could not write mesh to dataset '%s'.\n", dataset->name);
-    arbi_error(err);
-  }
-#endif
+  dataset->mesh = mesh;
 }
 
 void io_dataset_read_lite_mesh(io_dataset_t* dataset, lite_mesh_t** mesh)
 {
   ASSERT(dataset->interface->mode == IO_READ);
-#if 0
-  if (dataset->interface->vtable.read_lite_mesh == NULL)
-  {
-    char err[1024];
-    snprintf(err, 1024, "The '%s' I/O interface does not support reading lite meshes.\n", dataset->interface->name);
-    arbi_error(err);
-  }
-  if (dataset->interface->vtable.read_lite_mesh(dataset->interface->context, dataset->name, mesh) != ARBI_SUCCESS)
-  {
-    char err[1024];
-    snprintf(err, 1024, "Could not read lite mesh from dataset '%s'.\n", dataset->name);
-    arbi_error(err);
-  }
-#endif
+  *mesh = dataset->lite_mesh;
+  dataset->lite_mesh = NULL;
 }
 
 void io_dataset_write_lite_mesh(io_dataset_t* dataset, lite_mesh_t* mesh)
 {
   ASSERT(dataset->interface->mode == IO_WRITE);
   ASSERT(mesh != NULL);
-#if 0
-  if (dataset->interface->vtable.write_lite_mesh == NULL)
-  {
-    char err[1024];
-    snprintf(err, 1024, "The '%s' I/O interface does not support writing lite meshes.\n", dataset->interface->name);
-    arbi_error(err);
-  }
-  if (dataset->interface->vtable.write_lite_mesh(dataset->interface->context, dataset->name, mesh) != ARBI_SUCCESS)
-  {
-    char err[1024];
-    snprintf(err, 1024, "Could not write lite mesh to dataset '%s'.\n", dataset->name);
-    arbi_error(err);
-  }
-#endif
+  dataset->lite_mesh = mesh;
 }
 
 void io_dataset_query_field(io_dataset_t* dataset, const char* field_name, int* num_components, mesh_centering_t* centering)
 {
   ASSERT(dataset->interface->mode == IO_READ);
-#if 0
-  if (dataset->interface->vtable.query_field(dataset->interface->context, dataset->name, field_name, num_components, centering) != ARBI_SUCCESS)
+  *num_components = -1;
+  for (int i = 0; i < dataset->num_fields; ++i)
   {
-    char err[1024];
-    snprintf(err, 1024, "Could not query field '%s' from dataset '%s'.\n", field_name, dataset->name);
-    arbi_error(err);
+    if (!strcmp(dataset->field_names[i], field_name))
+    {
+      *num_components = dataset->field_num_comps[i];
+      *centering = dataset->field_centerings[i];
+    }
   }
-#endif
 }
 
-void io_dataset_read_field(io_dataset_t* dataset, const char* field_name, double* field_data)
+void io_dataset_read_field(io_dataset_t* dataset, const char* field_name, double** field)
 {
   ASSERT(dataset->interface->mode == IO_READ);
-#if 0
-  if (dataset->interface->vtable.read_field(dataset->interface->context, dataset->name, field_name, field_data) != ARBI_SUCCESS)
+  *field = NULL;
+  for (int i = 0; i < dataset->num_fields; ++i)
   {
-    char err[1024];
-    snprintf(err, 1024, "Could not read field '%s' from dataset '%s'.\n", field_name, dataset->name);
-    arbi_error(err);
+    if (!strcmp(dataset->field_names[i], field_name))
+    {
+      *field = dataset->fields[i];
+      dataset->fields[i] = NULL;
+    }
   }
-#endif
 }
 
 void io_dataset_write_field(io_dataset_t* dataset, const char* field_name, double* field_data, int num_components, mesh_centering_t centering)
@@ -400,53 +415,55 @@ void io_dataset_write_field(io_dataset_t* dataset, const char* field_name, doubl
   ASSERT(field_data != NULL);
   ASSERT(num_data > 0);
   ASSERT(num_components > 0);
-#if 0
-  if (dataset->interface->vtable.write_field(dataset->interface->context, dataset->name, field_name, field_data, num_components, centering) != ARBI_SUCCESS)
+  for (int i = 0; i < dataset->num_fields; ++i)
   {
-    char err[1024];
-    snprintf(err, 1024, "Could not write field '%s' to dataset '%s'.\n", field_name, dataset->name);
-    arbi_error(err);
+    if (!strcmp(dataset->field_names[i], field_name))
+    {
+      dataset->fields[i] = field_data;
+      dataset->field_num_comps[i] = num_components;
+      dataset->field_centerings[i] = centering;
+    }
   }
-#endif
 }
 
 void io_dataset_query_source_code(io_dataset_t* dataset, const char* code_name, int* len)
 {
   ASSERT(dataset->interface->mode == IO_READ);
-#if 0
-  if (dataset->interface->vtable.query_source_code(dataset->interface->context, dataset->name, code_name, len) != ARBI_SUCCESS)
+  *len = -1;
+  for (int i = 0; i < dataset->num_sources; ++i)
   {
-    char err[1024];
-    snprintf(err, 1024, "Could not query source code '%s' from dataset '%s'.\n", code_name, dataset->name);
-    arbi_error(err);
+    if (!strcmp(dataset->source_names[i], code_name))
+    {
+      *len = dataset->source_lengths[i];
+    }
   }
-#endif
 }
 
-void io_dataset_read_source_code(io_dataset_t* dataset, const char* code_name, char* source_code)
+void io_dataset_read_source_code(io_dataset_t* dataset, const char* code_name, char** source_code)
 {
   ASSERT(dataset->interface->mode == IO_READ);
-#if 0
-  if (dataset->interface->vtable.read_source_code(dataset->interface->context, dataset->name, code_name, source_code) != ARBI_SUCCESS)
+  for (int i = 0; i < dataset->num_sources; ++i)
   {
-    char err[1024];
-    snprintf(err, 1024, "Could not read source code '%s' from dataset '%s'.\n", code_name, dataset->name);
-    arbi_error(err);
+    if (!strcmp(dataset->source_names[i], code_name))
+    {
+      *source_code = dataset->sources[i];
+      dataset->sources[i] = NULL;
+    }
   }
-#endif
 }
 
 void io_dataset_write_source_code(io_dataset_t* dataset, const char* code_name, const char* source_code)
 {
   ASSERT(dataset->interface->mode == IO_WRITE);
-#if 0
-  if (dataset->interface->vtable.write_source_code(dataset->interface->context, dataset->name, code_name, source_code) != ARBI_SUCCESS)
+  ASSERT(source_code != NULL);
+  for (int i = 0; i < dataset->num_fields; ++i)
   {
-    char err[1024];
-    snprintf(err, 1024, "Could not write source code '%s' to dataset '%s'.\n", code_name, dataset->name);
-    arbi_error(err);
+    if (!strcmp(dataset->source_names[i], code_name))
+    {
+      dataset->sources[i] = (char*)source_code;
+      dataset->source_lengths[i] = strlen(source_code);
+    }
   }
-#endif
 }
 
 #ifdef __cplusplus
