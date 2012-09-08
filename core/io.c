@@ -32,8 +32,41 @@ struct io_interface_t
 #endif
 
   // Intermediate storage.
-  io_buffered_data_t* buffered_data;
+  tommy_allocator* alloc;
+  tommy_trie* datasets;
 };
+
+// Trie entries.
+typedef struct 
+{
+  tommy_node node;
+  mesh_t* mesh;
+} mesh_trie_entry;
+
+typedef struct
+{
+  tommy_node node;
+  lite_mesh_t* mesh;
+} lite_mesh_trie_entry;
+
+typedef struct
+{
+  tommy_node node;
+  double* field;
+  int size;
+} field_trie_entry;
+
+typedef struct
+{
+  tommy_node node;
+  char* source;
+} source_trie_entry;
+
+typedef struct
+{
+  tommy_node node;
+  io_buffered_data_t* data;
+} data_trie_entry;
 
 io_interface_t* io_interface_new(void* context, const char* name, io_vtable vtable)
 {
@@ -57,6 +90,9 @@ io_interface_t* io_interface_new(void* context, const char* name, io_vtable vtab
   i->baton = NULL;
 #endif
 
+  tommy_allocator_init(i->alloc, TOMMY_TRIE_BLOCK_SIZE, TOMMY_TRIE_BLOCK_SIZE);
+  tommy_trie_init(i->datasets, i->alloc);
+
   return i;
 }
 
@@ -69,6 +105,9 @@ void io_free(io_interface_t* interface)
   free(interface->name);
   if (interface->vtable.dtor != NULL)
     interface->vtable.dtor(interface->context);
+
+  tommy_trie_done(interface->datasets);
+  tommy_allocator_done(interface->alloc);
   free(interface);
 }
 
@@ -198,8 +237,7 @@ void io_open(io_interface_t* interface,
       snprintf(err, 1024, "io_open: Could not open file descriptor for %s\n", prefix);
       arbi_error(err);
     }
-    interface->buffered_data = malloc(sizeof(io_buffered_data_t));
-    interface->vtable.read_data(interface->context, interface->file, interface->buffered_data);
+    interface->vtable.read_data(interface->context, interface->file, interface->datasets);
   }
   interface->mode = mode;
 }
@@ -210,7 +248,7 @@ void io_close(io_interface_t* interface)
 
   // Flush any buffered data.
   if ((interface->mode == IO_WRITE) && (interface->buffered_data != NULL))
-    interface->vtable.write_data(interface->context, interface->file, interface->buffered_data);
+    interface->vtable.write_data(interface->context, interface->file, interface->datasets);
 
 #if USE_MPI
   PMPIO_HandOffBaton(interface->baton, interface->file);
@@ -242,6 +280,11 @@ io_dataset_t* io_dataset(io_interface_t* interface, const char* dataset)
   return d;
 }
 
+io_dataset_t* io_default_dataset(io_interface_t* interface)
+{
+  return io_dataset(interface, "default");
+}
+
 void io_dataset_free(io_dataset_t* dataset)
 {
   free(dataset->name);
@@ -251,8 +294,7 @@ void io_dataset_free(io_dataset_t* dataset)
 void io_dataset_read_mesh(io_dataset_t* dataset, mesh_t** mesh)
 {
   ASSERT(dataset->interface->mode == IO_READ);
-#if 0
-  if (dataset->interface->vtable.read_mesh == NULL)
+  io_trie_dataset_t* dataset = tommy_trie_search(dataset->interface->datasets
   {
     char err[1024];
     snprintf(err, 1024, "The '%s' I/O interface does not support reading heavy meshes.\n", dataset->interface->name);
