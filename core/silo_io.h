@@ -8,7 +8,7 @@ extern "C" {
 #endif
 
 // Creates a Silo I/O interface.
-io_interface_t* silo_io_new();
+io_interface_t* silo_io_new(MPI_Comm comm, int num_files, int mpi_tag);
 
 #ifdef __cplusplus
 }

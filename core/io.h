@@ -59,8 +59,20 @@ typedef struct
 } io_vtable;
 
 // Construct an I/O interface (subclass) object from the given name and 
-// vtable.
-io_interface_t* io_interface_new(void* context, const char* name, io_vtable vtable);
+// vtable. To take advantage of "poor man's parallel I/O", one can provide
+// an MPI communicator, a number of files to be written, and an MPI tag.
+io_interface_t* io_interface_new(void* context, 
+                                 const char* name, 
+                                 io_vtable vtable,
+                                 MPI_Comm comm,
+                                 int num_files,
+                                 int mpi_tag);
+
+// Construct a serial I/O interface (subclass) object from the given name and 
+// vtable. 
+io_interface_t* io_interface_new_serial(void* context, 
+                                        const char* name, 
+                                        io_vtable vtable);
 
 // Frees the given I/O interface.
 void io_free(io_interface_t* interface);
@@ -69,10 +81,7 @@ void io_free(io_interface_t* interface);
 void io_open(io_interface_t* interface, 
              const char* prefix, 
              const char* directory,  
-             io_mode_t mode,
-             MPI_Comm comm,
-             int num_files,
-             int mpi_tag);
+             io_mode_t mode);
 
 // Close the given file descriptor.
 void io_close(io_interface_t* interface);
