@@ -78,8 +78,7 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libtommyds.a)
     execute_process(COMMAND cmake -E copy ${inc} ${PROJECT_BINARY_DIR}/include)
   endforeach()
 endif()
-file(GLOB tommy_sources "${CMAKE_CURRENT_BINARY_DIR}/tommyds-1.2/*.c")
-add_library(tommyds ${tommy_sources})
+add_library(tommyds ${CMAKE_CURRENT_BINARY_DIR}/tommyds-1.2/tommy.c)
 set(ARBI_TP_LIBS ${ARBI_TP_LIBS};tommyds)
 
 # Install silo.

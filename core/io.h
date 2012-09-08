@@ -4,6 +4,7 @@
 #include "core/arbi.h"
 #include "core/mesh.h"
 #include "core/lite_mesh.h"
+#include "tommytrie.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -25,11 +26,19 @@ typedef enum
 // be dumped to a file descriptor.
 typedef struct
 {
-  // Heavy meshes.
-  // Light meshes.
-  // Fields.
-  // Source code fragments.
+  tommy_trie* meshes;     
+  tommy_trie* light_meshes; 
+  tommy_trie* fields;       
+  tommy_trie* source_code;       
 } io_buffered_data_t;
+
+// A datum in a tommy_trie storing an I/O dataset to be read or written 
+// by the I/O interface.
+typedef struct 
+{
+  tommy_node node;
+  io_buffered_data_t* data;
+} io_trie_dataset_t;
 
 // This descriptor allows one to retrieve data for a given dataset.
 typedef struct io_dataset_t io_dataset_t;
@@ -43,10 +52,10 @@ typedef void* (*io_open_file_func)(void*, const char* , const char*, io_mode_t);
 // A function pointer type for closing file descriptors.
 typedef void (*io_close_file_func)(void*, void*);
 
-// A function pointer for reading data from an open file descriptor.
+// A function pointer for reading data from all datasets in a file.
 typedef void (*io_read_data_func)(void*, void*, io_buffered_data_t* data);
 
-// A function pointer for dumping data to an open file descriptor.
+// A function pointer for dumping data to datasets in a file.
 typedef void (*io_write_data_func)(void*, void*, io_buffered_data_t* data);
 
 // A destructor function for the context object (if any).
@@ -82,6 +91,10 @@ void io_open(io_interface_t* interface,
 
 // Close the given file descriptor.
 void io_close(io_interface_t* interface);
+
+// Returns the default dataset descriptor for the file. Use this to retrieve
+// data from files that can hold only one dataset.
+io_dataset_t* io_default_dataset(io_interface_t* interface);
 
 // Returns a dataset descriptor that can be used to retrieve data from the
 // open file descriptor. If there is no dataset by the given name, this 
