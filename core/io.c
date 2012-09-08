@@ -29,6 +29,9 @@ struct io_interface_t
 #ifdef USE_MPI
   PMPIO_baton_t* baton;
   char dir[1024];
+  MPI_Comm comm;
+  int num_files;
+  int mpi_tag;
 #endif
 
   // Intermediate storage.
@@ -36,7 +39,12 @@ struct io_interface_t
   int num_datasets;
 };
 
-io_interface_t* io_interface_new(void* context, const char* name, io_vtable vtable)
+io_interface_t* io_interface_new(void* context, 
+                                 const char* name, 
+                                 io_vtable vtable,
+                                 MPI_Comm comm, 
+                                 int num_files,
+                                 int mpi_tag)
 {
   // Check the vtable.
   ASSERT(vtable.create_file != NULL);
@@ -55,6 +63,9 @@ io_interface_t* io_interface_new(void* context, const char* name, io_vtable vtab
 
 #if USE_MPI
   i->baton = NULL;
+  i->comm = comm;
+  i->num_files = num_files;
+  i->mpi_tag = mpi_tag;
 #endif
 
   // Dataset storage.
@@ -62,6 +73,13 @@ io_interface_t* io_interface_new(void* context, const char* name, io_vtable vtab
   i->num_datasets = 0;
 
   return i;
+}
+
+io_interface_t* io_interface_new_serial(void* context, 
+                                        const char* name, 
+                                        io_vtable vtable)
+{
+  return io_interface_new(context, name, vtable, MPI_COMM_WORLD, 1, 0);
 }
 
 void io_free(io_interface_t* interface)
@@ -115,10 +133,7 @@ static void* pmpio_close_file(void* file,
 void io_open(io_interface_t* interface, 
              const char* prefix, 
              const char* directory,  
-             io_mode_t mode,
-             MPI_Comm comm,
-             int num_files,
-             int mpi_tag)
+             io_mode_t mode)
 {
   ASSERT(interface->mode == IO_CLOSED);
   ASSERT(mode != IO_CLOSED);
@@ -143,26 +158,26 @@ void io_open(io_interface_t* interface,
       closedir(dir);
     }
 #if USE_MPI
-    MPI_Barrier(comm);
+    MPI_Barrier(interface->comm);
   }
   else
   {
-    MPI_Barrier(comm);
+    MPI_Barrier(interface->comm);
   }
 
   int nproc = 1, rank = 0;
-  MPI_Comm_size(comm, &nproc);
-  MPI_Comm_rank(comm, &rank);
-  if (num_files == -1)
-    num_files = nproc;
-  ASSERT(num_files <= nproc);
+  MPI_Comm_size(interface->comm, &nproc);
+  MPI_Comm_rank(interface->comm, &rank);
+  if (interface->num_files == -1)
+    interface->num_files = nproc;
+  ASSERT(interface->num_files <= nproc);
 
   // We put the entire data set into a directory named after the 
   // prefix, and every process gets its own subdirectory therein.
 
   // Initialize poor man's I/O and figure out group ranks.
   PMPIO_iomode_t pmpio_mode = (mode == IO_READ) ? PMPIO_READ : PMPIO_WRITE;
-  silo->baton = PMPIO_Init(num_files, pmpio_mode, comm, mpi_tag, 
+  silo->baton = PMPIO_Init(interface->num_files, pmpio_mode, interface->comm, interface->mpi_tag, 
                            &pmpio_create_file,
                            &pmpio_open_file,
                            &pmpio_close_file, (void*)interface);
@@ -179,11 +194,11 @@ void io_open(io_interface_t* interface,
       mkdir((char*)group_dirname, S_IRWXU | S_IRWXG);
     else
       closedir(group_dir);
-    MPI_Barrier(comm);
+    MPI_Barrier(interface->comm);
   }
   else if (mode == IO_WRITE)
   {
-    MPI_Barrier(comm);
+    MPI_Barrier(interface->comm);
   }
 
   // Determine a file name.

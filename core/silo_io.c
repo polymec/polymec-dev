@@ -75,7 +75,9 @@ static void silo_dtor(void* context)
   free(context);
 }
 
-io_interface_t* silo_io_new()
+io_interface_t* silo_io_new(MPI_Comm comm,
+                            int num_files,
+                            int mpi_tag)
 {
   silo_context* context = malloc(sizeof(silo_context));
   io_vtable vtable = {.create_file = &silo_create_file,
@@ -85,7 +87,7 @@ io_interface_t* silo_io_new()
                       .read_datasets = &silo_read_datasets,
                       .write_datasets = &silo_write_datasets,
                       .dtor = &silo_dtor};
-  return io_interface_new(context, "SILO", vtable);
+  return io_interface_new(context, "SILO", vtable, comm, num_files, mpi_tag);
 }
 
 #ifdef __cplusplus
