@@ -25,11 +25,14 @@ struct io_interface_t
   // File stuff.
   io_mode_t mode;
   void* file;
+  char directory[1024];
+  char prefix[1024];
   char filename[1024];
 #ifdef USE_MPI
   PMPIO_baton_t* baton;
-  char dir[1024];
+  char group_dir[1024];
   MPI_Comm comm;
+  int rank, nproc;
   int num_files;
   int mpi_tag;
 #endif
@@ -50,8 +53,7 @@ io_interface_t* io_interface_new(void* context,
   ASSERT(vtable.create_file != NULL);
   ASSERT(vtable.open_file != NULL);
   ASSERT(vtable.close_file != NULL);
-  ASSERT(vtable.read_datasets != NULL);
-  ASSERT(vtable.write_datasets != NULL);
+  ASSERT((vtable.read_datasets != NULL) || (vtable.write_datasets != NULL));
 
   // Allocate the interface.
   io_interface_t* i = malloc(sizeof(io_interface_t));
@@ -165,24 +167,24 @@ void io_open(io_interface_t* interface,
     MPI_Barrier(interface->comm);
   }
 
-  int nproc = 1, rank = 0;
-  MPI_Comm_size(interface->comm, &nproc);
-  MPI_Comm_rank(interface->comm, &rank);
+  interface->nproc = 1, interface->rank = 0;
+  MPI_Comm_size(interface->comm, &interface->nproc);
+  MPI_Comm_rank(interface->comm, &interface->rank);
   if (interface->num_files == -1)
-    interface->num_files = nproc;
-  ASSERT(interface->num_files <= nproc);
+    interface->num_files = interface->nproc;
+  ASSERT(interface->num_files <= interface->nproc);
 
   // We put the entire data set into a directory named after the 
   // prefix, and every process gets its own subdirectory therein.
 
   // Initialize poor man's I/O and figure out group ranks.
   PMPIO_iomode_t pmpio_mode = (mode == IO_READ) ? PMPIO_READ : PMPIO_WRITE;
-  silo->baton = PMPIO_Init(interface->num_files, pmpio_mode, interface->comm, interface->mpi_tag, 
+  interface->baton = PMPIO_Init(interface->num_files, pmpio_mode, interface->comm, interface->mpi_tag, 
                            &pmpio_create_file,
                            &pmpio_open_file,
                            &pmpio_close_file, (void*)interface);
-  int group_rank = PMPIO_group_rank(baton, rank);
-  int rank_in_group = PMPIO_rank_in_group(baton, rank);
+  int group_rank = PMPIO_group_rank(interface->baton, interface->rank);
+  int rank_in_group = PMPIO_rank_in_group(interface->baton, interface->rank);
 
   // Create a subdirectory for each group.
   char group_dirname[1024];
@@ -203,18 +205,20 @@ void io_open(io_interface_t* interface,
 
   // Determine a file name.
   snprintf(interface->filename, 1024, "%s/%s.silo", group_dirname, prefix);
-  snprintf(interface->dir, 1024, "domain_%d", rank_in_group);
+  snprintf(interface->group_dir, 1024, "domain_%d", rank_in_group);
 #else
   snprintf(interface->filename, 1024, "%s/%s.silo", directory, prefix);
 #endif
+  strncpy(interface->prefix, prefix, 1024);
+  strncpy(interface->directory, directory, 1024);
 
   // If we're reading from the file, read the contents.
   if (mode == IO_READ)
   {
 #if USE_MPI
-    interface->file = PMPIO_WaitForBaton(interface->baton, interface->filename, interface->dir);
+    interface->file = PMPIO_WaitForBaton(interface->baton, interface->filename, interface->group_dir);
 #else 
-    interface->file = interface->vtable.create_file(interface->filename, "/", NULL);
+    interface->file = interface->vtable.create_file(interface->context, interface->filename, "/");
 #endif
     if (interface->file == NULL)
     {
@@ -239,7 +243,27 @@ void io_close(io_interface_t* interface)
 
   // Flush any buffered data.
   if ((interface->mode == IO_WRITE) && (interface->datasets != NULL))
-    interface->vtable.write_datasets(interface->context, interface->file, interface->datasets, interface->num_datasets);
+  {
+#if USE_MPI
+    int rank_in_group = PMPIO_rank_in_group(interface->baton, interface->rank);
+#else
+    int rank_in_group = 0;
+#endif
+    interface->vtable.write_datasets(interface->context, interface->file, interface->datasets, interface->num_datasets, rank_in_group);
+
+#if USE_MPI
+    // Write a master file if needed.
+    if (interface->rank == 0)
+    {
+      int num_procs_per_file = interface->nproc / num_files;
+      char master_filename[1024];
+      snprintf(master_filename, 1024, "%s/%s.silo", interface->directory, interface->prefix);
+      void* master = interface->vtable.create_file(interface->context, master_filename, "/");
+      interface->vtable.write_master(interface->context, master, interface->prefix, interface->datasets, interface->num_datasets, interface->num_files, num_procs_per_file);
+      interface->vtable.close_file(interface->context, master);
+    }
+#endif
+  }
 
 #if USE_MPI
   PMPIO_HandOffBaton(interface->baton, interface->file);
@@ -249,25 +273,6 @@ void io_close(io_interface_t* interface)
 #endif
   interface->mode = IO_CLOSED;
 }
-
-struct io_dataset_t
-{
-  io_interface_t* interface;
-  char* name;
-  mesh_t* mesh;
-  lite_mesh_t* lite_mesh;
-
-  double** fields;
-  char** field_names;
-  int* field_num_comps;
-  mesh_centering_t* field_centerings;
-  int num_fields;
-
-  char** sources;
-  char** source_names;
-  int* source_lengths;
-  int num_sources;
-};
 
 int io_num_datasets(io_interface_t* interface)
 {
