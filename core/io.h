@@ -34,13 +34,16 @@ typedef void* (*io_open_file_func)(void*, const char* , const char*, io_mode_t);
 typedef void (*io_close_file_func)(void*, void*);
 
 // A function pointer for determining the number of datasets in a file.
-typedef int (*io_get_num_datasets_func)(void*, void*, int* num_datasets);
+typedef int (*io_get_num_datasets_func)(void*, void*, int*);
 
 // A function pointer for reading data from all datasets in a file.
-typedef void (*io_read_datasets_func)(void*, void*, io_dataset_t** datasets, int num_datasets);
+typedef void (*io_read_datasets_func)(void*, void*, io_dataset_t**, int);
 
 // A function pointer for dumping data to datasets in a file.
-typedef void (*io_write_datasets_func)(void*, void*, io_dataset_t** datasets, int num_datasets);
+typedef void (*io_write_datasets_func)(void*, void*, io_dataset_t**, int, int);
+
+// A function pointer for writing a master file if needed.
+typedef void (*io_write_master_func)(void*, void*, const char*, io_dataset_t**, int, int, int);
 
 // A destructor function for the context object (if any).
 typedef void (*io_dtor)(void*);
@@ -55,8 +58,29 @@ typedef struct
   io_get_num_datasets_func      get_num_datasets;
   io_read_datasets_func         read_datasets;
   io_write_datasets_func        write_datasets;
+  io_write_master_func          write_master;
   io_dtor                       dtor;
 } io_vtable;
+
+// This structure holds data for datasets. Be careful using it.
+struct io_dataset_t
+{
+  io_interface_t* interface;
+  char* name;
+  mesh_t* mesh;
+  lite_mesh_t* lite_mesh;
+
+  double** fields;
+  char** field_names;
+  int* field_num_comps;
+  mesh_centering_t* field_centerings;
+  int num_fields;
+
+  char** sources;
+  char** source_names;
+  int* source_lengths;
+  int num_sources;
+};
 
 // Construct an I/O interface (subclass) object from the given name and 
 // vtable. To take advantage of "poor man's parallel I/O", one can provide

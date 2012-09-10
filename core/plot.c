@@ -44,22 +44,37 @@ void plot_time_series(plot_interface_t* plot,
   plot->vtable.plot_time_series(plot->context, title, data, num_data);
 }
 
+void plot_mesh(plot_interface_t* plot, 
+               mesh_t* mesh)
+{
+  plot->vtable.plot_mesh(plot->context, mesh);
+}
+
 void plot_mesh_field(plot_interface_t* plot, 
                      const char* title,
                      mesh_centering_t centering,
-                     double* data,
-                     mesh_t* mesh)
+                     double* data)
 {
-  plot->vtable.plot_mesh_field(plot->context, title, centering, data, mesh);
+  plot->vtable.plot_mesh_field(plot->context, title, centering, data);
+}
+
+void plot_lite_mesh(plot_interface_t* plot, 
+                    lite_mesh_t* lite_mesh)
+{
+  plot->vtable.plot_lite_mesh(plot->context, lite_mesh);
 }
 
 void plot_lite_mesh_field(plot_interface_t* plot, 
                           const char* title,
                           lite_mesh_centering_t centering,
-                          double* data,
-                          lite_mesh_t* lite_mesh)
+                          double* data)
 {
-  plot->vtable.plot_lite_mesh_field(plot->context, title, centering, data, lite_mesh);
+  plot->vtable.plot_lite_mesh_field(plot->context, title, centering, data);
+}
+
+void plot_flush(plot_interface_t* plot)
+{
+  plot->vtable.flush(plot->context);
 }
 
 #ifdef __cplusplus
