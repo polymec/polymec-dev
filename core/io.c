@@ -246,16 +246,17 @@ void io_close(io_interface_t* interface)
   {
 #if USE_MPI
     int rank_in_group = PMPIO_rank_in_group(interface->baton, interface->rank);
+    int num_procs_per_file = interface->nproc / num_files;
 #else
     int rank_in_group = 0;
+    int num_procs_per_file = 1;
 #endif
-    interface->vtable.write_datasets(interface->context, interface->file, interface->datasets, interface->num_datasets, rank_in_group);
+    interface->vtable.write_datasets(interface->context, interface->file, interface->datasets, interface->num_datasets, rank_in_group, num_procs_per_file);
 
 #if USE_MPI
     // Write a master file if needed.
     if (interface->rank == 0)
     {
-      int num_procs_per_file = interface->nproc / num_files;
       char master_filename[1024];
       snprintf(master_filename, 1024, "%s/%s.silo", interface->directory, interface->prefix);
       void* master = interface->vtable.create_file(interface->context, master_filename, "/");

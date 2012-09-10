@@ -40,7 +40,7 @@ typedef int (*io_get_num_datasets_func)(void*, void*, int*);
 typedef void (*io_read_datasets_func)(void*, void*, io_dataset_t**, int);
 
 // A function pointer for dumping data to datasets in a file.
-typedef void (*io_write_datasets_func)(void*, void*, io_dataset_t**, int, int);
+typedef void (*io_write_datasets_func)(void*, void*, io_dataset_t**, int, int, int);
 
 // A function pointer for writing a master file if needed.
 typedef void (*io_write_master_func)(void*, void*, const char*, io_dataset_t**, int, int, int);
