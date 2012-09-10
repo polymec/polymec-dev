@@ -1,8 +1,10 @@
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 #include "silo.h"
 #include "core/silo_io.h"
-#include "math.h"
+#include "core/point.h"
+#include "core/slist.h"
 
 #ifdef USE_MPI
 #include <mpi.h>
@@ -209,7 +211,7 @@ static void silo_read_datasets(void* context, void* f, io_dataset_t** datasets, 
 #endif
 }
 
-static void silo_write_datasets(void* context, void* file, io_dataset_t** datasets, int num_datasets, int rank_in_group)
+static void silo_write_datasets(void* context, void* file, io_dataset_t** datasets, int num_datasets, int rank_in_group, int procs_per_file)
 {
 }
 
@@ -232,11 +234,71 @@ io_interface_t* silo_io_new(MPI_Comm comm,
   return io_interface_new(NULL, "Silo", vtable, comm, num_files, mpi_tag);
 }
 
-// This is used to generate .silo plot files.
-static void silo_plot_write_datasets(void* context, void* file, io_dataset_t** datasets, int num_datasets, int rank_in_group)
+// Traverses the given points of a polygonal facet along their convex
+// hull, writing their indices to indices in order.
+void traverse_convex_hull(double* points, int num_points, int* indices, int* count)
 {
-#if 0
+  *count = 0;
+
+  // Find the "lowest" point in the set.
+  double ymin = FLT_MAX;
+  int index0 = -1;
+  for (int p = 0; p < num_points; ++p)
+  {
+    if (ymin > points[2*p+1])
+    {
+      ymin = points[2*p+1];
+      index0 = p;
+    }
+  }
+
+  // We start with this point and a horizontal angle.
+  double theta_prev = 0.0;
+  indices[*count++] = index0;
+
+  // Now start gift wrapping.
+  int i = index0;
+  do 
+  {
+    double dtheta_min = 2.0*M_PI;
+    int j_min = -1;
+    for (int j = 0; j < num_points; ++j)
+    {
+      if (j != i)
+      {
+        double dx = points[2*j] - points[2*i],
+               dy = points[2*j+1] - points[2*i+1];
+        double theta = atan2(dy, dx);
+        double dtheta = theta - theta_prev;
+        if (dtheta < 0.0)
+          dtheta += 2.0*M_PI;
+        if (dtheta_min > dtheta)
+        {
+          dtheta_min = dtheta;
+          j_min = j;
+        }
+      }
+    }
+    if (j_min != index0)
+      indices[*count++] = j_min;
+    theta_prev += dtheta_min;
+    i = j_min;
+  }
+  while (i != index0);
+
+  // The convex hull should be a polygon unless the input points 
+  // don't form a polygon.
+  ASSERT((num_points <= 2) || 
+         ((num_points > 2) && (*count > 2)));
+}
+
+// This is used to generate .silo plot files.
+static void silo_plot_write_datasets(void* context, void* f, io_dataset_t** datasets, int num_datasets, int rank_in_group, int procs_per_file)
+{
+  DBfile* file = (DBfile*)f;
   io_dataset_t* dataset = datasets[0];
+  mesh_t* mesh = dataset->mesh;
+  ASSERT(mesh != NULL);
 
   // This is optional for now, but we'll give it anyway.
   char *coordnames[3];
@@ -245,7 +307,7 @@ static void silo_plot_write_datasets(void* context, void* file, io_dataset_t** d
   coordnames[2] = (char*)"zcoords";
 
   // Node coordinates.
-  int num_nodes = dataset->mesh->num_nodes;
+  int num_nodes = mesh->num_nodes;
   double x[num_nodes], y[num_nodes], z[num_nodes];
   for (int i = 0; i < num_nodes; ++i)
   {
@@ -262,133 +324,169 @@ static void silo_plot_write_datasets(void* context, void* file, io_dataset_t** d
   // for all the cells and then using them to define face normals, 
   // from which node orderings can be determining using a convex hull 
   // determination algorithm (gift wrapping).
-  int num_cells = mesh.cells.size();
-  int numFaces = mesh.faces.size();
-  cell_centers[num_cells];
+
+  // Make a list of all nodes attached to faces (unordered).
+  int num_cells = mesh->num_cells;
+  int num_faces = mesh->num_faces;
+  int face_node_counts[num_faces];
+  int* face_nodes[num_faces];
+  for (int f = 0; f < num_faces; ++f)
+  {
+    int rays = 0, ne = mesh->faces[f].num_edges;
+    for (int e = 0; e < ne; ++e)
+    {
+      if (mesh->faces[f].edges[e]->node2 == NULL)
+        ++rays;
+    }
+    face_node_counts[f] = 2*ne - 1 - rays;
+    face_nodes[f] = malloc(face_node_counts[f]*sizeof(int));
+  }
+  for (int f = 0; f < num_faces; ++f)
+  {
+    int counter = 0, ne = mesh->faces[f].num_edges;
+    for (int e = 0; e < ne; ++e)
+    {
+      edge_t* edge = mesh->faces[f].edges[e];
+      face_nodes[f][counter++] = edge->node1 - &mesh->nodes[0];
+      if (edge->node2 != NULL)
+        face_nodes[f][counter++] = edge->node2 - &mesh->nodes[0];
+    }
+    ASSERT(counter == face_node_counts[f]);
+  }
+
+  // Compute cell centers from face nodes.
+  point_t cell_centers[num_cells];
+  memset(cell_centers, 0, num_cells*sizeof(point_t));
   for (int c = 0; c < num_cells; ++c)
   {
-    const vector<int>& cellFaces = mesh.cells[c];
     int num_nodes = 0;
-    for (int f = 0; f < cellFaces.size(); ++f)
+    for (int f = 0; f < mesh->cells[c].num_faces; ++f)
     {
-      const vector<unsigned>& face_nodes = mesh.faces[cellFaces[f]];
-      for (int n = 0; n < face_nodes.size(); ++n)
+      for (int n = 0; n < face_node_counts[f]; ++n)
       {
-        cell_centers[3*c]   += mesh.nodes[3*face_nodes[n]];
-        cell_centers[3*c+1] += mesh.nodes[3*face_nodes[n]+1];
-        cell_centers[3*c+2] += mesh.nodes[3*face_nodes[n]+2];
+        node_t* node = &mesh->nodes[face_nodes[f][n]];
+        cell_centers[c].x += node->x;
+        cell_centers[c].y += node->y;
+        cell_centers[c].z += node->z;
         ++num_nodes;
       }
     }
-    cell_centers[3*c+0] /= num_nodes;
-    cell_centers[3*c+1] /= num_nodes;
-    cell_centers[3*c+2] /= num_nodes;
+    cell_centers[c].x /= num_nodes;
+    cell_centers[c].y /= num_nodes;
+    cell_centers[c].z /= num_nodes;
   }
-  vector<int> face_node_counts(numFaces), 
-    all_face_nodes;
-  for (int f = 0; f < mesh.faces.size(); ++f)
-  {
-    const vector<unsigned>& face_nodes = mesh.faces[f];
 
+  slist_t* all_face_nodes_list = slist_new(NULL);
+  for (int f = 0; f < mesh->num_faces; ++f)
+  {
     // Compute the normal vector for the face, pointing outward from 
     // its first cell.
-    ASSERT(face_nodes.size() >= 3);
-    double face_center[3];
-    for (int n = 0; n < face_nodes.size(); ++n)
+    int nn = face_node_counts[f];
+    int* nodes = face_nodes[f];
+    ASSERT(nn >= 3);
+    point_t face_center = {.x = 0.0, .y = 0.0, .z = 0.0};
+    for (int n = 0; n < nn; ++n)
     {
-      face_center[0] += mesh.nodes[3*face_nodes[n]];
-      face_center[1] += mesh.nodes[3*face_nodes[n]+1];
-      face_center[2] += mesh.nodes[3*face_nodes[n]+2];
+      node_t* node = &mesh->nodes[nodes[n]];
+      face_center.x += node->x;
+      face_center.y += node->y;
+      face_center.z += node->z;
     }
-    face_center[0] /= face_nodes.size();
-    face_center[1] /= face_nodes.size();
-    face_center[2] /= face_nodes.size();
+    face_center.x /= nn;
+    face_center.y /= nn;
+    face_center.z /= nn;
 
     // Construct vectors v1, v2, and v3, where v1 is the vector pointing from the 
     // face center to the first face node, v2 is a vector pointing from the face 
     // center to any other face, node, and v3 is their cross product.
-    double v1[3];
-    for (int d = 0; d < 3; ++d)
-      v1[d] = mesh.nodes[3*face_nodes[0]+d] - face_center[d];
+    vector_t v1;
+    v1.x = mesh->nodes[nodes[0]].x - face_center.x;
+    v1.y = mesh->nodes[nodes[0]].y - face_center.y;
+    v1.z = mesh->nodes[nodes[0]].z - face_center.z;
 
-    double v2[3], normal[3], normalMag;
-    for (int n = 1; n < face_nodes.size(); ++n)
+    vector_t v2, normal;
+    double normal_mag;
+    for (int n = 1; n < nn; ++n)
     {
-      for (int d = 0; d < 3; ++d)
-        v2[d] = mesh.nodes[3*face_nodes[n]+d] - face_center[d];
+      v2.x = mesh->nodes[nodes[0]].x - face_center.x;
+      v2.y = mesh->nodes[nodes[0]].y - face_center.y;
+      v2.z = mesh->nodes[nodes[0]].z - face_center.z;
 
       // normal = v1 x v2.
-      normal[0] = v1[1]*v2[2] - v1[2]*v2[1];
-      normal[1] = v1[2]*v2[0] - v1[0]*v2[2];
-      normal[1] = v1[0]*v2[1] - v1[1]*v2[0];
-      normalMag = sqrt(normal[0]*normal[0] + normal[1]*normal[1] + normal[2]*normal[2]);
-      if (normalMag > 1e-14) break;
+      vector_cross(v1, v2, &normal);
+      normal_mag = vector_dot(normal, normal);
+      if (normal_mag > 1e-14) break;
     }
-    normal[0] /= normalMag; normal[1] /= normalMag; normal[2] /= normalMag;
+    normal.x /= normal_mag; normal.y /= normal_mag; normal.z /= normal_mag;
 
-    double v3[3], cell_center[3];
-    for (int d = 0; d < 3; ++d)
+    vector_t v3;
+    point_t cell_center;
+    int cell1 = mesh->faces[f].cell1 - &mesh->cells[0];
+    cell_center.x = cell_centers[cell1].x;
+    cell_center.y = cell_centers[cell1].y;
+    cell_center.z = cell_centers[cell1].z;
+    v3.x = face_center.x - cell_center.x;
+    v3.y = face_center.y - cell_center.y;
+    v3.z = face_center.z - cell_center.z;
+    if (vector_dot(normal, v3) < 0.0)
     {
-      cell_center[d] = cell_centers[3*mesh.faceCells[f][0]+d];
-      v3[d] = face_center[d] - cell_center[d];
-    }
-    if ((normal[0]*v3[0] + normal[1]*v3[1] + normal[2]*v3[2]) < 0.0)
-    {
-      normal[0] *= -1.0; normal[1] *= -1.0; normal[2] *= -1.0;
+      normal.x *= -1.0; normal.y *= -1.0; normal.z *= -1.0;
     }
 
     // Now project the coordinates of the face's nodes to the plane
     // with the given normal and centered about the face center.
-    vector<RealType> points(2*face_nodes.size()); // NOTE: planar coordinates (2D)
-    double e1[3], e2[3]; // Basis vectors in the plane.
-    double v1Mag = sqrt(v1[0]*v1[0] + v1[1]*v1[1] + v1[2]*v1[2]);
-    for (int d = 0; d < 3; ++d)
-      e1[d] = v1[d] / v1Mag;
+    double points[2*nn]; // NOTE: planar coordinates (2D)
+    vector_t e1, e2; // Basis vectors in the plane.
+    double v1_mag = vector_dot(v1, v1);
+    e1.x = v1.x / v1_mag;
+    e1.y = v1.y / v1_mag;
+    e1.z = v1.z / v1_mag;
 
     // e2 = normal x e1.
-    e2[0] = normal[1]*e1[2] - normal[2]*e1[1];
-    e2[1] = normal[2]*e1[0] - normal[0]*e1[2];
-    e2[1] = normal[0]*e1[1] - normal[1]*e1[0];
-    for (int p = 0; p < points.size(); ++p)
+    vector_cross(normal, e1, &e2);
+    for (int p = 0; p < nn; ++p)
     {
       // v = node center - cell center.
-      double v[3];
-      for (int d = 0; d < 3; ++d)
-        v[d] = mesh.nodes[3*face_nodes[p]+d] - cell_center[d];
+      vector_t v;
+      v.x = mesh->nodes[nodes[p]].x - cell_center.x;
+      v.y = mesh->nodes[nodes[p]].y - cell_center.y;
+      v.z = mesh->nodes[nodes[p]].z - cell_center.z;
 
       // Compute the perpendicular component of the point
       // with location v:
-      // vPerp = v - (n o v)n.
-      double vPerp[3];
-      for (int d = 0; d < 3; ++d)
-        vPerp[d] = v[d] - (normal[0]*v[0] + normal[1]*v[1] + normal[2]*v[2]) * normal[d];
+      // v_perp = v - (n o v)n.
+      vector_t v_perp;
+      double nov = vector_dot(normal, v);
+      v_perp.x = v.x - nov * normal.x;
+      v_perp.y = v.y - nov * normal.y;
+      v_perp.z = v.z - nov * normal.z;
 
       // Project it to the plane.
-      points[2*p]   = vPerp[0]*e1[0] + vPerp[1]*e1[1] + vPerp[2]*e1[2];
-      points[2*p+1] = vPerp[0]*e2[0] + vPerp[1]*e2[1] + vPerp[2]*e2[2];
+      points[2*p]   = vector_dot(v_perp, e1);
+      points[2*p+1] = vector_dot(v_perp, e2);
     }
 
     // Find the node order by traversing the convex hull of 
     // the points within the plane, appending them to all_face_nodes.
-    vector<int> indices;
-    traverseConvexHull(points, indices);
-    face_node_counts[f] = indices.size();
-    for (int n = 0; n < indices.size(); ++n)
-      all_face_nodes.push_back(face_nodes[indices[n]]);
+    int indices[nn], count;
+    traverse_convex_hull(points, nn, indices, &count);
+    face_node_counts[f] = nn;
+    for (int n = 0; n < count; ++n)
+      slist_append(all_face_nodes_list, (void*)face_nodes[indices[n]]);
   }
 
   // Figure out cell-face connectivity.
-  vector<int> cellFaceCounts(num_cells), 
-    all_cell_faces;
+  int cell_face_counts[num_cells];
+  slist_t* all_cell_faces_list = slist_new(NULL);
   for (int c = 0; c < num_cells; ++c)
   {
-    const vector<int>& cellFaces = mesh.cells[c];
-    cellFaceCounts[c] = cellFaces.size();
-    all_cell_faces.insert(all_cell_faces.end(), 
-        cellFaces.begin(), cellFaces.end());
+    cell_face_counts[c] = mesh->cells[c].num_faces;
+    for (int f = 0; f < mesh->cells[c].num_faces; ++f)
+      slist_append(all_cell_faces_list, (void*)mesh->cells[c].faces[f]);
   }
 
   // The polyhedral zone list is referred to in the options list.
+  DBoptlist* optlist = DBMakeOptlist(10);
   DBAddOption(optlist, DBOPT_PHZONELIST, (char*)"mesh_zonelist");
 
   // Write out the 3D polyhedral mesh.
@@ -397,13 +495,22 @@ static void silo_plot_write_datasets(void* context, void* file, io_dataset_t** d
       DB_DOUBLE, optlist); 
 
   // Write the connectivity information.
+  int all_face_nodes_len = slist_size(all_face_nodes_list);
+  int all_face_nodes[all_face_nodes_len];
+  for (int i = 0; i < all_face_nodes_len; ++i)
+    all_face_nodes[i] = (int)slist_pop(all_face_nodes_list);
+  int all_cell_faces_len = slist_size(all_cell_faces_list);
+  int all_cell_faces[all_cell_faces_len];
+  for (int i = 0; i < all_cell_faces_len; ++i)
+    all_cell_faces[i] = (int)slist_pop(all_cell_faces_list);
   DBPutPHZonelist(file, (char*)"mesh_zonelist", 
-      face_node_counts.size(), &face_node_counts[0], 
-      all_face_nodes.size(), &all_face_nodes[0], 0, 
-      cellFaceCounts.size(), &cellFaceCounts[0],
-      all_cell_faces.size(), &all_cell_faces[0], 
+      num_faces, &face_node_counts[0], 
+      all_face_nodes_len, &all_face_nodes[0], 0, 
+      num_cells, &cell_face_counts[0],
+      all_cell_faces_len, &all_cell_faces[0], 
       0, 0, num_cells-1, optlist);
 
+#if 0
   // Write out the cell-face connectivity data.
   vector<int> conn(num_cells);
   int elem_lengths[3];
@@ -431,36 +538,20 @@ static void silo_plot_write_datasets(void* context, void* file, io_dataset_t** d
   free(elem_names[0]);
   free(elem_names[1]);
   free(elem_names[2]);
-
-  // Write out convex hull data.
-  vector<int> hull(1+mesh.convexHull.facets.size());
-  hull[0] = mesh.convexHull.facets.size();
-  for (int f = 0; f < mesh.convexHull.facets.size(); ++f)
-    hull[1+f] = mesh.convexHull.facets[f].size();
-  for (int f = 0; f < mesh.convexHull.facets.size(); ++f)
-    for (int n = 0; n < mesh.convexHull.facets[f].size(); ++n)
-      hull.push_back(mesh.convexHull.facets[f][n]);
-  elem_names[0] = strdup("nfacets");
-  elem_lengths[0] = 1;
-  elem_names[1] = strdup("nfacetnodes");
-  elem_lengths[1] = mesh.convexHull.facets.size();
-  elem_names[2] = strdup("facetnodes");
-  elem_lengths[2] = hull.size() - elem_lengths[0] - elem_lengths[1];
-  DBPutCompoundarray(file, "convexhull", elem_names, elem_lengths, 3, 
-      (void*)&hull[0], hull.size(), DB_INT, 0);
-  free(elem_names[0]);
-  free(elem_names[1]);
-  free(elem_names[2]);
+#endif
 
   // Write out the cell-centered mesh data.
 
   // Scalar fields.
-  for (typename map<string, RealType*>::const_iterator iter = fields.begin();
-      iter != fields.end(); ++iter)
+  for (int i = 0; i < dataset->num_fields; ++i)
   {
-    DBPutUcdvar1(file, (char*)iter->first.c_str(), (char*)"mesh",
-        (void*)iter->second, num_cells, 0, 0,
-        DB_DOUBLE, DB_ZONECENT, optlist);
+    ASSERT(dataset->field_centerings[i] == MESH_CELL); // FIXME
+    if (dataset->field_centerings[i] == MESH_CELL)
+    {
+      DBPutUcdvar1(file, dataset->field_names[i], (char*)"mesh",
+          dataset->fields[i], num_cells, 0, 0,
+          DB_DOUBLE, DB_ZONECENT, optlist);
+    }
   }
 
   // Clean up.
@@ -468,20 +559,20 @@ static void silo_plot_write_datasets(void* context, void* file, io_dataset_t** d
 
 #ifdef HAVE_MPI
   // Write the multi-block objects to the file if needed.
-  int num_chunks = nproc / num_files;
-  if (rankInGroup == 0)
+  if (rank_in_group == 0)
   {
-    char* mesh_names[num_chunks];
-    int mesh_types[num_chunks];
-    char* var_names[num_fields];
-    for (int i = 0; i < num_chunks; ++i)
+    char* mesh_names[procs_per_file];
+    int mesh_types[procs_per_file];
+    int var_types[procs_per_file];
+    for (int i = 0; i < procs_per_file; ++i)
     {
       mesh_types[i] = DB_UCDMESH;
       var_types[i] = DB_UCDVAR;
     }
-    vector<vector<char*> > var_names(fields.size());
-    vector<int> var_types(num_chunks, DB_UCDVAR);
-    for (int i = 0; i < num_chunks; ++i)
+    char** var_names[num_fields];
+    for (int f = 0; f < num_fields; ++f)
+      var_names[f] = malloc(sizeof(char*)*procs_per_file);
+    for (int i = 0; i < procs_per_file; ++i)
     {
       // Mesh.
       char mesh_name[1024];
@@ -490,37 +581,38 @@ static void silo_plot_write_datasets(void* context, void* file, io_dataset_t** d
 
       // Field data.
       int field_index = 0;
-      for (typename map<string, RealType*>::const_iterator iter = fields.begin();
-          iter != fields.end(); ++iter, ++field_index)
+      for (int f = 0; f < num_fields; ++f)
       {
         char var_name[1024];
-        snprintf(var_name, 1024, "domain_%d/%s", i, iter->first.c_str());
-        var_names[field_index].push_back(strdup(var_name));
+        snprintf(var_name, 1024, "domain_%d/%s", i, dataset->field_names[f]);
+        var_names[f][i] = strdup(var_name);
       }
     }
-#endif
 
     // Write the mesh and variable data.
     DBSetDir(file, "/");
-    DBPutMultimesh(file, "mesh", num_chunks, &mesh_names[0], 
+    DBPutMultimesh(file, "mesh", procs_per_file, &mesh_names[0], 
         &mesh_types[0], optlist);
-    int field_index = 0;
-    for (typename map<string, RealType*>::const_iterator iter = fields.begin();
-        iter != fields.end(); ++iter, ++field_index)
+
+    for (int f = 0; f < num_fields; ++f)
     {
-      DBPutMultivar(file, iter->first.c_str(), num_chunks, 
-          &var_names[field_index][0], &var_types[0], optlist);
+      DBPutMultivar(file, dataset->field_names[f], procs_per_file, 
+          &var_names[f][0], &var_types[0], optlist);
     }
 
-    // Clean up.
-    DBFreeOptlist(optlist);
-    for (int i = 0; i < num_chunks; ++i)
+    for (int i = 0; i < procs_per_file; ++i)
       free(mesh_names[i]);
     for (int f = 0; f < var_names.size(); ++f)
-      for (int i = 0; i < num_chunks; ++i)
+      for (int i = 0; i < procs_per_file; ++i)
         free(var_names[f][i]);
   }
+
 #endif
+
+  // Clean up.
+  slist_free(all_cell_faces_list);
+  slist_free(all_face_nodes_list);
+  DBFreeOptlist(optlist);
 }
 
 static void silo_plot_write_master(void* context, void* file, const char* prefix, io_dataset_t** datasets, int num_datasets, int num_files, int procs_per_file)
