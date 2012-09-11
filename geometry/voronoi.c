@@ -110,9 +110,8 @@ mesh_t* voronoi_tessellation(point_t* points, int num_points,
     mesh->faces[i].cell2 = &mesh->cells[out->vfacetlist[i].c2];
     int Ne = out->vfacetlist[i].elist[0];
     mesh->faces[i].num_edges = Ne;
-    mesh->faces[i].edges = malloc(Ne*sizeof(edge_t*));
     for (int j = 0; j < Ne; ++j)
-      mesh->faces[i].edges[j] = &mesh->edges[out->vfacetlist[i].elist[j+1]];
+      add_face_edge(&mesh->faces[i], &mesh->edges[out->vfacetlist[i].elist[j+1]]);
   }
 
   // Cell <-> face connectivity.
@@ -124,12 +123,11 @@ mesh_t* voronoi_tessellation(point_t* points, int num_points,
   {
     int Nf = out->vcelllist[i][0];
     mesh->cells[i].num_faces = Nf;
-    mesh->cells[i].faces = malloc(Nf*sizeof(face_t*));
     for (int f = 0; f < Nf; ++f)
     {
       int faceid = out->vcelllist[i][f+1];
       face_t* face = &mesh->faces[faceid];
-      mesh->cells[i].faces[f] = face;
+      add_cell_face(&mesh->cells[i], face);
       for (int e = 0; e < face->num_edges; ++e)
       {
         int edgeid = out->vfacetlist[faceid].elist[e+1];
