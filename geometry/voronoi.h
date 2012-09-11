@@ -2,6 +2,7 @@
 #define ARBI_VORONOI_H
 
 #include "core/mesh.h"
+#include "core/faceted_surface.h"
 #include "core/point.h"
 #include "core/sp_func.h"
 
@@ -19,6 +20,21 @@ extern "C" {
 mesh_t* voronoi_tessellation(point_t* points, int num_points, 
                              point_t* ghost_points, int num_ghost_points);
 
+// This function intersects the given Voronoi tessellation (mesh) with the 
+// given signed distance function representing a domain boundary, returning 
+// a faceted surface representing the intersection.
+faceted_surface_t* voronoi_intersect_with_boundary(mesh_t* mesh, sp_func_t* boundary);
+
+// This function strips off the infinite "outer" cells and edges generated 
+// by voronoi_tessellation (those tagged as "outer_cells" and "outer_edges").
+void voronoi_prune(mesh_t* mesh);
+
+// This function creates a Voronoi tessellation that is contained within 
+// the given faceted surface.
+mesh_t* voronoi_tessellation_within_surface(point_t* points, int num_points,
+                                            point_t* ghost_points, int num_ghost_points,
+                                            faceted_surface_t* surface);
+
 // This function creates a planar Voronoi tessellation, in which 
 // a single layer of cells is bounded by two planes: one above, 
 // and one below. The top plane is located at z = 0.5, and the 
@@ -26,20 +42,10 @@ mesh_t* voronoi_tessellation(point_t* points, int num_points,
 mesh_t* voronoi_plane(point_t* points, int num_points, 
                       point_t* ghost_points, int num_ghost_points);
 
-// This function intersects the given Voronoi tessellation (mesh) with the 
-// given signed distance function representing a domain boundary, adding the 
-// necessary faces and vertices. It is assumed that all generators fall within
-// the domain.
-void voronoi_intersect_with_boundary(mesh_t* mesh, sp_func_t* boundary);
-
 // This function takes a planar Voronoi mesh and generates a 
 // stack of these planes to form a new mesh. The bottom plane is 
 // z = z1 and the top is z = z2.
 mesh_t* voronoi_stack(mesh_t* plane, int num_planes, double z1, double z2);
-
-// This function strips off "outer" cells and edges, leaving only the 
-// interior set of cells.
-void voronoi_prune(mesh_t* mesh);
 
 #ifdef __cplusplus
 }
