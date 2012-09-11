@@ -2,6 +2,7 @@
 #define ARBI_MESH_H
 
 #include "core/arbi.h"
+#include "arena/proto.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -66,8 +67,10 @@ struct face_t
   // Face area.
   double area;
 };
+ 
+typedef struct mesh_storage_t mesh_storage_t;
 
-// This data type represents a "light" unstructured mesh, consisting of 
+// This data type represents an unstructured mesh, consisting of 
 // stationary cells and the faces connecting them.
 typedef struct 
 {
@@ -94,6 +97,11 @@ typedef struct
   mesh_tags_t* face_tags;
   mesh_tags_t* edge_tags;
   mesh_tags_t* node_tags;
+
+  // Mesh storage information -- used internally.
+  ARENA* arena;
+  bool close_arena;
+  mesh_storage_t* storage;
 } mesh_t;
 
 // Construct a new mesh with the given number of cells, ghost cells, 
@@ -102,6 +110,10 @@ typedef struct
 // generation algorithms.
 mesh_t* mesh_new(int num_cells, int num_ghost_cells, int num_faces,
                  int num_edges, int num_nodes);
+
+// Construct a new mesh, using the given arena for memory allocations.
+mesh_t* mesh_new_with_arena(ARENA* arena, int num_cells, int num_ghost_cells, int num_faces,
+                            int num_edges, int num_nodes);
 
 // Destroys the given mesh.
 void mesh_free(mesh_t* mesh);

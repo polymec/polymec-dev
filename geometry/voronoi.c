@@ -266,6 +266,11 @@ void voronoi_intersect_with_boundary(mesh_t* mesh, sp_func_t* boundary)
   // FIXME
 }
 
+void voronoi_prune(mesh_t* mesh)
+{
+  // FIXME
+}
+
 #ifdef __cplusplus
 }
 #endif

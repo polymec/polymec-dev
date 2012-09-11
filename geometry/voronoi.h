@@ -37,6 +37,10 @@ void voronoi_intersect_with_boundary(mesh_t* mesh, sp_func_t* boundary);
 // z = z1 and the top is z = z2.
 mesh_t* voronoi_stack(mesh_t* plane, int num_planes, double z1, double z2);
 
+// This function strips off "outer" cells and edges, leaving only the 
+// interior set of cells.
+void voronoi_prune(mesh_t* mesh);
+
 #ifdef __cplusplus
 }
 #endif

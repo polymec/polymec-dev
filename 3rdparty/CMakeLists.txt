@@ -45,6 +45,20 @@ set(ARBI_TP_LIBS ${ARBI_TP_LIBS};triangle)
 #endif()
 #set(ARBI_TP_LIBS ${ARBI_TP_LIBS};zmq;stdc++)
 
+# Install libarena -- A fast C arena/memory pool implementation.
+if (NOT EXISTS ${PROJECT_BINARY_DIR}/include/arena/arena.h)
+  execute_process(COMMAND cmake -E tar xzvf ${CMAKE_CURRENT_SOURCE_DIR}/libarena-0.3.4.tgz
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+  file(GLOB includes "${CMAKE_CURRENT_BINARY_DIR}/libarena-0.3.4/src/*.h")
+  execute_process(COMMAND cmake -E make_directory ${PROJECT_BINARY_DIR}/include/arena)
+  foreach(inc ${includes})
+    execute_process(COMMAND cmake -E copy ${inc} ${PROJECT_BINARY_DIR}/include/arena)
+  endforeach()
+endif()
+file(GLOB sources "${CMAKE_CURRENT_BINARY_DIR}/libarena-0.3.4/src/*.c")
+add_library(arena ${sources})
+set(ARBI_TP_LIBS ${ARBI_TP_LIBS};arena)
+
 # Install cprops -- A fast prototyping C library.
 #if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libcprops.a)
 #  set(CPROPS_CONFIG_OPTS --prefix=${PROJECT_BINARY_DIR} --enable-static --disable-shared --disable-ssl --disable-cp-dbms --disable-cpsvc --disable-cpsp)
@@ -70,16 +84,16 @@ set(ARBI_TP_LIBS ${ARBI_TP_LIBS};triangle)
 #set(ARBI_TP_LIBS ${ARBI_TP_LIBS};cprops)
 
 # Install tommyds -- A set of fast data structures for C.
-if (NOT EXISTS ${PROJECT_BINARY_DIR}/include/tommyhash.h)
-  execute_process(COMMAND cmake -E tar xzvf ${CMAKE_CURRENT_SOURCE_DIR}/tommyds-1.2.tar.gz
-                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
-  file(GLOB includes "${CMAKE_CURRENT_BINARY_DIR}/tommyds-1.2/*.h")
-  foreach(inc ${includes})
-    execute_process(COMMAND cmake -E copy ${inc} ${PROJECT_BINARY_DIR}/include)
-  endforeach()
-endif()
-add_library(tommyds ${CMAKE_CURRENT_BINARY_DIR}/tommyds-1.2/tommy.c)
-set(ARBI_TP_LIBS ${ARBI_TP_LIBS};tommyds)
+#if (NOT EXISTS ${PROJECT_BINARY_DIR}/include/tommyhash.h)
+#  execute_process(COMMAND cmake -E tar xzvf ${CMAKE_CURRENT_SOURCE_DIR}/tommyds-1.2.tar.gz
+#                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+#  file(GLOB includes "${CMAKE_CURRENT_BINARY_DIR}/tommyds-1.2/*.h")
+#  foreach(inc ${includes})
+#    execute_process(COMMAND cmake -E copy ${inc} ${PROJECT_BINARY_DIR}/include)
+#  endforeach()
+#endif()
+#add_library(tommyds ${CMAKE_CURRENT_BINARY_DIR}/tommyds-1.2/tommy.c)
+#set(ARBI_TP_LIBS ${ARBI_TP_LIBS};tommyds)
 
 # Install silo.
 if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libsilo.a)
