@@ -181,7 +181,11 @@ void mesh_free(mesh_t* mesh)
 
   mesh_storage_free(mesh->storage);
 
-  free(mesh); // FIXME
+  ARENA* arena = mesh->arena;
+  bool close_arena = mesh->close_arena;
+  arena_free(arena, mesh);
+  if (close_arena)
+    arena_close(arena);
 }
 
 int* mesh_create_tag(mesh_tags_t* tagger, const char* tag, int num_indices)
