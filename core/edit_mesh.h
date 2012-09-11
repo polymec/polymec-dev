@@ -15,7 +15,7 @@ int add_mesh_node(mesh_t* mesh);
 // topological consistency.
 void delete_mesh_node(mesh_t* mesh, int i);
 
-// Appends a new edge to the mesh, returning the new index.
+// Appends new edges to the mesh, returning the new index.
 int add_mesh_edge(mesh_t* mesh);
 
 // Deletes the ith edge from the mesh. This function simply removes the 

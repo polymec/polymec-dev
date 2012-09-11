@@ -4,6 +4,8 @@
 #include "core/avl_tree.h"
 #include "core/slist.h"
 #include "core/brent.h"
+#include "core/edit_mesh.h"
+#include "core/faceted_surface.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -219,17 +221,17 @@ static double boundary_intersection(void* context, double s)
   return val;
 }
 
-void voronoi_intersect_with_boundary(mesh_t* mesh, sp_func_t* boundary)
+faceted_surface_t* voronoi_intersect_with_boundary(mesh_t* mesh, sp_func_t* boundary)
 {
   // We use the outer edges to find the intersection.
   int num_outer_edges;
   int* outer_edges = mesh_tag(mesh->edge_tags, "outer_edges", &num_outer_edges);
   ASSERT(outer_edges != NULL);
 
-  // We will be creating a number of nodes equal to the number of outer edges
-  // in the mesh. 
-  int old_num_nodes = mesh->num_nodes;
-//  mesh_add_nodes(mesh, num_outer_edges);
+  // The number of nodes in the faceted surface is equal to the number of 
+  // outer edges.
+  int num_surf_nodes = num_outer_edges;
+  node_t surf_nodes[num_outer_edges];
 
   // Get the rays and use them to parametrize the intersection of the 
   // boundary.
@@ -240,6 +242,7 @@ void voronoi_intersect_with_boundary(mesh_t* mesh, sp_func_t* boundary)
   // our boundary function is zero.
   boundary_int_context ctx;
   ctx.B = boundary;
+
   for (int i = 0; i < num_outer_edges; ++i)
   {
     // Set up the context to do a nonlinear solve.
@@ -255,20 +258,44 @@ void voronoi_intersect_with_boundary(mesh_t* mesh, sp_func_t* boundary)
     double s, error; 
     s = brent_solve(&boundary_intersection, &ctx, 0.0, FLT_MAX, tol, 10, &error);
 
-    // Wire up the boundary node.
-    mesh->nodes[old_num_nodes+i].x = ctx.node->x + s*ctx.ray.x;
-    mesh->nodes[old_num_nodes+i].y = ctx.node->y + s*ctx.ray.y;
-    mesh->nodes[old_num_nodes+i].z = ctx.node->z + s*ctx.ray.z;
-    edge->node2 = &mesh->nodes[old_num_nodes+i];
+    // Calculate the boundary node position.
+    surf_nodes[i].x = ctx.node->x + s*ctx.ray.x;
+    surf_nodes[i].y = ctx.node->y + s*ctx.ray.y;
+    surf_nodes[i].z = ctx.node->z + s*ctx.ray.z;
   }
 
-  // Now we add boundary faces and their bounding edges.
+  // Now we generate the surface faces and their bounding edges.
   // FIXME
+  int num_surf_faces = 0, num_surf_edges = 0;
+
+  // Create the surface.
+  faceted_surface_t* surface = faceted_surface_new_with_arena(mesh->arena, num_surf_faces, num_surf_edges, num_surf_nodes);
+  memcpy(surface->nodes, surf_nodes, num_surf_nodes*sizeof(node_t));
+
+  return surface;
 }
 
 void voronoi_prune(mesh_t* mesh)
 {
+  // Go over all of the outer cells and remove them from the mesh.
+  int num_outer_cells;
+  int* outer_cells = mesh_tag(mesh->cell_tags, "outer_cells", &num_outer_cells);
+  for (int i = 0; i < num_outer_cells; ++i)
+    delete_mesh_cell(mesh, outer_cells[i]);
+
+  // Now do the same for the outer edges.
+  int num_outer_edges;
+  int* outer_edges = mesh_tag(mesh->edge_tags, "outer_edges", &num_outer_edges);
+  for (int i = 0; i < num_outer_edges; ++i)
+    delete_mesh_edge(mesh, outer_edges[i]);
+}
+
+mesh_t* voronoi_tessellation_within_surface(point_t* points, int num_points,
+                                            point_t* ghost_points, int num_ghost_points,
+                                            faceted_surface_t* surface)
+{
   // FIXME
+  return NULL;
 }
 
 #ifdef __cplusplus
