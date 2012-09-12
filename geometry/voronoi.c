@@ -111,7 +111,7 @@ mesh_t* voronoi_tessellation(point_t* points, int num_points,
     int Ne = out->vfacetlist[i].elist[0];
     mesh->faces[i].num_edges = Ne;
     for (int j = 0; j < Ne; ++j)
-      add_face_edge(&mesh->faces[i], &mesh->edges[out->vfacetlist[i].elist[j+1]]);
+      mesh_add_face_to_edge(mesh, &mesh->faces[i], &mesh->edges[out->vfacetlist[i].elist[j+1]]);
   }
 
   // Cell <-> face connectivity.
@@ -127,7 +127,7 @@ mesh_t* voronoi_tessellation(point_t* points, int num_points,
     {
       int faceid = out->vcelllist[i][f+1];
       face_t* face = &mesh->faces[faceid];
-      add_cell_face(&mesh->cells[i], face);
+      mesh_add_cell_to_face(mesh, &mesh->cells[i], face);
       for (int e = 0; e < face->num_edges; ++e)
       {
         int edgeid = out->vfacetlist[faceid].elist[e+1];
@@ -279,13 +279,13 @@ void voronoi_prune(mesh_t* mesh)
   int num_outer_cells;
   int* outer_cells = mesh_tag(mesh->cell_tags, "outer_cells", &num_outer_cells);
   for (int i = 0; i < num_outer_cells; ++i)
-    delete_mesh_cell(mesh, outer_cells[i]);
+    mesh_delete_cell(mesh, outer_cells[i]);
 
   // Now do the same for the outer edges.
   int num_outer_edges;
   int* outer_edges = mesh_tag(mesh->edge_tags, "outer_edges", &num_outer_edges);
   for (int i = 0; i < num_outer_edges; ++i)
-    delete_mesh_edge(mesh, outer_edges[i]);
+    mesh_delete_edge(mesh, outer_edges[i]);
 }
 
 mesh_t* voronoi_tessellation_within_surface(point_t* points, int num_points,

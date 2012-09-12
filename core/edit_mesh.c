@@ -6,7 +6,17 @@
 extern "C" {
 #endif
 
-int add_mesh_node(mesh_t* mesh)
+#define MAX(x, y) ((x >= y) ? x : y)
+
+// This function rounds the given number up to the nearest power of 2.
+static int round_to_pow2(int x)
+{
+  int y = 2;
+  while (y < x) y *= 2;
+  return y;
+}
+
+int mesh_add_node(mesh_t* mesh)
 {
   if (mesh->num_nodes+1 > mesh->storage->node_capacity)
   {
@@ -18,7 +28,7 @@ int add_mesh_node(mesh_t* mesh)
   return mesh->num_nodes-1;
 }
 
-void delete_mesh_node(mesh_t* mesh, int i)
+void mesh_delete_node(mesh_t* mesh, int i)
 {
   // Swap the ith node with the end.
   if (i < mesh->num_nodes)
@@ -30,7 +40,7 @@ void delete_mesh_node(mesh_t* mesh, int i)
   }
 }
 
-int add_mesh_edge(mesh_t* mesh)
+int mesh_add_edge(mesh_t* mesh)
 {
   if (mesh->num_edges+1 > mesh->storage->edge_capacity)
   {
@@ -42,7 +52,7 @@ int add_mesh_edge(mesh_t* mesh)
   return mesh->num_edges-1;
 }
 
-void delete_mesh_edge(mesh_t* mesh, int i)
+void mesh_delete_edge(mesh_t* mesh, int i)
 {
   // Swap the ith edge with the end.
   if (i < mesh->num_edges)
@@ -54,7 +64,7 @@ void delete_mesh_edge(mesh_t* mesh, int i)
   }
 }
 
-int add_mesh_face(mesh_t* mesh)
+int mesh_add_face(mesh_t* mesh)
 {
   if (mesh->num_faces+1 > mesh->storage->face_capacity)
   {
@@ -66,7 +76,7 @@ int add_mesh_face(mesh_t* mesh)
   return mesh->num_faces-1;
 }
 
-void delete_mesh_face(mesh_t* mesh, int i)
+void mesh_delete_face(mesh_t* mesh, int i)
 {
   // Swap the ith face with the end.
   if (i < mesh->num_faces)
@@ -78,7 +88,7 @@ void delete_mesh_face(mesh_t* mesh, int i)
   }
 }
 
-int add_mesh_cell(mesh_t* mesh)
+int mesh_add_cell(mesh_t* mesh)
 {
   if (mesh->num_cells+1 > mesh->storage->cell_capacity)
   {
@@ -90,7 +100,7 @@ int add_mesh_cell(mesh_t* mesh)
   return mesh->num_cells-1;
 }
 
-void delete_mesh_cell(mesh_t* mesh, int i)
+void mesh_delete_cell(mesh_t* mesh, int i)
 {
   // Swap the ith cell with the end.
   if (i < mesh->num_cells)
@@ -102,20 +112,60 @@ void delete_mesh_cell(mesh_t* mesh, int i)
   }
 }
 
-void add_face_edge(face_t* face, edge_t* edge)
+void mesh_add_face_to_edge(mesh_t* mesh, face_t* face, edge_t* edge)
 {
+  if (face->edges == NULL)
+  {
+    face->num_edges = 1;
+    face->edges = arena_malloc(mesh->arena, sizeof(edge_t*)*4, 0);
+  }
+  else
+  {
+    face->num_edges++;
+    int ne = MAX(round_to_pow2(face->num_edges), 4);
+    face->edges = arena_realloc(mesh->arena, face->edges, sizeof(edge_t*)*ne, 0);
+  }
 }
 
-void add_cell_face(cell_t* cell, face_t* face)
+void mesh_add_cell_to_face(mesh_t* mesh, cell_t* cell, face_t* face)
 {
+  if (cell->faces == NULL)
+  {
+    cell->num_faces = 1;
+    cell->faces = arena_malloc(mesh->arena, sizeof(face_t*)*4, 0);
+  }
+  else
+  {
+    cell->num_faces++;
+    int nf = MAX(round_to_pow2(cell->num_faces), 4);
+    cell->faces = arena_realloc(mesh->arena, cell->faces, sizeof(face_t*)*nf, 0);
+  }
 }
 
-void remove_face_edge(face_t* face, edge_t* edge)
+void mesh_remove_face_from_edge(mesh_t* mesh, face_t* face, edge_t* edge)
 {
+  for (int e = 0; e < face->num_edges; ++e)
+  {
+    if (face->edges[e] == edge)
+    {
+      face->num_edges--;
+      face->edges[e] = face->edges[face->num_edges];
+      break;
+    }
+  }
 }
 
-void remove_cell_face(cell_t* cell, face_t* face)
+void mesh_remove_cell_from_face(mesh_t* mesh, cell_t* cell, face_t* face)
 {
+  for (int f = 0; f < cell->num_faces; ++f)
+  {
+    if (cell->faces[f] == face)
+    {
+      cell->num_faces--;
+      cell->faces[f] = cell->faces[cell->num_faces];
+      break;
+    }
+  }
 }
 
 #ifdef __cplusplus
