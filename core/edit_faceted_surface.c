@@ -5,7 +5,7 @@
 extern "C" {
 #endif
 
-int add_faceted_surface_node(faceted_surface_t* surface)
+int faceted_surface_add_node(faceted_surface_t* surface)
 {
   if (surface->num_nodes+1 > surface->storage->node_capacity)
   {
@@ -17,7 +17,7 @@ int add_faceted_surface_node(faceted_surface_t* surface)
   return surface->num_nodes-1;
 }
 
-void delete_faceted_surface_node(faceted_surface_t* surface, int i)
+void faceted_surface_delete_node(faceted_surface_t* surface, int i)
 {
   // Swap the ith node with the end.
   if (i < surface->num_nodes)
@@ -29,7 +29,7 @@ void delete_faceted_surface_node(faceted_surface_t* surface, int i)
   }
 }
 
-int add_faceted_surface_edge(faceted_surface_t* surface)
+int faceted_surface_add_edge(faceted_surface_t* surface)
 {
   if (surface->num_edges+1 > surface->storage->edge_capacity)
   {
@@ -41,7 +41,7 @@ int add_faceted_surface_edge(faceted_surface_t* surface)
   return surface->num_edges-1;
 }
 
-void delete_faceted_surface_edge(faceted_surface_t* surface, int i)
+void faceted_surface_delete_edge(faceted_surface_t* surface, int i)
 {
   // Swap the ith edge with the end.
   if (i < surface->num_edges)
@@ -53,7 +53,7 @@ void delete_faceted_surface_edge(faceted_surface_t* surface, int i)
   }
 }
 
-int add_faceted_surface_face(faceted_surface_t* surface)
+int faceted_surface_add_face(faceted_surface_t* surface)
 {
   if (surface->num_faces+1 > surface->storage->face_capacity)
   {
@@ -65,7 +65,7 @@ int add_faceted_surface_face(faceted_surface_t* surface)
   return surface->num_faces-1;
 }
 
-void delete_faceted_surface_face(faceted_surface_t* surface, int i)
+void faceted_surface_delete_face(faceted_surface_t* surface, int i)
 {
   // Swap the ith face with the end.
   if (i < surface->num_faces)
