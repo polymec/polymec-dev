@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <string.h>
 #include "core/edit_mesh.h"
 #include "core/mesh_storage.h"
 
@@ -44,9 +45,11 @@ int mesh_add_edge(mesh_t* mesh)
 {
   if (mesh->num_edges+1 > mesh->storage->edge_capacity)
   {
+    int old_cap = mesh->storage->edge_capacity;
     while (mesh->num_edges+1 > mesh->storage->edge_capacity)
       mesh->storage->edge_capacity *= 2;
     mesh->edges = arena_realloc(mesh->arena, mesh->edges, sizeof(edge_t)*mesh->storage->edge_capacity, 0);
+    memset(mesh->edges + old_cap, 0, sizeof(edge_t)*(mesh->storage->edge_capacity-old_cap));
   }
   mesh->num_edges++;
   return mesh->num_edges-1;
@@ -68,9 +71,11 @@ int mesh_add_face(mesh_t* mesh)
 {
   if (mesh->num_faces+1 > mesh->storage->face_capacity)
   {
+    int old_cap = mesh->storage->face_capacity;
     while (mesh->num_faces+1 > mesh->storage->face_capacity)
       mesh->storage->face_capacity *= 2;
     mesh->faces = arena_realloc(mesh->arena, mesh->faces, sizeof(face_t)*mesh->storage->face_capacity, 0);
+    memset(mesh->faces + old_cap, 0, sizeof(face_t)*(mesh->storage->face_capacity-old_cap));
   }
   mesh->num_faces++;
   return mesh->num_faces-1;
@@ -92,9 +97,11 @@ int mesh_add_cell(mesh_t* mesh)
 {
   if (mesh->num_cells+1 > mesh->storage->cell_capacity)
   {
+    int old_cap = mesh->storage->cell_capacity;
     while (mesh->num_cells+1 > mesh->storage->cell_capacity)
       mesh->storage->cell_capacity *= 2;
     mesh->cells = arena_realloc(mesh->arena, mesh->cells, sizeof(cell_t)*mesh->storage->cell_capacity, 0);
+    memset(mesh->cells + old_cap, 0, sizeof(cell_t)*(mesh->storage->cell_capacity-old_cap));
   }
   mesh->num_cells++;
   return mesh->num_cells-1;
