@@ -5,6 +5,7 @@
 #include "core/silo_io.h"
 #include "core/point.h"
 #include "core/slist.h"
+#include "core/avl_tree.h"
 
 #ifdef USE_MPI
 #include <mpi.h>
@@ -357,6 +358,7 @@ static void silo_plot_write_datasets(void* context, void* f, io_dataset_t** data
   // Compute cell centers from face nodes.
   point_t cell_centers[num_cells];
   memset(cell_centers, 0, num_cells*sizeof(point_t));
+  avl_tree_t* cell_nodes = int_avl_tree_new();
   for (int c = 0; c < num_cells; ++c)
   {
     int num_nodes = 0;
@@ -364,17 +366,27 @@ static void silo_plot_write_datasets(void* context, void* f, io_dataset_t** data
     {
       for (int n = 0; n < face_node_counts[f]; ++n)
       {
-        node_t* node = &mesh->nodes[face_nodes[f][n]];
-        cell_centers[c].x += node->x;
-        cell_centers[c].y += node->y;
-        cell_centers[c].z += node->z;
-        ++num_nodes;
+        int node_id = face_nodes[f][n];
+        if (avl_tree_find(cell_nodes, (void*)node_id) == NULL)
+        {
+printf("node_id = %d\n", node_id);
+          avl_tree_insert(cell_nodes, (void*)node_id);
+          node_t* node = &mesh->nodes[face_nodes[f][n]];
+          cell_centers[c].x += node->x;
+          cell_centers[c].y += node->y;
+          cell_centers[c].z += node->z;
+          ++num_nodes;
+        }
       }
     }
+    printf("num cell nodes = %d\n", num_nodes);
     cell_centers[c].x /= num_nodes;
     cell_centers[c].y /= num_nodes;
     cell_centers[c].z /= num_nodes;
+    avl_tree_clear(cell_nodes);
   }
+  avl_tree_free(cell_nodes);
+  printf("xc = (%g, %g, %g)\n", cell_centers[0].x, cell_centers[0].y, cell_centers[0].z);
 
   slist_t* all_face_nodes_list = slist_new(NULL);
   for (int f = 0; f < mesh->num_faces; ++f)
@@ -395,6 +407,7 @@ static void silo_plot_write_datasets(void* context, void* f, io_dataset_t** data
     face_center.x /= nn;
     face_center.y /= nn;
     face_center.z /= nn;
+    printf("xf[%d] = (%g, %g, %g)\n", f, face_center.x, face_center.y, face_center.z);
 
     // Construct vectors v1, v2, and v3, where v1 is the vector pointing from the 
     // face center to the first face node, v2 is a vector pointing from the face 
@@ -441,9 +454,12 @@ static void silo_plot_write_datasets(void* context, void* f, io_dataset_t** data
     e1.x = v1.x / v1_mag;
     e1.y = v1.y / v1_mag;
     e1.z = v1.z / v1_mag;
+    printf("n = (%g,%g,%g)\n", normal.x, normal.y, normal.z);
+    printf("e1 = (%g,%g,%g)\n", e1.x, e1.y, e1.z);
 
     // e2 = normal x e1.
     vector_cross(normal, e1, &e2);
+    printf("e2 = (%g,%g,%g)\n", e2.x, e2.y, e2.z);
     for (int p = 0; p < nn; ++p)
     {
       // v = node center - cell center.
