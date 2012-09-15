@@ -40,18 +40,18 @@ int mesh_add_cell(mesh_t* mesh);
 void mesh_delete_cell(mesh_t* mesh, int i);
 
 // Attaches the given edge to the given face.
-void mesh_add_face_to_edge(mesh_t* mesh, face_t* face, edge_t* edge);
+void mesh_add_edge_to_face(mesh_t* mesh, edge_t* edge, face_t* face);
 
 // Attaches the given face to the given cell.
-void mesh_add_cell_to_face(mesh_t* mesh, cell_t* cell, face_t* face);
+void mesh_add_face_to_cell(mesh_t* mesh, face_t* face, cell_t* cell);
 
 // Removes the given edge from the given face, or does nothing if the 
 // edge is not attached to the face.
-void mesh_remove_face_from_edge(mesh_t* mesh, face_t* face, edge_t* edge);
+void mesh_remove_edge_from_face(mesh_t* mesh, edge_t* edge, face_t* face);
 
 // Removes the given face from the given cell, or does nothing if the 
 // face is not attached to the cell.
-void mesh_remove_cell_from_face(mesh_t* mesh, cell_t* cell, face_t* face);
+void mesh_remove_face_from_cell(mesh_t* mesh, face_t* face, cell_t* cell);
 
 #ifdef __cplusplus
 }

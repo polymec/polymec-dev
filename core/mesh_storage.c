@@ -14,7 +14,7 @@ mesh_storage_t* mesh_storage_new()
 
 mesh_storage_t* mesh_storage_new_with_arena(ARENA* arena)
 {
-  mesh_storage_t* storage = arena_malloc(arena, 1, 0);
+  mesh_storage_t* storage = arena_malloc(arena, sizeof(mesh_storage_t), 0);
   storage->arena = arena;
   storage->node_capacity = 0;
   storage->edge_capacity = 0;

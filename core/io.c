@@ -88,7 +88,6 @@ void io_free(io_interface_t* interface)
 {
   ASSERT(interface->mode == IO_CLOSED);
   ASSERT(interface->file == NULL);
-  ASSERT(interface->buffered_data == NULL);
 
   free(interface->name);
   if (interface->vtable.dtor != NULL)
@@ -139,7 +138,6 @@ void io_open(io_interface_t* interface,
 {
   ASSERT(interface->mode == IO_CLOSED);
   ASSERT(mode != IO_CLOSED);
-  ASSERT(interface->buffered_data == NULL);
 
   // If we're reading a file, make sure the master directory exists.
   // If we're writing a file, create the directory if it doesn't exist.
@@ -434,7 +432,6 @@ void io_dataset_write_field(io_dataset_t* dataset, const char* field_name, doubl
 {
   ASSERT(dataset->interface->mode == IO_WRITE);
   ASSERT(field_data != NULL);
-  ASSERT(num_data > 0);
   ASSERT(num_components > 0);
   for (int i = 0; i < dataset->num_fields; ++i)
   {

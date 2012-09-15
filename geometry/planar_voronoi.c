@@ -43,8 +43,6 @@ static void append_to_tag(avl_node_t* node, void* p)
 mesh_t* voronoi_plane(point_t* points, int num_points, 
                       point_t* ghost_points, int num_ghost_points)
 {
-  ASSERT(num_planes >= 1);
-  ASSERT(z2 > z1);
   ASSERT(points != NULL);
   ASSERT(num_points >= 2);
   ASSERT(num_ghost_points >= 0);
