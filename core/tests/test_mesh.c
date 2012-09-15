@@ -49,6 +49,11 @@ void test_single_cell_mesh(void** state)
         mesh->edges[fe].node1 = &mesh->nodes[edge_nodes[fe][n]];
     }
   }
+
+  assert_int_equal(6, mesh->cells[0].num_faces);
+  for (int f = 0; f < 6; ++f)
+    assert_int_equal(4, mesh->faces[f].num_edges);
+
   mesh_free(mesh);
 }
 
