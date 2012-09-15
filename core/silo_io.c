@@ -20,7 +20,8 @@ static void* silo_create_file(void* context,
                               const char* filename,
                               const char* dirname)
 {
-  int driver = DB_HDF5;
+//  int driver = DB_HDF5;
+  int driver = DB_PDB;
   DBfile* file = DBCreate(filename, 0, DB_LOCAL, 0, driver);
   DBMkDir(file, dirname);
   DBSetDir(file, dirname);
@@ -32,7 +33,8 @@ static void* silo_open_file(void* context,
                             const char* dirname,
                             io_mode_t mode)
 {
-  int driver = DB_HDF5;
+//  int driver = DB_HDF5;
+  int driver = DB_PDB;
   DBfile* file;
   if (mode == IO_WRITE)
   { 
@@ -339,21 +341,38 @@ static void silo_plot_write_datasets(void* context, void* f, io_dataset_t** data
       if (mesh->faces[f].edges[e]->node2 == NULL)
         ++rays;
     }
-    face_node_counts[f] = 2*ne - rays;
+    face_node_counts[f] = ne - rays;
+    ASSERT(face_node_counts[f] >= 3);
     face_nodes[f] = malloc(face_node_counts[f]*sizeof(int));
   }
+
+  avl_tree_t* fnodes = int_avl_tree_new();
   for (int f = 0; f < num_faces; ++f)
   {
     int counter = 0, ne = mesh->faces[f].num_edges;
     for (int e = 0; e < ne; ++e)
     {
       edge_t* edge = mesh->faces[f].edges[e];
-      face_nodes[f][counter++] = edge->node1 - &mesh->nodes[0];
+      int node1_id = edge->node1 - &mesh->nodes[0];
+      if (avl_tree_find(fnodes, (void*)node1_id) == NULL)
+      {
+        face_nodes[f][counter++] = node1_id;
+        avl_tree_insert(fnodes, (void*)node1_id);
+      }
       if (edge->node2 != NULL)
-        face_nodes[f][counter++] = edge->node2 - &mesh->nodes[0];
+      {
+        int node2_id = edge->node2 - &mesh->nodes[0];
+        if (avl_tree_find(fnodes, (void*)node2_id) == NULL)
+        {
+          face_nodes[f][counter++] = node2_id;
+          avl_tree_insert(fnodes, (void*)node2_id);
+        }
+      }
     }
     ASSERT(counter == face_node_counts[f]);
+    avl_tree_clear(fnodes);
   }
+  avl_tree_free(fnodes);
 
   // Compute cell centers from face nodes.
   point_t cell_centers[num_cells];
@@ -369,7 +388,6 @@ static void silo_plot_write_datasets(void* context, void* f, io_dataset_t** data
         int node_id = face_nodes[f][n];
         if (avl_tree_find(cell_nodes, (void*)node_id) == NULL)
         {
-printf("node_id = %d\n", node_id);
           avl_tree_insert(cell_nodes, (void*)node_id);
           node_t* node = &mesh->nodes[face_nodes[f][n]];
           cell_centers[c].x += node->x;
@@ -379,14 +397,12 @@ printf("node_id = %d\n", node_id);
         }
       }
     }
-    printf("num cell nodes = %d\n", num_nodes);
     cell_centers[c].x /= num_nodes;
     cell_centers[c].y /= num_nodes;
     cell_centers[c].z /= num_nodes;
     avl_tree_clear(cell_nodes);
   }
   avl_tree_free(cell_nodes);
-  printf("xc = (%g, %g, %g)\n", cell_centers[0].x, cell_centers[0].y, cell_centers[0].z);
 
   slist_t* all_face_nodes_list = slist_new(NULL);
   for (int f = 0; f < mesh->num_faces; ++f)
@@ -407,7 +423,6 @@ printf("node_id = %d\n", node_id);
     face_center.x /= nn;
     face_center.y /= nn;
     face_center.z /= nn;
-    printf("xf[%d] = (%g, %g, %g)\n", f, face_center.x, face_center.y, face_center.z);
 
     // Construct vectors v1, v2, and v3, where v1 is the vector pointing from the 
     // face center to the first face node, v2 is a vector pointing from the face 
@@ -421,15 +436,16 @@ printf("node_id = %d\n", node_id);
     double normal_mag;
     for (int n = 1; n < nn; ++n)
     {
-      v2.x = mesh->nodes[nodes[0]].x - face_center.x;
-      v2.y = mesh->nodes[nodes[0]].y - face_center.y;
-      v2.z = mesh->nodes[nodes[0]].z - face_center.z;
+      v2.x = mesh->nodes[nodes[n]].x - face_center.x;
+      v2.y = mesh->nodes[nodes[n]].y - face_center.y;
+      v2.z = mesh->nodes[nodes[n]].z - face_center.z;
 
       // normal = v1 x v2.
       vector_cross(v1, v2, &normal);
-      normal_mag = vector_dot(normal, normal);
+      normal_mag = sqrt(vector_dot(normal, normal));
       if (normal_mag > 1e-14) break;
     }
+    ASSERT(normal_mag > 1e-14);
     normal.x /= normal_mag; normal.y /= normal_mag; normal.z /= normal_mag;
 
     vector_t v3;
@@ -450,16 +466,13 @@ printf("node_id = %d\n", node_id);
     // with the given normal and centered about the face center.
     double points[2*nn]; // NOTE: planar coordinates (2D)
     vector_t e1, e2; // Basis vectors in the plane.
-    double v1_mag = vector_dot(v1, v1);
+    double v1_mag = sqrt(vector_dot(v1, v1));
     e1.x = v1.x / v1_mag;
     e1.y = v1.y / v1_mag;
     e1.z = v1.z / v1_mag;
-    printf("n = (%g,%g,%g)\n", normal.x, normal.y, normal.z);
-    printf("e1 = (%g,%g,%g)\n", e1.x, e1.y, e1.z);
 
     // e2 = normal x e1.
     vector_cross(normal, e1, &e2);
-    printf("e2 = (%g,%g,%g)\n", e2.x, e2.y, e2.z);
     for (int p = 0; p < nn; ++p)
     {
       // v = node center - cell center.
@@ -569,9 +582,6 @@ printf("node_id = %d\n", node_id);
           DB_DOUBLE, DB_ZONECENT, optlist);
     }
   }
-
-  // Clean up.
-  DBFreeOptlist(optlist);
 
 #ifdef HAVE_MPI
   // Write the multi-block objects to the file if needed.

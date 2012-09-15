@@ -19,12 +19,12 @@ void test_plot_single_cell_mesh(void** state)
   int face_edges[6][4] = {{0, 1, 2, 3}, 
                           {3, 4, 11, 7},
                           {4, 0, 5, 8},
-                          {5, 1, 6, 10},
-                          {6, 2, 7, 11},
+                          {5, 1, 6, 9},
+                          {6, 2, 7, 10},
                           {8, 9, 10, 11}};
   int edge_nodes[12][2] = {{0, 1}, {1, 2}, {2, 3}, {3, 0},
                            {0, 4}, {1, 5}, {2, 6}, {3, 7},
-                           {4, 5}, {5, 6}, {6, 7}, {7, 0}};
+                           {4, 5}, {5, 6}, {6, 7}, {7, 4}};
   node_t nodes[8] = {{0.0, 0.0, 0.0}, {1.0, 0.0, 0.0},
                      {1.0, 1.0, 0.0}, {0.0, 1.0, 0.0},
                      {0.0, 0.0, 1.0}, {1.0, 0.0, 1.0},
@@ -37,8 +37,8 @@ void test_plot_single_cell_mesh(void** state)
     {
       mesh_add_edge_to_face(mesh, &mesh->edges[face_edges[f][e]], &mesh->faces[f]);
       int fe = face_edges[f][e];
-      for (int n = 0; n < 2; ++n)
-        mesh->edges[fe].node1 = &mesh->nodes[edge_nodes[fe][n]];
+      mesh->edges[fe].node1 = &mesh->nodes[edge_nodes[fe][0]];
+      mesh->edges[fe].node2 = &mesh->nodes[edge_nodes[fe][1]];
     }
   }
 
