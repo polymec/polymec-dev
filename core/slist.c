@@ -99,8 +99,17 @@ void slist_append(slist_t* list, void* value)
   slist_node_t* n = malloc(sizeof(slist_node_t));
   n->value = value;
   n->next = NULL;
-  list->back->next = n;
-  list->back = n;
+  if (list->back == NULL)
+  {
+    ASSERT(list->front == NULL);
+    list->front = n;
+    list->back = n;
+  }
+  else
+  {
+    list->back->next = n;
+    list->back = n;
+  }
 }
 
 void* slist_pop(slist_t* list)

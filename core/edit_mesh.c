@@ -125,12 +125,14 @@ void mesh_add_edge_to_face(mesh_t* mesh, edge_t* edge, face_t* face)
   {
     face->num_edges = 1;
     face->edges = arena_malloc(mesh->arena, sizeof(edge_t*)*4, 0);
+    face->edges[0] = edge;
   }
   else
   {
     face->num_edges++;
     int ne = MAX(round_to_pow2(face->num_edges), 4);
     face->edges = arena_realloc(mesh->arena, face->edges, sizeof(edge_t*)*ne, 0);
+    face->edges[face->num_edges-1] = edge;
   }
 }
 
@@ -140,13 +142,19 @@ void mesh_add_face_to_cell(mesh_t* mesh, face_t* face, cell_t* cell)
   {
     cell->num_faces = 1;
     cell->faces = arena_malloc(mesh->arena, sizeof(face_t*)*4, 0);
+    cell->faces[0] = face;
   }
   else
   {
     cell->num_faces++;
     int nf = MAX(round_to_pow2(cell->num_faces), 4);
     cell->faces = arena_realloc(mesh->arena, cell->faces, sizeof(face_t*)*nf, 0);
+    cell->faces[cell->num_faces-1] = face;
   }
+  if (face->cell1 == NULL)
+    face->cell1 = cell;
+  else
+    face->cell2 = cell;
 }
 
 void mesh_remove_edge_from_face(mesh_t* mesh, edge_t* edge, face_t* face)

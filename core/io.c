@@ -211,6 +211,7 @@ void io_open(io_interface_t* interface,
   strncpy(interface->directory, directory, 1024);
 
   // If we're reading from the file, read the contents.
+  interface->mode = mode;
   if (mode == IO_READ)
   {
 #if USE_MPI
@@ -232,7 +233,11 @@ void io_open(io_interface_t* interface,
     memset(interface->datasets, 0, interface->num_datasets*sizeof(io_dataset_t*));
     interface->vtable.read_datasets(interface->context, interface->file, interface->datasets, interface->num_datasets);
   }
-  interface->mode = mode;
+  // Otherwise, set some defaults for writing.
+  else if (mode == IO_WRITE)
+  {
+    io_set_num_datasets(interface, 1); // 1 dataset by default.
+  }
 }
 
 void io_close(io_interface_t* interface)
@@ -291,8 +296,8 @@ void io_set_num_datasets(io_interface_t* interface, int num_datasets)
   ASSERT(num_datasets >= 1);
   ASSERT(interface->datasets == NULL);
   interface->num_datasets = num_datasets;
-  interface->datasets = malloc(num_datasets*num_datasets);
-  memset(interface->datasets, 0, interface->num_datasets*sizeof(io_dataset_t*));
+  interface->datasets = malloc(sizeof(io_dataset_t*)*num_datasets);
+  memset(interface->datasets, 0, num_datasets*sizeof(io_dataset_t*));
 }
 
 io_dataset_t* io_dataset(io_interface_t* interface, const char* dataset)
@@ -320,7 +325,7 @@ io_dataset_t* io_dataset_new(io_interface_t* interface, const char* name,
   ASSERT(num_fields >= 0);
   ASSERT(num_sources >= 0);
   int index = 0;
-  while ((index < interface->num_datasets) && (interface->datasets[index] == NULL))
+  while ((index < interface->num_datasets) && (interface->datasets[index] != NULL))
     ++index;
   if (index == interface->num_datasets) // No room!
     return NULL;
