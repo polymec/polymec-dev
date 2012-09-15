@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <mpi.h>
+#include <gc/gc.h>
 #include "core/arbi.h"
 #include "core/options.h"
 #include "core/simulation.h"
@@ -49,8 +50,11 @@ static void shutdown()
 
 void arbi_init(int argc, char** argv)
 {
-  // Start everything up.
+  // Start up MPI.
   MPI_Init(&argc, &argv);
+
+  // Start up the garbage collector.
+  GC_INIT();
 
   // Start up Tao.
   TaoInitialize(&argc, &argv, (char*)NULL, 0);
