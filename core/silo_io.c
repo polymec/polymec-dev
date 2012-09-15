@@ -254,7 +254,7 @@ void traverse_convex_hull(double* points, int num_points, int* indices, int* cou
 
   // We start with this point and a horizontal angle.
   double theta_prev = 0.0;
-  indices[*count++] = index0;
+  indices[(*count)++] = index0;
 
   // Now start gift wrapping.
   int i = index0;
@@ -280,7 +280,7 @@ void traverse_convex_hull(double* points, int num_points, int* indices, int* cou
       }
     }
     if (j_min != index0)
-      indices[*count++] = j_min;
+      indices[(*count)++] = j_min;
     theta_prev += dtheta_min;
     i = j_min;
   }
@@ -338,7 +338,7 @@ static void silo_plot_write_datasets(void* context, void* f, io_dataset_t** data
       if (mesh->faces[f].edges[e]->node2 == NULL)
         ++rays;
     }
-    face_node_counts[f] = 2*ne - 1 - rays;
+    face_node_counts[f] = 2*ne - rays;
     face_nodes[f] = malloc(face_node_counts[f]*sizeof(int));
   }
   for (int f = 0; f < num_faces; ++f)
