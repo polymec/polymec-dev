@@ -18,7 +18,9 @@ endif()
 set(ARBI_TP_LIBS ${ARBI_TP_LIBS};gc)
 
 # Build Triangle.
-file(COPY triangle.h DESTINATION ${PROJECT_BINARY_DIR}/include)
+if (NOT EXISTS ${PROJECT_BINARY_DIR}/include/triangle.h)
+  file(COPY triangle.h DESTINATION ${PROJECT_BINARY_DIR}/include)
+endif()
 add_library(triangle triangle.c)
 # Because Hang Si has messed with some of Shewchuk's predicates and
 # included them with his own Tetgen library, we need to rename some of 

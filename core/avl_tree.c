@@ -48,6 +48,7 @@ void avl_tree_free(avl_tree_t* tree)
 void avl_tree_clear(avl_tree_t* tree)
 {
   avl_tree_clear_node(tree->root, tree->dtor);
+  tree->root = NULL;
 }
 
 static avl_node_t* avl_tree_find_node(avl_node_t* node, void* datum, avl_tree_attribute_cmp cmp)
@@ -68,25 +69,34 @@ avl_node_t* avl_tree_find(avl_tree_t* tree, void* datum)
   return avl_tree_find_node(tree->root, datum, tree->cmp);
 }
 
+static inline int avl_node_depth(avl_node_t* node)
+{
+  if (node == NULL)
+    return -1;
+  else return node->depth;
+}
+
 static avl_node_t* single_rotate_with_left(avl_node_t* node)
 {
   avl_node_t* n = node->left;
+  ASSERT(n != NULL);
   node->left = n->right;
   n->right = node;
 
-  node->depth = MAX(node->left->depth, node->right->depth) + 1;
-  n->depth = MAX(n->left->depth, node->depth) + 1;
+  node->depth = MAX(avl_node_depth(node->left), avl_node_depth(node->right)) + 1;
+  n->depth = MAX(avl_node_depth(n->left), node->depth) + 1;
   return n;
 }
 
 static avl_node_t* single_rotate_with_right(avl_node_t* node)
 {
   avl_node_t* n = node->right;
+  ASSERT(n != NULL);
   node->right = n->left;
   n->left = node;
 
-  node->depth = MAX(node->left->depth, node->right->depth) + 1;
-  n->depth = MAX(n->right->depth, node->depth) + 1;
+  node->depth = MAX(avl_node_depth(node->left), avl_node_depth(node->right)) + 1;
+  n->depth = MAX(avl_node_depth(n->right), node->depth) + 1;
   return n;
 }
 
@@ -103,7 +113,7 @@ static avl_node_t* double_rotate_with_right(avl_node_t* node)
 }
 
 static avl_node_t* avl_tree_insert_node(avl_node_t* node, void* datum, 
-                                        avl_tree_attribute_cmp cmp, int depth)
+                                        avl_tree_attribute_cmp cmp)
 {
   if (node == NULL)
   {
@@ -111,7 +121,7 @@ static avl_node_t* avl_tree_insert_node(avl_node_t* node, void* datum,
     node->left = NULL;
     node->right = NULL;
     node->attribute = datum;
-    node->depth = depth;
+    node->depth = 0;
     return node;
   }
   else 
@@ -119,8 +129,8 @@ static avl_node_t* avl_tree_insert_node(avl_node_t* node, void* datum,
     int result = cmp(datum, node->attribute);
     if (result < 0)
     {
-      node->left = avl_tree_insert_node(node->left, datum, cmp, depth+1);
-      if ((node->left->depth - node->right->depth) == 2)
+      node->left = avl_tree_insert_node(node->left, datum, cmp);
+      if ((avl_node_depth(node->left) - avl_node_depth(node->right)) == 2)
       {
         int result2 = cmp(datum, node->left->attribute);
         if (result2 < 0)
@@ -131,24 +141,26 @@ static avl_node_t* avl_tree_insert_node(avl_node_t* node, void* datum,
     }
     else if (result > 0)
     {
-      node->right = avl_tree_insert_node(node->right, datum, cmp, depth+1);
-      if ((node->right->depth - node->left->depth) == 2)
+      node->right = avl_tree_insert_node(node->right, datum, cmp);
+
+      if ((avl_node_depth(node->right) - avl_node_depth(node->left)) == 2)
       {
         int result2 = cmp(datum, node->right->attribute);
-        if (result2 < 0)
+        if (result2 > 0)
           node = single_rotate_with_right(node);
         else
           node = double_rotate_with_right(node);
       }
     }
     // Otherwise the tree already contains this datum -- do nothing.
+    node->depth = MAX(avl_node_depth(node->left), avl_node_depth(node->right)) + 1;
     return node;
   }
 }
 
 void avl_tree_insert(avl_tree_t* tree, void* datum)
 {
-  avl_tree_insert_node(tree->root, datum, tree->cmp, 0);
+  tree->root = avl_tree_insert_node(tree->root, datum, tree->cmp);
 }
 
 static avl_node_t* avl_tree_find_node_parent(avl_node_t* root, 
@@ -177,12 +189,6 @@ static avl_node_t* avl_tree_find_node_parent(avl_node_t* root,
   }
 }
 
-static void demote_node(avl_node_t* node, void* dummy)
-{
-  UNUSED_ARG(dummy);
-  node->depth -= 1;
-}
-
 void avl_tree_delete(avl_tree_t* tree, avl_node_t* node)
 {
   ASSERT(node != NULL);
@@ -206,7 +212,6 @@ void avl_tree_delete(avl_tree_t* tree, avl_node_t* node)
     else 
     {
       avl_node_t* child = (node->left != NULL) ? node->left : node->right;
-      avl_node_visit(child, demote_node, NULL);
       // Rewire the tree.
       if (parent != NULL)
       {
@@ -256,7 +261,6 @@ void avl_tree_delete(avl_tree_t* tree, avl_node_t* node)
     if (replacement->left != NULL)
     {
       replacement_parent->right = replacement->left;
-      avl_node_visit(replacement->left, demote_node, NULL);
     }
     parent->left = replacement;
 
