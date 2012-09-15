@@ -250,9 +250,11 @@ void io_close(io_interface_t* interface)
 #if USE_MPI
     int rank_in_group = PMPIO_rank_in_group(interface->baton, interface->rank);
     int num_procs_per_file = interface->nproc / num_files;
+    interface->file = PMPIO_WaitForBaton(interface->baton, interface->filename, interface->group_dir);
 #else
     int rank_in_group = 0;
     int num_procs_per_file = 1;
+    interface->file = interface->vtable.create_file(interface->context, interface->filename, "/");
 #endif
     interface->vtable.write_datasets(interface->context, interface->file, interface->datasets, interface->num_datasets, rank_in_group, num_procs_per_file);
 
