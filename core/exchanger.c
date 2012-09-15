@@ -255,7 +255,6 @@ exchanger_t* exchanger_with_topology(MPI_Comm comm,
                                      int num_sends, int* sends, int* send_sizes, int** send_idx,
                                      int num_receives, int* receives, int* receive_sizes, int** receive_idx)
 {
-  ASSERT(MPI_Initialized());
   exchanger_t* ex = exchanger_new();
   exchanger_init(ex, comm, num_sends, sends, send_sizes, send_idx,
                  num_receives, receives, receive_sizes, receive_idx);

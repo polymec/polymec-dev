@@ -110,7 +110,7 @@ mesh_t* mesh_new_with_arena(ARENA* arena, int num_cells, int num_ghost_cells, in
                             int num_edges, int num_nodes)
 {
   ASSERT(num_cells > 0);
-  ASSERT(num_ghost_cells > 0);
+  ASSERT(num_ghost_cells >= 0);
   ASSERT(num_faces > 0);
   ASSERT(num_edges > 0);
   ASSERT(num_nodes > 0);
@@ -122,19 +122,23 @@ mesh_t* mesh_new_with_arena(ARENA* arena, int num_cells, int num_ghost_cells, in
   // NOTE: We round stored elements up to the nearest power of 2.
   int cell_cap = round_to_pow2(num_cells+num_ghost_cells);
   mesh->cells = arena_malloc(mesh->arena, sizeof(cell_t)*cell_cap, 0);
+  memset(mesh->cells, 0, sizeof(cell_t)*cell_cap);
   mesh->num_cells = num_cells;
   mesh->num_ghost_cells = num_ghost_cells;
 
   int face_cap = round_to_pow2(num_faces);
   mesh->faces = arena_malloc(mesh->arena, sizeof(face_t)*face_cap, 0);
+  memset(mesh->faces, 0, sizeof(face_t)*face_cap);
   mesh->num_faces = num_faces;
 
   int edge_cap = round_to_pow2(num_edges);
   mesh->edges = arena_malloc(mesh->arena, sizeof(edge_t)*edge_cap, 0);
+  memset(mesh->edges, 0, sizeof(edge_t)*edge_cap);
   mesh->num_edges = num_edges;
 
   int node_cap = round_to_pow2(num_nodes);
   mesh->nodes = arena_malloc(mesh->arena, sizeof(node_t)*node_cap, 0);
+  memset(mesh->nodes, 0, sizeof(node_t)*node_cap);
   mesh->num_nodes = num_nodes;
 
   // Allocate tagging mechanisms.

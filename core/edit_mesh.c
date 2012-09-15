@@ -112,7 +112,7 @@ void mesh_delete_cell(mesh_t* mesh, int i)
   }
 }
 
-void mesh_add_face_to_edge(mesh_t* mesh, face_t* face, edge_t* edge)
+void mesh_add_edge_to_face(mesh_t* mesh, edge_t* edge, face_t* face)
 {
   if (face->edges == NULL)
   {
@@ -127,7 +127,7 @@ void mesh_add_face_to_edge(mesh_t* mesh, face_t* face, edge_t* edge)
   }
 }
 
-void mesh_add_cell_to_face(mesh_t* mesh, cell_t* cell, face_t* face)
+void mesh_add_face_to_cell(mesh_t* mesh, face_t* face, cell_t* cell)
 {
   if (cell->faces == NULL)
   {
@@ -142,7 +142,7 @@ void mesh_add_cell_to_face(mesh_t* mesh, cell_t* cell, face_t* face)
   }
 }
 
-void mesh_remove_face_from_edge(mesh_t* mesh, face_t* face, edge_t* edge)
+void mesh_remove_edge_from_face(mesh_t* mesh, edge_t* edge, face_t* face)
 {
   for (int e = 0; e < face->num_edges; ++e)
   {
@@ -155,7 +155,7 @@ void mesh_remove_face_from_edge(mesh_t* mesh, face_t* face, edge_t* edge)
   }
 }
 
-void mesh_remove_cell_from_face(mesh_t* mesh, cell_t* cell, face_t* face)
+void mesh_remove_face_from_cell(mesh_t* mesh, face_t* face, cell_t* cell)
 {
   for (int f = 0; f < cell->num_faces; ++f)
   {
