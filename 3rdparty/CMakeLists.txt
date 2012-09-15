@@ -46,7 +46,7 @@ set(ARBI_TP_LIBS ${ARBI_TP_LIBS};triangle)
 #set(ARBI_TP_LIBS ${ARBI_TP_LIBS};zmq;stdc++)
 
 # Install libarena -- A fast C arena/memory pool implementation.
-if (NOT EXISTS ${PROJECT_BINARY_DIR}/include/arena/arena.h)
+if (NOT EXISTS ${PROJECT_BINARY_DIR}/include/arena)
   execute_process(COMMAND cmake -E tar xzvf ${CMAKE_CURRENT_SOURCE_DIR}/libarena-0.3.4.tgz
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
   file(GLOB includes "${CMAKE_CURRENT_BINARY_DIR}/libarena-0.3.4/src/*.h")
@@ -54,6 +54,10 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/include/arena/arena.h)
   foreach(inc ${includes})
     execute_process(COMMAND cmake -E copy ${inc} ${PROJECT_BINARY_DIR}/include/arena)
   endforeach()
+
+  # Apply the patch to arena.c.
+  execute_process(COMMAND patch libarena-0.3.4/src/arena.c ${CMAKE_CURRENT_SOURCE_DIR}/libarena-arena.c.patch 
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 endif()
 file(GLOB sources "${CMAKE_CURRENT_BINARY_DIR}/libarena-0.3.4/src/*.c")
 add_library(arena ${sources})
