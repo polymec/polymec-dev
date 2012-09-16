@@ -23,7 +23,8 @@ static void* silo_create_file(void* context,
 //  int driver = DB_HDF5;
   int driver = DB_PDB;
   DBfile* file = DBCreate(filename, 0, DB_LOCAL, 0, driver);
-  DBMkDir(file, dirname);
+  if (strcmp(dirname, "/"))
+    DBMkDir(file, dirname);
   DBSetDir(file, dirname);
   return (void*)file;
 }
