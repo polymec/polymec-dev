@@ -110,6 +110,7 @@ void slist_append(slist_t* list, void* value)
     list->back->next = n;
     list->back = n;
   }
+  list->size += 1;
 }
 
 void* slist_pop(slist_t* list)

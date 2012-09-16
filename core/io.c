@@ -277,6 +277,7 @@ void io_close(io_interface_t* interface)
 #else
   interface->vtable.close_file(interface->context, interface->file);
 #endif
+  interface->file = NULL;
   interface->mode = IO_CLOSED;
 }
 
