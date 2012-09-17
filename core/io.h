@@ -62,7 +62,9 @@ typedef struct
   io_dtor                       dtor;
 } io_vtable;
 
-// This structure holds data for datasets. Be careful using it.
+// This structure holds data for datasets. Be careful using it directly.
+// All data is borrowed, except names of fields and source codes, which is
+// managed internally.
 struct io_dataset_t
 {
   io_interface_t* interface;

@@ -33,6 +33,7 @@ void slist_free(slist_t* list)
       list->dtor(n->value);
     free(n);
   }
+  free(list);
 }
 
 slist_node_t* slist_front(slist_t* list)
