@@ -101,11 +101,75 @@ set(ARBI_TP_LIBS ${ARBI_TP_LIBS};arena)
 #add_library(tommyds ${CMAKE_CURRENT_BINARY_DIR}/tommyds-1.2/tommy.c)
 #set(ARBI_TP_LIBS ${ARBI_TP_LIBS};tommyds)
 
+# Install PETSc.
+if (NOT EXISTS ${CMAKE_BINARY_DIR}/lib/libpetsc.a)
+  set(PETSC_CONFIG_OPTS PETSC_DIR=${CMAKE_CURRENT_BINARY_DIR}/petsc-3.3-p3 PETSC_ARCH=${CMAKE_BUILD_TYPE} --prefix=${CMAKE_BINARY_DIR} --CC=${CMAKE_C_COMPILER} --CFLAGS=${CMAKE_C_FLAGS} --with-mpi=${USE_MPI})
+  set(PETSC_CONFIG_OPTS ${PETSC_CONFIG_OPTS} --with-fortran=0)
+  set(PETSC_CONFIG_OPTS ${PETSC_CONFIG_OPTS} --with-x=0)
+  set(PETSC_CONFIG_OPTS ${PETSC_CONFIG_OPTS} --download-ctetgen=yes)
+  # This is broken:
+  #set(PETSC_CONFIG_OPTS ${PETSC_CONFIG_OPTS} --download-triangle=yes)
+#  set(PETSC_CONFIG_OPTS ${PETSC_CONFIG_OPTS} --download-sundials=yes)
+  if (USE_MPI EQUAL 1)
+    set(PETSC_CONFIG_OPTS ${PETSC_CONFIG_OPTS} --download-hdf5=yes)
+    set(PETSC_CONFIG_OPTS ${PETSC_CONFIG_OPTS} --download-parmetis=yes)
+  endif()
+  execute_process(COMMAND cmake -E tar xzvf ${CMAKE_CURRENT_SOURCE_DIR}/petsc-lite-3.3-p3.tar.gz
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+  message("Configuring PETSc...")
+  execute_process(COMMAND ./configure ${PETSC_CONFIG_OPTS}
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/petsc-3.3-p3
+                  OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
+  message("Building PETSc...")
+  execute_process(COMMAND make PETSC_DIR=${CMAKE_CURRENT_BINARY_DIR}/petsc-3.3-p3 PETSC_ARCH=${CMAKE_BUILD_TYPE} all install
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/petsc-3.3-p3)
+endif()
+add_library(petsc STATIC IMPORTED)
+set_target_properties(petsc PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libpetsc.a)
+add_library(ctetgen STATIC IMPORTED)
+set_target_properties(ctetgen PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libctetgen.a)
+set(ARBI_TP_LIBS ${ARBI_TP_LIBS};petsc;ctetgen)
+
+# Find HDF5 if we're building a serial version (PETSc is unable to do this for us).
+if (USE_MPI EQUAL 0)
+  set(HDF5_USE_STATIC_LIBRARIES TRUE)
+  find_package(HDF5)
+  if (${HDF5_FOUND})
+    include_directories("${HDF5_INCLUDE_DIRS}")
+    link_directories("${HDF5_LIBRARY_DIRS}")
+
+    # Get rid of 'debug' and 'optimized' detritis.
+    list(REMOVE_ITEM HDF5_LIBRARIES debug optimized)
+
+    set(ARBI_TP_LIBS ${ARBI_TP_LIBS};${HDF5_LIBRARIES})
+    set(ARBI_TP_C_FLAGS "${ARBI_TP_C_FLAGS} -DHAVE_HDF5")
+  endif()
+else()
+  # PETSc built us a parallel version.
+  set(ARBI_TP_C_FLAGS "${ARBI_TP_C_FLAGS} -DHAVE_HDF5")
+endif()
+
 # Install silo.
-if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libsilo.a)
+if (USE_MPI EQUAL 1)
+  set(SILOLIB siloh5)
+else()
+  if (${HDF5_FOUND})
+    set(SILOLIB siloh5)
+  else()
+    set(SILOLIB silo)
+  endif()
+endif()
+if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/lib${SILOLIB}.a)
   set(SILO_CONFIG_OPTS --prefix=${PROJECT_BINARY_DIR} --enable-static --disable-shared)
   if (${CMAKE_BUILD_TYPE} STREQUAL "Debug")
     set(SILO_CONFIG_OPTS ${SILO_CONFIG_OPTS} --enable-debug)
+  endif()
+  if (USE_MPI EQUAL 1)
+    set(SILO_CONFIG_OPTS ${SILO_CONFIG_OPTS} --enable-debug --with-hdf5=${HDF5_INCLUDE_DIRS},${HDF5_LIBRARY_DIRS})
+  else()
+    if (${HDF5_FOUND})
+      set(SILO_CONFIG_OPTS ${SILO_CONFIG_OPTS} --enable-debug --with-hdf5=${HDF5_INCLUDE_DIRS},${HDF5_LIBRARY_DIRS})
+    endif()
   endif()
   execute_process(COMMAND cmake -E tar xzvf ${CMAKE_CURRENT_SOURCE_DIR}/silo-4.8-bsd.tar.gz
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
@@ -116,44 +180,15 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libsilo.a)
                   OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
 endif()
 add_library(silo STATIC IMPORTED)
-set_target_properties(silo PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libsilo.a)
-set(ARBI_TP_LIBS ${ARBI_TP_LIBS};silo)
-
-# Install PETSc.
-if (NOT EXISTS ${CMAKE_BINARY_DIR}/lib/libpetsc.a)
-  set(PETSC_CONFIG_OPTS PETSC_DIR=${CMAKE_CURRENT_BINARY_DIR}/petsc-3.3-p2 PETSC_ARCH=${CMAKE_BUILD_TYPE} --prefix=${CMAKE_BINARY_DIR} --CC=${CMAKE_C_COMPILER} --CFLAGS=${CMAKE_C_FLAGS} --with-mpi=${USE_MPI})
-  set(PETSC_CONFIG_OPTS ${PETSC_CONFIG_OPTS} --with-fortran=0)
-  set(PETSC_CONFIG_OPTS ${PETSC_CONFIG_OPTS} --with-x=0)
-  set(PETSC_CONFIG_OPTS ${PETSC_CONFIG_OPTS} --download-ctetgen=yes)
-  # This is broken:
-  #set(PETSC_CONFIG_OPTS ${PETSC_CONFIG_OPTS} --download-triangle=yes)
-#  set(PETSC_CONFIG_OPTS ${PETSC_CONFIG_OPTS} --download-sundials=yes)
-  if (USE_MPI EQUAL 1)
-    set(PETSC_CONFIG_OPTS ${PETSC_CONFIG_OPTS} --download-parmetis=yes)
-    set(PETSC_CONFIG_OPTS ${PETSC_CONFIG_OPTS} --download-hdf5=yes)
-  endif()
-  execute_process(COMMAND cmake -E tar xzvf ${CMAKE_CURRENT_SOURCE_DIR}/petsc-lite-3.3-p2.tar.gz
-                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
-  message("Configuring PETSc...")
-  execute_process(COMMAND ./configure ${PETSC_CONFIG_OPTS}
-                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/petsc-3.3-p2
-                  OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
-  message("Building PETSc...")
-  execute_process(COMMAND make PETSC_DIR=${CMAKE_CURRENT_BINARY_DIR}/petsc-3.3-p2 PETSC_ARCH=${CMAKE_BUILD_TYPE} all install
-                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/petsc-3.3-p2)
-endif()
-add_library(petsc STATIC IMPORTED)
-set_target_properties(petsc PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libpetsc.a)
-add_library(ctetgen STATIC IMPORTED)
-set_target_properties(ctetgen PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libctetgen.a)
-set(ARBI_TP_LIBS ${ARBI_TP_LIBS};petsc;ctetgen)
+set_target_properties(silo PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/lib${SILOLIB}.a)
+set(ARBI_TP_LIBS ${ARBI_TP_LIBS};${SILOLIB})
 
 # Install TAO (for optimization problems).
 if (NOT EXISTS ${CMAKE_BINARY_DIR}/lib/libtao.a)
   execute_process(COMMAND cmake -E tar xzvf ${CMAKE_CURRENT_SOURCE_DIR}/tao-2.1-p0.tar.gz
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
   message("Building TAO...")
-  execute_process(COMMAND make PETSC_DIR=${CMAKE_CURRENT_BINARY_DIR}/petsc-3.3-p2 PETSC_ARCH=${CMAKE_BUILD_TYPE} TAO_DIR=${CMAKE_CURRENT_BINARY_DIR}/tao-2.1-p0 all install
+  execute_process(COMMAND make PETSC_DIR=${CMAKE_CURRENT_BINARY_DIR}/petsc-3.3-p3 PETSC_ARCH=${CMAKE_BUILD_TYPE} TAO_DIR=${CMAKE_CURRENT_BINARY_DIR}/tao-2.1-p0 all install
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/tao-2.1-p0)
 endif()
 add_library(tao STATIC IMPORTED)
