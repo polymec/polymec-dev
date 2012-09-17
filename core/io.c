@@ -354,26 +354,13 @@ io_dataset_t* io_dataset_new(io_interface_t* interface, const char* name,
 void io_dataset_free(io_dataset_t* dataset)
 {
   free(dataset->name);
-  if (dataset->mesh != NULL)
-    mesh_free(dataset->mesh);
-  if (dataset->lite_mesh != NULL)
-    lite_mesh_free(dataset->lite_mesh);
-
   for (int i = 0; i < dataset->num_fields; ++i)
-  {
-    if (dataset->fields[i] != NULL)
-      free(dataset->fields[i]);
     free(dataset->field_names[i]);
-  }
   free(dataset->fields);
   free(dataset->field_names);
 
   for (int i = 0; i < dataset->num_sources; ++i)
-  {
-    if (dataset->sources[i] != NULL)
-      free(dataset->sources[i]);
     free(dataset->source_names[i]);
-  }
   free(dataset->sources);
   free(dataset->source_names);
 
