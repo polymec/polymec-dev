@@ -508,7 +508,7 @@ static void silo_plot_write_datasets(void* context, void* f, io_dataset_t** data
     traverse_convex_hull(points, nn, indices, &count);
     face_node_counts[f] = nn;
     for (int n = 0; n < count; ++n)
-      slist_append(all_face_nodes_list, (void*)face_nodes[indices[n]]);
+      slist_append(all_face_nodes_list, (void*)face_nodes[f][indices[n]]);
   }
 
   // Figure out cell-face connectivity.
@@ -518,7 +518,10 @@ static void silo_plot_write_datasets(void* context, void* f, io_dataset_t** data
   {
     cell_face_counts[c] = mesh->cells[c].num_faces;
     for (int f = 0; f < mesh->cells[c].num_faces; ++f)
-      slist_append(all_cell_faces_list, (void*)mesh->cells[c].faces[f]);
+    {
+      int face_id = mesh->cells[c].faces[f] - &mesh->faces[0];
+      slist_append(all_cell_faces_list, (void*)face_id);
+    }
   }
 
   // The polyhedral zone list is referred to in the options list.
