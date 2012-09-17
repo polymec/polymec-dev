@@ -20,8 +20,11 @@ static void* silo_create_file(void* context,
                               const char* filename,
                               const char* dirname)
 {
-//  int driver = DB_HDF5;
+#ifdef HAVE_HDF5
+  int driver = DB_HDF5;
+#else
   int driver = DB_PDB;
+#endif
   DBfile* file = DBCreate(filename, 0, DB_LOCAL, 0, driver);
   if (strcmp(dirname, "/"))
     DBMkDir(file, dirname);
@@ -34,8 +37,11 @@ static void* silo_open_file(void* context,
                             const char* dirname,
                             io_mode_t mode)
 {
-//  int driver = DB_HDF5;
+#ifdef HAVE_HDF5
+  int driver = DB_HDF5;
+#else
   int driver = DB_PDB;
+#endif
   DBfile* file;
   if (mode == IO_WRITE)
   { 
