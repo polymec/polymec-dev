@@ -221,8 +221,129 @@ static void silo_read_datasets(void* context, void* f, io_dataset_t** datasets, 
 #endif
 }
 
-static void silo_write_datasets(void* context, void* file, io_dataset_t** datasets, int num_datasets, int rank_in_group, int procs_per_file)
+static void silo_write_datasets(void* context, void* f, io_dataset_t** datasets, 
+                                int num_datasets, int rank_in_group, int procs_per_file)
 {
+  DBfile* file = (DBfile*)f;
+
+  for (int d = 0; d < num_datasets; ++d)
+  {
+    io_dataset_t* dataset = datasets[d];
+    char* name = dataset->name;
+    mesh_t* mesh = dataset->mesh;
+    ASSERT(mesh != NULL);
+
+    int num_cells = mesh->num_cells;
+    int num_faces = mesh->num_faces;
+    int num_edges = mesh->num_edges;
+    int num_nodes = mesh->num_nodes;
+
+    {
+      // Figure out the cell-face connectivity data.
+      slist_t* cf_conn_list = slist_new(NULL);
+      for (int c = 0; c < num_cells; ++c)
+        slist_append(cf_conn_list, (void*)mesh->cells[c].num_faces);
+      for (int c = 0; c < num_cells; ++c)
+      {
+        for (int f = 0; f < mesh->cells[c].num_faces; ++f)
+        {
+          int face_id = mesh->cells[c].faces[f] - &mesh->faces[0];
+          slist_append(cf_conn_list, (void*)face_id);
+        }
+      }
+      for (int f = 0; f < mesh->num_faces; ++f)
+      {
+        int cell1_id = mesh->faces[f].cell1 - &mesh->cells[0];
+        int cell2_id = (mesh->faces[f].cell2 != NULL) ? mesh->faces[f].cell2 - &mesh->cells[0] : -1;
+        slist_append(cf_conn_list, (void*)cell1_id);
+        slist_append(cf_conn_list, (void*)cell2_id);
+      }
+
+      // Figure out the face-edge connectivity data.
+      slist_t* fe_conn_list = slist_new(NULL);
+      for (int f = 0; f < num_faces; ++f)
+        slist_append(fe_conn_list, (void*)mesh->faces[f].num_edges);
+      for (int f = 0; f < num_faces; ++f)
+      {
+        for (int e = 0; e < mesh->faces[f].num_edges; ++e)
+        {
+          int edge_id = mesh->faces[f].edges[e] - &mesh->edges[0];
+          slist_append(fe_conn_list, (void*)edge_id);
+        }
+      }
+
+      // Assemble all the connectivity data into a mesh connectivity array.
+      int cf_conn_size = slist_size(cf_conn_list);
+      int fe_conn_size = slist_size(fe_conn_list);
+      int ne_conn_size = 2*num_edges;
+      int conn[cf_conn_size + fe_conn_size + ne_conn_size];
+      int counter = 0;
+      for (int i = 0; i < cf_conn_size; ++i, ++counter)
+        conn[counter] = (int)slist_pop(cf_conn_list);
+      for (int i = 0; i < fe_conn_size; ++i, ++counter)
+        conn[counter] = (int)slist_pop(fe_conn_list);
+      for (int e = 0; e < num_edges; ++e)
+      {
+        int node1_id = mesh->edges[e].node1 - &mesh->nodes[0];
+        int node2_id = mesh->edges[e].node2 - &mesh->nodes[0];
+        conn[counter++] = node1_id;
+        conn[counter++] = node2_id;
+      }
+
+      char conn_name[1024];
+      snprintf(conn_name, 1024, "%s_conn", name);
+      int conn_lengths[6];
+      char* conn_names[6];
+      conn_names[0] = strdup("ncellfaces");
+      conn_lengths[0] = num_cells;
+      conn_names[2] = strdup("facecells");
+      conn_lengths[2] = cf_conn_size - 2*mesh->num_faces;
+      conn_names[1] = strdup("cellfaces");
+      conn_lengths[1] = cf_conn_size - conn_lengths[2] - conn_lengths[0];
+      conn_names[3] = strdup("nfaceedges");
+      conn_lengths[3] = num_faces;
+      conn_names[4] = strdup("faceedges");
+      conn_lengths[4] = fe_conn_size - num_faces;
+      conn_names[5] = strdup("edgenodes");
+      conn_lengths[5] = ne_conn_size;
+
+      // Write it out.
+      DBPutCompoundarray(file, conn_name, conn_names, conn_lengths, 6, 
+          (void*)&conn[0], cf_conn_size + fe_conn_size, DB_INT, 0);
+
+      // Clean up.
+      slist_free(fe_conn_list);
+      slist_free(cf_conn_list);
+      free(conn_names[0]);
+      free(conn_names[1]);
+      free(conn_names[2]);
+      free(conn_names[3]);
+      free(conn_names[4]);
+      free(conn_names[5]);
+    }
+
+    {
+      // Now write out node positions.
+      double nodes[3*num_nodes];
+      for (int n = 0; n < num_nodes; ++n)
+      {
+        nodes[3*n]   = mesh->nodes[n].x;
+        nodes[3*n+1] = mesh->nodes[n].y;
+        nodes[3*n+2] = mesh->nodes[n].z;
+      }
+      char nodes_name[1024];
+      snprintf(nodes_name, 1024, "%s_nodes", name);
+      char* nodes_names[1];
+      int nodes_lengths[1];
+      nodes_names[0] = strdup("positions");
+      nodes_lengths[0] = num_nodes;
+      DBPutCompoundarray(file, nodes_name, nodes_names, nodes_lengths, 1, 
+          (void*)&nodes[0], 3*num_nodes, DB_DOUBLE, 0);
+
+      // Clean up.
+      free(nodes_names[0]);
+    }
+  }
 }
 
 static void silo_dtor(void* context)
@@ -246,7 +367,7 @@ io_interface_t* silo_io_new(MPI_Comm comm,
 
 // Traverses the given points of a polygonal facet along their convex
 // hull, writing their indices to indices in order.
-void traverse_convex_hull(double* points, int num_points, int* indices, int* count)
+static void traverse_convex_hull(double* points, int num_points, int* indices, int* count)
 {
   *count = 0;
 
@@ -548,36 +669,6 @@ static void silo_plot_write_datasets(void* context, void* f, io_dataset_t** data
       num_cells, &cell_face_counts[0],
       all_cell_faces_len, &all_cell_faces[0], 
       0, 0, num_cells-1, optlist);
-
-#if 0
-  // Write out the cell-face connectivity data.
-  vector<int> conn(num_cells);
-  int elem_lengths[3];
-  char* elem_names[3];
-  for (int c = 0; c < num_cells; ++c)
-    conn[c] = mesh.cells[c].size();
-  for (int c = 0; c < num_cells; ++c)
-  {
-    for (int f = 0; f < mesh.cells[c].size(); ++f)
-      conn.push_back(mesh.cells[c][f]);
-  }
-  for (int f = 0; f < mesh.faceCells.size(); ++f)
-  {
-    conn.push_back(mesh.faceCells[f][0]);
-    conn.push_back(mesh.faceCells[f][0]);
-  }
-  elem_names[0] = strdup("ncellfaces");
-  elem_lengths[0] = num_cells;
-  elem_names[2] = strdup("facecells");
-  elem_lengths[2] = conn.size() - 2*mesh.faces.size();
-  elem_names[1] = strdup("cellfaces");
-  elem_lengths[1] = conn.size() - elem_lengths[2] - elem_lengths[0];
-  DBPutCompoundarray(file, "conn", elem_names, elem_lengths, 3, 
-      (void*)&conn[0], conn.size(), DB_INT, 0);
-  free(elem_names[0]);
-  free(elem_names[1]);
-  free(elem_names[2]);
-#endif
 
   // Write out the cell-centered mesh data.
 
