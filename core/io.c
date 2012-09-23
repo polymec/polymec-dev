@@ -323,10 +323,10 @@ io_dataset_t* io_default_dataset(io_interface_t* interface)
 }
 
 io_dataset_t* io_dataset_new(io_interface_t* interface, const char* name,
-                             int num_fields, int num_sources)
+                             int num_fields, int num_codes)
 {
   ASSERT(num_fields >= 0);
-  ASSERT(num_sources >= 0);
+  ASSERT(num_codes >= 0);
   int index = 0;
   while ((index < interface->num_datasets) && (interface->datasets[index] != NULL))
     ++index;
@@ -341,9 +341,9 @@ io_dataset_t* io_dataset_new(io_interface_t* interface, const char* name,
   d->fields = malloc(num_fields*sizeof(double*));
   d->field_names = malloc(num_fields*sizeof(char*));
   d->num_fields = 0;
-  d->sources = malloc(num_sources*sizeof(char*));
-  d->source_names = malloc(num_sources*sizeof(char*));
-  d->num_sources = 0;
+  d->codes = malloc(num_codes*sizeof(char*));
+  d->code_names = malloc(num_codes*sizeof(char*));
+  d->num_codes = 0;
 
   // Place the dataset in its proper place within the interface.
   interface->datasets[index] = d;
@@ -359,10 +359,10 @@ void io_dataset_free(io_dataset_t* dataset)
   free(dataset->fields);
   free(dataset->field_names);
 
-  for (int i = 0; i < dataset->num_sources; ++i)
-    free(dataset->source_names[i]);
-  free(dataset->sources);
-  free(dataset->source_names);
+  for (int i = 0; i < dataset->num_codes; ++i)
+    free(dataset->code_names[i]);
+  free(dataset->codes);
+  free(dataset->code_names);
 
   free(dataset);
 }
@@ -439,42 +439,42 @@ void io_dataset_write_field(io_dataset_t* dataset, const char* field_name, doubl
   }
 }
 
-void io_dataset_query_source_code(io_dataset_t* dataset, const char* code_name, int* len)
+void io_dataset_query_code(io_dataset_t* dataset, const char* code_name, int* len)
 {
   ASSERT(dataset->interface->mode == IO_READ);
   *len = -1;
-  for (int i = 0; i < dataset->num_sources; ++i)
+  for (int i = 0; i < dataset->num_codes; ++i)
   {
-    if (!strcmp(dataset->source_names[i], code_name))
+    if (!strcmp(dataset->code_names[i], code_name))
     {
-      *len = dataset->source_lengths[i];
+      *len = dataset->code_lengths[i];
     }
   }
 }
 
-void io_dataset_read_source_code(io_dataset_t* dataset, const char* code_name, char** source_code)
+void io_dataset_read_code(io_dataset_t* dataset, const char* code_name, char** code)
 {
   ASSERT(dataset->interface->mode == IO_READ);
-  for (int i = 0; i < dataset->num_sources; ++i)
+  for (int i = 0; i < dataset->num_codes; ++i)
   {
-    if (!strcmp(dataset->source_names[i], code_name))
+    if (!strcmp(dataset->code_names[i], code_name))
     {
-      *source_code = dataset->sources[i];
-      dataset->sources[i] = NULL;
+      *code = dataset->codes[i];
+      dataset->codes[i] = NULL;
     }
   }
 }
 
-void io_dataset_write_source_code(io_dataset_t* dataset, const char* code_name, const char* source_code)
+void io_dataset_write_code(io_dataset_t* dataset, const char* code_name, const char* code)
 {
   ASSERT(dataset->interface->mode == IO_WRITE);
-  ASSERT(source_code != NULL);
+  ASSERT(code != NULL);
   for (int i = 0; i < dataset->num_fields; ++i)
   {
-    if (!strcmp(dataset->source_names[i], code_name))
+    if (!strcmp(dataset->code_names[i], code_name))
     {
-      dataset->sources[i] = (char*)source_code;
-      dataset->source_lengths[i] = strlen(source_code);
+      dataset->codes[i] = (char*)code;
+      dataset->code_lengths[i] = strlen(code);
     }
   }
 }

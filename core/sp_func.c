@@ -18,7 +18,6 @@ struct sp_func_t
 
 static void sp_func_free(void* ctx, void* dummy)
 {
-  UNUSED_ARG(dummy);
   sp_func_t* func = (sp_func_t*)ctx;
   if (func->vtable.dtor)
     free(func->context);

@@ -78,10 +78,10 @@ struct io_dataset_t
   mesh_centering_t* field_centerings;
   int num_fields;
 
-  char** sources;
-  char** source_names;
-  int* source_lengths;
-  int num_sources;
+  char** codes;
+  char** code_names;
+  int* code_lengths;
+  int num_codes;
 };
 
 // Construct an I/O interface (subclass) object from the given name and 
@@ -134,7 +134,7 @@ io_dataset_t* io_dataset(io_interface_t* interface, const char* dataset);
 
 // Creates a new dataset that can be written to a file for the given interface.
 io_dataset_t* io_dataset_new(io_interface_t* interface, const char* name,
-                             int num_fields, int num_sources);
+                             int num_fields, int num_codes);
 
 // Frees the given dataset descriptor.
 void io_dataset_free(io_dataset_t* dataset);
@@ -162,13 +162,13 @@ void io_dataset_read_field(io_dataset_t* dataset, const char* field_name, double
 void io_dataset_write_field(io_dataset_t* dataset, const char* field_name, double* field_data, int num_components, mesh_centering_t centering);
 
 // Queries the dataset descriptor for a named block of source code, retrieving its length.
-void io_dataset_query_source_code(io_dataset_t* dataset, const char* code_name, int* len);
+void io_dataset_query_code(io_dataset_t* dataset, const char* code_name, int* len);
 
 // Reads a named block of source code from the dataset descriptor.
-void io_dataset_read_source_code(io_dataset_t* dataset, const char* code_name, char** source_code);
+void io_dataset_read_code(io_dataset_t* dataset, const char* code_name, char** code);
 
 // Writes a named block of source code to the dataset descriptor.
-void io_dataset_write_source_code(io_dataset_t* dataset, const char* code_name, const char* source_code);
+void io_dataset_write_code(io_dataset_t* dataset, const char* code_name, const char* code);
 
 #ifdef __cplusplus
 }
