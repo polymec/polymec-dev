@@ -65,158 +65,111 @@ static void silo_close_file(void* context, void* file)
 
 static int silo_get_num_datasets(void* context, void* file, int* num_datasets)
 {
-  return 1;
+  // Fiddle with the table of contents to retrieve our datasets and their 
+  // metadata. All our data is stored in arrays, so we just have to figure 
+  // out the names of the datasets.
+  DBtoc* contents = DBGetToc(file);
+  int N = 0;
+  for (int a = 0; a < contents->narrays; ++a)
+  {
+    // Look for arrays named "xyz_mesh".
+    char* token = strstr(contents->array_names[a], "_mesh");
+    if (token != NULL) N++;
+  }
+  return N;
 }
 
 static void silo_read_datasets(void* context, void* f, io_dataset_t** datasets, int num_datasets)
 {
+#if 0
   DBfile* file = (DBfile*)f;
 
-#if 0
+  // Fiddle with the table of contents to retrieve our datasets and their 
+  // metadata. All our data is stored in arrays, so we just have to figure 
+  // out the names of the datasets.
+  DBtoc* contents = DBGetToc(file);
+  int dset = 0;
+  for (int a = 0; a < contents->narrays; ++a)
+  {
+    // Look for arrays named "xyz_mesh".
+    char* token = strstr(contents->array_names[a], "_mesh");
+    if (token != NULL)
+    {
+      // Figure out the name of the dataset.
+      int len = token - contents->array_names[a];
+      char name[len];
+      memcpy(name, contents->array_names[a], len);
+
+      // Find all the fields and source codes in this dataset.
+      int num_fields = 0, num_codes = 0;
+      for (int f = 0; f < contents->narrays; ++f)
+      {
+        char* nametok = strstr(contents->array_names[f], name);
+        if (nametok != NULL)
+        {
+          char* fieldtok = strstr(contents->array_names[f], "_field");
+          if (fieldtok != NULL)
+            ++num_fields;
+          else
+          {
+            char* codetok = strstr(contents->array_names[f], "_code");
+            if (codetok != NULL)
+              ++num_codes;
+          }
+        }
+      }
+
+      io_dataset_t* dataset = io_dataset_new(name, num_fields, num_codes); 
+      datasets[dset] = dataset;
+      dset++;
+    }
+  }
+  ASSERT(dset == num_datasets);
+
   for (int d = 0; d < num_datasets; ++d)
   {
-    const char* name = "default"; // FIXME 
-    DBtoc* contents = DBGetToc(file);
-    int num_fields = contents->nucdvar;
-    int num_sources = 0; // FIXME
 
-    io_dataset_t* dataset = io_dataset_new(name, num_fields, num_sources); 
-    datasets[d] = dataset;
-
-    // Retrieve the mesh. Note that we must deallocate the storage 
-    // for this object after we're through!
-    DBucdmesh* dbmesh = DBGetUcdmesh(file, "mesh");
-
-    // Read the elements from the dbmesh.
-    int num_nodes = dbmesh->nnodes;
-    int num_faces = dbmesh->nfaces;
-    int num_cells = dbmesh->nzones;
-    int num_ghost_cells = 0; // FIXME
-
-    // The dbmesh doesn't contain edge information, so we have to 
-    // count them up here. The number of edges is the number of distinct 
-    // pairs of nodes that appear consecutively in a face.
-    int num_edges = 0;
-    int noffset = 0;
-    for (int f = 0; f < num_faces; ++f)
-    {
-
-    mesh.faces[f].resize(dbmesh->faces->shapesize[f]);
-    for (int n = 0; n < mesh.faces[f].size(); ++n, ++noffset)
-      mesh.faces[f][n] = dbmesh->faces->nodelist[noffset];
-    }
-
-    // Finally, we set up our proper mesh.
-    mesh_t* mesh = mesh_new(num_cells, num_ghost_cells, num_faces,
-                            num_edges, num_nodes);
-    dataset->mesh = mesh;
-
-    // Node coordinates.
-    for (int n = 0; n < num_nodes; ++n)
-    {
-      mesh->nodes[i].x  = ((double*)(dbmesh->coords[i]))[0];
-      mesh->nodes[i].y  = ((double*)(dbmesh->coords[i]))[1];
-      mesh->nodes[i].z  = ((double*)(dbmesh->coords[i]))[2];
-    }
-
-    // Reconstruct the faces.
-    int noffset = 0;
-    for (int f = 0; f < mesh.faces.size(); ++f)
-    {
-      mesh_
-    mesh.faces[f].resize(dbmesh->faces->shapesize[f]);
-    for (int n = 0; n < mesh.faces[f].size(); ++n, ++noffset)
-      mesh.faces[f][n] = dbmesh->faces->nodelist[noffset];
-  }
-
-  // Reconstruct the cell-face connectivity.
-  mesh.cells.resize(dbmesh->zones->nzones);
-  DBcompoundarray* conn = DBGetCompoundarray(file, "cell-face-conn");
-  if (conn == 0)
-  {
-    DBClose(file);
-    char err[1024];
-    snprintf(err, 1024, "Could not find cell-face connectivity in file %s.", filename);
-    error(err);
-  }
-  // First element is the number of faces in each zone.
-  // Second element is the list of face indices in each zone.
-  // Third element is a pair of cells for each face.
-  if ((conn->nelems != 3) or 
-      (conn->elem_lengths[0] != dbmesh->zones->nzones) or 
-      (conn->elem_lengths[2] != 2*dbmesh->faces->nfaces))
-  {
-    DBClose(file);
-    char err[1024];
-    snprintf(err, 1024, "Found invalid cell-face connectivity in file %s.", filename);
-    error(err);
-  }
-  int* connData = (int*)conn->values;
-  int foffset = dbmesh->zones->nzones;
-  for (int c = 0; c < dbmesh->zones->nzones; ++c)
-  {
-    int nfaces = connData[c];
-    mesh.cells[c].resize(nfaces);
-    copy(connData + foffset, connData + foffset + nfaces, mesh.cells[c].begin());
-    foffset += nfaces;
-  }
-  mesh.faceCells.resize(mesh.faces.size());
-  for (size_t f = 0; f < mesh.faceCells.size(); ++f)
-  {
-    mesh.faceCells[f].resize(2);
-    mesh.faceCells[f][0] = connData[foffset];
-    mesh.faceCells[f][1] = connData[foffset+1];
-    foffset += 2;
-  }
-  DBFreeUcdmesh(dbmesh);
-  DBFreeCompoundarray(conn);
-
-  // Reconstruct the face-edge connectivity.
-  
-  // Check for convex hull data.
-  // First element is the number of facets.
-  // Second element is the array of numbers of nodes per facet.
-  // Third element is the array of node indices for the facets.
-  DBcompoundarray* hull = DBGetCompoundarray(file, "convexhull");
-  if (hull != 0)
-  {
-    if ((hull->nelems != 3) or (hull->elem_lengths[0] != 1))
+    // Reconstruct the cell-face connectivity.
+    mesh.cells.resize(dbmesh->zones->nzones);
+    DBcompoundarray* conn = DBGetCompoundarray(file, "cell-face-conn");
+    if (conn == 0)
     {
       DBClose(file);
       char err[1024];
-      snprintf(err, 1024, "Found invalid convex hull data in file %s.", filename);
+      snprintf(err, 1024, "Could not find cell-face connectivity in file %s.", filename);
       error(err);
     }
-    int* hullData = (int*)conn->values;
-    int nfacets = hullData[0];
-    mesh.convexHull.facets.resize(nfacets);
-    int foffset = 1;
-    for (int f = 0; f < nfacets; ++f, ++foffset)
+    // First element is the number of faces in each zone.
+    // Second element is the list of face indices in each zone.
+    // Third element is a pair of cells for each face.
+    if ((conn->nelems != 3) or 
+        (conn->elem_lengths[0] != dbmesh->zones->nzones) or 
+        (conn->elem_lengths[2] != 2*dbmesh->faces->nfaces))
     {
-      int nnodes = hullData[foffset];
-      mesh.convexHull.facets[f].resize(nnodes);
+      DBClose(file);
+      char err[1024];
+      snprintf(err, 1024, "Found invalid cell-face connectivity in file %s.", filename);
+      error(err);
     }
-    for (int f = 0; f < nfacets; ++f, ++foffset)
+    int* connData = (int*)conn->values;
+    int foffset = dbmesh->zones->nzones;
+    for (int c = 0; c < dbmesh->zones->nzones; ++c)
     {
-      for (int n = 0; n < mesh.convexHull.facets[f].size(); ++n)
-        mesh.convexHull.facets[f][n] = hullData[foffset];
+      int nfaces = connData[c];
+      mesh.cells[c].resize(nfaces);
+      copy(connData + foffset, connData + foffset + nfaces, mesh.cells[c].begin());
+      foffset += nfaces;
     }
-    DBFreeCompoundarray(hull);
-  }
-
-  // Retrieve the fields.
-  for (int f = 0; f < num_fields; ++f)
-  {
-    DBucdvar* dbvar = DBGetUcdvar(file, contents->ucdvar_names[f]);
-    ASSERT(dbvar != NULL);
-    int ncomp = 1; // FIXME
-    double* field = malloc(ncomp*dbvar->nels*sizeof(double));
-    memcpy(field, &dbvar->vals[0], sizeof(double)*dbvar->nels*ncomp);
-    mesh_centering_t centering = MESH_CELL;
-    io_dataset_write_field(dataset, contents->ucdvar_names[f], field, ncomp, centering);
-
-    // Clean up.
-    DBFreeUcdvar(dbvar);
+    mesh.faceCells.resize(mesh.faces.size());
+    for (size_t f = 0; f < mesh.faceCells.size(); ++f)
+    {
+      mesh.faceCells[f].resize(2);
+      mesh.faceCells[f][0] = connData[foffset];
+      mesh.faceCells[f][1] = connData[foffset+1];
+      foffset += 2;
+    }
+    DBFreeUcdmesh(dbmesh);
+    DBFreeCompoundarray(conn);
   }
 #endif
 }
@@ -276,8 +229,10 @@ static void silo_write_datasets(void* context, void* f, io_dataset_t** datasets,
       int cf_conn_size = slist_size(cf_conn_list);
       int fe_conn_size = slist_size(fe_conn_list);
       int ne_conn_size = 2*num_edges;
-      int conn[cf_conn_size + fe_conn_size + ne_conn_size];
+      int conn[1 + cf_conn_size + fe_conn_size + ne_conn_size];
       int counter = 0;
+      // NOTE: The first value in conn is the number of ghost cells!
+      conn[counter++] = mesh->num_ghost_cells;
       for (int i = 0; i < cf_conn_size; ++i, ++counter)
         conn[counter] = (int)slist_pop(cf_conn_list);
       for (int i = 0; i < fe_conn_size; ++i, ++counter)
@@ -294,17 +249,17 @@ static void silo_write_datasets(void* context, void* f, io_dataset_t** datasets,
       snprintf(conn_name, 1024, "%s_conn", name);
       int conn_lengths[6];
       char* conn_names[6];
-      conn_names[0] = strdup("ncellfaces");
+      conn_names[0] = strdup("ncell_faces");
       conn_lengths[0] = num_cells;
-      conn_names[2] = strdup("facecells");
+      conn_names[2] = strdup("face_cells");
       conn_lengths[2] = cf_conn_size - 2*mesh->num_faces;
-      conn_names[1] = strdup("cellfaces");
+      conn_names[1] = strdup("cell_faces");
       conn_lengths[1] = cf_conn_size - conn_lengths[2] - conn_lengths[0];
-      conn_names[3] = strdup("nfaceedges");
+      conn_names[3] = strdup("nface_edges");
       conn_lengths[3] = num_faces;
-      conn_names[4] = strdup("faceedges");
+      conn_names[4] = strdup("face_edges");
       conn_lengths[4] = fe_conn_size - num_faces;
-      conn_names[5] = strdup("edgenodes");
+      conn_names[5] = strdup("edge_nodes");
       conn_lengths[5] = ne_conn_size;
 
       // Write it out.
@@ -342,6 +297,75 @@ static void silo_write_datasets(void* context, void* f, io_dataset_t** datasets,
 
       // Clean up.
       free(nodes_names[0]);
+    }
+
+    {
+      // Write fields.
+      for (int f = 0; f < dataset->num_fields; ++f)
+      {
+        char* fname = dataset->field_names[f];
+        double* field = dataset->fields[f];
+        mesh_centering_t centering = dataset->field_centerings[f];
+        int  num_comp = dataset->field_num_comps[f];
+
+        char field_name[1024];
+        char cstr[5];
+        int len;
+        if (centering == MESH_CELL)
+        {
+          sprintf(cstr, "cell");
+          len = num_comp * num_cells;
+        }
+        else if (centering == MESH_FACE)
+        {
+          sprintf(cstr, "face");
+          len = num_comp * num_faces;
+        }
+        else if (centering == MESH_EDGE)
+        {
+          sprintf(cstr, "edge");
+          len = num_comp * num_edges;
+        }
+        else if (centering == MESH_NODE)
+        {
+          sprintf(cstr, "node");
+          len = num_comp * num_nodes;
+        }
+        snprintf(field_name, 1024, "%s_%s_field_%s", name, cstr, fname);
+        char* f_names[1];
+        f_names[0] = strdup("data");
+        int f_lengths[1];
+        f_lengths[0] = len;
+
+        DBPutCompoundarray(file, field_name, f_names, f_lengths, 1, 
+            (void*)&field[0], len, DB_DOUBLE, 0);
+
+        // Clean up.
+        free(f_names[0]);
+      }
+    }
+
+    {
+      // Write source codes.
+      for (int c = 0; c < dataset->num_codes; ++c)
+      {
+        char* cname = dataset->code_names[c];
+        char* code  = dataset->codes[c];
+        int len     = dataset->code_lengths[c];
+
+        char code_name[1024];
+        snprintf(code_name, 1024, "%s_code_%s", name, cname);
+        char* c_names[1];
+        c_names[0] = strdup("code");
+        int c_lengths[1];
+        c_lengths[0] = len;
+
+        DBPutCompoundarray(file, code_name, c_names, c_lengths, 1, 
+            (void*)&code[0], len, DB_CHAR, 0);
+
+        // Clean up.
+        free(c_names[0]);
+      }
     }
   }
 }
