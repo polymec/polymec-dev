@@ -3,6 +3,7 @@
 #include <math.h>
 #include "silo.h"
 #include "core/silo_io.h"
+#include "core/edit_mesh.h"
 #include "core/point.h"
 #include "core/slist.h"
 #include "core/avl_tree.h"
@@ -81,7 +82,6 @@ static int silo_get_num_datasets(void* context, void* file, int* num_datasets)
 
 static void silo_read_datasets(void* context, void* f, io_dataset_t** datasets, int num_datasets)
 {
-#if 0
   DBfile* file = (DBfile*)f;
 
   // Fiddle with the table of contents to retrieve our datasets and their 
@@ -89,6 +89,9 @@ static void silo_read_datasets(void* context, void* f, io_dataset_t** datasets, 
   // out the names of the datasets.
   DBtoc* contents = DBGetToc(file);
   int dset = 0;
+  slist_t* field_names = slist_new(NULL);
+  slist_t* code_names = slist_new(NULL);
+  int num_fields = 0, num_codes = 0;
   for (int a = 0; a < contents->narrays; ++a)
   {
     // Look for arrays named "xyz_mesh".
@@ -101,7 +104,6 @@ static void silo_read_datasets(void* context, void* f, io_dataset_t** datasets, 
       memcpy(name, contents->array_names[a], len);
 
       // Find all the fields and source codes in this dataset.
-      int num_fields = 0, num_codes = 0;
       for (int f = 0; f < contents->narrays; ++f)
       {
         char* nametok = strstr(contents->array_names[f], name);
@@ -109,15 +111,17 @@ static void silo_read_datasets(void* context, void* f, io_dataset_t** datasets, 
         {
           char* fieldtok = strstr(contents->array_names[f], "_field");
           if (fieldtok != NULL)
-            ++num_fields;
+            slist_append(field_names, contents->array_names[f]);
           else
           {
             char* codetok = strstr(contents->array_names[f], "_code");
             if (codetok != NULL)
-              ++num_codes;
+              slist_append(code_names, contents->array_names[f]);
           }
         }
       }
+      num_fields = slist_size(field_names);
+      num_codes = slist_size(code_names);
 
       io_dataset_t* dataset = io_dataset_new(name, num_fields, num_codes); 
       datasets[dset] = dataset;
@@ -128,50 +132,199 @@ static void silo_read_datasets(void* context, void* f, io_dataset_t** datasets, 
 
   for (int d = 0; d < num_datasets; ++d)
   {
+    io_dataset_t* dataset = datasets[dset];
 
-    // Reconstruct the cell-face connectivity.
-    mesh.cells.resize(dbmesh->zones->nzones);
-    DBcompoundarray* conn = DBGetCompoundarray(file, "cell-face-conn");
-    if (conn == 0)
+    // Reconstruct the connectivity and node positions.
+    char conn_name[1024];
+    snprintf(conn_name, 1024, "%s_conn", dataset->name);
+    DBcompoundarray* conn = DBGetCompoundarray(file, conn_name);
+    if (conn == NULL)
     {
       DBClose(file);
       char err[1024];
-      snprintf(err, 1024, "Could not find cell-face connectivity in file %s.", filename);
-      error(err);
+      snprintf(err, 1024, "Could not find mesh connectivity in file.");
+      arbi_error(err);
     }
-    // First element is the number of faces in each zone.
-    // Second element is the list of face indices in each zone.
-    // Third element is a pair of cells for each face.
-    if ((conn->nelems != 3) or 
-        (conn->elem_lengths[0] != dbmesh->zones->nzones) or 
-        (conn->elem_lengths[2] != 2*dbmesh->faces->nfaces))
+    // Element 0 is the number of ghost cells and the number of faces in each cell.
+    // Element 1 is the list of face indices for each cell.
+    // Element 2 is a pair of cells for each face.
+    // Element 3 is the number of edges for each face.
+    // Element 4 is the list of edge indices for each face.
+    // Element 5 is the pair of nodes for each edge.
+    if ((conn->nelems != 6) || 
+        strcmp(conn->elemnames[0], "ncell_faces") ||
+        strcmp(conn->elemnames[1], "cell_faces") ||
+        strcmp(conn->elemnames[2], "face_cells") ||
+        strcmp(conn->elemnames[3], "nface_edges") ||
+        strcmp(conn->elemnames[4], "face_edges") ||
+        strcmp(conn->elemnames[5], "edge_nodes"))
     {
       DBClose(file);
       char err[1024];
-      snprintf(err, 1024, "Found invalid cell-face connectivity in file %s.", filename);
-      error(err);
+      snprintf(err, 1024, "Found invalid mesh connectivity.");
+      arbi_error(err);
     }
-    int* connData = (int*)conn->values;
-    int foffset = dbmesh->zones->nzones;
-    for (int c = 0; c < dbmesh->zones->nzones; ++c)
+
+    char pos_name[1024];
+    snprintf(pos_name, 1024, "%s_nodes", datasets[dset]->name);
+    DBcompoundarray* pos = DBGetCompoundarray(file, pos_name);
+    if (pos == NULL)
     {
-      int nfaces = connData[c];
-      mesh.cells[c].resize(nfaces);
-      copy(connData + foffset, connData + foffset + nfaces, mesh.cells[c].begin());
-      foffset += nfaces;
+      DBClose(file);
+      char err[1024];
+      snprintf(err, 1024, "Could not find mesh node positions.");
+      arbi_error(err);
     }
-    mesh.faceCells.resize(mesh.faces.size());
-    for (size_t f = 0; f < mesh.faceCells.size(); ++f)
+    if ((pos->nelems != 1) || strcmp(pos->elemnames[0], "positions"))
     {
-      mesh.faceCells[f].resize(2);
-      mesh.faceCells[f][0] = connData[foffset];
-      mesh.faceCells[f][1] = connData[foffset+1];
-      foffset += 2;
+      DBClose(file);
+      char err[1024];
+      snprintf(err, 1024, "Found invalid mesh node positions.");
+      arbi_error(err);
     }
-    DBFreeUcdmesh(dbmesh);
+    int* conndata = (int*)conn->values;
+    double* posdata = (double*)pos->values;
+    int num_cells = conn->elemlengths[0] - 1;
+    int num_ghost_cells = conndata[0];
+    ASSERT((conn->elemlengths[3] % 2) == 0);
+    int num_faces = conn->elemlengths[3] / 2;
+    ASSERT((conn->elemlengths[5] % 2) == 0);
+    int num_edges = conn->elemlengths[5] / 2;
+    int num_nodes = pos->elemlengths[0];
+
+    // Build a mesh.
+    mesh_t* mesh = mesh_new(num_cells, num_ghost_cells, num_faces, num_edges, num_nodes);
+
+    // Connect everything.
+    int offset = 1+num_cells;
+    for (int c = 0; c < num_cells; ++c)
+    {
+      int nf = conndata[1+c];
+      for (int f = 0; f < nf; ++f)
+      {
+        int fi = conndata[offset++];
+        mesh_add_face_to_cell(mesh, &mesh->faces[fi], &mesh->cells[c]);
+      }
+    }
+    for (int f = 0; f < num_faces; ++f)
+    {
+      int c1 = conndata[offset++], c2 = conndata[offset++];
+      mesh->faces[f].cell1 = &mesh->cells[c1];
+      mesh->faces[f].cell2 = &mesh->cells[c2];
+    }
+    int eoffset = offset + num_faces;
+    for (int f = 0; f < num_faces; ++f)
+    {
+      int ne = conndata[offset+f];
+      for (int e = 0; e < ne; ++e)
+      {
+        int ei = conndata[eoffset++];
+        mesh_add_edge_to_face(mesh, &mesh->edges[ei], &mesh->faces[f]);
+      }
+    }
+    for (int e = 0; e < num_edges; ++e)
+    {
+      int n1 = conndata[eoffset++], n2 = conndata[eoffset++];
+      mesh->edges[e].node1 = &mesh->nodes[n1];
+      mesh->edges[e].node2 = &mesh->nodes[n2];
+    }
+
+    // Read in node positions.
+    for (int n = 0; n < num_nodes; ++n)
+    {
+      mesh->nodes[n].x = posdata[3*n];
+      mesh->nodes[n].y = posdata[3*n+1];
+      mesh->nodes[n].z = posdata[3*n+2];
+    }
+    dataset->mesh = mesh;
+
+    // Read in fields.
+    for (int f = 0; f < num_fields; ++f)
+    {
+      char* field_name = (char*)slist_pop(field_names);
+      DBcompoundarray* field = DBGetCompoundarray(file, field_name);
+      if (field == NULL)
+      {
+        DBClose(file);
+        char err[1024];
+        snprintf(err, 1024, "Could not find field %s", field_name);
+        arbi_error(err);
+      }
+      if ((field->nelems != 1) || strcmp(field->elemnames[0], "data"))
+      {
+        DBClose(file);
+        char err[1024];
+        snprintf(err, 1024, "Found invalid field %s.", field_name);
+        arbi_error(err);
+      }
+
+      // Find the centering and number of components of the field.
+      char* cstr = strstr(field_name, "_field") - 4;
+      int num_comps;
+      if (!strncmp(cstr, "cell", 4))
+      {
+        dataset->field_centerings[d] = MESH_CELL;
+        num_comps = field->elemlengths[0]/mesh->num_cells;
+      }
+      else if (!strncmp(cstr, "face", 4))
+      {
+        dataset->field_centerings[d] = MESH_FACE;
+        num_comps = field->elemlengths[0]/mesh->num_faces;
+      }
+      else if (!strncmp(cstr, "edge", 4))
+      {
+        dataset->field_centerings[d] = MESH_EDGE;
+        num_comps = field->elemlengths[0]/mesh->num_edges;
+      }
+      else 
+      {
+        ASSERT(!strncmp(cstr, "node", 4));
+        dataset->field_centerings[d] = MESH_NODE;
+        num_comps = field->elemlengths[0]/mesh->num_nodes;
+      }
+      dataset->field_num_comps[d] = num_comps;
+
+      // Extract the name of the field.
+      char* fname = strstr(field_name, "_field_") + 7;
+      memcpy(dataset->fields[d], field->values, field->elemlengths[0]);
+      dataset->field_names[d] = strdup(fname);
+      DBFreeCompoundarray(field);
+    }
+
+    // Read in source codes.
+    for (int c = 0; c < num_codes; ++c)
+    {
+      char* code_name = (char*)slist_pop(code_names);
+      DBcompoundarray* code = DBGetCompoundarray(file, code_name);
+      if (code == NULL)
+      {
+        DBClose(file);
+        char err[1024];
+        snprintf(err, 1024, "Could not find source code %s", code_name);
+        arbi_error(err);
+      }
+      if ((code->nelems != 1) || strcmp(code->elemnames[0], "code"))
+      {
+        DBClose(file);
+        char err[1024];
+        snprintf(err, 1024, "Found invalid source code %s.", code_name);
+        arbi_error(err);
+      }
+
+      // Extract the name of the source code.
+      char* cname = strstr(code_name, "_code_") + 6;
+      dataset->code_lengths[d] = code->elemlengths[0];
+      memcpy(dataset->codes[d], code->values, code->elemlengths[0]);
+      dataset->code_names[d] = strdup(cname);
+      DBFreeCompoundarray(code);
+    }
+
+    // Clean up.
+    DBFreeCompoundarray(pos);
     DBFreeCompoundarray(conn);
+    slist_free(code_names);
+    slist_free(field_names);
   }
-#endif
 }
 
 static void silo_write_datasets(void* context, void* f, io_dataset_t** datasets, 
@@ -250,7 +403,7 @@ static void silo_write_datasets(void* context, void* f, io_dataset_t** datasets,
       int conn_lengths[6];
       char* conn_names[6];
       conn_names[0] = strdup("ncell_faces");
-      conn_lengths[0] = num_cells;
+      conn_lengths[0] = 1 + num_cells;
       conn_names[2] = strdup("face_cells");
       conn_lengths[2] = cf_conn_size - 2*mesh->num_faces;
       conn_names[1] = strdup("cell_faces");

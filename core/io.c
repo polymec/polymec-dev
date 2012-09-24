@@ -286,6 +286,18 @@ int io_num_datasets(io_interface_t* interface)
   return interface->num_datasets;
 }
 
+void io_append_dataset(io_interface_t* interface, io_dataset_t* dataset)
+{
+  int i;
+  for (i = 0; i < interface->num_datasets; ++i)
+  {
+    if (interface->datasets[i] == NULL)
+      break;
+  }
+  ASSERT(i < interface->num_datasets);
+  interface->datasets[i] = dataset;
+}
+
 const char* io_dataset_name(io_interface_t* interface, int index)
 {
   ASSERT(index >= 0);
@@ -322,19 +334,12 @@ io_dataset_t* io_default_dataset(io_interface_t* interface)
     return interface->datasets[0];
 }
 
-io_dataset_t* io_dataset_new(io_interface_t* interface, const char* name,
-                             int num_fields, int num_codes)
+io_dataset_t* io_dataset_new(const char* name, int num_fields, int num_codes)
 {
   ASSERT(num_fields >= 0);
   ASSERT(num_codes >= 0);
-  int index = 0;
-  while ((index < interface->num_datasets) && (interface->datasets[index] != NULL))
-    ++index;
-  if (index == interface->num_datasets) // No room!
-    return NULL;
 
   io_dataset_t* d = malloc(sizeof(io_dataset_t));
-  d->interface = interface;
   d->name = strdup(name);
   d->mesh = NULL;
   d->lite_mesh = NULL;
@@ -344,9 +349,6 @@ io_dataset_t* io_dataset_new(io_interface_t* interface, const char* name,
   d->codes = malloc(num_codes*sizeof(char*));
   d->code_names = malloc(num_codes*sizeof(char*));
   d->num_codes = 0;
-
-  // Place the dataset in its proper place within the interface.
-  interface->datasets[index] = d;
 
   return d;
 }
@@ -369,35 +371,30 @@ void io_dataset_free(io_dataset_t* dataset)
 
 void io_dataset_read_mesh(io_dataset_t* dataset, mesh_t** mesh)
 {
-  ASSERT(dataset->interface->mode == IO_READ);
   *mesh = dataset->mesh;
   dataset->mesh = NULL;
 }
 
 void io_dataset_write_mesh(io_dataset_t* dataset, mesh_t* mesh)
 {
-  ASSERT(dataset->interface->mode == IO_WRITE);
   ASSERT(mesh != NULL);
   dataset->mesh = mesh;
 }
 
 void io_dataset_read_lite_mesh(io_dataset_t* dataset, lite_mesh_t** mesh)
 {
-  ASSERT(dataset->interface->mode == IO_READ);
   *mesh = dataset->lite_mesh;
   dataset->lite_mesh = NULL;
 }
 
 void io_dataset_write_lite_mesh(io_dataset_t* dataset, lite_mesh_t* mesh)
 {
-  ASSERT(dataset->interface->mode == IO_WRITE);
   ASSERT(mesh != NULL);
   dataset->lite_mesh = mesh;
 }
 
 void io_dataset_query_field(io_dataset_t* dataset, const char* field_name, int* num_components, mesh_centering_t* centering)
 {
-  ASSERT(dataset->interface->mode == IO_READ);
   *num_components = -1;
   for (int i = 0; i < dataset->num_fields; ++i)
   {
@@ -411,7 +408,6 @@ void io_dataset_query_field(io_dataset_t* dataset, const char* field_name, int* 
 
 void io_dataset_read_field(io_dataset_t* dataset, const char* field_name, double** field)
 {
-  ASSERT(dataset->interface->mode == IO_READ);
   *field = NULL;
   for (int i = 0; i < dataset->num_fields; ++i)
   {
@@ -425,7 +421,6 @@ void io_dataset_read_field(io_dataset_t* dataset, const char* field_name, double
 
 void io_dataset_write_field(io_dataset_t* dataset, const char* field_name, double* field_data, int num_components, mesh_centering_t centering)
 {
-  ASSERT(dataset->interface->mode == IO_WRITE);
   ASSERT(field_data != NULL);
   ASSERT(num_components > 0);
   for (int i = 0; i < dataset->num_fields; ++i)
@@ -441,7 +436,6 @@ void io_dataset_write_field(io_dataset_t* dataset, const char* field_name, doubl
 
 void io_dataset_query_code(io_dataset_t* dataset, const char* code_name, int* len)
 {
-  ASSERT(dataset->interface->mode == IO_READ);
   *len = -1;
   for (int i = 0; i < dataset->num_codes; ++i)
   {
@@ -454,7 +448,6 @@ void io_dataset_query_code(io_dataset_t* dataset, const char* code_name, int* le
 
 void io_dataset_read_code(io_dataset_t* dataset, const char* code_name, char** code)
 {
-  ASSERT(dataset->interface->mode == IO_READ);
   for (int i = 0; i < dataset->num_codes; ++i)
   {
     if (!strcmp(dataset->code_names[i], code_name))
@@ -467,7 +460,6 @@ void io_dataset_read_code(io_dataset_t* dataset, const char* code_name, char** c
 
 void io_dataset_write_code(io_dataset_t* dataset, const char* code_name, const char* code)
 {
-  ASSERT(dataset->interface->mode == IO_WRITE);
   ASSERT(code != NULL);
   for (int i = 0; i < dataset->num_fields; ++i)
   {
