@@ -52,8 +52,9 @@ void test_plot_single_cell_mesh(void** state)
   // Plot it (no fields).
   io_interface_t* plot = silo_plot_io_new(MPI_COMM_SELF, 1, 0);
   io_open(plot, "hex", ".", IO_WRITE);
-  io_dataset_t* dataset = io_dataset_new(plot, "default", 0, 0);
+  io_dataset_t* dataset = io_dataset_new("default", 0, 0);
   io_dataset_write_mesh(dataset, mesh);
+  io_append_dataset(plot, dataset);
   io_close(plot);
 
   // Clean up.

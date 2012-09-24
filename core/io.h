@@ -67,7 +67,6 @@ typedef struct
 // managed internally.
 struct io_dataset_t
 {
-  io_interface_t* interface;
   char* name;
   mesh_t* mesh;
   lite_mesh_t* lite_mesh;
@@ -120,6 +119,10 @@ int io_num_datasets(io_interface_t* interface);
 // This should be used when writing to an interface.
 void io_set_num_datasets(io_interface_t* interface, int num_datasets);
 
+// Appends the given dataset to the end of the list of datasets in the 
+// given interface.
+void io_append_dataset(io_interface_t* interface, io_dataset_t* dataset);
+
 // Returns the name of the dataset with the given index.
 const char* io_dataset_name(io_interface_t* interface, int index);
 
@@ -132,9 +135,8 @@ io_dataset_t* io_default_dataset(io_interface_t* interface);
 // returns NULL.
 io_dataset_t* io_dataset(io_interface_t* interface, const char* dataset);
 
-// Creates a new dataset that can be written to a file for the given interface.
-io_dataset_t* io_dataset_new(io_interface_t* interface, const char* name,
-                             int num_fields, int num_codes);
+// Creates a new dataset that can be written to a file.
+io_dataset_t* io_dataset_new(const char* name, int num_fields, int num_codes);
 
 // Frees the given dataset descriptor.
 void io_dataset_free(io_dataset_t* dataset);
