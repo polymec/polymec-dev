@@ -2,7 +2,7 @@
 #include <string.h>
 #include <math.h>
 #include "silo.h"
-#include "core/silo_io.h"
+#include "io/silo_io.h"
 #include "core/edit_mesh.h"
 #include "core/point.h"
 #include "core/slist.h"

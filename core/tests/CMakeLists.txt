@@ -7,5 +7,4 @@ include_directories(${PROJECT_SOURCE_DIR}/core)
 add_arbi_test(test_string_utils test_string_utils.c)
 add_arbi_test(test_dl_st_func test_dl_st_func.c)
 add_arbi_test(test_mesh test_mesh.c)
-add_arbi_test(test_silo_plot_io test_silo_plot_io.c)
 
