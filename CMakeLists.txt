@@ -65,6 +65,7 @@ enable_testing()
 
 include_directories("${PROJECT_SOURCE_DIR}")
 add_subdirectory(core)
+add_subdirectory(io)
 add_subdirectory(geometry)
 add_subdirectory(poisson)
 
