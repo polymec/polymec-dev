@@ -199,6 +199,7 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libxml2.a)
   set_target_properties(xml2 PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libxml2.a)
 endif()
 set(ARBI_TP_LIBS ${ARBI_TP_LIBS};xml2)
+include_directories("${PROJECT_BINARY_DIR}/include/libxml2")
 
 # Install TAO (for optimization problems).
 if (NOT EXISTS ${CMAKE_BINARY_DIR}/lib/libtao.a)
