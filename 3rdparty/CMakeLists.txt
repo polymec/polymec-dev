@@ -183,6 +183,23 @@ add_library(silo STATIC IMPORTED)
 set_target_properties(silo PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/lib${SILOLIB}.a)
 set(ARBI_TP_LIBS ${ARBI_TP_LIBS};${SILOLIB})
 
+# Build libxml2, an XML library.
+if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libxml2.a)
+  set(XML2_CONFIG_OPTS --prefix=${PROJECT_BINARY_DIR} --enable-static --disable-shared --without-threads)
+  if (${CMAKE_BUILD_TYPE} STREQUAL "Debug")
+    set(GC_CONFIG_OPTS ${GC_CONFIG_OPTS} --enable-debug)
+  endif()
+  execute_process(COMMAND cmake -E tar xzvf ${CMAKE_CURRENT_SOURCE_DIR}/libxml2-2.9.0.tar.gz
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+  execute_process(COMMAND env CC=${CC} ./configure ${XML2_CONFIG_OPTS}
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/libxml2-2.9.0)
+  execute_process(COMMAND make install
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/libxml2-2.9.0)
+  add_library(xml2 STATIC IMPORTED)
+  set_target_properties(xml2 PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libxml2.a)
+endif()
+set(ARBI_TP_LIBS ${ARBI_TP_LIBS};xml2)
+
 # Install TAO (for optimization problems).
 if (NOT EXISTS ${CMAKE_BINARY_DIR}/lib/libtao.a)
   execute_process(COMMAND cmake -E tar xzvf ${CMAKE_CURRENT_SOURCE_DIR}/tao-2.1-p0.tar.gz
