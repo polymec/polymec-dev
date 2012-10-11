@@ -270,11 +270,11 @@ void generate_cell_face_node_connectivity(mesh_t* mesh,
   int all_face_nodes_len = slist_size(all_face_nodes_list);
   *all_face_nodes = malloc(sizeof(int)*all_face_nodes_len);
   for (int i = 0; i < all_face_nodes_len; ++i)
-    all_face_nodes[i] = (int)slist_pop(all_face_nodes_list);
+    (*all_face_nodes)[i] = (int)slist_pop(all_face_nodes_list);
   int all_cell_faces_len = slist_size(all_cell_faces_list);
   *all_cell_faces = malloc(sizeof(int)*all_cell_faces_len);
   for (int i = 0; i < all_cell_faces_len; ++i)
-    all_cell_faces[i] = (int)slist_pop(all_cell_faces_list);
+    (*all_cell_faces)[i] = (int)slist_pop(all_cell_faces_list);
 
   // Clean up.
   slist_free(all_cell_faces_list);
