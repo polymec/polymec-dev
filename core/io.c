@@ -20,6 +20,8 @@ struct io_interface_t
   // Type information.
   void* context;
   char* name;
+  char* suffix;
+  char* master_suffix;
   io_vtable vtable;
 
   // File stuff.
@@ -44,6 +46,8 @@ struct io_interface_t
 
 io_interface_t* io_interface_new(void* context, 
                                  const char* name, 
+                                 const char* suffix, 
+                                 const char* master_suffix,
                                  io_vtable vtable,
                                  MPI_Comm comm, 
                                  int num_files,
@@ -59,6 +63,8 @@ io_interface_t* io_interface_new(void* context,
   io_interface_t* i = malloc(sizeof(io_interface_t));
   i->context = context;
   i->name = strdup(name);
+  i->suffix = strdup(suffix);
+  i->master_suffix = strdup(master_suffix);
   i->vtable = vtable;
   i->mode = IO_CLOSED;
   i->file = NULL;
@@ -79,9 +85,10 @@ io_interface_t* io_interface_new(void* context,
 
 io_interface_t* io_interface_new_serial(void* context, 
                                         const char* name, 
+                                        const char* suffix,
                                         io_vtable vtable)
 {
-  return io_interface_new(context, name, vtable, MPI_COMM_WORLD, 1, 0);
+  return io_interface_new(context, name, suffix, suffix, vtable, MPI_COMM_WORLD, 1, 0);
 }
 
 void io_free(io_interface_t* interface)
@@ -90,6 +97,8 @@ void io_free(io_interface_t* interface)
   ASSERT(interface->file == NULL);
 
   free(interface->name);
+  free(interface->suffix);
+  free(interface->master_suffix);
   if (interface->vtable.dtor != NULL)
     interface->vtable.dtor(interface->context);
 
@@ -202,10 +211,10 @@ void io_open(io_interface_t* interface,
   }
 
   // Determine a file name.
-  snprintf(interface->filename, 1024, "%s/%s.silo", group_dirname, prefix);
+  snprintf(interface->filename, 1024, "%s/%s.%s", group_dirname, prefix, interface->suffix);
   snprintf(interface->group_dir, 1024, "domain_%d", rank_in_group);
 #else
-  snprintf(interface->filename, 1024, "%s/%s.silo", directory, prefix);
+  snprintf(interface->filename, 1024, "%s/%s.%s", directory, prefix, interface->suffix);
 #endif
   strncpy(interface->prefix, prefix, 1024);
   strncpy(interface->directory, directory, 1024);
@@ -263,7 +272,7 @@ void io_close(io_interface_t* interface)
     if (interface->rank == 0)
     {
       char master_filename[1024];
-      snprintf(master_filename, 1024, "%s/%s.silo", interface->directory, interface->prefix);
+      snprintf(master_filename, 1024, "%s/%s.%s", interface->directory, interface->prefix, interface->master_suffix);
       void* master = interface->vtable.create_file(interface->context, master_filename, "/");
       interface->vtable.write_master(interface->context, master, interface->prefix, interface->datasets, interface->num_datasets, interface->num_files, num_procs_per_file);
       interface->vtable.close_file(interface->context, master);
@@ -344,10 +353,11 @@ io_dataset_t* io_dataset_new(const char* name, int num_fields, int num_codes)
   d->mesh = NULL;
   d->lite_mesh = NULL;
   d->fields = malloc(num_fields*sizeof(double*));
-  d->field_names = malloc(num_fields*sizeof(char*));
-  d->num_fields = 0;
+  d->field_names = calloc(num_fields, sizeof(char*));
+  d->field_num_comps = calloc(num_fields, sizeof(int));
+  d->num_fields = num_fields;
   d->codes = malloc(num_codes*sizeof(char*));
-  d->code_names = malloc(num_codes*sizeof(char*));
+  d->code_names = calloc(num_codes, sizeof(char*));
   d->num_codes = 0;
 
   return d;
@@ -425,8 +435,10 @@ void io_dataset_write_field(io_dataset_t* dataset, const char* field_name, doubl
   ASSERT(num_components > 0);
   for (int i = 0; i < dataset->num_fields; ++i)
   {
-    if (!strcmp(dataset->field_names[i], field_name))
+    if ((dataset->field_names[i] == NULL) || !strcmp(dataset->field_names[i], field_name))
     {
+      if (dataset->field_names[i] == NULL)
+        dataset->field_names[i] = strdup(field_name);
       dataset->fields[i] = field_data;
       dataset->field_num_comps[i] = num_components;
       dataset->field_centerings[i] = centering;

@@ -8,7 +8,7 @@
 #include "core/edit_mesh.h"
 #include "core/point.h"
 #include "core/slist.h"
-#include "io/generate_cell_face_node_connectivity.h"
+#include "io/generate_face_node_conn.h"
 
 #ifdef USE_MPI
 #include <mpi.h>
@@ -16,6 +16,7 @@
 #endif
 
 #define VTK_ENCODING "ISO-8859-1"
+#define VTK_POLYHEDRON 42  // From VTK source -- make sure this is right!
 
 #ifdef __cplusplus
 extern "C" {
@@ -35,10 +36,19 @@ static void* vtk_create_file(void* context,
   return (void*)file;
 }
 
+static void* vtk_open_file(void* context, 
+                           const char* filename, 
+                           const char* dirname,
+                           io_mode_t mode)
+{
+  ASSERT(false); // Shouldn't get here!
+}
+
 static void vtk_close_file(void* context, void* file)
 {
   // In this method, we do all the writing.
   xmlTextWriterEndDocument(file);
+  xmlFreeTextWriter(file);
 }
 
 static int vtk_get_num_datasets(void* context, void* file, int* num_datasets)
@@ -69,6 +79,12 @@ static inline void write_format_attribute(xmlTextWriterPtr writer, const char* a
   write_attribute(writer, attr, str);
 }
 
+static inline void write_string(xmlTextWriterPtr writer, const char* string)
+{
+  int status = xmlTextWriterWriteString(writer, (xmlChar*)string);
+  ASSERT(status == 0);
+}
+
 static inline void end_element(xmlTextWriterPtr writer, const char* element)
 {
   int status = xmlTextWriterEndElement(writer);
@@ -87,13 +103,11 @@ static void vtk_plot_write_asci_datasets(void* context, void* f, io_dataset_t** 
 
   // Figure out the cell-face-node connectivity.
   int num_cells = mesh->num_cells;
-  int cell_face_counts[num_cells];
   int num_faces = mesh->num_faces;
-  int face_node_counts[num_faces];
-  int *all_face_nodes, *all_cell_faces;
-  generate_cell_face_node_connectivity(mesh, face_node_counts, 
-                                       &all_face_nodes, cell_face_counts,
-                                       &all_cell_faces);
+  int num_nodes = mesh->num_nodes;
+  int face_node_offsets[num_faces+1];
+  int *face_nodes;
+  generate_face_node_conn(mesh, &face_nodes, face_node_offsets);
 
   // Start the VTKFile element.
   {
@@ -132,7 +146,16 @@ static void vtk_plot_write_asci_datasets(void* context, void* f, io_dataset_t** 
           write_format_attribute(writer, "NumberOfComponents", "%d", dataset->field_num_comps[f]);
         }
 
-        // FIXME: Write values
+        // Write data.
+        char values[16*num_nodes];
+        char value[16];
+        values[0] = '\0';
+        for (int i = 0; i < num_cells; ++i)
+        {
+          snprintf(value, 16, "%g ", dataset->fields[f][i]);
+          strcat(values, value);
+        }
+        write_string(writer, values);
 
         end_element(writer, "DataArray");
       }
@@ -158,7 +181,16 @@ static void vtk_plot_write_asci_datasets(void* context, void* f, io_dataset_t** 
           write_format_attribute(writer, "NumberOfComponents", "%d", dataset->field_num_comps[f]);
         }
 
-        // FIXME: Write values
+        // Write data.
+        char values[16*num_cells];
+        char value[16];
+        values[0] = '\0';
+        for (int i = 0; i < num_cells; ++i)
+        {
+          snprintf(value, 16, "%g ", dataset->fields[f][i]);
+          strcat(values, value);
+        }
+        write_string(writer, values);
 
         end_element(writer, "DataArray");
       }
@@ -175,14 +207,22 @@ static void vtk_plot_write_asci_datasets(void* context, void* f, io_dataset_t** 
     write_attribute(writer, "NumberOfComponents", "3");
     write_attribute(writer, "format", "ascii");
 
-    // FIXME: Write data
+    // Write data.
+    char positions[16*3*num_nodes];
+    char position[3*16];
+    positions[0] = '\0';
+    for (int i = 0; i < num_nodes; ++i)
+    {
+      snprintf(position, 3*16, "%g %g %g ", mesh->nodes[i].x, mesh->nodes[i].y, mesh->nodes[i].z);
+      strcat(positions, position);
+    }
+    write_string(writer, positions);
 
     end_element(writer, "DataArray");
     end_element(writer, "Points");
   }
 
   // Write out the cells.
-  // FIXME: This needs more study!
   {
     start_element(writer, "Cells");
 
@@ -211,7 +251,14 @@ static void vtk_plot_write_asci_datasets(void* context, void* f, io_dataset_t** 
     write_attribute(writer, "Name", "types");
     write_attribute(writer, "format", "ascii");
 
-    // FIXME: Write VTK_POLYHEDRON data
+    // Write VTK_POLYHEDRON data
+    char types[5*num_cells];
+    char type[5];
+    snprintf(type, 5, "%d ", VTK_POLYHEDRON);
+    types[0] = '\0';
+    for (int i = 0; i < num_cells; ++i)
+      strcat(types, type);
+    write_string(writer, types);
 
     end_element(writer, "DataArray");
 
@@ -220,7 +267,36 @@ static void vtk_plot_write_asci_datasets(void* context, void* f, io_dataset_t** 
     write_attribute(writer, "Name", "faces");
     write_attribute(writer, "format", "ascii");
 
-    // FIXME: Write faces data
+    // Write data.
+    int faces_data_len = 0;
+    int faceoffsets[num_cells];
+    for (int c = 0; c < num_cells; ++c)
+    {
+      faceoffsets[c] = 1 + mesh->cells[c].num_faces;
+      for (int f = 0; f < mesh->cells[c].num_faces; ++f)
+        faceoffsets[c] += 1 + face_node_offsets[f+1] - face_node_offsets[f];
+      faces_data_len += faceoffsets[c];
+    }
+    char data[16*faces_data_len];
+    char datum[16];
+    data[0] = '\0';
+    for (int c = 0; c < num_cells; ++c)
+    {
+      snprintf(datum, 16, "%d ", mesh->cells[c].num_faces);
+      strcat(data, datum);
+      for (int f = 0; f < mesh->cells[c].num_faces; ++f)
+      {
+        int nnodes = face_node_offsets[f+1] - face_node_offsets[f];
+        snprintf(datum, 16, "%d ", nnodes);
+        strcat(data, datum);
+        for (int n = 0; n < nnodes; ++n)
+        {
+          snprintf(datum, 16, "%d ", face_nodes[face_node_offsets[f]+n]);
+          strcat(data, datum);
+        }
+      }
+    }
+    write_string(writer, data);
 
     end_element(writer, "DataArray");
 
@@ -229,7 +305,14 @@ static void vtk_plot_write_asci_datasets(void* context, void* f, io_dataset_t** 
     write_attribute(writer, "Name", "faceoffsets");
     write_attribute(writer, "format", "ascii");
 
-    // FIXME: Write faces data
+    // Write data.
+    data[0] = '\0';
+    for (int c = 0; c < num_cells; ++c)
+    {
+      snprintf(datum, 16, "%d ", faceoffsets[c]);
+      strcat(data, datum);
+    }
+    write_string(writer, data);
 
     end_element(writer, "DataArray");
 
@@ -343,6 +426,7 @@ io_interface_t* vtk_plot_io_new(MPI_Comm comm,
                                 bool binary)
 {
   io_vtable vtable = {.create_file = &vtk_create_file,
+                      .open_file = &vtk_open_file, 
                       .close_file = &vtk_close_file,
                       .get_num_datasets = &vtk_get_num_datasets,
                       .write_master = &vtk_plot_write_master};
@@ -352,7 +436,7 @@ io_interface_t* vtk_plot_io_new(MPI_Comm comm,
     vtable.write_datasets = &vtk_plot_write_asci_datasets;
   int num_files;
   MPI_Comm_size(comm, &num_files);
-  return io_interface_new(NULL, "VTK-plot", vtable, comm, num_files, mpi_tag);
+  return io_interface_new(NULL, "VTK-plot", "vtu", "pvtu", vtable, comm, num_files, mpi_tag);
 }
 
 #ifdef __cplusplus

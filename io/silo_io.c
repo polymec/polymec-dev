@@ -539,7 +539,7 @@ io_interface_t* silo_io_new(MPI_Comm comm,
                       .read_datasets = &silo_read_datasets,
                       .write_datasets = &silo_write_datasets,
                       .dtor = &silo_dtor};
-  return io_interface_new(NULL, "Silo", vtable, comm, num_files, mpi_tag);
+  return io_interface_new(NULL, "Silo", "silo", "silo", vtable, comm, num_files, mpi_tag);
 }
 
 // This is used to generate .silo plot files.
@@ -740,7 +740,7 @@ io_interface_t* silo_plot_io_new(MPI_Comm comm,
                       .get_num_datasets = &silo_get_num_datasets,
                       .write_datasets = &silo_plot_write_datasets,
                       .write_master = &silo_plot_write_master};
-  return io_interface_new(NULL, "Silo-plot", vtable, comm, num_files, mpi_tag);
+  return io_interface_new(NULL, "Silo-plot", "silo", "silo", vtable, comm, num_files, mpi_tag);
 }
 
 #ifdef __cplusplus
