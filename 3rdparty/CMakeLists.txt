@@ -198,7 +198,7 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libxml2.a)
   add_library(xml2 STATIC IMPORTED)
   set_target_properties(xml2 PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libxml2.a)
 endif()
-set(ARBI_TP_LIBS ${ARBI_TP_LIBS};xml2)
+set(ARBI_TP_LIBS ${ARBI_TP_LIBS};xml2;iconv;lzma)
 set(ARBI_INCDIRS ${ARBI_INCDIRS};${PROJECT_BINARY_DIR}/include/libxml2)
 
 # Install TAO (for optimization problems).

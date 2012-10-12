@@ -88,6 +88,8 @@ struct io_dataset_t
 // an MPI communicator, a number of files to be written, and an MPI tag.
 io_interface_t* io_interface_new(void* context, 
                                  const char* name, 
+                                 const char* suffix,
+                                 const char* master_suffix,
                                  io_vtable vtable,
                                  MPI_Comm comm,
                                  int num_files,
@@ -97,6 +99,7 @@ io_interface_t* io_interface_new(void* context,
 // vtable. 
 io_interface_t* io_interface_new_serial(void* context, 
                                         const char* name, 
+                                        const char* suffix,
                                         io_vtable vtable);
 
 // Frees the given I/O interface.
