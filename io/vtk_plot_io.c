@@ -131,8 +131,23 @@ static void vtk_plot_write_asci_datasets(void* context, void* f, io_dataset_t** 
 
   // Write node-centered field data.
   {
-    start_element(writer, "PPointData");
-    write_attribute(writer, "Scalars", "scalars");
+    bool has_nc_fields = false;
+    char first_nc_field[1024];
+    for (int f = 0; f < dataset->num_fields; ++f)
+    {
+      if (dataset->field_centerings[f] == MESH_NODE)
+      {
+        strncpy(first_nc_field, dataset->field_names[f], 1024);
+        has_nc_fields = true;
+      }
+      break;
+    }
+
+    if (has_nc_fields)
+    {
+      start_element(writer, "PointData");
+      write_attribute(writer, "Scalars", first_nc_field);
+    }
 
     for (int f = 0; f < dataset->num_fields; ++f)
     {
@@ -141,6 +156,7 @@ static void vtk_plot_write_asci_datasets(void* context, void* f, io_dataset_t** 
         start_element(writer, "DataArray");
         write_attribute(writer, "type", "Float32");
         write_attribute(writer, "Name", dataset->field_names[f]);
+        write_attribute(writer, "format", "ascii");
         if (dataset->field_num_comps[f] > 1)
         {
           write_format_attribute(writer, "NumberOfComponents", "%d", dataset->field_num_comps[f]);
@@ -161,13 +177,29 @@ static void vtk_plot_write_asci_datasets(void* context, void* f, io_dataset_t** 
       }
     }
 
-    end_element(writer, "PointData");
+    if (has_nc_fields)
+      end_element(writer, "PointData");
   }
 
   // Write cell-centered field data.
   {
-    start_element(writer, "CellData");
-    write_attribute(writer, "Scalars", "scalars");
+    bool has_cc_fields = false;
+    char first_cc_field[1024];
+    for (int f = 0; f < dataset->num_fields; ++f)
+    {
+      if (dataset->field_centerings[f] == MESH_CELL)
+      {
+        strncpy(first_cc_field, dataset->field_names[f], 1024);
+        has_cc_fields = true;
+      }
+      break;
+    }
+
+    if (has_cc_fields)
+    {
+      start_element(writer, "CellData");
+      write_attribute(writer, "Scalars", first_cc_field);
+    }
 
     for (int f = 0; f < dataset->num_fields; ++f)
     {
@@ -176,6 +208,7 @@ static void vtk_plot_write_asci_datasets(void* context, void* f, io_dataset_t** 
         start_element(writer, "DataArray");
         write_attribute(writer, "type", "Float32");
         write_attribute(writer, "Name", dataset->field_names[f]);
+        write_attribute(writer, "format", "ascii");
         if (dataset->field_num_comps[f] > 1)
         {
           write_format_attribute(writer, "NumberOfComponents", "%d", dataset->field_num_comps[f]);
@@ -196,7 +229,8 @@ static void vtk_plot_write_asci_datasets(void* context, void* f, io_dataset_t** 
       }
     }
 
-    end_element(writer, "CellData");
+    if (has_cc_fields)
+      end_element(writer, "CellData");
   }
 
   // Write out the node positions.
