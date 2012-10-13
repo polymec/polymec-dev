@@ -9,6 +9,7 @@
 #include "core/point.h"
 #include "core/slist.h"
 #include "io/generate_face_node_conn.h"
+#include "io/generate_cell_node_conn.h"
 
 #ifdef USE_MPI
 #include <mpi.h>
@@ -100,14 +101,20 @@ static void vtk_plot_write_asci_datasets(void* context, void* f, io_dataset_t** 
   io_dataset_t* dataset = datasets[0];
   mesh_t* mesh = dataset->mesh;
   ASSERT(mesh != NULL);
-
-  // Figure out the cell-face-node connectivity.
   int num_cells = mesh->num_cells;
   int num_faces = mesh->num_faces;
   int num_nodes = mesh->num_nodes;
+
+  // Figure out the face-node connectivity.
   int face_node_offsets[num_faces+1];
   int *face_nodes;
   generate_face_node_conn(mesh, &face_nodes, face_node_offsets);
+
+  // From that, figure out the cell-node connectivity.
+  int cell_node_offsets[num_cells+1];
+  int *cell_nodes;
+  generate_cell_node_conn(mesh, face_nodes, face_node_offsets,
+                          &cell_nodes, cell_node_offsets);
 
   // Start the VTKFile element.
   {
@@ -260,7 +267,6 @@ static void vtk_plot_write_asci_datasets(void* context, void* f, io_dataset_t** 
   {
     start_element(writer, "Cells");
 
-#if 0
     start_element(writer, "DataArray");
     write_attribute(writer, "type", "Int32");
     write_attribute(writer, "Name", "connectivity");
@@ -278,7 +284,6 @@ static void vtk_plot_write_asci_datasets(void* context, void* f, io_dataset_t** 
     // FIXME: Write data
 
     end_element(writer, "DataArray");
-#endif
 
     start_element(writer, "DataArray");
     write_attribute(writer, "type", "UInt8");
