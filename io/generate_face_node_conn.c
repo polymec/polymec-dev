@@ -3,6 +3,7 @@
 #include <math.h>
 #include "core/point.h"
 #include "core/slist.h"
+#include "core/vector.h"
 #include "core/avl_tree.h"
 #include "core/mesh.h"
 #include "io/generate_face_node_conn.h"

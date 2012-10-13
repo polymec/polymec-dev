@@ -43,6 +43,7 @@ static void* vtk_open_file(void* context,
                            io_mode_t mode)
 {
   ASSERT(false); // Shouldn't get here!
+  return NULL;
 }
 
 static void vtk_close_file(void* context, void* file)
