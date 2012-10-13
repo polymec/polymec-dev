@@ -4,6 +4,36 @@
 #include "core/arbi.h"
 #include "arena/proto.h"
 
+// A vector is a managed array that can be dynamically resized at your 
+// convenience. Calling DEFINE_VECTOR_T(x) for a type x produces code for 
+// a type called x_vector_t, and defines the following data structure and 
+// interface:
+//
+// Suppose we have an x_vector_t* called vec. Then the following fields 
+// are defined:
+//
+// vec->data     - An array of x.
+// vec->size     - The number of x elements in the array.
+//                 (This field must not be modified manually.)
+// vec->capacity - The maximum number of x that can presently be stored.
+//                 (This field must not be modified manually.)
+// vec->arena,
+// vec->close_arena - Used internally for memory allocation.
+//
+// Basic interface:
+//
+// vec = x_vector_new(N)    - Creates a new x_vector_t with N elements.
+// x_vector_free(vec)       - Destroys vec, freeing its memory.
+// x_vector_reserve(vec, N) - Reserves space for N elements within vec.
+//                            Does not alter vec->size.
+// x_vector_resize(vec, N)  - Resizes vec space for N elements within vec.
+// x_vector_append(vec, e)  - Appends e to the end of vec, resizing it.
+// x_vector_foreach(vec, v) - Executes v(e) for each element e in vec.
+//
+// Other curiosities:
+// x_vector_new_with_arena(arena, N) - Creates a new x_vector_t with N 
+//                                     elements using the given arena.
+
 #define DEFINE_VECTOR_T(element) \
 typedef struct \
 { \
