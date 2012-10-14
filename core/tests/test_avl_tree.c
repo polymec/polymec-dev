@@ -37,8 +37,8 @@ void test_##element##_tree(void** state) \
   test_##tree_name##_insert(state); \
 }
 
-DEFINE_AVL_TREE_TEST(int_tree, int)
-DEFINE_AVL_TREE_TEST(double_tree, double)
+DEFINE_AVL_TREE_TEST(int_avl_tree, int)
+DEFINE_AVL_TREE_TEST(double_avl_tree, double)
 
 int main(int argc, char* argv[]) 
 {
