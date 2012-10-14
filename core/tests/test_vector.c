@@ -13,17 +13,17 @@ static int double_counter = 0;
 #define DEFINE_VECTOR_TEST(vector_name, element) \
 void test_##vector_name##_ctor(void** state) \
 { \
-  vector_name* v = vector_name##_new(10); \
+  vector_name##_t* v = vector_name##_new(10); \
   assert_int_equal(10, v->size); \
   assert_int_equal(16, v->capacity); \
   assert_true(v->data != NULL); \
-  assert_true(v->arena != NULL); \
+  assert_true(v->arena == NULL); \
   vector_name##_free(v); \
 } \
 \
 void test_##vector_name##_append(void** state) \
 { \
-  vector_name* v = vector_name##_new(0); \
+  vector_name##_t* v = vector_name##_new(0); \
   for (int i = 0; i < 10; ++i) \
     vector_name##_append(v, element##_values[i]); \
   assert_int_equal(10, v->size); \
@@ -42,7 +42,7 @@ static void count_##element(element e) \
 \
 void test_##vector_name##_foreach(void** state) \
 { \
-  vector_name* v = vector_name##_new(0); \
+  vector_name##_t* v = vector_name##_new(0); \
   for (int i = 0; i < 10; ++i) \
     vector_name##_append(v, element##_values[i]); \
   assert_int_equal(10, v->size); \

@@ -1,6 +1,7 @@
 #ifndef ARBI_VECTOR_H
 #define ARBI_VECTOR_H
 
+#include <stdlib.h>
 #include "core/arbi.h"
 #include "arena/proto.h"
 
@@ -60,13 +61,13 @@ static inline vector_name##_t* vector_name##_new_with_arena(ARENA* arena, int si
 static inline vector_name##_t* vector_name##_new(int size) \
 { \
   ASSERT(size >= 0); \
-  vector_name##_t* v = malloc(sizeof(vector_name##_t), 0); \
+  vector_name##_t* v = malloc(sizeof(vector_name##_t)); \
   v->arena = NULL; \
   v->size = size; \
   v->capacity = 1; \
   while (v->capacity < v->size) \
     v->capacity *= 2; \
-  v->data = malloc(sizeof(element)*v->capacity, 0); \
+  v->data = malloc(sizeof(element)*v->capacity); \
   return v; \
 } \
 \
@@ -95,7 +96,7 @@ static inline void vector_name##_reserve(vector_name##_t* v, int capacity) \
     if (v->arena != NULL) \
       v->data = arena_realloc(v->arena, v->data, sizeof(element)*v->capacity, 0); \
     else \
-      v->data = realloc(v->data, sizeof(element)*v->capacity, 0); \
+      v->data = realloc(v->data, sizeof(element)*v->capacity); \
   } \
 } \
 \
