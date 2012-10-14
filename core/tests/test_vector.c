@@ -60,8 +60,8 @@ void test_##element##_vector(void** state) \
   test_##vector_name##_foreach(state); \
 }
 
-DEFINE_VECTOR_TEST(int_vector_t, int)
-DEFINE_VECTOR_TEST(double_vector_t, double)
+DEFINE_VECTOR_TEST(int_vector, int)
+DEFINE_VECTOR_TEST(double_vector, double)
 
 int main(int argc, char* argv[]) 
 {
