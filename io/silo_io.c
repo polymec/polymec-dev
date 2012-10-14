@@ -89,8 +89,8 @@ static void silo_read_datasets(void* context, void* f, io_dataset_t** datasets, 
   // out the names of the datasets.
   DBtoc* contents = DBGetToc(file);
   int dset = 0;
-  slist_t* field_names = slist_new(NULL);
-  slist_t* code_names = slist_new(NULL);
+  string_slist_t* field_names = string_slist_new_proxy();
+  string_slist_t* code_names = string_slist_new_proxy();
   int num_fields = 0, num_codes = 0;
   for (int a = 0; a < contents->narrays; ++a)
   {
@@ -111,17 +111,17 @@ static void silo_read_datasets(void* context, void* f, io_dataset_t** datasets, 
         {
           char* fieldtok = strstr(contents->array_names[f], "_field");
           if (fieldtok != NULL)
-            slist_append(field_names, contents->array_names[f]);
+            string_slist_append(field_names, contents->array_names[f]);
           else
           {
             char* codetok = strstr(contents->array_names[f], "_code");
             if (codetok != NULL)
-              slist_append(code_names, contents->array_names[f]);
+              string_slist_append(code_names, contents->array_names[f]);
           }
         }
       }
-      num_fields = slist_size(field_names);
-      num_codes = slist_size(code_names);
+      num_fields = field_names->size;
+      num_codes = code_names->size;
 
       io_dataset_t* dataset = io_dataset_new(name, num_fields, num_codes); 
       datasets[dset] = dataset;
@@ -241,7 +241,7 @@ static void silo_read_datasets(void* context, void* f, io_dataset_t** datasets, 
     // Read in fields.
     for (int f = 0; f < num_fields; ++f)
     {
-      char* field_name = (char*)slist_pop(field_names);
+      char* field_name = string_slist_pop(field_names);
       DBcompoundarray* field = DBGetCompoundarray(file, field_name);
       if (field == NULL)
       {
@@ -294,7 +294,7 @@ static void silo_read_datasets(void* context, void* f, io_dataset_t** datasets, 
     // Read in source codes.
     for (int c = 0; c < num_codes; ++c)
     {
-      char* code_name = (char*)slist_pop(code_names);
+      char* code_name = string_slist_pop(code_names);
       DBcompoundarray* code = DBGetCompoundarray(file, code_name);
       if (code == NULL)
       {
@@ -322,8 +322,8 @@ static void silo_read_datasets(void* context, void* f, io_dataset_t** datasets, 
     // Clean up.
     DBFreeCompoundarray(pos);
     DBFreeCompoundarray(conn);
-    slist_free(code_names);
-    slist_free(field_names);
+    string_slist_free(code_names);
+    string_slist_free(field_names);
   }
 }
 
@@ -346,50 +346,50 @@ static void silo_write_datasets(void* context, void* f, io_dataset_t** datasets,
 
     {
       // Figure out the cell-face connectivity data.
-      slist_t* cf_conn_list = slist_new(NULL);
+      int_slist_t* cf_conn_list = int_slist_new();
       for (int c = 0; c < num_cells; ++c)
-        slist_append(cf_conn_list, (void*)mesh->cells[c].num_faces);
+        int_slist_append(cf_conn_list, mesh->cells[c].num_faces);
       for (int c = 0; c < num_cells; ++c)
       {
         for (int f = 0; f < mesh->cells[c].num_faces; ++f)
         {
           int face_id = mesh->cells[c].faces[f] - &mesh->faces[0];
-          slist_append(cf_conn_list, (void*)face_id);
+          int_slist_append(cf_conn_list, face_id);
         }
       }
       for (int f = 0; f < mesh->num_faces; ++f)
       {
         int cell1_id = mesh->faces[f].cell1 - &mesh->cells[0];
         int cell2_id = (mesh->faces[f].cell2 != NULL) ? mesh->faces[f].cell2 - &mesh->cells[0] : -1;
-        slist_append(cf_conn_list, (void*)cell1_id);
-        slist_append(cf_conn_list, (void*)cell2_id);
+        int_slist_append(cf_conn_list, cell1_id);
+        int_slist_append(cf_conn_list, cell2_id);
       }
 
       // Figure out the face-edge connectivity data.
-      slist_t* fe_conn_list = slist_new(NULL);
+      int_slist_t* fe_conn_list = int_slist_new();
       for (int f = 0; f < num_faces; ++f)
-        slist_append(fe_conn_list, (void*)mesh->faces[f].num_edges);
+        int_slist_append(fe_conn_list, mesh->faces[f].num_edges);
       for (int f = 0; f < num_faces; ++f)
       {
         for (int e = 0; e < mesh->faces[f].num_edges; ++e)
         {
           int edge_id = mesh->faces[f].edges[e] - &mesh->edges[0];
-          slist_append(fe_conn_list, (void*)edge_id);
+          int_slist_append(fe_conn_list, edge_id);
         }
       }
 
       // Assemble all the connectivity data into a mesh connectivity array.
-      int cf_conn_size = slist_size(cf_conn_list);
-      int fe_conn_size = slist_size(fe_conn_list);
+      int cf_conn_size = cf_conn_list->size;
+      int fe_conn_size = fe_conn_list->size;
       int ne_conn_size = 2*num_edges;
       int conn[1 + cf_conn_size + fe_conn_size + ne_conn_size];
       int counter = 0;
       // NOTE: The first value in conn is the number of ghost cells!
       conn[counter++] = mesh->num_ghost_cells;
       for (int i = 0; i < cf_conn_size; ++i, ++counter)
-        conn[counter] = (int)slist_pop(cf_conn_list);
+        conn[counter] = int_slist_pop(cf_conn_list);
       for (int i = 0; i < fe_conn_size; ++i, ++counter)
-        conn[counter] = (int)slist_pop(fe_conn_list);
+        conn[counter] = int_slist_pop(fe_conn_list);
       for (int e = 0; e < num_edges; ++e)
       {
         int node1_id = mesh->edges[e].node1 - &mesh->nodes[0];
@@ -420,8 +420,8 @@ static void silo_write_datasets(void* context, void* f, io_dataset_t** datasets,
           (void*)&conn[0], cf_conn_size + fe_conn_size, DB_INT, 0);
 
       // Clean up.
-      slist_free(fe_conn_list);
-      slist_free(cf_conn_list);
+      int_slist_free(fe_conn_list);
+      int_slist_free(cf_conn_list);
       free(conn_names[0]);
       free(conn_names[1]);
       free(conn_names[2]);

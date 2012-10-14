@@ -12,7 +12,7 @@ void generate_cell_node_conn(mesh_t* mesh,
                              int* cell_node_offsets)
 {
   // Make a list of all the cell nodes.
-  slist_t* all_cell_nodes_list = slist_new(NULL);
+  int_slist_t* all_cell_nodes_list = int_slist_new();
 
 }
 

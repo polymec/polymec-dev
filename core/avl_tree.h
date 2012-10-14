@@ -40,12 +40,12 @@ struct tree_name##_node_t \
 }; \
 \
 typedef struct tree_name##_t tree_name##_t; \
-typedef void (*tree_name##_dtor)(element); \
+typedef void (*tree_name##_destructor)(element); \
 struct tree_name##_t \
 { \
   tree_name##_node_t* root; \
   ARENA* arena; \
-  tree_name##_dtor dtor; \
+  tree_name##_destructor dtor; \
 }; \
 \
 static inline tree_name##_t* tree_name##_new() \
@@ -57,7 +57,7 @@ static inline tree_name##_t* tree_name##_new() \
   return tree; \
 } \
 \
-static inline void tree_name##_clear_node(tree_name##_node_t* node, tree_name##_dtor dtor) \
+static inline void tree_name##_clear_node(tree_name##_node_t* node, tree_name##_destructor dtor) \
 { \
   if (node != NULL) \
   { \
@@ -309,5 +309,6 @@ static inline int tree_name##_size(tree_name##_t* tree) \
 // Define some avl_trees.
 DEFINE_AVL_TREE(int_avl_tree, int, int_cmp, NULL)
 DEFINE_AVL_TREE(double_avl_tree, double, double_cmp, NULL)
+DEFINE_AVL_TREE(string_avl_tree, char*, strcmp, string_free)
 
 #endif
