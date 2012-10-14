@@ -5,9 +5,9 @@
 #include "arena/proto.h"
 
 // A vector is a managed array that can be dynamically resized at your 
-// convenience. Calling DEFINE_VECTOR_T(x) for a type x produces code for 
-// a type called x_vector_t, and defines the following data structure and 
-// interface:
+// convenience. Calling DEFINE_VECTOR_T(x_vector_t, x) for a type x produces 
+// code for a type called x_vector_t, and defines the following data 
+// structure and interface:
 //
 // Suppose we have an x_vector_t* called vec. Then the following fields 
 // are defined:
@@ -34,20 +34,20 @@
 // x_vector_new_with_arena(arena, N) - Creates a new x_vector_t with N 
 //                                     elements using the given arena.
 
-#define DEFINE_VECTOR_T(element) \
+#define DEFINE_VECTOR_T(vector_name, element) \
 typedef struct \
 { \
   element* data; \
   int size, capacity; \
   ARENA* arena; \
   bool close_arena; \
-} element##_vector_t; \
+} vector_name; \
 \
-typedef void (*element##_vector_visitor_t)(element e); \
-static inline element##_vector_t* element##_vector_new_with_arena(ARENA* arena, int size) \
+typedef void (*vector_name##_visitor_t)(element e); \
+static inline vector_name* vector_name##_new_with_arena(ARENA* arena, int size) \
 { \
   ASSERT(size >= 0); \
-  element##_vector_t* v = arena_malloc(arena, sizeof(element##_vector_t), 0); \
+  vector_name* v = arena_malloc(arena, sizeof(vector_name), 0); \
   v->arena = arena; \
   v->size = size; \
   v->capacity = 1; \
@@ -58,15 +58,15 @@ static inline element##_vector_t* element##_vector_new_with_arena(ARENA* arena, 
   return v; \
 } \
 \
-static inline element##_vector_t* element##_vector_new(int size) \
+static inline vector_name* vector_name##_new(int size) \
 { \
   ARENA* a = arena_open(&arena_defaults, 0); \
-  element##_vector_t* v = element##_vector_new_with_arena(a, size); \
+  vector_name* v = vector_name##_new_with_arena(a, size); \
   v->close_arena = true; \
   return v; \
 } \
 \
-static inline void element##_vector_free(element##_vector_t* v) \
+static inline void vector_name##_free(vector_name* v) \
 { \
   arena_free(v->arena, v->data); \
   ARENA* arena = v->arena; \
@@ -76,7 +76,7 @@ static inline void element##_vector_free(element##_vector_t* v) \
     arena_close(arena); \
 } \
 \
-static inline void element##_vector_reserve(element##_vector_t* v, int capacity) \
+static inline void vector_name##_reserve(vector_name* v, int capacity) \
 { \
   int old_capacity = v->capacity; \
   while (capacity > v->capacity) \
@@ -85,21 +85,21 @@ static inline void element##_vector_reserve(element##_vector_t* v, int capacity)
     v->data = arena_realloc(v->arena, v->data, sizeof(element)*v->capacity, 0); \
 } \
 \
-static inline void element##_vector_resize(element##_vector_t* v, int size) \
+static inline void vector_name##_resize(vector_name* v, int size) \
 { \
   if (size > v->size) \
-    element##_vector_reserve(v, size); \
+    vector_name##_reserve(v, size); \
   v->size = size; \
 } \
 \
-static inline void element##_vector_append(element##_vector_t* v, element e) \
+static inline void vector_name##_append(vector_name* v, element e) \
 { \
   if (v->size == v->capacity) \
-    element##_vector_reserve(v, v->size+1); \
+    vector_name##_reserve(v, v->size+1); \
   v->data[v->size] = e; \
   v->size++; \
 } \
-static inline void element##_vector_foreach(element##_vector_t* v, element##_vector_visitor_t visitor) \
+static inline void vector_name##_foreach(vector_name* v, vector_name##_visitor_t visitor) \
 { \
   for (int i = 0; i < v->size; ++i) \
     visitor(v->data[i]); \
@@ -110,8 +110,8 @@ extern "C" {
 #endif
 
 // Define some vectors.
-DEFINE_VECTOR_T(int)
-DEFINE_VECTOR_T(double)
+DEFINE_VECTOR_T(int_vector_t, int)
+DEFINE_VECTOR_T(double_vector_t, double)
 
 #ifdef __cplusplus
 }
