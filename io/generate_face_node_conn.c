@@ -98,7 +98,7 @@ void generate_face_node_conn(mesh_t* mesh,
     nodes_for_face[f] = malloc(num_nodes*sizeof(int));
   }
 
-  avl_tree_t* fnodes = int_avl_tree_new();
+  int_avl_tree_t* fnodes = int_avl_tree_new();
   for (int f = 0; f < num_faces; ++f)
   {
     int counter = 0, ne = mesh->faces[f].num_edges;
@@ -106,30 +106,30 @@ void generate_face_node_conn(mesh_t* mesh,
     {
       edge_t* edge = mesh->faces[f].edges[e];
       int node1_id = edge->node1 - &mesh->nodes[0];
-      if (avl_tree_find(fnodes, (void*)node1_id) == NULL)
+      if (int_avl_tree_find(fnodes, node1_id) == NULL)
       {
         nodes_for_face[f][counter++] = node1_id;
-        avl_tree_insert(fnodes, (void*)node1_id);
+        int_avl_tree_insert(fnodes, node1_id);
       }
       if (edge->node2 != NULL)
       {
         int node2_id = edge->node2 - &mesh->nodes[0];
-        if (avl_tree_find(fnodes, (void*)node2_id) == NULL)
+        if (int_avl_tree_find(fnodes, node2_id) == NULL)
         {
           nodes_for_face[f][counter++] = node2_id;
-          avl_tree_insert(fnodes, (void*)node2_id);
+          int_avl_tree_insert(fnodes, node2_id);
         }
       }
     }
     ASSERT(counter == face_node_offsets[f+1] - face_node_offsets[f]);
-    avl_tree_clear(fnodes);
+    int_avl_tree_clear(fnodes);
   }
-  avl_tree_free(fnodes);
+  int_avl_tree_free(fnodes);
 
   // Compute cell centers from face nodes.
   point_t cell_centers[num_cells];
   memset(cell_centers, 0, num_cells*sizeof(point_t));
-  avl_tree_t* cell_nodes = int_avl_tree_new();
+  int_avl_tree_t* cell_nodes = int_avl_tree_new();
   for (int c = 0; c < num_cells; ++c)
   {
     int num_nodes = 0;
@@ -139,9 +139,9 @@ void generate_face_node_conn(mesh_t* mesh,
       for (int n = 0; n < num_face_nodes; ++n)
       {
         int node_id = nodes_for_face[f][n];
-        if (avl_tree_find(cell_nodes, (void*)node_id) == NULL)
+        if (int_avl_tree_find(cell_nodes, node_id) == NULL)
         {
-          avl_tree_insert(cell_nodes, (void*)node_id);
+          int_avl_tree_insert(cell_nodes, node_id);
           node_t* node = &mesh->nodes[nodes_for_face[f][n]];
           cell_centers[c].x += node->x;
           cell_centers[c].y += node->y;
@@ -153,9 +153,9 @@ void generate_face_node_conn(mesh_t* mesh,
     cell_centers[c].x /= num_nodes;
     cell_centers[c].y /= num_nodes;
     cell_centers[c].z /= num_nodes;
-    avl_tree_clear(cell_nodes);
+    int_avl_tree_clear(cell_nodes);
   }
-  avl_tree_free(cell_nodes);
+  int_avl_tree_free(cell_nodes);
 
   slist_t* all_face_nodes_list = slist_new(NULL);
   for (int f = 0; f < mesh->num_faces; ++f)
