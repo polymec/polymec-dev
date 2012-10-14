@@ -5,7 +5,7 @@
 #include "arena/proto.h"
 
 // A vector is a managed array that can be dynamically resized at your 
-// convenience. Calling DEFINE_VECTOR_T(x_vector_t, x) for a type x produces 
+// convenience. Calling DEFINE_VECTOR(x_vector_t, x) for a type x produces 
 // code for a type called x_vector_t, and defines the following data 
 // structure and interface:
 //
@@ -34,72 +34,86 @@
 // x_vector_new_with_arena(arena, N) - Creates a new x_vector_t with N 
 //                                     elements using the given arena.
 
-#define DEFINE_VECTOR_T(vector_name, element) \
+#define DEFINE_VECTOR(vector_name, element) \
 typedef struct \
 { \
   element* data; \
   int size, capacity; \
   ARENA* arena; \
   bool close_arena; \
-} vector_name; \
+} vector_name##_t; \
 \
-typedef void (*vector_name##_visitor_t)(element e); \
-static inline vector_name* vector_name##_new_with_arena(ARENA* arena, int size) \
+typedef void (*vector_name##_visitor)(element e); \
+static inline vector_name##_t* vector_name##_new_with_arena(ARENA* arena, int size) \
 { \
   ASSERT(size >= 0); \
-  vector_name* v = arena_malloc(arena, sizeof(vector_name), 0); \
+  vector_name##_t* v = arena_malloc(arena, sizeof(vector_name##_t), 0); \
   v->arena = arena; \
   v->size = size; \
   v->capacity = 1; \
   while (v->capacity < v->size) \
     v->capacity *= 2; \
   v->data = arena_malloc(arena, sizeof(element)*v->capacity, 0); \
-  v->close_arena = false; \
   return v; \
 } \
 \
-static inline vector_name* vector_name##_new(int size) \
+static inline vector_name##_t* vector_name##_new(int size) \
 { \
-  ARENA* a = arena_open(&arena_defaults, 0); \
-  vector_name* v = vector_name##_new_with_arena(a, size); \
-  v->close_arena = true; \
+  ASSERT(size >= 0); \
+  vector_name##_t* v = malloc(sizeof(vector_name##_t), 0); \
+  v->arena = NULL; \
+  v->size = size; \
+  v->capacity = 1; \
+  while (v->capacity < v->size) \
+    v->capacity *= 2; \
+  v->data = malloc(sizeof(element)*v->capacity, 0); \
   return v; \
 } \
 \
-static inline void vector_name##_free(vector_name* v) \
+static inline void vector_name##_free(vector_name##_t* v) \
 { \
-  arena_free(v->arena, v->data); \
-  ARENA* arena = v->arena; \
-  bool close_arena = v->close_arena; \
-  arena_free(arena, v); \
-  if (close_arena) \
-    arena_close(arena); \
+  if (v->arena != NULL) \
+  { \
+    arena_free(v->arena, v->data); \
+    ARENA* arena = v->arena; \
+    arena_free(arena, v); \
+  } \
+  else \
+  { \
+    free(v->data); \
+    free(v); \
+  } \
 } \
 \
-static inline void vector_name##_reserve(vector_name* v, int capacity) \
+static inline void vector_name##_reserve(vector_name##_t* v, int capacity) \
 { \
   int old_capacity = v->capacity; \
   while (capacity > v->capacity) \
     v->capacity *= 2; \
   if (v->capacity > old_capacity) \
-    v->data = arena_realloc(v->arena, v->data, sizeof(element)*v->capacity, 0); \
+  { \
+    if (v->arena != NULL) \
+      v->data = arena_realloc(v->arena, v->data, sizeof(element)*v->capacity, 0); \
+    else \
+      v->data = realloc(v->data, sizeof(element)*v->capacity, 0); \
+  } \
 } \
 \
-static inline void vector_name##_resize(vector_name* v, int size) \
+static inline void vector_name##_resize(vector_name##_t* v, int size) \
 { \
   if (size > v->size) \
     vector_name##_reserve(v, size); \
   v->size = size; \
 } \
 \
-static inline void vector_name##_append(vector_name* v, element e) \
+static inline void vector_name##_append(vector_name##_t* v, element e) \
 { \
   if (v->size == v->capacity) \
     vector_name##_reserve(v, v->size+1); \
   v->data[v->size] = e; \
   v->size++; \
 } \
-static inline void vector_name##_foreach(vector_name* v, vector_name##_visitor_t visitor) \
+static inline void vector_name##_foreach(vector_name##_t* v, vector_name##_visitor visitor) \
 { \
   for (int i = 0; i < v->size; ++i) \
     visitor(v->data[i]); \
@@ -110,8 +124,8 @@ extern "C" {
 #endif
 
 // Define some vectors.
-DEFINE_VECTOR_T(int_vector_t, int)
-DEFINE_VECTOR_T(double_vector_t, double)
+DEFINE_VECTOR(int_vector, int)
+DEFINE_VECTOR(double_vector, double)
 
 #ifdef __cplusplus
 }
