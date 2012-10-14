@@ -157,7 +157,7 @@ void generate_face_node_conn(mesh_t* mesh,
   }
   int_avl_tree_free(cell_nodes);
 
-  slist_t* all_face_nodes_list = slist_new(NULL);
+  int_slist_t* all_face_nodes_list = int_slist_new();
   for (int f = 0; f < mesh->num_faces; ++f)
   {
     // Compute the normal vector for the face, pointing outward from 
@@ -254,16 +254,16 @@ void generate_face_node_conn(mesh_t* mesh,
     traverse_convex_hull(points, nn, indices, &count);
     face_node_offsets[f+1] = face_node_offsets[f] + nn;
     for (int n = 0; n < count; ++n)
-      slist_append(all_face_nodes_list, (void*)nodes_for_face[f][indices[n]]);
+      int_slist_append(all_face_nodes_list, nodes_for_face[f][indices[n]]);
     free(nodes_for_face[f]);
   }
 
   // Write the connectivity information.
-  int all_face_nodes_len = slist_size(all_face_nodes_list);
+  int all_face_nodes_len = all_face_nodes_list->size;
   *face_nodes = malloc(sizeof(int)*all_face_nodes_len);
   for (int i = 0; i < all_face_nodes_len; ++i)
-    (*face_nodes)[i] = (int)slist_pop(all_face_nodes_list);
+    (*face_nodes)[i] = int_slist_pop(all_face_nodes_list);
 
-  slist_free(all_face_nodes_list);
+  int_slist_free(all_face_nodes_list);
 }
 

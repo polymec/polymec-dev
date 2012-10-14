@@ -154,7 +154,7 @@ void generate_cell_face_node_connectivity(mesh_t* mesh,
   }
   int_avl_tree_free(cell_nodes);
 
-  slist_t* all_face_nodes_list = slist_new(NULL);
+  int_slist_t* all_face_nodes_list = int_slist_new();
   for (int f = 0; f < mesh->num_faces; ++f)
   {
     // Compute the normal vector for the face, pointing outward from 
@@ -251,34 +251,34 @@ void generate_cell_face_node_connectivity(mesh_t* mesh,
     traverse_convex_hull(points, nn, indices, &count);
     face_node_counts[f] = nn;
     for (int n = 0; n < count; ++n)
-      slist_append(all_face_nodes_list, (void*)face_nodes[f][indices[n]]);
+      int_slist_append(all_face_nodes_list, face_nodes[f][indices[n]]);
   }
 
   // Figure out cell-face connectivity.
-  slist_t* all_cell_faces_list = slist_new(NULL);
+  int_slist_t* all_cell_faces_list = int_slist_new();
   for (int c = 0; c < num_cells; ++c)
   {
     cell_face_counts[c] = mesh->cells[c].num_faces;
     for (int f = 0; f < mesh->cells[c].num_faces; ++f)
     {
       int face_id = mesh->cells[c].faces[f] - &mesh->faces[0];
-      slist_append(all_cell_faces_list, (void*)face_id);
+      int_slist_append(all_cell_faces_list, face_id);
     }
   }
 
   // Write the connectivity information.
-  int all_face_nodes_len = slist_size(all_face_nodes_list);
+  int all_face_nodes_len = all_face_nodes_list->size;
   *all_face_nodes = malloc(sizeof(int)*all_face_nodes_len);
   for (int i = 0; i < all_face_nodes_len; ++i)
-    (*all_face_nodes)[i] = (int)slist_pop(all_face_nodes_list);
-  int all_cell_faces_len = slist_size(all_cell_faces_list);
+    (*all_face_nodes)[i] = int_slist_pop(all_face_nodes_list);
+  int all_cell_faces_len = all_cell_faces_list->size;
   *all_cell_faces = malloc(sizeof(int)*all_cell_faces_len);
   for (int i = 0; i < all_cell_faces_len; ++i)
-    (*all_cell_faces)[i] = (int)slist_pop(all_cell_faces_list);
+    (*all_cell_faces)[i] = int_slist_pop(all_cell_faces_list);
 
   // Clean up.
-  slist_free(all_cell_faces_list);
-  slist_free(all_face_nodes_list);
+  int_slist_free(all_cell_faces_list);
+  int_slist_free(all_face_nodes_list);
   for (int i = 0; i < num_faces; ++i)
     free(face_nodes[i]);
 }

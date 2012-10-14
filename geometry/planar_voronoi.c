@@ -316,11 +316,11 @@ mesh_t* voronoi_plane(point_t* points, int num_points,
 
   // Finally, we create properties on the outer_edges and outer_cells tags 
   // that associate one with the other.
-  slist_t* outer_cell_edges = slist_new(NULL);
+  int_slist_t* outer_cell_edges = int_slist_new();
   for (int i = 0; i < num_outer_cells; ++i)
   {
     int num_edges = 0;
-    slist_node_t* pos = slist_back(outer_cell_edges);
+    int_slist_node_t* pos = outer_cell_edges->back;
     for (int f = 0; f < mesh->cells[i].num_faces; ++f)
     {
       for (int e = 0; e < mesh->cells[i].faces[f]->num_edges; ++e)
@@ -328,20 +328,20 @@ mesh_t* voronoi_plane(point_t* points, int num_points,
         int edgeid = (int)(mesh->faces[f].edges[e] - &mesh->edges[0]);
         if (int_avl_tree_find(outer_edges, edgeid) != NULL)
         {
-          slist_append(outer_cell_edges, (void*)edgeid);
+          int_slist_append(outer_cell_edges, edgeid);
           ++num_edges;
         }
       }
     }
     pos = pos->next;
-    slist_insert(outer_cell_edges, pos, (void*)num_edges);
+    int_slist_insert(outer_cell_edges, num_edges, pos);
   }
 
   // Add 'outer_edges' as a property of the outer_cells.
-  int* oce = malloc(slist_size(outer_cell_edges)*sizeof(double));
+  int* oce = malloc(outer_cell_edges->size*sizeof(double));
   mesh_tag_set_property(mesh->edge_tags, "outer_cells", "outer_edges", outer_cell_edges, &free);
   int offset = 0;
-  for (slist_node_t* n = slist_front(outer_cell_edges); n != NULL;)
+  for (int_slist_node_t* n = outer_cell_edges->front; n != NULL;)
   {
     // Read the number of edges for the cell.
     int num_edges = (int)n->value;
@@ -355,7 +355,7 @@ mesh_t* voronoi_plane(point_t* points, int num_points,
   }
 
   // Clean up.
-  slist_free(outer_cell_edges);
+  int_slist_free(outer_cell_edges);
   int_avl_tree_free(outer_cells);
   int_avl_tree_free(outer_edges);
   free(in.pointlist);
