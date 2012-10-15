@@ -15,7 +15,7 @@ extern "C" {
 static void append_to_tag(int_avl_tree_node_t* node, void* p)
 {
   int* tag_p = (int*)p;
-  *tag_p = (int)node->attribute;
+  *tag_p = (int)node->value;
   ++tag_p;
 }
 
