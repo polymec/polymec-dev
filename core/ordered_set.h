@@ -23,16 +23,16 @@
 // void x_set_delete(x_set_t* set, x datum) - Deletes the datum from the set.
 // void x_set_foreach(x_set_t* node, x_set_visitor visit, void*) - Executes visit on each set element.
 
-#define DEFINE_ORDERED_SET_USING_TREE(set_name, tree_name) \
-typedef struct set_name##_node_t set_name##_node_t; \
-typedef void (*set_name##_node_visitor)(set_name##_node_t*, void*); \
+#define DEFINE_ORDERED_SET_USING_AVL_TREE(set_name, tree_name) \
 typedef tree_name##_node_t set_name##_node_t; \
+typedef tree_name##_element_t set_name##_element_t; \
+typedef void (*set_name##_visitor)(set_name##_node_t*, void*); \
 \
 typedef struct set_name##_t set_name##_t; \
 typedef tree_name##_destructor set_name##_destructor; \
 struct set_name##_t \
 { \
-  tree_name##_t tree; \
+  tree_name##_t* tree; \
   int size; \
 }; \
 \
@@ -56,23 +56,23 @@ static inline void set_name##_free(set_name##_t* set) \
   free(set); \
 } \
 \
-static inline set_name##_node_t* set_name##_find(set_name##_t* set, element datum) \
+static inline set_name##_node_t* set_name##_find(set_name##_t* set, set_name##_element_t datum) \
 { \
   return tree_name##_find(set->tree, datum); \
 } \
 \
-static inline bool set_name##_contains(set_name##_t* set, element datum) \
+static inline bool set_name##_contains(set_name##_t* set, set_name##_element_t datum) \
 { \
   return (set_name##_find(set, datum) != NULL); \
 } \
 \
-static inline void set_name##_insert(set_name##_t* set, element datum) \
+static inline void set_name##_insert(set_name##_t* set, set_name##_element_t datum) \
 { \
   tree_name##_insert(set->tree, datum); \
   set->size = tree_name##_size(set->tree); \
 } \
 \
-static inline void set_name##_delete(set_name##_t* set, element datum) \
+static inline void set_name##_delete(set_name##_t* set, set_name##_element_t datum) \
 { \
   set_name##_node_t* node = set_name##_find(set, datum); \
   if (node != NULL) \

@@ -30,13 +30,14 @@ static int avl_tree_max(int x, int y)
 
 #define DEFINE_AVL_TREE(tree_name, element, comparator, destructor) \
 typedef struct tree_name##_node_t tree_name##_node_t; \
+typedef element tree_name##_element_t; \
 typedef void (*tree_name##_node_visitor)(tree_name##_node_t*, void*); \
 struct tree_name##_node_t \
 { \
   tree_name##_node_t* left; \
   tree_name##_node_t* right; \
   int depth; \
-  element attribute; \
+  element value; \
 }; \
 \
 typedef struct tree_name##_t tree_name##_t; \
@@ -64,7 +65,7 @@ static inline void tree_name##_clear_node(tree_name##_node_t* node, tree_name##_
     tree_name##_clear_node(node->left, dtor); \
     tree_name##_clear_node(node->right, dtor); \
     if (dtor != NULL) \
-      dtor(node->attribute); \
+      dtor(node->value); \
     free(node); \
   } \
 } \
@@ -85,7 +86,7 @@ static inline tree_name##_node_t* tree_name##_find_node(tree_name##_node_t* node
 { \
   if (node == NULL) \
     return NULL; \
-  int result = comparator(datum, node->attribute); \
+  int result = comparator(datum, node->value); \
   if (result == 0) \
     return node; \
   else if (result < 0) \
@@ -147,19 +148,19 @@ static inline tree_name##_node_t* tree_name##_insert_node(tree_name##_node_t* no
     node = malloc(sizeof(tree_name##_node_t)); \
     node->left = NULL; \
     node->right = NULL; \
-    node->attribute = datum; \
+    node->value = datum; \
     node->depth = 0; \
     return node; \
   } \
   else \
   { \
-    int result = comparator(datum, node->attribute); \
+    int result = comparator(datum, node->value); \
     if (result < 0) \
     { \
       node->left = tree_name##_insert_node(node->left, datum); \
       if ((tree_name##_node_depth(node->left) - tree_name##_node_depth(node->right)) == 2) \
       { \
-        int result2 = comparator(datum, node->left->attribute); \
+        int result2 = comparator(datum, node->left->value); \
         if (result2 < 0) \
           node = tree_name##_node_single_rotate_with_left(node); \
         else \
@@ -171,7 +172,7 @@ static inline tree_name##_node_t* tree_name##_insert_node(tree_name##_node_t* no
       node->right = tree_name##_insert_node(node->right, datum); \
       if ((tree_name##_node_depth(node->right) - tree_name##_node_depth(node->left)) == 2) \
       { \
-        int result2 = comparator(datum, node->right->attribute); \
+        int result2 = comparator(datum, node->right->value); \
         if (result2 > 0) \
           node = tree_name##_node_single_rotate_with_right(node); \
         else \
@@ -192,7 +193,7 @@ static inline tree_name##_node_t* tree_name##_find_node_parent(tree_name##_node_
                                              tree_name##_node_t* node) \
 { \
   ASSERT(node != NULL); \
-  int result = comparator(node->attribute, root->attribute); \
+  int result = comparator(node->value, root->value); \
   if (result == 0) \
   { \
     return NULL; \
@@ -277,7 +278,7 @@ static inline void tree_name##_delete(tree_name##_t* tree, tree_name##_node_t* n
     parent->left = replacement; \
   } \
   if (tree->dtor != NULL) \
-    tree->dtor(node->attribute); \
+    tree->dtor(node->value); \
   free(node); \
 } \
 \
