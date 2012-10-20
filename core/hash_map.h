@@ -28,7 +28,7 @@ typedef key_type map_name##_key_t; \
 typedef value_type map_name##_value_t; \
 typedef int (*map_name##_hash_func)(map_name##_key_t); \
 typedef bool (*map_name##_equals_func)(map_name##_key_t, map_name##_key_t); \
-typedef int (*map_name##_visitor)(map_name##_key_t, map_name##_value_t, void*); \
+typedef void (*map_name##_visitor)(map_name##_key_t, map_name##_value_t, void*); \
 typedef struct map_name##_entry_t map_name##_entry_t; \
 struct map_name##_entry_t \
 { \

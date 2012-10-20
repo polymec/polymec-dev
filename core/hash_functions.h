@@ -1,6 +1,8 @@
 #ifndef ARBI_HASH_FUNCTIONS_H
 #define ARBI_HASH_FUNCTIONS_H
 
+#include <string.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
