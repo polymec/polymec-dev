@@ -272,18 +272,30 @@ static void vtk_plot_write_asci_datasets(void* context, void* f, io_dataset_t** 
     write_attribute(writer, "type", "Int32");
     write_attribute(writer, "Name", "connectivity");
     write_attribute(writer, "format", "ascii");
-
-    // FIXME: Write data
-
+    char cnodes[5*cell_node_offsets[mesh->num_cells]];
+    cnodes[0] = '\0';
+    for (int i = 0; i < cell_node_offsets[mesh->num_cells]; ++i)
+    {
+      char node[5];
+      snprintf(node, 5, "%d ", cell_nodes[i]);
+      strcat(cnodes, node);
+    }
+    write_string(writer, cnodes);
     end_element(writer, "DataArray");
 
     start_element(writer, "DataArray");
     write_attribute(writer, "type", "Int32");
     write_attribute(writer, "Name", "offsets");
     write_attribute(writer, "format", "ascii");
-
-    // FIXME: Write data
-
+    char coffsets[mesh->num_cells+1];
+    coffsets[0] = '\0';
+    for (int i = 0; i <= mesh->num_cells; ++i)
+    {
+      char offset[5];
+      snprintf(offset, 5, "%d ", cell_node_offsets[i]);
+      strcat(coffsets, offset);
+    }
+    write_string(writer, coffsets);
     end_element(writer, "DataArray");
 
     start_element(writer, "DataArray");

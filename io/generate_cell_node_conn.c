@@ -17,11 +17,10 @@ void generate_cell_node_conn(mesh_t* mesh,
   {
     for (int f = 0; f < mesh->cells[c].num_faces; ++f)
     {
-      for (int e = 0; e < mesh->cells[c].faces[f]->num_edges; ++e)
-      {
-        int_unordered_set_insert(all_cell_nodes, mesh->cells[c].faces[f]->edges[e]->node1);
-        int_unordered_set_insert(all_cell_nodes, mesh->cells[c].faces[f]->edges[e]->node2);
-      }
+      int face_id = mesh->cells[c].faces[f] - &mesh->faces[f];
+      int nn = face_node_offsets[face_id+1] - face_node_offsets[face_id];
+      for (int n = 0; n < nn; ++n)
+        int_unordered_set_insert(all_cell_nodes, face_nodes[n]);
     }
   }
   *cell_nodes = malloc(all_cell_nodes->size*sizeof(int));
