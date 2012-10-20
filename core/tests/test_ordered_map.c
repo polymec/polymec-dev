@@ -11,7 +11,7 @@ double double_values[] = {0., 1., 2., 3., 4., 5.};
 
 // Key-value destructors.
 #define DEFINE_ORDERED_MAP_TEST(map_name, element) \
-DEFINE_ORDERED_MAP(map_name, char*, element, strcmp, NULL, NULL) \
+DEFINE_ORDERED_MAP(map_name, char*, element, strcmp) \
 void test_##map_name##_ctor(void** state) \
 { \
   map_name##_t* s = map_name##_new(); \

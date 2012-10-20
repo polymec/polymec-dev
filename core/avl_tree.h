@@ -8,10 +8,10 @@
 
 // An AVL tree is a balanced binary tree that can be used to implement other data structures.
 // One defines tree and node types using
-// DEFINE_AVL_TREE(tree_name, element, comparator, destructor)
+// DEFINE_AVL_TREE(tree_name, element, comparator)
 //
 // Interface for a type x_tree_t (with node type x_tree_node_t and datum x) defined with 
-// DEFINE_AVL_TREE(x_tree, x, x_comparator, x_destructor):
+// DEFINE_AVL_TREE(x_tree, x, x_comparator):
 // 
 // x_tree_t* x_tree_new() - Creates a new empty tree.
 // void x_tree_free(x_tree_t* tree) - Destroys the tree.
@@ -28,7 +28,7 @@ static int avl_tree_max(int x, int y)
   return ((x > y) ? x : y);
 }
 
-#define DEFINE_AVL_TREE(tree_name, element, comparator, destructor) \
+#define DEFINE_AVL_TREE(tree_name, element, comparator) \
 typedef struct tree_name##_node_t tree_name##_node_t; \
 typedef element tree_name##_element_t; \
 typedef void (*tree_name##_node_visitor)(tree_name##_node_t*, void*); \
@@ -41,12 +41,10 @@ struct tree_name##_node_t \
 }; \
 \
 typedef struct tree_name##_t tree_name##_t; \
-typedef void (*tree_name##_destructor)(element); \
 struct tree_name##_t \
 { \
   tree_name##_node_t* root; \
   ARENA* arena; \
-  tree_name##_destructor dtor; \
 }; \
 \
 static inline tree_name##_t* tree_name##_new() \
@@ -54,25 +52,22 @@ static inline tree_name##_t* tree_name##_new() \
   tree_name##_t* tree = malloc(sizeof(tree_name##_t)); \
   tree->arena = NULL; \
   tree->root = NULL; \
-  tree->dtor = destructor; \
   return tree; \
 } \
 \
-static inline void tree_name##_clear_node(tree_name##_node_t* node, tree_name##_destructor dtor) \
+static inline void tree_name##_clear_node(tree_name##_node_t* node) \
 { \
   if (node != NULL) \
   { \
-    tree_name##_clear_node(node->left, dtor); \
-    tree_name##_clear_node(node->right, dtor); \
-    if (dtor != NULL) \
-      dtor(node->value); \
+    tree_name##_clear_node(node->left); \
+    tree_name##_clear_node(node->right); \
     free(node); \
   } \
 } \
 \
 static inline void tree_name##_clear(tree_name##_t* tree) \
 { \
-  tree_name##_clear_node(tree->root, tree->dtor); \
+  tree_name##_clear_node(tree->root); \
   tree->root = NULL; \
 } \
 \
@@ -277,8 +272,6 @@ static inline void tree_name##_delete(tree_name##_t* tree, tree_name##_node_t* n
     } \
     parent->left = replacement; \
   } \
-  if (tree->dtor != NULL) \
-    tree->dtor(node->value); \
   free(node); \
 } \
 \
@@ -308,8 +301,8 @@ static inline int tree_name##_size(tree_name##_t* tree) \
 
 
 // Define some avl_trees.
-DEFINE_AVL_TREE(int_avl_tree, int, int_cmp, NULL)
-DEFINE_AVL_TREE(double_avl_tree, double, double_cmp, NULL)
-DEFINE_AVL_TREE(string_avl_tree, char*, strcmp, string_free)
+DEFINE_AVL_TREE(int_avl_tree, int, int_cmp)
+DEFINE_AVL_TREE(double_avl_tree, double, double_cmp)
+DEFINE_AVL_TREE(string_avl_tree, char*, strcmp)
 
 #endif
