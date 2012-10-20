@@ -6,11 +6,11 @@
 
 // An ordered map is a container that associates keys with values.
 // One defines an ordered map and node types using
-// DEFINE_ORDERED_MAP(map_name, key_type, value_type, comparator, destructor).
+// DEFINE_ORDERED_MAP(map_name, key_type, value_type, comparator).
 
 // Interface for a type x_map_t (with node type x_map_node_t 
 // and datum x) defined with 
-// DEFINE_ORDERED_MAP(x_map, x, x_comparator, x_destructor):
+// DEFINE_ORDERED_MAP(x_map, x, x_comparator):
 // 
 // x_map_t* x_map_new() - Creates a new empty ordered map.
 // void x_map_free(x_map_t* map) - Destroys the map.
@@ -21,28 +21,18 @@
 // void x_map_delete(x_map_t* map, x datum) - Deletes the datum from the map.
 // void x_map_foreach(x_map_t* node, x_map_visitor visit, void*) - Executes visit on each map element.
 
-#define DEFINE_ORDERED_MAP(map_name, key_type, value_type, key_comparator, key_destructor, value_destructor) \
+#define DEFINE_ORDERED_MAP(map_name, key_type, value_type, key_comparator) \
 DEFINE_KEY_VALUE(map_name##_key_value, key_type, value_type) \
 static inline int map_name##_key_value_cmp(map_name##_key_value_t x, map_name##_key_value_t y) \
 { \
   return key_comparator(x.key, y.key); \
 } \
-static inline void map_name##_key_value_dtor(map_name##_key_value_t x) \
-{ \
-  static void (*key_dtor)(key_type) = key_destructor; \
-  static void (*value_dtor)(value_type) = value_destructor; \
-  if (key_dtor != NULL) \
-    key_dtor(x.key); \
-  if (value_dtor != NULL) \
-    value_dtor(x.value); \
-} \
-DEFINE_AVL_TREE(map_name##_avl_tree, map_name##_key_value_t, map_name##_key_value_cmp, map_name##_key_value_dtor) \
+DEFINE_AVL_TREE(map_name##_avl_tree, map_name##_key_value_t, map_name##_key_value_cmp) \
 typedef map_name##_avl_tree##_node_t map_name##_node_t; \
 typedef key_type map_name##_key_t; \
 typedef value_type map_name##_value_t; \
 typedef void (*map_name##_visitor)(map_name##_node_t*, void*); \
 typedef struct map_name##_t map_name##_t; \
-typedef map_name##_avl_tree_destructor map_name##_destructor; \
 struct map_name##_t \
 { \
   map_name##_avl_tree_t* tree; \

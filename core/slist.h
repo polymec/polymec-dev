@@ -9,13 +9,12 @@
 
 // An slist is a singly-linked list that stores homogeneous types.
 // One defines an slist using
-// DEFINE_SLIST(list_name, element, destructor)
+// DEFINE_SLIST(list_name, element)
 //
 // Interface for a type x_slist_t (with datum x) defined with 
 // DEFINE_SLIST(x_slist, x, dtor):
 //
 // x_slist_t* x_slist_new() - Creates a new, empty slist.
-// x_slist_t* x_slist_new_proxy() - Creates a new, empty slist that does not own its data.
 // void x_slist_free(slist_t* list) - Destroys the list.
 // x_slist_node_t* x_slist_find(x_slist_t* list, x value, x_slist_cmp comparator) - Returns the node at which a value appears in the list.
 // void x_slist_insert(x_slist_t* list, x value, x_slist_node_t* node) - Inserts an x into the list.
@@ -23,7 +22,7 @@
 // x x_slist_pop(x_slist_t* list) - Removes an x from the front of the list, returning it.
 // void x_slist_remove(x_slist_t* list, x_slist_node_t* node) - Removes a node from the list.
 
-#define DEFINE_SLIST(list_name, element, destructor) \
+#define DEFINE_SLIST(list_name, element) \
 typedef struct list_name##_node_t list_name##_node_t; \
 struct list_name##_node_t \
 { \
@@ -32,13 +31,11 @@ struct list_name##_node_t \
 }; \
 \
 typedef struct list_name##_t list_name##_t; \
-typedef void (*list_name##_destructor)(element); \
 struct list_name##_t \
 { \
   list_name##_node_t* front; \
   list_name##_node_t* back; \
   int size; \
-  list_name##_destructor dtor; \
   bool owns_data; \
   ARENA* arena; \
 }; \
@@ -51,15 +48,7 @@ static inline list_name##_t* list_name##_new() \
   list->front = list->back = NULL; \
   list->size = 0; \
   list->owns_data = true; \
-  list->dtor = destructor; \
   list->arena = NULL; \
-  return list; \
-} \
-\
-static inline list_name##_t* list_name##_new_proxy() \
-{ \
-  list_name##_t* list = list_name##_new(); \
-  list->owns_data = false; \
   return list; \
 } \
 \
@@ -70,8 +59,6 @@ static inline void list_name##_free(list_name##_t* list) \
   { \
     n = list->front; \
     list->front = n->next; \
-    if (list->dtor && list->owns_data) \
-      list->dtor(n->value); \
     free(n); \
   } \
   free(list); \
@@ -160,16 +147,14 @@ static inline void list_name##_remove(list_name##_t* list, list_name##_node_t* n
   if (p != NULL) \
   { \
     p->next = node->next; \
-    if (list->dtor && list->owns_data) \
-      list->dtor(node->value); \
     free(node); \
     list->size -= 1; \
   } \
 } \
 
 // Define some basic slist types.
-DEFINE_SLIST(int_slist, int, NULL)
-DEFINE_SLIST(double_slist, double, NULL)
-DEFINE_SLIST(string_slist, char*, string_free)
+DEFINE_SLIST(int_slist, int)
+DEFINE_SLIST(double_slist, double)
+DEFINE_SLIST(string_slist, char*)
 
 #endif

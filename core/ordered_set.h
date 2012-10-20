@@ -5,14 +5,14 @@
 
 // An ordered set is a container that contains unique, ordered values.
 // One defines an ordered set and node types using
-// DEFINE_ORDERED_SET(set_name, element, comparator, destructor)
+// DEFINE_ORDERED_SET(set_name, element, comparator)
 // or 
 // DEFINE_ORDERED_SET_USING_AVL_TREE(set_name, tree_type),
 // which uses tree_type for the underlying implementation.
 
 // Interface for a type x_set_t (with node type x_set_node_t 
 // and datum x) defined with 
-// DEFINE_ORDERED_SET(x_set, x, x_comparator, x_destructor):
+// DEFINE_ORDERED_SET(x_set, x, x_comparator):
 // 
 // x_set_t* x_set_new() - Creates a new empty ordered set.
 // void x_set_free(x_set_t* set) - Destroys the set.
@@ -29,7 +29,6 @@ typedef tree_name##_element_t set_name##_element_t; \
 typedef void (*set_name##_visitor)(set_name##_node_t*, void*); \
 \
 typedef struct set_name##_t set_name##_t; \
-typedef tree_name##_destructor set_name##_destructor; \
 struct set_name##_t \
 { \
   tree_name##_t* tree; \
@@ -88,8 +87,8 @@ static inline void set_name##_foreach(set_name##_t* set, set_name##_visitor visi
 } \
 \
 
-#define DEFINE_ORDERED_SET(set_name, element, comparator, destructor) \
-DEFINE_AVL_TREE(set_name##_avl_tree, element, comparator, destructor) \
+#define DEFINE_ORDERED_SET(set_name, element, comparator) \
+DEFINE_AVL_TREE(set_name##_avl_tree, element, comparator) \
 DEFINE_ORDERED_SET_USING_TREE(set_name, set_name##_avl_tree)
 
 // Define some ordered_sets.

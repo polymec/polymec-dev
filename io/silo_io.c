@@ -89,8 +89,8 @@ static void silo_read_datasets(void* context, void* f, io_dataset_t** datasets, 
   // out the names of the datasets.
   DBtoc* contents = DBGetToc(file);
   int dset = 0;
-  string_slist_t* field_names = string_slist_new_proxy();
-  string_slist_t* code_names = string_slist_new_proxy();
+  string_slist_t* field_names = string_slist_new();
+  string_slist_t* code_names = string_slist_new();
   int num_fields = 0, num_codes = 0;
   for (int a = 0; a < contents->narrays; ++a)
   {
