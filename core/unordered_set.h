@@ -2,6 +2,8 @@
 #define ARBI_UNORDERED_SET_H
 
 #include "core/hash_map.h"
+#include "core/hash_functions.h"
+#include "core/comparators.h"
 
 // An unordered set is a container that stores unique values using a hash table.
 // One defines an unordered set using
@@ -25,19 +27,22 @@ typedef element set_name##_element_t; \
 typedef int (*set_name##_hash_func)(element); \
 typedef struct \
 { \
-  set_name##_hash_map map; \
+  set_name##_hash_map_t* map; \
+  int size; \
 } set_name##_t; \
 \
 static inline set_name##_t* set_name##_new() \
 { \
   set_name##_t* set = malloc(sizeof(set_name##_t)); \
   set->map = set_name##_hash_map_new(); \
+  set->size = 0; \
   return set; \
 } \
 \
 static inline void set_name##_clear(set_name##_t* set) \
 { \
   set_name##_hash_map_clear(set->map); \
+  set->size = 0; \
 } \
 \
 static inline void set_name##_free(set_name##_t* set) \
@@ -48,23 +53,24 @@ static inline void set_name##_free(set_name##_t* set) \
 \
 static inline bool set_name##_contains(set_name##_t* set, set_name##_element_t datum) \
 { \
-  return set_name##_hash_map_contains(set, datum); \
+  return set_name##_hash_map_contains(set->map, datum); \
 } \
 \
 static inline void set_name##_insert(set_name##_t* set, set_name##_element_t datum) \
 { \
   set_name##_hash_map_set(set->map, datum, true); \
+  set->size = set->map->size; \
 } \
 \
 static inline void set_name##_delete(set_name##_t* set, set_name##_element_t datum) \
 { \
   set_name##_hash_map_delete(set->map, datum); \
+  set->size = set->map->size; \
 } \
 \
 
 // Define some ordered_sets.
 DEFINE_UNORDERED_SET(int_unordered_set, int, int_hash, int_equals)
-DEFINE_UNORDERED_SET(double_unordered_set, double, double_hash, double_equals)
-DEFINE_UNORDERED_SET(string_unordered_set, char*, string_hash, double_hash)
+DEFINE_UNORDERED_SET(string_unordered_set, char*, string_hash, string_equals)
 
 #endif
