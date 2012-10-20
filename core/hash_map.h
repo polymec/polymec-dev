@@ -78,6 +78,7 @@ static inline void map_name##_clear(map_name##_t* map) \
       free(entry); \
       entry = next; \
     } \
+    map->buckets[i] = NULL; \
   } \
   map->size = 0; \
 } \
@@ -106,7 +107,7 @@ static inline int map_name##_index(map_name##_t* map, int hash) \
 \
 static inline bool map_name##_keys_equal(map_name##_t* map, key_type key1, int hash1, key_type key2, int hash2) \
 { \
-  return ((hash1 != hash2) && map->equals(key1, key2)); \
+  return ((hash1 == hash2) && map->equals(key1, key2)); \
 } \
 \
 static inline map_name##_value_t* map_name##_get(map_name##_t* map, key_type key) \
@@ -180,11 +181,10 @@ static inline void map_name##_set(map_name##_t* map, key_type key, value_type va
       (*p)->next = NULL; \
       map->size++; \
       map_name##_expand(map); \
+      return; \
     } \
     if (map_name##_keys_equal(map, current->key, current->hash, key, h)) \
-    { \
       current->value = value; \
-    } \
     p = &current->next; \
   } \
 } \
