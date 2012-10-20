@@ -25,17 +25,17 @@
 
 #define DEFINE_HASH_MAP(map_name, key_type, value_type, hash_func, equals_func) \
 typedef key_type map_name##_key_t; \
-typedef value_type map_name##_key_t; \
+typedef value_type map_name##_value_t; \
 typedef int (*map_name##_hash_func)(map_name##_key_t); \
-typedef bool (*map_name##_equals_func)(map_name##_key_t); \
+typedef bool (*map_name##_equals_func)(map_name##_key_t, map_name##_key_t); \
 typedef int (*map_name##_visitor)(map_name##_key_t, map_name##_value_t, void*); \
-typedef struct map_name##_entry map_name##_entry; \
+typedef struct map_name##_entry_t map_name##_entry_t; \
 struct map_name##_entry_t \
 { \
   key_type key; \
   int hash; \
   value_type value; \
-  map_name##_entry next; \
+  map_name##_entry_t* next; \
 }; \
 \
 typedef struct \
@@ -48,6 +48,7 @@ typedef struct \
 } map_name##_t; \
 \
 static inline map_name##_t* map_name##_new_with_capacity(int N) \
+{ \
   map_name##_t* map = malloc(sizeof(map_name##_t)); \
   int minimum_bucket_count = N * 4 / 3; \
   map->bucket_count = 1; \
@@ -110,12 +111,12 @@ static inline bool map_name##_keys_equal(map_name##_t* map, key_type key1, int h
 \
 static inline map_name##_value_t* map_name##_get(map_name##_t* map, key_type key) \
 { \
-  int h = map_name##_hash(key); \
+  int h = map_name##_hash(map, key); \
   int index = map_name##_index(map, h); \
   map_name##_entry_t* entry = map->buckets[index]; \
   while (entry != NULL) \
   { \
-    if (map_name##_keys_equal(map, entry->key, entry->hash, key, hash)) \
+    if (map_name##_keys_equal(map, entry->key, entry->hash, key, h)) \
       return &(entry->value); \
     entry = entry->next; \
   } \
@@ -124,21 +125,47 @@ static inline map_name##_value_t* map_name##_get(map_name##_t* map, key_type key
 \
 static inline bool map_name##_contains(map_name##_t* map, key_type key) \
 { \
-  int h = map_name##_hash(key); \
+  int h = map_name##_hash(map, key); \
   int index = map_name##_index(map, h); \
   map_name##_entry_t* entry = map->buckets[index]; \
   while (entry != NULL) \
   { \
-    if (map_name##_keys_equal(map, entry->key, entry->hash, key, hash)) \
+    if (map_name##_keys_equal(map, entry->key, entry->hash, key, h)) \
       return true; \
     entry = entry->next; \
   } \
   return false; \
 } \
 \
+static inline void map_name##_expand(map_name##_t* map) \
+{ \
+  if (map->size > (map->bucket_count * 3/4)) \
+  { \
+    int new_count = map->bucket_count * 2; \
+    map_name##_entry_t** new_buckets = calloc(new_count, sizeof(map_name##_entry_t*)); \
+    if (new_buckets == NULL) \
+      return; \
+    for (int i = 0; i < map->bucket_count; ++i) \
+    { \
+      map_name##_entry_t* entry = map->buckets[i]; \
+      while (entry != NULL) \
+      { \
+        map_name##_entry_t* next = entry->next; \
+        int index = map_name##_index(map, entry->hash); \
+        entry->next = new_buckets[index]; \
+        new_buckets[index] = entry; \
+        entry = next; \
+      } \
+    } \
+    free(map->buckets); \
+    map->buckets = new_buckets; \
+    map->bucket_count = new_count; \
+  } \
+} \
+\
 static inline void map_name##_set(map_name##_t* map, key_type key, value_type value) \
 { \
-  int h = map_name##_hash(key); \
+  int h = map_name##_hash(map, key); \
   int index = map_name##_index(map, h); \
   map_name##_entry_t** p = &(map->buckets[index]); \
   while (true) \
@@ -146,11 +173,11 @@ static inline void map_name##_set(map_name##_t* map, key_type key, value_type va
     map_name##_entry_t* current = *p; \
     if (current == NULL) \
     { \
-      *p = malloc(map_name##_entry_t); \
-      *p->key = key; \
-      *p->hash = h; \
-      *p->value = value; \
-      *p->next = NULL; \
+      *p = malloc(sizeof(map_name##_entry_t)); \
+      (*p)->key = key; \
+      (*p)->hash = h; \
+      (*p)->value = value; \
+      (*p)->next = NULL; \
       map->size++; \
       map_name##_expand(map); \
     } \
@@ -164,7 +191,7 @@ static inline void map_name##_set(map_name##_t* map, key_type key, value_type va
 \
 static inline void map_name##_delete(map_name##_t* map, key_type key) \
 { \
-  int h = map_name##_hash(key); \
+  int h = map_name##_hash(map, key); \
   int index = map_name##_index(map, h); \
   map_name##_entry_t** p = &(map->buckets[index]); \
   map_name##_entry_t* current; \
@@ -172,7 +199,6 @@ static inline void map_name##_delete(map_name##_t* map, key_type key) \
   { \
     if (map_name##_keys_equal(map, current->key, current->hash, key, h)) \
     { \
-      map_name##_value_t value = &current->value; \
       *p = current->next; \
       free(current); \
       map->size--; \
@@ -188,8 +214,7 @@ static inline void map_name##_foreach(map_name##_t* map, map_name##_visitor visi
     map_name##_entry_t* entry = map->buckets[i]; \
     while (entry != NULL) \
     { \
-      if (map_name##_keys_equal(map, entry->key, entry->hash, key, hash)) \
-        visit(entry->key, entry->value, arg); \
+      visit(entry->key, entry->value, arg); \
       entry = entry->next; \
     } \
   } \
