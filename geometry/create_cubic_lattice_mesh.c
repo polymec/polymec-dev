@@ -1,4 +1,5 @@
 #include "core/edit_mesh.h"
+#include "core/unordered_set.h"
 #include "geometry/create_cubic_lattice_mesh.h"
 #include "geometry/cubic_lattice.h"
 
@@ -51,51 +52,136 @@ mesh_t* create_cubic_lattice_mesh(int nx, int ny, int nz)
         //
         // The faces are numbered 0-5, with 0-1 being the (-/+) x faces,
         // 2-3 the (-/+) y faces, and 4-5 the (-/+) z faces.
+        int node_indices[8];
+        node_indices[0] = cubic_lattice_node(lattice, i, j, k);
+        node_indices[1] = cubic_lattice_node(lattice, i+1, j, k);
+        node_indices[2] = cubic_lattice_node(lattice, i+1, j+1, k);
+        node_indices[3] = cubic_lattice_node(lattice, i, j+1, k);
+        node_indices[4] = cubic_lattice_node(lattice, i, j, k+1);
+        node_indices[5] = cubic_lattice_node(lattice, i+1, j, k+1);
+        node_indices[6] = cubic_lattice_node(lattice, i+1, j+1, k+1);
+        node_indices[7] = cubic_lattice_node(lattice, i, j+1, k+1);
 
-        // Face 0 is 3-0-4-7.
-        edges[0][0] = cubic_lattice_y_edge(lattice, i, j+1, k);
-        nodes[0][0][0] = cubic_lattice_node(lattice, i, j+1, k);
-        nodes[0][0][1] = cubic_lattice_node(lattice, i, j, k);
+        // The edges 0-3 traverse the bottom from 0->1->2->3->0.
+        int edge_indices[12];
+        edge_indices[0] = cubic_lattice_x_edge(lattice, i, j, k);
+        edge_indices[1] = cubic_lattice_y_edge(lattice, i+1, j, k);
+        edge_indices[2] = cubic_lattice_x_edge(lattice, i, j+1, k);
+        edge_indices[3] = cubic_lattice_y_edge(lattice, i, j, k);
 
-        edges[0][1] = cubic_lattice_z_edge(lattice, i, j, k+1);
-        nodes[0][1][0] = cubic_lattice_node(lattice, i, j, k);
-        nodes[0][1][1] = cubic_lattice_node(lattice, i, j, k+1);
+        // The edges 4-7 scale the sides, connecting 0-3 to 4-7.
+        edge_indices[4] = cubic_lattice_z_edge(lattice, i, j, k);
+        edge_indices[5] = cubic_lattice_z_edge(lattice, i+1, j, k);
+        edge_indices[6] = cubic_lattice_z_edge(lattice, i+1, j+1, k);
+        edge_indices[7] = cubic_lattice_z_edge(lattice, i, j+1, k);
 
-        edges[0][2] = cubic_lattice_y_edge(lattice, i, j+1, k+1);
-        nodes[0][2][0] = cubic_lattice_node(lattice, i, j, k+1);
-        nodes[0][2][1] = cubic_lattice_node(lattice, i, j+1, k+1);
+        // The edges 8-11 traverse the top from 4->5->6->7->4.
+        edge_indices[8]  = cubic_lattice_x_edge(lattice, i, j, k+1);
+        edge_indices[9]  = cubic_lattice_y_edge(lattice, i+1, j, k+1);
+        edge_indices[10] = cubic_lattice_x_edge(lattice, i, j+1, k+1);
+        edge_indices[11] = cubic_lattice_y_edge(lattice, i, j, k+1);
 
-        edges[0][3] = cubic_lattice_z_edge(lattice, i, j+1, k);
-        nodes[0][3][0] = cubic_lattice_node(lattice, i, j+1, k+1);
-        nodes[0][3][1] = cubic_lattice_node(lattice, i, j+1, k);
+        // Face 0 (-x)
+        edges[0][0] = edge_indices[3];
+        nodes[0][0][0] = node_indices[3];
+        nodes[0][0][1] = node_indices[0];
 
-        // Face 1 is 1-2-6-5.
-        // FIXME
-        edges[1][0] = cubic_lattice_y_edge(lattice, i+1, j, k);
-        edges[1][1] = cubic_lattice_z_edge(lattice, i+1, j, k+1);
-        edges[1][2] = cubic_lattice_y_edge(lattice, i+1, j+1, k);
-        edges[1][3] = cubic_lattice_z_edge(lattice, i+1, j, k);
+        edges[0][1] = edge_indices[4];
+        nodes[0][1][0] = node_indices[0];
+        nodes[0][1][1] = node_indices[4];
 
-        // FIXME
-        edges[2][0] = cubic_lattice_x_edge(lattice, i, j, k);
-        edges[2][1] = cubic_lattice_z_edge(lattice, i, j, k+1);
-        edges[2][2] = cubic_lattice_x_edge(lattice, i, j+1, k+1);
-        edges[2][3] = cubic_lattice_z_edge(lattice, i, j, k);
+        edges[0][2] = edge_indices[11];
+        nodes[0][2][0] = node_indices[4];
+        nodes[0][2][1] = node_indices[7];
 
-        edges[3][0] = cubic_lattice_x_edge(lattice, i+1, j, k);
-        edges[3][1] = cubic_lattice_z_edge(lattice, i+1, j, k+1);
-        edges[3][2] = cubic_lattice_x_edge(lattice, i+1, j+1, k);
-        edges[3][3] = cubic_lattice_z_edge(lattice, i+1, j, k);
+        edges[0][3] = edge_indices[7];
+        nodes[0][3][0] = node_indices[7];
+        nodes[0][3][1] = node_indices[3];
 
-        edges[4][0] = cubic_lattice_x_edge(lattice, i, j, k);
-        edges[4][1] = cubic_lattice_y_edge(lattice, i, j, k+1);
-        edges[4][2] = cubic_lattice_x_edge(lattice, i, j+1, k+1);
-        edges[4][3] = cubic_lattice_y_edge(lattice, i, j, k);
+        // Face 1 (+x)
+        edges[1][0] = edge_indices[1];
+        nodes[1][0][0] = node_indices[1];
+        nodes[1][0][1] = node_indices[2];
 
-        edges[5][0] = cubic_lattice_x_edge(lattice, i+1, j, k);
-        edges[5][1] = cubic_lattice_y_edge(lattice, i+1, j, k+1);
-        edges[5][2] = cubic_lattice_x_edge(lattice, i+1, j+1, k);
-        edges[5][3] = cubic_lattice_y_edge(lattice, i+1, j, k);
+        edges[1][1] = edge_indices[6];
+        nodes[1][1][0] = node_indices[2];
+        nodes[1][1][1] = node_indices[6];
+
+        edges[1][2] = edge_indices[9];
+        nodes[1][2][0] = node_indices[6];
+        nodes[1][2][1] = node_indices[5];
+
+        edges[1][3] = edge_indices[5];
+        nodes[1][3][0] = node_indices[5];
+        nodes[1][3][1] = node_indices[1];
+
+        // Face 2 (-y)
+        edges[2][0] = edge_indices[0];
+        nodes[2][0][0] = node_indices[0];
+        nodes[2][0][1] = node_indices[1];
+
+        edges[2][1] = edge_indices[5];
+        nodes[2][1][0] = node_indices[1];
+        nodes[2][1][1] = node_indices[5];
+
+        edges[2][2] = edge_indices[8];
+        nodes[2][2][0] = node_indices[5];
+        nodes[2][2][1] = node_indices[4];
+
+        edges[2][3] = edge_indices[4];
+        nodes[2][3][0] = node_indices[4];
+        nodes[2][3][1] = node_indices[0];
+
+        // Face 3 (+y)
+        edges[3][0] = edge_indices[2];
+        nodes[3][0][0] = node_indices[2];
+        nodes[3][0][1] = node_indices[3];
+
+        edges[3][1] = edge_indices[7];
+        nodes[3][1][0] = node_indices[3];
+        nodes[3][1][1] = node_indices[7];
+
+        edges[3][2] = edge_indices[10];
+        nodes[3][2][0] = node_indices[7];
+        nodes[3][2][1] = node_indices[6];
+
+        edges[3][3] = edge_indices[6];
+        nodes[3][3][0] = node_indices[6];
+        nodes[3][3][1] = node_indices[2];
+
+        // Face 4 (-z)
+        edges[4][0] = edge_indices[0];
+        nodes[4][0][0] = node_indices[0];
+        nodes[4][0][1] = node_indices[1];
+
+        edges[4][1] = edge_indices[1];
+        nodes[4][1][0] = node_indices[1];
+        nodes[4][1][1] = node_indices[2];
+
+        edges[4][2] = edge_indices[2];
+        nodes[4][2][0] = node_indices[2];
+        nodes[4][2][1] = node_indices[3];
+
+        edges[4][3] = edge_indices[3];
+        nodes[4][3][0] = node_indices[3];
+        nodes[4][3][1] = node_indices[0];
+
+        // Face 5 (+z)
+        edges[5][0] = edge_indices[8];
+        nodes[5][0][0] = node_indices[4];
+        nodes[5][0][1] = node_indices[5];
+
+        edges[5][1] = edge_indices[9];
+        nodes[5][1][0] = node_indices[5];
+        nodes[5][1][1] = node_indices[6];
+
+        edges[5][2] = edge_indices[10];
+        nodes[5][2][0] = node_indices[6];
+        nodes[5][2][1] = node_indices[7];
+
+        edges[5][3] = edge_indices[11];
+        nodes[5][3][0] = node_indices[7];
+        nodes[5][3][1] = node_indices[0];
 
         // Hook everything up.
         for (int f = 0; f < 6; ++f)
@@ -104,10 +190,19 @@ mesh_t* create_cubic_lattice_mesh(int nx, int ny, int nz)
           for (int e = 0; e < 4; ++e)
           {
             mesh_add_edge_to_face(mesh, &mesh->edges[edges[f][e]], &mesh->faces[faces[f]]);
+printf("adding edge %d to face %d\n", edges[f][e], faces[f]);
+printf("adding node %d to edge %d\n", nodes[f][e][0], edges[f][e]);
+printf("adding node %d to edge %d\n", nodes[f][e][1], edges[f][e]);
             mesh->edges[edges[f][e]].node1 = &mesh->nodes[nodes[f][e][0]];
             mesh->edges[edges[f][e]].node2 = &mesh->nodes[nodes[f][e][1]];
           }
         }
+
+        // Assign the node position for a uniform grid spanning [0,1]x[0,1]x[0,1].
+        node_t* node = &mesh->nodes[node_indices[0]];
+        node->x = 1.0*i/nx;
+        node->y = 1.0*i/ny;
+        node->z = 1.0*i/nz;
       }
     }
   }

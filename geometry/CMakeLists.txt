@@ -5,3 +5,4 @@ add_library(arbi_geometry voronoi.c planar_voronoi.c create_cvt.c
 set(ARBI_LIBS arbi_geometry;${ARBI_LIBS} PARENT_SCOPE)
 set(ARBI_LIBS arbi_geometry;${ARBI_LIBS})
 
+add_subdirectory(tests)

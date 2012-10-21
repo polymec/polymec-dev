@@ -26,19 +26,19 @@ static inline int cubic_lattice_num_cells(cubic_lattice_t* l)
 // Returns the number of x-faces in the lattice.
 static inline int cubic_lattice_num_x_faces(cubic_lattice_t* l)
 {
-  return (l->nx+1) * (l->ny-1) * (l->nz-1);
+  return (l->nx+1) * l->ny * l->nz;
 }
 
 // Returns the number of y-faces in the lattice.
 static inline int cubic_lattice_num_y_faces(cubic_lattice_t* l)
 {
-  return (l->nx-1) * (l->ny+1) * (l->nz-1);
+  return l->nx * (l->ny+1) * l->nz;
 }
 
 // Returns the number of z-faces in the lattice.
 static inline int cubic_lattice_num_z_faces(cubic_lattice_t* l)
 {
-  return (l->nx-1) * (l->ny-1) * (l->nz+1);
+  return l->nx * l->ny * (l->nz+1);
 }
 
 // Returns the total number of faces in the lattice.
@@ -51,19 +51,19 @@ static inline int cubic_lattice_num_faces(cubic_lattice_t* l)
 // Returns the number of x-edges in the lattice.
 static inline int cubic_lattice_num_x_edges(cubic_lattice_t* l)
 {
-  return (l->nx-1) * (l->ny+1) * (l->nz+1);
+  return l->nx * (l->ny+1) * (l->nz+1);
 }
 
 // Returns the number of y-edges in the lattice.
 static inline int cubic_lattice_num_y_edges(cubic_lattice_t* l)
 {
-  return (l->nx+1) * (l->ny-1) * (l->nz+1);
+  return (l->nx+1) * l->ny * (l->nz+1);
 }
 
 // Returns the number of z-edges in the lattice.
 static inline int cubic_lattice_num_z_edges(cubic_lattice_t* l)
 {
-  return (l->nx+1) * (l->ny+1) * (l->nz-1);
+  return (l->nx+1) * (l->ny+1) * l->nz;
 }
 
 // Returns the total number of edges in the lattice.
