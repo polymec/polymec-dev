@@ -118,6 +118,9 @@ mesh_t* mesh_new_with_arena(ARENA* arena, int num_cells, int num_ghost_cells, in
 // Destroys the given mesh.
 void mesh_free(mesh_t* mesh);
 
+// Validates the mesh, throwing an error if it is topologically invalid.
+void mesh_validate(mesh_t* mesh);
+
 // Returns a newly-allocated list of indices that will define a tags for 
 // cells/faces/edges/nodes with the given descriptor. If the tag already 
 // exists, returns NULL.

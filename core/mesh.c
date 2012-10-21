@@ -3,6 +3,7 @@
 #include "core/mesh.h"
 #include "core/mesh_storage.h"
 #include "core/edit_mesh.h"
+#include "core/unordered_set.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -190,6 +191,43 @@ void mesh_free(mesh_t* mesh)
   arena_free(arena, mesh);
   if (close_arena)
     arena_close(arena);
+}
+
+void mesh_validate(mesh_t* mesh)
+{
+  char error[1024];
+
+  // Check cell-face topology.
+  for (int c = 0; c < mesh->num_cells; ++c)
+  {
+    cell_t* cell = &mesh->cells[c];
+    for (int f = 0; f < cell->num_faces; ++f)
+    {
+      face_t* face = cell->faces[f];
+      if ((face->cell1 != cell) && (face->cell2 != cell))
+        arbi_error("cell %d has face %d but is not attached to it.", c, face - &mesh->faces[0]);
+    }
+  }
+
+  // Check face-node topology.
+  for (int f = 0; f < mesh->num_faces; ++f)
+  {
+    face_t* face = &mesh->faces[f];
+    int_unordered_set_t* face_nodes = int_unordered_set_new();
+    for (int e = 0; e < face->num_edges; ++e)
+    {
+      edge_t* edge = face->edges[e];
+      int_unordered_set_insert(face_nodes, edge->node1 - &mesh->nodes[0]);
+      int_unordered_set_insert(face_nodes, edge->node2 - &mesh->nodes[0]);
+    }
+    if (face_nodes->size != face->num_edges)
+    {
+      int_unordered_set_free(face_nodes);
+      arbi_error("face %d has edges with nodes not belonging to it.", face - &mesh->faces[0]);
+    }
+    int_unordered_set_free(face_nodes);
+  }
+
 }
 
 int* mesh_create_tag(mesh_tags_t* tagger, const char* tag, int num_indices)

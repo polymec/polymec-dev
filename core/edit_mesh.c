@@ -138,6 +138,9 @@ void mesh_add_edge_to_face(mesh_t* mesh, edge_t* edge, face_t* face)
 
 void mesh_add_face_to_cell(mesh_t* mesh, face_t* face, cell_t* cell)
 {
+  // Make sure this face isn't already attached to two cells.
+  ASSERT((face->cell1 == NULL) || (face->cell2 == NULL));
+
   if (cell->faces == NULL)
   {
     cell->num_faces = 1;
