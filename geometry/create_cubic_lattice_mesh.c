@@ -20,6 +20,7 @@ mesh_t* create_cubic_lattice_mesh(int nx, int ny, int nz)
                           cubic_lattice_num_nodes(lattice));
 
   int_unordered_set_t* processed_faces = int_unordered_set_new();
+  int_unordered_set_t* processed_nodes = int_unordered_set_new();
   for (int k = 0; k < nz; ++k)
   {
     for (int j = 0; j < ny; ++j)
@@ -202,17 +203,29 @@ mesh_t* create_cubic_lattice_mesh(int nx, int ny, int nz)
           }
         }
 
-        // Assign the node position for a uniform grid spanning [0,1]x[0,1]x[0,1].
-        node_t* node = &mesh->nodes[node_indices[0]];
-        node->x = 1.0*i/nx;
-        node->y = 1.0*i/ny;
-        node->z = 1.0*i/nz;
+        // Assign the node positions for a uniform grid spanning [0,1]x[0,1]x[0,1].
+        double dx = 1.0/nx, dy = 1.0/ny, dz = 1.0/nz;
+        static const int i_offsets[] = {0, 1, 1, 0, 0, 1, 1, 0};
+        static const int j_offsets[] = {0, 0, 1, 1, 0, 0, 1, 1};
+        static const int k_offsets[] = {0, 0, 0, 0, 1, 1, 1, 1};
+        for (int n = 0; n < 8; ++n)
+        {
+          if (!int_unordered_set_contains(processed_nodes, node_indices[n]))
+          {
+            node_t* node = &mesh->nodes[node_indices[n]];
+            node->x = (i + i_offsets[n]) * dx;
+            node->y = (j + j_offsets[n]) * dy;
+            node->z = (k + k_offsets[n]) * dz;
+            int_unordered_set_insert(processed_nodes, node_indices[n]);
+          }
+        }
       }
     }
   }
 
   // Clean up.
   int_unordered_set_free(processed_faces);
+  int_unordered_set_free(processed_nodes);
 
   return mesh;
 }
