@@ -19,7 +19,7 @@
 // void x_map_clear(x_map_t* map) - Empties the map.
 // x_map_value_t* x_map_get(x_map_t* map, x_map_key_t key) - Returns the value for the key, or NULL.
 // bool x_map_contains(x_map_t* map, x_map_key_t key) - Returns true if the map contains the key, false if not.
-// void x_map_set(x_map_t* map, x_map_key_t key, x_map_value_t value) - Sets the value for the given key.
+// void x_map_insert(x_map_t* map, x_map_key_t key, x_map_value_t value) - Sets the value for the given key.
 // void x_map_delete(x_map_t* map, x_map_key_t key) - Deletes the value for the given key.
 // void x_map_foreach(x_map_t* node, x_map_visitor visit, void*) - Executes visit on each map element.
 
@@ -164,7 +164,7 @@ static inline void map_name##_expand(map_name##_t* map) \
   } \
 } \
 \
-static inline void map_name##_set(map_name##_t* map, key_type key, value_type value) \
+static inline void map_name##_insert(map_name##_t* map, key_type key, value_type value) \
 { \
   int h = map_name##_hash(map, key); \
   int index = map_name##_index(map, h); \

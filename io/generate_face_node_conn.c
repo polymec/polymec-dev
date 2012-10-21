@@ -259,9 +259,10 @@ void generate_face_node_conn(mesh_t* mesh,
   }
 
   // Write the connectivity information.
-  int all_face_nodes_len = all_face_nodes_list->size;
-  *face_nodes = malloc(sizeof(int)*all_face_nodes_len);
-  for (int i = 0; i < all_face_nodes_len; ++i)
+  ASSERT(all_face_nodes_list->size == face_node_offsets[mesh->num_faces]);
+  *face_nodes = malloc(sizeof(int)*all_face_nodes_list->size);
+  int nf = all_face_nodes_list->size;
+  for (int i = 0; i < nf; ++i)
     (*face_nodes)[i] = int_slist_pop(all_face_nodes_list);
 
   int_slist_free(all_face_nodes_list);
