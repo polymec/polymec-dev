@@ -19,10 +19,9 @@ struct st_func_t
 
 static void st_func_free(void* ctx, void* dummy)
 {
-  UNUSED_ARG(dummy);
   st_func_t* func = (st_func_t*)ctx;
   if (func->vtable.dtor)
-    free(func->context);
+    func->vtable.dtor(func->context);
   free(func->name);
   free(func);
 }
