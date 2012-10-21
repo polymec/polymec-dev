@@ -6,7 +6,7 @@
 #include "core/edit_mesh.h"
 #include "core/point.h"
 #include "core/slist.h"
-#include "io/generate_cell_face_node_connectivity.h"
+#include "io/generate_face_node_conn.h"
 
 #ifdef USE_MPI
 #include <mpi.h>
@@ -570,15 +570,34 @@ static void silo_plot_write_datasets(void* context, void* f, io_dataset_t** data
   coords[1] = &(y[0]);
   coords[2] = &(z[0]);
 
-  // Figure out the cell-face-node connectivity.
+  // Figure out the face-node connectivity.
+  int num_faces = mesh->num_faces;
+  int face_node_offsets[num_faces+1];
+  int *face_nodes;
+  generate_face_node_conn(mesh, &face_nodes, face_node_offsets);
+  int face_node_counts[num_faces];
+  for (int f = 0; f < num_faces; ++f)
+    face_node_counts[f] = face_node_offsets[f+1] - face_node_offsets[f];
+
+  // Figure out cell-face connectivity.
   int num_cells = mesh->num_cells;
   int cell_face_counts[num_cells];
-  int num_faces = mesh->num_faces;
-  int face_node_counts[num_faces];
-  int *all_face_nodes, *all_cell_faces;
-  generate_cell_face_node_connectivity(mesh, face_node_counts, 
-                                       &all_face_nodes, cell_face_counts,
-                                       &all_cell_faces);
+  int cell_faces_len = 0;
+  for (int c = 0; c < num_cells; ++c)
+  {
+    cell_face_counts[c] = mesh->cells[c].num_faces;
+    cell_faces_len += mesh->cells[c].num_faces;
+  }
+  int offset = 0;
+  int cell_faces[cell_faces_len];
+  for (int c = 0; c < num_cells; ++c)
+  {
+    for (int f = 0; f < mesh->cells[c].num_faces; ++f, ++offset)
+    {
+      int face_id = mesh->cells[c].faces[f] - &mesh->faces[0];
+      cell_faces[offset] = face_id;
+    }
+  }
 
   // The polyhedral zone list is referred to in the options list.
   DBoptlist* optlist = DBMakeOptlist(10);
@@ -594,13 +613,11 @@ static void silo_plot_write_datasets(void* context, void* f, io_dataset_t** data
   for (int i = 0; i < num_faces; ++i)
     all_face_nodes_len += face_node_counts[i];
   int all_cell_faces_len = 0;
-  for (int i = 0; i < num_cells; ++i)
-    all_cell_faces_len += cell_face_counts[i];
   DBPutPHZonelist(file, (char*)"mesh_zonelist", 
       num_faces, &face_node_counts[0], 
-      all_face_nodes_len, &all_face_nodes[0], 0, 
+      face_node_offsets[num_faces], &face_nodes[0], 0, 
       num_cells, &cell_face_counts[0],
-      all_cell_faces_len, &all_cell_faces[0], 
+      cell_faces_len, &cell_faces[0], 
       0, 0, num_cells-1, optlist);
 
   // Write out the cell-centered mesh data.
@@ -670,8 +687,7 @@ static void silo_plot_write_datasets(void* context, void* f, io_dataset_t** data
 #endif
 
   // Clean up.
-  free(all_cell_faces);
-  free(all_face_nodes);
+  free(face_nodes);
   DBFreeOptlist(optlist);
 }
 
