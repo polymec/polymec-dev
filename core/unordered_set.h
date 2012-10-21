@@ -59,8 +59,11 @@ static inline bool set_name##_contains(set_name##_t* set, set_name##_element_t d
 \
 static inline void set_name##_insert(set_name##_t* set, set_name##_element_t datum) \
 { \
-  set_name##_hash_map_set(set->map, datum, true); \
-  set->size = set->map->size; \
+  if (!set_name##_hash_map_contains(set->map, datum)) \
+  { \
+    set_name##_hash_map_insert(set->map, datum, true); \
+    set->size = set->map->size; \
+  } \
 } \
 \
 static inline void set_name##_delete(set_name##_t* set, set_name##_element_t datum) \

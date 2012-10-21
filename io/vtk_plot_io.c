@@ -272,12 +272,12 @@ static void vtk_plot_write_asci_datasets(void* context, void* f, io_dataset_t** 
     write_attribute(writer, "type", "Int32");
     write_attribute(writer, "Name", "connectivity");
     write_attribute(writer, "format", "ascii");
-    char cnodes[5*cell_node_offsets[mesh->num_cells]];
+    char cnodes[10*cell_node_offsets[mesh->num_cells]];
     cnodes[0] = '\0';
     for (int i = 0; i < cell_node_offsets[mesh->num_cells]; ++i)
     {
-      char node[5];
-      snprintf(node, 5, "%d ", cell_nodes[i]);
+      char node[10];
+      snprintf(node, 10, "%d ", cell_nodes[i]);
       strcat(cnodes, node);
     }
     write_string(writer, cnodes);
@@ -287,12 +287,12 @@ static void vtk_plot_write_asci_datasets(void* context, void* f, io_dataset_t** 
     write_attribute(writer, "type", "Int32");
     write_attribute(writer, "Name", "offsets");
     write_attribute(writer, "format", "ascii");
-    char coffsets[mesh->num_cells+1];
+    char coffsets[10*(mesh->num_cells+1)];
     coffsets[0] = '\0';
     for (int i = 0; i <= mesh->num_cells; ++i)
     {
-      char offset[5];
-      snprintf(offset, 5, "%d ", cell_node_offsets[i]);
+      char offset[10];
+      snprintf(offset, 10, "%d ", cell_node_offsets[i]+1);
       strcat(coffsets, offset);
     }
     write_string(writer, coffsets);
@@ -304,9 +304,9 @@ static void vtk_plot_write_asci_datasets(void* context, void* f, io_dataset_t** 
     write_attribute(writer, "format", "ascii");
 
     // Write VTK_POLYHEDRON data
-    char types[5*num_cells];
-    char type[5];
-    snprintf(type, 5, "%d ", VTK_POLYHEDRON);
+    char types[10*num_cells];
+    char type[10];
+    snprintf(type, 10, "%d ", VTK_POLYHEDRON);
     types[0] = '\0';
     for (int i = 0; i < num_cells; ++i)
       strcat(types, type);
@@ -326,7 +326,7 @@ static void vtk_plot_write_asci_datasets(void* context, void* f, io_dataset_t** 
     {
       faceoffsets[c] = 1 + mesh->cells[c].num_faces;
       for (int f = 0; f < mesh->cells[c].num_faces; ++f)
-        faceoffsets[c] += 1 + face_node_offsets[f+1] - face_node_offsets[f];
+        faceoffsets[c] += face_node_offsets[f+1] - face_node_offsets[f];
       faces_data_len += faceoffsets[c];
     }
     char data[16*faces_data_len];
@@ -338,12 +338,13 @@ static void vtk_plot_write_asci_datasets(void* context, void* f, io_dataset_t** 
       strcat(data, datum);
       for (int f = 0; f < mesh->cells[c].num_faces; ++f)
       {
-        int nnodes = face_node_offsets[f+1] - face_node_offsets[f];
+        int face_id = mesh->cells[c].faces[f] - &mesh->faces[0];
+        int nnodes = face_node_offsets[face_id+1] - face_node_offsets[face_id];
         snprintf(datum, 16, "%d ", nnodes);
         strcat(data, datum);
         for (int n = 0; n < nnodes; ++n)
         {
-          snprintf(datum, 16, "%d ", face_nodes[face_node_offsets[f]+n]);
+          snprintf(datum, 16, "%d ", face_nodes[face_node_offsets[face_id]+n]);
           strcat(data, datum);
         }
       }
@@ -376,6 +377,9 @@ static void vtk_plot_write_asci_datasets(void* context, void* f, io_dataset_t** 
     xmlTextWriterEndDocument(writer);
   }
 
+  // Clean up.
+  free(cell_nodes);
+  free(face_nodes);
 }
 
 static void vtk_plot_write_binary_datasets(void* context, void* f, io_dataset_t** datasets, int num_datasets, int rank_in_group, int procs_per_file)
