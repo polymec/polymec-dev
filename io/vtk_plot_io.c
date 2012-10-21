@@ -250,7 +250,7 @@ static void vtk_plot_write_asci_datasets(void* context, void* f, io_dataset_t** 
     write_attribute(writer, "format", "ascii");
 
     // Write data.
-    char positions[16*3*num_nodes];
+    char* positions = malloc(16*3*num_nodes*sizeof(char));
     char position[3*16];
     positions[0] = '\0';
     for (int i = 0; i < num_nodes; ++i)
@@ -259,6 +259,7 @@ static void vtk_plot_write_asci_datasets(void* context, void* f, io_dataset_t** 
       strcat(positions, position);
     }
     write_string(writer, positions);
+    free(positions);
 
     end_element(writer, "DataArray");
     end_element(writer, "Points");
@@ -272,7 +273,7 @@ static void vtk_plot_write_asci_datasets(void* context, void* f, io_dataset_t** 
     write_attribute(writer, "type", "Int32");
     write_attribute(writer, "Name", "connectivity");
     write_attribute(writer, "format", "ascii");
-    char cnodes[10*cell_node_offsets[mesh->num_cells]];
+    char* cnodes = malloc(10*cell_node_offsets[mesh->num_cells]*sizeof(char));
     cnodes[0] = '\0';
     for (int i = 0; i < cell_node_offsets[mesh->num_cells]; ++i)
     {
@@ -281,13 +282,14 @@ static void vtk_plot_write_asci_datasets(void* context, void* f, io_dataset_t** 
       strcat(cnodes, node);
     }
     write_string(writer, cnodes);
+    free(cnodes);
     end_element(writer, "DataArray");
 
     start_element(writer, "DataArray");
     write_attribute(writer, "type", "Int32");
     write_attribute(writer, "Name", "offsets");
     write_attribute(writer, "format", "ascii");
-    char coffsets[10*(mesh->num_cells+1)];
+    char* coffsets = malloc(10*(mesh->num_cells+1)*sizeof(char));
     coffsets[0] = '\0';
     for (int i = 0; i <= mesh->num_cells; ++i)
     {
@@ -296,6 +298,7 @@ static void vtk_plot_write_asci_datasets(void* context, void* f, io_dataset_t** 
       strcat(coffsets, offset);
     }
     write_string(writer, coffsets);
+    free(coffsets);
     end_element(writer, "DataArray");
 
     start_element(writer, "DataArray");
@@ -324,12 +327,13 @@ static void vtk_plot_write_asci_datasets(void* context, void* f, io_dataset_t** 
     int faceoffsets[num_cells];
     for (int c = 0; c < num_cells; ++c)
     {
-      faceoffsets[c] = 1 + mesh->cells[c].num_faces;
+      faceoffsets[c] = (c > 0) ? faceoffsets[c-1] : 0;
+      faceoffsets[c] += 1 + mesh->cells[c].num_faces;
       for (int f = 0; f < mesh->cells[c].num_faces; ++f)
         faceoffsets[c] += face_node_offsets[f+1] - face_node_offsets[f];
       faces_data_len += faceoffsets[c];
     }
-    char data[16*faces_data_len];
+    char* data = malloc(16*faces_data_len*sizeof(char));
     char datum[16];
     data[0] = '\0';
     for (int c = 0; c < num_cells; ++c)
@@ -366,6 +370,7 @@ static void vtk_plot_write_asci_datasets(void* context, void* f, io_dataset_t** 
       strcat(data, datum);
     }
     write_string(writer, data);
+    free(data);
 
     end_element(writer, "DataArray");
 
