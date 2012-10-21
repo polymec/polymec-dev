@@ -18,6 +18,8 @@ mesh_t* create_cubic_lattice_mesh(int nx, int ny, int nz)
                           cubic_lattice_num_faces(lattice),
                           cubic_lattice_num_edges(lattice),
                           cubic_lattice_num_nodes(lattice));
+
+  int_unordered_set_t* processed_faces = int_unordered_set_new();
   for (int k = 0; k < nz; ++k)
   {
     for (int j = 0; j < ny; ++j)
@@ -187,14 +189,16 @@ mesh_t* create_cubic_lattice_mesh(int nx, int ny, int nz)
         for (int f = 0; f < 6; ++f)
         {
           mesh_add_face_to_cell(mesh, &mesh->faces[faces[f]], &mesh->cells[cell]);
-          for (int e = 0; e < 4; ++e)
+
+          if (!int_unordered_set_contains(processed_faces, faces[f]))
           {
-            mesh_add_edge_to_face(mesh, &mesh->edges[edges[f][e]], &mesh->faces[faces[f]]);
-printf("adding edge %d to face %d\n", edges[f][e], faces[f]);
-printf("adding node %d to edge %d\n", nodes[f][e][0], edges[f][e]);
-printf("adding node %d to edge %d\n", nodes[f][e][1], edges[f][e]);
-            mesh->edges[edges[f][e]].node1 = &mesh->nodes[nodes[f][e][0]];
-            mesh->edges[edges[f][e]].node2 = &mesh->nodes[nodes[f][e][1]];
+            for (int e = 0; e < 4; ++e)
+            {
+              mesh_add_edge_to_face(mesh, &mesh->edges[edges[f][e]], &mesh->faces[faces[f]]);
+              mesh->edges[edges[f][e]].node1 = &mesh->nodes[nodes[f][e][0]];
+              mesh->edges[edges[f][e]].node2 = &mesh->nodes[nodes[f][e][1]];
+            }
+            int_unordered_set_insert(processed_faces, faces[f]);
           }
         }
 
@@ -206,6 +210,9 @@ printf("adding node %d to edge %d\n", nodes[f][e][1], edges[f][e]);
       }
     }
   }
+
+  // Clean up.
+  int_unordered_set_free(processed_faces);
 
   return mesh;
 }
