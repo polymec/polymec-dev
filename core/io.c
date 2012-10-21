@@ -355,6 +355,7 @@ io_dataset_t* io_dataset_new(const char* name, int num_fields, int num_codes)
   d->fields = malloc(num_fields*sizeof(double*));
   d->field_names = calloc(num_fields, sizeof(char*));
   d->field_num_comps = calloc(num_fields, sizeof(int));
+  d->field_centerings = calloc(num_fields, sizeof(mesh_centering_t));
   d->num_fields = num_fields;
   d->codes = malloc(num_codes*sizeof(char*));
   d->code_names = calloc(num_codes, sizeof(char*));
@@ -370,6 +371,7 @@ void io_dataset_free(io_dataset_t* dataset)
     free(dataset->field_names[i]);
   free(dataset->fields);
   free(dataset->field_names);
+  free(dataset->field_centerings);
 
   for (int i = 0; i < dataset->num_codes; ++i)
     free(dataset->code_names[i]);

@@ -102,12 +102,15 @@ void generate_face_node_conn(mesh_t* mesh,
   for (int f = 0; f < num_faces; ++f)
   {
     int counter = 0, ne = mesh->faces[f].num_edges;
+printf("face %d:\n", f);
     for (int e = 0; e < ne; ++e)
     {
       edge_t* edge = mesh->faces[f].edges[e];
+printf("edge %d:\n", edge - &mesh->edges[0]);
       int node1_id = edge->node1 - &mesh->nodes[0];
       if (int_avl_tree_find(fnodes, node1_id) == NULL)
       {
+printf("  adding node %d\n", node1_id);
         nodes_for_face[f][counter++] = node1_id;
         int_avl_tree_insert(fnodes, node1_id);
       }
@@ -116,6 +119,7 @@ void generate_face_node_conn(mesh_t* mesh,
         int node2_id = edge->node2 - &mesh->nodes[0];
         if (int_avl_tree_find(fnodes, node2_id) == NULL)
         {
+printf("  adding Node %d\n", node2_id);
           nodes_for_face[f][counter++] = node2_id;
           int_avl_tree_insert(fnodes, node2_id);
         }
