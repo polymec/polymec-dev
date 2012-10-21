@@ -12,7 +12,7 @@ void test_create_cubic_lattice_mesh(void** state)
   // Create a 10x10x10 cubic lattice mesh.
   cubic_lattice_t* lattice = cubic_lattice_new(10, 10, 10);
   mesh_t* mesh = create_cubic_lattice_mesh(10, 10, 10);
-  mesh_validate(mesh);
+  mesh_verify(mesh);
   assert_int_equal(mesh->num_cells, cubic_lattice_num_cells(lattice));
   assert_int_equal(1000, mesh->num_cells);
   assert_int_equal(0, mesh->num_ghost_cells);

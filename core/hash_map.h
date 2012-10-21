@@ -100,9 +100,9 @@ static inline int map_name##_hash(map_name##_t* map, key_type key) \
   return h; \
 } \
 \
-static inline int map_name##_index(map_name##_t* map, int hash) \
+static inline int map_name##_index(int bucket_count, int hash) \
 { \
-  return hash & (map->bucket_count - 1); \
+  return hash & (bucket_count - 1); \
 } \
 \
 static inline bool map_name##_keys_equal(map_name##_t* map, key_type key1, int hash1, key_type key2, int hash2) \
@@ -113,7 +113,7 @@ static inline bool map_name##_keys_equal(map_name##_t* map, key_type key1, int h
 static inline map_name##_value_t* map_name##_get(map_name##_t* map, key_type key) \
 { \
   int h = map_name##_hash(map, key); \
-  int index = map_name##_index(map, h); \
+  int index = map_name##_index(map->bucket_count, h); \
   map_name##_entry_t* entry = map->buckets[index]; \
   while (entry != NULL) \
   { \
@@ -127,7 +127,7 @@ static inline map_name##_value_t* map_name##_get(map_name##_t* map, key_type key
 static inline bool map_name##_contains(map_name##_t* map, key_type key) \
 { \
   int h = map_name##_hash(map, key); \
-  int index = map_name##_index(map, h); \
+  int index = map_name##_index(map->bucket_count, h); \
   map_name##_entry_t* entry = map->buckets[index]; \
   while (entry != NULL) \
   { \
@@ -152,7 +152,7 @@ static inline void map_name##_expand(map_name##_t* map) \
       while (entry != NULL) \
       { \
         map_name##_entry_t* next = entry->next; \
-        int index = map_name##_index(map, entry->hash); \
+        int index = map_name##_index(new_count, entry->hash); \
         entry->next = new_buckets[index]; \
         new_buckets[index] = entry; \
         entry = next; \
@@ -167,7 +167,7 @@ static inline void map_name##_expand(map_name##_t* map) \
 static inline void map_name##_insert(map_name##_t* map, key_type key, value_type value) \
 { \
   int h = map_name##_hash(map, key); \
-  int index = map_name##_index(map, h); \
+  int index = map_name##_index(map->bucket_count, h); \
   map_name##_entry_t** p = &(map->buckets[index]); \
   while (true) \
   { \
@@ -192,7 +192,7 @@ static inline void map_name##_insert(map_name##_t* map, key_type key, value_type
 static inline void map_name##_delete(map_name##_t* map, key_type key) \
 { \
   int h = map_name##_hash(map, key); \
-  int index = map_name##_index(map, h); \
+  int index = map_name##_index(map->bucket_count, h); \
   map_name##_entry_t** p = &(map->buckets[index]); \
   map_name##_entry_t* current; \
   while ((current = *p) != NULL) \

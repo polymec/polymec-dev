@@ -129,6 +129,13 @@ void mesh_add_edge_to_face(mesh_t* mesh, edge_t* edge, face_t* face)
   }
   else
   {
+#ifndef NDEBUG
+    // Make sure this edge isn't already attached.
+    for (int e = 0; e < face->num_edges; ++e)
+    {
+      ASSERT(edge != face->edges[e]);
+    }
+#endif
     face->num_edges++;
     int ne = MAX(round_to_pow2(face->num_edges), 4);
     face->edges = arena_realloc(mesh->arena, face->edges, sizeof(edge_t*)*ne, 0);
@@ -149,6 +156,13 @@ void mesh_add_face_to_cell(mesh_t* mesh, face_t* face, cell_t* cell)
   }
   else
   {
+#ifndef NDEBUG
+    // Make sure this face isn't already attached.
+    for (int f = 0; f < cell->num_faces; ++f)
+    {
+      ASSERT(face != cell->faces[f]);
+    }
+#endif
     cell->num_faces++;
     int nf = MAX(round_to_pow2(cell->num_faces), 4);
     cell->faces = arena_realloc(mesh->arena, cell->faces, sizeof(face_t*)*nf, 0);
