@@ -62,13 +62,13 @@ static int vtk_get_num_datasets(void* context, void* file, int* num_datasets)
 static inline void start_element(xmlTextWriterPtr writer, const char* element)
 {
   int status = xmlTextWriterStartElement(writer, (xmlChar*)element);
-  ASSERT(status == 0);
+  ASSERT(status >= 0);
 }
 
 static inline void write_attribute(xmlTextWriterPtr writer, const char* attr, const char* value)
 {
   int status = xmlTextWriterWriteAttribute(writer, (xmlChar*)attr, (xmlChar*)value);
-  ASSERT(status == 0);
+  ASSERT(status >= 0);
 }
 
 static inline void write_format_attribute(xmlTextWriterPtr writer, const char* attr, const char* format, ...)
@@ -84,13 +84,13 @@ static inline void write_format_attribute(xmlTextWriterPtr writer, const char* a
 static inline void write_string(xmlTextWriterPtr writer, const char* string)
 {
   int status = xmlTextWriterWriteString(writer, (xmlChar*)string);
-  ASSERT(status == 0);
+  ASSERT(status >= 0);
 }
 
 static inline void end_element(xmlTextWriterPtr writer, const char* element)
 {
   int status = xmlTextWriterEndElement(writer);
-  ASSERT(status == 0);
+  ASSERT(status >= 0);
 }
 
 // ASCI version
