@@ -318,7 +318,7 @@ static void vtk_plot_write_asci_datasets(void* context, void* f, io_dataset_t** 
     end_element(writer, "DataArray");
 
     start_element(writer, "DataArray");
-    write_attribute(writer, "type", "UInt8");
+    write_attribute(writer, "type", "UInt32");
     write_attribute(writer, "Name", "faces");
     write_attribute(writer, "format", "ascii");
 
@@ -358,7 +358,7 @@ static void vtk_plot_write_asci_datasets(void* context, void* f, io_dataset_t** 
     end_element(writer, "DataArray");
 
     start_element(writer, "DataArray");
-    write_attribute(writer, "type", "UInt8");
+    write_attribute(writer, "type", "UInt32");
     write_attribute(writer, "Name", "faceoffsets");
     write_attribute(writer, "format", "ascii");
 
