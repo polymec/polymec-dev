@@ -183,7 +183,7 @@ mesh_t* create_cubic_lattice_mesh(int nx, int ny, int nz)
 
         edges[5][3] = edge_indices[11];
         nodes[5][3][0] = node_indices[7];
-        nodes[5][3][1] = node_indices[0];
+        nodes[5][3][1] = node_indices[4];
 
         // Hook everything up.
         for (int f = 0; f < 6; ++f)

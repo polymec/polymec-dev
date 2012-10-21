@@ -88,34 +88,34 @@ static inline int cubic_lattice_cell(cubic_lattice_t* l, int i, int j, int k)
 // Returns the index of the x-face corresponding to (i-1/2, j, k).
 static inline int cubic_lattice_x_face(cubic_lattice_t* l, int i, int j, int k)
 {
-  return (l->nx+1)*(l->ny-1)*k + (l->nx+1)*j + i;
+  return (l->nx+1)*(l->ny)*k + (l->nx+1)*j + i;
 }
 
 // Returns the index of the y-face corresponding to (i, j-1/2, k).
 static inline int cubic_lattice_y_face(cubic_lattice_t* l, int i, int j, int k)
 {
   return cubic_lattice_num_x_faces(l) + 
-         (l->nx-1)*(l->ny+1)*k + (l->nx-1)*j + i;
+         (l->nx)*(l->ny+1)*k + (l->nx)*j + i;
 }
 
 // Returns the index of the z-face corresponding to (i, j, k-1/2).
 static inline int cubic_lattice_z_face(cubic_lattice_t* l, int i, int j, int k)
 {
   return cubic_lattice_num_x_faces(l) + cubic_lattice_num_y_faces(l) + 
-         (l->nx-1)*(l->ny-1)*k + (l->nx-1)*j + i;
+         (l->nx)*(l->ny)*k + (l->nx)*j + i;
 }
 
 // Returns the index of the x-edge corresponding to (i, j-1/2, k-1/2).
 static inline int cubic_lattice_x_edge(cubic_lattice_t* l, int i, int j, int k)
 {
-  return (l->nx-1)*(l->ny+1)*k + (l->nx-1)*j + i;
+  return (l->nx)*(l->ny+1)*k + (l->nx)*j + i;
 }
 
 // Returns the index of the y-edge corresponding to (i-1/2, j, k-1/2).
 static inline int cubic_lattice_y_edge(cubic_lattice_t* l, int i, int j, int k)
 {
   return cubic_lattice_num_x_edges(l) + 
-         (l->nx+1)*(l->ny-1)*k + (l->nx+1)*j + i;
+         (l->nx+1)*(l->ny)*k + (l->nx+1)*j + i;
 }
 
 // Returns the index of the z-edge corresponding to (i-1/2, j-1/2, k).

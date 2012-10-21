@@ -193,10 +193,8 @@ void mesh_free(mesh_t* mesh)
     arena_close(arena);
 }
 
-void mesh_validate(mesh_t* mesh)
+void mesh_verify(mesh_t* mesh)
 {
-  char error[1024];
-
   // Check cell-face topology.
   for (int c = 0; c < mesh->num_cells; ++c)
   {
