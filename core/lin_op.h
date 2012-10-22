@@ -13,15 +13,15 @@ typedef struct lin_op_t lin_op_t;
 
 // A function for determining the number of weights in the stencil of 
 // the linear operator for a given cell.
-typedef int (*lin_op_stencil_size_func)(void*, cell_t*);
+typedef int (*lin_op_stencil_size_func)(void*, mesh_t*, cell_t*);
 
 // A function for computing the offsets (in index space) for the weights
 // in the stencil of the linear operator for a given cell.
-typedef void (*lin_op_compute_offsets_func)(void*, cell_t*, int*);
+typedef void (*lin_op_compute_offsets_func)(void*, mesh_t*, cell_t*, int*);
 
 // A function for computing the offsets (in index space) for the weights
 // in the stencil of the linear operator for a given cell.
-typedef void (*lin_op_compute_weights_func)(void*, cell_t*, int*, double*);
+typedef void (*lin_op_compute_weights_func)(void*, mesh_t*, cell_t*, int*, double*);
 
 // A destructor function for the context object (if any).
 typedef void (*lin_op_dtor)(void*);
@@ -56,6 +56,12 @@ void lin_op_compute_offsets(lin_op_t* op, cell_t* cell, int* offsets);
 // Computes the weights for the stencil of the linear operator applied to 
 // the given cell.
 void lin_op_compute_weights(lin_op_t* op, cell_t* cell, int* offsets, double* weights);
+
+// These methods can be used in the virtual table of any 2nd-order finite 
+// volume linear operator.
+int fv2_lin_op_stencil_size(void* context, mesh_t* mesh, cell_t* cell);
+void fv2_lin_op_compute_offsets(void* context, mesh_t* mesh, cell_t* cell, int* offsets);
+
 
 #ifdef __cplusplus
 }

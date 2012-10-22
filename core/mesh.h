@@ -67,6 +67,11 @@ struct face_t
   // Face area.
   double area;
 };
+
+static inline cell_t* face_opp_cell(face_t* face, cell_t* cell)
+{
+  return (face->cell1 == cell) ? face->cell2 : face->cell1;
+}
  
 typedef struct mesh_storage_t mesh_storage_t;
 
