@@ -52,19 +52,46 @@ void* lin_op_context(lin_op_t* op)
 int lin_op_stencil_size(lin_op_t* op, cell_t* cell)
 {
   ASSERT(cell != NULL);
-  return op->vtable.stencil_size(op, cell);
+  return op->vtable.stencil_size(op->context, op->mesh, cell);
 }
 
 void lin_op_compute_offsets(lin_op_t* op, cell_t* cell, int* offsets)
 {
   ASSERT(cell != NULL);
-  return op->vtable.compute_offsets(op, cell, offsets);
+  ASSERT(offsets != NULL);
+  return op->vtable.compute_offsets(op->context, op->mesh, cell, offsets);
 }
 
 void lin_op_compute_weights(lin_op_t* op, cell_t* cell, int* offsets, double* weights)
 {
   ASSERT(cell != NULL);
-  return op->vtable.compute_weights(op, cell, offsets, weights);
+  ASSERT(offsets != NULL);
+  ASSERT(weights != NULL);
+  return op->vtable.compute_weights(op->context, op->mesh, cell, offsets, weights);
+}
+
+int fv2_lin_op_stencil_size(void* context, mesh_t* mesh, cell_t* cell)
+{
+  int size = 1;
+  for (int f = 0; f < cell->num_faces; ++f)
+  {
+    if (face_opp_cell(cell->faces[f], cell) != NULL)
+      ++size;
+  }
+  return size;
+}
+
+void fv2_lin_op_compute_offsets(void* context, mesh_t* mesh, cell_t* cell, int* offsets)
+{
+  int i = 0;
+  offsets[i++] = 0; // "diagonal" term
+  int cell_id = cell - &mesh->cells[0];
+  for (int f = 0; f < cell->num_faces; ++f)
+  {
+    cell_t* opp_cell = face_opp_cell(cell->faces[f], cell);
+    if (opp_cell != NULL)
+      offsets[i++] = (opp_cell - &mesh->cells[0]) - cell_id;
+  }
 }
 
 #ifdef __cplusplus

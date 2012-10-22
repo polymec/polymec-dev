@@ -62,13 +62,15 @@ static int vtk_get_num_datasets(void* context, void* file, int* num_datasets)
 static inline void start_element(xmlTextWriterPtr writer, const char* element)
 {
   int status = xmlTextWriterStartElement(writer, (xmlChar*)element);
-  ASSERT(status >= 0);
+  if (status < 0)
+    arbi_error("Could not start element '%s' in VTK file.", element);
 }
 
 static inline void write_attribute(xmlTextWriterPtr writer, const char* attr, const char* value)
 {
   int status = xmlTextWriterWriteAttribute(writer, (xmlChar*)attr, (xmlChar*)value);
-  ASSERT(status >= 0);
+  if (status < 0)
+    arbi_error("Could not write attribute '%s' in VTK file.", attr);
 }
 
 static inline void write_format_attribute(xmlTextWriterPtr writer, const char* attr, const char* format, ...)
@@ -84,12 +86,15 @@ static inline void write_format_attribute(xmlTextWriterPtr writer, const char* a
 static inline void write_string(xmlTextWriterPtr writer, const char* string)
 {
   int status = xmlTextWriterWriteString(writer, (xmlChar*)string);
-  ASSERT(status >= 0);
+  if (status < 0)
+    arbi_error("Could not write string in VTK file.");
 }
 
 static inline void end_element(xmlTextWriterPtr writer, const char* element)
 {
   int status = xmlTextWriterEndElement(writer);
+  if (status < 0)
+    arbi_error("Could not end element '%s' in VTK file.", element);
   ASSERT(status >= 0);
 }
 
