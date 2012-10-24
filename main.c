@@ -42,36 +42,17 @@ int main(int argc, char** argv)
   if (opts == NULL)
     usage();
 
-  // Extract the name of the desired model and the command.
-  char* model_name = options_model(opts);
+  // Extract the command and arguments.
   char* command = options_command(opts);
   char* input = options_input(opts);
-  if ((model_name == NULL) && (!strcmp(command, "help")))
+  if (!strcmp(command, "help"))
     usage();
 
-  // List mode.
-  if (!strcmp(model_name, "list"))
-  {
-    int num_models;
-    char** model_names = registered_models(&num_models);
-    printf("Available models:\n");
-    for (int i = 0; i < num_models; ++i)
-      printf("   %s\n", model_names[i]);
-    printf("\n");
-    free(model_names);
-    exit(0);
-  }
-
   // Validate our inputs.
-  if (!model_exists(model_name))
-  {
-    fprintf(stderr, "arbi: invalid model: '%s'\n", model_name);
-    exit(-1);
-  }
   if (command == NULL)
   {
-    fprintf(stderr, "arbi: no command given for model '%s'! Usage:\n", model_name);
-    fprintf(stderr, "arbi %s [command] [command args]\n", model_name);
+    fprintf(stderr, "arbi: no command given! Usage:\n");
+    fprintf(stderr, "arbi [command] [command args]\n");
     exit(-1);
   }
   static const char* valid_commands[] = {"run", "benchmark", "help", NULL};
@@ -88,6 +69,7 @@ int main(int argc, char** argv)
     exit(-1);
   }
 
+#if 0
   // Attempt to construct the model.
   model_t* model = model_new(model_name, opts);
   ASSERT(model != NULL);
@@ -134,6 +116,7 @@ int main(int argc, char** argv)
   simulation_free(sim);
   model_free(model);
   options_free(opts);
+#endif
 
   // That's it.
   return 0;

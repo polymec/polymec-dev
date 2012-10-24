@@ -18,7 +18,6 @@ typedef struct
 
 struct options_t 
 {
-  char* model;
   char* command;
   char* input;
   options_kv_t* params;
@@ -32,7 +31,6 @@ static options_kv_t* options_kv_new(const char* key, const char* value)
   data->slen = strlen(value);
   return data;
 }
-//------------------------------------------------------------------------
 
 static void options_set(options_t* opts, const char* name, const char* value)
 {
@@ -47,19 +45,16 @@ options_t* options_parse(int argc, char** argv)
     return NULL;
   options_t* o = malloc(sizeof(options_t));
   o->command = NULL;
-  o->model = NULL;
 
   // Parse the basic options.
   if (!strcmp(argv[1], "help") || !strcmp(argv[1], "--help"))
     o->command = strdup("help");
-  else
-    o->model = strdup(argv[1]);
-  if ((argc >= 3) && (o->command == NULL))
-    o->command = strdup(argv[2]);
-  if ((argc >= 4) && (!strcmp(o->command, "run") || 
+  else 
+    o->command = strdup(argv[1]);
+  if ((argc >= 3) && (!strcmp(o->command, "run") || 
                       !strcmp(o->command, "benchmark")))
   {
-    o->input = strdup(argv[3]);
+    o->input = strdup(argv[2]);
   }
 
   // Now parse parameters.
@@ -88,8 +83,6 @@ options_t* options_parse(int argc, char** argv)
 
 void options_free(options_t* opts)
 {
-  if (opts->model != NULL)
-    free(opts->model);
   if (opts->command != NULL)
     free(opts->command);
   if (opts->input != NULL)
@@ -106,11 +99,6 @@ void options_free(options_t* opts)
     free(data);
   }
   free(opts);
-}
-
-char* options_model(options_t* opts)
-{
-  return opts->model;
 }
 
 char* options_command(options_t* opts)
