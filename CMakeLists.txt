@@ -70,7 +70,7 @@ add_subdirectory(geometry)
 add_subdirectory(poisson)
 
 # Executable.
-add_executable(arbi_exe main.c)
-set_target_properties(arbi_exe PROPERTIES OUTPUT_NAME arbi)
-target_link_libraries(arbi_exe ${ARBI_LIBS})
+#add_executable(arbi_exe main.c)
+#set_target_properties(arbi_exe PROPERTIES OUTPUT_NAME arbi)
+#target_link_libraries(arbi_exe ${ARBI_LIBS})
 

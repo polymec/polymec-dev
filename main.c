@@ -5,9 +5,6 @@
 #include "core/model.h"
 #include "core/simulation.h"
 
-// Models.
-#include "poisson/poisson.h"
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -33,9 +30,6 @@ int main(int argc, char** argv)
 {
   // Start everything up.
   arbi_init(argc, argv);
-
-  // Register some models.
-  register_poisson();
 
   // Parse options on the command line.
   options_t* opts = options_parse(argc, argv);

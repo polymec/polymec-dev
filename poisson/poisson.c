@@ -1,206 +1,110 @@
-// poisson.c - The Poisson engine for Arbi.
-
 #include <string.h>
 #include <stdlib.h>
-#include "poisson/poisson.h"
-#include "core/constant_st_func.h"
-#include "geometry/create_cvt.h"
-#include "geometry/plane.h"
-#include "geometry/cylinder.h"
-#include "geometry/sphere.h"
-#include "geometry/intersection.h"
+#include "core/arbi.h"
+#include "core/options.h"
+#include "core/simulation.h"
+#include "poisson/poisson_model.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-typedef struct 
+static const char* usage_str = 
+"poisson: usage:\n"
+"poisson [command] [args]\n\n"
+"Here, [command]\n"
+"is one of the following:\n\n"
+"   run [filename]       -- Runs a simulation with input from the given file.\n"
+"   benchmark [name]     -- Runs the given benchmark problem.\n"
+"   help                 -- Prints information about the given model.\n\n";
+
+static void usage()
 {
-  mesh_t* mesh;         // Mesh.
-  st_func_t* RHS;       // Right-hand side function.
-} poisson_t;
+  fprintf(stderr, "%s\n", usage_str);
+  exit(-1);
+}
 
-// Benchmarks
-
-static void run_paraboloid(options_t* opts)
+int main(int argc, char** argv)
 {
-  // Extract the dimension of the benchmark.
-  char* dim_str = options_value(opts, "dim");
-  int dim = 3;
-  if (dim_str != NULL)
+  // Start everything up.
+  arbi_init(argc, argv);
+
+  // Parse options on the command line.
+  options_t* opts = options_parse(argc, argv);
+  if (opts == NULL)
+    usage();
+
+  // Extract the command and arguments.
+  char* command = options_command(opts);
+  char* input = options_input(opts);
+  if (!strcmp(command, "help"))
+    usage();
+
+  // Validate our inputs.
+  if (command == NULL)
   {
-    dim = atoi(options_value(opts, "dim"));
-    if ((dim < 1) || (dim > 3))
-      arbi_error("Invalid dimension: %d", dim);
+    fprintf(stderr, "arbi: no command given! Usage:\n");
+    fprintf(stderr, "arbi [command] [command args]\n");
+    exit(-1);
+  }
+  static const char* valid_commands[] = {"run", "benchmark", "help", NULL};
+  int c = 0;
+  while (valid_commands[c] != NULL)
+  {
+    if (!strcmp(command, valid_commands[c]))
+      break;
+    ++c;
+  }
+  if (valid_commands[c] == NULL)
+  {
+    fprintf(stderr, "arbi: invalid command: '%s'\n", command);
+    exit(-1);
   }
 
-  // Get the geometry.
-  static const char* geom_default = "dirichlet";
-  char* geom = options_value(opts, "geometry");
-  if (geom != NULL)
+  // Attempt to construct the model.
+  model_t* model = poisson_model_new(opts);
+  ASSERT(model != NULL);
+
+  // Have we been asked to run a benchmark?
+  if (!strcmp(command, "benchmark"))
   {
-    if (dim == 1)
+    if (input == NULL)
     {
-      arbi_warn("geometry is ignored for dim == 1");
+      fprintf(stderr, "poisson: No benchmark problem given! Usage:\n");
+      fprintf(stderr, "poisson benchmark [problem]\n");
+      exit(-1);
     }
-    else
-    {
-      if (strcmp(geom, "box") && 
-          strcmp(geom, "cylinder") && 
-          strcmp(geom, "sphere"))
-      {
-        arbi_error("Invalid geometry: %s", geom);
-      }
-    }
+    model_run_benchmark(model, input, opts);
+    exit(0);
   }
-  else
-    geom = (char*)geom_default;
 
-  // Get the boundary condition.
-  static const char* bc_default = "dirichlet";
-  char* bcond = options_value(opts, "bc");
-  if (bcond != NULL)
+  // We are asked to run a simulation.
+  ASSERT(!strcmp(command, "run"));
+  if (input == NULL)
   {
-    if (strcmp(bcond, "dirichlet") && 
-        strcmp(bcond, "neumann"))
-    {
-      arbi_error("Invalid boundary condition: %s", bcond);
-    }
-  }
-  else
-    bcond = (char*)bc_default;
-
-  // Resolution.
-  int N = 100;
-
-  // Create the model.
-  model_t* model = model_new("poisson", opts);
-  poisson_t* p = model_context(model);
-
-  // Create the (constant density) mesh.
-  sp_func_t* boundary = NULL;
-  if (!strcmp(geom, "box"))
-  {
-    sp_func_t* planes[6];
-    vector_t n = {-1.0, 0.0, 0.0};
-    point_t x = { 0.0, 0.5, 0.5};
-    planes[0] = plane_new(n, x);
-    n.x = 1.0, n.y = 0.0, n.z = 0.0;
-    x.x = 1.0, x.y = 0.5, x.z = 0.5;
-    planes[1] = plane_new(n, x);
-    n.x = 0.0, n.y = -1.0, n.z = 0.0;
-    x.x = 0.5, x.y = 0.0, x.z = 0.5;
-    planes[2] = plane_new(n, x);
-    n.x = 0.0, n.y = 1.0, n.z = 0.0;
-    x.x = 0.5, x.y = 1.0, x.z = 0.5;
-    planes[3] = plane_new(n, x);
-    n.x = 0.0, n.y = 0.0, n.z = -1.0;
-    x.x = 0.5, x.y = 0.5, x.z = 0.0;
-    planes[4] = plane_new(n, x);
-    n.x = 0.0, n.y = 0.0, n.z = 1.0;
-    x.x = 0.5, x.y = 0.5, x.z = 1.0;
-    planes[5] = plane_new(n, x);
-    boundary = intersection_new(planes, 6);
-  }
-  else if (!strcmp(geom, "cylinder"))
-  {
-    sp_func_t* cyl[3];
-    vector_t n = { 0.0, 0.0,-1.0};
-    point_t x = { 0.5, 0.5, 0.0};
-    cyl[0] = plane_new(n, x);
-    n.x = 0.0, n.y = 0.0, n.z = 1.0;
-    x.x = 0.5, x.y = 0.5, x.z = 1.0;
-    cyl[1] = plane_new(n, x);
-    cyl[2] = cylinder_new(n, x, 1.0);
-    boundary = intersection_new(cyl, 3);
-  }
-  else if (!strcmp(geom, "sphere"))
-  {
-    point_t x = { 0.5, 0.5, 0.5};
-    boundary = sphere_new(x, 1.0);
-  }
-  double one = 1.0;
-  sp_func_t* rho = constant_sp_func_new(1, &one);
-  p->mesh = create_bounded_cvt(N, rho, &cvt_energy_function, boundary);
-
-  // Create the RHS function.
-  double two = 2.0;
-  p->RHS = constant_st_func_new(1, &two);
-
-  // Set boundary conditions.
-  // FIXME
-  if (!strcmp(bcond, "dirichlet"))
-  {
-  }
-  else if (!strcmp(bcond, "neumann"))
-  {
+    fprintf(stderr, "poisson: No input file given! Usage:\n");
+    fprintf(stderr, "poisson run [input file]\n");
+    exit(-1);
   }
 
-  // Run the thing.
-  double t1 = 0.0, t2 = 1.0;
-  model_run(model, t1, t2);
+  // Create a simulation in which to execute the model.
+  simulation_t* sim = simulation_new(model, input, opts);
+
+  // Initialize the simulation.
+  simulation_init(sim);
+
+  // Run the simulation.
+  simulation_run(sim);
 
   // Clean up.
+  simulation_free(sim);
   model_free(model);
-}
+  options_free(opts);
 
-// Vtable stuff
-static void* poisson_ctor(options_t* opts)
-{
-  poisson_t* p = malloc(sizeof(poisson_t));
-  return p;
-}
-
-static void poisson_run_benchmark(const char* benchmark, options_t* opts)
-{
-  if (!strcmp(benchmark, "paraboloid"))
-  {
-    run_paraboloid(opts);
-  }
-  else
-  {
-    char err[1024];
-    snprintf(err, 1024, "poisson: unknown benchmark: '%s'", benchmark);
-    arbi_error(err);
-  }
-}
-
-static void poisson_init(void* p, double t)
-{
-}
-
-static void poisson_advance(void* p, double t, double dt)
-{
-}
-
-static void poisson_plot(void* p, plot_interface_t* plot, double t, int step)
-{
-}
-
-static void poisson_dtor(void* p)
-{
-  free(p);
-}
-
-static model_vtable poisson_vtable = 
-{
-  .ctor          = &poisson_ctor,
-  .run_benchmark = &poisson_run_benchmark,
-  .init          = &poisson_init,
-  .advance       = &poisson_advance,
-  .plot          = &poisson_plot,
-  .dtor          = &poisson_dtor
-};
-
-// FIXME
-static const char* poisson_usage = "poisson model\n\n";
-
-void register_poisson()
-{
-  register_model("poisson", poisson_usage, poisson_vtable);
+  // That's it.
+  return 0;
 }
 
 #ifdef __cplusplus
 }
 #endif
-
