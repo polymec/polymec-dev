@@ -17,7 +17,7 @@ extern "C" {
 // A model is a numerical model of a physical phenomenon.
 typedef struct model_t model_t;
 
-// A model constructor function.
+// A model constructor function for creating an object context.
 typedef void* (*model_ctor)(options_t* options);
 
 // A function for running a benchmark calculation.
@@ -47,7 +47,6 @@ typedef void (*model_dtor)(void*);
 // This virtual table must be implemented by any model.
 typedef struct 
 {
-  model_ctor            ctor;
   model_run_bench_func  run_benchmark;
   model_init_func       init;
   model_max_dt_func     max_dt;
@@ -58,22 +57,8 @@ typedef struct
   model_dtor            dtor;
 } model_vtable;
 
-// Registers a new model with the models database.
-void register_model(const char* name, 
-                    const char* usage_string,
-                    model_vtable vtable);
-
-// Returns a pointer to an array of names of registered models of 
-// length num_models. This pointer must be freed (but the strings 
-// therein must not).
-char** registered_models(int* num_models);
-
-// Returns true if a model with the given name has been registered with 
-// register_model, false if not.
-bool model_exists(const char* name);
-
-// Creates an instance of the given type of model.
-model_t* model_new(const char* name, options_t* options);
+// Creates an instance a model with the given name and characteristics.
+model_t* model_new(const char* name, void* context, model_vtable vtable);
 
 // Destroy the model.
 void model_free(model_t* model);
