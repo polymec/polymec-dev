@@ -16,9 +16,6 @@ options_t* options_parse(int argc, char** argv);
 // Free the storage allocated to the given options.
 void options_free(options_t* opts);
 
-// Returns the name of the computational model passed to the command line.
-char* options_model(options_t* opts);
-
 // Returns the command passed on the command line, or NULL if no command 
 // was given.
 char* options_command(options_t* opts);
