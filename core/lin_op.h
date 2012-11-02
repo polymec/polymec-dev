@@ -15,13 +15,9 @@ typedef struct lin_op_t lin_op_t;
 // the linear operator for a given cell.
 typedef int (*lin_op_stencil_size_func)(void*, mesh_t*, int);
 
-// A function for computing the offsets (in index space) for the weights
-// in the stencil of the linear operator for a given cell.
-typedef void (*lin_op_compute_offsets_func)(void*, mesh_t*, int, int*);
-
-// A function for computing the offsets (in index space) for the weights
-// in the stencil of the linear operator for a given cell.
-typedef void (*lin_op_compute_weights_func)(void*, mesh_t*, int, int*, double*);
+// A function for computing the offsets (in index space) and the weights
+// for the stencil of the linear operator for a given cell.
+typedef void (*lin_op_compute_stencil_func)(void*, mesh_t*, int, int*, double*);
 
 // A destructor function for the context object (if any).
 typedef void (*lin_op_dtor)(void*);
@@ -30,8 +26,7 @@ typedef void (*lin_op_dtor)(void*);
 typedef struct 
 {
   lin_op_stencil_size_func    stencil_size;
-  lin_op_compute_offsets_func compute_offsets;
-  lin_op_compute_weights_func compute_weights;
+  lin_op_compute_stencil_func compute_stencil;
   lin_op_dtor                 dtor;
 } lin_op_vtable;
 
@@ -49,14 +44,9 @@ void* lin_op_context(lin_op_t* op);
 // applied to the geometric element with the given index.
 int lin_op_stencil_size(lin_op_t* op, int index);
 
-// Computes the offsets (in index space) for the weights in the stencil 
-// of the linear operator applied to a geometric element with the given 
-// index.
-void lin_op_compute_offsets(lin_op_t* op, int index, int* offsets);
-
-// Computes the weights for the stencil of the linear operator applied to 
-// the geometric element with the given index.
-void lin_op_compute_weights(lin_op_t* op, int index, int* offsets, double* weights);
+// Computes the offsets (in index space) and weights for the stencil of 
+// the linear operator applied to the geometric element with the given index.
+void lin_op_compute_stencil(lin_op_t* op, int index, int* offsets, double* weights);
 
 #ifdef __cplusplus
 }
