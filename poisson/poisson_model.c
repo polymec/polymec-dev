@@ -110,6 +110,51 @@ static void run_analytic_problem(mesh_t* mesh, st_func_t* rhs, str_ptr_unordered
   model_free(model);
 }
 
+static void poisson_run_laplace_sov(int variant)
+{
+  // Dimension.
+  int dim;
+  // FIXME
+
+  // RHS function.
+  st_func_t* rhs;
+  // FIXME
+
+  // Boundary conditions.
+  str_ptr_unordered_map_t* bcs = str_ptr_unordered_map_new();
+  if ((variant % 3) == 0)
+    str_ptr_unordered_map_insert(bcs, "boundary", create_dirichlet_bc(NULL));
+  else if ((variant % 3) == 1)
+    str_ptr_unordered_map_insert(bcs, "boundary", create_neumann_bc(NULL));
+  else // if ((variant % 3) == 2)
+    str_ptr_unordered_map_insert(bcs, "boundary", create_robin_bc(NULL));
+
+  // Analytic solution.
+  sp_func_t* sol;
+  // FIXME = create_paraboloid_solution(variant);
+
+  // Start/end times.
+  double t1, t2;
+  // FIXME
+
+  // Base resolution.
+  int N0;
+  // FIXME
+
+  // Number of refinements.
+  int num_refinements;
+  // FIXME
+
+  // Do a convergence study.
+  double Lpnorms[num_refinements][3];
+  for (int iter = 0; iter < num_refinements; ++iter)
+  {
+    int N = pow(N0, iter+1);
+    mesh_t* mesh = create_cube_mesh(dim, N);
+    run_analytic_problem(mesh, rhs, bcs, t1, t2, sol, Lpnorms[iter]);
+  }
+}
+
 static void poisson_run_paraboloid(int variant)
 {
   // Dimension.
@@ -162,7 +207,12 @@ static void poisson_run_paraboloid(int variant)
 static void poisson_run_benchmark(const char* benchmark)
 {
   char* variant_str = NULL;
-  if ((variant_str = strstr(benchmark, "paraboloid")) != NULL)
+  if ((variant_str = strstr(benchmark, "laplace_sov")) != NULL)
+  {
+    int variant = atoi(variant_str + strlen("laplace_sov"));
+    poisson_run_laplace_sov(variant);
+  }
+  else if ((variant_str = strstr(benchmark, "paraboloid")) != NULL)
   {
     int variant = atoi(variant_str + strlen("paraboloid"));
     poisson_run_paraboloid(variant);
@@ -204,7 +254,14 @@ static void poisson_dtor(void* ctx)
 {
   poisson_t* p = (poisson_t*)ctx;
   mesh_free(p->mesh);
-  // FIXME: BCs are leaked.
+  int pos = 0;
+  char* key;
+  void* val;
+  while (str_ptr_unordered_map_next(p->bcs, &pos, &key, &val))
+  {
+    free(key);
+    free_bc(val);
+  }
   free(p);
 }
 
@@ -218,6 +275,10 @@ model_t* poisson_model_new(options_t* options)
                           .dtor = &poisson_dtor};
   poisson_t* context = malloc(sizeof(poisson_t));
   model_t* model = model_new("poisson", context, vtable);
+  static const char* benchmarks[] = {"laplace_sov1", "laplace_sov2", "laplace_sov3", 
+                                     "paraboloid1", "paraboloid2", "paraboloid3",
+                                     NULL};
+  model_register_benchmarks(model, benchmarks);
   if (options != NULL)
   {
   }
