@@ -2,26 +2,17 @@
 #include <string.h>
 #include <gc/gc.h>
 #include "core/options.h"
-#include "core/uthash.h"
+#include "core/unordered_map.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-// Hashed datum.
-typedef struct 
-{
-  char *key;         // hash key
-  char *value;       // hash value
-  int slen;          // Length for string.
-  UT_hash_handle hh; // For uthash
-} options_kv_t;
-
 struct options_t 
 {
   char* command;
   char* input;
-  options_kv_t* params;
+  str_str_unordered_map_t* params;
 };
 
 static void options_free(void* ctx, void* dummy)
@@ -34,32 +25,19 @@ static void options_free(void* ctx, void* dummy)
     free(opts->input);
 
   // Delete all parameter data.
-  options_kv_t *data, *tmp;
-  HASH_ITER(hh, opts->params, data, tmp)
+  int pos = 0;
+  char *key, *value;
+  while (str_str_unordered_map_next(opts->params, &pos, &key, &value))
   {
-    if (data->slen >= 0)
-      free(data->value);
-    HASH_DEL(opts->params, data);
-    free(data->key);
-    free(data);
+    free(key);
+    free(value);
   }
   free(opts);
 }
 
-static options_kv_t* options_kv_new(const char* key, const char* value)
-{
-  options_kv_t* data = GC_MALLOC(sizeof(options_kv_t));
-  data->key = strdup(key);
-  data->value = strdup(value);
-  data->slen = strlen(value);
-  GC_register_finalizer(data, &options_free, data, NULL, NULL);
-  return data;
-}
-
 static void options_set(options_t* opts, const char* name, const char* value)
 {
-  options_kv_t* data = options_kv_new(name, value);
-  HASH_ADD_KEYPTR(hh, opts->params, name, strlen(name), data);
+  str_str_unordered_map_insert(opts->params, strdup(name), strdup(value));
 }
 
 options_t* options_parse(int argc, char** argv)
@@ -117,9 +95,8 @@ char* options_input(options_t* opts)
 
 char* options_value(options_t* opts, const char* name)
 {
-  options_kv_t* data;
-  HASH_FIND_STR(opts->params, name, data);
-  return data->value;
+  char** value = str_str_unordered_map_get(opts->params, name);
+  return (value != NULL) ? *value : NULL;
 }
 
 #ifdef __cplusplus

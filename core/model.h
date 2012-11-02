@@ -72,8 +72,18 @@ void* model_context(model_t* model);
 // Print usage information for the model to the given file stream.
 void model_usage(model_t* model, FILE* stream);
 
+// Associate the given list of benchmarks with this model.
+// Here, benchmarks is a NULL-terminated array of strings.
+void model_register_benchmarks(model_t* model, const char** benchmarks);
+
+// Returns an array containing the names of benchmarks, plus its length.
+void model_get_benchmarks(model_t* model, char*** benchmarks, int* num_benchmarks);
+
 // Runs the given benchmark problem for the model.
 void model_run_benchmark(model_t* model, const char* benchmark);
+
+// Runs all benchmark problems for the model.
+void model_run_benchmarks(model_t* model);
 
 // Initialize the model at the given time.
 void model_init(model_t* model, double t);
