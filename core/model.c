@@ -36,10 +36,10 @@ char* model_name(model_t* model)
   return model->name;
 }
 
-void model_run_benchmark(model_t* model, const char* benchmark, options_t* opts)
+void model_run_benchmark(model_t* model, const char* benchmark)
 {
   if (model->vtable.run_benchmark != NULL)
-    model->vtable.run_benchmark(benchmark, opts);
+    model->vtable.run_benchmark(benchmark);
   else
   {
     char err[1024];

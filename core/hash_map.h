@@ -3,6 +3,8 @@
 
 #include <stdlib.h>
 #include "core/arbi.h"
+#include "core/hash_functions.h"
+#include "core/comparators.h"
 
 // A hash map is a hash table that associates keys with values.
 // One defines a hash map using
@@ -220,5 +222,8 @@ static inline void map_name##_foreach(map_name##_t* map, map_name##_visitor visi
   } \
 } \
 \
+
+// Define some hash maps.
+DEFINE_HASH_MAP(str_ptr_hash_map, char*, void*, string_hash, string_equals)
 
 #endif

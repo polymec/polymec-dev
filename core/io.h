@@ -123,7 +123,7 @@ int io_num_datasets(io_interface_t* interface);
 void io_set_num_datasets(io_interface_t* interface, int num_datasets);
 
 // Appends the given dataset to the end of the list of datasets in the 
-// given interface.
+// given interface. The io_interface assumes control over dataset.
 void io_append_dataset(io_interface_t* interface, io_dataset_t* dataset);
 
 // Returns the name of the dataset with the given index.
