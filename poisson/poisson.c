@@ -16,6 +16,7 @@ static const char* usage_str =
 "is one of the following:\n\n"
 "   run [filename]       -- Runs a simulation with input from the given file.\n"
 "   benchmark [name]     -- Runs the given benchmark problem.\n"
+"   benchmarks           -- Runs all benchmark problems.\n"
 "   help                 -- Prints information about the given model.\n\n";
 
 static void usage()
@@ -75,6 +76,13 @@ int main(int argc, char** argv)
       exit(-1);
     }
     model_run_benchmark(model, input);
+    exit(0);
+  }
+
+  // Have we been asked to run all benchmarks?
+  if (!strcmp(command, "benchmarks"))
+  {
+    model_run_benchmarks(model);
     exit(0);
   }
 

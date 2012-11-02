@@ -12,6 +12,8 @@ struct model_t
   void* context;
   char* name;
   model_vtable vtable;
+  char** benchmarks;
+  int num_benchmarks;
 };
 
 model_t* model_new(const char* name, void* context, model_vtable vtable)
@@ -20,6 +22,8 @@ model_t* model_new(const char* name, void* context, model_vtable vtable)
   model->vtable = vtable;
   model->context = context;
   model->name = strdup(name);
+  model->num_benchmarks = 0;
+  model->benchmarks = NULL;
   return model;
 }
 
@@ -28,12 +32,42 @@ void model_free(model_t* model)
   if ((model->context != NULL) && (model->vtable.dtor != NULL))
     model->vtable.dtor(model->context);
   free(model->name);
+  model_register_benchmarks(model, NULL);
   free(model);
 }
 
 char* model_name(model_t* model)
 {
   return model->name;
+}
+
+void model_register_benchmarks(model_t* model, const char** benchmarks)
+{
+  if (model->benchmarks != NULL)
+  {
+    for (int i = 0; i < model->num_benchmarks; ++i)
+      free(model->benchmarks[i]);
+    free(model->benchmarks);
+  }
+  model->num_benchmarks = 0;
+  char* p = (char*)benchmarks[0];
+  while (p != NULL) 
+    model->num_benchmarks++;
+  model->benchmarks = malloc(sizeof(char*)*model->num_benchmarks);
+  for (int i = 0; i < model->num_benchmarks; ++i)
+    model->benchmarks[i] = strdup(benchmarks[i]);
+}
+
+void model_get_benchmarks(model_t* model, char*** benchmarks, int* num_benchmarks)
+{
+  *benchmarks = model->benchmarks;
+  *num_benchmarks = model->num_benchmarks;
+}
+
+void model_run_benchmarks(model_t* model)
+{
+  for (int i = 0; i < model->num_benchmarks; ++i)
+    model_run_benchmark(model, (const char*)model->benchmarks[i]);
 }
 
 void model_run_benchmark(model_t* model, const char* benchmark)

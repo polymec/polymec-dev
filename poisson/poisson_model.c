@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include "petscmat.h"
 #include "petscvec.h"
-#include "core/hash_map.h"
+#include "core/unordered_map.h"
 #include "core/constant_st_func.h"
 #include "geometry/create_cubic_lattice_mesh.h"
 #include "geometry/create_cvt.h"
@@ -67,11 +67,11 @@ typedef struct
   st_func_t* rhs;           // Right-hand side function.
   double* phi;              // Solution.
 
-  str_ptr_hash_map_t* bcs;  // Boundary conditions.
+  str_ptr_unordered_map_t* bcs;  // Boundary conditions.
 } poisson_t;
 
 // A proper constructor.
-static model_t* create_poisson(mesh_t* mesh, st_func_t* rhs, str_ptr_hash_map_t* bcs)
+static model_t* create_poisson(mesh_t* mesh, st_func_t* rhs, str_ptr_unordered_map_t* bcs)
 {
   model_t* poisson = poisson_model_new(NULL);
   poisson_t* p = (poisson_t*)model_context(poisson);
@@ -85,84 +85,18 @@ static model_t* create_poisson(mesh_t* mesh, st_func_t* rhs, str_ptr_hash_map_t*
 //                            Benchmarks
 //------------------------------------------------------------------------
 
-// Paraboloid and variants.
-static mesh_t* create_paraboloid_mesh(int variant, int iteration)
+// Mesh generation for benchmark problems.
+static mesh_t* create_cube_mesh(int dim, int N)
 {
-  int dim = (variant % 3) + 1;
-
   // Get the characteristic resolution.
-  int N0 = (dim == 1) ? 128 : (dim == 2) ? 64 : 16;
-  int N[3] = {N0, N0, N0};
-  for (int iter = 0; iter < iteration; ++iter)
-  {
-    for (int d = 0; d < dim; ++d)
-      N[d] *= 2;
-  }
+  int N3[3] = {N, 1, 1};
+  for (int d = 0; d < dim; ++d)
+    N3[d] = N;
 
-  bool is_box = (variant < 6);
-  if (is_box)
-  {
-    return create_cubic_lattice_mesh(N[0], N[1], N[2]);
-  }
-  else
-  {
-#if 0
-    sp_func_t* boundary = NULL;
-    if (!strcmp(geom, "cylinder"))
-    {
-      sp_func_t* cyl[3];
-      vector_t n = { 0.0, 0.0,-1.0};
-      point_t x = { 0.5, 0.5, 0.0};
-      cyl[0] = plane_new(n, x);
-      n.x = 0.0, n.y = 0.0, n.z = 1.0;
-      x.x = 0.5, x.y = 0.5, x.z = 1.0;
-      cyl[1] = plane_new(n, x);
-      cyl[2] = cylinder_new(n, x, 1.0);
-      boundary = intersection_new(cyl, 3);
-    }
-    else if (!strcmp(geom, "sphere"))
-    {
-      point_t x = { 0.5, 0.5, 0.5};
-      boundary = sphere_new(x, 1.0);
-    }
-    double one = 1.0;
-    sp_func_t* rho = constant_sp_func_new(1, &one);
-    p->mesh = create_bounded_cvt(N, rho, &cvt_energy_function, boundary);
-#endif
-    return NULL;
-  }
+  return create_cubic_lattice_mesh(N3[0], N3[1], N3[2]);
 }
 
-static st_func_t* create_paraboloid_rhs(int variant)
-{
-  double one = 1.0;
-  return constant_st_func_new(1, &one);
-}
-
-static str_ptr_hash_map_t* create_paraboloid_bcs(int variant)
-{
-  str_ptr_hash_map_t* bcs = str_ptr_hash_map_new();
-  if ((variant % 3) == 0)
-    str_ptr_hash_map_insert(bcs, "boundary", create_dirichlet_bc(NULL));
-  else if ((variant % 3) == 1)
-    str_ptr_hash_map_insert(bcs, "boundary", create_neumann_bc(NULL));
-  else // if ((variant % 3) == 2)
-    str_ptr_hash_map_insert(bcs, "boundary", create_robin_bc(NULL));
-  return bcs;
-}
-
-static void set_paraboloid_times(int variant, double* t1, double* t2)
-{
-  *t1 = 0.0;
-  *t2 = 1.0;
-}
-
-static sp_func_t* create_paraboloid_solution(int variant)
-{
-  return NULL;
-}
-
-static void run_analytic_problem(mesh_t* mesh, st_func_t* rhs, str_ptr_hash_map_t* bcs, double t1, double t2, sp_func_t* solution, double* Lpnorms)
+static void run_analytic_problem(mesh_t* mesh, st_func_t* rhs, str_ptr_unordered_map_t* bcs, double t1, double t2, sp_func_t* solution, double* Lpnorms)
 {
   // Create the model.
   model_t* model = create_poisson(mesh, rhs, bcs);
@@ -176,6 +110,51 @@ static void run_analytic_problem(mesh_t* mesh, st_func_t* rhs, str_ptr_hash_map_
   model_free(model);
 }
 
+static void poisson_run_paraboloid(int variant)
+{
+  // Dimension.
+  int dim;
+  // FIXME
+
+  // RHS function.
+  st_func_t* rhs;
+  // FIXME = create_paraboloid_rhs(variant);
+
+  // Boundary conditions.
+  str_ptr_unordered_map_t* bcs = str_ptr_unordered_map_new();
+  if ((variant % 3) == 0)
+    str_ptr_unordered_map_insert(bcs, "boundary", create_dirichlet_bc(NULL));
+  else if ((variant % 3) == 1)
+    str_ptr_unordered_map_insert(bcs, "boundary", create_neumann_bc(NULL));
+  else // if ((variant % 3) == 2)
+    str_ptr_unordered_map_insert(bcs, "boundary", create_robin_bc(NULL));
+
+  // Analytic solution.
+  sp_func_t* sol;
+  // FIXME = create_paraboloid_solution(variant);
+
+  // Start/end times.
+  double t1, t2;
+  // FIXME
+
+  // Base resolution.
+  int N0;
+  // FIXME
+
+  // Number of refinements.
+  int num_refinements;
+  // FIXME
+
+  // Do a convergence study.
+  double Lpnorms[num_refinements][3];
+  for (int iter = 0; iter < num_refinements; ++iter)
+  {
+    int N = pow(N0, iter+1);
+    mesh_t* mesh = create_cube_mesh(dim, N);
+    run_analytic_problem(mesh, rhs, bcs, t1, t2, sol, Lpnorms[iter]);
+  }
+}
+
 //------------------------------------------------------------------------
 //                        Model implementation
 //------------------------------------------------------------------------
@@ -185,18 +164,8 @@ static void poisson_run_benchmark(const char* benchmark)
   char* variant_str = NULL;
   if ((variant_str = strstr(benchmark, "paraboloid")) != NULL)
   {
-    double Lpnorms[4][3];
     int variant = atoi(variant_str + strlen("paraboloid"));
-    st_func_t* rhs = create_paraboloid_rhs(variant);
-    str_ptr_hash_map_t* bcs = create_paraboloid_bcs(variant);
-    sp_func_t* sol = create_paraboloid_solution(variant);
-    double t1, t2;
-    set_paraboloid_times(variant, &t1, &t2);
-    for (int iter = 0; iter < 4; ++iter)
-    {
-      mesh_t* mesh = create_paraboloid_mesh(variant, iter);
-      run_analytic_problem(mesh, rhs, bcs, t1, t2, sol, Lpnorms[iter]);
-    }
+    poisson_run_paraboloid(variant);
   }
   else
   {

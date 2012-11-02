@@ -1,7 +1,7 @@
 #ifndef ARBI_UNORDERED_SET_H
 #define ARBI_UNORDERED_SET_H
 
-#include "core/hash_map.h"
+#include "core/unordered_map.h"
 #include "core/hash_functions.h"
 #include "core/comparators.h"
 
@@ -23,52 +23,49 @@
 // void x_set_copy_out(x_set_t* set, x* array) - Copies all elements from the set to the given array.
 
 #define DEFINE_UNORDERED_SET(set_name, element, hash_func, equals_func) \
-DEFINE_HASH_MAP(set_name##_hash_map, element, bool, hash_func, equals_func) \
+DEFINE_UNORDERED_MAP(set_name##_unordered_map, element, bool, hash_func, equals_func) \
 typedef element set_name##_element_t; \
 typedef int (*set_name##_hash_func)(element); \
 typedef struct \
 { \
-  set_name##_hash_map_t* map; \
+  set_name##_unordered_map_t* map; \
   int size; \
 } set_name##_t; \
 \
 static inline set_name##_t* set_name##_new() \
 { \
   set_name##_t* set = malloc(sizeof(set_name##_t)); \
-  set->map = set_name##_hash_map_new(); \
+  set->map = set_name##_unordered_map_new(); \
   set->size = 0; \
   return set; \
 } \
 \
 static inline void set_name##_clear(set_name##_t* set) \
 { \
-  set_name##_hash_map_clear(set->map); \
+  set_name##_unordered_map_clear(set->map); \
   set->size = 0; \
 } \
 \
 static inline void set_name##_free(set_name##_t* set) \
 { \
-  set_name##_hash_map_free(set->map); \
+  set_name##_unordered_map_free(set->map); \
   free(set); \
 } \
 \
 static inline bool set_name##_contains(set_name##_t* set, set_name##_element_t datum) \
 { \
-  return set_name##_hash_map_contains(set->map, datum); \
+  return set_name##_unordered_map_contains(set->map, datum); \
 } \
 \
 static inline void set_name##_insert(set_name##_t* set, set_name##_element_t datum) \
 { \
-  if (!set_name##_contains(set, datum)) \
-  { \
-    set_name##_hash_map_insert(set->map, datum, true); \
-    set->size = set->map->size; \
-  } \
+  set_name##_unordered_map_insert(set->map, datum, true); \
+  set->size = set->map->size; \
 } \
 \
 static inline void set_name##_delete(set_name##_t* set, set_name##_element_t datum) \
 { \
-  set_name##_hash_map_delete(set->map, datum); \
+  set_name##_unordered_map_delete(set->map, datum); \
   set->size = set->map->size; \
 } \
 \
@@ -87,7 +84,7 @@ static inline void set_name##_hash_copy_out(element key, bool value, void* arg) 
 static inline void set_name##_copy_out(set_name##_t* set, element* array) \
 { \
   set_name##_hash_copy_out_t arg = {.index = 0, .array = array}; \
-  set_name##_hash_map_foreach(set->map, set_name##_hash_copy_out, (void*)&arg); \
+  set_name##_unordered_map_foreach(set->map, set_name##_hash_copy_out, (void*)&arg); \
 } \
 \
 
