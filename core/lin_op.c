@@ -28,8 +28,7 @@ lin_op_t* lin_op_new(const char* name, void* context, lin_op_vtable vtable,
                      mesh_t* mesh)
 {
   ASSERT(vtable.stencil_size != NULL);
-  ASSERT(vtable.compute_offsets != NULL);
-  ASSERT(vtable.compute_weights != NULL);
+  ASSERT(vtable.compute_stencil != NULL);
   lin_op_t* L = GC_MALLOC(sizeof(lin_op_t));
   L->name = strdup(name);
   L->context = context;
@@ -55,19 +54,12 @@ int lin_op_stencil_size(lin_op_t* op, int index)
   return op->vtable.stencil_size(op->context, op->mesh, index);
 }
 
-void lin_op_compute_offsets(lin_op_t* op, int index, int* offsets)
-{
-  ASSERT(index >= 0);
-  ASSERT(offsets != NULL);
-  return op->vtable.compute_offsets(op->context, op->mesh, index, offsets);
-}
-
-void lin_op_compute_weights(lin_op_t* op, int index, int* offsets, double* weights)
+void lin_op_compute_stencil(lin_op_t* op, int index, int* offsets, double* weights)
 {
   ASSERT(index >= 0);
   ASSERT(offsets != NULL);
   ASSERT(weights != NULL);
-  return op->vtable.compute_weights(op->context, op->mesh, index, offsets, weights);
+  return op->vtable.compute_stencil(op->context, op->mesh, index, offsets, weights);
 }
 
 #ifdef __cplusplus
