@@ -74,7 +74,7 @@ int main(int argc, char** argv)
       fprintf(stderr, "poisson benchmark [problem]\n");
       exit(-1);
     }
-    model_run_benchmark(model, input, opts);
+    model_run_benchmark(model, input);
     exit(0);
   }
 
@@ -99,7 +99,6 @@ int main(int argc, char** argv)
   // Clean up.
   simulation_free(sim);
   model_free(model);
-  options_free(opts);
 
   // That's it.
   return 0;

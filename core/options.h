@@ -7,14 +7,12 @@
 extern "C" {
 #endif
 
-// A type that stores command line options.
+// A type that stores command line options. Objects of this type are 
+// garbage-collected.
 typedef struct options_t options_t;
 
 // Parse options from the command line, returning an options object.
 options_t* options_parse(int argc, char** argv);
-
-// Free the storage allocated to the given options.
-void options_free(options_t* opts);
 
 // Returns the command passed on the command line, or NULL if no command 
 // was given.

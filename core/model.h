@@ -21,7 +21,7 @@ typedef struct model_t model_t;
 typedef void* (*model_ctor)(options_t* options);
 
 // A function for running a benchmark calculation.
-typedef void (*model_run_bench_func)(const char*, options_t*);
+typedef void (*model_run_bench_func)(const char*);
 
 // A function for initializing the model.
 typedef void (*model_init_func)(void*, double);
@@ -73,7 +73,7 @@ void* model_context(model_t* model);
 void model_usage(model_t* model, FILE* stream);
 
 // Runs the given benchmark problem for the model.
-void model_run_benchmark(model_t* model, const char* benchmark, options_t* opts);
+void model_run_benchmark(model_t* model, const char* benchmark);
 
 // Initialize the model at the given time.
 void model_init(model_t* model, double t);

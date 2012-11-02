@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <string.h>
+#include <gc/gc.h>
 #include "core/options.h"
 #include "core/uthash.h"
 
@@ -23,12 +24,35 @@ struct options_t
   options_kv_t* params;
 };
 
+static void options_free(void* ctx, void* dummy)
+{
+  options_t* opts = (options_t*)ctx;
+
+  if (opts->command != NULL)
+    free(opts->command);
+  if (opts->input != NULL)
+    free(opts->input);
+
+  // Delete all parameter data.
+  options_kv_t *data, *tmp;
+  HASH_ITER(hh, opts->params, data, tmp)
+  {
+    if (data->slen >= 0)
+      free(data->value);
+    HASH_DEL(opts->params, data);
+    free(data->key);
+    free(data);
+  }
+  free(opts);
+}
+
 static options_kv_t* options_kv_new(const char* key, const char* value)
 {
-  options_kv_t* data = malloc(sizeof(options_kv_t));
+  options_kv_t* data = GC_MALLOC(sizeof(options_kv_t));
   data->key = strdup(key);
   data->value = strdup(value);
   data->slen = strlen(value);
+  GC_register_finalizer(data, &options_free, data, NULL, NULL);
   return data;
 }
 
@@ -79,26 +103,6 @@ options_t* options_parse(int argc, char** argv)
   }
 
   return o;
-}
-
-void options_free(options_t* opts)
-{
-  if (opts->command != NULL)
-    free(opts->command);
-  if (opts->input != NULL)
-    free(opts->input);
-
-  // Delete all parameter data.
-  options_kv_t *data, *tmp;
-  HASH_ITER(hh, opts->params, data, tmp)
-  {
-    if (data->slen >= 0)
-      free(data->value);
-    HASH_DEL(opts->params, data);
-    free(data->key);
-    free(data);
-  }
-  free(opts);
 }
 
 char* options_command(options_t* opts)
