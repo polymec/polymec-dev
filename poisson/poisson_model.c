@@ -105,7 +105,7 @@ static mesh_t* create_cube_mesh(int dim, int N)
   for (int d = 0; d < dim; ++d)
     N3[d] = N;
 
-  return create_cubic_lattice_mesh(N3[0], N3[1], N3[2]);
+  return create_cubic_lattice_mesh(N3[0], N3[1], N3[2], 1);
 }
 
 static void run_analytic_problem(mesh_t* mesh, st_func_t* rhs, str_ptr_unordered_map_t* bcs, double t1, double t2, sp_func_t* solution, double* Lpnorms)
@@ -256,6 +256,9 @@ static void poisson_advance(void* context, double t, double dt)
     VecSetValues(p->b, p->mesh->num_cells, indices, values, INSERT_VALUES);
     VecAssemblyEnd(p->b);
   }
+
+  // Make sure that boundary conditions are satisfied.
+  // FIXME
 
   // Solve the linear system.
   KSPSolve(p->solver, p->b, p->x);
