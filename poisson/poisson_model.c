@@ -1,7 +1,6 @@
-// poisson.c - The Poisson engine for Arbi.
-
 #include <string.h>
 #include <stdlib.h>
+#include "petscksp.h"
 #include "petscmat.h"
 #include "petscvec.h"
 #include "core/unordered_map.h"
@@ -13,6 +12,7 @@
 #include "geometry/sphere.h"
 #include "geometry/intersection.h"
 #include "poisson/poisson_model.h"
+#include "poisson/laplacian_op.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -63,11 +63,19 @@ static void free_bc(void* bc)
 typedef struct 
 {
   mesh_t* mesh;             // Mesh.
-  Mat L;                    // Laplacian.
   st_func_t* rhs;           // Right-hand side function.
-  double* phi;              // Solution.
-
   str_ptr_unordered_map_t* bcs;  // Boundary conditions.
+  double* phi;              // Solution array.
+  lin_op_t* L;              // Laplacian operator.
+
+  KSP solver;               // Linear solver.
+  Mat A;                    // Laplacian matrix.
+  Vec x;                    // Solution vector.
+  Vec b;                    // RHS vector. 
+
+  bool initialized;         // Initialized flag.
+  MPI_Comm comm;            // MPI communicator.
+
 } poisson_t;
 
 // A proper constructor.
@@ -78,6 +86,10 @@ static model_t* create_poisson(mesh_t* mesh, st_func_t* rhs, str_ptr_unordered_m
   p->mesh = mesh;
   p->rhs = rhs;
   p->bcs = bcs;
+  p->phi = NULL;
+  p->L = laplacian_op_new(p->mesh);
+  p->comm = MPI_COMM_WORLD;
+  p->initialized = false;
   return poisson;
 }
 
@@ -225,18 +237,90 @@ static void poisson_run_benchmark(const char* benchmark)
   }
 }
 
-static void poisson_advance(void* p, double t, double dt)
+static void poisson_advance(void* context, double t, double dt)
 {
+  poisson_t* p = (poisson_t*)context;
+
+  // Make sure the RHS vector is computed.
+  if (!p->initialized || !st_func_is_constant(p->rhs))
+  {
+    double values[p->mesh->num_cells];
+    int indices[p->mesh->num_cells];
+    VecAssemblyBegin(p->b);
+    for (int c = 0; c < p->mesh->num_cells; ++c)
+    {
+      indices[c] = c;
+      point_t xc = {.x = 0.0, .y = 0.0, .z = 0.0};
+      st_func_eval(p->rhs, &xc, t+dt, &values[c]);
+    }
+    VecSetValues(p->b, p->mesh->num_cells, indices, values, INSERT_VALUES);
+    VecAssemblyEnd(p->b);
+  }
+
+  // Solve the linear system.
+  KSPSolve(p->solver, p->b, p->x);
+
+  // Copy the values from x to our solution array.
+  double* x;
+  VecGetArray(p->x, &x);
+  memcpy(p->phi, x, sizeof(double)*p->mesh->num_cells);
+  VecRestoreArray(p->x, &x);
 }
 
-static void poisson_init(void* p, double t)
+static void poisson_init(void* context, double t)
 {
+  poisson_t* p = (poisson_t*)context;
+
+  if (p->initialized)
+  {
+    KSPDestroy(&p->solver);
+    MatDestroy(&p->A);
+    VecDestroy(&p->x);
+    VecDestroy(&p->b);
+    free(p->phi);
+    p->initialized = false;
+  }
+
+  // Initialize the linear solver and friends.
+  MatCreate(p->comm, &p->A);
+  MatSetType(p->A, MATSEQAIJ);
+  MatSetSizes(p->A, p->mesh->num_cells, p->mesh->num_cells, PETSC_DETERMINE, PETSC_DETERMINE);
+  VecCreate(p->comm, &p->x);
+  VecSetType(p->x, VECSEQ);
+  VecCreate(p->comm, &p->b);
+  VecSetType(p->b, VECSEQ);
+  KSPCreate(p->comm, &p->solver);
+
+  // Initialize the solution vector.
+  p->phi = malloc(sizeof(double)*p->mesh->num_cells);
+
+  // Pre-allocate matrix entries.
+  PetscInt nz = 0, nnz[p->mesh->num_cells];
+  for (int i = 0; i < p->mesh->num_cells; ++i)
+    nnz[i] = lin_op_stencil_size(p->L, i);
+  MatSeqAIJSetPreallocation(p->A, nz, nnz);
+
+  // Set matrix entries.
+  MatAssemblyBegin(p->A, MAT_FINAL_ASSEMBLY);
+  for (int i = 0; i < p->mesh->num_cells; ++i)
+  {
+    int indices[nnz[i]];
+    double values[nnz[i]];
+    lin_op_compute_stencil(p->L, i, indices, values);
+    for (int j = 0; j < nnz[i]; ++j)
+      indices[j] += i;
+    MatSetValuesLocal(p->A, 1, &i, nnz[i], indices, values, INSERT_VALUES);
+  }
+  MatAssemblyEnd(p->A, MAT_FINAL_ASSEMBLY);
+
+  // Set up the linear solver.
+  KSPSetOperators(p->solver, p->A, p->A, SAME_NONZERO_PATTERN);
+
   // We simply solve the problem for t = 0.
-  poisson_advance(p, t, 0.0);
-}
+  poisson_advance((void*)p, t, 0.0);
 
-static void poisson_plot(void* p, plot_interface_t* plot, double t, int step)
-{
+  // We are now initialized.
+  p->initialized = true;
 }
 
 static void poisson_dump(void* context, io_interface_t* io, double t, int step)
@@ -270,7 +354,6 @@ model_t* poisson_model_new(options_t* options)
   model_vtable vtable = { .run_benchmark = &poisson_run_benchmark,
                           .init = &poisson_init,
                           .advance = &poisson_advance,
-                          .plot = &poisson_plot,
                           .dump = &poisson_dump,
                           .dtor = &poisson_dtor};
   poisson_t* context = malloc(sizeof(poisson_t));
