@@ -37,11 +37,14 @@ bool multi_index_next(multi_index_t* m, int* x_order, int* y_order, int* z_order
 {
   ASSERT(m->p >= 0);
   ASSERT(m->p < 4);
+  if (m->offset == -1)
+    return false;
   if (m->p == 0)
   {
     *x_order = m->x_order;
     *y_order = m->y_order;
     *z_order = m->z_order;
+    m->offset = -1;
   }
   if (m->p == 1)
   {
@@ -51,7 +54,7 @@ bool multi_index_next(multi_index_t* m, int* x_order, int* y_order, int* z_order
       {.p = 1, .x_order = 1, .y_order = 0, .z_order = 0, .offset = 1}, 
       {.p = 1, .x_order = 0, .y_order = 1, .z_order = 0, .offset = 2}, 
       {.p = 1, .x_order = 0, .y_order = 0, .z_order = 1, .offset = 3},
-      {.p = -1}
+      {.p = 1, .offset = -1}
     };
     *x_order = m->x_order;
     *y_order = m->y_order;
@@ -72,7 +75,7 @@ bool multi_index_next(multi_index_t* m, int* x_order, int* y_order, int* z_order
       {.p = 2, .x_order = 0, .y_order = 2, .z_order = 0, .offset = 7},
       {.p = 2, .x_order = 0, .y_order = 1, .z_order = 1, .offset = 8},
       {.p = 2, .x_order = 0, .y_order = 0, .z_order = 2, .offset = 9},
-      {.p = -1}
+      {.p = 1, .offset = -1}
     };
     *x_order = m->x_order;
     *y_order = m->y_order;
@@ -101,14 +104,14 @@ bool multi_index_next(multi_index_t* m, int* x_order, int* y_order, int* z_order
       {.p = 3, .x_order = 0, .y_order = 3, .z_order = 0, .offset = 15},
       {.p = 3, .x_order = 0, .y_order = 2, .z_order = 1, .offset = 16},
       {.p = 3, .x_order = 0, .y_order = 1, .z_order = 2, .offset = 17},
-      {.p = -1}
+      {.p = 1, .offset = -1}
     };
     *x_order = m->x_order;
     *y_order = m->y_order;
     *z_order = m->z_order;
     *m = multi_index[m->offset+1];
   }
-  return ((m->offset+1) < multi_index_sizes[m->p]);
+  return true; 
 }
 
 void multi_index_reset(multi_index_t* m)
@@ -127,6 +130,11 @@ int multi_index_size(multi_index_t* m)
   return multi_index_sizes[m->p];
 }
 
+int poly_basis_size(int p)
+{
+  return multi_index_sizes[p];
+}
+
 double* allocate_poly_basis_vector(int p)
 {
   return malloc(sizeof(double)*multi_index_sizes[p]);
@@ -139,11 +147,16 @@ double* allocate_poly_moment_matrix(int p)
 
 void compute_poly_basis_vector(int p, point_t* point, double* basis)
 {
-  ASSERT(num_points > 0);
   multi_index_t* m = multi_index_new(p);
   int i = 0, x, y, z;
   while (multi_index_next(m, &x, &y, &z))
     basis[i++] = pow(point->x, x)*pow(point->y, y)*pow(point->z, z);
+printf("point = (%g, %g, %g)\n", point->x, point->y, point->z);
+printf("x = %d, y = %d, z = %d\n", x, y, z);
+printf("b = ");
+for (int j = 0; j < multi_index_sizes[p]; ++j)
+printf("%g ", basis[j]);
+printf("\n");
   m = NULL;
 }
 
@@ -162,10 +175,17 @@ void compute_poly_ls_system(int p, point_t* x0, point_t* points, int num_points,
  
   for (int n = 0; n < num_points; ++n)
   {
-    point_t y = {.x = points[n].x - x0->x, 
-                 .y = points[n].y - x0->y,
-                 .z = points[n].z - x0->z};
-    compute_poly_basis_vector(p, &y, basis);
+    if (x0 != NULL)
+    {
+      point_t y = {.x = points[n].x - x0->x, 
+                   .y = points[n].y - x0->y,
+                   .z = points[n].z - x0->z};
+      compute_poly_basis_vector(p, &y, basis);
+    }
+    else
+    {
+      compute_poly_basis_vector(p, &points[n], basis);
+    }
     for (int i = 0; i < size; ++i)
     {
       for (int j = 0; j < size; ++j)
@@ -190,11 +210,20 @@ void compute_weighted_poly_ls_system(int p, ls_weighting_func_t W, point_t* x0, 
  
   for (int n = 0; n < num_points; ++n)
   {
-    point_t y = {.x = points[n].x - x0->x, 
-                 .y = points[n].y - x0->y,
-                 .z = points[n].z - x0->z};
-    compute_poly_basis_vector(p, &y, basis);
-    double d = y.x*y.x + y.y*y.y + y.z*y.z;
+    double d;
+    if (x0 != NULL)
+    {
+      point_t y = {.x = points[n].x - x0->x, 
+                   .y = points[n].y - x0->y,
+                   .z = points[n].z - x0->z};
+      compute_poly_basis_vector(p, &y, basis);
+      d = y.x*y.x + y.y*y.y + y.z*y.z;
+    }
+    else
+    {
+      compute_poly_basis_vector(p, &points[n], basis);
+      d = points[n].x*points[n].x + points[n].y*points[n].y + points[n].z*points[n].z;
+    }
     double Wd = W(d);
     for (int i = 0; i < size; ++i)
     {

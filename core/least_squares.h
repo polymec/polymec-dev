@@ -30,8 +30,11 @@ bool multi_index_next(multi_index_t* m, int* x_order, int* y_order, int* z_order
 void multi_index_reset(multi_index_t* m);
 
 // This is a weighting function used for least-squares systems. It returns 
-// a value given a Euclidean distance.
+// a value given a Euclidean distance and a spacing parameter.
 typedef double (*ls_weighting_func_t)(double);
+
+// Returns the size of the polynomial basis of order p.
+int poly_basis_size(int p);
 
 // Allocates sufficient storage for a moment matrix (or its transpose) for 
 // a least squares fit of polynomial order p. This storage must be freed with 
