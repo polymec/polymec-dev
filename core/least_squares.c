@@ -151,12 +151,6 @@ void compute_poly_basis_vector(int p, point_t* point, double* basis)
   int i = 0, x, y, z;
   while (multi_index_next(m, &x, &y, &z))
     basis[i++] = pow(point->x, x)*pow(point->y, y)*pow(point->z, z);
-printf("point = (%g, %g, %g)\n", point->x, point->y, point->z);
-printf("x = %d, y = %d, z = %d\n", x, y, z);
-printf("b = ");
-for (int j = 0; j < multi_index_sizes[p]; ++j)
-printf("%g ", basis[j]);
-printf("\n");
   m = NULL;
 }
 
@@ -165,11 +159,13 @@ void compute_poly_ls_system(int p, point_t* x0, point_t* points, int num_points,
 {
   ASSERT(p >= 0);
   ASSERT(p < 4);
+  ASSERT(num_points >= multi_index_sizes[p]);
   ASSERT(moment_matrix != NULL);
   ASSERT(rhs != NULL);
   int size = multi_index_sizes[p];
   double basis[size];
 
+  // Zero the system.
   memset(moment_matrix, 0, sizeof(double)*size*size);
   memset(rhs, 0, sizeof(double)*size);
  
