@@ -14,4 +14,5 @@ add_arbi_test(test_unordered_set test_unordered_set.c)
 add_arbi_test(test_hash_map test_hash_map.c)
 add_arbi_test(test_dl_st_func test_dl_st_func.c)
 add_arbi_test(test_mesh test_mesh.c)
+add_arbi_test(test_least_squares test_least_squares.c)
 

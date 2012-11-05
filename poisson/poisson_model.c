@@ -266,7 +266,7 @@ static void poisson_advance(void* context, double t, double dt)
     // We enforce boundary conditions with ghost cells. For each face on the 
     // boundary, cell1 is the interior cell and cell2 is the ghost cell.
     int num_faces;
-    int* boundary_faces = mesh_tag(mesh->face_tags, (const char*)key, &num_faces);
+    int* boundary_faces = mesh_tag(p->mesh->face_tags, (const char*)key, &num_faces);
     poisson_bc_t* bc = (poisson_bc_t*)val;
 
     if (bc->type == DIRICHLET)
