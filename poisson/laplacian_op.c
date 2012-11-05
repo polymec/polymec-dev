@@ -23,14 +23,16 @@ static void laplacian_op_compute_stencil(void* context, mesh_t* mesh, int index,
   weights[0] = 0.0;
   cell_t* cell = &mesh->cells[index];
   int i = 1;
+  double V = cell->volume;
   for (int f = 0; f < cell->num_faces; ++f)
   {
+    double A = cell->faces[f]->area;
     cell_t* opp_cell = face_opp_cell(cell->faces[f], cell);
     if (opp_cell != NULL)
     {
       offsets[i] = (opp_cell - &mesh->cells[0]) - index;
-      weights[i] = 1.0;
-      weights[0] -= 1.0;
+      weights[i] = A/V;
+      weights[0] -= A/V;
       ++i;
     }
   }

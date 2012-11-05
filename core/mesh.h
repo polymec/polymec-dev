@@ -2,6 +2,7 @@
 #define ARBI_MESH_H
 
 #include "core/arbi.h"
+#include "core/point.h"
 #include "arena/proto.h"
 
 #ifdef __cplusplus
@@ -48,6 +49,8 @@ typedef struct
   face_t** faces;
   // Number of faces attached to this cell.
   int num_faces;
+  // Cell center position.
+  point_t center;
   // Cell volume.
   double volume;
 } cell_t;
@@ -66,6 +69,8 @@ struct face_t
   int num_edges;
   // Face area.
   double area;
+  // Face center.
+  point_t center;
 };
 
 static inline cell_t* face_opp_cell(face_t* face, cell_t* cell)

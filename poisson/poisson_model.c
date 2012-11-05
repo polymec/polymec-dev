@@ -18,6 +18,13 @@
 extern "C" {
 #endif
 
+// LAPACK prototypes.
+
+// LU factorization.
+void dgetrf(int* M, int *N, double* A, int* lda, int* IPIV, int* INFO);
+// Matrix inverse.
+void dgetri(int* N, double* A, int* lda, int* IPIV, double* WORK, int* lwork, int* INFO);
+
 // Boundary condition structure.
 typedef enum { DIRICHLET, NEUMANN, ROBIN } poisson_bc_type;
 typedef struct
@@ -216,6 +223,73 @@ static void poisson_run_paraboloid(int variant)
 //                        Model implementation
 //------------------------------------------------------------------------
 
+static void apply_dirichlet_bc(mesh_t* mesh, int* boundary_faces, int num_boundary_faces, 
+                               st_func_t* func, double t, Mat A, Vec b)
+{
+  // Make a list of cells adjacent to boundary faces.
+  int_unordered_set_t* bcells = int_unordered_set_new();
+  // FIXME
+
+  // Traverse the boundary cells and generate replacement rows in the 
+  // linear system that enforce the Dirichlet boundary condition.
+  int pos = 0, bcell;
+  while (int_unordered_set_next(bcells, &pos, &bcell))
+  {
+    // Generate a list of neighboring cells for this cell, plus a list of 
+    // boundary faces attached to it.
+    // FIXME
+
+    // Generate the moment matrix corresponding to a least-squares linear 
+    // polynomial fit of the solution about this cell.
+    // FIXME
+
+    // Factor the moment matrix and compute its inverse.
+    // FIXME
+
+    // Compute the vector sum of the face-normal-area products for boundary 
+    // faces attached to this cell. This will be subtracted from the RHS.
+    // FIXME
+
+    // Compute the vector sum of the face-normal-area products for interior
+    // faces attached to this cell.
+    // FIXME
+
+    // Generate the row in the matrix A that corresponds to this cell.
+    // FIXME
+
+    // Subtract off the boundary contribution from the RHS.
+    // FIXME
+  }
+
+  // Clean up.
+  int_unordered_set_free(bcells);
+}
+
+static void apply_neumann_bc(mesh_t* mesh, int* boundary_faces, int num_boundary_faces,
+                             st_func_t* func, double t, Mat A, Vec b)
+{
+  int indices[num_boundary_faces];
+  double values[num_boundary_faces];
+  for (int f = 0; f < num_boundary_faces; ++f)
+  {
+    int bface = boundary_faces[f];
+    face_t* face = &mesh->faces[bface];
+    double bvalue;
+    st_func_eval(func, &face->center, t, &bvalue);
+    bvalue = -bvalue * face->area;
+    indices[f] = bface;
+    values[f] = bvalue;
+  }
+  VecAssemblyBegin(b);
+  VecSetValues(b, mesh->num_cells, indices, values, ADD_VALUES);
+  VecAssemblyEnd(b);
+}
+
+static void apply_robin_bc(mesh_t* mesh, int* boundary_faces, int num_boundary_faces,
+                           st_func_t* func, double t, Mat A, Vec b)
+{
+}
+
 static void poisson_run_benchmark(const char* benchmark)
 {
   char* variant_str = NULL;
@@ -241,21 +315,18 @@ static void poisson_advance(void* context, double t, double dt)
 {
   poisson_t* p = (poisson_t*)context;
 
-  // Make sure the RHS vector is computed.
-  if (!p->initialized || !st_func_is_constant(p->rhs))
+  // Compute the RHS vector.
+  double values[p->mesh->num_cells];
+  int indices[p->mesh->num_cells];
+  VecAssemblyBegin(p->b);
+  for (int c = 0; c < p->mesh->num_cells; ++c)
   {
-    double values[p->mesh->num_cells];
-    int indices[p->mesh->num_cells];
-    VecAssemblyBegin(p->b);
-    for (int c = 0; c < p->mesh->num_cells; ++c)
-    {
-      indices[c] = c;
-      point_t xc = {.x = 0.0, .y = 0.0, .z = 0.0};
-      st_func_eval(p->rhs, &xc, t+dt, &values[c]);
-    }
-    VecSetValues(p->b, p->mesh->num_cells, indices, values, INSERT_VALUES);
-    VecAssemblyEnd(p->b);
+    indices[c] = c;
+    point_t xc = {.x = 0.0, .y = 0.0, .z = 0.0};
+    st_func_eval(p->rhs, &xc, t+dt, &values[c]);
   }
+  VecSetValues(p->b, p->mesh->num_cells, indices, values, INSERT_VALUES);
+  VecAssemblyEnd(p->b);
 
   // Make sure that boundary conditions are satisfied.
   int pos = 0;
@@ -270,16 +341,18 @@ static void poisson_advance(void* context, double t, double dt)
     poisson_bc_t* bc = (poisson_bc_t*)val;
 
     if (bc->type == DIRICHLET)
-    {
-    }
+      apply_dirichlet_bc(p->mesh, boundary_faces, num_faces, bc->func, t+dt, p->A, p->b);
     else if (bc->type == NEUMANN)
-    {
-    }
+      apply_neumann_bc(p->mesh, boundary_faces, num_faces, bc->func, t+dt, p->A, p->b);
     else 
     {
       ASSERT(bc->type == ROBIN);
+      apply_robin_bc(p->mesh, boundary_faces, num_faces, bc->func, t+dt, p->A, p->b);
     }
   }
+
+  // Set up the linear solver.
+  KSPSetOperators(p->solver, p->A, p->A, SAME_NONZERO_PATTERN);
 
   // Solve the linear system.
   KSPSolve(p->solver, p->b, p->x);
@@ -336,9 +409,6 @@ static void poisson_init(void* context, double t)
     MatSetValuesLocal(p->A, 1, &i, nnz[i], indices, values, INSERT_VALUES);
   }
   MatAssemblyEnd(p->A, MAT_FINAL_ASSEMBLY);
-
-  // Set up the linear solver.
-  KSPSetOperators(p->solver, p->A, p->A, SAME_NONZERO_PATTERN);
 
   // We simply solve the problem for t = 0.
   poisson_advance((void*)p, t, 0.0);
