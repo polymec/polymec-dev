@@ -27,6 +27,9 @@ mesh_t* create_cubic_lattice_mesh(int nx, int ny, int nz, int num_ghost)
                           cubic_lattice_num_edges(lattice),
                           cubic_lattice_num_nodes(lattice));
 
+  // Grid spacings.
+  double dx = 1.0/nx, dy = 1.0/ny, dz = 1.0/nz;
+
   int_unordered_set_t* processed_faces = int_unordered_set_new();
   int_unordered_set_t* processed_nodes = int_unordered_set_new();
   for (int k = 0; k < nz; ++k)
@@ -197,22 +200,65 @@ mesh_t* create_cubic_lattice_mesh(int nx, int ny, int nz, int num_ghost)
         // Hook everything up.
         for (int f = 0; f < 6; ++f)
         {
-          mesh_add_face_to_cell(mesh, &mesh->faces[faces[f]], &mesh->cells[cell]);
+          face_t* face = &mesh->faces[faces[f]];
+          mesh_add_face_to_cell(mesh, face, &mesh->cells[cell]);
 
           if (!int_unordered_set_contains(processed_faces, faces[f]))
           {
             for (int e = 0; e < 4; ++e)
             {
-              mesh_add_edge_to_face(mesh, &mesh->edges[edges[f][e]], &mesh->faces[faces[f]]);
+              mesh_add_edge_to_face(mesh, &mesh->edges[edges[f][e]], face);
               mesh->edges[edges[f][e]].node1 = &mesh->nodes[nodes[f][e][0]];
               mesh->edges[edges[f][e]].node2 = &mesh->nodes[nodes[f][e][1]];
             }
+
+            // Face geometry.
+            switch (f)
+            {
+              case 0: // -x
+                face->area = 1.0 / (ny*nz);
+                face->center.x = i*dx;
+                face->center.y = (j+0.5)*dy;
+                face->center.z = (k+0.5)*dz;
+                break;
+              case 1: // +x
+                face->area = 1.0 / (ny*nz);
+                face->center.x = (i+1)*dx;
+                face->center.y = (j+0.5)*dy;
+                face->center.z = (k+0.5)*dz;
+                break;
+              case 2: // -y
+                face->area = 1.0 / (nx*nz);
+                face->center.x = (i+0.5)*dx;
+                face->center.y = j*dy;
+                face->center.z = (k+0.5)*dz;
+                break;
+              case 3: // +y
+                face->area = 1.0 / (nx*nz);
+                face->center.x = (i+0.5)*dx;
+                face->center.y = (j+1)*dy;
+                face->center.z = (k+0.5)*dz;
+                break;
+              case 4: // -z
+                face->area = 1.0 / (nx*ny);
+                face->center.x = (i+0.5)*dx;
+                face->center.y = (j+0.5)*dy;
+                face->center.z = k*dz;
+                break;
+              case 5: // +z
+                face->area = 1.0 / (nx*ny);
+                face->center.x = (i+0.5)*dx;
+                face->center.y = (j+0.5)*dy;
+                face->center.z = (k+1)*dz;
+                break;
+            }
+
+            // We're done processing this face.
             int_unordered_set_insert(processed_faces, faces[f]);
           }
         }
 
         // Assign the node positions for a uniform grid spanning [0,1]x[0,1]x[0,1].
-        double dx = 1.0/nx, dy = 1.0/ny, dz = 1.0/nz;
         static const int i_offsets[] = {0, 1, 1, 0, 0, 1, 1, 0};
         static const int j_offsets[] = {0, 0, 1, 1, 0, 0, 1, 1};
         static const int k_offsets[] = {0, 0, 0, 0, 1, 1, 1, 1};
@@ -227,6 +273,12 @@ mesh_t* create_cubic_lattice_mesh(int nx, int ny, int nz, int num_ghost)
             int_unordered_set_insert(processed_nodes, node_indices[n]);
           }
         }
+
+        // Cell geometry.
+        mesh->cells[cell].volume = 1.0 / (nx*ny*nz);
+        mesh->cells[cell].center.x = (i+0.5)*dx;
+        mesh->cells[cell].center.y = (j+0.5)*dy;
+        mesh->cells[cell].center.z = (k+0.5)*dz;
       }
     }
   }
