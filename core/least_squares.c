@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <string.h>
 #include <gc/gc.h>
 #include "core/least_squares.h"
 
@@ -126,15 +127,81 @@ int multi_index_size(multi_index_t* m)
   return multi_index_sizes[m->p];
 }
 
-void compute_moment_matrix(int p, point_t* points, int num_points, double* A)
+double* allocate_poly_basis_vector(int p)
 {
+  return malloc(sizeof(double)*multi_index_sizes[p]);
+}
+
+double* allocate_poly_moment_matrix(int p)
+{
+  return malloc(sizeof(double)*multi_index_sizes[p]*multi_index_sizes[p]);
+}
+
+void compute_poly_basis_vector(int p, point_t* point, double* basis)
+{
+  ASSERT(num_points > 0);
   multi_index_t* m = multi_index_new(p);
-  int x, y, z, offset = 0;
-  int size = multi_index_size(m);
-  for (int i = 0; i < num_points; ++i)
+  int i = 0, x, y, z;
+  while (multi_index_next(m, &x, &y, &z))
+    basis[i++] = pow(point->x, x)*pow(point->y, y)*pow(point->z, z);
+  m = NULL;
+}
+
+void compute_poly_ls_system(int p, point_t* x0, point_t* points, int num_points, 
+                            double* data, double* moment_matrix, double* rhs)
+{
+  ASSERT(p >= 0);
+  ASSERT(p < 4);
+  ASSERT(moment_matrix != NULL);
+  ASSERT(rhs != NULL);
+  int size = multi_index_sizes[p];
+  double basis[size];
+
+  memset(moment_matrix, 0, sizeof(double)*size*size);
+  memset(rhs, 0, sizeof(double)*size);
+ 
+  for (int n = 0; n < num_points; ++n)
   {
-    while (multi_index_next(m, &x, &y, &z))
-      A[i*size + offset] = pow(points[i].x, x)*pow(points[i].y, y)*pow(points[i].z, z);
+    point_t y = {.x = points[n].x - x0->x, 
+                 .y = points[n].y - x0->y,
+                 .z = points[n].z - x0->z};
+    compute_poly_basis_vector(p, &y, basis);
+    for (int i = 0; i < size; ++i)
+    {
+      for (int j = 0; j < size; ++j)
+        moment_matrix[size*j+i] += basis[i]*basis[j];
+      rhs[i] += basis[i]*data[n];
+    }
+  }
+}
+
+void compute_weighted_poly_ls_system(int p, ls_weighting_func_t W, point_t* x0, point_t* points, int num_points, 
+                                     double* data, double* moment_matrix, double* rhs)
+{
+  ASSERT(p >= 0);
+  ASSERT(p < 4);
+  ASSERT(moment_matrix != NULL);
+  ASSERT(rhs != NULL);
+  int size = multi_index_sizes[p];
+  double basis[size];
+
+  memset(moment_matrix, 0, sizeof(double)*size*size);
+  memset(rhs, 0, sizeof(double)*size);
+ 
+  for (int n = 0; n < num_points; ++n)
+  {
+    point_t y = {.x = points[n].x - x0->x, 
+                 .y = points[n].y - x0->y,
+                 .z = points[n].z - x0->z};
+    compute_poly_basis_vector(p, &y, basis);
+    double d = y.x*y.x + y.y*y.y + y.z*y.z;
+    double Wd = W(d);
+    for (int i = 0; i < size; ++i)
+    {
+      for (int j = 0; j < size; ++j)
+        moment_matrix[size*j+i] += Wd*basis[i]*basis[j];
+      rhs[i] += basis[i]*data[n];
+    }
   }
 }
 
