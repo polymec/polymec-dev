@@ -17,14 +17,14 @@ void dgetrs(char *TRANS, int *N, int *NRHS, double *A,
 
 void test_poly_fit(int p, point_t* x0, point_t* points, int num_points, double* coeffs)
 {
-  int dim = poly_basis_size(p);
+  int dim = poly_ls_basis_size(p);
 
   // Create scatter data.
   double data[num_points], basis[dim];
   memset(data, 0, sizeof(double)*num_points);
   for (int i = 0; i < num_points; ++i)
   {
-    compute_poly_basis_vector(p, &points[i], basis);
+    compute_poly_ls_basis_vector(p, &points[i], basis);
     for (int k = 0; k < dim; ++k)
       data[i] += coeffs[k]*basis[k];
   }

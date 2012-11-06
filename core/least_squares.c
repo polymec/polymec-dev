@@ -130,22 +130,22 @@ int multi_index_size(multi_index_t* m)
   return multi_index_sizes[m->p];
 }
 
-int poly_basis_size(int p)
+int poly_ls_basis_size(int p)
 {
   return multi_index_sizes[p];
 }
 
-double* allocate_poly_basis_vector(int p)
+double* allocate_poly_ls_basis_vector(int p)
 {
   return malloc(sizeof(double)*multi_index_sizes[p]);
 }
 
-double* allocate_poly_moment_matrix(int p)
+double* allocate_poly_ls_moment_matrix(int p)
 {
   return malloc(sizeof(double)*multi_index_sizes[p]*multi_index_sizes[p]);
 }
 
-void compute_poly_basis_vector(int p, point_t* point, double* basis)
+void compute_poly_ls_basis_vector(int p, point_t* point, double* basis)
 {
   multi_index_t* m = multi_index_new(p);
   int i = 0, x, y, z;
@@ -176,11 +176,11 @@ void compute_poly_ls_system(int p, point_t* x0, point_t* points, int num_points,
       point_t y = {.x = points[n].x - x0->x, 
                    .y = points[n].y - x0->y,
                    .z = points[n].z - x0->z};
-      compute_poly_basis_vector(p, &y, basis);
+      compute_poly_ls_basis_vector(p, &y, basis);
     }
     else
     {
-      compute_poly_basis_vector(p, &points[n], basis);
+      compute_poly_ls_basis_vector(p, &points[n], basis);
     }
     for (int i = 0; i < size; ++i)
     {
@@ -212,12 +212,12 @@ void compute_weighted_poly_ls_system(int p, ls_weighting_func_t W, point_t* x0, 
       point_t y = {.x = points[n].x - x0->x, 
                    .y = points[n].y - x0->y,
                    .z = points[n].z - x0->z};
-      compute_poly_basis_vector(p, &y, basis);
+      compute_poly_ls_basis_vector(p, &y, basis);
       d = y.x*y.x + y.y*y.y + y.z*y.z;
     }
     else
     {
-      compute_poly_basis_vector(p, &points[n], basis);
+      compute_poly_ls_basis_vector(p, &points[n], basis);
       d = points[n].x*points[n].x + points[n].y*points[n].y + points[n].z*points[n].z;
     }
     double Wd = W(d);
@@ -227,6 +227,71 @@ void compute_weighted_poly_ls_system(int p, ls_weighting_func_t W, point_t* x0, 
         moment_matrix[size*j+i] += Wd*basis[i]*basis[j];
       rhs[i] += basis[i]*data[n];
     }
+  }
+}
+
+// Some LAPACK prototypes.
+void dgetrf(int *N, int *NRHS, double *A, int *LDA, int *IPIV, int *INFO);
+void dgetrs(char *TRANS, int *N, int *NRHS, double *A, 
+            int *LDA, int *IPIV, double *B, int *LDB, int *INFO);
+
+// Shape function basis.
+struct poly_ls_shape_basis_t 
+{
+  int p; // Order of basis.
+};
+
+static void poly_ls_shape_basis_free(void* context, void* dummy)
+{
+  poly_ls_shape_basis_t* N = (poly_ls_shape_basis_t*)context;
+  free(N);
+}
+
+poly_ls_shape_basis_t* poly_ls_shape_basis_new(int p)
+{
+  ASSERT(p >= 0);
+  ASSERT(p < 4);
+  poly_ls_shape_basis_t* N = GC_MALLOC(sizeof(poly_ls_shape_basis_t));
+  N->p = p;
+  GC_register_finalizer(N, &poly_ls_shape_basis_free, N, NULL, NULL);
+  return N;
+}
+
+void poly_ls_shape_basis_compute(poly_ls_shape_basis_t* N, point_t* x0, point_t* points, int num_points, double* values)
+{
+  int dim = poly_ls_basis_size(N->p);
+
+  // Compute the moment matrix.
+  double A[dim*dim], basis[dim], P[dim*dim];
+  memset(A, 0, sizeof(double)*dim*dim);
+  for (int n = 0; n < num_points; ++n)
+  {
+    point_t y = {.x = points[n].x - x0->x, 
+                 .y = points[n].y - x0->y,
+                 .z = points[n].z - x0->z};
+    compute_poly_ls_basis_vector(N->p, &y, basis);
+    memcpy(&P[dim*n], basis, dim*sizeof(double));
+    for (int i = 0; i < dim; ++i)
+    {
+      for (int j = 0; j < dim; ++j)
+        A[dim*j+i] += basis[i]*basis[j];
+    }
+  }
+
+  // Factor the moment matrix.
+  int lda = dim, pivot[dim], info;
+  dgetrf(&dim, &dim, A, &lda, pivot, &info);
+  ASSERT(info == 0);
+
+  // Now compute the values of the shape function basis at x0.
+  char trans = 'N';
+  int ldb = dim, one = 1;
+  double Ainvb[dim];
+  for (int n = 0; n < num_points; ++n)
+  {
+    memcpy(Ainvb, &P[dim*n], dim*sizeof(double));
+    dgetrs(&trans, &dim, &one, A, &lda, pivot, Ainvb, &ldb, &info);
+    values[n] = Ainvb[n];
   }
 }
 
