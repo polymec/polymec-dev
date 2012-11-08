@@ -29,26 +29,18 @@ bool multi_index_next(multi_index_t* m, int* x_order, int* y_order, int* z_order
 // Resets the given multi-index to its first term.
 void multi_index_reset(multi_index_t* m);
 
-// This is a weighting function used for least-squares systems. It returns 
-// a value given a Euclidean distance and a spacing parameter.
-typedef double (*ls_weighting_func_t)(double);
+// This is a weighting function used for least-squares systems. Given a 
+// Euclidean distance, it returns a value and a gradient.
+typedef void (*ls_weighting_func_t)(double, double*, vector_t*);
 
 // Returns the size of the least-squares polynomial basis of order p.
 int poly_ls_basis_size(int p);
 
-// Allocates sufficient storage for a moment matrix (or its transpose) for 
-// a least squares fit of polynomial order p. This storage must be freed with 
-// a call to free(). 
-// NOTE: This function does not compute the coefficients of the moment matrix. 
-double* allocate_poly_ls_moment_matrix(int p);
-
-// Allocates sufficient storage for the right-hand-side vector for a least
-// squares fit of polynomial order p. This storage must be freed with a call to free(). 
-// NOTE: This function does not compute the coefficients of the vector. 
-double* allocate_poly_ls_rhs_vector(int p);
-
 // Computes the pth-order polynomial basis vector for the given point.
 void compute_poly_ls_basis_vector(int p, point_t* point, double* basis);
+
+// Computes the pth-order polynomial gradient basis vector for the given point.
+void compute_poly_ls_basis_gradient(int p, point_t* point, vector_t* gradients);
 
 // Computes the least squares system for a pth-order polynomial fit to a set 
 // of scattered point data, centered about the point x0. This computes the 
@@ -71,9 +63,13 @@ typedef struct poly_ls_shape_basis_t poly_ls_shape_basis_t;
 // with an optional weighting function.
 poly_ls_shape_basis_t* poly_ls_shape_basis_new(int p);
 
-// Compute the values of the shape function basis at the point x0, 
-// given a set of points.
-void poly_ls_shape_basis_compute(poly_ls_shape_basis_t* N, point_t* x0, point_t* points, int num_points, double* values);
+// Computes the shape function basis (expanded about the point x0 and fitted 
+// to the given points), evaluating each shape function at the point x.
+void poly_ls_shape_basis_compute(poly_ls_shape_basis_t* N, point_t* x0, point_t* points, int num_points, point_t* x, double* values);
+
+// Computes the gradients of the shape function basis (expanded about the 
+// point x0 and fitted to the given points), evaluating each gradient at the point x.
+void poly_ls_shape_basis_compute_gradients(poly_ls_shape_basis_t* N, point_t* x0, point_t* points, int num_points, point_t* x, double* values, vector_t* gradients);
 
 #ifdef __cplusplus
 }

@@ -226,6 +226,7 @@ static void poisson_run_paraboloid(int variant)
 static void apply_dirichlet_bc(mesh_t* mesh, int* boundary_faces, int num_boundary_faces, 
                                st_func_t* func, double t, Mat A, Vec b)
 {
+#if 0
   // Make a list of cells adjacent to boundary faces.
   int_unordered_set_t* bcells = int_unordered_set_new();
   // FIXME
@@ -263,6 +264,7 @@ static void apply_dirichlet_bc(mesh_t* mesh, int* boundary_faces, int num_bounda
 
   // Clean up.
   int_unordered_set_free(bcells);
+#endif
 }
 
 static void apply_neumann_bc(mesh_t* mesh, int* boundary_faces, int num_boundary_faces,
