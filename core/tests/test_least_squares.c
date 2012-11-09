@@ -101,7 +101,7 @@ void test_poly_shape_functions(int p, point_t* x0, point_t* points, int num_poin
   }
 
   // Compute shape functions for the given data.
-  poly_ls_shape_t* N = poly_ls_shape_new(p);
+  poly_ls_shape_t* N = poly_ls_shape_new(p, false);
 //  poly_ls_shape_set_simple_weighting_func(N, 2.0, 1e-8);
   poly_ls_shape_set_domain(N, x0, points, num_points);
   double Nk[num_points];
@@ -144,22 +144,25 @@ void test_poly_shape_function_gradients(int p, point_t* x0, point_t* points, int
   memset(data, 0, sizeof(double)*num_points);
   for (int i = 0; i < num_points; ++i)
   {
-    compute_poly_ls_basis_vector(p, &points[i], basis);
+    point_t y = {.x = points[i].x - x0->x, 
+                 .y = points[i].y - x0->y,
+                 .z = points[i].z - x0->z};
+    compute_poly_ls_basis_vector(p, &y, basis);
     for (int k = 0; k < dim; ++k)
       data[i] += coeffs[k]*basis[k];
   }
 
   // Compute shape functions for the given data.
-  poly_ls_shape_t* N = poly_ls_shape_new(p);
-  poly_ls_shape_set_simple_weighting_func(N, 2.0, 1e-8);
+  poly_ls_shape_t* N = poly_ls_shape_new(p, false);
+//  poly_ls_shape_set_simple_weighting_func(N, 2.0, 1e-8);
+  poly_ls_shape_set_domain(N, x0, points, num_points);
   double Nk[num_points];
-  vector_t gradNk[num_points];
-  poly_ls_shape_compute_gradients(N, x0, points, num_points, x0, Nk, gradNk);
 
   // Make sure the shape functions interpolate the data.
   for (int i = 0; i < num_points; ++i)
   {
     double value = 0.0;
+    poly_ls_shape_compute(N, &points[i], Nk);
     for (int k = 0; k < num_points; ++k)
       value += Nk[k]*data[k];
     assert_true(fabs(value - data[i]) < 1e-12);
@@ -168,19 +171,19 @@ void test_poly_shape_function_gradients(int p, point_t* x0, point_t* points, int
   // Now make sure that the fit matches the polynomial at another point.
   point_t point;
   generate_random_points(1, &point);
+  poly_ls_shape_compute(N, &point, Nk);
   double phi = 0.0, phi_fit = 0.0;
-  multi_index_t* m = multi_index_new(p);
-  {
-    int i = 0, x, y, z;
-    while (multi_index_next(m, &x, &y, &z))
-      phi += coeffs[i++] * pow(point.x, x) * pow(point.y, y) * pow(point.z, z);
-  }
+  point_t z = {.x = point.x - x0->x, 
+               .y = point.y - x0->y,
+               .z = point.z - x0->z};
+  compute_poly_ls_basis_vector(p, &z, basis);
+  for (int k = 0; k < dim; ++k)
+    phi += coeffs[k] * basis[k];
   for (int k = 0; k < num_points; ++k)
     phi_fit += Nk[k] * data[k];
   assert_true(fabs(phi_fit - phi) < 1e-12);
 
   // Clean up.
-  m = NULL;
   N = NULL;
 }
 

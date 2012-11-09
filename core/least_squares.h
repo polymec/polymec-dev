@@ -62,7 +62,9 @@ typedef struct poly_ls_shape_t poly_ls_shape_t;
 
 // Create a new shape function for a polynomial least-squares fit of order p, 
 // with a weighting function, a context pointer, and its destructor.
-poly_ls_shape_t* poly_ls_shape_new(int p);
+// Set compute_gradients to true to allow the calculation of gradients of 
+// shape functions at the cost of additional work in poly_ls_shape_set_domain.
+poly_ls_shape_t* poly_ls_shape_new(int p, bool compute_gradients);
 
 // Sets the domain of the shape function: its origin x0, and its support points.
 void poly_ls_shape_set_domain(poly_ls_shape_t* N, point_t* x0, point_t* points, int num_points);
