@@ -107,10 +107,11 @@ void test_poly_shape_functions(int p, point_t* x0, point_t* points, int num_poin
       data[i] += coeffs[k]*basis[k];
   }
 
-  // Compute (unweighted) shape functions for the given data.
-  poly_ls_shape_basis_t* N = poly_ls_shape_basis_new(p, NULL);
+  // Compute shape functions for the given data.
+  poly_ls_shape_t* N = poly_ls_shape_new(p);
+  poly_ls_shape_set_simple_weighting_func(N, 2.0, 1e-8);
   double Nk[num_points];
-  poly_ls_shape_basis_compute(N, x0, points, num_points, x0, Nk);
+  poly_ls_shape_compute(N, x0, points, num_points, x0, Nk);
 
   // Make sure the shape functions interpolate the data.
   for (int i = 0; i < num_points; ++i)
@@ -132,7 +133,7 @@ printf("]\ni = %d, value = %g, data = %g\n", i, value, data[i]);
   // Now make sure that the fit matches the polynomial at another point.
   point_t point;
   generate_random_points(1, &point);
-  poly_ls_shape_basis_compute(N, x0, points, num_points, &point, Nk);
+  poly_ls_shape_compute(N, x0, points, num_points, &point, Nk);
   double phi = 0.0, phi_fit = 0.0;
   multi_index_t* m = multi_index_new(p);
   {
@@ -163,11 +164,12 @@ void test_poly_shape_function_gradients(int p, point_t* x0, point_t* points, int
       data[i] += coeffs[k]*basis[k];
   }
 
-  // Compute (unweighted) shape functions for the given data.
-  poly_ls_shape_basis_t* N = poly_ls_shape_basis_new(p, NULL);
+  // Compute shape functions for the given data.
+  poly_ls_shape_t* N = poly_ls_shape_new(p);
+  poly_ls_shape_set_simple_weighting_func(N, 2.0, 1e-8);
   double Nk[num_points];
   vector_t gradNk[num_points];
-  poly_ls_shape_basis_compute_gradients(N, x0, points, num_points, x0, Nk, gradNk);
+  poly_ls_shape_compute_gradients(N, x0, points, num_points, x0, Nk, gradNk);
 
   // Make sure the shape functions interpolate the data.
   for (int i = 0; i < num_points; ++i)

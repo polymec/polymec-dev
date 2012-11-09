@@ -1,6 +1,7 @@
 #ifndef ARBI_POINT_H
 #define ARBI_POINT_H
 
+#include <math.h>
 #include "arbi.h"
 
 #ifdef __cplusplus
@@ -12,6 +13,18 @@ typedef struct
 {
   double x, y, z;
 } point_t;
+
+// Square distance between two points in 3D space.
+static inline double point_square_distance(point_t* x, point_t* y)
+{
+  return (x->x-y->x)*(x->x-y->x) + (x->y-y->y)*(x->y-y->y) + (x->z-y->z)*(x->z-y->z);
+}
+
+// Distance between two points in 3D space.
+static inline double point_distance(point_t* x, point_t* y)
+{
+  return sqrt(point_square_distance(x, y));
+}
 
 // A vector in 1, 2, or 3D space.
 typedef struct
