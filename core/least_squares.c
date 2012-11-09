@@ -225,7 +225,7 @@ void compute_weighted_poly_ls_system(int p, ls_weighting_func_t W, point_t* x0, 
     }
     double Wd;
     vector_t gradWd;
-    W(NULL, d, &Wd, &gradWd);
+    W(NULL, &points[n], x0, &Wd, &gradWd);
     for (int i = 0; i < size; ++i)
     {
       for (int j = 0; j < size; ++j)
@@ -250,30 +250,41 @@ void dgemv(const char *trans, int *m, int *n, double *alpha,
            double *beta, void *y, int *incy);
 
 // Shape function basis.
-struct poly_ls_shape_basis_t 
+struct poly_ls_shape_t 
 {
   int p; // Order of basis.
-  ls_weighting_func_t weighting_func;
+  ls_weighting_func_t weighting_func; // Weighting function.
+  void* w_context; // Context pointer for weighting function.
+  void (*w_dtor)(void*); // Destructor for weighting function context pointer.
 };
 
-static void poly_ls_shape_basis_free(void* context, void* dummy)
+static void poly_ls_shape_free(void* context, void* dummy)
 {
-  poly_ls_shape_basis_t* N = (poly_ls_shape_basis_t*)context;
+  poly_ls_shape_t* N = (poly_ls_shape_t*)context;
+  if ((N->w_context != NULL) && (N->w_dtor != NULL))
+    (*N->w_dtor)(N->w_context);
   free(N);
 }
 
-poly_ls_shape_basis_t* poly_ls_shape_basis_new(int p, ls_weighting_func_t weighting_func)
+static void no_weighting_func(void* context, point_t* x, point_t* x0, double* W, vector_t* gradient)
+{
+  arbi_error("No weighting function has been set for this LS shape function.");
+}
+
+poly_ls_shape_t* poly_ls_shape_new(int p)
 {
   ASSERT(p >= 0);
   ASSERT(p < 4);
-  poly_ls_shape_basis_t* N = GC_MALLOC(sizeof(poly_ls_shape_basis_t));
+  poly_ls_shape_t* N = GC_MALLOC(sizeof(poly_ls_shape_t));
   N->p = p;
-  N->weighting_func = weighting_func;
-  GC_register_finalizer(N, &poly_ls_shape_basis_free, N, NULL, NULL);
+  N->weighting_func = &no_weighting_func;
+  N->w_context = NULL;
+  N->w_dtor = NULL;
+  GC_register_finalizer(N, &poly_ls_shape_free, N, NULL, NULL);
   return N;
 }
 
-void poly_ls_shape_basis_compute(poly_ls_shape_basis_t* N, point_t* x0, point_t* points, int num_points, point_t* x, double* values)
+void poly_ls_shape_compute(poly_ls_shape_t* N, point_t* x0, point_t* points, int num_points, point_t* x, double* values)
 {
   int dim = poly_ls_basis_size(N->p);
 
@@ -287,11 +298,10 @@ void poly_ls_shape_basis_compute(poly_ls_shape_basis_t* N, point_t* x0, point_t*
     point_t y = {.x = points[n].x - x0->x, 
                  .y = points[n].y - x0->y,
                  .z = points[n].z - x0->z};
-    double d = y.x*y.x + y.y*y.y + y.z*y.z;
     W[n] = 1.0;
     vector_t gradWn = {.x = 0, .y = 0, .z = 0};
     if (N->weighting_func != NULL)
-      N->weighting_func(NULL, d, &W[n], &gradWn);
+      N->weighting_func(N->w_context, &points[n], x0, &W[n], &gradWn);
     compute_poly_ls_basis_vector(N->p, &y, basis);
     for (int i = 0; i < dim; ++i)
     {
@@ -338,7 +348,7 @@ printf("]\n");
   }
 }
 
-void poly_ls_shape_basis_compute_gradients(poly_ls_shape_basis_t* N, point_t* x0, point_t* points, int num_points, point_t* x, double* values, vector_t* gradients)
+void poly_ls_shape_compute_gradients(poly_ls_shape_t* N, point_t* x0, point_t* points, int num_points, point_t* x, double* values, vector_t* gradients)
 {
   int dim = poly_ls_basis_size(N->p);
 
@@ -359,10 +369,9 @@ void poly_ls_shape_basis_compute_gradients(poly_ls_shape_basis_t* N, point_t* x0
                  .z = points[n].z - x0->z};
 
     // Compute the weighting functions.
-    double d = y.x*y.x + y.y*y.y + y.z*y.z;
     W[n] = 1.0;
     if (N->weighting_func != NULL)
-      N->weighting_func(NULL, d, &W[n], &gradW[n]);
+      N->weighting_func(N->w_context, &points[n], x0, &W[n], &gradW[n]);
 
     compute_poly_ls_basis_vector(N->p, &y, basis);
     memcpy(&P[dim*n], basis, dim*sizeof(double));
@@ -455,6 +464,36 @@ void poly_ls_shape_basis_compute_gradients(poly_ls_shape_basis_t* N, point_t* x0
       }
     }
   }
+}
+
+typedef struct 
+{
+  int A;
+  double B;
+} simple_weighting_func_params_t;
+
+static void simple_weighting_func(void* context, point_t* x, point_t* x0, double* W, vector_t* gradient)
+{
+  simple_weighting_func_params_t* params = (simple_weighting_func_params_t*)context;
+  double D = point_distance(x, x0);
+  *W = 1.0 / (pow(D, params->A) + pow(params->B, params->A));
+  double dDdx = x->x / D, dDdy = x->y / D, dDdz = x->z / D;
+  double deriv_term = (*W)*(*W) * params->A * pow(D, params->A-1);
+  gradient->x = deriv_term * dDdx;
+  gradient->y = deriv_term * dDdy;
+  gradient->z = deriv_term * dDdz;
+}
+
+void poly_ls_shape_set_simple_weighting_func(poly_ls_shape_t* N, int A, double B)
+{
+  ASSERT(A > 0);
+  ASSERT(B > 0);
+  N->weighting_func = &simple_weighting_func;
+  simple_weighting_func_params_t* params = malloc(sizeof(simple_weighting_func_params_t));
+  params->A = A;
+  params->B = B;
+  N->w_context = params;
+  N->w_dtor = &free;
 }
 
 #ifdef __cplusplus

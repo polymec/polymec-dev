@@ -30,8 +30,9 @@ bool multi_index_next(multi_index_t* m, int* x_order, int* y_order, int* z_order
 void multi_index_reset(multi_index_t* m);
 
 // This is a weighting function used for least-squares systems. Given a 
-// context pointer and a Euclidean distance, it returns a value and a gradient.
-typedef void (*ls_weighting_func_t)(void*, double, double*, vector_t*);
+// context pointer, a point x, and a reference point x0, it returns a value 
+// and a gradient.
+typedef void (*ls_weighting_func_t)(void*, point_t*, point_t*, double*, vector_t*);
 
 // Returns the size of the least-squares polynomial basis of order p.
 int poly_ls_basis_size(int p);
@@ -57,19 +58,23 @@ void compute_weighted_poly_ls_system(int p, ls_weighting_func_t W, point_t* x0, 
 // fit. A shape function maps a set of data (associated a given set of points in 
 // space) to a value interpolated at a given point.
 // Objects of this type are garbage-collected.
-typedef struct poly_ls_shape_basis_t poly_ls_shape_basis_t;
+typedef struct poly_ls_shape_t poly_ls_shape_t;
 
 // Create a new shape function for a polynomial least-squares fit of order p, 
-// with an optional weighting function.
-poly_ls_shape_basis_t* poly_ls_shape_basis_new(int p, ls_weighting_func_t weighting_func);
+// with a weighting function, a context pointer, and its destructor.
+poly_ls_shape_t* poly_ls_shape_new(int p);
 
 // Computes the shape function basis (expanded about the point x0 and fitted 
 // to the given points), evaluating each shape function at the point x.
-void poly_ls_shape_basis_compute(poly_ls_shape_basis_t* N, point_t* x0, point_t* points, int num_points, point_t* x, double* values);
+void poly_ls_shape_compute(poly_ls_shape_t* N, point_t* x0, point_t* points, int num_points, point_t* x, double* values);
 
 // Computes the gradients of the shape function basis (expanded about the 
 // point x0 and fitted to the given points), evaluating each gradient at the point x.
-void poly_ls_shape_basis_compute_gradients(poly_ls_shape_basis_t* N, point_t* x0, point_t* points, int num_points, point_t* x, double* values, vector_t* gradients);
+void poly_ls_shape_compute_gradients(poly_ls_shape_t* N, point_t* x0, point_t* points, int num_points, point_t* x, double* values, vector_t* gradients);
+
+// Selects a weighting function for the shape function with the form 
+// W(d) = 1 / (d**A + B**A), where A and B are parameters.
+void poly_ls_shape_set_simple_weighting_func(poly_ls_shape_t* N, int A, double B);
 
 #ifdef __cplusplus
 }
