@@ -94,15 +94,10 @@ void test_poly_shape_functions(int p, point_t* x0, point_t* points, int num_poin
   memset(data, 0, sizeof(double)*num_points);
   for (int i = 0; i < num_points; ++i)
   {
-    if (x0 != NULL)
-    {
-      point_t y = {.x = points[i].x - x0->x, 
-                   .y = points[i].y - x0->y,
-                   .z = points[i].z - x0->z};
-      compute_poly_ls_basis_vector(p, &y, basis);
-    }
-    else
-      compute_poly_ls_basis_vector(p, &points[i], basis);
+    point_t y = {.x = points[i].x - x0->x, 
+                 .y = points[i].y - x0->y,
+                 .z = points[i].z - x0->z};
+    compute_poly_ls_basis_vector(p, &y, basis);
     for (int k = 0; k < dim; ++k)
       data[i] += coeffs[k]*basis[k];
   }
@@ -110,39 +105,37 @@ void test_poly_shape_functions(int p, point_t* x0, point_t* points, int num_poin
   // Compute shape functions for the given data.
   poly_ls_shape_t* N = poly_ls_shape_new(p);
   poly_ls_shape_set_simple_weighting_func(N, 2.0, 1e-8);
+  poly_ls_shape_set_domain(N, x0, points, num_points);
   double Nk[num_points];
-  poly_ls_shape_compute(N, x0, points, num_points, x0, Nk);
 
   // Make sure the shape functions interpolate the data.
   for (int i = 0; i < num_points; ++i)
   {
     double value = 0.0;
-printf("N = [");
+    poly_ls_shape_compute(N, &points[i], Nk);
     for (int k = 0; k < num_points; ++k)
-{
       value += Nk[k]*data[k];
-printf("%g ", Nk[k]);
-}
-printf("\ndata = [");
-for (int k = 0; k < num_points; ++k)
-  printf("%g ", data[k]);
-printf("]\ni = %d, value = %g, data = %g\n", i, value, data[i]);
     assert_true(fabs(value - data[i]) < 1e-12);
   }
 
   // Now make sure that the fit matches the polynomial at another point.
   point_t point;
   generate_random_points(1, &point);
-  poly_ls_shape_compute(N, x0, points, num_points, &point, Nk);
+  poly_ls_shape_compute(N, &point, Nk);
+printf("At x = (%g, %g, %g), N = [", point.x, point.y, point.z);
+for (int i = 0; i < num_points; ++i)
+printf("%g ", Nk[i]);
+printf("]\n");
   double phi = 0.0, phi_fit = 0.0;
   multi_index_t* m = multi_index_new(p);
   {
     int i = 0, x, y, z;
     while (multi_index_next(m, &x, &y, &z))
-      phi += coeffs[i++] * pow(point.x, x) * pow(point.y, y) * pow(point.z, z);
+      phi += coeffs[i++] * pow(point.x-x0->x, x) * pow(point.y-x0->y, y) * pow(point.z, z-x0->z);
   }
   for (int k = 0; k < num_points; ++k)
     phi_fit += Nk[k] * data[k];
+printf("phi_fit = %g, phi = %g\n", phi_fit, phi);
   assert_true(fabs(phi_fit - phi) < 1e-12);
 
   // Clean up.
