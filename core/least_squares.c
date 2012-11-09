@@ -253,6 +253,10 @@ void dgemv(const char *trans, int *m, int *n, double *alpha,
 struct poly_ls_shape_t 
 {
   int p; // Order of basis.
+  int dim; // Dimension of basis.
+  int num_points; // Number of points in domain.
+  point_t x0; // Origin.
+  double* B; // Basis matrix / workspace.
   ls_weighting_func_t weighting_func; // Weighting function.
   void* w_context; // Context pointer for weighting function.
   void (*w_dtor)(void*); // Destructor for weighting function context pointer.
@@ -263,12 +267,16 @@ static void poly_ls_shape_free(void* context, void* dummy)
   poly_ls_shape_t* N = (poly_ls_shape_t*)context;
   if ((N->w_context != NULL) && (N->w_dtor != NULL))
     (*N->w_dtor)(N->w_context);
+  if (N->B != NULL)
+    free(N->B);
   free(N);
 }
 
 static void no_weighting_func(void* context, point_t* x, point_t* x0, double* W, vector_t* gradient)
 {
-  arbi_error("No weighting function has been set for this LS shape function.");
+  *W = 1.0;
+  gradient->x = gradient->y = gradient->z = 0.0;
+//  arbi_error("No weighting function has been set for this LS shape function.");
 }
 
 poly_ls_shape_t* poly_ls_shape_new(int p)
@@ -280,39 +288,52 @@ poly_ls_shape_t* poly_ls_shape_new(int p)
   N->weighting_func = &no_weighting_func;
   N->w_context = NULL;
   N->w_dtor = NULL;
+  N->dim = poly_ls_basis_size(p);
+  N->num_points = 0;
+  N->B = NULL;
   GC_register_finalizer(N, &poly_ls_shape_free, N, NULL, NULL);
   return N;
 }
 
-void poly_ls_shape_compute(poly_ls_shape_t* N, point_t* x0, point_t* points, int num_points, point_t* x, double* values)
+void poly_ls_shape_set_domain(poly_ls_shape_t* N, point_t* x0, point_t* points, int num_points)
 {
-  int dim = poly_ls_basis_size(N->p);
+  int dim = N->dim;
+  if (num_points != N->num_points)
+  {
+    N->num_points = num_points;
+    N->B = realloc(N->B, sizeof(double)*dim*num_points);
+  }
+  N->x0.x = x0->x;
+  N->x0.y = x0->y;
+  N->x0.z = x0->z;
 
   // Compute the moment matrix A and the basis matrix B.
-  double A[dim*dim], basis[dim], B[dim*num_points], W[num_points];
+  double A[dim*dim], basis[dim], W[num_points];
   memset(A, 0, sizeof(double)*dim*dim);
-  memset(B, 0, sizeof(double)*dim*num_points);
+  memset(N->B, 0, sizeof(double)*dim*num_points);
   for (int n = 0; n < num_points; ++n)
   {
     // Expand about x0.
     point_t y = {.x = points[n].x - x0->x, 
                  .y = points[n].y - x0->y,
                  .z = points[n].z - x0->z};
-    W[n] = 1.0;
     vector_t gradWn = {.x = 0, .y = 0, .z = 0};
-    if (N->weighting_func != NULL)
-      N->weighting_func(N->w_context, &points[n], x0, &W[n], &gradWn);
+    N->weighting_func(N->w_context, &points[n], x0, &W[n], &gradWn);
     compute_poly_ls_basis_vector(N->p, &y, basis);
     for (int i = 0; i < dim; ++i)
     {
-      B[dim*n+i] = W[n]*basis[i];
+      N->B[dim*n+i] = W[n]*basis[i];
       for (int j = 0; j < dim; ++j)
         A[dim*j+i] += basis[i]*W[n]*basis[j];
     }
   }
+printf("W = [");
+for (int i = 0; i < num_points; ++i)
+  printf("%g ", W[i]);
+printf("]\n");
 printf("P = [");
 for (int i = 0; i < num_points*dim; ++i)
-  printf("%g ", B[i]);
+  printf("%g ", N->B[i]);
 printf("]\n");
 printf("A = [");
 for (int i = 0; i < dim*dim; ++i)
@@ -328,24 +349,29 @@ printf("]\n");
 
   // Ainv * B -> B.
   char no_trans = 'N';
-  dgetrs(&no_trans, &dim, &num_points, A, &dim, pivot, B, &dim, &info);
+  dgetrs(&no_trans, &dim, &num_points, A, &dim, pivot, N->B, &dim, &info);
   ASSERT(info == 0);
 printf("B = [");
 for (int i = 0; i < num_points*dim; ++i)
-  printf("%g ", B[i]);
+  printf("%g ", N->B[i]);
 printf("]\n");
+}
+
+void poly_ls_shape_compute(poly_ls_shape_t* N, point_t* x, double* values)
+{
+  ASSERT(N->B != NULL);
+
+  double basis[N->dim];
 
   // values^T = basis^T * Ainv * B (or values = (Ainv * B)^T * basis.)
-  {
-    double alpha = 1.0, beta = 0.0;
-    int one = 1;
-    char trans = 'T';
-    point_t y = {.x = x->x - x0->x, 
-                 .y = x->y - x0->y,
-                 .z = x->z - x0->z};
-    compute_poly_ls_basis_vector(N->p, &y, basis);
-    dgemv(&trans, &dim, &num_points, &alpha, B, &dim, basis, &one, &beta, values, &one);
-  }
+  double alpha = 1.0, beta = 0.0;
+  int one = 1;
+  char trans = 'T';
+  point_t y = {.x = x->x - N->x0.x, 
+               .y = x->y - N->x0.y,
+               .z = x->z - N->x0.z};
+  compute_poly_ls_basis_vector(N->p, &y, basis);
+  dgemv(&trans, &N->dim, &N->num_points, &alpha, N->B, &N->dim, basis, &one, &beta, values, &one);
 }
 
 void poly_ls_shape_compute_gradients(poly_ls_shape_t* N, point_t* x0, point_t* points, int num_points, point_t* x, double* values, vector_t* gradients)
@@ -369,9 +395,7 @@ void poly_ls_shape_compute_gradients(poly_ls_shape_t* N, point_t* x0, point_t* p
                  .z = points[n].z - x0->z};
 
     // Compute the weighting functions.
-    W[n] = 1.0;
-    if (N->weighting_func != NULL)
-      N->weighting_func(N->w_context, &points[n], x0, &W[n], &gradW[n]);
+    N->weighting_func(N->w_context, &points[n], x0, &W[n], &gradW[n]);
 
     compute_poly_ls_basis_vector(N->p, &y, basis);
     memcpy(&P[dim*n], basis, dim*sizeof(double));

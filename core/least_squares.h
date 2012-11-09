@@ -64,9 +64,12 @@ typedef struct poly_ls_shape_t poly_ls_shape_t;
 // with a weighting function, a context pointer, and its destructor.
 poly_ls_shape_t* poly_ls_shape_new(int p);
 
-// Computes the shape function basis (expanded about the point x0 and fitted 
-// to the given points), evaluating each shape function at the point x.
-void poly_ls_shape_compute(poly_ls_shape_t* N, point_t* x0, point_t* points, int num_points, point_t* x, double* values);
+// Sets the domain of the shape function: its origin x0, and its support points.
+void poly_ls_shape_set_domain(poly_ls_shape_t* N, point_t* x0, point_t* points, int num_points);
+
+// Computes the shape function basis evaluating each shape function at the point x.
+// poly_ls_shape_set_domain must have been called previously.
+void poly_ls_shape_compute(poly_ls_shape_t* N, point_t* x, double* values);
 
 // Computes the gradients of the shape function basis (expanded about the 
 // point x0 and fitted to the given points), evaluating each gradient at the point x.
