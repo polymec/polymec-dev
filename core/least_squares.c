@@ -327,18 +327,6 @@ void poly_ls_shape_set_domain(poly_ls_shape_t* N, point_t* x0, point_t* points, 
         A[dim*j+i] += basis[i]*W[n]*basis[j];
     }
   }
-printf("W = [");
-for (int i = 0; i < num_points; ++i)
-  printf("%g ", W[i]);
-printf("]\n");
-printf("P = [");
-for (int i = 0; i < num_points*dim; ++i)
-  printf("%g ", N->B[i]);
-printf("]\n");
-printf("A = [");
-for (int i = 0; i < dim*dim; ++i)
-  printf("%g ", A[i]);
-printf("]\n");
 
   // Factor the moment matrix.
   int pivot[dim], info;
@@ -351,10 +339,6 @@ printf("]\n");
   char no_trans = 'N';
   dgetrs(&no_trans, &dim, &num_points, A, &dim, pivot, N->B, &dim, &info);
   ASSERT(info == 0);
-printf("B = [");
-for (int i = 0; i < num_points*dim; ++i)
-  printf("%g ", N->B[i]);
-printf("]\n");
 }
 
 void poly_ls_shape_compute(poly_ls_shape_t* N, point_t* x, double* values)
