@@ -17,7 +17,6 @@ static void generate_random_points(int num_points, point_t* points)
     points[i].x = 1.0*random()/RAND_MAX;
     points[i].y = 1.0*random()/RAND_MAX;
     points[i].z = 1.0*random()/RAND_MAX;
-printf("x = %g, %g, %g\n", points[i].x, points[i].y, points[i].z);
   }
 }
 
@@ -80,7 +79,6 @@ void test_poly_fit(int p, point_t* x0, point_t* points, int num_points, double* 
   static const double tolerances[] = {1e-15, 2e-14, 1e-12, 1e-9};
   for (int i = 0; i < dim; ++i)
   {
-    printf("%d %g\n", p, fabs(b[i] - coeffs[i]));
     assert_true(fabs(b[i] - coeffs[i]) < tolerances[p]);
   }
 }
@@ -104,7 +102,7 @@ void test_poly_shape_functions(int p, point_t* x0, point_t* points, int num_poin
 
   // Compute shape functions for the given data.
   poly_ls_shape_t* N = poly_ls_shape_new(p);
-  poly_ls_shape_set_simple_weighting_func(N, 2.0, 1e-8);
+//  poly_ls_shape_set_simple_weighting_func(N, 2.0, 1e-8);
   poly_ls_shape_set_domain(N, x0, points, num_points);
   double Nk[num_points];
 
@@ -122,24 +120,18 @@ void test_poly_shape_functions(int p, point_t* x0, point_t* points, int num_poin
   point_t point;
   generate_random_points(1, &point);
   poly_ls_shape_compute(N, &point, Nk);
-printf("At x = (%g, %g, %g), N = [", point.x, point.y, point.z);
-for (int i = 0; i < num_points; ++i)
-printf("%g ", Nk[i]);
-printf("]\n");
   double phi = 0.0, phi_fit = 0.0;
-  multi_index_t* m = multi_index_new(p);
-  {
-    int i = 0, x, y, z;
-    while (multi_index_next(m, &x, &y, &z))
-      phi += coeffs[i++] * pow(point.x-x0->x, x) * pow(point.y-x0->y, y) * pow(point.z, z-x0->z);
-  }
+  point_t z = {.x = point.x - x0->x, 
+               .y = point.y - x0->y,
+               .z = point.z - x0->z};
+  compute_poly_ls_basis_vector(p, &z, basis);
+  for (int k = 0; k < dim; ++k)
+    phi += coeffs[k] * basis[k];
   for (int k = 0; k < num_points; ++k)
     phi_fit += Nk[k] * data[k];
-printf("phi_fit = %g, phi = %g\n", phi_fit, phi);
   assert_true(fabs(phi_fit - phi) < 1e-12);
 
   // Clean up.
-  m = NULL;
   N = NULL;
 }
 
@@ -224,10 +216,10 @@ void test_p1_fit(void** state)
 void test_p1_shape_funcs(void** state)
 {
   static double coeffs[] = {1.0, 2.0, 3.0, 4.0};
-  point_t x0, points[6];
-  generate_random_points(6, points);
-  average_points(points, 6, &x0);
-  test_poly_shape_functions(1, &x0, points, 6, coeffs);
+  point_t x0, points[8];
+  generate_random_points(8, points);
+  average_points(points, 8, &x0);
+  test_poly_shape_functions(1, &x0, points, 8, coeffs);
 }
 
 void test_p2_fit(void** state)
@@ -283,9 +275,9 @@ int main(int argc, char* argv[])
     unit_test(test_p2_fit), 
     unit_test(test_p3_fit),
     unit_test(test_p0_shape_funcs),
-    unit_test(test_p1_shape_funcs)
-//    unit_test(test_p2_shape_funcs),
-//    unit_test(test_p3_shape_funcs)
+    unit_test(test_p1_shape_funcs),
+    unit_test(test_p2_shape_funcs),
+    unit_test(test_p3_shape_funcs)
   };
   return run_tests(tests);
 }
