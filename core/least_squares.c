@@ -253,13 +253,18 @@ void dgemv(const char *trans, int *m, int *n, double *alpha,
 struct poly_ls_shape_t 
 {
   int p; // Order of basis.
+  bool compute_gradients; // Compute gradients, or no?
   int dim; // Dimension of basis.
   int num_points; // Number of points in domain.
   point_t x0; // Origin.
-  double* B; // Basis matrix / workspace.
+  double *A, *dAdx, *dAdy, *dAdz; // moment matrix and derivatives.
+  double *AinvB; // Ainv * B.
+  double *dAinvBdx, *dAinvBdy, *dAinvBdz; // Derivatives of Ainv*B.
   ls_weighting_func_t weighting_func; // Weighting function.
   void* w_context; // Context pointer for weighting function.
   void (*w_dtor)(void*); // Destructor for weighting function context pointer.
+  double* weights; // Weight function values.
+  vector_t* gradients; // Weight function gradients.
 };
 
 static void poly_ls_shape_free(void* context, void* dummy)
@@ -267,8 +272,16 @@ static void poly_ls_shape_free(void* context, void* dummy)
   poly_ls_shape_t* N = (poly_ls_shape_t*)context;
   if ((N->w_context != NULL) && (N->w_dtor != NULL))
     (*N->w_dtor)(N->w_context);
-  if (N->B != NULL)
-    free(N->B);
+  free(N->A);
+  free(N->dAdx);
+  free(N->dAdy);
+  free(N->dAdz);
+  if (N->AinvB != NULL)
+    free(N->AinvB);
+  if (N->weights != NULL)
+    free(N->weights);
+  if (N->gradients != NULL)
+    free(N->gradients);
   free(N);
 }
 
@@ -279,18 +292,26 @@ static void no_weighting_func(void* context, point_t* x, point_t* x0, double* W,
 //  arbi_error("No weighting function has been set for this LS shape function.");
 }
 
-poly_ls_shape_t* poly_ls_shape_new(int p)
+poly_ls_shape_t* poly_ls_shape_new(int p, bool compute_gradients)
 {
   ASSERT(p >= 0);
   ASSERT(p < 4);
   poly_ls_shape_t* N = GC_MALLOC(sizeof(poly_ls_shape_t));
   N->p = p;
+  N->compute_gradients = compute_gradients;
   N->weighting_func = &no_weighting_func;
   N->w_context = NULL;
   N->w_dtor = NULL;
   N->dim = poly_ls_basis_size(p);
   N->num_points = 0;
-  N->B = NULL;
+  N->A = malloc(sizeof(double)*N->dim*N->dim);
+  N->dAdx = malloc(sizeof(double)*N->dim*N->dim);
+  N->dAdy = malloc(sizeof(double)*N->dim*N->dim);
+  N->dAdz = malloc(sizeof(double)*N->dim*N->dim);
+  N->AinvB = NULL;
+  N->dAinvBdx = N->dAinvBdy = N->dAinvBdz = NULL;
+  N->weights = NULL;
+  N->gradients = NULL;
   GC_register_finalizer(N, &poly_ls_shape_free, N, NULL, NULL);
   return N;
 }
@@ -301,50 +322,68 @@ void poly_ls_shape_set_domain(poly_ls_shape_t* N, point_t* x0, point_t* points, 
   if (num_points != N->num_points)
   {
     N->num_points = num_points;
-    N->B = realloc(N->B, sizeof(double)*dim*num_points);
+    N->AinvB = realloc(N->AinvB, sizeof(double)*dim*num_points);
+    N->dAinvBdx = realloc(N->dAinvBdx, sizeof(double)*dim*num_points);
+    N->dAinvBdy = realloc(N->dAinvBdy, sizeof(double)*dim*num_points);
+    N->dAinvBdz = realloc(N->dAinvBdz, sizeof(double)*dim*num_points);
+    N->weights = realloc(N->weights, sizeof(double)*num_points);
+    N->gradients = realloc(N->gradients, sizeof(vector_t)*num_points);
   }
   N->x0.x = x0->x;
   N->x0.y = x0->y;
   N->x0.z = x0->z;
 
   // Compute the moment matrix A and the basis matrix B.
-  double A[dim*dim], basis[dim], W[num_points];
-  memset(A, 0, sizeof(double)*dim*dim);
-  memset(N->B, 0, sizeof(double)*dim*num_points);
+  memset(N->A, 0, sizeof(double)*dim*dim);
+  memset(N->dAdz, 0, sizeof(double)*dim*dim);
+  memset(N->dAdy, 0, sizeof(double)*dim*dim);
+  memset(N->dAdz, 0, sizeof(double)*dim*dim);
+  memset(N->AinvB, 0, sizeof(double)*dim*num_points);
+  memset(N->dAinvBdx, 0, sizeof(double)*dim*num_points);
+  memset(N->dAinvBdy, 0, sizeof(double)*dim*num_points);
+  memset(N->dAinvBdz, 0, sizeof(double)*dim*num_points);
+  double basis[dim];
   for (int n = 0; n < num_points; ++n)
   {
     // Expand about x0.
     point_t y = {.x = points[n].x - x0->x, 
                  .y = points[n].y - x0->y,
                  .z = points[n].z - x0->z};
-    vector_t gradWn = {.x = 0, .y = 0, .z = 0};
-    N->weighting_func(N->w_context, &points[n], x0, &W[n], &gradWn);
+    N->weighting_func(N->w_context, &points[n], x0, &N->weights[n], &N->gradients[n]);
     compute_poly_ls_basis_vector(N->p, &y, basis);
     for (int i = 0; i < dim; ++i)
     {
-      N->B[dim*n+i] = W[n]*basis[i];
+      N->AinvB[dim*n+i] = N->weights[n]*basis[i];
       for (int j = 0; j < dim; ++j)
-        A[dim*j+i] += basis[i]*W[n]*basis[j];
+      {
+        N->A[dim*j+i] += basis[i]*N->weights[n]*basis[j];
+        N->dAdx[dim*j+i] += basis[i]*N->gradients[n].x*basis[j];
+        N->dAdy[dim*j+i] += basis[i]*N->gradients[n].y*basis[j];
+        N->dAdz[dim*j+i] += basis[i]*N->gradients[n].z*basis[j];
+      }
     }
   }
 
   // Factor the moment matrix.
   int pivot[dim], info;
-  dgetrf(&dim, &dim, A, &dim, pivot, &info);
+  dgetrf(&dim, &dim, N->A, &dim, pivot, &info);
   ASSERT(info == 0);
 
-  // Now compute the values of the shape function basis at x.
-
-  // Ainv * B -> B.
+  // Compute Ainv * B.
   char no_trans = 'N';
-  dgetrs(&no_trans, &dim, &num_points, A, &dim, pivot, N->B, &dim, &info);
+  dgetrs(&no_trans, &dim, &num_points, N->A, &dim, pivot, N->AinvB, &dim, &info);
   ASSERT(info == 0);
+
+  // If we are in the business of computing gradients, compute the 
+  // partial derivatives of Ainv * B.
+  if (N->compute_gradients)
+  {
+  }
 }
 
 void poly_ls_shape_compute(poly_ls_shape_t* N, point_t* x, double* values)
 {
-  ASSERT(N->B != NULL);
-
+  ASSERT(N->AinvB != NULL);
   double basis[N->dim];
 
   // values^T = basis^T * Ainv * B (or values = (Ainv * B)^T * basis.)
@@ -355,122 +394,56 @@ void poly_ls_shape_compute(poly_ls_shape_t* N, point_t* x, double* values)
                .y = x->y - N->x0.y,
                .z = x->z - N->x0.z};
   compute_poly_ls_basis_vector(N->p, &y, basis);
-  dgemv(&trans, &N->dim, &N->num_points, &alpha, N->B, &N->dim, basis, &one, &beta, values, &one);
+  dgemv(&trans, &N->dim, &N->num_points, &alpha, N->AinvB, &N->dim, basis, &one, &beta, values, &one);
 }
 
 void poly_ls_shape_compute_gradients(poly_ls_shape_t* N, point_t* x0, point_t* points, int num_points, point_t* x, double* values, vector_t* gradients)
 {
-  int dim = poly_ls_basis_size(N->p);
+  ASSERT(N->compute_gradients);
+  ASSERT(N->AinvB != NULL);
 
-  // Compute the moment matrix and its gradient.
-  double A[dim*dim], basis[dim], P[dim*dim], W[num_points],
-         gradAx[dim*dim], gradAy[dim*dim], gradAz[dim*dim];
-  vector_t gradW[num_points];
-  memset(A, 0, sizeof(double)*dim*dim);
-  memset(gradAx, 0, sizeof(double)*dim*dim);
-  memset(gradAy, 0, sizeof(double)*dim*dim);
-  memset(gradAz, 0, sizeof(double)*dim*dim);
-  memset(gradW, 0, sizeof(vector_t)*num_points);
-  for (int n = 0; n < num_points; ++n)
-  {
-    // Expand about x0.
-    point_t y = {.x = points[n].x - x0->x, 
-                 .y = points[n].y - x0->y,
-                 .z = points[n].z - x0->z};
+  int dim = N->dim;
 
-    // Compute the weighting functions.
-    N->weighting_func(N->w_context, &points[n], x0, &W[n], &gradW[n]);
-
-    compute_poly_ls_basis_vector(N->p, &y, basis);
-    memcpy(&P[dim*n], basis, dim*sizeof(double));
-    for (int i = 0; i < dim; ++i)
-    {
-      for (int j = 0; j < dim; ++j)
-      {
-        A[dim*j+i] += basis[i]*W[n]*basis[j];
-        gradAx[dim*j+i] += basis[i]*gradW[n].x*basis[j];
-        gradAy[dim*j+i] += basis[i]*gradW[n].y*basis[j];
-        gradAz[dim*j+i] += basis[i]*gradW[n].z*basis[j];
-      }
-    }
-  }
-
-  // Factor the moment matrix.
-  int lda = dim, pivot[dim], info;
-  dgetrf(&dim, &dim, A, &lda, pivot, &info);
-  ASSERT(info == 0);
-
-  // Now compute the values and gradients of the shape function basis at x.
-  char trans = 'N';
-  int ldb = dim, one = 1;
+  // values^T = basis^T * Ainv * B (or values = (Ainv * B)^T * basis.)
   double alpha = 1.0, beta = 0.0;
-  double Ainv_p[dim];
-  memset(values, 0, sizeof(double)*num_points);
-  memset(gradients, 0, sizeof(vector_t)*num_points);
+  int one = 1;
+  char trans = 'T';
+  point_t y = {.x = x->x - N->x0.x, 
+               .y = x->y - N->x0.y,
+               .z = x->z - N->x0.z};
+  double basis[dim];
+  compute_poly_ls_basis_vector(N->p, &y, basis);
+  dgemv(&trans, &N->dim, &N->num_points, &alpha, N->AinvB, &N->dim, basis, &one, &beta, values, &one);
+
+  // Now compute the gradients.
+
+  // 1st term: gradient of basis, dotted with Ainv * B.
+  vector_t basis_grads[dim];
+  compute_poly_ls_basis_gradient(N->p, &y, basis_grads);
+  double dpdx[dim], dpdy[dim], dpdz[dim];
+  for (int i = 0; i < dim; ++i)
   {
-    compute_poly_ls_basis_vector(N->p, x, basis);
-    compute_poly_ls_basis_gradient(N->p, x, gradients);
-    for (int n = 0; n < num_points; ++n)
-    {
-      // Compute Ainv * p.
-      memcpy(Ainv_p, &P[dim*n], dim*sizeof(double));
-      dgetrs(&trans, &dim, &one, A, &lda, pivot, Ainv_p, &ldb, &info);
+    dpdx[i] = basis_grads[i].x;
+    dpdy[i] = basis_grads[i].y;
+    dpdz[i] = basis_grads[i].z;
+  }
+  double dpdx_AinvB[num_points], dpdy_AinvB[num_points], dpdz_AinvB[num_points];
+  dgemv(&trans, &N->dim, &N->num_points, &alpha, N->AinvB, &N->dim, basis, &one, &beta, dpdx_AinvB, &one);
+  dgemv(&trans, &N->dim, &N->num_points, &alpha, N->AinvB, &N->dim, basis, &one, &beta, dpdy_AinvB, &one);
+  dgemv(&trans, &N->dim, &N->num_points, &alpha, N->AinvB, &N->dim, basis, &one, &beta, dpdz_AinvB, &one);
 
-      // First pass: pT_Ainv_p and dpT_Ainv_p.
-      double pT_Ainv_p = 0.0;
-      vector_t gradpT_Ainv_p = {.x = 0., .y = 0., .z = 0.};
-      for (int i = 0; i < dim; ++i)
-      {
-        pT_Ainv_p += basis[i]*Ainv_p[i];
-        gradpT_Ainv_p.x += gradients[i].x * Ainv_p[i];
-        gradpT_Ainv_p.y += gradients[i].y * Ainv_p[i];
-        gradpT_Ainv_p.z += gradients[i].z * Ainv_p[i];
-      }
-      values[n] = pT_Ainv_p;
+  // Second term: basis dotted with gradient of Ainv * B.
+  double p_dAinvBdx[num_points], p_dAinvBdy[num_points], p_dAinvBdz[num_points];
+  dgemv(&trans, &N->dim, &N->num_points, &alpha, N->dAinvBdx, &N->dim, basis, &one, &beta, p_dAinvBdx, &one);
+  dgemv(&trans, &N->dim, &N->num_points, &alpha, N->dAinvBdy, &N->dim, basis, &one, &beta, p_dAinvBdy, &one);
+  dgemv(&trans, &N->dim, &N->num_points, &alpha, N->dAinvBdz, &N->dim, basis, &one, &beta, p_dAinvBdz, &one);
 
-      // Second pass: Ainv_gradA_Ainv_p.
-      double Ainv_gradA_Ainv_px[dim],
-             Ainv_gradA_Ainv_py[dim],
-             Ainv_gradA_Ainv_pz[dim];
-      for (int i = 0; i < dim; ++i)
-      {
-        // gradA * Ainv_p -> Ainv_gradA_Ainv_p.
-        dgemv(&trans, &dim, &dim, &alpha, gradAx, &dim, Ainv_p, &one, &beta,
-              Ainv_gradA_Ainv_px, &one);
-        dgemv(&trans, &dim, &dim, &alpha, gradAy, &dim, Ainv_p, &one, &beta,
-              Ainv_gradA_Ainv_py, &one);
-        dgemv(&trans, &dim, &dim, &alpha, gradAz, &dim, Ainv_p, &one, &beta,
-              Ainv_gradA_Ainv_pz, &one);
-
-        // Solve A * X = gradA * Ainv_p; X -> Ainv_gradA_Ainv_p.
-        dgetrs(&trans, &dim, &one, A, &lda, pivot, Ainv_gradA_Ainv_px, &ldb, &info);
-        ASSERT(info == 0);
-        dgetrs(&trans, &dim, &one, A, &lda, pivot, Ainv_gradA_Ainv_py, &ldb, &info);
-        ASSERT(info == 0);
-        dgetrs(&trans, &dim, &one, A, &lda, pivot, Ainv_gradA_Ainv_pz, &ldb, &info);
-        ASSERT(info == 0);
-      }
-      
-      // Third pass: pT_Ainv_gradA_Ainv_p.
-      vector_t pT_Ainv_gradA_Ainv_p = {.x = 0., .y = 0., .z = 0.};
-      for (int i = 0; i < dim; ++i)
-      {
-        pT_Ainv_gradA_Ainv_p.x += basis[i] * Ainv_gradA_Ainv_px[i];
-        pT_Ainv_gradA_Ainv_p.y += basis[i] * Ainv_gradA_Ainv_py[i];
-        pT_Ainv_gradA_Ainv_p.y += basis[i] * Ainv_gradA_Ainv_pz[i];
-      }
-
-      // Third pass: compute the shape function gradients.
-      for (int i = 0; i < dim; ++i)
-      {
-        gradients[n].x += (gradpT_Ainv_p.x - pT_Ainv_gradA_Ainv_p.x) * W[n] + 
-                          pT_Ainv_p * gradW[n].x;
-        gradients[n].y += (gradpT_Ainv_p.y - pT_Ainv_gradA_Ainv_p.y) * W[n] + 
-                          pT_Ainv_p * gradW[n].y;
-        gradients[n].z += (gradpT_Ainv_p.z - pT_Ainv_gradA_Ainv_p.z) * W[n] + 
-                          pT_Ainv_p * gradW[n].z;
-      }
-    }
+  // Gradients are the sum of these terms.
+  for (int i = 0; i < N->num_points; ++i)
+  {
+    gradients[i].x = dpdx_AinvB[i] + p_dAinvBdx[i];
+    gradients[i].y = dpdy_AinvB[i] + p_dAinvBdy[i];
+    gradients[i].z = dpdz_AinvB[i] + p_dAinvBdz[i];
   }
 }
 
