@@ -225,7 +225,7 @@ void compute_weighted_poly_ls_system(int p, ls_weighting_func_t W, point_t* x0, 
     }
     double Wd;
     vector_t gradWd;
-    W(d, &Wd, &gradWd);
+    W(NULL, d, &Wd, &gradWd);
     for (int i = 0; i < size; ++i)
     {
       for (int j = 0; j < size; ++j)
@@ -262,12 +262,13 @@ static void poly_ls_shape_basis_free(void* context, void* dummy)
   free(N);
 }
 
-poly_ls_shape_basis_t* poly_ls_shape_basis_new(int p)
+poly_ls_shape_basis_t* poly_ls_shape_basis_new(int p, ls_weighting_func_t weighting_func)
 {
   ASSERT(p >= 0);
   ASSERT(p < 4);
   poly_ls_shape_basis_t* N = GC_MALLOC(sizeof(poly_ls_shape_basis_t));
   N->p = p;
+  N->weighting_func = weighting_func;
   GC_register_finalizer(N, &poly_ls_shape_basis_free, N, NULL, NULL);
   return N;
 }
@@ -276,47 +277,64 @@ void poly_ls_shape_basis_compute(poly_ls_shape_basis_t* N, point_t* x0, point_t*
 {
   int dim = poly_ls_basis_size(N->p);
 
-  // Compute the moment matrix.
-  double A[dim*dim], basis[dim], P[dim*dim];
+  // Compute the moment matrix A and the basis matrix B.
+  double A[dim*dim], basis[dim], B[dim*num_points], W[num_points];
   memset(A, 0, sizeof(double)*dim*dim);
+  memset(B, 0, sizeof(double)*dim*num_points);
   for (int n = 0; n < num_points; ++n)
   {
     // Expand about x0.
     point_t y = {.x = points[n].x - x0->x, 
                  .y = points[n].y - x0->y,
                  .z = points[n].z - x0->z};
-    double d = y.x*y.x + y.y*y.y + y.z*y.z, Wn = 1.0;
+    double d = y.x*y.x + y.y*y.y + y.z*y.z;
+    W[n] = 1.0;
     vector_t gradWn = {.x = 0, .y = 0, .z = 0};
     if (N->weighting_func != NULL)
-      N->weighting_func(d, &Wn, &gradWn);
+      N->weighting_func(NULL, d, &W[n], &gradWn);
     compute_poly_ls_basis_vector(N->p, &y, basis);
-    memcpy(&P[dim*n], basis, dim*sizeof(double));
     for (int i = 0; i < dim; ++i)
     {
+      B[dim*n+i] = W[n]*basis[i];
       for (int j = 0; j < dim; ++j)
-        A[dim*j+i] += basis[i]*Wn*basis[j];
+        A[dim*j+i] += basis[i]*W[n]*basis[j];
     }
   }
+printf("P = [");
+for (int i = 0; i < num_points*dim; ++i)
+  printf("%g ", B[i]);
+printf("]\n");
+printf("A = [");
+for (int i = 0; i < dim*dim; ++i)
+  printf("%g ", A[i]);
+printf("]\n");
 
   // Factor the moment matrix.
-  int lda = dim, pivot[dim], info;
-  dgetrf(&dim, &dim, A, &lda, pivot, &info);
+  int pivot[dim], info;
+  dgetrf(&dim, &dim, A, &dim, pivot, &info);
   ASSERT(info == 0);
 
   // Now compute the values of the shape function basis at x.
-  char trans = 'N';
-  int ldb = dim, one = 1;
-  double Ainvb[dim];
-  memset(values, 0, sizeof(double)*num_points);
+
+  // Ainv * B -> B.
+  char no_trans = 'N';
+  dgetrs(&no_trans, &dim, &num_points, A, &dim, pivot, B, &dim, &info);
+  ASSERT(info == 0);
+printf("B = [");
+for (int i = 0; i < num_points*dim; ++i)
+  printf("%g ", B[i]);
+printf("]\n");
+
+  // values^T = basis^T * Ainv * B (or values = (Ainv * B)^T * basis.)
   {
-    compute_poly_ls_basis_vector(N->p, x, basis);
-    for (int n = 0; n < num_points; ++n)
-    {
-      memcpy(Ainvb, &P[dim*n], dim*sizeof(double));
-      dgetrs(&trans, &dim, &one, A, &lda, pivot, Ainvb, &ldb, &info);
-      for (int i = 0; i < dim; ++i)
-        values[n] += basis[i]*Ainvb[i];
-    }
+    double alpha = 1.0, beta = 0.0;
+    int one = 1;
+    char trans = 'T';
+    point_t y = {.x = x->x - x0->x, 
+                 .y = x->y - x0->y,
+                 .z = x->z - x0->z};
+    compute_poly_ls_basis_vector(N->p, &y, basis);
+    dgemv(&trans, &dim, &num_points, &alpha, B, &dim, basis, &one, &beta, values, &one);
   }
 }
 
@@ -344,7 +362,7 @@ void poly_ls_shape_basis_compute_gradients(poly_ls_shape_basis_t* N, point_t* x0
     double d = y.x*y.x + y.y*y.y + y.z*y.z;
     W[n] = 1.0;
     if (N->weighting_func != NULL)
-      N->weighting_func(d, &W[n], &gradW[n]);
+      N->weighting_func(NULL, d, &W[n], &gradW[n]);
 
     compute_poly_ls_basis_vector(N->p, &y, basis);
     memcpy(&P[dim*n], basis, dim*sizeof(double));

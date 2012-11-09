@@ -30,8 +30,8 @@ bool multi_index_next(multi_index_t* m, int* x_order, int* y_order, int* z_order
 void multi_index_reset(multi_index_t* m);
 
 // This is a weighting function used for least-squares systems. Given a 
-// Euclidean distance, it returns a value and a gradient.
-typedef void (*ls_weighting_func_t)(double, double*, vector_t*);
+// context pointer and a Euclidean distance, it returns a value and a gradient.
+typedef void (*ls_weighting_func_t)(void*, double, double*, vector_t*);
 
 // Returns the size of the least-squares polynomial basis of order p.
 int poly_ls_basis_size(int p);
@@ -61,7 +61,7 @@ typedef struct poly_ls_shape_basis_t poly_ls_shape_basis_t;
 
 // Create a new shape function for a polynomial least-squares fit of order p, 
 // with an optional weighting function.
-poly_ls_shape_basis_t* poly_ls_shape_basis_new(int p);
+poly_ls_shape_basis_t* poly_ls_shape_basis_new(int p, ls_weighting_func_t weighting_func);
 
 // Computes the shape function basis (expanded about the point x0 and fitted 
 // to the given points), evaluating each shape function at the point x.
