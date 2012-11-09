@@ -245,9 +245,14 @@ void dgetrs(char *TRANS, int *N, int *NRHS, double *A,
             int *LDA, int *IPIV, double *B, int *LDB, int *INFO);
 
 // Matrix-vector multiplication: y := alpha*A*x + beta*y.
-void dgemv(const char *trans, int *m, int *n, double *alpha,
+void dgemv(char *trans, int *m, int *n, double *alpha,
            void *a, int *lda, void *x, int *incx,
            double *beta, void *y, int *incy);
+
+// Matrix-matrix multiplication: C := alpha*op(A)*op(B) + beta*C.
+void dgemm(char *transa, char* transB, int *m, int *n, int *k, double *alpha,
+           double *A, int *lda, double *B, int *ldb, double *beta, double *C, 
+           int *ldc);
 
 // Shape function basis.
 struct poly_ls_shape_t 
@@ -378,6 +383,31 @@ void poly_ls_shape_set_domain(poly_ls_shape_t* N, point_t* x0, point_t* points, 
   // partial derivatives of Ainv * B.
   if (N->compute_gradients)
   {
+    // The partial derivatives of A inverse are:
+    // d(Ainv) = -Ainv * dA * Ainv, so
+    // d(Ainv * B) = -Ainv * dA * Ainv * B.
+
+    // We left-multiply Ainv*B by the gradient of A, placing the results 
+    // in dAinvBdx, dAinvBdy, and dAinvBdz.
+    double alpha = 1.0, beta = 0.0;
+    dgemm(&no_trans, &no_trans, &N->dim, &N->num_points, &N->dim, &alpha, 
+          N->dAdx, &N->dim, N->AinvB, &N->dim, &beta, N->dAinvBdx, &N->dim);
+    dgemm(&no_trans, &no_trans, &N->dim, &N->num_points, &N->dim, &alpha, 
+          N->dAdy, &N->dim, N->AinvB, &N->dim, &beta, N->dAinvBdy, &N->dim);
+    dgemm(&no_trans, &no_trans, &N->dim, &N->num_points, &N->dim, &alpha, 
+          N->dAdz, &N->dim, N->AinvB, &N->dim, &beta, N->dAinvBdz, &N->dim);
+
+    // Now "left-multiply by -Ainv" by solving the equation (e.g.)
+    // A * (dAinvBdx) = dA_AinvB and then multiplying by -1.
+    dgetrs(&no_trans, &dim, &num_points, N->A, &dim, pivot, N->dAinvBdx, &dim, &info);
+    dgetrs(&no_trans, &dim, &num_points, N->A, &dim, pivot, N->dAinvBdy, &dim, &info);
+    dgetrs(&no_trans, &dim, &num_points, N->A, &dim, pivot, N->dAinvBdz, &dim, &info);
+    for (int i = 0; i < num_points; ++i)
+    {
+      N->dAinvBdx[i] *= -1.0;
+      N->dAinvBdy[i] *= -1.0;
+      N->dAinvBdz[i] *= -1.0;
+    }
   }
 }
 

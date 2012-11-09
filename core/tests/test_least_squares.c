@@ -153,7 +153,7 @@ void test_poly_shape_function_gradients(int p, point_t* x0, point_t* points, int
   }
 
   // Compute shape functions for the given data.
-  poly_ls_shape_t* N = poly_ls_shape_new(p, false);
+  poly_ls_shape_t* N = poly_ls_shape_new(p, true);
 //  poly_ls_shape_set_simple_weighting_func(N, 2.0, 1e-8);
   poly_ls_shape_set_domain(N, x0, points, num_points);
   double Nk[num_points];
