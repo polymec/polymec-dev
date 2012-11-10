@@ -75,7 +75,7 @@ void poly_ls_shape_compute(poly_ls_shape_t* N, point_t* x, double* values);
 
 // Computes the gradients of the shape function basis (expanded about the 
 // point x0 and fitted to the given points), evaluating each gradient at the point x.
-void poly_ls_shape_compute_gradients(poly_ls_shape_t* N, point_t* x0, point_t* points, int num_points, point_t* x, double* values, vector_t* gradients);
+void poly_ls_shape_compute_gradients(poly_ls_shape_t* N, point_t* x, double* values, vector_t* gradients);
 
 // Selects a weighting function for the shape function with the form 
 // W(d) = 1 / (d**A + B**A), where A and B are parameters.

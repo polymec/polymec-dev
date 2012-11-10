@@ -150,8 +150,8 @@ void compute_poly_ls_basis_gradient(int p, point_t* point, vector_t* gradients)
   int i = 0, x, y, z;
   while (multi_index_next(m, &x, &y, &z))
   {
-    gradients[i++].x = (x == 0) ? 0.0 : x*pow(point->x, x-1)*pow(point->y, y)*pow(point->z, z);
-    gradients[i++].y = (y == 0) ? 0.0 : pow(point->x, x)*y*pow(point->y, y-1)*pow(point->z, z);
+    gradients[i].x = (x == 0) ? 0.0 : x*pow(point->x, x-1)*pow(point->y, y)*pow(point->z, z);
+    gradients[i].y = (y == 0) ? 0.0 : pow(point->x, x)*y*pow(point->y, y-1)*pow(point->z, z);
     gradients[i++].z = (z == 0) ? 0.0 : pow(point->x, x)*pow(point->y, y)*z*pow(point->z, z-1);
   }
   m = NULL;
@@ -427,7 +427,7 @@ void poly_ls_shape_compute(poly_ls_shape_t* N, point_t* x, double* values)
   dgemv(&trans, &N->dim, &N->num_points, &alpha, N->AinvB, &N->dim, basis, &one, &beta, values, &one);
 }
 
-void poly_ls_shape_compute_gradients(poly_ls_shape_t* N, point_t* x0, point_t* points, int num_points, point_t* x, double* values, vector_t* gradients)
+void poly_ls_shape_compute_gradients(poly_ls_shape_t* N, point_t* x, double* values, vector_t* gradients)
 {
   ASSERT(N->compute_gradients);
   ASSERT(N->AinvB != NULL);
@@ -457,13 +457,13 @@ void poly_ls_shape_compute_gradients(poly_ls_shape_t* N, point_t* x0, point_t* p
     dpdy[i] = basis_grads[i].y;
     dpdz[i] = basis_grads[i].z;
   }
-  double dpdx_AinvB[num_points], dpdy_AinvB[num_points], dpdz_AinvB[num_points];
+  double dpdx_AinvB[N->num_points], dpdy_AinvB[N->num_points], dpdz_AinvB[N->num_points];
   dgemv(&trans, &N->dim, &N->num_points, &alpha, N->AinvB, &N->dim, basis, &one, &beta, dpdx_AinvB, &one);
   dgemv(&trans, &N->dim, &N->num_points, &alpha, N->AinvB, &N->dim, basis, &one, &beta, dpdy_AinvB, &one);
   dgemv(&trans, &N->dim, &N->num_points, &alpha, N->AinvB, &N->dim, basis, &one, &beta, dpdz_AinvB, &one);
 
   // Second term: basis dotted with gradient of Ainv * B.
-  double p_dAinvBdx[num_points], p_dAinvBdy[num_points], p_dAinvBdz[num_points];
+  double p_dAinvBdx[N->num_points], p_dAinvBdy[N->num_points], p_dAinvBdz[N->num_points];
   dgemv(&trans, &N->dim, &N->num_points, &alpha, N->dAinvBdx, &N->dim, basis, &one, &beta, p_dAinvBdx, &one);
   dgemv(&trans, &N->dim, &N->num_points, &alpha, N->dAinvBdy, &N->dim, basis, &one, &beta, p_dAinvBdy, &one);
   dgemv(&trans, &N->dim, &N->num_points, &alpha, N->dAinvBdz, &N->dim, basis, &one, &beta, p_dAinvBdz, &one);
