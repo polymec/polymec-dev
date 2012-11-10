@@ -340,7 +340,7 @@ void poly_ls_shape_set_domain(poly_ls_shape_t* N, point_t* x0, point_t* points, 
 
   // Compute the moment matrix A and the basis matrix B.
   memset(N->A, 0, sizeof(double)*dim*dim);
-  memset(N->dAdz, 0, sizeof(double)*dim*dim);
+  memset(N->dAdx, 0, sizeof(double)*dim*dim);
   memset(N->dAdy, 0, sizeof(double)*dim*dim);
   memset(N->dAdz, 0, sizeof(double)*dim*dim);
   memset(N->AinvB, 0, sizeof(double)*dim*num_points);
@@ -458,9 +458,9 @@ void poly_ls_shape_compute_gradients(poly_ls_shape_t* N, point_t* x, double* val
     dpdz[i] = basis_grads[i].z;
   }
   double dpdx_AinvB[N->num_points], dpdy_AinvB[N->num_points], dpdz_AinvB[N->num_points];
-  dgemv(&trans, &N->dim, &N->num_points, &alpha, N->AinvB, &N->dim, basis, &one, &beta, dpdx_AinvB, &one);
-  dgemv(&trans, &N->dim, &N->num_points, &alpha, N->AinvB, &N->dim, basis, &one, &beta, dpdy_AinvB, &one);
-  dgemv(&trans, &N->dim, &N->num_points, &alpha, N->AinvB, &N->dim, basis, &one, &beta, dpdz_AinvB, &one);
+  dgemv(&trans, &N->dim, &N->num_points, &alpha, N->AinvB, &N->dim, dpdx, &one, &beta, dpdx_AinvB, &one);
+  dgemv(&trans, &N->dim, &N->num_points, &alpha, N->AinvB, &N->dim, dpdy, &one, &beta, dpdy_AinvB, &one);
+  dgemv(&trans, &N->dim, &N->num_points, &alpha, N->AinvB, &N->dim, dpdz, &one, &beta, dpdz_AinvB, &one);
 
   // Second term: basis dotted with gradient of Ainv * B.
   double p_dAinvBdx[N->num_points], p_dAinvBdy[N->num_points], p_dAinvBdz[N->num_points];
