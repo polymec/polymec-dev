@@ -186,20 +186,38 @@ void test_poly_shape_function_gradients(int p, point_t* x0, point_t* points, int
     assert_true(fabs(gradient.z - data_grads[i].z) < 1e-12);
   }
 
-  // Now make sure that the fit matches the polynomial at another point.
+  // Now make sure that the fit matches the polynomial and its 
+  // derivative at another point.
   point_t point;
   generate_random_points(1, &point);
   poly_ls_shape_compute(N, &point, Nk);
+  poly_ls_shape_compute_gradients(N, &point, Nk, gradNk);
   double phi = 0.0, phi_fit = 0.0;
+  vector_t grad_phi = {.x = 0.0, .y = 0.0, .z = 0.0},
+           grad_phi_fit = {.x = 0.0, .y = 0.0, .z = 0.0};
   point_t z = {.x = point.x - x0->x, 
                .y = point.y - x0->y,
                .z = point.z - x0->z};
   compute_poly_ls_basis_vector(p, &z, basis);
+  compute_poly_ls_basis_gradient(p, &z, basis_grad);
   for (int k = 0; k < dim; ++k)
+  {
     phi += coeffs[k] * basis[k];
+    grad_phi.x += coeffs[k] * basis_grad[k].x;
+    grad_phi.y += coeffs[k] * basis_grad[k].y;
+    grad_phi.z += coeffs[k] * basis_grad[k].z;
+  }
   for (int k = 0; k < num_points; ++k)
+  {
     phi_fit += Nk[k] * data[k];
+    grad_phi_fit.x += gradNk[k].x * data[k];
+    grad_phi_fit.y += gradNk[k].y * data[k];
+    grad_phi_fit.z += gradNk[k].z * data[k];
+  }
   assert_true(fabs(phi_fit - phi) < 1e-12);
+  assert_true(fabs(grad_phi_fit.x - grad_phi.x) < 1e-12);
+  assert_true(fabs(grad_phi_fit.y - grad_phi.y) < 1e-12);
+  assert_true(fabs(grad_phi_fit.z - grad_phi.z) < 1e-12);
 
   // Clean up.
   N = NULL;
