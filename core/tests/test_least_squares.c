@@ -141,31 +141,52 @@ void test_poly_shape_function_gradients(int p, point_t* x0, point_t* points, int
 
   // Create scatter data.
   double data[num_points], basis[dim];
+  vector_t data_grads[num_points], basis_grad[dim];
   memset(data, 0, sizeof(double)*num_points);
+  memset(data_grads, 0, sizeof(vector_t)*num_points);
   for (int i = 0; i < num_points; ++i)
   {
     point_t y = {.x = points[i].x - x0->x, 
                  .y = points[i].y - x0->y,
                  .z = points[i].z - x0->z};
     compute_poly_ls_basis_vector(p, &y, basis);
+    compute_poly_ls_basis_gradient(p, &y, basis_grad);
     for (int k = 0; k < dim; ++k)
+    {
       data[i] += coeffs[k]*basis[k];
+      data_grads[i].x += coeffs[k]*basis_grad[k].x;
+      data_grads[i].y += coeffs[k]*basis_grad[k].y;
+      data_grads[i].z += coeffs[k]*basis_grad[k].z;
+    }
   }
 
   // Compute shape functions for the given data.
   poly_ls_shape_t* N = poly_ls_shape_new(p, true);
 //  poly_ls_shape_set_simple_weighting_func(N, 2.0, 1e-8);
   poly_ls_shape_set_domain(N, x0, points, num_points);
-  double Nk[num_points];
 
-  // Make sure the shape functions interpolate the data.
+  // Make sure the shape functions interpolate the data and their gradients.
+  double Nk[num_points];
+  vector_t gradNk[num_points];
   for (int i = 0; i < num_points; ++i)
   {
     double value = 0.0;
-    poly_ls_shape_compute(N, &points[i], Nk);
+    vector_t gradient = {.x = 0.0, .y = 0.0, .z = 0.0};
+    poly_ls_shape_compute_gradients(N, &points[i], Nk, gradNk);
     for (int k = 0; k < num_points; ++k)
+    {
       value += Nk[k]*data[k];
+      gradient.x += gradNk[k].x*data[k];
+      gradient.y += gradNk[k].y*data[k];
+      gradient.z += gradNk[k].z*data[k];
+    }
     assert_true(fabs(value - data[i]) < 1e-12);
+printf("x: %g %g %g\n", gradient.x, data_grads[i].x, fabs(gradient.x - data_grads[i].x));
+    assert_true(fabs(gradient.x - data_grads[i].x) < 1e-12);
+printf("y: %g %g %g\n", gradient.y, data_grads[i].y, fabs(gradient.y - data_grads[i].y));
+    assert_true(fabs(gradient.y - data_grads[i].y) < 1e-12);
+printf("z: %g %g\n", gradient.z, data_grads[i].z, fabs(gradient.z - data_grads[i].z));
+    assert_true(fabs(gradient.z - data_grads[i].z) < 1e-12);
   }
 
   // Now make sure that the fit matches the polynomial at another point.
@@ -204,6 +225,15 @@ void test_p0_shape_funcs(void** state)
   generate_random_points(4, points);
   average_points(points, 4, &x0);
   test_poly_shape_functions(0, &x0, points, 4, coeffs);
+}
+
+void test_p0_shape_func_gradients(void** state)
+{
+  static double coeffs[] = {1.0};
+  point_t x0, points[4];
+  generate_random_points(4, points);
+  average_points(points, 4, &x0);
+  test_poly_shape_function_gradients(0, &x0, points, 4, coeffs);
 }
 
 void test_p1_fit(void** state)
@@ -280,7 +310,11 @@ int main(int argc, char* argv[])
     unit_test(test_p0_shape_funcs),
     unit_test(test_p1_shape_funcs),
     unit_test(test_p2_shape_funcs),
-    unit_test(test_p3_shape_funcs)
+    unit_test(test_p3_shape_funcs),
+    unit_test(test_p0_shape_func_gradients)
+//    unit_test(test_p1_shape_funcs),
+//    unit_test(test_p2_shape_funcs),
+//    unit_test(test_p3_shape_funcs)
   };
   return run_tests(tests);
 }
