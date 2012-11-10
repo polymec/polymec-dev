@@ -181,11 +181,8 @@ void test_poly_shape_function_gradients(int p, point_t* x0, point_t* points, int
       gradient.z += gradNk[k].z*data[k];
     }
     assert_true(fabs(value - data[i]) < 1e-12);
-printf("x: %g %g %g\n", gradient.x, data_grads[i].x, fabs(gradient.x - data_grads[i].x));
     assert_true(fabs(gradient.x - data_grads[i].x) < 1e-12);
-printf("y: %g %g %g\n", gradient.y, data_grads[i].y, fabs(gradient.y - data_grads[i].y));
     assert_true(fabs(gradient.y - data_grads[i].y) < 1e-12);
-printf("z: %g %g\n", gradient.z, data_grads[i].z, fabs(gradient.z - data_grads[i].z));
     assert_true(fabs(gradient.z - data_grads[i].z) < 1e-12);
   }
 
@@ -255,6 +252,15 @@ void test_p1_shape_funcs(void** state)
   test_poly_shape_functions(1, &x0, points, 8, coeffs);
 }
 
+void test_p1_shape_func_gradients(void** state)
+{
+  static double coeffs[] = {1.0, 2.0, 3.0, 4.0};
+  point_t x0, points[8];
+  generate_random_points(8, points);
+  average_points(points, 8, &x0);
+  test_poly_shape_function_gradients(1, &x0, points, 8, coeffs);
+}
+
 void test_p2_fit(void** state)
 {
   static double coeffs[] = {1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0};
@@ -272,6 +278,15 @@ void test_p2_shape_funcs(void** state)
   generate_random_points(16, points);
   average_points(points, 16, &x0);
   test_poly_shape_functions(2, &x0, points, 16, coeffs);
+}
+
+void test_p2_shape_func_gradients(void** state)
+{
+  static double coeffs[] = {1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0};
+  point_t x0, points[16];
+  generate_random_points(16, points);
+  average_points(points, 16, &x0);
+  test_poly_shape_function_gradients(2, &x0, points, 16, coeffs);
 }
 
 void test_p3_fit(void** state)
@@ -293,6 +308,15 @@ void test_p3_shape_funcs(void** state)
   test_poly_shape_functions(3, &x0, points, 30, coeffs);
 }
 
+void test_p3_shape_func_gradients(void** state)
+{
+  static double coeffs[] = {1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0};
+  point_t x0, points[30];
+  generate_random_points(30, points);
+  average_points(points, 30, &x0);
+  test_poly_shape_function_gradients(3, &x0, points, 30, coeffs);
+}
+
 int main(int argc, char* argv[]) 
 {
   arbi_init(argc, argv);
@@ -311,10 +335,10 @@ int main(int argc, char* argv[])
     unit_test(test_p1_shape_funcs),
     unit_test(test_p2_shape_funcs),
     unit_test(test_p3_shape_funcs),
-    unit_test(test_p0_shape_func_gradients)
-//    unit_test(test_p1_shape_funcs),
-//    unit_test(test_p2_shape_funcs),
-//    unit_test(test_p3_shape_funcs)
+    unit_test(test_p0_shape_func_gradients),
+    unit_test(test_p1_shape_func_gradients),
+    unit_test(test_p2_shape_func_gradients),
+    unit_test(test_p3_shape_func_gradients)
   };
   return run_tests(tests);
 }
