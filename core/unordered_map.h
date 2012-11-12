@@ -248,6 +248,8 @@ static inline bool map_name##_next(map_name##_t* map, int* pos, key_type* key, v
 } \
 
 // Define some unordered maps.
+DEFINE_UNORDERED_MAP(int_int_unordered_map, int, int, int_hash, int_equals)
+DEFINE_UNORDERED_MAP(int_ptr_unordered_map, int, void*, int_hash, int_equals)
 DEFINE_UNORDERED_MAP(str_str_unordered_map, char*, char*, string_hash, string_equals)
 DEFINE_UNORDERED_MAP(str_ptr_unordered_map, char*, void*, string_hash, string_equals)
 
