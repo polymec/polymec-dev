@@ -194,8 +194,8 @@ void generate_face_node_conn(mesh_t* mesh,
       v2.z = mesh->nodes[nodes[n]].z - face_center.z;
 
       // normal = v1 x v2.
-      vector_cross(v1, v2, &normal);
-      normal_mag = sqrt(vector_dot(normal, normal));
+      vector_cross(&v1, &v2, &normal);
+      normal_mag = sqrt(vector_dot(&normal, &normal));
       if (normal_mag > 1e-14) break;
     }
     ASSERT(normal_mag > 1e-14);
@@ -210,7 +210,7 @@ void generate_face_node_conn(mesh_t* mesh,
     v3.x = face_center.x - cell_center.x;
     v3.y = face_center.y - cell_center.y;
     v3.z = face_center.z - cell_center.z;
-    if (vector_dot(normal, v3) < 0.0)
+    if (vector_dot(&normal, &v3) < 0.0)
     {
       normal.x *= -1.0; normal.y *= -1.0; normal.z *= -1.0;
     }
@@ -219,13 +219,13 @@ void generate_face_node_conn(mesh_t* mesh,
     // with the given normal and centered about the face center.
     double points[2*nn]; // NOTE: planar coordinates (2D)
     vector_t e1, e2; // Basis vectors in the plane.
-    double v1_mag = sqrt(vector_dot(v1, v1));
+    double v1_mag = sqrt(vector_dot(&v1, &v1));
     e1.x = v1.x / v1_mag;
     e1.y = v1.y / v1_mag;
     e1.z = v1.z / v1_mag;
 
     // e2 = normal x e1.
-    vector_cross(normal, e1, &e2);
+    vector_cross(&normal, &e1, &e2);
     for (int p = 0; p < nn; ++p)
     {
       // v = node center - cell center.
@@ -238,14 +238,14 @@ void generate_face_node_conn(mesh_t* mesh,
       // with location v:
       // v_perp = v - (n o v)n.
       vector_t v_perp;
-      double nov = vector_dot(normal, v);
+      double nov = vector_dot(&normal, &v);
       v_perp.x = v.x - nov * normal.x;
       v_perp.y = v.y - nov * normal.y;
       v_perp.z = v.z - nov * normal.z;
 
       // Project it to the plane.
-      points[2*p]   = vector_dot(v_perp, e1);
-      points[2*p+1] = vector_dot(v_perp, e2);
+      points[2*p]   = vector_dot(&v_perp, &e1);
+      points[2*p+1] = vector_dot(&v_perp, &e2);
     }
 
     // Find the node order by traversing the convex hull of 

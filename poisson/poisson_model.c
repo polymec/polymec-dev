@@ -251,8 +251,8 @@ static void apply_bcs(int* boundary_cells,
     // construct a fit that satisfies the boundary conditions!
 
     // Number of points = number of neighbors + self + boundary faces
-    int num_points = cell_info->num_neighbor_cells + 1 + 
-                     cell_info->num_boundary_faces;
+    int nb = cell_info->num_boundary_faces;
+    int num_points = cell_info->num_neighbor_cells + 1 + nb;
     point_t points[num_points];
     points[0].x = mesh->cells[bcell].center.x;
     points[0].y = mesh->cells[bcell].center.y;
@@ -264,11 +264,13 @@ static void apply_bcs(int* boundary_cells,
       points[n+1].y = mesh->cells[neighbor].center.y;
       points[n+1].z = mesh->cells[neighbor].center.z;
     }
-    for (int n = 0; n < cell_info->num_boundary_faces; ++n)
+    int boundary_point_indices[nb];
+    for (int n = 0; n < nb; ++n)
     {
       int bface = cell_info->boundary_faces[n];
       face_t* face = &mesh->faces[bface];
       int offset = 1 + cell_info->num_neighbor_cells;
+      boundary_point_indices[n] = n+offset;
       points[n+offset].x = face->center.x;
       points[n+offset].y = face->center.y;
       points[n+offset].z = face->center.z;
@@ -276,41 +278,59 @@ static void apply_bcs(int* boundary_cells,
     poly_ls_shape_set_domain(shape, &points[0], points, num_points);
 
     // Now traverse the boundary faces of this cell and enforce the 
-    // appropriate boundary condition on each.
-    // FIXME ???
+    // appropriate boundary condition on each. To do this, we compute 
+    // the elements of an affine linear transformation that allows us 
+    // to compute boundary values of the solution in terms of the 
+    // interior values.
+    vector_t face_normals[nb];
+    double aff_matrix[nb*num_points], aff_vector[nb];
+    {
+      double a[nb], b[nb], c[nb], d[nb], e[nb];
+      for (int f = 0; f < nb; ++f)
+      {
+        // Retrieve the boundary condition for the face.
+        poisson_bc_t* bc = cell_info->bc_for_face[f];
+
+        // Compute the face normal and the corresponding coefficients,
+        // enforcing alpha * phi + beta * dphi/dn = F on the face.
+        face_t* face = &mesh->faces[cell_info->boundary_faces[f]];
+        vector_t* n = &face_normals[f];
+        n->x = face->center.x - cell->center.x;
+        n->y = face->center.y - cell->center.y;
+        n->z = face->center.z - cell->center.z;
+        a[f] = bc->alpha;
+        b[f] = bc->beta*n->x, c[f] = bc->beta*n->y, d[f] = bc->beta*n->z;
+
+        // Compute F at the face center.
+        st_func_eval(bc->F, &face->center, t, &e[f]);
+      }
+
+      // Now that we've gathered information about all the boundary
+      // conditions, compute the affine transformation that maps the 
+      // (unconstrained) values of the solution to the constrained values. 
+      poly_ls_shape_compute_constraint_transform(shape, 
+          boundary_point_indices, nb, a, b, c, d, e, aff_matrix, aff_vector);
+    }
+
+    // Compute the flux through each boundary face and alter the 
+    // linear system accordingly.
     int ij[num_points];
     double N[num_points], Aij[num_points], bi;
-    vector_t grad_N[num_points];
-    for (int f = 0; f < cell_info->num_boundary_faces; ++f)
+    vector_t grad_N[num_points]; 
+    for (int f = 0; f < nb; ++f)
     {
-      // Retrieve the boundary condition for the face.
-      poisson_bc_t* bc = cell_info->bc_for_face[f];
-
       // Compute the shape function values and gradients at the face center.
       face_t* face = &mesh->faces[cell_info->boundary_faces[f]];
       poly_ls_shape_compute_gradients(shape, &face->center, N, grad_N);
 
-      //----------------------------------------------------------
-      // Now enforce alpha * phi + beta * dphi/dn = F on the face.
-      //----------------------------------------------------------
-
-      // Compute the face normal.
-      vector_t n= {.x = face->center.x - cell->center.x,
-                   .y = face->center.y - cell->center.y,
-                   .z = face->center.z - cell->center.z};
-
-      // Sum the equation into the matrix row:
-      // Aij = alpha * Nj + beta * (nx*dNjdx + ny*dNjdy + nz*dNjdz)
-      // where Nj is the value of the shape function at point j. 
+      // Add the dphi/dn terms for face f to the matrix.
+      vector_t* n = &face_normals[f];
       for (int j = 0; j < num_points; ++j)
       {
-        Aij[j] = bc->alpha * N[j] + 
-                 bc->beta * (n.x*grad_N[j].x + n.y*grad_N[j].y + n.z*grad_N[j].z);
+        Aij[j] = aff_matrix[nb*j+f]*vector_dot(n, &grad_N[j]);
+        bi = -aff_vector[f];
       }
       MatSetValuesLocal(A, 1, &bcell, num_points, ij, Aij, ADD_VALUES);
-
-      // Compute F at the face center and sum it into the vector.
-      st_func_eval(bc->F, &face->center, t, &bi);
       VecSetValues(b, 1, &bcell, &bi, ADD_VALUES);
     }
   }

@@ -78,7 +78,7 @@ void poly_ls_shape_compute(poly_ls_shape_t* N, point_t* x, double* values);
 void poly_ls_shape_compute_gradients(poly_ls_shape_t* N, point_t* x, double* values, vector_t* gradients);
 
 // Computes the matrix and vector for the affine transformation that maps 
-// the set of unconstrained solutions {phiu} to a set of constrained solutions 
+// the set of all solution values {phi} to a set of constrained solutions 
 // {phic}. Together, the unconstrained and constrained solutions make up the 
 // support of the least-squares polynomial shape function. The constrained 
 // solution values obey the constraint:
@@ -89,19 +89,31 @@ void poly_ls_shape_compute_gradients(poly_ls_shape_t* N, point_t* x, double* val
 // given values of a, b, c, d, and e at each of the points {i}, 
 // this function constructs the affine transformation 
 //
-// phic = A*phiu + B
+// phic = A*phi + B
 //
 // where A is a transformation matrix and B is the affine term. 
 // If there are n points in the support of the shape function and m constraints, 
 // there are (n-m) unconstrained points, and:
 // 
-// - A is an m x (n-m) matrix
-// - phiu is an (n-m)-dimensional column vector
+// - A is an m x n matrix
+// - phi is an n-dimensional column vector
 // - phic and B are m-dimensional column vectors.
 //
-// The indices of the points in the shape function on which these constraints 
-// are obeyed are identified by the indices argument. As usual, A is stored 
-// as a dense matrix in column-major order.
+// Arguments:
+// N - The polynomial least squares shape function.
+// constraint_indices    - An array mapping the point at which the ith constraint 
+//                         is enforced to its position in the array of points in
+//                         the shape function's domain.
+// num_constraints       - The number of constraint points, and the length of constraint_indices.
+//                         This number must be less than the number of points in the domain
+//                         of the shape function.
+// a, b, c, d, e         - Arrays (of length num_constraints) whose ith entries contain
+//                         the corresponding coefficients in the aforementioned constraint 
+//                         equations.
+// A                     - On output, this stores the matrix A in the affine 
+//                         transformation above, in column-major order.
+// B                     - On output, this stores the vector B in the affine 
+//                         transformation above.
 void poly_ls_shape_compute_constraint_transform(poly_ls_shape_t* N, int* constraint_indices, int num_constraints,
                                                 double* a, double* b, double* c, double* d, double* e,
                                                 double* A, double* B);
