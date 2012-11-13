@@ -499,8 +499,7 @@ void poly_ls_shape_compute_constraint_transform(poly_ls_shape_t* N, int* constra
   ASSERT(B != NULL);
 
   // Set up the constraint matrices.
-  double amat[num_constraints*num_constraints],
-         bmat[num_constraints*(N->num_points-num_constraints)];
+  double amat[num_constraints*num_constraints];
   for (int i = 0; i < num_constraints; ++i)
   {
     // Compute the shape functions at xi.
@@ -522,18 +521,17 @@ void poly_ls_shape_compute_constraint_transform(poly_ls_shape_t* N, int* constra
       if (constrained) 
       {
         amat[num_constraints*constraint+i] = a[i]*N_vals[j] + b[i]*N_grads[j].x + c[i]*N_grads[j].y + d[i]*N_grads[j].z;
+        A[num_constraints*j+i] = 0.0;
         constraint++;
       }
       else
       {
-        bmat[num_constraints*j+i] = -a[i]*N_vals[j] - b[i]*N_grads[j].x - c[i]*N_grads[j].y - d[i]*N_grads[j].z;
+        A[num_constraints*j+i] = -a[i]*N_vals[j] - b[i]*N_grads[j].x - c[i]*N_grads[j].y - d[i]*N_grads[j].z;
       }
     }
   }
 
-  // Compute A = amatinv * bmat.
-  memcpy(B, e, sizeof(double)*num_constraints);
-  memcpy(A, bmat, sizeof(double)*num_constraints*(N->num_points - num_constraints));
+  // Compute A.
   int pivot[num_constraints], info;
   dgetrf(&num_constraints, &num_constraints, amat, &num_constraints, pivot, &info);
   ASSERT(info == 0);
@@ -543,6 +541,7 @@ void poly_ls_shape_compute_constraint_transform(poly_ls_shape_t* N, int* constra
 
   // Compute B = amatinv * e.
   int one = 1;
+  memcpy(B, e, sizeof(double)*num_constraints);
   dgetrs(&no_trans, &num_constraints, &one, amat, &num_constraints, pivot, B, &num_constraints, &info);
   ASSERT(info == 0);
 }
