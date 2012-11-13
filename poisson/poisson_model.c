@@ -217,6 +217,7 @@ static void poisson_run_paraboloid(int variant)
 //                        Model implementation
 //------------------------------------------------------------------------
 
+// Apply boundary conditions to a set of boundary cells.
 static void apply_bcs(int* boundary_cells,
                       int num_boundary_cells,
                       int_ptr_unordered_map_t* boundary_cell_info,
@@ -246,8 +247,12 @@ static void apply_bcs(int* boundary_cells,
     boundary_cell_t* cell_info = (boundary_cell_t*)int_ptr_unordered_map_get(boundary_cell_info, bcell);
 
     // Construct a polynomial least-squares fit for the cell and its 
-    // neighbors (about its center).
-    int num_points = cell_info->num_neighbor_cells + 1;
+    // neighbors (about its center), plus any boundary faces. That is,
+    // construct a fit that satisfies the boundary conditions!
+
+    // Number of points = number of neighbors + self + boundary faces
+    int num_points = cell_info->num_neighbor_cells + 1 + 
+                     cell_info->num_boundary_faces;
     point_t points[num_points];
     points[0].x = mesh->cells[bcell].center.x;
     points[0].y = mesh->cells[bcell].center.y;
@@ -259,10 +264,20 @@ static void apply_bcs(int* boundary_cells,
       points[n+1].y = mesh->cells[neighbor].center.y;
       points[n+1].z = mesh->cells[neighbor].center.z;
     }
+    for (int n = 0; n < cell_info->num_boundary_faces; ++n)
+    {
+      int bface = cell_info->boundary_faces[n];
+      face_t* face = &mesh->faces[bface];
+      int offset = 1 + cell_info->num_neighbor_cells;
+      points[n+offset].x = face->center.x;
+      points[n+offset].y = face->center.y;
+      points[n+offset].z = face->center.z;
+    }
     poly_ls_shape_set_domain(shape, &points[0], points, num_points);
 
     // Now traverse the boundary faces of this cell and enforce the 
     // appropriate boundary condition on each.
+    // FIXME ???
     int ij[num_points];
     double N[num_points], Aij[num_points], bi;
     vector_t grad_N[num_points];
@@ -375,8 +390,8 @@ static void poisson_init(void* context, double t)
   // Initialize the linear solver and friends.
   MatCreate(p->comm, &p->A);
   MatSetOption(p->A, MAT_KEEP_NONZERO_PATTERN, PETSC_TRUE);
-  MatSetOption(p->A, MAT_NEW_NONZERO_LOCATION_ERR, PETSC_TRUE);
-  MatSetOption(p->A, MAT_NEW_NONZERO_ALLOCATION_ERR, PETSC_TRUE);
+//  MatSetOption(p->A, MAT_NEW_NONZERO_LOCATION_ERR, PETSC_TRUE);
+//  MatSetOption(p->A, MAT_NEW_NONZERO_ALLOCATION_ERR, PETSC_TRUE);
   MatSetType(p->A, MATSEQAIJ);
   MatSetSizes(p->A, p->mesh->num_cells, p->mesh->num_cells, PETSC_DETERMINE, PETSC_DETERMINE);
   VecCreate(p->comm, &p->x);

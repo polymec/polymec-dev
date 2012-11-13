@@ -261,6 +261,7 @@ struct poly_ls_shape_t
   bool compute_gradients; // Compute gradients, or no?
   int dim; // Dimension of basis.
   int num_points; // Number of points in domain.
+  point_t* points; // Points in domain.
   point_t x0; // Origin.
   double *A, *dAdx, *dAdy, *dAdz; // moment matrix and derivatives.
   double *AinvB; // Ainv * B.
@@ -277,6 +278,8 @@ static void poly_ls_shape_free(void* context, void* dummy)
   poly_ls_shape_t* N = (poly_ls_shape_t*)context;
   if ((N->w_context != NULL) && (N->w_dtor != NULL))
     (*N->w_dtor)(N->w_context);
+  if (N->points != NULL)
+    free(N->points);
   free(N->A);
   free(N->dAdx);
   free(N->dAdy);
@@ -309,6 +312,7 @@ poly_ls_shape_t* poly_ls_shape_new(int p, bool compute_gradients)
   N->w_dtor = NULL;
   N->dim = poly_ls_basis_size(p);
   N->num_points = 0;
+  N->points = NULL;
   N->A = malloc(sizeof(double)*N->dim*N->dim);
   N->dAdx = malloc(sizeof(double)*N->dim*N->dim);
   N->dAdy = malloc(sizeof(double)*N->dim*N->dim);
@@ -327,6 +331,8 @@ void poly_ls_shape_set_domain(poly_ls_shape_t* N, point_t* x0, point_t* points, 
   if (num_points != N->num_points)
   {
     N->num_points = num_points;
+    N->points = realloc(N->points, sizeof(point_t)*num_points);
+    memcpy(N->points, points, sizeof(point_t)*num_points);
     N->AinvB = realloc(N->AinvB, sizeof(double)*dim*num_points);
     N->dAinvBdx = realloc(N->dAinvBdx, sizeof(double)*dim*num_points);
     N->dAinvBdy = realloc(N->dAinvBdy, sizeof(double)*dim*num_points);
@@ -475,6 +481,70 @@ void poly_ls_shape_compute_gradients(poly_ls_shape_t* N, point_t* x, double* val
     gradients[i].y = dpdy_AinvB[i] + p_dAinvBdy[i];
     gradients[i].z = dpdz_AinvB[i] + p_dAinvBdz[i];
   }
+}
+
+void poly_ls_shape_compute_constraint_transform(poly_ls_shape_t* N, int* constraint_indices, int num_constraints,
+                                                double* a, double* b, double* c, double* d, double* e,
+                                                double* A, double* B)
+{
+  ASSERT(N->compute_gradients);
+  ASSERT(constraint_indices != NULL);
+  ASSERT(num_constraints < N->num_points);
+  ASSERT(a != NULL);
+  ASSERT(b != NULL);
+  ASSERT(c != NULL);
+  ASSERT(d != NULL);
+  ASSERT(e != NULL);
+  ASSERT(A != NULL);
+  ASSERT(B != NULL);
+
+  // Set up the constraint matrices.
+  double amat[num_constraints*num_constraints],
+         bmat[num_constraints*(N->num_points-num_constraints)];
+  for (int i = 0; i < num_constraints; ++i)
+  {
+    // Compute the shape functions at xi.
+    double N_vals[num_constraints];
+    vector_t N_grads[num_constraints];
+    poly_ls_shape_compute_gradients(N, &N->points[constraint_indices[i]], N_vals, N_grads);
+    int constraint = 0;
+    for (int j = 0; j < N->num_points; ++j)
+    {
+      bool constrained = false;
+      for (int cc = 0; cc < num_constraints; ++cc)
+      {
+        if (j == constraint_indices[cc]) 
+        {
+          constrained = true;
+          break;
+        }
+      }
+      if (constrained) 
+      {
+        amat[num_constraints*constraint+i] = a[i]*N_vals[j] + b[i]*N_grads[j].x + c[i]*N_grads[j].y + d[i]*N_grads[j].z;
+        constraint++;
+      }
+      else
+      {
+        bmat[num_constraints*j+i] = -a[i]*N_vals[j] - b[i]*N_grads[j].x - c[i]*N_grads[j].y - d[i]*N_grads[j].z;
+      }
+    }
+  }
+
+  // Compute A = amatinv * bmat.
+  memcpy(B, e, sizeof(double)*num_constraints);
+  memcpy(A, bmat, sizeof(double)*num_constraints*(N->num_points - num_constraints));
+  int pivot[num_constraints], info;
+  dgetrf(&num_constraints, &num_constraints, amat, &num_constraints, pivot, &info);
+  ASSERT(info == 0);
+  char no_trans = 'N';
+  dgetrs(&no_trans, &num_constraints, &N->num_points, amat, &num_constraints, pivot, A, &num_constraints, &info);
+  ASSERT(info == 0);
+
+  // Compute B = amatinv * e.
+  int one = 1;
+  dgetrs(&no_trans, &num_constraints, &one, amat, &num_constraints, pivot, B, &num_constraints, &info);
+  ASSERT(info == 0);
 }
 
 typedef struct 

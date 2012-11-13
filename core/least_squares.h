@@ -77,6 +77,35 @@ void poly_ls_shape_compute(poly_ls_shape_t* N, point_t* x, double* values);
 // point x0 and fitted to the given points), evaluating each gradient at the point x.
 void poly_ls_shape_compute_gradients(poly_ls_shape_t* N, point_t* x, double* values, vector_t* gradients);
 
+// Computes the matrix and vector for the affine transformation that maps 
+// the set of unconstrained solutions {phiu} to a set of constrained solutions 
+// {phic}. Together, the unconstrained and constrained solutions make up the 
+// support of the least-squares polynomial shape function. The constrained 
+// solution values obey the constraint:
+//
+// ai * phii + bi * dphii/dx + ci * dphii/dy + di * dphii/dz = ei
+//
+// at each of the points {xi} at which the constraints are enforced. So  
+// given values of a, b, c, d, and e at each of the points {i}, 
+// this function constructs the affine transformation 
+//
+// phic = A*phiu + B
+//
+// where A is a transformation matrix and B is the affine term. 
+// If there are n points in the support of the shape function and m constraints, 
+// there are (n-m) unconstrained points, and:
+// 
+// - A is an m x (n-m) matrix
+// - phiu is an (n-m)-dimensional column vector
+// - phic and B are m-dimensional column vectors.
+//
+// The indices of the points in the shape function on which these constraints 
+// are obeyed are identified by the indices argument. As usual, A is stored 
+// as a dense matrix in column-major order.
+void poly_ls_shape_compute_constraint_transform(poly_ls_shape_t* N, int* constraint_indices, int num_constraints,
+                                                double* a, double* b, double* c, double* d, double* e,
+                                                double* A, double* B);
+
 // Selects a weighting function for the shape function with the form 
 // W(d) = 1 / (d**A + B**A), where A and B are parameters.
 void poly_ls_shape_set_simple_weighting_func(poly_ls_shape_t* N, int A, double B);
