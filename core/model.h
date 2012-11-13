@@ -83,7 +83,7 @@ void model_get_benchmarks(model_t* model, char*** benchmarks, int* num_benchmark
 void model_run_benchmark(model_t* model, const char* benchmark);
 
 // Runs all benchmark problems for the model.
-void model_run_benchmarks(model_t* model);
+void model_run_all_benchmarks(model_t* model);
 
 // Initialize the model at the given time.
 void model_init(model_t* model, double t);

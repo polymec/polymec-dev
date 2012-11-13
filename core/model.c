@@ -54,7 +54,10 @@ void model_register_benchmarks(model_t* model, const char** benchmarks)
   model->num_benchmarks = 0;
   char* p = (char*)benchmarks[0];
   while (p != NULL) 
+  {
     model->num_benchmarks++;
+    p = (char*)benchmarks[model->num_benchmarks];
+  }
   model->benchmarks = malloc(sizeof(char*)*model->num_benchmarks);
   for (int i = 0; i < model->num_benchmarks; ++i)
     model->benchmarks[i] = strdup(benchmarks[i]);
@@ -66,7 +69,7 @@ void model_get_benchmarks(model_t* model, char*** benchmarks, int* num_benchmark
   *num_benchmarks = model->num_benchmarks;
 }
 
-void model_run_benchmarks(model_t* model)
+void model_run_all_benchmarks(model_t* model)
 {
   for (int i = 0; i < model->num_benchmarks; ++i)
     model_run_benchmark(model, (const char*)model->benchmarks[i]);
@@ -146,10 +149,11 @@ static void driver_usage(const char* model_name, FILE* stream)
   fprintf(stream, "%s: usage:\n", model_name);
   fprintf(stream, "%s [command] [args]\n\n", model_name);
   fprintf(stream, "Here, [command] is one of the following:\n\n");
-  fprintf(stream, "   run [filename]       -- Runs a simulation with input from the given file.\n");
-  fprintf(stream, "   benchmark [name]     -- Runs the given benchmark problem.\n");
-  fprintf(stream, "   benchmarks           -- Runs all benchmark problems.\n");
-  fprintf(stream, "   help                 -- Prints information about the given model.\n\n");
+  fprintf(stream, "  run [file]           -- Runs a simulation with input from the given file.\n");
+  fprintf(stream, "  generate-mesh [file] -- Runs a simulation with input from the given file.\n");
+  fprintf(stream, "  benchmark [name]     -- Runs the given benchmark problem ('all' for all).\n");
+  fprintf(stream, "  list-benchmarks      -- Lists all benchmark problems.\n");
+  fprintf(stream, "  help                 -- Prints information about the given model.\n\n");
   exit(-1);
 }
 
@@ -170,14 +174,9 @@ int model_main(const char* model_name, model_ctor constructor, int argc, char* a
     driver_usage(model_name, stderr);
 
   // Validate our inputs.
-  if (command == NULL)
-  {
-    fprintf(stderr, "%s: no command given! Usage:\n", model_name);
-    fprintf(stderr, "%s [command] [command args]\n", model_name);
-    exit(-1);
-  }
-  static const char* valid_commands[] = {"run", "benchmark", "help", NULL};
+  ASSERT(command != NULL);
   int c = 0;
+  static const char* valid_commands[] = {"run", "generate-mesh", "benchmark", "list-benchmarks", "help", NULL};
   while (valid_commands[c] != NULL)
   {
     if (!strcmp(command, valid_commands[c]))
@@ -203,14 +202,45 @@ int model_main(const char* model_name, model_ctor constructor, int argc, char* a
       fprintf(stderr, "%s benchmark [problem]\n", model_name);
       exit(-1);
     }
-    model_run_benchmark(model, input);
+
+    // Have we been asked to run all benchmarks?
+    if (!strcmp(input, "all"))
+      model_run_all_benchmarks(model);
+    else
+      model_run_benchmark(model, input);
     exit(0);
   }
 
-  // Have we been asked to run all benchmarks?
-  if (!strcmp(command, "benchmarks"))
+  // Have we been asked to list all available benchmarks?
+  if (!strcmp(command, "list-benchmarks"))
   {
-    model_run_benchmarks(model);
+    fprintf(stderr, "Benchmarks for %s model:\n", model_name);
+    for (int i = 0; i < model->num_benchmarks; ++i)
+      fprintf(stderr, "  %s\n", (const char*)model->benchmarks[i]);
+    fprintf(stderr, "\n");
+    exit(0);
+  }
+
+  // Have we been asked to generate a mesh for a problem?
+  if (!strcmp(command, "generate-mesh"))
+  {
+    if (input == NULL)
+    {
+      fprintf(stderr, "%s: No input file given for mesh generation! Usage:\n", model_name);
+      fprintf(stderr, "%s generate [input file]\n", model_name);
+      exit(-1);
+    }
+
+    // Check to see whether the given file exists.
+    FILE* fp = fopen(input, "r");
+    if (fp == NULL)
+    {
+      fprintf(stderr, "%s: Input file not found: %s\n", model_name, input);
+      exit(-1);
+    }
+    fclose(fp);
+
+    // FIXME: Mesh generation goes here!
     exit(0);
   }
 
@@ -222,6 +252,15 @@ int model_main(const char* model_name, model_ctor constructor, int argc, char* a
     fprintf(stderr, "%s run [input file]\n", model_name);
     exit(-1);
   }
+
+  // Check to see whether the given file exists.
+  FILE* fp = fopen(input, "r");
+  if (fp == NULL)
+  {
+    fprintf(stderr, "%s: Input file not found: %s\n", model_name, input);
+    exit(-1);
+  }
+  fclose(fp);
 
   // Create a simulation in which to execute the model.
   simulation_t* sim = simulation_new(model, input, opts);
