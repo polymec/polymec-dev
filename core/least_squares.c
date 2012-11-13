@@ -230,7 +230,7 @@ void compute_weighted_poly_ls_system(int p, ls_weighting_func_t W, point_t* x0, 
     {
       for (int j = 0; j < size; ++j)
         moment_matrix[size*j+i] += Wd*basis[i]*basis[j];
-      rhs[i] += basis[i]*data[n];
+      rhs[i] += Wd*basis[i]*data[n];
     }
   }
 }

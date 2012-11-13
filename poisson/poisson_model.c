@@ -71,8 +71,7 @@ typedef struct
   Vec x;                    // Solution vector.
   Vec b;                    // RHS vector. 
 
-  int* boundary_cells;      // List of cells adjoining boundary faces.
-  int num_boundary_cells;   // Number of boundary cells.
+  // Information for boundary cells.
   int_ptr_unordered_map_t*  boundary_cell_info;
 
   bool initialized;         // Initialized flag.
@@ -216,33 +215,23 @@ static void poisson_run_paraboloid(int variant)
 //------------------------------------------------------------------------
 
 // Apply boundary conditions to a set of boundary cells.
-static void apply_bcs(int* boundary_cells,
-                      int num_boundary_cells,
-                      int_ptr_unordered_map_t* boundary_cell_info,
+static void apply_bcs(int_ptr_unordered_map_t* boundary_cell_info,
                       mesh_t* mesh,
                       poly_ls_shape_t* shape,
                       double t,
                       Mat A,
                       Vec b)
 {
-  // Zero the rows corresponding to boundary cells.
-  {
-    MatZeroRows(A, num_boundary_cells, boundary_cells, 0.0, NULL, NULL);
-    VecAssemblyBegin(b);
-    double zeros[num_boundary_cells];
-    VecSetValues(b, num_boundary_cells, boundary_cells, zeros, INSERT_VALUES);
-    VecAssemblyEnd(b);
-  }
-
   // Go over the boundary cells, enforcing boundary conditions on each 
   // face.
   MatAssemblyBegin(A, MAT_FINAL_ASSEMBLY);
   VecAssemblyBegin(b);
-  for (int c = 0; c < num_boundary_cells; ++c)
+  int num_boundary_cells = boundary_cell_info->size;
+  int pos = 0, bcell;
+  boundary_cell_t* cell_info;
+  while (int_ptr_unordered_map_next(boundary_cell_info, &pos, &bcell, (void**)(&boundary_cell_info)))
   {
-    int bcell = boundary_cells[c];
     cell_t* cell = &mesh->cells[bcell];
-    boundary_cell_t* cell_info = (boundary_cell_t*)int_ptr_unordered_map_get(boundary_cell_info, bcell);
 
     // Construct a polynomial least-squares fit for the cell and its 
     // neighbors (about its center), plus any boundary faces. That is,
@@ -376,8 +365,7 @@ static void poisson_advance(void* context, double t, double dt)
   VecAssemblyEnd(p->b);
 
   // Make sure that boundary conditions are satisfied.
-  apply_bcs(p->boundary_cells, p->num_boundary_cells, p->boundary_cell_info, 
-            p->mesh, p->shape, t+dt, p->A, p->b);
+  apply_bcs(p->boundary_cell_info, p->mesh, p->shape, t+dt, p->A, p->b);
 
   // Set up the linear solver.
   KSPSetOperators(p->solver, p->A, p->A, SAME_NONZERO_PATTERN);
@@ -475,7 +463,11 @@ static void poisson_dtor(void* ctx)
     free(key);
     free_bc(val);
   }
-  free(p->boundary_cells);
+  str_ptr_unordered_map_free(p->bcs);
+  pos = 0;
+  int bcell;
+  while (int_ptr_unordered_map_next(p->boundary_cell_info, &pos, &bcell, &val))
+    free(val);
   int_ptr_unordered_map_free(p->boundary_cell_info);
   free(p);
 }
@@ -491,8 +483,6 @@ model_t* poisson_model_new(options_t* options)
   context->phi = NULL;
   context->initialized = false;
   context->comm = MPI_COMM_WORLD;
-  context->boundary_cells = NULL;
-  context->num_boundary_cells = 0;
   context->boundary_cell_info = int_ptr_unordered_map_new();
   model_t* model = model_new("poisson", context, vtable);
   static const char* benchmarks[] = {"laplace_sov1", "laplace_sov2", "laplace_sov3", 
