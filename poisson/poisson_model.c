@@ -5,7 +5,6 @@
 #include "petscvec.h"
 #include "core/unordered_map.h"
 #include "core/least_squares.h"
-#include "core/cell_nsearch.h"
 #include "core/constant_st_func.h"
 #include "geometry/create_cubic_lattice_mesh.h"
 #include "geometry/create_cvt.h"
@@ -66,7 +65,6 @@ typedef struct
 
   str_ptr_unordered_map_t* bcs; // Boundary conditions.
   poly_ls_shape_t* shape;       // Least-squares shape functions.
-  cell_nsearch_t* nsearch;      // Finds neighboring cells of cells.
 
   KSP solver;               // Linear solver.
   Mat A;                    // Laplacian matrix.
@@ -327,6 +325,7 @@ static void apply_bcs(int* boundary_cells,
       vector_t* n = &face_normals[f];
       for (int j = 0; j < num_points; ++j)
       {
+        ij[j] = cell_info->neighbor_cells[j];
         Aij[j] = aff_matrix[nb*j+f]*vector_dot(n, &grad_N[j]);
         bi = -aff_vector[f];
       }
@@ -442,6 +441,10 @@ static void poisson_init(void* context, double t)
   }
   MatAssemblyEnd(p->A, MAT_FINAL_ASSEMBLY);
 
+  // Gather information about boundary cells.
+  // FIXME
+//  boundary_cell_t* cell_info = (boundary_cell_t*)int_ptr_unordered_map_get(boundary_cell_info, bcell);
+
   // We simply solve the problem for t = 0.
   poisson_advance((void*)p, t, 0.0);
 
@@ -474,7 +477,6 @@ static void poisson_dtor(void* ctx)
   }
   free(p->boundary_cells);
   int_ptr_unordered_map_free(p->boundary_cell_info);
-  p->nsearch = NULL;
   free(p);
 }
 
@@ -486,7 +488,6 @@ model_t* poisson_model_new(options_t* options)
                           .dump = &poisson_dump,
                           .dtor = &poisson_dtor};
   poisson_t* context = malloc(sizeof(poisson_t));
-  context->nsearch = cell_nsearch_new(6);
   context->phi = NULL;
   context->initialized = false;
   context->comm = MPI_COMM_WORLD;

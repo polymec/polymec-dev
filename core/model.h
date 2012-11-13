@@ -107,6 +107,16 @@ void model_plot(model_t* model, plot_interface_t* plot, double t, int step);
 // Run a simulation of the model from time t1 to t2.
 void model_run(model_t* model, double t1, double t2);
 
+// This function implements a simple driver for a model and behaves
+// in the same way as a main() function, returning 0 on success and nonzero
+// on failure. Arguments:
+// model_name  - The name of the model as it is called by the user.
+// constructor - A constructor function that uses a given set of option 
+//               strings to construct a model object.
+// argc        - The number of command line arguments.
+// argv        - The command line arguments.
+int model_main(const char* model_name, model_ctor constructor, int argc, char* argv[]);
+
 #ifdef __cplusplus
 }
 #endif

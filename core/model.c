@@ -2,6 +2,8 @@
 #include <string.h>
 #include <float.h>
 #include "core/model.h"
+#include "core/options.h"
+#include "core/simulation.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -137,6 +139,102 @@ void model_run(model_t* model, double t1, double t2)
 void* model_context(model_t* model)
 {
   return model->context;
+}
+
+static void driver_usage(const char* model_name, FILE* stream)
+{
+  fprintf(stream, "%s: usage:\n", model_name);
+  fprintf(stream, "%s [command] [args]\n\n", model_name);
+  fprintf(stream, "Here, [command] is one of the following:\n\n");
+  fprintf(stream, "   run [filename]       -- Runs a simulation with input from the given file.\n");
+  fprintf(stream, "   benchmark [name]     -- Runs the given benchmark problem.\n");
+  fprintf(stream, "   benchmarks           -- Runs all benchmark problems.\n");
+  fprintf(stream, "   help                 -- Prints information about the given model.\n\n");
+  exit(-1);
+}
+
+int model_main(const char* model_name, model_ctor constructor, int argc, char* argv[])
+{
+  // Start everything up.
+  arbi_init(argc, argv);
+
+  // Parse options on the command line.
+  options_t* opts = options_parse(argc, argv);
+  if (opts == NULL)
+    driver_usage(model_name, stderr);
+
+  // Extract the command and arguments.
+  char* command = options_command(opts);
+  char* input = options_input(opts);
+  if (!strcmp(command, "help"))
+    driver_usage(model_name, stderr);
+
+  // Validate our inputs.
+  if (command == NULL)
+  {
+    fprintf(stderr, "%s: no command given! Usage:\n", model_name);
+    fprintf(stderr, "%s [command] [command args]\n", model_name);
+    exit(-1);
+  }
+  static const char* valid_commands[] = {"run", "benchmark", "help", NULL};
+  int c = 0;
+  while (valid_commands[c] != NULL)
+  {
+    if (!strcmp(command, valid_commands[c]))
+      break;
+    ++c;
+  }
+  if (valid_commands[c] == NULL)
+  {
+    fprintf(stderr, "%s: invalid command: '%s'\n", model_name, command);
+    exit(-1);
+  }
+
+  // Attempt to construct the model.
+  model_t* model = (*constructor)(opts);
+  ASSERT(model != NULL);
+
+  // Have we been asked to run a benchmark?
+  if (!strcmp(command, "benchmark"))
+  {
+    if (input == NULL)
+    {
+      fprintf(stderr, "%s: No benchmark problem given! Usage:\n", model_name);
+      fprintf(stderr, "%s benchmark [problem]\n", model_name);
+      exit(-1);
+    }
+    model_run_benchmark(model, input);
+    exit(0);
+  }
+
+  // Have we been asked to run all benchmarks?
+  if (!strcmp(command, "benchmarks"))
+  {
+    model_run_benchmarks(model);
+    exit(0);
+  }
+
+  // We are asked to run a simulation.
+  ASSERT(!strcmp(command, "run"));
+  if (input == NULL)
+  {
+    fprintf(stderr, "%s: No input file given! Usage:\n", model_name);
+    fprintf(stderr, "%s run [input file]\n", model_name);
+    exit(-1);
+  }
+
+  // Create a simulation in which to execute the model.
+  simulation_t* sim = simulation_new(model, input, opts);
+
+  // Initialize the simulation.
+  simulation_init(sim);
+
+  // Run the simulation.
+  simulation_run(sim);
+
+  // Clean up.
+  simulation_free(sim);
+  model_free(model);
 }
 
 #ifdef __cplusplus
