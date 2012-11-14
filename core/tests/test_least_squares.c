@@ -249,15 +249,23 @@ void test_poly_shape_function_constraints(int p, point_t* x0, point_t* points, i
 
   // Create scatter data.
   double data[num_points], basis[dim];
+  vector_t data_grads[num_points], basis_grad[dim];
   memset(data, 0, sizeof(double)*num_points);
+  memset(data_grads, 0, sizeof(vector_t)*num_points);
   for (int i = 0; i < num_points; ++i)
   {
     point_t y = {.x = points[i].x - x0->x, 
                  .y = points[i].y - x0->y,
                  .z = points[i].z - x0->z};
     compute_poly_ls_basis_vector(p, &y, basis);
+    compute_poly_ls_basis_gradient(p, &y, basis_grad);
     for (int k = 0; k < dim; ++k)
+    {
       data[i] += coeffs[k]*basis[k];
+      data_grads[i].x += coeffs[k]*basis_grad[k].x;
+      data_grads[i].y += coeffs[k]*basis_grad[k].y;
+      data_grads[i].z += coeffs[k]*basis_grad[k].z;
+    }
   }
 
   // Compute shape functions for the given data.
@@ -266,35 +274,37 @@ void test_poly_shape_function_constraints(int p, point_t* x0, point_t* points, i
     poly_ls_shape_set_simple_weighting_func(N, 2.0, 1e-8);
   poly_ls_shape_set_domain(N, x0, points, num_points);
 
-  // Constraints: 1.0 * phi + 2.0 * dphidx + 3.0 * dphidy + 4.0 * dphidz = 5.0
-  // at each of the constraint points.
+  // Constraints: make the constraint points match their corresponding 
+  // data points by enforcing the constraint:
+  // phi + 2*dphi/dx + 3*dphi/dy + 4*dhi/dz = (same thing)
+  int constraint_indices[num_constraints];
   double a[num_constraints], b[num_constraints], c[num_constraints], d[num_constraints], e[num_constraints];
   for (int i = 0; i < num_constraints; ++i)
   {
-    a[i] = 1.0, b[i] = 2.0, c[i] = 3.0, d[i] = 4.0, e[i] = 5.0;
+    int j = num_points - num_constraints + i;
+    constraint_indices[i] = j;
+    a[i] = 1.0, b[i] = 2.0, c[i] = 3.0, d[i] = 4.0; 
+    e[i] = data[j] + 2.0*data_grads[j].x + 3.0*data_grads[j].y + 4.0*data_grads[j].z;
   }
 
   // Compute the last (num_constraints) points using the first 
   // (num_points - num_constraints) points and constraints. For 
   // this, we construct the affine transformation that maps the 
   // total set of solution values to the constrained values.
-  int constraint_indices[num_constraints];
-  for (int i = 0; i < num_constraints; ++i)
-    constraint_indices[i] = num_points - num_constraints + i;
   double A[num_constraints*num_points], B[num_constraints];
-  poly_ls_shape_compute_constraint_transform(N, constraint_indices, 2,
+  poly_ls_shape_compute_constraint_transform(N, constraint_indices, num_constraints,
                                              a, b, c, d, e, A, B);
 
   // Now apply the affine transformation to the data and make sure we 
   // reproduce the data points. Remember that A is stored in column-
   // major order!
   double constrained_data[num_constraints];
-  memset(constrained_data, 0, sizeof(double)*num_constraints);
   for (int i = 0; i < num_constraints; ++i)
   {
+    constrained_data[i] = B[i];
     for (int j = 0; j < num_points; ++j)
-      constrained_data[i] += A[num_constraints*j+i] * data[j] + B[i];
-    // FIXME
+      constrained_data[i] += A[num_constraints*j+i] * data[j];
+    assert_true(fabs(constrained_data[i] - data[constraint_indices[i]]) < 1e-11);
   }
 
   // Clean up.
