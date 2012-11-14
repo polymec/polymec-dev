@@ -432,6 +432,15 @@ void test_p1_shape_func_constraints(void** state)
   test_poly_shape_function_constraints(1, &x0, points, 8, 2, coeffs, false);
 }
 
+void test_weighted_p1_shape_func_constraints(void** state)
+{
+  static double coeffs[] = {1.0, 2.0, 3.0, 4.0};
+  point_t x0, points[8];
+  generate_random_points(8, points);
+  average_points(points, 8, &x0);
+  test_poly_shape_function_constraints(1, &x0, points, 8, 2, coeffs, true);
+}
+
 void test_p2_fit(void** state)
 {
   static double coeffs[] = {1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0};
@@ -495,6 +504,15 @@ void test_p2_shape_func_constraints(void** state)
   generate_random_points(16, points);
   average_points(points, 16, &x0);
   test_poly_shape_function_constraints(2, &x0, points, 16, 6, coeffs, false);
+}
+
+void test_weighted_p2_shape_func_constraints(void** state)
+{
+  static double coeffs[] = {1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0};
+  point_t x0, points[16];
+  generate_random_points(16, points);
+  average_points(points, 16, &x0);
+  test_poly_shape_function_constraints(2, &x0, points, 16, 6, coeffs, true);
 }
 
 void test_p3_fit(void** state)
@@ -562,6 +580,15 @@ void test_p3_shape_func_constraints(void** state)
   test_poly_shape_function_constraints(3, &x0, points, 30, 12, coeffs, false);
 }
 
+void test_weighted_p3_shape_func_constraints(void** state)
+{
+  static double coeffs[] = {1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0};
+  point_t x0, points[30];
+  generate_random_points(30, points);
+  average_points(points, 30, &x0);
+  test_poly_shape_function_constraints(3, &x0, points, 30, 12, coeffs, true);
+}
+
 int main(int argc, char* argv[]) 
 {
   arbi_init(argc, argv);
@@ -598,7 +625,10 @@ int main(int argc, char* argv[])
     unit_test(test_weighted_p3_shape_func_gradients),
     unit_test(test_p1_shape_func_constraints),
     unit_test(test_p2_shape_func_constraints),
-    unit_test(test_p3_shape_func_constraints)
+    unit_test(test_p3_shape_func_constraints),
+    unit_test(test_weighted_p1_shape_func_constraints),
+    unit_test(test_weighted_p2_shape_func_constraints),
+    unit_test(test_weighted_p3_shape_func_constraints)
   };
   return run_tests(tests);
 }
