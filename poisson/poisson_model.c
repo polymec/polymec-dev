@@ -402,6 +402,7 @@ static void apply_bcs(int_ptr_unordered_map_t* boundary_cells,
         n->x = face->center.x - cell->center.x;
         n->y = face->center.y - cell->center.y;
         n->z = face->center.z - cell->center.z;
+        vector_normalize(n);
         a[f] = bc->alpha;
         b[f] = bc->beta*n->x, c[f] = bc->beta*n->y, d[f] = bc->beta*n->z;
 
@@ -508,7 +509,6 @@ static void initialize_boundary_cells(str_ptr_unordered_map_t* bcs, mesh_t* mesh
   poisson_bc_t* bc;
   while (str_ptr_unordered_map_next(bcs, &pos, &tag, (void**)&bc))
   {
-    printf("%s\n", tag);
     // Retrieve the tag for this boundary condition.
     ASSERT(mesh_has_tag(mesh->face_tags, tag));
     int num_faces;
@@ -600,7 +600,7 @@ static void initialize_boundary_cells(str_ptr_unordered_map_t* bcs, mesh_t* mesh
       while (boundary_cell->boundary_faces[i] != -1) ++i;
       boundary_cell->boundary_faces[i] = faces[f];
       boundary_cell->bc_for_face[i] = bc;
-      printf("bcell has %d neighbors and %d boundary faces\n", boundary_cell->num_neighbor_cells, boundary_cell->num_boundary_faces);
+//      printf("bcell has %d neighbors and %d boundary faces\n", boundary_cell->num_neighbor_cells, boundary_cell->num_boundary_faces);
     }
   }
 }
@@ -627,15 +627,17 @@ static void poisson_init(void* context, double t)
 
   // Initialize the linear solver and friends.
   MatCreate(p->comm, &p->A);
+  MatSetType(p->A, MATSEQAIJ);
   MatSetOption(p->A, MAT_KEEP_NONZERO_PATTERN, PETSC_TRUE);
 //  MatSetOption(p->A, MAT_NEW_NONZERO_LOCATION_ERR, PETSC_TRUE);
 //  MatSetOption(p->A, MAT_NEW_NONZERO_ALLOCATION_ERR, PETSC_TRUE);
-  MatSetType(p->A, MATSEQAIJ);
   MatSetSizes(p->A, p->mesh->num_cells, p->mesh->num_cells, PETSC_DETERMINE, PETSC_DETERMINE);
   VecCreate(p->comm, &p->x);
   VecSetType(p->x, VECSEQ);
+  VecSetSizes(p->x, p->mesh->num_cells, PETSC_DECIDE);
   VecCreate(p->comm, &p->b);
   VecSetType(p->b, VECSEQ);
+  VecSetSizes(p->b, p->mesh->num_cells, PETSC_DECIDE);
   KSPCreate(p->comm, &p->solver);
 
   // Initialize the solution vector.

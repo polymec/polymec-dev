@@ -532,6 +532,7 @@ void poly_ls_shape_compute_constraint_transform(poly_ls_shape_t* N, int* constra
     double N_vals[N->num_points];
     vector_t N_grads[N->num_points];
     poly_ls_shape_compute_gradients(N, &N->points[constraint_indices[i]], N_vals, N_grads);
+//printf("a b c d e = %g %g %g %g %g\n", a[i], b[i], c[i], d[i], e[i]);
 
     // Now set up the left and right hand sides of the equation for the constraint.
     int constraint = 0;
@@ -561,6 +562,10 @@ void poly_ls_shape_compute_constraint_transform(poly_ls_shape_t* N, int* constra
 
   // Compute A by solving the linear system.
   int pivot[num_constraints], info;
+//  printf("amat = ");
+//  for (int i = 0; i < num_constraints*num_constraints; ++i)
+//    printf("%g ", amat[i]);
+//  printf("\n");
   dgetrf(&num_constraints, &num_constraints, amat, &num_constraints, pivot, &info);
   ASSERT(info == 0);
   char no_trans = 'N';
