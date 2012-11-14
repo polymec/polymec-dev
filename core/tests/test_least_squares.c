@@ -48,7 +48,7 @@ static void weighting_func(void* context, point_t* x, point_t* x0, double* W, ve
   double D = (x0 != NULL) ? point_distance(x, x0) : sqrt(x->x*x->x+x->y*x->y+x->z*x->z);
   *W = 1.0 / (pow(D, 2) + pow(epsilon, 2));
   double dDdx = x->x / D, dDdy = x->y / D, dDdz = x->z / D;
-  double deriv_term = (*W)*(*W) * 2 * D;
+  double deriv_term = -(*W)*(*W) * 2.0 * D;
   gradient->x = deriv_term * dDdx;
   gradient->y = deriv_term * dDdy;
   gradient->z = deriv_term * dDdz;
