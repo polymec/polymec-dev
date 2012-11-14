@@ -186,7 +186,7 @@ int model_main(const char* model_name, model_ctor constructor, int argc, char* a
   if (valid_commands[c] == NULL)
   {
     fprintf(stderr, "%s: invalid command: '%s'\n", model_name, command);
-    exit(-1);
+    return -1;
   }
 
   // Attempt to construct the model.
@@ -200,7 +200,7 @@ int model_main(const char* model_name, model_ctor constructor, int argc, char* a
     {
       fprintf(stderr, "%s: No benchmark problem given! Usage:\n", model_name);
       fprintf(stderr, "%s benchmark [problem]\n", model_name);
-      exit(-1);
+      return -1;
     }
 
     // Have we been asked to run all benchmarks?
@@ -208,7 +208,7 @@ int model_main(const char* model_name, model_ctor constructor, int argc, char* a
       model_run_all_benchmarks(model);
     else
       model_run_benchmark(model, input);
-    exit(0);
+    return 0;
   }
 
   // Have we been asked to list all available benchmarks?
@@ -218,7 +218,7 @@ int model_main(const char* model_name, model_ctor constructor, int argc, char* a
     for (int i = 0; i < model->num_benchmarks; ++i)
       fprintf(stderr, "  %s\n", (const char*)model->benchmarks[i]);
     fprintf(stderr, "\n");
-    exit(0);
+    return 0;
   }
 
   // Have we been asked to generate a mesh for a problem?
@@ -228,7 +228,7 @@ int model_main(const char* model_name, model_ctor constructor, int argc, char* a
     {
       fprintf(stderr, "%s: No input file given for mesh generation! Usage:\n", model_name);
       fprintf(stderr, "%s generate-mesh [input file]\n", model_name);
-      exit(-1);
+      return -1;
     }
 
     // Check to see whether the given file exists.
@@ -236,12 +236,12 @@ int model_main(const char* model_name, model_ctor constructor, int argc, char* a
     if (fp == NULL)
     {
       fprintf(stderr, "%s: Input file not found: %s\n", model_name, input);
-      exit(-1);
+      return -1;
     }
     fclose(fp);
 
     // FIXME: Mesh generation goes here!
-    exit(0);
+    return 0;
   }
 
   // We are asked to run a simulation.
@@ -250,7 +250,7 @@ int model_main(const char* model_name, model_ctor constructor, int argc, char* a
   {
     fprintf(stderr, "%s: No input file given! Usage:\n", model_name);
     fprintf(stderr, "%s run [input file]\n", model_name);
-    exit(-1);
+    return -1;
   }
 
   // Check to see whether the given file exists.
@@ -258,7 +258,7 @@ int model_main(const char* model_name, model_ctor constructor, int argc, char* a
   if (fp == NULL)
   {
     fprintf(stderr, "%s: Input file not found: %s\n", model_name, input);
-    exit(-1);
+    return -1;
   }
   fclose(fp);
 
@@ -274,6 +274,8 @@ int model_main(const char* model_name, model_ctor constructor, int argc, char* a
   // Clean up.
   simulation_free(sim);
   model_free(model);
+
+  return 0;
 }
 
 #ifdef __cplusplus
