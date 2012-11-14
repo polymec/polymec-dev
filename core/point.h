@@ -38,6 +38,24 @@ static inline double vector_dot(vector_t* v1, vector_t* v2)
   return v1->x*v2->x + v1->y*v2->y + v1->z*v2->z;
 }
 
+// Vector magnitude.
+static inline double vector_mag(vector_t* v)
+{
+  return sqrt(vector_dot(v, v));
+}
+
+// Normalizes the given vector.
+static inline void vector_normalize(vector_t* v)
+{
+  double vmag = vector_mag(v);
+  if (vmag != 0.0)
+  {
+    v->x /= vmag;
+    v->y /= vmag;
+    v->z /= vmag;
+  }
+}
+
 // Vector cross product.
 static inline void vector_cross(vector_t* v1, vector_t* v2, vector_t* v1xv2)
 {
