@@ -55,7 +55,8 @@ options_t* options_parse(int argc, char** argv)
   else 
     o->command = strdup(argv[1]);
   if ((argc >= 3) && (!strcmp(o->command, "run") || 
-                      !strcmp(o->command, "benchmark")))
+                      !strcmp(o->command, "benchmark") || 
+                      !strcmp(o->command, "generate-mesh")))
   {
     o->input = strdup(argv[2]);
   }
