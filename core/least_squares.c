@@ -265,6 +265,7 @@ struct poly_ls_shape_t
   point_t x0; // Origin.
   double *A, *dAdx, *dAdy, *dAdz; // moment matrix and derivatives.
   double *AinvB; // Ainv * B.
+  double *dBdx, *dBdy, *dBdz; // Derivatives of B.
   double *dAinvBdx, *dAinvBdy, *dAinvBdz; // Derivatives of Ainv*B.
   ls_weighting_func_t weighting_func; // Weighting function.
   void* w_context; // Context pointer for weighting function.
@@ -286,6 +287,12 @@ static void poly_ls_shape_free(void* context, void* dummy)
   free(N->dAdz);
   if (N->AinvB != NULL)
     free(N->AinvB);
+  if (N->dBdx != NULL)
+  {
+    free(N->dBdx);
+    free(N->dBdy);
+    free(N->dBdz);
+  }
   if (N->weights != NULL)
     free(N->weights);
   if (N->gradients != NULL)
@@ -318,6 +325,9 @@ poly_ls_shape_t* poly_ls_shape_new(int p, bool compute_gradients)
   N->dAdy = malloc(sizeof(double)*N->dim*N->dim);
   N->dAdz = malloc(sizeof(double)*N->dim*N->dim);
   N->AinvB = NULL;
+  N->dBdx = NULL;
+  N->dBdy = NULL;
+  N->dBdz = NULL;
   N->dAinvBdx = N->dAinvBdy = N->dAinvBdz = NULL;
   N->weights = NULL;
   N->gradients = NULL;
@@ -334,6 +344,9 @@ void poly_ls_shape_set_domain(poly_ls_shape_t* N, point_t* x0, point_t* points, 
     N->points = realloc(N->points, sizeof(point_t)*num_points);
     memcpy(N->points, points, sizeof(point_t)*num_points);
     N->AinvB = realloc(N->AinvB, sizeof(double)*dim*num_points);
+    N->dBdx = realloc(N->dBdx, sizeof(double)*dim*num_points);
+    N->dBdy = realloc(N->dBdy, sizeof(double)*dim*num_points);
+    N->dBdz = realloc(N->dBdz, sizeof(double)*dim*num_points);
     N->dAinvBdx = realloc(N->dAinvBdx, sizeof(double)*dim*num_points);
     N->dAinvBdy = realloc(N->dAinvBdy, sizeof(double)*dim*num_points);
     N->dAinvBdz = realloc(N->dAinvBdz, sizeof(double)*dim*num_points);
@@ -349,6 +362,9 @@ void poly_ls_shape_set_domain(poly_ls_shape_t* N, point_t* x0, point_t* points, 
   memset(N->dAdx, 0, sizeof(double)*dim*dim);
   memset(N->dAdy, 0, sizeof(double)*dim*dim);
   memset(N->dAdz, 0, sizeof(double)*dim*dim);
+  memset(N->dBdx, 0, sizeof(double)*dim*num_points);
+  memset(N->dBdy, 0, sizeof(double)*dim*num_points);
+  memset(N->dBdz, 0, sizeof(double)*dim*num_points);
   memset(N->AinvB, 0, sizeof(double)*dim*num_points);
   memset(N->dAinvBdx, 0, sizeof(double)*dim*num_points);
   memset(N->dAinvBdy, 0, sizeof(double)*dim*num_points);
@@ -365,6 +381,9 @@ void poly_ls_shape_set_domain(poly_ls_shape_t* N, point_t* x0, point_t* points, 
     for (int i = 0; i < dim; ++i)
     {
       N->AinvB[dim*n+i] = N->weights[n]*basis[i];
+      N->dBdx[dim*n+i] = N->gradients[n].x*basis[i];
+      N->dBdy[dim*n+i] = N->gradients[n].y*basis[i];
+      N->dBdz[dim*n+i] = N->gradients[n].z*basis[i];
       for (int j = 0; j < dim; ++j)
       {
         N->A[dim*j+i] += basis[i]*N->weights[n]*basis[j];
@@ -391,7 +410,8 @@ void poly_ls_shape_set_domain(poly_ls_shape_t* N, point_t* x0, point_t* points, 
   {
     // The partial derivatives of A inverse are:
     // d(Ainv) = -Ainv * dA * Ainv, so
-    // d(Ainv * B) = -Ainv * dA * Ainv * B.
+    // d(Ainv * B) = -Ainv * dA * Ainv * B + Ainv * dB
+    //             = Ainv * (-dA * Ainv * B + dB).
 
     // We left-multiply Ainv*B by the gradient of A, placing the results 
     // in dAinvBdx, dAinvBdy, and dAinvBdz.
@@ -403,17 +423,22 @@ void poly_ls_shape_set_domain(poly_ls_shape_t* N, point_t* x0, point_t* points, 
     dgemm(&no_trans, &no_trans, &N->dim, &N->num_points, &N->dim, &alpha, 
           N->dAdz, &N->dim, N->AinvB, &N->dim, &beta, N->dAinvBdz, &N->dim);
 
-    // Now "left-multiply by -Ainv" by solving the equation (e.g.)
-    // A * (dAinvBdx) = dA_AinvB and then multiplying by -1.
-    dgetrs(&no_trans, &dim, &num_points, N->A, &dim, pivot, N->dAinvBdx, &dim, &info);
-    dgetrs(&no_trans, &dim, &num_points, N->A, &dim, pivot, N->dAinvBdy, &dim, &info);
-    dgetrs(&no_trans, &dim, &num_points, N->A, &dim, pivot, N->dAinvBdz, &dim, &info);
-    for (int i = 0; i < num_points; ++i)
+    // Flip the sign of dA * Ainv * B, and add dB.
+    for (int i = 0; i < dim*num_points; ++i)
     {
-      N->dAinvBdx[i] *= -1.0;
-      N->dAinvBdy[i] *= -1.0;
-      N->dAinvBdz[i] *= -1.0;
+      N->dAinvBdx[i] = -N->dAinvBdx[i] + N->dBdx[i];
+      N->dAinvBdy[i] = -N->dAinvBdy[i] + N->dBdy[i];
+      N->dAinvBdz[i] = -N->dAinvBdz[i] + N->dBdz[i];
     }
+
+    // Now "left-multiply by Ainv" by solving the equation (e.g.)
+    // A * (dAinvBdx) = (-dA * Ainv * B + dB).
+    dgetrs(&no_trans, &dim, &num_points, N->A, &dim, pivot, N->dAinvBdx, &dim, &info);
+    ASSERT(info == 0);
+    dgetrs(&no_trans, &dim, &num_points, N->A, &dim, pivot, N->dAinvBdy, &dim, &info);
+    ASSERT(info == 0);
+    dgetrs(&no_trans, &dim, &num_points, N->A, &dim, pivot, N->dAinvBdz, &dim, &info);
+    ASSERT(info == 0);
   }
 }
 
@@ -557,11 +582,18 @@ static void simple_weighting_func(void* context, point_t* x, point_t* x0, double
   simple_weighting_func_params_t* params = (simple_weighting_func_params_t*)context;
   double D = point_distance(x, x0);
   *W = 1.0 / (pow(D, params->A) + pow(params->B, params->A));
-  double dDdx = x->x / D, dDdy = x->y / D, dDdz = x->z / D;
-  double deriv_term = (*W)*(*W) * params->A * pow(D, params->A-1);
-  gradient->x = deriv_term * dDdx;
-  gradient->y = deriv_term * dDdy;
-  gradient->z = deriv_term * dDdz;
+  if (D == 0.0)
+  {
+    gradient->x = gradient->y = gradient->z = 0.0;
+  }
+  else
+  {
+    double dDdx = x->x / D, dDdy = x->y / D, dDdz = x->z / D;
+    double deriv_term = -(*W)*(*W) * params->A * pow(D, params->A-1);
+    gradient->x = deriv_term * dDdx;
+    gradient->y = deriv_term * dDdy;
+    gradient->z = deriv_term * dDdz;
+  }
 }
 
 void poly_ls_shape_set_simple_weighting_func(poly_ls_shape_t* N, int A, double B)
