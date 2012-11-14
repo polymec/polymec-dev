@@ -227,7 +227,7 @@ int model_main(const char* model_name, model_ctor constructor, int argc, char* a
     if (input == NULL)
     {
       fprintf(stderr, "%s: No input file given for mesh generation! Usage:\n", model_name);
-      fprintf(stderr, "%s generate [input file]\n", model_name);
+      fprintf(stderr, "%s generate-mesh [input file]\n", model_name);
       exit(-1);
     }
 

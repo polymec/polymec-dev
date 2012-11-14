@@ -156,5 +156,6 @@ static inline void list_name##_remove(list_name##_t* list, list_name##_node_t* n
 DEFINE_SLIST(int_slist, int)
 DEFINE_SLIST(double_slist, double)
 DEFINE_SLIST(string_slist, char*)
+DEFINE_SLIST(ptr_slist, void*)
 
 #endif
