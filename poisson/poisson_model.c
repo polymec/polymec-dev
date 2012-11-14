@@ -127,10 +127,10 @@ static mesh_t* create_cube_mesh(int dim, int N)
   for (int d = 0; d < dim; ++d)
     N3[d] = N;
 
-  return create_cubic_lattice_mesh(N3[0], N3[1], N3[2], 1);
+  return create_cubic_lattice_mesh(N3[0], N3[1], N3[2], 0);
 }
 
-static void run_analytic_problem(mesh_t* mesh, st_func_t* rhs, str_ptr_unordered_map_t* bcs, double t1, double t2, sp_func_t* solution, double* Lpnorms)
+static void run_analytic_problem(mesh_t* mesh, st_func_t* rhs, str_ptr_unordered_map_t* bcs, double t1, double t2, st_func_t* solution, double* Lpnorms)
 {
   // Create the model.
   model_t* model = create_poisson(mesh, rhs, bcs);
@@ -144,15 +144,73 @@ static void run_analytic_problem(mesh_t* mesh, st_func_t* rhs, str_ptr_unordered
   model_free(model);
 }
 
+static void laplace_1d_solution(void* context, point_t* x, double t, double* phi)
+{
+  phi[0] = 1.0 + 2.0*x->x;
+}
+
+static void laplace_1d_solution_grad(void* context, point_t* x, double t, double* grad_phi)
+{
+  grad_phi[0] = 2.0;
+  grad_phi[1] = 0.0;
+  grad_phi[2] = 0.0;
+}
+
+static void poisson_run_laplace_1d()
+{
+  // RHS function is zero for Laplace's equation.
+  double z = 0.0;
+  st_func_t* zero = constant_st_func_new(1, &z);
+
+  // Analytic solution and gradient.
+  st_func_t* sol = st_func_from_func("laplace_1d_sol", laplace_1d_solution,
+                                     ST_INHOMOGENEOUS, ST_CONSTANT, 1);
+  st_func_t* sol_grad = st_func_from_func("laplace_1d_sol_grad", laplace_1d_solution_grad,
+                                          ST_INHOMOGENEOUS, ST_CONSTANT, 3);
+
+  // Boundary conditions: Dirichlet on -x/+x, zero flux on the others.
+  str_ptr_unordered_map_t* bcs = str_ptr_unordered_map_new();
+  str_ptr_unordered_map_insert(bcs, "-x", create_bc(1.0, 0.0, sol));
+  str_ptr_unordered_map_insert(bcs, "+x", create_bc(1.0, 0.0, sol));
+  str_ptr_unordered_map_insert(bcs, "-y", create_bc(0.0, 1.0, zero));
+  str_ptr_unordered_map_insert(bcs, "+y", create_bc(0.0, 1.0, zero));
+  str_ptr_unordered_map_insert(bcs, "-z", create_bc(0.0, 1.0, zero));
+  str_ptr_unordered_map_insert(bcs, "+z", create_bc(0.0, 1.0, zero));
+
+  // Start/end times.
+  double t1 = 0.0, t2 = 1.0;
+
+  // Base resolution, number of refinements.
+  int N0 = 32, num_refinements = 4;
+  
+  // Do a convergence study.
+  double Lp_norms[num_refinements][3];
+  for (int iter = 0; iter < num_refinements; ++iter)
+  {
+    int N = pow(N0, iter+1);
+    mesh_t* mesh = create_cube_mesh(1, N);
+    run_analytic_problem(mesh, zero, bcs, t1, t2, sol, Lp_norms[iter]);
+  }
+
+  // Clean up.
+  zero = NULL;
+  sol = NULL;
+  sol_grad = NULL;
+}
+
 static void poisson_run_laplace_sov(int variant)
 {
   // Dimension.
   int dim;
   // FIXME
 
-  // RHS function.
-  st_func_t* rhs;
-  // FIXME
+  // RHS function is zero for Laplace's equation.
+  double zero = 0.0;
+  st_func_t* rhs = constant_st_func_new(1, &zero);
+
+  // Analytic solution and/or gradient.
+  st_func_t* sol;
+  // FIXME = create_paraboloid_solution(variant);
 
   // Boundary conditions.
   str_ptr_unordered_map_t* bcs = str_ptr_unordered_map_new();
@@ -162,10 +220,6 @@ static void poisson_run_laplace_sov(int variant)
     str_ptr_unordered_map_insert(bcs, "boundary", create_bc(0.0, 1.0, NULL));
   else // if ((variant % 3) == 2)
     str_ptr_unordered_map_insert(bcs, "boundary", create_bc(1.0, 1.0, NULL));
-
-  // Analytic solution.
-  sp_func_t* sol;
-  // FIXME = create_paraboloid_solution(variant);
 
   // Start/end times.
   double t1, t2;
@@ -209,7 +263,7 @@ static void poisson_run_paraboloid(int variant)
     str_ptr_unordered_map_insert(bcs, "boundary", create_bc(1.0, 1.0, NULL));
 
   // Analytic solution.
-  sp_func_t* sol;
+  st_func_t* sol;
   // FIXME = create_paraboloid_solution(variant);
 
   // Start/end times.
@@ -352,7 +406,11 @@ static void apply_bcs(int_ptr_unordered_map_t* boundary_cells,
 static void poisson_run_benchmark(const char* benchmark)
 {
   char* variant_str = NULL;
-  if ((variant_str = strstr(benchmark, "laplace_sov")) != NULL)
+  if (!strcmp(benchmark, "laplace_1d"))
+  {
+    poisson_run_laplace_1d();
+  }
+  else if ((variant_str = strstr(benchmark, "laplace_sov")) != NULL)
   {
     int variant = atoi(variant_str + strlen("laplace_sov"));
     poisson_run_laplace_sov(variant);
@@ -519,7 +577,7 @@ static void poisson_init(void* context, double t)
     free(p->phi);
     int pos = 0, bcell_index;
     poisson_boundary_cell_t* bcell;
-    while (int_ptr_unordered_map_next(p->boundary_cells, &pos, &bcell_index, &bcell))
+    while (int_ptr_unordered_map_next(p->boundary_cells, &pos, &bcell_index, (void**)&bcell))
       free_boundary_cell(bcell);
     int_ptr_unordered_map_free(p->boundary_cells);
     p->initialized = false;
@@ -621,7 +679,7 @@ model_t* poisson_model_new(options_t* options)
   context->initialized = false;
   context->comm = MPI_COMM_WORLD;
   model_t* model = model_new("poisson", context, vtable);
-  static const char* benchmarks[] = {"laplace_sov1", "laplace_sov2", "laplace_sov3", 
+  static const char* benchmarks[] = {"laplace_1d", "laplace_sov1", "laplace_sov2", "laplace_sov3", 
                                      "paraboloid1", "paraboloid2", "paraboloid3",
                                      NULL};
   model_register_benchmarks(model, benchmarks);

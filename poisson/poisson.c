@@ -1,5 +1,3 @@
-#include <string.h>
-#include <stdlib.h>
 #include "poisson/poisson_model.h"
 
 #ifdef __cplusplus
