@@ -6,6 +6,7 @@
 #include "core/unordered_map.h"
 #include "core/least_squares.h"
 #include "core/constant_st_func.h"
+#include "geometry/cubic_lattice.h"
 #include "geometry/create_cubic_lattice_mesh.h"
 #include "geometry/create_cvt.h"
 #include "geometry/plane.h"
@@ -127,7 +128,46 @@ static mesh_t* create_cube_mesh(int dim, int N)
   for (int d = 0; d < dim; ++d)
     N3[d] = N;
 
-  return create_cubic_lattice_mesh(N3[0], N3[1], N3[2], 0);
+  // Create the mesh.
+  mesh_t* mesh = create_cubic_lattice_mesh(N3[0], N3[1], N3[2], 0);
+
+  // Tag the boundaries of the mesh.
+  cubic_lattice_t* lattice = cubic_lattice_new(N3[0], N3[1], N3[2]);
+  int* x1tag = mesh_create_tag(mesh->face_tags, "-x", N3[1]*N3[2]);
+  int* x2tag = mesh_create_tag(mesh->face_tags, "+x", N3[1]*N3[2]);
+  for (int j = 0; j < N3[1]; ++j)
+  {
+    for (int k = 0; k < N3[2]; ++k)
+    {
+      x1tag[N3[2]*j + k] = cubic_lattice_x_face(lattice, 0, j, k);
+      x2tag[N3[2]*j + k] = cubic_lattice_x_face(lattice, N3[0], j, k);
+    }
+  }
+
+  int* y1tag = mesh_create_tag(mesh->face_tags, "-y", N3[0]*N3[2]);
+  int* y2tag = mesh_create_tag(mesh->face_tags, "+y", N3[0]*N3[2]);
+  for (int i = 0; i < N3[0]; ++i)
+  {
+    for (int k = 0; k < N3[2]; ++k)
+    {
+      y1tag[N3[2]*i + k] = cubic_lattice_y_face(lattice, i, 0, k);
+      y2tag[N3[2]*i + k] = cubic_lattice_y_face(lattice, i, N3[1], k);
+    }
+  }
+
+  int* z1tag = mesh_create_tag(mesh->face_tags, "-z", N3[0]*N3[1]);
+  int* z2tag = mesh_create_tag(mesh->face_tags, "+z", N3[0]*N3[1]);
+  for (int i = 0; i < N3[0]; ++i)
+  {
+    for (int j = 0; j < N3[1]; ++j)
+    {
+      z1tag[N3[1]*i + j] = cubic_lattice_z_face(lattice, i, j, 0);
+      z2tag[N3[1]*i + j] = cubic_lattice_z_face(lattice, i, j, N3[2]);
+    }
+  }
+  lattice = NULL;
+
+  return mesh;
 }
 
 static void run_analytic_problem(mesh_t* mesh, st_func_t* rhs, str_ptr_unordered_map_t* bcs, double t1, double t2, st_func_t* solution, double* Lpnorms)
@@ -306,7 +346,7 @@ static void apply_bcs(int_ptr_unordered_map_t* boundary_cells,
   VecAssemblyBegin(b);
   int pos = 0, bcell;
   poisson_boundary_cell_t* cell_info;
-  while (int_ptr_unordered_map_next(boundary_cells, &pos, &bcell, (void**)(&boundary_cells)))
+  while (int_ptr_unordered_map_next(boundary_cells, &pos, &bcell, (void**)(&cell_info)))
   {
     cell_t* cell = &mesh->cells[bcell];
 
@@ -395,7 +435,7 @@ static void apply_bcs(int_ptr_unordered_map_t* boundary_cells,
         Aij[j] = aff_matrix[nb*j+f]*vector_dot(n, &grad_N[j]);
         bi = -aff_vector[f];
       }
-      MatSetValuesLocal(A, 1, &bcell, num_points, ij, Aij, ADD_VALUES);
+      MatSetValues(A, 1, &bcell, num_points, ij, Aij, ADD_VALUES);
       VecSetValues(b, 1, &bcell, &bi, ADD_VALUES);
     }
   }
@@ -468,6 +508,7 @@ static void initialize_boundary_cells(str_ptr_unordered_map_t* bcs, mesh_t* mesh
   poisson_bc_t* bc;
   while (str_ptr_unordered_map_next(bcs, &pos, &tag, (void**)&bc))
   {
+    printf("%s\n", tag);
     // Retrieve the tag for this boundary condition.
     ASSERT(mesh_has_tag(mesh->face_tags, tag));
     int num_faces;
@@ -529,7 +570,7 @@ static void initialize_boundary_cells(str_ptr_unordered_map_t* bcs, mesh_t* mesh
     {
       bcell->boundary_faces = malloc(sizeof(int)*bcell->num_boundary_faces);
       for (int f = 0; f < bcell->num_boundary_faces; ++f)
-        bcell->num_boundary_faces = -1;
+        bcell->boundary_faces[f] = -1;
       bcell->bc_for_face = malloc(sizeof(poisson_bc_t*)*bcell->num_boundary_faces);
     }
   }
@@ -552,13 +593,14 @@ static void initialize_boundary_cells(str_ptr_unordered_map_t* bcs, mesh_t* mesh
       cell_t* cell = face->cell1;
       int bcell = cell - &mesh->cells[0];
 
-      // Have we created an entry for this one yet? If not, do so.
       poisson_boundary_cell_t* boundary_cell = *int_ptr_unordered_map_get(boundary_cells, bcell);
+      ASSERT(boundary_cell != NULL);
 
       int i = 0;
       while (boundary_cell->boundary_faces[i] != -1) ++i;
       boundary_cell->boundary_faces[i] = faces[f];
       boundary_cell->bc_for_face[i] = bc;
+      printf("bcell has %d neighbors and %d boundary faces\n", boundary_cell->num_neighbor_cells, boundary_cell->num_boundary_faces);
     }
   }
 }
@@ -614,7 +656,7 @@ static void poisson_init(void* context, double t)
     lin_op_compute_stencil(p->L, i, indices, values);
     for (int j = 0; j < nnz[i]; ++j)
       indices[j] += i;
-    MatSetValuesLocal(p->A, 1, &i, nnz[i], indices, values, INSERT_VALUES);
+    MatSetValues(p->A, 1, &i, nnz[i], indices, values, INSERT_VALUES);
   }
   MatAssemblyEnd(p->A, MAT_FINAL_ASSEMBLY);
 

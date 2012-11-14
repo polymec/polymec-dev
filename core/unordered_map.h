@@ -235,7 +235,11 @@ static inline bool map_name##_next(map_name##_t* map, int* pos, key_type* key, v
 { \
   int index = *pos / map->max_depth; \
   int depth = *pos % map->max_depth; \
-  map_name##_entry_t* entry = map->buckets[index]; \
+  map_name##_entry_t* entry; \
+  while ((index < map->bucket_count) && (map->buckets[index] == NULL)) index++; \
+  if (index == map->bucket_count) \
+    return false; \
+  entry = map->buckets[index]; \
   for (int d = 0; d < depth; ++d) \
     entry = entry->next; \
   *key = entry->key; \
