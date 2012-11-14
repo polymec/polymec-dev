@@ -53,7 +53,29 @@ typedef struct
   int num_boundary_faces;
   int* boundary_faces;
   poisson_bc_t** bc_for_face;
-} boundary_cell_t;
+} poisson_boundary_cell_t;
+
+static poisson_boundary_cell_t* create_boundary_cell()
+{
+  poisson_boundary_cell_t* bcell = malloc(sizeof(poisson_boundary_cell_t));
+  bcell->neighbor_cells = NULL;
+  bcell->num_neighbor_cells = 0;
+  bcell->boundary_faces = NULL;
+  bcell->num_boundary_faces = 0;
+  bcell->bc_for_face = NULL;
+  return bcell;
+}
+
+static void free_boundary_cell(poisson_boundary_cell_t* cell)
+{
+  if (cell->neighbor_cells != NULL)
+    free(cell->neighbor_cells);
+  if (cell->boundary_faces != NULL)
+    free(cell->boundary_faces);
+  if (cell->bc_for_face != NULL)
+    free(cell->bc_for_face);
+  free(cell);
+}
 
 // Poisson model context structure.
 typedef struct 
@@ -226,9 +248,8 @@ static void apply_bcs(int_ptr_unordered_map_t* boundary_cell_info,
   // face.
   MatAssemblyBegin(A, MAT_FINAL_ASSEMBLY);
   VecAssemblyBegin(b);
-  int num_boundary_cells = boundary_cell_info->size;
   int pos = 0, bcell;
-  boundary_cell_t* cell_info;
+  poisson_boundary_cell_t* cell_info;
   while (int_ptr_unordered_map_next(boundary_cell_info, &pos, &bcell, (void**)(&boundary_cell_info)))
   {
     cell_t* cell = &mesh->cells[bcell];
@@ -430,8 +451,104 @@ static void poisson_init(void* context, double t)
   MatAssemblyEnd(p->A, MAT_FINAL_ASSEMBLY);
 
   // Gather information about boundary cells.
-  // FIXME
-//  boundary_cell_t* cell_info = (boundary_cell_t*)int_ptr_unordered_map_get(boundary_cell_info, bcell);
+  int pos = 0;
+  char* tag;
+  poisson_bc_t* bc;
+  while (str_ptr_unordered_map_next(p->bcs, &pos, &tag, (void**)&bc))
+  {
+    // Retrieve the tag for this boundary condition.
+    ASSERT(mesh_has_tag(p->mesh->face_tags, tag));
+    int num_faces;
+    int* faces = mesh_tag(p->mesh->face_tags, tag, &num_faces);
+
+    // Now create an entry for each boundary cell and count boundary
+    // faces and neighbors.
+    for (int f = 0; f < num_faces; ++f)
+    {
+      face_t* face = &p->mesh->faces[faces[f]];
+      ASSERT(face->cell2 == NULL); // ... true for now.
+
+      // Get the cell for this boundary face. This is the boundary cell.
+      cell_t* cell = face->cell1;
+      int bcell = cell - &p->mesh->cells[0];
+
+      // Have we created an entry for this one yet? If not, do so.
+      poisson_boundary_cell_t* boundary_cell;
+      if (!int_ptr_unordered_map_contains(p->boundary_cell_info, bcell))
+      {
+        boundary_cell = create_boundary_cell();
+        int_ptr_unordered_map_insert(p->boundary_cell_info, bcell, boundary_cell);
+
+        // Gather the interior faces for the cell.
+        for (int ff = 0; ff < cell->num_faces; ++ff)
+        {
+          if (face_opp_cell(cell->faces[ff], cell) != NULL)
+            boundary_cell->num_neighbor_cells++;
+        }
+        boundary_cell->neighbor_cells = malloc(sizeof(int)*boundary_cell->num_neighbor_cells);
+        int nc = 0;
+        for (int ff = 0; ff < cell->num_faces; ++ff)
+        {
+          cell_t* opp_cell = face_opp_cell(cell->faces[ff], cell);
+          if (opp_cell != NULL)
+          {
+            int opp = opp_cell - &p->mesh->cells[0];
+            boundary_cell->neighbor_cells[nc++] = opp;
+          }
+        }
+      }
+      else
+      {
+        // Just retrieve the existing boundary cell.
+        boundary_cell = *int_ptr_unordered_map_get(p->boundary_cell_info, bcell);
+      }
+
+      // Now increment the boundary face count for this cell.
+      boundary_cell->num_boundary_faces++;
+    }
+  }
+
+  // Allocate storage for the boundary faces and BCs within the cells.
+  {
+    int pos = 0;
+    int bcell_index;
+    poisson_boundary_cell_t* bcell;
+    while (int_ptr_unordered_map_next(p->boundary_cell_info, &pos, &bcell_index, (void**)&bcell))
+    {
+      bcell->boundary_faces = malloc(sizeof(int)*bcell->num_boundary_faces);
+      for (int f = 0; f < bcell->num_boundary_faces; ++f)
+        bcell->num_boundary_faces = -1;
+      bcell->bc_for_face = malloc(sizeof(poisson_bc_t*)*bcell->num_boundary_faces);
+    }
+  }
+
+  // Now go back through and set the boundary faces and boundary 
+  // conditions for each cell.
+  pos = 0;
+  while (str_ptr_unordered_map_next(p->bcs, &pos, &tag, (void**)&bc))
+  {
+    // Retrieve the tag for this boundary condition.
+    ASSERT(mesh_has_tag(p->mesh->face_tags, tag));
+    int num_faces;
+    int* faces = mesh_tag(p->mesh->face_tags, tag, &num_faces);
+
+    // Now create an entry for each boundary cell and count boundary
+    // faces and neighbors.
+    for (int f = 0; f < num_faces; ++f)
+    {
+      face_t* face = &p->mesh->faces[faces[f]];
+      cell_t* cell = face->cell1;
+      int bcell = cell - &p->mesh->cells[0];
+
+      // Have we created an entry for this one yet? If not, do so.
+      poisson_boundary_cell_t* boundary_cell = *int_ptr_unordered_map_get(p->boundary_cell_info, bcell);
+
+      int i = 0;
+      while (boundary_cell->boundary_faces[i] != -1) ++i;
+      boundary_cell->boundary_faces[i] = faces[f];
+      boundary_cell->bc_for_face[i] = bc;
+    }
+  }
 
   // We simply solve the problem for t = 0.
   poisson_advance((void*)p, t, 0.0);
@@ -467,7 +584,7 @@ static void poisson_dtor(void* ctx)
   pos = 0;
   int bcell;
   while (int_ptr_unordered_map_next(p->boundary_cell_info, &pos, &bcell, &val))
-    free(val);
+    free_boundary_cell(val);
   int_ptr_unordered_map_free(p->boundary_cell_info);
   free(p);
 }
