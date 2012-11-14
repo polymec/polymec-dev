@@ -512,9 +512,10 @@ void poly_ls_shape_compute_constraint_transform(poly_ls_shape_t* N, int* constra
                                                 double* a, double* b, double* c, double* d, double* e,
                                                 double* A, double* B)
 {
+  ASSERT(N->p > 0); // Constraints cannot be applied to constants.
   ASSERT(N->compute_gradients);
   ASSERT(constraint_indices != NULL);
-  ASSERT(num_constraints < N->num_points);
+  ASSERT(num_constraints <= N->num_points/2);
   ASSERT(a != NULL);
   ASSERT(b != NULL);
   ASSERT(c != NULL);
@@ -528,8 +529,8 @@ void poly_ls_shape_compute_constraint_transform(poly_ls_shape_t* N, int* constra
   for (int i = 0; i < num_constraints; ++i)
   {
     // Compute the shape functions at xi.
-    double N_vals[num_constraints];
-    vector_t N_grads[num_constraints];
+    double N_vals[N->num_points];
+    vector_t N_grads[N->num_points];
     poly_ls_shape_compute_gradients(N, &N->points[constraint_indices[i]], N_vals, N_grads);
     int constraint = 0;
     for (int j = 0; j < N->num_points; ++j)
@@ -555,6 +556,7 @@ void poly_ls_shape_compute_constraint_transform(poly_ls_shape_t* N, int* constra
       }
     }
   }
+
 
   // Compute A.
   int pivot[num_constraints], info;
