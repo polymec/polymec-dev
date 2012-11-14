@@ -241,6 +241,66 @@ void test_poly_shape_function_gradients(int p, point_t* x0, point_t* points, int
   N = NULL;
 }
 
+void test_poly_shape_function_constraints(int p, point_t* x0, point_t* points, int num_points, int num_constraints, double* coeffs, bool weighted)
+{
+  ASSERT(p > 0);
+  ASSERT(num_constraints <= num_points/2);
+  int dim = poly_ls_basis_size(p);
+
+  // Create scatter data.
+  double data[num_points], basis[dim];
+  memset(data, 0, sizeof(double)*num_points);
+  for (int i = 0; i < num_points; ++i)
+  {
+    point_t y = {.x = points[i].x - x0->x, 
+                 .y = points[i].y - x0->y,
+                 .z = points[i].z - x0->z};
+    compute_poly_ls_basis_vector(p, &y, basis);
+    for (int k = 0; k < dim; ++k)
+      data[i] += coeffs[k]*basis[k];
+  }
+
+  // Compute shape functions for the given data.
+  poly_ls_shape_t* N = poly_ls_shape_new(p, true);
+  if (weighted)
+    poly_ls_shape_set_simple_weighting_func(N, 2.0, 1e-8);
+  poly_ls_shape_set_domain(N, x0, points, num_points);
+
+  // Constraints: 1.0 * phi + 2.0 * dphidx + 3.0 * dphidy + 4.0 * dphidz = 5.0
+  // at each of the constraint points.
+  double a[num_constraints], b[num_constraints], c[num_constraints], d[num_constraints], e[num_constraints];
+  for (int i = 0; i < num_constraints; ++i)
+  {
+    a[i] = 1.0, b[i] = 2.0, c[i] = 3.0, d[i] = 4.0, e[i] = 5.0;
+  }
+
+  // Compute the last (num_constraints) points using the first 
+  // (num_points - num_constraints) points and constraints. For 
+  // this, we construct the affine transformation that maps the 
+  // total set of solution values to the constrained values.
+  int constraint_indices[num_constraints];
+  for (int i = 0; i < num_constraints; ++i)
+    constraint_indices[i] = num_points - num_constraints + i;
+  double A[num_constraints*num_points], B[num_constraints];
+  poly_ls_shape_compute_constraint_transform(N, constraint_indices, 2,
+                                             a, b, c, d, e, A, B);
+
+  // Now apply the affine transformation to the data and make sure we 
+  // reproduce the data points. Remember that A is stored in column-
+  // major order!
+  double constrained_data[num_constraints];
+  memset(constrained_data, 0, sizeof(double)*num_constraints);
+  for (int i = 0; i < num_constraints; ++i)
+  {
+    for (int j = 0; j < num_points; ++j)
+      constrained_data[i] += A[num_constraints*j+i] * data[j] + B[i];
+    // FIXME
+  }
+
+  // Clean up.
+  N = NULL;
+}
+
 void test_p0_fit(void** state)
 {
   static double coeffs[] = {1.0};
@@ -353,6 +413,15 @@ void test_weighted_p1_shape_func_gradients(void** state)
   test_poly_shape_function_gradients(1, &x0, points, 8, coeffs, true);
 }
 
+void test_p1_shape_func_constraints(void** state)
+{
+  static double coeffs[] = {1.0, 2.0, 3.0, 4.0};
+  point_t x0, points[8];
+  generate_random_points(8, points);
+  average_points(points, 8, &x0);
+  test_poly_shape_function_constraints(1, &x0, points, 8, 2, coeffs, false);
+}
+
 void test_p2_fit(void** state)
 {
   static double coeffs[] = {1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0};
@@ -407,6 +476,15 @@ void test_weighted_p2_shape_func_gradients(void** state)
   generate_random_points(16, points);
   average_points(points, 16, &x0);
   test_poly_shape_function_gradients(2, &x0, points, 16, coeffs, true);
+}
+
+void test_p2_shape_func_constraints(void** state)
+{
+  static double coeffs[] = {1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0};
+  point_t x0, points[16];
+  generate_random_points(16, points);
+  average_points(points, 16, &x0);
+  test_poly_shape_function_constraints(2, &x0, points, 16, 6, coeffs, false);
 }
 
 void test_p3_fit(void** state)
@@ -465,6 +543,15 @@ void test_weighted_p3_shape_func_gradients(void** state)
   test_poly_shape_function_gradients(3, &x0, points, 30, coeffs, true);
 }
 
+void test_p3_shape_func_constraints(void** state)
+{
+  static double coeffs[] = {1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0};
+  point_t x0, points[30];
+  generate_random_points(30, points);
+  average_points(points, 30, &x0);
+  test_poly_shape_function_constraints(3, &x0, points, 30, 12, coeffs, false);
+}
+
 int main(int argc, char* argv[]) 
 {
   arbi_init(argc, argv);
@@ -498,7 +585,10 @@ int main(int argc, char* argv[])
     unit_test(test_weighted_p0_shape_func_gradients),
     unit_test(test_weighted_p1_shape_func_gradients),
     unit_test(test_weighted_p2_shape_func_gradients),
-    unit_test(test_weighted_p3_shape_func_gradients)
+    unit_test(test_weighted_p3_shape_func_gradients),
+    unit_test(test_p1_shape_func_constraints),
+    unit_test(test_p2_shape_func_constraints),
+    unit_test(test_p3_shape_func_constraints)
   };
   return run_tests(tests);
 }
