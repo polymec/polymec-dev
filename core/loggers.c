@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <stdarg.h>
+#include <mpi.h>
 #include "core/arbi.h"
 #include "core/loggers.h"
 
@@ -8,6 +9,7 @@ typedef struct
   int message_size_limit;
   int flush_every;
   FILE* stream;
+  int mpi_rank;
 } logger_t;
 
 static bool first_time = true;
@@ -41,6 +43,7 @@ static logger_t* create_logger()
   logger->message_size_limit = 1024;
   logger->flush_every = 32;
   logger->stream = stdout;
+  logger->mpi_rank = 0;
   if (first_time)
   {
     arbi_atexit(delete_loggers);
@@ -96,7 +99,6 @@ void set_log_flush_period(log_level_t level, int num_messages_between_flush)
     logger->flush_every = num_messages_between_flush;
 }
 
-// Sets the output stream for the given type of log message.
 void set_log_stream(log_level_t log_type, FILE* stream)
 {
   logger_t* logger = get_logger(log_type);
@@ -104,11 +106,23 @@ void set_log_stream(log_level_t log_type, FILE* stream)
     logger->stream = stream;
 }
 
-// Issues a debug message.
+void set_log_mpi_rank(log_level_t log_type, int mpi_rank)
+{
+  ASSERT(mpi_rank >= 0);
+  int nprocs = MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
+  ASSERT(mpi_rank < nprocs);
+  logger_t* logger = get_logger(log_type);
+  if (logger != NULL)
+    logger->mpi_rank = mpi_rank;
+}
+
 void log_debug(const char* message, ...)
 {
   logger_t* logger = get_logger(LOG_DEBUG);
   if (logging_level < LOG_DEBUG) return;
+  int rank;
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  if (rank != logger->mpi_rank) return;
   if (logger->stream != NULL)
   {
     // Extract the variadic arguments and splat them into a string.
@@ -127,6 +141,9 @@ void log_info(const char* message, ...)
 {
   logger_t* logger = get_logger(LOG_INFO);
   if (logging_level < LOG_INFO) return;
+  int rank;
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  if (rank != logger->mpi_rank) return;
   if (logger->stream != NULL)
   {
     // Extract the variadic arguments and splat them into a string.
@@ -145,6 +162,9 @@ void log_warning(const char* message, ...)
 {
   logger_t* logger = get_logger(LOG_WARNING);
   if (logging_level < LOG_WARNING) return;
+  int rank;
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  if (rank != logger->mpi_rank) return;
   if (logger->stream != NULL)
   {
     // Extract the variadic arguments and splat them into a string.
