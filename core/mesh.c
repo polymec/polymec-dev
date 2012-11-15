@@ -1,9 +1,10 @@
 #include <stdlib.h>
-#include "uthash.h"
+//#include "uthash.h"
 #include "core/mesh.h"
 #include "core/mesh_storage.h"
 #include "core/edit_mesh.h"
 #include "core/unordered_set.h"
+#include "core/unordered_map.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -19,33 +20,42 @@ static int round_to_pow2(int x)
 
 typedef struct
 {
-  char* key;
+//  char* key;
   void* data;
   void (*dtor)(void*);
   ARENA* arena;
-  UT_hash_handle hh; // For uthash
+//  UT_hash_handle hh; // For uthash
 } mesh_tags_data_property_t;
 
 static mesh_tags_data_property_t* mesh_tags_data_property_new(ARENA* arena, const char* key, void* data, void (*dtor)(void*))
 {
   ASSERT(data != NULL);
   mesh_tags_data_property_t* prop = arena_malloc(arena, sizeof(mesh_tags_data_property_t), 0);
-  prop->key = arena_malloc(arena, sizeof(char)*(strlen(key)+1), 0);
-  strcpy(prop->key, key);
+//  prop->key = arena_malloc(arena, sizeof(char)*(strlen(key)+1), 0);
+//  strcpy(prop->key, key);
   prop->data = data;
   prop->dtor = dtor;
   prop->arena = arena;
   return prop;
 }
 
+static void mesh_tags_data_property_free(mesh_tags_data_property_t* prop)
+{
+  if (prop->dtor != NULL)
+    (*prop->dtor)(prop->data);
+  ARENA* arena = prop->arena;
+  arena_free(arena, prop);
+}
+
+DEFINE_UNORDERED_MAP(mesh_tags_data_property_map, char*, mesh_tags_data_property_t*, string_hash, string_equals)
+
 typedef struct 
 {
-  char* key;
+//  char* key;
   int* indices;
   int  num_indices;
-  mesh_tags_data_property_t* properties;
+  mesh_tags_data_property_map_t* properties;
   ARENA* arena;
-  UT_hash_handle hh; // For uthash
 } mesh_tags_data_t;
 
 static mesh_tags_data_t* mesh_tags_data_new(ARENA* arena, const char* key, int* indices, int num_indices)
@@ -53,52 +63,61 @@ static mesh_tags_data_t* mesh_tags_data_new(ARENA* arena, const char* key, int* 
   ASSERT(indices != NULL);
   ASSERT(num_indices >= 0);
   mesh_tags_data_t* data = arena_malloc(arena, sizeof(mesh_tags_data_t), 0);
-  data->key = arena_malloc(arena, sizeof(char)*(strlen(key)+1), 0);
-  strcpy(data->key, key);
   data->indices = indices; // YOINK!
   data->num_indices = num_indices;
-  data->properties = NULL;
+  data->properties = mesh_tags_data_property_map_new();
   data->arena = arena;
   return data;
 }
 
+static void mesh_tags_data_free(mesh_tags_data_t* tags_data)
+{
+  // Delete properties.
+  mesh_tags_data_property_map_free(tags_data->properties);
+
+  // Delete indices.
+  arena_free(tags_data->arena, tags_data->indices);
+
+  // Delete self.
+  ARENA* arena = tags_data->arena;
+  arena_free(arena, tags_data);
+}
+
+DEFINE_UNORDERED_MAP(mesh_tags_data_map, char*, mesh_tags_data_t*, string_hash, string_equals)
+
 struct mesh_tags_t
 {
   ARENA* arena;
-  mesh_tags_data_t* data;
+  mesh_tags_data_map_t* data;
 };
 
 static mesh_tags_t* mesh_tags_new(ARENA* arena)
 {
   mesh_tags_t* tags = arena_malloc(arena, sizeof(mesh_tags_t), 0);
   tags->arena = arena;
-  tags->data = NULL;
+  tags->data = mesh_tags_data_map_new();
   return tags;
 }
 
 static void mesh_tags_free(mesh_tags_t* tags)
 {
-  // Delete all tags.
-  mesh_tags_data_t *data, *tmp;
-  HASH_ITER(hh, tags->data, data, tmp)
-  {
-    arena_free(data->arena, data->key);
-    arena_free(data->arena, data->indices);
-    HASH_DEL(tags->data, data);
-
-    // Delete all properties.
-    mesh_tags_data_property_t *prop, *ptmp;
-    HASH_ITER(hh, data->properties, prop, ptmp)
-    {
-      arena_free(prop->arena, prop->key);
-      if (prop->dtor != NULL)
-        prop->dtor(prop->data);
-      HASH_DEL(data->properties, prop);
-    }
-    arena_free(data->arena, data);
-  }
+  mesh_tags_data_map_free(tags->data);
   arena_free(tags->arena, tags);
 }
+
+// These destructors are used with maps for tag properties and tags.
+static void destroy_property_key_and_value(char* key, mesh_tags_data_property_t* value)
+{
+  arena_free(value->arena, key);
+  mesh_tags_data_property_free(value);
+}
+
+static void destroy_tag_key_and_value(char* key, mesh_tags_data_t* value)
+{
+  arena_free(value->arena, key);
+  mesh_tags_data_free(value);
+}
+
 
 mesh_t* mesh_new(int num_cells, int num_ghost_cells, int num_faces,
                  int num_edges, int num_nodes)
@@ -233,31 +252,31 @@ void mesh_verify(mesh_t* mesh)
 int* mesh_create_tag(mesh_tags_t* tagger, const char* tag, int num_indices)
 {
   ASSERT(num_indices >= 0);
-  mesh_tags_data_t* data;
-  HASH_FIND_STR(tagger->data, tag, data);
-  if (data != NULL)
+
+  // If the tag exists, this function returns NULL.
+  if (mesh_tags_data_map_contains(tagger->data, (char*)tag))
     return NULL;
+
+  // Otherwise, we create it.
   int* indices = arena_malloc(tagger->arena, num_indices*sizeof(int), 0);
-  data = mesh_tags_data_new(tagger->arena, tag, indices, num_indices);
-  HASH_ADD_KEYPTR(hh, tagger->data, tag, strlen(tag), data);
+  char* tag_name = arena_malloc(tagger->arena, sizeof(char)*(strlen(tag)+1), 0);
+  strcpy(tag_name, tag);
+  mesh_tags_data_t* data = mesh_tags_data_new(tagger->arena, tag, indices, num_indices);
+  mesh_tags_data_map_insert_with_dtor(tagger->data, tag_name, data, destroy_tag_key_and_value);
   return indices;
 }
 
 int* mesh_tag(mesh_tags_t* tagger, const char* tag, int* num_indices)
 {
   ASSERT(num_indices != NULL);
-  mesh_tags_data_t* data;
-  HASH_FIND_STR(tagger->data, tag, data);
-  if (data != NULL)
+  mesh_tags_data_t** data_p = mesh_tags_data_map_get(tagger->data, (char*)tag);
+  if (data_p != NULL)
   {
-    *num_indices = data->num_indices;
-    return data->indices;
+    *num_indices = (*data_p)->num_indices;
+    return (*data_p)->indices;
   }
-  else
-  {
-    *num_indices = -1;
-    return NULL;
-  }
+  *num_indices = -1;
+  return NULL;
 }
 
 bool mesh_has_tag(mesh_tags_t* tagger, const char* tag)
@@ -269,67 +288,50 @@ bool mesh_has_tag(mesh_tags_t* tagger, const char* tag)
 bool mesh_tag_set_property(mesh_tags_t* tagger, const char* tag, const char* property, void* data, void (*destructor)(void*))
 {
   ASSERT(data != NULL);
-  mesh_tags_data_t* tag_data;
-  HASH_FIND_STR(tagger->data, tag, tag_data);
-  if (tag_data == NULL) return false;
-  mesh_tags_data_property_t* prop;
-  HASH_FIND_STR(tag_data->properties, property, prop);
-  if (prop != NULL)
+  mesh_tags_data_t** data_p = mesh_tags_data_map_get(tagger->data, (char*)tag);
+  if (data_p == NULL) return false;
+  mesh_tags_data_property_t** prop_p = mesh_tags_data_property_map_get((*data_p)->properties, (char*)property);
+  if (prop_p != NULL)
   {
-    // Overwrite the property with this one.
-    if (prop->dtor != NULL)
-      prop->dtor(prop->data);
-    prop->data = data;
-    prop->dtor = destructor;
+    // Overwrite the property's data.
+    if ((*prop_p)->dtor != NULL)
+      (*prop_p)->dtor((*prop_p)->data);
+    (*prop_p)->data = data;
+    (*prop_p)->dtor = destructor;
   }
   else
   {
-    prop = mesh_tags_data_property_new(tagger->arena, property, data, destructor);
-    HASH_ADD_KEYPTR(hh, tag_data->properties, property, strlen(property), prop);
+    // Create a new property.
+    char* prop_name = arena_malloc(tagger->arena, sizeof(char)*(strlen(property)+1), 0);
+    strcpy(prop_name, property);
+    mesh_tags_data_property_t* prop = mesh_tags_data_property_new(tagger->arena, property, data, destructor);
+    mesh_tags_data_property_map_insert_with_dtor((*data_p)->properties, prop_name, prop, destroy_property_key_and_value);
   }
   return true;
 }
 
 void* mesh_tag_property(mesh_tags_t* tagger, const char* tag, const char* property)
 {
-  mesh_tags_data_t* tag_data;
-  HASH_FIND_STR(tagger->data, tag, tag_data);
-  if (tag_data == NULL) 
+  mesh_tags_data_t** tag_data_p = mesh_tags_data_map_get(tagger->data, (char*)tag);
+  if (tag_data_p == NULL) 
     return NULL;
-  mesh_tags_data_property_t* prop;
-  HASH_FIND_STR(tag_data->properties, property, prop);
-  if (prop != NULL)
-    return prop->data;
+  mesh_tags_data_property_t** prop_p = mesh_tags_data_property_map_get((*tag_data_p)->properties, (char*)property);
+  if (prop_p != NULL)
+    return (*prop_p)->data;
   else
     return NULL;
 }
 
 void mesh_tag_delete_property(mesh_tags_t* tagger, const char* tag, const char* property)
 {
-  mesh_tags_data_t* tag_data;
-  HASH_FIND_STR(tagger->data, tag, tag_data);
-  if (tag_data == NULL) return;
-  mesh_tags_data_property_t* prop;
-  HASH_FIND_STR(tag_data->properties, property, prop);
-  if (prop != NULL)
-  {
-    arena_free(prop->arena, prop->key);
-    if (prop->dtor != NULL)
-      prop->dtor(prop->data);
-    HASH_DEL(tag_data->properties, prop);
-  }
+  mesh_tags_data_t** tag_data_p = mesh_tags_data_map_get(tagger->data, (char*)tag);
+  if (tag_data_p != NULL) 
+    mesh_tags_data_property_map_delete((*tag_data_p)->properties, (char*)property);
 }
 
 void mesh_delete_tag(mesh_tags_t* tagger, const char* tag)
 {
-  mesh_tags_data_t* data;
-  HASH_FIND_STR(tagger->data, tag, data);
-  if (data != NULL)
-  {
-    arena_free(data->arena, data->key);
-    arena_free(data->arena, data->indices);
-    HASH_DEL(tagger->data, data);
-  }
+  mesh_tags_data_map_delete(tagger->data, (char*)tag);
 }
 
 #ifdef __cplusplus

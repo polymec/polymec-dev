@@ -180,6 +180,7 @@ static void run_analytic_problem(mesh_t* mesh, st_func_t* rhs, str_ptr_unordered
   model_run(model, t1, t2);
 
   // Calculate the Lp norm of the error and write it to Lpnorms.
+  // FIXME
 
   // Clean up.
   model_free(model);
@@ -496,6 +497,7 @@ static void poisson_advance(void* context, double t, double dt)
 
   // Make sure that boundary conditions are satisfied.
   apply_bcs(p->boundary_cells, p->mesh, p->shape, t+dt, p->A, p->b);
+  MatView(p->A, PETSC_VIEWER_STDOUT_SELF);
 
   // Set up the linear solver.
   KSPSetOperators(p->solver, p->A, p->A, SAME_NONZERO_PATTERN);
@@ -504,6 +506,7 @@ static void poisson_advance(void* context, double t, double dt)
   KSPSolve(p->solver, p->b, p->x);
 
   // Copy the values from x to our solution array.
+  VecView(p->x, PETSC_VIEWER_STDOUT_SELF);
   double* x;
   VecGetArray(p->x, &x);
   memcpy(p->phi, x, sizeof(double)*p->mesh->num_cells);
