@@ -73,16 +73,16 @@ void model_get_benchmarks(model_t* model, char*** benchmarks, int* num_benchmark
   *num_benchmarks = model->num_benchmarks;
 }
 
-void model_run_all_benchmarks(model_t* model)
+void model_run_all_benchmarks(model_t* model, options_t* options)
 {
   for (int i = 0; i < model->num_benchmarks; ++i)
-    model_run_benchmark(model, (const char*)model->benchmarks[i]);
+    model_run_benchmark(model, (const char*)model->benchmarks[i], options);
 }
 
-void model_run_benchmark(model_t* model, const char* benchmark)
+void model_run_benchmark(model_t* model, const char* benchmark, options_t* options)
 {
   if (model->vtable.run_benchmark != NULL)
-    model->vtable.run_benchmark(benchmark);
+    model->vtable.run_benchmark(benchmark, options);
   else
   {
     char err[1024];
@@ -209,9 +209,11 @@ int model_main(const char* model_name, model_ctor constructor, int argc, char* a
 
     // Have we been asked to run all benchmarks?
     if (!strcmp(input, "all"))
-      model_run_all_benchmarks(model);
+      model_run_all_benchmarks(model, opts);
     else
-      model_run_benchmark(model, input);
+      model_run_benchmark(model, input, opts);
+
+    model_free(model);
     return 0;
   }
 

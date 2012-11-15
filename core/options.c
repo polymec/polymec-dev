@@ -45,9 +45,10 @@ options_t* options_parse(int argc, char** argv)
   // No options -> NULL.
   if (argc == 1)
     return NULL;
-  options_t* o = malloc(sizeof(options_t));
+  options_t* o = GC_MALLOC(sizeof(options_t));
   o->command = NULL;
   o->input = NULL;
+  GC_register_finalizer(o, &options_free, o, NULL, NULL);
 
   // Parse the basic options.
   if (!strcmp(argv[1], "help") || !strcmp(argv[1], "--help"))

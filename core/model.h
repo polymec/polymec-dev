@@ -18,10 +18,10 @@ extern "C" {
 typedef struct model_t model_t;
 
 // A model constructor function for creating an object context.
-typedef void* (*model_ctor)(options_t* options);
+typedef void* (*model_ctor)(options_t*);
 
 // A function for running a benchmark calculation.
-typedef void (*model_run_bench_func)(const char*);
+typedef void (*model_run_bench_func)(const char*, options_t*);
 
 // A function for initializing the model.
 typedef void (*model_init_func)(void*, double);
@@ -80,10 +80,10 @@ void model_register_benchmarks(model_t* model, const char** benchmarks);
 void model_get_benchmarks(model_t* model, char*** benchmarks, int* num_benchmarks);
 
 // Runs the given benchmark problem for the model.
-void model_run_benchmark(model_t* model, const char* benchmark);
+void model_run_benchmark(model_t* model, const char* benchmark, options_t* options);
 
 // Runs all benchmark problems for the model.
-void model_run_all_benchmarks(model_t* model);
+void model_run_all_benchmarks(model_t* model, options_t* options);
 
 // Initialize the model at the given time.
 void model_init(model_t* model, double t);
