@@ -419,8 +419,8 @@ static void apply_bcs(int_ptr_unordered_map_t* boundary_cells,
 
     // Compute the flux through each boundary face and alter the 
     // linear system accordingly.
-    int ij[num_points];
-    double N[num_points], Aij[num_points], bi;
+    int ij[cell_info->num_neighbor_cells];
+    double N[num_points], Aij[cell_info->num_neighbor_cells], bi;
     vector_t grad_N[num_points]; 
     for (int f = 0; f < nb; ++f)
     {
@@ -430,13 +430,13 @@ static void apply_bcs(int_ptr_unordered_map_t* boundary_cells,
 
       // Add the dphi/dn terms for face f to the matrix.
       vector_t* n = &face_normals[f];
-      for (int j = 0; j < num_points; ++j)
+      for (int j = 0; j < cell_info->num_neighbor_cells; ++j)
       {
         ij[j] = cell_info->neighbor_cells[j];
         Aij[j] = aff_matrix[nb*j+f]*vector_dot(n, &grad_N[j]);
-        bi = -aff_vector[f];
       }
-      MatSetValues(A, 1, &bcell, num_points, ij, Aij, ADD_VALUES);
+      bi = -aff_vector[f];
+      MatSetValues(A, 1, &bcell, cell_info->num_neighbor_cells, ij, Aij, ADD_VALUES);
       VecSetValues(b, 1, &bcell, &bi, ADD_VALUES);
     }
   }
@@ -600,7 +600,6 @@ static void initialize_boundary_cells(str_ptr_unordered_map_t* bcs, mesh_t* mesh
       while (boundary_cell->boundary_faces[i] != -1) ++i;
       boundary_cell->boundary_faces[i] = faces[f];
       boundary_cell->bc_for_face[i] = bc;
-//      printf("bcell has %d neighbors and %d boundary faces\n", boundary_cell->num_neighbor_cells, boundary_cell->num_boundary_faces);
     }
   }
 }
@@ -692,7 +691,7 @@ static void poisson_dtor(void* ctx)
   void* val;
   while (str_ptr_unordered_map_next(p->bcs, &pos, &key, &val))
   {
-    free(key);
+//    free(key); // FIXME: Not clear how to handle this!
     free_bc(val);
   }
   str_ptr_unordered_map_free(p->bcs);
@@ -719,6 +718,7 @@ model_t* poisson_model_new(options_t* options)
   context->L = NULL;
   context->bcs = str_ptr_unordered_map_new();
   context->shape = poly_ls_shape_new(1, true);
+  poly_ls_shape_set_simple_weighting_func(context->shape, 2, 1e-8);
   context->boundary_cells = int_ptr_unordered_map_new();
   context->initialized = false;
   context->comm = MPI_COMM_WORLD;
