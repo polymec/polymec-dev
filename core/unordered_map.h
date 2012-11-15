@@ -34,11 +34,13 @@ typedef int (*map_name##_hash_func)(map_name##_key_t); \
 typedef bool (*map_name##_equals_func)(map_name##_key_t, map_name##_key_t); \
 typedef void (*map_name##_visitor)(map_name##_key_t, map_name##_value_t, void*); \
 typedef struct map_name##_entry_t map_name##_entry_t; \
+typedef void (*map_name##_kv_dtor)(key_type, value_type); \
 struct map_name##_entry_t \
 { \
   key_type key; \
   int hash; \
   value_type value; \
+  map_name##_kv_dtor dtor; \
   map_name##_entry_t* next; \
 }; \
 \
@@ -81,6 +83,8 @@ static inline void map_name##_clear(map_name##_t* map) \
     while (entry != NULL) \
     { \
       map_name##_entry_t* next = entry->next; \
+      if (entry->dtor != NULL) \
+        (*entry->dtor)(entry->key, entry->value); \
       free(entry); \
       entry = next; \
     } \
@@ -171,7 +175,7 @@ static inline void map_name##_expand(map_name##_t* map) \
   } \
 } \
 \
-static inline void map_name##_insert(map_name##_t* map, key_type key, value_type value) \
+static inline void map_name##_insert_with_dtor(map_name##_t* map, key_type key, value_type value, map_name##_kv_dtor dtor) \
 { \
   int h = map_name##_hash(map, key); \
   int index = map_name##_index(map->bucket_count, h); \
@@ -186,6 +190,7 @@ static inline void map_name##_insert(map_name##_t* map, key_type key, value_type
       (*p)->key = key; \
       (*p)->hash = h; \
       (*p)->value = value; \
+      (*p)->dtor = dtor; \
       (*p)->next = NULL; \
       map->size++; \
       map_name##_expand(map); \
@@ -201,6 +206,10 @@ static inline void map_name##_insert(map_name##_t* map, key_type key, value_type
     p = &current->next; \
   } \
 } \
+static inline void map_name##_insert(map_name##_t* map, key_type key, value_type value) \
+{ \
+  map_name##_insert_with_dtor(map, key, value, NULL); \
+} \
 \
 static inline void map_name##_delete(map_name##_t* map, key_type key) \
 { \
@@ -213,6 +222,8 @@ static inline void map_name##_delete(map_name##_t* map, key_type key) \
     if (map_name##_keys_equal(map, current->key, current->hash, key, h)) \
     { \
       *p = current->next; \
+      if (current->dtor != NULL) \
+        (*current->dtor)(current->key, current->value); \
       free(current); \
       map->size--; \
     }\
