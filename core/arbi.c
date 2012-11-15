@@ -45,6 +45,7 @@ static void shutdown()
     _atexit_funcs[i]();
 
   TaoFinalize();
+  PetscFinalize();
   MPI_Finalize();
 }
 
@@ -55,6 +56,12 @@ void arbi_init(int argc, char** argv)
 
   // Start up the garbage collector.
   GC_INIT();
+
+  // Start up PETSc.
+  PetscInitialize(&argc, &argv, PETSC_NULL, PETSC_NULL);
+#ifndef NDEBUG
+  PetscPushErrorHandler(PetscAbortErrorHandler, NULL);
+#endif
 
   // Start up Tao.
   TaoInitialize(&argc, &argv, (char*)NULL, 0);

@@ -50,17 +50,21 @@ void model_register_benchmarks(model_t* model, const char** benchmarks)
     for (int i = 0; i < model->num_benchmarks; ++i)
       free(model->benchmarks[i]);
     free(model->benchmarks);
+    model->benchmarks = NULL;
   }
   model->num_benchmarks = 0;
-  char* p = (char*)benchmarks[0];
-  while (p != NULL) 
+  if (benchmarks != NULL)
   {
-    model->num_benchmarks++;
-    p = (char*)benchmarks[model->num_benchmarks];
+    char* p = (char*)benchmarks[0];
+    while (p != NULL) 
+    {
+      model->num_benchmarks++;
+      p = (char*)benchmarks[model->num_benchmarks];
+    }
+    model->benchmarks = malloc(sizeof(char*)*model->num_benchmarks);
+    for (int i = 0; i < model->num_benchmarks; ++i)
+      model->benchmarks[i] = strdup(benchmarks[i]);
   }
-  model->benchmarks = malloc(sizeof(char*)*model->num_benchmarks);
-  for (int i = 0; i < model->num_benchmarks; ++i)
-    model->benchmarks[i] = strdup(benchmarks[i]);
 }
 
 void model_get_benchmarks(model_t* model, char*** benchmarks, int* num_benchmarks)
