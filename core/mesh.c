@@ -30,7 +30,8 @@ static mesh_tags_data_property_t* mesh_tags_data_property_new(ARENA* arena, cons
 {
   ASSERT(data != NULL);
   mesh_tags_data_property_t* prop = arena_malloc(arena, sizeof(mesh_tags_data_property_t), 0);
-  prop->key = strdup(key);
+  prop->key = arena_malloc(arena, sizeof(char)*(strlen(key)+1), 0);
+  strcpy(prop->key, key);
   prop->data = data;
   prop->dtor = dtor;
   prop->arena = arena;
@@ -52,7 +53,8 @@ static mesh_tags_data_t* mesh_tags_data_new(ARENA* arena, const char* key, int* 
   ASSERT(indices != NULL);
   ASSERT(num_indices >= 0);
   mesh_tags_data_t* data = arena_malloc(arena, sizeof(mesh_tags_data_t), 0);
-  data->key = strdup(key);
+  data->key = arena_malloc(arena, sizeof(char)*(strlen(key)+1), 0);
+  strcpy(data->key, key);
   data->indices = indices; // YOINK!
   data->num_indices = num_indices;
   data->properties = NULL;
