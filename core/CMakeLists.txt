@@ -5,7 +5,7 @@ add_library(arbi_core arbi.c lite_mesh.c mesh.c simulation.c model.c
             sp_func.c st_func.c constant_st_func.c dl_st_func.c 
             cell_nsearch.c lin_op.c least_squares.c
             newton.c options.c string_utils.c brent.c
-            io.c)
+            io.c loggers.c)
 set(ARBI_LIBS arbi_core;${ARBI_LIBS} PARENT_SCOPE)
 set(ARBI_LIBS arbi_core;${ARBI_LIBS})
 add_subdirectory(tests)

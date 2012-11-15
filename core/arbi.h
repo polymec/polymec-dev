@@ -7,6 +7,7 @@
 #include <limits.h>
 #include <float.h>
 #include <mpi.h>
+#include "core/loggers.h"
 
 // Some macros.
 #ifndef NDEBUG
