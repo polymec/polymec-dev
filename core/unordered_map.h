@@ -17,12 +17,14 @@
 // x_map_t* x_map_new() - Creates a new empty unordered map.
 // x_map_t* x_map_new_with_capacity(int N) - Creates a new empty hash map with 
 //                                           initial capacity N.
+// x_map_t* x_map_copy(x_map_t* m) - Creates a (shallow) copy of m.
 // void x_map_free(x_map_t* map) - Destroys the map.
 // void x_map_clear(x_map_t* map) - Empties the map.
 // x_map_value_t* x_map_get(x_map_t* map, x_map_key_t key) - Returns the value for the key, or NULL.
 // bool x_map_contains(x_map_t* map, x_map_key_t key) - Returns true if the map contains the key, false if not.
 // void x_map_insert(x_map_t* map, x_map_key_t key, x_map_value_t value) - Sets the value for the given key.
 // void x_map_delete(x_map_t* map, x_map_key_t key) - Deletes the value for the given key.
+// bool x_map_next(x_map_t* map, int* pos, x_map_key_t* key, x_map_value_t* value) - Allows the traversal of the maps keys and values.
 // void x_map_foreach(x_map_t* node, x_map_visitor visit, void*) - Executes visit on each map element.
 
 #define DEFINE_UNORDERED_MAP(map_name, key_type, value_type, hash_func, equals_func) \
@@ -249,6 +251,17 @@ static inline bool map_name##_next(map_name##_t* map, int* pos, key_type* key, v
   else \
     *pos = (index+1) * map->max_depth; \
   return ((entry->next != NULL) || (index+1) < map->bucket_count); \
+} \
+\
+static inline map_name##_t* map_name##_copy(map_name##_t* map) \
+{ \
+  map_name##_t* copy = map_name##_new_with_capacity(map->bucket_count); \
+  int pos = 0; \
+  map_name##_key_t key; \
+  map_name##_value_t value; \
+  while (map_name##_next(map, &pos, &key, &value)) \
+    map_name##_insert(copy, key, value); \
+  return copy; \
 } \
 
 // Define some unordered maps.

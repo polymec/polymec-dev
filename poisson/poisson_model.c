@@ -104,9 +104,9 @@ typedef struct
 } poisson_t;
 
 // A proper constructor.
-static model_t* create_poisson(mesh_t* mesh, st_func_t* rhs, str_ptr_unordered_map_t* bcs)
+static model_t* create_poisson(mesh_t* mesh, st_func_t* rhs, str_ptr_unordered_map_t* bcs, options_t* options)
 {
-  model_t* poisson = poisson_model_new(NULL);
+  model_t* poisson = poisson_model_new(options);
   poisson_t* p = (poisson_t*)model_context(poisson);
   p->mesh = mesh;
   p->rhs = rhs;
@@ -171,10 +171,10 @@ static mesh_t* create_cube_mesh(int dim, int N)
   return mesh;
 }
 
-static void run_analytic_problem(mesh_t* mesh, st_func_t* rhs, str_ptr_unordered_map_t* bcs, double t1, double t2, st_func_t* solution, double* Lpnorms)
+static void run_analytic_problem(mesh_t* mesh, st_func_t* rhs, str_ptr_unordered_map_t* bcs, options_t* options, double t1, double t2, st_func_t* solution, double* Lpnorms)
 {
   // Create the model.
-  model_t* model = create_poisson(mesh, rhs, bcs);
+  model_t* model = create_poisson(mesh, rhs, bcs, options);
 
   // Run the thing.
   model_run(model, t1, t2);
@@ -197,7 +197,7 @@ static void laplace_1d_solution_grad(void* context, point_t* x, double t, double
   grad_phi[2] = 0.0;
 }
 
-static void poisson_run_laplace_1d()
+static void poisson_run_laplace_1d(options_t* options)
 {
   // RHS function is zero for Laplace's equation.
   double z = 0.0;
@@ -228,18 +228,25 @@ static void poisson_run_laplace_1d()
   double Lp_norms[num_refinements][3];
   for (int iter = 0; iter < num_refinements; ++iter)
   {
-    int N = pow(N0, iter+1);
+    int N = N0 * pow(2, iter);
     mesh_t* mesh = create_cube_mesh(1, N);
-    run_analytic_problem(mesh, zero, bcs, t1, t2, sol, Lp_norms[iter]);
+    str_ptr_unordered_map_t* bcs_copy = str_ptr_unordered_map_copy(bcs);
+    run_analytic_problem(mesh, zero, bcs_copy, options, t1, t2, sol, Lp_norms[iter]);
   }
 
   // Clean up.
+  int pos = 0;
+  char* key;
+  void* value;
+  while (str_ptr_unordered_map_next(bcs, &pos, &key, &value))
+    free_bc(value);
+  str_ptr_unordered_map_free(bcs);
   zero = NULL;
   sol = NULL;
   sol_grad = NULL;
 }
 
-static void poisson_run_laplace_sov(int variant)
+static void poisson_run_laplace_sov(int variant, options_t* options)
 {
   // Dimension.
   int dim;
@@ -280,11 +287,11 @@ static void poisson_run_laplace_sov(int variant)
   {
     int N = pow(N0, iter+1);
     mesh_t* mesh = create_cube_mesh(dim, N);
-    run_analytic_problem(mesh, rhs, bcs, t1, t2, sol, Lpnorms[iter]);
+    run_analytic_problem(mesh, rhs, bcs, options, t1, t2, sol, Lpnorms[iter]);
   }
 }
 
-static void poisson_run_paraboloid(int variant)
+static void poisson_run_paraboloid(int variant, options_t* options)
 {
   // Dimension.
   int dim;
@@ -325,7 +332,7 @@ static void poisson_run_paraboloid(int variant)
   {
     int N = pow(N0, iter+1);
     mesh_t* mesh = create_cube_mesh(dim, N);
-    run_analytic_problem(mesh, rhs, bcs, t1, t2, sol, Lpnorms[iter]);
+    run_analytic_problem(mesh, rhs, bcs, options, t1, t2, sol, Lpnorms[iter]);
   }
 }
 
@@ -445,22 +452,22 @@ static void apply_bcs(int_ptr_unordered_map_t* boundary_cells,
   VecAssemblyEnd(b);
 }
 
-static void poisson_run_benchmark(const char* benchmark)
+static void poisson_run_benchmark(const char* benchmark, options_t* options)
 {
   char* variant_str = NULL;
   if (!strcmp(benchmark, "laplace_1d"))
   {
-    poisson_run_laplace_1d();
+    poisson_run_laplace_1d(options);
   }
   else if ((variant_str = strstr(benchmark, "laplace_sov")) != NULL)
   {
     int variant = atoi(variant_str + strlen("laplace_sov"));
-    poisson_run_laplace_sov(variant);
+    poisson_run_laplace_sov(variant, options);
   }
   else if ((variant_str = strstr(benchmark, "paraboloid")) != NULL)
   {
     int variant = atoi(variant_str + strlen("paraboloid"));
-    poisson_run_paraboloid(variant);
+    poisson_run_paraboloid(variant, options);
   }
   else
   {
@@ -621,7 +628,7 @@ static void poisson_init(void* context, double t)
     poisson_boundary_cell_t* bcell;
     while (int_ptr_unordered_map_next(p->boundary_cells, &pos, &bcell_index, (void**)&bcell))
       free_boundary_cell(bcell);
-    int_ptr_unordered_map_free(p->boundary_cells);
+    int_ptr_unordered_map_clear(p->boundary_cells);
     p->initialized = false;
   }
 
@@ -686,24 +693,39 @@ static void poisson_dump(void* context, io_interface_t* io, double t, int step)
 static void poisson_dtor(void* ctx)
 {
   poisson_t* p = (poisson_t*)ctx;
-  mesh_free(p->mesh);
-  int pos = 0;
-  char* key;
-  void* val;
-  while (str_ptr_unordered_map_next(p->bcs, &pos, &key, &val))
-  {
+
+  // Destroy BC table.
+//  int pos = 0;
+//  char* key;
+//  void* val;
+//  while (str_ptr_unordered_map_next(p->bcs, &pos, &key, &val))
+//  {
 //    free(key); // FIXME: Not clear how to handle this!
-    free_bc(val);
-  }
+//    free_bc(val);
+//  }
   str_ptr_unordered_map_free(p->bcs);
-  pos = 0;
-  int bcell;
-  while (int_ptr_unordered_map_next(p->boundary_cells, &pos, &bcell, &val))
-    free_boundary_cell(val);
-  int_ptr_unordered_map_free(p->boundary_cells);
-  p->shape = NULL;
-  if (p->phi != NULL)
+
+  if (p->mesh != NULL)
+    mesh_free(p->mesh);
+  if (p->initialized)
+  {
+    // Destroy the boundary cell info.
+    int pos = 0;
+    int bcell;
+    void* val;
+    while (int_ptr_unordered_map_next(p->boundary_cells, &pos, &bcell, &val))
+      free_boundary_cell(val);
+
+    // Destroy other stuff.
+    KSPDestroy(&p->solver);
+    MatDestroy(&p->A);
+    VecDestroy(&p->x);
+    VecDestroy(&p->b);
+    p->shape = NULL;
     free(p->phi);
+  }
+
+  int_ptr_unordered_map_free(p->boundary_cells);
   free(p);
 }
 
