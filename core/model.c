@@ -82,7 +82,10 @@ void model_run_all_benchmarks(model_t* model, options_t* options)
 void model_run_benchmark(model_t* model, const char* benchmark, options_t* options)
 {
   if (model->vtable.run_benchmark != NULL)
+  {
+    log_info("%s: Running benchmark '%s'.", model->name, benchmark);
     model->vtable.run_benchmark(benchmark, options);
+  }
   else
   {
     char err[1024];
@@ -94,6 +97,7 @@ void model_run_benchmark(model_t* model, const char* benchmark, options_t* optio
 // Initialize the model at the given time.
 void model_init(model_t* model, double t)
 {
+  log_info("%s: Initializing at time %g.", model->name, t);
   model->vtable.init(model->context, t);
 }
 
@@ -112,6 +116,7 @@ double model_max_dt(model_t* model, double t, char* reason)
 
 void model_advance(model_t* model, double t, double dt)
 {
+  log_info("%s: Advancing from time %g to %g (dt = %g).", model->name, t, t+dt, dt);
   model->vtable.advance(model->context, t, dt);
 }
 
@@ -132,12 +137,15 @@ void model_plot(model_t* model, plot_interface_t* plot, double t, int step)
 
 void model_run(model_t* model, double t1, double t2)
 {
+  log_info("%s: Running from time %g to %g.", model->name, t1, t2);
   double t = t1;
   model_init(model, t);
   while (t < t2)
   {
     char reason[ARBI_MODEL_MAXDT_REASON_SIZE];
     double dt = model_max_dt(model, t, reason);
+    if (dt > t2 - t)
+      dt = t2 - t;
     model_advance(model, t, dt);
     t += dt;
   }
