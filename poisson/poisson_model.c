@@ -43,6 +43,7 @@ static void free_bc(void* bc)
 {
   poisson_bc_t* pbc = (poisson_bc_t*)bc;
   pbc->F = NULL;
+  free(pbc);
 }
 
 // Metadata for boundary cells (those cells that touch boundary faces).
@@ -701,6 +702,8 @@ static void poisson_dtor(void* ctx)
     free_boundary_cell(val);
   int_ptr_unordered_map_free(p->boundary_cells);
   p->shape = NULL;
+  if (p->phi != NULL)
+    free(p->phi);
   free(p);
 }
 
