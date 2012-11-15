@@ -26,6 +26,10 @@ void set_log_flush_period(log_level_t level, int num_messages_between_flush);
 // Sets the output stream for the given type of log message.
 void set_log_stream(log_level_t log_type, FILE* stream);
 
+// Sets the output MPI rank for parallel logging output. Output will only 
+// be reported on this rank.
+void set_log_mpi_rank(log_level_t log_type, int mpi_rank);
+
 // Issues a debug message.
 void log_debug(const char* message, ...);
 
