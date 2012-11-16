@@ -365,12 +365,13 @@ static void apply_bcs(int_ptr_unordered_map_t* boundary_cells,
 
     // Number of points = number of neighbors + self + boundary faces
     int nb = cell_info->num_boundary_faces;
-    int num_points = cell_info->num_neighbor_cells + 1 + nb;
+    int num_neighbors = cell_info->num_neighbor_cells;
+    int num_points = num_neighbors + 1 + nb;
     point_t points[num_points];
     points[0].x = mesh->cells[bcell].center.x;
     points[0].y = mesh->cells[bcell].center.y;
     points[0].z = mesh->cells[bcell].center.z;
-    for (int n = 0; n < cell_info->num_neighbor_cells; ++n)
+    for (int n = 0; n < num_neighbors; ++n)
     {
       int neighbor = cell_info->neighbor_cells[n];
       points[n+1].x = mesh->cells[neighbor].center.x;
@@ -382,7 +383,7 @@ static void apply_bcs(int_ptr_unordered_map_t* boundary_cells,
     {
       int bface = cell_info->boundary_faces[n];
       face_t* face = &mesh->faces[bface];
-      int offset = 1 + cell_info->num_neighbor_cells;
+      int offset = 1 + num_neighbors;
       boundary_point_indices[n] = n+offset;
       points[n+offset].x = face->center.x;
       points[n+offset].y = face->center.y;
@@ -428,8 +429,8 @@ static void apply_bcs(int_ptr_unordered_map_t* boundary_cells,
 
     // Compute the flux through each boundary face and alter the 
     // linear system accordingly.
-    int ij[cell_info->num_neighbor_cells];
-    double N[num_points], Aij[cell_info->num_neighbor_cells], bi;
+    int ij[num_neighbors+1];
+    double N[num_points], Aij[num_neighbors+1], bi;
     vector_t grad_N[num_points]; 
     for (int f = 0; f < nb; ++f)
     {
@@ -439,13 +440,20 @@ static void apply_bcs(int_ptr_unordered_map_t* boundary_cells,
 
       // Add the dphi/dn terms for face f to the matrix.
       vector_t* n = &face_normals[f];
-      for (int j = 0; j < cell_info->num_neighbor_cells; ++j)
+      ij[0] = bcell;
+      Aij[0] = aff_matrix[f]*vector_dot(n, &grad_N[0]) * face->area;
+      for (int j = 0; j < num_neighbors; ++j)
       {
-        ij[j] = cell_info->neighbor_cells[j];
-        Aij[j] = aff_matrix[nb*j+f]*vector_dot(n, &grad_N[j]);
+        ij[j+1] = cell_info->neighbor_cells[j];
+        Aij[j+1] = aff_matrix[nb*(j+1)+f]*vector_dot(n, &grad_N[j+1]) * face->area;
       }
-      bi = -aff_vector[f];
-      MatSetValues(A, 1, &bcell, cell_info->num_neighbor_cells, ij, Aij, ADD_VALUES);
+      // Diagonal term.
+
+      // Sum the boundary contributions to the vector.
+      for (int j = num_neighbors+1; j < num_points; ++j)
+        bi += -aff_vector[f]*vector_dot(n, &grad_N[j]) * face->area;
+
+      MatSetValues(A, 1, &bcell, num_neighbors+1, ij, Aij, ADD_VALUES);
       VecSetValues(b, 1, &bcell, &bi, ADD_VALUES);
     }
   }
