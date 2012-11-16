@@ -18,7 +18,7 @@ struct model_t
   int num_benchmarks;
 };
 
-model_t* model_new(const char* name, void* context, model_vtable vtable)
+model_t* model_new(const char* name, void* context, model_vtable vtable, options_t* options)
 {
   model_t* model = malloc(sizeof(model_t));
   model->vtable = vtable;
@@ -26,6 +26,20 @@ model_t* model_new(const char* name, void* context, model_vtable vtable)
   model->name = strdup(name);
   model->num_benchmarks = 0;
   model->benchmarks = NULL;
+
+  // Some generic options.
+  char* logging = options_value(options, "logging");
+  if (logging != NULL)
+  {
+    if (!strcasecmp(logging, "debug"))
+      set_log_level(LOG_DEBUG);
+    else if (!strcasecmp(logging, "info"))
+      set_log_level(LOG_INFO);
+    else if (!strcasecmp(logging, "warning"))
+      set_log_level(LOG_WARNING);
+    else if (!strcasecmp(logging, "off"))
+      set_log_level(LOG_NONE);
+  }
   return model;
 }
 
