@@ -85,6 +85,7 @@ void model_run_benchmark(model_t* model, const char* benchmark, options_t* optio
   {
     log_info("%s: Running benchmark '%s'.", model->name, benchmark);
     model->vtable.run_benchmark(benchmark, options);
+    log_info("%s: Finished running benchmark '%s'.", model->name, benchmark);
   }
   else
   {
@@ -116,7 +117,7 @@ double model_max_dt(model_t* model, double t, char* reason)
 
 void model_advance(model_t* model, double t, double dt)
 {
-  log_info("%s: Advancing from time %g to %g (dt = %g).", model->name, t, t+dt, dt);
+  log_info("%s: Advancing from time %g to %g.", model->name, t, t+dt);
   model->vtable.advance(model->context, t, dt);
 }
 
@@ -145,10 +146,15 @@ void model_run(model_t* model, double t1, double t2)
     char reason[ARBI_MODEL_MAXDT_REASON_SIZE];
     double dt = model_max_dt(model, t, reason);
     if (dt > t2 - t)
+    {
       dt = t2 - t;
+      snprintf(reason, ARBI_MODEL_MAXDT_REASON_SIZE, "End of simulation");
+    }
+    log_info("%s: Selected time step dt = %g\n (Reason: %s).", model->name, dt, reason);
     model_advance(model, t, dt);
     t += dt;
   }
+  log_info("%s: Run concluded at time %g.", model->name, t2);
 }
 
 void* model_context(model_t* model)
