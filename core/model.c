@@ -69,7 +69,7 @@ static void destroy_key_and_value(char* key, char* value)
 
 void model_register_benchmark(model_t* model, const char* benchmark, const char* description)
 {
-  str_str_unordered_map_insert_with_dtor(model->benchmarks, (char*)benchmark, (char*)description, destroy_key_and_value);
+  str_str_unordered_map_insert_with_dtor(model->benchmarks, strdup(benchmark), strdup(description), destroy_key_and_value);
 }
 
 void model_run_all_benchmarks(model_t* model, options_t* options)

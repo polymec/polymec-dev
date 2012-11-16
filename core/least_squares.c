@@ -342,7 +342,6 @@ void poly_ls_shape_set_domain(poly_ls_shape_t* N, point_t* x0, point_t* points, 
   {
     N->num_points = num_points;
     N->points = realloc(N->points, sizeof(point_t)*num_points);
-    memcpy(N->points, points, sizeof(point_t)*num_points);
     N->AinvB = realloc(N->AinvB, sizeof(double)*dim*num_points);
     N->dBdx = realloc(N->dBdx, sizeof(double)*dim*num_points);
     N->dBdy = realloc(N->dBdy, sizeof(double)*dim*num_points);
@@ -356,6 +355,7 @@ void poly_ls_shape_set_domain(poly_ls_shape_t* N, point_t* x0, point_t* points, 
   N->x0.x = x0->x;
   N->x0.y = x0->y;
   N->x0.z = x0->z;
+  memcpy(N->points, points, sizeof(point_t)*num_points);
 
   // Compute the moment matrix A and the basis matrix B.
   memset(N->A, 0, sizeof(double)*dim*dim);
@@ -370,6 +370,11 @@ void poly_ls_shape_set_domain(poly_ls_shape_t* N, point_t* x0, point_t* points, 
   memset(N->dAinvBdy, 0, sizeof(double)*dim*num_points);
   memset(N->dAinvBdz, 0, sizeof(double)*dim*num_points);
   double basis[dim];
+//printf("x0 = %g %g %g\n", x0->x, x0->y, x0->z);
+//printf("points = ");
+//for (int n = 0; n < N->num_points; ++n)
+//printf("%g %g %g  ", points[n].x, points[n].y, points[n].z);
+//printf("\n");
   for (int n = 0; n < num_points; ++n)
   {
     // Expand about x0.
@@ -377,6 +382,7 @@ void poly_ls_shape_set_domain(poly_ls_shape_t* N, point_t* x0, point_t* points, 
                  .y = points[n].y - x0->y,
                  .z = points[n].z - x0->z};
     N->weighting_func(N->w_context, &points[n], x0, &N->weights[n], &N->gradients[n]);
+// printf("D[%d] = %g\n", n, point_distance(&points[n], x0));
     compute_poly_ls_basis_vector(N->p, &y, basis);
     for (int i = 0; i < dim; ++i)
     {
@@ -474,6 +480,10 @@ void poly_ls_shape_compute_gradients(poly_ls_shape_t* N, point_t* x, double* val
                .z = x->z - N->x0.z};
   double basis[dim];
   compute_poly_ls_basis_vector(N->p, &y, basis);
+//printf("y = %g %g %g, basis = ", y.x, y.y, y.z);
+//for (int i = 0; i < N->dim; ++i)
+//printf("%g ", basis[i]);
+//printf("\n");
   dgemv(&trans, &N->dim, &N->num_points, &alpha, N->AinvB, &N->dim, basis, &one, &beta, values, &one);
 
   // Now compute the gradients.
@@ -532,6 +542,19 @@ void poly_ls_shape_compute_constraint_transform(poly_ls_shape_t* N, int* constra
     double N_vals[N->num_points];
     vector_t N_grads[N->num_points];
     poly_ls_shape_compute_gradients(N, &N->points[constraint_indices[i]], N_vals, N_grads);
+//printf("points = ");
+//for (int n = 0; n < N->num_points; ++n)
+//printf("%g %g %g  ", N->points[n].x, N->points[n].y, N->points[n].z);
+//printf("\n");
+//printf("constraint point (%d) is %g %g %g\n", constraint_indices[i], N->points[constraint_indices[i]].x, N->points[constraint_indices[i]].y, N->points[constraint_indices[i]].z);
+//printf("N = ");
+//for (int n = 0; n < N->num_points; ++n)
+//printf("%g ", N_vals[n]);
+//printf("\n");
+//printf("grad N = ");
+//for (int n = 0; n < N->num_points; ++n)
+//printf("%g %g %g  ", N_grads[n].x, N_grads[n].y, N_grads[n].z);
+//printf("\n");
 //printf("a b c d e = %g %g %g %g %g\n", a[i], b[i], c[i], d[i], e[i]);
 
     // Now set up the left and right hand sides of the equation for the constraint.
@@ -596,7 +619,8 @@ static void simple_weighting_func(void* context, point_t* x, point_t* x0, double
   }
   else
   {
-    double dDdx = x->x / D, dDdy = x->y / D, dDdz = x->z / D;
+//    double dDdx = x->x / D, dDdy = x->y / D, dDdz = x->z / D;
+    double dDdx = (x->x - x0->x) / D, dDdy = (x->y - x0->y) / D, dDdz = (x->z - x0->z) / D;
     double deriv_term = -(*W)*(*W) * params->A * pow(D, params->A-1);
     gradient->x = deriv_term * dDdx;
     gradient->y = deriv_term * dDdy;

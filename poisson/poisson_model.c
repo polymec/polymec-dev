@@ -240,7 +240,7 @@ static void poisson_run_laplace_1d(options_t* options)
   double t1 = 0.0, t2 = 1.0;
 
   // Base resolution, number of refinements.
-  int N0 = 32, num_refinements = 4;
+  int N0 = 32, num_refinements = 1;
   
   // Do a convergence study.
   double Lp_norms[num_refinements][3];
@@ -487,6 +487,7 @@ static void apply_bcs(int_ptr_unordered_map_t* boundary_cells,
     int nb = cell_info->num_boundary_faces;
     int num_neighbors = cell_info->num_neighbor_cells;
     int num_points = num_neighbors + 1 + nb;
+//    printf("nb = %d, num_points = %d\n", nb, num_points);
     point_t points[num_points];
     points[0].x = mesh->cells[bcell].center.x;
     points[0].y = mesh->cells[bcell].center.y;
@@ -505,6 +506,7 @@ static void apply_bcs(int_ptr_unordered_map_t* boundary_cells,
       face_t* face = &mesh->faces[bface];
       int offset = 1 + num_neighbors;
       boundary_point_indices[n] = n+offset;
+//printf("bpoint = %g %g %g\n", face->center.x, face->center.y, face->center.z);
       points[n+offset].x = face->center.x;
       points[n+offset].y = face->center.y;
       points[n+offset].z = face->center.z;
@@ -545,16 +547,16 @@ static void apply_bcs(int_ptr_unordered_map_t* boundary_cells,
       // (unconstrained) values of the solution to the constrained values. 
       poly_ls_shape_compute_constraint_transform(shape, 
           boundary_point_indices, nb, a, b, c, d, e, aff_matrix, aff_vector);
-      printf("A_aff = ");
-      for (int i = 0; i < nb*num_points; ++i)
-        printf("%g ", aff_matrix[i]);
-      printf("\n");
+//      printf("A_aff = ");
+//      for (int i = 0; i < nb*num_points; ++i)
+//        printf("%g ", aff_matrix[i]);
+//      printf("\n");
     }
 
     // Compute the flux through each boundary face and alter the 
     // linear system accordingly.
     int ij[num_neighbors+1];
-    double N[num_points], Aij[num_neighbors+1], bi = 0.0;
+    double N[num_points], Aij[num_neighbors+1];
     vector_t grad_N[num_points]; 
     for (int f = 0; f < nb; ++f)
     {
@@ -566,8 +568,8 @@ static void apply_bcs(int_ptr_unordered_map_t* boundary_cells,
       vector_t* n = &face_normals[f];
       ij[0] = bcell;
       Aij[0] = aff_matrix[f]*vector_dot(n, &grad_N[0]) * face->area;
-      printf("For face %d (n = %g %g %g):\n", f, n->x, n->y, n->z);
-      printf("A[%d,%d] += %g * %g * %g\n = %g\n", bcell, ij[0], aff_matrix[f],vector_dot(n, &grad_N[0]), face->area, Aij[0]);
+//      printf("For face %d (n = %g %g %g):\n", f, n->x, n->y, n->z);
+//      printf("A[%d,%d] += %g * %g * %g\n = %g\n", bcell, ij[0], aff_matrix[f],vector_dot(n, &grad_N[0]), face->area, Aij[0]);
       for (int j = 0; j < num_neighbors; ++j)
       {
         ij[j+1] = cell_info->neighbor_cells[j];
@@ -577,8 +579,10 @@ static void apply_bcs(int_ptr_unordered_map_t* boundary_cells,
       // Diagonal term.
 
       // Sum the boundary contributions to the vector.
+      double bi = 0.0;
       for (int j = num_neighbors+1; j < num_points; ++j)
-        bi = -aff_vector[f]*vector_dot(n, &grad_N[j]) * face->area;
+        bi += -aff_vector[f]*vector_dot(n, &grad_N[j]) * face->area;
+//      printf("b[%d] -= %g\n", bcell, bi);
 
       MatSetValues(A, 1, &bcell, num_neighbors+1, ij, Aij, ADD_VALUES);
       VecSetValues(b, 1, &bcell, &bi, ADD_VALUES);
@@ -797,7 +801,7 @@ model_t* poisson_model_new(options_t* options)
   context->L = NULL;
   context->bcs = str_ptr_unordered_map_new();
   context->shape = poly_ls_shape_new(1, true);
-  poly_ls_shape_set_simple_weighting_func(context->shape, 2, 1e-8);
+  poly_ls_shape_set_simple_weighting_func(context->shape, 2, 1e-4);
   context->boundary_cells = int_ptr_unordered_map_new();
   context->initialized = false;
   context->comm = MPI_COMM_WORLD;
