@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <stdarg.h>
+#include <string.h>
 #include <mpi.h>
 #include "core/arbi.h"
 #include "core/loggers.h"
@@ -8,6 +9,8 @@ typedef struct
 {
   int message_size_limit;
   int flush_every;
+  char** buffers;
+  int message_counter;
   FILE* stream;
   int mpi_rank;
 } logger_t;
@@ -37,13 +40,57 @@ static void delete_loggers()
   }
 }
 
+static void logger_set_buffering(logger_t* logger, int size_limit, int flush_every)
+{
+  ASSERT(logger != NULL);
+  ASSERT(size_limit > 0);
+  ASSERT(flush_every > 0);
+
+  // Toss out any old messages.
+  if (logger->buffers != NULL)
+  {
+    for (int i = 0; i < logger->flush_every; ++i)
+      free(logger->buffers[i]);
+    free(logger->buffers);
+  }
+
+  // In with the new.
+  logger->flush_every = flush_every;
+  logger->message_size_limit = size_limit;
+  logger->buffers = malloc(sizeof(char*)*logger->flush_every);
+  for (int i = 0; i < logger->flush_every; ++i)
+    logger->buffers[i] = malloc(sizeof(char)*size_limit+1);
+  logger->message_counter = 0;
+}
+
+static void logger_flush(logger_t* logger)
+{
+  if (logger != NULL)
+  {
+    if (logger->stream != NULL)
+    {
+      for (int i = 0; i < logger->message_counter; ++i)
+        fprintf(logger->stream, "%s\n", logger->buffers[i]);
+    }
+    logger->message_counter = 0;
+  }
+}
+
+static void logger_log(logger_t* logger, char* message)
+{
+  strncpy(logger->buffers[logger->message_counter], message, logger->message_size_limit);
+  logger->message_counter++;
+  if (logger->message_counter == logger->flush_every)
+    logger_flush(logger);
+}
+
 static logger_t* create_logger()
 {
   logger_t* logger = malloc(sizeof(logger_t));
-  logger->message_size_limit = 1024;
-  logger->flush_every = 32;
+  logger->buffers = NULL;
   logger->stream = stdout;
   logger->mpi_rank = 0;
+  logger_set_buffering(logger, 1024, 1);
   if (first_time)
   {
     arbi_atexit(delete_loggers);
@@ -88,7 +135,7 @@ void set_log_message_size_limit(log_level_t level, int size_limit)
   ASSERT(size_limit > 0);
   logger_t* logger = get_logger(level);
   if (logger != NULL)
-    logger->message_size_limit = size_limit;
+    logger_set_buffering(logger, size_limit, logger->flush_every);
 }
 
 void set_log_flush_period(log_level_t level, int num_messages_between_flush)
@@ -96,7 +143,7 @@ void set_log_flush_period(log_level_t level, int num_messages_between_flush)
   ASSERT(num_messages_between_flush > 0);
   logger_t* logger = get_logger(level);
   if (logger != NULL)
-    logger->flush_every = num_messages_between_flush;
+    logger_set_buffering(logger, logger->message_size_limit, num_messages_between_flush);
 }
 
 void set_log_stream(log_level_t log_type, FILE* stream)
@@ -133,7 +180,7 @@ void log_debug(const char* message, ...)
     va_end(argp);
 
     // Log it.
-    fprintf(logger->stream, "%s\n", m);
+    logger_log(logger, m);
   }
 }
 
@@ -154,7 +201,7 @@ void log_info(const char* message, ...)
     va_end(argp);
 
     // Log it.
-    fprintf(logger->stream, "%s\n", m);
+    logger_log(logger, m);
   }
 }
 
@@ -175,7 +222,7 @@ void log_warning(const char* message, ...)
     va_end(argp);
 
     // Log it.
-    fprintf(logger->stream, "%s\n", m);
+    logger_log(logger, m);
   }
 }
 
