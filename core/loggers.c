@@ -130,20 +130,12 @@ static logger_t* get_logger(log_level_t level)
   return logger;
 }
 
-void set_log_message_size_limit(log_level_t level, int size_limit)
-{
-  ASSERT(size_limit > 0);
-  logger_t* logger = get_logger(level);
-  if (logger != NULL)
-    logger_set_buffering(logger, size_limit, logger->flush_every);
-}
-
-void set_log_flush_period(log_level_t level, int num_messages_between_flush)
+void set_log_buffering(log_level_t level, int message_size_limit, int num_messages_between_flush)
 {
   ASSERT(num_messages_between_flush > 0);
   logger_t* logger = get_logger(level);
   if (logger != NULL)
-    logger_set_buffering(logger, logger->message_size_limit, num_messages_between_flush);
+    logger_set_buffering(logger, message_size_limit, num_messages_between_flush);
 }
 
 void set_log_stream(log_level_t log_type, FILE* stream)
