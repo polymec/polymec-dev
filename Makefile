@@ -10,7 +10,8 @@ cputype = $(shell uname -m | sed "s/\\ /_/g")
 systype = $(shell uname -s)
 
 BUILDDIR := build/$(systype)-$(cputype)
-CONFIG_FLAGS = -DCMAKE_VERBOSE_MAKEFILE=1 -DUNIX=1
+CONFIG_FLAGS = -DUNIX=1
+#CONFIG_FLAGS += -DCMAKE_VERBOSE_MAKEFILE=1
 
 # Process configuration options.
 

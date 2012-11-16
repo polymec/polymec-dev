@@ -93,6 +93,10 @@ typedef struct
   // Information for boundary cells.
   int_ptr_unordered_map_t*  boundary_cells;
 
+  // This flag is true if the source function or one of the BCs is 
+  // time-dependent, and false otherwise.
+  bool is_time_dependent;
+
   KSP solver;               // Linear solver.
   Mat A;                    // Laplacian matrix.
   Vec x;                    // Solution vector.
@@ -114,6 +118,19 @@ static model_t* create_poisson(mesh_t* mesh, st_func_t* rhs, str_ptr_unordered_m
     str_ptr_unordered_map_free(p->bcs);
   p->bcs = bcs;
   p->L = laplacian_op_new(p->mesh);
+
+  // Determine whether this model is time-dependent.
+  p->is_time_dependent = !st_func_is_constant(p->rhs);
+  int pos = 0;
+  char* tag;
+  poisson_bc_t* bc;
+  while (str_ptr_unordered_map_next(bcs, &pos, &tag, (void**)&bc))
+  {
+    // If any BC is time-dependent, the whole problem is.
+    if (!st_func_is_constant(bc->F))
+      p->is_time_dependent = true;
+  }
+
   return poisson;
 }
 
@@ -341,186 +358,7 @@ static void poisson_run_paraboloid(int variant, options_t* options)
 //                        Model implementation
 //------------------------------------------------------------------------
 
-// Apply boundary conditions to a set of boundary cells.
-static void apply_bcs(int_ptr_unordered_map_t* boundary_cells,
-                      mesh_t* mesh,
-                      poly_ls_shape_t* shape,
-                      double t,
-                      Mat A,
-                      Vec b)
-{
-  // Go over the boundary cells, enforcing boundary conditions on each 
-  // face.
-  MatAssemblyBegin(A, MAT_FINAL_ASSEMBLY);
-  VecAssemblyBegin(b);
-  int pos = 0, bcell;
-  poisson_boundary_cell_t* cell_info;
-  while (int_ptr_unordered_map_next(boundary_cells, &pos, &bcell, (void**)(&cell_info)))
-  {
-    cell_t* cell = &mesh->cells[bcell];
-
-    // Construct a polynomial least-squares fit for the cell and its 
-    // neighbors (about its center), plus any boundary faces. That is,
-    // construct a fit that satisfies the boundary conditions!
-
-    // Number of points = number of neighbors + self + boundary faces
-    int nb = cell_info->num_boundary_faces;
-    int num_neighbors = cell_info->num_neighbor_cells;
-    int num_points = num_neighbors + 1 + nb;
-    point_t points[num_points];
-    points[0].x = mesh->cells[bcell].center.x;
-    points[0].y = mesh->cells[bcell].center.y;
-    points[0].z = mesh->cells[bcell].center.z;
-    for (int n = 0; n < num_neighbors; ++n)
-    {
-      int neighbor = cell_info->neighbor_cells[n];
-      points[n+1].x = mesh->cells[neighbor].center.x;
-      points[n+1].y = mesh->cells[neighbor].center.y;
-      points[n+1].z = mesh->cells[neighbor].center.z;
-    }
-    int boundary_point_indices[nb];
-    for (int n = 0; n < nb; ++n)
-    {
-      int bface = cell_info->boundary_faces[n];
-      face_t* face = &mesh->faces[bface];
-      int offset = 1 + num_neighbors;
-      boundary_point_indices[n] = n+offset;
-      points[n+offset].x = face->center.x;
-      points[n+offset].y = face->center.y;
-      points[n+offset].z = face->center.z;
-    }
-    poly_ls_shape_set_domain(shape, &points[0], points, num_points);
-
-    // Now traverse the boundary faces of this cell and enforce the 
-    // appropriate boundary condition on each. To do this, we compute 
-    // the elements of an affine linear transformation that allows us 
-    // to compute boundary values of the solution in terms of the 
-    // interior values.
-    vector_t face_normals[nb];
-    double aff_matrix[nb*num_points], aff_vector[nb];
-    {
-      double a[nb], b[nb], c[nb], d[nb], e[nb];
-      for (int f = 0; f < nb; ++f)
-      {
-        // Retrieve the boundary condition for the face.
-        poisson_bc_t* bc = cell_info->bc_for_face[f];
-
-        // Compute the face normal and the corresponding coefficients,
-        // enforcing alpha * phi + beta * dphi/dn = F on the face.
-        face_t* face = &mesh->faces[cell_info->boundary_faces[f]];
-        vector_t* n = &face_normals[f];
-        n->x = face->center.x - cell->center.x;
-        n->y = face->center.y - cell->center.y;
-        n->z = face->center.z - cell->center.z;
-        vector_normalize(n);
-        a[f] = bc->alpha;
-        b[f] = bc->beta*n->x, c[f] = bc->beta*n->y, d[f] = bc->beta*n->z;
-
-        // Compute F at the face center.
-        st_func_eval(bc->F, &face->center, t, &e[f]);
-      }
-
-      // Now that we've gathered information about all the boundary
-      // conditions, compute the affine transformation that maps the 
-      // (unconstrained) values of the solution to the constrained values. 
-      poly_ls_shape_compute_constraint_transform(shape, 
-          boundary_point_indices, nb, a, b, c, d, e, aff_matrix, aff_vector);
-    }
-
-    // Compute the flux through each boundary face and alter the 
-    // linear system accordingly.
-    int ij[num_neighbors+1];
-    double N[num_points], Aij[num_neighbors+1], bi;
-    vector_t grad_N[num_points]; 
-    for (int f = 0; f < nb; ++f)
-    {
-      // Compute the shape function values and gradients at the face center.
-      face_t* face = &mesh->faces[cell_info->boundary_faces[f]];
-      poly_ls_shape_compute_gradients(shape, &face->center, N, grad_N);
-
-      // Add the dphi/dn terms for face f to the matrix.
-      vector_t* n = &face_normals[f];
-      ij[0] = bcell;
-      Aij[0] = aff_matrix[f]*vector_dot(n, &grad_N[0]) * face->area;
-      for (int j = 0; j < num_neighbors; ++j)
-      {
-        ij[j+1] = cell_info->neighbor_cells[j];
-        Aij[j+1] = aff_matrix[nb*(j+1)+f]*vector_dot(n, &grad_N[j+1]) * face->area;
-      }
-      // Diagonal term.
-
-      // Sum the boundary contributions to the vector.
-      for (int j = num_neighbors+1; j < num_points; ++j)
-        bi += -aff_vector[f]*vector_dot(n, &grad_N[j]) * face->area;
-
-      MatSetValues(A, 1, &bcell, num_neighbors+1, ij, Aij, ADD_VALUES);
-      VecSetValues(b, 1, &bcell, &bi, ADD_VALUES);
-    }
-  }
-  MatAssemblyEnd(A, MAT_FINAL_ASSEMBLY);
-  VecAssemblyEnd(b);
-}
-
-static void poisson_run_benchmark(const char* benchmark, options_t* options)
-{
-  char* variant_str = NULL;
-  if (!strcmp(benchmark, "laplace_1d"))
-  {
-    poisson_run_laplace_1d(options);
-  }
-  else if ((variant_str = strstr(benchmark, "laplace_sov")) != NULL)
-  {
-    int variant = atoi(variant_str + strlen("laplace_sov"));
-    poisson_run_laplace_sov(variant, options);
-  }
-  else if ((variant_str = strstr(benchmark, "paraboloid")) != NULL)
-  {
-    int variant = atoi(variant_str + strlen("paraboloid"));
-    poisson_run_paraboloid(variant, options);
-  }
-  else
-  {
-    char err[1024];
-    snprintf(err, 1024, "poisson: unknown benchmark: '%s'", benchmark);
-    arbi_error(err);
-  }
-}
-
-static void poisson_advance(void* context, double t, double dt)
-{
-  poisson_t* p = (poisson_t*)context;
-
-  // Compute the RHS vector.
-  double values[p->mesh->num_cells];
-  int indices[p->mesh->num_cells];
-  VecAssemblyBegin(p->b);
-  for (int c = 0; c < p->mesh->num_cells; ++c)
-  {
-    indices[c] = c;
-    point_t xc = {.x = 0.0, .y = 0.0, .z = 0.0};
-    st_func_eval(p->rhs, &xc, t+dt, &values[c]);
-  }
-  VecSetValues(p->b, p->mesh->num_cells, indices, values, INSERT_VALUES);
-  VecAssemblyEnd(p->b);
-
-  // Make sure that boundary conditions are satisfied.
-  apply_bcs(p->boundary_cells, p->mesh, p->shape, t+dt, p->A, p->b);
-  MatView(p->A, PETSC_VIEWER_STDOUT_SELF);
-
-  // Set up the linear solver.
-  KSPSetOperators(p->solver, p->A, p->A, SAME_NONZERO_PATTERN);
-
-  // Solve the linear system.
-  KSPSolve(p->solver, p->b, p->x);
-
-  // Copy the values from x to our solution array.
-  VecView(p->x, PETSC_VIEWER_STDOUT_SELF);
-  double* x;
-  VecGetArray(p->x, &x);
-  memcpy(p->phi, x, sizeof(double)*p->mesh->num_cells);
-  VecRestoreArray(p->x, &x);
-}
-
+// Turn the map of boundary conditions into a map of information for each boundary cell.
 static void initialize_boundary_cells(str_ptr_unordered_map_t* bcs, mesh_t* mesh, int_ptr_unordered_map_t* boundary_cells)
 {
   int pos = 0;
@@ -623,6 +461,217 @@ static void initialize_boundary_cells(str_ptr_unordered_map_t* bcs, mesh_t* mesh
   }
 }
 
+// Apply boundary conditions to a set of boundary cells.
+static void apply_bcs(int_ptr_unordered_map_t* boundary_cells,
+                      mesh_t* mesh,
+                      poly_ls_shape_t* shape,
+                      double t,
+                      Mat A,
+                      Vec b)
+{
+  // Go over the boundary cells, enforcing boundary conditions on each 
+  // face.
+  MatAssemblyBegin(A, MAT_FINAL_ASSEMBLY);
+  VecAssemblyBegin(b);
+  int pos = 0, bcell;
+  poisson_boundary_cell_t* cell_info;
+  while (int_ptr_unordered_map_next(boundary_cells, &pos, &bcell, (void**)(&cell_info)))
+  {
+    cell_t* cell = &mesh->cells[bcell];
+
+    // Construct a polynomial least-squares fit for the cell and its 
+    // neighbors (about its center), plus any boundary faces. That is,
+    // construct a fit that satisfies the boundary conditions!
+
+    // Number of points = number of neighbors + self + boundary faces
+    int nb = cell_info->num_boundary_faces;
+    int num_neighbors = cell_info->num_neighbor_cells;
+    int num_points = num_neighbors + 1 + nb;
+    point_t points[num_points];
+    points[0].x = mesh->cells[bcell].center.x;
+    points[0].y = mesh->cells[bcell].center.y;
+    points[0].z = mesh->cells[bcell].center.z;
+    for (int n = 0; n < num_neighbors; ++n)
+    {
+      int neighbor = cell_info->neighbor_cells[n];
+      points[n+1].x = mesh->cells[neighbor].center.x;
+      points[n+1].y = mesh->cells[neighbor].center.y;
+      points[n+1].z = mesh->cells[neighbor].center.z;
+    }
+    int boundary_point_indices[nb];
+    for (int n = 0; n < nb; ++n)
+    {
+      int bface = cell_info->boundary_faces[n];
+      face_t* face = &mesh->faces[bface];
+      int offset = 1 + num_neighbors;
+      boundary_point_indices[n] = n+offset;
+      points[n+offset].x = face->center.x;
+      points[n+offset].y = face->center.y;
+      points[n+offset].z = face->center.z;
+    }
+    poly_ls_shape_set_domain(shape, &points[0], points, num_points);
+
+    // Now traverse the boundary faces of this cell and enforce the 
+    // appropriate boundary condition on each. To do this, we compute 
+    // the elements of an affine linear transformation that allows us 
+    // to compute boundary values of the solution in terms of the 
+    // interior values.
+    vector_t face_normals[nb];
+    double aff_matrix[nb*num_points], aff_vector[nb];
+    {
+      double a[nb], b[nb], c[nb], d[nb], e[nb];
+      for (int f = 0; f < nb; ++f)
+      {
+        // Retrieve the boundary condition for the face.
+        poisson_bc_t* bc = cell_info->bc_for_face[f];
+
+        // Compute the face normal and the corresponding coefficients,
+        // enforcing alpha * phi + beta * dphi/dn = F on the face.
+        face_t* face = &mesh->faces[cell_info->boundary_faces[f]];
+        vector_t* n = &face_normals[f];
+        n->x = face->center.x - cell->center.x;
+        n->y = face->center.y - cell->center.y;
+        n->z = face->center.z - cell->center.z;
+        vector_normalize(n);
+        a[f] = bc->alpha;
+        b[f] = bc->beta*n->x, c[f] = bc->beta*n->y, d[f] = bc->beta*n->z;
+
+        // Compute F at the face center.
+        st_func_eval(bc->F, &face->center, t, &e[f]);
+      }
+
+      // Now that we've gathered information about all the boundary
+      // conditions, compute the affine transformation that maps the 
+      // (unconstrained) values of the solution to the constrained values. 
+      poly_ls_shape_compute_constraint_transform(shape, 
+          boundary_point_indices, nb, a, b, c, d, e, aff_matrix, aff_vector);
+      printf("A_aff = ");
+      for (int i = 0; i < nb*num_points; ++i)
+        printf("%g ", aff_matrix[i]);
+      printf("\n");
+    }
+
+    // Compute the flux through each boundary face and alter the 
+    // linear system accordingly.
+    int ij[num_neighbors+1];
+    double N[num_points], Aij[num_neighbors+1], bi = 0.0;
+    vector_t grad_N[num_points]; 
+    for (int f = 0; f < nb; ++f)
+    {
+      // Compute the shape function values and gradients at the face center.
+      face_t* face = &mesh->faces[cell_info->boundary_faces[f]];
+      poly_ls_shape_compute_gradients(shape, &face->center, N, grad_N);
+
+      // Add the dphi/dn terms for face f to the matrix.
+      vector_t* n = &face_normals[f];
+      ij[0] = bcell;
+      Aij[0] = aff_matrix[f]*vector_dot(n, &grad_N[0]) * face->area;
+      printf("For face %d (n = %g %g %g):\n", f, n->x, n->y, n->z);
+      printf("A[%d,%d] += %g * %g * %g\n = %g\n", bcell, ij[0], aff_matrix[f],vector_dot(n, &grad_N[0]), face->area, Aij[0]);
+      for (int j = 0; j < num_neighbors; ++j)
+      {
+        ij[j+1] = cell_info->neighbor_cells[j];
+        Aij[j+1] = aff_matrix[nb*(j+1)+f]*vector_dot(n, &grad_N[j+1]) * face->area;
+        Aij[j+1] = aff_matrix[nb*(j+1)+f]*vector_dot(n, &grad_N[j+1]) * face->area;
+      }
+      // Diagonal term.
+
+      // Sum the boundary contributions to the vector.
+      for (int j = num_neighbors+1; j < num_points; ++j)
+        bi = -aff_vector[f]*vector_dot(n, &grad_N[j]) * face->area;
+
+      MatSetValues(A, 1, &bcell, num_neighbors+1, ij, Aij, ADD_VALUES);
+      VecSetValues(b, 1, &bcell, &bi, ADD_VALUES);
+    }
+  }
+  MatAssemblyEnd(A, MAT_FINAL_ASSEMBLY);
+  VecAssemblyEnd(b);
+}
+
+static void set_up_linear_system(mesh_t* mesh, lin_op_t* L, st_func_t* rhs, double t, Mat A, Vec b)
+{
+  PetscInt nnz[mesh->num_cells];
+  for (int i = 0; i < mesh->num_cells; ++i)
+    nnz[i] = lin_op_stencil_size(L, i);
+
+  // Set matrix entries.
+  MatAssemblyBegin(A, MAT_FINAL_ASSEMBLY);
+  for (int i = 0; i < mesh->num_cells; ++i)
+  {
+    int indices[nnz[i]];
+    double values[nnz[i]];
+    lin_op_compute_stencil(L, i, indices, values);
+    for (int j = 0; j < nnz[i]; ++j)
+      indices[j] += i;
+    MatSetValues(A, 1, &i, nnz[i], indices, values, INSERT_VALUES);
+  }
+  MatAssemblyEnd(A, MAT_FINAL_ASSEMBLY);
+
+  // Compute the RHS vector.
+  double values[mesh->num_cells];
+  int indices[mesh->num_cells];
+  VecAssemblyBegin(b);
+  for (int c = 0; c < mesh->num_cells; ++c)
+  {
+    indices[c] = c;
+    point_t xc = {.x = 0.0, .y = 0.0, .z = 0.0};
+    st_func_eval(rhs, &xc, t, &values[c]);
+  }
+  VecSetValues(b, mesh->num_cells, indices, values, INSERT_VALUES);
+  VecAssemblyEnd(b);
+}
+
+static void poisson_run_benchmark(const char* benchmark, options_t* options)
+{
+  char* variant_str = NULL;
+  if (!strcmp(benchmark, "laplace_1d"))
+  {
+    poisson_run_laplace_1d(options);
+  }
+  else if ((variant_str = strstr(benchmark, "laplace_sov")) != NULL)
+  {
+    int variant = atoi(variant_str + strlen("laplace_sov"));
+    poisson_run_laplace_sov(variant, options);
+  }
+  else if ((variant_str = strstr(benchmark, "paraboloid")) != NULL)
+  {
+    int variant = atoi(variant_str + strlen("paraboloid"));
+    poisson_run_paraboloid(variant, options);
+  }
+  else
+  {
+    char err[1024];
+    snprintf(err, 1024, "poisson: unknown benchmark: '%s'", benchmark);
+    arbi_error(err);
+  }
+}
+
+static void poisson_advance(void* context, double t, double dt)
+{
+  poisson_t* p = (poisson_t*)context;
+
+  // If we're time-dependent, recompute the linear system here.
+  if (!p->is_time_dependent)
+  {
+    set_up_linear_system(p->mesh, p->L, p->rhs, t+dt, p->A, p->b);
+    apply_bcs(p->boundary_cells, p->mesh, p->shape, t+dt, p->A, p->b);
+  }
+  MatView(p->A, PETSC_VIEWER_STDOUT_SELF);
+
+  // Set up the linear solver.
+  KSPSetOperators(p->solver, p->A, p->A, SAME_NONZERO_PATTERN);
+
+  // Solve the linear system.
+  KSPSolve(p->solver, p->b, p->x);
+
+  // Copy the values from x to our solution array.
+  VecView(p->x, PETSC_VIEWER_STDOUT_SELF);
+  double* x;
+  VecGetArray(p->x, &x);
+  memcpy(p->phi, x, sizeof(double)*p->mesh->num_cells);
+  VecRestoreArray(p->x, &x);
+}
+
 static void poisson_init(void* context, double t)
 {
   poisson_t* p = (poisson_t*)context;
@@ -667,21 +716,15 @@ static void poisson_init(void* context, double t)
     nnz[i] = lin_op_stencil_size(p->L, i);
   MatSeqAIJSetPreallocation(p->A, nz, nnz);
 
-  // Set matrix entries.
-  MatAssemblyBegin(p->A, MAT_FINAL_ASSEMBLY);
-  for (int i = 0; i < p->mesh->num_cells; ++i)
-  {
-    int indices[nnz[i]];
-    double values[nnz[i]];
-    lin_op_compute_stencil(p->L, i, indices, values);
-    for (int j = 0; j < nnz[i]; ++j)
-      indices[j] += i;
-    MatSetValues(p->A, 1, &i, nnz[i], indices, values, INSERT_VALUES);
-  }
-  MatAssemblyEnd(p->A, MAT_FINAL_ASSEMBLY);
-
   // Gather information about boundary cells.
   initialize_boundary_cells(p->bcs, p->mesh, p->boundary_cells);
+
+  // If we're independent of time, set up the linear system here.
+  if (!p->is_time_dependent)
+  {
+    set_up_linear_system(p->mesh, p->L, p->rhs, t, p->A, p->b);
+    apply_bcs(p->boundary_cells, p->mesh, p->shape, t, p->A, p->b);
+  }
 
   // We simply solve the problem for t = 0.
   poisson_advance((void*)p, t, 0.0);
@@ -759,13 +802,7 @@ model_t* poisson_model_new(options_t* options)
   context->initialized = false;
   context->comm = MPI_COMM_WORLD;
   model_t* model = model_new("poisson", context, vtable, options);
-  static const char* benchmarks[] = {"laplace_1d", "laplace_sov1", "laplace_sov2", "laplace_sov3", 
-                                     "paraboloid1", "paraboloid2", "paraboloid3",
-                                     NULL};
-  model_register_benchmarks(model, benchmarks);
-  if (options != NULL)
-  {
-  }
+  model_register_benchmark(model, "laplace_1d", "Laplace's equation in 1D Cartesian coordinates.");
   return model;
 }
 

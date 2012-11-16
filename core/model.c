@@ -2,6 +2,7 @@
 #include <string.h>
 #include <float.h>
 #include "core/model.h"
+#include "core/unordered_map.h"
 #include "core/options.h"
 #include "core/simulation.h"
 
@@ -14,18 +15,18 @@ struct model_t
   void* context;
   char* name;
   model_vtable vtable;
-  char** benchmarks;
-  int num_benchmarks;
+  str_str_unordered_map_t* benchmarks;
 };
 
 model_t* model_new(const char* name, void* context, model_vtable vtable, options_t* options)
 {
+  ASSERT(options != NULL);
+
   model_t* model = malloc(sizeof(model_t));
   model->vtable = vtable;
   model->context = context;
   model->name = strdup(name);
-  model->num_benchmarks = 0;
-  model->benchmarks = NULL;
+  model->benchmarks = str_str_unordered_map_new();
 
   // Some generic options.
   char* logging = options_value(options, "logging");
@@ -48,7 +49,10 @@ void model_free(model_t* model)
   if ((model->context != NULL) && (model->vtable.dtor != NULL))
     model->vtable.dtor(model->context);
   free(model->name);
-  model_register_benchmarks(model, NULL);
+
+  // Clear benchmarks.
+  str_str_unordered_map_free(model->benchmarks);
+
   free(model);
 }
 
@@ -57,40 +61,23 @@ char* model_name(model_t* model)
   return model->name;
 }
 
-void model_register_benchmarks(model_t* model, const char** benchmarks)
+static void destroy_key_and_value(char* key, char* value)
 {
-  if (model->benchmarks != NULL)
-  {
-    for (int i = 0; i < model->num_benchmarks; ++i)
-      free(model->benchmarks[i]);
-    free(model->benchmarks);
-    model->benchmarks = NULL;
-  }
-  model->num_benchmarks = 0;
-  if (benchmarks != NULL)
-  {
-    char* p = (char*)benchmarks[0];
-    while (p != NULL) 
-    {
-      model->num_benchmarks++;
-      p = (char*)benchmarks[model->num_benchmarks];
-    }
-    model->benchmarks = malloc(sizeof(char*)*model->num_benchmarks);
-    for (int i = 0; i < model->num_benchmarks; ++i)
-      model->benchmarks[i] = strdup(benchmarks[i]);
-  }
+  free(key);
+  free(value);
 }
 
-void model_get_benchmarks(model_t* model, char*** benchmarks, int* num_benchmarks)
+void model_register_benchmark(model_t* model, const char* benchmark, const char* description)
 {
-  *benchmarks = model->benchmarks;
-  *num_benchmarks = model->num_benchmarks;
+  str_str_unordered_map_insert_with_dtor(model->benchmarks, (char*)benchmark, (char*)description, destroy_key_and_value);
 }
 
 void model_run_all_benchmarks(model_t* model, options_t* options)
 {
-  for (int i = 0; i < model->num_benchmarks; ++i)
-    model_run_benchmark(model, (const char*)model->benchmarks[i], options);
+  int pos = 0;
+  char *benchmark, *descr;
+  while (str_str_unordered_map_next(model->benchmarks, &pos, &benchmark, &descr))
+    model_run_benchmark(model, benchmark, options);
 }
 
 void model_run_benchmark(model_t* model, const char* benchmark, options_t* options)
@@ -249,8 +236,10 @@ int model_main(const char* model_name, model_ctor constructor, int argc, char* a
   if (!strcmp(command, "list-benchmarks"))
   {
     fprintf(stderr, "Benchmarks for %s model:\n", model_name);
-    for (int i = 0; i < model->num_benchmarks; ++i)
-      fprintf(stderr, "  %s\n", (const char*)model->benchmarks[i]);
+    int pos = 0;
+    char *benchmark, *descr;
+    while (str_str_unordered_map_next(model->benchmarks, &pos, &benchmark, &descr))
+      fprintf(stderr, "  %s (%s)\n", benchmark, descr);
     fprintf(stderr, "\n");
     return 0;
   }

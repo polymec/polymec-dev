@@ -23,12 +23,12 @@ void test_##map_name##_insert(void** state) \
 { \
   map_name##_t* s = map_name##_new(); \
   for (int i = 0; i < 5; ++i) \
-    map_name##_insert(s, keys[i], element##_values[i]); \
+    map_name##_insert(s, (char*)keys[i], element##_values[i]); \
   assert_int_equal(5, s->size); \
   for (int i = 0; i < 5; ++i) \
   { \
-    assert_true(map_name##_find(s, keys[i]) != NULL); \
-    assert_true(map_name##_value(s, keys[i]) == element##_values[i]); \
+    assert_true(map_name##_find(s, (char*)keys[i]) != NULL); \
+    assert_true(map_name##_value(s, (char*)keys[i]) == element##_values[i]); \
   } \
   map_name##_clear(s); \
   assert_int_equal(0, s->size); \

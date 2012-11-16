@@ -612,7 +612,6 @@ static void silo_plot_write_datasets(void* context, void* f, io_dataset_t** data
   int all_face_nodes_len = 0;
   for (int i = 0; i < num_faces; ++i)
     all_face_nodes_len += face_node_counts[i];
-  int all_cell_faces_len = 0;
   DBPutPHZonelist(file, (char*)"mesh_zonelist", 
       num_faces, &face_node_counts[0], 
       face_node_offsets[num_faces], &face_nodes[0], 0, 

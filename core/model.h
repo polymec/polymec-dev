@@ -18,7 +18,7 @@ extern "C" {
 typedef struct model_t model_t;
 
 // A model constructor function for creating an object context.
-typedef void* (*model_ctor)(options_t*);
+typedef model_t* (*model_ctor)(options_t*);
 
 // A function for running a benchmark calculation.
 typedef void (*model_run_bench_func)(const char*, options_t*);
@@ -73,12 +73,8 @@ void* model_context(model_t* model);
 // Print usage information for the model to the given file stream.
 void model_usage(model_t* model, FILE* stream);
 
-// Associate the given list of benchmarks with this model.
-// Here, benchmarks is a NULL-terminated array of strings.
-void model_register_benchmarks(model_t* model, const char** benchmarks);
-
-// Returns an array containing the names of benchmarks, plus its length.
-void model_get_benchmarks(model_t* model, char*** benchmarks, int* num_benchmarks);
+// Associate the given benchmark with this model.
+void model_register_benchmark(model_t* model, const char* benchmark, const char* description);
 
 // Runs the given benchmark problem for the model.
 void model_run_benchmark(model_t* model, const char* benchmark, options_t* options);
