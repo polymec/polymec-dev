@@ -9,7 +9,7 @@ typedef struct
 {
   int message_size_limit;
   int flush_every;
-  char** buffers;
+  char* buffer;
   int message_counter;
   FILE* stream;
   int mpi_rank;
@@ -46,20 +46,12 @@ static void logger_set_buffering(logger_t* logger, int size_limit, int flush_eve
   ASSERT(size_limit > 0);
   ASSERT(flush_every > 0);
 
-  // Toss out any old messages.
-  if (logger->buffers != NULL)
-  {
-    for (int i = 0; i < logger->flush_every; ++i)
-      free(logger->buffers[i]);
-    free(logger->buffers);
-  }
+  // Flush what we've got.
 
   // In with the new.
   logger->flush_every = flush_every;
   logger->message_size_limit = size_limit;
-  logger->buffers = malloc(sizeof(char*)*logger->flush_every);
-  for (int i = 0; i < logger->flush_every; ++i)
-    logger->buffers[i] = malloc(sizeof(char)*size_limit+1);
+  logger->buffer = realloc(logger->buffer, sizeof(char*)*(logger->flush_every*(logger->message_size_limit+1)));
   logger->message_counter = 0;
 }
 
@@ -70,7 +62,7 @@ static void logger_flush(logger_t* logger)
     if (logger->stream != NULL)
     {
       for (int i = 0; i < logger->message_counter; ++i)
-        fprintf(logger->stream, "%s\n", logger->buffers[i]);
+        fprintf(logger->stream, "%s\n", &logger->buffer[i*(logger->message_size_limit+1)]);
     }
     logger->message_counter = 0;
   }
@@ -78,7 +70,7 @@ static void logger_flush(logger_t* logger)
 
 static void logger_log(logger_t* logger, char* message)
 {
-  strncpy(logger->buffers[logger->message_counter], message, logger->message_size_limit);
+  strncpy(&logger->buffer[logger->message_counter*(logger->message_size_limit+1)], message, logger->message_size_limit);
   logger->message_counter++;
   if (logger->message_counter == logger->flush_every)
     logger_flush(logger);
@@ -87,7 +79,7 @@ static void logger_log(logger_t* logger, char* message)
 static logger_t* create_logger()
 {
   logger_t* logger = malloc(sizeof(logger_t));
-  logger->buffers = NULL;
+  logger->buffer = NULL;
   logger->stream = stdout;
   logger->mpi_rank = 0;
   logger_set_buffering(logger, 1024, 1);
