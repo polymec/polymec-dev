@@ -750,7 +750,7 @@ model_t* poisson_model_new(options_t* options)
   context->boundary_cells = int_ptr_unordered_map_new();
   context->initialized = false;
   context->comm = MPI_COMM_WORLD;
-  model_t* model = model_new("poisson", context, vtable);
+  model_t* model = model_new("poisson", context, vtable, options);
   static const char* benchmarks[] = {"laplace_1d", "laplace_sov1", "laplace_sov2", "laplace_sov3", 
                                      "paraboloid1", "paraboloid2", "paraboloid3",
                                      NULL};

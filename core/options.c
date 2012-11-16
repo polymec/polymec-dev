@@ -48,6 +48,7 @@ options_t* options_parse(int argc, char** argv)
   options_t* o = GC_MALLOC(sizeof(options_t));
   o->command = NULL;
   o->input = NULL;
+  o->params = str_str_unordered_map_new();
   GC_register_finalizer(o, &options_free, o, NULL, NULL);
 
   // Parse the basic options.
@@ -63,7 +64,7 @@ options_t* options_parse(int argc, char** argv)
   }
 
   // Now parse parameters.
-  int i = 4;
+  int i = 3;
   while (i < argc)
   {
     // Parse a key=value pair.
