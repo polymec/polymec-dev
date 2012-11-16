@@ -3,6 +3,7 @@
 # Options set on command line.
 debug      = not-set
 MPI        = not-set
+verbose    = not-set
 
 # This proxies everything to the builddir cmake.
 
@@ -11,9 +12,13 @@ systype = $(shell uname -s)
 
 BUILDDIR := build/$(systype)-$(cputype)
 CONFIG_FLAGS = -DUNIX=1
-#CONFIG_FLAGS += -DCMAKE_VERBOSE_MAKEFILE=1
 
 # Process configuration options.
+
+# Verbose builds?
+ifeq ($(verbose), 1)
+  CONFIG_FLAGS += -DCMAKE_VERBOSE_MAKEFILE=1
+endif
 
 # MPI
 ifeq ($(MPI), 1)
