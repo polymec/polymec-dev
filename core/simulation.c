@@ -68,10 +68,6 @@ void simulation_init(simulation_t* sim)
   model_init(sim->model, sim->t);
 }
 
-static void simulation_invoke_callbacks(simulation_t* sim)
-{
-}
-
 int simulation_step(simulation_t* sim)
 {
   return sim->step;

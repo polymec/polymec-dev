@@ -99,7 +99,7 @@ char* options_input(options_t* opts)
 
 char* options_value(options_t* opts, const char* name)
 {
-  char** value = str_str_unordered_map_get(opts->params, name);
+  char** value = str_str_unordered_map_get(opts->params, (char*)name);
   return (value != NULL) ? *value : NULL;
 }
 
