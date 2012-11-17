@@ -5,6 +5,7 @@
 #include "petscvec.h"
 #include "core/unordered_map.h"
 #include "core/least_squares.h"
+#include "core/linear_algebra.h"
 #include "core/constant_st_func.h"
 #include "geometry/cubic_lattice.h"
 #include "geometry/create_cubic_lattice_mesh.h"
@@ -547,10 +548,11 @@ static void apply_bcs(int_ptr_unordered_map_t* boundary_cells,
       // (unconstrained) values of the solution to the constrained values. 
       poly_ls_shape_compute_constraint_transform(shape, 
           boundary_point_indices, nb, a, b, c, d, e, aff_matrix, aff_vector);
-//      printf("A_aff = ");
-//      for (int i = 0; i < nb*num_points; ++i)
-//        printf("%g ", aff_matrix[i]);
-//      printf("\n");
+      printf("%d: A_aff (nb = %d, np = %d) = ", bcell, nb, num_points);
+      matrix_fprintf(aff_matrix, nb, num_points, stdout);
+      printf("\n%d: b_aff = ", bcell);
+      vector_fprintf(aff_vector, nb, stdout);
+      printf("\n");
     }
 
     // Compute the flux through each boundary face and alter the 
@@ -566,23 +568,26 @@ static void apply_bcs(int_ptr_unordered_map_t* boundary_cells,
 
       // Add the dphi/dn terms for face f to the matrix.
       vector_t* n = &face_normals[f];
+      double bi = 0.0;
+
+      // Diagonal term.
       ij[0] = bcell;
-      Aij[0] = aff_matrix[f]*vector_dot(n, &grad_N[0]) * face->area;
-//      printf("For face %d (n = %g %g %g):\n", f, n->x, n->y, n->z);
-//      printf("A[%d,%d] += %g * %g * %g\n = %g\n", bcell, ij[0], aff_matrix[f],vector_dot(n, &grad_N[0]), face->area, Aij[0]);
+      double dNdn = vector_dot(n, &grad_N[0]);
+      Aij[0] = aff_matrix[f] * dNdn * face->area;
+      bi += -aff_vector[f] * dNdn * face->area;
+      printf("For face %d (n = %g %g %g):\n", f, n->x, n->y, n->z);
+      printf("A[%d,%d] += %g * %g * %g = %g (%g)\n", bcell, ij[0], aff_matrix[f],vector_dot(n, &grad_N[0]), face->area, Aij[0], N[0]);
+
       for (int j = 0; j < num_neighbors; ++j)
       {
         ij[j+1] = cell_info->neighbor_cells[j];
-        Aij[j+1] = aff_matrix[nb*(j+1)+f]*vector_dot(n, &grad_N[j+1]) * face->area;
-        Aij[j+1] = aff_matrix[nb*(j+1)+f]*vector_dot(n, &grad_N[j+1]) * face->area;
+        double dNdn = vector_dot(n, &grad_N[j+1]);
+        Aij[j+1] = aff_matrix[nb*(j+1)+f] * dNdn * face->area;
+        bi += -aff_vector[f] * dNdn * face->area;
+      printf("A[%d,%d] += %g * %g * %g = %g (%g)\n", bcell, ij[j+1], aff_matrix[nb*(j+1)+f],vector_dot(n, &grad_N[j+1]), face->area, Aij[j+1], N[j+1]);
+      printf("b[%d] += %g\n", bcell, bi);
       }
-      // Diagonal term.
 
-      // Sum the boundary contributions to the vector.
-      double bi = 0.0;
-      for (int j = num_neighbors+1; j < num_points; ++j)
-        bi += -aff_vector[f]*vector_dot(n, &grad_N[j]) * face->area;
-//      printf("b[%d] -= %g\n", bcell, bi);
 
       MatSetValues(A, 1, &bcell, num_neighbors+1, ij, Aij, ADD_VALUES);
       VecSetValues(b, 1, &bcell, &bi, ADD_VALUES);
@@ -661,6 +666,7 @@ static void poisson_advance(void* context, double t, double dt)
     apply_bcs(p->boundary_cells, p->mesh, p->shape, t+dt, p->A, p->b);
   }
   MatView(p->A, PETSC_VIEWER_STDOUT_SELF);
+  VecView(p->b, PETSC_VIEWER_STDOUT_SELF);
 
   // Set up the linear solver.
   KSPSetOperators(p->solver, p->A, p->A, SAME_NONZERO_PATTERN);
