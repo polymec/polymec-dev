@@ -2,6 +2,7 @@
 #include <string.h>
 #include <gc/gc.h>
 #include "core/least_squares.h"
+#include "core/linear_algebra.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -234,25 +235,6 @@ void compute_weighted_poly_ls_system(int p, ls_weighting_func_t W, point_t* x0, 
     }
   }
 }
-
-// Some LAPACK prototypes.
-
-// LU factorization.
-void dgetrf(int *N, int *NRHS, double *A, int *LDA, int *IPIV, int *INFO);
-
-// Solution of a linear system using an LU factorization.
-void dgetrs(char *TRANS, int *N, int *NRHS, double *A, 
-            int *LDA, int *IPIV, double *B, int *LDB, int *INFO);
-
-// Matrix-vector multiplication: y := alpha*A*x + beta*y.
-void dgemv(char *trans, int *m, int *n, double *alpha,
-           void *a, int *lda, void *x, int *incx,
-           double *beta, void *y, int *incy);
-
-// Matrix-matrix multiplication: C := alpha*op(A)*op(B) + beta*C.
-void dgemm(char *transa, char* transB, int *m, int *n, int *k, double *alpha,
-           double *A, int *lda, double *B, int *ldb, double *beta, double *C, 
-           int *ldc);
 
 // Shape function basis.
 struct poly_ls_shape_t 
@@ -619,8 +601,9 @@ static void simple_weighting_func(void* context, point_t* x, point_t* x0, double
   }
   else
   {
-//    double dDdx = x->x / D, dDdy = x->y / D, dDdz = x->z / D;
-    double dDdx = (x->x - x0->x) / D, dDdy = (x->y - x0->y) / D, dDdz = (x->z - x0->z) / D;
+    double dDdx = (x->x - x0->x) / D, 
+           dDdy = (x->y - x0->y) / D, 
+           dDdz = (x->z - x0->z) / D;
     double deriv_term = -(*W)*(*W) * params->A * pow(D, params->A-1);
     gradient->x = deriv_term * dDdx;
     gradient->y = deriv_term * dDdy;
