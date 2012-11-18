@@ -500,14 +500,16 @@ void poly_ls_shape_compute_gradients(poly_ls_shape_t* N, point_t* x, double* val
   }
 }
 
-void poly_ls_shape_compute_constraint_transform(poly_ls_shape_t* N, int* constraint_indices, int num_constraints,
-                                                double* a, double* b, double* c, double* d, double* e,
-                                                double* A, double* B)
+void poly_ls_shape_compute_ghost_transform(poly_ls_shape_t* N, int* ghost_indices, int num_ghosts,
+                                           point_t* constraint_points, 
+                                           double* a, double* b, double* c, double* d, double* e,
+                                           double* A, double* B)
 {
   ASSERT(N->p > 0); // Constraints cannot be applied to constants.
   ASSERT(N->compute_gradients);
-  ASSERT(constraint_indices != NULL);
-  ASSERT(num_constraints < N->num_points);
+  ASSERT(ghost_indices != NULL);
+  ASSERT(num_ghosts < N->num_points);
+  ASSERT(constraint_points != NULL);
   ASSERT(a != NULL);
   ASSERT(b != NULL);
   ASSERT(c != NULL);
@@ -517,13 +519,13 @@ void poly_ls_shape_compute_constraint_transform(poly_ls_shape_t* N, int* constra
   ASSERT(B != NULL);
 
   // Set up the constraint matrices.
-  double amat[num_constraints*num_constraints];
-  for (int i = 0; i < num_constraints; ++i)
+  double amat[num_ghosts*num_ghosts];
+  for (int i = 0; i < num_ghosts; ++i)
   {
     // Compute the shape functions at xi.
     double N_vals[N->num_points];
     vector_t N_grads[N->num_points];
-    poly_ls_shape_compute_gradients(N, &N->points[constraint_indices[i]], N_vals, N_grads);
+    poly_ls_shape_compute_gradients(N, &constraint_points[i], N_vals, N_grads);
 //printf("points = ");
 //for (int n = 0; n < N->num_points; ++n)
 //printf("%g %g %g  ", N->points[n].x, N->points[n].y, N->points[n].z);
@@ -544,9 +546,9 @@ void poly_ls_shape_compute_constraint_transform(poly_ls_shape_t* N, int* constra
     for (int j = 0; j < N->num_points; ++j)
     {
       bool constrained = false;
-      for (int cc = 0; cc < num_constraints; ++cc)
+      for (int cc = 0; cc < num_ghosts; ++cc)
       {
-        if (j == constraint_indices[cc]) 
+        if (j == ghost_indices[cc]) 
         {
           constrained = true;
           break;
@@ -554,33 +556,33 @@ void poly_ls_shape_compute_constraint_transform(poly_ls_shape_t* N, int* constra
       }
       if (constrained) 
       {
-        amat[num_constraints*constraint+i] = a[i]*N_vals[j] + b[i]*N_grads[j].x + c[i]*N_grads[j].y + d[i]*N_grads[j].z;
-        A[num_constraints*j+i] = 0.0;
+        amat[num_ghosts*constraint+i] = a[i]*N_vals[j] + b[i]*N_grads[j].x + c[i]*N_grads[j].y + d[i]*N_grads[j].z;
+        A[num_ghosts*j+i] = 0.0;
         constraint++;
       }
       else
       {
-        A[num_constraints*j+i] = -a[i]*N_vals[j] - b[i]*N_grads[j].x - c[i]*N_grads[j].y - d[i]*N_grads[j].z;
+        A[num_ghosts*j+i] = -a[i]*N_vals[j] - b[i]*N_grads[j].x - c[i]*N_grads[j].y - d[i]*N_grads[j].z;
       }
     }
   }
 
   // Compute A by solving the linear system.
-  int pivot[num_constraints], info;
+  int pivot[num_ghosts], info;
 //  printf("amat = ");
 //  for (int i = 0; i < num_constraints*num_constraints; ++i)
 //    printf("%g ", amat[i]);
 //  printf("\n");
-  dgetrf(&num_constraints, &num_constraints, amat, &num_constraints, pivot, &info);
+  dgetrf(&num_ghosts, &num_ghosts, amat, &num_ghosts, pivot, &info);
   ASSERT(info == 0);
   char no_trans = 'N';
-  dgetrs(&no_trans, &num_constraints, &N->num_points, amat, &num_constraints, pivot, A, &num_constraints, &info);
+  dgetrs(&no_trans, &num_ghosts, &N->num_points, amat, &num_ghosts, pivot, A, &num_ghosts, &info);
   ASSERT(info == 0);
 
   // Compute B = amatinv * e.
   int one = 1;
-  memcpy(B, e, sizeof(double)*num_constraints);
-  dgetrs(&no_trans, &num_constraints, &one, amat, &num_constraints, pivot, B, &num_constraints, &info);
+  memcpy(B, e, sizeof(double)*num_ghosts);
+  dgetrs(&no_trans, &num_ghosts, &one, amat, &num_ghosts, pivot, B, &num_ghosts, &info);
   ASSERT(info == 0);
 }
 

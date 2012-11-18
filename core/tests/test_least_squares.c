@@ -241,10 +241,10 @@ void test_poly_shape_function_gradients(int p, point_t* x0, point_t* points, int
   N = NULL;
 }
 
-void test_poly_shape_function_constraints(int p, point_t* x0, point_t* points, int num_points, int num_constraints, double* coeffs, bool weighted)
+void test_poly_shape_function_constraints(int p, point_t* x0, point_t* points, int num_points, int num_ghosts, double* coeffs, bool weighted)
 {
   ASSERT(p > 0);
-  ASSERT(num_constraints <= num_points/2);
+  ASSERT(num_ghosts <= num_points/2);
   int dim = poly_ls_basis_size(p);
 
   // Create scatter data.
@@ -277,34 +277,41 @@ void test_poly_shape_function_constraints(int p, point_t* x0, point_t* points, i
   // Constraints: make the constraint points match their corresponding 
   // data points by enforcing the constraint:
   // phi + 2*dphi/dx + 3*dphi/dy + 4*dhi/dz = (same thing)
-  int constraint_indices[num_constraints];
-  double a[num_constraints], b[num_constraints], c[num_constraints], d[num_constraints], e[num_constraints];
-  for (int i = 0; i < num_constraints; ++i)
+  int ghost_indices[num_ghosts];
+  double a[num_ghosts], b[num_ghosts], c[num_ghosts], d[num_ghosts], e[num_ghosts];
+  for (int i = 0; i < num_ghosts; ++i)
   {
-    int j = num_points - num_constraints + i;
-    constraint_indices[i] = j;
+    int j = num_points - num_ghosts + i;
+    ghost_indices[i] = j;
     a[i] = 1.0, b[i] = 2.0, c[i] = 3.0, d[i] = 4.0; 
     e[i] = data[j] + 2.0*data_grads[j].x + 3.0*data_grads[j].y + 4.0*data_grads[j].z;
   }
 
-  // Compute the last (num_constraints) points using the first 
-  // (num_points - num_constraints) points and constraints. For 
+  // Compute the last (num_ghosts) points using the first 
+  // (num_points - num_ghosts) points and constraints. For 
   // this, we construct the affine transformation that maps the 
   // total set of solution values to the constrained values.
-  double A[num_constraints*num_points], B[num_constraints];
-  poly_ls_shape_compute_constraint_transform(N, constraint_indices, num_constraints,
-                                             a, b, c, d, e, A, B);
+  double A[num_ghosts*num_points], B[num_ghosts];
+  point_t xc[num_ghosts];
+  for (int c = 0; c < num_ghosts; ++c)
+  {
+    xc[c].x = points[ghost_indices[c]].x;
+    xc[c].y = points[ghost_indices[c]].y;
+    xc[c].z = points[ghost_indices[c]].z;
+  }
+  poly_ls_shape_compute_ghost_transform(N, ghost_indices, num_ghosts, xc,
+                                        a, b, c, d, e, A, B);
 
   // Now apply the affine transformation to the data and make sure we 
   // reproduce the data points. Remember that A is stored in column-
   // major order!
-  double constrained_data[num_constraints];
-  for (int i = 0; i < num_constraints; ++i)
+  double constrained_data[num_ghosts];
+  for (int i = 0; i < num_ghosts; ++i)
   {
     constrained_data[i] = B[i];
     for (int j = 0; j < num_points; ++j)
-      constrained_data[i] += A[num_constraints*j+i] * data[j];
-    assert_true(fabs(constrained_data[i] - data[constraint_indices[i]]) < 1e-11);
+      constrained_data[i] += A[num_ghosts*j+i] * data[j];
+    assert_true(fabs(constrained_data[i] - data[ghost_indices[i]]) < 1e-11);
   }
 
   // Clean up.
