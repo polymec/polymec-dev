@@ -576,18 +576,34 @@ static void apply_bcs(int_ptr_unordered_map_t* boundary_cells,
 
       // Diagonal term.
       ij[0] = bcell;
-      double dNdn = vector_dot(n, &grad_N[0]);
-      Aij[0] = aff_matrix[f] * dNdn * face->area;
-      bi += -aff_vector[f] * dNdn * face->area;
+      // Compute the contribution to the flux from this cell.
+      Aij[0] = vector_dot(n, &grad_N[0]) * face->area; 
+
+      // Now compute the flux contribution from ghost points.
+      for (int g = 0; g < num_ghosts; ++g)
+      {
+        double dNdn = vector_dot(n, &grad_N[num_neighbors+1+g]);
+        Aij[0] += aff_matrix[num_ghosts*0+g] * dNdn * face->area;
+        bi += -aff_vector[g] * dNdn * face->area;
+      }
+
       printf("For face %d (n = %g %g %g):\n", f, n->x, n->y, n->z);
       printf("A[%d,%d] += %g * %g * %g = %g (%g)\n", bcell, ij[0], aff_matrix[f],vector_dot(n, &grad_N[0]), face->area, Aij[0], N[0]);
 
       for (int j = 0; j < num_neighbors; ++j)
       {
         ij[j+1] = cell_info->neighbor_cells[j];
-        double dNdn = vector_dot(n, &grad_N[j+1]);
-        Aij[j+1] = aff_matrix[num_ghosts*(j+1)+f] * dNdn * face->area;
-        bi += -aff_vector[f] * dNdn * face->area;
+
+        // Self contribution.
+        Aij[j+1] = vector_dot(n, &grad_N[j+1]) * face->area;
+
+        // Ghost contributions.
+        for (int g = 0; g < num_ghosts; ++g)
+        {
+          double dNdn = vector_dot(n, &grad_N[num_neighbors+1+g]);
+          Aij[j+1] += aff_matrix[num_ghosts*(j+1)+g] * dNdn * face->area;
+          bi += -aff_vector[g] * dNdn * face->area;
+        }
       printf("A[%d,%d] += %g * %g * %g = %g (%g)\n", bcell, ij[j+1], aff_matrix[num_ghosts*(j+1)+f],vector_dot(n, &grad_N[j+1]), face->area, Aij[j+1], N[j+1]);
       printf("b[%d] += %g\n", bcell, bi);
       }
