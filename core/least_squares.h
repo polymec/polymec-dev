@@ -101,12 +101,13 @@ void poly_ls_shape_compute_gradients(poly_ls_shape_t* N, point_t* x, double* val
 //
 // Arguments:
 // N - The polynomial least squares shape function.
-// constraint_indices    - An array mapping the point at which the ith constraint 
-//                         is enforced to its position in the array of points in
-//                         the shape function's domain.
-// num_constraints       - The number of constraint points, and the length of constraint_indices.
+// ghost_indices         - An array containing the indices of the ghost points
+//                         on the shape function's present domain.
+// num_ghosts            - The number of ghost points, and the length of ghost_indices.
 //                         This number must be less than the number of points in the domain
 //                         of the shape function.
+// constraint_points     - An array containing the points in space at which the 
+//                         constraints are enforced.
 // a, b, c, d, e         - Arrays (of length num_constraints) whose ith entries contain
 //                         the corresponding coefficients in the aforementioned constraint 
 //                         equations.
@@ -114,9 +115,10 @@ void poly_ls_shape_compute_gradients(poly_ls_shape_t* N, point_t* x, double* val
 //                         transformation above, in column-major order.
 // B                     - On output, this stores the vector B in the affine 
 //                         transformation above.
-void poly_ls_shape_compute_constraint_transform(poly_ls_shape_t* N, int* constraint_indices, int num_constraints,
-                                                double* a, double* b, double* c, double* d, double* e,
-                                                double* A, double* B);
+void poly_ls_shape_compute_ghost_transform(poly_ls_shape_t* N, int* constraint_indices, int num_constraints,
+                                           point_t* constraint_points,
+                                           double* a, double* b, double* c, double* d, double* e,
+                                           double* A, double* B);
 
 // Selects a weighting function for the shape function with the form 
 // W(d) = 1 / (d**A + B**A), where A and B are parameters.

@@ -485,10 +485,10 @@ static void apply_bcs(int_ptr_unordered_map_t* boundary_cells,
     // construct a fit that satisfies the boundary conditions!
 
     // Number of points = number of neighbors + self + boundary faces
-    int nb = cell_info->num_boundary_faces;
+    int num_ghosts = cell_info->num_boundary_faces;
     int num_neighbors = cell_info->num_neighbor_cells;
-    int num_points = num_neighbors + 1 + nb;
-//    printf("nb = %d, num_points = %d\n", nb, num_points);
+    int num_points = num_neighbors + 1 + num_ghosts;
+//    printf("num_ghosts = %d, num_points = %d\n", num_ghosts, num_points);
     point_t points[num_points];
     points[0].x = mesh->cells[bcell].center.x;
     points[0].y = mesh->cells[bcell].center.y;
@@ -500,17 +500,21 @@ static void apply_bcs(int_ptr_unordered_map_t* boundary_cells,
       points[n+1].y = mesh->cells[neighbor].center.y;
       points[n+1].z = mesh->cells[neighbor].center.z;
     }
-    int boundary_point_indices[nb];
-    for (int n = 0; n < nb; ++n)
+    int ghost_point_indices[num_ghosts];
+    point_t constraint_points[num_ghosts];
+    for (int n = 0; n < num_ghosts; ++n)
     {
       int bface = cell_info->boundary_faces[n];
       face_t* face = &mesh->faces[bface];
       int offset = 1 + num_neighbors;
-      boundary_point_indices[n] = n+offset;
+      ghost_point_indices[n] = n+offset;
 //printf("bpoint = %g %g %g\n", face->center.x, face->center.y, face->center.z);
-      points[n+offset].x = face->center.x;
-      points[n+offset].y = face->center.y;
-      points[n+offset].z = face->center.z;
+      points[n+offset].x = 2.0*face->center.x - cell->center.x;
+      points[n+offset].y = 2.0*face->center.y - cell->center.y;
+      points[n+offset].z = 2.0*face->center.z - cell->center.z;
+      constraint_points[n].x = face->center.x;
+      constraint_points[n].y = face->center.y;
+      constraint_points[n].z = face->center.z;
     }
     poly_ls_shape_set_domain(shape, &points[0], points, num_points);
 
@@ -519,11 +523,11 @@ static void apply_bcs(int_ptr_unordered_map_t* boundary_cells,
     // the elements of an affine linear transformation that allows us 
     // to compute boundary values of the solution in terms of the 
     // interior values.
-    vector_t face_normals[nb];
-    double aff_matrix[nb*num_points], aff_vector[nb];
+    vector_t face_normals[num_ghosts];
+    double aff_matrix[num_ghosts*num_points], aff_vector[num_ghosts];
     {
-      double a[nb], b[nb], c[nb], d[nb], e[nb];
-      for (int f = 0; f < nb; ++f)
+      double a[num_ghosts], b[num_ghosts], c[num_ghosts], d[num_ghosts], e[num_ghosts];
+      for (int f = 0; f < num_ghosts; ++f)
       {
         // Retrieve the boundary condition for the face.
         poisson_bc_t* bc = cell_info->bc_for_face[f];
@@ -546,12 +550,12 @@ static void apply_bcs(int_ptr_unordered_map_t* boundary_cells,
       // Now that we've gathered information about all the boundary
       // conditions, compute the affine transformation that maps the 
       // (unconstrained) values of the solution to the constrained values. 
-      poly_ls_shape_compute_constraint_transform(shape, 
-          boundary_point_indices, nb, a, b, c, d, e, aff_matrix, aff_vector);
-      printf("%d: A_aff (nb = %d, np = %d) = ", bcell, nb, num_points);
-      matrix_fprintf(aff_matrix, nb, num_points, stdout);
+      poly_ls_shape_compute_ghost_transform(shape, 
+          ghost_point_indices, num_ghosts, constraint_points, a, b, c, d, e, aff_matrix, aff_vector);
+      printf("%d: A_aff (num_ghosts = %d, np = %d) = ", bcell, num_ghosts, num_points);
+      matrix_fprintf(aff_matrix, num_ghosts, num_points, stdout);
       printf("\n%d: b_aff = ", bcell);
-      vector_fprintf(aff_vector, nb, stdout);
+      vector_fprintf(aff_vector, num_ghosts, stdout);
       printf("\n");
     }
 
@@ -560,7 +564,7 @@ static void apply_bcs(int_ptr_unordered_map_t* boundary_cells,
     int ij[num_neighbors+1];
     double N[num_points], Aij[num_neighbors+1];
     vector_t grad_N[num_points]; 
-    for (int f = 0; f < nb; ++f)
+    for (int f = 0; f < num_ghosts; ++f)
     {
       // Compute the shape function values and gradients at the face center.
       face_t* face = &mesh->faces[cell_info->boundary_faces[f]];
@@ -582,12 +586,11 @@ static void apply_bcs(int_ptr_unordered_map_t* boundary_cells,
       {
         ij[j+1] = cell_info->neighbor_cells[j];
         double dNdn = vector_dot(n, &grad_N[j+1]);
-        Aij[j+1] = aff_matrix[nb*(j+1)+f] * dNdn * face->area;
+        Aij[j+1] = aff_matrix[num_ghosts*(j+1)+f] * dNdn * face->area;
         bi += -aff_vector[f] * dNdn * face->area;
-      printf("A[%d,%d] += %g * %g * %g = %g (%g)\n", bcell, ij[j+1], aff_matrix[nb*(j+1)+f],vector_dot(n, &grad_N[j+1]), face->area, Aij[j+1], N[j+1]);
+      printf("A[%d,%d] += %g * %g * %g = %g (%g)\n", bcell, ij[j+1], aff_matrix[num_ghosts*(j+1)+f],vector_dot(n, &grad_N[j+1]), face->area, Aij[j+1], N[j+1]);
       printf("b[%d] += %g\n", bcell, bi);
       }
-
 
       MatSetValues(A, 1, &bcell, num_neighbors+1, ij, Aij, ADD_VALUES);
       VecSetValues(b, 1, &bcell, &bi, ADD_VALUES);
