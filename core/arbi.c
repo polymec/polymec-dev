@@ -47,10 +47,17 @@ static void shutdown()
   TaoFinalize();
   PetscFinalize();
   MPI_Finalize();
+#ifndef NDEBUG
+  arbi_disable_fpe_exceptions();
+#endif
 }
 
 void arbi_init(int argc, char** argv)
 {
+#ifndef NDEBUG
+  arbi_enable_fpe_exceptions();
+#endif
+
   // Start up MPI.
   MPI_Init(&argc, &argv);
 
