@@ -493,6 +493,7 @@ static void apply_bcs(int_ptr_unordered_map_t* boundary_cells,
     points[0].x = mesh->cells[bcell].center.x;
     points[0].y = mesh->cells[bcell].center.y;
     points[0].z = mesh->cells[bcell].center.z;
+printf("ipoint = %g %g %g\n", points[0].x, points[0].y, points[0].z);
     for (int n = 0; n < num_neighbors; ++n)
     {
       int neighbor = cell_info->neighbor_cells[n];
@@ -508,15 +509,15 @@ static void apply_bcs(int_ptr_unordered_map_t* boundary_cells,
       face_t* face = &mesh->faces[bface];
       int offset = 1 + num_neighbors;
       ghost_point_indices[n] = n+offset;
-//printf("bpoint = %g %g %g\n", face->center.x, face->center.y, face->center.z);
       points[n+offset].x = 2.0*face->center.x - cell->center.x;
       points[n+offset].y = 2.0*face->center.y - cell->center.y;
       points[n+offset].z = 2.0*face->center.z - cell->center.z;
+printf("gpoint = %g %g %g\n", points[n+offset].x, points[n+offset].y, points[n+offset].z);
       constraint_points[n].x = face->center.x;
       constraint_points[n].y = face->center.y;
       constraint_points[n].z = face->center.z;
     }
-    poly_ls_shape_set_domain(shape, &points[0], points, num_points);
+    poly_ls_shape_set_domain(shape, &cell->center, points, num_points);
 
     // Now traverse the boundary faces of this cell and enforce the 
     // appropriate boundary condition on each. To do this, we compute 
@@ -569,6 +570,14 @@ static void apply_bcs(int_ptr_unordered_map_t* boundary_cells,
       // Compute the shape function values and gradients at the face center.
       face_t* face = &mesh->faces[cell_info->boundary_faces[f]];
       poly_ls_shape_compute_gradients(shape, &face->center, N, grad_N);
+printf("N = ");
+for (int i = 0; i < num_points; ++i)
+printf("%g ", N[i]);
+printf("\n");
+printf("grad N = ");
+for (int i = 0; i < num_points; ++i)
+printf("%g %g %g  ", grad_N[i].x, grad_N[i].y, grad_N[i].z);
+printf("\n");
 
       // Add the dphi/dn terms for face f to the matrix.
       vector_t* n = &face_normals[f];
@@ -577,18 +586,19 @@ static void apply_bcs(int_ptr_unordered_map_t* boundary_cells,
       // Diagonal term.
       ij[0] = bcell;
       // Compute the contribution to the flux from this cell.
+      printf("For face %d (n = %g %g %g, x = %g %g %g):\n", f, n->x, n->y, n->z, face->center.x, face->center.y, face->center.z);
       Aij[0] = vector_dot(n, &grad_N[0]) * face->area; 
+printf("A[%d,%d] += %g * %g -> %g (%g)\n", bcell, ij[0], vector_dot(n, &grad_N[0]), face->area, Aij[0], N[0]);
 
       // Now compute the flux contribution from ghost points.
       for (int g = 0; g < num_ghosts; ++g)
       {
         double dNdn = vector_dot(n, &grad_N[num_neighbors+1+g]);
         Aij[0] += aff_matrix[num_ghosts*0+g] * dNdn * face->area;
+printf("A[%d,%d] += %g * %g * %g -> %g (%g)\n", bcell, ij[0], aff_matrix[g], dNdn, face->area, Aij[0], N[num_neighbors+1+g]);
         bi += -aff_vector[g] * dNdn * face->area;
       }
 
-      printf("For face %d (n = %g %g %g):\n", f, n->x, n->y, n->z);
-      printf("A[%d,%d] += %g * %g * %g = %g (%g)\n", bcell, ij[0], aff_matrix[f],vector_dot(n, &grad_N[0]), face->area, Aij[0], N[0]);
 
       for (int j = 0; j < num_neighbors; ++j)
       {
@@ -602,9 +612,9 @@ static void apply_bcs(int_ptr_unordered_map_t* boundary_cells,
         {
           double dNdn = vector_dot(n, &grad_N[num_neighbors+1+g]);
           Aij[j+1] += aff_matrix[num_ghosts*(j+1)+g] * dNdn * face->area;
+      printf("A[%d,%d] += %g * %g * %g = %g (%g)\n", bcell, ij[j+1], aff_matrix[num_ghosts*(j+1)+g],vector_dot(n, &grad_N[j+1]), face->area, Aij[j+1], N[j+1]);
           bi += -aff_vector[g] * dNdn * face->area;
         }
-      printf("A[%d,%d] += %g * %g * %g = %g (%g)\n", bcell, ij[j+1], aff_matrix[num_ghosts*(j+1)+f],vector_dot(n, &grad_N[j+1]), face->area, Aij[j+1], N[j+1]);
       printf("b[%d] += %g\n", bcell, bi);
       }
 
