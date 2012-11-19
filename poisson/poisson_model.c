@@ -240,12 +240,12 @@ static void poisson_run_laplace_1d(options_t* options)
   // Start/end times.
   double t1 = 0.0, t2 = 1.0;
 
-  // Base resolution, number of refinements.
-  int N0 = 32, num_refinements = 1;
+  // Base resolution, number of runs.
+  int N0 = 32, num_runs = 1;
   
   // Do a convergence study.
-  double Lp_norms[num_refinements][3];
-  for (int iter = 0; iter < num_refinements; ++iter)
+  double Lp_norms[num_runs][3];
+  for (int iter = 0; iter < num_runs; ++iter)
   {
     int N = N0 * pow(2, iter);
     mesh_t* mesh = create_cube_mesh(1, N);
@@ -493,7 +493,7 @@ static void apply_bcs(int_ptr_unordered_map_t* boundary_cells,
     points[0].x = mesh->cells[bcell].center.x;
     points[0].y = mesh->cells[bcell].center.y;
     points[0].z = mesh->cells[bcell].center.z;
-printf("ipoint = %g %g %g\n", points[0].x, points[0].y, points[0].z);
+//printf("ipoint = %g %g %g\n", points[0].x, points[0].y, points[0].z);
     for (int n = 0; n < num_neighbors; ++n)
     {
       int neighbor = cell_info->neighbor_cells[n];
@@ -512,7 +512,7 @@ printf("ipoint = %g %g %g\n", points[0].x, points[0].y, points[0].z);
       points[n+offset].x = 2.0*face->center.x - cell->center.x;
       points[n+offset].y = 2.0*face->center.y - cell->center.y;
       points[n+offset].z = 2.0*face->center.z - cell->center.z;
-printf("gpoint = %g %g %g\n", points[n+offset].x, points[n+offset].y, points[n+offset].z);
+//printf("gpoint = %g %g %g\n", points[n+offset].x, points[n+offset].y, points[n+offset].z);
       constraint_points[n].x = face->center.x;
       constraint_points[n].y = face->center.y;
       constraint_points[n].z = face->center.z;
@@ -553,11 +553,11 @@ printf("gpoint = %g %g %g\n", points[n+offset].x, points[n+offset].y, points[n+o
       // (unconstrained) values of the solution to the constrained values. 
       poly_ls_shape_compute_ghost_transform(shape, 
           ghost_point_indices, num_ghosts, constraint_points, a, b, c, d, e, aff_matrix, aff_vector);
-      printf("%d: A_aff (num_ghosts = %d, np = %d) = ", bcell, num_ghosts, num_points);
-      matrix_fprintf(aff_matrix, num_ghosts, num_points, stdout);
-      printf("\n%d: b_aff = ", bcell);
-      vector_fprintf(aff_vector, num_ghosts, stdout);
-      printf("\n");
+//printf("%d: A_aff (num_ghosts = %d, np = %d) = ", bcell, num_ghosts, num_points);
+//matrix_fprintf(aff_matrix, num_ghosts, num_points, stdout);
+//printf("\n%d: b_aff = ", bcell);
+//vector_fprintf(aff_vector, num_ghosts, stdout);
+//printf("\n");
     }
 
     // Compute the flux through each boundary face and alter the 
@@ -570,14 +570,14 @@ printf("gpoint = %g %g %g\n", points[n+offset].x, points[n+offset].y, points[n+o
       // Compute the shape function values and gradients at the face center.
       face_t* face = &mesh->faces[cell_info->boundary_faces[f]];
       poly_ls_shape_compute_gradients(shape, &face->center, N, grad_N);
-printf("N = ");
-for (int i = 0; i < num_points; ++i)
-printf("%g ", N[i]);
-printf("\n");
-printf("grad N = ");
-for (int i = 0; i < num_points; ++i)
-printf("%g %g %g  ", grad_N[i].x, grad_N[i].y, grad_N[i].z);
-printf("\n");
+//printf("N = ");
+//for (int i = 0; i < num_points; ++i)
+//printf("%g ", N[i]);
+//printf("\n");
+//printf("grad N = ");
+//for (int i = 0; i < num_points; ++i)
+//printf("%g %g %g  ", grad_N[i].x, grad_N[i].y, grad_N[i].z);
+//printf("\n");
 
       // Add the dphi/dn terms for face f to the matrix.
       vector_t* n = &face_normals[f];
@@ -586,16 +586,16 @@ printf("\n");
       // Diagonal term.
       ij[0] = bcell;
       // Compute the contribution to the flux from this cell.
-      printf("For face %d (n = %g %g %g, x = %g %g %g):\n", f, n->x, n->y, n->z, face->center.x, face->center.y, face->center.z);
+//printf("For face %d (n = %g %g %g, x = %g %g %g):\n", f, n->x, n->y, n->z, face->center.x, face->center.y, face->center.z);
       Aij[0] = vector_dot(n, &grad_N[0]) * face->area; 
-printf("A[%d,%d] += %g * %g -> %g (%g)\n", bcell, ij[0], vector_dot(n, &grad_N[0]), face->area, Aij[0], N[0]);
+//printf("A[%d,%d] += %g * %g -> %g (%g)\n", bcell, ij[0], vector_dot(n, &grad_N[0]), face->area, Aij[0], N[0]);
 
       // Now compute the flux contribution from ghost points.
       for (int g = 0; g < num_ghosts; ++g)
       {
         double dNdn = vector_dot(n, &grad_N[num_neighbors+1+g]);
         Aij[0] += aff_matrix[num_ghosts*0+g] * dNdn * face->area;
-printf("A[%d,%d] += %g * %g * %g -> %g (%g)\n", bcell, ij[0], aff_matrix[g], dNdn, face->area, Aij[0], N[num_neighbors+1+g]);
+//printf("A[%d,%d] += %g * %g * %g -> %g (%g)\n", bcell, ij[0], aff_matrix[g], dNdn, face->area, Aij[0], N[num_neighbors+1+g]);
         bi += -aff_vector[g] * dNdn * face->area;
       }
 
@@ -612,10 +612,11 @@ printf("A[%d,%d] += %g * %g * %g -> %g (%g)\n", bcell, ij[0], aff_matrix[g], dNd
         {
           double dNdn = vector_dot(n, &grad_N[num_neighbors+1+g]);
           Aij[j+1] += aff_matrix[num_ghosts*(j+1)+g] * dNdn * face->area;
-      printf("A[%d,%d] += %g * %g * %g = %g (%g)\n", bcell, ij[j+1], aff_matrix[num_ghosts*(j+1)+g],vector_dot(n, &grad_N[j+1]), face->area, Aij[j+1], N[j+1]);
-          bi += -aff_vector[g] * dNdn * face->area;
+//printf("A[%d,%d] += %g * %g * %g = %g (%g)\n", bcell, ij[j+1], aff_matrix[num_ghosts*(j+1)+g],vector_dot(n, &grad_N[j+1]), face->area, Aij[j+1], N[j+1]);
+          // NOTE: we don't double count the affine term contribution here.
+//          bi += -aff_vector[g] * dNdn * face->area;
         }
-      printf("b[%d] += %g\n", bcell, bi);
+//printf("b[%d] += %g\n", bcell, bi);
       }
 
       MatSetValues(A, 1, &bcell, num_neighbors+1, ij, Aij, ADD_VALUES);
@@ -678,9 +679,7 @@ static void poisson_run_benchmark(const char* benchmark, options_t* options)
   }
   else
   {
-    char err[1024];
-    snprintf(err, 1024, "poisson: unknown benchmark: '%s'", benchmark);
-    arbi_error(err);
+    arbi_error("poisson: unknown benchmark: '%s'", benchmark);
   }
 }
 
@@ -694,8 +693,8 @@ static void poisson_advance(void* context, double t, double dt)
     set_up_linear_system(p->mesh, p->L, p->rhs, t+dt, p->A, p->b);
     apply_bcs(p->boundary_cells, p->mesh, p->shape, t+dt, p->A, p->b);
   }
-  MatView(p->A, PETSC_VIEWER_STDOUT_SELF);
-  VecView(p->b, PETSC_VIEWER_STDOUT_SELF);
+//  MatView(p->A, PETSC_VIEWER_STDOUT_SELF);
+//  VecView(p->b, PETSC_VIEWER_STDOUT_SELF);
 
   // Set up the linear solver.
   KSPSetOperators(p->solver, p->A, p->A, SAME_NONZERO_PATTERN);
@@ -704,7 +703,7 @@ static void poisson_advance(void* context, double t, double dt)
   KSPSolve(p->solver, p->b, p->x);
 
   // Copy the values from x to our solution array.
-  VecView(p->x, PETSC_VIEWER_STDOUT_SELF);
+//  VecView(p->x, PETSC_VIEWER_STDOUT_SELF);
   double* x;
   VecGetArray(p->x, &x);
   memcpy(p->phi, x, sizeof(double)*p->mesh->num_cells);
