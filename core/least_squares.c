@@ -521,13 +521,13 @@ void poly_ls_shape_compute_ghost_transform(poly_ls_shape_t* N, int* ghost_indice
 //printf("a b c d e = %g %g %g %g %g\n", a[i], b[i], c[i], d[i], e[i]);
 
     // Now set up the left and right hand sides of the equation for the constraint.
-    int constraint = 0;
     for (int j = 0; j < N->num_points; ++j)
     {
       bool constrained = false;
-      for (int cc = 0; cc < num_ghosts; ++cc)
+      int k = 0;
+      for (; k < num_ghosts; ++k)
       {
-        if (j == ghost_indices[cc]) 
+        if (j == ghost_indices[k]) 
         {
           constrained = true;
           break;
@@ -535,9 +535,8 @@ void poly_ls_shape_compute_ghost_transform(poly_ls_shape_t* N, int* ghost_indice
       }
       if (constrained) 
       {
-        amat[num_ghosts*constraint+i] = a[i]*N_vals[j] + b[i]*N_grads[j].x + c[i]*N_grads[j].y + d[i]*N_grads[j].z;
+        amat[num_ghosts*k+i] = a[i]*N_vals[j] + b[i]*N_grads[j].x + c[i]*N_grads[j].y + d[i]*N_grads[j].z;
         A[num_ghosts*j+i] = 0.0;
-        constraint++;
       }
       else
       {
@@ -558,9 +557,12 @@ void poly_ls_shape_compute_ghost_transform(poly_ls_shape_t* N, int* ghost_indice
   dgetrs(&no_trans, &num_ghosts, &N->num_points, amat, &num_ghosts, pivot, A, &num_ghosts, &info);
   ASSERT(info == 0);
 
-  // Compute B = amatinv * e.
+  // Compute B = amatinv * e / (num_points - num_ghosts).
+//  // We divide by the number of ghosts because each ghost value only gets part of the affine term.
   int one = 1;
   memcpy(B, e, sizeof(double)*num_ghosts);
+//  for (int g = 0; g < num_ghosts; ++g)
+//    B[g] /= (N->num_points - num_ghosts);
   dgetrs(&no_trans, &num_ghosts, &one, amat, &num_ghosts, pivot, B, &num_ghosts, &info);
   ASSERT(info == 0);
 }
