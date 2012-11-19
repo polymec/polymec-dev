@@ -189,7 +189,7 @@ static mesh_t* create_cube_mesh(int dim, int N)
   return mesh;
 }
 
-static void run_analytic_problem(mesh_t* mesh, st_func_t* rhs, str_ptr_unordered_map_t* bcs, options_t* options, double t1, double t2, st_func_t* solution, double* Lpnorms)
+static void run_analytic_problem(mesh_t* mesh, st_func_t* rhs, str_ptr_unordered_map_t* bcs, options_t* options, double t1, double t2, st_func_t* solution, double* lp_norms)
 {
   // Create the model.
   model_t* model = create_poisson(mesh, rhs, bcs, options);
@@ -197,10 +197,29 @@ static void run_analytic_problem(mesh_t* mesh, st_func_t* rhs, str_ptr_unordered
   // Run the thing.
   model_run(model, t1, t2);
 
-  // Calculate the Lp norm of the error and write it to Lpnorms.
+  // Calculate the Lp norm of the error and write it to Lp_norms.
+  poisson_t* pm = model_context(model);
+  double Linf = 0.0, L1 = 0.0, L2 = 0.0;
+  for (int c = 0; c < pm->mesh->num_cells; ++c)
+  {
+    double phi_sol;
+    st_func_eval(solution, &pm->mesh->cells[c].center, t2, &phi_sol);
+    double err = fabs(pm->phi[c] - phi_sol)*pm->mesh->cells[c].volume;
+    Linf = (Linf < err) ? err : Linf;
+    L1 += err;
+    L2 += err*err;
+  }
+  L2 = sqrt(L2);
+  lp_norms[0] = Linf;
+  lp_norms[1] = L1;
+  lp_norms[2] = L2;
+//  norm_t* lp_norm = fv2_lp_norm_new(pm->mesh);
+//  for (int p = 0; p <= 2; ++p)
+//    lp_norms[p] = fv2_lp_norm_compute_error_from_solution(p, 
   // FIXME
 
   // Clean up.
+//  lp_norm = NULL;
   model_free(model);
 }
 
@@ -241,7 +260,7 @@ static void poisson_run_laplace_1d(options_t* options)
   double t1 = 0.0, t2 = 1.0;
 
   // Base resolution, number of runs.
-  int N0 = 32, num_runs = 1;
+  int N0 = 32, num_runs = 4;
   
   // Do a convergence study.
   double Lp_norms[num_runs][3];
@@ -251,6 +270,7 @@ static void poisson_run_laplace_1d(options_t* options)
     mesh_t* mesh = create_cube_mesh(1, N);
     str_ptr_unordered_map_t* bcs_copy = str_ptr_unordered_map_copy(bcs);
     run_analytic_problem(mesh, zero, bcs_copy, options, t1, t2, sol, Lp_norms[iter]);
+    log_info("iteration %d: L1 = %g, L2 = %g, Linf = %g", iter, Lp_norms[iter][1], Lp_norms[iter][2], Lp_norms[iter][0]);
   }
 
   // Clean up.
