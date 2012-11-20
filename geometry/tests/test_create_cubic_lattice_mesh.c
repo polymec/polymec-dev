@@ -11,7 +11,7 @@ void test_create_cubic_lattice_mesh(void** state)
 {
   // Create a 10x10x10 cubic lattice mesh.
   cubic_lattice_t* lattice = cubic_lattice_new(10, 10, 10);
-  mesh_t* mesh = create_cubic_lattice_mesh(10, 10, 10, 0);
+  mesh_t* mesh = create_cubic_lattice_mesh(10, 10, 10);
   mesh_verify(mesh);
   assert_int_equal(mesh->num_cells, cubic_lattice_num_cells(lattice));
   assert_int_equal(1000, mesh->num_cells);
@@ -26,7 +26,7 @@ void test_create_cubic_lattice_mesh(void** state)
 void test_plot_cubic_lattice_mesh(void** state)
 {
   // Create a 4x4x4 cubic lattice mesh.
-  mesh_t* mesh = create_cubic_lattice_mesh(4, 4, 4, 0);
+  mesh_t* mesh = create_cubic_lattice_mesh(4, 4, 4);
 
   // Plot it.
   io_interface_t* plot = vtk_plot_io_new(MPI_COMM_SELF, 0, false);

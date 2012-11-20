@@ -7,28 +7,38 @@
 extern "C" {
 #endif
 
-mesh_t* create_cubic_lattice_mesh(int nx, int ny, int nz, int num_ghost)
+mesh_t* create_cubic_lattice_mesh_with_bbox(int nx, int ny, int nz, bbox_t* bbox)
 {
   ASSERT(nx > 0);
   ASSERT(ny > 0);
   ASSERT(nz > 0);
-  ASSERT(num_ghost >= 0);
+
+  ASSERT((bbox == NULL) || (bbox->x2 > bbox->x1));
+  ASSERT((bbox == NULL) || (bbox->y2 > bbox->y1));
+  ASSERT((bbox == NULL) || (bbox->z2 > bbox->z1));
+//  ASSERT(num_ghost >= 0);
 
   // Create a cubic lattice object for indexing.
   cubic_lattice_t* lattice = cubic_lattice_new(nx, ny, nz);
 
-  // Compute the number of ghost cells.
-  int num_ghost_cells = 2*num_ghost*(ny*nz + nz*nx + nx*ny);
+//  // Compute the number of ghost cells.
+//  int num_ghost_cells = 2*num_ghost*(ny*nz + nz*nx + nx*ny);
 
   // Create the mesh.
   // FIXME: Not parallel safe.
-  mesh_t* mesh = mesh_new(cubic_lattice_num_cells(lattice), num_ghost_cells,
+  mesh_t* mesh = mesh_new(cubic_lattice_num_cells(lattice), 0,
                           cubic_lattice_num_faces(lattice),
                           cubic_lattice_num_edges(lattice),
                           cubic_lattice_num_nodes(lattice));
 
   // Grid spacings.
-  double dx = 1.0/nx, dy = 1.0/ny, dz = 1.0/nz;
+  double Lx = (bbox != NULL) ? bbox->x2 - bbox->x1 : 1.0;
+  double Ly = (bbox != NULL) ? bbox->y2 - bbox->y1 : 1.0;
+  double Lz = (bbox != NULL) ? bbox->z2 - bbox->z1 : 1.0;
+  double x1 = (bbox != NULL) ? bbox->x1 : 0.0;
+  double y1 = (bbox != NULL) ? bbox->y1 : 0.0;
+  double z1 = (bbox != NULL) ? bbox->z1 : 0.0;
+  double dx = Lx/nx, dy = Ly/ny, dz = Lz/nz;
 
   int_unordered_set_t* processed_faces = int_unordered_set_new();
   int_unordered_set_t* processed_nodes = int_unordered_set_new();
@@ -216,40 +226,40 @@ mesh_t* create_cubic_lattice_mesh(int nx, int ny, int nz, int num_ghost)
             switch (f)
             {
               case 0: // -x
-                face->area = 1.0 / (ny*nz);
-                face->center.x = i*dx;
-                face->center.y = (j+0.5)*dy;
-                face->center.z = (k+0.5)*dz;
+                face->area = Ly*Lz / (ny*nz);
+                face->center.x = x1 + i*dx;
+                face->center.y = y1 + (j+0.5)*dy;
+                face->center.z = z1 + (k+0.5)*dz;
                 break;
               case 1: // +x
-                face->area = 1.0 / (ny*nz);
-                face->center.x = (i+1)*dx;
-                face->center.y = (j+0.5)*dy;
-                face->center.z = (k+0.5)*dz;
+                face->area = Ly*Lz / (ny*nz);
+                face->center.x = x1 + (i+1)*dx;
+                face->center.y = y1 + (j+0.5)*dy;
+                face->center.z = z1 + (k+0.5)*dz;
                 break;
               case 2: // -y
-                face->area = 1.0 / (nx*nz);
-                face->center.x = (i+0.5)*dx;
-                face->center.y = j*dy;
-                face->center.z = (k+0.5)*dz;
+                face->area = Lx*Lz / (nx*nz);
+                face->center.x = x1 + (i+0.5)*dx;
+                face->center.y = y1 + j*dy;
+                face->center.z = z1 + (k+0.5)*dz;
                 break;
               case 3: // +y
-                face->area = 1.0 / (nx*nz);
-                face->center.x = (i+0.5)*dx;
-                face->center.y = (j+1)*dy;
-                face->center.z = (k+0.5)*dz;
+                face->area = Lx*Lz / (nx*nz);
+                face->center.x = x1 + (i+0.5)*dx;
+                face->center.y = y1 + (j+1)*dy;
+                face->center.z = z1 + (k+0.5)*dz;
                 break;
               case 4: // -z
-                face->area = 1.0 / (nx*ny);
-                face->center.x = (i+0.5)*dx;
-                face->center.y = (j+0.5)*dy;
-                face->center.z = k*dz;
+                face->area = Lx*Ly / (nx*ny);
+                face->center.x = x1 + (i+0.5)*dx;
+                face->center.y = y1 + (j+0.5)*dy;
+                face->center.z = z1 + k*dz;
                 break;
               case 5: // +z
-                face->area = 1.0 / (nx*ny);
-                face->center.x = (i+0.5)*dx;
-                face->center.y = (j+0.5)*dy;
-                face->center.z = (k+1)*dz;
+                face->area = Lx*Ly / (nx*ny);
+                face->center.x = x1 + (i+0.5)*dx;
+                face->center.y = y1 + (j+0.5)*dy;
+                face->center.z = z1 + (k+1)*dz;
                 break;
             }
 
@@ -267,22 +277,23 @@ mesh_t* create_cubic_lattice_mesh(int nx, int ny, int nz, int num_ghost)
           if (!int_unordered_set_contains(processed_nodes, node_indices[n]))
           {
             node_t* node = &mesh->nodes[node_indices[n]];
-            node->x = (i + i_offsets[n]) * dx;
-            node->y = (j + j_offsets[n]) * dy;
-            node->z = (k + k_offsets[n]) * dz;
+            node->x = x1 + (i + i_offsets[n]) * dx;
+            node->y = y1 + (j + j_offsets[n]) * dy;
+            node->z = z1 + (k + k_offsets[n]) * dz;
             int_unordered_set_insert(processed_nodes, node_indices[n]);
           }
         }
 
         // Cell geometry.
-        mesh->cells[cell].volume = 1.0 / (nx*ny*nz);
-        mesh->cells[cell].center.x = (i+0.5)*dx;
-        mesh->cells[cell].center.y = (j+0.5)*dy;
-        mesh->cells[cell].center.z = (k+0.5)*dz;
+        mesh->cells[cell].volume = Lx*Ly*Lz / (nx*ny*nz);
+        mesh->cells[cell].center.x = x1 + (i+0.5)*dx;
+        mesh->cells[cell].center.y = y1 + (j+0.5)*dy;
+        mesh->cells[cell].center.z = z1 + (k+0.5)*dz;
       }
     }
   }
 
+#if 0
   // Set up ghost cells.
   int gindex = mesh->num_cells;
   if (num_ghost > 0)
@@ -360,12 +371,19 @@ mesh_t* create_cubic_lattice_mesh(int nx, int ny, int nz, int num_ghost)
     }
   }
   ASSERT(gindex == (mesh->num_cells + mesh->num_ghost_cells));
+#endif
 
   // Clean up.
   int_unordered_set_free(processed_faces);
   int_unordered_set_free(processed_nodes);
 
   return mesh;
+}
+
+mesh_t* create_cubic_lattice_mesh(int nx, int ny, int nz)
+{
+  bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
+  return create_cubic_lattice_mesh_with_bbox(nx, ny, nz, &bbox);
 }
 
 #ifdef __cplusplus

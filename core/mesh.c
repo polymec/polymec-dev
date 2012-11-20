@@ -1,10 +1,10 @@
 #include <stdlib.h>
-//#include "uthash.h"
 #include "core/mesh.h"
 #include "core/mesh_storage.h"
 #include "core/edit_mesh.h"
 #include "core/unordered_set.h"
 #include "core/unordered_map.h"
+#include "core/linear_algebra.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -332,6 +332,47 @@ void mesh_tag_delete_property(mesh_tags_t* tagger, const char* tag, const char* 
 void mesh_delete_tag(mesh_tags_t* tagger, const char* tag)
 {
   mesh_tags_data_map_delete(tagger->data, (char*)tag);
+}
+
+void mesh_map(mesh_t* mesh, sp_func_t* mapping)
+{
+  ASSERT(mapping != NULL);
+  ASSERT(!sp_func_is_homogeneous(mapping));
+  ASSERT(sp_func_num_comp(mapping) == 3);
+
+  // Map node coordinates.
+  for (int n = 0; n < mesh->num_nodes; ++n)
+  {
+    point_t xn = {.x = mesh->nodes[n].x, .y = mesh->nodes[n].y, .z = mesh->nodes[n].z};
+    double mapped_node[3];
+    sp_func_eval(mapping, &xn, mapped_node);
+    mesh->nodes[n].x = mapped_node[0];
+    mesh->nodes[n].y = mapped_node[1];
+    mesh->nodes[n].z = mapped_node[2];
+  }
+
+  // Map cell centers.
+  for (int c = 0; c < mesh->num_cells; ++c)
+  {
+    double mapped_center[3];
+    sp_func_eval(mapping, &mesh->cells[c].center, mapped_center);
+    mesh->cells[c].center.x = mapped_center[0];
+    mesh->cells[c].center.y = mapped_center[1];
+    mesh->cells[c].center.z = mapped_center[2];
+  }
+
+  // Map face centers.
+  for (int f = 0; f < mesh->num_faces; ++f)
+  {
+    double mapped_center[3];
+    sp_func_eval(mapping, &mesh->faces[f].center, mapped_center);
+    mesh->faces[f].center.x = mapped_center[0];
+    mesh->faces[f].center.y = mapped_center[1];
+    mesh->faces[f].center.z = mapped_center[2];
+  }
+
+  // FIXME: Need to transform volumes/areas here!
+  ASSERT(false);
 }
 
 #ifdef __cplusplus
