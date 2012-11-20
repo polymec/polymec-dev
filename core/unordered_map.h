@@ -25,7 +25,6 @@
 // void x_map_insert(x_map_t* map, x_map_key_t key, x_map_value_t value) - Sets the value for the given key.
 // void x_map_delete(x_map_t* map, x_map_key_t key) - Deletes the value for the given key.
 // bool x_map_next(x_map_t* map, int* pos, x_map_key_t* key, x_map_value_t* value) - Allows the traversal of the maps keys and values.
-// void x_map_foreach(x_map_t* node, x_map_visitor visit, void*) - Executes visit on each map element.
 
 #define DEFINE_UNORDERED_MAP(map_name, key_type, value_type, hash_func, equals_func) \
 typedef key_type map_name##_key_t; \
@@ -228,19 +227,6 @@ static inline void map_name##_delete(map_name##_t* map, key_type key) \
       map->size--; \
     }\
     p = &current->next; \
-  } \
-} \
-\
-static inline void map_name##_foreach(map_name##_t* map, map_name##_visitor visit, void* arg) \
-{ \
-  for (int i = 0; i < map->bucket_count; ++i) \
-  { \
-    map_name##_entry_t* entry = map->buckets[i]; \
-    while (entry != NULL) \
-    { \
-      visit(entry->key, entry->value, arg); \
-      entry = entry->next; \
-    } \
   } \
 } \
 \

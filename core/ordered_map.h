@@ -19,7 +19,6 @@
 // x_map_value_t x_map_value(x_map_t* map, x_map_key_t key) - Finds the value for the given key.
 // void x_map_insert(x_map_t* map, x datum) - Inserts a datum into the map.
 // void x_map_delete(x_map_t* map, x datum) - Deletes the datum from the map.
-// void x_map_foreach(x_map_t* node, x_map_visitor visit, void*) - Executes visit on each map element.
 
 #define DEFINE_ORDERED_MAP(map_name, key_type, value_type, key_comparator) \
 DEFINE_KEY_VALUE(map_name##_key_value, key_type, value_type) \
@@ -92,11 +91,6 @@ static inline void map_name##_delete(map_name##_t* map, key_type key) \
     map_name##_avl_tree_delete(map->tree, node); \
     map->size = map_name##_avl_tree_size(map->tree); \
   } \
-} \
-\
-static inline void map_name##_foreach(map_name##_t* map, map_name##_visitor visit, void* arg) \
-{ \
-  map_name##_avl_tree_node_visit(map->tree->root, visit, arg); \
 } \
 \
 

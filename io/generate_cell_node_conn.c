@@ -27,7 +27,9 @@ void generate_cell_node_conn(mesh_t* mesh,
     cell_node_offsets[c+1] = all_cell_nodes->size;
   }
   *cell_nodes = malloc(all_cell_nodes->size*sizeof(int));
-  int_unordered_set_copy_out(all_cell_nodes, *cell_nodes);
+  int pos = 0, node, i = 0;
+  while (int_unordered_set_next(all_cell_nodes, &pos, &node))
+    (*cell_nodes)[i++] = node;
 }
 
 #ifdef __cplusplus

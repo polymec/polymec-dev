@@ -7,8 +7,6 @@
 
 static const int int_values[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
 static const double double_values[] = {0., 1., 2., 3., 4., 5., 6., 7., 8., 9.};
-static int int_counter = 0;
-static int double_counter = 0;
 
 #define DEFINE_VECTOR_TEST(vector_name, element) \
 void test_##vector_name##_ctor(void** state) \
@@ -35,29 +33,10 @@ void test_##vector_name##_append(void** state) \
   vector_name##_free(v); \
 } \
 \
-static void count_##element(element e) \
-{ \
-  element##_counter++; \
-} \
-\
-void test_##vector_name##_foreach(void** state) \
-{ \
-  vector_name##_t* v = vector_name##_new(0); \
-  for (int i = 0; i < 10; ++i) \
-    vector_name##_append(v, element##_values[i]); \
-  assert_int_equal(10, v->size); \
-  assert_int_equal(16, v->capacity); \
-  assert_int_equal(0, element##_counter); \
-  vector_name##_foreach(v, count_##element); \
-  assert_int_equal(10, element##_counter); \
-  vector_name##_free(v); \
-} \
-\
 void test_##element##_vector(void** state) \
 { \
   test_##vector_name##_ctor(state); \
   test_##vector_name##_append(state); \
-  test_##vector_name##_foreach(state); \
 }
 
 DEFINE_VECTOR_TEST(int_vector, int)
