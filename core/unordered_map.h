@@ -51,6 +51,7 @@ typedef struct \
   map_name##_hash_func hash; \
   map_name##_equals_func equals; \
   int size; \
+  int max_depth; \
 } map_name##_t; \
 \
 static inline map_name##_t* map_name##_new_with_capacity(int N) \
@@ -65,6 +66,7 @@ static inline map_name##_t* map_name##_new_with_capacity(int N) \
   map->size = 0; \
   map->hash = hash_func; \
   map->equals = equals_func; \
+  map->max_depth = 1; \
   return map; \
 } \
 \
@@ -89,6 +91,7 @@ static inline void map_name##_clear(map_name##_t* map) \
     map->buckets[i] = NULL; \
   } \
   map->size = 0; \
+  map->max_depth = 1; \
 } \
 \
 static inline void map_name##_free(map_name##_t* map) \
@@ -191,6 +194,7 @@ static inline void map_name##_insert_with_dtor(map_name##_t* map, key_type key, 
       (*p)->next = NULL; \
       map->size++; \
       map_name##_expand(map); \
+      map->max_depth = (depth+1 > map->max_depth) ? depth+1 : map->max_depth; \
       return; \
     } \
     if (map_name##_keys_equal(map, current->key, current->hash, key, h)) \
@@ -242,8 +246,8 @@ static inline void map_name##_foreach(map_name##_t* map, map_name##_visitor visi
 \
 static inline bool map_name##_next(map_name##_t* map, int* pos, key_type* key, value_type* value) \
 { \
-  int index = *pos >> 8; \
-  int depth = *pos & 255; \
+  int index = *pos / map->max_depth; \
+  int depth = *pos % map->max_depth; \
   map_name##_entry_t* entry; \
   while ((index < map->bucket_count) && (map->buckets[index] == NULL)) index++; \
   if (index == map->bucket_count) \
@@ -254,9 +258,9 @@ static inline bool map_name##_next(map_name##_t* map, int* pos, key_type* key, v
   *key = entry->key; \
   *value = entry->value; \
   if (entry->next != NULL) \
-    *pos = (index << 8) + ((depth+1) & 255); \
+    (*pos)++; \
   else \
-    *pos = (index+1) << 8; \
+    *pos = (index+1) * map->max_depth; \
   return true; \
 } \
 \
