@@ -205,6 +205,7 @@ static void run_analytic_problem(mesh_t* mesh, st_func_t* rhs, str_ptr_unordered
     double phi_sol;
     st_func_eval(solution, &pm->mesh->cells[c].center, t2, &phi_sol);
     double err = fabs(pm->phi[c] - phi_sol)*pm->mesh->cells[c].volume;
+//printf("i = %d, phi = %g, phi_s = %g, err = %g\n", c, pm->phi[c], phi_sol, err);
     Linf = (Linf < err) ? err : Linf;
     L1 += err;
     L2 += err*err;
@@ -260,7 +261,7 @@ static void poisson_run_laplace_1d(options_t* options)
   double t1 = 0.0, t2 = 1.0;
 
   // Base resolution, number of runs.
-  int N0 = 32, num_runs = 4;
+  int N0 = 32, num_runs = 8;
   
   // Do a convergence study.
   double Lp_norms[num_runs][3];
@@ -807,14 +808,6 @@ static void poisson_dtor(void* ctx)
   poisson_t* p = (poisson_t*)ctx;
 
   // Destroy BC table.
-//  int pos = 0;
-//  char* key;
-//  void* val;
-//  while (str_ptr_unordered_map_next(p->bcs, &pos, &key, &val))
-//  {
-//    free(key); // FIXME: Not clear how to handle this!
-//    free_bc(val);
-//  }
   str_ptr_unordered_map_free(p->bcs);
 
   if (p->mesh != NULL)
