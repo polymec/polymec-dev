@@ -21,7 +21,6 @@
 // bool x_set_contains(x_set_t* set, x datum) - Returns true if the set contains the datum, false otherwise.
 // void x_set_insert(x_set_t* set, x datum) - Inserts a datum into the set.
 // void x_set_delete(x_set_t* set, x datum) - Deletes the datum from the set.
-// void x_set_foreach(x_set_t* node, x_set_visitor visit, void*) - Executes visit on each set element.
 
 #define DEFINE_ORDERED_SET_USING_AVL_TREE(set_name, tree_name) \
 typedef tree_name##_node_t set_name##_node_t; \
@@ -79,11 +78,6 @@ static inline void set_name##_delete(set_name##_t* set, set_name##_element_t dat
     tree_name##_delete(set->tree, node); \
     set->size = tree_name##_size(set->tree); \
   } \
-} \
-\
-static inline void set_name##_foreach(set_name##_t* set, set_name##_visitor visit, void* arg) \
-{ \
-  tree_name##_node_visit(set->tree->root, visit, arg); \
 } \
 \
 

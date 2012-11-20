@@ -19,8 +19,7 @@
 // bool x_set_contains(x_set_t* set, x datum) - Returns true if the set contains the datum, false otherwise.
 // void x_set_insert(x_set_t* set, x datum) - Inserts a datum into the set.
 // void x_set_delete(x_set_t* set, x datum) - Deletes the datum from the set.
-// void x_set_foreach(x_set_t* set, x_set_visitor visit, void*) - Executes visit on each set element.
-// void x_set_copy_out(x_set_t* set, x* array) - Copies all elements from the set to the given array.
+// void x_set_next(x_set_t* set, int* pos, x* datum) - Allows traversal of the set.
 
 #define DEFINE_UNORDERED_SET(set_name, element, hash_func, equals_func) \
 DEFINE_UNORDERED_MAP(set_name##_unordered_map, element, bool, hash_func, equals_func) \
@@ -69,22 +68,10 @@ static inline void set_name##_delete(set_name##_t* set, set_name##_element_t dat
   set->size = set->map->size; \
 } \
 \
-typedef struct \
+static inline bool set_name##_next(set_name##_t* set, int* pos, set_name##_element_t* datum) \
 { \
-  int index; \
-  element* array; \
-} set_name##_hash_copy_out_t; \
-static inline void set_name##_hash_copy_out(element key, bool value, void* arg) \
-{ \
-  set_name##_hash_copy_out_t* a = (set_name##_hash_copy_out_t*)arg; \
-  a->array[a->index] = key; \
-  a->index++; \
-} \
-\
-static inline void set_name##_copy_out(set_name##_t* set, element* array) \
-{ \
-  set_name##_hash_copy_out_t arg = {.index = 0, .array = array}; \
-  set_name##_unordered_map_foreach(set->map, set_name##_hash_copy_out, (void*)&arg); \
+  bool val; \
+  return set_name##_unordered_map_next(set->map, pos, datum, &val); \
 } \
 \
 

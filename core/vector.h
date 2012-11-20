@@ -29,7 +29,6 @@
 //                            Does not alter vec->size.
 // x_vector_resize(vec, N)  - Resizes vec space for N elements within vec.
 // x_vector_append(vec, e)  - Appends e to the end of vec, resizing it.
-// x_vector_foreach(vec, v) - Executes v(e) for each element e in vec.
 //
 // Other curiosities:
 // x_vector_new_with_arena(arena, N) - Creates a new x_vector_t with N 
@@ -114,11 +113,7 @@ static inline void vector_name##_append(vector_name##_t* v, element e) \
   v->data[v->size] = e; \
   v->size++; \
 } \
-static inline void vector_name##_foreach(vector_name##_t* v, vector_name##_visitor visitor) \
-{ \
-  for (int i = 0; i < v->size; ++i) \
-    visitor(v->data[i]); \
-} \
+\
 
 #ifdef __cplusplus
 extern "C" {
