@@ -29,10 +29,14 @@ bool multi_index_next(multi_index_t* m, int* x_order, int* y_order, int* z_order
 // Resets the given multi-index to its first term.
 void multi_index_reset(multi_index_t* m);
 
-// This is a weighting function used for least-squares systems. Given a 
-// context pointer, a point x, and a reference point x0, it returns a value 
-// and a gradient.
-typedef void (*ls_weighting_func_t)(void*, point_t*, point_t*, double*, vector_t*);
+// This is a weighting function used for least-squares systems. Arguments:
+// - A context pointer storing information peculiar to this weighting function.
+// - A point x at which the weighting function is evaluated.
+// - A point x0 at which the weighting function is "centered."
+// - A number h that characterizes the spatial extent of the weight function.
+// - A pointer to storage for the weighting function value.
+// - A pointer to storage for the weighting function gradient.
+typedef void (*ls_weighting_func_t)(void*, point_t*, point_t*, double, double*, vector_t*);
 
 // Returns the size of the least-squares polynomial basis of order p.
 int poly_ls_basis_size(int p);
