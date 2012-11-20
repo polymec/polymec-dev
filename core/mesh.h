@@ -3,6 +3,7 @@
 
 #include "core/arbi.h"
 #include "core/point.h"
+#include "core/sp_func.h"
 #include "arena/proto.h"
 
 #ifdef __cplusplus
@@ -161,6 +162,10 @@ void mesh_tag_delete_property(mesh_tags_t* tagger, const char* tag, const char* 
 
 // Deletes the given tag. This has no effect if the tag is not found.
 void mesh_delete_tag(mesh_tags_t* tagger, const char* tag);
+
+// Maps the mesh from its existing coordinates to a set of coordinates
+// defined by the (vector-valued) tranformation function.
+void mesh_map(mesh_t* mesh, sp_func_t* mapping);
 
 #ifdef __cplusplus
 }

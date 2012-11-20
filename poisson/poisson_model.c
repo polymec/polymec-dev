@@ -140,7 +140,7 @@ static model_t* create_poisson(mesh_t* mesh, st_func_t* rhs, str_ptr_unordered_m
 //------------------------------------------------------------------------
 
 // Mesh generation for benchmark problems.
-static mesh_t* create_cube_mesh(int dim, int N)
+static mesh_t* create_cube_mesh(int dim, int N, bbox_t* bbox)
 {
   // Get the characteristic resolution.
   int N3[3] = {N, 1, 1};
@@ -148,7 +148,7 @@ static mesh_t* create_cube_mesh(int dim, int N)
     N3[d] = N;
 
   // Create the mesh.
-  mesh_t* mesh = create_cubic_lattice_mesh(N3[0], N3[1], N3[2], 0);
+  mesh_t* mesh = create_cubic_lattice_mesh_with_bbox(N3[0], N3[1], N3[2], bbox);
 
   // Tag the boundaries of the mesh.
   cubic_lattice_t* lattice = cubic_lattice_new(N3[0], N3[1], N3[2]);
@@ -262,13 +262,14 @@ static void poisson_run_laplace_1d(options_t* options)
 
   // Base resolution, number of runs.
   int N0 = 32, num_runs = 8;
-  
+
   // Do a convergence study.
   double Lp_norms[num_runs][3];
   for (int iter = 0; iter < num_runs; ++iter)
   {
     int N = N0 * pow(2, iter);
-    mesh_t* mesh = create_cube_mesh(1, N);
+    bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0/N, .z1 = 0.0, .z2 = 1.0/N};
+    mesh_t* mesh = create_cube_mesh(1, N, &bbox);
     str_ptr_unordered_map_t* bcs_copy = str_ptr_unordered_map_copy(bcs);
     run_analytic_problem(mesh, zero, bcs_copy, options, t1, t2, sol, Lp_norms[iter]);
     log_info("iteration %d: L1 = %g, L2 = %g, Linf = %g", iter, Lp_norms[iter][1], Lp_norms[iter][2], Lp_norms[iter][0]);
@@ -326,7 +327,8 @@ static void poisson_run_laplace_sov(int variant, options_t* options)
   for (int iter = 0; iter < num_refinements; ++iter)
   {
     int N = pow(N0, iter+1);
-    mesh_t* mesh = create_cube_mesh(dim, N);
+    bbox_t bbox;
+    mesh_t* mesh = create_cube_mesh(dim, N, &bbox);
     run_analytic_problem(mesh, rhs, bcs, options, t1, t2, sol, Lpnorms[iter]);
   }
 }
@@ -371,7 +373,8 @@ static void poisson_run_paraboloid(int variant, options_t* options)
   for (int iter = 0; iter < num_refinements; ++iter)
   {
     int N = pow(N0, iter+1);
-    mesh_t* mesh = create_cube_mesh(dim, N);
+    bbox_t bbox;
+    mesh_t* mesh = create_cube_mesh(dim, N, &bbox);
     run_analytic_problem(mesh, rhs, bcs, options, t1, t2, sol, Lpnorms[iter]);
   }
 }
