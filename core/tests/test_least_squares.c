@@ -43,9 +43,9 @@ void dgetrs(char *TRANS, int *N, int *NRHS, double *A,
 
 // Weighting function: W(x, x0) = 1/(|x-x0|^2 + eps^2)
 static const double epsilon = 1e-4;
-static void weighting_func(void* context, point_t* x, point_t* x0, double* W, vector_t* gradient)
+static void weighting_func(void* context, point_t* x, point_t* x0, double h, double* W, vector_t* gradient)
 {
-  double D = (x0 != NULL) ? point_distance(x, x0) : sqrt(x->x*x->x+x->y*x->y+x->z*x->z);
+  double D = (x0 != NULL) ? point_distance(x, x0) / h : sqrt(x->x*x->x+x->y*x->y+x->z*x->z/(h*h));
   *W = 1.0 / (pow(D, 2) + pow(epsilon, 2));
   double dDdx = x->x / D, dDdy = x->y / D, dDdz = x->z / D;
   double deriv_term = -(*W)*(*W) * 2.0 * D;
@@ -92,9 +92,10 @@ void test_poly_fit(int p, point_t* x0, point_t* points, int num_points, double* 
   assert_int_equal(0, info);
 
   // Check the coefficients of the fit.
-  static const double tolerances[] = {1e-15, 2e-14, 2e-12, 1e-9};
+  static const double tolerances[] = {1e-15, 3e-14, 2e-12, 1e-9};
   for (int i = 0; i < dim; ++i)
   {
+//printf("%g %g %g\n", b[i], coeffs[i], fabs(b[i] - coeffs[i]));
     assert_true(fabs(b[i] - coeffs[i]) < tolerances[p]);
   }
 }
@@ -148,7 +149,7 @@ void test_poly_shape_functions(int p, point_t* x0, point_t* points, int num_poin
   for (int k = 0; k < num_points; ++k)
     phi_fit += Nk[k] * data[k];
 //  printf("%g %g %g\n", phi_fit, phi, fabs(phi_fit - phi));
-  assert_true(fabs(phi_fit - phi) < 2e-14);
+  assert_true(fabs(phi_fit - phi) < 4e-14);
 
   // Clean up.
   N = NULL;
@@ -276,7 +277,7 @@ void test_poly_shape_function_constraints(int p, point_t* x0, point_t* points, i
   // Compute shape functions for the given data.
   poly_ls_shape_t* N = poly_ls_shape_new(p, true);
   if (weighted)
-    poly_ls_shape_set_simple_weighting_func(N, 2.0, 1e-4);
+    poly_ls_shape_set_simple_weighting_func(N, 2.0, 1e-2);
   poly_ls_shape_set_domain(N, x0, points, num_points);
 
   // Constraints: make the constraint points match their corresponding 
@@ -317,7 +318,7 @@ void test_poly_shape_function_constraints(int p, point_t* x0, point_t* points, i
     for (int j = 0; j < num_points; ++j)
       constrained_data[i] += A[num_ghosts*j+i] * data[j];
 //printf("%g %g %g\n", constrained_data[i], data[ghost_indices[i]], fabs(constrained_data[i] - data[ghost_indices[i]]));
-    assert_true(fabs(constrained_data[i] - data[ghost_indices[i]]) < 5e-7);
+    assert_true(fabs(constrained_data[i] - data[ghost_indices[i]]) < 8e-10);
   }
 
   // Clean up.

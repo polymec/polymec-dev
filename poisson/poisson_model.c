@@ -848,7 +848,7 @@ model_t* poisson_model_new(options_t* options)
   context->L = NULL;
   context->bcs = str_ptr_unordered_map_new();
   context->shape = poly_ls_shape_new(1, true);
-  poly_ls_shape_set_simple_weighting_func(context->shape, 2, 1e-4);
+  poly_ls_shape_set_simple_weighting_func(context->shape, 2, 1e-2);
   context->boundary_cells = int_ptr_unordered_map_new();
   context->initialized = false;
   context->comm = MPI_COMM_WORLD;

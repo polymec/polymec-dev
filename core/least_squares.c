@@ -208,6 +208,14 @@ void compute_weighted_poly_ls_system(int p, ls_weighting_func_t W, point_t* x0, 
   memset(moment_matrix, 0, sizeof(double)*size*size);
   memset(rhs, 0, sizeof(double)*size);
  
+  // Compute the average distance between the points. This will serve as 
+  // our spatial scale length, h.
+  double h = 0.0;
+  for (int n = 0; n < num_points; ++n)
+    for (int l = n; l < num_points; ++l)
+      h += point_distance(&points[n], &points[l]);
+  h /= (num_points*(num_points+1)/2);
+
   for (int n = 0; n < num_points; ++n)
   {
     double d;
@@ -226,7 +234,7 @@ void compute_weighted_poly_ls_system(int p, ls_weighting_func_t W, point_t* x0, 
     }
     double Wd;
     vector_t gradWd;
-    W(NULL, &points[n], x0, &Wd, &gradWd);
+    W(NULL, &points[n], x0, h, &Wd, &gradWd);
     for (int i = 0; i < size; ++i)
     {
       for (int j = 0; j < size; ++j)
@@ -246,6 +254,7 @@ struct poly_ls_shape_t
   int num_points; // Number of points in domain.
   point_t* points; // Points in domain.
   point_t x0; // Origin.
+  double h; // Smoothing length scale.
   ls_weighting_func_t weighting_func; // Weighting function.
   void* w_context; // Context pointer for weighting function.
   void (*w_dtor)(void*); // Destructor for weighting function context pointer.
@@ -263,7 +272,7 @@ static void poly_ls_shape_free(void* context, void* dummy)
   free(N);
 }
 
-static void no_weighting_func(void* context, point_t* x, point_t* x0, double* W, vector_t* gradient)
+static void no_weighting_func(void* context, point_t* x, point_t* x0, double h, double* W, vector_t* gradient)
 {
   *W = 1.0;
   gradient->x = gradient->y = gradient->z = 0.0;
@@ -284,6 +293,7 @@ poly_ls_shape_t* poly_ls_shape_new(int p, bool compute_gradients)
   N->domain_basis = NULL;
   N->num_points = 0;
   N->points = NULL;
+  N->h = 0.0;
   GC_register_finalizer(N, &poly_ls_shape_free, N, NULL, NULL);
   return N;
 }
@@ -310,25 +320,20 @@ void poly_ls_shape_set_domain(poly_ls_shape_t* N, point_t* x0, point_t* points, 
                  .z = points[n].z - x0->z};
     compute_poly_ls_basis_vector(N->p, &y, &N->domain_basis[dim*n]);
   }
+
+  // Compute the average distance between the points. This will serve as 
+  // our spatial scale length, h.
+  N->h = 0.0;
+  for (int n = 0; n < num_points; ++n)
+    for (int l = n; l < num_points; ++l)
+      N->h += point_distance(&N->points[n], &N->points[l]);
+  N->h /= (num_points*(num_points+1)/2);
+
 }
 
 void poly_ls_shape_compute(poly_ls_shape_t* N, point_t* x, double* values)
 {
   poly_ls_shape_compute_gradients(N, x, values, NULL);
-#if 0
-  ASSERT(N->AinvB != NULL);
-  double basis[N->dim];
-
-  // values^T = basis^T * Ainv * B (or values = (Ainv * B)^T * basis.)
-  double alpha = 1.0, beta = 0.0;
-  int one = 1;
-  char trans = 'T';
-  point_t y = {.x = x->x - N->x0.x, 
-               .y = x->y - N->x0.y,
-               .z = x->z - N->x0.z};
-  compute_poly_ls_basis_vector(N->p, &y, basis);
-  dgemv(&trans, &N->dim, &N->num_points, &alpha, N->AinvB, &N->dim, basis, &one, &beta, values, &one);
-#endif
 }
 
 void poly_ls_shape_compute_gradients(poly_ls_shape_t* N, point_t* x, double* values, vector_t* gradients)
@@ -341,7 +346,7 @@ void poly_ls_shape_compute_gradients(poly_ls_shape_t* N, point_t* x, double* val
   double W[num_points];
   vector_t grad_W[num_points];
   for (int n = 0; n < num_points; ++n)
-    N->weighting_func(N->w_context, x, &N->points[n], &W[n], &grad_W[n]);
+    N->weighting_func(N->w_context, x, &N->points[n], N->h, &W[n], &grad_W[n]);
 
   // Compute the moment matrix A.
   double A[dim*dim], AinvB[dim*num_points];
@@ -573,10 +578,10 @@ typedef struct
   double B;
 } simple_weighting_func_params_t;
 
-static void simple_weighting_func(void* context, point_t* x, point_t* x0, double* W, vector_t* gradient)
+static void simple_weighting_func(void* context, point_t* x, point_t* x0, double h, double* W, vector_t* gradient)
 {
   simple_weighting_func_params_t* params = (simple_weighting_func_params_t*)context;
-  double D = point_distance(x, x0);
+  double D = point_distance(x, x0)/h;
   *W = 1.0 / (pow(D, params->A) + pow(params->B, params->A));
   if (D == 0.0)
   {
