@@ -204,11 +204,12 @@ static void run_analytic_problem(mesh_t* mesh, st_func_t* rhs, str_ptr_unordered
   {
     double phi_sol;
     st_func_eval(solution, &pm->mesh->cells[c].center, t2, &phi_sol);
-    double err = fabs(pm->phi[c] - phi_sol)*pm->mesh->cells[c].volume;
+    double V = pm->mesh->cells[c].volume;
+    double err = fabs(pm->phi[c] - phi_sol);
 //printf("i = %d, phi = %g, phi_s = %g, err = %g\n", c, pm->phi[c], phi_sol, err);
     Linf = (Linf < err) ? err : Linf;
-    L1 += err;
-    L2 += err*err;
+    L1 += err*V;
+    L2 += err*err*V*V;
   }
   L2 = sqrt(L2);
   lp_norms[0] = Linf;
@@ -268,7 +269,8 @@ static void poisson_run_laplace_1d(options_t* options)
   for (int iter = 0; iter < num_runs; ++iter)
   {
     int N = N0 * pow(2, iter);
-    bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0/N, .z1 = 0.0, .z2 = 1.0/N};
+//    bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0/N, .z1 = 0.0, .z2 = 1.0/N};
+    bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
     mesh_t* mesh = create_cube_mesh(1, N, &bbox);
     str_ptr_unordered_map_t* bcs_copy = str_ptr_unordered_map_copy(bcs);
     run_analytic_problem(mesh, zero, bcs_copy, options, t1, t2, sol, Lp_norms[iter]);
