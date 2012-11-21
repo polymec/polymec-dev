@@ -350,10 +350,10 @@ void poly_ls_shape_compute_gradients(poly_ls_shape_t* N, point_t* x, double* val
 
   // Compute the moment matrix A.
   double A[dim*dim], AinvB[dim*num_points];
-//printf("x0 = %g %g %g\n", x0->x, x0->y, x0->z);
+//printf("x0 = %g %g %g\n", N->x0.x, N->x0.y, N->x0.z);
 //printf("points = ");
-//for (int n = 0; n < num_points; ++n)
-//printf("%g %g %g  ", points[n].x, points[n].y, points[n].z);
+//for (int n = 0; n < N->num_points; ++n)
+//printf("%g %g %g  ", N->points[n].x, N->points[n].y, N->points[n].z);
 //printf("\n");
   memset(A, 0, sizeof(double)*dim*dim);
   for (int n = 0; n < num_points; ++n)

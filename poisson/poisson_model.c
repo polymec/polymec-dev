@@ -412,8 +412,8 @@ static void poisson_run_paraboloid(options_t* options, int dim)
   // Set up a homogeneous Neumann boundary condition on +/- z.
   double z = 0.0;
   st_func_t* zero = constant_st_func_new(1, &z);
-  str_ptr_unordered_map_insert(bcs, "+y", create_bc(0.0, 1.0, zero));
-  str_ptr_unordered_map_insert(bcs, "-y", create_bc(0.0, 1.0, zero));
+  str_ptr_unordered_map_insert(bcs, "+z", create_bc(0.0, 1.0, zero));
+  str_ptr_unordered_map_insert(bcs, "-z", create_bc(0.0, 1.0, zero));
 
   // Start/end time.
   double t = 0.0;
@@ -432,7 +432,6 @@ static void poisson_run_paraboloid(options_t* options, int dim)
       num_runs = 2;
       break;
   }
-num_runs = 1;
   
   // Do a convergence study.
   double Lpnorms[num_runs][3];
@@ -443,8 +442,19 @@ num_runs = 1;
     if (dim == 2)
       bbox.z2 = 1.0/N;
     mesh_t* mesh = create_cube_mesh(dim, N, &bbox);
-    run_analytic_problem(mesh, rhs, bcs, options, t, t, sol, Lpnorms[iter]);
+    str_ptr_unordered_map_t* bcs_copy = str_ptr_unordered_map_copy(bcs);
+    run_analytic_problem(mesh, rhs, bcs_copy, options, t, t, sol, Lpnorms[iter]);
   }
+
+  // Clean up.
+  int pos = 0;
+  char* key;
+  void* value;
+  while (str_ptr_unordered_map_next(bcs, &pos, &key, &value))
+    free_bc(value);
+  str_ptr_unordered_map_free(bcs);
+  zero = NULL;
+  sol = NULL;
 }
 
 static void run_paraboloid(options_t* options)
