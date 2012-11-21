@@ -16,6 +16,8 @@ struct model_t
   char* name;
   model_vtable vtable;
   str_str_unordered_map_t* benchmarks;
+  int plot_every; // Plot frequency.
+  int save_every; // Save frequency.
 };
 
 model_t* model_new(const char* name, void* context, model_vtable vtable, options_t* options)
@@ -27,6 +29,8 @@ model_t* model_new(const char* name, void* context, model_vtable vtable, options
   model->context = context;
   model->name = strdup(name);
   model->benchmarks = str_str_unordered_map_new();
+  model->plot_every = -1;
+  model->save_every = -1;
 
   // Some generic options.
   char* logging = options_value(options, "logging");
@@ -41,6 +45,12 @@ model_t* model_new(const char* name, void* context, model_vtable vtable, options
     else if (!strcasecmp(logging, "off"))
       set_log_level(LOG_NONE);
   }
+  char* plot_every = options_value(options, "plot_every");
+  if (plot_every != NULL)
+    model->plot_every = atoi(plot_every);
+  char* save_every = options_value(options, "save_every");
+  if (save_every != NULL)
+    model->save_every = atoi(save_every);
   return model;
 }
 
