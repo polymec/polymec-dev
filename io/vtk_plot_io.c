@@ -328,7 +328,6 @@ static void vtk_plot_write_asci_datasets(void* context, void* f, io_dataset_t** 
     write_attribute(writer, "format", "ascii");
 
     // Write data.
-    int faces_data_len = 0;
     int faceoffsets[num_cells];
     for (int c = 0; c < num_cells; ++c)
     {
@@ -336,8 +335,8 @@ static void vtk_plot_write_asci_datasets(void* context, void* f, io_dataset_t** 
       faceoffsets[c] += 1 + mesh->cells[c].num_faces;
       for (int f = 0; f < mesh->cells[c].num_faces; ++f)
         faceoffsets[c] += face_node_offsets[f+1] - face_node_offsets[f];
-      faces_data_len += faceoffsets[c];
     }
+    int faces_data_len = faceoffsets[num_cells-1] - faceoffsets[0];
     char* data = malloc(16*faces_data_len*sizeof(char));
     char datum[16];
     data[0] = '\0';
