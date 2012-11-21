@@ -71,6 +71,8 @@ model_t* model_new(const char* name, void* context, model_vtable vtable, options
   {
     if (!strcasecmp(logging, "debug"))
       set_log_level(LOG_DEBUG);
+    else if (!strcasecmp(logging, "detail"))
+      set_log_level(LOG_DETAIL);
     else if (!strcasecmp(logging, "info"))
       set_log_level(LOG_INFO);
     else if (!strcasecmp(logging, "warning"))
@@ -148,9 +150,7 @@ void model_run_benchmark(model_t* model, const char* benchmark, options_t* optio
   }
   else
   {
-    char err[1024];
-    snprintf(err, 1024, "%s: Benchmark not found: '%s'.", model->name, benchmark);
-    arbi_error(err);
+    arbi_error("%s: Benchmark not found: '%s'.", model->name, benchmark);
   }
 }
 
@@ -181,7 +181,7 @@ double model_max_dt(model_t* model, char* reason)
 
 void model_advance(model_t* model, double dt)
 {
-  log_info("%s: Advancing from time %g to %g.", model->name, model->time, model->time+dt);
+  log_info("%s: Step %d (t = %g, dt = %g)", model->name, model->step, model->time, dt);
   model->vtable.advance(model->context, model->time, dt);
   model->time += dt;
   model->step += 1;
@@ -238,9 +238,9 @@ void model_run(model_t* model, double t1, double t2)
 {
   ASSERT(t2 >= t1);
   if (t2 > t1)
-    log_info("%s: Running from time %g to %g.", model->name, t1, t2);
+    log_detail("%s: Running from time %g to %g.", model->name, t1, t2);
   else
-    log_info("%s: Running simulation at time %g.", model->name, t1);
+    log_detail("%s: Running simulation at time %g.", model->name, t1);
   model_init(model, t1);
   while (model->time < t2)
   {
@@ -251,10 +251,10 @@ void model_run(model_t* model, double t1, double t2)
       dt = t2 - model->time;
       snprintf(reason, ARBI_MODEL_MAXDT_REASON_SIZE, "End of simulation");
     }
-    log_info("%s: Selected time step dt = %g\n (Reason: %s).", model->name, dt, reason);
+    log_detail("%s: Selected time step dt = %g\n (Reason: %s).", model->name, dt, reason);
     model_advance(model, dt);
   }
-  log_info("%s: Run concluded at time %g.", model->name, t2);
+  log_detail("%s: Run concluded at time %g.", model->name, t2);
 }
 
 void* model_context(model_t* model)

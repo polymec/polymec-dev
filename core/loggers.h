@@ -11,6 +11,7 @@ typedef enum
   LOG_NONE,
   LOG_WARNING,
   LOG_INFO,
+  LOG_DETAIL,
   LOG_DEBUG
 } log_level_t;
   
@@ -30,6 +31,9 @@ void set_log_mpi_rank(log_level_t log_type, int mpi_rank);
 
 // Issues a debug message.
 void log_debug(const char* message, ...);
+
+// Issues a detail message (more probing than informational).
+void log_detail(const char* message, ...);
 
 // Issues an informational message.
 void log_info(const char* message, ...);
