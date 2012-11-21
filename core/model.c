@@ -157,7 +157,7 @@ void model_run_benchmark(model_t* model, const char* benchmark, options_t* optio
 // Initialize the model at the given time.
 void model_init(model_t* model, double t)
 {
-  log_info("%s: Initializing at time %g.", model->name, t);
+  log_detail("%s: Initializing at time %g.", model->name, t);
   model->vtable.init(model->context, t);
   model->step = 0;
   model->time = t;
@@ -179,6 +179,14 @@ double model_max_dt(model_t* model, char* reason)
   return dt;
 }
 
+static void model_do_periodic_work(model_t* model)
+{
+  if ((model->plot_every > 0) && (model->step % model->plot_every) == 0)
+    model_plot(model);
+  if ((model->save_every > 0) && (model->step % model->save_every) == 0)
+    model_save(model);
+}
+
 void model_advance(model_t* model, double dt)
 {
   log_info("%s: Step %d (t = %g, dt = %g)", model->name, model->step, model->time, dt);
@@ -186,11 +194,7 @@ void model_advance(model_t* model, double dt)
   model->time += dt;
   model->step += 1;
 
-  // Call periodic work.
-  if ((model->plot_every > 0) && (model->plot_every % model->step) == 0)
-    model_plot(model);
-  if ((model->save_every > 0) && (model->save_every % model->step) == 0)
-    model_save(model);
+  model_do_periodic_work(model);
 }
 
 void model_load(model_t* model, int step)
@@ -202,6 +206,7 @@ void model_load(model_t* model, int step)
     arbi_error("No simulation name was set with model_set_sim_name.");
   char prefix[strlen(model->sim_name) + 16];
   snprintf(prefix, strlen(model->sim_name) + 16, "%s-%d", model->sim_name, step);
+  log_detail("%s: Loading save file from %s...\n", model->name, model->sim_name);
   io_open(model->saver, prefix, model->sim_name, IO_READ);
   model->vtable.load(model->context, model->saver, &model->time, step);
   model->step = step;
@@ -216,6 +221,7 @@ void model_save(model_t* model)
     arbi_error("No simulation name was set with model_set_sim_name.");
   char prefix[strlen(model->sim_name) + 16];
   snprintf(prefix, strlen(model->sim_name) + 16, "%s-%d", model->sim_name, model->step);
+  log_detail("%s: Writing save file to %s...\n", model->name, model->sim_name);
   io_open(model->saver, prefix, model->sim_name, IO_WRITE);
   model->vtable.save(model->context, model->saver, model->time, model->step);
   io_close(model->saver);
@@ -229,6 +235,7 @@ void model_plot(model_t* model)
     arbi_error("No simulation name was set with model_set_sim_name.");
   char prefix[strlen(model->sim_name) + 16];
   snprintf(prefix, strlen(model->sim_name) + 16, "%s-%d", model->sim_name, model->step);
+  log_detail("%s: Writing plot to %s...\n", model->name, model->sim_name);
   io_open(model->plotter, prefix, model->sim_name, IO_WRITE);
   model->vtable.plot(model->context, model->plotter, model->time, model->step);
   io_close(model->plotter);
@@ -242,17 +249,25 @@ void model_run(model_t* model, double t1, double t2)
   else
     log_detail("%s: Running simulation at time %g.", model->name, t1);
   model_init(model, t1);
-  while (model->time < t2)
+
+  if (t1 == t2)
   {
-    char reason[ARBI_MODEL_MAXDT_REASON_SIZE];
-    double dt = model_max_dt(model, reason);
-    if (dt > t2 - model->time)
+    model_do_periodic_work(model);
+  }
+  else
+  {
+    while (model->time < t2)
     {
-      dt = t2 - model->time;
-      snprintf(reason, ARBI_MODEL_MAXDT_REASON_SIZE, "End of simulation");
+      char reason[ARBI_MODEL_MAXDT_REASON_SIZE];
+      double dt = model_max_dt(model, reason);
+      if (dt > t2 - model->time)
+      {
+        dt = t2 - model->time;
+        snprintf(reason, ARBI_MODEL_MAXDT_REASON_SIZE, "End of simulation");
+      }
+      log_detail("%s: Selected time step dt = %g\n (Reason: %s).", model->name, dt, reason);
+      model_advance(model, dt);
     }
-    log_detail("%s: Selected time step dt = %g\n (Reason: %s).", model->name, dt, reason);
-    model_advance(model, dt);
   }
   log_detail("%s: Run concluded at time %g.", model->name, t2);
 }
