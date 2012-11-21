@@ -305,7 +305,7 @@ static void poisson_run_laplace_1d(options_t* options, int dim)
       Lp_norms[iter][1] /= dx;
       Lp_norms[iter][2] /= dx;
     }
-    log_info("iteration %d: L1 = %g, L2 = %g, Linf = %g", iter, Lp_norms[iter][1], Lp_norms[iter][2], Lp_norms[iter][0]);
+    log_info("iteration %d (Nx = %d): L1 = %g, L2 = %g, Linf = %g", iter, N, Lp_norms[iter][1], Lp_norms[iter][2], Lp_norms[iter][0]);
   }
 
   // Clean up.
