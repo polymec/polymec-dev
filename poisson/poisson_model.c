@@ -14,6 +14,7 @@
 #include "geometry/cylinder.h"
 #include "geometry/sphere.h"
 #include "geometry/intersection.h"
+#include "io/vtk_plot_io.h"
 #include "poisson/poisson_model.h"
 #include "poisson/laplacian_op.h"
 
@@ -197,6 +198,13 @@ static void run_analytic_problem(mesh_t* mesh, st_func_t* rhs, str_ptr_unordered
   // Run the thing.
   model_run(model, t1, t2);
 
+  // Plot the thing.
+  io_interface_t* plot = vtk_plot_io_new(MPI_COMM_SELF, 0, false);
+  io_open(plot, "plotty", ".", IO_WRITE);
+  model_dump(model, plot, t2, 1);
+  io_close(plot);
+  io_free(plot);
+
   // Calculate the Lp norm of the error and write it to Lp_norms.
   poisson_t* pm = model_context(model);
   double Linf = 0.0, L1 = 0.0, L2 = 0.0;
@@ -237,7 +245,7 @@ static void laplace_1d_solution_grad(void* context, point_t* x, double t, double
   grad_phi[2] = 0.0;
 }
 
-static void poisson_run_laplace_1d(options_t* options)
+static void poisson_run_laplace_1d(options_t* options, int dim)
 {
   // RHS function is zero for Laplace's equation.
   double z = 0.0;
@@ -262,18 +270,47 @@ static void poisson_run_laplace_1d(options_t* options)
   double t1 = 0.0, t2 = 1.0;
 
   // Base resolution, number of runs.
-  int N0 = 32, num_runs = 8;
+  int N0;
+  switch(dim)
+  {
+    case 1: 
+      N0 = 32;
+      break;
+    case 2:
+      N0 = 16;
+      break;
+    case 3:
+      N0 = 8;
+      break;
+  }
+  int num_runs = 2;
 
   // Do a convergence study.
   double Lp_norms[num_runs][3];
   for (int iter = 0; iter < num_runs; ++iter)
   {
     int N = N0 * pow(2, iter);
-//    bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0/N, .z1 = 0.0, .z2 = 1.0/N};
+    double dx = 1.0/N;
     bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
-    mesh_t* mesh = create_cube_mesh(1, N, &bbox);
+    if (dim == 1)
+      bbox.y2 = bbox.z2 = dx;
+    if (dim == 2)
+      bbox.z2 = dx;
+    mesh_t* mesh = create_cube_mesh(dim, N, &bbox);
     str_ptr_unordered_map_t* bcs_copy = str_ptr_unordered_map_copy(bcs);
     run_analytic_problem(mesh, zero, bcs_copy, options, t1, t2, sol, Lp_norms[iter]);
+
+    // If we run in 1D or 2D, we need to adjust the norms.
+    if (dim == 1)
+    {
+      Lp_norms[iter][1] /= dx*dx;
+      Lp_norms[iter][2] /= dx*dx;
+    }
+    else if (dim == 2)
+    {
+      Lp_norms[iter][1] /= dx;
+      Lp_norms[iter][2] /= dx;
+    }
     log_info("iteration %d: L1 = %g, L2 = %g, Linf = %g", iter, Lp_norms[iter][1], Lp_norms[iter][2], Lp_norms[iter][0]);
   }
 
@@ -691,7 +728,15 @@ static void poisson_run_benchmark(const char* benchmark, options_t* options)
   char* variant_str = NULL;
   if (!strcmp(benchmark, "laplace_1d"))
   {
-    poisson_run_laplace_1d(options);
+    poisson_run_laplace_1d(options, 1);
+  }
+  else if (!strcmp(benchmark, "laplace_1d_2"))
+  {
+    poisson_run_laplace_1d(options, 2);
+  }
+  else if (!strcmp(benchmark, "laplace_1d_3"))
+  {
+    poisson_run_laplace_1d(options, 3);
   }
   else if ((variant_str = strstr(benchmark, "laplace_sov")) != NULL)
   {
@@ -859,6 +904,8 @@ model_t* poisson_model_new(options_t* options)
   context->comm = MPI_COMM_WORLD;
   model_t* model = model_new("poisson", context, vtable, options);
   model_register_benchmark(model, "laplace_1d", "Laplace's equation in 1D Cartesian coordinates.");
+  model_register_benchmark(model, "laplace_1d_2", "Laplace's equation in 1D Cartesian coordinates (run in 2D).");
+  model_register_benchmark(model, "laplace_1d_3", "Laplace's equation in 1D Cartesian coordinates (run in 3D).");
   return model;
 }
 
