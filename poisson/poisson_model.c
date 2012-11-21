@@ -14,6 +14,7 @@
 #include "geometry/cylinder.h"
 #include "geometry/sphere.h"
 #include "geometry/intersection.h"
+#include "io/silo_io.h"
 #include "io/vtk_plot_io.h"
 #include "poisson/poisson_model.h"
 #include "poisson/laplacian_op.h"
@@ -197,13 +198,6 @@ static void run_analytic_problem(mesh_t* mesh, st_func_t* rhs, str_ptr_unordered
 
   // Run the thing.
   model_run(model, t1, t2);
-
-  // Plot the thing.
-  io_interface_t* plot = vtk_plot_io_new(MPI_COMM_SELF, 0, false);
-  io_open(plot, "plotty", ".", IO_WRITE);
-  model_dump(model, plot, t2, 1);
-  io_close(plot);
-  io_free(plot);
 
   // Calculate the Lp norm of the error and write it to Lp_norms.
   poisson_t* pm = model_context(model);
@@ -842,7 +836,18 @@ static void poisson_init(void* context, double t)
   p->initialized = true;
 }
 
-static void poisson_dump(void* context, io_interface_t* io, double t, int step)
+static void poisson_plot(void* context, io_interface_t* io, double t, int step)
+{
+  ASSERT(context != NULL);
+  poisson_t* p = (poisson_t*)context;
+
+  io_dataset_t* dataset = io_dataset_new("default", 1, 0);
+  io_dataset_write_mesh(dataset, p->mesh);
+  io_dataset_write_field(dataset, "phi", p->phi, 1, MESH_CELL);
+  io_append_dataset(io, dataset);
+}
+
+static void poisson_save(void* context, io_interface_t* io, double t, int step)
 {
   ASSERT(context != NULL);
   poisson_t* p = (poisson_t*)context;
@@ -889,7 +894,8 @@ model_t* poisson_model_new(options_t* options)
   model_vtable vtable = { .run_benchmark = &poisson_run_benchmark,
                           .init = &poisson_init,
                           .advance = &poisson_advance,
-                          .dump = &poisson_dump,
+                          .save = &poisson_save,
+                          .plot = &poisson_plot,
                           .dtor = &poisson_dtor};
   poisson_t* context = malloc(sizeof(poisson_t));
   context->mesh = NULL;
@@ -906,6 +912,13 @@ model_t* poisson_model_new(options_t* options)
   model_register_benchmark(model, "laplace_1d", "Laplace's equation in 1D Cartesian coordinates.");
   model_register_benchmark(model, "laplace_1d_2", "Laplace's equation in 1D Cartesian coordinates (run in 2D).");
   model_register_benchmark(model, "laplace_1d_3", "Laplace's equation in 1D Cartesian coordinates (run in 3D).");
+
+  // Set up saver/plotter.
+  io_interface_t* saver = silo_io_new(MPI_COMM_SELF, 0, false);
+  model_set_saver(model, saver);
+  io_interface_t* plotter = vtk_plot_io_new(MPI_COMM_SELF, 0, false);
+  model_set_plotter(model, plotter);
+
   return model;
 }
 

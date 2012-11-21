@@ -4,7 +4,6 @@
 #include "core/model.h"
 #include "core/unordered_map.h"
 #include "core/options.h"
-#include "core/simulation.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -12,12 +11,23 @@ extern "C" {
 
 struct model_t 
 {
+  // Model metadata.
   void* context;
   char* name;
   model_vtable vtable;
   str_str_unordered_map_t* benchmarks;
-  int plot_every; // Plot frequency.
+
+  // Functions that are called periodically. 
+  io_interface_t* saver; // I/O interface for saving.
   int save_every; // Save frequency.
+  io_interface_t* plotter; // I/O interface for plotting.
+  int plot_every; // Plot frequency.
+
+  // Data related to a given simulation.
+  char* sim_name; // Simulation name.
+  double time;    // Current simulation time.
+  int step;       // Current simulation step.
+  double max_dt;  // Maximum time step.
 };
 
 model_t* model_new(const char* name, void* context, model_vtable vtable, options_t* options)
@@ -29,8 +39,12 @@ model_t* model_new(const char* name, void* context, model_vtable vtable, options
   model->context = context;
   model->name = strdup(name);
   model->benchmarks = str_str_unordered_map_new();
-  model->plot_every = -1;
+  model->sim_name = NULL;
+  model->saver = NULL;
   model->save_every = -1;
+  model->plotter = NULL;
+  model->plot_every = -1;
+  model->max_dt = FLT_MAX;
 
   // Some generic options.
   char* logging = options_value(options, "logging");
@@ -51,6 +65,12 @@ model_t* model_new(const char* name, void* context, model_vtable vtable, options
   char* save_every = options_value(options, "save_every");
   if (save_every != NULL)
     model->save_every = atoi(save_every);
+  char* max_dt = options_value(options, "max_dt");
+  if (max_dt != NULL)
+    model->max_dt = atof(max_dt);
+  char* sim_name = options_value(options, "sim_name");
+  if (sim_name != NULL)
+    model_set_sim_name(model, sim_name);
   return model;
 }
 
@@ -63,6 +83,12 @@ void model_free(model_t* model)
   // Clear benchmarks.
   str_str_unordered_map_free(model->benchmarks);
 
+  if (model->sim_name != NULL)
+    free(model->sim_name);
+  if (model->saver != NULL)
+    io_free(model->saver);
+  if (model->plotter != NULL)
+    io_free(model->plotter);
   free(model);
 }
 
@@ -95,6 +121,7 @@ void model_run_benchmark(model_t* model, const char* benchmark, options_t* optio
   if (model->vtable.run_benchmark != NULL)
   {
     log_info("%s: Running benchmark '%s'.", model->name, benchmark);
+    options_set(options, "sim_name", benchmark);
     model->vtable.run_benchmark(benchmark, options);
     log_info("%s: Finished running benchmark '%s'.", model->name, benchmark);
   }
@@ -111,59 +138,96 @@ void model_init(model_t* model, double t)
 {
   log_info("%s: Initializing at time %g.", model->name, t);
   model->vtable.init(model->context, t);
+  model->step = 0;
+  model->time = t;
 }
 
 // Returns the largest permissible time step that can be taken by the model
 // starting at time t.
-double model_max_dt(model_t* model, double t, char* reason)
+double model_max_dt(model_t* model, char* reason)
 {
-  if (model->vtable.max_dt != NULL)
-    return model->vtable.max_dt(model->context, t, reason);
-  else
+  double dt = FLT_MAX;
+  strcpy(reason, "No time step constraints.");
+  if (model->max_dt < FLT_MAX)
   {
-    strcpy(reason, "No time step constraints.");
-    return FLT_MAX;
+    dt = model->max_dt;
+    strcpy(reason, "Max dt set in options.");
   }
+  if (model->vtable.max_dt != NULL)
+    return model->vtable.max_dt(model->context, model->time, reason);
+  return dt;
 }
 
-void model_advance(model_t* model, double t, double dt)
+void model_advance(model_t* model, double dt)
 {
-  log_info("%s: Advancing from time %g to %g.", model->name, t, t+dt);
-  model->vtable.advance(model->context, t, dt);
+  log_info("%s: Advancing from time %g to %g.", model->name, model->time, model->time+dt);
+  model->vtable.advance(model->context, model->time, dt);
+  model->time += dt;
+  model->step += 1;
+
+  // Call periodic work.
+  if ((model->plot_every > 0) && (model->plot_every % model->step) == 0)
+    model_plot(model);
+  if ((model->save_every > 0) && (model->save_every % model->step) == 0)
+    model_save(model);
 }
 
-void model_load(model_t* model, io_interface_t* io, double* t, int* step)
+void model_load(model_t* model, int step)
 {
-  model->vtable.load(model->context, io, t, step);
+  ASSERT(step >= 0);
+  if (model->saver == NULL)
+    arbi_error("No saver/loader was set with model_set_saver.");
+  if (model->sim_name == NULL)
+    arbi_error("No simulation name was set with model_set_sim_name.");
+  char prefix[strlen(model->sim_name) + 16];
+  snprintf(prefix, strlen(model->sim_name) + 16, "%s-%d", model->sim_name, step);
+  io_open(model->saver, prefix, model->sim_name, IO_READ);
+  model->vtable.load(model->context, model->saver, &model->time, step);
+  model->step = step;
+  io_close(model->saver);
 }
 
-void model_dump(model_t* model, io_interface_t* io, double t, int step)
+void model_save(model_t* model)
 {
-  model->vtable.dump(model->context, io, t, step);
+  if (model->saver == NULL)
+    arbi_error("No saver/loader was set with model_set_saver.");
+  if (model->sim_name == NULL)
+    arbi_error("No simulation name was set with model_set_sim_name.");
+  char prefix[strlen(model->sim_name) + 16];
+  snprintf(prefix, strlen(model->sim_name) + 16, "%s-%d", model->sim_name, model->step);
+  io_open(model->saver, prefix, model->sim_name, IO_WRITE);
+  model->vtable.save(model->context, model->saver, model->time, model->step);
+  io_close(model->saver);
 }
 
-void model_plot(model_t* model, plot_interface_t* plot, double t, int step)
+void model_plot(model_t* model)
 {
-  model->vtable.plot(model->context, plot, t, step);
+  if (model->plotter == NULL)
+    arbi_error("No plotter was set with model_set_plotter.");
+  if (model->sim_name == NULL)
+    arbi_error("No simulation name was set with model_set_sim_name.");
+  char prefix[strlen(model->sim_name) + 16];
+  snprintf(prefix, strlen(model->sim_name) + 16, "%s-%d", model->sim_name, model->step);
+  io_open(model->plotter, prefix, model->sim_name, IO_WRITE);
+  model->vtable.plot(model->context, model->plotter, model->time, model->step);
+  io_close(model->plotter);
 }
 
 void model_run(model_t* model, double t1, double t2)
 {
   log_info("%s: Running from time %g to %g.", model->name, t1, t2);
-  double t = t1;
-  model_init(model, t);
-  while (t < t2)
+  model_init(model, t1);
+  while (model->time < t2)
   {
     char reason[ARBI_MODEL_MAXDT_REASON_SIZE];
-    double dt = model_max_dt(model, t, reason);
-    if (dt > t2 - t)
+    double dt = model_max_dt(model, reason);
+    if (dt > t2 - model->time)
     {
-      dt = t2 - t;
+      dt = t2 - model->time;
       snprintf(reason, ARBI_MODEL_MAXDT_REASON_SIZE, "End of simulation");
     }
     log_info("%s: Selected time step dt = %g\n (Reason: %s).", model->name, dt, reason);
-    model_advance(model, t, dt);
-    t += dt;
+    model_advance(model, dt);
   }
   log_info("%s: Run concluded at time %g.", model->name, t2);
 }
@@ -184,6 +248,28 @@ static void driver_usage(const char* model_name, FILE* stream)
   fprintf(stream, "  list-benchmarks      -- Lists all benchmark problems.\n");
   fprintf(stream, "  help                 -- Prints information about the given model.\n\n");
   exit(-1);
+}
+
+void model_set_sim_name(model_t* model, const char* sim_name)
+{
+  ASSERT(sim_name != NULL);
+  if (model->sim_name != NULL)
+    free(model->sim_name);
+  model->sim_name = strdup(sim_name);
+}
+
+void model_set_saver(model_t* model, io_interface_t* saver)
+{
+  ASSERT(saver != NULL);
+  ASSERT(saver != model->plotter);
+  model->saver = saver;
+}
+
+void model_set_plotter(model_t* model, io_interface_t* plotter)
+{
+  ASSERT(plotter != NULL);
+  ASSERT(plotter != model->saver);
+  model->plotter = plotter;
 }
 
 int model_main(const char* model_name, model_ctor constructor, int argc, char* argv[])
@@ -295,17 +381,16 @@ int model_main(const char* model_name, model_ctor constructor, int argc, char* a
   }
   fclose(fp);
 
-  // Create a simulation in which to execute the model.
-  simulation_t* sim = simulation_new(model, input, opts);
+  // By default, the simulation is named after the input file.
+  model_set_sim_name(model, input);
 
-  // Initialize the simulation.
-  simulation_init(sim);
+  // Default time endpoints.
+  double t1 = 0.0, t2 = 1.0;
 
-  // Run the simulation.
-  simulation_run(sim);
+  // Run the model.
+  model_run(model, t1, t2);
 
   // Clean up.
-  simulation_free(sim);
   model_free(model);
 
   return 0;
