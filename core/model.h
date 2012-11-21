@@ -19,9 +19,6 @@ typedef struct model_t model_t;
 // A model constructor function for creating an object context.
 typedef model_t* (*model_ctor)(options_t*);
 
-// A function for running a benchmark calculation.
-typedef void (*model_run_bench_func)(const char*, options_t*);
-
 // A function for initializing the model.
 typedef void (*model_init_func)(void*, double);
 
@@ -46,7 +43,6 @@ typedef void (*model_dtor)(void*);
 // This virtual table must be implemented by any model.
 typedef struct 
 {
-  model_run_bench_func  run_benchmark;
   model_init_func       init;
   model_max_dt_func     max_dt;
   model_advance_func    advance;
@@ -72,8 +68,13 @@ void* model_context(model_t* model);
 // Prints usage information for the model to the given file stream.
 void model_usage(model_t* model, FILE* stream);
 
-// Associates the given benchmark with this model.
-void model_register_benchmark(model_t* model, const char* benchmark, const char* description);
+// This is the type of function that needs to be implemented to 
+// run a benchmark calculation.
+typedef void (*model_benchmark_function_t)(options_t*);
+
+// Registers the given benchmark name, function, and description with 
+// this model.
+void model_register_benchmark(model_t* model, const char* benchmark, model_benchmark_function_t function, const char* description);
 
 // Runs the given benchmark problem for the model.
 void model_run_benchmark(model_t* model, const char* benchmark, options_t* options);

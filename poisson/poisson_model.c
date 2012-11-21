@@ -260,8 +260,8 @@ static void poisson_run_laplace_1d(options_t* options, int dim)
   str_ptr_unordered_map_insert(bcs, "-z", create_bc(0.0, 1.0, zero));
   str_ptr_unordered_map_insert(bcs, "+z", create_bc(0.0, 1.0, zero));
 
-  // Start/end times.
-  double t1 = 0.0, t2 = 1.0;
+  // Run time.
+  double t = 0.0;
 
   // Base resolution, number of runs.
   int N0;
@@ -292,7 +292,7 @@ static void poisson_run_laplace_1d(options_t* options, int dim)
       bbox.z2 = dx;
     mesh_t* mesh = create_cube_mesh(dim, N, &bbox);
     str_ptr_unordered_map_t* bcs_copy = str_ptr_unordered_map_copy(bcs);
-    run_analytic_problem(mesh, zero, bcs_copy, options, t1, t2, sol, Lp_norms[iter]);
+    run_analytic_problem(mesh, zero, bcs_copy, options, t, t, sol, Lp_norms[iter]);
 
     // If we run in 1D or 2D, we need to adjust the norms.
     if (dim == 1)
@@ -320,6 +320,22 @@ static void poisson_run_laplace_1d(options_t* options, int dim)
   sol_grad = NULL;
 }
 
+static void run_laplace_1d(options_t* options)
+{
+  poisson_run_laplace_1d(options, 1);
+}
+
+static void run_laplace_1d_2(options_t* options)
+{
+  poisson_run_laplace_1d(options, 2);
+}
+
+static void run_laplace_1d_3(options_t* options)
+{
+  poisson_run_laplace_1d(options, 3);
+}
+
+#if 0
 static void poisson_run_laplace_sov(int variant, options_t* options)
 {
   // Dimension.
@@ -365,51 +381,75 @@ static void poisson_run_laplace_sov(int variant, options_t* options)
     run_analytic_problem(mesh, rhs, bcs, options, t1, t2, sol, Lpnorms[iter]);
   }
 }
+#endif
 
-static void poisson_run_paraboloid(int variant, options_t* options)
+static void paraboloid_solution(void* context, point_t* x, double t, double* phi)
 {
-  // Dimension.
-  int dim;
-  // FIXME
+  static point_t origin = {.x = 0.0, .y = 0.0, .z = 0.0 };
+  double r2 = point_square_distance(x, &origin);
+  phi[0] = 1.0 + 2.0*r2;
+}
+
+static void poisson_run_paraboloid(options_t* options, int dim)
+{
+  ASSERT((dim == 2) || (dim == 3));
 
   // RHS function.
-  st_func_t* rhs;
-  // FIXME = create_paraboloid_rhs(variant);
-
-  // Boundary conditions.
-  str_ptr_unordered_map_t* bcs = str_ptr_unordered_map_new();
-  if ((variant % 3) == 0)
-    str_ptr_unordered_map_insert(bcs, "boundary", create_bc(1.0, 0.0, NULL));
-  else if ((variant % 3) == 1)
-    str_ptr_unordered_map_insert(bcs, "boundary", create_bc(0.0, 1.0, NULL));
-  else // if ((variant % 3) == 2)
-    str_ptr_unordered_map_insert(bcs, "boundary", create_bc(1.0, 1.0, NULL));
+  double four = 4.0;
+  st_func_t* rhs = constant_st_func_new(1, &four);
 
   // Analytic solution.
-  st_func_t* sol;
-  // FIXME = create_paraboloid_solution(variant);
+  st_func_t* sol = st_func_from_func("paraboloid", paraboloid_solution,
+                                     ST_INHOMOGENEOUS, ST_CONSTANT, 1);
 
-  // Start/end times.
-  double t1, t2;
-  // FIXME
+  // Set up a Dirichlet boundary condition along each of the outside faces.
+  str_ptr_unordered_map_t* bcs = str_ptr_unordered_map_new();
+  str_ptr_unordered_map_insert(bcs, "+x", create_bc(1.0, 0.0, sol));
+  str_ptr_unordered_map_insert(bcs, "-x", create_bc(1.0, 0.0, sol));
+  str_ptr_unordered_map_insert(bcs, "+y", create_bc(1.0, 0.0, sol));
+  str_ptr_unordered_map_insert(bcs, "-y", create_bc(1.0, 0.0, sol));
+  
+  // Set up a homogeneous Neumann boundary condition on +/- z.
+  double z = 0.0;
+  st_func_t* zero = constant_st_func_new(1, &z);
+  str_ptr_unordered_map_insert(bcs, "+y", create_bc(0.0, 1.0, zero));
+  str_ptr_unordered_map_insert(bcs, "-y", create_bc(0.0, 1.0, zero));
 
-  // Base resolution.
+  // Start/end time.
+  double t = 0.0;
+
+  // Base resolution and number of runs.
   int N0;
-  // FIXME
-
-  // Number of refinements.
-  int num_refinements;
-  // FIXME
-
+  int num_runs;
+  switch (dim)
+  {
+    case 2:
+      N0 = 16;
+      num_runs = 3;
+      break;
+    case 3:
+      N0 = 8;
+      num_runs = 2;
+      break;
+  }
+num_runs = 1;
+  
   // Do a convergence study.
-  double Lpnorms[num_refinements][3];
-  for (int iter = 0; iter < num_refinements; ++iter)
+  double Lpnorms[num_runs][3];
+  for (int iter = 0; iter < num_runs; ++iter)
   {
     int N = pow(N0, iter+1);
-    bbox_t bbox;
+    bbox_t bbox = {.x1 = -0.5, .x2 = 0.5, .y1 = -0.5, .y2 = 0.5, .z1 = 0.0, .z2 = 1.0};
+    if (dim == 2)
+      bbox.z2 = 1.0/N;
     mesh_t* mesh = create_cube_mesh(dim, N, &bbox);
-    run_analytic_problem(mesh, rhs, bcs, options, t1, t2, sol, Lpnorms[iter]);
+    run_analytic_problem(mesh, rhs, bcs, options, t, t, sol, Lpnorms[iter]);
   }
+}
+
+static void run_paraboloid(options_t* options)
+{
+  poisson_run_paraboloid(options, 2);
 }
 
 //------------------------------------------------------------------------
@@ -717,37 +757,6 @@ static void set_up_linear_system(mesh_t* mesh, lin_op_t* L, st_func_t* rhs, doub
   VecAssemblyEnd(b);
 }
 
-static void poisson_run_benchmark(const char* benchmark, options_t* options)
-{
-  char* variant_str = NULL;
-  if (!strcmp(benchmark, "laplace_1d"))
-  {
-    poisson_run_laplace_1d(options, 1);
-  }
-  else if (!strcmp(benchmark, "laplace_1d_2"))
-  {
-    poisson_run_laplace_1d(options, 2);
-  }
-  else if (!strcmp(benchmark, "laplace_1d_3"))
-  {
-    poisson_run_laplace_1d(options, 3);
-  }
-  else if ((variant_str = strstr(benchmark, "laplace_sov")) != NULL)
-  {
-    int variant = atoi(variant_str + strlen("laplace_sov"));
-    poisson_run_laplace_sov(variant, options);
-  }
-  else if ((variant_str = strstr(benchmark, "paraboloid")) != NULL)
-  {
-    int variant = atoi(variant_str + strlen("paraboloid"));
-    poisson_run_paraboloid(variant, options);
-  }
-  else
-  {
-    arbi_error("poisson: unknown benchmark: '%s'", benchmark);
-  }
-}
-
 static void poisson_advance(void* context, double t, double dt)
 {
   poisson_t* p = (poisson_t*)context;
@@ -891,8 +900,7 @@ static void poisson_dtor(void* ctx)
 
 model_t* poisson_model_new(options_t* options)
 {
-  model_vtable vtable = { .run_benchmark = &poisson_run_benchmark,
-                          .init = &poisson_init,
+  model_vtable vtable = { .init = &poisson_init,
                           .advance = &poisson_advance,
                           .save = &poisson_save,
                           .plot = &poisson_plot,
@@ -909,9 +917,10 @@ model_t* poisson_model_new(options_t* options)
   context->initialized = false;
   context->comm = MPI_COMM_WORLD;
   model_t* model = model_new("poisson", context, vtable, options);
-  model_register_benchmark(model, "laplace_1d", "Laplace's equation in 1D Cartesian coordinates.");
-  model_register_benchmark(model, "laplace_1d_2", "Laplace's equation in 1D Cartesian coordinates (run in 2D).");
-  model_register_benchmark(model, "laplace_1d_3", "Laplace's equation in 1D Cartesian coordinates (run in 3D).");
+  model_register_benchmark(model, "laplace_1d", run_laplace_1d, "Laplace's equation in 1D Cartesian coordinates.");
+  model_register_benchmark(model, "laplace_1d_2", run_laplace_1d_2, "Laplace's equation in 1D Cartesian coordinates (run in 2D).");
+  model_register_benchmark(model, "laplace_1d_3", run_laplace_1d_3, "Laplace's equation in 1D Cartesian coordinates (run in 3D).");
+  model_register_benchmark(model, "paraboloid", run_paraboloid, "A paraboloid solution to Poisson's equation (2D).");
 
   // Set up saver/plotter.
   io_interface_t* saver = silo_io_new(MPI_COMM_SELF, 0, false);

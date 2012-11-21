@@ -9,13 +9,32 @@
 extern "C" {
 #endif
 
+
+// Benchmark metadatum.
+typedef struct
+{
+  model_benchmark_function_t function;
+  char* description;
+} model_benchmark_t;
+
+// Destructor for benchmark key/value pairs.
+static void free_benchmark_kv(char* key, model_benchmark_t* value)
+{
+  free(key);
+  free(value->description);
+  free(value);
+}
+
+// Mapping from benchmark names to metadata.
+DEFINE_UNORDERED_MAP(model_benchmark_map, char*, model_benchmark_t*, string_hash, string_equals)
+
 struct model_t 
 {
   // Model metadata.
   void* context;
   char* name;
   model_vtable vtable;
-  str_str_unordered_map_t* benchmarks;
+  model_benchmark_map_t* benchmarks;
 
   // Functions that are called periodically. 
   io_interface_t* saver; // I/O interface for saving.
@@ -38,7 +57,7 @@ model_t* model_new(const char* name, void* context, model_vtable vtable, options
   model->vtable = vtable;
   model->context = context;
   model->name = strdup(name);
-  model->benchmarks = str_str_unordered_map_new();
+  model->benchmarks = model_benchmark_map_new();
   model->sim_name = NULL;
   model->saver = NULL;
   model->save_every = -1;
@@ -81,7 +100,7 @@ void model_free(model_t* model)
   free(model->name);
 
   // Clear benchmarks.
-  str_str_unordered_map_free(model->benchmarks);
+  model_benchmark_map_free(model->benchmarks);
 
   if (model->sim_name != NULL)
     free(model->sim_name);
@@ -97,38 +116,40 @@ char* model_name(model_t* model)
   return model->name;
 }
 
-static void destroy_key_and_value(char* key, char* value)
+void model_register_benchmark(model_t* model, const char* benchmark, model_benchmark_function_t function, const char* description)
 {
-  free(key);
-  free(value);
-}
-
-void model_register_benchmark(model_t* model, const char* benchmark, const char* description)
-{
-  str_str_unordered_map_insert_with_dtor(model->benchmarks, strdup(benchmark), strdup(description), destroy_key_and_value);
+  ASSERT(benchmark != NULL);
+  ASSERT(function != NULL);
+  model_benchmark_t* metadata = malloc(sizeof(model_benchmark_t));
+  metadata->function = function;
+  metadata->description = strdup(description);
+  model_benchmark_map_insert_with_dtor(model->benchmarks, strdup(benchmark), metadata, free_benchmark_kv);
 }
 
 void model_run_all_benchmarks(model_t* model, options_t* options)
 {
   int pos = 0;
-  char *benchmark, *descr;
-  while (str_str_unordered_map_next(model->benchmarks, &pos, &benchmark, &descr))
-    model_run_benchmark(model, benchmark, options);
+  char *benchmark;
+  model_benchmark_t* metadata;
+  while (model_benchmark_map_next(model->benchmarks, &pos, &benchmark, &metadata))
+    (*metadata->function)(options);
 }
 
 void model_run_benchmark(model_t* model, const char* benchmark, options_t* options)
 {
-  if (model->vtable.run_benchmark != NULL)
+  // Try to retrieve this benchmark.
+  model_benchmark_t** metadata = model_benchmark_map_get(model->benchmarks, (char*)benchmark);
+  if (metadata != NULL)
   {
     log_info("%s: Running benchmark '%s'.", model->name, benchmark);
     options_set(options, "sim_name", benchmark);
-    model->vtable.run_benchmark(benchmark, options);
+    (*(*metadata)->function)(options);
     log_info("%s: Finished running benchmark '%s'.", model->name, benchmark);
   }
   else
   {
     char err[1024];
-    snprintf(err, 1024, "No benchmarks are defined for the model '%s'.", model->name);
+    snprintf(err, 1024, "%s: Benchmark not found: '%s'.", model->name, benchmark);
     arbi_error(err);
   }
 }
@@ -215,7 +236,11 @@ void model_plot(model_t* model)
 
 void model_run(model_t* model, double t1, double t2)
 {
-  log_info("%s: Running from time %g to %g.", model->name, t1, t2);
+  ASSERT(t2 >= t1);
+  if (t2 > t1)
+    log_info("%s: Running from time %g to %g.", model->name, t1, t2);
+  else
+    log_info("%s: Running simulation at time %g.", model->name, t1);
   model_init(model, t1);
   while (model->time < t2)
   {
@@ -333,9 +358,10 @@ int model_main(const char* model_name, model_ctor constructor, int argc, char* a
   {
     fprintf(stderr, "Benchmarks for %s model:\n", model_name);
     int pos = 0;
-    char *benchmark, *descr;
-    while (str_str_unordered_map_next(model->benchmarks, &pos, &benchmark, &descr))
-      fprintf(stderr, "  %s (%s)\n", benchmark, descr);
+    char *benchmark;
+    model_benchmark_t* metadata;
+    while (model_benchmark_map_next(model->benchmarks, &pos, &benchmark, &metadata))
+      fprintf(stderr, "  %s (%s)\n", benchmark, metadata->description);
     fprintf(stderr, "\n");
     return 0;
   }
