@@ -64,6 +64,14 @@ static inline void vector_cross(vector_t* v1, vector_t* v2, vector_t* v1xv2)
   v1xv2->z = v1->x*v2->y - v1->y*v2->x;
 }
 
+// Displacement vector pointing from x to y.
+static inline void point_displacement(point_t* x, point_t* y, vector_t* displacement)
+{
+  displacement->x = y->x - x->x;
+  displacement->y = y->y - x->y;
+  displacement->z = y->z - x->z;
+}
+
 // A bounding box.
 typedef struct
 {

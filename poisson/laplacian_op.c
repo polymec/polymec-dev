@@ -31,8 +31,9 @@ static void laplacian_op_compute_stencil(void* context, mesh_t* mesh, int index,
     if (opp_cell != NULL)
     {
       offsets[i] = (opp_cell - &mesh->cells[0]) - index;
-      weights[i] = A;
-      weights[0] -= A;
+      double L = point_distance(&opp_cell->center, &cell->center);
+      weights[i] = A/L;
+      weights[0] -= A/L;
       ++i;
     }
   }
