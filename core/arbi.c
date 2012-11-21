@@ -4,7 +4,6 @@
 #include <gc/gc.h>
 #include "core/arbi.h"
 #include "core/options.h"
-#include "core/simulation.h"
 #include "core/model.h"
 #include "tao.h"
 
