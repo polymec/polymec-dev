@@ -4,7 +4,6 @@
 #include "core/arbi.h"
 #include "core/options.h"
 #include "core/io.h"
-#include "core/plot.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -32,14 +31,14 @@ typedef double (*model_max_dt_func)(void*, double, char*);
 // A function for advancing the model.
 typedef void (*model_advance_func)(void*, double, double);
 
-// A function for loading the model's state from an I/O interface.
-typedef void (*model_load_func)(void*, io_interface_t*, double*, int*);
+// A function for loading the model's state from the given I/O interface.
+typedef void (*model_load_func)(void*, io_interface_t*, double*, int);
 
-// A function for dumping the model's state to an I/O interface.
-typedef void (*model_dump_func)(void*, io_interface_t*, double, int);
+// A function for saving the model's state to the given I/O interface.
+typedef void (*model_save_func)(void*, io_interface_t*, double, int);
 
-// A function for plotting the model to a plot interface.
-typedef void (*model_plot_func)(void*, plot_interface_t*, double, int);
+// A function for plotting the model to the given I/O interface.
+typedef void (*model_plot_func)(void*, io_interface_t*, double, int);
 
 // A destructor function for the context object (if any).
 typedef void (*model_dtor)(void*);
@@ -52,7 +51,7 @@ typedef struct
   model_max_dt_func     max_dt;
   model_advance_func    advance;
   model_load_func       load;
-  model_dump_func       dump;
+  model_save_func       save;
   model_plot_func       plot;
   model_dtor            dtor;
 } model_vtable;
@@ -61,7 +60,7 @@ typedef struct
 // along with any relevant options.
 model_t* model_new(const char* name, void* context, model_vtable vtable, options_t* options);
 
-// Destroy the model.
+// Destroys the model.
 void model_free(model_t* model);
 
 // Returns the name of the model.
@@ -70,10 +69,10 @@ char* model_name(model_t* model);
 // Returns the context object associated with the model (if any).
 void* model_context(model_t* model);
 
-// Print usage information for the model to the given file stream.
+// Prints usage information for the model to the given file stream.
 void model_usage(model_t* model, FILE* stream);
 
-// Associate the given benchmark with this model.
+// Associates the given benchmark with this model.
 void model_register_benchmark(model_t* model, const char* benchmark, const char* description);
 
 // Runs the given benchmark problem for the model.
@@ -82,27 +81,37 @@ void model_run_benchmark(model_t* model, const char* benchmark, options_t* optio
 // Runs all benchmark problems for the model.
 void model_run_all_benchmarks(model_t* model, options_t* options);
 
-// Initialize the model at the given time.
+// Initializes the model at the given time.
 void model_init(model_t* model, double t);
 
 // Returns the largest permissible time step that can be taken by the model
 // starting at time t.
-double model_max_dt(model_t* model, double t, char* reason);
+double model_max_dt(model_t* model, char* reason);
 
-// Advance the model by a single time step of size dt, beginning at time t.
-void model_advance(model_t* model, double t, double dt);
+// Advances the model by a single time step of size dt.
+void model_advance(model_t* model, double dt);
 
-// Load the model's state from the given I/O interface.
-void model_load(model_t* model, io_interface_t* io, double* t, int* step);
+// Loads the model's state from its I/O interface.
+void model_load(model_t* model, int step);
 
-// Dump the model's state to the given I/O interface.
-void model_dump(model_t* model, io_interface_t* io, double t, int step);
+// Saves the model's state to its I/O interface.
+void model_save(model_t* model);
 
-// Plot the model's state to the given plot interface.
-void model_plot(model_t* model, plot_interface_t* plot, double t, int step);
+// Plots the model's state to its I/O interface.
+void model_plot(model_t* model);
 
-// Run a simulation of the model from time t1 to t2.
+// Runs a simulation of the model from time t1 to t2.
 void model_run(model_t* model, double t1, double t2);
+
+// Sets the name of the simulation within the model. This name 
+// will be used to identify and/or generate names of plot and save files.
+void model_set_sim_name(model_t* model, const char* sim_name);
+
+// Sets the I/O interface that will be used to save the model's state.
+void model_set_saver(model_t* model, io_interface_t* saver);
+
+// Sets the I/O interface that will be used to plot the model's data.
+void model_set_plotter(model_t* model, io_interface_t* plotter);
 
 // This function implements a simple driver for a model and behaves
 // in the same way as a main() function, returning 0 on success and nonzero

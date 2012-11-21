@@ -27,6 +27,9 @@ char* options_input(options_t* opts);
 // parameter exists within opts.
 char* options_value(options_t* opts, const char* name);
 
+// Sets the given value for the the given option.
+void options_set(options_t* opts, const char* name, const char* value);
+
 #ifdef __cplusplus
 }
 #endif

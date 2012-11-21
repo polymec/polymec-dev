@@ -1,5 +1,5 @@
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DARBI_C_COMPILER=${CMAKE_C_COMPILER} -DARBI_INCLUDE_DIR=${PROJECT_SOURCE_DIR}")
-add_library(arbi_core arbi.c lite_mesh.c mesh.c simulation.c model.c
+add_library(arbi_core arbi.c lite_mesh.c mesh.c model.c
             edit_mesh.c mesh_storage.c exchanger.c repartition.c plot.c 
             faceted_surface.c edit_faceted_surface.c
             sp_func.c st_func.c constant_st_func.c dl_st_func.c 

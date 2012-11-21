@@ -35,9 +35,10 @@ static void options_free(void* ctx, void* dummy)
   free(opts);
 }
 
-static void options_set(options_t* opts, const char* name, const char* value)
+static void destroy_kv(char* key, char* value)
 {
-  str_str_unordered_map_insert(opts->params, strdup(name), strdup(value));
+  free(key);
+  free(value);
 }
 
 options_t* options_parse(int argc, char** argv)
@@ -102,6 +103,12 @@ char* options_value(options_t* opts, const char* name)
   char** value = str_str_unordered_map_get(opts->params, (char*)name);
   return (value != NULL) ? *value : NULL;
 }
+
+void options_set(options_t* opts, const char* name, const char* value)
+{
+  str_str_unordered_map_insert_with_dtor(opts->params, strdup(name), strdup(value), destroy_kv);
+}
+
 
 #ifdef __cplusplus
 }
