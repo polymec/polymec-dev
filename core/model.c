@@ -206,7 +206,7 @@ void model_load(model_t* model, int step)
     arbi_error("No simulation name was set with model_set_sim_name.");
   char prefix[strlen(model->sim_name) + 16];
   snprintf(prefix, strlen(model->sim_name) + 16, "%s-%d", model->sim_name, step);
-  log_detail("%s: Loading save file from %s...\n", model->name, model->sim_name);
+  log_detail("%s: Loading save file from directory %s...\n", model->name, model->sim_name);
   io_open(model->saver, prefix, model->sim_name, IO_READ);
   model->vtable.load(model->context, model->saver, &model->time, step);
   model->step = step;
@@ -221,7 +221,7 @@ void model_save(model_t* model)
     arbi_error("No simulation name was set with model_set_sim_name.");
   char prefix[strlen(model->sim_name) + 16];
   snprintf(prefix, strlen(model->sim_name) + 16, "%s-%d", model->sim_name, model->step);
-  log_detail("%s: Writing save file to %s...\n", model->name, model->sim_name);
+  log_detail("%s: Writing save file to directory %s...\n", model->name, model->sim_name);
   io_open(model->saver, prefix, model->sim_name, IO_WRITE);
   model->vtable.save(model->context, model->saver, model->time, model->step);
   io_close(model->saver);
@@ -235,7 +235,7 @@ void model_plot(model_t* model)
     arbi_error("No simulation name was set with model_set_sim_name.");
   char prefix[strlen(model->sim_name) + 16];
   snprintf(prefix, strlen(model->sim_name) + 16, "%s-%d", model->sim_name, model->step);
-  log_detail("%s: Writing plot to %s...\n", model->name, model->sim_name);
+  log_detail("%s: Writing plot to directory %s...\n", model->name, model->sim_name);
   io_open(model->plotter, prefix, model->sim_name, IO_WRITE);
   model->vtable.plot(model->context, model->plotter, model->time, model->step);
   io_close(model->plotter);
