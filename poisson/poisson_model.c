@@ -297,13 +297,13 @@ static void poisson_run_laplace_1d(options_t* options, int dim)
     // If we run in 1D or 2D, we need to adjust the norms.
     if (dim == 1)
     {
-      Lp_norms[iter][1] /= dx*dx;
-      Lp_norms[iter][2] /= dx*dx;
+      Lp_norms[iter][1] *= N*N;
+      Lp_norms[iter][2] *= N*N;
     }
     else if (dim == 2)
     {
-      Lp_norms[iter][1] /= dx;
-      Lp_norms[iter][2] /= dx;
+      Lp_norms[iter][1] *= N;
+      Lp_norms[iter][2] *= N;
     }
     log_info("iteration %d (Nx = %d): L1 = %g, L2 = %g, Linf = %g", iter, N, Lp_norms[iter][1], Lp_norms[iter][2], Lp_norms[iter][0]);
   }
@@ -385,8 +385,7 @@ static void poisson_run_laplace_sov(int variant, options_t* options)
 
 static void paraboloid_solution(void* context, point_t* x, double t, double* phi)
 {
-  static point_t origin = {.x = 0.0, .y = 0.0, .z = 0.0 };
-  double r2 = point_square_distance(x, &origin);
+  double r2 = x->x*x->x + x->y*x->y; // Distance from center axis.
   phi[0] = 1.0 + 2.0*r2;
 }
 
@@ -425,26 +424,33 @@ static void poisson_run_paraboloid(options_t* options, int dim)
   {
     case 2:
       N0 = 16;
-      num_runs = 3;
+      num_runs = 4;
       break;
     case 3:
       N0 = 8;
-      num_runs = 2;
+      num_runs = 3;
       break;
   }
-  num_runs = 2;
   
   // Do a convergence study.
-  double Lpnorms[num_runs][3];
+  double Lp_norms[num_runs][3];
   for (int iter = 0; iter < num_runs; ++iter)
   {
-    int N = pow(N0, iter+1);
+    int N = N0 * pow(2, iter);
     bbox_t bbox = {.x1 = -0.5, .x2 = 0.5, .y1 = -0.5, .y2 = 0.5, .z1 = 0.0, .z2 = 1.0};
     if (dim == 2)
       bbox.z2 = 1.0/N;
     mesh_t* mesh = create_cube_mesh(dim, N, &bbox);
     str_ptr_unordered_map_t* bcs_copy = str_ptr_unordered_map_copy(bcs);
-    run_analytic_problem(mesh, rhs, bcs_copy, options, t, t, sol, Lpnorms[iter]);
+    run_analytic_problem(mesh, rhs, bcs_copy, options, t, t, sol, Lp_norms[iter]);
+
+    // If we run in 2D, we need to adjust the norms.
+    if (dim == 2)
+    {
+      Lp_norms[iter][1] *= N;
+      Lp_norms[iter][2] *= N;
+    }
+    log_info("iteration %d (Nx = Ny = %d): L1 = %g, L2 = %g, Linf = %g", iter, N, Lp_norms[iter][1], Lp_norms[iter][2], Lp_norms[iter][0]);
   }
 
   // Clean up.
@@ -461,6 +467,11 @@ static void poisson_run_paraboloid(options_t* options, int dim)
 static void run_paraboloid(options_t* options)
 {
   poisson_run_paraboloid(options, 2);
+}
+
+static void run_paraboloid_3(options_t* options)
+{
+  poisson_run_paraboloid(options, 3);
 }
 
 //------------------------------------------------------------------------
@@ -932,6 +943,7 @@ model_t* poisson_model_new(options_t* options)
   model_register_benchmark(model, "laplace_1d_2", run_laplace_1d_2, "Laplace's equation in 1D Cartesian coordinates (run in 2D).");
   model_register_benchmark(model, "laplace_1d_3", run_laplace_1d_3, "Laplace's equation in 1D Cartesian coordinates (run in 3D).");
   model_register_benchmark(model, "paraboloid", run_paraboloid, "A paraboloid solution to Poisson's equation (2D).");
+  model_register_benchmark(model, "paraboloid_3", run_paraboloid_3, "A paraboloid solution to Poisson's equation (3D).");
 
   // Set up saver/plotter.
   io_interface_t* saver = silo_io_new(MPI_COMM_SELF, 0, false);
