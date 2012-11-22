@@ -23,7 +23,6 @@ static void laplacian_op_compute_stencil(void* context, mesh_t* mesh, int index,
   weights[0] = 0.0;
   cell_t* cell = &mesh->cells[index];
   int i = 1;
-//  double V = cell->volume;
   for (int f = 0; f < cell->num_faces; ++f)
   {
     double A = cell->faces[f]->area;
@@ -39,10 +38,31 @@ static void laplacian_op_compute_stencil(void* context, mesh_t* mesh, int index,
   }
 }
 
+static void laplacian_op_apply(void* context, mesh_t* mesh, double* field, double* Lfield)
+{
+  for (int c = 0; c < mesh->num_cells; ++c)
+  {
+    cell_t* cell = &mesh->cells[c];
+    Lfield[c] = 0.0;
+    for (int f = 0; f < cell->num_faces; ++f)
+    {
+      double A = cell->faces[f]->area;
+      cell_t* opp_cell = face_opp_cell(cell->faces[f], cell);
+      if (opp_cell != NULL)
+      {
+        int cc = opp_cell - &mesh->cells[0];
+        double L = point_distance(&opp_cell->center, &cell->center);
+        Lfield[c] += A/L * (field[cc] - field[c]);
+      }
+    }
+  }
+}
+
 lin_op_t* laplacian_op_new(mesh_t* mesh)
 {
   lin_op_vtable vtable = {.stencil_size = &laplacian_op_stencil_size,
-                          .compute_stencil = &laplacian_op_compute_stencil};
+                          .compute_stencil = &laplacian_op_compute_stencil,
+                          .apply = &laplacian_op_apply};
   return lin_op_new("laplacian", NULL, vtable, mesh);
 }
 

@@ -59,7 +59,14 @@ void lin_op_compute_stencil(lin_op_t* op, int index, int* offsets, double* weigh
   ASSERT(index >= 0);
   ASSERT(offsets != NULL);
   ASSERT(weights != NULL);
-  return op->vtable.compute_stencil(op->context, op->mesh, index, offsets, weights);
+  op->vtable.compute_stencil(op->context, op->mesh, index, offsets, weights);
+}
+
+void lin_op_apply(lin_op_t* op, double* field, double* Lfield)
+{
+  ASSERT(field != NULL);
+  ASSERT(Lfield != NULL);
+  op->vtable.apply(op->context, op->mesh, field, Lfield);
 }
 
 #ifdef __cplusplus

@@ -335,58 +335,11 @@ static void run_laplace_1d_3(options_t* options)
   poisson_run_laplace_1d(options, 3);
 }
 
-#if 0
-static void poisson_run_laplace_sov(int variant, options_t* options)
-{
-  // Dimension.
-  int dim;
-  // FIXME
-
-  // RHS function is zero for Laplace's equation.
-  double zero = 0.0;
-  st_func_t* rhs = constant_st_func_new(1, &zero);
-
-  // Analytic solution and/or gradient.
-  st_func_t* sol;
-  // FIXME = create_paraboloid_solution(variant);
-
-  // Boundary conditions.
-  str_ptr_unordered_map_t* bcs = str_ptr_unordered_map_new();
-  if ((variant % 3) == 0)
-    str_ptr_unordered_map_insert(bcs, "boundary", create_bc(1.0, 0.0, NULL));
-  else if ((variant % 3) == 1)
-    str_ptr_unordered_map_insert(bcs, "boundary", create_bc(0.0, 1.0, NULL));
-  else // if ((variant % 3) == 2)
-    str_ptr_unordered_map_insert(bcs, "boundary", create_bc(1.0, 1.0, NULL));
-
-  // Start/end times.
-  double t1, t2;
-  // FIXME
-
-  // Base resolution.
-  int N0;
-  // FIXME
-
-  // Number of refinements.
-  int num_refinements;
-  // FIXME
-
-  // Do a convergence study.
-  double Lpnorms[num_refinements][3];
-  for (int iter = 0; iter < num_refinements; ++iter)
-  {
-    int N = pow(N0, iter+1);
-    bbox_t bbox;
-    mesh_t* mesh = create_cube_mesh(dim, N, &bbox);
-    run_analytic_problem(mesh, rhs, bcs, options, t1, t2, sol, Lpnorms[iter]);
-  }
-}
-#endif
-
 static void paraboloid_solution(void* context, point_t* x, double t, double* phi)
 {
   double r2 = x->x*x->x + x->y*x->y; // Distance from center axis.
-  phi[0] = 1.0 + 2.0*r2;
+  phi[0] = 1.0 + r2;
+//  printf("phi(%g, %g) = %g\n", x->x, x->y, phi[0]);
 }
 
 static void poisson_run_paraboloid(options_t* options, int dim)
@@ -431,13 +384,35 @@ static void poisson_run_paraboloid(options_t* options, int dim)
       num_runs = 3;
       break;
   }
-  
+ 
+  // Any special geometric considerations? 
+  char *geom = options_value(options, "geometry");
+  bool offcenter = false;
+  if (geom != NULL)
+  {
+    // The mesh can be generated off-center so that the origin is
+    // at the lower left.
+    if (!strcasecmp(geom, "offcenter"))
+      offcenter = true;
+  }
+
   // Do a convergence study.
   double Lp_norms[num_runs][3];
   for (int iter = 0; iter < num_runs; ++iter)
   {
     int N = N0 * pow(2, iter);
-    bbox_t bbox = {.x1 = -0.5, .x2 = 0.5, .y1 = -0.5, .y2 = 0.5, .z1 = 0.0, .z2 = 1.0};
+    bbox_t bbox;
+    if (offcenter)
+    {
+      bbox.x1 = 0.0, bbox.x2 = 0.5, 
+      bbox.y1 = 0.0, bbox.y2 = 0.5;
+    }
+    else
+    {
+      bbox.x1 = -0.5, bbox.x2 = 0.5, 
+      bbox.y1 = -0.5, bbox.y2 = 0.5; 
+    }
+    bbox.z1 = 0.0, bbox.z2 = 1.0;
     if (dim == 2)
       bbox.z2 = 1.0/N;
     mesh_t* mesh = create_cube_mesh(dim, N, &bbox);
@@ -872,9 +847,22 @@ static void poisson_plot(void* context, io_interface_t* io, double t, int step)
   ASSERT(context != NULL);
   poisson_t* p = (poisson_t*)context;
 
+#ifdef NDEBUG
   io_dataset_t* dataset = io_dataset_new("default", 1, 0);
+#else
+  io_dataset_t* dataset = io_dataset_new("default", 2, 0);
+#endif
   io_dataset_write_mesh(dataset, p->mesh);
   io_dataset_write_field(dataset, "phi", p->phi, 1, MESH_CELL);
+
+#ifndef NDEBUG
+  // If we're in debug mode, compute the laplacian of phi and dump that, too.
+  // This ignores boundary conditions, so it's only useful as a diagnostic.
+  double Lphi[p->mesh->num_cells];
+  lin_op_apply(p->L, p->phi, Lphi);
+  io_dataset_write_field(dataset, "L(phi)", Lphi, 1, MESH_CELL);
+#endif
+
   io_append_dataset(io, dataset);
 }
 
