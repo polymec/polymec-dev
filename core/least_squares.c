@@ -212,9 +212,9 @@ void compute_weighted_poly_ls_system(int p, ls_weighting_func_t W, point_t* x0, 
   // our spatial scale length, h.
   double h = 0.0;
   for (int n = 0; n < num_points; ++n)
-    for (int l = n; l < num_points; ++l)
+    for (int l = n+1; l < num_points; ++l)
       h += point_distance(&points[n], &points[l]);
-  h /= (num_points*(num_points+1)/2);
+  h /= (num_points*(num_points+1)/2 - num_points);
 
   for (int n = 0; n < num_points; ++n)
   {
@@ -325,10 +325,9 @@ void poly_ls_shape_set_domain(poly_ls_shape_t* N, point_t* x0, point_t* points, 
   // our spatial scale length, h.
   N->h = 0.0;
   for (int n = 0; n < num_points; ++n)
-    for (int l = n; l < num_points; ++l)
+    for (int l = n+1; l < num_points; ++l)
       N->h += point_distance(&N->points[n], &N->points[l]);
-  N->h /= (num_points*(num_points+1)/2);
-
+  N->h /= (num_points*(num_points+1)/2 - num_points);
 }
 
 void poly_ls_shape_compute(poly_ls_shape_t* N, point_t* x, double* values)
@@ -562,12 +561,9 @@ void poly_ls_shape_compute_ghost_transform(poly_ls_shape_t* N, int* ghost_indice
   dgetrs(&no_trans, &num_ghosts, &N->num_points, amat, &num_ghosts, pivot, A, &num_ghosts, &info);
   ASSERT(info == 0);
 
-  // Compute B = amatinv * e / (num_points - num_ghosts).
-//  // We divide by the number of ghosts because each ghost value only gets part of the affine term.
+  // Compute B = amatinv * e.
   int one = 1;
   memcpy(B, e, sizeof(double)*num_ghosts);
-//  for (int g = 0; g < num_ghosts; ++g)
-//    B[g] /= (N->num_points - num_ghosts);
   dgetrs(&no_trans, &num_ghosts, &one, amat, &num_ghosts, pivot, B, &num_ghosts, &info);
   ASSERT(info == 0);
 }

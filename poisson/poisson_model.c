@@ -241,6 +241,18 @@ static void laplace_1d_solution_grad(void* context, point_t* x, double t, double
 
 static void poisson_run_laplace_1d(options_t* options, int dim)
 {
+  // Parse any benchmark-specific options.
+  bool all_dirichlet = false;
+  bool reversed_bcs = false;
+  char* bcs_opt = options_value(options, "bcs");
+  if (bcs_opt != NULL)
+  {
+    if (!strcmp(bcs_opt, "dirichlet"))
+      all_dirichlet = true;
+    else if (!strcmp(bcs_opt, "reversed"))
+      reversed_bcs = true;
+  }
+
   // RHS function is zero for Laplace's equation.
   double z = 0.0;
   st_func_t* zero = constant_st_func_new(1, &z);
@@ -251,33 +263,58 @@ static void poisson_run_laplace_1d(options_t* options, int dim)
   st_func_t* sol_grad = st_func_from_func("laplace_1d_sol_grad", laplace_1d_solution_grad,
                                           ST_INHOMOGENEOUS, ST_CONSTANT, 3);
 
-  // Boundary conditions: Dirichlet on -x/+x, zero flux on the others.
+  // Boundary conditions: Dirichlet on -x/+x (unless they've been reversed).
   str_ptr_unordered_map_t* bcs = str_ptr_unordered_map_new();
-  str_ptr_unordered_map_insert(bcs, "-x", create_bc(1.0, 0.0, sol));
-  str_ptr_unordered_map_insert(bcs, "+x", create_bc(1.0, 0.0, sol));
-  str_ptr_unordered_map_insert(bcs, "-y", create_bc(0.0, 1.0, zero));
-  str_ptr_unordered_map_insert(bcs, "+y", create_bc(0.0, 1.0, zero));
-  str_ptr_unordered_map_insert(bcs, "-z", create_bc(0.0, 1.0, zero));
-  str_ptr_unordered_map_insert(bcs, "+z", create_bc(0.0, 1.0, zero));
+  if (!reversed_bcs)
+  {
+    str_ptr_unordered_map_insert(bcs, "-x", create_bc(1.0, 0.0, sol));
+    str_ptr_unordered_map_insert(bcs, "+x", create_bc(1.0, 0.0, sol));
+  }
+  else
+  {
+    str_ptr_unordered_map_insert(bcs, "-x", create_bc(0.0, 1.0, sol_grad));
+    str_ptr_unordered_map_insert(bcs, "+x", create_bc(0.0, 1.0, sol_grad));
+  }
+
+  // Transverse faces.
+  if (all_dirichlet || reversed_bcs)
+  {
+    // Dirichlet BCs.
+    str_ptr_unordered_map_insert(bcs, "-y", create_bc(1.0, 0.0, sol));
+    str_ptr_unordered_map_insert(bcs, "+y", create_bc(1.0, 0.0, sol));
+    str_ptr_unordered_map_insert(bcs, "-z", create_bc(1.0, 0.0, sol));
+    str_ptr_unordered_map_insert(bcs, "+z", create_bc(1.0, 0.0, sol));
+  }
+  else
+  {
+    // Homogeneous Neumann BCs.
+    str_ptr_unordered_map_insert(bcs, "-y", create_bc(0.0, 1.0, zero));
+    str_ptr_unordered_map_insert(bcs, "+y", create_bc(0.0, 1.0, zero));
+    str_ptr_unordered_map_insert(bcs, "-z", create_bc(0.0, 1.0, zero));
+    str_ptr_unordered_map_insert(bcs, "+z", create_bc(0.0, 1.0, zero));
+  }
 
   // Run time.
   double t = 0.0;
 
   // Base resolution, number of runs.
   int N0;
+  int num_runs;
   switch(dim)
   {
     case 1: 
       N0 = 32;
+      num_runs = 4;
       break;
     case 2:
       N0 = 16;
+      num_runs = 3;
       break;
     case 3:
       N0 = 8;
+      num_runs = 3;
       break;
   }
-  int num_runs = 2;
 
   // Do a convergence study.
   double Lp_norms[num_runs][3];
@@ -315,9 +352,7 @@ static void poisson_run_laplace_1d(options_t* options, int dim)
   while (str_ptr_unordered_map_next(bcs, &pos, &key, &value))
     free_bc(value);
   str_ptr_unordered_map_free(bcs);
-  zero = NULL;
-  sol = NULL;
-  sol_grad = NULL;
+  zero = sol = sol_grad = NULL;
 }
 
 static void run_laplace_1d(options_t* options)
@@ -346,6 +381,25 @@ static void poisson_run_paraboloid(options_t* options, int dim)
 {
   ASSERT((dim == 2) || (dim == 3));
 
+  // Parse model-specific options.
+  bool offcenter = false;
+  bool all_dirichlet = false;
+
+  char* bcs_opt = options_value(options, "bcs");
+  if (bcs_opt != NULL)
+  {
+    if (!strcmp(bcs_opt, "dirichlet"))
+      all_dirichlet = true;
+  }
+  char *geom = options_value(options, "geometry");
+  if (geom != NULL)
+  {
+    // The mesh can be generated off-center so that the origin is
+    // at the lower left.
+    if (!strcasecmp(geom, "offcenter"))
+      offcenter = true;
+  }
+
   // RHS function.
   double four = 4.0;
   st_func_t* rhs = constant_st_func_new(1, &four);
@@ -361,11 +415,19 @@ static void poisson_run_paraboloid(options_t* options, int dim)
   str_ptr_unordered_map_insert(bcs, "+y", create_bc(1.0, 0.0, sol));
   str_ptr_unordered_map_insert(bcs, "-y", create_bc(1.0, 0.0, sol));
   
-  // Set up a homogeneous Neumann boundary condition on +/- z.
   double z = 0.0;
   st_func_t* zero = constant_st_func_new(1, &z);
-  str_ptr_unordered_map_insert(bcs, "+z", create_bc(0.0, 1.0, zero));
-  str_ptr_unordered_map_insert(bcs, "-z", create_bc(0.0, 1.0, zero));
+  if (all_dirichlet)
+  {
+    str_ptr_unordered_map_insert(bcs, "+z", create_bc(1.0, 0.0, sol));
+    str_ptr_unordered_map_insert(bcs, "-z", create_bc(1.0, 0.0, sol));
+  }
+  else
+  {
+    // Set up a homogeneous Neumann boundary condition on +/- z.
+    str_ptr_unordered_map_insert(bcs, "+z", create_bc(0.0, 1.0, zero));
+    str_ptr_unordered_map_insert(bcs, "-z", create_bc(0.0, 1.0, zero));
+  }
 
   // Start/end time.
   double t = 0.0;
@@ -384,18 +446,8 @@ static void poisson_run_paraboloid(options_t* options, int dim)
       num_runs = 3;
       break;
   }
+num_runs = 1;
  
-  // Any special geometric considerations? 
-  char *geom = options_value(options, "geometry");
-  bool offcenter = false;
-  if (geom != NULL)
-  {
-    // The mesh can be generated off-center so that the origin is
-    // at the lower left.
-    if (!strcasecmp(geom, "offcenter"))
-      offcenter = true;
-  }
-
   // Do a convergence study.
   double Lp_norms[num_runs][3];
   for (int iter = 0; iter < num_runs; ++iter)
@@ -435,8 +487,7 @@ static void poisson_run_paraboloid(options_t* options, int dim)
   while (str_ptr_unordered_map_next(bcs, &pos, &key, &value))
     free_bc(value);
   str_ptr_unordered_map_free(bcs);
-  zero = NULL;
-  sol = NULL;
+  zero = sol = rhs = NULL;
 }
 
 static void run_paraboloid(options_t* options)
@@ -582,18 +633,14 @@ static void apply_bcs(int_ptr_unordered_map_t* boundary_cells,
     int num_ghosts = cell_info->num_boundary_faces;
     int num_neighbors = cell_info->num_neighbor_cells;
     int num_points = num_neighbors + 1 + num_ghosts;
-//    printf("num_ghosts = %d, num_points = %d\n", num_ghosts, num_points);
+//printf("num_ghosts = %d, num_points = %d\n", num_ghosts, num_points);
     point_t points[num_points];
-    points[0].x = mesh->cells[bcell].center.x;
-    points[0].y = mesh->cells[bcell].center.y;
-    points[0].z = mesh->cells[bcell].center.z;
+    point_copy(&points[0], &mesh->cells[bcell].center);
 //printf("ipoint = %g %g %g\n", points[0].x, points[0].y, points[0].z);
     for (int n = 0; n < num_neighbors; ++n)
     {
       int neighbor = cell_info->neighbor_cells[n];
-      points[n+1].x = mesh->cells[neighbor].center.x;
-      points[n+1].y = mesh->cells[neighbor].center.y;
-      points[n+1].z = mesh->cells[neighbor].center.z;
+      point_copy(&points[n+1], &mesh->cells[neighbor].center);
     }
     int ghost_point_indices[num_ghosts];
     point_t constraint_points[num_ghosts];
@@ -607,9 +654,7 @@ static void apply_bcs(int_ptr_unordered_map_t* boundary_cells,
       points[n+offset].y = 2.0*face->center.y - cell->center.y;
       points[n+offset].z = 2.0*face->center.z - cell->center.z;
 //printf("gpoint = %g %g %g\n", points[n+offset].x, points[n+offset].y, points[n+offset].z);
-      constraint_points[n].x = face->center.x;
-      constraint_points[n].y = face->center.y;
-      constraint_points[n].z = face->center.z;
+      point_copy(&constraint_points[n], &face->center);
     }
     poly_ls_shape_set_domain(shape, &cell->center, points, num_points);
 
@@ -631,9 +676,7 @@ static void apply_bcs(int_ptr_unordered_map_t* boundary_cells,
         // enforcing alpha * phi + beta * dphi/dn = F on the face.
         face_t* face = &mesh->faces[cell_info->boundary_faces[f]];
         vector_t* n = &face_normals[f];
-        n->x = face->center.x - cell->center.x;
-        n->y = face->center.y - cell->center.y;
-        n->z = face->center.z - cell->center.z;
+        point_displacement(&cell->center, &face->center, n);
         vector_normalize(n);
         a[f] = bc->alpha;
         b[f] = bc->beta*n->x, c[f] = bc->beta*n->y, d[f] = bc->beta*n->z;
@@ -645,8 +688,8 @@ static void apply_bcs(int_ptr_unordered_map_t* boundary_cells,
       // Now that we've gathered information about all the boundary
       // conditions, compute the affine transformation that maps the 
       // (unconstrained) values of the solution to the constrained values. 
-      poly_ls_shape_compute_ghost_transform(shape, 
-          ghost_point_indices, num_ghosts, constraint_points, a, b, c, d, e, aff_matrix, aff_vector);
+      poly_ls_shape_compute_ghost_transform(shape, ghost_point_indices, num_ghosts, 
+                                            constraint_points, a, b, c, d, e, aff_matrix, aff_vector);
 //printf("%d: A_aff (num_ghosts = %d, np = %d) = ", bcell, num_ghosts, num_points);
 //matrix_fprintf(aff_matrix, num_ghosts, num_points, stdout);
 //printf("\n%d: b_aff = ", bcell);
@@ -690,9 +733,11 @@ static void apply_bcs(int_ptr_unordered_map_t* boundary_cells,
         double dNdn = vector_dot(n, &grad_N[num_neighbors+1+g]);
         Aij[0] += aff_matrix[num_ghosts*0+g] * dNdn * face->area;
 //printf("A[%d,%d] += %g * %g * %g -> %g (%g)\n", bcell, ij[0], aff_matrix[g], dNdn, face->area, Aij[0], N[num_neighbors+1+g]);
+
+        // Here we also add the affine contribution from this ghost
+        // to the right-hand side vector.
         bi += -aff_vector[g] * dNdn * face->area;
       }
-
 
       for (int j = 0; j < num_neighbors; ++j)
       {
@@ -707,10 +752,7 @@ static void apply_bcs(int_ptr_unordered_map_t* boundary_cells,
           double dNdn = vector_dot(n, &grad_N[num_neighbors+1+g]);
           Aij[j+1] += aff_matrix[num_ghosts*(j+1)+g] * dNdn * face->area;
 //printf("A[%d,%d] += %g * %g * %g = %g (%g)\n", bcell, ij[j+1], aff_matrix[num_ghosts*(j+1)+g],vector_dot(n, &grad_N[j+1]), face->area, Aij[j+1], N[j+1]);
-          // NOTE: we don't double count the affine term contribution here.
-//          bi += -aff_vector[g] * dNdn * face->area;
         }
-//printf("b[%d] += %g\n", bcell, bi);
       }
 
       MatSetValues(A, 1, &bcell, num_neighbors+1, ij, Aij, ADD_VALUES);

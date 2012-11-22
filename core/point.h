@@ -26,6 +26,14 @@ static inline double point_distance(point_t* x, point_t* y)
   return sqrt(point_square_distance(x, y));
 }
 
+// Copy the source point's components to those of the destination point.
+static inline void point_copy(point_t* dest, point_t* source)
+{
+  dest->x = source->x;
+  dest->y = source->y;
+  dest->z = source->z;
+}
+
 // A vector in 1, 2, or 3D space.
 typedef struct
 {
