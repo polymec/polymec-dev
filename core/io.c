@@ -368,13 +368,19 @@ void io_dataset_free(io_dataset_t* dataset)
 {
   free(dataset->name);
   for (int i = 0; i < dataset->num_fields; ++i)
+  {
     free(dataset->field_names[i]);
+    free(dataset->fields[i]);
+  }
   free(dataset->fields);
   free(dataset->field_names);
   free(dataset->field_centerings);
 
   for (int i = 0; i < dataset->num_codes; ++i)
+  {
     free(dataset->code_names[i]);
+    free(dataset->codes[i]);
+  }
   free(dataset->codes);
   free(dataset->code_names);
 
@@ -433,6 +439,7 @@ void io_dataset_read_field(io_dataset_t* dataset, const char* field_name, double
 
 void io_dataset_write_field(io_dataset_t* dataset, const char* field_name, double* field_data, int num_components, mesh_centering_t centering)
 {
+  ASSERT(dataset->mesh != NULL);
   ASSERT(field_data != NULL);
   ASSERT(num_components > 0);
   for (int i = 0; i < dataset->num_fields; ++i)
@@ -441,9 +448,27 @@ void io_dataset_write_field(io_dataset_t* dataset, const char* field_name, doubl
     {
       if (dataset->field_names[i] == NULL)
         dataset->field_names[i] = strdup(field_name);
-      dataset->fields[i] = field_data;
+      int num_elements = 0;
+      switch (centering)
+      {
+        case MESH_CELL:
+          num_elements = dataset->mesh->num_cells;
+          break;
+        case MESH_FACE:
+          num_elements = dataset->mesh->num_faces;
+          break;
+        case MESH_EDGE:
+          num_elements = dataset->mesh->num_edges;
+          break;
+        case MESH_NODE:
+          num_elements = dataset->mesh->num_nodes;
+          break;
+      }
+      dataset->fields[i] = malloc(num_elements * num_components * sizeof(double));
+      memcpy(dataset->fields[i], field_data, num_elements*num_components*sizeof(double));
       dataset->field_num_comps[i] = num_components;
       dataset->field_centerings[i] = centering;
+      break;
     }
   }
 }

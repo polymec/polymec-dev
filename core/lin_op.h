@@ -19,6 +19,9 @@ typedef int (*lin_op_stencil_size_func)(void*, mesh_t*, int);
 // for the stencil of the linear operator for a given cell.
 typedef void (*lin_op_compute_stencil_func)(void*, mesh_t*, int, int*, double*);
 
+// A function for directly applying the linear operator to a field.
+typedef void (*lin_op_apply_func)(void*, mesh_t*, double*, double*);
+
 // A destructor function for the context object (if any).
 typedef void (*lin_op_dtor)(void*);
 
@@ -27,6 +30,7 @@ typedef struct
 {
   lin_op_stencil_size_func    stencil_size;
   lin_op_compute_stencil_func compute_stencil;
+  lin_op_apply_func           apply;
   lin_op_dtor                 dtor;
 } lin_op_vtable;
 
@@ -47,6 +51,9 @@ int lin_op_stencil_size(lin_op_t* op, int index);
 // Computes the offsets (in index space) and weights for the stencil of 
 // the linear operator applied to the geometric element with the given index.
 void lin_op_compute_stencil(lin_op_t* op, int index, int* offsets, double* weights);
+
+// Applies the linear operator to the given field.
+void lin_op_apply(lin_op_t* op, double* field, double* Lfield);
 
 #ifdef __cplusplus
 }
