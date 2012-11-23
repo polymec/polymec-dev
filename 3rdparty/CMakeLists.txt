@@ -183,11 +183,37 @@ add_library(silo STATIC IMPORTED)
 set_target_properties(silo PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/lib${SILOLIB}.a)
 set(ARBI_TP_LIBS ${ARBI_TP_LIBS};${SILOLIB})
 
+# Build lua, a simple interpreted language library.
+if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/liblua.a)
+  if (${APPLE})
+    set(LUA_ARCH macosx)
+  else() 
+    if (${LINUX})
+      set(LUA_ARCH linux)
+    else()
+      set(LUA_ARCH ansi)
+    endif()
+  endif()
+  execute_process(COMMAND cmake -E tar xzvf ${CMAKE_CURRENT_SOURCE_DIR}/lua-5.2.1.tar.gz
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+  execute_process(COMMAND make ${LUA_ARCH}
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/lua-5.2.1)
+  file(COPY ${CMAKE_CURRENT_BINARY_DIR}/lua-5.2.1/src/liblua.a DESTINATION ${PROJECT_BINARY_DIR}/lib)
+  file(GLOB includes "${CMAKE_CURRENT_BINARY_DIR}/lua-5.2.1/src/*.h")
+  foreach(inc ${includes})
+    execute_process(COMMAND cmake -E copy ${inc} ${PROJECT_BINARY_DIR}/include)
+  endforeach()
+  add_library(lua STATIC IMPORTED)
+  set_target_properties(lua PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/liblua.a)
+endif()
+set(ARBI_TP_LIBS ${ARBI_TP_LIBS};lua)
+#set(ARBI_INCDIRS ${ARBI_INCDIRS};${PROJECT_BINARY_DIR}/include)
+
 # Build libxml2, an XML library.
 if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libxml2.a)
   set(XML2_CONFIG_OPTS --prefix=${PROJECT_BINARY_DIR} --enable-static --disable-shared --without-threads)
   if (${CMAKE_BUILD_TYPE} STREQUAL "Debug")
-    set(GC_CONFIG_OPTS ${GC_CONFIG_OPTS} --enable-debug)
+    set(XML2_CONFIG_OPTS ${XML2_CONFIG_OPTS} --enable-debug)
   endif()
   execute_process(COMMAND cmake -E tar xzvf ${CMAKE_CURRENT_SOURCE_DIR}/libxml2-2.9.0.tar.gz
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
