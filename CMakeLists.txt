@@ -63,14 +63,17 @@ include_directories(${ARBI_INCDIRS})
 # Unit testing.
 enable_testing()
 
+# Core libraries.
 include_directories("${PROJECT_SOURCE_DIR}")
 add_subdirectory(core)
 add_subdirectory(io)
 add_subdirectory(geometry)
+
+# Models.
+
+# Poisson solver.
 add_subdirectory(poisson)
 
-# Executable.
-#add_executable(arbi_exe main.c)
-#set_target_properties(arbi_exe PROPERTIES OUTPUT_NAME arbi)
-#target_link_libraries(arbi_exe ${ARBI_LIBS})
+# Advection/diffusion/reaction solver.
+add_subdirectory(advect)
 
