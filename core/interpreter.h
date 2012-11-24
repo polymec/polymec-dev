@@ -2,6 +2,7 @@
 #define ARBI_INTERPRETER_H
 
 #include "core/arbi.h"
+#include "core/unordered_map.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -16,8 +17,7 @@ typedef enum
   INTERPRETER_STRING,
   INTERPRETER_NUMBER,
   INTERPRETER_MESH,
-  INTERPRETER_SP_FUNC,
-  INTERPRETER_ST_FUNC,
+  INTERPRETER_FUNCTION,
   INTERPRETER_TABLE
 } interpreter_var_type_t;
 
@@ -40,9 +40,19 @@ void interpreter_free(interpreter_t* interp);
 // Parses the input string, storing values in the interpreter.
 void interpreter_parse(interpreter_t* interp, char* input);
 
-// Fetches the given named value from the interpreter, returning NULL if it 
-// is not found.
-void* interpreter_get(interpreter_t* interp, const char* name);
+// Fetches the given string from the interpreter, returning NULL if it 
+// is not found or if it is not a string. The string refers to storage 
+// within the interpreter and should not be freed.
+char* interpreter_get_string(interpreter_t* interp, const char* name);
+
+// Fetches the given number from the interpreter, returning -FLT_MAX if it 
+// is not found or if it is not a number.
+double interpreter_get_number(interpreter_t* interp, const char* name);
+
+// Fetches the given table from the interpreter, returning NULL if it 
+// is not found or if it is not a table. The caller assumes responsibility
+// for destroying the table after this call.
+str_ptr_unordered_map_t* interpreter_get_table(interpreter_t* interp, const char* name);
 
 #ifdef __cplusplus
 }
