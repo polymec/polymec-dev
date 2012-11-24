@@ -3,6 +3,7 @@
 
 #include "core/arbi.h"
 #include "core/options.h"
+#include "core/interpreter.h"
 #include "core/io.h"
 
 #ifdef __cplusplus
@@ -18,6 +19,9 @@ typedef struct model_t model_t;
 
 // A model constructor function for creating an object context.
 typedef model_t* (*model_ctor)(options_t*);
+
+// A function for reading inputs from an interpreter into the model.
+typedef void (*model_read_inputs_func)(void*, interpreter_t*);
 
 // A function for initializing the model.
 typedef void (*model_init_func)(void*, double);
@@ -43,13 +47,14 @@ typedef void (*model_dtor)(void*);
 // This virtual table must be implemented by any model.
 typedef struct 
 {
-  model_init_func       init;
-  model_max_dt_func     max_dt;
-  model_advance_func    advance;
-  model_load_func       load;
-  model_save_func       save;
-  model_plot_func       plot;
-  model_dtor            dtor;
+  model_read_inputs_func  read_inputs;
+  model_init_func         init;
+  model_max_dt_func       max_dt;
+  model_advance_func      advance;
+  model_load_func         load;
+  model_save_func         save;
+  model_plot_func         plot;
+  model_dtor              dtor;
 } model_vtable;
 
 // Creates an instance a model with the given name and characteristics, 
@@ -64,6 +69,13 @@ char* model_name(model_t* model);
 
 // Returns the context object associated with the model (if any).
 void* model_context(model_t* model);
+
+// The interpreter that the model uses to parse input files.
+interpreter_t* model_interpreter(model_t* model);
+
+// Enables an interpreter for the model with the given set of variables
+// to validate against types.
+void model_enable_interpreter(model_t* model, interpreter_validation_t* valid_inputs);
 
 // Prints usage information for the model to the given file stream.
 void model_usage(model_t* model, FILE* stream);
@@ -81,6 +93,9 @@ void model_run_benchmark(model_t* model, const char* benchmark, options_t* optio
 
 // Runs all benchmark problems for the model.
 void model_run_all_benchmarks(model_t* model, options_t* options);
+
+// Reads input from the given input file.
+void model_read_input(model_t* model, const char* input_file);
 
 // Initializes the model at the given time.
 void model_init(model_t* model, double t);
@@ -101,8 +116,9 @@ void model_save(model_t* model);
 // Plots the model's state to its I/O interface.
 void model_plot(model_t* model);
 
-// Runs a simulation of the model from time t1 to t2.
-void model_run(model_t* model, double t1, double t2);
+// Runs a simulation of the model from time t1 to t2, or for a maximum of 
+// max_steps.
+void model_run(model_t* model, double t1, double t2, int max_steps);
 
 // Sets the name of the simulation within the model. This name 
 // will be used to identify and/or generate names of plot and save files.

@@ -1,5 +1,4 @@
 #include "core/interpreter.h"
-#include "core/unordered_map.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -79,20 +78,28 @@ struct interpreter_t
   interpreter_validation_t* valid_inputs;
 };
 
-interpreter_t* interpreter_new(interpreter_validation_t* valid_inputs, int num_valid_inputs)
+interpreter_t* interpreter_new(interpreter_validation_t* valid_inputs)
 {
-  ASSERT(num_valid_inputs >= 0);
-  ASSERT((valid_inputs != NULL) || (num_valid_inputs == 0));
-
   interpreter_t* interp = malloc(sizeof(interpreter_t));
 
   // Initialize the data store.
   interp->store = interpreter_map_new();
 
   // Copy over the valid inputs.
-  interp->valid_inputs = malloc(num_valid_inputs*sizeof(interpreter_validation_t));
-  interp->num_valid_inputs = num_valid_inputs;
-  for (int i = 0; i < num_valid_inputs; ++i)
+  if (valid_inputs != NULL)
+  {
+    int num_valid_inputs = 0;
+    while (valid_inputs[num_valid_inputs].type != INTERPRETER_TERMINUS)
+      num_valid_inputs++;
+    interp->valid_inputs = malloc(num_valid_inputs*sizeof(interpreter_validation_t));
+    interp->num_valid_inputs = num_valid_inputs;
+  }
+  else
+  {
+    interp->valid_inputs = NULL;
+    interp->num_valid_inputs = 0;
+  }
+  for (int i = 0; i < interp->num_valid_inputs; ++i)
   {
     interp->valid_inputs[i].variable = strdup(valid_inputs[i].variable);
     interp->valid_inputs[i].type = valid_inputs[i].type;
@@ -120,8 +127,11 @@ static interpreter_validation_t* interpreter_validation_entry(interpreter_t* int
   return NULL;
 }
 
-void interpreter_parse(interpreter_t* interp, char* input)
+void interpreter_parse_string(interpreter_t* interp, char* input_string)
 {
+  // Clear the current data store.
+  interpreter_map_clear(interp->store);
+
   // Initialize the Lua interpreter.
   lua_State* lua = luaL_newstate();
   ASSERT(lua != NULL);
@@ -131,7 +141,7 @@ void interpreter_parse(interpreter_t* interp, char* input)
   // FIXME
 //  lua_register(lua, "cubic_mesh", lua_cubic_mesh);
 
-  int error = luaL_dostring(lua, input);
+  int error = luaL_dostring(lua, input_string);
   if (error == LUA_ERRSYNTAX)
     arbi_error("Syntax error in input.");
   else if (error != LUA_OK)
@@ -216,6 +226,37 @@ void interpreter_parse(interpreter_t* interp, char* input)
   lua_close(lua);
 }
 
+void interpreter_parse_file(interpreter_t* interp, char* input_file)
+{
+  log_detail("interpreter: Looking for input in file '%s'...", input_file);
+  FILE* desc = fopen(input_file, "r");
+  if (desc == NULL)
+    arbi_error("interpreter: Could not open input file '%s'", input_file);
+
+  // Read the contents of the file into a string.
+  fseek(desc, 0, SEEK_END);
+  long size = ftell(desc);
+  rewind(desc);
+  char* input = malloc(size*sizeof(char));
+  fread(input, sizeof(char), size, desc);
+  fclose(desc);
+
+  // Parse the input script.
+  interpreter_parse_string(interp, input);
+
+  // Clean up.
+  free(input);
+}
+
+bool interpreter_contains(interpreter_t* interp, const char* variable, interpreter_var_type_t type)
+{
+  ASSERT(type != INTERPRETER_TERMINUS);
+  interpreter_storage_t** storage = interpreter_map_get(interp->store, (char*)variable);
+  if (storage == NULL)
+    return false;
+  return ((*storage)->type == type);
+}
+
 char* interpreter_get_string(interpreter_t* interp, const char* name)
 {
   interpreter_storage_t** storage = interpreter_map_get(interp->store, (char*)name);
@@ -234,6 +275,28 @@ double interpreter_get_number(interpreter_t* interp, const char* name)
   if ((*storage)->type != INTERPRETER_NUMBER)
     return -FLT_MAX;
   return *((double*)(*storage)->datum);
+}
+
+mesh_t* interpreter_get_mesh(interpreter_t* interp, const char* name)
+{
+  interpreter_storage_t** storage = interpreter_map_get(interp->store, (char*)name);
+  if (storage == NULL)
+    return NULL;
+  if ((*storage)->type != INTERPRETER_MESH)
+    return NULL;
+  (*storage)->dtor = NULL; // Caller assumes responsibility for mesh.
+  return (mesh_t*)((*storage)->datum);
+}
+
+st_func_t* interpreter_get_function(interpreter_t* interp, const char* name)
+{
+  interpreter_storage_t** storage = interpreter_map_get(interp->store, (char*)name);
+  if (storage == NULL)
+    return NULL;
+  if ((*storage)->type != INTERPRETER_FUNCTION)
+    return NULL;
+  (*storage)->dtor = NULL; // Caller assumes responsibility for table.
+  return (st_func_t*)((*storage)->datum);
 }
 
 str_ptr_unordered_map_t* interpreter_get_table(interpreter_t* interp, const char* name)

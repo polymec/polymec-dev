@@ -197,7 +197,7 @@ static void run_analytic_problem(mesh_t* mesh, st_func_t* rhs, str_ptr_unordered
   model_t* model = create_poisson(mesh, rhs, bcs, options);
 
   // Run the thing.
-  model_run(model, t1, t2);
+  model_run(model, t1, t2, INT_MAX);
 
   // Calculate the Lp norm of the error and write it to Lp_norms.
   poisson_t* pm = model_context(model);
@@ -823,6 +823,20 @@ static void poisson_advance(void* context, double t, double dt)
   VecRestoreArray(p->x, &x);
 }
 
+static void poisson_read_inputs(void* context, interpreter_t* interp)
+{
+  poisson_t* p = (poisson_t*)context;
+  p->mesh = interpreter_get_mesh(interp, "mesh");
+  if (p->mesh == NULL)
+    arbi_error("poisson: No mesh was specified.");
+  p->rhs = interpreter_get_function(interp, "rhs");
+  if (p->rhs == NULL)
+    arbi_error("poisson: No right hand side (rhs) was specified.");
+  p->bcs = interpreter_get_table(interp, "bcs");
+  if (p->bcs == NULL)
+    arbi_error("poisson: No table of boundary conditions (bcs) was specified.");
+}
+
 static void poisson_init(void* context, double t)
 {
   poisson_t* p = (poisson_t*)context;
@@ -952,11 +966,12 @@ static void poisson_dtor(void* ctx)
 
 model_t* poisson_model_new(options_t* options)
 {
-  model_vtable vtable = { .init = &poisson_init,
-                          .advance = &poisson_advance,
-                          .save = &poisson_save,
-                          .plot = &poisson_plot,
-                          .dtor = &poisson_dtor};
+  model_vtable vtable = { .read_inputs = poisson_read_inputs,
+                          .init = poisson_init,
+                          .advance = poisson_advance,
+                          .save = poisson_save,
+                          .plot = poisson_plot,
+                          .dtor = poisson_dtor};
   poisson_t* context = malloc(sizeof(poisson_t));
   context->mesh = NULL;
   context->rhs = NULL;
