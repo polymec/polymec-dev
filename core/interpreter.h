@@ -18,13 +18,8 @@ typedef enum
   INTERPRETER_MESH,
   INTERPRETER_SP_FUNC,
   INTERPRETER_ST_FUNC,
-  INTERPRETER_STRING_SP_FUNC_TABLE,
-  INTERPRETER_STRING_ST_FUNC_TABLE,
+  INTERPRETER_TABLE
 } interpreter_var_type_t;
-
-// This macro expands to the table mapping the given key type to the 
-// given value type.
-#define INTERPRETER_TABLE(key, value) INTERPRETER_##key##_##value##_TABLE
 
 // This is used to validate variables found within input files. It is a 
 // variable/type pair that associates variables names with their intended
@@ -42,8 +37,8 @@ interpreter_t* interpreter_new(interpreter_validation_t* valid_inputs, int num_v
 // Destroys the given interpreter.
 void interpreter_free(interpreter_t* interp);
 
-// Parses the input from the given stream, storing values in the interpreter.
-void interpreter_parse(interpreter_t* interp, FILE* input);
+// Parses the input string, storing values in the interpreter.
+void interpreter_parse(interpreter_t* interp, char* input);
 
 // Fetches the given named value from the interpreter, returning NULL if it 
 // is not found.
