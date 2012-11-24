@@ -47,6 +47,9 @@ struct model_t
   double time;    // Current simulation time.
   int step;       // Current simulation step.
   double max_dt;  // Maximum time step.
+
+  // Interpreter for parsing input files.
+  interpreter_t* interpreter;
 };
 
 model_t* model_new(const char* name, void* context, model_vtable vtable, options_t* options)
@@ -64,6 +67,7 @@ model_t* model_new(const char* name, void* context, model_vtable vtable, options
   model->plotter = NULL;
   model->plot_every = -1;
   model->max_dt = FLT_MAX;
+  model->interpreter = NULL;
 
   // Some generic options.
   char* logging = options_value(options, "logging");
@@ -110,12 +114,31 @@ void model_free(model_t* model)
     io_free(model->saver);
   if (model->plotter != NULL)
     io_free(model->plotter);
+
+  if (model->interpreter != NULL)
+    interpreter_free(model->interpreter);
+
   free(model);
 }
 
 char* model_name(model_t* model)
 {
   return model->name;
+}
+
+interpreter_t* model_interpreter(model_t* model)
+{
+  if (model->interpreter == NULL)
+    model_enable_interpreter(model, NULL);
+  ASSERT(model->interpreter != NULL);
+  return model->interpreter;
+}
+
+void model_enable_interpreter(model_t* model, interpreter_validation_t* valid_inputs)
+{
+  if (model->interpreter != NULL)
+    interpreter_free(model->interpreter);
+  model->interpreter = interpreter_new(valid_inputs);
 }
 
 void model_register_benchmark(model_t* model, const char* benchmark, model_benchmark_function_t function, const char* description)
@@ -241,11 +264,16 @@ void model_plot(model_t* model)
   io_close(model->plotter);
 }
 
-void model_run(model_t* model, double t1, double t2)
+void model_run(model_t* model, double t1, double t2, int max_steps)
 {
   ASSERT(t2 >= t1);
   if (t2 > t1)
-    log_detail("%s: Running from time %g to %g.", model->name, t1, t2);
+  {
+    if (max_steps == INT_MAX)
+      log_detail("%s: Running from time %g to %g.", model->name, t1, t2);
+    else
+      log_detail("%s: Running from time %g to %g (or for %d steps).", model->name, t1, t2, max_steps);
+  }
   else
     log_detail("%s: Running simulation at time %g.", model->name, t1);
   model_init(model, t1);
@@ -256,7 +284,7 @@ void model_run(model_t* model, double t1, double t2)
   }
   else
   {
-    while (model->time < t2)
+    while ((model->time < t2) && (model->step < max_steps))
     {
       char reason[ARBI_MODEL_MAXDT_REASON_SIZE];
       double dt = model_max_dt(model, reason);
@@ -422,14 +450,43 @@ int model_main(const char* model_name, model_ctor constructor, int argc, char* a
   }
   fclose(fp);
 
-  // By default, the simulation is named after the input file.
+  // By default, the simulation is named after the input file (minus its suffix).
   model_set_sim_name(model, input);
 
-  // Default time endpoints.
+  // Read the inputs into the model's interpreter.
+  interpreter_t* interp = model_interpreter(model);
+  interpreter_parse_file(interp, input);
+
+  // Load the inputs into the model.
+  model->vtable.read_inputs(model->context, interp);
+
+  // Default time endpoints, max number of steps.
   double t1 = 0.0, t2 = 1.0;
+  int max_steps = INT_MAX;
+
+  // Overwrite these defaults with interpreted values.
+  if (interpreter_contains(interp, "t1", INTERPRETER_NUMBER))
+    t1 = interpreter_get_number(interp, "t1");
+  if (interpreter_contains(interp, "t2", INTERPRETER_NUMBER))
+    t2 = interpreter_get_number(interp, "t2");
+  if (interpreter_contains(interp, "max_steps", INTERPRETER_NUMBER))
+    max_steps = (int)interpreter_get_number(interp, "max_steps");
+
+  // If these are given as options, they are overridden by the command line.
+  {
+    char* opt = options_value(opts, "t1");
+    if (opt != NULL)
+      t1 = atof(opt);
+    opt = options_value(opts, "t2");
+    if (opt != NULL)
+      t2 = atof(opt);
+    opt = options_value(opts, "max_steps");
+    if (opt != NULL)
+      t2 = atoi(opt);
+  }
 
   // Run the model.
-  model_run(model, t1, t2);
+  model_run(model, t1, t2, max_steps);
 
   // Clean up.
   model_free(model);

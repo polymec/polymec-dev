@@ -197,7 +197,7 @@ static void run_analytic_problem(mesh_t* mesh, st_func_t* rhs, str_ptr_unordered
   model_t* model = create_advect(mesh, rhs, bcs, options);
 
   // Run the thing.
-  model_run(model, t1, t2);
+  model_run(model, t1, t2, INT_MAX);
 
   // Calculate the Lp norm of the error and write it to Lp_norms.
   advect_t* pm = model_context(model);
@@ -823,6 +823,20 @@ static void advect_advance(void* context, double t, double dt)
   VecRestoreArray(p->x, &x);
 }
 
+static void advect_read_inputs(void* context, interpreter_t* interp)
+{
+  advect_t* a = (advect_t*)context;
+  a->mesh = interpreter_get_mesh(interp, "mesh");
+  if (a->mesh == NULL)
+    arbi_error("advect: No mesh was specified.");
+//  p->rhs = interpreter_get_function(interp, "rhs");
+//  if (p->rhs == NULL)
+//    arbi_error("poisson: No right hand side (rhs) was specified.");
+//  p->bcs = interpreter_get_table(interp, "bcs");
+//  if (p->bcs == NULL)
+//    arbi_error("poisson: No table of boundary conditions (bcs) was specified.");
+}
+
 static void advect_init(void* context, double t)
 {
   advect_t* p = (advect_t*)context;
@@ -952,11 +966,12 @@ static void advect_dtor(void* ctx)
 
 model_t* advect_model_new(options_t* options)
 {
-  model_vtable vtable = { .init = &advect_init,
-                          .advance = &advect_advance,
-                          .save = &advect_save,
-                          .plot = &advect_plot,
-                          .dtor = &advect_dtor};
+  model_vtable vtable = { .read_inputs = advect_read_inputs,
+                          .init = advect_init,
+                          .advance = advect_advance,
+                          .save = advect_save,
+                          .plot = advect_plot,
+                          .dtor = advect_dtor};
   advect_t* context = malloc(sizeof(advect_t));
   context->mesh = NULL;
   context->rhs = NULL;

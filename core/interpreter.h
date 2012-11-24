@@ -2,6 +2,8 @@
 #define ARBI_INTERPRETER_H
 
 #include "core/arbi.h"
+#include "core/mesh.h"
+#include "core/st_func.h"
 #include "core/unordered_map.h"
 
 #ifdef __cplusplus
@@ -18,7 +20,8 @@ typedef enum
   INTERPRETER_NUMBER,
   INTERPRETER_MESH,
   INTERPRETER_FUNCTION,
-  INTERPRETER_TABLE
+  INTERPRETER_TABLE,
+  INTERPRETER_TERMINUS
 } interpreter_var_type_t;
 
 // This is used to validate variables found within input files. It is a 
@@ -30,15 +33,25 @@ typedef struct
   interpreter_var_type_t type;  // Type of the variable.
 } interpreter_validation_t;
 
+// This validation object is used to terminate lists of valid inputs.
+static const interpreter_validation_t END_OF_VALID_INPUTS = {.variable = "TERMINUS", .type = INTERPRETER_TERMINUS};
+
 // Creates a new interpreter for use with a model. The interpreter uses the 
 // given set of types to validate variables in input files.
-interpreter_t* interpreter_new(interpreter_validation_t* valid_inputs, int num_valid_inputs);
+interpreter_t* interpreter_new(interpreter_validation_t* valid_inputs);
 
 // Destroys the given interpreter.
 void interpreter_free(interpreter_t* interp);
 
+// Parses the input file, storing the values in the interpreter.
+void interpreter_parse_file(interpreter_t* interp, char* input_file);
+
 // Parses the input string, storing values in the interpreter.
-void interpreter_parse(interpreter_t* interp, char* input);
+void interpreter_parse_string(interpreter_t* interp, char* input_string);
+
+// Returns true if the given variable exists in the interpreter and 
+// matches the given type, false otherwise.
+bool interpreter_contains(interpreter_t* interp, const char* variable, interpreter_var_type_t type); 
 
 // Fetches the given string from the interpreter, returning NULL if it 
 // is not found or if it is not a string. The string refers to storage 
@@ -48,6 +61,15 @@ char* interpreter_get_string(interpreter_t* interp, const char* name);
 // Fetches the given number from the interpreter, returning -FLT_MAX if it 
 // is not found or if it is not a number.
 double interpreter_get_number(interpreter_t* interp, const char* name);
+
+// Fetches the given mesh from the interpreter, returning NULL if it 
+// is not found or if it is not a table. The caller assumes responsibility
+// for destroying the mesh after this call.
+mesh_t* interpreter_get_mesh(interpreter_t* interp, const char* name);
+
+// Fetches the given space-time function from the interpreter, returning NULL 
+// if it is not found or if it is not a table. 
+st_func_t* interpreter_get_function(interpreter_t* interp, const char* name);
 
 // Fetches the given table from the interpreter, returning NULL if it 
 // is not found or if it is not a table. The caller assumes responsibility
