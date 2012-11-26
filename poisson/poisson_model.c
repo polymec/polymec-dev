@@ -14,6 +14,7 @@
 #include "geometry/cylinder.h"
 #include "geometry/sphere.h"
 #include "geometry/intersection.h"
+#include "geometry/interpreter_register_geometry_functions.h"
 #include "io/silo_io.h"
 #include "io/vtk_plot_io.h"
 #include "poisson/poisson_model.h"
@@ -22,6 +23,11 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+// Lua stuff.
+#include "lua.h"
+#include "lualib.h"
+#include "lauxlib.h"
 
 // Boundary condition structure.
 // This represents a generic boundary condition: 
@@ -82,6 +88,110 @@ static void free_boundary_cell(poisson_boundary_cell_t* cell)
   free(cell);
 }
 
+//------------------------------------------------------------------------
+// Some Poisson-specific interpreter extensions
+//------------------------------------------------------------------------
+
+static int dirichlet_bc(lua_State* lua)
+{
+  // Check the argument.
+  int num_args = lua_gettop(lua);
+  if ((num_args != 1) || (!lua_isstfunc(lua, 1) && !lua_isnumber(lua, 1)))
+  {
+    lua_pushstring(lua, "Invalid arguments. Usage:\nbc = dirichlet_bc(F)\nwhere F is a number or function.");
+    lua_error(lua);
+    return LUA_ERRRUN;
+  }
+
+  // Get the argument. 
+  st_func_t* F;
+  if (lua_isnumber(lua, 1))
+  {
+    double F0 = lua_tonumber(lua, 1);
+    F = constant_st_func_new(1, &F0);
+  }
+  else
+  {
+    F = lua_tostfunc(lua, 1);
+  }
+
+  // Create a boundary condition object and push it onto the stack.
+  poisson_bc_t* bc = create_bc(1.0, 0.0, F);
+  lua_pushuserdefined(lua, bc, free_bc);
+  return 1;
+}
+
+static int neumann_bc(lua_State* lua)
+{
+  // Check the argument.
+  int num_args = lua_gettop(lua);
+  if ((num_args != 1) || (!lua_isstfunc(lua, 1) && !lua_isnumber(lua, 1)))
+  {
+    lua_pushstring(lua, "Invalid arguments. Usage:\nbc = neumann_bc(F)\nwhere F is a number or function.");
+    lua_error(lua);
+    return LUA_ERRRUN;
+  }
+
+  // Get the argument. 
+  st_func_t* F;
+  if (lua_isnumber(lua, 1))
+  {
+    double F0 = lua_tonumber(lua, 1);
+    F = constant_st_func_new(1, &F0);
+  }
+  else
+  {
+    F = lua_tostfunc(lua, 1);
+  }
+
+  // Create a boundary condition object and push it onto the stack.
+  poisson_bc_t* bc = create_bc(0.0, 1.0, F);
+  lua_pushuserdefined(lua, bc, free_bc);
+  return 1;
+}
+
+static int robin_bc(lua_State* lua)
+{
+  // Check the argument.
+  int num_args = lua_gettop(lua);
+  if ((num_args != 3) || 
+      !lua_isnumber(lua, 1) ||
+      !lua_isnumber(lua, 2) ||
+      (!lua_isstfunc(lua, 3) && !lua_isnumber(lua, 3)))
+  {
+    lua_pushstring(lua, "Invalid arguments. Usage:\nbc = robin_bc(alpha, beta, F)\nwhere F is a number or function.");
+    lua_error(lua);
+    return LUA_ERRRUN;
+  }
+
+  // Get the arguments. 
+  double alpha = lua_tonumber(lua, 1);
+  double beta = lua_tonumber(lua, 2);
+  st_func_t* F;
+  if (lua_isnumber(lua, 3))
+  {
+    double F0 = lua_tonumber(lua, 3);
+    F = constant_st_func_new(1, &F0);
+  }
+  else
+  {
+    F = lua_tostfunc(lua, 3);
+  }
+
+  // Create a boundary condition object and push it onto the stack.
+  poisson_bc_t* bc = create_bc(alpha, beta, F);
+  lua_pushuserdefined(lua, bc, free_bc);
+  return 1;
+}
+
+static void register_poisson_functions(interpreter_t* interpreter)
+{
+  interpreter_register_function(interpreter, "dirichlet_bc", dirichlet_bc);
+  interpreter_register_function(interpreter, "neumann_bc", neumann_bc);
+  interpreter_register_function(interpreter, "robin_bc", robin_bc);
+}
+//------------------------------------------------------------------------
+
 // Poisson model context structure.
 typedef struct 
 {
@@ -120,7 +230,8 @@ static model_t* create_poisson(mesh_t* mesh, st_func_t* rhs, str_ptr_unordered_m
   if (p->bcs != NULL)
     str_ptr_unordered_map_free(p->bcs);
   p->bcs = bcs;
-  p->L = laplacian_op_new(p->mesh);
+  if (p->L == NULL)
+    p->L = laplacian_op_new(p->mesh);
 
   // Determine whether this model is time-dependent.
   p->is_time_dependent = !st_func_is_constant(p->rhs);
@@ -835,6 +946,21 @@ static void poisson_read_inputs(void* context, interpreter_t* interp)
   p->bcs = interpreter_get_table(interp, "bcs");
   if (p->bcs == NULL)
     arbi_error("poisson: No table of boundary conditions (bcs) was specified.");
+
+  // Set up everything else.
+  p->L = laplacian_op_new(p->mesh);
+
+  // Check the mesh to make sure it has all the tags mentioned in the 
+  // bcs table.
+  int pos = 0;
+  char* tag;
+  poisson_bc_t* bc;
+  while (str_ptr_unordered_map_next(p->bcs, &pos, &tag, (void**)&bc))
+  {
+    // Retrieve the tag for this boundary condition.
+    if (!mesh_has_tag(p->mesh->face_tags, tag))
+      arbi_error("poisson: Face tag '%s' was not found in the mesh.", tag);
+  }
 }
 
 static void poisson_init(void* context, double t)
@@ -992,6 +1118,8 @@ model_t* poisson_model_new(options_t* options)
                                              {"solution", INTERPRETER_FUNCTION},
                                              END_OF_VALID_INPUTS};
   model_enable_interpreter(model, valid_inputs);
+  interpreter_register_geometry_functions(model_interpreter(model));
+  register_poisson_functions(model_interpreter(model));
 
   // Register benchmarks.
   model_register_benchmark(model, "laplace_1d", run_laplace_1d, "Laplace's equation in 1D Cartesian coordinates.");
