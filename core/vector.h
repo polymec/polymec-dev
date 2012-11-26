@@ -6,7 +6,7 @@
 #include "arena/proto.h"
 
 // A vector is a managed array that can be dynamically resized at your 
-// convenience. Calling DEFINE_VECTOR(x_vector_t, x) for a type x produces 
+// convenience. Calling DEFINE_VECTOR(x_vector, x) for a type x produces 
 // code for a type called x_vector_t, and defines the following data 
 // structure and interface:
 //
