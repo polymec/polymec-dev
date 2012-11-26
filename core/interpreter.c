@@ -89,6 +89,9 @@ struct interpreter_t
   // A list of valid inputs and their types.
   int num_valid_inputs;
   interpreter_validation_t* valid_inputs;
+
+  // A set of pre-existing variables in Lua that will be ignored.
+  str_unordered_set_t* preexisting_vars;
 };
 
 // Creates a constant (scalar-valued) function from a number.
@@ -108,7 +111,8 @@ static int constant_function(lua_State* lua)
 
   // Push a constant function onto the stack.
   st_func_t* func = constant_st_func_new(1, &arg);
-  return interpreter_push_st_func(lua, func);
+  lua_pushstfunc(lua, func);
+  return 1;
 }
 
 static void register_default_functions(interpreter_t* interp)
@@ -147,6 +151,8 @@ interpreter_t* interpreter_new(interpreter_validation_t* valid_inputs)
     interp->valid_inputs[i].type = valid_inputs[i].type;
   }
 
+  interp->preexisting_vars = NULL;
+
   return interp;
 }
 
@@ -179,33 +185,8 @@ static interpreter_validation_t* interpreter_validation_entry(interpreter_t* int
   return NULL;
 }
 
-int interpreter_push_mesh(struct lua_State* lua, mesh_t* mesh)
+static lua_State* interpreter_open_lua(interpreter_t* interp)
 {
-  // Bundle it up and store it in the given variable.
-  interpreter_storage_t* storage = malloc(sizeof(interpreter_storage_t));
-  storage->type = INTERPRETER_MESH;
-  storage->datum = (void*)mesh;
-  storage->dtor = destroy_mesh;
-  lua_pushlightuserdata(lua, (void*)storage);
-  return 1;
-}
-
-int interpreter_push_st_func(struct lua_State* lua, st_func_t* func)
-{
-  // Bundle it up and store it in the given variable.
-  interpreter_storage_t* storage = malloc(sizeof(interpreter_storage_t));
-  storage->type = INTERPRETER_FUNCTION;
-  storage->datum = (void*)func;
-  storage->dtor = NULL;
-  lua_pushlightuserdata(lua, (void*)storage);
-  return 1;
-}
-
-void interpreter_parse_string(interpreter_t* interp, char* input_string)
-{
-  // Clear the current data store.
-  interpreter_map_clear(interp->store);
-
   // Initialize the Lua interpreter.
   lua_State* lua = luaL_newstate();
   ASSERT(lua != NULL);
@@ -219,25 +200,31 @@ void interpreter_parse_string(interpreter_t* interp, char* input_string)
   // list of what's there so we can ignore it.
   // FIXME: This is a hack, but it's easier than learning about 
   // FIXME: lua's notions of environments, etc.
-  str_unordered_set_t* old_vars = str_unordered_set_new();
+  ASSERT(interp->preexisting_vars == NULL);
+  interp->preexisting_vars = str_unordered_set_new();
   lua_pushglobaltable(lua);
   ASSERT(lua_istable(lua, -1));
   lua_pushnil(lua); 
   while (lua_next(lua, -2)) // Traverse globals table.
   {
     const char* key = lua_tostring(lua, -2);
-    str_unordered_set_insert(old_vars, (char*)key);
+    str_unordered_set_insert(interp->preexisting_vars, (char*)key);
     lua_pop(lua, 1);
   }
   lua_pop(lua, 1);
 
-  // Parses the input.
-  int error = luaL_dostring(lua, input_string);
-  if (error == LUA_ERRSYNTAX)
-    arbi_error("Syntax error in input.");
-  else if (error != LUA_OK)
-    arbi_error("Internal error in interpreter.");
+  return lua;
+}
 
+static void interpreter_close_lua(interpreter_t* interp, lua_State* lua)
+{
+  str_unordered_set_free(interp->preexisting_vars);
+  interp->preexisting_vars = NULL;
+  lua_close(lua);
+}
+
+static void interpreter_store_chunk_contents(interpreter_t* interp, lua_State* lua)
+{
   // Get the global variables table from the registry.
   lua_pushglobaltable(lua);
 //  lua_rawgeti(lua, LUA_REGISTRYINDEX, LUA_RIDX_GLOBALS);
@@ -254,7 +241,7 @@ void interpreter_parse_string(interpreter_t* interp, char* input_string)
 
     // Check to see if this variable existed in Lua before we 
     // parsed our inputs.
-    bool preexisting_var = str_unordered_set_contains(old_vars, (char*)key);
+    bool preexisting_var = str_unordered_set_contains(interp->preexisting_vars, (char*)key);
     bool skip_this_var = false;
 
     // Does the key appear in our validation table?
@@ -369,9 +356,16 @@ void interpreter_parse_string(interpreter_t* interp, char* input_string)
 
         char* tkey = (char*)lua_tostring(lua, key_index);
         void* tval = (void*)lua_topointer(lua, val_index);
-        interpreter_storage_t* tvar = (interpreter_storage_t*)tval;
+        if (tval == NULL)
+        {
+          // We don't need to do any further validation on non-pointer 
+          // objects.
+          lua_pop(lua, 1);
+          continue;
+        }
 
         // No tables of tables allowed!
+        interpreter_storage_t* tvar = (interpreter_storage_t*)tval;
         if (tvar->type == INTERPRETER_TABLE)
         {
           if (preexisting_var)
@@ -455,12 +449,36 @@ void interpreter_parse_string(interpreter_t* interp, char* input_string)
     lua_pop(lua, 1);
   }
   lua_pop(lua, 1); // Pops the globals table.
+}
+
+void interpreter_parse_string(interpreter_t* interp, char* input_string)
+{
+  // Clear the current data store.
+  interpreter_map_clear(interp->store);
+
+  // Initialize the Lua interpreter.
+  lua_State* lua = interpreter_open_lua(interp);
+
+printf("%s\n", input_string);
+  // Load the input, but does not parse it.
+  int error = luaL_loadstring(lua, input_string);
+  if (error == LUA_ERRSYNTAX)
+    arbi_error("in parsing input syntax:\n%s", lua_tostring(lua, 1));
+  else if (error != LUA_OK)
+    arbi_error("Internal error in interpreter.");
+
+  // Parses the input.
+  error = lua_pcall(lua, 0, LUA_MULTRET, 0);
+  if (error == LUA_ERRRUN)
+    arbi_error("in parsing input: %s", lua_tostring(lua, 1));
+  else if (error != LUA_OK)
+    arbi_error("Internal error in interpreter.");
+
+  // Move the data from the chunk to the data store.
+  interpreter_store_chunk_contents(interp, lua);
 
   // Put lua away.
-  lua_close(lua);
-
-  // Clean up.
-  str_unordered_set_free(old_vars);
+  interpreter_close_lua(interp, lua);
 }
 
 void interpreter_parse_file(interpreter_t* interp, char* input_file)
@@ -469,20 +487,33 @@ void interpreter_parse_file(interpreter_t* interp, char* input_file)
   FILE* desc = fopen(input_file, "r");
   if (desc == NULL)
     arbi_error("interpreter: Could not open input file '%s'", input_file);
-
-  // Read the contents of the file into a string.
-  fseek(desc, 0, SEEK_END);
-  long size = ftell(desc);
-  rewind(desc);
-  char* input = malloc(size*sizeof(char));
-  fread(input, sizeof(char), size, desc);
   fclose(desc);
 
-  // Parse the input script.
-  interpreter_parse_string(interp, input);
+  // Clear the current data store.
+  interpreter_map_clear(interp->store);
 
-  // Clean up.
-  free(input);
+  // Initialize the Lua interpreter.
+  lua_State* lua = interpreter_open_lua(interp);
+
+  // Load the input from the file, but does not parse it.
+  int error = luaL_loadfile(lua, input_file);
+  if (error == LUA_ERRSYNTAX)
+    arbi_error("in parsing input syntax:\n%s", lua_tostring(lua, 1));
+  else if (error != LUA_OK)
+    arbi_error("Internal error in interpreter.");
+
+  // Parses the input.
+  error = lua_pcall(lua, 0, LUA_MULTRET, 0);
+  if (error == LUA_ERRRUN)
+    arbi_error("in parsing input: %s", lua_tostring(lua, 1));
+  else if (error != LUA_OK)
+    arbi_error("Internal error in interpreter.");
+
+  // Move the data from the chunk to the data store.
+  interpreter_store_chunk_contents(interp, lua);
+
+  // Put lua away.
+  interpreter_close_lua(interp, lua);
 }
 
 bool interpreter_contains(interpreter_t* interp, const char* variable, interpreter_var_type_t type)
@@ -544,6 +575,108 @@ str_ptr_unordered_map_t* interpreter_get_table(interpreter_t* interp, const char
     return NULL;
   (*storage)->dtor = NULL; // Caller assumes responsibility for table.
   return (str_ptr_unordered_map_t*)((*storage)->datum);
+}
+
+void* interpreter_get_user_defined(interpreter_t* interp, const char* name)
+{
+  interpreter_storage_t** storage = interpreter_map_get(interp->store, (char*)name);
+  if (storage == NULL)
+    return NULL;
+  if ((*storage)->type != INTERPRETER_USER_DEFINED)
+    return NULL;
+  (*storage)->dtor = NULL; // Caller assumes responsibility for user-defined datum.
+  return (*storage)->datum;
+}
+
+//------------------------------------------------------------------------
+//                          Lua helpers.
+//------------------------------------------------------------------------
+
+bool lua_isstfunc(struct lua_State* lua, int index)
+{
+  if (!lua_islightuserdata(lua, index))
+    return false;
+  interpreter_storage_t* storage = (interpreter_storage_t*)lua_topointer(lua, index);
+  return (storage->type == INTERPRETER_FUNCTION);
+}
+
+st_func_t* lua_tostfunc(struct lua_State* lua, int index)
+{
+  if (!lua_islightuserdata(lua, index))
+    return NULL;
+  interpreter_storage_t* storage = (interpreter_storage_t*)lua_topointer(lua, index);
+  if (storage->type == INTERPRETER_FUNCTION)
+    return (st_func_t*)storage->datum;
+  else
+    return NULL;
+}
+
+void lua_pushstfunc(struct lua_State* lua, st_func_t* func)
+{
+  // Bundle it up and store it in the given variable.
+  interpreter_storage_t* storage = malloc(sizeof(interpreter_storage_t));
+  storage->type = INTERPRETER_FUNCTION;
+  storage->datum = (void*)func;
+  storage->dtor = NULL;
+  lua_pushlightuserdata(lua, (void*)storage);
+}
+
+bool lua_ismesh(struct lua_State* lua, int index)
+{
+  if (!lua_islightuserdata(lua, index))
+    return false;
+  interpreter_storage_t* storage = (interpreter_storage_t*)lua_topointer(lua, index);
+  return (storage->type == INTERPRETER_MESH);
+}
+
+mesh_t* lua_tomesh(struct lua_State* lua, int index)
+{
+  if (!lua_islightuserdata(lua, index))
+    return NULL;
+  interpreter_storage_t* storage = (interpreter_storage_t*)lua_topointer(lua, index);
+  if (storage->type == INTERPRETER_MESH)
+    return (mesh_t*)storage->datum;
+  else
+    return NULL;
+}
+
+void lua_pushmesh(struct lua_State* lua, mesh_t* mesh)
+{
+  // Bundle it up and store it in the given variable.
+  interpreter_storage_t* storage = malloc(sizeof(interpreter_storage_t));
+  storage->type = INTERPRETER_MESH;
+  storage->datum = (void*)mesh;
+  storage->dtor = destroy_mesh;
+  lua_pushlightuserdata(lua, (void*)storage);
+}
+
+bool lua_isuserdefined(struct lua_State* lua, int index)
+{
+  if (!lua_islightuserdata(lua, index))
+    return false;
+  interpreter_storage_t* storage = (interpreter_storage_t*)lua_topointer(lua, index);
+  return (storage->type == INTERPRETER_USER_DEFINED);
+}
+
+void* lua_touserdefined(struct lua_State* lua, int index)
+{
+  if (!lua_islightuserdata(lua, index))
+    return NULL;
+  interpreter_storage_t* storage = (interpreter_storage_t*)lua_topointer(lua, index);
+  if (storage->type == INTERPRETER_USER_DEFINED)
+    return (void*)storage->datum;
+  else
+    return NULL;
+}
+
+void lua_pushuserdefined(struct lua_State* lua, void* userdefined, void (*dtor)(void*))
+{
+  // Bundle it up and store it in the given variable.
+  interpreter_storage_t* storage = malloc(sizeof(interpreter_storage_t));
+  storage->type = INTERPRETER_USER_DEFINED;
+  storage->datum = (void*)userdefined;
+  storage->dtor = dtor;
+  lua_pushlightuserdata(lua, (void*)storage);
 }
 
 #ifdef __cplusplus

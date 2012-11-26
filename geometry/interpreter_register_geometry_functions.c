@@ -88,7 +88,8 @@ static int cubic_lattice_mesh(lua_State* lua)
 
   // Create the mesh and push it onto the stack.
   mesh_t* mesh = create_cubic_lattice_mesh_with_bbox(nx, ny, nz, &bbox);
-  return interpreter_push_mesh(lua, mesh);
+  lua_pushmesh(lua, mesh);
+  return 1;
 }
 
 void interpreter_register_geometry_functions(interpreter_t* interp)
