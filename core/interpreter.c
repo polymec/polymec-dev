@@ -91,10 +91,38 @@ struct interpreter_t
   interpreter_validation_t* valid_inputs;
 };
 
+// Creates a constant (scalar-valued) function from a number.
+static int constant_function(lua_State* lua)
+{
+  // Check the argument.
+  int num_args = lua_gettop(lua);
+  if ((num_args != 1) || !lua_isnumber(lua, 1))
+  {
+    lua_pushstring(lua, "Argument must be a number.");
+    lua_error(lua);
+    return LUA_ERRRUN;
+  }
+
+  // Get the argument.
+  double arg = lua_tonumber(lua, 1);
+
+  // Push a constant function onto the stack.
+  st_func_t* func = constant_st_func_new(1, &arg);
+  return interpreter_push_st_func(lua, func);
+}
+
+static void register_default_functions(interpreter_t* interp)
+{
+  interpreter_register_function(interp, "constant_function", constant_function);
+}
+
 interpreter_t* interpreter_new(interpreter_validation_t* valid_inputs)
 {
   interpreter_t* interp = malloc(sizeof(interpreter_t));
   interp->num_functions = 0;
+
+  // Add the default functions to the interpreter.
+  register_default_functions(interp);
 
   // Initialize the data store.
   interp->store = interpreter_map_new();
@@ -173,31 +201,6 @@ int interpreter_push_st_func(struct lua_State* lua, st_func_t* func)
   return 1;
 }
 
-// Creates a constant (scalar-valued) function from a number.
-static int constant_function(lua_State* lua)
-{
-  // Check the argument.
-  int num_args = lua_gettop(lua);
-  if ((num_args != 1) || !lua_isnumber(lua, 1))
-  {
-    lua_pushstring(lua, "Argument must be a number.");
-    lua_error(lua);
-    return LUA_ERRRUN;
-  }
-
-  // Get the argument.
-  double arg = lua_tonumber(lua, 1);
-
-  // Push a constant function onto the stack.
-  st_func_t* func = constant_st_func_new(1, &arg);
-  return interpreter_push_st_func(lua, func);
-}
-
-static void add_default_functions(lua_State* lua)
-{
-  lua_register(lua, "constant_function", constant_function);
-}
-
 void interpreter_parse_string(interpreter_t* interp, char* input_string)
 {
   // Clear the current data store.
@@ -207,9 +210,6 @@ void interpreter_parse_string(interpreter_t* interp, char* input_string)
   lua_State* lua = luaL_newstate();
   ASSERT(lua != NULL);
   luaL_openlibs(lua);
-
-  // Add the default functions to the interpreter.
-  add_default_functions(lua);
 
   // Add whatever other functions we've had registered.
   for (int i = 0; i < interp->num_functions; ++i)
