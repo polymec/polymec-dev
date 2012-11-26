@@ -24,6 +24,7 @@ typedef enum
   INTERPRETER_MESH,
   INTERPRETER_FUNCTION,
   INTERPRETER_TABLE,
+  INTERPRETER_USER_DEFINED, // <-- on your head be it!!
   INTERPRETER_TERMINUS // Used only to terminate validation lists.
 } interpreter_var_type_t;
 
@@ -81,6 +82,20 @@ st_func_t* interpreter_get_function(interpreter_t* interp, const char* name);
 // is not found or if it is not a table. The caller assumes responsibility
 // for destroying the table after this call.
 str_ptr_unordered_map_t* interpreter_get_table(interpreter_t* interp, const char* name);
+
+//------------------------------------------------------------------------
+// These methods can be used to create functions that extend an 
+// interpreter.
+//------------------------------------------------------------------------
+
+// Pushes a mesh onto the interpreter's stack (as a return value for a 
+// function), returning 1 as the number of results.
+int interpreter_push_mesh(struct lua_State* lua, mesh_t* mesh);
+
+// Pushes a space-time function onto the interpreter's stack (as a 
+// return value for a function), returning 1 as the number of results.
+int interpreter_push_st_func(struct lua_State* lua, st_func_t* func);
+
 
 #ifdef __cplusplus
 }

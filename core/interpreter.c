@@ -26,6 +26,7 @@ static void destroy_variable(char* key, interpreter_storage_t* value)
   free(key);
   if (value->dtor)
     (*value->dtor)(value->datum);
+  value->datum = NULL;
   free(value);
 }
 
@@ -33,6 +34,11 @@ static void destroy_table_entry(char* key, void* value)
 {
   free(key);
   free(value);
+}
+
+static void destroy_mesh(void* mesh)
+{
+  mesh_free((mesh_t*)mesh);
 }
 
 static interpreter_storage_t* store_string(const char* var)
@@ -145,6 +151,28 @@ static interpreter_validation_t* interpreter_validation_entry(interpreter_t* int
   return NULL;
 }
 
+int interpreter_push_mesh(struct lua_State* lua, mesh_t* mesh)
+{
+  // Bundle it up and store it in the given variable.
+  interpreter_storage_t* storage = malloc(sizeof(interpreter_storage_t));
+  storage->type = INTERPRETER_MESH;
+  storage->datum = (void*)mesh;
+  storage->dtor = destroy_mesh;
+  lua_pushlightuserdata(lua, (void*)storage);
+  return 1;
+}
+
+int interpreter_push_st_func(struct lua_State* lua, st_func_t* func)
+{
+  // Bundle it up and store it in the given variable.
+  interpreter_storage_t* storage = malloc(sizeof(interpreter_storage_t));
+  storage->type = INTERPRETER_FUNCTION;
+  storage->datum = (void*)func;
+  storage->dtor = NULL;
+  lua_pushlightuserdata(lua, (void*)storage);
+  return 1;
+}
+
 // Creates a constant (scalar-valued) function from a number.
 static int constant_function(lua_State* lua)
 {
@@ -160,16 +188,9 @@ static int constant_function(lua_State* lua)
   // Get the argument.
   double arg = lua_tonumber(lua, 1);
 
-  // Make a constant function.
+  // Push a constant function onto the stack.
   st_func_t* func = constant_st_func_new(1, &arg);
-
-  // Bundle it up and store it in the given variable.
-  interpreter_storage_t* storage = malloc(sizeof(interpreter_storage_t));
-  storage->type = INTERPRETER_FUNCTION;
-  storage->datum = (void*)func;
-  lua_pushlightuserdata(lua, (void*)storage);
-
-  return 1; // Number of results.
+  return interpreter_push_st_func(lua, func);
 }
 
 static void add_default_functions(lua_State* lua)
@@ -231,12 +252,10 @@ void interpreter_parse_string(interpreter_t* interp, char* input_string)
     static const int val_index = -1;
     const char* key = lua_tostring(lua, key_index);
 
-    // Skip variables that existed before parsing.
-    if (str_unordered_set_contains(old_vars, (char*)key))
-    {
-      lua_pop(lua, 1);
-      continue;
-    }
+    // Check to see if this variable existed in Lua before we 
+    // parsed our inputs.
+    bool preexisting_var = str_unordered_set_contains(old_vars, (char*)key);
+    bool skip_this_var = false;
 
     // Does the key appear in our validation table?
     interpreter_validation_t* entry = interpreter_validation_entry(interp, key);
@@ -244,27 +263,69 @@ void interpreter_parse_string(interpreter_t* interp, char* input_string)
     {
       // We must validate this variable against its allowed type.
       if ((entry->type == INTERPRETER_STRING) && !lua_isstring(lua, val_index))
-        arbi_error("Type error: %s must be a string.", key);
+      {
+        if (preexisting_var)
+          skip_this_var = true;
+        else
+          arbi_error("Type error: %s must be a string.", key);
+      }
       else if ((entry->type == INTERPRETER_NUMBER) && !lua_isnumber(lua, val_index))
-        arbi_error("Type error: %s must be a number.", key);
+      {
+        if (preexisting_var)
+          skip_this_var = true;
+        else
+          arbi_error("Type error: %s must be a number.", key);
+      }
       else if (entry->type == INTERPRETER_MESH)
       {
         if (!lua_islightuserdata(lua, val_index))
-          arbi_error("Type error: %s must be a mesh.", key);
+        {
+          if (preexisting_var)
+            skip_this_var = true;
+          else
+            arbi_error("Type error: %s must be a mesh.", key);
+        }
         interpreter_storage_t* var = (void*)lua_topointer(lua, val_index);
         if (var->type != INTERPRETER_MESH)
-          arbi_error("Type error: %s must be a mesh.", key);
+        {
+          if (preexisting_var)
+            skip_this_var = true;
+          else
+            arbi_error("Type error: %s must be a mesh.", key);
+        }
       }
       else if (entry->type == INTERPRETER_FUNCTION)
       {
         if (!lua_islightuserdata(lua, val_index))
-          arbi_error("Type error: %s must be a function.", key);
+        {
+          if (preexisting_var)
+            skip_this_var = true;
+          else
+            arbi_error("Type error: %s must be a function.", key);
+        }
         interpreter_storage_t* var = (void*)lua_topointer(lua, val_index);
         if (var->type != INTERPRETER_FUNCTION)
-          arbi_error("Type error: %s must be a function.", key);
+        {
+          if (preexisting_var)
+            skip_this_var = true;
+          else
+            arbi_error("Type error: %s must be a function.", key);
+        }
       }
       else if ((entry->type == INTERPRETER_TABLE) && !lua_istable(lua, val_index))
-        arbi_error("Type error: %s must be a table mapping strings to objects.", key);
+      {
+        if (preexisting_var)
+          skip_this_var = true;
+        else
+          arbi_error("Type error: %s must be a table mapping strings to objects.", key);
+      }
+    }
+
+    // Skip this variable if we need to.
+    if (skip_this_var)
+    {
+      lua_pop(lua, 1);
+      continue;
     }
 
     interpreter_storage_t* var = NULL;
@@ -285,28 +346,59 @@ void interpreter_parse_string(interpreter_t* interp, char* input_string)
         static const int key_index = -2;
         static const int val_index = -1;
         if (!lua_isstring(lua, key_index))
-          arbi_error("Type error: %s must be a table mapping strings to objects.", key);
+        {
+          if (preexisting_var)
+            skip_this_var = true;
+          else
+            arbi_error("Type error: %s must be a table mapping strings to objects.", key);
+        }
         if (!lua_islightuserdata(lua, val_index))
-          arbi_error("Type error: %s must be a table mapping strings to objects.", key);
+        {
+          if (preexisting_var)
+            skip_this_var = true;
+          else
+            arbi_error("Type error: %s must be a table mapping strings to objects.", key);
+        }
+        if (skip_this_var)
+        {
+          lua_pop(lua, 1);
+          continue;
+        }
+
         char* tkey = (char*)lua_tostring(lua, key_index);
         void* tval = (void*)lua_topointer(lua, val_index);
         interpreter_storage_t* tvar = (interpreter_storage_t*)tval;
 
         // No tables of tables allowed!
         if (tvar->type == INTERPRETER_TABLE)
-          arbi_error("Value error: Key '%s' in table %s stores a table (not allowed!)", tkey, key); 
+        {
+          if (preexisting_var)
+            skip_this_var = true;
+          else
+            arbi_error("Value error: Key '%s' in table %s stores a table (not allowed!)", tkey, key); 
+        }
 
         // Make sure the type of this key is the same as the others.
-        if (value_type == INTERPRETER_TERMINUS)
-          value_type = tvar->type;
-        else if (tvar->type != value_type)
+        if (!skip_this_var)
         {
-          arbi_error("Value error: Key '%s' in table %s stores a %s (should be %s)", 
-            tkey, key, type_names[tvar->type], type_names[value_type]);
+          if (value_type == INTERPRETER_TERMINUS)
+            value_type = tvar->type;
+          else if (tvar->type != value_type)
+          {
+            arbi_error("Value error: Key '%s' in table %s stores a %s (should be %s)", 
+                tkey, key, type_names[tvar->type], type_names[value_type]);
+          }
         }
 
         // Removes value from stack.
         lua_pop(lua, 1);
+      }
+
+      // If we need to skip the table, do so.
+      if (skip_this_var)
+      {
+        lua_pop(lua, 1);
+        continue;
       }
 
       // Now traverse it again and update our unordered map.
@@ -329,7 +421,16 @@ void interpreter_parse_string(interpreter_t* interp, char* input_string)
     }
     else 
     {
-      ASSERT(lua_islightuserdata(lua, val_index));
+      // We're out of types, so we hope this one's a light user data.
+      if (!lua_islightuserdata(lua, val_index))
+      {
+        // Skip this variable if it existed before and is the wrong type.
+        if (preexisting_var)
+        {
+          lua_pop(lua, 1);
+          continue;
+        }
+      }
       var = (void*)lua_topointer(lua, val_index);
     }
     interpreter_map_insert_with_dtor(interp->store, strdup(key), var, destroy_variable);
@@ -415,7 +516,6 @@ st_func_t* interpreter_get_function(interpreter_t* interp, const char* name)
     return NULL;
   if ((*storage)->type != INTERPRETER_FUNCTION)
     return NULL;
-  (*storage)->dtor = NULL; // Caller assumes responsibility for table.
   return (st_func_t*)((*storage)->datum);
 }
 
