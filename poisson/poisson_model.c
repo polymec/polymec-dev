@@ -984,6 +984,16 @@ model_t* poisson_model_new(options_t* options)
   context->initialized = false;
   context->comm = MPI_COMM_WORLD;
   model_t* model = model_new("poisson", context, vtable, options);
+
+  // Set up an interpreter.
+  interpreter_validation_t valid_inputs[] = {{"mesh", INTERPRETER_MESH},
+                                             {"rhs", INTERPRETER_FUNCTION},
+                                             {"bcs", INTERPRETER_TABLE},
+                                             {"solution", INTERPRETER_FUNCTION},
+                                             END_OF_VALID_INPUTS};
+  model_enable_interpreter(model, valid_inputs);
+
+  // Register benchmarks.
   model_register_benchmark(model, "laplace_1d", run_laplace_1d, "Laplace's equation in 1D Cartesian coordinates.");
   model_register_benchmark(model, "laplace_1d_2", run_laplace_1d_2, "Laplace's equation in 1D Cartesian coordinates (run in 2D).");
   model_register_benchmark(model, "laplace_1d_3", run_laplace_1d_3, "Laplace's equation in 1D Cartesian coordinates (run in 3D).");
