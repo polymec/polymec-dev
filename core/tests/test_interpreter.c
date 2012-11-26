@@ -30,6 +30,10 @@ void test_interpreter(void** state)
   st_func_t* F = interpreter_get_function(interp, "f");
   assert_true(st_func_is_homogeneous(F));
   assert_true(st_func_is_constant(F));
+  point_t x;
+  double t, five;
+  st_func_eval(F, &x, t, &five);
+  assert_true(fabs(five - 5.0) < 1e-15);
 
   assert_true(interpreter_contains(interp, "g", INTERPRETER_NUMBER));
   assert_true((int)interpreter_get_number(interp, "g") == 2);
