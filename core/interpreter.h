@@ -10,6 +10,9 @@
 extern "C" {
 #endif
 
+// Forward declaration for Lua innards.
+struct lua_State;
+
 // This class interprets input files and stores values of variables therein.
 typedef struct interpreter_t interpreter_t;
 
@@ -21,7 +24,7 @@ typedef enum
   INTERPRETER_MESH,
   INTERPRETER_FUNCTION,
   INTERPRETER_TABLE,
-  INTERPRETER_TERMINUS
+  INTERPRETER_TERMINUS // Used only to terminate validation lists.
 } interpreter_var_type_t;
 
 // This is used to validate variables found within input files. It is a 
@@ -42,6 +45,9 @@ interpreter_t* interpreter_new(interpreter_validation_t* valid_inputs);
 
 // Destroys the given interpreter.
 void interpreter_free(interpreter_t* interp);
+
+// Register a user-defined function with the interpreter.
+void interpreter_register_function(interpreter_t* interp, const char* function_name, int (*function)(struct lua_State*));
 
 // Parses the input file, storing the values in the interpreter.
 void interpreter_parse_file(interpreter_t* interp, char* input_file);
