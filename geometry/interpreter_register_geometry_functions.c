@@ -47,16 +47,16 @@ static int cubic_lattice_mesh(lua_State* lua)
     double bounds_values[6];
     for (int i = 0; i < 6; ++i)
     {
-      lua_pushstring(lua, bounds_names[i]); // moves bounds -> 5.
-      lua_gettable(lua, 5); // Reads name from top, replaces with bounds[name].
-      if (!lua_isnumber(lua, 1))
+      lua_pushstring(lua, bounds_names[i]);
+      lua_gettable(lua, 4); // Reads name from top, replaces with bounds[name].
+      if (!lua_isnumber(lua, -1))
       {
         lua_pushstring(lua, "x1, x2, y1, y2, z1, z2, must all be numbers.");
         lua_error(lua);
         return LUA_ERRRUN;
       }
-      bounds_values[i] = lua_tonumber(lua, 1);
-      lua_pop(lua, 1); // Moves bounds -> 4.
+      bounds_values[i] = lua_tonumber(lua, -1);
+      lua_pop(lua, 1); 
     }
     bbox.x1 = bounds_values[0];
     bbox.x2 = bounds_values[1];
