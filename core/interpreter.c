@@ -352,7 +352,9 @@ void interpreter_parse_string(interpreter_t* interp, char* input_string)
           else
             arbi_error("Type error: %s must be a table mapping strings to objects.", key);
         }
-        if (!lua_islightuserdata(lua, val_index))
+        if (!lua_isnumber(lua, val_index) && 
+            !lua_isstring(lua, val_index) && 
+            !lua_islightuserdata(lua, val_index))
         {
           if (preexisting_var)
             skip_this_var = true;
@@ -410,9 +412,23 @@ void interpreter_parse_string(interpreter_t* interp, char* input_string)
         static const int key_index = -2;
         static const int val_index = -1;
         char* tkey = (char*)lua_tostring(lua, key_index);
-        void* tval = (void*)lua_topointer(lua, val_index);
-        interpreter_storage_t* tvar = (interpreter_storage_t*)tval;
-        str_ptr_unordered_map_insert_with_dtor(table, tkey, tvar->datum, destroy_table_entry);
+        if (lua_isnumber(lua, val_index))
+        {
+          double* var = malloc(sizeof(double));
+          *var = lua_tonumber(lua, val_index);
+          str_ptr_unordered_map_insert_with_dtor(table, tkey, var, destroy_table_entry);
+        }
+        else if (lua_isstring(lua, val_index))
+        {
+          const char* var = lua_tostring(lua, val_index);
+          str_ptr_unordered_map_insert_with_dtor(table, tkey, strdup(var), destroy_table_entry);
+        }
+        else if (lua_islightuserdata(lua, val_index))
+        {
+          void* tval = (void*)lua_topointer(lua, val_index);
+          interpreter_storage_t* tvar = (interpreter_storage_t*)tval;
+          str_ptr_unordered_map_insert_with_dtor(table, tkey, tvar->datum, destroy_table_entry);
+        }
 
         // Removes value from stack.
         lua_pop(lua, 1);
