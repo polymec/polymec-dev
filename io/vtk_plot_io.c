@@ -181,10 +181,10 @@ static void vtk_plot_write_asci_datasets(void* context, void* f, io_dataset_t** 
         }
 
         // Write data.
-        char values[16*num_nodes];
+        char values[16*num_comps*num_nodes];
         char value[16];
         values[0] = '\0';
-        for (int i = 0; i < num_cells; ++i)
+        for (int i = 0; i < num_comps*num_nodes; ++i)
         {
           snprintf(value, 16, "%g ", field[i]);
           strcat(values, value);
@@ -238,10 +238,10 @@ static void vtk_plot_write_asci_datasets(void* context, void* f, io_dataset_t** 
         }
 
         // Write data.
-        char values[16*num_cells];
+        char values[16*num_comps*num_cells];
         char value[16];
         int offset = 0;
-        for (int i = 0; i < num_cells; ++i)
+        for (int i = 0; i < num_comps*num_cells; ++i)
         {
           snprintf(value, 16, "%g ", field[i]);
           int len = strlen(value);
@@ -355,16 +355,15 @@ static void vtk_plot_write_asci_datasets(void* context, void* f, io_dataset_t** 
     write_attribute(writer, "format", "ascii");
 
     // Write data.
-    int faceoffsets[num_cells+1];
-    faceoffsets[0] = 0;
-    for (int c = 1; c <= num_cells; ++c)
+    int faceoffsets[num_cells];
+    for (int c = 0; c < num_cells; ++c)
     {
-      faceoffsets[c] = faceoffsets[c-1];
-      faceoffsets[c] += 1 + mesh->cells[c-1].num_faces;
-      for (int f = 0; f < mesh->cells[c-1].num_faces; ++f)
+      faceoffsets[c] = (c > 0) ? faceoffsets[c-1] : 0;
+      faceoffsets[c] += 1 + mesh->cells[c].num_faces;
+      for (int f = 0; f < mesh->cells[c].num_faces; ++f)
         faceoffsets[c] += face_node_offsets[f+1] - face_node_offsets[f];
     }
-    int faces_data_len = faceoffsets[num_cells] - faceoffsets[0];
+    int faces_data_len = faceoffsets[num_cells];
     char* data = malloc(16*faces_data_len*sizeof(char));
     char datum[16];
     offset = 0;
