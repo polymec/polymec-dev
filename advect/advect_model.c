@@ -903,22 +903,9 @@ static void advect_plot(void* context, io_interface_t* io, double t, int step)
   ASSERT(context != NULL);
   advect_t* p = (advect_t*)context;
 
-#ifdef NDEBUG
-  io_dataset_t* dataset = io_dataset_new("default", 1, 0);
-#else
-  io_dataset_t* dataset = io_dataset_new("default", 2, 0);
-#endif
-  io_dataset_write_mesh(dataset, p->mesh);
-  io_dataset_write_field(dataset, "phi", p->phi, 1, MESH_CELL);
-
-#ifndef NDEBUG
-  // If we're in debug mode, compute the laplacian of phi and dump that, too.
-  // This ignores boundary conditions, so it's only useful as a diagnostic.
-  double Lphi[p->mesh->num_cells];
-  lin_op_apply(p->D, p->phi, Lphi);
-  io_dataset_write_field(dataset, "L(phi)", Lphi, 1, MESH_CELL);
-#endif
-
+  io_dataset_t* dataset = io_dataset_new("default");
+  io_dataset_put_mesh(dataset, p->mesh);
+  io_dataset_put_field(dataset, "phi", p->phi, 1, MESH_CELL, false);
   io_append_dataset(io, dataset);
 }
 
@@ -927,9 +914,9 @@ static void advect_save(void* context, io_interface_t* io, double t, int step)
   ASSERT(context != NULL);
   advect_t* p = (advect_t*)context;
 
-  io_dataset_t* dataset = io_dataset_new("default", 1, 0);
-  io_dataset_write_mesh(dataset, p->mesh);
-  io_dataset_write_field(dataset, "phi", p->phi, 1, MESH_CELL);
+  io_dataset_t* dataset = io_dataset_new("default");
+  io_dataset_put_mesh(dataset, p->mesh);
+  io_dataset_put_field(dataset, "phi", p->phi, 1, MESH_CELL, false);
   io_append_dataset(io, dataset);
 }
 

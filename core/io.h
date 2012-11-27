@@ -3,7 +3,6 @@
 
 #include "core/arbi.h"
 #include "core/mesh.h"
-#include "core/lite_mesh.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -62,25 +61,6 @@ typedef struct
   io_dtor                       dtor;
 } io_vtable;
 
-// This structure holds data for datasets. Be careful using it directly.
-struct io_dataset_t
-{
-  char* name;
-  mesh_t* mesh;
-  lite_mesh_t* lite_mesh;
-
-  double** fields;
-  char** field_names;
-  int* field_num_comps;
-  mesh_centering_t* field_centerings;
-  int num_fields;
-
-  char** codes;
-  char** code_names;
-  int* code_lengths;
-  int num_codes;
-};
-
 // Construct an I/O interface (subclass) object from the given name and 
 // vtable. To take advantage of "poor man's parallel I/O", one can provide
 // an MPI communicator, a number of files to be written, and an MPI tag.
@@ -124,9 +104,6 @@ void io_set_num_datasets(io_interface_t* interface, int num_datasets);
 // given interface. The io_interface assumes control over dataset.
 void io_append_dataset(io_interface_t* interface, io_dataset_t* dataset);
 
-// Returns the name of the dataset with the given index.
-const char* io_dataset_name(io_interface_t* interface, int index);
-
 // Returns the default dataset descriptor for the file. Use this to retrieve
 // data from files that can hold only one dataset.
 io_dataset_t* io_default_dataset(io_interface_t* interface);
@@ -137,41 +114,51 @@ io_dataset_t* io_default_dataset(io_interface_t* interface);
 io_dataset_t* io_dataset(io_interface_t* interface, const char* dataset);
 
 // Creates a new dataset that can be written to a file.
-io_dataset_t* io_dataset_new(const char* name, int num_fields, int num_codes);
+io_dataset_t* io_dataset_new(const char* name);
+
+// Returns the name of the given dataset.
+const char* io_dataset_name(io_dataset_t* dataset);
 
 // Frees the given dataset descriptor.
 void io_dataset_free(io_dataset_t* dataset);
 
-// Reads a heavy mesh from the descriptor.
-void io_dataset_read_mesh(io_dataset_t* dataset, mesh_t** mesh);
+// Retrieves a mesh from the descriptor. The caller assumes responsibility for 
+// the storage of the mesh.
+mesh_t* io_dataset_get_mesh(io_dataset_t* dataset);
 
-// Writes a heavy mesh the descriptor.
-void io_dataset_write_mesh(io_dataset_t* dataset, mesh_t* mesh);
-
-// Reads a lite mesh from the descriptor.
-void io_dataset_read_lite_mesh(io_dataset_t* dataset, lite_mesh_t** mesh);
-
-// Writes a lite mesh to the descriptor.
-void io_dataset_write_lite_mesh(io_dataset_t* dataset, lite_mesh_t* mesh);
+// Writes a mesh the descriptor.
+void io_dataset_put_mesh(io_dataset_t* dataset, mesh_t* mesh);
 
 // Gathers metadata about the given field in the dataset. The size of the 
 // field is consistent with its associated mesh.
 void io_dataset_query_field(io_dataset_t* dataset, const char* field_name, int* num_components, mesh_centering_t* centering);
 
-// Reads field data from the descriptor.
-void io_dataset_read_field(io_dataset_t* dataset, const char* field_name, double** field);
+// Accesses field data from the descriptor. The caller assumes responsibility 
+// for the field storage after this call.
+void io_dataset_get_field(io_dataset_t* dataset, const char* field_name, double** field);
 
-// Writes field data to the descriptor.
-void io_dataset_write_field(io_dataset_t* dataset, const char* field_name, double* field_data, int num_components, mesh_centering_t centering);
+// Copies or passes a field to the descriptor. If the field is passed to 
+// the descriptor, it will be destroyed by it subsequently.
+void io_dataset_put_field(io_dataset_t* dataset, const char* field_name, double* field_data, int num_components, mesh_centering_t centering, bool copy);
 
-// Queries the dataset descriptor for a named block of source code, retrieving its length.
-void io_dataset_query_code(io_dataset_t* dataset, const char* code_name, int* len);
+// Allows iteration over the fields in the given dataset.
+bool io_dataset_next_field(io_dataset_t* dataset, int* pos, char** field_name, double** field, int* num_components, mesh_centering_t* centering);
 
-// Reads a named block of source code from the dataset descriptor.
-void io_dataset_read_code(io_dataset_t* dataset, const char* code_name, char** code);
+// Returns the number of fields stored in the dataset.
+int io_dataset_num_fields(io_dataset_t* dataset);
 
-// Writes a named block of source code to the dataset descriptor.
-void io_dataset_write_code(io_dataset_t* dataset, const char* code_name, const char* code);
+// Gets an internally-stored string from the dataset descriptor, or NULL
+// if no such string exists. Must be copied by the caller in order to be used.
+char* io_dataset_get_string(io_dataset_t* dataset, const char* string_name);
+
+// Copies a named string to the dataset descriptor.
+void io_dataset_put_string(io_dataset_t* dataset, const char* string_name, const char* string);
+
+// Allows iteration over the strings in the given dataset.
+bool io_dataset_next_string(io_dataset_t* dataset, int* pos, char** string_name, char** string);
+
+// Returns the number of strings stored in the dataset.
+int io_dataset_num_strings(io_dataset_t* dataset);
 
 #ifdef __cplusplus
 }

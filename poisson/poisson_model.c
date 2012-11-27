@@ -199,6 +199,7 @@ typedef struct
   st_func_t* rhs;           // Right-hand side function.
   double* phi;              // Solution array.
   lin_op_t* L;              // Laplacian operator.
+  st_func_t* solution;      // Analytic solution (if non-NULL).
 
   str_ptr_unordered_map_t* bcs; // Boundary conditions.
   poly_ls_shape_t* shape;       // Least-squares shape functions.
@@ -307,16 +308,19 @@ static void run_analytic_problem(mesh_t* mesh, st_func_t* rhs, str_ptr_unordered
   // Create the model.
   model_t* model = create_poisson(mesh, rhs, bcs, options);
 
+  // Set the solution.
+  poisson_t* pm = model_context(model);
+  pm->solution = solution;
+
   // Run the thing.
   model_run(model, t1, t2, INT_MAX);
 
   // Calculate the Lp norm of the error and write it to Lp_norms.
-  poisson_t* pm = model_context(model);
   double Linf = 0.0, L1 = 0.0, L2 = 0.0;
   for (int c = 0; c < pm->mesh->num_cells; ++c)
   {
     double phi_sol;
-    st_func_eval(solution, &pm->mesh->cells[c].center, t2, &phi_sol);
+    st_func_eval(pm->solution, &pm->mesh->cells[c].center, t2, &phi_sol);
     double V = pm->mesh->cells[c].volume;
     double err = fabs(pm->phi[c] - phi_sol);
 //printf("i = %d, phi = %g, phi_s = %g, err = %g\n", c, pm->phi[c], phi_sol, err);
@@ -557,7 +561,6 @@ static void poisson_run_paraboloid(options_t* options, int dim)
       num_runs = 3;
       break;
   }
-num_runs = 1;
  
   // Do a convergence study.
   double Lp_norms[num_runs][3];
@@ -757,6 +760,8 @@ static void apply_bcs(int_ptr_unordered_map_t* boundary_cells,
     point_t constraint_points[num_ghosts];
     for (int n = 0; n < num_ghosts; ++n)
     {
+      // We construct one ghost point per boundary face. This ghost point 
+      // is the reflection of the boundary cell's centroid through the face.
       int bface = cell_info->boundary_faces[n];
       face_t* face = &mesh->faces[bface];
       int offset = 1 + num_neighbors;
@@ -838,7 +843,7 @@ static void apply_bcs(int_ptr_unordered_map_t* boundary_cells,
       Aij[0] = vector_dot(n, &grad_N[0]) * face->area; 
 //printf("A[%d,%d] += %g * %g -> %g (%g)\n", bcell, ij[0], vector_dot(n, &grad_N[0]), face->area, Aij[0], N[0]);
 
-      // Now compute the flux contribution from ghost points.
+      // Now compute the flux contributions from ghost points.
       for (int g = 0; g < num_ghosts; ++g)
       {
         double dNdn = vector_dot(n, &grad_N[num_neighbors+1+g]);
@@ -850,11 +855,12 @@ static void apply_bcs(int_ptr_unordered_map_t* boundary_cells,
         bi += -aff_vector[g] * dNdn * face->area;
       }
 
+      // Compute the flux contributions from neighboring interior cells.
       for (int j = 0; j < num_neighbors; ++j)
       {
         ij[j+1] = cell_info->neighbor_cells[j];
 
-        // Self contribution.
+        // Neighbor contribution.
         Aij[j+1] = vector_dot(n, &grad_N[j+1]) * face->area;
 
         // Ghost contributions.
@@ -902,6 +908,7 @@ static void set_up_linear_system(mesh_t* mesh, lin_op_t* L, st_func_t* rhs, doub
     indices[c] = c;
     point_t xc = {.x = 0.0, .y = 0.0, .z = 0.0};
     st_func_eval(rhs, &xc, t, &values[c]);
+    values[c] *= mesh->cells[c].volume;
   }
   VecSetValues(b, mesh->num_cells, indices, values, INSERT_VALUES);
   VecAssemblyEnd(b);
@@ -1029,20 +1036,29 @@ static void poisson_plot(void* context, io_interface_t* io, double t, int step)
   ASSERT(context != NULL);
   poisson_t* p = (poisson_t*)context;
 
-#ifdef NDEBUG
-  io_dataset_t* dataset = io_dataset_new("default", 1, 0);
-#else
-  io_dataset_t* dataset = io_dataset_new("default", 2, 0);
-#endif
-  io_dataset_write_mesh(dataset, p->mesh);
-  io_dataset_write_field(dataset, "phi", p->phi, 1, MESH_CELL);
+  io_dataset_t* dataset = io_dataset_new("default");
+  io_dataset_put_mesh(dataset, p->mesh);
+  io_dataset_put_field(dataset, "phi", p->phi, 1, MESH_CELL, false);
+
+  // If we are given an analytic solution, write it and the solution error.
+  if (p->solution != NULL)
+  {
+    double soln[p->mesh->num_cells], error[p->mesh->num_cells];
+    for (int c = 0; c < p->mesh->num_cells; ++c)
+    {
+      st_func_eval(p->solution, &p->mesh->cells[c].center, t, &soln[c]);
+      error[c] = p->phi[c] - soln[c];
+    }
+    io_dataset_put_field(dataset, "solution", soln, 1, MESH_CELL, true);
+    io_dataset_put_field(dataset, "error", error, 1, MESH_CELL, true);
+  }
 
 #ifndef NDEBUG
   // If we're in debug mode, compute the laplacian of phi and dump that, too.
   // This ignores boundary conditions, so it's only useful as a diagnostic.
   double Lphi[p->mesh->num_cells];
   lin_op_apply(p->L, p->phi, Lphi);
-  io_dataset_write_field(dataset, "L(phi)", Lphi, 1, MESH_CELL);
+  io_dataset_put_field(dataset, "L(phi)", Lphi, 1, MESH_CELL, true);
 #endif
 
   io_append_dataset(io, dataset);
@@ -1053,9 +1069,9 @@ static void poisson_save(void* context, io_interface_t* io, double t, int step)
   ASSERT(context != NULL);
   poisson_t* p = (poisson_t*)context;
 
-  io_dataset_t* dataset = io_dataset_new("default", 1, 0);
-  io_dataset_write_mesh(dataset, p->mesh);
-  io_dataset_write_field(dataset, "phi", p->phi, 1, MESH_CELL);
+  io_dataset_t* dataset = io_dataset_new("default");
+  io_dataset_put_mesh(dataset, p->mesh);
+  io_dataset_put_field(dataset, "phi", p->phi, 1, MESH_CELL, false);
   io_append_dataset(io, dataset);
 }
 
@@ -1104,6 +1120,7 @@ model_t* poisson_model_new(options_t* options)
   context->phi = NULL;
   context->L = NULL;
   context->bcs = str_ptr_unordered_map_new();
+  context->solution = NULL;
   context->shape = poly_ls_shape_new(1, true);
   poly_ls_shape_set_simple_weighting_func(context->shape, 2, 1e-2);
   context->boundary_cells = int_ptr_unordered_map_new();

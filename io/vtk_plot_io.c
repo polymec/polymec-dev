@@ -105,7 +105,7 @@ static void vtk_plot_write_asci_datasets(void* context, void* f, io_dataset_t** 
 
   xmlTextWriterPtr writer = (xmlTextWriterPtr)f;
   io_dataset_t* dataset = datasets[0];
-  mesh_t* mesh = dataset->mesh;
+  mesh_t* mesh = io_dataset_get_mesh(dataset);
   ASSERT(mesh != NULL);
   int num_cells = mesh->num_cells;
   int num_faces = mesh->num_faces;
@@ -146,11 +146,15 @@ static void vtk_plot_write_asci_datasets(void* context, void* f, io_dataset_t** 
   {
     bool has_nc_fields = false;
     char first_nc_field[1024];
-    for (int f = 0; f < dataset->num_fields; ++f)
+    int pos = 0, num_comps;
+    char *field_name;
+    double *field;
+    mesh_centering_t centering;
+    while (io_dataset_next_field(dataset, &pos, &field_name, &field, &num_comps, &centering))
     {
-      if (dataset->field_centerings[f] == MESH_NODE)
+      if (centering == MESH_NODE)
       {
-        strncpy(first_nc_field, dataset->field_names[f], 1024);
+        strncpy(first_nc_field, field_name, 1024);
         has_nc_fields = true;
       }
       break;
@@ -162,17 +166,18 @@ static void vtk_plot_write_asci_datasets(void* context, void* f, io_dataset_t** 
       write_attribute(writer, "Scalars", first_nc_field);
     }
 
-    for (int f = 0; f < dataset->num_fields; ++f)
+    pos = 0;
+    while (io_dataset_next_field(dataset, &pos, &field_name, &field, &num_comps, &centering))
     {
-      if (dataset->field_centerings[f] == MESH_NODE)
+      if (centering == MESH_NODE)
       {
         start_element(writer, "DataArray");
         write_attribute(writer, "type", "Float32");
-        write_attribute(writer, "Name", dataset->field_names[f]);
+        write_attribute(writer, "Name", field_name);
         write_attribute(writer, "format", "ascii");
-        if (dataset->field_num_comps[f] > 1)
+        if (num_comps > 1)
         {
-          write_format_attribute(writer, "NumberOfComponents", "%d", dataset->field_num_comps[f]);
+          write_format_attribute(writer, "NumberOfComponents", "%d", num_comps);
         }
 
         // Write data.
@@ -181,7 +186,7 @@ static void vtk_plot_write_asci_datasets(void* context, void* f, io_dataset_t** 
         values[0] = '\0';
         for (int i = 0; i < num_cells; ++i)
         {
-          snprintf(value, 16, "%g ", dataset->fields[f][i]);
+          snprintf(value, 16, "%g ", field[i]);
           strcat(values, value);
         }
         write_string(writer, values);
@@ -198,11 +203,15 @@ static void vtk_plot_write_asci_datasets(void* context, void* f, io_dataset_t** 
   {
     bool has_cc_fields = false;
     char first_cc_field[1024];
-    for (int f = 0; f < dataset->num_fields; ++f)
+    int pos = 0, num_comps;
+    char *field_name;
+    double *field;
+    mesh_centering_t centering;
+    while (io_dataset_next_field(dataset, &pos, &field_name, &field, &num_comps, &centering))
     {
-      if (dataset->field_centerings[f] == MESH_CELL)
+      if (centering == MESH_CELL)
       {
-        strncpy(first_cc_field, dataset->field_names[f], 1024);
+        strncpy(first_cc_field, field_name, 1024);
         has_cc_fields = true;
       }
       break;
@@ -214,17 +223,18 @@ static void vtk_plot_write_asci_datasets(void* context, void* f, io_dataset_t** 
       write_attribute(writer, "Scalars", first_cc_field);
     }
 
-    for (int f = 0; f < dataset->num_fields; ++f)
+    pos = 0;
+    while (io_dataset_next_field(dataset, &pos, &field_name, &field, &num_comps, &centering))
     {
-      if (dataset->field_centerings[f] == MESH_CELL)
+      if (centering == MESH_CELL)
       {
         start_element(writer, "DataArray");
         write_attribute(writer, "type", "Float32");
-        write_attribute(writer, "Name", dataset->field_names[f]);
+        write_attribute(writer, "Name", field_name);
         write_attribute(writer, "format", "ascii");
-        if (dataset->field_num_comps[f] > 1)
+        if (num_comps > 1)
         {
-          write_format_attribute(writer, "NumberOfComponents", "%d", dataset->field_num_comps[f]);
+          write_format_attribute(writer, "NumberOfComponents", "%d", num_comps);
         }
 
         // Write data.
@@ -233,7 +243,7 @@ static void vtk_plot_write_asci_datasets(void* context, void* f, io_dataset_t** 
         int offset = 0;
         for (int i = 0; i < num_cells; ++i)
         {
-          snprintf(value, 16, "%g ", dataset->fields[f][i]);
+          snprintf(value, 16, "%g ", field[i]);
           int len = strlen(value);
           memcpy(&values[offset], value, len*sizeof(char));
           offset += len;
@@ -345,15 +355,16 @@ static void vtk_plot_write_asci_datasets(void* context, void* f, io_dataset_t** 
     write_attribute(writer, "format", "ascii");
 
     // Write data.
-    int faceoffsets[num_cells];
-    for (int c = 0; c < num_cells; ++c)
+    int faceoffsets[num_cells+1];
+    faceoffsets[0] = 0;
+    for (int c = 1; c <= num_cells; ++c)
     {
-      faceoffsets[c] = (c > 0) ? faceoffsets[c-1] : 0;
-      faceoffsets[c] += 1 + mesh->cells[c].num_faces;
-      for (int f = 0; f < mesh->cells[c].num_faces; ++f)
+      faceoffsets[c] = faceoffsets[c-1];
+      faceoffsets[c] += 1 + mesh->cells[c-1].num_faces;
+      for (int f = 0; f < mesh->cells[c-1].num_faces; ++f)
         faceoffsets[c] += face_node_offsets[f+1] - face_node_offsets[f];
     }
-    int faces_data_len = faceoffsets[num_cells-1] - faceoffsets[0];
+    int faces_data_len = faceoffsets[num_cells] - faceoffsets[0];
     char* data = malloc(16*faces_data_len*sizeof(char));
     char datum[16];
     offset = 0;
@@ -449,16 +460,20 @@ static void vtk_plot_write_master(void* context, void* file, const char* prefix,
     start_element(writer, (char*)"PPointData");
     write_attribute(writer, "Scalars", "scalars");
 
-    for (int f = 0; f < dataset->num_fields; ++f)
+    int pos = 0, num_comps;
+    char *field_name;
+    double *field;
+    mesh_centering_t centering;
+    while (io_dataset_next_field(dataset, &pos, &field_name, &field, &num_comps, &centering))
     {
-      if (dataset->field_centerings[f] == MESH_NODE)
+      if (centering == MESH_NODE)
       {
         start_element(writer, (char*)"PDataArray");
         write_attribute(writer, "type", "Float32");
-        write_attribute(writer, "Name", dataset->field_names[f]);
-        if (dataset->field_num_comps[f] > 1)
+        write_attribute(writer, "Name", field_name);
+        if (num_comps > 1)
         {
-          write_format_attribute(writer, "NumberOfComponents", "%d", dataset->field_num_comps[f]);
+          write_format_attribute(writer, "NumberOfComponents", "%d", num_comps);
         }
         end_element(writer, (char*)"PDataArray");
       }
@@ -472,16 +487,20 @@ static void vtk_plot_write_master(void* context, void* file, const char* prefix,
     start_element(writer, (char*)"PCellData");
     write_attribute(writer, "Scalars", "scalars");
 
-    for (int f = 0; f < dataset->num_fields; ++f)
+    int pos = 0, num_comps;
+    char *field_name;
+    double *field;
+    mesh_centering_t centering;
+    while (io_dataset_next_field(dataset, &pos, &field_name, &field, &num_comps, &centering))
     {
-      if (dataset->field_centerings[f] == MESH_CELL)
+      if (centering == MESH_CELL)
       {
         start_element(writer, (char*)"PDataArray");
         write_attribute(writer, "type", "Float32");
-        write_attribute(writer, "Name", dataset->field_names[f]);
-        if (dataset->field_num_comps[f] > 1)
+        write_attribute(writer, "Name", field_name);
+        if (num_comps > 1)
         {
-          write_format_attribute(writer, "NumberOfComponents", "%d", dataset->field_num_comps[f]);
+          write_format_attribute(writer, "NumberOfComponents", "%d", num_comps);
         }
         end_element(writer, (char*)"PDataArray");
       }

@@ -52,10 +52,10 @@ void test_plot_single_cell_mesh(void** state)
   // Plot it.
   io_interface_t* plot = vtk_plot_io_new(MPI_COMM_SELF, 0, false);
   io_open(plot, "hex", ".", IO_WRITE);
-  io_dataset_t* dataset = io_dataset_new("default", 1, 0);
-  io_dataset_write_mesh(dataset, mesh);
+  io_dataset_t* dataset = io_dataset_new("default");
+  io_dataset_put_mesh(dataset, mesh);
   double one = 1.0;
-  io_dataset_write_field(dataset, "solution", &one, 1, MESH_CELL);
+  io_dataset_put_field(dataset, "solution", &one, 1, MESH_CELL, true);
   io_append_dataset(plot, dataset);
   io_close(plot);
 

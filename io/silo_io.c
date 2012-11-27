@@ -90,8 +90,8 @@ static void silo_read_datasets(void* context, void* f, io_dataset_t** datasets, 
   DBtoc* contents = DBGetToc(file);
   int dset = 0;
   string_slist_t* field_names = string_slist_new();
-  string_slist_t* code_names = string_slist_new();
-  int num_fields = 0, num_codes = 0;
+  string_slist_t* string_names = string_slist_new();
+  int num_fields = 0, num_strings = 0;
   for (int a = 0; a < contents->narrays; ++a)
   {
     // Look for arrays named "xyz_mesh".
@@ -114,16 +114,16 @@ static void silo_read_datasets(void* context, void* f, io_dataset_t** datasets, 
             string_slist_append(field_names, contents->array_names[f]);
           else
           {
-            char* codetok = strstr(contents->array_names[f], "_code");
+            char* codetok = strstr(contents->array_names[f], "_string");
             if (codetok != NULL)
-              string_slist_append(code_names, contents->array_names[f]);
+              string_slist_append(string_names, contents->array_names[f]);
           }
         }
       }
       num_fields = field_names->size;
-      num_codes = code_names->size;
+      num_strings = string_names->size;
 
-      io_dataset_t* dataset = io_dataset_new(name, num_fields, num_codes); 
+      io_dataset_t* dataset = io_dataset_new(name);
       datasets[dset] = dataset;
       dset++;
     }
@@ -136,7 +136,7 @@ static void silo_read_datasets(void* context, void* f, io_dataset_t** datasets, 
 
     // Reconstruct the connectivity and node positions.
     char conn_name[1024];
-    snprintf(conn_name, 1024, "%s_conn", dataset->name);
+    snprintf(conn_name, 1024, "%s_conn", io_dataset_name(dataset));
     DBcompoundarray* conn = DBGetCompoundarray(file, conn_name);
     if (conn == NULL)
     {
@@ -166,7 +166,7 @@ static void silo_read_datasets(void* context, void* f, io_dataset_t** datasets, 
     }
 
     char pos_name[1024];
-    snprintf(pos_name, 1024, "%s_nodes", datasets[dset]->name);
+    snprintf(pos_name, 1024, "%s_nodes", io_dataset_name(datasets[dset]));
     DBcompoundarray* pos = DBGetCompoundarray(file, pos_name);
     if (pos == NULL)
     {
@@ -236,7 +236,7 @@ static void silo_read_datasets(void* context, void* f, io_dataset_t** datasets, 
       mesh->nodes[n].y = posdata[3*n+1];
       mesh->nodes[n].z = posdata[3*n+2];
     }
-    dataset->mesh = mesh;
+    io_dataset_put_mesh(dataset, mesh);
 
     // Read in fields.
     for (int f = 0; f < num_fields; ++f)
@@ -260,39 +260,41 @@ static void silo_read_datasets(void* context, void* f, io_dataset_t** datasets, 
 
       // Find the centering and number of components of the field.
       char* cstr = strstr(field_name, "_field") - 4;
+      mesh_centering_t centering;
       int num_comps;
       if (!strncmp(cstr, "cell", 4))
       {
-        dataset->field_centerings[d] = MESH_CELL;
+        centering = MESH_CELL;
         num_comps = field->elemlengths[0]/mesh->num_cells;
       }
       else if (!strncmp(cstr, "face", 4))
       {
-        dataset->field_centerings[d] = MESH_FACE;
+        centering = MESH_FACE;
         num_comps = field->elemlengths[0]/mesh->num_faces;
       }
       else if (!strncmp(cstr, "edge", 4))
       {
-        dataset->field_centerings[d] = MESH_EDGE;
+        centering = MESH_EDGE;
         num_comps = field->elemlengths[0]/mesh->num_edges;
       }
       else 
       {
         ASSERT(!strncmp(cstr, "node", 4));
-        dataset->field_centerings[d] = MESH_NODE;
+        centering = MESH_NODE;
         num_comps = field->elemlengths[0]/mesh->num_nodes;
       }
-      dataset->field_num_comps[d] = num_comps;
 
       // Extract the name of the field.
       char* fname = strstr(field_name, "_field_") + 7;
-      memcpy(dataset->fields[d], field->values, field->elemlengths[0]);
-      dataset->field_names[d] = strdup(fname);
+
+      // Copy the field to the dataset.
+      io_dataset_put_field(dataset, fname, field->values, num_comps, centering, true);
       DBFreeCompoundarray(field);
     }
 
-    // Read in source codes.
-    for (int c = 0; c < num_codes; ++c)
+#if 0
+    // Read in strings
+    for (int c = 0; c < num_strings; ++c)
     {
       char* code_name = string_slist_pop(code_names);
       DBcompoundarray* code = DBGetCompoundarray(file, code_name);
@@ -318,11 +320,12 @@ static void silo_read_datasets(void* context, void* f, io_dataset_t** datasets, 
       dataset->code_names[d] = strdup(cname);
       DBFreeCompoundarray(code);
     }
+#endif
 
     // Clean up.
     DBFreeCompoundarray(pos);
     DBFreeCompoundarray(conn);
-    string_slist_free(code_names);
+    string_slist_free(string_names);
     string_slist_free(field_names);
   }
 }
@@ -335,8 +338,8 @@ static void silo_write_datasets(void* context, void* f, io_dataset_t** datasets,
   for (int d = 0; d < num_datasets; ++d)
   {
     io_dataset_t* dataset = datasets[d];
-    char* name = dataset->name;
-    mesh_t* mesh = dataset->mesh;
+    const char* name = io_dataset_name(dataset);
+    mesh_t* mesh = io_dataset_get_mesh(dataset);
     ASSERT(mesh != NULL);
 
     int num_cells = mesh->num_cells;
@@ -454,35 +457,34 @@ static void silo_write_datasets(void* context, void* f, io_dataset_t** datasets,
 
     {
       // Write fields.
-      for (int f = 0; f < dataset->num_fields; ++f)
+      int pos = 0, num_comps;
+      char* fname;
+      double *field;
+      mesh_centering_t centering;
+      while (io_dataset_next_field(dataset, &pos, &fname, &field, &num_comps, &centering))
       {
-        char* fname = dataset->field_names[f];
-        double* field = dataset->fields[f];
-        mesh_centering_t centering = dataset->field_centerings[f];
-        int  num_comp = dataset->field_num_comps[f];
-
         char field_name[1024];
         char cstr[5];
         int len;
         if (centering == MESH_CELL)
         {
           sprintf(cstr, "cell");
-          len = num_comp * num_cells;
+          len = num_comps * num_cells;
         }
         else if (centering == MESH_FACE)
         {
           sprintf(cstr, "face");
-          len = num_comp * num_faces;
+          len = num_comps * num_faces;
         }
         else if (centering == MESH_EDGE)
         {
           sprintf(cstr, "edge");
-          len = num_comp * num_edges;
+          len = num_comps * num_edges;
         }
         else if (centering == MESH_NODE)
         {
           sprintf(cstr, "node");
-          len = num_comp * num_nodes;
+          len = num_comps * num_nodes;
         }
         snprintf(field_name, 1024, "%s_%s_field_%s", name, cstr, fname);
         char* f_names[1];
@@ -498,8 +500,9 @@ static void silo_write_datasets(void* context, void* f, io_dataset_t** datasets,
       }
     }
 
+#if 0
     {
-      // Write source codes.
+      // Write strings.
       for (int c = 0; c < dataset->num_codes; ++c)
       {
         char* cname = dataset->code_names[c];
@@ -520,6 +523,7 @@ static void silo_write_datasets(void* context, void* f, io_dataset_t** datasets,
         free(c_names[0]);
       }
     }
+#endif
   }
 }
 
@@ -547,7 +551,7 @@ static void silo_plot_write_datasets(void* context, void* f, io_dataset_t** data
 {
   DBfile* file = (DBfile*)f;
   io_dataset_t* dataset = datasets[0];
-  mesh_t* mesh = dataset->mesh;
+  mesh_t* mesh = io_dataset_get_mesh(dataset);
   ASSERT(mesh != NULL);
 
   // This is optional for now, but we'll give it anyway.
@@ -622,13 +626,17 @@ static void silo_plot_write_datasets(void* context, void* f, io_dataset_t** data
   // Write out the cell-centered mesh data.
 
   // Scalar fields.
-  for (int i = 0; i < dataset->num_fields; ++i)
+  int pos = 0, num_comps;
+  char* field_name;
+  double* field;
+  mesh_centering_t centering;
+  while (io_dataset_next_field(dataset, &pos, &field_name, &field, &num_comps, &centering))
   {
-    ASSERT(dataset->field_centerings[i] == MESH_CELL); // FIXME
-    if (dataset->field_centerings[i] == MESH_CELL)
+    ASSERT(centering == MESH_CELL); // FIXME
+    if (centering == MESH_CELL)
     {
-      DBPutUcdvar1(file, dataset->field_names[i], (char*)"mesh",
-          dataset->fields[i], num_cells, 0, 0,
+      DBPutUcdvar1(file, field_name, (char*)"mesh",
+          field, num_cells, 0, 0,
           DB_DOUBLE, DB_ZONECENT, optlist);
     }
   }
@@ -696,14 +704,15 @@ static void silo_plot_write_master(void* context, void* file, const char* prefix
 
   char* mesh_names[num_files*procs_per_file];
   int mesh_types[num_files*procs_per_file];
-  int var_types[dataset->num_fields][num_files*procs_per_file];
+  int num_fields = io_dataset_num_fields(dataset);
+  int var_types[num_fields][num_files*procs_per_file];
   for (int i = 0; i < num_files*procs_per_file; ++i)
   {
     mesh_types[i] = DB_UCDMESH;
-    for (int f = 0; f < dataset->num_fields; ++f)
+    for (int f = 0; f < num_fields; ++f)
       var_types[f][i] = DB_UCDVAR;
   }
-  char* var_names[dataset->num_fields][num_files*procs_per_file];
+  char* var_names[num_fields][num_files*procs_per_file];
 
   for (int i = 0; i < num_files; ++i)
   {
@@ -715,11 +724,16 @@ static void silo_plot_write_master(void* context, void* file, const char* prefix
       mesh_names[i*procs_per_file+c] = strdup(mesh_name);
 
       // Field data.
-      for (int f = 0; f < dataset->num_fields; ++f)
+      int pos = 0, f = 0, num_comps;
+      char* field_name;
+      double* field;
+      mesh_centering_t centering;
+      while (io_dataset_next_field(dataset, &pos, &field_name, &field, &num_comps, &centering))
       {
         char var_name[1024];
-        snprintf(var_name, 1024, "%d/%s.silo:/domain_%d/%s", i, prefix, c, dataset->field_names[f]);
+        snprintf(var_name, 1024, "%d/%s.silo:/domain_%d/%s", i, prefix, c, field_name);
         var_names[f][i] = strdup(var_name);
+        ++f;
       }
     }
   }
@@ -727,12 +741,19 @@ static void silo_plot_write_master(void* context, void* file, const char* prefix
   DBoptlist* optlist = DBMakeOptlist(10);
 
   // Write the multimesh and variable data, and close the file.
-  DBPutMultimesh(file, "mesh", num_files*procs_per_file, &mesh_names[0], 
-      &mesh_types[0], optlist);
-  for (int f = 0; f < dataset->num_fields; ++f)
   {
-    DBPutMultivar(file, dataset->field_names[f], num_files*procs_per_file, 
-      var_names[f], var_types[f], optlist);
+    DBPutMultimesh(file, "mesh", num_files*procs_per_file, &mesh_names[0], 
+        &mesh_types[0], optlist);
+    int pos = 0, f = 0, num_comps;
+    char* field_name;
+    double* field;
+    mesh_centering_t centering;
+    while (io_dataset_next_field(dataset, &pos, &field_name, &field, &num_comps, &centering))
+    {
+      DBPutMultivar(file, field_name, num_files*procs_per_file, 
+          var_names[f], var_types[f], optlist);
+      ++f;
+    }
   }
   DBClose(file);
 
@@ -740,7 +761,7 @@ static void silo_plot_write_master(void* context, void* file, const char* prefix
   DBFreeOptlist(optlist);
   for (int i = 0; i < num_files*procs_per_file; ++i)
     free(mesh_names[i]);
-  for (int f = 0; f < dataset->num_fields; ++f)
+  for (int f = 0; f < num_fields; ++f)
     for (int i = 0; i < num_files*procs_per_file; ++i)
       free(var_names[f][i]);
 }

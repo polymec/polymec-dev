@@ -31,12 +31,12 @@ void test_plot_cubic_lattice_mesh(void** state)
   // Plot it.
   io_interface_t* plot = vtk_plot_io_new(MPI_COMM_SELF, 0, false);
   io_open(plot, "cubic_lattice_4x4x4", ".", IO_WRITE);
-  io_dataset_t* dataset = io_dataset_new("default", 1, 0);
-  io_dataset_write_mesh(dataset, mesh);
+  io_dataset_t* dataset = io_dataset_new("default");
+  io_dataset_put_mesh(dataset, mesh);
   double ones[4*4*4];
   for (int c = 0; c < 4*4*4; ++c)
     ones[c] = 1.0*c;
-  io_dataset_write_field(dataset, "solution", ones, 1, MESH_CELL);
+  io_dataset_put_field(dataset, "solution", ones, 1, MESH_CELL, true);
   io_append_dataset(plot, dataset);
   io_close(plot);
 
