@@ -225,7 +225,6 @@ void model_finalize(model_t* model)
   log_detail("%s: Finalizing model at t = %g", model->name, model->time);
   if (model->vtable.finalize != NULL)
     model->vtable.finalize(model->context, model->step, model->time);
-  model_do_periodic_work(model);
 }
 
 void model_load(model_t* model, int step)
