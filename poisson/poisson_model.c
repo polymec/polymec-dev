@@ -561,6 +561,7 @@ static void poisson_run_paraboloid(options_t* options, int dim)
       num_runs = 3;
       break;
   }
+  num_runs = 1;
  
   // Do a convergence study.
   double Lp_norms[num_runs][3];

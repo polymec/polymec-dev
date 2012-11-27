@@ -455,7 +455,13 @@ void io_dataset_put_field(io_dataset_t* dataset, const char* field_name, double*
   }
 
   field_data_t* fd = malloc(sizeof(field_data_t));
-  fd->data = malloc(num_elements * num_components * sizeof(double));
+  if (copy)
+  {
+    fd->data = malloc(num_elements * num_components * sizeof(double));
+    memcpy(fd->data, field_data, num_elements*num_components*sizeof(double));
+  }
+  else
+    fd->data = field_data;
   fd->num_comps = num_components;
   fd->centering = centering;
   fd->destroy = copy;
