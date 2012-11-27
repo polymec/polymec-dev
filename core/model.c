@@ -220,6 +220,14 @@ void model_advance(model_t* model, double dt)
   model_do_periodic_work(model);
 }
 
+void model_finalize(model_t* model)
+{
+  log_detail("%s: Finalizing model at t = %g", model->name, model->time);
+  if (model->vtable.finalize != NULL)
+    model->vtable.finalize(model->context, model->step, model->time);
+  model_do_periodic_work(model);
+}
+
 void model_load(model_t* model, int step)
 {
   ASSERT(step >= 0);
@@ -297,6 +305,10 @@ void model_run(model_t* model, double t1, double t2, int max_steps)
       model_advance(model, dt);
     }
   }
+
+  // Do any finalization.
+  model_finalize(model);
+
   log_detail("%s: Run concluded at time %g.", model->name, t2);
 }
 

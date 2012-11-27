@@ -32,6 +32,9 @@ typedef double (*model_max_dt_func)(void*, double, char*);
 // A function for advancing the model.
 typedef void (*model_advance_func)(void*, double, double);
 
+// A function for work to be performed after a run completes.
+typedef void (*model_finalize_func)(void*, int, double);
+
 // A function for loading the model's state from the given I/O interface.
 typedef void (*model_load_func)(void*, io_interface_t*, double*, int);
 
@@ -51,6 +54,7 @@ typedef struct
   model_init_func         init;
   model_max_dt_func       max_dt;
   model_advance_func      advance;
+  model_finalize_func     finalize;
   model_load_func         load;
   model_save_func         save;
   model_plot_func         plot;
@@ -106,6 +110,9 @@ double model_max_dt(model_t* model, char* reason);
 
 // Advances the model by a single time step of size dt.
 void model_advance(model_t* model, double dt);
+
+// Performs any post-simulation work for the model.
+void model_finalize(model_t* model);
 
 // Loads the model's state from its I/O interface.
 void model_load(model_t* model, int step);
