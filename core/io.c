@@ -3,6 +3,7 @@
 #include <dirent.h>
 #include <sys/stat.h>
 #include "core/io.h"
+#include "core/unordered_map.h"
 
 #ifdef USE_MPI
 #include <mpi.h>
@@ -12,6 +13,42 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+// Metadata and maps.
+typedef struct
+{
+  double* data;
+  int num_comps;
+  mesh_centering_t centering;
+  bool destroy; // Responsible for destroying this data
+} field_data_t;
+
+static void destroy_field_entry(char* key, field_data_t* value)
+{
+  free(key);
+  if (value->destroy)
+    free(value->data);
+  free(value);
+}
+
+static void destroy_string_entry(char* key, char* value)
+{
+  free(key);
+  free(value);
+}
+
+DEFINE_UNORDERED_MAP(io_field_map, char*, field_data_t*, string_hash, string_equals)
+DEFINE_UNORDERED_MAP(io_string_map, char*, char*, string_hash, string_equals)
+
+// The structure that holds data for datasets.
+struct io_dataset_t
+{
+  char* name;
+  mesh_t* mesh;
+
+  io_field_map_t* fields;
+  io_string_map_t* strings;
+};
 
 // The "io" interface type is an opaque type for descriptors used to 
 // read and write parallel data.
@@ -307,13 +344,6 @@ void io_append_dataset(io_interface_t* interface, io_dataset_t* dataset)
   interface->datasets[i] = dataset;
 }
 
-const char* io_dataset_name(io_interface_t* interface, int index)
-{
-  ASSERT(index >= 0);
-  ASSERT(index < io_num_datasets(interface));
-  return interface->datasets[index]->name;
-}
-
 void io_set_num_datasets(io_interface_t* interface, int num_datasets)
 {
   ASSERT(interface->mode == IO_WRITE);
@@ -343,171 +373,135 @@ io_dataset_t* io_default_dataset(io_interface_t* interface)
     return interface->datasets[0];
 }
 
-io_dataset_t* io_dataset_new(const char* name, int num_fields, int num_codes)
+io_dataset_t* io_dataset_new(const char* name)
 {
-  ASSERT(num_fields >= 0);
-  ASSERT(num_codes >= 0);
-
   io_dataset_t* d = malloc(sizeof(io_dataset_t));
   d->name = strdup(name);
   d->mesh = NULL;
-  d->lite_mesh = NULL;
-  d->fields = malloc(num_fields*sizeof(double*));
-  d->field_names = calloc(num_fields, sizeof(char*));
-  d->field_num_comps = calloc(num_fields, sizeof(int));
-  d->field_centerings = calloc(num_fields, sizeof(mesh_centering_t));
-  d->num_fields = num_fields;
-  d->codes = malloc(num_codes*sizeof(char*));
-  d->code_names = calloc(num_codes, sizeof(char*));
-  d->num_codes = 0;
-
+  d->fields = io_field_map_new();
+  d->strings = io_string_map_new();
   return d;
+}
+
+const char* io_dataset_name(io_dataset_t* dataset)
+{
+  return dataset->name;
 }
 
 void io_dataset_free(io_dataset_t* dataset)
 {
   free(dataset->name);
-  for (int i = 0; i < dataset->num_fields; ++i)
-  {
-    free(dataset->field_names[i]);
-    free(dataset->fields[i]);
-  }
-  free(dataset->fields);
-  free(dataset->field_names);
-  free(dataset->field_centerings);
-
-  for (int i = 0; i < dataset->num_codes; ++i)
-  {
-    free(dataset->code_names[i]);
-    free(dataset->codes[i]);
-  }
-  free(dataset->codes);
-  free(dataset->code_names);
-
+  io_field_map_free(dataset->fields);
+  io_string_map_free(dataset->strings);
   free(dataset);
 }
 
-void io_dataset_read_mesh(io_dataset_t* dataset, mesh_t** mesh)
+mesh_t* io_dataset_get_mesh(io_dataset_t* dataset)
 {
-  *mesh = dataset->mesh;
-  dataset->mesh = NULL;
+  return dataset->mesh;
 }
 
-void io_dataset_write_mesh(io_dataset_t* dataset, mesh_t* mesh)
+void io_dataset_put_mesh(io_dataset_t* dataset, mesh_t* mesh)
 {
   ASSERT(mesh != NULL);
   dataset->mesh = mesh;
 }
 
-void io_dataset_read_lite_mesh(io_dataset_t* dataset, lite_mesh_t** mesh)
-{
-  *mesh = dataset->lite_mesh;
-  dataset->lite_mesh = NULL;
-}
-
-void io_dataset_write_lite_mesh(io_dataset_t* dataset, lite_mesh_t* mesh)
-{
-  ASSERT(mesh != NULL);
-  dataset->lite_mesh = mesh;
-}
-
 void io_dataset_query_field(io_dataset_t* dataset, const char* field_name, int* num_components, mesh_centering_t* centering)
 {
   *num_components = -1;
-  for (int i = 0; i < dataset->num_fields; ++i)
+  field_data_t** fd = io_field_map_get(dataset->fields, (char*)field_name);
+  if (fd != NULL)
   {
-    if (!strcmp(dataset->field_names[i], field_name))
-    {
-      *num_components = dataset->field_num_comps[i];
-      *centering = dataset->field_centerings[i];
-    }
+    *num_components = (*fd)->num_comps;
+    *centering = (*fd)->centering;
   }
 }
 
-void io_dataset_read_field(io_dataset_t* dataset, const char* field_name, double** field)
+void io_dataset_get_field(io_dataset_t* dataset, const char* field_name, double** field)
 {
+  ASSERT(dataset->mesh != NULL);
+
   *field = NULL;
-  for (int i = 0; i < dataset->num_fields; ++i)
+  field_data_t** fd = io_field_map_get(dataset->fields, (char*)field_name);
+  if (fd != NULL)
   {
-    if (!strcmp(dataset->field_names[i], field_name))
-    {
-      *field = dataset->fields[i];
-      dataset->fields[i] = NULL;
-    }
+    *field = (*fd)->data;
+    (*fd)->destroy = false;
   }
 }
 
-void io_dataset_write_field(io_dataset_t* dataset, const char* field_name, double* field_data, int num_components, mesh_centering_t centering)
+void io_dataset_put_field(io_dataset_t* dataset, const char* field_name, double* field_data, int num_components, mesh_centering_t centering, bool copy)
 {
   ASSERT(dataset->mesh != NULL);
   ASSERT(field_data != NULL);
   ASSERT(num_components > 0);
-  for (int i = 0; i < dataset->num_fields; ++i)
+
+  int num_elements = 0;
+  switch (centering)
   {
-    if ((dataset->field_names[i] == NULL) || !strcmp(dataset->field_names[i], field_name))
-    {
-      if (dataset->field_names[i] == NULL)
-        dataset->field_names[i] = strdup(field_name);
-      int num_elements = 0;
-      switch (centering)
-      {
-        case MESH_CELL:
-          num_elements = dataset->mesh->num_cells;
-          break;
-        case MESH_FACE:
-          num_elements = dataset->mesh->num_faces;
-          break;
-        case MESH_EDGE:
-          num_elements = dataset->mesh->num_edges;
-          break;
-        case MESH_NODE:
-          num_elements = dataset->mesh->num_nodes;
-          break;
-      }
-      dataset->fields[i] = malloc(num_elements * num_components * sizeof(double));
-      memcpy(dataset->fields[i], field_data, num_elements*num_components*sizeof(double));
-      dataset->field_num_comps[i] = num_components;
-      dataset->field_centerings[i] = centering;
+    case MESH_CELL:
+      num_elements = dataset->mesh->num_cells;
       break;
-    }
+    case MESH_FACE:
+      num_elements = dataset->mesh->num_faces;
+      break;
+    case MESH_EDGE:
+      num_elements = dataset->mesh->num_edges;
+      break;
+    case MESH_NODE:
+      num_elements = dataset->mesh->num_nodes;
+      break;
   }
+
+  field_data_t* fd = malloc(sizeof(field_data_t));
+  fd->data = malloc(num_elements * num_components * sizeof(double));
+  fd->num_comps = num_components;
+  fd->centering = centering;
+  fd->destroy = copy;
+  io_field_map_insert_with_dtor(dataset->fields, strdup(field_name), fd, destroy_field_entry);
 }
 
-void io_dataset_query_code(io_dataset_t* dataset, const char* code_name, int* len)
+bool io_dataset_next_field(io_dataset_t* dataset, int* pos, char** field_name, double** field, int* num_components, mesh_centering_t* centering)
 {
-  *len = -1;
-  for (int i = 0; i < dataset->num_codes; ++i)
-  {
-    if (!strcmp(dataset->code_names[i], code_name))
-    {
-      *len = dataset->code_lengths[i];
-    }
-  }
+  field_data_t* field_data;
+  bool result = io_field_map_next(dataset->fields, pos, field_name, &field_data);
+  if (!result)
+    return false;
+  *field = field_data->data;
+  *num_components = field_data->num_comps;
+  *centering = field_data->centering;
+  return result;
 }
 
-void io_dataset_read_code(io_dataset_t* dataset, const char* code_name, char** code)
+int io_dataset_num_fields(io_dataset_t* dataset)
 {
-  for (int i = 0; i < dataset->num_codes; ++i)
-  {
-    if (!strcmp(dataset->code_names[i], code_name))
-    {
-      *code = dataset->codes[i];
-      dataset->codes[i] = NULL;
-    }
-  }
+  return dataset->fields->size;
 }
 
-void io_dataset_write_code(io_dataset_t* dataset, const char* code_name, const char* code)
+char* io_dataset_get_string(io_dataset_t* dataset, const char* string_name)
 {
-  ASSERT(code != NULL);
-  for (int i = 0; i < dataset->num_fields; ++i)
-  {
-    if (!strcmp(dataset->code_names[i], code_name))
-    {
-      dataset->codes[i] = (char*)code;
-      dataset->code_lengths[i] = strlen(code);
-    }
-  }
+  char** s = io_string_map_get(dataset->strings, (char*)string_name);
+  if (s != NULL)
+    return *s;
+  else
+    return NULL;
+}
+
+void io_dataset_put_string(io_dataset_t* dataset, const char* string_name, const char* string)
+{
+  ASSERT(string != NULL);
+  io_string_map_insert_with_dtor(dataset->strings, strdup(string_name), strdup(string), destroy_string_entry);
+}
+
+bool io_dataset_next_string(io_dataset_t* dataset, int* pos, char** string_name, char** string)
+{
+  return io_string_map_next(dataset->strings, pos, string_name, string);
+}
+
+int io_dataset_num_strings(io_dataset_t* dataset)
+{
+  return dataset->strings->size;
 }
 
 #ifdef __cplusplus
