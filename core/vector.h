@@ -47,42 +47,26 @@ typedef void (*vector_name##_visitor)(element e); \
 static inline vector_name##_t* vector_name##_new_with_arena(ARENA* arena, int size) \
 { \
   ASSERT(size >= 0); \
-  vector_name##_t* v = arena_malloc(arena, sizeof(vector_name##_t), 0); \
+  vector_name##_t* v = ARENA_MALLOC(arena, sizeof(vector_name##_t), 0); \
   v->arena = arena; \
   v->size = size; \
   v->capacity = 1; \
   while (v->capacity < v->size) \
     v->capacity *= 2; \
-  v->data = arena_malloc(arena, sizeof(element)*v->capacity, 0); \
+  v->data = ARENA_MALLOC(arena, sizeof(element)*v->capacity, 0); \
   return v; \
 } \
 \
 static inline vector_name##_t* vector_name##_new(int size) \
 { \
-  ASSERT(size >= 0); \
-  vector_name##_t* v = malloc(sizeof(vector_name##_t)); \
-  v->arena = NULL; \
-  v->size = size; \
-  v->capacity = 1; \
-  while (v->capacity < v->size) \
-    v->capacity *= 2; \
-  v->data = malloc(sizeof(element)*v->capacity); \
-  return v; \
+  return vector_name##_new_with_arena(NULL, size); \
 } \
 \
 static inline void vector_name##_free(vector_name##_t* v) \
 { \
-  if (v->arena != NULL) \
-  { \
-    arena_free(v->arena, v->data); \
-    ARENA* arena = v->arena; \
-    arena_free(arena, v); \
-  } \
-  else \
-  { \
-    free(v->data); \
-    free(v); \
-  } \
+  ARENA_FREE(v->arena, v->data); \
+  ARENA* arena = v->arena; \
+  ARENA_FREE(arena, v); \
 } \
 \
 static inline void vector_name##_reserve(vector_name##_t* v, int capacity) \
@@ -92,10 +76,7 @@ static inline void vector_name##_reserve(vector_name##_t* v, int capacity) \
     v->capacity *= 2; \
   if (v->capacity > old_capacity) \
   { \
-    if (v->arena != NULL) \
-      v->data = arena_realloc(v->arena, v->data, sizeof(element)*v->capacity, 0); \
-    else \
-      v->data = realloc(v->data, sizeof(element)*v->capacity); \
+    v->data = ARENA_REALLOC(v->arena, v->data, sizeof(element)*v->capacity, 0); \
   } \
 } \
 \

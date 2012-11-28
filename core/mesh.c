@@ -30,9 +30,7 @@ typedef struct
 static mesh_tags_data_property_t* mesh_tags_data_property_new(ARENA* arena, const char* key, void* data, void (*dtor)(void*))
 {
   ASSERT(data != NULL);
-  mesh_tags_data_property_t* prop = arena_malloc(arena, sizeof(mesh_tags_data_property_t), 0);
-//  prop->key = arena_malloc(arena, sizeof(char)*(strlen(key)+1), 0);
-//  strcpy(prop->key, key);
+  mesh_tags_data_property_t* prop = ARENA_MALLOC(arena, sizeof(mesh_tags_data_property_t), 0);
   prop->data = data;
   prop->dtor = dtor;
   prop->arena = arena;
@@ -44,7 +42,7 @@ static void mesh_tags_data_property_free(mesh_tags_data_property_t* prop)
   if (prop->dtor != NULL)
     (*prop->dtor)(prop->data);
   ARENA* arena = prop->arena;
-  arena_free(arena, prop);
+  ARENA_FREE(arena, prop);
 }
 
 DEFINE_UNORDERED_MAP(mesh_tags_data_property_map, char*, mesh_tags_data_property_t*, string_hash, string_equals)
@@ -62,7 +60,7 @@ static mesh_tags_data_t* mesh_tags_data_new(ARENA* arena, const char* key, int* 
 {
   ASSERT(indices != NULL);
   ASSERT(num_indices >= 0);
-  mesh_tags_data_t* data = arena_malloc(arena, sizeof(mesh_tags_data_t), 0);
+  mesh_tags_data_t* data = ARENA_MALLOC(arena, sizeof(mesh_tags_data_t), 0);
   data->indices = indices; // YOINK!
   data->num_indices = num_indices;
   data->properties = mesh_tags_data_property_map_new();
@@ -76,11 +74,11 @@ static void mesh_tags_data_free(mesh_tags_data_t* tags_data)
   mesh_tags_data_property_map_free(tags_data->properties);
 
   // Delete indices.
-  arena_free(tags_data->arena, tags_data->indices);
+  ARENA_FREE(tags_data->arena, tags_data->indices);
 
   // Delete self.
   ARENA* arena = tags_data->arena;
-  arena_free(arena, tags_data);
+  ARENA_FREE(arena, tags_data);
 }
 
 DEFINE_UNORDERED_MAP(mesh_tags_data_map, char*, mesh_tags_data_t*, string_hash, string_equals)
@@ -93,7 +91,7 @@ struct mesh_tags_t
 
 static mesh_tags_t* mesh_tags_new(ARENA* arena)
 {
-  mesh_tags_t* tags = arena_malloc(arena, sizeof(mesh_tags_t), 0);
+  mesh_tags_t* tags = ARENA_MALLOC(arena, sizeof(mesh_tags_t), 0);
   tags->arena = arena;
   tags->data = mesh_tags_data_map_new();
   return tags;
@@ -102,19 +100,19 @@ static mesh_tags_t* mesh_tags_new(ARENA* arena)
 static void mesh_tags_free(mesh_tags_t* tags)
 {
   mesh_tags_data_map_free(tags->data);
-  arena_free(tags->arena, tags);
+  ARENA_FREE(tags->arena, tags);
 }
 
 // These destructors are used with maps for tag properties and tags.
 static void destroy_property_key_and_value(char* key, mesh_tags_data_property_t* value)
 {
-  arena_free(value->arena, key);
+  ARENA_FREE(value->arena, key);
   mesh_tags_data_property_free(value);
 }
 
 static void destroy_tag_key_and_value(char* key, mesh_tags_data_t* value)
 {
-  arena_free(value->arena, key);
+  ARENA_FREE(value->arena, key);
   mesh_tags_data_free(value);
 }
 
@@ -137,29 +135,29 @@ mesh_t* mesh_new_with_arena(ARENA* arena, int num_cells, int num_ghost_cells, in
   ASSERT(num_edges > 0);
   ASSERT(num_nodes > 0);
 
-  mesh_t* mesh = arena_malloc(arena, sizeof(mesh_t), 0);
+  mesh_t* mesh = ARENA_MALLOC(arena, sizeof(mesh_t), 0);
   mesh->arena = arena;
   mesh->close_arena = false;
 
   // NOTE: We round stored elements up to the nearest power of 2.
   int cell_cap = round_to_pow2(num_cells+num_ghost_cells);
-  mesh->cells = arena_malloc(mesh->arena, sizeof(cell_t)*cell_cap, 0);
+  mesh->cells = ARENA_MALLOC(mesh->arena, sizeof(cell_t)*cell_cap, 0);
   memset(mesh->cells, 0, sizeof(cell_t)*cell_cap);
   mesh->num_cells = num_cells;
   mesh->num_ghost_cells = num_ghost_cells;
 
   int face_cap = round_to_pow2(num_faces);
-  mesh->faces = arena_malloc(mesh->arena, sizeof(face_t)*face_cap, 0);
+  mesh->faces = ARENA_MALLOC(mesh->arena, sizeof(face_t)*face_cap, 0);
   memset(mesh->faces, 0, sizeof(face_t)*face_cap);
   mesh->num_faces = num_faces;
 
   int edge_cap = round_to_pow2(num_edges);
-  mesh->edges = arena_malloc(mesh->arena, sizeof(edge_t)*edge_cap, 0);
+  mesh->edges = ARENA_MALLOC(mesh->arena, sizeof(edge_t)*edge_cap, 0);
   memset(mesh->edges, 0, sizeof(edge_t)*edge_cap);
   mesh->num_edges = num_edges;
 
   int node_cap = round_to_pow2(num_nodes);
-  mesh->nodes = arena_malloc(mesh->arena, sizeof(node_t)*node_cap, 0);
+  mesh->nodes = ARENA_MALLOC(mesh->arena, sizeof(node_t)*node_cap, 0);
   memset(mesh->nodes, 0, sizeof(node_t)*node_cap);
   mesh->num_nodes = num_nodes;
 
@@ -186,18 +184,18 @@ void mesh_free(mesh_t* mesh)
   for (int i = 0; i < (mesh->num_cells + mesh->num_ghost_cells); ++i)
   {
     if (mesh->cells[i].faces != NULL)
-      arena_free(mesh->arena, mesh->cells[i].faces);
+      ARENA_FREE(mesh->arena, mesh->cells[i].faces);
   }
-  arena_free(mesh->arena, mesh->cells);
+  ARENA_FREE(mesh->arena, mesh->cells);
 
   for (int i = 0; i < mesh->num_faces; ++i)
   {
     if (mesh->faces[i].edges != NULL)
-      arena_free(mesh->arena, mesh->faces[i].edges);
+      ARENA_FREE(mesh->arena, mesh->faces[i].edges);
   }
-  arena_free(mesh->arena, mesh->faces);
-  arena_free(mesh->arena, mesh->edges);
-  arena_free(mesh->arena, mesh->nodes);
+  ARENA_FREE(mesh->arena, mesh->faces);
+  ARENA_FREE(mesh->arena, mesh->edges);
+  ARENA_FREE(mesh->arena, mesh->nodes);
 
   // Destroy tags.
   mesh_tags_free(mesh->cell_tags);
@@ -209,7 +207,7 @@ void mesh_free(mesh_t* mesh)
 
   ARENA* arena = mesh->arena;
   bool close_arena = mesh->close_arena;
-  arena_free(arena, mesh);
+  ARENA_FREE(arena, mesh);
   if (close_arena)
     arena_close(arena);
 }
@@ -258,8 +256,8 @@ int* mesh_create_tag(mesh_tags_t* tagger, const char* tag, int num_indices)
     return NULL;
 
   // Otherwise, we create it.
-  int* indices = arena_malloc(tagger->arena, num_indices*sizeof(int), 0);
-  char* tag_name = arena_malloc(tagger->arena, sizeof(char)*(strlen(tag)+1), 0);
+  int* indices = ARENA_MALLOC(tagger->arena, num_indices*sizeof(int), 0);
+  char* tag_name = ARENA_MALLOC(tagger->arena, sizeof(char)*(strlen(tag)+1), 0);
   strcpy(tag_name, tag);
   mesh_tags_data_t* data = mesh_tags_data_new(tagger->arena, tag, indices, num_indices);
   mesh_tags_data_map_insert_with_dtor(tagger->data, tag_name, data, destroy_tag_key_and_value);
@@ -302,7 +300,7 @@ bool mesh_tag_set_property(mesh_tags_t* tagger, const char* tag, const char* pro
   else
   {
     // Create a new property.
-    char* prop_name = arena_malloc(tagger->arena, sizeof(char)*(strlen(property)+1), 0);
+    char* prop_name = ARENA_MALLOC(tagger->arena, sizeof(char)*(strlen(property)+1), 0);
     strcpy(prop_name, property);
     mesh_tags_data_property_t* prop = mesh_tags_data_property_new(tagger->arena, property, data, destructor);
     mesh_tags_data_property_map_insert_with_dtor((*data_p)->properties, prop_name, prop, destroy_property_key_and_value);

@@ -27,21 +27,21 @@ faceted_surface_t* faceted_surface_new_with_arena(ARENA* arena, int num_faces, i
   ASSERT(num_edges > 0);
   ASSERT(num_nodes > 0);
 
-  faceted_surface_t* s = arena_malloc(arena, sizeof(faceted_surface_t), 0);
+  faceted_surface_t* s = ARENA_MALLOC(arena, sizeof(faceted_surface_t), 0);
   s->arena = arena;
   s->close_arena = false;
 
   // NOTE: We round stored elements up to the nearest power of 2.
   int face_cap = round_to_pow2(num_faces);
-  s->faces = arena_malloc(s->arena, sizeof(face_t)*face_cap, 0);
+  s->faces = ARENA_MALLOC(s->arena, sizeof(face_t)*face_cap, 0);
   s->num_faces = num_faces;
 
   int edge_cap = round_to_pow2(num_edges);
-  s->edges = arena_malloc(s->arena, sizeof(edge_t)*edge_cap, 0);
+  s->edges = ARENA_MALLOC(s->arena, sizeof(edge_t)*edge_cap, 0);
   s->num_edges = num_edges;
 
   int node_cap = round_to_pow2(num_nodes);
-  s->nodes = arena_malloc(s->arena, sizeof(node_t)*node_cap, 0);
+  s->nodes = ARENA_MALLOC(s->arena, sizeof(node_t)*node_cap, 0);
   s->num_nodes = num_nodes;
 
   // Storage information.
@@ -61,17 +61,17 @@ void faceted_surface_free(faceted_surface_t* surface)
   for (int i = 0; i < surface->num_faces; ++i)
   {
     if (surface->faces[i].edges != NULL)
-      arena_free(surface->arena, surface->faces[i].edges);
+      ARENA_FREE(surface->arena, surface->faces[i].edges);
   }
-  arena_free(surface->arena, surface->faces);
-  arena_free(surface->arena, surface->edges);
-  arena_free(surface->arena, surface->nodes);
+  ARENA_FREE(surface->arena, surface->faces);
+  ARENA_FREE(surface->arena, surface->edges);
+  ARENA_FREE(surface->arena, surface->nodes);
 
   mesh_storage_free(surface->storage);
 
   ARENA* arena = surface->arena;
   bool close_arena = surface->close_arena;
-  arena_free(arena, surface);
+  ARENA_FREE(arena, surface);
   if (close_arena)
     arena_close(arena);
 }

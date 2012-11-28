@@ -14,7 +14,7 @@ mesh_storage_t* mesh_storage_new()
 
 mesh_storage_t* mesh_storage_new_with_arena(ARENA* arena)
 {
-  mesh_storage_t* storage = arena_malloc(arena, sizeof(mesh_storage_t), 0);
+  mesh_storage_t* storage = ARENA_MALLOC(arena, sizeof(mesh_storage_t), 0);
   storage->arena = arena;
   storage->node_capacity = 0;
   storage->edge_capacity = 0;
@@ -28,7 +28,7 @@ void mesh_storage_free(mesh_storage_t* storage)
 {
   ARENA* a = storage->arena;
   bool close_arena = storage->close_arena;
-  arena_free(a, storage);
+  ARENA_FREE(a, storage);
   if (close_arena)
     arena_close(a);
 }
