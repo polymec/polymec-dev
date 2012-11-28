@@ -49,19 +49,15 @@ set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};triangle)
 
 # Install libarena -- A fast C arena/memory pool implementation.
 if (NOT EXISTS ${PROJECT_BINARY_DIR}/include/arena)
-  execute_process(COMMAND cmake -E tar xzvf ${CMAKE_CURRENT_SOURCE_DIR}/libarena-0.3.4.tgz
+  execute_process(COMMAND cmake -E tar xzvf ${CMAKE_CURRENT_SOURCE_DIR}/libarena-0.3.5.tgz
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
-  file(GLOB includes "${CMAKE_CURRENT_BINARY_DIR}/libarena-0.3.4/src/*.h")
+  file(GLOB includes "${CMAKE_CURRENT_BINARY_DIR}/libarena-0.3.5/src/*.h")
   execute_process(COMMAND cmake -E make_directory ${PROJECT_BINARY_DIR}/include/arena)
   foreach(inc ${includes})
     execute_process(COMMAND cmake -E copy ${inc} ${PROJECT_BINARY_DIR}/include/arena)
   endforeach()
-
-  # Apply the patch to arena.c.
-  execute_process(COMMAND patch libarena-0.3.4/src/arena.c ${CMAKE_CURRENT_SOURCE_DIR}/libarena-arena.c.patch 
-                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 endif()
-file(GLOB sources "${CMAKE_CURRENT_BINARY_DIR}/libarena-0.3.4/src/*.c")
+file(GLOB sources "${CMAKE_CURRENT_BINARY_DIR}/libarena-0.3.5/src/*.c")
 add_library(arena ${sources})
 set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};arena)
 
