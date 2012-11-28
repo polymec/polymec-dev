@@ -2,6 +2,7 @@
 #define POLYMEC_H
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <stdbool.h>
 #include <math.h>
 #include <limits.h>
@@ -35,6 +36,18 @@ for (int i = start; i < start + num; ++i) \
   array[i] = val
 
 #define real_t double
+
+// These macros use the given arena to allocate/free memory and fall back 
+// to the heap if the first argument is NULL. Note that you still have to 
+// #include <arena/arena.h> to use them.
+#define ARENA_MALLOC(arena, size, alignment) \
+  (arena != NULL) ? arena_malloc(arena, size, alignment) : malloc(size)
+
+#define ARENA_REALLOC(arena, memory, size, alignment) \
+  (arena != NULL) ? arena_realloc(arena, memory, size, alignment) : realloc(memory, size)
+
+#define ARENA_FREE(arena, memory) \
+  (arena != NULL) ? arena_free(arena, memory) : free(memory)
 
 // Error codes.
 #define POLYMEC_SUCCESS 0

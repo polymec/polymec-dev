@@ -62,10 +62,10 @@ static void free_boundary_cell(advect_boundary_cell_t* cell)
 typedef struct 
 {
   mesh_t* mesh;             // Mesh.
-  st_func_t* rhs;           // Right-hand side function.
   double* phi;              // Solution array.
   st_func_t* diffusivity;   // Diffusivity function.
   st_func_t* velocity;      // Velocity function.
+  st_func_t* source;        // The (non-stiff, spatial) source term.
   st_func_t* solution;      // Analytic solution (if not NULL).
   lin_op_t* D;              // Diffusion operator.
 
@@ -90,19 +90,19 @@ typedef struct
 } advect_t;
 
 // A proper constructor.
-static model_t* create_advect(mesh_t* mesh, st_func_t* rhs, str_ptr_unordered_map_t* bcs, options_t* options)
+static model_t* create_advect(mesh_t* mesh, st_func_t* source, str_ptr_unordered_map_t* bcs, options_t* options)
 {
   model_t* poisson = advect_model_new(options);
   advect_t* p = (advect_t*)model_context(poisson);
   p->mesh = mesh;
-  p->rhs = rhs;
+  p->source = source;
   if (p->bcs != NULL)
     str_ptr_unordered_map_free(p->bcs);
   p->bcs = bcs;
   p->D = diffusion_op_new(p->mesh);
 
   // Determine whether this model is time-dependent.
-  p->is_time_dependent = !st_func_is_constant(p->rhs);
+  p->is_time_dependent = !st_func_is_constant(p->source);
   int pos = 0;
   char* tag;
   advect_bc_t* bc;
@@ -509,7 +509,7 @@ static void advect_advance(void* context, double t, double dt)
   // If we're time-dependent, recompute the linear system here.
   if (!p->is_time_dependent)
   {
-    set_up_linear_system(p->mesh, p->D, p->rhs, t+dt, p->A, p->b);
+    set_up_linear_system(p->mesh, p->D, p->source, t+dt, p->A, p->b);
     apply_bcs(p->boundary_cells, p->mesh, p->shape, t+dt, p->A, p->b);
   }
 //  MatView(p->A, PETSC_VIEWER_STDOUT_SELF);
@@ -535,8 +535,8 @@ static void advect_read_input(void* context, interpreter_t* interp)
   a->mesh = interpreter_get_mesh(interp, "mesh");
   if (a->mesh == NULL)
     polymec_error("advect: No mesh was specified.");
-//  p->rhs = interpreter_get_function(interp, "rhs");
-//  if (p->rhs == NULL)
+//  p->source = interpreter_get_function(interp, "rhs");
+//  if (p->source == NULL)
 //    polymec_error("poisson: No right hand side (rhs) was specified.");
 //  p->bcs = interpreter_get_table(interp, "bcs");
 //  if (p->bcs == NULL)
@@ -593,7 +593,7 @@ static void advect_init(void* context, double t)
   // If we're independent of time, set up the linear system here.
   if (!p->is_time_dependent)
   {
-    set_up_linear_system(p->mesh, p->D, p->rhs, t, p->A, p->b);
+    set_up_linear_system(p->mesh, p->D, p->source, t, p->A, p->b);
     apply_bcs(p->boundary_cells, p->mesh, p->shape, t, p->A, p->b);
   }
 
@@ -691,8 +691,12 @@ model_t* advect_model_new(options_t* options)
                           .dtor = advect_dtor};
   advect_t* context = malloc(sizeof(advect_t));
   context->mesh = NULL;
-  context->rhs = NULL;
   context->phi = NULL;
+  double zero = 0.0;
+  context->diffusivity = constant_st_func_new(1, &zero);
+  context->velocity = NULL;
+  context->source = constant_st_func_new(1, &zero);
+  context->solution = NULL;
   context->D = NULL;
   context->bcs = str_ptr_unordered_map_new();
   context->shape = poly_ls_shape_new(1, true);
