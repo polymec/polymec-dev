@@ -26,6 +26,50 @@
 extern "C" {
 #endif
 
+// Linear solver context for the diffusion equation.
+typedef struct
+{
+  KSP solver;
+  Mat matrix;
+  Vec solution;
+  Vec rhs;
+} advect_lin_sys_t;
+
+static advect_lin_sys_t* advect_lin_sys_new(MPI_Comm comm, mesh_t* mesh, lin_op_t* op)
+{
+  advect_lin_sys_t* sys = malloc(sizeof(advect_lin_sys_t));
+  MatCreate(comm, &sys->matrix);
+  MatSetType(sys->matrix, MATSEQAIJ);
+  MatSetOption(sys->matrix, MAT_KEEP_NONZERO_PATTERN, PETSC_TRUE);
+//  MatSetOption(sys->matrix, MAT_NEW_NONZERO_LOCATION_ERR, PETSC_TRUE);
+//  MatSetOption(sys->matrix, MAT_NEW_NONZERO_ALLOCATION_ERR, PETSC_TRUE);
+  MatSetSizes(sys->matrix, mesh->num_cells, mesh->num_cells, PETSC_DETERMINE, PETSC_DETERMINE);
+  VecCreate(comm, &sys->solution);
+  VecSetType(sys->solution, VECSEQ);
+  VecSetSizes(sys->solution, mesh->num_cells, PETSC_DECIDE);
+  VecCreate(comm, &sys->rhs);
+  VecSetType(sys->rhs, VECSEQ);
+  VecSetSizes(sys->rhs, mesh->num_cells, PETSC_DECIDE);
+  KSPCreate(comm, &sys->solver);
+
+  // Pre-allocate matrix entries.
+  PetscInt nz = 0, nnz[mesh->num_cells];
+  for (int i = 0; i < mesh->num_cells; ++i)
+    nnz[i] = lin_op_stencil_size(op, i);
+  MatSeqAIJSetPreallocation(sys->matrix, nz, nnz);
+
+  return sys;
+}
+
+static void advect_lin_sys_free(advect_lin_sys_t* sys)
+{
+  KSPDestroy(&sys->solver);
+  MatDestroy(&sys->matrix);
+  VecDestroy(&sys->solution);
+  VecDestroy(&sys->rhs);
+  free(sys);
+}
+
 // Advect model context structure.
 typedef struct 
 {
@@ -35,6 +79,7 @@ typedef struct
   st_func_t* velocity;      // Velocity function.
   st_func_t* source;        // The (non-stiff, spatial) source term.
   st_func_t* solution;      // Analytic solution (if not NULL).
+  st_func_t* initial_cond;  // The initial value of the solution.
   lin_op_t* D;              // Diffusion operator.
 
   str_ptr_unordered_map_t* bcs; // Boundary conditions.
@@ -47,12 +92,9 @@ typedef struct
   // time-dependent, and false otherwise.
   bool is_time_dependent;
 
-  KSP solver;               // Linear solver.
-  Mat A;                    // Diffusion matrix.
-  Vec x;                    // Solution vector.
-  Vec b;                    // RHS vector. 
+  // Diffusion equation linear system.
+  advect_lin_sys_t* diff_system;
 
-  bool initialized;         // Initialized flag.
   MPI_Comm comm;            // MPI communicator.
 
 } advect_t;
@@ -61,16 +103,16 @@ typedef struct
 static model_t* create_advect(mesh_t* mesh, st_func_t* source, str_ptr_unordered_map_t* bcs, options_t* options)
 {
   model_t* poisson = advect_model_new(options);
-  advect_t* p = (advect_t*)model_context(poisson);
-  p->mesh = mesh;
-  p->source = source;
-  if (p->bcs != NULL)
-    str_ptr_unordered_map_free(p->bcs);
-  p->bcs = bcs;
-  p->D = diffusion_op_new(p->mesh);
+  advect_t* a = (advect_t*)model_context(poisson);
+  a->mesh = mesh;
+  a->source = source;
+  if (a->bcs != NULL)
+    str_ptr_unordered_map_free(a->bcs);
+  a->bcs = bcs;
+  a->D = diffusion_op_new(a->mesh);
 
   // Determine whether this model is time-dependent.
-  p->is_time_dependent = !st_func_is_constant(p->source);
+  a->is_time_dependent = !st_func_is_constant(a->source);
   int pos = 0;
   char* tag;
   advect_bc_t* bc;
@@ -78,7 +120,7 @@ static model_t* create_advect(mesh_t* mesh, st_func_t* source, str_ptr_unordered
   {
     // If any BC is time-dependent, the whole problem is.
     if (!st_func_is_constant(bc->F))
-      p->is_time_dependent = true;
+      a->is_time_dependent = true;
   }
 
   return poisson;
@@ -147,15 +189,15 @@ static void run_analytic_problem(mesh_t* mesh, st_func_t* rhs, str_ptr_unordered
   model_run(model, t1, t2, INT_MAX);
 
   // Calculate the Lp norm of the error and write it to Lp_norms.
-  advect_t* pm = model_context(model);
+  advect_t* a = model_context(model);
   double Linf = 0.0, L1 = 0.0, L2 = 0.0;
-  for (int c = 0; c < pm->mesh->num_cells; ++c)
+  for (int c = 0; c < a->mesh->num_cells; ++c)
   {
     double phi_sol;
-    st_func_eval(solution, &pm->mesh->cells[c].center, t2, &phi_sol);
-    double V = pm->mesh->cells[c].volume;
-    double err = fabs(pm->phi[c] - phi_sol);
-//printf("i = %d, phi = %g, phi_s = %g, err = %g\n", c, pm->phi[c], phi_sol, err);
+    st_func_eval(solution, &a->mesh->cells[c].center, t2, &phi_sol);
+    double V = a->mesh->cells[c].volume;
+    double err = fabs(a->phi[c] - phi_sol);
+//printf("i = %d, phi = %g, phi_s = %g, err = %g\n", c, a->phi[c], phi_sol, err);
     Linf = (Linf < err) ? err : Linf;
     L1 += err*V;
     L2 += err*err*V*V;
@@ -164,7 +206,7 @@ static void run_analytic_problem(mesh_t* mesh, st_func_t* rhs, str_ptr_unordered
   lp_norms[0] = Linf;
   lp_norms[1] = L1;
   lp_norms[2] = L2;
-//  norm_t* lp_norm = fv2_lp_norm_new(pm->mesh);
+//  norm_t* lp_norm = fv2_lp_norm_new(a->mesh);
 //  for (int p = 0; p <= 2; ++p)
 //    lp_norms[p] = fv2_lp_norm_compute_error_from_solution(p, 
   // FIXME
@@ -177,6 +219,43 @@ static void run_analytic_problem(mesh_t* mesh, st_func_t* rhs, str_ptr_unordered
 //------------------------------------------------------------------------
 //                        Model implementation
 //------------------------------------------------------------------------
+
+static void compute_half_step_fluxes(mesh_t* mesh, st_func_t* velocity, st_func_t* source, double t, double dt, double* phi, double* fluxes)
+{
+}
+
+static void set_up_linear_system(mesh_t* mesh, lin_op_t* L, st_func_t* rhs, double t, Mat A, Vec b)
+{
+  PetscInt nnz[mesh->num_cells];
+  for (int i = 0; i < mesh->num_cells; ++i)
+    nnz[i] = lin_op_stencil_size(L, i);
+
+  // Set matrix entries.
+  MatAssemblyBegin(A, MAT_FINAL_ASSEMBLY);
+  for (int i = 0; i < mesh->num_cells; ++i)
+  {
+    int indices[nnz[i]];
+    double values[nnz[i]];
+    lin_op_compute_stencil(L, i, indices, values);
+    for (int j = 0; j < nnz[i]; ++j)
+      indices[j] += i;
+    MatSetValues(A, 1, &i, nnz[i], indices, values, INSERT_VALUES);
+  }
+  MatAssemblyEnd(A, MAT_FINAL_ASSEMBLY);
+
+  // Compute the RHS vector.
+  double values[mesh->num_cells];
+  int indices[mesh->num_cells];
+  VecAssemblyBegin(b);
+  for (int c = 0; c < mesh->num_cells; ++c)
+  {
+    indices[c] = c;
+    point_t xc = {.x = 0.0, .y = 0.0, .z = 0.0};
+    st_func_eval(rhs, &xc, t, &values[c]);
+  }
+  VecSetValues(b, mesh->num_cells, indices, values, INSERT_VALUES);
+  VecAssemblyEnd(b);
+}
 
 // Apply boundary conditions to a set of boundary cells.
 static void apply_bcs(boundary_cell_map_t* boundary_cells,
@@ -334,64 +413,72 @@ static void apply_bcs(boundary_cell_map_t* boundary_cells,
   VecAssemblyEnd(b);
 }
 
-static void set_up_linear_system(mesh_t* mesh, lin_op_t* L, st_func_t* rhs, double t, Mat A, Vec b)
+static void compute_diffusive_deriv(mesh_t* mesh, 
+                                    st_func_t* diffusivity,
+                                    double* cell_sources,
+                                    lin_op_t* D, 
+                                    advect_lin_sys_t* diff_system,
+                                    double t,
+                                    double dt,
+                                    double* diff_deriv)
 {
-  PetscInt nnz[mesh->num_cells];
-  for (int i = 0; i < mesh->num_cells; ++i)
-    nnz[i] = lin_op_stencil_size(L, i);
+  // Set up the linear solver.
+  KSPSetOperators(diff_system->solver, diff_system->matrix, diff_system->matrix, SAME_NONZERO_PATTERN);
 
-  // Set matrix entries.
-  MatAssemblyBegin(A, MAT_FINAL_ASSEMBLY);
-  for (int i = 0; i < mesh->num_cells; ++i)
-  {
-    int indices[nnz[i]];
-    double values[nnz[i]];
-    lin_op_compute_stencil(L, i, indices, values);
-    for (int j = 0; j < nnz[i]; ++j)
-      indices[j] += i;
-    MatSetValues(A, 1, &i, nnz[i], indices, values, INSERT_VALUES);
-  }
-  MatAssemblyEnd(A, MAT_FINAL_ASSEMBLY);
+  // Solve the linear system.
+  KSPSolve(diff_system->solver, diff_system->rhs, diff_system->solution);
 
-  // Compute the RHS vector.
-  double values[mesh->num_cells];
-  int indices[mesh->num_cells];
-  VecAssemblyBegin(b);
-  for (int c = 0; c < mesh->num_cells; ++c)
-  {
-    indices[c] = c;
-    point_t xc = {.x = 0.0, .y = 0.0, .z = 0.0};
-    st_func_eval(rhs, &xc, t, &values[c]);
-  }
-  VecSetValues(b, mesh->num_cells, indices, values, INSERT_VALUES);
-  VecAssemblyEnd(b);
+  // Access the solution values from the solution to our solution array.
+  double* solution;
+  VecGetArray(diff_system->solution, &solution);
+  VecRestoreArray(diff_system->solution, &solution);
 }
 
 static void advect_advance(void* context, double t, double dt)
 {
-  advect_t* p = (advect_t*)context;
+  advect_t* a = (advect_t*)context;
 
-  // If we're time-dependent, recompute the linear system here.
-  if (!p->is_time_dependent)
+  // First, compute the half-step values of the fluxes on faces.
+  double fluxes[a->mesh->num_faces];
+  compute_half_step_fluxes(a->mesh, a->velocity, a->source, t, dt, a->phi, fluxes);
+
+  // Update the solution using the Divergence Theorem, and compute the 
+  // advective portion of the time derivative.
+  int num_cells;
+  double phi_new[num_cells], adv_deriv[num_cells];
+  for (int c = 0; c < num_cells; ++c)
   {
-    set_up_linear_system(p->mesh, p->D, p->source, t+dt, p->A, p->b);
-    apply_bcs(p->boundary_cells, p->mesh, p->shape, t+dt, p->A, p->b);
+    cell_t* cell = &a->mesh->cells[c];
+    phi_new[c] = a->phi[c];
+    for (int f = 0; f < cell->num_faces; ++f)
+    {
+      face_t* face = cell->faces[f];
+      int face_index = face - &a->mesh->faces[0];
+      phi_new[c] -= fluxes[face_index] * face->area * dt;
+    }
+
+    // Add the non-stiff source term.
+    double S;
+    st_func_eval(a->source, &cell->center, t, &S);
+    phi_new[c] += S * dt;
+
+    // Compute the advective time derivative.
+    adv_deriv[c] = (phi_new[c] - a->phi[c]) / dt;
   }
-//  MatView(p->A, PETSC_VIEWER_STDOUT_SELF);
-//  VecView(p->b, PETSC_VIEWER_STDOUT_SELF);
 
-  // Set up the linear solver.
-  KSPSetOperators(p->solver, p->A, p->A, SAME_NONZERO_PATTERN);
+  // Do we have diffusivity? 
+  if (a->diffusivity != NULL)
+  {
+    // Compute the diffusive derivative without splitting.
+    double diff_deriv[num_cells];
+    compute_diffusive_deriv(a->mesh, a->diffusivity, adv_deriv, a->D, a->diff_system, t, dt, diff_deriv);
 
-  // Solve the linear system.
-  KSPSolve(p->solver, p->b, p->x);
+    // Update the solution.
+    for (int c = 0; c < num_cells; ++c)
+      phi_new[c] += diff_deriv[c] * dt;
+  }
 
-  // Copy the values from x to our solution array.
-//  VecView(p->x, PETSC_VIEWER_STDOUT_SELF);
-  double* x;
-  VecGetArray(p->x, &x);
-  memcpy(p->phi, x, sizeof(double)*p->mesh->num_cells);
-  VecRestoreArray(p->x, &x);
+  // FIXME: Reactions go here.
 }
 
 static void advect_read_input(void* context, interpreter_t* interp)
@@ -400,98 +487,76 @@ static void advect_read_input(void* context, interpreter_t* interp)
   a->mesh = interpreter_get_mesh(interp, "mesh");
   if (a->mesh == NULL)
     polymec_error("advect: No mesh was specified.");
-//  p->source = interpreter_get_function(interp, "rhs");
-//  if (p->source == NULL)
-//    polymec_error("poisson: No right hand side (rhs) was specified.");
-//  p->bcs = interpreter_get_table(interp, "bcs");
-//  if (p->bcs == NULL)
-//    polymec_error("poisson: No table of boundary conditions (bcs) was specified.");
+  a->velocity = interpreter_get_function(interp, "velocity");
+  if (a->velocity == NULL)
+    polymec_error("advect: No velocity function was specified.");
+  a->initial_cond = interpreter_get_function(interp, "initial_cond");
+  if (a->initial_cond == NULL)
+    polymec_error("advect: No initial condition (initial_cond) was specified.");
+  a->source = interpreter_get_function(interp, "source");
+  a->bcs = interpreter_get_table(interp, "bcs");
+  if (a->bcs == NULL)
+    polymec_error("poisson: No table of boundary conditions (bcs) was specified.");
+  a->diffusivity = interpreter_get_function(interp, "diffusivity");
 }
 
 static void advect_init(void* context, double t)
 {
-  advect_t* p = (advect_t*)context;
+  advect_t* a = (advect_t*)context;
+
+  // Set up the diffusion operator if we need to.
+  // FIXME
 
   // If the model has been previously initialized, clean everything out.
-  if (p->initialized)
-  {
-    KSPDestroy(&p->solver);
-    MatDestroy(&p->A);
-    VecDestroy(&p->x);
-    VecDestroy(&p->b);
-    free(p->phi);
-    boundary_cell_map_free(p->boundary_cells);
-    p->initialized = false;
-  }
+  if (a->diff_system != NULL)
+    advect_lin_sys_free(a->diff_system);
+  if (a->phi != NULL)
+    free(a->phi);
+
+  if (a->boundary_cells != NULL)
+    boundary_cell_map_free(a->boundary_cells);
 
   // Initialize the linear solver and friends.
-  MatCreate(p->comm, &p->A);
-  MatSetType(p->A, MATSEQAIJ);
-  MatSetOption(p->A, MAT_KEEP_NONZERO_PATTERN, PETSC_TRUE);
-//  MatSetOption(p->A, MAT_NEW_NONZERO_LOCATION_ERR, PETSC_TRUE);
-//  MatSetOption(p->A, MAT_NEW_NONZERO_ALLOCATION_ERR, PETSC_TRUE);
-  MatSetSizes(p->A, p->mesh->num_cells, p->mesh->num_cells, PETSC_DETERMINE, PETSC_DETERMINE);
-  VecCreate(p->comm, &p->x);
-  VecSetType(p->x, VECSEQ);
-  VecSetSizes(p->x, p->mesh->num_cells, PETSC_DECIDE);
-  VecCreate(p->comm, &p->b);
-  VecSetType(p->b, VECSEQ);
-  VecSetSizes(p->b, p->mesh->num_cells, PETSC_DECIDE);
-  KSPCreate(p->comm, &p->solver);
-
-  // Initialize the solution vector.
-  p->phi = malloc(sizeof(double)*p->mesh->num_cells);
-
-  // Pre-allocate matrix entries.
-  PetscInt nz = 0, nnz[p->mesh->num_cells];
-  for (int i = 0; i < p->mesh->num_cells; ++i)
-    nnz[i] = lin_op_stencil_size(p->D, i);
-  MatSeqAIJSetPreallocation(p->A, nz, nnz);
+  a->diff_system = advect_lin_sys_new(a->comm, a->mesh, a->D);
 
   // Gather information about boundary cells.
-  p->boundary_cells = boundary_cell_map_from_mesh_and_bcs(p->mesh, p->bcs);
+  a->boundary_cells = boundary_cell_map_from_mesh_and_bcs(a->mesh, a->bcs);
 
-  // If we're independent of time, set up the linear system here.
-  if (!p->is_time_dependent)
-  {
-    set_up_linear_system(p->mesh, p->D, p->source, t, p->A, p->b);
-    apply_bcs(p->boundary_cells, p->mesh, p->shape, t, p->A, p->b);
-  }
-
-  // We simply solve the problem for t = 0.
-  advect_advance((void*)p, t, 0.0);
-
-  // We are now initialized.
-  p->initialized = true;
+  // Initialize the solution.
+  int num_cells = a->mesh->num_cells;
+  a->phi = malloc(sizeof(double)*num_cells);
+  for (int c = 0; c < num_cells; ++c)
+    st_func_eval(a->initial_cond, &a->mesh->cells[c].center, t, &a->phi[c]);
 }
 
 static void advect_plot(void* context, io_interface_t* io, double t, int step)
 {
   ASSERT(context != NULL);
-  advect_t* p = (advect_t*)context;
+  advect_t* a = (advect_t*)context;
 
   io_dataset_t* dataset = io_dataset_new("default");
-  io_dataset_put_mesh(dataset, p->mesh);
-  io_dataset_put_field(dataset, "phi", p->phi, 1, MESH_CELL, false);
+  io_dataset_put_mesh(dataset, a->mesh);
+  io_dataset_put_field(dataset, "phi", a->phi, 1, MESH_CELL, false);
 
   // Compute the cell-centered velocity and diffusivity and write them.
-  double vel[p->mesh->num_cells], diff[p->mesh->num_cells];
-  for (int c = 0; c < p->mesh->num_cells; ++c)
+  double vel[a->mesh->num_cells], diff[a->mesh->num_cells];
+  for (int c = 0; c < a->mesh->num_cells; ++c)
   {
-    st_func_eval(p->velocity, &p->mesh->cells[c].center, t, &vel[c]);
-    st_func_eval(p->diffusivity, &p->mesh->cells[c].center, t, &diff[c]);
+    st_func_eval(a->velocity, &a->mesh->cells[c].center, t, &vel[c]);
+    st_func_eval(a->diffusivity, &a->mesh->cells[c].center, t, &diff[c]);
   }
   io_dataset_put_field(dataset, "velocity", vel, 1, MESH_CELL, true);
   io_dataset_put_field(dataset, "diffusivity", diff, 1, MESH_CELL, true);
 
   // If we are given an analytic solution, write it and the solution error.
-  if (p->solution != NULL)
+  if (a->solution != NULL)
   {
-    double soln[p->mesh->num_cells], error[p->mesh->num_cells];
-    for (int c = 0; c < p->mesh->num_cells; ++c)
+    int num_cells = a->mesh->num_cells;
+    double soln[num_cells], error[num_cells];
+    for (int c = 0; c < num_cells; ++c)
     {
-      st_func_eval(p->solution, &p->mesh->cells[c].center, t, &soln[c]);
-      error[c] = p->phi[c] - soln[c];
+      st_func_eval(a->solution, &a->mesh->cells[c].center, t, &soln[c]);
+      error[c] = a->phi[c] - soln[c];
     }
     io_dataset_put_field(dataset, "solution", soln, 1, MESH_CELL, true);
     io_dataset_put_field(dataset, "error", error, 1, MESH_CELL, true);
@@ -503,35 +568,37 @@ static void advect_plot(void* context, io_interface_t* io, double t, int step)
 static void advect_save(void* context, io_interface_t* io, double t, int step)
 {
   ASSERT(context != NULL);
-  advect_t* p = (advect_t*)context;
+  advect_t* a = (advect_t*)context;
 
   io_dataset_t* dataset = io_dataset_new("default");
-  io_dataset_put_mesh(dataset, p->mesh);
-  io_dataset_put_field(dataset, "phi", p->phi, 1, MESH_CELL, false);
+  io_dataset_put_mesh(dataset, a->mesh);
+  io_dataset_put_field(dataset, "phi", a->phi, 1, MESH_CELL, false);
   io_append_dataset(io, dataset);
 }
 
 static void advect_dtor(void* ctx)
 {
-  advect_t* p = (advect_t*)ctx;
+  advect_t* a = (advect_t*)ctx;
 
   // Destroy BC table.
-  str_ptr_unordered_map_free(p->bcs);
+  str_ptr_unordered_map_free(a->bcs);
 
-  if (p->mesh != NULL)
-    mesh_free(p->mesh);
-  if (p->initialized)
-  {
-    KSPDestroy(&p->solver);
-    MatDestroy(&p->A);
-    VecDestroy(&p->x);
-    VecDestroy(&p->b);
-    p->shape = NULL;
-    free(p->phi);
-  }
+  if (a->mesh != NULL)
+    mesh_free(a->mesh);
+  if (a->diff_system != NULL)
+    advect_lin_sys_free(a->diff_system);
+  if (a->phi != NULL)
+    free(a->phi);
 
-  boundary_cell_map_free(p->boundary_cells);
-  free(p);
+  a->shape = NULL;
+  a->velocity = NULL;
+  a->solution = NULL;
+  a->initial_cond = NULL;
+  a->diffusivity = NULL;
+  a->source = NULL;
+
+  boundary_cell_map_free(a->boundary_cells);
+  free(a);
 }
 
 model_t* advect_model_new(options_t* options)
@@ -545,17 +612,17 @@ model_t* advect_model_new(options_t* options)
   advect_t* context = malloc(sizeof(advect_t));
   context->mesh = NULL;
   context->phi = NULL;
-  double zero = 0.0;
-  context->diffusivity = constant_st_func_new(1, &zero);
+  context->diffusivity = NULL;
   context->velocity = NULL;
+  double zero = 0.0;
   context->source = constant_st_func_new(1, &zero);
   context->solution = NULL;
+  context->initial_cond = NULL;
   context->D = NULL;
   context->bcs = str_ptr_unordered_map_new();
   context->shape = poly_ls_shape_new(1, true);
   poly_ls_shape_set_simple_weighting_func(context->shape, 2, 1e-2);
   context->boundary_cells = boundary_cell_map_new();
-  context->initialized = false;
   context->comm = MPI_COMM_WORLD;
   model_t* model = model_new("advect", context, vtable, options);
 
