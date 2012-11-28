@@ -63,14 +63,14 @@ static inline void start_element(xmlTextWriterPtr writer, const char* element)
 {
   int status = xmlTextWriterStartElement(writer, (xmlChar*)element);
   if (status < 0)
-    arbi_error("Could not start element '%s' in VTK file.", element);
+    polymec_error("Could not start element '%s' in VTK file.", element);
 }
 
 static inline void write_attribute(xmlTextWriterPtr writer, const char* attr, const char* value)
 {
   int status = xmlTextWriterWriteAttribute(writer, (xmlChar*)attr, (xmlChar*)value);
   if (status < 0)
-    arbi_error("Could not write attribute '%s' in VTK file.", attr);
+    polymec_error("Could not write attribute '%s' in VTK file.", attr);
 }
 
 static inline void write_format_attribute(xmlTextWriterPtr writer, const char* attr, const char* format, ...)
@@ -87,14 +87,14 @@ static inline void write_string(xmlTextWriterPtr writer, const char* string)
 {
   int status = xmlTextWriterWriteString(writer, (xmlChar*)string);
   if (status < 0)
-    arbi_error("Could not write string in VTK file.");
+    polymec_error("Could not write string in VTK file.");
 }
 
 static inline void end_element(xmlTextWriterPtr writer, const char* element)
 {
   int status = xmlTextWriterEndElement(writer);
   if (status < 0)
-    arbi_error("Could not end element '%s' in VTK file.", element);
+    polymec_error("Could not end element '%s' in VTK file.", element);
   ASSERT(status >= 0);
 }
 
@@ -430,7 +430,7 @@ static void vtk_plot_write_asci_datasets(void* context, void* f, io_dataset_t** 
 
 static void vtk_plot_write_binary_datasets(void* context, void* f, io_dataset_t** datasets, int num_datasets, int rank_in_group, int procs_per_file)
 {
-  arbi_error("vtk_plot_write_binary_datasets: Not yet implemented!");
+  polymec_error("vtk_plot_write_binary_datasets: Not yet implemented!");
 }
 
 static void vtk_plot_write_master(void* context, void* file, const char* prefix, io_dataset_t** datasets, int num_datasets, int num_files, int procs_per_file)

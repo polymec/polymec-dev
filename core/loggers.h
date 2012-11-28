@@ -1,5 +1,5 @@
-#ifndef LOGGERS_H
-#define LOGGERS_H
+#ifndef POLYMEC_LOGGERS_H
+#define POLYMEC_LOGGERS_H
 
 #include <stdio.h>
 

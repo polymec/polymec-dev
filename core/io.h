@@ -1,7 +1,7 @@
-#ifndef ARBI_IO_H
-#define ARBI_IO_H
+#ifndef POLYMEC_IO_H
+#define POLYMEC_IO_H
 
-#include "core/arbi.h"
+#include "core/polymec.h"
 #include "core/mesh.h"
 
 #ifdef __cplusplus
@@ -48,7 +48,7 @@ typedef void (*io_write_master_func)(void*, void*, const char*, io_dataset_t**, 
 typedef void (*io_dtor)(void*);
 
 // This virtual table must be implemented by any I/O interface used 
-// within arbi.
+// within polymec.
 typedef struct 
 {
   io_create_file_func           create_file;

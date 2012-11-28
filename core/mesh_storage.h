@@ -1,5 +1,5 @@
-#ifndef ARBI_MESH_STORAGE_H
-#define ARBI_MESH_STORAGE_H
+#ifndef POLYMEC_MESH_STORAGE_H
+#define POLYMEC_MESH_STORAGE_H
 
 #include "core/mesh.h"
 #include "arena/proto.h"

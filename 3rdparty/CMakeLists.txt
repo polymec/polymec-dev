@@ -15,7 +15,7 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libgc.a)
   add_library(gc STATIC IMPORTED)
   set_target_properties(gc PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libgc.a)
 endif()
-set(ARBI_TP_LIBS ${ARBI_TP_LIBS};gc)
+set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};gc)
 
 # Build Triangle.
 if (NOT EXISTS ${PROJECT_BINARY_DIR}/include/triangle.h)
@@ -28,7 +28,7 @@ add_library(triangle triangle.c)
 # linker. Gross.
 set(TRIANGLE_CFLAGS "-DTRILIBRARY -DREDUCED -DCDT_ONLY -DANSI_DECLARATORS -DREAL=double -Dexactinit=triangle_exactinit -Dfast_expansion_sum_zeroelem=triangle_fast_expansion_sum_zeroelem -Dscale_expansion_zeroelim=triangle_scale_expansion_zeroelim -Destimate=triangle_estimate -Dorient3dadapt=triangle_orient3dadapt -Dorient3d=triangle_orient3d -Dincircle=triangle_incircle")
 set_target_properties(triangle PROPERTIES COMPILE_FLAGS ${TRIANGLE_CFLAGS})
-set(ARBI_TP_LIBS ${ARBI_TP_LIBS};triangle)
+set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};triangle)
 
 # Install zeromq.
 #if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libzmq.a)
@@ -45,7 +45,7 @@ set(ARBI_TP_LIBS ${ARBI_TP_LIBS};triangle)
 #  add_library(zmq STATIC IMPORTED)
 #  set_target_properties(zmq PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libzmq.a)
 #endif()
-#set(ARBI_TP_LIBS ${ARBI_TP_LIBS};zmq;stdc++)
+#set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};zmq;stdc++)
 
 # Install libarena -- A fast C arena/memory pool implementation.
 if (NOT EXISTS ${PROJECT_BINARY_DIR}/include/arena)
@@ -63,7 +63,7 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/include/arena)
 endif()
 file(GLOB sources "${CMAKE_CURRENT_BINARY_DIR}/libarena-0.3.4/src/*.c")
 add_library(arena ${sources})
-set(ARBI_TP_LIBS ${ARBI_TP_LIBS};arena)
+set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};arena)
 
 # Install cprops -- A fast prototyping C library.
 #if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libcprops.a)
@@ -87,7 +87,7 @@ set(ARBI_TP_LIBS ${ARBI_TP_LIBS};arena)
 #endif()
 #add_library(cprops STATIC IMPORTED)
 #set_target_properties(cprops PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libcprops.a)
-#set(ARBI_TP_LIBS ${ARBI_TP_LIBS};cprops)
+#set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};cprops)
 
 # Install tommyds -- A set of fast data structures for C.
 #if (NOT EXISTS ${PROJECT_BINARY_DIR}/include/tommyhash.h)
@@ -99,7 +99,7 @@ set(ARBI_TP_LIBS ${ARBI_TP_LIBS};arena)
 #  endforeach()
 #endif()
 #add_library(tommyds ${CMAKE_CURRENT_BINARY_DIR}/tommyds-1.2/tommy.c)
-#set(ARBI_TP_LIBS ${ARBI_TP_LIBS};tommyds)
+#set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};tommyds)
 
 # Install PETSc.
 if (NOT EXISTS ${CMAKE_BINARY_DIR}/lib/libpetsc.a)
@@ -128,7 +128,7 @@ add_library(petsc STATIC IMPORTED)
 set_target_properties(petsc PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libpetsc.a)
 add_library(ctetgen STATIC IMPORTED)
 set_target_properties(ctetgen PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libctetgen.a)
-set(ARBI_TP_LIBS ${ARBI_TP_LIBS};petsc;ctetgen)
+set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};petsc;ctetgen)
 
 # Find HDF5 if we're building a serial version (PETSc is unable to do this for us).
 if (USE_MPI EQUAL 0)
@@ -141,12 +141,12 @@ if (USE_MPI EQUAL 0)
     # Get rid of 'debug' and 'optimized' detritis.
     list(REMOVE_ITEM HDF5_LIBRARIES debug optimized)
 
-    set(ARBI_TP_LIBS ${ARBI_TP_LIBS};${HDF5_LIBRARIES})
-    set(ARBI_TP_C_FLAGS "${ARBI_TP_C_FLAGS} -DHAVE_HDF5")
+    set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};${HDF5_LIBRARIES})
+    set(POLYMEC_TP_C_FLAGS "${POLYMEC_TP_C_FLAGS} -DHAVE_HDF5")
   endif()
 else()
   # PETSc built us a parallel version.
-  set(ARBI_TP_C_FLAGS "${ARBI_TP_C_FLAGS} -DHAVE_HDF5")
+  set(POLYMEC_TP_C_FLAGS "${POLYMEC_TP_C_FLAGS} -DHAVE_HDF5")
 endif()
 
 # Install silo.
@@ -181,7 +181,7 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/lib${SILOLIB}.a)
 endif()
 add_library(silo STATIC IMPORTED)
 set_target_properties(silo PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/lib${SILOLIB}.a)
-set(ARBI_TP_LIBS ${ARBI_TP_LIBS};${SILOLIB})
+set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};${SILOLIB})
 
 # Build lua, a simple interpreted language library.
 if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/liblua.a)
@@ -206,8 +206,8 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/liblua.a)
   add_library(lua STATIC IMPORTED)
   set_target_properties(lua PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/liblua.a)
 endif()
-set(ARBI_TP_LIBS ${ARBI_TP_LIBS};lua)
-#set(ARBI_INCDIRS ${ARBI_INCDIRS};${PROJECT_BINARY_DIR}/include)
+set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};lua)
+#set(POLYMEC_INCDIRS ${POLYMEC_INCDIRS};${PROJECT_BINARY_DIR}/include)
 
 # Build libxml2, an XML library.
 if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libxml2.a)
@@ -224,8 +224,8 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libxml2.a)
   add_library(xml2 STATIC IMPORTED)
   set_target_properties(xml2 PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libxml2.a)
 endif()
-set(ARBI_TP_LIBS ${ARBI_TP_LIBS};xml2;iconv;lzma)
-set(ARBI_INCDIRS ${ARBI_INCDIRS};${PROJECT_BINARY_DIR}/include/libxml2)
+set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};xml2;iconv;lzma)
+set(POLYMEC_INCDIRS ${POLYMEC_INCDIRS};${PROJECT_BINARY_DIR}/include/libxml2)
 
 # Install TAO (for optimization problems).
 if (NOT EXISTS ${CMAKE_BINARY_DIR}/lib/libtao.a)
@@ -237,11 +237,11 @@ if (NOT EXISTS ${CMAKE_BINARY_DIR}/lib/libtao.a)
 endif()
 add_library(tao STATIC IMPORTED)
 set_target_properties(tao PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libtao.a)
-set(ARBI_TP_LIBS ${ARBI_TP_LIBS};tao)
+set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};tao)
 
 # Add all the libraries to the build system at large.
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${ARBI_TP_C_FLAGS}" PARENT_SCOPE)
-set(ARBI_LIBS ${ARBI_LIBS};${ARBI_TP_LIBS} PARENT_SCOPE)
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${POLYMEC_TP_C_FLAGS}" PARENT_SCOPE)
+set(POLYMEC_LIBS ${POLYMEC_LIBS};${POLYMEC_TP_LIBS} PARENT_SCOPE)
 if (USE_MPI EQUAL 0)
-  set(ARBI_INCDIRS ${ARBI_INCDIRS};${CMAKE_BINARY_DIR}/include/mpiuni PARENT_SCOPE)
+  set(POLYMEC_INCDIRS ${POLYMEC_INCDIRS};${CMAKE_BINARY_DIR}/include/mpiuni PARENT_SCOPE)
 endif()

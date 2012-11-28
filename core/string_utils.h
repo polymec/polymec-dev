@@ -1,7 +1,7 @@
-#ifndef ARBI_STRING_UTILS_H
-#define ARBI_STRING_UTILS_H
+#ifndef POLYMEC_STRING_UTILS_H
+#define POLYMEC_STRING_UTILS_H
 
-#include "arbi.h"
+#include "polymec.h"
 
 #ifdef __cplusplus
 extern "C" {

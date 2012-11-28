@@ -2,7 +2,7 @@
 #include <stdarg.h>
 #include <string.h>
 #include <mpi.h>
-#include "core/arbi.h"
+#include "core/polymec.h"
 #include "core/loggers.h"
 
 typedef struct 
@@ -76,7 +76,7 @@ static logger_t* create_logger()
   logger_set_buffering(logger, 1024, 1);
   if (first_time)
   {
-    arbi_atexit(delete_loggers);
+    polymec_atexit(delete_loggers);
     first_time = false;
   }
   return logger;

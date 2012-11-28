@@ -1,5 +1,5 @@
-#ifndef ARBI_HASH_FUNCTIONS_H
-#define ARBI_HASH_FUNCTIONS_H
+#ifndef POLYMEC_HASH_FUNCTIONS_H
+#define POLYMEC_HASH_FUNCTIONS_H
 
 #include <string.h>
 

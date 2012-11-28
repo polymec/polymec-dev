@@ -1,5 +1,5 @@
-#ifndef ARBI_ORDERED_SET_H
-#define ARBI_ORDERED_SET_H
+#ifndef POLYMEC_ORDERED_SET_H
+#define POLYMEC_ORDERED_SET_H
 
 #include "core/avl_tree.h"
 

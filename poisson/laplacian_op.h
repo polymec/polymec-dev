@@ -1,5 +1,5 @@
-#ifndef ARBI_LAPLACIAN_OP_H
-#define ARBI_LAPLACIAN_OP_H
+#ifndef POLYMEC_LAPLACIAN_OP_H
+#define POLYMEC_LAPLACIAN_OP_H
 
 #include "core/lin_op.h"
 

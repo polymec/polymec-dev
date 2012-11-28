@@ -1,5 +1,5 @@
-#ifndef ARBI_CONSTANT_ST_FUNC_H
-#define ARBI_CONSTANT_ST_FUNC_H
+#ifndef POLYMEC_CONSTANT_ST_FUNC_H
+#define POLYMEC_CONSTANT_ST_FUNC_H
 
 #include "core/st_func.h"
 

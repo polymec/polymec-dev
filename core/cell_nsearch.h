@@ -1,7 +1,7 @@
-#ifndef ARBI_CELL_NSEARCH_H
-#define ARBI_CELL_NSEARCH_H
+#ifndef POLYMEC_CELL_NSEARCH_H
+#define POLYMEC_CELL_NSEARCH_H
 
-#include "arbi.h"
+#include "polymec.h"
 
 #ifdef __cplusplus
 extern "C" {

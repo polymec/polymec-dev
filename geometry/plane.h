@@ -1,5 +1,5 @@
-#ifndef ARBI_PLANE_H
-#define ARBI_PLANE_H
+#ifndef POLYMEC_PLANE_H
+#define POLYMEC_PLANE_H
 
 #include "core/sp_func.h"
 

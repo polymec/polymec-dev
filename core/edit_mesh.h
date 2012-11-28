@@ -1,5 +1,5 @@
-#ifndef ARBI_EDIT_MESH_H
-#define ARBI_EDIT_MESH_H
+#ifndef POLYMEC_EDIT_MESH_H
+#define POLYMEC_EDIT_MESH_H
 
 #include "core/mesh.h"
 

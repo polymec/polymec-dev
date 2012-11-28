@@ -1,7 +1,7 @@
-#ifndef ARBI_BRENT_H
-#define ARBI_BRENT_H
+#ifndef POLYMEC_BRENT_H
+#define POLYMEC_BRENT_H
 
-#include "arbi.h"
+#include "polymec.h"
 
 #ifdef __cplusplus
 extern "C" {

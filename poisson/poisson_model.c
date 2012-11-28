@@ -946,13 +946,13 @@ static void poisson_read_inputs(void* context, interpreter_t* interp)
   poisson_t* p = (poisson_t*)context;
   p->mesh = interpreter_get_mesh(interp, "mesh");
   if (p->mesh == NULL)
-    arbi_error("poisson: No mesh was specified.");
+    polymec_error("poisson: No mesh was specified.");
   p->rhs = interpreter_get_function(interp, "rhs");
   if (p->rhs == NULL)
-    arbi_error("poisson: No right hand side (rhs) was specified.");
+    polymec_error("poisson: No right hand side (rhs) was specified.");
   p->bcs = interpreter_get_table(interp, "bcs");
   if (p->bcs == NULL)
-    arbi_error("poisson: No table of boundary conditions (bcs) was specified.");
+    polymec_error("poisson: No table of boundary conditions (bcs) was specified.");
 
   // Set up everything else.
   p->L = laplacian_op_new(p->mesh);
@@ -966,7 +966,7 @@ static void poisson_read_inputs(void* context, interpreter_t* interp)
   {
     // Retrieve the tag for this boundary condition.
     if (!mesh_has_tag(p->mesh->face_tags, tag))
-      arbi_error("poisson: Face tag '%s' was not found in the mesh.", tag);
+      polymec_error("poisson: Face tag '%s' was not found in the mesh.", tag);
   }
 }
 

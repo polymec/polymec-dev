@@ -195,7 +195,7 @@ void io_open(io_interface_t* interface,
     if (dir == NULL)
     {
       if (mode == IO_READ)
-        arbi_error("io_open: directory %s does not exist.", directory);
+        polymec_error("io_open: directory %s does not exist.", directory);
       else 
         mkdir((char*)directory, S_IRWXU | S_IRWXG);
     }
@@ -269,7 +269,7 @@ void io_open(io_interface_t* interface,
     {
       char err[1024];
       snprintf(err, 1024, "io_open: Could not open file descriptor for %s\n", prefix);
-      arbi_error(err);
+      polymec_error(err);
     }
     if (interface->vtable.get_num_datasets != NULL)
       interface->vtable.get_num_datasets(interface->context, interface->file, &interface->num_datasets);

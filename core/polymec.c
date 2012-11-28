@@ -2,7 +2,7 @@
 #include <stdarg.h>
 #include <mpi.h>
 #include <gc/gc.h>
-#include "core/arbi.h"
+#include "core/polymec.h"
 #include "core/options.h"
 #include "core/model.h"
 #include "tao.h"
@@ -31,7 +31,7 @@ extern "C" {
 #endif
 
 // Error handler.
-static arbi_error_handler_function error_handler = NULL;
+static polymec_error_handler_function error_handler = NULL;
 
 // Functions to call on exit.
 typedef void (*at_exit_func)();
@@ -47,14 +47,14 @@ static void shutdown()
   PetscFinalize();
   MPI_Finalize();
 #ifndef NDEBUG
-  arbi_disable_fpe_exceptions();
+  polymec_disable_fpe_exceptions();
 #endif
 }
 
-void arbi_init(int argc, char** argv)
+void polymec_init(int argc, char** argv)
 {
 #ifndef NDEBUG
-  arbi_enable_fpe_exceptions();
+  polymec_enable_fpe_exceptions();
 #endif
 
   // Start up MPI.
@@ -73,20 +73,20 @@ void arbi_init(int argc, char** argv)
   TaoInitialize(&argc, &argv, (char*)NULL, 0);
 
   // Register a shutdown function.
-  arbi_atexit(&shutdown);
+  polymec_atexit(&shutdown);
 }
 
 // Default error handler.
 static int default_error_handler(const char* message)
 {
   printf("Error: %s\n", message);
-  printf("encountered in arbi. Exiting with status -1\n");
+  printf("encountered in polymec. Exiting with status -1\n");
   MPI_Abort(MPI_COMM_WORLD, -1);
   return -1; // Not reached.
 }
 
 int 
-arbi_error(const char* message, ...)
+polymec_error(const char* message, ...)
 {
   // Set the default error handler if no handler is set.
   if (error_handler == NULL)
@@ -104,13 +104,13 @@ arbi_error(const char* message, ...)
 }
 
 void 
-arbi_set_error_handler(arbi_error_handler_function handler)
+polymec_set_error_handler(polymec_error_handler_function handler)
 {
   error_handler = handler;
 }
 
 void 
-arbi_warn(const char* message, ...)
+polymec_warn(const char* message, ...)
 {
   // Extract the variadic arguments and splat them into a string.
   va_list argp;
@@ -120,7 +120,7 @@ arbi_warn(const char* message, ...)
 }
 
 void 
-arbi_enable_fpe_exceptions()
+polymec_enable_fpe_exceptions()
 {
 #ifndef NDEBUG
 
@@ -143,7 +143,7 @@ arbi_enable_fpe_exceptions()
 }
 
 void 
-arbi_disable_fpe_exceptions()
+polymec_disable_fpe_exceptions()
 {
 #ifdef Linux
 #ifndef NDEBUG
@@ -152,14 +152,14 @@ arbi_disable_fpe_exceptions()
 #endif
 }
 
-void arbi_not_implemented(const char* component)
+void polymec_not_implemented(const char* component)
 {
   char err[1024];
-  snprintf(err, 1024, "arbi: not implemented: %s\n", component);
+  snprintf(err, 1024, "polymec: not implemented: %s\n", component);
   default_error_handler(err);
 }
 
-void arbi_atexit(void (*func)()) 
+void polymec_atexit(void (*func)()) 
 {
   ASSERT(_num_atexit_funcs <= 32);
   _atexit_funcs[_num_atexit_funcs++] = func;

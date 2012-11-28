@@ -1,7 +1,7 @@
-#ifndef ARBI_NEWTON_H
-#define ARBI_NEWTON_H
+#ifndef POLYMEC_NEWTON_H
+#define POLYMEC_NEWTON_H
 
-#include "arbi.h"
+#include "polymec.h"
 
 #ifdef __cplusplus
 extern "C" {

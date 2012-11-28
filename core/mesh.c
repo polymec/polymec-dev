@@ -224,7 +224,7 @@ void mesh_verify(mesh_t* mesh)
     {
       face_t* face = cell->faces[f];
       if ((face->cell1 != cell) && (face->cell2 != cell))
-        arbi_error("cell %d has face %d but is not attached to it.", c, face - &mesh->faces[0]);
+        polymec_error("cell %d has face %d but is not attached to it.", c, face - &mesh->faces[0]);
     }
   }
 
@@ -242,7 +242,7 @@ void mesh_verify(mesh_t* mesh)
     if (face_nodes->size != face->num_edges)
     {
       int_unordered_set_free(face_nodes);
-      arbi_error("face %d has edges with nodes not belonging to it.", face - &mesh->faces[0]);
+      polymec_error("face %d has edges with nodes not belonging to it.", face - &mesh->faces[0]);
     }
     int_unordered_set_free(face_nodes);
   }

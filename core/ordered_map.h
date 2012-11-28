@@ -1,5 +1,5 @@
-#ifndef ARBI_ORDERED_MAP_H
-#define ARBI_ORDERED_MAP_H
+#ifndef POLYMEC_ORDERED_MAP_H
+#define POLYMEC_ORDERED_MAP_H
 
 #include "core/avl_tree.h"
 #include "core/key_value.h"

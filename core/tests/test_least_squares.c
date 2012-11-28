@@ -605,7 +605,7 @@ void test_weighted_p3_shape_func_constraints(void** state)
 
 int main(int argc, char* argv[]) 
 {
-  arbi_init(argc, argv);
+  polymec_init(argc, argv);
 
   // Initialize the random number generator.
   unsigned seed = 1;

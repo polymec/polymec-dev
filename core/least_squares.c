@@ -276,7 +276,7 @@ static void no_weighting_func(void* context, point_t* x, point_t* x0, double h, 
 {
   *W = 1.0;
   gradient->x = gradient->y = gradient->z = 0.0;
-//  arbi_error("No weighting function has been set for this LS shape function.");
+//  polymec_error("No weighting function has been set for this LS shape function.");
 }
 
 poly_ls_shape_t* poly_ls_shape_new(int p, bool compute_gradients)

@@ -1,5 +1,5 @@
-#ifndef ARBI_SPHERE_H
-#define ARBI_SPHERE_H
+#ifndef POLYMEC_SPHERE_H
+#define POLYMEC_SPHERE_H
 
 #include "core/sp_func.h"
 

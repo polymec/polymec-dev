@@ -31,13 +31,13 @@ int parse_path(const char *path, char *dirname, char *filename)
     strncpy(filename, path + index + 1, len - index - 1);
     filename[len - index - 1] = '\0';
   }
-  return ARBI_SUCCESS;
+  return POLYMEC_SUCCESS;
 } 
 
 int join_paths(const char *dirname, const char *filename, char *path)
 {
   snprintf(path, 1024, "%s%c%s", dirname, SEPARATOR, filename);
-  return ARBI_SUCCESS;
+  return POLYMEC_SUCCESS;
 }
 
 #ifdef __cplusplus

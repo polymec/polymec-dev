@@ -1,8 +1,8 @@
-#ifndef ARBI_AVL_TREE_H
-#define ARBI_AVL_TREE_H
+#ifndef POLYMEC_AVL_TREE_H
+#define POLYMEC_AVL_TREE_H
 
 #include <stdlib.h>
-#include "core/arbi.h"
+#include "core/polymec.h"
 #include "core/comparators.h"
 #include "arena/proto.h"
 

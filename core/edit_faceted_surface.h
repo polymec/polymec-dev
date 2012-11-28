@@ -1,5 +1,5 @@
-#ifndef ARBI_EDIT_FACETED_SURFACE_H
-#define ARBI_EDIT_FACETED_SURFACE_H
+#ifndef POLYMEC_EDIT_FACETED_SURFACE_H
+#define POLYMEC_EDIT_FACETED_SURFACE_H
 
 #include "core/edit_mesh.h"
 #include "core/faceted_surface.h"

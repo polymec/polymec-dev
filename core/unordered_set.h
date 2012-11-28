@@ -1,5 +1,5 @@
-#ifndef ARBI_UNORDERED_SET_H
-#define ARBI_UNORDERED_SET_H
+#ifndef POLYMEC_UNORDERED_SET_H
+#define POLYMEC_UNORDERED_SET_H
 
 #include "core/unordered_map.h"
 #include "core/hash_functions.h"

@@ -1,5 +1,5 @@
-#ifndef ARBI_CUBIC_LATTICE_H
-#define ARBI_CUBIC_LATTICE_H
+#ifndef POLYMEC_CUBIC_LATTICE_H
+#define POLYMEC_CUBIC_LATTICE_H
 
 #ifdef __cplusplus
 extern "C" {

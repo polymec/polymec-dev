@@ -1,5 +1,5 @@
-#ifndef ARBI_ADVECT_MODEL_H
-#define ARBI_ADVECT_MODEL_H
+#ifndef POLYMEC_ADVECT_MODEL_H
+#define POLYMEC_ADVECT_MODEL_H
 
 #include "core/model.h"
 

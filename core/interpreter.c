@@ -254,14 +254,14 @@ static void interpreter_store_chunk_contents(interpreter_t* interp, lua_State* l
         if (preexisting_var)
           skip_this_var = true;
         else
-          arbi_error("Type error: %s must be a string.", key);
+          polymec_error("Type error: %s must be a string.", key);
       }
       else if ((entry->type == INTERPRETER_NUMBER) && !lua_isnumber(lua, val_index))
       {
         if (preexisting_var)
           skip_this_var = true;
         else
-          arbi_error("Type error: %s must be a number.", key);
+          polymec_error("Type error: %s must be a number.", key);
       }
       else if (entry->type == INTERPRETER_MESH)
       {
@@ -270,7 +270,7 @@ static void interpreter_store_chunk_contents(interpreter_t* interp, lua_State* l
           if (preexisting_var)
             skip_this_var = true;
           else
-            arbi_error("Type error: %s must be a mesh.", key);
+            polymec_error("Type error: %s must be a mesh.", key);
         }
         interpreter_storage_t* var = (void*)lua_topointer(lua, val_index);
         if (var->type != INTERPRETER_MESH)
@@ -278,7 +278,7 @@ static void interpreter_store_chunk_contents(interpreter_t* interp, lua_State* l
           if (preexisting_var)
             skip_this_var = true;
           else
-            arbi_error("Type error: %s must be a mesh.", key);
+            polymec_error("Type error: %s must be a mesh.", key);
         }
       }
       else if (entry->type == INTERPRETER_FUNCTION)
@@ -288,7 +288,7 @@ static void interpreter_store_chunk_contents(interpreter_t* interp, lua_State* l
           if (preexisting_var)
             skip_this_var = true;
           else
-            arbi_error("Type error: %s must be a function.", key);
+            polymec_error("Type error: %s must be a function.", key);
         }
         interpreter_storage_t* var = (void*)lua_topointer(lua, val_index);
         if (var->type != INTERPRETER_FUNCTION)
@@ -296,7 +296,7 @@ static void interpreter_store_chunk_contents(interpreter_t* interp, lua_State* l
           if (preexisting_var)
             skip_this_var = true;
           else
-            arbi_error("Type error: %s must be a function.", key);
+            polymec_error("Type error: %s must be a function.", key);
         }
       }
       else if ((entry->type == INTERPRETER_TABLE) && !lua_istable(lua, val_index))
@@ -304,7 +304,7 @@ static void interpreter_store_chunk_contents(interpreter_t* interp, lua_State* l
         if (preexisting_var)
           skip_this_var = true;
         else
-          arbi_error("Type error: %s must be a table mapping strings to objects.", key);
+          polymec_error("Type error: %s must be a table mapping strings to objects.", key);
       }
     }
 
@@ -337,7 +337,7 @@ static void interpreter_store_chunk_contents(interpreter_t* interp, lua_State* l
           if (preexisting_var)
             skip_this_var = true;
           else
-            arbi_error("Type error: %s must be a table mapping strings to objects.", key);
+            polymec_error("Type error: %s must be a table mapping strings to objects.", key);
         }
         if (!lua_isnumber(lua, val_index) && 
             !lua_isstring(lua, val_index) && 
@@ -346,7 +346,7 @@ static void interpreter_store_chunk_contents(interpreter_t* interp, lua_State* l
           if (preexisting_var)
             skip_this_var = true;
           else
-            arbi_error("Type error: %s must be a table mapping strings to objects.", key);
+            polymec_error("Type error: %s must be a table mapping strings to objects.", key);
         }
         if (skip_this_var)
         {
@@ -371,7 +371,7 @@ static void interpreter_store_chunk_contents(interpreter_t* interp, lua_State* l
           if (preexisting_var)
             skip_this_var = true;
           else
-            arbi_error("Value error: Key '%s' in table %s stores a table (not allowed!)", tkey, key); 
+            polymec_error("Value error: Key '%s' in table %s stores a table (not allowed!)", tkey, key); 
         }
 
         // Make sure the type of this key is the same as the others.
@@ -381,7 +381,7 @@ static void interpreter_store_chunk_contents(interpreter_t* interp, lua_State* l
             value_type = tvar->type;
           else if (tvar->type != value_type)
           {
-            arbi_error("Value error: Key '%s' in table %s stores a %s (should be %s)", 
+            polymec_error("Value error: Key '%s' in table %s stores a %s (should be %s)", 
                 tkey, key, type_names[tvar->type], type_names[value_type]);
           }
         }
@@ -463,16 +463,16 @@ printf("%s\n", input_string);
   // Load the input, but does not parse it.
   int error = luaL_loadstring(lua, input_string);
   if (error == LUA_ERRSYNTAX)
-    arbi_error("in parsing input syntax:\n%s", lua_tostring(lua, 1));
+    polymec_error("in parsing input syntax:\n%s", lua_tostring(lua, 1));
   else if (error != LUA_OK)
-    arbi_error("Internal error in interpreter.");
+    polymec_error("Internal error in interpreter.");
 
   // Parses the input.
   error = lua_pcall(lua, 0, LUA_MULTRET, 0);
   if (error == LUA_ERRRUN)
-    arbi_error("in parsing input: %s", lua_tostring(lua, 1));
+    polymec_error("in parsing input: %s", lua_tostring(lua, 1));
   else if (error != LUA_OK)
-    arbi_error("Internal error in interpreter.");
+    polymec_error("Internal error in interpreter.");
 
   // Move the data from the chunk to the data store.
   interpreter_store_chunk_contents(interp, lua);
@@ -486,7 +486,7 @@ void interpreter_parse_file(interpreter_t* interp, char* input_file)
   log_detail("interpreter: Looking for input in file '%s'...", input_file);
   FILE* desc = fopen(input_file, "r");
   if (desc == NULL)
-    arbi_error("interpreter: Could not open input file '%s'", input_file);
+    polymec_error("interpreter: Could not open input file '%s'", input_file);
   fclose(desc);
 
   // Clear the current data store.
@@ -498,16 +498,16 @@ void interpreter_parse_file(interpreter_t* interp, char* input_file)
   // Load the input from the file, but does not parse it.
   int error = luaL_loadfile(lua, input_file);
   if (error == LUA_ERRSYNTAX)
-    arbi_error("in parsing input syntax:\n%s", lua_tostring(lua, 1));
+    polymec_error("in parsing input syntax:\n%s", lua_tostring(lua, 1));
   else if (error != LUA_OK)
-    arbi_error("Internal error in interpreter.");
+    polymec_error("Internal error in interpreter.");
 
   // Parses the input.
   error = lua_pcall(lua, 0, LUA_MULTRET, 0);
   if (error == LUA_ERRRUN)
-    arbi_error("in parsing input: %s", lua_tostring(lua, 1));
+    polymec_error("in parsing input: %s", lua_tostring(lua, 1));
   else if (error != LUA_OK)
-    arbi_error("Internal error in interpreter.");
+    polymec_error("Internal error in interpreter.");
 
   // Move the data from the chunk to the data store.
   interpreter_store_chunk_contents(interp, lua);

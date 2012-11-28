@@ -1,5 +1,5 @@
-#ifndef ARBI_CREATE_CVT_H
-#define ARBI_CREATE_CVT_H
+#ifndef POLYMEC_CREATE_CVT_H
+#define POLYMEC_CREATE_CVT_H
 
 #include "core/mesh.h"
 #include "core/point.h"

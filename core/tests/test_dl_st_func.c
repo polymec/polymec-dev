@@ -42,7 +42,7 @@ void test_construction(void** state)
 
 int main(int argc, char* argv[]) 
 {
-  arbi_init(argc, argv);
+  polymec_init(argc, argv);
   const UnitTest tests[] = 
   {
     unit_test(test_construction)

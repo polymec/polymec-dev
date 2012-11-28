@@ -1,7 +1,7 @@
-#ifndef ARBI_INTERPRETER_H
-#define ARBI_INTERPRETER_H
+#ifndef POLYMEC_INTERPRETER_H
+#define POLYMEC_INTERPRETER_H
 
-#include "core/arbi.h"
+#include "core/polymec.h"
 #include "core/mesh.h"
 #include "core/st_func.h"
 #include "core/unordered_map.h"

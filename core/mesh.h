@@ -1,7 +1,7 @@
-#ifndef ARBI_MESH_H
-#define ARBI_MESH_H
+#ifndef POLYMEC_MESH_H
+#define POLYMEC_MESH_H
 
-#include "core/arbi.h"
+#include "core/polymec.h"
 #include "core/point.h"
 #include "core/sp_func.h"
 #include "arena/proto.h"

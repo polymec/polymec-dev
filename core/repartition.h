@@ -1,5 +1,5 @@
-#ifndef ARBI_REPARTITION_H
-#define ARBI_REPARTITION_H
+#ifndef POLYMEC_REPARTITION_H
+#define POLYMEC_REPARTITION_H
 
 #include "point.h"
 #include "exchanger.h"

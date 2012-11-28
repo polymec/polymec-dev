@@ -2,8 +2,8 @@
 cmake_minimum_required (VERSION 2.8.5)
 
 # Parameters
-set (ARBI_REAL double)
-set (ARBI_MPI_REAL MPI_DOUBLE)
+set (POLYMEC_REAL double)
+set (POLYMEC_MPI_REAL MPI_DOUBLE)
 
 # Adjust CMake's module path.
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/Modules/")
@@ -18,9 +18,9 @@ message("-- C++ compiler is ${CMAKE_CXX_COMPILER}")
 set (BUILD_SHARED_LIBS OFF)
 
 # Project and version numbers.
-project (arbi)
-set (ARBI_VERSION_MAJOR 1)
-set (ARBI_VERSION_MINOR 0)
+project (polymec)
+set (POLYMEC_VERSION_MAJOR 1)
+set (POLYMEC_VERSION_MINOR 0)
 
 # Figure out the system type.
 if (${APPLE})
@@ -58,7 +58,7 @@ add_subdirectory(3rdparty)
 # since it's where we place the third-party libraries.
 include_directories("${PROJECT_BINARY_DIR}/include")
 link_directories("${PROJECT_BINARY_DIR}/lib")
-include_directories(${ARBI_INCDIRS})
+include_directories(${POLYMEC_INCDIRS})
 
 # Unit testing.
 enable_testing()

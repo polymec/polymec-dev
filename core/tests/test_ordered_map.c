@@ -46,7 +46,7 @@ DEFINE_ORDERED_MAP_TEST(double_ordered_map, double)
 
 int main(int argc, char* argv[]) 
 {
-  arbi_init(argc, argv);
+  polymec_init(argc, argv);
   const UnitTest tests[] = 
   {
     unit_test(test_int_ordered_map),

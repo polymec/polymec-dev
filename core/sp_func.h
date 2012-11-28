@@ -1,7 +1,7 @@
-#ifndef ARBI_sp_func_H
-#define ARBI_sp_func_H
+#ifndef POLYMEC_SP_FUNC_H
+#define POLYMEC_SP_FUNC_H
 
-#include "arbi.h"
+#include "polymec.h"
 #include "point.h"
 
 #ifdef __cplusplus

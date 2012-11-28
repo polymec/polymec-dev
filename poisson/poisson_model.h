@@ -1,5 +1,5 @@
-#ifndef ARBI_POISSON_H
-#define ARBI_POISSON_H
+#ifndef POLYMEC_POISSON_H
+#define POLYMEC_POISSON_H
 
 #include "core/model.h"
 

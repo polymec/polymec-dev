@@ -1,7 +1,7 @@
-#ifndef ARBI_MODEL_H
-#define ARBI_MODEL_H
+#ifndef POLYMEC_MODEL_H
+#define POLYMEC_MODEL_H
 
-#include "core/arbi.h"
+#include "core/polymec.h"
 #include "core/options.h"
 #include "core/interpreter.h"
 #include "core/io.h"
@@ -12,7 +12,7 @@ extern "C" {
 
 // The maximum amount of storage allowed for an explanation of the 
 // time step choice.
-#define ARBI_MODEL_MAXDT_REASON_SIZE 2048
+#define POLYMEC_MODEL_MAXDT_REASON_SIZE 2048
 
 // A model is a numerical model of a physical phenomenon.
 typedef struct model_t model_t;
