@@ -18,7 +18,9 @@
 #include "io/silo_io.h"
 #include "io/vtk_plot_io.h"
 #include "poisson/poisson_model.h"
+#include "poisson/poisson_bc.h"
 #include "poisson/laplacian_op.h"
+#include "poisson/interpreter_register_poisson_functions.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -28,32 +30,6 @@ extern "C" {
 #include "lua.h"
 #include "lualib.h"
 #include "lauxlib.h"
-
-// Boundary condition structure.
-// This represents a generic boundary condition: 
-// alpha * phi + beta * dphi/dn = F
-typedef struct
-{
-  double alpha, beta;
-  st_func_t* F;
-} poisson_bc_t;
-
-static poisson_bc_t* create_bc(double alpha, double beta, st_func_t* F)
-{
-  ASSERT(F != NULL);
-  poisson_bc_t* bc = malloc(sizeof(poisson_bc_t));
-  bc->alpha = alpha;
-  bc->beta = beta;
-  bc->F = F;
-  return bc;
-}
-
-static void free_bc(void* bc)
-{
-  poisson_bc_t* pbc = (poisson_bc_t*)bc;
-  pbc->F = NULL;
-  free(pbc);
-}
 
 // Metadata for boundary cells (those cells that touch boundary faces).
 typedef struct
@@ -87,110 +63,6 @@ static void free_boundary_cell(poisson_boundary_cell_t* cell)
     free(cell->bc_for_face);
   free(cell);
 }
-
-//------------------------------------------------------------------------
-// Some Poisson-specific interpreter extensions
-//------------------------------------------------------------------------
-
-static int dirichlet_bc(lua_State* lua)
-{
-  // Check the argument.
-  int num_args = lua_gettop(lua);
-  if ((num_args != 1) || (!lua_isstfunc(lua, 1) && !lua_isnumber(lua, 1)))
-  {
-    lua_pushstring(lua, "Invalid arguments. Usage:\nbc = dirichlet_bc(F)\nwhere F is a number or function.");
-    lua_error(lua);
-    return LUA_ERRRUN;
-  }
-
-  // Get the argument. 
-  st_func_t* F;
-  if (lua_isnumber(lua, 1))
-  {
-    double F0 = lua_tonumber(lua, 1);
-    F = constant_st_func_new(1, &F0);
-  }
-  else
-  {
-    F = lua_tostfunc(lua, 1);
-  }
-
-  // Create a boundary condition object and push it onto the stack.
-  poisson_bc_t* bc = create_bc(1.0, 0.0, F);
-  lua_pushuserdefined(lua, bc, free_bc);
-  return 1;
-}
-
-static int neumann_bc(lua_State* lua)
-{
-  // Check the argument.
-  int num_args = lua_gettop(lua);
-  if ((num_args != 1) || (!lua_isstfunc(lua, 1) && !lua_isnumber(lua, 1)))
-  {
-    lua_pushstring(lua, "Invalid arguments. Usage:\nbc = neumann_bc(F)\nwhere F is a number or function.");
-    lua_error(lua);
-    return LUA_ERRRUN;
-  }
-
-  // Get the argument. 
-  st_func_t* F;
-  if (lua_isnumber(lua, 1))
-  {
-    double F0 = lua_tonumber(lua, 1);
-    F = constant_st_func_new(1, &F0);
-  }
-  else
-  {
-    F = lua_tostfunc(lua, 1);
-  }
-
-  // Create a boundary condition object and push it onto the stack.
-  poisson_bc_t* bc = create_bc(0.0, 1.0, F);
-  lua_pushuserdefined(lua, bc, free_bc);
-  return 1;
-}
-
-static int robin_bc(lua_State* lua)
-{
-  // Check the argument.
-  int num_args = lua_gettop(lua);
-  if ((num_args != 3) || 
-      !lua_isnumber(lua, 1) ||
-      !lua_isnumber(lua, 2) ||
-      (!lua_isstfunc(lua, 3) && !lua_isnumber(lua, 3)))
-  {
-    lua_pushstring(lua, "Invalid arguments. Usage:\nbc = robin_bc(alpha, beta, F)\nwhere F is a number or function.");
-    lua_error(lua);
-    return LUA_ERRRUN;
-  }
-
-  // Get the arguments. 
-  double alpha = lua_tonumber(lua, 1);
-  double beta = lua_tonumber(lua, 2);
-  st_func_t* F;
-  if (lua_isnumber(lua, 3))
-  {
-    double F0 = lua_tonumber(lua, 3);
-    F = constant_st_func_new(1, &F0);
-  }
-  else
-  {
-    F = lua_tostfunc(lua, 3);
-  }
-
-  // Create a boundary condition object and push it onto the stack.
-  poisson_bc_t* bc = create_bc(alpha, beta, F);
-  lua_pushuserdefined(lua, bc, free_bc);
-  return 1;
-}
-
-static void register_poisson_functions(interpreter_t* interpreter)
-{
-  interpreter_register_function(interpreter, "dirichlet_bc", dirichlet_bc);
-  interpreter_register_function(interpreter, "neumann_bc", neumann_bc);
-  interpreter_register_function(interpreter, "robin_bc", robin_bc);
-}
-//------------------------------------------------------------------------
 
 // Poisson model context structure.
 typedef struct 
@@ -382,31 +254,31 @@ static void poisson_run_laplace_1d(options_t* options, int dim)
   str_ptr_unordered_map_t* bcs = str_ptr_unordered_map_new();
   if (!reversed_bcs)
   {
-    str_ptr_unordered_map_insert(bcs, "-x", create_bc(1.0, 0.0, sol));
-    str_ptr_unordered_map_insert(bcs, "+x", create_bc(1.0, 0.0, sol));
+    str_ptr_unordered_map_insert(bcs, "-x", poisson_bc_new(1.0, 0.0, sol));
+    str_ptr_unordered_map_insert(bcs, "+x", poisson_bc_new(1.0, 0.0, sol));
   }
   else
   {
-    str_ptr_unordered_map_insert(bcs, "-x", create_bc(0.0, 1.0, sol_grad));
-    str_ptr_unordered_map_insert(bcs, "+x", create_bc(0.0, 1.0, sol_grad));
+    str_ptr_unordered_map_insert(bcs, "-x", poisson_bc_new(0.0, 1.0, sol_grad));
+    str_ptr_unordered_map_insert(bcs, "+x", poisson_bc_new(0.0, 1.0, sol_grad));
   }
 
   // Transverse faces.
   if (all_dirichlet || reversed_bcs)
   {
     // Dirichlet BCs.
-    str_ptr_unordered_map_insert(bcs, "-y", create_bc(1.0, 0.0, sol));
-    str_ptr_unordered_map_insert(bcs, "+y", create_bc(1.0, 0.0, sol));
-    str_ptr_unordered_map_insert(bcs, "-z", create_bc(1.0, 0.0, sol));
-    str_ptr_unordered_map_insert(bcs, "+z", create_bc(1.0, 0.0, sol));
+    str_ptr_unordered_map_insert(bcs, "-y", poisson_bc_new(1.0, 0.0, sol));
+    str_ptr_unordered_map_insert(bcs, "+y", poisson_bc_new(1.0, 0.0, sol));
+    str_ptr_unordered_map_insert(bcs, "-z", poisson_bc_new(1.0, 0.0, sol));
+    str_ptr_unordered_map_insert(bcs, "+z", poisson_bc_new(1.0, 0.0, sol));
   }
   else
   {
     // Homogeneous Neumann BCs.
-    str_ptr_unordered_map_insert(bcs, "-y", create_bc(0.0, 1.0, zero));
-    str_ptr_unordered_map_insert(bcs, "+y", create_bc(0.0, 1.0, zero));
-    str_ptr_unordered_map_insert(bcs, "-z", create_bc(0.0, 1.0, zero));
-    str_ptr_unordered_map_insert(bcs, "+z", create_bc(0.0, 1.0, zero));
+    str_ptr_unordered_map_insert(bcs, "-y", poisson_bc_new(0.0, 1.0, zero));
+    str_ptr_unordered_map_insert(bcs, "+y", poisson_bc_new(0.0, 1.0, zero));
+    str_ptr_unordered_map_insert(bcs, "-z", poisson_bc_new(0.0, 1.0, zero));
+    str_ptr_unordered_map_insert(bcs, "+z", poisson_bc_new(0.0, 1.0, zero));
   }
 
   // Run time.
@@ -465,7 +337,7 @@ static void poisson_run_laplace_1d(options_t* options, int dim)
   char* key;
   void* value;
   while (str_ptr_unordered_map_next(bcs, &pos, &key, &value))
-    free_bc(value);
+    poisson_bc_free(value);
   str_ptr_unordered_map_free(bcs);
   zero = sol = sol_grad = NULL;
 }
@@ -525,23 +397,23 @@ static void poisson_run_paraboloid(options_t* options, int dim)
 
   // Set up a Dirichlet boundary condition along each of the outside faces.
   str_ptr_unordered_map_t* bcs = str_ptr_unordered_map_new();
-  str_ptr_unordered_map_insert(bcs, "+x", create_bc(1.0, 0.0, sol));
-  str_ptr_unordered_map_insert(bcs, "-x", create_bc(1.0, 0.0, sol));
-  str_ptr_unordered_map_insert(bcs, "+y", create_bc(1.0, 0.0, sol));
-  str_ptr_unordered_map_insert(bcs, "-y", create_bc(1.0, 0.0, sol));
+  str_ptr_unordered_map_insert(bcs, "+x", poisson_bc_new(1.0, 0.0, sol));
+  str_ptr_unordered_map_insert(bcs, "-x", poisson_bc_new(1.0, 0.0, sol));
+  str_ptr_unordered_map_insert(bcs, "+y", poisson_bc_new(1.0, 0.0, sol));
+  str_ptr_unordered_map_insert(bcs, "-y", poisson_bc_new(1.0, 0.0, sol));
   
   double z = 0.0;
   st_func_t* zero = constant_st_func_new(1, &z);
   if (all_dirichlet)
   {
-    str_ptr_unordered_map_insert(bcs, "+z", create_bc(1.0, 0.0, sol));
-    str_ptr_unordered_map_insert(bcs, "-z", create_bc(1.0, 0.0, sol));
+    str_ptr_unordered_map_insert(bcs, "+z", poisson_bc_new(1.0, 0.0, sol));
+    str_ptr_unordered_map_insert(bcs, "-z", poisson_bc_new(1.0, 0.0, sol));
   }
   else
   {
     // Set up a homogeneous Neumann boundary condition on +/- z.
-    str_ptr_unordered_map_insert(bcs, "+z", create_bc(0.0, 1.0, zero));
-    str_ptr_unordered_map_insert(bcs, "-z", create_bc(0.0, 1.0, zero));
+    str_ptr_unordered_map_insert(bcs, "+z", poisson_bc_new(0.0, 1.0, zero));
+    str_ptr_unordered_map_insert(bcs, "-z", poisson_bc_new(0.0, 1.0, zero));
   }
 
   // Start/end time.
@@ -599,7 +471,7 @@ static void poisson_run_paraboloid(options_t* options, int dim)
   char* key;
   void* value;
   while (str_ptr_unordered_map_next(bcs, &pos, &key, &value))
-    free_bc(value);
+    poisson_bc_free(value);
   str_ptr_unordered_map_free(bcs);
   zero = sol = rhs = NULL;
 }
@@ -1136,7 +1008,7 @@ model_t* poisson_model_new(options_t* options)
                                              END_OF_VALID_INPUTS};
   model_enable_interpreter(model, valid_inputs);
   interpreter_register_geometry_functions(model_interpreter(model));
-  register_poisson_functions(model_interpreter(model));
+  interpreter_register_poisson_functions(model_interpreter(model));
 
   // Register benchmarks.
   model_register_benchmark(model, "laplace_1d", run_laplace_1d, "Laplace's equation in 1D Cartesian coordinates.");
