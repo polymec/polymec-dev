@@ -469,7 +469,7 @@ int model_main(const char* model_name, model_ctor constructor, int argc, char* a
   interpreter_parse_file(interp, input);
 
   // Load the inputs into the model.
-  model->vtable.read_inputs(model->context, interp);
+  model->vtable.read_input(model->context, interp);
 
   // Default time endpoints, max number of steps.
   double t1 = 0.0, t2 = 1.0;

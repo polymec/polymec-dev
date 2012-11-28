@@ -20,8 +20,8 @@ typedef struct model_t model_t;
 // A model constructor function for creating an object context.
 typedef model_t* (*model_ctor)(options_t*);
 
-// A function for reading inputs from an interpreter into the model.
-typedef void (*model_read_inputs_func)(void*, interpreter_t*);
+// A function for reading input from an interpreter into the model.
+typedef void (*model_read_input_func)(void*, interpreter_t*);
 
 // A function for initializing the model.
 typedef void (*model_init_func)(void*, double);
@@ -50,7 +50,7 @@ typedef void (*model_dtor)(void*);
 // This virtual table must be implemented by any model.
 typedef struct 
 {
-  model_read_inputs_func  read_inputs;
+  model_read_input_func  read_input;
   model_init_func         init;
   model_max_dt_func       max_dt;
   model_advance_func      advance;

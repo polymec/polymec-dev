@@ -64,6 +64,9 @@ typedef struct
   mesh_t* mesh;             // Mesh.
   st_func_t* rhs;           // Right-hand side function.
   double* phi;              // Solution array.
+  st_func_t* diffusivity;   // Diffusivity function.
+  st_func_t* velocity;      // Velocity function.
+  st_func_t* solution;      // Analytic solution (if not NULL).
   lin_op_t* D;              // Diffusion operator.
 
   str_ptr_unordered_map_t* bcs; // Boundary conditions.
@@ -526,7 +529,7 @@ static void advect_advance(void* context, double t, double dt)
   VecRestoreArray(p->x, &x);
 }
 
-static void advect_read_inputs(void* context, interpreter_t* interp)
+static void advect_read_input(void* context, interpreter_t* interp)
 {
   advect_t* a = (advect_t*)context;
   a->mesh = interpreter_get_mesh(interp, "mesh");
@@ -609,6 +612,30 @@ static void advect_plot(void* context, io_interface_t* io, double t, int step)
   io_dataset_t* dataset = io_dataset_new("default");
   io_dataset_put_mesh(dataset, p->mesh);
   io_dataset_put_field(dataset, "phi", p->phi, 1, MESH_CELL, false);
+
+  // Compute the cell-centered velocity and diffusivity and write them.
+  double vel[p->mesh->num_cells], diff[p->mesh->num_cells];
+  for (int c = 0; c < p->mesh->num_cells; ++c)
+  {
+    st_func_eval(p->velocity, &p->mesh->cells[c].center, t, &vel[c]);
+    st_func_eval(p->diffusivity, &p->mesh->cells[c].center, t, &diff[c]);
+  }
+  io_dataset_put_field(dataset, "velocity", vel, 1, MESH_CELL, true);
+  io_dataset_put_field(dataset, "diffusivity", diff, 1, MESH_CELL, true);
+
+  // If we are given an analytic solution, write it and the solution error.
+  if (p->solution != NULL)
+  {
+    double soln[p->mesh->num_cells], error[p->mesh->num_cells];
+    for (int c = 0; c < p->mesh->num_cells; ++c)
+    {
+      st_func_eval(p->solution, &p->mesh->cells[c].center, t, &soln[c]);
+      error[c] = p->phi[c] - soln[c];
+    }
+    io_dataset_put_field(dataset, "solution", soln, 1, MESH_CELL, true);
+    io_dataset_put_field(dataset, "error", error, 1, MESH_CELL, true);
+  }
+
   io_append_dataset(io, dataset);
 }
 
@@ -656,7 +683,7 @@ static void advect_dtor(void* ctx)
 
 model_t* advect_model_new(options_t* options)
 {
-  model_vtable vtable = { .read_inputs = advect_read_inputs,
+  model_vtable vtable = { .read_input = advect_read_input,
                           .init = advect_init,
                           .advance = advect_advance,
                           .save = advect_save,

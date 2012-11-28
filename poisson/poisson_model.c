@@ -813,7 +813,7 @@ static void poisson_advance(void* context, double t, double dt)
   VecRestoreArray(p->x, &x);
 }
 
-static void poisson_read_inputs(void* context, interpreter_t* interp)
+static void poisson_read_input(void* context, interpreter_t* interp)
 {
   poisson_t* p = (poisson_t*)context;
   p->mesh = interpreter_get_mesh(interp, "mesh");
@@ -980,7 +980,7 @@ static void poisson_dtor(void* ctx)
 
 model_t* poisson_model_new(options_t* options)
 {
-  model_vtable vtable = { .read_inputs = poisson_read_inputs,
+  model_vtable vtable = { .read_input = poisson_read_input,
                           .init = poisson_init,
                           .advance = poisson_advance,
                           .save = poisson_save,
