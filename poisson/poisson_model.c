@@ -7,6 +7,7 @@
 #include "core/least_squares.h"
 #include "core/linear_algebra.h"
 #include "core/constant_st_func.h"
+#include "core/boundary_cell_map.h"
 #include "geometry/cubic_lattice.h"
 #include "geometry/create_cubic_lattice_mesh.h"
 #include "geometry/create_cvt.h"
@@ -31,39 +32,6 @@ extern "C" {
 #include "lualib.h"
 #include "lauxlib.h"
 
-// Metadata for boundary cells (those cells that touch boundary faces).
-typedef struct
-{
-  int num_neighbor_cells;
-  int* neighbor_cells;
-
-  int num_boundary_faces;
-  int* boundary_faces;
-  poisson_bc_t** bc_for_face;
-} poisson_boundary_cell_t;
-
-static poisson_boundary_cell_t* create_boundary_cell()
-{
-  poisson_boundary_cell_t* bcell = malloc(sizeof(poisson_boundary_cell_t));
-  bcell->neighbor_cells = NULL;
-  bcell->num_neighbor_cells = 0;
-  bcell->boundary_faces = NULL;
-  bcell->num_boundary_faces = 0;
-  bcell->bc_for_face = NULL;
-  return bcell;
-}
-
-static void free_boundary_cell(poisson_boundary_cell_t* cell)
-{
-  if (cell->neighbor_cells != NULL)
-    free(cell->neighbor_cells);
-  if (cell->boundary_faces != NULL)
-    free(cell->boundary_faces);
-  if (cell->bc_for_face != NULL)
-    free(cell->bc_for_face);
-  free(cell);
-}
-
 // Poisson model context structure.
 typedef struct 
 {
@@ -77,7 +45,7 @@ typedef struct
   poly_ls_shape_t* shape;       // Least-squares shape functions.
 
   // Information for boundary cells.
-  int_ptr_unordered_map_t*  boundary_cells;
+  boundary_cell_map_t*  boundary_cells;
 
   // This flag is true if the source function or one of the BCs is 
   // time-dependent, and false otherwise.
@@ -490,111 +458,8 @@ static void run_paraboloid_3(options_t* options)
 //                        Model implementation
 //------------------------------------------------------------------------
 
-// Turn the map of boundary conditions into a map of information for each boundary cell.
-static void initialize_boundary_cells(str_ptr_unordered_map_t* bcs, mesh_t* mesh, int_ptr_unordered_map_t* boundary_cells)
-{
-  int pos = 0;
-  char* tag;
-  poisson_bc_t* bc;
-  while (str_ptr_unordered_map_next(bcs, &pos, &tag, (void**)&bc))
-  {
-    // Retrieve the tag for this boundary condition.
-    ASSERT(mesh_has_tag(mesh->face_tags, tag));
-    int num_faces;
-    int* faces = mesh_tag(mesh->face_tags, tag, &num_faces);
-
-    // Now create an entry for each boundary cell and count boundary
-    // faces and neighbors.
-    for (int f = 0; f < num_faces; ++f)
-    {
-      face_t* face = &mesh->faces[faces[f]];
-      ASSERT(face->cell2 == NULL); // ... true for now.
-
-      // Get the cell for this boundary face. This is the boundary cell.
-      cell_t* cell = face->cell1;
-      int bcell = cell - &mesh->cells[0];
-
-      // Have we created an entry for this one yet? If not, do so.
-      poisson_boundary_cell_t* boundary_cell;
-      if (!int_ptr_unordered_map_contains(boundary_cells, bcell))
-      {
-        boundary_cell = create_boundary_cell();
-        int_ptr_unordered_map_insert(boundary_cells, bcell, boundary_cell);
-
-        // Gather the interior faces for the cell.
-        for (int ff = 0; ff < cell->num_faces; ++ff)
-        {
-          if (face_opp_cell(cell->faces[ff], cell) != NULL)
-            boundary_cell->num_neighbor_cells++;
-        }
-        boundary_cell->neighbor_cells = malloc(sizeof(int)*boundary_cell->num_neighbor_cells);
-        int nc = 0;
-        for (int ff = 0; ff < cell->num_faces; ++ff)
-        {
-          cell_t* opp_cell = face_opp_cell(cell->faces[ff], cell);
-          if (opp_cell != NULL)
-          {
-            int opp = opp_cell - &mesh->cells[0];
-            boundary_cell->neighbor_cells[nc++] = opp;
-          }
-        }
-      }
-      else
-      {
-        // Just retrieve the existing boundary cell.
-        boundary_cell = *int_ptr_unordered_map_get(boundary_cells, bcell);
-      }
-
-      // Now increment the boundary face count for this cell.
-      boundary_cell->num_boundary_faces++;
-    }
-  }
-
-  // Allocate storage for the boundary faces and BCs within the cells.
-  {
-    int pos = 0;
-    int bcell_index;
-    poisson_boundary_cell_t* bcell;
-    while (int_ptr_unordered_map_next(boundary_cells, &pos, &bcell_index, (void**)&bcell))
-    {
-      bcell->boundary_faces = malloc(sizeof(int)*bcell->num_boundary_faces);
-      for (int f = 0; f < bcell->num_boundary_faces; ++f)
-        bcell->boundary_faces[f] = -1;
-      bcell->bc_for_face = malloc(sizeof(poisson_bc_t*)*bcell->num_boundary_faces);
-    }
-  }
-
-  // Now go back through and set the boundary faces and boundary 
-  // conditions for each cell.
-  pos = 0;
-  while (str_ptr_unordered_map_next(bcs, &pos, &tag, (void**)&bc))
-  {
-    // Retrieve the tag for this boundary condition.
-    ASSERT(mesh_has_tag(mesh->face_tags, tag));
-    int num_faces;
-    int* faces = mesh_tag(mesh->face_tags, tag, &num_faces);
-
-    // Now create an entry for each boundary cell and count boundary
-    // faces and neighbors.
-    for (int f = 0; f < num_faces; ++f)
-    {
-      face_t* face = &mesh->faces[faces[f]];
-      cell_t* cell = face->cell1;
-      int bcell = cell - &mesh->cells[0];
-
-      poisson_boundary_cell_t* boundary_cell = *int_ptr_unordered_map_get(boundary_cells, bcell);
-      ASSERT(boundary_cell != NULL);
-
-      int i = 0;
-      while (boundary_cell->boundary_faces[i] != -1) ++i;
-      boundary_cell->boundary_faces[i] = faces[f];
-      boundary_cell->bc_for_face[i] = bc;
-    }
-  }
-}
-
 // Apply boundary conditions to a set of boundary cells.
-static void apply_bcs(int_ptr_unordered_map_t* boundary_cells,
+static void apply_bcs(boundary_cell_map_t* boundary_cells,
                       mesh_t* mesh,
                       poly_ls_shape_t* shape,
                       double t,
@@ -606,8 +471,8 @@ static void apply_bcs(int_ptr_unordered_map_t* boundary_cells,
   MatAssemblyBegin(A, MAT_FINAL_ASSEMBLY);
   VecAssemblyBegin(b);
   int pos = 0, bcell;
-  poisson_boundary_cell_t* cell_info;
-  while (int_ptr_unordered_map_next(boundary_cells, &pos, &bcell, (void**)(&cell_info)))
+  boundary_cell_t* cell_info;
+  while (boundary_cell_map_next(boundary_cells, &pos, &bcell, &cell_info))
   {
     cell_t* cell = &mesh->cells[bcell];
 
@@ -854,11 +719,7 @@ static void poisson_init(void* context, double t)
     VecDestroy(&p->x);
     VecDestroy(&p->b);
     free(p->phi);
-    int pos = 0, bcell_index;
-    poisson_boundary_cell_t* bcell;
-    while (int_ptr_unordered_map_next(p->boundary_cells, &pos, &bcell_index, (void**)&bcell))
-      free_boundary_cell(bcell);
-    int_ptr_unordered_map_clear(p->boundary_cells);
+    boundary_cell_map_free(p->boundary_cells);
     p->initialized = false;
   }
 
@@ -887,7 +748,7 @@ static void poisson_init(void* context, double t)
   MatSeqAIJSetPreallocation(p->A, nz, nnz);
 
   // Gather information about boundary cells.
-  initialize_boundary_cells(p->bcs, p->mesh, p->boundary_cells);
+  p->boundary_cells = boundary_cell_map_from_mesh_and_bcs(p->mesh, p->bcs);
 
   // If we're independent of time, set up the linear system here.
   if (!p->is_time_dependent)
@@ -958,14 +819,6 @@ static void poisson_dtor(void* ctx)
     mesh_free(p->mesh);
   if (p->initialized)
   {
-    // Destroy the boundary cell info.
-    int pos = 0;
-    int bcell;
-    void* val;
-    while (int_ptr_unordered_map_next(p->boundary_cells, &pos, &bcell, &val))
-      free_boundary_cell(val);
-
-    // Destroy other stuff.
     KSPDestroy(&p->solver);
     MatDestroy(&p->A);
     VecDestroy(&p->x);
@@ -974,7 +827,7 @@ static void poisson_dtor(void* ctx)
     free(p->phi);
   }
 
-  int_ptr_unordered_map_free(p->boundary_cells);
+  boundary_cell_map_free(p->boundary_cells);
   free(p);
 }
 
@@ -995,7 +848,7 @@ model_t* poisson_model_new(options_t* options)
   context->solution = NULL;
   context->shape = poly_ls_shape_new(1, true);
   poly_ls_shape_set_simple_weighting_func(context->shape, 2, 1e-2);
-  context->boundary_cells = int_ptr_unordered_map_new();
+  context->boundary_cells = boundary_cell_map_new();
   context->initialized = false;
   context->comm = MPI_COMM_WORLD;
   model_t* model = model_new("poisson", context, vtable, options);
