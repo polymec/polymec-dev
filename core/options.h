@@ -1,7 +1,7 @@
-#ifndef ARBI_OPTIONS_H
-#define ARBI_OPTIONS_H
+#ifndef POLYMEC_OPTIONS_H
+#define POLYMEC_OPTIONS_H
 
-#include "arbi.h"
+#include "polymec.h"
 
 #ifdef __cplusplus
 extern "C" {

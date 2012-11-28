@@ -1,5 +1,5 @@
-#ifndef ARBI_SILO_IO_H
-#define ARBI_SILO_IO_H
+#ifndef POLYMEC_SILO_IO_H
+#define POLYMEC_SILO_IO_H
 
 #include "core/io.h"
 

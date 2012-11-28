@@ -44,7 +44,7 @@ DEFINE_VECTOR_TEST(double_vector, double)
 
 int main(int argc, char* argv[]) 
 {
-  arbi_init(argc, argv);
+  polymec_init(argc, argv);
   const UnitTest tests[] = 
   {
     unit_test(test_int_vector),

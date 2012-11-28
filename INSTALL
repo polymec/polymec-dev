@@ -1,6 +1,6 @@
 ------------------------------------------------------------------------------
-Building arbi requires CMake 2.8, found at http://www.cmake.org/, as
-well as GNU make. To build arbi on a UNIX-like system, use the following
+Building polymec requires CMake 2.8, found at http://www.cmake.org/, as
+well as GNU make. To build polymec on a UNIX-like system, use the following
 commands:
 
      $ make config
@@ -8,7 +8,7 @@ commands:
 
 Installation
 ------------
-To install arbi, run
+To install polymec, run
 
     $ make install
 
@@ -17,7 +17,7 @@ prefix for clide pass prefix=[path] to make config. For example,
 
     $ make config prefix=~/myroot/
 
-will cause arbi to be installed in ~/myroot/ when make install is run.
+will cause polymec to be installed in ~/myroot/ when make install is run.
 
 Other make commands
 -------------------

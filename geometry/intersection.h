@@ -1,5 +1,5 @@
-#ifndef ARBI_INTERSECTION_H
-#define ARBI_INTERSECTION_H
+#ifndef POLYMEC_INTERSECTION_H
+#define POLYMEC_INTERSECTION_H
 
 #include "core/sp_func.h"
 

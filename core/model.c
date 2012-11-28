@@ -173,7 +173,7 @@ void model_run_benchmark(model_t* model, const char* benchmark, options_t* optio
   }
   else
   {
-    arbi_error("%s: Benchmark not found: '%s'.", model->name, benchmark);
+    polymec_error("%s: Benchmark not found: '%s'.", model->name, benchmark);
   }
 }
 
@@ -231,9 +231,9 @@ void model_load(model_t* model, int step)
 {
   ASSERT(step >= 0);
   if (model->saver == NULL)
-    arbi_error("No saver/loader was set with model_set_saver.");
+    polymec_error("No saver/loader was set with model_set_saver.");
   if (model->sim_name == NULL)
-    arbi_error("No simulation name was set with model_set_sim_name.");
+    polymec_error("No simulation name was set with model_set_sim_name.");
   char prefix[strlen(model->sim_name) + 16];
   snprintf(prefix, strlen(model->sim_name) + 16, "%s-%d", model->sim_name, step);
   log_detail("%s: Loading save file from directory %s...", model->name, model->sim_name);
@@ -246,9 +246,9 @@ void model_load(model_t* model, int step)
 void model_save(model_t* model)
 {
   if (model->saver == NULL)
-    arbi_error("No saver/loader was set with model_set_saver.");
+    polymec_error("No saver/loader was set with model_set_saver.");
   if (model->sim_name == NULL)
-    arbi_error("No simulation name was set with model_set_sim_name.");
+    polymec_error("No simulation name was set with model_set_sim_name.");
   char prefix[strlen(model->sim_name) + 16];
   snprintf(prefix, strlen(model->sim_name) + 16, "%s-%d", model->sim_name, model->step);
   log_detail("%s: Writing save file to directory %s...", model->name, model->sim_name);
@@ -260,9 +260,9 @@ void model_save(model_t* model)
 void model_plot(model_t* model)
 {
   if (model->plotter == NULL)
-    arbi_error("No plotter was set with model_set_plotter.");
+    polymec_error("No plotter was set with model_set_plotter.");
   if (model->sim_name == NULL)
-    arbi_error("No simulation name was set with model_set_sim_name.");
+    polymec_error("No simulation name was set with model_set_sim_name.");
   char prefix[strlen(model->sim_name) + 16];
   snprintf(prefix, strlen(model->sim_name) + 16, "%s-%d", model->sim_name, model->step);
   log_detail("%s: Writing plot to directory %s...", model->name, model->sim_name);
@@ -293,12 +293,12 @@ void model_run(model_t* model, double t1, double t2, int max_steps)
   {
     while ((model->time < t2) && (model->step < max_steps))
     {
-      char reason[ARBI_MODEL_MAXDT_REASON_SIZE];
+      char reason[POLYMEC_MODEL_MAXDT_REASON_SIZE];
       double dt = model_max_dt(model, reason);
       if (dt > t2 - model->time)
       {
         dt = t2 - model->time;
-        snprintf(reason, ARBI_MODEL_MAXDT_REASON_SIZE, "End of simulation");
+        snprintf(reason, POLYMEC_MODEL_MAXDT_REASON_SIZE, "End of simulation");
       }
       log_detail("%s: Selected time step dt = %g\n (Reason: %s).", model->name, dt, reason);
       model_advance(model, dt);
@@ -354,7 +354,7 @@ void model_set_plotter(model_t* model, io_interface_t* plotter)
 int model_main(const char* model_name, model_ctor constructor, int argc, char* argv[])
 {
   // Start everything up.
-  arbi_init(argc, argv);
+  polymec_init(argc, argv);
 
   // Parse options on the command line.
   options_t* opts = options_parse(argc, argv);

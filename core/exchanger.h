@@ -1,8 +1,8 @@
-#ifndef ARBI_EXCHANGER_H
-#define ARBI_EXCHANGER_H
+#ifndef POLYMEC_EXCHANGER_H
+#define POLYMEC_EXCHANGER_H
 
 #include <stdio.h>
-#include "arbi.h"
+#include "polymec.h"
 
 #ifdef __cplusplus
 extern "C" {

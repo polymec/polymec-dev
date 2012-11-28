@@ -105,7 +105,7 @@ mesh_t* create_bounded_cvt(int N,
   // Do some nonlinear optimization!
   int status = TaoSolve(optimizer);
   if (status != 0)
-    arbi_error("Optimization failed!");
+    polymec_error("Optimization failed!");
 
   // Clean up.
   TaoDestroy(&optimizer);

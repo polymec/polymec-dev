@@ -1,8 +1,8 @@
-#ifndef ARBI_VECTOR_H
-#define ARBI_VECTOR_H
+#ifndef POLYMEC_VECTOR_H
+#define POLYMEC_VECTOR_H
 
 #include <stdlib.h>
-#include "core/arbi.h"
+#include "core/polymec.h"
 #include "arena/proto.h"
 
 // A vector is a managed array that can be dynamically resized at your 

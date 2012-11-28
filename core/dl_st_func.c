@@ -7,9 +7,9 @@
 // Compiler defaults
 #define xstr(s) str(s)
 #define str(s) #s
-#define DEFAULT_CC xstr(ARBI_C_COMPILER)
+#define DEFAULT_CC xstr(POLYMEC_C_COMPILER)
 #define DEFAULT_CFLAGS "-shared"
-#define INCLUDE_DIR xstr(ARBI_INCLUDE_DIR)
+#define INCLUDE_DIR xstr(POLYMEC_INCLUDE_DIR)
 
 #ifdef __cplusplus
 extern "C" {
@@ -86,7 +86,7 @@ static char* compile_so(const char* name, const char* source_file)
   {
     char err[1024];
     snprintf(err, 1024, "compile_so: Compilation errors while building %s.", name);
-    arbi_error(err);
+    polymec_error(err);
     return NULL;
   }
   return strdup(obj_name);
@@ -120,7 +120,7 @@ void dl_st_func_set_so_dir(const char* path)
 
 void dl_st_func_register(const char* name, const char* source_code)
 {
-  arbi_atexit(&dl_st_atexit);
+  polymec_atexit(&dl_st_atexit);
   if (_func_names == NULL)
   {
     _capacity = 32;
@@ -146,7 +146,7 @@ void dl_st_func_register(const char* name, const char* source_code)
   {
     char err[1024];
     snprintf(err, 1024, "dl_st_func_register: Could not compile %s into a shared object.", name);
-    arbi_error(err);
+    polymec_error(err);
     return;
   }
 
@@ -168,7 +168,7 @@ st_func_t* dl_st_func_new(const char* name)
   {
     char err[1024];
     snprintf(err, 1024, "dl_st_func_new: Could not find dynamically-loadable st_func '%s'", name);
-    arbi_error(err);
+    polymec_error(err);
     return NULL;
   }
 
@@ -178,7 +178,7 @@ st_func_t* dl_st_func_new(const char* name)
   {
     char err[1024];
     snprintf(err, 1024, "dl_st_func_new: Could not load dynamically-loadable st_func '%s'", name);
-    arbi_error(err);
+    polymec_error(err);
     return NULL;
   }
 
@@ -189,7 +189,7 @@ st_func_t* dl_st_func_new(const char* name)
   {
     char err[1024];
     snprintf(err, 1024, "dl_st_func_new: Could not load eval function for st_func '%s'", name);
-    arbi_error(err);
+    polymec_error(err);
     return NULL;
   }
   vtable.dtor = &dl_st_dtor;

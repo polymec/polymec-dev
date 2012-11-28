@@ -143,7 +143,7 @@ static void silo_read_datasets(void* context, void* f, io_dataset_t** datasets, 
       DBClose(file);
       char err[1024];
       snprintf(err, 1024, "Could not find mesh connectivity in file.");
-      arbi_error(err);
+      polymec_error(err);
     }
     // Element 0 is the number of ghost cells and the number of faces in each cell.
     // Element 1 is the list of face indices for each cell.
@@ -162,7 +162,7 @@ static void silo_read_datasets(void* context, void* f, io_dataset_t** datasets, 
       DBClose(file);
       char err[1024];
       snprintf(err, 1024, "Found invalid mesh connectivity.");
-      arbi_error(err);
+      polymec_error(err);
     }
 
     char pos_name[1024];
@@ -173,14 +173,14 @@ static void silo_read_datasets(void* context, void* f, io_dataset_t** datasets, 
       DBClose(file);
       char err[1024];
       snprintf(err, 1024, "Could not find mesh node positions.");
-      arbi_error(err);
+      polymec_error(err);
     }
     if ((pos->nelems != 1) || strcmp(pos->elemnames[0], "positions"))
     {
       DBClose(file);
       char err[1024];
       snprintf(err, 1024, "Found invalid mesh node positions.");
-      arbi_error(err);
+      polymec_error(err);
     }
     int* conndata = (int*)conn->values;
     double* posdata = (double*)pos->values;
@@ -248,14 +248,14 @@ static void silo_read_datasets(void* context, void* f, io_dataset_t** datasets, 
         DBClose(file);
         char err[1024];
         snprintf(err, 1024, "Could not find field %s", field_name);
-        arbi_error(err);
+        polymec_error(err);
       }
       if ((field->nelems != 1) || strcmp(field->elemnames[0], "data"))
       {
         DBClose(file);
         char err[1024];
         snprintf(err, 1024, "Found invalid field %s.", field_name);
-        arbi_error(err);
+        polymec_error(err);
       }
 
       // Find the centering and number of components of the field.
@@ -303,14 +303,14 @@ static void silo_read_datasets(void* context, void* f, io_dataset_t** datasets, 
         DBClose(file);
         char err[1024];
         snprintf(err, 1024, "Could not find source code %s", code_name);
-        arbi_error(err);
+        polymec_error(err);
       }
       if ((code->nelems != 1) || strcmp(code->elemnames[0], "code"))
       {
         DBClose(file);
         char err[1024];
         snprintf(err, 1024, "Found invalid source code %s.", code_name);
-        arbi_error(err);
+        polymec_error(err);
       }
 
       // Extract the name of the source code.

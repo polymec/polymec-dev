@@ -1,5 +1,5 @@
-#ifndef ARBI_CYLINDER_H
-#define ARBI_CYLINDER_H
+#ifndef POLYMEC_CYLINDER_H
+#define POLYMEC_CYLINDER_H
 
 #include "core/sp_func.h"
 

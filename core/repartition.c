@@ -152,14 +152,14 @@ exchanger_t* repartition_points(MPI_Comm comm, point_t* points, double* weights,
 #ifdef HAVE_PARMETIS
   return repartition_points_with_parmetis(comm, points, weights, num_points);
 #else
-  arbi_not_implemented("repartition_points (non-parmetis version)");
+  polymec_not_implemented("repartition_points (non-parmetis version)");
   return NULL;
 #endif
 }
 
 exchanger_t* repartition_mesh(MPI_Comm comm, mesh_t* mesh)
 {
-  arbi_not_implemented("repartition_mesh");
+  polymec_not_implemented("repartition_mesh");
   return NULL;
 }
 

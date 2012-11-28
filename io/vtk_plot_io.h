@@ -1,5 +1,5 @@
-#ifndef ARBI_VTK_PLOT_IO_H
-#define ARBI_VTK_PLOT_IO_H
+#ifndef POLYMEC_VTK_PLOT_IO_H
+#define POLYMEC_VTK_PLOT_IO_H
 
 #include "core/io.h"
 

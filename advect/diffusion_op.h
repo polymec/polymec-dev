@@ -1,5 +1,5 @@
-#ifndef ARBI_DIFFUSION_OP_H
-#define ARBI_DIFFUSION_OP_H
+#ifndef POLYMEC_DIFFUSION_OP_H
+#define POLYMEC_DIFFUSION_OP_H
 
 #include "core/lin_op.h"
 

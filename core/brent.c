@@ -12,7 +12,7 @@ double brent_solve(brent_nl_func F, void* context, double x1, double x2, double 
   double a = x1, b = x2;
   double fa = F(context, a), fb = F(context, b);
   if (((fa > 0.0) && (fb > 0.0)) || ((fa < 0.0) && (fb < 0.0)))
-    arbi_error("brent_solve: Root is not bracketed by [x1, x2].");
+    polymec_error("brent_solve: Root is not bracketed by [x1, x2].");
   double fc = fb;
   for (int iter = 0; iter < max_iters; ++iter)
   {

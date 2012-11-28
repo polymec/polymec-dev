@@ -66,7 +66,7 @@ void test_plot_single_cell_mesh(void** state)
 
 int main(int argc, char* argv[]) 
 {
-  arbi_init(argc, argv);
+  polymec_init(argc, argv);
   const UnitTest tests[] = 
   {
     unit_test(test_plot_single_cell_mesh)

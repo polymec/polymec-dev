@@ -1,7 +1,7 @@
-#ifndef ARBI_LIN_OP_H
-#define ARBI_LIN_OP_H
+#ifndef POLYMEC_LIN_OP_H
+#define POLYMEC_LIN_OP_H
 
-#include "core/arbi.h"
+#include "core/polymec.h"
 #include "core/mesh.h"
 
 #ifdef __cplusplus

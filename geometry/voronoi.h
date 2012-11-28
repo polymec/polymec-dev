@@ -1,5 +1,5 @@
-#ifndef ARBI_VORONOI_H
-#define ARBI_VORONOI_H
+#ifndef POLYMEC_VORONOI_H
+#define POLYMEC_VORONOI_H
 
 #include "core/mesh.h"
 #include "core/faceted_surface.h"

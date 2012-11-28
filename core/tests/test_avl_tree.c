@@ -42,7 +42,7 @@ DEFINE_AVL_TREE_TEST(double_avl_tree, double)
 
 int main(int argc, char* argv[]) 
 {
-  arbi_init(argc, argv);
+  polymec_init(argc, argv);
   const UnitTest tests[] = 
   {
     unit_test(test_int_tree),

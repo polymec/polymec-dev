@@ -1,7 +1,7 @@
-#ifndef ARBI_LEAST_SQUARES_H
-#define ARBI_LEAST_SQUARES_H
+#ifndef POLYMEC_LEAST_SQUARES_H
+#define POLYMEC_LEAST_SQUARES_H
 
-#include "core/arbi.h"
+#include "core/polymec.h"
 #include "core/point.h"
 
 #ifdef __cplusplus

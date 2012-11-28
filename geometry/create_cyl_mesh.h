@@ -1,5 +1,5 @@
-#ifndef ARBI_CREATE_CYL_MESH_H
-#define ARBI_CREATE_CYL_MESH_H
+#ifndef POLYMEC_CREATE_CYL_MESH_H
+#define POLYMEC_CREATE_CYL_MESH_H
 
 #include "core/mesh.h"
 

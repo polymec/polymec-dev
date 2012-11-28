@@ -387,7 +387,7 @@ int exchanger_start_exchange(exchanger_t* ex, void* data, int stride, int tag, M
       char err_msg[1024];
       snprintf(err_msg, 1024, "%d: MPI Error posting receive from %d: %d\n(%s)\n", 
                ex->rank, ex->receives[i], err, str);
-      arbi_error(err_msg);
+      polymec_error(err_msg);
     }
   }
 
@@ -406,7 +406,7 @@ int exchanger_start_exchange(exchanger_t* ex, void* data, int stride, int tag, M
       char err_msg[1024];
       snprintf(err_msg, 1024, "%d: MPI Error sending to %d: %d\n(%s)\n", 
                ex->rank, ex->receives[i], err, str);
-      arbi_error(err_msg);
+      polymec_error(err_msg);
     }
   }
 

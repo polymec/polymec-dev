@@ -1,8 +1,8 @@
-#ifndef ARBI_UNORDERED_MAP_H
-#define ARBI_UNORDERED_MAP_H
+#ifndef POLYMEC_UNORDERED_MAP_H
+#define POLYMEC_UNORDERED_MAP_H
 
 #include <stdlib.h>
-#include "core/arbi.h"
+#include "core/polymec.h"
 #include "core/hash_functions.h"
 #include "core/comparators.h"
 

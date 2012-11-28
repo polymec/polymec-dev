@@ -1,8 +1,8 @@
-#ifndef ARBI_POINT_H
-#define ARBI_POINT_H
+#ifndef POLYMEC_POINT_H
+#define POLYMEC_POINT_H
 
 #include <math.h>
-#include "arbi.h"
+#include "core/polymec.h"
 
 #ifdef __cplusplus
 extern "C" {

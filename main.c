@@ -1,6 +1,6 @@
 #include <string.h>
 #include <stdlib.h>
-#include "core/arbi.h"
+#include "core/polymec.h"
 #include "core/options.h"
 #include "core/model.h"
 #include "core/simulation.h"
@@ -10,9 +10,9 @@ extern "C" {
 #endif
 
 static const char* usage_str = 
-"arbi: usage:\n"
-"arbi [model] [command] [args] OR\n"
-"arbi list\n\n"
+"polymec: usage:\n"
+"polymec [model] [command] [args] OR\n"
+"polymec list\n\n"
 "Here, [model] is a name that identifies a numerical model, and [command]\n"
 "is one of the following:\n\n"
 "   run [filename]       -- Runs a simulation with input from the given file.\n"
@@ -29,7 +29,7 @@ static void usage()
 int main(int argc, char** argv)
 {
   // Start everything up.
-  arbi_init(argc, argv);
+  polymec_init(argc, argv);
 
   // Parse options on the command line.
   options_t* opts = options_parse(argc, argv);
@@ -45,8 +45,8 @@ int main(int argc, char** argv)
   // Validate our inputs.
   if (command == NULL)
   {
-    fprintf(stderr, "arbi: no command given! Usage:\n");
-    fprintf(stderr, "arbi [command] [command args]\n");
+    fprintf(stderr, "polymec: no command given! Usage:\n");
+    fprintf(stderr, "polymec [command] [command args]\n");
     exit(-1);
   }
   static const char* valid_commands[] = {"run", "benchmark", "help", NULL};
@@ -59,7 +59,7 @@ int main(int argc, char** argv)
   }
   if (valid_commands[c] == NULL)
   {
-    fprintf(stderr, "arbi: invalid command: '%s'\n", command);
+    fprintf(stderr, "polymec: invalid command: '%s'\n", command);
     exit(-1);
   }
 
@@ -80,8 +80,8 @@ int main(int argc, char** argv)
   {
     if (input == NULL)
     {
-      fprintf(stderr, "arbi: No benchmark problem given! Usage:\n");
-      fprintf(stderr, "arbi %s benchmark [problem]\n", model_name);
+      fprintf(stderr, "polymec: No benchmark problem given! Usage:\n");
+      fprintf(stderr, "polymec %s benchmark [problem]\n", model_name);
       exit(-1);
     }
     model_run_benchmark(model, input, opts);
@@ -92,8 +92,8 @@ int main(int argc, char** argv)
   ASSERT(!strcmp(command, "run"));
   if (input == NULL)
   {
-    fprintf(stderr, "arbi: No input file given! Usage:\n");
-    fprintf(stderr, "arbi %s run [input file]\n", model_name);
+    fprintf(stderr, "polymec: No input file given! Usage:\n");
+    fprintf(stderr, "polymec %s run [input file]\n", model_name);
     exit(-1);
   }
 

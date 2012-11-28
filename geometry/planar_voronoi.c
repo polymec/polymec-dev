@@ -103,16 +103,16 @@ mesh_t* voronoi_plane(point_t* points, int num_points,
 
   // Make sure we got something.
   if (delaunay.numberoftriangles == 0)
-    arbi_error("voronoi_plane: delaunay triangulation produced 0 triangles!");
+    polymec_error("voronoi_plane: delaunay triangulation produced 0 triangles!");
   if (delaunay.numberofpoints != num_points)
   {
     char err[1024];
     snprintf(err, 1024, "voronoi_plane: delaunay triangulation produced %d triangles\n(%d generating points given)", 
              delaunay.numberofpoints, num_points);
-    arbi_error(err);
+    polymec_error(err);
   }
   if (voro.numberofpoints <= 0)
-    arbi_error("voronoi_plane: Error occurred generating Voronoi graph.");
+    polymec_error("voronoi_plane: Error occurred generating Voronoi graph.");
 
   // Now assemble the mesh.
   int num_cells = num_points;
@@ -257,7 +257,7 @@ mesh_t* voronoi_plane(point_t* points, int num_points,
     mesh->cells[cell2].faces[cell_next_face[cell2]++] = &mesh->faces[i];
   }
 
-  // Vertical faces (arbitrary polygons).
+  // Vertical faces (polymectrary polygons).
   // mesh->faces[horiz_faces+2*i]   <-- bottom face for ith cell
   // mesh->faces[horiz_faces+2*i+1] <-- top face for ith cell
   int vface_num_edges[2*delaunay.numberofedges],

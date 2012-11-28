@@ -828,13 +828,13 @@ static void advect_read_inputs(void* context, interpreter_t* interp)
   advect_t* a = (advect_t*)context;
   a->mesh = interpreter_get_mesh(interp, "mesh");
   if (a->mesh == NULL)
-    arbi_error("advect: No mesh was specified.");
+    polymec_error("advect: No mesh was specified.");
 //  p->rhs = interpreter_get_function(interp, "rhs");
 //  if (p->rhs == NULL)
-//    arbi_error("poisson: No right hand side (rhs) was specified.");
+//    polymec_error("poisson: No right hand side (rhs) was specified.");
 //  p->bcs = interpreter_get_table(interp, "bcs");
 //  if (p->bcs == NULL)
-//    arbi_error("poisson: No table of boundary conditions (bcs) was specified.");
+//    polymec_error("poisson: No table of boundary conditions (bcs) was specified.");
 }
 
 static void advect_init(void* context, double t)
