@@ -83,10 +83,11 @@ typedef struct
   lin_op_t* D;              // Diffusion operator.
 
   str_ptr_unordered_map_t* bcs; // Boundary conditions.
-  poly_ls_shape_t* shape;       // Least-squares shape functions.
 
   // Information for boundary cells.
   boundary_cell_map_t*  boundary_cells;
+
+  double CFL;             // CFL safety factor.
 
   // This flag is true if the source function or one of the BCs is 
   // time-dependent, and false otherwise.
@@ -100,11 +101,13 @@ typedef struct
 } advect_t;
 
 // A proper constructor.
-static model_t* create_advect(mesh_t* mesh, st_func_t* source, str_ptr_unordered_map_t* bcs, options_t* options)
+static model_t* create_advect(mesh_t* mesh, st_func_t* initial_cond, st_func_t* diffusivity, st_func_t* source, str_ptr_unordered_map_t* bcs, options_t* options)
 {
   model_t* poisson = advect_model_new(options);
   advect_t* a = (advect_t*)model_context(poisson);
   a->mesh = mesh;
+  a->initial_cond = initial_cond;
+  a->diffusivity = diffusivity;
   a->source = source;
   if (a->bcs != NULL)
     str_ptr_unordered_map_free(a->bcs);
@@ -180,10 +183,10 @@ static mesh_t* create_cube_mesh(int dim, int N, bbox_t* bbox)
   return mesh;
 }
 
-static void run_analytic_problem(mesh_t* mesh, st_func_t* rhs, str_ptr_unordered_map_t* bcs, options_t* options, double t1, double t2, st_func_t* solution, double* lp_norms)
+static void run_analytic_problem(mesh_t* mesh, st_func_t* initial_cond, st_func_t* diffusivity, st_func_t* source, str_ptr_unordered_map_t* bcs, options_t* options, double t1, double t2, st_func_t* solution, double* lp_norms)
 {
   // Create the model.
-  model_t* model = create_advect(mesh, rhs, bcs, options);
+  model_t* model = create_advect(mesh, initial_cond, diffusivity, source, bcs, options);
 
   // Run the thing.
   model_run(model, t1, t2, INT_MAX);
@@ -216,12 +219,102 @@ static void run_analytic_problem(mesh_t* mesh, st_func_t* rhs, str_ptr_unordered
   model_free(model);
 }
 
+static void advect_run_1d_flow(options_t* options, double phi1, double phi2, st_func_t* solution, int dim)
+{
+  // Boundary conditions.
+  str_ptr_unordered_map_t* bcs = str_ptr_unordered_map_new();
+
+  // Dirichlet on -x/+x.
+  st_func_t* phiL = constant_st_func_new(1.0, &phi1);
+  st_func_t* phiR = constant_st_func_new(1.0, &phi2);
+  str_ptr_unordered_map_insert(bcs, "-x", advect_bc_new(1.0, 0.0, phiL));
+  str_ptr_unordered_map_insert(bcs, "+x", advect_bc_new(1.0, 0.0, phiR));
+
+  // Transverse faces - homogeneous Neumann BCs.
+  double z = 0.0;
+  st_func_t* zero = constant_st_func_new(1.0, &z);
+  str_ptr_unordered_map_insert(bcs, "-y", advect_bc_new(0.0, 1.0, zero));
+  str_ptr_unordered_map_insert(bcs, "+y", advect_bc_new(0.0, 1.0, zero));
+  str_ptr_unordered_map_insert(bcs, "-z", advect_bc_new(0.0, 1.0, zero));
+  str_ptr_unordered_map_insert(bcs, "+z", advect_bc_new(0.0, 1.0, zero));
+
+  // Run times.
+  double t1 = 0.0, t2 = 1.0;
+
+  // Base resolution, number of runs.
+  int N0;
+  int num_runs;
+  switch(dim)
+  {
+    case 1: 
+      N0 = 32;
+      num_runs = 4;
+      break;
+    case 2:
+      N0 = 16;
+      num_runs = 3;
+      break;
+    case 3:
+      N0 = 8;
+      num_runs = 3;
+      break;
+  }
+
+  // Do a convergence study.
+  double Lp_norms[num_runs][3];
+  for (int iter = 0; iter < num_runs; ++iter)
+  {
+    int N = N0 * pow(2, iter);
+    double dx = 1.0/N;
+    bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
+    if (dim == 1)
+      bbox.y2 = bbox.z2 = dx;
+    if (dim == 2)
+      bbox.z2 = dx;
+    mesh_t* mesh = create_cube_mesh(dim, N, &bbox);
+    str_ptr_unordered_map_t* bcs_copy = str_ptr_unordered_map_copy(bcs);
+    run_analytic_problem(mesh, solution, zero, zero, bcs_copy, options, t1, t2, solution, Lp_norms[iter]);
+
+    // If we run in 1D or 2D, we need to adjust the norms.
+    if (dim == 1)
+    {
+      Lp_norms[iter][1] *= N*N;
+      Lp_norms[iter][2] *= N*N;
+    }
+    else if (dim == 2)
+    {
+      Lp_norms[iter][1] *= N;
+      Lp_norms[iter][2] *= N;
+    }
+    log_info("iteration %d (Nx = %d): L1 = %g, L2 = %g, Linf = %g", iter, N, Lp_norms[iter][1], Lp_norms[iter][2], Lp_norms[iter][0]);
+  }
+
+  // Clean up.
+  int pos = 0;
+  char* key;
+  void* value;
+  while (str_ptr_unordered_map_next(bcs, &pos, &key, &value))
+    advect_bc_free(value);
+  str_ptr_unordered_map_free(bcs);
+  zero = phiL = phiR = NULL;
+}
+
+static void run_stationary_flow_1d(options_t* options)
+{
+  advect_run_1d_flow(options, 1.0, 1.0, NULL, 1);
+}
+
+static void run_stationary_blayer_1d(options_t* options)
+{
+  advect_run_1d_flow(options, 1.0, 0.0, NULL, 1);
+}
+
 //------------------------------------------------------------------------
 //                        Model implementation
 //------------------------------------------------------------------------
 
 // Compute half-state fluxes by upwinding (1st order).
-static void compute_upwind_fluxes(mesh_t* mesh, st_func_t* velocity, st_func_t* source, double t, double dt, double* phi, double* fluxes)
+static void compute_upwind_fluxes(mesh_t* mesh, st_func_t* velocity, st_func_t* source, boundary_cell_map_t* boundary_cells, double t, double dt, double* phi, double* fluxes)
 {
   int num_faces = mesh->num_faces;
   for (int f = 0; f < num_faces; ++f)
@@ -249,14 +342,72 @@ static void compute_upwind_fluxes(mesh_t* mesh, st_func_t* velocity, st_func_t* 
     fluxes[f] = vn * phi[upwind_cell] * face->area;
   }
 
-  // Now compute fluxes on boundary faces.
-  // FIXME
+  // Now go over the boundary cells and compute upwind fluxes.
+  int pos = 0, bcell;
+  boundary_cell_t* cell_info;
+  while (boundary_cell_map_next(boundary_cells, &pos, &bcell, &cell_info))
+  {
+    cell_t* cell = &mesh->cells[bcell];
+
+    // We use ghost cells that are reflections of the boundary cells 
+    // through the boundary faces. For each of these cells, the 
+    // boundary condition alpha*phi + beta*dphi/dn = F assigns the 
+    // ghost value
+    //
+    // phi_g = (F + (beta/L - alpha/2)) * phi_i / (beta/L + alpha/2)
+    //
+    // where L is the distance between the interior centroid and the 
+    // ghost centroid. 
+    for (int f = 0; f < cell_info->num_boundary_faces; ++f)
+    {
+      face_t* face = &mesh->faces[cell_info->boundary_faces[f]];
+      int face_index = face - &mesh->faces[0];
+
+      // Compute the normal vector through this face.
+      vector_t n;
+      point_displacement(&cell->center, &face->center, &n);
+      vector_normalize(&n);
+
+      // Compute the normal velocity on this face at t + 0.5*dt.
+      double v[3];
+      st_func_eval(velocity, &face->center, t + 0.5*dt, v);
+      double vn = v[0]*n.x + v[1]*n.y + v[2]*n.z;
+
+      // If the normal velocity is positive, the velocity flows in the 
+      // direction of the ghost, and the interior cell 1 is upwind--otherwise 
+      // the ghost cell is upwind. In any case, we use the upwind value of the 
+      // solution for the flux.
+      bool interior_is_upwind = (vn > 0.0);
+
+      if (interior_is_upwind)
+        fluxes[face_index] = vn * phi[bcell] * face->area;
+      else
+      {
+        // The ghost cell is upwind, so we compute the solution there.
+
+        // Retrieve the boundary condition for this face.
+        advect_bc_t* bc = cell_info->bc_for_face[f];
+        double alpha = bc->alpha, beta = bc->beta;
+
+        // Compute L.
+        double L = 2.0 * point_distance(&cell->center, &face->center);
+
+        // Compute F at the face center.
+        double F;
+        st_func_eval(bc->F, &face->center, t, &F);
+
+        // Compute the ghost value for the solution, and the resulting flux.
+        double phi_g = (F + (beta/L - 0.5*alpha)) * phi[bcell] / (beta/L + 0.5*alpha);
+        fluxes[face_index] = vn * phi_g * face->area;
+      }
+    }
+  }
 }
 
-static void compute_half_step_fluxes(mesh_t* mesh, st_func_t* velocity, st_func_t* source, double t, double dt, double* phi, double* fluxes)
+static void compute_half_step_fluxes(mesh_t* mesh, st_func_t* velocity, st_func_t* source, boundary_cell_map_t* boundary_cells, double t, double dt, double* phi, double* fluxes)
 {
   // For now, we just use upwinding.
-  compute_upwind_fluxes(mesh, velocity, source, t, dt, phi, fluxes);
+  compute_upwind_fluxes(mesh, velocity, source, boundary_cells, t, dt, phi, fluxes);
 }
 
 static void set_up_linear_system(mesh_t* mesh, lin_op_t* L, st_func_t* rhs, double t, Mat A, Vec b)
@@ -292,142 +443,6 @@ static void set_up_linear_system(mesh_t* mesh, lin_op_t* L, st_func_t* rhs, doub
   VecAssemblyEnd(b);
 }
 
-// Apply boundary conditions to a set of boundary cells.
-static void apply_bcs(boundary_cell_map_t* boundary_cells,
-                      mesh_t* mesh,
-                      poly_ls_shape_t* shape,
-                      double t,
-                      Mat A,
-                      Vec b)
-{
-  // Go over the boundary cells, enforcing boundary conditions on each 
-  // face.
-  MatAssemblyBegin(A, MAT_FINAL_ASSEMBLY);
-  VecAssemblyBegin(b);
-  int pos = 0, bcell;
-  boundary_cell_t* cell_info;
-  while (boundary_cell_map_next(boundary_cells, &pos, &bcell, &cell_info))
-  {
-    cell_t* cell = &mesh->cells[bcell];
-
-    // Construct a polynomial least-squares fit for the cell and its 
-    // neighbors (about its center), plus any boundary faces. That is,
-    // construct a fit that satisfies the boundary conditions!
-
-    // Number of points = number of neighbors + self + boundary faces
-    int num_ghosts = cell_info->num_boundary_faces;
-    int num_neighbors = cell_info->num_neighbor_cells;
-    int num_points = num_neighbors + 1 + num_ghosts;
-    point_t points[num_points];
-    point_copy(&points[0], &mesh->cells[bcell].center);
-    for (int n = 0; n < num_neighbors; ++n)
-    {
-      int neighbor = cell_info->neighbor_cells[n];
-      point_copy(&points[n+1], &mesh->cells[neighbor].center);
-    }
-    int ghost_point_indices[num_ghosts];
-    point_t constraint_points[num_ghosts];
-    for (int n = 0; n < num_ghosts; ++n)
-    {
-      int bface = cell_info->boundary_faces[n];
-      face_t* face = &mesh->faces[bface];
-      int offset = 1 + num_neighbors;
-      ghost_point_indices[n] = n+offset;
-      points[n+offset].x = 2.0*face->center.x - cell->center.x;
-      points[n+offset].y = 2.0*face->center.y - cell->center.y;
-      points[n+offset].z = 2.0*face->center.z - cell->center.z;
-      point_copy(&constraint_points[n], &face->center);
-    }
-    poly_ls_shape_set_domain(shape, &cell->center, points, num_points);
-
-    // Now traverse the boundary faces of this cell and enforce the 
-    // appropriate boundary condition on each. To do this, we compute 
-    // the elements of an affine linear transformation that allows us 
-    // to compute boundary values of the solution in terms of the 
-    // interior values.
-    vector_t face_normals[num_ghosts];
-    double aff_matrix[num_ghosts*num_points], aff_vector[num_ghosts];
-    {
-      double a[num_ghosts], b[num_ghosts], c[num_ghosts], d[num_ghosts], e[num_ghosts];
-      for (int f = 0; f < num_ghosts; ++f)
-      {
-        // Retrieve the boundary condition for the face.
-        advect_bc_t* bc = cell_info->bc_for_face[f];
-
-        // Compute the face normal and the corresponding coefficients,
-        // enforcing alpha * phi + beta * dphi/dn = F on the face.
-        face_t* face = &mesh->faces[cell_info->boundary_faces[f]];
-        vector_t* n = &face_normals[f];
-        point_displacement(&cell->center, &face->center, n);
-        vector_normalize(n);
-        a[f] = bc->alpha;
-        b[f] = bc->beta*n->x, c[f] = bc->beta*n->y, d[f] = bc->beta*n->z;
-
-        // Compute F at the face center.
-        st_func_eval(bc->F, &face->center, t, &e[f]);
-      }
-
-      // Now that we've gathered information about all the boundary
-      // conditions, compute the affine transformation that maps the 
-      // (unconstrained) values of the solution to the constrained values. 
-      poly_ls_shape_compute_ghost_transform(shape, ghost_point_indices, num_ghosts, 
-                                            constraint_points, a, b, c, d, e, aff_matrix, aff_vector);
-    }
-
-    // Compute the flux through each boundary face and alter the 
-    // linear system accordingly.
-    int ij[num_neighbors+1];
-    double N[num_points], Aij[num_neighbors+1];
-    vector_t grad_N[num_points]; 
-    for (int f = 0; f < num_ghosts; ++f)
-    {
-      // Compute the shape function values and gradients at the face center.
-      face_t* face = &mesh->faces[cell_info->boundary_faces[f]];
-      poly_ls_shape_compute_gradients(shape, &face->center, N, grad_N);
-
-      // Add the dphi/dn terms for face f to the matrix.
-      vector_t* n = &face_normals[f];
-      double bi = 0.0;
-
-      // Diagonal term.
-      ij[0] = bcell;
-      // Compute the contribution to the flux from this cell.
-      Aij[0] = vector_dot(n, &grad_N[0]) * face->area; 
-
-      // Now compute the flux contribution from ghost points.
-      for (int g = 0; g < num_ghosts; ++g)
-      {
-        double dNdn = vector_dot(n, &grad_N[num_neighbors+1+g]);
-        Aij[0] += aff_matrix[num_ghosts*0+g] * dNdn * face->area;
-
-        // Here we also add the affine contribution from this ghost
-        // to the right-hand side vector.
-        bi += -aff_vector[g] * dNdn * face->area;
-      }
-
-      for (int j = 0; j < num_neighbors; ++j)
-      {
-        ij[j+1] = cell_info->neighbor_cells[j];
-
-        // Self contribution.
-        Aij[j+1] = vector_dot(n, &grad_N[j+1]) * face->area;
-
-        // Ghost contributions.
-        for (int g = 0; g < num_ghosts; ++g)
-        {
-          double dNdn = vector_dot(n, &grad_N[num_neighbors+1+g]);
-          Aij[j+1] += aff_matrix[num_ghosts*(j+1)+g] * dNdn * face->area;
-        }
-      }
-
-      MatSetValues(A, 1, &bcell, num_neighbors+1, ij, Aij, ADD_VALUES);
-      VecSetValues(b, 1, &bcell, &bi, ADD_VALUES);
-    }
-  }
-  MatAssemblyEnd(A, MAT_FINAL_ASSEMBLY);
-  VecAssemblyEnd(b);
-}
-
 static void compute_diffusive_deriv(mesh_t* mesh, 
                                     st_func_t* diffusivity,
                                     double* cell_sources,
@@ -437,6 +452,7 @@ static void compute_diffusive_deriv(mesh_t* mesh,
                                     double dt,
                                     double* diff_deriv)
 {
+#if 0
   // Set up the linear solver.
   KSPSetOperators(diff_system->solver, diff_system->matrix, diff_system->matrix, SAME_NONZERO_PATTERN);
 
@@ -447,6 +463,34 @@ static void compute_diffusive_deriv(mesh_t* mesh,
   double* solution;
   VecGetArray(diff_system->solution, &solution);
   VecRestoreArray(diff_system->solution, &solution);
+#endif
+
+  // FIXME: For now, no diffusion.
+  memset(diff_deriv, 0, sizeof(double)*mesh->num_cells);
+}
+
+static double advect_max_dt(void* context, double t, char* reason)
+{
+  advect_t* a = (advect_t*)context;
+
+  // Find the minimum cell length / velocity ratio.
+  double dt = FLT_MAX;
+  for (int c = 0; c < a->mesh->num_cells; ++c)
+  {
+    // FIXME: For now, we just estimate the side of a cell from its 
+    // FIXME: volume. This doesn't really work for nonuniform grids.
+    double L = pow(a->mesh->cells[c].volume, 1.0/3.0);
+    double V[3];
+    st_func_eval(a->velocity, &a->mesh->cells[c].center, t, V);
+    double Vmag = sqrt(V[0]*V[0] + V[1]*V[1] + V[2]*V[2]);
+    if ((L / Vmag) < dt)
+    {
+      dt = L / Vmag;
+      sprintf(reason, "CFL condition at cell %d.", c);
+    }
+  }
+
+  return dt;
 }
 
 static void advect_advance(void* context, double t, double dt)
@@ -455,7 +499,7 @@ static void advect_advance(void* context, double t, double dt)
 
   // First, compute the half-step values of the fluxes on faces.
   double fluxes[a->mesh->num_faces];
-  compute_half_step_fluxes(a->mesh, a->velocity, a->source, t, dt, a->phi, fluxes);
+  compute_half_step_fluxes(a->mesh, a->velocity, a->source, a->boundary_cells, t, dt, a->phi, fluxes);
 
   // Update the solution using the Divergence Theorem.
   int num_cells;
@@ -521,9 +565,13 @@ static void advect_read_input(void* context, interpreter_t* interp)
 static void advect_init(void* context, double t)
 {
   advect_t* a = (advect_t*)context;
+  ASSERT(a->mesh != NULL);
+  ASSERT(a->initial_cond != NULL);
+  ASSERT(a->velocity != NULL);
+  ASSERT(a->source != NULL);
 
-  // Set up the diffusion operator if we need to.
-  // FIXME
+  // Set up the diffusion operator.
+  a->D = diffusion_op_new(a->mesh);
 
   // If the model has been previously initialized, clean everything out.
   if (a->diff_system != NULL)
@@ -608,7 +656,6 @@ static void advect_dtor(void* ctx)
   if (a->phi != NULL)
     free(a->phi);
 
-  a->shape = NULL;
   a->velocity = NULL;
   a->solution = NULL;
   a->initial_cond = NULL;
@@ -623,6 +670,7 @@ model_t* advect_model_new(options_t* options)
 {
   model_vtable vtable = { .read_input = advect_read_input,
                           .init = advect_init,
+                          .max_dt = advect_max_dt,
                           .advance = advect_advance,
                           .save = advect_save,
                           .plot = advect_plot,
@@ -638,11 +686,13 @@ model_t* advect_model_new(options_t* options)
   context->initial_cond = NULL;
   context->D = NULL;
   context->bcs = str_ptr_unordered_map_new();
-  context->shape = poly_ls_shape_new(1, true);
-  poly_ls_shape_set_simple_weighting_func(context->shape, 2, 1e-2);
   context->boundary_cells = boundary_cell_map_new();
   context->comm = MPI_COMM_WORLD;
   model_t* model = model_new("advect", context, vtable, options);
+
+  // Register benchmarks.
+  model_register_benchmark(model, "stationary_flow_1d", run_stationary_flow_1d, "Stational flow in 1D (v = 1).");
+  model_register_benchmark(model, "stationary_blayer_1d", run_stationary_blayer_1d, "Stational flow with boundary layer in 1D.");
 
   // Set up saver/plotter.
   io_interface_t* saver = silo_io_new(MPI_COMM_SELF, 0, false);
@@ -652,7 +702,6 @@ model_t* advect_model_new(options_t* options)
 
   return model;
 }
-
 
 #ifdef __cplusplus
 }
