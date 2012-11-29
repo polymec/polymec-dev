@@ -21,7 +21,7 @@ typedef struct model_t model_t;
 typedef model_t* (*model_ctor)(options_t*);
 
 // A function for reading input from an interpreter into the model.
-typedef void (*model_read_input_func)(void*, interpreter_t*);
+typedef void (*model_read_input_func)(void*, interpreter_t*, options_t*);
 
 // A function for initializing the model.
 typedef void (*model_init_func)(void*, double);
@@ -50,7 +50,7 @@ typedef void (*model_dtor)(void*);
 // This virtual table must be implemented by any model.
 typedef struct 
 {
-  model_read_input_func  read_input;
+  model_read_input_func   read_input;
   model_init_func         init;
   model_max_dt_func       max_dt;
   model_advance_func      advance;
@@ -97,9 +97,6 @@ void model_run_benchmark(model_t* model, const char* benchmark, options_t* optio
 
 // Runs all benchmark problems for the model.
 void model_run_all_benchmarks(model_t* model, options_t* options);
-
-// Reads input from the given input file.
-void model_read_input(model_t* model, const char* input_file);
 
 // Initializes the model at the given time.
 void model_init(model_t* model, double t);

@@ -742,7 +742,7 @@ static void poisson_advance(void* context, double t, double dt)
   VecRestoreArray(p->x, &x);
 }
 
-static void poisson_read_input(void* context, interpreter_t* interp)
+static void poisson_read_input(void* context, interpreter_t* interp, options_t* options)
 {
   poisson_t* p = (poisson_t*)context;
   p->mesh = interpreter_get_mesh(interp, "mesh");
