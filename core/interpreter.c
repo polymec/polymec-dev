@@ -141,9 +141,38 @@ static int constant_function(lua_State* lua)
   return 1;
 }
 
+// Creates a vector-valued function from 3 scalar functions.
+static int vector_function(lua_State* lua)
+{
+  // Check the argument.
+  int num_args = lua_gettop(lua);
+  if (num_args != 3)
+  {
+    lua_pushstring(lua, "Arguments must be 3 scalar functions.");
+    lua_error(lua);
+    return LUA_ERRRUN;
+  }
+  for (int i = 1; i <= 3; ++i)
+  {
+    if (!lua_isscalarfunction(lua, i))
+    {
+      lua_pushfstring(lua, "Argument %d must be a scalar function.", i);
+      lua_error(lua);
+      return LUA_ERRRUN;
+    }
+  }
+
+  st_func_t* functions[3];
+  for (int i = 1; i <= 3; ++i)
+    functions[i-1] = lua_toscalarfunction(lua, i);
+  lua_pushvectorfunction(lua, multicomp_st_func_from_funcs("vector function", functions, 3));
+  return 1;
+}
+
 static void register_default_functions(interpreter_t* interp)
 {
   interpreter_register_function(interp, "constant_function", constant_function);
+  interpreter_register_function(interp, "vector_function", vector_function);
 }
 
 interpreter_t* interpreter_new(interpreter_validation_t* valid_inputs)
