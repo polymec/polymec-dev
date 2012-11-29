@@ -42,10 +42,10 @@ typedef struct
   st_func_t* solution;      // Analytic solution (if non-NULL).
 
   str_ptr_unordered_map_t* bcs; // Boundary conditions.
-  poly_ls_shape_t* shape;       // Least-squares shape functions.
 
-  // Information for boundary cells.
-  boundary_cell_map_t*  boundary_cells;
+  boundary_cell_map_t* boundary_cells; // Boundary cell info
+  bool use_least_squares;   // Use least squares for boundary conditions?
+  poly_ls_shape_t* shape;   // Least-squares shape functions.
 
   // This flag is true if the source function or one of the BCs is 
   // time-dependent, and false otherwise.
@@ -458,13 +458,77 @@ static void run_paraboloid_3(options_t* options)
 //                        Model implementation
 //------------------------------------------------------------------------
 
-// Apply boundary conditions to a set of boundary cells.
-static void apply_bcs(boundary_cell_map_t* boundary_cells,
-                      mesh_t* mesh,
-                      poly_ls_shape_t* shape,
-                      double t,
-                      Mat A,
-                      Vec b)
+// Apply boundary conditions to a set of boundary cells using finite 
+// differences.
+static void apply_bcs_with_finite_differences(boundary_cell_map_t* boundary_cells,
+                                              mesh_t* mesh,
+                                              double t,
+                                              Mat A,
+                                              Vec b)
+{
+  // Go over the boundary cells, enforcing boundary conditions on each 
+  // face.
+  MatAssemblyBegin(A, MAT_FINAL_ASSEMBLY);
+  VecAssemblyBegin(b);
+  int pos = 0, bcell;
+  boundary_cell_t* cell_info;
+  while (boundary_cell_map_next(boundary_cells, &pos, &bcell, &cell_info))
+  {
+    cell_t* cell = &mesh->cells[bcell];
+
+    // We use ghost cells that are reflections of the boundary cells 
+    // through the boundary faces. For each of these cells, the 
+    // boundary condition alpha*phi + beta*dphi/dn = F assigns the 
+    // ghost value
+    //
+    // phi_g = (F + (beta/L - alpha/2)) * phi_i / (beta/L + alpha/2)
+    //
+    // where L is the distance between the interior centroid and the 
+    // ghost centroid. These means that the only contributions to the 
+    // linear system are on the diagonal of the matrix and to the 
+    // right hand side vector.
+    double Aii = 0.0, bi = 0;
+    for (int f = 0; f < cell_info->num_boundary_faces; ++f)
+    {
+      // Retrieve the boundary condition for this face.
+      poisson_bc_t* bc = cell_info->bc_for_face[f];
+
+      face_t* face = &mesh->faces[cell_info->boundary_faces[f]];
+      double alpha = bc->alpha, beta = bc->beta;
+
+      // Compute L.
+      double L = 2.0 * point_distance(&cell->center, &face->center);
+
+      // Compute F at the face center.
+      double F;
+      st_func_eval(bc->F, &face->center, t, &F);
+//printf("alpha = %g, beta = %g, F = %g, L = %g\n", alpha, beta, F, L);
+
+      // Add in the diagonal term (dphi/dn).
+      Aii += ((beta/L - 0.5*alpha) / (beta/L + 0.5*alpha) - 1.0) * face->area / L;
+//printf("A(%d, %d) += %g\n", bcell, bcell, ((beta/L - 0.5*alpha) / (beta/L + 0.5*alpha) - 1.0) / L);
+
+      // Add in the right hand side contribution.
+      bi -= (F / (beta/L + 0.5*alpha)) * face->area/ L;
+//printf("b(%d) -= %g\n", bcell, (F / (beta/L + 0.5*alpha)) / L);
+    }
+
+    // Sum the values into the linear system.
+    MatSetValues(A, 1, &bcell, 1, &bcell, &Aii, ADD_VALUES);
+    VecSetValues(b, 1, &bcell, &bi, ADD_VALUES);
+  }
+  MatAssemblyEnd(A, MAT_FINAL_ASSEMBLY);
+  VecAssemblyEnd(b);
+}
+
+// Apply boundary conditions to a set of boundary cells using least 
+// squares fits.
+static void apply_bcs_with_least_squares(boundary_cell_map_t* boundary_cells,
+                                         mesh_t* mesh,
+                                         poly_ls_shape_t* shape,
+                                         double t,
+                                         Mat A,
+                                         Vec b)
 {
   // Go over the boundary cells, enforcing boundary conditions on each 
   // face.
@@ -659,7 +723,10 @@ static void poisson_advance(void* context, double t, double dt)
   if (!p->is_time_dependent)
   {
     set_up_linear_system(p->mesh, p->L, p->rhs, t+dt, p->A, p->b);
-    apply_bcs(p->boundary_cells, p->mesh, p->shape, t+dt, p->A, p->b);
+    if (p->use_least_squares)
+      apply_bcs_with_least_squares(p->boundary_cells, p->mesh, p->shape, t+dt, p->A, p->b);
+    else
+      apply_bcs_with_finite_differences(p->boundary_cells, p->mesh, t+dt, p->A, p->b);
   }
 //  MatView(p->A, PETSC_VIEWER_STDOUT_SELF);
 //  VecView(p->b, PETSC_VIEWER_STDOUT_SELF);
@@ -754,7 +821,10 @@ static void poisson_init(void* context, double t)
   if (!p->is_time_dependent)
   {
     set_up_linear_system(p->mesh, p->L, p->rhs, t, p->A, p->b);
-    apply_bcs(p->boundary_cells, p->mesh, p->shape, t, p->A, p->b);
+    if (p->use_least_squares)
+      apply_bcs_with_least_squares(p->boundary_cells, p->mesh, p->shape, t, p->A, p->b);
+    else
+      apply_bcs_with_finite_differences(p->boundary_cells, p->mesh, t, p->A, p->b);
   }
 
   // We simply solve the problem for t = 0.
@@ -846,8 +916,18 @@ model_t* poisson_model_new(options_t* options)
   context->L = NULL;
   context->bcs = str_ptr_unordered_map_new();
   context->solution = NULL;
-  context->shape = poly_ls_shape_new(1, true);
-  poly_ls_shape_set_simple_weighting_func(context->shape, 2, 1e-2);
+
+  char* ls_opt = options_value(options, "use_least_squares");
+  context->use_least_squares = false;
+  if (ls_opt != NULL)
+    context->use_least_squares = atoi(ls_opt);
+  if (context->use_least_squares)
+  {
+    context->shape = poly_ls_shape_new(1, true);
+    poly_ls_shape_set_simple_weighting_func(context->shape, 2, 1e-2);
+  }
+  else
+    context->shape = NULL;
   context->boundary_cells = boundary_cell_map_new();
   context->initialized = false;
   context->comm = MPI_COMM_WORLD;
