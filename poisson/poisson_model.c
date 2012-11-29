@@ -502,15 +502,12 @@ static void apply_bcs_with_finite_differences(boundary_cell_map_t* boundary_cell
       // Compute F at the face center.
       double F;
       st_func_eval(bc->F, &face->center, t, &F);
-//printf("alpha = %g, beta = %g, F = %g, L = %g\n", alpha, beta, F, L);
 
       // Add in the diagonal term (dphi/dn).
       Aii += ((beta/L - 0.5*alpha) / (beta/L + 0.5*alpha) - 1.0) * face->area / L;
-//printf("A(%d, %d) += %g\n", bcell, bcell, ((beta/L - 0.5*alpha) / (beta/L + 0.5*alpha) - 1.0) / L);
 
       // Add in the right hand side contribution.
-      bi -= (F / (beta/L + 0.5*alpha)) * face->area/ L;
-//printf("b(%d) -= %g\n", bcell, (F / (beta/L + 0.5*alpha)) / L);
+      bi -= (F / (beta/L + 0.5*alpha)) * face->area / L;
     }
 
     // Sum the values into the linear system.
@@ -958,7 +955,6 @@ model_t* poisson_model_new(options_t* options)
 
   return model;
 }
-
 
 #ifdef __cplusplus
 }

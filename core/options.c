@@ -74,9 +74,11 @@ options_t* options_parse(int argc, char** argv)
 
     char* key = strsep(&string, "=");
     char* value = NULL;
-    if (key != NULL)
+    if ((key != NULL) && (string != NULL))
+    {
       value = string;
-    options_set(o, key, value);
+      options_set(o, key, value);
+    }
 
     // Clean up.
     free(tofree);
