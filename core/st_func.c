@@ -118,6 +118,53 @@ sp_func_t* st_func_freeze(st_func_t* func, double t)
   return sp_func_new(name, (void*)c, vtable, homog, st_func_num_comp(func));
 }
 
+// Multicomponent function stuff.
+
+typedef struct 
+{
+  st_func_t** functions;
+  int num_comp;
+} multicomp_st_func_t;
+
+static void multicomp_eval(void* context, point_t* x, double t, double* result)
+{
+  multicomp_st_func_t* mc = (multicomp_st_func_t*)context;
+  for (int i = 0; i < mc->num_comp; ++i)
+    st_func_eval(mc->functions[i], x, t, &result[i]);
+}
+
+static void multicomp_dtor(void* context)
+{
+  multicomp_st_func_t* mc = (multicomp_st_func_t*)context;
+  free(mc->functions);
+  free(mc);
+}
+
+st_func_t* multicomp_st_func_from_funcs(const char* name, 
+                                        st_func_t** functions,
+                                        int num_comp)
+{
+  st_func_homogeneity_t homogeneity = ST_HOMOGENEOUS;
+  st_func_constancy_t constancy = ST_CONSTANT;
+  // The functions determine the constancy and homogeneity.
+  multicomp_st_func_t* mc = malloc(sizeof(multicomp_st_func_t));
+  mc->num_comp = num_comp;
+  mc->functions = malloc(sizeof(st_func_t*)*num_comp);
+  for (int i = 0; i < num_comp; ++i)
+  {
+    ASSERT(functions[i] != NULL);
+    ASSERT(st_func_num_comp(functions[i]) == 1);
+    mc->functions[i] = functions[i];
+    if (!st_func_is_homogeneous(functions[i]))
+      homogeneity = ST_INHOMOGENEOUS;
+    if (!st_func_is_constant(functions[i]))
+      constancy = ST_NONCONSTANT;
+  }
+  st_vtable vtable = {.eval = multicomp_eval, .dtor = multicomp_dtor};
+  return st_func_new(name, (void*)mc, vtable, 
+                     homogeneity, constancy, num_comp);
+}
+
 #ifdef __cplusplus
 }
 #endif

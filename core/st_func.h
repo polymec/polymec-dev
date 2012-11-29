@@ -73,6 +73,12 @@ void st_func_eval(st_func_t* func, point_t* x, double t, double* result);
 // Creates an sp_func from this st_func by "freezing" it at the given time.
 sp_func_t* st_func_freeze(st_func_t* func, double t);
 
+// Construct a multi-component space-time function from a set of 
+// single-valued space-time functions.
+st_func_t* multicomp_st_func_from_funcs(const char* name, 
+                                        st_func_t** functions,
+                                        int num_comp);
+
 #ifdef __cplusplus
 }
 #endif
