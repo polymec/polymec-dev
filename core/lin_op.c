@@ -20,6 +20,7 @@ static void lin_op_free(void* ctx, void* dummy)
   lin_op_t* op = (lin_op_t*)ctx;
   if (op->vtable.dtor)
     op->vtable.dtor(op->context);
+  op->context = NULL;
   free(op->name);
   free(op);
 }

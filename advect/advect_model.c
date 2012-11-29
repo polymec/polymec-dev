@@ -101,18 +101,25 @@ typedef struct
 } advect_t;
 
 // A proper constructor.
-static model_t* create_advect(mesh_t* mesh, st_func_t* initial_cond, st_func_t* diffusivity, st_func_t* source, str_ptr_unordered_map_t* bcs, options_t* options)
+static model_t* create_advect(mesh_t* mesh, 
+                              st_func_t* velocity, 
+                              st_func_t* diffusivity, 
+                              st_func_t* source, 
+                              st_func_t* initial_cond, 
+                              str_ptr_unordered_map_t* bcs, 
+                              options_t* options)
 {
   model_t* poisson = advect_model_new(options);
   advect_t* a = (advect_t*)model_context(poisson);
   a->mesh = mesh;
-  a->initial_cond = initial_cond;
+  a->velocity = velocity;
   a->diffusivity = diffusivity;
   a->source = source;
+  a->initial_cond = initial_cond;
   if (a->bcs != NULL)
     str_ptr_unordered_map_free(a->bcs);
   a->bcs = bcs;
-  a->D = diffusion_op_new(a->mesh);
+  a->D = diffusion_op_new(a->mesh, diffusivity);
 
   // Determine whether this model is time-dependent.
   a->is_time_dependent = !st_func_is_constant(a->source);
@@ -183,10 +190,21 @@ static mesh_t* create_cube_mesh(int dim, int N, bbox_t* bbox)
   return mesh;
 }
 
-static void run_analytic_problem(mesh_t* mesh, st_func_t* initial_cond, st_func_t* diffusivity, st_func_t* source, str_ptr_unordered_map_t* bcs, options_t* options, double t1, double t2, st_func_t* solution, double* lp_norms)
+static void run_analytic_problem(mesh_t* mesh, 
+                                 st_func_t* velocity, 
+                                 st_func_t* diffusivity, 
+                                 st_func_t* source, 
+                                 st_func_t* initial_cond, 
+                                 str_ptr_unordered_map_t* bcs, 
+                                 options_t* options, 
+                                 double t1, 
+                                 double t2, 
+                                 st_func_t* solution, 
+                                 double* lp_norms)
 {
   // Create the model.
-  model_t* model = create_advect(mesh, initial_cond, diffusivity, source, bcs, options);
+  model_t* model = create_advect(mesh, velocity, diffusivity, source, 
+                                 initial_cond, bcs, options);
 
   // Run the thing.
   model_run(model, t1, t2, INT_MAX);
@@ -219,20 +237,23 @@ static void run_analytic_problem(mesh_t* mesh, st_func_t* initial_cond, st_func_
   model_free(model);
 }
 
-static void advect_run_1d_flow(options_t* options, double phi1, double phi2, st_func_t* solution, int dim)
+static void advect_run_1d_flow(options_t* options, 
+                               st_func_t* velocity, 
+                               st_func_t* diffusivity, 
+                               st_func_t* initial_cond, 
+                               st_func_t* solution, 
+                               int dim)
 {
   // Boundary conditions.
   str_ptr_unordered_map_t* bcs = str_ptr_unordered_map_new();
 
   // Dirichlet on -x/+x.
-  st_func_t* phiL = constant_st_func_new(1.0, &phi1);
-  st_func_t* phiR = constant_st_func_new(1.0, &phi2);
-  str_ptr_unordered_map_insert(bcs, "-x", advect_bc_new(1.0, 0.0, phiL));
-  str_ptr_unordered_map_insert(bcs, "+x", advect_bc_new(1.0, 0.0, phiR));
+  str_ptr_unordered_map_insert(bcs, "-x", advect_bc_new(1.0, 0.0, solution));
+  str_ptr_unordered_map_insert(bcs, "+x", advect_bc_new(1.0, 0.0, solution));
 
   // Transverse faces - homogeneous Neumann BCs.
   double z = 0.0;
-  st_func_t* zero = constant_st_func_new(1.0, &z);
+  st_func_t* zero = constant_st_func_new(1, &z);
   str_ptr_unordered_map_insert(bcs, "-y", advect_bc_new(0.0, 1.0, zero));
   str_ptr_unordered_map_insert(bcs, "+y", advect_bc_new(0.0, 1.0, zero));
   str_ptr_unordered_map_insert(bcs, "-z", advect_bc_new(0.0, 1.0, zero));
@@ -273,7 +294,8 @@ static void advect_run_1d_flow(options_t* options, double phi1, double phi2, st_
       bbox.z2 = dx;
     mesh_t* mesh = create_cube_mesh(dim, N, &bbox);
     str_ptr_unordered_map_t* bcs_copy = str_ptr_unordered_map_copy(bcs);
-    run_analytic_problem(mesh, solution, zero, zero, bcs_copy, options, t1, t2, solution, Lp_norms[iter]);
+    run_analytic_problem(mesh, velocity, diffusivity, zero, initial_cond, 
+                         bcs_copy, options, t1, t2, solution, Lp_norms[iter]);
 
     // If we run in 1D or 2D, we need to adjust the norms.
     if (dim == 1)
@@ -296,17 +318,34 @@ static void advect_run_1d_flow(options_t* options, double phi1, double phi2, st_
   while (str_ptr_unordered_map_next(bcs, &pos, &key, &value))
     advect_bc_free(value);
   str_ptr_unordered_map_free(bcs);
-  zero = phiL = phiR = NULL;
+  zero = NULL;
 }
 
 static void run_stationary_flow_1d(options_t* options)
 {
-  advect_run_1d_flow(options, 1.0, 1.0, NULL, 1);
+  double z = 0.0, o = 1.0;
+  st_func_t* zero = constant_st_func_new(1, &z);
+  st_func_t* one = constant_st_func_new(1, &o);
+  advect_run_1d_flow(options, one, zero, one, one, 1);
+  zero = one = NULL;
+}
+
+static void stationary_blayer_1d_soln(void* ctx, point_t* x, double t, double* phi)
+{
+  double xx = x->x;
+  double a = 1.0, d = 1.0;
+  *phi = (exp(a/d) - exp(a*xx/d)) / (exp(a/d) - 1.0);
 }
 
 static void run_stationary_blayer_1d(options_t* options)
 {
-  advect_run_1d_flow(options, 1.0, 0.0, NULL, 1);
+  double z = 0.0, o = 1.0;
+  st_func_t* zero = constant_st_func_new(1, &z);
+  st_func_t* one = constant_st_func_new(1, &o);
+  st_func_t* soln = st_func_from_func("blayer 1d", stationary_blayer_1d_soln,
+                                      ST_INHOMOGENEOUS, ST_CONSTANT, 1);
+  advect_run_1d_flow(options, one, one, soln, soln, 1);
+  zero = one = soln = NULL;
 }
 
 //------------------------------------------------------------------------
@@ -320,6 +359,8 @@ static void compute_upwind_fluxes(mesh_t* mesh, st_func_t* velocity, st_func_t* 
   for (int f = 0; f < num_faces; ++f)
   {
     face_t* face = &mesh->faces[f];
+    if (face->cell2 == NULL) continue;
+
     // Compute the normal vector through this face, assuming that it is 
     // parallel to the displacement vector separating the centroids of the 
     // adjoining cells.
@@ -579,7 +620,8 @@ static void advect_init(void* context, double t)
   ASSERT(a->source != NULL);
 
   // Set up the diffusion operator.
-  a->D = diffusion_op_new(a->mesh);
+  if (a->diffusivity != NULL)
+    a->D = diffusion_op_new(a->mesh, a->diffusivity);
 
   // If the model has been previously initialized, clean everything out.
   if (a->diff_system != NULL)
@@ -693,6 +735,7 @@ model_t* advect_model_new(options_t* options)
   a->solution = NULL;
   a->initial_cond = NULL;
   a->D = NULL;
+  a->diff_system = NULL;
   a->bcs = str_ptr_unordered_map_new();
   a->boundary_cells = boundary_cell_map_new();
   a->comm = MPI_COMM_WORLD;
