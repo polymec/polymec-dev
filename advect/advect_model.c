@@ -485,7 +485,7 @@ static double advect_max_dt(void* context, double t, char* reason)
     double Vmag = sqrt(V[0]*V[0] + V[1]*V[1] + V[2]*V[2]);
     if ((L / Vmag) < dt)
     {
-      dt = L / Vmag;
+      dt = a->CFL * L / Vmag;
       sprintf(reason, "CFL condition at cell %d.", c);
     }
   }
@@ -543,7 +543,7 @@ static void advect_advance(void* context, double t, double dt)
   memcpy(a->phi, phi_new, sizeof(double)*num_cells);
 }
 
-static void advect_read_input(void* context, interpreter_t* interp)
+static void advect_read_input(void* context, interpreter_t* interp, options_t* options)
 {
   advect_t* a = (advect_t*)context;
   a->mesh = interpreter_get_mesh(interp, "mesh");
@@ -560,6 +560,14 @@ static void advect_read_input(void* context, interpreter_t* interp)
   if (a->bcs == NULL)
     polymec_error("poisson: No table of boundary conditions (bcs) was specified.");
   a->diffusivity = interpreter_get_scalar_function(interp, "diffusivity");
+
+  // If CFL wasn't given on the command line, look for it here.
+  if (options_value(options, "CFL") == NULL)
+  {
+    double CFL = interpreter_get_number(interp, "CFL");
+    if (CFL != -FLT_MAX)
+      a->CFL = CFL;
+  }
 }
 
 static void advect_init(void* context, double t)
@@ -675,20 +683,31 @@ model_t* advect_model_new(options_t* options)
                           .save = advect_save,
                           .plot = advect_plot,
                           .dtor = advect_dtor};
-  advect_t* context = malloc(sizeof(advect_t));
-  context->mesh = NULL;
-  context->phi = NULL;
-  context->diffusivity = NULL;
-  context->velocity = NULL;
+  advect_t* a = malloc(sizeof(advect_t));
+  a->mesh = NULL;
+  a->phi = NULL;
+  a->diffusivity = NULL;
+  a->velocity = NULL;
   double zero = 0.0;
-  context->source = constant_st_func_new(1, &zero);
-  context->solution = NULL;
-  context->initial_cond = NULL;
-  context->D = NULL;
-  context->bcs = str_ptr_unordered_map_new();
-  context->boundary_cells = boundary_cell_map_new();
-  context->comm = MPI_COMM_WORLD;
-  model_t* model = model_new("advect", context, vtable, options);
+  a->source = constant_st_func_new(1, &zero);
+  a->solution = NULL;
+  a->initial_cond = NULL;
+  a->D = NULL;
+  a->bcs = str_ptr_unordered_map_new();
+  a->boundary_cells = boundary_cell_map_new();
+  a->comm = MPI_COMM_WORLD;
+  model_t* model = model_new("advect", a, vtable, options);
+
+  // Process options.
+  {
+    char* cfl_str = options_value(options, "CFL");
+    if (cfl_str != NULL)
+      a->CFL = atof(cfl_str);
+    else
+      a->CFL = 1.0;
+    if ((a->CFL <= 0.0) || (a->CFL > 1.0))
+      polymec_error("CFL should be between 0 and 1.");
+  }
 
   // Register benchmarks.
   model_register_benchmark(model, "stationary_flow_1d", run_stationary_flow_1d, "Stational flow in 1D (v = 1).");
