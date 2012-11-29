@@ -549,17 +549,17 @@ static void advect_read_input(void* context, interpreter_t* interp)
   a->mesh = interpreter_get_mesh(interp, "mesh");
   if (a->mesh == NULL)
     polymec_error("advect: No mesh was specified.");
-  a->velocity = interpreter_get_function(interp, "velocity");
+  a->velocity = interpreter_get_vector_function(interp, "velocity");
   if (a->velocity == NULL)
     polymec_error("advect: No velocity function was specified.");
-  a->initial_cond = interpreter_get_function(interp, "initial_cond");
+  a->initial_cond = interpreter_get_scalar_function(interp, "initial_cond");
   if (a->initial_cond == NULL)
     polymec_error("advect: No initial condition (initial_cond) was specified.");
-  a->source = interpreter_get_function(interp, "source");
+  a->source = interpreter_get_scalar_function(interp, "source");
   a->bcs = interpreter_get_table(interp, "bcs");
   if (a->bcs == NULL)
     polymec_error("poisson: No table of boundary conditions (bcs) was specified.");
-  a->diffusivity = interpreter_get_function(interp, "diffusivity");
+  a->diffusivity = interpreter_get_scalar_function(interp, "diffusivity");
 }
 
 static void advect_init(void* context, double t)

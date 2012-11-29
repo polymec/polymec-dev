@@ -748,7 +748,7 @@ static void poisson_read_input(void* context, interpreter_t* interp)
   p->mesh = interpreter_get_mesh(interp, "mesh");
   if (p->mesh == NULL)
     polymec_error("poisson: No mesh was specified.");
-  p->rhs = interpreter_get_function(interp, "rhs");
+  p->rhs = interpreter_get_scalar_function(interp, "rhs");
   if (p->rhs == NULL)
     polymec_error("poisson: No right hand side (rhs) was specified.");
   p->bcs = interpreter_get_table(interp, "bcs");
@@ -932,9 +932,9 @@ model_t* poisson_model_new(options_t* options)
 
   // Set up an interpreter.
   interpreter_validation_t valid_inputs[] = {{"mesh", INTERPRETER_MESH},
-                                             {"rhs", INTERPRETER_FUNCTION},
+                                             {"rhs", INTERPRETER_SCALAR_FUNCTION},
                                              {"bcs", INTERPRETER_TABLE},
-                                             {"solution", INTERPRETER_FUNCTION},
+                                             {"solution", INTERPRETER_SCALAR_FUNCTION},
                                              END_OF_VALID_INPUTS};
   model_enable_interpreter(model, valid_inputs);
   interpreter_register_geometry_functions(model_interpreter(model));
