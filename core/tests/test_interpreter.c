@@ -7,13 +7,15 @@
 
 const char* test_string = 
 "f = constant_function(5)\n"
+"F = constant_function(1, 2, 3)\n"
 "g = 2\n"
 "h = 3.0\n"
 "i = 'string cheese'\n";
 
 void test_interpreter(void** state)
 {
-  interpreter_validation_t valid_inputs[] = {{"f", INTERPRETER_FUNCTION},
+  interpreter_validation_t valid_inputs[] = {{"f", INTERPRETER_SCALAR_FUNCTION},
+                                             {"F", INTERPRETER_VECTOR_FUNCTION},
                                              {"g", INTERPRETER_NUMBER},
                                              {"h", INTERPRETER_NUMBER},
                                              {"i", INTERPRETER_STRING},
@@ -21,19 +23,38 @@ void test_interpreter(void** state)
   interpreter_t* interp = interpreter_new(valid_inputs);
   interpreter_parse_string(interp, (char*)test_string);
 
-  assert_true(interpreter_contains(interp, "f", INTERPRETER_FUNCTION));
-  assert_true(interpreter_get_function(interp, "f") != NULL);
+  assert_true(interpreter_contains(interp, "f", INTERPRETER_SCALAR_FUNCTION));
+  assert_true(interpreter_get_scalar_function(interp, "f") != NULL);
+  assert_true(!interpreter_contains(interp, "f", INTERPRETER_VECTOR_FUNCTION));
   assert_true(!interpreter_contains(interp, "f", INTERPRETER_NUMBER));
   assert_true(interpreter_get_number(interp, "f") == -FLT_MAX);
   assert_true(!interpreter_contains(interp, "f", INTERPRETER_STRING));
   assert_true(!interpreter_contains(interp, "f", INTERPRETER_MESH));
-  st_func_t* F = interpreter_get_function(interp, "f");
-  assert_true(st_func_is_homogeneous(F));
-  assert_true(st_func_is_constant(F));
+  st_func_t* f = interpreter_get_scalar_function(interp, "f");
+  assert_int_equal(1, st_func_num_comp(f));
+  assert_true(st_func_is_homogeneous(f));
+  assert_true(st_func_is_constant(f));
   point_t x;
   double t, five;
-  st_func_eval(F, &x, t, &five);
+  st_func_eval(f, &x, t, &five);
   assert_true(fabs(five - 5.0) < 1e-15);
+
+  assert_true(interpreter_contains(interp, "F", INTERPRETER_VECTOR_FUNCTION));
+  assert_true(interpreter_get_vector_function(interp, "F") != NULL);
+  assert_true(!interpreter_contains(interp, "F", INTERPRETER_SCALAR_FUNCTION));
+  assert_true(!interpreter_contains(interp, "F", INTERPRETER_NUMBER));
+  assert_true(interpreter_get_number(interp, "F") == -FLT_MAX);
+  assert_true(!interpreter_contains(interp, "F", INTERPRETER_STRING));
+  assert_true(!interpreter_contains(interp, "F", INTERPRETER_MESH));
+  st_func_t* F = interpreter_get_vector_function(interp, "F");
+  assert_int_equal(3, st_func_num_comp(F));
+  assert_true(st_func_is_homogeneous(F));
+  assert_true(st_func_is_constant(F));
+  double one_two_three[3];
+  st_func_eval(F, &x, t, one_two_three);
+  assert_true(fabs(one_two_three[0] - 1.0) < 1e-15);
+  assert_true(fabs(one_two_three[1] - 2.0) < 1e-15);
+  assert_true(fabs(one_two_three[2] - 3.0) < 1e-15);
 
   assert_true(interpreter_contains(interp, "g", INTERPRETER_NUMBER));
   assert_true((int)interpreter_get_number(interp, "g") == 2);

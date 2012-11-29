@@ -94,24 +94,50 @@ struct interpreter_t
   str_unordered_set_t* preexisting_vars;
 };
 
-// Creates a constant (scalar-valued) function from a number.
+// Creates a constant function from a number or a 3-tuple.
 static int constant_function(lua_State* lua)
 {
   // Check the argument.
   int num_args = lua_gettop(lua);
-  if ((num_args != 1) || !lua_isnumber(lua, 1))
+  if (num_args == 1) // Scalar-valued constant.
   {
-    lua_pushstring(lua, "Argument must be a number.");
+    if (!lua_isnumber(lua, 1))
+    {
+      lua_pushstring(lua, "Argument must be a number.");
+      lua_error(lua);
+      return LUA_ERRRUN;
+    }
+  }
+  else if (num_args == 3) // Vector-valued constant.
+  {
+    for (int i = 0; i < 3; ++i)
+    {
+      if (!lua_isnumber(lua, i+1))
+      {
+        lua_pushfstring(lua, "Argument %d must be a number.", i);
+        lua_error(lua);
+        return LUA_ERRRUN;
+      }
+    }
+  }
+  else
+  {
+    lua_pushstring(lua, "Argument must be a 1 or 3 numbers.");
     lua_error(lua);
     return LUA_ERRRUN;
   }
 
-  // Get the argument.
-  double arg = lua_tonumber(lua, 1);
+  // Get the arguments.
+  double args[3];
+  for (int i = 0; i < num_args; ++i)
+    args[i] = lua_tonumber(lua, i+1);
 
   // Push a constant function onto the stack.
-  st_func_t* func = constant_st_func_new(1, &arg);
-  lua_pushstfunc(lua, func);
+  st_func_t* func = constant_st_func_new(num_args, args);
+  if (num_args == 1)
+    lua_pushscalarfunction(lua, func);
+  else
+    lua_pushvectorfunction(lua, func);
   return 1;
 }
 
@@ -281,22 +307,40 @@ static void interpreter_store_chunk_contents(interpreter_t* interp, lua_State* l
             polymec_error("Type error: %s must be a mesh.", key);
         }
       }
-      else if (entry->type == INTERPRETER_FUNCTION)
+      else if (entry->type == INTERPRETER_SCALAR_FUNCTION)
       {
         if (!lua_islightuserdata(lua, val_index))
         {
           if (preexisting_var)
             skip_this_var = true;
           else
-            polymec_error("Type error: %s must be a function.", key);
+            polymec_error("Type error: %s must be a scalar-valued function.", key);
         }
         interpreter_storage_t* var = (void*)lua_topointer(lua, val_index);
-        if (var->type != INTERPRETER_FUNCTION)
+        if (var->type != INTERPRETER_SCALAR_FUNCTION)
         {
           if (preexisting_var)
             skip_this_var = true;
           else
-            polymec_error("Type error: %s must be a function.", key);
+            polymec_error("Type error: %s must be a scalar-valued function.", key);
+        }
+      }
+      else if (entry->type == INTERPRETER_VECTOR_FUNCTION)
+      {
+        if (!lua_islightuserdata(lua, val_index))
+        {
+          if (preexisting_var)
+            skip_this_var = true;
+          else
+            polymec_error("Type error: %s must be a vector-valued function.", key);
+        }
+        interpreter_storage_t* var = (void*)lua_topointer(lua, val_index);
+        if (var->type != INTERPRETER_VECTOR_FUNCTION)
+        {
+          if (preexisting_var)
+            skip_this_var = true;
+          else
+            polymec_error("Type error: %s must be a vector-valued function.", key);
         }
       }
       else if ((entry->type == INTERPRETER_TABLE) && !lua_istable(lua, val_index))
@@ -556,14 +600,28 @@ mesh_t* interpreter_get_mesh(interpreter_t* interp, const char* name)
   return (mesh_t*)((*storage)->datum);
 }
 
-st_func_t* interpreter_get_function(interpreter_t* interp, const char* name)
+st_func_t* interpreter_get_scalar_function(interpreter_t* interp, const char* name)
 {
   interpreter_storage_t** storage = interpreter_map_get(interp->store, (char*)name);
   if (storage == NULL)
     return NULL;
-  if ((*storage)->type != INTERPRETER_FUNCTION)
+  if ((*storage)->type != INTERPRETER_SCALAR_FUNCTION)
     return NULL;
-  return (st_func_t*)((*storage)->datum);
+  st_func_t* func = (st_func_t*)((*storage)->datum);
+  ASSERT(st_func_num_comp(func) == 1);
+  return func;
+}
+
+st_func_t* interpreter_get_vector_function(interpreter_t* interp, const char* name)
+{
+  interpreter_storage_t** storage = interpreter_map_get(interp->store, (char*)name);
+  if (storage == NULL)
+    return NULL;
+  if ((*storage)->type != INTERPRETER_VECTOR_FUNCTION)
+    return NULL;
+  st_func_t* func = (st_func_t*)((*storage)->datum);
+  ASSERT(st_func_num_comp(func) == 3);
+  return func;
 }
 
 str_ptr_unordered_map_t* interpreter_get_table(interpreter_t* interp, const char* name)
@@ -592,30 +650,63 @@ void* interpreter_get_user_defined(interpreter_t* interp, const char* name)
 //                          Lua helpers.
 //------------------------------------------------------------------------
 
-bool lua_isstfunc(struct lua_State* lua, int index)
+bool lua_isscalarfunction(struct lua_State* lua, int index)
 {
   if (!lua_islightuserdata(lua, index))
     return false;
   interpreter_storage_t* storage = (interpreter_storage_t*)lua_topointer(lua, index);
-  return (storage->type == INTERPRETER_FUNCTION);
+  return (storage->type == INTERPRETER_SCALAR_FUNCTION);
 }
 
-st_func_t* lua_tostfunc(struct lua_State* lua, int index)
+st_func_t* lua_toscalarfunction(struct lua_State* lua, int index)
 {
   if (!lua_islightuserdata(lua, index))
     return NULL;
   interpreter_storage_t* storage = (interpreter_storage_t*)lua_topointer(lua, index);
-  if (storage->type == INTERPRETER_FUNCTION)
+  if (storage->type == INTERPRETER_SCALAR_FUNCTION)
     return (st_func_t*)storage->datum;
   else
     return NULL;
 }
 
-void lua_pushstfunc(struct lua_State* lua, st_func_t* func)
+void lua_pushscalarfunction(struct lua_State* lua, st_func_t* func)
 {
+  // Only single-component functions are allowed.
+  ASSERT(st_func_num_comp(func) == 1); 
   // Bundle it up and store it in the given variable.
   interpreter_storage_t* storage = malloc(sizeof(interpreter_storage_t));
-  storage->type = INTERPRETER_FUNCTION;
+  storage->type = INTERPRETER_SCALAR_FUNCTION;
+  storage->datum = (void*)func;
+  storage->dtor = NULL;
+  lua_pushlightuserdata(lua, (void*)storage);
+}
+
+bool lua_isvectorfunction(struct lua_State* lua, int index)
+{
+  if (!lua_islightuserdata(lua, index))
+    return false;
+  interpreter_storage_t* storage = (interpreter_storage_t*)lua_topointer(lua, index);
+  return (storage->type == INTERPRETER_VECTOR_FUNCTION);
+}
+
+st_func_t* lua_tovectorfunction(struct lua_State* lua, int index)
+{
+  if (!lua_islightuserdata(lua, index))
+    return NULL;
+  interpreter_storage_t* storage = (interpreter_storage_t*)lua_topointer(lua, index);
+  if (storage->type == INTERPRETER_VECTOR_FUNCTION)
+    return (st_func_t*)storage->datum;
+  else
+    return NULL;
+}
+
+void lua_pushvectorfunction(struct lua_State* lua, st_func_t* func)
+{
+  // Only 3-component functions are allowed.
+  ASSERT(st_func_num_comp(func) == 3); 
+  // Bundle it up and store it in the given variable.
+  interpreter_storage_t* storage = malloc(sizeof(interpreter_storage_t));
+  storage->type = INTERPRETER_VECTOR_FUNCTION;
   storage->datum = (void*)func;
   storage->dtor = NULL;
   lua_pushlightuserdata(lua, (void*)storage);

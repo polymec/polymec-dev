@@ -22,7 +22,8 @@ typedef enum
   INTERPRETER_STRING,
   INTERPRETER_NUMBER,
   INTERPRETER_MESH,
-  INTERPRETER_FUNCTION,
+  INTERPRETER_SCALAR_FUNCTION,
+  INTERPRETER_VECTOR_FUNCTION,
   INTERPRETER_TABLE,
   INTERPRETER_USER_DEFINED, // <-- on your head be it!!
   INTERPRETER_TERMINUS // Used only to terminate validation lists.
@@ -74,9 +75,13 @@ double interpreter_get_number(interpreter_t* interp, const char* name);
 // for destroying the mesh after this call.
 mesh_t* interpreter_get_mesh(interpreter_t* interp, const char* name);
 
-// Fetches the given space-time function from the interpreter, returning NULL 
+// Fetches the given scalar function from the interpreter, returning NULL 
 // if it is not found or if it is not a table. 
-st_func_t* interpreter_get_function(interpreter_t* interp, const char* name);
+st_func_t* interpreter_get_scalar_function(interpreter_t* interp, const char* name);
+
+// Fetches the given vector function from the interpreter, returning NULL 
+// if it is not found or if it is not a table. 
+st_func_t* interpreter_get_vector_function(interpreter_t* interp, const char* name);
 
 // Fetches the given table from the interpreter, returning NULL if it 
 // is not found or if it is not a table. The caller assumes responsibility
@@ -94,17 +99,29 @@ void* interpreter_get_user_defined(interpreter_t* interp, const char* name);
 // interpreter.
 //------------------------------------------------------------------------
 
-// This helper returns true if the object at the given index is a space-time
+// This helper returns true if the object at the given index is a scalar-valued
 // function, false if not.
-bool lua_isstfunc(struct lua_State* lua, int index);
+bool lua_isscalarfunction(struct lua_State* lua, int index);
 
-// This helper retrieves an st_func from the given index on an active lua 
-// interpreter, or returns NULL if the index does not point to an st_func.
-st_func_t* lua_tostfunc(struct lua_State* lua, int index);
+// This helper retrieves a scalar-valued function from the given index on an 
+// active lua interpreter, or returns NULL if the index does not point to an st_func.
+st_func_t* lua_toscalarfunction(struct lua_State* lua, int index);
 
-// Pushes a space-time function onto the interpreter's stack (as a 
+// Pushes a scalar-valued function onto the interpreter's stack (as a 
 // return value for a function).
-void lua_pushstfunc(struct lua_State* lua, st_func_t* func);
+void lua_pushscalarfunction(struct lua_State* lua, st_func_t* func);
+
+// This helper returns true if the object at the given index is a vector-valued
+// function, false if not.
+bool lua_isvectorfunction(struct lua_State* lua, int index);
+
+// This helper retrieves a vector-valued function from the given index on an 
+// active lua interpreter, or returns NULL if the index does not point to an st_func.
+st_func_t* lua_tovectorfunction(struct lua_State* lua, int index);
+
+// Pushes a vector-valued function onto the interpreter's stack (as a 
+// return value for a function).
+void lua_pushvectorfunction(struct lua_State* lua, st_func_t* func);
 
 // This helper returns true if the object at the given index is a mesh,
 // false if not.
