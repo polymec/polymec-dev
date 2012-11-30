@@ -36,11 +36,6 @@ static void destroy_table_entry(char* key, void* value)
   free(value);
 }
 
-static void destroy_mesh(void* mesh)
-{
-  mesh_free((mesh_t*)mesh);
-}
-
 static interpreter_storage_t* store_string(const char* var)
 {
   interpreter_storage_t* storage = malloc(sizeof(interpreter_storage_t));
@@ -61,6 +56,40 @@ static interpreter_storage_t* store_number(double var)
   return storage;
 }
 
+static void destroy_mesh(void* mesh)
+{
+  mesh_free((mesh_t*)mesh);
+}
+
+static interpreter_storage_t* store_mesh(mesh_t* var)
+{
+  interpreter_storage_t* storage = malloc(sizeof(interpreter_storage_t));
+  storage->type = INTERPRETER_MESH;
+  storage->datum = (void*)var;
+  storage->dtor = destroy_mesh;
+  return storage;
+}
+
+static interpreter_storage_t* store_scalar_function(st_func_t* var)
+{
+  ASSERT(st_func_num_comp(var) == 1);
+  interpreter_storage_t* storage = malloc(sizeof(interpreter_storage_t));
+  storage->type = INTERPRETER_SCALAR_FUNCTION;
+  storage->datum = (void*)var;
+  storage->dtor = NULL;
+  return storage;
+}
+
+static interpreter_storage_t* store_vector_function(st_func_t* var)
+{
+  ASSERT(st_func_num_comp(var) == 3);
+  interpreter_storage_t* storage = malloc(sizeof(interpreter_storage_t));
+  storage->type = INTERPRETER_VECTOR_FUNCTION;
+  storage->datum = (void*)var;
+  storage->dtor = NULL;
+  return storage;
+}
+
 static void destroy_table(void* table)
 {
   str_ptr_unordered_map_free((str_ptr_unordered_map_t*)table);
@@ -73,6 +102,15 @@ static interpreter_storage_t* store_table(str_ptr_unordered_map_t* table)
   storage->type = INTERPRETER_TABLE;
   storage->dtor = destroy_table;
   return storage;
+}
+
+static interpreter_storage_t* store_user_defined(void* user_defined, void (*dtor)(void*))
+{
+  interpreter_storage_t* storage = malloc(sizeof(interpreter_storage_t));
+  storage->type = INTERPRETER_USER_DEFINED;
+  storage->datum = (void*)user_defined;
+  storage->dtor = dtor;
+  return storage; 
 }
 
 // Interpreter data structure.
@@ -608,6 +646,12 @@ char* interpreter_get_string(interpreter_t* interp, const char* name)
   return (char*)((*storage)->datum);
 }
 
+void interpreter_set_string(interpreter_t* interp, const char* name, const char* value)
+{
+  interpreter_storage_t* storage = store_string(value);
+  interpreter_map_insert_with_dtor(interp->store, strdup(name), storage, destroy_variable);
+}
+
 double interpreter_get_number(interpreter_t* interp, const char* name)
 {
   interpreter_storage_t** storage = interpreter_map_get(interp->store, (char*)name);
@@ -616,6 +660,12 @@ double interpreter_get_number(interpreter_t* interp, const char* name)
   if ((*storage)->type != INTERPRETER_NUMBER)
     return -FLT_MAX;
   return *((double*)(*storage)->datum);
+}
+
+void interpreter_set_number(interpreter_t* interp, const char* name, double value)
+{
+  interpreter_storage_t* storage = store_number(value);
+  interpreter_map_insert_with_dtor(interp->store, strdup(name), storage, destroy_variable);
 }
 
 mesh_t* interpreter_get_mesh(interpreter_t* interp, const char* name)
@@ -627,6 +677,12 @@ mesh_t* interpreter_get_mesh(interpreter_t* interp, const char* name)
     return NULL;
   (*storage)->dtor = NULL; // Caller assumes responsibility for mesh.
   return (mesh_t*)((*storage)->datum);
+}
+
+void interpreter_set_mesh(interpreter_t* interp, const char* name, mesh_t* value)
+{
+  interpreter_storage_t* storage = store_mesh(value);
+  interpreter_map_insert_with_dtor(interp->store, strdup(name), storage, destroy_variable);
 }
 
 st_func_t* interpreter_get_scalar_function(interpreter_t* interp, const char* name)
@@ -641,6 +697,12 @@ st_func_t* interpreter_get_scalar_function(interpreter_t* interp, const char* na
   return func;
 }
 
+void interpreter_set_scalar_function(interpreter_t* interp, const char* name, st_func_t* value)
+{
+  interpreter_storage_t* storage = store_scalar_function(value);
+  interpreter_map_insert_with_dtor(interp->store, strdup(name), storage, destroy_variable);
+}
+
 st_func_t* interpreter_get_vector_function(interpreter_t* interp, const char* name)
 {
   interpreter_storage_t** storage = interpreter_map_get(interp->store, (char*)name);
@@ -651,6 +713,12 @@ st_func_t* interpreter_get_vector_function(interpreter_t* interp, const char* na
   st_func_t* func = (st_func_t*)((*storage)->datum);
   ASSERT(st_func_num_comp(func) == 3);
   return func;
+}
+
+void interpreter_set_vector_function(interpreter_t* interp, const char* name, st_func_t* value)
+{
+  interpreter_storage_t* storage = store_vector_function(value);
+  interpreter_map_insert_with_dtor(interp->store, strdup(name), storage, destroy_variable);
 }
 
 str_ptr_unordered_map_t* interpreter_get_table(interpreter_t* interp, const char* name)
@@ -664,6 +732,12 @@ str_ptr_unordered_map_t* interpreter_get_table(interpreter_t* interp, const char
   return (str_ptr_unordered_map_t*)((*storage)->datum);
 }
 
+void interpreter_set_table(interpreter_t* interp, const char* name, str_ptr_unordered_map_t* value)
+{
+  interpreter_storage_t* storage = store_table(value);
+  interpreter_map_insert_with_dtor(interp->store, strdup(name), storage, destroy_variable);
+}
+
 void* interpreter_get_user_defined(interpreter_t* interp, const char* name)
 {
   interpreter_storage_t** storage = interpreter_map_get(interp->store, (char*)name);
@@ -673,6 +747,12 @@ void* interpreter_get_user_defined(interpreter_t* interp, const char* name)
     return NULL;
   (*storage)->dtor = NULL; // Caller assumes responsibility for user-defined datum.
   return (*storage)->datum;
+}
+
+void interpreter_set_user_defined(interpreter_t* interp, const char* name, void* value, void (*dtor)(void*))
+{
+  interpreter_storage_t* storage = store_user_defined(value, dtor);
+  interpreter_map_insert_with_dtor(interp->store, strdup(name), storage, destroy_variable);
 }
 
 //------------------------------------------------------------------------
@@ -703,10 +783,7 @@ void lua_pushscalarfunction(struct lua_State* lua, st_func_t* func)
   // Only single-component functions are allowed.
   ASSERT(st_func_num_comp(func) == 1); 
   // Bundle it up and store it in the given variable.
-  interpreter_storage_t* storage = malloc(sizeof(interpreter_storage_t));
-  storage->type = INTERPRETER_SCALAR_FUNCTION;
-  storage->datum = (void*)func;
-  storage->dtor = NULL;
+  interpreter_storage_t* storage = store_scalar_function(func);
   lua_pushlightuserdata(lua, (void*)storage);
 }
 
@@ -763,10 +840,7 @@ mesh_t* lua_tomesh(struct lua_State* lua, int index)
 void lua_pushmesh(struct lua_State* lua, mesh_t* mesh)
 {
   // Bundle it up and store it in the given variable.
-  interpreter_storage_t* storage = malloc(sizeof(interpreter_storage_t));
-  storage->type = INTERPRETER_MESH;
-  storage->datum = (void*)mesh;
-  storage->dtor = destroy_mesh;
+  interpreter_storage_t* storage = store_mesh(mesh);
   lua_pushlightuserdata(lua, (void*)storage);
 }
 
@@ -792,10 +866,7 @@ void* lua_touserdefined(struct lua_State* lua, int index)
 void lua_pushuserdefined(struct lua_State* lua, void* userdefined, void (*dtor)(void*))
 {
   // Bundle it up and store it in the given variable.
-  interpreter_storage_t* storage = malloc(sizeof(interpreter_storage_t));
-  storage->type = INTERPRETER_USER_DEFINED;
-  storage->datum = (void*)userdefined;
-  storage->dtor = dtor;
+  interpreter_storage_t* storage = store_user_defined(userdefined, dtor);
   lua_pushlightuserdata(lua, (void*)storage);
 }
 

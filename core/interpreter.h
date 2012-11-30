@@ -66,33 +66,65 @@ bool interpreter_contains(interpreter_t* interp, const char* variable, interpret
 // within the interpreter and should not be freed.
 char* interpreter_get_string(interpreter_t* interp, const char* name);
 
+// Sets the given variable within the interpreter to the given string 
+// value. Any existing value of this variable is overwritten, and the 
+// string is copied to the interpreter.
+void interpreter_set_string(interpreter_t* interp, const char* name, const char* value);
+
 // Fetches the given number from the interpreter, returning -FLT_MAX if it 
 // is not found or if it is not a number.
 double interpreter_get_number(interpreter_t* interp, const char* name);
+
+// Sets the given variable within the interpreter to the given numeric 
+// value. Any existing value of this variable is overwritten.
+void interpreter_set_number(interpreter_t* interp, const char* name, double value);
 
 // Fetches the given mesh from the interpreter, returning NULL if it 
 // is not found or if it is not a table. The caller assumes responsibility
 // for destroying the mesh after this call.
 mesh_t* interpreter_get_mesh(interpreter_t* interp, const char* name);
 
+// Sets the given variable within the interpreter to the given mesh 
+// object. Any existing value of this variable is overwritten.
+// Control of the mesh is assumed by the interpreter.
+void interpreter_set_mesh(interpreter_t* interp, const char* name, mesh_t* value);
+
 // Fetches the given scalar function from the interpreter, returning NULL 
 // if it is not found or if it is not a table. 
 st_func_t* interpreter_get_scalar_function(interpreter_t* interp, const char* name);
 
+// Sets the given variable within the interpreter to the given scalar function 
+// object. Any existing value of this variable is overwritten.
+void interpreter_set_scalar_function(interpreter_t* interp, const char* name, st_func_t* value);
+
 // Fetches the given vector function from the interpreter, returning NULL 
 // if it is not found or if it is not a table. 
 st_func_t* interpreter_get_vector_function(interpreter_t* interp, const char* name);
+
+// Sets the given variable within the interpreter to the given vector function 
+// object. Any existing value of this variable is overwritten.
+void interpreter_set_vector_function(interpreter_t* interp, const char* name, st_func_t* value);
 
 // Fetches the given table from the interpreter, returning NULL if it 
 // is not found or if it is not a table. The caller assumes responsibility
 // for destroying the table after this call.
 str_ptr_unordered_map_t* interpreter_get_table(interpreter_t* interp, const char* name);
 
+// Sets the given variable within the interpreter to the given table of
+// objects. Any existing value of this variable is overwritten.
+void interpreter_set_table(interpreter_t* interp, const char* name, str_ptr_unordered_map_t* value);
+
 // Fetches the given user-defined object from the interpreter, returning NULL 
 // if it is not found or if it is not a user-defined object. The caller 
 // assumes responsibility for destroying the user-defined object after 
 // this call.
 void* interpreter_get_user_defined(interpreter_t* interp, const char* name);
+
+// Sets the given variable within the interpreter to the given pointer.
+// Any existing value of this variable is overwritten.
+// The interpreter assumes responsibility for destroying the pointer using 
+// the supplied destructor (dtor).
+void interpreter_set_user_defined(interpreter_t* interp, const char* name, void* value, void (*dtor)(void*));
 
 //------------------------------------------------------------------------
 // These methods can be used to create functions that extend an 
