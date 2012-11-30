@@ -17,6 +17,7 @@
 #include "geometry/intersection.h"
 #include "io/silo_io.h"
 #include "io/vtk_plot_io.h"
+#include "io/gnuplot_io.h"
 #include "advect/advect_model.h"
 #include "advect/advect_bc.h"
 #include "advect/interpreter_register_advect_functions.h"
@@ -740,8 +741,25 @@ model_t* advect_model_new(options_t* options)
   // Set up saver/plotter.
   io_interface_t* saver = silo_io_new(MPI_COMM_SELF, 0, false);
   model_set_saver(model, saver);
-  io_interface_t* plotter = vtk_plot_io_new(MPI_COMM_SELF, 0, false);
-  model_set_plotter(model, plotter);
+
+  io_interface_t* plotter = NULL;
+  char* which_plotter = options_value(options, "plotter");
+  if (which_plotter != NULL)
+  {
+    if (!strcasecmp(which_plotter, "vtk"))
+      plotter = vtk_plot_io_new(MPI_COMM_SELF, 0, false);
+    else if (!strcasecmp(which_plotter, "silo"))
+      plotter = silo_plot_io_new(MPI_COMM_SELF, 0, false);
+    else if (!strcasecmp(which_plotter, "gnuplot"))
+      plotter = gnuplot_io_new();
+  }
+  else
+    plotter = vtk_plot_io_new(MPI_COMM_SELF, 0, false);
+  if (plotter != NULL)
+  {
+    log_detail("Setting plotter to '%s'...", which_plotter);
+    model_set_plotter(model, plotter);
+  }
 
   return model;
 }
