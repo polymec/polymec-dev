@@ -60,56 +60,6 @@ typedef struct
 //                            Benchmarks
 //------------------------------------------------------------------------
 
-// Mesh generation for benchmark problems.
-static mesh_t* create_cube_mesh(int dim, int N, bbox_t* bbox)
-{
-  // Get the characteristic resolution.
-  int N3[3] = {N, 1, 1};
-  for (int d = 0; d < dim; ++d)
-    N3[d] = N;
-
-  // Create the mesh.
-  mesh_t* mesh = create_cubic_lattice_mesh_with_bbox(N3[0], N3[1], N3[2], bbox);
-
-  // Tag the boundaries of the mesh.
-  cubic_lattice_t* lattice = cubic_lattice_new(N3[0], N3[1], N3[2]);
-  int* x1tag = mesh_create_tag(mesh->face_tags, "-x", N3[1]*N3[2]);
-  int* x2tag = mesh_create_tag(mesh->face_tags, "+x", N3[1]*N3[2]);
-  for (int j = 0; j < N3[1]; ++j)
-  {
-    for (int k = 0; k < N3[2]; ++k)
-    {
-      x1tag[N3[2]*j + k] = cubic_lattice_x_face(lattice, 0, j, k);
-      x2tag[N3[2]*j + k] = cubic_lattice_x_face(lattice, N3[0], j, k);
-    }
-  }
-
-  int* y1tag = mesh_create_tag(mesh->face_tags, "-y", N3[0]*N3[2]);
-  int* y2tag = mesh_create_tag(mesh->face_tags, "+y", N3[0]*N3[2]);
-  for (int i = 0; i < N3[0]; ++i)
-  {
-    for (int k = 0; k < N3[2]; ++k)
-    {
-      y1tag[N3[2]*i + k] = cubic_lattice_y_face(lattice, i, 0, k);
-      y2tag[N3[2]*i + k] = cubic_lattice_y_face(lattice, i, N3[1], k);
-    }
-  }
-
-  int* z1tag = mesh_create_tag(mesh->face_tags, "-z", N3[0]*N3[1]);
-  int* z2tag = mesh_create_tag(mesh->face_tags, "+z", N3[0]*N3[1]);
-  for (int i = 0; i < N3[0]; ++i)
-  {
-    for (int j = 0; j < N3[1]; ++j)
-    {
-      z1tag[N3[1]*i + j] = cubic_lattice_z_face(lattice, i, j, 0);
-      z2tag[N3[1]*i + j] = cubic_lattice_z_face(lattice, i, j, N3[2]);
-    }
-  }
-  lattice = NULL;
-
-  return mesh;
-}
-
 static void run_analytic_problem(mesh_t* mesh, st_func_t* rhs, str_ptr_unordered_map_t* bcs, options_t* options, double t1, double t2, st_func_t* solution, double* lp_norms)
 {
   // Create the model.
@@ -247,29 +197,35 @@ static void poisson_run_laplace_1d(options_t* options, int dim)
   double Lp_norms[num_runs][3];
   for (int iter = 0; iter < num_runs; ++iter)
   {
-    int N = N0 * pow(2, iter);
-    double dx = 1.0/N;
+    int Nx = N0 * pow(2, iter), Ny = 1, Nz = 1;
+    double dx = 1.0/Nx;
     bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
     if (dim == 1)
       bbox.y2 = bbox.z2 = dx;
     if (dim == 2)
+    {
+      Ny = Nx;
       bbox.z2 = dx;
-    mesh_t* mesh = create_cube_mesh(dim, N, &bbox);
+    }
+    if (dim == 3)
+      Nz = Nx;
+    mesh_t* mesh = create_cubic_lattice_mesh_with_bbox(Nx, Ny, Nz, &bbox);
+    tag_cubic_lattice_mesh_faces(mesh, Nx, Ny, Nz, "-x", "+x", "-y", "+y", "-z", "+z");
     str_ptr_unordered_map_t* bcs_copy = str_ptr_unordered_map_copy(bcs);
     run_analytic_problem(mesh, zero, bcs_copy, options, t, t, sol, Lp_norms[iter]);
 
     // If we run in 1D or 2D, we need to adjust the norms.
     if (dim == 1)
     {
-      Lp_norms[iter][1] *= N*N;
-      Lp_norms[iter][2] *= N*N;
+      Lp_norms[iter][1] *= Nx*Nx;
+      Lp_norms[iter][2] *= Nx*Nx;
     }
     else if (dim == 2)
     {
-      Lp_norms[iter][1] *= N;
-      Lp_norms[iter][2] *= N;
+      Lp_norms[iter][1] *= Nx;
+      Lp_norms[iter][2] *= Nx;
     }
-    log_info("iteration %d (Nx = %d): L1 = %g, L2 = %g, Linf = %g", iter, N, Lp_norms[iter][1], Lp_norms[iter][2], Lp_norms[iter][0]);
+    log_info("iteration %d (Nx = %d): L1 = %g, L2 = %g, Linf = %g", iter, Nx, Lp_norms[iter][1], Lp_norms[iter][2], Lp_norms[iter][0]);
   }
 
   // Clean up.
