@@ -527,7 +527,7 @@ int model_main(const char* model_name, model_ctor constructor, int argc, char* a
       t2 = atof(opt);
     opt = options_value(opts, "max_steps");
     if (opt != NULL)
-      t2 = atoi(opt);
+      max_steps = atoi(opt);
   }
 
   // Run the model.

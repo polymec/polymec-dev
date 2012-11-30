@@ -135,10 +135,16 @@ static void run_analytic_problem(model_t* model,
                                  double t1, 
                                  double t2, 
                                  st_func_t* solution, 
+                                 options_t* options,
                                  double* lp_norms)
 {
+  int max_steps = INT_MAX;
+  char* max_steps_s = options_value(options, "max_steps");
+  if (max_steps_s != NULL)
+    max_steps = atoi(max_steps_s);
+
   // Run the thing.
-  model_run(model, t1, t2, INT_MAX);
+  model_run(model, t1, t2, max_steps);
 
   // Calculate the Lp norm of the error and write it to Lp_norms.
   advect_t* a = model_context(model);
@@ -211,7 +217,6 @@ static void advect_run_1d_flow(options_t* options,
       num_runs = 3;
       break;
   }
-  num_runs = 1;
 
   // Do a convergence study.
   double Lp_norms[num_runs][3];
@@ -235,7 +240,7 @@ static void advect_run_1d_flow(options_t* options,
 
     model_t* model = create_advect(mesh, velocity, diffusivity, source, 
                                    initial_cond, bcs_copy, solution, options);
-    run_analytic_problem(model, t1, t2, solution, Lp_norms[iter]);
+    run_analytic_problem(model, t1, t2, solution, options, Lp_norms[iter]);
     model_free(model);
 
     // If we run in 1D or 2D, we need to adjust the norms.
@@ -264,13 +269,13 @@ static void advect_run_1d_flow(options_t* options,
 
 static void run_stationary_flow_1d(options_t* options)
 {
-  double z = 0.0;
-  double o[] = {1.0, 1.0, 1.0};
+  double z = 0.0, o = 1.0;
+  double v[] = {1.0, 0.0, 0.0};
   st_func_t* zero = constant_st_func_new(1, &z);
-  st_func_t* one1 = constant_st_func_new(1, o);
-  st_func_t* one3 = constant_st_func_new(3, o);
-  advect_run_1d_flow(options, one3, zero, zero, one1, one1, 1);
-  zero = one1 = one3 = NULL;
+  st_func_t* one = constant_st_func_new(1, &o);
+  st_func_t* v0 = constant_st_func_new(3, v);
+  advect_run_1d_flow(options, v0, zero, zero, one, one, 1);
+  zero = one = v0 = NULL;
 }
 
 static void stationary_blayer_1d_soln(void* ctx, point_t* x, double t, double* phi)
@@ -282,15 +287,15 @@ static void stationary_blayer_1d_soln(void* ctx, point_t* x, double t, double* p
 
 static void run_stationary_blayer_1d(options_t* options)
 {
-  double z = 0.0;
-  double o[] = {1.0, 1.0, 1.0};
+  double z = 0.0, o = 1.0;
+  double v[] = {1.0, 0.0, 0.0};
   st_func_t* zero = constant_st_func_new(1, &z);
-  st_func_t* one1 = constant_st_func_new(1, o);
-  st_func_t* one3 = constant_st_func_new(3, o);
+  st_func_t* one = constant_st_func_new(1, &o);
+  st_func_t* v0 = constant_st_func_new(3, v);
   st_func_t* soln = st_func_from_func("blayer 1d", stationary_blayer_1d_soln,
                                       ST_INHOMOGENEOUS, ST_CONSTANT, 1);
-  advect_run_1d_flow(options, one3, one1, zero, soln, soln, 1);
-  zero = one1 = one3 = soln = NULL;
+  advect_run_1d_flow(options, v0, one, zero, soln, soln, 1);
+  zero = one = v0 = soln = NULL;
 }
 
 static void square_wave_1d_soln(void* ctx, point_t* x, double t, double* phi)
@@ -303,13 +308,13 @@ static void square_wave_1d_soln(void* ctx, point_t* x, double t, double* phi)
 static void run_square_wave_1d(options_t* options)
 {
   double z = 0.0;
-  double o[] = {1.0, 1.0, 1.0};
+  double v[] = {1.0, 0.0, 0.0};
   st_func_t* zero = constant_st_func_new(1, &z);
-  st_func_t* one3 = constant_st_func_new(3, o);
+  st_func_t* v0 = constant_st_func_new(3, v);
   st_func_t* soln = st_func_from_func("square wave 1d", square_wave_1d_soln,
                                       ST_INHOMOGENEOUS, ST_NONCONSTANT, 1);
-  advect_run_1d_flow(options, one3, zero, zero, soln, soln, 1);
-  zero = one3 = soln = NULL;
+  advect_run_1d_flow(options, v0, zero, zero, soln, soln, 1);
+  zero = v0 = soln = NULL;
 }
 
 //------------------------------------------------------------------------
@@ -345,6 +350,7 @@ static void compute_upwind_fluxes(mesh_t* mesh, st_func_t* velocity, st_func_t* 
                                  : (face->cell2 - &mesh->cells[0]);
 
     fluxes[f] = vn * phi[upwind_cell] * face->area;
+// printf("%d,%d: vn = %g, F = %g\n", face->cell1 - &mesh->cells[0], face->cell2 - &mesh->cells[0], vn, fluxes[f]);
 
     // Cut off the fluxes below a certain threshold.
     if (fabs(fluxes[f]) < 1e-15) fluxes[f] = 0.0;
@@ -406,8 +412,10 @@ static void compute_upwind_fluxes(mesh_t* mesh, st_func_t* velocity, st_func_t* 
 
         // Compute the ghost value for the solution, and the resulting flux.
         double phi_g = (F + (beta/L - 0.5*alpha)) * phi[bcell] / (beta/L + 0.5*alpha);
+// printf("%d: phi = %g, phi_g = %g\n", bcell, phi[bcell], phi_g);
         fluxes[face_index] = vn * phi_g * face->area;
       }
+// printf("%d: vn = %g, F = %g\n", bcell, vn, fluxes[face_index]);
     }
   }
 }
@@ -520,7 +528,11 @@ static void advect_advance(void* context, double t, double dt)
     {
       face_t* face = cell->faces[f];
       int face_index = face - &a->mesh->faces[0];
-      phi_new[c] -= fluxes[face_index] * dt / cell->volume;
+
+      // Make sure the sign of the flux is correct, since the fluxes have
+      // been computed w.r.t. face->cell1.
+      double sign = (face->cell1 == cell) ? 1.0 : -1.0;
+      phi_new[c] -= sign * fluxes[face_index] * dt / cell->volume;
 //printf("cell %d: flux %d (face %d) = %g\n", c, f, face_index, fluxes[face_index]);
     }
 
