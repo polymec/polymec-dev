@@ -90,41 +90,8 @@ static int cubic_lattice_mesh(lua_State* lua)
   // Create the mesh.
   mesh_t* mesh = create_cubic_lattice_mesh_with_bbox(nx, ny, nz, &bbox);
 
-  // Tag the boundaries of the mesh.
-  cubic_lattice_t* lattice = cubic_lattice_new(nx, ny, nz);
-  int* x1tag = mesh_create_tag(mesh->face_tags, "x1", ny*nz);
-  int* x2tag = mesh_create_tag(mesh->face_tags, "x2", ny*nz);
-  for (int j = 0; j < ny; ++j)
-  {
-    for (int k = 0; k < nz; ++k)
-    {
-      x1tag[nz*j + k] = cubic_lattice_x_face(lattice, 0, j, k);
-      x2tag[nz*j + k] = cubic_lattice_x_face(lattice, nx, j, k);
-    }
-  }
-
-  int* y1tag = mesh_create_tag(mesh->face_tags, "y1", nx*nz);
-  int* y2tag = mesh_create_tag(mesh->face_tags, "y2", nx*nz);
-  for (int i = 0; i < nx; ++i)
-  {
-    for (int k = 0; k < nz; ++k)
-    {
-      y1tag[nz*i + k] = cubic_lattice_y_face(lattice, i, 0, k);
-      y2tag[nz*i + k] = cubic_lattice_y_face(lattice, i, ny, k);
-    }
-  }
-
-  int* z1tag = mesh_create_tag(mesh->face_tags, "z1", nx*ny);
-  int* z2tag = mesh_create_tag(mesh->face_tags, "z2", nx*ny);
-  for (int i = 0; i < nx; ++i)
-  {
-    for (int j = 0; j < ny; ++j)
-    {
-      z1tag[ny*i + j] = cubic_lattice_z_face(lattice, i, j, 0);
-      z2tag[ny*i + j] = cubic_lattice_z_face(lattice, i, j, nz);
-    }
-  }
-  lattice = NULL;
+  // Tag its faces.
+  tag_cubic_lattice_mesh_faces(mesh, nx, ny, nz, "x1", "x2", "y1", "y2", "z1", "z2");
 
   // Push the mesh onto the stack.
   lua_pushmesh(lua, mesh);
