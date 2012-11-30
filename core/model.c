@@ -79,8 +79,8 @@ model_t* model_new(const char* name, void* context, model_vtable vtable, options
       set_log_level(LOG_DETAIL);
     else if (!strcasecmp(logging, "info"))
       set_log_level(LOG_INFO);
-    else if (!strcasecmp(logging, "warning"))
-      set_log_level(LOG_WARNING);
+    else if (!strcasecmp(logging, "urgent"))
+      set_log_level(LOG_URGENT);
     else if (!strcasecmp(logging, "off"))
       set_log_level(LOG_NONE);
   }
@@ -171,6 +171,11 @@ void model_run_benchmark(model_t* model, const char* benchmark, options_t* optio
   model_benchmark_t** metadata = model_benchmark_map_get(model->benchmarks, (char*)benchmark);
   if (metadata != NULL)
   {
+    // By default (unless overridden), benchmarks communicate only with 
+    // "urgent" log messages--others are suppressed.
+    if (options_value(options, "logging") == NULL)
+      set_log_level(LOG_URGENT);
+
     log_info("%s: Running benchmark '%s'.", model->name, benchmark);
     options_set(options, "sim_name", benchmark);
     (*(*metadata)->function)(options);

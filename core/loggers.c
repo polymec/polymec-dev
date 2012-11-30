@@ -182,10 +182,10 @@ void log_info(const char* message, ...)
   }
 }
 
-void log_warning(const char* message, ...)
+void log_urgent(const char* message, ...)
 {
-  logger_t* logger = get_logger(LOG_WARNING);
-  if (logging_level < LOG_WARNING) return;
+  logger_t* logger = get_logger(LOG_URGENT);
+  if (logging_level < LOG_URGENT) return;
   int rank;
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   if (rank != logger->mpi_rank) return;
