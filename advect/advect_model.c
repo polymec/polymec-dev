@@ -87,7 +87,8 @@ typedef struct
   // Information for boundary cells.
   boundary_cell_map_t*  boundary_cells;
 
-  double CFL;             // CFL safety factor.
+  // CFL safety factor.
+  double CFL;             
 
   // This flag is true if the source function or one of the BCs is 
   // time-dependent, and false otherwise.
@@ -96,7 +97,8 @@ typedef struct
   // Diffusion equation linear system.
   advect_lin_sys_t* diff_system;
 
-  MPI_Comm comm;            // MPI communicator.
+  // MPI communicator.
+  MPI_Comm comm;            
 
 } advect_t;
 
@@ -104,17 +106,14 @@ typedef struct
 //                            Benchmarks
 //------------------------------------------------------------------------
 
-static void run_analytic_problem(mesh_t* mesh, 
-                                 st_func_t* velocity, 
-                                 st_func_t* diffusivity, 
-                                 st_func_t* source, 
-                                 st_func_t* initial_cond, 
-                                 str_ptr_unordered_map_t* bcs, 
-                                 options_t* options, 
-                                 double t1, 
-                                 double t2, 
-                                 st_func_t* solution, 
-                                 double* lp_norms)
+static model_t* create_advect(mesh_t* mesh,
+                              st_func_t* velocity, 
+                              st_func_t* diffusivity, 
+                              st_func_t* source, 
+                              st_func_t* initial_cond, 
+                              str_ptr_unordered_map_t* bcs, 
+                              st_func_t* solution,
+                              options_t* options)
 {
   // Create the model.
   model_t* model = advect_model_new(options);
@@ -127,11 +126,21 @@ static void run_analytic_problem(mesh_t* mesh,
   if (a->bcs != NULL)
     str_ptr_unordered_map_free(a->bcs);
   a->bcs = bcs;
+  a->solution = solution;
+  return model;
+}
 
+static void run_analytic_problem(model_t* model, 
+                                 double t1, 
+                                 double t2, 
+                                 st_func_t* solution, 
+                                 double* lp_norms)
+{
   // Run the thing.
   model_run(model, t1, t2, INT_MAX);
 
   // Calculate the Lp norm of the error and write it to Lp_norms.
+  advect_t* a = model_context(model);
   double Linf = 0.0, L1 = 0.0, L2 = 0.0;
   for (int c = 0; c < a->mesh->num_cells; ++c)
   {
@@ -155,12 +164,12 @@ static void run_analytic_problem(mesh_t* mesh,
 
   // Clean up.
 //  lp_norm = NULL;
-  model_free(model);
 }
 
 static void advect_run_1d_flow(options_t* options, 
                                st_func_t* velocity, 
                                st_func_t* diffusivity, 
+                               st_func_t* source, 
                                st_func_t* initial_cond, 
                                st_func_t* solution, 
                                int dim)
@@ -201,6 +210,7 @@ static void advect_run_1d_flow(options_t* options,
       num_runs = 3;
       break;
   }
+  num_runs = 1;
 
   // Do a convergence study.
   double Lp_norms[num_runs][3];
@@ -221,8 +231,11 @@ static void advect_run_1d_flow(options_t* options,
     mesh_t* mesh = create_cubic_lattice_mesh_with_bbox(Nx, Ny, Nz, &bbox);
     tag_cubic_lattice_mesh_faces(mesh, Nx, Ny, Nz, "-x", "+x", "-y", "+y", "-z", "+z");
     str_ptr_unordered_map_t* bcs_copy = str_ptr_unordered_map_copy(bcs);
-    run_analytic_problem(mesh, velocity, diffusivity, zero, initial_cond, 
-                         bcs_copy, options, t1, t2, solution, Lp_norms[iter]);
+
+    model_t* model = create_advect(mesh, velocity, diffusivity, source, 
+                                   initial_cond, bcs_copy, solution, options);
+    run_analytic_problem(model, t1, t2, solution, Lp_norms[iter]);
+    model_free(model);
 
     // If we run in 1D or 2D, we need to adjust the norms.
     if (dim == 1)
@@ -250,11 +263,13 @@ static void advect_run_1d_flow(options_t* options,
 
 static void run_stationary_flow_1d(options_t* options)
 {
-  double z = 0.0, o = 1.0;
+  double z = 0.0;
+  double o[] = {1.0, 1.0, 1.0};
   st_func_t* zero = constant_st_func_new(1, &z);
-  st_func_t* one = constant_st_func_new(1, &o);
-  advect_run_1d_flow(options, one, zero, one, one, 1);
-  zero = one = NULL;
+  st_func_t* one1 = constant_st_func_new(1, o);
+  st_func_t* one3 = constant_st_func_new(3, o);
+  advect_run_1d_flow(options, one3, zero, zero, one1, one1, 1);
+  zero = one1 = one3 = NULL;
 }
 
 static void stationary_blayer_1d_soln(void* ctx, point_t* x, double t, double* phi)
@@ -266,13 +281,34 @@ static void stationary_blayer_1d_soln(void* ctx, point_t* x, double t, double* p
 
 static void run_stationary_blayer_1d(options_t* options)
 {
-  double z = 0.0, o = 1.0;
+  double z = 0.0;
+  double o[] = {1.0, 1.0, 1.0};
   st_func_t* zero = constant_st_func_new(1, &z);
-  st_func_t* one = constant_st_func_new(1, &o);
+  st_func_t* one1 = constant_st_func_new(1, o);
+  st_func_t* one3 = constant_st_func_new(3, o);
   st_func_t* soln = st_func_from_func("blayer 1d", stationary_blayer_1d_soln,
                                       ST_INHOMOGENEOUS, ST_CONSTANT, 1);
-  advect_run_1d_flow(options, one, one, soln, soln, 1);
-  zero = one = soln = NULL;
+  advect_run_1d_flow(options, one3, one1, zero, soln, soln, 1);
+  zero = one1 = one3 = soln = NULL;
+}
+
+static void square_wave_1d_soln(void* ctx, point_t* x, double t, double* phi)
+{
+  double width = 0.25;
+  double a = 1.0;
+  *phi = (fabs(x->x - a*t) < 0.5*width) ? 1.0 : 0.0;
+}
+
+static void run_square_wave_1d(options_t* options)
+{
+  double z = 0.0;
+  double o[] = {1.0, 1.0, 1.0};
+  st_func_t* zero = constant_st_func_new(1, &z);
+  st_func_t* one3 = constant_st_func_new(3, o);
+  st_func_t* soln = st_func_from_func("square wave 1d", square_wave_1d_soln,
+                                      ST_INHOMOGENEOUS, ST_NONCONSTANT, 1);
+  advect_run_1d_flow(options, one3, zero, zero, soln, soln, 1);
+  zero = one3 = soln = NULL;
 }
 
 //------------------------------------------------------------------------
@@ -308,6 +344,9 @@ static void compute_upwind_fluxes(mesh_t* mesh, st_func_t* velocity, st_func_t* 
                                  : (face->cell2 - &mesh->cells[0]);
 
     fluxes[f] = vn * phi[upwind_cell] * face->area;
+
+    // Cut off the fluxes below a certain threshold.
+    if (fabs(fluxes[f]) < 1e-15) fluxes[f] = 0.0;
   }
 
   // Now go over the boundary cells and compute upwind fluxes.
@@ -470,7 +509,7 @@ static void advect_advance(void* context, double t, double dt)
   compute_half_step_fluxes(a->mesh, a->velocity, a->source, a->boundary_cells, t, dt, a->phi, fluxes);
 
   // Update the solution using the Divergence Theorem.
-  int num_cells;
+  int num_cells = a->mesh->num_cells;
   double phi_new[num_cells], diff_sources[num_cells];
   for (int c = 0; c < num_cells; ++c)
   {
@@ -480,7 +519,8 @@ static void advect_advance(void* context, double t, double dt)
     {
       face_t* face = cell->faces[f];
       int face_index = face - &a->mesh->faces[0];
-      phi_new[c] -= fluxes[face_index] * dt;
+      phi_new[c] -= fluxes[face_index] * dt / cell->volume;
+//printf("cell %d: flux %d (face %d) = %g\n", c, f, face_index, fluxes[face_index]);
     }
 
     // Add the non-stiff source term.
@@ -544,6 +584,7 @@ static void advect_init(void* context, double t)
   ASSERT(a->mesh != NULL);
   ASSERT(a->initial_cond != NULL);
   ASSERT(a->velocity != NULL);
+  ASSERT(st_func_num_comp(a->velocity) == 3);
   ASSERT(a->source != NULL);
 
   // Determine whether this model is time-dependent.
@@ -694,6 +735,7 @@ model_t* advect_model_new(options_t* options)
   // Register benchmarks.
   model_register_benchmark(model, "stationary_flow_1d", run_stationary_flow_1d, "Stational flow in 1D (v = 1).");
   model_register_benchmark(model, "stationary_blayer_1d", run_stationary_blayer_1d, "Stational flow with boundary layer in 1D.");
+  model_register_benchmark(model, "square_wave_1d", run_square_wave_1d, "Square wave propagation in 1D.");
 
   // Set up saver/plotter.
   io_interface_t* saver = silo_io_new(MPI_COMM_SELF, 0, false);
