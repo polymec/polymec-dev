@@ -8,11 +8,11 @@
 // informational messages, and so on and so forth.
 typedef enum
 {
-  LOG_NONE,
-  LOG_WARNING,
-  LOG_INFO,
-  LOG_DETAIL,
-  LOG_DEBUG
+  LOG_NONE,                   // Log no messages
+  LOG_URGENT,                 // Log only urgent messages
+  LOG_INFO,                   // Log informational message
+  LOG_DETAIL,                 // Log lower-level detail messages
+  LOG_DEBUG                   // Log debugging messages
 } log_level_t;
   
 // Sets the logging level.
@@ -38,8 +38,10 @@ void log_detail(const char* message, ...);
 // Issues an informational message.
 void log_info(const char* message, ...);
 
-// Issues an warning.
-void log_warning(const char* message, ...);
+// Issues an urgent.
+void log_urgent(const char* message, ...);
+
+// This 
 
 #ifdef __cplusplus
 }

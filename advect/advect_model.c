@@ -254,7 +254,7 @@ static void advect_run_1d_flow(options_t* options,
       Lp_norms[iter][1] *= Nx;
       Lp_norms[iter][2] *= Nx;
     }
-    log_info("iteration %d (Nx = %d): L1 = %g, L2 = %g, Linf = %g", iter, Nx, Lp_norms[iter][1], Lp_norms[iter][2], Lp_norms[iter][0]);
+    log_urgent("iteration %d (Nx = %d): L1 = %g, L2 = %g, Linf = %g", iter, Nx, Lp_norms[iter][1], Lp_norms[iter][2], Lp_norms[iter][0]);
   }
 
   // Clean up.
@@ -328,7 +328,7 @@ static void compute_upwind_fluxes(mesh_t* mesh, st_func_t* velocity, st_func_t* 
   for (int f = 0; f < num_faces; ++f)
   {
     face_t* face = &mesh->faces[f];
-    if (face->cell2 == NULL) continue;
+    if (face->cell2 == NULL) continue; // Boundary cell (handled below).
 
     // Compute the normal vector through this face, assuming that it is 
     // parallel to the displacement vector separating the centroids of the 
