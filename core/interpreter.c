@@ -570,7 +570,6 @@ void interpreter_parse_string(interpreter_t* interp, char* input_string)
   // Initialize the Lua interpreter.
   lua_State* lua = interpreter_open_lua(interp);
 
-printf("%s\n", input_string);
   // Load the input, but does not parse it.
   int error = luaL_loadstring(lua, input_string);
   if (error == LUA_ERRSYNTAX)
