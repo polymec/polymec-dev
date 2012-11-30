@@ -139,9 +139,12 @@ void io_free(io_interface_t* interface)
   if (interface->vtable.dtor != NULL)
     interface->vtable.dtor(interface->context);
 
-  for (int i = 0; i < interface->num_datasets; ++i)
-    io_dataset_free(interface->datasets[i]);
-  free(interface->datasets);
+  if (interface->datasets != NULL)
+  {
+    for (int i = 0; i < interface->num_datasets; ++i)
+      io_dataset_free(interface->datasets[i]);
+    free(interface->datasets);
+  }
 
   free(interface);
 }
@@ -324,6 +327,10 @@ void io_close(io_interface_t* interface)
   interface->vtable.close_file(interface->context, interface->file);
 #endif
   interface->file = NULL;
+  for (int i = 0; i < interface->num_datasets; ++i)
+    io_dataset_free(interface->datasets[i]);
+  free(interface->datasets);
+  interface->datasets = NULL;
   interface->mode = IO_CLOSED;
 }
 

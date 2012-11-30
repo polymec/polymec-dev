@@ -87,7 +87,16 @@ lin_op_t* diffusion_op_new(mesh_t* mesh, st_func_t* diffusivity)
                           .compute_stencil = &diffusion_op_compute_stencil,
                           .apply = &diffusion_op_apply,
                           .dtor = &diffusion_op_dtor};
-  return lin_op_new("diffusion", (void*)diffusivity, vtable, mesh);
+  diffusion_op_t* diff = malloc(sizeof(diffusion_op_t));
+  diff->t = 0.0;
+  diff->diffusivity = diffusivity;
+  return lin_op_new("diffusion", (void*)diff, vtable, mesh);
+}
+
+void diffusion_op_set_time(lin_op_t* op, double t)
+{
+  diffusion_op_t* diff = lin_op_context(op);
+  diff->t = t;
 }
 
 #ifdef __cplusplus

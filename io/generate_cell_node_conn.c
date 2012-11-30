@@ -30,6 +30,7 @@ void generate_cell_node_conn(mesh_t* mesh,
   int pos = 0, node, i = 0;
   while (int_unordered_set_next(all_cell_nodes, &pos, &node))
     (*cell_nodes)[i++] = node;
+  int_unordered_set_free(all_cell_nodes);
 }
 
 #ifdef __cplusplus

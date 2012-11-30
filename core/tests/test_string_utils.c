@@ -26,6 +26,7 @@ void test_string_subst(void** state)
   const char* string = "The quick brown fox jumped over lazy dogs.";
   char* new_string = string_subst(string, substitutions);
   assert_true(!strcmp(new_string, "The avuncular purple werewolf launched over hungry hyenas."));
+  free(new_string);
 }
 
 int main(int argc, char* argv[]) 
