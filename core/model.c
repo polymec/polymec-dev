@@ -84,18 +84,23 @@ model_t* model_new(const char* name, void* context, model_vtable vtable, options
     else if (!strcasecmp(logging, "off"))
       set_log_level(LOG_NONE);
   }
+
   char* plot_every = options_value(options, "plot_every");
   if (plot_every != NULL)
     model->plot_every = atoi(plot_every);
+
   char* save_every = options_value(options, "save_every");
   if (save_every != NULL)
     model->save_every = atoi(save_every);
+
   char* max_dt = options_value(options, "max_dt");
   if (max_dt != NULL)
     model->max_dt = atof(max_dt);
+
   char* sim_name = options_value(options, "sim_name");
   if (sim_name != NULL)
     model_set_sim_name(model, sim_name);
+
   return model;
 }
 
@@ -369,6 +374,8 @@ void model_set_saver(model_t* model, io_interface_t* saver)
 {
   ASSERT(saver != NULL);
   ASSERT(saver != model->plotter);
+  if (model->saver != NULL)
+    io_free(model->saver);
   model->saver = saver;
 }
 
@@ -376,6 +383,8 @@ void model_set_plotter(model_t* model, io_interface_t* plotter)
 {
   ASSERT(plotter != NULL);
   ASSERT(plotter != model->saver);
+  if (model->plotter != NULL)
+    io_free(model->plotter);
   model->plotter = plotter;
 }
 
