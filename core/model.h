@@ -98,6 +98,14 @@ void model_run_benchmark(model_t* model, const char* benchmark, options_t* optio
 // Runs all benchmark problems for the model.
 void model_run_all_benchmarks(model_t* model, options_t* options);
 
+// Tells the model to read the contents of the given string as input, 
+// tempered by options.
+void model_read_input_string(model_t* model, const char* input, options_t* options);
+
+// Tells the model to read the contents of the given file as input,
+// tempered by options.
+void model_read_input_file(model_t* model, const char* file, options_t* options);
+
 // Initializes the model at the given time.
 void model_init(model_t* model, double t);
 

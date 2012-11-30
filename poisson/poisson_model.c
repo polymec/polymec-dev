@@ -10,11 +10,6 @@
 #include "core/boundary_cell_map.h"
 #include "geometry/cubic_lattice.h"
 #include "geometry/create_cubic_lattice_mesh.h"
-#include "geometry/create_cvt.h"
-#include "geometry/plane.h"
-#include "geometry/cylinder.h"
-#include "geometry/sphere.h"
-#include "geometry/intersection.h"
 #include "geometry/interpreter_register_geometry_functions.h"
 #include "io/silo_io.h"
 #include "io/vtk_plot_io.h"
@@ -60,34 +55,6 @@ typedef struct
   MPI_Comm comm;            // MPI communicator.
 
 } poisson_t;
-
-// A proper constructor.
-static model_t* create_poisson(mesh_t* mesh, st_func_t* rhs, str_ptr_unordered_map_t* bcs, options_t* options)
-{
-  model_t* poisson = poisson_model_new(options);
-  poisson_t* p = (poisson_t*)model_context(poisson);
-  p->mesh = mesh;
-  p->rhs = rhs;
-  if (p->bcs != NULL)
-    str_ptr_unordered_map_free(p->bcs);
-  p->bcs = bcs;
-  if (p->L == NULL)
-    p->L = laplacian_op_new(p->mesh);
-
-  // Determine whether this model is time-dependent.
-  p->is_time_dependent = !st_func_is_constant(p->rhs);
-  int pos = 0;
-  char* tag;
-  poisson_bc_t* bc;
-  while (str_ptr_unordered_map_next(bcs, &pos, &tag, (void**)&bc))
-  {
-    // If any BC is time-dependent, the whole problem is.
-    if (!st_func_is_constant(bc->F))
-      p->is_time_dependent = true;
-  }
-
-  return poisson;
-}
 
 //------------------------------------------------------------------------
 //                            Benchmarks
@@ -146,10 +113,15 @@ static mesh_t* create_cube_mesh(int dim, int N, bbox_t* bbox)
 static void run_analytic_problem(mesh_t* mesh, st_func_t* rhs, str_ptr_unordered_map_t* bcs, options_t* options, double t1, double t2, st_func_t* solution, double* lp_norms)
 {
   // Create the model.
-  model_t* model = create_poisson(mesh, rhs, bcs, options);
+  model_t* model = poisson_model_new(options);
+  poisson_t* pm = model_context(model);
+  pm->mesh = mesh;
+  pm->rhs = rhs;
+  if (pm->bcs != NULL)
+    str_ptr_unordered_map_free(pm->bcs);
+  pm->bcs = bcs;
 
   // Set the solution.
-  poisson_t* pm = model_context(model);
   pm->solution = solution;
 
   // Run the thing.
@@ -406,7 +378,9 @@ static void poisson_run_paraboloid(options_t* options, int dim)
   double Lp_norms[num_runs][3];
   for (int iter = 0; iter < num_runs; ++iter)
   {
-    int N = N0 * pow(2, iter);
+    int Nx = N0 * pow(2, iter), Ny = 1, Nz = 1;
+    if (dim > 1) Ny = Nx;
+    if (dim > 2) Nz = Nx;
     bbox_t bbox;
     if (offcenter)
     {
@@ -420,18 +394,19 @@ static void poisson_run_paraboloid(options_t* options, int dim)
     }
     bbox.z1 = 0.0, bbox.z2 = 1.0;
     if (dim == 2)
-      bbox.z2 = 1.0/N;
-    mesh_t* mesh = create_cube_mesh(dim, N, &bbox);
+      bbox.z2 = 1.0/Nx;
+    mesh_t* mesh = create_cubic_lattice_mesh_with_bbox(Nx, Ny, Nz, &bbox);
+    tag_cubic_lattice_mesh_faces(mesh, Nx, Ny, Nz, "-x", "+x", "-y", "+y", "-z", "+z");
     str_ptr_unordered_map_t* bcs_copy = str_ptr_unordered_map_copy(bcs);
     run_analytic_problem(mesh, rhs, bcs_copy, options, t, t, sol, Lp_norms[iter]);
 
     // If we run in 2D, we need to adjust the norms.
     if (dim == 2)
     {
-      Lp_norms[iter][1] *= N;
-      Lp_norms[iter][2] *= N;
+      Lp_norms[iter][1] *= Nx;
+      Lp_norms[iter][2] *= Nx;
     }
-    log_info("iteration %d (Nx = Ny = %d): L1 = %g, L2 = %g, Linf = %g", iter, N, Lp_norms[iter][1], Lp_norms[iter][2], Lp_norms[iter][0]);
+    log_info("iteration %d (Nx = Ny = %d): L1 = %g, L2 = %g, Linf = %g", iter, Nx, Lp_norms[iter][1], Lp_norms[iter][2], Lp_norms[iter][0]);
   }
 
   // Clean up.
@@ -774,6 +749,21 @@ static void poisson_read_input(void* context, interpreter_t* interp, options_t* 
 static void poisson_init(void* context, double t)
 {
   poisson_t* p = (poisson_t*)context;
+
+  if (p->L == NULL)
+    p->L = laplacian_op_new(p->mesh);
+
+  // Determine whether this model is time-dependent.
+  p->is_time_dependent = !st_func_is_constant(p->rhs);
+  int pos = 0;
+  char* tag;
+  poisson_bc_t* bc;
+  while (str_ptr_unordered_map_next(p->bcs, &pos, &tag, (void**)&bc))
+  {
+    // If any BC is time-dependent, the whole problem is.
+    if (!st_func_is_constant(bc->F))
+      p->is_time_dependent = true;
+  }
 
   // If the model has been previously initialized, clean everything out.
   if (p->initialized)

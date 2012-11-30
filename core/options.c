@@ -41,12 +41,15 @@ static void destroy_kv(char* key, char* value)
   free(value);
 }
 
+options_t* options_new()
+{
+  options_t* o = GC_MALLOC(sizeof(options_t));
+  return o;
+}
+
 options_t* options_parse(int argc, char** argv)
 {
-  // No options -> NULL.
-  if (argc == 1)
-    return NULL;
-  options_t* o = GC_MALLOC(sizeof(options_t));
+  options_t* o = options_new();
   o->command = NULL;
   o->input = NULL;
   o->params = str_str_unordered_map_new();

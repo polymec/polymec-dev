@@ -386,6 +386,52 @@ mesh_t* create_cubic_lattice_mesh(int nx, int ny, int nz)
   return create_cubic_lattice_mesh_with_bbox(nx, ny, nz, &bbox);
 }
 
+void tag_cubic_lattice_mesh_faces(mesh_t* mesh, 
+                                  int nx, int ny, int nz,
+                                  const char* x1_tag, 
+                                  const char* x2_tag, 
+                                  const char* y1_tag,
+                                  const char* y2_tag,
+                                  const char* z1_tag,
+                                  const char* z2_tag)
+{
+  // Tag the boundaries of the mesh.
+  cubic_lattice_t* lattice = cubic_lattice_new(nx, ny, nz);
+  int* x1tag = mesh_create_tag(mesh->face_tags, x1_tag, ny*nz);
+  int* x2tag = mesh_create_tag(mesh->face_tags, x2_tag, ny*nz);
+  for (int j = 0; j < ny; ++j)
+  {
+    for (int k = 0; k < nz; ++k)
+    {
+      x1tag[nz*j + k] = cubic_lattice_x_face(lattice, 0, j, k);
+      x2tag[nz*j + k] = cubic_lattice_x_face(lattice, nx, j, k);
+    }
+  }
+
+  int* y1tag = mesh_create_tag(mesh->face_tags, y1_tag, nx*nz);
+  int* y2tag = mesh_create_tag(mesh->face_tags, y2_tag, nx*nz);
+  for (int i = 0; i < nx; ++i)
+  {
+    for (int k = 0; k < nz; ++k)
+    {
+      y1tag[nz*i + k] = cubic_lattice_y_face(lattice, i, 0, k);
+      y2tag[nz*i + k] = cubic_lattice_y_face(lattice, i, ny, k);
+    }
+  }
+
+  int* z1tag = mesh_create_tag(mesh->face_tags, z1_tag, nx*ny);
+  int* z2tag = mesh_create_tag(mesh->face_tags, z2_tag, nx*ny);
+  for (int i = 0; i < nx; ++i)
+  {
+    for (int j = 0; j < ny; ++j)
+    {
+      z1tag[ny*i + j] = cubic_lattice_z_face(lattice, i, j, 0);
+      z2tag[ny*i + j] = cubic_lattice_z_face(lattice, i, j, nz);
+    }
+  }
+  lattice = NULL;
+}
+
 #ifdef __cplusplus
 }
 #endif

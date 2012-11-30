@@ -177,6 +177,34 @@ void model_run_benchmark(model_t* model, const char* benchmark, options_t* optio
   }
 }
 
+void model_read_input_string(model_t* model, const char* input, options_t* options)
+{
+  interpreter_t* interp = model_interpreter(model);
+  interpreter_parse_string(interp, (char*)input);
+
+  // Load the inputs into the model.
+  model->vtable.read_input(model->context, interp, options);
+}
+
+void model_read_input_file(model_t* model, const char* file, options_t* options)
+{
+  interpreter_t* interp = model_interpreter(model);
+  interpreter_parse_file(interp, (char*)file);
+
+  bool no_opts = false;
+  if (options == NULL)
+  {
+    no_opts = true;
+    options = options_new();
+  }
+
+  // Load the inputs into the model.
+  model->vtable.read_input(model->context, interp, options);
+
+  if (no_opts)
+    options = NULL; 
+}
+
 // Initialize the model at the given time.
 void model_init(model_t* model, double t)
 {
@@ -464,18 +492,15 @@ int model_main(const char* model_name, model_ctor constructor, int argc, char* a
   // By default, the simulation is named after the input file (minus its suffix).
   model_set_sim_name(model, input);
 
-  // Read the inputs into the model's interpreter.
-  interpreter_t* interp = model_interpreter(model);
-  interpreter_parse_file(interp, input);
-
-  // Load the inputs into the model.
-  model->vtable.read_input(model->context, interp, opts);
+  // Read the contents of the input file into the model's interpreter.
+  model_read_input_file(model, input, opts);
 
   // Default time endpoints, max number of steps.
   double t1 = 0.0, t2 = 1.0;
   int max_steps = INT_MAX;
 
   // Overwrite these defaults with interpreted values.
+  interpreter_t* interp = model_interpreter(model);
   if (interpreter_contains(interp, "t1", INTERPRETER_NUMBER))
     t1 = interpreter_get_number(interp, "t1");
   if (interpreter_contains(interp, "t2", INTERPRETER_NUMBER))
