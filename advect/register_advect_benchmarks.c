@@ -173,11 +173,30 @@ static void run_square_wave_1d(options_t* options)
   zero = v0 = soln = NULL;
 }
 
+static void sine_wave_1d_soln(void* ctx, point_t* x, double t, double* phi)
+{
+  double a = 1.0;
+  *phi = sin(2.0*M_PI*(x->x - a*t));
+}
+
+static void run_sine_wave_1d(options_t* options)
+{
+  double z = 0.0;
+  double v[] = {1.0, 0.0, 0.0};
+  st_func_t* zero = constant_st_func_new(1, &z);
+  st_func_t* v0 = constant_st_func_new(3, v);
+  st_func_t* soln = st_func_from_func("sine wave 1d", sine_wave_1d_soln,
+                                      ST_INHOMOGENEOUS, ST_NONCONSTANT, 1);
+  advect_run_1d_flow(options, v0, zero, zero, soln, soln, 1);
+  zero = v0 = soln = NULL;
+}
+
 void register_advect_benchmarks(model_t* model)
 {
   model_register_benchmark(model, "stationary_flow_1d", run_stationary_flow_1d, "Stational flow in 1D (v = 1).");
   model_register_benchmark(model, "stationary_blayer_1d", run_stationary_blayer_1d, "Stational flow with boundary layer in 1D.");
   model_register_benchmark(model, "square_wave_1d", run_square_wave_1d, "Square wave propagation in 1D.");
+  model_register_benchmark(model, "sine_wave_1d", run_sine_wave_1d, "Sine wave propagation in 1D.");
 }
 
 #ifdef __cplusplus
