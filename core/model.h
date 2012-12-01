@@ -44,21 +44,26 @@ typedef void (*model_save_func)(void*, io_interface_t*, double, int);
 // A function for plotting the model to the given I/O interface.
 typedef void (*model_plot_func)(void*, io_interface_t*, double, int);
 
+// A function for computing error norms for the computed solution, compared 
+// with an analytic solution. The error norms can be specific to the model.
+typedef void (*model_compute_error_norms_func)(void*, st_func_t*, double, double*);
+
 // A destructor function for the context object (if any).
 typedef void (*model_dtor)(void*);
 
 // This virtual table must be implemented by any model.
 typedef struct 
 {
-  model_read_input_func   read_input;
-  model_init_func         init;
-  model_max_dt_func       max_dt;
-  model_advance_func      advance;
-  model_finalize_func     finalize;
-  model_load_func         load;
-  model_save_func         save;
-  model_plot_func         plot;
-  model_dtor              dtor;
+  model_read_input_func          read_input;
+  model_init_func                init;
+  model_max_dt_func              max_dt;
+  model_advance_func             advance;
+  model_finalize_func            finalize;
+  model_load_func                load;
+  model_save_func                save;
+  model_plot_func                plot;
+  model_compute_error_norms_func compute_error_norms;
+  model_dtor                     dtor;
 } model_vtable;
 
 // Creates an instance a model with the given name and characteristics, 
@@ -127,6 +132,10 @@ void model_save(model_t* model);
 
 // Plots the model's state to its I/O interface.
 void model_plot(model_t* model);
+
+// Given a model with a computed solution, compute the error norms for 
+// the solution versus a specified analytic solution (at the given time).
+void model_compute_error_norms(model_t* model, st_func_t* solution, double t, double* error_norms);
 
 // Runs a simulation of the model from time t1 to t2, or for a maximum of 
 // max_steps.

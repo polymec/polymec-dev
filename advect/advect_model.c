@@ -1,5 +1,4 @@
 #include <string.h>
-#include <stdlib.h>
 #include "petscksp.h"
 #include "petscmat.h"
 #include "petscvec.h"
@@ -10,18 +9,14 @@
 #include "core/boundary_cell_map.h"
 #include "geometry/cubic_lattice.h"
 #include "geometry/create_cubic_lattice_mesh.h"
-#include "geometry/create_cvt.h"
-#include "geometry/plane.h"
-#include "geometry/cylinder.h"
-#include "geometry/sphere.h"
-#include "geometry/intersection.h"
 #include "io/silo_io.h"
 #include "io/vtk_plot_io.h"
 #include "io/gnuplot_io.h"
 #include "advect/advect_model.h"
 #include "advect/advect_bc.h"
-#include "advect/interpreter_register_advect_functions.h"
 #include "advect/diffusion_op.h"
+#include "advect/interpreter_register_advect_functions.h"
+#include "advect/register_advect_benchmarks.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -102,224 +97,6 @@ typedef struct
   MPI_Comm comm;            
 
 } advect_t;
-
-//------------------------------------------------------------------------
-//                            Benchmarks
-//------------------------------------------------------------------------
-
-static model_t* create_advect(mesh_t* mesh,
-                              st_func_t* velocity, 
-                              st_func_t* diffusivity, 
-                              st_func_t* source, 
-                              st_func_t* initial_cond, 
-                              str_ptr_unordered_map_t* bcs, 
-                              st_func_t* solution,
-                              options_t* options)
-{
-  // Create the model.
-  model_t* model = advect_model_new(options);
-  advect_t* a = (advect_t*)model_context(model);
-  a->mesh = mesh;
-  a->velocity = velocity;
-  a->diffusivity = diffusivity;
-  a->source = source;
-  a->initial_cond = initial_cond;
-  if (a->bcs != NULL)
-    str_ptr_unordered_map_free(a->bcs);
-  a->bcs = bcs;
-  a->solution = solution;
-  return model;
-}
-
-static void run_analytic_problem(model_t* model, 
-                                 double t1, 
-                                 double t2, 
-                                 st_func_t* solution, 
-                                 options_t* options,
-                                 double* lp_norms)
-{
-  int max_steps = INT_MAX;
-  char* max_steps_s = options_value(options, "max_steps");
-  if (max_steps_s != NULL)
-    max_steps = atoi(max_steps_s);
-
-  // Run the thing.
-  model_run(model, t1, t2, max_steps);
-
-  // Calculate the Lp norm of the error and write it to Lp_norms.
-  advect_t* a = model_context(model);
-  double Linf = 0.0, L1 = 0.0, L2 = 0.0;
-  for (int c = 0; c < a->mesh->num_cells; ++c)
-  {
-    double phi_sol;
-    st_func_eval(solution, &a->mesh->cells[c].center, t2, &phi_sol);
-    double V = a->mesh->cells[c].volume;
-    double err = fabs(a->phi[c] - phi_sol);
-//printf("i = %d, phi = %g, phi_s = %g, err = %g\n", c, a->phi[c], phi_sol, err);
-    Linf = (Linf < err) ? err : Linf;
-    L1 += err*V;
-    L2 += err*err*V*V;
-  }
-  L2 = sqrt(L2);
-  lp_norms[0] = Linf;
-  lp_norms[1] = L1;
-  lp_norms[2] = L2;
-//  norm_t* lp_norm = fv2_lp_norm_new(a->mesh);
-//  for (int p = 0; p <= 2; ++p)
-//    lp_norms[p] = fv2_lp_norm_compute_error_from_solution(p, 
-  // FIXME
-
-  // Clean up.
-//  lp_norm = NULL;
-}
-
-static void advect_run_1d_flow(options_t* options, 
-                               st_func_t* velocity, 
-                               st_func_t* diffusivity, 
-                               st_func_t* source, 
-                               st_func_t* initial_cond, 
-                               st_func_t* solution, 
-                               int dim)
-{
-  // Boundary conditions.
-  str_ptr_unordered_map_t* bcs = str_ptr_unordered_map_new();
-
-  // Dirichlet on -x/+x.
-  str_ptr_unordered_map_insert(bcs, "-x", advect_bc_new(1.0, 0.0, solution));
-  str_ptr_unordered_map_insert(bcs, "+x", advect_bc_new(1.0, 0.0, solution));
-
-  // Transverse faces - homogeneous Neumann BCs.
-  double z = 0.0;
-  st_func_t* zero = constant_st_func_new(1, &z);
-  str_ptr_unordered_map_insert(bcs, "-y", advect_bc_new(0.0, 1.0, zero));
-  str_ptr_unordered_map_insert(bcs, "+y", advect_bc_new(0.0, 1.0, zero));
-  str_ptr_unordered_map_insert(bcs, "-z", advect_bc_new(0.0, 1.0, zero));
-  str_ptr_unordered_map_insert(bcs, "+z", advect_bc_new(0.0, 1.0, zero));
-
-  // Run times.
-  double t1 = 0.0, t2 = 1.0;
-
-  // Base resolution, number of runs.
-  int N0;
-  int num_runs;
-  switch(dim)
-  {
-    case 1: 
-      N0 = 32;
-      num_runs = 4;
-      break;
-    case 2:
-      N0 = 16;
-      num_runs = 3;
-      break;
-    case 3:
-      N0 = 8;
-      num_runs = 3;
-      break;
-  }
-
-  // Do a convergence study.
-  double Lp_norms[num_runs][3];
-  for (int iter = 0; iter < num_runs; ++iter)
-  {
-    int Nx = N0 * pow(2, iter), Ny = 1, Nz = 1;
-    double dx = 1.0/Nx;
-    bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
-    if (dim == 1)
-      bbox.y2 = bbox.z2 = dx;
-    if (dim == 2)
-    {
-      Ny = Nx;
-      bbox.z2 = dx;
-    }
-    if (dim == 3)
-      Nz = Nx;
-    mesh_t* mesh = create_cubic_lattice_mesh_with_bbox(Nx, Ny, Nz, &bbox);
-    tag_cubic_lattice_mesh_faces(mesh, Nx, Ny, Nz, "-x", "+x", "-y", "+y", "-z", "+z");
-    str_ptr_unordered_map_t* bcs_copy = str_ptr_unordered_map_copy(bcs);
-
-    model_t* model = create_advect(mesh, velocity, diffusivity, source, 
-                                   initial_cond, bcs_copy, solution, options);
-    run_analytic_problem(model, t1, t2, solution, options, Lp_norms[iter]);
-    model_free(model);
-
-    // If we run in 1D or 2D, we need to adjust the norms.
-    if (dim == 1)
-    {
-      Lp_norms[iter][1] *= Nx*Nx;
-      Lp_norms[iter][2] *= Nx*Nx;
-    }
-    else if (dim == 2)
-    {
-      Lp_norms[iter][1] *= Nx;
-      Lp_norms[iter][2] *= Nx;
-    }
-    log_urgent("iteration %d (Nx = %d): L1 = %g, L2 = %g, Linf = %g", iter, Nx, Lp_norms[iter][1], Lp_norms[iter][2], Lp_norms[iter][0]);
-  }
-
-  // Clean up.
-  int pos = 0;
-  char* key;
-  void* value;
-  while (str_ptr_unordered_map_next(bcs, &pos, &key, &value))
-    advect_bc_free(value);
-  str_ptr_unordered_map_free(bcs);
-  zero = NULL;
-}
-
-static void run_stationary_flow_1d(options_t* options)
-{
-  double z = 0.0, o = 1.0;
-  double v[] = {1.0, 0.0, 0.0};
-  st_func_t* zero = constant_st_func_new(1, &z);
-  st_func_t* one = constant_st_func_new(1, &o);
-  st_func_t* v0 = constant_st_func_new(3, v);
-  advect_run_1d_flow(options, v0, zero, zero, one, one, 1);
-  zero = one = v0 = NULL;
-}
-
-static void stationary_blayer_1d_soln(void* ctx, point_t* x, double t, double* phi)
-{
-  double xx = x->x;
-  double a = 1.0, d = 1.0;
-  *phi = (exp(a/d) - exp(a*xx/d)) / (exp(a/d) - 1.0);
-}
-
-static void run_stationary_blayer_1d(options_t* options)
-{
-  double z = 0.0, o = 1.0;
-  double v[] = {1.0, 0.0, 0.0};
-  st_func_t* zero = constant_st_func_new(1, &z);
-  st_func_t* one = constant_st_func_new(1, &o);
-  st_func_t* v0 = constant_st_func_new(3, v);
-  st_func_t* soln = st_func_from_func("blayer 1d", stationary_blayer_1d_soln,
-                                      ST_INHOMOGENEOUS, ST_CONSTANT, 1);
-  advect_run_1d_flow(options, v0, one, zero, soln, soln, 1);
-  zero = one = v0 = soln = NULL;
-}
-
-static void square_wave_1d_soln(void* ctx, point_t* x, double t, double* phi)
-{
-  double width = 0.25;
-  double a = 1.0;
-  *phi = (fabs(x->x - a*t) < 0.5*width) ? 1.0 : 0.0;
-}
-
-static void run_square_wave_1d(options_t* options)
-{
-  double z = 0.0;
-  double v[] = {1.0, 0.0, 0.0};
-  st_func_t* zero = constant_st_func_new(1, &z);
-  st_func_t* v0 = constant_st_func_new(3, v);
-  st_func_t* soln = st_func_from_func("square wave 1d", square_wave_1d_soln,
-                                      ST_INHOMOGENEOUS, ST_NONCONSTANT, 1);
-  advect_run_1d_flow(options, v0, zero, zero, soln, soln, 1);
-  zero = v0 = soln = NULL;
-}
-
-//------------------------------------------------------------------------
-//                        Model implementation
-//------------------------------------------------------------------------
 
 // Compute half-state fluxes by upwinding (1st order).
 static void compute_upwind_fluxes(mesh_t* mesh, st_func_t* velocity, st_func_t* source, boundary_cell_map_t* boundary_cells, double t, double dt, double* phi, double* fluxes)
@@ -685,6 +462,34 @@ static void advect_save(void* context, io_interface_t* io, double t, int step)
   io_append_dataset(io, dataset);
 }
 
+static void advect_compute_error_norms(void* context, st_func_t* solution, double t, double* lp_norms)
+{
+  advect_t* a = (advect_t*)context;
+  double Linf = 0.0, L1 = 0.0, L2 = 0.0;
+  for (int c = 0; c < a->mesh->num_cells; ++c)
+  {
+    double phi_sol;
+    st_func_eval(solution, &a->mesh->cells[c].center, t, &phi_sol);
+    double V = a->mesh->cells[c].volume;
+    double err = fabs(a->phi[c] - phi_sol);
+//printf("i = %d, phi = %g, phi_s = %g, err = %g\n", c, a->phi[c], phi_sol, err);
+    Linf = (Linf < err) ? err : Linf;
+    L1 += err*V;
+    L2 += err*err*V*V;
+  }
+  L2 = sqrt(L2);
+  lp_norms[0] = Linf;
+  lp_norms[1] = L1;
+  lp_norms[2] = L2;
+//  norm_t* lp_norm = fv2_lp_norm_new(a->mesh);
+//  for (int p = 0; p <= 2; ++p)
+//    lp_norms[p] = fv2_lp_norm_compute_error_from_solution(p, 
+  // FIXME
+
+  // Clean up.
+//  lp_norm = NULL;
+}
+
 static void advect_dtor(void* ctx)
 {
   advect_t* a = (advect_t*)ctx;
@@ -717,6 +522,7 @@ model_t* advect_model_new(options_t* options)
                           .advance = advect_advance,
                           .save = advect_save,
                           .plot = advect_plot,
+                          .compute_error_norms = advect_compute_error_norms,
                           .dtor = advect_dtor};
   advect_t* a = malloc(sizeof(advect_t));
   a->mesh = NULL;
@@ -746,9 +552,7 @@ model_t* advect_model_new(options_t* options)
   }
 
   // Register benchmarks.
-  model_register_benchmark(model, "stationary_flow_1d", run_stationary_flow_1d, "Stational flow in 1D (v = 1).");
-  model_register_benchmark(model, "stationary_blayer_1d", run_stationary_blayer_1d, "Stational flow with boundary layer in 1D.");
-  model_register_benchmark(model, "square_wave_1d", run_square_wave_1d, "Square wave propagation in 1D.");
+  register_advect_benchmarks(model);
 
   // Set up saver/plotter.
   io_interface_t* saver = silo_io_new(MPI_COMM_SELF, 0, false);
@@ -773,6 +577,30 @@ model_t* advect_model_new(options_t* options)
     model_set_plotter(model, plotter);
   }
 
+  return model;
+}
+
+model_t* create_advect(mesh_t* mesh,
+                       st_func_t* velocity, 
+                       st_func_t* diffusivity, 
+                       st_func_t* source, 
+                       st_func_t* initial_cond, 
+                       str_ptr_unordered_map_t* bcs, 
+                       st_func_t* solution,
+                       options_t* options)
+{
+  // Create the model.
+  model_t* model = advect_model_new(options);
+  advect_t* a = (advect_t*)model_context(model);
+  a->mesh = mesh;
+  a->velocity = velocity;
+  a->diffusivity = diffusivity;
+  a->source = source;
+  a->initial_cond = initial_cond;
+  if (a->bcs != NULL)
+    str_ptr_unordered_map_free(a->bcs);
+  a->bcs = bcs;
+  a->solution = solution;
   return model;
 }
 
