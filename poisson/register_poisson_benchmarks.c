@@ -21,7 +21,7 @@ static void run_analytic_problem(mesh_t* mesh, st_func_t* rhs, str_ptr_unordered
   model_run(model, t1, t2, INT_MAX);
 
   // Calculate the Lp norms of the error and write it to Lp_norms.
-  model_compute_error_norms(model, solution, t2, lp_norms);
+  model_compute_error_norms(model, solution, lp_norms);
 
   // Clean up.
 //  lp_norm = NULL;
