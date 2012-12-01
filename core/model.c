@@ -309,10 +309,10 @@ void model_plot(model_t* model)
   io_close(model->plotter);
 }
 
-void model_compute_error_norms(model_t* model, st_func_t* solution, double t, double* error_norms)
+void model_compute_error_norms(model_t* model, st_func_t* solution, double* error_norms)
 { 
   if (model->vtable.compute_error_norms != NULL)
-    model->vtable.compute_error_norms(model->context, solution, t, error_norms);
+    model->vtable.compute_error_norms(model->context, solution, model->time, error_norms);
   else
     polymec_error("%s: This model is not equipped to compute error norms.", model->name);
 }

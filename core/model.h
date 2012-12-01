@@ -135,7 +135,7 @@ void model_plot(model_t* model);
 
 // Given a model with a computed solution, compute the error norms for 
 // the solution versus a specified analytic solution (at the given time).
-void model_compute_error_norms(model_t* model, st_func_t* solution, double t, double* error_norms);
+void model_compute_error_norms(model_t* model, st_func_t* solution, double* error_norms);
 
 // Runs a simulation of the model from time t1 to t2, or for a maximum of 
 // max_steps.

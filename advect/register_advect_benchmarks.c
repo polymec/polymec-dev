@@ -26,7 +26,7 @@ static void run_analytic_problem(model_t* model,
   model_run(model, t1, t2, max_steps);
 
   // Calculate the Lp norms of the error and write it to Lp_norms.
-  model_compute_error_norms(model, solution, t2, lp_norms);
+  model_compute_error_norms(model, solution, lp_norms);
 }
 
 static void advect_run_1d_flow(options_t* options, 
