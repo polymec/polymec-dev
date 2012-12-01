@@ -32,7 +32,6 @@ static void options_free(void* ctx, void* dummy)
     free(key);
     free(value);
   }
-  free(opts);
 }
 
 static void destroy_kv(char* key, char* value)

@@ -23,11 +23,6 @@
 extern "C" {
 #endif
 
-// Lua stuff.
-#include "lua.h"
-#include "lualib.h"
-#include "lauxlib.h"
-
 // Poisson model context structure.
 typedef struct 
 {

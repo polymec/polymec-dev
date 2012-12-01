@@ -1,4 +1,6 @@
+#include <gc/gc.h>
 #include "core/boundary_cell_map.h"
+#include "core/unordered_set.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -13,6 +15,7 @@ static boundary_cell_t* create_boundary_cell()
   bcell->boundary_faces = NULL;
   bcell->num_boundary_faces = 0;
   bcell->bc_for_face = NULL;
+  bcell->opp_cells = NULL;
   return bcell;
 }
 
@@ -24,13 +27,70 @@ static void destroy_boundary_cell_entry(int key, boundary_cell_t* cell)
     free(cell->boundary_faces);
   if (cell->bc_for_face != NULL)
     free(cell->bc_for_face);
+  if (cell->opp_cells != NULL)
+    free(cell->opp_cells);
   free(cell);
+}
+
+static void destroy_pmap_entry(char* key, void* periodic_map)
+{
+  int_int_unordered_map_t* pmap = (void*)periodic_map;
+  int_int_unordered_map_free(pmap);
+}
+
+static str_ptr_unordered_map_t* generate_periodic_maps(mesh_t* mesh, str_ptr_unordered_map_t* bcs)
+{
+  str_ptr_unordered_map_t* periodic_maps = str_ptr_unordered_map_new();
+
+  // Traverse the boundary conditions and look for periodic_bc objects.
+  int pos = 0;
+  char* tag;
+  void* bc;
+  while (str_ptr_unordered_map_next(bcs, &pos, &tag, &bc))
+  {
+    periodic_bc_t* pbc = (periodic_bc_t*)bc;
+    if (!periodic_bc_is_valid(pbc)) continue;
+
+    // Make sure that the periodic BC has tags that are valid.
+    char *tag1, *tag2;
+    periodic_bc_get_tags(pbc, &tag1, &tag2);
+    if (!mesh_has_tag(mesh->face_tags, (const char*)tag1))
+      polymec_error("Face tag '%s' for periodic BC not found in the mesh.", tag1);
+    if (!mesh_has_tag(mesh->face_tags, (const char*)tag2))
+      polymec_error("Face tag '%s' for periodic BC not found in the mesh.", tag2);
+
+    // If a periodic map has already been generated for this boundary
+    // condition, assign it and move on.
+    int_int_unordered_map_t** pmap;
+    if (!strcmp(tag, tag1))
+      pmap = (int_int_unordered_map_t**)str_ptr_unordered_map_get(periodic_maps, tag2);
+    else
+      pmap = (int_int_unordered_map_t**)str_ptr_unordered_map_get(periodic_maps, tag1);
+    if (pmap != NULL)
+    {
+      // No destructor for this map, since it's already handled elsewhere.
+      str_ptr_unordered_map_insert(periodic_maps, tag, *pmap);
+      continue;
+    }
+
+    // If we're here, we need to generate the periodic mapping.
+    *pmap = periodic_bc_generate_map(pbc, mesh);
+
+    // Insert it into our table with this tag as the key.
+    str_ptr_unordered_map_insert_with_dtor(periodic_maps, tag, *pmap, destroy_pmap_entry);
+  }
+
+  return periodic_maps;
 }
 
 boundary_cell_map_t* boundary_cell_map_from_mesh_and_bcs(mesh_t* mesh, str_ptr_unordered_map_t* bcs)
 {
   ASSERT(mesh != NULL);
   ASSERT(bcs != NULL);
+
+  // Firstly, we search through our table of boundary conditions and 
+  // generate any face-face mappings needed by periodic boundary conditions.
+  str_ptr_unordered_map_t* periodic_maps = generate_periodic_maps(mesh, bcs);
 
   boundary_cell_map_t* boundary_cells = boundary_cell_map_new();
 
@@ -102,6 +162,7 @@ boundary_cell_map_t* boundary_cell_map_from_mesh_and_bcs(mesh_t* mesh, str_ptr_u
       for (int f = 0; f < bcell->num_boundary_faces; ++f)
         bcell->boundary_faces[f] = -1;
       bcell->bc_for_face = malloc(sizeof(void*)*bcell->num_boundary_faces);
+      bcell->opp_cells = malloc(sizeof(cell_t*)*bcell->num_boundary_faces);
     }
   }
 
@@ -129,10 +190,150 @@ boundary_cell_map_t* boundary_cell_map_from_mesh_and_bcs(mesh_t* mesh, str_ptr_u
       int i = 0;
       while (boundary_cell->boundary_faces[i] != -1) ++i;
       boundary_cell->boundary_faces[i] = faces[f];
-      boundary_cell->bc_for_face[i] = bc;
+
+      // If the boundary condition is periodic, we have to identify this 
+      // boundary face with its other face, and fill in the appropriate 
+      // opp_cell entry.
+      if (pointer_is_periodic_bc(bc))
+      {
+        boundary_cell->bc_for_face[i] = NULL;
+        int_int_unordered_map_t* periodic_map = *str_ptr_unordered_map_get(periodic_maps, tag);
+        int face_index = face - &mesh->faces[0];
+        int other_face_index = *int_int_unordered_map_get(periodic_map, face_index);
+        face_t* other_face = &mesh->faces[other_face_index];
+        boundary_cell->opp_cells[i] = other_face->cell1;
+      }
+      else
+      {
+        boundary_cell->bc_for_face[i] = bc;
+        boundary_cell->opp_cells[i] = NULL;
+      }
     }
   }
+
+  // Clean up the periodic mappings.
+  str_ptr_unordered_map_free(periodic_maps);
+
   return boundary_cells;
+}
+
+static const int periodic_bc_magic_number = 123652234;
+
+// This function can be used by default to generate a periodic map.
+static int_int_unordered_map_t* generate_periodic_map(void* context, mesh_t* mesh, char* tag1, char* tag2)
+{
+  // First, we validate the periodic mapping a bit.
+
+  // Are there the same number of faces in both the periodic tags?
+  int num_faces1, num_faces2;
+  int* faces1 = mesh_tag(mesh->face_tags, (const char*)tag1, &num_faces1);
+  int* faces2 = mesh_tag(mesh->face_tags, (const char*)tag2, &num_faces2);
+  if (num_faces1 != num_faces2)
+  {
+    polymec_error("Number of faces for periodic boundary '%s' (%d)\n"
+                  "does not equal number of faces for periodic boundary '%s' (%d)", num_faces1, tag1, num_faces2, tag2);
+  }
+
+  // All of the centers of the faces must be coplanar, so we pick three points 
+  // in each and assemble a plane representation.
+  point_t xp1, xp2;
+  vector_t n1, n2;
+  // FIXME
+
+  // Find the normal displacement vector D12 that maps a point from plane 1 
+  // to plane 2.
+  vector_t D12;
+  // FIXME
+
+  // Now that we are somewhat reassured of the sanity of the alleged 
+  // periodicity, we can build the mapping. 
+  int_unordered_set_t* face_mapped1 = int_unordered_set_new();
+  int_unordered_set_t* face_mapped2 = int_unordered_set_new();
+  int_int_unordered_map_t* pmap = int_int_unordered_map_new();
+  for (int f = 0; f < num_faces1; ++f)
+  {
+
+  }
+  // FIXME
+
+  // Clean up.
+  int_unordered_set_free(face_mapped1);
+  int_unordered_set_free(face_mapped2);
+
+  return pmap;
+}
+
+struct periodic_bc_t 
+{
+  // This magic number is used to validate periodic_bc_t objects which 
+  // are cast from void pointers.
+  int magic_number;
+
+  // Essentially, this type contains the tags which are identified through 
+  // a periodic boundary condition.
+  char* tag1;
+  char* tag2;
+
+  // Function pointer (and context pointer) for generating periodic maps.
+  periodic_bc_mapping_func generate_map;
+  void* generate_map_context;
+};
+
+static void periodic_bc_free(void* ctx, void* dummy)
+{
+  periodic_bc_t* bc = (periodic_bc_t*)ctx;
+  free(bc->tag1);
+  free(bc->tag2);
+}
+
+periodic_bc_t* periodic_bc_new(const char* tag1, const char* tag2)
+{
+  // Use the default periodic mapping function.
+  return periodic_bc_new_with_map_func(tag1, tag2, generate_periodic_map, NULL);
+}
+
+periodic_bc_t* periodic_bc_new_with_map_func(const char* tag1, const char* tag2, periodic_bc_mapping_func mapping_func, void* mapping_context)
+{
+  ASSERT(tag1 != NULL);
+  ASSERT(tag2 != NULL);
+  ASSERT(strcmp(tag1, tag2) != 0);
+
+  periodic_bc_t* bc = GC_MALLOC(sizeof(periodic_bc_t));
+  bc->magic_number = periodic_bc_magic_number;
+  bc->tag1 = strdup(tag1);
+  bc->tag2 = strdup(tag2);
+  GC_register_finalizer(bc, &periodic_bc_free, bc, NULL, NULL);
+
+  // Set up the map generation stuff.
+  bc->generate_map = mapping_func;
+  bc->generate_map_context = mapping_context;
+
+  return bc;
+}
+
+bool periodic_bc_is_valid(periodic_bc_t* bc)
+{
+  return (bc->magic_number == periodic_bc_magic_number);
+}
+
+bool pointer_is_periodic_bc(void* ptr)
+{
+  periodic_bc_t* bc = (periodic_bc_t*)ptr;
+  return periodic_bc_is_valid(bc);
+}
+
+void periodic_bc_get_tags(periodic_bc_t* bc, char** tag1, char** tag2)
+{
+  ASSERT(tag1 != NULL);
+  ASSERT(tag2 != NULL);
+  *tag1 = bc->tag1;
+  *tag2 = bc->tag2;
+}
+
+int_int_unordered_map_t* periodic_bc_generate_map(periodic_bc_t* bc, mesh_t* mesh)
+{
+  // Just call the function pointer for this one.
+  return bc->generate_map(bc->generate_map_context, mesh, bc->tag1, bc->tag2);
 }
 
 #ifdef __cplusplus
