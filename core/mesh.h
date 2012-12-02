@@ -103,6 +103,7 @@ typedef struct
   node_t* nodes;
   // Total number of nodes in the mesh.
   int num_nodes;
+
   // Mesh tagging mechanisms.
   mesh_tags_t* cell_tags;
   mesh_tags_t* face_tags;
@@ -131,6 +132,21 @@ void mesh_free(mesh_t* mesh);
 
 // Validates the mesh, throwing an error if it is topologically invalid.
 void mesh_verify(mesh_t* mesh);
+
+// Associates a named piece of metadata (a "property") with the mesh itself.
+// This can be used to store information about (for example) how the mesh 
+// was generated, which can sometimes be useful. A destructor function can be 
+// passed in to handle freeing of resources. If the given property exists 
+// on the mesh, it is overwritten.
+void mesh_set_property(mesh_t* mesh, const char* property, void* data, void (*dtor)(void*));
+
+// Retrieves the given property from the mesh, if any. If the 
+// property is not found, this returns NULL.
+void* mesh_property(mesh_t* mesh, const char* property);
+
+// Deletes the given property from the mesh. This has no effect if the 
+// property is not found.
+void mesh_delete_property(mesh_t* mesh, const char* property);
 
 // Returns a newly-allocated list of indices that will define a tags for 
 // cells/faces/edges/nodes with the given descriptor. If the tag already 

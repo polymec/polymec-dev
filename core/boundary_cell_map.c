@@ -238,12 +238,42 @@ static int_int_unordered_map_t* generate_periodic_map(void* context, mesh_t* mes
   // in each and assemble a plane representation.
   point_t xp1, xp2;
   vector_t n1, n2;
-  // FIXME
+  point_copy(&xp1, &mesh->faces[faces1[0]].center);
+  point_copy(&xp2, &mesh->faces[faces2[0]].center);
+  for (int p = 0; p < 2; ++p)
+  {
+    // Find 3 non-colinear points.
+    point_t p1, p2, p3;
+    point_copy(&p1, &mesh->faces[faces1[0]].center);
+    point_copy(&p2, &mesh->faces[faces1[1]].center);
+    point_copy(&p3, &mesh->faces[faces1[2]].center);
+    for (int i = 3; points_are_colinear(&p1, &p2, &p3); ++i)
+      point_copy(&p3, &mesh->faces[faces1[i]].center);
+
+    // Find the normal vector of the plane containing these points.
+    vector_t v1, v2, n;
+    point_displacement(&p1, &p2, &v1);
+    point_displacement(&p1, &p3, &v2);
+    vector_cross(&v1, &v2, &n);
+    vector_normalize(&n);
+    if (p == 0)
+      vector_copy(&n1, &n);
+    else
+      vector_copy(&n2, &n);
+  }
 
   // Find the normal displacement vector D12 that maps a point from plane 1 
   // to plane 2.
-  vector_t D12;
-  // FIXME
+  {
+    vector_t D12;
+    point_displacement(&xp1, &xp2, &D12);
+    double D12_mag = vector_mag(&D12);
+    double D12_n = vector_dot(&D12, &n1);
+    if (D12_n < 0.0)
+      vector_scale(&D12, -D12_n/D12_mag);
+    else
+      vector_scale(&D12, D12_n/D12_mag);
+  }
 
   // Now that we are somewhat reassured of the sanity of the alleged 
   // periodicity, we can build the mapping. 

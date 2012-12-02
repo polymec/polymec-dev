@@ -1,6 +1,7 @@
 #include "core/interpreter.h"
 #include "core/constant_st_func.h"
 #include "core/unordered_set.h"
+#include "core/boundary_cell_map.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -207,10 +208,39 @@ static int vector_function(lua_State* lua)
   return 1;
 }
 
+// Creates a periodic boundary condition from a pair of tags.
+static int periodic_bc(lua_State* lua)
+{
+  // Check the argument.
+  int num_args = lua_gettop(lua);
+  if (num_args != 2)
+  {
+    lua_pushstring(lua, "Arguments must be 2 boundary mesh (face) tags.");
+    lua_error(lua);
+    return LUA_ERRRUN;
+  }
+  for (int i = 1; i <= 3; ++i)
+  {
+    if (!lua_isstring(lua, i))
+    {
+      lua_pushfstring(lua, "Argument %d must be a face tag.", i);
+      lua_error(lua);
+      return LUA_ERRRUN;
+    }
+  }
+
+  const char* tag1 = lua_tostring(lua, 1);
+  const char* tag2 = lua_tostring(lua, 2);
+  periodic_bc_t* bc = periodic_bc_new(tag1, tag2);
+  lua_pushuserdefined(lua, bc, NULL);
+  return 1;
+}
+
 static void register_default_functions(interpreter_t* interp)
 {
   interpreter_register_function(interp, "constant_function", constant_function);
   interpreter_register_function(interp, "vector_function", vector_function);
+  interpreter_register_function(interp, "periodic_bc", periodic_bc);
 }
 
 interpreter_t* interpreter_new(interpreter_validation_t* valid_inputs)

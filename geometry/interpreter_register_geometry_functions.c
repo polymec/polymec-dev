@@ -1,3 +1,4 @@
+#include "core/boundary_cell_map.h"
 #include "geometry/interpreter_register_geometry_functions.h"
 #include "geometry/cubic_lattice.h"
 #include "geometry/create_cubic_lattice_mesh.h"
@@ -98,9 +99,100 @@ static int cubic_lattice_mesh(lua_State* lua)
   return 1;
 }
 
+static int cubic_lattice_periodic_bc(lua_State* lua)
+{
+  // Check the argument.
+  int num_args = lua_gettop(lua);
+  if (num_args != 2)
+  {
+    lua_pushstring(lua, "Arguments must be 2 boundary mesh (face) tags.");
+    lua_error(lua);
+    return LUA_ERRRUN;
+  }
+  for (int i = 1; i <= 2; ++i)
+  {
+    if (!lua_isstring(lua, i))
+    {
+      lua_pushfstring(lua, "Argument %d must be a face tag.", i);
+      lua_error(lua);
+      return LUA_ERRRUN;
+    }
+  }
+
+  const char* tag1 = lua_tostring(lua, 1);
+  const char* tag2 = lua_tostring(lua, 2);
+
+  // Based on the names of the tags, we can decide which periodic BC 
+  // mapping function to use.
+  periodic_bc_t* bc;
+  if (!strcmp(tag1, "x1"))
+  {
+    if (!strcmp(tag2, "x2"))
+    {
+      lua_pushfstring(lua, "Periodic boundary maps from 'x1' to '%s' (must be 'x2').", tag2);
+      lua_error(lua);
+      return LUA_ERRRUN;
+    }
+    bc = periodic_bc_new_with_map_func(tag1, tag2, cubic_lattice_generate_x_periodic_map, NULL);
+  }
+  else if (!strcmp(tag1, "x2"))
+  {
+    if (!strcmp(tag2, "x1"))
+    {
+      lua_pushfstring(lua, "Periodic boundary maps from 'x2' to '%s' (must be 'x1').", tag2);
+      lua_error(lua);
+      return LUA_ERRRUN;
+    }
+    bc = periodic_bc_new_with_map_func(tag1, tag2, cubic_lattice_generate_x_periodic_map, NULL);
+  }
+  else if (!strcmp(tag1, "y1"))
+  {
+    if (!strcmp(tag2, "y2"))
+    {
+      lua_pushfstring(lua, "Periodic boundary maps from 'y1' to '%s' (must be 'y2').", tag2);
+      lua_error(lua);
+      return LUA_ERRRUN;
+    }
+    bc = periodic_bc_new_with_map_func(tag1, tag2, cubic_lattice_generate_y_periodic_map, NULL);
+  }
+  else if (!strcmp(tag1, "y2"))
+  {
+    if (!strcmp(tag2, "y1"))
+    {
+      lua_pushfstring(lua, "Periodic boundary maps from 'y2' to '%s' (must be 'y1').", tag2);
+      lua_error(lua);
+      return LUA_ERRRUN;
+    }
+    bc = periodic_bc_new_with_map_func(tag1, tag2, cubic_lattice_generate_y_periodic_map, NULL);
+  }
+  else if (!strcmp(tag1, "z1"))
+  {
+    if (!strcmp(tag2, "z2"))
+    {
+      lua_pushfstring(lua, "Periodic boundary maps from 'z1' to '%s' (must be 'z2').", tag2);
+      lua_error(lua);
+      return LUA_ERRRUN;
+    }
+    bc = periodic_bc_new_with_map_func(tag1, tag2, cubic_lattice_generate_z_periodic_map, NULL);
+  }
+  else if (!strcmp(tag1, "z2"))
+  {
+    if (!strcmp(tag2, "z1"))
+    {
+      lua_pushfstring(lua, "Periodic boundary maps from 'z2' to '%s' (must be 'z1').", tag2);
+      lua_error(lua);
+      return LUA_ERRRUN;
+    }
+    bc = periodic_bc_new_with_map_func(tag1, tag2, cubic_lattice_generate_x_periodic_map, NULL);
+  }
+  lua_pushuserdefined(lua, bc, NULL);
+  return 1;
+}
+
 void interpreter_register_geometry_functions(interpreter_t* interp)
 {
   interpreter_register_function(interp, "cubic_lattice_mesh", cubic_lattice_mesh);
+  interpreter_register_function(interp, "cubic_lattice_periodic_bc", cubic_lattice_periodic_bc);
 }
 
 #ifdef __cplusplus
