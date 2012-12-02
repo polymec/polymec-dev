@@ -215,6 +215,14 @@ void model_read_input_file(model_t* model, const char* file, options_t* options)
     options = NULL; 
 }
 
+static void model_do_periodic_work(model_t* model)
+{
+  if ((model->plot_every > 0) && (model->step % model->plot_every) == 0)
+    model_plot(model);
+  if ((model->save_every > 0) && (model->step % model->save_every) == 0)
+    model_save(model);
+}
+
 // Initialize the model at the given time.
 void model_init(model_t* model, double t)
 {
@@ -222,6 +230,8 @@ void model_init(model_t* model, double t)
   model->vtable.init(model->context, t);
   model->step = 0;
   model->time = t;
+
+  model_do_periodic_work(model);
 }
 
 // Returns the largest permissible time step that can be taken by the model
@@ -238,14 +248,6 @@ double model_max_dt(model_t* model, char* reason)
   if (model->vtable.max_dt != NULL)
     return model->vtable.max_dt(model->context, model->time, reason);
   return dt;
-}
-
-static void model_do_periodic_work(model_t* model)
-{
-  if ((model->plot_every > 0) && (model->step % model->plot_every) == 0)
-    model_plot(model);
-  if ((model->save_every > 0) && (model->step % model->save_every) == 0)
-    model_save(model);
 }
 
 void model_advance(model_t* model, double dt)

@@ -34,15 +34,19 @@ static void advect_run_1d_flow(options_t* options,
                                st_func_t* diffusivity, 
                                st_func_t* source, 
                                st_func_t* initial_cond, 
+                               void* left_bc,
+                               void* right_bc,
                                st_func_t* solution, 
+                               double t1,
+                               double t2,
                                int dim)
 {
   // Boundary conditions.
   str_ptr_unordered_map_t* bcs = str_ptr_unordered_map_new();
 
   // Dirichlet on -x/+x.
-  str_ptr_unordered_map_insert(bcs, "-x", advect_bc_new(1.0, 0.0, solution));
-  str_ptr_unordered_map_insert(bcs, "+x", advect_bc_new(1.0, 0.0, solution));
+  str_ptr_unordered_map_insert(bcs, "-x", left_bc);
+  str_ptr_unordered_map_insert(bcs, "+x", right_bc);
 
   // Transverse faces - homogeneous Neumann BCs.
   double z = 0.0;
@@ -51,9 +55,6 @@ static void advect_run_1d_flow(options_t* options,
   str_ptr_unordered_map_insert(bcs, "+y", advect_bc_new(0.0, 1.0, zero));
   str_ptr_unordered_map_insert(bcs, "-z", advect_bc_new(0.0, 1.0, zero));
   str_ptr_unordered_map_insert(bcs, "+z", advect_bc_new(0.0, 1.0, zero));
-
-  // Run times.
-  double t1 = 0.0, t2 = 1.0;
 
   // Base resolution, number of runs.
   int N0;
@@ -130,7 +131,8 @@ static void run_stationary_flow_1d(options_t* options)
   st_func_t* zero = constant_st_func_new(1, &z);
   st_func_t* one = constant_st_func_new(1, &o);
   st_func_t* v0 = constant_st_func_new(3, v);
-  advect_run_1d_flow(options, v0, zero, zero, one, one, 1);
+  advect_bc_t* bc = advect_bc_new(1.0, 0.0, one);
+  advect_run_1d_flow(options, v0, zero, zero, one, bc, bc, one, 0.0, 1.0, 1);
   zero = one = v0 = NULL;
 }
 
@@ -150,7 +152,8 @@ static void run_stationary_blayer_1d(options_t* options)
   st_func_t* v0 = constant_st_func_new(3, v);
   st_func_t* soln = st_func_from_func("blayer 1d", stationary_blayer_1d_soln,
                                       ST_INHOMOGENEOUS, ST_CONSTANT, 1);
-  advect_run_1d_flow(options, v0, one, zero, soln, soln, 1);
+  advect_bc_t* bc = advect_bc_new(1.0, 0.0, one);
+  advect_run_1d_flow(options, v0, one, zero, soln, bc, bc, soln, 0.0, 1.0, 1);
   zero = one = v0 = soln = NULL;
 }
 
@@ -158,7 +161,9 @@ static void square_wave_1d_soln(void* ctx, point_t* x, double t, double* phi)
 {
   double width = 0.25;
   double a = 1.0;
-  *phi = (fabs(x->x - a*t) < 0.5*width) ? 1.0 : 0.0;
+  // Remember: we have to account for periodicity.
+  *phi = ((fabs(x->x - a*t) < 0.5*width) || 
+          (fabs(x->x - (1.0 + a*t)) < 0.5*width)) ? 1.0 : 0.0;
 }
 
 static void run_square_wave_1d(options_t* options)
@@ -169,7 +174,8 @@ static void run_square_wave_1d(options_t* options)
   st_func_t* v0 = constant_st_func_new(3, v);
   st_func_t* soln = st_func_from_func("square wave 1d", square_wave_1d_soln,
                                       ST_INHOMOGENEOUS, ST_NONCONSTANT, 1);
-  advect_run_1d_flow(options, v0, zero, zero, soln, soln, 1);
+  periodic_bc_t* bc = cubic_lattice_x_periodic_bc_new("-x", "+x");
+  advect_run_1d_flow(options, v0, zero, zero, soln, bc, bc, soln, 0.0, 1.0, 1);
   zero = v0 = soln = NULL;
 }
 
@@ -187,7 +193,8 @@ static void run_sine_wave_1d(options_t* options)
   st_func_t* v0 = constant_st_func_new(3, v);
   st_func_t* soln = st_func_from_func("sine wave 1d", sine_wave_1d_soln,
                                       ST_INHOMOGENEOUS, ST_NONCONSTANT, 1);
-  advect_run_1d_flow(options, v0, zero, zero, soln, soln, 1);
+  periodic_bc_t* bc = cubic_lattice_x_periodic_bc_new("-x", "+x");
+  advect_run_1d_flow(options, v0, zero, zero, soln, bc, bc, soln, 0.0, 5.0, 1);
   zero = v0 = soln = NULL;
 }
 

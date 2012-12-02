@@ -18,7 +18,7 @@ cubic_lattice_t* cubic_lattice_new(int nx, int ny, int nz)
   return l;
 }
 
-int_int_unordered_map_t* cubic_lattice_generate_x_periodic_map(void* context, mesh_t* mesh, char* tag1, char* tag2)
+static int_int_unordered_map_t* cubic_lattice_generate_x_periodic_map(void* context, mesh_t* mesh, char* tag1, char* tag2)
 {
   cubic_lattice_t* lattice = mesh_property(mesh, "lattice");
   ASSERT(lattice != NULL);
@@ -39,7 +39,7 @@ int_int_unordered_map_t* cubic_lattice_generate_x_periodic_map(void* context, me
   return map;
 }
 
-int_int_unordered_map_t* cubic_lattice_generate_y_periodic_map(void* context, mesh_t* mesh, char* tag1, char* tag2)
+static int_int_unordered_map_t* cubic_lattice_generate_y_periodic_map(void* context, mesh_t* mesh, char* tag1, char* tag2)
 {
   cubic_lattice_t* lattice = mesh_property(mesh, "lattice");
   ASSERT(lattice != NULL);
@@ -60,7 +60,7 @@ int_int_unordered_map_t* cubic_lattice_generate_y_periodic_map(void* context, me
   return map;
 }
 
-int_int_unordered_map_t* cubic_lattice_generate_z_periodic_map(void* context, mesh_t* mesh, char* tag1, char* tag2)
+static int_int_unordered_map_t* cubic_lattice_generate_z_periodic_map(void* context, mesh_t* mesh, char* tag1, char* tag2)
 {
   cubic_lattice_t* lattice = mesh_property(mesh, "lattice");
   ASSERT(lattice != NULL);
@@ -79,6 +79,21 @@ int_int_unordered_map_t* cubic_lattice_generate_z_periodic_map(void* context, me
   }
 
   return map;
+}
+
+periodic_bc_t* cubic_lattice_x_periodic_bc_new(const char* tag1, const char* tag2)
+{
+  return periodic_bc_new_with_map_func(tag1, tag2, cubic_lattice_generate_x_periodic_map, NULL);
+}
+
+periodic_bc_t* cubic_lattice_y_periodic_bc_new(const char* tag1, const char* tag2)
+{
+  return periodic_bc_new_with_map_func(tag1, tag2, cubic_lattice_generate_y_periodic_map, NULL);
+}
+
+periodic_bc_t* cubic_lattice_z_periodic_bc_new(const char* tag1, const char* tag2)
+{
+  return periodic_bc_new_with_map_func(tag1, tag2, cubic_lattice_generate_z_periodic_map, NULL);
 }
 
 #ifdef __cplusplus

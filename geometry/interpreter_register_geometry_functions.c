@@ -133,7 +133,7 @@ static int cubic_lattice_periodic_bc(lua_State* lua)
       lua_error(lua);
       return LUA_ERRRUN;
     }
-    bc = periodic_bc_new_with_map_func(tag1, tag2, cubic_lattice_generate_x_periodic_map, NULL);
+    bc = cubic_lattice_x_periodic_bc_new(tag1, tag2);
   }
   else if (!strcmp(tag1, "x2"))
   {
@@ -143,7 +143,7 @@ static int cubic_lattice_periodic_bc(lua_State* lua)
       lua_error(lua);
       return LUA_ERRRUN;
     }
-    bc = periodic_bc_new_with_map_func(tag1, tag2, cubic_lattice_generate_x_periodic_map, NULL);
+    bc = cubic_lattice_x_periodic_bc_new(tag1, tag2);
   }
   else if (!strcmp(tag1, "y1"))
   {
@@ -153,7 +153,7 @@ static int cubic_lattice_periodic_bc(lua_State* lua)
       lua_error(lua);
       return LUA_ERRRUN;
     }
-    bc = periodic_bc_new_with_map_func(tag1, tag2, cubic_lattice_generate_y_periodic_map, NULL);
+    bc = cubic_lattice_y_periodic_bc_new(tag1, tag2);
   }
   else if (!strcmp(tag1, "y2"))
   {
@@ -163,7 +163,7 @@ static int cubic_lattice_periodic_bc(lua_State* lua)
       lua_error(lua);
       return LUA_ERRRUN;
     }
-    bc = periodic_bc_new_with_map_func(tag1, tag2, cubic_lattice_generate_y_periodic_map, NULL);
+    bc = cubic_lattice_y_periodic_bc_new(tag1, tag2);
   }
   else if (!strcmp(tag1, "z1"))
   {
@@ -173,7 +173,7 @@ static int cubic_lattice_periodic_bc(lua_State* lua)
       lua_error(lua);
       return LUA_ERRRUN;
     }
-    bc = periodic_bc_new_with_map_func(tag1, tag2, cubic_lattice_generate_z_periodic_map, NULL);
+    bc = cubic_lattice_z_periodic_bc_new(tag1, tag2);
   }
   else if (!strcmp(tag1, "z2"))
   {
@@ -183,7 +183,7 @@ static int cubic_lattice_periodic_bc(lua_State* lua)
       lua_error(lua);
       return LUA_ERRRUN;
     }
-    bc = periodic_bc_new_with_map_func(tag1, tag2, cubic_lattice_generate_x_periodic_map, NULL);
+    bc = cubic_lattice_z_periodic_bc_new(tag1, tag2);
   }
   lua_pushuserdefined(lua, bc, NULL);
   return 1;

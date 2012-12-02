@@ -1,5 +1,6 @@
 #include "poisson/poisson_bc.h"
 #include "core/st_func.h"
+#include "core/periodic_bc.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -17,6 +18,7 @@ poisson_bc_t* poisson_bc_new(double alpha, double beta, st_func_t* F)
 
 void poisson_bc_free(void* bc)
 {
+  if (pointer_is_periodic_bc(bc)) return;
   poisson_bc_t* pbc = (poisson_bc_t*)bc;
   pbc->F = NULL;
   free(pbc);
