@@ -28,10 +28,10 @@ typedef struct
   void** bc_for_face;
 
   // For faces with periodic boundary conditions, this array has non-NULL
-  // entries identifying the cells on the opposite side of the face.
-  // opp_cells[i] is NULL if the ith boundary face does not have a periodic 
-  // boundary condition.
-  cell_t** opp_cells;
+  // entries identifying the face on the opposite side of the ith face.
+  // opp_faces[i] is NULL if the ith boundary face does not have a periodic 
+  // boundary condition. 
+  face_t** opp_faces;
 } boundary_cell_t;
 
 // Define the mapping type.

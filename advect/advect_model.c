@@ -98,8 +98,21 @@ typedef struct
 
 } advect_t;
 
-// Compute half-state fluxes by upwinding (1st order).
-static void compute_upwind_fluxes(mesh_t* mesh, st_func_t* velocity, st_func_t* source, boundary_cell_map_t* boundary_cells, double t, double dt, double* phi, double* fluxes)
+// The "minmod" slope limiter. 
+static double minmod(double a, double b)
+{
+  return 0.5 * (SIGN(a) + SIGN(b)) * MIN(fabs(a), fabs(b));
+}
+
+static void compute_half_step_fluxes(mesh_t* mesh, 
+                                     st_func_t* velocity, 
+                                     st_func_t* source, 
+                                     boundary_cell_map_t* boundary_cells, 
+                                     double t, 
+                                     double dt, 
+                                     double* phi, 
+                                     bool high_order,
+                                     double* fluxes)
 {
   int num_faces = mesh->num_faces;
   for (int f = 0; f < num_faces; ++f)
@@ -112,6 +125,7 @@ static void compute_upwind_fluxes(mesh_t* mesh, st_func_t* velocity, st_func_t* 
     // adjoining cells.
     vector_t n;
     point_displacement(&face->cell1->center, &face->cell2->center, &n);
+    double L = vector_mag(&n); // Grab the inter-cell spacing real quick.
     vector_normalize(&n);
 
     // Compute the normal velocity on this face at t + 0.5*dt.
@@ -123,10 +137,24 @@ static void compute_upwind_fluxes(mesh_t* mesh, st_func_t* velocity, st_func_t* 
     // direction of cell 2 from cell 1, and cell 1 is upwind--otherwise cell2 
     // is upwind. In any case, we use the upwind value of the solution for 
     // the flux.
-    int upwind_cell = (vn > 0.0) ? (face->cell1 - &mesh->cells[0]) 
-                                 : (face->cell2 - &mesh->cells[0]);
+    int cell1 = face->cell1 - &mesh->cells[0],
+        cell2 = face->cell2 - &mesh->cells[0];
+    int upwind_cell = (vn > 0.0) ? cell1 : cell2;
+    int downwind_cell = (vn > 0.0) ? cell2 : cell1;
 
     fluxes[f] = vn * phi[upwind_cell] * face->area;
+
+    if (high_order)
+    {
+      // Compute the piecewise-linear contribution to the integral of the 
+      // advection equation. This is taken from Leveque's 1992 book, p. 185.
+      double nu = vn * dt / L;
+      double slope = minmod(phi[downwind_cell] - phi[upwind_cell], 
+                            phi[upwind_cell] - phi[downwind_cell]) / L;
+if (slope != 0.0)
+  printf("slope = %g\n", slope);
+      fluxes[f] += 0.5 * vn * (1.0 - nu) * L * slope;
+    }
 // printf("%d,%d: vn = %g, F = %g\n", face->cell1 - &mesh->cells[0], face->cell2 - &mesh->cells[0], vn, fluxes[f]);
 
     // Cut off the fluxes below a certain threshold.
@@ -168,50 +196,67 @@ static void compute_upwind_fluxes(mesh_t* mesh, st_func_t* velocity, st_func_t* 
       // direction of the ghost, and the interior cell 1 is upwind--otherwise 
       // the ghost cell is upwind. In any case, we use the upwind value of the 
       // solution for the flux.
-      bool interior_is_upwind = (vn > 0.0);
 
-      double phi_g;
-      if (interior_is_upwind)
-        fluxes[face_index] = vn * phi[bcell] * face->area;
+      // Upwind and downwind values of phi.
+      double phi_up, phi_down;
+
+      // Retrieve the boundary condition for this face and use it to compute
+      // the "ghost" value of phi.
+      advect_bc_t* bc = cell_info->bc_for_face[f];
+      double phi_g, L;
+      if (bc != NULL) // Regular boundary condition.
+      {
+        double alpha = bc->alpha, beta = bc->beta;
+
+        // Compute L, the centroid-to-centroid spacing.
+        L = 2.0 * point_distance(&cell->center, &face->center);
+
+        // Compute F at the face center.
+        double F;
+        st_func_eval(bc->F, &face->center, t, &F);
+
+        // Compute the ghost value for the solution, and the resulting flux.
+        phi_g = (F + (beta/L - 0.5*alpha)) * phi[bcell] / (beta/L + 0.5*alpha);
+//printf("%d: phi = %g, phi_g = %g\n", bcell, phi[bcell], phi_g);
+      }
+      else // Periodic boundary condition.
+      {
+        ASSERT(cell_info->opp_faces[f] != NULL);
+        face_t* opp_face = cell_info->opp_faces[f];
+        cell_t* opp_cell = opp_face->cell1;
+        int opp_cell_index = opp_cell - &mesh->cells[0];
+        phi_g = phi[opp_cell_index];
+
+        // Compute L, the centroid-to-centroid spacing.
+        L = point_distance(&cell->center, &face->center) + 
+            point_distance(&opp_cell->center, &opp_face->center);
+      }
+
+      if (vn > 0.0) 
+      {
+        phi_up = phi[bcell];
+        phi_down = phi_g;
+      }
       else
       {
-        // The ghost cell is upwind, so we compute the solution there.
+        phi_up = phi_g;
+        phi_down = phi[bcell];
+      }
 
-        // Retrieve the boundary condition for this face.
-        advect_bc_t* bc = cell_info->bc_for_face[f];
-        if (bc != NULL) // Regular boundary condition.
-        {
-          double alpha = bc->alpha, beta = bc->beta;
+      // First-order flux computation.
+      fluxes[face_index] = vn * phi_up * face->area;
 
-          // Compute L.
-          double L = 2.0 * point_distance(&cell->center, &face->center);
-
-          // Compute F at the face center.
-          double F;
-          st_func_eval(bc->F, &face->center, t, &F);
-
-          // Compute the ghost value for the solution, and the resulting flux.
-          phi_g = (F + (beta/L - 0.5*alpha)) * phi[bcell] / (beta/L + 0.5*alpha);
-//printf("%d: phi = %g, phi_g = %g\n", bcell, phi[bcell], phi_g);
-        }
-        else // Periodic boundary condition.
-        {
-          ASSERT(cell_info->opp_cells[f] != NULL);
-          int opp_cell_index = cell_info->opp_cells[f] - &mesh->cells[0];
-          phi_g = phi[opp_cell_index];
-        }
-
-        fluxes[face_index] = vn * phi_g * face->area;
+      if (high_order)
+      {
+        // Compute the piecewise-linear contribution to the integral of the 
+        // advection equation. This is taken from Leveque's 1992 book, p. 185.
+        double nu = vn * dt / L;
+        double slope = minmod(phi_down - phi_up, phi_up - phi_down) / L;
+        fluxes[f] += 0.5 * vn * (1.0 - nu) * L * slope;
       }
 // printf("%d: vn = %g, F = %g\n", bcell, vn, fluxes[face_index]);
     }
   }
-}
-
-static void compute_half_step_fluxes(mesh_t* mesh, st_func_t* velocity, st_func_t* source, boundary_cell_map_t* boundary_cells, double t, double dt, double* phi, double* fluxes)
-{
-  // For now, we just use upwinding.
-  compute_upwind_fluxes(mesh, velocity, source, boundary_cells, t, dt, phi, fluxes);
 }
 
 static void set_up_linear_system(mesh_t* mesh, lin_op_t* L, st_func_t* rhs, double t, Mat A, Vec b)
@@ -303,7 +348,7 @@ static void advect_advance(void* context, double t, double dt)
 
   // First, compute the half-step values of the fluxes on faces.
   double fluxes[a->mesh->num_faces];
-  compute_half_step_fluxes(a->mesh, a->velocity, a->source, a->boundary_cells, t, dt, a->phi, fluxes);
+  compute_half_step_fluxes(a->mesh, a->velocity, a->source, a->boundary_cells, t, dt, a->phi, false, fluxes);
 
   // Update the solution using the Divergence Theorem.
   int num_cells = a->mesh->num_cells;
