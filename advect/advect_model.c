@@ -170,6 +170,7 @@ static void compute_upwind_fluxes(mesh_t* mesh, st_func_t* velocity, st_func_t* 
       // solution for the flux.
       bool interior_is_upwind = (vn > 0.0);
 
+      double phi_g;
       if (interior_is_upwind)
         fluxes[face_index] = vn * phi[bcell] * face->area;
       else
@@ -178,18 +179,28 @@ static void compute_upwind_fluxes(mesh_t* mesh, st_func_t* velocity, st_func_t* 
 
         // Retrieve the boundary condition for this face.
         advect_bc_t* bc = cell_info->bc_for_face[f];
-        double alpha = bc->alpha, beta = bc->beta;
+        if (bc != NULL) // Regular boundary condition.
+        {
+          double alpha = bc->alpha, beta = bc->beta;
 
-        // Compute L.
-        double L = 2.0 * point_distance(&cell->center, &face->center);
+          // Compute L.
+          double L = 2.0 * point_distance(&cell->center, &face->center);
 
-        // Compute F at the face center.
-        double F;
-        st_func_eval(bc->F, &face->center, t, &F);
+          // Compute F at the face center.
+          double F;
+          st_func_eval(bc->F, &face->center, t, &F);
 
-        // Compute the ghost value for the solution, and the resulting flux.
-        double phi_g = (F + (beta/L - 0.5*alpha)) * phi[bcell] / (beta/L + 0.5*alpha);
-// printf("%d: phi = %g, phi_g = %g\n", bcell, phi[bcell], phi_g);
+          // Compute the ghost value for the solution, and the resulting flux.
+          phi_g = (F + (beta/L - 0.5*alpha)) * phi[bcell] / (beta/L + 0.5*alpha);
+//printf("%d: phi = %g, phi_g = %g\n", bcell, phi[bcell], phi_g);
+        }
+        else // Periodic boundary condition.
+        {
+          ASSERT(cell_info->opp_cells[f] != NULL);
+          int opp_cell_index = cell_info->opp_cells[f] - &mesh->cells[0];
+          phi_g = phi[opp_cell_index];
+        }
+
         fluxes[face_index] = vn * phi_g * face->area;
       }
 // printf("%d: vn = %g, F = %g\n", bcell, vn, fluxes[face_index]);
