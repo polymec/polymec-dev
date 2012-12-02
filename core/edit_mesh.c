@@ -7,8 +7,6 @@
 extern "C" {
 #endif
 
-#define MAX(x, y) ((x >= y) ? x : y)
-
 // This function rounds the given number up to the nearest power of 2.
 static int round_to_pow2(int x)
 {

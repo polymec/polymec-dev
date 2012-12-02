@@ -1,6 +1,6 @@
 #include "core/brent.h"
 
-#define SIGN(a, b) (((b) >= 0.0) ? fabs(a) : -fabs(a))
+#define BRENT_SIGN(a, b) (((b) >= 0.0) ? fabs(a) : -fabs(a))
 
 #ifdef __cplusplus
 extern "C" {
@@ -78,7 +78,7 @@ double brent_solve(brent_nl_func F, void* context, double x1, double x2, double 
     if (fabs(d) > tol1)
       b += d;
     else
-      b += SIGN(tol1, xm);
+      b += BRENT_SIGN(tol1, xm);
     fb = F(context, b);
     *error = fb;
   }

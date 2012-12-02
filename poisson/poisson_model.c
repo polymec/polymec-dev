@@ -306,10 +306,8 @@ static void set_up_linear_system(mesh_t* mesh, lin_op_t* L, st_func_t* rhs, doub
   VecAssemblyEnd(b);
 }
 
-static void poisson_advance(void* context, double t, double dt)
+static void poisson_solve(poisson_t* p, double t, double dt)
 {
-  poisson_t* p = (poisson_t*)context;
-
   // If we're time-dependent, recompute the linear system here.
   if (!p->is_time_dependent)
   {
@@ -334,6 +332,11 @@ static void poisson_advance(void* context, double t, double dt)
   VecGetArray(p->x, &x);
   memcpy(p->phi, x, sizeof(double)*p->mesh->num_cells);
   VecRestoreArray(p->x, &x);
+}
+
+static void poisson_advance(void* context, double t, double dt)
+{
+  poisson_solve((poisson_t*)context, t, dt);
 }
 
 static void poisson_read_input(void* context, interpreter_t* interp, options_t* options)
@@ -434,7 +437,7 @@ static void poisson_init(void* context, double t)
   }
 
   // We simply solve the problem for t = 0.
-  poisson_advance((void*)p, t, 0.0);
+  poisson_solve((void*)p, t, 0.0);
 
   // We are now initialized.
   p->initialized = true;

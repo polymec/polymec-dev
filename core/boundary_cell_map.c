@@ -13,7 +13,7 @@ static boundary_cell_t* create_boundary_cell()
   bcell->boundary_faces = NULL;
   bcell->num_boundary_faces = 0;
   bcell->bc_for_face = NULL;
-  bcell->opp_cells = NULL;
+  bcell->opp_faces = NULL;
   return bcell;
 }
 
@@ -25,8 +25,8 @@ static void destroy_boundary_cell_entry(int key, boundary_cell_t* cell)
     free(cell->boundary_faces);
   if (cell->bc_for_face != NULL)
     free(cell->bc_for_face);
-  if (cell->opp_cells != NULL)
-    free(cell->opp_cells);
+  if (cell->opp_faces != NULL)
+    free(cell->opp_faces);
   free(cell);
 }
 
@@ -160,7 +160,7 @@ boundary_cell_map_t* boundary_cell_map_from_mesh_and_bcs(mesh_t* mesh, str_ptr_u
       for (int f = 0; f < bcell->num_boundary_faces; ++f)
         bcell->boundary_faces[f] = -1;
       bcell->bc_for_face = malloc(sizeof(void*)*bcell->num_boundary_faces);
-      bcell->opp_cells = malloc(sizeof(cell_t*)*bcell->num_boundary_faces);
+      bcell->opp_faces = malloc(sizeof(face_t*)*bcell->num_boundary_faces);
     }
   }
 
@@ -199,12 +199,12 @@ boundary_cell_map_t* boundary_cell_map_from_mesh_and_bcs(mesh_t* mesh, str_ptr_u
         int face_index = face - &mesh->faces[0];
         int other_face_index = *int_int_unordered_map_get(periodic_map, face_index);
         face_t* other_face = &mesh->faces[other_face_index];
-        boundary_cell->opp_cells[i] = other_face->cell1;
+        boundary_cell->opp_faces[i] = other_face;
       }
       else
       {
         boundary_cell->bc_for_face[i] = bc;
-        boundary_cell->opp_cells[i] = NULL;
+        boundary_cell->opp_faces[i] = NULL;
       }
     }
   }

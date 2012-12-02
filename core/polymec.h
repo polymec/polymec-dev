@@ -37,6 +37,19 @@ for (int i = start; i < start + num; ++i) \
 
 #define real_t double
 
+// This returns the minimum of a and b.
+#ifndef MIN
+#define MIN(a, b) ((a < b) ? a : b)
+#endif
+
+// This returns the maximum of a and b.
+#ifndef MAX
+#define MAX(a, b) ((a > b) ? a : b)
+#endif
+
+// This returns the sign (+1/-1) of the given quantity x.
+#define SIGN(x) ((x > 0) ? 1 : -1)
+
 // These macros use the given arena to allocate/free memory and fall back 
 // to the heap if the first argument is NULL. Note that you still have to 
 // #include <arena/arena.h> to use them.
