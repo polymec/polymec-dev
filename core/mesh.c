@@ -3,7 +3,6 @@
 #include "core/mesh_storage.h"
 #include "core/edit_mesh.h"
 #include "core/unordered_set.h"
-#include "core/unordered_map.h"
 #include "core/linear_algebra.h"
 
 #ifdef __cplusplus
@@ -20,11 +19,9 @@ static int round_to_pow2(int x)
 
 typedef struct
 {
-//  char* key;
   void* data;
   void (*dtor)(void*);
   ARENA* arena;
-//  UT_hash_handle hh; // For uthash
 } mesh_tags_data_property_t;
 
 static mesh_tags_data_property_t* mesh_tags_data_property_new(ARENA* arena, const char* key, void* data, void (*dtor)(void*))
@@ -104,7 +101,7 @@ static void mesh_tags_free(mesh_tags_t* tags)
 }
 
 // These destructors are used with maps for tag properties and tags.
-static void destroy_property_key_and_value(char* key, mesh_tags_data_property_t* value)
+static void destroy_tag_property_key_and_value(char* key, mesh_tags_data_property_t* value)
 {
   ARENA_FREE(value->arena, key);
   mesh_tags_data_property_free(value);
@@ -115,7 +112,6 @@ static void destroy_tag_key_and_value(char* key, mesh_tags_data_t* value)
   ARENA_FREE(value->arena, key);
   mesh_tags_data_free(value);
 }
-
 
 mesh_t* mesh_new(int num_cells, int num_ghost_cells, int num_faces,
                  int num_edges, int num_nodes)
@@ -173,6 +169,10 @@ mesh_t* mesh_new_with_arena(ARENA* arena, int num_cells, int num_ghost_cells, in
   mesh->storage->edge_capacity = edge_cap;
   mesh->storage->face_capacity = face_cap;
   mesh->storage->cell_capacity = cell_cap;
+
+  // Now we create a bogus tag that we can use to store mesh properties.
+  int* prop_tag = mesh_create_tag(mesh->cell_tags, "properties", 1);
+  prop_tag[0] = 0;
 
   return mesh;
 }
@@ -247,6 +247,24 @@ void mesh_verify(mesh_t* mesh)
 
 }
 
+void mesh_set_property(mesh_t* mesh, const char* property, void* data, void (*dtor)(void*))
+{
+  // Use the bogus tag to store our junk.
+  mesh_tag_set_property(mesh->cell_tags, "properties", property, data, dtor);
+}
+
+void* mesh_property(mesh_t* mesh, const char* property)
+{
+  // Get this property from our bogus tag.
+  return mesh_tag_property(mesh->cell_tags, "properties", property);
+}
+
+void mesh_delete_property(mesh_t* mesh, const char* property)
+{
+  // Delete this property from our bogus tag.
+  mesh_tag_delete_property(mesh->cell_tags, "properties", (char*)property);
+}
+
 int* mesh_create_tag(mesh_tags_t* tagger, const char* tag, int num_indices)
 {
   ASSERT(num_indices >= 0);
@@ -288,23 +306,12 @@ bool mesh_tag_set_property(mesh_tags_t* tagger, const char* tag, const char* pro
   ASSERT(data != NULL);
   mesh_tags_data_t** data_p = mesh_tags_data_map_get(tagger->data, (char*)tag);
   if (data_p == NULL) return false;
-  mesh_tags_data_property_t** prop_p = mesh_tags_data_property_map_get((*data_p)->properties, (char*)property);
-  if (prop_p != NULL)
-  {
-    // Overwrite the property's data.
-    if ((*prop_p)->dtor != NULL)
-      (*prop_p)->dtor((*prop_p)->data);
-    (*prop_p)->data = data;
-    (*prop_p)->dtor = destructor;
-  }
-  else
-  {
-    // Create a new property.
-    char* prop_name = ARENA_MALLOC(tagger->arena, sizeof(char)*(strlen(property)+1), 0);
-    strcpy(prop_name, property);
-    mesh_tags_data_property_t* prop = mesh_tags_data_property_new(tagger->arena, property, data, destructor);
-    mesh_tags_data_property_map_insert_with_dtor((*data_p)->properties, prop_name, prop, destroy_property_key_and_value);
-  }
+
+  // Insert the new property.
+  char* prop_name = ARENA_MALLOC(tagger->arena, sizeof(char)*(strlen(property)+1), 0);
+  strcpy(prop_name, property);
+  mesh_tags_data_property_t* prop = mesh_tags_data_property_new(tagger->arena, property, data, destructor);
+  mesh_tags_data_property_map_insert_with_dtor((*data_p)->properties, prop_name, prop, destroy_tag_property_key_and_value);
   return true;
 }
 

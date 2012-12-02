@@ -373,6 +373,9 @@ mesh_t* create_cubic_lattice_mesh_with_bbox(int nx, int ny, int nz, bbox_t* bbox
   ASSERT(gindex == (mesh->num_cells + mesh->num_ghost_cells));
 #endif
 
+  // Stash the lattice in the "lattice" property.
+  mesh_set_property(mesh, "lattice", (void*)lattice, NULL);
+
   // Clean up.
   int_unordered_set_free(processed_faces);
   int_unordered_set_free(processed_nodes);
@@ -396,7 +399,8 @@ void tag_cubic_lattice_mesh_faces(mesh_t* mesh,
                                   const char* z2_tag)
 {
   // Tag the boundaries of the mesh.
-  cubic_lattice_t* lattice = cubic_lattice_new(nx, ny, nz);
+  cubic_lattice_t* lattice = mesh_property(mesh, "lattice");
+  ASSERT(lattice != NULL);
   int* x1tag = mesh_create_tag(mesh->face_tags, x1_tag, ny*nz);
   int* x2tag = mesh_create_tag(mesh->face_tags, x2_tag, ny*nz);
   for (int j = 0; j < ny; ++j)

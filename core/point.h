@@ -80,6 +80,33 @@ static inline void point_displacement(point_t* x, point_t* y, vector_t* displace
   displacement->z = y->z - x->z;
 }
 
+// Copy the source vector's components to those of the destination vector.
+static inline void vector_copy(vector_t* dest, vector_t* source)
+{
+  dest->x = source->x;
+  dest->y = source->y;
+  dest->z = source->z;
+}
+
+static inline void vector_scale(vector_t* v, double s)
+{
+  v->x *= s;
+  v->y *= s;
+  v->z *= s;
+}
+
+// Returns true if points p1, p2, and p3 are colinear, false otherwise.
+static inline bool points_are_colinear(point_t* p1, point_t* p2, point_t* p3)
+{
+  // 3 points are colinear if the cross product of displacement vectors
+  // is zero.
+  vector_t v12, v13, v3;
+  point_displacement(p1, p2, &v12);
+  point_displacement(p1, p3, &v13);
+  vector_cross(&v12, &v13, &v3);
+  return (vector_dot(&v3, &v3) < 1e-14);
+}
+
 // A bounding box.
 typedef struct
 {

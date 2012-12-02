@@ -1,6 +1,9 @@
 #ifndef POLYMEC_CUBIC_LATTICE_H
 #define POLYMEC_CUBIC_LATTICE_H
 
+#include "core/unordered_map.h"
+#include "core/mesh.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -130,6 +133,18 @@ static inline int cubic_lattice_node(cubic_lattice_t* l, int i, int j, int k)
 {
   return (l->nx+1)*(l->ny+1)*k + (l->nx+1)*j + i;
 }
+
+// These functions can be used to generate mappings between faces on cubic 
+// lattice meshes with periodic boundary conditions. 
+
+// This mapping function generates an x-face periodic mapping.
+int_int_unordered_map_t* cubic_lattice_generate_x_periodic_map(void* context, mesh_t* mesh, char* tag1, char* tag2);
+
+// This mapping function generates a y-face periodic mapping.
+int_int_unordered_map_t* cubic_lattice_generate_y_periodic_map(void* context, mesh_t* mesh, char* tag1, char* tag2);
+
+// This mapping function generates a z-face periodic mapping.
+int_int_unordered_map_t* cubic_lattice_generate_z_periodic_map(void* context, mesh_t* mesh, char* tag1, char* tag2);
 
 #ifdef __cplusplus
 }
