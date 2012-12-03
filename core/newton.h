@@ -1,7 +1,7 @@
 #ifndef POLYMEC_NEWTON_H
 #define POLYMEC_NEWTON_H
 
-#include "polymec.h"
+#include "core/polymec.h"
 
 #ifdef __cplusplus
 extern "C" {
