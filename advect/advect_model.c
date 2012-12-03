@@ -152,12 +152,9 @@ static double estimate_slope(slope_estimator_t* slope_est,
         ASSERT(cell_info->opp_faces[bf] != NULL);
         face_t* opp_face = cell_info->opp_faces[bf];
         cell_t* opp_cell = opp_face->cell1;
-        other_points[i].x = face_center->x - up_cell->center.x + 
-                            opp_cell->center.x - opp_face->center.x;
-        other_points[i].y = face_center->y - up_cell->center.y + 
-                            opp_cell->center.x - opp_face->center.x;
-        other_points[i].z = face_center->z - up_cell->center.z + 
-                            opp_cell->center.x - opp_face->center.x;
+        other_points[i].x = face_center->x + (opp_cell->center.x - opp_face->center.x);
+        other_points[i].y = face_center->y + (opp_cell->center.y - opp_face->center.y);
+        other_points[i].z = face_center->z + (opp_cell->center.z - opp_face->center.z);
         int opp_cell_index = opp_cell - &mesh->cells[0];
         other_phi[i] = phi[opp_cell_index];
       }
@@ -224,8 +221,7 @@ static void compute_half_step_fluxes(mesh_t* mesh,
 
       double slope = estimate_slope(slope_est, mesh, phi, 
                                     upwind_cell, downwind_cell, boundary_cells, t);
-if (slope != 0.0)
-  printf("slope = %g\n", slope);
+printf("slope = %g\n", slope);
       fluxes[f] += 0.5 * vn * (1.0 - nu) * L * slope;
     }
 // printf("%d,%d: vn = %g, F = %g\n", face->cell1 - &mesh->cells[0], face->cell2 - &mesh->cells[0], vn, fluxes[f]);
@@ -652,7 +648,7 @@ model_t* advect_model_new(options_t* options)
   a->solution = NULL;
   a->initial_cond = NULL;
   a->D = NULL;
-  a->slope_estimator = NULL; //slope_estimator_new(SLOPE_LIMITER_MINMOD);
+  a->slope_estimator = slope_estimator_new(SLOPE_LIMITER_VAN_LEER);
   a->diff_system = NULL;
   a->bcs = str_ptr_unordered_map_new();
   a->boundary_cells = boundary_cell_map_new();
@@ -665,7 +661,7 @@ model_t* advect_model_new(options_t* options)
     if (cfl_str != NULL)
       a->CFL = atof(cfl_str);
     else
-      a->CFL = 1.0;
+      a->CFL = 0.9;
     if ((a->CFL <= 0.0) || (a->CFL > 1.0))
       polymec_error("CFL should be between 0 and 1.");
   }

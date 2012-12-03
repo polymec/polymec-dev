@@ -32,8 +32,14 @@ void matrix_fprintf(double* matrix, int nr, int nc, FILE* stream);
 // Print a vector to the given file stream.
 void vector_fprintf(double* vec, int nr, FILE* stream);
 
+// Computes the determinant of the given 2x2 matrix.
+double matrix2_det(double* matrix);
+
 // Computes the determinant of the given 3x3 matrix.
 double matrix3_det(double* matrix);
+
+// Solves a 2x2 linear system Ax = b.
+void solve_2x2(double* A, double* b, double* x);
 
 // Solves a 3x3 linear system Ax = b.
 void solve_3x3(double* A, double* b, double* x);
