@@ -19,6 +19,7 @@ typedef enum
 {
   SLOPE_LIMITER_NO_SLOPES,  // Slopes are always set to zero.
   SLOPE_LIMITER_MINMOD,
+  SLOPE_LIMITER_SUPERBEE,
   SLOPE_LIMITER_VAN_LEER
 } slope_limiter_t;
 

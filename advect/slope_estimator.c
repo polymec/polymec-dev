@@ -17,6 +17,13 @@ static double minmod(double forward_slope, double backward_slope)
   return 0.5 * (SIGN(forward_slope) + SIGN(backward_slope)) * MIN(fabs(forward_slope), fabs(backward_slope));
 }
 
+static double superbee(double forward_slope, double backward_slope)
+{
+  double theta = backward_slope / (forward_slope + 1e-15);
+  double phi = MAX(0.0, MAX(MIN(1.0, 2.0*theta), MIN(theta, 2.0)));
+  return forward_slope * phi;
+}
+
 static double van_leer(double forward_slope, double backward_slope)
 {
   double theta = backward_slope / (forward_slope + 1e-15);
@@ -59,7 +66,7 @@ static void compute_parabolic_fit(point_t* center_point,
   point_displacement(center_point, forward_point, &center_to_forward);
   double h = vector_mag(&center_to_forward);
   ASSERT(h != 0.0);
-  printf("xc = %g %g %g, xf = %g %g %g, h = %g\n", center_point->x, center_point->y, center_point->z, forward_point->x, forward_point->y, forward_point->z, h);
+//printf("xc = %g %g %g, xf = %g %g %g, h = %g\n", center_point->x, center_point->y, center_point->z, forward_point->x, forward_point->y, forward_point->z, h);
   vector_normalize(&center_to_forward); // Now a unit vector!
 
   // Consider the line on which lie the center point and forward point. 
@@ -80,8 +87,8 @@ static void compute_parabolic_fit(point_t* center_point,
 
     // Project the other point to the line.
     projs[i] = -vector_dot(&other_to_center, &center_to_forward);
-    if (projs[i] != 0.0)
-      printf("points[%d] = %g %g %g, proj = %g, val = %g\n", i, other_points[i].x, other_points[i].y, other_points[i].z, projs[i], other_values[i]);
+if (projs[i] != 0.0)
+  printf("points[%d] = %g %g %g, proj = %g, val = %g\n", i, other_points[i].x, other_points[i].y, other_points[i].z, projs[i], other_values[i]);
 
     // Weight it accordingly.
     other_weights[i] = weight(distance, h);
@@ -104,9 +111,9 @@ static void compute_parabolic_fit(point_t* center_point,
     add_to_ls_system(other_weights[i], projs[i], other_values[i], A, b);
 
 //  printf("A = \n");
-  matrix_fprintf(A, 3, 3, stdout);
+//  matrix_fprintf(A, 3, 3, stdout);
 //  printf("b = \n");
-  vector_fprintf(b, 3, stdout);
+//  vector_fprintf(b, 3, stdout);
 
   // Solve the system for the coefficients.
   solve_3x3(A, b, coeffs);
@@ -122,6 +129,9 @@ slope_estimator_t* slope_estimator_new(slope_limiter_t function)
       break;
     case (SLOPE_LIMITER_MINMOD):
       estimator->compute_factor = minmod;
+      break;
+    case (SLOPE_LIMITER_SUPERBEE):
+      estimator->compute_factor = superbee;
       break;
     case (SLOPE_LIMITER_VAN_LEER):
       estimator->compute_factor = van_leer;
@@ -159,8 +169,8 @@ double slope_estimator_value(slope_estimator_t* estimator,
   double backward_value = coeffs[0] + coeffs[1]*(-L) + coeffs[2]*L*L;
 
   // Compute forward and backward slopes.
-  double forward_slope = (forward_value - center_value) / (2*L);
-  double backward_slope = (center_value - backward_value) / (2*L);
+  double forward_slope = (forward_value - center_value) / L;
+  double backward_slope = (center_value - backward_value) / L;
 printf("bval = %g, cval = %g, fval = %g\n", backward_value, center_value, forward_value);
 printf("fslope = %g, bslope = %g\n", forward_slope, backward_slope);
 

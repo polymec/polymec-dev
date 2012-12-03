@@ -219,10 +219,13 @@ static void compute_half_step_fluxes(mesh_t* mesh,
       // advection equation. This is taken from Leveque's 1992 book, p. 185.
       double nu = vn * dt / L;
 
+      // Estimate the slope through the upwind cell.
       double slope = estimate_slope(slope_est, mesh, phi, 
                                     upwind_cell, downwind_cell, boundary_cells, t);
+if (slope != 0.0)
 printf("slope = %g\n", slope);
-      fluxes[f] += 0.5 * vn * (1.0 - nu) * L * slope;
+//      fluxes[f] += 0.5 * vn * (1.0 - nu) * L * slope;
+      fluxes[f] += 0.5 * vn * (SIGN(nu) - nu) * L * slope;
     }
 // printf("%d,%d: vn = %g, F = %g\n", face->cell1 - &mesh->cells[0], face->cell2 - &mesh->cells[0], vn, fluxes[f]);
 
@@ -648,7 +651,7 @@ model_t* advect_model_new(options_t* options)
   a->solution = NULL;
   a->initial_cond = NULL;
   a->D = NULL;
-  a->slope_estimator = slope_estimator_new(SLOPE_LIMITER_VAN_LEER);
+  a->slope_estimator = slope_estimator_new(SLOPE_LIMITER_MINMOD);
   a->diff_system = NULL;
   a->bcs = str_ptr_unordered_map_new();
   a->boundary_cells = boundary_cell_map_new();
@@ -664,6 +667,23 @@ model_t* advect_model_new(options_t* options)
       a->CFL = 0.9;
     if ((a->CFL <= 0.0) || (a->CFL > 1.0))
       polymec_error("CFL should be between 0 and 1.");
+
+    char* limiter_str = options_value(options, "limiter");
+    if (limiter_str != NULL)
+    {
+      slope_limiter_t limiter;
+      if (!strcasecmp(limiter_str, "upwind"))
+        limiter = SLOPE_LIMITER_NO_SLOPES;
+      else if (!strcasecmp(limiter_str, "minmod"))
+        limiter = SLOPE_LIMITER_MINMOD;
+      else if (!strcasecmp(limiter_str, "superbee"))
+        limiter = SLOPE_LIMITER_SUPERBEE;
+      else if (!strcasecmp(limiter_str, "vanleer"))
+        limiter = SLOPE_LIMITER_VAN_LEER;
+      else
+        polymec_error("Unknown limiter: %s", limiter_str);
+      a->slope_estimator = slope_estimator_new(limiter);
+    }
   }
 
   // Register benchmarks.
