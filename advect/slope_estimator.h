@@ -17,8 +17,9 @@ typedef struct slope_estimator_t slope_estimator_t;
 // Types of slope limiter functions.
 typedef enum
 {
-  SLOPE_LIMITER_NONE,  // Slopes are always set to zero.
-  SLOPE_LIMITER_MINMOD
+  SLOPE_LIMITER_NO_SLOPES,  // Slopes are always set to zero.
+  SLOPE_LIMITER_MINMOD,
+  SLOPE_LIMITER_VAN_LEER
 } slope_limiter_t;
 
 // Constructor for a slope estimator that uses the given type.

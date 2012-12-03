@@ -17,9 +17,17 @@ static double minmod(double forward_slope, double backward_slope)
   return 0.5 * (SIGN(forward_slope) + SIGN(backward_slope)) * MIN(fabs(forward_slope), fabs(backward_slope));
 }
 
+static double van_leer(double forward_slope, double backward_slope)
+{
+  double theta = backward_slope / (forward_slope + 1e-15);
+  double phi = (fabs(theta) + theta) / (1.0 + fabs(theta));
+  return forward_slope * phi;
+}
+
 // This is a weighting function for our parabolic least-squares fit.
 static inline double weight(double distance, double length_scale)
 {
+  return 1.0;
   double X = distance/length_scale;
   static double epsilon = 1e-4;
   return 1.0 / (X*X + epsilon*epsilon);
@@ -27,11 +35,9 @@ static inline double weight(double distance, double length_scale)
 
 static inline void add_to_ls_system(double weight, double x, double val, double* A, double* b)
 {
-  A[0] += weight*1.0;
-  A[1] += weight*x; A[3] += weight*x;
-  A[2] += weight*x*x; A[4] += weight*x*x; A[6] += weight*x*x;
-  A[5] += weight*x*x*x; A[7] += weight*x*x*x;
-  A[8] += weight*x*x*x*x;
+  A[0] += weight*1.0; A[3] += weight*x;     A[6] += weight*x*x;
+  A[1] += weight*x;   A[4] += weight*x*x;   A[7] += weight*x*x*x;
+  A[2] += weight*x*x; A[5] += weight*x*x*x; A[8] += weight*x*x*x*x;
 
   b[0] += weight*1.0*val;
   b[1] += weight*x*val;
@@ -53,6 +59,7 @@ static void compute_parabolic_fit(point_t* center_point,
   point_displacement(center_point, forward_point, &center_to_forward);
   double h = vector_mag(&center_to_forward);
   ASSERT(h != 0.0);
+  printf("xc = %g %g %g, xf = %g %g %g, h = %g\n", center_point->x, center_point->y, center_point->z, forward_point->x, forward_point->y, forward_point->z, h);
   vector_normalize(&center_to_forward); // Now a unit vector!
 
   // Consider the line on which lie the center point and forward point. 
@@ -72,8 +79,9 @@ static void compute_parabolic_fit(point_t* center_point,
     double distance = vector_mag(&cross_prod); //  / vector_mag(&center_to_forward);
 
     // Project the other point to the line.
-    projs[i] = vector_dot(&other_to_center, &center_to_forward);
-//printf("projs[%d] = %g\n", i, projs[i]);
+    projs[i] = -vector_dot(&other_to_center, &center_to_forward);
+    if (projs[i] != 0.0)
+      printf("points[%d] = %g %g %g, proj = %g, val = %g\n", i, other_points[i].x, other_points[i].y, other_points[i].z, projs[i], other_values[i]);
 
     // Weight it accordingly.
     other_weights[i] = weight(distance, h);
@@ -95,9 +103,9 @@ static void compute_parabolic_fit(point_t* center_point,
   for (int i = 0; i < num_other_points; ++i)
     add_to_ls_system(other_weights[i], projs[i], other_values[i], A, b);
 
-  printf("A = \n");
+//  printf("A = \n");
   matrix_fprintf(A, 3, 3, stdout);
-  printf("b = \n");
+//  printf("b = \n");
   vector_fprintf(b, 3, stdout);
 
   // Solve the system for the coefficients.
@@ -109,11 +117,14 @@ slope_estimator_t* slope_estimator_new(slope_limiter_t function)
   slope_estimator_t* estimator = GC_MALLOC(sizeof(slope_estimator_t));
   switch (function)
   {
-    case (SLOPE_LIMITER_NONE):
+    case (SLOPE_LIMITER_NO_SLOPES):
       estimator->compute_factor = NULL;
       break;
     case (SLOPE_LIMITER_MINMOD):
       estimator->compute_factor = minmod;
+      break;
+    case (SLOPE_LIMITER_VAN_LEER):
+      estimator->compute_factor = van_leer;
       break;
   }
   return estimator;
@@ -150,7 +161,7 @@ double slope_estimator_value(slope_estimator_t* estimator,
   // Compute forward and backward slopes.
   double forward_slope = (forward_value - center_value) / (2*L);
   double backward_slope = (center_value - backward_value) / (2*L);
-printf("cval = %g, fval = %g, bval = %g\n", center_value, forward_value, backward_value);
+printf("bval = %g, cval = %g, fval = %g\n", backward_value, center_value, forward_value);
 printf("fslope = %g, bslope = %g\n", forward_slope, backward_slope);
 
   // Now compute the estimator factor with the forward and backward slopes.
