@@ -35,6 +35,9 @@ void vector_fprintf(double* vec, int nr, FILE* stream);
 // Computes the determinant of the given 3x3 matrix.
 double matrix3_det(double* matrix);
 
+// Solves a 3x3 linear system Ax = b.
+void solve_3x3(double* A, double* b, double* x);
+
 #ifdef __cplusplus
 }
 #endif
