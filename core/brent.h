@@ -1,7 +1,7 @@
 #ifndef POLYMEC_BRENT_H
 #define POLYMEC_BRENT_H
 
-#include "polymec.h"
+#include "core/polymec.h"
 
 #ifdef __cplusplus
 extern "C" {

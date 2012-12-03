@@ -17,6 +17,16 @@ static double minmod(double forward_slope, double backward_slope)
   return 0.5 * (SIGN(forward_slope) + SIGN(backward_slope)) * MIN(fabs(forward_slope), fabs(backward_slope));
 }
 
+static double lax_wendroff(double forward_slope, double backward_slope)
+{
+  return 1.0;
+}
+
+static double beam_warming(double forward_slope, double backward_slope)
+{
+  return backward_slope / (forward_slope + 1e-15);
+}
+
 static double superbee(double forward_slope, double backward_slope)
 {
   double theta = backward_slope / (forward_slope + 1e-15);
@@ -124,17 +134,20 @@ slope_estimator_t* slope_estimator_new(slope_limiter_t function)
   slope_estimator_t* estimator = GC_MALLOC(sizeof(slope_estimator_t));
   switch (function)
   {
-    case (SLOPE_LIMITER_NO_SLOPES):
-      estimator->compute_factor = NULL;
+    case (SLOPE_LIMITER_BEAM_WARMING):
+      estimator->compute_factor = beam_warming;
       break;
-    case (SLOPE_LIMITER_MINMOD):
-      estimator->compute_factor = minmod;
+    case (SLOPE_LIMITER_VAN_LEER):
+      estimator->compute_factor = van_leer;
       break;
     case (SLOPE_LIMITER_SUPERBEE):
       estimator->compute_factor = superbee;
       break;
-    case (SLOPE_LIMITER_VAN_LEER):
-      estimator->compute_factor = van_leer;
+    case (SLOPE_LIMITER_MINMOD):
+      estimator->compute_factor = minmod;
+      break;
+    case (SLOPE_LIMITER_LAX_WENDROFF):
+      estimator->compute_factor = lax_wendroff;
       break;
   }
   return estimator;

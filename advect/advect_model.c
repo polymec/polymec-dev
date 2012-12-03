@@ -671,18 +671,25 @@ model_t* advect_model_new(options_t* options)
     char* limiter_str = options_value(options, "limiter");
     if (limiter_str != NULL)
     {
-      slope_limiter_t limiter;
       if (!strcasecmp(limiter_str, "upwind"))
-        limiter = SLOPE_LIMITER_NO_SLOPES;
-      else if (!strcasecmp(limiter_str, "minmod"))
-        limiter = SLOPE_LIMITER_MINMOD;
-      else if (!strcasecmp(limiter_str, "superbee"))
-        limiter = SLOPE_LIMITER_SUPERBEE;
-      else if (!strcasecmp(limiter_str, "vanleer"))
-        limiter = SLOPE_LIMITER_VAN_LEER;
+        a->slope_estimator = NULL;
       else
-        polymec_error("Unknown limiter: %s", limiter_str);
-      a->slope_estimator = slope_estimator_new(limiter);
+      {
+        slope_limiter_t limiter;
+        if (!strcasecmp(limiter_str, "lax-wendroff"))
+          limiter = SLOPE_LIMITER_LAX_WENDROFF;
+        else if (!strcasecmp(limiter_str, "beam-warming"))
+          limiter = SLOPE_LIMITER_BEAM_WARMING;
+        else if (!strcasecmp(limiter_str, "vanleer"))
+          limiter = SLOPE_LIMITER_VAN_LEER;
+        else if (!strcasecmp(limiter_str, "superbee"))
+          limiter = SLOPE_LIMITER_SUPERBEE;
+        else if (!strcasecmp(limiter_str, "minmod"))
+          limiter = SLOPE_LIMITER_MINMOD;
+        else
+          polymec_error("Unknown limiter: %s", limiter_str);
+        a->slope_estimator = slope_estimator_new(limiter);
+      }
     }
   }
 
