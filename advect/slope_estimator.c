@@ -87,8 +87,8 @@ static void compute_parabolic_fit(point_t* center_point,
 
     // Project the other point to the line.
     projs[i] = -vector_dot(&other_to_center, &center_to_forward);
-if (projs[i] != 0.0)
-  printf("points[%d] = %g %g %g, proj = %g, val = %g\n", i, other_points[i].x, other_points[i].y, other_points[i].z, projs[i], other_values[i]);
+//if (projs[i] != 0.0)
+//  printf("points[%d] = %g %g %g, proj = %g, val = %g\n", i, other_points[i].x, other_points[i].y, other_points[i].z, projs[i], other_values[i]);
 
     // Weight it accordingly.
     other_weights[i] = weight(distance, h);
@@ -162,7 +162,7 @@ double slope_estimator_value(slope_estimator_t* estimator,
                         forward_point, forward_value,
                         other_points, other_values, num_other_points,
                         coeffs);
-  printf("%g %g %g\n", coeffs[0], coeffs[1], coeffs[2]);
+//printf("%g %g %g\n", coeffs[0], coeffs[1], coeffs[2]);
 
   // Compute the "backward" value of the solution using the fit.
   double L = point_distance(center_point, forward_point);
@@ -171,8 +171,8 @@ double slope_estimator_value(slope_estimator_t* estimator,
   // Compute forward and backward slopes.
   double forward_slope = (forward_value - center_value) / L;
   double backward_slope = (center_value - backward_value) / L;
-printf("bval = %g, cval = %g, fval = %g\n", backward_value, center_value, forward_value);
-printf("fslope = %g, bslope = %g\n", forward_slope, backward_slope);
+//printf("bval = %g, cval = %g, fval = %g\n", backward_value, center_value, forward_value);
+//printf("fslope = %g, bslope = %g\n", forward_slope, backward_slope);
 
   // Now compute the estimator factor with the forward and backward slopes.
   return estimator->compute_factor(forward_slope, backward_slope);

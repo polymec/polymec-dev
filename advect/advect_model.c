@@ -222,10 +222,10 @@ static void compute_half_step_fluxes(mesh_t* mesh,
       // Estimate the slope through the upwind cell.
       double slope = estimate_slope(slope_est, mesh, phi, 
                                     upwind_cell, downwind_cell, boundary_cells, t);
-if (slope != 0.0)
-printf("slope = %g\n", slope);
+//if (slope != 0.0)
+//printf("slope = %g\n", slope);
 //      fluxes[f] += 0.5 * vn * (1.0 - nu) * L * slope;
-      fluxes[f] += 0.5 * vn * (SIGN(nu) - nu) * L * slope;
+      fluxes[f] += 0.5 * vn * (SIGN(nu) - nu) * L * slope * face->area;
     }
 // printf("%d,%d: vn = %g, F = %g\n", face->cell1 - &mesh->cells[0], face->cell2 - &mesh->cells[0], vn, fluxes[f]);
 
