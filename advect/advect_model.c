@@ -17,6 +17,7 @@
 #include "advect/diffusion_op.h"
 #include "advect/interpreter_register_advect_functions.h"
 #include "advect/register_advect_benchmarks.h"
+#include "advect/slope_estimator.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -83,6 +84,9 @@ typedef struct
   // Information for boundary cells.
   boundary_cell_map_t*  boundary_cells;
 
+  // Slope estimator.
+  slope_estimator_t* slope_estimator;
+
   // CFL safety factor.
   double CFL;             
 
@@ -98,7 +102,7 @@ typedef struct
 
 } advect_t;
 
-// The "minmod" slope limiter. 
+// The "minmod" slope estimator. 
 static double minmod(double a, double b)
 {
   return 0.5 * (SIGN(a) + SIGN(b)) * MIN(fabs(a), fabs(b));
@@ -565,6 +569,7 @@ static void advect_dtor(void* ctx)
   a->initial_cond = NULL;
   a->diffusivity = NULL;
   a->source = NULL;
+  a->slope_estimator = NULL;
 
   boundary_cell_map_free(a->boundary_cells);
   free(a);
@@ -590,6 +595,7 @@ model_t* advect_model_new(options_t* options)
   a->solution = NULL;
   a->initial_cond = NULL;
   a->D = NULL;
+  a->slope_estimator = slope_estimator_new(SLOPE_LIMITER_MINMOD);
   a->diff_system = NULL;
   a->bcs = str_ptr_unordered_map_new();
   a->boundary_cells = boundary_cell_map_new();

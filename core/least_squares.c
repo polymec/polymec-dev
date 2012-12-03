@@ -14,12 +14,6 @@ struct multi_index_t
   int offset; // Offset in flattened index space.
 };
 
-static void multi_index_free(void* ctx, void* dummy)
-{
-  multi_index_t* m = (multi_index_t*)ctx;
-  free(m);
-}
-
 multi_index_t* multi_index_new(int p)
 {
   ASSERT(p >= 0);
@@ -28,7 +22,6 @@ multi_index_t* multi_index_new(int p)
   m->p = p;
   m->x_order = m->y_order = m->z_order = 0;
   m->offset = 0;
-  GC_register_finalizer(m, &multi_index_free, m, NULL, NULL);
   return m;
 }
 
