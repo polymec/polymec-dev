@@ -90,10 +90,6 @@ typedef struct
   // CFL safety factor.
   double CFL;             
 
-  // This flag is true if the source function or one of the BCs is 
-  // time-dependent, and false otherwise.
-  bool is_time_dependent;
-
   // Diffusion equation linear system.
   advect_lin_sys_t* diff_system;
 
@@ -102,10 +98,82 @@ typedef struct
 
 } advect_t;
 
-// The "minmod" slope estimator. 
-static double minmod(double a, double b)
+static double estimate_slope(slope_estimator_t* slope_est,
+                             mesh_t* mesh,
+                             double* phi,
+                             int upwind_cell,
+                             int downwind_cell,
+                             boundary_cell_map_t* boundary_cells,
+                             double t)
 {
-  return 0.5 * (SIGN(a) + SIGN(b)) * MIN(fabs(a), fabs(b));
+  // Gather the neighbors of the upwind cell and the corresponding
+  // solution values.
+  cell_t* up_cell = &mesh->cells[upwind_cell];
+  double phi_up = phi[upwind_cell];
+  cell_t* down_cell = &mesh->cells[downwind_cell];
+  double phi_down = phi[downwind_cell];
+  int num_other_points = up_cell->num_faces - 1;
+  point_t other_points[num_other_points];
+  double other_phi[num_other_points];
+  int i = 0;
+  for (int ff = 0; ff < up_cell->num_faces; ++ff)
+  {
+    face_t* face = up_cell->faces[ff];
+    cell_t* other_cell = face_opp_cell(face, up_cell);
+    if (other_cell == NULL)
+    {
+      // The upwind cell is a boundary cell. 
+      boundary_cell_t* cell_info = *boundary_cell_map_get(boundary_cells, upwind_cell);
+
+      // Which boundary face are we on?
+      int bf = 0;
+      while (&mesh->faces[cell_info->boundary_faces[bf]] != face) ++bf;
+      ASSERT(bf < cell_info->num_boundary_faces);
+
+      // What's the boundary condition on this face?
+      advect_bc_t* bc = cell_info->bc_for_face[bf];
+      point_t* face_center = &up_cell->faces[ff]->center;
+      if (bc != NULL) 
+      {
+        // The other point is a ghost centroid, reflected over the face.
+        other_points[i].x = 2.0*face_center->x - up_cell->center.x;
+        other_points[i].y = 2.0*face_center->y - up_cell->center.y;
+        other_points[i].z = 2.0*face_center->z - up_cell->center.z;
+
+        // Compute the ghost value for the solution, and the resulting flux.
+        double F;
+        st_func_eval(bc->F, face_center, t, &F);
+        double L = 2.0 * point_distance(&up_cell->center, &face->center);
+        other_phi[i] = (F + (bc->beta/L - 0.5*bc->alpha)) * phi[upwind_cell] / (bc->beta/L + 0.5*bc->alpha);
+      }
+      else 
+      {
+        // The other point is a periodic point.
+        ASSERT(cell_info->opp_faces[bf] != NULL);
+        face_t* opp_face = cell_info->opp_faces[bf];
+        cell_t* opp_cell = opp_face->cell1;
+        other_points[i].x = face_center->x - up_cell->center.x + 
+                            opp_cell->center.x - opp_face->center.x;
+        other_points[i].y = face_center->y - up_cell->center.y + 
+                            opp_cell->center.x - opp_face->center.x;
+        other_points[i].z = face_center->z - up_cell->center.z + 
+                            opp_cell->center.x - opp_face->center.x;
+        int opp_cell_index = opp_cell - &mesh->cells[0];
+        other_phi[i] = phi[opp_cell_index];
+      }
+      ++i;
+    }
+    else if (other_cell != down_cell)
+    {
+      point_copy(&other_points[i], &other_cell->center);
+      other_phi[i] = phi[other_cell - &mesh->cells[0]];
+      ++i;
+    }
+  }
+  return slope_estimator_value(slope_est, &up_cell->center,
+                               phi_up, &down_cell->center,
+                               phi_down, other_points, 
+                               other_phi, num_other_points);
 }
 
 static void compute_half_step_fluxes(mesh_t* mesh, 
@@ -115,7 +183,7 @@ static void compute_half_step_fluxes(mesh_t* mesh,
                                      double t, 
                                      double dt, 
                                      double* phi, 
-                                     bool high_order,
+                                     slope_estimator_t* slope_est,
                                      double* fluxes)
 {
   int num_faces = mesh->num_faces;
@@ -148,13 +216,14 @@ static void compute_half_step_fluxes(mesh_t* mesh,
 
     fluxes[f] = vn * phi[upwind_cell] * face->area;
 
-    if (high_order)
+    if (slope_est != NULL)
     {
       // Compute the piecewise-linear contribution to the integral of the 
       // advection equation. This is taken from Leveque's 1992 book, p. 185.
       double nu = vn * dt / L;
-      double slope = minmod(phi[downwind_cell] - phi[upwind_cell], 
-                            phi[upwind_cell] - phi[downwind_cell]) / L;
+
+      double slope = estimate_slope(slope_est, mesh, phi, 
+                                    upwind_cell, downwind_cell, boundary_cells, t);
 if (slope != 0.0)
   printf("slope = %g\n", slope);
       fluxes[f] += 0.5 * vn * (1.0 - nu) * L * slope;
@@ -250,12 +319,12 @@ if (slope != 0.0)
       // First-order flux computation.
       fluxes[face_index] = vn * phi_up * face->area;
 
-      if (high_order)
+      if (slope_est != NULL)
       {
         // Compute the piecewise-linear contribution to the integral of the 
         // advection equation. This is taken from Leveque's 1992 book, p. 185.
         double nu = vn * dt / L;
-        double slope = minmod(phi_down - phi_up, phi_up - phi_down) / L;
+        double slope = 0.0; // FIXME minmod(phi_down - phi_up, phi_up - phi_down) / L;
         fluxes[f] += 0.5 * vn * (1.0 - nu) * L * slope;
       }
 // printf("%d: vn = %g, F = %g\n", bcell, vn, fluxes[face_index]);
@@ -352,7 +421,7 @@ static void advect_advance(void* context, double t, double dt)
 
   // First, compute the half-step values of the fluxes on faces.
   double fluxes[a->mesh->num_faces];
-  compute_half_step_fluxes(a->mesh, a->velocity, a->source, a->boundary_cells, t, dt, a->phi, false, fluxes);
+  compute_half_step_fluxes(a->mesh, a->velocity, a->source, a->boundary_cells, t, dt, a->phi, a->slope_estimator, fluxes);
 
   // Update the solution using the Divergence Theorem.
   int num_cells = a->mesh->num_cells;
@@ -436,18 +505,6 @@ static void advect_init(void* context, double t)
   ASSERT(a->velocity != NULL);
   ASSERT(st_func_num_comp(a->velocity) == 3);
   ASSERT(a->source != NULL);
-
-  // Determine whether this model is time-dependent.
-  a->is_time_dependent = !st_func_is_constant(a->source);
-  int pos = 0;
-  char* tag;
-  advect_bc_t* bc;
-  while (str_ptr_unordered_map_next(a->bcs, &pos, &tag, (void**)&bc))
-  {
-    // If any BC is time-dependent, the whole problem is.
-    if (!st_func_is_constant(bc->F))
-      a->is_time_dependent = true;
-  }
 
   // Set up the diffusion operator.
   if ((a->diffusivity != NULL) && (a->D == NULL))
@@ -595,7 +652,7 @@ model_t* advect_model_new(options_t* options)
   a->solution = NULL;
   a->initial_cond = NULL;
   a->D = NULL;
-  a->slope_estimator = slope_estimator_new(SLOPE_LIMITER_MINMOD);
+  a->slope_estimator = NULL; //slope_estimator_new(SLOPE_LIMITER_MINMOD);
   a->diff_system = NULL;
   a->bcs = str_ptr_unordered_map_new();
   a->boundary_cells = boundary_cell_map_new();

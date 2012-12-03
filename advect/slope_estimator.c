@@ -73,9 +73,11 @@ static void compute_parabolic_fit(point_t* center_point,
 
     // Project the other point to the line.
     projs[i] = vector_dot(&other_to_center, &center_to_forward);
+//printf("projs[%d] = %g\n", i, projs[i]);
 
     // Weight it accordingly.
     other_weights[i] = weight(distance, h);
+//printf("weights[%d] = %g\n", i, other_weights[i]);
   }
 
   // Now we assemble the 3x3 moment matrix A and right-hand side vector b.
@@ -92,6 +94,11 @@ static void compute_parabolic_fit(point_t* center_point,
   // Other contributions.
   for (int i = 0; i < num_other_points; ++i)
     add_to_ls_system(other_weights[i], projs[i], other_values[i], A, b);
+
+  printf("A = \n");
+  matrix_fprintf(A, 3, 3, stdout);
+  printf("b = \n");
+  vector_fprintf(b, 3, stdout);
 
   // Solve the system for the coefficients.
   solve_3x3(A, b, coeffs);
@@ -121,6 +128,9 @@ double slope_estimator_value(slope_estimator_t* estimator,
                              double* other_values,
                              int num_other_points)
 {
+  // There must be at least one "other" point to proceed.
+  ASSERT(num_other_points >= 1);
+
   // If we don't have a compute_factor function, just return 0.
   if (estimator->compute_factor == NULL)
     return 0.0;
@@ -131,6 +141,7 @@ double slope_estimator_value(slope_estimator_t* estimator,
                         forward_point, forward_value,
                         other_points, other_values, num_other_points,
                         coeffs);
+  printf("%g %g %g\n", coeffs[0], coeffs[1], coeffs[2]);
 
   // Compute the "backward" value of the solution using the fit.
   double L = point_distance(center_point, forward_point);
@@ -139,6 +150,8 @@ double slope_estimator_value(slope_estimator_t* estimator,
   // Compute forward and backward slopes.
   double forward_slope = (forward_value - center_value) / (2*L);
   double backward_slope = (center_value - backward_value) / (2*L);
+printf("cval = %g, fval = %g, bval = %g\n", center_value, forward_value, backward_value);
+printf("fslope = %g, bslope = %g\n", forward_slope, backward_slope);
 
   // Now compute the estimator factor with the forward and backward slopes.
   return estimator->compute_factor(forward_slope, backward_slope);
