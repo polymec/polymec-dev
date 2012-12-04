@@ -62,7 +62,7 @@ static void ad_compute_diffusion_matrix(void* context, Mat D, double t)
     nnz[i] = lin_op_stencil_size(L, i);
 
   // Set matrix entries.
-  MatAssemblyBegin(D, MAT_FINAL_ASSEMBLY);
+  MatAssemblyBegin(D, MAT_FLUSH_ASSEMBLY);
   for (int i = 0; i < a->mesh->num_cells; ++i)
   {
     int indices[nnz[i]];
@@ -71,6 +71,49 @@ static void ad_compute_diffusion_matrix(void* context, Mat D, double t)
     for (int j = 0; j < nnz[i]; ++j)
       indices[j] += i;
     MatSetValues(D, 1, &i, nnz[i], indices, values, INSERT_VALUES);
+  }
+  MatAssemblyEnd(D, MAT_FLUSH_ASSEMBLY);
+
+  // Now we have to set the entries for periodic boundaries.
+  // We do this here so that the nonzero pattern of the matrix is properly
+  // established.
+  int pos = 0, bcell;
+  boundary_cell_t* cell_info;
+  MatAssemblyBegin(D, MAT_FINAL_ASSEMBLY);
+  while (boundary_cell_map_next(a->boundary_cells, &pos, &bcell, &cell_info))
+  {
+    cell_t* cell = &a->mesh->cells[bcell];
+    double Aii = 0.0;
+    for (int f = 0; f < cell_info->num_boundary_faces; ++f)
+    {
+      // Retrieve the boundary condition for this face.
+      advect_bc_t* bc = cell_info->bc_for_face[f];
+      face_t* face = &a->mesh->faces[cell_info->boundary_faces[f]];
+      double area = face->area;
+
+      // Compute the diffusivity at the face center.
+      double Di;
+      st_func_eval(a->diffusivity, &face->center, t, &Di);
+
+      if (bc == NULL) // periodic BC
+      {
+        ASSERT(cell_info->opp_faces[f] != NULL);
+        face_t* other_face = cell_info->opp_faces[f];
+        cell_t* other_cell = other_face->cell1;
+
+        // Compute L.
+        double L = point_distance(&cell->center, &face->center) + 
+          point_distance(&other_face->center, &other_cell->center);
+
+        // Add in the diagonal term (D * dphi/dn).
+        Aii -= Di * area / L;
+
+        // Add in the off-diagonal term (D * dphi/dn).
+        int j = other_cell - &a->mesh->cells[0];
+        double Aij = Di * area / L;
+        MatSetValues(D, 1, &bcell, 1, &j, &Aij, ADD_VALUES);
+      }
+    }
   }
   MatAssemblyEnd(D, MAT_FINAL_ASSEMBLY);
 }
@@ -117,7 +160,7 @@ static void ad_apply_bcs(void* context, Mat A, Vec b, double t)
     // boundary condition alpha*phi + beta*dphi/dn = F assigns the 
     // ghost value
     //
-    // phi_g = (F + (beta/L - alpha/2)) * phi_i / (beta/L + alpha/2)
+    // phi_g = (F + (beta/L - alpha/2) * phi_i) / (beta/L + alpha/2)
     //
     // where L is the distance between the interior centroid and the 
     // ghost centroid. These means that the only contributions to the 
@@ -128,16 +171,9 @@ static void ad_apply_bcs(void* context, Mat A, Vec b, double t)
     {
       // Retrieve the boundary condition for this face.
       advect_bc_t* bc = cell_info->bc_for_face[f];
-      face_t* face = &mesh->faces[cell_info->boundary_faces[f]];
-      double area = face->area;
-
-      // Compute the diffusivity at the face center.
-      double D;
-      st_func_eval(a->diffusivity, &face->center, t, &D);
-
       if (bc != NULL) // non-periodic BC
       {
-
+        face_t* face = &mesh->faces[cell_info->boundary_faces[f]];
         double alpha = bc->alpha, beta = bc->beta;
 
         // Compute L.
@@ -147,35 +183,20 @@ static void ad_apply_bcs(void* context, Mat A, Vec b, double t)
         double F;
         st_func_eval(bc->F, &face->center, t, &F);
 
-        // Add in the diagonal term (D * dphi/dn).
-        Aii += D * ((beta/L - 0.5*alpha) / (beta/L + 0.5*alpha) - 1.0) * area / L;
+        // Then the diagonal term is the part of the boundary condition
+        // equation that multiplies phi_i. 
+        double r = (beta/L - 0.5*alpha) / (beta/L + 0.5*alpha);
+        Aii += 0.5 * alpha * (r + 1.0) + beta * (r - 1.0) / L;
 
-        // Add in the right hand side contribution.
-        bi -= (D * F / (beta/L + 0.5*alpha)) * area / L;
-      }
-      else  // periodic BC
-      {
-        ASSERT(cell_info->opp_faces[f] != NULL);
-        face_t* other_face = cell_info->opp_faces[f];
-        cell_t* other_cell = other_face->cell1;
-
-        // Compute L.
-        double L = point_distance(&cell->center, &face->center) + 
-                   point_distance(&other_face->center, &other_cell->center);
-
-        // Add in the diagonal term (D * dphi/dn).
-        Aii -= D * area / L;
-
-        // Add in the off-diagonal term (D * dphi/dn).
-        int j = other_cell - &mesh->cells[0];
-        double Aij = D * area / L;
-        MatSetValues(A, 1, &bcell, 1, &j, &Aij, ADD_VALUES);
+        // Compute the right hand side contribution.
+        double f = F / (0.5*alpha + beta/L);
+        bi += (1.0 - (0.5*alpha + beta/L)*f) * F;
       }
     }
 
-    // Sum the values into the linear system.
-    MatSetValues(A, 1, &bcell, 1, &bcell, &Aii, ADD_VALUES);
-    VecSetValues(b, 1, &bcell, &bi, ADD_VALUES);
+    // Insert the values into the linear system.
+    MatSetValues(A, 1, &bcell, 1, &bcell, &Aii, INSERT_VALUES);
+    VecSetValues(b, 1, &bcell, &bi, INSERT_VALUES);
   }
   MatAssemblyEnd(A, MAT_FINAL_ASSEMBLY);
   VecAssemblyEnd(b);
