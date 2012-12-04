@@ -10,6 +10,7 @@ extern "C" {
 // Advective diffusion solver type
 typedef struct
 {
+  st_func_t* diffusivity;
   lin_op_t* diff_op;
   st_func_t* source;
   mesh_t* mesh;
@@ -26,6 +27,12 @@ static void ad_create_matrix(void* context, Mat* mat)
 //  MatSetOption(*mat, MAT_NEW_NONZERO_LOCATION_ERR, PETSC_TRUE);
 //  MatSetOption(*mat, MAT_NEW_NONZERO_ALLOCATION_ERR, PETSC_TRUE);
   MatSetSizes(*mat, a->mesh->num_cells, a->mesh->num_cells, PETSC_DETERMINE, PETSC_DETERMINE);
+
+  // Pre-allocate matrix entries.
+  PetscInt nz = 0, nnz[a->mesh->num_cells];
+  for (int i = 0; i < a->mesh->num_cells; ++i)
+    nnz[i] = lin_op_stencil_size(a->diff_op, i) + 1;
+  MatSeqAIJSetPreallocation(*mat, nz, nnz);
 }
 
 static void ad_create_vector(void* context, Vec* vec)
@@ -82,6 +89,7 @@ static void ad_compute_source_vector(void* context, Vec S, double t)
     indices[c] = c;
     point_t xc = {.x = 0.0, .y = 0.0, .z = 0.0};
     st_func_eval(a->source, &xc, t, &values[c]);
+    values[c] += a->advective_deriv[c]; // Add in advective derivative.
     values[c] *= mesh->cells[c].volume;
   }
   VecSetValues(S, mesh->num_cells, indices, values, INSERT_VALUES);
@@ -120,22 +128,49 @@ static void ad_apply_bcs(void* context, Mat A, Vec b, double t)
     {
       // Retrieve the boundary condition for this face.
       advect_bc_t* bc = cell_info->bc_for_face[f];
-
       face_t* face = &mesh->faces[cell_info->boundary_faces[f]];
-      double alpha = bc->alpha, beta = bc->beta;
+      double area = face->area;
 
-      // Compute L.
-      double L = 2.0 * point_distance(&cell->center, &face->center);
+      // Compute the diffusivity at the face center.
+      double D;
+      st_func_eval(a->diffusivity, &face->center, t, &D);
 
-      // Compute F at the face center.
-      double F;
-      st_func_eval(bc->F, &face->center, t, &F);
+      if (bc != NULL) // non-periodic BC
+      {
 
-      // Add in the diagonal term (dphi/dn).
-      Aii += ((beta/L - 0.5*alpha) / (beta/L + 0.5*alpha) - 1.0) * face->area / L;
+        double alpha = bc->alpha, beta = bc->beta;
 
-      // Add in the right hand side contribution.
-      bi -= (F / (beta/L + 0.5*alpha)) * face->area / L;
+        // Compute L.
+        double L = 2.0 * point_distance(&cell->center, &face->center);
+
+        // Compute F at the face center.
+        double F;
+        st_func_eval(bc->F, &face->center, t, &F);
+
+        // Add in the diagonal term (D * dphi/dn).
+        Aii += D * ((beta/L - 0.5*alpha) / (beta/L + 0.5*alpha) - 1.0) * area / L;
+
+        // Add in the right hand side contribution.
+        bi -= (D * F / (beta/L + 0.5*alpha)) * area / L;
+      }
+      else  // periodic BC
+      {
+        ASSERT(cell_info->opp_faces[f] != NULL);
+        face_t* other_face = cell_info->opp_faces[f];
+        cell_t* other_cell = other_face->cell1;
+
+        // Compute L.
+        double L = point_distance(&cell->center, &face->center) + 
+                   point_distance(&other_face->center, &other_cell->center);
+
+        // Add in the diagonal term (D * dphi/dn).
+        Aii -= D * area / L;
+
+        // Add in the off-diagonal term (D * dphi/dn).
+        int j = other_cell - &mesh->cells[0];
+        double Aij = D * area / L;
+        MatSetValues(A, 1, &bcell, 1, &j, &Aij, ADD_VALUES);
+      }
     }
 
     // Sum the values into the linear system.
@@ -158,8 +193,9 @@ diffusion_solver_t* advect_diffusion_solver_new(st_func_t* diffusivity,
                                                 mesh_t* mesh,
                                                 boundary_cell_map_t* boundary_cells)
 {
-  ASSERT(diffusion_op != NULL);
+  ASSERT(diffusivity != NULL);
   ASSERT(mesh != NULL);
+  ASSERT(boundary_cells != NULL);
 
   diffusion_solver_vtable vtable = 
   { .create_matrix            = ad_create_matrix,
@@ -172,10 +208,12 @@ diffusion_solver_t* advect_diffusion_solver_new(st_func_t* diffusivity,
   };
   ad_solver_t* a = malloc(sizeof(ad_solver_t));
   a->diff_op = diffusion_op_new(mesh, diffusivity);
+  a->diffusivity = diffusivity;
   a->source = source;
   a->mesh = mesh; // borrowed
   a->boundary_cells = boundary_cells; // borrowed
   a->advective_deriv = malloc(sizeof(double)*mesh->num_cells);
+  memset(a->advective_deriv, 0, sizeof(double)*mesh->num_cells);
   diffusion_solver_t* solver = diffusion_solver_new("advective diffusion solver", a, vtable);
   return solver;
 }

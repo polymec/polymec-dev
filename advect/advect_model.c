@@ -1,7 +1,4 @@
 #include <string.h>
-#include "petscksp.h"
-#include "petscmat.h"
-#include "petscvec.h"
 #include "core/unordered_map.h"
 #include "core/least_squares.h"
 #include "core/linear_algebra.h"
@@ -15,6 +12,7 @@
 #include "advect/advect_model.h"
 #include "advect/advect_bc.h"
 #include "advect/diffusion_op.h"
+#include "advect/advect_diffusion_solver.h"
 #include "advect/interpreter_register_advect_functions.h"
 #include "advect/register_advect_benchmarks.h"
 #include "advect/slope_estimator.h"
@@ -22,50 +20,6 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-// Linear solver context for the diffusion equation.
-typedef struct
-{
-  KSP solver;
-  Mat matrix;
-  Vec solution;
-  Vec rhs;
-} advect_lin_sys_t;
-
-static advect_lin_sys_t* advect_lin_sys_new(MPI_Comm comm, mesh_t* mesh, lin_op_t* op)
-{
-  advect_lin_sys_t* sys = malloc(sizeof(advect_lin_sys_t));
-  MatCreate(comm, &sys->matrix);
-  MatSetType(sys->matrix, MATSEQAIJ);
-  MatSetOption(sys->matrix, MAT_KEEP_NONZERO_PATTERN, PETSC_TRUE);
-//  MatSetOption(sys->matrix, MAT_NEW_NONZERO_LOCATION_ERR, PETSC_TRUE);
-//  MatSetOption(sys->matrix, MAT_NEW_NONZERO_ALLOCATION_ERR, PETSC_TRUE);
-  MatSetSizes(sys->matrix, mesh->num_cells, mesh->num_cells, PETSC_DETERMINE, PETSC_DETERMINE);
-  VecCreate(comm, &sys->solution);
-  VecSetType(sys->solution, VECSEQ);
-  VecSetSizes(sys->solution, mesh->num_cells, PETSC_DECIDE);
-  VecCreate(comm, &sys->rhs);
-  VecSetType(sys->rhs, VECSEQ);
-  VecSetSizes(sys->rhs, mesh->num_cells, PETSC_DECIDE);
-  KSPCreate(comm, &sys->solver);
-
-  // Pre-allocate matrix entries.
-  PetscInt nz = 0, nnz[mesh->num_cells];
-  for (int i = 0; i < mesh->num_cells; ++i)
-    nnz[i] = lin_op_stencil_size(op, i);
-  MatSeqAIJSetPreallocation(sys->matrix, nz, nnz);
-
-  return sys;
-}
-
-static void advect_lin_sys_free(advect_lin_sys_t* sys)
-{
-  KSPDestroy(&sys->solver);
-  MatDestroy(&sys->matrix);
-  VecDestroy(&sys->solution);
-  VecDestroy(&sys->rhs);
-  free(sys);
-}
 
 // Advect model context structure.
 typedef struct 
@@ -90,8 +44,8 @@ typedef struct
   // CFL safety factor.
   double CFL;             
 
-  // Diffusion equation linear system.
-  advect_lin_sys_t* diff_system;
+  // Diffusion equation solver.
+  diffusion_solver_t* diff_solver;
 
   // MPI communicator.
   MPI_Comm comm;            
@@ -331,65 +285,6 @@ static void compute_half_step_fluxes(mesh_t* mesh,
   }
 }
 
-static void set_up_linear_system(mesh_t* mesh, lin_op_t* L, st_func_t* rhs, double t, Mat A, Vec b)
-{
-  PetscInt nnz[mesh->num_cells];
-  for (int i = 0; i < mesh->num_cells; ++i)
-    nnz[i] = lin_op_stencil_size(L, i);
-
-  // Set matrix entries.
-  MatAssemblyBegin(A, MAT_FINAL_ASSEMBLY);
-  for (int i = 0; i < mesh->num_cells; ++i)
-  {
-    int indices[nnz[i]];
-    double values[nnz[i]];
-    lin_op_compute_stencil(L, i, indices, values);
-    for (int j = 0; j < nnz[i]; ++j)
-      indices[j] += i;
-    MatSetValues(A, 1, &i, nnz[i], indices, values, INSERT_VALUES);
-  }
-  MatAssemblyEnd(A, MAT_FINAL_ASSEMBLY);
-
-  // Compute the RHS vector.
-  double values[mesh->num_cells];
-  int indices[mesh->num_cells];
-  VecAssemblyBegin(b);
-  for (int c = 0; c < mesh->num_cells; ++c)
-  {
-    indices[c] = c;
-    point_t xc = {.x = 0.0, .y = 0.0, .z = 0.0};
-    st_func_eval(rhs, &xc, t, &values[c]);
-  }
-  VecSetValues(b, mesh->num_cells, indices, values, INSERT_VALUES);
-  VecAssemblyEnd(b);
-}
-
-static void compute_diffusive_deriv(mesh_t* mesh, 
-                                    st_func_t* diffusivity,
-                                    double* cell_sources,
-                                    lin_op_t* D, 
-                                    advect_lin_sys_t* diff_system,
-                                    double t,
-                                    double dt,
-                                    double* diff_deriv)
-{
-#if 0
-  // Set up the linear solver.
-  KSPSetOperators(diff_system->solver, diff_system->matrix, diff_system->matrix, SAME_NONZERO_PATTERN);
-
-  // Solve the linear system.
-  KSPSolve(diff_system->solver, diff_system->rhs, diff_system->solution);
-
-  // Access the solution values from the solution to our solution array.
-  double* solution;
-  VecGetArray(diff_system->solution, &solution);
-  VecRestoreArray(diff_system->solution, &solution);
-#endif
-
-  // FIXME: For now, no diffusion.
-  memset(diff_deriv, 0, sizeof(double)*mesh->num_cells);
-}
-
 static double advect_max_dt(void* context, double t, char* reason)
 {
   advect_t* a = (advect_t*)context;
@@ -424,7 +319,7 @@ static void advect_advance(void* context, double t, double dt)
 
   // Update the solution using the Divergence Theorem.
   int num_cells = a->mesh->num_cells;
-  double phi_new[num_cells], diff_sources[num_cells];
+  double phi_new[num_cells], adv_deriv[num_cells];
   for (int c = 0; c < num_cells; ++c)
   {
     cell_t* cell = &a->mesh->cells[c];
@@ -447,20 +342,17 @@ static void advect_advance(void* context, double t, double dt)
     phi_new[c] += S * dt;
 
     // Compute the "source terms" that will be fed to the diffusion equation.
-    double adv_deriv = (phi_new[c] - a->phi[c]) / dt;
-    diff_sources[c] = S - adv_deriv;
+    adv_deriv[c] = (phi_new[c] - a->phi[c]) / dt;
   }
 
   // Do we have diffusivity? 
   if (a->diffusivity != NULL)
   {
-    // Compute the diffusive derivative without splitting.
-    double diff_deriv[num_cells];
-    compute_diffusive_deriv(a->mesh, a->diffusivity, diff_sources, a->D, a->diff_system, t, dt, diff_deriv);
+    // Stir in the advective derivative.
+    advect_diffusion_solver_set_advective_deriv(a->diff_solver, adv_deriv);
 
-    // Update the solution.
-    for (int c = 0; c < num_cells; ++c)
-      phi_new[c] += diff_deriv[c] * dt;
+    // Compute the diffusive derivative without splitting.
+    diffusion_solver_euler(a->diff_solver, t, a->phi, t+dt, phi_new);
   }
 
   // FIXME: Reactions go here.
@@ -510,19 +402,19 @@ static void advect_init(void* context, double t)
     a->D = diffusion_op_new(a->mesh, a->diffusivity);
 
   // If the model has been previously initialized, clean everything out.
-  if (a->diff_system != NULL)
-    advect_lin_sys_free(a->diff_system);
+  if (a->diff_solver != NULL)
+    diffusion_solver_free(a->diff_solver);
   if (a->phi != NULL)
     free(a->phi);
 
   if (a->boundary_cells != NULL)
     boundary_cell_map_free(a->boundary_cells);
 
-  // Initialize the linear solver and friends.
-  a->diff_system = advect_lin_sys_new(a->comm, a->mesh, a->D);
-
   // Gather information about boundary cells.
   a->boundary_cells = boundary_cell_map_from_mesh_and_bcs(a->mesh, a->bcs);
+
+  // Initialize the diffusion solver.
+  a->diff_solver = advect_diffusion_solver_new(a->diffusivity, a->source, a->mesh, a->boundary_cells);
 
   // Initialize the solution.
   int num_cells = a->mesh->num_cells;
@@ -615,8 +507,8 @@ static void advect_dtor(void* ctx)
 
   if (a->mesh != NULL)
     mesh_free(a->mesh);
-  if (a->diff_system != NULL)
-    advect_lin_sys_free(a->diff_system);
+  if (a->diff_solver != NULL)
+    diffusion_solver_free(a->diff_solver);
   if (a->phi != NULL)
     free(a->phi);
 
@@ -652,7 +544,7 @@ model_t* advect_model_new(options_t* options)
   a->initial_cond = NULL;
   a->D = NULL;
   a->slope_estimator = slope_estimator_new(SLOPE_LIMITER_MINMOD);
-  a->diff_system = NULL;
+  a->diff_solver = NULL;
   a->bcs = str_ptr_unordered_map_new();
   a->boundary_cells = boundary_cell_map_new();
   a->comm = MPI_COMM_WORLD;
