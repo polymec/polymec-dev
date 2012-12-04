@@ -2,7 +2,7 @@
 #define POLYMEC_ADVECT_DIFFUSION_SOLVER_H
 
 #include "core/diffusion_solver.h"
-#include "core/lin_op.h"
+#include "core/st_func.h"
 #include "core/mesh.h"
 
 #ifdef __cplusplus
@@ -10,9 +10,17 @@ extern "C" {
 #endif
 
 // Creates a diffusion solver model for the advection-diffusion equation 
-// with the given diffusion operator, defined on the given mesh.
-diffusion_solver_t* advect_diffusion_solver_new(lin_op_t* diffusion_op,
-                                                mesh_t* mesh);
+// with the given diffusivity and source functions, defined on the given mesh
+// with the given set of boundary cells.
+diffusion_solver_t* advect_diffusion_solver_new(st_func_t* diffusivity,
+                                                st_func_t* source,
+                                                mesh_t* mesh,
+                                                boundary_cell_map_t* boundary_cells);
+
+// Sets the advective derivative for use as a source term by the 
+// diffusion solver.
+void advect_diffusion_solver_set_advective_deriv(diffusion_solver_t* solver,
+                                                 double* advective_deriv);
 
 #ifdef __cplusplus
 }

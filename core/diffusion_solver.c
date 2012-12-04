@@ -70,6 +70,11 @@ char* diffusion_solver_name(diffusion_solver_t* solver)
   return solver->name;
 }
 
+void* diffusion_solver_context(diffusion_solver_t* solver)
+{
+  return solver->context;
+}
+
 static inline void copy_array_to_vector(double* array, Vec vector)
 {
   int size;
