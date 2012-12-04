@@ -131,8 +131,9 @@ static void run_stationary_flow_1d(options_t* options)
   st_func_t* zero = constant_st_func_new(1, &z);
   st_func_t* one = constant_st_func_new(1, &o);
   st_func_t* v0 = constant_st_func_new(3, v);
-  advect_bc_t* bc = advect_bc_new(1.0, 0.0, one);
-  advect_run_1d_flow(options, v0, zero, zero, one, bc, bc, one, 0.0, 1.0, 1);
+  advect_bc_t* bc1 = advect_bc_new(1.0, 0.0, one);
+  advect_bc_t* bc2 = advect_bc_new(1.0, 0.0, one);
+  advect_run_1d_flow(options, v0, zero, zero, one, bc1, bc2, one, 0.0, 1.0, 1);
   zero = one = v0 = NULL;
 }
 
@@ -152,8 +153,9 @@ static void run_stationary_blayer_1d(options_t* options)
   st_func_t* v0 = constant_st_func_new(3, v);
   st_func_t* soln = st_func_from_func("blayer 1d", stationary_blayer_1d_soln,
                                       ST_INHOMOGENEOUS, ST_CONSTANT, 1);
-  advect_bc_t* bc = advect_bc_new(1.0, 0.0, one);
-  advect_run_1d_flow(options, v0, one, zero, soln, bc, bc, soln, 0.0, 1.0, 1);
+  advect_bc_t* bc1 = advect_bc_new(1.0, 0.0, one);
+  advect_bc_t* bc2 = advect_bc_new(1.0, 0.0, one);
+  advect_run_1d_flow(options, v0, one, zero, soln, bc1, bc2, soln, 0.0, 1.0, 1);
   zero = one = v0 = soln = NULL;
 }
 
@@ -174,8 +176,9 @@ static void run_square_wave_1d(options_t* options)
   st_func_t* v0 = constant_st_func_new(3, v);
   st_func_t* soln = st_func_from_func("square wave 1d", square_wave_1d_soln,
                                       ST_INHOMOGENEOUS, ST_NONCONSTANT, 1);
-  periodic_bc_t* bc = cubic_lattice_x_periodic_bc_new("-x", "+x");
-  advect_run_1d_flow(options, v0, zero, zero, soln, bc, bc, soln, 0.0, 1.0, 1);
+  periodic_bc_t* bc1 = cubic_lattice_x_periodic_bc_new("-x", "+x");
+  periodic_bc_t* bc2 = cubic_lattice_x_periodic_bc_new("-x", "+x");
+  advect_run_1d_flow(options, v0, zero, zero, soln, bc1, bc2, soln, 0.0, 1.0, 1);
   zero = v0 = soln = NULL;
 }
 
@@ -193,9 +196,43 @@ static void run_sine_wave_1d(options_t* options)
   st_func_t* v0 = constant_st_func_new(3, v);
   st_func_t* soln = st_func_from_func("sine wave 1d", sine_wave_1d_soln,
                                       ST_INHOMOGENEOUS, ST_NONCONSTANT, 1);
-  periodic_bc_t* bc = cubic_lattice_x_periodic_bc_new("-x", "+x");
-  advect_run_1d_flow(options, v0, zero, zero, soln, bc, bc, soln, 0.0, 5.0, 1);
+  periodic_bc_t* bc1 = cubic_lattice_x_periodic_bc_new("-x", "+x");
+  periodic_bc_t* bc2 = cubic_lattice_x_periodic_bc_new("-x", "+x");
+  advect_run_1d_flow(options, v0, zero, zero, soln, bc1, bc2, soln, 0.0, 5.0, 1);
   zero = v0 = soln = NULL;
+}
+
+static void square_diffusion_1d_soln(void* ctx, point_t* x, double t, double* phi)
+{
+  double D = 0.1;
+  double Vx = 0.0;
+  double y = x->x - Vx*t;
+  double L = 1.0;
+  double width = 0.25;
+  if (t == 0.0)
+  {
+    *phi = (fabs(y - 0.5*L) < width) ? 1.0 : 0.0;
+  }
+  else
+  {
+    *phi = erf((2.0 * (1.0 + fabs(y))) / (4.0*sqrt(D*t))) +  // left wave
+           erf((2.0 * (1.0 - fabs(y))) / (4.0*sqrt(D*t)));   // right wave
+  }
+}
+
+static void run_square_diffusion_1d(options_t* options)
+{
+  double z = 0.0;
+  double Dval = 0.1;
+  double v[] = {0.0, 0.0, 0.0};
+  st_func_t* zero = constant_st_func_new(1, &z);
+  st_func_t* D = constant_st_func_new(1, &Dval);
+  st_func_t* v0 = constant_st_func_new(3, v);
+  st_func_t* soln = st_func_from_func("square diffusion 1d", square_diffusion_1d_soln,
+                                      ST_INHOMOGENEOUS, ST_NONCONSTANT, 1);
+  advect_bc_t* bc1 = advect_bc_new(0.0, 1.0, zero); // Homogeneous Neumann BC
+  advect_bc_t* bc2 = advect_bc_new(0.0, 1.0, zero); // Homogeneous Neumann BC
+  advect_run_1d_flow(options, v0, D, zero, soln, bc1, bc2, soln, 0.0, 1.0, 1);
 }
 
 void register_advect_benchmarks(model_t* model)
@@ -204,6 +241,7 @@ void register_advect_benchmarks(model_t* model)
   model_register_benchmark(model, "stationary_blayer_1d", run_stationary_blayer_1d, "Stational flow with boundary layer in 1D.");
   model_register_benchmark(model, "square_wave_1d", run_square_wave_1d, "Square wave propagation in 1D.");
   model_register_benchmark(model, "sine_wave_1d", run_sine_wave_1d, "Sine wave propagation in 1D.");
+  model_register_benchmark(model, "square_diffusion_1d", run_square_diffusion_1d, "Square wave diffusing in 1D.");
 }
 
 #ifdef __cplusplus
