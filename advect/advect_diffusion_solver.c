@@ -1,4 +1,7 @@
+#include "core/boundary_cell_map.h"
 #include "advect/advect_diffusion_solver.h"
+#include "advect/diffusion_op.h"
+#include "advect/advect_bc.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -8,40 +11,156 @@ extern "C" {
 typedef struct
 {
   lin_op_t* diff_op;
+  st_func_t* source;
   mesh_t* mesh;
+  boundary_cell_map_t* boundary_cells;
+  double* advective_deriv;
 } ad_solver_t;
 
 static void ad_create_matrix(void* context, Mat* mat)
 {
+  ad_solver_t* a = (ad_solver_t*)context;
+  MatCreate(MPI_COMM_WORLD, mat);
+  MatSetType(*mat, MATSEQAIJ);
+  MatSetOption(*mat, MAT_KEEP_NONZERO_PATTERN, PETSC_TRUE);
+//  MatSetOption(*mat, MAT_NEW_NONZERO_LOCATION_ERR, PETSC_TRUE);
+//  MatSetOption(*mat, MAT_NEW_NONZERO_ALLOCATION_ERR, PETSC_TRUE);
+  MatSetSizes(*mat, a->mesh->num_cells, a->mesh->num_cells, PETSC_DETERMINE, PETSC_DETERMINE);
 }
 
 static void ad_create_vector(void* context, Vec* vec)
 {
+  ad_solver_t* a = (ad_solver_t*)context;
+  VecCreate(MPI_COMM_WORLD, vec);
+  VecSetType(*vec, VECSEQ);
+  VecSetSizes(*vec, a->mesh->num_cells, PETSC_DECIDE);
 }
 
 static void ad_create_ksp(void* context, KSP* ksp)
 {
+  KSPCreate(MPI_COMM_WORLD, ksp);
 }
 
 static void ad_compute_diffusion_matrix(void* context, Mat D, double t)
 {
+  ad_solver_t* a = (ad_solver_t*)context;
+  lin_op_t* L = a->diff_op;
+
+  // Make sure the diffusion operator has the right diffusivity.
+  diffusion_op_set_time(a->diff_op, t);
+
+  // Now compute that thar matrix.
+  PetscInt nnz[a->mesh->num_cells];
+  for (int i = 0; i < a->mesh->num_cells; ++i)
+    nnz[i] = lin_op_stencil_size(L, i);
+
+  // Set matrix entries.
+  MatAssemblyBegin(D, MAT_FINAL_ASSEMBLY);
+  for (int i = 0; i < a->mesh->num_cells; ++i)
+  {
+    int indices[nnz[i]];
+    double values[nnz[i]];
+    lin_op_compute_stencil(L, i, indices, values);
+    for (int j = 0; j < nnz[i]; ++j)
+      indices[j] += i;
+    MatSetValues(D, 1, &i, nnz[i], indices, values, INSERT_VALUES);
+  }
+  MatAssemblyEnd(D, MAT_FINAL_ASSEMBLY);
 }
 
 static void ad_compute_source_vector(void* context, Vec S, double t)
 {
+  ad_solver_t* a = (ad_solver_t*)context;
+  mesh_t* mesh = a->mesh;
+
+  // Compute the RHS vector.
+  double values[mesh->num_cells];
+  int indices[mesh->num_cells];
+  VecAssemblyBegin(S);
+  for (int c = 0; c < mesh->num_cells; ++c)
+  {
+    indices[c] = c;
+    point_t xc = {.x = 0.0, .y = 0.0, .z = 0.0};
+    st_func_eval(a->source, &xc, t, &values[c]);
+    values[c] *= mesh->cells[c].volume;
+  }
+  VecSetValues(S, mesh->num_cells, indices, values, INSERT_VALUES);
+  VecAssemblyEnd(S);
 }
 
 static void ad_apply_bcs(void* context, Mat A, Vec b, double t)
 {
+  ad_solver_t* a = (ad_solver_t*)context;
+  mesh_t* mesh = a->mesh;
+  boundary_cell_map_t* boundary_cells = a->boundary_cells;
+
+  // Go over the boundary cells, enforcing boundary conditions on each 
+  // face.
+  MatAssemblyBegin(A, MAT_FINAL_ASSEMBLY);
+  VecAssemblyBegin(b);
+  int pos = 0, bcell;
+  boundary_cell_t* cell_info;
+  while (boundary_cell_map_next(boundary_cells, &pos, &bcell, &cell_info))
+  {
+    cell_t* cell = &mesh->cells[bcell];
+
+    // We use ghost cells that are reflections of the boundary cells 
+    // through the boundary faces. For each of these cells, the 
+    // boundary condition alpha*phi + beta*dphi/dn = F assigns the 
+    // ghost value
+    //
+    // phi_g = (F + (beta/L - alpha/2)) * phi_i / (beta/L + alpha/2)
+    //
+    // where L is the distance between the interior centroid and the 
+    // ghost centroid. These means that the only contributions to the 
+    // linear system are on the diagonal of the matrix and to the 
+    // right hand side vector.
+    double Aii = 0.0, bi = 0;
+    for (int f = 0; f < cell_info->num_boundary_faces; ++f)
+    {
+      // Retrieve the boundary condition for this face.
+      advect_bc_t* bc = cell_info->bc_for_face[f];
+
+      face_t* face = &mesh->faces[cell_info->boundary_faces[f]];
+      double alpha = bc->alpha, beta = bc->beta;
+
+      // Compute L.
+      double L = 2.0 * point_distance(&cell->center, &face->center);
+
+      // Compute F at the face center.
+      double F;
+      st_func_eval(bc->F, &face->center, t, &F);
+
+      // Add in the diagonal term (dphi/dn).
+      Aii += ((beta/L - 0.5*alpha) / (beta/L + 0.5*alpha) - 1.0) * face->area / L;
+
+      // Add in the right hand side contribution.
+      bi -= (F / (beta/L + 0.5*alpha)) * face->area / L;
+    }
+
+    // Sum the values into the linear system.
+    MatSetValues(A, 1, &bcell, 1, &bcell, &Aii, ADD_VALUES);
+    VecSetValues(b, 1, &bcell, &bi, ADD_VALUES);
+  }
+  MatAssemblyEnd(A, MAT_FINAL_ASSEMBLY);
+  VecAssemblyEnd(b);
 }
 
 static void ad_dtor(void* context)
 {
+  ad_solver_t* a = (ad_solver_t*)context;
+  free(a->advective_deriv);
+  free(a);
 }
 
-diffusion_solver_t* advect_diffusion_solver_new(lin_op_t* diffusion_op,
-                                                mesh_t* mesh)
+diffusion_solver_t* advect_diffusion_solver_new(st_func_t* diffusivity,
+                                                st_func_t* source,
+                                                mesh_t* mesh,
+                                                boundary_cell_map_t* boundary_cells)
 {
+  ASSERT(diffusion_op != NULL);
+  ASSERT(mesh != NULL);
+
   diffusion_solver_vtable vtable = 
   { .create_matrix            = ad_create_matrix,
     .create_vector            = ad_create_vector,
@@ -52,10 +171,20 @@ diffusion_solver_t* advect_diffusion_solver_new(lin_op_t* diffusion_op,
     .dtor                     = ad_dtor
   };
   ad_solver_t* a = malloc(sizeof(ad_solver_t));
-  a->diff_op = diffusion_op;
-  a->mesh = mesh;
+  a->diff_op = diffusion_op_new(mesh, diffusivity);
+  a->source = source;
+  a->mesh = mesh; // borrowed
+  a->boundary_cells = boundary_cells; // borrowed
+  a->advective_deriv = malloc(sizeof(double)*mesh->num_cells);
   diffusion_solver_t* solver = diffusion_solver_new("advective diffusion solver", a, vtable);
   return solver;
+}
+
+void advect_diffusion_solver_set_advective_deriv(diffusion_solver_t* solver,
+                                                 double* advective_deriv)
+{
+  ad_solver_t* a = (ad_solver_t*)diffusion_solver_context(solver);
+  memcpy(a->advective_deriv, advective_deriv, sizeof(double)*a->mesh->num_cells);
 }
 
 #ifdef __cplusplus

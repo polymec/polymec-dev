@@ -64,6 +64,9 @@ void diffusion_solver_free(diffusion_solver_t* solver);
 // Returns the name of the diffuson solver (internally stored).
 char* diffusion_solver_name(diffusion_solver_t* solver);
 
+// Returns the context object for this solver.
+void* diffusion_solver_context(diffusion_solver_t* solver);
+
 // Solves the diffusion equation using the L-stable, first-order-accurate 
 // backward Euler method. Arguments:
 // solver - the diffusion solver.
