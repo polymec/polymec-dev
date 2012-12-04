@@ -83,7 +83,8 @@ static void ad_compute_diffusion_matrix(void* context, Mat D, double t)
   while (boundary_cell_map_next(a->boundary_cells, &pos, &bcell, &cell_info))
   {
     cell_t* cell = &a->mesh->cells[bcell];
-    double Aii = 0.0;
+    double Aij[2] = {0.0, 0.0};
+    int ij[2];
     for (int f = 0; f < cell_info->num_boundary_faces; ++f)
     {
       // Retrieve the boundary condition for this face.
@@ -106,12 +107,13 @@ static void ad_compute_diffusion_matrix(void* context, Mat D, double t)
           point_distance(&other_face->center, &other_cell->center);
 
         // Add in the diagonal term (D * dphi/dn).
-        Aii -= Di * area / L;
+        ij[0] = bcell;
+        Aij[0] -= Di * area / L;
 
         // Add in the off-diagonal term (D * dphi/dn).
-        int j = other_cell - &a->mesh->cells[0];
-        double Aij = Di * area / L;
-        MatSetValues(D, 1, &bcell, 1, &j, &Aij, ADD_VALUES);
+        ij[1] = other_cell - &a->mesh->cells[0];
+        Aij[1] = Di * area / L;
+        MatSetValues(D, 1, &bcell, 2, ij, Aij, ADD_VALUES);
       }
     }
   }

@@ -33,6 +33,11 @@ typedef struct
   st_func_t* initial_cond;  // The initial value of the solution.
   lin_op_t* D;              // Diffusion operator.
 
+  // Tiny optimizations.
+  // stationary is set to true if V == 0
+  // have_diffusivity is set to false if D == 0.
+  bool stationary, have_diffusivity;
+
   str_ptr_unordered_map_t* bcs; // Boundary conditions.
 
   // Information for boundary cells.
@@ -296,13 +301,24 @@ static double advect_max_dt(void* context, double t, char* reason)
     // FIXME: For now, we just estimate the side of a cell from its 
     // FIXME: volume. This doesn't really work for nonuniform grids.
     double L = pow(a->mesh->cells[c].volume, 1.0/3.0);
-    double V[3];
-    st_func_eval(a->velocity, &a->mesh->cells[c].center, t, V);
-    double Vmag = sqrt(V[0]*V[0] + V[1]*V[1] + V[2]*V[2]);
-    if ((L / Vmag) < dt)
+    if (a->stationary)
     {
-      dt = a->CFL * L / Vmag;
-      sprintf(reason, "CFL condition at cell %d.", c);
+      if (a->CFL*L < dt)
+      {
+        dt = a->CFL * L;
+        sprintf(reason, "dt set to grid spacing at cell %d by diffusion.", c);
+      }
+    }
+    else
+    {
+      double V[3];
+      st_func_eval(a->velocity, &a->mesh->cells[c].center, t, V);
+      double Vmag = sqrt(V[0]*V[0] + V[1]*V[1] + V[2]*V[2]);
+      if ((a->CFL*L/Vmag) < dt)
+      {
+        dt = a->CFL * L / Vmag;
+        sprintf(reason, "CFL condition at cell %d.", c);
+      }
     }
   }
 
@@ -312,54 +328,48 @@ static double advect_max_dt(void* context, double t, char* reason)
 static void advect_advance(void* context, double t, double dt)
 {
   advect_t* a = (advect_t*)context;
-
-  // First, compute the half-step values of the fluxes on faces.
-  double fluxes[a->mesh->num_faces];
-  compute_half_step_fluxes(a->mesh, a->velocity, a->source, a->boundary_cells, t, dt, a->phi, a->slope_estimator, fluxes);
-
-  // Update the solution using the Divergence Theorem.
   int num_cells = a->mesh->num_cells;
-  double phi_new[num_cells], adv_deriv[num_cells];
-  for (int c = 0; c < num_cells; ++c)
-  {
-    cell_t* cell = &a->mesh->cells[c];
-    phi_new[c] = a->phi[c];
-    for (int f = 0; f < cell->num_faces; ++f)
-    {
-      face_t* face = cell->faces[f];
-      int face_index = face - &a->mesh->faces[0];
 
-      // Make sure the sign of the flux is correct, since the fluxes have
-      // been computed w.r.t. face->cell1.
-      double sign = (face->cell1 == cell) ? 1.0 : -1.0;
-      phi_new[c] -= sign * fluxes[face_index] * dt / cell->volume;
-//printf("cell %d: flux %d (face %d) = %g\n", c, f, face_index, fluxes[face_index]);
+  double phi_new[num_cells];
+  if (!a->stationary)
+  {
+    // First, compute the half-step values of the fluxes on faces.
+    double fluxes[a->mesh->num_faces];
+    compute_half_step_fluxes(a->mesh, a->velocity, a->source, a->boundary_cells, t, dt, a->phi, a->slope_estimator, fluxes);
+
+    // Update the solution using the Divergence Theorem.
+    double phi_new[num_cells], adv_deriv[num_cells];
+    for (int c = 0; c < num_cells; ++c)
+    {
+      cell_t* cell = &a->mesh->cells[c];
+      phi_new[c] = a->phi[c];
+      for (int f = 0; f < cell->num_faces; ++f)
+      {
+        face_t* face = cell->faces[f];
+        int face_index = face - &a->mesh->faces[0];
+
+        // Make sure the sign of the flux is correct, since the fluxes have
+        // been computed w.r.t. face->cell1.
+        double sign = (face->cell1 == cell) ? 1.0 : -1.0;
+        phi_new[c] -= sign * fluxes[face_index] * dt / cell->volume;
+        //printf("cell %d: flux %d (face %d) = %g\n", c, f, face_index, fluxes[face_index]);
+      }
+
+      // Add the non-stiff source term.
+      double S;
+      st_func_eval(a->source, &cell->center, t, &S);
+      phi_new[c] += S * dt;
+
+      // Compute the "source terms" that will be fed to the diffusion equation.
+      adv_deriv[c] = (phi_new[c] - a->phi[c]) / dt;
     }
 
-    // Add the non-stiff source term.
-    double S;
-    st_func_eval(a->source, &cell->center, t, &S);
-    phi_new[c] += S * dt;
-
-    // Compute the "source terms" that will be fed to the diffusion equation.
-    adv_deriv[c] = (phi_new[c] - a->phi[c]) / dt;
-  }
-
-  // Do we have nonzero diffusivity? 
-  bool have_diffusivity = true;
-  if (st_func_is_constant(a->diffusivity) && 
-      st_func_is_homogeneous(a->diffusivity))
-  {
-    double val;
-    point_t x;
-    st_func_eval(a->diffusivity, &x, 0.0, &val);
-    have_diffusivity = (val != 0.0);
-  }
-  if (have_diffusivity)
-  {
-    // Stir in the advective derivative.
+    // Give the advective derivative to the diffusion solver.
     advect_diffusion_solver_set_advective_deriv(a->diff_solver, adv_deriv);
+  }
 
+  if (a->have_diffusivity)
+  {
     // Compute the diffusive derivative without splitting.
     diffusion_solver_euler(a->diff_solver, t, a->phi, t+dt, phi_new);
   }
@@ -403,11 +413,41 @@ static void advect_init(void* context, double t)
   ASSERT(a->mesh != NULL);
   ASSERT(a->initial_cond != NULL);
   ASSERT(a->velocity != NULL);
+  ASSERT(a->diffusivity != NULL);
   ASSERT(st_func_num_comp(a->velocity) == 3);
   ASSERT(a->source != NULL);
 
+  // Are we stationary (is V == 0)?
+  a->stationary = true;
+  if (st_func_is_constant(a->velocity) && 
+      st_func_is_homogeneous(a->velocity))
+  {
+    double val[3];
+    point_t x;
+    st_func_eval(a->velocity, &x, 0.0, val);
+    for (int i = 0; i < 3; ++i)
+    {
+      if (val[i] != 0.0)
+      {
+        a->stationary = false;
+        break;
+      }
+    }
+  }
+
+  // Do we have nonzero diffusivity? 
+  a->have_diffusivity = true;
+  if (st_func_is_constant(a->diffusivity) && 
+      st_func_is_homogeneous(a->diffusivity))
+  {
+    double val;
+    point_t x;
+    st_func_eval(a->diffusivity, &x, 0.0, &val);
+    a->have_diffusivity = (val != 0.0);
+  }
+
   // Set up the diffusion operator.
-  if ((a->diffusivity != NULL) && (a->D == NULL))
+  if (a->D == NULL)
     a->D = diffusion_op_new(a->mesh, a->diffusivity);
 
   // If the model has been previously initialized, clean everything out.
