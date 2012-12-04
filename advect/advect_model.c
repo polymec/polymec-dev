@@ -697,7 +697,7 @@ model_t* advect_model_new(options_t* options)
   register_advect_benchmarks(model);
 
   // Set up saver/plotter.
-  io_interface_t* saver = silo_io_new(MPI_COMM_SELF, 0, false);
+  io_interface_t* saver = silo_io_new(a->comm, 0, false);
   model_set_saver(model, saver);
 
   io_interface_t* plotter = NULL;
@@ -705,14 +705,14 @@ model_t* advect_model_new(options_t* options)
   if (which_plotter != NULL)
   {
     if (!strcasecmp(which_plotter, "vtk"))
-      plotter = vtk_plot_io_new(MPI_COMM_SELF, 0, false);
+      plotter = vtk_plot_io_new(a->comm, 0, false);
     else if (!strcasecmp(which_plotter, "silo"))
-      plotter = silo_plot_io_new(MPI_COMM_SELF, 0, false);
+      plotter = silo_plot_io_new(a->comm, 0, false);
     else if (!strcasecmp(which_plotter, "gnuplot"))
       plotter = gnuplot_io_new();
   }
   else
-    plotter = vtk_plot_io_new(MPI_COMM_SELF, 0, false);
+    plotter = vtk_plot_io_new(a->comm, 0, false);
   if (plotter != NULL)
   {
     log_detail("Setting plotter to '%s'...", which_plotter);

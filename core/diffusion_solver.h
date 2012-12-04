@@ -15,7 +15,22 @@ extern "C" {
 // and S is a source.
 typedef struct diffusion_solver_t diffusion_solver_t;
 
-// Functions of this type apply boundary conditions to a linear system so 
+// A function for creating a matrix.
+typedef void (*diffusion_solver_create_mat_func)(void*, Mat*);
+
+// A function for creating a vector.
+typedef void (*diffusion_solver_create_vec_func)(void*, Vec*);
+
+// A function for creating a linear solver.
+typedef void (*diffusion_solver_create_ksp_func)(void*, KSP*);
+
+// A function for computing the diffusion matrix at time t.
+typedef void (*diffusion_solver_compute_diff_mat_func)(void*, Mat, double);
+
+// A function for computing the source vector at time t. 
+typedef void (*diffusion_solver_compute_source_func)(void*, Vec, double);
+
+// A function for applying boundary conditions to a linear system so 
 // that the solution respects these boundary conditions. Arguments:
 // void* context - A pointer to the context used to apply boundary conditions.
 // Mat A         - The matrix in the linear system.
@@ -23,52 +38,52 @@ typedef struct diffusion_solver_t diffusion_solver_t;
 // t             - The time at which the boundary conditions are applied.
 typedef void (*diffusion_solver_apply_bcs_func)(void*, Mat, Vec, double);
 
-// Creates a diffusion solver on the given MPI communicator, with the 
-// given function that is used to apply diffusion boundary conditions to 
-// a diffusion linear system Ax = b (where x is the solution. Also provided 
-// are a context pointer passed to apply_bcs, and a destructor for that pointer.
-diffusion_solver_t* diffusion_solver_new(MPI_Comm comm,
-                                         diffusion_solver_apply_bcs_func apply_bcs, 
+// A destructor function for the context object (if any).
+typedef void (*diffusion_solver_dtor)(void*);
+
+// This virtual table must be implemented by any diffusion_solver.
+typedef struct 
+{
+  diffusion_solver_create_mat_func        create_matrix;
+  diffusion_solver_create_vec_func        create_vector;
+  diffusion_solver_create_ksp_func        create_ksp;
+  diffusion_solver_compute_diff_mat_func  compute_diffusion_matrix;
+  diffusion_solver_compute_source_func    compute_source_vector;
+  diffusion_solver_apply_bcs_func         apply_bcs;
+  diffusion_solver_dtor                   dtor;
+} diffusion_solver_vtable;
+
+// Creates a diffusion solver with the given name, context, and virtual table.
+diffusion_solver_t* diffusion_solver_new(const char* name, 
                                          void* context,
-                                         void (*context_dtor)(void*));
+                                         diffusion_solver_vtable vtable);
 
 // Frees a diffusion solver.
 void diffusion_solver_free(diffusion_solver_t* solver);
 
+// Returns the name of the diffuson solver (internally stored).
+char* diffusion_solver_name(diffusion_solver_t* solver);
+
 // Solves the diffusion equation using the L-stable, first-order-accurate 
 // backward Euler method. Arguments:
 // solver - the diffusion solver.
-// diffusion_op - A matrix representing the diffusion operator D.
-// source       - A vector representing the source term S.
 // t1           - The start time for the integration.
+// sol1         - An array containing the solution at time t1.
 // t2           - The end time for the integration.
-// sol1         - A vector containing the solution at time t1.
-// sol2         - A vector that will store the solution at time t2.
+// sol2         - An array that will store the solution at time t2.
 void diffusion_solver_euler(diffusion_solver_t* solver,
-                            Mat diffusion_op, 
-                            Vec source, 
-                            double t1,
-                            double t2,
-                            Vec sol1, 
-                            Vec sol2);
+                            double t1, double* sol1, 
+                            double t2, double* sol2);
 
 // This function solves the diffusion equation using the "TGA" algorithm 
 // presented by Twizell, et al (1996). Arguments:
-// diffusion_op - A matrix representing the diffusion operator D.
-// source1      - A vector representing the source term S at the start time.
-// source2      - A vector representing the source term S at the end time.
 // t1           - The start time for the integration.
+// sol1         - An array containing the solution at time t1.
 // t2           - The end time for the integration.
-// sol1         - A vector containing the solution at time t1.
-// sol2         - A vector that will store the solution at time t2.
+// sol2         - An array that will store the solution at time t2.
 void diffusion_solver_tga(diffusion_solver_t* solver,
-                          Mat diffusion_op, 
-                          Vec source1, 
-                          Vec source2, 
-                          double t1,
-                          double t2,
-                          Vec sol1, 
-                          Vec sol2);
+                          double t1, double* sol1,
+                          double t2, double* sol2);
 
 #ifdef __cplusplus
 }
