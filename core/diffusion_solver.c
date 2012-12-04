@@ -6,120 +6,150 @@ extern "C" {
 
 struct diffusion_solver_t
 {
-  MPI_Comm comm;
+  char* name;
 
-  KSP ksp;
+  // Linear system and solver.
   Mat A;
-  Vec b;
+  Vec x, b;
+  KSP ksp;
 
   // Flag is set to true if the linear system above is initialized.
   bool initialized;
 
-  // A function for applying boundary conditions.
-  diffusion_solver_apply_bcs_func apply_bcs;
+  // Context pointer, virtual table.
   void* context;
-  void (*context_dtor)(void*);
+  diffusion_solver_vtable vtable;
 };
 
-diffusion_solver_t* diffusion_solver_new(MPI_Comm comm,
-                                         diffusion_solver_apply_bcs_func apply_bcs, 
-                                         void* context,
-                                         void (*context_dtor)(void*))
+static void initialize(diffusion_solver_t* solver)
 {
-  ASSERT(apply_bcs != NULL);
+  solver->vtable.create_matrix(solver->context, &solver->A);
+  solver->vtable.create_vector(solver->context, &solver->x);
+  solver->vtable.create_vector(solver->context, &solver->b);
+  solver->vtable.create_ksp(solver->context, &solver->ksp);
+}
+
+diffusion_solver_t* diffusion_solver_new(const char* name, 
+                                         void* context,
+                                         diffusion_solver_vtable vtable)
+{
+  ASSERT(name != NULL);
+  ASSERT(vtable.create_matrix != NULL);
+  ASSERT(vtable.create_vector != NULL);
+  ASSERT(vtable.create_ksp != NULL);
+  ASSERT(vtable.compute_diffusion_matrix != NULL);
+  ASSERT(vtable.apply_bcs != NULL);
+
   diffusion_solver_t* solver = malloc(sizeof(diffusion_solver_t));
-  solver->initialized = false;
-  solver->comm = comm;
-  solver->apply_bcs = apply_bcs;
+  solver->name = strdup(name);
   solver->context = context;
-  solver->context_dtor = context_dtor;
+  solver->vtable = vtable;
+
+  // Make sure the solver is initialized.
+  initialize(solver);
+
   return solver;
 }
 
 void diffusion_solver_free(diffusion_solver_t* solver)
 {
-  if (solver->initialized)
-  {
-    KSPDestroy(&solver->ksp);
-    MatDestroy(&solver->A);
-    VecDestroy(&solver->b);
-  }
+  KSPDestroy(&solver->ksp);
+  MatDestroy(&solver->A);
+  VecDestroy(&solver->x);
+  VecDestroy(&solver->b);
 
-  if ((solver->context != NULL) && (solver->context_dtor != NULL))
-    solver->context_dtor(solver->context);
+  if ((solver->context != NULL) && (solver->vtable.dtor != NULL))
+    solver->vtable.dtor(solver->context);
 
+  free(solver->name);
   free(solver);
 }
 
-static void initialize(diffusion_solver_t* solver, 
-                       Mat matrix,
-                       Vec vector)
+char* diffusion_solver_name(diffusion_solver_t* solver)
 {
-  if (!solver->initialized)
-  {
-    KSPCreate(solver->comm, &solver->ksp);
-    MatDuplicate(matrix, MAT_COPY_VALUES, &solver->A);
-    VecDuplicate(vector, &solver->b);
-    solver->initialized = true;
-  }
+  return solver->name;
 }
 
-static void apply_bcs(diffusion_solver_t* solver, double t)
+static inline void copy_array_to_vector(double* array, Vec vector)
 {
-  solver->apply_bcs(solver->context, solver->A, solver->b, t);
+  int size;
+  VecGetLocalSize(vector, &size);
+  double* v;
+  VecGetArray(vector, &v);
+  memcpy(v, array, sizeof(double)*size);
+  VecRestoreArray(vector, &v);
 }
 
-static void solve(diffusion_solver_t* solver, Vec x)
+static inline void copy_vector_to_array(Vec vector, double* array)
 {
-  KSPSetOperators(solver->ksp, solver->A, solver->A, SAME_NONZERO_PATTERN);
-  KSPSolve(solver->ksp, solver->b, x);
+  int size;
+  VecGetLocalSize(vector, &size);
+  double* v;
+  VecGetArray(vector, &v);
+  memcpy(array, v, sizeof(double)*size);
+  VecRestoreArray(vector, &v);
+}
+
+static inline void compute_diff_matrix(diffusion_solver_t* solver, Mat A, double t)
+{
+  solver->vtable.compute_diffusion_matrix(solver->context, A, t);
+}
+
+static inline void compute_source_vector(diffusion_solver_t* solver, Vec source, double t)
+{
+  solver->vtable.compute_source_vector(solver->context, source, t);
+}
+
+static inline void apply_bcs(diffusion_solver_t* solver, Mat A, Vec b, double t)
+{
+  solver->vtable.apply_bcs(solver->context, A, b, t);
+}
+
+static inline void solve(diffusion_solver_t* solver, Mat A, Vec b, Vec x)
+{
+  KSPSetOperators(solver->ksp, A, A, SAME_NONZERO_PATTERN);
+  KSPSolve(solver->ksp, b, x);
 }
 
 void diffusion_solver_euler(diffusion_solver_t* solver,
-                            Mat diffusion_op, 
-                            Vec source, 
-                            double t1,
-                            double t2,
-                            Vec sol1, 
-                            Vec sol2)
+                            double t1, double* sol1,
+                            double t2, double* sol2)
 {
   ASSERT(t2 > t1);
   double dt = t2 - t1;
 
-  // Make sure the solver is initialized.
-  initialize(solver, diffusion_op, sol1);
+  // A -> diffusion matrix at time t2.
+  compute_diff_matrix(solver, solver->A, t2);
 
   // A = -dt * diffusion_op.
-  MatCopy(diffusion_op, solver->A, SAME_NONZERO_PATTERN);
   MatScale(solver->A, -dt);
 
   // A -> A + I.
   MatShift(solver->A, 1.0);
 
-  // b = sol1 + dt * source.
-  VecWAXPY(solver->b, dt, source, sol1);
+  // Compute the source at time t2.
+  compute_source_vector(solver, solver->x, t2);
+
+  // b -> sol1 + dt * source.
+  copy_array_to_vector(sol1, solver->b);
+  VecAXPY(solver->b, dt, solver->x);
 
   // Apply boundary conditions.
-  apply_bcs(solver, t2);
+  apply_bcs(solver, solver->A, solver->b, t2);
 
   // Solve the linear system.
-  solve(solver, sol2);
+  solve(solver, solver->A, solver->b, solver->x);
+
+  // Copy the solution to sol2.
+  copy_vector_to_array(solver->x, sol2);
 }
 
 void diffusion_solver_tga(diffusion_solver_t* solver,
-                          Mat diffusion_op, 
-                          Vec source1, 
-                          Vec source2, 
-                          double t1,
-                          double t2,
-                          Vec sol1, 
-                          Vec sol2)
+                          double t1, double* sol1, 
+                          double t2, double* sol2)
 {
   ASSERT(t2 > t1);
   double dt = t2 - t1;
-
-  // Make sure the solver is initialized.
-  initialize(solver, diffusion_op, sol1);
 
   // Parameters for the TGA algorithm.
   double a = 2.0 - sqrt(2.0);
@@ -134,10 +164,13 @@ void diffusion_solver_tga(diffusion_solver_t* solver,
   // e -> e + 0.5 * dt * [old_source
 
   // Do the first solve.
-  solve(solver, sol2);
+  solve(solver, solver->A, solver->b, solver->x);
 
   // Do the second solve.
-  solve(solver, sol2);
+  solve(solver, solver->A, solver->b, solver->x);
+
+  // Copy the solution to sol2.
+  copy_vector_to_array(solver->x, sol2);
 }
 
 #ifdef __cplusplus
