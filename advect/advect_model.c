@@ -345,8 +345,17 @@ static void advect_advance(void* context, double t, double dt)
     adv_deriv[c] = (phi_new[c] - a->phi[c]) / dt;
   }
 
-  // Do we have diffusivity? 
-  if (a->diffusivity != NULL)
+  // Do we have nonzero diffusivity? 
+  bool have_diffusivity = true;
+  if (st_func_is_constant(a->diffusivity) && 
+      st_func_is_homogeneous(a->diffusivity))
+  {
+    double val;
+    point_t x;
+    st_func_eval(a->diffusivity, &x, 0.0, &val);
+    have_diffusivity = (val != 0.0);
+  }
+  if (have_diffusivity)
   {
     // Stir in the advective derivative.
     advect_diffusion_solver_set_advective_deriv(a->diff_solver, adv_deriv);
@@ -623,6 +632,16 @@ model_t* create_advect(mesh_t* mesh,
                        st_func_t* solution,
                        options_t* options)
 {
+  ASSERT(mesh != NULL);
+  ASSERT(velocity != NULL);
+  ASSERT(st_func_num_comp(velocity) == 3);
+  ASSERT(diffusivity != NULL);
+  ASSERT(st_func_num_comp(diffusivity) == 1);
+  ASSERT(source != NULL);
+  ASSERT(st_func_num_comp(source) == 1);
+  ASSERT(initial_cond != NULL);
+  ASSERT(st_func_num_comp(initial_cond) == 1);
+
   // Create the model.
   model_t* model = advect_model_new(options);
   advect_t* a = (advect_t*)model_context(model);

@@ -75,7 +75,7 @@ static void apply_bcs_with_finite_differences(boundary_cell_map_t* boundary_cell
     // boundary condition alpha*phi + beta*dphi/dn = F assigns the 
     // ghost value
     //
-    // phi_g = (F + (beta/L - alpha/2)) * phi_i / (beta/L + alpha/2)
+    // phi_g = (F + (beta/L - alpha/2) * phi_i) / (beta/L + alpha/2)
     //
     // where L is the distance between the interior centroid and the 
     // ghost centroid. These means that the only contributions to the 
