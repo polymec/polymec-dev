@@ -197,8 +197,8 @@ static void ad_apply_bcs(void* context, Mat A, Vec b, double t)
     }
 
     // Insert the values into the linear system.
-    MatSetValues(A, 1, &bcell, 1, &bcell, &Aii, INSERT_VALUES);
-    VecSetValues(b, 1, &bcell, &bi, INSERT_VALUES);
+    MatSetValues(A, 1, &bcell, 1, &bcell, &Aii, ADD_VALUES);
+    VecSetValues(b, 1, &bcell, &bi, ADD_VALUES);
   }
   MatAssemblyEnd(A, MAT_FINAL_ASSEMBLY);
   VecAssemblyEnd(b);

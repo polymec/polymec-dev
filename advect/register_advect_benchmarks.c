@@ -204,26 +204,26 @@ static void run_sine_wave_1d(options_t* options)
 
 static void square_diffusion_1d_soln(void* ctx, point_t* x, double t, double* phi)
 {
-  double D = 0.1;
+  double D = 1.0;
   double Vx = 0.0;
-  double y = x->x - Vx*t;
-  double L = 1.0;
-  double width = 0.25;
+  double y = x->x - Vx*t - 0.5;
+  double half_width = 0.125;
   if (t == 0.0)
   {
-    *phi = (fabs(y - 0.5*L) < width) ? 1.0 : 0.0;
+    *phi = (fabs(y) < half_width) ? 1.0 : 0.0;
   }
   else
   {
-    *phi = erf((2.0 * (1.0 + fabs(y))) / (4.0*sqrt(D*t))) +  // left wave
-           erf((2.0 * (1.0 - fabs(y))) / (4.0*sqrt(D*t)));   // right wave
+    double nu = D*half_width*half_width;
+    *phi = 0.5 * (erf((2.0 * (1.0 + fabs(y)/half_width)) / (2.0*sqrt(nu*t))) +  // left wave
+                  erf((2.0 * (1.0 - fabs(y)/half_width)) / (2.0*sqrt(nu*t))));   // right wave
   }
 }
 
 static void run_square_diffusion_1d(options_t* options)
 {
   double z = 0.0;
-  double Dval = 0.1;
+  double Dval = 1.0;
   double v[] = {0.0, 0.0, 0.0};
   st_func_t* zero = constant_st_func_new(1, &z);
   st_func_t* D = constant_st_func_new(1, &Dval);
@@ -232,7 +232,7 @@ static void run_square_diffusion_1d(options_t* options)
                                       ST_INHOMOGENEOUS, ST_NONCONSTANT, 1);
   advect_bc_t* bc1 = advect_bc_new(0.0, 1.0, zero); // Homogeneous Neumann BC
   advect_bc_t* bc2 = advect_bc_new(0.0, 1.0, zero); // Homogeneous Neumann BC
-  advect_run_1d_flow(options, v0, D, zero, soln, bc1, bc2, soln, 0.0, 1.0, 1);
+  advect_run_1d_flow(options, v0, D, zero, soln, bc1, bc2, soln, 0.0, 2.0, 1);
 }
 
 void register_advect_benchmarks(model_t* model)
