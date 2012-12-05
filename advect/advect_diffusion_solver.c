@@ -15,7 +15,7 @@ typedef struct
   st_func_t* source;
   mesh_t* mesh;
   boundary_cell_map_t* boundary_cells;
-  double* advective_deriv;
+  double* advective_source;
 } ad_solver_t;
 
 static void ad_create_matrix(void* context, Mat* mat)
@@ -95,7 +95,7 @@ static void ad_compute_source_vector(void* context, Vec S, double t)
     indices[c] = c;
     point_t xc = {.x = 0.0, .y = 0.0, .z = 0.0};
     st_func_eval(a->source, &xc, t, &values[c]);
-    values[c] += a->advective_deriv[c]; // Add in advective derivative.
+    values[c] += a->advective_source[c]; // Add in advective source.
   }
   VecSetValues(S, mesh->num_cells, indices, values, INSERT_VALUES);
   VecAssemblyEnd(S);
@@ -196,7 +196,7 @@ static void ad_apply_bcs(void* context, Mat A, Vec b, double t)
 static void ad_dtor(void* context)
 {
   ad_solver_t* a = (ad_solver_t*)context;
-  free(a->advective_deriv);
+  free(a->advective_source);
   free(a);
 }
 
@@ -224,17 +224,17 @@ diffusion_solver_t* advect_diffusion_solver_new(st_func_t* diffusivity,
   a->source = source;
   a->mesh = mesh; // borrowed
   a->boundary_cells = boundary_cells; // borrowed
-  a->advective_deriv = malloc(sizeof(double)*mesh->num_cells);
-  memset(a->advective_deriv, 0, sizeof(double)*mesh->num_cells);
+  a->advective_source = malloc(sizeof(double)*mesh->num_cells);
+  memset(a->advective_source, 0, sizeof(double)*mesh->num_cells);
   diffusion_solver_t* solver = diffusion_solver_new("advective diffusion solver", a, vtable);
   return solver;
 }
 
-void advect_diffusion_solver_set_advective_deriv(diffusion_solver_t* solver,
-                                                 double* advective_deriv)
+void advect_diffusion_solver_set_advective_source(diffusion_solver_t* solver,
+                                                  double* advective_source)
 {
   ad_solver_t* a = (ad_solver_t*)diffusion_solver_context(solver);
-  memcpy(a->advective_deriv, advective_deriv, sizeof(double)*a->mesh->num_cells);
+  memcpy(a->advective_source, advective_source, sizeof(double)*a->mesh->num_cells);
 }
 
 #ifdef __cplusplus

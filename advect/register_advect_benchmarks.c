@@ -155,11 +155,13 @@ static void run_stationary_blayer_1d(options_t* options)
 
 static void square_wave_1d_soln(void* ctx, point_t* x, double t, double* phi)
 {
-  double width = 0.25;
+  // Taken from Toro (2009).
+  double width = 0.4;
   double a = 1.0;
+  double y = x->x - a*t - 0.5; // Center of the wave.
+  while (y < 0.0) y += 1.0;
   // Remember: we have to account for periodicity.
-  *phi = ((fabs(x->x - a*t) < 0.5*width) || 
-          (fabs(x->x - (1.0 + a*t)) < 0.5*width)) ? 1.0 : 0.0;
+  *phi = ((fabs(y) < 0.5*width) || (fabs(y - 1.0) < 0.5*width)) ? 1.0 : 0.0;
 }
 
 static void run_square_wave_1d(options_t* options)
@@ -171,7 +173,7 @@ static void run_square_wave_1d(options_t* options)
   st_func_t* soln = st_func_from_func("square wave 1d", square_wave_1d_soln,
                                       ST_INHOMOGENEOUS, ST_NONCONSTANT, 1);
   periodic_bc_t* bc = cubic_lattice_x_periodic_bc_new("-x", "+x");
-  advect_run_1d_flow(options, v0, zero, zero, soln, bc, bc, soln, 0.0, 1.0, 1, 4);
+  advect_run_1d_flow(options, v0, zero, zero, soln, bc, bc, soln, 0.0, 10.0, 1, 4);
   zero = v0 = soln = NULL;
 }
 
