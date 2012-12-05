@@ -129,7 +129,6 @@ static void run_stationary_flow_1d(options_t* options)
   st_func_t* v0 = constant_st_func_new(3, v);
   advect_bc_t* bc = advect_bc_new(1.0, 0.0, one);
   advect_run_1d_flow(options, v0, zero, zero, one, bc, bc, one, 0.0, 1.0, 1, 4);
-  zero = one = v0 = NULL;
 }
 
 static void stationary_blayer_1d_soln(void* ctx, point_t* x, double t, double* phi)
@@ -150,7 +149,6 @@ static void run_stationary_blayer_1d(options_t* options)
                                       ST_INHOMOGENEOUS, ST_CONSTANT, 1);
   advect_bc_t* bc = advect_bc_new(1.0, 0.0, one);
   advect_run_1d_flow(options, v0, one, zero, soln, bc, bc, soln, 0.0, 1.0, 1, 4);
-  zero = one = v0 = soln = NULL;
 }
 
 static void square_wave_1d_soln(void* ctx, point_t* x, double t, double* phi)
@@ -159,8 +157,7 @@ static void square_wave_1d_soln(void* ctx, point_t* x, double t, double* phi)
   double width = 0.4;
   double a = 1.0;
   double y = x->x - a*t - 0.5; // Center of the wave.
-  while (y < 0.0) y += 1.0;
-  // Remember: we have to account for periodicity.
+  while (y < 0.0) y += 1.0; // account for periodicity.
   *phi = ((fabs(y) < 0.5*width) || (fabs(y - 1.0) < 0.5*width)) ? 1.0 : 0.0;
 }
 
@@ -174,7 +171,29 @@ static void run_square_wave_1d(options_t* options)
                                       ST_INHOMOGENEOUS, ST_NONCONSTANT, 1);
   periodic_bc_t* bc = cubic_lattice_x_periodic_bc_new("-x", "+x");
   advect_run_1d_flow(options, v0, zero, zero, soln, bc, bc, soln, 0.0, 10.0, 1, 4);
-  zero = v0 = soln = NULL;
+}
+
+static void gaussian_wave_1d_soln(void* ctx, point_t* x, double t, double* phi)
+{
+  // Taken from Toro (2009).
+  double alpha = 1.0;
+  double beta = 16.0;
+  double a = 1.0;
+  double y = x->x - a*t - 0.5; // Center of the wave.
+  while (y < -0.5) y += 1.0; // account for periodicity.
+  *phi = alpha * exp(-beta*y*y);
+}
+
+static void run_gaussian_wave_1d(options_t* options)
+{
+  double z = 0.0;
+  double v[] = {1.0, 0.0, 0.0};
+  st_func_t* zero = constant_st_func_new(1, &z);
+  st_func_t* v0 = constant_st_func_new(3, v);
+  st_func_t* soln = st_func_from_func("gaussian wave 1d", gaussian_wave_1d_soln,
+                                      ST_INHOMOGENEOUS, ST_NONCONSTANT, 1);
+  periodic_bc_t* bc = cubic_lattice_x_periodic_bc_new("-x", "+x");
+  advect_run_1d_flow(options, v0, zero, zero, soln, bc, bc, soln, 0.0, 10.0, 1, 4);
 }
 
 static void sine_wave_1d_soln(void* ctx, point_t* x, double t, double* phi)
@@ -193,7 +212,6 @@ static void run_sine_wave_1d(options_t* options)
                                       ST_INHOMOGENEOUS, ST_NONCONSTANT, 1);
   periodic_bc_t* bc = cubic_lattice_x_periodic_bc_new("-x", "+x");
   advect_run_1d_flow(options, v0, zero, zero, soln, bc, bc, soln, 0.0, 5.0, 1, 4);
-  zero = v0 = soln = NULL;
 }
 
 static void square_diffusion_1d_soln(void* ctx, point_t* x, double t, double* phi)
@@ -268,9 +286,10 @@ void register_advect_benchmarks(model_t* model)
   model_register_benchmark(model, "stationary_flow_1d", run_stationary_flow_1d, "Stational flow in 1D (v = 1).");
   model_register_benchmark(model, "stationary_blayer_1d", run_stationary_blayer_1d, "Stational flow with boundary layer in 1D.");
   model_register_benchmark(model, "square_wave_1d", run_square_wave_1d, "Square wave propagation in 1D.");
+  model_register_benchmark(model, "gaussian_wave_1d", run_gaussian_wave_1d, "Gaussian wave propagation in 1D.");
   model_register_benchmark(model, "sine_wave_1d", run_sine_wave_1d, "Sine wave propagation in 1D.");
   model_register_benchmark(model, "square_diffusion_1d", run_square_diffusion_1d, "Square wave diffusing in 1D.");
-  model_register_benchmark(model, "gaussian_diffusion_1d", run_gaussian_diffusion_1d, "Square wave diffusing in 1D.");
+  model_register_benchmark(model, "gaussian_diffusion_1d", run_gaussian_diffusion_1d, "Gaussian wave diffusing in 1D.");
 }
 
 #ifdef __cplusplus
