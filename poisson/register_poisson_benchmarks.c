@@ -153,13 +153,7 @@ static void poisson_run_laplace_1d(options_t* options, int dim)
   }
 
   // Clean up.
-  int pos = 0;
-  char* key;
-  void* value;
-  while (str_ptr_unordered_map_next(bcs, &pos, &key, &value))
-    poisson_bc_free(value);
   str_ptr_unordered_map_free(bcs);
-  zero = sol = sol_grad = NULL;
 }
 
 static void run_laplace_1d(options_t* options)
@@ -290,13 +284,7 @@ static void poisson_run_paraboloid(options_t* options, int dim)
   }
 
   // Clean up.
-  int pos = 0;
-  char* key;
-  void* value;
-  while (str_ptr_unordered_map_next(bcs, &pos, &key, &value))
-    poisson_bc_free(value);
   str_ptr_unordered_map_free(bcs);
-  zero = sol = rhs = NULL;
 }
 
 static void run_paraboloid(options_t* options)

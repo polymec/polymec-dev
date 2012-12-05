@@ -35,7 +35,7 @@ lin_op_t* lin_op_new(const char* name, void* context, lin_op_vtable vtable,
   L->context = context;
   L->vtable = vtable;
   L->mesh = mesh;
-  GC_register_finalizer(L, &lin_op_free, L, NULL, NULL);
+  GC_register_finalizer(L, lin_op_free, L, NULL, NULL);
   return L;
 }
 

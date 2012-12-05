@@ -35,7 +35,7 @@ static int dirichlet_bc(lua_State* lua)
 
   // Create a boundary condition object and push it onto the stack.
   poisson_bc_t* bc = poisson_bc_new(1.0, 0.0, F);
-  lua_pushuserdefined(lua, bc, poisson_bc_free);
+  lua_pushuserdefined(lua, bc, NULL);
   return 1;
 }
 
@@ -64,7 +64,7 @@ static int neumann_bc(lua_State* lua)
 
   // Create a boundary condition object and push it onto the stack.
   poisson_bc_t* bc = poisson_bc_new(0.0, 1.0, F);
-  lua_pushuserdefined(lua, bc, poisson_bc_free);
+  lua_pushuserdefined(lua, bc, NULL);
   return 1;
 }
 
@@ -98,7 +98,7 @@ static int robin_bc(lua_State* lua)
 
   // Create a boundary condition object and push it onto the stack.
   poisson_bc_t* bc = poisson_bc_new(alpha, beta, F);
-  lua_pushuserdefined(lua, bc, poisson_bc_free);
+  lua_pushuserdefined(lua, bc, NULL);
   return 1;
 }
 
