@@ -280,7 +280,7 @@ static void poisson_run_paraboloid(options_t* options, int dim)
       Lp_norms[iter][1] *= Nx;
       Lp_norms[iter][2] *= Nx;
     }
-    log_info("iteration %d (Nx = Ny = %d): L1 = %g, L2 = %g, Linf = %g", iter, Nx, Lp_norms[iter][1], Lp_norms[iter][2], Lp_norms[iter][0]);
+    log_urgent("iteration %d (Nx = Ny = %d): L1 = %g, L2 = %g, Linf = %g", iter, Nx, Lp_norms[iter][1], Lp_norms[iter][2], Lp_norms[iter][0]);
   }
 
   // Clean up.
