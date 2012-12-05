@@ -207,6 +207,13 @@ void diffusion_solver_tga(diffusion_solver_t* solver,
   VecSet(solver->b, 0.0);
   apply_bcs(solver, solver->A, solver->b, t2);
 
+  // A note about the "b" vector above: It is intended to ensure that 
+  // a solution to the equation A*x = b satisfies boundary conditions.
+  // However, we use it in this function as though the diffusion operator 
+  // applied to a solution D(x) = A*x + b. This means that we have to 
+  // flip its sign.
+  VecScale(solver->b, -1.0);
+
   //-------------------------------------------
   // Construct e, the RHS for the first solve.
   //-------------------------------------------
@@ -237,7 +244,7 @@ void diffusion_solver_tga(diffusion_solver_t* solver,
 
   // Compute [I - 2.0 * (a - 0.5) * dt * A] * source(t2), and 
   // store it in work vector 2.
-  MatMult(solver->A, solver->work[0], solver->work[2]);
+  MatMultAdd(solver->A, solver->work[0], solver->b, solver->work[2]);
 
   // e -> e + 0.5 * dt * [I - 2.0 * (a - 0.5) * dt * A * source(t2)
   // (result stored in work vector 1).
@@ -253,12 +260,12 @@ void diffusion_solver_tga(diffusion_solver_t* solver,
   MatShift(solver->A, 1.0);
   VecScale(solver->b, r2 / (2.0 * (a - 0.5)));
 
-  // Do the first solve: (I - r2 * dt * A) v = e. Recall that b contains the 
+  // Do the first solve: (I - r2 * dt * A) * v = e. Recall that b contains the 
   // boundary condition information for A, so it needs to be moved to the 
   // right hand side.
   VecAXPY(solver->work[1], -1.0, solver->b); // Move b to RHS
   solve(solver, solver->A, solver->work[1], solver->work[0]); // Solve!
-  // The solution is now stored in work vector 0.
+  // The solution v is now stored in work vector 0.
 
   // Now transform (I - r2 * dt * A) -> (I - r1 * dt * A).
   MatShift(solver->A, -1.0);
