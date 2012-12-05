@@ -17,10 +17,9 @@ diffusion_solver_t* advect_diffusion_solver_new(st_func_t* diffusivity,
                                                 mesh_t* mesh,
                                                 boundary_cell_map_t* boundary_cells);
 
-// Sets the advective derivative for use as a source term by the 
-// diffusion solver.
-void advect_diffusion_solver_set_advective_deriv(diffusion_solver_t* solver,
-                                                 double* advective_deriv);
+// Sets the advective terms for use as source terms by the diffusion solver.
+void advect_diffusion_solver_set_advective_source(diffusion_solver_t* solver,
+                                                  double* advective_source);
 
 #ifdef __cplusplus
 }

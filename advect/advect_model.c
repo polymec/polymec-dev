@@ -338,7 +338,7 @@ static void advect_advance(void* context, double t, double dt)
     compute_half_step_fluxes(a->mesh, a->velocity, a->source, a->boundary_cells, t, dt, a->phi, a->slope_estimator, fluxes);
 
     // Update the solution using the Divergence Theorem.
-    double phi_new[num_cells], adv_deriv[num_cells];
+    double adv_source[num_cells];
     for (int c = 0; c < num_cells; ++c)
     {
       cell_t* cell = &a->mesh->cells[c];
@@ -361,17 +361,17 @@ static void advect_advance(void* context, double t, double dt)
       phi_new[c] += S * dt;
 
       // Compute the "source terms" that will be fed to the diffusion equation.
-      adv_deriv[c] = (phi_new[c] - a->phi[c]) / dt;
+      adv_source[c] = -(phi_new[c] - a->phi[c]) / dt;
     }
 
     // Give the advective derivative to the diffusion solver.
-    advect_diffusion_solver_set_advective_deriv(a->diff_solver, adv_deriv);
+    advect_diffusion_solver_set_advective_source(a->diff_solver, adv_source);
   }
 
   if (a->have_diffusivity)
   {
-    // Compute the diffusive derivative without splitting.
-//    diffusion_solver_euler(a->diff_solver, t, a->phi, t+dt, phi_new);
+    // Compute the diffusive derivative without splitting, using the 
+    // 2nd-order L-stable TGA algorithm.
     diffusion_solver_tga(a->diff_solver, t, a->phi, t+dt, phi_new);
   }
 
@@ -444,7 +444,7 @@ static void advect_init(void* context, double t)
     double val;
     point_t x;
     st_func_eval(a->diffusivity, &x, 0.0, &val);
-    a->have_diffusivity = (val != 0.0);
+    a->have_diffusivity = (val > 0.0);
   }
 
   // Set up the diffusion operator.
