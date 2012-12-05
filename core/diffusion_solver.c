@@ -79,6 +79,7 @@ void diffusion_solver_free(diffusion_solver_t* solver)
   // Destroy any work vectors.
   for (int i = 0; i < solver->num_work_vectors; ++i)
     VecDestroy(&solver->work[i]);
+  free(solver->work);
 
   if ((solver->context != NULL) && (solver->vtable.dtor != NULL))
     solver->vtable.dtor(solver->context);
