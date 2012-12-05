@@ -14,7 +14,7 @@ struct diffusion_solver_t
   KSP ksp;
 
   // Work vectors.
-  Vec* work_vectors;
+  Vec* work;
   int num_work_vectors;
 
   // Flag is set to true if the linear system above is initialized.
@@ -37,9 +37,9 @@ static void create_work_vectors(diffusion_solver_t* solver, int num_vectors)
 {
   if (solver->num_work_vectors < num_vectors)
   {
-    solver->work_vectors = realloc(solver->work_vectors, sizeof(Vec)*num_vectors);
+    solver->work = realloc(solver->work, sizeof(Vec)*num_vectors);
     for (int i = solver->num_work_vectors; i < num_vectors; ++i)
-      solver->vtable.create_vector(solver->context, &solver->work_vectors[i]);
+      solver->vtable.create_vector(solver->context, &solver->work[i]);
     solver->num_work_vectors = num_vectors;
   }
 }
@@ -60,7 +60,7 @@ diffusion_solver_t* diffusion_solver_new(const char* name,
   solver->context = context;
   solver->vtable = vtable;
 
-  solver->work_vectors = NULL;
+  solver->work = NULL;
   solver->num_work_vectors = 0;
 
   // Make sure the solver is initialized.
@@ -78,7 +78,7 @@ void diffusion_solver_free(diffusion_solver_t* solver)
 
   // Destroy any work vectors.
   for (int i = 0; i < solver->num_work_vectors; ++i)
-    VecDestroy(&solver->work_vectors[i]);
+    VecDestroy(&solver->work[i]);
 
   if ((solver->context != NULL) && (solver->vtable.dtor != NULL))
     solver->vtable.dtor(solver->context);
@@ -207,9 +207,9 @@ void diffusion_solver_tga(diffusion_solver_t* solver,
   VecSet(solver->b, 0.0);
   apply_bcs(solver, solver->A, solver->b, t2);
 
-  //-------------------------------------
-  // e = [I + (1-a) * dt * A] * sol1.
-  //-------------------------------------
+  //-------------------------------------------
+  // Construct e, the RHS for the first solve.
+  //-------------------------------------------
 
   // A -> (1-a) * dt * A.
   MatScale(solver->A, (1.0 - a) * dt);
@@ -217,17 +217,17 @@ void diffusion_solver_tga(diffusion_solver_t* solver,
   // A -> A + I.
   MatShift(solver->A, 1.0);
   // e = [I + (1-a) * dt * A] * sol1 (stored in work vector 1).
-  copy_array_to_vector(sol1, solver->work_vectors[0]);
-  MatMultAdd(solver->A, solver->work_vectors[0], solver->b, solver->work_vectors[1]);
+  copy_array_to_vector(sol1, solver->work[0]);
+  MatMultAdd(solver->A, solver->work[0], solver->b, solver->work[1]);
 
   // Compute the source at t1. We'll store the result in work vector 0.
-  compute_source_vector(solver, solver->work_vectors[0], t1);
+  compute_source_vector(solver, solver->work[0], t1);
 
   // e -> e + 0.5 * dt * source(t1), stored in work vector 1.
-  VecAXPY(solver->work_vectors[1], 0.5 * dt, solver->work_vectors[0]);
+  VecAXPY(solver->work[1], 0.5 * dt, solver->work[0]);
 
   // Now compute the source at t2. We'll store the result in work vector 0.
-  compute_source_vector(solver, solver->work_vectors[0], t2);
+  compute_source_vector(solver, solver->work[0], t2);
 
   // Transform I + (1 - a) * dt * A  ->  I - 2 * (a - 0.5) * dt * A.
   MatShift(solver->A, -1.0);
@@ -235,13 +235,13 @@ void diffusion_solver_tga(diffusion_solver_t* solver,
   MatShift(solver->A, 1.0);
   VecScale(solver->b, -2.0 * (a - 0.5) / (1.0 - a));
 
-  // Compute 0.5 * dt * [I - 2.0 * (a - 0.5) * dt * A * source(t2), and 
+  // Compute [I - 2.0 * (a - 0.5) * dt * A] * source(t2), and 
   // store it in work vector 2.
-  MatMult(solver->A, solver->work_vectors[0], solver->work_vectors[2]);
+  MatMult(solver->A, solver->work[0], solver->work[2]);
 
   // e -> e + 0.5 * dt * [I - 2.0 * (a - 0.5) * dt * A * source(t2)
   // (result stored in work vector 1).
-  MatMultAdd(solver->A, solver->work_vectors[2], solver->b, solver->work_vectors[1]);
+  VecAXPY(solver->work[1], 0.5 * dt, solver->work[2]);
 
   //--------------------------------------------------------
   // Now we have computed e and stored it in work vector 1.
@@ -256,8 +256,8 @@ void diffusion_solver_tga(diffusion_solver_t* solver,
   // Do the first solve: (I - r2 * dt * A) v = e. Recall that b contains the 
   // boundary condition information for A, so it needs to be moved to the 
   // right hand side.
-  VecAXPY(solver->work_vectors[1], -1.0, solver->b); // Move b to RHS
-  solve(solver, solver->A, solver->work_vectors[1], solver->work_vectors[0]); // Solve!
+  VecAXPY(solver->work[1], -1.0, solver->b); // Move b to RHS
+  solve(solver, solver->A, solver->work[1], solver->work[0]); // Solve!
   // The solution is now stored in work vector 0.
 
   // Now transform (I - r2 * dt * A) -> (I - r1 * dt * A).
@@ -267,8 +267,8 @@ void diffusion_solver_tga(diffusion_solver_t* solver,
   VecScale(solver->b, r1 / r2);
 
   // Do the second solve. As in the first, we need to move b over to the RHS.
-  VecAXPY(solver->work_vectors[0], -1.0, solver->b); // Move b to RHS
-  solve(solver, solver->A, solver->work_vectors[0], solver->x);
+  VecAXPY(solver->work[0], -1.0, solver->b); // Move b to RHS
+  solve(solver, solver->A, solver->work[0], solver->x);
   // Solution is now stored in x.
 
   // Copy the solution to sol2.
