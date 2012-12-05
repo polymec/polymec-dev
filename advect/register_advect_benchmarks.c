@@ -196,19 +196,21 @@ static void run_sine_wave_1d(options_t* options)
 
 static void square_diffusion_1d_soln(void* ctx, point_t* x, double t, double* phi)
 {
-  double D = 1.0;
-  double Vx = 0.0;
-  double y = x->x - Vx*t - 0.5;
-  double half_width = 0.125;
+  double L = 1.0;  // Length of domain.
+  double D = 0.01; // Diffusivity.
+  double Vx = 0.0; // x velocity.
+  double y = x->x - Vx*t - 0.5; // Center of the wave.
+  double half_width = 0.25;     // half-width of the wave.
   if (t == 0.0)
   {
     *phi = (fabs(y) < half_width) ? 1.0 : 0.0;
   }
   else
   {
-    double nu = D*half_width*half_width;
-    *phi = 0.5 * (erf((2.0 * (1.0 + fabs(y)/half_width)) / (2.0*sqrt(nu*t))) +  // left wave
-                  erf((2.0 * (1.0 - fabs(y)/half_width)) / (2.0*sqrt(nu*t))));   // right wave
+    double wL = half_width * L;
+    double nu = D/(wL*wL);
+    *phi = 0.5 * (erf((1.0 + fabs(y)/wL) / (2.0*sqrt(nu*t))) +  // left wave
+                  erf((1.0 - fabs(y)/wL) / (2.0*sqrt(nu*t))));   // right wave
   }
 }
 
@@ -217,12 +219,17 @@ static void run_square_diffusion_1d(options_t* options)
   double z = 0.0;
   double Dval = 100.0;
   double v[] = {0.0, 0.0, 0.0};
+
+  char* D_str = options_value(options, "diffusivity");
+  if (D_str != NULL)
+    Dval = atof(D_str);
+
   st_func_t* zero = constant_st_func_new(1, &z);
   st_func_t* D = constant_st_func_new(1, &Dval);
   st_func_t* v0 = constant_st_func_new(3, v);
   st_func_t* soln = st_func_from_func("square diffusion 1d", square_diffusion_1d_soln,
                                       ST_INHOMOGENEOUS, ST_NONCONSTANT, 1);
-  advect_bc_t* bc = advect_bc_new(0.0, 1.0, zero); // Homogeneous Neumann BC
+  advect_bc_t* bc = advect_bc_new(1.0, 0.0, zero); // Homogeneous Dirichlet BC
   advect_run_1d_flow(options, v0, D, zero, soln, bc, bc, soln, 0.0, 2.0, 1, 1);
 }
 

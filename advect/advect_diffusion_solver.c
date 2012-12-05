@@ -69,7 +69,13 @@ static void ad_compute_diffusion_matrix(void* context, Mat D, double t)
     double values[nnz[i]];
     lin_op_compute_stencil(L, i, indices, values);
     for (int j = 0; j < nnz[i]; ++j)
+    {
+      // Scale down by the cell volume.
+      values[j] /= a->mesh->cells[i].volume;
+
+      // Turn the indices into offsets.
       indices[j] += i;
+    }
     MatSetValues(D, 1, &i, nnz[i], indices, values, INSERT_VALUES);
   }
   MatAssemblyEnd(D, MAT_FLUSH_ASSEMBLY);
@@ -98,6 +104,7 @@ static void ad_compute_diffusion_matrix(void* context, Mat D, double t)
 
       if (bc == NULL) // periodic BC
       {
+        double V = cell->volume;
         ASSERT(cell_info->opp_faces[f] != NULL);
         face_t* other_face = cell_info->opp_faces[f];
         cell_t* other_cell = other_face->cell1;
@@ -107,17 +114,19 @@ static void ad_compute_diffusion_matrix(void* context, Mat D, double t)
           point_distance(&other_face->center, &other_cell->center);
 
         // Add in the diagonal term (D * dphi/dn).
+        // Don't forget to scale down by the volume of the cell.
         ij[0] = bcell;
-        Aij[0] -= Di * area / L;
+        Aij[0] -= Di * area / (V * L);
 
         // Add in the off-diagonal term (D * dphi/dn).
         ij[1] = other_cell - &a->mesh->cells[0];
-        Aij[1] = Di * area / L;
+        Aij[1] = Di * area / (V * L);
         MatSetValues(D, 1, &bcell, 2, ij, Aij, ADD_VALUES);
       }
     }
   }
   MatAssemblyEnd(D, MAT_FINAL_ASSEMBLY);
+//MatView(D, PETSC_VIEWER_STDOUT_SELF);
 }
 
 static void ad_compute_source_vector(void* context, Vec S, double t)
@@ -191,7 +200,7 @@ static void ad_apply_bcs(void* context, Mat A, Vec b, double t)
 
         // Compute the right hand side contribution.
         double f = F / (0.5*alpha + beta/L);
-        bi += (1.0 - (0.5*alpha + beta/L)*f) * F;
+        bi += F - (0.5*alpha + beta/L)*f;
       }
     }
 
@@ -201,22 +210,6 @@ static void ad_apply_bcs(void* context, Mat A, Vec b, double t)
   }
   MatAssemblyEnd(A, MAT_FINAL_ASSEMBLY);
   VecAssemblyEnd(b);
-}
-
-static void ad_integrate_rhs(void* context, double* rhs)
-{
-  ad_solver_t* a = (ad_solver_t*)context;
-  mesh_t* mesh = a->mesh;
-  for (int c = 0; c < mesh->num_cells; ++c)
-    rhs[c] *= mesh->cells[c].volume;
-}
-
-static void ad_average_solution(void* context, double* solution)
-{
-  ad_solver_t* a = (ad_solver_t*)context;
-  mesh_t* mesh = a->mesh;
-  for (int c = 0; c < mesh->num_cells; ++c)
-    solution[c] /= mesh->cells[c].volume;
 }
 
 static void ad_dtor(void* context)
@@ -242,8 +235,6 @@ diffusion_solver_t* advect_diffusion_solver_new(st_func_t* diffusivity,
     .compute_diffusion_matrix = ad_compute_diffusion_matrix,
     .compute_source_vector    = ad_compute_source_vector,
     .apply_bcs                = ad_apply_bcs,
-    .integrate_rhs            = ad_integrate_rhs,
-    .average_solution         = ad_average_solution,
     .dtor                     = ad_dtor
   };
   ad_solver_t* a = malloc(sizeof(ad_solver_t));
