@@ -229,7 +229,7 @@ static void run_square_diffusion_1d(options_t* options)
   st_func_t* v0 = constant_st_func_new(3, v);
   st_func_t* soln = st_func_from_func("square diffusion 1d", square_diffusion_1d_soln,
                                       ST_INHOMOGENEOUS, ST_NONCONSTANT, 1);
-  advect_bc_t* bc = advect_bc_new(1.0, 0.0, zero); // Homogeneous Dirichlet BC
+  advect_bc_t* bc = advect_bc_new(1.0, 0.0, soln); // Dirichlet BC
   advect_run_1d_flow(options, v0, D, zero, soln, bc, bc, soln, 0.0, 2.0, 1, 1);
 }
 

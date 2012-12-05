@@ -75,6 +75,7 @@ void* diffusion_solver_context(diffusion_solver_t* solver)
   return solver->context;
 }
 
+#if 0
 static inline void copy_array_to_vector(double* array, Vec vector)
 {
   int size;
@@ -82,6 +83,18 @@ static inline void copy_array_to_vector(double* array, Vec vector)
   double* v;
   VecGetArray(vector, &v);
   memcpy(v, array, sizeof(double)*size);
+  VecRestoreArray(vector, &v);
+}
+#endif
+
+static inline void add_array_to_vector(double* array, Vec vector)
+{
+  int size;
+  VecGetLocalSize(vector, &size);
+  double* v;
+  VecGetArray(vector, &v);
+  for (int i = 0; i < size; ++i)
+    v[i] += array[i];
   VecRestoreArray(vector, &v);
 }
 
@@ -126,19 +139,23 @@ void diffusion_solver_euler(diffusion_solver_t* solver,
   // A -> diffusion matrix at time t2.
   compute_diff_matrix(solver, solver->A, t2);
 
+  // Compute the source at time t2.
+  compute_source_vector(solver, solver->x, t2);
+
+  // Apply boundary conditions to the system.
+  VecSet(solver->b, 0.0);
+  apply_bcs(solver, solver->A, solver->b, t2);
+
   // A -> I - dt*A.
   MatScale(solver->A, -dt);
   MatShift(solver->A, 1.0);
 
-  // Compute the source at time t2.
-  compute_source_vector(solver, solver->x, t2);
+  // What we've done to the LHS we must do to the RHS.
+  VecScale(solver->b, -dt);
 
-  // b -> sol1 + dt * source.
-  copy_array_to_vector(sol1, solver->b);
+  // b += sol1 + dt * source.
+  add_array_to_vector(sol1, solver->b);
   VecAXPY(solver->b, dt, solver->x);
-
-  // Apply boundary conditions.
-  apply_bcs(solver, solver->A, solver->b, t2);
 
   // Solve the linear system.
   solve(solver, solver->A, solver->b, solver->x);
