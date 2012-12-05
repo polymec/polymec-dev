@@ -371,7 +371,8 @@ static void advect_advance(void* context, double t, double dt)
   if (a->have_diffusivity)
   {
     // Compute the diffusive derivative without splitting.
-    diffusion_solver_euler(a->diff_solver, t, a->phi, t+dt, phi_new);
+//    diffusion_solver_euler(a->diff_solver, t, a->phi, t+dt, phi_new);
+    diffusion_solver_tga(a->diff_solver, t, a->phi, t+dt, phi_new);
   }
 
   // FIXME: Reactions go here.
