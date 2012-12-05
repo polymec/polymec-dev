@@ -371,13 +371,7 @@ static void advect_advance(void* context, double t, double dt)
   if (a->have_diffusivity)
   {
     // Compute the diffusive derivative without splitting.
-    // We use volume-integrated solutions here.
-    double phi_old[num_cells];
-    for (int c = 0; c < num_cells; ++c)
-      phi_old[c] = a->phi[c] * a->mesh->cells[c].volume;
-    diffusion_solver_euler(a->diff_solver, t, phi_old, t+dt, phi_new);
-    for (int c = 0; c < num_cells; ++c)
-      phi_new[c] /= a->mesh->cells[c].volume;
+    diffusion_solver_euler(a->diff_solver, t, a->phi, t+dt, phi_new);
   }
 
   // FIXME: Reactions go here.

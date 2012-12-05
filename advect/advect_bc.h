@@ -11,6 +11,7 @@ extern "C" {
 // Boundary condition structure for Advection/Diffusion/Reaction equations.
 // This represents a generic (Robin) boundary condition: 
 // alpha * phi + beta * dphi/dn = F
+// Objects of this type are garbage-collected.
 typedef struct
 {
   double alpha, beta;
@@ -19,9 +20,6 @@ typedef struct
 
 // Constructor for an advect BC.
 advect_bc_t* advect_bc_new(double alpha, double beta, st_func_t* F);
-
-// Destructor. 
-void advect_bc_free(void* bc);
 
 #ifdef __cplusplus
 }

@@ -38,6 +38,14 @@ typedef void (*diffusion_solver_compute_source_func)(void*, Vec, double);
 // t             - The time at which the boundary conditions are applied.
 typedef void (*diffusion_solver_apply_bcs_func)(void*, Mat, Vec, double);
 
+// A function for integrating the right hand side of the diffusion equation.
+// This is done for diffusion equations using weak forms.
+typedef void (*diffusion_solver_integrate_rhs_func)(void*, double*);
+
+// A function for computing the averaged solution from its integral after 
+// it has been calculated using a weak form of the diffusion equation.
+typedef void (*diffusion_solver_average_solution_func)(void*, double*);
+
 // A destructor function for the context object (if any).
 typedef void (*diffusion_solver_dtor)(void*);
 
@@ -50,6 +58,8 @@ typedef struct
   diffusion_solver_compute_diff_mat_func  compute_diffusion_matrix;
   diffusion_solver_compute_source_func    compute_source_vector;
   diffusion_solver_apply_bcs_func         apply_bcs;
+  diffusion_solver_integrate_rhs_func     integrate_rhs;
+  diffusion_solver_average_solution_func  average_solution;
   diffusion_solver_dtor                   dtor;
 } diffusion_solver_vtable;
 

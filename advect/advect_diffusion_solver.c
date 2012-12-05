@@ -135,7 +135,6 @@ static void ad_compute_source_vector(void* context, Vec S, double t)
     point_t xc = {.x = 0.0, .y = 0.0, .z = 0.0};
     st_func_eval(a->source, &xc, t, &values[c]);
     values[c] += a->advective_deriv[c]; // Add in advective derivative.
-    values[c] *= mesh->cells[c].volume;
   }
   VecSetValues(S, mesh->num_cells, indices, values, INSERT_VALUES);
   VecAssemblyEnd(S);
@@ -204,6 +203,22 @@ static void ad_apply_bcs(void* context, Mat A, Vec b, double t)
   VecAssemblyEnd(b);
 }
 
+static void ad_integrate_rhs(void* context, double* rhs)
+{
+  ad_solver_t* a = (ad_solver_t*)context;
+  mesh_t* mesh = a->mesh;
+  for (int c = 0; c < mesh->num_cells; ++c)
+    rhs[c] *= mesh->cells[c].volume;
+}
+
+static void ad_average_solution(void* context, double* solution)
+{
+  ad_solver_t* a = (ad_solver_t*)context;
+  mesh_t* mesh = a->mesh;
+  for (int c = 0; c < mesh->num_cells; ++c)
+    solution[c] /= mesh->cells[c].volume;
+}
+
 static void ad_dtor(void* context)
 {
   ad_solver_t* a = (ad_solver_t*)context;
@@ -227,6 +242,8 @@ diffusion_solver_t* advect_diffusion_solver_new(st_func_t* diffusivity,
     .compute_diffusion_matrix = ad_compute_diffusion_matrix,
     .compute_source_vector    = ad_compute_source_vector,
     .apply_bcs                = ad_apply_bcs,
+    .integrate_rhs            = ad_integrate_rhs,
+    .average_solution         = ad_average_solution,
     .dtor                     = ad_dtor
   };
   ad_solver_t* a = malloc(sizeof(ad_solver_t));

@@ -116,6 +116,28 @@ static inline void solve(diffusion_solver_t* solver, Mat A, Vec b, Vec x)
   KSPSolve(solver->ksp, b, x);
 }
 
+static inline void integrate_rhs(diffusion_solver_t* solver, Vec b)
+{
+  if (solver->vtable.integrate_rhs != NULL)
+  {
+    double* v;
+    VecGetArray(b, &v);
+    solver->vtable.integrate_rhs(solver->context, v);
+    VecRestoreArray(b, &v);
+  }
+}
+
+static inline void average_solution(diffusion_solver_t* solver, Vec x)
+{
+  if (solver->vtable.average_solution != NULL)
+  {
+    double* v;
+    VecGetArray(x, &v);
+    solver->vtable.average_solution(solver->context, v);
+    VecRestoreArray(x, &v);
+  }
+}
+
 void diffusion_solver_euler(diffusion_solver_t* solver,
                             double t1, double* sol1,
                             double t2, double* sol2)
@@ -126,10 +148,8 @@ void diffusion_solver_euler(diffusion_solver_t* solver,
   // A -> diffusion matrix at time t2.
   compute_diff_matrix(solver, solver->A, t2);
 
-  // A = -dt * diffusion_op.
+  // A -> I - dt*A.
   MatScale(solver->A, -dt);
-
-  // A -> A + I.
   MatShift(solver->A, 1.0);
 
   // Compute the source at time t2.
@@ -139,11 +159,17 @@ void diffusion_solver_euler(diffusion_solver_t* solver,
   copy_array_to_vector(sol1, solver->b);
   VecAXPY(solver->b, dt, solver->x);
 
+  // Integrate the right hand side.
+  integrate_rhs(solver, solver->b);
+
   // Apply boundary conditions.
   apply_bcs(solver, solver->A, solver->b, t2);
 
   // Solve the linear system.
   solve(solver, solver->A, solver->b, solver->x);
+
+  // Average the solution from its integral.
+  average_solution(solver, solver->x);
 
   // Copy the solution to sol2.
   copy_vector_to_array(solver->x, sol2);
