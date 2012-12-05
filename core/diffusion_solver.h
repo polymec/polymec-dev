@@ -1,5 +1,5 @@
-#ifndef POLYMEC_SOLVE_DIFFUSION_EQ_H
-#define POLYMEC_SOLVE_DIFFUSION_EQ_H
+#ifndef POLYMEC_DIFFUSION_SOLVER_H
+#define POLYMEC_DIFFUSION_SOLVER_H
 
 #include "core/polymec.h"
 #include "petscksp.h"
