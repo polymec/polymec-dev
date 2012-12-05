@@ -217,7 +217,7 @@ static void square_diffusion_1d_soln(void* ctx, point_t* x, double t, double* ph
 static void run_square_diffusion_1d(options_t* options)
 {
   double z = 0.0;
-  double Dval = 100.0;
+  double Dval = 0.01;
   double v[] = {0.0, 0.0, 0.0};
 
   char* D_str = options_value(options, "diffusivity");
@@ -233,6 +233,34 @@ static void run_square_diffusion_1d(options_t* options)
   advect_run_1d_flow(options, v0, D, zero, soln, bc, bc, soln, 0.0, 2.0, 1, 1);
 }
 
+static void gaussian_diffusion_1d_soln(void* ctx, point_t* x, double t, double* phi)
+{
+  double D = 0.01; // Diffusivity.
+  double t0 = 0.5; // Initial time.
+  double Vx = 0.0; // x velocity.
+  double y = x->x - Vx*t - 0.5; // Center of the wave.
+  *phi = sqrt(t0/t) * exp(-y*y/(4.0*D*t));
+}
+
+static void run_gaussian_diffusion_1d(options_t* options)
+{
+  double z = 0.0;
+  double Dval = 0.01;
+  double v[] = {0.0, 0.0, 0.0};
+
+  char* D_str = options_value(options, "diffusivity");
+  if (D_str != NULL)
+    Dval = atof(D_str);
+
+  st_func_t* zero = constant_st_func_new(1, &z);
+  st_func_t* D = constant_st_func_new(1, &Dval);
+  st_func_t* v0 = constant_st_func_new(3, v);
+  st_func_t* soln = st_func_from_func("gaussian diffusion 1d", gaussian_diffusion_1d_soln,
+                                      ST_INHOMOGENEOUS, ST_NONCONSTANT, 1);
+  advect_bc_t* bc = advect_bc_new(1.0, 0.0, soln); // Dirichlet BC
+  advect_run_1d_flow(options, v0, D, zero, soln, bc, bc, soln, 0.5, 1.0, 1, 1);
+}
+
 void register_advect_benchmarks(model_t* model)
 {
   model_register_benchmark(model, "stationary_flow_1d", run_stationary_flow_1d, "Stational flow in 1D (v = 1).");
@@ -240,6 +268,7 @@ void register_advect_benchmarks(model_t* model)
   model_register_benchmark(model, "square_wave_1d", run_square_wave_1d, "Square wave propagation in 1D.");
   model_register_benchmark(model, "sine_wave_1d", run_sine_wave_1d, "Sine wave propagation in 1D.");
   model_register_benchmark(model, "square_diffusion_1d", run_square_diffusion_1d, "Square wave diffusing in 1D.");
+  model_register_benchmark(model, "gaussian_diffusion_1d", run_gaussian_diffusion_1d, "Square wave diffusing in 1D.");
 }
 
 #ifdef __cplusplus
