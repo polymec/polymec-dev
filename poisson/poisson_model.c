@@ -13,9 +13,11 @@
 #include "geometry/interpreter_register_geometry_functions.h"
 #include "io/silo_io.h"
 #include "io/vtk_plot_io.h"
+#include "io/gnuplot_io.h"
 #include "poisson/poisson_model.h"
 #include "poisson/poisson_bc.h"
 #include "poisson/laplacian_op.h"
+#include "poisson/poisson_elliptic_solver.h"
 #include "poisson/interpreter_register_poisson_functions.h"
 #include "poisson/register_poisson_benchmarks.h"
 
@@ -38,20 +40,15 @@ typedef struct
   bool use_least_squares;   // Use least squares for boundary conditions?
   poly_ls_shape_t* shape;   // Least-squares shape functions.
 
-  // This flag is true if the source function or one of the BCs is 
-  // time-dependent, and false otherwise.
-  bool is_time_dependent;
-
-  KSP solver;               // Linear solver.
-  Mat A;                    // Laplacian matrix.
-  Vec x;                    // Solution vector.
-  Vec b;                    // RHS vector. 
+  // Elliptic solver for solving Poisson's equation.
+  elliptic_solver_t* solver;
 
   bool initialized;         // Initialized flag.
   MPI_Comm comm;            // MPI communicator.
 
 } poisson_t;
 
+#if 0
 // Apply boundary conditions to a set of boundary cells using finite 
 // differences.
 static void apply_bcs_with_finite_differences(boundary_cell_map_t* boundary_cells,
@@ -271,72 +268,12 @@ static void apply_bcs_with_least_squares(boundary_cell_map_t* boundary_cells,
   MatAssemblyEnd(A, MAT_FINAL_ASSEMBLY);
   VecAssemblyEnd(b);
 }
-
-static void set_up_linear_system(mesh_t* mesh, lin_op_t* L, st_func_t* rhs, double t, Mat A, Vec b)
-{
-  PetscInt nnz[mesh->num_cells];
-  for (int i = 0; i < mesh->num_cells; ++i)
-    nnz[i] = lin_op_stencil_size(L, i);
-
-  // Set matrix entries.
-  MatAssemblyBegin(A, MAT_FINAL_ASSEMBLY);
-  for (int i = 0; i < mesh->num_cells; ++i)
-  {
-    int indices[nnz[i]];
-    double values[nnz[i]];
-    lin_op_compute_stencil(L, i, indices, values);
-    for (int j = 0; j < nnz[i]; ++j)
-      indices[j] += i;
-    MatSetValues(A, 1, &i, nnz[i], indices, values, INSERT_VALUES);
-  }
-  MatAssemblyEnd(A, MAT_FINAL_ASSEMBLY);
-
-  // Compute the RHS vector.
-  double values[mesh->num_cells];
-  int indices[mesh->num_cells];
-  VecAssemblyBegin(b);
-  for (int c = 0; c < mesh->num_cells; ++c)
-  {
-    indices[c] = c;
-    point_t xc = {.x = 0.0, .y = 0.0, .z = 0.0};
-    st_func_eval(rhs, &xc, t, &values[c]);
-    values[c] *= mesh->cells[c].volume;
-  }
-  VecSetValues(b, mesh->num_cells, indices, values, INSERT_VALUES);
-  VecAssemblyEnd(b);
-}
-
-static void poisson_solve(poisson_t* p, double t, double dt)
-{
-  // If we're time-dependent, recompute the linear system here.
-  if (!p->is_time_dependent)
-  {
-    set_up_linear_system(p->mesh, p->L, p->rhs, t+dt, p->A, p->b);
-    if (p->use_least_squares)
-      apply_bcs_with_least_squares(p->boundary_cells, p->mesh, p->shape, t+dt, p->A, p->b);
-    else
-      apply_bcs_with_finite_differences(p->boundary_cells, p->mesh, t+dt, p->A, p->b);
-  }
-//  MatView(p->A, PETSC_VIEWER_STDOUT_SELF);
-//  VecView(p->b, PETSC_VIEWER_STDOUT_SELF);
-
-  // Set up the linear solver.
-  KSPSetOperators(p->solver, p->A, p->A, SAME_NONZERO_PATTERN);
-
-  // Solve the linear system.
-  KSPSolve(p->solver, p->b, p->x);
-
-  // Copy the values from x to our solution array.
-//  VecView(p->x, PETSC_VIEWER_STDOUT_SELF);
-  double* x;
-  VecGetArray(p->x, &x);
-  memcpy(p->phi, x, sizeof(double)*p->mesh->num_cells);
-  VecRestoreArray(p->x, &x);
-}
+#endif
 
 static void poisson_advance(void* context, double t, double dt)
 {
-  poisson_solve((poisson_t*)context, t, dt);
+  poisson_t* p = (poisson_t*)context;
+  elliptic_solver_solve(p->solver, t + dt, p->phi);
 }
 
 static void poisson_read_input(void* context, interpreter_t* interp, options_t* options)
@@ -375,69 +312,29 @@ static void poisson_init(void* context, double t)
   if (p->L == NULL)
     p->L = laplacian_op_new(p->mesh);
 
-  // Determine whether this model is time-dependent.
-  p->is_time_dependent = !st_func_is_constant(p->rhs);
-  int pos = 0;
-  char* tag;
-  poisson_bc_t* bc;
-  while (str_ptr_unordered_map_next(p->bcs, &pos, &tag, (void**)&bc))
-  {
-    // If any BC is time-dependent, the whole problem is.
-    if (!st_func_is_constant(bc->F))
-      p->is_time_dependent = true;
-  }
-
   // If the model has been previously initialized, clean everything out.
   if (p->initialized)
   {
-    KSPDestroy(&p->solver);
-    MatDestroy(&p->A);
-    VecDestroy(&p->x);
-    VecDestroy(&p->b);
+    elliptic_solver_free(p->solver);
     free(p->phi);
     boundary_cell_map_free(p->boundary_cells);
     p->initialized = false;
   }
 
-  // Initialize the linear solver and friends.
-  MatCreate(p->comm, &p->A);
-  MatSetType(p->A, MATSEQAIJ);
-  MatSetOption(p->A, MAT_KEEP_NONZERO_PATTERN, PETSC_TRUE);
-//  MatSetOption(p->A, MAT_NEW_NONZERO_LOCATION_ERR, PETSC_TRUE);
-//  MatSetOption(p->A, MAT_NEW_NONZERO_ALLOCATION_ERR, PETSC_TRUE);
-  MatSetSizes(p->A, p->mesh->num_cells, p->mesh->num_cells, PETSC_DETERMINE, PETSC_DETERMINE);
-  VecCreate(p->comm, &p->x);
-  VecSetType(p->x, VECSEQ);
-  VecSetSizes(p->x, p->mesh->num_cells, PETSC_DECIDE);
-  VecCreate(p->comm, &p->b);
-  VecSetType(p->b, VECSEQ);
-  VecSetSizes(p->b, p->mesh->num_cells, PETSC_DECIDE);
-  KSPCreate(p->comm, &p->solver);
+  // Figure out the boundary cells.
+  p->boundary_cells = boundary_cell_map_from_mesh_and_bcs(p->mesh, p->bcs);
+
+  // Initialize the elliptic solver.
+  p->solver = poisson_elliptic_solver_new(p->rhs, p->mesh, p->boundary_cells);
 
   // Initialize the solution vector.
   p->phi = malloc(sizeof(double)*p->mesh->num_cells);
 
-  // Pre-allocate matrix entries.
-  PetscInt nz = 0, nnz[p->mesh->num_cells];
-  for (int i = 0; i < p->mesh->num_cells; ++i)
-    nnz[i] = lin_op_stencil_size(p->L, i);
-  MatSeqAIJSetPreallocation(p->A, nz, nnz);
-
   // Gather information about boundary cells.
   p->boundary_cells = boundary_cell_map_from_mesh_and_bcs(p->mesh, p->bcs);
 
-  // If we're independent of time, set up the linear system here.
-  if (!p->is_time_dependent)
-  {
-    set_up_linear_system(p->mesh, p->L, p->rhs, t, p->A, p->b);
-    if (p->use_least_squares)
-      apply_bcs_with_least_squares(p->boundary_cells, p->mesh, p->shape, t, p->A, p->b);
-    else
-      apply_bcs_with_finite_differences(p->boundary_cells, p->mesh, t, p->A, p->b);
-  }
-
-  // We simply solve the problem for t = 0.
-  poisson_solve((void*)p, t, 0.0);
+  // Now we simply solve the problem for t = 0.
+  elliptic_solver_solve(p->solver, t, p->phi);
 
   // We are now initialized.
   p->initialized = true;
@@ -526,10 +423,7 @@ static void poisson_dtor(void* ctx)
     mesh_free(p->mesh);
   if (p->initialized)
   {
-    KSPDestroy(&p->solver);
-    MatDestroy(&p->A);
-    VecDestroy(&p->x);
-    VecDestroy(&p->b);
+    elliptic_solver_free(p->solver);
     p->shape = NULL;
     free(p->phi);
   }
@@ -547,29 +441,30 @@ model_t* poisson_model_new(options_t* options)
                           .plot = poisson_plot,
                           .compute_error_norms = poisson_compute_error_norms,
                           .dtor = poisson_dtor};
-  poisson_t* context = malloc(sizeof(poisson_t));
-  context->mesh = NULL;
-  context->rhs = NULL;
-  context->phi = NULL;
-  context->L = NULL;
-  context->bcs = str_ptr_unordered_map_new();
-  context->solution = NULL;
+  poisson_t* p = malloc(sizeof(poisson_t));
+  p->mesh = NULL;
+  p->rhs = NULL;
+  p->phi = NULL;
+  p->L = NULL;
+  p->solver = NULL;
+  p->bcs = str_ptr_unordered_map_new();
+  p->solution = NULL;
 
   char* ls_opt = options_value(options, "use_least_squares");
-  context->use_least_squares = false;
+  p->use_least_squares = false;
   if (ls_opt != NULL)
-    context->use_least_squares = atoi(ls_opt);
-  if (context->use_least_squares)
+    p->use_least_squares = atoi(ls_opt);
+  if (p->use_least_squares)
   {
-    context->shape = poly_ls_shape_new(1, true);
-    poly_ls_shape_set_simple_weighting_func(context->shape, 2, 1e-2);
+    p->shape = poly_ls_shape_new(1, true);
+    poly_ls_shape_set_simple_weighting_func(p->shape, 2, 1e-2);
   }
   else
-    context->shape = NULL;
-  context->boundary_cells = boundary_cell_map_new();
-  context->initialized = false;
-  context->comm = MPI_COMM_WORLD;
-  model_t* model = model_new("poisson", context, vtable, options);
+    p->shape = NULL;
+  p->boundary_cells = boundary_cell_map_new();
+  p->initialized = false;
+  p->comm = MPI_COMM_WORLD;
+  model_t* model = model_new("poisson", p, vtable, options);
 
   // Set up an interpreter.
   interpreter_validation_t valid_inputs[] = {{"mesh", INTERPRETER_MESH},
@@ -587,8 +482,25 @@ model_t* poisson_model_new(options_t* options)
   // Set up saver/plotter.
   io_interface_t* saver = silo_io_new(MPI_COMM_SELF, 0, false);
   model_set_saver(model, saver);
-  io_interface_t* plotter = vtk_plot_io_new(MPI_COMM_SELF, 0, false);
-  model_set_plotter(model, plotter);
+
+  io_interface_t* plotter = NULL;
+  char* which_plotter = options_value(options, "plotter");
+  if (which_plotter != NULL)
+  {
+    if (!strcasecmp(which_plotter, "vtk"))
+      plotter = vtk_plot_io_new(p->comm, 0, false);
+    else if (!strcasecmp(which_plotter, "silo"))
+      plotter = silo_plot_io_new(p->comm, 0, false);
+    else if (!strcasecmp(which_plotter, "gnuplot"))
+      plotter = gnuplot_io_new();
+  }
+  else
+    plotter = vtk_plot_io_new(p->comm, 0, false);
+  if (plotter != NULL)
+  {
+    log_detail("Setting plotter to '%s'...", which_plotter);
+    model_set_plotter(model, plotter);
+  }
 
   return model;
 }
