@@ -16,4 +16,5 @@ add_polymec_test(test_dl_st_func test_dl_st_func.c)
 add_polymec_test(test_mesh test_mesh.c)
 add_polymec_test(test_least_squares test_least_squares.c)
 add_polymec_test(test_interpreter test_interpreter.c)
+add_polymec_test(test_exchanger test_exchanger.c)
 

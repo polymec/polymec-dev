@@ -1,8 +1,7 @@
 #ifndef POLYMEC_EXCHANGER_H
 #define POLYMEC_EXCHANGER_H
 
-#include <stdio.h>
-#include "polymec.h"
+#include "core/polymec.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -12,25 +11,27 @@ extern "C" {
 // data between processes in a point-to-point fashion.
 typedef struct exchanger_t exchanger_t;
 
-// Constructs an exchanger that does nothing.
-exchanger_t* exchanger_new();
-
-// Constructs an exchanger with the given communication topology.
-// Here, sends and receives are null-terminated arrays of process IDs.
-// The exchanger assumes control of all array storage and will free it.
-exchanger_t* exchanger_with_topology(MPI_Comm comm,
-                                     int num_sends, int* sends, int* send_sizes, int** send_idx,
-                                     int num_receives, int* receives, int* receive_sizes, int** receive_idx);
+// Constructs a new exchanger on the given communicator.
+exchanger_t* exchanger_new(MPI_Comm comm);
 
 // Destroys an exchanger.
 void exchanger_free(exchanger_t* ex);
 
-// Initializes or re-initialize a given exchanger.
-// Here, sends and receives are null-terminated arrays of process IDs.
-// The exchanger assumes control of all array storage and will free it.
-void exchanger_init(exchanger_t* ex, MPI_Comm comm, 
-                    int num_sends, int* sends, int* send_sizes, int** send_idx,
-                    int num_receives, int* receives, int* receive_sizes, int** receive_idx);
+// Establishes a communication pattern in which this exchanger sends data at 
+// the given indices of an array to the given remote process.
+void exchanger_set_send(exchanger_t* ex, int remote_process, int num_indices, int* indices, bool copy_indices);
+
+// Removes the given remote process from the set of processes to which this 
+// exchanger sends data.
+void exchanger_delete_send(exchanger_t* ex, int remote_process);
+
+// Establishes a communication pattern in which this exchanger receives data at 
+// the given indices of an array from the given remote process.
+void exchanger_set_receive(exchanger_t* ex, int remote_process, int num_indices, int* indices, bool copy_indices);
+
+// Removes the given remote process from the set of processes from which this 
+// exchanger receives data.
+void exchanger_delete_receive(exchanger_t* ex, int remote_process);
 
 // Returns true if the given exchanger is valid, false otherwise.
 // WARNING: This involves non-local communication and is potentially expensive!

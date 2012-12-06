@@ -1,7 +1,6 @@
 #include <mpi.h>
-#include <stdlib.h>
-#include <string.h>
 #include "exchanger.h"
+#include "core/unordered_map.h"
 
 #if !USE_MPI
 // These have to be defined here because PETSc's MPIUni is incomplete. :-/
@@ -9,6 +8,38 @@
 #define MPI_ERR_IN_STATUS 0
 #define MPI_ERR_TRUNCATE 0
 #endif
+
+// This is a record of a single communications channel for an exchanger 
+// to send or receive data to or from a remote process.
+typedef struct
+{
+  int num_indices;
+  int* indices;
+} exchanger_channel_t;
+
+static exchanger_channel_t* exchanger_channel_new(int num_indices, int* indices, bool copy_indices)
+{
+  ASSERT(num_indices > 0);
+  ASSERT(indices != NULL);
+  exchanger_channel_t* c = malloc(sizeof(exchanger_channel_t));
+  c->num_indices = num_indices;
+  if (copy_indices)
+  {
+    c->indices = malloc(sizeof(int)*num_indices);
+    memcpy(c->indices, indices, sizeof(int)*num_indices);
+  }
+  else
+    c->indices = indices; // Assumes control of memory
+  return c;
+}
+
+static void exchanger_channel_free(exchanger_channel_t* c)
+{
+  free(c->indices);
+  free(c);
+}
+
+DEFINE_UNORDERED_MAP(exchanger_map, int, exchanger_channel_t*, int_hash, int_equals)
 
 typedef struct 
 {
@@ -49,17 +80,25 @@ static mpi_message_t* mpi_message_new(MPI_Datatype type, int stride, int tag)
 }
 
 static void mpi_message_pack(mpi_message_t* msg, void* data, 
-                             int num_sends, int* send_buffer_sizes, int** send_idx, 
-                             int num_receives, int* receive_buffer_sizes)
+                             exchanger_map_t* send_map, exchanger_map_t* receive_map)
 {
-  ASSERT(num_sends >= 0);
-  ASSERT(num_receives >= 0);
+  ASSERT(send_map->size >= 0);
+  ASSERT(receive_map->size >= 0);
+  int num_sends = send_map->size;
+  int num_receives = receive_map->size;
   msg->num_sends = num_sends;
-  msg->send_buffer_sizes = send_buffer_sizes;
-  msg->send_buffers = malloc(num_sends*sizeof(void*));
-  for (int i = 0; i < num_sends; ++i)
+  msg->send_buffer_sizes = malloc(sizeof(int)*msg->num_sends);
+  msg->send_buffers = malloc(sizeof(void*)*msg->num_sends);
+  msg->num_receives = num_receives;
+  msg->receive_buffer_sizes = malloc(sizeof(int)*msg->num_receives);
+  msg->receive_buffers = malloc(sizeof(void*)*msg->num_receives);
+
+  int pos = 0, proc, i = 0;
+  exchange_channel_t* c;
+  while (exchanger_map_next(send_map, &pos, &proc, &c))
   {
-    msg->send_buffers[i] = malloc(send_buffer_sizes[i]*msg->data_size*msg->stride);
+    msg->send_buffer_sizes[i] = c->num_indices;
+    msg->send_buffers[i] = malloc(c->num_indices*msg->data_size*msg->stride);
     if (msg->type == MPI_DOUBLE)
     {
       double* src = (double*)data;
@@ -108,12 +147,17 @@ static void mpi_message_pack(mpi_message_t* msg, void* data,
         for (int s = 0; s < msg->stride; ++s)
           dest[msg->stride*j+s] = src[send_idx[i][msg->stride*j+s]];
     }
+    ++i;
   }
-  msg->receive_buffer_sizes = receive_buffer_sizes;
-  msg->receive_buffers = malloc(num_receives*sizeof(void*));
-  for (int i = 0; i < num_receives; ++i)
-    msg->receive_buffers[i] = malloc(receive_buffer_sizes[i]*msg->data_size*msg->stride);
-  msg->requests = malloc((num_sends+num_receives)*sizeof(MPI_Request));
+
+  pos = 0, i = 0;
+  while (exchanger_map_next(receive_map, &pos, &proc, &c))
+  {
+    msg->receive_buffer_sizes[i] = c->num_indices;
+    msg->receive_buffers[i] = malloc(c->num_indices*msg->data_size*msg->stride);
+    msg->requests = malloc((num_sends+num_receives)*sizeof(MPI_Request));
+    ++i;
+  }
 }
 
 static void mpi_message_unpack(mpi_message_t* msg, void* data, 
@@ -180,12 +224,14 @@ static void mpi_message_free(mpi_message_t* msg)
       free(msg->send_buffers[i]);
   }
   free(msg->send_buffers);
+  free(msg->send_buffer_sizes);
   for (int i = 0; i < msg->num_receives; ++i)
   {
     if (msg->receive_buffers[i] != NULL)
       free(msg->receive_buffers[i]);
   }
   free(msg->receive_buffers);
+  free(msg->receive_buffer_sizes);
   if (msg->requests != NULL)
     free(msg->requests);
   free(msg);
@@ -223,10 +269,11 @@ struct exchanger_t
 {
   MPI_Comm comm;
   int rank;
-  int num_sends, num_receives;
-  int *sends, *receives;
-  int *send_sizes, *receive_sizes;
-  int **send_idx, **receive_idx;
+
+  // Communication maps.
+  exchanger_map_t* send_map;
+  exchanger_map_t* receive_map;
+
   int max_send, max_receive;
 
   // Pending messages.
@@ -242,35 +289,29 @@ struct exchanger_t
   FILE* dl_output_stream;
 };
 
-exchanger_t* exchanger_new()
+exchanger_t* exchanger_new(MPI_Comm comm)
 {
   exchanger_t* ex = malloc(sizeof(exchanger_t));
+  ex->comm = comm;
+  MPI_Comm_rank(comm, &(ex->rank));
   ex->dl_thresh = -1.0;
   ex->dl_output_rank = -1;
   ex->dl_output_stream = NULL;
-  return ex;
-}
+  ex->send_map = exchanger_map_new();
+  ex->receive_map = exchanger_map_new();
+  ex->pending_msg_cap = 32;
+  ex->pending_msgs = calloc(ex->pending_msg_cap, sizeof(mpi_message_t*));
+  ex->orig_buffers = calloc(ex->pending_msg_cap, sizeof(void*));
+  ex->transfer_counts = calloc(ex->pending_msg_cap, sizeof(int*));
 
-exchanger_t* exchanger_with_topology(MPI_Comm comm,
-                                     int num_sends, int* sends, int* send_sizes, int** send_idx,
-                                     int num_receives, int* receives, int* receive_sizes, int** receive_idx)
-{
-  exchanger_t* ex = exchanger_new();
-  exchanger_init(ex, comm, num_sends, sends, send_sizes, send_idx,
-                 num_receives, receives, receive_sizes, receive_idx);
   return ex;
 }
 
 static void exchanger_clear(exchanger_t* ex)
 {
-  for (int i = 0; i < ex->num_sends; ++i)
-    free(ex->send_idx[i]);
-  free(ex->send_sizes);
-  free(ex->sends);
-  for (int i = 0; i < ex->num_receives; ++i)
-    free(ex->receive_idx[i]);
-  free(ex->receive_sizes);
-  free(ex->receives);
+  exchanger_map_clear(ex->send_map);
+  exchanger_map_clear(ex->receive_map);
+
   free(ex->pending_msgs);
   free(ex->orig_buffers);
   free(ex->transfer_counts);
@@ -279,41 +320,56 @@ static void exchanger_clear(exchanger_t* ex)
 void exchanger_free(exchanger_t* ex)
 {
   exchanger_clear(ex);
+  exchanger_map_free(ex->send_map);
+  exchanger_map_free(ex->receive_map);
   free(ex);
 }
 
-void exchanger_init(exchanger_t* ex, MPI_Comm comm, 
-                    int num_sends, int* sends, int* send_sizes, int** send_idx,
-                    int num_receives, int* receives, int* receive_sizes, int** receive_idx)
+static void delete_map_entry(int key, exchanger_channel_t* value)
 {
-  ex->comm = comm;
-  MPI_Comm_rank(comm, &(ex->rank));
+  exchanger_channel_free(value);
+}
 
-  // If we have existing data, prepare for reinitialization.
-  exchanger_clear(ex);
+void exchanger_set_send(exchanger_t* ex, int remote_process, int num_indices, int* indices, bool copy_indices)
+{
+  exchanger_channel_t* c = exchanger_channel_new(num_indices, indices, copy_indices);
+  exchanger_map_insert_with_dtor(ex->send_map, remote_process, c, delete_map_entry);
 
-  // Allocate storage.
-  ex->num_sends = num_sends;
-  ex->sends = sends;
-  ex->send_sizes = send_sizes;
-  ex->send_idx = send_idx;
+  if (remote_process > ex->max_send)
+    ex->max_send = remote_process;
+}
 
-  ex->num_receives = num_receives;
-  ex->receives = receives;
-  ex->receive_sizes = receive_sizes;
-  ex->receive_idx = receive_idx;
+void exchanger_delete_send(exchanger_t* ex, int remote_process)
+{
+  exchanger_map_delete(ex->send_map, remote_process);
 
-  ex->pending_msg_cap = 32;
-  ex->pending_msgs = calloc(ex->pending_msg_cap, sizeof(mpi_message_t*));
-  ex->orig_buffers = calloc(ex->pending_msg_cap, sizeof(void*));
-  ex->transfer_counts = calloc(ex->pending_msg_cap, sizeof(int*));
+  // Find the maximum rank to which we now send data.
+  ex->max_send = -1;
+  int pos = 0, proc;
+  exchanger_channel_t* c;
+  while (exchanger_map_next(ex->send_map, &pos, &proc, &c))
+    ex->max_send = (proc > ex->max_send) ? proc : ex->max_send;
+}
 
-  // Find the maximum rank to/from which we sent/receive.
-  ex->max_send = ex->max_receive = -1;
-  for (int i = 0; i < num_sends; ++i)
-    ex->max_send = (ex->sends[i] > ex->max_send) ? ex->sends[i] : ex->max_send;
-  for (int i = 0; i < num_receives; ++i)
-    ex->max_receive = (ex->receives[i] > ex->max_receive) ? ex->receives[i] : ex->max_receive;
+void exchanger_set_receive(exchanger_t* ex, int remote_process, int num_indices, int* indices, bool copy_indices)
+{
+  exchanger_channel_t* c = exchanger_channel_new(num_indices, indices, copy_indices);
+  exchanger_map_insert_with_dtor(ex->receive_map, remote_process, c, delete_map_entry);
+
+  if (remote_process > ex->max_receive)
+    ex->max_receive = remote_process;
+}
+
+void exchanger_delete_receive(exchanger_t* ex, int remote_process)
+{
+  exchanger_map_delete(ex->send_map, remote_process);
+
+  // Find the maximum rank from which we now receive data.
+  ex->max_receive = -1;
+  int pos = 0, proc;
+  exchanger_channel_t* c;
+  while (exchanger_map_next(ex->receive_map, &pos, &proc, &c))
+    ex->max_receive = (proc > ex->max_receive) ? proc : ex->max_receive;
 }
 
 bool exchanger_is_valid(exchanger_t* ex)
@@ -368,9 +424,7 @@ int exchanger_start_exchange(exchanger_t* ex, void* data, int stride, int tag, M
 #if USE_MPI
   // Create a message for this array.
   mpi_message_t* msg = mpi_message_new(type, stride, tag);
-  mpi_message_pack(msg, data, 
-                   ex->num_sends, ex->send_sizes, ex->send_idx, 
-                   ex->num_receives, ex->receive_sizes);
+  mpi_message_pack(msg, data, ex->send_map, ex->receive_map);
 
   // If we are expecting data, post asynchronous receives. 
   for (int i = 0; i < msg->num_receives; ++i)
@@ -743,95 +797,6 @@ exchanger_fprintf(exchanger_t* ex, FILE* stream)
   fprintf(stream, "Exchanger(dummy)\n");
 #endif
 }
-//-------------------------------------------------------------------
-
-#ifdef BUILD_TESTS
-// Test executable -- only run for MPI-enabled builds.
-#include "testMacros.hh"
-using namespace Charybdis;
-using namespace std;
-
-//-------------------------------------------------------------------
-void test2Procs()
-{
-  int N = 100;
-  int rank;
-  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-  vector<int> procArray(N, rank);
-
-  map<int, vector<int> > sends;
-  map<int, vector<int> > recvs;
-  if (rank == 0)
-  {
-    for (int i = 0; i < N/2; ++i)
-    {
-      sends[1].push_back(i);
-      recvs[1].push_back(i + N/2);
-    }
-  }
-  else
-  {
-    for (int i = 0; i < N/2; ++i)
-    {
-      sends[0].push_back(i + N/2);
-      recvs[0].push_back(i);
-    }
-  }
-
-  Exchanger ex(MPI_COMM_WORLD, sends, recvs);
-  ex.exchange(procArray);
-
-  for (int i = 0; i < N; ++i)
-  {
-    TEST_ASSERT(procArray[i] == 2*i/N);
-  }
-}
-//-------------------------------------------------------------------
-
-//-------------------------------------------------------------------
-void test4Procs()
-{
-}
-//-------------------------------------------------------------------
-
-//-------------------------------------------------------------------
-void test8Procs()
-{
-}
-//-------------------------------------------------------------------
-
-//-------------------------------------------------------------------
-int main(int argc, char** argv)
-{
-#ifdef USE_MPI
-
-  // Run on 2, 4, and 8 processes.
-  TEST_MPI_PROCESSES(2,4,8);
-
-  MPI_Init(&argc, &argv);
-  MPI_Comm_set_errhandler(MPI_COMM_WORLD, MPI_ERRORS_RETURN);
-  int numProcs;
-  MPI_Comm_size(MPI_COMM_WORLD, &numProcs);
-
-  if (numProcs == 2)
-    test2Procs();
-
-  else if (numProcs == 4)
-    test4Procs();
-
-  else if (numProcs == 8) 
-    test8Procs();
-
-  else
-    TEST_FAIL("Invalid number of processors.");
-
-  MPI_Finalize();
-#endif
-
-  return 0;
-}
-//-------------------------------------------------------------------
-#endif
 
 #ifdef __cplusplus
 }
