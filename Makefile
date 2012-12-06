@@ -2,7 +2,7 @@
 
 # Options set on command line.
 debug      = not-set
-MPI        = not-set
+mpi        = not-set
 verbose    = not-set
 
 # This proxies everything to the builddir cmake.
@@ -21,8 +21,8 @@ ifeq ($(verbose), 1)
 endif
 
 # MPI
-ifeq ($(MPI), 1)
-  BUILDDIR := ${BUILDDIR}-MPI
+ifeq ($(mpi), 1)
+  BUILDDIR := ${BUILDDIR}-mpi
   CC = mpicc
   CONFIG_FLAGS += -DUSE_MPI=1
 else
