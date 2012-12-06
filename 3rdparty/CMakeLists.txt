@@ -208,9 +208,6 @@ set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};lua)
 # Build libxml2, an XML library.
 if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libxml2.a)
   set(XML2_CONFIG_OPTS --prefix=${PROJECT_BINARY_DIR} --enable-static --disable-shared --without-threads)
-  if (${CMAKE_BUILD_TYPE} STREQUAL "Debug")
-    set(XML2_CONFIG_OPTS ${XML2_CONFIG_OPTS} --enable-debug)
-  endif()
   execute_process(COMMAND cmake -E tar xzvf ${CMAKE_CURRENT_SOURCE_DIR}/libxml2-2.9.0.tar.gz
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
   execute_process(COMMAND env CC=${CC} ./configure ${XML2_CONFIG_OPTS}
