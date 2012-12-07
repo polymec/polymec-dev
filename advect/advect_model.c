@@ -11,7 +11,6 @@
 #include "io/gnuplot_io.h"
 #include "advect/advect_model.h"
 #include "advect/advect_bc.h"
-#include "advect/diffusion_op.h"
 #include "advect/advect_diffusion_solver.h"
 #include "advect/interpreter_register_advect_functions.h"
 #include "advect/register_advect_benchmarks.h"
@@ -26,12 +25,16 @@ typedef struct
 {
   mesh_t* mesh;             // Mesh.
   double* phi;              // Solution array.
-  st_func_t* diffusivity;   // Diffusivity function.
+  st_func_t* diffusivity;   // Whole diffusivity function.
   st_func_t* velocity;      // Velocity function.
-  st_func_t* source;        // The (non-stiff, spatial) source term.
+  st_func_t* source;        // The (non-stiff, spatial, whole) source term.
   st_func_t* solution;      // Analytic solution (if not NULL).
   st_func_t* initial_cond;  // The initial value of the solution.
-  lin_op_t* D;              // Diffusion operator.
+
+  // Species-specific information
+  int num_species; 
+  st_func_t** species_diffusivities;
+  st_func_t** species_sources;
 
   // Tiny optimizations.
   // stationary is set to true if V == 0
@@ -330,55 +333,65 @@ static void advect_advance(void* context, double t, double dt)
   advect_t* a = (advect_t*)context;
   int num_cells = a->mesh->num_cells;
 
-  double phi_new[num_cells];
-  if (!a->stationary)
+  double phi_old[num_cells], phi_new[num_cells];
+  for (int s = 0; s < a->num_species; ++s)
   {
-    // First, compute the half-step values of the fluxes on faces.
-    double fluxes[a->mesh->num_faces];
-    compute_half_step_fluxes(a->mesh, a->velocity, a->source, a->boundary_cells, t, dt, a->phi, a->slope_estimator, fluxes);
-
-    // Update the solution using the Divergence Theorem.
-    double adv_source[num_cells];
+    // Extract the species-specific solution.
     for (int c = 0; c < num_cells; ++c)
-    {
-      cell_t* cell = &a->mesh->cells[c];
-      phi_new[c] = a->phi[c];
-      for (int f = 0; f < cell->num_faces; ++f)
-      {
-        face_t* face = cell->faces[f];
-        int face_index = face - &a->mesh->faces[0];
+      phi_old[c] = a->phi[a->num_species*c+s];
 
-        // Make sure the sign of the flux is correct, since the fluxes have
-        // been computed w.r.t. face->cell1.
-        double sign = (face->cell1 == cell) ? 1.0 : -1.0;
-        phi_new[c] -= sign * fluxes[face_index] * dt / cell->volume;
-        //printf("cell %d: flux %d (face %d) = %g\n", c, f, face_index, fluxes[face_index]);
+    if (!a->stationary)
+    {
+      // First, compute the half-step values of the fluxes on faces.
+      double fluxes[a->mesh->num_faces];
+      compute_half_step_fluxes(a->mesh, a->velocity, a->source, a->boundary_cells, t, dt, phi_old, a->slope_estimator, fluxes);
+
+      // Update the solution using the Divergence Theorem.
+      double adv_source[num_cells];
+      for (int c = 0; c < num_cells; ++c)
+      {
+        cell_t* cell = &a->mesh->cells[c];
+        phi_new[c] = phi_old[c];
+        for (int f = 0; f < cell->num_faces; ++f)
+        {
+          face_t* face = cell->faces[f];
+          int face_index = face - &a->mesh->faces[0];
+
+          // Make sure the sign of the flux is correct, since the fluxes have
+          // been computed w.r.t. face->cell1.
+          double sign = (face->cell1 == cell) ? 1.0 : -1.0;
+          phi_new[c] -= sign * fluxes[face_index] * dt / cell->volume;
+          //printf("cell %d: flux %d (face %d) = %g\n", c, f, face_index, fluxes[face_index]);
+        }
+
+        // Add the non-stiff source term.
+        double S;
+        st_func_eval(a->source, &cell->center, t, &S);
+        phi_new[c] += S * dt;
+
+        // Compute the "source terms" that will be fed to the diffusion equation.
+        adv_source[c] = -(phi_new[c] - phi_old[c]) / dt;
       }
 
-      // Add the non-stiff source term.
-      double S;
-      st_func_eval(a->source, &cell->center, t, &S);
-      phi_new[c] += S * dt;
-
-      // Compute the "source terms" that will be fed to the diffusion equation.
-      adv_source[c] = -(phi_new[c] - a->phi[c]) / dt;
+      // Give the advective derivative to the diffusion solver.
+      advect_diffusion_solver_set_advective_source(a->diff_solver, adv_source);
     }
 
-    // Give the advective derivative to the diffusion solver.
-    advect_diffusion_solver_set_advective_source(a->diff_solver, adv_source);
+    if (a->have_diffusivity)
+    {
+      // Set the species-specific diffusivity, source.
+      advect_diffusion_solver_set_diffusivity(a->diff_solver, a->species_diffusivities[s]);
+      advect_diffusion_solver_set_source(a->diff_solver, a->species_sources[s]);
+
+      // Compute the diffusive derivative without splitting, using the 
+      // 2nd-order L-stable TGA algorithm.
+      diffusion_solver_tga(a->diff_solver, t, phi_old, t+dt, phi_new);
+    }
+
+    // Finally, update the model's solution vector.
+    for (int c = 0; c < num_cells; ++c)
+      a->phi[a->num_species*c+s] = phi_new[c];
   }
-
-  if (a->have_diffusivity)
-  {
-    // Compute the diffusive derivative without splitting, using the 
-    // 2nd-order L-stable TGA algorithm.
-    diffusion_solver_tga(a->diff_solver, t, a->phi, t+dt, phi_new);
-  }
-
-  // FIXME: Reactions go here.
-
-  // Finally, update the model's solution vector.
-  memcpy(a->phi, phi_new, sizeof(double)*num_cells);
 }
 
 static void advect_read_input(void* context, interpreter_t* interp, options_t* options)
@@ -413,8 +426,10 @@ static void advect_init(void* context, double t)
   advect_t* a = (advect_t*)context;
   ASSERT(a->mesh != NULL);
   ASSERT(a->initial_cond != NULL);
-  ASSERT(a->velocity != NULL);
   ASSERT(a->diffusivity != NULL);
+  ASSERT(st_func_num_comp(a->diffusivity) == st_func_num_comp(a->initial_cond));
+  ASSERT(st_func_num_comp(a->source) == st_func_num_comp(a->initial_cond));
+  ASSERT(a->velocity != NULL);
   ASSERT(st_func_num_comp(a->velocity) == 3);
   ASSERT(a->source != NULL);
 
@@ -447,9 +462,20 @@ static void advect_init(void* context, double t)
     a->have_diffusivity = (val > 0.0);
   }
 
-  // Set up the diffusion operator.
-  if (a->D == NULL)
-    a->D = diffusion_op_new(a->mesh, a->diffusivity);
+  // Extract species-specific information.
+  a->num_species = st_func_num_comp(a->initial_cond);
+  if (a->species_diffusivities != NULL)
+  {
+    free(a->species_sources);
+    free(a->species_sources);
+  }
+  a->species_diffusivities = malloc(sizeof(st_func_t*)*a->num_species);
+  a->species_sources = malloc(sizeof(st_func_t*)*a->num_species);
+  for (int s = 0; s < a->num_species; ++s)
+  {
+    a->species_diffusivities[s] = st_func_from_component(a->diffusivity, s);
+    a->species_sources[s] = st_func_from_component(a->source, s);
+  }
 
   // If the model has been previously initialized, clean everything out.
   if (a->diff_solver != NULL)
@@ -464,7 +490,7 @@ static void advect_init(void* context, double t)
   a->boundary_cells = boundary_cell_map_from_mesh_and_bcs(a->mesh, a->bcs);
 
   // Initialize the diffusion solver.
-  a->diff_solver = advect_diffusion_solver_new(a->diffusivity, a->source, a->mesh, a->boundary_cells);
+  a->diff_solver = advect_diffusion_solver_new(a->mesh, a->boundary_cells);
 
   // Initialize the solution.
   int num_cells = a->mesh->num_cells;
@@ -480,17 +506,38 @@ static void advect_plot(void* context, io_interface_t* io, double t, int step)
 
   io_dataset_t* dataset = io_dataset_new("default");
   io_dataset_put_mesh(dataset, a->mesh);
-  io_dataset_put_field(dataset, "phi", a->phi, 1, MESH_CELL, false);
-
-  // Compute the cell-centered velocity and diffusivity and write them.
-  double vel[a->mesh->num_cells], diff[a->mesh->num_cells];
-  for (int c = 0; c < a->mesh->num_cells; ++c)
+  for (int s = 0; s < a->num_species; ++s)
   {
-    st_func_eval(a->velocity, &a->mesh->cells[c].center, t, &vel[c]);
-    st_func_eval(a->diffusivity, &a->mesh->cells[c].center, t, &diff[c]);
+    double phi[a->mesh->num_cells];
+    for (int c = 0; c < a->mesh->num_cells; ++c)
+      phi[c] = a->phi[a->num_species*c + s];
+    char phi_name[128];
+    sprintf(phi_name, "phi[%d]", s);
+    io_dataset_put_field(dataset, phi_name, a->phi, 1, MESH_CELL, true);
   }
+
+  // Compute the cell-centered velocity, diffusivities, and sources, 
+  // and write them.
+  double vel[a->mesh->num_cells];
+  for (int c = 0; c < a->mesh->num_cells; ++c)
+    st_func_eval(a->velocity, &a->mesh->cells[c].center, t, &vel[c]);
   io_dataset_put_field(dataset, "velocity", vel, 1, MESH_CELL, true);
-  io_dataset_put_field(dataset, "diffusivity", diff, 1, MESH_CELL, true);
+
+  double diff[a->mesh->num_cells], source[a->mesh->num_cells];
+  for (int s = 0; s < a->num_species; ++s)
+  {
+    for (int c = 0; c < a->mesh->num_cells; ++c)
+    {
+      st_func_eval(a->species_diffusivities[s], &a->mesh->cells[c].center, t, &diff[c]);
+      st_func_eval(a->species_sources[s], &a->mesh->cells[c].center, t, &source[c]);
+    }
+    char diff_name[128];
+    sprintf(diff_name, "diffusivity[%d]", s);
+    io_dataset_put_field(dataset, diff_name, diff, 1, MESH_CELL, true);
+    char source_name[128];
+    sprintf(source_name, "source[%d]", s);
+    io_dataset_put_field(dataset, source_name, source, 1, MESH_CELL, true);
+  }
 
   // If we are given an analytic solution, write it and the solution error.
   if (a->solution != NULL)
@@ -562,6 +609,12 @@ static void advect_dtor(void* ctx)
   if (a->phi != NULL)
     free(a->phi);
 
+  if (a->species_diffusivities != NULL)
+  {
+    free(a->species_diffusivities);
+    free(a->species_sources);
+  }
+
   a->velocity = NULL;
   a->solution = NULL;
   a->initial_cond = NULL;
@@ -592,12 +645,16 @@ model_t* advect_model_new(options_t* options)
   a->source = constant_st_func_new(1, &zero);
   a->solution = NULL;
   a->initial_cond = NULL;
-  a->D = NULL;
   a->slope_estimator = slope_estimator_new(SLOPE_LIMITER_MINMOD);
   a->diff_solver = NULL;
   a->bcs = str_ptr_unordered_map_new();
   a->boundary_cells = boundary_cell_map_new();
   a->comm = MPI_COMM_WORLD;
+
+  a->num_species = -1;
+  a->species_diffusivities = NULL;
+  a->species_sources = NULL;
+
   model_t* model = model_new("advect", a, vtable, options);
 
   // Process options.
@@ -677,11 +734,10 @@ model_t* create_advect(mesh_t* mesh,
   ASSERT(velocity != NULL);
   ASSERT(st_func_num_comp(velocity) == 3);
   ASSERT(diffusivity != NULL);
-  ASSERT(st_func_num_comp(diffusivity) == 1);
   ASSERT(source != NULL);
-  ASSERT(st_func_num_comp(source) == 1);
   ASSERT(initial_cond != NULL);
-  ASSERT(st_func_num_comp(initial_cond) == 1);
+  ASSERT(st_func_num_comp(diffusivity) == st_func_num_comp(initial_cond));
+  ASSERT(st_func_num_comp(source) == st_func_num_comp(initial_cond));
 
   // Create the model.
   model_t* model = advect_model_new(options);

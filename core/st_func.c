@@ -120,8 +120,11 @@ sp_func_t* st_func_freeze(st_func_t* func, double t)
 
 // Multicomponent function stuff.
 
+static int multicomp_st_func_magic_number = 23523462;
+
 typedef struct 
 {
+  int magic_number;
   st_func_t** functions;
   int num_comp;
 } multicomp_st_func_t;
@@ -144,10 +147,13 @@ st_func_t* multicomp_st_func_from_funcs(const char* name,
                                         st_func_t** functions,
                                         int num_comp)
 {
+  ASSERT(num_comp >= 0);
+
   st_func_homogeneity_t homogeneity = ST_HOMOGENEOUS;
   st_func_constancy_t constancy = ST_CONSTANT;
   // The functions determine the constancy and homogeneity.
   multicomp_st_func_t* mc = malloc(sizeof(multicomp_st_func_t));
+  mc->magic_number = multicomp_st_func_magic_number;
   mc->num_comp = num_comp;
   mc->functions = malloc(sizeof(st_func_t*)*num_comp);
   for (int i = 0; i < num_comp; ++i)
@@ -163,6 +169,57 @@ st_func_t* multicomp_st_func_from_funcs(const char* name,
   st_vtable vtable = {.eval = multicomp_eval, .dtor = multicomp_dtor};
   return st_func_new(name, (void*)mc, vtable, 
                      homogeneity, constancy, num_comp);
+}
+
+typedef struct 
+{
+  st_func_t* func;
+  int num_comp, comp;
+} extractedcomp_st_func_t;
+
+static void extractedcomp_eval(void* context, point_t* x, double t, double* result)
+{
+  extractedcomp_st_func_t* ec = (extractedcomp_st_func_t*)context;
+  double vals[ec->num_comp];
+  st_func_eval(ec->func, x, t, vals);
+  *result = vals[ec->comp];
+}
+
+static void extractedcomp_dtor(void* context)
+{
+  extractedcomp_st_func_t* ec = (extractedcomp_st_func_t*)context;
+  free(ec);
+}
+
+st_func_t* st_func_from_component(st_func_t* multicomp_func,
+                                  int component)
+{
+  ASSERT(component >= 0);
+  ASSERT(component < st_func_num_comp(multicomp_func));
+  
+  // is this a proper multicomp_st_func_t?
+  multicomp_st_func_t* mc = (multicomp_st_func_t*)multicomp_func;
+  if (mc->magic_number == multicomp_st_func_magic_number)
+  {
+    // We can just use the original function directly!
+    return mc->functions[component];
+  }
+  else
+  {
+    // We'll have to wrap this st_func.
+    st_vtable vtable = {.eval = extractedcomp_eval, .dtor = extractedcomp_dtor};
+    int name_len = strlen(st_func_name(multicomp_func)) + 10;
+    char name[name_len];
+    st_func_homogeneity_t homogeneity = st_func_is_homogeneous(multicomp_func) ? ST_HOMOGENEOUS : ST_INHOMOGENEOUS;
+    st_func_constancy_t constancy = st_func_is_constant(multicomp_func) ? ST_CONSTANT : ST_NONCONSTANT;
+    snprintf(name, name_len, "%s[%d]", st_func_name(multicomp_func), component);
+    extractedcomp_st_func_t* ec = malloc(sizeof(extractedcomp_st_func_t));
+    ec->func = multicomp_func;
+    ec->num_comp = st_func_num_comp(multicomp_func);
+    ec->comp = component;
+    return st_func_new(name, (void*)ec, vtable, 
+                       homogeneity, constancy, 1);
+  }
 }
 
 #ifdef __cplusplus

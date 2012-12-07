@@ -27,10 +27,14 @@ struct diffusion_solver_t
 
 static void initialize(diffusion_solver_t* solver)
 {
-  solver->vtable.create_matrix(solver->context, &solver->A);
-  solver->vtable.create_vector(solver->context, &solver->x);
-  solver->vtable.create_vector(solver->context, &solver->b);
-  solver->vtable.create_ksp(solver->context, &solver->ksp);
+  if (!solver->initialized)
+  {
+    solver->vtable.create_matrix(solver->context, &solver->A);
+    solver->vtable.create_vector(solver->context, &solver->x);
+    solver->vtable.create_vector(solver->context, &solver->b);
+    solver->vtable.create_ksp(solver->context, &solver->ksp);
+    solver->initialized = true;
+  }
 }
 
 static void create_work_vectors(diffusion_solver_t* solver, int num_vectors)
@@ -63,18 +67,20 @@ diffusion_solver_t* diffusion_solver_new(const char* name,
   solver->work = NULL;
   solver->num_work_vectors = 0;
 
-  // Make sure the solver is initialized.
-  initialize(solver);
+  solver->initialized = false;
 
   return solver;
 }
 
 void diffusion_solver_free(diffusion_solver_t* solver)
 {
-  KSPDestroy(&solver->ksp);
-  MatDestroy(&solver->A);
-  VecDestroy(&solver->x);
-  VecDestroy(&solver->b);
+  if (solver->initialized)
+  {
+    KSPDestroy(&solver->ksp);
+    MatDestroy(&solver->A);
+    VecDestroy(&solver->x);
+    VecDestroy(&solver->b);
+  }
 
   // Destroy any work vectors.
   for (int i = 0; i < solver->num_work_vectors; ++i)
@@ -157,6 +163,9 @@ void diffusion_solver_euler(diffusion_solver_t* solver,
   ASSERT(t2 > t1);
   double dt = t2 - t1;
 
+  // Make sure the solver is initialized.
+  initialize(solver);
+
   // A -> diffusion matrix at time t2.
   compute_diff_matrix(solver, solver->A, t2);
 
@@ -191,6 +200,9 @@ void diffusion_solver_tga(diffusion_solver_t* solver,
 {
   ASSERT(t2 > t1);
   double dt = t2 - t1;
+
+  // Make sure the solver is initialized.
+  initialize(solver);
 
   // In addition to b and x, we need 3 work vectors, all described below.
   create_work_vectors(solver, 3);
