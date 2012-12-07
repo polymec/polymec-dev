@@ -250,7 +250,7 @@ static void run_square_diffusion_1d(options_t* options)
   st_func_t* soln = st_func_from_func("square diffusion 1d", square_diffusion_1d_soln,
                                       ST_INHOMOGENEOUS, ST_NONCONSTANT, 1);
   advect_bc_t* bc = advect_bc_new(1.0, 0.0, soln); // Dirichlet BC
-  advect_run_1d_flow(options, v0, D, zero, soln, bc, bc, soln, 0.0, 2.0, 1, 1);
+  advect_run_1d_flow(options, v0, D, zero, soln, bc, bc, soln, 0.0, 2.0, 1, 4);
 }
 
 static void gaussian_diffusion_1d_soln(void* ctx, point_t* x, double t, double* phi)
@@ -278,7 +278,7 @@ static void run_gaussian_diffusion_1d(options_t* options)
   st_func_t* soln = st_func_from_func("gaussian diffusion 1d", gaussian_diffusion_1d_soln,
                                       ST_INHOMOGENEOUS, ST_NONCONSTANT, 1);
   advect_bc_t* bc = advect_bc_new(1.0, 0.0, soln); // Dirichlet BC
-  advect_run_1d_flow(options, v0, D, zero, soln, bc, bc, soln, 0.5, 1.0, 1, 1);
+  advect_run_1d_flow(options, v0, D, zero, soln, bc, bc, soln, 0.5, 1.0, 1, 4);
 }
 
 void register_advect_benchmarks(model_t* model)
