@@ -79,6 +79,11 @@ st_func_t* multicomp_st_func_from_funcs(const char* name,
                                         st_func_t** functions,
                                         int num_comp);
 
+// Construct a single-component space-time function from one of the 
+// components of a multicomponent function.
+st_func_t* st_func_from_component(st_func_t* multicomp_func,
+                                  int component);
+
 #ifdef __cplusplus
 }
 #endif

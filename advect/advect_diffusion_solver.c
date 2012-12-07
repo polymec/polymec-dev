@@ -52,6 +52,7 @@ static void ad_compute_diffusion_matrix(void* context, Mat D, double t)
 {
   ad_solver_t* a = (ad_solver_t*)context;
   lin_op_t* L = a->diff_op;
+  ASSERT(L != NULL);
 
   // Make sure the diffusion operator has the right diffusivity.
   diffusion_op_set_time(a->diff_op, t);
@@ -85,6 +86,7 @@ static void ad_compute_source_vector(void* context, Vec S, double t)
 {
   ad_solver_t* a = (ad_solver_t*)context;
   mesh_t* mesh = a->mesh;
+  ASSERT(a->source != NULL);
 
   // Compute the RHS vector.
   double values[mesh->num_cells];
@@ -104,6 +106,7 @@ static void ad_compute_source_vector(void* context, Vec S, double t)
 static void ad_apply_bcs(void* context, Mat A, Vec b, double t)
 {
   ad_solver_t* a = (ad_solver_t*)context;
+  ASSERT(a->diffusivity != NULL);
   mesh_t* mesh = a->mesh;
   boundary_cell_map_t* boundary_cells = a->boundary_cells;
 
@@ -200,12 +203,9 @@ static void ad_dtor(void* context)
   free(a);
 }
 
-diffusion_solver_t* advect_diffusion_solver_new(st_func_t* diffusivity,
-                                                st_func_t* source,
-                                                mesh_t* mesh,
+diffusion_solver_t* advect_diffusion_solver_new(mesh_t* mesh,
                                                 boundary_cell_map_t* boundary_cells)
 {
-  ASSERT(diffusivity != NULL);
   ASSERT(mesh != NULL);
   ASSERT(boundary_cells != NULL);
 
@@ -219,15 +219,30 @@ diffusion_solver_t* advect_diffusion_solver_new(st_func_t* diffusivity,
     .dtor                     = ad_dtor
   };
   ad_solver_t* a = malloc(sizeof(ad_solver_t));
-  a->diff_op = diffusion_op_new(mesh, diffusivity);
-  a->diffusivity = diffusivity;
-  a->source = source;
+  a->diff_op = NULL;
+  a->diffusivity = NULL;
+  a->source = NULL;
   a->mesh = mesh; // borrowed
   a->boundary_cells = boundary_cells; // borrowed
   a->advective_source = malloc(sizeof(double)*mesh->num_cells);
   memset(a->advective_source, 0, sizeof(double)*mesh->num_cells);
   diffusion_solver_t* solver = diffusion_solver_new("advective diffusion solver", a, vtable);
   return solver;
+}
+
+void advect_diffusion_solver_set_diffusivity(diffusion_solver_t* solver, st_func_t* diffusivity)
+{
+  ASSERT(st_func_num_comp(diffusivity) == 1);
+  ad_solver_t* a = (ad_solver_t*)diffusion_solver_context(solver);
+  a->diffusivity = diffusivity;
+  a->diff_op = diffusion_op_new(a->mesh, diffusivity);
+}
+
+void advect_diffusion_solver_set_source(diffusion_solver_t* solver, st_func_t* source)
+{
+  ASSERT(st_func_num_comp(source) == 1);
+  ad_solver_t* a = (ad_solver_t*)diffusion_solver_context(solver);
+  a->source = source;
 }
 
 void advect_diffusion_solver_set_advective_source(diffusion_solver_t* solver,
