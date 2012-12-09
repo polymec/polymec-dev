@@ -1,8 +1,8 @@
 #ifndef POLYMEC_SP_FUNC_H
 #define POLYMEC_SP_FUNC_H
 
-#include "polymec.h"
-#include "point.h"
+#include "core/polymec.h"
+#include "core/point.h"
 
 #ifdef __cplusplus
 extern "C" {
