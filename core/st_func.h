@@ -1,9 +1,9 @@
 #ifndef POLYMEC_ST_FUNC_H
 #define POLYMEC_ST_FUNC_H
 
-#include "polymec.h"
-#include "point.h"
-#include "sp_func.h"
+#include "core/polymec.h"
+#include "core/point.h"
+#include "core/sp_func.h"
 
 #ifdef __cplusplus
 extern "C" {

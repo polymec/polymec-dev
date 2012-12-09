@@ -1,7 +1,5 @@
-#include <stdlib.h>
-#include <string.h>
 #include <gc/gc.h>
-#include "st_func.h"
+#include "core/st_func.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -23,7 +21,6 @@ static void st_func_free(void* ctx, void* dummy)
   if (func->vtable.dtor)
     func->vtable.dtor(func->context);
   free(func->name);
-  free(func);
 }
 
 st_func_t* st_func_new(const char* name, void* context, st_vtable vtable,

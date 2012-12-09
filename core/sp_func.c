@@ -1,7 +1,5 @@
-#include <stdlib.h>
-#include <string.h>
 #include <gc/gc.h>
-#include "sp_func.h"
+#include "core/sp_func.h"
 
 #ifdef __cplusplus
 extern "C" {
