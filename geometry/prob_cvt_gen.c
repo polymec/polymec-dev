@@ -1,5 +1,6 @@
 #include <gc/gc.h>
 #include "core/slist.h"
+#include "core/point_set.h"
 #include "geometry/prob_cvt_gen.h"
 
 #ifdef __cplusplus
@@ -114,14 +115,6 @@ static void choose_sample_points(sp_func_t* density,
   }
 }
 
-static void find_near_points(point_t* z, point_t* samples, int num_samples, ptr_slist_t* near_points) 
-{
-  ASSERT(z != NULL);
-  ASSERT(samples != NULL);
-  ASSERT(num_samples > 0);
-  ASSERT(near_points != NULL);
-}
-
 void prob_cvt_gen_iterate(prob_cvt_gen_t* prob, 
                           sp_func_t* density,
                           sp_func_t* boundary,
@@ -130,6 +123,12 @@ void prob_cvt_gen_iterate(prob_cvt_gen_t* prob,
                           point_t* points, 
                           int num_points)
 {
+  ASSERT(density != NULL);
+  ASSERT(bounding_box != NULL);
+  ASSERT(termination != NULL);
+  ASSERT(points != NULL);
+  ASSERT(num_points > 0);
+
   int iter = 0;
   int j[num_points];
 
@@ -148,36 +147,52 @@ void prob_cvt_gen_iterate(prob_cvt_gen_t* prob,
   srandom(seed);
 
   // Iterate until termination.
+  point_set_t* pset = point_set_new();
   while (!iteration_terminated(termination, points, num_points, iter))
   {
+    // Assemble our points into a point set so that we can easily 
+    // perform nearest-neighbor searches.
+    point_set_clear(pset);
+    for (int i = 0; i < num_points; ++i)
+      point_set_insert(pset, &points[i], i);
+
     // Choose q points from within the domain according to the density 
     // function.
     point_t samples[prob->q];
     choose_sample_points(density, boundary, bounding_box, samples, prob->q);
 
+    // Now organize the sample points into Voronoi regions of the points
+    // in our point set.
+    ptr_slist_t* near_points[num_points];
+    for (int i = 0; i < num_points; ++i)
+      near_points[i] = ptr_slist_new();
+    for (int j = 0; j < prob->q; ++j)
+    {
+      int i = point_set_nearest(pset, &samples[j]);
+      ptr_slist_append(near_points[i], &samples[j]);
+    }
+
+    // Now we correct the generator positions.
     for (int i = 0; i < num_points; ++i)
     {
-      // Find the sample points that are within the Voronoi region of 
-      // the ith generator.
-      ptr_slist_t* near_points = ptr_slist_new();
-      point_t* zi = &points[i];
-      find_near_points(zi, samples, prob->q, near_points);
+      ptr_slist_t* nearest = near_points[i];
 
       // Compute the average, ui, of the sample points in the Voronoi region.
-      if (near_points->size > 0)
+      point_t* zi = &points[i];
+      if (nearest->size > 0)
       {
         point_t ui = {.x = 0.0, .y = 0.0, .z = 0.0};
-        ptr_slist_node_t* node = near_points->front;
-        while (node != near_points->back)
+        ptr_slist_node_t* node = nearest->front;
+        while (node != nearest->back)
         {
           point_t* pos = node->value;
           ui.x += pos->x;
           ui.y += pos->y;
           ui.z += pos->z;
         }
-        ui.x /= near_points->size;
-        ui.y /= near_points->size;
-        ui.z /= near_points->size;
+        ui.x /= nearest->size;
+        ui.y /= nearest->size;
+        ui.z /= nearest->size;
 
         // Correct the position of the generator.
         int ji = j[i];
@@ -188,10 +203,15 @@ void prob_cvt_gen_iterate(prob_cvt_gen_t* prob,
         // Increment ji.
         ++(j[i]);
       }
+
+      // Clean up.
+      ptr_slist_free(nearest);
     }
 
     ++iter;
   }
+
+  point_set_free(pset);
 }
 
 // Termination after max_iter steps.
