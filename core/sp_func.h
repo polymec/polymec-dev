@@ -56,14 +56,18 @@ int sp_func_num_comp(sp_func_t* func);
 // Evaluates the function at the given point, placing the result in result.
 void sp_func_eval(sp_func_t* func, point_t* x, double* result);
 
-// Compute the gradient of the function using a centered difference 
-// approximation about x0 using the spacing dx.
-void sp_func_grad_centered_diff(sp_func_t* func, point_t* x0, vector_t* dx, vector_t* gradient);
+// Registers another function as the nth derivative of this function.
+// NOTE: These are vector derivatives, so the first derivative is the 
+// NOTE: (3-component) gradient, the second is the (9-component) Hessian,
+// NOTE: and so forth.
+void sp_func_register_deriv(sp_func_t* func, int n, sp_func_t* nth_deriv);
 
-// Compute the gradient of the function using Richardson extrapolation 
-// applied to a centered difference approximation about x0 using the spacing
-// dx.
-void sp_func_grad_richardson(sp_func_t* func, point_t* x0, vector_t* dx, vector_t* gradient);
+// Returns true if the nth derivative of this function can be computed (if 
+// it was registered), false otherwise.
+bool sp_func_has_deriv(sp_func_t* func, int n);
+
+// Evaluates the nth derivative of this function, placing the result in result.
+void sp_func_eval_deriv(sp_func_t* func, int n, point_t* x, double* result);
 
 #ifdef __cplusplus
 }

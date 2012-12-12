@@ -11,15 +11,22 @@ extern "C" {
 #endif
 
 // This function creates a Voronoi tessellation of the given points in 
-// three-dimensional space, returning a fully-featured mesh.
-// The tessellation contains infinite cells at its boundary, and 
-// these cells are tagged as "outer_cells". The edges bounding 
-// these cells are semi-infinite, having one node each, and are 
-// tagged as "outer_edges". These tags can be used to intersect 
-// the mesh with a boundary function to form a closed domain.
-mesh_t* voronoi_tessellation(point_t* points, int num_points, 
-                             point_t* ghost_points, int num_ghost_points);
+// three-dimensional space. The tessellation contains infinite cells at its 
+// boundary, and these cells are tagged as "outer_cells". The edges bounding 
+// these cells are semi-infinite, having one node each, and are tagged as 
+// "outer_edges". These tags can be used to intersect the mesh with a 
+// boundary function to form a closed domain.
+mesh_t* unbounded_voronoi(point_t* generators, int num_generators, 
+                          point_t* ghost_generators, int num_ghost_generators);
 
+// Creates a Voronoi tessellation of the given generator points in 
+// three-dimensional space, bounded by an isosurface for which the given 
+// "boundary" signed-distance function assumes the value zero.
+mesh_t* bounded_voronoi(point_t* generators, int num_generators,
+                        point_t* ghost_generators, int num_ghost_generators,
+                        sp_func_t* boundary);
+
+#if 0
 // This function intersects the given Voronoi tessellation (mesh) with the 
 // given signed distance function representing a domain boundary, returning 
 // a faceted surface representing the intersection.
@@ -46,6 +53,7 @@ mesh_t* voronoi_plane(point_t* points, int num_points,
 // stack of these planes to form a new mesh. The bottom plane is 
 // z = z1 and the top is z = z2.
 mesh_t* voronoi_stack(mesh_t* plane, int num_planes, double z1, double z2);
+#endif
 
 #ifdef __cplusplus
 }
