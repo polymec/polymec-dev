@@ -40,6 +40,7 @@ sp_func_t* cylinder_new(vector_t* d, point_t* x, double r, normal_orient_t norma
   // Set up a cylinder signed distance function.
   cyl_t* c = malloc(sizeof(cyl_t));
   vector_copy(&c->d, d);
+  vector_normalize(&c->d);
   point_copy(&c->x, x);
   c->r = r;
   c->orient = normal_orientation;
