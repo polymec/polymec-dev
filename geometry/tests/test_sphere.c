@@ -10,7 +10,7 @@ void test_construct(void** state)
 {
   // Create spheres with inward/outward normals.
   point_t origin = {0.0, 0.0, 0.0};
-  sp_func_t* s1 = sphere_new(&origin, 1.0, OUTWARD_NORMAL);
+  sp_func_t* s1 = sphere_new(&origin, 1.0, INWARD_NORMAL);
   assert_true(sp_func_num_comp(s1) == 1);
   assert_true(sp_func_has_deriv(s1, 1));
   sp_func_t* s2 = sphere_new(&origin, 1.0, OUTWARD_NORMAL);

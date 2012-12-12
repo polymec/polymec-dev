@@ -25,7 +25,7 @@ static void constant_dtor(void* ctx)
   free(f);
 }
 
-st_func_t* constant_st_func_new(int num_comp, double comp[])
+static st_func_t* create_constant_st_func(int num_comp, double comp[])
 {
   st_vtable vtable = {.eval = &constant_eval, .dtor = &constant_dtor};
   char name[1024];
@@ -36,6 +36,20 @@ st_func_t* constant_st_func_new(int num_comp, double comp[])
   for (int i = 0; i < num_comp; ++i)
     f->comp[i] = comp[i];
   return st_func_new(name, (void*)f, vtable, ST_HOMOGENEOUS, ST_CONSTANT, num_comp);
+}
+
+st_func_t* constant_st_func_new(int num_comp, double comp[])
+{
+  st_func_t* func = create_constant_st_func(num_comp, comp);
+
+  // Just to be complete, we register the 3-component zero function as this 
+  // function's gradient.
+  double zeros[3*num_comp];
+  memset(zeros, 0, 3*num_comp*sizeof(double));
+  st_func_t* zero = create_constant_st_func(3*num_comp, zeros);
+  st_func_register_deriv(func, 1, zero);
+
+  return func;
 }
 
 // For free!

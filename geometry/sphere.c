@@ -24,8 +24,8 @@ static void sphere_eval_gradient(void* ctx, point_t* x, double* result)
   double sign = (s->orient == OUTWARD_NORMAL) ? -1.0 : 1.0;
   double D = point_distance(x, &s->x);
   result[0] = sign * (x->x - s->x.x) / D;
-  result[1] = sign * (x->x - s->x.x) / D;
-  result[2] = sign * (x->x - s->x.x) / D;
+  result[1] = sign * (x->y - s->x.y) / D;
+  result[2] = sign * (x->z - s->x.z) / D;
 }
 
 sp_func_t* sphere_new(point_t* x, double r, normal_orient_t normal_orientation)
