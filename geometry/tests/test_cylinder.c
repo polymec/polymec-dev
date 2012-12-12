@@ -22,9 +22,9 @@ void test_plot(void** state)
 {
   // Create a text file containing an Octave script that can be run to 
   // visualize this plot.
-  vector_t oblique = {0.0, 0.0, 1.0};
+  vector_t oblique = {1.0, 1.0, 1.0};
   point_t origin = {0.0, 0.0, 0.0};
-  sp_func_t* c = cylinder_new(&oblique, &origin, 1.0, OUTWARD_NORMAL);
+  sp_func_t* c = cylinder_new(&oblique, &origin, 0.5, OUTWARD_NORMAL);
   FILE* fd = fopen("test_cylinder.m", "w");
   fprintf(fd, "%% test_cylinder.m - A script for visualizing a cylinder.\n");
   fprintf(fd, "%% Run with octave --persist test_cylinder.m\n\n");
@@ -68,7 +68,10 @@ void test_plot(void** state)
   // Dump out the rest of the script for Octave.
   static const char* instructions = 
     "[XX, YY, ZZ] = meshgrid(X, Y, Z);\n"
-    "isosurface(XX, YY, ZZ, F, 0.0); \n";
+    "isosurface(XX, YY, ZZ, F, 0.0);\n"
+    "xlabel('x');\n"
+    "ylabel('y');\n"
+    "zlabel('z');\n";
   fprintf(fd, "%s", instructions);
   fclose(fd);
 }

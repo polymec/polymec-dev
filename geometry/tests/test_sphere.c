@@ -22,7 +22,7 @@ void test_plot(void** state)
   // Create a text file containing an Octave script that can be run to 
   // visualize this plot.
   point_t origin = {0.0, 0.0, 0.0};
-  sp_func_t* s = sphere_new(&origin, 1.0, OUTWARD_NORMAL);
+  sp_func_t* s = sphere_new(&origin, 0.5, OUTWARD_NORMAL);
   FILE* fd = fopen("test_sphere.m", "w");
   fprintf(fd, "%% test_sphere.m - A script for visualizing a sphere.\n");
   fprintf(fd, "%% Run with octave --persist test_sphere.m\n\n");
@@ -66,7 +66,10 @@ void test_plot(void** state)
   // Dump out the rest of the script for Octave.
   static const char* instructions = 
     "[XX, YY, ZZ] = meshgrid(X, Y, Z);\n"
-    "isosurface(XX, YY, ZZ, F, 0.0); \n";
+    "isosurface(XX, YY, ZZ, F, 0.0); \n"
+    "xlabel('x');\n"
+    "ylabel('y');\n"
+    "zlabel('z');\n";
   fprintf(fd, "%s", instructions);
   fclose(fd);
 }
