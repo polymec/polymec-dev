@@ -70,6 +70,19 @@ int st_func_num_comp(st_func_t* func);
 // Evaluates the function at the given point, placing the result in result.
 void st_func_eval(st_func_t* func, point_t* x, double t, double* result);
 
+// Registers another function as the nth derivative of this function.
+// NOTE: These are vector derivatives, so the first derivative is the 
+// NOTE: (3-component) gradient, the second is the (9-component) Hessian,
+// NOTE: and so forth.
+void st_func_register_deriv(st_func_t* func, int n, st_func_t* nth_deriv);
+
+// Returns true if the nth derivative of this function can be computed (if 
+// it was registered), false otherwise.
+bool st_func_has_deriv(st_func_t* func, int n);
+
+// Evaluates the nth derivative of this function, placing the result in result.
+void st_func_eval_deriv(st_func_t* func, int n, point_t* x, double t, double* result);
+
 // Creates an sp_func from this st_func by "freezing" it at the given time.
 sp_func_t* st_func_freeze(st_func_t* func, double t);
 

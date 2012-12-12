@@ -13,6 +13,9 @@ struct st_func_t
   int num_comp;
   bool homogeneous;
   bool constant;
+
+  // Functions for computing derivatives (up to 4).
+  st_func_t* derivs[4];
 };
 
 static void st_func_free(void* ctx, void* dummy)
@@ -38,6 +41,7 @@ st_func_t* st_func_new(const char* name, void* context, st_vtable vtable,
   f->homogeneous = (homogeneity == ST_HOMOGENEOUS);
   f->constant = (constancy == ST_CONSTANT);
   f->num_comp = num_comp;
+  memset(f->derivs, 0, sizeof(st_func_t*)*4);
   GC_register_finalizer(f, &st_func_free, f, NULL, NULL);
   return f;
 }
@@ -56,6 +60,7 @@ st_func_t* st_func_from_func(const char* name, st_eval_func func,
   f->homogeneous = (homogeneity == ST_HOMOGENEOUS);
   f->constant = (constancy == ST_CONSTANT);
   f->num_comp = num_comp;
+  memset(f->derivs, 0, sizeof(st_func_t*)*4);
   GC_register_finalizer(f, &st_func_free, f, NULL, NULL);
   return f;
 }
@@ -83,6 +88,28 @@ int st_func_num_comp(st_func_t* func)
 void st_func_eval(st_func_t* func, point_t* x, double t, double* result)
 {
   func->vtable.eval(func->context, x, t, result);
+}
+
+void st_func_register_deriv(st_func_t* func, int n, st_func_t* nth_deriv)
+{
+  ASSERT(n > 0);
+  ASSERT(n <= 4);
+  ASSERT(nth_deriv != NULL);
+  ASSERT(st_func_num_comp(nth_deriv) == (func->num_comp * (int)pow(3, n))); 
+  func->derivs[n-1] = nth_deriv;
+}
+
+bool st_func_has_deriv(st_func_t* func, int n)
+{
+  ASSERT(n > 0);
+  ASSERT(n <= 4);
+  return (func->derivs[n-1] != NULL);
+}
+
+// Evaluates the nth derivative of this function, placing the result in result.
+void st_func_eval_deriv(st_func_t* func, int n, point_t* x, double t, double* result)
+{
+  st_func_eval(func->derivs[n-1], x, t, result);
 }
 
 typedef struct

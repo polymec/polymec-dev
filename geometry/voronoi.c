@@ -19,25 +19,25 @@ static void append_to_tag(int_avl_tree_node_t* node, void* p)
   ++tag_p;
 }
 
-mesh_t* voronoi_tessellation(point_t* points, int num_points, 
-                             point_t* ghost_points, int num_ghost_points)
+mesh_t* unbounded_voronoi(point_t* generators, int num_generators, 
+                          point_t* ghost_generators, int num_ghost_generators)
 {
-  ASSERT(points != NULL);
-  ASSERT(num_points >= 2);
-  ASSERT(num_ghost_points >= 0);
+  ASSERT(generators != NULL);
+  ASSERT(num_generators >= 2);
+  ASSERT(num_ghost_generators >= 0);
 
   // Set Tetgen's options. We desire a Voronoi mesh.
   TetGenOpts opts;
   TetGenOptsInitialize(&opts);
   opts.voroout = 1;
 
-  // Allocate an input PLC with all the points.
+  // Allocate an input PLC with all the generators.
   PLC* in;
   PLCCreate(&in);
-  in->numberofpoints = num_points + num_ghost_points;
+  in->numberofpoints = num_generators + num_ghost_generators;
   PetscMalloc(3*in->numberofpoints*sizeof(double), &in->pointlist);
-  memcpy(in->pointlist, (double*)points, 3*num_points);
-  memcpy(&in->pointlist[3*num_points], (double*)ghost_points, 3*num_ghost_points);
+  memcpy(in->pointlist, (double*)generators, 3*num_generators);
+  memcpy(&in->pointlist[3*num_generators], (double*)ghost_generators, 3*num_ghost_generators);
 
   // Allocate storage for the output PLC, which will store the 
   // tetrahedra and Voronoi polyhedra.
@@ -46,11 +46,11 @@ mesh_t* voronoi_tessellation(point_t* points, int num_points,
 
   // Tetrahedralize.
   TetGenTetrahedralize(&opts, in, out);
-  ASSERT(out->numberofvcells == (num_points + num_ghost_points));
+  ASSERT(out->numberofvcells == (num_generators + num_ghost_generators));
 
   // Construct the Voronoi graph.
-  mesh_t* mesh = mesh_new(num_points - num_ghost_points, 
-                          num_ghost_points,
+  mesh_t* mesh = mesh_new(num_generators,
+                          num_ghost_generators,
                           out->numberofvfacets,
                           out->numberofvedges,
                           out->numberofvpoints);
@@ -92,7 +92,7 @@ mesh_t* voronoi_tessellation(point_t* points, int num_points,
 
     // Stick the outward rays in a "rays" property on this tag.
     double* rays = malloc(3*num_outer_edges*sizeof(double));
-    mesh_tag_set_property(mesh->edge_tags, "outer_edges", "rays", rays, &free);
+    mesh_tag_set_property(mesh->edge_tags, "outer_edges", "rays", rays, free);
     for (int i = 0; i < num_outer_edges; ++i)
     {
       int j = outer_edge_tag[i];
@@ -175,17 +175,17 @@ mesh_t* voronoi_tessellation(point_t* points, int num_points,
 
   // Add 'outer_edges' as a property of the outer_cells.
   int* oce = malloc(outer_cell_edges->size*sizeof(double));
-  mesh_tag_set_property(mesh->edge_tags, "outer_cells", "outer_edges", outer_cell_edges, &free);
+  mesh_tag_set_property(mesh->edge_tags, "outer_cells", "outer_edges", outer_cell_edges, free);
   int offset = 0;
   for (int_slist_node_t* n = outer_cell_edges->front; n != NULL;)
   {
     // Read the number of edges for the cell.
-    int num_edges = (int)n->value;
+    int num_edges = n->value;
     n = n->next;
     oce[offset++] = num_edges;
     for (int e = 0; e < num_edges; ++e)
     {
-      oce[offset++] = (int)n->value;
+      oce[offset++] = n->value;
       n = n->next;
     }
   }
@@ -200,6 +200,34 @@ mesh_t* voronoi_tessellation(point_t* points, int num_points,
   return mesh;
 }
 
+mesh_t* bounded_voronoi(point_t* generators, int num_generators,
+                        point_t* ghost_generators, int num_ghost_generators,
+                        sp_func_t* boundary)
+{
+  ASSERT(generators != NULL);
+  ASSERT(num_generators >= 1); 
+  ASSERT(num_ghost_generators >= 0); 
+  ASSERT(boundary != NULL); 
+  ASSERT(sp_func_num_comps(boundary) == 1); 
+
+  // Create an unbounded Voronoi tessellation.
+  mesh_t* mesh = unbounded_voronoi(generators, num_generators,
+                                   ghost_generators, num_ghost_generators);
+
+  // We bound this tessellation by creating boundary faces that "cap" the 
+  // outer cells. There is one boundary face per boundary cell.
+  int num_outer_cells;
+  int* outer_cells = mesh_tag(mesh->cell_tags, "outer_cells", &num_outer_cells);
+
+  // Project each of the centers of the boundary cells to the boundary.
+  // These projections become the face centers of boundary faces.
+  point_t bface_centers[num_outer_cells];
+
+
+  return mesh;
+}
+
+#if 0
 typedef struct 
 {
   sp_func_t* B;
@@ -295,6 +323,7 @@ mesh_t* voronoi_tessellation_within_surface(point_t* points, int num_points,
   // FIXME
   return NULL;
 }
+#endif
 
 #ifdef __cplusplus
 }
