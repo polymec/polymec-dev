@@ -9,7 +9,7 @@ extern "C" {
 
 // This signed distance function represents a plane with a given normal 
 // vector and point.
-sp_func_t* plane_new(vector_t n, point_t x);
+sp_func_t* plane_new(vector_t* n, point_t* x);
 
 #ifdef __cplusplus
 }

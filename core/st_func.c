@@ -92,6 +92,7 @@ void st_func_eval(st_func_t* func, point_t* x, double t, double* result)
 
 void st_func_register_deriv(st_func_t* func, int n, st_func_t* nth_deriv)
 {
+  ASSERT(!st_func_is_homogeneous(func));
   ASSERT(n > 0);
   ASSERT(n <= 4);
   ASSERT(nth_deriv != NULL);

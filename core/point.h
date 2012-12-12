@@ -115,6 +115,15 @@ typedef struct
   double z1, z2;
 } bbox_t;
 
+// This type allows us to distinguish between normal vectors that are 
+// "outward" or "inward". This is useful for creating implicit functions 
+// representing closed surfaces.
+typedef enum
+{
+  OUTWARD_NORMAL,
+  INWARD_NORMAL
+} normal_orient_t;
+
 #ifdef __cplusplus
 }
 #endif
