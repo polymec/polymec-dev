@@ -1,4 +1,3 @@
-#include <stdlib.h>
 #include <string.h>
 #include <gc/gc.h>
 #include "core/lin_op.h"

@@ -66,6 +66,12 @@ const char* sp_func_name(sp_func_t* func)
   return (const char*)func->name;
 }
 
+void sp_func_rename(sp_func_t* func, const char* new_name)
+{
+  free(func->name);
+  func->name = strdup(new_name);
+}
+
 bool sp_func_is_homogeneous(sp_func_t* func)
 {
   return func->homogeneous;
@@ -74,6 +80,11 @@ bool sp_func_is_homogeneous(sp_func_t* func)
 int sp_func_num_comp(sp_func_t* func)
 {
   return func->num_comp;
+}
+
+void* sp_func_context(sp_func_t* func)
+{
+  return func->context;
 }
 
 void sp_func_eval(sp_func_t* func, point_t* x, double* result)
