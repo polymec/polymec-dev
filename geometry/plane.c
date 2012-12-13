@@ -92,6 +92,17 @@ void plane_project(sp_func_t* plane, point_t* x, double* eta, double* xi)
 
 double plane_intersect_with_line(sp_func_t* plane, point_t* x0, vector_t* t)
 {
+  plane_t* p = sp_func_context(plane);
+  double not = vector_dot(&p->n, t);
+  if (not == 0.0) // No intersection!
+    return -FLT_MAX;
+  else
+  {
+    double numer = p->n.x * (p->x.x - x0->x) +
+                   p->n.y * (p->x.y - x0->y) +
+                   p->n.z * (p->x.z - x0->z);
+    return numer / not;
+  }
 }
 
 #ifdef __cplusplus
