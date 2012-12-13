@@ -5,7 +5,8 @@
 #include "core/slist.h"
 #include "core/brent.h"
 #include "core/edit_mesh.h"
-#include "core/faceted_surface.h"
+#include "geometry/plane.h"
+#include "geometry/giftwrap_hull.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -214,15 +215,105 @@ mesh_t* bounded_voronoi(point_t* generators, int num_generators,
   mesh_t* mesh = unbounded_voronoi(generators, num_generators,
                                    ghost_generators, num_ghost_generators);
 
+  // Before we do anything else, search for nodes that fall outside of the 
+  // given boundary. These can occur when the domain is not simply connected.
+  // FIXME
+
   // We bound this tessellation by creating boundary faces that "cap" the 
   // outer cells. There is one boundary face per boundary cell.
   int num_outer_cells;
   int* outer_cells = mesh_tag(mesh->cell_tags, "outer_cells", &num_outer_cells);
+  int* outer_cell_edges = mesh_tag_property(mesh->cell_tags, "outer_cells", "outer_edges");
 
-  // Project each of the centers of the boundary cells to the boundary.
+  // Project each of the centers of the boundary cells to the boundary, 
+  // and compute (inward) normal vectors for the boundary faces.
   // These projections become the face centers of boundary faces.
+  // For each face, the center position and the normal vector define a plane 
+  // whose intersection with other face's corresponding planes defines the 
+  // boundaries of the face.
   point_t bface_centers[num_outer_cells];
+  vector_t bface_normals[num_outer_cells];
+  int outer_cell_edge_offset = 0;
+  sp_func_t* plane = NULL;
+  for (int i = 0; i < num_outer_cells; ++i)
+  {
+    cell_t* cell = &mesh->cells[outer_cells[i]];
+    // Compute the displacement vector from the cell center to the boundary.
+    // (The normal vector for the boundary is the negation of the gradient.)
+    double distance;
+    sp_func_eval(boundary, &cell->center, &distance);
+    double grad[3];
+    sp_func_eval_deriv(boundary, 1, &cell->center, grad);
+    vector_t normal;
+    normal.x = -grad[0], normal.y = -grad[1], normal.z = -grad[2];
+    vector_normalize(&normal);
+    bface_centers[i].x = cell->center.x - distance * normal.x;
+    bface_centers[i].y = cell->center.y - distance * normal.y;
+    bface_centers[i].z = cell->center.z - distance * normal.z;
+    vector_copy(&bface_normals[i], &normal);
 
+    // Add this boundary face to the mesh.
+    int bface_index = mesh_add_face(mesh);
+    face_t* bface = &mesh->faces[bface_index];
+    mesh_add_face_to_cell(mesh, bface, cell);
+
+    // Add boundary nodes where they intersect the boundary face.
+    int num_outer_edges = outer_cell_edges[outer_cell_edge_offset++];
+    node_t* face_nodes[num_outer_edges];
+    for (int e = 0; e < num_outer_edges; ++e, ++outer_cell_edge_offset)
+    {
+      edge_t* outer_edge = &mesh->edges[outer_cell_edges[outer_cell_edge_offset + e]];
+      ASSERT(outer_edge->node2 == NULL);
+
+      // Add a new node to the mesh and attach it to the edge.
+      int bnode_index = mesh_add_node(mesh);
+      node_t* bnode = &mesh->nodes[bnode_index];
+      outer_edge->node2 = bnode;
+
+      // Set the node's position by intersecting the outer edge with the 
+      // boundary face. 
+      point_t x0 = {.x = outer_edge->node1->x, .y = outer_edge->node1->y, .z = outer_edge->node1->z};
+      // FIXME: Where do we get the ray components?
+      vector_t t;
+      double s = plane_intersect_with_line(plane, &x0, &t);
+      bnode->x = x0.x + s*t.x;
+      bnode->y = x0.x + s*t.y;
+      bnode->z = x0.x + s*t.z;
+
+      // Jot down the node for use below.
+      face_nodes[e] = bnode;
+    }
+
+    // Project the nodes to 2D coordinates in the plane.
+    if (plane == NULL)
+      plane = plane_new(&normal, &bface->center);
+    else
+      plane_reset(plane, &normal, &bface->center);
+    double points[2*num_outer_edges];
+    int first_node = mesh->num_nodes - num_outer_edges;
+    for (int n = first_node; n < mesh->num_nodes; ++n)
+    {
+      point_t p = {.x = mesh->nodes[n].x, .y = mesh->nodes[n].y, .z = mesh->nodes[n].z};
+      plane_project(plane, &p, &points[2*n], &points[2*n+1]);
+    }
+
+    // Now use the Giftwrap algorithm to find an ordering of the nodes for a
+    // convex face. For the moment, we fail if not all the nodes appear on 
+    // the convex hull (meaning we've got a non-convex face!).
+    int node_order[num_outer_edges], count;
+    giftwrap_hull(points, num_outer_edges, node_order, &count);
+    if (count < num_outer_edges)
+      polymec_error("bounded_voronoi: boundary face %d for cell %d is non-convex!", bface_index, outer_cells[i]);
+
+    // Create the edges from the sequence of nodes.
+    for (int e = 0; e < num_outer_edges; ++e)
+    {
+      int bedge_index = mesh_add_edge(mesh);
+      edge_t* edge = &mesh->edges[bedge_index];
+      edge->node1 = &mesh->nodes[first_node + node_order[e]];
+      edge->node2 = &mesh->nodes[first_node + node_order[(e+1)%num_outer_edges]];
+    }
+  }
 
   return mesh;
 }

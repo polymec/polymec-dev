@@ -33,26 +33,26 @@ void generate_octave_script_for_surface(sp_func_t* surface,
 
   fprintf(fd, "Y = [");
   for (int i = 0; i < num_samples; ++i)
-    fprintf(fd, "%g ", -1.0 + (i+0.5)*hy);
+    fprintf(fd, "%g ", bounding_box->y1 + (i+0.5)*hy);
   fprintf(fd, "];\n");
 
   fprintf(fd, "Z = [");
   for (int i = 0; i < num_samples; ++i)
-    fprintf(fd, "%g ", -1.0 + (i+0.5)*hz);
+    fprintf(fd, "%g ", bounding_box->z1 + (i+0.5)*hz);
   fprintf(fd, "];\n");
 
   // Write out the F array.
   point_t x;
   fprintf(fd, "F = zeros(%d, %d, %d);\n", num_samples, num_samples, num_samples);
-  for (int i = 0; i < num_samples; ++i)
+  for (int k = 0; k < num_samples; ++k)
   {
-    x.x = -1.0 + (i+0.5)*hx;
+    x.z = -1.0 + (k+0.5)*hz;
     for (int j = 0; j < num_samples; ++j)
     {
       x.y = -1.0 + (j+0.5)*hy;
-      for (int k = 0; k < num_samples; ++k)
+      for (int i = 0; i < num_samples; ++i)
       {
-        x.z = -1.0 + (k+0.5)*hz;
+        x.x = -1.0 + (i+0.5)*hx;
         double F;
         sp_func_eval(surface, &x, &F);
         fprintf(fd, "F(%d, %d, %d) = %g;\n", i+1, j+1, k+1, F);
@@ -64,6 +64,7 @@ void generate_octave_script_for_surface(sp_func_t* surface,
   static const char* instructions = 
     "[XX, YY, ZZ] = meshgrid(X, Y, Z);\n"
     "isosurface(XX, YY, ZZ, F, 0.0); \n"
+//    "set(gca, 'PlotBoxAspectRatioMode', 'manual', 'PlotBoxAspectRatio', [1 1 1]);\n"
     "xlabel('x');\n"
     "ylabel('y');\n"
     "zlabel('z');\n";

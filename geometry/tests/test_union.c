@@ -28,7 +28,7 @@ void test_plot(void** state)
   sp_func_t* s1 = sphere_new(&x1, 0.25, INWARD_NORMAL);
   sp_func_t* s2 = sphere_new(&x2, 0.25, INWARD_NORMAL);
   sp_func_t* u = union_new2(s1, s2);
-  bbox_t bbox = {.x1 = -1.0, .x2 = 1.0, .y1 = -1.0, .y2 = 1.0, .z1 = -1.0, .z2 = 1.0};
+  bbox_t bbox = {.x1 = -2.0, .x2 = 2.0, .y1 = -2.0, .y2 = 2.0, .z1 = -2.0, .z2 = 2.0};
   generate_octave_script_for_surface(u, 40, &bbox, "test_union.m");
 }
 

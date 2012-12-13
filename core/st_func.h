@@ -58,6 +58,9 @@ st_func_t* st_func_from_func(const char* name, st_eval_func func,
 // Returns the name of the function.
 const char* st_func_name(st_func_t* func);
 
+// Renames the function. This can be useful for some specialized interfaces.
+void st_func_rename(st_func_t* func, const char* new_name);
+
 // Returns true if the function is homogeneous in space, false if not.
 bool st_func_is_homogeneous(st_func_t* func);
 
@@ -66,6 +69,10 @@ bool st_func_is_constant(st_func_t* func);
 
 // Returns the number of components in the function's range.
 int st_func_num_comp(st_func_t* func);
+
+// Returns the context pointer for the given object. Sometimes useful 
+// for implementing specialized interfaces.
+void* st_func_context(st_func_t* func);
 
 // Evaluates the function at the given point, placing the result in result.
 void st_func_eval(st_func_t* func, point_t* x, double t, double* result);

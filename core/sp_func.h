@@ -47,11 +47,18 @@ sp_func_t* sp_func_from_func(const char* name, sp_eval_func func,
 // Returns the name of the function.
 const char* sp_func_name(sp_func_t* func);
 
+// Renames the function. This can be useful for some specialized interfaces.
+void sp_func_rename(sp_func_t* func, const char* new_name);
+
 // Returns true if the function is homogeneous in space, false if not.
 bool sp_func_is_homogeneous(sp_func_t* func);
 
 // Returns the number of components in the function's range.
 int sp_func_num_comp(sp_func_t* func);
+
+// Returns the context pointer for the given object. Sometimes useful 
+// for implementing specialized interfaces.
+void* sp_func_context(sp_func_t* func);
 
 // Evaluates the function at the given point, placing the result in result.
 void sp_func_eval(sp_func_t* func, point_t* x, double* result);
