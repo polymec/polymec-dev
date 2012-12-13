@@ -176,6 +176,9 @@ void* mesh_tag_property(mesh_tags_t* tagger, const char* tag, const char* proper
 // or property are not found.
 void mesh_tag_delete_property(mesh_tags_t* tagger, const char* tag, const char* property);
 
+// Renames the given tag. This has no effect if the tag is not found.
+void mesh_rename_tag(mesh_tags_t* tagger, const char* old_tag, const char* new_tag);
+
 // Deletes the given tag. This has no effect if the tag is not found.
 void mesh_delete_tag(mesh_tags_t* tagger, const char* tag);
 

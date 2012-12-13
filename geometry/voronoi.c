@@ -2,8 +2,8 @@
 #include "mpi.h"
 #include "ctetgen.h"
 #include "core/avl_tree.h"
+#include "core/unordered_map.h"
 #include "core/slist.h"
-#include "core/brent.h"
 #include "core/edit_mesh.h"
 #include "geometry/plane.h"
 #include "geometry/giftwrap_hull.h"
@@ -18,6 +18,12 @@ static void append_to_tag(int_avl_tree_node_t* node, void* p)
   int* tag_p = (int*)p;
   *tag_p = (int)node->value;
   ++tag_p;
+}
+
+static void destroy_ray_map_entry(int key, void* value)
+{
+  vector_t* v = value;
+  vector_free(v);
 }
 
 mesh_t* unbounded_voronoi(point_t* generators, int num_generators, 
@@ -83,6 +89,7 @@ mesh_t* unbounded_voronoi(point_t* generators, int num_generators,
       mesh->edges[i].node2 = &mesh->nodes[n2];
     }
   }
+
   // Tag the outer edges as such.
   if (num_outer_edges > 0)
   {
@@ -91,16 +98,18 @@ mesh_t* unbounded_voronoi(point_t* generators, int num_generators,
     int* tag_p = outer_edge_tag;
     int_avl_tree_node_visit(root, &append_to_tag, tag_p);
 
-    // Stick the outward rays in a "rays" property on this tag.
-    double* rays = malloc(3*num_outer_edges*sizeof(double));
-    mesh_tag_set_property(mesh->edge_tags, "outer_edges", "rays", rays, free);
+    // Outer edges have vector-valued "rays" that point from their node1 out
+    // to infinity. We will create a map from outer edge indices to these rays.
+    int_ptr_unordered_map_t* ray_map = int_ptr_unordered_map_new();
+    mesh_set_property(mesh, "outer_rays", ray_map, DTOR(int_ptr_unordered_map_free));
     for (int i = 0; i < num_outer_edges; ++i)
     {
       int j = outer_edge_tag[i];
       ASSERT(out->vedgelist[j].v2 == -1);
-      rays[3*i+0] = out->vedgelist[j].vnormal[0]; 
-      rays[3*i+1] = out->vedgelist[j].vnormal[1]; 
-      rays[3*i+2] = out->vedgelist[j].vnormal[2]; 
+      vector_t* ray = vector_new(out->vedgelist[j].vnormal[0],
+                                 out->vedgelist[j].vnormal[1],
+                                 out->vedgelist[j].vnormal[2]);
+      int_ptr_unordered_map_insert_with_dtor(ray_map, j, ray, destroy_ray_map_entry);
     }
   }
 
@@ -214,6 +223,8 @@ mesh_t* bounded_voronoi(point_t* generators, int num_generators,
   // Create an unbounded Voronoi tessellation.
   mesh_t* mesh = unbounded_voronoi(generators, num_generators,
                                    ghost_generators, num_ghost_generators);
+  ASSERT(mesh_has_tag(mesh->cell_tags, "outer_cells"));
+  ASSERT(mesh_has_property(mesh, "outer_rays"));
 
   // Before we do anything else, search for nodes that fall outside of the 
   // given boundary. These can occur when the domain is not simply connected.
@@ -224,6 +235,8 @@ mesh_t* bounded_voronoi(point_t* generators, int num_generators,
   int num_outer_cells;
   int* outer_cells = mesh_tag(mesh->cell_tags, "outer_cells", &num_outer_cells);
   int* outer_cell_edges = mesh_tag_property(mesh->cell_tags, "outer_cells", "outer_edges");
+  ASSERT(outer_cell_edges != NULL);
+  int_ptr_unordered_map_t* ray_map = mesh_property(mesh, "outer_rays");
 
   // Project each of the centers of the boundary cells to the boundary, 
   // and compute (inward) normal vectors for the boundary faces.
@@ -231,10 +244,9 @@ mesh_t* bounded_voronoi(point_t* generators, int num_generators,
   // For each face, the center position and the normal vector define a plane 
   // whose intersection with other face's corresponding planes defines the 
   // boundaries of the face.
-  point_t bface_centers[num_outer_cells];
-  vector_t bface_normals[num_outer_cells];
   int outer_cell_edge_offset = 0;
   sp_func_t* plane = NULL;
+  int_slist_t* bface_list = int_slist_new();
   for (int i = 0; i < num_outer_cells; ++i)
   {
     cell_t* cell = &mesh->cells[outer_cells[i]];
@@ -247,23 +259,35 @@ mesh_t* bounded_voronoi(point_t* generators, int num_generators,
     vector_t normal;
     normal.x = -grad[0], normal.y = -grad[1], normal.z = -grad[2];
     vector_normalize(&normal);
-    bface_centers[i].x = cell->center.x - distance * normal.x;
-    bface_centers[i].y = cell->center.y - distance * normal.y;
-    bface_centers[i].z = cell->center.z - distance * normal.z;
-    vector_copy(&bface_normals[i], &normal);
 
-    // Add this boundary face to the mesh.
+    // Add a boundary face to the mesh.
     int bface_index = mesh_add_face(mesh);
     face_t* bface = &mesh->faces[bface_index];
+    bface->center.x = cell->center.x - distance * normal.x;
+    bface->center.y = cell->center.y - distance * normal.y;
+    bface->center.z = cell->center.z - distance * normal.z;
     mesh_add_face_to_cell(mesh, bface, cell);
+
+    // Add the boundary face to our list of boundary faces, too.
+    int_slist_append(bface_list, bface_index);
+
+    // Set up a plane to represent this face.
+    if (plane == NULL)
+      plane = plane_new(&normal, &bface->center);
+    else
+      plane_reset(plane, &normal, &bface->center);
 
     // Add boundary nodes where they intersect the boundary face.
     int num_outer_edges = outer_cell_edges[outer_cell_edge_offset++];
     node_t* face_nodes[num_outer_edges];
     for (int e = 0; e < num_outer_edges; ++e, ++outer_cell_edge_offset)
     {
-      edge_t* outer_edge = &mesh->edges[outer_cell_edges[outer_cell_edge_offset + e]];
+      int outer_edge_index = outer_cell_edges[outer_cell_edge_offset + e];
+      edge_t* outer_edge = &mesh->edges[outer_edge_index];
       ASSERT(outer_edge->node2 == NULL);
+
+      // Retrieve the ray going out to infinity from this edge's one node.
+      vector_t* ray = *int_ptr_unordered_map_get(ray_map, bface_index);
 
       // Add a new node to the mesh and attach it to the edge.
       int bnode_index = mesh_add_node(mesh);
@@ -273,22 +297,16 @@ mesh_t* bounded_voronoi(point_t* generators, int num_generators,
       // Set the node's position by intersecting the outer edge with the 
       // boundary face. 
       point_t x0 = {.x = outer_edge->node1->x, .y = outer_edge->node1->y, .z = outer_edge->node1->z};
-      // FIXME: Where do we get the ray components?
-      vector_t t;
-      double s = plane_intersect_with_line(plane, &x0, &t);
-      bnode->x = x0.x + s*t.x;
-      bnode->y = x0.x + s*t.y;
-      bnode->z = x0.x + s*t.z;
+      double s = plane_intersect_with_line(plane, &x0, ray);
+      bnode->x = x0.x + s*ray->x;
+      bnode->y = x0.x + s*ray->y;
+      bnode->z = x0.x + s*ray->z;
 
       // Jot down the node for use below.
       face_nodes[e] = bnode;
     }
 
     // Project the nodes to 2D coordinates in the plane.
-    if (plane == NULL)
-      plane = plane_new(&normal, &bface->center);
-    else
-      plane_reset(plane, &normal, &bface->center);
     double points[2*num_outer_edges];
     int first_node = mesh->num_nodes - num_outer_edges;
     for (int n = first_node; n < mesh->num_nodes; ++n)
@@ -312,8 +330,23 @@ mesh_t* bounded_voronoi(point_t* generators, int num_generators,
       edge_t* edge = &mesh->edges[bedge_index];
       edge->node1 = &mesh->nodes[first_node + node_order[e]];
       edge->node2 = &mesh->nodes[first_node + node_order[(e+1)%num_outer_edges]];
+      mesh_add_edge_to_face(mesh, edge, bface);
     }
+    // Now compute the face areas.
+
   }
+
+  // Tag our boundary faces.
+  int* boundary_faces = mesh_create_tag(mesh->face_tags, "boundary_faces", bface_list->size);
+  int bfoffset = 0;
+  for (int_slist_node_t* n = bface_list->front; n != NULL; n = n->next)
+    boundary_faces[bfoffset++] = n->value;
+
+  // Remove the "outer_rays" property from the mesh.
+  mesh_delete_property(mesh, "outer_rays");
+
+  // Clean up.
+  int_slist_free(bface_list);
 
   return mesh;
 }

@@ -334,6 +334,15 @@ void mesh_tag_delete_property(mesh_tags_t* tagger, const char* tag, const char* 
     mesh_tags_data_property_map_delete((*tag_data_p)->properties, (char*)property);
 }
 
+void mesh_rename_tag(mesh_tags_t* tagger, const char* old_tag, const char* new_tag)
+{
+  if (mesh_tags_data_map_contains(tagger->data, (char*)old_tag))
+  {
+    char* old_key = mesh_tags_data_map_change_key(tagger->data, (char*)old_tag, (char*)new_tag);
+    free(old_key);
+  }
+}
+
 void mesh_delete_tag(mesh_tags_t* tagger, const char* tag)
 {
   mesh_tags_data_map_delete(tagger->data, (char*)tag);
