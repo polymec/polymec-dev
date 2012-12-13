@@ -466,7 +466,7 @@ static void advect_init(void* context, double t)
   a->num_species = st_func_num_comp(a->initial_cond);
   if (a->species_diffusivities != NULL)
   {
-    free(a->species_sources);
+    free(a->species_diffusivities);
     free(a->species_sources);
   }
   a->species_diffusivities = malloc(sizeof(st_func_t*)*a->num_species);
