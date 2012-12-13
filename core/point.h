@@ -14,6 +14,21 @@ typedef struct
   double x, y, z;
 } point_t;
 
+// Creates a new point with the given coordinates. Not necessary if you 
+// are allocating a point on the stack.
+static inline point_t* point_new(double x, double y, double z)
+{
+  point_t* p = malloc(sizeof(point_t));
+  p->x = x, p->y = y, p->z = z;
+  return p;
+}
+
+// Destroys a point that has been allocated on the heap.
+static inline void point_free(point_t* p)
+{
+  free(p);
+}
+
 // Square distance between two points in 3D space.
 static inline double point_square_distance(point_t* x, point_t* y)
 {
@@ -39,6 +54,21 @@ typedef struct
 {
   double x, y, z;
 } vector_t;
+
+// Creates a new vector with the given components. Not necessary if you 
+// are allocating a vector on the stack.
+static inline vector_t* vector_new(double vx, double vy, double vz)
+{
+  vector_t* v = malloc(sizeof(vector_t));
+  v->x = vx, v->y = vy, v->z = vz;
+  return v;
+}
+
+// Destroys a vector that has been allocated on the heap.
+static inline void vector_free(vector_t* v)
+{
+  free(v);
+}
 
 // Vector dot product.
 static inline double vector_dot(vector_t* v1, vector_t* v2)

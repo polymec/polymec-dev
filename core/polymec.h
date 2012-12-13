@@ -31,6 +31,10 @@
 #define UNUSED_ARG(x) (void)(x)
 #endif
 
+// This converts a destructor function for a specific type to a generic
+// void (*dtor)(void*) destructor.
+#define DTOR(x) ((void (*)(void*))(x))
+
 // Here's a macro that fills an array with the given values.
 #define FILL_ARRAY(array, start, num, val) \
 for (int i = start; i < start + num; ++i) \
