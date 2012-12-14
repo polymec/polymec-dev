@@ -15,8 +15,14 @@ extern "C" {
 
 void voronoi_tessellation_free(voronoi_tessellation_t* tessellation)
 {
+  for (int c = 0; c < tessellation->num_cells; ++c)
+    free(tessellation->cells[c].faces);
   free(tessellation->cells);
+
+  for (int f = 0; f < tessellation->num_faces; ++f)
+    free(tessellation->faces[f].edges);
   free(tessellation->faces);
+
   free(tessellation->edges);
   free(tessellation->nodes);
   free(tessellation);
@@ -66,13 +72,14 @@ voronoi_tessellator_tessellate(voronoi_tessellator_t* tessellator,
   memcpy(in.pointlist, points, sizeof(double)*3*in.numberofpoints);
 
   // Tetrahedralize. Command line options are:
+  // Q          -- Quiet, no output to terminal (shaddap, Tetgen!).
   // v          -- Generate a Voronoi tessellation.
   // B, N, E, F -- Suppress the generation of boundary, node, edge, face files.
   // C          -- Perform a consistency check on the final mesh.
   tetgenio out;
   out.initialize();
-  tetrahedralize((char*)"vBNEFC", &in, &out, NULL, NULL);
-  ASSERT(out.numberofvcells == (num_generators + num_ghost_generators));
+  tetrahedralize((char*)"QvBNEFC", &in, &out, NULL, NULL);
+  ASSERT(out.numberofvcells == num_points);
 
   // Copy stuff to a fresh tessellation object.
   voronoi_tessellation_t* t = voronoi_tessellation_new(out.numberofvcells, 
@@ -85,7 +92,7 @@ voronoi_tessellator_tessellate(voronoi_tessellator_t* tessellator,
   for (int i = 0; i < t->num_edges; ++i)
   {
     t->edges[i].node1 = out.vedgelist[i].v1;
-    t->edges[i].node2 = out.vedgelist[i].v1;
+    t->edges[i].node2 = out.vedgelist[i].v2;
     if (t->edges[i].node2 == -1) // node2 is a "ghost"
     {
       t->edges[i].ray[0] = out.vedgelist[i].vnormal[0];
@@ -101,6 +108,7 @@ voronoi_tessellator_tessellate(voronoi_tessellator_t* tessellator,
     t->faces[i].cell2 = out.vfacetlist[i].c2;
     int Ne = out.vfacetlist[i].elist[0];
     t->faces[i].num_edges = Ne;
+    t->faces[i].edges = (int*)malloc(sizeof(int)*Ne);
     for (int j = 0; j < Ne; ++j)
       t->faces[i].edges[j] = out.vfacetlist[i].elist[j+1];
   }
@@ -110,6 +118,7 @@ voronoi_tessellator_tessellate(voronoi_tessellator_t* tessellator,
   {
     int Nf = out.vcelllist[i][0];
     t->cells[i].num_faces = Nf;
+    t->cells[i].faces = (int*)malloc(sizeof(int)*Nf);
     for (int f = 0; f < Nf; ++f)
       t->cells[i].faces[f] = out.vcelllist[i][f+1];
   }
