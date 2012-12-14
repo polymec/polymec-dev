@@ -150,9 +150,9 @@ typedef struct
 // number generator must generate an integer between 0 and RAND_MAX.
 static inline void point_randomize(point_t* point, long (*rand_gen)(), bbox_t* bounding_box)
 {
-  point->x = (rand_gen()/RAND_MAX) * (bounding_box->x2 - bounding_box->x1) + bounding_box->x1;
-  point->y = (rand_gen()/RAND_MAX) * (bounding_box->y2 - bounding_box->y1) + bounding_box->y1;
-  point->z = (rand_gen()/RAND_MAX) * (bounding_box->z2 - bounding_box->z1) + bounding_box->z1;
+  point->x = (1.0*rand_gen()/RAND_MAX) * (bounding_box->x2 - bounding_box->x1) + bounding_box->x1;
+  point->y = (1.0*rand_gen()/RAND_MAX) * (bounding_box->y2 - bounding_box->y1) + bounding_box->y1;
+  point->z = (1.0*rand_gen()/RAND_MAX) * (bounding_box->z2 - bounding_box->z1) + bounding_box->z1;
 }
 
 // This type allows us to distinguish between normal vectors that are 
