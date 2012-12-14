@@ -117,11 +117,12 @@ mesh_t* create_unbounded_voronoi_mesh(point_t* generators, int num_generators,
   }
 
   // Face <-> edge/cell connectivity.
-  for (int i = 0; i < mesh->num_faces; ++i)
+  for (int f = 0; f < mesh->num_faces; ++f)
   {
-    int Ne = tessellation->faces[i].num_edges;
-    for (int j = 0; j < Ne; ++j)
-      mesh_add_edge_to_face(mesh, &mesh->edges[tessellation->faces[i].edges[j]], &mesh->faces[i]);
+    int Ne = tessellation->faces[f].num_edges;
+    for (int e = 0; e < Ne; ++e)
+      mesh_add_edge_to_face(mesh, &mesh->edges[tessellation->faces[f].edges[e]], &mesh->faces[f]);
+    ASSERT(mesh->faces[f].num_edges == Ne);
   }
 
   // Cell <-> face connectivity.
@@ -156,32 +157,36 @@ mesh_t* create_unbounded_voronoi_mesh(point_t* generators, int num_generators,
       }
     }
   }
-  // Tag the outer cells as such.
-  ASSERT(num_outer_cells > 0);
-  int* outer_cell_tag = mesh_create_tag(mesh->cell_tags, "outer_cells", num_outer_cells);
-  int_avl_tree_node_t* root = outer_cells->root;
-  tag_append_entry_t appender = {.array = outer_cell_tag, .index = 0};
-  int_avl_tree_node_visit(root, &append_to_tag, &appender);
 
-  // Finally, we create properties on the outer_edges and outer_cells tags 
-  // that associate one with the other.
-  int* oce = malloc(sizeof(int) * (num_outer_cells + num_outer_edges));
-  int oce_offset = 0, oe_offset = 0;
-  for (int i = 0; i < num_outer_cells; ++i)
+  if (num_outer_edges > 0)
   {
-    oce[oce_offset++] = num_outer_edges_in_cell[i];
-    for (int f = 0; f < mesh->cells[i].num_faces; ++f)
+    // Tag the outer cells as such.
+    ASSERT(num_outer_cells > 0);
+    int* outer_cell_tag = mesh_create_tag(mesh->cell_tags, "outer_cells", num_outer_cells);
+    int_avl_tree_node_t* root = outer_cells->root;
+    tag_append_entry_t appender = {.array = outer_cell_tag, .index = 0};
+    int_avl_tree_node_visit(root, &append_to_tag, &appender);
+
+    // Finally, we create properties on the outer_edges and outer_cells tags 
+    // that associate one with the other.
+    int* oce = malloc(sizeof(int) * (num_outer_cells + num_outer_edges));
+    int oce_offset = 0, oe_offset = 0;
+    for (int i = 0; i < num_outer_cells; ++i)
     {
-      int faceid = tessellation->cells[i].faces[f];
-      for (int e = 0; e < mesh->faces[f].num_edges; ++e)
+      oce[oce_offset++] = num_outer_edges_in_cell[i];
+      for (int f = 0; f < mesh->cells[i].num_faces; ++f)
       {
-        int edgeid = tessellation->faces[faceid].edges[e];
-        if (tessellation->edges[edgeid].node2 == -1)
-          oce[oce_offset++] = outer_edge_tag[oe_offset++];
+        int faceid = tessellation->cells[i].faces[f];
+        for (int e = 0; e < tessellation->faces[faceid].num_edges; ++e)
+        {
+          int edgeid = tessellation->faces[faceid].edges[e];
+          if (tessellation->edges[edgeid].node2 == -1)
+            oce[oce_offset++] = outer_edge_tag[oe_offset++];
+        }
       }
     }
+    mesh_tag_set_property(mesh->cell_tags, "outer_cells", "outer_edges", oce, free);
   }
-  mesh_tag_set_property(mesh->edge_tags, "outer_cells", "outer_edges", oce, free);
   
   // Clean up.
   int_avl_tree_free(outer_cells);
