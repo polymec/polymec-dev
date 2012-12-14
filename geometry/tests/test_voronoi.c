@@ -42,7 +42,7 @@ void test_create_unbounded_voronoi_mesh(void** state)
 
   // Probabilistic algorithm.
   int num_sample_pts = 300;
-  prob_cvt_gen_t* prob = prob_cvt_gen_new(num_sample_pts, 0.5, 0.5);
+  prob_cvt_gen_t* prob = prob_cvt_gen_new(random, num_sample_pts, 0.5, 0.5);
   double one = 1.0;
   sp_func_t* density = constant_sp_func_new(1, &one); // Constant density.
 
@@ -76,7 +76,7 @@ void test_create_cylindrical_voronoi_mesh(void** state)
 
   // Probabilistic algorithm.
   int num_sample_pts = 300;
-  prob_cvt_gen_t* prob = prob_cvt_gen_new(num_sample_pts, 0.5, 0.5);
+  prob_cvt_gen_t* prob = prob_cvt_gen_new(random, num_sample_pts, 0.5, 0.5);
   double one = 1.0;
   sp_func_t* density = constant_sp_func_new(1, &one); // Constant density.
 
