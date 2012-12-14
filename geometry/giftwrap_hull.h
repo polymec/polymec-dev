@@ -14,6 +14,10 @@ extern "C" {
 // convex hull is stored in count.
 void giftwrap_hull(double* points, int num_points, int* indices, int* count);
 
+// This version of giftwrap_hull also computes the area of the convex hull 
+// using the fan algorithm.
+void giftwrap_hull_with_area(double* points, int num_points, int* indices, int* count, double* area);
+
 #ifdef __cplusplus
 }
 #endif

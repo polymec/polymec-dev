@@ -318,8 +318,9 @@ mesh_t* bounded_voronoi(point_t* generators, int num_generators,
     // Now use the Giftwrap algorithm to find an ordering of the nodes for a
     // convex face. For the moment, we fail if not all the nodes appear on 
     // the convex hull (meaning we've got a non-convex face!).
+    // NOTE: This version of giftwrap_hull also computes the area of the convex face.
     int node_order[num_outer_edges], count;
-    giftwrap_hull(points, num_outer_edges, node_order, &count);
+    giftwrap_hull_with_area(points, num_outer_edges, node_order, &count, &bface->area);
     if (count < num_outer_edges)
       polymec_error("bounded_voronoi: boundary face %d for cell %d is non-convex!", bface_index, outer_cells[i]);
 
@@ -332,8 +333,6 @@ mesh_t* bounded_voronoi(point_t* generators, int num_generators,
       edge->node2 = &mesh->nodes[first_node + node_order[(e+1)%num_outer_edges]];
       mesh_add_edge_to_face(mesh, edge, bface);
     }
-    // Now compute the face areas.
-
   }
 
   // Tag our boundary faces.
