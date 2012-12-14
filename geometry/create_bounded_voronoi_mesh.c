@@ -1,8 +1,3 @@
-#include "geometry/voronoi.h"
-#include "mpi.h"
-#include "ctetgen.h"
-#include "petscdmcomplex.h"
-#include "core/avl_tree.h"
 #include "core/unordered_map.h"
 #include "core/slist.h"
 #include "core/edit_mesh.h"

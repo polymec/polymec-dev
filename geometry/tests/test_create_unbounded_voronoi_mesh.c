@@ -9,24 +9,6 @@
 #include "create_unbounded_voronoi_mesh.h"
 #include "vtk_plot_io.h"
 
-static void plot_voronoi_mesh(mesh_t* mesh, const char* filename)
-{
-  // Plot it.
-  io_interface_t* plot = vtk_plot_io_new(MPI_COMM_SELF, 0, false);
-  io_open(plot, filename, ".", IO_WRITE);
-  io_dataset_t* dataset = io_dataset_new("default");
-  io_dataset_put_mesh(dataset, mesh);
-  double ones[mesh->num_cells];
-  for (int c = 0; c < mesh->num_cells; ++c)
-    ones[c] = 1.0*c;
-  io_dataset_put_field(dataset, "solution", ones, 1, MESH_CELL, true);
-  io_append_dataset(plot, dataset);
-  io_close(plot);
-
-  // Clean up.
-  io_free(plot);
-}
-
 void test_create_unbounded_voronoi_mesh(void** state)
 {
   unsigned int seed = 1;
