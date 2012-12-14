@@ -30,6 +30,17 @@ set(TRIANGLE_CFLAGS "-DTRILIBRARY -DREDUCED -DCDT_ONLY -DANSI_DECLARATORS -DREAL
 set_target_properties(triangle PROPERTIES COMPILE_FLAGS ${TRIANGLE_CFLAGS})
 set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};triangle)
 
+# Build Tetgen.
+if (NOT EXISTS ${PROJECT_BINARY_DIR}/include/tetgen.h)
+  execute_process(COMMAND cmake -E tar xzvf ${CMAKE_CURRENT_SOURCE_DIR}/tetgen1.4.3.tar.gz
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+  file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/tetgen1.4.3/tetgen.h DESTINATION ${PROJECT_BINARY_DIR}/include)
+endif()
+add_library(tetgen ${CMAKE_CURRENT_BINARY_DIR}/tetgen1.4.3/tetgen.cxx ${CMAKE_CURRENT_BINARY_DIR}/tetgen1.4.3/predicates.cxx)
+set(TRIANGLE_CFLAGS "-DTETLIBRARY -DREDUCED -DCDT_ONLY -DANSI_DECLARATORS -DREAL=double -Dexactinit=triangle_exactinit -Dfast_expansion_sum_zeroelem=triangle_fast_expansion_sum_zeroelem -Dscale_expansion_zeroelim=triangle_scale_expansion_zeroelim -Destimate=triangle_estimate -Dorient3dadapt=triangle_orient3dadapt -Dorient3d=triangle_orient3d -Dincircle=triangle_incircle")
+set_target_properties(triangle PROPERTIES COMPILE_FLAGS ${TRIANGLE_CFLAGS})
+set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};triangle)
+
 # Install zeromq.
 #if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libzmq.a)
 #  set(ZMQ_CONFIG_OPTS --prefix=${PROJECT_BINARY_DIR} --enable-static --disable-shared)
@@ -98,11 +109,12 @@ set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};arena)
 #set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};tommyds)
 
 # Install PETSc.
+# NOTE: ctetgen is not yet ready for primetime!
 if (NOT EXISTS ${CMAKE_BINARY_DIR}/lib/libpetsc.a)
   set(PETSC_CONFIG_OPTS PETSC_DIR=${CMAKE_CURRENT_BINARY_DIR}/petsc-3.3-p5 PETSC_ARCH=${CMAKE_BUILD_TYPE} --prefix=${CMAKE_BINARY_DIR} --CC=${CMAKE_C_COMPILER} --CFLAGS=${CMAKE_C_FLAGS} --with-mpi=${USE_MPI})
   set(PETSC_CONFIG_OPTS ${PETSC_CONFIG_OPTS} --with-fortran=0)
   set(PETSC_CONFIG_OPTS ${PETSC_CONFIG_OPTS} --with-x=0)
-  set(PETSC_CONFIG_OPTS ${PETSC_CONFIG_OPTS} --download-ctetgen=yes)
+#  set(PETSC_CONFIG_OPTS ${PETSC_CONFIG_OPTS} --download-ctetgen=yes)
   # This is broken:
   #set(PETSC_CONFIG_OPTS ${PETSC_CONFIG_OPTS} --download-triangle=yes)
 #  set(PETSC_CONFIG_OPTS ${PETSC_CONFIG_OPTS} --download-sundials=yes)
@@ -122,9 +134,9 @@ if (NOT EXISTS ${CMAKE_BINARY_DIR}/lib/libpetsc.a)
 endif()
 add_library(petsc STATIC IMPORTED)
 set_target_properties(petsc PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libpetsc.a)
-add_library(ctetgen STATIC IMPORTED)
-set_target_properties(ctetgen PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libctetgen.a)
-set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};petsc;ctetgen)
+#add_library(ctetgen STATIC IMPORTED)
+#set_target_properties(ctetgen PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libctetgen.a)
+set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};petsc)
 
 # Find HDF5 if we're building a serial version (PETSc is unable to do this for us).
 if (USE_MPI EQUAL 0)
