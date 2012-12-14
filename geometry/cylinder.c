@@ -30,9 +30,16 @@ static void cyl_eval_gradient(void* ctx, point_t* x, double* result)
   point_displacement(&c->x, x, &disp);
   vector_cross(&disp, &c->d, &rad_disp); // Right??
   double D = vector_mag(&rad_disp);
-  result[0] = sign * rad_disp.x / D;
-  result[1] = sign * rad_disp.y / D;
-  result[2] = sign * rad_disp.z / D;
+  if (D == 0.0)
+  {
+    result[0] = result[1] = result[2] = 0.0;
+  }
+  else
+  {
+    result[0] = sign * rad_disp.x / D;
+    result[1] = sign * rad_disp.y / D;
+    result[2] = sign * rad_disp.z / D;
+  }
 }
 
 sp_func_t* cylinder_new(vector_t* d, point_t* x, double r, normal_orient_t normal_orientation)
