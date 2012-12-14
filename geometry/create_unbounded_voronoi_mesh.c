@@ -187,7 +187,98 @@ mesh_t* create_unbounded_voronoi_mesh(point_t* generators, int num_generators,
     }
     mesh_tag_set_property(mesh->cell_tags, "outer_cells", "outer_edges", oce, free);
   }
-  
+
+  // ---------------
+  //  Mesh geometry
+  // ---------------
+
+  // Compute cell centers and face centers for the non-outer cells, knowing that all 
+  // of them are convex.
+  for (int c = 0; c < mesh->num_cells; ++c)
+  {
+    if (int_avl_tree_find(outer_cells, c) != NULL) continue;
+
+    cell_t* cell = &mesh->cells[c];
+    cell->center.x = cell->center.y = cell->center.z = 0.0;
+    int num_cell_nodes = 0;
+    for (int f = 0; f < cell->num_faces; ++f)
+    {
+      face_t* face = cell->faces[f];
+      point_t face_center = {.x = 0.0, .y = 0.0, .z = 0.0};
+      for (int e = 0; e < face->num_edges; ++e)
+      {
+        // Note that we're double-counting nodes here.
+        edge_t* edge = face->edges[e];
+
+        cell->center.x += edge->node1->x;
+        cell->center.y += edge->node1->y;
+        cell->center.z += edge->node1->z;
+        cell->center.x += edge->node2->x;
+        cell->center.y += edge->node2->y;
+        cell->center.z += edge->node2->z;
+
+        face_center.x += edge->node1->x;
+        face_center.y += edge->node1->y;
+        face_center.z += edge->node1->z;
+        face_center.x += edge->node2->x;
+        face_center.y += edge->node2->y;
+        face_center.z += edge->node2->z;
+
+      }
+      face_center.x /= (2.0 * face->num_edges);
+      face_center.y /= (2.0 * face->num_edges);
+      face_center.z /= (2.0 * face->num_edges);
+      num_cell_nodes += face->num_edges;
+
+      // Only the primal cell of a face computes its center.
+      if (cell == face->cell1)
+        point_copy(&face->center, &face_center);
+    }
+    cell->center.x /= (2.0 * num_cell_nodes);
+    cell->center.y /= (2.0 * num_cell_nodes);
+    cell->center.z /= (2.0 * num_cell_nodes);
+  }
+
+  // Use the preceding geometry to compute face areas and cell volumes.
+  for (int c = 0; c < mesh->num_cells; ++c)
+  {
+    if (int_avl_tree_find(outer_cells, c) != NULL) continue;
+
+    cell_t* cell = &mesh->cells[c];
+    cell->volume = 0.0;
+    for (int f = 0; f < cell->num_faces; ++f)
+    {
+      face_t* face = cell->faces[f];
+      double face_area = 0.0;
+      for (int e = 0; e < face->num_edges; ++e)
+      {
+        edge_t* edge = face->edges[e];
+
+        // Construct a tetrahedron whose vertices are the cell center, 
+        // the face center, and the two nodes of this edge. The volume 
+        // of this tetrahedron contributes to the cell volume.
+        vector_t v1, v2, v3, v2xv3;
+        point_displacement(&face->center, &cell->center, &v1);
+        point_t xn1 = {.x = edge->node1->x, .y = edge->node1->y, .z = edge->node1->z};
+        point_t xn2 = {.x = edge->node2->x, .y = edge->node2->y, .z = edge->node2->z};
+        point_displacement(&face->center, &xn1, &v2);
+        point_displacement(&face->center, &xn2, &v3);
+        vector_cross(&v2, &v3, &v2xv3);
+        double tet_volume = vector_dot(&v1, &v2xv3);
+        cell->volume += tet_volume;
+
+        // Now take the face of the tet whose vertices are the face center 
+        // and the two nodes. The area of this tet contributes to the 
+        // face's area.
+        double tri_area = vector_mag(&v2xv3);
+        face_area += tri_area;
+      }
+      // Only the primal cell of a face computes its area.
+      if (cell == face->cell1)
+        face->area = face_area;
+    }
+  }
+
   // Clean up.
   int_avl_tree_free(outer_cells);
   int_avl_tree_free(outer_edges);

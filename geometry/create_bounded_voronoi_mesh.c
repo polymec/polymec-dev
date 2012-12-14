@@ -49,6 +49,7 @@ mesh_t* create_bounded_voronoi_mesh(point_t* generators, int num_generators,
   for (int i = 0; i < num_outer_cells; ++i)
   {
     cell_t* cell = &mesh->cells[outer_cells[i]];
+
     // Compute the displacement vector from the cell center to the boundary.
     // (The normal vector for the boundary is the negation of the gradient.)
     double distance;
