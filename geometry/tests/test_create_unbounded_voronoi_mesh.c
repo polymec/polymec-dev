@@ -6,7 +6,7 @@
 #include "constant_st_func.h"
 #include "prob_cvt_gen.h"
 #include "cylinder.h"
-#include "voronoi.h"
+#include "create_unbounded_voronoi_mesh.h"
 #include "vtk_plot_io.h"
 
 static void plot_voronoi_mesh(mesh_t* mesh, const char* filename)
@@ -61,55 +61,12 @@ void test_create_unbounded_voronoi_mesh(void** state)
   mesh_free(mesh);
 }
 
-void test_create_cylindrical_voronoi_mesh(void** state)
-{
-  unsigned int seed = 1;
-  srandom(seed);
-
-  // Create a cylindrical Voronoi mesh with N generators within a
-  // bounding box. We generate an initial distribution randomly.
-  int N = 2000;
-  point_t generators[N];
-  bbox_t bbox = {.x1 = -1.0, .x2 = 1.0, .y1 = -1.0, .y2 = 1.0, .z1 = -1.0, .z2 = 1.0};
-  for (int i = 0; i < N; ++i)
-    point_randomize(&generators[i], random, &bbox);
-
-  // Probabilistic algorithm.
-  int num_sample_pts = 300;
-  prob_cvt_gen_t* prob = prob_cvt_gen_new(random, num_sample_pts, 0.5, 0.5);
-  double one = 1.0;
-  sp_func_t* density = constant_sp_func_new(1, &one); // Constant density.
-
-  // Boundary function.
-  vector_t zhat = {0.0, 0.0, 1.0};
-  point_t origin = {0.0, 0.0, 0.0};
-  sp_func_t* cylinder = cylinder_new(&zhat, &origin, 0.5, INWARD_NORMAL);
-
-  // Iterate 100 times to find the right generator distribution.
-  int max_iter = 100;
-  prob_cvt_gen_iterate(prob, density, cylinder, &bbox, 
-                       terminate_prob_cvt_at_iter(max_iter),
-                       generators, N);
-
-  // Now generate the mesh.
-  mesh_t* mesh = create_bounded_voronoi_mesh(generators, N, NULL, 0, cylinder);
-  mesh_verify(mesh);
-  assert_int_equal(N, mesh->num_cells);
-  assert_int_equal(0, mesh->num_ghost_cells);
-
-  // Plot the thing.
-  plot_voronoi_mesh(mesh, "cylinder");
-
-  mesh_free(mesh);
-}
-
 int main(int argc, char* argv[]) 
 {
   polymec_init(argc, argv);
   const UnitTest tests[] = 
   {
-    unit_test(test_create_unbounded_voronoi_mesh),
-    unit_test(test_create_cylindrical_voronoi_mesh)
+    unit_test(test_create_unbounded_voronoi_mesh)
   };
   return run_tests(tests);
 }

@@ -32,10 +32,12 @@ else ()
   endif ()
 endif ()
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${SYS_FLAGS}")
+set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} ${SYS_FLAGS}")
 
 # General compiler flags.
 if (CMAKE_C_COMPILER_ID STREQUAL "GNU")
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c99 -Wall -Wextra -Werror-implicit-function-declaration")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Werror-implicit-function-declaration")
 
   # Warning suppressants.
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-sign-compare -Wno-unused-parameter -Wno-int-to-pointer-cast -Wno-pointer-to-int-cast")
@@ -47,6 +49,7 @@ if (USE_MPI EQUAL 1)
   set(MPIEXEC mpirun)
   set(MPIEXEC_NUMPROC_FLAG -np)
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DHAVE_MPI")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DHAVE_MPI")
 else()
   set(USE_MPI 0)
 endif ()
