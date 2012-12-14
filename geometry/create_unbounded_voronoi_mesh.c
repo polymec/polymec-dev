@@ -9,12 +9,17 @@
 extern "C" {
 #endif
 
+typedef struct 
+{
+  int* array;
+  int index;
+} tag_append_entry_t;
+
 // This AVL node visitor appends the tree's data to a tag.
 static void append_to_tag(int_avl_tree_node_t* node, void* p)
 {
-  int* tag_p = (int*)p;
-  *tag_p = (int)node->value;
-  ++tag_p;
+  tag_append_entry_t* entry = (tag_append_entry_t*)p;
+  entry->array[entry->index++] = node->value;
 }
 
 static void destroy_ray_map_entry(int key, void* value)
@@ -88,12 +93,13 @@ mesh_t* create_unbounded_voronoi_mesh(point_t* generators, int num_generators,
   }
 
   // Tag the outer edges as such.
+  int* outer_edge_tag = NULL;
   if (num_outer_edges > 0)
   {
-    int* outer_edge_tag = mesh_create_tag(mesh->edge_tags, "outer_edges", num_outer_edges);
+    outer_edge_tag = mesh_create_tag(mesh->edge_tags, "outer_edges", num_outer_edges);
+    tag_append_entry_t appender = {.array = outer_edge_tag, .index = 0};
     int_avl_tree_node_t* root = outer_edges->root;
-    int* tag_p = outer_edge_tag;
-    int_avl_tree_node_visit(root, &append_to_tag, tag_p);
+    int_avl_tree_node_visit(root, &append_to_tag, &appender);
 
     // Outer edges have vector-valued "rays" that point from their node1 out
     // to infinity. We will create a map from outer edge indices to these rays.
@@ -102,7 +108,7 @@ mesh_t* create_unbounded_voronoi_mesh(point_t* generators, int num_generators,
     for (int i = 0; i < num_outer_edges; ++i)
     {
       int j = outer_edge_tag[i];
-      ASSERT(tessellation.edges[j].node2 == -1);
+      ASSERT(tessellation->edges[j].node2 == -1);
       vector_t* ray = vector_new(tessellation->edges[j].ray[0],
                                  tessellation->edges[j].ray[1],
                                  tessellation->edges[j].ray[2]);
@@ -113,23 +119,20 @@ mesh_t* create_unbounded_voronoi_mesh(point_t* generators, int num_generators,
   // Face <-> edge/cell connectivity.
   for (int i = 0; i < mesh->num_faces; ++i)
   {
-    mesh->faces[i].cell1 = &mesh->cells[tessellation->faces[i].cell1];
-    mesh->faces[i].cell2 = &mesh->cells[tessellation->faces[i].cell2];
     int Ne = tessellation->faces[i].num_edges;
-    mesh->faces[i].num_edges = Ne;
     for (int j = 0; j < Ne; ++j)
       mesh_add_edge_to_face(mesh, &mesh->edges[tessellation->faces[i].edges[j]], &mesh->faces[i]);
   }
 
   // Cell <-> face connectivity.
   // Also, find and tag the "outer cells", which are the cells 
-  // attached to outer edges.
+  // attached to outer edges. 
   int_avl_tree_t* outer_cells = int_avl_tree_new();
-  int num_outer_cells = 0;
+  int num_outer_cells = 0, num_outer_edges_in_cell[mesh->num_cells];
   for (int i = 0; i < mesh->num_cells; ++i)
   {
     int Nf = tessellation->cells[i].num_faces;
-    mesh->cells[i].num_faces = Nf;
+    num_outer_edges_in_cell[i] = 0;
     for (int f = 0; f < Nf; ++f)
     {
       int faceid = tessellation->cells[i].faces[f];
@@ -138,13 +141,17 @@ mesh_t* create_unbounded_voronoi_mesh(point_t* generators, int num_generators,
       for (int e = 0; e < face->num_edges; ++e)
       {
         int edgeid = tessellation->faces[faceid].edges[e];
-        if (int_avl_tree_find(outer_edges, edgeid) != NULL)
+        if (tessellation->edges[edgeid].node2 == -1)
         {
           // We found an outer edge attached to this cell, which 
-          // makes it an outer cell
-          int_avl_tree_insert(outer_cells, i);
-          ++num_outer_cells;
-          break;
+          // makes it an outer cell.
+          if (num_outer_edges_in_cell[i] == 0)
+          {
+            ++num_outer_cells;
+            int_avl_tree_insert(outer_cells, i);
+          }
+          num_outer_edges++;
+          num_outer_edges_in_cell[i]++;
         }
       }
     }
@@ -153,52 +160,30 @@ mesh_t* create_unbounded_voronoi_mesh(point_t* generators, int num_generators,
   ASSERT(num_outer_cells > 0);
   int* outer_cell_tag = mesh_create_tag(mesh->cell_tags, "outer_cells", num_outer_cells);
   int_avl_tree_node_t* root = outer_cells->root;
-  int* tag_p = outer_cell_tag;
-  int_avl_tree_node_visit(root, &append_to_tag, tag_p);
+  tag_append_entry_t appender = {.array = outer_cell_tag, .index = 0};
+  int_avl_tree_node_visit(root, &append_to_tag, &appender);
 
   // Finally, we create properties on the outer_edges and outer_cells tags 
   // that associate one with the other.
-  int_slist_t* outer_cell_edges = int_slist_new();
+  int* oce = malloc(sizeof(int) * (num_outer_cells + num_outer_edges));
+  int oce_offset = 0, oe_offset = 0;
   for (int i = 0; i < num_outer_cells; ++i)
   {
-    int num_edges = 0;
-    int_slist_node_t* pos = outer_cell_edges->back;
+    oce[oce_offset++] = num_outer_edges_in_cell[i];
     for (int f = 0; f < mesh->cells[i].num_faces; ++f)
     {
       int faceid = tessellation->cells[i].faces[f];
       for (int e = 0; e < mesh->faces[f].num_edges; ++e)
       {
         int edgeid = tessellation->faces[faceid].edges[e];
-        if (int_avl_tree_find(outer_edges, edgeid) != NULL)
-        {
-          int_slist_append(outer_cell_edges, edgeid);
-          ++num_edges;
-        }
+        if (tessellation->edges[edgeid].node2 == -1)
+          oce[oce_offset++] = outer_edge_tag[oe_offset++];
       }
     }
-    pos = pos->next;
-    int_slist_insert(outer_cell_edges, num_edges, pos);
   }
+  mesh_tag_set_property(mesh->edge_tags, "outer_cells", "outer_edges", oce, free);
   
-  // Add 'outer_edges' as a property of the outer_cells.
-  int* oce = malloc(outer_cell_edges->size*sizeof(double));
-  mesh_tag_set_property(mesh->edge_tags, "outer_cells", "outer_edges", outer_cell_edges, free);
-  int offset = 0;
-  for (int_slist_node_t* n = outer_cell_edges->front; n != NULL;)
-  {
-    // Read the number of edges for the cell.
-    int num_edges = n->value;
-    n = n->next;
-    oce[offset++] = num_edges;
-    for (int e = 0; e < num_edges; ++e)
-    {
-      oce[offset++] = n->value;
-      n = n->next;
-    }
-  }
-
   // Clean up.
-  int_slist_free(outer_cell_edges);
   int_avl_tree_free(outer_cells);
   int_avl_tree_free(outer_edges);
   voronoi_tessellation_free(tessellation);
