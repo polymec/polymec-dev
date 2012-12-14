@@ -26,7 +26,7 @@ static void destroy_ray_map_entry(int key, void* value)
   vector_free(v);
 }
 
-mesh_t* unbounded_voronoi(point_t* generators, int num_generators, 
+mesh_t* create_unbounded_voronoi_mesh(point_t* generators, int num_generators, 
                           point_t* ghost_generators, int num_ghost_generators)
 {
   ASSERT(generators != NULL);
@@ -210,21 +210,22 @@ mesh_t* unbounded_voronoi(point_t* generators, int num_generators,
   return mesh;
 }
 
-mesh_t* bounded_voronoi(point_t* generators, int num_generators,
-                        point_t* ghost_generators, int num_ghost_generators,
-                        sp_func_t* boundary)
+mesh_t* create_bounded_voronoi_mesh(point_t* generators, int num_generators,
+                                    point_t* ghost_generators, int num_ghost_generators,
+                                    sp_func_t* boundary)
 {
   ASSERT(generators != NULL);
   ASSERT(num_generators >= 1); 
   ASSERT(num_ghost_generators >= 0); 
   ASSERT(boundary != NULL); 
-  ASSERT(sp_func_num_comps(boundary) == 1); 
+  ASSERT(sp_func_num_comp(boundary) == 1); 
 
   // Create an unbounded Voronoi tessellation.
-  mesh_t* mesh = unbounded_voronoi(generators, num_generators,
-                                   ghost_generators, num_ghost_generators);
+  mesh_t* mesh = create_unbounded_voronoi_mesh(generators, num_generators,
+                                               ghost_generators, num_ghost_generators);
   ASSERT(mesh_has_tag(mesh->cell_tags, "outer_cells"));
-  ASSERT(mesh_has_property(mesh, "outer_rays"));
+  ASSERT(mesh_tag_property(mesh->cell_tags, "outer_cells", "outer_edges") != NULL);
+  ASSERT(mesh_property(mesh, "outer_rays") != NULL);
 
   // Before we do anything else, search for nodes that fall outside of the 
   // given boundary. These can occur when the domain is not simply connected.
@@ -235,7 +236,6 @@ mesh_t* bounded_voronoi(point_t* generators, int num_generators,
   int num_outer_cells;
   int* outer_cells = mesh_tag(mesh->cell_tags, "outer_cells", &num_outer_cells);
   int* outer_cell_edges = mesh_tag_property(mesh->cell_tags, "outer_cells", "outer_edges");
-  ASSERT(outer_cell_edges != NULL);
   int_ptr_unordered_map_t* ray_map = mesh_property(mesh, "outer_rays");
 
   // Project each of the centers of the boundary cells to the boundary, 
