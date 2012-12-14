@@ -93,9 +93,7 @@ static void choose_sample_points(sp_func_t* density,
       double Fp;
       do
       {
-        p->x = (random()/RAND_MAX) * (bounding_box->x2 - bounding_box->x1) + bounding_box->x1;
-        p->y = (random()/RAND_MAX) * (bounding_box->y2 - bounding_box->y1) + bounding_box->y1;
-        p->z = (random()/RAND_MAX) * (bounding_box->z2 - bounding_box->z1) + bounding_box->z1;
+        point_randomize(p, random, bounding_box);
         sp_func_eval(boundary, p, &Fp);
       }
       while (Fp >= 0.0);
@@ -106,12 +104,7 @@ static void choose_sample_points(sp_func_t* density,
   else
   {
     for (int i = 0; i < num_points; ++i)
-    {
-      point_t* p = &points[i];
-      p->x = (random()/RAND_MAX) * (bounding_box->x2 - bounding_box->x1) + bounding_box->x1;
-      p->y = (random()/RAND_MAX) * (bounding_box->y2 - bounding_box->y1) + bounding_box->y1;
-      p->z = (random()/RAND_MAX) * (bounding_box->z2 - bounding_box->z1) + bounding_box->z1;
-    }
+      point_randomize(&points[i], random, bounding_box);
   }
 }
 
@@ -182,8 +175,7 @@ void prob_cvt_gen_iterate(prob_cvt_gen_t* prob,
       if (nearest->size > 0)
       {
         point_t ui = {.x = 0.0, .y = 0.0, .z = 0.0};
-        ptr_slist_node_t* node = nearest->front;
-        while (node != nearest->back)
+        for (ptr_slist_node_t* node = nearest->front; node != NULL; node = node->next)
         {
           point_t* pos = node->value;
           ui.x += pos->x;

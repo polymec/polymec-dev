@@ -107,7 +107,7 @@ void point_set_free(point_set_t* pset)
 
 static void node_insert(point_set_node_t** node_ptr, double* pos, int index, int dir)
 {
-  if (node_ptr == NULL)
+  if (*node_ptr == NULL)
   {
     *node_ptr = node_new(pos, index, dir);
     return;

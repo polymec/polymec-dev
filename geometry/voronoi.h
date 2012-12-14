@@ -16,15 +16,15 @@ extern "C" {
 // these cells are semi-infinite, having one node each, and are tagged as 
 // "outer_edges". These tags can be used to intersect the mesh with a 
 // boundary function to form a closed domain.
-mesh_t* unbounded_voronoi(point_t* generators, int num_generators, 
-                          point_t* ghost_generators, int num_ghost_generators);
+mesh_t* create_unbounded_voronoi_mesh(point_t* generators, int num_generators, 
+                                      point_t* ghost_generators, int num_ghost_generators);
 
 // Creates a Voronoi tessellation of the given generator points in 
 // three-dimensional space, bounded by an isosurface for which the given 
 // "boundary" signed-distance function assumes the value zero.
-mesh_t* bounded_voronoi(point_t* generators, int num_generators,
-                        point_t* ghost_generators, int num_ghost_generators,
-                        sp_func_t* boundary);
+mesh_t* create_bounded_voronoi_mesh(point_t* generators, int num_generators,
+                                    point_t* ghost_generators, int num_ghost_generators,
+                                    sp_func_t* boundary);
 
 #if 0
 // This function intersects the given Voronoi tessellation (mesh) with the 
