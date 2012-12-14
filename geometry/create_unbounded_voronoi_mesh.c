@@ -1,15 +1,13 @@
-// Welcome to create_unbounded_voronoi_mesh.cpp, one of the only C++ files 
-// in the Polymec source code. This code uses Tetgen, which is a C++ library 
-// for creating Delaunay tetrahedralizations of domains.
-
-#include "geometry/create_unbounded_voronoi_mesh.h"
-#include "tetgen.h"
 #include "core/avl_tree.h"
 #include "core/unordered_map.h"
 #include "core/slist.h"
 #include "core/edit_mesh.h"
+#include "geometry/create_unbounded_voronoi_mesh.h"
+#include "geometry/voronoi_tessellator.h"
 
+#ifdef __cplusplus
 extern "C" {
+#endif
 
 // This AVL node visitor appends the tree's data to a tag.
 static void append_to_tag(int_avl_tree_node_t* node, void* p)
@@ -32,47 +30,41 @@ mesh_t* create_unbounded_voronoi_mesh(point_t* generators, int num_generators,
   ASSERT(num_generators >= 2);
   ASSERT(num_ghost_generators >= 0);
 
-  // Set Tetgen's options. We desire a Voronoi mesh.
-  tetgenio in;
-  in.initialize();
-  in.numberofpoints = num_generators + num_ghost_generators;
-  in.pointlist = malloc(sizeof(double)*3*in.numberofpoints);
+  // Gather the points to be tessellated.
+  int num_points = num_generators + num_ghost_generators;
+  double points[3*num_points];
   for (int i = 0; i < num_generators; ++i)
   {
-    in.pointlist[3*i]   = generators[i].x;
-    in.pointlist[3*i+1] = generators[i].y;
-    in.pointlist[3*i+2] = generators[i].z;
+    points[3*i]   = generators[i].x;
+    points[3*i+1] = generators[i].y;
+    points[3*i+2] = generators[i].z;
   }
   for (int i = num_generators; i < num_generators + num_ghost_generators; ++i)
   {
     int j = i - num_generators;
-    in.pointlist[3*i]   = ghost_generators[j].x;
-    in.pointlist[3*i+1] = ghost_generators[j].y;
-    in.pointlist[3*i+2] = ghost_generators[j].z;
+    points[3*i]   = ghost_generators[j].x;
+    points[3*i+1] = ghost_generators[j].y;
+    points[3*i+2] = ghost_generators[j].z;
   }
 
-  // Tetrahedralize. Command line options are:
-  // v          -- Generate a Voronoi tessellation.
-  // B, N, E, F -- Suppress the generation of boundary, node, edge, face files.
-  // C          -- Perform a consistency check on the final mesh.
-  tetgenio out;
-  out.initialize();
-  tetrahedralize("vBNEFC", &in, &out);
-  ASSERT(out.numberofvcells == (num_generators + num_ghost_generators));
+  // Perform the tessellation.
+  voronoi_tessellator_t* tessellator = voronoi_tessellator_new();
+  voronoi_tessellation_t* tessellation = voronoi_tessellator_tessellate(tessellator, points, num_points);
+  ASSERT(tessellation->num_cells == (num_generators + num_ghost_generators));
 
   // Construct the Voronoi graph.
   mesh_t* mesh = mesh_new(num_generators,
                           num_ghost_generators,
-                          out.numberofvfacets,
-                          out.numberofvedges,
-                          out.numberofvpoints);
+                          tessellation->num_faces,
+                          tessellation->num_edges,
+                          tessellation->num_nodes);
   
   // Node coordinates.
   for (int i = 0; i < mesh->num_nodes; ++i)
   {
-    mesh->nodes[i].x = out.vpointlist[3*i];
-    mesh->nodes[i].y = out.vpointlist[3*i+1];
-    mesh->nodes[i].z = out.vpointlist[3*i+2];
+    mesh->nodes[i].x = tessellation->nodes[3*i];
+    mesh->nodes[i].y = tessellation->nodes[3*i+1];
+    mesh->nodes[i].z = tessellation->nodes[3*i+2];
   }
 
   // Edge <-> node connectivity.
@@ -81,8 +73,8 @@ mesh_t* create_unbounded_voronoi_mesh(point_t* generators, int num_generators,
   int num_outer_edges = 0;
   for (int i = 0; i < mesh->num_edges; ++i)
   {
-    mesh->edges[i].node1 = &mesh->nodes[out.vedgelist[i].v1];
-    int n2 = out.vedgelist[i].v2; // -1 if ghost
+    mesh->edges[i].node1 = &mesh->nodes[tessellation->edges[i].node1];
+    int n2 = tessellation->edges[i].node2; // -1 if ghost
     if (n2 == -1)
     {
       int_avl_tree_insert(outer_edges, i);
@@ -110,10 +102,10 @@ mesh_t* create_unbounded_voronoi_mesh(point_t* generators, int num_generators,
     for (int i = 0; i < num_outer_edges; ++i)
     {
       int j = outer_edge_tag[i];
-      ASSERT(out.vedgelist[j].v2 == -1);
-      vector_t* ray = vector_new(out.vedgelist[j].vnormal[0],
-                                 out.vedgelist[j].vnormal[1],
-                                 out.vedgelist[j].vnormal[2]);
+      ASSERT(tessellation.edges[j].node2 == -1);
+      vector_t* ray = vector_new(tessellation->edges[j].ray[0],
+                                 tessellation->edges[j].ray[1],
+                                 tessellation->edges[j].ray[2]);
       int_ptr_unordered_map_insert_with_dtor(ray_map, j, ray, destroy_ray_map_entry);
     }
   }
@@ -121,12 +113,12 @@ mesh_t* create_unbounded_voronoi_mesh(point_t* generators, int num_generators,
   // Face <-> edge/cell connectivity.
   for (int i = 0; i < mesh->num_faces; ++i)
   {
-    mesh->faces[i].cell1 = &mesh->cells[out.vfacetlist[i].c1];
-    mesh->faces[i].cell2 = &mesh->cells[out.vfacetlist[i].c2];
-    int Ne = out.vfacetlist[i].elist[0];
+    mesh->faces[i].cell1 = &mesh->cells[tessellation->faces[i].cell1];
+    mesh->faces[i].cell2 = &mesh->cells[tessellation->faces[i].cell2];
+    int Ne = tessellation->faces[i].num_edges;
     mesh->faces[i].num_edges = Ne;
     for (int j = 0; j < Ne; ++j)
-      mesh_add_edge_to_face(mesh, &mesh->edges[out.vfacetlist[i].elist[j+1]], &mesh->faces[i]);
+      mesh_add_edge_to_face(mesh, &mesh->edges[tessellation->faces[i].edges[j]], &mesh->faces[i]);
   }
 
   // Cell <-> face connectivity.
@@ -136,16 +128,16 @@ mesh_t* create_unbounded_voronoi_mesh(point_t* generators, int num_generators,
   int num_outer_cells = 0;
   for (int i = 0; i < mesh->num_cells; ++i)
   {
-    int Nf = out.vcelllist[i][0];
+    int Nf = tessellation->cells[i].num_faces;
     mesh->cells[i].num_faces = Nf;
     for (int f = 0; f < Nf; ++f)
     {
-      int faceid = out.vcelllist[i][f+1];
+      int faceid = tessellation->cells[i].faces[f];
       face_t* face = &mesh->faces[faceid];
       mesh_add_face_to_cell(mesh, face, &mesh->cells[i]);
       for (int e = 0; e < face->num_edges; ++e)
       {
-        int edgeid = out.vfacetlist[faceid].elist[e+1];
+        int edgeid = tessellation->faces[faceid].edges[e];
         if (int_avl_tree_find(outer_edges, edgeid) != NULL)
         {
           // We found an outer edge attached to this cell, which 
@@ -173,10 +165,10 @@ mesh_t* create_unbounded_voronoi_mesh(point_t* generators, int num_generators,
     int_slist_node_t* pos = outer_cell_edges->back;
     for (int f = 0; f < mesh->cells[i].num_faces; ++f)
     {
-      int faceid = out.vcelllist[i][f+1];
+      int faceid = tessellation->cells[i].faces[f];
       for (int e = 0; e < mesh->faces[f].num_edges; ++e)
       {
-        int edgeid = out.vfacetlist[faceid].elist[e+1];
+        int edgeid = tessellation->faces[faceid].edges[e];
         if (int_avl_tree_find(outer_edges, edgeid) != NULL)
         {
           int_slist_append(outer_cell_edges, edgeid);
@@ -187,7 +179,7 @@ mesh_t* create_unbounded_voronoi_mesh(point_t* generators, int num_generators,
     pos = pos->next;
     int_slist_insert(outer_cell_edges, num_edges, pos);
   }
-
+  
   // Add 'outer_edges' as a property of the outer_cells.
   int* oce = malloc(outer_cell_edges->size*sizeof(double));
   mesh_tag_set_property(mesh->edge_tags, "outer_cells", "outer_edges", outer_cell_edges, free);
@@ -209,9 +201,12 @@ mesh_t* create_unbounded_voronoi_mesh(point_t* generators, int num_generators,
   int_slist_free(outer_cell_edges);
   int_avl_tree_free(outer_cells);
   int_avl_tree_free(outer_edges);
+  voronoi_tessellation_free(tessellation);
 
   return mesh;
 }
 
+#ifdef __cplusplus
 }
+#endif
 

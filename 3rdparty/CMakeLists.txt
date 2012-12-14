@@ -37,9 +37,9 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/include/tetgen.h)
   file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/tetgen1.4.3/tetgen.h DESTINATION ${PROJECT_BINARY_DIR}/include)
 endif()
 add_library(tetgen ${CMAKE_CURRENT_BINARY_DIR}/tetgen1.4.3/tetgen.cxx ${CMAKE_CURRENT_BINARY_DIR}/tetgen1.4.3/predicates.cxx)
-set(TRIANGLE_CFLAGS "-DTETLIBRARY -DREDUCED -DCDT_ONLY -DANSI_DECLARATORS -DREAL=double -Dexactinit=triangle_exactinit -Dfast_expansion_sum_zeroelem=triangle_fast_expansion_sum_zeroelem -Dscale_expansion_zeroelim=triangle_scale_expansion_zeroelim -Destimate=triangle_estimate -Dorient3dadapt=triangle_orient3dadapt -Dorient3d=triangle_orient3d -Dincircle=triangle_incircle")
-set_target_properties(triangle PROPERTIES COMPILE_FLAGS ${TRIANGLE_CFLAGS})
-set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};triangle)
+set(TETGEN_CXXFLAGS "-DTETLIBRARY -DREAL=double")
+set_target_properties(tetgen PROPERTIES COMPILE_FLAGS ${TETGEN_CXXFLAGS})
+set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};tetgen)
 
 # Install zeromq.
 #if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libzmq.a)
