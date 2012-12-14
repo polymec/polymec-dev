@@ -23,6 +23,7 @@ typedef struct prob_cvt_gen_term_t prob_cvt_gen_term_t;
 
 // Creates a new probabilistic CVT generator algorithm with the following 
 // parameters:
+// random_gen  - A function that returns a random integer between 0 and RAND_MAX.
 // num_samples - The number of sampling points used in an iteration to correct
 //               each generator position.
 // alpha, beta - Coefficients for the generator position correction algorithm,
@@ -37,7 +38,7 @@ typedef struct prob_cvt_gen_term_t prob_cvt_gen_term_t;
 //               voronoi region of generator i, and ji is an iteration index
 //               that forces the algorithm to converge by weighting either 
 //               zi or ui more and more as the iteration number increases.
-prob_cvt_gen_t* prob_cvt_gen_new(int num_samples, double alpha, double beta);
+prob_cvt_gen_t* prob_cvt_gen_new(long (*random_gen)(), int num_samples, double alpha, double beta);
 
 // Given an initial set of generator points, move them around according to 
 // the algorithm described above until termination critierion (provided by 

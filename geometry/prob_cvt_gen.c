@@ -11,9 +11,10 @@ struct prob_cvt_gen_t
 {
   int q; // Number of sample points.
   double alpha1, beta1, alpha2, beta2; // Algorithm coefficients.
+  long (*rng)(); // Random number generator.
 };
 
-prob_cvt_gen_t* prob_cvt_gen_new(int num_samples, double alpha, double beta)
+prob_cvt_gen_t* prob_cvt_gen_new(long (*random_gen)(), int num_samples, double alpha, double beta)
 {
   ASSERT(num_samples > 0);
   ASSERT(alpha >= 0.0);
@@ -26,6 +27,7 @@ prob_cvt_gen_t* prob_cvt_gen_new(int num_samples, double alpha, double beta)
   prob->alpha2 = 1.0 - alpha;
   prob->beta1 = beta;
   prob->beta2 = 1.0 - beta;
+  prob->rng = random_gen;
   return prob;
 }
 
@@ -73,7 +75,8 @@ static bool iteration_terminated(prob_cvt_gen_term_t* term, point_t* points, int
   return term->terminate(term->context, points, num_points, iteration);
 }
 
-static void choose_sample_points(sp_func_t* density,
+static void choose_sample_points(long (*rng)(),
+                                 sp_func_t* density,
                                  sp_func_t* boundary,
                                  bbox_t* bounding_box,
                                  point_t* points,
@@ -93,7 +96,7 @@ static void choose_sample_points(sp_func_t* density,
       double Fp;
       do
       {
-        point_randomize(p, random, bounding_box);
+        point_randomize(p, rng, bounding_box);
         sp_func_eval(boundary, p, &Fp);
       }
       while (Fp >= 0.0);
@@ -104,7 +107,7 @@ static void choose_sample_points(sp_func_t* density,
   else
   {
     for (int i = 0; i < num_points; ++i)
-      point_randomize(&points[i], random, bounding_box);
+      point_randomize(&points[i], rng, bounding_box);
   }
 }
 
@@ -134,11 +137,6 @@ void prob_cvt_gen_iterate(prob_cvt_gen_t* prob,
   double alpha2 = prob->alpha2;
   double beta2 = prob->beta2;
 
-  // Set the random seed.
-  // FIXME: This should probably be made more adjustable.
-  unsigned int seed = 10;
-  srandom(seed);
-
   // Iterate until termination.
   point_set_t* pset = point_set_new();
   while (!iteration_terminated(termination, points, num_points, iter))
@@ -152,7 +150,7 @@ void prob_cvt_gen_iterate(prob_cvt_gen_t* prob,
     // Choose q points from within the domain according to the density 
     // function.
     point_t samples[prob->q];
-    choose_sample_points(density, boundary, bounding_box, samples, prob->q);
+    choose_sample_points(prob->rng, density, boundary, bounding_box, samples, prob->q);
 
     // Now organize the sample points into Voronoi regions of the points
     // in our point set.
@@ -170,10 +168,10 @@ void prob_cvt_gen_iterate(prob_cvt_gen_t* prob,
     {
       ptr_slist_t* nearest = near_points[i];
 
-      // Compute the average, ui, of the sample points in the Voronoi region.
       point_t* zi = &points[i];
       if (nearest->size > 0)
       {
+        // Compute the average, ui, of the sample points in the Voronoi region.
         point_t ui = {.x = 0.0, .y = 0.0, .z = 0.0};
         for (ptr_slist_node_t* node = nearest->front; node != NULL; node = node->next)
         {

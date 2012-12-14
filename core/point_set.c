@@ -7,7 +7,7 @@ extern "C" {
 #ifdef SQ
 #undef SQ
 #endif
-#define SQ(x) (x*x)
+#define SQ(x) ((x)*(x))
 #define SQ_DIST(x, y) (SQ(x[0]-y[0]) + SQ(x[1]-y[1]) + SQ(x[2]-y[2]))
 
 // The point set is an embellished kd-tree with k = 3.
@@ -204,7 +204,7 @@ static void find_nearest(point_set_node_t* node, double* pos, point_set_node_t**
     *far_coord = node->pos[dir];
     if (rect_square_dist(rect, pos) < *r2)
       find_nearest(far_subtree, pos, result, r2, rect);
-    *near_coord = coord;
+    *far_coord = coord;
   }
 }
 
