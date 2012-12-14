@@ -4,7 +4,17 @@
 extern "C" {
 #endif
 
+static inline double triangle_area(double x1, double y1, double x2, double y2, double x3, double y3)
+{
+  return 0.5 * ((x2 - x1) * (y3 - y1) - (x3 - x1) * (y2 - y1));
+}
+
 void giftwrap_hull(double* points, int num_points, int* indices, int* count)
+{
+  giftwrap_hull_with_area(points, num_points, indices, count, NULL);
+}
+
+void giftwrap_hull_with_area(double* points, int num_points, int* indices, int* count, double *area)
 {
   *count = 0;
 
@@ -58,6 +68,19 @@ void giftwrap_hull(double* points, int num_points, int* indices, int* count)
   // don't form a polygon.
   ASSERT((num_points <= 2) || 
          ((num_points > 2) && (*count > 2)));
+
+  if (area == NULL) return;
+
+  // Compute the area using the fan algorithm.
+  *area = 0.0;
+  double x0 = points[0], y0 = points[1];
+  for (int j = 1; j < *count - 1; ++j)
+  {
+    // Form a triangle from vertex 0, vertex j, and vertex j+1.
+    double xj = points[2*j], yj = points[2*j+1],
+           xj1 = points[2*(j+1)], yj1 = points[2*(j+1)+1];
+    *area += triangle_area(x0, y0, xj, yj, xj1, yj1);
+  }
 }
 
 #ifdef __cplusplus
