@@ -1,6 +1,7 @@
 #include "geometry/voronoi.h"
 #include "mpi.h"
 #include "ctetgen.h"
+#include "petscdmcomplex.h"
 #include "core/avl_tree.h"
 #include "core/unordered_map.h"
 #include "core/slist.h"
@@ -27,24 +28,45 @@ static void destroy_ray_map_entry(int key, void* value)
 }
 
 mesh_t* create_unbounded_voronoi_mesh(point_t* generators, int num_generators, 
-                          point_t* ghost_generators, int num_ghost_generators)
+                                      point_t* ghost_generators, int num_ghost_generators)
 {
   ASSERT(generators != NULL);
   ASSERT(num_generators >= 2);
   ASSERT(num_ghost_generators >= 0);
 
   // Set Tetgen's options. We desire a Voronoi mesh.
+  DM boundary;
+  DMComplexCreate(MPI_COMM_WORLD, &boundary);
   TetGenOpts opts;
   TetGenOptsInitialize(&opts);
+  opts.in = boundary;
   opts.voroout = 1;
+  opts.zeroindex = 1;
+  opts.noelewritten = 1;
+  opts.nofacewritten = 1;
+  opts.nonodewritten = 1;
+  opts.quiet = 1;
+//  opts.docheck = 1;  // Not implemented by PETSc!
+  TetGenCheckOpts(&opts);
 
   // Allocate an input PLC with all the generators.
   PLC* in;
   PLCCreate(&in);
   in->numberofpoints = num_generators + num_ghost_generators;
   PetscMalloc(3*in->numberofpoints*sizeof(double), &in->pointlist);
-  memcpy(in->pointlist, (double*)generators, 3*num_generators);
-  memcpy(&in->pointlist[3*num_generators], (double*)ghost_generators, 3*num_ghost_generators);
+  for (int i = 0; i < num_generators; ++i)
+  {
+    in->pointlist[3*i]   = generators[i].x;
+    in->pointlist[3*i+1] = generators[i].y;
+    in->pointlist[3*i+2] = generators[i].z;
+  }
+  for (int i = num_generators; i < num_generators + num_ghost_generators; ++i)
+  {
+    int j = i - num_generators;
+    in->pointlist[3*i]   = ghost_generators[j].x;
+    in->pointlist[3*i+1] = ghost_generators[j].y;
+    in->pointlist[3*i+2] = ghost_generators[j].z;
+  }
 
   // Allocate storage for the output PLC, which will store the 
   // tetrahedra and Voronoi polyhedra.
