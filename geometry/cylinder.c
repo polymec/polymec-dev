@@ -31,9 +31,7 @@ static void cyl_eval_gradient(void* ctx, point_t* x, double* result)
   vector_cross(&disp, &c->d, &rad_disp); // Right??
   double D = vector_mag(&rad_disp);
   if (D == 0.0)
-  {
     result[0] = result[1] = result[2] = 0.0;
-  }
   else
   {
     result[0] = sign * rad_disp.x / D;
