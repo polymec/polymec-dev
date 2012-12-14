@@ -203,7 +203,7 @@ static void find_nearest(point_set_node_t* node, double* pos, point_set_node_t**
     double coord = *far_coord;
     *far_coord = node->pos[dir];
     if (rect_square_dist(rect, pos) < *r2)
-      find_nearest(near_subtree, pos, result, r2, rect);
+      find_nearest(far_subtree, pos, result, r2, rect);
     *near_coord = coord;
   }
 }
