@@ -192,13 +192,13 @@ mesh_t* create_unbounded_voronoi_mesh(point_t* generators, int num_generators,
   //  Mesh geometry
   // ---------------
 
-  // Compute cell centers and face centers for the non-outer cells, knowing that all 
-  // of them are convex.
   for (int c = 0; c < mesh->num_cells; ++c)
   {
     if (int_avl_tree_find(outer_cells, c) != NULL) continue;
-
     cell_t* cell = &mesh->cells[c];
+
+    // Compute cell centers and face centers for the non-outer cell, 
+    // knowing that it's convex.
     cell->center.x = cell->center.y = cell->center.z = 0.0;
     int num_cell_nodes = 0;
     for (int f = 0; f < cell->num_faces; ++f)
@@ -237,14 +237,9 @@ mesh_t* create_unbounded_voronoi_mesh(point_t* generators, int num_generators,
     cell->center.x /= (2.0 * num_cell_nodes);
     cell->center.y /= (2.0 * num_cell_nodes);
     cell->center.z /= (2.0 * num_cell_nodes);
-  }
 
-  // Use the preceding geometry to compute face areas and cell volumes.
-  for (int c = 0; c < mesh->num_cells; ++c)
-  {
-    if (int_avl_tree_find(outer_cells, c) != NULL) continue;
-
-    cell_t* cell = &mesh->cells[c];
+    // Use the preceding geometry to compute face areas and the 
+    // cell's volume.
     cell->volume = 0.0;
     for (int f = 0; f < cell->num_faces; ++f)
     {
