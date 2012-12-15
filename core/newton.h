@@ -13,7 +13,7 @@ typedef void (*nonlinear_function_t)(void*, double, double*, double*);
 
 // This defines a vector-valued function that computes its value and 
 // Jacobian given a context. 
-typedef void (*nonlinear_vector_function_t)(void*, double, double*, double*);
+typedef void (*nonlinear_vector_function_t)(void*, double*, double*, double*);
 
 // Solve the nonlinear equation F(x) = 0 using Newton-Raphson iteration on 
 // the interval [min, max] using the initial estimate x, with the specified 

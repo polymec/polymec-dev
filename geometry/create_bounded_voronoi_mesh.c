@@ -1,6 +1,7 @@
 #include "core/unordered_map.h"
 #include "core/slist.h"
 #include "core/edit_mesh.h"
+#include "core/newton.h"
 #include "geometry/plane.h"
 #include "geometry/giftwrap_hull.h"
 #include "geometry/create_unbounded_voronoi_mesh.h"
@@ -8,6 +9,31 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+// This function and context help us compute the centroid of a boundary cell.
+typedef struct 
+{
+  // Interior faces of the boundary cell in question.
+  int num_interior_faces;
+  face_t* interior_faces;
+  // Outer faces.
+  int num_outer_faces;
+  face_t* outer_faces;
+  // Boundary function.
+  sp_func_t* boundary;
+  // Plane object for constructing the boundary face.
+  sp_func_t* plane;
+} cc_context_t;
+
+static void cc_function(void* context, double* X, double* F, double* dummy)
+{
+  cc_context_t* ctx = context;
+
+  // We are given the centroid position.
+  point_t xc = {.x = X[0], .y = X[1], .z = X[2]};
+
+  // FIXME
+}
 
 mesh_t* create_bounded_voronoi_mesh(point_t* generators, int num_generators,
                                     point_t* ghost_generators, int num_ghost_generators,
@@ -49,6 +75,21 @@ mesh_t* create_bounded_voronoi_mesh(point_t* generators, int num_generators,
   for (int i = 0; i < num_outer_cells; ++i)
   {
     cell_t* cell = &mesh->cells[outer_cells[i]];
+
+    // First, we compute the cell center for this cell. You may wonder how 
+    // we propose to do this for a semi-infinite cell. The answer is: 
+    // Picard iteration on a system of nonlinear equations! Exciting, no?
+    cc_context_t cc_ctx;
+    cc_ctx.num_interior_faces = 0;
+    // FIXME
+
+    // Initial stab at the cell center is the average of all the interior 
+    // face positions.
+    double xc[3];
+    // FIXME
+    double tolerance = 1e-5;
+    int max_iters = 10;
+    picard_solve_system(3, cc_function, &cc_ctx, xc, tolerance, max_iters);
 
     // Compute the displacement vector from the cell center to the boundary.
     // (The normal vector for the boundary is the negation of the gradient.)
