@@ -41,7 +41,7 @@ bool picard_solve(nonlinear_function_t F, void* context, double* x, double toler
 bool picard_solve_system(int dim, nonlinear_vector_function_t F, void* context, double* x, double tolerance, int max_iters)
 {
   double f[dim], J[dim*dim];
-  F(context, *x, f, J);
+  F(context, x, f, J);
   double l2f = 0.0;
   for (int i = 0; i < dim; ++i)
     l2f += (f[i]*f[i]);
@@ -51,7 +51,7 @@ bool picard_solve_system(int dim, nonlinear_vector_function_t F, void* context, 
   {
     for (int i = 0; i < dim; ++i)
       x[i] = f[i];
-    F(context, *x, f, J);
+    F(context, x, f, J);
     l2f = 0.0;
     for (int i = 0; i < dim; ++i)
       l2f += (f[i]*f[i]);
