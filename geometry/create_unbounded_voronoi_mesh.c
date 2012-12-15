@@ -203,8 +203,10 @@ mesh_t* create_unbounded_voronoi_mesh(point_t* generators, int num_generators,
     int num_cell_nodes = 0;
     for (int f = 0; f < cell->num_faces; ++f)
     {
+      // NOTE: Only the primal cell of a face computes its center.
       face_t* face = cell->faces[f];
-      point_t face_center = {.x = 0.0, .y = 0.0, .z = 0.0};
+      if (cell == face->cell1)
+        face->center.x = face->center.y = face->center.z = 0.0;
       for (int e = 0; e < face->num_edges; ++e)
       {
         // Note that we're double-counting nodes here.
@@ -217,22 +219,24 @@ mesh_t* create_unbounded_voronoi_mesh(point_t* generators, int num_generators,
         cell->center.y += edge->node2->y;
         cell->center.z += edge->node2->z;
 
-        face_center.x += edge->node1->x;
-        face_center.y += edge->node1->y;
-        face_center.z += edge->node1->z;
-        face_center.x += edge->node2->x;
-        face_center.y += edge->node2->y;
-        face_center.z += edge->node2->z;
-
+        if (cell == face->cell1)
+        {
+          face->center.x += edge->node1->x;
+          face->center.y += edge->node1->y;
+          face->center.z += edge->node1->z;
+          face->center.x += edge->node2->x;
+          face->center.y += edge->node2->y;
+          face->center.z += edge->node2->z;
+        }
       }
-      face_center.x /= (2.0 * face->num_edges);
-      face_center.y /= (2.0 * face->num_edges);
-      face_center.z /= (2.0 * face->num_edges);
+      if (cell == face->cell1)
+      {
+        face->center.x /= (2.0 * face->num_edges);
+        face->center.y /= (2.0 * face->num_edges);
+        face->center.z /= (2.0 * face->num_edges);
+      }
       num_cell_nodes += face->num_edges;
 
-      // Only the primal cell of a face computes its center.
-      if (cell == face->cell1)
-        point_copy(&face->center, &face_center);
     }
     cell->center.x /= (2.0 * num_cell_nodes);
     cell->center.y /= (2.0 * num_cell_nodes);
