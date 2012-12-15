@@ -142,28 +142,28 @@ mesh_t* create_bounded_voronoi_mesh(point_t* generators, int num_generators,
     // convex.
     for (int f = 0; f < cell->num_faces; ++f)
     {
-      face_t* face = cell->faces[f];
-      point_t face_center = {.x = 0.0, .y = 0.0, .z = 0.0};
-      for (int e = 0; e < face->num_edges; ++e)
-      {
-        // Note that we're double-counting nodes here.
-        edge_t* edge = face->edges[e];
-
-        face_center.x += edge->node1->x;
-        face_center.y += edge->node1->y;
-        face_center.z += edge->node1->z;
-        face_center.x += edge->node2->x;
-        face_center.y += edge->node2->y;
-        face_center.z += edge->node2->z;
-
-      }
-      face_center.x /= (2.0 * face->num_edges);
-      face_center.y /= (2.0 * face->num_edges);
-      face_center.z /= (2.0 * face->num_edges);
-
       // Only the primal cell of a face computes its center.
+      face_t* face = cell->faces[f];
       if (cell == face->cell1)
-        point_copy(&face->center, &face_center);
+      {
+        face->center.x = face->center.y = face->center.z = 0.0;
+        for (int e = 0; e < face->num_edges; ++e)
+        {
+          // Note that we're double-counting nodes here.
+          edge_t* edge = face->edges[e];
+
+          face->center.x += edge->node1->x;
+          face->center.y += edge->node1->y;
+          face->center.z += edge->node1->z;
+          face->center.x += edge->node2->x;
+          face->center.y += edge->node2->y;
+          face->center.z += edge->node2->z;
+
+        }
+        face->center.x /= (2.0 * face->num_edges);
+        face->center.y /= (2.0 * face->num_edges);
+        face->center.z /= (2.0 * face->num_edges);
+      }
     }
 
     // Use the preceding face geometry to compute face areas and the volume 
