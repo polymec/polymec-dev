@@ -4,6 +4,8 @@
 extern "C" {
 #endif
 
+// NOTE: All LAPACK functions are implemented within the library, not here.
+
 void matrix_fprintf(double* matrix, int nr, int nc, FILE* stream)
 {
   fprintf(stream, "[");
@@ -38,30 +40,33 @@ double matrix3_det(double* matrix)
 
 void solve_2x2(double* A, double* b, double* x)
 {
+  double b0 = b[0], b1 = b[1];
   double inv_det_A = 1.0 / matrix2_det(A);
-  x[0] = inv_det_A * ( A[3]*b[0] - A[2]*b[1]);
-  x[1] = inv_det_A * (-A[1]*b[0] + A[0]*b[1]);
+  x[0] = inv_det_A * ( A[3]*b0 - A[2]*b1);
+  x[1] = inv_det_A * (-A[1]*b0 + A[0]*b1);
 }
 
 void solve_3x3(double* A, double* b, double* x)
 {
+  double b0 = b[0], b1 = b[1], b2 = b[2];
+
   // x = Ainv * b.
   double inv_det_A = 1.0 / matrix3_det(A);
 
   x[0] = inv_det_A * 
-         ((A[8]*A[4]-A[5]*A[7]) * b[0] - 
-          (A[8]*A[3]-A[5]*A[6]) * b[1] + 
-          (A[7]*A[3]-A[4]*A[6]) * b[2]);
+         ((A[8]*A[4]-A[5]*A[7]) * b0 - 
+          (A[8]*A[3]-A[5]*A[6]) * b1 + 
+          (A[7]*A[3]-A[4]*A[6]) * b2);
 
   x[1] = inv_det_A * 
-         (-(A[8]*A[1]-A[2]*A[7]) * b[0] +
-          (A[8]*A[0]-A[2]*A[6]) * b[1] -
-          (A[7]*A[0]-A[1]*A[6]) * b[2]);
+         (-(A[8]*A[1]-A[2]*A[7]) * b0 +
+           (A[8]*A[0]-A[2]*A[6]) * b1 -
+           (A[7]*A[0]-A[1]*A[6]) * b2);
 
   x[2] = inv_det_A * 
-         ((A[5]*A[1]-A[2]*A[4]) * b[0] -
-          (A[5]*A[0]-A[2]*A[3]) * b[1] +
-          (A[4]*A[0]-A[1]*A[3]) * b[2]);
+         ((A[5]*A[1]-A[2]*A[4]) * b0 -
+          (A[5]*A[0]-A[2]*A[3]) * b1 +
+          (A[4]*A[0]-A[1]*A[3]) * b2);
 }
 
 #ifdef __cplusplus

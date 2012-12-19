@@ -19,19 +19,39 @@ typedef struct
   // Outer faces.
   int num_outer_faces;
   face_t* outer_faces;
+
+  // Boundary cell.
+  cell_t* cell;
   // Boundary function.
   sp_func_t* boundary;
   // Plane object for constructing the boundary face.
   sp_func_t* plane;
-} cc_context_t;
+} find_face_center_context_t;
 
-static void cc_function(void* context, double* X, double* F, double* dummy)
+static void find_face_center(void* context, double* X, double* F)
 {
-  cc_context_t* ctx = context;
+  find_face_center_context_t* ctx = context;
 
-  // We are given the centroid position.
-  point_t xc = {.x = X[0], .y = X[1], .z = X[2]};
+  // We are given a guess for the boundary face center.
+  point_t xf = {.x = X[0], .y = X[1], .z = X[2]};
 
+  // Compute the normal vector for the boundary at the boundary face's
+  // position.
+  double grad[3];
+  sp_func_eval_deriv(ctx->boundary, 1, &xf, grad);
+  vector_t normal;
+  normal.x = -grad[0], normal.y = -grad[1], normal.z = -grad[2];
+  vector_normalize(&normal);
+
+  // Fashion a plane intersecting the face center and having the same normal.
+  // Set up a plane to represent this face.
+  if (ctx->plane == NULL)
+    ctx->plane = plane_new(&normal, &xf);
+  else
+    plane_reset(ctx->plane, &normal, &xf);
+
+  // The 
+  // 
   // FIXME
 }
 
@@ -76,47 +96,47 @@ mesh_t* create_bounded_voronoi_mesh(point_t* generators, int num_generators,
   {
     cell_t* cell = &mesh->cells[outer_cells[i]];
 
-    // First, we compute the cell center for this cell. You may wonder how 
-    // we propose to do this for a semi-infinite cell. The answer is: 
-    // Picard iteration on a system of nonlinear equations! Exciting, no?
-    cc_context_t cc_ctx;
-    cc_ctx.num_interior_faces = 0;
+    // We compute the coordinates of the center of the new boundary face 
+    // we wish to add using Newton iteration.
+
+    // Initialize the solver context with all the information it needs.
+    find_face_center_context_t ff_context;
+    ff_context.num_interior_faces = 0;
+    ff_context.num_outer_faces = 0;
+    ff_context.cell = cell;
+    for (int f = 0; f < cell->num_faces; ++f)
+    {
+      bool is_outer_face = false;
+      if (is_outer_face)
+      {
+      }
+    }
+    int if_offset = 0, of_offset = 0;
     // FIXME
 
-    // Initial stab at the cell center is the average of all the interior 
+    // Initial stab at the face center is the average of all the interior 
     // face positions.
-    double xc[3];
+    double xf[3];
     // FIXME
     double tolerance = 1e-5;
-    int max_iters = 10;
-    picard_solve_system(3, cc_function, &cc_ctx, xc, tolerance, max_iters);
+    int max_iters = 10, num_iters;
+    nonlinear_system_t sys = {.dim = 3, .compute_F = find_face_center, .context = (void*)&ff_context};
+    newton_solve_system(&sys, xf, tolerance, max_iters, &num_iters);
 
-    // Compute the displacement vector from the cell center to the boundary.
-    // (The normal vector for the boundary is the negation of the gradient.)
-    double distance;
-    sp_func_eval(boundary, &cell->center, &distance);
-    double grad[3];
-    sp_func_eval_deriv(boundary, 1, &cell->center, grad);
-    vector_t normal;
-    normal.x = -grad[0], normal.y = -grad[1], normal.z = -grad[2];
-    vector_normalize(&normal);
-
-    // Add a boundary face to the mesh.
+    // Add the boundary face to the mesh.
     int bface_index = mesh_add_face(mesh);
     face_t* bface = &mesh->faces[bface_index];
-    bface->center.x = cell->center.x - distance * normal.x;
-    bface->center.y = cell->center.y - distance * normal.y;
-    bface->center.z = cell->center.z - distance * normal.z;
+    bface->center.x = xf[0];
+    bface->center.y = xf[1];
+    bface->center.z = xf[2];
     mesh_add_face_to_cell(mesh, bface, cell);
+
+    // Extract the plane from the solver context.
+    ASSERT(ff_context.plane != NULL);
+    plane = ff_context.plane;
 
     // Add the boundary face to our list of boundary faces, too.
     int_slist_append(bface_list, bface_index);
-
-    // Set up a plane to represent this face.
-    if (plane == NULL)
-      plane = plane_new(&normal, &bface->center);
-    else
-      plane_reset(plane, &normal, &bface->center);
 
     // Add boundary nodes where they intersect the boundary face.
     int num_outer_edges = outer_cell_edges[outer_cell_edge_offset++];
@@ -205,6 +225,18 @@ mesh_t* create_bounded_voronoi_mesh(point_t* generators, int num_generators,
         face->center.z /= (2.0 * face->num_edges);
       }
     }
+
+    // The boundary cell center is just the average of its face centers.
+    for (int f = 0; f < cell->num_faces; ++f)
+    {
+      face_t* face = cell->faces[f];
+      cell->center.x += face->center.x;
+      cell->center.y += face->center.y;
+      cell->center.z += face->center.z;
+    }
+    cell->center.x /= cell->num_faces;
+    cell->center.y /= cell->num_faces;
+    cell->center.z /= cell->num_faces;
 
     // Use the preceding face geometry to compute face areas and the volume 
     // for this cell.
