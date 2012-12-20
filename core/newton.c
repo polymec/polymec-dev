@@ -280,6 +280,7 @@ bool newton_solve_system(nonlinear_system_t* system,
     // Now compute grad fmin = J * F.
     for (int i = 0; i < dim; ++i)
     {
+      grad_f[i] = 0.0;
       for (int j = 0; j < dim; ++j)
         grad_f[i] += J[dim*i+j] * F[j];
     }
@@ -297,9 +298,17 @@ bool newton_solve_system(nonlinear_system_t* system,
     if (dim == 1)
       p[0] /= J[0];
     else if (dim == 2)
+    {
+      if (matrix2_det(J) == 0.0)
+        polymec_error("newton_solve_system: det J == 0.");
       solve_2x2(J, p, p);
+    }
     else if (dim == 3)
+    {
+      if (matrix3_det(J) == 0.0)
+        polymec_error("newton_solve_system: det J == 0.");
       solve_3x3(J, p, p);
+    }
     else
     {
       static int one = 1;
