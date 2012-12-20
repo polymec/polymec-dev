@@ -117,7 +117,7 @@ static void estimate_jacobian(void* context, nonlinear_vector_function_t F, int 
     double h = eps*fabs(xj);
     if (h == 0.0)
       h = eps;
-    x[j] += xj + h; // Trick to reduce finite precision error.
+    x[j] = xj + h; // Trick to reduce finite precision error.
     h = x[j] - xj;
     F(context, x, f);
     x[j] = xj;
@@ -126,36 +126,42 @@ static void estimate_jacobian(void* context, nonlinear_vector_function_t F, int 
   }
 }
 
+static double f_min(double* F, int dim)
+{
+  double sum = 0.0;
+  for (int i = 0; i < dim; ++i)
+    sum += F[i]*F[i];
+  return 0.5*sum;
+}
+
 // This function provides line search capability for the multidimensional
 // root finders. Lifted from Numerical Recipes.
-static void line_search(nonlinear_system_t* system, double (*norm_func)(double*, int),
-                        double* x_old, double f_old, double* grad_old,
-                        double* dir, double* x, double* f, 
-                        double max_step, double tolerance,  
-                        bool* check_solution)
+static void line_search(nonlinear_system_t* system, 
+                        double* x_old, double f_old, double* grad_f,
+                        double* dir, double* x, double* F, double* f, 
+                        double max_step, bool* check_solution)
 {
-  ASSERT(system->dim > 1);
-  ASSERT(tolerance > 0.0);
-
+  static const double eps = 1e-12;
   static const double ALF = 1e-4; // Ensures sufficient decrease in F.
   *check_solution = false;
 
+  // Scale the direction vector for the step if necessary.
   int dim = system->dim;
-  double sum = 0.0;
+  double dir_mag = 0.0;
   for (int i = 0; i < dim; ++i)
-    sum += dir[i]*dir[i];
-  sum = sqrt(sum);
-  if (sum > max_step)
+    dir_mag += dir[i]*dir[i];
+  dir_mag = sqrt(dir_mag);
+  if (dir_mag > max_step)
   {
     for (int i = 0; i < dim; ++i)
-      dir[i] *= max_step/sum;
+      dir[i] *= max_step/dir_mag;
   }
 
   double slope = 0.0;
   for (int i = 0; i < dim; ++i)
-    slope += grad_old[i]*dir[i];
+    slope += grad_f[i]*dir[i];
   if (slope >= 0.0)
-    polymec_error("line_search: roundoff problem.");
+    polymec_error("line_search: roundoff problem (slope = %g).", slope);
 
   double test = 0.0;
   for (int i = 0; i < dim; ++i)
@@ -165,16 +171,16 @@ static void line_search(nonlinear_system_t* system, double (*norm_func)(double*,
       test = temp;
   }
 
-  double min_lambda = tolerance/test;
+  double min_lambda = eps/test;
   double lambda = 1.0, lambda2 = 0.0;
-  double f2 = 0.0, F[dim];
+  double f2 = 0.0;
   for (;;)
   {
     double temp_lambda;
     for (int i = 0; i < dim; ++i)
       x[i] = x_old[i] + lambda * dir[i];
     system->compute_F(system->context, x, F);
-    *f = norm_func(F, dim);
+    *f = f_min(F, dim);
     if (lambda < min_lambda)
     {
       for (int i = 0; i < dim; ++i)
@@ -183,7 +189,10 @@ static void line_search(nonlinear_system_t* system, double (*norm_func)(double*,
       return;
     }
     else if (*f <= f_old + ALF * lambda * slope) 
-      return; // Got it!
+    {
+      // Function f = 0.5 * F o F decreased sufficiently.
+      return; 
+    }
     else
     {
       if (lambda == 1.0)
@@ -227,7 +236,6 @@ bool newton_solve_system(nonlinear_system_t* system,
                          int *num_iters)
 {
   ASSERT(system->compute_F != NULL);
-  ASSERT(system->dim > 1);
 
   // Some fixed parameters.
   static const double MAX_STEP = 100.0;
@@ -239,7 +247,7 @@ bool newton_solve_system(nonlinear_system_t* system,
   double f, F[dim];
   {
     system->compute_F(system->context, x, F);
-    f = l2_norm(F, dim);
+    f = f_min(F, dim);
     double test = 0.0;
     for (int i = 0; i < dim; ++i)
       test = MAX(test, fabs(F[i]));
@@ -257,23 +265,23 @@ bool newton_solve_system(nonlinear_system_t* system,
   }
 
   // Iterate.
-  double f_old, x_old[dim], grad_F[dim], J[dim*dim], p[dim];
+  double f_old, x_old[dim], grad_f[dim], J[dim*dim], p[dim];
   int ipiv[dim];
   for (int iter = 0; iter < max_iters; ++iter)
   {
     (*num_iters)++; // Tick.
 
-    // Compute the Jacobian and the gradient for the line search.
+    // Compute the Jacobian for the line search.
     if (system->compute_J != NULL)
       system->compute_J(system->context, system->compute_F, dim, x, J);
     else
       estimate_jacobian(system->context, system->compute_F, dim, x, J);
+
+    // Now compute grad fmin = J * F.
     for (int i = 0; i < dim; ++i)
     {
-      double sum = 0.0;
       for (int j = 0; j < dim; ++j)
-        sum += J[dim*i+j] * F[j];
-      grad_F[i] += sum;
+        grad_f[i] += J[dim*i+j] * F[j];
     }
 
     // Store x and f, and set up the right hand side (p) for the linearized
@@ -286,7 +294,9 @@ bool newton_solve_system(nonlinear_system_t* system,
     f_old = f;
 
     // Solve the linear system, storing the solution in p.
-    if (dim == 2)
+    if (dim == 1)
+      p[0] /= J[0];
+    else if (dim == 2)
       solve_2x2(J, p, p);
     else if (dim == 3)
       solve_3x3(J, p, p);
@@ -300,8 +310,8 @@ bool newton_solve_system(nonlinear_system_t* system,
 
     // Now do a line search.
     bool check_solution = false;
-    line_search(system, l2_norm, x_old, f_old, grad_F, p, x, &f, max_step, 
-                tolerance, &check_solution);
+    line_search(system, x_old, f_old, grad_f, p, x, F, &f, max_step, 
+                &check_solution);
 
     // Test for convergence on function values.
     {
@@ -318,11 +328,11 @@ bool newton_solve_system(nonlinear_system_t* system,
       double den = MAX(f, 0.5*dim);
       for (int i = 0; i < dim; ++i)
       {
-        double temp = fabs(grad_F[i]) * MAX(fabs(x[i]), 1.0) / den;
+        double temp = fabs(grad_f[i]) * MAX(fabs(x[i]), 1.0) / den;
         if (temp > test)
           test = temp;
       }
-      return (test < tolerance);
+      return (test > tolerance);
     }
 
     // Test for convergence on dx.
