@@ -186,6 +186,7 @@ mesh_t* create_unbounded_voronoi_mesh(point_t* generators, int num_generators,
       outer_cell_tag[outer_cell_offset++] = i; 
       int* ocei = malloc(sizeof(int) * (1 + num_outer_edges_in_cell[i]));
       int_ptr_unordered_map_insert_with_dtor(oce, i, ocei, destroy_outer_cell_edges_map_entry);
+//printf("cell %d has %d outer edges\n", i, num_outer_edges_in_cell[i]);
       ocei[0] = num_outer_edges_in_cell[i];
       int ocei_offset = 1;
       for (int f = 0; f < mesh->cells[i].num_faces; ++f)
