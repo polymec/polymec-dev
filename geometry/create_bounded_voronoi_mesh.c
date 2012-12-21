@@ -1,3 +1,4 @@
+#include "core/unordered_set.h"
 #include "core/unordered_map.h"
 #include "core/slist.h"
 #include "core/edit_mesh.h"
@@ -104,7 +105,7 @@ mesh_t* create_bounded_voronoi_mesh(point_t* generators, int num_generators,
   mesh_t* mesh = create_unbounded_voronoi_mesh(generators, num_generators,
                                                ghost_generators, num_ghost_generators);
   ASSERT(mesh_has_tag(mesh->cell_tags, "outer_cells"));
-  ASSERT(mesh_tag_property(mesh->cell_tags, "outer_cells", "outer_edges") != NULL);
+  ASSERT(mesh_property(mesh, "outer_cell_edges") != NULL);
   ASSERT(mesh_property(mesh, "outer_rays") != NULL);
 
   // Before we do anything else, search for nodes that fall outside of the 
@@ -124,9 +125,9 @@ mesh_t* create_bounded_voronoi_mesh(point_t* generators, int num_generators,
   // For each face, the center position and the normal vector define a plane 
   // whose intersection with other face's corresponding planes defines the 
   // boundaries of the face.
-  int outer_cell_edge_offset = 0;
   sp_func_t* plane = NULL;
   int_slist_t* bface_list = int_slist_new();
+  int_unordered_set_t* int_nodes = int_unordered_set_new();
   for (int i = 0; i < num_outer_cells; ++i)
   {
     cell_t* cell = &mesh->cells[outer_cells[i]];
@@ -134,34 +135,37 @@ mesh_t* create_bounded_voronoi_mesh(point_t* generators, int num_generators,
     // We compute the coordinates of the center of the new boundary face 
     // we wish to add using Newton iteration.
 
+    // Retrieve outer edge information for this cell.
     int* outer_edges = *int_ptr_unordered_map_get(outer_cell_edges, outer_cells[i]); 
     int num_outer_edges = outer_edges[0];
+    ASSERT(num_outer_edges > 0);
 
     // Initialize the solver context with all the information it needs.
     find_face_center_context_t ff_context;
-    for (int f = 0; f < cell->num_faces; ++f)
-    {
-      face_t* face = cell->faces[f];
-      for (int e = 0; e < face->num_edges; ++e)
-      {
-        edge_t* edge = face->edges[e];
-        if (edge->node2 != NULL)
-          ff_context.num_interior_nodes++;
-      }
-    }
-    ff_context.interior_nodes = malloc(sizeof(point_t) * ff_context.num_interior_nodes);
+    ff_context.boundary = boundary;
+    ff_context.plane = NULL;
+
+    // Assemble the outer nodes.
     ff_context.num_outer_nodes = num_outer_edges;
     ff_context.outer_nodes = malloc(sizeof(point_t) * num_outer_edges);
+    ff_context.rays = malloc(sizeof(vector_t) * num_outer_edges);
     int outer_node_indices[num_outer_edges];
     for (int n = 0; n < num_outer_edges; ++n)
     {
-      edge_t* edge = &mesh->edges[outer_edges[n]];
+      edge_t* edge = &mesh->edges[outer_edges[n+1]];
       outer_node_indices[n] = edge->node1 - &mesh->nodes[0];
       ff_context.outer_nodes[n].x = edge->node1->x;
       ff_context.outer_nodes[n].y = edge->node1->y;
       ff_context.outer_nodes[n].z = edge->node1->z;
+
+      // Get the ray for this outer edge, too.
+      vector_t* ray = *int_ptr_unordered_map_get(ray_map, outer_edges[n+1]);
+      ff_context.rays[n].x = ray->x;
+      ff_context.rays[n].y = ray->y;
+      ff_context.rays[n].z = ray->z;
     }
-    int int_offset = 0;
+
+    // Find the interior nodes.
     for (int f = 0; f < cell->num_faces; ++f)
     {
       face_t* face = cell->faces[f];
@@ -181,25 +185,26 @@ mesh_t* create_bounded_voronoi_mesh(point_t* generators, int num_generators,
             node1_is_interior = false;
         }
         if (node1_is_interior)
-        {
-          point_t* xn = &ff_context.interior_nodes[int_offset];
-          node_t* node = &mesh->nodes[node1_index];
-          xn->x = node->x;
-          xn->y = node->y;
-          xn->z = node->z;
-          int_offset++;
-        }
+          int_unordered_set_insert(int_nodes, node1_index);
         if (node2_is_interior)
-        {
-          point_t* xn = &ff_context.interior_nodes[int_offset];
-          node_t* node = &mesh->nodes[node2_index];
-          xn->x = node->x;
-          xn->y = node->y;
-          xn->z = node->z;
-          int_offset++;
-        }
+          int_unordered_set_insert(int_nodes, node2_index);
       }
     }
+    ff_context.num_interior_nodes = int_nodes->size;
+    ff_context.interior_nodes = malloc(sizeof(point_t) * ff_context.num_interior_nodes);
+    int pos = 0, node_index, int_offset = 0;
+    while (int_unordered_set_next(int_nodes, &pos, &node_index))
+    {
+      point_t* xn = &ff_context.interior_nodes[int_offset];
+      node_t* node = &mesh->nodes[node_index];
+      xn->x = node->x;
+      xn->y = node->y;
+      xn->z = node->z;
+      int_offset++;
+    }
+    ASSERT(int_offset == ff_context.num_interior_nodes);
+    int_unordered_set_clear(int_nodes);
+
 
     // Initial stab at the face center is the generator point corresponding
     // to the boundary cell.
@@ -224,19 +229,24 @@ mesh_t* create_bounded_voronoi_mesh(point_t* generators, int num_generators,
     ASSERT(ff_context.plane != NULL);
     plane = ff_context.plane;
 
+    // Destroy the context.
+    free(ff_context.interior_nodes);
+    free(ff_context.outer_nodes);
+    free(ff_context.rays);
+
     // Add the boundary face to our list of boundary faces, too.
     int_slist_append(bface_list, bface_index);
 
     // Add boundary nodes where they intersect the boundary face.
     node_t* face_nodes[num_outer_edges];
-    for (int e = 0; e < num_outer_edges; ++e, ++outer_cell_edge_offset)
+    for (int e = 0; e < num_outer_edges; ++e)
     {
       int outer_edge_index = outer_edges[e+1];
       edge_t* outer_edge = &mesh->edges[outer_edge_index];
       ASSERT(outer_edge->node2 == NULL);
 
       // Retrieve the ray going out to infinity from this edge's one node.
-      vector_t* ray = *int_ptr_unordered_map_get(ray_map, bface_index);
+      vector_t* ray = *int_ptr_unordered_map_get(ray_map, outer_edge_index);
 
       // Add a new node to the mesh and attach it to the edge.
       int bnode_index = mesh_add_node(mesh);
@@ -368,7 +378,8 @@ mesh_t* create_bounded_voronoi_mesh(point_t* generators, int num_generators,
   for (int_slist_node_t* n = bface_list->front; n != NULL; n = n->next)
     boundary_faces[bfoffset++] = n->value;
 
-  // Remove the "outer_rays" property from the mesh.
+  // Remove the "outer_cell_edges" and "outer_rays" properties from the mesh.
+  mesh_delete_property(mesh, "outer_cell_edges");
   mesh_delete_property(mesh, "outer_rays");
 
   // Clean up.
