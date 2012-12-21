@@ -68,8 +68,8 @@ voronoi_tessellator_tessellate(voronoi_tessellator_t* tessellator,
   tetgenio in;
   in.initialize();
   in.numberofpoints = num_points;
-  in.pointlist = new double[sizeof(double)*3*in.numberofpoints];
-  memcpy(in.pointlist, points, sizeof(double)*3*in.numberofpoints);
+  in.pointlist = new double[sizeof(double)*3*num_points];
+  memcpy(in.pointlist, points, sizeof(double)*3*num_points);
 
   // Tetrahedralize. Command line options are:
   // Q          -- Quiet, no output to terminal (shaddap, Tetgen!).
