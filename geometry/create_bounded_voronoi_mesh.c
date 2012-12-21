@@ -13,15 +13,15 @@ extern "C" {
 // This function and context help us compute the centroid of a boundary cell.
 typedef struct 
 {
-  // Interior faces of the boundary cell in question.
-  int num_interior_faces;
-  face_t* interior_faces;
-  // Outer faces.
-  int num_outer_faces;
-  face_t* outer_faces;
+  // Interior nodes of the boundary cell in question.
+  int num_interior_nodes;
+  point_t* interior_nodes;
 
-  // Boundary cell.
-  cell_t* cell;
+  // Outer nodes and rays.
+  int num_outer_nodes;
+  point_t* outer_nodes;
+  vector_t* rays;
+
   // Boundary function.
   sp_func_t* boundary;
   // Plane object for constructing the boundary face.
@@ -39,8 +39,7 @@ static void find_face_center(void* context, double* X, double* F)
   // position.
   double grad[3];
   sp_func_eval_deriv(ctx->boundary, 1, &xf, grad);
-  vector_t normal;
-  normal.x = -grad[0], normal.y = -grad[1], normal.z = -grad[2];
+  vector_t normal = {.x = -grad[0], .y = -grad[1], .z = -grad[2]};
   vector_normalize(&normal);
 
   // Fashion a plane intersecting the face center and having the same normal.
@@ -50,9 +49,45 @@ static void find_face_center(void* context, double* X, double* F)
   else
     plane_reset(ctx->plane, &normal, &xf);
 
-  // The 
-  // 
-  // FIXME
+  // The face center is the projection of the centroid onto the surface.
+  // This means we must compute the centroid, whose position is the sum 
+  // of all of the nodes attached to the boundary cell. 
+  point_t centroid = {.x = 0.0, .y = 0.0, .z = 0.0};
+  for (int n = 0; n < ctx->num_interior_nodes; ++n)
+  {
+    centroid.x += ctx->interior_nodes[n].x;
+    centroid.y += ctx->interior_nodes[n].y;
+    centroid.z += ctx->interior_nodes[n].z;
+  }
+  for (int n = 0; n < ctx->num_outer_nodes; ++n)
+  {
+    // Sum in the node within the domain.
+    point_t* xn = &ctx->outer_nodes[n];
+    centroid.x += xn->x;
+    centroid.y += xn->y;
+    centroid.z += xn->z;
+
+    // Now project this node to the plane.
+    vector_t* ray = &ctx->rays[n];
+    double s = plane_intersect_with_line(ctx->plane, xn, ray);
+    centroid.x += (xn->x + s*ray->x);
+    centroid.y += (xn->y + s*ray->y);
+    centroid.z += (xn->z + s*ray->z);
+  }
+  centroid.x /= (ctx->num_interior_nodes + 2*ctx->num_outer_nodes);
+  centroid.y /= (ctx->num_interior_nodes + 2*ctx->num_outer_nodes);
+  centroid.z /= (ctx->num_interior_nodes + 2*ctx->num_outer_nodes);
+
+  // The function F is the discrepancy between the face center's predicted 
+  // value and its current value.
+  double D;
+  sp_func_eval(ctx->boundary, &centroid, &D);
+  sp_func_eval_deriv(ctx->boundary, 1, &centroid, grad);
+  normal.x = -grad[0], normal.y = -grad[1], normal.z = -grad[2];
+  vector_normalize(&normal);
+  F[0] = xf.x - (centroid.x - normal.x*D);
+  F[1] = xf.y - (centroid.y - normal.y*D);
+  F[2] = xf.z - (centroid.z - normal.z*D);
 }
 
 mesh_t* create_bounded_voronoi_mesh(point_t* generators, int num_generators,
@@ -80,7 +115,7 @@ mesh_t* create_bounded_voronoi_mesh(point_t* generators, int num_generators,
   // outer cells. There is one boundary face per boundary cell.
   int num_outer_cells;
   int* outer_cells = mesh_tag(mesh->cell_tags, "outer_cells", &num_outer_cells);
-  int* outer_cell_edges = mesh_tag_property(mesh->cell_tags, "outer_cells", "outer_edges");
+  int_ptr_unordered_map_t* outer_cell_edges = mesh_property(mesh, "outer_cell_edges");
   int_ptr_unordered_map_t* ray_map = mesh_property(mesh, "outer_rays");
 
   // Project each of the centers of the boundary cells to the boundary, 
@@ -99,26 +134,80 @@ mesh_t* create_bounded_voronoi_mesh(point_t* generators, int num_generators,
     // We compute the coordinates of the center of the new boundary face 
     // we wish to add using Newton iteration.
 
+    int* outer_edges = *int_ptr_unordered_map_get(outer_cell_edges, outer_cells[i]); 
+    int num_outer_edges = outer_edges[0];
+
     // Initialize the solver context with all the information it needs.
     find_face_center_context_t ff_context;
-    ff_context.num_interior_faces = 0;
-    ff_context.num_outer_faces = 0;
-    ff_context.cell = cell;
     for (int f = 0; f < cell->num_faces; ++f)
     {
-      bool is_outer_face = false;
-      if (is_outer_face)
+      face_t* face = cell->faces[f];
+      for (int e = 0; e < face->num_edges; ++e)
       {
+        edge_t* edge = face->edges[e];
+        if (edge->node2 != NULL)
+          ff_context.num_interior_nodes++;
       }
     }
-    int if_offset = 0, of_offset = 0;
-    // FIXME
+    ff_context.interior_nodes = malloc(sizeof(point_t) * ff_context.num_interior_nodes);
+    ff_context.num_outer_nodes = num_outer_edges;
+    ff_context.outer_nodes = malloc(sizeof(point_t) * num_outer_edges);
+    int outer_node_indices[num_outer_edges];
+    for (int n = 0; n < num_outer_edges; ++n)
+    {
+      edge_t* edge = &mesh->edges[outer_edges[n]];
+      outer_node_indices[n] = edge->node1 - &mesh->nodes[0];
+      ff_context.outer_nodes[n].x = edge->node1->x;
+      ff_context.outer_nodes[n].y = edge->node1->y;
+      ff_context.outer_nodes[n].z = edge->node1->z;
+    }
+    int int_offset = 0;
+    for (int f = 0; f < cell->num_faces; ++f)
+    {
+      face_t* face = cell->faces[f];
+      for (int e = 0; e < face->num_edges; ++e)
+      {
+        // Any node that belongs to this edge that isn't an outer node
+        // is an interior node.
+        edge_t* edge = face->edges[e];
+        bool node1_is_interior = true, node2_is_interior = true;
+        int node1_index = edge->node1 - &mesh->nodes[0];
+        int node2_index = edge->node1 - &mesh->nodes[0];
+        for (int n = 0; n < num_outer_edges; ++n)
+        {
+          if (node1_index == outer_node_indices[n])
+            node1_is_interior = false;
+          if (node2_index == outer_node_indices[n])
+            node1_is_interior = false;
+        }
+        if (node1_is_interior)
+        {
+          point_t* xn = &ff_context.interior_nodes[int_offset];
+          node_t* node = &mesh->nodes[node1_index];
+          xn->x = node->x;
+          xn->y = node->y;
+          xn->z = node->z;
+          int_offset++;
+        }
+        if (node2_is_interior)
+        {
+          point_t* xn = &ff_context.interior_nodes[int_offset];
+          node_t* node = &mesh->nodes[node2_index];
+          xn->x = node->x;
+          xn->y = node->y;
+          xn->z = node->z;
+          int_offset++;
+        }
+      }
+    }
 
-    // Initial stab at the face center is the average of all the interior 
-    // face positions.
+    // Initial stab at the face center is the generator point corresponding
+    // to the boundary cell.
     double xf[3];
-    // FIXME
-    double tolerance = 1e-5;
+    xf[0] = generators[outer_cells[i]].x;
+    xf[1] = generators[outer_cells[i]].y;
+    xf[2] = generators[outer_cells[i]].z;
+    double tolerance = 1e-6;
     int max_iters = 10, num_iters;
     nonlinear_system_t sys = {.dim = 3, .compute_F = find_face_center, .context = (void*)&ff_context};
     newton_solve_system(&sys, xf, tolerance, max_iters, &num_iters);
@@ -139,11 +228,10 @@ mesh_t* create_bounded_voronoi_mesh(point_t* generators, int num_generators,
     int_slist_append(bface_list, bface_index);
 
     // Add boundary nodes where they intersect the boundary face.
-    int num_outer_edges = outer_cell_edges[outer_cell_edge_offset++];
     node_t* face_nodes[num_outer_edges];
     for (int e = 0; e < num_outer_edges; ++e, ++outer_cell_edge_offset)
     {
-      int outer_edge_index = outer_cell_edges[outer_cell_edge_offset + e];
+      int outer_edge_index = outer_edges[e+1];
       edge_t* outer_edge = &mesh->edges[outer_edge_index];
       ASSERT(outer_edge->node2 == NULL);
 

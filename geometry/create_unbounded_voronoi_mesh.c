@@ -22,6 +22,12 @@ static void append_to_tag(int_avl_tree_node_t* node, void* p)
   entry->array[entry->index++] = node->value;
 }
 
+static void destroy_outer_cell_edges_map_entry(int key, void* value)
+{
+  int* v = value;
+  free(v);
+}
+
 static void destroy_ray_map_entry(int key, void* value)
 {
   vector_t* v = value;
@@ -169,11 +175,13 @@ mesh_t* create_unbounded_voronoi_mesh(point_t* generators, int num_generators,
 
     // Finally, we create properties on the outer_edges and outer_cells tags 
     // that associate one with the other.
-    int* oce = malloc(sizeof(int) * (num_outer_cells + num_outer_edges));
-    int oce_offset = 0, oe_offset = 0;
+    int_ptr_unordered_map_t* oce = int_ptr_unordered_map_new();
     for (int i = 0; i < num_outer_cells; ++i)
     {
-      oce[oce_offset++] = num_outer_edges_in_cell[i];
+      int* ocei = malloc(sizeof(int) * (num_outer_edges_in_cell[i] + 1));
+      int_ptr_unordered_map_insert_with_dtor(oce, outer_cell_tag[i], ocei, destroy_outer_cell_edges_map_entry);
+      ocei[0] = num_outer_edges_in_cell[i];
+      int ocei_offset = 1, oe_offset = 0;
       for (int f = 0; f < mesh->cells[i].num_faces; ++f)
       {
         int faceid = tessellation->cells[i].faces[f];
@@ -181,11 +189,11 @@ mesh_t* create_unbounded_voronoi_mesh(point_t* generators, int num_generators,
         {
           int edgeid = tessellation->faces[faceid].edges[e];
           if (tessellation->edges[edgeid].node2 == -1)
-            oce[oce_offset++] = outer_edge_tag[oe_offset++];
+            ocei[ocei_offset++] = outer_edge_tag[oe_offset++];
         }
       }
     }
-    mesh_tag_set_property(mesh->cell_tags, "outer_cells", "outer_edges", oce, free);
+    mesh_set_property(mesh, "outer_cell_edges", oce, DTOR(int_ptr_unordered_map_free));
   }
 
   // ---------------
