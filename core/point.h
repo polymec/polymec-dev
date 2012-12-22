@@ -102,6 +102,22 @@ static inline void vector_cross(vector_t* v1, vector_t* v2, vector_t* v1xv2)
   v1xv2->z = v1->x*v2->y - v1->y*v2->x;
 }
 
+// Magnitude of cross product.
+static inline double vector_cross_mag(vector_t* v1, vector_t* v2)
+{
+  vector_t v1xv2;
+  vector_cross(v1, v2, &v1xv2);
+  return vector_mag(&v1xv2);
+}
+
+// (Scalar) vector triple product.
+static inline double vector_triple_product(vector_t* v1, vector_t* v2, vector_t* v3)
+{
+  vector_t v2xv3;
+  vector_cross(v2, v3, &v2xv3);
+  return vector_dot(v1, &v2xv3);
+}
+
 // Displacement vector pointing from x to y.
 static inline void point_displacement(point_t* x, point_t* y, vector_t* displacement)
 {

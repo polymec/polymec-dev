@@ -406,6 +406,7 @@ edge_t* cell_find_edge_with_nodes(cell_t* cell, node_t* node1, node_t* node2)
       }
     }
   }
+  return NULL;
 }
 
 #ifdef __cplusplus

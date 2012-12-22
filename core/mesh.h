@@ -31,6 +31,15 @@ typedef struct
   double x, y, z;
 } node_t;
 
+// This helper function computes the displacement vector pointing from 
+// node1 to node2, storing it in displacement.
+static inline void node_displacement(node_t* node1, node_t* node2, vector_t* displacement)
+{
+  displacement->x = node2->x - node1->x;
+  displacement->y = node2->y - node1->y;
+  displacement->z = node2->z - node1->z;
+}
+
 // An edge, which is bounded by two nodes.
 typedef struct 
 {
