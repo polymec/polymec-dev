@@ -56,6 +56,11 @@ typedef struct
   double volume;
 } cell_t;
 
+// Returns the edge within the given cell whose nodes are node1 and node2,
+// or NULL if the cell contains no such edge. The order of the nodes in 
+// the edge does not matter.
+edge_t* cell_find_edge_with_nodes(cell_t* cell, node_t* node1, node_t* node2);
+
 // A full-featured face. This face connects exactly two cells and is 
 // bounded by edges.
 struct face_t

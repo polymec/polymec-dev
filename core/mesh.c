@@ -389,6 +389,25 @@ void mesh_map(mesh_t* mesh, sp_func_t* mapping)
   ASSERT(false);
 }
 
+edge_t* cell_find_edge_with_nodes(cell_t* cell, node_t* node1, node_t* node2)
+{
+  ASSERT(node1 != NULL);
+  ASSERT(node2 != NULL);
+  for (int f = 0; f < cell->num_faces; ++f)
+  {
+    face_t* face = cell->faces[f];
+    for (int e = 0; e < face->num_edges; ++e)
+    {
+      edge_t* edge = face->edges[e];
+      if (((edge->node1 == node1) && (edge->node2 == node2)) ||
+          ((edge->node1 == node2) && (edge->node2 == node1)))
+      {
+        return edge;
+      }
+    }
+  }
+}
+
 #ifdef __cplusplus
 }
 #endif

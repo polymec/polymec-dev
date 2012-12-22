@@ -2,15 +2,250 @@
 #include "core/unordered_map.h"
 #include "core/slist.h"
 #include "core/edit_mesh.h"
-#include "core/newton.h"
+//#include "core/newton.h"
 #include "geometry/plane.h"
-#include "geometry/giftwrap_hull.h"
+//#include "geometry/giftwrap_hull.h"
 #include "geometry/create_unbounded_voronoi_mesh.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+mesh_t* create_bounded_voronoi_mesh(point_t* generators, int num_generators,
+                                    point_t* boundary_generators, int num_boundary_generators,
+                                    point_t* ghost_generators, int num_ghost_generators)
+{
+  ASSERT(generators != NULL);
+  ASSERT(num_generators >= 1); 
+  ASSERT(num_boundary_generators >= 0); 
+  ASSERT((boundary_generators != NULL) || (num_boundary_generators == 0));
+  ASSERT(num_ghost_generators >= 0); 
+  ASSERT(num_ghost_generators >= 0); 
+  ASSERT((ghost_generators != NULL) || (num_ghost_generators == 0));
+
+  // Create an unbounded Voronoi tessellation using these generators.
+  int num_non_ghost_generators = num_generators + num_boundary_generators;
+  point_t non_ghost_generators[num_non_ghost_generators];
+  memcpy(non_ghost_generators, generators, sizeof(point_t) * num_generators);
+  memcpy(&non_ghost_generators[num_generators], boundary_generators, sizeof(point_t) * num_boundary_generators);
+  mesh_t* mesh = create_unbounded_voronoi_mesh(non_ghost_generators, num_non_ghost_generators,
+                                               ghost_generators, num_ghost_generators);
+  ASSERT(mesh_has_tag(mesh->cell_tags, "outer_cells"));
+  ASSERT(mesh_property(mesh, "outer_cell_edges") != NULL);
+  ASSERT(mesh_property(mesh, "outer_rays") != NULL);
+
+  // Fetch the relevent properties from the mesh.
+  int_ptr_unordered_map_t* outer_cell_edges = mesh_property(mesh, "outer_cell_edges");
+  int_ptr_unordered_map_t* outer_edge_rays = mesh_property(mesh, "outer_rays");
+
+  // We use this map to keep track of boundary nodes we've created.
+  int_int_unordered_map_t* bnode_map = int_int_unordered_map_new(); // Maps interior nodes to boundary nodes.
+  int_int_unordered_map_t* generator_bnode_map = int_int_unordered_map_new(); // Maps cells to generator-point boundary nodes.
+
+  // We use this map to keep track of boundary edges we've created.
+  int_int_unordered_map_t* bedge1_map = int_int_unordered_map_new(); // Maps cells to edges connecting generator-point node to node 1.
+  int_int_unordered_map_t* bedge2_map = int_int_unordered_map_new(); // Maps cells to edges connecting generator-point node to node 2.
+
+  // Now traverse the boundary generators and cut them up as needed.
+  sp_func_t* plane = NULL;
+  for (int c = num_generators; c < num_non_ghost_generators; ++c)
+  {
+    // Generate or retrieve the boundary node that sits atop this boundary
+    // cell's generator.
+    if (!int_int_unordered_map_contains(generator_bnode_map, c))
+    {
+      int gbnode_index = mesh_add_node(mesh);
+      int_int_unordered_map_insert(generator_bnode_map, c, gbnode_index);
+    }
+    node_t* generator_bnode = &mesh->nodes[*int_int_unordered_map_get(generator_bnode_map, c)];
+
+    // Find the neighbors of this cell that are also boundary cells.
+    cell_t* cell = &mesh->cells[c];
+    int cell_index = cell - &mesh->cells[0];
+    for (int f = 0; f < cell->num_faces; ++f)
+    {
+      face_t* face = cell->faces[f];
+      cell_t* ncell = face_opp_cell(face, cell);
+      int ncell_index = ncell - &mesh->cells[0];
+
+      if (ncell_index < num_generators) continue; // Skip non-boundary cells.
+      if (ncell_index < cell_index) continue; // This neighbor's already done.
+
+      // Generate or retrieve the boundary node that sits atop the neighbor
+      // cell's generator.
+      if (!int_int_unordered_map_contains(generator_bnode_map, ncell_index))
+      {
+        int gbnode_index = mesh_add_node(mesh);
+        int_int_unordered_map_insert(generator_bnode_map, ncell_index, gbnode_index);
+      }
+      node_t* neighbor_generator_bnode = &mesh->nodes[*int_int_unordered_map_get(generator_bnode_map, ncell_index)];
+
+      // In this type of boundary cell, a given cell c and its neighbor c'
+      // share a face, and the boundary faces connected to this shared face
+      // are coplanar. The boundary nodes (those nodes belonging to the 
+      // shared face and the boundary faces) are also coplanar, and there 
+      // are exactly two of them shared by c and c'. So c and c' each have 
+      // a triangular boundary face whose vertices are its respective 
+      // generator and these two boundary nodes.
+
+      // Create the boundary nodes, unless they've already been created. 
+      // These boundary nodes are projections of the "node1s" of the 
+      // outer edges that are shared by c and c'.
+      int* near_outer_edges = *int_ptr_unordered_map_get(outer_cell_edges, c);
+      int num_near_outer_edges = near_outer_edges[0];
+      int* far_outer_edges = *int_ptr_unordered_map_get(outer_cell_edges, ncell_index);
+      int num_far_outer_edges = far_outer_edges[0];
+      edge_t *outer_edge1 = NULL, *outer_edge2 = NULL;
+      for (int en = 1; en <= num_near_outer_edges; ++en)
+      {
+        for (int ef = 1; ef <= num_far_outer_edges; ++ef)
+        {
+          if (far_outer_edges[ef] == near_outer_edges[en])
+          {
+            if (outer_edge1 == NULL)
+              outer_edge1 = &mesh->edges[far_outer_edges[ef]];
+            else
+              outer_edge2 = &mesh->edges[far_outer_edges[ef]];
+            break;
+          }
+        }
+      }
+
+      int node1_index = outer_edge1->node1 - &mesh->nodes[0];
+      bool created_bnode1 = false;
+      if (!int_int_unordered_map_contains(bnode_map, node1_index))
+      {
+        // Create the new node. NOTE: We don't compute its coordinates yet.
+        int bnode_index = mesh_add_node(mesh);
+        created_bnode1 = true;
+        int_int_unordered_map_insert(bnode_map, node1_index, bnode_index);
+      }
+      int bnode1_index = *int_int_unordered_map_get(bnode_map, node1_index);
+      node_t* bnode1 = &mesh->nodes[bnode1_index];
+      vector_t* ray1 = *int_ptr_unordered_map_get(outer_edge_rays, node1_index);
+
+      int node2_index = outer_edge2->node1 - &mesh->nodes[0];
+      bool created_bnode2 = false;
+      if (!int_int_unordered_map_contains(bnode_map, node2_index))
+      {
+        // Create the new node. NOTE: We don't compute its coordinates yet.
+        int bnode_index = mesh_add_node(mesh);
+        created_bnode2 = true;
+        int_int_unordered_map_insert(bnode_map, node2_index, bnode_index);
+      }
+      int bnode2_index = *int_int_unordered_map_get(bnode_map, node2_index);
+      node_t* bnode2 = &mesh->nodes[bnode2_index];
+      vector_t* ray2 = *int_ptr_unordered_map_get(outer_edge_rays, node2_index);
+
+      // Create the boundary faces for this cell and its neighbor.
+      int near_face_index = mesh_add_face(mesh);
+      face_t* near_face = &mesh->faces[near_face_index];
+      mesh_add_face_to_cell(mesh, near_face, cell);
+
+      int far_face_index = mesh_add_face(mesh);
+      face_t* far_face = &mesh->faces[far_face_index];
+      mesh_add_face_to_cell(mesh, far_face, ncell);
+
+      // Create the edge that connects the two boundary nodes and add it 
+      // to the boundary face. This edge shouldn't exist yet.
+      int edge_connecting_nodes_index = mesh_add_edge(mesh);
+      edge_t* edge_connecting_nodes = &mesh->edges[edge_connecting_nodes_index];
+      mesh_add_edge_to_face(mesh, edge_connecting_nodes, near_face);
+      mesh_add_edge_to_face(mesh, edge_connecting_nodes, far_face);
+
+      // Create the edges that connect the generator to each boundary node.
+      // If we created the boundary node just now, the edge doesn't yet 
+      // exist.
+      edge_t *near_edge1, *far_edge1;
+      if (created_bnode1)
+      {
+        // We create these edges for this cell and its neighbor.
+        int near_edge1_index = mesh_add_edge(mesh);
+        int_int_unordered_map_insert(bedge1_map, c, near_edge1_index);
+        near_edge1 = &mesh->edges[near_edge1_index];
+        near_edge1->node1 = generator_bnode;
+        near_edge1->node2 = bnode1;
+
+        int far_edge1_index = mesh_add_edge(mesh);
+        int_int_unordered_map_insert(bedge1_map, ncell_index, far_edge1_index);
+        far_edge1 = &mesh->edges[far_edge1_index];
+        far_edge1->node1 = neighbor_generator_bnode;
+        far_edge1->node2 = bnode1;
+      }
+      else
+      {
+        int near_edge1_index = *int_int_unordered_map_get(bedge1_map, c);
+        near_edge1 = &mesh->edges[near_edge1_index];
+        int far_edge1_index = *int_int_unordered_map_get(bedge1_map, ncell_index);
+        far_edge1 = &mesh->edges[far_edge1_index];
+      }
+      mesh_add_edge_to_face(mesh, near_edge1, near_face);
+      mesh_add_edge_to_face(mesh, far_edge1, far_face);
+
+      edge_t *near_edge2, *far_edge2;
+      if (created_bnode2)
+      {
+        // We create these edges for this cell and its neighbor.
+        int near_edge2_index = mesh_add_edge(mesh);
+        int_int_unordered_map_insert(bedge2_map, c, near_edge2_index);
+        near_edge2 = &mesh->edges[near_edge2_index];
+        near_edge2->node1 = generator_bnode;
+        near_edge2->node2 = bnode2;
+
+        int far_edge2_index = mesh_add_edge(mesh);
+        int_int_unordered_map_insert(bedge2_map, ncell_index, far_edge2_index);
+        far_edge2 = &mesh->edges[far_edge2_index];
+        far_edge2->node1 = neighbor_generator_bnode;
+        far_edge2->node2 = bnode2;
+      }
+      else
+      {
+        int near_edge2_index = *int_int_unordered_map_get(bedge2_map, c);
+        near_edge2 = &mesh->edges[near_edge2_index];
+        int far_edge2_index = *int_int_unordered_map_get(bedge2_map, ncell_index);
+        far_edge2 = &mesh->edges[far_edge2_index];
+      }
+      mesh_add_edge_to_face(mesh, near_edge2, near_face);
+      mesh_add_edge_to_face(mesh, far_edge2, far_face);
+
+      // Now that we have the right topology, we can do geometry. Find the 
+      // plane that contains the two generators and the two boundary nodes.
+      // The center point of the plane is the midpoint between the two 
+      // generators.
+      point_t xp = {.x = 0.5*(cell->center.x + ncell->center.x),
+                    .y = 0.5*(cell->center.y + ncell->center.y),
+                    .z = 0.5*(cell->center.z + ncell->center.z)};
+         
+      // The normal vector of the plane is the plane that contains the 
+      // two generators and both of the boundary nodes.
+      // FIXME
+      vector_t np;
+
+      // Create the plane.
+      if (plane == NULL)
+        plane = plane_new(&np, &xp);
+      else
+        plane_reset(plane, &np, &xp);
+
+      // Compute the areas of the faces and the centers of the cells.
+
+    }
+  }
+
+  // Clean up.
+  int_int_unordered_map_free(bedge1_map);
+  int_int_unordered_map_free(bedge2_map);
+  int_int_unordered_map_free(generator_bnode_map);
+  int_int_unordered_map_free(bnode_map);
+
+  // Delete the outer_* mesh properties.
+  mesh_delete_property(mesh, "outer_cell_edges");
+  mesh_delete_property(mesh, "outer_rays");
+
+  return mesh;
+}
+
+#if 0
 // This function and context help us compute the centroid of a boundary cell.
 typedef struct 
 {
@@ -388,6 +623,7 @@ mesh_t* create_bounded_voronoi_mesh(point_t* generators, int num_generators,
 
   return mesh;
 }
+#endif
 
 #ifdef __cplusplus
 }
