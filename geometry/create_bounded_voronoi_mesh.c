@@ -105,6 +105,9 @@ mesh_t* create_bounded_voronoi_mesh(point_t* generators, int num_generators,
   // Now traverse the boundary generators and cut them up as needed.
   for (int c = num_generators; c < num_non_ghost_generators; ++c)
   {
+    // This generator should describe an outer cell.
+    ASSERT(int_ptr_unordered_map_contains(outer_cell_edges, c));
+
     // Generate or retrieve the boundary node that sits atop this boundary
     // cell's generator.
     node_t* generator_bnode;
@@ -133,6 +136,9 @@ mesh_t* create_bounded_voronoi_mesh(point_t* generators, int num_generators,
 
       if (ncell_index < num_generators) continue; // Skip non-boundary cells.
       if (ncell_index < cell_index) continue; // This neighbor's already done.
+
+      // This generator should also describe an outer cell.
+      ASSERT(int_ptr_unordered_map_contains(outer_cell_edges, ncell_index));
 
       // Generate or retrieve the boundary node that sits atop the neighbor
       // cell's generator.
