@@ -56,6 +56,17 @@ void prob_cvt_gen_iterate(prob_cvt_gen_t* prob,
                           point_t* points, 
                           int num_points);
 
+// This method moves a set of generator points around on the boundary 
+// itself, projecting the points to the boundary after each iteration.
+// This is useful for making boundary generators.
+void prob_cvt_gen_iterate_on_boundary(prob_cvt_gen_t* prob, 
+                                      sp_func_t* density,
+                                      sp_func_t* boundary,
+                                      bbox_t* bounding_box,
+                                      prob_cvt_gen_term_t* termination,
+                                      point_t* boundary_points, 
+                                      int num_boundary_points);
+
 // Creates an object that terminates a probabilistic CVT iteration after 
 // the given number of iterations.
 prob_cvt_gen_term_t* terminate_prob_cvt_at_iter(int max_iter);

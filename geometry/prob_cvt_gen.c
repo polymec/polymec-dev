@@ -111,13 +111,14 @@ static void choose_sample_points(long (*rng)(),
   }
 }
 
-void prob_cvt_gen_iterate(prob_cvt_gen_t* prob, 
-                          sp_func_t* density,
-                          sp_func_t* boundary,
-                          bbox_t* bounding_box,
-                          prob_cvt_gen_term_t* termination,
-                          point_t* points, 
-                          int num_points)
+static void iterate(prob_cvt_gen_t* prob, 
+                    sp_func_t* density,
+                    sp_func_t* boundary,
+                    bbox_t* bounding_box,
+                    prob_cvt_gen_term_t* termination,
+                    point_t* points, 
+                    int num_points,
+                    bool project_to_boundary)
 {
   ASSERT(density != NULL);
   ASSERT(bounding_box != NULL);
@@ -190,6 +191,18 @@ void prob_cvt_gen_iterate(prob_cvt_gen_t* prob,
         zi->y = ((alpha1*ji + beta1)*zi->y + (alpha2*ji + beta2)*ui.y) / (ji + 1.0);
         zi->z = ((alpha1*ji + beta1)*zi->z + (alpha2*ji + beta2)*ui.z) / (ji + 1.0);
 
+        // Project to the boundary if necessary.
+        if (project_to_boundary)
+        {
+          ASSERT(sp_func_has_deriv(boundary, 1));
+          double D, grad_D[3];
+          sp_func_eval(boundary, zi, &D);
+          sp_func_eval_deriv(boundary, 1, zi, grad_D);
+          zi->x -= D * grad_D[0];
+          zi->y -= D * grad_D[1];
+          zi->z -= D * grad_D[2];
+        }
+
         // Increment ji.
         ++(j[i]);
       }
@@ -202,6 +215,30 @@ void prob_cvt_gen_iterate(prob_cvt_gen_t* prob,
   }
 
   point_set_free(pset);
+}
+
+void prob_cvt_gen_iterate(prob_cvt_gen_t* prob, 
+                          sp_func_t* density,
+                          sp_func_t* boundary,
+                          bbox_t* bounding_box,
+                          prob_cvt_gen_term_t* termination,
+                          point_t* points, 
+                          int num_points)
+{
+  iterate(prob, density, boundary, bounding_box, termination, 
+          points, num_points, false);
+}
+
+void prob_cvt_gen_iterate_on_boundary(prob_cvt_gen_t* prob, 
+                                      sp_func_t* density,
+                                      sp_func_t* boundary,
+                                      bbox_t* bounding_box,
+                                      prob_cvt_gen_term_t* termination,
+                                      point_t* boundary_points, 
+                                      int num_boundary_points)
+{
+  iterate(prob, density, boundary, bounding_box, termination, 
+          boundary_points, num_boundary_points, true);
 }
 
 // Termination after max_iter steps.

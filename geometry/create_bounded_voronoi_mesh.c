@@ -2,7 +2,7 @@
 #include "core/unordered_map.h"
 #include "core/slist.h"
 #include "core/edit_mesh.h"
-//#include "core/newton.h"
+#include "core/newton.h"
 #include "geometry/plane.h"
 //#include "geometry/giftwrap_hull.h"
 #include "geometry/create_unbounded_voronoi_mesh.h"
@@ -10,6 +10,58 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+// This function and context help us compute the projections of 
+// interior nodes to the boundary.
+typedef struct 
+{
+  // Generator points.
+  point_t xg1, xg2;
+
+  // Interior node positions.
+  point_t xn1, xn2;
+
+  // Rays connecting interior nodes to the boundary.
+  vector_t ray1, ray2;
+
+  // Plane object for constructing the boundary face.
+  sp_func_t* plane;
+} project_bnodes_context_t;
+
+static void project_bnodes(void* context, double* X, double* F)
+{
+  project_bnodes_context_t* ctx = context;
+
+  // Use the given parameter s1 to project our interior nodes
+  // to a plane.
+  double s1 = X[0];
+  point_t xb1 = {.x = ctx->xn1.x + s1*ctx->ray1.x,
+                 .y = ctx->xn1.y + s1*ctx->ray1.y,
+                 .z = ctx->xn1.z + s1*ctx->ray1.z};
+
+  // Construct a normal vector for the plane using xg1, xg2, and xb1.
+  vector_t v1, v2, np;
+  point_displacement(&ctx->xg1, &ctx->xg2, &v1);
+  point_displacement(&ctx->xg1, &xb1, &v2);
+  vector_cross(&v1, &v2, &np);
+  ASSERT(vector_mag(&np) != 0.0);
+  vector_normalize(&np);
+
+  // Create the plane.
+  if (ctx->plane == NULL)
+    ctx->plane = plane_new(&np, &ctx->xg1);
+  else
+    plane_reset(ctx->plane, &np, &ctx->xg1);
+
+  // Find the intersection of the second boundary node with the plane.
+  double s2 = plane_intersect_with_line(ctx->plane, &ctx->xn2, &ctx->ray2);
+  point_t xb2 = {.x = ctx->xn2.x + s2*ctx->ray2.x,
+                 .y = ctx->xn2.y + s2*ctx->ray2.y,
+                 .z = ctx->xn2.z + s2*ctx->ray2.z};
+
+  // The function's value is the distance of xb2 from the plane.
+  sp_func_eval(ctx->plane, &xb2, F);
+}
 
 mesh_t* create_bounded_voronoi_mesh(point_t* generators, int num_generators,
                                     point_t* boundary_generators, int num_boundary_generators,
@@ -46,18 +98,29 @@ mesh_t* create_bounded_voronoi_mesh(point_t* generators, int num_generators,
   int_int_unordered_map_t* bedge1_map = int_int_unordered_map_new(); // Maps cells to edges connecting generator-point node to node 1.
   int_int_unordered_map_t* bedge2_map = int_int_unordered_map_new(); // Maps cells to edges connecting generator-point node to node 2.
 
+  // A nonlinear system for projecting boundary nodes.
+  project_bnodes_context_t proj_context = {.plane = NULL};
+  nonlinear_system_t proj_sys = {.dim = 1, .compute_F = project_bnodes, .context = (void*)&proj_context};
+
   // Now traverse the boundary generators and cut them up as needed.
-  sp_func_t* plane = NULL;
   for (int c = num_generators; c < num_non_ghost_generators; ++c)
   {
     // Generate or retrieve the boundary node that sits atop this boundary
     // cell's generator.
+    node_t* generator_bnode;
     if (!int_int_unordered_map_contains(generator_bnode_map, c))
     {
       int gbnode_index = mesh_add_node(mesh);
       int_int_unordered_map_insert(generator_bnode_map, c, gbnode_index);
+      generator_bnode = &mesh->nodes[gbnode_index];
+
+      // Assign it the coordinates of the generator.
+      generator_bnode->x = generators[c].x;
+      generator_bnode->y = generators[c].y;
+      generator_bnode->z = generators[c].z;
     }
-    node_t* generator_bnode = &mesh->nodes[*int_int_unordered_map_get(generator_bnode_map, c)];
+    else
+      generator_bnode = &mesh->nodes[*int_int_unordered_map_get(generator_bnode_map, c)];
 
     // Find the neighbors of this cell that are also boundary cells.
     cell_t* cell = &mesh->cells[c];
@@ -73,12 +136,20 @@ mesh_t* create_bounded_voronoi_mesh(point_t* generators, int num_generators,
 
       // Generate or retrieve the boundary node that sits atop the neighbor
       // cell's generator.
+      node_t* neighbor_generator_bnode;
       if (!int_int_unordered_map_contains(generator_bnode_map, ncell_index))
       {
         int gbnode_index = mesh_add_node(mesh);
         int_int_unordered_map_insert(generator_bnode_map, ncell_index, gbnode_index);
+        neighbor_generator_bnode = &mesh->nodes[gbnode_index];
+
+        // Assign it the coordinates of the generator.
+        neighbor_generator_bnode->x = generators[ncell_index].x;
+        neighbor_generator_bnode->y = generators[ncell_index].y;
+        neighbor_generator_bnode->z = generators[ncell_index].z;
       }
-      node_t* neighbor_generator_bnode = &mesh->nodes[*int_int_unordered_map_get(generator_bnode_map, ncell_index)];
+      else
+        neighbor_generator_bnode = &mesh->nodes[*int_int_unordered_map_get(generator_bnode_map, ncell_index)];
 
       // In this type of boundary cell, a given cell c and its neighbor c'
       // share a face, and the boundary faces connected to this shared face
@@ -208,27 +279,97 @@ mesh_t* create_bounded_voronoi_mesh(point_t* generators, int num_generators,
       mesh_add_edge_to_face(mesh, near_edge2, near_face);
       mesh_add_edge_to_face(mesh, far_edge2, far_face);
 
-      // Now that we have the right topology, we can do geometry. Find the 
-      // plane that contains the two generators and the two boundary nodes.
-      // The center point of the plane is the midpoint between the two 
-      // generators.
-      point_t xp = {.x = 0.5*(cell->center.x + ncell->center.x),
-                    .y = 0.5*(cell->center.y + ncell->center.y),
-                    .z = 0.5*(cell->center.z + ncell->center.z)};
+      // Now that we have the right topology, we can do geometry. 
          
       // The normal vector of the plane is the plane that contains the 
-      // two generators and both of the boundary nodes.
-      // FIXME
-      vector_t np;
+      // two generators and both of the boundary nodes. The boundary nodes 
+      // are the projections of their corresponding interior nodes to this 
+      // plane. The equation relating the plane's normal to the coordinates 
+      // of the boundary nodes forms a nonlinear equation with 
+      // s1 as an unknown. We solve it here.
 
-      // Create the plane.
-      if (plane == NULL)
-        plane = plane_new(&np, &xp);
-      else
-        plane_reset(plane, &np, &xp);
+      // First, copy the information we need to the context.
+      point_copy(&proj_context.xg1, &generators[c]);
+      point_copy(&proj_context.xg2, &generators[ncell_index]);
+      vector_copy(&proj_context.ray1, ray1);
+      vector_copy(&proj_context.ray2, ray2);
 
-      // Compute the areas of the faces and the centers of the cells.
+      // Solve the nonlinear equation.
+      double s1 = 0.0;
+      double tolerance = 1e-6;
+      int max_iters = 10, num_iters;
+      newton_solve_system(&proj_sys, &s1, tolerance, max_iters, &num_iters);
 
+      // Compute the coordinates of the boundary nodes.
+      point_t xn;
+      xn.x = outer_edge1->node1->x;
+      xn.y = outer_edge1->node1->y;
+      xn.z = outer_edge1->node1->z;
+      bnode1->x = xn.x + s1*ray1->x; 
+      bnode1->y = xn.y + s1*ray1->y; 
+      bnode1->z = xn.z + s1*ray1->z;
+
+      xn.x = outer_edge2->node1->x;
+      xn.y = outer_edge2->node1->y;
+      xn.z = outer_edge2->node1->z;
+      double s2 = plane_intersect_with_line(proj_context.plane, &xn, ray2);
+      bnode2->x = xn.x + s2*ray2->x; 
+      bnode2->y = xn.y + s2*ray2->y; 
+      bnode2->z = xn.z + s2*ray2->z;
+
+      // Compute the areas and centers of the faces.
+      vector_t v1, v2;
+      node_displacement(generator_bnode, bnode1, &v1);
+      node_displacement(generator_bnode, bnode2, &v2);
+      near_face->area = vector_cross_mag(&v1, &v2);
+      near_face->center.x = (generator_bnode->x + bnode1->x + bnode2->x) / 3.0;
+      near_face->center.y = (generator_bnode->y + bnode1->y + bnode2->y) / 3.0;
+      near_face->center.z = (generator_bnode->z + bnode1->z + bnode2->z) / 3.0;
+
+      node_displacement(neighbor_generator_bnode, bnode1, &v1);
+      node_displacement(neighbor_generator_bnode, bnode2, &v2);
+      far_face->area = vector_cross_mag(&v1, &v2);
+      far_face->center.x = (neighbor_generator_bnode->x + bnode1->x + bnode2->x) / 3.0;
+      far_face->center.y = (neighbor_generator_bnode->y + bnode1->y + bnode2->y) / 3.0;
+      far_face->center.z = (neighbor_generator_bnode->z + bnode1->z + bnode2->z) / 3.0;
+    }
+
+    // Compute the volume and center of this boundary cell.
+
+    // The cell center is just the average of its face centers.
+    for (int f = 0; f < cell->num_faces; ++f)
+    {
+      face_t* face = cell->faces[f];
+      cell->center.x += face->center.x;
+      cell->center.y += face->center.y;
+      cell->center.z += face->center.z;
+    }
+    cell->center.x /= cell->num_faces;
+    cell->center.y /= cell->num_faces;
+    cell->center.z /= cell->num_faces;
+
+    // The volume is the sum of all tetrahedra within the cell.
+    cell->volume = 0.0;
+    for (int f = 0; f < cell->num_faces; ++f)
+    {
+      face_t* face = cell->faces[f];
+      for (int e = 0; e < face->num_edges; ++e)
+      {
+        edge_t* edge = face->edges[e];
+
+        // Construct a tetrahedron whose vertices are the cell center, 
+        // the face center, and the two nodes of this edge. The volume 
+        // of this tetrahedron contributes to the cell volume.
+        vector_t v1, v2, v3, v2xv3;
+        point_displacement(&face->center, &cell->center, &v1);
+        point_t xn1 = {.x = edge->node1->x, .y = edge->node1->y, .z = edge->node1->z};
+        point_t xn2 = {.x = edge->node2->x, .y = edge->node2->y, .z = edge->node2->z};
+        point_displacement(&face->center, &xn1, &v2);
+        point_displacement(&face->center, &xn2, &v3);
+        vector_cross(&v2, &v3, &v2xv3);
+        double tet_volume = vector_dot(&v1, &v2xv3);
+        cell->volume += tet_volume;
+      }
     }
   }
 
