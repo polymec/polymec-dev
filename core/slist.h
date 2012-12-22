@@ -21,6 +21,7 @@
 // void x_slist_append(x_slist_t* list, x value) - Appends an x to the end of the list.
 // x x_slist_pop(x_slist_t* list) - Removes an x from the front of the list, returning it.
 // void x_slist_remove(x_slist_t* list, x_slist_node_t* node) - Removes a node from the list.
+// bool x_slist_empty(x_slist_t* list) - Returns true if empty, false otherwise.
 
 #define DEFINE_SLIST(list_name, element) \
 typedef struct list_name##_node_t list_name##_node_t; \
@@ -150,6 +151,11 @@ static inline void list_name##_remove(list_name##_t* list, list_name##_node_t* n
     free(node); \
     list->size -= 1; \
   } \
+} \
+\
+static inline bool list_name##_empty(list_name##_t* list) \
+{ \
+  return (list->size == 0); \
 } \
 
 // Define some basic slist types.
