@@ -198,9 +198,16 @@ static void iterate(prob_cvt_gen_t* prob,
           double D, grad_D[3];
           sp_func_eval(boundary, zi, &D);
           sp_func_eval_deriv(boundary, 1, zi, grad_D);
-          zi->x -= D * grad_D[0];
-          zi->y -= D * grad_D[1];
-          zi->z -= D * grad_D[2];
+          vector_t normal = {.x = -grad_D[0], .y = -grad_D[1], .z = -grad_D[2]};
+          vector_normalize(&normal);
+//printf("%g %g %g (%g, %g, %g, %g) ->", zi->x, zi->y, zi->z, D, normal.x, normal.y, normal.z);
+          zi->x += D * normal.x;
+          zi->y += D * normal.y;
+          zi->z += D * normal.z;
+//printf("%g %g %g\n", zi->x, zi->y, zi->z);
+          sp_func_eval(boundary, zi, &D);
+          if (fabs(D) > 1e-12)
+            polymec_error("prob_cvt_gen_iterate: boundary projection yielded a non-zero distance (%g).\n Boundary is not a signed distance function!", D);
         }
 
         // Increment ji.

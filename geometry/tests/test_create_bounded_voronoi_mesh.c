@@ -50,9 +50,8 @@ void test_create_cylindrical_voronoi_mesh(void** state)
   sp_func_t* density = constant_sp_func_new(1, &one); // Constant density.
 
   // Boundary function.
-  vector_t zhat = {0.0, 0.0, 1.0};
   point_t origin = {0.0, 0.0, 0.0};
-  sp_func_t* cylinder = cylinder_new(&zhat, &origin, 0.5, INWARD_NORMAL);
+  sp_func_t* cylinder = cylinder_new(&origin, 0.5, INWARD_NORMAL);
 
   // Iterate 100 times to find the right generator distribution.
   int max_iter = 100;
