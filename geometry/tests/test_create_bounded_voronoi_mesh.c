@@ -6,6 +6,8 @@
 #include "constant_st_func.h"
 #include "prob_cvt_gen.h"
 #include "cylinder.h"
+#include "plane.h"
+#include "intersection.h"
 #include "create_bounded_voronoi_mesh.h"
 #include "vtk_plot_io.h"
 
@@ -37,7 +39,7 @@ void test_create_cylindrical_voronoi_mesh(void** state)
   // initial distribution randomly.
   int N = 2000, Nb = 1000;
   point_t generators[N], boundary_generators[Nb];
-  bbox_t bbox = {.x1 = -1.0, .x2 = 1.0, .y1 = -1.0, .y2 = 1.0, .z1 = -1.0, .z2 = 1.0};
+  bbox_t bbox = {.x1 = -0.5, .x2 = 0.5, .y1 = -0.5, .y2 = 0.5, .z1 = -1.0, .z2 = 1.0};
   for (int i = 0; i < N; ++i)
     point_randomize(&generators[i], random, &bbox);
   for (int i = 0; i < Nb; ++i)
@@ -52,15 +54,24 @@ void test_create_cylindrical_voronoi_mesh(void** state)
   // Boundary function.
   point_t origin = {0.0, 0.0, 0.0};
   sp_func_t* cylinder = cylinder_new(&origin, 0.5, INWARD_NORMAL);
+  point_t x_top = {0.0, 0.0, 1.0};
+  vector_t e_top = {0.0, 0.0, -1.0};
+  sp_func_t* top = plane_new(&e_top, &x_top);
+  point_t x_bot = {0.0, 0.0, -1.0};
+  vector_t e_bot = {0.0, 0.0, 1.0};
+  sp_func_t* bottom = plane_new(&e_bot, &x_bot);
+  sp_func_t* surfaces[3];
+  surfaces[0] = cylinder; surfaces[1] = top; surfaces[2] = bottom;
+  sp_func_t* domain = intersection_new(surfaces, 3);
 
   // Iterate 100 times to find the right generator distribution.
   int max_iter = 100;
-  prob_cvt_gen_iterate(prob, density, cylinder, &bbox, 
+  prob_cvt_gen_iterate(prob, density, domain, &bbox, 
                        terminate_prob_cvt_at_iter(max_iter),
                        generators, N);
 
   // Find a good boundary generator distribution.
-  prob_cvt_gen_iterate_on_boundary(prob, density, cylinder, &bbox, 
+  prob_cvt_gen_iterate_on_boundary(prob, density, domain, &bbox, 
                                    terminate_prob_cvt_at_iter(max_iter),
                                    boundary_generators, Nb);
 
