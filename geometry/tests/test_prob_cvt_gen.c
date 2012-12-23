@@ -55,9 +55,8 @@ void test_create_generators_in_cylinder(void** state)
   srandom(seed);
 
   // Boundary function.
-  vector_t zhat = {0.0, 0.0, 1.0};
   point_t origin = {0.0, 0.0, 0.0};
-  sp_func_t* cylinder = cylinder_new(&zhat, &origin, 0.5, INWARD_NORMAL);
+  sp_func_t* cylinder = cylinder_new(&origin, 0.5, INWARD_NORMAL);
 
   // Create a cylindrical Voronoi mesh with N generators within a
   // bounding box. We generate an initial distribution randomly.
