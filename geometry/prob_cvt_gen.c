@@ -75,12 +75,28 @@ static bool iteration_terminated(prob_cvt_gen_term_t* term, point_t* points, int
   return term->terminate(term->context, points, num_points, iteration);
 }
 
+static void project_point_to_boundary(sp_func_t* boundary, point_t* x)
+{
+  ASSERT(sp_func_has_deriv(boundary, 1));
+  double D, grad_D[3];
+  sp_func_eval(boundary, x, &D);
+  sp_func_eval_deriv(boundary, 1, x, grad_D);
+  vector_t normal = {.x = -grad_D[0], .y = -grad_D[1], .z = -grad_D[2]};
+  vector_normalize(&normal);
+//printf("%g %g %g (%g, %g, %g, %g) ->", zi->x, zi->y, zi->z, D, normal.x, normal.y, normal.z);
+  x->x += D * normal.x;
+  x->y += D * normal.y;
+  x->z += D * normal.z;
+//printf("%g %g %g\n", zi->x, zi->y, zi->z);
+}
+
 static void choose_sample_points(long (*rng)(),
                                  sp_func_t* density,
                                  sp_func_t* boundary,
                                  bbox_t* bounding_box,
                                  point_t* points,
-                                 int num_points)
+                                 int num_points, 
+                                 bool project_to_boundary)
 {
   ASSERT(density != NULL);
   ASSERT(bounding_box != NULL);
@@ -100,6 +116,10 @@ static void choose_sample_points(long (*rng)(),
         sp_func_eval(boundary, p, &Fp);
       }
       while (Fp >= 0.0);
+
+      // Project to the boundary if necessary.
+      if (project_to_boundary)
+        project_point_to_boundary(boundary, p);
     }
   }
 
@@ -121,6 +141,7 @@ static void iterate(prob_cvt_gen_t* prob,
                     bool project_to_boundary)
 {
   ASSERT(density != NULL);
+  ASSERT((boundary != NULL) || !project_to_boundary);
   ASSERT(bounding_box != NULL);
   ASSERT(termination != NULL);
   ASSERT(points != NULL);
@@ -128,6 +149,19 @@ static void iterate(prob_cvt_gen_t* prob,
 
   int iter = 0;
   int j[num_points];
+
+  // Project the points to the boundary if necessary.
+  if (project_to_boundary)
+  {
+    for (int i = 0; i < num_points; ++i)
+    {
+      project_point_to_boundary(boundary, &points[i]);
+      double D;
+      sp_func_eval(boundary, &points[i], &D);
+      if (fabs(D) > 1e-12)
+        polymec_error("choose_sample_points: boundary projection yielded a non-zero distance (%g).\n Boundary is not a signed distance function!", D);
+    }
+  }
 
   // Set ji to 1 for all i.
   for (int i = 0; i < num_points; ++i)
@@ -151,7 +185,7 @@ static void iterate(prob_cvt_gen_t* prob,
     // Choose q points from within the domain according to the density 
     // function.
     point_t samples[prob->q];
-    choose_sample_points(prob->rng, density, boundary, bounding_box, samples, prob->q);
+    choose_sample_points(prob->rng, density, boundary, bounding_box, samples, prob->q, project_to_boundary);
 
     // Now organize the sample points into Voronoi regions of the points
     // in our point set.
@@ -191,23 +225,13 @@ static void iterate(prob_cvt_gen_t* prob,
         zi->y = ((alpha1*ji + beta1)*zi->y + (alpha2*ji + beta2)*ui.y) / (ji + 1.0);
         zi->z = ((alpha1*ji + beta1)*zi->z + (alpha2*ji + beta2)*ui.z) / (ji + 1.0);
 
-        // Project to the boundary if necessary.
+        // Make sure that zi is projected to the boundary if necessary.
         if (project_to_boundary)
         {
-          ASSERT(sp_func_has_deriv(boundary, 1));
-          double D, grad_D[3];
+          project_point_to_boundary(boundary, zi);
+          double D;
           sp_func_eval(boundary, zi, &D);
-          sp_func_eval_deriv(boundary, 1, zi, grad_D);
-          vector_t normal = {.x = -grad_D[0], .y = -grad_D[1], .z = -grad_D[2]};
-          vector_normalize(&normal);
-//printf("%g %g %g (%g, %g, %g, %g) ->", zi->x, zi->y, zi->z, D, normal.x, normal.y, normal.z);
-          zi->x += D * normal.x;
-          zi->y += D * normal.y;
-          zi->z += D * normal.z;
-//printf("%g %g %g\n", zi->x, zi->y, zi->z);
-          sp_func_eval(boundary, zi, &D);
-          if (fabs(D) > 1e-12)
-            polymec_error("prob_cvt_gen_iterate: boundary projection yielded a non-zero distance (%g).\n Boundary is not a signed distance function!", D);
+          ASSERT(fabs(D) < 1e-12);
         }
 
         // Increment ji.
