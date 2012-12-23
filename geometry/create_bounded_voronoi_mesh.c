@@ -105,8 +105,10 @@ mesh_t* create_bounded_voronoi_mesh(point_t* generators, int num_generators,
   // Now traverse the boundary generators and cut them up as needed.
   for (int c = num_generators; c < num_non_ghost_generators; ++c)
   {
-    // This generator should describe an outer cell.
-    ASSERT(int_ptr_unordered_map_contains(outer_cell_edges, c));
+    // This generator should describe an outer cell. If it doesn't, we have 
+    // an open boundary.
+    if (!int_ptr_unordered_map_contains(outer_cell_edges, c))
+      polymec_error("create_bounded_voronoi_mesh: boundary generators describe\nan open boundary! The boundary must be closed.");
 
     // Generate or retrieve the boundary node that sits atop this boundary
     // cell's generator.
