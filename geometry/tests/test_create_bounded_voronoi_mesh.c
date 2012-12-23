@@ -35,7 +35,7 @@ void test_create_cylindrical_voronoi_mesh(void** state)
   // Create a cylindrical Voronoi mesh with N interior generators 
   // within a bounding box, and Nb boundary generators. We generate an 
   // initial distribution randomly.
-  int N = 2000, Nb = 500;
+  int N = 2000, Nb = 1000;
   point_t generators[N], boundary_generators[Nb];
   bbox_t bbox = {.x1 = -1.0, .x2 = 1.0, .y1 = -1.0, .y2 = 1.0, .z1 = -1.0, .z2 = 1.0};
   for (int i = 0; i < N; ++i)
