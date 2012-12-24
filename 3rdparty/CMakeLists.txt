@@ -72,42 +72,6 @@ file(GLOB sources "${CMAKE_CURRENT_BINARY_DIR}/libarena-0.3.5/src/*.c")
 add_library(arena ${sources})
 set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};arena)
 
-# Install cprops -- A fast prototyping C library.
-#if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libcprops.a)
-#  set(CPROPS_CONFIG_OPTS --prefix=${PROJECT_BINARY_DIR} --enable-static --disable-shared --disable-ssl --disable-cp-dbms --disable-cpsvc --disable-cpsp)
-#  if (${CMAKE_BUILD_TYPE} STREQUAL "Debug")
-#    set(CPROPS_CONFIG_OPTS ${SILO_CONFIG_OPTS} --enable-debug)
-#  endif()
-#  execute_process(COMMAND cmake -E tar xzvf ${CMAKE_CURRENT_SOURCE_DIR}/libcprops-0.1.12.zip
-#                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
-#  execute_process(COMMAND env CC=${CC} CXX=${CXX} ./configure ${CPROPS_CONFIG_OPTS}
-#                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/libcprops-0.1.12)
-#  file(GLOB includes "${CMAKE_CURRENT_BINARY_DIR}/libcprops-0.1.12/*.h")
-#  foreach(inc ${includes})
-#    execute_process(COMMAND cmake -E copy ${inc} ${PROJECT_BINARY_DIR}/include)
-#  endforeach()
-#  execute_process(COMMAND cmake -E copy libcprops.a ${PROJECT_BINARY_DIR}/lib
-#                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/libcprops-0.1.12/.libs)
-#  execute_process(COMMAND make install
-#                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/libcprops-0.1.12
-#                  OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
-#endif()
-#add_library(cprops STATIC IMPORTED)
-#set_target_properties(cprops PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libcprops.a)
-#set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};cprops)
-
-# Install tommyds -- A set of fast data structures for C.
-#if (NOT EXISTS ${PROJECT_BINARY_DIR}/include/tommyhash.h)
-#  execute_process(COMMAND cmake -E tar xzvf ${CMAKE_CURRENT_SOURCE_DIR}/tommyds-1.2.tar.gz
-#                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
-#  file(GLOB includes "${CMAKE_CURRENT_BINARY_DIR}/tommyds-1.2/*.h")
-#  foreach(inc ${includes})
-#    execute_process(COMMAND cmake -E copy ${inc} ${PROJECT_BINARY_DIR}/include)
-#  endforeach()
-#endif()
-#add_library(tommyds ${CMAKE_CURRENT_BINARY_DIR}/tommyds-1.2/tommy.c)
-#set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};tommyds)
-
 # Install PETSc.
 # NOTE: ctetgen is not yet ready for primetime!
 if (NOT EXISTS ${CMAKE_BINARY_DIR}/lib/libpetsc.a)
@@ -179,7 +143,7 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/lib${SILOLIB}.a)
       set(SILO_CONFIG_OPTS ${SILO_CONFIG_OPTS} --enable-debug --with-hdf5=${HDF5_INCLUDE_DIRS},${HDF5_LIBRARY_DIRS})
     endif()
   endif()
-  execute_process(COMMAND cmake -E tar xzvf ${CMAKE_CURRENT_SOURCE_DIR}/silo-4.8-bsd.tar.gz
+  execute_process(COMMAND cmake -E tar xzvf ${CMAKE_CURRENT_SOURCE_DIR}/silo-4.8-bsd-smalltest.tar.gz
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
   execute_process(COMMAND env CC=${CC} CXX=${CXX} ./configure ${SILO_CONFIG_OPTS}
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/silo-4.8-bsd)
