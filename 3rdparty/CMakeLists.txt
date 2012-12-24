@@ -34,7 +34,7 @@ set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};triangle)
 if (NOT EXISTS ${PROJECT_BINARY_DIR}/include/tetgen.h)
   execute_process(COMMAND cmake -E tar xzvf ${CMAKE_CURRENT_SOURCE_DIR}/tetgen1.4.3.tar.gz
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
-  file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/tetgen1.4.3/tetgen.h DESTINATION ${PROJECT_BINARY_DIR}/include)
+  file(COPY ${CMAKE_CURRENT_BINARY_DIR}/tetgen1.4.3/tetgen.h DESTINATION ${PROJECT_BINARY_DIR}/include)
 endif()
 add_library(tetgen ${CMAKE_CURRENT_BINARY_DIR}/tetgen1.4.3/tetgen.cxx ${CMAKE_CURRENT_BINARY_DIR}/tetgen1.4.3/predicates.cxx)
 set(TETGEN_CXXFLAGS "-DTETLIBRARY -DREAL=double")
@@ -184,7 +184,7 @@ set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};lua)
 # Build libxml2, an XML library.
 if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libxml2.a)
   set(XML2_CONFIG_OPTS --prefix=${PROJECT_BINARY_DIR} --enable-static --disable-shared --without-threads)
-  execute_process(COMMAND cmake -E tar xzvf ${CMAKE_CURRENT_SOURCE_DIR}/libxml2-2.9.0.tar.gz
+  execute_process(COMMAND cmake -E tar xzvf ${CMAKE_CURRENT_SOURCE_DIR}/libxml2-sources-2.9.0.tar.gz
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
   execute_process(COMMAND env CC=${CC} ./configure ${XML2_CONFIG_OPTS}
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/libxml2-2.9.0)
