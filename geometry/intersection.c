@@ -46,7 +46,8 @@ static void inter_eval_gradient(void* ctx, point_t* x, double* result)
       index = i;
     }
   }
-  sp_func_eval(inter->funcs[index], x, result);
+  ASSERT(sp_func_has_deriv(inter->funcs[index], 1));
+  sp_func_eval_deriv(inter->funcs[index], 1, x, result);
 }
 
 sp_func_t* intersection_new(sp_func_t** surfaces, int num_surfaces)

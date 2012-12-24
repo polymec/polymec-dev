@@ -19,7 +19,7 @@ static void plane_eval(void* ctx, point_t* x, double* result)
 {
   plane_t* p = ctx;
   vector_t D;
-  point_displacement(&p->x, x, &D);
+  point_displacement(x, &p->x, &D);
   result[0] = vector_dot(&p->n, &D);
 }
 
