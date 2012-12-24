@@ -193,6 +193,8 @@ mesh_t* create_bounded_voronoi_mesh(point_t* generators, int num_generators,
           }
         }
       }
+      ASSERT(outer_edge1 != NULL);
+      ASSERT(outer_edge2 != NULL);
 
       int node1_index = outer_edge1->node1 - &mesh->nodes[0];
       bool created_bnode1 = false;
