@@ -83,11 +83,11 @@ static void project_point_to_boundary(sp_func_t* boundary, point_t* x)
   sp_func_eval_deriv(boundary, 1, x, grad_D);
   vector_t normal = {.x = -grad_D[0], .y = -grad_D[1], .z = -grad_D[2]};
   vector_normalize(&normal);
-//printf("%g %g %g (%g, %g, %g, %g) ->", zi->x, zi->y, zi->z, D, normal.x, normal.y, normal.z);
+//printf("%g %g %g (%g, %g, %g, %g) ->", x->x, x->y, x->z, D, normal.x, normal.y, normal.z);
   x->x += D * normal.x;
   x->y += D * normal.y;
   x->z += D * normal.z;
-//printf("%g %g %g\n", zi->x, zi->y, zi->z);
+//printf("%g %g %g\n", x->x, x->y, x->z);
 }
 
 static void choose_sample_points(long (*rng)(),
@@ -159,7 +159,7 @@ static void iterate(prob_cvt_gen_t* prob,
       double D;
       sp_func_eval(boundary, &points[i], &D);
       if (fabs(D) > 1e-12)
-        polymec_error("choose_sample_points: boundary projection yielded a non-zero distance (%g).\n Boundary is not a signed distance function!", D);
+        polymec_error("prob_cvt_gen_iterate_on_boundary: boundary projection yielded a non-zero distance (%g).\n Boundary is not a signed distance function!", D);
     }
   }
 
