@@ -7,9 +7,23 @@
 #include "prob_cvt_gen.h"
 #include "cylinder.h"
 #include "plane.h"
+#include "scaled.h"
 #include "intersection.h"
 #include "create_bounded_voronoi_mesh.h"
 #include "vtk_plot_io.h"
+
+void plot_generators(point_t* generators, int num_generators, const char* filename)
+{
+  int rank;
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  if (rank != 0) return;
+
+  FILE* fd = fopen(filename, "w");
+  fprintf(fd, "# x y z\n");
+  for (int i = 0; i < num_generators; ++i)
+    fprintf(fd, "%g %g %g\n", generators[i].x, generators[i].y, generators[i].z);
+  fclose(fd);
+}
 
 static void plot_voronoi_mesh(mesh_t* mesh, const char* filename)
 {
@@ -37,7 +51,7 @@ void test_create_cylindrical_voronoi_mesh(void** state)
   // Create a cylindrical Voronoi mesh with N interior generators 
   // within a bounding box, and Nb boundary generators. We generate an 
   // initial distribution randomly.
-  int N = 2000, Nb = 1000;
+  int N = 2000, Nb = 500;
   point_t generators[N], boundary_generators[Nb];
   bbox_t bbox = {.x1 = -0.5, .x2 = 0.5, .y1 = -0.5, .y2 = 0.5, .z1 = -1.0, .z2 = 1.0};
   for (int i = 0; i < N; ++i)
@@ -66,14 +80,18 @@ void test_create_cylindrical_voronoi_mesh(void** state)
 
   // Iterate 100 times to find the right generator distribution.
   int max_iter = 100;
-  prob_cvt_gen_iterate(prob, density, domain, &bbox, 
+  sp_func_t* shrunken_domain = scaled_new(domain, 0.95);
+  prob_cvt_gen_iterate(prob, density, shrunken_domain, &bbox,
                        terminate_prob_cvt_at_iter(max_iter),
                        generators, N);
+  plot_generators(generators, N, "generators_in_cyl.gnuplot");
 
   // Find a good boundary generator distribution.
   prob_cvt_gen_iterate_on_boundary(prob, density, domain, &bbox, 
                                    terminate_prob_cvt_at_iter(max_iter),
                                    boundary_generators, Nb);
+  plot_generators(boundary_generators, Nb, "generators_on_cyl.gnuplot");
+
 
   // Now generate the mesh.
   mesh_t* mesh = create_bounded_voronoi_mesh(generators, N, boundary_generators, Nb, NULL, 0);

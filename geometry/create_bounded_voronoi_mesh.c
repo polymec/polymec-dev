@@ -108,7 +108,11 @@ mesh_t* create_bounded_voronoi_mesh(point_t* generators, int num_generators,
     // This generator should describe an outer cell. If it doesn't, we have 
     // an open boundary.
     if (!int_ptr_unordered_map_contains(outer_cell_edges, c))
-      polymec_error("create_bounded_voronoi_mesh: boundary generators describe\nan open boundary! The boundary must be closed.");
+    {
+      polymec_error("create_bounded_voronoi_mesh: boundary generators describe\n"
+                    "an open boundary at x = (%g, %g, %g)! The boundary must be closed.", 
+                    non_ghost_generators[c].x, non_ghost_generators[c].y, non_ghost_generators[c].z);
+    }
 
     // Generate or retrieve the boundary node that sits atop this boundary
     // cell's generator.

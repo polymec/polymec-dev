@@ -62,7 +62,7 @@ void test_create_generators_in_cylinder(void** state)
   // bounding box. We generate an initial distribution randomly.
   int N = 2000;
   point_t generators[N];
-  bbox_t bbox = {.x1 = -1.0, .x2 = 1.0, .y1 = -1.0, .y2 = 1.0, .z1 = -1.0, .z2 = 1.0};
+  bbox_t bbox = {.x1 = -0.5, .x2 = 0.5, .y1 = -0.5, .y2 = 0.5, .z1 = -0.5, .z2 = 0.5};
   for (int i = 0; i < N; ++i)
   {
     double F;
