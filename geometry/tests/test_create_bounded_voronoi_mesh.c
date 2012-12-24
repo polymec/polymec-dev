@@ -63,6 +63,7 @@ void test_create_cylindrical_voronoi_mesh(void** state)
   sp_func_t* surfaces[3];
   surfaces[0] = cylinder; surfaces[1] = top; surfaces[2] = bottom;
   sp_func_t* domain = intersection_new(surfaces, 3);
+  sp_func_t* shrunken_domain = scaled_new(domain, 0.95);
 
   // We generate an initial distribution randomly.
   int N = 2000, Nb = 500;
@@ -74,7 +75,7 @@ void test_create_cylindrical_voronoi_mesh(void** state)
     do
     {
       point_randomize(&generators[i], random, &bbox);
-      sp_func_eval(cylinder, &generators[i], &F);
+      sp_func_eval(shrunken_domain, &generators[i], &F);
     }
     while (F >= 0.0);
   }
@@ -97,7 +98,6 @@ void test_create_cylindrical_voronoi_mesh(void** state)
 
   // Iterate 100 times to find the right generator distribution.
   int max_iter = 100;
-  sp_func_t* shrunken_domain = scaled_new(domain, 0.95);
   prob_cvt_gen_iterate(prob, density, shrunken_domain, &bbox,
                        terminate_prob_cvt_at_iter(max_iter),
                        generators, N);
