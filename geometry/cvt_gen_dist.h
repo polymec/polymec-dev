@@ -14,8 +14,9 @@ extern "C" {
 typedef struct cvt_gen_dist_t cvt_gen_dist_t;
 
 // A function pointer type for performing the iteration.
-typedef void (*cvt_gen_dist_iterate_func)(void*, sp_func_t*, sp_func_t*, 
-                                          bbox_t*, point_t*, int, point_t*, int);
+typedef void (*cvt_gen_dist_iterate_func)(void*, sp_func_t*, bbox_t*, 
+                                          point_t*, int, sp_func_t*,
+                                          point_t*, int, sp_func_t*);
 
 // A destructor for any given context object.
 typedef void (*cvt_gen_dist_dtor)(void*);
@@ -33,6 +34,12 @@ cvt_gen_dist_t* cvt_gen_dist_new(const char* name, void* context, cvt_gen_dist_v
 
 // Returns the name of the CVT generator distribution algorithm.
 const char* cvt_gen_dist_name(cvt_gen_dist_t* dist);
+
+// Sets up a safety buffer in between the domain boundary and the region 
+// within which interior generator points will be generated. The argument is
+// (1 - f), where f is a scaling factor that will be applied to any boundary
+// inside which points are generated. This argument must fall within [0,1].
+void cvt_gen_dist_set_safety_buffer(cvt_gen_dist_t* dist, double factor);
 
 // Given an initial set of (interior) generator points,
 // move them around according to the designated algorithm until some termination 
