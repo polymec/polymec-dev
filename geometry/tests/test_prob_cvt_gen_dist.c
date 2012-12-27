@@ -4,7 +4,7 @@
 #include <string.h>
 #include "cmockery.h"
 #include "constant_st_func.h"
-#include "prob_cvt_gen.h"
+#include "prob_cvt_gen_dist.h"
 #include "cylinder.h"
 
 void plot_generators(point_t* generators, int num_generators, const char* filename)
@@ -35,15 +35,12 @@ void test_create_generators_in_box(void** state)
 
   // Probabilistic algorithm.
   int num_sample_pts = 300;
-  prob_cvt_gen_t* prob = prob_cvt_gen_new(random, num_sample_pts, 0.5, 0.5);
+  cvt_gen_dist_t* prob = prob_cvt_gen_dist_new(random, num_sample_pts, num_sample_pts, 0.5, 0.5, 100);
   double one = 1.0;
   sp_func_t* density = constant_sp_func_new(1, &one); // Constant density.
 
   // Iterate 100 times to find the right generator distribution.
-  int max_iter = 100;
-  prob_cvt_gen_iterate(prob, density, NULL, &bbox, 
-                       terminate_prob_cvt_at_iter(max_iter),
-                       generators, N);
+  cvt_gen_dist_iterate(prob, density, NULL, &bbox, generators, N);
 
   // Plot the generators.
   plot_generators(generators, N, "generators_in_box.gnuplot");
@@ -76,15 +73,10 @@ void test_create_generators_in_cylinder(void** state)
 
   // Probabilistic algorithm.
   int num_sample_pts = 300;
-  prob_cvt_gen_t* prob = prob_cvt_gen_new(random, num_sample_pts, 0.5, 0.5);
+  cvt_gen_dist_t* prob = prob_cvt_gen_dist_new(random, num_sample_pts, num_sample_pts, 0.5, 0.5, 100);
   double one = 1.0;
   sp_func_t* density = constant_sp_func_new(1, &one); // Constant density.
-
-  // Iterate 100 times to find the right generator distribution.
-  int max_iter = 100;
-  prob_cvt_gen_iterate(prob, density, cylinder, &bbox, 
-                       terminate_prob_cvt_at_iter(max_iter),
-                       generators, N);
+  cvt_gen_dist_iterate(prob, density, cylinder, &bbox, generators, N);
 
   // Make sure all of the generators are inside the cylinder.
   for (int i = 0; i < N; ++i)
@@ -125,15 +117,11 @@ void test_create_generators_on_cylinder(void** state)
 
   // Probabilistic algorithm.
   int num_sample_pts = 300;
-  prob_cvt_gen_t* prob = prob_cvt_gen_new(random, num_sample_pts, 0.5, 0.5);
+  cvt_gen_dist_t* prob = prob_cvt_gen_dist_new(random, num_sample_pts, num_sample_pts, 0.5, 0.5, 100);
   double one = 1.0;
   sp_func_t* density = constant_sp_func_new(1, &one); // Constant density.
-
-  // Iterate 100 times to find the right generator distribution.
-  int max_iter = 100;
-  prob_cvt_gen_iterate_on_boundary(prob, density, cylinder, &bbox, 
-                                   terminate_prob_cvt_at_iter(max_iter),
-                                   generators, N);
+  cvt_gen_dist_iterate_with_boundary_points(prob, density, cylinder, &bbox, 
+                                            NULL, 0, generators, N);
 
   // Make sure all of the generators are on the cylinder.
   for (int i = 0; i < N; ++i)

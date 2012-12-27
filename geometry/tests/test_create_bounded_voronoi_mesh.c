@@ -4,7 +4,7 @@
 #include <string.h>
 #include "cmockery.h"
 #include "constant_st_func.h"
-#include "prob_cvt_gen.h"
+#include "prob_cvt_gen_dist.h"
 #include "cylinder.h"
 #include "plane.h"
 #include "scaled.h"
@@ -90,23 +90,14 @@ void test_create_cylindrical_voronoi_mesh(void** state)
     while (F >= 0.0);
   }
 
-  // Probabilistic algorithm.
-  int num_sample_pts = 300;
-  prob_cvt_gen_t* prob = prob_cvt_gen_new(random, num_sample_pts, 0.5, 0.5);
+  // Probabilistic algorithm (iterates 100 times max).
+  int num_sample_pts = 300, num_boundary_sample_pts = 300;
+  cvt_gen_dist_t* prob = prob_cvt_gen_dist_new(random, num_sample_pts, num_boundary_sample_pts, 0.5, 0.5, 100);
   double one = 1.0;
   sp_func_t* density = constant_sp_func_new(1, &one); // Constant density.
-
-  // Iterate 100 times to find the right generator distribution.
-  int max_iter = 100;
-  prob_cvt_gen_iterate(prob, density, shrunken_domain, &bbox,
-                       terminate_prob_cvt_at_iter(max_iter),
-                       generators, N);
+  cvt_gen_dist_iterate_with_boundary_points(prob, density, shrunken_domain, 
+                       &bbox, generators, N, boundary_generators, Nb);
   plot_generators(generators, N, "generators_in_cyl.gnuplot");
-
-  // Find a good boundary generator distribution.
-  prob_cvt_gen_iterate_on_boundary(prob, density, domain, &bbox, 
-                                   terminate_prob_cvt_at_iter(max_iter),
-                                   boundary_generators, Nb);
   plot_generators(boundary_generators, Nb, "generators_on_cyl.gnuplot");
 
 
