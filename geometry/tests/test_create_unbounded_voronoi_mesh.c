@@ -4,7 +4,7 @@
 #include <string.h>
 #include "cmockery.h"
 #include "constant_st_func.h"
-#include "prob_cvt_gen.h"
+#include "prob_cvt_gen_dist.h"
 #include "cylinder.h"
 #include "create_unbounded_voronoi_mesh.h"
 #include "vtk_plot_io.h"
@@ -22,17 +22,12 @@ void test_create_unbounded_voronoi_mesh(void** state)
   for (int i = 0; i < N; ++i)
     point_randomize(&generators[i], random, &bbox);
 
-  // Probabilistic algorithm.
+  // Probabilistic algorithm (iterates 100 times max).
   int num_sample_pts = 300;
-  prob_cvt_gen_t* prob = prob_cvt_gen_new(random, num_sample_pts, 0.5, 0.5);
+  cvt_gen_dist_t* prob = prob_cvt_gen_dist_new(random, num_sample_pts, 0, 0.5, 0.5, 100);
   double one = 1.0;
   sp_func_t* density = constant_sp_func_new(1, &one); // Constant density.
-
-  // Iterate 100 times to find the right generator distribution.
-  int max_iter = 100;
-  prob_cvt_gen_iterate(prob, density, NULL, &bbox, 
-                       terminate_prob_cvt_at_iter(max_iter),
-                       generators, N);
+  cvt_gen_dist_iterate(prob, density, NULL, &bbox, generators, N);
 
   // Now generate the unbounded Voronoi thingy.
   mesh_t* mesh = create_unbounded_voronoi_mesh(generators, N, NULL, 0);
