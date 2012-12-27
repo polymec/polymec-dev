@@ -7,7 +7,6 @@
 #include "prob_cvt_gen_dist.h"
 #include "cylinder.h"
 #include "plane.h"
-#include "scaled.h"
 #include "intersection.h"
 #include "create_bounded_voronoi_mesh.h"
 #include "vtk_plot_io.h"
@@ -63,7 +62,6 @@ void test_create_cylindrical_voronoi_mesh(void** state)
   sp_func_t* surfaces[3];
   surfaces[0] = cylinder; surfaces[1] = top; surfaces[2] = bottom;
   sp_func_t* domain = intersection_new(surfaces, 3);
-  sp_func_t* shrunken_domain = scaled_new(domain, 0.95);
 
   // We generate an initial distribution randomly.
   int N = 2000, Nb = 500;
@@ -75,7 +73,7 @@ void test_create_cylindrical_voronoi_mesh(void** state)
     do
     {
       point_randomize(&generators[i], random, &bbox);
-      sp_func_eval(shrunken_domain, &generators[i], &F);
+      sp_func_eval(domain, &generators[i], &F);
     }
     while (F >= 0.0);
   }
@@ -85,7 +83,7 @@ void test_create_cylindrical_voronoi_mesh(void** state)
     do
     {
       point_randomize(&boundary_generators[i], random, &bbox);
-      sp_func_eval(cylinder, &boundary_generators[i], &F);
+      sp_func_eval(domain, &boundary_generators[i], &F);
     }
     while (F >= 0.0);
   }
@@ -93,9 +91,10 @@ void test_create_cylindrical_voronoi_mesh(void** state)
   // Probabilistic algorithm (iterates 100 times max).
   int num_sample_pts = 300, num_boundary_sample_pts = 300;
   cvt_gen_dist_t* prob = prob_cvt_gen_dist_new(random, num_sample_pts, num_boundary_sample_pts, 0.5, 0.5, 100);
+  cvt_gen_dist_set_safety_buffer(prob, 0.05); // 5% buffer for interior points.
   double one = 1.0;
   sp_func_t* density = constant_sp_func_new(1, &one); // Constant density.
-  cvt_gen_dist_iterate_with_boundary_points(prob, density, shrunken_domain, 
+  cvt_gen_dist_iterate_with_boundary_points(prob, density, domain, 
                        &bbox, generators, N, boundary_generators, Nb);
   plot_generators(generators, N, "generators_in_cyl.gnuplot");
   plot_generators(boundary_generators, Nb, "generators_on_cyl.gnuplot");
