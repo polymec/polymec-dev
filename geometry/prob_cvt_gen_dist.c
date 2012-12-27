@@ -29,21 +29,6 @@ static void project_point_to_boundary(sp_func_t* boundary, point_t* x)
 //printf("%g %g %g\n", x->x, x->y, x->z);
 }
 
-static void reflect_point_across_boundary(sp_func_t* boundary, point_t* x)
-{
-  ASSERT(sp_func_has_deriv(boundary, 1));
-  double D, grad_D[3];
-  sp_func_eval(boundary, x, &D);
-  sp_func_eval_deriv(boundary, 1, x, grad_D);
-  vector_t normal = {.x = -grad_D[0], .y = -grad_D[1], .z = -grad_D[2]};
-  vector_normalize(&normal);
-//printf("%g %g %g (%g, %g, %g, %g) ->", x->x, x->y, x->z, D, normal.x, normal.y, normal.z);
-  x->x += 2.0 * D * normal.x;
-  x->y += 2.0 * D * normal.y;
-  x->z += 2.0 * D * normal.z;
-//printf("%g %g %g\n", x->x, x->y, x->z);
-}
-
 static void choose_sample_points(long (*rng)(),
                                  sp_func_t* density,
                                  sp_func_t* boundary,
@@ -131,31 +116,6 @@ void prob_cvt_gen_dist_iterate(void* context,
   prob_cvt_gen_dist_t* prob = context;
 
   int iter = 0;
-
-  // If necessary, move interior points into the interior region.
-  if ((num_interior_points > 0) && (interior != NULL))
-  {
-    for (int i = 0; i < num_interior_points; ++i)
-    {
-      double D;
-      sp_func_eval(interior, &interior_points[i], &D);
-      if (D >= 0.0)
-        reflect_point_across_boundary(interior, &interior_points[i]);
-    }
-  }
-
-  // Project the boundary points to the boundary.
-  if ((num_boundary_points > 0) && (boundary != NULL))
-  {
-    for (int i = 0; i < num_boundary_points; ++i)
-    {
-      project_point_to_boundary(boundary, &boundary_points[i]);
-      double D;
-      sp_func_eval(boundary, &boundary_points[i], &D);
-      if (fabs(D) > 1e-12)
-        polymec_error("prob_cvt_gen_dist_iterate: boundary projection yielded a non-zero distance (%g).\n Boundary is not a signed distance function!", D);
-    }
-  }
 
   // Set ji to 1 for all i.
   int ji[num_interior_points], jb[num_boundary_points];

@@ -64,7 +64,7 @@ void test_create_cylindrical_voronoi_mesh(void** state)
   sp_func_t* domain = intersection_new(surfaces, 3);
 
   // We generate an initial distribution randomly.
-  int N = 2000, Nb = 500;
+  int N = 2000, Nb = 1000;
   point_t generators[N], boundary_generators[Nb];
   bbox_t bbox = {.x1 = -0.5, .x2 = 0.5, .y1 = -0.5, .y2 = 0.5, .z1 = -1.0, .z2 = 1.0};
   for (int i = 0; i < N; ++i)
