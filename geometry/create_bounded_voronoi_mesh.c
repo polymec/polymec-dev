@@ -179,12 +179,16 @@ mesh_t* create_bounded_voronoi_mesh(point_t* generators, int num_generators,
       int* far_outer_edges = *int_ptr_unordered_map_get(outer_cell_edges, ncell_index);
       int num_far_outer_edges = far_outer_edges[0];
       edge_t *outer_edge1 = NULL, *outer_edge2 = NULL;
+printf("(%d:%d, %d:%d)\n", c, num_near_outer_edges, ncell_index, num_far_outer_edges);
       for (int en = 1; en <= num_near_outer_edges; ++en)
       {
+printf("en = %d\n", near_outer_edges[en]);
         for (int ef = 1; ef <= num_far_outer_edges; ++ef)
         {
+printf("ef = %d\n", far_outer_edges[ef]);
           if (far_outer_edges[ef] == near_outer_edges[en])
           {
+printf("*\n");
             if (outer_edge1 == NULL)
               outer_edge1 = &mesh->edges[far_outer_edges[ef]];
             else
