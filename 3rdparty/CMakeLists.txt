@@ -41,22 +41,26 @@ set(TETGEN_CXXFLAGS "-DTETLIBRARY -DREAL=double")
 set_target_properties(tetgen PROPERTIES COMPILE_FLAGS ${TETGEN_CXXFLAGS})
 set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};tetgen)
 
-# Install zeromq.
-#if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libzmq.a)
-#  set(ZMQ_CONFIG_OPTS --prefix=${PROJECT_BINARY_DIR} --enable-static --disable-shared)
-#  if (${CMAKE_BUILD_TYPE} STREQUAL "Debug")
-#    set(ZMQ_CONFIG_OPTS ${ZMQ_CONFIG_OPTS} --enable-debug)
-#  endif()
-#  execute_process(COMMAND cmake -E tar xzvf ${CMAKE_CURRENT_SOURCE_DIR}/zeromq-3.2.0-rc1.tar.gz
-#                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
-#  execute_process(COMMAND env CC=${CC} CXX=${CXX} ./configure ${ZMQ_CONFIG_OPTS}
-#                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/zeromq-3.2.0)
-#  execute_process(COMMAND make install
-#                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/zeromq-3.2.0)
-#  add_library(zmq STATIC IMPORTED)
-#  set_target_properties(zmq PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libzmq.a)
-#endif()
-#set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};zmq;stdc++)
+# Install the LZMA SDK. This tarball is packed in an idiotic way, so 
+# it requires more care than the others.
+if (NOT EXISTS ${CMAKE_CURRENT_BINARY_DIR}/lzma-sdk/C/LzmaDec.h)
+  execute_process(COMMAND cmake -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/lzma-sdk)
+  execute_process(COMMAND cmake -E tar xzvf ${CMAKE_CURRENT_SOURCE_DIR}/lzma920.tar.bz2
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/lzma-sdk)
+  file(GLOB includes "${CMAKE_CURRENT_BINARY_DIR}/lzma-sdk/C/*.h")
+  foreach(inc ${includes})
+    execute_process(COMMAND cmake -E copy ${inc} ${PROJECT_BINARY_DIR}/include)
+  endforeach()
+endif()
+set(source_names LzFind.c;LzmaLib.c;XzCrc64.c;Alloc.c;XzDec.c;Bcj2.c;Lzma2Dec.c;Ppmd7.c;XzEnc.c;Bra.c;Lzma2Enc.c;Ppmd7Dec.c;XzIn.c;Bra86.c;Lzma86Dec.c;Ppmd7Enc.c;BraIA64.c;Lzma86Enc.c;Sha256.c;CpuArch.c;LzmaDec.c;Delta.c;LzmaEnc.c;Xz.c)
+set(sources "")
+foreach(src ${source_names})
+  list(APPEND sources ${CMAKE_CURRENT_BINARY_DIR}/lzma-sdk/C/${src})
+endforeach()
+add_library(lzma ${sources})
+set(LZMA_CFLAGS "-D_7ZIP_ST")
+set_target_properties(lzma PROPERTIES COMPILE_FLAGS ${LZMA_CFLAGS})
+set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};lzma)
 
 # Install libarena -- A fast C arena/memory pool implementation.
 if (NOT EXISTS ${PROJECT_BINARY_DIR}/include/arena)
@@ -132,7 +136,7 @@ else()
   endif()
 endif()
 if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/lib${SILOLIB}.a)
-  set(SILO_CONFIG_OPTS --prefix=${PROJECT_BINARY_DIR} --enable-static --disable-shared)
+  set(SILO_CONFIG_OPTS --prefix=${PROJECT_BINARY_DIR} --enable-static --disable-shared --disable-fortran)
   if (${CMAKE_BUILD_TYPE} STREQUAL "Debug")
     set(SILO_CONFIG_OPTS ${SILO_CONFIG_OPTS} --enable-debug)
   endif()
@@ -193,7 +197,7 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libxml2.a)
   add_library(xml2 STATIC IMPORTED)
   set_target_properties(xml2 PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libxml2.a)
 endif()
-set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};xml2;iconv;lzma)
+set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};xml2;iconv;z)
 set(POLYMEC_INCDIRS ${POLYMEC_INCDIRS};${PROJECT_BINARY_DIR}/include/libxml2)
 
 # Install TAO (for optimization problems).
