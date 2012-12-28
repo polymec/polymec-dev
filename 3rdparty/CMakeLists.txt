@@ -45,7 +45,7 @@ set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};tetgen)
 if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/liblzma.a)
   set(XZ_CONFIG_OPTS --prefix=${PROJECT_BINARY_DIR} --enable-static --disable-shared)
   if (${CMAKE_BUILD_TYPE} STREQUAL "Debug")
-    set(XZ_CONFIG_OPTS ${SILO_CONFIG_OPTS} --enable-debug)
+    set(XZ_CONFIG_OPTS ${XZ_CONFIG_OPTS} --enable-debug)
   endif()
   execute_process(COMMAND cmake -E tar xzvf ${CMAKE_CURRENT_SOURCE_DIR}/xz-utils_5.0.0.orig.tar.gz
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
@@ -58,27 +58,6 @@ endif()
 add_library(lzma STATIC IMPORTED)
 set_target_properties(lzma PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/liblzma.a)
 set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};lzma)
-
-# Install the LZMA SDK. This tarball is packed in an idiotic way, so 
-# it requires more care than the others.
-#if (NOT EXISTS ${CMAKE_CURRENT_BINARY_DIR}/lzma-sdk/C/LzmaDec.h)
-#  execute_process(COMMAND cmake -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/lzma-sdk)
-#  execute_process(COMMAND cmake -E tar xzvf ${CMAKE_CURRENT_SOURCE_DIR}/lzma920.tar.bz2
-#                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/lzma-sdk)
-#  file(GLOB includes "${CMAKE_CURRENT_BINARY_DIR}/lzma-sdk/C/*.h")
-#  foreach(inc ${includes})
-#    execute_process(COMMAND cmake -E copy ${inc} ${PROJECT_BINARY_DIR}/include)
-#  endforeach()
-#endif()
-#set(source_names LzFind.c;LzmaLib.c;XzCrc64.c;Alloc.c;XzDec.c;Bcj2.c;Lzma2Dec.c;Ppmd7.c;XzEnc.c;Bra.c;Lzma2Enc.c;Ppmd7Dec.c;XzIn.c;Bra86.c;Lzma86Dec.c;Ppmd7Enc.c;BraIA64.c;Lzma86Enc.c;Sha256.c;CpuArch.c;LzmaDec.c;Delta.c;LzmaEnc.c;Xz.c)
-#set(sources "")
-#foreach(src ${source_names})
-#  list(APPEND sources ${CMAKE_CURRENT_BINARY_DIR}/lzma-sdk/C/${src})
-#endforeach()
-#add_library(lzma ${sources})
-#set(LZMA_CFLAGS "-D_7ZIP_ST")
-#set_target_properties(lzma PROPERTIES COMPILE_FLAGS ${LZMA_CFLAGS})
-#set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};lzma)
 
 # Install libarena -- A fast C arena/memory pool implementation.
 if (NOT EXISTS ${PROJECT_BINARY_DIR}/include/arena)
