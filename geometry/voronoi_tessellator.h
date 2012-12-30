@@ -44,6 +44,10 @@ typedef struct
 
 } voronoi_tessellation_t;
 
+// Creates a new Voronoi tessellation with the given numbers of mesh
+// elements.
+voronoi_tessellation_t* voronoi_tessellation_new(int num_cells, int num_faces, int num_edges, int num_nodes);
+
 // Destroys a tessellation that has been created by a tessellator.
 void voronoi_tessellation_free(voronoi_tessellation_t* tessellation);
 
