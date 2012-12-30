@@ -10,6 +10,8 @@ extern "C" {
 // This function chases down a merged node.
 static inline int map_node(int_int_unordered_map_t* node_map, int n)
 {
+  if (n == -1) return -1;
+
   int* n_p = &n;
   while (n_p != NULL)
   {
@@ -28,12 +30,15 @@ voronoi_tessellation_t* create_manifold(voronoi_tessellation_t* tessellation)
   // we are given has faces that have two distinct sides that contain 
   // (in general) different sets of nodes. So we create a node mapping from 
   // the original tessellation to the manifold.
+  int_int_unordered_map_t* face_map = int_int_unordered_map_new();
+  int_int_unordered_map_t* edge_map = int_int_unordered_map_new();
   int_int_unordered_map_t* node_map = int_int_unordered_map_new();
   int_int_unordered_map_t* node_pairs = int_int_unordered_map_new();
   int_unordered_set_t* deleted_edges = int_unordered_set_new();
   int_unordered_set_t* deleted_faces = int_unordered_set_new();
   int_unordered_set_t* f1_nodes = int_unordered_set_new();
   int_unordered_set_t* f2_nodes = int_unordered_set_new();
+  int face_index = 0;
   for (int c1 = 0; c1 < num_cells; ++c1)
   {
     // Go over the faces of this cell.
@@ -41,12 +46,12 @@ voronoi_tessellation_t* create_manifold(voronoi_tessellation_t* tessellation)
     for (int fc1 = 0; fc1 < nf1; ++fc1)
     {
       int f1 = tessellation->cells[c1].faces[fc1];
-      ASSERT((c1 == tessellation->faces[f1].cell1) || 
-             (c1 == tessellation->faces[f1].cell2));
+      voronoi_face_t* face = &tessellation->faces[f1];
+      ASSERT((c1 == face->cell1) || (c1 == face->cell2));
 
       // Retrieve the face in the opposite cell corresponding to this
       // face.
-      int c2 = tessellation->faces[f1].cell2;
+      int c2 = (c1 == face->cell1) ? face->cell2 : face->cell1;
       if (c2 < c1) continue; // We've already processed this interaction.
 
       int nf2 = tessellation->cells[c2].num_faces;
@@ -77,6 +82,11 @@ voronoi_tessellation_t* create_manifold(voronoi_tessellation_t* tessellation)
         // FIXME: Not yet finished!
         polymec_error("create_manifold: degenerate face!");
       }
+      if (!int_int_unordered_map_contains(face_map, f1))
+        int_int_unordered_map_insert(face_map, f1, face_index);
+      if (!int_int_unordered_map_contains(face_map, f2))
+        int_int_unordered_map_insert(face_map, f2, face_index);
+      ++face_index;
 
       // Now we have f1 and f2, the two sides of the face between 
       // the cells c1 and c2. We must resolve the nodes of f1 and f2 into 
@@ -93,7 +103,7 @@ voronoi_tessellation_t* create_manifold(voronoi_tessellation_t* tessellation)
         int_unordered_set_insert(f1_nodes, n1);
         int_unordered_set_insert(f1_nodes, n2);
       }
-      ASSERT(f1_nodes->size == num_edges1);
+//      ASSERT(f1_nodes->size == num_edges1);
       int num_edges2 = tessellation->faces[f2].num_edges;
       for (int e = 0; e < num_edges2; ++e)
       {
@@ -135,6 +145,8 @@ voronoi_tessellation_t* create_manifold(voronoi_tessellation_t* tessellation)
         int pos = 0, n1, n2;
         while (int_int_unordered_map_next(node_pairs, &pos, &n1, &n2))
         {
+          if ((n1 == -1) || (n2 == -1)) continue; // Skip semi-infinite edges.
+
           // Check to see whether n1 and n2 are actually a pair.
           int n2_nearest = *int_int_unordered_map_get(node_pairs, n2);
           if (n2_nearest != n1) 
@@ -189,10 +201,6 @@ voronoi_tessellation_t* create_manifold(voronoi_tessellation_t* tessellation)
   int_unordered_set_free(f2_nodes);
   int_int_unordered_map_free(node_pairs);
 
-  // The node map contains an entry for -1 for semi-infinite edges. 
-  // Toss this out.
-  int_int_unordered_map_delete(node_map, -1);
-
   // At this point, we have a mapping from the nodes in the original 
   // tessellation to those in the manifold, using the original index
   // space.
@@ -233,7 +241,6 @@ voronoi_tessellation_t* create_manifold(voronoi_tessellation_t* tessellation)
   ASSERT(node_index == m->num_nodes);
 
   // Now wire up the cells and faces.
-  int face_index = 0;
   for (int c = 0; c < m->num_cells; ++c)
   {
     // Count up the faces that weren't deleted.
@@ -255,6 +262,8 @@ voronoi_tessellation_t* create_manifold(voronoi_tessellation_t* tessellation)
       int face = tessellation->cells[c].faces[f];
       if (!int_unordered_set_contains(deleted_faces, face))
       {
+        int face_index = *int_int_unordered_map_get(face_map, face);
+
         // Hook the face up to the cell.
         m->cells[c].faces[cell_face_index] = face_index;
 
@@ -264,13 +273,10 @@ voronoi_tessellation_t* create_manifold(voronoi_tessellation_t* tessellation)
         else
           m->faces[face_index].cell2 = c;
 
-        // Move everything along.
         ++cell_face_index;
-        ++face_index;
       }
     }
   }
-  ASSERT(face_index == m->num_faces);
 
   // Wire up the faces and edges.
   face_index = 0;
@@ -284,7 +290,7 @@ voronoi_tessellation_t* create_manifold(voronoi_tessellation_t* tessellation)
     // Count up the edges that weren't deleted for this face.
     int num_edges = 0;
     int ne = tessellation->faces[f].num_edges;
-    for (int e = 0; f < ne; ++e)
+    for (int e = 0; e < ne; ++e)
     {
       int edge = tessellation->faces[f].edges[e];
       if (!int_unordered_set_contains(deleted_edges, edge))
@@ -300,17 +306,16 @@ voronoi_tessellation_t* create_manifold(voronoi_tessellation_t* tessellation)
       int edge = tessellation->faces[f].edges[e];
       if (!int_unordered_set_contains(deleted_edges, edge))
       {
+        int edge_index = *int_int_unordered_map_get(edge_map, edge);
+
         // Hook the edge up to the face.
         m->faces[face_index].edges[face_edge_index] = edge_index;
 
-        // Move things along.
         ++face_edge_index;
-        ++edge_index;
       }
     }
     ++face_index;
   }
-  ASSERT(edge_index == m->num_edges);
 
   // Finally, wire up the edges and nodes.
   edge_index = 0;
@@ -323,14 +328,22 @@ voronoi_tessellation_t* create_manifold(voronoi_tessellation_t* tessellation)
     // Get the nodes for this edge within the manifold.
     int n1 = tessellation->edges[e].node1;
     m->edges[edge_index].node1 = map_node(node_map, n1);
-    int n2 = tessellation->edges[e].node1;
+    int n2 = tessellation->edges[e].node2;
     m->edges[edge_index].node2 = map_node(node_map, n2);
+    if (n2 == -1)
+    {
+      m->edges[edge_index].ray[0] = tessellation->edges[e].ray[0];
+      m->edges[edge_index].ray[1] = tessellation->edges[e].ray[1];
+      m->edges[edge_index].ray[2] = tessellation->edges[e].ray[2];
+    }
 
     // Move along.
     ++edge_index;
   }
 
   // Clean up.
+  int_int_unordered_map_free(face_map);
+  int_int_unordered_map_free(edge_map);
   int_int_unordered_map_free(node_map);
   int_unordered_set_free(deleted_edges);
   int_unordered_set_free(deleted_faces);
