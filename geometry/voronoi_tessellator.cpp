@@ -7,6 +7,7 @@
 #include "core/polymec.h"
 #include <gc/gc.h>
 #include "geometry/voronoi_tessellator.h"
+#include "geometry/create_manifold.h"
 
 #define TETLIBRARY
 #include "tetgen.h"
@@ -38,9 +39,6 @@ voronoi_tessellator_t* voronoi_tessellator_new()
   return t;
 }
 
-namespace 
-{
-
 voronoi_tessellation_t* voronoi_tessellation_new(int num_cells, int num_faces, int num_edges, int num_nodes)
 {
   voronoi_tessellation_t* t = (voronoi_tessellation_t*)malloc(sizeof(voronoi_tessellation_t));
@@ -55,12 +53,11 @@ voronoi_tessellation_t* voronoi_tessellation_new(int num_cells, int num_faces, i
   return t;
 }
 
-}
-
 voronoi_tessellation_t*
 voronoi_tessellator_tessellate(voronoi_tessellator_t* tessellator,
                                double* points, int num_points)
 {
+  UNUSED_ARG(tessellator);
   ASSERT(points != NULL);
   ASSERT(num_points >= 2);
 
@@ -123,7 +120,11 @@ voronoi_tessellator_tessellate(voronoi_tessellator_t* tessellator,
       t->cells[i].faces[f] = out.vcelllist[i][f+1];
   }
 
-  return t;
+  // Make a manifold out of this tessellation.
+  voronoi_tessellation_t* m = create_manifold(t);
+  voronoi_tessellation_free(t);
+
+  return m;
 }
 
 }
