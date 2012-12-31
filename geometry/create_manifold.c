@@ -337,7 +337,7 @@ voronoi_tessellation_t* create_manifold(voronoi_tessellation_t* tessellation)
   int_unordered_set_free(deleted_edges);
 
   // Now that we've mapped the old edges to the new, we eliminate 
-  // any faces with fewer than 3 edges.
+  // any faces with fewer than 2 edges.
   for (int f = 0; f < tessellation->num_faces; ++f)
   {
     if (int_unordered_set_contains(deleted_faces, f))
@@ -360,7 +360,8 @@ voronoi_tessellation_t* create_manifold(voronoi_tessellation_t* tessellation)
           --num_unique_edges;
       }
     }
-    if (num_unique_edges < 3)
+    // 
+    if (num_unique_edges < 2)
       int_unordered_set_insert(deleted_faces, f);
   }
   m->num_faces = tessellation->num_faces - deleted_faces->size;
