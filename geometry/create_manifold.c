@@ -11,14 +11,7 @@ extern "C" {
 static inline int map_node(int_int_unordered_map_t* node_map, int n)
 {
   if (n == -1) return -1;
-
-  int* n_p = &n;
-  while (n_p != NULL)
-  {
-    n = *n_p;
-    n_p = int_int_unordered_map_get(node_map, n);
-  }
-  return *n_p;
+  return *int_int_unordered_map_get(node_map, n);
 }
 
 voronoi_tessellation_t* create_manifold(voronoi_tessellation_t* tessellation)
@@ -31,7 +24,6 @@ voronoi_tessellation_t* create_manifold(voronoi_tessellation_t* tessellation)
   // (in general) different sets of nodes. So we create a node mapping from 
   // the original tessellation to the manifold.
   int_int_unordered_map_t* face_map = int_int_unordered_map_new();
-  int_int_unordered_map_t* edge_map = int_int_unordered_map_new();
   int_int_unordered_map_t* node_map = int_int_unordered_map_new();
   int_int_unordered_map_t* node_pairs = int_int_unordered_map_new();
   int_unordered_set_t* deleted_edges = int_unordered_set_new();
@@ -87,6 +79,8 @@ voronoi_tessellation_t* create_manifold(voronoi_tessellation_t* tessellation)
       if (!int_int_unordered_map_contains(face_map, f2))
         int_int_unordered_map_insert(face_map, f2, face_index);
       ++face_index;
+
+      if (f1 == f2) continue;
 
       // Now we have f1 and f2, the two sides of the face between 
       // the cells c1 and c2. We must resolve the nodes of f1 and f2 into 
@@ -157,7 +151,27 @@ voronoi_tessellation_t* create_manifold(voronoi_tessellation_t* tessellation)
             // 2. Both n1 and n2 are unpaired.
             // In either case, n1 must be mapped to (merged with) n2, and 
             // any edge containing n1 must be deleted.
-            int_int_unordered_map_insert(node_map, n1, n2);
+            if (!int_int_unordered_map_contains(node_map, n1))
+            {
+              bool cycle = false;
+              int* n1_p, nn = n2;
+              do
+              {
+                n1_p = int_int_unordered_map_get(node_map, nn);
+                if (n1_p != NULL)
+                {
+                  if (*n1_p == n1)
+                  {
+                    cycle = true;
+                    break;
+                  }
+                  nn = *n1_p;
+                }
+              }
+              while (n1_p != NULL);
+              if (!cycle)
+                int_int_unordered_map_insert(node_map, n1, n2);
+            }
             for (int e = 0; e < num_edges1; ++e)
             {
               int edge = tessellation->faces[f1].edges[e];
@@ -172,8 +186,27 @@ voronoi_tessellation_t* create_manifold(voronoi_tessellation_t* tessellation)
             if (n2_nearest_nearest != n2)
             {
               // n2 must be mapped to its nearest node.
-              int_int_unordered_map_insert(node_map, n2, n2_nearest);
-
+              if (!int_int_unordered_map_contains(node_map, n2))
+              {
+                int* n2_p, nn = n2_nearest;
+                bool cycle = false;
+                do 
+                {
+                  n2_p = int_int_unordered_map_get(node_map, nn);
+                  if (n2_p != NULL)
+                  {
+                    if (*n2_p == n2)
+                    {
+                      cycle = true;
+                      break;
+                    }
+                    nn = *n2_p;
+                  }
+                }
+                while (n2_p != NULL);
+                if (!cycle)
+                  int_int_unordered_map_insert(node_map, n2, n2_nearest);
+              }
               for (int e = 0; e < num_edges2; ++e)
               {
                 int edge = tessellation->faces[f2].edges[e];
@@ -221,6 +254,22 @@ voronoi_tessellation_t* create_manifold(voronoi_tessellation_t* tessellation)
 //    m->edges[e].node1 = m->edges[e].node2 = -1;
 
   // Set up the nodes.
+  // First, we go through the mapped nodes and make sure that none of the 
+  // values are also keys.
+  {
+    int pos = 0, n, mapped_n;
+    while (int_int_unordered_map_next(node_map, &pos, &n, &mapped_n))
+    {
+      while (int_int_unordered_map_contains(node_map, mapped_n))
+      {
+        // Here, we make use of the fact that an insertion to an existing
+        // key does not disturb loop invariants.
+        mapped_n = *int_int_unordered_map_get(node_map, mapped_n);
+        int_int_unordered_map_insert(node_map, n, mapped_n);
+      }
+    }
+  }
+  // Now add all the non-merged nodes to the mapping.
   int node_index = 0;
   for (int n = 0; n < tessellation->num_nodes; ++n)
   {
@@ -234,11 +283,56 @@ voronoi_tessellation_t* create_manifold(voronoi_tessellation_t* tessellation)
 
     // Map the node in the given tessellation to that in the manifold.
     int_int_unordered_map_insert(node_map, n, node_index);
-
-    // Move along.
     ++node_index;
   }
   ASSERT(node_index == m->num_nodes);
+
+  // Set up a mapping from the old edges to the new.
+  int_int_unordered_map_t* edge_map = int_int_unordered_map_new();
+  int_pair_int_unordered_map_t* edge_for_nodes = int_pair_int_unordered_map_new();
+  int edge_nodes[2*tessellation->num_edges]; // Storage for node-edge mapping.
+  for (int e = 0; e < tessellation->num_edges; ++e)
+  {
+    // Skip deleted edges.
+    if (int_unordered_set_contains(deleted_edges, e))
+      continue;
+
+    // Get the two nodes for this edge in the tessellation.
+    int n1 = tessellation->edges[e].node1;
+    int n2 = tessellation->edges[e].node2;
+
+    // Map these nodes to their manifold counterparts and match them to 
+    // an edge.
+    int mapped_n1 = map_node(node_map, n1);
+    int mapped_n2 = map_node(node_map, n2);
+    int* nodes = &edge_nodes[2*e];
+    nodes[0] = MIN(mapped_n1, mapped_n2);
+    nodes[1] = MAX(mapped_n1, mapped_n2);
+    int edge_index;
+    if (!int_pair_int_unordered_map_contains(edge_for_nodes, nodes))
+    {
+      // Create a new edge.
+      edge_index = edge_map->size;
+      m->edges[edge_index].node1 = mapped_n1;
+      m->edges[edge_index].node2 = mapped_n2;
+      if (n2 == -1)
+      {
+        m->edges[edge_index].ray[0] = tessellation->edges[e].ray[0];
+        m->edges[edge_index].ray[1] = tessellation->edges[e].ray[1];
+        m->edges[edge_index].ray[2] = tessellation->edges[e].ray[2];
+      }
+      int_int_unordered_map_insert(edge_map, e, edge_index);
+      int_pair_int_unordered_map_insert(edge_for_nodes, nodes, edge_index);
+    }
+    else
+    {
+      // Map this edge to its manifold counterpart.
+      edge_index = *int_pair_int_unordered_map_get(edge_for_nodes, nodes);
+      int_int_unordered_map_insert(edge_map, e, edge_index);
+    }
+  }
+  ASSERT(edge_map->size == m->num_edges);
+  int_pair_int_unordered_map_free(edge_for_nodes);
 
   // Now wire up the cells and faces.
   for (int c = 0; c < m->num_cells; ++c)
@@ -279,13 +373,13 @@ voronoi_tessellation_t* create_manifold(voronoi_tessellation_t* tessellation)
   }
 
   // Wire up the faces and edges.
-  face_index = 0;
-  int edge_index = 0;
   for (int f = 0; f < tessellation->num_faces; ++f)
   {
     // Skip deleted faces.
     if (int_unordered_set_contains(deleted_faces, f))
       continue;
+
+    int face_index = *int_int_unordered_map_get(face_map, f);
 
     // Count up the edges that weren't deleted for this face.
     int num_edges = 0;
@@ -310,35 +404,12 @@ voronoi_tessellation_t* create_manifold(voronoi_tessellation_t* tessellation)
 
         // Hook the edge up to the face.
         m->faces[face_index].edges[face_edge_index] = edge_index;
+printf("face %d has edge %d = %d\n", face_index, face_edge_index, edge_index);
 
         ++face_edge_index;
       }
     }
     ++face_index;
-  }
-
-  // Finally, wire up the edges and nodes.
-  edge_index = 0;
-  for (int e = 0; e < tessellation->num_edges; ++e)
-  {
-    // Skip deleted edges.
-    if (int_unordered_set_contains(deleted_edges, e))
-      continue;
-
-    // Get the nodes for this edge within the manifold.
-    int n1 = tessellation->edges[e].node1;
-    m->edges[edge_index].node1 = map_node(node_map, n1);
-    int n2 = tessellation->edges[e].node2;
-    m->edges[edge_index].node2 = map_node(node_map, n2);
-    if (n2 == -1)
-    {
-      m->edges[edge_index].ray[0] = tessellation->edges[e].ray[0];
-      m->edges[edge_index].ray[1] = tessellation->edges[e].ray[1];
-      m->edges[edge_index].ray[2] = tessellation->edges[e].ray[2];
-    }
-
-    // Move along.
-    ++edge_index;
   }
 
   // Clean up.
