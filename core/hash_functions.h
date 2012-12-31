@@ -37,7 +37,12 @@ static inline int djb2_xor_hash(unsigned char* str, int len)
 
 static inline int int_hash(int i)
 {
-  return djb2_xor_hash((unsigned char*)&i, sizeof(i));
+  return djb2_xor_hash((unsigned char*)&i, sizeof(int));
+}
+
+static inline int int_pair_hash(int* i)
+{
+  return djb2_xor_hash((unsigned char*)i, 2*sizeof(int));
 }
 
 static inline int string_hash(char* str)
