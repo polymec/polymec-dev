@@ -122,8 +122,13 @@ voronoi_tessellator_tessellate(voronoi_tessellator_t* tessellator,
 
   // Make a manifold out of this tessellation.
   voronoi_tessellation_t* m = create_manifold(t);
-  voronoi_tessellation_free(t);
 
+  // Print some debugging info if appropriate.
+  log_debug("voronoi tessellation: %d cells, %d faces, %d edges, %d nodes", t->num_cells, t->num_faces, t->num_edges, t->num_nodes);
+  log_debug("voronoi manifold: %d cells, %d faces, %d edges, %d nodes", m->num_cells, m->num_faces, m->num_edges, m->num_nodes);
+
+  // Clean up and git.
+  voronoi_tessellation_free(t);
   return m;
 }
 
