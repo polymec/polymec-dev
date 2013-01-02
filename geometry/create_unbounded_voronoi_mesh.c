@@ -109,7 +109,7 @@ mesh_t* create_unbounded_voronoi_mesh(point_t* generators, int num_generators,
     ASSERT(outer_edge_offset == outer_edges->size);
   }
 
-  // Face <-> edge/cell connectivity.
+  // Face <-> edge connectivity.
   for (int f = 0; f < mesh->num_faces; ++f)
   {
     int Ne = tessellation->faces[f].num_edges;
@@ -130,27 +130,30 @@ mesh_t* create_unbounded_voronoi_mesh(point_t* generators, int num_generators,
     int Nf = tessellation->cells[i].num_faces;
     for (int f = 0; f < Nf; ++f)
     {
-      int faceid = tessellation->cells[i].faces[f];
-      face_t* face = &mesh->faces[faceid];
+      int face_index = tessellation->cells[i].faces[f];
+      face_t* face = &mesh->faces[face_index];
       mesh_add_face_to_cell(mesh, face, &mesh->cells[i]);
       for (int e = 0; e < face->num_edges; ++e)
       {
-        int edgeid = tessellation->faces[faceid].edges[e];
-        if (tessellation->edges[edgeid].node2 == -1)
-          int_unordered_set_insert(outer_edges_in_cell, edgeid);
+        int edge_index = tessellation->faces[face_index].edges[e];
+        ASSERT((face->edges[e] - &mesh->edges[0]) == edge_index);
+        if (tessellation->edges[edge_index].node2 == -1)
+          int_unordered_set_insert(outer_edges_in_cell, edge_index);
       }
     }
     if (outer_edges_in_cell->size > 0)
+    {
       int_unordered_set_insert(outer_cells, i);
     
-    // Set up the outer_cell_edges array for this cell.
-    int* ocei = malloc(sizeof(int) * (1 + outer_edges_in_cell->size));
-    int_ptr_unordered_map_insert_with_dtor(oce, i, ocei, destroy_outer_cell_edges_map_entry);
-    ocei[0] = outer_edges_in_cell->size;
-    int ocei_offset = 1, pos = 0, edge_index;
-    while (int_unordered_set_next(outer_edges_in_cell, &pos, &edge_index))
-      ocei[ocei_offset++] = edge_index;
-    int_unordered_set_clear(outer_edges_in_cell);
+      // Set up the outer_cell_edges array for this cell.
+      int* ocei = malloc(sizeof(int) * (1 + outer_edges_in_cell->size));
+      int_ptr_unordered_map_insert_with_dtor(oce, i, ocei, destroy_outer_cell_edges_map_entry);
+      ocei[0] = outer_edges_in_cell->size;
+      int ocei_offset = 1, pos = 0, edge_index;
+      while (int_unordered_set_next(outer_edges_in_cell, &pos, &edge_index))
+        ocei[ocei_offset++] = edge_index;
+      int_unordered_set_clear(outer_edges_in_cell);
+    }
   }
   int_unordered_set_free(all_outer_edges);
   int_unordered_set_free(outer_edges_in_cell);
