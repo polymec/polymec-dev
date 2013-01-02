@@ -99,7 +99,6 @@ void test_create_cylindrical_voronoi_mesh(void** state)
   plot_generators(generators, N, "generators_in_cyl.gnuplot");
   plot_generators(boundary_generators, Nb, "generators_on_cyl.gnuplot");
 
-
   // Now generate the mesh.
   mesh_t* mesh = create_bounded_voronoi_mesh(generators, N, boundary_generators, Nb, NULL, 0);
   mesh_verify(mesh);

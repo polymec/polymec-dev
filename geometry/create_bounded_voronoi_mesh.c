@@ -174,31 +174,25 @@ mesh_t* create_bounded_voronoi_mesh(point_t* generators, int num_generators,
       // Create the boundary nodes, unless they've already been created. 
       // These boundary nodes are projections of the "node1s" of the 
       // outer edges that are shared by c and c'.
-      int* near_outer_edges = *int_ptr_unordered_map_get(outer_cell_edges, c);
-      int num_near_outer_edges = near_outer_edges[0];
-      int* far_outer_edges = *int_ptr_unordered_map_get(outer_cell_edges, ncell_index);
-      int num_far_outer_edges = far_outer_edges[0];
       edge_t *outer_edge1 = NULL, *outer_edge2 = NULL;
-printf("(%d:%d, %d:%d)\n", c, num_near_outer_edges, ncell_index, num_far_outer_edges);
-      for (int en = 1; en <= num_near_outer_edges; ++en)
+      for (int e = 0; e < face->num_edges; ++e)
       {
-printf("en = %d\n", near_outer_edges[en]);
-        for (int ef = 1; ef <= num_far_outer_edges; ++ef)
+        edge_t* edge = face->edges[e];
+        if (edge->node2 == NULL) // This is an outer edge.
         {
-printf("ef = %d\n", far_outer_edges[ef]);
-          if (far_outer_edges[ef] == near_outer_edges[en])
+          if (outer_edge1 == NULL)
+            outer_edge1 = edge;
+          else
           {
-printf("*\n");
-            if (outer_edge1 == NULL)
-              outer_edge1 = &mesh->edges[far_outer_edges[ef]];
-            else
-              outer_edge2 = &mesh->edges[far_outer_edges[ef]];
+            outer_edge2 = edge;
             break;
           }
         }
       }
-      ASSERT(outer_edge1 != NULL);
-      ASSERT(outer_edge2 != NULL);
+
+      // If we didn't find two outer edges, we don't need to slap
+      // another face on this cell.
+      if (outer_edge2 == NULL) continue;
 
       int node1_index = outer_edge1->node1 - &mesh->nodes[0];
       bool created_bnode1 = false;
@@ -211,7 +205,8 @@ printf("*\n");
       }
       int bnode1_index = *int_int_unordered_map_get(bnode_map, node1_index);
       node_t* bnode1 = &mesh->nodes[bnode1_index];
-      vector_t* ray1 = *int_ptr_unordered_map_get(outer_edge_rays, node1_index);
+      int oedge1_index = outer_edge1 - &mesh->edges[0];
+      vector_t* ray1 = *int_ptr_unordered_map_get(outer_edge_rays, oedge1_index);
 
       int node2_index = outer_edge2->node1 - &mesh->nodes[0];
       bool created_bnode2 = false;
@@ -224,7 +219,8 @@ printf("*\n");
       }
       int bnode2_index = *int_int_unordered_map_get(bnode_map, node2_index);
       node_t* bnode2 = &mesh->nodes[bnode2_index];
-      vector_t* ray2 = *int_ptr_unordered_map_get(outer_edge_rays, node2_index);
+      int oedge2_index = outer_edge2 - &mesh->edges[0];
+      vector_t* ray2 = *int_ptr_unordered_map_get(outer_edge_rays, oedge2_index);
 
       // Create the boundary faces for this cell and its neighbor.
       int near_face_index = mesh_add_face(mesh);
@@ -307,8 +303,8 @@ printf("*\n");
       // s1 as an unknown. We solve it here.
 
       // First, copy the information we need to the context.
-      point_copy(&proj_context.xg1, &generators[c]);
-      point_copy(&proj_context.xg2, &generators[ncell_index]);
+      point_copy(&proj_context.xg1, &non_ghost_generators[c]);
+      point_copy(&proj_context.xg2, &non_ghost_generators[ncell_index]);
       vector_copy(&proj_context.ray1, ray1);
       vector_copy(&proj_context.ray2, ray2);
 
