@@ -124,9 +124,9 @@ mesh_t* create_bounded_voronoi_mesh(point_t* generators, int num_generators,
       generator_bnode = &mesh->nodes[gbnode_index];
 
       // Assign it the coordinates of the generator.
-      generator_bnode->x = generators[c].x;
-      generator_bnode->y = generators[c].y;
-      generator_bnode->z = generators[c].z;
+      generator_bnode->x = non_ghost_generators[c].x;
+      generator_bnode->y = non_ghost_generators[c].y;
+      generator_bnode->z = non_ghost_generators[c].z;
     }
     else
       generator_bnode = &mesh->nodes[*int_int_unordered_map_get(generator_bnode_map, c)];
@@ -156,9 +156,9 @@ mesh_t* create_bounded_voronoi_mesh(point_t* generators, int num_generators,
         neighbor_generator_bnode = &mesh->nodes[gbnode_index];
 
         // Assign it the coordinates of the generator.
-        neighbor_generator_bnode->x = generators[ncell_index].x;
-        neighbor_generator_bnode->y = generators[ncell_index].y;
-        neighbor_generator_bnode->z = generators[ncell_index].z;
+        neighbor_generator_bnode->x = non_ghost_generators[ncell_index].x;
+        neighbor_generator_bnode->y = non_ghost_generators[ncell_index].y;
+        neighbor_generator_bnode->z = non_ghost_generators[ncell_index].z;
       }
       else
         neighbor_generator_bnode = &mesh->nodes[*int_int_unordered_map_get(generator_bnode_map, ncell_index)];
@@ -195,13 +195,12 @@ mesh_t* create_bounded_voronoi_mesh(point_t* generators, int num_generators,
       if (outer_edge2 == NULL) continue;
 
       int node1_index = outer_edge1->node1 - &mesh->nodes[0];
-      bool created_bnode1 = false;
       if (!int_int_unordered_map_contains(bnode_map, node1_index))
       {
         // Create the new node. NOTE: We don't compute its coordinates yet.
         int bnode_index = mesh_add_node(mesh);
-        created_bnode1 = true;
         int_int_unordered_map_insert(bnode_map, node1_index, bnode_index);
+        outer_edge1->node2 = &mesh->nodes[bnode_index];
       }
       int bnode1_index = *int_int_unordered_map_get(bnode_map, node1_index);
       node_t* bnode1 = &mesh->nodes[bnode1_index];
@@ -209,13 +208,12 @@ mesh_t* create_bounded_voronoi_mesh(point_t* generators, int num_generators,
       vector_t* ray1 = *int_ptr_unordered_map_get(outer_edge_rays, oedge1_index);
 
       int node2_index = outer_edge2->node1 - &mesh->nodes[0];
-      bool created_bnode2 = false;
       if (!int_int_unordered_map_contains(bnode_map, node2_index))
       {
         // Create the new node. NOTE: We don't compute its coordinates yet.
         int bnode_index = mesh_add_node(mesh);
-        created_bnode2 = true;
         int_int_unordered_map_insert(bnode_map, node2_index, bnode_index);
+        outer_edge2->node2 = &mesh->nodes[bnode_index];
       }
       int bnode2_index = *int_int_unordered_map_get(bnode_map, node2_index);
       node_t* bnode2 = &mesh->nodes[bnode2_index];
@@ -235,14 +233,15 @@ mesh_t* create_bounded_voronoi_mesh(point_t* generators, int num_generators,
       // to the boundary face. This edge shouldn't exist yet.
       int edge_connecting_nodes_index = mesh_add_edge(mesh);
       edge_t* edge_connecting_nodes = &mesh->edges[edge_connecting_nodes_index];
+      edge_connecting_nodes->node1 = bnode1;
+      edge_connecting_nodes->node2 = bnode2;
       mesh_add_edge_to_face(mesh, edge_connecting_nodes, near_face);
       mesh_add_edge_to_face(mesh, edge_connecting_nodes, far_face);
 
       // Create the edges that connect the generator to each boundary node.
-      // If we created the boundary node just now, the edge doesn't yet 
-      // exist.
       edge_t *near_edge1, *far_edge1;
-      if (created_bnode1)
+      int* near_edge1_p = int_int_unordered_map_get(bedge1_map, c);
+      if (near_edge1_p == NULL)
       {
         // We create these edges for this cell and its neighbor.
         int near_edge1_index = mesh_add_edge(mesh);
@@ -250,7 +249,17 @@ mesh_t* create_bounded_voronoi_mesh(point_t* generators, int num_generators,
         near_edge1 = &mesh->edges[near_edge1_index];
         near_edge1->node1 = generator_bnode;
         near_edge1->node2 = bnode1;
+      }
+      else
+      {
+        int near_edge1_index = *near_edge1_p;
+        near_edge1 = &mesh->edges[near_edge1_index];
+      }
 
+      int* far_edge1_p = int_int_unordered_map_get(bedge1_map, ncell_index);
+      if (far_edge1_p == NULL)
+      {
+        // We create these edges for this cell and its neighbor.
         int far_edge1_index = mesh_add_edge(mesh);
         int_int_unordered_map_insert(bedge1_map, ncell_index, far_edge1_index);
         far_edge1 = &mesh->edges[far_edge1_index];
@@ -259,16 +268,15 @@ mesh_t* create_bounded_voronoi_mesh(point_t* generators, int num_generators,
       }
       else
       {
-        int near_edge1_index = *int_int_unordered_map_get(bedge1_map, c);
-        near_edge1 = &mesh->edges[near_edge1_index];
-        int far_edge1_index = *int_int_unordered_map_get(bedge1_map, ncell_index);
+        int far_edge1_index = *far_edge1_p;
         far_edge1 = &mesh->edges[far_edge1_index];
       }
       mesh_add_edge_to_face(mesh, near_edge1, near_face);
       mesh_add_edge_to_face(mesh, far_edge1, far_face);
 
       edge_t *near_edge2, *far_edge2;
-      if (created_bnode2)
+      int* near_edge2_p = int_int_unordered_map_get(bedge2_map, c);
+      if (near_edge2_p == NULL)
       {
         // We create these edges for this cell and its neighbor.
         int near_edge2_index = mesh_add_edge(mesh);
@@ -276,7 +284,17 @@ mesh_t* create_bounded_voronoi_mesh(point_t* generators, int num_generators,
         near_edge2 = &mesh->edges[near_edge2_index];
         near_edge2->node1 = generator_bnode;
         near_edge2->node2 = bnode2;
+      }
+      else
+      {
+        int near_edge2_index = *near_edge2_p;
+        near_edge2 = &mesh->edges[near_edge2_index];
+      }
 
+      int* far_edge2_p = int_int_unordered_map_get(bedge2_map, ncell_index);
+      if (far_edge2_p == NULL)
+      {
+        // We create these edges for this cell and its neighbor.
         int far_edge2_index = mesh_add_edge(mesh);
         int_int_unordered_map_insert(bedge2_map, ncell_index, far_edge2_index);
         far_edge2 = &mesh->edges[far_edge2_index];
@@ -285,9 +303,7 @@ mesh_t* create_bounded_voronoi_mesh(point_t* generators, int num_generators,
       }
       else
       {
-        int near_edge2_index = *int_int_unordered_map_get(bedge2_map, c);
-        near_edge2 = &mesh->edges[near_edge2_index];
-        int far_edge2_index = *int_int_unordered_map_get(bedge2_map, ncell_index);
+        int far_edge2_index = *far_edge2_p;
         far_edge2 = &mesh->edges[far_edge2_index];
       }
       mesh_add_edge_to_face(mesh, near_edge2, near_face);
@@ -370,6 +386,8 @@ mesh_t* create_bounded_voronoi_mesh(point_t* generators, int num_generators,
       for (int e = 0; e < face->num_edges; ++e)
       {
         edge_t* edge = face->edges[e];
+        ASSERT(edge->node1 != NULL);
+        ASSERT(edge->node2 != NULL);
 
         // Construct a tetrahedron whose vertices are the cell center, 
         // the face center, and the two nodes of this edge. The volume 
