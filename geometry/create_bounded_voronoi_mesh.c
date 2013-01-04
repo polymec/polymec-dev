@@ -371,6 +371,29 @@ mesh_t* create_bounded_voronoi_mesh(point_t* generators, int num_generators,
   int_int_unordered_map_free(generator_bnode_map);
   int_int_unordered_map_free(bnode_map);
 
+  // Before we go any further, check to see if any outer edges are 
+  // poking through our boundary generators.
+  // Compute the volume and center of each boundary cell.
+  for (int c = num_generators; c < num_non_ghost_generators; ++c)
+  {
+    cell_t* cell = &mesh->cells[c];
+    for (int f = 0; f < cell->num_faces; ++f)
+    {
+      face_t* face = cell->faces[f];
+      for (int e = 0; e < face->num_edges; ++e)
+      {
+        edge_t* edge = face->edges[e];
+        if (edge->node2 == NULL)
+        {
+          int edge_index = edge - &mesh->edges[0];
+          polymec_error("create_bounded_voronoi_mesh: Outer edge %d does not attach to\n"
+                        "a face on any boundary generator! This usually means that the boundary\n"
+                        "generators do not cover the boundary.", edge_index);
+        }
+      }
+    }
+  }
+
   // Delete the outer_* mesh properties.
   mesh_delete_property(mesh, "outer_cell_edges");
   mesh_delete_property(mesh, "outer_rays");
