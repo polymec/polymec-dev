@@ -1,5 +1,4 @@
 #include "core/boundary_cell_map.h"
-#include "cnav/cnav_conduction_solver.h"
 #include "cnav/cnav_viscous_solver.h"
 #include "cnav/cnav_bc.h"
 
@@ -7,7 +6,7 @@
 extern "C" {
 #endif
 
-// advective diffusion solver type
+// cnavive diffusion solver type
 typedef struct
 {
   st_func_t* diffusivity;
@@ -15,7 +14,7 @@ typedef struct
   st_func_t* source;
   mesh_t* mesh;
   boundary_cell_map_t* boundary_cells;
-  double* advective_source;
+  double* cnavive_source;
 } ad_solver_t;
 
 static void ad_create_matrix(void* context, Mat* mat)
@@ -97,7 +96,7 @@ static void ad_compute_source_vector(void* context, Vec S, double t)
     indices[c] = c;
     point_t xc = {.x = 0.0, .y = 0.0, .z = 0.0};
     st_func_eval(a->source, &xc, t, &values[c]);
-    values[c] += a->advective_source[c]; // Add in advective source.
+    values[c] += a->cnavive_source[c]; // Add in cnavive source.
   }
   VecSetValues(S, mesh->num_cells, indices, values, INSERT_VALUES);
   VecAssemblyEnd(S);
@@ -199,7 +198,7 @@ static void ad_apply_bcs(void* context, Mat A, Vec b, double t)
 static void ad_dtor(void* context)
 {
   ad_solver_t* a = (ad_solver_t*)context;
-  free(a->advective_source);
+  free(a->cnavive_source);
   free(a);
 }
 
@@ -224,9 +223,9 @@ diffusion_solver_t* cnav_diffusion_solver_new(mesh_t* mesh,
   a->source = NULL;
   a->mesh = mesh; // borrowed
   a->boundary_cells = boundary_cells; // borrowed
-  a->advective_source = malloc(sizeof(double)*mesh->num_cells);
-  memset(a->advective_source, 0, sizeof(double)*mesh->num_cells);
-  diffusion_solver_t* solver = diffusion_solver_new("advective diffusion solver", a, vtable);
+  a->cnavive_source = malloc(sizeof(double)*mesh->num_cells);
+  memset(a->cnavive_source, 0, sizeof(double)*mesh->num_cells);
+  diffusion_solver_t* solver = diffusion_solver_new("cnavive diffusion solver", a, vtable);
   return solver;
 }
 
@@ -245,11 +244,11 @@ void cnav_diffusion_solver_set_source(diffusion_solver_t* solver, st_func_t* sou
   a->source = source;
 }
 
-void cnav_diffusion_solver_set_advective_source(diffusion_solver_t* solver,
-                                                  double* advective_source)
+void cnav_diffusion_solver_set_cnavive_source(diffusion_solver_t* solver,
+                                                  double* cnavive_source)
 {
   ad_solver_t* a = (ad_solver_t*)diffusion_solver_context(solver);
-  memcpy(a->advective_source, advective_source, sizeof(double)*a->mesh->num_cells);
+  memcpy(a->cnavive_source, cnavive_source, sizeof(double)*a->mesh->num_cells);
 }
 
 #ifdef __cplusplus

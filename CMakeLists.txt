@@ -81,5 +81,5 @@ add_subdirectory(poisson)
 add_subdirectory(advect)
 
 # Compressible Navier-Stokes solver.
-add_subdirectory(cnav)
+#add_subdirectory(cnav)
 
