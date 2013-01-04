@@ -18,20 +18,28 @@ static void project_point_to_boundary(sp_func_t* boundary, point_t* x)
 {
   ASSERT(sp_func_has_deriv(boundary, 1));
   double D, grad_D[3];
-  sp_func_eval(boundary, x, &D);
-  sp_func_eval_deriv(boundary, 1, x, grad_D);
-  vector_t normal = {.x = -grad_D[0], .y = -grad_D[1], .z = -grad_D[2]};
-  vector_normalize(&normal);
-//printf("%g %g %g (%g, %g, %g, %g) ->", x->x, x->y, x->z, D, normal.x, normal.y, normal.z);
-  x->x += D * normal.x;
-  x->y += D * normal.y;
-  x->z += D * normal.z;
+  static int max_proj = 100;
+  int i = 0;
+  do 
+  {
+    sp_func_eval(boundary, x, &D);
+    sp_func_eval_deriv(boundary, 1, x, grad_D);
+    vector_t normal = {.x = -grad_D[0], .y = -grad_D[1], .z = -grad_D[2]};
+    vector_normalize(&normal);
+//printf("%d: %g %g %g (%g, %g, %g, %g) ->", i, x->x, x->y, x->z, D, normal.x, normal.y, normal.z);
+    x->x += D * normal.x;
+    x->y += D * normal.y;
+    x->z += D * normal.z;
 //printf("%g %g %g\n", x->x, x->y, x->z);
+    ++i;
+  }
+  while ((D > 1e-12) && (i < max_proj));
+  if (i == max_proj)
+    polymec_error("project_to_boundary: Given boundary is not a signed distance function.");
 }
 
 static void choose_sample_points(long (*rng)(),
                                  sp_func_t* density,
-                                 sp_func_t* boundary,
                                  bbox_t* bounding_box,
                                  point_t* points,
                                  int num_points)
@@ -41,28 +49,9 @@ static void choose_sample_points(long (*rng)(),
   ASSERT(points != NULL);
   ASSERT(num_points > 0);
 
-  // Use a boundary function if given.
-  if (boundary != NULL)
-  {
-    for (int i = 0; i < num_points; ++i)
-    {
-      point_t* p = &points[i];
-      double Fp;
-      do
-      {
-        point_randomize(p, rng, bounding_box);
-        sp_func_eval(boundary, p, &Fp);
-      }
-      while (Fp >= 0.0);
-    }
-  }
-
-  // Otherwise, just generate random points within the bounding box.
-  else
-  {
-    for (int i = 0; i < num_points; ++i)
-      point_randomize(&points[i], rng, bounding_box);
-  }
+  // Generate random points within the bounding box.
+  for (int i = 0; i < num_points; ++i)
+    point_randomize(&points[i], rng, bounding_box);
 }
 
 static void correct_generator(double alpha1, double beta1, 
@@ -138,7 +127,7 @@ void prob_cvt_gen_dist_iterate(void* context,
     // Choose q points from within the domain according to the density 
     // function, and organize them into Voronoi regions of the points
     // in our point set.
-    choose_sample_points(prob->rng, density, boundary, bounding_box, samples, prob->num_samples);
+    choose_sample_points(prob->rng, density, bounding_box, samples, prob->num_samples);
     for (int j = 0; j < prob->num_samples; ++j)
     {
       int i = point_set_nearest(pset, &samples[j]);

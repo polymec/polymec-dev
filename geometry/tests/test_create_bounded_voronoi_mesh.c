@@ -11,16 +11,20 @@
 #include "create_bounded_voronoi_mesh.h"
 #include "vtk_plot_io.h"
 
-void plot_generators(point_t* generators, int num_generators, const char* filename)
+void plot_generators(point_t* generators, int num_generators, sp_func_t* boundary, const char* filename)
 {
   int rank;
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   if (rank != 0) return;
 
   FILE* fd = fopen(filename, "w");
-  fprintf(fd, "# x y z\n");
+  fprintf(fd, "# x y z D\n");
   for (int i = 0; i < num_generators; ++i)
-    fprintf(fd, "%g %g %g\n", generators[i].x, generators[i].y, generators[i].z);
+  {
+    double D;
+    sp_func_eval(boundary, &generators[i], &D);
+    fprintf(fd, "%g %g %g %g\n", generators[i].x, generators[i].y, generators[i].z, D);
+  }
   fclose(fd);
 }
 
@@ -64,9 +68,10 @@ void test_create_cylindrical_voronoi_mesh(void** state)
   sp_func_t* domain = intersection_new(surfaces, 3);
 
   // We generate an initial distribution randomly.
-  int N = 2000;
+  int N = 5000;
   point_t generators[N];
-  bbox_t bbox = {.x1 = -0.5, .x2 = 0.5, .y1 = -0.5, .y2 = 0.5, .z1 = -1.0, .z2 = 1.0};
+  double r_flab = 0.1, z_flab = 0.5;
+  bbox_t bbox = {.x1 = -0.5-r_flab, .x2 = 0.5+r_flab, .y1 = -0.5-r_flab, .y2 = 0.5+r_flab, .z1 = -1.0-z_flab, .z2 = 1.0+z_flab};
   for (int i = 0; i < N; ++i)
   {
     double F;
@@ -85,16 +90,13 @@ void test_create_cylindrical_voronoi_mesh(void** state)
   sp_func_t* density = constant_sp_func_new(1, &one); // Constant density.
   int Nb; // Number of boundary generators.
   cvt_gen_dist_iterate(prob, density, domain, &bbox, generators, N, &Nb);
-  N -= Nb;
-  plot_generators(generators, N, "generators_in_cyl.gnuplot");
-  point_t boundary_generators[Nb];
-  memcpy(&boundary_generators[0], &generators[N], sizeof(point_t)*Nb);
-  plot_generators(boundary_generators, Nb, "generators_on_cyl.gnuplot");
+  plot_generators(generators, N - Nb, domain, "generators_in_cyl.gnuplot");
+  plot_generators(&generators[N - Nb], Nb, domain, "generators_on_cyl.gnuplot");
 
   // Now generate the mesh.
-  mesh_t* mesh = create_bounded_voronoi_mesh(generators, N, boundary_generators, Nb, NULL, 0);
+  mesh_t* mesh = create_bounded_voronoi_mesh(generators, N - Nb, &generators[N-Nb], Nb, NULL, 0);
   mesh_verify(mesh);
-  assert_int_equal(N + Nb, mesh->num_cells);
+  assert_int_equal(N, mesh->num_cells);
   assert_int_equal(0, mesh->num_ghost_cells);
 
   // Plot the thing.

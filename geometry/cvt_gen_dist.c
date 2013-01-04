@@ -26,31 +26,25 @@ static void project_point_to_boundary(sp_func_t* boundary, point_t* x)
 {
   ASSERT(sp_func_has_deriv(boundary, 1));
   double D, grad_D[3];
-  sp_func_eval(boundary, x, &D);
-  sp_func_eval_deriv(boundary, 1, x, grad_D);
-  vector_t normal = {.x = -grad_D[0], .y = -grad_D[1], .z = -grad_D[2]};
-  vector_normalize(&normal);
-//printf("%g %g %g (%g, %g, %g, %g) ->", x->x, x->y, x->z, D, normal.x, normal.y, normal.z);
-  x->x += D * normal.x;
-  x->y += D * normal.y;
-  x->z += D * normal.z;
+  static int max_proj = 100;
+  int i = 0;
+  do 
+  {
+    sp_func_eval(boundary, x, &D);
+    sp_func_eval_deriv(boundary, 1, x, grad_D);
+    vector_t normal = {.x = -grad_D[0], .y = -grad_D[1], .z = -grad_D[2]};
+    vector_normalize(&normal);
+//printf("%d: %g %g %g (%g, %g, %g, %g) ->", i, x->x, x->y, x->z, D, normal.x, normal.y, normal.z);
+    x->x += D * normal.x;
+    x->y += D * normal.y;
+    x->z += D * normal.z;
 //printf("%g %g %g\n", x->x, x->y, x->z);
+    ++i;
+  }
+  while ((D > 1e-12) && (i < max_proj));
+  if (i == max_proj)
+    polymec_error("project_to_boundary: Given boundary is not a signed distance function.");
 }
-
-#if 0
-static void reflect_point_across_boundary(sp_func_t* boundary, point_t* x)
-{
-  ASSERT(sp_func_has_deriv(boundary, 1));
-  double D, grad_D[3];
-  sp_func_eval(boundary, x, &D);
-  sp_func_eval_deriv(boundary, 1, x, grad_D);
-  vector_t normal = {.x = -grad_D[0], .y = -grad_D[1], .z = -grad_D[2]};
-  vector_normalize(&normal);
-  x->x += 2.0 * D * normal.x;
-  x->y += 2.0 * D * normal.y;
-  x->z += 2.0 * D * normal.z;
-}
-#endif
 
 cvt_gen_dist_t* cvt_gen_dist_new(const char* name, void* context, cvt_gen_dist_vtable vtable)
 {
@@ -99,25 +93,10 @@ void cvt_gen_dist_iterate(cvt_gen_dist_t* dist,
       sp_func_eval(boundary, &points[i], &D);
       if (D >= 0.0)
       {
-#if 0
-        // We attempt to put the point inside the domain by reflecting it 
-        // across the boundary. If the boundary is some composite like an 
-        // intersection, we may have to do more than one reflection.
-        static const int max_reflections = 100;
-        for (int j = 0; j < max_reflections; ++j) 
-        {
-          reflect_point_across_boundary(interior, &interior_points[i]);
-          sp_func_eval(interior, &interior_points[i], &D);
-          if (D < 0.0) break;
-        }
-        if (D >= 0.0)
-          polymec_error("cvt_gen_dist_iterate: reflection of outside point yielded\n another outside point. Boundary is not a signed distance function!");
-#endif
         project_point_to_boundary(boundary, &points[i]);
         double D;
         sp_func_eval(boundary, &points[i], &D);
-        if (fabs(D) > 1e-12)
-          polymec_error("cvt_gen_dist_iterate: boundary projection yielded a non-zero distance (%g).\n Boundary is not a signed distance function!", D);
+        ASSERT(fabs(D) < 1e-12);
       }
     }
   }
@@ -131,11 +110,11 @@ void cvt_gen_dist_iterate(cvt_gen_dist_t* dist,
   *num_boundary_points = 0;
   if (boundary != NULL)
   {
-    for (int i = 0; i < num_points; ++i)
+    for (int i = 0; i < num_points - *num_boundary_points; ++i)
     {
       double D;
       sp_func_eval(boundary, &points[i], &D);
-      if (D > 0.0)
+      if (D > 1e-12)
       {
         polymec_error("cvt_gen_dist_iterate: Point %d lies outside the domain (D = %g).", i, D);
       }
