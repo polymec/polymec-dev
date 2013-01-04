@@ -85,7 +85,8 @@ void test_create_cylindrical_voronoi_mesh(void** state)
 
   // Probabilistic algorithm (iterates 100 times max).
   int num_sample_pts = 300;
-  cvt_gen_dist_t* prob = prob_cvt_gen_dist_new(random, num_sample_pts, 0.5, 0.5, 100);
+  double min_dist = 0.05;
+  cvt_gen_dist_t* prob = prob_cvt_gen_dist_new(random, num_sample_pts, 0.5, 0.5, min_dist, 100);
   double one = 1.0;
   sp_func_t* density = constant_sp_func_new(1, &one); // Constant density.
   int Nb; // Number of boundary generators.

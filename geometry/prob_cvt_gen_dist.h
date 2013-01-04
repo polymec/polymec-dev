@@ -24,10 +24,14 @@ extern "C" {
 //               voronoi region of generator i, and ji is an iteration index
 //               that forces the algorithm to converge by weighting either 
 //               zi or ui more and more as the iteration number increases.
+// min_dist    - Points that are closer to the boundary than this number are 
+//               projected to the boundary.
+// max_iters   - The maximum number of iterations to perform before quitting.
 cvt_gen_dist_t* prob_cvt_gen_dist_new(long (*random_gen)(), 
                                       int num_samples, 
                                       double alpha, 
                                       double beta, 
+                                      double min_dist,
                                       int max_iters);
 
 #ifdef __cplusplus
