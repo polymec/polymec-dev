@@ -80,3 +80,6 @@ add_subdirectory(poisson)
 # Advection/diffusion/reaction solver.
 add_subdirectory(advect)
 
+# Compressible Navier-Stokes solver.
+add_subdirectory(cnav)
+
