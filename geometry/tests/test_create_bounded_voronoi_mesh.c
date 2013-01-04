@@ -64,8 +64,8 @@ void test_create_cylindrical_voronoi_mesh(void** state)
   sp_func_t* domain = intersection_new(surfaces, 3);
 
   // We generate an initial distribution randomly.
-  int N = 2000, Nb = 1000;
-  point_t generators[N], boundary_generators[Nb];
+  int N = 2000;
+  point_t generators[N];
   bbox_t bbox = {.x1 = -0.5, .x2 = 0.5, .y1 = -0.5, .y2 = 0.5, .z1 = -1.0, .z2 = 1.0};
   for (int i = 0; i < N; ++i)
   {
@@ -77,26 +77,18 @@ void test_create_cylindrical_voronoi_mesh(void** state)
     }
     while (F >= 0.0);
   }
-  for (int i = 0; i < Nb; ++i)
-  {
-    double F;
-    do
-    {
-      point_randomize(&boundary_generators[i], random, &bbox);
-      sp_func_eval(domain, &boundary_generators[i], &F);
-    }
-    while (F >= 0.0);
-  }
 
   // Probabilistic algorithm (iterates 100 times max).
-  int num_sample_pts = 300, num_boundary_sample_pts = 300;
-  cvt_gen_dist_t* prob = prob_cvt_gen_dist_new(random, num_sample_pts, num_boundary_sample_pts, 0.5, 0.5, 100);
-  cvt_gen_dist_set_safety_buffer(prob, 0.05); // 5% buffer for interior points.
+  int num_sample_pts = 300;
+  cvt_gen_dist_t* prob = prob_cvt_gen_dist_new(random, num_sample_pts, 0.5, 0.5, 100);
   double one = 1.0;
   sp_func_t* density = constant_sp_func_new(1, &one); // Constant density.
-  cvt_gen_dist_iterate_with_boundary_points(prob, density, domain, 
-                       &bbox, generators, N, boundary_generators, Nb);
+  int Nb; // Number of boundary generators.
+  cvt_gen_dist_iterate(prob, density, domain, &bbox, generators, N, &Nb);
+  N -= Nb;
   plot_generators(generators, N, "generators_in_cyl.gnuplot");
+  point_t boundary_generators[Nb];
+  memcpy(&boundary_generators[0], &generators[N], sizeof(point_t)*Nb);
   plot_generators(boundary_generators, Nb, "generators_on_cyl.gnuplot");
 
   // Now generate the mesh.

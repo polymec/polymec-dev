@@ -25,8 +25,7 @@ extern "C" {
 //               that forces the algorithm to converge by weighting either 
 //               zi or ui more and more as the iteration number increases.
 cvt_gen_dist_t* prob_cvt_gen_dist_new(long (*random_gen)(), 
-                                      int num_interior_samples, 
-                                      int num_boundary_samples, 
+                                      int num_samples, 
                                       double alpha, 
                                       double beta, 
                                       int max_iters);
