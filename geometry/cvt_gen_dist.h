@@ -52,6 +52,11 @@ void cvt_gen_dist_iterate(cvt_gen_dist_t* dist,
                           int num_points,
                           int* num_boundary_points);
 
+// This helper function generates the given number of points within the 
+// given bounding box, from the given probability density function. The 
+// given random number generator is used.
+void cvt_gen_dist_generate_random_points(long (*rng)(), sp_func_t* density, bbox_t* bounding_box, int num_points, point_t* points);
+
 #ifdef __cplusplus
 }
 #endif
