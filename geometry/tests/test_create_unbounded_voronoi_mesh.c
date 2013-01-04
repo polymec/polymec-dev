@@ -24,10 +24,11 @@ void test_create_unbounded_voronoi_mesh(void** state)
 
   // Probabilistic algorithm (iterates 100 times max).
   int num_sample_pts = 300;
-  cvt_gen_dist_t* prob = prob_cvt_gen_dist_new(random, num_sample_pts, 0, 0.5, 0.5, 100);
+  cvt_gen_dist_t* prob = prob_cvt_gen_dist_new(random, num_sample_pts, 0.5, 0.5, 100);
   double one = 1.0;
   sp_func_t* density = constant_sp_func_new(1, &one); // Constant density.
-  cvt_gen_dist_iterate(prob, density, NULL, &bbox, generators, N);
+  int Nb;
+  cvt_gen_dist_iterate(prob, density, NULL, &bbox, generators, N, &Nb);
 
   // Now generate the unbounded Voronoi thingy.
   mesh_t* mesh = create_unbounded_voronoi_mesh(generators, N, NULL, 0);
