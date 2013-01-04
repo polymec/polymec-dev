@@ -4,23 +4,22 @@
 #include "core/linear_algebra.h"
 #include "core/constant_st_func.h"
 #include "core/boundary_cell_map.h"
-#include "geometry/cubic_lattice.h"
-#include "geometry/create_cubic_lattice_mesh.h"
 #include "io/silo_io.h"
 #include "io/vtk_plot_io.h"
 #include "io/gnuplot_io.h"
-#include "advect/advect_model.h"
-#include "advect/advect_bc.h"
-#include "advect/advect_diffusion_solver.h"
-#include "advect/interpreter_register_advect_functions.h"
-#include "advect/register_advect_benchmarks.h"
-#include "advect/slope_estimator.h"
+#include "cnav/cnav_model.h"
+#include "cnav/cnav_bc.h"
+#include "cnav/cnav_conduction_solver.h"
+#include "cnav/cnav_viscous_solver.h"
+#include "cnav/interpreter_register_cnav_functions.h"
+#include "cnav/register_cnav_benchmarks.h"
+#include "cnav/slope_estimator.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-// Advect model context structure.
+// cnav model context structure.
 typedef struct 
 {
   mesh_t* mesh;             // Mesh.
@@ -58,7 +57,7 @@ typedef struct
   // MPI communicator.
   MPI_Comm comm;            
 
-} advect_t;
+} cnav_t;
 
 static double estimate_slope(slope_estimator_t* slope_est,
                              mesh_t* mesh,
@@ -93,7 +92,7 @@ static double estimate_slope(slope_estimator_t* slope_est,
       ASSERT(bf < cell_info->num_boundary_faces);
 
       // What's the boundary condition on this face?
-      advect_bc_t* bc = cell_info->bc_for_face[bf];
+      cnav_bc_t* bc = cell_info->bc_for_face[bf];
       point_t* face_center = &up_cell->faces[ff]->center;
       if (bc != NULL) 
       {
@@ -178,7 +177,7 @@ static void compute_half_step_fluxes(mesh_t* mesh,
     if (slope_est != NULL)
     {
       // Compute the piecewise-linear contribution to the integral of the 
-      // advection equation. This is taken from Leveque's 1992 book, p. 185.
+      // cnavion equation. This is taken from Leveque's 1992 book, p. 185.
       double nu = vn * dt / L;
 
       // Estimate the slope through the upwind cell.
@@ -236,7 +235,7 @@ static void compute_half_step_fluxes(mesh_t* mesh,
 
       // Retrieve the boundary condition for this face and use it to compute
       // the "ghost" value of phi.
-      advect_bc_t* bc = cell_info->bc_for_face[f];
+      cnav_bc_t* bc = cell_info->bc_for_face[f];
       double phi_g, L;
       if (bc != NULL) // Regular boundary condition.
       {
@@ -283,7 +282,7 @@ static void compute_half_step_fluxes(mesh_t* mesh,
       if (slope_est != NULL)
       {
         // Compute the piecewise-linear contribution to the integral of the 
-        // advection equation. This is taken from Leveque's 1992 book, p. 185.
+        // cnavion equation. This is taken from Leveque's 1992 book, p. 185.
         double nu = vn * dt / L;
         double slope = 0.0; // FIXME minmod(phi_down - phi_up, phi_up - phi_down) / L;
         fluxes[f] += 0.5 * vn * (1.0 - nu) * L * slope;
@@ -293,9 +292,9 @@ static void compute_half_step_fluxes(mesh_t* mesh,
   }
 }
 
-static double advect_max_dt(void* context, double t, char* reason)
+static double cnav_max_dt(void* context, double t, char* reason)
 {
-  advect_t* a = (advect_t*)context;
+  cnav_t* a = (cnav_t*)context;
 
   // Find the minimum cell length / velocity ratio.
   double dt = FLT_MAX;
@@ -328,9 +327,9 @@ static double advect_max_dt(void* context, double t, char* reason)
   return dt;
 }
 
-static void advect_advance(void* context, double t, double dt)
+static void cnav_advance(void* context, double t, double dt)
 {
-  advect_t* a = (advect_t*)context;
+  cnav_t* a = (cnav_t*)context;
   int num_cells = a->mesh->num_cells;
 
   double phi_old[num_cells], phi_new[num_cells];
@@ -373,15 +372,15 @@ static void advect_advance(void* context, double t, double dt)
         adv_source[c] = -(phi_new[c] - phi_old[c]) / dt;
       }
 
-      // Give the advective derivative to the diffusion solver.
-      advect_diffusion_solver_set_advective_source(a->diff_solver, adv_source);
+      // Give the cnavive derivative to the diffusion solver.
+      cnav_diffusion_solver_set_cnavive_source(a->diff_solver, adv_source);
     }
 
     if (a->have_diffusivity)
     {
       // Set the species-specific diffusivity, source.
-      advect_diffusion_solver_set_diffusivity(a->diff_solver, a->species_diffusivities[s]);
-      advect_diffusion_solver_set_source(a->diff_solver, a->species_sources[s]);
+      cnav_diffusion_solver_set_diffusivity(a->diff_solver, a->species_diffusivities[s]);
+      cnav_diffusion_solver_set_source(a->diff_solver, a->species_sources[s]);
 
       // Compute the diffusive derivative without splitting, using the 
       // 2nd-order L-stable TGA algorithm.
@@ -394,18 +393,18 @@ static void advect_advance(void* context, double t, double dt)
   }
 }
 
-static void advect_read_input(void* context, interpreter_t* interp, options_t* options)
+static void cnav_read_input(void* context, interpreter_t* interp, options_t* options)
 {
-  advect_t* a = (advect_t*)context;
+  cnav_t* a = (cnav_t*)context;
   a->mesh = interpreter_get_mesh(interp, "mesh");
   if (a->mesh == NULL)
-    polymec_error("advect: No mesh was specified.");
+    polymec_error("cnav: No mesh was specified.");
   a->velocity = interpreter_get_vector_function(interp, "velocity");
   if (a->velocity == NULL)
-    polymec_error("advect: No velocity function was specified.");
+    polymec_error("cnav: No velocity function was specified.");
   a->initial_cond = interpreter_get_scalar_function(interp, "initial_cond");
   if (a->initial_cond == NULL)
-    polymec_error("advect: No initial condition (initial_cond) was specified.");
+    polymec_error("cnav: No initial condition (initial_cond) was specified.");
   a->source = interpreter_get_scalar_function(interp, "source");
   a->bcs = interpreter_get_table(interp, "bcs");
   if (a->bcs == NULL)
@@ -421,9 +420,9 @@ static void advect_read_input(void* context, interpreter_t* interp, options_t* o
   }
 }
 
-static void advect_init(void* context, double t)
+static void cnav_init(void* context, double t)
 {
-  advect_t* a = (advect_t*)context;
+  cnav_t* a = (cnav_t*)context;
   ASSERT(a->mesh != NULL);
   ASSERT(a->initial_cond != NULL);
   ASSERT(a->diffusivity != NULL);
@@ -490,7 +489,7 @@ static void advect_init(void* context, double t)
   a->boundary_cells = boundary_cell_map_from_mesh_and_bcs(a->mesh, a->bcs);
 
   // Initialize the diffusion solver.
-  a->diff_solver = advect_diffusion_solver_new(a->mesh, a->boundary_cells);
+  a->diff_solver = cnav_diffusion_solver_new(a->mesh, a->boundary_cells);
 
   // Initialize the solution.
   int num_cells = a->mesh->num_cells;
@@ -499,10 +498,10 @@ static void advect_init(void* context, double t)
     st_func_eval(a->initial_cond, &a->mesh->cells[c].center, t, &a->phi[c]);
 }
 
-static void advect_plot(void* context, io_interface_t* io, double t, int step)
+static void cnav_plot(void* context, io_interface_t* io, double t, int step)
 {
   ASSERT(context != NULL);
-  advect_t* a = (advect_t*)context;
+  cnav_t* a = (cnav_t*)context;
 
   io_dataset_t* dataset = io_dataset_new("default");
   io_dataset_put_mesh(dataset, a->mesh);
@@ -556,10 +555,10 @@ static void advect_plot(void* context, io_interface_t* io, double t, int step)
   io_append_dataset(io, dataset);
 }
 
-static void advect_save(void* context, io_interface_t* io, double t, int step)
+static void cnav_save(void* context, io_interface_t* io, double t, int step)
 {
   ASSERT(context != NULL);
-  advect_t* a = (advect_t*)context;
+  cnav_t* a = (cnav_t*)context;
 
   io_dataset_t* dataset = io_dataset_new("default");
   io_dataset_put_mesh(dataset, a->mesh);
@@ -567,9 +566,9 @@ static void advect_save(void* context, io_interface_t* io, double t, int step)
   io_append_dataset(io, dataset);
 }
 
-static void advect_compute_error_norms(void* context, st_func_t* solution, double t, double* lp_norms)
+static void cnav_compute_error_norms(void* context, st_func_t* solution, double t, double* lp_norms)
 {
-  advect_t* a = (advect_t*)context;
+  cnav_t* a = (cnav_t*)context;
   double Linf = 0.0, L1 = 0.0, L2 = 0.0;
   for (int c = 0; c < a->mesh->num_cells; ++c)
   {
@@ -595,9 +594,9 @@ static void advect_compute_error_norms(void* context, st_func_t* solution, doubl
 //  lp_norm = NULL;
 }
 
-static void advect_dtor(void* ctx)
+static void cnav_dtor(void* ctx)
 {
-  advect_t* a = (advect_t*)ctx;
+  cnav_t* a = (cnav_t*)ctx;
 
   // Destroy BC table.
   str_ptr_unordered_map_free(a->bcs);
@@ -626,17 +625,17 @@ static void advect_dtor(void* ctx)
   free(a);
 }
 
-model_t* advect_model_new(options_t* options)
+model_t* cnav_model_new(options_t* options)
 {
-  model_vtable vtable = { .read_input = advect_read_input,
-                          .init = advect_init,
-                          .max_dt = advect_max_dt,
-                          .advance = advect_advance,
-                          .save = advect_save,
-                          .plot = advect_plot,
-                          .compute_error_norms = advect_compute_error_norms,
-                          .dtor = advect_dtor};
-  advect_t* a = malloc(sizeof(advect_t));
+  model_vtable vtable = { .read_input = cnav_read_input,
+                          .init = cnav_init,
+                          .max_dt = cnav_max_dt,
+                          .advance = cnav_advance,
+                          .save = cnav_save,
+                          .plot = cnav_plot,
+                          .compute_error_norms = cnav_compute_error_norms,
+                          .dtor = cnav_dtor};
+  cnav_t* a = malloc(sizeof(cnav_t));
   a->mesh = NULL;
   a->phi = NULL;
   a->diffusivity = NULL;
@@ -655,7 +654,7 @@ model_t* advect_model_new(options_t* options)
   a->species_diffusivities = NULL;
   a->species_sources = NULL;
 
-  model_t* model = model_new("advect", a, vtable, options);
+  model_t* model = model_new("cnav", a, vtable, options);
 
   // Process options.
   {
@@ -693,7 +692,7 @@ model_t* advect_model_new(options_t* options)
   }
 
   // Register benchmarks.
-  register_advect_benchmarks(model);
+  register_cnav_benchmarks(model);
 
   // Set up saver/plotter.
   io_interface_t* saver = silo_io_new(a->comm, 0, false);
@@ -721,7 +720,7 @@ model_t* advect_model_new(options_t* options)
   return model;
 }
 
-model_t* create_advect(mesh_t* mesh,
+model_t* create_cnav(mesh_t* mesh,
                        st_func_t* velocity, 
                        st_func_t* diffusivity, 
                        st_func_t* source, 
@@ -740,8 +739,8 @@ model_t* create_advect(mesh_t* mesh,
   ASSERT(st_func_num_comp(source) == st_func_num_comp(initial_cond));
 
   // Create the model.
-  model_t* model = advect_model_new(options);
-  advect_t* a = (advect_t*)model_context(model);
+  model_t* model = cnav_model_new(options);
+  cnav_t* a = (cnav_t*)model_context(model);
   a->mesh = mesh;
   a->velocity = velocity;
   a->diffusivity = diffusivity;

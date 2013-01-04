@@ -4,8 +4,6 @@
 #include "core/linear_algebra.h"
 #include "core/constant_st_func.h"
 #include "core/boundary_cell_map.h"
-#include "geometry/cubic_lattice.h"
-#include "geometry/create_cubic_lattice_mesh.h"
 #include "io/silo_io.h"
 #include "io/vtk_plot_io.h"
 #include "io/gnuplot_io.h"

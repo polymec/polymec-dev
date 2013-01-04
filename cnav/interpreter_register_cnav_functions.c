@@ -1,4 +1,4 @@
-#include "advect/interpreter_register_advect_functions.h"
+#include "cnav/interpreter_register_cnav_functions.h"
 #include "core/constant_st_func.h"
 
 #ifdef __cplusplus
@@ -34,7 +34,7 @@ static int dirichlet_bc(lua_State* lua)
   }
 
   // Create a boundary condition object and push it onto the stack.
-  advect_bc_t* bc = advect_bc_new(1.0, 0.0, F);
+  cnav_bc_t* bc = cnav_bc_new(1.0, 0.0, F);
   lua_pushuserdefined(lua, bc, NULL);
   return 1;
 }
@@ -63,7 +63,7 @@ static int neumann_bc(lua_State* lua)
   }
 
   // Create a boundary condition object and push it onto the stack.
-  advect_bc_t* bc = advect_bc_new(0.0, 1.0, F);
+  cnav_bc_t* bc = cnav_bc_new(0.0, 1.0, F);
   lua_pushuserdefined(lua, bc, NULL);
   return 1;
 }
@@ -97,12 +97,12 @@ static int robin_bc(lua_State* lua)
   }
 
   // Create a boundary condition object and push it onto the stack.
-  advect_bc_t* bc = advect_bc_new(alpha, beta, F);
+  cnav_bc_t* bc = cnav_bc_new(alpha, beta, F);
   lua_pushuserdefined(lua, bc, NULL);
   return 1;
 }
 
-void interpreter_register_advect_functions(interpreter_t* interpreter)
+void interpreter_register_cnav_functions(interpreter_t* interpreter)
 {
   interpreter_register_function(interpreter, "dirichlet_bc", dirichlet_bc);
   interpreter_register_function(interpreter, "neumann_bc", neumann_bc);

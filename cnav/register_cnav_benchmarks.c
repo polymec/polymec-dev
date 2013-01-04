@@ -3,8 +3,8 @@
 #include "core/constant_st_func.h"
 #include "geometry/cubic_lattice.h"
 #include "geometry/create_cubic_lattice_mesh.h"
-#include "advect/advect_model.h"
-#include "advect/advect_bc.h"
+#include "cnav/cnav_model.h"
+#include "cnav/cnav_bc.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -29,7 +29,7 @@ static void run_analytic_problem(model_t* model,
   model_compute_error_norms(model, solution, lp_norms);
 }
 
-static void advect_run_1d_flow(options_t* options, 
+static void cnav_run_1d_flow(options_t* options, 
                                st_func_t* velocity, 
                                st_func_t* diffusivity, 
                                st_func_t* source, 
@@ -52,10 +52,10 @@ static void advect_run_1d_flow(options_t* options,
   // Transverse faces - homogeneous Neumann BCs.
   double z = 0.0;
   st_func_t* zero = constant_st_func_new(1, &z);
-  str_ptr_unordered_map_insert(bcs, "-y", advect_bc_new(0.0, 1.0, zero));
-  str_ptr_unordered_map_insert(bcs, "+y", advect_bc_new(0.0, 1.0, zero));
-  str_ptr_unordered_map_insert(bcs, "-z", advect_bc_new(0.0, 1.0, zero));
-  str_ptr_unordered_map_insert(bcs, "+z", advect_bc_new(0.0, 1.0, zero));
+  str_ptr_unordered_map_insert(bcs, "-y", cnav_bc_new(0.0, 1.0, zero));
+  str_ptr_unordered_map_insert(bcs, "+y", cnav_bc_new(0.0, 1.0, zero));
+  str_ptr_unordered_map_insert(bcs, "-z", cnav_bc_new(0.0, 1.0, zero));
+  str_ptr_unordered_map_insert(bcs, "+z", cnav_bc_new(0.0, 1.0, zero));
 
   // Base resolution.
   int N0;
@@ -97,7 +97,7 @@ static void advect_run_1d_flow(options_t* options,
     tag_cubic_lattice_mesh_faces(mesh, Nx, Ny, Nz, "-x", "+x", "-y", "+y", "-z", "+z");
     str_ptr_unordered_map_t* bcs_copy = str_ptr_unordered_map_copy(bcs);
 
-    model_t* model = create_advect(mesh, velocity, diffusivity, source, 
+    model_t* model = create_cnav(mesh, velocity, diffusivity, source, 
                                    initial_cond, bcs_copy, solution, options);
     run_analytic_problem(model, t1, t2, solution, options, Lp_norms[iter]);
     model_free(model);
@@ -127,8 +127,8 @@ static void run_stationary_flow_1d(options_t* options)
   st_func_t* zero = constant_st_func_new(1, &z);
   st_func_t* one = constant_st_func_new(1, &o);
   st_func_t* v0 = constant_st_func_new(3, v);
-  advect_bc_t* bc = advect_bc_new(1.0, 0.0, one);
-  advect_run_1d_flow(options, v0, zero, zero, one, bc, bc, one, 0.0, 1.0, 1, 4);
+  cnav_bc_t* bc = cnav_bc_new(1.0, 0.0, one);
+  cnav_run_1d_flow(options, v0, zero, zero, one, bc, bc, one, 0.0, 1.0, 1, 4);
 }
 
 static void stationary_blayer_1d_soln(void* ctx, point_t* x, double t, double* phi)
@@ -147,8 +147,8 @@ static void run_stationary_blayer_1d(options_t* options)
   st_func_t* v0 = constant_st_func_new(3, v);
   st_func_t* soln = st_func_from_func("blayer 1d", stationary_blayer_1d_soln,
                                       ST_INHOMOGENEOUS, ST_CONSTANT, 1);
-  advect_bc_t* bc = advect_bc_new(1.0, 0.0, one);
-  advect_run_1d_flow(options, v0, one, zero, soln, bc, bc, soln, 0.0, 1.0, 1, 4);
+  cnav_bc_t* bc = cnav_bc_new(1.0, 0.0, one);
+  cnav_run_1d_flow(options, v0, one, zero, soln, bc, bc, soln, 0.0, 1.0, 1, 4);
 }
 
 static void square_wave_1d_soln(void* ctx, point_t* x, double t, double* phi)
@@ -170,7 +170,7 @@ static void run_square_wave_1d(options_t* options)
   st_func_t* soln = st_func_from_func("square wave 1d", square_wave_1d_soln,
                                       ST_INHOMOGENEOUS, ST_NONCONSTANT, 1);
   periodic_bc_t* bc = cubic_lattice_x_periodic_bc_new("-x", "+x");
-  advect_run_1d_flow(options, v0, zero, zero, soln, bc, bc, soln, 0.0, 10.0, 1, 4);
+  cnav_run_1d_flow(options, v0, zero, zero, soln, bc, bc, soln, 0.0, 10.0, 1, 4);
 }
 
 static void gaussian_wave_1d_soln(void* ctx, point_t* x, double t, double* phi)
@@ -193,7 +193,7 @@ static void run_gaussian_wave_1d(options_t* options)
   st_func_t* soln = st_func_from_func("gaussian wave 1d", gaussian_wave_1d_soln,
                                       ST_INHOMOGENEOUS, ST_NONCONSTANT, 1);
   periodic_bc_t* bc = cubic_lattice_x_periodic_bc_new("-x", "+x");
-  advect_run_1d_flow(options, v0, zero, zero, soln, bc, bc, soln, 0.0, 10.0, 1, 4);
+  cnav_run_1d_flow(options, v0, zero, zero, soln, bc, bc, soln, 0.0, 10.0, 1, 4);
 }
 
 static void sine_wave_1d_soln(void* ctx, point_t* x, double t, double* phi)
@@ -211,7 +211,7 @@ static void run_sine_wave_1d(options_t* options)
   st_func_t* soln = st_func_from_func("sine wave 1d", sine_wave_1d_soln,
                                       ST_INHOMOGENEOUS, ST_NONCONSTANT, 1);
   periodic_bc_t* bc = cubic_lattice_x_periodic_bc_new("-x", "+x");
-  advect_run_1d_flow(options, v0, zero, zero, soln, bc, bc, soln, 0.0, 5.0, 1, 4);
+  cnav_run_1d_flow(options, v0, zero, zero, soln, bc, bc, soln, 0.0, 5.0, 1, 4);
 }
 
 static void square_diffusion_1d_soln(void* ctx, point_t* x, double t, double* phi)
@@ -249,8 +249,8 @@ static void run_square_diffusion_1d(options_t* options)
   st_func_t* v0 = constant_st_func_new(3, v);
   st_func_t* soln = st_func_from_func("square diffusion 1d", square_diffusion_1d_soln,
                                       ST_INHOMOGENEOUS, ST_NONCONSTANT, 1);
-  advect_bc_t* bc = advect_bc_new(1.0, 0.0, soln); // Dirichlet BC
-  advect_run_1d_flow(options, v0, D, zero, soln, bc, bc, soln, 0.0, 2.0, 1, 4);
+  cnav_bc_t* bc = cnav_bc_new(1.0, 0.0, soln); // Dirichlet BC
+  cnav_run_1d_flow(options, v0, D, zero, soln, bc, bc, soln, 0.0, 2.0, 1, 4);
 }
 
 static void gaussian_diffusion_1d_soln(void* ctx, point_t* x, double t, double* phi)
@@ -277,11 +277,11 @@ static void run_gaussian_diffusion_1d(options_t* options)
   st_func_t* v0 = constant_st_func_new(3, v);
   st_func_t* soln = st_func_from_func("gaussian diffusion 1d", gaussian_diffusion_1d_soln,
                                       ST_INHOMOGENEOUS, ST_NONCONSTANT, 1);
-  advect_bc_t* bc = advect_bc_new(1.0, 0.0, soln); // Dirichlet BC
-  advect_run_1d_flow(options, v0, D, zero, soln, bc, bc, soln, 0.5, 1.0, 1, 4);
+  cnav_bc_t* bc = cnav_bc_new(1.0, 0.0, soln); // Dirichlet BC
+  cnav_run_1d_flow(options, v0, D, zero, soln, bc, bc, soln, 0.5, 1.0, 1, 4);
 }
 
-void register_advect_benchmarks(model_t* model)
+void register_cnav_benchmarks(model_t* model)
 {
   model_register_benchmark(model, "stationary_flow_1d", run_stationary_flow_1d, "Stational flow in 1D (v = 1).");
   model_register_benchmark(model, "stationary_blayer_1d", run_stationary_blayer_1d, "Stational flow with boundary layer in 1D.");
