@@ -1,6 +1,7 @@
 #include "core/slist.h"
 #include "core/point_set.h"
 #include "geometry/prob_cvt_gen_dist.h"
+#include "geometry/generate_random_points.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -112,7 +113,7 @@ void prob_cvt_gen_dist_iterate(void* context,
     // Choose q points from within the domain according to the density 
     // function, and organize them into Voronoi regions of the points
     // in our point set.
-    cvt_gen_dist_generate_random_points(prob->rng, density, bounding_box, prob->num_samples, samples);
+    generate_random_points(prob->rng, density, bounding_box, prob->num_samples, samples);
     for (int j = 0; j < prob->num_samples; ++j)
     {
       int i = point_set_nearest(pset, &samples[j]);
