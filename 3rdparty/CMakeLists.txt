@@ -74,14 +74,13 @@ add_library(arena ${sources})
 set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};arena)
 
 # Install PETSc.
-# NOTE: ctetgen is not yet ready for primetime!
 if (NOT EXISTS ${CMAKE_BINARY_DIR}/lib/libpetsc.a)
   set(PETSC_CONFIG_OPTS PETSC_DIR=${CMAKE_CURRENT_BINARY_DIR}/petsc-3.3-p5 PETSC_ARCH=${CMAKE_BUILD_TYPE} --prefix=${CMAKE_BINARY_DIR} --CC=${CMAKE_C_COMPILER} --CFLAGS=${CMAKE_C_FLAGS} --with-mpi=${USE_MPI})
   set(PETSC_CONFIG_OPTS ${PETSC_CONFIG_OPTS} --with-fortran=0)
   set(PETSC_CONFIG_OPTS ${PETSC_CONFIG_OPTS} --with-x=0)
+  # These are all broken:
 #  set(PETSC_CONFIG_OPTS ${PETSC_CONFIG_OPTS} --download-ctetgen=yes)
-  # This is broken:
-  #set(PETSC_CONFIG_OPTS ${PETSC_CONFIG_OPTS} --download-triangle=yes)
+#  set(PETSC_CONFIG_OPTS ${PETSC_CONFIG_OPTS} --download-triangle=yes)
 #  set(PETSC_CONFIG_OPTS ${PETSC_CONFIG_OPTS} --download-sundials=yes)
   if (USE_MPI EQUAL 1)
     set(PETSC_CONFIG_OPTS ${PETSC_CONFIG_OPTS} --download-hdf5=yes)
@@ -156,6 +155,31 @@ add_library(silo STATIC IMPORTED)
 set_target_properties(silo PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/lib${SILOLIB}.a)
 set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};${SILOLIB})
 
+# Build CVODE, a C library for integrating stiff, nonlinear ODEs.
+if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libsundials_cvode.a)
+  set(CVODE_CONFIG_OPTS --prefix=${PROJECT_BINARY_DIR} --enable-static --disable-shared --disable-fcmix --disable-cvodes --disable-ida --disable-idas --disable-kinsol --disable-cpodes)
+  if (USE_MPI EQUAL 0)
+    set(CVODE_CONFIG_OPTS ${CVODE_CONFIG_OPTS} --disable-mpi)
+  endif()
+  execute_process(COMMAND cmake -E tar xzvf ${CMAKE_CURRENT_SOURCE_DIR}/cvode-2.6.0.tar.gz
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+  execute_process(COMMAND env CC=${CC} ./configure ${CVODE_CONFIG_OPTS}
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/cvode-2.6.0)
+  execute_process(COMMAND make install
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/cvode-2.6.0)
+endif()
+add_library(cvode STATIC IMPORTED)
+set_target_properties(cvode PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libsundials_cvode.a)
+add_library(nvec STATIC IMPORTED)
+if (USE_MPI EQUAL 0)
+  set (NVEC_LIB sundials_nvecserial)
+  set_target_properties(nvec PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libsundials_nvecserial.a)
+else()
+  set (NVEC_LIB sundials_nvecparallel)
+  set_target_properties(nvec PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libsundials_nvecparallel.a)
+endif()
+set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};sundials_cvode;${NVEC_LIB})
+
 # Build lua, a simple interpreted language library.
 if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/liblua.a)
   if (${APPLE})
@@ -191,9 +215,9 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libxml2.a)
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/libxml2-2.9.0)
   execute_process(COMMAND make install
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/libxml2-2.9.0)
-  add_library(xml2 STATIC IMPORTED)
-  set_target_properties(xml2 PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libxml2.a)
 endif()
+add_library(xml2 STATIC IMPORTED)
+set_target_properties(xml2 PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libxml2.a)
 set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};xml2;iconv;z)
 set(POLYMEC_INCDIRS ${POLYMEC_INCDIRS};${PROJECT_BINARY_DIR}/include/libxml2)
 
