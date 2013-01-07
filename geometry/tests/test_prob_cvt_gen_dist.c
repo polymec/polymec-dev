@@ -80,12 +80,12 @@ void test_create_generators_in_cylinder(void** state)
   int Nb;
   cvt_gen_dist_iterate(prob, density, cylinder, &bbox, generators, N, &Nb);
 
-  // Make sure all of the generators are inside the cylinder.
+  // Make sure all of the generators are inside or on the cylinder.
   for (int i = 0; i < N; ++i)
   {
     double F;
     sp_func_eval(cylinder, &generators[i], &F);
-    assert_true(F < 0.0);
+    assert_true(F < 1e-12);
   }
 
   // Plot the generators.
