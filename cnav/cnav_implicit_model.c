@@ -19,11 +19,14 @@ typedef struct
   mesh_t* mesh;
   TS stepper;            // PETSC time stepper.
   Vec U;                 // Computed solution.
+  str_ptr_unordered_map_t* bcs; // Boundary conditions.
+  boundary_cell_map_t* boundary_cells; // Boundary cell data.
   bool initialized;
   double abs_tol, rel_tol;  // Absolute and relative tolerances.
+  double CFL;               // CFL safety factor.
 } cnav_implicit_t;
 
-static PetscErrorCode form_ifunction(TS stepper, PetscReal t, Vec U, Vec U_dot, Vec F, void* context)
+static PetscErrorCode compute_F(TS stepper, PetscReal t, Vec U, Vec U_dot, Vec F, void* context)
 {
   // FIXME
   return 0;
@@ -101,7 +104,7 @@ model_t* cnav_implicit_model_new(cnav_integrator_t integrator,
   cnav->comm = MPI_COMM_WORLD;
   TSCreate(cnav->comm, &cnav->stepper);
   TSSetProblemType(cnav->stepper, TS_NONLINEAR);
-  TSSetIFFunction(cnav->stepper, form_ifunction, cnav);
+  TSSetIFFunction(cnav->stepper, compute_F, cnav);
   TSType int_type;
   if (integrator == IMPLICIT_BACKWARD_EULER)
     int_type = TSBEULER;
