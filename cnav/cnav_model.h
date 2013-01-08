@@ -10,10 +10,8 @@ extern "C" {
 // Types of time integrators available for this model.
 typedef enum
 {
-  CNAV_SEMI_IMPLICIT,
-  CNAV_IMPLICIT_BACKWARD_EULER,
-  CNAV_IMPLICIT_ADAMS,
-  CNAV_IMPLICIT_BACKWARD_DIFF,
+  CNAV_SEMI_IMPLICIT,  // Explicit advection, implicit diffusion/reaction
+  CNAV_IMPLICIT        // Fully-coupled implicit integration
 } cnav_time_integrator_t;
 
 // Creates a compressible Navier-Stokes model using the given options.
@@ -22,6 +20,7 @@ model_t* cnav_model_new(options_t* options);
 // This factory method creates a new compressible Navier-Stokes model object 
 // that is ready to run a problem defined by the given parameters.
 model_t* create_cnav(cnav_time_integrator_t integrator,
+                     int order,
                      mesh_t* mesh,
                      cnav_eos_t* equation_of_state,
                      st_func_t* source,
