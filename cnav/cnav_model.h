@@ -2,6 +2,7 @@
 #define POLYMEC_CNAV_MODEL_H
 
 #include "core/model.h"
+#include "cnav/cnav_eos.h"
 
 #ifdef __cplusplus
 extern "C" {

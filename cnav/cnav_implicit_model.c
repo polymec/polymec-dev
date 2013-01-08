@@ -1,6 +1,7 @@
 #include <string.h>
 
 #include "cvode/cvode.h"
+#include "cvode/cvode_spgmr.h"
 #if USE_MPI
 #include "nvector/nvector_parallel.h"
 #else
@@ -8,6 +9,7 @@
 #endif
 
 #include "core/unordered_map.h"
+#include "core/boundary_cell_map.h"
 #include "io/silo_io.h"
 #include "io/vtk_plot_io.h"
 #include "io/gnuplot_io.h"
@@ -22,12 +24,11 @@ extern "C" {
 // of the compressible Navier-Stokes model.
 typedef struct 
 {
-#if USE_MPI
   MPI_Comm comm;
-#endif
   mesh_t* mesh;
   void* cvode;                // Workspace for CVODE.
   N_Vector U;                 // Computed solution.
+  st_func_t* initial_cond;    // Initial conditions.
   str_ptr_unordered_map_t* bcs; // Boundary conditions.
   boundary_cell_map_t* boundary_cells; // Boundary cell data.
   double abs_tol, rel_tol;  // Absolute and relative tolerances.
@@ -44,12 +45,12 @@ static inline N_Vector N_Vector_new(MPI_Comm comm, int dim)
 #endif
 }
 
-static inline N_Vector N_Vector_free(N_Vector* v)
+static inline void N_Vector_free(N_Vector v)
 {
 #ifdef USE_MPI
-  return N_VDestroy_Parallel(v);
+  N_VDestroy_Parallel(v);
 #else
-  return N_VDestroy_Serial(v);
+  N_VDestroy_Serial(v);
 #endif
 }
 
@@ -93,7 +94,7 @@ static void cnav_advance(void* context, double t, double dt)
   ASSERT(status != CV_RHSFUNC_FAIL);
 
   if ((status != CV_SUCCESS) && (status != CV_TSTOP_RETURN) && 
-      (status != CV_ROOT_RETURN) && (status != CV_FIRST_RHSFUNC_FAIL))
+      (status != CV_ROOT_RETURN)) // && (status != CV_FIRST_RHSFUNC_FAIL))
   {
     switch(status)
     {
@@ -142,7 +143,7 @@ static void cnav_init(void* context, double t)
   // Make sure our solution vector is allocated.
   if (cnav->U != NULL)
   {
-    N_Vector_free(&cnav->U);
+    N_Vector_free(cnav->U);
     CVodeFree(&cnav->cvode);
   }
   cnav->cvode = CVodeCreate(CV_BDF, CV_NEWTON);
@@ -151,7 +152,7 @@ static void cnav_init(void* context, double t)
 
   // Initialize the solution.
   double* U = N_Vector_data(cnav->U);
-  for (int c = 0; c < num_cells; ++c)
+  for (int c = 0; c < cnav->mesh->num_cells; ++c)
     st_func_eval(cnav->initial_cond, &cnav->mesh->cells[c].center, t, &U[c]);
   CVodeInit(cnav->cvode, compute_F, t, cnav->U);
 
@@ -171,14 +172,14 @@ static void cnav_init(void* context, double t)
 static void cnav_save(void* context, io_interface_t* io, double t, int step)
 {
   cnav_implicit_t* cnav = (cnav_implicit_t*)context;
-  model_save(cnav->model);
+  // FIXME
 }
 
-static void cnav_dtor(void* ctx)
+static void cnav_dtor(void* context)
 {
   cnav_implicit_t* cnav = (cnav_implicit_t*)context;
   if (cnav->U != NULL)
-    N_Vector_free(&cnav->U);
+    N_Vector_free(cnav->U);
   if (cnav->cvode != NULL)
     CVodeFree(&cnav->cvode);
   free(cnav);
@@ -190,8 +191,7 @@ model_t* cnav_implicit_model_new(int order,
   ASSERT(order >= 1);
   ASSERT(order <= 5);
 
-  model_vtable vtable = { .read_input = cnav_read_input,
-                          .init = cnav_init,
+  model_vtable vtable = { .init = cnav_init,
                           .max_dt = cnav_max_dt,
                           .advance = cnav_advance,
                           .save = cnav_save,
@@ -200,9 +200,7 @@ model_t* cnav_implicit_model_new(int order,
   model_t* model = model_new("Implicit compressible Navier-Stokes", cnav, vtable, options);
 
   // Initialize the bookkeeping structures.
-#if USE_MPI
   cnav->comm = MPI_COMM_WORLD;
-#endif
   cnav->cvode = NULL;
   cnav->U = NULL;
 
@@ -233,6 +231,7 @@ model_t* create_cnav_implicit(int order,
   model_t* model = cnav_implicit_model_new(order, options);
   cnav_implicit_t* cnav = (cnav_implicit_t*)model_context(model);
   cnav->mesh = mesh;
+  cnav->initial_cond = initial_cond;
   // FIXME
   return model;
 }
