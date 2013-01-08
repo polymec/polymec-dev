@@ -108,6 +108,7 @@ model_t* cnav_model_new(options_t* options)
 }
 
 model_t* create_cnav(cnav_integrator_t integrator,
+                     int order,
                      mesh_t* mesh,
                      cnav_eos_t* equation_of_state,
 //                     reaction_network_t* reactions,
@@ -117,6 +118,8 @@ model_t* create_cnav(cnav_integrator_t integrator,
                      st_func_t* solution,
                      options_t* options)
 {
+  ASSERT(order >= 1);
+  ASSERT(order <= 5);
   ASSERT(mesh != NULL);
   ASSERT(equation_of_state != NULL);
   ASSERT(source != NULL);
@@ -126,10 +129,10 @@ model_t* create_cnav(cnav_integrator_t integrator,
   // Create the model.
   model_t* model = cnav_model_new(options);
   cnav_t* cnav = (cnav_t*)model_context(model);
-  if (integrator == CNAV_SEMI_IMPLICIT)
-    cnav->model = create_cnav_semi_implicit(mesh, equation_of_state, source, initial_cond, bcs, solution, options);
-  else
-    cnav->model = create_cnav_implicit(integrator, mesh, equation_of_state, source, initial_cond, bcs, solution, options);
+//  if (integrator == CNAV_SEMI_IMPLICIT)
+//    cnav->model = create_cnav_semi_implicit(order, mesh, equation_of_state, source, initial_cond, bcs, solution, options);
+//  else
+    cnav->model = create_cnav_implicit(order, mesh, equation_of_state, source, initial_cond, bcs, solution, options);
   return model;
 }
 
