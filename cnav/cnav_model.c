@@ -4,6 +4,7 @@
 #include "io/vtk_plot_io.h"
 #include "io/gnuplot_io.h"
 #include "cnav/cnav_model.h"
+#include "cnav/cnav_implicit_model.h"
 #include "cnav/cnav_bc.h"
 #include "cnav/interpreter_register_cnav_functions.h"
 #include "cnav/register_cnav_benchmarks.h"
@@ -16,6 +17,7 @@ extern "C" {
 // of the compressible Navier-Stokes model.
 typedef struct 
 {
+  MPI_Comm comm;
   model_t* model;                    // The actual model.
 } cnav_t;
 
@@ -61,7 +63,7 @@ static void cnav_compute_error_norms(void* context, st_func_t* solution, double 
   // FIXME: Actual stuff goes here!
 }
 
-static void cnav_dtor(void* ctx)
+static void cnav_dtor(void* context)
 {
   cnav_t* cnav = (cnav_t*)context;
   model_free(cnav->model);
@@ -80,6 +82,8 @@ model_t* cnav_model_new(options_t* options)
                           .dtor = cnav_dtor};
   cnav_t* cnav = malloc(sizeof(cnav_t));
   cnav->model = NULL;
+  cnav->comm = MPI_COMM_WORLD;
+  model_t* model = model_new("Compressible Navier-Stokes", cnav, vtable, options);
 
   // Register benchmarks.
   register_cnav_benchmarks(model);
@@ -90,14 +94,14 @@ model_t* cnav_model_new(options_t* options)
   if (which_plotter != NULL)
   {
     if (!strcasecmp(which_plotter, "vtk"))
-      plotter = vtk_plot_io_new(a->comm, 0, false);
+      plotter = vtk_plot_io_new(cnav->comm, 0, false);
     else if (!strcasecmp(which_plotter, "silo"))
-      plotter = silo_plot_io_new(a->comm, 0, false);
+      plotter = silo_plot_io_new(cnav->comm, 0, false);
     else if (!strcasecmp(which_plotter, "gnuplot"))
       plotter = gnuplot_io_new();
   }
   else
-    plotter = vtk_plot_io_new(a->comm, 0, false);
+    plotter = vtk_plot_io_new(cnav->comm, 0, false);
   if (plotter != NULL)
   {
     log_detail("Setting plotter to '%s'...", which_plotter);
@@ -107,7 +111,7 @@ model_t* cnav_model_new(options_t* options)
   return model;
 }
 
-model_t* create_cnav(cnav_integrator_t integrator,
+model_t* create_cnav(cnav_time_integrator_t integrator,
                      int order,
                      mesh_t* mesh,
                      cnav_eos_t* equation_of_state,

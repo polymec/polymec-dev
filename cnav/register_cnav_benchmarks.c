@@ -58,7 +58,7 @@ static void cnav_run_1d_flow(options_t* options,
   str_ptr_unordered_map_insert(bcs, "+z", cnav_bc_new(0.0, 1.0, zero));
 
   // Base resolution.
-  int N0;
+  int N0 = 32;
   switch(dim)
   {
     case 1: 
@@ -93,12 +93,12 @@ static void cnav_run_1d_flow(options_t* options,
     }
     if (dim == 3)
       Nz = Nx;
+    cnav_eos_t* eos = NULL;
     mesh_t* mesh = create_cubic_lattice_mesh_with_bbox(Nx, Ny, Nz, &bbox);
     tag_cubic_lattice_mesh_faces(mesh, Nx, Ny, Nz, "-x", "+x", "-y", "+y", "-z", "+z");
     str_ptr_unordered_map_t* bcs_copy = str_ptr_unordered_map_copy(bcs);
-
-    model_t* model = create_cnav(mesh, velocity, diffusivity, source, 
-                                   initial_cond, bcs_copy, solution, options);
+    model_t* model = create_cnav(CNAV_IMPLICIT, 2, mesh, eos, source, 
+                                 initial_cond, bcs_copy, solution, options);
     run_analytic_problem(model, t1, t2, solution, options, Lp_norms[iter]);
     model_free(model);
 
