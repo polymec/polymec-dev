@@ -26,6 +26,7 @@ typedef struct
 {
   MPI_Comm comm;
   mesh_t* mesh;
+  cnav_eos_t* eos;                     // Equation of state.
   void* cvode;                // Workspace for CVODE.
   N_Vector U;                 // Computed solution.
   st_func_t* initial_cond;    // Initial conditions.
@@ -65,7 +66,29 @@ static inline double* N_Vector_data(N_Vector v)
 
 static int compute_F(double t, N_Vector U, N_Vector U_dot, void* context)
 {
-  // FIXME
+  double* u = N_Vector_data(U);
+  double* u_dot = N_Vector_data(U_dot);
+  cnav_implicit_t* cnav = (cnav_implicit_t*)context;
+  mesh_t* mesh = cnav->mesh;
+  cnav_eos_t* eos = cnav->eos;
+  boundary_cell_map_t* boundary_cells = cnav->boundary_cells;
+  int num_species = cnav_eos_num_species(eos);
+  int num_comp = 4 + num_species;
+
+  // Compute the derivatives on the interior cells.
+  for (int c = 0; c < mesh->num_cells; ++c)
+  {
+    // FIXME
+  }
+
+  // Compute the derivatives on the boundary cells.
+  int pos = 0, bcell;
+  boundary_cell_t* cell_info;
+  while (boundary_cell_map_next(boundary_cells, &pos, &bcell, &cell_info))
+  {
+    cell_t* cell = &mesh->cells[bcell];
+  }
+
   return 0;
 }
 
@@ -128,8 +151,8 @@ static void cnav_advance(void* context, double t, double dt)
     }
   }
 
-  // If t_actual > t + dt, interpolate backward.
-  // FIXME
+  // If t_actual > t + dt, the output is still interpolated at the 
+  // time t + dt, but the internal time is t_actual.
 }
 
 static void cnav_reconnect(void* context, mesh_t* new_mesh)
@@ -156,14 +179,13 @@ static void cnav_init(void* context, double t)
     st_func_eval(cnav->initial_cond, &cnav->mesh->cells[c].center, t, &U[c]);
   CVodeInit(cnav->cvode, compute_F, t, cnav->U);
 
-  // We try GMRES with the preconditioner applied on the left.
+  // We try GMRES with the preconditioner applied on the left, and 
+  // using modified Gram-Schmidt orthogonalization.
   CVSpgmr(cnav->cvode, PREC_LEFT, 0);
+  CVSpilsSetGSType(cnav->cvode, MODIFIED_GS);
 
   // Set the Jacobian-times-vector function.
   //CVSpilsSetJacTimesVecFn(cnav->cvode, JoV);
-
-  // Set modified Gram-Schmidt orthogonalization 
-  //CVSpilsSetGSType(cnav->cvode, MODIFIED_GS);
 
   // Set the preconditioner solve and setup functions.
   //CVSpilsSetPreconditioner(cvode_mem, Precond, PSolve);
