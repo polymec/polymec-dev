@@ -1,3 +1,4 @@
+#include <gc/gc.h>
 #include "cnav/cnav_eos.h"
 
 #ifdef __cplusplus
@@ -7,8 +8,38 @@ extern "C" {
 struct cnav_eos_t 
 {
   char* name;   // Name of the equation of state
-  int num_comp; // Number of components
+  void* context; // Context for EOS data
+  int num_species; // Number of species
+  double *masses; // Masses of species
+  cnav_eos_vtable vtable; // Virtual table.
 };
+
+static void cnav_eos_free(cnav_eos_t* eos)
+{
+  if ((eos->context != NULL) && (eos->vtable.dtor != NULL))
+    eos->vtable.dtor(eos->context);
+  free(eos->name);
+}
+
+cnav_eos_t* cnav_eos_new(const char* name, void* context, 
+                         cnav_eos_vtable vtable, int num_species,
+                         double* masses)
+{
+  ASSERT(vtable.pressure != NULL);
+  ASSERT(vtable.temperature != NULL);
+  ASSERT(num_species > 0);
+  ASSERT(masses != NULL);
+  cnav_eos_t* eos = GC_MALLOC(sizeof(cnav_eos_t));
+  eos->name = strdup(name);
+  eos->context = context;
+  eos->vtable = vtable;
+  eos->num_species = num_species;
+  eos->masses = malloc(sizeof(double)*num_species);
+  for (int s = 0; s < num_species; ++s)
+    eos->masses[s] = masses[s];
+  GC_register_finalizer(eos, &cnav_eos_free, eos, NULL, NULL);
+  return eos;
+}
 
 char* cnav_eos_name(cnav_eos_t* eos)
 {
@@ -17,7 +48,27 @@ char* cnav_eos_name(cnav_eos_t* eos)
 
 int cnav_eos_num_species(cnav_eos_t* eos)
 {
-  return eos->num_comp;
+  return eos->num_species;
+}
+
+void cnav_eos_get_masses(cnav_eos_t* eos, double* masses)
+{
+  for (int s = 0; s < eos->num_species; ++s)
+    masses[s] = eos->masses[s];
+}
+
+double cnav_eos_temperature(cnav_eos_t* eos, double rho, double E)
+{
+  ASSERT(rho > 0.0);
+  ASSERT(E > 0.0);
+  return eos->vtable.temperature(eos->context, rho, E);
+}
+
+double cnav_eos_pressure(cnav_eos_t* eos, double rho, double T)
+{
+  ASSERT(rho > 0.0);
+  ASSERT(T > 0.0);
+  return eos->vtable.pressure(eos->context, rho, T);
 }
 
 #ifdef __cplusplus
