@@ -10,6 +10,16 @@ struct cnav_eos_t
   int num_comp; // Number of components
 };
 
+char* cnav_eos_name(cnav_eos_t* eos)
+{
+  return eos->name;
+}
+
+int cnav_eos_num_species(cnav_eos_t* eos)
+{
+  return eos->num_comp;
+}
+
 #ifdef __cplusplus
 }
 #endif

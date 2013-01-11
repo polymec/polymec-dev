@@ -25,22 +25,29 @@ extern "C" {
 typedef struct 
 {
   MPI_Comm comm;
-  mesh_t* mesh;
+  mesh_t* mesh;                        // Computational mesh.
   cnav_eos_t* eos;                     // Equation of state.
-  void* cvode;                // Workspace for CVODE.
-  N_Vector U;                 // Computed solution.
-  st_func_t* initial_cond;    // Initial conditions.
-  str_ptr_unordered_map_t* bcs; // Boundary conditions.
+  void* cvode;                         // CVODE time integrator.
+  int order;                           // Order of time integrator.
+  N_Vector U;                          // Computed solution.
+  st_func_t* source;                   // Source function
+  st_func_t* initial_cond;             // Initial conditions.
+  str_ptr_unordered_map_t* bcs;        // Boundary conditions.
   boundary_cell_map_t* boundary_cells; // Boundary cell data.
-  double abs_tol, rel_tol;  // Absolute and relative tolerances.
-  double CFL;               // CFL safety factor.
+  double abs_tol, rel_tol;             // Absolute and relative tolerances.
+  double CFL;                          // CFL safety factor.
+
+  // Workspace stuff.
+  double* ls_fits;                     // Least-squares fit coefficients.
 } cnav_implicit_t;
 
 static inline N_Vector N_Vector_new(MPI_Comm comm, int dim)
 {
 #ifdef USE_MPI
-  int tot; // FIXME
-  return N_VNew_Parallel(comm, dim, tot);
+  // Add all the local dimensions to find tot_dim.
+  int tot_dim;
+  MPI_Allreduce(&dim, &tot_dim, 1, MPI_INT, MPI_SUM, comm);
+  return N_VNew_Parallel(comm, dim, tot_dim);
 #else
   return N_VNew_Serial(dim);
 #endif
@@ -64,18 +71,20 @@ static inline double* N_Vector_data(N_Vector v)
 #endif
 }
 
-static int compute_F(double t, N_Vector U, N_Vector U_dot, void* context)
+static void compute_least_squares_fit(int order, 
+                                      mesh_t* mesh, 
+                                      double* U,
+                                      double* ls_fit)
 {
-  double* u = N_Vector_data(U);
-  double* u_dot = N_Vector_data(U_dot);
-  cnav_implicit_t* cnav = (cnav_implicit_t*)context;
-  mesh_t* mesh = cnav->mesh;
-  cnav_eos_t* eos = cnav->eos;
-  boundary_cell_map_t* boundary_cells = cnav->boundary_cells;
-  int num_species = cnav_eos_num_species(eos);
-  int num_comp = 4 + num_species;
+}
 
-  // Compute the derivatives on the interior cells.
+static void compute_hydrodynamic_fluxes(int order,
+                                        cnav_eos_t* eos, 
+                                        mesh_t* mesh, 
+                                        boundary_cell_map_t* boundary_cells,
+                                        double* ls_fit, 
+                                        vector_t* F)
+{
   for (int c = 0; c < mesh->num_cells; ++c)
   {
     // FIXME
@@ -87,6 +96,81 @@ static int compute_F(double t, N_Vector U, N_Vector U_dot, void* context)
   while (boundary_cell_map_next(boundary_cells, &pos, &bcell, &cell_info))
   {
     cell_t* cell = &mesh->cells[bcell];
+  }
+}
+
+static void compute_diffusive_fluxes(int order,
+                                     cnav_eos_t* eos, 
+                                     mesh_t* mesh, 
+                                     boundary_cell_map_t* boundary_cells,
+                                     double* ls_fit, 
+                                     vector_t* F)
+{
+  for (int c = 0; c < mesh->num_cells; ++c)
+  {
+    // FIXME
+  }
+
+  // Compute the derivatives on the boundary cells.
+  int pos = 0, bcell;
+  boundary_cell_t* cell_info;
+  while (boundary_cell_map_next(boundary_cells, &pos, &bcell, &cell_info))
+  {
+    cell_t* cell = &mesh->cells[bcell];
+  }
+}
+
+static int compute_F(double t, N_Vector U, N_Vector U_dot, void* context)
+{
+  double* u = N_Vector_data(U);
+  cnav_implicit_t* cnav = (cnav_implicit_t*)context;
+  mesh_t* mesh = cnav->mesh;
+  cnav_eos_t* eos = cnav->eos;
+  boundary_cell_map_t* boundary_cells = cnav->boundary_cells;
+  int num_species = cnav_eos_num_species(eos);
+  int num_comp = 4 + num_species;
+
+  // Compute least-squares fit coefficients for each component of the 
+  // solution.
+  int order = cnav->order;
+  double* ls_fits = cnav->ls_fits;
+  compute_least_squares_fit(order, mesh, u, ls_fits);
+
+  // Compute the nonlinear fluxes from hydrodynamic advection.
+  vector_t hydro_fluxes[num_comp * mesh->num_faces];
+  compute_hydrodynamic_fluxes(order, eos, mesh, boundary_cells, ls_fits, hydro_fluxes);
+
+  // Compute the fluxes from diffusion processes.
+  vector_t diff_fluxes[num_comp * mesh->num_faces];
+  compute_diffusive_fluxes(order, eos, mesh, boundary_cells, ls_fits, diff_fluxes);
+
+  // Now we use the discrete Divergence Theorem to update U_dot.
+  // FIXME: This logic is only 2nd-order accurate!
+  double* u_dot = N_Vector_data(U_dot);
+  for (int c = 0; c < mesh->num_cells; ++c)
+  {
+    cell_t* cell = &mesh->cells[c];
+    double V = cell->volume;
+
+    // Compute any source terms for this cell and start with them.
+    st_func_eval(cnav->source, &cell->center, t, &u_dot[num_comp*c]);
+    
+    // Add in the fluxes.
+    for (int f = 0; f < cell->num_faces; ++f)
+    {
+      face_t* face = cell->faces[f];
+      int face_index = face - &mesh->faces[0];
+      double A = face->area;
+      vector_t normal;
+      point_displacement(&cell->center, &face->center, &normal);
+      vector_normalize(&normal);
+      for (int i = 0; i < num_comp; ++i)
+      {
+        double Fn = vector_dot(&hydro_fluxes[num_comp*face_index+i], &normal);
+        double Gn = vector_dot(&diff_fluxes[num_comp*face_index+i], &normal);
+        u_dot[num_comp*c+i] -= (A/V) * (Fn + Gn);
+      }
+    }
   }
 
   return 0;
@@ -211,7 +295,8 @@ model_t* cnav_implicit_model_new(int order,
                                  options_t* options)
 {
   ASSERT(order >= 1);
-  ASSERT(order <= 5);
+  ASSERT(order <= 2);
+//  ASSERT(order <= 5);
 
   model_vtable vtable = { .init = cnav_init,
                           .max_dt = cnav_max_dt,
@@ -222,6 +307,7 @@ model_t* cnav_implicit_model_new(int order,
   model_t* model = model_new("Implicit compressible Navier-Stokes", cnav, vtable, options);
 
   // Initialize the bookkeeping structures.
+  cnav->order = -1;
   cnav->comm = MPI_COMM_WORLD;
   cnav->cvode = NULL;
   cnav->U = NULL;
@@ -243,6 +329,8 @@ model_t* create_cnav_implicit(int order,
                               st_func_t* solution,
                               options_t* options)
 {
+  ASSERT(order >= 1);
+  ASSERT(order <= 5);
   ASSERT(mesh != NULL);
   ASSERT(equation_of_state != NULL);
   ASSERT(source != NULL);
@@ -252,7 +340,9 @@ model_t* create_cnav_implicit(int order,
   // Create the model.
   model_t* model = cnav_implicit_model_new(order, options);
   cnav_implicit_t* cnav = (cnav_implicit_t*)model_context(model);
+  cnav->order = order;
   cnav->mesh = mesh;
+  cnav->source = source;
   cnav->initial_cond = initial_cond;
   // FIXME
   return model;
