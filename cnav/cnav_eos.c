@@ -14,8 +14,9 @@ struct cnav_eos_t
   cnav_eos_vtable vtable; // Virtual table.
 };
 
-static void cnav_eos_free(cnav_eos_t* eos)
+static void cnav_eos_free(void* ctx, void* dummy)
 {
+  cnav_eos_t* eos = ctx;
   if ((eos->context != NULL) && (eos->vtable.dtor != NULL))
     eos->vtable.dtor(eos->context);
   free(eos->name);
@@ -27,6 +28,7 @@ cnav_eos_t* cnav_eos_new(const char* name, void* context,
 {
   ASSERT(vtable.pressure != NULL);
   ASSERT(vtable.temperature != NULL);
+  ASSERT(vtable.sound_speed != NULL);
   ASSERT(num_species > 0);
   ASSERT(masses != NULL);
   cnav_eos_t* eos = GC_MALLOC(sizeof(cnav_eos_t));
@@ -69,6 +71,19 @@ double cnav_eos_pressure(cnav_eos_t* eos, double rho, double T)
   ASSERT(rho > 0.0);
   ASSERT(T > 0.0);
   return eos->vtable.pressure(eos->context, rho, T);
+}
+
+double cnav_eos_sound_speed(cnav_eos_t* eos, double rho, double T)
+{
+  ASSERT(rho > 0.0);
+  ASSERT(T > 0.0);
+  return eos->vtable.sound_speed(eos->context, rho, T);
+}
+
+double cnav_eos_specific_internal_energy(cnav_eos_t* eos, double rho, double p)
+{
+  ASSERT(rho > 0.0);
+  return eos->vtable.specific_internal_energy(eos->context, rho, p);
 }
 
 #ifdef __cplusplus

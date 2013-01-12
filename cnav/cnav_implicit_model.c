@@ -84,44 +84,12 @@ static void extract_ls_fits(int order,
                             double* ls_fits,
                             int cell_index,
                             int num_species,
-                            double* ns_fits,
+                            double* c_fits,
                             vector_t* u_fits,
                             double* E_fits)
 {
   int basis_dim = poly_ls_basis_size(order);
   // FIXME
-}
-
-static void compute_bulk_conserved_quantities(int order, 
-                                              double* ls_fits, 
-                                              int num_species, 
-                                              double* masses,
-                                              point_t* x,
-                                              int cell_index, 
-                                              double* rho, 
-                                              vector_t* rhoU, 
-                                              double* rhoE)
-{
-  *rho = 0.0;
-  rhoU->x = rhoU->y = rhoU->z = 0.0;
-  *rhoE = 0.0;
-  int basis_dim = poly_ls_basis_size(order);
-  double basis[basis_dim];
-  compute_poly_ls_basis_vector(order, x, basis);
-
-  double ns_fits[num_species*basis_dim], E_fits[basis_dim];
-  vector_t u_fits[basis_dim];
-  extract_ls_fits(order, ls_fits, cell_index, num_species, 
-                  ns_fits, u_fits, E_fits);
-  for (int i = 0; i < basis_dim; ++i)
-  {
-    for (int s = 0; s < num_species; ++s)
-      *rho += ns_fits[num_species*i+s] * masses[s] * basis[i];
-    rhoU->x += *rho * u_fits[i].x * basis[i];
-    rhoU->y += *rho * u_fits[i].y * basis[i];
-    rhoU->z += *rho * u_fits[i].z * basis[i];
-    *rhoE += *rho * E_fits[i] * basis[i];
-  }
 }
 
 static void solve_riemann_problem(double rho1, vector_t* u1, double p1,
@@ -141,16 +109,16 @@ static void compute_hydrodynamic_fluxes(int order,
                                         mesh_t* mesh, 
                                         boundary_cell_map_t* boundary_cells,
                                         double* ls_fits, 
-                                        vector_t* F)
+                                        double* F)
 {
   int_unordered_set_t* computed_faces = int_unordered_set_new();
 
   int num_species = cnav_eos_num_species(eos);
-  double masses[num_species];
-  cnav_eos_get_masses(eos, masses);
+  int basis_dim = poly_ls_basis_size(order);
+  double basis[basis_dim];
 
   int num_comp = 4 + num_species;
-  int p = 2; // FIXME: This is only 2nd-order accurate!
+  int p = 1; // FIXME: This is only 2nd-order accurate!
   for (int c = 0; c < mesh->num_cells; ++c)
   {
     cell_t* cell = &mesh->cells[c];
@@ -168,14 +136,59 @@ static void compute_hydrodynamic_fluxes(int order,
       if (int_unordered_set_contains(computed_faces, face_index))
         continue;
 
+      // Compute the face's normal vector.
+      // FIXME: Wrong!
+      vector_t normal;
+      point_displacement(&cell->center, &ncell->center, &normal);
+      vector_normalize(&normal);
+
       // Compute the (bulk) conserved quantities for each of these cells 
       // at the face using the least-squares fits.
       double rho1, rho2, rhoE1, rhoE2;
       vector_t rhoU1, rhoU2;
-      compute_bulk_conserved_quantities(p, ls_fits, num_species, masses, &face->center,
-                                        c, &rho1, &rhoU1, &rhoE1);
-      compute_bulk_conserved_quantities(p, ls_fits, num_species, masses, &face->center,
-                                        ncell_index, &rho2, &rhoU2, &rhoE2);
+      {
+        double c_fits[num_species*basis_dim], E_fits[basis_dim];
+        vector_t u_fits[basis_dim];
+        point_t x;
+
+        rho1 = 0.0;
+        rhoU1.x = rhoU1.y = rhoU1.z = 0.0;
+        rhoE1 = 0.0;
+        x.x = face->center.x - cell->center.x;
+        x.y = face->center.y - cell->center.y;
+        x.z = face->center.z - cell->center.z;
+        compute_poly_ls_basis_vector(order, &x, basis);
+        extract_ls_fits(order, ls_fits, c, num_species, 
+                        c_fits, u_fits, E_fits);
+        for (int i = 0; i < basis_dim; ++i)
+        {
+          for (int s = 0; s < num_species; ++s)
+            rho1 += c_fits[num_species*i+s] * basis[i];
+          rhoU1.x += rho1 * u_fits[i].x * basis[i];
+          rhoU1.y += rho1 * u_fits[i].y * basis[i];
+          rhoU1.z += rho1 * u_fits[i].z * basis[i];
+          rhoE1 += rho1 * E_fits[i] * basis[i];
+        }
+
+        rho2 = 0.0;
+        rhoU2.x = rhoU2.y = rhoU2.z = 0.0;
+        rhoE2 = 0.0;
+        x.x = face->center.x - ncell->center.x;
+        x.y = face->center.y - ncell->center.y;
+        x.z = face->center.z - ncell->center.z;
+        compute_poly_ls_basis_vector(order, &x, basis);
+        extract_ls_fits(order, ls_fits, ncell_index, num_species, 
+                        c_fits, u_fits, E_fits);
+        for (int i = 0; i < basis_dim; ++i)
+        {
+          for (int s = 0; s < num_species; ++s)
+            rho2 += c_fits[num_species*i+s] * basis[i];
+          rhoU2.x += rho2 * u_fits[i].x * basis[i];
+          rhoU2.y += rho2 * u_fits[i].y * basis[i];
+          rhoU2.z += rho2 * u_fits[i].z * basis[i];
+          rhoE2 += rho2 * E_fits[i] * basis[i];
+        }
+      }
 
       // Transform the bulk conserved quantities into primitive variables
       // (rho, u, p).
@@ -192,6 +205,17 @@ static void compute_hydrodynamic_fluxes(int order,
       double riemann_rho, riemann_p;
       vector_t riemann_u;
       solve_riemann_problem(rho1, &u1, p1, rho2, &u2, p2, &riemann_rho, &riemann_u, &riemann_p);
+      double riemann_un = vector_dot(&riemann_u, &normal);
+      double riemann_eps = cnav_eos_specific_internal_energy(eos, riemann_rho, riemann_p);
+      double riemann_rhoE = riemann_rho * (0.5 * vector_dot(&riemann_u, &riemann_u) + riemann_eps);
+
+      // Construct the normal flux at the interface.
+      for (int s = 0; s < num_species; ++s)
+        F[num_comp*face_index+s] = riemann_rho * riemann_un;
+      F[num_comp*face_index+num_species]   = riemann_rho * riemann_un * riemann_u.x + riemann_p;
+      F[num_comp*face_index+num_species+1] = riemann_rho * riemann_un * riemann_u.y + riemann_p;
+      F[num_comp*face_index+num_species+2] = riemann_rho * riemann_un * riemann_u.z + riemann_p;
+      F[num_comp*face_index+num_species+3] = riemann_un * (riemann_rhoE + riemann_p);
     }
   }
 
@@ -213,7 +237,7 @@ static void compute_diffusive_fluxes(int order,
                                      mesh_t* mesh, 
                                      boundary_cell_map_t* boundary_cells,
                                      double* ls_fit, 
-                                     vector_t* F)
+                                     double* F)
 {
   for (int c = 0; c < mesh->num_cells; ++c)
   {
@@ -246,11 +270,11 @@ static int compute_F_eulerian(double t, N_Vector U, N_Vector U_dot, void* contex
   compute_least_squares_fit(order, mesh, u, ls_fits);
 
   // Compute the nonlinear fluxes from hydrodynamic advection.
-  vector_t hydro_fluxes[num_comp * mesh->num_faces];
+  double hydro_fluxes[num_comp * mesh->num_faces];
   compute_hydrodynamic_fluxes(order, eos, mesh, boundary_cells, ls_fits, hydro_fluxes);
 
   // Compute the fluxes from diffusion processes.
-  vector_t diff_fluxes[num_comp * mesh->num_faces];
+  double diff_fluxes[num_comp * mesh->num_faces];
   compute_diffusive_fluxes(order, eos, mesh, boundary_cells, ls_fits, diff_fluxes);
 
   // Now we use the discrete Divergence Theorem to update U_dot.
@@ -275,8 +299,8 @@ static int compute_F_eulerian(double t, N_Vector U, N_Vector U_dot, void* contex
       vector_normalize(&normal);
       for (int i = 0; i < num_comp; ++i)
       {
-        double Fn = vector_dot(&hydro_fluxes[num_comp*face_index+i], &normal);
-        double Gn = vector_dot(&diff_fluxes[num_comp*face_index+i], &normal);
+        double Fn = hydro_fluxes[num_comp*face_index+i];
+        double Gn = diff_fluxes[num_comp*face_index+i];
         u_dot[num_comp*c+i] -= (A/V) * (Fn + Gn);
       }
     }

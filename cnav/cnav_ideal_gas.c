@@ -25,6 +25,13 @@ static double ideal_gas_temperature(void* context, double rho, double eps)
   return (ideal_gas->gamma - 1.0) * ideal_gas->mu * proton_mass * eps / kB;
 }
 
+static double ideal_gas_sound_speed(void* context, double rho, double eps)
+{
+  cnav_ideal_gas_t* ideal_gas = context;
+  double gamma = ideal_gas->gamma;
+  return sqrt(gamma * pow(rho, gamma - 1.0));
+}
+
 cnav_eos_t* cnav_ideal_gas_new(double mu, double gamma)
 {
   ASSERT(mu > 0.0);
@@ -37,6 +44,7 @@ cnav_eos_t* cnav_ideal_gas_new(double mu, double gamma)
   ideal_gas->gamma = gamma;
   cnav_eos_vtable vtable = {.pressure = ideal_gas_pressure,
                             .temperature = ideal_gas_temperature,
+                            .sound_speed = ideal_gas_sound_speed,
                             .dtor = free };
   double mass = mu * proton_mass;
   return cnav_eos_new(name, ideal_gas, vtable, 1, &mass);
