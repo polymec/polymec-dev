@@ -12,11 +12,8 @@ extern "C" {
 // garbage-collected.
 typedef struct cnav_eos_t cnav_eos_t;
 
-// A function pointer type for evaluating the pressure.
-typedef double (*cnav_eos_pressure_func)(void*, double, double);
-
-// A function pointer type for evaluating the temperature.
-typedef double (*cnav_eos_temperature_func)(void*, double, double);
+// A function pointer type for evaluating thermodynamic quantities.
+typedef double (*cnav_eos_thermo_func)(void*, double, double);
 
 // A destructor for any given context object.
 typedef void (*cnav_eos_dtor)(void*);
@@ -24,9 +21,11 @@ typedef void (*cnav_eos_dtor)(void*);
 // This virtual table must be implemented by any equation of state.
 typedef struct 
 {
-  cnav_eos_pressure_func    pressure;
-  cnav_eos_temperature_func temperature;
-  cnav_eos_dtor             dtor;
+  cnav_eos_thermo_func pressure;
+  cnav_eos_thermo_func temperature;
+  cnav_eos_thermo_func specific_internal_energy;
+  cnav_eos_thermo_func sound_speed;
+  cnav_eos_dtor        dtor;
 } cnav_eos_vtable;
 
 // Constructs a new equation of state object from the given parameters.
@@ -49,6 +48,12 @@ double cnav_eos_temperature(cnav_eos_t* eos, double rho, double eps);
 
 // Returns the pressure given mass density and temperature.
 double cnav_eos_pressure(cnav_eos_t* eos, double rho, double T);
+
+// Returns the specific internal energy given mass density and pressure.
+double cnav_eos_specific_internal_energy(cnav_eos_t* eos, double rho, double p);
+
+// Returns the sound speed given mass density and temperature.
+double cnav_eos_sound_speed(cnav_eos_t* eos, double rho, double T);
 
 #ifdef __cplusplus
 }
