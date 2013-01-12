@@ -25,6 +25,7 @@ typedef struct
   cnav_eos_thermo_func temperature;
   cnav_eos_thermo_func specific_internal_energy;
   cnav_eos_thermo_func sound_speed;
+  cnav_eos_thermo_func effective_gamma;
   cnav_eos_dtor        dtor;
 } cnav_eos_vtable;
 
@@ -54,6 +55,9 @@ double cnav_eos_specific_internal_energy(cnav_eos_t* eos, double rho, double p);
 
 // Returns the sound speed given mass density and temperature.
 double cnav_eos_sound_speed(cnav_eos_t* eos, double rho, double T);
+
+// Returns the effective polytropic index given mass density and temperature.
+double cnav_eos_effective_gamma(cnav_eos_t* eos, double rho, double T);
 
 #ifdef __cplusplus
 }

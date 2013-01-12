@@ -86,6 +86,13 @@ double cnav_eos_specific_internal_energy(cnav_eos_t* eos, double rho, double p)
   return eos->vtable.specific_internal_energy(eos->context, rho, p);
 }
 
+double cnav_eos_effective_gamma(cnav_eos_t* eos, double rho, double T)
+{
+  ASSERT(rho > 0.0);
+  ASSERT(T > 0.0);
+  return eos->vtable.effective_gamma(eos->context, rho, T);
+}
+
 #ifdef __cplusplus
 }
 #endif
