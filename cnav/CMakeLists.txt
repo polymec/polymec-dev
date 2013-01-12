@@ -1,6 +1,5 @@
 # Executable.
 add_executable(cnav cnav.c cnav_model.c 
-               cnav_implicit_model.c #cnav_semi_implicit_model.c
                cnav_eos.c cnav_ideal_gas.c cnav_bc.c 
                interpreter_register_cnav_functions.c
                register_cnav_benchmarks.c)
