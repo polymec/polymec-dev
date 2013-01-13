@@ -34,7 +34,7 @@ typedef enum
 {
   INTEGRATOR_EXPLICIT,
   INTEGRATOR_IMPLICIT,
-  INTEGRATOR_IMEX
+  INTEGRATOR_SEMI_IMPLICIT
 } integrator_type_t;
 
 // Creates an integrator solver with the given name, context, and virtual table.
