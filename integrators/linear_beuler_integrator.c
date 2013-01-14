@@ -16,7 +16,7 @@ typedef struct
   // Solver stuff.
   MPI_Comm comm;
   void* solver;
-  integrator_Ax_func Ax;
+  integrator_compute_Ax_func Ax;
   integrator_compute_rhs_func compute_rhs;
   int precond_type;
   integrator_precond_func precond;
@@ -92,7 +92,7 @@ static void gmres_dtor(void* context)
 
 integrator_t* gmres_linear_beuler_integrator_new(MPI_Comm comm,
                                                  void* context, 
-                                                 integrator_Ax_func Ax,
+                                                 integrator_compute_Ax_func Ax,
                                                  integrator_compute_rhs_func compute_rhs,
                                                  int precond_type,
                                                  integrator_precond_func precond,
@@ -131,7 +131,7 @@ integrator_t* gmres_linear_beuler_integrator_new(MPI_Comm comm,
   return integrator_new("Backward Euler (GMRES)", beuler, vtable, 1, INTEGRATOR_IMPLICIT);
 }
 
-static void bicgstab_init(void* context, double t, double* solution, int N)
+static void bicgstab_init(void* context, int N)
 {
   linear_beuler_t* beuler = context;
   linear_beuler_reset(beuler);
@@ -164,7 +164,7 @@ static void bicgstab_dtor(void* context)
 
 integrator_t* bicgstab_linear_beuler_integrator_new(MPI_Comm comm,
                                                     void* context, 
-                                                    integrator_Ax_func Ax,
+                                                    integrator_compute_Ax_func Ax,
                                                     integrator_compute_rhs_func compute_rhs,
                                                     int precond_type,
                                                     integrator_precond_func precond,

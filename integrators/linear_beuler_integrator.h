@@ -35,7 +35,7 @@ extern "C" {
 //   dtor - A destructor for freeing the context pointer (if any).
 integrator_t* gmres_linear_beuler_integrator_new(MPI_Comm comm,
                                                  void* context, 
-                                                 integrator_Ax_func Ax,
+                                                 integrator_compute_Ax_func Ax,
                                                  integrator_compute_rhs_func compute_rhs,
                                                  int precond_type,
                                                  integrator_precond_func precond,
@@ -67,7 +67,7 @@ integrator_t* gmres_linear_beuler_integrator_new(MPI_Comm comm,
 //   dtor - A destructor for freeing the context pointer (if any).
 integrator_t* bicgstab_linear_beuler_integrator_new(MPI_Comm comm,
                                                     void* context, 
-                                                    integrator_Ax_func Ax,
+                                                    integrator_compute_Ax_func Ax,
                                                     integrator_compute_rhs_func compute_rhs,
                                                     int precond_type,
                                                     integrator_precond_func precond,
