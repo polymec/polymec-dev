@@ -15,9 +15,13 @@ extern "C" {
 // linear system.
 typedef int (*integrator_compute_Ax_func)(void *A_data, N_Vector x, N_Vector Ax);
 
+// A prototype for a function that computes a function for a
+// nonlinear system.
+typedef int (*integrator_compute_F_func)(double t, N_Vector u, N_Vector u_dot, void* context);
+
 // A prototype for a function that computes a matrix-vector product for a
 // nonlinear system.
-typedef int (*integrator_compute_Jv_func)(void *J_data, N_Vector v, N_Vector Jv);
+typedef int (*integrator_compute_Jv_func)(N_Vector v, N_Vector Jv, double t, N_Vector y, N_Vector fy, void* context, N_Vector tmp);
 
 // A prototype for a function that computes right-hand-side vectors for 
 // linear backward Euler integrators at a given time.
@@ -100,7 +104,7 @@ void integrator_step(integrator_t* integrator, double t1, double t2,
 // (nonlinear implicit) integrator with the given vector. This is only 
 // callable on integrators for which the compute_Jv entry is given in the 
 // virtual table. Call only if you know what you're doing!
-void integrator_compute_Jv(integrator_t* integrator, N_Vector v, N_Vector Jv); 
+void integrator_compute_Jv(integrator_t* integrator, double t, N_Vector x, N_Vector F, N_Vector v, N_Vector Jv);
 
 #ifdef __cplusplus
 }
