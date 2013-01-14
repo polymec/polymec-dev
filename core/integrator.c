@@ -78,6 +78,12 @@ void integrator_step(integrator_t* integrator, double t1, double t2,
   integrator->vtable.step(integrator->context, t1, t2, solution, integrator->dim);
 }
 
+void integrator_compute_Jv(integrator_t* integrator, N_Vector v, N_Vector Jv)
+{
+  ASSERT(integrator->vtable.compute_Jv != NULL);
+  integrator->vtable.compute_Jv(integrator->context, v, Jv);
+}
+
 N_Vector N_VNew(MPI_Comm comm, int dim)
 {
 #ifdef USE_MPI

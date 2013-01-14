@@ -9,20 +9,6 @@ typedef struct
   integrator_t *ex_int, *imp_int;
 } ark_t;
 
-static void ark1_linear_init(void* context, int N)
-{
-  ark_t* ark = context;
-  integrator_init(ark->ex_int, N);
-  integrator_init(ark->imp_int, N);
-}
-
-static void ark1_linear_step(void* context, double t1, double t2, double* solution, int N)
-{
-  ASSERT(t2 > t1);
-  double h = t2 - t1;
-  ark_t* ark = context;
-}
-
 static void asirk1a_init(void* context, int N)
 {
   ark_t* ark = context;
@@ -32,6 +18,7 @@ static void asirk1a_init(void* context, int N)
 
 static void asirk1a_step(void* context, double t1, double t2, double* solution, int N)
 {
+  static const double omega1 = 1.0, a1 = 1.0;
   ASSERT(t2 > t1);
   double h = t2 - t1;
   ark_t* ark = context;
@@ -88,11 +75,6 @@ integrator_t* ark_integrator_new(ark_integrator_type_t type,
   int order;
   switch (type)
   {
-    case ARK1_LINEAR: order = 1;
-                      vtable.init = ark1_linear_init;
-                      vtable.step = ark1_linear_step;
-                      strcpy(name, "ARK1-LINEAR");
-                      break;
     case ASIRK_1A: order = 1;
                    vtable.init = asirk1a_init;
                    vtable.step = asirk1a_step;

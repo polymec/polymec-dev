@@ -8,6 +8,31 @@
 extern "C" {
 #endif
 
+// The following types and functions are provided for easy interoperability
+// with CVODE.
+
+// A prototype for a function that computes a matrix-vector product for a
+// linear system.
+typedef int (*integrator_compute_Ax_func)(void *A_data, N_Vector x, N_Vector Ax);
+
+// A prototype for a function that computes a matrix-vector product for a
+// nonlinear system.
+typedef int (*integrator_compute_Jv_func)(void *J_data, N_Vector v, N_Vector Jv);
+
+// A prototype for a function that computes right-hand-side vectors for 
+// linear backward Euler integrators at a given time.
+typedef void (*integrator_compute_rhs_func)(void*, double, N_Vector);
+
+// A prototype for a function that solves the preconditioner system
+// M * z = r. Here, precond_type = PRECOND_LEFT for left-preconditioned 
+// systems and PRECOND_RIGHT for right-preconditioned systems.
+typedef int (*integrator_precond_func)(void *P_data, N_Vector r, N_Vector z, int precond_type);
+
+// This function manufactures a vector for use with a linear system.
+N_Vector N_VNew(MPI_Comm comm, int dim);
+
+
+
 // This class provides an abstract interface for integrating systems of 
 // ordinary differential equations. 
 typedef struct integrator_t integrator_t;
@@ -25,9 +50,10 @@ typedef void (*integrator_dtor)(void*);
 // This virtual table must be implemented by any integrator.
 typedef struct 
 {
-  integrator_step_func step;
-  integrator_init_func init;
-  integrator_dtor      dtor;
+  integrator_step_func       step;
+  integrator_init_func       init;
+  integrator_compute_Jv_func compute_Jv; // Optional
+  integrator_dtor            dtor;
 } integrator_vtable;
 
 // Types of integrators (for algorithmic classification).
@@ -38,7 +64,7 @@ typedef enum
   INTEGRATOR_SEMI_IMPLICIT
 } integrator_type_t;
 
-// Creates an integrator solver with the given name, context, and virtual table.
+// Creates an integrator with the given name, context, and virtual table.
 // Also given are some metadata, such as the order of the method, whether 
 // it is explicit, implicit, or hybrid.
 integrator_t* integrator_new(const char* name, 
@@ -70,28 +96,11 @@ void integrator_init(integrator_t* integrator, int N);
 void integrator_step(integrator_t* integrator, double t1, double t2, 
                      double* solution);
 
-// The following types and functions are provided for easy interoperability
-// with CVODE.
-
-// A prototype for a function that computes a matrix-vector product for a
-// linear system.
-typedef int (*integrator_Ax_func)(void *A_data, N_Vector x, N_Vector Ax);
-
-// A prototype for a function that computes a matrix-vector product for a
-// nonlinear system.
-typedef int (*integrator_Jv_func)(void *J_data, N_Vector v, N_Vector Jv);
-
-// A prototype for a function that computes right-hand-side vectors for 
-// linear backward Euler integrators at a given time.
-typedef void (*integrator_compute_rhs_func)(void*, double, N_Vector);
-
-// A prototype for a function that solves the preconditioner system
-// M * z = r. Here, precond_type = PRECOND_LEFT for left-preconditioned 
-// systems and PRECOND_RIGHT for right-preconditioned systems.
-typedef int (*integrator_precond_func)(void *P_data, N_Vector r, N_Vector z, int precond_type);
-
-// This function manufactures a vector for use with a linear system.
-N_Vector N_VNew(MPI_Comm comm, int dim);
+// Computes the product of the Jacobian matrix associated with this 
+// (nonlinear implicit) integrator with the given vector. This is only 
+// callable on integrators for which the compute_Jv entry is given in the 
+// virtual table. Call only if you know what you're doing!
+void integrator_compute_Jv(integrator_t* integrator, N_Vector v, N_Vector Jv); 
 
 #ifdef __cplusplus
 }

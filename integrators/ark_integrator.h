@@ -10,8 +10,7 @@ extern "C" {
 // Types of Additive Runge-Kutta integrators.
 typedef enum
 {
-  ARK1_LINEAR, // Semi-implicit 1st order with linear implicit integrator
-  ASIRK_1A,    // Semi-implicit 1st order with full nonlinear solve
+  ASIRK_1A,    // Semi-implicit 1st order with full (non)linear solve
   ASIRK_1B,    // Semi-implicit 1st order with implicit linearization 
   ASIRK_1C     // Semi-implicit 1st order with implicit linearization (variant)
 } ark_integrator_type_t;
