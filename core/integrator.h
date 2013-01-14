@@ -12,8 +12,8 @@ extern "C" {
 // ordinary differential equations. 
 typedef struct integrator_t integrator_t;
 
-// A function for initializing a given solution at time t.
-typedef void (*integrator_init_func)(void*, double, double*, int);
+// A function for initializing an integrator with a given dimension.
+typedef void (*integrator_init_func)(void*, int);
 
 // A function for integrating a given solution from time t1 to t2.
 // The solution is integrated in place and has dimension N.
@@ -62,9 +62,8 @@ int integrator_order(integrator_t* integrator);
 // Returns the type of the integrator (explicit, implicit, IMEX).
 integrator_type_t integrator_type(integrator_t* integrator);
 
-// Initializes the integrator with a solution at the given time 
-// (and a given number of unknowns).
-void integrator_init(integrator_t* integrator, double t, double* solution, int N);
+// Initializes the integrator with a given number of unknowns.
+void integrator_init(integrator_t* integrator, int N);
 
 // Integrates the given solution from time t1 to t2.
 // The solution is integrated in place.

@@ -56,7 +56,7 @@ static void linear_beuler_reset(linear_beuler_t* beuler)
   beuler->sb = NULL;
 }
 
-static void gmres_init(void* context, double t, double* solution, int N)
+static void gmres_init(void* context, int N)
 {
   linear_beuler_t* beuler = context;
   linear_beuler_reset(beuler);
@@ -71,6 +71,9 @@ static void gmres_step(void* context, double t1, double t2, double* solution, in
   linear_beuler_t* beuler = context;
   ASSERT(beuler->solver != NULL);
   SpbcgMem solver = beuler->solver;
+  double* x = N_VGetArrayPointer(beuler->x);
+  for (int i = 0; i < N; ++i)
+    x[i] = solution[i];
   beuler->compute_rhs(beuler->context, t2, beuler->b);
   SpbcgSolve(solver, beuler->context, beuler->x, beuler->b, 
              beuler->precond_type, beuler->delta, beuler->context,

@@ -26,7 +26,7 @@ static void rk_dtor(void* context)
   free(rk);
 }
 
-static void rk_init(void* context, double t, double* solution, int N)
+static void rk_init(void* context, int N)
 {
   rk_t* rk = context;
   rk->y = malloc(sizeof(double)*N);

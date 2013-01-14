@@ -66,9 +66,9 @@ integrator_type_t integrator_type(integrator_t* integrator)
   return integrator->type;
 }
 
-void integrator_init(integrator_t* integrator, double t, double* solution, int N)
+void integrator_init(integrator_t* integrator, int N)
 {
-  integrator->vtable.init(integrator->context, t, solution, N);
+  integrator->vtable.init(integrator->context, N);
   integrator->dim = N;
 }
 
