@@ -59,9 +59,6 @@ sparse_lin_solver_t* gmres_sparse_lin_solver_new(MPI_Comm comm,
 //             any preconditioner.
 //   compute_Ax - A function that applies A to the vector x.
 //   max_kdim - The maximum Krylov dimension that the integrator can use.
-//   gram_schmidt - A flag that determines whether to use the classical 
-//                  (CLASSICAL_GS) or the modified (MODIFIED_GS) Gram-Schmidt 
-//                  orthogonalization process.
 //   precond_type - A flag that determines the type of preconditioning to 
 //                  be used. Possible values are PREC_NONE for no preconditioning,
 //                  PREC_LEFT for left preconditioning, PREC_RIGHT for 
@@ -75,7 +72,6 @@ sparse_lin_solver_t* bicgstab_sparse_lin_solver_new(MPI_Comm comm,
                                                     void* context, 
                                                     krylov_sparse_lin_solver_compute_Ax_func Ax,
                                                     int max_kdim,
-                                                    int gram_schmidt,
                                                     int precond_type,
                                                     krylov_sparse_lin_solver_precond_func precond,
                                                     double delta,

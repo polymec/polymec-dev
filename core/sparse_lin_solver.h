@@ -19,7 +19,7 @@ typedef void (*sparse_lin_solver_solve_func)(void* context, N_Vector x, N_Vector
 typedef void (*sparse_lin_solver_dtor)(void*);
 
 // This virtual table must be implemented for each sparse linear solver 
-// subclass.
+// subclass. Only solve is strictly required.
 typedef struct
 {
   sparse_lin_solver_solve_func solve;
