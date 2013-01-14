@@ -1,13 +1,5 @@
 #include <string.h>
 
-#include "cvode/cvode.h"
-#include "cvode/cvode_spgmr.h"
-#if USE_MPI
-#include "nvector/nvector_parallel.h"
-#else
-#include "nvector/nvector_serial.h"
-#endif
-
 #include "core/unordered_map.h"
 #include "core/unordered_set.h"
 #include "core/boundary_cell_map.h"
@@ -26,13 +18,11 @@ extern "C" {
 // of the compressible Navier-Stokes model.
 typedef struct 
 {
-  cnav_time_integrator_t integrator;
   MPI_Comm comm;
   mesh_t* mesh;                        // Computational mesh.
   cnav_eos_t* eos;                     // Equation of state.
-  void* cvode;                         // CVODE time integrator.
-  int order;                           // Order of time integrator.
-  N_Vector U;                          // Computed solution.
+  integrator_t* integrator;            // Time integrator.
+  double* u;                           // Computed solution.
   st_func_t* source;                   // Source function
   st_func_t* initial_cond;             // Initial conditions.
   str_ptr_unordered_map_t* bcs;        // Boundary conditions.
@@ -43,36 +33,6 @@ typedef struct
   // Workspace stuff.
   double* ls_fits;                     // Least-squares fit coefficients.
 } cnav_t;
-
-static inline N_Vector N_Vector_new(MPI_Comm comm, int dim)
-{
-#ifdef USE_MPI
-  // Add all the local dimensions to find tot_dim.
-  int tot_dim;
-  MPI_Allreduce(&dim, &tot_dim, 1, MPI_INT, MPI_SUM, comm);
-  return N_VNew_Parallel(comm, dim, tot_dim);
-#else
-  return N_VNew_Serial(dim);
-#endif
-}
-
-static inline void N_Vector_free(N_Vector v)
-{
-#ifdef USE_MPI
-  N_VDestroy_Parallel(v);
-#else
-  N_VDestroy_Serial(v);
-#endif
-}
-
-static inline double* N_Vector_data(N_Vector v)
-{
-#ifdef USE_MPI
-  return NV_DATA_P(v);
-#else
-  return NV_DATA_S(v);
-#endif
-}
 
 static void compute_least_squares_fit(int order, 
                                       mesh_t* mesh, 
@@ -256,7 +216,7 @@ static void compute_diffusive_fluxes(int order,
 
 static int compute_F_eulerian(double t, N_Vector U, N_Vector U_dot, void* context)
 {
-  double* u = N_Vector_data(U);
+  double* u = NULL; // FIXME: N_Vector_data(U);
   cnav_t* cnav = (cnav_t*)context;
   mesh_t* mesh = cnav->mesh;
   cnav_eos_t* eos = cnav->eos;
@@ -266,7 +226,7 @@ static int compute_F_eulerian(double t, N_Vector U, N_Vector U_dot, void* contex
 
   // Compute least-squares fit coefficients for each component of the 
   // solution.
-  int order = cnav->order;
+  int order = integrator_order(cnav->integrator);
   double* ls_fits = cnav->ls_fits;
   compute_least_squares_fit(order, mesh, u, ls_fits);
 
@@ -280,7 +240,7 @@ static int compute_F_eulerian(double t, N_Vector U, N_Vector U_dot, void* contex
 
   // Now we use the discrete Divergence Theorem to update U_dot.
   // FIXME: This logic is only 2nd-order accurate!
-  double* u_dot = N_Vector_data(U_dot);
+  double* u_dot = NULL; // FIXME: N_Vector_data(U_dot);
   for (int c = 0; c < mesh->num_cells; ++c)
   {
     cell_t* cell = &mesh->cells[c];
@@ -312,7 +272,7 @@ static int compute_F_eulerian(double t, N_Vector U, N_Vector U_dot, void* contex
 
 static int compute_F_ale(double t, N_Vector U, N_Vector U_dot, void* context)
 {
-  double* u = N_Vector_data(U);
+  double* u = NULL; // FIXME: N_VGetArrayObject(U);
   cnav_t* cnav = (cnav_t*)context;
   mesh_t* mesh = cnav->mesh;
   cnav_eos_t* eos = cnav->eos;
@@ -322,21 +282,21 @@ static int compute_F_ale(double t, N_Vector U, N_Vector U_dot, void* context)
 
   // Compute least-squares fit coefficients for each component of the 
   // solution.
-  int order = cnav->order;
+  int order = integrator_order(cnav->integrator);
   double* ls_fits = cnav->ls_fits;
   compute_least_squares_fit(order, mesh, u, ls_fits);
 
   // Compute the nonlinear fluxes from hydrodynamic advection.
-  vector_t hydro_fluxes[num_comp * mesh->num_faces];
+  double hydro_fluxes[num_comp * mesh->num_faces];
   compute_hydrodynamic_fluxes(order, eos, mesh, boundary_cells, ls_fits, hydro_fluxes);
 
   // Compute the fluxes from diffusion processes.
-  vector_t diff_fluxes[num_comp * mesh->num_faces];
+  double diff_fluxes[num_comp * mesh->num_faces];
   compute_diffusive_fluxes(order, eos, mesh, boundary_cells, ls_fits, diff_fluxes);
 
   // Now we use the discrete Divergence Theorem to update U_dot.
   // FIXME: This logic is only 2nd-order accurate!
-  double* u_dot = N_Vector_data(U_dot);
+  double* u_dot = NULL; // FIXME: N_Vector_data(U_dot);
   for (int c = 0; c < mesh->num_cells; ++c)
   {
     cell_t* cell = &mesh->cells[c];
@@ -376,121 +336,10 @@ static double cnav_max_dt(void* context, double t, char* reason)
   return dt;
 }
 
-static void cnav_advance_implicit(void* context, double t, double dt)
-{
-  cnav_t* cnav = (cnav_t*)context;
-
-  // Take a step.
-  double t_actual;
-  int status = CVode(cnav->cvode, t + dt, cnav->U, &t_actual, CV_NORMAL);
-  ASSERT(status != CV_MEM_NULL);
-  ASSERT(status != CV_NO_MALLOC);
-  ASSERT(status != CV_ILL_INPUT);
-  ASSERT(status != CV_LINIT_FAIL);
-  ASSERT(status != CV_LSOLVE_FAIL);
-  ASSERT(status != CV_RHSFUNC_FAIL);
-
-  if ((status != CV_SUCCESS) && (status != CV_TSTOP_RETURN) && 
-      (status != CV_ROOT_RETURN)) // && (status != CV_FIRST_RHSFUNC_FAIL))
-  {
-    switch(status)
-    {
-      case CV_TOO_CLOSE:
-        polymec_error("dt (%g) is too small.", dt);
-        break;
-      case CV_TOO_MUCH_WORK:
-        polymec_error("Advance took too many internal steps.");
-        break;
-      case CV_TOO_MUCH_ACC:
-        polymec_error("The integrator could not achieve the desired accuracy.");
-        break;
-      case CV_ERR_FAILURE:
-        polymec_error("Too many failures during one internal step.");
-        break;
-      case CV_CONV_FAILURE:
-        polymec_error("Too many convergence failures.");
-        break;
-      case CV_REPTD_RHSFUNC_ERR:
-        polymec_error("Too many errors in the right hand side function.");
-        break;
-      case CV_UNREC_RHSFUNC_ERR:
-        polymec_error("Integrator failed to recover from a right hand side error.");
-        break;
-      case CV_RTFUNC_FAIL:
-        polymec_error("Integrator could not find a root.");
-        break;
-      default:
-        polymec_error("The integrator failed.");
-        break;
-    }
-  }
-
-  // If t_actual > t + dt, the output is still interpolated at the 
-  // time t + dt, but the internal time is t_actual.
-}
-
-static void cnav_advance_semi_implicit(void* context, double t, double dt)
-{
-  cnav_t* cnav = (cnav_t*)context;
-  double* u = N_Vector_data(cnav->U);
-  mesh_t* mesh = cnav->mesh;
-  cnav_eos_t* eos = cnav->eos;
-  boundary_cell_map_t* boundary_cells = cnav->boundary_cells;
-  int num_species = cnav_eos_num_species(eos);
-  int num_comp = 4 + num_species;
-
-  // Compute least-squares fit coefficients for each component of the 
-  // solution.
-  int order = cnav->order;
-  double* ls_fits = cnav->ls_fits;
-  compute_least_squares_fit(order, mesh, u, ls_fits);
-
-  // Compute the nonlinear fluxes from hydrodynamic advection.
-  double hydro_fluxes[num_comp * mesh->num_faces];
-  compute_hydrodynamic_fluxes(order, eos, mesh, boundary_cells, ls_fits, hydro_fluxes);
-
-  // Compute the fluxes from diffusion processes.
-  double diff_fluxes[num_comp * mesh->num_faces];
-  compute_diffusive_fluxes(order, eos, mesh, boundary_cells, ls_fits, diff_fluxes);
-
-  // Now we use the discrete Divergence Theorem to update U_dot.
-  // FIXME: This logic is only 2nd-order accurate!
-  for (int c = 0; c < mesh->num_cells; ++c)
-  {
-    cell_t* cell = &mesh->cells[c];
-    double V = cell->volume;
-
-    // Compute any source terms for this cell and start with them.
-    st_func_eval(cnav->source, &cell->center, t, &u_dot[num_comp*c]);
-    
-    // Add in the fluxes.
-    for (int f = 0; f < cell->num_faces; ++f)
-    {
-      face_t* face = cell->faces[f];
-      int face_index = face - &mesh->faces[0];
-      double A = face->area;
-      vector_t normal;
-      point_displacement(&cell->center, &face->center, &normal);
-      vector_normalize(&normal);
-      for (int i = 0; i < num_comp; ++i)
-      {
-        double Fn = hydro_fluxes[num_comp*face_index+i];
-        double Gn = diff_fluxes[num_comp*face_index+i];
-        u_dot[num_comp*c+i] -= (A/V) * (Fn + Gn);
-      }
-    }
-  }
-
-  return 0;
-}
-
 static void cnav_advance(void* context, double t, double dt)
 {
   cnav_t* cnav = (cnav_t*)context;
-  if (cnav->integrator == CNAV_SEMI_IMPLICIT)
-    cnav_advance_semi_implicit(context, t, dt);
-  else
-    cnav_advance_implicit(context, t, dt);
+  integrator_step(cnav->integrator, t, t + dt, cnav->u);
 }
 
 static void cnav_reconnect(void* context, mesh_t* new_mesh)
@@ -499,34 +348,10 @@ static void cnav_reconnect(void* context, mesh_t* new_mesh)
 
 static void cnav_init(void* context, double t)
 {
-  cnav_t* cnav = (cnav_t*)context;
-
-  // Make sure our solution vector is allocated.
-  if (cnav->U != NULL)
-  {
-    N_Vector_free(cnav->U);
-    CVodeFree(&cnav->cvode);
-  }
-  cnav->cvode = CVodeCreate(CV_BDF, CV_NEWTON);
-  CVodeSetUserData(cnav->cvode, cnav);
-  cnav->U = N_Vector_new(cnav->comm, cnav->mesh->num_cells);
-
   // Initialize the solution.
-  double* U = N_Vector_data(cnav->U);
+  cnav_t* cnav = (cnav_t*)context;
   for (int c = 0; c < cnav->mesh->num_cells; ++c)
-    st_func_eval(cnav->initial_cond, &cnav->mesh->cells[c].center, t, &U[c]);
-  CVodeInit(cnav->cvode, compute_F_eulerian, t, cnav->U);
-
-  // We try GMRES with the preconditioner applied on the left, and 
-  // using modified Gram-Schmidt orthogonalization.
-  CVSpgmr(cnav->cvode, PREC_LEFT, 0);
-  CVSpilsSetGSType(cnav->cvode, MODIFIED_GS);
-
-  // Set the Jacobian-times-vector function.
-  //CVSpilsSetJacTimesVecFn(cnav->cvode, JoV);
-
-  // Set the preconditioner solve and setup functions.
-  //CVSpilsSetPreconditioner(cvode_mem, Precond, PSolve);
+    st_func_eval(cnav->initial_cond, &cnav->mesh->cells[c].center, t, &cnav->u[c]);
 }
 
 static void cnav_save(void* context, io_interface_t* io, double t, int step)
@@ -538,10 +363,8 @@ static void cnav_save(void* context, io_interface_t* io, double t, int step)
 static void cnav_dtor(void* context)
 {
   cnav_t* cnav = (cnav_t*)context;
-  if (cnav->U != NULL)
-    N_Vector_free(cnav->U);
-  if (cnav->cvode != NULL)
-    CVodeFree(&cnav->cvode);
+  if (cnav->u != NULL)
+    free(cnav->u);
   free(cnav);
 }
 
@@ -560,10 +383,8 @@ model_t* cnav_model_new(options_t* options)
   model_t* model = model_new("Compressible Navier-Stokes", cnav, vtable, options);
 
   // Initialize the bookkeeping structures.
-  cnav->order = -1;
   cnav->comm = MPI_COMM_WORLD;
-  cnav->cvode = NULL;
-  cnav->U = NULL;
+  cnav->u = NULL;
 
   // Set up the saver.
   io_interface_t* saver = silo_io_new(cnav->comm, 0, false);
@@ -572,7 +393,8 @@ model_t* cnav_model_new(options_t* options)
   return model;
 }
 
-model_t* create_cnav(int order,
+model_t* create_cnav(integrator_type_t integrator,
+                     int order,
                      mesh_t* mesh,
                      cnav_eos_t* equation_of_state,
 //                   reaction_network_t* reactions,
@@ -593,8 +415,7 @@ model_t* create_cnav(int order,
   // Create the model.
   model_t* model = cnav_model_new(options);
   cnav_t* cnav = (cnav_t*)model_context(model);
-  cnav->integrator = integrator;
-  cnav->order = order;
+  cnav->integrator = NULL;
   cnav->mesh = mesh;
   cnav->source = source;
   cnav->initial_cond = initial_cond;
