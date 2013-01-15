@@ -3,9 +3,9 @@
 #include <setjmp.h>
 #include <string.h>
 #include "cmockery.h"
-#include "constant_st_func.h"
-#include "prob_cvt_gen_dist.h"
-#include "cylinder.h"
+#include "core/constant_st_func.h"
+#include "geometry/prob_cvt_gen_dist.h"
+#include "geometry/cylinder.h"
 
 void plot_generators(point_t* generators, int num_generators, const char* filename)
 {

@@ -3,9 +3,9 @@
 #include <setjmp.h>
 #include <string.h>
 #include "cmockery.h"
-#include "cubic_lattice.h"
-#include "create_cubic_lattice_mesh.h"
-#include "vtk_plot_io.h"
+#include "geometry/cubic_lattice.h"
+#include "geometry/create_cubic_lattice_mesh.h"
+#include "io/vtk_plot_io.h"
 
 void test_create_cubic_lattice_mesh(void** state)
 {

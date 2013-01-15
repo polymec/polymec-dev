@@ -3,7 +3,7 @@
 #include <setjmp.h>
 #include <string.h>
 #include "cmockery.h"
-#include "exchanger.h"
+#include "core/exchanger.h"
 
 void test_exchanger_new(void** state)
 {

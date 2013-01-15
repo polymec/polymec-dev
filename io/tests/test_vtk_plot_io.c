@@ -3,8 +3,8 @@
 #include <setjmp.h>
 #include <string.h>
 #include "cmockery.h"
-#include "edit_mesh.h"
-#include "vtk_plot_io.h"
+#include "core/edit_mesh.h"
+#include "io/vtk_plot_io.h"
 
 void test_plot_single_cell_mesh(void** state)
 {

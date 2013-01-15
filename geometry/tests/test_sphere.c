@@ -3,7 +3,7 @@
 #include <setjmp.h>
 #include <string.h>
 #include "cmockery.h"
-#include "sphere.h"
+#include "geometry/sphere.h"
 #include "generate_octave_script_for_surface.h"
 
 void test_construct(void** state)
