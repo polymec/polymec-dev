@@ -24,8 +24,12 @@ typedef int (*integrator_compute_F_func)(double t, N_Vector u, N_Vector u_dot, v
 typedef int (*integrator_compute_Jv_func)(N_Vector v, N_Vector Jv, double t, N_Vector y, N_Vector fy, void* context, N_Vector tmp);
 
 // A prototype for a function that computes right-hand-side vectors for 
-// linear backward Euler integrators at a given time.
+// implicit integrators at a given time.
 typedef void (*integrator_compute_rhs_func)(void*, double, N_Vector);
+
+// A prototype for a function that applies discrete boundary conditions to 
+// a linear system at a given time.
+typedef void (*integrator_apply_bcs_func)(void*, double, N_Vector);
 
 // A prototype for a function that solves the preconditioner system
 // M * z = r. Here, precond_type = PRECOND_LEFT for left-preconditioned 

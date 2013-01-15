@@ -85,6 +85,7 @@ void integrator_init(integrator_t* integrator, int N)
 void integrator_step(integrator_t* integrator, double t1, double t2, 
                      double* solution)
 {
+  ASSERT(t2 > t1);
   integrator->vtable.step(integrator->context, t1, t2, solution, integrator->dim);
 }
 
