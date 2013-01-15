@@ -45,6 +45,10 @@ static void beuler_step(void* context, double t1, double t2, double* solution, i
   linear_beuler_t* beuler = context;
   beuler->t2 = t2;
   beuler->dt = t2 - t1;
+
+  // Compute the right hand side at t2.
+  beuler->compute_rhs(beuler->context, t2, beuler->b);
+
   // FIXME: This probably doesn't work.
   double* x = N_VGetArrayPointer(beuler->x);
   for (int i = 0; i < N; ++i)
