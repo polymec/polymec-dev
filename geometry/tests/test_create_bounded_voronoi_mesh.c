@@ -3,13 +3,13 @@
 #include <setjmp.h>
 #include <string.h>
 #include "cmockery.h"
-#include "constant_st_func.h"
-#include "prob_cvt_gen_dist.h"
-#include "cylinder.h"
-#include "plane.h"
-#include "intersection.h"
-#include "create_bounded_voronoi_mesh.h"
-#include "vtk_plot_io.h"
+#include "core/constant_st_func.h"
+#include "geometry/prob_cvt_gen_dist.h"
+#include "geometry/cylinder.h"
+#include "geometry/plane.h"
+#include "geometry/intersection.h"
+#include "geometry/create_bounded_voronoi_mesh.h"
+#include "io/vtk_plot_io.h"
 
 void plot_generators(point_t* generators, int num_generators, sp_func_t* boundary, const char* filename)
 {

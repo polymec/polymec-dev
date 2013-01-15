@@ -6,7 +6,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include "cmockery.h"
-#include "dl_st_func.h"
+#include "core/dl_st_func.h"
 
 static const char* source = 
 "void eval(void* context, point_t* x, double t, double* result)\n"

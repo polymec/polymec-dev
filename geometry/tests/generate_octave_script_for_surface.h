@@ -1,4 +1,4 @@
-#include "point.h"
+#include "core/point.h"
 
 #ifndef POLYMEC_GENERATE_OCTAVE_SCRIPT_FOR_SURFACE_H
 #define POLYMEC_GENERATE_OCTAVE_SCRIPT_FOR_SURFACE_H

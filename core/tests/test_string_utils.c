@@ -3,7 +3,7 @@
 #include <setjmp.h>
 #include <string.h>
 #include "cmockery.h"
-#include "string_utils.h"
+#include "core/string_utils.h"
 
 void test_parse_path(void** state)
 {

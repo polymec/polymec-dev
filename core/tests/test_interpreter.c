@@ -3,7 +3,7 @@
 #include <setjmp.h>
 #include <string.h>
 #include "cmockery.h"
-#include "interpreter.h"
+#include "core/interpreter.h"
 
 const char* test_string = 
 "f = constant_function(5)\n"

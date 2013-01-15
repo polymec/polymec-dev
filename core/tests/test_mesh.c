@@ -3,8 +3,8 @@
 #include <setjmp.h>
 #include <string.h>
 #include "cmockery.h"
-#include "mesh.h"
-#include "edit_mesh.h"
+#include "core/mesh.h"
+#include "core/edit_mesh.h"
 
 void test_single_cell_mesh_no_topo(void** state)
 {

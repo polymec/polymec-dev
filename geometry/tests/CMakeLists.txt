@@ -1,5 +1,4 @@
 include(add_polymec_test)
-include_directories(${PROJECT_SOURCE_DIR}/core;${PROJECT_SOURCE_DIR}/io;${PROJECT_SOURCE_DIR}/geometry)
 
 add_polymec_test(test_plane test_plane.c)
 add_polymec_test(test_sphere test_sphere.c)

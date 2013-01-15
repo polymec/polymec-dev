@@ -3,7 +3,7 @@
 #include <setjmp.h>
 #include <string.h>
 #include "cmockery.h"
-#include "newton.h"
+#include "core/newton.h"
 
 static void cubic_poly(void* context, double x, double* F, double* dFdx)
 {
