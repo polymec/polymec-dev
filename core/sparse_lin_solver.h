@@ -2,6 +2,7 @@
 #define POLYMEC_SPARSE_LIN_SOLVER_H
 
 #include "sundials/sundials_iterative.h"
+#include "core/polymec.h"
 
 #ifdef __cplusplus
 extern "C" {

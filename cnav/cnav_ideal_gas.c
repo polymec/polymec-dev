@@ -57,6 +57,8 @@ cnav_eos_t* cnav_ideal_gas_new(double mu, double gamma)
   cnav_eos_vtable vtable = {.pressure = ideal_gas_pressure,
                             .temperature = ideal_gas_temperature,
                             .sound_speed = ideal_gas_sound_speed,
+                            .specific_internal_energy = ideal_gas_specific_internal_energy,
+                            .effective_gamma = ideal_gas_effective_gamma,
                             .dtor = free };
   double mass = mu * proton_mass;
   return cnav_eos_new(name, ideal_gas, vtable, 1, &mass);
