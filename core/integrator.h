@@ -36,10 +36,6 @@ typedef void (*integrator_apply_bcs_func)(void*, double, N_Vector);
 // systems and PRECOND_RIGHT for right-preconditioned systems.
 typedef int (*integrator_precond_func)(void *P_data, N_Vector r, N_Vector z, int precond_type);
 
-// This function manufactures a vector for use with a linear system.
-N_Vector N_VNew(MPI_Comm comm, int dim);
-
-
 
 // This class provides an abstract interface for integrating systems of 
 // ordinary differential equations. 

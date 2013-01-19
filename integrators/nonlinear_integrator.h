@@ -1,6 +1,7 @@
 #ifndef POLYMEC_NONLINEAR_INTEGRATOR_H
 #define POLYMEC_NONLINEAR_INTEGRATOR_H
 
+#include "core/sparse_lin_solver.h"
 #include "core/integrator.h"
 #include "cvode/cvode.h"
 #include "cvode/cvode_spils.h"

@@ -38,7 +38,9 @@ static void gmres_reset(krylov_lin_solver_t* krylov)
   }
 }
 
-static void gmres_solve(void* context, N_Vector x, N_Vector b, double* res_norm, int* num_lin_iterations, int* num_precond_solves)
+static sparse_lin_solver_outcome_t gmres_solve(void* context, N_Vector x, N_Vector b, 
+                                               double* res_norm, int* num_lin_iterations, int* num_precond_solves,
+                                               char* outcome_details)
 {
   krylov_lin_solver_t* krylov = context;
   // Do we need to resize or allocate our solver?
@@ -50,11 +52,64 @@ static void gmres_solve(void* context, N_Vector x, N_Vector b, double* res_norm,
     krylov->solver = solver;
   }
   SpgmrMem solver = krylov->solver;
-  SpgmrSolve(solver, krylov->context, x, b, krylov->precond_type, 
-             krylov->gram_schmidt, krylov->delta, krylov->max_restarts, 
-             krylov->context, krylov->s1, krylov->s2, krylov->compute_Ax, 
-             krylov->precond, res_norm, num_lin_iterations, 
-             num_precond_solves);
+  int status = SpgmrSolve(solver, krylov->context, x, b, krylov->precond_type, 
+                          krylov->gram_schmidt, krylov->delta, krylov->max_restarts, 
+                          krylov->context, krylov->s1, krylov->s2, krylov->compute_Ax, 
+                          krylov->precond, res_norm, num_lin_iterations, 
+                          num_precond_solves);
+  ASSERT(status != SPGMR_MEM_NULL);
+  if (status == SPGMR_SUCCESS)
+    return SPARSE_LIN_SOLVER_CONVERGED;
+  else if (status == SPGMR_RES_REDUCED)
+    return SPARSE_LIN_SOLVER_REDUCED_RESIDUAL;
+  else if (status == SPGMR_CONV_FAIL)
+    return SPARSE_LIN_SOLVER_DID_NOT_CONVERGE;
+  else if (status == SPGMR_ATIMES_FAIL_REC)
+  {
+    sprintf(outcome_details, "matrix-vector product failed recoverably.");
+    return SPARSE_LIN_SOLVER_FAILED_RECOVERABLY;
+  }
+  else if (status == SPGMR_PSOLVE_FAIL_REC)
+  {
+    sprintf(outcome_details, "preconditioner solve failed recoverably.");
+    return SPARSE_LIN_SOLVER_FAILED_RECOVERABLY;
+  }
+  else if (status == SPGMR_PSET_FAIL_REC)
+  {
+    sprintf(outcome_details, "preconditioner setup failed recoverably.");
+    return SPARSE_LIN_SOLVER_FAILED_RECOVERABLY;
+  }
+  else if (status == SPGMR_ATIMES_FAIL_UNREC)
+  {
+    sprintf(outcome_details, "matrix-vector product failed unrecoverably.");
+    return SPARSE_LIN_SOLVER_FAILED_UNRECOVERABLY;
+  }
+  else if (status == SPGMR_PSOLVE_FAIL_UNREC)
+  {
+    sprintf(outcome_details, "preconditioner solve failed unrecoverably.");
+    return SPARSE_LIN_SOLVER_FAILED_UNRECOVERABLY;
+  }
+  else if (status == SPGMR_PSET_FAIL_UNREC)
+  {
+    sprintf(outcome_details, "preconditioner setup failed unrecoverably.");
+    return SPARSE_LIN_SOLVER_FAILED_UNRECOVERABLY;
+  }
+  else if (status == SPGMR_GS_FAIL)
+  {
+    sprintf(outcome_details, "Gram-Schmidt orthogonalization failed.");
+    return SPARSE_LIN_SOLVER_FAILED_UNRECOVERABLY;
+  }
+  else if (status == SPGMR_QRFACT_FAIL)
+  {
+    sprintf(outcome_details, "QR factorization computed a singular R.");
+    return SPARSE_LIN_SOLVER_FAILED_UNRECOVERABLY;
+  }
+  else 
+  {
+    ASSERT(status == SPGMR_QRSOL_FAIL);
+    sprintf(outcome_details, "QR solve encountered a singular R.");
+    return SPARSE_LIN_SOLVER_FAILED_UNRECOVERABLY;
+  }
 }
 
 static void gmres_dtor(void* context)
@@ -89,6 +144,7 @@ sparse_lin_solver_t* gmres_sparse_lin_solver_new(MPI_Comm comm,
   krylov->dtor = dtor;
   krylov->dim = 0;
   krylov->solver = NULL;
+  krylov->s1 = krylov->s2 = NULL;
   sparse_lin_solver_vtable vtable = {.solve = gmres_solve, .dtor = gmres_dtor};
   return sparse_lin_solver_new("GMRES Krylov solver", krylov, vtable);
 }
@@ -103,7 +159,9 @@ static void bicgstab_reset(krylov_lin_solver_t* krylov)
   }
 }
 
-static void bicgstab_solve(void* context, N_Vector x, N_Vector b, double* res_norm, int* num_lin_iterations, int* num_precond_solves)
+static sparse_lin_solver_outcome_t bicgstab_solve(void* context, N_Vector x, N_Vector b, 
+                                                  double* res_norm, int* num_lin_iterations, int* num_precond_solves,
+                                                  char* outcome_details)
 {
   krylov_lin_solver_t* krylov = context;
   // Do we need to resize or allocate our solver?
@@ -115,10 +173,48 @@ static void bicgstab_solve(void* context, N_Vector x, N_Vector b, double* res_no
     krylov->solver = solver;
   }
   SpbcgMem solver = krylov->solver;
-  SpbcgSolve(solver, krylov->context, x, b, krylov->precond_type, 
-             krylov->delta, krylov->context, krylov->sx, krylov->sb, 
-             krylov->compute_Ax, krylov->precond, res_norm, 
-             num_lin_iterations, num_precond_solves);
+  int status = SpbcgSolve(solver, krylov->context, x, b, krylov->precond_type, 
+                          krylov->delta, krylov->context, krylov->sx, krylov->sb, 
+                          krylov->compute_Ax, krylov->precond, res_norm, 
+                          num_lin_iterations, num_precond_solves);
+  ASSERT(status != SPBCG_MEM_NULL);
+  if (status == SPBCG_SUCCESS)
+    return SPARSE_LIN_SOLVER_CONVERGED;
+  else if (status == SPBCG_RES_REDUCED)
+    return SPARSE_LIN_SOLVER_REDUCED_RESIDUAL;
+  else if (status == SPBCG_CONV_FAIL)
+    return SPARSE_LIN_SOLVER_DID_NOT_CONVERGE;
+  else if (status == SPBCG_ATIMES_FAIL_REC)
+  {
+    sprintf(outcome_details, "matrix-vector product failed recoverably.");
+    return SPARSE_LIN_SOLVER_FAILED_RECOVERABLY;
+  }
+  else if (status == SPBCG_PSOLVE_FAIL_REC)
+  {
+    sprintf(outcome_details, "preconditioner solve failed recoverably.");
+    return SPARSE_LIN_SOLVER_FAILED_RECOVERABLY;
+  }
+  else if (status == SPBCG_PSET_FAIL_REC)
+  {
+    sprintf(outcome_details, "preconditioner setup failed recoverably.");
+    return SPARSE_LIN_SOLVER_FAILED_RECOVERABLY;
+  }
+  else if (status == SPBCG_ATIMES_FAIL_UNREC)
+  {
+    sprintf(outcome_details, "matrix-vector product failed unrecoverably.");
+    return SPARSE_LIN_SOLVER_FAILED_UNRECOVERABLY;
+  }
+  else if (status == SPBCG_PSOLVE_FAIL_UNREC)
+  {
+    sprintf(outcome_details, "preconditioner solve failed unrecoverably.");
+    return SPARSE_LIN_SOLVER_FAILED_UNRECOVERABLY;
+  }
+  else 
+  {
+    ASSERT(status == SPBCG_PSET_FAIL_UNREC);
+    sprintf(outcome_details, "preconditioner setup failed unrecoverably.");
+    return SPARSE_LIN_SOLVER_FAILED_UNRECOVERABLY;
+  }
 }
 
 static void bicgstab_dtor(void* context)
@@ -149,6 +245,7 @@ sparse_lin_solver_t* bicgstab_sparse_lin_solver_new(MPI_Comm comm,
   krylov->dtor = dtor;
   krylov->dim = 0;
   krylov->solver = NULL;
+  krylov->sx = krylov->sb = NULL;
   sparse_lin_solver_vtable vtable = {.solve = bicgstab_solve, 
                                      .dtor = bicgstab_dtor};
   return sparse_lin_solver_new("BiCGStab Krylov solver", krylov, vtable);

@@ -370,10 +370,6 @@ static void cnav_dtor(void* context)
 
 model_t* cnav_model_new(options_t* options)
 {
-  ASSERT(order >= 1);
-  ASSERT(order <= 2);
-//  ASSERT(order <= 5);
-
   model_vtable vtable = { .init = cnav_init,
                           .max_dt = cnav_max_dt,
                           .advance = cnav_advance,
