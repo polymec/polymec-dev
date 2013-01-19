@@ -8,12 +8,13 @@ extern "C" {
 #endif
 
 // A prototype for a function that computes a matrix-vector product for a
-// linear system.
+// linear system. This should return 0 on success and non-zero on failure.
 typedef int (*krylov_sparse_lin_solver_compute_Ax_func)(void *A_data, N_Vector x, N_Vector Ax);
 
 // A prototype for a function that solves the preconditioner system
 // M * z = r. Here, precond_type = PRECOND_LEFT for left-preconditioned 
-// systems and PRECOND_RIGHT for right-preconditioned systems.
+// systems and PRECOND_RIGHT for right-preconditioned systems. This should 
+// return 0 on success and non-zero on failure.
 typedef int (*krylov_sparse_lin_solver_precond_func)(void *P_data, N_Vector r, N_Vector z, int precond_type);
 
 // Creates a sparse linear solver that uses the Generalized Minimum 
