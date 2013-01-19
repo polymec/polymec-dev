@@ -7,8 +7,9 @@
 
 typedef struct 
 {
+  MPI_Comm comm;
   double dx; // Grid spacing.
-  double x1, x2; // Dirichlet BCs for the left and right ends.
+  double x1, x2; // Dirichlet boundary values.
 } laplacian_test_t;
 
 // This function computes the Laplacian operator applied to the vector x, with 
@@ -16,6 +17,45 @@ typedef struct
 static int compute_Lx(void* context, N_Vector x, N_Vector Lx)
 {
   laplacian_test_t* test = context;
+  double* xdata = NV_DATA(x);
+  double* Lxdata = NV_DATA(Lx);
+  int n = NV_LOCLENGTH(x);
+
+  // Apply Dirichlet boundary conditions, parallel-related and otherwise.
+#if USE_MPI
+  int N, rank;
+  MPI_Comm_size(test->comm, &N);
+  MPI_Comm_rank(test->comm, &rank);
+  int tag = 0;
+  double xleft, xright;
+  if (rank == 0)
+  {
+    xleft = 0.5 * (xdata[0] + test->x1);
+    Lxdata[0] = xdata[0];
+    MPI_Comm_send(&xdata[n-1], 1, MPI_DOUBLE, 1, tag, test->comm);
+    MPI_Comm_recv(&xright, rank+1, MPI_DOUBLE, 1, tag, test->comm);
+  }
+  else if (rank == N-1)
+  {
+    xright = 0.5 * (xdata[n-1] + test->x2);
+    MPI_Comm_send(&xdata[0], N-2, MPI_DOUBLE, 1, tag, test->comm);
+    MPI_Comm_recv(&xleft, rank+1, MPI_DOUBLE, 1, tag, test->comm);
+  }
+  else
+  {
+    MPI_Comm_recv(&xleft, rank-1, MPI_DOUBLE, 1, tag, test->comm);
+    MPI_Comm_recv(&xright, rank+1, MPI_DOUBLE, 1, tag, test->comm);
+  }
+  Lxdata[0] = xleft;
+  Lxdata[n-1] = xright;
+#else
+  Lxdata[0] = xdata[0];
+  Lxdata[n-1] = xdata[n-1];
+#endif
+
+  // Now apply the general stencil.
+  for (int i = 1; i < n-1; ++i)
+    Lxdata[i] = (xdata[i-1] - 2.0*xdata[i] + xdata[i+1]) / test->dx;
   return 0;
 }
 
@@ -51,16 +91,33 @@ static int jacobi_precond(void* context, N_Vector r, N_Vector z, int precond_typ
 
 void test_laplace_equation_with_solver(void** state, sparse_lin_solver_t* solver)
 {
-  // FIXME
+  N_Vector x = N_VNew(MPI_COMM_WORLD, 64);
+  N_Vector b = N_VNew(MPI_COMM_WORLD, 64);
+  double* xdata = NV_DATA(x);
+  double* bdata = NV_DATA(b);
+  for (int i = 0; i < 64; ++i)
+    xdata[i] = bdata[i] = 0.0;
+  sparse_lin_solver_outcome_t outcome = 
+    sparse_lin_solver_solve(solver, x, b);
+  assert_true(outcome == SPARSE_LIN_SOLVER_CONVERGED);
+//  for (int i = 0; i < 64; ++i)
+//    printf("%g ", xdata[i]);
+//  printf("\n");
+  N_VDestroy(x);
+  N_VDestroy(b);
 }
 
 void test_laplace_equation(void** state)
 {
-  // Grid spacing, Dirichlet BCs.
-  laplacian_test_t test = {.dx = 0.01, .x1 = 0.0, .x2 = 1.0};
+  MPI_Comm comm = MPI_COMM_WORLD;
+  int nproc;
+  MPI_Comm_size(comm, &nproc);
+  int N = nproc * 64;
+
+  // Communicator, grid spacing.
+  laplacian_test_t test = {.comm = MPI_COMM_WORLD, .dx = 1.0/N, .x1 = 0.0, .x2 = 1.0 };
 
   // GMRES solver with no preconditioner.
-  MPI_Comm comm = MPI_COMM_WORLD;
   int max_kdim = 5;
   double delta = 1e-8;
   int max_restarts = 20;

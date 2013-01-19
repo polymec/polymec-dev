@@ -1,11 +1,5 @@
 #include "core/integrator.h"
 
-#if USE_MPI
-#include "nvector/nvector_parallel.h"
-#else
-#include "nvector/nvector_serial.h"
-#endif
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -95,18 +89,6 @@ void integrator_compute_Jv(integrator_t* integrator, double t, N_Vector x, N_Vec
   if (integrator->temp == NULL)
     integrator->temp = N_VClone(x);
   integrator->vtable.compute_Jv(v, Jv, t, x, F, integrator->context, integrator->temp);
-}
-
-N_Vector N_VNew(MPI_Comm comm, int dim)
-{
-#ifdef USE_MPI
-  // Add all the local dimensions to find tot_dim.
-  int tot_dim;
-  MPI_Allreduce(&dim, &tot_dim, 1, MPI_INT, MPI_SUM, comm);
-  return N_VNew_Parallel(comm, dim, tot_dim);
-#else
-  return N_VNew_Serial(dim);
-#endif
 }
 
 #ifdef __cplusplus

@@ -93,7 +93,6 @@ integrator_t* linear_beuler_integrator_new(MPI_Comm comm,
 {
   ASSERT(compute_Ax != NULL);
   ASSERT(compute_rhs != NULL);
-  ASSERT(solver != NULL);
   linear_beuler_t* beuler = malloc(sizeof(linear_beuler_t));
   beuler->comm = comm;
   beuler->context = context;

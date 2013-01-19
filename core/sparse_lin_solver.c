@@ -14,6 +14,9 @@ struct sparse_lin_solver_t
   // Solver metadata.
   double res_norm;
   int nli, nps;
+
+  // Details of last solve outcome.
+  char outcome_details[SPARSE_LIN_SOLVER_OUTCOME_DETAILS_MAXLEN];
 };
 
 sparse_lin_solver_t* sparse_lin_solver_new(const char* name, void* context,
@@ -38,12 +41,13 @@ void sparse_lin_solver_free(sparse_lin_solver_t* solver)
   free(solver);
 }
 
-void sparse_lin_solver_solve(sparse_lin_solver_t* solver, N_Vector x, N_Vector b)
+sparse_lin_solver_outcome_t sparse_lin_solver_solve(sparse_lin_solver_t* solver, N_Vector x, N_Vector b)
 {
   solver->res_norm = 0.0;
   solver->nli = 0;
   solver->nps = 0;
-  solver->vtable.solve(solver->context, x, b, &solver->res_norm, &solver->nli, &solver->nps);
+  solver->outcome_details[0] = '\0';
+  return solver->vtable.solve(solver->context, x, b, &solver->res_norm, &solver->nli, &solver->nps, solver->outcome_details);
 }
 
 void sparse_lin_solver_get_info(sparse_lin_solver_t* solver,
@@ -54,6 +58,11 @@ void sparse_lin_solver_get_info(sparse_lin_solver_t* solver,
   *res_l2_norm = solver->res_norm;
   *num_linear_iterations = solver->nli;
   *num_precond_solves = solver->nps;
+}
+
+char* sparse_lin_solver_outcome_details(sparse_lin_solver_t* solver)
+{
+  return &solver->outcome_details[0];
 }
 
 #ifdef __cplusplus
