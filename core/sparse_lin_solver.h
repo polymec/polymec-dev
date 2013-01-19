@@ -3,9 +3,27 @@
 
 #include "sundials/sundials_iterative.h"
 #include "core/polymec.h"
+#if USE_MPI
+#include "nvector/nvector_parallel.h"
+#else
+#include "nvector/nvector_serial.h"
+#endif
 
 #ifdef __cplusplus
 extern "C" {
+#endif
+
+// These macros help with manipulating serial and parallel N_Vector objects.
+#if USE_MPI
+#define NV_DATA(v) NV_DATA_P(v)
+#define NV_LOCLENGTH(v) NV_LOCLENGTH_P(v)
+#define NV_GLOBLENGTH(v) NV_GLOBLENGTH_P(v)
+#define NV_Ith(v) NV_Ith_P(v)
+#else
+#define NV_DATA(v) NV_DATA_S(v)
+#define NV_LOCLENGTH(v) NV_LENGTH_S(v)
+#define NV_GLOBLENGTH(v) NV_LENGTH_S(v)
+#define NV_Ith(v) NV_Ith_S(v)
 #endif
 
 // This class provides an interface for a sparse iterative integrator that 

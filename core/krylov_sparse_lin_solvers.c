@@ -3,11 +3,6 @@
 #include "sundials/sundials_spgmr.h"
 #include "sundials/sundials_spbcgs.h"
 #include "sundials/sundials_nvector.h"
-#if USE_MPI
-#include "nvector/nvector_parallel.h"
-#else
-#include "nvector/nvector_serial.h"
-#endif
 
 #ifdef __cplusplus
 extern "C" {
@@ -47,11 +42,7 @@ static void gmres_solve(void* context, N_Vector x, N_Vector b, double* res_norm,
 {
   krylov_lin_solver_t* krylov = context;
   // Do we need to resize or allocate our solver?
-#if USE_MPI
-  int N = NV_GLOBLENGTH_P(x);
-#else
-  int N = NV_LENGTH_S(x);
-#endif
+  int N = NV_GLOBLENGTH(x);
   if (krylov->dim != N)
   {
     gmres_reset(krylov);
@@ -116,11 +107,7 @@ static void bicgstab_solve(void* context, N_Vector x, N_Vector b, double* res_no
 {
   krylov_lin_solver_t* krylov = context;
   // Do we need to resize or allocate our solver?
-#if USE_MPI
-  int N = NV_GLOBLENGTH_P(x);
-#else
-  int N = NV_LENGTH_S(x);
-#endif
+  int N = NV_GLOBLENGTH(x);
   if (krylov->dim != N)
   {
     bicgstab_reset(krylov);
