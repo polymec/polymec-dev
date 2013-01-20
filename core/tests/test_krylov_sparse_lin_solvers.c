@@ -20,8 +20,13 @@ static int compute_Lx(void* context, N_Vector x, N_Vector Lx)
   double* xdata = NV_DATA(x);
   double* Lxdata = NV_DATA(Lx);
   int n = NV_LOCLENGTH(x);
+  double dx2 = test->dx * test->dx;
 
-  // Apply Dirichlet boundary conditions, parallel-related and otherwise.
+  // Apply the general stencil to the interior.
+  for (int i = 1; i < n-1; ++i)
+    Lxdata[i] = (xdata[i-1] - 2.0*xdata[i] + xdata[i+1]) / dx2;
+
+  // Apply boundary conditions, parallel-related and otherwise.
 #if USE_MPI
   int N, rank;
   MPI_Comm_size(test->comm, &N);
@@ -30,32 +35,30 @@ static int compute_Lx(void* context, N_Vector x, N_Vector Lx)
   double xleft, xright;
   if (rank == 0)
   {
-    xleft = 0.5 * (xdata[0] + test->x1);
-    Lxdata[0] = xdata[0];
-    MPI_Comm_send(&xdata[n-1], 1, MPI_DOUBLE, 1, tag, test->comm);
+    MPI_Comm_send(&xdata[n-1], rank+1, MPI_DOUBLE, 1, tag, test->comm);
     MPI_Comm_recv(&xright, rank+1, MPI_DOUBLE, 1, tag, test->comm);
+    Lxdata[0] = xdata[0];
+    Lxdata[n-1] = (xdata[i-1] - 2.0*xdata[i] + xright) / dx2;
   }
   else if (rank == N-1)
   {
-    xright = 0.5 * (xdata[n-1] + test->x2);
-    MPI_Comm_send(&xdata[0], N-2, MPI_DOUBLE, 1, tag, test->comm);
-    MPI_Comm_recv(&xleft, rank+1, MPI_DOUBLE, 1, tag, test->comm);
+    MPI_Comm_send(&xdata[0], rank-1, MPI_DOUBLE, 1, tag, test->comm);
+    MPI_Comm_recv(&xleft, rank-1, MPI_DOUBLE, 1, tag, test->comm);
+    Lxdata[0] = (xleft - 2.0*xdata[i] + xdata[i+1]) / dx2;
+    Lxdata[n-1] = xdata[n-1];
   }
   else
   {
     MPI_Comm_recv(&xleft, rank-1, MPI_DOUBLE, 1, tag, test->comm);
     MPI_Comm_recv(&xright, rank+1, MPI_DOUBLE, 1, tag, test->comm);
+    Lxdata[0] = (xleft - 2.0*xdata[i] + xdata[i+1]) / test->dx;
+    Lxdata[n-1] = (xdata[i-1] - 2.0*xdata[i] + xright) / dx2;
   }
-  Lxdata[0] = xleft;
-  Lxdata[n-1] = xright;
 #else
   Lxdata[0] = xdata[0];
   Lxdata[n-1] = xdata[n-1];
 #endif
 
-  // Now apply the general stencil.
-  for (int i = 1; i < n-1; ++i)
-    Lxdata[i] = (xdata[i-1] - 2.0*xdata[i] + xdata[i+1]) / test->dx;
   return 0;
 }
 
@@ -89,20 +92,41 @@ static int jacobi_precond(void* context, N_Vector r, N_Vector z, int precond_typ
   return 0;
 }
 
-void test_laplace_equation_with_solver(void** state, sparse_lin_solver_t* solver)
+void test_laplace_equation_with_solver(void** state, sparse_lin_solver_t* solver, laplacian_test_t* test)
 {
-  N_Vector x = N_VNew(MPI_COMM_WORLD, 64);
-  N_Vector b = N_VNew(MPI_COMM_WORLD, 64);
+  int N = 8;
+  N_Vector x = N_VNew(MPI_COMM_WORLD, N);
+  N_Vector b = N_VNew(MPI_COMM_WORLD, N);
   double* xdata = NV_DATA(x);
   double* bdata = NV_DATA(b);
-  for (int i = 0; i < 64; ++i)
+  for (int i = 0; i < N; ++i)
     xdata[i] = bdata[i] = 0.0;
-  sparse_lin_solver_outcome_t outcome = 
-    sparse_lin_solver_solve(solver, x, b);
-  assert_true(outcome == SPARSE_LIN_SOLVER_CONVERGED);
-//  for (int i = 0; i < 64; ++i)
-//    printf("%g ", xdata[i]);
-//  printf("\n");
+#if USE_MPI
+  int nproc, rank;
+  MPI_Comm_size(test->comm, &nproc);
+  MPI_Comm_rank(test->comm, &rank);
+  if (rank == 0)
+    bdata[0] = test->x1;
+  else if (rank == nproc-1)
+    bdata[N-1] = test->x2;
+#else
+  bdata[0] = test->x1;
+  bdata[N-1] = test->x2;
+#endif
+  sparse_lin_solver_outcome_t outcome = sparse_lin_solver_solve(solver, x, b);
+//  assert_true(outcome == SPARSE_LIN_SOLVER_CONVERGED);
+  double norm;
+  int nli, nps;
+  sparse_lin_solver_get_info(solver, &norm, &nli, &nps);
+  printf("res norm = %g, nli = %d\n", norm, nli);
+  printf("x = ");
+  for (int i = 0; i < N; ++i)
+    printf("%g ", xdata[i]);
+  printf("\n");
+  printf("b = ");
+  for (int i = 0; i < N; ++i)
+    printf("%g ", bdata[i]);
+  printf("\n");
   N_VDestroy(x);
   N_VDestroy(b);
 }
@@ -124,25 +148,25 @@ void test_laplace_equation(void** state)
   sparse_lin_solver_t* solver;
   solver = gmres_sparse_lin_solver_new(comm, &test, compute_Lx, max_kdim, MODIFIED_GS,
                                        PREC_NONE, NULL, delta, max_restarts, NULL);
-  test_laplace_equation_with_solver(state, solver);
+  test_laplace_equation_with_solver(state, solver, &test);
   sparse_lin_solver_free(solver);
 
   // GMRES solver with Jacobi (diagonal scaling) preconditioner, applied from the left.
   solver = gmres_sparse_lin_solver_new(comm, &test, compute_Lx, max_kdim, MODIFIED_GS,
                                        PREC_LEFT, jacobi_precond, delta, max_restarts, NULL);
-  test_laplace_equation_with_solver(state, solver);
+  test_laplace_equation_with_solver(state, solver, &test);
   sparse_lin_solver_free(solver);
 
   // BiCGStab solver with no preconditioner.
   solver = bicgstab_sparse_lin_solver_new(comm, &test, compute_Lx, max_kdim, 
                                           PREC_NONE, NULL, delta, NULL);
-  test_laplace_equation_with_solver(state, solver);
+  test_laplace_equation_with_solver(state, solver, &test);
   sparse_lin_solver_free(solver);
 
   // BiCGStab solver with Jacobi (diagonal scaling) preconditioner, applied from the left.
   solver = bicgstab_sparse_lin_solver_new(comm, &test, compute_Lx, max_kdim, 
                                           PREC_LEFT, jacobi_precond, delta, NULL);
-  test_laplace_equation_with_solver(state, solver);
+  test_laplace_equation_with_solver(state, solver, &test);
   sparse_lin_solver_free(solver);
 }
 
