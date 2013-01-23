@@ -4,12 +4,18 @@
 #include <string.h>
 #include "cmockery.h"
 #include "core/krylov_sparse_lin_solvers.h"
+#include "core/linear_algebra.h"
 
 typedef struct 
 {
   MPI_Comm comm;
   double dx; // Grid spacing.
   double x1, x2; // Dirichlet boundary values.
+
+  // Preconditioning parameters.
+  double omega;
+  int num_iters;
+
 } laplacian_test_t;
 
 // This function computes the Laplacian operator applied to the vector x, with 
@@ -62,33 +68,32 @@ static int compute_Lx(void* context, N_Vector x, N_Vector Lx)
   return 0;
 }
 
-// This function solves the preconditioner system M * z = r, where M is the diagonal 
-// of the Laplacian operator.
-static int jacobi_precond(void* context, N_Vector r, N_Vector z, int precond_type)
+// This function solves the preconditioner system A * x = b using the method 
+// of successive over-relaxation (SOR). It is applied only to the 
+// left.
+static int sor_precond(void* context, N_Vector x, N_Vector b, int precond_type)
 {
   laplacian_test_t* test = context;
-  double* zdata = NV_DATA(z);
-  double* rdata = NV_DATA(r);
-  int n = NV_LOCLENGTH(z);
-  if (precond_type == PREC_BOTH) 
+  double* xdata = NV_DATA(x);
+  double* bdata = NV_DATA(b);
+  int n = NV_LOCLENGTH(x);
+  double omega = test->omega;
+  double Lii = -2.0 / test->dx;
+  double Lij = 1.0 / test->dx;
+
+  for (int m = 0; m < test->num_iters; ++m)
   {
-    // We are doing symmetric preconditioning, so Mii is the square root 
-    // of the diagonal of the laplacian, and Mij = 0 for j != i.
-    for (int i = 0; i < n; ++i)
+    xdata[0] = (1.0 - omega) * xdata[0] + 
+               (omega / Lii) * (bdata[0] - test->x1 - Lij * xdata[1]);
+    for (int i = 1; i < n-1; ++i)
     {
-      double Mii = sqrt(2.0 / test->dx);
-      rdata[i] = zdata[i] / Mii;
+      xdata[i] = (1.0 - omega) * xdata[i] + 
+                 (omega / Lii) * (bdata[i] - Lij * xdata[i-1] - Lij * xdata[i+1]);
     }
+    xdata[n-1] = (1.0 - omega) * xdata[n-1] + 
+                 (omega / Lii) * (bdata[n-1] - Lij * xdata[n-2] - test->x2);
   }
-  else if (precond_type != PREC_NONE)
-  {
-    // Mii is simply the diagonal of the laplacian.
-    for (int i = 0; i < n; ++i)
-    {
-      double Mii = 2.0 / test->dx;
-      rdata[i] = zdata[i] / Mii;
-    }
-  }
+  vector_fprintf(xdata, n, stdout);
   return 0;
 }
 
@@ -139,33 +144,22 @@ void test_laplace_equation(void** state)
   int N = nproc * 64;
 
   // Communicator, grid spacing.
-  laplacian_test_t test = {.comm = MPI_COMM_WORLD, .dx = 1.0/N, .x1 = 0.0, .x2 = 1.0 };
+  laplacian_test_t test = {.comm = MPI_COMM_WORLD, .dx = 1.0/N, .x1 = 0.0, .x2 = 1.0,
+                           .omega = 1.0, .num_iters = 10 };
 
-  // GMRES solver with no preconditioner.
+  // GMRES solver with SOR preconditioner.
   int max_kdim = 5;
   double delta = 1e-8;
   int max_restarts = 20;
   sparse_lin_solver_t* solver;
   solver = gmres_sparse_lin_solver_new(comm, &test, compute_Lx, max_kdim, MODIFIED_GS,
-                                       PREC_NONE, NULL, delta, max_restarts, NULL);
+                                       PREC_LEFT, sor_precond, delta, max_restarts, NULL);
   test_laplace_equation_with_solver(state, solver, &test);
   sparse_lin_solver_free(solver);
 
-  // GMRES solver with Jacobi (diagonal scaling) preconditioner, applied from the left.
-  solver = gmres_sparse_lin_solver_new(comm, &test, compute_Lx, max_kdim, MODIFIED_GS,
-                                       PREC_LEFT, jacobi_precond, delta, max_restarts, NULL);
-  test_laplace_equation_with_solver(state, solver, &test);
-  sparse_lin_solver_free(solver);
-
-  // BiCGStab solver with no preconditioner.
+  // BiCGStab solver with SOR preconditioner.
   solver = bicgstab_sparse_lin_solver_new(comm, &test, compute_Lx, max_kdim, 
-                                          PREC_NONE, NULL, delta, NULL);
-  test_laplace_equation_with_solver(state, solver, &test);
-  sparse_lin_solver_free(solver);
-
-  // BiCGStab solver with Jacobi (diagonal scaling) preconditioner, applied from the left.
-  solver = bicgstab_sparse_lin_solver_new(comm, &test, compute_Lx, max_kdim, 
-                                          PREC_LEFT, jacobi_precond, delta, NULL);
+                                          PREC_LEFT, sor_precond, delta, NULL);
   test_laplace_equation_with_solver(state, solver, &test);
   sparse_lin_solver_free(solver);
 }

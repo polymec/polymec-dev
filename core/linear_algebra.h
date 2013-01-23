@@ -19,14 +19,14 @@ void dgemm(char* transa, char* transB, int* m, int* n, int* k, double* alpha,
            double* A, int* lda, double* B, int* ldb, double* beta, double* C, 
            int* ldc);
 
-// Solves of a linear system using LU factorization (in one step).
+// Solves a linear system using LU factorization (in one step).
 void dgesv(int* n, int* nrhs, double* A, int* lda, int* ipiv, 
            double* b, int* ldb, int* info);
 
 // Computes an LU factorization.
 void dgetrf(int* n, int* nrhs, double* A, int* lda, int* ipiv, int* info);
 
-// Solves of a linear system using an existing LU factorization.
+// Solves a linear system using an existing LU factorization.
 void dgetrs(char* trans, int* n, int* nrhs, double* A, 
             int* lda, int* ipiv, double* b, int* ldb, int* info);
 
