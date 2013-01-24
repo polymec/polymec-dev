@@ -9,7 +9,7 @@
 typedef struct 
 {
   MPI_Comm comm;
-  double dx; // Grid spacing.
+  int N; // Number of grid cells.
   double x1, x2; // Dirichlet boundary values.
 
   // Preconditioning parameters.
@@ -22,14 +22,14 @@ typedef struct
 // Dirichlet boundary conditions at the ends of a 1D domain.
 static int compute_Lx(void* context, N_Vector x, N_Vector Lx)
 {
-  laplacian_test_t* test = context;
   double* xdata = NV_DATA(x);
   double* Lxdata = NV_DATA(Lx);
-  int n = NV_LOCLENGTH(x);
-  double dx2 = test->dx * test->dx;
+  int n = NV_LOCLENGTH(x) - 2;
+  double dx = 1.0 / n;
+  double dx2 = dx * dx;
 
   // Apply the general stencil to the interior.
-  for (int i = 1; i < n-1; ++i)
+  for (int i = 1; i < n+1; ++i)
     Lxdata[i] = (xdata[i-1] - 2.0*xdata[i] + xdata[i+1]) / dx2;
 
   // Apply boundary conditions, parallel-related and otherwise.
@@ -57,54 +57,56 @@ static int compute_Lx(void* context, N_Vector x, N_Vector Lx)
   {
     MPI_Comm_recv(&xleft, rank-1, MPI_DOUBLE, 1, tag, test->comm);
     MPI_Comm_recv(&xright, rank+1, MPI_DOUBLE, 1, tag, test->comm);
-    Lxdata[0] = (xleft - 2.0*xdata[i] + xdata[i+1]) / test->dx;
+    Lxdata[0] = (xleft - 2.0*xdata[i] + xdata[i+1]) / dx2;
     Lxdata[n-1] = (xdata[i-1] - 2.0*xdata[i] + xright) / dx2;
   }
 #else
-  Lxdata[0] = xdata[0];
-  Lxdata[n-1] = xdata[n-1];
+  Lxdata[0] = 0.5 * (xdata[0] + xdata[1]);
+  Lxdata[n+1] = 0.5 * (xdata[n] + xdata[n+1]);
 #endif
 
   return 0;
 }
 
 // This function solves the preconditioner system A * x = b using the method 
-// of successive over-relaxation (SOR). It is applied only to the 
-// left.
-static int sor_precond(void* context, N_Vector x, N_Vector b, int precond_type)
+// of successive over-relaxation (SOR). 
+static int sor_precond(void* context, N_Vector b, N_Vector x, int precond_type)
 {
+  // The preconditioner is applied only to the left.
+  ASSERT(precond_type == PREC_LEFT);
+
   laplacian_test_t* test = context;
   double* xdata = NV_DATA(x);
   double* bdata = NV_DATA(b);
-  int n = NV_LOCLENGTH(x);
+  int n = NV_LOCLENGTH(x) - 2;
+  int N = NV_GLOBLENGTH(x) - 2;
   double omega = test->omega;
-  double Lii = -2.0 / test->dx;
-  double Lij = 1.0 / test->dx;
+  double dx = 1.0 / N;
+  double dx2 = dx * dx;
+  double Lii = -2.0 / dx2;
+  double Lij = 1.0 / dx2;
 
   for (int m = 0; m < test->num_iters; ++m)
   {
-    xdata[0] = (1.0 - omega) * xdata[0] + 
-               (omega / Lii) * (bdata[0] - test->x1 - Lij * xdata[1]);
-    for (int i = 1; i < n-1; ++i)
+    xdata[0] = 2.0 * bdata[0] - xdata[1];
+    for (int i = 1; i < n+1; ++i)
     {
       xdata[i] = (1.0 - omega) * xdata[i] + 
                  (omega / Lii) * (bdata[i] - Lij * xdata[i-1] - Lij * xdata[i+1]);
     }
-    xdata[n-1] = (1.0 - omega) * xdata[n-1] + 
-                 (omega / Lii) * (bdata[n-1] - Lij * xdata[n-2] - test->x2);
+    xdata[n+1] = 2.0 * bdata[n+1] - xdata[n];
   }
-  vector_fprintf(xdata, n, stdout);
   return 0;
 }
 
 void test_laplace_equation_with_solver(void** state, sparse_lin_solver_t* solver, laplacian_test_t* test)
 {
-  int N = 8;
-  N_Vector x = N_VNew(MPI_COMM_WORLD, N);
-  N_Vector b = N_VNew(MPI_COMM_WORLD, N);
+  int N = test->N;
+  N_Vector x = N_VNew(MPI_COMM_WORLD, N+2);
+  N_Vector b = N_VNew(MPI_COMM_WORLD, N+2);
   double* xdata = NV_DATA(x);
   double* bdata = NV_DATA(b);
-  for (int i = 0; i < N; ++i)
+  for (int i = 0; i < N+2; ++i)
     xdata[i] = bdata[i] = 0.0;
 #if USE_MPI
   int nproc, rank;
@@ -116,22 +118,30 @@ void test_laplace_equation_with_solver(void** state, sparse_lin_solver_t* solver
     bdata[N-1] = test->x2;
 #else
   bdata[0] = test->x1;
-  bdata[N-1] = test->x2;
+  bdata[N+1] = test->x2;
 #endif
   sparse_lin_solver_outcome_t outcome = sparse_lin_solver_solve(solver, x, b);
-//  assert_true(outcome == SPARSE_LIN_SOLVER_CONVERGED);
+  assert_true(outcome == SPARSE_LIN_SOLVER_CONVERGED);
   double norm;
   int nli, nps;
   sparse_lin_solver_get_info(solver, &norm, &nli, &nps);
-  printf("res norm = %g, nli = %d\n", norm, nli);
-  printf("x = ");
-  for (int i = 0; i < N; ++i)
-    printf("%g ", xdata[i]);
-  printf("\n");
-  printf("b = ");
-  for (int i = 0; i < N; ++i)
-    printf("%g ", bdata[i]);
-  printf("\n");
+  assert_true(norm < 1e-14);
+//  printf("res norm = %g, nli = %d\n", norm, nli);
+  double L2err = 0.0, dx = 1.0/N;
+  for (int i = 1; i < N+1; ++i)
+  {
+//printf("%g vs %g\n", xdata[i], (i-0.5)*dx);
+    L2err += fabs(xdata[i] - (i-0.5)*dx);
+  }
+  L2err = sqrt(L2err);
+//  printf("L2err = %g\n", L2err);
+  assert_true(L2err < 1e-5);
+//  printf("x = ");
+//  vector_fprintf(xdata, N+2, stdout);
+//  printf("\n");
+//  printf("b = ");
+//  vector_fprintf(bdata, N+2, stdout);
+//  printf("\n");
   N_VDestroy(x);
   N_VDestroy(b);
 }
@@ -144,8 +154,8 @@ void test_laplace_equation(void** state)
   int N = nproc * 64;
 
   // Communicator, grid spacing.
-  laplacian_test_t test = {.comm = MPI_COMM_WORLD, .dx = 1.0/N, .x1 = 0.0, .x2 = 1.0,
-                           .omega = 1.0, .num_iters = 10 };
+  laplacian_test_t test = {.comm = MPI_COMM_WORLD, .N = N, .x1 = 0.0, .x2 = 1.0,
+                           .omega = 1.85, .num_iters = 1000 };
 
   // GMRES solver with SOR preconditioner.
   int max_kdim = 5;
