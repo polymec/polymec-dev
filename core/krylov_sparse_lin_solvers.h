@@ -17,6 +17,10 @@ typedef int (*krylov_sparse_lin_solver_compute_Ax_func)(void *A_data, N_Vector x
 // return 0 on success and non-zero on failure.
 typedef int (*krylov_sparse_lin_solver_precond_func)(void *P_data, N_Vector r, N_Vector z, int precond_type);
 
+// A prototype for a function that computes scaling factors s1 and s2 in 
+// the preconditioned linear system.
+typedef void (*krylov_sparse_lin_solver_scaling_func)(void *context, N_Vector s1, N_Vector s2);
+
 // Creates a sparse linear solver that uses the Generalized Minimum 
 // Residual (GMRES) method. Arguments:
 //   comm - The MPI communicator on which any parallel communicator will occur.
@@ -34,6 +38,8 @@ typedef int (*krylov_sparse_lin_solver_precond_func)(void *P_data, N_Vector r, N
 //                  right preconditioning, or PREC_BOTH for both left and right.
 //   precond - A function that solves the preconditioner system Pz = r. 
 //             This can be NULL if precond_type is PREC_NONE.
+//   compute_scale_factors - A function that computes scaling factors s1, s2.
+//                           These can be NULL if no scaling is required.
 //   delta - The tolerance on the L2 norm of the scaled, preconditioned 
 //           residual.
 //   max_restarts - The maximum number of times the algorithm is allowed 
@@ -46,6 +52,7 @@ sparse_lin_solver_t* gmres_sparse_lin_solver_new(MPI_Comm comm,
                                                  int gram_schmidt,
                                                  int precond_type,
                                                  krylov_sparse_lin_solver_precond_func precond,
+                                                 krylov_sparse_lin_solver_scaling_func compute_scale_factors,
                                                  double delta,
                                                  int max_restarts,
                                                  sparse_lin_solver_dtor dtor);
@@ -66,6 +73,8 @@ sparse_lin_solver_t* gmres_sparse_lin_solver_new(MPI_Comm comm,
 //                  right preconditioning, or PREC_BOTH for both left and right.
 //   precond - A function that solves the preconditioner system Pz = r. 
 //             This can be NULL if precond_type is PREC_NONE.
+//   compute_scale_factors - A function that computes scaling factors s1, s2.
+//                           These can be NULL if no scaling is required.
 //   delta - The tolerance on the L2 norm of the scaled, preconditioned 
 //           residual.
 //   dtor - A destructor for freeing the context pointer (if any).
@@ -75,6 +84,7 @@ sparse_lin_solver_t* bicgstab_sparse_lin_solver_new(MPI_Comm comm,
                                                     int max_kdim,
                                                     int precond_type,
                                                     krylov_sparse_lin_solver_precond_func precond,
+                                                    krylov_sparse_lin_solver_scaling_func compute_scale_factors,
                                                     double delta,
                                                     sparse_lin_solver_dtor dtor);
 
