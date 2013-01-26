@@ -148,7 +148,7 @@ void test_laplace_equation_with_solver(void** state, sparse_lin_solver_t* solver
   double norm;
   int nli, nps;
   sparse_lin_solver_get_info(solver, &norm, &nli, &nps);
-//  assert_true(norm < 1e-14);
+  assert_true(norm < 1e-4);
 //  printf("res norm = %g, nli = %d\n", norm, nli);
   double L2err = 0.0, dx = 1.0/N;
   for (int i = 1; i < N+1; ++i)
