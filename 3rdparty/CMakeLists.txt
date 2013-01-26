@@ -73,6 +73,23 @@ file(GLOB sources "${CMAKE_CURRENT_BINARY_DIR}/libarena-0.3.5/src/*.c")
 add_library(arena ${sources})
 set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};arena)
 
+# Install HYPRE.
+if (NOT EXISTS ${CMAKE_BINARY_DIR}/lib/libHYPRE.a)
+  set(HYPRE_CONFIG_OPTS -DHYPRE_USING_FEI=OFF -DHYPRE_INSTALL_PREFIX=${PROJECT_BINARY_DIR} -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER} -DCMAKE_C_FLAGS=${CMAKE_C_FLAGS} -DHYPRE_USING_HYPRE_BLAS=OFF -DHYPRE_USING_HYPRE_LAPACK=OFF)
+  if (USE_MPI EQUAL 0)
+    set(HYPRE_CONFIG_OPTS ${HYPRE_CONFIG_OPTS} -DHYPRE_SEQUENTIAL=ON)
+  endif()
+  execute_process(COMMAND cmake -E tar xzvf ${CMAKE_CURRENT_SOURCE_DIR}/hypre-2.9.0b.tar.gz
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+  message("Configuring HYPRE...")
+  execute_process(COMMAND cmake ${HYPRE_CONFIG_OPTS} ..
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/hypre-2.9.0b/src/cmbuild
+                  OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
+  message("Building HYPRE...")
+  execute_process(COMMAND make install
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/hypre-2.9.0b/src/cmbuild)
+endif()
+
 # Install PETSc.
 if (NOT EXISTS ${CMAKE_BINARY_DIR}/lib/libpetsc.a)
   set(PETSC_CONFIG_OPTS PETSC_DIR=${CMAKE_CURRENT_BINARY_DIR}/petsc-3.3-p5 PETSC_ARCH=${CMAKE_BUILD_TYPE} --prefix=${CMAKE_BINARY_DIR} --CC=${CMAKE_C_COMPILER} --CFLAGS=${CMAKE_C_FLAGS} --with-mpi=${USE_MPI})
