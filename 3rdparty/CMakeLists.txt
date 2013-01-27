@@ -93,34 +93,34 @@ add_library(HYPRE STATIC IMPORTED)
 set_target_properties(HYPRE PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libHYPRE.a)
 set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};HYPRE)
 
-# Install PETSc.
-if (NOT EXISTS ${CMAKE_BINARY_DIR}/lib/libpetsc.a)
-  set(PETSC_CONFIG_OPTS PETSC_DIR=${CMAKE_CURRENT_BINARY_DIR}/petsc-3.3-p5 PETSC_ARCH=${CMAKE_BUILD_TYPE} --prefix=${CMAKE_BINARY_DIR} --CC=${CMAKE_C_COMPILER} --CFLAGS=${CMAKE_C_FLAGS} --with-mpi=${USE_MPI})
-  set(PETSC_CONFIG_OPTS ${PETSC_CONFIG_OPTS} --with-fortran=0)
-  set(PETSC_CONFIG_OPTS ${PETSC_CONFIG_OPTS} --with-x=0)
-  # These are all broken:
-#  set(PETSC_CONFIG_OPTS ${PETSC_CONFIG_OPTS} --download-ctetgen=yes)
-#  set(PETSC_CONFIG_OPTS ${PETSC_CONFIG_OPTS} --download-triangle=yes)
-#  set(PETSC_CONFIG_OPTS ${PETSC_CONFIG_OPTS} --download-sundials=yes)
-  if (USE_MPI EQUAL 1)
-    set(PETSC_CONFIG_OPTS ${PETSC_CONFIG_OPTS} --download-hdf5=yes)
-    set(PETSC_CONFIG_OPTS ${PETSC_CONFIG_OPTS} --download-parmetis=yes)
-  endif()
-  execute_process(COMMAND cmake -E tar xzvf ${CMAKE_CURRENT_SOURCE_DIR}/petsc-lite-3.3-p5.tar.gz
-                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
-  message("Configuring PETSc...")
-  execute_process(COMMAND ./configure ${PETSC_CONFIG_OPTS}
-                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/petsc-3.3-p5
-                  OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
-  message("Building PETSc...")
-  execute_process(COMMAND make PETSC_DIR=${CMAKE_CURRENT_BINARY_DIR}/petsc-3.3-p5 PETSC_ARCH=${CMAKE_BUILD_TYPE} all install
-                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/petsc-3.3-p5)
-endif()
-add_library(petsc STATIC IMPORTED)
-set_target_properties(petsc PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libpetsc.a)
+## Install PETSc.
+#if (NOT EXISTS ${CMAKE_BINARY_DIR}/lib/libpetsc.a)
+#  set(PETSC_CONFIG_OPTS PETSC_DIR=${CMAKE_CURRENT_BINARY_DIR}/petsc-3.3-p5 PETSC_ARCH=${CMAKE_BUILD_TYPE} --prefix=${CMAKE_BINARY_DIR} --CC=${CMAKE_C_COMPILER} --CFLAGS=${CMAKE_C_FLAGS} --with-mpi=${USE_MPI})
+#  set(PETSC_CONFIG_OPTS ${PETSC_CONFIG_OPTS} --with-fortran=0)
+#  set(PETSC_CONFIG_OPTS ${PETSC_CONFIG_OPTS} --with-x=0)
+#  # These are all broken:
+##  set(PETSC_CONFIG_OPTS ${PETSC_CONFIG_OPTS} --download-ctetgen=yes)
+##  set(PETSC_CONFIG_OPTS ${PETSC_CONFIG_OPTS} --download-triangle=yes)
+##  set(PETSC_CONFIG_OPTS ${PETSC_CONFIG_OPTS} --download-sundials=yes)
+#  if (USE_MPI EQUAL 1)
+#    set(PETSC_CONFIG_OPTS ${PETSC_CONFIG_OPTS} --download-hdf5=yes)
+#    set(PETSC_CONFIG_OPTS ${PETSC_CONFIG_OPTS} --download-parmetis=yes)
+#  endif()
+#  execute_process(COMMAND cmake -E tar xzvf ${CMAKE_CURRENT_SOURCE_DIR}/petsc-lite-3.3-p5.tar.gz
+#                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+#  message("Configuring PETSc...")
+#  execute_process(COMMAND ./configure ${PETSC_CONFIG_OPTS}
+#                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/petsc-3.3-p5
+#                  OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
+#  message("Building PETSc...")
+#  execute_process(COMMAND make PETSC_DIR=${CMAKE_CURRENT_BINARY_DIR}/petsc-3.3-p5 PETSC_ARCH=${CMAKE_BUILD_TYPE} all install
+#                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/petsc-3.3-p5)
+#endif()
+#add_library(petsc STATIC IMPORTED)
+#set_target_properties(petsc PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libpetsc.a)
 #add_library(ctetgen STATIC IMPORTED)
 #set_target_properties(ctetgen PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libctetgen.a)
-set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};petsc)
+#set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};petsc)
 
 # Find HDF5 if we're building a serial version (PETSc is unable to do this for us).
 if (USE_MPI EQUAL 0)
@@ -241,17 +241,17 @@ set_target_properties(xml2 PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/li
 set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};xml2;iconv;z)
 set(POLYMEC_INCDIRS ${POLYMEC_INCDIRS};${PROJECT_BINARY_DIR}/include/libxml2)
 
-# Install TAO (for optimization problems).
-if (NOT EXISTS ${CMAKE_BINARY_DIR}/lib/libtao.a)
-  execute_process(COMMAND cmake -E tar xzvf ${CMAKE_CURRENT_SOURCE_DIR}/tao-2.1-p0.tar.gz
-                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
-  message("Building TAO...")
-  execute_process(COMMAND make PETSC_DIR=${CMAKE_CURRENT_BINARY_DIR}/petsc-3.3-p5 PETSC_ARCH=${CMAKE_BUILD_TYPE} TAO_DIR=${CMAKE_CURRENT_BINARY_DIR}/tao-2.1-p0 all install
-                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/tao-2.1-p0)
-endif()
-add_library(tao STATIC IMPORTED)
-set_target_properties(tao PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libtao.a)
-set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};tao)
+## Install TAO (for optimization problems).
+#if (NOT EXISTS ${CMAKE_BINARY_DIR}/lib/libtao.a)
+#  execute_process(COMMAND cmake -E tar xzvf ${CMAKE_CURRENT_SOURCE_DIR}/tao-2.1-p0.tar.gz
+#                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+#  message("Building TAO...")
+#  execute_process(COMMAND make PETSC_DIR=${CMAKE_CURRENT_BINARY_DIR}/petsc-3.3-p5 PETSC_ARCH=${CMAKE_BUILD_TYPE} TAO_DIR=${CMAKE_CURRENT_BINARY_DIR}/tao-2.1-p0 all install
+#                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/tao-2.1-p0)
+#endif()
+#add_library(tao STATIC IMPORTED)
+#set_target_properties(tao PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libtao.a)
+#set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};tao)
 
 # Add all the libraries to the build system at large.
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${POLYMEC_TP_C_FLAGS}" PARENT_SCOPE)

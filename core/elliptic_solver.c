@@ -1,4 +1,6 @@
 #include "core/elliptic_solver.h"
+#include "HYPRE_parcsr_mv.h"
+#include "HYPRE_parcsr_ls.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -57,10 +59,10 @@ elliptic_solver_t* elliptic_solver_new(const char* name,
 
 void elliptic_solver_free(elliptic_solver_t* solver)
 {
-  HYPRE_ParCSRGMRESDestroy(&solver->solver);
-  HYPRE_IJMatrixDestroy(&solver->A);
-  HYPRE_IJVectorDestroy(&solver->x);
-  HYPRE_IJVectorDestroy(&solver->b);
+  HYPRE_ParCSRGMRESDestroy(solver->solver);
+  HYPRE_IJMatrixDestroy(solver->A);
+  HYPRE_IJVectorDestroy(solver->x);
+  HYPRE_IJVectorDestroy(solver->b);
 
   if ((solver->context != NULL) && (solver->vtable.dtor != NULL))
     solver->vtable.dtor(solver->context);
@@ -81,7 +83,7 @@ void* elliptic_solver_context(elliptic_solver_t* solver)
 
 static inline void copy_vector_to_array(HYPRE_IJVector vector, double* array)
 {
-  int ilow, ihigh, N;
+  int ilow, ihigh;
   HYPRE_IJVectorGetLocalRange(vector, &ilow, &ihigh);
   int N = ihigh - ilow;
   int indices[N];
@@ -107,8 +109,13 @@ static inline void apply_bcs(elliptic_solver_t* solver, HYPRE_IJMatrix A, HYPRE_
 
 static inline void solve(elliptic_solver_t* solver, HYPRE_IJMatrix A, HYPRE_IJVector b, HYPRE_IJVector x)
 {
-  HYPRE_GMRESSetup(solver->solver, A, b, x);
-  HYPRE_GMRESSolve(solver->solver, A, b, x);
+  HYPRE_ParCSRMatrix mat;
+  HYPRE_IJMatrixGetObject(A, (void**)&mat);
+  HYPRE_ParVector X, B;
+  HYPRE_IJVectorGetObject(x, (void**)&X);
+  HYPRE_IJVectorGetObject(b, (void**)&B);
+  HYPRE_GMRESSetup(solver->solver, (HYPRE_Matrix)mat, (HYPRE_Vector)B, (HYPRE_Vector)X);
+  HYPRE_GMRESSolve(solver->solver, (HYPRE_Matrix)mat, (HYPRE_Vector)B, (HYPRE_Vector)X);
 }
 
 void elliptic_solver_solve(elliptic_solver_t* solver,

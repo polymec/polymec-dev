@@ -8,7 +8,7 @@
 
 // An unordered map is a map that associates a key with a single value, 
 // using a hash to store them. One defines an unordered map using
-// DEFINE_UNORDERED_MAP(map_name, key_type, value_type, hash_func).
+// DEFINE_UNORDERED_MAP(map_name, key_type, value_type, hash_func, key_equals).
 
 // Interface for a type x_map_t (with key type K and 
 // value type V) defined with 

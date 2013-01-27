@@ -5,11 +5,6 @@
 #include "core/options.h"
 #include "core/model.h"
 
-#if !USE_MPI
-static inline void MPI_Init(int* argc, char*** argv) {}
-static inline void MPI_Finalize() {}
-#endif
-
 #ifdef Linux
 #include <fenv.h>
 // FE_INEXACT    inexact result

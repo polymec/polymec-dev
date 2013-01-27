@@ -21,7 +21,7 @@ typedef void (*diffusion_solver_create_mat_func)(void*, HYPRE_IJMatrix*);
 typedef void (*diffusion_solver_create_vec_func)(void*, HYPRE_IJVector*);
 
 // A function for creating a linear solver.
-typedef void (*diffusion_solver_create_ksp_func)(void*, HYPRE_Solver*);
+typedef void (*diffusion_solver_create_solver_func)(void*, HYPRE_Solver*);
 
 // A function for computing the diffusion matrix at time t.
 typedef void (*diffusion_solver_compute_diff_mat_func)(void*, HYPRE_IJMatrix, double);
@@ -45,7 +45,7 @@ typedef struct
 {
   diffusion_solver_create_mat_func        create_matrix;
   diffusion_solver_create_vec_func        create_vector;
-  diffusion_solver_create_ksp_func        create_ksp;
+  diffusion_solver_create_solver_func     create_solver;
   diffusion_solver_compute_diff_mat_func  compute_diffusion_matrix;
   diffusion_solver_compute_source_func    compute_source_vector;
   diffusion_solver_apply_bcs_func         apply_bcs;

@@ -1,4 +1,6 @@
 #include "core/diffusion_solver.h"
+#include "HYPRE_parcsr_mv.h"
+#include "HYPRE_parcsr_ls.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -11,7 +13,7 @@ struct diffusion_solver_t
   // Linear system and solver.
   HYPRE_IJMatrix A;
   HYPRE_IJVector x, b;
-  HYPRE_Solver ksp;
+  HYPRE_Solver solver;
 
   // Work vectors.
   HYPRE_IJVector* work;
@@ -19,6 +21,9 @@ struct diffusion_solver_t
 
   // Flag is set to true if the linear system above is initialized.
   bool initialized;
+
+  // Index range.
+  int ilow, ihigh;
 
   // Context pointer, virtual table.
   void* context;
@@ -32,7 +37,8 @@ static void initialize(diffusion_solver_t* solver)
     solver->vtable.create_matrix(solver->context, &solver->A);
     solver->vtable.create_vector(solver->context, &solver->x);
     solver->vtable.create_vector(solver->context, &solver->b);
-    solver->vtable.create_ksp(solver->context, &solver->ksp);
+    solver->vtable.create_solver(solver->context, &solver->solver);
+    HYPRE_IJVectorGetLocalRange(solver->x, &solver->ilow, &solver->ihigh);
     solver->initialized = true;
   }
 }
@@ -55,7 +61,7 @@ diffusion_solver_t* diffusion_solver_new(const char* name,
   ASSERT(name != NULL);
   ASSERT(vtable.create_matrix != NULL);
   ASSERT(vtable.create_vector != NULL);
-  ASSERT(vtable.create_ksp != NULL);
+  ASSERT(vtable.create_solver != NULL);
   ASSERT(vtable.compute_diffusion_matrix != NULL);
   ASSERT(vtable.apply_bcs != NULL);
 
@@ -76,15 +82,15 @@ void diffusion_solver_free(diffusion_solver_t* solver)
 {
   if (solver->initialized)
   {
-    HYPRE_ParCSRGMRESDestroy(&solver->solver);
-    HYPRE_IJMatrixDestroy(&solver->A);
-    HYPRE_IJVectorDestroy(&solver->x);
-    HYPRE_IJVectorDestroy(&solver->b);
+    HYPRE_ParCSRGMRESDestroy(solver->solver);
+    HYPRE_IJMatrixDestroy(solver->A);
+    HYPRE_IJVectorDestroy(solver->x);
+    HYPRE_IJVectorDestroy(solver->b);
   }
 
   // Destroy any work vectors.
   for (int i = 0; i < solver->num_work_vectors; ++i)
-    HYPRE_IJVectorDestroy(&solver->work[i]);
+    HYPRE_IJVectorDestroy(solver->work[i]);
   free(solver->work);
 
   if ((solver->context != NULL) && (solver->vtable.dtor != NULL))
@@ -106,33 +112,35 @@ void* diffusion_solver_context(diffusion_solver_t* solver)
 
 static inline void copy_array_to_vector(double* array, HYPRE_IJVector vector)
 {
-  int size;
-  HYPRE_IJVectorGetLocalSize(vector, &size);
-  double* v;
-  HYPRE_IJVectorGetArray(vector, &v);
-  memcpy(v, array, sizeof(double)*size);
-  HYPRE_IJVectorRestoreArray(vector, &v);
+  int ilow, ihigh;
+  HYPRE_IJVectorGetLocalRange(vector, &ilow, &ihigh);
+  int N = ihigh - ilow;
+  int indices[N];
+  for (int i = 0; i < N; ++i)
+    indices[i] = ilow + i;
+  HYPRE_IJVectorSetValues(vector, N, indices, array);
 }
 
 static inline void add_array_to_vector(double* array, HYPRE_IJVector vector)
 {
-  int size;
-  HYPRE_IJVectorGetLocalSize(vector, &size);
-  double* v;
-  HYPRE_IJVectorGetArray(vector, &v);
-  for (int i = 0; i < size; ++i)
-    v[i] += array[i];
-  HYPRE_IJVectorRestoreArray(vector, &v);
+  int ilow, ihigh;
+  HYPRE_IJVectorGetLocalRange(vector, &ilow, &ihigh);
+  int N = ihigh - ilow;
+  int indices[N];
+  for (int i = 0; i < N; ++i)
+    indices[i] = ilow + i;
+  HYPRE_IJVectorAddToValues(vector, N, indices, array);
 }
 
 static inline void copy_vector_to_array(HYPRE_IJVector vector, double* array)
 {
-  int size;
-  HYPRE_IJVectorGetLocalSize(vector, &size);
-  double* v;
-  HYPRE_IJVectorGetArray(vector, &v);
-  memcpy(array, v, sizeof(double)*size);
-  HYPRE_IJVectorRestoreArray(vector, &v);
+  int ilow, ihigh;
+  HYPRE_IJVectorGetLocalRange(vector, &ilow, &ihigh);
+  int N = ihigh - ilow;
+  int indices[N];
+  for (int i = 0; i < N; ++i)
+    indices[i] = ilow + i;
+  HYPRE_IJVectorGetValues(vector, N, indices, array);
 }
 
 static inline void compute_diff_matrix(diffusion_solver_t* solver, HYPRE_IJMatrix A, double t)
@@ -152,8 +160,13 @@ static inline void apply_bcs(diffusion_solver_t* solver, HYPRE_IJMatrix A, HYPRE
 
 static inline void solve(diffusion_solver_t* solver, HYPRE_IJMatrix A, HYPRE_IJVector b, HYPRE_IJVector x)
 {
-  HYPRE_SolverSetOperators(solver->ksp, A, A, SAME_NONZERO_PATTERN);
-  HYPRE_SolverSolve(solver->ksp, b, x);
+  HYPRE_ParCSRMatrix mat;
+  HYPRE_IJMatrixGetObject(A, (void**)&mat);
+  HYPRE_ParVector X, B;
+  HYPRE_IJVectorGetObject(x, (void**)&X);
+  HYPRE_IJVectorGetObject(b, (void**)&B);
+  HYPRE_GMRESSetup(solver->solver, (HYPRE_Matrix)mat, (HYPRE_Vector)B, (HYPRE_Vector)X);
+  HYPRE_GMRESSolve(solver->solver, (HYPRE_Matrix)mat, (HYPRE_Vector)B, (HYPRE_Vector)X);
 }
 
 void diffusion_solver_euler(diffusion_solver_t* solver,
@@ -173,7 +186,15 @@ void diffusion_solver_euler(diffusion_solver_t* solver,
   compute_source_vector(solver, solver->x, t2);
 
   // Apply boundary conditions to the system.
-  HYPRE_IJVectorSet(solver->b, 0.0);
+  int N = solver->ihigh - solver->ilow;
+  int indices[N];
+  double values[N];
+  for (int i = 0; i < N; ++i)
+  {
+    indices[i] = solver->ilow + i;
+    values[N] = 0.0;
+  }
+  HYPRE_IJVector_SetValues(solver->b, N, indices, values);
   apply_bcs(solver, solver->A, solver->b, t2);
 
   // A -> I - dt*A.
