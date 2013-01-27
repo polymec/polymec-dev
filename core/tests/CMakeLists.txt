@@ -4,7 +4,6 @@
 include(add_polymec_test)
 
 add_polymec_test(test_string_utils test_string_utils.c)
-add_polymec_test(test_vector test_vector.c)
 add_polymec_test(test_avl_tree test_avl_tree.c)
 add_polymec_test(test_ordered_set test_ordered_set.c)
 add_polymec_test(test_ordered_map test_ordered_map.c)
