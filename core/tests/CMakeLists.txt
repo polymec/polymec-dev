@@ -17,5 +17,5 @@ add_polymec_test(test_mesh test_mesh.c)
 add_polymec_test(test_least_squares test_least_squares.c)
 add_polymec_test(test_interpreter test_interpreter.c)
 add_polymec_test(test_exchanger test_exchanger.c)
-add_polymec_test(test_krylov_sparse_lin_solvers test_krylov_sparse_lin_solvers.c)
+add_polymec_test(test_mf_krylov_sparse_lin_solvers test_mf_krylov_sparse_lin_solvers.c)
 

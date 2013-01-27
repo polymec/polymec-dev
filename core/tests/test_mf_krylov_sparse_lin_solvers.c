@@ -3,7 +3,7 @@
 #include <setjmp.h>
 #include <string.h>
 #include "cmockery.h"
-#include "core/krylov_sparse_lin_solvers.h"
+#include "core/mf_krylov_sparse_lin_solvers.h"
 #include "core/linear_algebra.h"
 
 typedef struct 
@@ -184,15 +184,15 @@ void test_laplace_equation(void** state)
   double delta = 1e-4;
   int max_restarts = 20;
   sparse_lin_solver_t* solver;
-  solver = gmres_sparse_lin_solver_new(comm, &test, compute_Lx, max_kdim, MODIFIED_GS,
-                                       PREC_LEFT, jacobi_precond, NULL, delta, max_restarts, NULL);
+  solver = mf_gmres_sparse_lin_solver_new(comm, &test, compute_Lx, max_kdim, MODIFIED_GS,
+                                          PREC_LEFT, jacobi_precond, NULL, delta, max_restarts, NULL);
   test_laplace_equation_with_solver(state, solver, &test);
   sparse_lin_solver_free(solver);
 
   // BiCGStab solver with point Jacobi preconditioner.
   max_kdim = 100;
-  solver = bicgstab_sparse_lin_solver_new(comm, &test, compute_Lx, max_kdim, 
-                                          PREC_LEFT, jacobi_precond, NULL, delta, NULL);
+  solver = mf_bicgstab_sparse_lin_solver_new(comm, &test, compute_Lx, max_kdim, 
+                                             PREC_LEFT, jacobi_precond, NULL, delta, NULL);
   test_laplace_equation_with_solver(state, solver, &test);
   sparse_lin_solver_free(solver);
 }

@@ -1,5 +1,5 @@
 #include "core/polymec.h"
-#include "core/krylov_sparse_lin_solvers.h"
+#include "core/mf_krylov_sparse_lin_solvers.h"
 #include "sundials/sundials_spgmr.h"
 #include "sundials/sundials_spbcgs.h"
 #include "sundials/sundials_nvector.h"
@@ -18,18 +18,18 @@ typedef struct
   int dim;
   MPI_Comm comm;
   void* solver;
-  krylov_sparse_lin_solver_compute_Ax_func compute_Ax;
+  mf_krylov_sparse_lin_solver_compute_Ax_func compute_Ax;
   int precond_type;
-  krylov_sparse_lin_solver_precond_func precond;
-  krylov_sparse_lin_solver_scaling_func compute_scale_factors;
+  mf_krylov_sparse_lin_solver_precond_func precond;
+  mf_krylov_sparse_lin_solver_scaling_func compute_scale_factors;
   int max_kdim;
   int gram_schmidt;
   double delta;
   int max_restarts;
   N_Vector s1, s2;
-} krylov_lin_solver_t;
+} mf_krylov_lin_solver_t;
 
-static void gmres_reset(krylov_lin_solver_t* krylov)
+static void gmres_reset(mf_krylov_lin_solver_t* krylov)
 {
   if (krylov->solver != NULL)
   {
@@ -50,7 +50,7 @@ static sparse_lin_solver_outcome_t gmres_solve(void* context, N_Vector x, N_Vect
                                                double* res_norm, int* num_lin_iterations, int* num_precond_solves,
                                                char* outcome_details)
 {
-  krylov_lin_solver_t* krylov = context;
+  mf_krylov_lin_solver_t* krylov = context;
   // Do we need to resize or allocate our solver?
   int N = NV_GLOBLENGTH(x);
   if (krylov->dim != N)
@@ -135,27 +135,27 @@ static sparse_lin_solver_outcome_t gmres_solve(void* context, N_Vector x, N_Vect
 
 static void gmres_dtor(void* context)
 {
-  krylov_lin_solver_t* krylov = context;
+  mf_krylov_lin_solver_t* krylov = context;
   gmres_reset(krylov);
   if ((krylov->context != NULL) && (krylov->dtor != NULL))
     krylov->dtor(krylov->context);
   free(krylov);
 }
 
-sparse_lin_solver_t* gmres_sparse_lin_solver_new(MPI_Comm comm,
-                                                 void* context, 
-                                                 krylov_sparse_lin_solver_compute_Ax_func compute_Ax,
-                                                 int max_kdim,
-                                                 int gram_schmidt,
-                                                 int precond_type,
-                                                 krylov_sparse_lin_solver_precond_func precond,
-                                                 krylov_sparse_lin_solver_scaling_func compute_scale_factors,
-                                                 double delta,
-                                                 int max_restarts,
-                                                 sparse_lin_solver_dtor dtor)
+sparse_lin_solver_t* mf_gmres_sparse_lin_solver_new(MPI_Comm comm,
+                                                    void* context, 
+                                                    mf_krylov_sparse_lin_solver_compute_Ax_func compute_Ax,
+                                                    int max_kdim,
+                                                    int gram_schmidt,
+                                                    int precond_type,
+                                                    mf_krylov_sparse_lin_solver_precond_func precond,
+                                                    mf_krylov_sparse_lin_solver_scaling_func compute_scale_factors,
+                                                    double delta,
+                                                    int max_restarts,
+                                                    sparse_lin_solver_dtor dtor)
 {
   ASSERT((precond_type == PREC_NONE) || (precond != NULL));
-  krylov_lin_solver_t* krylov = malloc(sizeof(krylov_lin_solver_t));
+  mf_krylov_lin_solver_t* krylov = malloc(sizeof(mf_krylov_lin_solver_t));
   krylov->context = context;
   krylov->compute_Ax = compute_Ax;
   krylov->gram_schmidt = gram_schmidt;
@@ -170,10 +170,10 @@ sparse_lin_solver_t* gmres_sparse_lin_solver_new(MPI_Comm comm,
   krylov->solver = NULL;
   krylov->s1 = krylov->s2 = NULL;
   sparse_lin_solver_vtable vtable = {.solve = gmres_solve, .dtor = gmres_dtor};
-  return sparse_lin_solver_new("GMRES Krylov solver", krylov, vtable);
+  return sparse_lin_solver_new("Matrix-free GMRES Krylov solver", krylov, vtable);
 }
 
-static void bicgstab_reset(krylov_lin_solver_t* krylov)
+static void bicgstab_reset(mf_krylov_lin_solver_t* krylov)
 {
   if (krylov->solver != NULL)
   {
@@ -194,7 +194,7 @@ static sparse_lin_solver_outcome_t bicgstab_solve(void* context, N_Vector x, N_V
                                                   double* res_norm, int* num_lin_iterations, int* num_precond_solves,
                                                   char* outcome_details)
 {
-  krylov_lin_solver_t* krylov = context;
+  mf_krylov_lin_solver_t* krylov = context;
   // Do we need to resize or allocate our solver?
   int N = NV_GLOBLENGTH(x);
   if (krylov->dim != N)
@@ -263,25 +263,25 @@ static sparse_lin_solver_outcome_t bicgstab_solve(void* context, N_Vector x, N_V
 
 static void bicgstab_dtor(void* context)
 {
-  krylov_lin_solver_t* krylov = context;
+  mf_krylov_lin_solver_t* krylov = context;
   bicgstab_reset(krylov);
   if ((krylov->context != NULL) && (krylov->dtor != NULL))
     krylov->dtor(krylov->context);
   free(krylov);
 }
 
-sparse_lin_solver_t* bicgstab_sparse_lin_solver_new(MPI_Comm comm,
-                                                    void* context, 
-                                                    krylov_sparse_lin_solver_compute_Ax_func compute_Ax,
-                                                    int max_kdim,
-                                                    int precond_type,
-                                                    krylov_sparse_lin_solver_precond_func precond,
-                                                    krylov_sparse_lin_solver_scaling_func compute_scale_factors,
-                                                    double delta,
-                                                    sparse_lin_solver_dtor dtor)
+sparse_lin_solver_t* mf_bicgstab_sparse_lin_solver_new(MPI_Comm comm,
+                                                       void* context, 
+                                                       mf_krylov_sparse_lin_solver_compute_Ax_func compute_Ax,
+                                                       int max_kdim,
+                                                       int precond_type,
+                                                       mf_krylov_sparse_lin_solver_precond_func precond,
+                                                       mf_krylov_sparse_lin_solver_scaling_func compute_scale_factors,
+                                                       double delta,
+                                                       sparse_lin_solver_dtor dtor)
 {
   ASSERT((precond_type == PREC_NONE) || (precond != NULL));
-  krylov_lin_solver_t* krylov = malloc(sizeof(krylov_lin_solver_t));
+  mf_krylov_lin_solver_t* krylov = malloc(sizeof(mf_krylov_lin_solver_t));
   krylov->context = context;
   krylov->compute_Ax = compute_Ax;
   krylov->precond_type = precond_type;
@@ -295,7 +295,7 @@ sparse_lin_solver_t* bicgstab_sparse_lin_solver_new(MPI_Comm comm,
   krylov->s1 = krylov->s2 = NULL;
   sparse_lin_solver_vtable vtable = {.solve = bicgstab_solve, 
                                      .dtor = bicgstab_dtor};
-  return sparse_lin_solver_new("BiCGStab Krylov solver", krylov, vtable);
+  return sparse_lin_solver_new("Matrix-free BiCGStab Krylov solver", krylov, vtable);
 }
 
 #ifdef __cplusplus
