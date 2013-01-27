@@ -1,7 +1,6 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <string.h>
-#include <mpi.h>
 #include "core/polymec.h"
 #include "core/loggers.h"
 

@@ -2,9 +2,8 @@
 #define POLYMEC_DIFFUSION_SOLVER_H
 
 #include "core/polymec.h"
-#include "petscksp.h"
-#include "petscmat.h"
-#include "petscvec.h"
+#include "HYPRE_krylov.h"
+#include "HYPRE_IJ_mv.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -16,27 +15,27 @@ extern "C" {
 typedef struct diffusion_solver_t diffusion_solver_t;
 
 // A function for creating a matrix.
-typedef void (*diffusion_solver_create_mat_func)(void*, Mat*);
+typedef void (*diffusion_solver_create_mat_func)(void*, HYPRE_IJMatrix*);
 
 // A function for creating a vector.
-typedef void (*diffusion_solver_create_vec_func)(void*, Vec*);
+typedef void (*diffusion_solver_create_vec_func)(void*, HYPRE_IJVector*);
 
 // A function for creating a linear solver.
-typedef void (*diffusion_solver_create_ksp_func)(void*, KSP*);
+typedef void (*diffusion_solver_create_ksp_func)(void*, HYPRE_Solver*);
 
 // A function for computing the diffusion matrix at time t.
-typedef void (*diffusion_solver_compute_diff_mat_func)(void*, Mat, double);
+typedef void (*diffusion_solver_compute_diff_mat_func)(void*, HYPRE_IJMatrix, double);
 
 // A function for computing the source vector at time t. 
-typedef void (*diffusion_solver_compute_source_func)(void*, Vec, double);
+typedef void (*diffusion_solver_compute_source_func)(void*, HYPRE_IJVector, double);
 
 // A function for applying boundary conditions to a linear system so 
 // that the solution respects these boundary conditions. Arguments:
 // void* context - A pointer to the context used to apply boundary conditions.
-// Mat A         - The matrix in the linear system.
-// Vec b         - The right hand side in the linear system.
+// HYPRE_IJMatrix A         - The matrix in the linear system.
+// HYPRE_IJVector b         - The right hand side in the linear system.
 // t             - The time at which the boundary conditions are applied.
-typedef void (*diffusion_solver_apply_bcs_func)(void*, Mat, Vec, double);
+typedef void (*diffusion_solver_apply_bcs_func)(void*, HYPRE_IJMatrix, HYPRE_IJVector, double);
 
 // A destructor function for the context object (if any).
 typedef void (*diffusion_solver_dtor)(void*);

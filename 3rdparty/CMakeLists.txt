@@ -89,6 +89,9 @@ if (NOT EXISTS ${CMAKE_BINARY_DIR}/lib/libHYPRE.a)
   execute_process(COMMAND make install
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/hypre-2.9.0b/src/cmbuild)
 endif()
+add_library(HYPRE STATIC IMPORTED)
+set_target_properties(HYPRE PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libHYPRE.a)
+set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};HYPRE)
 
 # Install PETSc.
 if (NOT EXISTS ${CMAKE_BINARY_DIR}/lib/libpetsc.a)
@@ -253,6 +256,6 @@ set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};tao)
 # Add all the libraries to the build system at large.
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${POLYMEC_TP_C_FLAGS}" PARENT_SCOPE)
 set(POLYMEC_LIBS ${POLYMEC_LIBS};${POLYMEC_TP_LIBS} PARENT_SCOPE)
-if (USE_MPI EQUAL 0)
-  set(POLYMEC_INCDIRS ${POLYMEC_INCDIRS};${CMAKE_BINARY_DIR}/include/mpiuni PARENT_SCOPE)
-endif()
+#if (USE_MPI EQUAL 0)
+#  set(POLYMEC_INCDIRS ${POLYMEC_INCDIRS};${CMAKE_BINARY_DIR}/include/mpiuni PARENT_SCOPE)
+#endif()

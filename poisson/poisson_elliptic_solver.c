@@ -16,48 +16,43 @@ typedef struct
   boundary_cell_map_t* boundary_cells;
 } p_solver_t;
 
-static void p_create_matrix(void* context, Mat* mat)
+static void p_create_matrix(void* context, HYPRE_IJMatrix* mat)
 {
   p_solver_t* p = (p_solver_t*)context;
-  MatCreate(MPI_COMM_WORLD, mat);
-  MatSetType(*mat, MATSEQAIJ);
-  MatSetOption(*mat, MAT_KEEP_NONZERO_PATTERN, PETSC_TRUE);
-//  MatSetOption(*mat, MAT_NEW_NONZERO_LOCATION_ERR, PETSC_TRUE);
-//  MatSetOption(*mat, MAT_NEW_NONZERO_ALLOCATION_ERR, PETSC_TRUE);
-  MatSetSizes(*mat, p->mesh->num_cells, p->mesh->num_cells, PETSC_DETERMINE, PETSC_DETERMINE);
+  int N = p->mesh->num_cells;
+  HYPRE_IJMatrixCreate(MPI_COMM_WORLD, 0, N-1, 0, N-1, mat);
 
   // Pre-allocate matrix entries.
-  PetscInt nz = 0, nnz[p->mesh->num_cells];
+  int nnz[p->mesh->num_cells];
   for (int i = 0; i < p->mesh->num_cells; ++i)
     nnz[i] = lin_op_stencil_size(p->op, i) + 1;
-  MatSeqAIJSetPreallocation(*mat, nz, nnz);
+  HYPRE_IJMatrixSetRowSizes(*mat, nnz);
 }
 
-static void p_create_vector(void* context, Vec* vec)
+static void p_create_vector(void* context, HYPRE_IJVector* vec)
 {
   p_solver_t* p = (p_solver_t*)context;
-  VecCreate(MPI_COMM_WORLD, vec);
-  VecSetType(*vec, VECSEQ);
-  VecSetSizes(*vec, p->mesh->num_cells, PETSC_DECIDE);
+  int N = p->mesh->num_cells;
+  HYPRE_IJVectorCreate(MPI_COMM_WORLD, 0, N-1);
 }
 
-static void p_create_ksp(void* context, KSP* ksp)
+static void p_create_ksp(void* context, HYPRE_Solver* solver)
 {
-  KSPCreate(MPI_COMM_WORLD, ksp);
+  HYPRE_ParCSRGMRESCreate(MPI_COMM_WORLD, solver);
 }
 
-static void p_compute_operator_matrix(void* context, Mat D, double t)
+static void p_compute_operator_matrix(void* context, HYPRE_IJMatrix D, double t)
 {
   p_solver_t* p = (p_solver_t*)context;
   lin_op_t* L = p->op;
 
   // Now compute that thar matrix.
-  PetscInt nnz[p->mesh->num_cells];
+  int nnz[p->mesh->num_cells];
   for (int i = 0; i < p->mesh->num_cells; ++i)
     nnz[i] = lin_op_stencil_size(L, i);
 
   // Set matrix entries.
-  MatAssemblyBegin(D, MAT_FINAL_ASSEMBLY);
+  HYPRE_IJMatrixInitialize(D);
   for (int i = 0; i < p->mesh->num_cells; ++i)
   {
     int indices[nnz[i]];
@@ -71,12 +66,12 @@ static void p_compute_operator_matrix(void* context, Mat D, double t)
       // Turn the indices into offsets.
       indices[j] += i;
     }
-    MatSetValues(D, 1, &i, nnz[i], indices, values, INSERT_VALUES);
+    HYPRE_IJMatrixSetValues(D, 1, nnz[i], &i, indices, values);
   }
-  MatAssemblyEnd(D, MAT_FINAL_ASSEMBLY);
+  HYPRE_IJMatrixAssemble(D);
 }
 
-static void p_compute_source_vector(void* context, Vec S, double t)
+static void p_compute_source_vector(void* context, HYPRE_IJVector S, double t)
 {
   p_solver_t* p = (p_solver_t*)context;
   mesh_t* mesh = p->mesh;
@@ -84,15 +79,15 @@ static void p_compute_source_vector(void* context, Vec S, double t)
   // Compute the RHS vector.
   double values[mesh->num_cells];
   int indices[mesh->num_cells];
-  VecAssemblyBegin(S);
+  HYPRE_IJVectorInitialize(S);
   for (int c = 0; c < mesh->num_cells; ++c)
   {
     indices[c] = c;
     point_t xc = {.x = 0.0, .y = 0.0, .z = 0.0};
     st_func_eval(p->source, &xc, t, &values[c]);
   }
-  VecSetValues(S, mesh->num_cells, indices, values, INSERT_VALUES);
-  VecAssemblyEnd(S);
+  HYPRE_IJVectorSetValues(S, mesh->num_cells, indices, values);
+  HYPRE_IJVectorAssemble(S);
 }
 
 static void p_apply_bcs(void* context, Mat A, Vec b, double t)
@@ -103,8 +98,8 @@ static void p_apply_bcs(void* context, Mat A, Vec b, double t)
 
   // Go over the boundary cells, enforcing boundary conditions on each 
   // face.
-  MatAssemblyBegin(A, MAT_FINAL_ASSEMBLY);
-  VecAssemblyBegin(b);
+  HYPRE_IJMatrixInitialize(A);
+  HYPRE_IJVectorInitialize(b);
   int pos = 0, bcell;
   boundary_cell_t* cell_info;
   while (boundary_cell_map_next(boundary_cells, &pos, &bcell, &cell_info))
@@ -149,8 +144,8 @@ static void p_apply_bcs(void* context, Mat A, Vec b, double t)
 //if (bc->alpha > 0.0)
 //printf("A[%d,%d] = %g, b[%d] = %g\n", bcell, bcell, Aii, bcell, bi);
 
-        MatSetValues(A, 1, &bcell, 1, &bcell, &Aii, ADD_VALUES);
-        VecSetValues(b, 1, &bcell, &bi, ADD_VALUES);
+        HYPRE_IJMatrixAddValues(D, 1, 1, &bcell, &bcell, Aij);
+        HYPRE_IJVectorAddValues(b, 1, &bcell, &bi);
       }
       else  // periodic BC
       {
@@ -173,14 +168,12 @@ static void p_apply_bcs(void* context, Mat A, Vec b, double t)
         // Add in the off-diagonal term (dphi/dn).
         ij[1] = other_cell - &p->mesh->cells[0];
         Aij[1] = face->area / (V * L);
-        MatSetValues(A, 1, &bcell, 2, ij, Aij, ADD_VALUES);
+        HYPRE_IJMatrixAddValues(D, 1, 2, &bcell, ij, Aij);
       }
     }
   }
-  MatAssemblyEnd(A, MAT_FINAL_ASSEMBLY);
-  VecAssemblyEnd(b);
-//MatView(A, PETSC_VIEWER_STDOUT_SELF);
-//VecView(b, PETSC_VIEWER_STDOUT_SELF);
+  HYPRE_IJMatrixAssemble(A);
+  HYPRE_IJVectorAssemble(b);
 }
 
 static void p_dtor(void* context)

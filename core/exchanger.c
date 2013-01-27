@@ -1,13 +1,5 @@
-#include <mpi.h>
 #include "exchanger.h"
 #include "core/unordered_map.h"
-
-#if !USE_MPI
-// These have to be defined here because PETSc's MPIUni is incomplete. :-/
-#define MPI_LONG_LONG MPI_LONG
-#define MPI_ERR_IN_STATUS 0
-#define MPI_ERR_TRUNCATE 0
-#endif
 
 // This is a record of a single communications channel for an exchanger 
 // to send or receive data to or from a remote process.
