@@ -9,12 +9,12 @@ struct diffusion_solver_t
   char* name;
 
   // Linear system and solver.
-  Mat A;
-  Vec x, b;
-  KSP ksp;
+  HYPRE_IJMatrix A;
+  HYPRE_IJVector x, b;
+  HYPRE_Solver ksp;
 
   // Work vectors.
-  Vec* work;
+  HYPRE_IJVector* work;
   int num_work_vectors;
 
   // Flag is set to true if the linear system above is initialized.
@@ -41,7 +41,7 @@ static void create_work_vectors(diffusion_solver_t* solver, int num_vectors)
 {
   if (solver->num_work_vectors < num_vectors)
   {
-    solver->work = realloc(solver->work, sizeof(Vec)*num_vectors);
+    solver->work = realloc(solver->work, sizeof(HYPRE_IJVector)*num_vectors);
     for (int i = solver->num_work_vectors; i < num_vectors; ++i)
       solver->vtable.create_vector(solver->context, &solver->work[i]);
     solver->num_work_vectors = num_vectors;
@@ -76,15 +76,15 @@ void diffusion_solver_free(diffusion_solver_t* solver)
 {
   if (solver->initialized)
   {
-    KSPDestroy(&solver->ksp);
-    MatDestroy(&solver->A);
-    VecDestroy(&solver->x);
-    VecDestroy(&solver->b);
+    HYPRE_ParCSRGMRESDestroy(&solver->solver);
+    HYPRE_IJMatrixDestroy(&solver->A);
+    HYPRE_IJVectorDestroy(&solver->x);
+    HYPRE_IJVectorDestroy(&solver->b);
   }
 
   // Destroy any work vectors.
   for (int i = 0; i < solver->num_work_vectors; ++i)
-    VecDestroy(&solver->work[i]);
+    HYPRE_IJVectorDestroy(&solver->work[i]);
   free(solver->work);
 
   if ((solver->context != NULL) && (solver->vtable.dtor != NULL))
@@ -104,56 +104,56 @@ void* diffusion_solver_context(diffusion_solver_t* solver)
   return solver->context;
 }
 
-static inline void copy_array_to_vector(double* array, Vec vector)
+static inline void copy_array_to_vector(double* array, HYPRE_IJVector vector)
 {
   int size;
-  VecGetLocalSize(vector, &size);
+  HYPRE_IJVectorGetLocalSize(vector, &size);
   double* v;
-  VecGetArray(vector, &v);
+  HYPRE_IJVectorGetArray(vector, &v);
   memcpy(v, array, sizeof(double)*size);
-  VecRestoreArray(vector, &v);
+  HYPRE_IJVectorRestoreArray(vector, &v);
 }
 
-static inline void add_array_to_vector(double* array, Vec vector)
+static inline void add_array_to_vector(double* array, HYPRE_IJVector vector)
 {
   int size;
-  VecGetLocalSize(vector, &size);
+  HYPRE_IJVectorGetLocalSize(vector, &size);
   double* v;
-  VecGetArray(vector, &v);
+  HYPRE_IJVectorGetArray(vector, &v);
   for (int i = 0; i < size; ++i)
     v[i] += array[i];
-  VecRestoreArray(vector, &v);
+  HYPRE_IJVectorRestoreArray(vector, &v);
 }
 
-static inline void copy_vector_to_array(Vec vector, double* array)
+static inline void copy_vector_to_array(HYPRE_IJVector vector, double* array)
 {
   int size;
-  VecGetLocalSize(vector, &size);
+  HYPRE_IJVectorGetLocalSize(vector, &size);
   double* v;
-  VecGetArray(vector, &v);
+  HYPRE_IJVectorGetArray(vector, &v);
   memcpy(array, v, sizeof(double)*size);
-  VecRestoreArray(vector, &v);
+  HYPRE_IJVectorRestoreArray(vector, &v);
 }
 
-static inline void compute_diff_matrix(diffusion_solver_t* solver, Mat A, double t)
+static inline void compute_diff_matrix(diffusion_solver_t* solver, HYPRE_IJMatrix A, double t)
 {
   solver->vtable.compute_diffusion_matrix(solver->context, A, t);
 }
 
-static inline void compute_source_vector(diffusion_solver_t* solver, Vec source, double t)
+static inline void compute_source_vector(diffusion_solver_t* solver, HYPRE_IJVector source, double t)
 {
   solver->vtable.compute_source_vector(solver->context, source, t);
 }
 
-static inline void apply_bcs(diffusion_solver_t* solver, Mat A, Vec b, double t)
+static inline void apply_bcs(diffusion_solver_t* solver, HYPRE_IJMatrix A, HYPRE_IJVector b, double t)
 {
   solver->vtable.apply_bcs(solver->context, A, b, t);
 }
 
-static inline void solve(diffusion_solver_t* solver, Mat A, Vec b, Vec x)
+static inline void solve(diffusion_solver_t* solver, HYPRE_IJMatrix A, HYPRE_IJVector b, HYPRE_IJVector x)
 {
-  KSPSetOperators(solver->ksp, A, A, SAME_NONZERO_PATTERN);
-  KSPSolve(solver->ksp, b, x);
+  HYPRE_SolverSetOperators(solver->ksp, A, A, SAME_NONZERO_PATTERN);
+  HYPRE_SolverSolve(solver->ksp, b, x);
 }
 
 void diffusion_solver_euler(diffusion_solver_t* solver,
@@ -173,19 +173,19 @@ void diffusion_solver_euler(diffusion_solver_t* solver,
   compute_source_vector(solver, solver->x, t2);
 
   // Apply boundary conditions to the system.
-  VecSet(solver->b, 0.0);
+  HYPRE_IJVectorSet(solver->b, 0.0);
   apply_bcs(solver, solver->A, solver->b, t2);
 
   // A -> I - dt*A.
-  MatScale(solver->A, -dt);
-  MatShift(solver->A, 1.0);
+  HYPRE_IJMatrixScale(solver->A, -dt);
+  HYPRE_IJMatrixShift(solver->A, 1.0);
 
   // What we've done to the LHS we must do to the RHS.
-  VecScale(solver->b, -dt);
+  HYPRE_IJVectorScale(solver->b, -dt);
 
   // b += sol1 + dt * source.
   add_array_to_vector(sol1, solver->b);
-  VecAXPY(solver->b, dt, solver->x);
+  HYPRE_IJVectorAXPY(solver->b, dt, solver->x);
 
   // Solve the linear system.
   solve(solver, solver->A, solver->b, solver->x);
@@ -217,7 +217,7 @@ void diffusion_solver_tga(diffusion_solver_t* solver,
   compute_diff_matrix(solver, solver->A, t2);
 
   // Apply boundary conditions to the system.
-  VecSet(solver->b, 0.0);
+  HYPRE_IJVectorSet(solver->b, 0.0);
   apply_bcs(solver, solver->A, solver->b, t2);
 
   // A note about the "b" vector above: It is intended to ensure that 
@@ -225,69 +225,69 @@ void diffusion_solver_tga(diffusion_solver_t* solver,
   // However, we use it in this function as though the diffusion operator 
   // applied to a solution D(x) = A*x + b. This means that we have to 
   // flip its sign.
-  VecScale(solver->b, -1.0);
+  HYPRE_IJVectorScale(solver->b, -1.0);
 
   //-------------------------------------------
   // Construct e, the RHS for the first solve.
   //-------------------------------------------
 
   // A -> (1-a) * dt * A.
-  MatScale(solver->A, (1.0 - a) * dt);
-  VecScale(solver->b, (1.0 - a) * dt);
+  HYPRE_IJMatrixScale(solver->A, (1.0 - a) * dt);
+  HYPRE_IJVectorScale(solver->b, (1.0 - a) * dt);
   // A -> A + I.
-  MatShift(solver->A, 1.0);
+  HYPRE_IJMatrixShift(solver->A, 1.0);
   // e = [I + (1-a) * dt * A] * sol1 (stored in work vector 1).
   copy_array_to_vector(sol1, solver->work[0]);
-  MatMultAdd(solver->A, solver->work[0], solver->b, solver->work[1]);
+  HYPRE_IJMatrixMultAdd(solver->A, solver->work[0], solver->b, solver->work[1]);
 
   // Compute the source at t1. We'll store the result in work vector 0.
   compute_source_vector(solver, solver->work[0], t1);
 
   // e -> e + 0.5 * dt * source(t1), stored in work vector 1.
-  VecAXPY(solver->work[1], 0.5 * dt, solver->work[0]);
+  HYPRE_IJVectorAXPY(solver->work[1], 0.5 * dt, solver->work[0]);
 
   // Now compute the source at t2. We'll store the result in work vector 0.
   compute_source_vector(solver, solver->work[0], t2);
 
   // Transform I + (1 - a) * dt * A  ->  I - 2 * (a - 0.5) * dt * A.
-  MatShift(solver->A, -1.0);
-  MatScale(solver->A, -2.0 * (a - 0.5) / (1.0 - a));
-  MatShift(solver->A, 1.0);
-  VecScale(solver->b, -2.0 * (a - 0.5) / (1.0 - a));
+  HYPRE_IJMatrixShift(solver->A, -1.0);
+  HYPRE_IJMatrixScale(solver->A, -2.0 * (a - 0.5) / (1.0 - a));
+  HYPRE_IJMatrixShift(solver->A, 1.0);
+  HYPRE_IJVectorScale(solver->b, -2.0 * (a - 0.5) / (1.0 - a));
 
   // Compute [I - 2.0 * (a - 0.5) * dt * A] * source(t2), and 
   // store it in work vector 2.
-  MatMultAdd(solver->A, solver->work[0], solver->b, solver->work[2]);
+  HYPRE_IJMatrixMultAdd(solver->A, solver->work[0], solver->b, solver->work[2]);
 
   // e -> e + 0.5 * dt * [I - 2.0 * (a - 0.5) * dt * A * source(t2)
   // (result stored in work vector 1).
-  VecAXPY(solver->work[1], 0.5 * dt, solver->work[2]);
+  HYPRE_IJVectorAXPY(solver->work[1], 0.5 * dt, solver->work[2]);
 
   //--------------------------------------------------------
   // Now we have computed e and stored it in work vector 1.
   //--------------------------------------------------------
 
   // Next, transform (I - 2 * (a - 0.5) * dt * A) to (I - r2 * dt * A).
-  MatShift(solver->A, -1.0);
-  MatScale(solver->A, r2 / (2.0 * (a - 0.5)));
-  MatShift(solver->A, 1.0);
-  VecScale(solver->b, r2 / (2.0 * (a - 0.5)));
+  HYPRE_IJMatrixShift(solver->A, -1.0);
+  HYPRE_IJMatrixScale(solver->A, r2 / (2.0 * (a - 0.5)));
+  HYPRE_IJMatrixShift(solver->A, 1.0);
+  HYPRE_IJVectorScale(solver->b, r2 / (2.0 * (a - 0.5)));
 
   // Do the first solve: (I - r2 * dt * A) * v = e. Recall that b contains the 
   // boundary condition information for A, so it needs to be moved to the 
   // right hand side.
-  VecAXPY(solver->work[1], -1.0, solver->b); // Move b to RHS
+  HYPRE_IJVectorAXPY(solver->work[1], -1.0, solver->b); // Move b to RHS
   solve(solver, solver->A, solver->work[1], solver->work[0]); // Solve!
   // The solution v is now stored in work vector 0.
 
   // Now transform (I - r2 * dt * A) -> (I - r1 * dt * A).
-  MatShift(solver->A, -1.0);
-  MatScale(solver->A, r1 / r2);
-  MatShift(solver->A, 1.0);
-  VecScale(solver->b, r1 / r2);
+  HYPRE_IJMatrixShift(solver->A, -1.0);
+  HYPRE_IJMatrixScale(solver->A, r1 / r2);
+  HYPRE_IJMatrixShift(solver->A, 1.0);
+  HYPRE_IJVectorScale(solver->b, r1 / r2);
 
   // Do the second solve. As in the first, we need to move b over to the RHS.
-  VecAXPY(solver->work[0], -1.0, solver->b); // Move b to RHS
+  HYPRE_IJVectorAXPY(solver->work[0], -1.0, solver->b); // Move b to RHS
   solve(solver, solver->A, solver->work[0], solver->x);
   // Solution is now stored in x.
 

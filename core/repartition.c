@@ -1,4 +1,3 @@
-#include <mpi.h>
 #include "repartition.h"
 
 #ifdef HAVE_PARMETIS

@@ -41,7 +41,7 @@ void sparse_lin_solver_free(sparse_lin_solver_t* solver)
   free(solver);
 }
 
-sparse_lin_solver_outcome_t sparse_lin_solver_solve(sparse_lin_solver_t* solver, N_Vector x, N_Vector b)
+sparse_lin_solver_outcome_t sparse_lin_solver_solve(sparse_lin_solver_t* solver, void* x, void* b)
 {
   solver->res_norm = 0.0;
   solver->nli = 0;

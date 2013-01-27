@@ -2,6 +2,7 @@
 #define POLYMEC_KRYLOV_SPARSE_LIN_SOLVERS_H
 
 #include "core/sparse_lin_solver.h"
+#include "core/sundials_helpers.h"
 
 #ifdef __cplusplus
 extern "C" {

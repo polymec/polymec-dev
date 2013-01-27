@@ -1,5 +1,6 @@
 #include "core/polymec.h"
 #include "core/mf_krylov_sparse_lin_solvers.h"
+#include "core/sundials_helpers.h"
 #include "sundials/sundials_spgmr.h"
 #include "sundials/sundials_spbcgs.h"
 #include "sundials/sundials_nvector.h"
@@ -46,34 +47,36 @@ static void gmres_reset(mf_krylov_lin_solver_t* krylov)
   }
 }
 
-static sparse_lin_solver_outcome_t gmres_solve(void* context, N_Vector x, N_Vector b, 
+static sparse_lin_solver_outcome_t gmres_solve(void* context, void* x, void* b, 
                                                double* res_norm, int* num_lin_iterations, int* num_precond_solves,
                                                char* outcome_details)
 {
   mf_krylov_lin_solver_t* krylov = context;
+  N_Vector X = x;
+  N_Vector B = b;
   // Do we need to resize or allocate our solver?
-  int N = NV_GLOBLENGTH(x);
+  int N = NV_GLOBLENGTH(X);
   if (krylov->dim != N)
   {
     gmres_reset(krylov);
-    SpgmrMem solver = SpgmrMalloc(krylov->max_kdim, x);
+    SpgmrMem solver = SpgmrMalloc(krylov->max_kdim, X);
     krylov->solver = solver;
     if (krylov->compute_scale_factors != NULL)
     {
-      krylov->s1 = N_VClone(x);
-      krylov->s2 = N_VClone(b);
+      krylov->s1 = N_VClone(X);
+      krylov->s2 = N_VClone(B);
     }
   }
 
   // Zero the vector x.
-  N_VConst(0.0, x);
+  N_VConst(0.0, X);
 
   // Compute the scale factors.
   if (krylov->compute_scale_factors != NULL)
     krylov->compute_scale_factors(context, krylov->s1, krylov->s2);
 
   SpgmrMem solver = krylov->solver;
-  int status = SpgmrSolve(solver, krylov->context, x, b, krylov->precond_type, 
+  int status = SpgmrSolve(solver, krylov->context, X, B, krylov->precond_type, 
                           krylov->gram_schmidt, krylov->delta, krylov->max_restarts, 
                           krylov->context, krylov->s1, krylov->s2, krylov->compute_Ax, 
                           krylov->precond, res_norm, num_lin_iterations, 
@@ -190,34 +193,36 @@ static void bicgstab_reset(mf_krylov_lin_solver_t* krylov)
   }
 }
 
-static sparse_lin_solver_outcome_t bicgstab_solve(void* context, N_Vector x, N_Vector b, 
+static sparse_lin_solver_outcome_t bicgstab_solve(void* context, void* x, void* b, 
                                                   double* res_norm, int* num_lin_iterations, int* num_precond_solves,
                                                   char* outcome_details)
 {
   mf_krylov_lin_solver_t* krylov = context;
+  N_Vector X = x;
+  N_Vector B = b;
   // Do we need to resize or allocate our solver?
-  int N = NV_GLOBLENGTH(x);
+  int N = NV_GLOBLENGTH(X);
   if (krylov->dim != N)
   {
     bicgstab_reset(krylov);
-    SpbcgMem solver = SpbcgMalloc(krylov->max_kdim, x);
+    SpbcgMem solver = SpbcgMalloc(krylov->max_kdim, X);
     krylov->solver = solver;
     if (krylov->compute_scale_factors != NULL)
     {
-      krylov->s1 = N_VClone(x);
-      krylov->s2 = N_VClone(b);
+      krylov->s1 = N_VClone(X);
+      krylov->s2 = N_VClone(B);
     }
   }
 
   // Zero the vector x.
-  N_VConst(0.0, x);
+  N_VConst(0.0, X);
 
   // Compute the scale factors.
   if (krylov->compute_scale_factors != NULL)
     krylov->compute_scale_factors(context, krylov->s1, krylov->s2);
 
   SpbcgMem solver = krylov->solver;
-  int status = SpbcgSolve(solver, krylov->context, x, b, krylov->precond_type, 
+  int status = SpbcgSolve(solver, krylov->context, X, B, krylov->precond_type, 
                           krylov->delta, krylov->context, krylov->s1, krylov->s2, 
                           krylov->compute_Ax, krylov->precond, res_norm, 
                           num_lin_iterations, num_precond_solves);

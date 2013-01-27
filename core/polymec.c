@@ -1,11 +1,14 @@
 #include <stdlib.h>
 #include <stdarg.h>
-#include <mpi.h>
 #include <gc/gc.h>
 #include "core/polymec.h"
 #include "core/options.h"
 #include "core/model.h"
-#include "tao.h"
+
+#if !USE_MPI
+static inline void MPI_Init(int* argc, char*** argv) {}
+static inline void MPI_Finalize() {}
+#endif
 
 #ifdef Linux
 #include <fenv.h>
@@ -43,8 +46,6 @@ static void shutdown()
   for (int i = 0; i < _num_atexit_funcs; ++i)
     _atexit_funcs[i]();
 
-  TaoFinalize();
-  PetscFinalize();
   MPI_Finalize();
 #ifndef NDEBUG
   polymec_disable_fpe_exceptions();
@@ -62,15 +63,6 @@ void polymec_init(int argc, char** argv)
 
   // Start up the garbage collector.
   GC_INIT();
-
-  // Start up PETSc.
-  PetscInitialize(&argc, &argv, PETSC_NULL, PETSC_NULL);
-#ifndef NDEBUG
-  PetscPushErrorHandler(PetscAbortErrorHandler, NULL);
-#endif
-
-  // Start up Tao.
-  TaoInitialize(&argc, &argv, (char*)NULL, 0);
 
   // Register a shutdown function.
   polymec_atexit(&shutdown);
