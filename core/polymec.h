@@ -13,21 +13,8 @@
 #if USE_MPI
 #include <mpi.h>
 #else
-
 #include "HYPRE_utilities.h"
-static inline void MPI_Abort(int comm, int err) { abort(); }
-static inline int MPI_Comm_rank(int comm, int* rank) { *rank = 0; return 0; }
-static inline int MPI_Comm_size(int comm, int* size) { *size = 1; return 0; }
-#define MPI_COMM_WORLD 0
-#define MPI_Request int
-#define MPI_Datatype int
-#define MPI_INT 0
-#define MPI_DOUBLE 0
-#define MPI_LONG 0
-#define MPI_LONG_LONG MPI_LONG
-#define MPI_ERR_IN_STATUS 0
-#define MPI_ERR_TRUNCATE 0
-
+#include "_hypre_utilities.h"
 #endif
 
 #include "core/loggers.h"
