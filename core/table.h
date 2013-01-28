@@ -26,7 +26,8 @@
 // void x_table_insert_with_dtor(x_table_t* table, int row, int col, x_table_value_t value, x_table_value_dtor dtor) - Inserts a value at the given row/column with a destructor.
 // void x_table_delete_row(x_table_t* table, int row) - Deletes the given row from the table.
 // void x_table_delete(x_table_t* table, int row, col) - Deletes the given element from the table.
-// bool x_table_next_row(x_table_t* map, int* pos, int* row, int* num_cols, int** cols, x_table_value_t** values) - Allows the traversal of the table rows.
+// bool x_table_next_row(x_table_t* map, int* pos, int* row, x_table_row_t** row_data) - Allows the traversal of the table rows.
+// bool x_table_next(x_table_t* map, int* pos, int* row, int* col, x_table_value_t* value) - Allows the traversal of the table values.
 
 #define DEFINE_TABLE(table_name, value_type) \
 typedef value_type table_name##_value_t; \
@@ -38,6 +39,7 @@ typedef struct \
 { \
   table_name##_map_t map; \
   int num_rows; \
+  int max_num_cols; \
 } table_name##_t; \
 \
 static inline table_name##_t* table_name##_new_with_capacity(int N) \
@@ -45,6 +47,7 @@ static inline table_name##_t* table_name##_new_with_capacity(int N) \
   table_name##_t* table = malloc(sizeof(table_name##_t)); \
   table->map = table_name##_map_new_with_capacity(N); \
   table->num_rows = 0; \
+  table->max_num_cols = 0; \
   return table; \
 } \
 \
@@ -96,6 +99,7 @@ static inline void table_name##_insert_row_with_dtor(table_name##_t* table, int 
     table_name##_row_insert_with_dtor(r, cols[c], values[c], dtor); \
   table_name##_map_insert_with_dtor(table->map, row, r, table_name##_row_free); \
   table->num_rows = table->map->size; \
+  table->max_num_cols = MAX(r->size, table->max_num_cols); \
 } \
 \
 static inline void table_name##_insert_row(table_name##_t* table, int row, int num_cols, int* cols, table_name##_value_t* values) \
@@ -116,6 +120,7 @@ static inline void table_name##_insert_with_dtor(table_name##_t* table, int row,
     r = table_name##_row_new(); \
     table_name##_map_insert_with_dtor(table->map, row, r, table_name##_row_free); \
     table->num_rows = table->map->size; \
+    table->max_num_cols = MAX(r->size, table->max_num_cols); \
   } \
   table_name##_row_insert_with_dtor(r, col, value, dtor); \
 } \
@@ -140,9 +145,19 @@ static inline void table_name##_delete(table_name##_t* table, int row, int col) 
     table_name##_delete_row(table, row); \
 } \
 \
-static inline bool table_name##_next_row(table_name##_t* table, int* pos, int row, table_name##_row_t** row_data) \
+static inline bool table_name##_next_row(table_name##_t* table, int* pos, int* row, table_name##_row_t** row_data) \
 { \
   return table_name##_map_next(table->map, pos, row, row_data); \
+} \
+\
+static inline bool table_name##_next(table_name##_t* table, int* pos, int* row, int* col, table_name##_value_t* value) \
+{ \
+  int row_pos = *pos / table->max_num_cols; \
+  int col_pos = *pos % table->max_num_cols; \
+  table_name##_row_t* r; \
+  bool result = table_name##_map_next(table->map, &row_pos, row, &r); \
+  if (!result) return false; \
+  return table_name##_row_next(*r, &col_pos, col, value); \
 } \
 \
 static inline table_name##_t* table_name##_copy(table_name##_t* table) \
