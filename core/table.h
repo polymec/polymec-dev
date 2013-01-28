@@ -37,7 +37,7 @@ DEFINE_UNORDERED_MAP(table_name##_map, int, table_name##_row_t*, int_hash, int_e
 \
 typedef struct \
 { \
-  table_name##_map_t map; \
+  table_name##_map_t* map; \
   int num_rows; \
   int max_num_cols; \
 } table_name##_t; \
@@ -47,7 +47,6 @@ static inline table_name##_t* table_name##_new_with_capacity(int N) \
   table_name##_t* table = malloc(sizeof(table_name##_t)); \
   table->map = table_name##_map_new_with_capacity(N); \
   table->num_rows = 0; \
-  table->max_num_cols = 0; \
   return table; \
 } \
 \
@@ -75,10 +74,10 @@ static inline table_name##_row_t** table_name##_get_row(table_name##_t* table, i
 \
 static inline table_name##_value_t* table_name##_get(table_name##_t* table, int row, int col) \
 { \
-  table_name##_row_t** row = table_name##_map_get(table->map, row); \
-  if (row == NULL) \
+  table_name##_row_t** row_data = table_name##_map_get(table->map, row); \
+  if (row_data == NULL) \
     return NULL; \
-  table_name##_row_t* r = *row; \
+  table_name##_row_t* r = *row_data; \
   return table_name##_row_get(r, col); \
 } \
 \
@@ -96,10 +95,9 @@ static inline void table_name##_insert_row_with_dtor(table_name##_t* table, int 
 { \
   table_name##_row_t* r = table_name##_row_new(); \
   for (int c = 0; c < num_cols; ++c) \
-    table_name##_row_insert_with_dtor(r, cols[c], values[c], dtor); \
-  table_name##_map_insert_with_dtor(table->map, row, r, table_name##_row_free); \
+    table_name##_row_insert_with_v_dtor(r, cols[c], values[c], dtor); \
+  table_name##_map_insert_with_v_dtor(table->map, row, r, table_name##_row_free); \
   table->num_rows = table->map->size; \
-  table->max_num_cols = MAX(r->size, table->max_num_cols); \
 } \
 \
 static inline void table_name##_insert_row(table_name##_t* table, int row, int num_cols, int* cols, table_name##_value_t* values) \
@@ -109,20 +107,19 @@ static inline void table_name##_insert_row(table_name##_t* table, int row, int n
 \
 static inline void table_name##_insert_with_dtor(table_name##_t* table, int row, int col, table_name##_value_t value, table_name##_value_dtor dtor) \
 { \
-  table_name##_row_t** row = table_name##_map_get(table->map, row); \
+  table_name##_row_t** row_data = table_name##_map_get(table->map, row); \
   table_name##_row_t* r; \
-  if (row != NULL) \
+  if (row_data != NULL) \
   { \
-    r = *row; \
+    r = *row_data; \
   } \
   else \
   { \
     r = table_name##_row_new(); \
-    table_name##_map_insert_with_dtor(table->map, row, r, table_name##_row_free); \
+    table_name##_map_insert_with_v_dtor(table->map, row, r, table_name##_row_free); \
     table->num_rows = table->map->size; \
-    table->max_num_cols = MAX(r->size, table->max_num_cols); \
   } \
-  table_name##_row_insert_with_dtor(r, col, value, dtor); \
+  table_name##_row_insert_with_v_dtor(r, col, value, dtor); \
 } \
 \
 static inline void table_name##_insert(table_name##_t* map, int row, int col, table_name##_value_t value) \
@@ -141,7 +138,7 @@ static inline void table_name##_delete(table_name##_t* table, int row, int col) 
   table_name##_row_t** r = table_name##_map_get(table->map, row); \
   if (r == NULL) return; \
   table_name##_row_delete(*r, col); \
-  if (*r->size == 0) \
+  if ((*r)->size == 0) \
     table_name##_delete_row(table, row); \
 } \
 \
@@ -150,26 +147,16 @@ static inline bool table_name##_next_row(table_name##_t* table, int* pos, int* r
   return table_name##_map_next(table->map, pos, row, row_data); \
 } \
 \
-static inline bool table_name##_next(table_name##_t* table, int* pos, int* row, int* col, table_name##_value_t* value) \
-{ \
-  int row_pos = *pos / table->max_num_cols; \
-  int col_pos = *pos % table->max_num_cols; \
-  table_name##_row_t* r; \
-  bool result = table_name##_map_next(table->map, &row_pos, row, &r); \
-  if (!result) return false; \
-  return table_name##_row_next(*r, &col_pos, col, value); \
-} \
-\
 static inline table_name##_t* table_name##_copy(table_name##_t* table) \
 { \
   table_name##_t* t = malloc(sizeof(table_name##_t)); \
-  t->map = map_name##_copy(table->map); \
+  t->map = table_name##_map_copy(table->map); \
   t->num_rows = table->num_rows; \
   return t; \
 } \
 
 // Define some tables.
-DEFINE_UNORDERED_MAP(int_table, int)
-DEFINE_UNORDERED_MAP(double_table, double)
+DEFINE_TABLE(int_table, int)
+DEFINE_TABLE(double_table, double)
 
 #endif

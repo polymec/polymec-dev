@@ -1,9 +1,9 @@
 #ifndef POLYMEC_REPARTITION_H
 #define POLYMEC_REPARTITION_H
 
-#include "point.h"
-#include "exchanger.h"
-#include "mesh.h"
+#include "core/point.h"
+#include "core/exchanger.h"
+#include "core/mesh.h"
 
 #ifdef __cplusplus
 extern "C" {

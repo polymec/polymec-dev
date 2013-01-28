@@ -278,7 +278,7 @@ int* mesh_create_tag(mesh_tags_t* tagger, const char* tag, int num_indices)
   char* tag_name = ARENA_MALLOC(tagger->arena, sizeof(char)*(strlen(tag)+1), 0);
   strcpy(tag_name, tag);
   mesh_tags_data_t* data = mesh_tags_data_new(tagger->arena, tag, indices, num_indices);
-  mesh_tags_data_map_insert_with_dtor(tagger->data, tag_name, data, destroy_tag_key_and_value);
+  mesh_tags_data_map_insert_with_kv_dtor(tagger->data, tag_name, data, destroy_tag_key_and_value);
   return indices;
 }
 
@@ -311,7 +311,7 @@ bool mesh_tag_set_property(mesh_tags_t* tagger, const char* tag, const char* pro
   char* prop_name = ARENA_MALLOC(tagger->arena, sizeof(char)*(strlen(property)+1), 0);
   strcpy(prop_name, property);
   mesh_tags_data_property_t* prop = mesh_tags_data_property_new(tagger->arena, property, data, destructor);
-  mesh_tags_data_property_map_insert_with_dtor((*data_p)->properties, prop_name, prop, destroy_tag_property_key_and_value);
+  mesh_tags_data_property_map_insert_with_kv_dtor((*data_p)->properties, prop_name, prop, destroy_tag_property_key_and_value);
   return true;
 }
 

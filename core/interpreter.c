@@ -551,18 +551,18 @@ static void interpreter_store_chunk_contents(interpreter_t* interp, lua_State* l
         {
           double* var = malloc(sizeof(double));
           *var = lua_tonumber(lua, val_index);
-          str_ptr_unordered_map_insert_with_dtor(table, tkey, var, destroy_table_entry);
+          str_ptr_unordered_map_insert_with_kv_dtor(table, tkey, var, destroy_table_entry);
         }
         else if (lua_isstring(lua, val_index))
         {
           const char* var = lua_tostring(lua, val_index);
-          str_ptr_unordered_map_insert_with_dtor(table, tkey, strdup(var), destroy_table_entry);
+          str_ptr_unordered_map_insert_with_kv_dtor(table, tkey, strdup(var), destroy_table_entry);
         }
         else if (lua_islightuserdata(lua, val_index))
         {
           void* tval = (void*)lua_topointer(lua, val_index);
           interpreter_storage_t* tvar = (interpreter_storage_t*)tval;
-          str_ptr_unordered_map_insert_with_dtor(table, tkey, tvar->datum, destroy_table_entry);
+          str_ptr_unordered_map_insert_with_kv_dtor(table, tkey, tvar->datum, destroy_table_entry);
         }
 
         // Removes value from stack.
@@ -584,7 +584,7 @@ static void interpreter_store_chunk_contents(interpreter_t* interp, lua_State* l
       }
       var = (void*)lua_topointer(lua, val_index);
     }
-    interpreter_map_insert_with_dtor(interp->store, strdup(key), var, destroy_variable);
+    interpreter_map_insert_with_kv_dtor(interp->store, strdup(key), var, destroy_variable);
 
     // Removes value from stack -- key is kept for next iteration.
     lua_pop(lua, 1);
@@ -678,7 +678,7 @@ char* interpreter_get_string(interpreter_t* interp, const char* name)
 void interpreter_set_string(interpreter_t* interp, const char* name, const char* value)
 {
   interpreter_storage_t* storage = store_string(value);
-  interpreter_map_insert_with_dtor(interp->store, strdup(name), storage, destroy_variable);
+  interpreter_map_insert_with_kv_dtor(interp->store, strdup(name), storage, destroy_variable);
 }
 
 double interpreter_get_number(interpreter_t* interp, const char* name)
@@ -694,7 +694,7 @@ double interpreter_get_number(interpreter_t* interp, const char* name)
 void interpreter_set_number(interpreter_t* interp, const char* name, double value)
 {
   interpreter_storage_t* storage = store_number(value);
-  interpreter_map_insert_with_dtor(interp->store, strdup(name), storage, destroy_variable);
+  interpreter_map_insert_with_kv_dtor(interp->store, strdup(name), storage, destroy_variable);
 }
 
 mesh_t* interpreter_get_mesh(interpreter_t* interp, const char* name)
@@ -711,7 +711,7 @@ mesh_t* interpreter_get_mesh(interpreter_t* interp, const char* name)
 void interpreter_set_mesh(interpreter_t* interp, const char* name, mesh_t* value)
 {
   interpreter_storage_t* storage = store_mesh(value);
-  interpreter_map_insert_with_dtor(interp->store, strdup(name), storage, destroy_variable);
+  interpreter_map_insert_with_kv_dtor(interp->store, strdup(name), storage, destroy_variable);
 }
 
 st_func_t* interpreter_get_scalar_function(interpreter_t* interp, const char* name)
@@ -729,7 +729,7 @@ st_func_t* interpreter_get_scalar_function(interpreter_t* interp, const char* na
 void interpreter_set_scalar_function(interpreter_t* interp, const char* name, st_func_t* value)
 {
   interpreter_storage_t* storage = store_scalar_function(value);
-  interpreter_map_insert_with_dtor(interp->store, strdup(name), storage, destroy_variable);
+  interpreter_map_insert_with_kv_dtor(interp->store, strdup(name), storage, destroy_variable);
 }
 
 st_func_t* interpreter_get_vector_function(interpreter_t* interp, const char* name)
@@ -747,7 +747,7 @@ st_func_t* interpreter_get_vector_function(interpreter_t* interp, const char* na
 void interpreter_set_vector_function(interpreter_t* interp, const char* name, st_func_t* value)
 {
   interpreter_storage_t* storage = store_vector_function(value);
-  interpreter_map_insert_with_dtor(interp->store, strdup(name), storage, destroy_variable);
+  interpreter_map_insert_with_kv_dtor(interp->store, strdup(name), storage, destroy_variable);
 }
 
 str_ptr_unordered_map_t* interpreter_get_table(interpreter_t* interp, const char* name)
@@ -764,7 +764,7 @@ str_ptr_unordered_map_t* interpreter_get_table(interpreter_t* interp, const char
 void interpreter_set_table(interpreter_t* interp, const char* name, str_ptr_unordered_map_t* value)
 {
   interpreter_storage_t* storage = store_table(value);
-  interpreter_map_insert_with_dtor(interp->store, strdup(name), storage, destroy_variable);
+  interpreter_map_insert_with_kv_dtor(interp->store, strdup(name), storage, destroy_variable);
 }
 
 void* interpreter_get_user_defined(interpreter_t* interp, const char* name)
@@ -781,7 +781,7 @@ void* interpreter_get_user_defined(interpreter_t* interp, const char* name)
 void interpreter_set_user_defined(interpreter_t* interp, const char* name, void* value, void (*dtor)(void*))
 {
   interpreter_storage_t* storage = store_user_defined(value, dtor);
-  interpreter_map_insert_with_dtor(interp->store, strdup(name), storage, destroy_variable);
+  interpreter_map_insert_with_kv_dtor(interp->store, strdup(name), storage, destroy_variable);
 }
 
 //------------------------------------------------------------------------
