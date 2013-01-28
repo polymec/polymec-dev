@@ -23,6 +23,7 @@
 // x_map_value_t* x_map_get(x_map_t* map, x_map_key_t key) - Returns the value for the key, or NULL.
 // bool x_map_contains(x_map_t* map, x_map_key_t key) - Returns true if the map contains the key, false if not.
 // void x_map_insert(x_map_t* map, x_map_key_t key, x_map_value_t value) - Sets the value for the given key.
+// void x_map_insert_with_dtor(x_map_t* map, x_map_key_t key, x_map_value_t value, x_map_kv_dtor) - Sets the value for the given key and associates a destructor for the key/value pair.
 // key_type x_map_change_key(x_map_t* map, x_map_key_t old_key, x_map_key_t new_key) - Renames old_key to new_key, overwriting new_key if it exists. Returns old key.
 // void x_map_delete(x_map_t* map, x_map_key_t key) - Deletes the value for the given key.
 // bool x_map_next(x_map_t* map, int* pos, x_map_key_t* key, x_map_value_t* value) - Allows the traversal of the maps keys and values.
