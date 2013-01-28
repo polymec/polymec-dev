@@ -472,7 +472,7 @@ void io_dataset_put_field(io_dataset_t* dataset, const char* field_name, double*
   fd->num_comps = num_components;
   fd->centering = centering;
   fd->destroy = copy;
-  io_field_map_insert_with_dtor(dataset->fields, strdup(field_name), fd, destroy_field_entry);
+  io_field_map_insert_with_kv_dtor(dataset->fields, strdup(field_name), fd, destroy_field_entry);
 }
 
 bool io_dataset_next_field(io_dataset_t* dataset, int* pos, char** field_name, double** field, int* num_components, mesh_centering_t* centering)
@@ -504,7 +504,7 @@ char* io_dataset_get_string(io_dataset_t* dataset, const char* string_name)
 void io_dataset_put_string(io_dataset_t* dataset, const char* string_name, const char* string)
 {
   ASSERT(string != NULL);
-  io_string_map_insert_with_dtor(dataset->strings, strdup(string_name), strdup(string), destroy_string_entry);
+  io_string_map_insert_with_kv_dtor(dataset->strings, strdup(string_name), strdup(string), destroy_string_entry);
 }
 
 bool io_dataset_next_string(io_dataset_t* dataset, int* pos, char** string_name, char** string)

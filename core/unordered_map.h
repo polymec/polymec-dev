@@ -23,7 +23,8 @@
 // x_map_value_t* x_map_get(x_map_t* map, x_map_key_t key) - Returns the value for the key, or NULL.
 // bool x_map_contains(x_map_t* map, x_map_key_t key) - Returns true if the map contains the key, false if not.
 // void x_map_insert(x_map_t* map, x_map_key_t key, x_map_value_t value) - Sets the value for the given key.
-// void x_map_insert_with_dtor(x_map_t* map, x_map_key_t key, x_map_value_t value, x_map_kv_dtor) - Sets the value for the given key and associates a destructor for the key/value pair.
+// void x_map_insert_with_kv_dtor(x_map_t* map, x_map_key_t key, x_map_value_t value, x_map_kv_dtor) - Sets the value for the given key and associates a destructor for the key/value pair.
+// void x_map_insert_with_v_dtor(x_map_t* map, x_map_key_t key, x_map_value_t value, x_map_v_dtor) - Sets the value for the given key and associates a destructor for the value.
 // key_type x_map_change_key(x_map_t* map, x_map_key_t old_key, x_map_key_t new_key) - Renames old_key to new_key, overwriting new_key if it exists. Returns old key.
 // void x_map_delete(x_map_t* map, x_map_key_t key) - Deletes the value for the given key.
 // bool x_map_next(x_map_t* map, int* pos, x_map_key_t* key, x_map_value_t* value) - Allows the traversal of the maps keys and values.
@@ -36,12 +37,14 @@ typedef bool (*map_name##_equals_func)(map_name##_key_t, map_name##_key_t); \
 typedef void (*map_name##_visitor)(map_name##_key_t, map_name##_value_t, void*); \
 typedef struct map_name##_entry_t map_name##_entry_t; \
 typedef void (*map_name##_kv_dtor)(key_type, value_type); \
+typedef void (*map_name##_v_dtor)(value_type); \
 struct map_name##_entry_t \
 { \
   key_type key; \
   int hash; \
   value_type value; \
-  map_name##_kv_dtor dtor; \
+  map_name##_kv_dtor kv_dtor; \
+  map_name##_v_dtor v_dtor; \
   map_name##_entry_t* next; \
 }; \
 \
@@ -84,8 +87,10 @@ static inline void map_name##_clear(map_name##_t* map) \
     while (entry != NULL) \
     { \
       map_name##_entry_t* next = entry->next; \
-      if (entry->dtor != NULL) \
-        (*entry->dtor)(entry->key, entry->value); \
+      if (entry->kv_dtor != NULL) \
+        (*entry->kv_dtor)(entry->key, entry->value); \
+      else if (entry->v_dtor != NULL) \
+        (*entry->v_dtor)(entry->value); \
       free(entry); \
       entry = next; \
     } \
@@ -176,8 +181,9 @@ static inline void map_name##_expand(map_name##_t* map) \
   } \
 } \
 \
-static inline void map_name##_insert_with_dtor(map_name##_t* map, key_type key, value_type value, map_name##_kv_dtor dtor) \
+static inline void map_name##_insert_with_dtors(map_name##_t* map, key_type key, value_type value, map_name##_kv_dtor kv_dtor, map_name##_v_dtor v_dtor) \
 { \
+  ASSERT((kv_dtor == NULL) || (v_dtor == NULL)); \
   int h = map_name##_hash(map, key); \
   int index = map_name##_index(map->bucket_count, h); \
   int depth = 0; \
@@ -191,7 +197,8 @@ static inline void map_name##_insert_with_dtor(map_name##_t* map, key_type key, 
       (*p)->key = key; \
       (*p)->hash = h; \
       (*p)->value = value; \
-      (*p)->dtor = dtor; \
+      (*p)->kv_dtor = kv_dtor; \
+      (*p)->v_dtor = v_dtor; \
       (*p)->next = NULL; \
       map->size++; \
       map_name##_expand(map); \
@@ -207,9 +214,20 @@ static inline void map_name##_insert_with_dtor(map_name##_t* map, key_type key, 
     p = &current->next; \
   } \
 } \
+\
+static inline void map_name##_insert_with_kv_dtor(map_name##_t* map, key_type key, value_type value, map_name##_kv_dtor dtor) \
+{ \
+  map_name##_insert_with_dtors(map, key, value, dtor, NULL); \
+} \
+\
+static inline void map_name##_insert_with_v_dtor(map_name##_t* map, key_type key, value_type value, map_name##_v_dtor dtor) \
+{ \
+  map_name##_insert_with_dtors(map, key, value, NULL, dtor); \
+} \
+\
 static inline void map_name##_insert(map_name##_t* map, key_type key, value_type value) \
 { \
-  map_name##_insert_with_dtor(map, key, value, NULL); \
+  map_name##_insert_with_dtors(map, key, value, NULL, NULL); \
 } \
 \
 static inline key_type map_name##_change_key(map_name##_t* map, key_type old_key, key_type new_key) \
@@ -220,7 +238,8 @@ static inline key_type map_name##_change_key(map_name##_t* map, key_type old_key
   map_name##_entry_t* current; \
   key_type key; \
   value_type value; \
-  map_name##_kv_dtor dtor; \
+  map_name##_kv_dtor kv_dtor; \
+  map_name##_v_dtor v_dtor; \
   while ((current = *p) != NULL) \
   { \
     if (map_name##_keys_equal(map, current->key, current->hash, old_key, h)) \
@@ -228,13 +247,14 @@ static inline key_type map_name##_change_key(map_name##_t* map, key_type old_key
       *p = current->next; \
       key = current->key; \
       value = current->value; \
-      dtor = current->dtor; \
+      kv_dtor = current->kv_dtor; \
+      v_dtor = current->v_dtor; \
       free(current); \
       map->size--; \
     }\
     p = &current->next; \
   } \
-  map_name##_insert_with_dtor(map, new_key, value, dtor); \
+  map_name##_insert_with_dtors(map, new_key, value, kv_dtor, v_dtor); \
   return key; \
 } \
 \
@@ -249,8 +269,10 @@ static inline void map_name##_delete(map_name##_t* map, key_type key) \
     if (map_name##_keys_equal(map, current->key, current->hash, key, h)) \
     { \
       *p = current->next; \
-      if (current->dtor != NULL) \
-        (*current->dtor)(current->key, current->value); \
+      if (current->kv_dtor != NULL) \
+        (*current->kv_dtor)(current->key, current->value); \
+      else if (current->v_dtor != NULL) \
+        (*current->v_dtor)(current->value); \
       free(current); \
       map->size--; \
     }\

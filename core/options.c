@@ -110,7 +110,7 @@ char* options_value(options_t* opts, const char* name)
 
 void options_set(options_t* opts, const char* name, const char* value)
 {
-  str_str_unordered_map_insert_with_dtor(opts->params, strdup(name), strdup(value), destroy_kv);
+  str_str_unordered_map_insert_with_kv_dtor(opts->params, strdup(name), strdup(value), destroy_kv);
 }
 
 

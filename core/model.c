@@ -153,7 +153,7 @@ void model_register_benchmark(model_t* model, const char* benchmark, model_bench
   model_benchmark_t* metadata = malloc(sizeof(model_benchmark_t));
   metadata->function = function;
   metadata->description = strdup(description);
-  model_benchmark_map_insert_with_dtor(model->benchmarks, strdup(benchmark), metadata, free_benchmark_kv);
+  model_benchmark_map_insert_with_kv_dtor(model->benchmarks, strdup(benchmark), metadata, free_benchmark_kv);
 }
 
 void model_run_all_benchmarks(model_t* model, options_t* options)

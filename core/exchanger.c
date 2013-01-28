@@ -325,7 +325,7 @@ static void delete_map_entry(int key, exchanger_channel_t* value)
 void exchanger_set_send(exchanger_t* ex, int remote_process, int num_indices, int* indices, bool copy_indices)
 {
   exchanger_channel_t* c = exchanger_channel_new(num_indices, indices, copy_indices);
-  exchanger_map_insert_with_dtor(ex->send_map, remote_process, c, delete_map_entry);
+  exchanger_map_insert_with_kv_dtor(ex->send_map, remote_process, c, delete_map_entry);
 
   if (remote_process > ex->max_send)
     ex->max_send = remote_process;
@@ -346,7 +346,7 @@ void exchanger_delete_send(exchanger_t* ex, int remote_process)
 void exchanger_set_receive(exchanger_t* ex, int remote_process, int num_indices, int* indices, bool copy_indices)
 {
   exchanger_channel_t* c = exchanger_channel_new(num_indices, indices, copy_indices);
-  exchanger_map_insert_with_dtor(ex->receive_map, remote_process, c, delete_map_entry);
+  exchanger_map_insert_with_kv_dtor(ex->receive_map, remote_process, c, delete_map_entry);
 
   if (remote_process > ex->max_receive)
     ex->max_receive = remote_process;

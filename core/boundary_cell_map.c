@@ -75,7 +75,7 @@ static str_ptr_unordered_map_t* generate_periodic_maps(mesh_t* mesh, str_ptr_uno
     int_int_unordered_map_t* new_pmap = periodic_bc_generate_map(pbc, mesh);
 
     // Insert it into our table with this tag as the key.
-    str_ptr_unordered_map_insert_with_dtor(periodic_maps, tag, new_pmap, destroy_pmap_entry);
+    str_ptr_unordered_map_insert_with_kv_dtor(periodic_maps, tag, new_pmap, destroy_pmap_entry);
   }
 
   return periodic_maps;
@@ -118,7 +118,7 @@ boundary_cell_map_t* boundary_cell_map_from_mesh_and_bcs(mesh_t* mesh, str_ptr_u
       if (!boundary_cell_map_contains(boundary_cells, bcell))
       {
         boundary_cell = create_boundary_cell();
-        boundary_cell_map_insert_with_dtor(boundary_cells, bcell, boundary_cell, destroy_boundary_cell_entry);
+        boundary_cell_map_insert_with_kv_dtor(boundary_cells, bcell, boundary_cell, destroy_boundary_cell_entry);
 
         // Gather the interior faces for the cell.
         for (int ff = 0; ff < cell->num_faces; ++ff)

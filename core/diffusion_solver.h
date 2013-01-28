@@ -2,6 +2,7 @@
 #define POLYMEC_DIFFUSION_SOLVER_H
 
 #include "core/polymec.h"
+#include "core/table.h"
 #include "HYPRE_krylov.h"
 #include "HYPRE_IJ_mv.h"
 
@@ -14,28 +15,19 @@ extern "C" {
 // and S is a source.
 typedef struct diffusion_solver_t diffusion_solver_t;
 
-// A function for creating a matrix.
-typedef void (*diffusion_solver_create_mat_func)(void*, HYPRE_IJMatrix*);
+// A function for computing the coefficients of the diffusion matrix at time t.
+typedef void (*diffusion_solver_compute_diff_mat_func)(void*, double_table_t*, double);
 
-// A function for creating a vector.
-typedef void (*diffusion_solver_create_vec_func)(void*, HYPRE_IJVector*);
-
-// A function for creating a linear solver.
-typedef void (*diffusion_solver_create_solver_func)(void*, HYPRE_Solver*);
-
-// A function for computing the diffusion matrix at time t.
-typedef void (*diffusion_solver_compute_diff_mat_func)(void*, HYPRE_IJMatrix, double);
-
-// A function for computing the source vector at time t. 
-typedef void (*diffusion_solver_compute_source_func)(void*, HYPRE_IJVector, double);
+// A function for computing the components of the source vector at time t. 
+typedef void (*diffusion_solver_compute_source_func)(void*, double*, double);
 
 // A function for applying boundary conditions to a linear system so 
 // that the solution respects these boundary conditions. Arguments:
 // void* context - A pointer to the context used to apply boundary conditions.
-// HYPRE_IJMatrix A         - The matrix in the linear system.
-// HYPRE_IJVector b         - The right hand side in the linear system.
+// A             - The coefficients of the matrix in the linear system.
+// b             - The components of the right hand side in the linear system.
 // t             - The time at which the boundary conditions are applied.
-typedef void (*diffusion_solver_apply_bcs_func)(void*, HYPRE_IJMatrix, HYPRE_IJVector, double);
+typedef void (*diffusion_solver_apply_bcs_func)(void*, double_table_t*, double*, double);
 
 // A destructor function for the context object (if any).
 typedef void (*diffusion_solver_dtor)(void*);
@@ -43,9 +35,6 @@ typedef void (*diffusion_solver_dtor)(void*);
 // This virtual table must be implemented by any diffusion_solver.
 typedef struct 
 {
-  diffusion_solver_create_mat_func        create_matrix;
-  diffusion_solver_create_vec_func        create_vector;
-  diffusion_solver_create_solver_func     create_solver;
   diffusion_solver_compute_diff_mat_func  compute_diffusion_matrix;
   diffusion_solver_compute_source_func    compute_source_vector;
   diffusion_solver_apply_bcs_func         apply_bcs;

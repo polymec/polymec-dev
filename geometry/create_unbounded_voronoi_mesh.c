@@ -104,7 +104,7 @@ mesh_t* create_unbounded_voronoi_mesh(point_t* generators, int num_generators,
       vector_t* ray = vector_new(tessellation->edges[e].ray[0],
                                  tessellation->edges[e].ray[1],
                                  tessellation->edges[e].ray[2]);
-      int_ptr_unordered_map_insert_with_dtor(ray_map, e, ray, destroy_ray_map_entry);
+      int_ptr_unordered_map_insert_with_kv_dtor(ray_map, e, ray, destroy_ray_map_entry);
     }
     ASSERT(outer_edge_offset == outer_edges->size);
   }
@@ -147,7 +147,7 @@ mesh_t* create_unbounded_voronoi_mesh(point_t* generators, int num_generators,
     
       // Set up the outer_cell_edges array for this cell.
       int* ocei = malloc(sizeof(int) * (1 + outer_edges_in_cell->size));
-      int_ptr_unordered_map_insert_with_dtor(oce, i, ocei, destroy_outer_cell_edges_map_entry);
+      int_ptr_unordered_map_insert_with_kv_dtor(oce, i, ocei, destroy_outer_cell_edges_map_entry);
       ocei[0] = outer_edges_in_cell->size;
       int ocei_offset = 1, pos = 0, edge_index;
       while (int_unordered_set_next(outer_edges_in_cell, &pos, &edge_index))
