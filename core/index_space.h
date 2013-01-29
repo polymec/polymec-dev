@@ -8,10 +8,12 @@ extern "C" {
 #endif
 
 // This data structure holds an index space that is distributed over a 
-// set of parallel processes.
+// set of parallel processes. Objects of this type are garbage-collected.
 typedef struct 
 {
   MPI_Comm comm; // Communicator on which index space is defined.
+  int rank;      // Rank in the given communicator.
+  int nproc;     // Number of parallel processes.
   int low, high; // Low and high indexes on this process.
 } index_space_t;
 
@@ -19,9 +21,6 @@ typedef struct
 // for the given communicator, given the number of local indices. This 
 // involves collective communication.
 index_space_t* index_space_new(MPI_Comm comm, int num_local_indices);
-
-// Frees the given index space.
-void index_space_free(index_space_t* index_space);
 
 #ifdef __cplusplus
 }
