@@ -3,8 +3,7 @@
 
 #include "core/polymec.h"
 #include "core/table.h"
-#include "HYPRE_krylov.h"
-#include "HYPRE_IJ_mv.h"
+#include "core/index_space.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -42,9 +41,11 @@ typedef struct
 } diffusion_solver_vtable;
 
 // Creates a diffusion solver with the given name, context, and virtual table.
+// Also needs an index space for constructing the linear system.
 diffusion_solver_t* diffusion_solver_new(const char* name, 
                                          void* context,
-                                         diffusion_solver_vtable vtable);
+                                         diffusion_solver_vtable vtable,
+                                         index_space_t* index_space);
 
 // Frees a diffusion solver.
 void diffusion_solver_free(diffusion_solver_t* solver);
