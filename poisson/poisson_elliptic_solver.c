@@ -16,43 +16,16 @@ typedef struct
   boundary_cell_map_t* boundary_cells;
 } p_solver_t;
 
-static void p_create_matrix(void* context, HYPRE_IJMatrix* mat)
-{
-  p_solver_t* p = (p_solver_t*)context;
-  int N = p->mesh->num_cells;
-  HYPRE_IJMatrixCreate(MPI_COMM_WORLD, 0, N-1, 0, N-1, mat);
-
-  // Pre-allocate matrix entries.
-  int nnz[p->mesh->num_cells];
-  for (int i = 0; i < p->mesh->num_cells; ++i)
-    nnz[i] = lin_op_stencil_size(p->op, i) + 1;
-  HYPRE_IJMatrixSetRowSizes(*mat, nnz);
-}
-
-static void p_create_vector(void* context, HYPRE_IJVector* vec)
-{
-  p_solver_t* p = (p_solver_t*)context;
-  int N = p->mesh->num_cells;
-  HYPRE_IJVectorCreate(MPI_COMM_WORLD, 0, N-1);
-}
-
-static void p_create_ksp(void* context, HYPRE_Solver* solver)
-{
-  HYPRE_ParCSRGMRESCreate(MPI_COMM_WORLD, solver);
-}
-
-static void p_compute_operator_matrix(void* context, HYPRE_IJMatrix D, double t)
+static void p_compute_operator_matrix(void* context, double_table_t* D, double t)
 {
   p_solver_t* p = (p_solver_t*)context;
   lin_op_t* L = p->op;
 
-  // Now compute that thar matrix.
   int nnz[p->mesh->num_cells];
   for (int i = 0; i < p->mesh->num_cells; ++i)
     nnz[i] = lin_op_stencil_size(L, i);
 
   // Set matrix entries.
-  HYPRE_IJMatrixInitialize(D);
   for (int i = 0; i < p->mesh->num_cells; ++i)
   {
     int indices[nnz[i]];
@@ -63,34 +36,28 @@ static void p_compute_operator_matrix(void* context, HYPRE_IJMatrix D, double t)
       // Scale down by the cell volume.
       values[j] /= p->mesh->cells[i].volume;
 
-      // Turn the indices into offsets.
+      // Turn the offsets into indices.
       indices[j] += i;
+
+      double_table_insert(D, i, indices[j], values[j]);
     }
-    HYPRE_IJMatrixSetValues(D, 1, nnz[i], &i, indices, values);
   }
-  HYPRE_IJMatrixAssemble(D);
 }
 
-static void p_compute_source_vector(void* context, HYPRE_IJVector S, double t)
+static void p_compute_source_vector(void* context, double* S, double t)
 {
   p_solver_t* p = (p_solver_t*)context;
   mesh_t* mesh = p->mesh;
 
   // Compute the RHS vector.
-  double values[mesh->num_cells];
-  int indices[mesh->num_cells];
-  HYPRE_IJVectorInitialize(S);
   for (int c = 0; c < mesh->num_cells; ++c)
   {
-    indices[c] = c;
     point_t xc = {.x = 0.0, .y = 0.0, .z = 0.0};
-    st_func_eval(p->source, &xc, t, &values[c]);
+    st_func_eval(p->source, &xc, t, &S[c]);
   }
-  HYPRE_IJVectorSetValues(S, mesh->num_cells, indices, values);
-  HYPRE_IJVectorAssemble(S);
 }
 
-static void p_apply_bcs(void* context, Mat A, Vec b, double t)
+static void p_apply_bcs(void* context, double_table_t* A, double* b, double t)
 {
   p_solver_t* p = (p_solver_t*)context;
   mesh_t* mesh = p->mesh;
@@ -98,8 +65,6 @@ static void p_apply_bcs(void* context, Mat A, Vec b, double t)
 
   // Go over the boundary cells, enforcing boundary conditions on each 
   // face.
-  HYPRE_IJMatrixInitialize(A);
-  HYPRE_IJVectorInitialize(b);
   int pos = 0, bcell;
   boundary_cell_t* cell_info;
   while (boundary_cell_map_next(boundary_cells, &pos, &bcell, &cell_info))
@@ -137,15 +102,15 @@ static void p_apply_bcs(void* context, Mat A, Vec b, double t)
 //printf("F(%g, %g) = %g (%s)\n", face->center.x, t, F, st_func_name(bc->F));
 
         // Add in the diagonal term for (dphi/dn)/V.
-        double Aii = ((beta/L - 0.5*alpha) / (beta/L + 0.5*alpha) - 1.0) * face->area / (V * L);
+        int i = bcell;
+        double Aii = *double_table_get(A, i, i);
+        Aii += ((beta/L - 0.5*alpha) / (beta/L + 0.5*alpha) - 1.0) * face->area / (V * L);
+        double_table_insert(A, i, i, Aii);
 
         // Add in the right hand side contribution.
-        double bi = -(F / (beta/L + 0.5*alpha)) * face->area / (V * L);
+        b[i] += -(F / (beta/L + 0.5*alpha)) * face->area / (V * L);
 //if (bc->alpha > 0.0)
 //printf("A[%d,%d] = %g, b[%d] = %g\n", bcell, bcell, Aii, bcell, bi);
-
-        HYPRE_IJMatrixAddValues(D, 1, 1, &bcell, &bcell, Aij);
-        HYPRE_IJVectorAddValues(b, 1, &bcell, &bi);
       }
       else  // periodic BC
       {
@@ -160,20 +125,18 @@ static void p_apply_bcs(void* context, Mat A, Vec b, double t)
 
         // Add in the diagonal term (dphi/dn).
         // Don't forget to scale down by the volume of the cell.
-        int ij[2];
-        double Aij[2];
-        ij[0] = bcell;
-        Aij[0] -= face->area / (V * L);
+        double Aii = *double_table_get(A, bcell, bcell);
+        Aii -= face->area / (V * L);
+        double_table_insert(A, bcell, bcell, Aii);
 
         // Add in the off-diagonal term (dphi/dn).
-        ij[1] = other_cell - &p->mesh->cells[0];
-        Aij[1] = face->area / (V * L);
-        HYPRE_IJMatrixAddValues(D, 1, 2, &bcell, ij, Aij);
+        int j = other_cell - &p->mesh->cells[0];
+        double Aij = *double_table_get(A, bcell, j);
+        Aij += face->area / (V * L);
+        double_table_insert(A, bcell, j, Aij);
       }
     }
   }
-  HYPRE_IJMatrixAssemble(A);
-  HYPRE_IJVectorAssemble(b);
 }
 
 static void p_dtor(void* context)
@@ -184,26 +147,24 @@ static void p_dtor(void* context)
 
 elliptic_solver_t* poisson_elliptic_solver_new(st_func_t* source,
                                                mesh_t* mesh,
-                                               boundary_cell_map_t* boundary_cells)
+                                               boundary_cell_map_t* boundary_cells,
+                                               index_space_t* index_space)
 {
   ASSERT(mesh != NULL);
   ASSERT(boundary_cells != NULL);
 
   elliptic_solver_vtable vtable = 
-  { .create_matrix            = p_create_matrix,
-    .create_vector            = p_create_vector,
-    .create_ksp               = p_create_ksp,
-    .compute_operator_matrix  = p_compute_operator_matrix,
-    .compute_source_vector    = p_compute_source_vector,
-    .apply_bcs                = p_apply_bcs,
-    .dtor                     = p_dtor
-  };
+    { .compute_operator_matrix  = p_compute_operator_matrix,
+      .compute_source_vector    = p_compute_source_vector,
+      .apply_bcs                = p_apply_bcs,
+      .dtor                     = p_dtor
+    };
   p_solver_t* p = malloc(sizeof(p_solver_t));
   p->op = laplacian_op_new(mesh);
   p->source = source;
   p->mesh = mesh; // borrowed
   p->boundary_cells = boundary_cells; // borrowed
-  elliptic_solver_t* solver = elliptic_solver_new("Poisson elliptic solver", p, vtable);
+  elliptic_solver_t* solver = elliptic_solver_new("Poisson elliptic solver", p, vtable, index_space);
   return solver;
 }
 

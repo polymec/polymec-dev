@@ -1,8 +1,5 @@
 #include <string.h>
 #include <stdlib.h>
-#include "petscksp.h"
-#include "petscmat.h"
-#include "petscvec.h"
 #include "core/unordered_map.h"
 #include "core/least_squares.h"
 #include "core/linear_algebra.h"
@@ -324,8 +321,9 @@ static void poisson_init(void* context, double t)
   // Figure out the boundary cells.
   p->boundary_cells = boundary_cell_map_from_mesh_and_bcs(p->mesh, p->bcs);
 
-  // Initialize the elliptic solver.
-  p->solver = poisson_elliptic_solver_new(p->rhs, p->mesh, p->boundary_cells);
+  // Initialize the elliptic solver with an index space.
+  index_space_t* is = index_space_new(p->comm, p->mesh->num_cells);
+  p->solver = poisson_elliptic_solver_new(p->rhs, p->mesh, p->boundary_cells, is);
 
   // Initialize the solution vector.
   p->phi = malloc(sizeof(double)*p->mesh->num_cells);

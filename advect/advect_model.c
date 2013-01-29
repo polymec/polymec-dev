@@ -487,8 +487,9 @@ static void advect_init(void* context, double t)
   // Gather information about boundary cells.
   a->boundary_cells = boundary_cell_map_from_mesh_and_bcs(a->mesh, a->bcs);
 
-  // Initialize the diffusion solver.
-  a->diff_solver = advect_diffusion_solver_new(a->mesh, a->boundary_cells);
+  // Initialize the diffusion solver with an index space.
+  index_space_t* is = index_space_new(a->comm, a->mesh->num_cells);
+  a->diff_solver = advect_diffusion_solver_new(a->mesh, a->boundary_cells, is);
 
   // Initialize the solution.
   int num_cells = a->mesh->num_cells;
