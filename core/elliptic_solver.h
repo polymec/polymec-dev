@@ -2,8 +2,8 @@
 #define POLYMEC_ELLIPTIC_SOLVER_H
 
 #include "core/polymec.h"
-#include "HYPRE_krylov.h"
-#include "HYPRE_IJ_mv.h"
+#include "core/table.h"
+#include "core/index_space.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -14,20 +14,11 @@ extern "C" {
 // the solution of the equation.
 typedef struct elliptic_solver_t elliptic_solver_t;
 
-// A function for creating a matrix.
-typedef void (*elliptic_solver_create_mat_func)(void*, HYPRE_IJMatrix*);
-
-// A function for creating a vector.
-typedef void (*elliptic_solver_create_vec_func)(void*, HYPRE_IJVector*);
-
-// A function for creating a linear solver.
-typedef void (*elliptic_solver_create_solver_func)(void*, HYPRE_Solver*);
-
 // A function for computing the operator matrix at time t.
-typedef void (*elliptic_solver_compute_op_mat_func)(void*, HYPRE_IJMatrix, double);
+typedef void (*elliptic_solver_compute_op_mat_func)(void*, double_table_t*, double);
 
 // A function for computing the source vector at time t. 
-typedef void (*elliptic_solver_compute_source_func)(void*, HYPRE_IJVector, double);
+typedef void (*elliptic_solver_compute_source_func)(void*, double*, double);
 
 // A function for applying boundary conditions to a linear system so 
 // that the solution respects these boundary conditions. Arguments:
@@ -35,7 +26,7 @@ typedef void (*elliptic_solver_compute_source_func)(void*, HYPRE_IJVector, doubl
 // A             - The matrix in the linear system.
 // b             - The right hand side in the linear system.
 // t             - The time at which the boundary conditions are applied.
-typedef void (*elliptic_solver_apply_bcs_func)(void*, HYPRE_IJMatrix, HYPRE_IJVector, double);
+typedef void (*elliptic_solver_apply_bcs_func)(void*, double_table_t*, double*, double);
 
 // A destructor function for the context object (if any).
 typedef void (*elliptic_solver_dtor)(void*);
@@ -43,9 +34,6 @@ typedef void (*elliptic_solver_dtor)(void*);
 // This virtual table must be implemented by any elliptic_solver.
 typedef struct 
 {
-  elliptic_solver_create_mat_func        create_matrix;
-  elliptic_solver_create_vec_func        create_vector;
-  elliptic_solver_create_ksp_func        create_ksp;
   elliptic_solver_compute_op_mat_func    compute_operator_matrix;
   elliptic_solver_compute_source_func    compute_source_vector;
   elliptic_solver_apply_bcs_func         apply_bcs;
@@ -55,7 +43,8 @@ typedef struct
 // Creates a diffusion solver with the given name, context, and virtual table.
 elliptic_solver_t* elliptic_solver_new(const char* name, 
                                        void* context,
-                                       elliptic_solver_vtable vtable);
+                                       elliptic_solver_vtable vtable,
+                                       index_space_t* index_space);
 
 // Frees a diffusion solver.
 void elliptic_solver_free(elliptic_solver_t* solver);

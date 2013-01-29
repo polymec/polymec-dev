@@ -1,4 +1,5 @@
 #include "integrators/nonlinear_integrator.h"
+#include "core/sundials_helpers.h"
 #include "cvode/cvode_spgmr.h"
 #include "cvode/cvode_spbcgs.h"
 
