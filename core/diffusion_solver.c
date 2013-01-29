@@ -17,10 +17,6 @@ struct diffusion_solver_t
   HYPRE_IJVector x, b;
   HYPRE_Solver solver;
 
-  // Work vectors.
-  HYPRE_IJVector* work;
-  int num_work_vectors;
-
   // Flag is set to true if the linear system above is initialized.
   bool initialized;
 
@@ -51,17 +47,6 @@ static void initialize(diffusion_solver_t* solver)
   }
 }
 
-static void create_work_vectors(diffusion_solver_t* solver, int num_vectors)
-{
-  if (solver->num_work_vectors < num_vectors)
-  {
-    solver->work = realloc(solver->work, sizeof(HYPRE_IJVector)*num_vectors);
-    for (int i = solver->num_work_vectors; i < num_vectors; ++i)
-      HYPRE_IJVectorCreate(comm, low, high, &solver->work[i]);
-    solver->num_work_vectors = num_vectors;
-  }
-}
-
 diffusion_solver_t* diffusion_solver_new(const char* name, 
                                          void* context,
                                          diffusion_solver_vtable vtable,
@@ -78,12 +63,6 @@ diffusion_solver_t* diffusion_solver_new(const char* name,
   solver->vtable = vtable;
   solver->index_space = index_space;
 
-  solver->Aij = double_table_new();
-  solver->bi = malloc(sizeof(double)*(index_space->high - index_space->low));
-
-  solver->work = NULL;
-  solver->num_work_vectors = 0;
-
   solver->initialized = false;
 
   return solver;
@@ -99,16 +78,8 @@ void diffusion_solver_free(diffusion_solver_t* solver)
     HYPRE_IJVectorDestroy(solver->b);
   }
 
-  // Destroy any work vectors.
-  for (int i = 0; i < solver->num_work_vectors; ++i)
-    HYPRE_IJVectorDestroy(solver->work[i]);
-  free(solver->work);
-
   if ((solver->context != NULL) && (solver->vtable.dtor != NULL))
     solver->vtable.dtor(solver->context);
-
-  double_table_free(solver->Aij);
-  free(solver->bi);
 
   free(solver->name);
   free(solver);
@@ -122,6 +93,27 @@ char* diffusion_solver_name(diffusion_solver_t* solver)
 void* diffusion_solver_context(diffusion_solver_t* solver)
 {
   return solver->context;
+}
+
+static inline void copy_table_to_matrix(index_space_t* is, double_table_t* table, HYPRE_IJMatrix matrix)
+{
+  HYPRE_IJMatrixInitialize(matrix);
+  int rpos = 0, i;
+  double_table_row_t* row_data;
+  while (double_table_next_row(table, &rpos, &i, &row_data))
+  {
+    int cpos = 0, j, num_cols = row_data->size;
+    int indices[num_cols], offset = 0;
+    double values[num_cols], Aij;
+    while (double_table_row_next(row_data, &cpos, &j, &Aij))
+    {
+      indices[offset] = j;
+      values[offset] = Aij;
+      offset++;
+    }
+    HYPRE_IJMatrixSetValues(matrix, 1, &num_cols, &i, indices, values);
+  }
+  HYPRE_IJMatrixAssemble(matrix);
 }
 
 static inline void copy_array_to_vector(index_space_t* is, double* array, HYPRE_IJVector vector)
@@ -166,20 +158,16 @@ static inline void apply_bcs(diffusion_solver_t* solver, double_table_t* A, doub
   solver->vtable.apply_bcs(solver->context, A, b, t);
 }
 
-static inline void solve(diffusion_solver_t* solver, double_table_t* Aij, double* bi, double* xi)
+static inline void solve(diffusion_solver_t* solver, HYPRE_IJMatrix A, HYPRE_IJVector b, HYPRE_IJVector x)
 {
-  // Copy the values from Aij and bi to our linear system.
+  HYPRE_ParCSRMatrix Aobj;
+  HYPRE_IJMatrixGetObject(solver->A, (void**)&Aobj);
+  HYPRE_ParVector xobj, bobj;
+  HYPRE_IJVectorGetObject(solver->x, (void**)&xobj);
+  HYPRE_IJVectorGetObject(solver->b, (void**)&bobj);
 
-  HYPRE_ParCSRMatrix mat;
-  HYPRE_IJMatrixGetObject(solver->A, (void**)&mat);
-  HYPRE_ParVector X, B;
-  HYPRE_IJVectorGetObject(solver->x, (void**)&X);
-  HYPRE_IJVectorGetObject(solver->b, (void**)&B);
-  HYPRE_GMRESSetup(solver->solver, (HYPRE_Matrix)mat, (HYPRE_Vector)B, (HYPRE_Vector)X);
-  HYPRE_GMRESSolve(solver->solver, (HYPRE_Matrix)mat, (HYPRE_Vector)B, (HYPRE_Vector)X);
-
-  // Copy the solution to sol2.
-  copy_vector_to_array(solver->x, xi);
+  HYPRE_GMRESSetup(solver->solver, (HYPRE_Matrix)Aobj, (HYPRE_Vector)bobj, (HYPRE_Vector)xobj);
+  HYPRE_GMRESSolve(solver->solver, (HYPRE_Matrix)Aobj, (HYPRE_Vector)bobj, (HYPRE_Vector)xobj);
 }
 
 void diffusion_solver_euler(diffusion_solver_t* solver,
@@ -195,38 +183,54 @@ void diffusion_solver_euler(diffusion_solver_t* solver,
   initialize(solver);
 
   // A -> diffusion matrix at time t2.
-  compute_diff_matrix(solver, solver->Aij, t2);
+  double_table_t* A = double_table_new();
+  compute_diff_matrix(solver, A, t2);
 
   // Compute the source at time t2.
   compute_source_vector(solver, si, t2);
 
   // Apply boundary conditions to the system.
+  double bi[N];
   for (int i = 0; i < N; ++i)
-    solver->bi[i] = 0.0;
-  apply_bcs(solver, solver->Aij, solver->bi, t2);
+    bi[i] = 0.0;
+  apply_bcs(solver, A, bi, t2);
 
   // A -> I - dt*A.
-  double_table_val_pos pos = double_table_start(solver->Aij);
+  double_table_val_pos_t pos = double_table_start(A);
   int i, j;
   double Aij;
-  while (double_table_next(solver->Aij, &pos, &i, &j, &Aij))
+  while (double_table_next(A, &pos, &i, &j, &Aij))
   {
+    // Apply BCs to the operator A.
+    int ii = i - solver->index_space->low;
+    Aij -= bi[ii]; 
+
     if (i == j)
-      double_table_insert(solver->Aij, i, j, 1.0 - dt * Aij);
+      double_table_insert(A, i, j, 1.0 - dt * Aij);
     else
-      double_table_insert(solver->Aij, i, j, -dt * Aij);
+      double_table_insert(A, i, j, -dt * Aij);
   }
 
   // What we've done to the LHS we must do to the RHS.
   for (int i = 0; i < N; ++i)
-    solver->bi[i] *= -dt;
+    bi[i] *= -dt;
 
   // b += sol1 + dt * source.
   for (int i = 0; i < N; ++i)
-    solver->bi[i] += sol1[i] + dt * si[i];
+    bi[i] += sol1[i] + dt * si[i];
+
+  // Set up the linear system.
+  copy_table_to_matrix(solver->index_space, A, solver->A);
+  copy_array_to_vector(solver->index_space, bi, solver->b);
 
   // Solve the linear system.
-  solve(solver, solver->Aij, solver->bi, sol2);
+  solve(solver, solver->A, solver->b, solver->x);
+
+  // Copy the solution to sol2.
+  copy_vector_to_array(solver->index_space, solver->x, sol2);
+
+  // Clean up.
+  double_table_free(A);
 }
 
 void diffusion_solver_tga(diffusion_solver_t* solver,
@@ -240,30 +244,21 @@ void diffusion_solver_tga(diffusion_solver_t* solver,
   // Make sure the solver is initialized.
   initialize(solver);
 
-  // In addition to b and x, we need 3 work vectors, all described below.
-  create_work_vectors(solver, 3);
-
   // Parameters for the TGA algorithm.
   double a = 2.0 - sqrt(2.0);
 //  double b = a - 0.5;
   double r1 = (2*a - 1.0) / (a + sqrt(a*a - 4*a + 2.0));
   double r2 = (2*a - 1.0) / (a - sqrt(a*a - 4*a + 2.0));
 
-  // A -> diffusion matrix at time t2.
-  compute_diff_matrix(solver, solver->Aij, t2);
+  // A -> Components of diffusion matrix at time t2.
+  double_table_t* A = double_table_new();
+  compute_diff_matrix(solver, A, t2);
 
   // Apply boundary conditions to the system.
+  double bi[N];
   for (int i = 0; i < N; ++i)
-    solver->bi[i] = 0.0;
-  apply_bcs(solver, solver->Aij, solver->bi, t2);
-
-  // A note about the "b" vector above: It is intended to ensure that 
-  // a solution to the equation A*x = b satisfies boundary conditions.
-  // However, we use it in this function as though the diffusion operator 
-  // applied to a solution D(x) = A*x + b. This means that we have to 
-  // flip its sign.
-  for (int i = 0; i < N; ++i)
-    solver->bi[i] *= -1.0;
+    bi[i] = 0.0;
+  apply_bcs(solver, A, bi, t2);
 
   //-------------------------------------------
   // Construct e, the RHS for the first solve.
@@ -271,77 +266,71 @@ void diffusion_solver_tga(diffusion_solver_t* solver,
 
   // b -> (1.0 - a) * dt * b.
   for (int i = 0; i < N; ++i)
-    solver->bi[i] *= (1.0 - a) * dt;
+    bi[i] *= (1.0 - a) * dt;
 
-  // e = [I + (1-a) * dt * A] * sol1.
-  double ei[N];
+  // Compute the source at t1 and t2.
+  double s1[N], s2[N];
+  compute_source_vector(solver, s1, t1);
+  compute_source_vector(solver, s2, t2);
+
+  // e = [I + (1 - a) * dt * A] * sol1 + 
+  //     0.5 * dt * [s1 + [I - (2*a - 1.0) * dt * A] * s2].
+  // Also, M1 = I - r2 * dt * A and M2 = I - r1 * dt * A.
+  double e[N];
   for (int i = 0; i < N; ++i)
-    ei[N] = 0.0;
-  double_table_val_pos pos = double_table_start(solver->Aij);
+    e[N] = 0.0;
+  double_table_val_pos_t pos = double_table_start(A);
   int i, j;
   double Aij;
-  while (double_table_next(solver->Aij, &pos, &i, &j, &Aij))
+  double_table_t* M1 = double_table_new();
+  double_table_t* M2 = double_table_new();
+  while (double_table_next(A, &pos, &i, &j, &Aij))
   {
-    ei[i] += (1.0 - a) * dt * Aij * sol1[j];
+    // Compute local indices for the global indices i and j.
+    int ii = i - solver->index_space->low;
+    int jj = j - solver->index_space->low;
+
+    Aij -= bi[ii]; // Apply BCs to the operator A.
+
+    // Add the off-diagonal terms for e.
+    e[ii] += (1.0 - a) * dt * Aij * sol1[jj] + 
+             (0.5 * dt * (s1[ii] - (2.0*a - 1.0) * dt * Aij * s2[jj]));
+
+    // Add the identity terms.
     if (i == j)
-      ei[i] += sol1[j];
+      e[ii] += sol1[jj] + 0.5 * dt * s2[jj];
+
+    // Set up M1 and M2.
+    if (i == j)
+    {
+      double_table_insert(M1, i, j, 1.0 - r2 * dt * Aij);
+      double_table_insert(M2, i, j, 1.0 - r1 * dt * Aij);
+    }
+    else
+    {
+      double_table_insert(M1, i, j, -r2 * dt * Aij);
+      double_table_insert(M2, i, j, -r1 * dt * Aij);
+    }
   }
+  
+  // Now solve the linear system M1 * v = e.
+  copy_table_to_matrix(solver->index_space, M1, solver->A);
+  copy_array_to_vector(solver->index_space, e, solver->b);
+  solve(solver, solver->A, solver->b, solver->x);
+  double v[N];
+  copy_vector_to_array(solver->index_space, solver->x, v);
 
-  // Compute the source at t1.
-  double si[N];
-  compute_source_vector(solver, si, t1);
+  // Now set up the linear system M2 * sol2 = v.
+  copy_table_to_matrix(solver->index_space, M2, solver->A);
+  copy_array_to_vector(solver->index_space, v, solver->b);
+  solve(solver, solver->A, solver->b, solver->x);
+  copy_vector_to_array(solver->index_space, solver->x, sol2);
 
-  // e -> e + 0.5 * dt * source(t1).
-  for (int i = 0; i < N; ++i)
-    ei[i] += 0.5 * dt * si[i];
+  // Clean up.
+  double_table_free(A);
+  double_table_free(M1);
+  double_table_free(M2);
 
-  // Now compute the source at t2. 
-  compute_source_vector(solver, si, t2);
-
-  // Transform A  ->  I - 2 * (a - 0.5) * dt * A.
-  HYPRE_IJMatrixShift(solver->A, -1.0);
-  HYPRE_IJMatrixScale(solver->A, -2.0 * (a - 0.5) / (1.0 - a));
-  HYPRE_IJMatrixShift(solver->A, 1.0);
-  HYPRE_IJVectorScale(solver->b, -2.0 * (a - 0.5) / (1.0 - a));
-
-  // Compute [I - 2.0 * (a - 0.5) * dt * A] * source(t2), and 
-  // store it in work vector 2.
-  HYPRE_IJMatrixMultAdd(solver->A, solver->work[0], solver->b, solver->work[2]);
-
-  // e -> e + 0.5 * dt * [I - 2.0 * (a - 0.5) * dt * A * source(t2)
-  // (result stored in work vector 1).
-  HYPRE_IJVectorAXPY(solver->work[1], 0.5 * dt, solver->work[2]);
-
-  //--------------------------------------------------------
-  // Now we have computed e and stored it in work vector 1.
-  //--------------------------------------------------------
-
-  // Next, transform (I - 2 * (a - 0.5) * dt * A) to (I - r2 * dt * A).
-  HYPRE_IJMatrixShift(solver->A, -1.0);
-  HYPRE_IJMatrixScale(solver->A, r2 / (2.0 * (a - 0.5)));
-  HYPRE_IJMatrixShift(solver->A, 1.0);
-  HYPRE_IJVectorScale(solver->b, r2 / (2.0 * (a - 0.5)));
-
-  // Do the first solve: (I - r2 * dt * A) * v = e. Recall that b contains the 
-  // boundary condition information for A, so it needs to be moved to the 
-  // right hand side.
-  HYPRE_IJVectorAXPY(solver->work[1], -1.0, solver->b); // Move b to RHS
-  solve(solver, solver->A, solver->work[1], solver->work[0]); // Solve!
-  // The solution v is now stored in work vector 0.
-
-  // Now transform (I - r2 * dt * A) -> (I - r1 * dt * A).
-  HYPRE_IJMatrixShift(solver->A, -1.0);
-  HYPRE_IJMatrixScale(solver->A, r1 / r2);
-  HYPRE_IJMatrixShift(solver->A, 1.0);
-  HYPRE_IJVectorScale(solver->b, r1 / r2);
-
-  // Do the second solve. As in the first, we need to move b over to the RHS.
-  HYPRE_IJVectorAXPY(solver->work[0], -1.0, solver->b); // Move b to RHS
-  solve(solver, solver->A, solver->work[0], solver->x);
-  // Solution is now stored in x.
-
-  // Copy the solution to sol2.
-  copy_vector_to_array(solver->x, sol2);
 }
 
 #ifdef __cplusplus

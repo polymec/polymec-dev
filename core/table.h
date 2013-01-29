@@ -26,14 +26,20 @@
 // void x_table_insert_with_dtor(x_table_t* table, int row, int col, x_table_value_t value, x_table_value_dtor dtor) - Inserts a value at the given row/column with a destructor.
 // void x_table_delete_row(x_table_t* table, int row) - Deletes the given row from the table.
 // void x_table_delete(x_table_t* table, int row, col) - Deletes the given element from the table.
-// bool x_table_next_row(x_table_t* map, int* pos, int* row, x_table_row_t** row_data) - Allows the traversal of the table rows.
-// bool x_table_next(x_table_t* map, int* pos, int* row, int* col, x_table_value_t* value) - Allows the traversal of the table values.
+// bool x_table_next_row(x_table_t* table, int* pos, int* row, x_table_row_t** row_data) - Allows the traversal of the table rows.
+// bool x_table_next(x_table_t* table, x_table_val_pos_t* pos, int* row, int* col, x_table_value_t* value) - Allows the traversal of the table values.
+// x_table_value_pos_t x_table_start(x_table_t* table) - Returns a new value position for use with x_table_next.
 
 #define DEFINE_TABLE(table_name, value_type) \
 typedef value_type table_name##_value_t; \
 typedef void (*table_name##_value_dtor)(table_name##_value_t); \
 DEFINE_UNORDERED_MAP(table_name##_row, int, value_type, int_hash, int_equals) \
 DEFINE_UNORDERED_MAP(table_name##_map, int, table_name##_row_t*, int_hash, int_equals) \
+typedef struct \
+{ \
+  int row_pos; \
+  int col_pos; \
+} table_name##_val_pos_t; \
 \
 typedef struct \
 { \
@@ -147,12 +153,25 @@ static inline bool table_name##_next_row(table_name##_t* table, int* pos, int* r
   return table_name##_map_next(table->map, pos, row, row_data); \
 } \
 \
+static inline bool table_name##_next(table_name##_t* table, table_name##_val_pos_t* pos, int* row, int* col, table_name##_value_t* value) \
+{ \
+  table_name##_row_t* row_data; \
+  bool result = table_name##_map_next(table->map, &pos->row_pos, row, &row_data); \
+  if (!result) return false; \
+  return table_name##_row_next(row_data, &pos->col_pos, col, value); \
+} \
+\
 static inline table_name##_t* table_name##_copy(table_name##_t* table) \
 { \
   table_name##_t* t = malloc(sizeof(table_name##_t)); \
   t->map = table_name##_map_copy(table->map); \
   t->num_rows = table->num_rows; \
   return t; \
+} \
+static inline table_name##_val_pos_t table_name##_start(table_name##_t* table) \
+{ \
+  table_name##_val_pos_t pos = {.row_pos = 0, .col_pos = 0}; \
+  return pos; \
 } \
 
 // Define some tables.
