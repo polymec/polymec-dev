@@ -6,6 +6,7 @@
 #else
 #include "nvector/nvector_serial.h"
 #endif
+#include "sundials/sundials_iterative.h"
 
 // These macros and functions help with creating and manipulating serial 
 // and parallel N_Vector objects.
@@ -20,6 +21,17 @@
 #define NV_GLOBLENGTH(v) NV_LENGTH_S(v)
 #define NV_Ith(v) NV_Ith_S(v)
 #endif
+
+static inline N_Vector N_VNew(MPI_Comm comm, int local_len)
+{
+#if USE_MPI
+  int global_len;
+  MPI_Allreduce(comm, &local_len, &global_len, 1, MPI_INT, MPI_SUM);
+  return N_VNew_Parallel(comm, local_len, global_len);
+#else
+  return N_VNew_Serial(local_len);
+#endif
+}
 
 #endif
 

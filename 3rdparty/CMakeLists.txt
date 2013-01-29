@@ -224,7 +224,7 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/liblua.a)
   set_target_properties(lua PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/liblua.a)
 endif()
 set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};lua)
-#set(POLYMEC_INCDIRS ${POLYMEC_INCDIRS};${PROJECT_BINARY_DIR}/include)
+#set(POLYMEC_TP_INCDIRS ${POLYMEC_TP_INCDIRS};${PROJECT_BINARY_DIR}/include)
 
 # Build libxml2, an XML library.
 if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libxml2.a)
@@ -239,7 +239,7 @@ endif()
 add_library(xml2 STATIC IMPORTED)
 set_target_properties(xml2 PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libxml2.a)
 set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};xml2;iconv;z)
-set(POLYMEC_INCDIRS ${POLYMEC_INCDIRS};${PROJECT_BINARY_DIR}/include/libxml2)
+set(POLYMEC_TP_INCDIRS ${POLYMEC_TP_INCDIRS};${PROJECT_BINARY_DIR}/include/libxml2)
 
 ## Install TAO (for optimization problems).
 #if (NOT EXISTS ${CMAKE_BINARY_DIR}/lib/libtao.a)
@@ -256,6 +256,6 @@ set(POLYMEC_INCDIRS ${POLYMEC_INCDIRS};${PROJECT_BINARY_DIR}/include/libxml2)
 # Add all the libraries to the build system at large.
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${POLYMEC_TP_C_FLAGS}" PARENT_SCOPE)
 set(POLYMEC_LIBS ${POLYMEC_LIBS};${POLYMEC_TP_LIBS} PARENT_SCOPE)
-#if (USE_MPI EQUAL 0)
-#  set(POLYMEC_INCDIRS ${POLYMEC_INCDIRS};${CMAKE_BINARY_DIR}/include/mpiuni PARENT_SCOPE)
-#endif()
+if (USE_MPI EQUAL 0)
+  set(POLYMEC_INCDIRS ${POLYMEC_INCDIRS};${POLYMEC_TP_INCDIRS} PARENT_SCOPE)
+endif()

@@ -20,10 +20,6 @@ struct diffusion_solver_t
   // Flag is set to true if the linear system above is initialized.
   bool initialized;
 
-  // Table and array for computing A and b components.
-  double_table_t* Aij;
-  double* bi;
-
   // Index space.
   index_space_t* index_space;
 
@@ -190,10 +186,10 @@ void diffusion_solver_euler(diffusion_solver_t* solver,
   compute_source_vector(solver, si, t2);
 
   // Apply boundary conditions to the system.
-  double bi[N];
+  double b[N];
   for (int i = 0; i < N; ++i)
-    bi[i] = 0.0;
-  apply_bcs(solver, A, bi, t2);
+    b[i] = 0.0;
+  apply_bcs(solver, A, b, t2);
 
   // A -> I - dt*A.
   double_table_val_pos_t pos = double_table_start(A);
@@ -203,7 +199,7 @@ void diffusion_solver_euler(diffusion_solver_t* solver,
   {
     // Apply BCs to the operator A.
     int ii = i - solver->index_space->low;
-    Aij -= bi[ii]; 
+    Aij -= b[ii]; 
 
     if (i == j)
       double_table_insert(A, i, j, 1.0 - dt * Aij);
@@ -213,15 +209,15 @@ void diffusion_solver_euler(diffusion_solver_t* solver,
 
   // What we've done to the LHS we must do to the RHS.
   for (int i = 0; i < N; ++i)
-    bi[i] *= -dt;
+    b[i] *= -dt;
 
   // b += sol1 + dt * source.
   for (int i = 0; i < N; ++i)
-    bi[i] += sol1[i] + dt * si[i];
+    b[i] += sol1[i] + dt * si[i];
 
   // Set up the linear system.
   copy_table_to_matrix(solver->index_space, A, solver->A);
-  copy_array_to_vector(solver->index_space, bi, solver->b);
+  copy_array_to_vector(solver->index_space, b, solver->b);
 
   // Solve the linear system.
   solve(solver, solver->A, solver->b, solver->x);

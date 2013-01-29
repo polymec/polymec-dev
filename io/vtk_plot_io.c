@@ -2,7 +2,7 @@
 #include <stdarg.h>
 #include <string.h>
 #include <math.h>
-#include <libxml/encoding.h>
+#include "libxml/encoding.h"
 #include "libxml/xmlwriter.h"
 #include "io/vtk_plot_io.h"
 #include "core/edit_mesh.h"
