@@ -1,4 +1,4 @@
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DPOLYMEC_C_COMPILER=${CMAKE_C_COMPILER} -DPOLYMEC_INCLUDE_DIR=${PROJECT_SOURCE_DIR}")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DPOLYMEC_C_COMPILER=${CMAKE_C_COMPILER} -DPOLYMEC_INCLUDE_DIR=${PROJECT_SOURCE_DIR} -DPOLYMEC_TP_INCLUDE_DIR=${PROJECT_BINARY_DIR}/include")
 add_library(polymec_core polymec.c mesh.c model.c boundary_cell_map.c
             edit_mesh.c mesh_storage.c exchanger.c repartition.c point_set.c
             index_space.c

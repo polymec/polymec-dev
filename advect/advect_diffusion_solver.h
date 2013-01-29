@@ -13,7 +13,8 @@ extern "C" {
 // with the given diffusivity and source functions, defined on the given mesh
 // with the given set of boundary cells.
 diffusion_solver_t* advect_diffusion_solver_new(mesh_t* mesh,
-                                                boundary_cell_map_t* boundary_cells);
+                                                boundary_cell_map_t* boundary_cells,
+                                                index_space_t* index_space);
 
 // Resets the diffusivity function.
 void advect_diffusion_solver_set_diffusivity(diffusion_solver_t* solver, st_func_t* diffusivity);

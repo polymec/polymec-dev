@@ -84,6 +84,17 @@ void* elliptic_solver_context(elliptic_solver_t* solver)
 
 static inline void copy_table_to_matrix(index_space_t* is, double_table_t* table, HYPRE_IJMatrix matrix)
 {
+  // FIXME: Pre-allocate matrix entries if it hasn't been done already.
+#if 0
+  int N = is->high - is->low;
+  int nnz[N];
+  int rpos = 0, i;
+  double_table_row_t* row_data;
+  while (double_table_next_row(table, &rpos, &i, &row_data))
+    nnz[i] = row_data->size;
+  HYPRE_IJMatrixSetRowSizes(*mat, nnz);
+#endif
+
   HYPRE_IJMatrixInitialize(matrix);
   int rpos = 0, i;
   double_table_row_t* row_data;

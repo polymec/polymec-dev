@@ -10,6 +10,7 @@
 #define DEFAULT_CC xstr(POLYMEC_C_COMPILER)
 #define DEFAULT_CFLAGS "-shared"
 #define INCLUDE_DIR xstr(POLYMEC_INCLUDE_DIR)
+#define TP_INCLUDE_DIR xstr(POLYMEC_TP_INCLUDE_DIR)
 
 #ifdef __cplusplus
 extern "C" {
@@ -80,7 +81,7 @@ static char* compile_so(const char* name, const char* source_file)
   char obj_name[128];
   snprintf(obj_name, 128, "%s/%s.so", _so_dir, name);
   char cmd[1024];
-  snprintf(cmd, 1024, "%s %s -o %s -I%s %s", _cc, _cflags, obj_name, INCLUDE_DIR, source_file);
+  snprintf(cmd, 1024, "%s %s -o %s -I%s -I%s %s", _cc, _cflags, obj_name, INCLUDE_DIR, TP_INCLUDE_DIR, source_file);
   int status = system(cmd);
   if (status != 0)
   {
