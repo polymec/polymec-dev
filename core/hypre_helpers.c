@@ -46,6 +46,27 @@ void HYPRE_IJMatrixAddToValuesFromTable(HYPRE_IJMatrix matrix, index_space_t* in
   HYPRE_IJMatrixModifyValuesFromTable(matrix, index_space, table, HYPRE_IJMatrixAddToValues);
 }
 
+static void HYPRE_IJVectorModifyValuesFromArray(HYPRE_IJVector vector, index_space_t* index_space, double* array, int (*modify_values)(HYPRE_IJVector, int, const int*, const double*))
+{
+  HYPRE_IJVectorInitialize(vector);
+  int N = index_space->high - index_space->low;
+  int indices[N];
+  for (int i = 0; i < N; ++i)
+    indices[i] = index_space->low + i;
+  modify_values(vector, N, indices, array);
+  HYPRE_IJVectorAssemble(vector);
+}
+
+void HYPRE_IJVectorSetValuesFromArray(HYPRE_IJVector vector, index_space_t* index_space, double* array)
+{
+  HYPRE_IJVectorModifyValuesFromArray(vector, index_space, array, HYPRE_IJVectorSetValues);
+}
+
+void HYPRE_IJVectorAddToValuesFromArray(HYPRE_IJVector vector, index_space_t* index_space, double* array)
+{
+  HYPRE_IJVectorModifyValuesFromArray(vector, index_space, array, HYPRE_IJVectorAddToValues);
+}
+
 #ifdef __cplusplus
 }
 #endif

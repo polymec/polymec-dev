@@ -99,20 +99,12 @@ static inline void copy_table_to_matrix(index_space_t* is, double_table_t* table
 
 static inline void copy_array_to_vector(index_space_t* is, double* array, HYPRE_IJVector vector)
 {
-  int N = is->high - is->low;
-  int indices[N];
-  for (int i = 0; i < N; ++i)
-    indices[i] = is->low + i;
-  HYPRE_IJVectorSetValues(vector, N, indices, array);
+  HYPRE_IJVectorSetValuesFromArray(vector, is, array);
 }
 
 static inline void add_array_to_vector(index_space_t* is, double* array, HYPRE_IJVector vector)
 {
-  int N = is->high - is->low;
-  int indices[N];
-  for (int i = 0; i < N; ++i)
-    indices[i] = is->low + i;
-  HYPRE_IJVectorAddToValues(vector, N, indices, array);
+  HYPRE_IJVectorAddToValuesFromArray(vector, is, array);
 }
 
 static inline void copy_vector_to_array(index_space_t* is, HYPRE_IJVector vector, double* array)

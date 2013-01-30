@@ -1,6 +1,7 @@
 #ifndef POLYMEC_HYPRE_HELPERS_H
 #define POLYMEC_HYPRE_HELPERS_H
 
+#include "HYPRE.h"
 #include "HYPRE_IJ_mv.h"
 #include "HYPRE_krylov.h"
 #include "HYPRE_parcsr_mv.h"
@@ -24,6 +25,12 @@ void HYPRE_IJMatrixSetValuesFromTable(HYPRE_IJMatrix matrix, index_space_t* inde
 
 // Adds the values from the given table into the given IJ matrix.
 void HYPRE_IJMatrixAddToValuesFromTable(HYPRE_IJMatrix matrix, index_space_t* index_space, double_table_t* table);
+
+// Inserts the values from the given table into the given IJ vector.
+void HYPRE_IJVectorSetValuesFromArray(HYPRE_IJVector vector, index_space_t* index_space, double* array);
+
+// Adds the values from the given table into the given IJ vector.
+void HYPRE_IJVectorAddToValuesFromArray(HYPRE_IJVector vector, index_space_t* index_space, double* array);
 
 #ifdef __cplusplus
 }
