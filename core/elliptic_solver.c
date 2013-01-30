@@ -28,8 +28,11 @@ static void initialize(elliptic_solver_t* solver)
   int low = solver->index_space->low;
   int high = solver->index_space->high;
   HYPRE_IJMatrixCreate(comm, low, high, low, high, &solver->A);
+  HYPRE_IJMatrixSetObjectType(solver->A, HYPRE_PARCSR);
   HYPRE_IJVectorCreate(comm, low, high, &solver->x);
+  HYPRE_IJVectorSetObjectType(solver->x, HYPRE_PARCSR);
   HYPRE_IJVectorCreate(comm, low, high, &solver->b);
+  HYPRE_IJVectorSetObjectType(solver->b, HYPRE_PARCSR);
   HYPRE_ParCSRGMRESCreate(comm, &solver->solver);
 }
 
@@ -99,11 +102,7 @@ static inline void copy_vector_to_array(index_space_t* is, HYPRE_IJVector vector
 
 static inline void copy_array_to_vector(index_space_t* is, double* array, HYPRE_IJVector vector)
 {
-  int N = is->high - is->low;
-  int indices[N];
-  for (int i = 0; i < N; ++i)
-    indices[i] = is->low + i;
-  HYPRE_IJVectorSetValues(vector, N, indices, array);
+  HYPRE_IJVectorSetValuesFromArray(vector, is, array);
 }
 
 static inline void compute_op_matrix(elliptic_solver_t* solver, double_table_t* A, double t)
