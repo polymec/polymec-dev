@@ -1,8 +1,5 @@
 #include "core/diffusion_solver.h"
-#include "HYPRE_krylov.h"
-#include "HYPRE_IJ_mv.h"
-#include "HYPRE_parcsr_mv.h"
-#include "HYPRE_parcsr_ls.h"
+#include "core/hypre_helpers.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -93,23 +90,11 @@ void* diffusion_solver_context(diffusion_solver_t* solver)
 
 static inline void copy_table_to_matrix(index_space_t* is, double_table_t* table, HYPRE_IJMatrix matrix)
 {
-  HYPRE_IJMatrixInitialize(matrix);
-  int rpos = 0, i;
-  double_table_row_t* row_data;
-  while (double_table_next_row(table, &rpos, &i, &row_data))
-  {
-    int cpos = 0, j, num_cols = row_data->size;
-    int indices[num_cols], offset = 0;
-    double values[num_cols], Aij;
-    while (double_table_row_next(row_data, &cpos, &j, &Aij))
-    {
-      indices[offset] = j;
-      values[offset] = Aij;
-      offset++;
-    }
-    HYPRE_IJMatrixSetValues(matrix, 1, &num_cols, &i, indices, values);
-  }
-  HYPRE_IJMatrixAssemble(matrix);
+  // FIXME: Pre-allocate matrix entries if it hasn't been done already.
+#if 0
+  HYPRE_IJMatrixSetRowSizesFromTable(matrix, table);
+#endif
+  HYPRE_IJMatrixSetValuesFromTable(matrix, is, table);
 }
 
 static inline void copy_array_to_vector(index_space_t* is, double* array, HYPRE_IJVector vector)
