@@ -29,13 +29,10 @@ static void initialize(diffusion_solver_t* solver)
 {
   if (!solver->initialized)
   {
-    MPI_Comm comm = solver->index_space->comm;
-    int low = solver->index_space->low;
-    int high = solver->index_space->high;
-    HYPRE_IJMatrixCreate(comm, low, high, low, high, &solver->A);
-    HYPRE_IJVectorCreate(comm, low, high, &solver->x);
-    HYPRE_IJVectorCreate(comm, low, high, &solver->b);
-    HYPRE_ParCSRGMRESCreate(comm, &solver->solver);
+    solver->A = HYPRE_IJMatrixNew(solver->index_space);
+    solver->x = HYPRE_IJVectorNew(solver->index_space);
+    solver->b = HYPRE_IJVectorNew(solver->index_space);
+    HYPRE_ParCSRGMRESCreate(solver->index_space->comm, &solver->solver);
     solver->initialized = true;
   }
 }
@@ -135,9 +132,12 @@ static inline void solve(diffusion_solver_t* solver, HYPRE_IJMatrix A, HYPRE_IJV
 {
   HYPRE_ParCSRMatrix Aobj;
   HYPRE_IJMatrixGetObject(solver->A, (void**)&Aobj);
+  ASSERT(Aobj != NULL);
   HYPRE_ParVector xobj, bobj;
   HYPRE_IJVectorGetObject(solver->x, (void**)&xobj);
+  ASSERT(xobj != NULL);
   HYPRE_IJVectorGetObject(solver->b, (void**)&bobj);
+  ASSERT(bobj != NULL);
 
   HYPRE_GMRESSetup(solver->solver, (HYPRE_Matrix)Aobj, (HYPRE_Vector)bobj, (HYPRE_Vector)xobj);
   HYPRE_GMRESSolve(solver->solver, (HYPRE_Matrix)Aobj, (HYPRE_Vector)bobj, (HYPRE_Vector)xobj);

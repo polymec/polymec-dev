@@ -4,6 +4,19 @@
 extern "C" {
 #endif
 
+HYPRE_IJMatrix HYPRE_IJMatrixNew(index_space_t* index_space)
+{
+  HYPRE_IJMatrix A;
+  MPI_Comm comm = index_space->comm;
+  int low = index_space->low;
+  int high = index_space->high;
+  int err = HYPRE_IJMatrixCreate(comm, low, high, low, high, &A);
+  ASSERT(err == 0);
+  err = HYPRE_IJMatrixSetObjectType(A, HYPRE_PARCSR);
+  ASSERT(err == 0);
+  return A;
+}
+
 void HYPRE_IJMatrixSetRowSizesFromTable(HYPRE_IJMatrix matrix, index_space_t* index_space, double_table_t* table)
 {
   int N = index_space->high - index_space->low;
@@ -44,6 +57,35 @@ void HYPRE_IJMatrixSetValuesFromTable(HYPRE_IJMatrix matrix, index_space_t* inde
 void HYPRE_IJMatrixAddToValuesFromTable(HYPRE_IJMatrix matrix, index_space_t* index_space, double_table_t* table)
 {
   HYPRE_IJMatrixModifyValuesFromTable(matrix, index_space, table, HYPRE_IJMatrixAddToValues);
+}
+
+HYPRE_IJVector HYPRE_IJVectorNew(index_space_t* index_space)
+{
+  HYPRE_IJVector x;
+  MPI_Comm comm = index_space->comm;
+  int low = index_space->low;
+  int high = index_space->high;
+  int err = HYPRE_IJVectorCreate(comm, low, high, &x);
+  ASSERT(err == 0);
+  err = HYPRE_IJVectorSetObjectType(x, HYPRE_PARCSR);
+  ASSERT(err == 0);
+
+  // Initialize the vector to zero.
+  int N = index_space->high - index_space->low;
+  int indices[N];
+  double values[N];
+  for (int i = 0; i < N; ++i)
+  {
+    indices[i] = index_space->low + i;
+    values[i] = 0.0;
+  }
+  err = HYPRE_IJVectorInitialize(x);
+  ASSERT(err == 0);
+  HYPRE_IJVectorSetValues(x, N, indices, values);
+  err = HYPRE_IJVectorAssemble(x);
+  ASSERT(err == 0);
+
+  return x;
 }
 
 static void HYPRE_IJVectorModifyValuesFromArray(HYPRE_IJVector vector, index_space_t* index_space, double* array, int (*modify_values)(HYPRE_IJVector, int, const int*, const double*))

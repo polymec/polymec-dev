@@ -21,12 +21,21 @@
 
 // Some macros.
 #ifndef NDEBUG
+#if USE_MPI
 #define ASSERT(x) \
   if (!(x)) \
   { \
     printf("Assertion %s failed\nat %s: %d\n", #x, __FILE__, __LINE__); \
     MPI_Abort(MPI_COMM_WORLD, -1); \
   }
+#else
+#define ASSERT(x) \
+  if (!(x)) \
+  { \
+    printf("Assertion %s failed\nat %s: %d\n", #x, __FILE__, __LINE__); \
+    abort(); \
+  }
+#endif
 #else
 #define ASSERT(x) 
 #endif
