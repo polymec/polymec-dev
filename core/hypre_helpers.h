@@ -6,6 +6,7 @@
 #include "HYPRE_krylov.h"
 #include "HYPRE_parcsr_mv.h"
 #include "HYPRE_parcsr_ls.h"
+#include "HYPRE_utilities.h"
 #include "core/index_space.h"
 #include "core/table.h"
 
