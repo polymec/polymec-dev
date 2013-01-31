@@ -117,16 +117,24 @@ static inline void apply_bcs(elliptic_solver_t* solver, double_table_t* A, doubl
 static inline void solve(elliptic_solver_t* solver, HYPRE_IJMatrix A, HYPRE_IJVector b, HYPRE_IJVector x)
 {
   HYPRE_ParCSRMatrix Aobj;
-  HYPRE_IJMatrixGetObject(solver->A, (void**)&Aobj);
+  int err = HYPRE_IJMatrixGetObject(solver->A, (void**)&Aobj);
+  ASSERT(err == 0);
   ASSERT(Aobj != NULL);
   HYPRE_ParVector xobj, bobj;
-  HYPRE_IJVectorGetObject(solver->x, (void**)&xobj);
+  err = HYPRE_IJVectorGetObject(solver->x, (void**)&xobj);
+  ASSERT(err == 0);
   ASSERT(xobj != NULL);
-  HYPRE_IJVectorGetObject(solver->b, (void**)&bobj);
+  err = HYPRE_IJVectorGetObject(solver->b, (void**)&bobj);
+  ASSERT(err == 0);
   ASSERT(bobj != NULL);
 
-  HYPRE_GMRESSetup(solver->solver, (HYPRE_Matrix)Aobj, (HYPRE_Vector)bobj, (HYPRE_Vector)xobj);
-  HYPRE_GMRESSolve(solver->solver, (HYPRE_Matrix)Aobj, (HYPRE_Vector)bobj, (HYPRE_Vector)xobj);
+  err = HYPRE_GMRESSetup(solver->solver, (HYPRE_Matrix)Aobj, (HYPRE_Vector)bobj, (HYPRE_Vector)xobj);
+  ASSERT(err == 0);
+  err = HYPRE_GMRESSolve(solver->solver, (HYPRE_Matrix)Aobj, (HYPRE_Vector)bobj, (HYPRE_Vector)xobj);
+  if (err == HYPRE_ERROR_CONV)
+    polymec_error("elliptic_solver: Solve did not converge.");
+
+  HYPRE_ClearAllErrors();
 }
 
 void elliptic_solver_solve(elliptic_solver_t* solver,
