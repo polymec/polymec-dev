@@ -133,7 +133,7 @@ static inline void apply_bcs(elliptic_solver_t* solver, double_table_t* A, doubl
 
 static inline void solve(elliptic_solver_t* solver, HYPRE_IJMatrix A, HYPRE_IJVector b, HYPRE_IJVector x)
 {
-HYPRE_IJMatrixPrint(solver->A, "A.txt");
+//HYPRE_IJMatrixPrint(solver->A, "A.txt");
   HYPRE_ParCSRMatrix Aobj;
   int err = HYPRE_IJMatrixGetObject(solver->A, (void**)&Aobj);
   ASSERT(err == 0);
