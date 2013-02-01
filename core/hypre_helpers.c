@@ -10,7 +10,7 @@ HYPRE_IJMatrix HYPRE_IJMatrixNew(index_space_t* index_space)
   MPI_Comm comm = index_space->comm;
   int low = index_space->low;
   int high = index_space->high;
-  int err = HYPRE_IJMatrixCreate(comm, low, high, low, high, &A);
+  int err = HYPRE_IJMatrixCreate(comm, low, high-1, low, high-1, &A);
   ASSERT(err == 0);
   err = HYPRE_IJMatrixSetObjectType(A, HYPRE_PARCSR);
   ASSERT(err == 0);
@@ -25,12 +25,14 @@ void HYPRE_IJMatrixSetRowSizesFromTable(HYPRE_IJMatrix matrix, index_space_t* in
   double_table_row_t* row_data;
   while (double_table_next_row(table, &rpos, &i, &row_data))
     nnz[i] = row_data->size;
-  HYPRE_IJMatrixSetRowSizes(matrix, nnz);
+  int err = HYPRE_IJMatrixSetRowSizes(matrix, nnz);
+  ASSERT(err == 0);
 }
 
 static void HYPRE_IJMatrixModifyValuesFromTable(HYPRE_IJMatrix matrix, index_space_t* index_space, double_table_t* table, int (*modify_values)(HYPRE_IJMatrix, int, int*, const int*, const int*, const double*))
 {
-  HYPRE_IJMatrixInitialize(matrix);
+  int err = HYPRE_IJMatrixInitialize(matrix);
+  ASSERT(err == 0);
   int rpos = 0, i;
   double_table_row_t* row_data;
   while (double_table_next_row(table, &rpos, &i, &row_data))
@@ -46,7 +48,8 @@ static void HYPRE_IJMatrixModifyValuesFromTable(HYPRE_IJMatrix matrix, index_spa
     }
     modify_values(matrix, 1, &num_cols, &i, indices, values);
   }
-  HYPRE_IJMatrixAssemble(matrix);
+  err = HYPRE_IJMatrixAssemble(matrix);
+  ASSERT(err == 0);
 }
 
 void HYPRE_IJMatrixSetValuesFromTable(HYPRE_IJMatrix matrix, index_space_t* index_space, double_table_t* table)
@@ -65,7 +68,7 @@ HYPRE_IJVector HYPRE_IJVectorNew(index_space_t* index_space)
   MPI_Comm comm = index_space->comm;
   int low = index_space->low;
   int high = index_space->high;
-  int err = HYPRE_IJVectorCreate(comm, low, high, &x);
+  int err = HYPRE_IJVectorCreate(comm, low, high-1, &x);
   ASSERT(err == 0);
   err = HYPRE_IJVectorSetObjectType(x, HYPRE_PARCSR);
   ASSERT(err == 0);

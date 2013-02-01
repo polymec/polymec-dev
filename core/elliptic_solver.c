@@ -13,6 +13,9 @@ struct elliptic_solver_t
   HYPRE_IJMatrix A;
   HYPRE_IJVector x, b;
   HYPRE_Solver solver;
+//  HYPRE_Solver pc; // Preconditioner
+
+  bool matrix_created;
 
   // Index space.
   index_space_t* index_space;
@@ -27,7 +30,17 @@ static void initialize(elliptic_solver_t* solver)
   solver->A = HYPRE_IJMatrixNew(solver->index_space);
   solver->x = HYPRE_IJVectorNew(solver->index_space);
   solver->b = HYPRE_IJVectorNew(solver->index_space);
-  HYPRE_ParCSRGMRESCreate(solver->index_space->comm, &solver->solver);
+  HYPRE_ParCSRHybridCreate(&solver->solver);
+  HYPRE_ParCSRHybridSetSolverType(solver->solver, 2);
+  HYPRE_ParCSRHybridSetKDim(solver->solver, 5);
+
+  // Set up the preconditioner.
+//  HYPRE_ParaSailsCreate(solver->index_space->comm, &solver->pc);
+//  HYPRE_ParaSailsSetSym(solver->pc, 0);
+//  HYPRE_GMRESSetPrecond(solver->solver, 
+//                        (HYPRE_PtrToSolverFcn)HYPRE_ParaSailsSolve,
+//                        (HYPRE_PtrToSolverFcn)HYPRE_ParaSailsSetup,
+//                        solver->pc);
 }
 
 elliptic_solver_t* elliptic_solver_new(const char* name, 
@@ -45,6 +58,13 @@ elliptic_solver_t* elliptic_solver_new(const char* name,
   solver->context = context;
   solver->vtable = vtable;
   solver->index_space = index_space;
+  solver->matrix_created = false;
+
+  solver->A = NULL;
+  solver->b = NULL;
+  solver->x = NULL;
+//  solver->pc = NULL;
+  solver->solver = NULL;
 
   // Make sure the solver is initialized.
   initialize(solver);
@@ -54,7 +74,9 @@ elliptic_solver_t* elliptic_solver_new(const char* name,
 
 void elliptic_solver_free(elliptic_solver_t* solver)
 {
-  HYPRE_ParCSRGMRESDestroy(solver->solver);
+//  if (solver->pc != NULL)
+//    HYPRE_ParaSailsDestroy(solver->pc);
+  HYPRE_ParCSRHybridDestroy(solver->solver);
   HYPRE_IJMatrixDestroy(solver->A);
   HYPRE_IJVectorDestroy(solver->x);
   HYPRE_IJVectorDestroy(solver->b);
@@ -78,11 +100,6 @@ void* elliptic_solver_context(elliptic_solver_t* solver)
 
 static inline void copy_table_to_matrix(index_space_t* is, double_table_t* table, HYPRE_IJMatrix matrix)
 {
-  // FIXME: Pre-allocate matrix entries if it hasn't been done already.
-#if 0
-  HYPRE_IJMatrixSetRowSizesFromTable(matrix, table);
-#endif
-  HYPRE_IJMatrixSetValuesFromTable(matrix, is, table);
 }
 
 static inline void copy_vector_to_array(index_space_t* is, HYPRE_IJVector vector, double* array)
@@ -116,6 +133,7 @@ static inline void apply_bcs(elliptic_solver_t* solver, double_table_t* A, doubl
 
 static inline void solve(elliptic_solver_t* solver, HYPRE_IJMatrix A, HYPRE_IJVector b, HYPRE_IJVector x)
 {
+HYPRE_IJMatrixPrint(solver->A, "A.txt");
   HYPRE_ParCSRMatrix Aobj;
   int err = HYPRE_IJMatrixGetObject(solver->A, (void**)&Aobj);
   ASSERT(err == 0);
@@ -128,9 +146,9 @@ static inline void solve(elliptic_solver_t* solver, HYPRE_IJMatrix A, HYPRE_IJVe
   ASSERT(err == 0);
   ASSERT(bobj != NULL);
 
-  err = HYPRE_GMRESSetup(solver->solver, (HYPRE_Matrix)Aobj, (HYPRE_Vector)bobj, (HYPRE_Vector)xobj);
+  err = HYPRE_ParCSRHybridSetup(solver->solver, Aobj, bobj, xobj);
   ASSERT(err == 0);
-  err = HYPRE_GMRESSolve(solver->solver, (HYPRE_Matrix)Aobj, (HYPRE_Vector)bobj, (HYPRE_Vector)xobj);
+  err = HYPRE_ParCSRHybridSolve(solver->solver, Aobj, bobj, xobj);
   if (err == HYPRE_ERROR_CONV)
     polymec_error("elliptic_solver: Solve did not converge.");
 
@@ -154,7 +172,12 @@ void elliptic_solver_solve(elliptic_solver_t* solver,
   apply_bcs(solver, A, b, t);
 
   // Set up the linear system.
-  copy_table_to_matrix(solver->index_space, A, solver->A);
+  if (!solver->matrix_created)
+  {
+    HYPRE_IJMatrixSetRowSizesFromTable(solver->A, solver->index_space, A);
+    solver->matrix_created = true;
+  }
+  HYPRE_IJMatrixSetValuesFromTable(solver->A, solver->index_space, A);
   copy_array_to_vector(solver->index_space, b, solver->b);
 
   // Solve the linear system.
