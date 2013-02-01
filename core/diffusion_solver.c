@@ -32,7 +32,9 @@ static void initialize(diffusion_solver_t* solver)
     solver->A = HYPRE_IJMatrixNew(solver->index_space);
     solver->x = HYPRE_IJVectorNew(solver->index_space);
     solver->b = HYPRE_IJVectorNew(solver->index_space);
-    HYPRE_ParCSRGMRESCreate(solver->index_space->comm, &solver->solver);
+    HYPRE_ParCSRHybridCreate(&solver->solver);
+    HYPRE_ParCSRHybridSetSolverType(solver->solver, 2);
+    HYPRE_ParCSRHybridSetKDim(solver->solver, 5);
     solver->initialized = true;
   }
 }
@@ -62,7 +64,7 @@ void diffusion_solver_free(diffusion_solver_t* solver)
 {
   if (solver->initialized)
   {
-    HYPRE_ParCSRGMRESDestroy(solver->solver);
+    HYPRE_ParCSRHybridDestroy(solver->solver);
     HYPRE_IJMatrixDestroy(solver->A);
     HYPRE_IJVectorDestroy(solver->x);
     HYPRE_IJVectorDestroy(solver->b);
@@ -142,11 +144,11 @@ static inline void solve(diffusion_solver_t* solver, HYPRE_IJMatrix A, HYPRE_IJV
   ASSERT(err == 0);
   ASSERT(bobj != NULL);
 
-  err = HYPRE_GMRESSetup(solver->solver, (HYPRE_Matrix)Aobj, (HYPRE_Vector)bobj, (HYPRE_Vector)xobj);
+  err = HYPRE_ParCSRHybridSetup(solver->solver, Aobj, bobj, xobj);
   ASSERT(err == 0);
-  err = HYPRE_GMRESSolve(solver->solver, (HYPRE_Matrix)Aobj, (HYPRE_Vector)bobj, (HYPRE_Vector)xobj);
+  err = HYPRE_ParCSRHybridSolve(solver->solver, Aobj, bobj, xobj);
   if (err == HYPRE_ERROR_CONV)
-    polymec_error("elliptic_solver: Solve did not converge.");
+    polymec_error("diffusion_solver: Solve did not converge.");
 
   HYPRE_ClearAllErrors();
 }
