@@ -1,5 +1,6 @@
 #include "core/diffusion_solver.h"
 #include "core/hypre_helpers.h"
+#include "core/linear_algebra.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -87,23 +88,9 @@ void* diffusion_solver_context(diffusion_solver_t* solver)
   return solver->context;
 }
 
-static inline void copy_table_to_matrix(index_space_t* is, double_table_t* table, HYPRE_IJMatrix matrix)
-{
-  // FIXME: Pre-allocate matrix entries if it hasn't been done already.
-#if 0
-  HYPRE_IJMatrixSetRowSizesFromTable(matrix, table);
-#endif
-  HYPRE_IJMatrixSetValuesFromTable(matrix, is, table);
-}
-
 static inline void copy_array_to_vector(index_space_t* is, double* array, HYPRE_IJVector vector)
 {
   HYPRE_IJVectorSetValuesFromArray(vector, is, array);
-}
-
-static inline void add_array_to_vector(index_space_t* is, double* array, HYPRE_IJVector vector)
-{
-  HYPRE_IJVectorAddToValuesFromArray(vector, is, array);
 }
 
 static inline void copy_vector_to_array(index_space_t* is, HYPRE_IJVector vector, double* array)
@@ -132,7 +119,8 @@ static inline void apply_bcs(diffusion_solver_t* solver, double_table_t* A, doub
 
 static inline void solve(diffusion_solver_t* solver, HYPRE_IJMatrix A, HYPRE_IJVector b, HYPRE_IJVector x)
 {
-HYPRE_IJMatrixPrint(solver->A, "A.txt");
+HYPRE_IJMatrixPrint(solver->A, "A");
+HYPRE_IJVectorPrint(solver->b, "b");
   HYPRE_ParCSRMatrix Aobj;
   int err = HYPRE_IJMatrixGetObject(solver->A, (void**)&Aobj);
   ASSERT(err == 0);
@@ -161,7 +149,6 @@ void diffusion_solver_euler(diffusion_solver_t* solver,
   ASSERT(t2 > t1);
   double dt = t2 - t1;
   int N = solver->index_space->high - solver->index_space->low;
-  double si[N];
 
   // Make sure the solver is initialized.
   initialize(solver);
@@ -169,9 +156,6 @@ void diffusion_solver_euler(diffusion_solver_t* solver,
   // A -> diffusion matrix at time t2.
   double_table_t* A = double_table_new();
   compute_diff_matrix(solver, A, t2);
-
-  // Compute the source at time t2.
-  compute_source_vector(solver, si, t2);
 
   // Apply boundary conditions to the system.
   double b[N];
@@ -185,26 +169,32 @@ void diffusion_solver_euler(diffusion_solver_t* solver,
   double Aij;
   while (double_table_next(A, &pos, &i, &j, &Aij))
   {
-    // Apply BCs to the operator A.
-    int ii = i - solver->index_space->low;
-    Aij -= b[ii]; 
-
     if (i == j)
       double_table_insert(A, i, j, 1.0 - dt * Aij);
     else
       double_table_insert(A, i, j, -dt * Aij);
   }
 
-  // What we've done to the LHS we must do to the RHS.
+vector_fprintf(b, N, stdout);
+printf("\n");
+  // What we've done to A we must do to b.
   for (int i = 0; i < N; ++i)
     b[i] *= -dt;
 
+  // Compute the source at time t2.
+  double si[N];
+  compute_source_vector(solver, si, t2);
+
   // b += sol1 + dt * source.
+vector_fprintf(b, N, stdout);
+printf("\n");
   for (int i = 0; i < N; ++i)
     b[i] += sol1[i] + dt * si[i];
+vector_fprintf(b, N, stdout);
+printf("\n\n");
 
   // Set up the linear system.
-  copy_table_to_matrix(solver->index_space, A, solver->A);
+  HYPRE_IJMatrixSetValuesFromTable(solver->A, solver->index_space, A);
   copy_array_to_vector(solver->index_space, b, solver->b);
 
   // Solve the linear system.
@@ -243,6 +233,9 @@ void diffusion_solver_tga(diffusion_solver_t* solver,
   for (int i = 0; i < N; ++i)
     bi[i] = 0.0;
   apply_bcs(solver, A, bi, t2);
+  // Flip the sign of b to satisfy boundary conditions in the solve.
+  for (int i = 0; i < N; ++i)
+    bi[i] *= -1.0;
 
   //-------------------------------------------
   // Construct e, the RHS for the first solve.
@@ -298,14 +291,14 @@ void diffusion_solver_tga(diffusion_solver_t* solver,
   }
   
   // Now solve the linear system M1 * v = e.
-  copy_table_to_matrix(solver->index_space, M1, solver->A);
+  HYPRE_IJMatrixSetValuesFromTable(solver->A, solver->index_space, M1);
   copy_array_to_vector(solver->index_space, e, solver->b);
   solve(solver, solver->A, solver->b, solver->x);
   double v[N];
   copy_vector_to_array(solver->index_space, solver->x, v);
 
   // Now set up the linear system M2 * sol2 = v.
-  copy_table_to_matrix(solver->index_space, M2, solver->A);
+  HYPRE_IJMatrixSetValuesFromTable(solver->A, solver->index_space, M2);
   copy_array_to_vector(solver->index_space, v, solver->b);
   solve(solver, solver->A, solver->b, solver->x);
   copy_vector_to_array(solver->index_space, solver->x, sol2);
@@ -314,7 +307,6 @@ void diffusion_solver_tga(diffusion_solver_t* solver,
   double_table_free(A);
   double_table_free(M1);
   double_table_free(M2);
-
 }
 
 #ifdef __cplusplus
