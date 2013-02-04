@@ -46,6 +46,7 @@ static void ad_compute_diffusion_matrix(void* context, double_table_t* D, double
       // Turn the indices into offsets.
       indices[j] += i;
 
+//printf("D(%d, %d) = %g\n", i, indices[j], values[j]);
       double_table_insert(D, i, indices[j], values[j]);
     }
   }

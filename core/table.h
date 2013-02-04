@@ -156,9 +156,26 @@ static inline bool table_name##_next_row(table_name##_t* table, int* pos, int* r
 static inline bool table_name##_next(table_name##_t* table, table_name##_val_pos_t* pos, int* row, int* col, table_name##_value_t* value) \
 { \
   table_name##_row_t* row_data; \
-  bool result = table_name##_map_next(table->map, &pos->row_pos, row, &row_data); \
-  if (!result) return false; \
-  return table_name##_row_next(row_data, &pos->col_pos, col, value); \
+  if (pos->row_pos == 0) \
+  { \
+    if (!table_name##_map_next(table->map, &pos->row_pos, row, &row_data)) \
+      return false; \
+  } \
+  else \
+  { \
+    int row_pos_copy = pos->row_pos; \
+    if (!table_name##_map_next(table->map, &row_pos_copy, row, &row_data)) \
+      return false; \
+  } \
+  if (table_name##_row_next(row_data, &pos->col_pos, col, value)) \
+    return true; \
+  else \
+  { \
+    pos->col_pos = 0; \
+    if (!table_name##_map_next(table->map, &pos->row_pos, row, &row_data)) \
+      return false; \
+    return (table_name##_row_next(row_data, &pos->col_pos, col, value)); \
+  } \
 } \
 \
 static inline table_name##_t* table_name##_copy(table_name##_t* table) \
