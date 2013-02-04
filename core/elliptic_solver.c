@@ -111,11 +111,6 @@ static inline void copy_vector_to_array(index_space_t* is, HYPRE_IJVector vector
   HYPRE_IJVectorGetValues(vector, N, indices, array);
 }
 
-static inline void copy_array_to_vector(index_space_t* is, double* array, HYPRE_IJVector vector)
-{
-  HYPRE_IJVectorSetValuesFromArray(vector, is, array);
-}
-
 static inline void compute_op_matrix(elliptic_solver_t* solver, double_table_t* A, double t)
 {
   solver->vtable.compute_operator_matrix(solver->context, A, t);
@@ -178,7 +173,7 @@ void elliptic_solver_solve(elliptic_solver_t* solver,
     solver->matrix_created = true;
   }
   HYPRE_IJMatrixSetValuesFromTable(solver->A, solver->index_space, A);
-  copy_array_to_vector(solver->index_space, b, solver->b);
+  HYPRE_IJVectorSetValuesFromArray(solver->b, solver->index_space, b);
 
   // Solve the linear system.
   solve(solver, solver->A, solver->b, solver->x);
