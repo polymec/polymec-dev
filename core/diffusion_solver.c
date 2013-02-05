@@ -150,21 +150,17 @@ void diffusion_solver_euler(diffusion_solver_t* solver,
   apply_bcs(solver, A, b, t2);
 
   // L <- I - dt*A.
-  double_table_val_pos_t pos = double_table_start(A);
+  double_table_cell_pos_t pos = double_table_start(A);
   int i, j;
   double Aij;
   double_table_t* L = double_table_new();
-  while (double_table_next(A, &pos, &i, &j, &Aij))
+  while (double_table_next_cell(A, &pos, &i, &j, &Aij))
   {
 //printf("A(%d, %d) = %g\n", i, j, Aij);
-//#if 0
     if (i == j)
       double_table_insert(L, i, j, 1.0 - dt * Aij);
     else
       double_table_insert(L, i, j, -dt * Aij);
-//#endif
-//if (i == j) double_table_insert(L, i, j, 1.0);
-//else double_table_insert(L, i, j, 0.0);
   }
 
   // Compute the source at time t2.
@@ -174,7 +170,6 @@ void diffusion_solver_euler(diffusion_solver_t* solver,
   // b = -dt*(bc terms) + sol1 + dt * source.
   for (int i = 0; i < N; ++i)
     b[i] = -dt * b[i] + sol1[i] + dt * si[i];
-//    b[i] = sol1[i];
 
   // Set up the linear system.
   HYPRE_IJMatrixSetValuesFromTable(solver->A, solver->index_space, L);
@@ -244,12 +239,12 @@ void diffusion_solver_tga(diffusion_solver_t* solver,
   double e[N];
   for (int i = 0; i < N; ++i)
     e[N] = 0.0;
-  double_table_val_pos_t pos = double_table_start(A);
+  double_table_cell_pos_t pos = double_table_start(A);
   int i, j;
   double Aij;
   double_table_t* M1 = double_table_new();
   double_table_t* M2 = double_table_new();
-  while (double_table_next(A, &pos, &i, &j, &Aij))
+  while (double_table_next_cell(A, &pos, &i, &j, &Aij))
   {
     // Compute local indices for the global indices i and j.
     int ii = i - solver->index_space->low;

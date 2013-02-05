@@ -27,8 +27,8 @@
 // void x_table_delete_row(x_table_t* table, int row) - Deletes the given row from the table.
 // void x_table_delete(x_table_t* table, int row, col) - Deletes the given element from the table.
 // bool x_table_next_row(x_table_t* table, int* pos, int* row, x_table_row_t** row_data) - Allows the traversal of the table rows.
-// bool x_table_next(x_table_t* table, x_table_val_pos_t* pos, int* row, int* col, x_table_value_t* value) - Allows the traversal of the table values.
-// x_table_value_pos_t x_table_start(x_table_t* table) - Returns a new value position for use with x_table_next.
+// bool x_table_next_cell(x_table_t* table, x_table_cell_pos_t* pos, int* row, int* col, x_table_value_t* value) - Allows the traversal of the table values.
+// x_table_cell_pos_t x_table_start(x_table_t* table) - Returns a new value position for use with x_table_next.
 
 #define DEFINE_TABLE(table_name, value_type) \
 typedef value_type table_name##_value_t; \
@@ -40,7 +40,7 @@ typedef struct \
   int row_pos; \
   int current_row; \
   int col_pos; \
-} table_name##_val_pos_t; \
+} table_name##_cell_pos_t; \
 \
 typedef struct \
 { \
@@ -154,16 +154,14 @@ static inline bool table_name##_next_row(table_name##_t* table, int* pos, int* r
   return table_name##_map_next(table->map, pos, row, row_data); \
 } \
 \
-static inline bool table_name##_next(table_name##_t* table, table_name##_val_pos_t* pos, int* row, int* col, table_name##_value_t* value) \
+static inline bool table_name##_next_cell(table_name##_t* table, table_name##_cell_pos_t* pos, int* row, int* col, table_name##_value_t* value) \
 { \
   table_name##_row_t* row_data; \
   if (pos->row_pos == 0) \
   { \
     if (!table_name##_map_next(table->map, &pos->row_pos, row, &row_data)) \
-    { \
-      pos->current_row = *row; \
       return false; \
-    } \
+    pos->current_row = *row; \
   } \
   else \
   { \
@@ -192,9 +190,9 @@ static inline table_name##_t* table_name##_copy(table_name##_t* table) \
   t->num_rows = table->num_rows; \
   return t; \
 } \
-static inline table_name##_val_pos_t table_name##_start(table_name##_t* table) \
+static inline table_name##_cell_pos_t table_name##_start(table_name##_t* table) \
 { \
-  table_name##_val_pos_t pos = {.row_pos = 0, .col_pos = 0}; \
+  table_name##_cell_pos_t pos = {.row_pos = 0, .col_pos = 0}; \
   return pos; \
 } \
 
