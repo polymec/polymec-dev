@@ -33,3 +33,10 @@ function(add_mpi_polymec_test exe sources procs)
     add_test(${exe}_${proc}_proc ${MPIEXEC} ${MPIEXEC_NUMPROC_FLAG} ${proc} ${MPIEXEC_PREFLAGS} ${CMAKE_CURRENT_BINARY_DIR}/${exe} ${MPIEXEC_POSTFLAGS})
   endforeach()
 endfunction(add_mpi_polymec_test)
+
+# This function adds a (serial) benchmark test run.
+function(add_polymec_benchmark_test exe benchmark)
+  add_test(${exe}_${benchmark} ${exe} benchmark ${benchmark})
+  set_tests_properties(${exe}_${benchmark} PROPERTIES FAIL_REGULAR_EXPRESSION "FAIL")
+endfunction(add_polymec_benchmark_test)
+

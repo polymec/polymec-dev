@@ -5,4 +5,12 @@ add_executable(advect advect.c diffusion_op.c advect_model.c
                advect_diffusion_solver.c)
 set_target_properties(advect PROPERTIES OUTPUT_NAME advect)
 target_link_libraries(advect ${POLYMEC_LIBS})
-#add_subdirectory(tests)
+
+# Benchmark tests.
+add_polymec_benchmark_test(advect stationary_blayer_1d)
+add_polymec_benchmark_test(advect stationary_flow_1d)
+add_polymec_benchmark_test(advect square_wave_1d)
+add_polymec_benchmark_test(advect gaussian_wave_1d)
+add_polymec_benchmark_test(advect sine_wave_1d)
+add_polymec_benchmark_test(advect square_diffusion_1d)
+add_polymec_benchmark_test(advect gaussian_diffusion_1d)
