@@ -46,7 +46,6 @@ typedef struct \
 { \
   table_name##_map_t* map; \
   int num_rows; \
-  int max_num_cols; \
 } table_name##_t; \
 \
 static inline table_name##_t* table_name##_new_with_capacity(int N) \
@@ -71,6 +70,7 @@ static inline void table_name##_clear(table_name##_t* table) \
 static inline void table_name##_free(table_name##_t* table) \
 { \
   table_name##_clear(table); \
+  table_name##_map_free(table->map); \
   free(table); \
 } \
 \

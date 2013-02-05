@@ -383,7 +383,7 @@ static void advect_advance(void* context, double t, double dt)
 
       // Compute the diffusive derivative without splitting, using the 
       // 2nd-order L-stable TGA algorithm.
-      diffusion_solver_euler(a->diff_solver, t, phi_old, t+dt, phi_new);
+      diffusion_solver_tga(a->diff_solver, t, phi_old, t+dt, phi_new);
     }
 
     // Finally, update the model's solution vector.
