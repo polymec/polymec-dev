@@ -88,15 +88,6 @@ void* diffusion_solver_context(diffusion_solver_t* solver)
   return solver->context;
 }
 
-static inline void copy_vector_to_array(index_space_t* is, HYPRE_IJVector vector, double* array)
-{
-  int N = is->high - is->low;
-  int indices[N];
-  for (int i = 0; i < N; ++i)
-    indices[i] = is->low + i;
-  HYPRE_IJVectorGetValues(vector, N, indices, array);
-}
-
 static inline void compute_diff_matrix(diffusion_solver_t* solver, double_table_t* A, double t)
 {
   solver->vtable.compute_diffusion_matrix(solver->context, A, t);
@@ -115,7 +106,7 @@ static inline void apply_bcs(diffusion_solver_t* solver, double_table_t* A, doub
 static inline void solve(diffusion_solver_t* solver, HYPRE_IJMatrix A, HYPRE_IJVector b, HYPRE_IJVector x)
 {
 //HYPRE_IJMatrixPrint(solver->A, "A");
-HYPRE_IJVectorPrint(solver->b, "b");
+//HYPRE_IJVectorPrint(solver->b, "b");
   HYPRE_ParCSRMatrix Aobj;
   int err = HYPRE_IJMatrixGetObject(solver->A, (void**)&Aobj);
   ASSERT(err == 0);
@@ -158,22 +149,23 @@ void diffusion_solver_euler(diffusion_solver_t* solver,
     b[i] = 0.0;
   apply_bcs(solver, A, b, t2);
 
-  // A -> I - dt*A.
-HYPRE_IJMatrixSetValuesFromTable(solver->A, solver->index_space, A);
-HYPRE_IJMatrixPrint(solver->A, "A");
+  // L <- I - dt*A.
   double_table_val_pos_t pos = double_table_start(A);
   int i, j;
   double Aij;
+  double_table_t* L = double_table_new();
   while (double_table_next(A, &pos, &i, &j, &Aij))
   {
 //printf("A(%d, %d) = %g\n", i, j, Aij);
+//#if 0
     if (i == j)
-      double_table_insert(A, i, j, 1.0 - dt * Aij);
+      double_table_insert(L, i, j, 1.0 - dt * Aij);
     else
-      double_table_insert(A, i, j, -dt * Aij);
+      double_table_insert(L, i, j, -dt * Aij);
+//#endif
+//if (i == j) double_table_insert(L, i, j, 1.0);
+//else double_table_insert(L, i, j, 0.0);
   }
-HYPRE_IJMatrixSetValuesFromTable(solver->A, solver->index_space, A);
-HYPRE_IJMatrixPrint(solver->A, "L");
 
   // Compute the source at time t2.
   double si[N];
@@ -182,18 +174,24 @@ HYPRE_IJMatrixPrint(solver->A, "L");
   // b = -dt*(bc terms) + sol1 + dt * source.
   for (int i = 0; i < N; ++i)
     b[i] = -dt * b[i] + sol1[i] + dt * si[i];
+//    b[i] = sol1[i];
 
   // Set up the linear system.
-  HYPRE_IJMatrixSetValuesFromTable(solver->A, solver->index_space, A);
+  HYPRE_IJMatrixSetValuesFromTable(solver->A, solver->index_space, L);
+//HYPRE_IJMatrixPrint(solver->A, "L");
   HYPRE_IJVectorSetValuesFromArray(solver->b, solver->index_space, b);
 
   // Solve the linear system.
   solve(solver, solver->A, solver->b, solver->x);
 
   // Copy the solution to sol2.
-  copy_vector_to_array(solver->index_space, solver->x, sol2);
+  HYPRE_IJVectorGetValuesToArray(solver->x, solver->index_space, sol2);
+//printf("x = ");
+//vector_fprintf(sol2, N, stdout);
+//printf("\n");
 
   // Clean up.
+  double_table_free(L);
   double_table_free(A);
 }
 
@@ -285,13 +283,13 @@ void diffusion_solver_tga(diffusion_solver_t* solver,
   HYPRE_IJVectorSetValuesFromArray(solver->b, solver->index_space, e);
   solve(solver, solver->A, solver->b, solver->x);
   double v[N];
-  copy_vector_to_array(solver->index_space, solver->x, v);
+  HYPRE_IJVectorGetValuesToArray(solver->x, solver->index_space, sol2);
 
   // Now set up the linear system M2 * sol2 = v.
   HYPRE_IJMatrixSetValuesFromTable(solver->A, solver->index_space, M2);
   HYPRE_IJVectorSetValuesFromArray(solver->b, solver->index_space, v);
   solve(solver, solver->A, solver->b, solver->x);
-  copy_vector_to_array(solver->index_space, solver->x, sol2);
+  HYPRE_IJVectorGetValuesToArray(solver->x, solver->index_space, sol2);
 
   // Clean up.
   double_table_free(A);
