@@ -38,10 +38,65 @@ void test_##table_name##_insert(void** state) \
   table_name##_free(t); \
 } \
 \
+void test_##table_name##_tridiag(void** state) \
+{ \
+  table_name##_t* t = table_name##_new(); \
+  for (int i = 0; i < 32; ++i) \
+  { \
+    table_name##_insert(t, i, i, (table_name##_value_t)i); \
+    table_name##_insert(t, i, i-1, (table_name##_value_t)(i-1)); \
+    table_name##_insert(t, i, i+1, (table_name##_value_t)(i+1)); \
+  } \
+  assert_int_equal(32, t->num_rows); \
+  { \
+    table_name##_cell_pos_t pos = table_name##_start(t); \
+    int i, j, nnz = 0; \
+    table_name##_value_t tij; \
+    while (table_name##_next_cell(t, &pos, &i, &j, &tij)) \
+    { \
+      assert_true((i == j) || (i == (j+1)) || (i == (j-1))); \
+      assert_true((table_name##_value_t)tij == j); \
+      ++nnz; \
+    } \
+    assert_int_equal(32*3, nnz); \
+  } \
+  for (int i = 0; i < 32; ++i) \
+  { \
+    table_name##_insert(t, i, i, (table_name##_value_t)i); \
+    table_name##_insert(t, i, i-1, (table_name##_value_t)(i-1)); \
+    table_name##_insert(t, i, i+1, (table_name##_value_t)(i+1)); \
+  } \
+  assert_int_equal(32, t->num_rows); \
+  { \
+    table_name##_cell_pos_t pos = table_name##_start(t); \
+    int i, j, nnz = 0; \
+    table_name##_value_t tij; \
+    while (table_name##_next_cell(t, &pos, &i, &j, &tij)) \
+    { \
+      assert_true((i == j) || (i == (j+1)) || (i == (j-1))); \
+      assert_true((table_name##_value_t)tij == j); \
+      ++nnz; \
+    } \
+    assert_int_equal(32*3, nnz); \
+  } \
+  table_name##_clear(t); \
+  assert_int_equal(0, t->num_rows); \
+  { \
+    table_name##_cell_pos_t pos = table_name##_start(t); \
+    int i, j, nnz = 0; \
+    table_name##_value_t tij; \
+    while (table_name##_next_cell(t, &pos, &i, &j, &tij)) \
+      ++nnz; \
+    assert_int_equal(0, nnz); \
+  } \
+  table_name##_free(t); \
+} \
+\
 void test_##element##_table(void** state) \
 { \
   test_##table_name##_ctor(state); \
   test_##table_name##_insert(state); \
+  test_##table_name##_tridiag(state); \
 }
 
 DEFINE_TABLE_TEST(int_table, int)
