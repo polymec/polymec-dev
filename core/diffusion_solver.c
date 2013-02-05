@@ -212,21 +212,14 @@ void diffusion_solver_tga(diffusion_solver_t* solver,
   compute_diff_matrix(solver, A, t2);
 
   // Apply boundary conditions to the system.
-  double bi[N];
+  double b[N];
   for (int i = 0; i < N; ++i)
-    bi[i] = 0.0;
-  apply_bcs(solver, A, bi, t2);
-  // Flip the sign of b to satisfy boundary conditions in the solve.
-  for (int i = 0; i < N; ++i)
-    bi[i] *= -1.0;
+    b[i] = 0.0;
+  apply_bcs(solver, A, b, t2);
 
   //-------------------------------------------
   // Construct e, the RHS for the first solve.
   //-------------------------------------------
-
-  // b -> (1.0 - a) * dt * b.
-  for (int i = 0; i < N; ++i)
-    bi[i] *= (1.0 - a) * dt;
 
   // Compute the source at t1 and t2.
   double s1[N], s2[N];
@@ -234,11 +227,11 @@ void diffusion_solver_tga(diffusion_solver_t* solver,
   compute_source_vector(solver, s2, t2);
 
   // e = [I + (1 - a) * dt * A] * sol1 + 
-  //     0.5 * dt * [s1 + [I - (2*a - 1.0) * dt * A] * s2].
+  //     0.5 * dt * [s1 + [I - 2*(a - 0.5) * dt * A] * s2].
   // Also, M1 = I - r2 * dt * A and M2 = I - r1 * dt * A.
   double e[N];
   for (int i = 0; i < N; ++i)
-    e[N] = 0.0;
+    e[i] = 0.0;
   double_table_cell_pos_t pos = double_table_start(A);
   int i, j;
   double Aij;
@@ -250,15 +243,9 @@ void diffusion_solver_tga(diffusion_solver_t* solver,
     int ii = i - solver->index_space->low;
     int jj = j - solver->index_space->low;
 
-    Aij -= bi[ii]; // Apply BCs to the operator A.
-
     // Add the off-diagonal terms for e.
-    e[ii] += (1.0 - a) * dt * Aij * sol1[jj] + 
-             (0.5 * dt * (s1[ii] - (2.0*a - 1.0) * dt * Aij * s2[jj]));
-
-    // Add the identity terms.
-    if (i == j)
-      e[ii] += sol1[jj] + 0.5 * dt * s2[jj];
+    e[ii] += (1.0 - a) * dt * Aij * sol1[jj] -
+             (a - 0.5) * dt * dt * Aij * s2[jj];
 
     // Set up M1 and M2.
     if (i == j)
@@ -272,13 +259,30 @@ void diffusion_solver_tga(diffusion_solver_t* solver,
       double_table_insert(M2, i, j, -r1 * dt * Aij);
     }
   }
+
+  // Add the purely diagonal terms to e.
+  for (int i = 0; i < N; ++i)
+  {
+    e[i] += sol1[i] + 0.5 * dt * (s1[i] + s2[i]);
+
+    // Add boundary terms by subtracting the corresponding component of b.
+    double bi = b[i];
+    e[i] += -(1.0 - a) * dt * bi +  
+             (a - 0.5) * dt * dt * bi + 
+             -r2 * dt * bi; 
+  }
   
   // Now solve the linear system M1 * v = e.
   HYPRE_IJMatrixSetValuesFromTable(solver->A, solver->index_space, M1);
   HYPRE_IJVectorSetValuesFromArray(solver->b, solver->index_space, e);
   solve(solver, solver->A, solver->b, solver->x);
   double v[N];
-  HYPRE_IJVectorGetValuesToArray(solver->x, solver->index_space, sol2);
+  HYPRE_IJVectorGetValuesToArray(solver->x, solver->index_space, v);
+
+  // Add the boundary terms to v.
+  pos = double_table_start(A);
+  for (int i = 0; i < N; ++i)
+    v[i] -= r1 * dt * b[i];
 
   // Now set up the linear system M2 * sol2 = v.
   HYPRE_IJMatrixSetValuesFromTable(solver->A, solver->index_space, M2);
