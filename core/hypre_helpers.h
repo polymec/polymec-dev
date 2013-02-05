@@ -39,6 +39,9 @@ void HYPRE_IJVectorSetValuesFromArray(HYPRE_IJVector vector, index_space_t* inde
 // Adds the values from the given table into the given IJ vector.
 void HYPRE_IJVectorAddToValuesFromArray(HYPRE_IJVector vector, index_space_t* index_space, double* array);
 
+// Gets values from the given vector, placing them into the given array.
+void HYPRE_IJVectorGetValuesToArray(HYPRE_IJVector vector, index_space_t* index_space, double* array);
+
 #ifdef __cplusplus
 }
 #endif

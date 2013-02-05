@@ -38,6 +38,7 @@ DEFINE_UNORDERED_MAP(table_name##_map, int, table_name##_row_t*, int_hash, int_e
 typedef struct \
 { \
   int row_pos; \
+  int current_row; \
   int col_pos; \
 } table_name##_val_pos_t; \
 \
@@ -159,22 +160,28 @@ static inline bool table_name##_next(table_name##_t* table, table_name##_val_pos
   if (pos->row_pos == 0) \
   { \
     if (!table_name##_map_next(table->map, &pos->row_pos, row, &row_data)) \
+    { \
+      pos->current_row = *row; \
       return false; \
+    } \
   } \
   else \
   { \
-    int row_pos_copy = pos->row_pos; \
-    if (!table_name##_map_next(table->map, &row_pos_copy, row, &row_data)) \
-      return false; \
+    table_name##_row_t** r = table_name##_get_row(table, pos->current_row); \
+    if (r == NULL) return false; \
+    row_data = *r; \
   } \
   if (table_name##_row_next(row_data, &pos->col_pos, col, value)) \
     return true; \
   else \
   { \
-    pos->col_pos = 0; \
     if (!table_name##_map_next(table->map, &pos->row_pos, row, &row_data)) \
       return false; \
-    return (table_name##_row_next(row_data, &pos->col_pos, col, value)); \
+    pos->current_row = *row; \
+    pos->col_pos = 0; \
+    bool result = table_name##_row_next(row_data, &pos->col_pos, col, value); \
+    ASSERT(result == true); \
+    return result; \
   } \
 } \
 \

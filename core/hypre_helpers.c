@@ -14,6 +14,11 @@ HYPRE_IJMatrix HYPRE_IJMatrixNew(index_space_t* index_space)
   ASSERT(err == 0);
   err = HYPRE_IJMatrixSetObjectType(A, HYPRE_PARCSR);
   ASSERT(err == 0);
+
+#ifndef NDEBUG
+  // Print diagnostic information.
+  HYPRE_IJMatrixSetPrintLevel(A, 1);
+#endif
   return A;
 }
 
@@ -46,7 +51,8 @@ static void HYPRE_IJMatrixModifyValuesFromTable(HYPRE_IJMatrix matrix, index_spa
       values[offset] = Aij;
       offset++;
     }
-    modify_values(matrix, 1, &num_cols, &i, indices, values);
+    err = modify_values(matrix, 1, &num_cols, &i, indices, values);
+    ASSERT(err == 0);
   }
   err = HYPRE_IJMatrixAssemble(matrix);
   ASSERT(err == 0);
@@ -110,6 +116,15 @@ void HYPRE_IJVectorSetValuesFromArray(HYPRE_IJVector vector, index_space_t* inde
 void HYPRE_IJVectorAddToValuesFromArray(HYPRE_IJVector vector, index_space_t* index_space, double* array)
 {
   HYPRE_IJVectorModifyValuesFromArray(vector, index_space, array, HYPRE_IJVectorAddToValues);
+}
+
+void HYPRE_IJVectorGetValuesToArray(HYPRE_IJVector vector, index_space_t* index_space, double* array)
+{
+  int N = index_space->high - index_space->low;
+  int indices[N];
+  for (int i = 0; i < N; ++i)
+    indices[i] = index_space->low + i;
+  HYPRE_IJVectorGetValues(vector, N, indices, array);
 }
 
 #ifdef __cplusplus
