@@ -24,7 +24,6 @@ static void cyl_eval(void* ctx, point_t* x, double* result)
 static void cyl_eval_gradient(void* ctx, point_t* x, double* result)
 {
   cyl_t* c = ctx;
-  double sign = (c->orient == OUTWARD_NORMAL) ? -1.0 : 1.0;
   double r2 = (x->x - c->x.x)*(x->x - c->x.x) + 
               (x->y - c->x.y)*(x->y - c->x.y);
   double D = fabs(sqrt(r2) - c->r);

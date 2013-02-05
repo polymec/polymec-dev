@@ -30,8 +30,7 @@ void HYPRE_IJMatrixSetRowSizesFromTable(HYPRE_IJMatrix matrix, index_space_t* in
   double_table_row_t* row_data;
   while (double_table_next_row(table, &rpos, &i, &row_data))
     nnz[i] = row_data->size;
-  int err = HYPRE_IJMatrixSetRowSizes(matrix, nnz);
-  ASSERT(err == 0);
+  HYPRE_IJMatrixSetRowSizes(matrix, nnz);
 }
 
 static void HYPRE_IJMatrixModifyValuesFromTable(HYPRE_IJMatrix matrix, index_space_t* index_space, double_table_t* table, int (*modify_values)(HYPRE_IJMatrix, int, int*, const int*, const int*, const double*))
