@@ -4,8 +4,8 @@ link_directories(${PROJECT_BINARY_DIR}/lib)
 # This function adds a (serial) unit test executable to be built using cmockery.
 function(add_polymec_test exe sources)
   include_directories(${PROJECT_SOURCE_DIR}/3rdparty/cmockery)
-  if (ARGC EQUAL 4)
-    set(libs ${ARG4})
+  if (${ARGC} EQUAL 3)
+    set(libs ${ARGV2})
   endif()
   add_executable(${exe} ${sources} ${PROJECT_SOURCE_DIR}/3rdparty/cmockery/cmockery.c)
   # cmockery has some irritating compile warnings that we disable.
@@ -20,8 +20,8 @@ endfunction(add_polymec_test)
 # The procs argument is a list of numbers of processes to be run.
 # 1 test run will be generated for each processor number value.
 function(add_mpi_polymec_test exe sources procs)
-  if (ARGC EQUAL 5)
-    set(libs ${ARG5})
+  if (${ARGC} EQUAL 4)
+    set(libs ${ARGV3})
   endif()
   add_executable(${exe} ${sources} cmockery.c)
   # cmockery has some irritating compile warnings that we disable.
@@ -36,7 +36,12 @@ endfunction(add_mpi_polymec_test)
 
 # This function adds a (serial) benchmark test run.
 function(add_polymec_benchmark_test exe benchmark)
-  add_test(${exe}_${benchmark} ${exe} benchmark ${benchmark})
+  if (${ARGC} EQUAL 3)
+    set(conv_rate ${ARGV2})
+    add_test(${exe}_${benchmark} ${exe} benchmark ${benchmark} expected_conv_rate=${conv_rate})
+  else()
+    add_test(${exe}_${benchmark} ${exe} benchmark ${benchmark})
+  endif()
   set_tests_properties(${exe}_${benchmark} PROPERTIES FAIL_REGULAR_EXPRESSION "FAIL")
 endfunction(add_polymec_benchmark_test)
 

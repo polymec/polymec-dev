@@ -8,6 +8,10 @@
 extern "C" {
 #endif
 
+// Computes the coefficients A and b for a linear regression y = A*x + B 
+// given arrays of x and y values. Also computes the variance sigma.
+void linear_regression(double* x, double* y, int N, double* A, double* B, double* sigma);
+
 // This multi-index represents a pth-order multinomial term of the given 
 // orders in x, y, and z.
 typedef struct multi_index_t multi_index_t;

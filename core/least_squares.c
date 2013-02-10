@@ -600,6 +600,29 @@ void poly_ls_shape_set_simple_weighting_func(poly_ls_shape_t* N, int A, double B
   N->w_dtor = &free;
 }
 
+void linear_regression(double* x, double* y, int N, double* A, double* B, double* sigma)
+{
+  ASSERT(N > 2);
+  double sumXY = 0.0, sumX = 0.0, sumY = 0.0, sumX2 = 0.0, sumY2 = 0.0;
+  for (int i = 0; i < N; ++i)
+  {
+    sumX += x[i];
+    sumX2 += x[i]*x[i];
+    sumY += y[i];
+    sumY2 += y[i]*y[i];
+    sumXY += x[i]*y[i];
+  }
+  *A = (N * sumXY - sumX*sumY) / (N * sumX2 - sumX*sumX);
+  *B = (sumY - *A * sumX) / N;
+  double SSE = 0.0;
+  for (int i = 0; i < N; ++i)
+  {
+    double e = (*A) * x[i] + (*B) - y[i];
+    SSE += e*e;
+  }
+  *sigma = SSE / (N - 2);
+}
+
 #ifdef __cplusplus
 }
 #endif
