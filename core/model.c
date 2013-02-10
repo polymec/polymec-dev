@@ -180,6 +180,22 @@ void model_run_benchmark(model_t* model, const char* benchmark, options_t* optio
     options_set(options, "sim_name", benchmark);
     (*(*metadata)->function)(options);
     log_info("%s: Finished running benchmark '%s'.", model->name, benchmark);
+
+    char* conv_rate = options_value(options, "conv_rate");
+    char* sigma = options_value(options, "conv_rate_sigma");
+    char* exp_conv_rate = options_value(options, "expected_conv_rate");
+    if ((exp_conv_rate != NULL) && (conv_rate != NULL))
+    {
+      double expected_rate = atof(exp_conv_rate);
+      double actual_rate = atof(conv_rate);
+      double actual_rate_sigma = atof(sigma);
+      log_urgent("%s: Expected convergence rate: %g", model->name, expected_rate);
+      log_urgent("%s: Measured convergence rate: %g +/- %g", model->name, actual_rate, actual_rate_sigma);
+      if (actual_rate >= expected_rate)
+        log_urgent("%s: Benchmark '%s' convergence test PASSED\n", model->name, benchmark);
+      else
+        log_urgent("%s: Benchmark '%s' convergence test FAILED\n", model->name, benchmark);
+    }
   }
   else
   {
@@ -552,6 +568,16 @@ int model_main(const char* model_name, model_ctor constructor, int argc, char* a
   model_free(model);
 
   return 0;
+}
+
+void model_report_conv_rate(options_t* options, double conv_rate, double sigma)
+{
+  ASSERT(options != NULL);
+  char crstr[1024], sigmastr[1024];
+  snprintf(crstr, 1024, "%g", conv_rate);
+  snprintf(sigmastr, 1024, "%g", sigma);
+  options_set(options, "conv_rate", crstr);
+  options_set(options, "conv_rate_sigma", sigmastr);
 }
 
 #ifdef __cplusplus
