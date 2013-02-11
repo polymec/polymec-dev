@@ -1,5 +1,5 @@
-#ifndef POLYMEC_FACETED_SURFACE_H
-#define POLYMEC_FACETED_SURFACE_H
+#ifndef POLYMEC_SURFACE_MESH_H
+#define POLYMEC_SURFACE_MESH_H
 
 #include "core/mesh.h"
 
@@ -28,18 +28,18 @@ typedef struct
   ARENA* arena;
   bool close_arena;
   mesh_storage_t* storage;
-} faceted_surface_t;
+} surface_mesh_t;
 
 // Construct a new surface with the given number of faces, edges, and nodes. 
 // This function does not provide any description of the mesh's topology and 
 // is only useful in the construction of mesh generation algorithms.
-faceted_surface_t* faceted_surface_new(int num_faces, int num_edges, int num_nodes);
+surface_mesh_t* surface_mesh_new(int num_faces, int num_edges, int num_nodes);
 
 // Construct a new surface, using the given arena for memory allocations.
-faceted_surface_t* faceted_surface_new_with_arena(ARENA* arena, int num_faces, int num_edges, int num_nodes);
+surface_mesh_t* surface_mesh_new_with_arena(ARENA* arena, int num_faces, int num_edges, int num_nodes);
 
 // Destroys the given surface.
-void faceted_surface_free(faceted_surface_t* surface);
+void surface_mesh_free(surface_mesh_t* surface);
 
 #ifdef __cplusplus
 }

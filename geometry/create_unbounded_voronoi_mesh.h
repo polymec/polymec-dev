@@ -2,7 +2,6 @@
 #define POLYMEC_CREATE_UNBOUNDED_VORONOI_MESH_H
 
 #include "core/mesh.h"
-#include "core/faceted_surface.h"
 #include "core/point.h"
 #include "core/sp_func.h"
 
