@@ -190,11 +190,30 @@ void model_run_benchmark(model_t* model, const char* benchmark, options_t* optio
       double actual_rate = atof(conv_rate);
       double actual_rate_sigma = atof(sigma);
       log_urgent("%s: Expected convergence rate: %g", model->name, expected_rate);
-      log_urgent("%s: Measured convergence rate: %g +/- %g", model->name, actual_rate, actual_rate_sigma);
+      if (actual_rate_sigma != 0.0)
+        log_urgent("%s: Measured convergence rate: %g +/- %g", model->name, actual_rate, actual_rate_sigma);
+      else
+        log_urgent("%s: Measured convergence rate: %g", model->name, actual_rate);
       if (actual_rate >= expected_rate)
         log_urgent("%s: Benchmark '%s' convergence test PASSED\n", model->name, benchmark);
       else
         log_urgent("%s: Benchmark '%s' convergence test FAILED\n", model->name, benchmark);
+    }
+    else
+    {
+      char* exp_err_norm = options_value(options, "expected_error_norm");
+      char* err_norm = options_value(options, "error_norm");
+      if ((exp_err_norm != NULL) && (err_norm != NULL))
+      {
+        double expected_norm = atof(exp_err_norm);
+        double actual_norm = atof(err_norm);
+        log_urgent("%s: Expected error norm: %g", model->name, expected_norm);
+        log_urgent("%s: Measured error norm: %g", model->name, actual_norm);
+        if (actual_norm <= expected_norm)
+          log_urgent("%s: Benchmark '%s' error norm test PASSED\n", model->name, benchmark);
+        else
+          log_urgent("%s: Benchmark '%s' error norm test FAILED\n", model->name, benchmark);
+      }
     }
   }
   else
@@ -578,6 +597,14 @@ void model_report_conv_rate(options_t* options, double conv_rate, double sigma)
   snprintf(sigmastr, 1024, "%g", sigma);
   options_set(options, "conv_rate", crstr);
   options_set(options, "conv_rate_sigma", sigmastr);
+}
+
+void model_report_error_norm(options_t* options, double error_norm)
+{
+  ASSERT(options != NULL);
+  char nstr[1024];
+  snprintf(nstr, 1024, "%g", error_norm);
+  options_set(options, "error_norm", nstr);
 }
 
 #ifdef __cplusplus

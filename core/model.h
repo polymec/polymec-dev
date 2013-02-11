@@ -161,9 +161,13 @@ void model_set_plotter(model_t* model, io_interface_t* plotter);
 // argv        - The command line arguments.
 int model_main(const char* model_name, model_ctor constructor, int argc, char* argv[]);
 
-// Use this to report a convergence rate from with a benchmark. This can be 
+// Use this to report a convergence rate from within a benchmark. This can be 
 // used to determine whether the given benchmark "passed."
 void model_report_conv_rate(options_t* options, double conv_rate, double sigma);
+
+// Use this to report an error norm from within a benchmark. This can be 
+// used to determine whether the given benchmark "passed."
+void model_report_error_norm(options_t* options, double error_norm);
 
 #ifdef __cplusplus
 }
