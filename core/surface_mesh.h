@@ -7,11 +7,11 @@
 extern "C" {
 #endif
 
-// This data type represents a surface mesh consisting of polygonal faces 
+// This data type represents a surface mesh consisting of triangular faces 
 // connected with edges and nodes in three-dimensional space.
 typedef struct 
 {
-  // Polygonal Faces, indexed from 0 to F-1.
+  // Triangular Faces, indexed from 0 to F-1.
   face_t* faces;
   // Total number of faces in the surface.
   int num_faces;
@@ -37,9 +37,6 @@ surface_mesh_t* surface_mesh_new(int num_faces, int num_edges, int num_nodes);
 
 // Construct a new surface, using the given arena for memory allocations.
 surface_mesh_t* surface_mesh_new_with_arena(ARENA* arena, int num_faces, int num_edges, int num_nodes);
-
-// Given an arbitrary surface mesh, create another whose faces are triangular.
-surface_mesh_t* triangular_surface_mesh_new(surface_mesh_t* poly_surface_mesh);
 
 // Destroys the given surface.
 void surface_mesh_free(surface_mesh_t* surface);
