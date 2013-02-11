@@ -1,4 +1,4 @@
-#include "core/faceted_surface.h"
+#include "core/surface_mesh.h"
 #include "core/mesh_storage.h"
 
 #ifdef __cplusplus
@@ -13,21 +13,21 @@ static int round_to_pow2(int x)
   return y;
 }
 
-faceted_surface_t* faceted_surface_new(int num_faces, int num_edges, int num_nodes)
+surface_mesh_t* surface_mesh_new(int num_faces, int num_edges, int num_nodes)
 {
   ARENA* a = arena_open(&arena_defaults, 0);
-  faceted_surface_t* s = faceted_surface_new_with_arena(a, num_faces, num_edges, num_nodes);
+  surface_mesh_t* s = surface_mesh_new_with_arena(a, num_faces, num_edges, num_nodes);
   s->close_arena = true;
   return s;
 }
 
-faceted_surface_t* faceted_surface_new_with_arena(ARENA* arena, int num_faces, int num_edges, int num_nodes)
+surface_mesh_t* surface_mesh_new_with_arena(ARENA* arena, int num_faces, int num_edges, int num_nodes)
 {
   ASSERT(num_faces > 0);
   ASSERT(num_edges > 0);
   ASSERT(num_nodes > 0);
 
-  faceted_surface_t* s = ARENA_MALLOC(arena, sizeof(faceted_surface_t), 0);
+  surface_mesh_t* s = ARENA_MALLOC(arena, sizeof(surface_mesh_t), 0);
   s->arena = arena;
   s->close_arena = false;
 
@@ -54,7 +54,7 @@ faceted_surface_t* faceted_surface_new_with_arena(ARENA* arena, int num_faces, i
   return s;
 }
 
-void faceted_surface_free(faceted_surface_t* surface)
+void surface_mesh_free(surface_mesh_t* surface)
 {
   ASSERT(surface != NULL);
 
