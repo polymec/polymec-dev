@@ -36,12 +36,7 @@ endfunction(add_mpi_polymec_test)
 
 # This function adds a (serial) benchmark test run.
 function(add_polymec_benchmark_test exe benchmark)
-  if (${ARGC} EQUAL 3)
-    set(conv_rate ${ARGV2})
-    add_test(${exe}_${benchmark} ${exe} benchmark ${benchmark} expected_conv_rate=${conv_rate})
-  else()
-    add_test(${exe}_${benchmark} ${exe} benchmark ${benchmark})
-  endif()
+  add_test(${exe}_${benchmark} ${exe} benchmark ${benchmark} ${ARGN})
   set_tests_properties(${exe}_${benchmark} PROPERTIES FAIL_REGULAR_EXPRESSION "FAIL")
 endfunction(add_polymec_benchmark_test)
 
