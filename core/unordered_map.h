@@ -240,6 +240,7 @@ static inline key_type map_name##_change_key(map_name##_t* map, key_type old_key
   value_type value; \
   map_name##_kv_dtor kv_dtor; \
   map_name##_v_dtor v_dtor; \
+  bool found = false; \
   while ((current = *p) != NULL) \
   { \
     if (map_name##_keys_equal(map, current->key, current->hash, old_key, h)) \
@@ -251,10 +252,12 @@ static inline key_type map_name##_change_key(map_name##_t* map, key_type old_key
       v_dtor = current->v_dtor; \
       free(current); \
       map->size--; \
+      found = true; \
     }\
     p = &current->next; \
   } \
-  map_name##_insert_with_dtors(map, new_key, value, kv_dtor, v_dtor); \
+  if (found) \
+    map_name##_insert_with_dtors(map, new_key, value, kv_dtor, v_dtor); \
   return key; \
 } \
 \
