@@ -54,6 +54,12 @@ surface_mesh_t* surface_mesh_new_with_arena(ARENA* arena, int num_faces, int num
   return s;
 }
 
+surface_mesh_t* triangular_surface_mesh_new(surface_mesh_t* poly_surface_mesh)
+{
+  ASSERT(false); // Not yet implemented!
+  return NULL;
+}
+
 void surface_mesh_free(surface_mesh_t* surface)
 {
   ASSERT(surface != NULL);
