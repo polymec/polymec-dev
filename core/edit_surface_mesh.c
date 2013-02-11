@@ -5,6 +5,14 @@
 extern "C" {
 #endif
 
+// This function rounds the given number up to the nearest power of 2.
+static int round_to_pow2(int x)
+{
+  int y = 2;
+  while (y < x) y *= 2;
+  return y;
+}
+
 int surface_mesh_add_node(surface_mesh_t* surface)
 {
   if (surface->num_nodes+1 > surface->storage->node_capacity)
@@ -74,6 +82,43 @@ void surface_mesh_delete_face(surface_mesh_t* surface, int i)
     face_t tmp = surface->faces[last];
     surface->faces[last] = surface->faces[i];
     surface->faces[i] = tmp;
+  }
+}
+
+void surface_mesh_add_edge_to_face(surface_mesh_t* surface, edge_t* edge, face_t* face)
+{
+  if (face->edges == NULL)
+  {
+    face->num_edges = 1;
+    face->edges = ARENA_MALLOC(surface->arena, sizeof(edge_t*)*4, 0);
+    face->edges[0] = edge;
+  }
+  else
+  {
+#ifndef NDEBUG
+    // Make sure this edge isn't already attached.
+    for (int e = 0; e < face->num_edges; ++e)
+    {
+      ASSERT(edge != face->edges[e]);
+    }
+#endif
+    face->num_edges++;
+    int ne = MAX(round_to_pow2(face->num_edges), 4);
+    face->edges = ARENA_REALLOC(surface->arena, face->edges, sizeof(edge_t*)*ne, 0);
+    face->edges[face->num_edges-1] = edge;
+  }
+}
+
+void surface_mesh_remove_edge_from_face(surface_mesh_t* surface, edge_t* edge, face_t* face)
+{
+  for (int e = 0; e < face->num_edges; ++e)
+  {
+    if (face->edges[e] == edge)
+    {
+      face->num_edges--;
+      face->edges[e] = face->edges[face->num_edges];
+      break;
+    }
   }
 }
 

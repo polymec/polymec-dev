@@ -30,13 +30,20 @@ typedef struct
   mesh_storage_t* storage;
 } surface_mesh_t;
 
-// Construct a new surface with the given number of faces, edges, and nodes. 
+// Constructs a new surface with the given number of faces, edges, and nodes. 
 // This function does not provide any description of the mesh's topology and 
 // is only useful in the construction of mesh generation algorithms.
 surface_mesh_t* surface_mesh_new(int num_faces, int num_edges, int num_nodes);
 
-// Construct a new surface, using the given arena for memory allocations.
+// Constructs a new surface, using the given arena for memory allocations.
 surface_mesh_t* surface_mesh_new_with_arena(ARENA* arena, int num_faces, int num_edges, int num_nodes);
+
+// Constructs a new surface that represents the given bounding box.
+surface_mesh_t* surface_mesh_from_bbox(bbox_t* bbox);
+
+// Constructs a new surface that represents the given bounding box, using the 
+// given arena.
+surface_mesh_t* surface_mesh_from_bbox_with_arena(ARENA* arena, bbox_t* bbox);
 
 // Destroys the given surface.
 void surface_mesh_free(surface_mesh_t* surface);
