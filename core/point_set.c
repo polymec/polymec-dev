@@ -228,6 +228,40 @@ int point_set_nearest(point_set_t* pset, point_t* point)
   return node->index;
 }
 
+point_set_pos_t point_set_start(point_set_t* pset)
+{
+  point_set_pos_t pos = {.node = pset->root };
+  return pos; 
+}
+
+bool point_set_next(point_set_t* pset, point_set_pos_t* pos, int* index, double* coords)
+{
+  ASSERT(pos != NULL);
+  ASSERT(index != NULL);
+  ASSERT(coords != NULL);
+
+  point_set_node_t* node = pos->node;
+  if (node == NULL)
+    return false;
+
+  if (node->left != NULL)
+  {
+    pos->node = node->left;
+    return point_set_next(pset, pos, index, coords);
+  }
+  *index = node->index;
+  coords[0] = node->pos[0];
+  coords[1] = node->pos[1];
+  coords[2] = node->pos[2];
+  if (node->right != NULL)
+  {
+    pos->node = node->right;
+    return point_set_next(pset, pos, index, coords);
+  }
+  return true;
+}
+
+
 #ifdef __cplusplus
 }
 #endif

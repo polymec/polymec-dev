@@ -32,6 +32,18 @@ void point_set_clear(point_set_t* pset);
 // the given point, or -1 if the point set is empty.
 int point_set_nearest(point_set_t* pset, point_t* point);
 
+// This type allows iteration over point sets.
+typedef struct 
+{ 
+  void* node; 
+} point_set_pos_t; 
+
+// Returns a new position/iterator type for iterating over a point set.
+point_set_pos_t point_set_start(point_set_t* pset);
+
+// Traverses a point set.
+bool point_set_next(point_set_t* pset, point_set_pos_t* pos, int* index, double* coords);
+
 #ifdef __cplusplus
 }
 #endif
