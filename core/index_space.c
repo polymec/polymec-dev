@@ -30,6 +30,49 @@ index_space_t* index_space_new(MPI_Comm comm, int num_local_indices)
   return space;
 }
 
+index_space_t* index_space_from_naive_partitions(MPI_Comm comm, int N)
+{
+#if USE_MPI
+  int rank, nproc;
+  MPI_Comm_size(comm, &nproc);
+  MPI_Comm_rank(comm, &rank);
+  int ipp = N / nproc;
+  int low = rank * ipp;
+  int high = low + ipp; 
+  if (rank == (nproc - 1))
+    high = N;
+#else
+  int nproc = 1, rank = 0, low = 0, high = N;
+#endif
+
+  index_space_t* space = GC_MALLOC(sizeof(index_space_t));
+  space->comm = comm;
+  space->rank = rank;
+  space->nproc = nproc;
+  space->low = low;
+  space->high = high;
+  return space;
+}
+
+index_space_t* index_space_from_low_and_high(MPI_Comm comm, int low, int high)
+{
+#if USE_MPI
+  int rank, nproc;
+  MPI_Comm_size(comm, &nproc);
+  MPI_Comm_rank(comm, &rank);
+#else
+  int nproc = 1, rank = 0;
+#endif
+
+  index_space_t* space = GC_MALLOC(sizeof(index_space_t));
+  space->comm = comm;
+  space->rank = rank;
+  space->nproc = nproc;
+  space->low = low;
+  space->high = high;
+  return space;
+}
+
 #ifdef __cplusplus
 }
 #endif

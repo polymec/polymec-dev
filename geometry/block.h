@@ -36,6 +36,12 @@ int* block_point_indices(block_t* block);
 // for the block defined by its points.
 void block_map(block_t* block, point_t* xi, point_t* x);
 
+// Adds a tag to the block's given face.
+void block_add_tag(block_t* block, int face_index, const char* tag);
+
+// Traverses the set of tags attached to the given face of the block.
+bool block_next_tag(block_t* block, int face_index, int* pos, char** tag);
+
 // A block assembly is a collection of blocks, coupled with a set of points 
 // that define their positions in space and their topology. This is akin to 
 // a hexahedral block of finite elements in the sense that a block is akin to 
