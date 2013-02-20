@@ -25,6 +25,7 @@
 DEFINE_UNORDERED_MAP(set_name##_unordered_map, element, bool, hash_func, equals_func) \
 typedef element set_name##_element_t; \
 typedef int (*set_name##_hash_func)(element); \
+typedef set_name##_unordered_map_k_dtor set_name##_dtor; \
 typedef struct \
 { \
   set_name##_unordered_map_t* map; \
@@ -56,9 +57,15 @@ static inline bool set_name##_contains(set_name##_t* set, set_name##_element_t d
   return set_name##_unordered_map_contains(set->map, datum); \
 } \
 \
+static inline void set_name##_insert_with_dtor(set_name##_t* set, set_name##_element_t datum, set_name##_dtor dtor) \
+{ \
+  set_name##_unordered_map_insert_with_k_dtor(set->map, datum, true, dtor); \
+  set->size = set->map->size; \
+} \
+\
 static inline void set_name##_insert(set_name##_t* set, set_name##_element_t datum) \
 { \
-  set_name##_unordered_map_insert(set->map, datum, true); \
+  set_name##_insert_with_dtor(set, datum, NULL); \
   set->size = set->map->size; \
 } \
 \

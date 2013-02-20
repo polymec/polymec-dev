@@ -1,4 +1,5 @@
 #include "geometry/block.h"
+#include "core/unordered_set.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -8,6 +9,7 @@ struct block_t
 {
   int order, num_points;
   int* point_indices;
+  str_unordered_set_t* tags[6];
 };
 
 static block_t* block_new(int order)
@@ -18,11 +20,15 @@ static block_t* block_new(int order)
   block->order = order;
   block->num_points = pow(order+1, 3);
   block->point_indices = malloc(sizeof(int)*block->num_points);
+  for (int f = 0; f < 6; ++f)
+    block->tags[f] = str_unordered_set_new();
   return block;
 }
 
 static void block_free(block_t* block)
 {
+  for (int f = 0; f < 6; ++f)
+    str_unordered_set_free(block->tags[f]);
   free(block->point_indices);
   free(block);
 }
@@ -44,6 +50,20 @@ int* block_point_indices(block_t* block)
 
 void block_map(block_t* block, point_t* xi, point_t* x)
 {
+}
+
+void block_add_tag(block_t* block, int face_index, const char* tag)
+{
+  ASSERT(face_index >= 0);
+  ASSERT(face_index < 6);
+  str_unordered_set_insert_with_dtor(block->tags[face_index], strdup(tag), free);
+}
+
+bool block_next_tag(block_t* block, int face_index, int* pos, char** tag)
+{
+  ASSERT(face_index >= 0);
+  ASSERT(face_index < 6);
+  return str_unordered_set_next(block->tags[face_index], pos, tag);
 }
 
 struct block_assembly_t 

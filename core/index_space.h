@@ -22,6 +22,14 @@ typedef struct
 // involves collective communication.
 index_space_t* index_space_new(MPI_Comm comm, int num_local_indices);
 
+// Creates an index space by naively partitioning the range [0, N] into 
+// equal pieces, with the exception of the last process, which contains a 
+// remainder.
+index_space_t* index_space_from_naive_partitions(MPI_Comm comm, int N);
+
+// Creates an index space from the given local data range.
+index_space_t* index_space_new_from_low_and_high(MPI_Comm comm, int low, int high);
+
 #ifdef __cplusplus
 }
 #endif
