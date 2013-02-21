@@ -62,6 +62,14 @@ void test_L2(void** state)
     double val = lagrange_poly_value(L2, xs[i], values);
     double L2_val = 6.0*xs[i]*xs[i] - 11.0*xs[i] + 6.0;
     assert_true(fabs(val - L2_val) < 1e-14);
+
+    double deriv = lagrange_poly_deriv(L2, 1, xs[i], values);
+    double L2_deriv = 12.0*xs[i] - 11.0;
+    assert_true(fabs(deriv - L2_deriv) < 1e-14);
+
+    double deriv2 = lagrange_poly_deriv(L2, 2, xs[i], values);
+    double L2_deriv2 = 12.0;
+    assert_true(fabs(deriv2 - L2_deriv2) < 1e-14);
   }
 }
 
@@ -76,12 +84,20 @@ void test_L4(void** state)
 
   // Non-interpolated values match the interpolation polynomial
   // L4(x) = 4.834848*x^3 - 1.477474x
-  double xs[5] = {1.5, 2.5, 3.5, 4.5, 5.5};
-  for (int i = 0; i < 5; ++i)
+  double xs[6] = {-1.5, -0.5, -0.25, 0.13, 0.46, 1.2};
+  for (int i = 0; i < 6; ++i)
   {
     double val = lagrange_poly_value(L4, xs[i], values);
     double L4_val = 4.834848*xs[i]*xs[i]*xs[i] - 1.477474*xs[i];
     assert_true(fabs(val - L4_val) < 1e-4);
+
+    double deriv = lagrange_poly_deriv(L4, 1, xs[i], values);
+    double L4_deriv = 14.504544*xs[i]*xs[i] - 1.477474;
+    assert_true(fabs(deriv - L4_deriv) < 1e-5);
+
+    double deriv2 = lagrange_poly_deriv(L4, 2, xs[i], values);
+    double L4_deriv2 = 29.009088*xs[i];
+    assert_true(fabs(deriv2 - L4_deriv2) < 1e-5);
   }
 }
 

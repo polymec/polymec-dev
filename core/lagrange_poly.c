@@ -108,7 +108,7 @@ void lagrange_poly_evaluate_basis_deriv(lagrange_poly_t* poly, int p, double x, 
           for (int j = 0; j < poly->order+1; ++j)
           {
             if ((j != m) && (j != i))
-              prod *= (x - poly->points[m]) / (poly->points[j] - poly->points[m]);
+              prod *= (x - poly->points[j]) / (poly->points[m] - poly->points[j]);
           }
           basis_deriv[m] += 1.0 / (poly->points[m] - poly->points[i]) * prod;
         }
@@ -128,18 +128,18 @@ void lagrange_poly_evaluate_basis_deriv(lagrange_poly_t* poly, int p, double x, 
           double sum = 0.0;
           for (int n = 0; n < poly->order+1; ++n)
           {
-            double prod = 1.0;
-            if (n != m)
+            if ((n != i) && (n != m))
             {
+              double prod = 1.0;
               for (int j = 0; j < poly->order+1; ++j)
               {
                 if ((j != m) && (j != i) && (j != n))
                   prod *= (x - poly->points[j]) / (poly->points[m] - poly->points[j]);
               }
-              sum += 1.0 / (poly->points[m] - poly->points[n]) * prod;
+              sum += prod / (poly->points[m] - poly->points[n]);
             }
           }
-          basis_deriv[m] += 1.0 / (poly->points[m] - poly->points[i]) * sum;
+          basis_deriv[m] += sum / (poly->points[m] - poly->points[i]);
         }
       }
     }
