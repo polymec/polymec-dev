@@ -15,6 +15,17 @@ extern "C" {
 // type can be retrieved from a block assembly and queried. They cannot be 
 // created outside of a block assembly.
 //
+// Block faces are indexed as follows:
+//  0 - negative 'x' face
+//  1 - positive 'x' face
+//  2 - negative 'y' face
+//  3 - positive 'y' face
+//  4 - negative 'z' face
+//  5 - positive 'z' face
+// Note that the coordinates are in quotes because 'x', 'y', and 'z' are 
+// topological, not geometric coordinates. In other words, 'x' may not be 
+// aligned with x in physical space, etc.
+//
 // It is perhaps easiest to think of a block as being equivalent to a 
 // hexahedral finite element of a given geometric order (linear, quadratic, 
 // etc).
@@ -30,6 +41,10 @@ int block_num_points(block_t* block);
 // Returns the indices of the points that define the block. These indices 
 // correspond to the points within the block assembly.
 int* block_point_indices(block_t* block);
+
+// Returns the block that neighbors this block on the given face, or NULL
+// if the block has no such neighbor on that face.
+block_t* block_neighbor(block_t* block, int face_index);
 
 // Maps a point xi within the logical space of the block to its 
 // equivalent point x in physical space, using the isoparametric mapping 

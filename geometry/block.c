@@ -9,6 +9,7 @@ struct block_t
 {
   int order, num_points;
   int* point_indices;
+  block_t* neighbors[6];
   str_unordered_set_t* tags[6];
 };
 
@@ -21,7 +22,10 @@ static block_t* block_new(int order)
   block->num_points = pow(order+1, 3);
   block->point_indices = malloc(sizeof(int)*block->num_points);
   for (int f = 0; f < 6; ++f)
+  {
+    block->neighbors[f] = NULL;
     block->tags[f] = str_unordered_set_new();
+  }
   return block;
 }
 
@@ -48,15 +52,27 @@ int* block_point_indices(block_t* block)
   return block->point_indices;
 }
 
+block_t* block_neighbor(block_t* block, int face_index)
+{
+  ASSERT(face_index >= 0);
+  ASSERT(face_index < 6);
+  return block->neighbors[face_index];
+}
+
 void block_map(block_t* block, point_t* xi, point_t* x)
 {
+}
+
+static void tag_free(char* tag)
+{
+  free(tag);
 }
 
 void block_add_tag(block_t* block, int face_index, const char* tag)
 {
   ASSERT(face_index >= 0);
   ASSERT(face_index < 6);
-  str_unordered_set_insert_with_dtor(block->tags[face_index], strdup(tag), free);
+  str_unordered_set_insert_with_dtor(block->tags[face_index], strdup(tag), tag_free);
 }
 
 bool block_next_tag(block_t* block, int face_index, int* pos, char** tag)
