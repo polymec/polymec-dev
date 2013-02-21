@@ -8,12 +8,13 @@ extern "C" {
 struct lagrange_poly_t 
 {
   int order;
-  double* points, *basis;
+  double *points, *basis, *weights;
 };
 
 static void lagrange_poly_free(void* ctx, void* dummy)
 {
   lagrange_poly_t* poly = ctx;
+  free(poly->weights);
   free(poly->basis);
   free(poly->points);
 }
@@ -25,6 +26,7 @@ lagrange_poly_t* lagrange_poly_new(int order)
   poly->order = order;
   poly->points = malloc(sizeof(double)*(order+1));
   poly->basis = malloc(sizeof(double)*(order+1));
+  poly->weights = malloc(sizeof(double)*(order+1));
   GC_register_finalizer(poly, lagrange_poly_free, poly, NULL, NULL);
   return poly;
 }
@@ -38,6 +40,18 @@ void lagrange_poly_set_points(lagrange_poly_t* poly, double* points)
 {
   // Set the interpolation points.
   memcpy(poly->points, points, sizeof(double)*(poly->order + 1));
+
+  // Set the barycentric weights for quick evaluation.
+  for (int j = 0; j < poly->order + 1; ++j)
+  {
+    double denom = 1.0;
+    for (int i = 0; i < poly->order + 1; ++i)
+    {
+      if (i != j)
+        denom *= (poly->points[j] - poly->points[i]);
+    }
+    poly->weights[j] = 1.0 / denom;
+  }
 }
 
 void lagrange_poly_evaluate_basis(lagrange_poly_t* poly, double x, double* basis)
@@ -55,21 +69,29 @@ void lagrange_poly_evaluate_basis(lagrange_poly_t* poly, double x, double* basis
 
 double lagrange_poly_value(lagrange_poly_t* poly, double x, double* values)
 {
-  // Evaluate the basis at those points.
-  lagrange_poly_evaluate_basis(poly, x, poly->basis);
-
-  // Evaluate the polynomial.
-  double val = 0.0;
-  for (int j = 0; j < poly->order+1; ++j)
-    val += values[j] * poly->basis[j];
-
-  return val;
+  // Evaluate the polynomial using the barycentric representation.
+  double lx = 1.0, sum = 0.0;
+  for (int i = 0; i < poly->order+1; ++i)
+  {
+    double term = x - poly->points[i];
+    if (term == 0.0)
+      return values[i];
+    lx *= term;
+    sum += poly->weights[i] * values[i] / term;
+  }
+  return lx * sum;
 }
 
 void lagrange_poly_evaluate_basis_deriv(lagrange_poly_t* poly, int p, double x, double* basis_deriv)
 {
   ASSERT(p >= 0);
   ASSERT(p <= 2);
+
+  if (p > poly->order) 
+  {
+    memset(basis_deriv, 0, sizeof(double)*(poly->order + 1));
+    return;
+  }
 
   if (p == 0)
     lagrange_poly_evaluate_basis(poly, x, basis_deriv);
@@ -101,9 +123,9 @@ void lagrange_poly_evaluate_basis_deriv(lagrange_poly_t* poly, int p, double x, 
       basis_deriv[m] = 0.0;
       for (int i = 0; i < poly->order+1; ++i)
       {
-        double sum = 0.0;
         if (i != m)
         {
+          double sum = 0.0;
           for (int n = 0; n < poly->order+1; ++n)
           {
             double prod = 1.0;
@@ -111,14 +133,14 @@ void lagrange_poly_evaluate_basis_deriv(lagrange_poly_t* poly, int p, double x, 
             {
               for (int j = 0; j < poly->order+1; ++j)
               {
-                if ((j != m) && (j != i))
-                  prod *= (x - poly->points[m]) / (poly->points[j] - poly->points[m]);
+                if ((j != m) && (j != i) && (j != n))
+                  prod *= (x - poly->points[j]) / (poly->points[m] - poly->points[j]);
               }
+              sum += 1.0 / (poly->points[m] - poly->points[n]) * prod;
             }
-            sum += 1.0 / (poly->points[m] - poly->points[n]) * prod;
           }
+          basis_deriv[m] += 1.0 / (poly->points[m] - poly->points[i]) * sum;
         }
-        basis_deriv[m] += 1.0 / (poly->points[m] - poly->points[i]) * sum;
       }
     }
   }
@@ -142,11 +164,19 @@ struct tensor_lagrange_poly_t
   lagrange_poly_t* polys[3];
 };
 
+static void tensor_lagrange_poly_free(void* ctx, void* dummy)
+{
+  tensor_lagrange_poly_t* poly = ctx;
+  for (int d = 0; d < 3; ++d)
+    poly->polys[d] = NULL;
+}
+
 tensor_lagrange_poly_t* tensor_lagrange_poly_new(int order)
 {
   tensor_lagrange_poly_t* poly = GC_MALLOC(sizeof(tensor_lagrange_poly_t));
   for (int d = 0; d < 3; ++d)
     poly->polys[d] = lagrange_poly_new(order);
+  GC_register_finalizer(poly, tensor_lagrange_poly_free, poly, NULL, NULL);
   return poly;
 }
 
