@@ -48,8 +48,8 @@ block_t* block_neighbor(block_t* block, int face_index);
 
 // Maps a point xi within the logical space of the block to its 
 // equivalent point x in physical space, using the isoparametric mapping 
-// for the block defined by its points.
-void block_map(block_t* block, point_t* xi, point_t* x);
+// for the block defined by the given points.
+void block_map(block_t* block, point_t* points, point_t* xi, point_t* x);
 
 // Adds a tag to the block's given face.
 void block_add_tag(block_t* block, int face_index, const char* tag);
