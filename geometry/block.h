@@ -42,10 +42,6 @@ int block_num_points(block_t* block);
 // correspond to the points within the block assembly.
 int* block_point_indices(block_t* block);
 
-// Returns the block that neighbors this block on the given face, or NULL
-// if the block has no such neighbor on that face.
-block_t* block_neighbor(block_t* block, int face_index);
-
 // Maps a point xi within the logical space of the block to its 
 // equivalent point x in physical space, using the isoparametric mapping 
 // for the block defined by the given points.
