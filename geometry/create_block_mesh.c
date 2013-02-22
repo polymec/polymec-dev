@@ -22,7 +22,6 @@ static void create_block_grid(block_t* block,
                               mesh_t* mesh)
 {
   ASSERT(block != NULL);
-  ASSERT(num_block_cells > 0);
   ASSERT(hexes != NULL);
   ASSERT(mesh != NULL);
 

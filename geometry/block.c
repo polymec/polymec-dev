@@ -10,9 +10,8 @@ struct block_t
 {
   int order, num_points;
   int* point_indices;
-  block_t* neighbors[6];
   str_unordered_set_t* tags[6];
-  tensor_lagrange_poly_t* poly;
+  lagrange_poly_t* poly;
 };
 
 static block_t* block_new(int order)
@@ -24,11 +23,8 @@ static block_t* block_new(int order)
   block->num_points = pow(order+1, 3);
   block->point_indices = malloc(sizeof(int)*block->num_points);
   for (int f = 0; f < 6; ++f)
-  {
-    block->neighbors[f] = NULL;
     block->tags[f] = str_unordered_set_new();
-  }
-  block->poly = tensor_lagrange_poly_new(order);
+  block->poly = lagrange_poly_new(order);
 
   // Set the points of the block to those of the reference (logical) 
   // coordinate system.
@@ -36,13 +32,13 @@ static block_t* block_new(int order)
   double h = 1.0 / order;
   for (int i = 0; i < order+1; ++i)
     points[i] = i*h;
-  tensor_lagrange_poly_set_points(block->poly, points, points, points);
+  lagrange_poly_set_points(block->poly, points);
   return block;
 }
 
 static void block_free(block_t* block)
 {
-  free(block->poly);
+  block->poly = NULL;
   for (int f = 0; f < 6; ++f)
     str_unordered_set_free(block->tags[f]);
   free(block->point_indices);
@@ -64,26 +60,26 @@ int* block_point_indices(block_t* block)
   return block->point_indices;
 }
 
-block_t* block_neighbor(block_t* block, int face_index)
-{
-  ASSERT(face_index >= 0);
-  ASSERT(face_index < 6);
-  return block->neighbors[face_index];
-}
-
 void block_map(block_t* block, point_t* points, point_t* xi, point_t* x)
 {
+  // Evaluate the Lagrange polynomials in each direction
+  // and form their tensor product.
   int order = block->order;
-  double xs[order+1], ys[order+1], zs[order+1];
+  double ones[order+1];
   for (int i = 0; i < order+1; ++i)
+    ones[i] = 1.0;
+
+  x->x = x->y = x->z = 0.0;
+  for (int i = 0; i < block->num_points; ++i)
   {
-    xs[i] = points[i].x;
-    ys[i] = points[i].y;
-    zs[i] = points[i].z;
+    double Li = lagrange_poly_value(block->poly, xi->x, ones);
+    double Lj = lagrange_poly_value(block->poly, xi->y, ones);
+    double Lk = lagrange_poly_value(block->poly, xi->z, ones);
+    double LiLjLk = Li * Lj * Lk;
+    x->x += points[i].x * LiLjLk;
+    x->y += points[i].y * LiLjLk;
+    x->z += points[i].z * LiLjLk;
   }
-  x->x = tensor_lagrange_poly_value(block->poly, xi, xs);
-  x->y = tensor_lagrange_poly_value(block->poly, xi, ys);
-  x->z = tensor_lagrange_poly_value(block->poly, xi, zs);
 }
 
 static void tag_free(char* tag)
