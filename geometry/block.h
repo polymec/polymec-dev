@@ -12,8 +12,8 @@ extern "C" {
 
 // A block is a region of space that is topologically a hexahedron, with 
 // nodes along its faces that define an isoparametric mapping. Objects of this
-// type can be retrieved from a block assembly and queried. They cannot be 
-// created outside of a block assembly.
+// type can be created independently, or retrieved from a block assembly and 
+// queried. They are garbage-collected.
 //
 // Block faces are indexed as follows:
 //  0 - negative 'x' face
@@ -31,16 +31,15 @@ extern "C" {
 // etc).
 typedef struct block_t block_t;
 
+// Creates a block of the given order.
+block_t* block_new(int order);
+
 // Returns the geometric order of the block.
 int block_order(block_t* block);
 
 // Returns the number of points that define the geometry/topology of the 
 // block. This is related to the order of the block, but provides a shortcut.
 int block_num_points(block_t* block);
-
-// Returns the indices of the points that define the block. These indices 
-// correspond to the points within the block assembly.
-int* block_point_indices(block_t* block);
 
 // Maps a point xi within the logical space of the block to its 
 // equivalent point x in physical space, using the isoparametric mapping 
@@ -49,6 +48,10 @@ void block_map(block_t* block, point_t* points, point_t* xi, point_t* x);
 
 // Adds a tag to the block's given face.
 void block_add_tag(block_t* block, int face_index, const char* tag);
+
+// Delete the given tag from the block's given face. If the tag doesn't 
+// exist there, this function has no effect.
+void block_delete_tag(block_t* block, int face_index, const char* tag);
 
 // Traverses the set of tags attached to the given face of the block.
 bool block_next_tag(block_t* block, int face_index, int* pos, char** tag);
