@@ -1,0 +1,11 @@
+- core
+  - Implement Cranck-Nicolson integrator for diffusion, test against TGA
+  - Test formal convergence of least squares fits
+    - On interior
+    - At boundary
+- geometry
+  - Unit test for known generator distribution
+  - Clipping algorithm for unbounded Voronoi graphs
+  - Test geometries for isoparametric block transformations
+  - Stitching logic for block meshes
+- cnav
