@@ -322,32 +322,41 @@ void diffusion_solver_crank_nicolson(diffusion_solver_t* solver,
   int i, j;
   double Aij;
   double_table_t* L = double_table_new();
-  double Ax[N];
-  memset(Ax, 0, sizeof(double)*N);
+  double rhs[N];
+  memset(rhs, 0, sizeof(double)*N);
   while (double_table_next_cell(A, &pos, &i, &j, &Aij))
   {
 //printf("A(%d, %d) = %g\n", i, j, Aij);
     if (i == j)
       double_table_insert(L, i, j, 1.0 - 0.5 * dt * Aij);
     else
-      double_table_insert(L, i, j, -dt * Aij);
+      double_table_insert(L, i, j, -0.5 * dt * Aij);
+
+    // Add the off-diagonal terms to the RHS.
     int ii = i - solver->index_space->low;
     int jj = j - solver->index_space->low;
-    Ax[ii] += Aij * sol1[jj];
+    rhs[ii] += 0.5 * dt * Aij * sol1[jj];
   }
 
-  // Compute the source at time t2.
-  double si[N];
-  compute_source_vector(solver, si, t2);
+  // Compute the source at times t1 and t2.
+  double s1[N], s2[N];
+  compute_source_vector(solver, s1, t1);
+  compute_source_vector(solver, s2, t2);
 
-  // b = -dt*(bc terms) + sol1 + dt * source.
+  // Add the purely diagonal terms to the right hand side.
   for (int i = 0; i < N; ++i)
-    b[i] = -dt * b[i] + sol1[i] + 0.5 * dt * Ax[i] + dt * si[i];
+  {
+    rhs[i] += sol1[i] + 0.5 * dt * (s1[i] + s2[i]);
 
+    // Add boundary terms by subtracting the corresponding component of b.
+    double bi = b[i];
+    rhs[i] += -dt * bi;
+  }
+  
   // Set up the linear system.
   HYPRE_IJMatrixSetValuesFromTable(solver->A, solver->index_space, L);
 //HYPRE_IJMatrixPrint(solver->A, "L");
-  HYPRE_IJVectorSetValuesFromArray(solver->b, solver->index_space, b);
+  HYPRE_IJVectorSetValuesFromArray(solver->b, solver->index_space, rhs);
 
   // Solve the linear system.
   solve(solver, solver->A, solver->b, solver->x);

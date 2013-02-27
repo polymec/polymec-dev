@@ -1,5 +1,4 @@
 - core
-  - Implement Cranck-Nicolson integrator for diffusion, test against TGA
   - Test formal convergence of least squares fits
     - On interior
     - At boundary
