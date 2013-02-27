@@ -711,7 +711,7 @@ model_t* advect_model_new(options_t* options)
       }
     }
 
-    char* diff_integ_str = options_value(options, "diff-integ");
+    char* diff_integ_str = options_value(options, "diff_integ");
     if (diff_integ_str != NULL)
     {
       if (!strcasecmp(diff_integ_str, "EULER"))

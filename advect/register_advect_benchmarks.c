@@ -117,17 +117,17 @@ static void advect_run_1d_flow(options_t* options,
     log_urgent("iteration %d (Nx = %d): L1 = %g, L2 = %g, Linf = %g", iter, Nx, Lp_norms[iter][1], Lp_norms[iter][2], Lp_norms[iter][0]);
   }
 
-  if ((num_runs > 2) && (Lp_norms[0][1] > 0.0))
+  if ((num_runs > 2) && (Lp_norms[0][2] > 0.0))
   {
-    // Fit the log of the L1 norms to a line.
-    double log_N_ratios[num_runs-1], log_L1_ratios[num_runs-1];
+    // Fit the log of the L2 norms to a line.
+    double log_N_ratios[num_runs-1], log_L2_ratios[num_runs-1];
     for (int i = 0; i < num_runs-1; ++i)
     {
       log_N_ratios[i] = log(pow(2.0, i));
-      log_L1_ratios[i] = log(Lp_norms[i+1][1] / Lp_norms[0][1]);
+      log_L2_ratios[i] = log(Lp_norms[i+1][2] / Lp_norms[0][2]);
     }
     double A, B, sigma;
-    linear_regression(log_N_ratios, log_L1_ratios, num_runs-1, &A, &B, &sigma);
+    linear_regression(log_N_ratios, log_L2_ratios, num_runs-1, &A, &B, &sigma);
     double rate = -A;
     model_report_conv_rate(options, rate, sigma);
   }
