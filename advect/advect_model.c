@@ -18,6 +18,13 @@
 extern "C" {
 #endif
 
+typedef enum
+{
+  EULER,
+  TGA,
+  CRANK_NICOLSON
+} diff_integrator_t;
+
 // Advect model context structure.
 typedef struct 
 {
@@ -42,7 +49,7 @@ typedef struct
   str_ptr_unordered_map_t* bcs; // Boundary conditions.
 
   // Information for boundary cells.
-  boundary_cell_map_t*  boundary_cells;
+  boundary_cell_map_t* boundary_cells;
 
   // Slope estimator.
   slope_estimator_t* slope_estimator;
@@ -52,6 +59,9 @@ typedef struct
 
   // Diffusion equation solver.
   diffusion_solver_t* diff_solver;
+
+  // Diffusion integrator.
+  diff_integrator_t diff_integrator;
 
   // MPI communicator.
   MPI_Comm comm;            
@@ -381,9 +391,19 @@ static void advect_advance(void* context, double t, double dt)
       advect_diffusion_solver_set_diffusivity(a->diff_solver, a->species_diffusivities[s]);
       advect_diffusion_solver_set_source(a->diff_solver, a->species_sources[s]);
 
-      // Compute the diffusive derivative without splitting, using the 
-      // 2nd-order L-stable TGA algorithm.
-      diffusion_solver_tga(a->diff_solver, t, phi_old, t+dt, phi_new);
+      // Copute the diffusive derivative without splitting.
+      switch (a->diff_integrator)
+      {
+        case EULER:
+          diffusion_solver_euler(a->diff_solver, t, phi_old, t+dt, phi_new);
+          break;
+        case TGA:
+          diffusion_solver_tga(a->diff_solver, t, phi_old, t+dt, phi_new);
+          break;
+        case CRANK_NICOLSON:
+          diffusion_solver_crank_nicolson(a->diff_solver, t, phi_old, t+dt, phi_new);
+          break;
+      }
     }
 
     // Finally, update the model's solution vector.
@@ -653,6 +673,7 @@ model_t* advect_model_new(options_t* options)
   a->num_species = -1;
   a->species_diffusivities = NULL;
   a->species_sources = NULL;
+  a->diff_integrator = TGA;
 
   model_t* model = model_new("advect", a, vtable, options);
 
@@ -688,6 +709,21 @@ model_t* advect_model_new(options_t* options)
           polymec_error("Unknown limiter: %s", limiter_str);
         a->slope_estimator = slope_estimator_new(limiter);
       }
+    }
+
+    char* diff_integ_str = options_value(options, "diff-integ");
+    if (diff_integ_str != NULL)
+    {
+      if (!strcasecmp(diff_integ_str, "EULER"))
+        a->diff_integrator = EULER;
+      else if (!strcasecmp(diff_integ_str, "TGA"))
+        a->diff_integrator = TGA;
+      else if (!strcasecmp(diff_integ_str, "CN"))
+      {
+        a->diff_integrator = CRANK_NICOLSON;
+      }
+      else
+        polymec_error("Unknown diffusion integrator: %s", diff_integ_str);
     }
   }
 

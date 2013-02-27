@@ -296,6 +296,73 @@ void diffusion_solver_tga(diffusion_solver_t* solver,
   double_table_free(M2);
 }
 
+void diffusion_solver_crank_nicolson(diffusion_solver_t* solver,
+                                     double t1, double* sol1,
+                                     double t2, double* sol2)
+{
+  ASSERT(t2 > t1);
+  double dt = t2 - t1;
+  int N = solver->index_space->high - solver->index_space->low;
+
+  // Make sure the solver is initialized.
+  initialize(solver);
+
+  // A -> diffusion matrix at time t2.
+  double_table_t* A = double_table_new();
+  compute_diff_matrix(solver, A, t2);
+
+  // Apply boundary conditions to the system.
+  double b[N];
+  for (int i = 0; i < N; ++i)
+    b[i] = 0.0;
+  apply_bcs(solver, A, b, t2);
+
+  // L <- I - 0.5*dt*A, rhs <- (I + 0.5*dt*A)*x
+  double_table_cell_pos_t pos = double_table_start(A);
+  int i, j;
+  double Aij;
+  double_table_t* L = double_table_new();
+  double Ax[N];
+  memset(Ax, 0, sizeof(double)*N);
+  while (double_table_next_cell(A, &pos, &i, &j, &Aij))
+  {
+//printf("A(%d, %d) = %g\n", i, j, Aij);
+    if (i == j)
+      double_table_insert(L, i, j, 1.0 - 0.5 * dt * Aij);
+    else
+      double_table_insert(L, i, j, -dt * Aij);
+    int ii = i - solver->index_space->low;
+    int jj = j - solver->index_space->low;
+    Ax[ii] += Aij * sol1[jj];
+  }
+
+  // Compute the source at time t2.
+  double si[N];
+  compute_source_vector(solver, si, t2);
+
+  // b = -dt*(bc terms) + sol1 + dt * source.
+  for (int i = 0; i < N; ++i)
+    b[i] = -dt * b[i] + sol1[i] + 0.5 * dt * Ax[i] + dt * si[i];
+
+  // Set up the linear system.
+  HYPRE_IJMatrixSetValuesFromTable(solver->A, solver->index_space, L);
+//HYPRE_IJMatrixPrint(solver->A, "L");
+  HYPRE_IJVectorSetValuesFromArray(solver->b, solver->index_space, b);
+
+  // Solve the linear system.
+  solve(solver, solver->A, solver->b, solver->x);
+
+  // Copy the solution to sol2.
+  HYPRE_IJVectorGetValuesToArray(solver->x, solver->index_space, sol2);
+//printf("x = ");
+//vector_fprintf(sol2, N, stdout);
+//printf("\n");
+
+  // Clean up.
+  double_table_free(L);
+  double_table_free(A);
+}
+
 #ifdef __cplusplus
 }
 #endif
