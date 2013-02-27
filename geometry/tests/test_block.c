@@ -10,8 +10,8 @@ void test_linear_block(void** state)
   block_t* block = block_new(1);
   assert_int_equal(1, block_order(block));
   assert_int_equal(8, block_num_points(block));
-  point_t xs[] = {{.x = 0.0, .y = 0.0, .z = 0.0},
-                  {.x = };
+  point_t xs[] = {};//{.x = 0.0, .y = 0.0, .z = 0.0},
+                  //{.x = };
   point_t xi, x;
 
   block_map(block, xs, &xi, &x);

@@ -67,8 +67,8 @@ void diffusion_solver_euler(diffusion_solver_t* solver,
                             double t1, double* sol1, 
                             double t2, double* sol2);
 
-// This function solves the diffusion equation using the "TGA" algorithm 
-// presented by Twizell, et al (1996). Arguments:
+// This function solves the diffusion equation using the A-stable "TGA" 
+// algorithm presented by Twizell, et al (1996). Arguments:
 // t1           - The start time for the integration.
 // sol1         - An array containing the solution at time t1.
 // t2           - The end time for the integration.
@@ -76,6 +76,16 @@ void diffusion_solver_euler(diffusion_solver_t* solver,
 void diffusion_solver_tga(diffusion_solver_t* solver,
                           double t1, double* sol1,
                           double t2, double* sol2);
+
+// This function solves the diffusion equation using the Crank-Nicolson
+// algorithm, which is 2nd-order, but not A-stable.
+// t1           - The start time for the integration.
+// sol1         - An array containing the solution at time t1.
+// t2           - The end time for the integration.
+// sol2         - An array that will store the solution at time t2.
+void diffusion_solver_crank_nicolson(diffusion_solver_t* solver,
+                                     double t1, double* sol1,
+                                     double t2, double* sol2);
 
 #ifdef __cplusplus
 }
