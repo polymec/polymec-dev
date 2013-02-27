@@ -202,10 +202,10 @@ void test_poly_shape_function_gradients(int p, point_t* x0, point_t* points, int
       gradient.z += gradNk[k].z*data[k];
     }
     assert_true(fabs(value - data[i]) < 2e-14);
-//    printf("%g %g %g\n", gradient.y, data_grads[i].y, fabs(gradient.y - data_grads[i].y));
-    assert_true(fabs(gradient.x - data_grads[i].x) < 1e-5);
-    assert_true(fabs(gradient.y - data_grads[i].y) < 1e-5);
-    assert_true(fabs(gradient.z - data_grads[i].z) < 1e-5);
+//    printf("%g %g %g\n", gradient.x, data_grads[i].x, fabs(gradient.x - data_grads[i].x));
+    assert_true(fabs(gradient.x - data_grads[i].x) < 1e-4);
+    assert_true(fabs(gradient.y - data_grads[i].y) < 1e-4);
+    assert_true(fabs(gradient.z - data_grads[i].z) < 1e-4);
   }
 
   // Now make sure that the fit matches the polynomial and its 
