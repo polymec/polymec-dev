@@ -4,17 +4,33 @@
 #include <string.h>
 #include "cmockery.h"
 #include "geometry/block.h"
+#include "geometry/ball_mapping.h"
+
+static void test_ball_mapping(block_t* block, int block_index)
+{
+  point_t zero = {.x = 0.0, .y = 0.0, .z = 0.0};
+  sp_func_t* mapping = ball_mapping_new(&zero, 1.0, 0.5, block_index);
+  int num_points = block_num_points(block);
+  point_t xis[num_points], xs[num_points];
+  double xjs[3*num_points];
+  block_get_points(block, xis);
+  for (int i = 0; i < num_points; ++i)
+  {
+    sp_func_eval(mapping, &xis[i], &xjs[3*i]);
+    xs[i].x = xjs[3*i];
+    xs[i].y = xjs[3*i+1];
+    xs[i].z = xjs[3*i+2];
+  }
+  // FIXME
+}
 
 void test_linear_block(void** state)
 {
   block_t* block = block_new(1);
   assert_int_equal(1, block_order(block));
   assert_int_equal(8, block_num_points(block));
-  point_t xs[] = {};//{.x = 0.0, .y = 0.0, .z = 0.0},
-                  //{.x = };
-  point_t xi, x;
-
-  block_map(block, xs, &xi, &x);
+  for (int b = 0; b < 7; ++b)
+    test_ball_mapping(block, b);
 }
 
 void test_quadratic_block(void** state)
@@ -22,10 +38,8 @@ void test_quadratic_block(void** state)
   block_t* block = block_new(2);
   assert_int_equal(2, block_order(block));
   assert_int_equal(27, block_num_points(block));
-  point_t xs[] = {};
-  point_t xi, x;
-
-  block_map(block, xs, &xi, &x);
+  for (int b = 0; b < 7; ++b)
+    test_ball_mapping(block, b);
 }
 
 void test_cubic_block(void** state)
@@ -33,10 +47,8 @@ void test_cubic_block(void** state)
   block_t* block = block_new(3);
   assert_int_equal(3, block_order(block));
   assert_int_equal(64, block_num_points(block));
-  point_t xs[] = {};
-  point_t xi, x;
-
-  block_map(block, xs, &xi, &x);
+  for (int b = 0; b < 7; ++b)
+    test_ball_mapping(block, b);
 }
 
 void test_block_tags(void** state)
