@@ -78,6 +78,7 @@ sp_func_t* ball_mapping_new(point_t* x0, double r, double l, int block_index)
   snprintf(name, 1024, "Multi-block ball mapping (block %d)", block_index);
   ball_mapping_t* m = malloc(sizeof(ball_mapping_t));
   m->r = r;
+  m->l = l;
   m->x0.x = x0->x;
   m->x0.y = x0->y;
   m->x0.z = x0->z;
