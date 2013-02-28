@@ -41,6 +41,9 @@ int block_order(block_t* block);
 // block. This is related to the order of the block, but provides a shortcut.
 int block_num_points(block_t* block);
 
+// Retrieves the logical coordinates of the points within the block.
+void block_get_points(block_t* block, point_t* points);
+
 // Maps a point xi within the logical space of the block to its 
 // equivalent point x in physical space, using the isoparametric mapping 
 // for the block defined by the given points.

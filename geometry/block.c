@@ -57,6 +57,24 @@ int block_num_points(block_t* block)
   return block->num_points;
 }
 
+void block_get_points(block_t* block, point_t* points)
+{
+  double h = 1.0 / block->order;
+  int offset = 0;
+  for (int k = 0; k < block->order+1; ++k)
+  {
+    for (int j = 0; j < block->order+1; ++j)
+    {
+      for (int i = 0; i < block->order+1; ++i, ++offset)
+      {
+        points[offset].z = k*h;
+        points[offset].y = j*h;
+        points[offset].z = i*h;
+      }
+    }
+  }
+}
+
 void block_map(block_t* block, point_t* points, point_t* xi, point_t* x)
 {
   // Evaluate the Lagrange polynomials in each direction

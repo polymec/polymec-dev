@@ -27,7 +27,7 @@ static void constant_dtor(void* ctx)
 
 static st_func_t* create_constant_st_func(int num_comp, double comp[])
 {
-  st_vtable vtable = {.eval = &constant_eval, .dtor = &constant_dtor};
+  st_vtable vtable = {.eval = constant_eval, .dtor = constant_dtor};
   char name[1024];
   snprintf(name, 1024, "constant space-time function"); // FIXME
   const_st_func_t* f = malloc(sizeof(const_st_func_t));
