@@ -5,6 +5,15 @@
 #include "cmockery.h"
 #include "geometry/ball_mapping.h"
 
+void plot_points(point_t* points, int num_points, const char* filename)
+{
+  FILE* fd = fopen(filename, "w");
+  fprintf(fd, "# x y z\n");
+  for (int i = 0; i < num_points; ++i)
+    fprintf(fd, "%g %g %g\n", points[i].x, points[i].y, points[i].z);
+  fclose(fd);
+}
+
 static const double L = 1.0;
 static const int num_test_points = 27;
 static point_t test_xs[7][27] = {
@@ -69,9 +78,13 @@ static void test_block(int block_index)
     test_points[i].y = X[1];
     test_points[i].z = X[2];
 
-    double error = point_distance(&test_points[i], &test_xs[block_index][i]);
-    assert_true(error < 1e-12);
+//    double error = point_distance(&test_points[i], &test_xs[block_index][i]);
+//    assert_true(error < 1e-12);
   }
+
+  char fn[1024];
+  snprintf(fn, 1024, "points.%d", block_index);
+  plot_points(test_points, 27, fn);
 }
 
 void test_block0(void** state)
