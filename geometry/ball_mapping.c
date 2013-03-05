@@ -25,103 +25,107 @@ static void ball_map0(void* context, point_t* xi, double* x)
 
 static void ball_map1(void* context, point_t* xi, double* x)
 {
-  // -x cube.
-  ball_mapping_t* ball = context;
-
-  // Gnomonic and spherical coordinates for the surface of the ball.
-  double Xi = M_PI/2 * (xi->y - 0.5);
-  double Eta = M_PI/2 * (xi->z - 0.5);
-  double phi = -1.0/Xi; // tan(Xi) = -1.0 / tan(phi).
-  double Y = tan(Eta);
-  double sin_phi = sin(phi);
-  double theta = atan(sin_phi / Y);
-  double r0 = 0.5*ball->l * sqrt(1.0 + sin(Xi)*sin(Xi) + sin(Eta)*sin(Eta)); // Closest approach
-  double r = r0 + (1.0 - xi->x) * (ball->r - 0.5*ball->l);
-  double sin_theta = sin(theta);
-
-  x[0] = ball->x0.x + r * cos(phi) * sin_theta;
-  x[1] = ball->x0.y + r * sin_phi * sin_theta;
-  x[2] = ball->x0.z + r * cos(theta);
-}
-
-static void ball_map2(void* context, point_t* xi, double* x)
-{
-  // -x cube.
+  // -x cube -- Region III in Ronchi et al.
   ball_mapping_t* ball = context;
 
   // Gnomonic and spherical coordinates for the surface of the ball.
   double Xi = M_PI/2 * (0.5 - xi->y);
   double Eta = M_PI/2 * (xi->z - 0.5);
-  double phi = -1.0/Xi; // tan(Xi) = -1.0 / tan(phi).
+
+  double phi = -M_PI + Xi;
   double Y = tan(Eta);
-  double sin_phi = sin(phi);
-  double theta = atan(-sin_phi / Y);
+  double theta = -atan2(cos(phi), Y);
   double r0 = 0.5*ball->l * sqrt(1.0 + sin(Xi)*sin(Xi) + sin(Eta)*sin(Eta)); // Closest approach
-  double r = r0 + (xi->x - 1.0) * (ball->r - 0.5*ball->l);
+  double r = ball->r - xi->x * (ball->r - r0);
   double sin_theta = sin(theta);
 
   x[0] = ball->x0.x + r * cos(phi) * sin_theta;
-  x[1] = ball->x0.y + r * sin_phi * sin_theta;
+  x[1] = ball->x0.y + r * sin(phi) * sin_theta;
+  x[2] = ball->x0.z + r * cos(theta);
+}
+
+static void ball_map2(void* context, point_t* xi, double* x)
+{
+  // +x cube -- Region I in Ronchi et al.
+  ball_mapping_t* ball = context;
+
+  // Gnomonic and spherical coordinates for the surface of the ball.
+  double Xi = M_PI/2 * (xi->y - 0.5);
+  double Eta = M_PI/2 * (xi->z - 0.5);
+
+  double phi = Xi;
+  double Y = tan(Eta);
+  double theta = atan2(cos(phi), Y);
+  double r0 = 0.5*ball->l * sqrt(1.0 + sin(Xi)*sin(Xi) + sin(Eta)*sin(Eta)); // Closest approach
+  double r = ball->r - xi->x * (ball->r - r0);
+  double sin_theta = sin(theta);
+
+  x[0] = ball->x0.x + r * cos(phi) * sin_theta;
+  x[1] = ball->x0.y + r * sin(phi) * sin_theta;
   x[2] = ball->x0.z + r * cos(theta);
 }
 
 static void ball_map3(void* context, point_t* xi, double* x)
 {
-  // -y cube.
+  // -y cube -- Region IV in Ronchi et al.
   ball_mapping_t* ball = context;
 
   // Gnomonic and spherical coordinates for the surface of the ball.
   double Xi = M_PI/2 * (xi->x - 0.5);
   double Eta = M_PI/2 * (xi->z - 0.5);
-  double phi = Xi; // tan(phi) = tan(Xi).
+
+  double phi = -M_PI/2 + Xi;
   double Y = tan(Eta);
-  double cos_phi = cos(phi);
-  double theta = atan(cos_phi / Y);
+  double theta = -atan2(sin(phi), Y);
   double r0 = 0.5*ball->l * sqrt(1.0 + sin(Xi)*sin(Xi) + sin(Eta)*sin(Eta)); // Closest approach
-  double r = r0 + (1.0 - xi->y) * (ball->r - 0.5*ball->l);
+  double r = ball->r - xi->x * (ball->r - r0);
   double sin_theta = sin(theta);
 
-  x[0] = ball->x0.x + r * cos_phi * sin_theta;
+  x[0] = ball->x0.x + r * cos(phi) * sin_theta;
   x[1] = ball->x0.y + r * sin(phi) * sin_theta;
   x[2] = ball->x0.z + r * cos(theta);
 }
 
 static void ball_map4(void* context, point_t* xi, double* x)
 {
-  // +y cube.
+  // +y cube -- Region II in Ronchi et al.
   ball_mapping_t* ball = context;
 
   // Gnomonic and spherical coordinates for the surface of the ball.
   double Xi = M_PI/2 * (0.5 - xi->x);
   double Eta = M_PI/2 * (xi->z - 0.5);
-  double phi = Xi; // tan(phi) = tan(Xi).
+
+  double phi = M_PI/2 + Xi;
   double Y = tan(Eta);
-  double cos_phi = cos(phi);
-  double theta = atan(-cos_phi / Y);
+  double theta = atan2(sin(phi), Y);
   double r0 = 0.5*ball->l * sqrt(1.0 + sin(Xi)*sin(Xi) + sin(Eta)*sin(Eta)); // Closest approach
-  double r = r0 + (xi->y - 1.0) * (ball->r - 0.5*ball->l);
+  double r = ball->r - xi->x * (ball->r - r0);
   double sin_theta = sin(theta);
 
-  x[0] = ball->x0.x + r * cos_phi * sin_theta;
+  x[0] = ball->x0.x + r * cos(phi) * sin_theta;
   x[1] = ball->x0.y + r * sin(phi) * sin_theta;
   x[2] = ball->x0.z + r * cos(theta);
 }
 
 static void ball_map5(void* context, point_t* xi, double* x)
 {
-  // -z cube.
+  // -z cube -- Region V in Ronchi et al.
   ball_mapping_t* ball = context;
 
   // Gnomonic and spherical coordinates for the surface of the ball.
   double Xi = M_PI/2 * (0.5 - xi->x);
   double Eta = M_PI/2 * (0.5 - xi->y);
+
   double X = tan(Xi);
   double Y = tan(Eta);
-  double phi = atan(X/Y);
-  double theta = atan(-X/sin(phi));
+  double phi = atan2(X, Y);
+  double theta = atan2(-X, sin(phi));
   double r0 = 0.5*ball->l * sqrt(1.0 + sin(Xi)*sin(Xi) + sin(Eta)*sin(Eta)); // Closest approach
-  double r = r0 + (1.0 - xi->z) * (ball->r - 0.5*ball->l);
+  double r = ball->r - xi->x * (ball->r - r0);
   double sin_theta = sin(theta);
+
+printf("5: (%g, %g) -> r0 = %g\n", Xi, Eta, r0);
+printf("5: (%g, %g, %g) -> (%g, %g*pi, %g*pi)\n", xi->x, xi->y, xi->z, r, phi/M_PI, theta/M_PI);
 
   x[0] = ball->x0.x + r * cos(phi) * sin_theta;
   x[1] = ball->x0.y + r * sin(phi) * sin_theta;
@@ -130,18 +134,19 @@ static void ball_map5(void* context, point_t* xi, double* x)
 
 static void ball_map6(void* context, point_t* xi, double* x)
 {
-  // -z cube.
+  // -z cube -- Region VI in Ronchi et al.
   ball_mapping_t* ball = context;
 
   // Gnomonic and spherical coordinates for the surface of the ball.
   double Xi = M_PI/2 * (xi->x - 0.5);
   double Eta = M_PI/2 * (xi->y - 0.5);
+
   double X = tan(Xi);
   double Y = tan(Eta);
-  double phi = atan(X/Y);
-  double theta = atan(-X/sin(phi));
+  double phi = atan2(X, Y);
+  double theta = atan2(-X, sin(phi));
   double r0 = 0.5*ball->l * sqrt(1.0 + sin(Xi)*sin(Xi) + sin(Eta)*sin(Eta)); // Closest approach
-  double r = r0 + (xi->z - 1.0) * (ball->r - 0.5*ball->l);
+  double r = ball->r - xi->x * (ball->r - r0);
   double sin_theta = sin(theta);
 
   x[0] = ball->x0.x + r * cos(phi) * sin_theta;
