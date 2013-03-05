@@ -1,7 +1,3 @@
-- core
-  - Test formal convergence of least squares fits
-    - On interior
-    - At boundary
 - geometry
   - Unit test for known generator distribution
   - Clipping algorithm for unbounded Voronoi graphs
