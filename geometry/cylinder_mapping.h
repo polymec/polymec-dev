@@ -18,9 +18,9 @@ extern "C" {
 // 4: +y block
 // 5: -z block
 // 6: +z block
-// The cylinder is centered at the given axis that passes through the point 
-// x0 and has radius r and length l. 
-sp_func_t* cylinder_mapping_new(point_t* x0, vector_t* axis, double r, double l, int block_index);
+// The cylinder is aligned with the z axis, and its center passes through the 
+// point x0. It has radius r and length l. 
+sp_func_t* cylinder_mapping_new(point_t* x0, double r, double l, int block_index);
 
 #ifdef __cplusplus
 }

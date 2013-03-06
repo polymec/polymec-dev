@@ -7,29 +7,77 @@ extern "C" {
 typedef struct
 {
   point_t x0;
-  vector_t axis;
   double r, l;
   int index;
 } cylinder_mapping_t;
 
 static void cylinder_map0(void* context, point_t* xi, double* x)
 {
+  // Inner cube.
+  cylinder_mapping_t* cyl = context;
+  x[0] = cyl->x0.x + 0.5*cyl->r * (xi->x - 0.5);
+  x[1] = cyl->x0.y + 0.5*cyl->r * (xi->y - 0.5);
+  x[2] = cyl->x0.z + cyl->l * (xi->z - 0.5);
 }
 
 static void cylinder_map1(void* context, point_t* xi, double* x)
 {
+  // -x cube.
+  cylinder_mapping_t* cyl = context;
+
+  double Xi = M_PI/2 * (0.5 - xi->y);
+  double phi = -M_PI + Xi;
+  double r0 = 0.5*cyl->r * sqrt(1.0 + sin(phi)*sin(phi)); // Closest approach
+  double r = cyl->r - xi->x * (cyl->r - r0);
+
+  x[0] = cyl->x0.x + r * cos(phi);
+  x[1] = cyl->x0.y + r * sin(phi);
+  x[2] = cyl->x0.z + cyl->l * (xi->z - 0.5);
 }
 
 static void cylinder_map2(void* context, point_t* xi, double* x)
 {
+  // +x cube.
+  cylinder_mapping_t* cyl = context;
+
+  double Xi = M_PI/2 * (xi->y - 0.5);
+  double phi = Xi;
+  double r0 = 0.5*cyl->r * sqrt(1.0 + sin(phi)*sin(phi)); // Closest approach
+  double r = xi->x * (cyl->r - r0) - cyl->r;
+
+  x[0] = cyl->x0.x + r * cos(phi);
+  x[1] = cyl->x0.y + r * sin(phi);
+  x[2] = cyl->x0.z + cyl->l * (xi->z - 0.5);
 }
 
 static void cylinder_map3(void* context, point_t* xi, double* x)
 {
+  // -y cube.
+  cylinder_mapping_t* cyl = context;
+
+  double Xi = M_PI/2 * (xi->x - 0.5);
+  double phi = -M_PI/2 + Xi;
+  double r0 = 0.5*cyl->r * sqrt(1.0 + sin(phi)*sin(phi)); // Closest approach
+  double r = cyl->r - xi->y * (cyl->r - r0);
+
+  x[0] = cyl->x0.x + r * cos(phi);
+  x[1] = cyl->x0.y + r * sin(phi);
+  x[2] = cyl->x0.z + cyl->l * (xi->z - 0.5);
 }
 
 static void cylinder_map4(void* context, point_t* xi, double* x)
 {
+  // +y cube.
+  cylinder_mapping_t* cyl = context;
+
+  double Xi = M_PI/2 * (0.5 - xi->x);
+  double phi = M_PI/2 + Xi;
+  double r0 = 0.5*cyl->r * sqrt(1.0 + sin(phi)*sin(phi)); // Closest approach
+  double r = xi->y * (cyl->r - r0) - cyl->r;
+
+  x[0] = cyl->x0.x + r * cos(phi);
+  x[1] = cyl->x0.y + r * sin(phi);
+  x[2] = cyl->x0.z + cyl->l * (xi->z - 0.5);
 }
 
 static void cylinder_dtor(void* context)
@@ -38,7 +86,7 @@ static void cylinder_dtor(void* context)
   free(ball);
 }
 
-sp_func_t* cylinder_mapping_new(point_t* x0, vector_t* axis, double r, double l, int block_index)
+sp_func_t* cylinder_mapping_new(point_t* x0, double r, double l, int block_index)
 {
   ASSERT(block_index >= 0);
   ASSERT(block_index <= 4);
@@ -69,9 +117,6 @@ sp_func_t* cylinder_mapping_new(point_t* x0, vector_t* axis, double r, double l,
   m->x0.x = x0->x;
   m->x0.y = x0->y;
   m->x0.z = x0->z;
-  m->axis.x = axis->x;
-  m->axis.y = axis->y;
-  m->axis.z = axis->z;
   m->index = block_index;
   return sp_func_new(name, (void*)m, vtable, SP_INHOMOGENEOUS, 3);
 }
