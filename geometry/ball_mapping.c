@@ -57,7 +57,7 @@ static void ball_map2(void* context, point_t* xi, double* x)
   double Y = tan(Eta);
   double theta = atan2(cos(phi), Y);
   double r0 = 0.5*ball->l * sqrt(1.0 + sin(Xi)*sin(Xi) + sin(Eta)*sin(Eta)); // Closest approach
-  double r = ball->r - xi->x * (ball->r - r0);
+  double r = r0 + xi->x * (ball->r - r0);
   double sin_theta = sin(theta);
 
   x[0] = ball->x0.x + r * cos(phi) * sin_theta;
@@ -78,7 +78,7 @@ static void ball_map3(void* context, point_t* xi, double* x)
   double Y = tan(Eta);
   double theta = -atan2(sin(phi), Y);
   double r0 = 0.5*ball->l * sqrt(1.0 + sin(Xi)*sin(Xi) + sin(Eta)*sin(Eta)); // Closest approach
-  double r = ball->r - xi->x * (ball->r - r0);
+  double r = ball->r - xi->y * (ball->r - r0);
   double sin_theta = sin(theta);
 
   x[0] = ball->x0.x + r * cos(phi) * sin_theta;
@@ -99,7 +99,7 @@ static void ball_map4(void* context, point_t* xi, double* x)
   double Y = tan(Eta);
   double theta = atan2(sin(phi), Y);
   double r0 = 0.5*ball->l * sqrt(1.0 + sin(Xi)*sin(Xi) + sin(Eta)*sin(Eta)); // Closest approach
-  double r = ball->r - xi->x * (ball->r - r0);
+  double r = r0 + xi->y * (ball->r - r0);
   double sin_theta = sin(theta);
 
   x[0] = ball->x0.x + r * cos(phi) * sin_theta;
@@ -113,19 +113,16 @@ static void ball_map5(void* context, point_t* xi, double* x)
   ball_mapping_t* ball = context;
 
   // Gnomonic and spherical coordinates for the surface of the ball.
-  double Xi = M_PI/2 * (0.5 - xi->x);
-  double Eta = M_PI/2 * (0.5 - xi->y);
+  double Xi = M_PI/2 * (xi->x - 0.5);
+  double Eta = M_PI/2 * (xi->y - 0.5);
 
   double X = tan(Xi);
   double Y = tan(Eta);
-  double phi = atan2(X, Y);
-  double theta = atan2(-X, sin(phi));
+  double phi = atan2(Y, X);
+  double theta = atan(X/cos(phi));
   double r0 = 0.5*ball->l * sqrt(1.0 + sin(Xi)*sin(Xi) + sin(Eta)*sin(Eta)); // Closest approach
-  double r = ball->r - xi->x * (ball->r - r0);
+  double r = r0 + xi->z * (ball->r - r0);
   double sin_theta = sin(theta);
-
-printf("5: (%g, %g) -> r0 = %g\n", Xi, Eta, r0);
-printf("5: (%g, %g, %g) -> (%g, %g*pi, %g*pi)\n", xi->x, xi->y, xi->z, r, phi/M_PI, theta/M_PI);
 
   x[0] = ball->x0.x + r * cos(phi) * sin_theta;
   x[1] = ball->x0.y + r * sin(phi) * sin_theta;
@@ -143,10 +140,10 @@ static void ball_map6(void* context, point_t* xi, double* x)
 
   double X = tan(Xi);
   double Y = tan(Eta);
-  double phi = atan2(X, Y);
-  double theta = atan2(-X, sin(phi));
+  double phi = atan2(Y, X);
+  double theta = M_PI - atan(X/cos(phi));
   double r0 = 0.5*ball->l * sqrt(1.0 + sin(Xi)*sin(Xi) + sin(Eta)*sin(Eta)); // Closest approach
-  double r = ball->r - xi->x * (ball->r - r0);
+  double r = ball->r - xi->z * (ball->r - r0);
   double sin_theta = sin(theta);
 
   x[0] = ball->x0.x + r * cos(phi) * sin_theta;
