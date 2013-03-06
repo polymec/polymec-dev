@@ -27,7 +27,7 @@ static void cylinder_map1(void* context, point_t* xi, double* x)
 
   double Xi = M_PI/2 * (0.5 - xi->y);
   double phi = -M_PI + Xi;
-  double r0 = 0.5*cyl->r * sqrt(1.0 + sin(phi)*sin(phi)); // Closest approach
+  double r0 = 0.5*cyl->r / cos(Xi); // Closest approach
   double r = cyl->r - xi->x * (cyl->r - r0);
 
   x[0] = cyl->x0.x + r * cos(phi);
@@ -42,7 +42,7 @@ static void cylinder_map2(void* context, point_t* xi, double* x)
 
   double Xi = M_PI/2 * (xi->y - 0.5);
   double phi = Xi;
-  double r0 = 0.5*cyl->r * sqrt(1.0 + sin(phi)*sin(phi)); // Closest approach
+  double r0 = 0.5*cyl->r / cos(Xi); // Closest approach
   double r = xi->x * (cyl->r - r0) - cyl->r;
 
   x[0] = cyl->x0.x + r * cos(phi);
@@ -57,7 +57,7 @@ static void cylinder_map3(void* context, point_t* xi, double* x)
 
   double Xi = M_PI/2 * (xi->x - 0.5);
   double phi = -M_PI/2 + Xi;
-  double r0 = 0.5*cyl->r * sqrt(1.0 + sin(phi)*sin(phi)); // Closest approach
+  double r0 = 0.5*cyl->r / cos(Xi); // Closest approach
   double r = cyl->r - xi->y * (cyl->r - r0);
 
   x[0] = cyl->x0.x + r * cos(phi);
@@ -72,7 +72,7 @@ static void cylinder_map4(void* context, point_t* xi, double* x)
 
   double Xi = M_PI/2 * (0.5 - xi->x);
   double phi = M_PI/2 + Xi;
-  double r0 = 0.5*cyl->r * sqrt(1.0 + sin(phi)*sin(phi)); // Closest approach
+  double r0 = 0.5*cyl->r / cos(Xi); // Closest approach
   double r = xi->y * (cyl->r - r0) - cyl->r;
 
   x[0] = cyl->x0.x + r * cos(phi);
