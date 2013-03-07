@@ -2,6 +2,7 @@
 #include "core/unordered_set.h"
 #include "core/slist.h"
 #include "core/edit_mesh.h"
+#include "core/point_set.h"
 #include "geometry/create_unbounded_voronoi_mesh.h"
 #include "geometry/voronoi_tessellator.h"
 
@@ -264,6 +265,13 @@ mesh_t* create_unbounded_voronoi_mesh(point_t* generators, int num_generators,
   int_unordered_set_free(outer_cells);
   int_unordered_set_free(outer_edges);
   voronoi_tessellation_free(tessellation);
+
+  // Stick the generators into a point set (kd-tree) that the mesh can 
+  // carry with it.
+  point_set_t* generator_set = point_set_new();
+  for (int g = 0; g < num_generators; ++g)
+    point_set_insert(generator_set, &generators[g], g);
+  mesh_set_property(mesh, "generators", generator_set, DTOR(point_set_free));
 
   return mesh;
 }
