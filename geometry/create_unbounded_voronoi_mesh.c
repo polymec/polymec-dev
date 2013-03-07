@@ -115,7 +115,7 @@ mesh_t* create_unbounded_voronoi_mesh(point_t* generators, int num_generators,
   {
     int Ne = tessellation->faces[f].num_edges;
     for (int e = 0; e < Ne; ++e)
-      mesh_add_edge_to_face(mesh, &mesh->edges[tessellation->faces[f].edges[e]], &mesh->faces[f]);
+      mesh_attach_edge_to_face(mesh, &mesh->edges[tessellation->faces[f].edges[e]], &mesh->faces[f]);
     ASSERT(mesh->faces[f].num_edges == Ne);
   }
 
@@ -133,7 +133,7 @@ mesh_t* create_unbounded_voronoi_mesh(point_t* generators, int num_generators,
     {
       int face_index = tessellation->cells[i].faces[f];
       face_t* face = &mesh->faces[face_index];
-      mesh_add_face_to_cell(mesh, face, &mesh->cells[i]);
+      mesh_attach_face_to_cell(mesh, face, &mesh->cells[i]);
       for (int e = 0; e < face->num_edges; ++e)
       {
         int edge_index = tessellation->faces[face_index].edges[e];

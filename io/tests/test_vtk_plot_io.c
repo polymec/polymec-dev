@@ -32,10 +32,10 @@ void test_plot_single_cell_mesh(void** state)
 
   for (int f = 0; f < 6; ++f)
   {
-    mesh_add_face_to_cell(mesh, &mesh->faces[f], &mesh->cells[0]);
+    mesh_attach_face_to_cell(mesh, &mesh->faces[f], &mesh->cells[0]);
     for (int e = 0; e < 4; ++e)
     {
-      mesh_add_edge_to_face(mesh, &mesh->edges[face_edges[f][e]], &mesh->faces[f]);
+      mesh_attach_edge_to_face(mesh, &mesh->edges[face_edges[f][e]], &mesh->faces[f]);
       int fe = face_edges[f][e];
       mesh->edges[fe].node1 = &mesh->nodes[edge_nodes[fe][0]];
       mesh->edges[fe].node2 = &mesh->nodes[edge_nodes[fe][1]];

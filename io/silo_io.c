@@ -203,7 +203,7 @@ static void silo_read_datasets(void* context, void* f, io_dataset_t** datasets, 
       for (int f = 0; f < nf; ++f)
       {
         int fi = conndata[offset++];
-        mesh_add_face_to_cell(mesh, &mesh->faces[fi], &mesh->cells[c]);
+        mesh_attach_face_to_cell(mesh, &mesh->faces[fi], &mesh->cells[c]);
       }
     }
     for (int f = 0; f < num_faces; ++f)
@@ -219,7 +219,7 @@ static void silo_read_datasets(void* context, void* f, io_dataset_t** datasets, 
       for (int e = 0; e < ne; ++e)
       {
         int ei = conndata[eoffset++];
-        mesh_add_edge_to_face(mesh, &mesh->edges[ei], &mesh->faces[f]);
+        mesh_attach_edge_to_face(mesh, &mesh->edges[ei], &mesh->faces[f]);
       }
     }
     for (int e = 0; e < num_edges; ++e)
