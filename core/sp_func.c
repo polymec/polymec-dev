@@ -23,7 +23,6 @@ static void sp_func_free(void* ctx, void* dummy)
   if (func->vtable.dtor)
     free(func->context);
   free(func->name);
-  free(func);
 }
 
 sp_func_t* sp_func_new(const char* name, void* context, sp_vtable vtable,
@@ -40,7 +39,7 @@ sp_func_t* sp_func_new(const char* name, void* context, sp_vtable vtable,
   f->homogeneous = (homogeneity == SP_HOMOGENEOUS);
   f->num_comp = num_comp;
   memset(f->derivs, 0, sizeof(sp_func_t*)*4);
-  GC_register_finalizer(f, &sp_func_free, f, NULL, NULL);
+  GC_register_finalizer(f, sp_func_free, f, NULL, NULL);
   return f;
 }
 

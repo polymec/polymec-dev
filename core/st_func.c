@@ -42,7 +42,7 @@ st_func_t* st_func_new(const char* name, void* context, st_vtable vtable,
   f->constant = (constancy == ST_CONSTANT);
   f->num_comp = num_comp;
   memset(f->derivs, 0, sizeof(st_func_t*)*4);
-  GC_register_finalizer(f, &st_func_free, f, NULL, NULL);
+  GC_register_finalizer(f, st_func_free, f, NULL, NULL);
   return f;
 }
 
