@@ -117,7 +117,7 @@ void mesh_delete_cell(mesh_t* mesh, int i)
   }
 }
 
-void mesh_add_edge_to_face(mesh_t* mesh, edge_t* edge, face_t* face)
+void mesh_attach_edge_to_face(mesh_t* mesh, edge_t* edge, face_t* face)
 {
   if (face->edges == NULL)
   {
@@ -141,7 +141,7 @@ void mesh_add_edge_to_face(mesh_t* mesh, edge_t* edge, face_t* face)
   }
 }
 
-void mesh_add_face_to_cell(mesh_t* mesh, face_t* face, cell_t* cell)
+void mesh_attach_face_to_cell(mesh_t* mesh, face_t* face, cell_t* cell)
 {
   // Make sure this face isn't already attached to two cells.
   ASSERT((face->cell1 == NULL) || (face->cell2 == NULL));
@@ -172,7 +172,7 @@ void mesh_add_face_to_cell(mesh_t* mesh, face_t* face, cell_t* cell)
     face->cell2 = cell;
 }
 
-void mesh_remove_edge_from_face(mesh_t* mesh, edge_t* edge, face_t* face)
+void mesh_detach_edge_from_face(mesh_t* mesh, edge_t* edge, face_t* face)
 {
   for (int e = 0; e < face->num_edges; ++e)
   {
@@ -185,7 +185,7 @@ void mesh_remove_edge_from_face(mesh_t* mesh, edge_t* edge, face_t* face)
   }
 }
 
-void mesh_remove_face_from_cell(mesh_t* mesh, face_t* face, cell_t* cell)
+void mesh_detach_face_from_cell(mesh_t* mesh, face_t* face, cell_t* cell)
 {
   for (int f = 0; f < cell->num_faces; ++f)
   {

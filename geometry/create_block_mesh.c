@@ -154,13 +154,13 @@ static void create_block_grid(block_t* block,
     for (int f = 0; f < 6; ++f)
     {
       face_t* face = &mesh->faces[hexes[c].faces[f]];
-      mesh_add_face_to_cell(mesh, face, &mesh->cells[c]);
+      mesh_attach_face_to_cell(mesh, face, &mesh->cells[c]);
 
       if (!int_unordered_set_contains(processed_faces, hexes[c].faces[f]))
       {
         for (int e = 0; e < 4; ++e)
         {
-          mesh_add_edge_to_face(mesh, &mesh->edges[edges[f][e]], face);
+          mesh_attach_edge_to_face(mesh, &mesh->edges[edges[f][e]], face);
           mesh->edges[edges[f][e]].node1 = &mesh->nodes[nodes[f][e][0]];
           mesh->edges[edges[f][e]].node2 = &mesh->nodes[nodes[f][e][1]];
         }

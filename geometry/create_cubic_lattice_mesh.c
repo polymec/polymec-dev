@@ -211,13 +211,13 @@ mesh_t* create_cubic_lattice_mesh_with_bbox(int nx, int ny, int nz, bbox_t* bbox
         for (int f = 0; f < 6; ++f)
         {
           face_t* face = &mesh->faces[faces[f]];
-          mesh_add_face_to_cell(mesh, face, &mesh->cells[cell]);
+          mesh_attach_face_to_cell(mesh, face, &mesh->cells[cell]);
 
           if (!int_unordered_set_contains(processed_faces, faces[f]))
           {
             for (int e = 0; e < 4; ++e)
             {
-              mesh_add_edge_to_face(mesh, &mesh->edges[edges[f][e]], face);
+              mesh_attach_edge_to_face(mesh, &mesh->edges[edges[f][e]], face);
               mesh->edges[edges[f][e]].node1 = &mesh->nodes[nodes[f][e][0]];
               mesh->edges[edges[f][e]].node2 = &mesh->nodes[nodes[f][e][1]];
             }
@@ -309,14 +309,14 @@ mesh_t* create_cubic_lattice_mesh_with_bbox(int nx, int ny, int nz, bbox_t* bbox
         face_t* low_face = mesh->cells[low_cell].faces[0];
         ASSERT(low_face->cell2 == NULL); 
         low_face->cell2 = low_ghost_cell;
-        mesh_add_face_to_cell(mesh, low_face, low_ghost_cell);
+        mesh_attach_face_to_cell(mesh, low_face, low_ghost_cell);
 
         int high_cell = cubic_lattice_cell(lattice, nx-1, j, k);
         cell_t* high_ghost_cell = &mesh->cells[gindex++];
         face_t* high_face = mesh->cells[high_cell].faces[1];
         ASSERT(high_face->cell2 == NULL); 
         high_face->cell2 = high_ghost_cell;
-        mesh_add_face_to_cell(mesh, high_face, high_ghost_cell);
+        mesh_attach_face_to_cell(mesh, high_face, high_ghost_cell);
 
         // FIXME: Do ghost cells need node/edge connectivity?
       }
@@ -333,14 +333,14 @@ mesh_t* create_cubic_lattice_mesh_with_bbox(int nx, int ny, int nz, bbox_t* bbox
         face_t* low_face = mesh->cells[low_cell].faces[2];
         ASSERT(low_face->cell2 == NULL); 
         low_face->cell2 = low_ghost_cell;
-        mesh_add_face_to_cell(mesh, low_face, low_ghost_cell);
+        mesh_attach_face_to_cell(mesh, low_face, low_ghost_cell);
 
         int high_cell = cubic_lattice_cell(lattice, i, ny-1, k);
         cell_t* high_ghost_cell = &mesh->cells[gindex++];
         face_t* high_face = mesh->cells[high_cell].faces[3];
         ASSERT(high_face->cell2 == NULL); 
         high_face->cell2 = high_ghost_cell;
-        mesh_add_face_to_cell(mesh, high_face, high_ghost_cell);
+        mesh_attach_face_to_cell(mesh, high_face, high_ghost_cell);
 
         // FIXME: Do ghost cells need node/edge connectivity?
       }
@@ -357,14 +357,14 @@ mesh_t* create_cubic_lattice_mesh_with_bbox(int nx, int ny, int nz, bbox_t* bbox
         face_t* low_face = mesh->cells[low_cell].faces[4];
         ASSERT(low_face->cell2 == NULL); 
         low_face->cell2 = low_ghost_cell;
-        mesh_add_face_to_cell(mesh, low_face, low_ghost_cell);
+        mesh_attach_face_to_cell(mesh, low_face, low_ghost_cell);
 
         int high_cell = cubic_lattice_cell(lattice, i, j, nz-1);
         cell_t* high_ghost_cell = &mesh->cells[gindex++];
         face_t* high_face = mesh->cells[high_cell].faces[5];
         ASSERT(high_face->cell2 == NULL); 
         high_face->cell2 = high_ghost_cell;
-        mesh_add_face_to_cell(mesh, high_face, high_ghost_cell);
+        mesh_attach_face_to_cell(mesh, high_face, high_ghost_cell);
 
         // FIXME: Do ghost cells need node/edge connectivity?
       }

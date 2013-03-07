@@ -223,11 +223,11 @@ mesh_t* create_bounded_voronoi_mesh(point_t* generators, int num_generators,
       // Create the boundary faces for this cell and its neighbor.
       int near_face_index = mesh_add_face(mesh);
       face_t* near_face = &mesh->faces[near_face_index];
-      mesh_add_face_to_cell(mesh, near_face, cell);
+      mesh_attach_face_to_cell(mesh, near_face, cell);
 
       int far_face_index = mesh_add_face(mesh);
       face_t* far_face = &mesh->faces[far_face_index];
-      mesh_add_face_to_cell(mesh, far_face, ncell);
+      mesh_attach_face_to_cell(mesh, far_face, ncell);
 
       // Create the edge that connects the two boundary nodes and add it 
       // to the boundary face. This edge shouldn't exist yet.
@@ -235,8 +235,8 @@ mesh_t* create_bounded_voronoi_mesh(point_t* generators, int num_generators,
       edge_t* edge_connecting_nodes = &mesh->edges[edge_connecting_nodes_index];
       edge_connecting_nodes->node1 = bnode1;
       edge_connecting_nodes->node2 = bnode2;
-      mesh_add_edge_to_face(mesh, edge_connecting_nodes, near_face);
-      mesh_add_edge_to_face(mesh, edge_connecting_nodes, far_face);
+      mesh_attach_edge_to_face(mesh, edge_connecting_nodes, near_face);
+      mesh_attach_edge_to_face(mesh, edge_connecting_nodes, far_face);
 
       // Create the edges that connect the generator to each boundary node.
       edge_t *near_edge1, *far_edge1;
@@ -271,8 +271,8 @@ mesh_t* create_bounded_voronoi_mesh(point_t* generators, int num_generators,
         int far_edge1_index = *far_edge1_p;
         far_edge1 = &mesh->edges[far_edge1_index];
       }
-      mesh_add_edge_to_face(mesh, near_edge1, near_face);
-      mesh_add_edge_to_face(mesh, far_edge1, far_face);
+      mesh_attach_edge_to_face(mesh, near_edge1, near_face);
+      mesh_attach_edge_to_face(mesh, far_edge1, far_face);
 
       edge_t *near_edge2, *far_edge2;
       int* near_edge2_p = int_int_unordered_map_get(bedge2_map, c);
@@ -306,8 +306,8 @@ mesh_t* create_bounded_voronoi_mesh(point_t* generators, int num_generators,
         int far_edge2_index = *far_edge2_p;
         far_edge2 = &mesh->edges[far_edge2_index];
       }
-      mesh_add_edge_to_face(mesh, near_edge2, near_face);
-      mesh_add_edge_to_face(mesh, far_edge2, far_face);
+      mesh_attach_edge_to_face(mesh, near_edge2, near_face);
+      mesh_attach_edge_to_face(mesh, far_edge2, far_face);
 
       // Now that we have the right topology, we can do geometry. 
          
