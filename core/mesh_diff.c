@@ -4,8 +4,12 @@
 extern "C" {
 #endif
 
+// Global unique identifier. Not thread-safe.
+static int mesh_diff_next_id = 0;
+
 struct mesh_diff_t
 {
+  int id; // Unique identifier for this diff.
   int num_deltas, capacity;
   mesh_delta_t** deltas;
 };
@@ -25,6 +29,7 @@ static void mesh_diff_reserve(mesh_diff_t* diff, int capacity)
 mesh_diff_t* mesh_diff_new()
 {
   mesh_diff_t* diff = malloc(sizeof(mesh_diff_t));
+  diff->id = mesh_diff_next_id++;
   diff->num_deltas = 0;
   diff->capacity = 0;
   diff->deltas = NULL;
@@ -51,13 +56,25 @@ void mesh_diff_apply(mesh_diff_t* diff, mesh_t* mesh)
 {
   for (int d = 0; d < diff->num_deltas; ++d)
     mesh_delta_apply(diff->deltas[d], mesh);
+
+  // Mark this mesh as having been changed by this diff.
+  mesh_set_property(mesh, "last_diff", (void*)diff->id, NULL);
 }
 
 bool mesh_diff_rollback(mesh_diff_t* diff, mesh_t* mesh)
 {
+  // Make sure that this diff was the last one applied to the mesh.
+  void* prop = mesh_property(mesh, "last_diff");
+  if (prop == NULL) 
+    return false;
+  int last_id = (int)prop;
+  if (last_id != diff->id) 
+    return false;
+
   mesh_diff_t* inv = mesh_diff_inverse(diff);
   mesh_diff_apply(inv, mesh);
-  return true; // FIXME
+  mesh_diff_free(inv);
+  return true; 
 }
 
 mesh_diff_t* mesh_diff_inverse(mesh_diff_t* diff)
