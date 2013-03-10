@@ -74,6 +74,11 @@ bool mesh_diff_rollback(mesh_diff_t* diff, mesh_t* mesh)
   mesh_diff_t* inv = mesh_diff_inverse(diff);
   mesh_diff_apply(inv, mesh);
   mesh_diff_free(inv);
+
+  // Remove this as the last diff from the mesh. No further rollbacks
+  // may be applied.
+  mesh_delete_property(mesh, "last_diff");
+
   return true; 
 }
 
