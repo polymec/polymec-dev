@@ -118,6 +118,35 @@ static inline void vector2_scale(vector2_t* v, double s)
   v->y *= s;
 }
 
+// Returns the area of the triangle with the three vertices in the plane.
+static inline double triangle_area(point2_t* x1, point2_t* x2, point2_t* x3)
+{
+  return 0.5 * ((x2->x - x1->x) * (x3->y - x1->y) - (x3->x - x1->x) * (x2->y - x1->y));
+}
+
+// Returns true if points p1, p2, and p3 are colinear, false otherwise.
+static inline bool point2s_are_colinear(point2_t* p1, point2_t* p2, point2_t* p3)
+{
+  return triangle_area(p1, p2, p3) == 0.0;
+}
+
+// Returns true if point p1 is between p2 and p3 on a line, false otherwise.
+static inline bool point2_is_between(point2_t* p1, point2_t* p2, point2_t* p3)
+{
+  if (!point2s_are_colinear(p1, p2, p3))
+    return false;
+  if (p2->x != p3->x)
+  {
+    return ((p2->x <= p1->x) && (p1->x <= p3->x)) ||
+           ((p2->x >= p1->x) && (p1->x >= p3->x));
+  }
+  else
+  {
+    return ((p2->y <= p1->y) && (p1->y <= p3->y)) ||
+           ((p2->y >= p1->y) && (p1->y >= p3->y));
+  }
+}
+
 #ifdef __cplusplus
 }
 #endif
