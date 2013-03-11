@@ -93,7 +93,7 @@ static inline void vector2_normalize(vector2_t* v)
 }
 
 // Vector cross product (magnitude).
-static inline double vector2_cross_mag(vector2_t* v1, vector2_t* v2);
+static inline double vector2_cross_mag(vector2_t* v1, vector2_t* v2)
 {
   return v1->x*v2->y - v1->y*v2->x;
 }
