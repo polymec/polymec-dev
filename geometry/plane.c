@@ -80,7 +80,17 @@ void plane_reset(sp_func_t* plane, vector_t* n, point_t* x)
   ASSERT(vector_mag(&p->e2) > 1e-14);
 }
 
-void plane_project(sp_func_t* plane, point_t* x, double* eta, double* xi)
+void plane_project(sp_func_t* plane, point_t* x, point2_t* xi)
+{
+  plane_t* p = sp_func_context(plane);
+  vector_t v = {.x = x->x - p->x.x, .y = x->y - p->x.y, .z = x->z - p->x.z};
+  double voe3 = vector_dot(&v, &p->e3);
+  vector_t v_perp = {.x = v.x - voe3 * p->e3.x, .y = v.y - voe3 * p->e3.y, .z = v.z - voe3 * p->e3.z};
+  xi->x = vector_dot(&v_perp, &p->e1);
+  xi->y = vector_dot(&v_perp, &p->e2);
+}
+
+void plane_project2(sp_func_t* plane, point_t* x, double* eta, double* xi)
 {
   plane_t* p = sp_func_context(plane);
   vector_t v = {.x = x->x - p->x.x, .y = x->y - p->x.y, .z = x->z - p->x.z};
@@ -88,6 +98,14 @@ void plane_project(sp_func_t* plane, point_t* x, double* eta, double* xi)
   vector_t v_perp = {.x = v.x - voe3 * p->e3.x, .y = v.y - voe3 * p->e3.y, .z = v.z - voe3 * p->e3.z};
   *eta = vector_dot(&v_perp, &p->e1);
   *xi = vector_dot(&v_perp, &p->e2);
+}
+
+void plane_embed(sp_func_t* plane, point2_t* xi, point_t* x)
+{
+  plane_t* p = sp_func_context(plane);
+  x->x = p->x.x + p->e1.x * xi->x + p->e2.x * xi->y;
+  x->y = p->x.y + p->e1.y * xi->x * p->e2.y + xi->y;
+  x->z = p->x.z + p->e1.z * xi->x * p->e2.z + xi->y;
 }
 
 double plane_intersect_with_line(sp_func_t* plane, point_t* x0, vector_t* t)

@@ -2,6 +2,7 @@
 #define POLYMEC_PLANE_H
 
 #include "core/sp_func.h"
+#include "core/point2.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -15,10 +16,17 @@ sp_func_t* plane_new(vector_t* n, point_t* x);
 void plane_reset(sp_func_t* plane, vector_t* n, point_t* x);
 
 // Another cool thing that the plane class can do is projections! 
-// This function projects the given point x to 2D coordinates (eta, xi) 
+// This function projects the given point x to 2D coordinates {xi}
 // within the plane. This projection is consistent with all other projections 
 // made by this object.
-void plane_project(sp_func_t* plane, point_t* x, double* eta, double* xi);
+void plane_project(sp_func_t* plane, point_t* x, point2_t* xi);
+
+// This version of plane_project is deprecated and should be removed.
+void plane_project2(sp_func_t* plane, point_t* x, double* eta, double* xi);
+
+// The inverse of planar projection is embedding: mapping a point xi on the 
+// plane to x, its 3D equivalent in space.
+void plane_embed(sp_func_t* plane, point2_t* xi, point_t* x);
 
 // Given a parameterized line x(s) = x0 + t*s, where t is the tangent vector, 
 // find the intersection of x(s) with the plane represented by this 
