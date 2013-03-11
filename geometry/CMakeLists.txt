@@ -1,5 +1,5 @@
 add_library(polymec_geometry plane.c cylinder.c sphere.c intersection.c 
-            union.c difference.c scaled.c giftwrap_hull.c polygon2.c
+            union.c difference.c scaled.c giftwrap_hull.c polygon2.c polygon.c
             block.c create_block_mesh.c ball_mapping.c cylinder_mapping.c
             cubic_lattice.c create_cubic_lattice_mesh.c cvt_gen_dist.c
             prob_cvt_gen_dist.c force_cvt_gen_dist.c 
