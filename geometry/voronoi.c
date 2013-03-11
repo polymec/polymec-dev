@@ -334,7 +334,7 @@ mesh_t* create_bounded_voronoi_mesh(point_t* generators, int num_generators,
     for (int n = first_node; n < mesh->num_nodes; ++n)
     {
       point_t p = {.x = mesh->nodes[n].x, .y = mesh->nodes[n].y, .z = mesh->nodes[n].z};
-      plane_project(plane, &p, &points[2*n], &points[2*n+1]);
+      plane_project2(plane, &p, &points[2*n], &points[2*n+1]);
     }
 
     // Now use the Giftwrap algorithm to find an ordering of the nodes for a
