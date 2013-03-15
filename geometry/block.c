@@ -1,7 +1,7 @@
 #include <gc/gc.h>
 #include "geometry/block.h"
+#include "geometry/hexahedron.h"
 #include "core/unordered_set.h"
-#include "core/lagrange_poly.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -9,15 +9,14 @@ extern "C" {
 
 struct block_t 
 {
-  int order, num_points;
+  hexahedron_t* hex;
   str_unordered_set_t* tags[6];
-  lagrange_poly_t* poly;
 };
 
 static void block_free(void* ctx, void* dummy)
 {
   block_t* block = ctx;
-  block->poly = NULL;
+  block->hex = NULL;
   for (int f = 0; f < 6; ++f)
     str_unordered_set_free(block->tags[f]);
 }
@@ -28,80 +27,32 @@ block_t* block_new(int order)
   ASSERT(order >= 1);
   ASSERT(order <= 3);
   block_t* block = GC_MALLOC(sizeof(block_t));
-  block->order = order;
-  block->num_points = pow(order+1, 3);
+  block->hex = hexahedron_new(order);
   for (int f = 0; f < 6; ++f)
     block->tags[f] = str_unordered_set_new();
-  block->poly = lagrange_poly_new(order);
-
-  // Set the points of the block to those of the reference (logical) 
-  // coordinate system.
-  double points[order+1];
-  double h = 1.0 / order;
-  for (int i = 0; i < order+1; ++i)
-    points[i] = i*h;
-  lagrange_poly_set_points(block->poly, points);
 
   GC_register_finalizer(block, block_free, block, NULL, NULL);
-
   return block;
 }
 
 int block_order(block_t* block)
 {
-  return block->order;
+  return hexahedron_order(block->hex);
 }
 
 int block_num_points(block_t* block)
 {
-  return block->num_points;
+  return hexahedron_num_points(block->hex);
 }
 
 void block_get_points(block_t* block, point_t* points)
 {
-  double h = 1.0 / block->order;
-  int offset = 0;
-  for (int k = 0; k < block->order+1; ++k)
-  {
-    for (int j = 0; j < block->order+1; ++j)
-    {
-      for (int i = 0; i < block->order+1; ++i, ++offset)
-      {
-        points[offset].z = k*h;
-        points[offset].y = j*h;
-        points[offset].z = i*h;
-      }
-    }
-  }
+  hexahedron_get_points(block->hex, points);
 }
 
 void block_map(block_t* block, point_t* points, point_t* xi, point_t* x)
 {
-  // Evaluate the Lagrange polynomials in each direction
-  // and form their tensor product.
-  int order = block->order;
-  double ones[order+1];
-  for (int i = 0; i < order+1; ++i)
-    ones[i] = 1.0;
-
-  x->x = x->y = x->z = 0.0;
-  int p = 0;
-  for (int k = 0; k < order+1; ++k)
-  {
-    double Lk = lagrange_poly_value(block->poly, xi->z, ones);
-    for (int j = 0; j < order+1; ++j)
-    {
-      double Lj = lagrange_poly_value(block->poly, xi->y, ones);
-      for (int i = 0; i < order+1; ++i, ++p)
-      {
-        double Li = lagrange_poly_value(block->poly, xi->x, ones);
-        double LiLjLk = Li * Lj * Lk;
-        x->x += points[p].x * LiLjLk;
-        x->y += points[p].y * LiLjLk;
-        x->z += points[p].z * LiLjLk;
-      }
-    }
-  }
+  hexahedron_map(block->hex, points, xi, x);
 }
 
 static void tag_free(char* tag)
