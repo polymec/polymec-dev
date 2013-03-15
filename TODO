@@ -1,6 +1,0 @@
-- geometry
-  - Unit test for known generator distribution
-  - Clipping algorithm for unbounded Voronoi graphs
-  - Test geometries for isoparametric block transformations
-  - Stitching logic for block meshes
-- cnav
