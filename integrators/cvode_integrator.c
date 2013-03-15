@@ -1,4 +1,4 @@
-#include "integrators/nonlinear_integrator.h"
+#include "integrators/cvode_integrator.h"
 #include "core/sundials_helpers.h"
 #include "cvode/cvode_spgmr.h"
 #include "cvode/cvode_spbcgs.h"
@@ -16,17 +16,17 @@ typedef struct
   N_Vector u;
   integrator_compute_F_func compute_F;
   integrator_compute_Jv_func compute_Jv;
-  nonlinear_integrator_solver_type_t solver_type;
+  cvode_integrator_solver_type_t solver_type;
   int gram_schmidt, max_kdim;
   int precond_type;
-  nonlinear_integrator_precond_setup_func precond_setup;
-  nonlinear_integrator_precond_solve_func precond_solve;
+  cvode_integrator_precond_setup_func precond_setup;
+  cvode_integrator_precond_solve_func precond_solve;
   integrator_dtor dtor;
 
   bool stepped;
-} nonlinear_integrator_t;
+} cvode_integrator_t;
 
-static void nl_reset(nonlinear_integrator_t* nli)
+static void nl_reset(cvode_integrator_t* nli)
 {
   if (nli->cvode != NULL)
     N_VDestroy(nli->u);
@@ -36,7 +36,7 @@ static void nl_reset(nonlinear_integrator_t* nli)
 
 static void nl_init(void* context, int N)
 {
-  nonlinear_integrator_t* nli = context;
+  cvode_integrator_t* nli = context;
   nl_reset(nli);
   nli->u = N_VNew(nli->comm, N);
 }
@@ -46,7 +46,7 @@ static void nl_step(void* context, double t1, double t2, double* solution, int N
   ASSERT(t2 > t1);
   double dt = t2 - t1;
 
-  nonlinear_integrator_t* nli = context;
+  cvode_integrator_t* nli = context;
   ASSERT(nli->cvode != NULL);
   if (!nli->stepped)
   {
@@ -104,7 +104,7 @@ static void nl_step(void* context, double t1, double t2, double* solution, int N
 
 static void nl_dtor(void* context)
 {
-  nonlinear_integrator_t* nli = context;
+  cvode_integrator_t* nli = context;
   nl_reset(nli);
   if (nli->cvode != NULL)
     CVodeFree(nli->cvode);
@@ -114,18 +114,18 @@ static void nl_dtor(void* context)
 }
 
 
-integrator_t* nonlinear_integrator_new(MPI_Comm comm,
+integrator_t* cvode_integrator_new(MPI_Comm comm,
                                        void* context, 
                                        int cvode_type,
                                        int order,
                                        integrator_compute_F_func compute_F,
                                        integrator_compute_Jv_func compute_Jv,
-                                       nonlinear_integrator_solver_type_t solver_type,
+                                       cvode_integrator_solver_type_t solver_type,
                                        int max_kdim,
                                        int gram_schmidt,
                                        int precond_type,
-                                       nonlinear_integrator_precond_setup_func precond_setup,
-                                       nonlinear_integrator_precond_solve_func precond_solve,
+                                       cvode_integrator_precond_setup_func precond_setup,
+                                       cvode_integrator_precond_solve_func precond_solve,
                                        integrator_dtor dtor)
 {
   ASSERT((cvode_type == CV_ADAMS) || (cvode_type == CV_BDF));
@@ -135,7 +135,7 @@ integrator_t* nonlinear_integrator_new(MPI_Comm comm,
   ASSERT((gram_schmidt == CLASSICAL_GS) || (gram_schmidt == MODIFIED_GS));
   ASSERT((precond_type == PREC_NONE) || (precond_type == PREC_LEFT) ||
          (precond_type == PREC_RIGHT) || (precond_type == PREC_BOTH));
-  nonlinear_integrator_t* nli = malloc(sizeof(nonlinear_integrator_t));
+  cvode_integrator_t* nli = malloc(sizeof(cvode_integrator_t));
   nli->comm = comm;
   nli->context = context;
   nli->type = cvode_type;
@@ -175,6 +175,42 @@ integrator_t* nonlinear_integrator_new(MPI_Comm comm,
   else
     sprintf(name, "BDF (stiff, order %d)", order);
   return integrator_new(name, nli, vtable, order, INTEGRATOR_IMPLICIT);
+}
+
+integrator_t* adams_integrator_new(MPI_Comm comm,
+                                   void* context, 
+                                   int order,
+                                   integrator_compute_F_func compute_F,
+                                   integrator_compute_Jv_func compute_Jv,
+                                   cvode_integrator_solver_type_t solver_type,
+                                   int max_kdim,
+                                   int gram_schmidt,
+                                   int precond_type,
+                                   cvode_integrator_precond_setup_func precond_setup,
+                                   cvode_integrator_precond_solve_func precond_solve,
+                                   integrator_dtor dtor)
+{
+  return cvode_integrator_new(comm, context, CV_ADAMS, order, compute_F,
+                              compute_Jv, solver_type, max_kdim, gram_schmidt,
+                              precond_type, precond_setup, precond_solve, dtor);
+}
+
+integrator_t* bdf_integrator_new(MPI_Comm comm,
+                                 void* context,
+                                 int order,
+                                 integrator_compute_F_func compute_F,
+                                 integrator_compute_Jv_func compute_Jv,
+                                 cvode_integrator_solver_type_t solver_type,
+                                 int max_kdim,
+                                 int gram_schmidt,
+                                 int precond_type,
+                                 cvode_integrator_precond_setup_func precond_setup,
+                                 cvode_integrator_precond_solve_func precond_solve,
+                                 integrator_dtor dtor)
+{
+  return cvode_integrator_new(comm, context, CV_BDF, order, compute_F,
+                              compute_Jv, solver_type, max_kdim, gram_schmidt,
+                              precond_type, precond_setup, precond_solve, dtor);
 }
 
 #ifdef __cplusplus
