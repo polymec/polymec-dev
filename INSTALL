@@ -1,5 +1,5 @@
 ------------------------------------------------------------------------------
-Building polymec requires CMake 2.8, found at http://www.cmake.org/, as
+Building polymec requires CMake 2.8.5, found at http://www.cmake.org/, as
 well as GNU make. To build polymec on a UNIX-like system, use the following
 commands:
 
