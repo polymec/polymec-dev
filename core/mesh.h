@@ -88,10 +88,17 @@ struct face_t
   point_t center;
 };
 
+// This function returns the cell opposite the given cell through the 
+// given face.
 static inline cell_t* face_opp_cell(face_t* face, cell_t* cell)
 {
   return (face->cell1 == cell) ? face->cell2 : face->cell1;
 }
+
+// This function fills the given array with the nodes of its constituent 
+// edges, ordered in one of the two possible traversal orders. The number of 
+// nodes is less than or equal to the number of edges.
+void face_get_nodes(face_t* face, node_t** nodes, int* num_nodes);
  
 typedef struct mesh_storage_t mesh_storage_t;
 
