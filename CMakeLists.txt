@@ -45,11 +45,14 @@ endif ()
 
 # Figure out MPI.
 if (USE_MPI EQUAL 1)
-  # CC should already have been set in Makefile or wherever.
+  # CC should already have been set in Makefile or whereever.
   set(MPIEXEC mpirun)
   set(MPIEXEC_NUMPROC_FLAG -np)
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DHAVE_MPI")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DHAVE_MPI")
+
+  # NOTE: Disable C++ bindings for MPI, since they have never worked for anyone. 
+  set(NO_MPI_CXX_FLAGS "-DMPICH_SKIP_MPICXX -UHAVE_MPI_CPP -DLAM_WANT_MPI2CPP=0 -DOMPI_WANT_CXX_BINDINGS=0 -DOMPI_BUILDING=1")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DHAVE_MPI ${NO_MPI_CXX_FLAGS}")
 else()
   set(USE_MPI 0)
 endif ()
