@@ -626,7 +626,7 @@ static void silo_plot_write_datasets(void* context, void* f, io_dataset_t** data
   // Write out the cell-centered mesh data.
 
   // Scalar fields.
-  int pos = 0, num_comps;
+  int pos = 0, num_comps, num_fields = 0;
   char* field_name;
   double* field;
   mesh_centering_t centering;
@@ -638,6 +638,7 @@ static void silo_plot_write_datasets(void* context, void* f, io_dataset_t** data
       DBPutUcdvar1(file, field_name, (char*)"mesh",
           field, num_cells, 0, 0,
           DB_DOUBLE, DB_ZONECENT, optlist);
+      ++num_fields;
     }
   }
 
@@ -653,6 +654,7 @@ static void silo_plot_write_datasets(void* context, void* f, io_dataset_t** data
       mesh_types[i] = DB_UCDMESH;
       var_types[i] = DB_UCDVAR;
     }
+    char* field_names[num_fields];
     char** var_names[num_fields];
     for (int f = 0; f < num_fields; ++f)
       var_names[f] = malloc(sizeof(char*)*procs_per_file);
@@ -664,12 +666,22 @@ static void silo_plot_write_datasets(void* context, void* f, io_dataset_t** data
       mesh_names[i] = strdup(mesh_name);
 
       // Field data.
-      int field_index = 0;
-      for (int f = 0; f < num_fields; ++f)
+      int pos = 0, field_index = 0, num_comps;
+      char* field_name;
+      double* field;
+      mesh_centering_t centering;
+      while (io_dataset_next_field(dataset, &pos, &field_name, &field, &num_comps, &centering))
       {
-        char var_name[1024];
-        snprintf(var_name, 1024, "domain_%d/%s", i, dataset->field_names[f]);
-        var_names[f][i] = strdup(var_name);
+        ASSERT(centering == MESH_CELL); // FIXME
+        if (centering == MESH_CELL)
+        {
+          if (i == 0)
+            field_names[i] = strdup(field_name);
+          char var_name[1024];
+          snprintf(var_name, 1024, "domain_%d/%s", i, field_name);
+          var_names[field_index][i] = strdup(var_name);
+          ++field_index;
+        }
       }
     }
 
@@ -680,15 +692,18 @@ static void silo_plot_write_datasets(void* context, void* f, io_dataset_t** data
 
     for (int f = 0; f < num_fields; ++f)
     {
-      DBPutMultivar(file, dataset->field_names[f], procs_per_file, 
+      DBPutMultivar(file, field_names[f], procs_per_file, 
           &var_names[f][0], &var_types[0], optlist);
     }
 
     for (int i = 0; i < procs_per_file; ++i)
       free(mesh_names[i]);
-    for (int f = 0; f < var_names.size(); ++f)
+    for (int f = 0; f < num_fields; ++f)
+    {
+      free(field_names[f]);
       for (int i = 0; i < procs_per_file; ++i)
         free(var_names[f][i]);
+    }
   }
 
 #endif

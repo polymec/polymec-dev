@@ -93,35 +93,6 @@ add_library(HYPRE STATIC IMPORTED)
 set_target_properties(HYPRE PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libHYPRE.a)
 set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};HYPRE)
 
-## Install PETSc.
-#if (NOT EXISTS ${CMAKE_BINARY_DIR}/lib/libpetsc.a)
-#  set(PETSC_CONFIG_OPTS PETSC_DIR=${CMAKE_CURRENT_BINARY_DIR}/petsc-3.3-p5 PETSC_ARCH=${CMAKE_BUILD_TYPE} --prefix=${CMAKE_BINARY_DIR} --CC=${CMAKE_C_COMPILER} --CFLAGS=${CMAKE_C_FLAGS} --with-mpi=${USE_MPI})
-#  set(PETSC_CONFIG_OPTS ${PETSC_CONFIG_OPTS} --with-fortran=0)
-#  set(PETSC_CONFIG_OPTS ${PETSC_CONFIG_OPTS} --with-x=0)
-#  # These are all broken:
-##  set(PETSC_CONFIG_OPTS ${PETSC_CONFIG_OPTS} --download-ctetgen=yes)
-##  set(PETSC_CONFIG_OPTS ${PETSC_CONFIG_OPTS} --download-triangle=yes)
-##  set(PETSC_CONFIG_OPTS ${PETSC_CONFIG_OPTS} --download-sundials=yes)
-#  if (USE_MPI EQUAL 1)
-#    set(PETSC_CONFIG_OPTS ${PETSC_CONFIG_OPTS} --download-hdf5=yes)
-#    set(PETSC_CONFIG_OPTS ${PETSC_CONFIG_OPTS} --download-parmetis=yes)
-#  endif()
-#  execute_process(COMMAND cmake -E tar xzvf ${CMAKE_CURRENT_SOURCE_DIR}/petsc-lite-3.3-p5.tar.gz
-#                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
-#  message("Configuring PETSc...")
-#  execute_process(COMMAND ./configure ${PETSC_CONFIG_OPTS}
-#                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/petsc-3.3-p5
-#                  OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
-#  message("Building PETSc...")
-#  execute_process(COMMAND make PETSC_DIR=${CMAKE_CURRENT_BINARY_DIR}/petsc-3.3-p5 PETSC_ARCH=${CMAKE_BUILD_TYPE} all install
-#                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/petsc-3.3-p5)
-#endif()
-#add_library(petsc STATIC IMPORTED)
-#set_target_properties(petsc PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libpetsc.a)
-#add_library(ctetgen STATIC IMPORTED)
-#set_target_properties(ctetgen PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libctetgen.a)
-#set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};petsc)
-
 # Find HDF5 if we're building a serial version (PETSc is unable to do this for us).
 if (USE_MPI EQUAL 0)
   set(HDF5_USE_STATIC_LIBRARIES TRUE)
@@ -143,7 +114,11 @@ endif()
 
 # Install silo.
 if (USE_MPI EQUAL 1)
-  set(SILOLIB siloh5)
+  if (${HDF5_FOUND})
+    set(SILOLIB siloh5)
+  else()
+    set(SILOLIB silo)
+  endif()
 else()
   if (${HDF5_FOUND})
     set(SILOLIB siloh5)
@@ -256,6 +231,4 @@ set(POLYMEC_TP_INCDIRS ${POLYMEC_TP_INCDIRS};${PROJECT_BINARY_DIR}/include/libxm
 # Add all the libraries to the build system at large.
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${POLYMEC_TP_C_FLAGS}" PARENT_SCOPE)
 set(POLYMEC_LIBS ${POLYMEC_LIBS};${POLYMEC_TP_LIBS} PARENT_SCOPE)
-if (USE_MPI EQUAL 0)
-  set(POLYMEC_INCDIRS ${POLYMEC_INCDIRS};${POLYMEC_TP_INCDIRS} PARENT_SCOPE)
-endif()
+set(POLYMEC_INCDIRS ${POLYMEC_INCDIRS};${POLYMEC_TP_INCDIRS} PARENT_SCOPE)

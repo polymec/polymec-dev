@@ -1,7 +1,7 @@
 #ifndef POLYMEC_SUNDIALS_HELPERS_H
 #define POLYMEC_SUNDIALS_HELPERS_H
 
-#if USE_MPI
+#if HAVE_MPI
 #include "nvector/nvector_parallel.h"
 #else
 #include "nvector/nvector_serial.h"
@@ -10,7 +10,7 @@
 
 // These macros and functions help with creating and manipulating serial 
 // and parallel N_Vector objects.
-#if USE_MPI
+#if HAVE_MPI
 #define NV_DATA(v) NV_DATA_P(v)
 #define NV_LOCLENGTH(v) NV_LOCLENGTH_P(v)
 #define NV_GLOBLENGTH(v) NV_GLOBLENGTH_P(v)
@@ -24,9 +24,9 @@
 
 static inline N_Vector N_VNew(MPI_Comm comm, int local_len)
 {
-#if USE_MPI
+#if HAVE_MPI
   int global_len;
-  MPI_Allreduce(comm, &local_len, &global_len, 1, MPI_INT, MPI_SUM);
+  MPI_Allreduce(&local_len, &global_len, 1, MPI_INT, MPI_SUM, comm);
   return N_VNew_Parallel(comm, local_len, global_len);
 #else
   return N_VNew_Serial(local_len);
