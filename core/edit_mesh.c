@@ -36,6 +36,7 @@ void mesh_delete_node(mesh_t* mesh, int i)
     node_t tmp = mesh->nodes[last];
     mesh->nodes[last] = mesh->nodes[i];
     mesh->nodes[i] = tmp;
+    mesh->num_nodes -= 1;
   }
 }
 
@@ -62,6 +63,7 @@ void mesh_delete_edge(mesh_t* mesh, int i)
     edge_t tmp = mesh->edges[last];
     mesh->edges[last] = mesh->edges[i];
     mesh->edges[i] = tmp;
+    mesh->num_edges -= 1;
   }
 }
 
@@ -88,6 +90,7 @@ void mesh_delete_face(mesh_t* mesh, int i)
     face_t tmp = mesh->faces[last];
     mesh->faces[last] = mesh->faces[i];
     mesh->faces[i] = tmp;
+    mesh->num_faces -= 1;
   }
 }
 
@@ -114,6 +117,7 @@ void mesh_delete_cell(mesh_t* mesh, int i)
     cell_t tmp = mesh->cells[last];
     mesh->cells[last] = mesh->cells[i];
     mesh->cells[i] = tmp;
+    mesh->num_cells -= 1;
   }
 }
 

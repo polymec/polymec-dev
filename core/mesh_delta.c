@@ -330,9 +330,9 @@ static void attach_node(mesh_t* mesh, int index, int parent_index)
   ASSERT(parent_index < mesh->num_edges);
   edge_t* parent = &mesh->edges[parent_index];
   node_t* node = &mesh->nodes[index];
-  if (parent->node1 != NULL)
+  if (parent->node1 == NULL)
     parent->node1 = node;
-  else if (parent->node2 != NULL)
+  else if (parent->node2 == NULL)
     parent->node2 = node;
 }
 
