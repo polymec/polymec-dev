@@ -12,6 +12,16 @@ extern "C" {
 // vector and point.
 sp_func_t* plane_new(vector_t* n, point_t* x);
 
+// Construct a plane that contains the three points p1, p2, and p3, 
+// assuming that these points are not co-linear.
+sp_func_t* plane_new_from_points(point_t* p1, point_t* p2, point_t* p3);
+
+// Constructs a plane that minimizes the normal distances of the given 
+// points. num_points must be at least 3. If 3 points are given, the resulting 
+// plane exactly fits them--otherwise, the normal and center point are 
+// computed by an orthogonal distance regression (ODR).
+sp_func_t* plane_new_best_fit(point_t* points, int num_points);
+
 // Resets the plane object so that it represents a new plane.
 void plane_reset(sp_func_t* plane, vector_t* n, point_t* x);
 
