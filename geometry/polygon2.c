@@ -45,8 +45,8 @@ polygon2_t* polygon2_new(point2_t* vertices, int num_vertices)
 
 polygon2_t* polygon2_new_with_ordering(point2_t* points, int* ordering, int num_points)
 {
-  ASSERT(vertices != NULL);
-  ASSERT(num_vertices >= 3);
+  ASSERT(points != NULL);
+  ASSERT(num_points >= 3);
   polygon2_t* poly = GC_MALLOC(sizeof(polygon2_t));
   poly->vertices = malloc(sizeof(point2_t)*num_points);
   memcpy(poly->vertices, points, sizeof(point2_t)*num_points);

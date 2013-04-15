@@ -125,11 +125,11 @@ mesh_t* mesh_new(int num_cells, int num_ghost_cells, int num_faces,
 mesh_t* mesh_new_with_arena(ARENA* arena, int num_cells, int num_ghost_cells, int num_faces,
                             int num_edges, int num_nodes)
 {
-  ASSERT(num_cells > 0);
+  ASSERT(num_cells >= 0);
   ASSERT(num_ghost_cells >= 0);
-  ASSERT(num_faces > 0);
-  ASSERT(num_edges > 0);
-  ASSERT(num_nodes > 0);
+  ASSERT(num_faces >= 0);
+  ASSERT(num_edges >= 0);
+  ASSERT(num_nodes >= 0);
 
   mesh_t* mesh = ARENA_MALLOC(arena, sizeof(mesh_t), 0);
   mesh->arena = arena;

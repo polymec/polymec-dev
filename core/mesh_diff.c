@@ -5,7 +5,9 @@ extern "C" {
 #endif
 
 // Global unique identifier. Not thread-safe.
-static int mesh_diff_next_id = 0;
+// Note that these start at 1 and not 0 so they can be cast to pointers
+// without being confused with NULL.
+static int mesh_diff_next_id = 1;
 
 struct mesh_diff_t
 {
@@ -59,6 +61,7 @@ void mesh_diff_apply(mesh_diff_t* diff, mesh_t* mesh)
 
   // Mark this mesh as having been changed by this diff.
   mesh_set_property(mesh, "last_diff", (void*)diff->id, NULL);
+  ASSERT(mesh_property(mesh, "last_diff") != NULL);
 }
 
 bool mesh_diff_rollback(mesh_diff_t* diff, mesh_t* mesh)
@@ -86,7 +89,7 @@ mesh_diff_t* mesh_diff_inverse(mesh_diff_t* diff)
 {
   mesh_diff_t* inv = mesh_diff_new();
   for (int d = diff->num_deltas-1; d >= 0; --d)
-    mesh_diff_append(inv, diff->deltas[d]);
+    mesh_diff_append(inv, mesh_delta_inverse(diff->deltas[d]));
   return inv;
 }
 
