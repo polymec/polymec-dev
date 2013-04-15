@@ -10,6 +10,7 @@ struct polygon2_t
 {
   point2_t* vertices;
   int num_vertices;
+  int* ordering;
   double area;
 };
 
@@ -17,27 +18,41 @@ static void polygon2_free(void* ctx, void* dummy)
 {
   polygon2_t* poly = ctx;
   free(poly->vertices);
+  free(poly->ordering);
 }
 
 static void polygon2_compute_area(polygon2_t* poly)
 {
   // Compute the area using the fan algorithm.
   poly->area = 0.0;
+  int I = poly->ordering[0];
   for (int j = 1; j < poly->num_vertices - 1; ++j)
   {
     // Form a triangle from vertex 0, vertex j, and vertex j+1.
-    poly->area += triangle_area(&poly->vertices[0], &poly->vertices[j], &poly->vertices[j+1]);
+    int J = poly->ordering[j];
+    int K = poly->ordering[j+1];
+    poly->area += triangle_area(&poly->vertices[I], &poly->vertices[J], &poly->vertices[K]);
   }
 }
 
 polygon2_t* polygon2_new(point2_t* vertices, int num_vertices)
 {
+  int ordering[num_vertices];
+  for (int i = 0; i < num_vertices; ++i)
+    ordering[i] = i;
+  return polygon2_new_with_ordering(vertices, ordering, num_vertices);
+}
+
+polygon2_t* polygon2_new_with_ordering(point2_t* points, int* ordering, int num_points)
+{
   ASSERT(vertices != NULL);
   ASSERT(num_vertices >= 3);
   polygon2_t* poly = GC_MALLOC(sizeof(polygon2_t));
-  poly->vertices = malloc(sizeof(point2_t)*num_vertices);
-  memcpy(poly->vertices, vertices, sizeof(point2_t)*num_vertices);
-  poly->num_vertices = num_vertices;
+  poly->vertices = malloc(sizeof(point2_t)*num_points);
+  memcpy(poly->vertices, points, sizeof(point2_t)*num_points);
+  poly->num_vertices = num_points;
+  poly->ordering = malloc(sizeof(int)*num_points);
+  memcpy(poly->ordering, ordering, sizeof(int)*num_points);
   polygon2_compute_area(poly);
   GC_register_finalizer(poly, polygon2_free, poly, NULL, NULL);
   return poly;
@@ -98,9 +113,7 @@ polygon2_t* polygon2_giftwrap(point2_t* points, int num_points)
   // The convex hull should be a polygon.
   ASSERT(count > 2);
 
-  point2_t vertices[count];
-  memcpy(vertices, points, sizeof(point2_t)*count);
-  return polygon2_new(points, count);
+  return polygon2_new_with_ordering(points, indices, count);
 }
 
 int polygon2_num_vertices(polygon2_t* poly)
@@ -108,11 +121,16 @@ int polygon2_num_vertices(polygon2_t* poly)
   return poly->num_vertices;
 }
 
+int* polygon2_ordering(polygon2_t* poly)
+{
+  return poly->ordering;
+}
+
 bool polygon2_next_vertex(polygon2_t* poly, int* pos, point2_t** vertex)
 {
   if (*pos >= poly->num_vertices) 
     return false;
-  *vertex = &poly->vertices[*pos];
+  *vertex = &poly->vertices[poly->ordering[*pos]];
   ++(*pos);
   return true;
 }
@@ -248,10 +266,15 @@ void polygon2_clip(polygon2_t* poly, polygon2_t* other)
     int a1 = (a + n - 1) % n;
     int b1 = (b + m - 1) % m;
 
-    point2_t* Pa = &poly->vertices[a];
-    point2_t* Pa1 = &poly->vertices[a1];
-    point2_t* Qb = &other->vertices[b];
-    point2_t* Qb1 = &other->vertices[b1];
+    int aa = poly->ordering[a];
+    int aa1 = poly->ordering[a1];
+    int bb = poly->ordering[b];
+    int bb1 = poly->ordering[b1];
+
+    point2_t* Pa = &poly->vertices[aa];
+    point2_t* Pa1 = &poly->vertices[aa1];
+    point2_t* Qb = &other->vertices[bb];
+    point2_t* Qb1 = &other->vertices[bb1];
 
     point2_t A, B;
     A.x = Pa1->x - Pa->x;
@@ -304,6 +327,7 @@ void polygon2_clip(polygon2_t* poly, polygon2_t* other)
   poly->num_vertices = xlist->size;
   for (int i = 0; i < xlist->size; ++i)
   {
+    // FIXME: Verify!
     poly->vertices[i].x = double_slist_pop(xlist);
     poly->vertices[i].y = double_slist_pop(ylist);
   }

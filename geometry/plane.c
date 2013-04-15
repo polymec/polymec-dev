@@ -1,4 +1,5 @@
 #include "core/constant_st_func.h"
+#include "core/linear_algebra.h"
 #include "geometry/plane.h"
 
 #ifdef __cplusplus
@@ -33,6 +34,85 @@ sp_func_t* plane_new(vector_t* n, point_t* x)
   // Set up all the innards.
   plane_reset(plane, n, x);
   return plane;
+}
+
+sp_func_t* plane_new_from_points(point_t* p1, point_t* p2, point_t* p3)
+{
+  ASSERT(!points_are_colinear(p1, p2, p3));
+
+  vector_t e1, e2, n;
+  point_displacement(p1, p2, &e1);
+  point_displacement(p1, p3, &e2);
+  vector_cross(&e1, &e2, &n);
+  vector_normalize(&n);
+  return plane_new(&n, p1);
+}
+
+sp_func_t* plane_new_best_fit(point_t* points, int num_points)
+{
+  ASSERT(num_points >= 3);
+
+  if (num_points == 3)
+  {
+    // If exactly 3 points are given, we can exactly solve the equation of 
+    // the plane.
+    return plane_new_from_points(&points[0], &points[1], &points[2]);
+  }
+  else
+  {
+    // Otherwise, we resort to an orthogonal distance regression.
+
+    // Note: the plane point x0 is the centroid of the given points.
+    point_t x0;
+    for (int i = 0; i < num_points; ++i)
+    {
+      x0.x += points[i].x;
+      x0.y += points[i].y;
+      x0.z += points[i].z;
+    }
+    x0.x /= num_points;
+    x0.y /= num_points;
+    x0.z /= num_points;
+
+    double M[num_points*3]; // num_points x 3 matrix in column-major form.
+    for (int i = 0; i < num_points; ++i)
+    {
+      M[3*i]   = points[i].x - x0.x;
+      M[3*i+1] = points[i].y - x0.y;
+      M[3*i+2] = points[i].z - x0.z;
+    }
+
+    // Compute the singular value decomposition of M to find the singular 
+    // vectors. We will destroy M in the process and only compute the right 
+    // singular vectors.
+    double sigma[3]; // Singular values.
+    double VT[3*3]; // Right singular vectors.
+    int work_size = 10*num_points;
+    double work[work_size]; // Work array.
+    int one = 1, three = 3, info;
+    char jobU = 'N', jobVT = 'S';
+    dgesvd(&jobU, &jobVT, &num_points, &three, M, &num_points, sigma, 
+           NULL, &one, VT, &three, work, &work_size, &info);
+    ASSERT(info == 0);
+
+    // The normal vector of the plane is the singular vector corresponding to 
+    // the smallest singular value.
+    double min_s = FLT_MAX;
+    int min_index = -1;
+    for (int i = 0; i < 3; ++i)
+    {
+      if (sigma[i] < min_s)
+      {
+        min_s = sigma[i];
+        min_index = i;
+      }
+    }
+    vector_t n;
+    n.x = VT[3*min_index];
+    n.y = VT[3*min_index+1];
+    n.z = VT[3*min_index+2];
+    return plane_new(&n, &x0);
+  }
 }
 
 void plane_reset(sp_func_t* plane, vector_t* n, point_t* x)

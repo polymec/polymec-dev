@@ -15,12 +15,20 @@ typedef struct polygon2_t polygon2_t;
 // that identify consecutive vertices.
 polygon2_t* polygon2_new(point2_t* vertices, int num_vertices);
 
+// Creates a new polygon in the plane given a set of vertices and an 
+// ordering in which they are traversed.
+polygon2_t* polygon2_new_with_ordering(point2_t* points, int* ordering, int num_points);
+
 // Creates a new convex polygon in the plane by applying the "gift-wrap" 
 // convex hull algorithm to the set of points.
 polygon2_t* polygon2_giftwrap(point2_t* points, int num_points);
 
 // Returns the number of vertices in the polygon.
 int polygon2_num_vertices(polygon2_t* poly);
+
+// Returns the ordering of the vertices in the polygon in terms of 
+// the original array of vertices given in the constructor.
+int* polygon2_ordering(polygon2_t* poly);
 
 // Allows the traversal of the vertices in the polygon.
 bool polygon2_next_vertex(polygon2_t* poly, int* pos, point2_t** vertex);

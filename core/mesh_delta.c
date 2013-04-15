@@ -156,13 +156,14 @@ mesh_delta_t* swap_mesh_delta_new(mesh_centering_t type, int index1, int index2)
 typedef struct 
 {
   mesh_centering_t type;
-  void (*append)(mesh_t* mesh);
+  void (*append)(mesh_t* mesh, point_t* coord);
+  point_t coord;
 } append_delta_t;
 
 static void append_apply(void* context, mesh_t* mesh)
 {
   append_delta_t* append = context;
-  append->append(mesh);
+  append->append(mesh, &append->coord);
 }
 
 static mesh_delta_t* append_inverse(void* context)
@@ -171,37 +172,37 @@ static mesh_delta_t* append_inverse(void* context)
   return pop_mesh_delta_new(append->type);
 }
 
-static void append_node(mesh_t* mesh)
+static void append_node(mesh_t* mesh, point_t* coord)
 {
   mesh_add_node(mesh);
+  mesh->nodes[mesh->num_nodes-1].x = coord->x;
+  mesh->nodes[mesh->num_nodes-1].y = coord->y;
+  mesh->nodes[mesh->num_nodes-1].z = coord->z;
 }
 
-static void append_edge(mesh_t* mesh)
+static void append_edge(mesh_t* mesh, point_t* coord)
 {
   mesh_add_edge(mesh);
 }
 
-static void append_face(mesh_t* mesh)
+static void append_face(mesh_t* mesh, point_t* coord)
 {
   mesh_add_face(mesh);
 }
 
-static void append_cell(mesh_t* mesh)
+static void append_cell(mesh_t* mesh, point_t* coord)
 {
   mesh_add_cell(mesh);
 }
 
 mesh_delta_t* append_mesh_delta_new(mesh_centering_t type)
 {
+  ASSERT(type != MESH_NODE); // This is handled elsewhere.
   append_delta_t* append = malloc(sizeof(append_delta_t));
   append->type = type;
   char name[1024];
   switch (type)
   {
-    case MESH_NODE:
-      snprintf(name, 1024, "append node to mesh");
-      append->append = append_node;
-      break;
     case MESH_EDGE:
       snprintf(name, 1024, "append edge to mesh");
       append->append = append_edge;
@@ -214,7 +215,24 @@ mesh_delta_t* append_mesh_delta_new(mesh_centering_t type)
       snprintf(name, 1024, "append cell to mesh");
       append->append = append_cell;
       break;
+    default:
+      ASSERT(false);
+      break;
   }
+  mesh_delta_vtable vtable = {.apply = append_apply, .inverse = append_inverse};
+  return mesh_delta_new(name, append, vtable);
+}
+
+mesh_delta_t* append_node_mesh_delta_new(point_t* x)
+{
+  append_delta_t* append = malloc(sizeof(append_delta_t));
+  append->append = append_node;
+  append->type = MESH_NODE;
+  append->coord.x = x->x;
+  append->coord.y = x->y;
+  append->coord.z = x->z;
+  char name[1024];
+  snprintf(name, 1024, "append node to mesh");
   mesh_delta_vtable vtable = {.apply = append_apply, .inverse = append_inverse};
   return mesh_delta_new(name, append, vtable);
 }

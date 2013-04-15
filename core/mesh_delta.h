@@ -22,8 +22,13 @@ mesh_delta_t* mesh_delta_inverse(mesh_delta_t* delta);
 mesh_delta_t* swap_mesh_delta_new(mesh_centering_t type, int index1, int index2);
 
 // Constructs a mesh_delta that appends a new element of the given type to 
-// the mesh's corresponding array.
+// the mesh's corresponding array. This works for all types except MESH_NODE,
+// which requires a set of coordinates for the added node.
 mesh_delta_t* append_mesh_delta_new(mesh_centering_t type);
+
+// Constructs a mesh delta that appends a new node to the mesh with the given 
+// coordinates.
+mesh_delta_t* append_node_mesh_delta_new(point_t* x);
 
 // Constructs a mesh_delta that pops an element of the given type off the 
 // back of the mesh's corresponding array.

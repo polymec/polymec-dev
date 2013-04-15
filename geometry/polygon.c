@@ -12,6 +12,7 @@ struct polygon_t
 {
   point_t* vertices;
   int num_vertices;
+  int* ordering;
   double area;
   point_t x0;
   vector_t normal;
@@ -22,6 +23,7 @@ static void polygon_free(void* ctx, void* dummy)
 {
   polygon_t* poly = ctx;
   free(poly->vertices);
+  free(poly->ordering);
   poly->plane = NULL;
 }
 
@@ -30,11 +32,14 @@ static void polygon_compute_area(polygon_t* poly)
   // Compute the area using the fan algorithm.
   poly->area = 0.0;
   vector_t A, B;
+  int I = poly->ordering[0];
   for (int j = 1; j < poly->num_vertices - 1; ++j)
   {
     // Form a triangle from vertex 0, vertex j, and vertex j+1.
-    point_displacement(&poly->vertices[0], &poly->vertices[j], &A);
-    point_displacement(&poly->vertices[0], &poly->vertices[j+1], &B);
+    int J = poly->ordering[j];
+    int K = poly->ordering[j+1];
+    point_displacement(&poly->vertices[I], &poly->vertices[J], &A);
+    point_displacement(&poly->vertices[I], &poly->vertices[K], &B);
     poly->area += 0.5 * vector_cross_mag(&A, &B);
   }
 }
@@ -73,13 +78,24 @@ static void polygon_compute_plane(polygon_t* poly)
 
 polygon_t* polygon_new(point_t* vertices, int num_vertices)
 {
-  ASSERT(vertices != NULL);
-  ASSERT(num_vertices >= 3);
+  int ordering[num_vertices];
+  for (int i = 0; i < num_vertices; ++i)
+    ordering[i] = i;
+  return polygon_new_with_ordering(vertices, ordering, num_vertices);
+}
+
+polygon_t* polygon_new_with_ordering(point_t* points, int* ordering, int num_points)
+{
+  ASSERT(points != NULL);
+  ASSERT(ordering != NULL);
+  ASSERT(num_points >= 3);
   // FIXME: Check that all points are coplanar.
   polygon_t* poly = GC_MALLOC(sizeof(polygon_t));
-  poly->vertices = malloc(sizeof(point_t)*num_vertices);
-  memcpy(poly->vertices, vertices, sizeof(point_t)*num_vertices);
-  poly->num_vertices = num_vertices;
+  poly->vertices = malloc(sizeof(point_t)*num_points);
+  memcpy(poly->vertices, points, sizeof(point_t)*num_points);
+  poly->num_vertices = num_points;
+  poly->ordering = malloc(sizeof(int)*num_points);
+  memcpy(poly->ordering, ordering, sizeof(int)*num_points);
   polygon_compute_area(poly);
   polygon_compute_plane(poly);
   GC_register_finalizer(poly, polygon_free, poly, NULL, NULL);
@@ -104,6 +120,7 @@ polygon_t* polygon_giftwrap(point_t* points, int num_points)
     plane_project(plane, &points[i], &pts[i]);
   polygon2_t* poly2 = polygon2_giftwrap(pts, num_points);
 
+#if 0
   // Re-embed the resulting vertices in 3D.
   int num_vertices = polygon2_num_vertices(poly2);
   point_t vertices[num_vertices];
@@ -111,12 +128,19 @@ polygon_t* polygon_giftwrap(point_t* points, int num_points)
   point2_t* vtx;
   while (polygon2_next_vertex(poly2, &pos, &vtx))
     plane_embed(plane, vtx, &vertices[offset++]);
+#endif
+
+  // Read off the vertex ordering from the planar polygon.
+  int* ordering = polygon2_ordering(poly2);
+
+  // Create our polygon with the given ordering.
+  polygon_t* poly = polygon_new_with_ordering(points, ordering, num_points);
 
   // Clean up.
   poly2 = NULL;
   plane = NULL;
 
-  return polygon_new(vertices, num_vertices);
+  return poly;
 }
 
 int polygon_num_vertices(polygon_t* poly)
@@ -124,11 +148,16 @@ int polygon_num_vertices(polygon_t* poly)
   return poly->num_vertices;
 }
 
+int* polygon_ordering(polygon_t* poly)
+{
+  return poly->ordering;
+}
+
 bool polygon_next_vertex(polygon_t* poly, int* pos, point_t** vertex)
 {
   if (*pos >= poly->num_vertices) 
     return false;
-  *vertex = &poly->vertices[*pos];
+  *vertex = &poly->vertices[poly->ordering[*pos]];
   ++(*pos);
   return true;
 }
@@ -148,12 +177,18 @@ void polygon_clip(polygon_t* poly, polygon_t* other)
   // Do the clipping in 2D.
   point2_t pts[poly->num_vertices];
   for (int i = 0; i < poly->num_vertices; ++i)
-    plane_project(poly->plane, &poly->vertices[i], &pts[i]);
+  {
+    int I = poly->ordering[i];
+    plane_project(poly->plane, &poly->vertices[I], &pts[I]);
+  }
   polygon2_t* poly2 = polygon2_new(pts, poly->num_vertices);
 
   point2_t other_pts[other->num_vertices];
   for (int i = 0; i < other->num_vertices; ++i)
-    plane_project(other->plane, &other->vertices[i], &other_pts[i]);
+  {
+    int I = poly->ordering[i];
+    plane_project(other->plane, &other->vertices[I], &other_pts[I]);
+  }
   polygon2_t* other2 = polygon2_new(other_pts, other->num_vertices);
 
   polygon2_clip(poly2, other2);
@@ -165,8 +200,12 @@ void polygon_clip(polygon_t* poly, polygon_t* other)
   poly->num_vertices = num_vertices;
   int pos = 0, offset = 0;
   point2_t* vtx;
+  int* ordering2 = polygon2_ordering(poly2);
   while (polygon2_next_vertex(poly2, &pos, &vtx))
-    plane_embed(poly->plane, vtx, &poly->vertices[offset++]);
+  {
+    int I = ordering2[offset++];
+    plane_embed(poly->plane, vtx, &poly->vertices[I]);
+  }
 
   // Recompute geometry (plane remains unchanged).
   compute_centroid(poly->vertices, poly->num_vertices, &poly->x0);

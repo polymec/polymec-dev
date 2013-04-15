@@ -61,6 +61,33 @@ void dormqr(char* side, char* trans, int* m, int* n, int* k, double* A,
             int* lda, double* tau, double* C, int* ldc, double* work, 
             int* lwork, int* info);
 
+// Singular value decomposition: computes the SVD of an MxN matrix A:
+// A = U * Sigma * transpose(V)
+// where Sigma is a diagonal MxN matrix containing the singular values of A,
+// U is an MxM orthogonal matrix, and V is an NxN orthogonal matrix. The columns 
+// of U and V are the left and right singular vectors of A.
+// Arguments:
+// jobU - specifies options for computing the matrix U:
+//        'A': all M columns of U are returned in array U:
+//        'S':  the first min(m,n) columns of U (the left singular
+//              vectors) are returned in the array U;
+//        'O':  the first min(m,n) columns of U (the left singular
+//              vectors) are overwritten on the array A;
+//        'N':  no columns of U (no left singular vectors) are
+//              computed.
+// jobVT - specifies options for computing the matrix VT (V transpose):
+//        'A': all M columns of VT are returned in array VT:
+//        'S':  the first min(m,n) columns of VT (the right singular
+//              vectors) are returned in the array VT;
+//        'O':  the first min(m,n) columns of VT (the right singular
+//              vectors) are overwritten on the array VT;
+//        'N':  no columns of VT (no right singular vectors) are
+//              computed.
+// NOTE: jobU and jobVT cannot both be 'O'.
+int dgesvd(char* jobU, char* jobVT, int* m, int* n, 
+           double *A, int* lda, double* S, double* U, int* ldu, 
+           double* VT, int* ldvt, double *work, int* lwork, int* info);
+
 // Print a (column-major-ordered) matrix to the given file stream.
 void matrix_fprintf(double* matrix, int nr, int nc, FILE* stream);
 
