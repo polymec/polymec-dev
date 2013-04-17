@@ -76,6 +76,9 @@ add_subdirectory(io)
 add_subdirectory(geometry)
 add_subdirectory(integrators)
 
+# Mesher.
+add_subdirectory(polymesher)
+
 # Models.
 
 # Poisson solver.
