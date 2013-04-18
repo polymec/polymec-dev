@@ -2,7 +2,6 @@
 #include "core/options.h"
 #include "core/interpreter.h"
 #include "geometry/interpreter_register_geometry_functions.h"
-//#include "polymesher/mesher_functions.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -17,9 +16,17 @@ static void mesher_usage(FILE* stream)
   exit(-1);
 }
 
+// Lua stuff.
+#include "lua.h"
+#include "lualib.h"
+#include "lauxlib.h"
+
+// Interpreter functions.
+extern int write_tough_mesh(lua_State* lua);
+
 static void interpreter_register_mesher_functions(interpreter_t* interpreter)
 {
-  // FIXME
+  interpreter_register_function(interpreter, "write_tough_mesh", write_tough_mesh);
 }
 
 int main(int argc, char** argv)
