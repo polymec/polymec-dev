@@ -13,6 +13,71 @@ extern "C" {
 #include "lualib.h"
 #include "lauxlib.h"
 
+static void make_elem_name(int elem_name_len, 
+                           int elem_number,
+                           char* elem_name)
+{
+}
+
+static void make_inactive_flag(int* tag,
+                               int tag_len,
+                               int elem_number,
+                               char* inactive)
+{
+  *inactive = ' ';
+  if (tag == NULL)
+    return;
+  else
+  {
+    for (int i = 0; i < tag_len; ++i)
+    {
+      if (elem_number == tag[i])
+      {
+        *inactive = 'I';
+        break;
+      }
+    }
+  }
+}
+
+static void write_tough2_mesh(mesh_t* mesh, 
+                              const char* filename, 
+                              const char* inactive_tag,
+                              int elem_name_len)
+{
+  FILE* file = fopen(filename, "w");
+  if (file == NULL)
+    polymec_error("write_tough2_mesh: Could not open file '%s' for writing.", filename);
+
+  fprintf(file, "ELEME\n");
+  char elem_name[9], inactive;
+  int tag_len;
+  int* tag = mesh_tag(mesh->cell_tags, inactive_tag, &tag_len);
+
+  for (int c = 0; c < mesh->num_cells; ++c)
+  {
+    // Figure out the element name, active/inactive flag.
+    make_elem_name(elem_name_len, c, elem_name);
+    make_inactive_flag(tag, tag_len, c, &inactive);
+    // FIXME
+//    fprintf(file, "%s            %.5e%.5e%.5e%.5e\n", elem_name, inactive);
+  }
+
+  fclose(file);
+}
+
+static void write_tough_plus_mesh(mesh_t* mesh, 
+                                  const char* filename, 
+                                  const char* inactive_tag,
+                                  int elem_name_len)
+{
+  FILE* file = fopen(filename, "w");
+  if (file == NULL)
+    polymec_error("write_tough_plus_mesh: Could not open file '%s' for writing.", filename);
+
+  fclose(file);
+}
+
 // write_tough_mesh(args) -- This function writes a given mesh to a file 
 // on disk. Arguments (passed in a table according to Chapter 5.3 of the 
 // Lua reference manual) are:
@@ -28,7 +93,7 @@ int write_tough_mesh(lua_State* lua)
   if ((num_args != 1) || !lua_istable(lua, 1))
   {
     lua_pushstring(lua, "write_tough_mesh: invalid arguments. Usage:\n"
-                        "write_tough_mesh{filename [= 'MESH'], format [= 'T2'/'T+'], mesh [= mesh], inactive_tag [= 'inactive']}).");
+                        "write_tough_mesh{filename [= 'MESH'], format [= 'T2'/'T+'], mesh [= mesh], inactive_tag [= 'inactive'], elem_name_len [= 5]}).");
     lua_error(lua);
     return LUA_ERRRUN;
   }
@@ -64,6 +129,18 @@ int write_tough_mesh(lua_State* lua)
     inactive_tag = strdup(lua_tostring(lua, 2));
   lua_pop(lua, 1);
 
+  int elem_name_len = 5;
+  lua_getfield(lua, 1, "elem_name_len");
+  if (lua_isnumber(lua, 2))
+    elem_name_len = (int)lua_tonumber(lua, 2);
+  lua_pop(lua, 1);
+  if (!lua_isnumber(lua, 2) || ((elem_name_len != 5) && (elem_name_len != 8)))
+  {
+    lua_pushstring(lua, "write_tough_mesh: elem_name_len must be 5 or 8.");
+    lua_error(lua);
+    return LUA_ERRRUN;
+  }
+
   // Provide defaults.
   if (filename == NULL)
     filename = strdup("MESH");
@@ -75,12 +152,16 @@ int write_tough_mesh(lua_State* lua)
   {
     char err[128];
     snprintf(err, 128, "write_tough_mesh: unrecognized format: '%s'", format);
+    lua_pushstring(lua, err);
     lua_error(lua);
     return LUA_ERRRUN;
   }
 
   // Write the mesh to a file.
-  // FIXME
+  if (!strcasecmp(format, "t2"))
+    write_tough2_mesh(mesh, filename, inactive_tag, elem_name_len);
+  else
+    write_tough_plus_mesh(mesh, filename, inactive_tag, elem_name_len);
 
   return 1;
 }
