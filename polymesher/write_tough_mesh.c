@@ -40,6 +40,12 @@ static void make_inactive_flag(int* tag,
   }
 }
 
+static void make_conn_name(int elem_name_len, 
+                           face_t* face,
+                           char* conn_name)
+{
+}
+
 static void write_tough2_mesh(mesh_t* mesh, 
                               const char* filename, 
                               const char* inactive_tag,
@@ -51,16 +57,33 @@ static void write_tough2_mesh(mesh_t* mesh,
 
   fprintf(file, "ELEME\n");
   char elem_name[9], inactive;
-  int tag_len;
-  int* tag = mesh_tag(mesh->cell_tags, inactive_tag, &tag_len);
+  int tag_len = 0;
+  int* tag = NULL;
+  if (inactive_tag != NULL)
+    tag = mesh_tag(mesh->cell_tags, inactive_tag, &tag_len);
 
   for (int c = 0; c < mesh->num_cells; ++c)
   {
+    cell_t* cell = &mesh->cells[c];
     // Figure out the element name, active/inactive flag.
     make_elem_name(elem_name_len, c, elem_name);
     make_inactive_flag(tag, tag_len, c, &inactive);
-    // FIXME
-//    fprintf(file, "%s            %.5e%.5e%.5e%.5e\n", elem_name, inactive);
+    fprintf(file, "%s            %.5e%.5e%.5e%.5e%.5e%.5e %c\n", elem_name, cell->volume, 0.0, 0.0, cell->center.x, cell->center.y, cell->center.z, inactive);
+  }
+
+  fprintf(file, "\n");
+  fprintf(file, "CONNE\n");
+  char conn_name[17];
+  for (int f = 0; f < mesh->num_faces; ++f)
+  {
+    face_t* face = &mesh->faces[f];
+
+    // Figure out the connection name.
+    make_conn_name(elem_name_len, face, conn_name);
+    double d1 = 0.0, d2 = 0.0; // FIXME
+    double A = face->area;
+    double beta = 0.0;
+    fprintf(file, "%s             %d%.5e%.5e%.5e%.5e%.5e\n", conn_name, 3, d1, d2, A, beta, 0.0);
   }
 
   fclose(file);
@@ -134,7 +157,7 @@ int write_tough_mesh(lua_State* lua)
   if (lua_isnumber(lua, 2))
     elem_name_len = (int)lua_tonumber(lua, 2);
   lua_pop(lua, 1);
-  if (!lua_isnumber(lua, 2) || ((elem_name_len != 5) && (elem_name_len != 8)))
+  if (!lua_isnoneornil(lua, 2) && ((elem_name_len != 5) && (elem_name_len != 8)))
   {
     lua_pushstring(lua, "write_tough_mesh: elem_name_len must be 5 or 8.");
     lua_error(lua);
