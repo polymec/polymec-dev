@@ -38,7 +38,7 @@ int write_vtk_plot(lua_State* lua)
   mesh_t* mesh = lua_tomesh(lua, 1);
   char* filename = strdup(lua_tostring(lua, 2));
 
-  log_info("Writing VTK plot to '%s.vtu'...", filename);
+  log_info("Writing VTK plot with prefix '%s'...", filename);
 
   // Write the mesh to a plot file.
   io_interface_t* plot = vtk_plot_io_new(MPI_COMM_SELF, 0, false);
