@@ -3,6 +3,7 @@
 
 #include <string.h>
 #include "core/interpreter.h"
+#include "core/point.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -121,9 +122,10 @@ static void write_tough2_mesh(mesh_t* mesh,
       for (int i = 2*elem_name_len; i < 16; ++i)
         conn_name[i] = ' ';
       conn_name[16] = '\0';
-      double d1 = 0.0, d2 = 0.0; // FIXME
+      double d1 = point_distance(&face->cell1->center, &face->center);
+      double d2 = point_distance(&face->cell2->center, &face->center);
       double A = face->area;
-      double beta = 0.0;
+      double beta = 0.0; // FIXME
       fprintf(file, "%s             %d%.4e%.4e%.4e%.4e%.4e\n", conn_name, 3, d1, d2, A, beta, 0.0);
     }
   }
