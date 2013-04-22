@@ -7,7 +7,7 @@ Polymec is designed with the goal of solving nonlinear partial differential
 equations on arbitrary polyhedral grids such as 3D Voronoi tessellations.
 My areas of research in the development so far are:
 
-- High-quality, centroid Voronoi grid generation
+- High-quality, centroidal Voronoi grid generation
 - More sophisticated forms of time integration
   - Stiffly-accurate fully-implicit integrators
   - Stiffly-accurate, A-stable semi-implicit integrators such as 

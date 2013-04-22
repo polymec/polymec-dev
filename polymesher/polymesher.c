@@ -36,6 +36,9 @@ int main(int argc, char** argv)
   // Start everything up.
   polymec_init(argc, argv);
 
+  // Set the log level.
+  set_log_level(LOG_INFO);
+
   // Parse options on the command line.
   options_t* opts = options_parse(argc, argv);
   if (opts == NULL)
