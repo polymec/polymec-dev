@@ -694,7 +694,7 @@ model_t* advect_model_new(options_t* options)
         a->slope_estimator = NULL;
       else
       {
-        slope_limiter_t limiter;
+        slope_limiter_t limiter = SLOPE_LIMITER_VAN_LEER;
         if (!strcasecmp(limiter_str, "lax-wendroff"))
           limiter = SLOPE_LIMITER_LAX_WENDROFF;
         else if (!strcasecmp(limiter_str, "beam-warming"))
