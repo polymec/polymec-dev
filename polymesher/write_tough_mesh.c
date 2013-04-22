@@ -112,21 +112,38 @@ static void write_tough2_mesh(mesh_t* mesh,
   {
     face_t* face = &mesh->faces[f];
 
-    // Figure out the connection name.
     int cell1 = face->cell1 - &mesh->cells[0];
     if (face->cell2 != NULL)
     {
       int cell2 = face->cell2 - &mesh->cells[0];
+
+      // The connection name is the concatenation of the two element names.
       strcpy(&conn_name[0], elem_names[cell1]); 
       strcpy(&conn_name[elem_name_len], elem_names[cell2]); 
       for (int i = 2*elem_name_len; i < 16; ++i)
         conn_name[i] = ' ';
       conn_name[16] = '\0';
+
+      // Distances from face to cell centers.
       double d1 = point_distance(&face->cell1->center, &face->center);
       double d2 = point_distance(&face->cell2->center, &face->center);
+
+      // Face area.
       double A = face->area;
-      double beta = 0.0; // FIXME
-      fprintf(file, "%s             %d%.4e%.4e%.4e%.4e%.4e\n", conn_name, 3, d1, d2, A, beta, 0.0);
+
+      // Cosine of the angle between the vertical and the line connecting 
+      // the element centers. NOTE: this line only coincides with the face 
+      // normal for centroidal Voronoi meshes!
+      static vector_t vert = {.x = 0.0, .y = 0.0, .z = 1.0};
+      vector_t d12;
+      point_displacement(&face->cell1->center, &face->cell2->center, &d12);
+      double beta = vector_dot(&d12, &vert) / vector_mag(&d12);
+
+      // For now, we assume the isotropic index for the permeability is 3.
+      // (Can be 1, 2, or 3 in general).
+      int isot = 3;
+
+      fprintf(file, "%s             %d%.4e%.4e%.4e%.4e%.4e\n", conn_name, isot, d1, d2, A, beta, 0.0);
     }
   }
 
@@ -147,7 +164,80 @@ static void write_tough_plus_mesh(mesh_t* mesh,
   if (file == NULL)
     polymec_error("write_tough_plus_mesh: Could not open file '%s' for writing.", filename);
 
+  fprintf(file, ">>>ELEMENTS\n");
+  fprintf(file, "&Units  length_units = 'm' /\n");
+  char inactive;
+  int tag_len = 0;
+  int* tag = NULL;
+  if (inactive_tag != NULL)
+    tag = mesh_tag(mesh->cell_tags, inactive_tag, &tag_len);
+
+  char** elem_names = malloc(sizeof(char*) * mesh->num_cells);
+  for (int c = 0; c < mesh->num_cells; ++c)
+  {
+    cell_t* cell = &mesh->cells[c];
+    // Figure out the element name, active/inactive flag.
+    elem_names[c] = malloc(sizeof(char)*9);
+    make_elem_name(elem_name_len, c, elem_names[c]);
+    make_inactive_flag(tag, tag_len, c, &inactive);
+
+    fprintf(file, "%s &Elem  V= %.10e, MedName=\"Generic\", MedNum= 1, x= %.10e, y= %.10e, z= %.10e, act=\"%c\" /\n",
+            elem_names[c], cell->volume, cell->center.x, cell->center.y, 
+            cell->center.z, inactive);
+  }
+
+  fprintf(file, "<<<End of ELEMENT block\n\n");
+  fprintf(file, ">>>CONNECTIONS\n");
+  char conn_name[17];
+  for (int f = 0; f < mesh->num_faces; ++f)
+  {
+    face_t* face = &mesh->faces[f];
+
+    int cell1 = face->cell1 - &mesh->cells[0];
+    if (face->cell2 != NULL)
+    {
+      int cell2 = face->cell2 - &mesh->cells[0];
+
+      // The connection name is the concatenation of the two element names.
+      strcpy(&conn_name[0], elem_names[cell1]); 
+      strcpy(&conn_name[elem_name_len], elem_names[cell2]); 
+      for (int i = 2*elem_name_len; i < 16; ++i)
+        conn_name[i] = ' ';
+      conn_name[16] = '\0';
+
+      // Distances from face to cell centers.
+      double d1 = point_distance(&face->cell1->center, &face->center);
+      double d2 = point_distance(&face->cell2->center, &face->center);
+
+      // Face area.
+      double A = face->area;
+
+      // Cosine of the angle between the vertical and the line connecting 
+      // the element centers. NOTE: this line only coincides with the face 
+      // normal for centroidal Voronoi meshes!
+      static vector_t vert = {.x = 0.0, .y = 0.0, .z = 1.0};
+      vector_t d12;
+      point_displacement(&face->cell1->center, &face->cell2->center, &d12);
+      double beta = vector_dot(&d12, &vert) / vector_mag(&d12);
+
+      // Emissivity.
+      double emissivity = 0.0;
+
+      // For now, we assume the direction index for the permeability is 3.
+      // (Can be 1, 2, or 3 in general).
+      int dir = 3;
+
+      fprintf(file, "%s  &Conx  A= %.10e, d1= %.10e, d2= %.10e, dir=%d, beta= %.10e, emis=%.10e /\n", conn_name, A, d1, d2, dir, beta, emissivity);
+    }
+  }
+  fprintf(file, "<<<End of CONNECTIONS block\n\n");
+
   fclose(file);
+
+  // Clean up.
+  for (int c = 0; c < mesh->num_cells; ++c)
+    free(elem_names[c]);
+  free(elem_names);
 }
 
 // write_tough_mesh(args) -- This function writes a given mesh to a file 

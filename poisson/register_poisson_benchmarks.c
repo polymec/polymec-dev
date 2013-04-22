@@ -99,8 +99,8 @@ static void poisson_run_laplace_1d(options_t* options, int dim)
   double t = 0.0;
 
   // Base resolution, number of runs.
-  int N0;
-  int num_runs;
+  int N0 = 1;
+  int num_runs = 1;
   switch(dim)
   {
     case 1: 
@@ -234,8 +234,8 @@ static void poisson_run_paraboloid(options_t* options, int dim)
   double t = 0.0;
 
   // Base resolution and number of runs.
-  int N0;
-  int num_runs;
+  int N0 = 1;
+  int num_runs = 1;
   switch (dim)
   {
     case 2:

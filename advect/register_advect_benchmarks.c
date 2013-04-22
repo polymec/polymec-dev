@@ -59,7 +59,7 @@ static void advect_run_1d_flow(options_t* options,
   str_ptr_unordered_map_insert(bcs, "+z", advect_bc_new(0.0, 1.0, zero));
 
   // Base resolution.
-  int N0;
+  int N0 = 1;
   switch(dim)
   {
     case 1: 
