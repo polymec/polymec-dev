@@ -161,8 +161,8 @@ void test_single_cell_mesh(void** state)
     for (int e = 0; e < 4; ++e)
     {
       assert_int_equal(faces[f][e], mesh->cells[0].faces[f]->edges[e] - mesh->edges);
-      assert_int_equal(edges[e][0], mesh->cells[0].faces[f]->edges[e]->node1 - mesh->nodes);
-      assert_int_equal(edges[e][1], mesh->cells[0].faces[f]->edges[e]->node2 - mesh->nodes);
+      assert_int_equal(edges[faces[f][e]][0], mesh->cells[0].faces[f]->edges[e]->node1 - mesh->nodes);
+      assert_int_equal(edges[faces[f][e]][1], mesh->cells[0].faces[f]->edges[e]->node2 - mesh->nodes);
     }
   }
 
