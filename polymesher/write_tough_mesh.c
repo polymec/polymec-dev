@@ -17,6 +17,43 @@ static void make_elem_name(int elem_name_len,
                            int elem_number,
                            char* elem_name)
 {
+  if (elem_name_len == 5)
+  {
+    // Name is 1 letter + 4 numbers.
+    elem_name[0] = 'A' + elem_number / 10000;
+    elem_number -= (elem_name[0] - 'A') * 10000;
+    elem_name[1] = '0' + elem_number/1000;
+    elem_number -= (elem_number/1000) * 1000;
+    elem_name[2] = '0' + elem_number/100;
+    elem_number -= (elem_number/100) * 100;
+    elem_name[3] = '0' + elem_number/10;
+    elem_number -= (elem_number/10) * 10;
+    elem_name[4] = '0' + elem_number;
+    elem_name[5] = ' ';
+    elem_name[6] = ' ';
+    elem_name[7] = ' ';
+    elem_name[8] = '\0';
+  }
+  else
+  {
+    // Name is 4 letters + 4 numbers.
+    elem_name[0] = 'A' + elem_number / (10000 * 26 * 26 * 26);
+    elem_number -= (elem_name[0] - 'A') * (10000 * 26 * 26 * 26);
+    elem_name[1] = 'A' + elem_number / (10000 * 26 * 26);
+    elem_number -= (elem_name[1] - 'A') * (10000 * 26 * 26);
+    elem_name[2] = 'A' + elem_number / (10000 * 26);
+    elem_number -= (elem_name[1] - 'A') * (10000 * 26);
+    elem_name[3] = 'A' + elem_number / 10000;
+    elem_number -= (elem_name[1] - 'A') * 10000;
+    elem_name[4] = '0' + elem_number/1000;
+    elem_number -= (elem_number/1000) * 1000;
+    elem_name[5] = '0' + elem_number/100;
+    elem_number -= (elem_number/100) * 100;
+    elem_name[6] = '0' + elem_number/10;
+    elem_number -= (elem_number/10) * 10;
+    elem_name[7] = '0' + elem_number;
+    elem_name[8] = '\0';
+  }
 }
 
 static void make_inactive_flag(int* tag,
@@ -40,12 +77,6 @@ static void make_inactive_flag(int* tag,
   }
 }
 
-static void make_conn_name(int elem_name_len, 
-                           face_t* face,
-                           char* conn_name)
-{
-}
-
 static void write_tough2_mesh(mesh_t* mesh, 
                               const char* filename, 
                               const char* inactive_tag,
@@ -56,19 +87,21 @@ static void write_tough2_mesh(mesh_t* mesh,
     polymec_error("write_tough2_mesh: Could not open file '%s' for writing.", filename);
 
   fprintf(file, "ELEME\n");
-  char elem_name[9], inactive;
+  char inactive;
   int tag_len = 0;
   int* tag = NULL;
   if (inactive_tag != NULL)
     tag = mesh_tag(mesh->cell_tags, inactive_tag, &tag_len);
 
+  char** elem_names = malloc(sizeof(char*) * mesh->num_cells);
   for (int c = 0; c < mesh->num_cells; ++c)
   {
     cell_t* cell = &mesh->cells[c];
     // Figure out the element name, active/inactive flag.
-    make_elem_name(elem_name_len, c, elem_name);
+    elem_names[c] = malloc(sizeof(char)*9);
+    make_elem_name(elem_name_len, c, elem_names[c]);
     make_inactive_flag(tag, tag_len, c, &inactive);
-    fprintf(file, "%s            %.5e%.5e%.5e%.5e%.5e%.5e %c\n", elem_name, cell->volume, 0.0, 0.0, cell->center.x, cell->center.y, cell->center.z, inactive);
+    fprintf(file, "%s           %.4e%.4e%.4e%.4e%.4e%.4e %c\n", elem_names[c], cell->volume, 0.0, 0.0, cell->center.x, cell->center.y, cell->center.z, inactive);
   }
 
   fprintf(file, "\n");
@@ -79,14 +112,28 @@ static void write_tough2_mesh(mesh_t* mesh,
     face_t* face = &mesh->faces[f];
 
     // Figure out the connection name.
-    make_conn_name(elem_name_len, face, conn_name);
-    double d1 = 0.0, d2 = 0.0; // FIXME
-    double A = face->area;
-    double beta = 0.0;
-    fprintf(file, "%s             %d%.5e%.5e%.5e%.5e%.5e\n", conn_name, 3, d1, d2, A, beta, 0.0);
+    int cell1 = face->cell1 - &mesh->cells[0];
+    if (face->cell2 != NULL)
+    {
+      int cell2 = face->cell2 - &mesh->cells[0];
+      strcpy(&conn_name[0], elem_names[cell1]); 
+      strcpy(&conn_name[elem_name_len], elem_names[cell2]); 
+      for (int i = 2*elem_name_len; i < 16; ++i)
+        conn_name[i] = ' ';
+      conn_name[16] = '\0';
+      double d1 = 0.0, d2 = 0.0; // FIXME
+      double A = face->area;
+      double beta = 0.0;
+      fprintf(file, "%s             %d%.4e%.4e%.4e%.4e%.4e\n", conn_name, 3, d1, d2, A, beta, 0.0);
+    }
   }
 
   fclose(file);
+
+  // Clean up.
+  for (int c = 0; c < mesh->num_cells; ++c)
+    free(elem_names[c]);
+  free(elem_names);
 }
 
 static void write_tough_plus_mesh(mesh_t* mesh, 
