@@ -2,6 +2,7 @@
 // be used by TOUGH2 and TOUGH+.
 
 #include <string.h>
+#include "core/polymec.h"
 #include "core/interpreter.h"
 #include "core/point.h"
 
@@ -83,6 +84,7 @@ static void write_tough2_mesh(mesh_t* mesh,
                               const char* inactive_tag,
                               int elem_name_len)
 {
+  log_info("Writing TOUGH2 mesh to '%s' (%d elements)...", filename, mesh->num_cells);
   FILE* file = fopen(filename, "w");
   if (file == NULL)
     polymec_error("write_tough2_mesh: Could not open file '%s' for writing.", filename);
@@ -160,6 +162,7 @@ static void write_tough_plus_mesh(mesh_t* mesh,
                                   const char* inactive_tag,
                                   int elem_name_len)
 {
+  log_info("Writing TOUGH+ mesh to '%s' (%d elements)...", filename, mesh->num_cells);
   FILE* file = fopen(filename, "w");
   if (file == NULL)
     polymec_error("write_tough_plus_mesh: Could not open file '%s' for writing.", filename);

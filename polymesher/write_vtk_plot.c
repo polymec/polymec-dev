@@ -1,6 +1,7 @@
 // This implements polymesher's capability for writing VTK plots of meshes.
 
 #include <string.h>
+#include "core/polymec.h"
 #include "core/interpreter.h"
 #include "io/vtk_plot_io.h"
 
@@ -36,6 +37,8 @@ int write_vtk_plot(lua_State* lua)
   // Get the argument(s).
   mesh_t* mesh = lua_tomesh(lua, 1);
   char* filename = strdup(lua_tostring(lua, 2));
+
+  log_info("Writing VTK plot to '%s.vtu'...", filename);
 
   // Write the mesh to a plot file.
   io_interface_t* plot = vtk_plot_io_new(MPI_COMM_SELF, 0, false);
