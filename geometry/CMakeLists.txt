@@ -1,5 +1,6 @@
 add_library(polymec_geometry mapping.c plane.c cylinder.c sphere.c intersection.c 
-            union.c difference.c scaled.c giftwrap_hull.c polygon2.c polygon.c
+            union.c difference.c scaled.c rect_prism.c 
+            giftwrap_hull.c polygon2.c polygon.c
             cubic_lattice.c create_cubic_lattice_mesh.c cvt_gen_dist.c
             prob_cvt_gen_dist.c force_cvt_gen_dist.c 
             create_unbounded_voronoi_mesh.c create_bounded_voronoi_mesh.c 
