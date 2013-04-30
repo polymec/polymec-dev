@@ -16,6 +16,7 @@ extern "C" {
 typedef struct 
 {
   void *datum;                 // The datum associated with a variable.
+  int size;                    // The size of the datum (if any).
   interpreter_var_type_t type; // The data type.
   void (*dtor)(void*);         // Data destructor.
 } interpreter_storage_t;
@@ -53,6 +54,44 @@ static interpreter_storage_t* store_number(double var)
   *dvar = var;
   storage->datum = dvar;
   storage->type = INTERPRETER_NUMBER;
+  storage->dtor = free;
+  return storage;
+}
+
+static interpreter_storage_t* store_point(point_t* point)
+{
+  interpreter_storage_t* storage = malloc(sizeof(interpreter_storage_t));
+  storage->datum = point;
+  storage->type = INTERPRETER_POINT;
+  storage->dtor = free;
+  return storage;
+}
+
+static interpreter_storage_t* store_pointlist(point_t* points, int size)
+{
+  interpreter_storage_t* storage = malloc(sizeof(interpreter_storage_t));
+  storage->datum = points;
+  storage->size = size;
+  storage->type = INTERPRETER_POINT_LIST;
+  storage->dtor = free;
+  return storage;
+}
+
+static interpreter_storage_t* store_vector(vector_t* vec)
+{
+  interpreter_storage_t* storage = malloc(sizeof(interpreter_storage_t));
+  storage->datum = vec;
+  storage->type = INTERPRETER_VECTOR;
+  storage->dtor = free;
+  return storage;
+}
+
+static interpreter_storage_t* store_vectorlist(vector_t* vectors, int size)
+{
+  interpreter_storage_t* storage = malloc(sizeof(interpreter_storage_t));
+  storage->datum = vectors;
+  storage->size = size;
+  storage->type = INTERPRETER_VECTOR_LIST;
   storage->dtor = free;
   return storage;
 }
@@ -787,6 +826,236 @@ void interpreter_set_user_defined(interpreter_t* interp, const char* name, void*
 //------------------------------------------------------------------------
 //                          Lua helpers.
 //------------------------------------------------------------------------
+
+bool lua_ispoint(struct lua_State* lua, int index)
+{
+  if (lua_istable(lua, index)) // A table with 3 numbers in it will work.
+  {
+    if (lua_rawlen(lua, index) != 3)
+      return false;
+    for (int i = 0; i < 3; ++i)
+    {
+      lua_pushinteger(lua, (lua_Integer)i);
+      lua_gettable(lua, -1);
+      bool is_number = lua_isnumber(lua, -1);
+      lua_pop(lua, 1);
+      if (!is_number) 
+        return false;
+    }
+    return true;
+  }
+  if (!lua_islightuserdata(lua, index))
+    return false;
+  interpreter_storage_t* storage = (interpreter_storage_t*)lua_topointer(lua, index);
+  return (storage->type == INTERPRETER_POINT);
+}
+
+point_t* lua_topoint(struct lua_State* lua, int index)
+{
+  if (!lua_isvector(lua, index))
+    return NULL;
+  if (lua_istable(lua, index))
+  {
+    lua_pushinteger(lua, (lua_Integer)0);
+    lua_gettable(lua, -1);
+    double x = lua_tonumber(lua, -1);
+    lua_pop(lua, 1);
+    lua_pushinteger(lua, (lua_Integer)1);
+    lua_gettable(lua, -1);
+    double y = lua_tonumber(lua, -1);
+    lua_pop(lua, 1);
+    lua_pushinteger(lua, (lua_Integer)2);
+    lua_gettable(lua, -1);
+    double z = lua_tonumber(lua, -1);
+    lua_pop(lua, 1);
+    return point_new(x, y, z);
+  }
+  interpreter_storage_t* storage = (interpreter_storage_t*)lua_topointer(lua, index);
+  if (storage->type == INTERPRETER_POINT)
+    return (point_t*)storage->datum;
+  else
+    return NULL;
+}
+
+void lua_pushpoint(struct lua_State* lua, point_t* point)
+{
+  // Bundle it up and store it in the given variable.
+  interpreter_storage_t* storage = store_point(point);
+  lua_pushlightuserdata(lua, (void*)storage);
+}
+
+bool lua_ispointlist(struct lua_State* lua, int index)
+{
+  if (lua_istable(lua, index)) // A table with points in it will work.
+  {
+    size_t len = lua_rawlen(lua, index);
+    for (size_t i = 0; i < len; ++i)
+    {
+      lua_pushinteger(lua, (lua_Integer)i);
+      lua_gettable(lua, -1);
+      bool is_point = lua_ispoint(lua, -1);
+      lua_pop(lua, 1);
+      if (!is_point) 
+        return false;
+    }
+    return true;
+  }
+  if (!lua_islightuserdata(lua, index))
+    return false;
+  interpreter_storage_t* storage = (interpreter_storage_t*)lua_topointer(lua, index);
+  return (storage->type == INTERPRETER_POINT_LIST);
+}
+
+point_t* lua_topointlist(struct lua_State* lua, int index, int* size)
+{
+  if (!lua_ispointlist(lua, index))
+    return NULL;
+  if (lua_istable(lua, index))
+  {
+    *size = (int)lua_rawlen(lua, index);
+    point_t* points = malloc(sizeof(point_t) * (*size));
+    for (int i = 0; i < *size; ++i)
+    {
+      lua_pushinteger(lua, (lua_Integer)i);
+      lua_gettable(lua, -1);
+      point_t* p = lua_topoint(lua, -1);
+      lua_pop(lua, 1);
+      point_copy(&points[i], p);
+      free(p);
+    }
+    return points;
+  }
+  interpreter_storage_t* storage = (interpreter_storage_t*)lua_topointer(lua, index);
+  if (storage->type == INTERPRETER_POINT_LIST)
+  {
+    *size = storage->size;
+    return (point_t*)storage->datum;
+  }
+  else
+    return NULL;
+}
+
+void lua_pushpointlist(struct lua_State* lua, point_t* points, int size)
+{
+  // Bundle it up and store it in the given variable.
+  interpreter_storage_t* storage = store_pointlist(points, size);
+  lua_pushlightuserdata(lua, (void*)storage);
+}
+
+bool lua_isvector(struct lua_State* lua, int index)
+{
+  if (lua_istable(lua, index)) // A table with 3 numbers in it will work.
+  {
+    if (lua_rawlen(lua, index) != 3)
+      return false;
+    for (int i = 0; i < 3; ++i)
+    {
+      lua_pushinteger(lua, (lua_Integer)i);
+      lua_gettable(lua, -1);
+      bool is_number = lua_isnumber(lua, -1);
+      lua_pop(lua, 1);
+      if (!is_number) 
+        return false;
+    }
+    return true;
+  }
+  if (!lua_islightuserdata(lua, index))
+    return false;
+  interpreter_storage_t* storage = (interpreter_storage_t*)lua_topointer(lua, index);
+  return (storage->type == INTERPRETER_VECTOR);
+}
+
+vector_t* lua_tovector(struct lua_State* lua, int index)
+{
+  if (!lua_isvector(lua, index))
+    return NULL;
+  if (lua_istable(lua, index))
+  {
+    lua_pushinteger(lua, (lua_Integer)0);
+    lua_gettable(lua, -1);
+    double vx = lua_tonumber(lua, -1);
+    lua_pop(lua, 1);
+    lua_pushinteger(lua, (lua_Integer)1);
+    lua_gettable(lua, -1);
+    double vy = lua_tonumber(lua, -1);
+    lua_pop(lua, 1);
+    lua_pushinteger(lua, (lua_Integer)2);
+    lua_gettable(lua, -1);
+    double vz = lua_tonumber(lua, -1);
+    lua_pop(lua, 1);
+    return vector_new(vx, vy, vz);
+  }
+  interpreter_storage_t* storage = (interpreter_storage_t*)lua_topointer(lua, index);
+  if (storage->type == INTERPRETER_VECTOR)
+    return (vector_t*)storage->datum;
+  else
+    return NULL;
+}
+
+void lua_pushvector(struct lua_State* lua, vector_t* vec)
+{
+  // Bundle it up and store it in the given variable.
+  interpreter_storage_t* storage = store_vector(vec);
+  lua_pushlightuserdata(lua, (void*)storage);
+}
+
+bool lua_isvectorlist(struct lua_State* lua, int index)
+{
+  if (lua_istable(lua, index)) // A table with vectors in it will work.
+  {
+    size_t len = lua_rawlen(lua, index);
+    for (size_t i = 0; i < len; ++i)
+    {
+      lua_pushinteger(lua, (lua_Integer)i);
+      lua_gettable(lua, -1);
+      bool is_vector = lua_isvector(lua, -1);
+      lua_pop(lua, 1);
+      if (!is_vector) 
+        return false;
+    }
+    return true;
+  }
+  if (!lua_islightuserdata(lua, index))
+    return false;
+  interpreter_storage_t* storage = (interpreter_storage_t*)lua_topointer(lua, index);
+  return (storage->type == INTERPRETER_VECTOR_LIST);
+}
+
+vector_t* lua_tovectorlist(struct lua_State* lua, int index, int* size)
+{
+  if (!lua_isvectorlist(lua, index))
+    return NULL;
+  if (lua_istable(lua, index))
+  {
+    *size = (int)lua_rawlen(lua, index);
+    vector_t* vectors = malloc(sizeof(vector_t) * (*size));
+    for (int i = 0; i < *size; ++i)
+    {
+      lua_pushinteger(lua, (lua_Integer)i);
+      lua_gettable(lua, -1);
+      vector_t* v = lua_tovector(lua, -1);
+      lua_pop(lua, 1);
+      vector_copy(&vectors[i], v);
+      free(v);
+    }
+    return vectors;
+  }
+  interpreter_storage_t* storage = (interpreter_storage_t*)lua_topointer(lua, index);
+  if (storage->type == INTERPRETER_VECTOR_LIST)
+  {
+    *size = storage->size;
+    return (vector_t*)storage->datum;
+  }
+  else
+    return NULL;
+}
+
+void lua_pushvectorlist(struct lua_State* lua, vector_t* vectors, int size)
+{
+  // Bundle it up and store it in the given variable.
+  interpreter_storage_t* storage = store_vectorlist(vectors, size);
+  lua_pushlightuserdata(lua, (void*)storage);
+}
 
 bool lua_isscalarfunction(struct lua_State* lua, int index)
 {

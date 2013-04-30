@@ -22,6 +22,10 @@ typedef enum
   INTERPRETER_STRING,
   INTERPRETER_NUMBER,
   INTERPRETER_MESH,
+  INTERPRETER_POINT,
+  INTERPRETER_POINT_LIST,
+  INTERPRETER_VECTOR,
+  INTERPRETER_VECTOR_LIST,
   INTERPRETER_SCALAR_FUNCTION,
   INTERPRETER_VECTOR_FUNCTION,
   INTERPRETER_TABLE,
@@ -130,6 +134,58 @@ void interpreter_set_user_defined(interpreter_t* interp, const char* name, void*
 // These methods can be used to create functions that extend an 
 // interpreter.
 //------------------------------------------------------------------------
+
+// This helper returns true if the object at the given index is a point
+// in 3-dimensional space, false if not.
+bool lua_ispoint(struct lua_State* lua, int index);
+
+// This helper retrieves a point from the given index on an active lua 
+// interpreter, or returns NULL if the index does not point to a point.
+point_t* lua_topoint(struct lua_State* lua, int index);
+
+// Pushes a point onto the interpreter's stack (as a return value for a 
+// function).
+void lua_pushpoint(struct lua_State* lua, point_t* point);
+
+// This helper returns true if the object at the given index is a list 
+// (array) of points in 3-dimensional space, false if not.
+bool lua_ispointlist(struct lua_State* lua, int index);
+
+// This helper retrieves a list (array) of points from the given index on an 
+// active lua interpreter, or returns NULL if the index does not point to a 
+// point list. Here, the size argument stores the number of points in the 
+// list.
+point_t* lua_topointlist(struct lua_State* lua, int index, int* size);
+
+// Pushes a list (array) of points onto the interpreter's stack (as a return 
+// value for a function).
+void lua_pushpointlist(struct lua_State* lua, point_t* points, int size);
+
+// This helper returns true if the object at the given index is a vector
+// in 3-dimensional space, false if not.
+bool lua_isvector(struct lua_State* lua, int index);
+
+// This helper retrieves a vector from the given index on an active lua 
+// interpreter, or returns NULL if the index does not point to a point.
+vector_t* lua_tovector(struct lua_State* lua, int index);
+
+// Pushes a vector onto the interpreter's stack (as a return value for a 
+// function).
+void lua_pushvector(struct lua_State* lua, vector_t* vec);
+
+// This helper returns true if the object at the given index is a list 
+// (array) of vectors in 3-dimensional space, false if not.
+bool lua_isvectorlist(struct lua_State* lua, int index);
+
+// This helper retrieves a list (array) of vectors from the given index on an 
+// active lua interpreter, or returns NULL if the index does not point to a 
+// point list. Here, the size argument stores the number of vectors in the 
+// list.
+vector_t* lua_tovectorlist(struct lua_State* lua, int index, int* size);
+
+// Pushes a list (array) of vectors onto the interpreter's stack (as a return 
+// value for a function).
+void lua_pushvectorlist(struct lua_State* lua, vector_t* vectors, int size);
 
 // This helper returns true if the object at the given index is a scalar-valued
 // function, false if not.
