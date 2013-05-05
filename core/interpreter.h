@@ -26,6 +26,7 @@ typedef enum
   INTERPRETER_POINT_LIST,
   INTERPRETER_VECTOR,
   INTERPRETER_VECTOR_LIST,
+  INTERPRETER_BOUNDING_BOX,
   INTERPRETER_SCALAR_FUNCTION,
   INTERPRETER_VECTOR_FUNCTION,
   INTERPRETER_TABLE,
@@ -82,6 +83,48 @@ double interpreter_get_number(interpreter_t* interp, const char* name);
 // Sets the given variable within the interpreter to the given numeric 
 // value. Any existing value of this variable is overwritten.
 void interpreter_set_number(interpreter_t* interp, const char* name, double value);
+
+// Fetches the given point from the interpreter, returning NULL if it 
+// is not found or if it is not a point.
+point_t* interpreter_get_point(interpreter_t* interp, const char* name);
+
+// Sets the given variable within the interpreter to the given point
+// value. Any existing value of this variable is overwritten.
+void interpreter_set_point(interpreter_t* interp, const char* name, point_t* value);
+
+// Fetches the given list of points from the interpreter, returning NULL if it 
+// is not found or if it is not a point list. num_points will store the number 
+// of points in the list upon successful completion.
+point_t* interpreter_get_pointlist(interpreter_t* interp, const char* name, int* num_points);
+
+// Sets the given variable within the interpreter to the given list of points.
+// Any existing value of this variable is overwritten.
+void interpreter_set_pointlist(interpreter_t* interp, const char* name, point_t* points, int num_points);
+
+// Fetches the given vector from the interpreter, returning NULL if it 
+// is not found or if it is not a vector.
+vector_t* interpreter_get_vector(interpreter_t* interp, const char* name);
+
+// Sets the given variable within the interpreter to the given point
+// value. Any existing value of this variable is overwritten.
+void interpreter_set_vector(interpreter_t* interp, const char* name, vector_t* value);
+
+// Fetches the given list of vectors from the interpreter, returning NULL if it 
+// is not found or if it is not a vector list. num_vectors will store the number 
+// of vectors in the list upon successful completion.
+vector_t* interpreter_get_vectorlist(interpreter_t* interp, const char* name, int* num_vectors);
+
+// Sets the given variable within the interpreter to the given list of vectors.
+// Any existing value of this variable is overwritten.
+void interpreter_set_vectorlist(interpreter_t* interp, const char* name, vector_t* vectors, int num_vectors);
+
+// Fetches the given bounding box from the interpreter, returning NULL if it 
+// is not found or if it is not a bounding box.
+bbox_t* interpreter_get_boundingbox(interpreter_t* interp, const char* name);
+
+// Sets the given variable within the interpreter to the given bounding box.
+// Any existing value of this variable is overwritten.
+void interpreter_set_boundingbox(interpreter_t* interp, const char* name, bbox_t* value);
 
 // Fetches the given mesh from the interpreter, returning NULL if it 
 // is not found or if it is not a table. The caller assumes responsibility
@@ -186,6 +229,19 @@ vector_t* lua_tovectorlist(struct lua_State* lua, int index, int* size);
 // Pushes a list (array) of vectors onto the interpreter's stack (as a return 
 // value for a function).
 void lua_pushvectorlist(struct lua_State* lua, vector_t* vectors, int size);
+
+// This helper returns true if the object at the given index is a bounding
+// box, false if not.
+bool lua_isboundingbox(struct lua_State* lua, int index);
+
+// This helper retrieves a bounding box from the given index on an 
+// active lua interpreter, or returns NULL if the index does not point to 
+// such a thing.
+bbox_t* lua_toboundingbox(struct lua_State* lua, int index);
+
+// Pushes a bounding box onto the interpreter's stack (as a 
+// return value for a function).
+void lua_pushboundingbox(struct lua_State* lua, bbox_t* bbox);
 
 // This helper returns true if the object at the given index is a scalar-valued
 // function, false if not.
