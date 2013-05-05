@@ -96,6 +96,16 @@ static interpreter_storage_t* store_vectorlist(vector_t* vectors, int size)
   return storage;
 }
 
+static interpreter_storage_t* store_boundingbox(bbox_t* var)
+{
+  ASSERT(st_func_num_comp(var) == 1);
+  interpreter_storage_t* storage = malloc(sizeof(interpreter_storage_t));
+  storage->type = INTERPRETER_BOUNDING_BOX;
+  storage->datum = (void*)var;
+  storage->dtor = NULL;
+  return storage;
+}
+
 static void destroy_mesh(void* mesh)
 {
   mesh_free((mesh_t*)mesh);
@@ -171,6 +181,58 @@ struct interpreter_t
   // A set of pre-existing variables in Lua that will be ignored.
   str_unordered_set_t* preexisting_vars;
 };
+
+// Creates a bounding box from a table.
+static int bounding_box(lua_State* lua)
+{
+  // Check the arguments.
+  int num_args = lua_gettop(lua);
+  if (num_args != 1)
+  {
+    if (!lua_istable(lua, 1))
+    {
+      lua_pushstring(lua, "Argument must be a table containing x1, x2, y1, y2, z1, z2 values.");
+      lua_error(lua);
+      return LUA_ERRRUN;
+    }
+  }
+
+  // Look for x1, x2, y1, y2, z1, z2 in the table.
+  bbox_t* bbox = bbox_new(0.0, 1.0, 0.0, 1.0, 0.0, 1.0);
+  const char* entries[] = {"x1", "x2", "y1", "y2", "z1", "z2"};
+  for (int i = 0; i < 6; ++i)
+  {
+    lua_pushstring(lua, entries[i]);
+    lua_gettable(lua, 1); // Reads name from top, replaces with bounds[name].
+    if (!lua_isnumber(lua, -1))
+    {
+      lua_pushstring(lua, "x1, x2, y1, y2, z1, z2, must all be numbers.");
+      lua_error(lua);
+      return LUA_ERRRUN;
+    }
+    switch(i)
+    {
+      case 0: bbox->x1 = lua_tonumber(lua, -1);
+              break;
+      case 1: bbox->x2 = lua_tonumber(lua, -1);
+              break;
+      case 2: bbox->y1 = lua_tonumber(lua, -1);
+              break;
+      case 3: bbox->y2 = lua_tonumber(lua, -1);
+              break;
+      case 4: bbox->z1 = lua_tonumber(lua, -1);
+              break;
+      case 5: bbox->z2 = lua_tonumber(lua, -1);
+              break;
+      default: break;
+    }
+    lua_pop(lua, 1); 
+  }
+
+  // Push the bounding box onto the stack.
+  lua_pushboundingbox(lua, bbox);
+  return 1;
+}
 
 // Creates a constant function from a number or a 3-tuple.
 static int constant_function(lua_State* lua)
@@ -277,6 +339,7 @@ static int periodic_bc(lua_State* lua)
 
 static void register_default_functions(interpreter_t* interp)
 {
+  interpreter_register_function(interp, "bounding_box", bounding_box);
   interpreter_register_function(interp, "constant_function", constant_function);
   interpreter_register_function(interp, "vector_function", vector_function);
   interpreter_register_function(interp, "periodic_bc", periodic_bc);
@@ -424,6 +487,56 @@ static void interpreter_store_chunk_contents(interpreter_t* interp, lua_State* l
           skip_this_var = true;
         else
           polymec_error("Type error: %s must be a number.", key);
+      }
+      else if (entry->type == INTERPRETER_POINT)
+      {
+        if (!lua_ispoint(lua, val_index))
+        {
+          if (preexisting_var)
+            skip_this_var = true;
+          else
+            polymec_error("Type error: %s must be a point.", key);
+        }
+      }
+      else if (entry->type == INTERPRETER_POINT_LIST)
+      {
+        if (!lua_ispointlist(lua, val_index))
+        {
+          if (preexisting_var)
+            skip_this_var = true;
+          else
+            polymec_error("Type error: %s must be a list of points.", key);
+        }
+      }
+      else if (entry->type == INTERPRETER_VECTOR)
+      {
+        if (!lua_isvector(lua, val_index))
+        {
+          if (preexisting_var)
+            skip_this_var = true;
+          else
+            polymec_error("Type error: %s must be a vector.", key);
+        }
+      }
+      else if (entry->type == INTERPRETER_VECTOR_LIST)
+      {
+        if (!lua_isvectorlist(lua, val_index))
+        {
+          if (preexisting_var)
+            skip_this_var = true;
+          else
+            polymec_error("Type error: %s must be a list of vectors.", key);
+        }
+      }
+      else if (entry->type == INTERPRETER_BOUNDING_BOX)
+      {
+        if (!lua_isboundingbox(lua, val_index))
+        {
+          if (preexisting_var)
+            skip_this_var = true;
+          else
+            polymec_error("Type error: %s must be a bounding box.", key);
+        }
       }
       else if (entry->type == INTERPRETER_MESH)
       {
@@ -733,6 +846,88 @@ double interpreter_get_number(interpreter_t* interp, const char* name)
 void interpreter_set_number(interpreter_t* interp, const char* name, double value)
 {
   interpreter_storage_t* storage = store_number(value);
+  interpreter_map_insert_with_kv_dtor(interp->store, strdup(name), storage, destroy_variable);
+}
+
+point_t* interpreter_get_point(interpreter_t* interp, const char* name)
+{
+  interpreter_storage_t** storage = interpreter_map_get(interp->store, (char*)name);
+  if (storage == NULL)
+    return NULL;
+  if ((*storage)->type != INTERPRETER_POINT)
+    return NULL;
+  return (point_t*)((*storage)->datum);
+}
+
+void interpreter_set_point(interpreter_t* interp, const char* name, point_t* value)
+{
+  interpreter_storage_t* storage = store_point(value);
+  interpreter_map_insert_with_kv_dtor(interp->store, strdup(name), storage, destroy_variable);
+}
+
+point_t* interpreter_get_pointlist(interpreter_t* interp, const char* name, int* num_points)
+{
+  interpreter_storage_t** storage = interpreter_map_get(interp->store, (char*)name);
+  if (storage == NULL)
+    return NULL;
+  if ((*storage)->type != INTERPRETER_POINT_LIST)
+    return NULL;
+  *num_points = (*storage)->size;
+  return (point_t*)((*storage)->datum);
+}
+
+void interpreter_set_pointlist(interpreter_t* interp, const char* name, point_t* points, int num_points)
+{
+  interpreter_storage_t* storage = store_pointlist(points, num_points);
+  interpreter_map_insert_with_kv_dtor(interp->store, strdup(name), storage, destroy_variable);
+}
+
+vector_t* interpreter_get_vector(interpreter_t* interp, const char* name)
+{
+  interpreter_storage_t** storage = interpreter_map_get(interp->store, (char*)name);
+  if (storage == NULL)
+    return NULL;
+  if ((*storage)->type != INTERPRETER_VECTOR)
+    return NULL;
+  return (vector_t*)((*storage)->datum);
+}
+
+void interpreter_set_vector(interpreter_t* interp, const char* name, vector_t* value)
+{
+  interpreter_storage_t* storage = store_vector(value);
+  interpreter_map_insert_with_kv_dtor(interp->store, strdup(name), storage, destroy_variable);
+}
+
+vector_t* interpreter_get_vectorlist(interpreter_t* interp, const char* name, int* num_vectors)
+{
+  interpreter_storage_t** storage = interpreter_map_get(interp->store, (char*)name);
+  if (storage == NULL)
+    return NULL;
+  if ((*storage)->type != INTERPRETER_VECTOR_LIST)
+    return NULL;
+  *num_vectors = (*storage)->size;
+  return (vector_t*)((*storage)->datum);
+}
+
+void interpreter_set_vectorlist(interpreter_t* interp, const char* name, vector_t* vectors, int num_vectors)
+{
+  interpreter_storage_t* storage = store_vectorlist(vectors, num_vectors);
+  interpreter_map_insert_with_kv_dtor(interp->store, strdup(name), storage, destroy_variable);
+}
+
+bbox_t* interpreter_get_boundingbox(interpreter_t* interp, const char* name)
+{
+  interpreter_storage_t** storage = interpreter_map_get(interp->store, (char*)name);
+  if (storage == NULL)
+    return NULL;
+  if ((*storage)->type != INTERPRETER_BOUNDING_BOX)
+    return NULL;
+  return (bbox_t*)((*storage)->datum);
+}
+
+void interpreter_set_boundingbox(interpreter_t* interp, const char* name, bbox_t* value)
+{
+  interpreter_storage_t* storage = store_boundingbox(value);
   interpreter_map_insert_with_kv_dtor(interp->store, strdup(name), storage, destroy_variable);
 }
 
@@ -1054,6 +1249,32 @@ void lua_pushvectorlist(struct lua_State* lua, vector_t* vectors, int size)
 {
   // Bundle it up and store it in the given variable.
   interpreter_storage_t* storage = store_vectorlist(vectors, size);
+  lua_pushlightuserdata(lua, (void*)storage);
+}
+
+bool lua_isboundingbox(struct lua_State* lua, int index)
+{
+  if (!lua_islightuserdata(lua, index))
+    return false;
+  interpreter_storage_t* storage = (interpreter_storage_t*)lua_topointer(lua, index);
+  return (storage->type == INTERPRETER_BOUNDING_BOX);
+}
+
+bbox_t* lua_toboundingbox(struct lua_State* lua, int index)
+{
+  if (!lua_islightuserdata(lua, index))
+    return NULL;
+  interpreter_storage_t* storage = (interpreter_storage_t*)lua_topointer(lua, index);
+  if (storage->type == INTERPRETER_BOUNDING_BOX)
+    return (bbox_t*)storage->datum;
+  else
+    return NULL;
+}
+
+void lua_pushboundingbox(struct lua_State* lua, bbox_t* bbox)
+{
+  // Bundle it up and store it in the given variable.
+  interpreter_storage_t* storage = store_boundingbox(bbox);
   lua_pushlightuserdata(lua, (void*)storage);
 }
 

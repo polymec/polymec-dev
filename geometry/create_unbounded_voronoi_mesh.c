@@ -16,12 +16,6 @@ static void destroy_outer_cell_edges_map_entry(int key, void* value)
   free(v);
 }
 
-static void destroy_ray_map_entry(int key, void* value)
-{
-  vector_t* v = value;
-  vector_free(v);
-}
-
 mesh_t* create_unbounded_voronoi_mesh(point_t* generators, int num_generators, 
                                       point_t* ghost_generators, int num_ghost_generators)
 {
@@ -105,7 +99,7 @@ mesh_t* create_unbounded_voronoi_mesh(point_t* generators, int num_generators,
       vector_t* ray = vector_new(tessellation->edges[e].ray[0],
                                  tessellation->edges[e].ray[1],
                                  tessellation->edges[e].ray[2]);
-      int_ptr_unordered_map_insert_with_kv_dtor(ray_map, e, ray, destroy_ray_map_entry);
+      int_ptr_unordered_map_insert_with_kv_dtor(ray_map, e, ray, NULL);
     }
     ASSERT(outer_edge_offset == outer_edges->size);
   }

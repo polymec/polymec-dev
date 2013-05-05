@@ -14,20 +14,10 @@ typedef struct
   double x, y, z;
 } point_t;
 
-// Creates a new point with the given coordinates. Not necessary if you 
-// are allocating a point on the stack.
-static inline point_t* point_new(double x, double y, double z)
-{
-  point_t* p = malloc(sizeof(point_t));
-  p->x = x, p->y = y, p->z = z;
-  return p;
-}
-
-// Destroys a point that has been allocated on the heap.
-static inline void point_free(point_t* p)
-{
-  free(p);
-}
+// Allocates a new point on the heap with the given coordinates. Not 
+// necessary if you are allocating a point on the stack. Objects of this 
+// type are garbage-collected when allocated on the heap.
+point_t* point_new(double x, double y, double z);
 
 // Square distance between two points in 3D space.
 static inline double point_square_distance(point_t* x, point_t* y)
@@ -55,20 +45,10 @@ typedef struct
   double x, y, z;
 } vector_t;
 
-// Creates a new vector with the given components. Not necessary if you 
-// are allocating a vector on the stack.
-static inline vector_t* vector_new(double vx, double vy, double vz)
-{
-  vector_t* v = malloc(sizeof(vector_t));
-  v->x = vx, v->y = vy, v->z = vz;
-  return v;
-}
-
-// Destroys a vector that has been allocated on the heap.
-static inline void vector_free(vector_t* v)
-{
-  free(v);
-}
+// Allocates a new vector on the heap with the given components. Not 
+// necessary if you are allocating a vector on the stack. Objects of this 
+// type are garbage-collected when allocated on the heap.
+vector_t* vector_new(double vx, double vy, double vz);
 
 // Vector dot product.
 static inline double vector_dot(vector_t* v1, vector_t* v2)
@@ -160,6 +140,10 @@ typedef struct
   double y1, y2;
   double z1, z2;
 } bbox_t;
+
+// Allocates a bounding box on the heap. Objects of this type are garbage-
+// collected when allocated on the heap.
+bbox_t* bbox_new(double x1, double x2, double y1, double y2, double z1, double z2);
 
 // Given a random number generator and a bounding box, generate random 
 // coordinates for the given point within the bounding box. The random 

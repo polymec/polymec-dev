@@ -1,7 +1,9 @@
 #include "core/boundary_cell_map.h"
+#include "core/constant_st_func.h"
 #include "geometry/interpreter_register_geometry_functions.h"
 #include "geometry/cubic_lattice.h"
 #include "geometry/create_cubic_lattice_mesh.h"
+#include "geometry/generate_random_points.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -189,10 +191,64 @@ static int cubic_lattice_periodic_bc(lua_State* lua)
   return 1;
 }
 
+static int random_points(lua_State* lua)
+{
+  // Check the arguments.
+  int num_args = lua_gettop(lua);
+  if (num_args != 2)
+  {
+    lua_pushstring(lua, "Invalid arguments. Usage:\npoints = random_points(N, bounding_box) OR\npoints = random_points(N, density, bounding_box)");
+    lua_error(lua);
+    return LUA_ERRRUN;
+  }
+  // Get the arguments.
+  int N = (int)lua_tonumber(lua, 1);
+  sp_func_t* density = NULL;
+  bbox_t* bbox = NULL;
+  if (num_args == 2)
+  {
+    if (!lua_isboundingbox(lua, 2))
+    {
+      lua_pushstring(lua, "Second argument must be a bounding box.");
+      lua_error(lua);
+      return LUA_ERRRUN;
+    }
+    bbox = lua_toboundingbox(lua, 2);
+    double one = 1.0;
+    density = constant_sp_func_new(1, &one);
+  }
+  else
+  {
+    if (!lua_isscalarfunction(lua, 2))
+    {
+      lua_pushstring(lua, "Second argument must be a scalar function.");
+      lua_error(lua);
+      return LUA_ERRRUN;
+    }
+    st_func_t* density_t = lua_toscalarfunction(lua, 2);
+    density = st_func_freeze(density_t, 0.0);
+    if (!lua_isboundingbox(lua, 3))
+    {
+      lua_pushstring(lua, "Third argument must be a bounding box.");
+      lua_error(lua);
+      return LUA_ERRRUN;
+    }
+    bbox = lua_toboundingbox(lua, 3);
+  }
+
+  point_t* points = malloc(sizeof(point_t) * N);
+  generate_random_points(random, density, bbox, N, points);
+
+  // Return the point list.
+  lua_pushpointlist(lua, points, N);
+  return 1;
+}
+
 void interpreter_register_geometry_functions(interpreter_t* interp)
 {
   interpreter_register_function(interp, "cubic_lattice_mesh", cubic_lattice_mesh);
   interpreter_register_function(interp, "cubic_lattice_periodic_bc", cubic_lattice_periodic_bc);
+  interpreter_register_function(interp, "random_points", random_points);
 }
 
 #ifdef __cplusplus
