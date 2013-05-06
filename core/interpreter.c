@@ -98,7 +98,6 @@ static interpreter_storage_t* store_vectorlist(vector_t* vectors, int size)
 
 static interpreter_storage_t* store_boundingbox(bbox_t* var)
 {
-  ASSERT(st_func_num_comp(var) == 1);
   interpreter_storage_t* storage = malloc(sizeof(interpreter_storage_t));
   storage->type = INTERPRETER_BOUNDING_BOX;
   storage->datum = (void*)var;
@@ -143,6 +142,16 @@ static interpreter_storage_t* store_vector_function(st_func_t* var)
 static void destroy_table(void* table)
 {
   str_ptr_unordered_map_free((str_ptr_unordered_map_t*)table);
+}
+
+static interpreter_storage_t* store_sequence(double* sequence, int len)
+{
+  interpreter_storage_t* storage = malloc(sizeof(interpreter_storage_t));
+  storage->datum = sequence;
+  storage->type = INTERPRETER_SEQUENCE;
+  storage->dtor = free;
+  storage->size = len;
+  return storage;
 }
 
 static interpreter_storage_t* store_table(str_ptr_unordered_map_t* table)
@@ -200,7 +209,7 @@ static int bounding_box(lua_State* lua)
   // Look for x1, x2, y1, y2, z1, z2 in the table.
   bbox_t* bbox = bbox_new(0.0, 1.0, 0.0, 1.0, 0.0, 1.0);
   const char* entries[] = {"x1", "x2", "y1", "y2", "z1", "z2"};
-  for (int i = 0; i < 6; ++i)
+  for (int i = 1; i <= 6; ++i)
   {
     lua_pushstring(lua, entries[i]);
     lua_gettable(lua, 1); // Reads name from top, replaces with bounds[name].
@@ -592,6 +601,13 @@ static void interpreter_store_chunk_contents(interpreter_t* interp, lua_State* l
             polymec_error("Type error: %s must be a vector-valued function.", key);
         }
       }
+      else if ((entry->type == INTERPRETER_SEQUENCE) && !lua_issequence(lua, val_index))
+      {
+        if (preexisting_var)
+          skip_this_var = true;
+        else
+          polymec_error("Type error: %s must be a sequence of numbers.", key);
+      }
       else if ((entry->type == INTERPRETER_TABLE) && !lua_istable(lua, val_index))
       {
         if (preexisting_var)
@@ -616,6 +632,7 @@ static void interpreter_store_chunk_contents(interpreter_t* interp, lua_State* l
     else if (lua_istable(lua, val_index))
     {
       // Before we do anything, we validate the table.
+      bool is_sequence, is_known = false;
       interpreter_var_type_t value_type = INTERPRETER_TERMINUS;
       static const char* type_names[] = {"string", "number", "mesh", "function"};
       // Traverse this table and make sure its values are all of one type.
@@ -625,102 +642,126 @@ static void interpreter_store_chunk_contents(interpreter_t* interp, lua_State* l
         // Key is at index -2, value is at -1.
         static const int key_index = -2;
         static const int val_index = -1;
-        if (!lua_isstring(lua, key_index))
+        if (!is_known)
         {
-          if (preexisting_var)
-            skip_this_var = true;
-          else
-            polymec_error("Type error: %s must be a table mapping strings to objects.", key);
+          is_sequence = lua_issequence(lua, key_index);
+          is_known = true;
         }
-        if (!lua_isnumber(lua, val_index) && 
-            !lua_isstring(lua, val_index) && 
-            !lua_islightuserdata(lua, val_index))
+        if (!is_sequence)
         {
-          if (preexisting_var)
-            skip_this_var = true;
-          else
-            polymec_error("Type error: %s must be a table mapping strings to objects.", key);
-        }
-        if (skip_this_var)
-        {
-          lua_pop(lua, 1);
-          continue;
-        }
-
-        char* tkey = (char*)lua_tostring(lua, key_index);
-        void* tval = (void*)lua_topointer(lua, val_index);
-        if (tval == NULL)
-        {
-          // We don't need to do any further validation on non-pointer 
-          // objects.
-          lua_pop(lua, 1);
-          continue;
-        }
-
-        // No tables of tables allowed!
-        interpreter_storage_t* tvar = (interpreter_storage_t*)tval;
-        if (tvar->type == INTERPRETER_TABLE)
-        {
-          if (preexisting_var)
-            skip_this_var = true;
-          else
-            polymec_error("Value error: Key '%s' in table %s stores a table (not allowed!)", tkey, key); 
-        }
-
-        // Make sure the type of this key is the same as the others.
-        if (!skip_this_var)
-        {
-          if (value_type == INTERPRETER_TERMINUS)
-            value_type = tvar->type;
-          else if (tvar->type != value_type)
+          if (!lua_isstring(lua, key_index))
           {
-            polymec_error("Value error: Key '%s' in table %s stores a %s (should be %s)", 
-                tkey, key, type_names[tvar->type], type_names[value_type]);
+            if (preexisting_var)
+              skip_this_var = true;
+            else
+              polymec_error("Type error: %s must be a sequence or a table mapping strings to objects.", key);
           }
-        }
+          if (!lua_isnumber(lua, val_index) && 
+              !lua_isstring(lua, val_index) && 
+              !lua_islightuserdata(lua, val_index))
+          {
+            if (preexisting_var)
+              skip_this_var = true;
+            else
+              polymec_error("Type error: %s must be a table mapping strings to objects.", key);
+          }
+          if (skip_this_var)
+          {
+            lua_pop(lua, 1);
+            continue;
+          }
 
-        // Removes value from stack.
-        lua_pop(lua, 1);
+          char* tkey = (char*)lua_tostring(lua, key_index);
+          void* tval = (void*)lua_topointer(lua, val_index);
+          if (tval == NULL)
+          {
+            // We don't need to do any further validation on non-pointer 
+            // objects.
+            lua_pop(lua, 1);
+            continue;
+          }
+
+          // No tables of tables allowed!
+          interpreter_storage_t* tvar = (interpreter_storage_t*)tval;
+          if (tvar->type == INTERPRETER_TABLE)
+          {
+            if (preexisting_var)
+              skip_this_var = true;
+            else
+              polymec_error("Value error: Key '%s' in table %s stores a table (not allowed!)", tkey, key); 
+          }
+
+          // Make sure the type of this key is the same as the others.
+          if (!skip_this_var)
+          {
+            if (value_type == INTERPRETER_TERMINUS)
+              value_type = tvar->type;
+            else if (tvar->type != value_type)
+            {
+              polymec_error("Value error: Key '%s' in table %s stores a %s (should be %s)", 
+                  tkey, key, type_names[tvar->type], type_names[value_type]);
+            }
+          }
+
+          // Removes value from stack.
+          lua_pop(lua, 1);
+        }
       }
 
-      // If we need to skip the table, do so.
+      // If we need to skip the table/sequence, do so.
       if (skip_this_var)
       {
         lua_pop(lua, 1);
         continue;
       }
 
-      // Now traverse it again and update our unordered map.
-      str_ptr_unordered_map_t* table = str_ptr_unordered_map_new();
-      lua_pushnil(lua);
-      while (lua_next(lua, -2))
+      // Now traverse the table again and create a C data structure.
+      if (is_sequence)
       {
-        // Key is at index -2, value is at -1.
-        static const int key_index = -2;
-        static const int val_index = -1;
-        char* tkey = (char*)lua_tostring(lua, key_index);
-        if (lua_isnumber(lua, val_index))
+        int len = lua_rawlen(lua, -1);
+        double* seq = malloc(sizeof(double) * lua_rawlen(lua, -1));
+        for (int i = 1; i <= len; ++i)
         {
-          double* var = malloc(sizeof(double));
-          *var = lua_tonumber(lua, val_index);
-          str_ptr_unordered_map_insert_with_kv_dtor(table, tkey, var, destroy_table_entry);
+          lua_pushinteger(lua, (lua_Integer)i);
+          lua_gettable(lua, -2);
+          seq[i-1] = lua_tonumber(lua, -1);
+          lua_pop(lua, 1);
         }
-        else if (lua_isstring(lua, val_index))
-        {
-          const char* var = lua_tostring(lua, val_index);
-          str_ptr_unordered_map_insert_with_kv_dtor(table, tkey, strdup(var), destroy_table_entry);
-        }
-        else if (lua_islightuserdata(lua, val_index))
-        {
-          void* tval = (void*)lua_topointer(lua, val_index);
-          interpreter_storage_t* tvar = (interpreter_storage_t*)tval;
-          str_ptr_unordered_map_insert_with_kv_dtor(table, tkey, tvar->datum, destroy_table_entry);
-        }
-
-        // Removes value from stack.
-        lua_pop(lua, 1);
+        var = store_sequence(seq, len);
       }
-      var = store_table(table);
+      else
+      {
+        str_ptr_unordered_map_t* table = str_ptr_unordered_map_new();
+        lua_pushnil(lua);
+        while (lua_next(lua, -2))
+        {
+          // Key is at index -2, value is at -1.
+          static const int key_index = -2;
+          static const int val_index = -1;
+          char* tkey = (char*)lua_tostring(lua, key_index);
+          if (lua_isnumber(lua, val_index))
+          {
+            double* var = malloc(sizeof(double));
+            *var = lua_tonumber(lua, val_index);
+            str_ptr_unordered_map_insert_with_kv_dtor(table, tkey, var, destroy_table_entry);
+          }
+          else if (lua_isstring(lua, val_index))
+          {
+            const char* var = lua_tostring(lua, val_index);
+            str_ptr_unordered_map_insert_with_kv_dtor(table, tkey, strdup(var), destroy_table_entry);
+          }
+          else if (lua_islightuserdata(lua, val_index))
+          {
+            void* tval = (void*)lua_topointer(lua, val_index);
+            interpreter_storage_t* tvar = (interpreter_storage_t*)tval;
+            str_ptr_unordered_map_insert_with_kv_dtor(table, tkey, tvar->datum, destroy_table_entry);
+          }
+
+          // Removes value from stack.
+          lua_pop(lua, 1);
+        }
+        var = store_table(table);
+      }
     }
     else 
     {
@@ -995,6 +1036,12 @@ str_ptr_unordered_map_t* interpreter_get_table(interpreter_t* interp, const char
   return (str_ptr_unordered_map_t*)((*storage)->datum);
 }
 
+void interpreter_set_sequence(interpreter_t* interp, const char* name, double* sequence, int len)
+{
+  interpreter_storage_t* storage = store_sequence(sequence, len);
+  interpreter_map_insert_with_kv_dtor(interp->store, strdup(name), storage, destroy_variable);
+}
+
 void interpreter_set_table(interpreter_t* interp, const char* name, str_ptr_unordered_map_t* value)
 {
   interpreter_storage_t* storage = store_table(value);
@@ -1022,23 +1069,66 @@ void interpreter_set_user_defined(interpreter_t* interp, const char* name, void*
 //                          Lua helpers.
 //------------------------------------------------------------------------
 
-bool lua_ispoint(struct lua_State* lua, int index)
+bool lua_issequence(struct lua_State* lua, int index)
 {
-  if (lua_istable(lua, index)) // A table with 3 numbers in it will work.
+  index = lua_absindex(lua, index);
+  if (lua_istable(lua, index))
   {
-    if (lua_rawlen(lua, index) != 3)
-      return false;
-    for (int i = 0; i < 3; ++i)
+    int len = lua_rawlen(lua, index);
+    for (int i = 1; i <= len; ++i)
     {
       lua_pushinteger(lua, (lua_Integer)i);
-      lua_gettable(lua, -1);
+      lua_gettable(lua, index);
       bool is_number = lua_isnumber(lua, -1);
       lua_pop(lua, 1);
-      if (!is_number) 
+      if (!is_number)
         return false;
     }
     return true;
   }
+  if (!lua_islightuserdata(lua, index))
+    return false;
+  interpreter_storage_t* storage = (interpreter_storage_t*)lua_topointer(lua, index);
+  return (storage->type == INTERPRETER_SEQUENCE);
+}
+
+double* lua_tosequence(struct lua_State* lua, int index, int* len)
+{
+  if (!lua_issequence(lua, index))
+    return NULL;
+  index = lua_absindex(lua, index);
+  if (lua_istable(lua, index))
+  {
+    *len = lua_rawlen(lua, index);
+    double* seq = malloc(sizeof(double)*(*len));
+    for (int i = 1; i <= *len; ++i)
+    {
+      lua_pushinteger(lua, (lua_Integer)i);
+      lua_gettable(lua, index);
+      seq[i-1] = lua_tonumber(lua, -1);
+      lua_pop(lua, 1);
+    }
+    return seq;
+  }
+  interpreter_storage_t* storage = (interpreter_storage_t*)lua_topointer(lua, index);
+  if (storage->type == INTERPRETER_SEQUENCE)
+    return (double*)storage->datum;
+  else
+    return NULL;
+}
+
+void lua_pushsequence(struct lua_State* lua, double* sequence, int len)
+{
+  // Bundle it up and store it in the given variable.
+  interpreter_storage_t* storage = store_sequence(sequence, len);
+  lua_pushlightuserdata(lua, (void*)storage);
+}
+
+bool lua_ispoint(struct lua_State* lua, int index)
+{
+  // A sequence with 3 numbers in it will work.
+  if (lua_issequence(lua, index) && (lua_rawlen(lua, index) == 3))
+    return true;
   if (!lua_islightuserdata(lua, index))
     return false;
   interpreter_storage_t* storage = (interpreter_storage_t*)lua_topointer(lua, index);
@@ -1047,27 +1137,24 @@ bool lua_ispoint(struct lua_State* lua, int index)
 
 point_t* lua_topoint(struct lua_State* lua, int index)
 {
-  if (!lua_isvector(lua, index))
+  if (!lua_ispoint(lua, index))
     return NULL;
   if (lua_istable(lua, index))
   {
-    lua_pushinteger(lua, (lua_Integer)0);
-    lua_gettable(lua, -1);
-    double x = lua_tonumber(lua, -1);
-    lua_pop(lua, 1);
-    lua_pushinteger(lua, (lua_Integer)1);
-    lua_gettable(lua, -1);
-    double y = lua_tonumber(lua, -1);
-    lua_pop(lua, 1);
-    lua_pushinteger(lua, (lua_Integer)2);
-    lua_gettable(lua, -1);
-    double z = lua_tonumber(lua, -1);
-    lua_pop(lua, 1);
-    return point_new(x, y, z);
+    int len;
+    double* seq = lua_tosequence(lua, index, &len);
+    point_t* p = point_new(seq[0], seq[1], seq[2]);
+    free(seq);
+    return p;
   }
   interpreter_storage_t* storage = (interpreter_storage_t*)lua_topointer(lua, index);
   if (storage->type == INTERPRETER_POINT)
     return (point_t*)storage->datum;
+  else if (storage->type == INTERPRETER_SEQUENCE)
+  {
+    double* seq = storage->datum;
+    return point_new(seq[0], seq[1], seq[2]);
+  }
   else
     return NULL;
 }
@@ -1084,7 +1171,7 @@ bool lua_ispointlist(struct lua_State* lua, int index)
   if (lua_istable(lua, index)) // A table with points in it will work.
   {
     size_t len = lua_rawlen(lua, index);
-    for (size_t i = 0; i < len; ++i)
+    for (size_t i = 1; i <= len; ++i)
     {
       lua_pushinteger(lua, (lua_Integer)i);
       lua_gettable(lua, -1);
@@ -1109,7 +1196,7 @@ point_t* lua_topointlist(struct lua_State* lua, int index, int* size)
   {
     *size = (int)lua_rawlen(lua, index);
     point_t* points = malloc(sizeof(point_t) * (*size));
-    for (int i = 0; i < *size; ++i)
+    for (int i = 1; i <= *size; ++i)
     {
       lua_pushinteger(lua, (lua_Integer)i);
       lua_gettable(lua, -1);
@@ -1139,21 +1226,9 @@ void lua_pushpointlist(struct lua_State* lua, point_t* points, int size)
 
 bool lua_isvector(struct lua_State* lua, int index)
 {
-  if (lua_istable(lua, index)) // A table with 3 numbers in it will work.
-  {
-    if (lua_rawlen(lua, index) != 3)
-      return false;
-    for (int i = 0; i < 3; ++i)
-    {
-      lua_pushinteger(lua, (lua_Integer)i);
-      lua_gettable(lua, -1);
-      bool is_number = lua_isnumber(lua, -1);
-      lua_pop(lua, 1);
-      if (!is_number) 
-        return false;
-    }
+  // A sequence with 3 numbers in it will work.
+  if (lua_issequence(lua, index) && (lua_rawlen(lua, index) == 3))
     return true;
-  }
   if (!lua_islightuserdata(lua, index))
     return false;
   interpreter_storage_t* storage = (interpreter_storage_t*)lua_topointer(lua, index);
@@ -1166,24 +1241,23 @@ vector_t* lua_tovector(struct lua_State* lua, int index)
     return NULL;
   if (lua_istable(lua, index))
   {
-    lua_pushinteger(lua, (lua_Integer)0);
-    lua_gettable(lua, -1);
-    double vx = lua_tonumber(lua, -1);
-    lua_pop(lua, 1);
-    lua_pushinteger(lua, (lua_Integer)1);
-    lua_gettable(lua, -1);
-    double vy = lua_tonumber(lua, -1);
-    lua_pop(lua, 1);
-    lua_pushinteger(lua, (lua_Integer)2);
-    lua_gettable(lua, -1);
-    double vz = lua_tonumber(lua, -1);
-    lua_pop(lua, 1);
-    return vector_new(vx, vy, vz);
+    int len;
+    double* seq = lua_tosequence(lua, index, &len);
+    vector_t* v = vector_new(seq[0], seq[1], seq[2]);
+    free(seq);
+    return v;
   }
   interpreter_storage_t* storage = (interpreter_storage_t*)lua_topointer(lua, index);
   if (storage->type == INTERPRETER_VECTOR)
     return (vector_t*)storage->datum;
+  else if (storage->type == INTERPRETER_SEQUENCE)
+  {
+    double* seq = storage->datum;
+    return vector_new(seq[0], seq[1], seq[2]);
+  }
   else
+    return NULL;
+  if (!lua_isvector(lua, index))
     return NULL;
 }
 
@@ -1199,7 +1273,7 @@ bool lua_isvectorlist(struct lua_State* lua, int index)
   if (lua_istable(lua, index)) // A table with vectors in it will work.
   {
     size_t len = lua_rawlen(lua, index);
-    for (size_t i = 0; i < len; ++i)
+    for (size_t i = 1; i <= len; ++i)
     {
       lua_pushinteger(lua, (lua_Integer)i);
       lua_gettable(lua, -1);
@@ -1224,7 +1298,7 @@ vector_t* lua_tovectorlist(struct lua_State* lua, int index, int* size)
   {
     *size = (int)lua_rawlen(lua, index);
     vector_t* vectors = malloc(sizeof(vector_t) * (*size));
-    for (int i = 0; i < *size; ++i)
+    for (int i = 1; i <= *size; ++i)
     {
       lua_pushinteger(lua, (lua_Integer)i);
       lua_gettable(lua, -1);
