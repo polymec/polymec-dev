@@ -29,6 +29,7 @@ typedef enum
   INTERPRETER_BOUNDING_BOX,
   INTERPRETER_SCALAR_FUNCTION,
   INTERPRETER_VECTOR_FUNCTION,
+  INTERPRETER_SEQUENCE,
   INTERPRETER_TABLE,
   INTERPRETER_USER_DEFINED, // <-- on your head be it!!
   INTERPRETER_TERMINUS // Used only to terminate validation lists.
@@ -157,6 +158,10 @@ void interpreter_set_vector_function(interpreter_t* interp, const char* name, st
 // for destroying the table after this call.
 str_ptr_unordered_map_t* interpreter_get_table(interpreter_t* interp, const char* name);
 
+// Sets the given variable within the interpreter to the given sequence of
+// nubmers.. Any existing value of this variable is overwritten.
+void interpreter_set_sequence(interpreter_t* interp, const char* name, double* sequence, int len);
+
 // Sets the given variable within the interpreter to the given table of
 // objects. Any existing value of this variable is overwritten.
 void interpreter_set_table(interpreter_t* interp, const char* name, str_ptr_unordered_map_t* value);
@@ -177,6 +182,18 @@ void interpreter_set_user_defined(interpreter_t* interp, const char* name, void*
 // These methods can be used to create functions that extend an 
 // interpreter.
 //------------------------------------------------------------------------
+
+// This helper returns true if the object at the given index is a sequence
+// of numbers, false if not.
+bool lua_issequence(struct lua_State* lua, int index);
+
+// This helper retrieves a sequence from the given index on an active lua 
+// interpreter, or returns NULL if the index does not point to a sequence.
+double* lua_tosequence(struct lua_State* lua, int index, int* len);
+
+// Pushes a sequence onto the interpreter's stack (as a return value for a 
+// function).
+void lua_pushsequence(struct lua_State* lua, double* sequence, int len);
 
 // This helper returns true if the object at the given index is a point
 // in 3-dimensional space, false if not.
