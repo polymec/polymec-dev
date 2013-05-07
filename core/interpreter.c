@@ -63,7 +63,7 @@ static interpreter_storage_t* store_point(point_t* point)
   interpreter_storage_t* storage = malloc(sizeof(interpreter_storage_t));
   storage->datum = point;
   storage->type = INTERPRETER_POINT;
-  storage->dtor = free;
+  storage->dtor = NULL;
   return storage;
 }
 
@@ -82,7 +82,7 @@ static interpreter_storage_t* store_vector(vector_t* vec)
   interpreter_storage_t* storage = malloc(sizeof(interpreter_storage_t));
   storage->datum = vec;
   storage->type = INTERPRETER_VECTOR;
-  storage->dtor = free;
+  storage->dtor = NULL;
   return storage;
 }
 
@@ -615,6 +615,12 @@ static void interpreter_store_chunk_contents(interpreter_t* interp, lua_State* l
         else
           polymec_error("Type error: %s must be a table mapping strings to objects.", key);
       }
+
+      // Skip empty tables, as they cause problems.
+      else if (lua_istable(lua, val_index) && (lua_rawlen(lua, val_index) == 0))
+      {
+        skip_this_var = true;
+      }
     }
 
     // Skip this variable if we need to.
@@ -629,10 +635,34 @@ static void interpreter_store_chunk_contents(interpreter_t* interp, lua_State* l
       var = store_number(lua_tonumber(lua, val_index));
     else if (lua_isstring(lua, val_index))
       var = store_string(lua_tostring(lua, val_index));
+    else if (lua_issequence(lua, val_index))
+    {
+      // Sequences can be interpreted in many ways. Are we asked to 
+      // interpret this sequence as something other than just a sequence?
+      int len;
+      double* seq = lua_tosequence(lua, val_index, &len);
+      if ((entry == NULL) || (entry->type == INTERPRETER_SEQUENCE))
+      {
+        var = store_sequence(seq, len);
+      }
+      else if (entry->type == INTERPRETER_POINT)
+      {
+        point_t* p = point_new(seq[0], seq[1], seq[2]);
+        var = store_point(p);
+      }
+      else if (entry->type == INTERPRETER_VECTOR)
+      {
+        vector_t* v = vector_new(seq[0], seq[1], seq[2]);
+        var = store_vector(v);
+      }
+
+      // Clean up if necessary.
+      if ((entry != NULL) && (entry->type != INTERPRETER_SEQUENCE))
+        free(seq);
+    }
     else if (lua_istable(lua, val_index))
     {
       // Before we do anything, we validate the table.
-      bool is_sequence, is_known = false;
       interpreter_var_type_t value_type = INTERPRETER_TERMINUS;
       static const char* type_names[] = {"string", "number", "mesh", "function"};
       // Traverse this table and make sure its values are all of one type.
@@ -642,70 +672,62 @@ static void interpreter_store_chunk_contents(interpreter_t* interp, lua_State* l
         // Key is at index -2, value is at -1.
         static const int key_index = -2;
         static const int val_index = -1;
-        if (!is_known)
+        if (!lua_isstring(lua, key_index))
         {
-          is_sequence = lua_issequence(lua, key_index);
-          is_known = true;
+          if (preexisting_var)
+            skip_this_var = true;
+          else
+            polymec_error("Type error: %s must be a sequence or a table mapping strings to objects.", key);
         }
-        if (!is_sequence)
+        if (!lua_isnumber(lua, val_index) && 
+            !lua_isstring(lua, val_index) && 
+            !lua_islightuserdata(lua, val_index))
         {
-          if (!lua_isstring(lua, key_index))
-          {
-            if (preexisting_var)
-              skip_this_var = true;
-            else
-              polymec_error("Type error: %s must be a sequence or a table mapping strings to objects.", key);
-          }
-          if (!lua_isnumber(lua, val_index) && 
-              !lua_isstring(lua, val_index) && 
-              !lua_islightuserdata(lua, val_index))
-          {
-            if (preexisting_var)
-              skip_this_var = true;
-            else
-              polymec_error("Type error: %s must be a table mapping strings to objects.", key);
-          }
-          if (skip_this_var)
-          {
-            lua_pop(lua, 1);
-            continue;
-          }
-
-          char* tkey = (char*)lua_tostring(lua, key_index);
-          void* tval = (void*)lua_topointer(lua, val_index);
-          if (tval == NULL)
-          {
-            // We don't need to do any further validation on non-pointer 
-            // objects.
-            lua_pop(lua, 1);
-            continue;
-          }
-
-          // No tables of tables allowed!
-          interpreter_storage_t* tvar = (interpreter_storage_t*)tval;
-          if (tvar->type == INTERPRETER_TABLE)
-          {
-            if (preexisting_var)
-              skip_this_var = true;
-            else
-              polymec_error("Value error: Key '%s' in table %s stores a table (not allowed!)", tkey, key); 
-          }
-
-          // Make sure the type of this key is the same as the others.
-          if (!skip_this_var)
-          {
-            if (value_type == INTERPRETER_TERMINUS)
-              value_type = tvar->type;
-            else if (tvar->type != value_type)
-            {
-              polymec_error("Value error: Key '%s' in table %s stores a %s (should be %s)", 
-                  tkey, key, type_names[tvar->type], type_names[value_type]);
-            }
-          }
-
-          // Removes value from stack.
+          if (preexisting_var)
+            skip_this_var = true;
+          else
+            polymec_error("Type error: %s must be a table mapping strings to objects.", key);
+        }
+        if (skip_this_var)
+        {
           lua_pop(lua, 1);
+          continue;
         }
+
+        char* tkey = (char*)lua_tostring(lua, key_index);
+        void* tval = (void*)lua_topointer(lua, val_index);
+        if (tval == NULL)
+        {
+          // We don't need to do any further validation on non-pointer 
+          // objects.
+          lua_pop(lua, 1);
+          continue;
+        }
+
+        // No tables of tables allowed!
+        interpreter_storage_t* tvar = (interpreter_storage_t*)tval;
+        if (tvar->type == INTERPRETER_TABLE)
+        {
+          if (preexisting_var)
+            skip_this_var = true;
+          else
+            polymec_error("Value error: Key '%s' in table %s stores a table (not allowed!)", tkey, key); 
+        }
+
+        // Make sure the type of this key is the same as the others.
+        if (!skip_this_var)
+        {
+          if (value_type == INTERPRETER_TERMINUS)
+            value_type = tvar->type;
+          else if (tvar->type != value_type)
+          {
+            polymec_error("Value error: Key '%s' in table %s stores a %s (should be %s)", 
+                tkey, key, type_names[tvar->type], type_names[value_type]);
+          }
+        }
+
+        // Removes value from stack.
+        lua_pop(lua, 1);
       }
 
       // If we need to skip the table/sequence, do so.
@@ -716,52 +738,36 @@ static void interpreter_store_chunk_contents(interpreter_t* interp, lua_State* l
       }
 
       // Now traverse the table again and create a C data structure.
-      if (is_sequence)
+      str_ptr_unordered_map_t* table = str_ptr_unordered_map_new();
+      lua_pushnil(lua);
+      while (lua_next(lua, -2))
       {
-        int len = lua_rawlen(lua, -1);
-        double* seq = malloc(sizeof(double) * lua_rawlen(lua, -1));
-        for (int i = 1; i <= len; ++i)
+        // Key is at index -2, value is at -1.
+        static const int key_index = -2;
+        static const int val_index = -1;
+        char* tkey = (char*)lua_tostring(lua, key_index);
+        if (lua_isnumber(lua, val_index))
         {
-          lua_pushinteger(lua, (lua_Integer)i);
-          lua_gettable(lua, -2);
-          seq[i-1] = lua_tonumber(lua, -1);
-          lua_pop(lua, 1);
+          double* var = malloc(sizeof(double));
+          *var = lua_tonumber(lua, val_index);
+          str_ptr_unordered_map_insert_with_kv_dtor(table, tkey, var, destroy_table_entry);
         }
-        var = store_sequence(seq, len);
-      }
-      else
-      {
-        str_ptr_unordered_map_t* table = str_ptr_unordered_map_new();
-        lua_pushnil(lua);
-        while (lua_next(lua, -2))
+        else if (lua_isstring(lua, val_index))
         {
-          // Key is at index -2, value is at -1.
-          static const int key_index = -2;
-          static const int val_index = -1;
-          char* tkey = (char*)lua_tostring(lua, key_index);
-          if (lua_isnumber(lua, val_index))
-          {
-            double* var = malloc(sizeof(double));
-            *var = lua_tonumber(lua, val_index);
-            str_ptr_unordered_map_insert_with_kv_dtor(table, tkey, var, destroy_table_entry);
-          }
-          else if (lua_isstring(lua, val_index))
-          {
-            const char* var = lua_tostring(lua, val_index);
-            str_ptr_unordered_map_insert_with_kv_dtor(table, tkey, strdup(var), destroy_table_entry);
-          }
-          else if (lua_islightuserdata(lua, val_index))
-          {
-            void* tval = (void*)lua_topointer(lua, val_index);
-            interpreter_storage_t* tvar = (interpreter_storage_t*)tval;
-            str_ptr_unordered_map_insert_with_kv_dtor(table, tkey, tvar->datum, destroy_table_entry);
-          }
+          const char* var = lua_tostring(lua, val_index);
+          str_ptr_unordered_map_insert_with_kv_dtor(table, tkey, strdup(var), destroy_table_entry);
+        }
+        else if (lua_islightuserdata(lua, val_index))
+        {
+          void* tval = (void*)lua_topointer(lua, val_index);
+          interpreter_storage_t* tvar = (interpreter_storage_t*)tval;
+          str_ptr_unordered_map_insert_with_kv_dtor(table, tkey, tvar->datum, destroy_table_entry);
+        }
 
-          // Removes value from stack.
-          lua_pop(lua, 1);
-        }
-        var = store_table(table);
+        // Removes value from stack.
+        lua_pop(lua, 1);
       }
+      var = store_table(table);
     }
     else 
     {
