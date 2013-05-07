@@ -660,6 +660,35 @@ static void interpreter_store_chunk_contents(interpreter_t* interp, lua_State* l
       if ((entry != NULL) && (entry->type != INTERPRETER_SEQUENCE))
         free(seq);
     }
+    else if (lua_isboundingbox(lua, val_index))
+    {
+      // Traverse the table and create a C data structure.
+      bbox_t* bbox = bbox_new(0.0, 1.0, 0.0, 1.0, 0.0, 1.0);
+      lua_pushnil(lua);
+      while (lua_next(lua, -2))
+      {
+        // Key is at index -2, value is at -1.
+        static const int key_index = -2;
+        static const int val_index = -1;
+        char* tkey = (char*)lua_tostring(lua, key_index);
+        if (!strcmp(tkey, "x1"))
+          bbox->x1 = lua_tonumber(lua, val_index);
+        else if (!strcmp(tkey, "x2"))
+          bbox->x2 = lua_tonumber(lua, val_index);
+        else if (!strcmp(tkey, "y1"))
+          bbox->y1 = lua_tonumber(lua, val_index);
+        else if (!strcmp(tkey, "y2"))
+          bbox->y2 = lua_tonumber(lua, val_index);
+        else if (!strcmp(tkey, "z1"))
+          bbox->z1 = lua_tonumber(lua, val_index);
+        else if (!strcmp(tkey, "z2"))
+          bbox->z2 = lua_tonumber(lua, val_index);
+
+        // Removes value from stack.
+        lua_pop(lua, 1);
+      }
+      var = store_boundingbox(bbox);
+    }
     else if (lua_istable(lua, val_index))
     {
       // Before we do anything, we validate the table.
@@ -1080,15 +1109,20 @@ bool lua_issequence(struct lua_State* lua, int index)
   index = lua_absindex(lua, index);
   if (lua_istable(lua, index))
   {
-    int len = lua_rawlen(lua, index);
-    for (int i = 1; i <= len; ++i)
+    lua_pushnil(lua);
+    while (lua_next(lua, index))
     {
-      lua_pushinteger(lua, (lua_Integer)i);
-      lua_gettable(lua, index);
-      bool is_number = lua_isnumber(lua, -1);
+      // Key is at index -2, value is at -1.
+      static const int key_index = -2;
+      static const int val_index = -1;
+      bool key_is_number = lua_isnumber(lua, key_index);
+      bool val_is_number = lua_isnumber(lua, val_index);
       lua_pop(lua, 1);
-      if (!is_number)
+      if (!key_is_number || !val_is_number)
+      {
+        lua_pop(lua, 1);
         return false;
+      }
     }
     return true;
   }
@@ -1334,6 +1368,44 @@ void lua_pushvectorlist(struct lua_State* lua, vector_t* vectors, int size)
 
 bool lua_isboundingbox(struct lua_State* lua, int index)
 {
+  index = lua_absindex(lua, index);
+  if (lua_istable(lua, index))
+  {
+    lua_pushnil(lua);
+    const char* keys[6] = {"x1", "x2", "y1", "y2", "z1", "z2"};
+    bool values_set[6] = {false, false, false, false, false, false};
+    while (lua_next(lua, index))
+    {
+      // Key is at index -2, value is at -1.
+      static const int key_index = -2;
+      static const int val_index = -1;
+      bool key_is_string = lua_isstring(lua, key_index);
+      bool val_is_number = lua_isnumber(lua, val_index);
+      if (!key_is_string || !val_is_number)
+      {
+        lua_pop(lua, 2);
+        return false;
+      }
+
+      char* tkey = (char*)lua_tostring(lua, key_index);
+      for (int i = 0; i < 6; ++i)
+      {
+        if (!strcmp(tkey, keys[i]))
+          values_set[i] = true;
+      }
+
+      lua_pop(lua, 1);
+    }
+
+    for (int i = 0; i < 6; ++i)
+    {
+      if (!values_set[i])
+        return false;
+    }
+
+    return true;
+  }
+
   if (!lua_islightuserdata(lua, index))
     return false;
   interpreter_storage_t* storage = (interpreter_storage_t*)lua_topointer(lua, index);
