@@ -110,13 +110,35 @@ void test_vector_parsing(void** state)
   interpreter_parse_string(interp, (char*)test_string);
 
   assert_true(interpreter_contains(interp, "v", INTERPRETER_VECTOR));
-  assert_true(!interpreter_contains(interp, "w", INTERPRETER_POINT));
+  assert_true(!interpreter_contains(interp, "w", INTERPRETER_VECTOR));
   assert_true(interpreter_get_vector(interp, "v") != NULL);
   assert_true(interpreter_get_vector(interp, "w") == NULL);
   vector_t* v = interpreter_get_vector(interp, "v");
   assert_true(fabs(v->x - 1.0) < 1e-15);
   assert_true(fabs(v->y - 2.0) < 1e-15);
   assert_true(fabs(v->z - 3.0) < 1e-15);
+  interpreter_free(interp);
+}
+
+void test_boundingbox_parsing(void** state)
+{
+  static const char* test_string = "b = {x1 = 0.0, x2 = 1.0, y1 = 0.0, y2 = 1.0, z1 = 0.0, z2 = 1.0}";
+  interpreter_validation_t valid_inputs[] = {{"b", INTERPRETER_BOUNDING_BOX},
+                                             END_OF_VALID_INPUTS};
+  interpreter_t* interp = interpreter_new(valid_inputs);
+  interpreter_parse_string(interp, (char*)test_string);
+
+  assert_true(interpreter_contains(interp, "b", INTERPRETER_BOUNDING_BOX));
+  assert_true(!interpreter_contains(interp, "c", INTERPRETER_BOUNDING_BOX));
+  assert_true(interpreter_get_boundingbox(interp, "b") != NULL);
+  assert_true(interpreter_get_boundingbox(interp, "c") == NULL);
+  bbox_t* b = interpreter_get_boundingbox(interp, "b");
+  assert_true(fabs(b->x1 - 0.0) < 1e-15);
+  assert_true(fabs(b->x2 - 1.0) < 1e-15);
+  assert_true(fabs(b->y1 - 0.0) < 1e-15);
+  assert_true(fabs(b->y2 - 1.0) < 1e-15);
+  assert_true(fabs(b->z1 - 0.0) < 1e-15);
+  assert_true(fabs(b->z2 - 1.0) < 1e-15);
   interpreter_free(interp);
 }
 
@@ -127,7 +149,8 @@ int main(int argc, char* argv[])
   {
     unit_test(test_interpreter_with_long_string),
     unit_test(test_point_parsing),
-    unit_test(test_vector_parsing)
+    unit_test(test_vector_parsing),
+    unit_test(test_boundingbox_parsing)
   };
   return run_tests(tests);
 }
