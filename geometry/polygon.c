@@ -33,7 +33,7 @@ static void polygon_compute_area(polygon_t* poly)
   {
     // Form a triangle from vertex 0, vertex j, and vertex j+1.
     int J = poly->ordering[j];
-    int K = poly->ordering[(j+1) % poly->num_vertices];
+    int K = poly->ordering[j+1];
     point_displacement(&poly->vertices[I], &poly->vertices[J], &A);
     point_displacement(&poly->vertices[I], &poly->vertices[K], &B);
     poly->area += 0.5 * vector_cross_mag(&A, &B);
@@ -126,11 +126,22 @@ polygon_t* polygon_giftwrap(point_t* points, int num_points)
     plane_embed(plane, vtx, &vertices[offset++]);
 #endif
 
-  // Read off the vertex ordering from the planar polygon.
+  // Read off the vertex ordering from the planar polygon. Note that 
+  // not all of the vertices will be used in general.
+  int num_p2_points = polygon2_num_vertices(poly2);
   int* ordering = polygon2_ordering(poly2);
 
   // Create our polygon with the given ordering.
-  polygon_t* poly = polygon_new_with_ordering(points, ordering, num_points);
+  polygon_t* poly = NULL;
+  if (num_p2_points < num_points)
+  {
+    point_t p2_points[num_p2_points];
+    for (int i = 0; i < num_p2_points; ++i)
+      point_copy(&p2_points[i], &points[ordering[i]]);
+    poly = polygon_new(p2_points, num_p2_points);
+  }
+  else
+    poly = polygon_new_with_ordering(points, ordering, num_points);
 
   // Clean up.
   poly2 = NULL;
