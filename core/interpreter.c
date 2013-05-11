@@ -205,13 +205,16 @@ static int bounding_box(lua_State* lua)
   // Look for x1, x2, y1, y2, z1, z2 in the table.
   bbox_t* bbox = bbox_new(0.0, 1.0, 0.0, 1.0, 0.0, 1.0);
   const char* entries[] = {"x1", "x2", "y1", "y2", "z1", "z2"};
-  for (int i = 1; i <= 6; ++i)
+  for (int i = 0; i < 6; ++i)
   {
     lua_pushstring(lua, entries[i]);
     lua_gettable(lua, 1); // Reads name from top, replaces with bounds[name].
     if (!lua_isnumber(lua, -1))
     {
-      lua_pushstring(lua, "x1, x2, y1, y2, z1, z2, must all be numbers.");
+      char err[1024];
+      snprintf(err, 1024, "Invalid entry for '%s'.\n"
+               "x1, x2, y1, y2, z1, z2, must all be numbers.", entries[i]);
+      lua_pushstring(lua, err);
       lua_error(lua);
       return LUA_ERRRUN;
     }
@@ -1349,7 +1352,7 @@ vector_t* lua_tovectorlist(struct lua_State* lua, int index, int* size)
   {
     *size = (int)lua_rawlen(lua, index);
     vector_t* vectors = malloc(sizeof(vector_t) * (*size));
-    for (int i = 0; i < size; ++i)
+    for (int i = 0; i < *size; ++i)
     {
       lua_pushinteger(lua, (lua_Integer)(i+1));
       lua_gettable(lua, index);
@@ -1379,44 +1382,6 @@ void lua_pushvectorlist(struct lua_State* lua, vector_t* vectors, int size)
 
 bool lua_isboundingbox(struct lua_State* lua, int index)
 {
-  index = lua_absindex(lua, index);
-  if (lua_istable(lua, index))
-  {
-    lua_pushnil(lua);
-    const char* keys[6] = {"x1", "x2", "y1", "y2", "z1", "z2"};
-    bool values_set[6] = {false, false, false, false, false, false};
-    while (lua_next(lua, index))
-    {
-      // Key is at index -2, value is at -1.
-      static const int key_index = -2;
-      static const int val_index = -1;
-      bool key_is_string = lua_isstring(lua, key_index);
-      bool val_is_number = lua_isnumber(lua, val_index);
-      if (!key_is_string || !val_is_number)
-      {
-        lua_pop(lua, 2);
-        return false;
-      }
-
-      char* tkey = (char*)lua_tostring(lua, key_index);
-      for (int i = 0; i < 6; ++i)
-      {
-        if (!strcmp(tkey, keys[i]))
-          values_set[i] = true;
-      }
-
-      lua_pop(lua, 1);
-    }
-
-    for (int i = 0; i < 6; ++i)
-    {
-      if (!values_set[i])
-        return false;
-    }
-
-    return true;
-  }
-
   if (!lua_islightuserdata(lua, index))
     return false;
   interpreter_storage_t* storage = (interpreter_storage_t*)lua_topointer(lua, index);

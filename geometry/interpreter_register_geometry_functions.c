@@ -4,6 +4,7 @@
 #include "geometry/cubic_lattice.h"
 #include "geometry/create_cubic_lattice_mesh.h"
 #include "geometry/generate_random_points.h"
+#include "geometry/create_unbounded_voronoi_mesh.h"
 
 // Lua stuff.
 #include "lua.h"
@@ -210,6 +211,7 @@ static int random_points(lua_State* lua)
       return LUA_ERRRUN;
     }
     bbox = lua_toboundingbox(lua, 2);
+    ASSERT(bbox != NULL);
     double one = 1.0;
     density = constant_sp_func_new(1, &one);
   }
@@ -240,10 +242,35 @@ static int random_points(lua_State* lua)
   return 1;
 }
 
+static int unbounded_voronoi_mesh(lua_State* lua)
+{
+  // Check the arguments.
+  int num_args = lua_gettop(lua);
+  if ((num_args != 1) || !lua_ispointlist(lua, 1))
+  {
+    lua_pushstring(lua, "Invalid argument(s). Usage:\nmesh = unbounded_voronoi_mesh(generators)");
+    lua_error(lua);
+    return LUA_ERRRUN;
+  }
+
+  // Get the generators.
+  int num_generators;
+  point_t* generators = lua_topointlist(lua, 1, &num_generators);
+
+  // Create the mesh.
+  mesh_t* mesh = create_unbounded_voronoi_mesh(generators, num_generators,
+                                               NULL, 0);
+
+  // Push the mesh onto the stack.
+  lua_pushmesh(lua, mesh);
+  return 1;
+}
+
 void interpreter_register_geometry_functions(interpreter_t* interp)
 {
   interpreter_register_function(interp, "cubic_lattice_mesh", cubic_lattice_mesh);
   interpreter_register_function(interp, "cubic_lattice_periodic_bc", cubic_lattice_periodic_bc);
   interpreter_register_function(interp, "random_points", random_points);
+  interpreter_register_function(interp, "unbounded_voronoi_mesh", unbounded_voronoi_mesh);
 }
 
