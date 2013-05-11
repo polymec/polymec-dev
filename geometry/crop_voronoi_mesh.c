@@ -4,10 +4,6 @@
 #include "geometry/crop_voronoi_mesh.h"
 #include "geometry/polygon.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 mesh_diff_t* crop_voronoi_mesh(mesh_t* mesh, surface_mesh_t* surface_mesh)
 {
   // Look for a point set containing the generators within the mesh.
@@ -98,8 +94,4 @@ mesh_diff_t* crop_voronoi_mesh(mesh_t* mesh, surface_mesh_t* surface_mesh)
 
   return diff;
 }
-
-#ifdef __cplusplus
-}
-#endif
 

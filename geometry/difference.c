@@ -1,9 +1,5 @@
 #include "geometry/difference.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 typedef struct
 {
   sp_func_t *s1, *s2;
@@ -69,8 +65,4 @@ sp_func_t* difference_new(sp_func_t* surface1, sp_func_t* surface2)
 
   return difference;
 }
-
-#ifdef __cplusplus
-}
-#endif
 

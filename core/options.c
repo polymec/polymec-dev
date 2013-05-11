@@ -4,10 +4,6 @@
 #include "core/options.h"
 #include "core/unordered_map.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 struct options_t 
 {
   char* command;
@@ -113,8 +109,4 @@ void options_set(options_t* opts, const char* name, const char* value)
   str_str_unordered_map_insert_with_kv_dtor(opts->params, strdup(name), strdup(value), destroy_kv);
 }
 
-
-#ifdef __cplusplus
-}
-#endif
 

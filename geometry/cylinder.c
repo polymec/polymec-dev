@@ -1,9 +1,5 @@
 #include "geometry/cylinder.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 typedef struct
 {
   vector_t d;
@@ -61,8 +57,4 @@ sp_func_t* cylinder_new(point_t* x, double r, normal_orient_t normal_orientation
 
   return cyl;
 }
-
-#ifdef __cplusplus
-}
-#endif
 

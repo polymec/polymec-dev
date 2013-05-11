@@ -6,10 +6,6 @@
 #include "cvode/cvode.h"
 #include "cvode/cvode_spils.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 // Preconditioner setup function.
 typedef CVSpilsPrecSetupFn cvode_integrator_precond_setup_func;
 
@@ -135,10 +131,6 @@ integrator_t* bdf_integrator_new(MPI_Comm comm,
                                  cvode_integrator_precond_setup_func precond_setup,
                                  cvode_integrator_precond_solve_func precond_solve,
                                  integrator_dtor dtor);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif
 

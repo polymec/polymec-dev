@@ -3,10 +3,6 @@
 
 #include "core/model.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 // This type represents a multi-component equation of state for the 
 // compressible Navier-Stokes solver. Objects of this type are 
 // garbage-collected.
@@ -58,10 +54,6 @@ double cnav_eos_sound_speed(cnav_eos_t* eos, double rho, double T);
 
 // Returns the effective polytropic index given mass density and temperature.
 double cnav_eos_effective_gamma(cnav_eos_t* eos, double rho, double T);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif
 

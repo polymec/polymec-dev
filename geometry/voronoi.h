@@ -6,10 +6,6 @@
 #include "core/point.h"
 #include "core/sp_func.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 // This function creates a Voronoi tessellation of the given points in 
 // three-dimensional space. The tessellation contains infinite cells at its 
 // boundary, and these cells are tagged as "outer_cells". The edges bounding 
@@ -53,10 +49,6 @@ mesh_t* voronoi_plane(point_t* points, int num_points,
 // stack of these planes to form a new mesh. The bottom plane is 
 // z = z1 and the top is z = z2.
 mesh_t* voronoi_stack(mesh_t* plane, int num_planes, double z1, double z2);
-#endif
-
-#ifdef __cplusplus
-}
 #endif
 
 #endif

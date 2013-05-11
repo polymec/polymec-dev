@@ -4,10 +4,6 @@
 #include "core/polymec.h"
 #include "core/point.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 // A mapping is a function that maps a point to another point -- the domain
 // and the range of this function are points in 3-dimensional space. 
 // Accordingly, this function cannot be homogeneous, and its derivative 
@@ -49,10 +45,6 @@ void mapping_map(mapping_t* mapping, point_t* x, point_t* y);
 // Computes the Jacobian at the point x, writing its components (in column-
 // major order) to the array J.
 void mapping_compute_jacobian(mapping_t* mapping, point_t* x, double* J);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif
 

@@ -4,10 +4,6 @@
 #include "core/polymec.h"
 #include "core/mesh.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 // A linear operator. Objects of this type are garbage-collected.
 typedef struct lin_op_t lin_op_t;
 
@@ -54,10 +50,6 @@ void lin_op_compute_stencil(lin_op_t* op, int index, int* offsets, double* weigh
 
 // Applies the linear operator to the given field.
 void lin_op_apply(lin_op_t* op, double* field, double* Lfield);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif
 

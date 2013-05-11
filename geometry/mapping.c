@@ -1,10 +1,6 @@
 #include <gc/gc.h>
 #include "geometry/mapping.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 struct mapping_t 
 {
   char* name;
@@ -52,8 +48,4 @@ void mapping_compute_jacobian(mapping_t* mapping, point_t* x, double* J)
 {
   mapping->vtable.jacobian(mapping->context, x, J);
 }
-
-#ifdef __cplusplus
-}
-#endif
 

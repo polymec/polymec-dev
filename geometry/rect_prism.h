@@ -3,10 +3,6 @@
 
 #include "core/sp_func.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 // This signed distance function represents a rectangular prism that is 
 // arbitrarily rotated in space. Arguments:
 // x0 - The center point of the rectangular prism.
@@ -24,10 +20,6 @@ sp_func_t* rect_prism_new(point_t* x0,
 
 // Creates a rectangular prism identical to the given bounding box.
 sp_func_t* rect_prism_new_from_bbox(bbox_t* bounding_box);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif
 

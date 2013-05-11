@@ -3,10 +3,6 @@
 
 #include "core/mesh.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 // A mesh_delta is a change to the topology of the mesh. Objects of this 
 // type are garbage-collected.
 typedef struct mesh_delta_t mesh_delta_t;
@@ -44,10 +40,6 @@ mesh_delta_t* detach_mesh_delta_new(mesh_centering_t type, int index, int parent
 
 // Writes a text representation of the mesh_delta to the given file.
 void mesh_delta_fprintf(mesh_delta_t* delta, FILE* file);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif
 

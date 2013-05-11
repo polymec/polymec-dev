@@ -10,10 +10,6 @@
 #include "cnav/cnav_model.h"
 #include "cnav/cnav_bc.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 // This data structure represents all implicitly-integrated implementations
 // of the compressible Navier-Stokes model.
 typedef struct 
@@ -418,8 +414,4 @@ model_t* create_cnav(integrator_type_t integrator,
   // FIXME
   return model;
 }
-
-#ifdef __cplusplus
-}
-#endif
 

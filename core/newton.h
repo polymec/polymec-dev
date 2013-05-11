@@ -3,10 +3,6 @@
 
 #include "core/polymec.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 // This defines a function that computes the value and derivative of a 
 // (real-valued) function of a single variable given a context.
 typedef void (*nonlinear_function_t)(void*, double, double*, double*);
@@ -50,10 +46,6 @@ bool newton_solve_system(nonlinear_system_t* system, double* x, double tolerance
 // and desired tolerance. Returns true if the solution converged, false otherwise. 
 // If check_solution is set to true, it is possible that spurious convergence occurred.
 bool broyden_solve_system(nonlinear_system_t* system, double* x, double tolerance, int max_iters, int* num_iters);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif
 

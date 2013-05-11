@@ -4,10 +4,6 @@
 #include "core/edit_mesh.h"
 #include "core/surface_mesh.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 // Appends a new node to the surface, returning the new index.
 int surface_mesh_add_node(surface_mesh_t* surface);
 
@@ -38,10 +34,6 @@ void surface_mesh_add_edge_to_face(surface_mesh_t* surface, edge_t* edge, face_t
 // Removes the given edge from the given face, or does nothing if the 
 // edge is not attached to the face.
 void surface_mesh_remove_edge_from_face(surface_mesh_t* surface, edge_t* edge, face_t* face);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif
 

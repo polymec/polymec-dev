@@ -1,9 +1,5 @@
 #include "core/point_set.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #ifdef SQ
 #undef SQ
 #endif
@@ -261,8 +257,4 @@ bool point_set_next(point_set_t* pset, point_set_pos_t* pos, int* index, double*
   return true;
 }
 
-
-#ifdef __cplusplus
-}
-#endif
 

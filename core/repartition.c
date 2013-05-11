@@ -4,10 +4,6 @@
 #include "parmetis.h"
 #endif
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #ifdef HAVE_PARMETIS
 static exchanger_t* repartition_points_with_parmetis(MPI_Comm comm, point_t* points, double* weights, int num_points)
 {
@@ -161,8 +157,4 @@ exchanger_t* repartition_mesh(MPI_Comm comm, mesh_t* mesh)
   polymec_not_implemented("repartition_mesh");
   return NULL;
 }
-
-#ifdef __cplusplus
-}
-#endif
 

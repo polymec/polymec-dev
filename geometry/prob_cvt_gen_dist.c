@@ -3,10 +3,6 @@
 #include "geometry/prob_cvt_gen_dist.h"
 #include "geometry/generate_random_points.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 typedef struct 
 {
   int num_samples; // Number of sample points.
@@ -179,8 +175,4 @@ cvt_gen_dist_t* prob_cvt_gen_dist_new(long (*random_gen)(),
   return cvt_gen_dist_new("Probabilistic CVT generator distribution", prob, vtable);
 }
 
-
-#ifdef __cplusplus
-}
-#endif
 

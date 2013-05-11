@@ -3,10 +3,6 @@
 #include "geometry/plane.h"
 #include "core/unordered_map.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 // This helper projects a point x to the surface represented by the 
 // given implicit function along the given vector v, storing the 
 // result in proj_x.
@@ -248,8 +244,4 @@ mesh_diff_t* bound_voronoi_mesh(mesh_t* mesh, sp_func_t* boundary)
 
   return diff;
 }
-
-#ifdef __cplusplus
-}
-#endif
 

@@ -3,10 +3,6 @@
 
 #include "st_func.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 // Construct a space-time function from a dynamically-loaded module
 // that is either compiled in-place or loaded into Polymec's runtime database.
 st_func_t* dl_st_func_new(const char* name);
@@ -21,10 +17,6 @@ void dl_st_func_set_so_dir(const char* path);
 // Registers the dynamically-loaded function with the given name with 
 // Polymec, building its shared object using the given source code.
 void dl_st_func_register(const char* name, const char* source_code);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif
 

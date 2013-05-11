@@ -5,10 +5,6 @@
 #include "core/slist.h"
 #include "core/avl_tree.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 // This goes here for protection from C++!
 // Because Hang Si has messed with some of Shewchuk's predicates and
 // included them with his own Tetgen library, we need to rename some of 
@@ -386,8 +382,4 @@ mesh_t* voronoi_stack(mesh_t* plane, int num_planes, double z1, double z2)
                           num_faces, num_edges, num_nodes);
   return mesh;
 }
-
-#ifdef __cplusplus
-}
-#endif
 

@@ -4,10 +4,6 @@
 #include "core/polymec.h"
 #include "core/mesh.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 // The "io" interface type is an opaque type for descriptors used to 
 // read and write parallel data.
 typedef struct io_interface_t io_interface_t;
@@ -159,10 +155,6 @@ bool io_dataset_next_string(io_dataset_t* dataset, int* pos, char** string_name,
 
 // Returns the number of strings stored in the dataset.
 int io_dataset_num_strings(io_dataset_t* dataset);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif
 

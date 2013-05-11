@@ -3,10 +3,6 @@
 
 #include "core/polymec.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 // Computes the L1 norm of the given vector.
 static inline double l1_norm(double* vec, int dim)
 {
@@ -33,10 +29,6 @@ static inline double linf_norm(double* vec, int dim)
     max = MAX(max, fabs(vec[i]));
   return max;
 }
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif
 

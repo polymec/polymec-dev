@@ -3,10 +3,6 @@
 
 #include "core/integrator.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 // Types of Additive Runge-Kutta integrators.
 typedef enum
 {
@@ -21,10 +17,6 @@ typedef enum
 integrator_t* ark_integrator_new(ark_integrator_type_t type,
                                  integrator_t* explicit_integrator,
                                  integrator_t* implicit_integrator);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif
 

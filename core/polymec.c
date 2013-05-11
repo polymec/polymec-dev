@@ -24,10 +24,6 @@
 // _MM_MASK_DENORM          denormalized number
 #endif
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 // Error handler.
 static polymec_error_handler_function error_handler = NULL;
 
@@ -156,6 +152,3 @@ void polymec_atexit(void (*func)())
   _atexit_funcs[_num_atexit_funcs++] = func;
 }
 
-#ifdef __cplusplus
-}
-#endif

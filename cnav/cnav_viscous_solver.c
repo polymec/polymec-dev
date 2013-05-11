@@ -2,10 +2,6 @@
 #include "cnav/cnav_viscous_solver.h"
 #include "cnav/cnav_bc.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 // cnavive diffusion solver type
 typedef struct
 {
@@ -250,8 +246,4 @@ void cnav_diffusion_solver_set_cnavive_source(diffusion_solver_t* solver,
   ad_solver_t* a = (ad_solver_t*)diffusion_solver_context(solver);
   memcpy(a->cnavive_source, cnavive_source, sizeof(double)*a->mesh->num_cells);
 }
-
-#ifdef __cplusplus
-}
-#endif
 

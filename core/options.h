@@ -3,10 +3,6 @@
 
 #include "polymec.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 // A type that stores command line options. Objects of this type are 
 // garbage-collected.
 typedef struct options_t options_t;
@@ -32,10 +28,6 @@ char* options_value(options_t* opts, const char* name);
 
 // Sets the given value for the the given option.
 void options_set(options_t* opts, const char* name, const char* value);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif
 

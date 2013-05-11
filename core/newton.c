@@ -4,10 +4,6 @@
 
 #define BRENT_SIGN(a, b) (((b) >= 0.0) ? fabs(a) : -fabs(a))
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 bool newton_solve(nonlinear_function_t F, void* context, double* x, double min, double max, double tolerance, int max_iters)
 {
   double f, dfdx;
@@ -29,14 +25,14 @@ double brent_solve(nonlinear_function_t F, void* context, double x1, double x2, 
   static const double eps = 1e-8;
   double a = x1, b = x2;
   double fa, fb, deriv_dummy;
-  F(context, a, &fb, &deriv_dummy);
+  F(context, a, &fa, &deriv_dummy);
   F(context, b, &fb, &deriv_dummy);
   if (((fa > 0.0) && (fb > 0.0)) || ((fa < 0.0) && (fb < 0.0)))
     polymec_error("brent_solve: Root is not bracketed by [x1, x2].");
   double fc = fb;
   for (int iter = 0; iter < max_iters; ++iter)
   {
-    double c, d, e;
+    double c = 0.0, d = 0.0, e = 0.0;
     if (((fb > 0.0) && (fc > 0.0)) || (((fb < 0.0) && (fc < 0.0))))
     {
       c = a;
@@ -538,8 +534,4 @@ bool broyden_solve_system(nonlinear_system_t* system,
 #endif
   return false;
 }
-
-#ifdef __cplusplus
-}
-#endif
 

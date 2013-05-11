@@ -5,10 +5,6 @@
 #include "core/periodic_bc.h"
 #include "core/unordered_map.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 // This data structure provides metadata for cells that touch the boundary 
 // of a domain.
 typedef struct
@@ -42,9 +38,5 @@ DEFINE_UNORDERED_MAP(boundary_cell_map, int, boundary_cell_t*, int_hash, int_equ
 // access to metadata on the boundary cells (neighbor cell information, 
 // face information, boundary conditions for faces).
 boundary_cell_map_t* boundary_cell_map_from_mesh_and_bcs(mesh_t* mesh, str_ptr_unordered_map_t* bcs);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif

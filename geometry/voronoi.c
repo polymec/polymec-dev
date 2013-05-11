@@ -9,10 +9,6 @@
 #include "geometry/plane.h"
 #include "geometry/giftwrap_hull.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 // This AVL node visitor appends the tree's data to a tag.
 static void append_to_tag(int_avl_tree_node_t* node, void* p)
 {
@@ -467,10 +463,6 @@ mesh_t* voronoi_tessellation_within_surface(point_t* points, int num_points,
 {
   // FIXME
   return NULL;
-}
-#endif
-
-#ifdef __cplusplus
 }
 #endif
 

@@ -3,10 +3,6 @@
 
 #include "core/mesh_delta.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 // A mesh_diff is a sequence of mesh_delta objects that form an atomic 
 // transaction implementing a mesh update.
 typedef struct mesh_diff_t mesh_diff_t;
@@ -33,10 +29,6 @@ mesh_diff_t* mesh_diff_inverse(mesh_diff_t* diff);
 
 // Writes a text representation of the mesh_diff to the given file.
 void mesh_diff_fprintf(mesh_diff_t* diff, FILE* file);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif
 

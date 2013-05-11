@@ -5,10 +5,6 @@
 #include "core/point.h"
 #include "core/sp_func.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 // This function creates a Voronoi tessellation of the given points in 
 // three-dimensional space. The tessellation contains infinite cells at its 
 // boundary, and these cells are tagged as "outer_cells". The edges bounding 
@@ -17,10 +13,6 @@ extern "C" {
 // boundary function to form a closed domain.
 mesh_t* create_unbounded_voronoi_mesh(point_t* generators, int num_generators, 
                                       point_t* ghost_generators, int num_ghost_generators);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif
 

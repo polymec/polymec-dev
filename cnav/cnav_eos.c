@@ -1,10 +1,6 @@
 #include <gc/gc.h>
 #include "cnav/cnav_eos.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 struct cnav_eos_t 
 {
   char* name;   // Name of the equation of state
@@ -92,8 +88,4 @@ double cnav_eos_effective_gamma(cnav_eos_t* eos, double rho, double T)
   ASSERT(T > 0.0);
   return eos->vtable.effective_gamma(eos->context, rho, T);
 }
-
-#ifdef __cplusplus
-}
-#endif
 

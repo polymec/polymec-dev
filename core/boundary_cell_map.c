@@ -1,9 +1,5 @@
 #include "core/boundary_cell_map.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 // Constructor for the boundary cell.
 static boundary_cell_t* create_boundary_cell()
 {
@@ -214,8 +210,4 @@ boundary_cell_map_t* boundary_cell_map_from_mesh_and_bcs(mesh_t* mesh, str_ptr_u
 
   return boundary_cells;
 }
-
-#ifdef __cplusplus
-}
-#endif
 

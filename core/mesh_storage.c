@@ -1,9 +1,5 @@
 #include "core/mesh_storage.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 mesh_storage_t* mesh_storage_new()
 {
   ARENA* a = arena_open(&arena_defaults, ARENA_STDLIB);
@@ -32,8 +28,4 @@ void mesh_storage_free(mesh_storage_t* storage)
   if (close_arena)
     arena_close(a);
 }
-
-#ifdef __cplusplus
-}
-#endif
 

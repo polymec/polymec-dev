@@ -4,10 +4,6 @@
 #include "core/mesh.h"
 #include "core/unordered_map.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 // This is an opaque type that represents a periodic boundary condition.
 // Objects of this type are garbage-collected.
 typedef struct periodic_bc_t periodic_bc_t;
@@ -37,9 +33,5 @@ void periodic_bc_get_tags(periodic_bc_t* bc, char** tag1, char** tag2);
 
 // Generates a face-to-face mapping for a periodic boundary condition.
 int_int_unordered_map_t* periodic_bc_generate_map(periodic_bc_t* bc, mesh_t* mesh);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif

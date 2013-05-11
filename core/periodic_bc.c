@@ -3,10 +3,6 @@
 #include "core/point.h"
 #include "core/unordered_set.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 static const int periodic_bc_magic_number = 123652234;
 
 // This function can be used by default to generate a periodic map.
@@ -157,8 +153,4 @@ int_int_unordered_map_t* periodic_bc_generate_map(periodic_bc_t* bc, mesh_t* mes
 }
 
 
-
-#ifdef __cplusplus
-}
-#endif
 

@@ -1,9 +1,5 @@
 #include "geometry/giftwrap_hull.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 static inline double triangle_area(double x1, double y1, double x2, double y2, double x3, double y3)
 {
   return 0.5 * ((x2 - x1) * (y3 - y1) - (x3 - x1) * (y2 - y1));
@@ -82,8 +78,4 @@ void giftwrap_hull_with_area(double* points, int num_points, int* indices, int* 
     *area += triangle_area(x0, y0, xj, yj, xj1, yj1);
   }
 }
-
-#ifdef __cplusplus
-}
-#endif
 

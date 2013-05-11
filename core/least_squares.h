@@ -4,10 +4,6 @@
 #include "core/polymec.h"
 #include "core/point.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 // Computes the coefficients A and b for a linear regression y = A*x + B 
 // given arrays of x and y values. Also computes the variance sigma.
 void linear_regression(double* x, double* y, int N, double* A, double* B, double* sigma);
@@ -131,9 +127,5 @@ void poly_ls_shape_compute_ghost_transform(poly_ls_shape_t* N, int* constraint_i
 // Selects a weighting function for the shape function with the form 
 // W(d) = 1 / (d**A + B**A), where A and B are parameters.
 void poly_ls_shape_set_simple_weighting_func(poly_ls_shape_t* N, int A, double B);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif

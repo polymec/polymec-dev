@@ -13,10 +13,6 @@
 // These helper functions obey HYPRE's style conventions and are meant to 
 // add support for Polymec's ansilary data structures.
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 // Creates a HYPRE IJ matrix using the given index space.
 HYPRE_IJMatrix HYPRE_IJMatrixNew(index_space_t* index_space);
 
@@ -41,10 +37,6 @@ void HYPRE_IJVectorAddToValuesFromArray(HYPRE_IJVector vector, index_space_t* in
 
 // Gets values from the given vector, placing them into the given array.
 void HYPRE_IJVectorGetValuesToArray(HYPRE_IJVector vector, index_space_t* index_space, double* array);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif
 

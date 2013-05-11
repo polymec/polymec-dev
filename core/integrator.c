@@ -1,9 +1,5 @@
 #include "core/integrator.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 struct integrator_t 
 {
   char* name;
@@ -90,8 +86,4 @@ void integrator_compute_Jv(integrator_t* integrator, double t, N_Vector x, N_Vec
     integrator->temp = N_VClone(x);
   integrator->vtable.compute_Jv(v, Jv, t, x, F, integrator->context, integrator->temp);
 }
-
-#ifdef __cplusplus
-}
-#endif
 

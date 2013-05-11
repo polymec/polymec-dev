@@ -18,10 +18,6 @@
 #include "poisson/interpreter_register_poisson_functions.h"
 #include "poisson/register_poisson_benchmarks.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 // Poisson model context structure.
 typedef struct 
 {
@@ -520,8 +516,4 @@ model_t* create_poisson(mesh_t* mesh,
 
   return model;
 }
-
-#ifdef __cplusplus
-}
-#endif
 

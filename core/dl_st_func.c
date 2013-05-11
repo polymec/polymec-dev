@@ -12,10 +12,6 @@
 #define INCLUDE_DIR xstr(POLYMEC_INCLUDE_DIR)
 #define TP_INCLUDE_DIR xstr(POLYMEC_TP_INCLUDE_DIR)
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 // C compiler and flags to use.
 static char* _cc     = NULL;
 static char* _cflags = NULL;
@@ -97,14 +93,8 @@ static void preprocess_source(const char* source_code, char* pp_file)
 {
   const char* header = 
     "#include <math.h>\n"
-    "#include \"core/st_func.h\"\n\n"
-    "#ifdef __cplusplus\n"
-    "extern \"C\" {\n"
-    "#endif\n\n";
-  const char* footer = 
-    "#ifdef __cplusplus\n"
-    "}\n"
-    "#endif\n";
+    "#include \"core/st_func.h\"\n\n";
+  const char* footer = "\n";
   int fd = mkstemps(pp_file, 2);
   ASSERT(fd != -1);
   FILE* f = fdopen(fd, "w");
@@ -220,8 +210,4 @@ void dl_st_func_set_compiler(const char* cc,
   _cc = strdup(cc);
   _cflags = strdup(cflags);
 }
-
-#ifdef __cplusplus
-}
-#endif
 

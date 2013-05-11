@@ -2,10 +2,6 @@
 #include <stdlib.h>
 #include "core/cell_nsearch.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 // A neighbor search algorithm for finding the "neighbor" cells of a given 
 // cell. Objects of this type are garbage-collected.
 struct cell_nsearch_t 
@@ -26,8 +22,4 @@ cell_nsearch_t* cell_nsearch_new(int min_neighbors_sought)
   GC_register_finalizer(ns, &cell_nsearch_free, ns, NULL, NULL);
   return ns;
 }
-
-#ifdef __cplusplus
-}
-#endif
 

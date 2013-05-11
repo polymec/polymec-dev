@@ -19,10 +19,6 @@
 #define VTK_ENCODING "ISO-8859-1"
 #define VTK_POLYHEDRON 42  // From VTK source -- make sure this is right!
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 static void* vtk_create_file(void* context, 
                              const char* filename,
                              const char* dirname)
@@ -548,8 +544,4 @@ io_interface_t* vtk_plot_io_new(MPI_Comm comm,
   MPI_Comm_size(comm, &num_files);
   return io_interface_new(NULL, "VTK-plot", "vtu", "pvtu", vtable, comm, num_files, mpi_tag);
 }
-
-#ifdef __cplusplus
-}
-#endif
 

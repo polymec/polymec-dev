@@ -3,10 +3,6 @@
 
 #include "core/model.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 // Creates an advection/diffusion/reaction model using the given options.
 model_t* advect_model_new(options_t* options);
 
@@ -21,10 +17,6 @@ model_t* create_advect(mesh_t* mesh,
                        st_func_t* solution,
                        options_t* options);
 
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif
 

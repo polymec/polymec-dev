@@ -6,10 +6,6 @@
 #include "core/st_func.h"
 #include "core/unordered_map.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 // Forward declaration for Lua innards.
 struct lua_State;
 
@@ -307,10 +303,6 @@ void* lua_touserdefined(struct lua_State* lua, int index);
 // Pushes a user-defined object onto the interpreter's stack (as a 
 // return value for a function). dtor is a destructor for the user-defined object.
 void lua_pushuserdefined(struct lua_State* lua, void* userdefined, void (*dtor)(void*));
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif
 

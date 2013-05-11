@@ -1,10 +1,6 @@
 #include <gc/gc.h>
 #include "core/st_func.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 struct st_func_t 
 {
   char* name;
@@ -256,9 +252,5 @@ st_func_t* st_func_from_component(st_func_t* multicomp_func,
                        homogeneity, constancy, 1);
   }
 }
-
-#ifdef __cplusplus
-}
-#endif
 
 

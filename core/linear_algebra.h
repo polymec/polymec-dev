@@ -3,10 +3,6 @@
 
 #include <stdio.h>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 // Some LAPACK prototypes.
 
 // Matrix-vector multiplication: y := alpha*A*x + beta*y.
@@ -107,9 +103,5 @@ void solve_2x2(double* A, double* b, double* x);
 // Solves a 3x3 linear system Ax = b.
 // Note that b and x CAN point to the same vector.
 void solve_3x3(double* A, double* b, double* x);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif

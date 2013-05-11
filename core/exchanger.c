@@ -790,8 +790,4 @@ exchanger_fprintf(exchanger_t* ex, FILE* stream)
 #endif
 }
 
-#ifdef __cplusplus
-}
-#endif
-
 

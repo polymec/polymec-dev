@@ -2,10 +2,6 @@
 #include "geometry/plane.h"
 #include "geometry/intersection.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 typedef struct
 {
   // The intersection of the planes.
@@ -96,8 +92,4 @@ sp_func_t* rect_prism_new_from_bbox(bbox_t* bounding_box)
   double alpha = 0.0, beta = 0.0, gamma = 0.0;
   return rect_prism_new(&x0, L1, L2, L3, alpha, beta, gamma);
 }
-
-#ifdef __cplusplus
-}
-#endif
 

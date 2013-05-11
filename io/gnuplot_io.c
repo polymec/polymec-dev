@@ -9,10 +9,6 @@
 #include <mpi.h>
 #endif
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 static void* gnuplot_create_file(void* context, 
                                  const char* filename,
                                  const char* dirname)
@@ -106,8 +102,4 @@ io_interface_t* gnuplot_io_new()
                       .write_datasets = gnuplot_plot_write_datasets};
   return io_interface_new_serial(NULL, "Gnuplot", "gnuplot", vtable);
 }
-
-#ifdef __cplusplus
-}
-#endif
 

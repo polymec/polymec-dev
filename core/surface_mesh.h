@@ -3,10 +3,6 @@
 
 #include "core/mesh.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 // This data type represents a surface mesh consisting of triangular faces 
 // connected with edges and nodes in three-dimensional space.
 typedef struct 
@@ -47,10 +43,6 @@ surface_mesh_t* surface_mesh_from_bbox_with_arena(ARENA* arena, bbox_t* bbox);
 
 // Destroys the given surface.
 void surface_mesh_free(surface_mesh_t* surface);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif
 

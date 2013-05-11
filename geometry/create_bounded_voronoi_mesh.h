@@ -5,10 +5,6 @@
 #include "core/point.h"
 #include "core/sp_func.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 // Creates a Voronoi tessellation of the given generator points in 
 // three-dimensional space, bounded by a surface consisting of boundary 
 // generators (cells whose generators lie on the boundary of the domain).
@@ -22,10 +18,6 @@ mesh_t* create_bounded_voronoi_mesh(point_t* generators, int num_generators,
 //mesh_t* create_bounded_voronoi_mesh(point_t* generators, int num_generators,
 //                                    point_t* ghost_generators, int num_ghost_generators,
 //                                    sp_func_t* boundary);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif
 

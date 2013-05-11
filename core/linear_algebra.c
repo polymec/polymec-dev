@@ -1,9 +1,5 @@
 #include "core/linear_algebra.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 // NOTE: All LAPACK functions are implemented within the library, not here.
 
 void matrix_fprintf(double* matrix, int nr, int nc, FILE* stream)
@@ -68,8 +64,4 @@ void solve_3x3(double* A, double* b, double* x)
           (A[5]*A[0]-A[2]*A[3]) * b1 +
           (A[4]*A[0]-A[1]*A[3]) * b2);
 }
-
-#ifdef __cplusplus
-}
-#endif
 

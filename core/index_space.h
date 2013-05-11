@@ -3,10 +3,6 @@
 
 #include "core/polymec.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 // This data structure holds an index space that is distributed over a 
 // set of parallel processes. Objects of this type are garbage-collected.
 typedef struct 
@@ -29,10 +25,6 @@ index_space_t* index_space_from_naive_partitions(MPI_Comm comm, int N);
 
 // Creates an index space from the given local data range.
 index_space_t* index_space_new_from_low_and_high(MPI_Comm comm, int low, int high);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif
 

@@ -1,9 +1,5 @@
 #include "geometry/sphere.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 typedef struct
 {
   point_t x;
@@ -52,8 +48,4 @@ sp_func_t* sphere_new(point_t* x, double r, normal_orient_t normal_orientation)
 
   return sphere;
 }
-
-#ifdef __cplusplus
-}
-#endif
 

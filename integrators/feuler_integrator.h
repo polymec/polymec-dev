@@ -3,10 +3,6 @@
 
 #include "core/integrator.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 // A function signature for explicitly computing the derivative of a solution 
 // at the given time. Arguments are:
 // 1. A context object
@@ -20,10 +16,6 @@ typedef void (*feuler_compute_deriv)(void*, double, double*, double*);
 integrator_t* feuler_integrator_new(void* context, 
                                     feuler_compute_deriv compute_deriv,
                                     integrator_dtor dtor);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif
 

@@ -1,10 +1,6 @@
 #include "core/elliptic_solver.h"
 #include "core/hypre_helpers.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 struct elliptic_solver_t
 {
   char* name;
@@ -184,8 +180,4 @@ void elliptic_solver_solve(elliptic_solver_t* solver,
   // Clean up.
   double_table_free(A);
 }
-
-#ifdef __cplusplus
-}
-#endif
 

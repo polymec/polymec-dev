@@ -1,10 +1,6 @@
 #include "integrators/linear_beuler_integrator.h"
 #include "core/mf_krylov_sparse_lin_solvers.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 typedef struct
 {
   MPI_Comm comm;
@@ -110,8 +106,4 @@ sparse_lin_solver_t* linear_beuler_integrator_get_solver(integrator_t* integrato
   linear_beuler_t* beuler = integrator_context(integrator);
   return beuler->solver;
 }
-
-#ifdef __cplusplus
-}
-#endif
 

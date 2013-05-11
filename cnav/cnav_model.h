@@ -5,10 +5,6 @@
 #include "core/integrator.h"
 #include "cnav/cnav_eos.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 // Types of time integrators available for this model.
 typedef enum
 {
@@ -31,10 +27,6 @@ model_t* create_cnav(integrator_type_t integrator,
                      st_func_t* solution,
                      options_t* options);
 
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif
 

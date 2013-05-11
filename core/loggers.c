@@ -202,7 +202,3 @@ void log_urgent(const char* message, ...)
   }
 }
 
-#ifdef __cplusplus
-}
-#endif
-

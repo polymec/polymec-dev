@@ -4,10 +4,6 @@
 #include "core/sparse_lin_solver.h"
 #include "core/sundials_helpers.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 // A prototype for a function that computes a matrix-vector product for a
 // linear system. This should return 0 on success and non-zero on failure.
 typedef int (*mf_krylov_sparse_lin_solver_compute_Ax_func)(void *A_data, N_Vector x, N_Vector Ax);
@@ -86,10 +82,6 @@ sparse_lin_solver_t* mf_bicgstab_sparse_lin_solver_new(MPI_Comm comm,
                                                        mf_krylov_sparse_lin_solver_scaling_func compute_scale_factors,
                                                        double delta,
                                                        sparse_lin_solver_dtor dtor);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif
 

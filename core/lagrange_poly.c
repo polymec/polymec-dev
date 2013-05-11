@@ -1,10 +1,6 @@
 #include <gc/gc.h>
 #include "core/lagrange_poly.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 struct lagrange_poly_t 
 {
   int order;
@@ -158,8 +154,4 @@ double lagrange_poly_deriv(lagrange_poly_t* poly, int p, double x, double* value
 
   return val;
 }
-
-#ifdef __cplusplus
-}
-#endif
 

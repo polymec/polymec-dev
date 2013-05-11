@@ -4,10 +4,6 @@
 #include <stdlib.h>
 #include "core/st_func.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 // Boundary condition structure for Advection/Diffusion/Reaction equations.
 // This represents a generic (Robin) boundary condition: 
 // alpha * phi + beta * dphi/dn = F
@@ -20,9 +16,5 @@ typedef struct
 
 // Constructor for an advect BC.
 advect_bc_t* advect_bc_new(double alpha, double beta, st_func_t* F);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif

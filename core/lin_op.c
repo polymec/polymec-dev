@@ -2,10 +2,6 @@
 #include <gc/gc.h>
 #include "core/lin_op.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 struct lin_op_t
 {
   char* name;
@@ -68,8 +64,4 @@ void lin_op_apply(lin_op_t* op, double* field, double* Lfield)
   ASSERT(Lfield != NULL);
   op->vtable.apply(op->context, op->mesh, field, Lfield);
 }
-
-#ifdef __cplusplus
-}
-#endif
 

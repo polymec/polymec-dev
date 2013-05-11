@@ -5,10 +5,6 @@
 #include "core/point.h"
 #include "core/sp_func.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 // A "space-time" function is an analytic function of space and time.
 // This opaque type encapsulates the notion of such an analytic function 
 // and any associated metadata (whether it is homogeneous, constant in 
@@ -103,10 +99,6 @@ st_func_t* multicomp_st_func_from_funcs(const char* name,
 // components of a multicomponent function.
 st_func_t* st_func_from_component(st_func_t* multicomp_func,
                                   int component);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif
 

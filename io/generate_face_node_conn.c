@@ -7,10 +7,6 @@
 #include "core/mesh.h"
 #include "io/generate_face_node_conn.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 // Traverses the given points of a polygonal facet along their convex
 // hull, writing their indices to indices in order.
 static void traverse_convex_hull(double* points, int num_points, int* indices, int* count)
