@@ -146,7 +146,7 @@ void test_pointlist_parsing(void** state)
 {
   static const char* test_string = 
     "pts = {{0, 0, 0}, {1, 0, 0}, {0, 1, 0}, {1, 1, 0}, "
-           "{0, 0, 1}, {1, 0, 1}, {0, 1, 1}, {1, 1, 1}";
+           "{0, 0, 1}, {1, 0, 1}, {0, 1, 1}, {1, 1, 1}}";
   interpreter_validation_t valid_inputs[] = {{"pts", INTERPRETER_POINT_LIST},
                                              END_OF_VALID_INPUTS};
   interpreter_t* interp = interpreter_new(valid_inputs);
@@ -178,7 +178,7 @@ void test_vectorlist_parsing(void** state)
 {
   static const char* test_string = 
     "vecs = {{0, 0, 0}, {1, 0, 0}, {0, 1, 0}, {1, 1, 0}, "
-            "{0, 0, 1}, {1, 0, 1}, {0, 1, 1}, {1, 1, 1}";
+            "{0, 0, 1}, {1, 0, 1}, {0, 1, 1}, {1, 1, 1}}";
   interpreter_validation_t valid_inputs[] = {{"vecs", INTERPRETER_VECTOR_LIST},
                                              END_OF_VALID_INPUTS};
   interpreter_t* interp = interpreter_new(valid_inputs);

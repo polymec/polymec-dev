@@ -685,6 +685,14 @@ static void interpreter_store_chunk_contents(interpreter_t* interp, lua_State* l
       }
       var = store_boundingbox(bbox);
     }
+    else if (lua_ispointlist(lua, val_index))
+    {
+      // Point lists and vector lists are interchangeable, so we will 
+      // simply assume that either is a point list.
+      int num_pts;
+      point_t* pts = lua_topointlist(lua, val_index, &num_pts);
+      var = store_pointlist(pts, num_pts);
+    }
     else if (lua_istable(lua, val_index))
     {
       // Before we do anything, we validate the table.
@@ -886,6 +894,7 @@ bool interpreter_contains(interpreter_t* interp, const char* variable, interpret
   interpreter_storage_t** storage = interpreter_map_get(interp->store, (char*)variable);
   if (storage == NULL)
     return false;
+
   return ((*storage)->type == type);
 }
 
@@ -1204,13 +1213,14 @@ void lua_pushpoint(struct lua_State* lua, point_t* point)
 
 bool lua_ispointlist(struct lua_State* lua, int index)
 {
+  index = lua_absindex(lua, index);
   if (lua_istable(lua, index)) // A table with points in it will work.
   {
     size_t len = lua_rawlen(lua, index);
     for (size_t i = 1; i <= len; ++i)
     {
       lua_pushinteger(lua, (lua_Integer)i);
-      lua_gettable(lua, -1);
+      lua_gettable(lua, index);
       bool is_point = lua_ispoint(lua, -1);
       lua_pop(lua, 1);
       if (!is_point) 
@@ -1221,30 +1231,32 @@ bool lua_ispointlist(struct lua_State* lua, int index)
   if (!lua_islightuserdata(lua, index))
     return false;
   interpreter_storage_t* storage = (interpreter_storage_t*)lua_topointer(lua, index);
-  return (storage->type == INTERPRETER_POINT_LIST);
+  return ((storage->type == INTERPRETER_VECTOR_LIST) || 
+          (storage->type == INTERPRETER_POINT_LIST));
 }
 
 point_t* lua_topointlist(struct lua_State* lua, int index, int* size)
 {
   if (!lua_ispointlist(lua, index))
     return NULL;
+  index = lua_absindex(lua, index);
   if (lua_istable(lua, index))
   {
     *size = (int)lua_rawlen(lua, index);
     point_t* points = malloc(sizeof(point_t) * (*size));
-    for (int i = 1; i <= *size; ++i)
+    for (int i = 0; i < *size; ++i)
     {
-      lua_pushinteger(lua, (lua_Integer)i);
-      lua_gettable(lua, -1);
+      lua_pushinteger(lua, (lua_Integer)(i+1));
+      lua_gettable(lua, index);
       point_t* p = lua_topoint(lua, -1);
       lua_pop(lua, 1);
       point_copy(&points[i], p);
-      free(p);
     }
     return points;
   }
   interpreter_storage_t* storage = (interpreter_storage_t*)lua_topointer(lua, index);
-  if (storage->type == INTERPRETER_POINT_LIST)
+  if ((storage->type == INTERPRETER_VECTOR_LIST) || 
+      (storage->type == INTERPRETER_POINT_LIST))
   {
     *size = storage->size;
     return (point_t*)storage->datum;
@@ -1306,13 +1318,14 @@ void lua_pushvector(struct lua_State* lua, vector_t* vec)
 
 bool lua_isvectorlist(struct lua_State* lua, int index)
 {
+  index = lua_absindex(lua, index);
   if (lua_istable(lua, index)) // A table with vectors in it will work.
   {
     size_t len = lua_rawlen(lua, index);
     for (size_t i = 1; i <= len; ++i)
     {
       lua_pushinteger(lua, (lua_Integer)i);
-      lua_gettable(lua, -1);
+      lua_gettable(lua, index);
       bool is_vector = lua_isvector(lua, -1);
       lua_pop(lua, 1);
       if (!is_vector) 
@@ -1323,30 +1336,32 @@ bool lua_isvectorlist(struct lua_State* lua, int index)
   if (!lua_islightuserdata(lua, index))
     return false;
   interpreter_storage_t* storage = (interpreter_storage_t*)lua_topointer(lua, index);
-  return (storage->type == INTERPRETER_VECTOR_LIST);
+  return ((storage->type == INTERPRETER_VECTOR_LIST) || 
+          (storage->type == INTERPRETER_POINT_LIST));
 }
 
 vector_t* lua_tovectorlist(struct lua_State* lua, int index, int* size)
 {
   if (!lua_isvectorlist(lua, index))
     return NULL;
+  index = lua_absindex(lua, index);
   if (lua_istable(lua, index))
   {
     *size = (int)lua_rawlen(lua, index);
     vector_t* vectors = malloc(sizeof(vector_t) * (*size));
-    for (int i = 1; i <= *size; ++i)
+    for (int i = 0; i < size; ++i)
     {
-      lua_pushinteger(lua, (lua_Integer)i);
-      lua_gettable(lua, -1);
+      lua_pushinteger(lua, (lua_Integer)(i+1));
+      lua_gettable(lua, index);
       vector_t* v = lua_tovector(lua, -1);
       lua_pop(lua, 1);
       vector_copy(&vectors[i], v);
-      free(v);
     }
     return vectors;
   }
   interpreter_storage_t* storage = (interpreter_storage_t*)lua_topointer(lua, index);
-  if (storage->type == INTERPRETER_VECTOR_LIST)
+  if ((storage->type == INTERPRETER_VECTOR_LIST) || 
+      (storage->type == INTERPRETER_POINT_LIST))
   {
     *size = storage->size;
     return (vector_t*)storage->datum;
