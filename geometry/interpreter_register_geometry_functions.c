@@ -7,6 +7,7 @@
 #include "geometry/create_unbounded_voronoi_mesh.h"
 #include "geometry/bound_voronoi_mesh.h"
 #include "geometry/rect_prism.h"
+#include "geometry/prune_voronoi_mesh.h"
 
 // Lua stuff.
 #include "lua.h"
@@ -317,6 +318,38 @@ static int bounded_voronoi_mesh(lua_State* lua)
   return 1;
 }
 
+static int prune_voronoi_mesh_(lua_State* lua)
+{
+  // Check the arguments.
+  int num_args = lua_gettop(lua);
+  if ((num_args != 1) || !lua_ismesh(lua, 1))
+  {
+    lua_pushstring(lua, "Invalid argument(s). Usage:\n"
+                        "prune_voronoi_mesh(mesh)\n"
+                        "where mesh is an unbounded Voronoi mesh.");
+    lua_error(lua);
+    return LUA_ERRRUN;
+  }
+
+  // Get the mesh.
+  mesh_t* mesh = lua_tomesh(lua, 1);
+
+  // Make sure the mesh is unbounded.
+  if (!mesh_has_tag(mesh->cell_tags, "outer_cells") || 
+      !mesh_has_tag(mesh->edge_tags, "outer_edges"))
+  {
+    lua_pushstring(lua, "Given mesh is not unbounded (no outer cells/edges found).");
+    lua_error(lua);
+    return LUA_ERRRUN;
+  }
+
+  // Prune the mesh.
+  prune_voronoi_mesh(mesh);
+
+  // No results.
+  return 0;
+}
+
 void interpreter_register_geometry_functions(interpreter_t* interp)
 {
   interpreter_register_function(interp, "cubic_lattice_mesh", cubic_lattice_mesh);
@@ -324,5 +357,6 @@ void interpreter_register_geometry_functions(interpreter_t* interp)
   interpreter_register_function(interp, "random_points", random_points);
   interpreter_register_function(interp, "unbounded_voronoi_mesh", unbounded_voronoi_mesh);
   interpreter_register_function(interp, "bounded_voronoi_mesh", bounded_voronoi_mesh);
+  interpreter_register_function(interp, "prune_voronoi_mesh", prune_voronoi_mesh_);
 }
 

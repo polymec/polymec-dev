@@ -119,7 +119,6 @@ mesh_delta_t* swap_mesh_delta_new(mesh_centering_t type, int index1, int index2)
 {
   ASSERT(index1 >= 0);
   ASSERT(index2 >= 0);
-  ASSERT(index1 != index2);
   swap_delta_t* swap = malloc(sizeof(swap_delta_t));
   swap->type = type;
   char name[1024];
