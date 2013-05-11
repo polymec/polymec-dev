@@ -6,6 +6,7 @@
 #include "geometry/generate_random_points.h"
 #include "geometry/create_unbounded_voronoi_mesh.h"
 #include "geometry/bound_voronoi_mesh.h"
+#include "geometry/rect_prism.h"
 
 // Lua stuff.
 #include "lua.h"
@@ -18,7 +19,9 @@ static int cubic_lattice_mesh(lua_State* lua)
   int num_args = lua_gettop(lua);
   if ((num_args != 3) && (num_args != 4))
   {
-    lua_pushstring(lua, "Invalid arguments. Usage:\nmesh = cubic_lattice_mesh(nx, ny, nz) OR\nmesh = cubic_lattice_mesh(nx, ny, nz, bounds)");
+    lua_pushstring(lua, "Invalid arguments. Usage:\n"
+                  "mesh = cubic_lattice_mesh(nx, ny, nz) OR\n"
+                  "mesh = cubic_lattice_mesh(nx, ny, nz, bounds)");
     lua_error(lua);
     return LUA_ERRRUN;
   }
@@ -249,7 +252,8 @@ static int unbounded_voronoi_mesh(lua_State* lua)
   int num_args = lua_gettop(lua);
   if ((num_args != 1) || !lua_ispointlist(lua, 1))
   {
-    lua_pushstring(lua, "Invalid argument(s). Usage:\nmesh = unbounded_voronoi_mesh(generators)");
+    lua_pushstring(lua, "Invalid argument(s). Usage:\n"
+                        "mesh = unbounded_voronoi_mesh(generators)");
     lua_error(lua);
     return LUA_ERRRUN;
   }
@@ -273,9 +277,12 @@ static int bounded_voronoi_mesh(lua_State* lua)
   int num_args = lua_gettop(lua);
   if ((num_args != 2) || 
       !lua_ispointlist(lua, 1) || 
-      !lua_isscalarfunction(lua, 2))
+      (!lua_isscalarfunction(lua, 2) && !lua_isboundingbox(lua, 2)))
   {
-    lua_pushstring(lua, "Invalid argument(s). Usage:\nmesh = bounded_voronoi_mesh(generators, boundary)");
+    lua_pushstring(lua, "Invalid argument(s). Usage:\n"
+                        "mesh = bounded_voronoi_mesh(generators, boundary)\n"
+                        "where boundary is a bounding box OR an implicit function\n"
+                        "whose 0 level set indicates the boundary.");
     lua_error(lua);
     return LUA_ERRRUN;
   }
@@ -285,8 +292,17 @@ static int bounded_voronoi_mesh(lua_State* lua)
   point_t* generators = lua_topointlist(lua, 1, &num_generators);
 
   // Get the implicit function representing the boundary.
-  st_func_t* boundary_t = lua_toscalarfunction(lua, 2);
-  sp_func_t* boundary = st_func_freeze(boundary_t, 0.0); // Freeze at t = 0.
+  sp_func_t* boundary;
+  if (lua_isscalarfunction(lua, 2))
+  {
+    st_func_t* boundary_t = lua_toscalarfunction(lua, 2);
+    boundary = st_func_freeze(boundary_t, 0.0); // Freeze at t = 0.
+  }
+  else
+  {
+    bbox_t* bbox = lua_toboundingbox(lua, 2);
+    boundary = rect_prism_new_from_bbox(bbox);
+  }
 
   // Create an unbounded mesh.
   mesh_t* mesh = create_unbounded_voronoi_mesh(generators, num_generators,
