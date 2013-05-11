@@ -101,13 +101,16 @@ bool sp_func_has_deriv(sp_func_t* func, int n)
 {
   ASSERT(n > 0);
   ASSERT(n <= 4);
-  return (func->derivs[n-1] != NULL);
+  return ((func->vtable.eval_deriv != NULL) || (func->derivs[n-1] != NULL));
 }
 
 // Evaluates the nth derivative of this function, placing the result in result.
 void sp_func_eval_deriv(sp_func_t* func, int n, point_t* x, double* result)
 {
-  sp_func_eval(func->derivs[n-1], x, result);
+  if (func->vtable.eval_deriv != NULL)
+    func->vtable.eval_deriv(func->context, n, x, result);
+  else
+    sp_func_eval(func->derivs[n-1], x, result);
 }
 
 #if 0
