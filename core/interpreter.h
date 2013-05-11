@@ -21,15 +21,19 @@ typedef enum
   INTERPRETER_POINT,
   INTERPRETER_POINT_LIST,
   INTERPRETER_VECTOR,
-  INTERPRETER_VECTOR_LIST,
   INTERPRETER_BOUNDING_BOX,
   INTERPRETER_SCALAR_FUNCTION,
   INTERPRETER_VECTOR_FUNCTION,
   INTERPRETER_SEQUENCE,
+  INTERPRETER_SEQUENCE_LIST,
   INTERPRETER_TABLE,
   INTERPRETER_USER_DEFINED, // <-- on your head be it!!
   INTERPRETER_TERMINUS // Used only to terminate validation lists.
 } interpreter_var_type_t;
+
+// The interpreter makes no distinction between how lists of vectors 
+// and points are stored, so this is provided as a convenience.
+#define INTERPRETER_VECTOR_LIST INTERPRETER_POINT_LIST
 
 // This is used to validate variables found within input files. It is a 
 // variable/type pair that associates variables names with their intended
