@@ -3,10 +3,6 @@
 
 #include "core/polymec.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 // This opaque type implements an MPI transmitter/receiver for exchanging 
 // data between processes in a point-to-point fashion.
 typedef struct exchanger_t exchanger_t;
@@ -82,9 +78,5 @@ void exchanger_finish_transfer(exchanger_t* ex, int token);
 
 // This writes a string representation of the exchanger to the given file stream.
 void exchanger_fprintf(exchanger_t* ex, FILE* stream);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif

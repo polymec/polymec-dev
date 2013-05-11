@@ -1,9 +1,5 @@
 #include "advect/diffusion_op.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 typedef struct
 {
   st_func_t* diffusivity;
@@ -98,8 +94,4 @@ void diffusion_op_set_time(lin_op_t* op, double t)
   diffusion_op_t* diff = lin_op_context(op);
   diff->t = t;
 }
-
-#ifdef __cplusplus
-}
-#endif
 

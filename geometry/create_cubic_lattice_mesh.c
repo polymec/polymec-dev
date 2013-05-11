@@ -3,10 +3,6 @@
 #include "geometry/create_cubic_lattice_mesh.h"
 #include "geometry/cubic_lattice.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 mesh_t* create_cubic_lattice_mesh_with_bbox(int nx, int ny, int nz, bbox_t* bbox)
 {
   ASSERT(nx > 0);
@@ -435,8 +431,4 @@ void tag_cubic_lattice_mesh_faces(mesh_t* mesh,
   }
   lattice = NULL;
 }
-
-#ifdef __cplusplus
-}
-#endif
 

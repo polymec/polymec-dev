@@ -3,10 +3,6 @@
 #include "core/interpreter.h"
 #include "geometry/interpreter_register_geometry_functions.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 static void mesher_usage(FILE* stream)
 {
   fprintf(stream, "polymesher: usage:\n");
@@ -73,6 +69,3 @@ int main(int argc, char** argv)
   return 0;
 }
 
-#ifdef __cplusplus
-}
-#endif

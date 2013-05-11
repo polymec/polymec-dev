@@ -3,10 +3,6 @@
 #include "core/unordered_set.h"
 #include "core/boundary_cell_map.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 // Lua stuff.
 #include "lua.h"
 #include "lualib.h"
@@ -1540,8 +1536,4 @@ void lua_pushuserdefined(struct lua_State* lua, void* userdefined, void (*dtor)(
   interpreter_storage_t* storage = store_user_defined(userdefined, dtor);
   lua_pushlightuserdata(lua, (void*)storage);
 }
-
-#ifdef __cplusplus
-}
-#endif
 

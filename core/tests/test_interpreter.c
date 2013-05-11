@@ -37,7 +37,7 @@ void test_interpreter_with_long_string(void** state)
   assert_true(st_func_is_homogeneous(f));
   assert_true(st_func_is_constant(f));
   point_t x;
-  double t, five;
+  double t = 0.0, five;
   st_func_eval(f, &x, t, &five);
   assert_true(fabs(five - 5.0) < 1e-15);
 
@@ -142,6 +142,72 @@ void test_boundingbox_parsing(void** state)
   interpreter_free(interp);
 }
 
+void test_pointlist_parsing(void** state)
+{
+  static const char* test_string = 
+    "pts = {{0, 0, 0}, {1, 0, 0}, {0, 1, 0}, {1, 1, 0}, "
+           "{0, 0, 1}, {1, 0, 1}, {0, 1, 1}, {1, 1, 1}";
+  interpreter_validation_t valid_inputs[] = {{"pts", INTERPRETER_POINT_LIST},
+                                             END_OF_VALID_INPUTS};
+  interpreter_t* interp = interpreter_new(valid_inputs);
+  interpreter_parse_string(interp, (char*)test_string);
+
+  assert_true(interpreter_contains(interp, "pts", INTERPRETER_POINT_LIST));
+  assert_true(!interpreter_contains(interp, "c", INTERPRETER_POINT_LIST));
+  int num_pts;
+  assert_true(interpreter_get_pointlist(interp, "pts", &num_pts) != NULL);
+  assert_true(interpreter_get_pointlist(interp, "c", &num_pts) == NULL);
+  point_t* pts = interpreter_get_pointlist(interp, "pts", &num_pts);
+  assert_int_equal(8, num_pts);
+  static point_t real_pts[8] = {{.x = 0.0, .y = 0.0, .z = 0.0},
+                                {.x = 1.0, .y = 0.0, .z = 0.0},
+                                {.x = 0.0, .y = 1.0, .z = 0.0},
+                                {.x = 1.0, .y = 1.0, .z = 0.0},
+                                {.x = 0.0, .y = 0.0, .z = 1.0},
+                                {.x = 1.0, .y = 0.0, .z = 1.0},
+                                {.x = 0.0, .y = 1.0, .z = 1.0},
+                                {.x = 1.0, .y = 1.0, .z = 1.0}};
+  for (int i = 0; i < 8; ++i)
+  {
+    assert_true(point_distance(&pts[i], &real_pts[i]) < 1e-15);
+  }
+  interpreter_free(interp);
+}
+
+void test_vectorlist_parsing(void** state)
+{
+  static const char* test_string = 
+    "vecs = {{0, 0, 0}, {1, 0, 0}, {0, 1, 0}, {1, 1, 0}, "
+            "{0, 0, 1}, {1, 0, 1}, {0, 1, 1}, {1, 1, 1}";
+  interpreter_validation_t valid_inputs[] = {{"vecs", INTERPRETER_VECTOR_LIST},
+                                             END_OF_VALID_INPUTS};
+  interpreter_t* interp = interpreter_new(valid_inputs);
+  interpreter_parse_string(interp, (char*)test_string);
+
+  assert_true(interpreter_contains(interp, "vecs", INTERPRETER_VECTOR_LIST));
+  assert_true(!interpreter_contains(interp, "c", INTERPRETER_VECTOR_LIST));
+  int num_vecs;
+  assert_true(interpreter_get_vectorlist(interp, "vecs", &num_vecs) != NULL);
+  assert_true(interpreter_get_vectorlist(interp, "c", &num_vecs) == NULL);
+  vector_t* vecs = interpreter_get_vectorlist(interp, "vecs", &num_vecs);
+  assert_int_equal(8, num_vecs);
+  static point_t real_vecs[8] = {{.x = 0.0, .y = 0.0, .z = 0.0},
+                                 {.x = 1.0, .y = 0.0, .z = 0.0},
+                                 {.x = 0.0, .y = 1.0, .z = 0.0},
+                                 {.x = 1.0, .y = 1.0, .z = 0.0},
+                                 {.x = 0.0, .y = 0.0, .z = 1.0},
+                                 {.x = 1.0, .y = 0.0, .z = 1.0},
+                                 {.x = 0.0, .y = 1.0, .z = 1.0},
+                                 {.x = 1.0, .y = 1.0, .z = 1.0}};
+  for (int i = 0; i < 8; ++i)
+  {
+    assert_true(fabs(vecs[i].x - real_vecs[i].x) < 1e-15);
+    assert_true(fabs(vecs[i].y - real_vecs[i].y) < 1e-15);
+    assert_true(fabs(vecs[i].z - real_vecs[i].z) < 1e-15);
+  }
+  interpreter_free(interp);
+}
+
 int main(int argc, char* argv[]) 
 {
   polymec_init(argc, argv);
@@ -150,7 +216,9 @@ int main(int argc, char* argv[])
     unit_test(test_interpreter_with_long_string),
     unit_test(test_point_parsing),
     unit_test(test_vector_parsing),
-    unit_test(test_boundingbox_parsing)
+    unit_test(test_boundingbox_parsing),
+    unit_test(test_pointlist_parsing),
+    unit_test(test_vectorlist_parsing)
   };
   return run_tests(tests);
 }

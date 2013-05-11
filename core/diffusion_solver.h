@@ -5,10 +5,6 @@
 #include "core/table.h"
 #include "core/index_space.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 // This class solves the linear diffusion equation dU/dt = D(U) + S, 
 // where U is some quantity undergoing diffusion, D is a diffusion operator, 
 // and S is a source.
@@ -86,10 +82,6 @@ void diffusion_solver_tga(diffusion_solver_t* solver,
 void diffusion_solver_crank_nicolson(diffusion_solver_t* solver,
                                      double t1, double* sol1,
                                      double t2, double* sol2);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif
 

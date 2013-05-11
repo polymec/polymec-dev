@@ -1,10 +1,6 @@
 #ifndef POLYMEC_COMPARATORS_H
 #define POLYMEC_COMPARATORS_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 // These comparators return -1 if x < y, 0 if x == y, and 1 if x > y.
 
 static inline int int_cmp(int x, int y)
@@ -42,9 +38,5 @@ static inline void string_free(char* str)
 {
   free(str);
 }
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif

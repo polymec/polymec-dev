@@ -4,10 +4,6 @@
 #include "geometry/force_cvt_gen_dist.h"
 #include "geometry/delaunay_triangulator.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 // Types of forces.
 typedef enum
 {
@@ -161,8 +157,4 @@ cvt_gen_dist_t* force_cvt_gen_dist_new(cvt_gen_force_t* force,
   cvt_gen_dist_vtable vtable = {.iterate = force_cvt_gen_dist_iterate, .dtor = free};
   return cvt_gen_dist_new("Force balance CVT generator distribution", algo, vtable);
 }
-
-#ifdef __cplusplus
-}
-#endif
 

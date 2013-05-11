@@ -3,10 +3,6 @@
 
 #include "core/io.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 // Given a mesh, generates face-node connectivity information.
 // face_nodes - A pointer that will be set to a newly allocated array 
 //              storing all nodes of faces in traversal order, starting 
@@ -19,9 +15,5 @@ extern "C" {
 void generate_face_node_conn(mesh_t* mesh,
                              int** face_nodes,
                              int* face_node_offsets);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif

@@ -14,10 +14,6 @@
 #include "advect/register_advect_benchmarks.h"
 #include "advect/slope_estimator.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 typedef enum
 {
   EULER,
@@ -788,8 +784,4 @@ model_t* create_advect(mesh_t* mesh,
   a->solution = solution;
   return model;
 }
-
-#ifdef __cplusplus
-}
-#endif
 

@@ -4,10 +4,6 @@
 #include "core/mesh.h"
 #include "arena/proto.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 struct mesh_storage_t
 {
   ARENA* arena;
@@ -27,10 +23,6 @@ mesh_storage_t* mesh_storage_new_with_arena(ARENA* arena);
 
 // Frees the given storage mechanism.
 void mesh_storage_free(mesh_storage_t* storage);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif
 

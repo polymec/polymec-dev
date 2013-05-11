@@ -3,10 +3,6 @@
 #include "core/linear_algebra.h"
 #include "advect/slope_estimator.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 struct slope_estimator_t 
 {
   double (*compute_factor)(double forward_slope, double backward_slope);
@@ -190,8 +186,4 @@ double slope_estimator_value(slope_estimator_t* estimator,
   // Now compute the estimator factor with the forward and backward slopes.
   return estimator->compute_factor(forward_slope, backward_slope);
 }
-
-#ifdef __cplusplus
-}
-#endif
 

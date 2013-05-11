@@ -1,9 +1,5 @@
 #include "poisson/laplacian_op.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 static int laplacian_op_stencil_size(void* context, mesh_t* mesh, int index)
 {
   int size = 1;
@@ -65,8 +61,4 @@ lin_op_t* laplacian_op_new(mesh_t* mesh)
                           .apply = &laplacian_op_apply};
   return lin_op_new("laplacian", NULL, vtable, mesh);
 }
-
-#ifdef __cplusplus
-}
-#endif
 

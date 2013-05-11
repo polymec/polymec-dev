@@ -3,10 +3,6 @@
 #include "core/point.h"
 #include "geometry/create_manifold.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 // This function chases down a merged node.
 static inline int map_node(int_int_unordered_map_t* node_map, int n)
 {
@@ -481,8 +477,4 @@ voronoi_tessellation_t* create_manifold(voronoi_tessellation_t* tessellation)
 
   return m;
 }
-
-#ifdef __cplusplus
-}
-#endif
 

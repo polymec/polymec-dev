@@ -4,10 +4,6 @@
 #include "core/least_squares.h"
 #include "core/linear_algebra.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 struct multi_index_t 
 {
   int p, x_order, y_order, z_order;
@@ -132,7 +128,7 @@ int poly_ls_basis_size(int p)
 void compute_poly_ls_basis_vector(int p, point_t* point, double* basis)
 {
   multi_index_t* m = multi_index_new(p);
-  int i = 0, x, y, z;
+  int i = 0, x = 0, y = 0, z = 0;
   while (multi_index_next(m, &x, &y, &z))
     basis[i++] = pow(point->x, x)*pow(point->y, y)*pow(point->z, z);
   m = NULL;
@@ -141,7 +137,7 @@ void compute_poly_ls_basis_vector(int p, point_t* point, double* basis)
 void compute_poly_ls_basis_gradient(int p, point_t* point, vector_t* gradients)
 {
   multi_index_t* m = multi_index_new(p);
-  int i = 0, x, y, z;
+  int i = 0, x = 0, y = 0, z = 0;
   while (multi_index_next(m, &x, &y, &z))
   {
     gradients[i].x = (x == 0) ? 0.0 : x*pow(point->x, x-1)*pow(point->y, y)*pow(point->z, z);
@@ -622,8 +618,4 @@ void linear_regression(double* x, double* y, int N, double* A, double* B, double
   }
   *sigma = SSE / (N - 2);
 }
-
-#ifdef __cplusplus
-}
-#endif
 

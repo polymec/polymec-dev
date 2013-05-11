@@ -1,10 +1,6 @@
 #include <stdlib.h>
 #include "core/constant_st_func.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 typedef struct
 {
   int num_comp;
@@ -57,8 +53,4 @@ sp_func_t* constant_sp_func_new(int num_comp, double comp[])
 {
   return st_func_freeze(constant_st_func_new(num_comp, comp), 0.0);
 }
-
-#ifdef __cplusplus
-}
-#endif
 

@@ -4,10 +4,6 @@
 #include <math.h>
 #include "core/polymec.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 // A point in 1, 2, or 3D space.
 typedef struct
 {
@@ -163,10 +159,6 @@ typedef enum
   OUTWARD_NORMAL,
   INWARD_NORMAL
 } normal_orient_t;
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif
 

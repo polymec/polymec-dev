@@ -3,10 +3,6 @@
 
 #include "core/mesh.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 // This function creates and returns a mesh for a cubic lattice of 
 // nx x ny x nz cells. The mesh spans the rectangular region of space 
 // defined by the bounding box.
@@ -25,10 +21,6 @@ void tag_cubic_lattice_mesh_faces(mesh_t* mesh, int nx, int ny, int nz,
                                   const char* y2_tag,
                                   const char* z1_tag,
                                   const char* z2_tag);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif
 

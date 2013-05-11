@@ -2,10 +2,6 @@
 #include "geometry/cvt_gen_dist.h"
 #include "geometry/scaled.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 struct cvt_gen_dist_t 
 {
   char* name;
@@ -160,8 +156,4 @@ void cvt_gen_dist_generate_random_points(long (*rng)(), sp_func_t* density, bbox
     while (rejected);
   }
 }
-
-#ifdef __cplusplus
-}
-#endif
 

@@ -3,10 +3,6 @@
 
 #include "core/point2.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 // This class represents a polygon in the plane. Objects of this type are 
 // garbage-collected.
 typedef struct polygon2_t polygon2_t;
@@ -43,10 +39,6 @@ polygon2_t* polygon2_clone(polygon2_t* poly);
 // the polygon that is to be clipped, and it is modified in place.
 // This algorithm only works reliably if both polygons are convex.
 void polygon2_clip(polygon2_t* poly, polygon2_t* other);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif
 

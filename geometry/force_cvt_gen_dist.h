@@ -3,10 +3,6 @@
 
 #include "geometry/cvt_gen_dist.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 // This type represents a force exerted on a generator by neighboring 
 // generators. Objects of this type are garbage-collected.
 typedef struct cvt_gen_force_t cvt_gen_force_t;
@@ -25,10 +21,6 @@ cvt_gen_force_t* linear_spring_force_new(double k);
 //             algorithm will terminate.
 cvt_gen_dist_t* force_cvt_gen_dist_new(cvt_gen_force_t* force,
                                        double tolerance);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif
 

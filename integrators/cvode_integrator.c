@@ -3,10 +3,6 @@
 #include "cvode/cvode_spgmr.h"
 #include "cvode/cvode_spbcgs.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 typedef struct
 {
   MPI_Comm comm;
@@ -212,8 +208,4 @@ integrator_t* bdf_integrator_new(MPI_Comm comm,
                               compute_Jv, solver_type, max_kdim, gram_schmidt,
                               precond_type, precond_setup, precond_solve, dtor);
 }
-
-#ifdef __cplusplus
-}
-#endif
 

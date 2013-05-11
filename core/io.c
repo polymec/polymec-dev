@@ -10,10 +10,6 @@
 #include "pmpio.h"
 #endif
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 // Metadata and maps.
 typedef struct
 {
@@ -516,8 +512,4 @@ int io_dataset_num_strings(io_dataset_t* dataset)
 {
   return dataset->strings->size;
 }
-
-#ifdef __cplusplus
-}
-#endif
 

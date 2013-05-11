@@ -5,10 +5,6 @@
 #include "core/interpreter.h"
 #include "io/vtk_plot_io.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 // Lua stuff.
 #include "lua.h"
 #include "lualib.h"
@@ -60,9 +56,4 @@ int write_vtk_plot(lua_State* lua)
 
   return 1;
 }
-
-#ifdef __cplusplus
-}
-#endif
-
 

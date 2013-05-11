@@ -6,10 +6,6 @@
 #include "core/sp_func.h"
 #include "arena/proto.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 // Mesh centerings.
 typedef enum
 {
@@ -206,10 +202,6 @@ void mesh_delete_tag(mesh_tags_t* tagger, const char* tag);
 // Maps the mesh from its existing coordinates to a set of coordinates
 // defined by the (vector-valued) tranformation function.
 void mesh_map(mesh_t* mesh, sp_func_t* mapping);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif
 

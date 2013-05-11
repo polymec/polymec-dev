@@ -1,10 +1,6 @@
 #include <gc/gc.h>
 #include "core/sp_func.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 struct sp_func_t 
 {
   char* name;
@@ -152,10 +148,6 @@ void sp_func_grad_richardson(sp_func_t* func, point_t* x0, vector_t* dx, vector_
   gradient->x = (twoN * Gh.x - Gl.x) / (twoN - 1.0);
   gradient->y = (twoN * Gh.y - Gl.y) / (twoN - 1.0);
   gradient->z = (twoN * Gh.z - Gl.z) / (twoN - 1.0);
-}
-#endif
-
-#ifdef __cplusplus
 }
 #endif
 

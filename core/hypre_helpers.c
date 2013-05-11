@@ -1,9 +1,5 @@
 #include "core/hypre_helpers.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 HYPRE_IJMatrix HYPRE_IJMatrixNew(index_space_t* index_space)
 {
   HYPRE_IJMatrix A;
@@ -125,8 +121,4 @@ void HYPRE_IJVectorGetValuesToArray(HYPRE_IJVector vector, index_space_t* index_
     indices[i] = index_space->low + i;
   HYPRE_IJVectorGetValues(vector, N, indices, array);
 }
-
-#ifdef __cplusplus
-}
-#endif
 

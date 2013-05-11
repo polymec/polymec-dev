@@ -89,10 +89,6 @@ for (int i = start; i < start + num; ++i) \
 #define POLYMEC_FAILURE -1
 #define POLYMEC_NO_EFFECT 1
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 typedef int (*polymec_error_handler_function)(const char*);
 
 // Issues an error with the given message. By default, an error issues a 
@@ -120,9 +116,5 @@ void polymec_init(int argc, char** argv);
 
 // Register a function to be called upon exit.
 void polymec_atexit(void (*func)());
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif

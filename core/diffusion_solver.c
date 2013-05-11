@@ -2,10 +2,6 @@
 #include "core/hypre_helpers.h"
 #include "core/linear_algebra.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 struct diffusion_solver_t
 {
   char* name;
@@ -151,7 +147,7 @@ void diffusion_solver_euler(diffusion_solver_t* solver,
 
   // L <- I - dt*A.
   double_table_cell_pos_t pos = double_table_start(A);
-  int i, j;
+  int i = 0, j = 0;
   double Aij;
   double_table_t* L = double_table_new();
   while (double_table_next_cell(A, &pos, &i, &j, &Aij))
@@ -233,7 +229,7 @@ void diffusion_solver_tga(diffusion_solver_t* solver,
   for (int i = 0; i < N; ++i)
     e[i] = 0.0;
   double_table_cell_pos_t pos = double_table_start(A);
-  int i, j;
+  int i = 0, j = 0;
   double Aij;
   double_table_t* M1 = double_table_new();
   double_table_t* M2 = double_table_new();
@@ -319,7 +315,7 @@ void diffusion_solver_crank_nicolson(diffusion_solver_t* solver,
 
   // L <- I - 0.5*dt*A, rhs <- (I + 0.5*dt*A)*x
   double_table_cell_pos_t pos = double_table_start(A);
-  int i, j;
+  int i = 0, j = 0;
   double Aij;
   double_table_t* L = double_table_new();
   double rhs[N];
@@ -371,8 +367,4 @@ void diffusion_solver_crank_nicolson(diffusion_solver_t* solver,
   double_table_free(L);
   double_table_free(A);
 }
-
-#ifdef __cplusplus
-}
-#endif
 

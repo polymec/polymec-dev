@@ -7,10 +7,6 @@
 #include "advect/advect_model.h"
 #include "advect/advect_bc.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 static void run_analytic_problem(model_t* model, 
                                  double t1, 
                                  double t2, 
@@ -307,8 +303,4 @@ void register_advect_benchmarks(model_t* model)
   model_register_benchmark(model, "square_diffusion_1d", run_square_diffusion_1d, "Square wave diffusing in 1D.");
   model_register_benchmark(model, "gaussian_diffusion_1d", run_gaussian_diffusion_1d, "Gaussian wave diffusing in 1D.");
 }
-
-#ifdef __cplusplus
-}
-#endif
 

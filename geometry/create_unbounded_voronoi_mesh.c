@@ -6,10 +6,6 @@
 #include "geometry/create_unbounded_voronoi_mesh.h"
 #include "geometry/voronoi_tessellator.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 static void destroy_outer_cell_edges_map_entry(int key, void* value)
 {
   int* v = value;
@@ -269,8 +265,4 @@ mesh_t* create_unbounded_voronoi_mesh(point_t* generators, int num_generators,
 
   return mesh;
 }
-
-#ifdef __cplusplus
-}
-#endif
 

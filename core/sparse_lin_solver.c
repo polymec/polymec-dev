@@ -1,10 +1,6 @@
 #include "core/polymec.h"
 #include "core/sparse_lin_solver.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 struct sparse_lin_solver_t
 {
   char* name;
@@ -64,8 +60,4 @@ char* sparse_lin_solver_outcome_details(sparse_lin_solver_t* solver)
 {
   return &solver->outcome_details[0];
 }
-
-#ifdef __cplusplus
-}
-#endif
 

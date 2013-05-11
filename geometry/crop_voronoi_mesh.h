@@ -5,17 +5,9 @@
 #include "core/surface_mesh.h"
 #include "core/mesh_diff.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 // Given a Voronoi tessellation/mesh, generate a mesh_diff containing a set 
 // of changes to a mesh that crop it with the given surface mesh.
 mesh_diff_t* crop_voronoi_mesh(mesh_t* mesh, surface_mesh_t* surface_mesh);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif
 

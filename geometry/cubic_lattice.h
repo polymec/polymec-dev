@@ -4,10 +4,6 @@
 #include "core/unordered_map.h"
 #include "core/periodic_bc.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 // This class defines an indexing scheme for a cubic lattice.
 // Objects of this type are garbage-collected.
 typedef struct 
@@ -145,10 +141,6 @@ periodic_bc_t* cubic_lattice_y_periodic_bc_new(const char* tag1, const char* tag
 
 // Creates a periodic boundary condition, identifying z-faces with the given tags.
 periodic_bc_t* cubic_lattice_z_periodic_bc_new(const char* tag1, const char* tag2);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif
 

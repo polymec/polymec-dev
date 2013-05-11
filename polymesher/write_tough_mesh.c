@@ -6,10 +6,6 @@
 #include "core/interpreter.h"
 #include "core/point.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 // Lua stuff.
 #include "lua.h"
 #include "lualib.h"
@@ -330,9 +326,5 @@ int write_tough_mesh(lua_State* lua)
 
   return 1;
 }
-
-#ifdef __cplusplus
-}
-#endif
 
 

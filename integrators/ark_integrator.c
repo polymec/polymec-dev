@@ -1,9 +1,5 @@
 #include "integrators/ark_integrator.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 typedef struct
 {
   integrator_t *ex_int, *imp_int;
@@ -95,8 +91,4 @@ integrator_t* ark_integrator_new(ark_integrator_type_t type,
   vtable.dtor = ark_dtor;
   return integrator_new(name, ark, vtable, order, INTEGRATOR_SEMI_IMPLICIT);
 }
-
-#ifdef __cplusplus
-}
-#endif
 

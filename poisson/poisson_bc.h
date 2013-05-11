@@ -3,10 +3,6 @@
 
 #include "core/st_func.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 // Boundary condition structure for Poisson's equation.
 // This represents a generic (Robin) boundary condition: 
 // alpha * phi + beta * dphi/dn = F.
@@ -19,9 +15,5 @@ typedef struct
 
 // Constructor for a Poisson BC.
 poisson_bc_t* poisson_bc_new(double alpha, double beta, st_func_t* F);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif

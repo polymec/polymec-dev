@@ -2,10 +2,6 @@
 #include "core/linear_algebra.h"
 #include "geometry/plane.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 typedef struct
 {
   // Plane parameters.
@@ -202,8 +198,4 @@ double plane_intersect_with_line(sp_func_t* plane, point_t* x0, vector_t* t)
     return numer / not;
   }
 }
-
-#ifdef __cplusplus
-}
-#endif
 

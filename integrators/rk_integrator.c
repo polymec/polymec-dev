@@ -1,9 +1,5 @@
 #include "integrators/rk_integrator.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 typedef struct
 {
   int order;
@@ -129,8 +125,4 @@ integrator_t* rk_integrator_new(int order,
   sprintf(name, "RK%d", order);
   return integrator_new(name, rk, vtable, order, INTEGRATOR_EXPLICIT);
 }
-
-#ifdef __cplusplus
-}
-#endif
 

@@ -4,15 +4,15 @@
 // languages, this code is insulated from the rest of Polymec in terms of 
 // data types.
 
-#include "core/polymec.h"
-#include <gc/gc.h>
-#include "geometry/voronoi_tessellator.h"
-#include "geometry/create_manifold.h"
-
 #define TETLIBRARY
 #include "tetgen.h"
 
 extern "C" {
+
+#include "core/polymec.h"
+#include <gc/gc.h>
+#include "geometry/voronoi_tessellator.h"
+#include "geometry/create_manifold.h"
 
 void voronoi_tessellation_free(voronoi_tessellation_t* tessellation)
 {

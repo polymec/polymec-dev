@@ -1,9 +1,5 @@
 #include "core/mesh_diff.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 // Global unique identifier. Not thread-safe.
 // Note that these start at 1 and not 0 so they can be cast to pointers
 // without being confused with NULL.
@@ -103,8 +99,4 @@ void mesh_diff_fprintf(mesh_diff_t* diff, FILE* file)
     fprintf(file, "\n");
   }
 }
-
-#ifdef __cplusplus
-}
-#endif
 

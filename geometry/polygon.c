@@ -4,10 +4,6 @@
 #include "geometry/plane.h"
 #include "core/slist.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 struct polygon_t 
 {
   point_t* vertices;
@@ -214,8 +210,4 @@ void polygon_clip(polygon_t* poly, polygon_t* other)
   poly2 = NULL;
   other2 = NULL;
 }
-
-#ifdef __cplusplus
-}
-#endif
 

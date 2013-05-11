@@ -5,10 +5,6 @@
 #include "core/unordered_set.h"
 #include "core/linear_algebra.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 // This function rounds the given number up to the nearest power of 2.
 static int round_to_pow2(int x)
 {
@@ -442,8 +438,4 @@ void face_get_nodes(face_t* face, node_t** nodes, int* num_nodes)
   }
   *num_nodes = offset;
 }
-
-#ifdef __cplusplus
-}
-#endif
 

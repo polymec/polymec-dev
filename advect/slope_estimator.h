@@ -3,10 +3,6 @@
 
 #include "core/point.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 // This class computes a slope that is limited at discontinuities and is 
 // equivalent to a centered difference where a quantity is continuous. It 
 // constructs a parabolic least-squares fit to a solution in the vicinity of 
@@ -49,9 +45,5 @@ double slope_estimator_value(slope_estimator_t* estimator,
                              point_t* other_points,
                              double* other_values,
                              int num_other_points);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif

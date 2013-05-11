@@ -4,10 +4,6 @@
 #include "core/sp_func.h"
 #include "core/point2.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 // This signed distance function represents a plane with a given normal 
 // vector and point.
 sp_func_t* plane_new(vector_t* n, point_t* x);
@@ -43,10 +39,6 @@ void plane_embed(sp_func_t* plane, point2_t* xi, point_t* x);
 // planar_proj object. s is returned. If x(s) does not intersect the plane, 
 // -FLT_MAX is returned.
 double plane_intersect_with_line(sp_func_t* plane, point_t* x0, vector_t* t);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif
 

@@ -1,9 +1,5 @@
 #include "cnav/cnav_ideal_gas.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 // Proton mass and kB in SI units.
 static const double proton_mass = 1.67262158e-27;
 static const double kB = 1.381e-23; 
@@ -63,8 +59,4 @@ cnav_eos_t* cnav_ideal_gas_new(double mu, double gamma)
   double mass = mu * proton_mass;
   return cnav_eos_new(name, ideal_gas, vtable, 1, &mass);
 }
-
-#ifdef __cplusplus
-}
-#endif
 

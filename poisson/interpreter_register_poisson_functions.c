@@ -1,10 +1,6 @@
 #include "poisson/interpreter_register_poisson_functions.h"
 #include "core/constant_st_func.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 // Lua stuff.
 #include "lua.h"
 #include "lualib.h"
@@ -108,8 +104,4 @@ void interpreter_register_poisson_functions(interpreter_t* interpreter)
   interpreter_register_function(interpreter, "neumann_bc", neumann_bc);
   interpreter_register_function(interpreter, "robin_bc", robin_bc);
 }
-
-#ifdef __cplusplus
-}
-#endif
 

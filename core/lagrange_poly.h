@@ -4,10 +4,6 @@
 #include "core/polymec.h"
 #include "core/point.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 // A Lagrange interpolation polynomial of the given order. Objects of this 
 // type are garbage-collected.
 typedef struct lagrange_poly_t lagrange_poly_t;
@@ -35,10 +31,6 @@ void lagrange_poly_evaluate_basis_deriv(lagrange_poly_t* poly, int p, double x, 
 // Interpolates the pth derivative of a function with the given values 
 // at the given point x.
 double lagrange_poly_deriv(lagrange_poly_t* poly, int p, double x, double* values);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif
 

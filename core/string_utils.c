@@ -4,10 +4,6 @@
 
 #define SEPARATOR '/'
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 void parse_path(const char *path, char *dirname, char *filename)
 {
   int len = strlen(path);
@@ -166,8 +162,4 @@ char* string_subst(const char* string, string_subst_t substitutions[])
 
   return new_string;
 }
-
-#ifdef __cplusplus
-}
-#endif
 

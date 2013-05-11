@@ -3,10 +3,6 @@
 
 #include <stdio.h>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 // Types of log messages / log levels. The levels are increasing in amount 
 // of output: LOG_WARNING logs only warnings, LOG_INFO logs warnings and 
 // informational messages, and so on and so forth.
@@ -44,9 +40,5 @@ void log_info(const char* message, ...);
 
 // Issues an urgent.
 void log_urgent(const char* message, ...);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif

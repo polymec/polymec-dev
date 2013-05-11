@@ -3,10 +3,6 @@
 
 #include "core/io.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 // Given a mesh and existing face-node connectivity data, generates cell-node 
 // connectivity information.
 // face_nodes - An array storing all nodes of faces in traversal 
@@ -27,9 +23,5 @@ void generate_cell_node_conn(mesh_t* mesh,
                              int* face_node_offsets,
                              int** cell_nodes,
                              int* cell_node_offsets);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif

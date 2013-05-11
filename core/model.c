@@ -5,10 +5,6 @@
 #include "core/unordered_map.h"
 #include "core/options.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 
 // Benchmark metadatum.
 typedef struct
@@ -582,8 +578,4 @@ void model_report_error_norm(options_t* options, double error_norm)
   snprintf(nstr, 1024, "%g", error_norm);
   options_set(options, "error_norm", nstr);
 }
-
-#ifdef __cplusplus
-}
-#endif
 

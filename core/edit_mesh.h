@@ -3,10 +3,6 @@
 
 #include "core/mesh.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 // Appends a new node to the mesh, returning the new index.
 int mesh_add_node(mesh_t* mesh);
 
@@ -52,10 +48,6 @@ void mesh_detach_edge_from_face(mesh_t* mesh, edge_t* edge, face_t* face);
 // Removes the given face from the given cell, or does nothing if the 
 // face is not attached to the cell.
 void mesh_detach_face_from_cell(mesh_t* mesh, face_t* face, cell_t* cell);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif
 

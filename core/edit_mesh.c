@@ -3,10 +3,6 @@
 #include "core/edit_mesh.h"
 #include "core/mesh_storage.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 // This function rounds the given number up to the nearest power of 2.
 static int round_to_pow2(int x)
 {
@@ -201,8 +197,4 @@ void mesh_detach_face_from_cell(mesh_t* mesh, face_t* face, cell_t* cell)
     }
   }
 }
-
-#ifdef __cplusplus
-}
-#endif
 

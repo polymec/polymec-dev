@@ -8,10 +8,6 @@
 #include "poisson/interpreter_register_poisson_functions.h"
 #include "poisson/register_poisson_benchmarks.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 static void run_analytic_problem(mesh_t* mesh, st_func_t* rhs, str_ptr_unordered_map_t* bcs, options_t* options, double t1, double t2, st_func_t* solution, double* lp_norms)
 {
   // Create the model.
@@ -305,8 +301,4 @@ void register_poisson_benchmarks(model_t* model)
   model_register_benchmark(model, "paraboloid", run_paraboloid, "A paraboloid solution to Poisson's equation (2D).");
   model_register_benchmark(model, "paraboloid_3", run_paraboloid_3, "A paraboloid solution to Poisson's equation (3D).");
 }
-
-#ifdef __cplusplus
-}
-#endif
 

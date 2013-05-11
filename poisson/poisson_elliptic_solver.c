@@ -3,10 +3,6 @@
 #include "poisson/laplacian_op.h"
 #include "poisson/poisson_bc.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 // Poisson elliptic solver type
 typedef struct
 {
@@ -167,8 +163,4 @@ elliptic_solver_t* poisson_elliptic_solver_new(st_func_t* source,
   elliptic_solver_t* solver = elliptic_solver_new("Poisson elliptic solver", p, vtable, index_space);
   return solver;
 }
-
-#ifdef __cplusplus
-}
-#endif
 

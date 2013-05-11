@@ -4,10 +4,6 @@
 #include "core/polymec.h"
 #include "core/point.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 // A point set is a collection of points in a 3D domain, stored in a kd-tree 
 // so that neighbor searches can be easily and cheaply performed.
 typedef struct point_set_t point_set_t;
@@ -43,10 +39,6 @@ point_set_pos_t point_set_start(point_set_t* pset);
 
 // Traverses a point set.
 bool point_set_next(point_set_t* pset, point_set_pos_t* pos, int* index, double* coords);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif
 

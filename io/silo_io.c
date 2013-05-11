@@ -13,10 +13,6 @@
 #include "pmpio.h"
 #endif
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 static void* silo_create_file(void* context, 
                               const char* filename,
                               const char* dirname)
@@ -793,8 +789,4 @@ io_interface_t* silo_plot_io_new(MPI_Comm comm,
                       .write_master = &silo_plot_write_master};
   return io_interface_new(NULL, "Silo-plot", "silo", "silo", vtable, comm, num_files, mpi_tag);
 }
-
-#ifdef __cplusplus
-}
-#endif
 

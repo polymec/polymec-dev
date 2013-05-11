@@ -1,10 +1,6 @@
 #include "core/unordered_set.h"
 #include "io/generate_cell_node_conn.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 void generate_cell_node_conn(mesh_t* mesh,
                              int* face_nodes,
                              int* face_node_offsets,
@@ -32,8 +28,4 @@ void generate_cell_node_conn(mesh_t* mesh,
     (*cell_nodes)[i++] = node;
   int_unordered_set_free(all_cell_nodes);
 }
-
-#ifdef __cplusplus
-}
-#endif
 

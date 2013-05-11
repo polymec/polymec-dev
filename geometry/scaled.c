@@ -1,9 +1,5 @@
 #include "geometry/scaled.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 typedef struct
 {
   sp_func_t* func;
@@ -56,8 +52,4 @@ sp_func_t* scaled_new(sp_func_t* func, double scale_factor)
 
   return sc_func;
 }
-
-#ifdef __cplusplus
-}
-#endif
 

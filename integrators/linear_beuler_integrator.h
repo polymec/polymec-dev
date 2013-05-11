@@ -4,10 +4,6 @@
 #include "core/integrator.h"
 #include "core/sparse_lin_solver.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 // Creates an integrator that uses the 1st-order implicit backward Euler 
 // method to integrate a linear system of ordinary differential equations.
 // The integrator uses a Krylov-powered linear solver under the hood.
@@ -29,10 +25,6 @@ integrator_t* linear_beuler_integrator_new(MPI_Comm comm,
 
 // This function returns the sparse linear solver used by the backward Euler integrator.
 sparse_lin_solver_t* linear_beuler_integrator_get_solver(integrator_t* integrator);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif
 

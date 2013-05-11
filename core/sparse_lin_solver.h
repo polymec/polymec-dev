@@ -3,10 +3,6 @@
 
 #include "core/polymec.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 // This type represents the outcome of an iterative sparse linear solve.
 typedef enum
 {
@@ -63,10 +59,6 @@ void sparse_lin_solver_get_info(sparse_lin_solver_t* solver,
 // This retrieves an internally-stored string that contains diagnostic details about the 
 // outcome (usually unsuccessful) of the most recent linear solve.
 char* sparse_lin_solver_outcome_details(sparse_lin_solver_t* solver);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif
 

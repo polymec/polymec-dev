@@ -5,10 +5,6 @@
 #include "core/table.h"
 #include "core/index_space.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 // This class solves the (time-independent) elliptic equation L(U) = S,
 // where L is some linear operator, S is some source term, and U is the 
 // the solution of the equation.
@@ -60,10 +56,6 @@ void* elliptic_solver_context(elliptic_solver_t* solver);
 void elliptic_solver_solve(elliptic_solver_t* solver,
                            double t,
                            double* solution);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif
 

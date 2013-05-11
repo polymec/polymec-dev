@@ -5,10 +5,6 @@
 #include "geometry/create_cubic_lattice_mesh.h"
 #include "geometry/generate_random_points.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 // Lua stuff.
 #include "lua.h"
 #include "lualib.h"
@@ -250,8 +246,4 @@ void interpreter_register_geometry_functions(interpreter_t* interp)
   interpreter_register_function(interp, "cubic_lattice_periodic_bc", cubic_lattice_periodic_bc);
   interpreter_register_function(interp, "random_points", random_points);
 }
-
-#ifdef __cplusplus
-}
-#endif
 

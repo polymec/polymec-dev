@@ -3,10 +3,6 @@
 #include "advect/diffusion_op.h"
 #include "advect/advect_bc.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 // Advective diffusion solver type
 typedef struct
 {
@@ -206,8 +202,4 @@ void advect_diffusion_solver_set_advective_source(diffusion_solver_t* solver,
   ad_solver_t* a = (ad_solver_t*)diffusion_solver_context(solver);
   memcpy(a->advective_source, advective_source, sizeof(double)*a->mesh->num_cells);
 }
-
-#ifdef __cplusplus
-}
-#endif
 

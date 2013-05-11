@@ -4,10 +4,6 @@
 #include "core/polymec.h"
 #include "sundials/sundials_iterative.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 // The following types and functions are provided for easy interoperability
 // with CVODE.
 
@@ -104,10 +100,6 @@ void integrator_step(integrator_t* integrator, double t1, double t2,
 // callable on integrators for which the compute_Jv entry is given in the 
 // virtual table. Call only if you know what you're doing!
 void integrator_compute_Jv(integrator_t* integrator, double t, N_Vector x, N_Vector F, N_Vector v, N_Vector Jv);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif
 

@@ -2,10 +2,6 @@
 #include "geometry/polygon2.h"
 #include "core/slist.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 struct polygon2_t 
 {
   point2_t* vertices;
@@ -337,8 +333,4 @@ void polygon2_clip(polygon2_t* poly, polygon2_t* other)
   double_slist_free(xlist);
   double_slist_free(ylist);
 }
-
-#ifdef __cplusplus
-}
-#endif
 

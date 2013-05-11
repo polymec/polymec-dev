@@ -7,10 +7,6 @@
 //#include "geometry/giftwrap_hull.h"
 #include "geometry/create_unbounded_voronoi_mesh.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 // This function and context help us compute the projections of 
 // interior nodes to the boundary.
 typedef struct 
@@ -445,8 +441,4 @@ mesh_t* create_bounded_voronoi_mesh(point_t* generators, int num_generators,
 
   return mesh;
 }
-
-#ifdef __cplusplus
-}
-#endif
 

@@ -3,10 +3,6 @@
 
 #include <string.h>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 // A solid string hash function by Dan Bernstein.
 static inline int djb2_hash(unsigned char* str, int len)
 {
@@ -49,9 +45,5 @@ static inline int string_hash(char* str)
 {
   return djb2_xor_hash((unsigned char*)str, strlen(str));
 }
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif

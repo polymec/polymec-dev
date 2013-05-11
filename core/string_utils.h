@@ -3,10 +3,6 @@
 
 #include "polymec.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 // Given a full pathname, parse it into directory and file portions.
 // Memory must be allocated for dirname and for filename that is sufficient 
 // to store any portion of path.
@@ -23,9 +19,5 @@ void join_paths(const char *dirname, const char* filename, char* path);
 typedef struct { char* token; char* value; } string_subst_t;
 static const string_subst_t END_OF_SUBST = {"END_TOKEN", "END_VALUE"};
 char* string_subst(const char* string, string_subst_t substitutions[]);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif

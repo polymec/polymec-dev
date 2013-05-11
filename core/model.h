@@ -6,10 +6,6 @@
 #include "core/interpreter.h"
 #include "core/io.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 // The maximum amount of storage allowed for an explanation of the 
 // time step choice.
 #define POLYMEC_MODEL_MAXDT_REASON_SIZE 2048
@@ -168,10 +164,6 @@ void model_report_conv_rate(options_t* options, double conv_rate, double sigma);
 // Use this to report an error norm from within a benchmark. This can be 
 // used to determine whether the given benchmark "passed."
 void model_report_error_norm(options_t* options, double error_norm);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif
 

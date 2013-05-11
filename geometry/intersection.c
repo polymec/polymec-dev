@@ -1,9 +1,5 @@
 #include "geometry/intersection.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 typedef struct
 {
   sp_func_t** funcs;
@@ -92,8 +88,4 @@ sp_func_t* intersection_new2(sp_func_t* surface1, sp_func_t* surface2)
   surfs[1] = surface2;
   return intersection_new(surfs, 2);
 }
-
-#ifdef __cplusplus
-}
-#endif
 

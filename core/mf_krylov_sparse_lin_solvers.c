@@ -5,10 +5,6 @@
 #include "sundials/sundials_spbcgs.h"
 #include "sundials/sundials_nvector.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 typedef struct
 {
   // Context stuff.
@@ -302,8 +298,4 @@ sparse_lin_solver_t* mf_bicgstab_sparse_lin_solver_new(MPI_Comm comm,
                                      .dtor = bicgstab_dtor};
   return sparse_lin_solver_new("Matrix-free BiCGStab Krylov solver", krylov, vtable);
 }
-
-#ifdef __cplusplus
-}
-#endif
 

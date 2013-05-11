@@ -4,10 +4,6 @@
 #include <math.h>
 #include "core/polymec.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 // A point in the plane.
 typedef struct
 {
@@ -146,10 +142,6 @@ static inline bool point2_is_between(point2_t* p1, point2_t* p2, point2_t* p3)
            ((p2->y >= p1->y) && (p1->y >= p3->y));
   }
 }
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif
 

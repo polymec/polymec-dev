@@ -2,10 +2,6 @@
 #include "core/edit_surface_mesh.h"
 #include "core/mesh_storage.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 // This function rounds the given number up to the nearest power of 2.
 static inline int round_to_pow2(int x)
 {
@@ -278,8 +274,4 @@ void surface_mesh_free(surface_mesh_t* surface)
   if (close_arena)
     arena_close(arena);
 }
-
-#ifdef __cplusplus
-}
-#endif
 

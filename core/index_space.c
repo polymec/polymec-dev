@@ -1,10 +1,6 @@
 #include <gc/gc.h>
 #include "core/index_space.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 index_space_t* index_space_new(MPI_Comm comm, int num_local_indices)
 {
 #if USE_MPI
@@ -72,8 +68,4 @@ index_space_t* index_space_from_low_and_high(MPI_Comm comm, int low, int high)
   space->high = high;
   return space;
 }
-
-#ifdef __cplusplus
-}
-#endif
 

@@ -2,10 +2,6 @@
 #include "core/mesh_delta.h"
 #include "core/edit_mesh.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 // Function prototypes for the base class.
 typedef void (*mesh_delta_apply_func)(void*, mesh_t*);
 typedef mesh_delta_t* (*mesh_delta_inverse_func)(void*);
@@ -459,8 +455,4 @@ mesh_delta_t* detach_mesh_delta_new(mesh_centering_t type, int index, int parent
   mesh_delta_vtable vtable = {.apply = detach_apply, .inverse = detach_inverse};
   return mesh_delta_new(name, detach, vtable);
 }
-
-#ifdef __cplusplus
-}
-#endif
 

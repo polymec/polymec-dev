@@ -4,10 +4,6 @@
 #include "core/polymec.h"
 #include "core/point.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 // A "space" function (or "spatial" function) is an analytic function of 
 // space only. This opaque type encapsulates the notion of such an analytic 
 // function and any associated metadata (whether it is homogeneous or not, etc).
@@ -75,10 +71,6 @@ bool sp_func_has_deriv(sp_func_t* func, int n);
 
 // Evaluates the nth derivative of this function, placing the result in result.
 void sp_func_eval_deriv(sp_func_t* func, int n, point_t* x, double* result);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif
 

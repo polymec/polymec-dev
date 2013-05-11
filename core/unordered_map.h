@@ -249,9 +249,9 @@ static inline key_type map_name##_change_key(map_name##_t* map, key_type old_key
   map_name##_entry_t* current; \
   key_type key; \
   value_type value; \
-  map_name##_kv_dtor kv_dtor; \
-  map_name##_k_dtor k_dtor; \
-  map_name##_v_dtor v_dtor; \
+  map_name##_kv_dtor kv_dtor = NULL; \
+  map_name##_k_dtor k_dtor = NULL; \
+  map_name##_v_dtor v_dtor = NULL; \
   bool found = false; \
   while ((current = *p) != NULL) \
   { \

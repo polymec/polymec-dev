@@ -3,10 +3,6 @@
 
 #include "geometry/cvt_gen_dist.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 // Creates a new probabilistic CVT generator algorithm with the following 
 // parameters:
 // random_gen  - A function that returns a random integer between 0 and RAND_MAX.
@@ -33,10 +29,6 @@ cvt_gen_dist_t* prob_cvt_gen_dist_new(long (*random_gen)(),
                                       double beta, 
                                       double min_dist,
                                       int max_iters);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif
 
