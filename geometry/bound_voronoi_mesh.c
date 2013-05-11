@@ -2,6 +2,35 @@
 #include "geometry/polygon.h"
 #include "geometry/plane.h"
 #include "core/unordered_map.h"
+#include "core/newton.h"
+
+// This stores data for the intersection of a parametrized line 
+// x(s) = x0 + s * t with an implicit function phi.
+typedef struct
+{
+  point_t x0;
+  vector_t t;
+  sp_func_t* phi;
+} surface_proj_t; 
+
+// This function is used with Brent's method to intersect a vector with 
+// an implicit function's zero level set.
+static void intersect(void* context,
+                      double s,
+                      double* F,
+                      double* dFds)
+{
+  surface_proj_t* data = context;
+
+  // Compute y, the location of the point along our line at s.
+  point_t y = {.x = data->x0.x + s * data->t.x,
+               .y = data->x0.y + s * data->t.y,
+               .z = data->x0.z + s * data->t.z};
+
+  // Compute the value of the implicit function at y.
+  sp_func_eval(data->phi, &y, F);
+  sp_func_eval_deriv(data->phi, 1, &y, dFds);
+}
 
 // This helper projects a point x to the surface represented by the 
 // given implicit function along the given vector v, storing the 
@@ -11,11 +40,27 @@ static void project_to_surface(sp_func_t* surface,
                                vector_t* v, 
                                point_t* proj_x)
 {
+  // Find the intersection of the line along this interval.
+  surface_proj_t data = {.x0 = *x, .t = *v, .phi = surface};
+  double tol = 1e-8;
+  int max_iters = 100;
+  double s1 = -100.0, s2 = 100.0, s = 0.0;
+  if (!newton_solve(intersect, &data, &s, s1, s2, tol, max_iters))
+  {
+    polymec_error("Could not project x = (%g, %g, %g) to the given surface\n"
+                  "along v = (%g, %g, %g) to tolerance %g.", x->x, x->y, x->z, v->x, v->y, v->z, tol);
+  }
 
+  // Compute its location.
+  proj_x->x = x->x + s * v->x;
+  proj_x->y = x->y + s * v->y;
+  proj_x->z = x->z + s * v->z;
 }
 
 mesh_diff_t* bound_voronoi_mesh(mesh_t* mesh, sp_func_t* boundary)
 {
+  ASSERT(sp_func_has_deriv(boundary, 1));
+
   // For now, this only works in serial environments.
   int nproc;
   MPI_Comm_size(MPI_COMM_WORLD, &nproc);

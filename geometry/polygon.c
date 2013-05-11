@@ -33,7 +33,7 @@ static void polygon_compute_area(polygon_t* poly)
   {
     // Form a triangle from vertex 0, vertex j, and vertex j+1.
     int J = poly->ordering[j];
-    int K = poly->ordering[j+1];
+    int K = poly->ordering[(j+1) % poly->num_vertices];
     point_displacement(&poly->vertices[I], &poly->vertices[J], &A);
     point_displacement(&poly->vertices[I], &poly->vertices[K], &B);
     poly->area += 0.5 * vector_cross_mag(&A, &B);

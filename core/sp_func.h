@@ -20,6 +20,10 @@ typedef enum
 // A function pointer type for evaluating the function at a point.
 typedef void (*sp_eval_func)(void*, point_t*, double*);
 
+// A function pointer type for evaluating the nth derivative of the 
+// function at a point.
+typedef void (*sp_eval_deriv_func)(void*, int, point_t*, double*);
+
 // A destructor for any given context object.
 typedef void (*sp_dtor)(void*);
 
@@ -27,6 +31,7 @@ typedef void (*sp_dtor)(void*);
 typedef struct 
 {
   sp_eval_func              eval;
+  sp_eval_deriv_func        eval_deriv; // Optional
   sp_dtor                   dtor;
 } sp_vtable;
 
