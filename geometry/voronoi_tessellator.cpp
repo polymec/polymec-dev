@@ -120,7 +120,7 @@ voronoi_tessellator_tessellate(voronoi_tessellator_t* tessellator,
       t->cells[i].faces[f] = out.vcelllist[i][f+1];
   }
 
-//#if 0
+#if 0
   // Make a manifold out of this tessellation.
   voronoi_tessellation_t* m = create_manifold(t);
 
@@ -131,8 +131,8 @@ voronoi_tessellator_tessellate(voronoi_tessellator_t* tessellator,
   // Clean up and git.
   voronoi_tessellation_free(t);
   return m;
-//#endif
-//  return t;
+#endif
+  return t;
 }
 
 }
