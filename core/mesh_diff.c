@@ -75,7 +75,7 @@ static void remap_mesh_indices(mesh_diff_t* diff, mesh_t* mesh)
       edge->node2 = &mesh->nodes[*mapped_n2];
   }
 
-  // Map the edges of all faces.
+  // Map the edges and cells of all faces.
   for (int f = 0; f < mesh->num_faces; ++f)
   {
     face_t* face = &mesh->faces[f];
@@ -85,6 +85,17 @@ static void remap_mesh_indices(mesh_diff_t* diff, mesh_t* mesh)
       int* mapped_e = int_int_unordered_map_get(diff->edge_map, e_index);
       if (mapped_e != NULL)
         face->edges[e] = &mesh->edges[*mapped_e];
+    }
+    int c1_index = face->cell1 - &mesh->cells[0];
+    int* mapped_c1 = int_int_unordered_map_get(diff->cell_map, c1_index);
+    if (mapped_c1 != NULL)
+      face->cell1 = &mesh->cells[*mapped_c1];
+    if (face->cell2 != NULL)
+    {
+      int c2_index = face->cell2 - &mesh->cells[0];
+      int* mapped_c2 = int_int_unordered_map_get(diff->cell_map, c2_index);
+      if (mapped_c2 != NULL)
+        face->cell2 = &mesh->cells[*mapped_c2];
     }
   }
 
