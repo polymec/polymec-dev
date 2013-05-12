@@ -51,7 +51,7 @@ mesh_diff_t* crop_voronoi_mesh(mesh_t* mesh, surface_mesh_t* surface_mesh)
     while (!int_slist_empty(cell_queue))
     {
       // Process the next cell.
-      int next_cell = int_slist_pop(cell_queue);
+      int next_cell = int_slist_pop(cell_queue, NULL);
       int_unordered_set_insert(cells_processed, next_cell);
 
       // Assemble the nodes in the faces of this cell that belong to 

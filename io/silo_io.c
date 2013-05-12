@@ -237,7 +237,7 @@ static void silo_read_datasets(void* context, void* f, io_dataset_t** datasets, 
     // Read in fields.
     for (int f = 0; f < num_fields; ++f)
     {
-      char* field_name = string_slist_pop(field_names);
+      char* field_name = string_slist_pop(field_names, NULL);
       DBcompoundarray* field = DBGetCompoundarray(file, field_name);
       if (field == NULL)
       {
@@ -386,9 +386,9 @@ static void silo_write_datasets(void* context, void* f, io_dataset_t** datasets,
       // NOTE: The first value in conn is the number of ghost cells!
       conn[counter++] = mesh->num_ghost_cells;
       for (int i = 0; i < cf_conn_size; ++i, ++counter)
-        conn[counter] = int_slist_pop(cf_conn_list);
+        conn[counter] = int_slist_pop(cf_conn_list, NULL);
       for (int i = 0; i < fe_conn_size; ++i, ++counter)
-        conn[counter] = int_slist_pop(fe_conn_list);
+        conn[counter] = int_slist_pop(fe_conn_list, NULL);
       for (int e = 0; e < num_edges; ++e)
       {
         int node1_id = mesh->edges[e].node1 - &mesh->nodes[0];

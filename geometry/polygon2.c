@@ -324,8 +324,8 @@ void polygon2_clip(polygon2_t* poly, polygon2_t* other)
   for (int i = 0; i < xlist->size; ++i)
   {
     // FIXME: Verify!
-    poly->vertices[i].x = double_slist_pop(xlist);
-    poly->vertices[i].y = double_slist_pop(ylist);
+    poly->vertices[i].x = double_slist_pop(xlist, NULL);
+    poly->vertices[i].y = double_slist_pop(ylist, NULL);
   }
   polygon2_compute_area(poly);
 

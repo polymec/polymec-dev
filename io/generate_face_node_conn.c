@@ -260,7 +260,7 @@ void generate_face_node_conn(mesh_t* mesh,
   *face_nodes = malloc(sizeof(int)*all_face_nodes_list->size);
   int nf = all_face_nodes_list->size;
   for (int i = 0; i < nf; ++i)
-    (*face_nodes)[i] = int_slist_pop(all_face_nodes_list);
+    (*face_nodes)[i] = int_slist_pop(all_face_nodes_list, NULL);
 
   int_slist_free(all_face_nodes_list);
 }
