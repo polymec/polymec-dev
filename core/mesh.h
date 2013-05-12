@@ -203,5 +203,20 @@ void mesh_delete_tag(mesh_tags_t* tagger, const char* tag);
 // defined by the (vector-valued) tranformation function.
 void mesh_map(mesh_t* mesh, sp_func_t* mapping);
 
+// This prints a text representation of the given node to the given FILE.
+void node_fprintf(node_t* node, FILE* stream);
+
+// This prints a text representation of the given edge to the given FILE.
+// It needs to mesh to convey its topology.
+void edge_fprintf(edge_t* edge, mesh_t* mesh, FILE* stream);
+
+// This prints a text representation of the given face to the given FILE.
+// It needs to mesh to convey its topology.
+void face_fprintf(face_t* face, mesh_t* mesh, FILE* stream);
+
+// This prints a text representation of the given cell to the given FILE.
+// It needs to mesh to convey its topology.
+void cell_fprintf(cell_t* cell, mesh_t* mesh, FILE* stream);
+
 #endif
 

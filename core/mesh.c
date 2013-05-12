@@ -439,3 +439,58 @@ void face_get_nodes(face_t* face, node_t** nodes, int* num_nodes)
   *num_nodes = offset;
 }
 
+void node_fprintf(node_t* node, FILE* stream)
+{
+  fprintf(stream, "node(x = %g, y = %g, z = %g)", node->x, node->y, node->z);
+}
+
+void edge_fprintf(edge_t* edge, mesh_t* mesh, FILE* stream)
+{
+  fprintf(stream, "edge(node1 = %ld, node2 = %ld)", 
+          edge->node1 - &mesh->nodes[0], edge->node2 - &mesh->nodes[0]);
+}
+
+void face_fprintf(face_t* face, mesh_t* mesh, FILE* stream)
+{
+  char edges_str[1024], edge_str[128];
+  int offset = 0;
+  for (int e = 0; e < face->num_edges; ++e)
+  {
+    if (e == face->num_edges - 1)
+      snprintf(edge_str, 128, "%ld", face->edges[e] - &mesh->edges[0]);
+    else
+      snprintf(edge_str, 128, "%ld, ", face->edges[e] - &mesh->edges[0]);
+    int len = strlen(edge_str);
+    memcpy(edges_str + offset, edge_str, sizeof(char) * len);
+    offset += len;
+  }
+  char cells_str[1024];
+  if (face->cell2 == NULL)
+    snprintf(cells_str, 1024, "cell = %ld", face->cell1 - &mesh->cells[0]);
+  else
+  {
+    snprintf(cells_str, 1024, "cells = %ld, %ld", 
+             face->cell1 - &mesh->cells[0], face->cell2 - &mesh->cells[0]);
+  }
+  edges_str[offset] = '\0';
+  fprintf(stream, "face(edges = %s, %s)", edges_str, cells_str);
+}
+
+void cell_fprintf(cell_t* cell, mesh_t* mesh, FILE* stream)
+{
+  char faces_str[1024], face_str[128];
+  int offset = 0;
+  for (int f = 0; f < cell->num_faces; ++f)
+  {
+    if (f == cell->num_faces - 1)
+      snprintf(face_str, 128, "%ld", cell->faces[f] - &mesh->faces[0]);
+    else
+      snprintf(face_str, 128, "%ld, ", cell->faces[f] - &mesh->faces[0]);
+    int len = strlen(face_str);
+    memcpy(faces_str + offset, face_str, sizeof(char) * len);
+    offset += len;
+  }
+  faces_str[offset] = '\0';
+  fprintf(stream, "cell(faces = %s)", faces_str);
+}
+

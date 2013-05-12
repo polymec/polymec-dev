@@ -1,11 +1,18 @@
 #include "geometry/prune_voronoi_mesh.h"
 #include "core/unordered_map.h"
+#include "core/unordered_set.h"
 
 void prune_voronoi_mesh(mesh_t* mesh)
 {
   // Make sure this is an unbounded mesh.
   if (!mesh_has_tag(mesh->cell_tags, "outer_cells"))
     polymec_error("prune_voronoi_mesh: Attempting to prune a bounded mesh!");
+
+printf("face 102 is ");
+face_fprintf(&mesh->faces[102], mesh, stdout);
+printf("\nface 7355 is ");
+face_fprintf(&mesh->faces[7355], mesh, stdout);
+printf("\n");
 
   // Prepare our diff.
   mesh_diff_t* diff = mesh_diff_new();
@@ -17,7 +24,7 @@ void prune_voronoi_mesh(mesh_t* mesh)
   int num_outer_cells;
   int* outer_cells = mesh_tag(mesh->cell_tags, "outer_cells", &num_outer_cells);
   int_ptr_unordered_map_t* outer_cell_edges = mesh_property(mesh, "outer_cell_edges");
-  int num_pruned_faces = 0;
+  int_unordered_set_t* pruned_faces = int_unordered_set_new();
   for (int c = 0; c < num_outer_cells; ++c)
   {
     cell_t* outer_cell = &mesh->cells[outer_cells[c]];
@@ -33,9 +40,13 @@ void prune_voronoi_mesh(mesh_t* mesh)
       if (int_ptr_unordered_map_contains(outer_cell_edges, opp_cell_index))
       {
         int pruned_face_index = face - &mesh->faces[0];
-        mesh_delta_t* swap = swap_mesh_delta_new(MESH_FACE, pruned_face_index, mesh->num_faces-1-num_pruned_faces);
-        mesh_diff_append(diff, swap);
-        ++num_pruned_faces;
+        if (!int_unordered_set_contains(pruned_faces, pruned_face_index))
+        {
+printf("Pruning outer face %d\n", pruned_face_index);
+          mesh_delta_t* swap = swap_mesh_delta_new(MESH_FACE, pruned_face_index, mesh->num_faces-1-pruned_faces->size);
+          mesh_diff_append(diff, swap);
+          int_unordered_set_insert(pruned_faces, pruned_face_index);
+        }
       }
     }
   }
@@ -47,11 +58,12 @@ void prune_voronoi_mesh(mesh_t* mesh)
   }
 
   // Now, pop them off the back.
-  for (int f = 0; f < num_pruned_faces; ++f)
+  for (int f = 0; f < pruned_faces->size; ++f)
   {
     mesh_delta_t* pop = pop_mesh_delta_new(MESH_FACE);
     mesh_diff_append(diff, pop);
   }
+  int_unordered_set_free(pruned_faces);
 
   // Go over all of the outer edges and move them to the end of the mesh's
   // array of edges.
@@ -61,6 +73,7 @@ void prune_voronoi_mesh(mesh_t* mesh)
   {
     // Move the edge to the back of the mesh and pop it off the end.
     mesh_delta_t* swap = swap_mesh_delta_new(MESH_EDGE, outer_edges[i], mesh->num_edges-1-i);
+printf("swapping edge %d and %d\n", outer_edges[i], mesh->num_edges-1-i);
     mesh_diff_append(diff, swap);
   }
 
