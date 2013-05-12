@@ -55,15 +55,16 @@ options_t* options_parse(int argc, char** argv)
     o->command = strdup("help");
   else 
     o->command = strdup(argv[1]);
+  bool has_input = false;
   if ((argc >= 3) && (!strcmp(o->command, "run") || 
-                      !strcmp(o->command, "benchmark") || 
-                      !strcmp(o->command, "generate-mesh")))
+                      !strcmp(o->command, "benchmark")))
   {
+    has_input = true;
     o->input = strdup(argv[2]);
   }
 
   // Now parse parameters.
-  int i = 3;
+  int i = (has_input) ? 3 : 2;
   while (i < argc)
   {
     // Parse a key=value pair.

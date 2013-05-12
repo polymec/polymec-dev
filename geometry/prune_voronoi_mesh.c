@@ -40,6 +40,12 @@ void prune_voronoi_mesh(mesh_t* mesh)
     }
   }
 
+  // Reorder the faces for consistency.
+  {
+    mesh_delta_t* reorder = reorder_mesh_delta_new(MESH_FACE);
+    mesh_diff_append(diff, reorder);
+  }
+
   // Now, pop them off the back.
   for (int f = 0; f < num_pruned_faces; ++f)
   {
@@ -58,6 +64,12 @@ void prune_voronoi_mesh(mesh_t* mesh)
     mesh_diff_append(diff, swap);
   }
 
+  // Reorder the edges for consistency.
+  {
+    mesh_delta_t* reorder = reorder_mesh_delta_new(MESH_EDGE);
+    mesh_diff_append(diff, reorder);
+  }
+
   // Now pop them off the end.
   for (int i = 0; i < num_outer_edges; ++i)
   {
@@ -70,6 +82,11 @@ void prune_voronoi_mesh(mesh_t* mesh)
   {
     mesh_delta_t* swap = swap_mesh_delta_new(MESH_CELL, outer_cells[i], mesh->num_cells-1-i);
     mesh_diff_append(diff, swap);
+  }
+
+  {
+    mesh_delta_t* reorder = reorder_mesh_delta_new(MESH_CELL);
+    mesh_diff_append(diff, reorder);
   }
 
   for (int i = 0; i < num_outer_cells; ++i)

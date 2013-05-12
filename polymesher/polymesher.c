@@ -32,9 +32,6 @@ int main(int argc, char** argv)
   // Start everything up.
   polymec_init(argc, argv);
 
-  // Set the log level.
-  set_log_level(LOG_INFO);
-
   // Parse options on the command line.
   options_t* opts = options_parse(argc, argv);
   if (opts == NULL)
@@ -54,6 +51,23 @@ int main(int argc, char** argv)
     return -1;
   }
   fclose(fp);
+
+  // Set the log level.
+  set_log_level(LOG_INFO);
+  char* logging = options_value(opts, "logging");
+  if (logging != NULL)
+  {
+    if (!strcasecmp(logging, "debug"))
+      set_log_level(LOG_DEBUG);
+    else if (!strcasecmp(logging, "detail"))
+      set_log_level(LOG_DETAIL);
+    else if (!strcasecmp(logging, "info"))
+      set_log_level(LOG_INFO);
+    else if (!strcasecmp(logging, "urgent"))
+      set_log_level(LOG_URGENT);
+    else if (!strcasecmp(logging, "off"))
+      set_log_level(LOG_NONE);
+  }
 
   // Set up an interpreter for parsing the input file.
   interpreter_t* interp = interpreter_new(NULL);

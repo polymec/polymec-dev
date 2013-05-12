@@ -1,9 +1,11 @@
 #include <gc/gc.h>
 #include "core/mesh_delta.h"
+#include "core/mesh_diff.h"
 #include "core/edit_mesh.h"
+#include "core/slist.h"
 
 // Function prototypes for the base class.
-typedef void (*mesh_delta_apply_func)(void*, mesh_t*);
+typedef void (*mesh_delta_apply_func)(void*, mesh_t*, mesh_diff_t*);
 typedef mesh_delta_t* (*mesh_delta_inverse_func)(void*);
 typedef void (*mesh_delta_dtor)(void*);
 
@@ -20,6 +22,7 @@ struct mesh_delta_t
   char* name;
   void* context;
   mesh_delta_vtable vtable;
+  mesh_diff_t* diff; // Parent diff
 };
 
 static void mesh_delta_free(void* ctx, void* dummy)
@@ -40,18 +43,31 @@ static mesh_delta_t* mesh_delta_new(const char* name,
   delta->name = strdup(name);
   delta->context = context;
   delta->vtable = vtable;
+  delta->diff = NULL;
   GC_register_finalizer(delta, mesh_delta_free, delta, NULL, NULL);
   return delta;
 }
 
 void mesh_delta_apply(mesh_delta_t* delta, mesh_t* mesh)
 {
-  delta->vtable.apply(delta->context, mesh);
+  delta->vtable.apply(delta->context, mesh, delta->diff);
 }
 
 mesh_delta_t* mesh_delta_inverse(mesh_delta_t* delta)
 {
-  return delta->vtable.inverse(delta->context);
+  if (delta->vtable.inverse != NULL)
+    return delta->vtable.inverse(delta->context);
+  else
+  {
+    polymec_error("Mesh delta '%s' is not reversible.", delta->name);
+    return NULL;
+  }
+}
+
+void mesh_delta_set_diff(mesh_delta_t* delta, mesh_diff_t* diff)
+{
+  ASSERT(diff != NULL);
+  delta->diff = diff;
 }
 
 void mesh_delta_fprintf(mesh_delta_t* delta, FILE* file)
@@ -63,14 +79,14 @@ void mesh_delta_fprintf(mesh_delta_t* delta, FILE* file)
 typedef struct 
 {
   mesh_centering_t type;
-  void (*swap)(mesh_t* mesh, int, int);
+  void (*swap)(mesh_t* mesh, mesh_diff_t* diff, int, int);
   int index1, index2;
 } swap_delta_t;
 
-static void swap_apply(void* context, mesh_t* mesh)
+static void swap_apply(void* context, mesh_t* mesh, mesh_diff_t* diff)
 {
   swap_delta_t* swap = context;
-  swap->swap(mesh, swap->index1, swap->index2);
+  swap->swap(mesh, diff, swap->index1, swap->index2);
 }
 
 static mesh_delta_t* swap_inverse(void* context)
@@ -79,40 +95,44 @@ static mesh_delta_t* swap_inverse(void* context)
   return swap_mesh_delta_new(swap->type, swap->index1, swap->index2);
 }
 
-static void swap_node(mesh_t* mesh, int index1, int index2)
+static void swap_node(mesh_t* mesh, mesh_diff_t* diff, int index1, int index2)
 {
   ASSERT(index1 < mesh->num_nodes);
   ASSERT(index2 < mesh->num_nodes);
   node_t tmp = mesh->nodes[index2];
   mesh->nodes[index2] = mesh->nodes[index1];
   mesh->nodes[index1] = tmp;
+  mesh_diff_swap_elements(diff, MESH_NODE, index1, index2);
 }
 
-static void swap_edge(mesh_t* mesh, int index1, int index2)
+static void swap_edge(mesh_t* mesh, mesh_diff_t* diff, int index1, int index2)
 {
   ASSERT(index1 < mesh->num_edges);
   ASSERT(index2 < mesh->num_edges);
   edge_t tmp = mesh->edges[index2];
   mesh->edges[index2] = mesh->edges[index1];
   mesh->edges[index1] = tmp;
+  mesh_diff_swap_elements(diff, MESH_EDGE, index1, index2);
 }
 
-static void swap_face(mesh_t* mesh, int index1, int index2)
+static void swap_face(mesh_t* mesh, mesh_diff_t* diff, int index1, int index2)
 {
   ASSERT(index1 < mesh->num_faces);
   ASSERT(index2 < mesh->num_faces);
   face_t tmp = mesh->faces[index2];
   mesh->faces[index2] = mesh->faces[index1];
   mesh->faces[index1] = tmp;
+  mesh_diff_swap_elements(diff, MESH_FACE, index1, index2);
 }
 
-static void swap_cell(mesh_t* mesh, int index1, int index2)
+static void swap_cell(mesh_t* mesh, mesh_diff_t* diff, int index1, int index2)
 {
   ASSERT(index1 < mesh->num_cells);
   ASSERT(index2 < mesh->num_cells);
   cell_t tmp = mesh->cells[index2];
   mesh->cells[index2] = mesh->cells[index1];
   mesh->cells[index1] = tmp;
+  mesh_diff_swap_elements(diff, MESH_CELL, index1, index2);
 }
 
 mesh_delta_t* swap_mesh_delta_new(mesh_centering_t type, int index1, int index2)
@@ -155,7 +175,7 @@ typedef struct
   point_t coord;
 } append_delta_t;
 
-static void append_apply(void* context, mesh_t* mesh)
+static void append_apply(void* context, mesh_t* mesh, mesh_diff_t* diff)
 {
   append_delta_t* append = context;
   append->append(mesh, &append->coord);
@@ -239,7 +259,7 @@ typedef struct
   void (*pop)(mesh_t* mesh);
 } pop_delta_t;
 
-static void pop_apply(void* context, mesh_t* mesh)
+static void pop_apply(void* context, mesh_t* mesh, mesh_diff_t* diff)
 {
   pop_delta_t* pop = context;
   pop->pop(mesh);
@@ -307,7 +327,7 @@ typedef struct
   int index, parent_index;
 } attach_delta_t;
 
-static void attach_apply(void* context, mesh_t* mesh)
+static void attach_apply(void* context, mesh_t* mesh, mesh_diff_t* diff)
 {
   attach_delta_t* attach = context;
   attach->attach(mesh, attach->index, attach->parent_index);
@@ -385,7 +405,7 @@ typedef struct
   int index, parent_index;
 } detach_delta_t;
 
-static void detach_apply(void* context, mesh_t* mesh)
+static void detach_apply(void* context, mesh_t* mesh, mesh_diff_t* diff)
 {
   detach_delta_t* detach = context;
   detach->detach(mesh, detach->index, detach->parent_index);
@@ -453,5 +473,43 @@ mesh_delta_t* detach_mesh_delta_new(mesh_centering_t type, int index, int parent
   detach->parent_index = parent_index;
   mesh_delta_vtable vtable = {.apply = detach_apply, .inverse = detach_inverse};
   return mesh_delta_new(name, detach, vtable);
+}
+
+// ---------------------------- Reorder delta ------------------------------
+typedef struct 
+{
+  mesh_centering_t type;
+} reorder_delta_t;
+
+static void reorder_apply(void* context, mesh_t* mesh, mesh_diff_t* diff)
+{
+  reorder_delta_t* reorder = context;
+  mesh_diff_reorder_elements(diff, mesh, reorder->type);
+}
+
+mesh_delta_t* reorder_mesh_delta_new(mesh_centering_t type)
+{
+  reorder_delta_t* reorder = malloc(sizeof(reorder_delta_t));
+  reorder->type = type;
+  char name[128];
+  switch (type)
+  {
+    case MESH_NODE:
+      sprintf(name, "Reorder mesh nodes");
+      break;
+    case MESH_EDGE:
+      sprintf(name, "Reorder mesh edges");
+      break;
+    case MESH_FACE:
+      sprintf(name, "Reorder mesh faces");
+      break;
+    case MESH_CELL:
+      sprintf(name, "Reorder mesh cells");
+      break;
+    default:
+      break;
+  }
+  mesh_delta_vtable vtable = {.apply = reorder_apply, .inverse = NULL};
+  return mesh_delta_new(name, reorder, vtable);
 }
 

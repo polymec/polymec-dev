@@ -661,31 +661,7 @@ static void interpreter_store_chunk_contents(interpreter_t* interp, lua_State* l
     }
     else if (lua_isboundingbox(lua, val_index))
     {
-      // Traverse the table and create a C data structure.
-      bbox_t* bbox = bbox_new(0.0, 1.0, 0.0, 1.0, 0.0, 1.0);
-      lua_pushnil(lua);
-      while (lua_next(lua, -2))
-      {
-        // Key is at index -2, value is at -1.
-        static const int key_index = -2;
-        static const int val_index = -1;
-        char* tkey = (char*)lua_tostring(lua, key_index);
-        if (!strcmp(tkey, "x1"))
-          bbox->x1 = lua_tonumber(lua, val_index);
-        else if (!strcmp(tkey, "x2"))
-          bbox->x2 = lua_tonumber(lua, val_index);
-        else if (!strcmp(tkey, "y1"))
-          bbox->y1 = lua_tonumber(lua, val_index);
-        else if (!strcmp(tkey, "y2"))
-          bbox->y2 = lua_tonumber(lua, val_index);
-        else if (!strcmp(tkey, "z1"))
-          bbox->z1 = lua_tonumber(lua, val_index);
-        else if (!strcmp(tkey, "z2"))
-          bbox->z2 = lua_tonumber(lua, val_index);
-
-        // Removes value from stack.
-        lua_pop(lua, 1);
-      }
+      bbox_t* bbox = lua_toboundingbox(lua, val_index);
       var = store_boundingbox(bbox);
     }
     else if (lua_ispointlist(lua, val_index))

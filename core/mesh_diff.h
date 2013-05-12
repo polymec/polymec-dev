@@ -2,6 +2,7 @@
 #define POLYMEC_MESH_DIFF_H
 
 #include "core/mesh_delta.h"
+#include "core/slist.h"
 
 // A mesh_diff is a sequence of mesh_delta objects that form an atomic 
 // transaction implementing a mesh update.
@@ -29,6 +30,11 @@ mesh_diff_t* mesh_diff_inverse(mesh_diff_t* diff);
 
 // Writes a text representation of the mesh_diff to the given file.
 void mesh_diff_fprintf(mesh_diff_t* diff, FILE* file);
+
+// The following methods and accessors are not part of the public interface. 
+// Please refrain from calling them directly.
+void mesh_diff_swap_elements(mesh_diff_t* diff, mesh_centering_t type, int e1, int e2);
+void mesh_diff_reorder_elements(mesh_diff_t* diff, mesh_t* mesh, mesh_centering_t type);
 
 #endif
 

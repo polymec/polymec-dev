@@ -122,7 +122,7 @@ void test_vector_parsing(void** state)
 
 void test_boundingbox_parsing(void** state)
 {
-  static const char* test_string = "b = {x1 = 0.0, x2 = 1.0, y1 = 0.0, y2 = 1.0, z1 = 0.0, z2 = 1.0}";
+  static const char* test_string = "b = bounding_box{x1 = 0.0, x2 = 1.0, y1 = 0.0, y2 = 1.0, z1 = 0.0, z2 = 1.0}";
   interpreter_validation_t valid_inputs[] = {{"b", INTERPRETER_BOUNDING_BOX},
                                              END_OF_VALID_INPUTS};
   interpreter_t* interp = interpreter_new(valid_inputs);
