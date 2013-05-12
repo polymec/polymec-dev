@@ -148,20 +148,42 @@ void mesh_diff_swap_elements(mesh_diff_t* diff, mesh_centering_t type, int e1, i
 
 static void update_index_mapping(int_slist_t* swaps, int_int_unordered_map_t* mapping)
 {
-  ASSERT((swaps->size % 2) == 0); // Swap elements must be pairs!
+  if (int_slist_empty(swaps)) return;
+
+  // Swap elements must be pairs!
+  ASSERT((swaps->size % 2) == 0); 
+
+  // Generate the inverse mapping.
+  int_int_unordered_map_t* inv_map = int_int_unordered_map_new();
+  {
+    int pos = 0, i = 0, j = 0;
+    while (int_int_unordered_map_next(mapping, &pos, &i, &j))
+      int_int_unordered_map_insert(inv_map, j, i);
+  }
+
   while (!int_slist_empty(swaps))
   {
+    // Get the elements to be swapped.
     int e1 = int_slist_pop(swaps, NULL);
     int e2 = int_slist_pop(swaps, NULL);
-    int *mapped_e1 = int_int_unordered_map_get(mapping, e1);
-    if (mapped_e1 != NULL)
-      e1 = *mapped_e1;
-    int *mapped_e2 = int_int_unordered_map_get(mapping, e2);
-    if (mapped_e2 != NULL)
-      e2 = *mapped_e2;
+
+    // Update e1's mapping.
+    int* to_e1 = int_int_unordered_map_get(inv_map, e1);
+    if (to_e1 != NULL)
+      e1 = *to_e1;
     int_int_unordered_map_insert(mapping, e1, e2);
+
+    // Repeat the process for e2.
+    int* to_e2 = int_int_unordered_map_get(inv_map, e2);
+    if (to_e2 != NULL)
+      e2 = *to_e2;
     int_int_unordered_map_insert(mapping, e2, e1);
+
+    // Update the inverse mapping.
+    int_int_unordered_map_insert(inv_map, e1, e2);
+    int_int_unordered_map_insert(inv_map, e2, e1);
   }
+  int_int_unordered_map_free(inv_map);
 }
 
 static void reorder_nodes(mesh_diff_t* diff, mesh_t* mesh)
@@ -200,10 +222,7 @@ static void reorder_edges(mesh_diff_t* diff, mesh_t* mesh)
       int e_index = face->edges[e] - &mesh->edges[0];
       int* mapped_e = int_int_unordered_map_get(diff->edge_map, e_index);
       if (mapped_e != NULL)
-{
-printf("face %d: mapping edge %d -> %d\n", f, e_index, *mapped_e);
         face->edges[e] = &mesh->edges[*mapped_e];
-}
     }
   }
 }
@@ -224,10 +243,10 @@ static void reorder_faces(mesh_diff_t* diff, mesh_t* mesh)
       int f_index = cell->faces[f] - &mesh->faces[0];
       int* mapped_f = int_int_unordered_map_get(diff->face_map, f_index);
       if (mapped_f != NULL)
-{
-printf("cell %d: mapping face %d -> %d\n", c, f_index, *mapped_f);
+//{
+//printf("cell %d: mapping face %d -> %d\n", c, f_index, *mapped_f);
         cell->faces[f] = &mesh->faces[*mapped_f];
-}
+//}
     }
   }
 }
