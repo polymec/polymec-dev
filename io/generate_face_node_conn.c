@@ -84,6 +84,8 @@ void generate_face_node_conn(mesh_t* mesh,
     int rays = 0, ne = mesh->faces[f].num_edges;
     for (int e = 0; e < ne; ++e)
     {
+      edge_t* edge = mesh->faces[f].edges[e];
+      ASSERT((edge - &mesh->edges[0]) < mesh->num_edges); // Valid edge?
       if (mesh->faces[f].edges[e]->node2 == NULL)
         ++rays;
     }
