@@ -12,23 +12,27 @@
 // DEFINE_SLIST(list_name, element)
 //
 // Interface for a type x_slist_t (with datum x) defined with 
-// DEFINE_SLIST(x_slist, x, dtor):
+// DEFINE_SLIST(x_slist, x):
 //
 // x_slist_t* x_slist_new() - Creates a new, empty slist.
 // void x_slist_free(slist_t* list) - Destroys the list.
 // x_slist_node_t* x_slist_find(x_slist_t* list, x value, x_slist_cmp comparator) - Returns the node at which a value appears in the list.
 // void x_slist_insert(x_slist_t* list, x value, x_slist_node_t* node) - Inserts an x into the list.
+// void x_slist_insert_with_dtor(x_slist_t* list, x value, x_slist_node_t* node) - Inserts an x into the list, using dtor to destroy it when finished.
 // void x_slist_append(x_slist_t* list, x value) - Appends an x to the end of the list.
-// x x_slist_pop(x_slist_t* list) - Removes an x from the front of the list, returning it.
+// void x_slist_append_with_dtor(x_slist_t* list, x value) - Appends an x to the end of the list, using dtor to destroy when finished.
+// x x_slist_pop(x_slist_t* list, x_slist_dtor* dtor) - Removes an x from the front of the list, returning it and its destructor (if dtor != NULL).
 // void x_slist_remove(x_slist_t* list, x_slist_node_t* node) - Removes a node from the list.
 // bool x_slist_empty(x_slist_t* list) - Returns true if empty, false otherwise.
 // void x_slist_clear(x_slist_t* list) - Clears the given list, making it empty.
 
 #define DEFINE_SLIST(list_name, element) \
 typedef struct list_name##_node_t list_name##_node_t; \
+typedef void (*list_name##_dtor)(element); \
 struct list_name##_node_t \
 { \
   element value; \
+  list_name##_dtor dtor; \
   list_name##_node_t* next; \
 }; \
 \
@@ -38,7 +42,6 @@ struct list_name##_t \
   list_name##_node_t* front; \
   list_name##_node_t* back; \
   int size; \
-  bool owns_data; \
   ARENA* arena; \
 }; \
 \
@@ -49,7 +52,6 @@ static inline list_name##_t* list_name##_new() \
   list_name##_t* list = malloc(sizeof(list_name##_t)); \
   list->front = list->back = NULL; \
   list->size = 0; \
-  list->owns_data = true; \
   list->arena = NULL; \
   return list; \
 } \
@@ -61,6 +63,8 @@ static inline void list_name##_free(list_name##_t* list) \
   { \
     n = list->front; \
     list->front = n->next; \
+    if (n->dtor != NULL) \
+      (n->dtor)(n->value); \
     free(n); \
   } \
   free(list); \
@@ -73,7 +77,7 @@ static inline list_name##_node_t* list_name##_find(list_name##_t* list, element 
     n = n->next; \
   return n; \
 } \
-static inline void list_name##_insert(list_name##_t* list, element value, list_name##_node_t* node) \
+static inline void list_name##_insert_with_dtor(list_name##_t* list, element value, list_name##_dtor dtor, list_name##_node_t* node) \
 { \
   ASSERT(node != NULL); \
   list_name##_node_t* n = malloc(sizeof(list_name##_node_t)); \
@@ -107,10 +111,15 @@ static inline void list_name##_insert(list_name##_t* list, element value, list_n
   } \
 } \
 \
-static inline void list_name##_append(list_name##_t* list, element value) \
+static inline void list_name##_insert(list_name##_t* list, element value, list_name##_node_t* node) \
+{ \
+  list_name##_insert_with_dtor(list, value, NULL, node); \
+} \
+static inline void list_name##_append_with_dtor(list_name##_t* list, element value, list_name##_dtor dtor) \
 { \
   list_name##_node_t* n = malloc(sizeof(list_name##_node_t)); \
   n->value = value; \
+  n->dtor = dtor; \
   n->next = NULL; \
   if (list->back == NULL) \
   { \
@@ -125,8 +134,12 @@ static inline void list_name##_append(list_name##_t* list, element value) \
   } \
   list->size += 1; \
 } \
+static inline void list_name##_append(list_name##_t* list, element value) \
+{ \
+  list_name##_append_with_dtor(list, value, NULL); \
+} \
 \
-static inline element list_name##_pop(list_name##_t* list) \
+static inline element list_name##_pop(list_name##_t* list, list_name##_dtor* dtor) \
 { \
   ASSERT(list->size > 0); \
   list_name##_node_t* node = list->front; \
@@ -135,6 +148,8 @@ static inline element list_name##_pop(list_name##_t* list) \
     list->back = NULL; \
   list->size -= 1; \
   element val = node->value; \
+  if (dtor != NULL) \
+    *dtor = node->dtor; \
   free(node); \
   return val; \
 } \
@@ -142,13 +157,20 @@ static inline element list_name##_pop(list_name##_t* list) \
 static inline void list_name##_remove(list_name##_t* list, list_name##_node_t* node) \
 { \
   if (list->front == node) \
-    list_name##_pop(list); \
+  { \
+    list_name##_dtor dtor; \
+    element e = list_name##_pop(list, &dtor); \
+    if (dtor != NULL) \
+      dtor(e); \
+  } \
   list_name##_node_t* p = list->front; \
   while ((p->next != node) && (p != NULL)) \
     p = p->next; \
   if (p != NULL) \
   { \
     p->next = node->next; \
+    if (node->dtor != NULL) \
+      (node->dtor)(node->value); \
     free(node); \
     list->size -= 1; \
   } \
@@ -162,7 +184,7 @@ static inline bool list_name##_empty(list_name##_t* list) \
 static inline void list_name##_clear(list_name##_t* list) \
 { \
   while (list->front != NULL) \
-    list_name##_pop(list); \
+    list_name##_remove(list, list->front); \
 } \
 
 // Define some basic slist types.
