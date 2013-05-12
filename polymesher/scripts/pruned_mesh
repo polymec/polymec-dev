@@ -1,0 +1,16 @@
+-- This script generates a pruned mesh using 1000 randomly-selected 
+-- generators.
+
+-- Generate 1000 random points within a unit cube.
+N = 1000
+bbox = bounding_box{x1 = -0.5, x2 = 0.5,
+                    y1 = -0.5, y2 = 0.5,
+                    z1 = -0.5, z2 = 0.5}
+points = random_points(N, bbox)
+
+-- Create a mesh and prune the semi-infinite cells.
+mesh = unbounded_voronoi_mesh(points)
+prune_voronoi_mesh(mesh)
+
+-- Plot the mesh.
+write_vtk_plot(mesh, 'pruned_mesh')
