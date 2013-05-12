@@ -184,7 +184,7 @@ static inline bool list_name##_empty(list_name##_t* list) \
 static inline void list_name##_clear(list_name##_t* list) \
 { \
   while (list->front != NULL) \
-    list_name##_remove(list, list->front); \
+    list_name##_pop(list, NULL); \
 } \
 
 // Define some basic slist types.

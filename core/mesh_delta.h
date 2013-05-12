@@ -7,6 +7,9 @@
 // type are garbage-collected.
 typedef struct mesh_delta_t mesh_delta_t;
 
+// Forward declaration of mesh diff.
+struct mesh_diff_t;
+
 // Applies the given delta to the given mesh.
 void mesh_delta_apply(mesh_delta_t* delta, mesh_t* mesh);
 
@@ -37,6 +40,15 @@ mesh_delta_t* attach_mesh_delta_new(mesh_centering_t type, int index, int parent
 // Constructs a mesh_delta that detachs an element of the given type from 
 // a given parent in the mesh.
 mesh_delta_t* detach_mesh_delta_new(mesh_centering_t type, int index, int parent_index);
+
+// Constructs a mesh_delta that triggers a global reordering of elements of 
+// the given type. These can be used after several elements have been swapped
+// so that the indices of parent elements are correct for later stages in 
+// transformations.
+mesh_delta_t* reorder_mesh_delta_new(mesh_centering_t type);
+
+// Sets the mesh diff with which this delta is associated.
+void mesh_delta_set_diff(mesh_delta_t* delta, struct mesh_diff_t* diff);
 
 // Writes a text representation of the mesh_delta to the given file.
 void mesh_delta_fprintf(mesh_delta_t* delta, FILE* file);
