@@ -204,7 +204,8 @@ void mesh_delete_tag(mesh_tags_t* tagger, const char* tag);
 void mesh_map(mesh_t* mesh, sp_func_t* mapping);
 
 // This prints a text representation of the given node to the given FILE.
-void node_fprintf(node_t* node, FILE* stream);
+// It needs to mesh to convey its topology.
+void node_fprintf(node_t* node, mesh_t* mesh, FILE* stream);
 
 // This prints a text representation of the given edge to the given FILE.
 // It needs to mesh to convey its topology.

@@ -439,15 +439,15 @@ void face_get_nodes(face_t* face, node_t** nodes, int* num_nodes)
   *num_nodes = offset;
 }
 
-void node_fprintf(node_t* node, FILE* stream)
+void node_fprintf(node_t* node, mesh_t* mesh, FILE* stream)
 {
-  fprintf(stream, "node(x = %g, y = %g, z = %g)", node->x, node->y, node->z);
+  fprintf(stream, "node %ld (x = %g, y = %g, z = %g)", node - &mesh->nodes[0], node->x, node->y, node->z);
 }
 
 void edge_fprintf(edge_t* edge, mesh_t* mesh, FILE* stream)
 {
-  fprintf(stream, "edge(node1 = %ld, node2 = %ld)", 
-          edge->node1 - &mesh->nodes[0], edge->node2 - &mesh->nodes[0]);
+  fprintf(stream, "edge %ld (node1 = %ld, node2 = %ld)", 
+          edge - &mesh->edges[0], edge->node1 - &mesh->nodes[0], edge->node2 - &mesh->nodes[0]);
 }
 
 void face_fprintf(face_t* face, mesh_t* mesh, FILE* stream)
@@ -456,10 +456,7 @@ void face_fprintf(face_t* face, mesh_t* mesh, FILE* stream)
   int offset = 0;
   for (int e = 0; e < face->num_edges; ++e)
   {
-    if (e == face->num_edges - 1)
-      snprintf(edge_str, 128, "%ld", face->edges[e] - &mesh->edges[0]);
-    else
-      snprintf(edge_str, 128, "%ld, ", face->edges[e] - &mesh->edges[0]);
+    snprintf(edge_str, 128, "%ld, ", face->edges[e] - &mesh->edges[0]);
     int len = strlen(edge_str);
     memcpy(edges_str + offset, edge_str, sizeof(char) * len);
     offset += len;
@@ -473,7 +470,8 @@ void face_fprintf(face_t* face, mesh_t* mesh, FILE* stream)
              face->cell1 - &mesh->cells[0], face->cell2 - &mesh->cells[0]);
   }
   edges_str[offset] = '\0';
-  fprintf(stream, "face(edges = %s, %s)", edges_str, cells_str);
+  fprintf(stream, "face %ld (edges = %s%s)", face - &mesh->faces[0], 
+          edges_str, cells_str);
 }
 
 void cell_fprintf(cell_t* cell, mesh_t* mesh, FILE* stream)
@@ -491,6 +489,6 @@ void cell_fprintf(cell_t* cell, mesh_t* mesh, FILE* stream)
     offset += len;
   }
   faces_str[offset] = '\0';
-  fprintf(stream, "cell(faces = %s)", faces_str);
+  fprintf(stream, "cell %ld (faces = %s)", cell - &mesh->cells[0], faces_str);
 }
 
