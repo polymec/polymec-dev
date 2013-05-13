@@ -1,6 +1,7 @@
 #include "geometry/prune_voronoi_mesh.h"
 #include "core/unordered_map.h"
 #include "core/unordered_set.h"
+#include <stdio.h>
 
 void prune_voronoi_mesh(mesh_t* mesh)
 {
@@ -17,32 +18,25 @@ void prune_voronoi_mesh(mesh_t* mesh)
   // Construct a set of outer edges for easy lookup.
   int num_outer_edges;
   int* outer_edges = mesh_tag(mesh->edge_tags, "outer_edges", &num_outer_edges);
-  int_unordered_set_t* outer_edges_set = int_unordered_set_new();
-  for (int i = 0; i < num_outer_edges; ++i)
-    int_unordered_set_insert(outer_edges_set, outer_edges[i]);
 
   // Go over all of the outer edges and move them to the end of the mesh's
   // array of edges.
+  int last_edge = mesh->num_edges - 1;
   {
-    int offset = 0;
-    for (int i = 0; i < num_outer_edges; ++i)
+    for (int e = 0; e < num_outer_edges; ++e)
     {
-      // Move the edge to the back of the mesh and pop it off the end.
-      int last_edge = mesh->num_edges - 1 - offset;
-      while (int_unordered_set_contains(outer_edges_set, last_edge))
+      if (outer_edges[e] >= last_edge) 
       {
-        ++offset;
-        last_edge = mesh->num_edges - 1 - offset;
+        --last_edge;
+        continue;
       }
-      ASSERT(last_edge+1 >= mesh->num_edges - num_outer_edges);
-      if (outer_edges[i] >= last_edge) continue;
-printf("swapping edge %d and %d\n", outer_edges[i], last_edge);
-      mesh_delta_t* swap = swap_mesh_delta_new(MESH_EDGE, outer_edges[i], last_edge);
+printf("swapping edges %d and %d\n", outer_edges[e], last_edge);
+      mesh_delta_t* swap = swap_mesh_delta_new(MESH_EDGE, outer_edges[e], last_edge);
       mesh_diff_append(diff, swap);
-      ++offset;
+      --last_edge;
     }
   }
-  int_unordered_set_free(outer_edges_set);
+  ASSERT(last_edge == (mesh->num_edges - num_outer_edges - 1));
 
   // Reorder the edges for consistency.
   {
@@ -50,17 +44,10 @@ printf("swapping edge %d and %d\n", outer_edges[i], last_edge);
     mesh_diff_append(diff, reorder);
   }
 
-  // Now pop them off the end.
-  for (int i = 0; i < num_outer_edges; ++i)
-  {
-    mesh_delta_t* pop = pop_mesh_delta_new(MESH_EDGE);
-    mesh_diff_append(diff, pop);
-  }
-
   // Go over all faces attached to outer cells and remove those which connect
   // to other outer faces.
 
-  // First, move the faces to be pruned to the end of the mesh's face array.
+  // First, make a list of the faces to be pruned.
   int num_outer_cells;
   int* outer_cells = mesh_tag(mesh->cell_tags, "outer_cells", &num_outer_cells);
   int_ptr_unordered_map_t* outer_cell_edges = mesh_property(mesh, "outer_cell_edges");
@@ -92,31 +79,36 @@ printf("swapping edge %d and %d\n", outer_edges[i], last_edge);
           mesh_diff_append(diff, detach2);
         }
       }
+      // Otherwise, the opposite cell of this face is an interior cell, 
+      // and we must detach this face from the outer cell.
+      else
+      {
+        int boundary_face_index = face - &mesh->faces[0];
+        mesh_delta_t* detach = detach_mesh_delta_new(MESH_FACE, boundary_face_index, outer_cells[c]);
+        mesh_diff_append(diff, detach);
+      }
     }
   }
 
-  // Prune the marked faces by moving them to the back of the mesh's
-  // face array.
+  // Prepare to prune the marked faces by moving them to the 
+  // back of the mesh's face array.
+  int last_face = mesh->num_faces - 1;
   {
-    int pos = 0, face = 0, offset = 0;
+    int pos = 0, face = 0;
     while (int_unordered_set_next(pruned_faces, &pos, &face))
     {
-      int last_face = mesh->num_faces - 1 - offset;
-      while (int_unordered_set_contains(pruned_faces, last_face))
+      if (face >= last_face) 
       {
-        ++offset;
-        last_face = mesh->num_faces - 1 - offset;
-printf("***\n");
+        --last_face;
+        continue;
       }
-printf("%d: %d vs %d - %d = %d\n", offset, last_face+1, mesh->num_faces, pruned_faces->size, mesh->num_faces - pruned_faces->size);
-      if (face >= last_face) continue;
-      ASSERT(last_face+1 >= mesh->num_faces - pruned_faces->size);
-printf("pruning face %d (-> %d)\n", face, last_face);
       mesh_delta_t* swap = swap_mesh_delta_new(MESH_FACE, face, last_face);
       mesh_diff_append(diff, swap);
-      ++offset;
+      --last_face;
     }
   }
+  ASSERT(last_face == (mesh->num_faces - pruned_faces->size - 1));
+  int_unordered_set_free(pruned_faces);
 
   // Reorder the face indices for consistency.
   {
@@ -124,37 +116,49 @@ printf("pruning face %d (-> %d)\n", face, last_face);
     mesh_diff_append(diff, reorder);
   }
 
-  // Now, pop them off the back.
-  for (int f = 0; f < pruned_faces->size; ++f)
+  // Now we treat the outer cells. Move the outer cells to the back of 
+  // the mesh's cell array.
+  int last_cell = mesh->num_cells - 1;
   {
-    mesh_delta_t* pop = pop_mesh_delta_new(MESH_FACE);
-    mesh_diff_append(diff, pop);
-  }
-  int_unordered_set_free(pruned_faces);
-
-  // Do the same for the outer cells.
-  {
-    int offset = 0;
-    for (int i = 0; i < num_outer_cells; ++i)
+    for (int c = 0; c < num_outer_cells; ++c)
     {
-      int last_cell = mesh->num_cells - 1 - offset;
-      ++offset;
-      if (outer_cells[i] >= last_cell) continue;
-      mesh_delta_t* swap = swap_mesh_delta_new(MESH_CELL, outer_cells[i], last_cell);
+      if (outer_cells[c] >= last_cell) 
+      {
+        --last_cell;
+        continue;
+      }
+      mesh_delta_t* swap = swap_mesh_delta_new(MESH_CELL, outer_cells[c], last_cell);
       mesh_diff_append(diff, swap);
+      --last_cell;
     }
   }
+  ASSERT(last_cell == (mesh->num_cells - num_outer_cells - 1));
 
+  // Reorder the cells.
   {
     mesh_delta_t* reorder = reorder_mesh_delta_new(MESH_CELL);
     mesh_diff_append(diff, reorder);
   }
 
-  for (int i = 0; i < num_outer_cells; ++i)
+  // Now pop all the elements off the end.
+  for (int e = 0; e < num_outer_edges; ++e)
+  {
+    mesh_delta_t* pop = pop_mesh_delta_new(MESH_EDGE);
+    mesh_diff_append(diff, pop);
+  }
+  for (int f = last_face; f < mesh->num_faces; ++f)
+  {
+    mesh_delta_t* pop = pop_mesh_delta_new(MESH_FACE);
+    mesh_diff_append(diff, pop);
+  }
+  for (int c = 0; c < num_outer_cells; ++c)
   {
     mesh_delta_t* pop = pop_mesh_delta_new(MESH_CELL);
     mesh_diff_append(diff, pop);
   }
+
+printf("mesh cells: %d\n", mesh->num_cells - num_outer_cells);
+printf("mesh faces: %d\n", last_face+1);
 
   // Apply the diff to the mesh and dispose of it.
   mesh_diff_apply(diff, mesh);

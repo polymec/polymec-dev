@@ -88,6 +88,8 @@ void generate_face_node_conn(mesh_t* mesh,
       int edge_index = edge - &mesh->edges[0];
       if (edge_index >= mesh->num_edges)
       {
+face_fprintf(&mesh->faces[f], mesh, stdout);
+printf("\n");
         polymec_error("generate_face_node_conn: invalid edge %d for face %d\n"
                       "(num edges: %d, num faces: %d)", edge_index, f, 
                       mesh->num_edges, num_faces);
