@@ -224,7 +224,9 @@ static void reorder_edges(mesh_diff_t* diff, mesh_t* mesh)
       if (mapped_e != NULL)
 {
         face->edges[e] = &mesh->edges[*mapped_e];
-printf("face %d: mapping edge %d to %d\n", f, e_index, *mapped_e);
+printf("face %d: mapping edge %d -> %d\n", f, e_index, *mapped_e);
+face_fprintf(face, mesh, stdout);
+printf("\n");
 }
     }
   }

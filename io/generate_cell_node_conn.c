@@ -15,6 +15,7 @@ void generate_cell_node_conn(mesh_t* mesh,
     for (int f = 0; f < mesh->cells[c].num_faces; ++f)
     {
       int face_id = mesh->cells[c].faces[f] - &mesh->faces[0];
+      ASSERT(face_id < mesh->num_faces);
       int offset = face_node_offsets[face_id];
       int nn = face_node_offsets[face_id+1] - offset;
       for (int n = 0; n < nn; ++n)
