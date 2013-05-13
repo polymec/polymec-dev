@@ -88,16 +88,20 @@ void generate_face_node_conn(mesh_t* mesh,
       int edge_index = edge - &mesh->edges[0];
       if (edge_index >= mesh->num_edges)
       {
-face_fprintf(&mesh->faces[f], mesh, stdout);
-printf("\n");
         polymec_error("generate_face_node_conn: invalid edge %d for face %d\n"
                       "(num edges: %d, num faces: %d)", edge_index, f, 
                       mesh->num_edges, num_faces);
       }
       if (mesh->faces[f].edges[e]->node2 == NULL)
         ++rays;
+      if (rays > 0)
+      {
+        int edge_index = edge - &mesh->edges[0];
+        polymec_error("generate_face_node_conn: Edge %d has %d semi-infinite rays.\n"
+                      "Meshes of this type cannot be plotted.", edge_index, rays);
+      }
     }
-    int num_nodes = ne - rays;
+    int num_nodes = ne;
     ASSERT(num_nodes >= 3);
     face_node_offsets[f+1] = face_node_offsets[f] + num_nodes;
     nodes_for_face[f] = malloc(num_nodes*sizeof(int));
@@ -257,6 +261,7 @@ printf("\n");
     // the points within the plane, appending them to face_nodes.
     int indices[nn], count;
     traverse_convex_hull(points, nn, indices, &count);
+    ASSERT(count == nn);
     face_node_offsets[f+1] = face_node_offsets[f] + nn;
     for (int n = 0; n < count; ++n)
       int_slist_append(all_face_nodes_list, nodes_for_face[f][indices[n]]);
