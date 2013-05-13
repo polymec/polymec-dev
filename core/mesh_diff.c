@@ -222,12 +222,7 @@ static void reorder_edges(mesh_diff_t* diff, mesh_t* mesh)
       int e_index = face->edges[e] - &mesh->edges[0];
       int* mapped_e = int_int_unordered_map_get(diff->edge_map, e_index);
       if (mapped_e != NULL)
-{
         face->edges[e] = &mesh->edges[*mapped_e];
-printf("face %d: mapping edge %d -> %d\n", f, e_index, *mapped_e);
-face_fprintf(face, mesh, stdout);
-printf("\n");
-}
     }
   }
 }
@@ -248,10 +243,7 @@ static void reorder_faces(mesh_diff_t* diff, mesh_t* mesh)
       int f_index = cell->faces[f] - &mesh->faces[0];
       int* mapped_f = int_int_unordered_map_get(diff->face_map, f_index);
       if (mapped_f != NULL)
-//{
-//printf("cell %d: mapping face %d -> %d\n", c, f_index, *mapped_f);
         cell->faces[f] = &mesh->faces[*mapped_f];
-//}
     }
   }
 }

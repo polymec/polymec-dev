@@ -122,11 +122,6 @@ static void swap_face(mesh_t* mesh, mesh_diff_t* diff, int index1, int index2)
   face_t tmp = mesh->faces[index2];
   mesh->faces[index2] = mesh->faces[index1];
   mesh->faces[index1] = tmp;
-printf("swapping faces %d and %d\n", index1, index2);
-face_fprintf(&mesh->faces[index1], mesh, stdout);
-printf("\n");
-face_fprintf(&mesh->faces[index2], mesh, stdout);
-printf("\n");
   mesh_diff_swap_elements(diff, MESH_FACE, index1, index2);
 }
 
@@ -137,11 +132,6 @@ static void swap_cell(mesh_t* mesh, mesh_diff_t* diff, int index1, int index2)
   cell_t tmp = mesh->cells[index2];
   mesh->cells[index2] = mesh->cells[index1];
   mesh->cells[index1] = tmp;
-printf("swapping cells %d and %d\n", index1, index2);
-cell_fprintf(&mesh->cells[index1], mesh, stdout);
-printf("\n");
-cell_fprintf(&mesh->cells[index2], mesh, stdout);
-printf("\n");
   mesh_diff_swap_elements(diff, MESH_CELL, index1, index2);
 }
 
@@ -450,7 +440,6 @@ static void detach_face(mesh_t* mesh, int index, int parent_index)
 {
   ASSERT(index < mesh->num_faces);
   ASSERT(parent_index < mesh->num_cells);
-printf("detaching face %d from cell %d\n", index, parent_index);
   mesh_detach_face_from_cell(mesh, &mesh->faces[index], &mesh->cells[parent_index]);
 }
 
