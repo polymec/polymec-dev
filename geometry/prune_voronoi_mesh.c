@@ -12,29 +12,33 @@ void prune_voronoi_mesh(mesh_t* mesh)
   // Prepare our diff.
   mesh_diff_t* diff = mesh_diff_new();
 
-  // We won't be pruning any nodes, since the semi-infinite cells don't have 
-  // any nodes associated with them.
-
-  // Construct a set of outer edges for easy lookup.
-  int num_outer_edges;
-  int* outer_edges = mesh_tag(mesh->edge_tags, "outer_edges", &num_outer_edges);
+  // We won't be pruning any nodes, since the semi-infinite edge don't have 
+  // any second nodes associated with them.
 
   // Go over all of the outer edges and move them to the end of the mesh's
   // array of edges.
+  int num_outer_edges;
+  int* outer_edges = mesh_tag(mesh->edge_tags, "outer_edges", &num_outer_edges);
   int last_edge = mesh->num_edges - 1;
   {
+    int_unordered_set_t* outer_edge_set = int_unordered_set_new();
+    int_unordered_set_t* processed_edges = int_unordered_set_new();
+    for (int e = 0; e < num_outer_edges; ++e)
+      int_unordered_set_insert(outer_edge_set, outer_edges[e]);
     for (int e = 0; e < num_outer_edges; ++e)
     {
-      if (outer_edges[e] >= last_edge) 
-      {
+      // Find the next available slot for a swap.
+      while (int_unordered_set_contains(outer_edge_set, last_edge) && 
+             !int_unordered_set_contains(processed_edges, last_edge))
         --last_edge;
-        continue;
-      }
-printf("swapping edges %d and %d\n", outer_edges[e], last_edge);
+      if (outer_edges[e] > last_edge) continue;
       mesh_delta_t* swap = swap_mesh_delta_new(MESH_EDGE, outer_edges[e], last_edge);
       mesh_diff_append(diff, swap);
+      int_unordered_set_insert(processed_edges, outer_edges[e]);
       --last_edge;
     }
+    int_unordered_set_free(processed_edges);
+    int_unordered_set_free(outer_edge_set);
   }
   ASSERT(last_edge == (mesh->num_edges - num_outer_edges - 1));
 
@@ -95,17 +99,23 @@ printf("swapping edges %d and %d\n", outer_edges[e], last_edge);
   int last_face = mesh->num_faces - 1;
   {
     int pos = 0, face = 0;
-    while (int_unordered_set_next(pruned_faces, &pos, &face))
+    int_unordered_set_t* processed_faces = int_unordered_set_new();
+    while (int_unordered_set_next(pruned_faces, &pos, &face))// && 
+//           (last_face > (mesh->num_faces - pruned_faces->size - 1))) 
     {
-      if (face >= last_face) 
-      {
+      // Find the next available slot for a swap.
+      while (int_unordered_set_contains(pruned_faces, last_face) && 
+            (!int_unordered_set_contains(processed_faces, last_face)))
         --last_face;
-        continue;
-      }
+      if (face > last_face) continue;
+
+      // Swap.
       mesh_delta_t* swap = swap_mesh_delta_new(MESH_FACE, face, last_face);
       mesh_diff_append(diff, swap);
+      int_unordered_set_insert(processed_faces, face);
       --last_face;
     }
+    int_unordered_set_free(processed_faces);
   }
   ASSERT(last_face == (mesh->num_faces - pruned_faces->size - 1));
   int_unordered_set_free(pruned_faces);
@@ -120,17 +130,36 @@ printf("swapping edges %d and %d\n", outer_edges[e], last_edge);
   // the mesh's cell array.
   int last_cell = mesh->num_cells - 1;
   {
+    int_unordered_set_t* processed_cells = int_unordered_set_new();
     for (int c = 0; c < num_outer_cells; ++c)
     {
-      if (outer_cells[c] >= last_cell) 
-      {
+      // Find the next available slot for a swap.
+      while (int_ptr_unordered_map_contains(outer_cell_edges, last_cell) && 
+            (!int_unordered_set_contains(processed_cells, last_cell)))
         --last_cell;
-        continue;
-      }
+      if (outer_cells[c] > last_cell) continue;
+
+      // Swap.
       mesh_delta_t* swap = swap_mesh_delta_new(MESH_CELL, outer_cells[c], last_cell);
       mesh_diff_append(diff, swap);
+      int_unordered_set_insert(processed_cells, outer_cells[c]);
       --last_cell;
     }
+    int_unordered_set_free(processed_cells);
+
+#if 0
+    // Also discard any cells that have fewer than 4 faces.
+    for (int c = 0; c < last_cell; ++c)
+    {
+      if (mesh->cells[c].num_faces < 4)
+      {
+        // Swap.
+        mesh_delta_t* swap = swap_mesh_delta_new(MESH_CELL, c, last_cell);
+        mesh_diff_append(diff, swap);
+        --last_cell;
+      }
+    }
+#endif
   }
   ASSERT(last_cell == (mesh->num_cells - num_outer_cells - 1));
 
@@ -141,24 +170,21 @@ printf("swapping edges %d and %d\n", outer_edges[e], last_edge);
   }
 
   // Now pop all the elements off the end.
-  for (int e = 0; e < num_outer_edges; ++e)
+  for (int e = last_edge+1; e < mesh->num_edges; ++e)
   {
     mesh_delta_t* pop = pop_mesh_delta_new(MESH_EDGE);
     mesh_diff_append(diff, pop);
   }
-  for (int f = last_face; f < mesh->num_faces; ++f)
+  for (int f = last_face+1; f < mesh->num_faces; ++f)
   {
     mesh_delta_t* pop = pop_mesh_delta_new(MESH_FACE);
     mesh_diff_append(diff, pop);
   }
-  for (int c = 0; c < num_outer_cells; ++c)
+  for (int c = last_cell+1; c < mesh->num_cells; ++c)
   {
     mesh_delta_t* pop = pop_mesh_delta_new(MESH_CELL);
     mesh_diff_append(diff, pop);
   }
-
-printf("mesh cells: %d\n", mesh->num_cells - num_outer_cells);
-printf("mesh faces: %d\n", last_face+1);
 
   // Apply the diff to the mesh and dispose of it.
   mesh_diff_apply(diff, mesh);
