@@ -350,7 +350,7 @@ static void vtk_plot_write_asci_datasets(void* context, void* f, io_dataset_t** 
     write_attribute(writer, "Name", "faces");
     write_attribute(writer, "format", "ascii");
 
-    // Write data.
+    // Write the faces array.
     int faceoffsets[num_cells];
     for (int c = 0; c < num_cells; ++c)
     {
@@ -396,7 +396,7 @@ static void vtk_plot_write_asci_datasets(void* context, void* f, io_dataset_t** 
     write_attribute(writer, "Name", "faceoffsets");
     write_attribute(writer, "format", "ascii");
 
-    // Write data.
+    // Write the faceoffsets array.
     offset = 0;
     for (int c = 0; c < num_cells; ++c)
     {
