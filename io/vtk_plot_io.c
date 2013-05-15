@@ -1,3 +1,6 @@
+// This implementation of the ASCII VTK Polyhedron format was inferred from 
+// documentation at http://www.vtk.org/Wiki/VTK/Polyhedron_Support.
+
 #include <stdlib.h>
 #include <stdarg.h>
 #include <string.h>
@@ -357,7 +360,10 @@ static void vtk_plot_write_asci_datasets(void* context, void* f, io_dataset_t** 
       faceoffsets[c] = (c > 0) ? faceoffsets[c-1] : 0;
       faceoffsets[c] += 1 + mesh->cells[c].num_faces;
       for (int f = 0; f < mesh->cells[c].num_faces; ++f)
-        faceoffsets[c] += face_node_offsets[f+1] - face_node_offsets[f];
+      {
+        int face_id = mesh->cells[c].faces[f] - &mesh->faces[0];
+        faceoffsets[c] += face_node_offsets[face_id+1] - face_node_offsets[face_id];
+      }
     }
     int faces_data_len = faceoffsets[num_cells-1];
     char* data = malloc(16*faces_data_len*sizeof(char));
