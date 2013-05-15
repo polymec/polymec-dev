@@ -205,6 +205,12 @@ static int random_points(lua_State* lua)
   }
   // Get the arguments.
   int N = (int)lua_tonumber(lua, 1);
+  if (N <= 0)
+  {
+    lua_pushstring(lua, "Invalid (nonpositive) number of points.");
+    lua_error(lua);
+    return LUA_ERRRUN;
+  }
   sp_func_t* density = NULL;
   bbox_t* bbox = NULL;
   if (num_args == 2)
@@ -244,6 +250,172 @@ static int random_points(lua_State* lua)
 
   // Return the point list.
   lua_pushpointlist(lua, points, N);
+  return 1;
+}
+
+// This generates a point randomly placed within +/- dx/dy/dz of (x0, y0, z0)
+// with the given randomness.
+static point_t* new_randomish_point(double x0, double y0, double z0, double dx, double dy, double dz, double randomness)
+{
+  if (randomness == 0.0)
+    return point_new(x0, y0, z0);
+  else
+  {
+    double x = x0 + (1.0*random()/RAND_MAX - 0.5)*dx;
+    double y = y0 + (1.0*random()/RAND_MAX - 0.5)*dy;
+    double z = z0 + (1.0*random()/RAND_MAX - 0.5)*dz;
+    return point_new(x, y, z);
+  }
+}
+
+static int ccp_points(lua_State* lua)
+{
+  // Check the arguments.
+  int num_args = lua_gettop(lua);
+  if ((num_args != 4) && num_args != 5)
+  {
+    lua_pushstring(lua, "Invalid arguments. Usage:\n"
+                        "points = ccp_points(Nx, Ny, Nz, bounding_box) OR\n"
+                        "points = ccp_points(Nx, Ny, Nz, bounding_box, randomness)");
+    lua_error(lua);
+    return LUA_ERRRUN;
+  }
+
+  // Get the arguments.
+  int Nx = (int)lua_tonumber(lua, 1);
+  int Ny = (int)lua_tonumber(lua, 2);
+  int Nz = (int)lua_tonumber(lua, 3);
+  if ((Nx <= 0) || (Ny <= 0) || (Nz <= 0))
+  {
+    lua_pushstring(lua, "Nx, Ny, and Nz must all be positive.");
+    lua_error(lua);
+    return LUA_ERRRUN;
+  }
+  if (!lua_isboundingbox(lua, 4))
+  {
+    lua_pushstring(lua, "Fourth argument must be a bounding box.");
+    lua_error(lua);
+    return LUA_ERRRUN;
+  }
+  bbox_t* bbox = lua_toboundingbox(lua, 4);
+  double randomness = 0.0;
+  if (num_args == 5)
+  {
+    if (!lua_isnumber(lua, 5))
+    {
+      lua_pushstring(lua, "Fifth argument must be a randomness factor between 0 and 1.");
+      lua_error(lua);
+      return LUA_ERRRUN;
+    }
+    randomness = lua_tonumber(lua, 5);
+    if ((randomness < 0.0) || (randomness > 1.0))
+    {
+      lua_pushstring(lua, "Fifth argument must be a randomness factor between 0 and 1.");
+      lua_error(lua);
+      return LUA_ERRRUN;
+    }
+  }
+
+  // Create the point list.
+  ptr_slist_t* point_list = ptr_slist_new();
+  double dx = (bbox->x2 - bbox->x1) / Nx,
+         dy = (bbox->y2 - bbox->y1) / Ny,
+         dz = (bbox->z2 - bbox->z1) / Nz;
+  for (int i = 0; i < Nx; ++i)
+  {
+    bool x1face = (i > 0);
+    bool x2face = (i < Nx-1);
+    double x1 = bbox->x1 + i * dx;
+    double x2 = x1 + dx;
+    for (int j = 0; j < Ny; ++j)
+    {
+      bool y1face = (j > 0);
+      bool y2face = (j < Ny-1);
+      double y1 = bbox->x1 + j * dy;
+      double y2 = y1 + dy;
+      for (int k = 0; k < Nz; ++k)
+      {
+        bool z1face = (k > 0);
+        bool z2face = (k < Ny-1);
+        double z1 = bbox->x1 + k * dz;
+        double z2 = z1 + dz;
+
+        if (x1face)
+        {
+          // yz face center
+          ptr_slist_append(point_list, new_randomish_point(x1, y1+0.5*dy, z1+0.5*dz, dx, dy, dz, randomness));
+
+          // nodes on the x1 face.
+          if (y1face)
+          {
+            if (z1face)
+              ptr_slist_append(point_list, new_randomish_point(x1, y1, z1, dx, dy, dz, randomness));
+            if (z2face)
+              ptr_slist_append(point_list, new_randomish_point(x1, y1, z2, dx, dy, dz, randomness));
+          }
+          if (y2face)
+          {
+            if (z1face)
+              ptr_slist_append(point_list, new_randomish_point(x1, y2, z1, dx, dy, dz, randomness));
+            if (z2face)
+              ptr_slist_append(point_list, new_randomish_point(x1, y2, z2, dx, dy, dz, randomness));
+          }
+        }
+
+        if (x2face)
+        {
+          // yz face center
+          ptr_slist_append(point_list, new_randomish_point(x2, y1+0.5*dy, z1+0.5*dz, dx, dy, dz, randomness));
+
+          // nodes on the x2 face.
+          if (y1face)
+          {
+            if (z1face)
+              ptr_slist_append(point_list, new_randomish_point(x2, y1, z1, dx, dy, dz, randomness));
+            if (z2face)
+              ptr_slist_append(point_list, new_randomish_point(x2, y1, z2, dx, dy, dz, randomness));
+          }
+          if (y2face)
+          {
+            if (z1face)
+              ptr_slist_append(point_list, new_randomish_point(x2, y2, z1, dx, dy, dz, randomness));
+            if (z2face)
+              ptr_slist_append(point_list, new_randomish_point(x2, y2, z2, dx, dy, dz, randomness));
+          }
+        }
+
+        if (y1face)
+        {
+          // xz face center.
+          ptr_slist_append(point_list, new_randomish_point(x1+0.5*dx, y1, z1+0.5*dz, dx, dy, dz, randomness));
+        }
+        if (y2face)
+        {
+          // xz face center.
+          ptr_slist_append(point_list, new_randomish_point(x1+0.5*dx, y2, z1+0.5*dz, dx, dy, dz, randomness));
+        }
+
+        if (z1face)
+        {
+          // xy face center.
+          ptr_slist_append(point_list, new_randomish_point(x1+0.5*dx, y1+0.5*dy, z1, dx, dy, dz, randomness));
+        }
+        if (z2face)
+        {
+          // xy face center.
+          ptr_slist_append(point_list, new_randomish_point(x1+0.5*dx, y2+0.5*dy, z2, dx, dy, dz, randomness));
+        }
+      }
+    }
+  }
+
+  // Pack it up and return it.
+  int num_points = point_list->size;
+  point_t* points = malloc(sizeof(point_t) * num_points);
+  for (int i = 0; i < num_points; ++i)
+    point_copy(&points[i], ptr_slist_pop(point_list, NULL));
+  ptr_slist_free(point_list);
+  lua_pushpointlist(lua, points, num_points);
   return 1;
 }
 
@@ -355,6 +527,7 @@ void interpreter_register_geometry_functions(interpreter_t* interp)
   interpreter_register_function(interp, "cubic_lattice_mesh", cubic_lattice_mesh);
   interpreter_register_function(interp, "cubic_lattice_periodic_bc", cubic_lattice_periodic_bc);
   interpreter_register_function(interp, "random_points", random_points);
+  interpreter_register_function(interp, "ccp_points", ccp_points);
   interpreter_register_function(interp, "unbounded_voronoi_mesh", unbounded_voronoi_mesh);
   interpreter_register_function(interp, "bounded_voronoi_mesh", bounded_voronoi_mesh);
   interpreter_register_function(interp, "prune_voronoi_mesh", prune_voronoi_mesh_);
