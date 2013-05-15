@@ -18,6 +18,9 @@ typedef enum
 // Sets the logging level.
 void set_log_level(log_level_t level);
 
+// Retrieves the current logging level.
+log_level_t log_level();
+
 // Sets the buffering parameters for logging, including the size limit on log messages 
 // and the flush frequency.
 void set_log_buffering(log_level_t log_type, int size_limit, int num_messages_between_flush);
