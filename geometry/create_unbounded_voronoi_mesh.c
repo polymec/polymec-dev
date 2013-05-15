@@ -21,7 +21,7 @@ mesh_t* create_unbounded_voronoi_mesh(point_t* generators, int num_generators,
 
   // Gather the points to be tessellated.
   int num_points = num_generators + num_ghost_generators;
-  double points[3*num_points];
+  double* points = malloc(sizeof(double) * 3*num_points);
   for (int i = 0; i < num_generators; ++i)
   {
     points[3*i]   = generators[i].x;
@@ -40,6 +40,7 @@ mesh_t* create_unbounded_voronoi_mesh(point_t* generators, int num_generators,
   voronoi_tessellator_t* tessellator = voronoi_tessellator_new();
   voronoi_tessellation_t* tessellation = voronoi_tessellator_tessellate(tessellator, points, num_points);
   ASSERT(tessellation->num_cells == (num_generators + num_ghost_generators));
+  free(points);
 
   // Construct the Voronoi graph.
   mesh_t* mesh = mesh_new(num_generators,
