@@ -76,7 +76,10 @@ voronoi_tessellator_tessellate(voronoi_tessellator_t* tessellator,
   tetgenio out;
   out.initialize();
   tetrahedralize((char*)"QvBNEFC", &in, &out, NULL, NULL);
-  ASSERT(out.numberofvcells == num_points);
+
+  // out.numberofvcells will be less than num_points in cases where they 
+  // lie within the planes of their convex hull.
+  ASSERT(out.numberofvcells <= num_points);
 
   // Copy stuff to a fresh tessellation object.
   voronoi_tessellation_t* t = voronoi_tessellation_new(out.numberofvcells, 

@@ -39,12 +39,15 @@ mesh_t* create_unbounded_voronoi_mesh(point_t* generators, int num_generators,
   // Perform the tessellation.
   voronoi_tessellator_t* tessellator = voronoi_tessellator_new();
   voronoi_tessellation_t* tessellation = voronoi_tessellator_tessellate(tessellator, points, num_points);
-  ASSERT(tessellation->num_cells == (num_generators + num_ghost_generators));
+
+  // The number of cells generated may be less than the number of generators
+  // in cases in which generators lie on planes of the convex hull.
+  ASSERT(tessellation->num_cells <= (num_generators + num_ghost_generators));
   free(points);
 
   // Construct the Voronoi graph.
-  mesh_t* mesh = mesh_new(num_generators,
-                          num_ghost_generators,
+  mesh_t* mesh = mesh_new(tessellation->num_cells,
+                          num_ghost_generators, // ???
                           tessellation->num_faces,
                           tessellation->num_edges,
                           tessellation->num_nodes);
