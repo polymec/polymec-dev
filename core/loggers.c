@@ -86,6 +86,11 @@ void set_log_level(log_level_t level)
   logging_level = level;
 }
 
+log_level_t log_level()
+{
+  return logging_level;
+}
+
 static logger_t* get_logger(log_level_t level)
 {
   if (loggers[level] == NULL)

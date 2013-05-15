@@ -53,7 +53,7 @@ int main(int argc, char** argv)
   fclose(fp);
 
   // Set the log level.
-  set_log_level(LOG_INFO);
+  set_log_level(LOG_DETAIL);
   char* logging = options_value(opts, "logging");
   if (logging != NULL)
   {

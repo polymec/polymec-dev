@@ -195,5 +195,35 @@ void prune_voronoi_mesh(mesh_t* mesh)
   mesh_delete_property(mesh, "outer_rays");
   mesh_delete_tag(mesh->edge_tags, "outer_edges");
   mesh_delete_tag(mesh->cell_tags, "outer_cells");
+
+  // If we are logging details, print some diagnostics about the mesh.
+  if (log_level() >= LOG_DETAIL)
+  {
+    // Find the extents of the node coordinates in space.
+    bbox_t bbox = {.x1 = FLT_MAX, .x2 = -FLT_MAX,
+                   .y1 = FLT_MAX, .y2 = -FLT_MAX,
+                   .z1 = FLT_MAX, .z2 = -FLT_MAX};
+    for (int n = 0; n < mesh->num_nodes; ++n)
+    {
+      node_t* node = &mesh->nodes[n];
+      if (node->x < bbox.x1)
+        bbox.x1 = node->x;
+      if (node->x > bbox.x2)
+        bbox.x2 = node->x;
+      if (node->y < bbox.y1)
+        bbox.y1 = node->y;
+      if (node->y > bbox.y2)
+        bbox.y2 = node->y;
+      if (node->z < bbox.z1)
+        bbox.z1 = node->z;
+      if (node->z > bbox.z2)
+        bbox.z2 = node->z;
+    }
+    log_detail("prune_voronoi_mesh: nodes fall within bounding box:\n"
+               "   {x1 = %g, x2 = %g,\n"
+               "    y1 = %g, y2 = %g,\n"
+               "    z1 = %g, z2 = %g}",
+               bbox.x1, bbox.x2, bbox.y1, bbox.y2, bbox.z1, bbox.z2);
+  }
 }
 
