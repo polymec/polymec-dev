@@ -516,7 +516,8 @@ static int bound_voronoi_mesh_(lua_State* lua)
 {
   // Check the arguments.
   int num_args = lua_gettop(lua);
-  if ((num_args != 2) || !lua_ismesh(lua, 1) || !lua_isscalarfunction(lua , 2))
+  if ((num_args != 2) || !lua_ismesh(lua, 1) || 
+      (!lua_isscalarfunction(lua, 2) && !lua_isboundingbox(lua, 2)))
   {
     lua_pushstring(lua, "Invalid argument(s). Usage:\n"
                         "bound_voronoi_mesh(mesh, boundary)\n"
