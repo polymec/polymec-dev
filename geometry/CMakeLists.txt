@@ -7,7 +7,8 @@ add_library(polymec_geometry mapping.c plane.c cylinder.c sphere.c intersection.
             bound_voronoi_mesh.c prune_voronoi_mesh.c crop_voronoi_mesh.c 
             voronoi_tessellator.cpp create_manifold.c generate_random_points.c
             delaunay_triangulator.cpp 
-            interpreter_register_geometry_functions.c)
+            interpreter_register_geometry_functions.c 
+            interpreter_register_spfuncs.c)
 set(POLYMEC_LIBS polymec_geometry;${POLYMEC_LIBS} PARENT_SCOPE)
 set(POLYMEC_LIBS polymec_geometry;${POLYMEC_LIBS})
 

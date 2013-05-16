@@ -5,9 +5,9 @@
 #include "geometry/create_cubic_lattice_mesh.h"
 #include "geometry/generate_random_points.h"
 #include "geometry/create_unbounded_voronoi_mesh.h"
-#include "geometry/bound_voronoi_mesh.h"
 #include "geometry/rect_prism.h"
 #include "geometry/prune_voronoi_mesh.h"
+#include "geometry/bound_voronoi_mesh.h"
 
 // Lua stuff.
 #include "lua.h"
@@ -128,7 +128,7 @@ static int cubic_lattice_periodic_bc(lua_State* lua)
 
   // Based on the names of the tags, we can decide which periodic BC 
   // mapping function to use.
-  periodic_bc_t* bc;
+  periodic_bc_t* bc = NULL;
   if (!strcmp(tag1, "x1"))
   {
     if (!strcmp(tag2, "x2"))
@@ -253,30 +253,14 @@ static int random_points(lua_State* lua)
   return 1;
 }
 
-// This generates a point randomly placed within +/- dx/dy/dz of (x0, y0, z0)
-// with the given randomness.
-static point_t* new_randomish_point(double x0, double y0, double z0, double dx, double dy, double dz, double randomness)
-{
-  if (randomness == 0.0)
-    return point_new(x0, y0, z0);
-  else
-  {
-    double x = x0 + (1.0*random()/RAND_MAX - 0.5)*dx;
-    double y = y0 + (1.0*random()/RAND_MAX - 0.5)*dy;
-    double z = z0 + (1.0*random()/RAND_MAX - 0.5)*dz;
-    return point_new(x, y, z);
-  }
-}
-
 static int ccp_points(lua_State* lua)
 {
   // Check the arguments.
   int num_args = lua_gettop(lua);
-  if ((num_args != 4) && num_args != 5)
+  if (num_args != 4)
   {
     lua_pushstring(lua, "Invalid arguments. Usage:\n"
-                        "points = ccp_points(Nx, Ny, Nz, bounding_box) OR\n"
-                        "points = ccp_points(Nx, Ny, Nz, bounding_box, randomness)");
+                        "points = ccp_points(Nx, Ny, Nz, bounding_box)");
     lua_error(lua);
     return LUA_ERRRUN;
   }
@@ -298,23 +282,6 @@ static int ccp_points(lua_State* lua)
     return LUA_ERRRUN;
   }
   bbox_t* bbox = lua_toboundingbox(lua, 4);
-  double randomness = 0.0;
-  if (num_args == 5)
-  {
-    if (!lua_isnumber(lua, 5))
-    {
-      lua_pushstring(lua, "Fifth argument must be a randomness factor between 0 and 1.");
-      lua_error(lua);
-      return LUA_ERRRUN;
-    }
-    randomness = lua_tonumber(lua, 5);
-    if ((randomness < 0.0) || (randomness > 1.0))
-    {
-      lua_pushstring(lua, "Fifth argument must be a randomness factor between 0 and 1.");
-      lua_error(lua);
-      return LUA_ERRRUN;
-    }
-  }
 
   // Create the point list.
   ptr_slist_t* point_list = ptr_slist_new();
@@ -343,67 +310,67 @@ static int ccp_points(lua_State* lua)
         if (x1face)
         {
           // yz face center
-          ptr_slist_append(point_list, new_randomish_point(x1, y1+0.5*dy, z1+0.5*dz, dx, dy, dz, randomness));
+          ptr_slist_append(point_list, point_new(x1, y1+0.5*dy, z1+0.5*dz));
 
           // nodes on the x1 face.
           if (y1face)
           {
             if (z1face)
-              ptr_slist_append(point_list, new_randomish_point(x1, y1, z1, dx, dy, dz, randomness));
+              ptr_slist_append(point_list, point_new(x1, y1, z1));
             if (z2face)
-              ptr_slist_append(point_list, new_randomish_point(x1, y1, z2, dx, dy, dz, randomness));
+              ptr_slist_append(point_list, point_new(x1, y1, z2));
           }
           if (y2face)
           {
             if (z1face)
-              ptr_slist_append(point_list, new_randomish_point(x1, y2, z1, dx, dy, dz, randomness));
+              ptr_slist_append(point_list, point_new(x1, y2, z1));
             if (z2face)
-              ptr_slist_append(point_list, new_randomish_point(x1, y2, z2, dx, dy, dz, randomness));
+              ptr_slist_append(point_list, point_new(x1, y2, z2));
           }
         }
 
         if (x2face)
         {
           // yz face center
-          ptr_slist_append(point_list, new_randomish_point(x2, y1+0.5*dy, z1+0.5*dz, dx, dy, dz, randomness));
+          ptr_slist_append(point_list, point_new(x2, y1+0.5*dy, z1+0.5*dz));
 
           // nodes on the x2 face.
           if (y1face)
           {
             if (z1face)
-              ptr_slist_append(point_list, new_randomish_point(x2, y1, z1, dx, dy, dz, randomness));
+              ptr_slist_append(point_list, point_new(x2, y1, z1));
             if (z2face)
-              ptr_slist_append(point_list, new_randomish_point(x2, y1, z2, dx, dy, dz, randomness));
+              ptr_slist_append(point_list, point_new(x2, y1, z2));
           }
           if (y2face)
           {
             if (z1face)
-              ptr_slist_append(point_list, new_randomish_point(x2, y2, z1, dx, dy, dz, randomness));
+              ptr_slist_append(point_list, point_new(x2, y2, z1));
             if (z2face)
-              ptr_slist_append(point_list, new_randomish_point(x2, y2, z2, dx, dy, dz, randomness));
+              ptr_slist_append(point_list, point_new(x2, y2, z2));
           }
         }
 
         if (y1face)
         {
           // xz face center.
-          ptr_slist_append(point_list, new_randomish_point(x1+0.5*dx, y1, z1+0.5*dz, dx, dy, dz, randomness));
+          ptr_slist_append(point_list, point_new(x1+0.5*dx, y1, z1+0.5*dz));
         }
         if (y2face)
         {
           // xz face center.
-          ptr_slist_append(point_list, new_randomish_point(x1+0.5*dx, y2, z1+0.5*dz, dx, dy, dz, randomness));
+          ptr_slist_append(point_list, point_new(x1+0.5*dx, y2, z1+0.5*dz));
         }
 
         if (z1face)
         {
           // xy face center.
-          ptr_slist_append(point_list, new_randomish_point(x1+0.5*dx, y1+0.5*dy, z1, dx, dy, dz, randomness));
+          ptr_slist_append(point_list, point_new(x1+0.5*dx, y1+0.5*dy, z1));
         }
         if (z2face)
         {
           // xy face center.
-          ptr_slist_append(point_list, new_randomish_point(x1+0.5*dx, y2+0.5*dy, z2, dx, dy, dz, randomness));
+          ptr_slist_append(point_list, point_new(x1+0.5*dx, y2+0.5*dy, z2));
         }
       }
     }
@@ -477,17 +444,119 @@ static int bounded_voronoi_mesh(lua_State* lua)
     boundary = rect_prism_new_from_bbox(bbox);
   }
 
+  // Kill all generators outside of the boundary.
+  int num_culled_generators = num_generators;
+  point_t* culled_generators = malloc(sizeof(point_t) * num_generators);
+  memcpy(culled_generators, generators, sizeof(point_t) * num_generators);
+  for (int i = 0; i < num_generators; ++i)
+  {
+    double bval;
+    sp_func_eval(boundary, &culled_generators[i], &bval);
+    if (bval >= 0.0)
+    {
+      point_t temp = culled_generators[num_generators-1];
+      culled_generators[num_generators-1] = culled_generators[i];
+      culled_generators[i] = temp;
+      --num_culled_generators;
+    }
+  }
+
   // Create an unbounded mesh.
-  mesh_t* mesh = create_unbounded_voronoi_mesh(generators, num_generators,
+  mesh_t* mesh = create_unbounded_voronoi_mesh(culled_generators, num_culled_generators,
                                                NULL, 0);
+
+  // Reflect the points nearest to the boundary across the boundary.
+  int num_outer_cells;
+  int* outer_cells = mesh_tag(mesh->cell_tags, "outer_cells", &num_outer_cells);
+  if (outer_cells == NULL)
+    polymec_error("bounded_voronoi_mesh: could not find outer cells. An error occurred.");
+  point_t* reflected_generators = malloc(sizeof(point_t) * num_outer_cells);
+  for (int c = 0; c < num_outer_cells; ++c)
+  {
+    point_t* xi = &culled_generators[outer_cells[c]];
+    double D;
+    sp_func_eval(boundary, xi, &D);
+    double grad_f[3];
+    sp_func_eval_deriv(boundary, 1, xi, grad_f);
+    double grad_mag = sqrt(grad_f[0]*grad_f[0] + grad_f[1]*grad_f[1] + grad_f[2]*grad_f[2]);
+    vector_t n = {.x = -grad_f[0] / grad_mag, 
+                  .y = -grad_f[1] / grad_mag, 
+                  .z = -grad_f[2] / grad_mag};
+
+    point_t xb = {.x = xi->x + 2.0 * D * n.x,
+                  .y = xi->y + 2.0 * D * n.y,
+                  .z = xi->z + 2.0 * D * n.z};
+    reflected_generators[c] = xb;
+  }
+
+  // Toss out the mesh and construct a new one with the additional 
+  // generators.
+  mesh_free(mesh);
+  int num_all_generators = num_culled_generators + num_outer_cells;
+  point_t* all_generators = malloc(sizeof(point_t) * num_all_generators);
+  memcpy(all_generators, culled_generators, num_culled_generators);
+  memcpy(all_generators + num_generators, reflected_generators, num_outer_cells);
+  mesh = create_unbounded_voronoi_mesh(all_generators, num_all_generators,
+                                       NULL, 0);
+
+  // Clean up.
+  free(all_generators);
+  free(reflected_generators);
+  free(culled_generators);
+
+  // Prune the mesh.
+  prune_voronoi_mesh(mesh);
+
+  // Push it onto the stack.
+  lua_pushmesh(lua, mesh);
+  return 1;
+}
+
+static int bound_voronoi_mesh_(lua_State* lua)
+{
+  // Check the arguments.
+  int num_args = lua_gettop(lua);
+  if ((num_args != 2) || !lua_ismesh(lua, 1) || !lua_isscalarfunction(lua , 2))
+  {
+    lua_pushstring(lua, "Invalid argument(s). Usage:\n"
+                        "bound_voronoi_mesh(mesh, boundary)\n"
+                        "where mesh is an unbounded Voronoi mesh and \n"
+                        "boundary is an implicit function.");
+    lua_error(lua);
+    return LUA_ERRRUN;
+  }
+
+  // Get the mesh.
+  mesh_t* mesh = lua_tomesh(lua, 1);
+
+  // Get the implicit function representing the boundary.
+  sp_func_t* boundary;
+  if (lua_isscalarfunction(lua, 2))
+  {
+    st_func_t* boundary_t = lua_toscalarfunction(lua, 2);
+    boundary = st_func_freeze(boundary_t, 0.0); // Freeze at t = 0.
+  }
+  else
+  {
+    bbox_t* bbox = lua_toboundingbox(lua, 2);
+    boundary = rect_prism_new_from_bbox(bbox);
+  }
+
+  // Make sure the mesh is unbounded.
+  if (!mesh_has_tag(mesh->cell_tags, "outer_cells") || 
+      !mesh_has_tag(mesh->edge_tags, "outer_edges"))
+  {
+    lua_pushstring(lua, "Given mesh is not unbounded (no outer cells/edges found).");
+    lua_error(lua);
+    return LUA_ERRRUN;
+  }
 
   // Bound the mesh using the boundary function.
   mesh_diff_t* diff = bound_voronoi_mesh(mesh, boundary);
   mesh_diff_apply(diff, mesh);
 
-  // Push the mesh onto the stack.
-  lua_pushmesh(lua, mesh);
-  return 1;
+  // No results.
+  return 0;
 }
 
 static int prune_voronoi_mesh_(lua_State* lua)
@@ -522,14 +591,68 @@ static int prune_voronoi_mesh_(lua_State* lua)
   return 0;
 }
 
+extern void interpreter_register_spfuncs(interpreter_t* interp);
+
+static int jostle_points(lua_State* lua)
+{
+  // Check the arguments.
+  int num_args = lua_gettop(lua);
+  if ((num_args != 3) || !lua_ispointlist(lua, 1) || 
+      !lua_isnumber(lua, 2) || !lua_isnumber(lua, 3))
+  {
+    lua_pushstring(lua, "Invalid argument(s). Usage:\n"
+                        "jostle_points(points, radius, factor)\n"
+                        "-> jostles points within a given radius using a\n"
+                        "given randomness factor.");
+    lua_error(lua);
+    return LUA_ERRRUN;
+  }
+
+  // Get the points.
+  int num_points;
+  point_t* points = lua_topointlist(lua, 1, &num_points);
+
+  // Get the jostling radius.
+  double radius = lua_tonumber(lua, 2);
+  if (radius < 0.0)
+  {
+    lua_pushstring(lua, "Jostling radius must be non-negative.");
+    lua_error(lua);
+    return LUA_ERRRUN;
+  }
+
+  // Get the randomness factor.
+  double randomness = lua_tonumber(lua, 5);
+  if ((randomness < 0.0) || (randomness > 1.0))
+  {
+    lua_pushstring(lua, "Fifth argument must be a randomness factor between 0 and 1.");
+    lua_error(lua);
+    return LUA_ERRRUN;
+  }
+  
+  for (int i = 0; i < num_points; ++i)
+  {
+    point_t* x = &points[i];
+    x->x += (randomness*random()/RAND_MAX - 0.5)*radius;
+    x->y += (randomness*random()/RAND_MAX - 0.5)*radius;
+    x->z += (randomness*random()/RAND_MAX - 0.5)*radius;
+  }
+
+  // No results.
+  return 0;
+}
+
 void interpreter_register_geometry_functions(interpreter_t* interp)
 {
   interpreter_register_function(interp, "cubic_lattice_mesh", cubic_lattice_mesh);
   interpreter_register_function(interp, "cubic_lattice_periodic_bc", cubic_lattice_periodic_bc);
   interpreter_register_function(interp, "random_points", random_points);
   interpreter_register_function(interp, "ccp_points", ccp_points);
+  interpreter_register_function(interp, "jostle_points", jostle_points);
   interpreter_register_function(interp, "unbounded_voronoi_mesh", unbounded_voronoi_mesh);
   interpreter_register_function(interp, "bounded_voronoi_mesh", bounded_voronoi_mesh);
   interpreter_register_function(interp, "prune_voronoi_mesh", prune_voronoi_mesh_);
+  interpreter_register_function(interp, "bound_voronoi_mesh", bound_voronoi_mesh_);
+  interpreter_register_spfuncs(interp);
 }
 
