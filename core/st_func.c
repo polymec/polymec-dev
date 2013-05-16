@@ -61,6 +61,27 @@ st_func_t* st_func_from_func(const char* name, st_eval_func func,
   return f;
 }
 
+static void eval_sp_func(void* context, point_t* x , double t, double* val)
+{
+  sp_func_t* sp_func = context;
+  sp_func_eval(sp_func, x, val);
+}
+
+st_func_t* st_func_from_spfunc(sp_func_t* func)
+{
+  ASSERT(func != NULL);
+  st_func_t* f = GC_MALLOC(sizeof(st_func_t));
+  f->name = strdup(sp_func_name(func));
+  f->context = func;
+  f->vtable.eval = eval_sp_func;
+  f->homogeneous = sp_func_is_homogeneous(func);
+  f->constant = true;
+  f->num_comp = sp_func_num_comp(func);
+  memset(f->derivs, 0, sizeof(st_func_t*)*4);
+  GC_register_finalizer(f, &st_func_free, f, NULL, NULL);
+  return f;
+}
+
 const char* st_func_name(st_func_t* func)
 {
   return (const char*)func->name;

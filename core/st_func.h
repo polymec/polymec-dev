@@ -39,17 +39,20 @@ typedef struct
   st_dtor                   dtor;
 } st_vtable;
 
-// Construct a space-time function from the given context, metadata and vtable.
+// Constructs a space-time function from the given context, metadata and vtable.
 st_func_t* st_func_new(const char* name, void* context, st_vtable vtable,
                        st_func_homogeneity_t homogeneity,
                        st_func_constancy_t constancy,
                        int num_comp);
 
-// Construct a space-time function from a function pointer with the given metadata.
+// Constructs a space-time function from a function pointer with the given metadata.
 st_func_t* st_func_from_func(const char* name, st_eval_func func, 
                              st_func_homogeneity_t homogeneity,
                              st_func_constancy_t constancy,
                              int num_comp);
+
+// Constructs a space_time function from the given spatial function.
+st_func_t* st_func_from_spfunc(sp_func_t* func);
 
 // Returns the name of the function.
 const char* st_func_name(st_func_t* func);

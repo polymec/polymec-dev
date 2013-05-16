@@ -194,8 +194,8 @@ void generate_face_node_conn(mesh_t* mesh,
     v1.y = mesh->nodes[nodes[0]].y - face_center.y;
     v1.z = mesh->nodes[nodes[0]].z - face_center.z;
 
-    vector_t v2, normal;
-    double normal_mag;
+    vector_t v2 = {0.0, 0.0, 0.0}, normal = {0.0, 0.0, 0.0};
+    double normal_mag = 0.0;
     for (int n = 1; n < nn; ++n)
     {
       v2.x = mesh->nodes[nodes[n]].x - face_center.x;
