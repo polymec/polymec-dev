@@ -8,8 +8,9 @@
 #include "io/generate_face_node_conn.h"
 
 // Traverses the given points of a polygonal facet along their convex
-// hull, writing their indices to indices in order.
-static void traverse_convex_hull(double* points, int num_points, int* indices, int* count)
+// hull, writing their indices to indices in order. Returns false if 
+// there's a problem and true otherwise.
+static bool traverse_convex_hull(double* points, int num_points, int* indices, int* count)
 {
   *count = 0;
 
@@ -61,7 +62,7 @@ static void traverse_convex_hull(double* points, int num_points, int* indices, i
 
   // The convex hull should be a polygon unless the input points 
   // don't form a polygon.
-  ASSERT((num_points <= 2) || 
+  return ((num_points <= 2) || 
          ((num_points > 2) && (*count > 2)));
 }
 
@@ -77,7 +78,7 @@ void generate_face_node_conn(mesh_t* mesh,
   // Make a list of all nodes attached to faces (unordered).
   int num_cells = mesh->num_cells;
   int num_faces = mesh->num_faces;
-  int* nodes_for_face[num_faces];
+  int** nodes_for_face = malloc(sizeof(int*) * num_faces);
   face_node_offsets[0] = 0;
   for (int f = 0; f < num_faces; ++f)
   {
@@ -260,13 +261,34 @@ void generate_face_node_conn(mesh_t* mesh,
     // Find the node order by traversing the convex hull of 
     // the points within the plane, appending them to face_nodes.
     int indices[nn], count;
-    traverse_convex_hull(points, nn, indices, &count);
+    if (!traverse_convex_hull(points, nn, indices, &count))
+    {
+      char nodes_str[2048], node_str[40];
+      int offset = 0;
+      for (int n = 0; n < nn; ++n)
+      {
+        node_t* node = &mesh->nodes[nodes_for_face[f][n]];
+        if (n == 0)
+          snprintf(node_str, 40, "{%g, %g, %g},\n", node->x, node->y, node->z);
+        else if (n < nn-1)
+          snprintf(node_str, 40, "        {%g, %g, %g},\n", node->x, node->y, node->z);
+        else 
+          snprintf(node_str, 40, "        {%g, %g, %g}", node->x, node->y, node->z);
+        int node_str_len = strlen(node_str);
+        memcpy(nodes_str + offset, node_str, sizeof(char) * node_str_len);
+        offset += node_str_len;
+      }
+      nodes_str[offset] = '\0';
+      polymec_error("generate_face_node_conn: face %d is degenerate or not convex.\n"
+                    "Nodes: (%s)", f, nodes_str);
+    }
     ASSERT(count == nn);
     face_node_offsets[f+1] = face_node_offsets[f] + nn;
     for (int n = 0; n < count; ++n)
       int_slist_append(all_face_nodes_list, nodes_for_face[f][indices[n]]);
     free(nodes_for_face[f]);
   }
+  free(nodes_for_face);
 
   // Write the connectivity information.
   ASSERT(all_face_nodes_list->size == face_node_offsets[mesh->num_faces]);
