@@ -62,8 +62,7 @@ void polymec_init(int argc, char** argv)
 // Default error handler.
 static int default_error_handler(const char* message)
 {
-  printf("Error: %s\n", message);
-  printf("encountered in polymec. Exiting with status -1\n");
+  printf("Fatal error: %s\n", message);
 #if USE_MPI
   MPI_Abort(MPI_COMM_WORLD, -1);
   return -1; // Not reached.
