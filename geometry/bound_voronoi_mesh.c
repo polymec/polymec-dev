@@ -29,7 +29,11 @@ static void intersect(void* context,
 
   // Compute the value of the implicit function at y.
   sp_func_eval(data->phi, &y, F);
-  sp_func_eval_deriv(data->phi, 1, &y, dFds);
+
+  // Compute dFds, which is grad F dotted into the tangent vector.
+  double gradF[3];
+  sp_func_eval_deriv(data->phi, 1, &y, gradF);
+  *dFds = gradF[0]*data->t.x + gradF[1]*data->t.y + gradF[2]*data->t.z;
 }
 
 // This helper projects a point x to the surface represented by the 
