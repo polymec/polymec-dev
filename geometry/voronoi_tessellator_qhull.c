@@ -1,18 +1,12 @@
-// Welcome to tessellator.cpp, one of the only C++ files in the Polymec source 
-// code. This code uses Tetgen, which is a C++ library for creating Delaunay 
-// tetrahedralizations of domains. Since C++ and C are actually very different 
-// languages, this code is insulated from the rest of Polymec in terms of 
-// data types.
+// This implementation of the Voronoi tessellator uses QHull.
 
-#define TETLIBRARY
-#include "tetgen.h"
+#define qh_QHpointer (1)
+#include "libqhull.h"
 
-extern "C" {
-
+#include <unistd.h>
 #include "core/polymec.h"
 #include <gc/gc.h>
 #include "geometry/voronoi_tessellator.h"
-#include "geometry/create_manifold.h"
 
 void voronoi_tessellation_free(voronoi_tessellation_t* tessellation)
 {
@@ -31,11 +25,22 @@ void voronoi_tessellation_free(voronoi_tessellation_t* tessellation)
 
 struct voronoi_tessellator_t
 {
+  // Temporary file where QHull data is stored.
+  char qhull_filename[1024];
 };
+
+static void voronoi_tessellator_free(void* ctx, void* dummy)
+{
+  voronoi_tessellator_t* t = ctx;
+  unlink(t->qhull_filename);
+}
 
 voronoi_tessellator_t* voronoi_tessellator_new()
 {
   voronoi_tessellator_t* t = (voronoi_tessellator_t*)GC_MALLOC(sizeof(voronoi_tessellator_t));
+  GC_register_finalizer(t, voronoi_tessellator_free, t, NULL, NULL);
+  strcpy(t->qhull_filename, "QHULLXXXXXXXX");
+  mkstemp(t->qhull_filename);
   return t;
 }
 
@@ -57,37 +62,37 @@ voronoi_tessellation_t*
 voronoi_tessellator_tessellate(voronoi_tessellator_t* tessellator,
                                double* points, int num_points)
 {
-  UNUSED_ARG(tessellator);
   ASSERT(points != NULL);
   ASSERT(num_points >= 2);
 
-  // Set Tetgen's options. We desire a Voronoi mesh.
-  tetgenio in;
-  in.initialize();
-  in.numberofpoints = num_points;
-  in.pointlist = new double[sizeof(double)*3*num_points];
-  memcpy(in.pointlist, points, sizeof(double)*3*num_points);
+  // Open up the QHull input file.
+  FILE* input = fopen(tessellator->qhull_filename, "r");
 
-  // Tetrahedralize. Command line options are:
-  // Q          -- Quiet, no output to terminal (shaddap, Tetgen!).
-  // v          -- Generate a Voronoi tessellation.
-  // B, N, E, F -- Suppress the generation of boundary, node, edge, face files.
-  // C          -- Perform a consistency check on the final mesh.
-  tetgenio out;
-  out.initialize();
-  tetrahedralize((char*)"QvBNEFC", &in, &out, NULL, NULL);
+  // Set up QHull to tessellate the points. Much of this was taken from 
+  // the source for qvoronoi.
+  qh_option("voronoi  _bbound-last  _coplanar-keep", NULL, NULL);
+  qh DELAUNAY = True; 
+  qh VORONOI = True;
+  qh SCALElast = True; 
+#if 0
+  qh_checkflags(qh qhull_command, hidden_options);
+  qh_initflags(qh qhull_command);
+  qh_init_B(points, num_points, dim, ismalloc);
+#endif
 
-  // out.numberofvcells will be less than num_points in cases where they 
-  // lie within the planes of their convex hull.
-  ASSERT(out.numberofvcells <= num_points);
+  // Execute QHull.
+  qh_qhull();
+  qh_check_output();
+  qh_check_points();
 
   // Copy stuff to a fresh tessellation object.
-  voronoi_tessellation_t* t = voronoi_tessellation_new(out.numberofvcells, 
-                                                       out.numberofvfacets, 
-                                                       out.numberofvedges, 
-                                                       out.numberofvpoints);
-  memcpy(t->nodes, out.vpointlist, sizeof(double)*3*t->num_nodes);
+  voronoi_tessellation_t* t = NULL;//voronoi_tessellation_new(out.numberofvcells, 
+                                   //                    out.numberofvfacets, 
+                                   //                    out.numberofvedges, 
+                                   //                    out.numberofvpoints);
+//  memcpy(t->nodes, out.vpointlist, sizeof(double)*3*t->num_nodes);
 
+#if 0
   // Edge <-> node connectivity.
   for (int i = 0; i < t->num_edges; ++i)
   {
@@ -122,21 +127,19 @@ voronoi_tessellator_tessellate(voronoi_tessellator_t* tessellator,
     for (int f = 0; f < Nf; ++f)
       t->cells[i].faces[f] = out.vcelllist[i][f+1];
   }
+#endif
 
-#if 0
-  // Make a manifold out of this tessellation.
-  voronoi_tessellation_t* m = create_manifold(t);
-
-  // Print some debugging info if appropriate.
-  log_debug("voronoi tessellation: %d cells, %d faces, %d edges, %d nodes", t->num_cells, t->num_faces, t->num_edges, t->num_nodes);
-  log_debug("voronoi manifold: %d cells, %d faces, %d edges, %d nodes", m->num_cells, m->num_faces, m->num_edges, m->num_nodes);
-
-  // Clean up and git.
-  voronoi_tessellation_free(t);
-  return m;
+  // Clean up.
+#ifdef qh_NOmem
+  qh_freeqhull( True);
+#else
+  qh_freeqhull( False);
+  int curlong, totlong;
+  qh_memfreeshort(&curlong, &totlong);
+  if (curlong || totlong)
+    fprintf(stderr, "qhull internal warning (main): did not free %d bytes of long memory(%d pieces)\n",
+       totlong, curlong);
 #endif
   return t;
-}
-
 }
 
