@@ -68,22 +68,24 @@ voronoi_tessellator_tessellate(voronoi_tessellator_t* tessellator,
   // Open up the QHull input file.
   FILE* input = fopen(tessellator->qhull_filename, "r");
 
-  // Set up QHull to tessellate the points. Much of this was taken from 
-  // the source for qvoronoi.
-  qh_option("voronoi  _bbound-last  _coplanar-keep", NULL, NULL);
-  qh DELAUNAY = True; 
-  qh VORONOI = True;
-  qh SCALElast = True; 
-#if 0
-  qh_checkflags(qh qhull_command, hidden_options);
-  qh_initflags(qh qhull_command);
-  qh_init_B(points, num_points, dim, ismalloc);
-#endif
+  // Set up QHull to tessellate the points. Much of this was borrowed from 
+  // user_eg.c in the QHull distribution.
+  char flags[128];
+  sprintf(flags, "qhull v Fv");
+  int status = qh_new_qhull(3, num_points, points, False,
+                            flags, NULL, NULL);
+  if (status != 0)
+    polymec_error("Could not create an instance of QHull for Voronoi tessellation.");
 
-  // Execute QHull.
-  qh_qhull();
-  qh_check_output();
-  qh_check_points();
+  // Computes Voronoi centers for all facets. 
+  qh_setvoronoi_all();
+
+  // 'qh facet_list' contains the convex hull.
+  // If you want a Voronoi diagram ('v') and do not request output (i.e., outfile=NULL),
+  // call qh_setvoronoi_all() after qh_new_qhull(). 
+//  FORALLfacets {
+//     // FIXME
+//  }
 
   // Copy stuff to a fresh tessellation object.
   voronoi_tessellation_t* t = NULL;//voronoi_tessellation_new(out.numberofvcells, 
