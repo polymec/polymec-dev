@@ -41,6 +41,19 @@ set(TETGEN_CXXFLAGS "-DTETLIBRARY -DREAL=double")
 set_target_properties(tetgen PROPERTIES COMPILE_FLAGS ${TETGEN_CXXFLAGS})
 set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};tetgen)
 
+# Build the QHull C library.
+if (NOT EXISTS ${PROJECT_BINARY_DIR}/include/libqhull.h)
+  execute_process(COMMAND cmake -E tar xzvf ${CMAKE_CURRENT_SOURCE_DIR}/qhull-2012.1-src.tgz
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+  file(GLOB qhull_includes "${CMAKE_CURRENT_BINARY_DIR}/qhull-2012.1/src/libqhull/*.h")
+  foreach(inc ${qhull_includes})
+    execute_process(COMMAND cmake -E copy ${inc} ${PROJECT_BINARY_DIR}/include)
+  endforeach()
+endif()
+file(GLOB qhull_sources "${CMAKE_CURRENT_BINARY_DIR}/qhull-2012.1/src/libqhull/*.c")
+add_library(qhull ${qhull_sources})
+set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};qhull)
+
 # Install xz-utils for the LZMA library.
 if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/liblzma.a)
   set(XZ_CONFIG_OPTS --prefix=${PROJECT_BINARY_DIR} --enable-static --disable-shared)
@@ -63,14 +76,14 @@ set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};lzma)
 if (NOT EXISTS ${PROJECT_BINARY_DIR}/include/arena)
   execute_process(COMMAND cmake -E tar xzvf ${CMAKE_CURRENT_SOURCE_DIR}/libarena-0.3.5.tgz
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
-  file(GLOB includes "${CMAKE_CURRENT_BINARY_DIR}/libarena-0.3.5/src/*.h")
+  file(GLOB arena_includes "${CMAKE_CURRENT_BINARY_DIR}/libarena-0.3.5/src/*.h")
   execute_process(COMMAND cmake -E make_directory ${PROJECT_BINARY_DIR}/include/arena)
-  foreach(inc ${includes})
+  foreach(inc ${arena_includes})
     execute_process(COMMAND cmake -E copy ${inc} ${PROJECT_BINARY_DIR}/include/arena)
   endforeach()
 endif()
-file(GLOB sources "${CMAKE_CURRENT_BINARY_DIR}/libarena-0.3.5/src/*.c")
-add_library(arena ${sources})
+file(GLOB arena_sources "${CMAKE_CURRENT_BINARY_DIR}/libarena-0.3.5/src/*.c")
+add_library(arena ${arena_sources})
 set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};arena)
 
 # Install HYPRE.
