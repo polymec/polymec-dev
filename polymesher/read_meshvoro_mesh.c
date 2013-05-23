@@ -6,6 +6,8 @@
 #include "core/interpreter.h"
 #include "core/mesh.h"
 #include "core/slist.h"
+#include "core/table.h"
+#include "core/unordered_map.h"
 
 // Lua stuff.
 #include "lua.h"
@@ -38,6 +40,17 @@ static void destroy_face(face_with_vertices_t* face)
 {
   free(face->vertex_ids);
   free(face);
+}
+
+// This function finds the face in the given list that best matches the 
+// given face (in terms of vertex indices).
+face_with_vertices_t* best_matching_face(face_with_vertices_t* face,
+                                         face_with_vertices_t** faces,
+                                         int num_faces)
+{
+  face_with_vertices_t* match = NULL;
+  // FIXME
+  return match;
 }
 
 // This data structure represents an intermediate representation of 
@@ -142,6 +155,7 @@ static cell_with_faces_t** read_mesh_cells(FILE* cell_file,
   int status;
   ptr_slist_t* cells_list = ptr_slist_new();
   int line = 1;
+  int min_cell_index = INT_MAX, max_cell_index = -INT_MAX;
   do 
   {
     // Read the cell header.
@@ -156,6 +170,8 @@ static cell_with_faces_t** read_mesh_cells(FILE* cell_file,
       ptr_slist_free(cells_list);
       return NULL;
     }
+    min_cell_index = MIN(min_cell_index, cell_index);
+    max_cell_index = MAX(min_cell_index, cell_index);
     ++line;
 
     // Read the index of the generator point in the vertex file.
@@ -208,12 +224,35 @@ static cell_with_faces_t** read_mesh_cells(FILE* cell_file,
 
   } while (status != EOF);
 
+  // Do some basic error checking.
+  if (cells_list->size == 0)
+  {
+    sprintf(error_string, "No cells found in cell file!");
+    ptr_slist_free(cells_list);
+    return NULL;
+  }
+  if (min_cell_index != 0)
+  {
+    sprintf(error_string, "Minimum cell index is %d (must be 0).", min_cell_index);
+    ptr_slist_free(cells_list);
+    return NULL;
+  }
+  if (max_cell_index != cells_list->size-1)
+  {
+    sprintf(error_string, "Cell index space is not contiguous (max is %d, should be %d).", max_cell_index, cells_list->size-1);
+    ptr_slist_free(cells_list);
+    return NULL;
+  }
+
   // Translate to an array.
   *num_cells = cells_list->size;
   cell_with_faces_t** cells = malloc(sizeof(cell_with_faces_t*) * cells_list->size);
-  int i = 0;
   while (!ptr_slist_empty(cells_list))
-    cells[i++] = (cell_with_faces_t*)ptr_slist_pop(cells_list, NULL);
+  {
+    // Place the cell into its proper location in the array.
+    cell_with_faces_t* cell = ptr_slist_pop(cells_list, NULL);
+    cells[cell->index] = cell;
+  }
   ptr_slist_free(cells_list);
   log_detail("read_meshvoro_mesh: Read %d cells.", *num_cells);
 
@@ -233,12 +272,100 @@ static mesh_t* construct_mesh(cell_with_faces_t** cells,
                               int num_vertices,
                               char* error_string)
 {
+  mesh_t* mesh = NULL;
+
   // Count up the faces, edges, and nodes, and assign indices.
   int num_faces = 0, num_edges = 0, num_nodes = 0;
 
-  mesh_t* mesh = mesh_new(num_cells, 0, num_faces, num_edges, num_nodes);
-  // FIXME
+  // Nodes are vertices that appear in the faces of cells.
+  int_int_unordered_map_t* node_ids = int_int_unordered_map_new();
+  int_table_t* face_for_cells = int_table_new();
+  int_table_t* edge_for_nodes = int_table_new();
+  for (int c = 0; c < num_cells; ++c)
+  {
+    cell_with_faces_t* cell = cells[c];
+    for (int f = 0; f < cell->num_faces; ++f)
+    {
+      face_with_vertices_t* face = cell->faces[f];
+
+      // Get the neighboring cell.
+      // (A face is an interface between two cells.)
+      cell_with_faces_t* other_cell = NULL;
+      int cell1, cell2;
+      if (cell->neighbor_ids[f] != -1)
+      {
+        other_cell = cells[cell->neighbor_ids[f]];
+        cell1 = MIN(cell->index, other_cell->index);
+        cell2 = MAX(cell->index, other_cell->index);
+      }
+      else
+      {
+        cell1 = cell->index;
+        cell2 = -1;
+      }
+
+      if (!int_table_contains(face_for_cells, cell1, cell2))
+      {
+        // We count a new face.
+        int_table_insert(face_for_cells, cell1, cell2, num_faces);
+
+        // Make sure the two cells agree on the number of vertices in 
+        // the face.
+        if (cell2 != -1)
+        {
+          face_with_vertices_t* matching_face = best_matching_face(cell->faces[f], other_cell->faces, other_cell->num_faces);
+          if (matching_face == NULL)
+          {
+            sprintf(error_string, "Cells '%s' and '%s' share a face, but that face\n"
+                    "could not be determined from any common vertices.",
+                    cell->name, other_cell->name);
+            goto error;
+          }
+          if (matching_face->num_vertices != face->num_vertices)
+          {
+            sprintf(error_string, "Cells '%s' and '%s' disagree about number of vertices in common face.\n"
+                "(%d vs %d.)", cell->name, other_cell->name, face->num_vertices, 
+                matching_face->num_vertices);
+            goto error;
+          }
+        }
+
+        // Also count any edges in this face that haven't been counted yet.
+        // NOTE: This assumes that the vertices in the face are listed in 
+        // NOTE: traversal order.
+        for (int v1 = 0; v1 < face->num_vertices; ++v1)
+        {
+          int v2 = (v1 + 1) % face->num_vertices;
+          int n1 = MIN(v1, v2);
+          int n2 = MAX(v1, v2);
+          if (!int_table_contains(edge_for_nodes, n1, n2))
+          {
+            // We count a new edge.
+            int_table_insert(edge_for_nodes, n1, n2, num_edges);
+            ++num_edges;
+          }
+        }
+      }
+      ++num_faces;
+    }
+  }
+
+  mesh = mesh_new(num_cells, 0, num_faces, num_edges, num_nodes);
+
+  // Clean up.
+  int_int_unordered_map_free(node_ids);
+  int_table_free(face_for_cells);
+  int_table_free(edge_for_nodes);
+
   return mesh;
+
+error:
+  int_int_unordered_map_free(node_ids);
+  int_table_free(face_for_cells);
+  int_table_free(edge_for_nodes);
+  if (mesh != NULL)
+    mesh_free(mesh);
+  return NULL;
 }
 
 static mesh_t* mesh_from_meshvoro_files(FILE* cell_file, 
