@@ -6,12 +6,18 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libgc.a)
   if (${CMAKE_BUILD_TYPE} STREQUAL "Debug")
     set(GC_CONFIG_OPTS ${GC_CONFIG_OPTS} --enable-gc-debug)
   endif()
+  message("Unpacking gc...")
   execute_process(COMMAND cmake -E tar xzvf ${CMAKE_CURRENT_SOURCE_DIR}/gc-7.2.tar.gz
-                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+                  OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
+  message("Configuring gc...")
   execute_process(COMMAND env CC=${CC} ./configure ${GC_CONFIG_OPTS}
-                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/gc-7.2)
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/gc-7.2
+                  OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
+  message("Building gc...")
   execute_process(COMMAND make install
-                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/gc-7.2)
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/gc-7.2
+                  OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
   add_library(gc STATIC IMPORTED)
   set_target_properties(gc PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libgc.a)
 endif()
@@ -32,8 +38,11 @@ set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};triangle)
 
 # Build Tetgen.
 if (NOT EXISTS ${PROJECT_BINARY_DIR}/include/tetgen.h)
+  message("Unpacking tetgen...")
   execute_process(COMMAND cmake -E tar xzvf ${CMAKE_CURRENT_SOURCE_DIR}/tetgen1.4.3.tar.gz
-                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+                  OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
+  message("Preparing tetgen...")
   file(COPY ${CMAKE_CURRENT_BINARY_DIR}/tetgen1.4.3/tetgen.h DESTINATION ${PROJECT_BINARY_DIR}/include)
 endif()
 add_library(tetgen ${CMAKE_CURRENT_BINARY_DIR}/tetgen1.4.3/tetgen.cxx ${CMAKE_CURRENT_BINARY_DIR}/tetgen1.4.3/predicates.cxx)
@@ -43,8 +52,11 @@ set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};tetgen)
 
 # Build the QHull C library.
 if (NOT EXISTS ${PROJECT_BINARY_DIR}/include/libqhull.h)
+  message("Unpacking qhull...")
   execute_process(COMMAND cmake -E tar xzvf ${CMAKE_CURRENT_SOURCE_DIR}/qhull-2012.1-src.tgz
-                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+                  OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
+  message("Preparing qhull...")
   file(GLOB qhull_includes "${CMAKE_CURRENT_BINARY_DIR}/qhull-2012.1/src/libqhull/*.h")
   foreach(inc ${qhull_includes})
     execute_process(COMMAND cmake -E copy ${inc} ${PROJECT_BINARY_DIR}/include)
@@ -60,10 +72,15 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/liblzma.a)
   if (${CMAKE_BUILD_TYPE} STREQUAL "Debug")
     set(XZ_CONFIG_OPTS ${XZ_CONFIG_OPTS} --enable-debug)
   endif()
+  message("Unpacking xz-utils...")
   execute_process(COMMAND cmake -E tar xzvf ${CMAKE_CURRENT_SOURCE_DIR}/xz-utils_5.0.0.orig.tar.gz
-                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+                  OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
+  message("Configuring xz-utils...")
   execute_process(COMMAND env CC=${CC} CXX=${CXX} ./configure ${XZ_CONFIG_OPTS}
-                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/xz-5.0.0)
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/xz-5.0.0
+                  OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
+  message("Building xz-utils...")
   execute_process(COMMAND make install
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/xz-5.0.0
                   OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
@@ -74,8 +91,11 @@ set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};lzma)
 
 # Install libarena -- A fast C arena/memory pool implementation.
 if (NOT EXISTS ${PROJECT_BINARY_DIR}/include/arena)
+  message("Unpacking libarena...")
   execute_process(COMMAND cmake -E tar xzvf ${CMAKE_CURRENT_SOURCE_DIR}/libarena-0.3.5.tgz
-                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+                  OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
+  message("Preparing libarena...")
   file(GLOB arena_includes "${CMAKE_CURRENT_BINARY_DIR}/libarena-0.3.5/src/*.h")
   execute_process(COMMAND cmake -E make_directory ${PROJECT_BINARY_DIR}/include/arena)
   foreach(inc ${arena_includes})
@@ -92,15 +112,18 @@ if (NOT EXISTS ${CMAKE_BINARY_DIR}/lib/libHYPRE.a)
   if (USE_MPI EQUAL 0)
     set(HYPRE_CONFIG_OPTS ${HYPRE_CONFIG_OPTS} -DHYPRE_SEQUENTIAL=ON)
   endif()
+  message("Unpacking HYPRE...")
   execute_process(COMMAND cmake -E tar xzvf ${CMAKE_CURRENT_SOURCE_DIR}/hypre-2.9.0b.tar.gz
-                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+                  OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
   message("Configuring HYPRE...")
   execute_process(COMMAND cmake ${HYPRE_CONFIG_OPTS} ..
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/hypre-2.9.0b/src/cmbuild
                   OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
   message("Building HYPRE...")
   execute_process(COMMAND make install
-                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/hypre-2.9.0b/src/cmbuild)
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/hypre-2.9.0b/src/cmbuild
+                  OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
 endif()
 add_library(HYPRE STATIC IMPORTED)
 set_target_properties(HYPRE PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libHYPRE.a)
@@ -151,10 +174,15 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/lib${SILOLIB}.a)
       set(SILO_CONFIG_OPTS ${SILO_CONFIG_OPTS} --enable-debug --with-hdf5=${HDF5_INCLUDE_DIRS},${HDF5_LIBRARY_DIRS})
     endif()
   endif()
+  message("Unpacking silo...")
   execute_process(COMMAND cmake -E tar xzvf ${CMAKE_CURRENT_SOURCE_DIR}/silo-4.8-bsd-smalltest.tar.gz
-                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+                  OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
+  message("Configuring silo...")
   execute_process(COMMAND env CC=${CC} CXX=${CXX} ./configure ${SILO_CONFIG_OPTS}
-                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/silo-4.8-bsd)
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/silo-4.8-bsd
+                  OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
+  message("Building silo...")
   execute_process(COMMAND make install
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/silo-4.8-bsd
                   OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
@@ -169,12 +197,18 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libsundials_cvode.a)
   if (USE_MPI EQUAL 0)
     set(CVODE_CONFIG_OPTS ${CVODE_CONFIG_OPTS} --disable-mpi)
   endif()
+  message("Unpacking CVODE...")
   execute_process(COMMAND cmake -E tar xzvf ${CMAKE_CURRENT_SOURCE_DIR}/cvode-2.6.0.tar.gz
-                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+                  OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
+  message("Configuring CVODE...")
   execute_process(COMMAND env CC=${CC} ./configure ${CVODE_CONFIG_OPTS}
-                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/cvode-2.6.0)
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/cvode-2.6.0
+                  OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
+  message("Building CVODE...")
   execute_process(COMMAND make install
-                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/cvode-2.6.0)
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/cvode-2.6.0
+                  OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
 endif()
 add_library(cvode STATIC IMPORTED)
 set_target_properties(cvode PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libsundials_cvode.a)
@@ -199,10 +233,14 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/liblua.a)
       set(LUA_ARCH ansi)
     endif()
   endif()
+  message("Unpacking lua...")
   execute_process(COMMAND cmake -E tar xzvf ${CMAKE_CURRENT_SOURCE_DIR}/lua-5.2.1.tar.gz
-                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+                  OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
+  message("Building lua...")
   execute_process(COMMAND make ${LUA_ARCH}
-                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/lua-5.2.1)
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/lua-5.2.1
+                  OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
   file(COPY ${CMAKE_CURRENT_BINARY_DIR}/lua-5.2.1/src/liblua.a DESTINATION ${PROJECT_BINARY_DIR}/lib)
   file(GLOB includes "${CMAKE_CURRENT_BINARY_DIR}/lua-5.2.1/src/*.h")
   foreach(inc ${includes})
@@ -217,12 +255,18 @@ set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};lua)
 # Build libxml2, an XML library.
 if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libxml2.a)
   set(XML2_CONFIG_OPTS --prefix=${PROJECT_BINARY_DIR} --enable-static --disable-shared --without-threads)
+  message("Unpacking libxml2...")
   execute_process(COMMAND cmake -E tar xzvf ${CMAKE_CURRENT_SOURCE_DIR}/libxml2-sources-2.9.0.tar.gz
-                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+                  OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
+  message("Configuring libxml2...")
   execute_process(COMMAND env CC=${CC} ./configure ${XML2_CONFIG_OPTS}
-                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/libxml2-2.9.0)
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/libxml2-2.9.0
+                  OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
+  message("Building libxml2...")
   execute_process(COMMAND make install
-                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/libxml2-2.9.0)
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/libxml2-2.9.0
+                  OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
 endif()
 add_library(xml2 STATIC IMPORTED)
 set_target_properties(xml2 PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libxml2.a)
