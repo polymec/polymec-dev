@@ -23,19 +23,6 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libgc.a)
 endif()
 set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};gc)
 
-# Build Triangle.
-if (NOT EXISTS ${PROJECT_BINARY_DIR}/include/triangle.h)
-  file(COPY triangle.h DESTINATION ${PROJECT_BINARY_DIR}/include)
-endif()
-add_library(triangle triangle.c)
-# Because Hang Si has messed with some of Shewchuk's predicates and
-# included them with his own Tetgen library, we need to rename some of 
-# the symbols therein to prevent duplicate symbols from confusing the 
-# linker. Gross.
-set(TRIANGLE_CFLAGS "-DTRILIBRARY -DREDUCED -DCDT_ONLY -DANSI_DECLARATORS -DREAL=double -Dexactinit=triangle_exactinit -Dfast_expansion_sum_zeroelem=triangle_fast_expansion_sum_zeroelem -Dscale_expansion_zeroelim=triangle_scale_expansion_zeroelim -Destimate=triangle_estimate -Dorient3dadapt=triangle_orient3dadapt -Dorient3d=triangle_orient3d -Dincircle=triangle_incircle")
-set_target_properties(triangle PROPERTIES COMPILE_FLAGS ${TRIANGLE_CFLAGS})
-set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};triangle)
-
 # Build Tetgen.
 if (NOT EXISTS ${PROJECT_BINARY_DIR}/include/tetgen.h)
   message("Unpacking tetgen...")
