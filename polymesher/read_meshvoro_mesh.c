@@ -8,6 +8,7 @@
 #include "core/slist.h"
 #include "core/table.h"
 #include "core/unordered_map.h"
+#include "core/edit_mesh.h"
 
 // Lua stuff.
 #include "lua.h"
@@ -186,6 +187,14 @@ static cell_with_faces_t** read_mesh_cells(FILE* cell_file,
     }
     ++line;
 
+    // Quick check.
+    if (num_faces < 4)
+    {
+      sprintf(error_string, "Cell '%s' has fewer than 4 faces.", elem_name);
+      ptr_slist_free(cells_list);
+      return NULL;
+    }
+
     // Set up a cell representation and append it to our list.
     cell_with_faces_t* cell = cell_with_faces_new(elem_name, cell_index, num_faces);
     ptr_slist_append_with_dtor(cells_list, cell, cell_list_dtor);
@@ -216,6 +225,14 @@ static cell_with_faces_t** read_mesh_cells(FILE* cell_file,
           return NULL;
         }
         ++line;
+      }
+
+      // Quick check.
+      if (num_vertices < 3)
+      {
+        sprintf(error_string, "Face %d in cell '%s' has fewer than 3 vertices.", f, elem_name);
+        ptr_slist_free(cells_list);
+        return NULL;
       }
 
       // Construct the face.
@@ -261,8 +278,75 @@ static cell_with_faces_t** read_mesh_cells(FILE* cell_file,
 
 static int read_cell_neighbors(FILE* neighbor_file,
                                cell_with_faces_t** cells,
+                               int num_cells,
                                char* error_string)
 {
+  // Now that we have a list of cells, we can fill in their neighbors 
+  // with information from the neighbors file. Here we make the following
+  // assumption:
+  // - The number of faces in a cell equals the number of its neighbors.
+
+  int status;
+  int line = 1;
+  int* cell_processed = malloc(sizeof(int) * num_cells);
+  memset(cell_processed, 0, sizeof(int) * num_cells);
+  do 
+  {
+    // Read the cell header.
+    char elem_name[10];
+    int cell_index, num_neighbors;
+    status = fscanf(neighbor_file, " vorocell: %d num_neighbors: %d\n", 
+                    &cell_index, &num_neighbors);
+    if (status == EOF) continue; // No more cells
+    if (status != 2)
+    {
+      sprintf(error_string, "Error reading cell neighbor header (line %d of neighbors file).", line);
+      free(cell_processed);
+      return -1;
+    }
+    if (num_neighbors != cells[cell_index]->num_faces)
+    {
+      sprintf(error_string, "Cell '%s' (%d) has %d neighbors and %d faces (must be equal).", 
+              cells[cell_index]->name, cell_index, num_neighbors, cells[cell_index]->num_faces);
+      free(cell_processed);
+      return -1;
+    }
+    ++line;
+
+    // Read the neighbor indices from the cells. Negative neighbor indices 
+    // indicate that a cell abuts the boundary.
+    int center_vertex;
+    for (int n = 0; n < num_neighbors; ++n)
+    {
+      int neighbor_id;
+      status = fscanf(neighbor_file, "%d\n", &neighbor_id);
+      if (status != 1)
+      {
+        sprintf(error_string, "Error reading cell neighbor (line %d of neighbors file).", line);
+        free(cell_processed);
+        return -1;
+      }
+      cells[cell_index]->neighbor_ids[n] = neighbor_id;
+      ++line;
+    }
+
+    // We're done processing this cell.
+    cell_processed[cell_index] = 1;
+
+  } while (status != EOF);
+
+  // Did we get neighbors for everyone?
+  for (int i = 0; i < num_cells; ++i)
+  {
+    if (!cell_processed[i])
+    {
+      sprintf(error_string, "Cell '%s' (%d) was not assigned neighbors.", cells[i]->name, i);
+      free(cell_processed);
+      return -1;
+    }
+  }
+
+  free(cell_processed);
   return 0;
 }
 
@@ -292,7 +376,7 @@ static mesh_t* construct_mesh(cell_with_faces_t** cells,
       // (A face is an interface between two cells.)
       cell_with_faces_t* other_cell = NULL;
       int cell1, cell2;
-      if (cell->neighbor_ids[f] != -1)
+      if (cell->neighbor_ids[f] >= 0)
       {
         other_cell = cells[cell->neighbor_ids[f]];
         cell1 = MIN(cell->index, other_cell->index);
@@ -301,7 +385,7 @@ static mesh_t* construct_mesh(cell_with_faces_t** cells,
       else
       {
         cell1 = cell->index;
-        cell2 = -1;
+        cell2 = cell->neighbor_ids[f];
       }
 
       if (!int_table_contains(face_for_cells, cell1, cell2))
@@ -310,22 +394,30 @@ static mesh_t* construct_mesh(cell_with_faces_t** cells,
         int_table_insert(face_for_cells, cell1, cell2, num_faces);
 
         // Make sure the two cells agree on the number of vertices in 
-        // the face.
-        if (cell2 != -1)
+        // their shared face.
+        if (other_cell != NULL)
         {
-          face_with_vertices_t* matching_face = best_matching_face(cell->faces[f], other_cell->faces, other_cell->num_faces);
-          if (matching_face == NULL)
+          // Find cell1 in the list of neighbor IDs for cell2.
+          face_with_vertices_t* other_face = NULL;
+          for (int ff = 0; ff < other_cell->num_faces; ++ff)
           {
-            sprintf(error_string, "Cells '%s' and '%s' share a face, but that face\n"
-                    "could not be determined from any common vertices.",
-                    cell->name, other_cell->name);
+            if (other_cell->neighbor_ids[ff] == cell->neighbor_ids[f])
+            {
+              other_face = other_cell->faces[ff];
+              break;
+            }
+          }
+          if (other_face == NULL)
+          {
+            sprintf(error_string, "Cells '%s' and '%s' are neighbors but do not have\n"
+                                  "corresponding faces.", cell->name, other_cell->name);
             goto error;
           }
-          if (matching_face->num_vertices != face->num_vertices)
+          if (other_face->num_vertices != face->num_vertices)
           {
-            sprintf(error_string, "Cells '%s' and '%s' disagree about number of vertices in common face.\n"
+            sprintf(error_string, "Neighboring cells '%s' and '%s' disagree about number of vertices in common face.\n"
                 "(%d vs %d.)", cell->name, other_cell->name, face->num_vertices, 
-                matching_face->num_vertices);
+                other_face->num_vertices);
             goto error;
           }
         }
@@ -333,15 +425,29 @@ static mesh_t* construct_mesh(cell_with_faces_t** cells,
         // Also count any edges in this face that haven't been counted yet.
         // NOTE: This assumes that the vertices in the face are listed in 
         // NOTE: traversal order.
-        for (int v1 = 0; v1 < face->num_vertices; ++v1)
+        for (int i = 0; i < face->num_vertices; ++i)
         {
-          int v2 = (v1 + 1) % face->num_vertices;
-          int n1 = MIN(v1, v2);
-          int n2 = MAX(v1, v2);
-          if (!int_table_contains(edge_for_nodes, n1, n2))
+          int v1 = face->vertex_ids[i];
+          int v2 = face->vertex_ids[(i + 1) % face->num_vertices];
+
+          // Map these vertices to node indices.
+          if (!int_int_unordered_map_contains(node_ids, v1))
+          {
+            int_int_unordered_map_insert(node_ids, v1, num_nodes);
+            ++num_nodes;
+          }
+          if (!int_int_unordered_map_contains(node_ids, v2))
+          {
+            int_int_unordered_map_insert(node_ids, v2, num_nodes);
+            ++num_nodes;
+          }
+          int n1 = *int_int_unordered_map_get(node_ids, v1);
+          int n2 = *int_int_unordered_map_get(node_ids, v2);
+
+          if (!int_table_contains(edge_for_nodes, MIN(n1, n2), MAX(n1, n2)))
           {
             // We count a new edge.
-            int_table_insert(edge_for_nodes, n1, n2, num_edges);
+            int_table_insert(edge_for_nodes, MIN(n1, n2), MAX(n1, n2), num_edges);
             ++num_edges;
           }
         }
@@ -350,9 +456,91 @@ static mesh_t* construct_mesh(cell_with_faces_t** cells,
     }
   }
 
+  // Create the actual mesh object.
   log_info("read_meshvoro_mesh: Creating mesh\n(%d cells, %d faces, %d edges, %d nodes)", 
            num_cells, num_faces, num_edges, num_nodes);
   mesh = mesh_new(num_cells, 0, num_faces, num_edges, num_nodes);
+
+  // Fill in the data for the mesh elements.
+
+  // Nodes.
+  {
+    int pos = 0, v, n;
+    while (int_int_unordered_map_next(node_ids, &pos, &v, &n))
+    {
+      mesh->nodes[n].x = vertices[v].x;
+      mesh->nodes[n].y = vertices[v].y;
+      mesh->nodes[n].z = vertices[v].z;
+    }
+  }
+
+  // Edges.
+  {
+    int_table_cell_pos_t pos = int_table_start(edge_for_nodes);
+    int n1, n2, e;
+    while (int_table_next_cell(edge_for_nodes, &pos, &n1, &n2, &e))
+    {
+      mesh->edges[e].node1 = &mesh->nodes[n1];
+      mesh->edges[e].node2 = &mesh->nodes[n2];
+    }
+  }
+
+  // Face -> cell and face -> edge connectivity.
+  {
+    // Loop over the faces separating cells.
+    int_table_cell_pos_t pos = int_table_start(face_for_cells);
+    int c1, c2, f;
+    while (int_table_next_cell(face_for_cells, &pos, &c1, &c2, &f))
+    {
+      // Hook up the cells to the faces.
+      mesh->faces[f].cell1 = &mesh->cells[c1];
+      if (c2 >= 0)
+        mesh->faces[f].cell2 = &mesh->cells[c2];
+
+      // We always use cell 1 to get the nodes for the face, and thereby 
+      // identify edges. Find the right face.
+      face_with_vertices_t* face = NULL;
+      for (int f1 = 0; f1 < cells[c1]->num_faces; ++f1)
+      {
+        if (cells[c1]->neighbor_ids[f1] == c2)
+        {
+          face = cells[c1]->faces[f1];
+          break;
+        }
+      }
+
+      // Now assemble edges for the face.
+      for (int v = 0; v < face->num_vertices; ++v)
+      {
+        int v1 = face->vertex_ids[v];
+        int v2 = face->vertex_ids[(v + 1) % face->num_vertices];
+
+        // Map the vertices to mesh nodes.
+        int n1 = *int_int_unordered_map_get(node_ids, v1);
+        int n2 = *int_int_unordered_map_get(node_ids, v2);
+
+        // Retrieve the edge index for these nodes.
+        int e = *int_table_get(edge_for_nodes, n1, n2);
+        
+        mesh_attach_edge_to_face(mesh, &mesh->edges[e], &mesh->faces[f]);
+      }
+    }
+  }
+
+  // Cell -> face connectivity.
+  for (int c1 = 0; c1 < mesh->num_cells; ++c1)
+  {
+    for (int f = 0; f < cells[c1]->num_faces; ++f)
+    {
+      // Find the face index corresponding to this cell's face.
+      int c2 = cells[c1]->neighbor_ids[f];
+      int face_id = *int_table_get(face_for_cells, c1, c2);
+      mesh_attach_face_to_cell(mesh, &mesh->faces[face_id], &mesh->cells[c1]);
+    }
+  }
+
+  // Compute the geometry of the mesh.
+  mesh_compute_geometry(mesh);
 
   // Clean up.
   int_int_unordered_map_free(node_ids);
@@ -389,7 +577,7 @@ static mesh_t* mesh_from_meshvoro_files(FILE* cell_file,
   if (cells == NULL) goto error;
 
   // Read the neighbor information for cells.
-  int err = read_cell_neighbors(neighbor_file, cells, error_str);
+  int err = read_cell_neighbors(neighbor_file, cells, num_cells, error_str);
   if (err != 0) goto error;
 
   // Now construct a mesh object.
