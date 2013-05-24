@@ -118,7 +118,7 @@ static point_t* read_mesh_vertices(FILE* vertex_file,
     {
       if (status != 4)
       {
-        sprintf(error_string, "Error reading line %d of vertex file.", last_index + 2);
+        sprintf(error_string, "Error reading line %d of vertex file.", last_index + 1);
         ptr_slist_free(points_list);
         return NULL;
       }
@@ -142,7 +142,7 @@ static point_t* read_mesh_vertices(FILE* vertex_file,
   while (!ptr_slist_empty(points_list))
     vertices[i++] = *((point_t*)ptr_slist_pop(points_list, NULL));
   ptr_slist_free(points_list);
-  log_detail("read_meshvoro_mesh: Read %d vertices.", *num_vertices);
+  log_detail("read_meshvoro_mesh: Read %d vertices (%d lines).", *num_vertices, last_index + 1);
 
   return vertices;
 }
@@ -171,7 +171,7 @@ static cell_with_faces_t** read_mesh_cells(FILE* cell_file,
       return NULL;
     }
     min_cell_index = MIN(min_cell_index, cell_index);
-    max_cell_index = MAX(min_cell_index, cell_index);
+    max_cell_index = MAX(max_cell_index, cell_index);
     ++line;
 
     // Read the index of the generator point in the vertex file.
@@ -239,7 +239,7 @@ static cell_with_faces_t** read_mesh_cells(FILE* cell_file,
   }
   if (max_cell_index != cells_list->size-1)
   {
-    sprintf(error_string, "Cell index space is not contiguous (max is %d, should be %d).", max_cell_index, cells_list->size-1);
+    sprintf(error_string, "Cell index space is not contiguous\n(max is %d, should be %d).", max_cell_index, cells_list->size-1);
     ptr_slist_free(cells_list);
     return NULL;
   }
@@ -254,7 +254,7 @@ static cell_with_faces_t** read_mesh_cells(FILE* cell_file,
     cells[cell->index] = cell;
   }
   ptr_slist_free(cells_list);
-  log_detail("read_meshvoro_mesh: Read %d cells.", *num_cells);
+  log_detail("read_meshvoro_mesh: Read %d cells (%d lines).", *num_cells, line);
 
   return cells;
 }
@@ -350,6 +350,8 @@ static mesh_t* construct_mesh(cell_with_faces_t** cells,
     }
   }
 
+  log_info("read_meshvoro_mesh: Creating mesh\n(%d cells, %d faces, %d edges, %d nodes)", 
+           num_cells, num_faces, num_edges, num_nodes);
   mesh = mesh_new(num_cells, 0, num_faces, num_edges, num_nodes);
 
   // Clean up.
