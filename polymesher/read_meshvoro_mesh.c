@@ -293,7 +293,6 @@ static int read_cell_neighbors(FILE* neighbor_file,
   do 
   {
     // Read the cell header.
-    char elem_name[10];
     int cell_index, num_neighbors;
     status = fscanf(neighbor_file, " vorocell: %d num_neighbors: %d\n", 
                     &cell_index, &num_neighbors);
@@ -315,7 +314,6 @@ static int read_cell_neighbors(FILE* neighbor_file,
 
     // Read the neighbor indices from the cells. Negative neighbor indices 
     // indicate that a cell abuts the boundary.
-    int center_vertex;
     for (int n = 0; n < num_neighbors; ++n)
     {
       int neighbor_id;

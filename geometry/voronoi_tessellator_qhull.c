@@ -3,7 +3,6 @@
 #define qh_QHpointer (1)
 #include "libqhull.h"
 
-#include <unistd.h>
 #include "core/polymec.h"
 #include <gc/gc.h>
 #include "geometry/voronoi_tessellator.h"
@@ -64,9 +63,6 @@ voronoi_tessellator_tessellate(voronoi_tessellator_t* tessellator,
 {
   ASSERT(points != NULL);
   ASSERT(num_points >= 2);
-
-  // Open up the QHull input file.
-  FILE* input = fopen(tessellator->qhull_filename, "r");
 
   // Set up QHull to tessellate the points. Much of this was borrowed from 
   // user_eg.c in the QHull distribution.
