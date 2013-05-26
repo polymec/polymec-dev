@@ -1,6 +1,7 @@
 #include "core/tuple.h"
 #include "core/unordered_set.h"
 #include "core/unordered_map.h"
+#include "core/table.h"
 #include "core/slist.h"
 #include "core/edit_mesh.h"
 #include "geometry/plane.h"
@@ -20,13 +21,340 @@ static int* ordered_triple_new(int a, int b, int c)
 
 // This function adds all boundary nodes, faces, and edges for a triple
 // of boundary cells (c1, c2, c3)
-void add_boundary_for_triple(mesh_t* mesh, int* triple)
+void add_boundary_for_triple(mesh_t* mesh, int* triple, point_t* generators)
 {
-  cell_t* cell1 = &mesh->cells[triple[0]];
-  cell_t* cell2 = &mesh->cells[triple[1]];
-  cell_t* cell3 = &mesh->cells[triple[2]];
+  int cell1_index = triple[0];
+  int cell2_index = triple[1];
+  int cell3_index = triple[2];
 
+  cell_t* cell1 = &mesh->cells[cell1_index];
+  cell_t* cell2 = &mesh->cells[cell2_index];
+  cell_t* cell3 = &mesh->cells[cell3_index];
+
+  // First off, we generate the boundary nodes for this triple. There 
+  // should be a total of 7 boundary nodes that "participate" in this 
+  // portion of the boundary: 1 at each generator (x 3), 
+  // 1 at each of the midpoints between generators (x 3), and 1 at the 
+  // intersection between all three generators (x 1). Some of these 
+  // boundary nodes may have already been created if two of the three 
+  // generators have already been processed in another triple. The 
+  // boundary node sitting at the intersection of all three generators 
+  // will certainly not have been created yet.
+
+  // Retrieve the memos keeping track of which nodes have been created.
+  int_int_unordered_map_t* bnode_for_gen = mesh_property(mesh, "bnode_for_gen");
+  int_table_t* bnode_for_gen_pair = mesh_property(mesh, "bnode_for_gen_pair");
+
+  // Generate or retrieve the boundary nodes that sit atop each 
+  // boundary cell's generator.
+  int bnode1_index, bnode2_index, bnode3_index;
+  node_t *bnode1, *bnode2, *bnode3;
+
+  // Node at generator 1.
+  int* entry = int_int_unordered_map_get(bnode_for_gen, cell1_index);
+  if (entry == NULL)
+  {
+    bnode1_index = mesh_add_node(mesh);
+    bnode1 = &mesh->nodes[bnode1_index];
+    bnode1->x = generators[cell1_index].x;
+    bnode1->y = generators[cell1_index].y;
+    bnode1->z = generators[cell1_index].z;
+    int_int_unordered_map_insert(bnode_for_gen, cell1_index, bnode1_index);
+  }
+  else
+  {
+    bnode1_index = *entry;
+    bnode1 = &mesh->nodes[bnode1_index];
+  }
+
+  // Node at generator 2.
+  entry = int_int_unordered_map_get(bnode_for_gen, cell2_index);
+  if (entry == NULL)
+  {
+    bnode2_index = mesh_add_node(mesh);
+    bnode2 = &mesh->nodes[bnode2_index];
+    bnode2->x = generators[cell2_index].x;
+    bnode2->y = generators[cell2_index].y;
+    bnode2->z = generators[cell2_index].z;
+    int_int_unordered_map_insert(bnode_for_gen, cell2_index, bnode2_index);
+  }
+  else
+  {
+    bnode2_index = *entry;
+    bnode2 = &mesh->nodes[bnode2_index];
+  }
+
+  // Node at generator 3.
+  entry = int_int_unordered_map_get(bnode_for_gen, cell3_index);
+  if (entry == NULL)
+  {
+    bnode3_index = mesh_add_node(mesh);
+    bnode3 = &mesh->nodes[bnode3_index];
+    bnode3->x = generators[cell3_index].x;
+    bnode3->y = generators[cell3_index].y;
+    bnode3->z = generators[cell3_index].z;
+    int_int_unordered_map_insert(bnode_for_gen, cell3_index, bnode3_index);
+  }
+  else
+  {
+    bnode3_index = *entry;
+    bnode3 = &mesh->nodes[bnode3_index];
+  }
+
+  // Generate or retrieve the boundary nodes that sit at the midpoints 
+  // between each pair of generators.
+  int bnode12_index, bnode23_index, bnode13_index;
+  node_t *bnode12, *bnode23, *bnode13;
+
+  // Node at midpoint between generators 1 and 2.
+  entry = int_table_get(bnode_for_gen_pair, cell1_index, cell2_index);
+  if (entry == NULL)
+  {
+    bnode12_index = mesh_add_node(mesh);
+    bnode12 = &mesh->nodes[bnode12_index];
+    bnode12->x = 0.5 * (bnode1->x + bnode2->x);
+    bnode12->y = 0.5 * (bnode1->y + bnode2->y);
+    bnode12->z = 0.5 * (bnode1->z + bnode2->z);
+    int_table_insert(bnode_for_gen_pair, cell1_index, cell2_index, bnode12_index);
+  }
+  else
+  {
+    bnode12_index = *entry;
+    bnode12 = &mesh->nodes[bnode12_index];
+  }
+
+  // Node at midpoint between generators 2 and 3.
+  entry = int_table_get(bnode_for_gen_pair, cell2_index, cell3_index);
+  if (entry == NULL)
+  {
+    bnode23_index = mesh_add_node(mesh);
+    bnode23 = &mesh->nodes[bnode23_index];
+    bnode23->x = 0.5 * (bnode2->x + bnode3->x);
+    bnode23->y = 0.5 * (bnode2->y + bnode3->y);
+    bnode23->z = 0.5 * (bnode2->z + bnode3->z);
+    int_table_insert(bnode_for_gen_pair, cell2_index, cell3_index, bnode23_index);
+  }
+  else
+  {
+    bnode23_index = *entry;
+    bnode23 = &mesh->nodes[bnode23_index];
+  }
+
+  // Node at midpoint between generators 1 and 3.
+  entry = int_table_get(bnode_for_gen_pair, cell1_index, cell3_index);
+  if (entry == NULL)
+  {
+    bnode13_index = mesh_add_node(mesh);
+    bnode13 = &mesh->nodes[bnode13_index];
+    bnode13->x = 0.5 * (bnode1->x + bnode3->x);
+    bnode13->y = 0.5 * (bnode1->y + bnode3->y);
+    bnode13->z = 0.5 * (bnode1->z + bnode3->z);
+    int_table_insert(bnode_for_gen_pair, cell1_index, cell3_index, bnode13_index);
+  }
+  else
+  {
+    bnode13_index = *entry;
+    bnode13 = &mesh->nodes[bnode13_index];
+  }
+
+  // Generate the boundary nodes that sits at the intersection of the 
+  // three generators.
+  int bnode123_index = mesh_add_node(mesh);
+  node_t* bnode123 = &mesh->nodes[bnode123_index];
+  // FIXME: This boundary node is equidistant from all generators, 
+  // FIXME: correct?
+  bnode123->x = (bnode1->x + bnode2->x + bnode3->x) / 3.0;
+  bnode123->y = (bnode1->y + bnode2->y + bnode3->y) / 3.0;
+  bnode123->z = (bnode1->z + bnode2->z + bnode3->z) / 3.0;
+
+  // Now that we have added all the boundary nodes, we create boundary 
+  // edges to connect them. Some of these edges will already exist, so 
+  // we have to be careful not to recreate those. The edges connecting 
+  // bnode123 to the other nodes will not exist, so we'll definitely 
+  // create those.
   // FIXME
+
+  // Retrieve the memos keeping track of which edges have been created.
+  int_table_t* bedge_for_bnodes = mesh_property(mesh, "bedge_for_bnodes");
+
+  // Edge connecting bnode1 to bnode12.
+  int edge112_index;
+  edge_t* edge112;
+  entry = int_table_get(bedge_for_bnodes, 
+                        MIN(bnode1_index, bnode12_index),
+                        MAX(bnode1_index, bnode12_index));
+  if (entry == NULL)
+  {
+    edge112_index = mesh_add_edge(mesh);
+    edge112 = &mesh->edges[edge112_index];
+    edge112->node1 = bnode1;
+    edge112->node2 = bnode12;
+    int_table_insert(bedge_for_bnodes, 
+                     MIN(bnode1_index, bnode12_index),
+                     MAX(bnode1_index, bnode12_index), 
+                     edge112_index);
+  }
+  else
+  {
+    edge112_index = *entry;
+    edge112 = &mesh->edges[edge112_index];
+  }
+
+  // Edge connecting bnode1 to bnode13.
+  int edge113_index;
+  edge_t* edge113;
+  entry = int_table_get(bedge_for_bnodes, 
+                        MIN(bnode1_index, bnode13_index),
+                        MAX(bnode1_index, bnode13_index));
+  if (entry == NULL)
+  {
+    edge113_index = mesh_add_edge(mesh);
+    edge113 = &mesh->edges[edge113_index];
+    edge113->node1 = bnode1;
+    edge113->node2 = bnode13;
+    int_table_insert(bedge_for_bnodes, 
+                     MIN(bnode1_index, bnode13_index),
+                     MAX(bnode1_index, bnode13_index),
+                     edge113_index);
+  }
+  else
+  {
+    edge113_index = *entry;
+    edge113 = &mesh->edges[edge113_index];
+  }
+
+  // Edge connecting bnode2 to bnode12.
+  int edge212_index;
+  edge_t* edge212;
+  entry = int_table_get(bedge_for_bnodes, 
+                        MIN(bnode2_index, bnode12_index),
+                        MAX(bnode2_index, bnode12_index));
+  if (entry == NULL)
+  {
+    edge212_index = mesh_add_edge(mesh);
+    edge212 = &mesh->edges[edge212_index];
+    edge212->node1 = bnode2;
+    edge212->node2 = bnode12;
+    int_table_insert(bedge_for_bnodes, 
+                     MIN(bnode1_index, bnode12_index),
+                     MAX(bnode1_index, bnode12_index),
+                     edge212_index);
+  }
+  else
+  {
+    edge212_index = *entry;
+    edge212 = &mesh->edges[edge212_index];
+  }
+
+  // Edge connecting bnode2 to bnode23.
+  int edge223_index;
+  edge_t* edge223;
+  entry = int_table_get(bedge_for_bnodes, 
+                        MIN(bnode2_index, bnode23_index),
+                        MAX(bnode2_index, bnode23_index));
+  if (entry == NULL)
+  {
+    edge223_index = mesh_add_edge(mesh);
+    edge223 = &mesh->edges[edge223_index];
+    edge223->node1 = bnode2;
+    edge223->node2 = bnode23;
+    int_table_insert(bedge_for_bnodes, 
+                     MIN(bnode2_index, bnode23_index),
+                     MAX(bnode2_index, bnode23_index),
+                     edge223_index);
+  }
+  else
+  {
+    edge223_index = *entry;
+    edge223 = &mesh->edges[edge223_index];
+  }
+
+  // Edge connecting bnode3 to bnode13.
+  int edge313_index;
+  edge_t* edge313;
+  entry = int_table_get(bedge_for_bnodes, 
+                        MIN(bnode3_index, bnode13_index),
+                        MAX(bnode3_index, bnode13_index));
+  if (entry == NULL)
+  {
+    edge313_index = mesh_add_edge(mesh);
+    edge313 = &mesh->edges[edge313_index];
+    edge313->node1 = bnode3;
+    edge313->node2 = bnode13;
+    int_table_insert(bedge_for_bnodes, 
+                     MIN(bnode3_index, bnode13_index),
+                     MAX(bnode3_index, bnode13_index),
+                     edge313_index);
+  }
+  else
+  {
+    edge313_index = *entry;
+    edge313 = &mesh->edges[edge313_index];
+  }
+
+  // Edge connecting bnode3 to bnode23.
+  int edge323_index;
+  edge_t* edge323;
+  entry = int_table_get(bedge_for_bnodes, 
+                        MIN(bnode3_index, bnode23_index),
+                        MAX(bnode3_index, bnode23_index));
+  if (entry == NULL)
+  {
+    edge323_index = mesh_add_edge(mesh);
+    edge323 = &mesh->edges[edge223_index];
+    edge323->node1 = bnode3;
+    edge323->node2 = bnode23;
+    int_table_insert(bedge_for_bnodes, 
+                     MIN(bnode3_index, bnode23_index),
+                     MAX(bnode3_index, bnode23_index),
+                     edge323_index);
+  }
+  else
+  {
+    edge323_index = *entry;
+    edge323 = &mesh->edges[edge323_index];
+  }
+
+  // Edge connecting bnode1 to bnode123.
+  int edge1123_index = mesh_add_edge(mesh);
+  edge_t* edge1123 = &mesh->edges[edge1123_index];
+  edge1123->node1 = bnode1;
+  edge1123->node2 = bnode123;
+
+  // Edge connecting bnode12 to bnode123.
+  int edge12123_index = mesh_add_edge(mesh);
+  edge_t* edge12123 = &mesh->edges[edge12123_index];
+  edge12123->node1 = bnode12;
+  edge12123->node2 = bnode123;
+
+  // Edge connecting bnode2 to bnode123.
+  int edge2123_index = mesh_add_edge(mesh);
+  edge_t* edge2123 = &mesh->edges[edge2123_index];
+  edge2123->node1 = bnode1;
+  edge2123->node2 = bnode123;
+
+  // Edge connecting bnode23 to bnode123.
+  int edge23123_index = mesh_add_edge(mesh);
+  edge_t* edge23123 = &mesh->edges[edge23123_index];
+  edge23123->node1 = bnode23;
+  edge23123->node2 = bnode123;
+
+  // Edge connecting bnode3 to bnode123.
+  int edge3123_index = mesh_add_edge(mesh);
+  edge_t* edge3123 = &mesh->edges[edge3123_index];
+  edge3123->node1 = bnode1;
+  edge3123->node2 = bnode123;
+
+  // Edge connecting bnode13 to bnode123.
+  int edge13123_index = mesh_add_edge(mesh);
+  edge_t* edge13123 = &mesh->edges[edge13123_index];
+  edge13123->node1 = bnode13;
+  edge13123->node2 = bnode123;
+
+  // Finally, we connect the outer edge/ray associated with the 
+  // intersection of the generators to bnode123.
+  // FIXME
+
 }
 
 mesh_t* create_bounded_voronoi_mesh(point_t* generators, int num_generators,
@@ -43,7 +371,7 @@ mesh_t* create_bounded_voronoi_mesh(point_t* generators, int num_generators,
 
   // Create an unbounded Voronoi tessellation using these generators.
   int num_non_ghost_generators = num_generators + num_boundary_generators;
-  point_t non_ghost_generators[num_non_ghost_generators];
+  point_t* non_ghost_generators = malloc(sizeof(point_t) * num_non_ghost_generators);
   memcpy(non_ghost_generators, generators, sizeof(point_t) * num_generators);
   memcpy(&non_ghost_generators[num_generators], boundary_generators, sizeof(point_t) * num_boundary_generators);
   mesh_t* mesh = create_unbounded_voronoi_mesh(non_ghost_generators, num_non_ghost_generators,
@@ -115,7 +443,7 @@ mesh_t* create_bounded_voronoi_mesh(point_t* generators, int num_generators,
               int* triple = ordered_triple_new(cell1_index, cell2_index, cell3_index);
               if (!int_tuple_unordered_set_contains(triples_processed, triple))
               {
-                add_boundary_for_triple(mesh, triple);
+                add_boundary_for_triple(mesh, triple, non_ghost_generators);
 
                 // Stick this triple into the set of already-processed 
                 // triples.
@@ -422,6 +750,7 @@ mesh_t* create_bounded_voronoi_mesh(point_t* generators, int num_generators,
   int_slist_free(generators_remaining);
   int_unordered_set_free(generators_processed);
   int_tuple_unordered_set_free(triples_processed);
+  free(non_ghost_generators);
 
   // Before we go any further, check to see if any outer edges are 
   // poking through our boundary generators.
