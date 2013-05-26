@@ -1,63 +1,10 @@
+#include "core/tuple.h"
 #include "core/unordered_set.h"
 #include "core/unordered_map.h"
 #include "core/slist.h"
 #include "core/edit_mesh.h"
-#include "core/newton.h"
 #include "geometry/plane.h"
-//#include "geometry/giftwrap_hull.h"
 #include "geometry/create_unbounded_voronoi_mesh.h"
-
-// This function and context help us compute the projections of 
-// interior nodes to the boundary.
-typedef struct 
-{
-  // Generator points.
-  point_t xg1, xg2;
-
-  // Interior node positions.
-  point_t xn1, xn2;
-
-  // Rays connecting interior nodes to the boundary.
-  vector_t ray1, ray2;
-
-  // Plane object for constructing the boundary face.
-  sp_func_t* plane;
-} project_bnodes_context_t;
-
-static void project_bnodes(void* context, double* X, double* F)
-{
-  project_bnodes_context_t* ctx = context;
-
-  // Use the given parameter s1 to project our interior nodes
-  // to a plane.
-  double s1 = X[0];
-  point_t xb1 = {.x = ctx->xn1.x + s1*ctx->ray1.x,
-                 .y = ctx->xn1.y + s1*ctx->ray1.y,
-                 .z = ctx->xn1.z + s1*ctx->ray1.z};
-
-  // Construct a normal vector for the plane using xg1, xg2, and xb1.
-  vector_t v1, v2, np;
-  point_displacement(&ctx->xg1, &ctx->xg2, &v1);
-  point_displacement(&ctx->xg1, &xb1, &v2);
-  vector_cross(&v1, &v2, &np);
-  ASSERT(vector_mag(&np) != 0.0);
-  vector_normalize(&np);
-
-  // Create the plane.
-  if (ctx->plane == NULL)
-    ctx->plane = plane_new(&np, &ctx->xg1);
-  else
-    plane_reset(ctx->plane, &np, &ctx->xg1);
-
-  // Find the intersection of the second boundary node with the plane.
-  double s2 = plane_intersect_with_line(ctx->plane, &ctx->xn2, &ctx->ray2);
-  point_t xb2 = {.x = ctx->xn2.x + s2*ctx->ray2.x,
-                 .y = ctx->xn2.y + s2*ctx->ray2.y,
-                 .z = ctx->xn2.z + s2*ctx->ray2.z};
-
-  // The function's value is the distance of xb2 from the plane.
-  sp_func_eval(ctx->plane, &xb2, F);
-}
 
 mesh_t* create_bounded_voronoi_mesh(point_t* generators, int num_generators,
                                     point_t* boundary_generators, int num_boundary_generators,
@@ -66,8 +13,8 @@ mesh_t* create_bounded_voronoi_mesh(point_t* generators, int num_generators,
   ASSERT(generators != NULL);
   ASSERT(num_generators >= 1); 
   ASSERT(num_boundary_generators >= 0); 
-  ASSERT((boundary_generators != NULL) || (num_boundary_generators == 0));
-  ASSERT(num_ghost_generators >= 0); 
+  ASSERT(boundary_generators != NULL);
+  ASSERT(num_boundary_generators >= 4); 
   ASSERT(num_ghost_generators >= 0); 
   ASSERT((ghost_generators != NULL) || (num_ghost_generators == 0));
 
@@ -86,6 +33,9 @@ mesh_t* create_bounded_voronoi_mesh(point_t* generators, int num_generators,
   int_ptr_unordered_map_t* outer_cell_edges = mesh_property(mesh, "outer_cell_edges");
   int_ptr_unordered_map_t* outer_edge_rays = mesh_property(mesh, "outer_rays");
 
+  // We use this set to keep track of generator triples we've processed.
+  int_tuple_unordered_set_t* triples_processed = int_tuple_unordered_set_new();
+
   // We use this map to keep track of boundary nodes we've created.
   int_int_unordered_map_t* bnode_map = int_int_unordered_map_new(); // Maps interior nodes to boundary nodes.
   int_int_unordered_map_t* generator_bnode_map = int_int_unordered_map_new(); // Maps cells to generator-point boundary nodes.
@@ -94,10 +44,7 @@ mesh_t* create_bounded_voronoi_mesh(point_t* generators, int num_generators,
   int_int_unordered_map_t* bedge1_map = int_int_unordered_map_new(); // Maps cells to edges connecting generator-point node to node 1.
   int_int_unordered_map_t* bedge2_map = int_int_unordered_map_new(); // Maps cells to edges connecting generator-point node to node 2.
 
-  // A nonlinear system for projecting boundary nodes.
-  project_bnodes_context_t proj_context = {.plane = NULL};
-  nonlinear_system_t proj_sys = {.dim = 1, .compute_F = project_bnodes, .context = (void*)&proj_context};
-
+#if 0
   // Now traverse the boundary generators and cut them up as needed.
   for (int c = num_generators; c < num_non_ghost_generators; ++c)
   {
@@ -360,12 +307,14 @@ mesh_t* create_bounded_voronoi_mesh(point_t* generators, int num_generators,
       far_face->center.z = (neighbor_generator_bnode->z + bnode1->z + bnode2->z) / 3.0;
     }
   }
+#endif
 
   // Clean up.
   int_int_unordered_map_free(bedge1_map);
   int_int_unordered_map_free(bedge2_map);
   int_int_unordered_map_free(generator_bnode_map);
   int_int_unordered_map_free(bnode_map);
+  int_tuple_unordered_set_free(triples_processed);
 
   // Before we go any further, check to see if any outer edges are 
   // poking through our boundary generators.
