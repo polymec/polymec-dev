@@ -71,26 +71,47 @@ mesh_t* create_bounded_voronoi_mesh(point_t* generators, int num_generators,
     int cell1_index = int_slist_pop(generators_remaining, NULL);
     cell_t* cell1 = &mesh->cells[cell1_index];
 
+    // Cell1 should describe an outer cell. If it doesn't, we have 
+    // an open boundary.
+    if (!int_ptr_unordered_map_contains(outer_cell_edges, cell1_index))
+    {
+      polymec_error("create_bounded_voronoi_mesh: boundary generators describe\n"
+                    "an open boundary at x = (%g, %g, %g)! The boundary must be closed.", 
+                    non_ghost_generators[cell1_index].x, 
+                    non_ghost_generators[cell1_index].y, 
+                    non_ghost_generators[cell1_index].z);
+    }
+
     // Process all triples of boundary generators incident upon this one.
     for (int f = 0; f < cell1->num_faces; ++f)
     {
       cell_t* cell2 = face_opp_cell(cell1->faces[f], cell1); 
+
       if (cell2 != NULL)
       {
         int cell2_index = cell2 - &mesh->cells[0];
+
+        // Don't bother with interior cells.
+        if (!int_ptr_unordered_map_contains(outer_cell_edges, cell2_index))
+          continue;
 
         // Look for a cell3 to complete the triple. Such a cell must 
         // possess a face whose opposite cell is cell1.
         for (int ff = 0; ff < cell2->num_faces; ++ff)
         {
           cell_t* cell3 = face_opp_cell(cell2->faces[ff], cell2);
+          int cell3_index = cell3 - &mesh->cells[0];
+
+          // Don't bother with interior cells.
+          if (!int_ptr_unordered_map_contains(outer_cell_edges, cell3_index))
+            continue;
+
           for (int fff = 0; fff < cell3->num_faces; ++fff)
           {
             if (face_opp_cell(cell3->faces[fff], cell3) == cell1)
             {
               // Found it! We have a triple. Have we already processed 
               // this one?
-              int cell3_index = cell3 - &mesh->cells[0];
               int* triple = ordered_triple_new(cell1_index, cell2_index, cell3_index);
               if (!int_tuple_unordered_set_contains(triples_processed, triple))
               {
