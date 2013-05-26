@@ -6,6 +6,29 @@
 #include "geometry/plane.h"
 #include "geometry/create_unbounded_voronoi_mesh.h"
 
+// This constructs an ordered 3-tuple containing the given indices.
+static int* ordered_triple_new(int a, int b, int c)
+{
+  int* triple = int_tuple_new(3);
+  triple[0] = MIN(MIN(a, b), c);
+  triple[2] = MAX(MAX(a, b), c);
+  triple[1] = (triple[0] == a) ? (MIN(b, c))
+                               : (triple[0] == b) ? (MIN(a, c))
+                                                  : MIN(a, b);
+  return triple;
+}
+
+// This function adds all boundary nodes, faces, and edges for a triple
+// of boundary cells (c1, c2, c3)
+void add_boundary_for_triple(mesh_t* mesh, int* triple)
+{
+  cell_t* cell1 = &mesh->cells[triple[0]];
+  cell_t* cell2 = &mesh->cells[triple[1]];
+  cell_t* cell3 = &mesh->cells[triple[2]];
+
+  // FIXME
+}
+
 mesh_t* create_bounded_voronoi_mesh(point_t* generators, int num_generators,
                                     point_t* boundary_generators, int num_boundary_generators,
                                     point_t* ghost_generators, int num_ghost_generators)
@@ -36,6 +59,68 @@ mesh_t* create_bounded_voronoi_mesh(point_t* generators, int num_generators,
   // We use this set to keep track of generator triples we've processed.
   int_tuple_unordered_set_t* triples_processed = int_tuple_unordered_set_new();
 
+  // Now go over the boundary generators {gi}. We will generate a set of 
+  // 6 coplanar boundary faces for each triple (g1, g2, g3). We start 
+  // with the first boundary generator, assemble a list of its neighbors, 
+  // and proceed to process all triples until we run out.
+  int_slist_t* generators_remaining = int_slist_new();
+  int_unordered_set_t* generators_processed = int_unordered_set_new();
+  int_slist_append(generators_remaining, num_generators);
+  while (!int_slist_empty(generators_remaining))
+  {
+    int cell1_index = int_slist_pop(generators_remaining, NULL);
+    cell_t* cell1 = &mesh->cells[cell1_index];
+
+    // Process all triples of boundary generators incident upon this one.
+    for (int f = 0; f < cell1->num_faces; ++f)
+    {
+      cell_t* cell2 = face_opp_cell(cell1->faces[f], cell1); 
+      if (cell2 != NULL)
+      {
+        int cell2_index = cell2 - &mesh->cells[0];
+
+        // Look for a cell3 to complete the triple. Such a cell must 
+        // possess a face whose opposite cell is cell1.
+        for (int ff = 0; ff < cell2->num_faces; ++ff)
+        {
+          cell_t* cell3 = face_opp_cell(cell2->faces[ff], cell2);
+          for (int fff = 0; fff < cell3->num_faces; ++fff)
+          {
+            if (face_opp_cell(cell3->faces[fff], cell3) == cell1)
+            {
+              // Found it! We have a triple. Have we already processed 
+              // this one?
+              int cell3_index = cell3 - &mesh->cells[0];
+              int* triple = ordered_triple_new(cell1_index, cell2_index, cell3_index);
+              if (!int_tuple_unordered_set_contains(triples_processed, triple))
+              {
+                add_boundary_for_triple(mesh, triple);
+
+                // Stick this triple into the set of already-processed 
+                // triples.
+                int_tuple_unordered_set_insert_with_dtor(triples_processed, triple, int_tuple_free);
+              }
+              else
+              {
+                // We've already processed the triple, so destroy it.
+                int_tuple_free(triple);
+              }
+            }
+          }
+        }
+
+        // Make sure we process this cell in the same fashion, unless
+        // it's already been processed.
+        if (!int_unordered_set_contains(generators_processed, cell2_index))
+          int_slist_append(generators_remaining, cell2_index);
+      }
+    }
+
+    // Mark this cell/generator as processed.
+    int_unordered_set_insert(generators_processed, cell1_index);
+  }
+
+#if 0
   // We use this map to keep track of boundary nodes we've created.
   int_int_unordered_map_t* bnode_map = int_int_unordered_map_new(); // Maps interior nodes to boundary nodes.
   int_int_unordered_map_t* generator_bnode_map = int_int_unordered_map_new(); // Maps cells to generator-point boundary nodes.
@@ -44,7 +129,6 @@ mesh_t* create_bounded_voronoi_mesh(point_t* generators, int num_generators,
   int_int_unordered_map_t* bedge1_map = int_int_unordered_map_new(); // Maps cells to edges connecting generator-point node to node 1.
   int_int_unordered_map_t* bedge2_map = int_int_unordered_map_new(); // Maps cells to edges connecting generator-point node to node 2.
 
-#if 0
   // Now traverse the boundary generators and cut them up as needed.
   for (int c = num_generators; c < num_non_ghost_generators; ++c)
   {
@@ -307,13 +391,15 @@ mesh_t* create_bounded_voronoi_mesh(point_t* generators, int num_generators,
       far_face->center.z = (neighbor_generator_bnode->z + bnode1->z + bnode2->z) / 3.0;
     }
   }
-#endif
-
-  // Clean up.
   int_int_unordered_map_free(bedge1_map);
   int_int_unordered_map_free(bedge2_map);
   int_int_unordered_map_free(generator_bnode_map);
   int_int_unordered_map_free(bnode_map);
+#endif
+
+  // Clean up.
+  int_slist_free(generators_remaining);
+  int_unordered_set_free(generators_processed);
   int_tuple_unordered_set_free(triples_processed);
 
   // Before we go any further, check to see if any outer edges are 
