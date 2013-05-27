@@ -434,6 +434,11 @@ static int bounded_voronoi_mesh(lua_State* lua)
                                              boundary_generators, num_boundary_generators,
                                              NULL, 0);
 
+  // Log some information.
+  log_detail("Generated bounded Voronoi mesh:");
+  log_detail("  %d interior cells, %d boundary cells", num_generators, num_boundary_generators);
+  log_detail("  %d faces, %d edges, %d nodes", mesh->num_faces, mesh->num_edges, mesh->num_nodes);
+
   // Push the mesh onto the stack.
   lua_pushmesh(lua, mesh);
   return 1;
