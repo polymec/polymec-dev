@@ -528,6 +528,8 @@ mesh_t* create_bounded_voronoi_mesh(point_t* generators, int num_generators,
               int* triple = ordered_triple_new(cell1_index, cell2_index, cell3_index);
               if (!int_tuple_unordered_set_contains(triples_processed, triple))
               {
+                log_debug("create_bounded_voronoi_mesh: Bounding (%d, %d, %d)",
+                          cell1_index, cell2_index, cell2_index);
                 add_boundary_for_triple(mesh, triple, non_ghost_generators);
 
                 // Stick this triple into the set of already-processed 
