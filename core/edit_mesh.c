@@ -119,6 +119,11 @@ void mesh_delete_cell(mesh_t* mesh, int i)
 
 void mesh_attach_edge_to_face(mesh_t* mesh, edge_t* edge, face_t* face)
 {
+  ASSERT((edge - &mesh->edges[0]) >= 0);
+  ASSERT((edge - &mesh->edges[0]) < mesh->num_edges);
+  ASSERT((face - &mesh->faces[0]) >= 0);
+  ASSERT((face - &mesh->faces[0]) < mesh->num_faces);
+
   if (face->edges == NULL)
   {
     face->num_edges = 1;
@@ -143,6 +148,11 @@ void mesh_attach_edge_to_face(mesh_t* mesh, edge_t* edge, face_t* face)
 
 void mesh_attach_face_to_cell(mesh_t* mesh, face_t* face, cell_t* cell)
 {
+  ASSERT((face - &mesh->faces[0]) >= 0);
+  ASSERT((face - &mesh->faces[0]) < mesh->num_faces);
+  ASSERT((cell - &mesh->cells[0]) >= 0);
+  ASSERT((cell - &mesh->cells[0]) < mesh->num_cells);
+
   // Make sure this face isn't already attached to two cells.
   ASSERT((face->cell1 == NULL) || (face->cell2 == NULL));
 

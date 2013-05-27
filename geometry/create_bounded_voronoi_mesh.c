@@ -19,16 +19,232 @@ static int* ordered_triple_new(int a, int b, int c)
   return triple;
 }
 
-// This function finds the face shared by the two given cells.
-static face_t* shared_face(cell_t* cell1, cell_t* cell2)
+// This function creates or retrieves a node at the given generator point 
+// within a mesh, returning its index.
+static int node_at_generator(mesh_t* mesh, 
+                             point_t* generators, 
+                             int gen_index)
 {
+  // Get our memo.
+  int_int_unordered_map_t* bnode_for_gen = mesh_property(mesh, "bnode_for_gen");
+  ASSERT(bnode_for_gen != NULL);
+
+  int index;
+  int* entry = int_int_unordered_map_get(bnode_for_gen, gen_index);
+  if (entry == NULL)
+  {
+    index = mesh_add_node(mesh);
+    node_t* node = &mesh->nodes[gen_index];
+    node->x = generators[gen_index].x;
+    node->y = generators[gen_index].y;
+    node->z = generators[gen_index].z;
+    int_int_unordered_map_insert(bnode_for_gen, gen_index, index);
+  }
+  else
+    index = *entry;
+
+  return index;
+}
+
+// This function creates or retrieves a node at the midpoint between the 
+// two generators, using the given table as a memo.
+static int node_at_midpoint(mesh_t* mesh,
+                            point_t* generators,
+                            int gen1_index,
+                            int gen2_index)
+{
+  // Get our memo.
+  int_table_t* bnode_for_gen_pair = mesh_property(mesh, "bnode_for_gen_pair");
+  ASSERT(bnode_for_gen_pair != NULL);
+
+  int* entry = int_table_get(bnode_for_gen_pair, gen1_index, gen2_index);
+  int index;
+  if (entry == NULL)
+  {
+    index = mesh_add_node(mesh);
+    node_t* node = &mesh->nodes[index];
+    point_t* gen1 = &generators[gen1_index];
+    point_t* gen2 = &generators[gen2_index];
+    node->x = 0.5 * (gen1->x + gen2->x);
+    node->y = 0.5 * (gen1->y + gen2->y);
+    node->z = 0.5 * (gen1->z + gen2->z);
+    int_table_insert(bnode_for_gen_pair, gen1_index, gen2_index, index);
+  }
+  else
+    index = *entry;
+  return index;
+}
+
+// This function finds the face shared by the two given cells.
+static face_t* shared_face(mesh_t* mesh, int cell1_index, int cell2_index)
+{
+  cell_t* cell1 = &mesh->cells[cell1_index];
+  cell_t* cell2 = &mesh->cells[cell2_index];
+
   for (int f = 0; f < cell1->num_faces; ++f)
   {  
     face_t* face = cell1->faces[f];
+    ASSERT((face - &mesh->faces[0]) >= 0);
+    ASSERT((face - &mesh->faces[0]) < mesh->num_faces);
     if (face_opp_cell(face, cell1) == cell2)
       return face;
   }
   return NULL;
+}
+
+// This function creates the node at the intersection of three generators.
+static int node_at_intersection(mesh_t* mesh, 
+                                point_t* generators,
+                                int gen1_index,
+                                int gen2_index,
+                                int gen3_index)
+{
+  int index = mesh_add_node(mesh);
+
+  // These three generators share a semi-infinite edge. This boundary node is 
+  // the intersection of the edge's outgoing ray with the plane in which the 
+  // generators sit.
+
+  point_t* x1 = &generators[gen1_index];
+  point_t* x2 = &generators[gen2_index];
+  point_t* x3 = &generators[gen3_index];
+
+  // Compute the normal of the plane and construct the plane. We don't care
+  // which way it points.
+  vector_t x12, x13, n;
+  point_displacement(x1, x2, &x12);
+  point_displacement(x1, x3, &x13);
+  vector_cross(&x12, &x13, &n);
+  ASSERT(vector_dot(&n, &n) > 0.0);
+  vector_normalize(&n);
+  sp_func_t* plane = plane_new(&n, x1);
+
+  // Find the interior edge common to these generators and retrieve its ray.
+  int_ptr_unordered_map_t* outer_cell_edges = mesh_property(mesh, "outer_cell_edges");
+  int_ptr_unordered_map_t* outer_edge_rays = mesh_property(mesh, "outer_rays");
+  int* outer_edges1 = *int_ptr_unordered_map_get(outer_cell_edges, gen1_index);
+  int* outer_edges2 = *int_ptr_unordered_map_get(outer_cell_edges, gen2_index);
+  int* outer_edges3 = *int_ptr_unordered_map_get(outer_cell_edges, gen3_index);
+  int shared_edge_index = -1;
+  ASSERT(outer_edges1[0] > 0);
+  ASSERT(outer_edges2[0] > 0);
+  ASSERT(outer_edges3[0] > 0);
+  for (int i = 1; i <= outer_edges1[0]; ++i)
+  {
+    for (int j = 1; j <= outer_edges2[0]; ++j)
+    {
+      if (outer_edges1[i] != outer_edges2[j]) continue;
+
+      for (int k = 1; k <= outer_edges3[0]; ++k)
+      {
+        if (outer_edges2[j] == outer_edges3[k])
+        {
+          shared_edge_index = outer_edges3[k];
+          break;
+        }
+      }
+    }
+  }
+  ASSERT(shared_edge_index != -1);
+  edge_t* shared_edge = &mesh->edges[shared_edge_index];
+  node_t* int_node = shared_edge->node1;
+
+  vector_t* ray = *int_ptr_unordered_map_get(outer_edge_rays, shared_edge_index);
+
+  // Intersect the ray with the plane to find the coordinates of bnode123.
+  point_t x0 = {.x = int_node->x, .y = int_node->y, .z = int_node->z};
+  double s = plane_intersect_with_line(plane, &x0, ray);
+  node_t* node = &mesh->nodes[index];
+  node->x = x0.x + s * ray->x;
+  node->y = x0.y + s * ray->y;
+  node->z = x0.z + s * ray->z;
+  plane = NULL;
+
+  // While we're at it, hook up bnode123 to the shared edge.
+  ASSERT(shared_edge->node2 == NULL);
+  shared_edge->node2 = node;
+
+  return index;
+}
+
+// This function finds or creates the edge connecting the two nodes,
+// returning its index.
+static int edge_connecting_nodes(mesh_t* mesh, 
+                                 int node1_index,
+                                 int node2_index)
+{
+  // Get our memo.
+  int_table_t* bedge_for_bnodes = mesh_property(mesh, "bedge_for_bnodes");
+  ASSERT(bedge_for_bnodes != NULL);
+
+  int index;
+  int* entry = int_table_get(bedge_for_bnodes, 
+                             MIN(node1_index, node2_index),
+                             MAX(node1_index, node2_index));
+  if (entry == NULL)
+  {
+    index = mesh_add_edge(mesh);
+    edge_t* edge = &mesh->edges[index];
+    edge->node1 = &mesh->nodes[node1_index];
+    edge->node2 = &mesh->nodes[node2_index];
+    int_table_insert(bedge_for_bnodes, 
+                     MIN(node1_index, node2_index),
+                     MAX(node1_index, node2_index), 
+                     index);
+  }
+  else
+    index = *entry;
+
+  return index;
+}
+
+// This function creates a quadrilateral face in the mesh that has the 
+// given nodes as its vertices. It uses connectivity information in the mesh 
+// to attach the proper edges and compute the face's geometry.
+static int quad_face_with_nodes(mesh_t* mesh, 
+                                int node1_index, 
+                                int node2_index, 
+                                int node3_index, 
+                                int node4_index)
+{
+  // Get the memo that maps node pairs to edges.
+  int_table_t* bedge_for_bnodes = mesh_property(mesh, "bedge_for_bnodes");
+  ASSERT(bedge_for_bnodes != NULL);
+
+  int index = mesh_add_face(mesh);
+  face_t* face = &mesh->faces[index];
+
+  // Find and attach the edges.
+  int edge1_index = *int_table_get(bedge_for_bnodes, 
+                                   MIN(node1_index, node2_index),
+                                   MAX(node1_index, node2_index));
+  mesh_attach_edge_to_face(mesh, &mesh->edges[edge1_index], face);
+
+  int edge2_index = *int_table_get(bedge_for_bnodes, 
+                                   MIN(node2_index, node3_index),
+                                   MAX(node2_index, node3_index));
+  mesh_attach_edge_to_face(mesh, &mesh->edges[edge2_index], face);
+
+  int edge3_index = *int_table_get(bedge_for_bnodes, 
+                                   MIN(node3_index, node4_index),
+                                   MAX(node3_index, node4_index));
+  mesh_attach_edge_to_face(mesh, &mesh->edges[edge3_index], face);
+
+  int edge4_index = *int_table_get(bedge_for_bnodes, 
+                                   MIN(node4_index, node1_index),
+                                   MAX(node4_index, node1_index));
+  mesh_attach_edge_to_face(mesh, &mesh->edges[edge4_index], face);
+
+  // Compute the face's center.
+  node_t* node1 = &mesh->nodes[node1_index];
+  node_t* node2 = &mesh->nodes[node2_index];
+  node_t* node3 = &mesh->nodes[node3_index];
+  node_t* node4 = &mesh->nodes[node4_index];
+  face->center.x = 0.25 * (node1->x + node2->x + node3->x + node4->x);
+  face->center.y = 0.25 * (node1->y + node2->y + node3->y + node4->y);
+  face->center.z = 0.25 * (node1->z + node2->z + node3->z + node4->z);
+
+  return index;
 }
 
 // This function adds all boundary nodes, faces, and edges for a triple
@@ -38,14 +254,6 @@ void add_boundary_for_triple(mesh_t* mesh, int* triple, point_t* generators)
   int cell1_index = triple[0];
   int cell2_index = triple[1];
   int cell3_index = triple[2];
-
-  cell_t* cell1 = &mesh->cells[cell1_index];
-  cell_t* cell2 = &mesh->cells[cell2_index];
-  cell_t* cell3 = &mesh->cells[cell3_index];
-
-  point_t* x1 = &generators[cell1_index];
-  point_t* x2 = &generators[cell2_index];
-  point_t* x3 = &generators[cell3_index];
 
   // First off, we generate the boundary nodes for this triple. There 
   // should be a total of 7 boundary nodes that "participate" in this 
@@ -57,405 +265,77 @@ void add_boundary_for_triple(mesh_t* mesh, int* triple, point_t* generators)
   // boundary node sitting at the intersection of all three generators 
   // will certainly not have been created yet.
 
-  // Retrieve the memos keeping track of which nodes have been created.
-  int_int_unordered_map_t* bnode_for_gen = mesh_property(mesh, "bnode_for_gen");
-  ASSERT(bnode_for_gen != NULL);
-  int_table_t* bnode_for_gen_pair = mesh_property(mesh, "bnode_for_gen_pair");
-  ASSERT(bnode_for_gen_pair != NULL);
+  // NOTE: We work with indices here instead of pointers to the mesh 
+  // elements themselves, since the former are stable under mesh edits
+  // and the latter are not.
 
   // Generate or retrieve the boundary nodes that sit atop each 
   // boundary cell's generator.
-  int bnode1_index, bnode2_index, bnode3_index;
-  node_t *bnode1, *bnode2, *bnode3;
-
-  // Node at generator 1.
-  int* entry = int_int_unordered_map_get(bnode_for_gen, cell1_index);
-  if (entry == NULL)
-  {
-    bnode1_index = mesh_add_node(mesh);
-    bnode1 = &mesh->nodes[bnode1_index];
-    bnode1->x = generators[cell1_index].x;
-    bnode1->y = generators[cell1_index].y;
-    bnode1->z = generators[cell1_index].z;
-    int_int_unordered_map_insert(bnode_for_gen, cell1_index, bnode1_index);
-  }
-  else
-  {
-    bnode1_index = *entry;
-    bnode1 = &mesh->nodes[bnode1_index];
-  }
-
-  // Node at generator 2.
-  entry = int_int_unordered_map_get(bnode_for_gen, cell2_index);
-  if (entry == NULL)
-  {
-    bnode2_index = mesh_add_node(mesh);
-    bnode2 = &mesh->nodes[bnode2_index];
-    bnode2->x = generators[cell2_index].x;
-    bnode2->y = generators[cell2_index].y;
-    bnode2->z = generators[cell2_index].z;
-    int_int_unordered_map_insert(bnode_for_gen, cell2_index, bnode2_index);
-  }
-  else
-  {
-    bnode2_index = *entry;
-    bnode2 = &mesh->nodes[bnode2_index];
-  }
-
-  // Node at generator 3.
-  entry = int_int_unordered_map_get(bnode_for_gen, cell3_index);
-  if (entry == NULL)
-  {
-    bnode3_index = mesh_add_node(mesh);
-    bnode3 = &mesh->nodes[bnode3_index];
-    bnode3->x = generators[cell3_index].x;
-    bnode3->y = generators[cell3_index].y;
-    bnode3->z = generators[cell3_index].z;
-    int_int_unordered_map_insert(bnode_for_gen, cell3_index, bnode3_index);
-  }
-  else
-  {
-    bnode3_index = *entry;
-    bnode3 = &mesh->nodes[bnode3_index];
-  }
+  int bnode1_index = node_at_generator(mesh, generators, cell1_index);
+  int bnode2_index = node_at_generator(mesh, generators, cell2_index);
+  int bnode3_index = node_at_generator(mesh, generators, cell3_index);
 
   // Generate or retrieve the boundary nodes that sit at the midpoints 
   // between each pair of generators.
-  int bnode12_index, bnode23_index, bnode13_index;
-  node_t *bnode12, *bnode23, *bnode13;
+  int bnode12_index = node_at_midpoint(mesh, generators, cell1_index, cell2_index);
+  int bnode23_index = node_at_midpoint(mesh, generators, cell2_index, cell3_index);
+  int bnode13_index = node_at_midpoint(mesh, generators, cell1_index, cell3_index);
 
-  // Node at midpoint between generators 1 and 2.
-  entry = int_table_get(bnode_for_gen_pair, cell1_index, cell2_index);
-  if (entry == NULL)
-  {
-    bnode12_index = mesh_add_node(mesh);
-    bnode12 = &mesh->nodes[bnode12_index];
-    bnode12->x = 0.5 * (bnode1->x + bnode2->x);
-    bnode12->y = 0.5 * (bnode1->y + bnode2->y);
-    bnode12->z = 0.5 * (bnode1->z + bnode2->z);
-    int_table_insert(bnode_for_gen_pair, cell1_index, cell2_index, bnode12_index);
-  }
-  else
-  {
-    bnode12_index = *entry;
-    bnode12 = &mesh->nodes[bnode12_index];
-  }
-
-  // Node at midpoint between generators 2 and 3.
-  entry = int_table_get(bnode_for_gen_pair, cell2_index, cell3_index);
-  if (entry == NULL)
-  {
-    bnode23_index = mesh_add_node(mesh);
-    bnode23 = &mesh->nodes[bnode23_index];
-    bnode23->x = 0.5 * (bnode2->x + bnode3->x);
-    bnode23->y = 0.5 * (bnode2->y + bnode3->y);
-    bnode23->z = 0.5 * (bnode2->z + bnode3->z);
-    int_table_insert(bnode_for_gen_pair, cell2_index, cell3_index, bnode23_index);
-  }
-  else
-  {
-    bnode23_index = *entry;
-    bnode23 = &mesh->nodes[bnode23_index];
-  }
-
-  // Node at midpoint between generators 1 and 3.
-  entry = int_table_get(bnode_for_gen_pair, cell1_index, cell3_index);
-  if (entry == NULL)
-  {
-    bnode13_index = mesh_add_node(mesh);
-    bnode13 = &mesh->nodes[bnode13_index];
-    bnode13->x = 0.5 * (bnode1->x + bnode3->x);
-    bnode13->y = 0.5 * (bnode1->y + bnode3->y);
-    bnode13->z = 0.5 * (bnode1->z + bnode3->z);
-    int_table_insert(bnode_for_gen_pair, cell1_index, cell3_index, bnode13_index);
-  }
-  else
-  {
-    bnode13_index = *entry;
-    bnode13 = &mesh->nodes[bnode13_index];
-  }
-
-  // Generate the boundary nodes that sits at the intersection of the 
+  // Generate the boundary node that sits at the intersection of the 
   // three generators.
-  int bnode123_index = mesh_add_node(mesh);
-  node_t* bnode123 = &mesh->nodes[bnode123_index];
-  {
-    // These three generators share a semi-infinite edge. This boundary node is 
-    // the intersection of the edge's outgoing ray with the plane in which the 
-    // generators sit.
-
-    // Compute the normal of the plane and construct the plane. We don't care
-    // which way it points.
-    vector_t x12, x13, n;
-    point_displacement(x1, x2, &x12);
-    point_displacement(x1, x3, &x13);
-    vector_cross(&x12, &x13, &n);
-    ASSERT(vector_dot(&n, &n) > 0.0);
-    vector_normalize(&n);
-    sp_func_t* plane = plane_new(&n, x1);
-
-    // Find the interior edge common to these generators and retrieve its ray.
-    int_ptr_unordered_map_t* outer_cell_edges = mesh_property(mesh, "outer_cell_edges");
-    int_ptr_unordered_map_t* outer_edge_rays = mesh_property(mesh, "outer_rays");
-    int* outer_edges1 = *int_ptr_unordered_map_get(outer_cell_edges, cell1_index);
-    int* outer_edges2 = *int_ptr_unordered_map_get(outer_cell_edges, cell2_index);
-    int* outer_edges3 = *int_ptr_unordered_map_get(outer_cell_edges, cell3_index);
-    int shared_edge_index = -1;
-    ASSERT(outer_edges1[0] > 0);
-    ASSERT(outer_edges2[0] > 0);
-    ASSERT(outer_edges3[0] > 0);
-    for (int i = 1; i <= outer_edges1[0]; ++i)
-    {
-      for (int j = 1; j <= outer_edges2[0]; ++j)
-      {
-        if (outer_edges1[i] != outer_edges2[j]) continue;
-
-        for (int k = 1; k <= outer_edges3[0]; ++k)
-        {
-          if (outer_edges2[j] == outer_edges3[k])
-          {
-            shared_edge_index = outer_edges3[k];
-            break;
-          }
-        }
-      }
-    }
-    ASSERT(shared_edge_index != -1);
-    edge_t* shared_edge = &mesh->edges[shared_edge_index];
-    node_t* int_node = shared_edge->node1;
-
-    vector_t* ray = *int_ptr_unordered_map_get(outer_edge_rays, shared_edge_index);
-
-    // Intersect the ray with the plane to find the coordinates of bnode123.
-    point_t x0 = {.x = int_node->x, .y = int_node->y, .z = int_node->z};
-    double s = plane_intersect_with_line(plane, &x0, ray);
-    bnode123->x = x0.x + s * ray->x;
-    bnode123->y = x0.y + s * ray->y;
-    bnode123->z = x0.z + s * ray->z;
-    plane = NULL;
-
-    // While we're at it, hook up bnode123 to the shared edge.
-    ASSERT(shared_edge->node2 == NULL);
-    shared_edge->node2 = bnode123;
-  }
+  int bnode123_index = node_at_intersection(mesh, generators, cell1_index, cell2_index, cell3_index);
 
   // Now that we have added all the boundary nodes, we create boundary 
-  // edges to connect them. Some of these edges will already exist, so 
-  // we have to be careful not to recreate those. The edges connecting 
-  // bnode123 to the other nodes will not exist, so we'll definitely 
-  // create those.
-
-  // Retrieve the memos keeping track of which edges have been created.
-  int_table_t* bedge_for_bnodes = mesh_property(mesh, "bedge_for_bnodes");
-  ASSERT(bedge_for_bnodes != NULL);
-
-  // Edge connecting bnode1 to bnode12.
-  int edge1_12_index;
-  edge_t* edge1_12;
-  entry = int_table_get(bedge_for_bnodes, 
-                        MIN(bnode1_index, bnode12_index),
-                        MAX(bnode1_index, bnode12_index));
-  if (entry == NULL)
-  {
-    edge1_12_index = mesh_add_edge(mesh);
-    edge1_12 = &mesh->edges[edge1_12_index];
-    edge1_12->node1 = bnode1;
-    edge1_12->node2 = bnode12;
-    int_table_insert(bedge_for_bnodes, 
-                     MIN(bnode1_index, bnode12_index),
-                     MAX(bnode1_index, bnode12_index), 
-                     edge1_12_index);
-  }
-  else
-  {
-    edge1_12_index = *entry;
-    edge1_12 = &mesh->edges[edge1_12_index];
-  }
-
-  // Edge connecting bnode1 to bnode13.
-  int edge1_13_index;
-  edge_t* edge1_13;
-  entry = int_table_get(bedge_for_bnodes, 
-                        MIN(bnode1_index, bnode13_index),
-                        MAX(bnode1_index, bnode13_index));
-  if (entry == NULL)
-  {
-    edge1_13_index = mesh_add_edge(mesh);
-    edge1_13 = &mesh->edges[edge1_13_index];
-    edge1_13->node1 = bnode1;
-    edge1_13->node2 = bnode13;
-    int_table_insert(bedge_for_bnodes, 
-                     MIN(bnode1_index, bnode13_index),
-                     MAX(bnode1_index, bnode13_index),
-                     edge1_13_index);
-  }
-  else
-  {
-    edge1_13_index = *entry;
-    edge1_13 = &mesh->edges[edge1_13_index];
-  }
-
-  // Edge connecting bnode2 to bnode12.
-  int edge2_12_index;
-  edge_t* edge2_12;
-  entry = int_table_get(bedge_for_bnodes, 
-                        MIN(bnode2_index, bnode12_index),
-                        MAX(bnode2_index, bnode12_index));
-  if (entry == NULL)
-  {
-    edge2_12_index = mesh_add_edge(mesh);
-    edge2_12 = &mesh->edges[edge2_12_index];
-    edge2_12->node1 = bnode2;
-    edge2_12->node2 = bnode12;
-    int_table_insert(bedge_for_bnodes, 
-                     MIN(bnode1_index, bnode12_index),
-                     MAX(bnode1_index, bnode12_index),
-                     edge2_12_index);
-  }
-  else
-  {
-    edge2_12_index = *entry;
-    edge2_12 = &mesh->edges[edge2_12_index];
-  }
-
-  // Edge connecting bnode2 to bnode23.
-  int edge2_23_index;
-  edge_t* edge2_23;
-  entry = int_table_get(bedge_for_bnodes, 
-                        MIN(bnode2_index, bnode23_index),
-                        MAX(bnode2_index, bnode23_index));
-  if (entry == NULL)
-  {
-    edge2_23_index = mesh_add_edge(mesh);
-    edge2_23 = &mesh->edges[edge2_23_index];
-    edge2_23->node1 = bnode2;
-    edge2_23->node2 = bnode23;
-    int_table_insert(bedge_for_bnodes, 
-                     MIN(bnode2_index, bnode23_index),
-                     MAX(bnode2_index, bnode23_index),
-                     edge2_23_index);
-  }
-  else
-  {
-    edge2_23_index = *entry;
-    edge2_23 = &mesh->edges[edge2_23_index];
-  }
-
-  // Edge connecting bnode3 to bnode13.
-  int edge3_13_index;
-  edge_t* edge3_13;
-  entry = int_table_get(bedge_for_bnodes, 
-                        MIN(bnode3_index, bnode13_index),
-                        MAX(bnode3_index, bnode13_index));
-  if (entry == NULL)
-  {
-    edge3_13_index = mesh_add_edge(mesh);
-    edge3_13 = &mesh->edges[edge3_13_index];
-    edge3_13->node1 = bnode3;
-    edge3_13->node2 = bnode13;
-    int_table_insert(bedge_for_bnodes, 
-                     MIN(bnode3_index, bnode13_index),
-                     MAX(bnode3_index, bnode13_index),
-                     edge3_13_index);
-  }
-  else
-  {
-    edge3_13_index = *entry;
-    edge3_13 = &mesh->edges[edge3_13_index];
-  }
-
-  // Edge connecting bnode3 to bnode23.
-  int edge3_23_index;
-  edge_t* edge3_23;
-  entry = int_table_get(bedge_for_bnodes, 
-                        MIN(bnode3_index, bnode23_index),
-                        MAX(bnode3_index, bnode23_index));
-  if (entry == NULL)
-  {
-    edge3_23_index = mesh_add_edge(mesh);
-    edge3_23 = &mesh->edges[edge2_23_index];
-    edge3_23->node1 = bnode3;
-    edge3_23->node2 = bnode23;
-    int_table_insert(bedge_for_bnodes, 
-                     MIN(bnode3_index, bnode23_index),
-                     MAX(bnode3_index, bnode23_index),
-                     edge3_23_index);
-  }
-  else
-  {
-    edge3_23_index = *entry;
-    edge3_23 = &mesh->edges[edge3_23_index];
-  }
+  // edges to connect them. 
+  
+  // Connect the boundary nodes along Delaunay half edges (lines connecting 
+  // boundary generators).
+  edge_connecting_nodes(mesh, bnode1_index, bnode12_index);
+  edge_connecting_nodes(mesh, bnode1_index, bnode13_index);
+  edge_connecting_nodes(mesh, bnode2_index, bnode12_index);
+  edge_connecting_nodes(mesh, bnode2_index, bnode23_index);
+  edge_connecting_nodes(mesh, bnode3_index, bnode13_index);
+  edge_connecting_nodes(mesh, bnode3_index, bnode23_index);
 
   // Create the 3 edges that connect to the newly-created bnode123 in the 
   // center of the facet. These edges must be attached to the faces between 
   // the boundary generators.
 
   // Edge connecting bnode12 to bnode123.
-  int edge12_123_index = mesh_add_edge(mesh);
-  edge_t* edge12_123 = &mesh->edges[edge12_123_index];
-  edge12_123->node1 = bnode12;
-  edge12_123->node2 = bnode123;
-  face_t* face12 = shared_face(cell1, cell2);
-  mesh_attach_edge_to_face(mesh, edge12_123, face12);
+  int edge12_123_index = edge_connecting_nodes(mesh, bnode12_index, bnode123_index);
+  mesh_attach_edge_to_face(mesh, &mesh->edges[edge12_123_index],
+                           shared_face(mesh, cell1_index, cell2_index));
 
   // Edge connecting bnode23 to bnode123.
-  int edge23_123_index = mesh_add_edge(mesh);
-  edge_t* edge23_123 = &mesh->edges[edge23_123_index];
-  edge23_123->node1 = bnode23;
-  edge23_123->node2 = bnode123;
-  face_t* face23 = shared_face(cell2, cell3);
-  mesh_attach_edge_to_face(mesh, edge23_123, face23);
+  int edge23_123_index = edge_connecting_nodes(mesh, bnode23_index, bnode123_index);
+  mesh_attach_edge_to_face(mesh, &mesh->edges[edge23_123_index],
+                           shared_face(mesh, cell2_index, cell3_index));
 
   // Edge connecting bnode13 to bnode123.
-  int edge13_123_index = mesh_add_edge(mesh);
-  edge_t* edge13_123 = &mesh->edges[edge13_123_index];
-  edge13_123->node1 = bnode13;
-  edge13_123->node2 = bnode123;
-  face_t* face13 = shared_face(cell1, cell3);
-  mesh_attach_edge_to_face(mesh, edge13_123, face13);
+  int edge13_123_index = edge_connecting_nodes(mesh, bnode13_index, bnode123_index);
+  mesh_attach_edge_to_face(mesh, &mesh->edges[edge13_123_index],
+                           shared_face(mesh, cell1_index, cell3_index));
 
   // Finally, we add boundary faces. There are 3 quadrilateral faces for 
   // the triangular facet whose vertices are our 3 generators, none 
   // of which have been heretofore created.
 
   // {bnode1, bnode12, bnode123, bnode13}.
-  int face1_index = mesh_add_face(mesh);
-  face_t* face1 = &mesh->faces[face1_index];
-  mesh_attach_edge_to_face(mesh, edge1_12, face1);
-  mesh_attach_edge_to_face(mesh, edge12_123, face1);
-  mesh_attach_edge_to_face(mesh, edge13_123, face1);
-  mesh_attach_edge_to_face(mesh, edge1_13, face1);
-  face1->center.x = 0.25 * (bnode1->x + bnode12->x + bnode123->x + bnode13->x);
-  face1->center.y = 0.25 * (bnode1->y + bnode12->y + bnode123->y + bnode13->y);
-  face1->center.z = 0.25 * (bnode1->z + bnode12->z + bnode123->z + bnode13->z);
+  int face1_index = quad_face_with_nodes(mesh, bnode1_index, bnode12_index, bnode123_index, bnode13_index);
 
   // {bnode2, bnode12, bnode123, bnode23}.
-  int face2_index = mesh_add_face(mesh);
-  face_t* face2 = &mesh->faces[face2_index];
-  mesh_attach_edge_to_face(mesh, edge2_12, face2);
-  mesh_attach_edge_to_face(mesh, edge12_123, face2);
-  mesh_attach_edge_to_face(mesh, edge23_123, face2);
-  mesh_attach_edge_to_face(mesh, edge2_23, face2);
-  face2->center.x = 0.25 * (bnode2->x + bnode12->x + bnode123->x + bnode23->x);
-  face2->center.y = 0.25 * (bnode2->y + bnode12->y + bnode123->y + bnode23->y);
-  face2->center.z = 0.25 * (bnode2->z + bnode12->z + bnode123->z + bnode23->z);
+  int face2_index = quad_face_with_nodes(mesh, bnode2_index, bnode12_index, bnode123_index, bnode23_index);
 
   // {bnode3, bnode13, bnode123, bnode23}.
-  int face3_index = mesh_add_face(mesh);
-  face_t* face3 = &mesh->faces[face3_index];
-  mesh_attach_edge_to_face(mesh, edge3_13, face3);
-  mesh_attach_edge_to_face(mesh, edge13_123, face3);
-  mesh_attach_edge_to_face(mesh, edge23_123, face3);
-  mesh_attach_edge_to_face(mesh, edge2_23, face3);
-  face3->center.x = 0.25 * (bnode3->x + bnode13->x + bnode123->x + bnode23->x);
-  face3->center.y = 0.25 * (bnode3->y + bnode13->y + bnode123->y + bnode23->y);
-  face3->center.z = 0.25 * (bnode3->z + bnode13->z + bnode123->z + bnode23->z);
+  int face3_index = quad_face_with_nodes(mesh, bnode3_index, bnode13_index, bnode123_index, bnode23_index);
 
   // Finally, attach the new faces to their boundary cells.
-  mesh_attach_face_to_cell(mesh, face1, cell1);
-  mesh_attach_face_to_cell(mesh, face2, cell2);
-  mesh_attach_face_to_cell(mesh, face3, cell3);
+  mesh_attach_face_to_cell(mesh, &mesh->faces[face1_index], 
+                           &mesh->cells[cell1_index]);
+  mesh_attach_face_to_cell(mesh, &mesh->faces[face2_index], 
+                           &mesh->cells[cell2_index]);
+  mesh_attach_face_to_cell(mesh, &mesh->faces[face3_index], 
+                           &mesh->cells[cell3_index]);
 }
 
 mesh_t* create_bounded_voronoi_mesh(point_t* generators, int num_generators,
