@@ -19,6 +19,18 @@ static int* ordered_triple_new(int a, int b, int c)
   return triple;
 }
 
+// This function finds the face shared by the two given cells.
+static face_t* shared_face(cell_t* cell1, cell_t* cell2)
+{
+  for (int f = 0; f < cell1->num_faces; ++f)
+  {  
+    face_t* face = cell1->faces[f];
+    if (face_opp_cell(face, cell1) == cell2)
+      return face;
+  }
+  return NULL;
+}
+
 // This function adds all boundary nodes, faces, and edges for a triple
 // of boundary cells (c1, c2, c3)
 void add_boundary_for_triple(mesh_t* mesh, int* triple, point_t* generators)
@@ -375,41 +387,33 @@ void add_boundary_for_triple(mesh_t* mesh, int* triple, point_t* generators)
     edge3_23 = &mesh->edges[edge3_23_index];
   }
 
-  // Edge connecting bnode1 to bnode123.
-  int edge1_123_index = mesh_add_edge(mesh);
-  edge_t* edge1_123 = &mesh->edges[edge1_123_index];
-  edge1_123->node1 = bnode1;
-  edge1_123->node2 = bnode123;
+  // Create the 3 edges that connect to the newly-created bnode123 in the 
+  // center of the facet. These edges must be attached to the faces between 
+  // the boundary generators.
 
   // Edge connecting bnode12 to bnode123.
   int edge12_123_index = mesh_add_edge(mesh);
   edge_t* edge12_123 = &mesh->edges[edge12_123_index];
   edge12_123->node1 = bnode12;
   edge12_123->node2 = bnode123;
-
-  // Edge connecting bnode2 to bnode123.
-  int edge2_123_index = mesh_add_edge(mesh);
-  edge_t* edge2_123 = &mesh->edges[edge2_123_index];
-  edge2_123->node1 = bnode1;
-  edge2_123->node2 = bnode123;
+  face_t* face12 = shared_face(cell1, cell2);
+  mesh_attach_edge_to_face(mesh, edge12_123, face12);
 
   // Edge connecting bnode23 to bnode123.
   int edge23_123_index = mesh_add_edge(mesh);
   edge_t* edge23_123 = &mesh->edges[edge23_123_index];
   edge23_123->node1 = bnode23;
   edge23_123->node2 = bnode123;
-
-  // Edge connecting bnode3 to bnode123.
-  int edge3_123_index = mesh_add_edge(mesh);
-  edge_t* edge3_123 = &mesh->edges[edge3_123_index];
-  edge3_123->node1 = bnode1;
-  edge3_123->node2 = bnode123;
+  face_t* face23 = shared_face(cell2, cell3);
+  mesh_attach_edge_to_face(mesh, edge23_123, face23);
 
   // Edge connecting bnode13 to bnode123.
   int edge13_123_index = mesh_add_edge(mesh);
   edge_t* edge13_123 = &mesh->edges[edge13_123_index];
   edge13_123->node1 = bnode13;
   edge13_123->node2 = bnode123;
+  face_t* face13 = shared_face(cell1, cell3);
+  mesh_attach_edge_to_face(mesh, edge13_123, face13);
 
   // Finally, we add boundary faces. There are 3 quadrilateral faces for 
   // the triangular facet whose vertices are our 3 generators, none 
