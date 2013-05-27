@@ -27,9 +27,9 @@ void add_boundary_for_triple(mesh_t* mesh, int* triple, point_t* generators)
   int cell2_index = triple[1];
   int cell3_index = triple[2];
 
-//  cell_t* cell1 = &mesh->cells[cell1_index];
-//  cell_t* cell2 = &mesh->cells[cell2_index];
-//  cell_t* cell3 = &mesh->cells[cell3_index];
+  cell_t* cell1 = &mesh->cells[cell1_index];
+  cell_t* cell2 = &mesh->cells[cell2_index];
+  cell_t* cell3 = &mesh->cells[cell3_index];
 
   point_t* x1 = &generators[cell1_index];
   point_t* x2 = &generators[cell2_index];
@@ -47,7 +47,9 @@ void add_boundary_for_triple(mesh_t* mesh, int* triple, point_t* generators)
 
   // Retrieve the memos keeping track of which nodes have been created.
   int_int_unordered_map_t* bnode_for_gen = mesh_property(mesh, "bnode_for_gen");
+  ASSERT(bnode_for_gen != NULL);
   int_table_t* bnode_for_gen_pair = mesh_property(mesh, "bnode_for_gen_pair");
+  ASSERT(bnode_for_gen_pair != NULL);
 
   // Generate or retrieve the boundary nodes that sit atop each 
   // boundary cell's generator.
@@ -187,6 +189,9 @@ void add_boundary_for_triple(mesh_t* mesh, int* triple, point_t* generators)
     int* outer_edges2 = *int_ptr_unordered_map_get(outer_cell_edges, cell2_index);
     int* outer_edges3 = *int_ptr_unordered_map_get(outer_cell_edges, cell3_index);
     int shared_edge_index = -1;
+    ASSERT(outer_edges1[0] > 0);
+    ASSERT(outer_edges2[0] > 0);
+    ASSERT(outer_edges3[0] > 0);
     for (int i = 1; i <= outer_edges1[0]; ++i)
     {
       for (int j = 1; j <= outer_edges2[0]; ++j)
@@ -230,6 +235,7 @@ void add_boundary_for_triple(mesh_t* mesh, int* triple, point_t* generators)
 
   // Retrieve the memos keeping track of which edges have been created.
   int_table_t* bedge_for_bnodes = mesh_property(mesh, "bedge_for_bnodes");
+  ASSERT(bedge_for_bnodes != NULL);
 
   // Edge connecting bnode1 to bnode12.
   int edge1_12_index;
@@ -416,6 +422,9 @@ void add_boundary_for_triple(mesh_t* mesh, int* triple, point_t* generators)
   mesh_attach_edge_to_face(mesh, edge12_123, face1);
   mesh_attach_edge_to_face(mesh, edge13_123, face1);
   mesh_attach_edge_to_face(mesh, edge1_13, face1);
+  face1->center.x = 0.25 * (bnode1->x + bnode12->x + bnode123->x + bnode13->x);
+  face1->center.y = 0.25 * (bnode1->y + bnode12->y + bnode123->y + bnode13->y);
+  face1->center.z = 0.25 * (bnode1->z + bnode12->z + bnode123->z + bnode13->z);
 
   // {bnode2, bnode12, bnode123, bnode23}.
   int face2_index = mesh_add_face(mesh);
@@ -424,6 +433,9 @@ void add_boundary_for_triple(mesh_t* mesh, int* triple, point_t* generators)
   mesh_attach_edge_to_face(mesh, edge12_123, face2);
   mesh_attach_edge_to_face(mesh, edge23_123, face2);
   mesh_attach_edge_to_face(mesh, edge2_23, face2);
+  face2->center.x = 0.25 * (bnode2->x + bnode12->x + bnode123->x + bnode23->x);
+  face2->center.y = 0.25 * (bnode2->y + bnode12->y + bnode123->y + bnode23->y);
+  face2->center.z = 0.25 * (bnode2->z + bnode12->z + bnode123->z + bnode23->z);
 
   // {bnode3, bnode13, bnode123, bnode23}.
   int face3_index = mesh_add_face(mesh);
@@ -432,8 +444,14 @@ void add_boundary_for_triple(mesh_t* mesh, int* triple, point_t* generators)
   mesh_attach_edge_to_face(mesh, edge13_123, face3);
   mesh_attach_edge_to_face(mesh, edge23_123, face3);
   mesh_attach_edge_to_face(mesh, edge2_23, face3);
+  face3->center.x = 0.25 * (bnode3->x + bnode13->x + bnode123->x + bnode23->x);
+  face3->center.y = 0.25 * (bnode3->y + bnode13->y + bnode123->y + bnode23->y);
+  face3->center.z = 0.25 * (bnode3->z + bnode13->z + bnode123->z + bnode23->z);
 
-  // I think that's it!
+  // Finally, attach the new faces to their boundary cells.
+  mesh_attach_face_to_cell(mesh, face1, cell1);
+  mesh_attach_face_to_cell(mesh, face2, cell2);
+  mesh_attach_face_to_cell(mesh, face3, cell3);
 }
 
 mesh_t* create_bounded_voronoi_mesh(point_t* generators, int num_generators,
@@ -469,8 +487,8 @@ mesh_t* create_bounded_voronoi_mesh(point_t* generators, int num_generators,
   mesh_set_property(mesh, "bnode_for_gen", bnode_for_gen, DTOR(int_int_unordered_map_free));
   int_table_t* bnode_for_gen_pair = int_table_new();
   mesh_set_property(mesh, "bnode_for_gen_pair", bnode_for_gen_pair, DTOR(int_table_free));
-  int_table_t* bedge_for_nodes = int_table_new();
-  mesh_set_property(mesh, "bedge_for_nodes", bedge_for_nodes, DTOR(int_table_free));
+  int_table_t* bedge_for_bnodes = int_table_new();
+  mesh_set_property(mesh, "bedge_for_bnodes", bedge_for_bnodes, DTOR(int_table_free));
 
   // Now go over the boundary generators {gi}. We will generate a set of 
   // 6 coplanar boundary faces for each triple (g1, g2, g3). We start 
@@ -574,15 +592,23 @@ mesh_t* create_bounded_voronoi_mesh(point_t* generators, int num_generators,
     for (int f = 0; f < cell->num_faces; ++f)
     {
       face_t* face = cell->faces[f];
+#ifndef NDEBUG
+      int face_index = face - &mesh->faces[0];
+      ASSERT(face_index >= 0);
+      ASSERT(face_index < mesh->num_faces);
+#endif
       for (int e = 0; e < face->num_edges; ++e)
       {
         edge_t* edge = face->edges[e];
         if (edge->node2 == NULL)
         {
           int edge_index = edge - &mesh->edges[0];
-          polymec_error("create_bounded_voronoi_mesh: Outer edge %d does not attach to\n"
-                        "a face on any boundary generator! This usually means that the boundary\n"
-                        "generators do not cover the boundary.", edge_index);
+          ASSERT(edge_index >= 0);
+          ASSERT(edge_index < mesh->num_edges);
+          polymec_error("create_bounded_voronoi_mesh: Edge %d\n"
+                        "does not attach to a face on any boundary generator!\n"
+                        "This usually means that the boundary generators do not\n"
+                        "cover the boundary.", edge_index);
         }
       }
     }
@@ -594,48 +620,7 @@ mesh_t* create_bounded_voronoi_mesh(point_t* generators, int num_generators,
 
   // Compute the volume and center of each boundary cell.
   for (int c = num_generators; c < num_non_ghost_generators; ++c)
-  {
-    cell_t* cell = &mesh->cells[c];
-
-    // The cell center is just the average of its face centers.
-    for (int f = 0; f < cell->num_faces; ++f)
-    {
-      face_t* face = cell->faces[f];
-      cell->center.x += face->center.x;
-      cell->center.y += face->center.y;
-      cell->center.z += face->center.z;
-    }
-    cell->center.x /= cell->num_faces;
-    cell->center.y /= cell->num_faces;
-    cell->center.z /= cell->num_faces;
-
-    // The volume is the sum of all tetrahedra within the cell.
-    cell->volume = 0.0;
-    for (int f = 0; f < cell->num_faces; ++f)
-    {
-      face_t* face = cell->faces[f];
-      vector_t v1;
-      point_displacement(&face->center, &cell->center, &v1);
-      for (int e = 0; e < face->num_edges; ++e)
-      {
-        edge_t* edge = face->edges[e];
-        ASSERT(edge->node1 != NULL);
-        ASSERT(edge->node2 != NULL);
-
-        // Construct a tetrahedron whose vertices are the cell center, 
-        // the face center, and the two nodes of this edge. The volume 
-        // of this tetrahedron contributes to the cell volume.
-        vector_t v2, v3, v2xv3;
-        point_t xn1 = {.x = edge->node1->x, .y = edge->node1->y, .z = edge->node1->z};
-        point_t xn2 = {.x = edge->node2->x, .y = edge->node2->y, .z = edge->node2->z};
-        point_displacement(&face->center, &xn1, &v2);
-        point_displacement(&face->center, &xn2, &v3);
-        vector_cross(&v2, &v3, &v2xv3);
-        double tet_volume = vector_dot(&v1, &v2xv3);
-        cell->volume += tet_volume;
-      }
-    }
-  }
+    cell_compute_geometry(&mesh->cells[c]);
 
   return mesh;
 }

@@ -207,6 +207,9 @@ void mesh_map(mesh_t* mesh, sp_func_t* mapping);
 // bounded).
 void mesh_compute_geometry(mesh_t* mesh);
 
+// Computes the cell volume and center for a bounded cell.
+void cell_compute_geometry(cell_t* cell);
+
 // This prints a text representation of the given node to the given FILE.
 // It needs to mesh to convey its topology.
 void node_fprintf(node_t* node, mesh_t* mesh, FILE* stream);

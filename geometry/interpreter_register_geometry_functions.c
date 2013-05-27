@@ -5,6 +5,7 @@
 #include "geometry/create_cubic_lattice_mesh.h"
 #include "geometry/generate_random_points.h"
 #include "geometry/create_unbounded_voronoi_mesh.h"
+#include "geometry/create_bounded_voronoi_mesh.h"
 #include "geometry/rect_prism.h"
 #include "geometry/prune_voronoi_mesh.h"
 #include "geometry/bound_voronoi_mesh.h"
@@ -415,6 +416,34 @@ static int bounded_voronoi_mesh(lua_State* lua)
 {
   // Check the arguments.
   int num_args = lua_gettop(lua);
+  if ((num_args != 2) || !lua_ispointlist(lua, 1) || !lua_ispointlist(lua, 2))
+  {
+    lua_pushstring(lua, "Invalid argument(s). Usage:\n"
+                        "mesh = bounded_voronoi_mesh(generators, boundary_generators).");
+    lua_error(lua);
+    return LUA_ERRRUN;
+  }
+
+  // Get the generators.
+  int num_generators, num_boundary_generators;
+  point_t* generators = lua_topointlist(lua, 1, &num_generators);
+  point_t* boundary_generators = lua_topointlist(lua, 2, &num_boundary_generators);
+
+  // Create an bounded mesh.
+  mesh_t* mesh = create_bounded_voronoi_mesh(generators, num_generators,
+                                             boundary_generators, num_boundary_generators,
+                                             NULL, 0);
+
+  // Push the mesh onto the stack.
+  lua_pushmesh(lua, mesh);
+  return 1;
+}
+
+#if 0
+static int bounded_voronoi_mesh(lua_State* lua)
+{
+  // Check the arguments.
+  int num_args = lua_gettop(lua);
   if ((num_args != 2) || 
       !lua_ispointlist(lua, 1) || 
       (!lua_isscalarfunction(lua, 2) && !lua_isboundingbox(lua, 2)))
@@ -511,6 +540,7 @@ static int bounded_voronoi_mesh(lua_State* lua)
   lua_pushmesh(lua, mesh);
   return 1;
 }
+#endif
 
 static int bound_voronoi_mesh_(lua_State* lua)
 {
