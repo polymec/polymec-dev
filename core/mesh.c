@@ -580,3 +580,45 @@ void mesh_compute_geometry(mesh_t* mesh)
   }
 }
 
+void cell_compute_geometry(cell_t* cell)
+{
+  // The cell center is just the average of its face centers.
+  for (int f = 0; f < cell->num_faces; ++f)
+  {
+    face_t* face = cell->faces[f];
+    cell->center.x += face->center.x;
+    cell->center.y += face->center.y;
+    cell->center.z += face->center.z;
+  }
+  cell->center.x /= cell->num_faces;
+  cell->center.y /= cell->num_faces;
+  cell->center.z /= cell->num_faces;
+
+  // The volume is the sum of all tetrahedra within the cell.
+  cell->volume = 0.0;
+  for (int f = 0; f < cell->num_faces; ++f)
+  {
+    face_t* face = cell->faces[f];
+    vector_t v1;
+    point_displacement(&face->center, &cell->center, &v1);
+    for (int e = 0; e < face->num_edges; ++e)
+    {
+      edge_t* edge = face->edges[e];
+      ASSERT(edge->node1 != NULL);
+      ASSERT(edge->node2 != NULL);
+
+      // Construct a tetrahedron whose vertices are the cell center, 
+      // the face center, and the two nodes of this edge. The volume 
+      // of this tetrahedron contributes to the cell volume.
+      vector_t v2, v3, v2xv3;
+      point_t xn1 = {.x = edge->node1->x, .y = edge->node1->y, .z = edge->node1->z};
+      point_t xn2 = {.x = edge->node2->x, .y = edge->node2->y, .z = edge->node2->z};
+      point_displacement(&face->center, &xn1, &v2);
+      point_displacement(&face->center, &xn2, &v3);
+      vector_cross(&v2, &v3, &v2xv3);
+      double tet_volume = vector_dot(&v1, &v2xv3);
+      cell->volume += tet_volume;
+    }
+  }
+}
+
