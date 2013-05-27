@@ -68,6 +68,8 @@ static int node_at_midpoint(mesh_t* mesh,
     node->x = 0.5 * (gen1->x + gen2->x);
     node->y = 0.5 * (gen1->y + gen2->y);
     node->z = 0.5 * (gen1->z + gen2->z);
+    log_debug("Inserting node (%g, %g, %g) at midpoint", node->x, node->y, node->z);
+    log_debug("  between generators %d and %d", gen1_index, gen2_index);
     int_table_insert(bnode_for_gen_pair, gen1_index, gen2_index, index);
   }
   else
@@ -159,6 +161,9 @@ static int node_at_intersection(mesh_t* mesh,
   node->x = x0.x + s * ray->x;
   node->y = x0.y + s * ray->y;
   node->z = x0.z + s * ray->z;
+  log_debug("Inserting node (%g, %g, %g) at intersection of", node->x, node->y, node->z);
+  log_debug("  %s", sp_func_name(plane));
+  log_debug("  and ray (%g, %g, %g) ", ray->x, ray->y, ray->z);
   plane = NULL;
 
   // While we're at it, hook up the new node to the shared edge.
@@ -415,6 +420,7 @@ mesh_t* create_bounded_voronoi_mesh(point_t* generators, int num_generators,
         for (int ff = 0; ff < cell2->num_faces; ++ff)
         {
           cell_t* cell3 = face_opp_cell(cell2->faces[ff], cell2);
+          if (cell3 == cell1) continue;
           int cell3_index = cell3 - &mesh->cells[0];
 
           // Don't bother with interior cells.
@@ -431,7 +437,7 @@ mesh_t* create_bounded_voronoi_mesh(point_t* generators, int num_generators,
               if (!int_tuple_unordered_set_contains(triples_processed, triple))
               {
                 log_debug("create_bounded_voronoi_mesh: Bounding (%d, %d, %d)",
-                          cell1_index, cell2_index, cell2_index);
+                          cell1_index, cell2_index, cell3_index);
                 add_boundary_for_triple(mesh, triple, non_ghost_generators);
 
                 // Stick this triple into the set of already-processed 
