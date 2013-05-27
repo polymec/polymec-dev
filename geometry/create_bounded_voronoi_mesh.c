@@ -147,6 +147,7 @@ static int node_at_intersection(mesh_t* mesh,
   }
   ASSERT(shared_edge_index != -1);
   edge_t* shared_edge = &mesh->edges[shared_edge_index];
+  ASSERT(shared_edge->node2 == NULL);
   node_t* int_node = shared_edge->node1;
 
   vector_t* ray = *int_ptr_unordered_map_get(outer_edge_rays, shared_edge_index);
@@ -160,8 +161,7 @@ static int node_at_intersection(mesh_t* mesh,
   node->z = x0.z + s * ray->z;
   plane = NULL;
 
-  // While we're at it, hook up bnode123 to the shared edge.
-  ASSERT(shared_edge->node2 == NULL);
+  // While we're at it, hook up the new node to the shared edge.
   shared_edge->node2 = node;
 
   return index;

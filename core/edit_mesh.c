@@ -15,9 +15,38 @@ int mesh_add_node(mesh_t* mesh)
 {
   if (mesh->num_nodes+1 > mesh->storage->node_capacity)
   {
+    // We have exceeded our current node capacity. So we have to 
+    // reallocate memory.
     while (mesh->num_nodes+1 > mesh->storage->node_capacity)
       mesh->storage->node_capacity *= 2;
-    mesh->nodes = ARENA_REALLOC(mesh->arena, mesh->nodes, sizeof(node_t)*mesh->storage->node_capacity, 0);
+
+    // Because the addresses of the nodes within the mesh are invalidated 
+    // by a realloc, we allocate a new chunk of memory for the nodes and 
+    // copy the data from the old chunk to the new, and then refresh the 
+    // other mesh elements w.r.t. these new pointers.
+    node_t* new_nodes = ARENA_MALLOC(mesh->arena, sizeof(node_t)*mesh->storage->node_capacity, 0);
+    memcpy(new_nodes, mesh->nodes, mesh->num_nodes * sizeof(node_t));
+    memset(new_nodes + mesh->num_nodes, 0, sizeof(node_t)*(mesh->storage->node_capacity - mesh->num_nodes));
+
+    // Refresh each edge's node pointers.
+    for (int e = 0; e < mesh->num_edges; ++e)
+    {
+      edge_t* edge = &mesh->edges[e];
+      if (edge->node1 != NULL)
+      {
+        ptrdiff_t offset = edge->node1 - &mesh->nodes[0];
+        edge->node1 = new_nodes + offset;
+      }
+      if (edge->node2 != NULL)
+      {
+        ptrdiff_t offset = edge->node2 - &mesh->nodes[0];
+        edge->node2 = new_nodes + offset;
+      }
+    }
+
+    // Get rid of the old nodes.
+    ARENA_FREE(mesh->arena, mesh->nodes);
+    mesh->nodes = new_nodes;
   }
   mesh->num_nodes++;
   return mesh->num_nodes-1;
@@ -40,11 +69,31 @@ int mesh_add_edge(mesh_t* mesh)
 {
   if (mesh->num_edges+1 > mesh->storage->edge_capacity)
   {
-    int old_cap = mesh->storage->edge_capacity;
     while (mesh->num_edges+1 > mesh->storage->edge_capacity)
       mesh->storage->edge_capacity *= 2;
-    mesh->edges = ARENA_REALLOC(mesh->arena, mesh->edges, sizeof(edge_t)*mesh->storage->edge_capacity, 0);
-    memset(mesh->edges + old_cap, 0, sizeof(edge_t)*(mesh->storage->edge_capacity-old_cap));
+
+    // Because the addresses of the edges within the mesh are invalidated 
+    // by a realloc, we allocate a new chunk of memory for the edges and 
+    // copy the data from the old chunk to the new, and then refresh the 
+    // other mesh elements w.r.t. these new pointers.
+    edge_t* new_edges = ARENA_MALLOC(mesh->arena, sizeof(edge_t)*mesh->storage->edge_capacity, 0);
+    memcpy(new_edges, mesh->edges, mesh->num_edges * sizeof(edge_t));
+    memset(new_edges + mesh->num_edges, 0, sizeof(edge_t)*(mesh->storage->edge_capacity-mesh->num_edges));
+
+    // Refresh each face's edge pointers.
+    for (int f = 0; f < mesh->num_faces; ++f)
+    {
+      face_t* face = &mesh->faces[f];
+      for (int e = 0; e < face->num_edges; ++e)
+      {
+        ptrdiff_t offset = face->edges[e] - &mesh->edges[0];
+        face->edges[e] = new_edges + offset;
+      }
+    }
+
+    // Get rid of the old edges.
+    ARENA_FREE(mesh->arena, mesh->edges);
+    mesh->edges = new_edges;
   }
   mesh->num_edges++;
   return mesh->num_edges-1;
@@ -67,11 +116,31 @@ int mesh_add_face(mesh_t* mesh)
 {
   if (mesh->num_faces+1 > mesh->storage->face_capacity)
   {
-    int old_cap = mesh->storage->face_capacity;
     while (mesh->num_faces+1 > mesh->storage->face_capacity)
       mesh->storage->face_capacity *= 2;
-    mesh->faces = ARENA_REALLOC(mesh->arena, mesh->faces, sizeof(face_t)*mesh->storage->face_capacity, 0);
-    memset(mesh->faces + old_cap, 0, sizeof(face_t)*(mesh->storage->face_capacity-old_cap));
+
+    // Because the addresses of the faces within the mesh are invalidated 
+    // by a realloc, we allocate a new chunk of memory for the faces and 
+    // copy the data from the old chunk to the new, and then refresh the 
+    // other mesh elements w.r.t. these new pointers.
+    face_t* new_faces = ARENA_MALLOC(mesh->arena, sizeof(face_t)*mesh->storage->face_capacity, 0);
+    memcpy(new_faces, mesh->faces, mesh->num_faces * sizeof(face_t));
+    memset(new_faces + mesh->num_faces, 0, sizeof(face_t)*(mesh->storage->face_capacity-mesh->num_faces));
+
+    // Refresh each cell's face pointers.
+    for (int c = 0; c < mesh->num_cells; ++c)
+    {
+      cell_t* cell = &mesh->cells[c];
+      for (int f = 0; f < cell->num_faces; ++f)
+      {
+        ptrdiff_t offset = cell->faces[f] - &mesh->faces[0];
+        cell->faces[f] = new_faces + offset;
+      }
+    }
+
+    // Get rid of the old faces.
+    ARENA_FREE(mesh->arena, mesh->faces);
+    mesh->faces = new_faces;
   }
   mesh->num_faces++;
   return mesh->num_faces-1;
@@ -94,11 +163,36 @@ int mesh_add_cell(mesh_t* mesh)
 {
   if (mesh->num_cells+1 > mesh->storage->cell_capacity)
   {
-    int old_cap = mesh->storage->cell_capacity;
     while (mesh->num_cells+1 > mesh->storage->cell_capacity)
       mesh->storage->cell_capacity *= 2;
-    mesh->cells = ARENA_REALLOC(mesh->arena, mesh->cells, sizeof(cell_t)*mesh->storage->cell_capacity, 0);
-    memset(mesh->cells + old_cap, 0, sizeof(cell_t)*(mesh->storage->cell_capacity-old_cap));
+
+    // Because the addresses of the cells within the mesh are invalidated 
+    // by a realloc, we allocate a new chunk of memory for the cells and 
+    // copy the data from the old chunk to the new, and then refresh the 
+    // other mesh elements w.r.t. these new pointers.
+    cell_t* new_cells = ARENA_MALLOC(mesh->arena, sizeof(cell_t)*mesh->storage->cell_capacity, 0);
+    memcpy(new_cells, mesh->cells, mesh->num_cells * sizeof(cell_t));
+    memset(new_cells + mesh->num_cells, 0, sizeof(cell_t)*(mesh->storage->cell_capacity-mesh->num_cells));
+
+    // Refresh each face's cell pointers.
+    for (int f = 0; f < mesh->num_faces; ++f)
+    {
+      face_t* face = &mesh->faces[f];
+      if (face->cell1 != NULL)
+      {
+        ptrdiff_t offset = face->cell1 - &mesh->cells[0];
+        face->cell1 = new_cells + offset;
+      }
+      if (face->cell2 != NULL)
+      {
+        ptrdiff_t offset = face->cell2 - &mesh->cells[0];
+        face->cell2 = new_cells + offset;
+      }
+    }
+
+    // Get rid of the old cells.
+    ARENA_FREE(mesh->arena, mesh->cells);
+    mesh->cells = new_cells;
   }
   mesh->num_cells++;
   return mesh->num_cells-1;
