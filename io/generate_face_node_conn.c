@@ -261,28 +261,38 @@ void generate_face_node_conn(mesh_t* mesh,
     // Find the node order by traversing the convex hull of 
     // the points within the plane, appending them to face_nodes.
     int indices[nn], count;
-    if (!traverse_convex_hull(points, nn, indices, &count))
+    if (!traverse_convex_hull(points, nn, indices, &count) || 
+        (count < nn))
     {
-      char nodes_str[2048], node_str[40];
+      char nodes_str[2048], node_str[64];
       int offset = 0;
       for (int n = 0; n < nn; ++n)
       {
         node_t* node = &mesh->nodes[nodes_for_face[f][n]];
         if (n == 0)
-          snprintf(node_str, 40, "{%g, %g, %g},\n", node->x, node->y, node->z);
+          snprintf(node_str, 64, "%6d: {%g, %g, %g},\n", nodes_for_face[f][n], node->x, node->y, node->z);
         else if (n < nn-1)
-          snprintf(node_str, 40, "        {%g, %g, %g},\n", node->x, node->y, node->z);
+          snprintf(node_str, 64, "          %6d: {%g, %g, %g},\n", nodes_for_face[f][n], node->x, node->y, node->z);
         else 
-          snprintf(node_str, 40, "        {%g, %g, %g}", node->x, node->y, node->z);
+          snprintf(node_str, 64, "          %6d: {%g, %g, %g}", nodes_for_face[f][n], node->x, node->y, node->z);
         int node_str_len = strlen(node_str);
         memcpy(nodes_str + offset, node_str, sizeof(char) * node_str_len);
         offset += node_str_len;
       }
       nodes_str[offset] = '\0';
+      int cell1 = mesh->faces[f].cell1 - &mesh->cells[0];
+      int cell2 = (mesh->faces[f].cell2 != NULL) ? mesh->faces[f].cell2 - &mesh->cells[0] : -1;
+      char cells_str[128];
+      if (cell2 != -1)
+        snprintf(cells_str, 128, "%d, %d", cell1, cell2);
+      else
+        snprintf(cells_str, 128, "%d", cell1);
       polymec_error("generate_face_node_conn: face %d is degenerate or not convex.\n"
-                    "Nodes: (%s)", f, nodes_str);
+                    "  Bounding cell(s): %s\n"
+                    "  Normal vector: (%g, %g, %g)\n"
+                    "  Nodes: (%s)", f, cells_str,
+                    normal.x, normal.y, normal.z, nodes_str);
     }
-    ASSERT(count == nn);
     face_node_offsets[f+1] = face_node_offsets[f] + nn;
     for (int n = 0; n < count; ++n)
       int_slist_append(all_face_nodes_list, nodes_for_face[f][indices[n]]);
