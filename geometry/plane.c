@@ -119,7 +119,7 @@ void plane_reset(sp_func_t* plane, vector_t* n, point_t* x)
   point_copy(&p->x, x);
 
   char plane_str[1024];
-  sprintf(plane_str, "Plane (n = (%g %g %g), x = (%g %g %g))", 
+  sprintf(plane_str, "Plane (n = (%g, %g, %g), x = (%g, %g, %g))", 
           n->x, n->y, n->z, x->x, x->y, x->z);
   sp_func_rename(plane, plane_str);
 
