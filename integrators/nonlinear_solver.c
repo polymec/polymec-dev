@@ -129,6 +129,51 @@ void nonlinear_solver_compute_jacobian(nonlinear_solver_t* solver,
   // Increment the various solution coefficients to compute the components 
   // of the Jacobian. We only need to increment those coefficients that 
   // are connected to this site in the adjacency graph.
-  // FIXME
+  for (int i = 0; i < N; ++i) 
+  {
+    // Copy the reference state to our work array.
+    memcpy(solver->XX, X, sizeof(double) * N * solver->num_sites);
+
+    // Find the other sites that affect this one, and build a list of all 
+    // sites to be incremented.
+    int num_adj_sites = solver->graph->xadj[site+1] - solver->graph->xadj[site];
+    int inc_sites[1+num_adj_sites], k = 1;
+    inc_sites[0] = site;
+    for (int j = solver->graph->xadj[site]; j < solver->graph->xadj[site+1]; ++j, ++k)
+      inc_sites[k] = solver->graph->adjacency[j];
+
+    // Increment the ith component of each of these sites within the work array.
+    double dXs[1 + num_adj_sites];
+    for (int j = 0; j < 1 + num_adj_sites; ++j)
+    {
+      int k = inc_sites[j];
+      dXs[j] = (X[k] == 0.0) ? delta : delta * X[k];
+      solver->XX[k] = X[k] + dXs[j];
+    }
+
+    // Compute the residual for the incremented solution vector.
+    double R[N];
+    nonlinear_function_eval(solver->F, site, solver->XX, R);
+
+    // Stash the resulting partial derivatives in Jij.
+    for (int j = 0; j < N; ++j)
+    {
+      for (int k = 0; k < 1 + num_adj_sites; ++k)
+      {
+        int l = inc_sites[k];
+        //       dR    (R - R0)
+        // Jij = --j = -------- , 
+        //       dX       dX
+        //         i
+        //
+        // and remember that we are computing the components of the 
+        // entire Jacobian, so the "i" up here is the index of the 
+        // ith component at the incremented site, N*l+i.
+        // The "j" is the jth component of the given site in the residual, 
+        // or N*site + j.
+        double_table_insert(Jij, N*l+i, N*site+j, (R[j] - R0[j])/dXs[k]);
+      }
+    }
+  }
 }
 
