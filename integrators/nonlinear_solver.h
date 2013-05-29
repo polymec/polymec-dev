@@ -2,6 +2,7 @@
 #define POLYMEC_NONLINEAR_SOLVER_H
 
 #include "core/polymec.h"
+#include "core/adj_graph.h"
 #include "core/table.h"
 
 // This class solves a nonlinear system F(X) = R, where F is a nonlinear 
@@ -65,10 +66,11 @@ void nonlinear_function_eval(nonlinear_function_t* F,
                              double* R);
 
 // Creates a nonlinear solver that finds the roots of a given nonlinear 
-// function at a given number of sites. The solver assumes control over the 
-// nonlinear function F.
+// function at the sites, which depend upon one another according to the 
+// given adjacency graph. The solver assumes control over the nonlinear 
+// function F.
 nonlinear_solver_t* nonlinear_solver_new(nonlinear_function_t* F,
-                                         int num_sites);
+                                         adj_graph_t* graph);
 
 // Frees a nonlinear solver.
 void nonlinear_solver_free(nonlinear_solver_t* solver);
