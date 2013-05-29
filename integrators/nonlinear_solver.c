@@ -77,7 +77,7 @@ nonlinear_solver_t* nonlinear_solver_new(nonlinear_function_t* F,
   nonlinear_solver_t* solver = malloc(sizeof(nonlinear_solver_t));
   solver->F = F;
   solver->graph = graph;
-  solver->num_sites = graph->num_vertices;
+  solver->num_sites = adj_graph_num_vertices(graph);
   int N = nonlinear_function_num_comps(F);
   solver->XX = malloc(sizeof(double) * solver->num_sites * N);
   return solver;
@@ -136,11 +136,13 @@ void nonlinear_solver_compute_jacobian(nonlinear_solver_t* solver,
 
     // Find the other sites that affect this one, and build a list of all 
     // sites to be incremented.
-    int num_adj_sites = solver->graph->xadj[site+1] - solver->graph->xadj[site];
+    int num_adj_sites = adj_graph_num_edges(solver->graph, site);
     int inc_sites[1+num_adj_sites], k = 1;
     inc_sites[0] = site;
-    for (int j = solver->graph->xadj[site]; j < solver->graph->xadj[site+1]; ++j, ++k)
-      inc_sites[k] = solver->graph->adjacency[j];
+    int num_edges = adj_graph_num_edges(solver->graph, site);
+    int* edges = adj_graph_edges(solver->graph, site);
+    for (int j = 0; j < num_edges; ++j)
+      inc_sites[k] = edges[j];
 
     // Increment the ith component of each of these sites within the work array.
     double dXs[1 + num_adj_sites];
