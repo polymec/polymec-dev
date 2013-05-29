@@ -36,16 +36,16 @@ typedef struct
   elliptic_solver_dtor                   dtor;
 } elliptic_solver_vtable;
 
-// Creates a diffusion solver with the given name, context, and virtual table.
+// Creates a elliptic solver with the given name, context, and virtual table.
 elliptic_solver_t* elliptic_solver_new(const char* name, 
                                        void* context,
                                        elliptic_solver_vtable vtable,
                                        index_space_t* index_space);
 
-// Frees a diffusion solver.
+// Frees a elliptic solver.
 void elliptic_solver_free(elliptic_solver_t* solver);
 
-// Returns the name of the diffuson solver (internally stored).
+// Returns the name of the elliptic solver (internally stored).
 char* elliptic_solver_name(elliptic_solver_t* solver);
 
 // Returns the context object for this solver.

@@ -9,8 +9,7 @@ add_library(polymec_core polymec.c point.c mesh.c model.c boundary_cell_map.c
             sparse_lin_solver.c mf_krylov_sparse_lin_solvers.c
             index_space.c hypre_helpers.c
             newton.c options.c interpreter.c string_utils.c 
-            io.c linear_algebra.c loggers.c 
-            diffusion_solver.c elliptic_solver.c)
+            io.c linear_algebra.c loggers.c)
 set(POLYMEC_LIBS polymec_core;${POLYMEC_LIBS} PARENT_SCOPE)
 set(POLYMEC_LIBS polymec_core;${POLYMEC_LIBS})
 add_subdirectory(tests)

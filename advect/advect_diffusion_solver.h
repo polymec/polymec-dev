@@ -1,9 +1,9 @@
 #ifndef POLYMEC_ADVECT_DIFFUSION_SOLVER_H
 #define POLYMEC_ADVECT_DIFFUSION_SOLVER_H
 
-#include "core/diffusion_solver.h"
 #include "core/st_func.h"
 #include "core/mesh.h"
+#include "integrators/diffusion_solver.h"
 
 // Creates a diffusion solver model for the advection-diffusion equation 
 // with the given diffusivity and source functions, defined on the given mesh

@@ -1,5 +1,5 @@
-#include "core/elliptic_solver.h"
 #include "core/hypre_helpers.h"
+#include "integrators/elliptic_solver.h"
 
 struct elliptic_solver_t
 {

@@ -1,6 +1,6 @@
-#include "core/diffusion_solver.h"
 #include "core/hypre_helpers.h"
 #include "core/linear_algebra.h"
+#include "integrators/diffusion_solver.h"
 
 struct diffusion_solver_t
 {
@@ -359,9 +359,6 @@ void diffusion_solver_crank_nicolson(diffusion_solver_t* solver,
 
   // Copy the solution to sol2.
   HYPRE_IJVectorGetValuesToArray(solver->x, solver->index_space, sol2);
-//printf("x = ");
-//vector_fprintf(sol2, N, stdout);
-//printf("\n");
 
   // Clean up.
   double_table_free(L);
