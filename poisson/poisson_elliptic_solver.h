@@ -1,9 +1,9 @@
 #ifndef POLYMEC_POISSON_ELLIPTIC_SOLVER_H
 #define POLYMEC_POISSON_ELLIPTIC_SOLVER_H
 
-#include "core/elliptic_solver.h"
 #include "core/st_func.h"
 #include "core/mesh.h"
+#include "integrators/elliptic_solver.h"
 
 // Creates an elliptic solver for Poisson's equation with the given source 
 // function, defined on the given mesh with the given set of boundary cells.
