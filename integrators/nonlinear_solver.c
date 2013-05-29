@@ -10,8 +10,10 @@ struct nonlinear_function_t
 
 struct nonlinear_solver_t 
 {
-  int num_sites;
   nonlinear_function_t* F;
+  adj_graph_t* graph;
+  int num_sites;
+  double* XX; // Work array
 };
 
 nonlinear_function_t* nonlinear_function_new(const char* name, 
@@ -60,18 +62,24 @@ void nonlinear_function_eval(nonlinear_function_t* F,
                              double* X,
                              double* R)
 {
+  ASSERT(site >= 0);
+  ASSERT(X != NULL);
+  ASSERT(R != NULL);
   F->vtable.eval_residual(F->context, F->num_comps, site, X, R);
 }
 
 nonlinear_solver_t* nonlinear_solver_new(nonlinear_function_t* F,
-                                         int num_sites)
+                                         adj_graph_t* graph)
 {
   ASSERT(F != NULL);
   ASSERT(num_sites > 0);
 
   nonlinear_solver_t* solver = malloc(sizeof(nonlinear_solver_t));
   solver->F = F;
-  solver->num_sites = num_sites;
+  solver->graph = graph;
+  solver->num_sites = graph->num_vertices;
+  int N = nonlinear_function_num_comps(F);
+  solver->XX = malloc(sizeof(double) * solver->num_sites * N);
   return solver;
 }
 
@@ -79,6 +87,8 @@ nonlinear_solver_t* nonlinear_solver_new(nonlinear_function_t* F,
 void nonlinear_solver_free(nonlinear_solver_t* solver)
 {
   nonlinear_function_free(solver->F);
+  adj_graph_free(solver->graph);
+  free(solver->XX);
   free(solver);
 }
 
@@ -92,6 +102,10 @@ void nonlinear_solver_compute_residual(nonlinear_solver_t* solver,
                                        double* X,
                                        double* R)
 {
+  ASSERT(site >= 0);
+  ASSERT(site < solver->num_sites);
+  ASSERT(X != NULL);
+  ASSERT(R != NULL);
   nonlinear_function_eval(solver->F, site, X, R);
 }
 
@@ -101,6 +115,20 @@ void nonlinear_solver_compute_jacobian(nonlinear_solver_t* solver,
                                        double delta,
                                        double_table_t* Jij)
 {
+  ASSERT(site >= 0);
+  ASSERT(site < solver->num_sites);
+  ASSERT(X != NULL);
+  ASSERT(delta > 0.0);
+  ASSERT(Jij != NULL);
+
+  // Compute the residual in the reference state.
+  int N = nonlinear_function_num_comps(solver->F);
+  double R0[N];
+  nonlinear_function_eval(solver->F, site, X, R0);
+
+  // Increment the various solution coefficients to compute the components 
+  // of the Jacobian. We only need to increment those coefficients that 
+  // are connected to this site in the adjacency graph.
   // FIXME
 }
 
