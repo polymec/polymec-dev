@@ -2,6 +2,7 @@
 
 typedef struct
 {
+  double initial_step_size;
   double reduction_factor;
   int max_iterations;
   double increase_factor;
@@ -17,7 +18,12 @@ static double simple_compute_dt(void* context,
                                 char* explanation)
 {
   simple_stepper_t* stepper = context;
-  if (num_failures >= stepper->max_iterations)
+  if (history_length == 0)
+  {
+    sprintf(explanation, "Initial step size is %g", stepper->initial_step_size);
+    return stepper->initial_step_size;
+  }
+  else if (num_failures >= stepper->max_iterations)
   {
     sprintf(explanation, "Number of failures (%d) exceeded threshold.", num_failures);
     return stepper->reduction_factor * last_unsuccessful_dt;
@@ -49,10 +55,17 @@ static void simple_dtor(void* context)
   free(stepper);
 }
 
-nonlinear_timestepper_t* simple_nonlinear_timestepper_new(double reduction_factor,
+nonlinear_timestepper_t* simple_nonlinear_timestepper_new(double initial_step_size,
+                                                          double reduction_factor,
                                                           int max_iterations,
                                                           double increase_factor)
 {
+  ASSERT(initial_step_size > 0.0);
+  ASSERT(reduction_factor > 0.0);
+  ASSERT(reduction_factor < 1.0);
+  ASSERT(max_iterations > 1);
+  ASSERT(increase_factor > 1.0);
+
   char name[1024];
   snprintf(name, 1024, "Simple timestepper (reduction factor = %g, max iterations = %d, increase factor = %g)", 
            reduction_factor, max_iterations, increase_factor);
@@ -60,6 +73,7 @@ nonlinear_timestepper_t* simple_nonlinear_timestepper_new(double reduction_facto
                                          .recompute_J = simple_recompute_J,
                                          .dtor = simple_dtor};
   simple_stepper_t* context = malloc(sizeof(simple_stepper_t));
+  context->initial_step_size = initial_step_size;
   context->reduction_factor = reduction_factor;
   context->max_iterations = max_iterations;
   context->increase_factor = increase_factor;

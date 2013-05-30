@@ -399,7 +399,7 @@ static inline void solve(nonlinear_solver_t* solver, HYPRE_IJMatrix A, HYPRE_IJV
   ASSERT(err == 0);
   err = HYPRE_ParCSRHybridSolve(solver->solver, Aobj, bobj, xobj);
   if (err == HYPRE_ERROR_CONV)
-    polymec_error("nonlinear_solver: Solve did not converge.");
+    polymec_error("nonlinear_solver: Linear solve did not converge.");
 
   HYPRE_ClearAllErrors();
 }
