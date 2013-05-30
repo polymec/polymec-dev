@@ -29,8 +29,9 @@ struct nonlinear_solver_t
   nonlinear_function_t* F;
   nonlinear_timestepper_t* timestepper;
   adj_graph_t* graph;
+  adj_graph_coloring_t* coloring;
   int num_sites;
-  double* XX; // Work array.
+  double *XX, *RR; // Work arrays.
 
   // Linear system and solver.
   HYPRE_IJMatrix A;
@@ -95,17 +96,13 @@ int nonlinear_function_num_comps(nonlinear_function_t* F)
 }
 
 void nonlinear_function_eval(nonlinear_function_t* F,
-                             int site,
                              double t,
-                             double dt,
                              double* X,
                              double* R)
 {
-  ASSERT(site >= 0);
-  ASSERT(dt > 0.0);
   ASSERT(X != NULL);
   ASSERT(R != NULL);
-  F->vtable.eval_residual(F->context, F->num_comps, site, t, dt, X, R);
+  F->vtable.eval_residual(F->context, F->num_comps, t, X, R);
 }
 
 nonlinear_timestepper_t* nonlinear_timestepper_new(const char* name, 
@@ -236,12 +233,14 @@ nonlinear_solver_t* nonlinear_solver_new(nonlinear_function_t* F,
   solver->F = F;
   solver->timestepper = timestepper;
   solver->graph = graph;
+  solver->coloring = NULL;
   solver->num_sites = adj_graph_num_vertices(graph);
-  int N = nonlinear_function_num_comps(F);
-  solver->XX = malloc(sizeof(double) * solver->num_sites * N);
-  solver->index_space = index_space_new_from_low_and_high(adj_graph_comm(graph),
-                                                          adj_graph_first_vertex(graph),
-                                                          adj_graph_last_vertex(graph));
+  int num_comps = nonlinear_function_num_comps(F);
+  solver->XX = malloc(sizeof(double) * solver->num_sites * num_comps);
+  solver->RR = malloc(sizeof(double) * solver->num_sites * num_comps);
+  solver->index_space = index_space_from_low_and_high(adj_graph_comm(graph),
+                                                      adj_graph_first_vertex(graph),
+                                                      adj_graph_last_vertex(graph));
   solver->initialized = false;
   solver->tolerance = 1e-8;
   solver->max_iters = 100;
@@ -259,12 +258,14 @@ void nonlinear_solver_free(nonlinear_solver_t* solver)
     HYPRE_IJVectorDestroy(solver->b);
     double_table_free(solver->Jij);
     free(solver->R);
+    adj_graph_coloring_free(solver->coloring);
   }
 
   nonlinear_timestepper_free(solver->timestepper);
   nonlinear_function_free(solver->F);
   solver->index_space = NULL;
   adj_graph_free(solver->graph);
+  free(solver->RR);
   free(solver->XX);
   free(solver);
 }
@@ -275,88 +276,76 @@ nonlinear_function_t* nonlinear_solver_function(nonlinear_solver_t* solver)
 }
 
 void nonlinear_solver_compute_residual(nonlinear_solver_t* solver,
-                                       int site,
                                        double t, 
-                                       double dt,
                                        double* X,
                                        double* R)
 {
-  ASSERT(site >= 0);
-  ASSERT(site < solver->num_sites);
-  ASSERT(dt > 0.0);
   ASSERT(X != NULL);
   ASSERT(R != NULL);
-  nonlinear_function_eval(solver->F, site, t, dt, X, R);
+  nonlinear_function_eval(solver->F, t, X, R);
 }
 
 void nonlinear_solver_compute_jacobian(nonlinear_solver_t* solver,
-                                       int site,
                                        double t,
-                                       double dt,
                                        double* X,
                                        double delta,
                                        double_table_t* Jij)
 {
-  ASSERT(site >= 0);
-  ASSERT(site < solver->num_sites);
   ASSERT(dt > 0.0);
   ASSERT(X != NULL);
   ASSERT(delta > 0.0);
   ASSERT(Jij != NULL);
 
   // Compute the residual in the reference state.
-  int N = nonlinear_function_num_comps(solver->F);
-  double R0[N];
-  nonlinear_function_eval(solver->F, site, t, dt, X, R0);
+  int num_comps = nonlinear_function_num_comps(solver->F);
+  nonlinear_function_eval(solver->F, t, X, solver->R);
 
-  // Increment the various solution coefficients to compute the components 
-  // of the Jacobian. We only need to increment those coefficients that 
-  // are connected to this site in the adjacency graph.
-  for (int i = 0; i < N; ++i) 
+  // Iterate over the colors of the graph and compute the components of 
+  // the Jacobian.
+  int num_colors = adj_graph_coloring_num_colors(solver->coloring);
+  int num_sites = solver->num_sites;
+  for (int color = 0; color < num_colors; ++color)
   {
-    // Copy the reference state to our work array.
-    memcpy(solver->XX, X, sizeof(double) * N * solver->num_sites);
-
-    // Find the other sites that affect this one, and build a list of all 
-    // sites to be incremented.
-    int num_adj_sites = adj_graph_num_edges(solver->graph, site);
-    int inc_sites[1+num_adj_sites], k = 1;
-    inc_sites[0] = site;
-    int num_edges = adj_graph_num_edges(solver->graph, site);
-    int* edges = adj_graph_edges(solver->graph, site);
-    for (int j = 0; j < num_edges; ++j)
-      inc_sites[k] = edges[j];
-
-    // Increment the ith component of each of these sites within the work array.
-    double dXs[1 + num_adj_sites];
-    for (int j = 0; j < 1 + num_adj_sites; ++j)
+    // Increment the various solution coefficients to compute the components 
+    // of the Jacobian. 
+    for (int inc_comp = 0; inc_comp < num_comps; ++inc_comp) 
     {
-      int k = inc_sites[j];
-      dXs[j] = (X[k] == 0.0) ? delta : delta * X[k];
-      solver->XX[k] = X[k] + dXs[j];
-    }
+      // Copy the reference state to our work array.
+      memcpy(solver->XX, X, sizeof(double) * num_comps * solver->num_sites);
 
-    // Compute the residual for the incremented solution vector.
-    double R[N];
-    nonlinear_function_eval(solver->F, site, t, dt, solver->XX, R);
-
-    // Stash the resulting partial derivatives in Jij.
-    for (int j = 0; j < N; ++j)
-    {
-      for (int k = 0; k < 1 + num_adj_sites; ++k)
+      // Increment this component at each of the sites.
+      for (int site = 0; site < num_sites; ++site)
       {
-        int l = inc_sites[k];
-        //       dR    (R - R0)
-        // Jij = --j = -------- , 
-        //       dX       dX
-        //         i
-        //
-        // and remember that we are computing the components of the 
-        // entire Jacobian, so the "i" up here is the index of the 
-        // ith component at the incremented site, N*l+i.
-        // The "j" is the jth component of the given site in the residual, 
-        // or N*site + j.
-        double_table_insert(Jij, N*l+i, N*site+j, (R[j] - R0[j])/dXs[k]);
+        int k = num_comps*site + inc_comp;
+        double dX = (X[k] == 0.0) ? delta : delta * X[k];
+        solver->XX[k] = X[k] + dX;
+      }
+
+      // Compute the residual for the incremented solution vector.
+      nonlinear_function_eval(solver->F, t, solver->XX, solver->RR);
+
+      // Stash the resulting partial derivatives for each of the vertices 
+      // belonging to this color.
+      int pos = 0, vertex;
+      while (adj_graph_coloring_next_vertex(solver->coloring, color, &pos, &vertex))
+      {
+        for (int res_comp = 0; res_comp < num_comps; ++res_comp)
+        {
+          // Column of Jacobian = component of residual vector.
+          int col = num_comps * vertex + res_comp;
+          for (int site = 0; site < num_sites; ++site)
+          {
+            // Row of Jacobian = component of solution vector.
+            int row = num_comps * site + inc_comp;
+
+            //       dR    (R - R0)
+            // Jij = --j = -------- , 
+            //       dX       dX
+            //         i
+            double dX = solver->XX[row] - X[row];
+            double_table_insert(Jij, row, col, (solver->RR[col] - solver->R[col])/dX);
+          }
+        }
       }
     }
   }
@@ -375,6 +364,8 @@ static void initialize(nonlinear_solver_t* solver)
     solver->Jij = double_table_new();
     int N = nonlinear_function_num_comps(solver->F);
     solver->R = malloc(sizeof(double) * N * adj_graph_num_vertices(solver->graph));
+    solver->coloring = adj_graph_coloring_new(solver->graph, 
+                                              ADJ_GRAPH_VERTEX_ORDERING_ID); // FIXME?
     solver->initialized = true;
   }
 }
@@ -420,19 +411,13 @@ void nonlinear_solver_step(nonlinear_solver_t* solver,
   double dt = nonlinear_timestepper_step_size(solver->timestepper, &explanation);
   log_detail("nonlinear_solver_step: Chose dt = %g (%s)", dt, explanation);
 
-  // Compute the residual vector at each site. 
-  for (int i = 0; i < num_sites; ++i)
-  {
-    double R[num_comps];
-    nonlinear_solver_compute_residual(solver, i, *t, dt, x, R);
-    for (int c = 0; c < num_comps; ++c)
-      solver->R[num_comps*i + c] = R[c];
-  }
+  // Compute the residual vector.
+  nonlinear_solver_compute_residual(solver, *t, x, solver->R);
 
   bool converged = false;
   int num_iters = 0;
   double last_dt = dt;
-  while (!converged  && (num_iters <= solver->max_iters))
+  while (!converged && (num_iters <= solver->max_iters))
   {
     // Here we go.
     ++num_iters;
@@ -445,18 +430,27 @@ void nonlinear_solver_step(nonlinear_solver_t* solver,
       last_dt = dt;
     }
 
-    // Compute the components of the Jacobian at each site as needed.
+    // Compute the components of the Jacobian as needed.
     if (nonlinear_timestepper_recompute_jacobian(solver->timestepper))
     {
       log_detail("nonlinear_solver_step: Recomputing Jacobian.");
-      for (int i = 0; i < num_sites; ++i)
-        nonlinear_solver_compute_jacobian(solver, i, *t, dt, x, epsilon, solver->Jij);
+      nonlinear_solver_compute_jacobian(solver, *t, x, epsilon, solver->Jij);
     }
 
+    // Go over the values in the table and compute 1.0/dt - Jij to 
+    // implement the backward Euler method.
+    double_table_t* be_J = double_table_new();
+    double_table_cell_pos_t pos = double_table_start(solver->Jij);
+    int i, j;
+    double Jij;
+    while (double_table_next_cell(solver->Jij, &pos, &i, &j, &Jij))
+      double_table_insert(be_J, i, j, 1.0/dt - Jij);
+
     // Set up the linear system.
-    HYPRE_IJMatrixSetValuesFromTable(solver->A, solver->index_space, solver->Jij);
+    HYPRE_IJMatrixSetValuesFromTable(solver->A, solver->index_space, be_J);
     //HYPRE_IJMatrixPrint(solver->A, "L");
     HYPRE_IJVectorSetValuesFromArray(solver->b, solver->index_space, solver->R);
+    double_table_free(be_J);
 
     // Now solve the linear system for the increment.
     solve(solver, solver->A, solver->b, solver->x);
@@ -468,17 +462,13 @@ void nonlinear_solver_step(nonlinear_solver_t* solver,
     for (int i = 0; i < num_sites*num_comps; ++i)
       x[i] += solver->XX[i];
 
-    // Recompute the residual and measure its norm at each site.
+    // Recompute the residual and measure its norm.
+    nonlinear_solver_compute_residual(solver, *t, x, solver->R);
     double res_norm = 0.0;
-    for (int i = 0; i < num_sites; ++i)
+    for (int i = 0; i < num_comps * num_sites; ++i)
     {
-      double R[num_comps];
-      nonlinear_solver_compute_residual(solver, i, *t, dt, x, R);
-      for (int c = 0; c < num_comps; ++c)
-      {
-        solver->R[num_comps*i + c] = R[c];
-        res_norm += R[c]*R[c];
-      }
+      double Ri = solver->R[i];
+      res_norm += Ri*Ri;
     }
     res_norm = sqrt(res_norm);
 

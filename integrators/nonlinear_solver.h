@@ -16,9 +16,7 @@ typedef struct nonlinear_function_t nonlinear_function_t;
 // A function for computing the components of the residual at the given site.
 typedef void (*nonlinear_function_eval_residual_func)(void* context, 
                                                       int num_comps, 
-                                                      int site, 
                                                       double t, 
-                                                      double dt,
                                                       double* x, 
                                                       double* R);
 
@@ -52,12 +50,10 @@ void* nonlinear_function_context(nonlinear_function_t* F);
 int nonlinear_function_num_comps(nonlinear_function_t* F);
 
 // Evaluates the nonlinear function, computing the components of the 
-// residual vector corresponding to those in the solution vector X for a 
-// given site and storing them in R.
+// residual vector corresponding to those in the solution vector X
+// and storing them in R.
 void nonlinear_function_eval(nonlinear_function_t* F,
-                             int site,
                              double t,
-                             double dt,
                              double* X,
                              double* R);
 
@@ -172,23 +168,18 @@ void nonlinear_solver_free(nonlinear_solver_t* solver);
 // Returns the nonlinear function associated with this solver.
 nonlinear_function_t* nonlinear_solver_function(nonlinear_solver_t* solver);
 
-// Computes the components of the residual vector R at the given site in 
-// the nonlinear solver at the time t (with the given time step size dt), 
-// given the components of the solution vector X.
+// Computes the components of the residual vector R in the nonlinear system 
+// at the time t, given the components of the solution vector X.
 void nonlinear_solver_compute_residual(nonlinear_solver_t* solver,
-                                       int site,
                                        double t,
-                                       double dt,
                                        double* X,
                                        double* R);
 
-// Computes the elements of the Jacobian matrix at the site i, using the 
+// Computes the elements of the Jacobian matrix at time t, using the 
 // solution vector X and the fractional increment delta. The elements of 
 // the Jacobian are stored in the table Jij.
 void nonlinear_solver_compute_jacobian(nonlinear_solver_t* solver,
-                                       int site,
                                        double t,
-                                       double dt,
                                        double* X,
                                        double delta,
                                        double_table_t* Jij);
