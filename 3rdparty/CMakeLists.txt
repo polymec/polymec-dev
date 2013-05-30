@@ -15,7 +15,7 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libgc.a)
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/gc-7.2
                   OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
   message("Building gc...")
-  execute_process(COMMAND make install
+  execute_process(COMMAND make install -j4
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/gc-7.2
                   OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
   add_library(gc STATIC IMPORTED)
@@ -68,7 +68,7 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/liblzma.a)
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/xz-5.0.0
                   OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
   message("Building xz-utils...")
-  execute_process(COMMAND make install
+  execute_process(COMMAND make install -j4
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/xz-5.0.0
                   OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
 endif()
@@ -108,7 +108,7 @@ if (NOT EXISTS ${CMAKE_BINARY_DIR}/lib/libHYPRE.a)
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/hypre-2.9.0b/src/cmbuild
                   OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
   message("Building HYPRE...")
-  execute_process(COMMAND make install
+  execute_process(COMMAND make install -j4
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/hypre-2.9.0b/src/cmbuild
                   OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
 endif()
@@ -170,7 +170,7 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/lib${SILOLIB}.a)
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/silo-4.8-bsd
                   OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
   message("Building silo...")
-  execute_process(COMMAND make install
+  execute_process(COMMAND make install -j4
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/silo-4.8-bsd
                   OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
 endif()
@@ -193,7 +193,7 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libsundials_cvode.a)
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/cvode-2.6.0
                   OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
   message("Building CVODE...")
-  execute_process(COMMAND make install
+  execute_process(COMMAND make install -j4
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/cvode-2.6.0
                   OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
 endif()
@@ -251,7 +251,7 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libxml2.a)
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/libxml2-2.9.0
                   OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
   message("Building libxml2...")
-  execute_process(COMMAND make install
+  execute_process(COMMAND make install -j4
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/libxml2-2.9.0
                   OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
 endif()
