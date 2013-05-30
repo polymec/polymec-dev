@@ -3,6 +3,9 @@
 
 #include "core/polymec.h"
 
+//------------------------------------------------------------------------
+//                          Adjacency graph 
+//------------------------------------------------------------------------
 // This type represents an adjacency graph with a number of vertices and 
 // edges. Its format is inspired by the Metis partitioner.
 typedef struct adj_graph_t adj_graph_t;
@@ -59,5 +62,44 @@ int* adj_graph_edge_offsets(adj_graph_t* graph);
 // found on process p. This array plays the role of VTX_DIST in the ParMetis 
 // documentation.
 int* adj_graph_vertex_dist(adj_graph_t* graph);
+
+//------------------------------------------------------------------------
+//                       Adjacency graph coloring
+//------------------------------------------------------------------------
+
+// A graph coloring is a set of "colors," each of which comprises a set of 
+// vertices that are disjoint within an adjacency graph. A graph coloring 
+// is essentially a partitioning of a graph into independent portions, and 
+// is useful for determining dependencies.
+typedef struct adj_graph_coloring_t adj_graph_coloring_t;
+
+// These are different types of vertex orderings for constructing colorings
+// using the sequential algorithm. See Coleman and More, "Estimation of 
+// Sparse Jacobian Matrices and Graph Coloring Problems," 
+// SIAM J. Numer. Anal., Vol. 20, 1 (1983).
+typedef enum
+{
+  ADJ_GRAPH_VERTEX_ORDERING_SL, // Smallest-Last
+  ADJ_GRAPH_VERTEX_ORDERING_LF, // Largest-First
+  ADJ_GRAPH_VERTEX_ORDERING_ID  // Incidence-Degree (optimal for bipartite graphs)
+} adj_graph_vertex_ordering_t;
+
+// Create a new coloring from the given adjacency graph using the given 
+// vertex ordering.
+adj_graph_coloring_t* adj_graph_coloring_new(adj_graph_t* graph, 
+                                             adj_graph_vertex_ordering_t ordering);
+
+// Destroys the coloring object.
+void adj_graph_coloring_free(adj_graph_coloring_t* coloring);
+
+// Returns the number of colors in this coloring.
+int adj_graph_coloring_num_colors(adj_graph_coloring_t* coloring);
+
+// Allows iteration over the vertices in the given color. Returns true if 
+// more vertices are found, false if not. Set pos to 0 to reset an iteration.
+bool adj_graph_coloring_next_vertex(adj_graph_coloring_t* coloring, 
+                                    int color,
+                                    int* pos, 
+                                    int* vertex);
 
 #endif

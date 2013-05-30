@@ -1,4 +1,5 @@
 #include "core/adj_graph.h"
+#include "core/unordered_map.h"
 
 struct adj_graph_t 
 {
@@ -137,5 +138,50 @@ int* adj_graph_edge_offsets(adj_graph_t* graph)
 int* adj_graph_vertex_dist(adj_graph_t* graph)
 {
   return graph->vtx_dist;
+}
+
+struct adj_graph_coloring_t 
+{
+  int* vertices; // Vertices of colors in compressed row storage (CRS).
+  int* offsets; // Offsets, also in compressed row storage.
+  int num_colors;
+};
+
+adj_graph_coloring_t* adj_graph_coloring_new(adj_graph_t* graph,
+                                             adj_graph_vertex_ordering_t ordering)
+{
+  adj_graph_coloring_t* coloring = malloc(sizeof(adj_graph_coloring_t));
+  coloring->num_colors = 0;
+  // FIXME
+  return coloring;
+}
+
+void adj_graph_coloring_free(adj_graph_coloring_t* coloring)
+{
+  free(coloring->vertices);
+  free(coloring->offsets);
+  free(coloring);
+}
+
+int adj_graph_coloring_num_colors(adj_graph_coloring_t* coloring)
+{
+  return coloring->num_colors;
+}
+
+bool adj_graph_coloring_next_vertex(adj_graph_coloring_t* coloring, 
+                                    int color,
+                                    int* pos, 
+                                    int* vertex)
+{
+  ASSERT(color >= 0);
+  ASSERT(color < coloring->num_colors);
+  int offset = coloring->offsets[color] + *pos;
+  if (offset < coloring->offsets[color+1])
+  {
+    *vertex = coloring->vertices[offset];
+    ++(*pos);
+    return true;
+  }
+  return false;
 }
 
