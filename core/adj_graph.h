@@ -38,6 +38,12 @@ int adj_graph_num_edges(adj_graph_t* graph, int vertex);
 // setting the edges for a vertex.
 int* adj_graph_edges(adj_graph_t* graph, int vertex);
 
+// Returns the global index of the first local vertex in the graph.
+int adj_graph_first_vertex(adj_graph_t* graph);
+
+// Returns the global index of the last local vertex in the graph.
+int adj_graph_last_vertex(adj_graph_t* graph);
+
 // Returns the (internally-stored) adjacency array that stores the edges 
 // in compressed-row storage (CRS) format. This array plays the role of 
 // ADJNCY in the (Par)Metis documentation.

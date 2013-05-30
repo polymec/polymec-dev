@@ -114,6 +114,16 @@ int* adj_graph_edges(adj_graph_t* graph, int vertex)
   return &graph->adjacency[graph->xadj[vertex]];
 }
 
+int adj_graph_first_vertex(adj_graph_t* graph)
+{
+  return graph->vtx_dist[graph->rank];
+}
+
+int adj_graph_last_vertex(adj_graph_t* graph)
+{
+  return graph->vtx_dist[graph->rank+1] - 1;
+}
+
 int* adj_graph_adjacency(adj_graph_t* graph)
 {
   return graph->adjacency;

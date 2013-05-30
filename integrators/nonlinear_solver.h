@@ -94,5 +94,11 @@ void nonlinear_solver_compute_jacobian(nonlinear_solver_t* solver,
                                        double delta,
                                        double_table_t* Jij);
 
+// Integrates the given nonlinear system from an initial state x1 at time t1 to 
+// a final state x2 at t2.
+void nonlinear_solver_integrate(nonlinear_solver_t* solver,
+                                double t1, double* x1,
+                                double t2, double* x2);
+
 #endif
 
