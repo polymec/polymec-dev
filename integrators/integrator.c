@@ -1,4 +1,4 @@
-#include "core/integrator.h"
+#include "integrators/integrator.h"
 
 struct integrator_t 
 {

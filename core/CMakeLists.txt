@@ -4,8 +4,7 @@ add_library(polymec_core polymec.c point.c mesh.c model.c boundary_cell_map.c
             exchanger.c repartition.c point_set.c adj_graph.c
             surface_mesh.c edit_surface_mesh.c periodic_bc.c
             sp_func.c st_func.c constant_st_func.c dl_st_func.c 
-            lagrange_poly.c
-            cell_nsearch.c lin_op.c least_squares.c integrator.c
+            lagrange_poly.c cell_nsearch.c lin_op.c least_squares.c 
             sparse_lin_solver.c mf_krylov_sparse_lin_solvers.c
             index_space.c hypre_helpers.c
             newton.c options.c interpreter.c string_utils.c 

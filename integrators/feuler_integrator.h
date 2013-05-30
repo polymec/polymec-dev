@@ -1,7 +1,7 @@
 #ifndef POLYMEC_FEULER_INTEGRATOR_H
 #define POLYMEC_FEULER_INTEGRATOR_H
 
-#include "core/integrator.h"
+#include "integrators/integrator.h"
 
 // A function signature for explicitly computing the derivative of a solution 
 // at the given time. Arguments are:

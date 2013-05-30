@@ -2,7 +2,7 @@
 #define POLYMEC_CNAV_MODEL_H
 
 #include "core/model.h"
-#include "core/integrator.h"
+#include "integrators/integrator.h"
 #include "cnav/cnav_eos.h"
 
 // Types of time integrators available for this model.
