@@ -46,6 +46,12 @@ struct nonlinear_solver_t
   // Jacobian and residual coefficients.
   double_table_t* Jij;
   double* R;
+
+  // Residual norm tolerance.
+  double tolerance;
+
+  // Maximum number of iterations before abject failure.
+  int max_iters;
 };
 
 nonlinear_function_t* nonlinear_function_new(const char* name, 
@@ -237,6 +243,8 @@ nonlinear_solver_t* nonlinear_solver_new(nonlinear_function_t* F,
                                                           adj_graph_first_vertex(graph),
                                                           adj_graph_last_vertex(graph));
   solver->initialized = false;
+  solver->tolerance = 1e-8;
+  solver->max_iters = 100;
   return solver;
 }
 
@@ -404,39 +412,96 @@ void nonlinear_solver_step(nonlinear_solver_t* solver,
 
   static double epsilon = FLT_EPSILON * FLT_MIN; // Smallest possible float.
 
-  // Choose a new timestep.
+  int num_sites = solver->index_space->high - solver->index_space->low;
+  int num_comps = nonlinear_function_num_comps(solver->F);
+
+  // Choose an initial timestep.
   char* explanation;
   double dt = nonlinear_timestepper_step_size(solver->timestepper, &explanation);
   log_detail("nonlinear_solver_step: Chose dt = %g (%s)", dt, explanation);
 
-  // Compute the components of the Jacobian and the residual at each site 
-  // as needed.
-  int N = solver->index_space->high - solver->index_space->low;
-  int num_comps = nonlinear_function_num_comps(solver->F);
-  if (nonlinear_timestepper_recompute_jacobian(solver->timestepper))
+  // Compute the residual vector at each site. 
+  for (int i = 0; i < num_sites; ++i)
   {
-    log_detail("nonlinear_solver_step: Recomputing Jacobian.");
-    for (int i = 0; i < N; ++i)
-      nonlinear_solver_compute_jacobian(solver, i, *t, dt, x, epsilon, solver->Jij);
+    double R[num_comps];
+    nonlinear_solver_compute_residual(solver, i, *t, dt, x, R);
+    for (int c = 0; c < num_comps; ++c)
+      solver->R[num_comps*i + c] = R[c];
   }
-  for (int i = 0; i < N; ++i)
-    nonlinear_solver_compute_residual(solver, i, *t, dt, x, solver->R);
 
-  // Set up the linear system.
-  HYPRE_IJMatrixSetValuesFromTable(solver->A, solver->index_space, solver->Jij);
-//HYPRE_IJMatrixPrint(solver->A, "L");
-  HYPRE_IJVectorSetValuesFromArray(solver->b, solver->index_space, solver->R);
+  bool converged = false;
+  int num_iters = 0;
+  double last_dt = dt;
+  while (!converged  && (num_iters <= solver->max_iters))
+  {
+    // Here we go.
+    ++num_iters;
 
-  // Now solve the linear system for the increment.
-  solve(solver, solver->A, solver->b, solver->x);
-  // FIXME: Measure of success?
+    // Choose a new timestep if needed.
+    dt = nonlinear_timestepper_step_size(solver->timestepper, &explanation);
+    if (last_dt != dt)
+    {
+      log_detail("nonlinear_solver_step: Chose dt = %g (%s)", dt, explanation);
+      last_dt = dt;
+    }
 
-  // Copy the solution to XX.
-  HYPRE_IJVectorGetValuesToArray(solver->x, solver->index_space, solver->XX);
+    // Compute the components of the Jacobian at each site as needed.
+    if (nonlinear_timestepper_recompute_jacobian(solver->timestepper))
+    {
+      log_detail("nonlinear_solver_step: Recomputing Jacobian.");
+      for (int i = 0; i < num_sites; ++i)
+        nonlinear_solver_compute_jacobian(solver, i, *t, dt, x, epsilon, solver->Jij);
+    }
 
-  // Add the increment to x.
-  for (int i = 0; i < N*num_comps; ++i)
-    x[i] += solver->XX[i];
+    // Set up the linear system.
+    HYPRE_IJMatrixSetValuesFromTable(solver->A, solver->index_space, solver->Jij);
+    //HYPRE_IJMatrixPrint(solver->A, "L");
+    HYPRE_IJVectorSetValuesFromArray(solver->b, solver->index_space, solver->R);
+
+    // Now solve the linear system for the increment.
+    solve(solver, solver->A, solver->b, solver->x);
+
+    // Copy the solution to XX.
+    HYPRE_IJVectorGetValuesToArray(solver->x, solver->index_space, solver->XX);
+
+    // Add the increment to x.
+    for (int i = 0; i < num_sites*num_comps; ++i)
+      x[i] += solver->XX[i];
+
+    // Recompute the residual and measure its norm at each site.
+    double res_norm = 0.0;
+    for (int i = 0; i < num_sites; ++i)
+    {
+      double R[num_comps];
+      nonlinear_solver_compute_residual(solver, i, *t, dt, x, R);
+      for (int c = 0; c < num_comps; ++c)
+      {
+        solver->R[num_comps*i + c] = R[c];
+        res_norm += R[c]*R[c];
+      }
+    }
+    res_norm = sqrt(res_norm);
+
+    // Is the norm small enough?
+    if (res_norm < solver->tolerance)
+    {
+      // Success!
+      nonlinear_timestepper_converged(solver->timestepper, dt, 
+                                      res_norm, num_iters);
+    }
+    else
+    {
+      // Awwwww...
+      nonlinear_timestepper_failed(solver->timestepper, dt);
+    }
+  }
+
+  // If we exceeded the maximum number of iterations, we're toast.
+  if (num_iters > solver->max_iters)
+  {
+    polymec_error("nonlinear_solver_step: Maximum number of iterations (%d) exceeded", 
+                  solver->max_iters);
+  }
 
   // Update the time.
   *t += dt;
@@ -454,3 +519,25 @@ void nonlinear_solver_integrate(nonlinear_solver_t* solver,
     nonlinear_solver_step(solver, &t, x2);
 }
 
+double nonlinear_solver_tolerance(nonlinear_solver_t* solver)
+{
+  return solver->tolerance;
+}
+                                  
+void nonlinear_solver_set_tolerance(nonlinear_solver_t* solver, double tolerance)
+{
+  ASSERT(tolerance > 0.0);
+  solver->tolerance = tolerance;
+}
+
+int nonlinear_solver_max_iterations(nonlinear_solver_t* solver)
+{
+  return solver->max_iters;
+}
+                                  
+void nonlinear_solver_set_max_iterations(nonlinear_solver_t* solver, int max_iters)
+{
+  ASSERT(max_iters > 1);
+  solver->max_iters = max_iters;
+}
+                                  
