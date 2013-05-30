@@ -5,17 +5,9 @@
 #include "core/adj_graph.h"
 #include "core/table.h"
 
-// This class solves a nonlinear system F(X) = R, where F is a nonlinear 
-// function mapping a solution vector X to a residual vector R. The system 
-// itself has a specified dimension that is the size of the vectors X and R.
-// In the context of partial differential equations, it is sometimes 
-// advantageous to specify a number of "components" to a solution vector X 
-// that describes the number of unknowns corresponding to a single "site" at
-// which the nonlinear function may be evaluated. In this parlance, the 
-// dimension is the product of the number of components and the number of 
-// sites.
-typedef struct nonlinear_solver_t nonlinear_solver_t;
-
+//------------------------------------------------------------------------
+//                         nonlinear function
+//------------------------------------------------------------------------
 // This type represents a nonlinear function F, whose job it is to compute 
 // a residual vector R for a given solution vector X. It is a base class that 
 // can be subclassed to create actual nonlinear solvers.
@@ -25,6 +17,8 @@ typedef struct nonlinear_function_t nonlinear_function_t;
 typedef void (*nonlinear_function_eval_residual_func)(void* context, 
                                                       int num_comps, 
                                                       int site, 
+                                                      double t, 
+                                                      double dt,
                                                       double* x, 
                                                       double* R);
 
@@ -62,14 +56,114 @@ int nonlinear_function_num_comps(nonlinear_function_t* F);
 // given site and storing them in R.
 void nonlinear_function_eval(nonlinear_function_t* F,
                              int site,
+                             double t,
+                             double dt,
                              double* X,
                              double* R);
+
+//------------------------------------------------------------------------
+//                         nonlinear timestepper
+//------------------------------------------------------------------------
+// This class implements a policy for choosing a timestep given an initial 
+// choice, the error history of the nonlinear integration, and any other 
+// considerations.
+typedef struct nonlinear_timestepper_t nonlinear_timestepper_t;
+
+// A function for computing the size of the timestep, giving a reason for
+// the choice. A history of time step sizes (dt), error norms, and iteration 
+// counts is stored in the various history arrays, which may be indexed using 
+// negative numbers to step backwards in nonlinear iterations. For example, 
+// dt_history[0] contains the most recently selected timestep, preceded by 
+// dt_history[-1], and so on.
+typedef double (*nonlinear_timestepper_compute_dt_func)(void* context, 
+                                                        double last_unsuccessful_dt,
+                                                        int num_failures,
+                                                        double* dt_history,
+                                                        double* error_history,
+                                                        int* iteration_history,
+                                                        int history_length,
+                                                        char* explanation);
+
+// A function for determining whether the Jacobian matrix must be recomputed
+// during an integration. The histories are available in the same form as 
+// described above.
+typedef bool (*nonlinear_timestepper_recompute_J_func)(void* context, 
+                                                       double* dt_history,
+                                                       double* error_history,
+                                                       int* iteration_history,
+                                                       int history_length);
+
+// A destructor for the timestepper class.
+typedef void (*nonlinear_timestepper_dtor)(void* context);
+
+// This virtual table must be implemented by any nonlinear_timestepper_t.
+typedef struct 
+{
+  nonlinear_timestepper_compute_dt_func  compute_dt;
+  nonlinear_timestepper_recompute_J_func recompute_J;
+  nonlinear_timestepper_dtor             dtor;
+} nonlinear_timestepper_vtable;
+
+// Creates a nonlinear timestepper with the given name, context, history 
+// length, and virtual table.
+nonlinear_timestepper_t* nonlinear_timestepper_new(const char* name, 
+                                                   void* context,
+                                                   int max_history_length,
+                                                   nonlinear_timestepper_vtable vtable);
+
+// Frees a timestepper.
+void nonlinear_timestepper_free(nonlinear_timestepper_t* timestepper);
+
+// Returns the (internally-stored) name of the timestepper.
+char* nonlinear_timestepper_name(nonlinear_timestepper_t* timestepper);
+
+// Returns the maximum length of the error/iteration history stored in the timestepper.
+int nonlinear_timestepper_max_history_length(nonlinear_timestepper_t* timestepper);
+
+// Clears the error/iteration history for the timestepper.
+void nonlinear_timestepper_clear_history(nonlinear_timestepper_t* timestepper);
+
+// Returns a new timestep based on the error/iteration history, along with 
+// an explanation for the choice.
+double nonlinear_timestepper_step_size(nonlinear_timestepper_t* timestepper,
+                                       char** explanation);
+
+// Returns true if the Jacobian needs to be recomputed at the present iteration, 
+// false if not.
+bool nonlinear_timestepper_recompute_jacobian(nonlinear_timestepper_t* timestepper);
+
+// This should be called when a nonlinear iteration converges, with the 
+// appropriate time step, error norm, and number of iterations.
+void nonlinear_timestepper_converged(nonlinear_timestepper_t* timestepper,
+                                     double step_size,
+                                     double error_norm,
+                                     int num_iterations);
+
+// This should be called when a nonlinear iteration fails to converge with 
+// the attempted time step.
+void nonlinear_timestepper_failed(nonlinear_timestepper_t* timestepper,
+                                  double step_size);
+
+//------------------------------------------------------------------------
+//                         nonlinear solver
+//------------------------------------------------------------------------
+// This class solves a nonlinear system F(X) = R, where F is a nonlinear 
+// function mapping a solution vector X to a residual vector R. The system 
+// itself has a specified dimension that is the size of the vectors X and R.
+// In the context of partial differential equations, it is sometimes 
+// advantageous to specify a number of "components" to a solution vector X 
+// that describes the number of unknowns corresponding to a single "site" at
+// which the nonlinear function may be evaluated. In this parlance, the 
+// dimension is the product of the number of components and the number of 
+// sites.
+typedef struct nonlinear_solver_t nonlinear_solver_t;
 
 // Creates a nonlinear solver that finds the roots of a given nonlinear 
 // function at the sites, which depend upon one another according to the 
 // given adjacency graph. The solver assumes control over the nonlinear 
-// function F.
+// function F and the given timestepper.
 nonlinear_solver_t* nonlinear_solver_new(nonlinear_function_t* F,
+                                         nonlinear_timestepper_t* timestepper,
                                          adj_graph_t* graph);
 
 // Frees a nonlinear solver.
@@ -79,9 +173,12 @@ void nonlinear_solver_free(nonlinear_solver_t* solver);
 nonlinear_function_t* nonlinear_solver_function(nonlinear_solver_t* solver);
 
 // Computes the components of the residual vector R at the given site in 
-// the nonlinear solver, given the components of the solution vector X.
+// the nonlinear solver at the time t (with the given time step size dt), 
+// given the components of the solution vector X.
 void nonlinear_solver_compute_residual(nonlinear_solver_t* solver,
                                        int site,
+                                       double t,
+                                       double dt,
                                        double* X,
                                        double* R);
 
@@ -90,9 +187,16 @@ void nonlinear_solver_compute_residual(nonlinear_solver_t* solver,
 // the Jacobian are stored in the table Jij.
 void nonlinear_solver_compute_jacobian(nonlinear_solver_t* solver,
                                        int site,
+                                       double t,
+                                       double dt,
                                        double* X,
                                        double delta,
                                        double_table_t* Jij);
+
+// Takes a single nonlinear step, returning upon successful convergence, 
+// overwriting the values of t and x in place.
+void nonlinear_solver_step(nonlinear_solver_t* solver,
+                           double* t, double* x);
 
 // Integrates the given nonlinear system from an initial state x1 at time t1 to 
 // a final state x2 at t2.
