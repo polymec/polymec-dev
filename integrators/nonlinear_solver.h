@@ -204,5 +204,21 @@ void nonlinear_solver_integrate(nonlinear_solver_t* solver,
                                 double t1, double* x1,
                                 double t2, double* x2);
 
+// Returns the tolerance for the residual norm that dictates success or 
+// failure for a nonlinear iteration. By default, this number is 1e-8.
+double nonlinear_solver_tolerance(nonlinear_solver_t* solver);
+                                  
+// Sets the tolerance for the residual norm that dictates success or 
+// failure for a nonlinear iteration.
+void nonlinear_solver_set_tolerance(nonlinear_solver_t* solver, double tolerance);
+
+// Returns the absolute maximum number of nonlinear iterations before the 
+// solver gives up. By default, this number is 100.
+int nonlinear_solver_max_iterations(nonlinear_solver_t* solver);
+                                  
+// Sets the absolute maximum number of nonlinear iterations before the 
+// solver gives up.
+void nonlinear_solver_set_max_iterations(nonlinear_solver_t* solver, int max_iters);
+                                  
 #endif
 
