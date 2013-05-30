@@ -8,7 +8,8 @@
 // and increases it by an increase factor if the iteration converges the 
 // first time. It signals to recompute the Jacobian after every successful
 // nonlinear iteration.
-nonlinear_timestepper_t* simple_nonlinear_timestepper_new(double reduction_factor,
+nonlinear_timestepper_t* simple_nonlinear_timestepper_new(double initial_step_size,
+                                                          double reduction_factor,
                                                           int max_iterations,
                                                           double increase_factor);
 #endif
