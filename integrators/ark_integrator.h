@@ -1,7 +1,7 @@
 #ifndef POLYMEC_ARK_INTEGRATOR_H
 #define POLYMEC_ARK_INTEGRATOR_H
 
-#include "core/integrator.h"
+#include "integrators/integrator.h"
 
 // Types of Additive Runge-Kutta integrators.
 typedef enum

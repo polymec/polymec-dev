@@ -1,7 +1,7 @@
 #ifndef POLYMEC_LINEAR_BEULER_INTEGRATOR_H
 #define POLYMEC_LINEAR_BEULER_INTEGRATOR_H
 
-#include "core/integrator.h"
+#include "integrators/integrator.h"
 #include "core/sparse_lin_solver.h"
 
 // Creates an integrator that uses the 1st-order implicit backward Euler 

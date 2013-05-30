@@ -1,4 +1,4 @@
-add_library(polymec_integrators rk_integrator.c feuler_integrator.c
+add_library(polymec_integrators integrator.c rk_integrator.c feuler_integrator.c
             linear_beuler_integrator.c ark_integrator.c
             cvode_integrator.c elliptic_solver.c diffusion_solver.c
             nonlinear_solver.c)
