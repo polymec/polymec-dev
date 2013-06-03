@@ -400,7 +400,7 @@ void nonlinear_solver_step(nonlinear_solver_t* solver,
   // Make sure the solver is initialized.
   initialize(solver);
 
-  static double epsilon = FLT_EPSILON * FLT_MIN; // Smallest possible float.
+  static double epsilon = FLT_EPSILON; //  * FLT_MIN; // Smallest possible float.
 
   int num_sites = solver->index_space->high - solver->index_space->low;
   int num_comps = nonlinear_function_num_comps(solver->F);
@@ -501,7 +501,7 @@ void nonlinear_solver_integrate(nonlinear_solver_t* solver,
                                 double t2, double* x2)
 {
   double t = t1;
-  int N = solver->index_space->high - solver->index_space->low;
+  int N = solver->index_space->high - solver->index_space->low + 1;
   int num_comps = nonlinear_function_num_comps(solver->F);
   memcpy(x2, x1, sizeof(double) * N * num_comps);
   while (t < t2)
