@@ -9,6 +9,7 @@
 // first time. It signals to recompute the Jacobian after every successful
 // nonlinear iteration.
 nonlinear_timestepper_t* simple_nonlinear_timestepper_new(double initial_step_size,
+                                                          double max_step_size,
                                                           double reduction_factor,
                                                           int max_iterations,
                                                           double increase_factor);
