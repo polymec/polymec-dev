@@ -110,9 +110,9 @@ nonlinear_timestepper_t* nonlinear_timestepper_new(const char* name,
                                                    int max_history_length,
                                                    nonlinear_timestepper_vtable vtable)
 {
-  ASSERT(history_length >= 1);
-  ASSERT(vtable->compute_dt != NULL);
-  ASSERT(vtable->recompute_J != NULL);
+  ASSERT(max_history_length >= 1);
+  ASSERT(vtable.compute_dt != NULL);
+  ASSERT(vtable.recompute_J != NULL);
 
   nonlinear_timestepper_t* timestepper = malloc(sizeof(nonlinear_timestepper_t));
   timestepper->name = strdup(name);
@@ -291,7 +291,6 @@ void nonlinear_solver_compute_jacobian(nonlinear_solver_t* solver,
                                        double delta,
                                        double_table_t* Jij)
 {
-  ASSERT(dt > 0.0);
   ASSERT(X != NULL);
   ASSERT(delta > 0.0);
   ASSERT(Jij != NULL);
@@ -365,7 +364,7 @@ static void initialize(nonlinear_solver_t* solver)
     int N = nonlinear_function_num_comps(solver->F);
     solver->R = malloc(sizeof(double) * N * adj_graph_num_vertices(solver->graph));
     solver->coloring = adj_graph_coloring_new(solver->graph, 
-                                              ADJ_GRAPH_VERTEX_ORDERING_ID); // FIXME?
+                                              SMALLEST_LAST); // FIXME?
     solver->initialized = true;
   }
 }

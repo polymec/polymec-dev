@@ -79,9 +79,9 @@ typedef struct adj_graph_coloring_t adj_graph_coloring_t;
 // SIAM J. Numer. Anal., Vol. 20, 1 (1983).
 typedef enum
 {
-  ADJ_GRAPH_VERTEX_ORDERING_SL, // Smallest-Last
-  ADJ_GRAPH_VERTEX_ORDERING_LF, // Largest-First
-  ADJ_GRAPH_VERTEX_ORDERING_ID  // Incidence-Degree (optimal for bipartite graphs)
+  SMALLEST_LAST,
+  LARGEST_FIRST,
+  INCIDENCE_DEGREE // (optimal for bipartite graphs)
 } adj_graph_vertex_ordering_t;
 
 // Create a new coloring from the given adjacency graph using the given 
