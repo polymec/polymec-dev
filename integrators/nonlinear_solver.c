@@ -160,6 +160,7 @@ double nonlinear_timestepper_step_size(nonlinear_timestepper_t* timestepper,
                                        char** explanation)
 {
   ASSERT(explanation != NULL);
+  snprintf(timestepper->explanation, 2048, "no explanation given");
   double dt = timestepper->vtable.compute_dt(timestepper->context, 
                                              timestepper->last_unsuccessful_dt,
                                              timestepper->num_failures,
@@ -168,7 +169,7 @@ double nonlinear_timestepper_step_size(nonlinear_timestepper_t* timestepper,
                                              timestepper->iteration_history + timestepper->history_length,
                                              timestepper->history_length,
                                              timestepper->explanation);
-  explanation = &timestepper->explanation;
+  *explanation = timestepper->explanation;
   return dt;
 }
 
@@ -240,7 +241,7 @@ nonlinear_solver_t* nonlinear_solver_new(nonlinear_function_t* F,
   solver->RR = malloc(sizeof(double) * solver->num_sites * num_comps);
   solver->index_space = index_space_from_low_and_high(adj_graph_comm(graph),
                                                       adj_graph_first_vertex(graph),
-                                                      adj_graph_last_vertex(graph));
+                                                      adj_graph_last_vertex(graph)+1);
   solver->initialized = false;
   solver->tolerance = 1e-8;
   solver->max_iters = 100;
@@ -326,8 +327,10 @@ void nonlinear_solver_compute_jacobian(nonlinear_solver_t* solver,
       // Stash the resulting partial derivatives for each of the vertices 
       // belonging to this color.
       int pos = 0, vertex;
+printf("color: %d\n", color);
       while (adj_graph_coloring_next_vertex(solver->coloring, color, &pos, &vertex))
       {
+printf("  vertex: %d\n", vertex);
         for (int res_comp = 0; res_comp < num_comps; ++res_comp)
         {
           // Column of Jacobian = component of residual vector.
@@ -412,7 +415,7 @@ void nonlinear_solver_step(nonlinear_solver_t* solver,
   double dt = nonlinear_timestepper_step_size(solver->timestepper, &explanation);
   log_detail("nonlinear_solver_step: Chose dt = %g (%s)", dt, explanation);
 
-  // Compute the residual vector.
+  // Compute the residual vector at the unperturbed state.
   nonlinear_solver_compute_residual(solver, *t, x, solver->R);
 
   bool converged = false;
@@ -434,7 +437,7 @@ void nonlinear_solver_step(nonlinear_solver_t* solver,
     // Compute the components of the Jacobian as needed.
     if (nonlinear_timestepper_recompute_jacobian(solver->timestepper))
     {
-      log_detail("nonlinear_solver_step: Computing Jacobian.");
+      log_detail("nonlinear_solver_step: Computing Jacobian at t = %g.", *t);
       nonlinear_solver_compute_jacobian(solver, *t, x, epsilon, solver->Jij);
     }
 
@@ -503,7 +506,7 @@ void nonlinear_solver_integrate(nonlinear_solver_t* solver,
                                 double t2, double* x2)
 {
   double t = t1;
-  int N = solver->index_space->high - solver->index_space->low + 1;
+  int N = solver->index_space->high - solver->index_space->low;
   int num_comps = nonlinear_function_num_comps(solver->F);
   memcpy(x2, x1, sizeof(double) * N * num_comps);
   while (t < t2)

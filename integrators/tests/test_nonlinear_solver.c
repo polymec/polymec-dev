@@ -206,7 +206,7 @@ static void test_sod_shock_tube(void** state)
     }
   }
 
-  // Create a solution array and initialize it.
+  // Create a solution array (rho, rho*u, rho*E) and initialize it.
   double dx = 1.0 / N;
   double* X1 = malloc(sizeof(double) * 3 * N);
   double rhoE1 = p1 / (gamma - 1.0);
