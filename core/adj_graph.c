@@ -1,4 +1,5 @@
 #include "core/adj_graph.h"
+#include <stddef.h>
 
 struct adj_graph_t 
 {
@@ -49,7 +50,9 @@ adj_graph_t* adj_graph_new_with_dist(MPI_Comm comm,
   int num_local_vertices = vertex_dist[graph->rank+1] - vertex_dist[graph->rank];
   graph->edge_cap = 4 * num_local_vertices;
   graph->adjacency = malloc(sizeof(int) * graph->edge_cap);
+  memset(graph->adjacency, 0, sizeof(int) * graph->edge_cap);
   graph->xadj = malloc(sizeof(int) * (num_local_vertices + 1));
+  memset(graph->xadj, 0, sizeof(int) * (num_local_vertices + 1));
 
   return graph;
 }
@@ -96,11 +99,11 @@ void adj_graph_set_num_edges(adj_graph_t* graph, int vertex, int num_edges)
       while (tot_num_edges + num_edges_added > graph->edge_cap)
         graph->edge_cap *= 2;
       graph->adjacency = realloc(graph->adjacency, sizeof(int) * graph->edge_cap);
-      for (int i = graph->xadj[vertex]; i < tot_num_edges + num_edges_added; ++i)
-        graph->adjacency[i + num_edges_added] = graph->adjacency[i];
-      for (int i = vertex + 1; i <= num_vertices; ++i)
-        graph->xadj[i] += num_edges_added;
     }
+    for (int i = graph->xadj[vertex]; i < tot_num_edges + num_edges_added; ++i)
+      graph->adjacency[i + num_edges_added] = graph->adjacency[i];
+    for (int i = vertex + 1; i <= num_vertices; ++i)
+      graph->xadj[i] += num_edges_added;
   }
 }
 
@@ -146,8 +149,33 @@ struct adj_graph_coloring_t
   int num_colors;
 };
 
-void int_sort_arrays_using_keys(int* keys, int num_arrays, int** arrays)
+typedef struct 
 {
+  int* degree;
+  int* vertices;
+  int num_vertices;
+} vertex_sorter_t;
+
+static int compare_degrees(void* data, const void* left, const void* right)
+{
+  vertex_sorter_t* sorter = data;
+  const int* left_vertex = left;
+  ptrdiff_t l = left_vertex - sorter->vertices;
+  const int* right_vertex = left;
+  ptrdiff_t r = right_vertex - sorter->vertices;
+  int ldeg = sorter->degree[l];
+  int rdeg = sorter->degree[r];
+  return (ldeg < rdeg) ? -1 
+                       : (ldeg > rdeg) ? 1 
+                                       : 0;
+}
+
+static void sort_vertices_by_degree(int* degree, int num_vertices, int* vertices)
+{
+  vertex_sorter_t sorter = {.degree = degree, 
+                            .num_vertices = num_vertices,
+                            .vertices = vertices};
+  qsort_r(vertices, (size_t)num_vertices, sizeof(int), &sorter, compare_degrees);
 }
 
 static void compute_largest_first_ordering(adj_graph_t* graph, int* vertices)
@@ -165,8 +193,7 @@ static void compute_largest_first_ordering(adj_graph_t* graph, int* vertices)
   }
 
   // Now sort the vertices on their degree.
-  int* arrays[1] = {vertices};
-  int_sort_arrays_using_keys(degree, 1, arrays);
+  sort_vertices_by_degree(degree, num_vertices, vertices);
   free(degree);
 }
 
@@ -193,8 +220,7 @@ static void compute_smallest_last_ordering(adj_graph_t* graph, int* vertices)
   }
 
   // Now sort the vertices on their degree.
-  int* arrays[1] = {vertices};
-  int_sort_arrays_using_keys(degree, 1, arrays);
+  sort_vertices_by_degree(degree, num_vertices, vertices);
   free(degree);
 }
 
