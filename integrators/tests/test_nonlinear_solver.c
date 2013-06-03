@@ -109,18 +109,18 @@ static void sod_residual(void* context,
 
   // Compute the inter-cell fluxes by solving Riemann problems.
   double fluxes[3*(N+1)];
-  for (int i = 1; i < N-1; ++i)
+  for (int i = 1; i < N; ++i)
   {
     // Left-side variables.
-    double rhoL = x[num_comps*i];
-    double uL   = x[num_comps*i+1] / rhoL;
-    double EL   = x[num_comps*i+2] / rhoL;
-    double pL = (gamma - 1.0) * rhoL * (EL - 0.5 * rhoL * uL * uL);
+    double rhoL = x[num_comps*(i-1)];
+    double uL   = x[num_comps*(i-1)+1] / rhoL;
+    double EL   = x[num_comps*(i-1)+2] / rhoL;
+    double pL = (gamma - 1.0) * rhoL * (EL - 0.5 * uL * uL);
 
-    double rhoR = x[num_comps*(i+1)];
-    double uR   = x[num_comps*(i+1)+1] / rhoR;
-    double ER   = x[num_comps*(i+1)+2] / rhoR;
-    double pR = (gamma - 1.0) * rhoR * (ER - 0.5 * rhoR * uR * uR);
+    double rhoR = x[num_comps*i];
+    double uR   = x[num_comps*i+1] / rhoR;
+    double ER   = x[num_comps*i+2] / rhoR;
+    double pR = (gamma - 1.0) * rhoR * (ER - 0.5 * uR * uR);
 
     // Solve the Riemann problem at the left and right faces to obtain
     // values for the fluxes.
@@ -133,17 +133,24 @@ static void sod_residual(void* context,
     fluxes[3*i+2] = rho*u*(0.5*u*u + p);
   }
 
-  // Boundary fluxes are zero.
-  fluxes[0] = fluxes[1] = fluxes[2] = 0.0;
-  fluxes[3*N] = fluxes[3*N+1] = fluxes[3*N+2] = 0.0;
+  // Boundary fluxes are zero, except pressures, which are kept constant.
+  fluxes[0] = fluxes[2] = 0.0;
+  double rhoE0 = x[2];
+  double p0 = (gamma - 1.0) * rhoE0;
+  fluxes[1] = p0;
+
+  fluxes[3*N] = fluxes[3*N+2] = 0.0;
+  double rhoEN = x[3*(N-1)+2];
+  double pN = (gamma - 1.0) * rhoEN;
+  fluxes[3*N+1] = pN;
 
   // Compute the time derivatives of the conserved quantities using 
   // the discrete divergence theorem.
   for (int i = 0; i < N; ++i)
   {
-    R[3*i]   = fluxes[3*i] - fluxes[3*(i+1)]/dx;
-    R[3*i+1] = fluxes[3*i+1] - fluxes[3*(i+1)+1]/dx;
-    R[3*i+2] = fluxes[3*i+2] - fluxes[3*(i+1)+2]/dx;
+    R[3*i]   = (fluxes[3*i] - fluxes[3*(i+1)])/dx;
+    R[3*i+1] = (fluxes[3*i+1] - fluxes[3*(i+1)+1])/dx;
+    R[3*i+2] = (fluxes[3*i+2] - fluxes[3*(i+1)+2])/dx;
   }
 }
 
