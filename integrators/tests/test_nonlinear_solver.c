@@ -247,6 +247,7 @@ static void test_sod_shock_tube(void** state)
 int main(int argc, char* argv[]) 
 {
   polymec_init(argc, argv);
+  set_log_level(LOG_DEBUG);
   const UnitTest tests[] = 
   {
     unit_test(test_sod_shock_tube)

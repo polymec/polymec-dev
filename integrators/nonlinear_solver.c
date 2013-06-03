@@ -364,7 +364,9 @@ static void initialize(nonlinear_solver_t* solver)
     int N = nonlinear_function_num_comps(solver->F);
     solver->R = malloc(sizeof(double) * N * adj_graph_num_vertices(solver->graph));
     solver->coloring = adj_graph_coloring_new(solver->graph, 
-                                              SMALLEST_LAST); // FIXME?
+                                              SMALLEST_LAST); 
+    log_detail("nonlinear_solver: graph coloring produced %d colors.", 
+               adj_graph_coloring_num_colors(solver->coloring));
     solver->initialized = true;
   }
 }
@@ -432,7 +434,7 @@ void nonlinear_solver_step(nonlinear_solver_t* solver,
     // Compute the components of the Jacobian as needed.
     if (nonlinear_timestepper_recompute_jacobian(solver->timestepper))
     {
-      log_detail("nonlinear_solver_step: Recomputing Jacobian.");
+      log_detail("nonlinear_solver_step: Computing Jacobian.");
       nonlinear_solver_compute_jacobian(solver, *t, x, epsilon, solver->Jij);
     }
 
