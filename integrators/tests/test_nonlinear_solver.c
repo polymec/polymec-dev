@@ -104,7 +104,7 @@ static void test_sod_shock_tube(void** state)
   nonlinear_function_t* sod_F = sod_new(gamma, N);
 
   double dt0 = 1.0/N;
-  nonlinear_timestepper_t* stepper = simple_nonlinear_timestepper_new(dt0, 0.5, 8, 1.2);
+  nonlinear_timestepper_t* stepper = simple_nonlinear_timestepper_new(dt0, 10.0*dt0, 0.5, 8, 1.2);
 
   // The adjacency graph for a 1D grid is fairly simple.
   adj_graph_t* graph = adj_graph_new(MPI_COMM_WORLD, N);
