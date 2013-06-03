@@ -369,7 +369,7 @@ static void initialize(nonlinear_solver_t* solver)
   }
 }
 
-static inline void solve(nonlinear_solver_t* solver, HYPRE_IJMatrix A, HYPRE_IJVector b, HYPRE_IJVector x)
+static inline void solve_linearized_system(nonlinear_solver_t* solver, HYPRE_IJMatrix A, HYPRE_IJVector b, HYPRE_IJVector x)
 {
 //HYPRE_IJMatrixPrint(solver->A, "A");
 //HYPRE_IJVectorPrint(solver->b, "b");
@@ -452,7 +452,7 @@ void nonlinear_solver_step(nonlinear_solver_t* solver,
     double_table_free(be_J);
 
     // Now solve the linear system for the increment.
-    solve(solver, solver->A, solver->b, solver->x);
+    solve_linearized_system(solver, solver->A, solver->b, solver->x);
 
     // Copy the solution to XX.
     HYPRE_IJVectorGetValuesToArray(solver->x, solver->index_space, solver->XX);
