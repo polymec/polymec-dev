@@ -236,6 +236,63 @@ static void compute_incidence_degree_ordering(adj_graph_t* graph, int* vertices)
   POLYMEC_NOT_IMPLEMENTED
 }
 
+// This function colors a graph sequentially, assuming that the vertices in 
+// the graph are ordered some way. On output, colors[i] contains the color 
+// index of the ith vertex, and num_colors contains the number of colors 
+// used to color the graph. This is Algorithm 3.1 of Gebremedhin (2005).
+static void color_sequentially(adj_graph_t* graph, int* vertices, 
+                               int* colors, int* num_colors)
+{
+  *num_colors = 0;
+  int num_vertices = adj_graph_num_vertices(graph);
+  int* forbidden_colors = malloc(sizeof(int) * num_vertices);
+  for (int v = 0; v < num_vertices; ++v)
+  {
+    forbidden_colors[v] = -1;
+    colors[v] = -1;
+  }
+  for (int v = 0; v < num_vertices; ++v)
+  {
+
+    // Determine which colors are forbidden by adjacency relations.
+    int num_edges = adj_graph_num_edges(graph, v);
+    int* N1 = adj_graph_edges(graph, v);
+    for (int e = 0; e < num_edges; ++e)
+    {
+      int w = N1[e];
+      if (colors[w] >= 0)
+        forbidden_colors[colors[w]] = v;
+      int num_edges = adj_graph_num_edges(graph, w);
+      int* N2 = adj_graph_edges(graph, w);
+      for (int ee = 0; ee < num_edges; ++ee)
+      {
+        int x = N2[ee];
+        if ((x != v) && (colors[x] >= 0))
+          forbidden_colors[colors[x]] = v;
+      }
+    }
+
+    // Assign any valid existing color to the vertex v.
+    for (int c = 0; c < *num_colors; ++c)
+    {
+      if (forbidden_colors[c] != v)
+      {
+        colors[v] = c;
+        break;
+      }
+    }
+
+    // If we didn't find a valid existing color, make a new one 
+    // and assign it to v.
+    if (colors[v] == -1)
+    {
+      colors[v] = *num_colors;
+      ++(*num_colors);
+    }
+  }
+  free(forbidden_colors);
+}
+
 adj_graph_coloring_t* adj_graph_coloring_new(adj_graph_t* graph,
                                              adj_graph_vertex_ordering_t ordering)
 {
@@ -252,65 +309,33 @@ adj_graph_coloring_t* adj_graph_coloring_new(adj_graph_t* graph,
     compute_incidence_degree_ordering(graph, vertices);
   }
 
-  // Now color the graph using a (greedy) sequential algoritm. This is 
-  // Algorithm 3.1 of Gebremedhin (2005).
-  int* forbidden_colors = malloc(sizeof(int) * num_vertices);
+  // Now color the graph using a (greedy) sequential algoritm. 
   int* colors = malloc(sizeof(int) * num_vertices);
-  for (int v = 0; v < num_vertices; ++v)
-  {
-    forbidden_colors[v] = -1;
-    colors[v] = -1;
-  }
-  int num_colors = 0;
-  for (int v = 0; v < num_vertices; ++v)
-  {
-    // Determine which colors are forbidden by adjacency relations.
-    int num_edges = adj_graph_num_edges(graph, v);
-    int* N1 = adj_graph_edges(graph, v);
-    for (int e = 0; e < num_edges; ++e)
-    {
-      int w = N1[e];
-      forbidden_colors[colors[w]] = v;
-      int num_edges = adj_graph_num_edges(graph, w);
-      int* N2 = adj_graph_edges(graph, w);
-      for (int ee = 0; ee < num_edges; ++ee)
-      {
-        int x = N2[ee];
-        forbidden_colors[colors[x]] = v;
-      }
-    }
-
-    // Assign any valid existing color to the vertex v.
-    for (int c = 0; c < num_colors; ++c)
-    {
-      if (forbidden_colors[c] != v)
-      {
-        colors[v] = forbidden_colors[c];
-        break;
-      }
-    }
-
-    // If we didn't find a valid existing color, make a new one 
-    // and assign it to v.
-    if (colors[v] == -1)
-    {
-      colors[v] = num_colors;
-      ++num_colors;
-    }
-  }
-  free(forbidden_colors);
+  int num_colors;
+  color_sequentially(graph, vertices, colors, &num_colors);
 
   // Finally, transplant the coloring into our coloring object.
   adj_graph_coloring_t* coloring = malloc(sizeof(adj_graph_coloring_t));
   coloring->vertices = malloc(sizeof(int) * num_vertices);
   coloring->offsets = malloc(sizeof(int) * (num_colors+1));
+  memset(coloring->offsets, 0, sizeof(int) * (num_colors+1));
   coloring->num_colors = num_colors;
-  coloring->offsets[0] = 0;
   for (int v = 0; v < num_vertices; ++v)
   {
     int color = colors[v];
-    ++(coloring->offsets[color+1]);
-    coloring->vertices[coloring->offsets[color+1]-1] = v;
+    for (int c = color; c < num_colors; ++c)
+      ++(coloring->offsets[c+1]);
+  }
+
+  int tallies[num_colors];
+  memset(tallies, 0, sizeof(int) * num_colors);
+  for (int v = 0; v < num_vertices; ++v)
+  {
+    int color = colors[v];
+    ASSERT(color >= 0);
+    ASSERT(color < num_colors);
+    coloring->vertices[coloring->offsets[color] + tallies[color]] = v;
+    ++tallies[color];
   }
   free(colors);
 

@@ -37,6 +37,7 @@ struct nonlinear_solver_t
   HYPRE_IJMatrix A;
   HYPRE_IJVector x, b;
   HYPRE_Solver solver;
+  HYPRE_Solver precond;
 
   // Flag is set to true if the linear system above is initialized.
   bool initialized;
@@ -238,10 +239,11 @@ nonlinear_solver_t* nonlinear_solver_new(nonlinear_function_t* F,
   solver->num_sites = adj_graph_num_vertices(graph);
   int num_comps = nonlinear_function_num_comps(F);
   solver->XX = malloc(sizeof(double) * solver->num_sites * num_comps);
+  solver->R = malloc(sizeof(double) * solver->num_sites * num_comps);
   solver->RR = malloc(sizeof(double) * solver->num_sites * num_comps);
   solver->index_space = index_space_from_low_and_high(adj_graph_comm(graph),
-                                                      adj_graph_first_vertex(graph),
-                                                      adj_graph_last_vertex(graph)+1);
+                                                      num_comps * adj_graph_first_vertex(graph),
+                                                      num_comps * (adj_graph_last_vertex(graph)+1));
   solver->initialized = false;
   solver->tolerance = 1e-8;
   solver->max_iters = 100;
@@ -253,12 +255,13 @@ void nonlinear_solver_free(nonlinear_solver_t* solver)
 {
   if (solver->initialized)
   {
-    HYPRE_ParCSRHybridDestroy(solver->solver);
+    HYPRE_ParCSRBiCGSTABDestroy(solver->solver);
+    HYPRE_ParCSRPilutDestroy(solver->precond);
+//    HYPRE_ParCSRHybridDestroy(solver->solver);
     HYPRE_IJMatrixDestroy(solver->A);
     HYPRE_IJVectorDestroy(solver->x);
     HYPRE_IJVectorDestroy(solver->b);
     double_table_free(solver->Jij);
-    free(solver->R);
     adj_graph_coloring_free(solver->coloring);
   }
 
@@ -266,6 +269,7 @@ void nonlinear_solver_free(nonlinear_solver_t* solver)
   nonlinear_function_free(solver->F);
   solver->index_space = NULL;
   adj_graph_free(solver->graph);
+  free(solver->R);
   free(solver->RR);
   free(solver->XX);
   free(solver);
@@ -327,10 +331,8 @@ void nonlinear_solver_compute_jacobian(nonlinear_solver_t* solver,
       // Stash the resulting partial derivatives for each of the vertices 
       // belonging to this color.
       int pos = 0, vertex;
-printf("color: %d\n", color);
       while (adj_graph_coloring_next_vertex(solver->coloring, color, &pos, &vertex))
       {
-printf("  vertex: %d\n", vertex);
         for (int res_comp = 0; res_comp < num_comps; ++res_comp)
         {
           // Column of Jacobian = component of residual vector.
@@ -345,6 +347,7 @@ printf("  vertex: %d\n", vertex);
             //       dX       dX
             //         i
             double dX = solver->XX[row] - X[row];
+//printf("J[%d, %d] = %g/%g = %g\n", row, col, (solver->RR[col] - solver->R[col]), dX, (solver->RR[col] - solver->R[col])/dX);
             double_table_insert(Jij, row, col, (solver->RR[col] - solver->R[col])/dX);
           }
         }
@@ -360,12 +363,17 @@ static void initialize(nonlinear_solver_t* solver)
     solver->A = HYPRE_IJMatrixNew(solver->index_space);
     solver->x = HYPRE_IJVectorNew(solver->index_space);
     solver->b = HYPRE_IJVectorNew(solver->index_space);
-    HYPRE_ParCSRHybridCreate(&solver->solver);
-    HYPRE_ParCSRHybridSetSolverType(solver->solver, 2);
-    HYPRE_ParCSRHybridSetKDim(solver->solver, 5);
+    HYPRE_ParCSRBiCGSTABCreate(adj_graph_comm(solver->graph), &solver->solver);
+    HYPRE_ParCSRPilutCreate(adj_graph_comm(solver->graph), &solver->precond);
+    HYPRE_ParCSRPilutSetDropTolerance(solver->precond, 1e-6);
+    HYPRE_ParCSRBiCGSTABSetPrecond(solver->solver, HYPRE_ParCSRPilutSolve, 
+                                   HYPRE_ParCSRPilutSetup, solver->precond);
+//    HYPRE_ParCSRHybridCreate(&solver->solver);
+    // Solver types: 1 is PCG, 2 is GMRES, 3 is BiCGSTAB.
+//    HYPRE_ParCSRHybridSetSolverType(solver->solver, 3);
+//    HYPRE_ParCSRHybridSetKDim(solver->solver, 5);
     solver->Jij = double_table_new();
-    int N = nonlinear_function_num_comps(solver->F);
-    solver->R = malloc(sizeof(double) * N * adj_graph_num_vertices(solver->graph));
+    int num_comps = nonlinear_function_num_comps(solver->F);
     solver->coloring = adj_graph_coloring_new(solver->graph, 
                                               SMALLEST_LAST); 
     log_detail("nonlinear_solver: graph coloring produced %d colors.", 
@@ -377,7 +385,8 @@ static void initialize(nonlinear_solver_t* solver)
 static inline void solve_linearized_system(nonlinear_solver_t* solver, HYPRE_IJMatrix A, HYPRE_IJVector b, HYPRE_IJVector x)
 {
 HYPRE_IJMatrixPrint(solver->A, "A");
-//HYPRE_IJVectorPrint(solver->b, "b");
+HYPRE_IJVectorPrint(solver->b, "b");
+HYPRE_IJVectorPrint(solver->x, "x");
   HYPRE_ParCSRMatrix Aobj;
   int err = HYPRE_IJMatrixGetObject(solver->A, (void**)&Aobj);
   ASSERT(err == 0);
@@ -390,9 +399,12 @@ HYPRE_IJMatrixPrint(solver->A, "A");
   ASSERT(err == 0);
   ASSERT(bobj != NULL);
 
-  err = HYPRE_ParCSRHybridSetup(solver->solver, Aobj, bobj, xobj);
+  err = HYPRE_ParCSRBiCGSTABSetup(solver->solver, Aobj, bobj, xobj);
   ASSERT(err == 0);
-  err = HYPRE_ParCSRHybridSolve(solver->solver, Aobj, bobj, xobj);
+  err = HYPRE_ParCSRBiCGSTABSolve(solver->solver, Aobj, bobj, xobj);
+//  err = HYPRE_ParCSRHybridSetup(solver->solver, Aobj, bobj, xobj);
+//  ASSERT(err == 0);
+//  err = HYPRE_ParCSRHybridSolve(solver->solver, Aobj, bobj, xobj);
   if (err == HYPRE_ERROR_CONV)
     polymec_error("nonlinear_solver: Linear solve did not converge.");
 
@@ -407,8 +419,8 @@ void nonlinear_solver_step(nonlinear_solver_t* solver,
 
   static double epsilon = FLT_EPSILON; //  * FLT_MIN; // Smallest possible float.
 
-  int num_sites = solver->index_space->high - solver->index_space->low;
   int num_comps = nonlinear_function_num_comps(solver->F);
+  int num_sites = (solver->index_space->high - solver->index_space->low) / num_comps;
 
   // Choose an initial timestep.
   char* explanation;
@@ -505,10 +517,12 @@ void nonlinear_solver_integrate(nonlinear_solver_t* solver,
                                 double t1, double* x1,
                                 double t2, double* x2)
 {
+  ASSERT(x1 != NULL);
+  ASSERT(x2 != NULL);
+
   double t = t1;
   int N = solver->index_space->high - solver->index_space->low;
-  int num_comps = nonlinear_function_num_comps(solver->F);
-  memcpy(x2, x1, sizeof(double) * N * num_comps);
+  memcpy(x2, x1, sizeof(double) * N);
   while (t < t2)
     nonlinear_solver_step(solver, &t, x2);
 }
