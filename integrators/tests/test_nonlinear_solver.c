@@ -16,10 +16,83 @@ typedef struct
 } sod_t;
 
 // Here's the solution to the Riemann problem for a polytropic gas.
-static void solve_riemann(double rhoL, double uL, double pL,
+static void solve_riemann(double gamma,
+                          double rhoL, double uL, double pL,
                           double rhoR, double uR, double pR,
-                          double* rho_star, double* u_star, double* p_star)
+                          double* rho, double* u, double* p)
 {
+  // Some thresholds.
+  static const double small_rho = 1e-7;
+  static const double small_p = 1e-7;
+  static const double epsilon = 1e-8;
+
+  // Sound speeds.
+  double cL = sqrt(gamma*pL/rhoL);
+  double cR = sqrt(gamma*pR/rhoR);
+
+  // Find the pressure and velocity in the "star" region.
+  double wL = rhoL * cL;
+  double wR = rhoR * cR;
+  double p_star = (wR*pL + wL*pR + wL*wR*(uL - uR)) / (wL + wR);
+  double u_star = (wL*uL + wR*uR + pL - pR) / (wL + wR);
+
+  // Determine which way the wave is moving and use it to reconstruct 
+  // a linearized signal.
+  double rho0, u0, p0, c0, sign;
+  if (u_star > 0.0) // wave moving to the right
+  {
+    rho0 = rhoL;
+    p0 = pL;
+    u0 = uL;
+    c0 = cL;
+    sign = 1.0;
+  }
+  else // wave moving to the left
+  {
+    rho0 = rhoR;
+    p0 = pR;
+    u0 = uR;
+    c0 = cR;
+    sign = -1.0;
+  }
+
+  // Determine more quantities in the star region.
+  double rho_star = MAX(rho0 + (p_star - p0) / (c0*c0), small_rho);
+  double c_star = sqrt(fabs(gamma * p_star/rho_star));
+  double w_star = 0.5 * (c_star * rho_star + c0 * rho0);
+
+  // Construct the linearized signal.
+  double sp_out = c0 - sign * u0;
+  double sp_in = c_star - sign * u_star;
+  double u_shock = w_star/rho_star - sign * u_star;
+  if (p_star > p0)
+  {
+    sp_out = u_shock;
+    sp_in = u_shock;
+  }
+
+  double frac = ((1.0 + (sp_out + sp_in)/MAX(sp_out - sp_in, epsilon))/2.0);
+  frac = MAX(0.0, MIN(1.0, frac));
+  *rho = rho0 + frac * (rho_star - rho0);
+  *u = u0 + frac * (u_star - u0);
+  *p = p0 + frac * (p_star - p0);
+
+  // Apply limits.
+  if (sp_out <= 0.0)
+  {
+    *rho = rho0;
+    *u = u0;
+    *p = p0;
+  }
+  if (sp_in >= 0.0)
+  {
+    *rho = rho_star;
+    *u = u_star;
+    *p = p_star;
+  }
+  *rho = MAX(*rho, small_rho);
+  *p = MAX(*p, small_p);
+
 }
 
 // Here's the residual function for the Euler equations.
@@ -36,7 +109,7 @@ static void sod_residual(void* context,
 
   // Compute the inter-cell fluxes by solving Riemann problems.
   double fluxes[3*(N+1)];
-  for (int i = 1; i < N; ++i)
+  for (int i = 1; i < N-1; ++i)
   {
     // Left-side variables.
     double rhoL = x[num_comps*i];
@@ -51,11 +124,13 @@ static void sod_residual(void* context,
 
     // Solve the Riemann problem at the left and right faces to obtain
     // values for the fluxes.
-    double rho_star, u_star, p_star;
-    solve_riemann(rhoL, uL, pL, rhoR, uR, pR, &rho_star, &u_star, &p_star);
+    double rho, u, p;
+    solve_riemann(gamma, rhoL, uL, pL, rhoR, uR, pR, &rho, &u, &p);
 
     // Now compute the inter-face flux.
-    // FIXME
+    fluxes[3*i]   = rho*u;
+    fluxes[3*i+1] = rho*u*u + p;
+    fluxes[3*i+2] = rho*u*(0.5*u*u + p);
   }
 
   // Boundary fluxes are zero.
@@ -100,7 +175,7 @@ static void test_sod_shock_tube(void** state)
   double rho1 = 1.0, p1 = 1.0;
   double rho2 = 0.125, p2 = 0.1;
   double t_final = 0.2;
-  int N = 128;
+  int N = 32;
   nonlinear_function_t* sod_F = sod_new(gamma, N);
 
   double dt0 = 1.0/N;
@@ -134,20 +209,22 @@ static void test_sod_shock_tube(void** state)
   // Create a solution array and initialize it.
   double dx = 1.0 / N;
   double* X1 = malloc(sizeof(double) * 3 * N);
+  double rhoE1 = p1 / (gamma - 1.0);
+  double rhoE2 = p2 / (gamma - 1.0);
   for (int i = 0; i < N; ++i)
   {
     double x = (0.5 + i) * dx;
     if (x < 0.5)
     {
       X1[3*i]   = rho1;
-      X1[3*i+1] = p1;
+      X1[3*i+2] = rhoE1;
     }
     else
     {
       X1[3*i]   = rho2;
-      X1[3*i+1] = p2;
+      X1[3*i+2] = rhoE2;
     }
-    X1[3*i+2] = 0.0;
+    X1[3*i+1] = 0.0;
   }
 
   // Create our nonlinear solver.
