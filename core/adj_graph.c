@@ -1,5 +1,4 @@
 #include "core/adj_graph.h"
-#include "core/unordered_map.h"
 
 struct adj_graph_t 
 {
@@ -37,7 +36,7 @@ adj_graph_t* adj_graph_new_with_dist(MPI_Comm comm,
                                      int num_global_vertices, 
                                      int* vertex_dist)
 {
-  ASSERT(num_vertices >= 0);
+  ASSERT(num_global_vertices >= 0);
 
   adj_graph_t* graph = malloc(sizeof(adj_graph_t));
   MPI_Comm_size(comm, &graph->nproc);
@@ -147,12 +146,148 @@ struct adj_graph_coloring_t
   int num_colors;
 };
 
+void int_sort_arrays_using_keys(int* keys, int num_arrays, int** arrays)
+{
+}
+
+static void compute_largest_first_ordering(adj_graph_t* graph, int* vertices)
+{
+  // The vertices with the largest degree appear first in the list.
+  int num_vertices = adj_graph_num_vertices(graph);
+
+  // Compute the degree of each vertex. We compute the negative of the 
+  // degree so that we can sort the vertices in "ascending" order.
+  int* degree = malloc(sizeof(int) * num_vertices);
+  for (int v = 0; v < num_vertices; ++v)
+  {
+    vertices[v] = v;
+    degree[v] = -adj_graph_num_edges(graph, v);
+  }
+
+  // Now sort the vertices on their degree.
+  int* arrays[1] = {vertices};
+  int_sort_arrays_using_keys(degree, 1, arrays);
+  free(degree);
+}
+
+static void compute_smallest_last_ordering(adj_graph_t* graph, int* vertices)
+{
+  int num_vertices = adj_graph_num_vertices(graph);
+
+  // The vertices with the smallest degree appear last in the list, and 
+  // the calculation of the degree of a vertex excludes all vertices that 
+  // appear later in the list. We compute the negative of the degree so 
+  // that we can sort the vertices in "ascending" order.
+  int* degree = malloc(sizeof(int) * num_vertices);
+  for (int v = num_vertices-1; v > 0; --v)
+  {
+    vertices[v] = v;
+    int num_edges = adj_graph_num_edges(graph, v);
+    int* edges = adj_graph_edges(graph, v);
+    degree[v] = -num_edges;
+    for (int e = 0; e < num_edges; ++e)
+    {
+      if (edges[e] > v)
+        ++degree[v];
+    }
+  }
+
+  // Now sort the vertices on their degree.
+  int* arrays[1] = {vertices};
+  int_sort_arrays_using_keys(degree, 1, arrays);
+  free(degree);
+}
+
+static void compute_incidence_degree_ordering(adj_graph_t* graph, int* vertices)
+{
+  int num_vertices = adj_graph_num_vertices(graph);
+
+  // In this ordering, the next vertex in the ordering is the one with the  
+  // largest degree of incidence with the subgraph consisting only of those 
+  // vertices that preceed it (and their edges).
+  vertices[0] = 0; // Arbitrary (but fine).
+  // FIXME
+  POLYMEC_NOT_IMPLEMENTED
+}
+
 adj_graph_coloring_t* adj_graph_coloring_new(adj_graph_t* graph,
                                              adj_graph_vertex_ordering_t ordering)
 {
+  // Generate an ordered list of vertices.
+  int num_vertices = adj_graph_num_vertices(graph);
+  int* vertices = malloc(sizeof(int) * num_vertices);
+  if (ordering == LARGEST_FIRST)
+    compute_largest_first_ordering(graph, vertices);
+  else if (ordering == SMALLEST_LAST)
+    compute_smallest_last_ordering(graph, vertices);
+  else
+  {
+    ASSERT(ordering == INCIDENCE_DEGREE);
+    compute_incidence_degree_ordering(graph, vertices);
+  }
+
+  // Now color the graph using a (greedy) sequential algoritm. This is 
+  // Algorithm 3.1 of Gebremedhin (2005).
+  int* forbidden_colors = malloc(sizeof(int) * num_vertices);
+  int* colors = malloc(sizeof(int) * num_vertices);
+  for (int v = 0; v < num_vertices; ++v)
+  {
+    forbidden_colors[v] = -1;
+    colors[v] = -1;
+  }
+  int num_colors = 0;
+  for (int v = 0; v < num_vertices; ++v)
+  {
+    // Determine which colors are forbidden by adjacency relations.
+    int num_edges = adj_graph_num_edges(graph, v);
+    int* N1 = adj_graph_edges(graph, v);
+    for (int e = 0; e < num_edges; ++e)
+    {
+      int w = N1[e];
+      forbidden_colors[colors[w]] = v;
+      int num_edges = adj_graph_num_edges(graph, w);
+      int* N2 = adj_graph_edges(graph, w);
+      for (int ee = 0; ee < num_edges; ++ee)
+      {
+        int x = N2[ee];
+        forbidden_colors[colors[x]] = v;
+      }
+    }
+
+    // Assign any valid existing color to the vertex v.
+    for (int c = 0; c < num_colors; ++c)
+    {
+      if (forbidden_colors[c] != v)
+      {
+        colors[v] = forbidden_colors[c];
+        break;
+      }
+    }
+
+    // If we didn't find a valid existing color, make a new one 
+    // and assign it to v.
+    if (colors[v] == -1)
+    {
+      colors[v] = num_colors;
+      ++num_colors;
+    }
+  }
+  free(forbidden_colors);
+
+  // Finally, transplant the coloring into our coloring object.
   adj_graph_coloring_t* coloring = malloc(sizeof(adj_graph_coloring_t));
-  coloring->num_colors = 0;
-  // FIXME
+  coloring->vertices = malloc(sizeof(int) * num_vertices);
+  coloring->offsets = malloc(sizeof(int) * (num_colors+1));
+  coloring->num_colors = num_colors;
+  coloring->offsets[0] = 0;
+  for (int v = 0; v < num_vertices; ++v)
+  {
+    int color = colors[v];
+    ++(coloring->offsets[color+1]);
+    coloring->vertices[coloring->offsets[color+1]-1] = v;
+  }
+  free(colors);
+
   return coloring;
 }
 

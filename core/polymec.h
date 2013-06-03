@@ -117,4 +117,7 @@ void polymec_init(int argc, char** argv);
 // Register a function to be called upon exit.
 void polymec_atexit(void (*func)());
 
+// Use this macro to indicate that something hasn't been implemented.
+#define POLYMEC_NOT_IMPLEMENTED polymec_error("%s: line %d: Not implemented!", __FILE__, __LINE__);
+
 #endif
