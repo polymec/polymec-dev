@@ -373,7 +373,7 @@ static void initialize(nonlinear_solver_t* solver)
 
 static inline void solve_linearized_system(nonlinear_solver_t* solver, HYPRE_IJMatrix A, HYPRE_IJVector b, HYPRE_IJVector x)
 {
-//HYPRE_IJMatrixPrint(solver->A, "A");
+HYPRE_IJMatrixPrint(solver->A, "A");
 //HYPRE_IJVectorPrint(solver->b, "b");
   HYPRE_ParCSRMatrix Aobj;
   int err = HYPRE_IJMatrixGetObject(solver->A, (void**)&Aobj);
