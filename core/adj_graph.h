@@ -107,4 +107,10 @@ bool adj_graph_coloring_next_vertex(adj_graph_coloring_t* coloring,
                                     int* pos, 
                                     int* vertex);
 
+// Returns true if the given vertex matches the given color in the coloring,
+// false otherwise.
+bool adj_graph_coloring_has_vertex(adj_graph_coloring_t* coloring,
+                                   int color,
+                                   int vertex);
+
 #endif
