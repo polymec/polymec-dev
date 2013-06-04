@@ -43,17 +43,6 @@ static void destroy_face(face_with_vertices_t* face)
   free(face);
 }
 
-// This function finds the face in the given list that best matches the 
-// given face (in terms of vertex indices).
-face_with_vertices_t* best_matching_face(face_with_vertices_t* face,
-                                         face_with_vertices_t** faces,
-                                         int num_faces)
-{
-  face_with_vertices_t* match = NULL;
-  // FIXME
-  return match;
-}
-
 // This data structure represents an intermediate representation of 
 // a cell in terms of its faces.
 typedef struct 
@@ -399,7 +388,7 @@ static mesh_t* construct_mesh(cell_with_faces_t** cells,
           face_with_vertices_t* other_face = NULL;
           for (int ff = 0; ff < other_cell->num_faces; ++ff)
           {
-            if (other_cell->neighbor_ids[ff] == cell->neighbor_ids[f])
+            if (other_cell->neighbor_ids[ff] == cell->index)
             {
               other_face = other_cell->faces[ff];
               break;
@@ -449,8 +438,8 @@ static mesh_t* construct_mesh(cell_with_faces_t** cells,
             ++num_edges;
           }
         }
+        ++num_faces;
       }
-      ++num_faces;
     }
   }
 
@@ -491,9 +480,9 @@ static mesh_t* construct_mesh(cell_with_faces_t** cells,
     while (int_table_next_cell(face_for_cells, &pos, &c1, &c2, &f))
     {
       // Hook up the cells to the faces.
-      mesh->faces[f].cell1 = &mesh->cells[c1];
+      mesh_attach_face_to_cell(mesh, &mesh->faces[f], &mesh->cells[c1]);
       if (c2 >= 0)
-        mesh->faces[f].cell2 = &mesh->cells[c2];
+        mesh_attach_face_to_cell(mesh, &mesh->faces[f], &mesh->cells[c2]);
 
       // We always use cell 1 to get the nodes for the face, and thereby 
       // identify edges. Find the right face.
@@ -518,27 +507,17 @@ static mesh_t* construct_mesh(cell_with_faces_t** cells,
         int n2 = *int_int_unordered_map_get(node_ids, v2);
 
         // Retrieve the edge index for these nodes.
-        int e = *int_table_get(edge_for_nodes, n1, n2);
-        
+        int e = *int_table_get(edge_for_nodes, MIN(n1, n2), MAX(n1, n2));
         mesh_attach_edge_to_face(mesh, &mesh->edges[e], &mesh->faces[f]);
       }
     }
   }
 
-  // Cell -> face connectivity.
-  for (int c1 = 0; c1 < mesh->num_cells; ++c1)
-  {
-    for (int f = 0; f < cells[c1]->num_faces; ++f)
-    {
-      // Find the face index corresponding to this cell's face.
-      int c2 = cells[c1]->neighbor_ids[f];
-      int face_id = *int_table_get(face_for_cells, c1, c2);
-      mesh_attach_face_to_cell(mesh, &mesh->faces[face_id], &mesh->cells[c1]);
-    }
-  }
-
   // Compute the geometry of the mesh.
   mesh_compute_geometry(mesh);
+
+  // Perform some basic consistency checks.
+  mesh_check_consistency(mesh);
 
   // Clean up.
   int_int_unordered_map_free(node_ids);
