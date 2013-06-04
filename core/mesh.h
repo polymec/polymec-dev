@@ -207,6 +207,12 @@ void mesh_map(mesh_t* mesh, sp_func_t* mapping);
 // bounded).
 void mesh_compute_geometry(mesh_t* mesh);
 
+// Performs some basic mesh consistency checks and calls polymec_error 
+// if any inconsistencies are found. NOTE that you shouldn't call this 
+// on a mesh with unbounded cells, since those cells are not "consistent" 
+// in the usual sense.
+void mesh_check_consistency(mesh_t* mesh);
+
 // Computes the cell volume and center for a bounded cell.
 void cell_compute_geometry(cell_t* cell);
 

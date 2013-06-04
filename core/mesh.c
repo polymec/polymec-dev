@@ -622,3 +622,40 @@ void cell_compute_geometry(cell_t* cell)
   }
 }
 
+void mesh_check_consistency(mesh_t* mesh)
+{
+  // All cells must have at least 4 faces.
+  for (int c = 0; c < mesh->num_cells; ++c)
+  {
+    cell_t* cell = &mesh->cells[c];
+    if (cell->num_faces < 4)
+    {
+      polymec_error("mesh_check_consistency: polyhedral cell %d has only %d faces.", 
+                    c, cell->num_faces);
+    }
+  }
+
+  // All faces must have at least 3 nodes/edges.
+  for (int f = 0; f < mesh->num_faces; ++f)
+  {
+    face_t* face = &mesh->faces[f];
+    if (face->num_edges == 0)
+      polymec_error("mesh_check_consistency: polygonal face %d has no edges!", f);
+    if (face->num_edges < 3)
+    {
+      polymec_error("mesh_check_consistency: polygonal face %d has only %d edges.",
+                    f, face->num_edges);
+    }
+  }
+
+  // All edges must have 2 nodes.
+  for (int e = 0; e < mesh->num_edges; ++e)
+  {
+    edge_t* edge = &mesh->edges[e];
+    if ((edge->node1 == NULL) || (edge->node2 == NULL))
+    {
+      polymec_error("mesh_check_consistency: edge %d does not have 2 nodes.", e);
+    }
+  }
+}
+
