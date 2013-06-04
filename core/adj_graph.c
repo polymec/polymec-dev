@@ -117,6 +117,21 @@ int* adj_graph_edges(adj_graph_t* graph, int vertex)
   return &graph->adjacency[graph->xadj[vertex]];
 }
 
+bool adj_graph_contains_edge(adj_graph_t* graph, int vertex1, int vertex2)
+{
+  ASSERT(vertex1 >= 0);
+  ASSERT(vertex1 < adj_graph_num_vertices(graph));
+  ASSERT(vertex2 >= 0);
+  ASSERT(vertex2 < adj_graph_num_vertices(graph));
+
+  for (int e = graph->xadj[vertex1]; e < graph->xadj[vertex1+1]; ++e)
+  {
+    if (graph->adjacency[e] == vertex2)
+      return true;
+  }
+  return false;
+}
+
 int adj_graph_first_vertex(adj_graph_t* graph)
 {
   return graph->vtx_dist[graph->rank];

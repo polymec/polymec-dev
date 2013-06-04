@@ -41,6 +41,10 @@ int adj_graph_num_edges(adj_graph_t* graph, int vertex);
 // setting the edges for a vertex.
 int* adj_graph_edges(adj_graph_t* graph, int vertex);
 
+// Returns true if the graph has an edge that connects vertex 1 and 
+// vertex 2 locally, false if not.
+bool adj_graph_contains_edge(adj_graph_t* graph, int vertex1, int vertex2);
+
 // Returns the global index of the first local vertex in the graph.
 int adj_graph_first_vertex(adj_graph_t* graph);
 
@@ -85,7 +89,8 @@ typedef enum
 } adj_graph_vertex_ordering_t;
 
 // Create a new coloring from the given adjacency graph using the given 
-// vertex ordering.
+// vertex ordering. Two vertices have the same color if the distance 
+// between them in their graph is greater than 2.
 adj_graph_coloring_t* adj_graph_coloring_new(adj_graph_t* graph, 
                                              adj_graph_vertex_ordering_t ordering);
 
