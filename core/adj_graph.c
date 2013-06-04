@@ -386,3 +386,18 @@ bool adj_graph_coloring_next_vertex(adj_graph_coloring_t* coloring,
   return false;
 }
 
+bool adj_graph_coloring_has_vertex(adj_graph_coloring_t* coloring,
+                                   int color,
+                                   int vertex)
+{
+  // FIXME: This is linear in time, so it may be too slow.
+  ASSERT(color >= 0);
+  ASSERT(color < coloring->num_colors);
+  for (int v = coloring->offsets[color]; v < coloring->offsets[color+1]; ++v)
+  {
+    if (coloring->vertices[v] == vertex)
+      return true;
+  }
+  return false;
+}
+
