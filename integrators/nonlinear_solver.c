@@ -305,22 +305,28 @@ void nonlinear_solver_compute_jacobian(nonlinear_solver_t* solver,
   nonlinear_function_eval(solver->F, t, X, solver->R);
 
   // Iterate over the colors of the graph and compute the components of 
-  // the Jacobian.
+  // the Jacobian. Coleman et. al (1983) explain how a set of columns 
+  // of a given color can be evaluated with a single evaluation of the 
+  // residual function, so the number of evaluations of the residual 
+  // function is equal to the number of colors.
   int num_colors = adj_graph_coloring_num_colors(solver->coloring);
   int num_sites = solver->num_sites;
   for (int color = 0; color < num_colors; ++color)
   {
-    // Increment the various solution coefficients to compute the components 
-    // of the Jacobian. 
+    // In our language, each vector d corresponds to a perturbed value of 
+    // the solution X. All rows belonging to this color are perturbed, and 
+    // the rest assume their reference values.
     for (int inc_comp = 0; inc_comp < num_comps; ++inc_comp) 
     {
       // Copy the reference state to our work array.
       memcpy(solver->XX, X, sizeof(double) * num_comps * solver->num_sites);
 
-      // Increment this component at each of the sites.
-      for (int site = 0; site < num_sites; ++site)
+      // Increment this component at each of the vertices belonging to 
+      // this color.
+      int pos = 0, vertex;
+      while (adj_graph_coloring_next_vertex(solver->coloring, color, &pos, &vertex))
       {
-        int k = num_comps*site + inc_comp;
+        int k = num_comps*vertex + inc_comp;
         double dX = (X[k] == 0.0) ? delta : delta * X[k];
         solver->XX[k] = X[k] + dX;
       }
@@ -330,25 +336,34 @@ void nonlinear_solver_compute_jacobian(nonlinear_solver_t* solver,
 
       // Stash the resulting partial derivatives for each of the vertices 
       // belonging to this color.
-      int pos = 0, vertex;
+      pos = 0;
       while (adj_graph_coloring_next_vertex(solver->coloring, color, &pos, &vertex))
       {
-        for (int res_comp = 0; res_comp < num_comps; ++res_comp)
+        // Row of Jacobian = perturbed component of solution vector.
+        int row = num_comps * vertex + inc_comp;
+        double dX = solver->XX[row] - X[row];
+
+        // Iterate over all the vertices in this color and contribute to 
+        // the nonzero values of the Jacobian.
+        int pos2 = 0, vertex2;
+        while (adj_graph_coloring_next_vertex(solver->coloring, color, &pos2, &vertex2))
         {
-          // Column of Jacobian = component of residual vector.
-          int col = num_comps * vertex + res_comp;
-          for (int site = 0; site < num_sites; ++site)
+          // Go over the components of the residual.
+          for (int res_comp = 0; res_comp < num_comps; ++res_comp)
           {
-            // Row of Jacobian = component of solution vector.
-            int row = num_comps * site + inc_comp;
+            // Column of Jacobian = component of residual vector.
+            int col = num_comps * vertex2 + res_comp;
 
             //       dR    (R - R0)
             // Jij = --j = -------- , 
             //       dX       dX
             //         i
-            double dX = solver->XX[row] - X[row];
-//printf("J[%d, %d] = %g/%g = %g\n", row, col, (solver->RR[col] - solver->R[col]), dX, (solver->RR[col] - solver->R[col])/dX);
-            double_table_insert(Jij, row, col, (solver->RR[col] - solver->R[col])/dX);
+            double dR = (solver->RR[col] - solver->R[col]);
+            if (dR != 0.0)
+            {
+printf("J[%d, %d] = %g/%g = %g\n", row, col, dR, dX, dR/dX);
+              double_table_insert(Jij, row, col, dR/dX);
+            }
           }
         }
       }
