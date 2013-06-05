@@ -120,8 +120,13 @@ static point_t* read_mesh_vertices(FILE* vertex_file,
         return NULL;
       }
       last_index = i;
-      point_t* p = point_new(x, y, z);
-  printf("Vertex %d is %g, %g, %g at %p\n", i, p->x, p->y, p->z, p);
+      // FIXME: We can't use a garbage-collected point here, since the garbage 
+      // FIXME: collector interacts strangely with ptr_slist. This needs 
+      // FIXME: further investigation. In the mean time, we do things the 
+      // FIXME: old-fashioned way.
+      // point_t* p = point_new(x, y, z);
+      point_t* p = malloc(sizeof(point_t));
+      p->x = x, p->y = y, p->z = z;
       ptr_slist_append(points_list, p);
     }
   } while (status != EOF);
@@ -133,8 +138,10 @@ static point_t* read_mesh_vertices(FILE* vertex_file,
   while (!ptr_slist_empty(points_list))
   {
     point_t* v = ptr_slist_pop(points_list, NULL);
-printf("Vertex %d is now %g, %g, %g at %p\n", i, v->x, v->y, v->z, v);
     vertices[i++] = *v;
+    // FIXME: Free the point we allocated above here (since we aren't
+    // FIXME: using garbage collection).
+    free(v);
   }
   ptr_slist_free(points_list);
   log_detail("read_meshvoro_mesh: Read %d vertices (%d lines).", *num_vertices, last_index + 1);
@@ -463,7 +470,6 @@ static mesh_t* construct_mesh(cell_with_faces_t** cells,
       mesh->nodes[n].x = vertices[v].x;
       mesh->nodes[n].y = vertices[v].y;
       mesh->nodes[n].z = vertices[v].z;
-if (n == 0) { printf("%d: %g, %g, %g\n", v, mesh->nodes[n].x, mesh->nodes[n].y, mesh->nodes[n].z); }
     }
   }
 
