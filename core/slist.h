@@ -1,8 +1,6 @@
 #ifndef POLYMEC_SLIST_H
 #define POLYMEC_SLIST_H
 
-#include <stdlib.h>
-#include <string.h>
 #include "core/polymec.h"
 #include "arena/proto.h"
 #include "core/comparators.h"
