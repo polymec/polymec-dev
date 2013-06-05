@@ -175,13 +175,12 @@ void nonlinear_solver_compute_residual(nonlinear_solver_t* solver,
                                        double* X,
                                        double* R);
 
-// Computes the elements of the Jacobian matrix at time t, using the 
-// solution vector X and the fractional increment delta. The elements of 
-// the Jacobian are stored in the table Jij.
+// Computes the elements of the Jacobian matrix at time t using the 
+// solution vector X. The elements of the Jacobian are stored in the table 
+// Jij.
 void nonlinear_solver_compute_jacobian(nonlinear_solver_t* solver,
                                        double t,
                                        double* X,
-                                       double delta,
                                        double_table_t* Jij);
 
 // Takes a single nonlinear step, returning upon successful convergence, 
