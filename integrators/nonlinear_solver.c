@@ -370,6 +370,7 @@ static void compute_Jy_with_finite_differences(nonlinear_solver_t* solver,
     for (int j = 0; j < num_vertices; ++j)
     {
       double dR = (solver->RR[j] - solver->R[j]);
+printf("dR/dX[%d, %d] = %g/%g = %g\n", i, j, dR, dX, dR/dX*y[j]);
       Jy[i] += dR/dX * y[j];
     }
   }

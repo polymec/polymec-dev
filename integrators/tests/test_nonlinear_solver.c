@@ -107,11 +107,11 @@ static void test_identity_jacobian(void** state)
 
   // Print the elements of the Jacobian.
   {
-  double_table_cell_pos_t pos = double_table_start(Jij);
-  int i, j;
-  double ij;
-  while (double_table_next_cell(Jij, &pos, &i, &j, &ij))
-    printf("%d, %d: %g\n", i, j, ij);
+    double_table_cell_pos_t pos = double_table_start(Jij);
+    int i, j;
+    double ij;
+    while (double_table_next_cell(Jij, &pos, &i, &j, &ij))
+      printf("%d, %d: %g\n", i, j, ij);
   }
 
   // Clean up.
@@ -508,9 +508,9 @@ int main(int argc, char* argv[])
   set_log_level(LOG_DEBUG);
   const UnitTest tests[] = 
   {
-    unit_test(test_identity_jacobian),
-    unit_test(test_single_comp_linear_advection),
-    unit_test(test_sod_shock_tube)
+    unit_test(test_identity_jacobian)
+//    unit_test(test_single_comp_linear_advection),
+//    unit_test(test_sod_shock_tube)
   };
   return run_tests(tests);
 }
