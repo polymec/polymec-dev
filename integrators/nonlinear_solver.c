@@ -6,7 +6,6 @@ struct nonlinear_function_t
 {
   void* context;
   char* name;
-  int num_comps;
   nonlinear_function_vtable vtable;
 };
 
@@ -28,8 +27,13 @@ struct nonlinear_solver_t
 {
   nonlinear_function_t* F;
   nonlinear_timestepper_t* timestepper;
+
+  // Adjacency graph and coloring.
   adj_graph_t* graph;
   adj_graph_coloring_t* coloring;
+  // Mapping of vertices to colors.
+  int* colors;
+
   int num_sites;
 
   // Linear system and solver.
@@ -47,7 +51,7 @@ struct nonlinear_solver_t
   // Jacobian and residual coefficients.
   double_table_t* Jij;
   double* R;
-  double **XX, **RR;  // Arrays holding perturbed states.
+  double *XX, *RR;  // Arrays holding perturbed states.
   double **ds, **Jds; // Vectors for computing the Jacobian components. 
 
   // Increment for approximating the Jacobian with finite differences.
@@ -62,16 +66,13 @@ struct nonlinear_solver_t
 
 nonlinear_function_t* nonlinear_function_new(const char* name, 
                                              void* context,
-                                             int num_comps,
                                              nonlinear_function_vtable vtable)
 {
-  ASSERT(num_comps >= 1);
   ASSERT(vtable.eval_residual != NULL);
 
   nonlinear_function_t* F = malloc(sizeof(nonlinear_function_t));
   F->name = strdup(name);
   F->context = context;
-  F->num_comps = num_comps;
   F->vtable = vtable;
 
   return F;
@@ -95,11 +96,6 @@ void* nonlinear_function_context(nonlinear_function_t* F)
   return F->context;
 }
 
-int nonlinear_function_num_comps(nonlinear_function_t* F)
-{
-  return F->num_comps;
-}
-
 void nonlinear_function_eval(nonlinear_function_t* F,
                              double t,
                              double* X,
@@ -107,7 +103,7 @@ void nonlinear_function_eval(nonlinear_function_t* F,
 {
   ASSERT(X != NULL);
   ASSERT(R != NULL);
-  F->vtable.eval_residual(F->context, F->num_comps, t, X, R);
+  F->vtable.eval_residual(F->context, t, X, R);
 }
 
 nonlinear_timestepper_t* nonlinear_timestepper_new(const char* name, 
@@ -232,7 +228,6 @@ nonlinear_solver_t* nonlinear_solver_new(nonlinear_function_t* F,
                                          adj_graph_t* graph)
 {
   ASSERT(F != NULL);
-  ASSERT(timestepper != NULL);
   ASSERT(graph != NULL);
 
   nonlinear_solver_t* solver = malloc(sizeof(nonlinear_solver_t));
@@ -240,25 +235,47 @@ nonlinear_solver_t* nonlinear_solver_new(nonlinear_function_t* F,
   solver->timestepper = timestepper;
   solver->graph = graph;
   solver->coloring = NULL;
+  solver->colors = NULL;
   solver->ds = NULL;
   solver->Jds = NULL;
   solver->num_sites = adj_graph_num_vertices(graph);
-  int num_comps = nonlinear_function_num_comps(F);
-  solver->R = malloc(sizeof(double) * solver->num_sites * num_comps);
-  solver->XX = malloc(num_comps * sizeof(double*));
-  solver->RR = malloc(num_comps * sizeof(double*));
-  for (int c = 0; c < num_comps; ++c)
-  {
-    solver->XX[c] = malloc(sizeof(double) * solver->num_sites * num_comps);
-    solver->RR[c] = malloc(sizeof(double) * solver->num_sites * num_comps);
-  }
+  solver->R = malloc(sizeof(double) * solver->num_sites);
+  solver->XX = malloc(sizeof(double) * solver->num_sites);
+  solver->RR = malloc(sizeof(double) * solver->num_sites);
   solver->index_space = index_space_from_low_and_high(adj_graph_comm(graph),
-                                                      num_comps * adj_graph_first_vertex(graph),
-                                                      num_comps * (adj_graph_last_vertex(graph)+1));
+                                                      adj_graph_first_vertex(graph),
+                                                      adj_graph_last_vertex(graph)+1);
   solver->initialized = false;
   solver->delta = FLT_EPSILON;
   solver->tolerance = 1e-8;
   solver->max_iters = 100;
+
+  // Now set up the graph coloring stuff for the calculation of Jacobians.
+  solver->coloring = adj_graph_coloring_new(solver->graph, SMALLEST_LAST); 
+  int num_colors = adj_graph_coloring_num_colors(solver->coloring);
+  log_detail("nonlinear_solver: graph coloring produced %d colors.", 
+             num_colors);
+
+  // Now that we have the coloring, we can set up our vectors {d} that 
+  // allow us to compute the different colored portions of the Jacobian
+  // in parallel.
+  int num_vertices = solver->num_sites;
+  solver->colors = malloc(num_vertices * sizeof(int));
+  solver->ds = malloc(num_colors * sizeof(double*));
+  solver->Jds = malloc(num_colors * sizeof(double*));
+  for (int color = 0; color < num_colors; ++color)
+  {
+    solver->ds[color] = malloc(sizeof(double) * num_vertices);
+    solver->Jds[color] = malloc(sizeof(double) * num_vertices);
+    memset(solver->ds[color], 0, sizeof(double) * num_vertices);
+    memset(solver->Jds[color], 0, sizeof(double) * num_vertices);
+    int pos = 0, vertex;
+    while (adj_graph_coloring_next_vertex(solver->coloring, color, &pos, &vertex))
+    {
+      solver->colors[vertex] = color;
+      solver->ds[color][vertex] = 1.0;
+    }
+  }
   return solver;
 }
 
@@ -267,33 +284,28 @@ void nonlinear_solver_free(nonlinear_solver_t* solver)
 {
   if (solver->initialized)
   {
-    int num_colors = adj_graph_coloring_num_colors(solver->coloring);
-    for (int color = 0; color < num_colors; ++color)
-    {
-      free(solver->ds[color]);
-      free(solver->Jds[color]);
-    }
-    free(solver->ds);
-    free(solver->Jds);
-    HYPRE_ParCSRBiCGSTABDestroy(solver->solver);
-    HYPRE_ParCSRPilutDestroy(solver->precond);
-//    HYPRE_ParCSRHybridDestroy(solver->solver);
+//    HYPRE_ParCSRBiCGSTABDestroy(solver->solver);
+//    HYPRE_ParCSRPilutDestroy(solver->precond);
+    HYPRE_ParCSRHybridDestroy(solver->solver);
     HYPRE_IJMatrixDestroy(solver->A);
     HYPRE_IJVectorDestroy(solver->x);
     HYPRE_IJVectorDestroy(solver->b);
     double_table_free(solver->Jij);
-    adj_graph_coloring_free(solver->coloring);
   }
 
-  int num_comps = nonlinear_function_num_comps(solver->F);
-  for (int c = 0; c < num_comps; ++c)
+  int num_colors = adj_graph_coloring_num_colors(solver->coloring);
+  for (int color = 0; color < num_colors; ++color)
   {
-    free(solver->RR[c]);
-    free(solver->XX[c]);
+    free(solver->ds[color]);
+    free(solver->Jds[color]);
   }
+  free(solver->ds);
+  free(solver->Jds);
   free(solver->RR);
   free(solver->XX);
   free(solver->R);
+  free(solver->colors);
+  adj_graph_coloring_free(solver->coloring);
   nonlinear_timestepper_free(solver->timestepper);
   nonlinear_function_free(solver->F);
   solver->index_space = NULL;
@@ -330,48 +342,35 @@ static void compute_Jy_with_finite_differences(nonlinear_solver_t* solver,
   ASSERT(delta > 0.0);
   ASSERT(Jy != NULL);
 
+  int num_vertices = adj_graph_num_vertices(solver->graph);
+
   // Compute the residual in the reference state.
   nonlinear_function_eval(solver->F, t, X, solver->R);
 
-  // Compute the residual in its perturbed states.
-  int num_comps = nonlinear_function_num_comps(solver->F);
-  int num_vertices = adj_graph_num_vertices(solver->graph);
-  for (int c = 0; c < num_comps; ++c)
-  {
-    // Copy the reference state to our work array.
-    memcpy(solver->XX[c], X, sizeof(double) * num_comps * num_vertices);
+  // Copy the reference state to our work array.
+  memcpy(solver->XX, X, sizeof(double) * num_vertices);
 
-    // Perturb the cth component of the state at each of the vertices.
-    for (int i = 0; i < num_vertices; ++i)
-    {
-      int k = num_comps * i + c;
-      double dX = (X[k] == 0.0) ? delta : delta * X[k];
-      solver->XX[c][k] = X[k] + dX;
-    }
-    
-    // Compute the residual using the cth perturbed state.
-    nonlinear_function_eval(solver->F, t, solver->XX[c], solver->RR[c]);
-  }
-
-  // Traverse the rows of the Jacobian and form the matrix project J * y.
-  memset(Jy, 0, sizeof(double) * num_vertices * num_comps);
+  // Perturb the the state at each of the vertices.
   for (int i = 0; i < num_vertices; ++i)
   {
-    for (int c = 0; c < num_comps; ++c)
-    {
-      int row = num_comps * i + c;
-      double dX = (solver->XX[c][row] - X[row]);
-      ASSERT(dX != 0.0);
+    double dX = (X[i] == 0.0) ? delta : delta * X[i];
+    solver->XX[i] = X[i] + dX;
+  }
+    
+  // Compute the residual using the perturbed state.
+  nonlinear_function_eval(solver->F, t, solver->XX, solver->RR);
 
-      for (int j = 0; j < num_vertices; ++j)
-      {
-        for (int rc = 0; rc < num_comps; ++rc)
-        {
-          int col = num_comps * j + rc;
-          double dR = (solver->RR[rc][col] - solver->R[col]);
-          Jy[row] += dR/dX * y[col];
-        }
-      }
+  // Traverse the rows of the Jacobian and form the matrix project J * y.
+  memset(Jy, 0, sizeof(double) * num_vertices);
+  for (int i = 0; i < num_vertices; ++i)
+  {
+    double dX = (solver->XX[i] - X[i]);
+    ASSERT(dX != 0.0);
+
+    for (int j = 0; j < num_vertices; ++j)
+    {
+      double dR = (solver->RR[j] - solver->R[j]);
+      Jy[i] += dR/dX * y[j];
     }
   }
 }
@@ -385,7 +384,6 @@ void nonlinear_solver_compute_jacobian(nonlinear_solver_t* solver,
   ASSERT(Jij != NULL);
 
   // Compute the residual in the reference state.
-  int num_comps = nonlinear_function_num_comps(solver->F);
   nonlinear_function_eval(solver->F, t, X, solver->R);
 
   // Coleman et. al (1983) explain how a set of columns of a given color can 
@@ -402,25 +400,32 @@ void nonlinear_solver_compute_jacobian(nonlinear_solver_t* solver,
     // Compute the vector product J * d for this color.
     compute_Jy_with_finite_differences(solver, t, X, solver->ds[color], 
                                        solver->delta, solver->Jds[color]);
+  }
 
-    // Fill in the entries of the Jacobian for this color.
-    int pos = 0, vertex;
-    while (adj_graph_coloring_next_vertex(solver->coloring, color, &pos, &vertex))
+  // Fill in the entries of the Jacobian.
+  for (int i = 0; i < num_vertices; ++i)
+  {
+    // Diagonal term.
     {
-      for (int cc = 0; cc < num_comps; ++cc)
-      {
-        int col = num_comps * vertex + cc;
-        for (int i = 0; i < num_vertices; ++i)
-        {
-          for (int rc = 0; rc < num_comps; ++rc)
-          {
-            int row = num_comps * i + rc;
-            double Aij = solver->Jds[color][row];
-            if (Aij != 0.0)
-              double_table_insert(Jij, row, col, Aij);
-          }
-        }
-      }
+      int color = solver->colors[i];
+      double* Jd = solver->Jds[color];
+      double Aii = solver->Jds[color][i];
+      double_table_insert(Jij, i, i, Aii);
+    }
+
+    int num_edges = adj_graph_num_edges(solver->graph, i);
+    int *edges = adj_graph_edges(solver->graph, i);
+    for (int e = 0; e < num_edges; ++e)
+    {
+      int j = edges[e];
+
+      // What color is vertex j? 
+      int color = solver->colors[j];
+
+      // Read the (i,j)th matrix entry from the proper J*d vector.
+      double* Jd = solver->Jds[color];
+      double Aij = solver->Jds[color][i];
+      double_table_insert(Jij, i, j, Aij);
     }
   }
 }
@@ -432,42 +437,23 @@ static void initialize(nonlinear_solver_t* solver)
     solver->A = HYPRE_IJMatrixNew(solver->index_space);
     solver->x = HYPRE_IJVectorNew(solver->index_space);
     solver->b = HYPRE_IJVectorNew(solver->index_space);
-    HYPRE_ParCSRBiCGSTABCreate(adj_graph_comm(solver->graph), &solver->solver);
-    HYPRE_ParCSRPilutCreate(adj_graph_comm(solver->graph), &solver->precond);
-    HYPRE_ParCSRPilutSetDropTolerance(solver->precond, 1e-6);
-    HYPRE_ParCSRBiCGSTABSetPrecond(solver->solver, HYPRE_ParCSRPilutSolve, 
-                                   HYPRE_ParCSRPilutSetup, solver->precond);
-//    HYPRE_ParCSRHybridCreate(&solver->solver);
-    // Solver types: 1 is PCG, 2 is GMRES, 3 is BiCGSTAB.
-//    HYPRE_ParCSRHybridSetSolverType(solver->solver, 3);
-//    HYPRE_ParCSRHybridSetKDim(solver->solver, 5);
-    solver->Jij = double_table_new();
-    int num_comps = nonlinear_function_num_comps(solver->F);
-    solver->coloring = adj_graph_coloring_new(solver->graph, 
-                                              SMALLEST_LAST); 
-    int num_colors = adj_graph_coloring_num_colors(solver->coloring);
-    log_detail("nonlinear_solver: graph coloring produced %d colors.", 
-               num_colors);
+//    // Use HYPRE's BiCGSTAB solver with the Parallel ILU (Pilut) preconditioner.
+//    HYPRE_ParCSRBiCGSTABCreate(adj_graph_comm(solver->graph), &solver->solver);
+//    HYPRE_ParCSRPilutCreate(adj_graph_comm(solver->graph), &solver->precond);
+//    HYPRE_ParCSRPilutSetDropTolerance(solver->precond, 1e-6);
+//    HYPRE_ParCSRBiCGSTABSetPrecond(solver->solver, HYPRE_ParCSRPilutSolve, 
+//                                   HYPRE_ParCSRPilutSetup, solver->precond);
 
-    // Now that we have the coloring, we can set up our vectors {d} that 
-    // allow us to compute the different colored portions of the Jacobian
-    // in parallel.
-    solver->ds = malloc(num_colors * sizeof(double*));
-    solver->Jds = malloc(num_colors * sizeof(double*));
-    int num_vertices = solver->num_sites;
-    for (int color = 0; color < num_colors; ++color)
-    {
-      solver->ds[color] = malloc(sizeof(double) * num_comps * num_vertices);
-      solver->Jds[color] = malloc(sizeof(double) * num_comps * num_vertices);
-      memset(solver->ds[color], 0, sizeof(double) * num_comps * num_vertices);
-      memset(solver->Jds[color], 0, sizeof(double) * num_comps * num_vertices);
-      int pos = 0, vertex;
-      while (adj_graph_coloring_next_vertex(solver->coloring, color, &pos, &vertex))
-      {
-        for (int c = 0; c < num_comps; ++c)
-          solver->ds[color][num_comps*vertex + c] = 1.0;
-      }
-    }
+    // Use HYPRE's hybrid multigrid/Krylov solver.
+    HYPRE_ParCSRHybridCreate(&solver->solver);
+    // Solver types: 1 is PCG, 2 is GMRES, 3 is BiCGSTAB.
+    HYPRE_ParCSRHybridSetSolverType(solver->solver, 3);
+    // Set the dimension of the Krylov subspace.
+    HYPRE_ParCSRHybridSetKDim(solver->solver, 10);
+    // Uncomment this line to see the solver's narrative.
+    HYPRE_ParCSRHybridSetPrintLevel(solver->solver, 1);
+
+    solver->Jij = double_table_new();
     solver->initialized = true;
   }
 }
@@ -489,12 +475,12 @@ HYPRE_IJVectorPrint(solver->x, "x");
   ASSERT(err == 0);
   ASSERT(bobj != NULL);
 
-  err = HYPRE_ParCSRBiCGSTABSetup(solver->solver, Aobj, bobj, xobj);
-  ASSERT(err == 0);
-  err = HYPRE_ParCSRBiCGSTABSolve(solver->solver, Aobj, bobj, xobj);
-//  err = HYPRE_ParCSRHybridSetup(solver->solver, Aobj, bobj, xobj);
+//  err = HYPRE_ParCSRBiCGSTABSetup(solver->solver, Aobj, bobj, xobj);
 //  ASSERT(err == 0);
-//  err = HYPRE_ParCSRHybridSolve(solver->solver, Aobj, bobj, xobj);
+//  err = HYPRE_ParCSRBiCGSTABSolve(solver->solver, Aobj, bobj, xobj);
+  err = HYPRE_ParCSRHybridSetup(solver->solver, Aobj, bobj, xobj);
+  ASSERT(err == 0);
+  err = HYPRE_ParCSRHybridSolve(solver->solver, Aobj, bobj, xobj);
   if (err == HYPRE_ERROR_CONV)
     polymec_error("nonlinear_solver: Linear solve did not converge.");
 
@@ -507,8 +493,7 @@ void nonlinear_solver_step(nonlinear_solver_t* solver,
   // Make sure the solver is initialized.
   initialize(solver);
 
-  int num_comps = nonlinear_function_num_comps(solver->F);
-  int num_sites = (solver->index_space->high - solver->index_space->low) / num_comps;
+  int num_sites = (solver->index_space->high - solver->index_space->low);
 
   // Choose an initial timestep.
   char* explanation;
@@ -543,36 +528,33 @@ void nonlinear_solver_step(nonlinear_solver_t* solver,
 
     // Go over the values in the table and compute 1.0/dt - Jij to 
     // implement the backward Euler method.
-    double_table_t* be_J = double_table_new();
+    double_table_t* backward_euler_J = double_table_new();
     double_table_cell_pos_t pos = double_table_start(solver->Jij);
     int i, j;
     double Jij;
     while (double_table_next_cell(solver->Jij, &pos, &i, &j, &Jij))
-      double_table_insert(be_J, i, j, 1.0/dt - Jij);
+      double_table_insert(backward_euler_J, i, j, 1.0/dt - Jij);
 
     // Set up the linear system.
-    HYPRE_IJMatrixSetValuesFromTable(solver->A, solver->index_space, be_J);
+    HYPRE_IJMatrixSetValuesFromTable(solver->A, solver->index_space, backward_euler_J);
     //HYPRE_IJMatrixPrint(solver->A, "L");
     HYPRE_IJVectorSetValuesFromArray(solver->b, solver->index_space, solver->R);
-    double_table_free(be_J);
+    double_table_free(backward_euler_J);
 
     // Now solve the linear system for the increment.
     solve_linearized_system(solver, solver->A, solver->b, solver->x);
 
     // Copy the solution to XX.
-    HYPRE_IJVectorGetValuesToArray(solver->x, solver->index_space, solver->XX[0]);
+    HYPRE_IJVectorGetValuesToArray(solver->x, solver->index_space, solver->XX);
 
     // Add the increment to x.
     for (int i = 0; i < num_sites; ++i)
-    {
-      for (int c = 0; c < num_comps; ++c)
-        x[i] += solver->XX[c][i];
-    }
+      x[i] += solver->XX[i];
 
     // Recompute the residual and measure its norm.
     nonlinear_solver_compute_residual(solver, *t, x, solver->R);
     double res_norm = 0.0;
-    for (int i = 0; i < num_comps * num_sites; ++i)
+    for (int i = 0; i < num_sites; ++i)
     {
       double Ri = solver->R[i];
       res_norm += Ri*Ri;
@@ -585,6 +567,7 @@ void nonlinear_solver_step(nonlinear_solver_t* solver,
       // Success!
       nonlinear_timestepper_converged(solver->timestepper, dt, 
                                       res_norm, num_iters);
+      converged = true;
     }
     else
     {
@@ -604,10 +587,70 @@ void nonlinear_solver_step(nonlinear_solver_t* solver,
   *t += dt;
 }
 
+void nonlinear_solver_solve(nonlinear_solver_t* solver, double t, double* x)
+{
+  ASSERT(solver->timestepper == NULL);
+
+  // Make sure the solver is initialized.
+  initialize(solver);
+
+  int num_sites = (solver->index_space->high - solver->index_space->low);
+
+  // Compute the residual vector at the unperturbed state.
+  nonlinear_solver_compute_residual(solver, t, x, solver->R);
+
+  bool converged = false;
+  int num_iters = 0;
+  while (!converged && (num_iters <= solver->max_iters))
+  {
+    // Here we go.
+    ++num_iters;
+
+    // Compute the components of the Jacobian.
+    nonlinear_solver_compute_jacobian(solver, t, x, solver->Jij);
+
+    // Set up the linear system.
+    HYPRE_IJMatrixSetValuesFromTable(solver->A, solver->index_space, solver->Jij);
+    HYPRE_IJVectorSetValuesFromArray(solver->b, solver->index_space, solver->R);
+
+    // Now solve the linear system for the increment.
+    solve_linearized_system(solver, solver->A, solver->b, solver->x);
+
+    // Copy the solution to XX.
+    HYPRE_IJVectorGetValuesToArray(solver->x, solver->index_space, solver->XX);
+
+    // Add the increment to x.
+    for (int i = 0; i < num_sites; ++i)
+      x[i] += solver->XX[i];
+
+    // Recompute the residual and measure its norm.
+    nonlinear_solver_compute_residual(solver, t, x, solver->R);
+    double res_norm = 0.0;
+    for (int i = 0; i < num_sites; ++i)
+    {
+      double Ri = solver->R[i];
+      res_norm += Ri*Ri;
+    }
+    res_norm = sqrt(res_norm);
+
+    // Is the norm small enough?
+    if (res_norm < solver->tolerance)
+      converged = true;
+  }
+
+  // If we exceeded the maximum number of iterations, we're toast.
+  if (num_iters > solver->max_iters)
+  {
+    polymec_error("nonlinear_solver_solve: Maximum number of iterations (%d) exceeded", 
+                  solver->max_iters);
+  }
+}
+
 void nonlinear_solver_integrate(nonlinear_solver_t* solver,
                                 double t1, double* x1,
                                 double t2, double* x2)
 {
+  ASSERT(solver->timestepper != NULL);
   ASSERT(x1 != NULL);
   ASSERT(x2 != NULL);
 

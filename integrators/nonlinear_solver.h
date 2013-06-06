@@ -15,7 +15,6 @@ typedef struct nonlinear_function_t nonlinear_function_t;
 
 // A function for computing the components of the residual at the given site.
 typedef void (*nonlinear_function_eval_residual_func)(void* context, 
-                                                      int num_comps, 
                                                       double t, 
                                                       double* x, 
                                                       double* R);
@@ -31,10 +30,9 @@ typedef struct
 } nonlinear_function_vtable;
 
 // Creates a nonlinear function with the given name, context, 
-// number of solution components, and virtual table.
+// and virtual table.
 nonlinear_function_t* nonlinear_function_new(const char* name, 
                                              void* context,
-                                             int num_comps,
                                              nonlinear_function_vtable vtable);
 
 // Frees a nonlinear function.
@@ -45,9 +43,6 @@ char* nonlinear_function_name(nonlinear_function_t* F);
 
 // Returns the context object for this nonlinear function.
 void* nonlinear_function_context(nonlinear_function_t* F);
-
-// Returns the number of components per site in this nonlinear function.
-int nonlinear_function_num_comps(nonlinear_function_t* F);
 
 // Evaluates the nonlinear function, computing the components of the 
 // residual vector corresponding to those in the solution vector X
@@ -143,21 +138,18 @@ void nonlinear_timestepper_failed(nonlinear_timestepper_t* timestepper,
 //------------------------------------------------------------------------
 //                         nonlinear solver
 //------------------------------------------------------------------------
-// This class solves a nonlinear system F(X) = R, where F is a nonlinear 
-// function mapping a solution vector X to a residual vector R. The system 
-// itself has a specified dimension that is the size of the vectors X and R.
-// In the context of partial differential equations, it is sometimes 
-// advantageous to specify a number of "components" to a solution vector X 
-// that describes the number of unknowns corresponding to a single "site" at
-// which the nonlinear function may be evaluated. In this parlance, the 
-// dimension is the product of the number of components and the number of 
-// sites.
+// This class solves a nonlinear system dX/dt = F(X, t), where F is a 
+// nonlinear function mapping a solution vector X to a residual vector R. 
+// The system itself has a specified dimension that is the size of the 
+// vectors X and R.
 typedef struct nonlinear_solver_t nonlinear_solver_t;
 
 // Creates a nonlinear solver that finds the roots of a given nonlinear 
 // function at the sites, which depend upon one another according to the 
 // given adjacency graph. The solver assumes control over the nonlinear 
 // function F and the given timestepper.
+// NOTE: If the timestepper argument is NULL, the nonlinear solver will solve 
+// NOTE: the "static" nonlinear system F(X) = 0.
 nonlinear_solver_t* nonlinear_solver_new(nonlinear_function_t* F,
                                          nonlinear_timestepper_t* timestepper,
                                          adj_graph_t* graph);
@@ -193,6 +185,9 @@ void nonlinear_solver_step(nonlinear_solver_t* solver,
 void nonlinear_solver_integrate(nonlinear_solver_t* solver,
                                 double t1, double* x1,
                                 double t2, double* x2);
+
+// Solves the nonlinear system F(X, t) = 0, using X as the initial guess.
+void nonlinear_solver_solve(nonlinear_solver_t* solver, double t, double* X);
 
 // Returns the tolerance for the residual norm that dictates success or 
 // failure for a nonlinear iteration. By default, this number is 1e-8.
