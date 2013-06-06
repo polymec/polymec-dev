@@ -1,5 +1,4 @@
 #include "core/adj_graph.h"
-#include <stddef.h>
 
 struct adj_graph_t 
 {
@@ -55,6 +54,63 @@ adj_graph_t* adj_graph_new_with_dist(MPI_Comm comm,
   memset(graph->xadj, 0, sizeof(int) * (num_local_vertices + 1));
 
   return graph;
+}
+
+adj_graph_t* adj_graph_new_with_block_size(int block_size,
+                                           adj_graph_t* graph)
+{
+  ASSERT(block_size >= 1);
+
+  MPI_Comm comm = adj_graph_comm(graph);
+  int nproc, rank;
+  MPI_Comm_size(comm, &nproc);
+  MPI_Comm_rank(comm, &rank);
+
+  // Distribute the vertices in a manner analogous to the way they are 
+  // distributed in the given graph.
+  int num_global_vertices = block_size * graph->vtx_dist[nproc];
+  int vtx_dist[nproc+1], offset = 0;
+  vtx_dist[0] = 0;
+  for (int p = 1; p <= nproc; ++p)
+    vtx_dist[p] = block_size * graph->vtx_dist[p];
+  adj_graph_t* block_graph = adj_graph_new_with_dist(comm, 
+                                                     num_global_vertices,
+                                                     vtx_dist);
+
+  // Now traverse the original graph and set up the edges.
+  int num_vertices = adj_graph_num_vertices(graph);
+  for (int v = 0; v < num_vertices; ++v)
+  {
+    int num_edges = adj_graph_num_edges(graph, v);
+    int* edges = adj_graph_edges(graph, v);
+    for (int b = 0; b < block_size; ++b)
+    {
+      int block_vertex = block_size * v + b;
+      // Make sure to include "block diagonal" edges, too (block_size - 1 of these).
+      adj_graph_set_num_edges(block_graph, block_vertex, block_size * num_edges + (block_size - 1));
+      int* block_edges = adj_graph_edges(block_graph, block_vertex);
+      int diag_offset = 0;
+
+      // Block diagonal edges (excluding loops).
+      for (int bb = 0; bb < block_size; ++bb)
+      {
+        int other_vertex = block_size * v + bb;
+        if (other_vertex != block_vertex)
+        {
+          block_edges[diag_offset] = block_size * v + bb;
+          ++diag_offset;
+        }
+      }
+      ASSERT(diag_offset == (block_size - 1));
+      for (int e = 0; e < num_edges; ++e)
+      {
+        for (int bb = 0; bb < block_size; ++bb)
+          block_edges[block_size - 1 + block_size * e + bb] = block_size * edges[e] + bb;
+      }
+    }
+  }
+
+  return block_graph;
 }
 
 void adj_graph_free(adj_graph_t* graph)

@@ -7,6 +7,7 @@
 #include <string.h>
 #include <math.h>
 #include <limits.h>
+#include <stddef.h>
 #include <float.h>
 
 // Handle MPI (or its absence).
