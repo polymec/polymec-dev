@@ -330,17 +330,17 @@ void nonlinear_solver_compute_residual(nonlinear_solver_t* solver,
 
 // This function estimates the product of the Jacobian (about a reference 
 // state X) with the given vector y using finite differences.
-static void compute_Jy_with_finite_differences(nonlinear_solver_t* solver,
+static void compute_Jd_with_finite_differences(nonlinear_solver_t* solver,
                                                double t,
                                                double* X, 
-                                               double* y, 
+                                               double* d, 
                                                double delta,
-                                               double* Jy)
+                                               double* Jd)
 {
   ASSERT(X != NULL);
-  ASSERT(y != NULL);
+  ASSERT(d != NULL);
   ASSERT(delta > 0.0);
-  ASSERT(Jy != NULL);
+  ASSERT(Jd != NULL);
 
   int num_vertices = adj_graph_num_vertices(solver->graph);
 
@@ -359,9 +359,14 @@ static void compute_Jy_with_finite_differences(nonlinear_solver_t* solver,
     
   // Compute the residual using the perturbed state.
   nonlinear_function_eval(solver->F, t, solver->XX, solver->RR);
+printf("XX -> ");
+vector_fprintf(solver->XX, num_vertices, stdout);
+printf("\nRR -> ");
+vector_fprintf(solver->RR, num_vertices, stdout);
+printf("\n");
 
   // Traverse the rows of the Jacobian and form the matrix project J * y.
-  memset(Jy, 0, sizeof(double) * num_vertices);
+  memset(Jd, 0, sizeof(double) * num_vertices);
   for (int i = 0; i < num_vertices; ++i)
   {
     double dX = (solver->XX[i] - X[i]);
@@ -370,8 +375,8 @@ static void compute_Jy_with_finite_differences(nonlinear_solver_t* solver,
     for (int j = 0; j < num_vertices; ++j)
     {
       double dR = (solver->RR[j] - solver->R[j]);
-printf("dR/dX[%d, %d] = %g/%g = %g\n", i, j, dR, dX, dR/dX*y[j]);
-      Jy[i] += dR/dX * y[j];
+printf("dR/dX[%d, %d] = %g/%g * %g = %g\n", i, j, dR, dX, d[j], dR/dX*d[j]);
+      Jd[i] += dR/dX * d[j];
     }
   }
 }
@@ -399,7 +404,7 @@ void nonlinear_solver_compute_jacobian(nonlinear_solver_t* solver,
   for (int color = 0; color < num_colors; ++color)
   {
     // Compute the vector product J * d for this color.
-    compute_Jy_with_finite_differences(solver, t, X, solver->ds[color], 
+    compute_Jd_with_finite_differences(solver, t, X, solver->ds[color], 
                                        solver->delta, solver->Jds[color]);
   }
 
@@ -409,7 +414,6 @@ void nonlinear_solver_compute_jacobian(nonlinear_solver_t* solver,
     // Diagonal term.
     {
       int color = solver->colors[i];
-      double* Jd = solver->Jds[color];
       double Aii = solver->Jds[color][i];
       double_table_insert(Jij, i, i, Aii);
     }
@@ -424,7 +428,6 @@ void nonlinear_solver_compute_jacobian(nonlinear_solver_t* solver,
       int color = solver->colors[j];
 
       // Read the (i,j)th matrix entry from the proper J*d vector.
-      double* Jd = solver->Jds[color];
       double Aij = solver->Jds[color][i];
       double_table_insert(Jij, i, j, Aij);
     }
@@ -459,7 +462,7 @@ static void initialize(nonlinear_solver_t* solver)
   }
 }
 
-static inline void solve_linearized_system(nonlinear_solver_t* solver, HYPRE_IJMatrix A, HYPRE_IJVector b, HYPRE_IJVector x)
+static void solve_linearized_system(nonlinear_solver_t* solver, HYPRE_IJMatrix A, HYPRE_IJVector b, HYPRE_IJVector x)
 {
 HYPRE_IJMatrixPrint(solver->A, "A");
 HYPRE_IJVectorPrint(solver->b, "b");
