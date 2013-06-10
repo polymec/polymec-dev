@@ -304,6 +304,11 @@ static void solve_riemann(double gamma,
                           double rhoR, double uR, double pR,
                           double* rho, double* u, double* p)
 {
+  ASSERT(rhoL > 0.0);
+  ASSERT(pL > 0.0);
+  ASSERT(rhoR > 0.0);
+  ASSERT(pR > 0.0);
+
   // Some thresholds.
   static const double small_rho = 1e-7;
   static const double small_p = 1e-7;
