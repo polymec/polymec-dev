@@ -105,13 +105,22 @@ static void test_identity_jacobian(void** state)
   double_table_t* Jij = double_table_new();
   nonlinear_solver_compute_jacobian(solver, 0.0, X, Jij);
 
-  // Print the elements of the Jacobian.
+  // The Jacobian should be the identity matrix.
   {
     double_table_cell_pos_t pos = double_table_start(Jij);
     int i, j;
-    double ij;
-    while (double_table_next_cell(Jij, &pos, &i, &j, &ij))
-      printf("%d, %d: %g\n", i, j, ij);
+    double Aij;
+    while (double_table_next_cell(Jij, &pos, &i, &j, &Aij))
+    {
+      if (i == j)
+      {
+        assert_true(fabs(Aij - 1.0) < 1e-15);
+      }
+      else
+      {
+        assert_true(fabs(Aij) < 1e-15);
+      }
+    }
   }
 
   // Clean up.
@@ -508,9 +517,9 @@ int main(int argc, char* argv[])
   set_log_level(LOG_DEBUG);
   const UnitTest tests[] = 
   {
-    unit_test(test_identity_jacobian)
+    unit_test(test_identity_jacobian),
 //    unit_test(test_single_comp_linear_advection),
-//    unit_test(test_sod_shock_tube)
+    unit_test(test_sod_shock_tube)
   };
   return run_tests(tests);
 }

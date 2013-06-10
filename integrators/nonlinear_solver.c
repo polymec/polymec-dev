@@ -333,6 +333,7 @@ void nonlinear_solver_compute_residual(nonlinear_solver_t* solver,
 static void compute_Jd_with_finite_differences(nonlinear_solver_t* solver,
                                                double t,
                                                double* X, 
+                                               adj_graph_t* graph,
                                                double* d, 
                                                double delta,
                                                double* Jd)
@@ -354,28 +355,32 @@ static void compute_Jd_with_finite_differences(nonlinear_solver_t* solver,
   for (int i = 0; i < num_vertices; ++i)
   {
     double dX = (X[i] == 0.0) ? delta : delta * X[i];
-    solver->XX[i] = X[i] + dX;
+    solver->XX[i] = X[i] + dX * d[i];
   }
     
   // Compute the residual using the perturbed state.
   nonlinear_function_eval(solver->F, t, solver->XX, solver->RR);
-printf("XX -> ");
-vector_fprintf(solver->XX, num_vertices, stdout);
-printf("\nRR -> ");
-vector_fprintf(solver->RR, num_vertices, stdout);
-printf("\n");
 
   // Traverse the rows of the Jacobian and form the matrix project J * y.
   memset(Jd, 0, sizeof(double) * num_vertices);
   for (int i = 0; i < num_vertices; ++i)
   {
     double dX = (solver->XX[i] - X[i]);
-    ASSERT(dX != 0.0);
+    if (dX == 0.0) continue;
 
-    for (int j = 0; j < num_vertices; ++j)
+    // Diagonal term.
     {
+      double dR = (solver->RR[i] - solver->R[i]);
+      Jd[i] += dR/dX * d[i];
+    }
+
+    // Off-diagonal terms.
+    int num_edges = adj_graph_num_edges(solver->graph, i);
+    int *edges = adj_graph_edges(solver->graph, i);
+    for (int e = 0; e < num_edges; ++e)
+    {
+      int j = edges[e];
       double dR = (solver->RR[j] - solver->R[j]);
-printf("dR/dX[%d, %d] = %g/%g * %g = %g\n", i, j, dR, dX, d[j], dR/dX*d[j]);
       Jd[i] += dR/dX * d[j];
     }
   }
@@ -404,8 +409,9 @@ void nonlinear_solver_compute_jacobian(nonlinear_solver_t* solver,
   for (int color = 0; color < num_colors; ++color)
   {
     // Compute the vector product J * d for this color.
-    compute_Jd_with_finite_differences(solver, t, X, solver->ds[color], 
-                                       solver->delta, solver->Jds[color]);
+    compute_Jd_with_finite_differences(solver, t, X, solver->graph, 
+                                       solver->ds[color], solver->delta, 
+                                       solver->Jds[color]);
   }
 
   // Fill in the entries of the Jacobian.
