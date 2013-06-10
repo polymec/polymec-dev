@@ -284,9 +284,9 @@ void nonlinear_solver_free(nonlinear_solver_t* solver)
 {
   if (solver->initialized)
   {
-//    HYPRE_ParCSRBiCGSTABDestroy(solver->solver);
-//    HYPRE_ParCSRPilutDestroy(solver->precond);
-    HYPRE_ParCSRHybridDestroy(solver->solver);
+    HYPRE_ParCSRBiCGSTABDestroy(solver->solver);
+    HYPRE_ParCSRPilutDestroy(solver->precond);
+//    HYPRE_ParCSRHybridDestroy(solver->solver);
     HYPRE_IJMatrixDestroy(solver->A);
     HYPRE_IJVectorDestroy(solver->x);
     HYPRE_IJVectorDestroy(solver->b);
@@ -447,13 +447,16 @@ static void initialize(nonlinear_solver_t* solver)
     solver->A = HYPRE_IJMatrixNew(solver->index_space);
     solver->x = HYPRE_IJVectorNew(solver->index_space);
     solver->b = HYPRE_IJVectorNew(solver->index_space);
-//    // Use HYPRE's BiCGSTAB solver with the Parallel ILU (Pilut) preconditioner.
-//    HYPRE_ParCSRBiCGSTABCreate(adj_graph_comm(solver->graph), &solver->solver);
-//    HYPRE_ParCSRPilutCreate(adj_graph_comm(solver->graph), &solver->precond);
-//    HYPRE_ParCSRPilutSetDropTolerance(solver->precond, 1e-6);
-//    HYPRE_ParCSRBiCGSTABSetPrecond(solver->solver, HYPRE_ParCSRPilutSolve, 
-//                                   HYPRE_ParCSRPilutSetup, solver->precond);
+    // Use HYPRE's BiCGSTAB solver with the Parallel ILU (Pilut) preconditioner.
+    HYPRE_ParCSRBiCGSTABCreate(adj_graph_comm(solver->graph), &solver->solver);
+    HYPRE_ParCSRPilutCreate(adj_graph_comm(solver->graph), &solver->precond);
+    HYPRE_ParCSRPilutSetDropTolerance(solver->precond, 1e-6);
+    HYPRE_ParCSRBiCGSTABSetPrecond(solver->solver, HYPRE_ParCSRPilutSolve, 
+                                   HYPRE_ParCSRPilutSetup, solver->precond);
+    // Uncomment this line to see the solver's narrative.
+    HYPRE_ParCSRBiCGSTABSetPrintLevel(solver->solver, 1);
 
+#if 0
     // Use HYPRE's hybrid multigrid/Krylov solver.
     HYPRE_ParCSRHybridCreate(&solver->solver);
     // Solver types: 1 is PCG, 2 is GMRES, 3 is BiCGSTAB.
@@ -462,6 +465,7 @@ static void initialize(nonlinear_solver_t* solver)
     HYPRE_ParCSRHybridSetKDim(solver->solver, 10);
     // Uncomment this line to see the solver's narrative.
     HYPRE_ParCSRHybridSetPrintLevel(solver->solver, 1);
+#endif
 
     solver->Jij = double_table_new();
     solver->initialized = true;
@@ -485,12 +489,14 @@ HYPRE_IJVectorPrint(solver->x, "x");
   ASSERT(err == 0);
   ASSERT(bobj != NULL);
 
-//  err = HYPRE_ParCSRBiCGSTABSetup(solver->solver, Aobj, bobj, xobj);
-//  ASSERT(err == 0);
-//  err = HYPRE_ParCSRBiCGSTABSolve(solver->solver, Aobj, bobj, xobj);
+  err = HYPRE_ParCSRBiCGSTABSetup(solver->solver, Aobj, bobj, xobj);
+  ASSERT(err == 0);
+  err = HYPRE_ParCSRBiCGSTABSolve(solver->solver, Aobj, bobj, xobj);
+#if 0
   err = HYPRE_ParCSRHybridSetup(solver->solver, Aobj, bobj, xobj);
   ASSERT(err == 0);
   err = HYPRE_ParCSRHybridSolve(solver->solver, Aobj, bobj, xobj);
+#endif
   if (err == HYPRE_ERROR_CONV)
     polymec_error("nonlinear_solver: Linear solve did not converge.");
 
