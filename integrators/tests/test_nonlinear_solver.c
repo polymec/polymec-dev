@@ -523,8 +523,8 @@ int main(int argc, char* argv[])
   const UnitTest tests[] = 
   {
     unit_test(test_identity_jacobian),
-//    unit_test(test_single_comp_linear_advection),
-    unit_test(test_sod_shock_tube)
+    unit_test(test_single_comp_linear_advection)
+//    unit_test(test_sod_shock_tube)
   };
   return run_tests(tests);
 }
