@@ -378,19 +378,22 @@ static void compute_Jd_with_finite_differences(nonlinear_solver_t* solver,
 
   // Set up our work arrays for this color.
   double* R0 = solver->R;
+  double* d = solver->ds[color];
   double* Jd = solver->Jds[color];
   double* Xp = solver->Xps[color];
   double* Rp = solver->Rps[color];
+  int* columns = solver->columns[color];
 
   // Copy the reference state to our work array.
   memcpy(Xp, X, sizeof(double) * num_vertices);
 
   // Perturb the the state at each of the vertices with this color.
-  int pos = 0, i;
-  while (adj_graph_coloring_next_vertex(solver->coloring, color, &pos, &i))
+  int pos = 0;//, j;
+  for (int j = 0; j < num_vertices; ++j)
+//  while (adj_graph_coloring_next_vertex(solver->coloring, color, &pos, &j))
   {
-    double dX = (X[i] == 0.0) ? solver->delta : solver->delta * X[i];
-    Xp[i] = X[i] + dX;
+    double dX = (X[j] == 0.0) ? solver->delta : solver->delta * X[j];
+    Xp[j] = X[j] + dX;
   }
     
   // Compute the residual using the perturbed state.
@@ -398,21 +401,38 @@ static void compute_Jd_with_finite_differences(nonlinear_solver_t* solver,
 
   // Traverse the rows of the Jacobian and form the matrix project J * d.
   memset(Jd, 0, sizeof(double) * num_vertices);
-  for (int i = 0; i < num_vertices; ++i)
-  {
-    double dX = (Xp[i] - X[i]);
-    if (dX == 0.0) continue;
 
-    // Now accumulate terms from columns with the same color as 
-    // this one.
-    int color = solver->colors[i];
-    int pos = 0, j;
-    while (adj_graph_coloring_next_vertex(solver->coloring, color, &pos, &j))
+  // Now accumulate terms from columns with the given color.
+  int i;
+  pos = 0;
+  while (adj_graph_coloring_next_vertex(solver->coloring, color, &pos, &i))
+  {
+    int j = columns[i];
+    ASSERT(j != -1);
+    double dX = (Xp[i] - X[i]);
+    ASSERT(dX != 0.0);
+    double dR = (Rp[j] - R0[j]);
+    Jd[i] = dR/dX;
+//printf("J(%d, %d) = %g\n", i, j, Jd[i]);
+  }
+
+#if 0
+  pos = 0;
+  while (adj_graph_coloring_next_vertex(solver->coloring, color, &pos, &j))
+  {
+    // Go over the rows of the jth column vector.
+    int posi = 0, i;
+    while (adj_graph_coloring_next_vertex(solver->coloring, color, &posi, &i))
     {
+      double dX = (Xp[i] - X[i]);
+      ASSERT(dX != 0.0);
+
       double dR = (Rp[j] - R0[j]);
+      Jd[i] = dR/dX;
 printf("J(%d, %d) = %g/%g = %g\n", i, j, dR, dX, dR/dX);
-      Jd[i] += dR/dX;
     }
+  }
+#endif
 
 #if 0
     // Off-diagonal terms.
@@ -426,7 +446,6 @@ printf("J(%d, %d) = %g/%g = %g\n", i, j, dR, dX, dR/dX*d[j]);
       Jd[i] += dR/dX * d[j];
     }
 #endif
-  }
 }
 
 void nonlinear_solver_compute_jacobian(nonlinear_solver_t* solver,
@@ -469,9 +488,8 @@ void nonlinear_solver_compute_jacobian(nonlinear_solver_t* solver,
       int j = columns[i];
       if (j != -1)
       {
-printf("column for color %d and row %d is %d\n", color, i, j);
         double Aij = Jd[i];
-        printf("J(%d, %d) is %g\n", i, j, Aij);
+//        printf("J(%d, %d) is %g\n", i, j, Aij);
         double_table_insert(Jij, i, j, Aij);
       }
     }
@@ -576,7 +594,7 @@ void nonlinear_solver_step(nonlinear_solver_t* solver,
   bool converged = false;
   int num_iters = 0;
   double last_dt = dt;
-  while (!converged && (num_iters <= solver->max_iters))
+  while (!converged && (num_iters < solver->max_iters))
   {
     // Here we go.
     ++num_iters;
@@ -633,6 +651,7 @@ void nonlinear_solver_step(nonlinear_solver_t* solver,
       res_norm += Ri*Ri;
     }
     res_norm = sqrt(res_norm);
+    log_debug("nonlinear_solver_step: Iteration %d: residual norm is %g\n", num_iters, res_norm);
 
     // Is the norm small enough?
     if (res_norm < solver->tolerance)
@@ -650,7 +669,7 @@ void nonlinear_solver_step(nonlinear_solver_t* solver,
   }
 
   // If we exceeded the maximum number of iterations, we're toast.
-  if (num_iters > solver->max_iters)
+  if (!converged && (num_iters >= solver->max_iters))
   {
     polymec_error("nonlinear_solver_step: Maximum number of iterations (%d) exceeded", 
                   solver->max_iters);
@@ -674,7 +693,7 @@ void nonlinear_solver_solve(nonlinear_solver_t* solver, double t, double* x)
 
   bool converged = false;
   int num_iters = 0;
-  while (!converged && (num_iters <= solver->max_iters))
+  while (!converged && (num_iters < solver->max_iters))
   {
     // Here we go.
     ++num_iters;
@@ -705,6 +724,7 @@ void nonlinear_solver_solve(nonlinear_solver_t* solver, double t, double* x)
       res_norm += Ri*Ri;
     }
     res_norm = sqrt(res_norm);
+    log_debug("nonlinear_solver_solve: Iteration %d: residual norm is %g\n", num_iters, res_norm);
 
     // Is the norm small enough?
     if (res_norm < solver->tolerance)
@@ -712,7 +732,7 @@ void nonlinear_solver_solve(nonlinear_solver_t* solver, double t, double* x)
   }
 
   // If we exceeded the maximum number of iterations, we're toast.
-  if (num_iters > solver->max_iters)
+  if (!converged && (num_iters >= solver->max_iters))
   {
     polymec_error("nonlinear_solver_solve: Maximum number of iterations (%d) exceeded", 
                   solver->max_iters);
