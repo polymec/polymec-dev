@@ -304,7 +304,7 @@ nonlinear_solver_t* nonlinear_solver_new(nonlinear_function_t* F,
       int j = edges[e];
       int jcolor = solver->colors[j];
       solver->columns[jcolor][i] = j;
-printf("(%d, %d) -> %d\n", jcolor, i, j);
+//printf("(%d, %d) -> %d\n", jcolor, i, j);
     }
   }
 
@@ -378,7 +378,6 @@ static void compute_Jd_with_finite_differences(nonlinear_solver_t* solver,
 
   // Set up our work arrays for this color.
   double* R0 = solver->R;
-  double* d = solver->ds[color];
   double* Jd = solver->Jds[color];
   double* Xp = solver->Xps[color];
   double* Rp = solver->Rps[color];
@@ -391,7 +390,7 @@ static void compute_Jd_with_finite_differences(nonlinear_solver_t* solver,
   while (adj_graph_coloring_next_vertex(solver->coloring, color, &pos, &i))
   {
     double dX = (X[i] == 0.0) ? solver->delta : solver->delta * X[i];
-    Xp[i] = X[i] + dX * d[i];
+    Xp[i] = X[i] + dX;
   }
     
   // Compute the residual using the perturbed state.
@@ -404,12 +403,18 @@ static void compute_Jd_with_finite_differences(nonlinear_solver_t* solver,
     double dX = (Xp[i] - X[i]);
     if (dX == 0.0) continue;
 
-    // Diagonal term.
+    // Now accumulate terms from columns with the same color as 
+    // this one.
+    int color = solver->colors[i];
+    int pos = 0, j;
+    while (adj_graph_coloring_next_vertex(solver->coloring, color, &pos, &j))
     {
-      double dR = (Rp[i] - R0[i]);
-      Jd[i] += dR/dX * d[i];
+      double dR = (Rp[j] - R0[j]);
+printf("J(%d, %d) = %g/%g = %g\n", i, j, dR, dX, dR/dX);
+      Jd[i] += dR/dX;
     }
 
+#if 0
     // Off-diagonal terms.
     int num_edges = adj_graph_num_edges(solver->graph, i);
     int *edges = adj_graph_edges(solver->graph, i);
@@ -420,6 +425,7 @@ static void compute_Jd_with_finite_differences(nonlinear_solver_t* solver,
 printf("J(%d, %d) = %g/%g = %g\n", i, j, dR, dX, dR/dX*d[j]);
       Jd[i] += dR/dX * d[j];
     }
+#endif
   }
 }
 
@@ -453,7 +459,6 @@ void nonlinear_solver_compute_jacobian(nonlinear_solver_t* solver,
   // vectors Jd and reading off their rows Aij.
   for (int color = 0; color < num_colors; ++color)
   {
-    double* d = solver->ds[color];
     double* Jd = solver->Jds[color];
     int* columns = solver->columns[color];
 
