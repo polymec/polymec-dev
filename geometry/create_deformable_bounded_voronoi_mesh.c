@@ -5,7 +5,7 @@
 #include "core/slist.h"
 #include "core/edit_mesh.h"
 #include "geometry/plane.h"
-#include "geometry/create_unbounded_voronoi_mesh.h"
+#include "geometry/create_deformable_unbounded_voronoi_mesh.h"
 
 // This constructs an ordered 3-tuple containing the given indices.
 static int* ordered_triple_new(int a, int b, int c)
@@ -13,8 +13,8 @@ static int* ordered_triple_new(int a, int b, int c)
   int* triple = int_tuple_new(3);
   triple[0] = MIN(MIN(a, b), c);
   triple[2] = MAX(MAX(a, b), c);
-  triple[1] = (triple[0] == a) ? (MIN(b, c))
-                               : (triple[0] == b) ? (MIN(a, c))
+  triple[1] = (triple[0] == a) ? MIN(b, c)
+                               : (triple[0] == b) ? MIN(a, c)
                                                   : MIN(a, b);
   return triple;
 }
@@ -264,7 +264,7 @@ static int quad_face_with_nodes(mesh_t* mesh,
 
 // This function adds all boundary nodes, faces, and edges for a triple
 // of boundary cells (c1, c2, c3)
-void add_boundary_for_triple(mesh_t* mesh, int* triple, point_t* generators)
+static void add_boundary_for_triple(mesh_t* mesh, int* triple, point_t* generators)
 {
   int cell1_index = triple[0];
   int cell2_index = triple[1];
@@ -362,9 +362,9 @@ void add_boundary_for_triple(mesh_t* mesh, int* triple, point_t* generators)
                            &mesh->cells[cell3_index]);
 }
 
-mesh_t* create_bounded_voronoi_mesh(point_t* generators, int num_generators,
-                                    point_t* boundary_generators, int num_boundary_generators,
-                                    point_t* ghost_generators, int num_ghost_generators)
+mesh_t* create_deformable_bounded_voronoi_mesh(point_t* generators, int num_generators,
+                                               point_t* boundary_generators, int num_boundary_generators,
+                                               point_t* ghost_generators, int num_ghost_generators)
 {
   ASSERT(generators != NULL);
   ASSERT(num_generators >= 1); 
