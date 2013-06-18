@@ -5,7 +5,8 @@
 #include "core/slist.h"
 #include "core/edit_mesh.h"
 #include "geometry/plane.h"
-#include "geometry/create_deformable_unbounded_voronoi_mesh.h"
+#include "geometry/create_unbounded_voronoi_mesh.h"
+#include "geometry/create_deformable_bounded_voronoi_mesh.h"
 
 // This constructs an ordered 3-tuple containing the given indices.
 static int* ordered_triple_new(int a, int b, int c)

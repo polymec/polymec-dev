@@ -224,6 +224,80 @@ int point_set_nearest(point_set_t* pset, point_t* point)
   return node->index;
 }
 
+static void find_within_radius(point_set_node_t* node, 
+                               double* pos, 
+                               double radius,
+                               point_set_rect_t* rect,
+                               int_slist_t* results)
+{
+  // Go left or right?
+  int dir = node->dir;
+  double which = pos[dir] - node->pos[dir];
+  point_set_node_t *near_subtree, *far_subtree;
+  double *near_coord, *far_coord;
+  if (which <= 0.0)
+  {
+    near_subtree = node->left;
+    far_subtree = node->right;
+    near_coord = rect->max + dir;
+    far_coord = rect->min + dir;
+  }
+  else
+  {
+    near_subtree = node->right;
+    far_subtree = node->left;
+    near_coord = rect->min + dir;
+    far_coord = rect->max + dir;
+  }
+
+  if (near_subtree != NULL)
+  {
+    // Bisect and recurse.
+    double coord = *near_coord;
+    *near_coord = node->pos[dir];
+    find_within_radius(near_subtree, pos, radius, rect, results);
+    *near_coord = coord;
+  }
+
+  // Distance from point to current node.
+  double my_r2 = SQ_DIST(node->pos, pos);
+  if (my_r2 < radius*radius)
+    int_slist_append(results, node->index);
+
+  if (far_subtree != NULL)
+  {
+    // Bisect and recurse (if needed).
+    double coord = *far_coord;
+    *far_coord = node->pos[dir];
+    if (rect_square_dist(rect, pos) < radius*radius)
+      find_within_radius(far_subtree, pos, radius, rect, results);
+    *far_coord = coord;
+  }
+}
+
+int_slist_t* point_set_within_radius(point_set_t* pset, 
+                                     point_t* point, 
+                                     double radius)
+{
+  if (pset->root == NULL)
+    return NULL;
+
+  // Start with the root.
+  point_set_node_t* node = pset->root;
+  double pos[3];
+  pos[0] = point->x, pos[1] = point->y, pos[2] = point->z;
+  double r2 = SQ_DIST(pos, node->pos);
+  point_set_rect_t rect;
+  int_slist_t* results = int_slist_new();
+  rect.min[0] = pset->rect->min[0]; rect.max[0] = pset->rect->max[0];
+  rect.min[1] = pset->rect->min[1]; rect.max[1] = pset->rect->max[1];
+  rect.min[2] = pset->rect->min[2]; rect.max[2] = pset->rect->max[2];
+  
+  // Search recursively for the closest node.
+  find_within_radius(pset->root, pos, radius, &rect, results);
+  return results;
+}
+
 point_set_pos_t point_set_start(point_set_t* pset)
 {
   point_set_pos_t pos = {.node = pset->root };

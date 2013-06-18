@@ -3,6 +3,7 @@
 
 #include "core/polymec.h"
 #include "core/point.h"
+#include "core/slist.h"
 
 // A point set is a collection of points in a 3D domain, stored in a kd-tree 
 // so that neighbor searches can be easily and cheaply performed.
@@ -27,6 +28,12 @@ void point_set_clear(point_set_t* pset);
 // Returns the index of the point in the point set that is closest to 
 // the given point, or -1 if the point set is empty.
 int point_set_nearest(point_set_t* pset, point_t* point);
+
+// Returns a linked list containing the indices of the points in the set 
+// found within the given radius of the given point.
+int_slist_t* point_set_within_radius(point_set_t* pset, 
+                                     point_t* point, 
+                                     double radius);
 
 // This type allows iteration over point sets.
 typedef struct 

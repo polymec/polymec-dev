@@ -5,7 +5,7 @@
 #include "geometry/create_cubic_lattice_mesh.h"
 #include "geometry/generate_random_points.h"
 #include "geometry/create_unbounded_voronoi_mesh.h"
-#include "geometry/create_bounded_voronoi_mesh.h"
+#include "geometry/create_deformable_bounded_voronoi_mesh.h"
 #include "geometry/rect_prism.h"
 #include "geometry/prune_voronoi_mesh.h"
 #include "geometry/bound_voronoi_mesh.h"
@@ -412,14 +412,14 @@ static int unbounded_voronoi_mesh(lua_State* lua)
   return 1;
 }
 
-static int bounded_voronoi_mesh(lua_State* lua)
+static int deformable_bounded_voronoi_mesh(lua_State* lua)
 {
   // Check the arguments.
   int num_args = lua_gettop(lua);
   if ((num_args != 2) || !lua_ispointlist(lua, 1) || !lua_ispointlist(lua, 2))
   {
     lua_pushstring(lua, "Invalid argument(s). Usage:\n"
-                        "mesh = bounded_voronoi_mesh(generators, boundary_generators).");
+                        "mesh = deformable_bounded_voronoi_mesh(generators, boundary_generators).");
     lua_error(lua);
     return LUA_ERRRUN;
   }
@@ -430,9 +430,9 @@ static int bounded_voronoi_mesh(lua_State* lua)
   point_t* boundary_generators = lua_topointlist(lua, 2, &num_boundary_generators);
 
   // Create an bounded mesh.
-  mesh_t* mesh = create_bounded_voronoi_mesh(generators, num_generators,
-                                             boundary_generators, num_boundary_generators,
-                                             NULL, 0);
+  mesh_t* mesh = create_deformable_bounded_voronoi_mesh(generators, num_generators,
+                                                        boundary_generators, num_boundary_generators,
+                                                        NULL, 0);
 
   // Log some information.
   log_detail("Generated bounded Voronoi mesh:");
@@ -686,7 +686,7 @@ void interpreter_register_geometry_functions(interpreter_t* interp)
   interpreter_register_function(interp, "ccp_points", ccp_points);
   interpreter_register_function(interp, "jostle_points", jostle_points);
   interpreter_register_function(interp, "unbounded_voronoi_mesh", unbounded_voronoi_mesh);
-  interpreter_register_function(interp, "bounded_voronoi_mesh", bounded_voronoi_mesh);
+  interpreter_register_function(interp, "deformable_bounded_voronoi_mesh", deformable_bounded_voronoi_mesh);
   interpreter_register_function(interp, "prune_voronoi_mesh", prune_voronoi_mesh_);
   interpreter_register_function(interp, "bound_voronoi_mesh", bound_voronoi_mesh_);
   interpreter_register_spfuncs(interp);
