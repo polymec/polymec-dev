@@ -151,6 +151,18 @@ static inline void point_randomize(point_t* point, long (*rand_gen)(), bbox_t* b
   point->z = (1.0*rand_gen()/RAND_MAX) * (bounding_box->z2 - bounding_box->z1) + bounding_box->z1;
 }
 
+// Given a random number generator, generate a vector with the given magnitude
+// pointing in a random direction. The random number generator must generate 
+// an integer between 0 and RAND_MAX.
+static inline void vector_randomize(vector_t* vector, long (*rand_gen)(), double magnitude)
+{
+  double theta = (1.0*rand_gen()/RAND_MAX) * M_PI;
+  double phi = (1.0*rand_gen()/RAND_MAX) * 2.0 * M_PI;
+  vector->x = magnitude * cos(theta) * sin(phi);
+  vector->y = magnitude * sin(theta) * sin(phi);
+  vector->z = magnitude * cos(phi);
+}
+
 // This type allows us to distinguish between normal vectors that are 
 // "outward" or "inward". This is useful for creating implicit functions 
 // representing closed surfaces.

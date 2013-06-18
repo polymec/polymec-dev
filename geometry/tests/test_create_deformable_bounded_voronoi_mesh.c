@@ -8,7 +8,7 @@
 #include "geometry/cylinder.h"
 #include "geometry/plane.h"
 #include "geometry/intersection.h"
-#include "geometry/create_bounded_voronoi_mesh.h"
+#include "geometry/create_deformable_bounded_voronoi_mesh.h"
 #include "io/vtk_plot_io.h"
 
 void plot_generators(point_t* generators, int num_generators, sp_func_t* boundary, const char* filename)
@@ -95,7 +95,7 @@ void test_create_cylindrical_voronoi_mesh(void** state)
   plot_generators(&generators[N - Nb], Nb, domain, "generators_on_cyl.gnuplot");
 
   // Now generate the mesh.
-  mesh_t* mesh = create_bounded_voronoi_mesh(generators, N - Nb, &generators[N-Nb], Nb, NULL, 0);
+  mesh_t* mesh = create_deformable_bounded_voronoi_mesh(generators, N - Nb, &generators[N-Nb], Nb, NULL, 0);
   mesh_verify(mesh);
   assert_int_equal(N, mesh->num_cells);
   assert_int_equal(0, mesh->num_ghost_cells);
