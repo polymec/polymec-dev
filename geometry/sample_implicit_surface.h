@@ -5,11 +5,15 @@
 
 // Given a desired density of sampling points per unit area (surface_density),
 // this function computes and returns a set of points that sample the 
-// given (closed) implicit surface. The given bounding box must bound the 
-// surface and is used to generate the random starting point.
+// given (closed) implicit surface. The surface diameter is an estimate of 
+// the characteristic size of the surface, which is used to estimate a stopping 
+// condition for the sampling. The given initial point is used to seed
+// the sampling process. NOTE: if surface_density is NULL, a uniform density 
+// is assumed.
 point_t* sample_implicit_surface(sp_func_t* surface, 
                                  sp_func_t* surface_density,
-                                 bbox_t* bounding_box,
+                                 double surface_diameter,
+                                 point_t* initial_point,
                                  int* num_sample_points);
 
 #endif
