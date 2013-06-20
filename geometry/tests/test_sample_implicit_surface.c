@@ -60,7 +60,7 @@ void test_sample_sphere_uniformly(void** state)
   point_t x0 = {.x = 0.0, .y = 0.0, .z = 0.0};
   sp_func_t* sphere = sphere_new(&x0, 0.5, INWARD_NORMAL);
   int N;
-  point_t* points = sample_implicit_surface(sphere, NULL, 1.0, 10000, &x0, &N);
+  point_t* points = sample_implicit_surface(sphere, NULL, 1.0, 1000, &x0, &N);
   plot_points(points, N, "uniformly_sampled_sphere.gnuplot");
   free(points);
 }
@@ -72,7 +72,7 @@ int main(int argc, char* argv[])
   const UnitTest tests[] = 
   {
 //    unit_test(test_sample_bbox_uniformly),
-    unit_test(test_sample_cylinder_uniformly),
+//    unit_test(test_sample_cylinder_uniformly),
     unit_test(test_sample_sphere_uniformly)
   };
   return run_tests(tests);
