@@ -93,8 +93,8 @@ int iter = 0;
         statuses[i] = 0; // No longer new.
       }
 
-      // Find all the points in the set within 3 * sigma.
-      int_slist_t* neighbors = point_set_within_radius(points, &sample_points[i], 3.0 * sigmai);
+      // Find all the points in the set within 5 * sigma.
+      int_slist_t* neighbors = point_set_within_radius(points, &sample_points[i], 5.0 * sigmai);
       int_slist_node_t* n = neighbors->front;
       while (n != NULL)
       {
@@ -216,7 +216,8 @@ int iter = 0;
       ASSERT(num_dying_points < N);
 
       // Do we need to allocate more space?
-      int new_N = N + num_fissioning_points - num_dying_points;
+      int old_N = N;
+      int new_N = old_N + num_fissioning_points - num_dying_points;
       if (new_N > point_cap)
       {
         while (new_N > point_cap)
@@ -227,19 +228,20 @@ int iter = 0;
       }
 
       // Kill the dying points, filling them in with inert points.
-      int last = N-1;
-      while ((statuses[last] == -1) && (last > 1)) --last;
+      while ((statuses[N-1] == -1) && (N > 2)) --N;
       for (int i = 0; i < N; ++i)
       {
         if (statuses[i] == -1)
         {
           sample_points[i] = sample_points[N-1];
           sigmas[i] = sigmas[N-1];
-          statuses[i] = 0;
+          statuses[i] = statuses[N-1];
           --N;
+          while ((statuses[N-1] == -1) && (N > i)) --N;
         }
         if (i == N-1) break;
       }
+      ASSERT(N == old_N - num_dying_points);
 
       // Now add fissioning points.
       int next = N;
@@ -249,14 +251,12 @@ int iter = 0;
         {
           // Overwrite this point with its first child.
           sigmas[i] /= sqrt(2.0);
-          double frac1 = 1.0 * random() / RAND_MAX;
-          statuses[i] = 2;
+          statuses[i] = 2; // New point
 
           // The second child goes into 'next'.
           sample_points[next] = sample_points[i];
           sigmas[next] = sigmas[i];
-          double frac2 = 1.0 * random() / RAND_MAX;
-          statuses[next] = 2;
+          statuses[next] = 2; // New point
           ++next;
         }
       }
