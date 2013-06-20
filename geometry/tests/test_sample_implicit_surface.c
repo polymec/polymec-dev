@@ -34,7 +34,7 @@ void test_sample_bbox_uniformly(void** state)
                  .z1 = -0.5, .z2 = 0.5};
   sp_func_t* box = rect_prism_new_from_bbox(&bbox);
   int N;
-  point_t* points = sample_implicit_surface(box, NULL, 1.0, &x0, &N);
+  point_t* points = sample_implicit_surface(box, NULL, 1.0, 10000, &x0, &N);
   plot_points(points, N, "uniformly_sampled_box.gnuplot");
   free(points);
 }
@@ -47,7 +47,7 @@ void test_sample_cylinder_uniformly(void** state)
   point_t x0 = {.x = 0.0, .y = 0.0, .z = 0.0};
   sp_func_t* cylinder = cylinder_new(&x0, 0.5, INWARD_NORMAL);
   int N;
-  point_t* points = sample_implicit_surface(cylinder, NULL, 1.0, &x0, &N);
+  point_t* points = sample_implicit_surface(cylinder, NULL, 1.0, 10000, &x0, &N);
   plot_points(points, N, "uniformly_sampled_cylinder.gnuplot");
   free(points);
 }
@@ -60,7 +60,7 @@ void test_sample_sphere_uniformly(void** state)
   point_t x0 = {.x = 0.0, .y = 0.0, .z = 0.0};
   sp_func_t* sphere = sphere_new(&x0, 0.5, INWARD_NORMAL);
   int N;
-  point_t* points = sample_implicit_surface(sphere, NULL, 1.0, &x0, &N);
+  point_t* points = sample_implicit_surface(sphere, NULL, 1.0, 10000, &x0, &N);
   plot_points(points, N, "uniformly_sampled_sphere.gnuplot");
   free(points);
 }
@@ -68,6 +68,7 @@ void test_sample_sphere_uniformly(void** state)
 int main(int argc, char* argv[]) 
 {
   polymec_init(argc, argv);
+  set_log_level(LOG_DEBUG);
   const UnitTest tests[] = 
   {
 //    unit_test(test_sample_bbox_uniformly),

@@ -5,9 +5,19 @@
 point_t* sample_implicit_surface(sp_func_t* surface, 
                                  sp_func_t* surface_density,
                                  double surface_diameter,
+                                 int max_num_sample_points,
                                  point_t* initial_point,
                                  int* num_sample_points)
 {
+  ASSERT(sp_func_num_comp(surface) == 1);
+  ASSERT(sp_func_has_deriv(surface, 1));
+  if (surface_density != NULL)
+  {
+    ASSERT(sp_func_num_comp(surface_density) == 1);
+  }
+  ASSERT(surface_diameter > 0.0);
+  ASSERT((max_num_sample_points < 0) || (max_num_sample_points > 3));
+
   // Algorithmic parameters (see Witkin and Heckbert (1994)).
   static const double dt = 0.03;
   static const double phi = 15.0;
@@ -58,6 +68,8 @@ point_t* sample_implicit_surface(sp_func_t* surface,
       point_set_insert(points, &sample_points[i], i);
 
     // Loop over all the points and perform a step.
+    double max_vel = 0.0;
+    point_t x_max_vel;
     for (int i = 0; i < N; ++i)
     {
       point_t* xi = &sample_points[i];
@@ -70,6 +82,7 @@ point_t* sample_implicit_surface(sp_func_t* surface,
       // Compute the velocity of this point due to the repulsive force 
       // (Px, Py, Pz), and its "repulsion inertia" Di.
       int_slist_node_t* n = neighbors->front;
+//printf("%d neighbors\n", neighbors->size);
       double Px = 0.0, Py = 0.0, Pz = 0.0, Di = 0.0, Di_sigmai = 0.0;
       while (n != NULL)
       {
@@ -93,7 +106,7 @@ point_t* sample_implicit_surface(sp_func_t* surface,
         n = n->next;
       }
       int_slist_free(neighbors);
-//printf("p[%d] = (%g, %g, %g)\n", i, pi->x, pi->y, pi->z);
+//printf("P[%d] = (%g, %g, %g), p[%d] = (%g, %g, %g)\n", i, Px, Py, Pz, i, pi->x, pi->y, pi->z);
 
       // Compute the value and the gradient of the implicit function at 
       // this sample point.
@@ -106,9 +119,9 @@ point_t* sample_implicit_surface(sp_func_t* surface,
       double sigma_dot = Di_dot / (Di_sigmai + beta);
       double gradFoP = gradF[0]*pi->x + gradF[1]*pi->y + gradF[2]*pi->z;
       double gradF2 = gradF[0]*gradF[0] + gradF[1]*gradF[1] + gradF[2]*gradF[2] + 1e-14;
-      double px_dot = (Px - gradFoP + phi * F) * gradF[0] / gradF2;
-      double py_dot = (Px - gradFoP + phi * F) * gradF[1] / gradF2;
-      double pz_dot = (Px - gradFoP + phi * F) * gradF[2] / gradF2;
+      double px_dot = Px - (gradFoP + phi * F) * gradF[0] / gradF2;
+      double py_dot = Py - (gradFoP + phi * F) * gradF[1] / gradF2;
+      double pz_dot = Pz - (gradFoP + phi * F) * gradF[2] / gradF2;
       double accel = sqrt(px_dot*px_dot + py_dot*py_dot + pz_dot*pz_dot);
       if (accel > gamma * sigmas[i])
         all_points_stopped = false;
@@ -124,6 +137,14 @@ point_t* sample_implicit_surface(sp_func_t* surface,
       sigmas[i] += dt * sigma_dot;
       sigmai = sigmas[i];
 
+      double mag_pi = vector_mag(pi);
+      if (mag_pi > max_vel)
+      {
+        max_vel = mag_pi;
+        x_max_vel = *xi;
+      }
+//printf("x[%d] = (%g, %g, %g)\n", i, xi->x, xi->y, xi->z);
+
       // Compute the desired surface density at this point.
       double density;
       sp_func_eval(surf_density, xi, &density);
@@ -138,9 +159,13 @@ point_t* sample_implicit_surface(sp_func_t* surface,
            ((Di > nu * Ehat) || (sigmai > sigma_hat)))
         {
           // Fission!
-          statuses[i] = 1;
+          if ((max_num_sample_points > 0) && 
+              (N + num_fissioning_points < max_num_sample_points))
+          {
+            statuses[i] = 1;
 //printf("*FIZZ*\n");
-          ++num_fissioning_points;
+            ++num_fissioning_points;
+          }
         }
         else 
         {
@@ -170,8 +195,8 @@ point_t* sample_implicit_surface(sp_func_t* surface,
       }
     }
 
-    done = (surface_density_achieved && all_points_stopped && 
-            (num_fissioning_points == 0) && (num_dying_points == 0));
+    done = (all_points_stopped && (num_fissioning_points == 0) && 
+            (num_dying_points == 0));
 
     // Change the sample point population if necessary.
     if ((num_fissioning_points > 0) || (num_dying_points > 0))
@@ -184,7 +209,7 @@ point_t* sample_implicit_surface(sp_func_t* surface,
       {
         while (new_N > point_cap)
           point_cap *= 2;
-        sample_points = realloc(ps, sizeof(point_t) * point_cap);
+        sample_points = realloc(sample_points, sizeof(point_t) * point_cap);
         ps = realloc(ps, sizeof(vector_t) * point_cap);
         sigmas = realloc(sigmas, sizeof(double) * point_cap);
         statuses = realloc(statuses, sizeof(int) * point_cap);
@@ -192,22 +217,22 @@ point_t* sample_implicit_surface(sp_func_t* surface,
 
       // Kill the dying points, filling them in with inert points.
       int last = N-1;
-      while ((statuses[last] != 0) && (last > 1)) --last;
+      while ((statuses[last] == -1) && (last > 1)) --last;
       for (int i = 0; i < N; ++i)
       {
         if (statuses[i] == -1)
         {
-          sample_points[i] = sample_points[last];
-          ps[i] = ps[last];
-          sigmas[i] = sigmas[last];
+          sample_points[i] = sample_points[N-1];
+          ps[i] = ps[N-1];
+          sigmas[i] = sigmas[N-1];
           statuses[i] = 0;
-          while ((statuses[last] != 0) && (last > i)) --last;
+          --N;
         }
-        if (i == last) break;
+        if (i == N-1) break;
       }
-      N = last+1;
 
       // Now add fissioning points.
+      int next = N;
       for (int i = 0; i < N; ++i)
       {
         if (statuses[i] == 1)
@@ -218,18 +243,22 @@ point_t* sample_implicit_surface(sp_func_t* surface,
           vector_randomize(&ps[i], random, frac1 * sigmas[i]);
           statuses[i] = 0;
 
-          // The second child goes into 'last'.
-          ++last;
-          sample_points[last] = sample_points[i];
-          sigmas[last] = sigmas[i];
+          // The second child goes into 'next'.
+          sample_points[next] = sample_points[i];
+          sigmas[next] = sigmas[i];
           double frac2 = 1.0 * random() / RAND_MAX;
-          vector_randomize(&ps[last], random, frac2 * sigmas[last]);
-          statuses[last] = 0;
+          vector_randomize(&ps[next], random, frac2 * sigmas[next]);
+          statuses[next] = 0;
+          ++next;
         }
       }
-      ASSERT(last == new_N - 1);
+      ASSERT(next == new_N);
       N = new_N;
     }
+
+    log_debug("sample_implicit_surface: num sample points = %d", N);
+    log_debug("sample_implicit_surface: max |v| = %g at x = (%g, %g, %g)", 
+              max_vel, x_max_vel.x, x_max_vel.y, x_max_vel.z);
   }
   point_set_free(points);
   surf_density = NULL;
