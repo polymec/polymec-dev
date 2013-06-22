@@ -1,13 +1,13 @@
-#include "geometry/sample_implicit_surface.h"
+#include "geometry/witkin_heckbert_sampling.h"
 #include "core/point_set.h"
 #include "core/constant_st_func.h"
 
-point_t* sample_implicit_surface(sp_func_t* surface, 
-                                 sp_func_t* surface_density,
-                                 double surface_diameter,
-                                 int max_num_sample_points,
-                                 point_t* initial_point,
-                                 int* num_sample_points)
+point_t* witkin_heckbert_sampling(sp_func_t* surface, 
+                                  sp_func_t* surface_density,
+                                  double surface_diameter,
+                                  int max_num_sample_points,
+                                  point_t* initial_point,
+                                  int* num_sample_points)
 {
   ASSERT(sp_func_num_comp(surface) == 1);
   ASSERT(sp_func_has_deriv(surface, 1));
@@ -19,8 +19,8 @@ point_t* sample_implicit_surface(sp_func_t* surface,
   ASSERT((max_num_sample_points < 0) || (max_num_sample_points > 3));
 
   // Algorithmic parameters (see Witkin and Heckbert (1994)).
-  static const double dt = 0.03;
-  static const double phi = 15.0;
+  static const double dt = 0.01;
+  static const double phi = 5.0;
   static const double rho = 15.0;
   static const double alpha = 6.0;
   static const double Ehat = 0.8 * alpha; // hexagonal close-packing energy
@@ -53,10 +53,8 @@ point_t* sample_implicit_surface(sp_func_t* surface,
   // Move and add points till we have resolved the surface.
   bool done = false;
   point_set_t* points = point_set_new();
-int iter = 0;
   while (!done)
   {
-++iter;
     // These are all criteria for termination of the algorithm.
     bool surface_density_achieved = true;
     bool all_points_stopped = true;
@@ -71,6 +69,7 @@ int iter = 0;
     // Loop over all the points and perform a step.
     double max_vel = 0.0;
     point_t x_max_vel;
+    double sigma_max_vel = 0.0;
 //char filename[128];
 //snprintf(filename, 128, "iter-%d", iter);
 //FILE* fd = fopen(filename, "w");
@@ -94,7 +93,7 @@ int iter = 0;
       }
 
       // Find all the points in the set within 5 * sigma.
-      int_slist_t* neighbors = point_set_within_radius(points, &sample_points[i], 5.0 * sigmai);
+      int_slist_t* neighbors = point_set_within_radius(points, &sample_points[i], 100.0);//5.0 * sigmai);
       int_slist_node_t* n = neighbors->front;
       while (n != NULL)
       {
@@ -155,6 +154,7 @@ int iter = 0;
       {
         max_vel = v_mag;
         x_max_vel = *pi;
+        sigma_max_vel = sigmai;
       }
 
       // Compute the desired surface density at this point.
@@ -207,8 +207,8 @@ int iter = 0;
       }
     }
 
-    done = (surface_density_achieved && all_points_stopped && 
-            (num_fissioning_points == 0) && (num_dying_points == 0));
+    done = (all_points_stopped && (num_fissioning_points == 0) && 
+            (num_dying_points == 0));
 
     // Change the sample point population if necessary.
     if ((num_fissioning_points > 0) || (num_dying_points > 0))
@@ -266,8 +266,9 @@ int iter = 0;
 //fclose(fd);
 
     log_debug("sample_implicit_surface: num sample points = %d", N);
-    log_debug("sample_implicit_surface: max |v| = %g at x = (%g, %g, %g)", 
-              max_vel, x_max_vel.x, x_max_vel.y, x_max_vel.z);
+    log_debug("sample_implicit_surface: max |v| = %g at x = (%g, %g, %g),\n"
+              "                         sigma = %g", 
+              max_vel, x_max_vel.x, x_max_vel.y, x_max_vel.z, sigma_max_vel);
   }
   point_set_free(points);
   surf_density = NULL;
