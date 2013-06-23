@@ -1,5 +1,5 @@
 #include "core/slist.h"
-#include "core/point_set.h"
+#include "core/kd_tree.h"
 #include "geometry/prob_cvt_gen_dist.h"
 #include "geometry/generate_random_points.h"
 
@@ -93,7 +93,7 @@ void prob_cvt_gen_dist_iterate(void* context,
   double beta2 = prob->beta2;
 
   // Iterate until termination.
-  point_set_t* pset = point_set_new();
+  kd_tree_t* tree = kd_tree_new();
   point_t samples[prob->num_samples];
   ptr_slist_t* near_ipoints[num_points];
   for (int i = 0; i < num_points; ++i)
@@ -102,9 +102,9 @@ void prob_cvt_gen_dist_iterate(void* context,
   {
     // Assemble our points into a point set so that we can easily 
     // perform nearest-neighbor searches.
-    point_set_clear(pset);
+    kd_tree_clear(tree);
     for (int i = 0; i < num_points; ++i)
-      point_set_insert(pset, &points[i], i);
+      kd_tree_insert(tree, &points[i], i);
 
     // Choose q points from within the domain according to the density 
     // function, and organize them into Voronoi regions of the points
@@ -112,7 +112,7 @@ void prob_cvt_gen_dist_iterate(void* context,
     generate_random_points(prob->rng, density, bounding_box, prob->num_samples, samples);
     for (int j = 0; j < prob->num_samples; ++j)
     {
-      int i = point_set_nearest(pset, &samples[j]);
+      int i = kd_tree_nearest(tree, &samples[j]);
       ptr_slist_append(near_ipoints[i], &samples[j]);
     }
 
@@ -145,7 +145,7 @@ void prob_cvt_gen_dist_iterate(void* context,
   for (int i = 0; i < num_points; ++i)
     ptr_slist_free(near_ipoints[i]);
 
-  point_set_free(pset);
+  kd_tree_free(tree);
 }
 
 cvt_gen_dist_t* prob_cvt_gen_dist_new(long (*random_gen)(), 

@@ -19,6 +19,10 @@ void point_set_free(point_set_t* pset);
 // index. The point is copied.
 void point_set_insert(point_set_t* pset, point_t* point, int index);
 
+// Removes the point with the given coordinates and index from the set.
+// This has no effect if no such point is found.
+void point_set_delete(point_set_t* pset, point_t* point, int index);
+
 // Returns the number of points in the point set.
 int point_set_size(point_set_t* pset);
 

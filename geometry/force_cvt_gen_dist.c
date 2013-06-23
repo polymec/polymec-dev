@@ -1,6 +1,5 @@
 #include <gc/gc.h>
 #include "core/slist.h"
-#include "core/point_set.h"
 #include "geometry/force_cvt_gen_dist.h"
 #include "geometry/delaunay_triangulator.h"
 
