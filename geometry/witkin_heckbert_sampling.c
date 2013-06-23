@@ -1,5 +1,5 @@
 #include "geometry/witkin_heckbert_sampling.h"
-#include "core/point_set.h"
+#include "core/kd_tree.h"
 #include "core/constant_st_func.h"
 
 point_t* witkin_heckbert_sampling(sp_func_t* surface, 
@@ -52,7 +52,7 @@ point_t* witkin_heckbert_sampling(sp_func_t* surface,
 
   // Move and add points till we have resolved the surface.
   bool done = false;
-  point_set_t* points = point_set_new();
+  kd_tree_t* tree = kd_tree_new();
   while (!done)
   {
     // These are all criteria for termination of the algorithm.
@@ -62,9 +62,9 @@ point_t* witkin_heckbert_sampling(sp_func_t* surface,
     int num_dying_points = 0;
 
     // Toss the sample points into our point set.
-    point_set_clear(points);
+    kd_tree_clear(tree);
     for (int i = 0; i < N; ++i)
-      point_set_insert(points, &sample_points[i], i);
+      kd_tree_insert(tree, &sample_points[i], i);
 
     // Loop over all the points and perform a step.
     double max_vel = 0.0;
@@ -93,7 +93,7 @@ point_t* witkin_heckbert_sampling(sp_func_t* surface,
       }
 
       // Find all the points in the set within 5 * sigma.
-      int_slist_t* neighbors = point_set_within_radius(points, &sample_points[i], 100.0);//5.0 * sigmai);
+      int_slist_t* neighbors = kd_tree_within_radius(tree, &sample_points[i], 100.0);//5.0 * sigmai);
       int_slist_node_t* n = neighbors->front;
       while (n != NULL)
       {
@@ -270,7 +270,7 @@ point_t* witkin_heckbert_sampling(sp_func_t* surface,
               "                         sigma = %g", 
               max_vel, x_max_vel.x, x_max_vel.y, x_max_vel.z, sigma_max_vel);
   }
-  point_set_free(points);
+  kd_tree_free(tree);
   surf_density = NULL;
 
   *num_sample_points = N;

@@ -1,4 +1,4 @@
-#include "core/point_set.h"
+#include "core/kd_tree.h"
 #include "core/slist.h"
 #include "core/unordered_set.h"
 #include "geometry/crop_voronoi_mesh.h"
@@ -7,7 +7,7 @@
 mesh_diff_t* crop_voronoi_mesh(mesh_t* mesh, surface_mesh_t* surface_mesh)
 {
   // Look for a point set containing the generators within the mesh.
-  point_set_t* generators = mesh_property(mesh, "generators");
+  kd_tree_t* generators = mesh_property(mesh, "generators");
   if (generators == NULL)
     polymec_error("crop_voronoi_mesh: generators not found in mesh.");
 
@@ -41,7 +41,7 @@ mesh_diff_t* crop_voronoi_mesh(mesh_t* mesh, surface_mesh_t* surface_mesh)
 
     // Intersect this triangle with all cells that touch it. We start with 
     // the nearest cell.
-    int nearest_cell = point_set_nearest(generators, &triangle->center);
+    int nearest_cell = kd_tree_nearest(generators, &triangle->center);
     if (nearest_cell == -1) continue;
     int_slist_append(cell_queue, nearest_cell);
 
