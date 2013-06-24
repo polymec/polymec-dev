@@ -93,7 +93,6 @@ void prob_cvt_gen_dist_iterate(void* context,
   double beta2 = prob->beta2;
 
   // Iterate until termination.
-  kd_tree_t* tree = kd_tree_new();
   point_t samples[prob->num_samples];
   ptr_slist_t* near_ipoints[num_points];
   for (int i = 0; i < num_points; ++i)
@@ -102,9 +101,7 @@ void prob_cvt_gen_dist_iterate(void* context,
   {
     // Assemble our points into a point set so that we can easily 
     // perform nearest-neighbor searches.
-    kd_tree_clear(tree);
-    for (int i = 0; i < num_points; ++i)
-      kd_tree_insert(tree, &points[i], i);
+    kd_tree_t* tree = kd_tree_new(points, num_points);
 
     // Choose q points from within the domain according to the density 
     // function, and organize them into Voronoi regions of the points
@@ -139,13 +136,12 @@ void prob_cvt_gen_dist_iterate(void* context,
     }
 
     ++iter;
+    kd_tree_free(tree);
   }
 
   // Clean up.
   for (int i = 0; i < num_points; ++i)
     ptr_slist_free(near_ipoints[i]);
-
-  kd_tree_free(tree);
 }
 
 cvt_gen_dist_t* prob_cvt_gen_dist_new(long (*random_gen)(), 
