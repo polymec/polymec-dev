@@ -86,21 +86,6 @@ struct kd_tree_t
   int size;               // Number of points.
 };
 
-kd_tree_t* kd_tree_new()
-{
-  kd_tree_t* tree = malloc(sizeof(kd_tree_t));
-  tree->root = NULL;
-  tree->rect = NULL;
-  tree->size = 0;
-  return tree;
-}
-
-kd_tree_t* kd_tree_new_from_points()
-{
-  polymec_not_implemented("kd_tree_new_from_points");
-  return NULL;
-}
-
 void kd_tree_free(kd_tree_t* tree)
 {
   kd_tree_clear(tree);
@@ -122,7 +107,7 @@ static void node_insert(kd_tree_node_t** node_ptr, double* pos, int index, int d
     node_insert(&(*node_ptr)->right, pos, index, new_dir);
 }
 
-void kd_tree_insert(kd_tree_t* tree, point_t* point, int index)
+static void kd_tree_insert(kd_tree_t* tree, point_t* point, int index)
 {
   double pos[3];
   pos[0] = point->x, pos[1] = point->y, pos[2] = point->z;
@@ -133,6 +118,19 @@ void kd_tree_insert(kd_tree_t* tree, point_t* point, int index)
   else
     rect_extend(tree->rect, pos);
 }
+
+kd_tree_t* kd_tree_new(point_t* points, int num_points)
+{
+  kd_tree_t* tree = malloc(sizeof(kd_tree_t));
+  tree->root = NULL;
+  tree->rect = NULL;
+  tree->size = 0;
+
+  for (int i = 0; i < num_points; ++i)
+    kd_tree_insert(tree, &points[i], i);
+  return tree;
+}
+
 
 int kd_tree_size(kd_tree_t* tree)
 {

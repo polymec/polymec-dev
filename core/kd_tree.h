@@ -9,20 +9,14 @@
 // so that neighbor searches can be easily and cheaply performed.
 typedef struct kd_tree_t kd_tree_t;
 
-// Constructs an empty kd-tree.
-kd_tree_t* kd_tree_new();
-
 // Constructs a kd-tree containing the given points.
-kd_tree_t* kd_tree_new_from_points(point_t* points, int num_points);
+kd_tree_t* kd_tree_new(point_t* points, int num_points);
 
 // Destroys the given tree, freeing its resources.
 void kd_tree_free(kd_tree_t* tree);
 
 // Returns the number of points in the tree.
 int kd_tree_size(kd_tree_t* tree);
-
-// Inserts the given point into the tree with the given index.
-void kd_tree_insert(kd_tree_t* tree, point_t* point, int index);
 
 // Clears the tree, leaving it empty.
 void kd_tree_clear(kd_tree_t* tree);

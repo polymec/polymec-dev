@@ -265,9 +265,7 @@ mesh_t* create_unbounded_voronoi_mesh(point_t* generators, int num_generators,
 
   // Stick the generators into a point set (kd-tree) that the mesh can 
   // carry with it.
-  kd_tree_t* generator_set = kd_tree_new();
-  for (int g = 0; g < num_generators; ++g)
-    kd_tree_insert(generator_set, &generators[g], g);
+  kd_tree_t* generator_set = kd_tree_new(generators, num_generators);
   mesh_set_property(mesh, "generators", generator_set, DTOR(kd_tree_free));
 
   return mesh;
