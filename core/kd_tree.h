@@ -18,9 +18,6 @@ void kd_tree_free(kd_tree_t* tree);
 // Returns the number of points in the tree.
 int kd_tree_size(kd_tree_t* tree);
 
-// Clears the tree, leaving it empty.
-void kd_tree_clear(kd_tree_t* tree);
-
 // Returns the index of the point in the tree that is closest to 
 // the given point, or -1 if the tree is empty.
 int kd_tree_nearest(kd_tree_t* tree, point_t* point);
