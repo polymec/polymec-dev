@@ -3,26 +3,20 @@
 #include <setjmp.h>
 #include <string.h>
 #include "cmockery.h"
-#include "core/point_set.h"
+#include "core/kd_tree.h"
 
 void test_construct(void** state) 
 { 
-  // Create a point set containing 100 random points.
+  // Create a tree containing 100 random points.
   int N = 100;
   bbox_t bounding_box = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
-  point_set_t* pset = point_set_new();
+  point_t points[N];
   for (int i = 0; i < N; ++i)
-  {
-    point_t p;
-    point_randomize(&p, random, &bounding_box);
-    point_set_insert(pset, &p, i);
-  }
+    point_randomize(&points[i], random, &bounding_box);
+  kd_tree_t* tree = kd_tree_new(points, N);
 
-  assert_int_equal(100, point_set_size(pset));
-  point_set_clear(pset);
-  assert_int_equal(0, point_set_size(pset));
-
-  point_set_free(pset);
+  assert_int_equal(100, kd_tree_size(tree));
+  kd_tree_free(tree);
 }
 
 void test_find_nearest(void** state) 
@@ -30,13 +24,10 @@ void test_find_nearest(void** state)
   // Create a point set containing 100 random points.
   int N = 100;
   bbox_t bounding_box = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
-  point_set_t* pset = point_set_new();
   point_t points[N];
   for (int i = 0; i < N; ++i)
-  {
     point_randomize(&points[i], random, &bounding_box);
-    point_set_insert(pset, &points[i], i);
-  }
+  kd_tree_t* tree = kd_tree_new(points, N);
 
   // Now do some nearest point queries and check the answers.
   for (int i = 0; i < 10; ++i) // 10 queries.
@@ -46,7 +37,7 @@ void test_find_nearest(void** state)
     point_randomize(&p, random, &bounding_box);
 
     // Which point in the set is p closest to?
-    int j = point_set_nearest(pset, &p); // Point set says: "j."
+    int j = kd_tree_nearest(tree, &p); // Point set says: "j."
 
     // Do a linear search for the closest point.
     double min_dist = FLT_MAX;
@@ -65,7 +56,7 @@ void test_find_nearest(void** state)
     assert_true(j == kk);
   }
 
-  point_set_free(pset);
+  kd_tree_free(tree);
 }
 
 int main(int argc, char* argv[]) 

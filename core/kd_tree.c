@@ -86,12 +86,6 @@ struct kd_tree_t
   int size;               // Number of points.
 };
 
-void kd_tree_free(kd_tree_t* tree)
-{
-  kd_tree_clear(tree);
-  free(tree);
-}
-
 static void node_insert(kd_tree_node_t** node_ptr, double* pos, int index, int dir)
 {
   if (*node_ptr == NULL)
@@ -146,7 +140,7 @@ static void node_clear(kd_tree_node_t* node)
   node_free(node);
 }
 
-void kd_tree_clear(kd_tree_t* tree)
+static void kd_tree_clear(kd_tree_t* tree)
 {
   node_clear(tree->root);
   tree->root = NULL;
@@ -156,6 +150,12 @@ void kd_tree_clear(kd_tree_t* tree)
     tree->rect = NULL;
   }
   tree->size = 0;
+}
+
+void kd_tree_free(kd_tree_t* tree)
+{
+  kd_tree_clear(tree);
+  free(tree);
 }
 
 static void find_nearest(kd_tree_node_t* node, double* pos, kd_tree_node_t** result, double* r2, kd_tree_rect_t* rect)
