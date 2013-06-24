@@ -5,13 +5,13 @@
 #include "core/point.h"
 #include "core/slist.h"
 
-// An octree is a 3D implementation of an octree. Octrees are better than 
-// KD-trees for dynamically-changing datasets (note that this class supports
-// point removal).
+// This is a bucket PR (point-region) octree implementation. Such octrees are 
+// better than KD-trees for dynamically-changing datasets (note that this 
+// class supports point removal).
 typedef struct octree_t octree_t;
 
-// Constructs an empty octree.
-octree_t* octree_new();
+// Constructs an empty octree with the given bucket size.
+octree_t* octree_new(int bucket_size);
 
 // Destroys the given tree, freeing its resources.
 void octree_free(octree_t* tree);

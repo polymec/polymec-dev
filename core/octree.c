@@ -37,8 +37,8 @@ typedef struct
   // Present for compatibility with octree_node_t.
   octree_node_type_t type;
   
-  // Index of point.
-  int index;
+  // Indices of points in the bucket.
+  int* indices;
 }
 
 static octree_node_t* branch_new()
@@ -49,11 +49,11 @@ static octree_node_t* branch_new()
   return (octree_node_t*)branch;
 }
 
-static octree_node_t* leaf_new(int index)
+static octree_node_t* leaf_new(int bucket_size)
 {
   octree_leaf_node_t* leaf = malloc(sizeof(octree_leaf_node_t));
   leaf->type = OCTREE_LEAF_NODE;
-  leaf->index = index;
+  leaf->indices = malloc(sizeof(int) * bucket_size);
   return (octree_node_t*)leaf;
 }
 
@@ -77,6 +77,7 @@ static void node_delete(octree_node_t** node)
   else
   {
     octree_leaf_node_t* leaf = *node;
+    free(leaf->indices);
     free(leaf);
   }
   *node = NULL;
@@ -90,11 +91,11 @@ struct octree_t
   int num_bins; // The number of bins on the side of the space.
 };
 
-octree_t* octree_new(point_t* center, double size, int num_bins)
+octree_t* octree_new(int bucket_size)
 {
+  ASSERT(bucket_size > 0);
   octree_t* tree = malloc(sizeof(octree_t));
-  tree->center = *center;
-  tree->size = size;
+  tree->bucket_size = bucket_size;
   tree->root = NULL;
   tree->rect = NULL;
   tree->size = 0;
