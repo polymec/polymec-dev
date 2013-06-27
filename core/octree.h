@@ -5,13 +5,13 @@
 #include "core/point.h"
 #include "core/slist.h"
 
-// This is a bucket PR (point-region) octree implementation. Such octrees are 
+// This is a PR (point-region) octree implementation. Such octrees are 
 // better than KD-trees for dynamically-changing datasets (note that this 
 // class supports point removal).
 typedef struct octree_t octree_t;
 
-// Constructs an empty octree with the given bucket size.
-octree_t* octree_new(int bucket_size);
+// Constructs an empty octree with the given bounding box.
+octree_t* octree_new(bbox_t* bounding_box);
 
 // Destroys the given tree, freeing its resources.
 void octree_free(octree_t* tree);
@@ -39,18 +39,6 @@ int octree_nearest(octree_t* tree, point_t* point);
 int_slist_t* octree_within_radius(octree_t* tree, 
                                   point_t* point, 
                                   double radius);
-
-// This type allows iteration over trees.
-typedef struct 
-{ 
-  void* node; 
-} octree_pos_t; 
-
-// Returns a new position/iterator type for iterating over a tree.
-octree_pos_t octree_start(octree_t* tree);
-
-// Traverses an octree.
-bool octree_next(octree_t* tree, octree_pos_t* pos, int* index, double* coords);
 
 #endif
 
