@@ -1,5 +1,5 @@
 #include "geometry/mgw_sampling.h"
-#include "core/octree.h"
+#include "core/kd_tree.h"
 #include "core/linear_algebra.h"
 
 static point_t* mgw_sampling_without_curvature(sp_func_t* surface, bbox_t* bounding_box, int num_points)
@@ -17,29 +17,42 @@ static point_t* mgw_sampling_without_curvature(sp_func_t* surface, bbox_t* bound
   point_t* points = malloc(sizeof(point_t) * num_points);
   double* lambda = malloc(sizeof(double) * num_points);
   for (int i = 0; i < num_points; ++i)
+  {
+    // Generate a random point within the bounding box.
     point_randomize(&points[i], random, bounding_box);
 
+    // Project it to the surface.
+    double Fi, dFi[3];
+    sp_func_eval(surface, &points[i], &Fi);
+    sp_func_eval_deriv(surface, 1, &points[i], dFi);
+    double dFi2 = dFi[0]*dFi[0] + dFi[1]*dFi[1] + dFi[2]*dFi[2];
+    points[i].x -= Fi * dFi[0]/dFi2;
+    points[i].y -= Fi * dFi[1]/dFi2;
+    points[i].z -= Fi * dFi[2]/dFi2;
+  }
+
+
   // Now we move the particles around till we're done.
+  // FIXME: This is probably slower than it needs to be, since we rebuild 
+  // FIXME: a kd-tree every time we move a point.
   bool done = false;
-  octree_t* tree = octree_new(bounding_box);
   while (!done)
   {
-    // Toss the sample points into our point set and initialize their 
-    // lambda values to 1.
-    octree_clear(tree);
+    // Create a tree with the points.
+    kd_tree_t* tree = kd_tree_new(points, num_points);
+
+    // Initialize the lambda values of the points to 1.
     for (int i = 0; i < num_points; ++i)
-    {
-      octree_insert(tree, &points[i], i);
       lambda[i] = 1.0;
-    }
 
     // Compute the Hessian H and the velocity v for each particle.
     for (int i = 0; i < num_points; ++i)
     {
       point_t* pi = &points[i];
+      log_debug("mgw_sampling: Considering point %d.", i);
 
       // Get the neighbors within a radius of sigma of point i.
-      int_slist_t* neighbors = octree_within_radius(tree, pi, sigma);
+      int_slist_t* neighbors = kd_tree_within_radius(tree, pi, sigma);
 
       // Compute the Hessian Hi, the force Di, and the energy Ei for this particle.
       double Hi[9] = {0.0, 0.0, 0.0,
@@ -92,14 +105,12 @@ static point_t* mgw_sampling_without_curvature(sp_func_t* surface, bbox_t* bound
       }
       int_slist_free(neighbors);
 
-      // Delete the point from our point set for the moment.
-      octree_delete(tree, pi, i);
-
       // Now determine the desired velocity vi using the 
       // Levenberg-Marquardt method.
       double E_new = 0.0;
       bool first_time = true;
-      do
+      bool converged = false;
+      while ((lambda[i] < 1e16) && !converged)
       {
         // Solve for the velocity using the preconditioned Hessian.
         double H_hat[9] = {Hi[0] * (1.0 + lambda[i]), Hi[1], Hi[2],
@@ -108,13 +119,13 @@ static point_t* mgw_sampling_without_curvature(sp_func_t* surface, bbox_t* bound
         double vi[3];
         solve_3x3(H_hat, Di, vi);
 
+        // Save the old position of the particle.
+        point_t pi_old = *pi;
+
         // Compute the new particle position.
         double dFi[3];
         sp_func_eval_deriv(surface, 1, pi, dFi);
         double dFi2 = dFi[0]*dFi[0] + dFi[1]*dFi[1] + dFi[2]*dFi[2];
-        point_t pi_old = *pi;
-
-        // Lagrangian update.
         pi->x += vi[0] - (dFi[0]*dFi[0]*vi[0] + 
                           dFi[0]*dFi[1]*vi[1] +
                           dFi[0]*dFi[2]*vi[2]) / dFi2;
@@ -132,11 +143,13 @@ static point_t* mgw_sampling_without_curvature(sp_func_t* surface, bbox_t* bound
         pi->y -= Fi * dFi[1]/dFi2;
         pi->z -= Fi * dFi[2]/dFi2;
 
-        // Compute the new energy.
-        int_slist_t* neighbors = octree_within_radius(tree, pi, sigma);
+        // Rebuild the tree and compute the new energy.
+        kd_tree_free(tree);
+        tree = kd_tree_new(points, num_points);
+        int_slist_t* neighbors = kd_tree_within_radius(tree, pi, sigma);
         int_slist_node_t* n = neighbors->front;
         double E_new = 0.0;
-        while (n != 0)
+        while (n != NULL)
         {
           int j = n->value;
           if (j != i)
@@ -150,23 +163,37 @@ static point_t* mgw_sampling_without_curvature(sp_func_t* surface, bbox_t* bound
             double Eij = cot + arg - 0.5*M_PI;
             E_new += Eij;
           }
+          n = n->next;
         }
+        int_slist_free(neighbors);
 
         // Evaluate the new energy.
+        log_debug("mgw_sampling:   old energy: %g\tnew energy: %g", Ei, E_new);
         if (E_new >= Ei)
+        {
+          log_debug("mgw_sampling:   Reducing step size...");
           lambda[i] *= 10.0;
+        }
         else
         {
           if (first_time)
+          {
+            log_debug("mgw_sampling:   Increasing step size...");
             lambda[i] *= 0.1;
+          }
+          else
+          {
+            log_debug("mgw_sampling:   Converged.");
+            converged = true;
+          }
         }
         if (first_time)
           first_time = false;
-      }
-      while (E_new >= Ei);
 
-      // Add the updated point position to the point set.
-      octree_insert(tree, pi, i);
+        // Reset the particle's position if necessary.
+        if (!converged)
+          *pi = pi_old;
+      }
     }
 
     // Now that we've moved all the points, are we stable?
@@ -175,11 +202,12 @@ static point_t* mgw_sampling_without_curvature(sp_func_t* surface, bbox_t* bound
       avg_log10_lambda += log10(lambda[i]);
     avg_log10_lambda /= num_points;
 
-    static const double lambda_max = 14.0;
-    if (avg_log10_lambda > lambda_max) // Steady state!
+    static const double log_lambda_max = 14.0;
+    if (avg_log10_lambda > log_lambda_max) // Steady state!
       done = true;
+
+    kd_tree_free(tree);
   }
-  octree_free(tree);
 
   return points;
 }
@@ -237,9 +265,9 @@ point_t* mgw_sampling(sp_func_t* surface, bbox_t* bounding_box, int num_points)
   ASSERT(bounding_box->z1 < bounding_box->z2);
   ASSERT(num_points > 0);
 
-  if (sp_func_has_deriv(surface, 2))
-    return mgw_sampling_with_curvature(surface, bounding_box, num_points);
-  else
+//  if (sp_func_has_deriv(surface, 2))
+//    return mgw_sampling_with_curvature(surface, bounding_box, num_points);
+//  else
     return mgw_sampling_without_curvature(surface, bounding_box, num_points);
 
 }
