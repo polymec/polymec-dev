@@ -21,7 +21,7 @@ static point_t* mgw_sampling_without_curvature(sp_func_t* surface, bbox_t* bound
 
   // Now we move the particles around till we're done.
   bool done = false;
-  octree_t* tree = octree_new();
+  octree_t* tree = octree_new(bounding_box);
   while (!done)
   {
     // Toss the sample points into our point set and initialize their 

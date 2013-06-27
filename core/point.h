@@ -141,6 +141,14 @@ typedef struct
 // collected when allocated on the heap.
 bbox_t* bbox_new(double x1, double x2, double y1, double y2, double z1, double z2);
 
+// Returns true if the given bounding box contains the given point, false otherwise.
+static inline bool bbox_contains(bbox_t* bbox, point_t* p)
+{
+  return ((p->x >= bbox->x1) && (p->x <= bbox->x2) &&
+          (p->y >= bbox->y1) && (p->x <= bbox->y2) &&
+          (p->z >= bbox->z1) && (p->z <= bbox->z2));
+}
+
 // Given a random number generator and a bounding box, generate random 
 // coordinates for the given point within the bounding box. The random 
 // number generator must generate an integer between 0 and RAND_MAX.
