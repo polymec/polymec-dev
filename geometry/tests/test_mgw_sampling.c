@@ -77,8 +77,8 @@ int main(int argc, char* argv[])
   set_log_level(LOG_DEBUG);
   const UnitTest tests[] = 
   {
-    unit_test(test_sample_bbox_uniformly),
-    unit_test(test_sample_cylinder_uniformly),
+//    unit_test(test_sample_bbox_uniformly),
+//    unit_test(test_sample_cylinder_uniformly),
     unit_test(test_sample_sphere_uniformly)
   };
   return run_tests(tests);
