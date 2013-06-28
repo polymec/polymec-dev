@@ -113,11 +113,46 @@ static point_t* mgw_sampling_without_curvature(sp_func_t* surface, bbox_t* bound
       while ((lambda[i] < 1e16) && !converged)
       {
         // Solve for the velocity using the preconditioned Hessian.
-        double H_hat[9] = {Hi[0] * (1.0 + lambda[i]), Hi[1], Hi[2],
-                           Hi[3], Hi[4] * (1.0 + lambda[i]), Hi[5],
-                           Hi[6], Hi[7], Hi[8] * (1.0 + lambda[i])};
+        double H_hat[9] = {-Hi[0] * (1.0 + lambda[i]), -Hi[1], -Hi[2],
+                           -Hi[3], -Hi[4] * (1.0 + lambda[i]), -Hi[5],
+                           -Hi[6], -Hi[7], -Hi[8] * (1.0 + lambda[i])};
+        double det_H_hat = matrix3_det(H_hat);
         double vi[3];
-        solve_3x3(H_hat, Di, vi);
+        if (det_H_hat != 0.0)
+        {
+          solve_3x3(H_hat, Di, vi);
+        }
+        else
+        {
+          if (Di[0] == 0.0)
+          {
+            double H2[4] = {H_hat[4], H_hat[5], 
+                            H_hat[7], H_hat[8]};
+            double D2[2] = {Di[1], Di[2]};        
+            double v2[2];
+            solve_2x2(H2, D2, v2);
+            vi[0] = 0.0, vi[1] = v2[0], vi[2] = v2[1];
+          }
+          else if (Di[1] == 0.0)
+          {
+            double H2[4] = {H_hat[0], H_hat[2], 
+                            H_hat[6], H_hat[8]};
+            double D2[2] = {Di[0], Di[2]};        
+            double v2[2];
+            solve_2x2(H2, D2, v2);
+            vi[0] = v2[0], vi[1] = 0.0, vi[2] = v2[1];
+          }
+          else 
+          {
+            ASSERT(Di[2] == 0.0);
+            double H2[4] = {H_hat[0], H_hat[1], 
+                            H_hat[3], H_hat[4]};
+            double D2[2] = {Di[0], Di[1]};        
+            double v2[2];
+            solve_2x2(H2, D2, v2);
+            vi[0] = v2[0], vi[1] = v2[1], vi[2] = 0.0;
+          }
+        }
 
         // Save the old position of the particle.
         point_t pi_old = *pi;
@@ -203,6 +238,7 @@ static point_t* mgw_sampling_without_curvature(sp_func_t* surface, bbox_t* bound
     avg_log10_lambda /= num_points;
 
     static const double log_lambda_max = 14.0;
+    log_debug("mgw_sampling: avg{log10(lambda)} = %g\n", avg_log10_lambda);
     if (avg_log10_lambda > log_lambda_max) // Steady state!
       done = true;
 
