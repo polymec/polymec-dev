@@ -33,9 +33,10 @@ void test_sample_bbox_uniformly(void** state)
                  .y1 = -0.5, .y2 = 0.5,
                  .z1 = -0.5, .z2 = 0.5};
   sp_func_t* box = rect_prism_new_from_bbox(&bbox);
-  int N = 100;
-  point_t* points = mgw_sampling(box, &bbox, N);
-  plot_points(points, N, "uniformly_sampled_box.gnuplot");
+  int N = 100, N_actual;
+  double density = 200.0 / 6;
+  point_t* points = uniform_mgw_sampling(box, &bbox, N, density, 0.05, &N_actual);
+  plot_points(points, N_actual, "uniformly_sampled_box.gnuplot");
   free(points);
 }
 
@@ -49,9 +50,10 @@ void test_sample_cylinder_uniformly(void** state)
   bbox_t bbox = {.x1 = -0.5, .x2 = 0.5, 
                  .y1 = -0.5, .y2 = 0.5, 
                  .z1 = -0.5, .z2 = 0.5};
-  int N = 200;
-  point_t* points = mgw_sampling(cylinder, &bbox, N);
-  plot_points(points, N, "uniformly_sampled_cylinder.gnuplot");
+  int N = 200, N_actual;
+  double density = 200.0 / (4.0*M_PI);
+  point_t* points = uniform_mgw_sampling(cylinder, &bbox, N, density, 0.05, &N_actual);
+  plot_points(points, N_actual, "uniformly_sampled_cylinder.gnuplot");
   free(points);
 }
 
@@ -65,9 +67,10 @@ void test_sample_sphere_uniformly(void** state)
   bbox_t bbox = {.x1 = -0.5, .x2 = 0.5, 
                  .y1 = -0.5, .y2 = 0.5, 
                  .z1 = -0.5, .z2 = 0.5};
-  int N = 200;
-  point_t* points = mgw_sampling(sphere, &bbox, N);
-  plot_points(points, N, "uniformly_sampled_sphere.gnuplot");
+  int N = 200, N_actual;
+  double density = 30.0;
+  point_t* points = uniform_mgw_sampling(sphere, &bbox, N, density, 0.1, &N_actual);
+  plot_points(points, N_actual, "uniformly_sampled_sphere.gnuplot");
   free(points);
 }
 
