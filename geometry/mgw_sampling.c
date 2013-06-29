@@ -49,7 +49,7 @@ static point_t* mgw_sampling_without_curvature(sp_func_t* surface, bbox_t* bound
     for (int i = 0; i < num_points; ++i)
     {
       point_t* pi = &points[i];
-      log_debug("mgw_sampling: Considering point %d.", i);
+      //log_debug("mgw_sampling: Considering point %d.", i);
 
       // Get the neighbors within a radius of sigma of point i.
       int_slist_t* neighbors = kd_tree_within_radius(tree, pi, sigma);
@@ -59,7 +59,7 @@ static point_t* mgw_sampling_without_curvature(sp_func_t* surface, bbox_t* bound
                       0.0, 0.0, 0.0,
                       0.0, 0.0, 0.0};
       double Di[3] = {0.0, 0.0, 0.0};
-      double Ei = 0.0;
+      double Ei = 0.0, r_min = FLT_MAX;
       int_slist_node_t* n = neighbors->front;
       while (n != NULL)
       {
@@ -81,6 +81,7 @@ static point_t* mgw_sampling_without_curvature(sp_func_t* surface, bbox_t* bound
 
           // Contribute the energy from this interaction to Ei.
           double r = vector_mag(&rij);
+          r_min = MIN(r, r_min);
           double arg = M_PI*r/(2.0*sigma);
           double cot = 1.0 / tan(arg);
           double Eij = cot + arg - 0.5*M_PI;
@@ -89,9 +90,9 @@ static point_t* mgw_sampling_without_curvature(sp_func_t* surface, bbox_t* bound
           // Contribute to the repulsive force.
           double csc = 1.0 / sin(arg);
           double dEdr = M_PI/(2.0*sigma) * (1.0 - csc*csc);
-          Di[0] += dEdr * nij.x;
-          Di[1] += dEdr * nij.y;
-          Di[2] += dEdr * nij.z;
+          Di[0] += -dEdr * nij.x;
+          Di[1] += -dEdr * nij.y;
+          Di[2] += -dEdr * nij.z;
 
           // Compute the 2nd derivative of the energy function Eij w.r.t. 
           // the distance between pi and pj.
@@ -110,12 +111,17 @@ static point_t* mgw_sampling_without_curvature(sp_func_t* surface, bbox_t* bound
       double E_new = 0.0;
       bool first_time = true;
       bool converged = false;
+      // (If we're at a point where the derivatives of E w.r.t. r
+      //  are zero, leave the point where it is.)
+      if (Di[0]*Di[0]+Di[1]*Di[1]+Di[2]*Di[2] < 1e-15)
+        converged = true;
+
       while ((lambda[i] < 1e16) && !converged)
       {
         // Solve for the velocity using the preconditioned Hessian.
-        double H_hat[9] = {-Hi[0] * (1.0 + lambda[i]), -Hi[1], -Hi[2],
-                           -Hi[3], -Hi[4] * (1.0 + lambda[i]), -Hi[5],
-                           -Hi[6], -Hi[7], -Hi[8] * (1.0 + lambda[i])};
+        double H_hat[9] = {Hi[0] * (1.0 + lambda[i]), Hi[1], Hi[2],
+                           Hi[3], Hi[4] * (1.0 + lambda[i]), Hi[5],
+                           Hi[6], Hi[7], Hi[8] * (1.0 + lambda[i])};
         double det_H_hat = matrix3_det(H_hat);
         double vi[3];
         if (det_H_hat != 0.0)
@@ -124,6 +130,8 @@ static point_t* mgw_sampling_without_curvature(sp_func_t* surface, bbox_t* bound
         }
         else
         {
+          // We have to be careful to accommodate motions along a
+          // surface aligned with the coordinate axes.
           if (Di[0] == 0.0)
           {
             double H2[4] = {H_hat[4], H_hat[5], 
@@ -171,6 +179,13 @@ static point_t* mgw_sampling_without_curvature(sp_func_t* surface, bbox_t* bound
                           dFi[2]*dFi[1]*vi[1] +
                           dFi[2]*dFi[2]*vi[2]) / dFi2;
 
+        // Did we move further than the distance to the nearest neighbor?
+        // If so, we incur a large energy penalty.
+        double E_penalty = 0.0;
+        double distance_moved = point_distance(&pi_old, pi);
+        if (distance_moved > r_min)
+          E_penalty = 1000.0 * Ei;
+
         // Project pi back to the surface.
         double Fi;
         sp_func_eval(surface, pi, &Fi);
@@ -183,7 +198,7 @@ static point_t* mgw_sampling_without_curvature(sp_func_t* surface, bbox_t* bound
         tree = kd_tree_new(points, num_points);
         int_slist_t* neighbors = kd_tree_within_radius(tree, pi, sigma);
         int_slist_node_t* n = neighbors->front;
-        double E_new = 0.0;
+        double E_new = E_penalty;
         while (n != NULL)
         {
           int j = n->value;
@@ -203,22 +218,22 @@ static point_t* mgw_sampling_without_curvature(sp_func_t* surface, bbox_t* bound
         int_slist_free(neighbors);
 
         // Evaluate the new energy.
-        log_debug("mgw_sampling:   old energy: %g\tnew energy: %g", Ei, E_new);
+        //log_debug("mgw_sampling:   old energy: %g\tnew energy: %g", Ei, E_new);
         if (E_new >= Ei)
         {
-          log_debug("mgw_sampling:   Reducing step size...");
+          //log_debug("mgw_sampling:   Reducing step size...");
           lambda[i] *= 10.0;
         }
         else
         {
           if (first_time)
           {
-            log_debug("mgw_sampling:   Increasing step size...");
+            //log_debug("mgw_sampling:   Increasing step size...");
             lambda[i] *= 0.1;
           }
           else
           {
-            log_debug("mgw_sampling:   Converged.");
+            //log_debug("mgw_sampling:   Converged.");
             converged = true;
           }
         }
@@ -238,7 +253,7 @@ static point_t* mgw_sampling_without_curvature(sp_func_t* surface, bbox_t* bound
     avg_log10_lambda /= num_points;
 
     static const double log_lambda_max = 14.0;
-    log_debug("mgw_sampling: avg{log10(lambda)} = %g\n", avg_log10_lambda);
+    log_debug("mgw_sampling: avg{log10(lambda)} = %g", avg_log10_lambda);
     if (avg_log10_lambda > log_lambda_max) // Steady state!
       done = true;
 
