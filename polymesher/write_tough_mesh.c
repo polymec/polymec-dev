@@ -318,6 +318,9 @@ int write_tough_mesh(lua_State* lua)
     return LUA_ERRRUN;
   }
 
+  // Pop all the arguments off the stack.
+  lua_pop(lua, lua_gettop(lua));
+
   // Write the mesh to a file.
   if (!strcasecmp(format, "t2"))
     write_tough2_mesh(mesh, filename, inactive_tag, elem_name_len);

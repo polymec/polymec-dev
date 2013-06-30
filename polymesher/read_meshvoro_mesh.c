@@ -640,6 +640,9 @@ int read_meshvoro_mesh(lua_State* lua)
   fclose(vertex_file);
   fclose(neighbor_file);
 
+  // Pops all the arguments off the stack.
+  lua_pop(lua, 3);
+
   // Push the mesh onto the stack.
   lua_pushmesh(lua, mesh);
   return 1;

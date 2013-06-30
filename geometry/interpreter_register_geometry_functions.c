@@ -93,6 +93,9 @@ static int cubic_lattice_mesh(lua_State* lua)
     }
   }
 
+  // Pop all the previous arguments off the stack.
+  lua_pop(lua, lua_gettop(lua));
+
   // Create the mesh.
   mesh_t* mesh = create_cubic_lattice_mesh_with_bbox(nx, ny, nz, &bbox);
 
