@@ -26,13 +26,10 @@ ifeq ($(mpi), 1)
   CC = mpicc
   CONFIG_FLAGS += -DUSE_MPI=1
 else
-#  ifeq ($(systype), Darwin)
-#    CC  = clang
-#    CXX = clang++
-#  else
+  ifeq ($(CC), )
     CC  = cc
     CXX = c++
-#  endif
+  endif
   CONFIG_FLAGS += -DUSE_MPI=0
 endif
 
