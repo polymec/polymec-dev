@@ -830,6 +830,96 @@ static int sample_cyl_shell(lua_State* lua)
   return 1;
 }
 
+static int translate_points(lua_State* lua)
+{
+  // Check the arguments.
+  int num_args = lua_gettop(lua);
+  if ((num_args != 2) || !lua_ispointlist(lua, 1) ||
+      (!lua_isvector(lua, 2) && !lua_isvectorlist(lua, 2)))
+  {
+    lua_pushstring(lua, "Invalid argument(s). Usage:\n"
+                        "translate_points(points, vector) OR\n"
+                        "translate_points(points, vectors) ->\n"
+                        "Translates a set points by the given constant vector or corresponding vectors.");
+    lua_error(lua);
+    return LUA_ERRRUN;
+  }
+
+  int num_points;
+  point_t* points = lua_topointlist(lua, 1, &num_points);
+
+  if (lua_isvector(lua, 2))
+  {
+    vector_t* vector = lua_tovector(lua, 2);
+    for (int i = 0; i < num_points; ++i)
+    {
+      points[i].x += vector->x;
+      points[i].y += vector->y;
+      points[i].z += vector->z;
+    }
+  }
+  else
+  {
+    int num_vectors;
+    vector_t* vectors = lua_tovectorlist(lua, 2, &num_vectors);
+    if (num_vectors != num_points)
+    {
+      lua_pushstring(lua, "Number of vectors must equal number of points.");
+      lua_error(lua);
+      return LUA_ERRRUN;
+    }
+    for (int i = 0; i < num_points; ++i)
+    {
+      points[i].x += vectors[i].x;
+      points[i].y += vectors[i].y;
+      points[i].z += vectors[i].z;
+    }
+  }
+
+  // Modified in place.
+  return 0;
+}
+
+static int rotate_points(lua_State* lua)
+{
+  // Check the arguments.
+  int num_args = lua_gettop(lua);
+  if ((num_args != 4) || !lua_ispointlist(lua, 1) ||
+      !lua_isvector(lua, 2) || !lua_ispoint(lua, 3) || !lua_isnumber(lua, 4))
+  {
+    lua_pushstring(lua, "Invalid argument(s). Usage:\n"
+                        "rotate_points(points, axis, origin, angle) ->\n"
+                        "Rotates a set points about the axis by the given angle.");
+    lua_error(lua);
+    return LUA_ERRRUN;
+  }
+
+  int num_points;
+  point_t* points = lua_topointlist(lua, 1, &num_points);
+  vector_t* axis = lua_tovector(lua, 2);
+  point_t* origin = lua_topoint(lua, 3);
+  double angle = lua_tonumber(lua, 4);
+
+  for (int i = 0; i < num_points; ++i)
+  {
+    // Relative coordinates.
+    point_t u = {.x = points[i].x - origin->x,
+                 .y = points[i].y - origin->y,
+                 .z = points[i].z - origin->z};
+
+    // FIXME: Rotated relative coordinate.
+    point_t Ru; 
+
+    // Back to original coordinate frame.
+    points[i].x = origin->x + Ru.x;
+    points[i].y = origin->y + Ru.y;
+    points[i].z = origin->z + Ru.z;
+  }
+
+  // Modified in place.
+  return 0;
+}
+
 void interpreter_register_geometry_functions(interpreter_t* interp)
 {
   interpreter_register_function(interp, "cubic_lattice_mesh", cubic_lattice_mesh);
@@ -843,6 +933,8 @@ void interpreter_register_geometry_functions(interpreter_t* interp)
   interpreter_register_function(interp, "bound_voronoi_mesh", bound_voronoi_mesh_);
   interpreter_register_function(interp, "sample_bounding_box", sample_bbox);
   interpreter_register_function(interp, "sample_cyl_shell", sample_cyl_shell);
+  interpreter_register_function(interp, "translate_points", translate_points);
+  interpreter_register_function(interp, "rotate_points", rotate_points);
   interpreter_register_spfuncs(interp);
 }
 
