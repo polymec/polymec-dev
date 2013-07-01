@@ -681,6 +681,81 @@ static int jostle_points(lua_State* lua)
   return 0;
 }
 
+static int sample_planar_patch(lua_State* lua)
+{
+  // Check the arguments.
+  int num_args = lua_gettop(lua);
+  if ((num_args != 7) || !lua_ispoint(lua, 1) || 
+      !lua_isvector(lua, 2) || !lua_isvector(lua, 3) || 
+      !lua_isnumber(lua, 4) || !lua_isnumber(lua, 5) ||
+      !lua_isnumber(lua, 6) || !lua_isnumber(lua, 7))
+  {
+    lua_pushstring(lua, "Invalid argument(s). Usage:\n"
+                        "points = sample_planar_patch(x, eu, ev, Lu, Lv, nu, nv)\n"
+                        "Returns a set points on a lattice that cover a rectangular\n"
+                        "patch in 3D space.");
+    lua_error(lua);
+    return LUA_ERRRUN;
+  }
+
+  point_t* x = lua_topoint(lua, 1);
+  vector_t* eu = lua_tovector(lua, 2);
+  vector_normalize(eu);
+  vector_t* ev = lua_tovector(lua, 3);
+  vector_normalize(ev);
+  double Lu = lua_tonumber(lua, 4);
+  if (Lu <= 0)
+  {
+    lua_pushstring(lua, "Lu must be a positive length.");
+    lua_error(lua);
+    return LUA_ERRRUN;
+  }
+  double Lv = lua_tonumber(lua, 5);
+  if (Lv <= 0)
+  {
+    lua_pushstring(lua, "Lv must be a positive length.");
+    lua_error(lua);
+    return LUA_ERRRUN;
+  }
+  int nu = (int)lua_tonumber(lua, 6);
+  if (nu <= 0)
+  {
+    lua_pushstring(lua, "nu must be a positive number of u-space points.");
+    lua_error(lua);
+    return LUA_ERRRUN;
+  }
+  int nv = (int)lua_tonumber(lua, 7);
+  if (nv <= 0)
+  {
+    lua_pushstring(lua, "nv must be a positive number of v-space points.");
+    lua_error(lua);
+    return LUA_ERRRUN;
+  }
+
+  int num_points = nu * nv;
+  double du = Lu / nu;
+  double dv = Lv / nv;
+  point_t u0 = {.x = x->x - 0.5*Lu*eu->x, 
+                .y = x->y - 0.5*Lu*eu->y,
+                .z = x->z - 0.5*Lu*eu->z};
+  point_t v0 = {.x = x->x - 0.5*Lv*ev->x, 
+                .y = x->y - 0.5*Lv*ev->y,
+                .z = x->z - 0.5*Lv*ev->z};
+  point_t* points = malloc(sizeof(point_t) * num_points);
+  for (int i = 0; i < nu; ++i)
+  {
+    for (int j = 0; j < nv; ++j)
+    {
+      points[nv*i+j].x = (u0.x + (0.5+i) * du) * eu->x + (v0.x + (0.5+j) * dv) * ev->x;
+      points[nv*i+j].y = (u0.y + (0.5+i) * du) * eu->y + (v0.y + (0.5+j) * dv) * ev->y;
+      points[nv*i+j].z = (u0.z + (0.5+i) * du) * eu->z + (v0.z + (0.5+j) * dv) * ev->z;
+    }
+  }
+
+  lua_pushpointlist(lua, points, num_points);
+  return 1;
+}
+
 void interpreter_register_geometry_functions(interpreter_t* interp)
 {
   interpreter_register_function(interp, "cubic_lattice_mesh", cubic_lattice_mesh);
@@ -692,6 +767,7 @@ void interpreter_register_geometry_functions(interpreter_t* interp)
   interpreter_register_function(interp, "deformable_bounded_voronoi_mesh", deformable_bounded_voronoi_mesh);
   interpreter_register_function(interp, "prune_voronoi_mesh", prune_voronoi_mesh_);
   interpreter_register_function(interp, "bound_voronoi_mesh", bound_voronoi_mesh_);
+  interpreter_register_function(interp, "sample_planar_patch", sample_planar_patch);
   interpreter_register_spfuncs(interp);
 }
 
