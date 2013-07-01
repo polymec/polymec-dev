@@ -15,6 +15,8 @@
 #include "lualib.h"
 #include "lauxlib.h"
 
+extern void interpreter_register_spfuncs(interpreter_t* interp);
+
 static int cubic_lattice_mesh(lua_State* lua)
 {
   // Check the arguments.
@@ -630,8 +632,6 @@ static int prune_voronoi_mesh_(lua_State* lua)
   return 0;
 }
 
-extern void interpreter_register_spfuncs(interpreter_t* interp);
-
 static int jostle_points(lua_State* lua)
 {
   // Check the arguments.
@@ -907,13 +907,14 @@ static int rotate_points(lua_State* lua)
                  .y = points[i].y - origin->y,
                  .z = points[i].z - origin->z};
 
+    // Projection onto rotation plane.
     // FIXME: Rotated relative coordinate.
     point_t Ru; 
 
     // Back to original coordinate frame.
-    points[i].x = origin->x + Ru.x;
-    points[i].y = origin->y + Ru.y;
-    points[i].z = origin->z + Ru.z;
+    points[i].x = origin->x + u.x;
+    points[i].y = origin->y + u.y;
+    points[i].z = origin->z + u.z;
   }
 
   // Modified in place.
