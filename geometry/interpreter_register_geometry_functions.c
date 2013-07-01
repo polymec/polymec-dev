@@ -681,77 +681,151 @@ static int jostle_points(lua_State* lua)
   return 0;
 }
 
-static int sample_planar_patch(lua_State* lua)
+static int sample_bbox(lua_State* lua)
 {
   // Check the arguments.
   int num_args = lua_gettop(lua);
-  if ((num_args != 7) || !lua_ispoint(lua, 1) || 
-      !lua_isvector(lua, 2) || !lua_isvector(lua, 3) || 
-      !lua_isnumber(lua, 4) || !lua_isnumber(lua, 5) ||
-      !lua_isnumber(lua, 6) || !lua_isnumber(lua, 7))
+  if ((num_args != 4) || !lua_isboundingbox(lua, 1) || 
+      !lua_isnumber(lua, 2) || !lua_isnumber(lua, 3) ||
+      !lua_isnumber(lua, 4))
   {
     lua_pushstring(lua, "Invalid argument(s). Usage:\n"
-                        "points = sample_planar_patch(x, eu, ev, Lu, Lv, nu, nv)\n"
-                        "Returns a set points on a lattice that cover a rectangular\n"
-                        "patch in 3D space.");
+                        "points = sample_bounding_box(bbox, nx, ny, nz)\n"
+                        "Returns a set points on a lattice that covers a bounding box.");
     lua_error(lua);
     return LUA_ERRRUN;
   }
 
-  point_t* x = lua_topoint(lua, 1);
-  vector_t* eu = lua_tovector(lua, 2);
-  vector_normalize(eu);
-  vector_t* ev = lua_tovector(lua, 3);
-  vector_normalize(ev);
-  double Lu = lua_tonumber(lua, 4);
-  if (Lu <= 0)
+  bbox_t* bbox = lua_toboundingbox(lua, 1);
+  int nx = (int)lua_tonumber(lua, 2);
+  if (nx <= 0)
   {
-    lua_pushstring(lua, "Lu must be a positive length.");
+    lua_pushstring(lua, "nx must be a positive number of x points.");
     lua_error(lua);
     return LUA_ERRRUN;
   }
-  double Lv = lua_tonumber(lua, 5);
-  if (Lv <= 0)
+  int ny = (int)lua_tonumber(lua, 3);
+  if (ny <= 0)
   {
-    lua_pushstring(lua, "Lv must be a positive length.");
+    lua_pushstring(lua, "ny must be a positive number of y points.");
     lua_error(lua);
     return LUA_ERRRUN;
   }
-  int nu = (int)lua_tonumber(lua, 6);
-  if (nu <= 0)
+  int nz = (int)lua_tonumber(lua, 4);
+  if (nz <= 0)
   {
-    lua_pushstring(lua, "nu must be a positive number of u-space points.");
-    lua_error(lua);
-    return LUA_ERRRUN;
-  }
-  int nv = (int)lua_tonumber(lua, 7);
-  if (nv <= 0)
-  {
-    lua_pushstring(lua, "nv must be a positive number of v-space points.");
+    lua_pushstring(lua, "nz must be a positive number of z points.");
     lua_error(lua);
     return LUA_ERRRUN;
   }
 
-  int num_points = nu * nv;
-  double du = Lu / nu;
-  double dv = Lv / nv;
-  point_t u0 = {.x = x->x - 0.5*Lu*eu->x, 
-                .y = x->y - 0.5*Lu*eu->y,
-                .z = x->z - 0.5*Lu*eu->z};
-  point_t v0 = {.x = x->x - 0.5*Lv*ev->x, 
-                .y = x->y - 0.5*Lv*ev->y,
-                .z = x->z - 0.5*Lv*ev->z};
+  int num_points = nx * ny * nz;
+  double dx = (bbox->x2 - bbox->x1) / nx;
+  double dy = (bbox->y2 - bbox->y1) / ny;
+  double dz = (bbox->z2 - bbox->z1) / nz;
   point_t* points = malloc(sizeof(point_t) * num_points);
-  for (int i = 0; i < nu; ++i)
+  int offset = 0;
+
+  for (int i = 0; i < nx; ++i)
   {
-    for (int j = 0; j < nv; ++j)
+    for (int j = 0; j < ny; ++j)
     {
-      points[nv*i+j].x = (u0.x + (0.5+i) * du) * eu->x + (v0.x + (0.5+j) * dv) * ev->x;
-      points[nv*i+j].y = (u0.y + (0.5+i) * du) * eu->y + (v0.y + (0.5+j) * dv) * ev->y;
-      points[nv*i+j].z = (u0.z + (0.5+i) * du) * eu->z + (v0.z + (0.5+j) * dv) * ev->z;
+      for (int k = 0; k < nz; ++k, ++offset)
+      {
+        points[offset].x = bbox->x1 + (i+0.5) * dx;
+        points[offset].y = bbox->y1 + (j+0.5) * dy;
+        points[offset].z = bbox->z1 + (k+0.5) * dz;
+      }
     }
   }
 
+  lua_pushpointlist(lua, points, num_points);
+  return 1;
+}
+
+static int sample_cyl_shell(lua_State* lua)
+{
+  // Check the arguments.
+  int num_args = lua_gettop(lua);
+  if ((num_args != 7) || 
+      !lua_isnumber(lua, 1) || !lua_isnumber(lua, 2) || 
+      !lua_isnumber(lua, 3) || !lua_isnumber(lua, 4) || 
+      !lua_isnumber(lua, 5) || !lua_isnumber(lua, 6) || 
+      !lua_isnumber(lua, 7))
+  {
+    lua_pushstring(lua, "Invalid argument(s). Usage:\n"
+                        "points = sample_cyl_shell(r1, r2, z1, z2, nr, nphi, nz)\n"
+                        "Returns a set points on a lattice that covers a cylindrical shell.");
+    lua_error(lua);
+    return LUA_ERRRUN;
+  }
+
+  double r1 = lua_tonumber(lua, 1);
+  if (r1 < 0.0)
+  {
+    lua_pushstring(lua, "r1 must be a non-negative inner radius.");
+    lua_error(lua);
+    return LUA_ERRRUN;
+  }
+  double r2 = lua_tonumber(lua, 2);
+  if (r2 <= r1)
+  {
+    lua_pushstring(lua, "r2 must be greater than r1.");
+    lua_error(lua);
+    return LUA_ERRRUN;
+  }
+  double z1 = lua_tonumber(lua, 3);
+  double z2 = lua_tonumber(lua, 4);
+  if (z2 <= z1)
+  {
+    lua_pushstring(lua, "z2 must be greater than z1.");
+    lua_error(lua);
+    return LUA_ERRRUN;
+  }
+  int nr = (int)lua_tonumber(lua, 5);
+  if (nr <= 0)
+  {
+    lua_pushstring(lua, "nr must be a positive number of radial points.");
+    lua_error(lua);
+    return LUA_ERRRUN;
+  }
+  int nphi = (int)lua_tonumber(lua, 6);
+  if (nphi <= 0)
+  {
+    lua_pushstring(lua, "nphi must be a positive number of azimuthal points.");
+    lua_error(lua);
+    return LUA_ERRRUN;
+  }
+  int nz = (int)lua_tonumber(lua, 7);
+  if (nz <= 0)
+  {
+    lua_pushstring(lua, "nz must be a positive number of axial points.");
+    lua_error(lua);
+    return LUA_ERRRUN;
+  }
+
+  int num_points = nr * nphi * nz;
+  double dr = (r2 - r1) / nr;
+  double dphi = 2.0 * M_PI / nphi;
+  double dz = (z2 - z1) / nz;
+  point_t* points = malloc(sizeof(point_t) * num_points);
+  int offset = 0;
+
+  for (int i = 0; i < nr; ++i)
+  {
+    double r = r1 + (i+0.5) * dr;
+    for (int j = 0; j < nphi; ++j)
+    {
+      double phi = (j+0.5) * dphi;
+      for (int k = 0; k < nz; ++k, ++offset)
+      {
+        double z = z1 + (k+0.5) * dz;
+        points[offset].x = r*cos(phi);
+        points[offset].y = r*sin(phi);
+        points[offset].z = z;
+      }
+    }
+  }
   lua_pushpointlist(lua, points, num_points);
   return 1;
 }
@@ -767,7 +841,8 @@ void interpreter_register_geometry_functions(interpreter_t* interp)
   interpreter_register_function(interp, "deformable_bounded_voronoi_mesh", deformable_bounded_voronoi_mesh);
   interpreter_register_function(interp, "prune_voronoi_mesh", prune_voronoi_mesh_);
   interpreter_register_function(interp, "bound_voronoi_mesh", bound_voronoi_mesh_);
-  interpreter_register_function(interp, "sample_planar_patch", sample_planar_patch);
+  interpreter_register_function(interp, "sample_bounding_box", sample_bbox);
+  interpreter_register_function(interp, "sample_cyl_shell", sample_cyl_shell);
   interpreter_register_spfuncs(interp);
 }
 
