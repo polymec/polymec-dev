@@ -10,7 +10,7 @@
 #include "lualib.h"
 #include "lauxlib.h"
 
-// write_tough_mesh(args) -- This function writes a given mesh to a file 
+// write_vtk_plot(args) -- This function writes a given mesh to a file 
 // on disk. Arguments (passed in a table according to Chapter 5.3 of the 
 // Lua reference manual) are:
 //
