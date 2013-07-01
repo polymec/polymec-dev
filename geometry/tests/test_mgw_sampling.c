@@ -51,7 +51,7 @@ void test_sample_cylinder_uniformly(void** state)
                  .y1 = -0.5, .y2 = 0.5, 
                  .z1 = -0.5, .z2 = 0.5};
   int N = 200, N_actual;
-  double density = 200.0 / (4.0*M_PI);
+  double density = 30.0;
   point_t* points = uniform_mgw_sampling(cylinder, &bbox, N, density, 0.05, &N_actual);
   plot_points(points, N_actual, "uniformly_sampled_cylinder.gnuplot");
   free(points);

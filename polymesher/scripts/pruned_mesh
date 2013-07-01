@@ -7,7 +7,7 @@ bbox = bounding_box{x1 = -0.5, x2 = 0.5,
                     y1 = -0.5, y2 = 0.5,
                     z1 = -0.5, z2 = 0.5}
 points = random_points(N, bbox)
-points = {{x1, y1, z1}, {x2, y2, z2}, ...}
+--points = {{x1, y1, z1}, {x2, y2, z2}, ...}
 
 -- Create a mesh and prune the semi-infinite cells.
 mesh = unbounded_voronoi_mesh(points)
