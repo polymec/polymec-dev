@@ -130,30 +130,7 @@ void plane_reset(sp_func_t* plane, vector_t* n, point_t* x)
   sp_func_register_deriv(plane, 1, G);
 
   // Set up our basis vectors.
-  vector_copy(&p->e3, &p->n);
-
-  // Pick an arbitrary vector, e1, that is perpendicular to e3. One of these
-  // should work.
-  if (p->e3.x != 0.0)
-  {
-    p->e1.y = 1.0, p->e1.z = 1.0; 
-    p->e1.x = -(p->e3.y + p->e3.z) / p->e3.x;
-  }
-  else if (p->e3.y != 0.0)
-  {
-    p->e1.x = 1.0, p->e1.z = 1.0; 
-    p->e1.y = -(p->e3.x + p->e3.z) / p->e3.y;
-  }
-  else if (p->e3.z != 0.0)
-  {
-    p->e1.x = 1.0, p->e1.y = 1.0; 
-    p->e1.z = -(p->e3.x + p->e3.y) / p->e3.z;
-  }
-  vector_normalize(&p->e1);
-
-  // e2 = e3 x e1.
-  vector_cross(&p->e3, &p->e1, &p->e2);
-  ASSERT(vector_mag(&p->e2) > 1e-14);
+  compute_orthonormal_basis(&p->e3, &p->e1, &p->e2);
 }
 
 void plane_project(sp_func_t* plane, point_t* x, point2_t* xi)

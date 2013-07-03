@@ -5,7 +5,7 @@
 point_t* uniform_mgw_sampling(sp_func_t* C1_surface, 
                               bbox_t* bounding_box, 
                               int min_num_points,
-                              double desired_density,
+                              double desired_spacing,
                               double ideal_energy_tolerance,
                               int* actual_num_points)
 {
@@ -15,27 +15,17 @@ point_t* uniform_mgw_sampling(sp_func_t* C1_surface,
   ASSERT(bounding_box->y1 < bounding_box->y2);
   ASSERT(bounding_box->z1 < bounding_box->z2);
   ASSERT(min_num_points > 0);
-  ASSERT(desired_density > 0.0);
+  ASSERT(desired_spacing > 0.0);
   ASSERT(ideal_energy_tolerance > 0.0);
-
-  // The ideal spacing for particles at a given density (# particles / area)
-  // is related to the density by assuming a close-packed hexagonal grid
-  // with spacing h at a density of 1 particle per (Voronoi) hex.
-  // The area of each triangle contributing to the area of the hex is 
-  // a quarter of the area of any Delaunay triangle dual to the hex, and this
-  // area is sqrt(3)*h^2 / 4, so the hex (made up of 6 of its triangles) 
-  // has area 6*sqrt(3)*h^2 / 16, and the density is the reciprocal.
-  // We then solve for h given the desired density.
-  double h = sqrt(8.0/(3.0*sqrt(3.0)) / desired_density);
 
   // The radius of a particle is related to the interparticle spacing by 
   // the desired to only have the inner ring of neighbors contribute. This is 
   // described in section 6.1 of MGW.
-  double sigma = h / 0.57;
+  double sigma = desired_spacing / 0.57;
 
   // While we're at it, we compute the energy for particles at this 
   // "ideal" spacing.
-  double E_ideal = 6.0 * (1.0 / (tan(M_PI*h/(2.0*sigma))) + M_PI*h/(2.0*sigma) - 0.5*M_PI);
+  double E_ideal = 6.0 * (1.0 / (tan(M_PI*desired_spacing/(2.0*sigma))) + M_PI*desired_spacing/(2.0*sigma) - 0.5*M_PI);
   ASSERT(E_ideal > 0.0);
 
   // Now we iterate until our surface is sampled by particles within the 
@@ -311,11 +301,11 @@ point_t* uniform_mgw_sampling(sp_func_t* C1_surface,
       if (num_points < min_num_points)
       {
         polymec_error("mgw_sampling: minimum number of points %d is too high to achieve\n"
-                      "ideal system energy with desired density %g\n"
+                      "ideal system energy with desired spacing h = %g\n"
                       "and relative energy tolerance %g.\n"
                       "E_sys = %g, E_ideal = %g, (E_sys - E_ideal)/E_ideal = %g,\n"
                       "target number of points = %d\n",
-                      min_num_points, desired_density, ideal_energy_tolerance, 
+                      min_num_points, desired_spacing, ideal_energy_tolerance, 
                       E_sys, old_num_points * E_ideal, E_diff, num_points);
       }
       log_debug("mgw_sampling: E_sys > E_ideal + tolerance. Culling %d particles.", old_num_points - num_points);
@@ -342,7 +332,7 @@ point_t* uniform_mgw_sampling(sp_func_t* C1_surface,
 point_t* adaptive_mgw_sampling(sp_func_t* C2_surface, 
                                bbox_t* bounding_box, 
                                int min_num_points,
-                               double desired_density,
+                               double desired_spacing,
                                double ideal_energy_tolerance,
                                int* actual_num_points)
 {
@@ -352,7 +342,7 @@ point_t* adaptive_mgw_sampling(sp_func_t* C2_surface,
   ASSERT(bounding_box->y1 < bounding_box->y2);
   ASSERT(bounding_box->z1 < bounding_box->z2);
   ASSERT(min_num_points > 0);
-  ASSERT(desired_density > 0.0);
+  ASSERT(desired_spacing > 0.0);
   ASSERT(ideal_energy_tolerance > 0.0);
   return NULL;
 }
