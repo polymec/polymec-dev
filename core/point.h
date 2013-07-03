@@ -171,6 +171,10 @@ static inline void vector_randomize(vector_t* vector, long (*rand_gen)(), double
   vector->z = magnitude * cos(phi);
 }
 
+// Given a unit vector e1, compute unit vectors e2 and e3 such that 
+// e1 x e2 = e3.
+void compute_orthonormal_basis(vector_t* e1, vector_t* e2, vector_t* e3);
+
 // This type allows us to distinguish between normal vectors that are 
 // "outward" or "inward". This is useful for creating implicit functions 
 // representing closed surfaces.

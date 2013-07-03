@@ -903,18 +903,26 @@ static int rotate_points(lua_State* lua)
   for (int i = 0; i < num_points; ++i)
   {
     // Relative coordinates.
-    point_t u = {.x = points[i].x - origin->x,
-                 .y = points[i].y - origin->y,
-                 .z = points[i].z - origin->z};
+    vector_t y;
+    point_displacement(origin, &points[i], &y);
 
-    // Projection onto rotation plane.
-    // FIXME: Rotated relative coordinate.
-    point_t Ru; 
+    // Set up an orthonormal basis.
+    vector_t e1, e2;
+    compute_orthonormal_basis(axis, &e1, &e2);
+
+    // Project u onto the e1 x e2 plane.
+    double u1 = vector_dot(&y, &e1);
+    double u2 = vector_dot(&y, &e2);
+    double u3 = vector_dot(&y, axis);
+
+    // Rotate it about the axis by the angle.
+    double Ru1 =  u1*cos(angle) + u2*sin(angle);
+    double Ru2 = -u1*sin(angle) + u2*cos(angle);
 
     // Back to original coordinate frame.
-    points[i].x = origin->x + u.x;
-    points[i].y = origin->y + u.y;
-    points[i].z = origin->z + u.z;
+    points[i].x = origin->x + Ru1*e1.x + Ru2*e2.x + u3*axis->x;
+    points[i].y = origin->y + Ru1*e1.y + Ru2*e2.y + u3*axis->y;
+    points[i].z = origin->z + Ru1*e1.z + Ru2*e2.z + u3*axis->z;
   }
 
   // Modified in place.

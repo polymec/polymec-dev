@@ -12,14 +12,14 @@
 
 // This version produces the given number of uniform sample points on the 
 // given surface. The algorithm guarantees a minimum number of sample points 
-// and a desired density (points per unit area) for the point spacing, adding 
-// or deleting points where necessary. A relative tolerance is used to gauge 
-// whether the energy of the points is close enough to the "ideal energy" 
-// that produces a hexagonal close packing of points on the surface.
+// and a desired spacing for the points, adding or deleting them where 
+// necessary. A relative tolerance is used to gauge whether the energy of the 
+// points is close enough to the "ideal energy" that produces a hexagonal 
+// close packing of points on the surface.
 point_t* uniform_mgw_sampling(sp_func_t* C1_surface, 
                               bbox_t* bounding_box, 
                               int min_num_points,
-                              double desired_density,
+                              double desired_spacing,
                               double ideal_energy_tolerance,
                               int* actual_num_points);
 
@@ -29,7 +29,7 @@ point_t* uniform_mgw_sampling(sp_func_t* C1_surface,
 point_t* adaptive_mgw_sampling(sp_func_t* C2_surface, 
                                bbox_t* bounding_box, 
                                int min_num_points,
-                               double desired_density,
+                               double desired_spacing,
                                double ideal_energy_tolerance,
                                int* actual_num_points);
 

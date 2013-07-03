@@ -30,3 +30,31 @@ bbox_t* bbox_new(double x1, double x2, double y1, double y2, double z1, double z
   return b;
 }
 
+void compute_orthonormal_basis(vector_t* e1, vector_t* e2, vector_t* e3)
+{
+  ASSERT(fabs(vector_mag(e1) - 1.0) < 1e-14);
+
+  // Pick an arbitrary vector, e2, that is perpendicular to e1. One of these
+  // should work.
+  if (e1->x != 0.0)
+  {
+    e2->y = 1.0, e2->z = 1.0; 
+    e2->x = -(e1->y + e1->z) / e1->x;
+  }
+  else if (e1->y != 0.0)
+  {
+    e2->x = 1.0, e2->z = 1.0; 
+    e2->y = -(e1->x + e1->z) / e1->y;
+  }
+  else if (e1->z != 0.0)
+  {
+    e2->x = 1.0, e2->y = 1.0; 
+    e2->z = -(e1->x + e1->y) / e1->z;
+  }
+  vector_normalize(e2);
+
+  // e3 = e1 x e2.
+  vector_cross(e1, e2, e3);
+  ASSERT(vector_mag(e3) > 1e-14);
+}
+
