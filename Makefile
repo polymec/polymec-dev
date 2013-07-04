@@ -72,6 +72,9 @@ config: distclean
 distclean:
 	rm -rf $(BUILDDIR)
 
+stats: 
+	@python tools/gather_stats.py
+
 #dist:
 #	utils/mkdist.sh $(PKGNAME)
 
