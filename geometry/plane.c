@@ -130,6 +130,7 @@ void plane_reset(sp_func_t* plane, vector_t* n, point_t* x)
   sp_func_register_deriv(plane, 1, G);
 
   // Set up our basis vectors.
+  p->e3.x = nn[0], p->e3.y = nn[1], p->e3.z = nn[2];
   compute_orthonormal_basis(&p->e3, &p->e1, &p->e2);
 }
 

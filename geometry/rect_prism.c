@@ -21,6 +21,11 @@ static void prism_eval_deriv(void* ctx, int n, point_t* x, double* result)
   sp_func_eval_deriv(prism->prism, n, x, result);
 }
 
+static bool prism_has_deriv(void* ctx, int n)
+{
+  return (n < 2); // FIXME
+}
+
 static void prism_free(void* ctx)
 {
   rect_prism_t* prism = ctx;
@@ -79,7 +84,9 @@ sp_func_t* rect_prism_new(point_t* x0,
   p->prism = intersection_new(planes, 6);
 
   // Set up the spatial function.
-  sp_vtable vtable = {.eval = prism_eval, .eval_deriv = prism_eval_deriv, 
+  sp_vtable vtable = {.eval = prism_eval, 
+                      .eval_deriv = prism_eval_deriv, 
+                      .has_deriv = prism_has_deriv, 
                       .dtor = prism_free};
   char str[1024];
   snprintf(str, 1024, "Rectangular prism (x0 = (%g, %g, %g), L1 = %g, L2 = %g, L3 = %g,"

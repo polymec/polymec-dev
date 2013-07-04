@@ -24,6 +24,10 @@ typedef void (*sp_eval_func)(void*, point_t*, double*);
 // function at a point.
 typedef void (*sp_eval_deriv_func)(void*, int, point_t*, double*);
 
+// A function pointer type for returning whether a function has a 
+// derivative. This must be supplied if eval_deriv is given.
+typedef bool (*sp_has_deriv_func)(void*, int);
+
 // A destructor for any given context object.
 typedef void (*sp_dtor)(void*);
 
@@ -32,6 +36,7 @@ typedef struct
 {
   sp_eval_func              eval;
   sp_eval_deriv_func        eval_deriv; // Optional
+  sp_has_deriv_func         has_deriv; // Optional, but must be given if eval_deriv is given
   sp_dtor                   dtor;
 } sp_vtable;
 
