@@ -834,13 +834,17 @@ static int translate_points(lua_State* lua)
 {
   // Check the arguments.
   int num_args = lua_gettop(lua);
-  if ((num_args != 2) || !lua_ispointlist(lua, 1) ||
-      (!lua_isvector(lua, 2) && !lua_isvectorlist(lua, 2)))
+  if (((num_args != 2) && (num_args != 3)) ||
+      ((num_args == 2) && (!lua_ispointlist(lua, 1) || (!lua_isvector(lua, 2) && !lua_isvectorlist(lua, 2)))) || 
+      ((num_args == 3) && (!lua_ispointlist(lua, 1) || (!lua_isvector(lua, 2) && !lua_isvectorlist(lua, 2)) || (!lua_isnumber(lua, 3) && !lua_issequence(lua, 3)))))
   {
     lua_pushstring(lua, "Invalid argument(s). Usage:\n"
                         "translate_points(points, vector) OR\n"
-                        "translate_points(points, vectors) ->\n"
-                        "Translates a set points by the given constant vector or corresponding vectors.");
+                        "translate_points(points, vector, factor) OR\n"
+                        "translate_points(points, vectors) OR\n"
+                        "translate_points(points, vectors, factor) OR\n"
+                        "translate_points(points, vectors, factors) ->\n"
+                        "Translates a set of points by the given constant vector or corresponding vectors.");
     lua_error(lua);
     return LUA_ERRRUN;
   }
@@ -848,14 +852,35 @@ static int translate_points(lua_State* lua)
   int num_points;
   point_t* points = lua_topointlist(lua, 1, &num_points);
 
+  double factor = 1.0;
+  double *factors = NULL;
+  int num_factors = -1;
+
+  if (num_args == 3)
+  {
+    if (lua_isnumber(lua, 3))
+      factor = lua_tonumber(lua, 3);
+    else
+    {
+      factors = lua_tosequence(lua, 3, &num_factors);
+      if (num_factors != num_points)
+      {
+        lua_pushstring(lua, "Number of scale factors must equal number of points.");
+        lua_error(lua);
+        return LUA_ERRRUN;
+      }
+    }
+  }
+
   if (lua_isvector(lua, 2))
   {
     vector_t* vector = lua_tovector(lua, 2);
     for (int i = 0; i < num_points; ++i)
     {
-      points[i].x += vector->x;
-      points[i].y += vector->y;
-      points[i].z += vector->z;
+      double f = (factors != NULL) ? factors[i] : factor;
+      points[i].x += f * vector->x;
+      points[i].y += f * vector->y;
+      points[i].z += f * vector->z;
     }
   }
   else
@@ -870,9 +895,10 @@ static int translate_points(lua_State* lua)
     }
     for (int i = 0; i < num_points; ++i)
     {
-      points[i].x += vectors[i].x;
-      points[i].y += vectors[i].y;
-      points[i].z += vectors[i].z;
+      double f = (factors != NULL) ? factors[i] : factor;
+      points[i].x += f * vectors[i].x;
+      points[i].y += f * vectors[i].y;
+      points[i].z += f * vectors[i].z;
     }
   }
 
@@ -929,6 +955,28 @@ static int rotate_points(lua_State* lua)
   return 0;
 }
 
+static int copy_points(lua_State* lua)
+{
+  // Check the arguments.
+  int num_args = lua_gettop(lua);
+  if ((num_args != 1) || !lua_ispointlist(lua, 1))
+  {
+    lua_pushstring(lua, "Invalid argument(s). Usage:\n"
+                        "new_points = copy_points(points) ->\n"
+                        "Creates a new copy of a list of points.");
+    lua_error(lua);
+    return LUA_ERRRUN;
+  }
+
+  int num_points;
+  point_t* old_points = lua_topointlist(lua, 1, &num_points);
+  point_t* new_points = malloc(sizeof(point_t) * num_points);
+  memcpy(new_points, old_points, sizeof(point_t) * num_points);
+  lua_pushpointlist(lua, new_points, num_points);
+
+  return 1;
+}
+
 void interpreter_register_geometry_functions(interpreter_t* interp)
 {
   interpreter_register_function(interp, "cubic_lattice_mesh", cubic_lattice_mesh);
@@ -944,6 +992,7 @@ void interpreter_register_geometry_functions(interpreter_t* interp)
   interpreter_register_function(interp, "sample_cyl_shell", sample_cyl_shell);
   interpreter_register_function(interp, "translate_points", translate_points);
   interpreter_register_function(interp, "rotate_points", rotate_points);
+  interpreter_register_function(interp, "copy_points", copy_points);
   interpreter_register_spfuncs(interp);
 }
 
