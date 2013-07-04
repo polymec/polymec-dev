@@ -67,7 +67,41 @@ static void eval_sp_func(void* context, point_t* x , double t, double* val)
   sp_func_eval(sp_func, x, val);
 }
 
-st_func_t* st_func_from_spfunc(sp_func_t* func)
+// This is used for converting sp_func derivatives to st_func derivatives. 
+typedef struct
+{
+  sp_func_t* func;
+  int deriv;
+} st_func_sp_deriv_t;
+
+static void st_func_sp_deriv_eval(void* context, point_t* x, double t, double* result)
+{
+  st_func_sp_deriv_t* F = context;
+  return sp_func_eval_deriv(F->func, F->deriv, x, result);
+}
+
+static void st_func_sp_deriv_free(void* context)
+{
+  st_func_sp_deriv_t* F = context;
+  F->func = NULL;
+  free(F);
+}
+
+static st_func_t* sp_func_deriv(sp_func_t* func, int d)
+{
+  ASSERT(d > 0);
+  ASSERT(d < 4);
+  st_func_sp_deriv_t* F = malloc(sizeof(st_func_sp_deriv_t));
+  F->func = func;
+  F->deriv = d;
+  st_vtable vtable = {.eval = st_func_sp_deriv_eval, .dtor = st_func_sp_deriv_free};
+  char name[1024];
+  snprintf(name, 1024, "deriv(%s, %d)", sp_func_name(func), d);
+  st_func_homogeneity_t homo = (sp_func_is_homogeneous(func)) ? ST_HOMOGENEOUS : ST_INHOMOGENEOUS;
+  return st_func_new(name, F, vtable, homo, ST_CONSTANT, sp_func_num_comp(func));
+}
+
+st_func_t* st_func_from_sp_func(sp_func_t* func)
 {
   ASSERT(func != NULL);
   st_func_t* f = GC_MALLOC(sizeof(st_func_t));
@@ -78,6 +112,11 @@ st_func_t* st_func_from_spfunc(sp_func_t* func)
   f->constant = true;
   f->num_comp = sp_func_num_comp(func);
   memset(f->derivs, 0, sizeof(st_func_t*)*4);
+  for (int i = 1; i <= 4; ++i)
+  {
+    if (sp_func_has_deriv(func, i))
+      st_func_register_deriv(f, i, sp_func_deriv(func, i));
+  }
   GC_register_finalizer(f, &st_func_free, f, NULL, NULL);
   return f;
 }

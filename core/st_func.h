@@ -52,7 +52,7 @@ st_func_t* st_func_from_func(const char* name, st_eval_func func,
                              int num_comp);
 
 // Constructs a space_time function from the given spatial function.
-st_func_t* st_func_from_spfunc(sp_func_t* func);
+st_func_t* st_func_from_sp_func(sp_func_t* func);
 
 // Returns the name of the function.
 const char* st_func_name(st_func_t* func);
