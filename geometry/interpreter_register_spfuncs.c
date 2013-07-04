@@ -29,7 +29,7 @@ static int sphere(lua_State* lua)
   }
 
   sp_func_t* s = sphere_new(x, r, INWARD_NORMAL);
-  lua_pushscalarfunction(lua, st_func_from_spfunc(s));
+  lua_pushscalarfunction(lua, st_func_from_sp_func(s));
   return 1;
 }
 
@@ -48,7 +48,7 @@ static int rect_prism(lua_State* lua)
   // Get the arguments.
   bbox_t* bbox = lua_toboundingbox(lua, 1);
   sp_func_t* prism = rect_prism_new_from_bbox(bbox);
-  lua_pushscalarfunction(lua, st_func_from_spfunc(prism));
+  lua_pushscalarfunction(lua, st_func_from_sp_func(prism));
   prism = NULL;
   return 1;
 }
