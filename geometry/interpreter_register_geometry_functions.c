@@ -203,7 +203,7 @@ static int random_points(lua_State* lua)
 {
   // Check the arguments.
   int num_args = lua_gettop(lua);
-  if (num_args != 2)
+  if ((num_args != 2) && (num_args != 3))
   {
     lua_pushstring(lua, "Invalid arguments. Usage:\npoints = random_points(N, bounding_box) OR\npoints = random_points(N, density, bounding_box)");
     lua_error(lua);
@@ -719,27 +719,116 @@ static int sample_bbox(lua_State* lua)
     return LUA_ERRRUN;
   }
 
-  int num_points = nx * ny * nz;
+  int num_points = 2*(nx*ny + ny*nz + nz*nx);
   double dx = (bbox->x2 - bbox->x1) / nx;
   double dy = (bbox->y2 - bbox->y1) / ny;
   double dz = (bbox->z2 - bbox->z1) / nz;
   point_t* points = malloc(sizeof(point_t) * num_points);
   int offset = 0;
 
+  // -x face.
+  for (int i = 0; i < ny; ++i)
+  {
+    for (int j = 0; j < nz; ++j, ++offset)
+    {
+      points[offset].x = bbox->x1;
+      points[offset].y = bbox->y1 + (i+0.5) * dy;
+      points[offset].z = bbox->z1 + (j+0.5) * dz;
+    }
+  }
+
+  // +x face.
+  for (int i = 0; i < ny; ++i)
+  {
+    for (int j = 0; j < nz; ++j, ++offset)
+    {
+      points[offset].x = bbox->x2;
+      points[offset].y = bbox->y1 + (i+0.5) * dy;
+      points[offset].z = bbox->z1 + (j+0.5) * dz;
+    }
+  }
+
+  // -y face.
   for (int i = 0; i < nx; ++i)
   {
-    for (int j = 0; j < ny; ++j)
+    for (int j = 0; j < nz; ++j, ++offset)
     {
-      for (int k = 0; k < nz; ++k, ++offset)
-      {
-        points[offset].x = bbox->x1 + (i+0.5) * dx;
-        points[offset].y = bbox->y1 + (j+0.5) * dy;
-        points[offset].z = bbox->z1 + (k+0.5) * dz;
-      }
+      points[offset].x = bbox->x1 + (i+0.5) * dx;
+      points[offset].y = bbox->y1;
+      points[offset].z = bbox->z1 + (j+0.5) * dz;
+    }
+  }
+
+  // +y face.
+  for (int i = 0; i < nx; ++i)
+  {
+    for (int j = 0; j < nz; ++j, ++offset)
+    {
+      points[offset].x = bbox->x1 + (i+0.5) * dx;
+      points[offset].y = bbox->y2;
+      points[offset].z = bbox->z1 + (j+0.5) * dz;
+    }
+  }
+
+  // -z face.
+  for (int i = 0; i < nx; ++i)
+  {
+    for (int j = 0; j < ny; ++j, ++offset)
+    {
+      points[offset].x = bbox->x1 + (i+0.5) * dx;
+      points[offset].y = bbox->y1 + (j+0.5) * dy;
+      points[offset].z = bbox->z1;
+    }
+  }
+
+  // +z face.
+  for (int i = 0; i < nx; ++i)
+  {
+    for (int j = 0; j < ny; ++j, ++offset)
+    {
+      points[offset].x = bbox->x1 + (i+0.5) * dx;
+      points[offset].y = bbox->y1 + (j+0.5) * dy;
+      points[offset].z = bbox->z2;
     }
   }
 
   lua_pushpointlist(lua, points, num_points);
+  return 1;
+}
+
+static int scaled_bounding_box(lua_State* lua)
+{
+  // Check the arguments.
+  int num_args = lua_gettop(lua);
+  if ((num_args != 2) || !lua_isboundingbox(lua, 1) || 
+      !lua_isnumber(lua, 2))
+  {
+    lua_pushstring(lua, "Invalid argument(s). Usage:\n"
+                        "bbox2 = scaled_bounding_box(bbox, factor) ->\n"
+                        "Returns a bounding box scaled by the given factor.");
+    lua_error(lua);
+    return LUA_ERRRUN;
+  }
+
+  bbox_t* bbox = lua_toboundingbox(lua, 1);
+  double f = lua_tonumber(lua, 2);
+  if (f <= 0.0)
+  {
+    lua_pushstring(lua, "factor must be positive.");
+    lua_error(lua);
+    return LUA_ERRRUN;
+  }
+
+  double xc = 0.5 * (bbox->x1 + bbox->x2);
+  double yc = 0.5 * (bbox->y1 + bbox->y2);
+  double zc = 0.5 * (bbox->z1 + bbox->z2);
+  bbox_t* scaled_bbox = bbox_new((bbox->x1 - xc) * f + xc, 
+                                 (bbox->x2 - xc) * f + xc,
+                                 (bbox->y1 - yc) * f + yc,
+                                 (bbox->y2 - yc) * f + yc,
+                                 (bbox->z1 - zc) * f + zc,
+                                 (bbox->z2 - zc) * f + zc);
+  lua_pushboundingbox(lua, scaled_bbox);
   return 1;
 }
 
@@ -988,6 +1077,7 @@ void interpreter_register_geometry_functions(interpreter_t* interp)
   interpreter_register_function(interp, "deformable_bounded_voronoi_mesh", deformable_bounded_voronoi_mesh);
   interpreter_register_function(interp, "prune_voronoi_mesh", prune_voronoi_mesh_);
   interpreter_register_function(interp, "bound_voronoi_mesh", bound_voronoi_mesh_);
+  interpreter_register_function(interp, "scaled_bounding_box", scaled_bounding_box);
   interpreter_register_function(interp, "sample_bounding_box", sample_bbox);
   interpreter_register_function(interp, "sample_cyl_shell", sample_cyl_shell);
   interpreter_register_function(interp, "translate_points", translate_points);

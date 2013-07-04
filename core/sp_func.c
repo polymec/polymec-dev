@@ -27,6 +27,7 @@ sp_func_t* sp_func_new(const char* name, void* context, sp_vtable vtable,
 {
   ASSERT(context != NULL);
   ASSERT(vtable.eval != NULL);
+  ASSERT((vtable.eval_deriv == NULL) || (vtable.has_deriv != NULL));
   ASSERT(num_comp > 0);
   sp_func_t* f = GC_MALLOC(sizeof(sp_func_t));
   f->name = strdup(name);
@@ -100,8 +101,11 @@ void sp_func_register_deriv(sp_func_t* func, int n, sp_func_t* nth_deriv)
 bool sp_func_has_deriv(sp_func_t* func, int n)
 {
   ASSERT(n > 0);
-  ASSERT(n <= 4);
-  return ((func->vtable.eval_deriv != NULL) || (func->derivs[n-1] != NULL));
+  if (n > 4) return false; // FIXME
+  if (func->vtable.eval_deriv != NULL)
+    return func->vtable.has_deriv(func->context, n);
+  else
+    return (func->derivs[n-1] != NULL);
 }
 
 // Evaluates the nth derivative of this function, placing the result in result.

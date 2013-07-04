@@ -90,7 +90,7 @@ static void st_func_sp_deriv_free(void* context)
 static st_func_t* sp_func_deriv(sp_func_t* func, int d)
 {
   ASSERT(d > 0);
-  ASSERT(d < 4);
+  ASSERT(sp_func_has_deriv(func, d));
   st_func_sp_deriv_t* F = malloc(sizeof(st_func_sp_deriv_t));
   F->func = func;
   F->deriv = d;
@@ -98,7 +98,7 @@ static st_func_t* sp_func_deriv(sp_func_t* func, int d)
   char name[1024];
   snprintf(name, 1024, "deriv(%s, %d)", sp_func_name(func), d);
   st_func_homogeneity_t homo = (sp_func_is_homogeneous(func)) ? ST_HOMOGENEOUS : ST_INHOMOGENEOUS;
-  return st_func_new(name, F, vtable, homo, ST_CONSTANT, sp_func_num_comp(func));
+  return st_func_new(name, F, vtable, homo, ST_CONSTANT, 3*sp_func_num_comp(func));
 }
 
 st_func_t* st_func_from_sp_func(sp_func_t* func)
@@ -169,7 +169,7 @@ void st_func_register_deriv(st_func_t* func, int n, st_func_t* nth_deriv)
 bool st_func_has_deriv(st_func_t* func, int n)
 {
   ASSERT(n > 0);
-  ASSERT(n <= 4);
+  if (n > 4) return false; // FIXME
   return (func->derivs[n-1] != NULL);
 }
 
