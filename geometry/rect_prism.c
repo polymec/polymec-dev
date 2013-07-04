@@ -82,8 +82,8 @@ sp_func_t* rect_prism_new(point_t* x0,
   sp_vtable vtable = {.eval = prism_eval, .eval_deriv = prism_eval_deriv, 
                       .dtor = prism_free};
   char str[1024];
-  snprintf(str, 1024, "Rectangular prism (x0 = (%g, %g, %g), L1 = %g, L2 = %g, L3 = %g,\n"
-                      "                   alpha = %g, beta = %g, gamma = %g)", 
+  snprintf(str, 1024, "Rectangular prism (x0 = (%g, %g, %g), L1 = %g, L2 = %g, L3 = %g,"
+                      " alpha = %g, beta = %g, gamma = %g)", 
                       x0->x, x0->y, x0->z, L1, L2, L3, alpha, beta, gamma);
   return sp_func_new(str, p, vtable, SP_INHOMOGENEOUS, 1);
 }
