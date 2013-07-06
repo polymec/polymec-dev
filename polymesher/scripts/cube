@@ -1,0 +1,16 @@
+bbox = bounding_box{x1 = -0.5, x2 = 0.5,
+                    y1 = -0.5, y2 = 0.5,
+                    z1 = -0.5, z2 = 0.5}
+bpoints = sample_bounding_box(bbox, 1, 1, 1)
+box = rect_prism(bbox)
+grads = grad(box, bpoints)
+ipoints = copy_points(bpoints)
+--print(bpoints)
+--print(ipoints)
+translate_points(bpoints, grads, -0.1)
+translate_points(ipoints, grads,  0.1)
+points = ipoints .. bpoints
+print(points)
+mesh = unbounded_voronoi_mesh(points)
+prune_voronoi_mesh(mesh)
+write_vtk_plot(mesh, 'cube')
