@@ -1,6 +1,7 @@
 #include "geometry/prune_voronoi_mesh.h"
 #include "core/unordered_map.h"
 #include "core/unordered_set.h"
+#include "core/mesh_diff.h"
 #include <stdio.h>
 
 void prune_voronoi_mesh(mesh_t* mesh)
@@ -205,10 +206,7 @@ void prune_voronoi_mesh(mesh_t* mesh)
     // Does the face have at least 3 nodes?
     int num_nodes;
     node_t* nodes[face->num_edges];
-ASSERT(face != NULL);
     face_get_nodes(face, nodes, &num_nodes);
-    ASSERT(num_nodes == face->num_edges);
-ASSERT(face != NULL);
     if (num_nodes < 3)
     {
       polymec_error("prune_voronoi_mesh: face %d (with center at <%g, %g, %g>) has only %d node(s).", 
