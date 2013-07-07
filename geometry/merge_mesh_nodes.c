@@ -33,8 +33,26 @@ void merge_mesh_nodes(mesh_t* mesh, double tolerance)
     }
   }
 
+  // Move all the merged nodes to the end of the mesh's node list, 
+  // modifying the mapping in the process.
+  int num_merged = 0;
+  for (int n = 0; n < mesh->num_nodes; ++n)
+  {
+    int n1 = *int_int_unordered_map_get(map, n);
+    if (n1 != n)
+    {
+      int n_swap = mesh->num_nodes - 1 - num_merged;
+      node_t temp = mesh->nodes[n_swap];
+      mesh->nodes[n_swap] = mesh->nodes[n];
+      mesh->nodes[n] = temp;
+      int mapped_n_swap = *int_int_unordered_map_get(map, n_swap);
+      int_int_unordered_map_insert(map, n, mapped_n_swap);
+      ++num_merged;
+    }
+  }
+  mesh->num_nodes -= num_merged;
+
   // Now go through the edges of the mesh and perform the node merges.
-  // FIXME: Currently, this doesn't get rid of old nodes.
   for (int e = 0; e < mesh->num_edges; ++e)
   {
     edge_t* edge = &mesh->edges[e];
