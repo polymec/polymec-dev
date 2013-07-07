@@ -408,35 +408,34 @@ edge_t* cell_find_edge_with_nodes(cell_t* cell, node_t* node1, node_t* node2)
 void face_get_nodes(face_t* face, node_t** nodes, int* num_nodes)
 {
   memset(nodes, 0, sizeof(node_t*) * face->num_edges);
-  *num_nodes = 0;
   if (face->num_edges == 0) return;
-  bool used_edges[face->num_edges];
-  memset(used_edges, 0, sizeof(bool) * face->num_edges);
-  nodes[0] = face->edges[0]->node1;
-  used_edges[0] = true;
-  bool done = false;
-  int e = 0, offset = 1;
-  while (!done)
+  *num_nodes = 0;
+  for (int e = 0; e < face->num_edges; ++e)
   {
-    if (e == 0) done = true;
-    if (used_edges[e]) continue;
-
     edge_t* edge = face->edges[e];
-    if (edge->node1 == nodes[offset-1])
+    bool found_node = false;
+    for (int n = 0; n < *num_nodes; ++n)
     {
-      nodes[offset++] = edge->node1;
-      used_edges[e] = true;
-      done = false;
+      if (nodes[n] == edge->node1)
+      {
+        found_node = true;
+        break;
+      }
     }
-    else if (edge->node2 == nodes[offset-1])
+    if (!found_node)
+      nodes[(*num_nodes)++] = edge->node1;
+    found_node = false;
+    for (int n = 0; n < *num_nodes; ++n)
     {
-      nodes[offset++] = edge->node2;
-      used_edges[e] = true;
-      done = false;
+      if (nodes[n] == edge->node2)
+      {
+        found_node = true;
+        break;
+      }
     }
-    e = (e + 1) % face->num_edges; // Keep going round.
+    if (!found_node)
+      nodes[(*num_nodes)++] = edge->node2;
   }
-  *num_nodes = offset;
 }
 
 void node_fprintf(node_t* node, mesh_t* mesh, FILE* stream)
