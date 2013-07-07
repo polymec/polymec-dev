@@ -12,7 +12,7 @@ void prune_voronoi_mesh(mesh_t* mesh)
   // Prepare our diff.
   mesh_diff_t* diff = mesh_diff_new();
 
-  // We won't be pruning any nodes, since the semi-infinite edge don't have 
+  // We won't be pruning any nodes, since the semi-infinite edges don't have 
   // any second nodes associated with them.
 
   // Go over all of the outer edges and move them to the end of the mesh's
@@ -204,26 +204,37 @@ void prune_voronoi_mesh(mesh_t* mesh)
 
     // Does the face have at least 3 nodes?
     int num_nodes;
-    node_t* nodes;
-    face_get_nodes(face, &nodes, &num_nodes);
+    node_t* nodes[face->num_edges];
+ASSERT(face != NULL);
+    face_get_nodes(face, nodes, &num_nodes);
+    ASSERT(num_nodes == face->num_edges);
+ASSERT(face != NULL);
     if (num_nodes < 3)
-      polymec_error("prune_voronoi_mesh: face %d has %d node(s).", f, num_nodes);
+    {
+      polymec_error("prune_voronoi_mesh: face %d (with center at <%g, %g, %g>) has only %d node(s).", 
+                    f, face->center.x, face->center.y, face->center.z, num_nodes);
+    }
 
     // Are all of the nodes in the face distinct?
     for (int n1 = 0; n1 < num_nodes; ++n1)
     {
-      node_t* node1 = &nodes[n1];
+      node_t* node1 = nodes[n1];
       for (int n2 = 1; n2 < num_nodes; ++n2)
       {
         if (n2 != n1)
         {
-          node_t* node2 = &nodes[n2];
+          node_t* node2 = nodes[n2];
           double dx = node2->x - node1->x;
           double dy = node2->y - node1->y;
           double dz = node2->z - node1->z;
           double D = sqrt(dx*dx + dy*dy + dz*dz);
           if (D < 1e-12)
-            polymec_error("prune_voronoi_mesh: Nodes %d and %d in face %d are indistinguishable!", n1, n2, f);
+          {
+            int nid1 = node1 - &mesh->nodes[0];
+            int nid2 = node2 - &mesh->nodes[0];
+            polymec_error("prune_voronoi_mesh: Nodes %d and %d (indices %d and %d, at <%g, %g, %g> and <%g, %g, %g>, respectively) in face %d (center at <%g, %g, %g>) are indistinguishable!", 
+                          n1, n2, nid1, nid2, node1->x, node1->y, node1->z, node2->x, node2->y, node2->z, f, face->center.x, face->center.y, face->center.z);
+          }
         }
       }
     }
