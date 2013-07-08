@@ -83,11 +83,17 @@ voronoi_tessellator_tessellate(voronoi_tessellator_t* tessellator,
   facetT* facet;
   vertexT* vertex;
 
-  int num_faces = 0;
+  // NOTE: For edges, see the QHull functions qh_facet3vertex, qh_nextridge3d.
+  // NOTE: qh_facet3vertex returns a setT of vertices, and sets are described 
+  // NOTE: in qset.h (qh_setsize(set) returns the set's size, for example).
+
+  // Count the faces and edges.
+  int num_faces = 0, num_edges = 0;
   FORALLfacets
   {
     facet->seen = false;
     ++num_faces;
+    // FIXME
   }
 
   // Find the numbers of neighbors for each cell.
