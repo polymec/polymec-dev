@@ -66,22 +66,79 @@ voronoi_tessellator_tessellate(voronoi_tessellator_t* tessellator,
 
   // Set up QHull to tessellate the points. Much of this was borrowed from 
   // user_eg.c in the QHull distribution.
-  char flags[128];
-  sprintf(flags, "qhull v Fv");
+  char command[128];
+  sprintf(command, "qhull v Qbb");
   int status = qh_new_qhull(3, num_points, points, False,
-                            flags, NULL, NULL);
+                            command, NULL, NULL);
   if (status != 0)
     polymec_error("Could not create an instance of QHull for Voronoi tessellation.");
 
+  // Determine the numbers of Voronoi cells and nodes.
+  qh_findgood_all(qh facet_list);
+  int num_cells = qh num_vertices - qh_setsize(qh del_vertices);
+  int num_nodes = qh num_good;
+
   // Computes Voronoi centers for all facets. 
   qh_setvoronoi_all();
+  facetT* facet;
+  vertexT* vertex;
 
-  // 'qh facet_list' contains the convex hull.
-  // If you want a Voronoi diagram ('v') and do not request output (i.e., outfile=NULL),
-  // call qh_setvoronoi_all() after qh_new_qhull(). 
-//  FORALLfacets {
-//     // FIXME
-//  }
+  int num_faces = 0;
+  FORALLfacets
+  {
+    facet->seen = false;
+    ++num_faces;
+  }
+
+  // Find the numbers of neighbors for each cell.
+  int* num_neighbors = malloc(sizeof(int) * num_cells);
+
+  int i = 0;
+  FORALLvertices
+  {
+    qh_order_vertexneighbors(vertex);
+
+    bool infinity_seen = false;
+    facetT *neighbor, **neighbor_ptr;
+    FOREACHneighbor_(vertex)
+    {
+      if (neighbor->upperdelaunay)
+      {
+        if (!infinity_seen)
+        {
+          infinity_seen = true;
+//          num_neighbors[i]++;
+        }
+      }
+      else
+      {
+        neighbor->seen = true;
+        num_neighbors[i]++;
+      }
+    }
+    ++i;
+  }
+
+  // Now we record the node coordinates.
+  FORALLfacets
+  {
+    facet->seen = false;
+  }
+
+  i = 0;
+  FORALLvertices
+  {
+    qh_order_vertexneighbors(vertex);
+    bool infinity_seen = false;
+    int index = qh_pointid(vertex->point);
+    int nn = num_neighbors
+
+    // Skip those cells with only one neighbor.
+    // (This is an oddity of QHull, apparently.)
+    if (nn == 1) continue;
+    facetT *neighbor, **neighbor_ptr;
+
+  }
 
   // Copy stuff to a fresh tessellation object.
   voronoi_tessellation_t* t = NULL;//voronoi_tessellation_new(out.numberofvcells, 
