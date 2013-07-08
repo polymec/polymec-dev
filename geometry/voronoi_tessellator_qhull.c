@@ -1,10 +1,15 @@
 // This implementation of the Voronoi tessellator uses QHull.
 
 #define qh_QHpointer (1)
-#include "libqhull.h"
+#include "libqhull/libqhull.h"
+#include "libqhull/poly.h"
+#include "libqhull/qset.h"
+#include "libqhull/io.h"
 
 #include "core/polymec.h"
-#include "core/table.h"
+#include "core/unordered_map.h"
+#include "core/tuple.h"
+#include "core/slist.h"
 #include <gc/gc.h>
 #include "geometry/voronoi_tessellator.h"
 
@@ -25,26 +30,15 @@ void voronoi_tessellation_free(voronoi_tessellation_t* tessellation)
 
 struct voronoi_tessellator_t
 {
-  // Temporary file where QHull data is stored.
-  char qhull_filename[1024];
 };
-
-static void voronoi_tessellator_free(void* ctx, void* dummy)
-{
-  voronoi_tessellator_t* t = ctx;
-  unlink(t->qhull_filename);
-}
 
 voronoi_tessellator_t* voronoi_tessellator_new()
 {
   voronoi_tessellator_t* t = (voronoi_tessellator_t*)GC_MALLOC(sizeof(voronoi_tessellator_t));
-  GC_register_finalizer(t, voronoi_tessellator_free, t, NULL, NULL);
-  strcpy(t->qhull_filename, "QHULLXXXXXXXX");
-  mkstemp(t->qhull_filename);
   return t;
 }
 
-voronoi_tessellation_t* voronoi_tessellation_new(int num_cells, int num_faces, int num_edges, int num_nodes)
+static voronoi_tessellation_t* voronoi_tessellation_new(int num_cells, int num_faces, int num_edges, int num_nodes)
 {
   voronoi_tessellation_t* t = (voronoi_tessellation_t*)malloc(sizeof(voronoi_tessellation_t));
   t->num_cells = num_cells;
@@ -76,33 +70,45 @@ voronoi_tessellator_tessellate(voronoi_tessellator_t* tessellator,
 
   // Determine the numbers of Voronoi cells and nodes.
   qh_findgood_all(qh facet_list);
-  int num_cells = qh num_vertices - qh_setsize(qh del_vertices);
-  int num_nodes = qh num_good;
 
   // Computes Voronoi centers for all facets. 
   qh_setvoronoi_all();
   facetT* facet;
-  ridgeT* ridge;
-  vertexT* vertex;
+  ridgeT *ridge, **ridgep;
+  vertexT *vertex, **vertexp;
+  pointT *point, *pointtemp;
+
+  // Start assembling our tessellation.
+  voronoi_tessellation_t* t = (voronoi_tessellation_t*)malloc(sizeof(voronoi_tessellation_t));
 
   // NOTE: For edges, see the QHull functions qh_facet3vertex, qh_nextridge3d.
   // NOTE: qh_facet3vertex returns a setT of vertices, and sets are described 
   // NOTE: in qset.h (qh_setsize(set) returns the set's size, for example).
 
-  // Record the number of nodes.
-  int num_nodes = qh num_points;
+  // Record the node coordinates.
+  t->num_nodes = qh num_points;
+  t->nodes = (double*)malloc(3*t->num_nodes*sizeof(double));
+  {
+    int n = 0;
+    FORALLpoints
+    {
+      t->nodes[3*n]   = point[3*n];
+      t->nodes[3*n+1] = point[3*n+1];
+      t->nodes[3*n+2] = point[3*n+2];
+    }
+  }
 
   // Build the face->edge mapping and the edge->node mapping.
   int_ptr_unordered_map_t* edges_for_face = int_ptr_unordered_map_new();
-  int_int_table_t* nodes_for_edge = int_int_table_new();
+  int_ptr_unordered_map_t* nodes_for_edge = int_ptr_unordered_map_new();
   FORALLfacets
   {
     facet->seen = false;
     int_slist_t* face_edges = int_slist_new();
-    FOREACHridge(facet->ridges)
+    FOREACHridge_(facet->ridges)
     {
       int n1 = -1, n2 = -1;
-      FOREACHvertex(ridge->vertices)
+      FOREACHvertex_(ridge->vertices)
       {
         if (n1 == -1)
           n1 = vertex->id;
@@ -112,150 +118,105 @@ voronoi_tessellator_tessellate(voronoi_tessellator_t* tessellator,
           n2 = vertex->id;
         }
       }
-      int_int_table_insert(nodes_for_edge, ridge->id, MIN(n1, n2), MAX(n1, n2));
+      int* node_pair = int_tuple_new(2);
+      node_pair[0] = MIN(n1, n2);
+      node_pair[1] = MAX(n1, n2);
+      int_ptr_unordered_map_insert_with_v_dtor(nodes_for_edge, ridge->id, node_pair, DTOR(int_tuple_free));
+      int_slist_t* face_edges = int_slist_new();
       int_slist_append(face_edges, ridge->id);
     }
     int_ptr_unordered_map_insert_with_v_dtor(edges_for_face, facet->id, face_edges, DTOR(int_slist_free));
   }
-  int num_faces = edges_for_face->size;
-  int num_edges = int_int_table->num_rows;
+  t->num_edges = nodes_for_edge->size;
+  t->edges = (voronoi_edge_t*)malloc(t->num_edges*sizeof(voronoi_edge_t));
+  for (int e = 0; e < t->num_edges; ++e)
+  {
+    int* node_pair = *int_ptr_unordered_map_get(nodes_for_edge, e);
+    t->edges[e].node1 = node_pair[0];
+    t->edges[e].node2 = node_pair[1];
+    if (t->edges[e].node2 == -1) // node2 is a "ghost"
+    {
+      // FIXME
+//      t->edges[i].ray[0] = out.vedgelist[i].vnormal[0];
+//      t->edges[i].ray[1] = out.vedgelist[i].vnormal[1];
+//      t->edges[i].ray[2] = out.vedgelist[i].vnormal[2];
+    }
+  }
+  int_ptr_unordered_map_free(nodes_for_edge);
 
   // Build the cell->face mapping and the face->cell mapping.
   int_ptr_unordered_map_t* faces_for_cell = int_ptr_unordered_map_new();
-  int* num_neighbors = malloc(sizeof(int) * num_cells);
-
-  int i = 0;
+  int_ptr_unordered_map_t* cells_for_face = int_ptr_unordered_map_new();
   FORALLvertices
   {
     qh_order_vertexneighbors(vertex);
 
     bool infinity_seen = false;
-    facetT *neighbor, **neighbor_ptr;
+    facetT *neighbor, **neighborp;
     int_slist_t* cell_faces = int_slist_new();
     FOREACHneighbor_(vertex)
     {
-#if 0
-      if (neighbor->upperdelaunay)
+      if (!neighbor->seen)
       {
-        if (!infinity_seen)
+        int c1 = vertex->id, c2 = -1;
+        if (!neighbor->upperdelaunay)
         {
-          infinity_seen = true;
-          num_neighbors[i]++;
+//          c2 = FIXME;
         }
-      }
-      else
-      {
+        int* face_cells = int_tuple_new(2);
+        face_cells[0] = c1;
+        face_cells[1] = c2;
+        int_ptr_unordered_map_insert_with_v_dtor(cells_for_face, neighbor->id, face_cells, DTOR(int_tuple_free));
+        int_slist_append(cell_faces, neighbor->id);
         neighbor->seen = true;
-        num_neighbors[i]++;
       }
-#endif
-      int_slist_append(cell_faces, neighbor->id);
     }
     int_ptr_unordered_map_insert_with_v_dtor(faces_for_cell, vertex->id, cell_faces, DTOR(int_slist_free));
-    ++i;
-  }
-
-  // Now we record the node coordinates.
-  FORALLfacets
-  {
-    facet->seen = false;
-  }
-
-  i = 0;
-  FORALLvertices
-  {
-    qh_order_vertexneighbors(vertex);
-    bool infinity_seen = false;
-    int index = qh_pointid(vertex->point);
-    int nn = num_neighbors
-
-    // Skip those cells with only one neighbor.
-    // (This is an oddity of QHull, apparently.)
-    if (nn == 1) continue;
-
-    // Make a list of the facets separating this site from its neighbors.
-    int facet_list[nn];
-    point_t face_centers[nn];
-    memset(facet_list, 0, sizeof(int) * nn);
-    facetT *neighbor, **neighbor_ptr;
-    FOREACHneighbor_(vertex)
-    {
-      if (neighbor->upperdelaunay)
-      {
-        if (! infinity_seen)
-        {
-          infinity_seen = true;
-          facet_list(m++) = 1;
-          at_inf(idx) = true;
-        }
-      }
-      else
-      {
-        if (!neighbor->seen)
-        {
-          face_centers[i].x = neighbor->center[0];
-          face_centers[i].y = neighbor->center[1];
-          face_centers[i].z = neighbor->center[2];
-
-          neighbor->seen = true;
-          neighbor->visitid = i;
-          i++; // FIXME: ???
-        }
-
-        facet_list(m++) = neighbor->visitid;
-      }
-    }
-  }
-
-  // Copy stuff to a fresh tessellation object.
-  voronoi_tessellation_t* t = voronoi_tessellation_new(num_cells,
-                                                       num_faces,
-                                                       num_edges,
-                                                       num_nodes);
-//  memcpy(t->nodes, out.vpointlist, sizeof(double)*3*t->num_nodes);
-
-#if 0
-  // Edge <-> node connectivity.
-  for (int i = 0; i < t->num_edges; ++i)
-  {
-    t->edges[i].node1 = out.vedgelist[i].v1;
-    t->edges[i].node2 = out.vedgelist[i].v2;
-    if (t->edges[i].node2 == -1) // node2 is a "ghost"
-    {
-      t->edges[i].ray[0] = out.vedgelist[i].vnormal[0];
-      t->edges[i].ray[1] = out.vedgelist[i].vnormal[1];
-      t->edges[i].ray[2] = out.vedgelist[i].vnormal[2];
-    }
   }
 
   // Face <-> edge/cell connectivity.
-  for (int i = 0; i < t->num_faces; ++i)
+  t->num_faces = edges_for_face->size;
+  t->faces = (voronoi_face_t*)malloc(t->num_faces*sizeof(voronoi_face_t));
+  for (int f = 0; f < t->num_faces; ++f)
   {
-    t->faces[i].cell1 = out.vfacetlist[i].c1;
-    t->faces[i].cell2 = out.vfacetlist[i].c2;
-    int Ne = out.vfacetlist[i].elist[0];
-    t->faces[i].num_edges = Ne;
-    t->faces[i].edges = (int*)malloc(sizeof(int)*Ne);
-    for (int j = 0; j < Ne; ++j)
-      t->faces[i].edges[j] = out.vfacetlist[i].elist[j+1];
+    int* face_cells = *int_ptr_unordered_map_get(cells_for_face, f);
+    t->faces[f].cell1 = face_cells[0];
+    t->faces[f].cell2 = face_cells[1];
+    int_slist_t* face_edges = *int_ptr_unordered_map_get(edges_for_face, f);
+    int Ne = face_edges->size;
+    t->faces[f].num_edges = Ne;
+    t->faces[f].edges = (int*)malloc(sizeof(int)*Ne);
+    int_slist_node_t* fe = face_edges->front;
+    for (int e = 0; e < Ne; ++e)
+    {
+      t->faces[f].edges[e] = fe->value;
+      fe = fe->next;
+    }
   }
+  int_ptr_unordered_map_free(edges_for_face);
+  int_ptr_unordered_map_free(cells_for_face);
 
-  // Cell <-> face connectivity.
+  // Cell -> face connectivity.
+  t->num_cells = qh num_good; //qh num_vertices - qh_setsize(qh del_vertices);
+  t->cells = (voronoi_cell_t*)malloc(t->num_cells*sizeof(voronoi_cell_t));
   for (int i = 0; i < t->num_cells; ++i)
   {
-    int Nf = out.vcelllist[i][0];
-    t->cells[i].num_faces = Nf;
-    t->cells[i].faces = (int*)malloc(sizeof(int)*Nf);
-    for (int f = 0; f < Nf; ++f)
-      t->cells[i].faces[f] = out.vcelllist[i][f+1];
+    int_slist_t* cell_faces = *int_ptr_unordered_map_get(faces_for_cell, i);
+    t->cells[i].num_faces = cell_faces->size;
+    int_slist_node_t* cf = cell_faces->front;
+    for (int f = 0; f < cell_faces->size; ++f)
+    {
+      t->cells[i].faces[f] = cf->value;
+      cf = cf->next;
+    }
   }
-#endif
+  int_ptr_unordered_map_free(faces_for_cell);
 
   // Clean up.
 #ifdef qh_NOmem
-  qh_freeqhull( True);
+  qh_freeqhull(True);
 #else
-  qh_freeqhull( False);
+  qh_freeqhull(False);
   int curlong, totlong;
   qh_memfreeshort(&curlong, &totlong);
   if (curlong || totlong)

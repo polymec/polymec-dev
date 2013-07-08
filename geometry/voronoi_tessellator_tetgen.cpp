@@ -39,7 +39,7 @@ voronoi_tessellator_t* voronoi_tessellator_new()
   return t;
 }
 
-voronoi_tessellation_t* voronoi_tessellation_new(int num_cells, int num_faces, int num_edges, int num_nodes)
+static voronoi_tessellation_t* voronoi_tessellation_new(int num_cells, int num_faces, int num_edges, int num_nodes)
 {
   voronoi_tessellation_t* t = (voronoi_tessellation_t*)malloc(sizeof(voronoi_tessellation_t));
   t->num_cells = num_cells;
