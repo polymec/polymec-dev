@@ -4,6 +4,7 @@
 #include "libqhull.h"
 
 #include "core/polymec.h"
+#include "core/table.h"
 #include <gc/gc.h>
 #include "geometry/voronoi_tessellator.h"
 
@@ -81,22 +82,46 @@ voronoi_tessellator_tessellate(voronoi_tessellator_t* tessellator,
   // Computes Voronoi centers for all facets. 
   qh_setvoronoi_all();
   facetT* facet;
+  ridgeT* ridge;
   vertexT* vertex;
 
   // NOTE: For edges, see the QHull functions qh_facet3vertex, qh_nextridge3d.
   // NOTE: qh_facet3vertex returns a setT of vertices, and sets are described 
   // NOTE: in qset.h (qh_setsize(set) returns the set's size, for example).
 
-  // Count the faces and edges.
-  int num_faces = 0, num_edges = 0;
+  // Record the number of nodes.
+  int num_nodes = qh num_points;
+
+  // Build the face->edge mapping and the edge->node mapping.
+  int_ptr_unordered_map_t* edges_for_face = int_ptr_unordered_map_new();
+  int_int_table_t* nodes_for_edge = int_int_table_new();
   FORALLfacets
   {
     facet->seen = false;
-    ++num_faces;
-    // FIXME
+    int_slist_t* face_edges = int_slist_new();
+    FOREACHridge(facet->ridges)
+    {
+      int n1 = -1, n2 = -1;
+      FOREACHvertex(ridge->vertices)
+      {
+        if (n1 == -1)
+          n1 = vertex->id;
+        else
+        {
+          ASSERT(n2 == -1);
+          n2 = vertex->id;
+        }
+      }
+      int_int_table_insert(nodes_for_edge, ridge->id, MIN(n1, n2), MAX(n1, n2));
+      int_slist_append(face_edges, ridge->id);
+    }
+    int_ptr_unordered_map_insert_with_v_dtor(edges_for_face, facet->id, face_edges, DTOR(int_slist_free));
   }
+  int num_faces = edges_for_face->size;
+  int num_edges = int_int_table->num_rows;
 
-  // Find the numbers of neighbors for each cell.
+  // Build the cell->face mapping and the face->cell mapping.
+  int_ptr_unordered_map_t* faces_for_cell = int_ptr_unordered_map_new();
   int* num_neighbors = malloc(sizeof(int) * num_cells);
 
   int i = 0;
@@ -106,14 +131,16 @@ voronoi_tessellator_tessellate(voronoi_tessellator_t* tessellator,
 
     bool infinity_seen = false;
     facetT *neighbor, **neighbor_ptr;
+    int_slist_t* cell_faces = int_slist_new();
     FOREACHneighbor_(vertex)
     {
+#if 0
       if (neighbor->upperdelaunay)
       {
         if (!infinity_seen)
         {
           infinity_seen = true;
-//          num_neighbors[i]++;
+          num_neighbors[i]++;
         }
       }
       else
@@ -121,7 +148,10 @@ voronoi_tessellator_tessellate(voronoi_tessellator_t* tessellator,
         neighbor->seen = true;
         num_neighbors[i]++;
       }
+#endif
+      int_slist_append(cell_faces, neighbor->id);
     }
+    int_ptr_unordered_map_insert_with_v_dtor(faces_for_cell, vertex->id, cell_faces, DTOR(int_slist_free));
     ++i;
   }
 
@@ -142,15 +172,46 @@ voronoi_tessellator_tessellate(voronoi_tessellator_t* tessellator,
     // Skip those cells with only one neighbor.
     // (This is an oddity of QHull, apparently.)
     if (nn == 1) continue;
-    facetT *neighbor, **neighbor_ptr;
 
+    // Make a list of the facets separating this site from its neighbors.
+    int facet_list[nn];
+    point_t face_centers[nn];
+    memset(facet_list, 0, sizeof(int) * nn);
+    facetT *neighbor, **neighbor_ptr;
+    FOREACHneighbor_(vertex)
+    {
+      if (neighbor->upperdelaunay)
+      {
+        if (! infinity_seen)
+        {
+          infinity_seen = true;
+          facet_list(m++) = 1;
+          at_inf(idx) = true;
+        }
+      }
+      else
+      {
+        if (!neighbor->seen)
+        {
+          face_centers[i].x = neighbor->center[0];
+          face_centers[i].y = neighbor->center[1];
+          face_centers[i].z = neighbor->center[2];
+
+          neighbor->seen = true;
+          neighbor->visitid = i;
+          i++; // FIXME: ???
+        }
+
+        facet_list(m++) = neighbor->visitid;
+      }
+    }
   }
 
   // Copy stuff to a fresh tessellation object.
-  voronoi_tessellation_t* t = NULL;//voronoi_tessellation_new(out.numberofvcells, 
-                                   //                    out.numberofvfacets, 
-                                   //                    out.numberofvedges, 
-                                   //                    out.numberofvpoints);
+  voronoi_tessellation_t* t = voronoi_tessellation_new(num_cells,
+                                                       num_faces,
+                                                       num_edges,
+                                                       num_nodes);
 //  memcpy(t->nodes, out.vpointlist, sizeof(double)*3*t->num_nodes);
 
 #if 0
