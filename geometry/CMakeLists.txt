@@ -14,9 +14,8 @@ add_library(polymec_geometry mapping.c plane.c cylinder.c sphere.c intersection.
             witkin_heckbert_sampling.c mgw_sampling.c
             create_unbounded_voronoi_mesh.c 
             create_deformable_bounded_voronoi_mesh.c
-            merge_mesh_nodes.c
-            bound_voronoi_mesh.c prune_voronoi_mesh.c crop_voronoi_mesh.c 
-            create_manifold.c generate_random_points.c
+            merge_mesh_nodes.c bound_voronoi_mesh.c prune_voronoi_mesh.c 
+            crop_voronoi_mesh.c generate_random_points.c
             ${VORONOI_SOURCES}
             interpreter_register_geometry_functions.c 
             interpreter_register_spfuncs.c)
