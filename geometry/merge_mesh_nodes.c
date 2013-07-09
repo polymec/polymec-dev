@@ -67,6 +67,9 @@ void merge_mesh_nodes(mesh_t* mesh, double tolerance)
     }
   }
 
+  // FIXME: Need to evaporate edges whose nodes have been merged into 1 
+  // FIXME: or none, and then the faces whose edges have evaporated!
+
   // Clean up.
   int_int_unordered_map_free(map);
   kd_tree_free(tree);
