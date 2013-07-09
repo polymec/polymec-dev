@@ -7,7 +7,7 @@
 #include "geometry/create_unbounded_voronoi_mesh.h"
 #include "geometry/create_deformable_bounded_voronoi_mesh.h"
 #include "geometry/rect_prism.h"
-#include "geometry/merge_mesh_nodes.h"
+//#include "geometry/merge_mesh_nodes.h"
 #include "geometry/prune_voronoi_mesh.h"
 #include "geometry/bound_voronoi_mesh.h"
 
@@ -601,6 +601,7 @@ static int bound_voronoi_mesh_(lua_State* lua)
   return 0;
 }
 
+#if 0
 static int merge_mesh_nodes_(lua_State* lua)
 {
   // Check the arguments.
@@ -626,6 +627,7 @@ static int merge_mesh_nodes_(lua_State* lua)
   // No results.
   return 0;
 }
+#endif
 
 static int prune_voronoi_mesh_(lua_State* lua)
 {
@@ -1102,7 +1104,7 @@ void interpreter_register_geometry_functions(interpreter_t* interp)
   interpreter_register_function(interp, "jostle_points", jostle_points);
   interpreter_register_function(interp, "unbounded_voronoi_mesh", unbounded_voronoi_mesh);
   interpreter_register_function(interp, "deformable_bounded_voronoi_mesh", deformable_bounded_voronoi_mesh);
-  interpreter_register_function(interp, "merge_mesh_nodes", merge_mesh_nodes_);
+//  interpreter_register_function(interp, "merge_mesh_nodes", merge_mesh_nodes_);
   interpreter_register_function(interp, "prune_voronoi_mesh", prune_voronoi_mesh_);
   interpreter_register_function(interp, "bound_voronoi_mesh", bound_voronoi_mesh_);
   interpreter_register_function(interp, "scaled_bounding_box", scaled_bounding_box);
