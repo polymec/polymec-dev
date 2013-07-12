@@ -35,7 +35,7 @@ endif()
 add_library(tetgen ${CMAKE_CURRENT_BINARY_DIR}/tetgen1.4.3/tetgen.cxx ${CMAKE_CURRENT_BINARY_DIR}/tetgen1.4.3/predicates.cxx)
 set(TETGEN_CXXFLAGS "-DTETLIBRARY -DREAL=double")
 set_target_properties(tetgen PROPERTIES COMPILE_FLAGS ${TETGEN_CXXFLAGS})
-set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};tetgen)
+#set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};tetgen)
 
 # Build the QHull C library.
 if (NOT EXISTS ${PROJECT_BINARY_DIR}/include/libqhull/libqhull.h)
@@ -272,6 +272,15 @@ set(POLYMEC_TP_INCDIRS ${POLYMEC_TP_INCDIRS};${PROJECT_BINARY_DIR}/include/libxm
 #add_library(tao STATIC IMPORTED)
 #set_target_properties(tao PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libtao.a)
 #set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};tao)
+
+# On Macs, we need to build the fmemopen library.
+if (${APPLE})
+  if (NOT EXISTS ${PROJECT_BINARY_DIR}/include/fmemopen.h)
+    file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/fmemopen.h DESTINATION ${PROJECT_BINARY_DIR}/include)
+  endif()
+  add_library(fmemopen fmemopen.c)
+  set(POLYMEC_TP_LIBS fmemopen;${POLYMEC_TP_LIBS})
+endif()
 
 # Add all the libraries to the build system at large.
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${POLYMEC_TP_C_FLAGS}" PARENT_SCOPE)
