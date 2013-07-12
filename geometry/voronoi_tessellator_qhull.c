@@ -1,10 +1,8 @@
 // This implementation of the Voronoi tessellator uses QHull.
 
-#define qh_QHpointer (1)
 #include "libqhull/libqhull.h"
-#include "libqhull/poly.h"
+#include "libqhull/mem.h"
 #include "libqhull/qset.h"
-#include "libqhull/io.h"
 
 #include "core/polymec.h"
 #include "core/unordered_map.h"
@@ -12,6 +10,14 @@
 #include "core/slist.h"
 #include <gc/gc.h>
 #include "geometry/voronoi_tessellator.h"
+
+// We use fmemopen and open_memstream to communicate with QHull.
+#ifdef __APPLE__
+#include "fmemopen.h"
+#endif
+#include <stdio.h>
+
+static char hidden_options[]=" d v H Qbb Qf Qg Qm Qr Qu Qv Qx Qz TR E V Fp Gt Q0 Q1 Q2 Q3 Q4 Q5 Q6 Q7 Q8 Q9 ";
 
 void voronoi_tessellation_free(voronoi_tessellation_t* tessellation)
 {
@@ -38,20 +44,6 @@ voronoi_tessellator_t* voronoi_tessellator_new()
   return t;
 }
 
-static voronoi_tessellation_t* voronoi_tessellation_new(int num_cells, int num_faces, int num_edges, int num_nodes)
-{
-  voronoi_tessellation_t* t = (voronoi_tessellation_t*)malloc(sizeof(voronoi_tessellation_t));
-  t->num_cells = num_cells;
-  t->cells = (voronoi_cell_t*)malloc(num_cells*sizeof(voronoi_cell_t));
-  t->num_faces = num_faces;
-  t->faces = (voronoi_face_t*)malloc(num_faces*sizeof(voronoi_face_t));
-  t->num_edges = num_edges;
-  t->edges = (voronoi_edge_t*)malloc(num_edges*sizeof(voronoi_edge_t));
-  t->num_nodes = num_nodes;
-  t->nodes = (double*)malloc(3*num_nodes*sizeof(double));
-  return t;
-}
-
 voronoi_tessellation_t*
 voronoi_tessellator_tessellate(voronoi_tessellator_t* tessellator,
                                double* points, int num_points)
@@ -59,42 +51,72 @@ voronoi_tessellator_tessellate(voronoi_tessellator_t* tessellator,
   ASSERT(points != NULL);
   ASSERT(num_points >= 2);
 
-  // Set up QHull to tessellate the points. Much of this was borrowed from 
-  // user_eg.c in the QHull distribution.
-  char command[128];
-  sprintf(command, "qhull v Qbb");
-  int status = qh_new_qhull(3, num_points, points, False,
-                            command, NULL, NULL);
-  if (status != 0)
-    polymec_error("Could not create an instance of QHull for Voronoi tessellation.");
+  // Set up input and output streams to mimic stdin and stdout.
+  char *input, *output;
+  int input_size;
+  FILE* fin = fmemopen(input, input_size, "r");
+  size_t output_size;
+  FILE* fout = open_memstream(&output, &output_size);
 
-  // Determine the numbers of Voronoi cells and nodes.
-  qh_findgood_all(qh facet_list);
+  // Initialize QHull.
+  int argc = 5;
+  char* argv[] = {"qvoronoi", "p", "Fv", "Fi", "Fo"};
+  qh_init_A(fin, fout, stderr, argc, argv);
+  int status = setjmp(qh errexit); 
+  if (!status)
+  {
+    qh_option("voronoi  _bbound-last  _coplanar-keep", NULL, NULL);
+    qh DELAUNAY = true;
+    qh VORONOI = true;
+    qh SCALElast = true;
+    qh_checkflags(qh qhull_command, hidden_options);
+    qh_initflags(qh qhull_command);
+    bool ismalloc = false; // FIXME: ???
+    int dim = 3;
+    qh_init_B(points, num_points, dim+1, ismalloc);
+    qh_qhull();
+    qh_check_output();
+    qh_produce_output();
+    if (qh VERIFYoutput && !qh FORCEoutput && !qh STOPpoint && !qh STOPcone)
+      qh_check_points();
+    status = qh_ERRnone;
+  }
+  qh NOerrexit = true; // No more setjmp.
 
-  // Computes Voronoi centers for all facets. 
-  qh_setvoronoi_all();
-  facetT* facet;
-  ridgeT *ridge, **ridgep;
-  vertexT *vertex, **vertexp;
-  pointT *point, *pointtemp;
+  fclose(fin);
+  fclose(fout);
+
+  // Clean up QHull.
+#ifdef qh_NOmem
+  qh_freeqhull(True);
+#else
+  qh_freeqhull(False);
+  int curlong, totlong;
+  qh_memfreeshort(&curlong, &totlong);
+  if (curlong || totlong)
+    fprintf(stderr, "qhull internal warning (main): did not free %d bytes of long memory(%d pieces)\n",
+       totlong, curlong);
+#endif
+
+  // At this point, the output buffer contains the tessellation. We simply 
+  // need to parse it into our own data.
+  printf("%s\n", output);
 
   // Start assembling our tessellation.
   voronoi_tessellation_t* t = (voronoi_tessellation_t*)malloc(sizeof(voronoi_tessellation_t));
-
-  // NOTE: For edges, see the QHull functions qh_facet3vertex, qh_nextridge3d.
-  // NOTE: qh_facet3vertex returns a setT of vertices, and sets are described 
-  // NOTE: in qset.h (qh_setsize(set) returns the set's size, for example).
+#if 0
 
   // Record the node coordinates.
-  t->num_nodes = qh num_points;
+  t->num_nodes = qh num_vertices;
   t->nodes = (double*)malloc(3*t->num_nodes*sizeof(double));
   {
     int n = 0;
-    FORALLpoints
+    FORALLvertices
     {
-      t->nodes[3*n]   = point[3*n];
-      t->nodes[3*n+1] = point[3*n+1];
-      t->nodes[3*n+2] = point[3*n+2];
+      t->nodes[3*n]   = vertex->point[0];
+      t->nodes[3*n+1] = vertex->point[1];
+      t->nodes[3*n+2] = vertex->point[2];
+      ++n;
     }
   }
 
@@ -211,18 +233,8 @@ voronoi_tessellator_tessellate(voronoi_tessellator_t* tessellator,
     }
   }
   int_ptr_unordered_map_free(faces_for_cell);
-
-  // Clean up.
-#ifdef qh_NOmem
-  qh_freeqhull(True);
-#else
-  qh_freeqhull(False);
-  int curlong, totlong;
-  qh_memfreeshort(&curlong, &totlong);
-  if (curlong || totlong)
-    fprintf(stderr, "qhull internal warning (main): did not free %d bytes of long memory(%d pieces)\n",
-       totlong, curlong);
 #endif
+
   return t;
 }
 

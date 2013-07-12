@@ -1,5 +1,5 @@
 # To QHull or to Tetgen... that is the question.
-set(TETGEN 1)
+set(TETGEN 0)
 if (TETGEN EQUAL 1)
   set(VORONOI_SOURCES voronoi_tessellator_tetgen.cpp;delaunay_triangulator_tetgen.cpp)
 else()
