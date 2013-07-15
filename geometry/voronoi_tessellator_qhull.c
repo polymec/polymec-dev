@@ -102,8 +102,71 @@ voronoi_tessellator_tessellate(voronoi_tessellator_t* tessellator,
   // need to parse it into our own data.
   printf("%s\n", output);
 
+  // Count the number of lines in the output buffer.
+  int num_lines = 0;
+  for (size_t i = 0; i < output_size; ++i)
+  {
+    if (output[i] == '\n')
+      ++num_lines;
+  }
+  int line_offsets[num_lines];
+  line_offsets[0] = 0;
+  {
+    int i = 0, j = 0;
+    while (i < output_size)
+    {
+      if (output[i] == '\n')
+        line_offsets[++j] = i+1;
+      ++i;
+    }
+  }
+
+  // Parse the dimension in the file and make sure it's 3.
+  int dim;
+  sscanf(output, "%d\n", &dim);
+  ASSERT(dim == 3);
+
   // Start assembling our tessellation.
   voronoi_tessellation_t* t = (voronoi_tessellation_t*)malloc(sizeof(voronoi_tessellation_t));
+
+  // Nodes and node positions.
+  sscanf(&output[line_offsets[1]], "%d\n", &t->num_nodes);
+  ASSERT(t->num_nodes > 0);
+  t->nodes = malloc(3 * sizeof(double) * t->num_nodes);
+  for (int i = 0; i < t->num_nodes; ++i)
+  {
+    sscanf(&output[line_offsets[2+i]], "%lg %lg %lg\n", 
+           &(t->nodes[3*i]), &(t->nodes[3*i+1]), &(t->nodes[3*i+2]));
+  }
+
+  // Faces and edges.
+  sscanf(&output[line_offsets[2+t->num_nodes]], "%d\n", &t->num_faces);
+  t->faces = malloc(sizeof(voronoi_face_t) * t->num_faces);
+  int_ptr_unordered_map_t* nodes_for_edge = int_ptr_unordered_map_new();
+  int_ptr_unordered_map_t* rays_for_edge = int_ptr_unordered_map_new();
+  for (int f = 0; f < t->num_faces; ++f)
+  {
+    int num_nodes;
+    sscanf(&output[line_offsets[3+t->num_nodes]], "%d", &num_nodes);
+    int* face_nodes = int_tuple_new(num_nodes);
+    // FIXME
+  }
+  int pos = 0, e, *nodes;
+  t->num_edges = nodes_for_edge->size;
+  t->edges = malloc(sizeof(voronoi_edge_t) * t->num_edges);
+  while (int_ptr_unordered_map_next(nodes_for_edge, &pos, &e, (void*)&nodes))
+  {
+    t->edges[e].node1 = nodes[0];
+    t->edges[e].node2 = nodes[1];
+    if (nodes[1] == -1)
+    {
+      double* ray = (double*)(*int_ptr_unordered_map_get(rays_for_edge, e));
+      t->edges[e].ray[0] = ray[0];
+      t->edges[e].ray[1] = ray[1];
+      t->edges[e].ray[2] = ray[2];
+    }
+  }
+  
 #if 0
 
   // Record the node coordinates.
