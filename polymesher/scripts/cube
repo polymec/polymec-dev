@@ -10,7 +10,7 @@ ibpoints = copy_points(bpoints)
 translate_points(bpoints, grads, -0.25)
 translate_points(ibpoints, grads,  0.25)
 points = {{0,0,0}} .. ibpoints .. bpoints
---print(points)
+print(points)
 mesh = unbounded_voronoi_mesh(points)
 print(mesh)
 --merge_mesh_nodes(mesh)
