@@ -101,7 +101,7 @@ voronoi_tessellator_tessellate(voronoi_tessellator_t* tessellator,
 
   // At this point, the output buffer contains the tessellation. We simply 
   // need to parse it into our own data.
-  printf("%s\n", output);
+//  printf("%s\n", output);
 
   // Count the number of lines in the output buffer.
   int num_lines = 0;
@@ -145,7 +145,8 @@ voronoi_tessellator_tessellate(voronoi_tessellator_t* tessellator,
   t->faces = malloc(sizeof(voronoi_face_t) * t->num_faces);
   memset(t->faces, 0, sizeof(voronoi_face_t) * t->num_faces);
   int_table_t* edge_for_nodes = int_table_new();
-  int_ptr_unordered_map_t* rays_for_edge = int_ptr_unordered_map_new();
+  int_ptr_unordered_map_t* faces_for_cell = int_ptr_unordered_map_new();
+//  int_ptr_unordered_map_t* rays_for_edge = int_ptr_unordered_map_new();
   t->num_edges = 0;
   for (int f = 0; f < t->num_faces; ++f)
   {
@@ -171,9 +172,31 @@ voronoi_tessellator_tessellate(voronoi_tessellator_t* tessellator,
         n_str = str_p;
       face_nodes[n] = atoi(n_str) - 1;
     }
+
+    // Hook up the face to the (generator) cells.
+    voronoi_face_t* face = &t->faces[f];
+    face->cell1 = g1;
+    int_slist_t** cell1_faces = (int_slist_t**)int_ptr_unordered_map_get(faces_for_cell, g1);
+    if (cell1_faces == NULL)
+    {
+      int_slist_t* faces = int_slist_new();
+      int_ptr_unordered_map_insert_with_v_dtor(faces_for_cell, g1, faces, DTOR(int_slist_free));
+      cell1_faces = (int_slist_t**)int_ptr_unordered_map_get(faces_for_cell, g1);
+    }
+    int_slist_append(*cell1_faces, f);
+printf("cell %d sees face %d\n", g1, f);
+    face->cell2 = g2;
+    int_slist_t** cell2_faces = (int_slist_t**)int_ptr_unordered_map_get(faces_for_cell, g2);
+    if (cell2_faces == NULL)
+    {
+      int_slist_t* faces = int_slist_new();
+      int_ptr_unordered_map_insert_with_v_dtor(faces_for_cell, g2, faces, DTOR(int_slist_free));
+      cell2_faces = (int_slist_t**)int_ptr_unordered_map_get(faces_for_cell, g2);
+    }
+    int_slist_append(*cell2_faces, f);
+printf("cell %d sees face %d\n", g2, f);
     
     // Build edges out of each pair of nodes.
-    voronoi_face_t* face = &t->faces[f];
     for (int n = 0; n < num_nodes; ++n)
     {
       int n1 = face_nodes[n];
@@ -196,6 +219,7 @@ voronoi_tessellator_tessellate(voronoi_tessellator_t* tessellator,
     }
   }
 
+  // Construct the edges for the tessellation.
   t->edges = malloc(sizeof(voronoi_edge_t) * t->num_edges);
   int_table_cell_pos_t pos = int_table_start(edge_for_nodes);
   int n1, n2, e;
@@ -218,7 +242,27 @@ voronoi_tessellator_tessellate(voronoi_tessellator_t* tessellator,
       t->edges[e].node2 = n2;
     }
   }
-  
+
+  // Construct the cells for the tessellation.
+  t->num_cells = num_points; 
+  t->cells = (voronoi_cell_t*)malloc(t->num_cells*sizeof(voronoi_cell_t));
+  for (int c = 0; c < num_points; ++c)
+  {
+    int_slist_t* cell_faces = *int_ptr_unordered_map_get(faces_for_cell, c);
+    t->cells[c].num_faces = cell_faces->size;
+    t->cells[c].faces = malloc(sizeof(voronoi_face_t) * cell_faces->size);
+    int_slist_node_t* f = cell_faces->front;
+    int fi = 0;
+    while (f != NULL)
+    {
+      t->cells[c].faces[fi++] = f->value;
+      f = f->next;
+    }
+  }
+ 
+  int_table_free(edge_for_nodes);
+  int_ptr_unordered_map_free(faces_for_cell);
+//  int_ptr_unordered_map_free(rays_for_edge);
 #if 0
 
   // Record the node coordinates.
