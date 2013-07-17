@@ -8,6 +8,7 @@
 #include "core/unordered_map.h"
 #include "core/tuple.h"
 #include "core/slist.h"
+#include "core/table.h"
 #include <gc/gc.h>
 #include "geometry/voronoi_tessellator.h"
 
@@ -142,28 +143,79 @@ voronoi_tessellator_tessellate(voronoi_tessellator_t* tessellator,
   // Faces and edges.
   sscanf(&output[line_offsets[2+t->num_nodes]], "%d\n", &t->num_faces);
   t->faces = malloc(sizeof(voronoi_face_t) * t->num_faces);
-  int_ptr_unordered_map_t* nodes_for_edge = int_ptr_unordered_map_new();
+  memset(t->faces, 0, sizeof(voronoi_face_t) * t->num_faces);
+  int_table_t* edge_for_nodes = int_table_new();
   int_ptr_unordered_map_t* rays_for_edge = int_ptr_unordered_map_new();
+  t->num_edges = 0;
   for (int f = 0; f < t->num_faces; ++f)
   {
-    int num_nodes;
-    sscanf(&output[line_offsets[3+t->num_nodes]], "%d", &num_nodes);
-    int* face_nodes = int_tuple_new(num_nodes);
-    // FIXME
-  }
-  int pos = 0, e, *nodes;
-  t->num_edges = nodes_for_edge->size;
-  t->edges = malloc(sizeof(voronoi_edge_t) * t->num_edges);
-  while (int_ptr_unordered_map_next(nodes_for_edge, &pos, &e, (void*)&nodes))
-  {
-    t->edges[e].node1 = nodes[0];
-    t->edges[e].node2 = nodes[1];
-    if (nodes[1] == -1)
+    // Read the line and parse it into a tuple of face node indices.
+    char face_nodes_str[8*100];
+    int line_size = line_offsets[3+t->num_nodes+f+1] - line_offsets[3+t->num_nodes+f];
+    memcpy(face_nodes_str, &output[line_offsets[3+t->num_nodes+f]], 
+           sizeof(char) * line_size);
+    char* str_p = &face_nodes_str[0];
+    char* nn_str = strsep(&str_p, " ");
+    int num_nodes = atoi(nn_str) - 3;
+    char* g1_str = strsep(&str_p, " ");
+    int g1 = atoi(g1_str) - 1;
+    char* g2_str = strsep(&str_p, " ");
+    int g2 = atoi(g2_str) - 1;
+    int face_nodes[num_nodes];
+    for (int n = 0; n < num_nodes; ++n)
     {
-      double* ray = (double*)(*int_ptr_unordered_map_get(rays_for_edge, e));
-      t->edges[e].ray[0] = ray[0];
-      t->edges[e].ray[1] = ray[1];
-      t->edges[e].ray[2] = ray[2];
+      char* n_str;
+      if (n < num_nodes - 1)
+        n_str = strsep(&str_p, " ");
+      else
+        n_str = str_p;
+      face_nodes[n] = atoi(n_str) - 1;
+    }
+    
+    // Build edges out of each pair of nodes.
+    voronoi_face_t* face = &t->faces[f];
+    for (int n = 0; n < num_nodes; ++n)
+    {
+      int n1 = face_nodes[n];
+      int n2 = face_nodes[(n+1)%num_nodes];
+
+      // Insert this node pair as an edge if we don't already have it.
+      face->edges = malloc(sizeof(int) * num_nodes);
+      int* edge_p = int_table_get(edge_for_nodes, MIN(n1, n2), MAX(n1, n2)), edge = -1;
+      if (edge_p == NULL)
+      {
+        int_table_insert(edge_for_nodes, MIN(n1, n2), MAX(n1, n2), t->num_edges);
+        edge = t->num_edges++;
+      }
+      else 
+        edge = *edge_p;
+
+      // The face gets this edge.
+      face->edges[face->num_edges] = edge;
+      ++face->num_edges;
+    }
+  }
+
+  t->edges = malloc(sizeof(voronoi_edge_t) * t->num_edges);
+  int_table_cell_pos_t pos = int_table_start(edge_for_nodes);
+  int n1, n2, e;
+  while (int_table_next_cell(edge_for_nodes, &pos, &n1, &n2, &e))
+  {
+    if (n1 == -1)
+    {
+      t->edges[e].node1 = n2;
+      t->edges[e].node2 = n1;
+
+      // FIXME
+//      double* ray = (double*)(*int_ptr_unordered_map_get(rays_for_edge, e));
+//      t->edges[e].ray[0] = ray[0];
+//      t->edges[e].ray[1] = ray[1];
+//      t->edges[e].ray[2] = ray[2];
+    }
+    else
+    {
+      t->edges[e].node1 = n1;
+      t->edges[e].node2 = n2;
     }
   }
   
