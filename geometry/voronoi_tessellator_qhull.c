@@ -61,7 +61,12 @@ voronoi_tessellator_tessellate(voronoi_tessellator_t* tessellator,
 
   // Initialize QHull.
   int argc = 5;
-  char* argv[] = {"qvoronoi", "p", "Fv", "Fi", "Fo"};
+  char* argv[] = {"qvoronoi", // The program itself
+                  "p",        // Coordinates of nodes
+//                  "Fn",       // List of neighbors for each node for building edges
+                  "Fv",       // List of ridges (edges) for faces / cell pairs
+                  "Fi",       // Bounding hyperplanes for interior cells
+                  "Fo"};      // Bounding hyperplanes for exterior cells
   qh_init_A(fin, fout, stderr, argc, argv);
   int status = setjmp(qh errexit); 
   if (!status)
@@ -75,7 +80,16 @@ voronoi_tessellator_tessellate(voronoi_tessellator_t* tessellator,
     bool ismalloc = false; // FIXME: ???
     int dim = 3;
     qh_init_B(points, num_points, dim+1, ismalloc);
+
+    // Temporarily disable floating point exceptions for QHull.
+    polymec_disable_fpe_exceptions();
+
+    // Run QHull.
     qh_qhull();
+
+    // Re-enable floating point exceptions.
+    polymec_enable_fpe_exceptions();
+
     qh_check_output();
     qh_produce_output();
     if (qh VERIFYoutput && !qh FORCEoutput && !qh STOPpoint && !qh STOPcone)
@@ -101,7 +115,7 @@ voronoi_tessellator_tessellate(voronoi_tessellator_t* tessellator,
 
   // At this point, the output buffer contains the tessellation. We simply 
   // need to parse it into our own data.
-//  printf("%s\n", output);
+  printf("%s\n", output);
 
   // Count the number of lines in the output buffer.
   int num_lines = 0;
@@ -130,7 +144,7 @@ voronoi_tessellator_tessellate(voronoi_tessellator_t* tessellator,
   // Start assembling our tessellation.
   voronoi_tessellation_t* t = (voronoi_tessellation_t*)malloc(sizeof(voronoi_tessellation_t));
 
-  // Nodes and node positions.
+  // Nodes and node positions ("p" output).
   sscanf(&output[line_offsets[1]], "%d\n", &t->num_nodes);
   ASSERT(t->num_nodes > 0);
   t->nodes = malloc(3 * sizeof(double) * t->num_nodes);
@@ -140,7 +154,7 @@ voronoi_tessellator_tessellate(voronoi_tessellator_t* tessellator,
            &(t->nodes[3*i]), &(t->nodes[3*i+1]), &(t->nodes[3*i+2]));
   }
 
-  // Faces and edges.
+  // Faces and edges ("Fv" output).
   sscanf(&output[line_offsets[2+t->num_nodes]], "%d\n", &t->num_faces);
   t->faces = malloc(sizeof(voronoi_face_t) * t->num_faces);
   memset(t->faces, 0, sizeof(voronoi_face_t) * t->num_faces);
@@ -229,12 +243,6 @@ printf("cell %d sees face %d\n", g2, f);
     {
       t->edges[e].node1 = n2;
       t->edges[e].node2 = n1;
-
-      // FIXME
-//      double* ray = (double*)(*int_ptr_unordered_map_get(rays_for_edge, e));
-//      t->edges[e].ray[0] = ray[0];
-//      t->edges[e].ray[1] = ray[1];
-//      t->edges[e].ray[2] = ray[2];
     }
     else
     {
@@ -243,22 +251,50 @@ printf("cell %d sees face %d\n", g2, f);
     }
   }
 
+  // Construct a mapping of QHull Voronoi regions to cell indices, since 
+  // the index space of the former may not be contiguous.
+  int num_cells = 0;
+  int_int_unordered_map_t* cell_for_region = int_int_unordered_map_new();
+  {
+    for (int c = 0; c < num_points; ++c)
+    {
+      if (int_ptr_unordered_map_contains(faces_for_cell, c))
+      {
+        int_int_unordered_map_insert(cell_for_region, c, num_cells);
+        ++num_cells;
+      }
+      else
+      {
+        int_int_unordered_map_insert(cell_for_region, c, -1);
+      }
+    }
+  }
+
   // Construct the cells for the tessellation.
   t->num_cells = num_points; 
   t->cells = (voronoi_cell_t*)malloc(t->num_cells*sizeof(voronoi_cell_t));
   for (int c = 0; c < num_points; ++c)
   {
-    int_slist_t* cell_faces = *int_ptr_unordered_map_get(faces_for_cell, c);
-    t->cells[c].num_faces = cell_faces->size;
-    t->cells[c].faces = malloc(sizeof(voronoi_face_t) * cell_faces->size);
-    int_slist_node_t* f = cell_faces->front;
-    int fi = 0;
-    while (f != NULL)
+    int cell_index = *int_int_unordered_map_get(cell_for_region, c);
+    if (cell_index != -1)
     {
-      t->cells[c].faces[fi++] = f->value;
-      f = f->next;
+      printf("Retrieving faces for cell %d\n", cell_index);
+      int_slist_t* cell_faces = *int_ptr_unordered_map_get(faces_for_cell, c);
+      t->cells[c].num_faces = cell_faces->size;
+      t->cells[c].faces = malloc(sizeof(voronoi_face_t) * cell_faces->size);
+      int_slist_node_t* f = cell_faces->front;
+      int fi = 0;
+      while (f != NULL)
+      {
+        t->cells[c].faces[fi++] = f->value;
+        f = f->next;
+      }
     }
   }
+
+  // Now calculate the outward rays using the bounding hyperplanes for 
+  // the exterior cells ("Fo" output).
+  // FIXME
  
   int_table_free(edge_for_nodes);
   int_ptr_unordered_map_free(faces_for_cell);
