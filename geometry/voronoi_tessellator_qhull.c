@@ -53,9 +53,27 @@ voronoi_tessellator_tessellate(voronoi_tessellator_t* tessellator,
   ASSERT(num_points >= 2);
 
   // Set up input and output streams to mimic stdin and stdout.
-  char *input, *output;
-  int input_size;
+  char *input = malloc(sizeof(char) * (num_points+1) * 256);
+  int input_size = 0;
+  {
+    char first[128];
+    snprintf(first, 128, "3\n%d\n", num_points);
+    int len = strlen(first);
+    memcpy(input, first, sizeof(char)*len);
+    input_size += sizeof(char)*len;
+  }
+  for (int i = 0; i < num_points; ++i)
+  {
+    char next[256];
+    snprintf(next, 256, "%g %g %g\n", points[3*i], points[3*i+1], points[3*i+2]);
+    int len = strlen(next);
+    memcpy(&input[input_size], next, sizeof(char)*len);
+    input_size += sizeof(char)*len;
+  }
+
   FILE* fin = fmemopen(input, input_size, "r");
+
+  char* output;
   size_t output_size;
   FILE* fout = open_memstream(&output, &output_size);
 
@@ -69,27 +87,22 @@ voronoi_tessellator_tessellate(voronoi_tessellator_t* tessellator,
                   "Fo"};      // Bounding hyperplanes for exterior cells
   qh_init_A(fin, fout, stderr, argc, argv);
   int status = setjmp(qh errexit); 
+
+  // Run the thing.
   if (!status)
   {
     qh_option("voronoi  _bbound-last  _coplanar-keep", NULL, NULL);
+    log_debug("voronoi_tessellator_qhull: Tessellating %d points\n", num_points);
     qh DELAUNAY = true;
     qh VORONOI = true;
     qh SCALElast = true;
     qh_checkflags(qh qhull_command, hidden_options);
     qh_initflags(qh qhull_command);
-    bool ismalloc = false; // FIXME: ???
-    int dim = 3;
-    qh_init_B(points, num_points, dim+1, ismalloc);
-
-    // Temporarily disable floating point exceptions for QHull.
-    polymec_disable_fpe_exceptions();
-
-    // Run QHull.
+    int num_points, dim;
+    boolT is_malloc;
+    coordT* points = qh_readpoints(&num_points, &dim, &is_malloc);
+    qh_init_B(points, num_points, dim, is_malloc);
     qh_qhull();
-
-    // Re-enable floating point exceptions.
-    polymec_enable_fpe_exceptions();
-
     qh_check_output();
     qh_produce_output();
     if (qh VERIFYoutput && !qh FORCEoutput && !qh STOPpoint && !qh STOPcone)
@@ -112,6 +125,7 @@ voronoi_tessellator_tessellate(voronoi_tessellator_t* tessellator,
     fprintf(stderr, "qhull internal warning (main): did not free %d bytes of long memory(%d pieces)\n",
        totlong, curlong);
 #endif
+  free(input);
 
   // At this point, the output buffer contains the tessellation. We simply 
   // need to parse it into our own data.
@@ -251,23 +265,11 @@ printf("cell %d sees face %d\n", g2, f);
     }
   }
 
-  // Construct a mapping of QHull Voronoi regions to cell indices, since 
-  // the index space of the former may not be contiguous.
-  int num_cells = 0;
-  int_int_unordered_map_t* cell_for_region = int_int_unordered_map_new();
+  // Make sure each Voronoi cell has a face.
+  for (int c = 0; c < num_points; ++c)
   {
-    for (int c = 0; c < num_points; ++c)
-    {
-      if (int_ptr_unordered_map_contains(faces_for_cell, c))
-      {
-        int_int_unordered_map_insert(cell_for_region, c, num_cells);
-        ++num_cells;
-      }
-      else
-      {
-        int_int_unordered_map_insert(cell_for_region, c, -1);
-      }
-    }
+    if (!int_ptr_unordered_map_contains(faces_for_cell, c))
+      polymec_error("Voronoi tessellation failed: input site %d at (%g, %g, %g) has no faces!", c, points[3*c], points[3*c+1], points[3*c+2]);
   }
 
   // Construct the cells for the tessellation.
@@ -275,20 +277,16 @@ printf("cell %d sees face %d\n", g2, f);
   t->cells = (voronoi_cell_t*)malloc(t->num_cells*sizeof(voronoi_cell_t));
   for (int c = 0; c < num_points; ++c)
   {
-    int cell_index = *int_int_unordered_map_get(cell_for_region, c);
-    if (cell_index != -1)
+    printf("Retrieving faces for cell %d\n", c);
+    int_slist_t* cell_faces = *int_ptr_unordered_map_get(faces_for_cell, c);
+    t->cells[c].num_faces = cell_faces->size;
+    t->cells[c].faces = malloc(sizeof(voronoi_face_t) * cell_faces->size);
+    int_slist_node_t* f = cell_faces->front;
+    int fi = 0;
+    while (f != NULL)
     {
-      printf("Retrieving faces for cell %d\n", cell_index);
-      int_slist_t* cell_faces = *int_ptr_unordered_map_get(faces_for_cell, c);
-      t->cells[c].num_faces = cell_faces->size;
-      t->cells[c].faces = malloc(sizeof(voronoi_face_t) * cell_faces->size);
-      int_slist_node_t* f = cell_faces->front;
-      int fi = 0;
-      while (f != NULL)
-      {
-        t->cells[c].faces[fi++] = f->value;
-        f = f->next;
-      }
+      t->cells[c].faces[fi++] = f->value;
+      f = f->next;
     }
   }
 
