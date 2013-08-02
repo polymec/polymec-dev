@@ -187,9 +187,9 @@ voronoi_tessellator_tessellate(voronoi_tessellator_t* tessellator,
     char* nn_str = strsep(&str_p, " ");
     int num_nodes = atoi(nn_str) - 3;
     char* g1_str = strsep(&str_p, " ");
-    int g1 = atoi(g1_str) - 1;
+    int g1 = atoi(g1_str);
     char* g2_str = strsep(&str_p, " ");
-    int g2 = atoi(g2_str) - 1;
+    int g2 = atoi(g2_str);
     int face_nodes[num_nodes];
     for (int n = 0; n < num_nodes; ++n)
     {
@@ -212,7 +212,7 @@ voronoi_tessellator_tessellate(voronoi_tessellator_t* tessellator,
       cell1_faces = (int_slist_t**)int_ptr_unordered_map_get(faces_for_cell, g1);
     }
     int_slist_append(*cell1_faces, f);
-printf("cell %d sees face %d\n", g1, f);
+//printf("cell %d sees face %d\n", g1, f);
     face->cell2 = g2;
     int_slist_t** cell2_faces = (int_slist_t**)int_ptr_unordered_map_get(faces_for_cell, g2);
     if (cell2_faces == NULL)
@@ -222,7 +222,7 @@ printf("cell %d sees face %d\n", g1, f);
       cell2_faces = (int_slist_t**)int_ptr_unordered_map_get(faces_for_cell, g2);
     }
     int_slist_append(*cell2_faces, f);
-printf("cell %d sees face %d\n", g2, f);
+//printf("cell %d sees face %d\n", g2, f);
     
     // Build edges out of each pair of nodes.
     for (int n = 0; n < num_nodes; ++n)
@@ -242,6 +242,7 @@ printf("cell %d sees face %d\n", g2, f);
         edge = *edge_p;
 
       // The face gets this edge.
+      printf("face %d sees edge %d\n", f, edge);
       face->edges[face->num_edges] = edge;
       ++face->num_edges;
     }
@@ -297,136 +298,6 @@ printf("cell %d sees face %d\n", g2, f);
   int_table_free(edge_for_nodes);
   int_ptr_unordered_map_free(faces_for_cell);
 //  int_ptr_unordered_map_free(rays_for_edge);
-#if 0
-
-  // Record the node coordinates.
-  t->num_nodes = qh num_vertices;
-  t->nodes = (double*)malloc(3*t->num_nodes*sizeof(double));
-  {
-    int n = 0;
-    FORALLvertices
-    {
-      t->nodes[3*n]   = vertex->point[0];
-      t->nodes[3*n+1] = vertex->point[1];
-      t->nodes[3*n+2] = vertex->point[2];
-      ++n;
-    }
-  }
-
-  // Build the face->edge mapping and the edge->node mapping.
-  int_ptr_unordered_map_t* edges_for_face = int_ptr_unordered_map_new();
-  int_ptr_unordered_map_t* nodes_for_edge = int_ptr_unordered_map_new();
-  FORALLfacets
-  {
-    facet->seen = false;
-    int_slist_t* face_edges = int_slist_new();
-    FOREACHridge_(facet->ridges)
-    {
-      int n1 = -1, n2 = -1;
-      FOREACHvertex_(ridge->vertices)
-      {
-        if (n1 == -1)
-          n1 = vertex->id;
-        else
-        {
-          ASSERT(n2 == -1);
-          n2 = vertex->id;
-        }
-      }
-      int* node_pair = int_tuple_new(2);
-      node_pair[0] = MIN(n1, n2);
-      node_pair[1] = MAX(n1, n2);
-      int_ptr_unordered_map_insert_with_v_dtor(nodes_for_edge, ridge->id, node_pair, DTOR(int_tuple_free));
-      int_slist_t* face_edges = int_slist_new();
-      int_slist_append(face_edges, ridge->id);
-    }
-    int_ptr_unordered_map_insert_with_v_dtor(edges_for_face, facet->id, face_edges, DTOR(int_slist_free));
-  }
-  t->num_edges = nodes_for_edge->size;
-  t->edges = (voronoi_edge_t*)malloc(t->num_edges*sizeof(voronoi_edge_t));
-  for (int e = 0; e < t->num_edges; ++e)
-  {
-    int* node_pair = *int_ptr_unordered_map_get(nodes_for_edge, e);
-    t->edges[e].node1 = node_pair[0];
-    t->edges[e].node2 = node_pair[1];
-    if (t->edges[e].node2 == -1) // node2 is a "ghost"
-    {
-      // FIXME
-//      t->edges[i].ray[0] = out.vedgelist[i].vnormal[0];
-//      t->edges[i].ray[1] = out.vedgelist[i].vnormal[1];
-//      t->edges[i].ray[2] = out.vedgelist[i].vnormal[2];
-    }
-  }
-  int_ptr_unordered_map_free(nodes_for_edge);
-
-  // Build the cell->face mapping and the face->cell mapping.
-  int_ptr_unordered_map_t* faces_for_cell = int_ptr_unordered_map_new();
-  int_ptr_unordered_map_t* cells_for_face = int_ptr_unordered_map_new();
-  FORALLvertices
-  {
-    qh_order_vertexneighbors(vertex);
-
-    bool infinity_seen = false;
-    facetT *neighbor, **neighborp;
-    int_slist_t* cell_faces = int_slist_new();
-    FOREACHneighbor_(vertex)
-    {
-      if (!neighbor->seen)
-      {
-        int c1 = vertex->id, c2 = -1;
-        if (!neighbor->upperdelaunay)
-        {
-//          c2 = FIXME;
-        }
-        int* face_cells = int_tuple_new(2);
-        face_cells[0] = c1;
-        face_cells[1] = c2;
-        int_ptr_unordered_map_insert_with_v_dtor(cells_for_face, neighbor->id, face_cells, DTOR(int_tuple_free));
-        int_slist_append(cell_faces, neighbor->id);
-        neighbor->seen = true;
-      }
-    }
-    int_ptr_unordered_map_insert_with_v_dtor(faces_for_cell, vertex->id, cell_faces, DTOR(int_slist_free));
-  }
-
-  // Face <-> edge/cell connectivity.
-  t->num_faces = edges_for_face->size;
-  t->faces = (voronoi_face_t*)malloc(t->num_faces*sizeof(voronoi_face_t));
-  for (int f = 0; f < t->num_faces; ++f)
-  {
-    int* face_cells = *int_ptr_unordered_map_get(cells_for_face, f);
-    t->faces[f].cell1 = face_cells[0];
-    t->faces[f].cell2 = face_cells[1];
-    int_slist_t* face_edges = *int_ptr_unordered_map_get(edges_for_face, f);
-    int Ne = face_edges->size;
-    t->faces[f].num_edges = Ne;
-    t->faces[f].edges = (int*)malloc(sizeof(int)*Ne);
-    int_slist_node_t* fe = face_edges->front;
-    for (int e = 0; e < Ne; ++e)
-    {
-      t->faces[f].edges[e] = fe->value;
-      fe = fe->next;
-    }
-  }
-  int_ptr_unordered_map_free(edges_for_face);
-  int_ptr_unordered_map_free(cells_for_face);
-
-  // Cell -> face connectivity.
-  t->num_cells = qh num_good; //qh num_vertices - qh_setsize(qh del_vertices);
-  t->cells = (voronoi_cell_t*)malloc(t->num_cells*sizeof(voronoi_cell_t));
-  for (int i = 0; i < t->num_cells; ++i)
-  {
-    int_slist_t* cell_faces = *int_ptr_unordered_map_get(faces_for_cell, i);
-    t->cells[i].num_faces = cell_faces->size;
-    int_slist_node_t* cf = cell_faces->front;
-    for (int f = 0; f < cell_faces->size; ++f)
-    {
-      t->cells[i].faces[f] = cf->value;
-      cf = cf->next;
-    }
-  }
-  int_ptr_unordered_map_free(faces_for_cell);
-#endif
 
   return t;
 }
