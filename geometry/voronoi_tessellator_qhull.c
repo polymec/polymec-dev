@@ -176,6 +176,8 @@ voronoi_tessellator_tessellate(voronoi_tessellator_t* tessellator,
   int_ptr_unordered_map_t* faces_for_cell = int_ptr_unordered_map_new();
 //  int_ptr_unordered_map_t* rays_for_edge = int_ptr_unordered_map_new();
   t->num_edges = 0;
+
+  int num_points_at_infinity = 0; // Used for keeping track of infinite edges.
   for (int f = 0; f < t->num_faces; ++f)
   {
     // Read the line and parse it into a tuple of face node indices.
@@ -190,7 +192,7 @@ voronoi_tessellator_tessellate(voronoi_tessellator_t* tessellator,
     int g1 = atoi(g1_str);
     char* g2_str = strsep(&str_p, " ");
     int g2 = atoi(g2_str);
-    int face_nodes[num_nodes];
+    int face_nodes[num_nodes], num_face_nodes_at_infinity = 0;
     for (int n = 0; n < num_nodes; ++n)
     {
       char* n_str;
@@ -198,7 +200,21 @@ voronoi_tessellator_tessellate(voronoi_tessellator_t* tessellator,
         n_str = strsep(&str_p, " ");
       else
         n_str = str_p;
-      face_nodes[n] = atoi(n_str) - 1;
+      face_nodes[n] = atoi(n_str) - 1; // subtract 1 from output node index!
+
+      // If the node is 0 in QHull's output, it is a point-at-infinity, and 
+      // is negative here. QHull counts all points-at-infinity as the same, 
+      // so we create a distinction here.
+      // FIXME: This won't work, since QHull only lists a point-at-infinity 
+      // FIXME: once in a face list, even if there are several in a face.
+      if (face_nodes[n] < 0)
+      {
+        ++num_points_at_infinity;
+        if (num_face_nodes_at_infinity > 0)
+          ++num_nodes;
+        ++num_face_nodes_at_infinity;
+        face_nodes[n] = -num_points_at_infinity;
+      }
     }
 
     // Hook up the face to the (generator) cells.
@@ -225,26 +241,40 @@ voronoi_tessellator_tessellate(voronoi_tessellator_t* tessellator,
 //printf("cell %d sees face %d\n", g2, f);
     
     // Build edges out of each pair of nodes.
+printf("Face %d has %d nodes\n", f, num_nodes);
+    face->edges = malloc(sizeof(int) * num_nodes);
+    face->num_edges = 0;
     for (int n = 0; n < num_nodes; ++n)
     {
       int n1 = face_nodes[n];
       int n2 = face_nodes[(n+1)%num_nodes];
 
       // Insert this node pair as an edge if we don't already have it.
-      face->edges = malloc(sizeof(int) * num_nodes);
       int* edge_p = int_table_get(edge_for_nodes, MIN(n1, n2), MAX(n1, n2)), edge = -1;
       if (edge_p == NULL)
       {
-        int_table_insert(edge_for_nodes, MIN(n1, n2), MAX(n1, n2), t->num_edges);
-        edge = t->num_edges++;
+        edge = t->num_edges;
+        int_table_insert(edge_for_nodes, MIN(n1, n2), MAX(n1, n2), edge);
+        ++(t->num_edges);
       }
       else 
         edge = *edge_p;
 
-      // The face gets this edge.
-      printf("face %d sees edge %d\n", f, edge);
-      face->edges[face->num_edges] = edge;
-      ++face->num_edges;
+      // The face gets this edge if it doesn't already have it.
+      bool has_edge = false;
+      for (int nn = 0; nn < face->num_edges; ++nn)
+      {
+        if (face->edges[nn] == edge)
+        {
+          has_edge = true;
+          break;
+        }
+      }
+      if (!has_edge)
+      {
+        face->edges[face->num_edges] = edge;
+        ++face->num_edges;
+      }
     }
   }
 
