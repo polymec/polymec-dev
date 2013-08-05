@@ -1,22 +1,22 @@
-// This implements polymesher's capability for writing VTK plots of meshes.
+// This implements polymesher's capability for writing Silo plots of meshes.
 
 #include <string.h>
 #include "core/polymec.h"
 #include "core/interpreter.h"
-#include "io/vtk_plot_io.h"
+#include "io/silo_io.h"
 
 // Lua stuff.
 #include "lua.h"
 #include "lualib.h"
 #include "lauxlib.h"
 
-// write_vtk_plot(args) -- This function writes a given mesh to a file 
+// write_silo_plot(args) -- This function writes a given mesh to a file 
 // on disk. Arguments (passed in a table according to Chapter 5.3 of the 
 // Lua reference manual) are:
 //
 // mesh -> mesh object 
 // filename -> name of the file to write (1 file only)
-int write_vtk_plot(lua_State* lua)
+int write_silo_plot(lua_State* lua)
 {
   // Check the arguments.
   int num_args = lua_gettop(lua);
@@ -24,9 +24,9 @@ int write_vtk_plot(lua_State* lua)
       ((num_args == 3) && (!lua_ismesh(lua, 1) || !lua_istable(lua, 2) || !lua_isstring(lua, 3))) || 
       ((num_args != 2) && (num_args != 3)))
   {
-    lua_pushstring(lua, "write_vtk_plot: invalid arguments. Usage:\n"
-                        "write_vtk_plot(mesh, filename) OR\n"
-                        "write_vtk_plot(mesh, fields, filename)");
+    lua_pushstring(lua, "write_silo_plot: invalid arguments. Usage:\n"
+                        "write_silo_plot(mesh, filename) OR\n"
+                        "write_silo_plot(mesh, fields, filename)");
     lua_error(lua);
     return LUA_ERRRUN;
   }
@@ -49,7 +49,7 @@ int write_vtk_plot(lua_State* lua)
       if (!key_is_string || !val_is_field)
       {
         lua_pop(lua, 2);
-        polymec_error("write_vtk_plot: argument 2 must be a table mapping field names to values.");
+        polymec_error("write_silo_plot: argument 2 must be a table mapping field names to values.");
       }
       if (lua_issequence(lua, val_index))
       {
@@ -58,7 +58,7 @@ int write_vtk_plot(lua_State* lua)
         if (num_vals != mesh->num_cells)
         {
           lua_pop(lua, 2);
-          polymec_error("write_vtk_plot: a scalar field has %d values (should have %d).", num_vals, mesh->num_cells);
+          polymec_error("write_silo_plot: a scalar field has %d values (should have %d).", num_vals, mesh->num_cells);
         }
       }
       else
@@ -68,17 +68,17 @@ int write_vtk_plot(lua_State* lua)
         if (num_vals != mesh->num_cells)
         {
           lua_pop(lua, 2);
-          polymec_error("write_vtk_plot: a vector field has %d values (should have %d).", num_vals, mesh->num_cells);
+          polymec_error("write_silo_plot: a vector field has %d values (should have %d).", num_vals, mesh->num_cells);
         }
       }
       lua_pop(lua, 1);
     }
   }
 
-  log_info("Writing VTK plot with prefix '%s'...", filename);
+  log_info("Writing SILO plot with prefix '%s'...", filename);
 
   // Write the mesh to a plot file.
-  io_interface_t* plot = vtk_plot_io_new(MPI_COMM_SELF, 0, false);
+  io_interface_t* plot = silo_plot_io_new(MPI_COMM_SELF, 0, false);
   io_open(plot, filename, ".", IO_WRITE);
   io_dataset_t* dataset = io_dataset_new("default");
   io_dataset_put_mesh(dataset, mesh);
