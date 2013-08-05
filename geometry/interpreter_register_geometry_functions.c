@@ -1005,7 +1005,7 @@ void interpreter_register_geometry_functions(interpreter_t* interp)
 //  interpreter_register_function(interp, "prune_voronoi_mesh", prune_voronoi_mesh_);
 //  interpreter_register_function(interp, "bound_voronoi_mesh", bound_voronoi_mesh_);
   interpreter_register_global_table(interp, "point_factory");
-  interpreter_register_function(interp, "point_factory.cubic_lattice", point_factory_cubic_lattice);
+  interpreter_register_global_method(interp, "point_factory", "cubic_lattice", point_factory_cubic_lattice);
   interpreter_register_function(interp, "scaled_bounding_box", scaled_bounding_box);
   interpreter_register_function(interp, "sample_bounding_box", sample_bbox);
   interpreter_register_function(interp, "sample_cyl_shell", sample_cyl_shell);
