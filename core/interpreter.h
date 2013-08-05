@@ -57,6 +57,9 @@ void interpreter_free(interpreter_t* interp);
 // Register a user-defined function with the interpreter.
 void interpreter_register_function(interpreter_t* interp, const char* function_name, int (*function)(struct lua_State*));
 
+// Register an empty user-defined global table with the interpreter.
+void interpreter_register_global_table(interpreter_t* interp, const char* table_name);
+
 // Parses the input file, storing the values in the interpreter.
 void interpreter_parse_file(interpreter_t* interp, char* input_file);
 

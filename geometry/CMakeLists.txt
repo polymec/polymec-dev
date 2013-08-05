@@ -1,4 +1,6 @@
 # To QHull or to Tetgen... that is the question.
+# NOTE: Currently Tetgen produces an unbounded tessellation, whereas QHull 
+# NOTE: produces only the bounded cells.
 set(TETGEN 0)
 if (TETGEN EQUAL 1)
   set(VORONOI_SOURCES voronoi_tessellator_tetgen.cpp;delaunay_triangulator_tetgen.cpp)
@@ -12,11 +14,10 @@ add_library(polymec_geometry mapping.c plane.c cylinder.c sphere.c intersection.
             cubic_lattice.c create_cubic_lattice_mesh.c cvt_gen_dist.c
             prob_cvt_gen_dist.c #force_cvt_gen_dist.c 
             witkin_heckbert_sampling.c mgw_sampling.c
-            create_unbounded_voronoi_mesh.c 
-            create_deformable_bounded_voronoi_mesh.c
-            merge_mesh_nodes.c bound_voronoi_mesh.c prune_voronoi_mesh.c 
-            crop_voronoi_mesh.c generate_random_points.c
-            ${VORONOI_SOURCES}
+            create_voronoi_mesh.c ${VORONOI_SOURCES}
+#            create_deformable_bounded_voronoi_mesh.c
+#            merge_mesh_nodes.c bound_voronoi_mesh.c prune_voronoi_mesh.c crop_voronoi_mesh.c 
+            generate_random_points.c point_factory.c
             interpreter_register_geometry_functions.c 
             interpreter_register_spfuncs.c)
 
