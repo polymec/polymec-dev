@@ -60,6 +60,9 @@ void interpreter_register_function(interpreter_t* interp, const char* function_n
 // Register an empty user-defined global table with the interpreter.
 void interpreter_register_global_table(interpreter_t* interp, const char* table_name);
 
+// Registers a method within the given global table in the interpreter.
+void interpreter_register_global_method(interpreter_t* interp, const char* table_name, const char* method_name, int (*method)(struct lua_State*));
+
 // Parses the input file, storing the values in the interpreter.
 void interpreter_parse_file(interpreter_t* interp, char* input_file);
 
