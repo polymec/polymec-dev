@@ -20,6 +20,7 @@ static void mesher_usage(FILE* stream)
 // Interpreter functions.
 extern int mesh_nodes(lua_State* lua);
 extern int write_tough_mesh(lua_State* lua);
+extern int write_silo_plot(lua_State* lua);
 extern int write_vtk_plot(lua_State* lua);
 extern int read_meshvoro_mesh(lua_State* lua);
 
@@ -27,6 +28,7 @@ static void interpreter_register_mesher_functions(interpreter_t* interpreter)
 {
   interpreter_register_function(interpreter, "mesh_nodes", mesh_nodes);
   interpreter_register_function(interpreter, "read_meshvoro_mesh", read_meshvoro_mesh);
+  interpreter_register_function(interpreter, "write_silo_plot", write_silo_plot);
   interpreter_register_function(interpreter, "write_vtk_plot", write_vtk_plot);
   interpreter_register_function(interpreter, "read_meshvoro_mesh", read_meshvoro_mesh);
 }

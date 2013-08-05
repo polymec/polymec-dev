@@ -78,13 +78,11 @@ voronoi_tessellator_tessellate(voronoi_tessellator_t* tessellator,
   FILE* fout = open_memstream(&output, &output_size);
 
   // Initialize QHull.
-  int argc = 5;
+  int argc = 3;
   char* argv[] = {"qvoronoi", // The program itself
                   "p",        // Coordinates of nodes
 //                  "Fn",       // List of neighbors for each node for building edges
-                  "Fv",       // List of ridges (edges) for faces / cell pairs
-                  "Fi",       // Bounding hyperplanes for interior cells
-                  "Fo"};      // Bounding hyperplanes for exterior cells
+                  "Fv"};      // List of ridges (edges) for faces / cell pairs
   qh_init_A(fin, fout, stderr, argc, argv);
   int status = setjmp(qh errexit); 
 
@@ -129,7 +127,6 @@ voronoi_tessellator_tessellate(voronoi_tessellator_t* tessellator,
 
   // At this point, the output buffer contains the tessellation. We simply 
   // need to parse it into our own data.
-  printf("%s\n", output);
 
   // Count the number of lines in the output buffer.
   int num_lines = 0;
@@ -169,15 +166,14 @@ voronoi_tessellator_tessellate(voronoi_tessellator_t* tessellator,
   }
 
   // Faces and edges ("Fv" output).
+  // We do not construct faces that contain the point-at-infinity.
   sscanf(&output[line_offsets[2+t->num_nodes]], "%d\n", &t->num_faces);
   t->faces = malloc(sizeof(voronoi_face_t) * t->num_faces);
   memset(t->faces, 0, sizeof(voronoi_face_t) * t->num_faces);
   int_table_t* edge_for_nodes = int_table_new();
   int_ptr_unordered_map_t* faces_for_cell = int_ptr_unordered_map_new();
-//  int_ptr_unordered_map_t* rays_for_edge = int_ptr_unordered_map_new();
   t->num_edges = 0;
-
-  int num_points_at_infinity = 0; // Used for keeping track of infinite edges.
+  int face_offset = 0;
   for (int f = 0; f < t->num_faces; ++f)
   {
     // Read the line and parse it into a tuple of face node indices.
@@ -187,12 +183,14 @@ voronoi_tessellator_tessellate(voronoi_tessellator_t* tessellator,
            sizeof(char) * line_size);
     char* str_p = &face_nodes_str[0];
     char* nn_str = strsep(&str_p, " ");
-    int num_nodes = atoi(nn_str) - 3;
+    int num_nodes = atoi(nn_str) - 2;
     char* g1_str = strsep(&str_p, " ");
     int g1 = atoi(g1_str);
     char* g2_str = strsep(&str_p, " ");
     int g2 = atoi(g2_str);
-    int face_nodes[num_nodes], num_face_nodes_at_infinity = 0;
+
+    int face_nodes[num_nodes];
+    bool face_contains_point_at_infinity = false;
     for (int n = 0; n < num_nodes; ++n)
     {
       char* n_str;
@@ -201,24 +199,18 @@ voronoi_tessellator_tessellate(voronoi_tessellator_t* tessellator,
       else
         n_str = str_p;
       face_nodes[n] = atoi(n_str) - 1; // subtract 1 from output node index!
-
-      // If the node is 0 in QHull's output, it is a point-at-infinity, and 
-      // is negative here. QHull counts all points-at-infinity as the same, 
-      // so we create a distinction here.
-      // FIXME: This won't work, since QHull only lists a point-at-infinity 
-      // FIXME: once in a face list, even if there are several in a face.
       if (face_nodes[n] < 0)
       {
-        ++num_points_at_infinity;
-        if (num_face_nodes_at_infinity > 0)
-          ++num_nodes;
-        ++num_face_nodes_at_infinity;
-        face_nodes[n] = -num_points_at_infinity;
+        // This face contains the point-at-infinity, so it won't be created.
+        face_contains_point_at_infinity = true;
+        break;
       }
     }
+    if (face_contains_point_at_infinity)
+      continue;
 
     // Hook up the face to the (generator) cells.
-    voronoi_face_t* face = &t->faces[f];
+    voronoi_face_t* face = &t->faces[face_offset];
     face->cell1 = g1;
     int_slist_t** cell1_faces = (int_slist_t**)int_ptr_unordered_map_get(faces_for_cell, g1);
     if (cell1_faces == NULL)
@@ -227,8 +219,8 @@ voronoi_tessellator_tessellate(voronoi_tessellator_t* tessellator,
       int_ptr_unordered_map_insert_with_v_dtor(faces_for_cell, g1, faces, DTOR(int_slist_free));
       cell1_faces = (int_slist_t**)int_ptr_unordered_map_get(faces_for_cell, g1);
     }
-    int_slist_append(*cell1_faces, f);
-//printf("cell %d sees face %d\n", g1, f);
+    int_slist_append(*cell1_faces, face_offset);
+//printf("cell %d sees face %d\n", g1, face_offset);
     face->cell2 = g2;
     int_slist_t** cell2_faces = (int_slist_t**)int_ptr_unordered_map_get(faces_for_cell, g2);
     if (cell2_faces == NULL)
@@ -237,11 +229,10 @@ voronoi_tessellator_tessellate(voronoi_tessellator_t* tessellator,
       int_ptr_unordered_map_insert_with_v_dtor(faces_for_cell, g2, faces, DTOR(int_slist_free));
       cell2_faces = (int_slist_t**)int_ptr_unordered_map_get(faces_for_cell, g2);
     }
-    int_slist_append(*cell2_faces, f);
-//printf("cell %d sees face %d\n", g2, f);
+    int_slist_append(*cell2_faces, face_offset);
+//printf("cell %d sees face %d\n", g2, face_offset);
     
     // Build edges out of each pair of nodes.
-printf("Face %d has %d nodes\n", f, num_nodes);
     face->edges = malloc(sizeof(int) * num_nodes);
     face->num_edges = 0;
     for (int n = 0; n < num_nodes; ++n)
@@ -276,7 +267,9 @@ printf("Face %d has %d nodes\n", f, num_nodes);
         ++face->num_edges;
       }
     }
+    ++face_offset;
   }
+  t->num_faces = face_offset;
 
   // Construct the edges for the tessellation.
   t->edges = malloc(sizeof(voronoi_edge_t) * t->num_edges);
@@ -303,23 +296,32 @@ printf("Face %d has %d nodes\n", f, num_nodes);
       polymec_error("Voronoi tessellation failed: input site %d at (%g, %g, %g) has no faces!", c, points[3*c], points[3*c+1], points[3*c+2]);
   }
 
-  // Construct the cells for the tessellation.
+  // Construct the cells for the tessellation. We do not construct any cell 
+  // that has fewer than 4 faces.
+  int cell_offset = 0;
   t->num_cells = num_points; 
-  t->cells = (voronoi_cell_t*)malloc(t->num_cells*sizeof(voronoi_cell_t));
+  t->cells = malloc(t->num_cells*sizeof(voronoi_cell_t));
   for (int c = 0; c < num_points; ++c)
   {
-    printf("Retrieving faces for cell %d\n", c);
     int_slist_t* cell_faces = *int_ptr_unordered_map_get(faces_for_cell, c);
-    t->cells[c].num_faces = cell_faces->size;
-    t->cells[c].faces = malloc(sizeof(voronoi_face_t) * cell_faces->size);
+    if (cell_faces->size < 4)
+      continue;
+    t->cells[cell_offset].num_faces = cell_faces->size;
+    t->cells[cell_offset].faces = malloc(sizeof(voronoi_face_t) * cell_faces->size);
     int_slist_node_t* f = cell_faces->front;
     int fi = 0;
     while (f != NULL)
     {
-      t->cells[c].faces[fi++] = f->value;
+      t->cells[cell_offset].faces[fi++] = f->value;
       f = f->next;
     }
+    ++cell_offset;
   }
+  if (cell_offset == 0)
+    polymec_error("Voronoi tessellation produced no cells!");
+
+  t->num_cells = cell_offset;
+  t->cells = realloc(t->cells, t->num_cells*sizeof(voronoi_cell_t));
 
   // Now calculate the outward rays using the bounding hyperplanes for 
   // the exterior cells ("Fo" output).
