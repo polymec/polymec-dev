@@ -1,0 +1,6 @@
+-- This generates a cylinder using Voronoi tessellation.
+
+points = point_factory.cylinder(10, 10, 10, 1, 1, {0,0,0}, {0,0,1})
+mesh = voronoi_mesh(points)
+print(mesh)
+write_silo_plot(mesh, 'cylinder')

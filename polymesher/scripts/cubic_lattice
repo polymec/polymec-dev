@@ -1,0 +1,9 @@
+-- This generates a cubic lattice using Voronoi tessellation.
+
+bbox = bounding_box{x1 = -1, x2 = 1,
+                    y1 = -1, y2 = 1,
+                    z1 = -1, z2 = 1}
+points = point_factory.cubic_lattice(10, 10, 10, bbox, 1)
+mesh = voronoi_mesh(points)
+print(mesh)
+write_silo_plot(mesh, 'cubic_lattice')
