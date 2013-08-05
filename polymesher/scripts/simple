@@ -2,11 +2,7 @@ points = {{0,0,0},
           {-1,0,0}, {1,0,0},
           {0,-1,0}, {0,1,0},
           {0,0,-1}, {0,0,1}}
-mesh = unbounded_voronoi_mesh(points)
-print(mesh)
---merge_mesh_nodes(mesh)
---print(mesh)
---print(mesh_nodes(mesh), #mesh_nodes(mesh))
+mesh = voronoi_mesh(points)
 print(mesh)
 --write_vtk_plot(mesh, 'cube')
 write_silo_plot(mesh, 'cube')
