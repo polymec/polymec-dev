@@ -81,7 +81,6 @@ voronoi_tessellator_tessellate(voronoi_tessellator_t* tessellator,
   int argc = 3;
   char* argv[] = {"qvoronoi", // The program itself
                   "p",        // Coordinates of nodes
-//                  "Fn",       // List of neighbors for each node for building edges
                   "Fv"};      // List of ridges (edges) for faces / cell pairs
   qh_init_A(fin, fout, stderr, argc, argv);
   int status = setjmp(qh errexit); 
@@ -220,7 +219,6 @@ voronoi_tessellator_tessellate(voronoi_tessellator_t* tessellator,
       cell1_faces = (int_slist_t**)int_ptr_unordered_map_get(faces_for_cell, g1);
     }
     int_slist_append(*cell1_faces, face_offset);
-//printf("cell %d sees face %d\n", g1, face_offset);
     face->cell2 = g2;
     int_slist_t** cell2_faces = (int_slist_t**)int_ptr_unordered_map_get(faces_for_cell, g2);
     if (cell2_faces == NULL)
@@ -230,7 +228,6 @@ voronoi_tessellator_tessellate(voronoi_tessellator_t* tessellator,
       cell2_faces = (int_slist_t**)int_ptr_unordered_map_get(faces_for_cell, g2);
     }
     int_slist_append(*cell2_faces, face_offset);
-//printf("cell %d sees face %d\n", g2, face_offset);
     
     // Build edges out of each pair of nodes.
     face->edges = malloc(sizeof(int) * num_nodes);
@@ -316,13 +313,8 @@ voronoi_tessellator_tessellate(voronoi_tessellator_t* tessellator,
   t->num_cells = cell_offset;
   t->cells = realloc(t->cells, t->num_cells*sizeof(voronoi_cell_t));
 
-  // Now calculate the outward rays using the bounding hyperplanes for 
-  // the exterior cells ("Fo" output).
-  // FIXME
- 
   int_table_free(edge_for_nodes);
   int_ptr_unordered_map_free(faces_for_cell);
-//  int_ptr_unordered_map_free(rays_for_edge);
 
   return t;
 }
