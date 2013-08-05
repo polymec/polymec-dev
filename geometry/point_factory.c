@@ -34,7 +34,15 @@ int point_factory_cubic_lattice(lua_State* lua)
   // Number of ghost points.
   int ng = 0;
   if (num_args == 4)
+  {
+    if (!lua_isnumber(lua, 4))
+    {
+      lua_pushstring(lua, "ng must be an integer.");
+      lua_error(lua);
+      return LUA_ERRRUN;
+    }
     ng = (int)lua_tonumber(lua, 4);
+  }
   else
     ng = (int)lua_tonumber(lua, 5);
   if (ng < 0)

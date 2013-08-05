@@ -289,13 +289,6 @@ voronoi_tessellator_tessellate(voronoi_tessellator_t* tessellator,
     }
   }
 
-  // Make sure each Voronoi cell has a face.
-  for (int c = 0; c < num_points; ++c)
-  {
-    if (!int_ptr_unordered_map_contains(faces_for_cell, c))
-      polymec_error("Voronoi tessellation failed: input site %d at (%g, %g, %g) has no faces!", c, points[3*c], points[3*c+1], points[3*c+2]);
-  }
-
   // Construct the cells for the tessellation. We do not construct any cell 
   // that has fewer than 4 faces.
   int cell_offset = 0;
@@ -303,12 +296,12 @@ voronoi_tessellator_tessellate(voronoi_tessellator_t* tessellator,
   t->cells = malloc(t->num_cells*sizeof(voronoi_cell_t));
   for (int c = 0; c < num_points; ++c)
   {
-    int_slist_t* cell_faces = *int_ptr_unordered_map_get(faces_for_cell, c);
-    if (cell_faces->size < 4)
+    int_slist_t** cell_faces = (int_slist_t**)int_ptr_unordered_map_get(faces_for_cell, c);
+    if ((cell_faces == 0) || ((*cell_faces)->size < 4))
       continue;
-    t->cells[cell_offset].num_faces = cell_faces->size;
-    t->cells[cell_offset].faces = malloc(sizeof(voronoi_face_t) * cell_faces->size);
-    int_slist_node_t* f = cell_faces->front;
+    t->cells[cell_offset].num_faces = (*cell_faces)->size;
+    t->cells[cell_offset].faces = malloc(sizeof(voronoi_face_t) * (*cell_faces)->size);
+    int_slist_node_t* f = (*cell_faces)->front;
     int fi = 0;
     while (f != NULL)
     {
