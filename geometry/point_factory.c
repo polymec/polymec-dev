@@ -249,9 +249,9 @@ int point_factory_cylinder(lua_State* lua)
   for (int i = 0; i < num_disks; ++i)
   {
     // Find the location of the center of the disk.
-    point_t x_center = {.x = x_bottom.x + i * dz * Z->x,
-                        .y = x_bottom.y + i * dz * Z->y,
-                        .z = x_bottom.z + i * dz * Z->z};
+    point_t x_center = {.x = x_bottom.x + (i+0.5) * dz * Z->x,
+                        .y = x_bottom.y + (i+0.5) * dz * Z->y,
+                        .z = x_bottom.z + (i+0.5) * dz * Z->z};
 
     // Plant a point in the center of the disk.
     points[offset++] = x_center;

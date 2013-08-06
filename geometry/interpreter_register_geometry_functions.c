@@ -1007,9 +1007,10 @@ static int remove_points(lua_State* lua)
 
   // Extract arguments.
   const char* entries[] = {"points", "within_surface", "at_time"};
-  point_t* points;
-  int num_points;
+  point_t* points = NULL;
+  int num_points = 0;
   st_func_t* within_surface = NULL;
+  bbox_t* within_bbox = NULL;
   double at_time = 0.0;
   for (int i = 0; i < 3; ++i)
   {
@@ -1017,6 +1018,12 @@ static int remove_points(lua_State* lua)
     lua_gettable(lua, 1);
     if (i == 0)
     {
+      if (lua_isnil(lua, -1))
+      {
+        lua_pop(lua, 1);
+        lua_pushinteger(lua, 1);
+        lua_gettable(lua, 1);
+      }
       if (!lua_ispointlist(lua, -1))
       {
         lua_pushstring(lua, "points should be a list of points.");
@@ -1027,13 +1034,21 @@ static int remove_points(lua_State* lua)
     }
     else if (i == 1) 
     {
-      if (!lua_isscalarfunction(lua, -1))
+      if (lua_isboundingbox(lua, -1))
+      {
+        within_bbox = lua_toboundingbox(lua, -1);
+        sp_func_t* bbox_surface = rect_prism_new_from_bbox(within_bbox);
+        within_surface = st_func_from_sp_func(bbox_surface);
+        bbox_surface = NULL;
+      }
+      else if (lua_isscalarfunction(lua, -1))
+        within_surface = lua_toscalarfunction(lua, -1);
+      else
       {
         lua_pushstring(lua, "within_surface should be a scalar function.");
         lua_error(lua);
         return LUA_ERRRUN;
       }
-      within_surface = lua_toscalarfunction(lua, -1);
     }
     else
     {
@@ -1058,10 +1073,13 @@ static int remove_points(lua_State* lua)
     if (F >= 0.0)
     {
       culled_points[num_culled_points] = points[i];
-      ++num_points;
+      ++num_culled_points;
     }
   }
   culled_points = realloc(culled_points, sizeof(point_t) * num_culled_points);
+
+  // Clean up.
+  within_surface = NULL;
 
   lua_pushpointlist(lua, culled_points, num_culled_points);
   return 1;
