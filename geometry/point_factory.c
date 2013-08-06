@@ -12,67 +12,83 @@
 
 int point_factory_cubic_lattice(lua_State* lua)
 {
-  // Check the arguments.
+  // The argument should be a single table of named values.
   int num_args = lua_gettop(lua);
-  if (num_args != 5)
+  if ((num_args != 1) || (!lua_istable(lua, 1)))
   {
     lua_pushstring(lua, "Invalid arguments. Usage:\n"
-                  "points = point_factory.cubic_lattice(nx, ny, nz, bounding_box, ng)");
+                  "points = point_factory.cubic_lattice{nx, ny, nz, num_ghost, bounding_box}");
     lua_error(lua);
     return LUA_ERRRUN;
   }
 
-  // Get the arguments.
-  int nx = (int)lua_tonumber(lua, 1);
-  int ny = (int)lua_tonumber(lua, 2);
-  int nz = (int)lua_tonumber(lua, 3);
+  // Extract arguments.
+  const char* entries[] = {"nx", "ny", "nz", "num_ghost", "bounding_box"};
+  int nx, ny, nz, ng;
+  bbox_t* bbox = NULL;
+  for (int i = 0; i < 5; ++i)
+  {
+    lua_pushstring(lua, entries[i]);
+    lua_gettable(lua, 1);
+    if (i < 4)
+    {
+      if (!lua_isnumber(lua, -1))
+      {
+        char err[1024];
+        snprintf(err, 1024, "Missing integer argument: %s", entries[i]);
+        lua_pushstring(lua, err);
+        lua_error(lua);
+        return LUA_ERRRUN;
+      }
+      switch(i) 
+      {
+        case 0: nx = (int)lua_tonumber(lua, -1); break;
+        case 1: ny = (int)lua_tonumber(lua, -1); break;
+        case 2: nz = (int)lua_tonumber(lua, -1); break;
+        case 3: ng = (int)lua_tonumber(lua, -1); break;
+        default: break;
+      }
+    }
+    else 
+    {
+      if (!lua_isboundingbox(lua, -1))
+      {
+        lua_pushstring(lua, "bounding_box must be a bounding box.");
+        lua_error(lua);
+        return LUA_ERRRUN;
+      }
+      bbox = lua_toboundingbox(lua, -1);
+    }
+  }
+
+  // Validate arguments.
   if ((nx <= 0) || (ny <= 0) || (nz <= 0))
   {
     lua_pushstring(lua, "nx, ny, and nz must all be positive.");
     lua_error(lua);
     return LUA_ERRRUN;
   }
-
-  // Number of ghost points.
-  if (!lua_isnumber(lua, 5))
-  {
-    lua_pushstring(lua, "ng must be an integer.");
-    lua_error(lua);
-    return LUA_ERRRUN;
-  }
-  int ng = (int)lua_tonumber(lua, 5);
   if (ng < 0)
   {
     lua_pushstring(lua, "ng must be non-negative.");
     lua_error(lua);
     return LUA_ERRRUN;
   }
-
-  // Bounding box? 
-  if (!lua_isboundingbox(lua, 4))
-  {
-    lua_pushstring(lua, "bounding_box must be a bounding box.");
-    lua_error(lua);
-    return LUA_ERRRUN;
-  }
-  bbox_t* bbox = lua_toboundingbox(lua, 4);
-
-  // Now check the bounds.
   if (bbox->x1 >= bbox->x2)
   {
-    lua_pushstring(lua, "x1 must be less than x2.");
+    lua_pushstring(lua, "In bounding_box: x1 must be less than x2.");
     lua_error(lua);
     return LUA_ERRRUN;
   }
   if (bbox->y1 >= bbox->y2)
   {
-    lua_pushstring(lua, "y1 must be less than y2.");
+    lua_pushstring(lua, "In bounding_box: y1 must be less than y2.");
     lua_error(lua);
     return LUA_ERRRUN;
   }
   if (bbox->z1 >= bbox->z2)
   {
-    lua_pushstring(lua, "z1 must be less than z2.");
+    lua_pushstring(lua, "In bounding_box: z1 must be less than z2.");
     lua_error(lua);
     return LUA_ERRRUN;
   }
@@ -109,77 +125,101 @@ int point_factory_cubic_lattice(lua_State* lua)
 
 int point_factory_cylinder(lua_State* lua)
 {
-  // Check the arguments.
+  // The argument should be a single table of named values.
   int num_args = lua_gettop(lua);
-  if (num_args != 7)
+  if ((num_args != 1) || (!lua_istable(lua, 1)))
   {
     lua_pushstring(lua, "Invalid arguments. Usage:\n"
-                  "points = point_factory.cylinder(nr, ntheta, nz, ng, r, x0, Z)");
+                  "points = point_factory.cylinder{nr, ntheta, nz, num_ghost, radius, axial_point, axial_vector}");
     lua_error(lua);
     return LUA_ERRRUN;
   }
 
-  // Get the arguments.
-  int nr = (int)lua_tonumber(lua, 1);
-  int ntheta = (int)lua_tonumber(lua, 2);
-  int nz = (int)lua_tonumber(lua, 3);
+  // Extract arguments.
+  const char* entries[] = {"nr", "ntheta", "nz", "num_ghost", 
+                           "radius", "axial_point", "axial_vector"};
+  int nr, ntheta, nz, ng;
+  double r;
+  point_t* x0 = NULL;
+  vector_t* Z = NULL;
+  for (int i = 0; i < 7; ++i)
+  {
+    lua_pushstring(lua, entries[i]);
+    lua_gettable(lua, 1);
+    if (i < 4)
+    {
+      if (!lua_isnumber(lua, -1))
+      {
+        char err[1024];
+        snprintf(err, 1024, "Missing integer argument: %s", entries[i]);
+        lua_pushstring(lua, err);
+        lua_error(lua);
+        return LUA_ERRRUN;
+      }
+      switch(i) 
+      {
+        case 0: nr = (int)lua_tonumber(lua, -1); break;
+        case 1: ntheta = (int)lua_tonumber(lua, -1); break;
+        case 2: nz = (int)lua_tonumber(lua, -1); break;
+        case 3: ng = (int)lua_tonumber(lua, -1); break;
+        default: break;
+      }
+    }
+    else if (i == 4)
+    {
+      if (!lua_isnumber(lua, -1))
+      {
+        lua_pushstring(lua, "radius must be a positive number.");
+        lua_error(lua);
+        return LUA_ERRRUN;
+      }
+      r = lua_tonumber(lua, -1);
+    }
+    else if (i == 5)
+    {
+      if (!lua_ispoint(lua, -1))
+      {
+        lua_pushstring(lua, "axial_point must be a point.");
+        lua_error(lua);
+        return LUA_ERRRUN;
+      }
+      x0 = lua_topoint(lua, -1);
+    }
+    else // (i == 6)
+    {
+      if (!lua_isvector(lua, -1))
+      {
+        lua_pushstring(lua, "axial_vector must be a vector.");
+        lua_error(lua);
+        return LUA_ERRRUN;
+      }
+      Z = lua_tovector(lua, -1);
+    }
+  }
+
+  // Validate inputs.
   if ((nr <= 0) || (ntheta <= 0) || (nz <= 0))
   {
     lua_pushstring(lua, "nr, ntheta, and nz must all be positive.");
     lua_error(lua);
     return LUA_ERRRUN;
   }
-  // Number of ghost points.
-  if (!lua_isnumber(lua, 4))
-  {
-    lua_pushstring(lua, "ng must be an integer.");
-    lua_error(lua);
-    return LUA_ERRRUN;
-  }
-  int ng = (int)lua_tonumber(lua, 4);
   if (ng < 0)
   {
-    lua_pushstring(lua, "ng must be non-negative.");
+    lua_pushstring(lua, "num_ghost must be non-negative.");
     lua_error(lua);
     return LUA_ERRRUN;
   }
-
-  // Radius.
-  if (!lua_isnumber(lua, 5))
-  {
-    lua_pushstring(lua, "r must be a positive radius.");
-    lua_error(lua);
-    return LUA_ERRRUN;
-  }
-  double r = lua_tonumber(lua, 5);
   if (r <= 0)
   {
-    lua_pushstring(lua, "r must be positive.");
+    lua_pushstring(lua, "radius must be positive.");
     lua_error(lua);
     return LUA_ERRRUN;
   }
-
-  // Axial point.
-  if (!lua_ispoint(lua, 6))
-  {
-    lua_pushstring(lua, "x0 must be an axial point.");
-    lua_error(lua);
-    return LUA_ERRRUN;
-  }
-  point_t* x0 = lua_topoint(lua, 6);
-
-  // Axial vector.
-  if (!lua_isvector(lua, 7))
-  {
-    lua_pushstring(lua, "Z must be an axial vector.");
-    lua_error(lua);
-    return LUA_ERRRUN;
-  }
-  vector_t* Z = lua_tovector(lua, 7);
   double Zmag = vector_mag(Z);
   if (Zmag == 0)
   {
-    lua_pushstring(lua, "Z must not be the zero vector.");
+    lua_pushstring(lua, "axial_vector must not be the zero vector.");
     lua_error(lua);
     return LUA_ERRRUN;
   }

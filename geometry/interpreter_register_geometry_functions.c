@@ -992,6 +992,81 @@ static int copy_points(lua_State* lua)
   return 1;
 }
 
+static int remove_points(lua_State* lua)
+{
+  // Check the arguments.
+  int num_args = lua_gettop(lua);
+  if ((num_args != 1) || !lua_istable(lua, 1))
+  {
+    lua_pushstring(lua, "Invalid argument(s). Usage:\n"
+                        "culled_points = remove_points{points, within_surface = S, at_time = t} ->\n"
+                        "Removes points in the given list that meet the given criterion.");
+    lua_error(lua);
+    return LUA_ERRRUN;
+  }
+
+  // Extract arguments.
+  const char* entries[] = {"points", "within_surface", "at_time"};
+  point_t* points;
+  int num_points;
+  st_func_t* within_surface = NULL;
+  double at_time = 0.0;
+  for (int i = 0; i < 3; ++i)
+  {
+    lua_pushstring(lua, entries[i]);
+    lua_gettable(lua, 1);
+    if (i == 0)
+    {
+      if (!lua_ispointlist(lua, -1))
+      {
+        lua_pushstring(lua, "points should be a list of points.");
+        lua_error(lua);
+        return LUA_ERRRUN;
+      }
+      points = lua_topointlist(lua, -1, &num_points);
+    }
+    else if (i == 1) 
+    {
+      if (!lua_isscalarfunction(lua, -1))
+      {
+        lua_pushstring(lua, "within_surface should be a scalar function.");
+        lua_error(lua);
+        return LUA_ERRRUN;
+      }
+      within_surface = lua_toscalarfunction(lua, -1);
+    }
+    else
+    {
+      if (lua_isnil(lua, -1)) break;
+      if (!lua_isnumber(lua, -1))
+      {
+        lua_pushstring(lua, "at_time should be a number.");
+        lua_error(lua);
+        return LUA_ERRRUN;
+      }
+      at_time = lua_tonumber(lua, -1);
+    }
+  }
+
+  // Make a new list of points.
+  point_t* culled_points = malloc(sizeof(point_t) * num_points);
+  int num_culled_points = 0;
+  for (int i = 0; i < num_points; ++i)
+  {
+    double F;
+    st_func_eval(within_surface, &points[i], at_time, &F);
+    if (F >= 0.0)
+    {
+      culled_points[num_culled_points] = points[i];
+      ++num_points;
+    }
+  }
+  culled_points = realloc(culled_points, sizeof(point_t) * num_culled_points);
+
+  lua_pushpointlist(lua, culled_points, num_culled_points);
+  return 1;
+}
+
 void interpreter_register_geometry_functions(interpreter_t* interp)
 {
   interpreter_register_function(interp, "cubic_lattice_mesh", cubic_lattice_mesh);
@@ -1014,6 +1089,7 @@ void interpreter_register_geometry_functions(interpreter_t* interp)
   interpreter_register_function(interp, "translate_points", translate_points);
   interpreter_register_function(interp, "rotate_points", rotate_points);
   interpreter_register_function(interp, "copy_points", copy_points);
+  interpreter_register_function(interp, "remove_points", remove_points);
   interpreter_register_spfuncs(interp);
 }
 
