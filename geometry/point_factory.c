@@ -6,7 +6,8 @@
 #include "core/interpreter.h"
 #include "core/constant_st_func.h"
 #include "core/slist.h"
-#include "core/unordered_map.h"
+#include "core/array.h"
+#include "core/kd_tree.h"
 #include "geometry/generate_random_points.h"
 
 // Lua stuff.
@@ -282,8 +283,6 @@ int point_factory_cylinder(lua_State* lua)
 // Import a set of points on a surface from an STL file.
 static void import_points_from_stl(FILE* stl_file, int* num_points, point_t** points, vector_t** normals, char* error_message)
 {
-  ptr_ptr_unordered_map_t* facets = ptr_ptr_unordered_map_new();
-
   // Read the header.
   char solid_name[1024];
   int status = fscanf(stl_file, "solid%s\n", solid_name);
@@ -294,63 +293,75 @@ static void import_points_from_stl(FILE* stl_file, int* num_points, point_t** po
   }
 
   // Read all of the triangular facets.
+  ptr_array_t* all_vertices = ptr_array_new();
+  ptr_array_t* all_facets = ptr_array_new();
   do
   {
     vector_t* n = vector_new(0.0, 0.0, 0.0);
     status = fscanf(stl_file, "facet normal %le %le %le\n", &n->x, &n->y, &n->z);
     if (status != 3)
     {
-      snprintf(error_message, 1024, "Problem reading facet %d.", facets->size);
+      snprintf(error_message, 1024, "Problem reading facet %d.", all_facets->size);
       goto exit_on_error;
     }
     status = fscanf(stl_file, "outer loop");
     if (status != 0)
     {
-      snprintf(error_message, 1024, "Problem reading outer loop header for facet %d.", facets->size);
+      snprintf(error_message, 1024, "Problem reading outer loop header for facet %d.", all_facets->size);
       goto exit_on_error;
     }
-    point_t* vertices = malloc(sizeof(point_t) * 3);
-    status = fscanf(stl_file, "vertex %le %le %le\n", &vertices[0].x, &vertices[0].y, &vertices[0].z);
+    point_t* v1 = point_new(0.0, 0.0, 0.0);
+    status = fscanf(stl_file, "vertex %le %le %le\n", &v1->x, &v1->y, &v1->z);
     if (status != 3)
     {
-      snprintf(error_message, 1024, "Problem reading vertex 1 for facet %d.", facets->size);
+      snprintf(error_message, 1024, "Problem reading vertex 1 for facet %d.", all_facets->size);
       goto exit_on_error;
     }
-    status = fscanf(stl_file, "vertex %le %le %le\n", &vertices[1].x, &vertices[1].y, &vertices[1].z);
+    point_t* v2 = point_new(0.0, 0.0, 0.0);
+    status = fscanf(stl_file, "vertex %le %le %le\n", &v2->x, &v2->y, &v2->z);
     if (status != 3)
     {
-      snprintf(error_message, 1024, "Problem reading vertex 2 for facet %d.", facets->size);
+      snprintf(error_message, 1024, "Problem reading vertex 2 for facet %d.", all_facets->size);
       goto exit_on_error;
     }
-    status = fscanf(stl_file, "vertex %le %le %le\n", &vertices[2].x, &vertices[2].y, &vertices[2].z);
+    point_t* v3 = point_new(0.0, 0.0, 0.0);
+    status = fscanf(stl_file, "vertex %le %le %le\n", &v3->x, &v3->y, &v3->z);
     if (status != 3)
     {
-      snprintf(error_message, 1024, "Problem reading vertex 3 for facet %d.", facets->size);
+      snprintf(error_message, 1024, "Problem reading vertex 3 for facet %d.", all_facets->size);
       goto exit_on_error;
     }
     status = fscanf(stl_file, "endloop");
     if (status != 0)
     {
-      snprintf(error_message, 1024, "Problem reading outer loop footer for facet %d.", facets->size);
+      snprintf(error_message, 1024, "Problem reading outer loop footer for facet %d.", all_facets->size);
       goto exit_on_error;
     }
 
-    // Add the entries to our facet map.
-    ptr_ptr_unordered_map_insert_with_v_dtor(facets, n, vertices, DTOR(free));
+    // Add the entries.
+    ptr_array_append_with_dtor(all_facets, n, DTOR(free));
+    ptr_array_append(all_vertices, v1);
+    ptr_array_append(all_vertices, v2);
+    ptr_array_append(all_vertices, v3);
   }
   while (status != EOF);
 
-  // Make a list of unique points.
+  // Dump the points into a kd-tree and merge them.
+//  kd_tree_t* point_tree = kd_tree_new((point_t*)all_vertices->data, all_vertices->size);
+  // FIXME
 
   // Average the normals of the triangles to find their values at the points.
   // WARNING: This assumes that the surface is sufficiently smooth!
 
   // Clean up.
-  ptr_ptr_unordered_map_free(facets);
+//  kd_tree_free(point_tree);
+  ptr_array_free(all_vertices);
+  ptr_array_free(all_facets);
   return;
 
 exit_on_error:
-  ptr_ptr_unordered_map_free(facets);
+  ptr_array_free(all_vertices);
+  ptr_array_free(all_facets);
   *points = NULL;
   *normals = NULL;
   *num_points = 0;
