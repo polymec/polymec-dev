@@ -3,6 +3,6 @@
 points = point_factory.cylinder{nr = 10, ntheta = 10, nz = 10, 
                                 num_ghost = 1, radius = 1, 
                                 axial_point = {0,0,0}, axial_vector = {0,0,1}}
-mesh = voronoi_mesh(points)
+mesh = mesh_factory.voronoi(points)
 print(mesh)
 write_silo_plot(mesh, 'cylinder')

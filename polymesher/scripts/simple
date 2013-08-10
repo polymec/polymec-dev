@@ -2,7 +2,7 @@ points = {{0,0,0},
           {-1,0,0}, {1,0,0},
           {0,-1,0}, {0,1,0},
           {0,0,-1}, {0,0,1}}
-mesh = voronoi_mesh(points)
+mesh = mesh_factory.voronoi(points)
 print(mesh)
---write_vtk_plot(mesh, 'cube')
-write_silo_plot(mesh, 'cube')
+--write_vtk_plot(mesh, 'simple')
+write_silo_plot(mesh, 'simple')

@@ -15,9 +15,7 @@ add_library(polymec_geometry mapping.c plane.c cylinder.c sphere.c intersection.
             prob_cvt_gen_dist.c #force_cvt_gen_dist.c 
             witkin_heckbert_sampling.c mgw_sampling.c
             create_voronoi_mesh.c ${VORONOI_SOURCES}
-#            create_deformable_bounded_voronoi_mesh.c
-#            merge_mesh_nodes.c bound_voronoi_mesh.c prune_voronoi_mesh.c crop_voronoi_mesh.c 
-            generate_random_points.c point_factory.c
+            generate_random_points.c point_factory.c mesh_factory.c
             interpreter_register_geometry_functions.c 
             interpreter_register_spfuncs.c)
 
