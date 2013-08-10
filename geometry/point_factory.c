@@ -6,6 +6,7 @@
 #include "core/interpreter.h"
 #include "core/constant_st_func.h"
 #include "core/slist.h"
+#include "core/unordered_map.h"
 #include "geometry/generate_random_points.h"
 
 // Lua stuff.
@@ -278,16 +279,147 @@ int point_factory_cylinder(lua_State* lua)
   return 1;
 }
 
-int point_factory_surface_from_file(lua_State* lua)
+// Import a set of points on a surface from an STL file.
+static void import_points_from_stl(FILE* stl_file, int* num_points, point_t** points, vector_t** normals, char* error_message)
 {
-  point_t* points = malloc(sizeof(point_t));
-  int num_points = 1;
+  ptr_ptr_unordered_map_t* facets = ptr_ptr_unordered_map_new();
 
-  // FIXME
+  // Read the header.
+  char solid_name[1024];
+  int status = fscanf(stl_file, "solid%s\n", solid_name);
+  if (status != 1)
+  {
+    snprintf(error_message, 1024, "Invalid header.");
+    goto exit_on_error;
+  }
 
-  // Push the points onto the stack.
+  // Read all of the triangular facets.
+  do
+  {
+    vector_t* n = vector_new(0.0, 0.0, 0.0);
+    status = fscanf(stl_file, "facet normal %le %le %le\n", &n->x, &n->y, &n->z);
+    if (status != 3)
+    {
+      snprintf(error_message, 1024, "Problem reading facet %d.", facets->size);
+      goto exit_on_error;
+    }
+    status = fscanf(stl_file, "outer loop");
+    if (status != 0)
+    {
+      snprintf(error_message, 1024, "Problem reading outer loop header for facet %d.", facets->size);
+      goto exit_on_error;
+    }
+    point_t* vertices = malloc(sizeof(point_t) * 3);
+    status = fscanf(stl_file, "vertex %le %le %le\n", &vertices[0].x, &vertices[0].y, &vertices[0].z);
+    if (status != 3)
+    {
+      snprintf(error_message, 1024, "Problem reading vertex 1 for facet %d.", facets->size);
+      goto exit_on_error;
+    }
+    status = fscanf(stl_file, "vertex %le %le %le\n", &vertices[1].x, &vertices[1].y, &vertices[1].z);
+    if (status != 3)
+    {
+      snprintf(error_message, 1024, "Problem reading vertex 2 for facet %d.", facets->size);
+      goto exit_on_error;
+    }
+    status = fscanf(stl_file, "vertex %le %le %le\n", &vertices[2].x, &vertices[2].y, &vertices[2].z);
+    if (status != 3)
+    {
+      snprintf(error_message, 1024, "Problem reading vertex 3 for facet %d.", facets->size);
+      goto exit_on_error;
+    }
+    status = fscanf(stl_file, "endloop");
+    if (status != 0)
+    {
+      snprintf(error_message, 1024, "Problem reading outer loop footer for facet %d.", facets->size);
+      goto exit_on_error;
+    }
+
+    // Add the entries to our facet map.
+    ptr_ptr_unordered_map_insert_with_v_dtor(facets, n, vertices, DTOR(free));
+  }
+  while (status != EOF);
+
+  // Make a list of unique points.
+
+exit_on_error:
+  ptr_ptr_unordered_map_free(facets);
+  *points = NULL;
+  *normals = NULL;
+  *num_points = 0;
+  return;
+}
+
+int point_factory_import_from_cad(lua_State* lua)
+{
+  int num_args = lua_gettop(lua);
+  if ((num_args != 1) || (!lua_isstring(lua, 1)))
+  {
+    lua_pushstring(lua, "Invalid arguments. Usage:\n"
+                  "points, normals = point_factory.import_from_cad(cad_file_name)");
+    lua_error(lua);
+    return LUA_ERRRUN;
+  }
+  const char* cad_file_name = lua_tostring(lua, 1);
+
+  // Determine the type of file from its suffix.
+  char* suffix = strstr(cad_file_name, ".");
+  char* next;
+  while ((next = strstr(&suffix[1], ".")) != NULL)
+    suffix = next;
+  if (suffix == NULL)
+  {
+    lua_pushstring(lua, "Argument must be a filename ending in a suffix that indicates its CAD format.");
+    lua_error(lua);
+    return LUA_ERRRUN;
+  }
+
+  // Make sure the suffix indicates a supported format.
+  static const char* supported_suffixes[] = {".stl", NULL};
+  int i = 0;
+  while ((supported_suffixes[i] != NULL) && strcasecmp(suffix, supported_suffixes[i]))
+    ++i;
+  if (supported_suffixes[i] == NULL)
+  {
+    char err[1024];
+    snprintf(err, 1024, "Unsupported file format: %s", suffix);
+    lua_pushstring(lua, err);
+    lua_error(lua);
+    return LUA_ERRRUN;
+  }
+  
+  FILE* cad_file = fopen(cad_file_name, "r");
+  if (cad_file == NULL)
+  {
+    char err[1024];
+    snprintf(err, 1024, "Could not open file '%s'", cad_file_name);
+    lua_pushstring(lua, err);
+    lua_error(lua);
+    return LUA_ERRRUN;
+  }
+
+  // Read the data and generate the list of points.
+  point_t* points = NULL;
+  vector_t* normals = NULL;
+  char error_message[1024];
+  int num_points;
+  if (!strcasecmp(suffix, ".stl"))
+    import_points_from_stl(cad_file, &num_points, &points, &normals, error_message);
+  fclose(cad_file);
+
+  if (points == NULL)
+  {
+    char err[1024];
+    snprintf(err, 1024, "Error reading %s: %s", cad_file_name, error_message);
+    lua_pushstring(lua, err);
+    lua_error(lua);
+    return LUA_ERRRUN;
+  }
+
+  // Close up shop and return the points and normals.
   lua_pushpointlist(lua, points, num_points);
-  return 1;
+  lua_pushvectorlist(lua, normals, num_points);
+  return 2;
 }
 
 int point_factory_random_points(lua_State* lua)
