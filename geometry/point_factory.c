@@ -342,6 +342,13 @@ static void import_points_from_stl(FILE* stl_file, int* num_points, point_t** po
 
   // Make a list of unique points.
 
+  // Average the normals of the triangles to find their values at the points.
+  // WARNING: This assumes that the surface is sufficiently smooth!
+
+  // Clean up.
+  ptr_ptr_unordered_map_free(facets);
+  return;
+
 exit_on_error:
   ptr_ptr_unordered_map_free(facets);
   *points = NULL;
