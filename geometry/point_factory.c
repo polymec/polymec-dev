@@ -4,6 +4,9 @@
 #include "core/polymec.h"
 #include "core/point.h"
 #include "core/interpreter.h"
+#include "core/constant_st_func.h"
+#include "core/slist.h"
+#include "geometry/generate_random_points.h"
 
 // Lua stuff.
 #include "lua.h"
@@ -271,6 +274,211 @@ int point_factory_cylinder(lua_State* lua)
   }
 
   // Push the points onto the stack.
+  lua_pushpointlist(lua, points, num_points);
+  return 1;
+}
+
+int point_factory_surface_from_file(lua_State* lua)
+{
+  point_t* points = malloc(sizeof(point_t));
+  int num_points = 1;
+
+  // FIXME
+
+  // Push the points onto the stack.
+  lua_pushpointlist(lua, points, num_points);
+  return 1;
+}
+
+int point_factory_random_points(lua_State* lua)
+{
+  // Check the arguments.
+  int num_args = lua_gettop(lua);
+  if ((num_args != 2) && (num_args != 3))
+  {
+    lua_pushstring(lua, "Invalid arguments. Usage:\npoints = random_points(N, bounding_box) OR\npoints = random_points(N, density, bounding_box)");
+    lua_error(lua);
+    return LUA_ERRRUN;
+  }
+  // Get the arguments.
+  int N = (int)lua_tonumber(lua, 1);
+  if (N <= 0)
+  {
+    lua_pushstring(lua, "Invalid (nonpositive) number of points.");
+    lua_error(lua);
+    return LUA_ERRRUN;
+  }
+  sp_func_t* density = NULL;
+  bbox_t* bbox = NULL;
+  if (num_args == 2)
+  {
+    if (!lua_isboundingbox(lua, 2))
+    {
+      lua_pushstring(lua, "Second argument must be a bounding box.");
+      lua_error(lua);
+      return LUA_ERRRUN;
+    }
+    bbox = lua_toboundingbox(lua, 2);
+    ASSERT(bbox != NULL);
+    double one = 1.0;
+    density = constant_sp_func_new(1, &one);
+  }
+  else
+  {
+    if (!lua_isscalarfunction(lua, 2))
+    {
+      lua_pushstring(lua, "Second argument must be a scalar function.");
+      lua_error(lua);
+      return LUA_ERRRUN;
+    }
+    st_func_t* density_t = lua_toscalarfunction(lua, 2);
+    density = st_func_freeze(density_t, 0.0);
+    if (!lua_isboundingbox(lua, 3))
+    {
+      lua_pushstring(lua, "Third argument must be a bounding box.");
+      lua_error(lua);
+      return LUA_ERRRUN;
+    }
+    bbox = lua_toboundingbox(lua, 3);
+  }
+
+  point_t* points = malloc(sizeof(point_t) * N);
+  generate_random_points(random, density, bbox, N, points);
+
+  // Return the point list.
+  lua_pushpointlist(lua, points, N);
+  return 1;
+}
+
+int point_factory_ccp_points(lua_State* lua)
+{
+  // Check the arguments.
+  int num_args = lua_gettop(lua);
+  if (num_args != 4)
+  {
+    lua_pushstring(lua, "Invalid arguments. Usage:\n"
+                        "points = ccp_points(Nx, Ny, Nz, bounding_box)");
+    lua_error(lua);
+    return LUA_ERRRUN;
+  }
+
+  // Get the arguments.
+  int Nx = (int)lua_tonumber(lua, 1);
+  int Ny = (int)lua_tonumber(lua, 2);
+  int Nz = (int)lua_tonumber(lua, 3);
+  if ((Nx <= 0) || (Ny <= 0) || (Nz <= 0))
+  {
+    lua_pushstring(lua, "Nx, Ny, and Nz must all be positive.");
+    lua_error(lua);
+    return LUA_ERRRUN;
+  }
+  if (!lua_isboundingbox(lua, 4))
+  {
+    lua_pushstring(lua, "Fourth argument must be a bounding box.");
+    lua_error(lua);
+    return LUA_ERRRUN;
+  }
+  bbox_t* bbox = lua_toboundingbox(lua, 4);
+
+  // Create the point list.
+  ptr_slist_t* point_list = ptr_slist_new();
+  double dx = (bbox->x2 - bbox->x1) / Nx,
+         dy = (bbox->y2 - bbox->y1) / Ny,
+         dz = (bbox->z2 - bbox->z1) / Nz;
+  for (int i = 0; i < Nx; ++i)
+  {
+    bool x1face = (i > 0);
+    bool x2face = (i < Nx-1);
+    double x1 = bbox->x1 + i * dx;
+    double x2 = x1 + dx;
+    for (int j = 0; j < Ny; ++j)
+    {
+      bool y1face = (j > 0);
+      bool y2face = (j < Ny-1);
+      double y1 = bbox->x1 + j * dy;
+      double y2 = y1 + dy;
+      for (int k = 0; k < Nz; ++k)
+      {
+        bool z1face = (k > 0);
+        bool z2face = (k < Ny-1);
+        double z1 = bbox->x1 + k * dz;
+        double z2 = z1 + dz;
+
+        if (x1face)
+        {
+          // yz face center
+          ptr_slist_append(point_list, point_new(x1, y1+0.5*dy, z1+0.5*dz));
+
+          // nodes on the x1 face.
+          if (y1face)
+          {
+            if (z1face)
+              ptr_slist_append(point_list, point_new(x1, y1, z1));
+            if (z2face)
+              ptr_slist_append(point_list, point_new(x1, y1, z2));
+          }
+          if (y2face)
+          {
+            if (z1face)
+              ptr_slist_append(point_list, point_new(x1, y2, z1));
+            if (z2face)
+              ptr_slist_append(point_list, point_new(x1, y2, z2));
+          }
+        }
+
+        if (x2face)
+        {
+          // yz face center
+          ptr_slist_append(point_list, point_new(x2, y1+0.5*dy, z1+0.5*dz));
+
+          // nodes on the x2 face.
+          if (y1face)
+          {
+            if (z1face)
+              ptr_slist_append(point_list, point_new(x2, y1, z1));
+            if (z2face)
+              ptr_slist_append(point_list, point_new(x2, y1, z2));
+          }
+          if (y2face)
+          {
+            if (z1face)
+              ptr_slist_append(point_list, point_new(x2, y2, z1));
+            if (z2face)
+              ptr_slist_append(point_list, point_new(x2, y2, z2));
+          }
+        }
+
+        if (y1face)
+        {
+          // xz face center.
+          ptr_slist_append(point_list, point_new(x1+0.5*dx, y1, z1+0.5*dz));
+        }
+        if (y2face)
+        {
+          // xz face center.
+          ptr_slist_append(point_list, point_new(x1+0.5*dx, y2, z1+0.5*dz));
+        }
+
+        if (z1face)
+        {
+          // xy face center.
+          ptr_slist_append(point_list, point_new(x1+0.5*dx, y1+0.5*dy, z1));
+        }
+        if (z2face)
+        {
+          // xy face center.
+          ptr_slist_append(point_list, point_new(x1+0.5*dx, y2+0.5*dy, z2));
+        }
+      }
+    }
+  }
+
+  // Pack it up and return it.
+  int num_points = point_list->size;
+  point_t* points = malloc(sizeof(point_t) * num_points);
+  for (int i = 0; i < num_points; ++i)
+    point_copy(&points[i], ptr_slist_pop(point_list, NULL));
+  ptr_slist_free(point_list);
   lua_pushpointlist(lua, points, num_points);
   return 1;
 }
