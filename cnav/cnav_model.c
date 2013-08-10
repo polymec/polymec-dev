@@ -312,9 +312,10 @@ static int compute_F_ale(double t, N_Vector U, N_Vector U_dot, void* context)
       vector_normalize(&normal);
       for (int i = 0; i < num_comp; ++i)
       {
-        double Fn = vector_dot(&hydro_fluxes[num_comp*face_index+i], &normal);
-        double Gn = vector_dot(&diff_fluxes[num_comp*face_index+i], &normal);
-        u_dot[num_comp*c+i] -= (A/V) * (Fn + Gn);
+        // FIXME
+//        double Fn = vector_dot(&hydro_fluxes[num_comp*face_index+i], &normal);
+//        double Gn = vector_dot(&diff_fluxes[num_comp*face_index+i], &normal);
+//        u_dot[num_comp*c+i] -= (A/V) * (Fn + Gn);
       }
     }
   }
