@@ -280,25 +280,12 @@ int point_factory_cylinder(lua_State* lua)
   return 1;
 }
 
-// Import a set of points on a surface from an STL file.
-static void import_points_from_stl(FILE* stl_file, int* num_points, point_t** points, vector_t** normals, char* error_message)
+static int read_ascii_stl_file(FILE* stl_file, 
+                               ptr_array_t* all_vertices, 
+                               ptr_array_t* all_normals,
+                               char* error_message)
 {
-  // Notice that realloc and garbage collection don't interact nicely 
-  // with each other, so we don't use garbage-collected points and vectors
-  // in this method.
-
-  // Read the header.
-  char solid_name[1024];
-  int status = fscanf(stl_file, "solid%s\n", solid_name);
-  if (status != 1)
-  {
-    snprintf(error_message, 1024, "Invalid header.");
-    goto exit_on_error;
-  }
-
-  // Read all of the triangular facets.
-  ptr_array_t* all_vertices = ptr_array_new();
-  ptr_array_t* all_normals = ptr_array_new();
+  int status = 0;
   do
   {
     vector_t* n = malloc(sizeof(vector_t));
@@ -306,13 +293,13 @@ static void import_points_from_stl(FILE* stl_file, int* num_points, point_t** po
     if (status != 3)
     {
       snprintf(error_message, 1024, "Problem reading facet %d.", all_normals->size/3);
-      goto exit_on_error;
+      return -1;
     }
     status = fscanf(stl_file, "outer loop");
     if (status != 0)
     {
       snprintf(error_message, 1024, "Problem reading outer loop header for facet %d.", all_normals->size/3);
-      goto exit_on_error;
+      return -1;
     }
     fscanf(stl_file, "\n");
     point_t* v1 = malloc(sizeof(point_t));
@@ -320,34 +307,34 @@ static void import_points_from_stl(FILE* stl_file, int* num_points, point_t** po
     if (status != 3)
     {
       snprintf(error_message, 1024, "Problem reading vertex 1 for facet %d.", all_normals->size/3);
-      goto exit_on_error;
+      return -1;
     }
     point_t* v2 = malloc(sizeof(point_t));
     status = fscanf(stl_file, "vertex %le %le %le\n", &v2->x, &v2->y, &v2->z);
     if (status != 3)
     {
       snprintf(error_message, 1024, "Problem reading vertex 2 for facet %d.", all_normals->size/3);
-      goto exit_on_error;
+      return -1;
     }
     point_t* v3 = malloc(sizeof(point_t));
     status = fscanf(stl_file, "vertex %le %le %le\n", &v3->x, &v3->y, &v3->z);
     if (status != 3)
     {
       snprintf(error_message, 1024, "Problem reading vertex 3 for facet %d.", all_normals->size/3);
-      goto exit_on_error;
+      return -1;
     }
     status = fscanf(stl_file, "endloop");
     if (status != 0)
     {
       snprintf(error_message, 1024, "Problem reading outer loop footer for facet %d.", all_normals->size/3);
-      goto exit_on_error;
+      return -1;
     }
     fscanf(stl_file, "\n");
     status = fscanf(stl_file, "endfacet\n");
     if (status != 0)
     {
       snprintf(error_message, 1024, "Problem reading footer for facet %d.", all_normals->size/3);
-      goto exit_on_error;
+      return -1;
     }
 
     // Add the entries.
@@ -365,6 +352,105 @@ static void import_points_from_stl(FILE* stl_file, int* num_points, point_t** po
   }
   while (status != EOF);
   ASSERT(all_normals->size == all_vertices->size);
+  return 0;
+}
+
+static int read_binary_stl_file(FILE* stl_file, 
+                                ptr_array_t* all_vertices, 
+                                ptr_array_t* all_normals,
+                                char* error_message)
+{
+  // Skip the 80-byte header.
+  fseek(stl_file, 80*sizeof(char), SEEK_SET);
+  
+  // Read the number of triangles.
+  int num_triangles;
+  fread(&num_triangles, sizeof(int), 1, stl_file);
+  if (num_triangles <= 0)
+  {
+    snprintf(error_message, 1024, "Non-positive number of triangles read from binary STL file.");
+    return -1;
+  }
+
+  // Read all of the triangle information.
+  for (int i = 0; i < num_triangles; ++i)
+  {
+    // Each triangle consists of 12 floats: 3 for a normal vector, and 3x3 
+    // for each of the coordinates of the vertices.
+    float floats[12];
+    int num_floats = fread(floats, sizeof(float), 12, stl_file);
+    if (num_floats != 12)
+    {
+      snprintf(error_message, 1024, "Error reading data for facet %d (%d/12 entries read).", i, num_floats);
+      return -1;
+    }
+
+    // There should be 2 bytes of "attribute byte count" data that is usually 
+    // not used.
+    short int attr_byte_count;
+    int num_shorts = fread(&attr_byte_count, sizeof(short), 1, stl_file);
+    if (num_shorts != 1)
+    {
+      snprintf(error_message, 1024, "Error reading attribute byte count for facet %d.", i);
+      return -1;
+    }
+
+    vector_t* n = malloc(sizeof(vector_t));
+    n->x = floats[0], n->y = floats[1], n->z = floats[2];
+    vector_t* v1 = malloc(sizeof(vector_t));
+    v1->x = floats[3], v1->y = floats[4], v1->z = floats[5];
+    vector_t* v2 = malloc(sizeof(vector_t));
+    v2->x = floats[6], v2->y = floats[7], v2->z = floats[8];
+    vector_t* v3 = malloc(sizeof(vector_t));
+    v3->x = floats[9], v3->y = floats[10], v3->z = floats[11];
+
+    // Add the entries.
+    ptr_array_append(all_normals, n);
+    ptr_array_append(all_normals, n);
+    ptr_array_append_with_dtor(all_normals, n, DTOR(free));
+    ptr_array_append_with_dtor(all_vertices, v1, DTOR(free));
+    ptr_array_append_with_dtor(all_vertices, v2, DTOR(free));
+    ptr_array_append_with_dtor(all_vertices, v3, DTOR(free));
+  }
+  ASSERT(all_normals->size == all_vertices->size);
+
+  return 0;
+}
+
+// Import a set of points on a surface from an STL file.
+static void import_points_from_stl(const char* stl_file_name, int* num_points, point_t** points, vector_t** normals, char* error_message)
+{
+  // Notice that realloc and garbage collection don't interact nicely 
+  // with each other, so we don't use garbage-collected points and vectors
+  // in this method.
+  ptr_array_t* all_vertices = ptr_array_new();
+  ptr_array_t* all_normals = ptr_array_new();
+
+  // Read the header to determine whether it's an ASCII or binary STL file, 
+  // or whether it's not an STL file at all.
+  FILE* stl_file = fopen(stl_file_name, "r");
+  int status = 0;
+  bool is_ascii = false;
+  {
+    char solid_name[1024];
+    status = fscanf(stl_file, "solid%s\n", solid_name);
+    if (status == 1)
+      is_ascii = true;
+    else
+    {
+      // Definitely not an ASCII STL file, so try binary.
+      fclose(stl_file);
+      stl_file = fopen(stl_file_name, "rb");
+    }
+  }
+
+  // Read all of the triangular facets.
+  if (is_ascii)
+    status = read_ascii_stl_file(stl_file, all_vertices, all_normals, error_message);
+  else
+    status = read_binary_stl_file(stl_file, all_vertices, all_normals, error_message);
+  if (status != 0)
+    goto exit_on_error;
 
   // Dump the points into a kd-tree so that we can see which ones coincide.
   kd_tree_t* point_tree;
@@ -494,6 +580,7 @@ int point_factory_import_from_cad(lua_State* lua)
     return LUA_ERRRUN;
   }
   
+  // Check for the existence of the CAD file on disk.
   FILE* cad_file = fopen(cad_file_name, "r");
   if (cad_file == NULL)
   {
@@ -503,6 +590,7 @@ int point_factory_import_from_cad(lua_State* lua)
     lua_error(lua);
     return LUA_ERRRUN;
   }
+  fclose(cad_file);
 
   // Read the data and generate the list of points.
   point_t* points = NULL;
@@ -510,8 +598,7 @@ int point_factory_import_from_cad(lua_State* lua)
   char error_message[1024];
   int num_points;
   if (!strcasecmp(suffix, ".stl"))
-    import_points_from_stl(cad_file, &num_points, &points, &normals, error_message);
-  fclose(cad_file);
+    import_points_from_stl(cad_file_name, &num_points, &points, &normals, error_message);
 
   if (points == NULL)
   {
@@ -522,10 +609,26 @@ int point_factory_import_from_cad(lua_State* lua)
     return LUA_ERRRUN;
   }
 
-  // Close up shop and return the points and normals.
+  // Close up shop and return the points and normals as fields in a table.
+  lua_createtable(lua, 0, 2);
   lua_pushpointlist(lua, points, num_points);
+  lua_setfield(lua, -2, "points");
   lua_pushvectorlist(lua, normals, num_points);
-  return 2;
+  lua_setfield(lua, -2, "normals");
+  return 1;
+}
+
+int point_factory_boundaries_and_interfaces(lua_State* lua)
+{
+  // Check the arguments.
+  int num_args = lua_gettop(lua);
+  if ((num_args != 2))
+  {
+    lua_pushstring(lua, "Invalid arguments. Usage:\nassembly = point_factory.boundaries_and_interfaces(surfaces, options)");
+    lua_error(lua);
+    return LUA_ERRRUN;
+  }
+  return 0;
 }
 
 int point_factory_random_points(lua_State* lua)
