@@ -16,6 +16,7 @@ extern int point_factory_random_points(lua_State* lua);
 extern int point_factory_cubic_lattice(lua_State* lua);
 extern int point_factory_cylinder(lua_State* lua);
 extern int point_factory_import_from_cad(lua_State* lua);
+extern int point_factory_boundaries_and_interfaces(lua_State* lua);
 
 // Functions for the mesh factory, which generates meshes.
 extern int mesh_factory_cubic_lattice(lua_State* lua);
@@ -507,6 +508,7 @@ void interpreter_register_geometry_functions(interpreter_t* interp)
   interpreter_register_global_method(interp, "point_factory", "cubic_lattice", point_factory_cubic_lattice);
   interpreter_register_global_method(interp, "point_factory", "cylinder", point_factory_cylinder);
   interpreter_register_global_method(interp, "point_factory", "import_from_cad", point_factory_import_from_cad);
+  interpreter_register_global_method(interp, "point_factory", "boundaries_and_interfaces", point_factory_boundaries_and_interfaces);
 
   interpreter_register_global_table(interp, "mesh_factory");
   interpreter_register_global_method(interp, "mesh_factory", "cubic_lattice", mesh_factory_cubic_lattice);
