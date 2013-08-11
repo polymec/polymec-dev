@@ -96,7 +96,7 @@ static inline void array_name##_resize(array_name##_t* array, int new_size) \
   if (new_size > array->capacity) \
   { \
     while (array->capacity < new_size) \
-      array_name##_reserve(array, 2 * array->capacity); \
+      array_name##_reserve(array, MAX(16, 2 * array->capacity)); \
   } \
   else if (new_size < array->size) \
   { \
@@ -105,7 +105,7 @@ static inline void array_name##_resize(array_name##_t* array, int new_size) \
       for (int i = 0; i < array->size; ++i) \
       { \
         if (array->dtors[i] != NULL) \
-        array->dtors[i](array->data[i]); \
+          array->dtors[i](array->data[i]); \
       } \
     } \
   } \
