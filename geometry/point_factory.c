@@ -283,6 +283,10 @@ int point_factory_cylinder(lua_State* lua)
 // Import a set of points on a surface from an STL file.
 static void import_points_from_stl(FILE* stl_file, int* num_points, point_t** points, vector_t** normals, char* error_message)
 {
+  // Notice that realloc and garbage collection don't interact nicely 
+  // with each other, so we don't use garbage-collected points and vectors
+  // in this method.
+
   // Read the header.
   char solid_name[1024];
   int status = fscanf(stl_file, "solid%s\n", solid_name);
@@ -294,74 +298,158 @@ static void import_points_from_stl(FILE* stl_file, int* num_points, point_t** po
 
   // Read all of the triangular facets.
   ptr_array_t* all_vertices = ptr_array_new();
-  ptr_array_t* all_facets = ptr_array_new();
+  ptr_array_t* all_normals = ptr_array_new();
   do
   {
-    vector_t* n = vector_new(0.0, 0.0, 0.0);
+    vector_t* n = malloc(sizeof(vector_t));
     status = fscanf(stl_file, "facet normal %le %le %le\n", &n->x, &n->y, &n->z);
     if (status != 3)
     {
-      snprintf(error_message, 1024, "Problem reading facet %d.", all_facets->size);
+      snprintf(error_message, 1024, "Problem reading facet %d.", all_normals->size/3);
       goto exit_on_error;
     }
     status = fscanf(stl_file, "outer loop");
     if (status != 0)
     {
-      snprintf(error_message, 1024, "Problem reading outer loop header for facet %d.", all_facets->size);
+      snprintf(error_message, 1024, "Problem reading outer loop header for facet %d.", all_normals->size/3);
       goto exit_on_error;
     }
-    point_t* v1 = point_new(0.0, 0.0, 0.0);
+    fscanf(stl_file, "\n");
+    point_t* v1 = malloc(sizeof(point_t));
     status = fscanf(stl_file, "vertex %le %le %le\n", &v1->x, &v1->y, &v1->z);
     if (status != 3)
     {
-      snprintf(error_message, 1024, "Problem reading vertex 1 for facet %d.", all_facets->size);
+      snprintf(error_message, 1024, "Problem reading vertex 1 for facet %d.", all_normals->size/3);
       goto exit_on_error;
     }
-    point_t* v2 = point_new(0.0, 0.0, 0.0);
+    point_t* v2 = malloc(sizeof(point_t));
     status = fscanf(stl_file, "vertex %le %le %le\n", &v2->x, &v2->y, &v2->z);
     if (status != 3)
     {
-      snprintf(error_message, 1024, "Problem reading vertex 2 for facet %d.", all_facets->size);
+      snprintf(error_message, 1024, "Problem reading vertex 2 for facet %d.", all_normals->size/3);
       goto exit_on_error;
     }
-    point_t* v3 = point_new(0.0, 0.0, 0.0);
+    point_t* v3 = malloc(sizeof(point_t));
     status = fscanf(stl_file, "vertex %le %le %le\n", &v3->x, &v3->y, &v3->z);
     if (status != 3)
     {
-      snprintf(error_message, 1024, "Problem reading vertex 3 for facet %d.", all_facets->size);
+      snprintf(error_message, 1024, "Problem reading vertex 3 for facet %d.", all_normals->size/3);
       goto exit_on_error;
     }
     status = fscanf(stl_file, "endloop");
     if (status != 0)
     {
-      snprintf(error_message, 1024, "Problem reading outer loop footer for facet %d.", all_facets->size);
+      snprintf(error_message, 1024, "Problem reading outer loop footer for facet %d.", all_normals->size/3);
+      goto exit_on_error;
+    }
+    fscanf(stl_file, "\n");
+    status = fscanf(stl_file, "endfacet\n");
+    if (status != 0)
+    {
+      snprintf(error_message, 1024, "Problem reading footer for facet %d.", all_normals->size/3);
       goto exit_on_error;
     }
 
     // Add the entries.
-    ptr_array_append_with_dtor(all_facets, n, DTOR(free));
-    ptr_array_append(all_vertices, v1);
-    ptr_array_append(all_vertices, v2);
-    ptr_array_append(all_vertices, v3);
+    ptr_array_append(all_normals, n);
+    ptr_array_append(all_normals, n);
+    ptr_array_append_with_dtor(all_normals, n, DTOR(free));
+    ptr_array_append_with_dtor(all_vertices, v1, DTOR(free));
+    ptr_array_append_with_dtor(all_vertices, v2, DTOR(free));
+    ptr_array_append_with_dtor(all_vertices, v3, DTOR(free));
+
+    // Have we reached the end?
+    char solid_name[1024];
+    status = fscanf(stl_file, "endsolid%s", solid_name);
+    if (status == 1) break;
   }
   while (status != EOF);
+  ASSERT(all_normals->size == all_vertices->size);
 
-  // Dump the points into a kd-tree and merge them.
-//  kd_tree_t* point_tree = kd_tree_new((point_t*)all_vertices->data, all_vertices->size);
-  // FIXME
+  // Dump the points into a kd-tree so that we can see which ones coincide.
+  kd_tree_t* point_tree;
+  {
+    point_t* points_with_duplicates = malloc(sizeof(point_t) * all_vertices->size);
+    for (int i = 0; i < all_vertices->size; ++i)
+    {
+      point_t* v = all_vertices->data[i];
+      points_with_duplicates[i] = *v;
+    }
+    point_tree = kd_tree_new(points_with_duplicates, all_vertices->size);
+    free(points_with_duplicates);
+  }
 
-  // Average the normals of the triangles to find their values at the points.
-  // WARNING: This assumes that the surface is sufficiently smooth!
+  // Now make a list of unique point indices (the indices of those points 
+  // with the lowest index that are coincident with other points in the tree).
+  int_array_t* unique_point_indices = int_array_new();
+  ptr_array_t* averaged_normals = ptr_array_new();
+  for (int i = 0; i < all_vertices->size; ++i)
+  {
+    point_t* point = all_vertices->data[i];
+    int_slist_t* coincident_points = kd_tree_within_radius(point_tree, point, 1e-12);
+
+    // NOTE: To find the normal vector at this point, we average 
+    // NOTE: the normals of the triangles that include this point.
+    // WARNING: This assumes that the surface is sufficiently smooth!
+
+    if (coincident_points == NULL)
+    {
+      // I think this can only happen in open surfaces.
+      int_array_append(unique_point_indices, i);
+      vector_t* ni = all_normals->data[i];
+      vector_t* n_avg = malloc(sizeof(vector_t));
+      ptr_array_append_with_dtor(averaged_normals, n_avg, DTOR(free));
+    }
+    else
+    {
+      int_slist_node_t* iter = coincident_points->front;
+      int min_index = INT_MAX;
+      vector_t* n_avg = malloc(sizeof(vector_t)); 
+      while (iter != NULL)
+      {
+        min_index = MIN(iter->value, min_index);
+        vector_t* n = all_normals->data[iter->value];
+        n_avg->x = n->x;
+        n_avg->y = n->y;
+        n_avg->z = n->z;
+        iter = iter->next;
+      }
+      if (i == min_index)
+      {
+        int_array_append(unique_point_indices, i);
+        n_avg->x /= coincident_points->size;
+        n_avg->y /= coincident_points->size;
+        n_avg->z /= coincident_points->size;
+        ptr_array_append_with_dtor(averaged_normals, n_avg, DTOR(free));
+      }
+      int_slist_free(coincident_points);
+    }
+  }
+  ASSERT(unique_point_indices->size == averaged_normals->size);
+
+  // Now build our list of points and normals.
+  *num_points = unique_point_indices->size;
+  *points = malloc(sizeof(point_t) * unique_point_indices->size);
+  *normals = malloc(sizeof(vector_t) * unique_point_indices->size);
+  for (int i = 0; i < unique_point_indices->size; ++i)
+  {
+    point_t* p = all_vertices->data[unique_point_indices->data[i]];
+    (*points)[i] = *p;
+    vector_t* n = averaged_normals->data[i];
+    (*normals)[i] = *n; 
+  }
 
   // Clean up.
-//  kd_tree_free(point_tree);
+  ptr_array_free(averaged_normals);
+  int_array_free(unique_point_indices);
+  kd_tree_free(point_tree);
   ptr_array_free(all_vertices);
-  ptr_array_free(all_facets);
+  ptr_array_free(all_normals);
   return;
 
 exit_on_error:
   ptr_array_free(all_vertices);
-  ptr_array_free(all_facets);
+  ptr_array_free(all_normals);
   *points = NULL;
   *normals = NULL;
   *num_points = 0;

@@ -9,7 +9,7 @@
 // so that neighbor searches can be easily and cheaply performed.
 typedef struct kd_tree_t kd_tree_t;
 
-// Constructs a kd-tree containing the given points.
+// Constructs a kd-tree containing the given points. Data is copied into the tree.
 kd_tree_t* kd_tree_new(point_t* points, int num_points);
 
 // Destroys the given tree, freeing its resources.
