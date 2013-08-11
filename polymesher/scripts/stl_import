@@ -1,0 +1,3 @@
+points, normals = point_factory.import_from_cad('example001.stl')
+print(points)
+print(normals)
