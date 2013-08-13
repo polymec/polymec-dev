@@ -618,19 +618,6 @@ int point_factory_import_from_cad(lua_State* lua)
   return 1;
 }
 
-int point_factory_boundaries_and_interfaces(lua_State* lua)
-{
-  // Check the arguments.
-  int num_args = lua_gettop(lua);
-  if ((num_args != 2))
-  {
-    lua_pushstring(lua, "Invalid arguments. Usage:\nassembly = point_factory.boundaries_and_interfaces(surfaces, options)");
-    lua_error(lua);
-    return LUA_ERRRUN;
-  }
-  return 0;
-}
-
 int point_factory_random_points(lua_State* lua)
 {
   // Check the arguments.
