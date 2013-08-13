@@ -2,7 +2,9 @@
 // meshes.
 
 #include "core/polymec.h"
+#include "core/array.h"
 #include "core/mesh.h"
+#include "core/kd_tree.h"
 #include "core/interpreter.h"
 #include "geometry/cubic_lattice.h"
 #include "geometry/create_cubic_lattice_mesh.h"
@@ -195,6 +197,11 @@ int mesh_factory_cubic_lattice_periodic_bc(lua_State* lua)
   return 1;
 }
 
+static void free_string(char* str)
+{
+  free(str);
+}
+
 int mesh_factory_voronoi(lua_State* lua)
 {
   // Check the arguments.
@@ -220,7 +227,6 @@ int mesh_factory_voronoi(lua_State* lua)
   return 1;
 }
 
-#if 0
 int mesh_factory_cvt(lua_State* lua)
 {
   // Check the arguments.
@@ -235,6 +241,24 @@ int mesh_factory_cvt(lua_State* lua)
   }
 
   // Get the options for the Voronoi tessellation.
+  lua_getfield(lua, 2, "merge_distance");
+  if (!lua_isnil(lua, -1) && !lua_isnumber(lua, -1))
+  {
+    lua_pushstring(lua, "Option 'merge_distance' must be a number.");
+    lua_error(lua);
+    return LUA_ERRRUN;
+  }
+  double merge_distance = 1e-12;
+  if (!lua_isnil(lua, -1))
+    merge_distance = lua_tonumber(lua, -1);
+  lua_pop(lua, 1);
+  if (merge_distance <= 0.0)
+  {
+    lua_pushstring(lua, "Option 'merge_distance' must be a number.");
+    lua_error(lua);
+    return LUA_ERRRUN;
+  }
+
   lua_getfield(lua, 2, "num_interior_points");
   if (!lua_isnumber(lua, -1))
   {
@@ -244,6 +268,7 @@ int mesh_factory_cvt(lua_State* lua)
   }
   int num_interior_points = (int)lua_tonumber(lua, -1);
   lua_pop(lua, 1);
+
   lua_getfield(lua, 2, "iteration_method");
   if (!lua_isnil(lua, -1) && !lua_isstring(lua, -1))
   {
@@ -262,6 +287,7 @@ int mesh_factory_cvt(lua_State* lua)
     lua_error(lua);
     return LUA_ERRRUN;
   }
+
   lua_getfield(lua, 2, "num_iterations");
   if (!lua_isnumber(lua, -1))
   {
@@ -285,32 +311,56 @@ int mesh_factory_cvt(lua_State* lua)
   bool is_surface = false, found_points = false, found_normals = false;
   bool is_surface_list = false, is_invalid = false;
 
-  str_array_t* surface_names = str_array_new();
+  string_array_t* surface_names = string_array_new();
+  int_array_t* num_surface_points = int_array_new();
   ptr_array_t* surface_points = ptr_array_new();
   ptr_array_t* surface_normals = ptr_array_new();
-  ptr_array_t* surface_tags = ptr_array_new();
   lua_pushnil(lua);
   while (lua_next(lua, 1))
   {
     static const int key_index = -2;
     static const int val_index = -1;
     const char* key = lua_tostring(lua, key_index);
-    if (!is_surface_list && !strcmp("points"))
+    if (!is_surface_list && !strcmp(key, "points"))
     {
       if (!lua_ispointlist(lua, val_index))
       {
         is_invalid = true;
         break;
       }
+      int num_points;
+      ptr_array_append_with_dtor(surface_points, lua_topointlist(lua, val_index, &num_points), DTOR(free));
+      if (num_surface_points->size == surface_points->size)
+      {
+        if (num_surface_points->data[num_surface_points->size-1] != num_points)
+        {
+          is_invalid = true;
+          break;
+        }
+      }
+      else
+        int_array_append(num_surface_points, num_points);
       found_points = true;
     }
-    else if (!is_surface_list && !strcmp("normals"))
+    else if (!is_surface_list && !strcmp(key, "normals"))
     {
       if (!lua_isvectorlist(lua, val_index))
       {
         is_invalid = true;
         break;
       }
+      int num_points;
+      ptr_array_append_with_dtor(surface_normals, lua_tovectorlist(lua, val_index, &num_points), DTOR(free));
+      if (num_surface_points->size == surface_normals->size)
+      {
+        if (num_surface_points->data[num_surface_points->size-1] != num_points)
+        {
+          is_invalid = true;
+          break;
+        }
+      }
+      else
+        int_array_append(num_surface_points, num_points);
       found_normals = true;
     }
     else
@@ -326,73 +376,160 @@ int mesh_factory_cvt(lua_State* lua)
       while (lua_next(lua, -2))
       {
         const char* key = lua_tostring(lua, key_index);
-        if (!is_surface_list && !strcmp("points"))
+        if (!is_surface_list && !strcmp(key, "points"))
         {
           if (!lua_ispointlist(lua, val_index))
           {
             is_invalid = true;
             break;
           }
+          int num_points;
+          ptr_array_append_with_dtor(surface_points, lua_topointlist(lua, val_index, &num_points), DTOR(free));
+          if (num_surface_points->size == surface_points->size)
+          {
+            if (num_surface_points->data[num_surface_points->size-1] != num_points)
+            {
+              is_invalid = true;
+              break;
+            }
+          }
+          else
+            int_array_append(num_surface_points, num_points);
           found_points = true;
         }
-        else if (!is_surface_list && !strcmp("normals"))
+        else if (!is_surface_list && !strcmp(key, "normals"))
         {
           if (!lua_isvectorlist(lua, val_index))
           {
             is_invalid = true;
             break;
           }
-          found_points = true;
+          int num_points;
+          ptr_array_append_with_dtor(surface_normals, lua_tovectorlist(lua, val_index, &num_points), DTOR(free));
+          if (num_surface_points->size == surface_normals->size)
+          {
+            if (num_surface_points->data[num_surface_points->size-1] != num_points)
+            {
+              is_invalid = true;
+              break;
+            }
+          }
+          else
+            int_array_append(num_surface_points, num_points);
+          found_normals = true;
         }
       }
       if (is_invalid) break;
       if (found_points && found_normals)
       {
-
-        str_ptr_unordered_map_insert_with_kv_dtor(surfaces, strdup(key), lua_tofree_name_and_surface);
+        string_array_append_with_dtor(surface_names, strdup(key), free_string);
         is_surface_list = true;
       }
     }
     if (!is_surface_list && (found_points && found_normals)) 
+    {
+      string_array_append_with_dtor(surface_names, strdup("all"), free_string);
       is_surface = true;
+    }
     lua_pop(lua, 1);
   }
 
   if (is_invalid || (!is_surface && !is_surface_list)) 
   {
-    string_slist_free(surface_names);
+    string_array_free(surface_names);
+    int_array_free(num_surface_points);
+    ptr_array_free(surface_points);
+    ptr_array_free(surface_normals);
     lua_pushstring(lua, "Argument 1 must be a surface (a table with points and normals fields) or a list of surfaces.");
     lua_error(lua);
     return LUA_ERRRUN;
   }
 
-  // In the case of a single surface, we name it "all".
-  if (is_surface)
-    string_slist_append(surface_names, "all");
+  // Now we organize the surface or surfaces into a list of points with 
+  // normals and tags. We begin by computing the total number of points 
+  // on the surfaces, and allocating some containers.
+  int num_surfaces = surface_names->size, num_surf_points = 0;
+  for (int i = 0; i < num_surfaces; ++i)
+    num_surf_points += num_surface_points->data[i];
+  point_t* all_surf_points = malloc(sizeof(point_t) * num_surf_points);
+  vector_t* all_normals = malloc(sizeof(vector_t) * num_surf_points);
+  int* all_surf_indices = malloc(sizeof(int) * num_surf_points);
 
-  // Process the surface or surfaces into a list of points with normals and 
-  // tags.
-  int num_points;
-  point_t* surface_points;
-  ptr_array_t* normal_lists;
-  string_array_t* tags;
-  string_slist_node_t* s_iter = surface_names->front;
-  while (iter != NULL)
+  // Now toss all the points into a kd-tree.
+  int offset = 0;
+  for (int i = 0; i < num_surfaces; ++i)
   {
-    char* surface_name = s_iter->value;
-    lua_getfield(lua, 1, surface_name);
-
-    s_iter = s_iter->next;
+    point_t* spoints = surface_points->data[i];
+    memcpy(&all_surf_points[offset], spoints, sizeof(point_t) * num_surface_points->data[i]);
+    vector_t* snormals = surface_normals->data[i];
+    memcpy(&all_normals[offset], snormals, sizeof(vector_t) * num_surface_points->data[i]);
+    for (int j = 0; j < num_surface_points->data[i]; ++j)
+      all_surf_indices[offset+j] = i;
+    offset += num_surface_points->data[i];
   }
-  lua_pop(lua, 1);
+  kd_tree_t* tree = kd_tree_new(all_surf_points, num_surf_points);
+
+  // Now merge the points and collect their normals and tags.
+  ptr_array_t* merged_points = ptr_array_new();
+  ptr_array_t* merged_normals = ptr_array_new();
+  ptr_array_t* merged_tags = ptr_array_new();
+  for (int i = 0; i < num_surf_points; ++i)
+  {
+    point_t* point = &all_surf_points[i];
+    vector_t* normal = &all_normals[i];
+    char* tag = surface_names->data[i];
+
+    // Search for the points within the merging distance.
+    int_slist_t* coincident_points = kd_tree_within_radius(tree, point, merge_distance);
+    ASSERT(coincident_points != NULL);
+
+    // If i is the minimum index of all these neighbors, append this point
+    // to the list of merged points.
+    int min_index = INT_MAX;
+    int_slist_node_t* s_iter = coincident_points->front;
+    while (s_iter != NULL)
+    {
+      min_index = MIN(min_index, s_iter->value);
+      s_iter = s_iter->next;
+    }
+    if (i == min_index)
+    {
+      ptr_array_append(merged_points, point);
+
+      ptr_slist_t* normals = ptr_slist_new();
+      ptr_slist_append(normals, normal);
+      ptr_array_append_with_dtor(merged_normals, normals, DTOR(ptr_slist_free));
+
+      string_slist_t* tags = string_slist_new();
+      string_slist_append(tags, surface_names->data[all_surf_indices[i]]);
+      ptr_array_append_with_dtor(merged_tags, tags, DTOR(string_slist_free));
+    }
+    else
+    {
+      // Associate the normal vector and the tag with the merged point.
+      ptr_slist_t* normals = merged_normals->data[min_index];
+      ptr_slist_append(normals, normal);
+
+      string_slist_t* tags = merged_tags->data[min_index];
+      string_slist_append(tags, tag);
+    }
+  }
 
   // Clean up a bit.
-  string_slist_free(surface_names);
+  kd_tree_free(tree);
+  ptr_array_free(surface_normals);
+  ptr_array_free(surface_points);
+  int_array_free(num_surface_points);
+  string_array_free(surface_names);
+
+  // Initialize a set of interior points that is safely inside the surface.
+  point_t* interior_points = malloc(sizeof(point_t) * num_interior_points);
 
   // For now, we do Lloyd iteration, fixing the boundary points and moving 
   // the interior points.
   mesh_t* mesh = NULL;
   int iteration = 0;
+
   do
   {
     // Construct a new tessellation.
@@ -405,9 +542,17 @@ int mesh_factory_cvt(lua_State* lua)
   }
   while (iteration < num_iterations);
 
+  // Clean up the rest.
+  free(interior_points);
+  ptr_array_free(merged_tags);
+  ptr_array_free(merged_normals);
+  ptr_array_free(merged_points);
+  free(all_surf_indices);
+  free(all_normals);
+  free(all_surf_points);
+
   // Push the mesh onto the stack.
   lua_pushmesh(lua, mesh);
   return 1;
 }
-#endif
 
