@@ -202,7 +202,7 @@ int mesh_factory_voronoi(lua_State* lua)
   if ((num_args != 1) || !lua_ispointlist(lua, 1))
   {
     lua_pushstring(lua, "Invalid argument(s). Usage:\n"
-                        "mesh = voronoi_mesh(generators)");
+                        "mesh = mesh_factory.voronoi(generators)");
     lua_error(lua);
     return LUA_ERRRUN;
   }
@@ -219,4 +219,195 @@ int mesh_factory_voronoi(lua_State* lua)
   lua_pushmesh(lua, mesh);
   return 1;
 }
+
+#if 0
+int mesh_factory_cvt(lua_State* lua)
+{
+  // Check the arguments.
+  int num_args = lua_gettop(lua);
+  if ((num_args != 2) || !lua_istable(lua, 1) || !lua_istable(lua, 2))
+  {
+    lua_pushstring(lua, "Invalid argument(s). Usage:\n"
+                        "mesh = mesh_factory.cvt(surface, options) OR\n"
+                        "mesh = mesh_factory.cvt(surfaces, options)");
+    lua_error(lua);
+    return LUA_ERRRUN;
+  }
+
+  // Get the options for the Voronoi tessellation.
+  lua_getfield(lua, 2, "num_interior_points");
+  if (!lua_isnumber(lua, -1))
+  {
+    lua_pushstring(lua, "Option 'num_interior_points' must be a number.");
+    lua_error(lua);
+    return LUA_ERRRUN;
+  }
+  int num_interior_points = (int)lua_tonumber(lua, -1);
+  lua_pop(lua, 1);
+  lua_getfield(lua, 2, "iteration_method");
+  if (!lua_isnil(lua, -1) && !lua_isstring(lua, -1))
+  {
+    lua_pushstring(lua, "Option 'iteration_method' must be a string.");
+    lua_error(lua);
+    return LUA_ERRRUN;
+  }
+  char iteration_method[1024];
+  strcpy(iteration_method, "lloyd");
+  if (!lua_isnil(lua, -1))
+    strcpy(iteration_method, lua_tostring(lua, -1));
+  lua_pop(lua, 1);
+  if (!strcasecmp(iteration_method, "lloyd"))
+  {
+    lua_pushstring(lua, "Supported iteration methods are 'lloyd'.");
+    lua_error(lua);
+    return LUA_ERRRUN;
+  }
+  lua_getfield(lua, 2, "num_iterations");
+  if (!lua_isnumber(lua, -1))
+  {
+    lua_pushstring(lua, "Option 'num_iterations' must be a number.");
+    lua_error(lua);
+    return LUA_ERRRUN;
+  }
+  int num_iterations = lua_tonumber(lua, -1);
+  if (num_iterations < 1)
+  {
+    lua_pushstring(lua, "Option 'num_iterations' must be positive.");
+    lua_error(lua);
+    return LUA_ERRRUN;
+  }
+  lua_pop(lua, 1);
+
+  // Determine whether the first argument is a surface or a table containing
+  // several surfaces. We do this by traversing the table and looking for 
+  // certain fields. In the case of a list of surfaces, we make a list of 
+  // surface names.
+  bool is_surface = false, found_points = false, found_normals = false;
+  bool is_surface_list = false, is_invalid = false;
+
+  str_array_t* surface_names = str_array_new();
+  ptr_array_t* surface_points = ptr_array_new();
+  ptr_array_t* surface_normals = ptr_array_new();
+  ptr_array_t* surface_tags = ptr_array_new();
+  lua_pushnil(lua);
+  while (lua_next(lua, 1))
+  {
+    static const int key_index = -2;
+    static const int val_index = -1;
+    const char* key = lua_tostring(lua, key_index);
+    if (!is_surface_list && !strcmp("points"))
+    {
+      if (!lua_ispointlist(lua, val_index))
+      {
+        is_invalid = true;
+        break;
+      }
+      found_points = true;
+    }
+    else if (!is_surface_list && !strcmp("normals"))
+    {
+      if (!lua_isvectorlist(lua, val_index))
+      {
+        is_invalid = true;
+        break;
+      }
+      found_normals = true;
+    }
+    else
+    {
+      // Something else is in there. It must be a table.
+      if (!lua_istable(lua, key_index))
+      {
+        is_invalid = true;
+        break;
+      }
+      lua_pushnil(lua);
+      bool found_points = false, found_normals = false;
+      while (lua_next(lua, -2))
+      {
+        const char* key = lua_tostring(lua, key_index);
+        if (!is_surface_list && !strcmp("points"))
+        {
+          if (!lua_ispointlist(lua, val_index))
+          {
+            is_invalid = true;
+            break;
+          }
+          found_points = true;
+        }
+        else if (!is_surface_list && !strcmp("normals"))
+        {
+          if (!lua_isvectorlist(lua, val_index))
+          {
+            is_invalid = true;
+            break;
+          }
+          found_points = true;
+        }
+      }
+      if (is_invalid) break;
+      if (found_points && found_normals)
+      {
+
+        str_ptr_unordered_map_insert_with_kv_dtor(surfaces, strdup(key), lua_tofree_name_and_surface);
+        is_surface_list = true;
+      }
+    }
+    if (!is_surface_list && (found_points && found_normals)) 
+      is_surface = true;
+    lua_pop(lua, 1);
+  }
+
+  if (is_invalid || (!is_surface && !is_surface_list)) 
+  {
+    string_slist_free(surface_names);
+    lua_pushstring(lua, "Argument 1 must be a surface (a table with points and normals fields) or a list of surfaces.");
+    lua_error(lua);
+    return LUA_ERRRUN;
+  }
+
+  // In the case of a single surface, we name it "all".
+  if (is_surface)
+    string_slist_append(surface_names, "all");
+
+  // Process the surface or surfaces into a list of points with normals and 
+  // tags.
+  int num_points;
+  point_t* surface_points;
+  ptr_array_t* normal_lists;
+  string_array_t* tags;
+  string_slist_node_t* s_iter = surface_names->front;
+  while (iter != NULL)
+  {
+    char* surface_name = s_iter->value;
+    lua_getfield(lua, 1, surface_name);
+
+    s_iter = s_iter->next;
+  }
+  lua_pop(lua, 1);
+
+  // Clean up a bit.
+  string_slist_free(surface_names);
+
+  // For now, we do Lloyd iteration, fixing the boundary points and moving 
+  // the interior points.
+  mesh_t* mesh = NULL;
+  int iteration = 0;
+  do
+  {
+    // Construct a new tessellation.
+
+    // Go through all the interior points and compute their centroids, 
+    // moving each interior point to its centroid.
+
+    // Delete the existing mesh so that we can retessellate.
+//    mesh_free(mesh);
+  }
+  while (iteration < num_iterations);
+
+  // Push the mesh onto the stack.
+  lua_pushmesh(lua, mesh);
+  return 1;
+}
+#endif
 
