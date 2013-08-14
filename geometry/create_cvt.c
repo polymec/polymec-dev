@@ -19,22 +19,12 @@ cvt_iterator_t* cvt_iterator_new(const char* name, void* context, cvt_iterator_v
   return iter;
 }
 
-void cvt_iterator_free(cvt_iterator_t* cvt_iter)
+static void cvt_iterator_free(cvt_iterator_t* cvt_iter)
 {
   if ((cvt_iter->context != NULL) && (cvt_iter->vtable.dtor != NULL))
     (cvt_iter->vtable.dtor)(cvt_iter->context);
   free(cvt_iter->name);
   free(cvt_iter);
-}
-
-char* cvt_iterator_name(cvt_iterator_t* cvt_iter)
-{
-  return cvt_iter->name;
-}
-
-void* cvt_iterator_context(cvt_iterator_t* cvt_iter)
-{
-  return cvt_iter->context;
 }
 
 mesh_t* create_cvt(point_t* stationary_generators, int num_stationary_generators, 
