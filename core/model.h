@@ -62,7 +62,7 @@ typedef struct
   model_dtor                     dtor;
 } model_vtable;
 
-// Creates an instance a model with the given name and characteristics, 
+// Creates an instance of a model with the given name and characteristics, 
 // along with any relevant options.
 model_t* model_new(const char* name, void* context, model_vtable vtable, options_t* options);
 

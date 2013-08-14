@@ -3,7 +3,6 @@
 
 #include "core/mesh.h"
 #include "core/point.h"
-#include "core/sp_func.h"
 
 // This function creates a Voronoi tessellation of the given points in 
 // three-dimensional space. The tessellation contains only bounded cells.
