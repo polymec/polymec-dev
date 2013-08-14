@@ -10,6 +10,7 @@ add_polymec_test(test_difference test_difference.c)
 add_polymec_test(test_mgw_sampling test_mgw_sampling.c)
 add_polymec_test(test_prob_cvt_gen_dist test_prob_cvt_gen_dist.c)
 add_polymec_test(test_create_cubic_lattice_mesh test_create_cubic_lattice_mesh.c)
+add_polymec_test(test_create_voronoi_mesh test_create_voronoi_mesh.c)
 #add_polymec_test(test_create_unbounded_voronoi_mesh test_create_unbounded_voronoi_mesh.c)
 #add_polymec_test(test_create_deformable_bounded_voronoi_mesh test_create_deformable_bounded_voronoi_mesh.c)
 

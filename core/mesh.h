@@ -93,8 +93,9 @@ static inline cell_t* face_opp_cell(face_t* face, cell_t* cell)
 
 // This function fills the given array with the nodes of its constituent 
 // edges, ordered in one of the two possible traversal orders. The number of 
-// nodes is less than or equal to the number of edges.
-void face_get_nodes(face_t* face, node_t** nodes, int* num_nodes);
+// nodes is less than or equal to the number of edges. This fills the array 
+// of nodes, assuming that it is properly sized for the face.
+void face_get_nodes(face_t* face, node_t** nodes);
  
 typedef struct mesh_storage_t mesh_storage_t;
 
