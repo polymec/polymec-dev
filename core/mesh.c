@@ -405,16 +405,15 @@ edge_t* cell_find_edge_with_nodes(cell_t* cell, node_t* node1, node_t* node2)
   return NULL;
 }
 
-void face_get_nodes(face_t* face, node_t** nodes, int* num_nodes)
+void face_get_nodes(face_t* face, node_t** nodes)
 {
-  memset(nodes, 0, sizeof(node_t*) * face->num_edges);
+  int num_nodes = 0;
   if (face->num_edges == 0) return;
-  *num_nodes = 0;
   for (int e = 0; e < face->num_edges; ++e)
   {
     edge_t* edge = face->edges[e];
     bool found_node = false;
-    for (int n = 0; n < *num_nodes; ++n)
+    for (int n = 0; n < num_nodes; ++n)
     {
       if (nodes[n] == edge->node1)
       {
@@ -423,9 +422,9 @@ void face_get_nodes(face_t* face, node_t** nodes, int* num_nodes)
       }
     }
     if (!found_node)
-      nodes[(*num_nodes)++] = edge->node1;
+      nodes[num_nodes++] = edge->node1;
     found_node = false;
-    for (int n = 0; n < *num_nodes; ++n)
+    for (int n = 0; n < num_nodes; ++n)
     {
       if (nodes[n] == edge->node2)
       {
@@ -434,8 +433,9 @@ void face_get_nodes(face_t* face, node_t** nodes, int* num_nodes)
       }
     }
     if (!found_node)
-      nodes[(*num_nodes)++] = edge->node2;
+      nodes[num_nodes++] = edge->node2;
   }
+  ASSERT(num_nodes == face->num_edges);
 }
 
 void node_fprintf(node_t* node, mesh_t* mesh, FILE* stream)
@@ -497,7 +497,7 @@ void mesh_compute_geometry(mesh_t* mesh)
   {
     cell_t* cell = &mesh->cells[c];
 
-    // Compute cell centers and face centers for the non-outer cell, 
+    // Compute cell centers and face centers for the cell, 
     // knowing that it's convex.
     cell->center.x = cell->center.y = cell->center.z = 0.0;
     int num_cell_nodes = 0;
@@ -563,13 +563,13 @@ void mesh_compute_geometry(mesh_t* mesh)
         point_displacement(&face->center, &xn1, &v2);
         point_displacement(&face->center, &xn2, &v3);
         vector_cross(&v2, &v3, &v2xv3);
-        double tet_volume = vector_dot(&v1, &v2xv3);
+        double tet_volume = fabs(vector_dot(&v1, &v2xv3))/6.0;
         cell->volume += tet_volume;
 
         // Now take the face of the tet whose vertices are the face center 
         // and the two nodes. The area of this tet contributes to the 
         // face's area.
-        double tri_area = vector_mag(&v2xv3);
+        double tri_area = 0.5*vector_mag(&v2xv3);
         face_area += tri_area;
       }
       // Only the primal cell of a face computes its area.
@@ -615,7 +615,7 @@ void cell_compute_geometry(cell_t* cell)
       point_displacement(&face->center, &xn1, &v2);
       point_displacement(&face->center, &xn2, &v3);
       vector_cross(&v2, &v3, &v2xv3);
-      double tet_volume = vector_dot(&v1, &v2xv3);
+      double tet_volume = fabs(vector_dot(&v1, &v2xv3));
       cell->volume += tet_volume;
     }
   }
