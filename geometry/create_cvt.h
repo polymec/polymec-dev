@@ -40,17 +40,9 @@ typedef struct
   cvt_dtor                      dtor;
 } cvt_iterator_vtable;
 
-// Creates an instance a model with the given name and virtual table.
+// Creates a new CVT iterator for use with create_cvt, below. This is only 
+// used if you are defining a new CVT iterator. 
 cvt_iterator_t* cvt_iterator_new(const char* name, void* context, cvt_iterator_vtable vtable);
-
-// Destroys the CVT iterator.
-void cvt_iterator_free(cvt_iterator_t* cvt_iter);
-
-// Returns the name of the CVT iterator.
-char* cvt_iterator_name(cvt_iterator_t* cvt_iter);
-
-// Returns the context object for the CVT iterator.
-void* cvt_iterator_context(cvt_iterator_t* cvt_iter);
 
 // This function creates a Centroidal Voronoi Tessellation (CVT) given a set 
 // of stationary and mobile points, plus an iteration method for achieving 
