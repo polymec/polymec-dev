@@ -3,6 +3,7 @@
 
 #include "core/mesh.h"
 #include "core/point.h"
+#include "core/array.h"
 
 // This type defines a scheme for moving points around in a Centroidal 
 // Voronoi Tessellation iteration.
@@ -46,9 +47,15 @@ cvt_iterator_t* cvt_iterator_new(const char* name, void* context, cvt_iterator_v
 
 // This function creates a Centroidal Voronoi Tessellation (CVT) given a set 
 // of stationary and mobile points, plus an iteration method for achieving 
-// the tessellation. The CVT iterator is consumed in the process.
+// the tessellation. Tags (lists of cell indices that are tagged with a given 
+// attribute) may optionally be supplied--these tags will be reflected in the 
+// resulting mesh. The CVT iterator is consumed in the process.
+// NOTE that if any mobile generators are deleted in the process of 
+// generating the tessellation, a fatal error occurs, since these generators
+// should be surrounded by stationary generators.
 mesh_t* create_cvt(point_t* stationary_generators, int num_stationary_generators, 
                    point_t* mobile_generators, int num_mobile_generators,
+                   char** tag_names, int_array_t** tags, int num_tags,
                    cvt_iterator_t* cvt_iter);
 
 #endif

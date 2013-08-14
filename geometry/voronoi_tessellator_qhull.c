@@ -47,7 +47,8 @@ voronoi_tessellator_t* voronoi_tessellator_new()
 
 voronoi_tessellation_t*
 voronoi_tessellator_tessellate(voronoi_tessellator_t* tessellator,
-                               double* points, int num_points)
+                               double* points, int num_points,
+                               int_slist_t* deleted_points)
 {
   ASSERT(points != NULL);
   ASSERT(num_points >= 2);
@@ -295,7 +296,11 @@ voronoi_tessellator_tessellate(voronoi_tessellator_t* tessellator,
   {
     int_slist_t** cell_faces = (int_slist_t**)int_ptr_unordered_map_get(faces_for_cell, c);
     if ((cell_faces == 0) || ((*cell_faces)->size < 4))
+    {
+      if (deleted_points != NULL)
+        int_slist_append(deleted_points, c);
       continue;
+    }
     t->cells[cell_offset].num_faces = (*cell_faces)->size;
     t->cells[cell_offset].faces = malloc(sizeof(voronoi_face_t) * (*cell_faces)->size);
     int_slist_node_t* f = (*cell_faces)->front;

@@ -219,8 +219,7 @@ int mesh_factory_voronoi(lua_State* lua)
   point_t* generators = lua_topointlist(lua, 1, &num_generators);
 
   // Create the mesh.
-  mesh_t* mesh = create_voronoi_mesh(generators, num_generators,
-                                               NULL, 0);
+  mesh_t* mesh = create_voronoi_mesh(generators, num_generators, NULL, 0, NULL);
 
   // Push the mesh onto the stack.
   lua_pushmesh(lua, mesh);
