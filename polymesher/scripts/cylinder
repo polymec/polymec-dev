@@ -6,3 +6,4 @@ points = point_factory.cylinder{nr = 10, ntheta = 10, nz = 10,
 mesh = mesh_factory.voronoi(points)
 print(mesh)
 write_silo_plot(mesh, 'cylinder')
+write_vtk_plot(mesh, 'cylinder')

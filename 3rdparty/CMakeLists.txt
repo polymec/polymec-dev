@@ -23,20 +23,6 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libgc.a)
 endif()
 set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};gc)
 
-# Build Tetgen.
-if (NOT EXISTS ${PROJECT_BINARY_DIR}/include/tetgen.h)
-  message("Unpacking tetgen...")
-  execute_process(COMMAND cmake -E tar xzvf ${CMAKE_CURRENT_SOURCE_DIR}/tetgen1.4.3.tar.gz
-                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-                  OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
-  message("Preparing tetgen...")
-  file(COPY ${CMAKE_CURRENT_BINARY_DIR}/tetgen1.4.3/tetgen.h DESTINATION ${PROJECT_BINARY_DIR}/include)
-endif()
-add_library(tetgen ${CMAKE_CURRENT_BINARY_DIR}/tetgen1.4.3/tetgen.cxx ${CMAKE_CURRENT_BINARY_DIR}/tetgen1.4.3/predicates.cxx)
-set(TETGEN_CXXFLAGS "-DTETLIBRARY -DREAL=double")
-set_target_properties(tetgen PROPERTIES COMPILE_FLAGS ${TETGEN_CXXFLAGS})
-#set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};tetgen)
-
 # Build the QHull C library.
 if (NOT EXISTS ${PROJECT_BINARY_DIR}/include/libqhull/libqhull.h)
   message("Unpacking qhull...")
