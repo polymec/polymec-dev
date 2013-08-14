@@ -8,11 +8,15 @@
 #include "geometry/giftwrap_hull.h"
 
 mesh_t* create_voronoi_mesh(point_t* generators, int num_generators, 
-                            point_t* ghost_generators, int num_ghost_generators)
+                            point_t* ghost_generators, int num_ghost_generators,
+                            int_slist_t* deleted_cells)
 {
   ASSERT(generators != NULL);
   ASSERT(num_generators >= 2);
   ASSERT(num_ghost_generators >= 0);
+
+  if (deleted_cells != NULL)
+    int_slist_clear(deleted_cells);
 
   // Gather the points to be tessellated.
   int num_points = num_generators + num_ghost_generators;
@@ -33,7 +37,7 @@ mesh_t* create_voronoi_mesh(point_t* generators, int num_generators,
 
   // Perform the tessellation.
   voronoi_tessellator_t* tessellator = voronoi_tessellator_new();
-  voronoi_tessellation_t* tessellation = voronoi_tessellator_tessellate(tessellator, points, num_points);
+  voronoi_tessellation_t* tessellation = voronoi_tessellator_tessellate(tessellator, points, num_points, deleted_cells);
 
   // The number of cells generated may be less than the number of generators
   // in cases in which generators lie on planes of the convex hull.

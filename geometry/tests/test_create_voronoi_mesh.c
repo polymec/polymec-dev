@@ -75,8 +75,10 @@ void test_create_single_cube(void** state)
                            {.x =  0.0, .y =  0.0, .z =  1.0}};
 
   // Now generate the mesh.
-  mesh_t* mesh = create_voronoi_mesh(generators, 7, NULL, 0);
+  int_slist_t* deleted_generators = int_slist_new();
+  mesh_t* mesh = create_voronoi_mesh(generators, 7, NULL, 0, deleted_generators);
   mesh_verify(mesh);
+  assert_int_equal(6, deleted_generators->size);
   assert_int_equal(1, mesh->num_cells);
   assert_int_equal(6, mesh->num_faces);
   assert_int_equal(12, mesh->num_edges);
@@ -96,6 +98,7 @@ void test_create_single_cube(void** state)
     assert_true(fabs(1.0 - mesh->faces[f].area) < 1e-12);
   }
 
+  int_slist_free(deleted_generators);
   mesh_free(mesh);
 }
 

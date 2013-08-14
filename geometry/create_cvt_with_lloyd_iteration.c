@@ -38,6 +38,7 @@ static void lloyd_dtor(void* context)
 
 mesh_t* create_cvt_with_lloyd_iteration(point_t* stationary_generators, int num_stationary_generators, 
                                         point_t* mobile_generators, int num_mobile_generators,
+                                        char** tag_names, int_array_t** tags, int num_tags,
                                         int num_iterations)
 {
   lloyd_cvt_iter_t* lloyd = malloc(sizeof(lloyd_cvt_iter_t));
@@ -50,6 +51,6 @@ mesh_t* create_cvt_with_lloyd_iteration(point_t* stationary_generators, int num_
   cvt_iterator_t* cvt_iter = cvt_iterator_new("Lloyd", lloyd, vtable);
   return create_cvt(stationary_generators, num_stationary_generators,
                     mobile_generators, num_mobile_generators,
-                    cvt_iter);
+                    tag_names, tags, num_tags, cvt_iter);
 }
 

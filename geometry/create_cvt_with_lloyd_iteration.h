@@ -7,6 +7,7 @@
 // the specified number of iterations.
 mesh_t* create_cvt_with_lloyd_iteration(point_t* stationary_generators, int num_stationary_generators, 
                                         point_t* mobile_generators, int num_mobile_generators,
+                                        char** tag_names, int_array_t** tags, int num_tags,
                                         int num_iterations);
 
 #endif

@@ -1,6 +1,8 @@
 #ifndef POLYMEC_VORONOI_TESSELLATOR_H
 #define POLYMEC_VORONOI_TESSELLATOR_H
 
+#include "core/slist.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -56,9 +58,13 @@ voronoi_tessellator_t* voronoi_tessellator_new();
 // on these cells have node2 == -1, and their "ray" field is a vector 
 // pointing outward to infinity. points is a (3*num_points) array containing 
 // the coordinates of the generator points in point-major order.
+// The last argument is an optionally provided (otherwise NULL) linked list
+// that gathers points that are deleted to construct a completely bounded
+// tessellation.
 voronoi_tessellation_t* 
 voronoi_tessellator_tessellate(voronoi_tessellator_t* tessellator,
-                               double* points, int num_points);
+                               double* points, int num_points,
+                               int_slist_t* deleted_points);
 
 // Destroys a tessellation that has been created by a tessellator.
 void voronoi_tessellation_free(voronoi_tessellation_t* tessellation);
