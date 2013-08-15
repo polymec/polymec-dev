@@ -7,3 +7,4 @@ points = point_factory.cubic_lattice{nx = 10, ny = 10, nz = 10, bounding_box = b
 mesh = mesh_factory.voronoi(points)
 print(mesh)
 write_silo_plot(mesh, 'cubic_lattice')
+write_vtk_plot(mesh, 'cubic_lattice')

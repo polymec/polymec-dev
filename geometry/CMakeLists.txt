@@ -6,6 +6,7 @@ add_library(polymec_geometry mapping.c plane.c cylinder.c sphere.c intersection.
             witkin_heckbert_sampling.c mgw_sampling.c
             create_voronoi_mesh.c voronoi_tessellator_qhull.c
             create_cvt.c create_cvt_with_lloyd_iteration.c
+            create_boundary_generators.c
             generate_random_points.c point_factory.c mesh_factory.c
             interpreter_register_geometry_functions.c 
             interpreter_register_spfuncs.c)
