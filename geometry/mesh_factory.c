@@ -8,7 +8,9 @@
 #include "core/interpreter.h"
 #include "geometry/cubic_lattice.h"
 #include "geometry/create_cubic_lattice_mesh.h"
+#include "geometry/create_boundary_generators.h"
 #include "geometry/create_voronoi_mesh.h"
+#include "geometry/create_cvt_with_lloyd_iteration.h"
 
 // Lua stuff.
 #include "lua.h"
@@ -521,28 +523,28 @@ int mesh_factory_cvt(lua_State* lua)
   int_array_free(num_surface_points);
   string_array_free(surface_names);
 
+  // Initialize a set of stationary points that represent the above surfaces.
+  int num_boundary_points, num_tags;
+  char** tag_names;
+  int_array_t** tags;
+  point_t* boundary_points;
+  create_boundary_generators(merged_points, merged_normals, merged_tags,
+                             &boundary_points, &num_boundary_points,
+                             &tag_names, &tags, &num_tags);
+
   // Initialize a set of interior points that is safely inside the surface.
   point_t* interior_points = malloc(sizeof(point_t) * num_interior_points);
 
-  // For now, we do Lloyd iteration, fixing the boundary points and moving 
-  // the interior points.
-  mesh_t* mesh = NULL;
-  int iteration = 0;
-
-  do
-  {
-    // Construct a new tessellation.
-
-    // Go through all the interior points and compute their centroids, 
-    // moving each interior point to its centroid.
-
-    // Delete the existing mesh so that we can retessellate.
-//    mesh_free(mesh);
-  }
-  while (iteration < num_iterations);
+  // Construct a centroidal voronoi tessellation using Lloyd iteration.
+  mesh_t* mesh = create_cvt_with_lloyd_iteration(boundary_points, num_boundary_points,
+                                                 interior_points, num_interior_points,
+                                                 tag_names, tags, num_tags, num_iterations);
 
   // Clean up the rest.
   free(interior_points);
+  free(boundary_points);
+  free(tags);
+  free(tag_names);
   ptr_array_free(merged_tags);
   ptr_array_free(merged_normals);
   ptr_array_free(merged_points);
