@@ -26,17 +26,17 @@ static void run_analytic_problem(model_t* model,
 }
 
 static void cnav_run_1d_flow(options_t* options, 
-                               st_func_t* velocity, 
-                               st_func_t* diffusivity, 
-                               st_func_t* source, 
-                               st_func_t* initial_cond, 
-                               void* left_bc,
-                               void* right_bc,
-                               st_func_t* solution, 
-                               double t1,
-                               double t2,
-                               int dim, 
-                               int num_runs)
+                             st_func_t* velocity, 
+                             st_func_t* diffusivity, 
+                             st_func_t* source, 
+                             st_func_t* initial_cond, 
+                             void* left_bc,
+                             void* right_bc,
+                             st_func_t* solution, 
+                             double t1,
+                             double t2,
+                             int dim, 
+                             int num_runs)
 {
   // Boundary conditions.
   str_ptr_unordered_map_t* bcs = str_ptr_unordered_map_new();
