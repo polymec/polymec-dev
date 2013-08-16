@@ -17,7 +17,7 @@ model_t* cnav_model_new(options_t* options);
 
 // This factory method creates a new compressible Navier-Stokes model object 
 // that is ready to run a problem defined by the given parameters.
-model_t* create_cnav(integrator_type_t integrator,
+model_t* create_cnav(cnav_time_integrator_t integrator,
                      int order,
                      mesh_t* mesh,
                      cnav_eos_t* equation_of_state,
