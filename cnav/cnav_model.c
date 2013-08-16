@@ -21,7 +21,7 @@ typedef struct
   double* u;                           // Computed solution.
   st_func_t* source;                   // Source function
   st_func_t* initial_cond;             // Initial conditions.
-  str_ptr_unordered_map_t* bcs;        // Boundary conditions.
+  string_ptr_unordered_map_t* bcs;        // Boundary conditions.
   boundary_cell_map_t* boundary_cells; // Boundary cell data.
   double abs_tol, rel_tol;             // Absolute and relative tolerances.
   double CFL;                          // CFL safety factor.
@@ -393,7 +393,7 @@ model_t* create_cnav(cnav_time_integrator_t integrator,
 //                   reaction_network_t* reactions,
                      st_func_t* source, 
                      st_func_t* initial_cond, 
-                     str_ptr_unordered_map_t* bcs, 
+                     string_ptr_unordered_map_t* bcs, 
                      st_func_t* solution,
                      options_t* options)
 {

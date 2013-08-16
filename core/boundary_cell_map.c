@@ -32,15 +32,15 @@ static void destroy_pmap_entry(char* key, void* periodic_map)
   int_int_unordered_map_free(pmap);
 }
 
-static str_ptr_unordered_map_t* generate_periodic_maps(mesh_t* mesh, str_ptr_unordered_map_t* bcs)
+static string_ptr_unordered_map_t* generate_periodic_maps(mesh_t* mesh, string_ptr_unordered_map_t* bcs)
 {
-  str_ptr_unordered_map_t* periodic_maps = str_ptr_unordered_map_new();
+  string_ptr_unordered_map_t* periodic_maps = string_ptr_unordered_map_new();
 
   // Traverse the boundary conditions and look for periodic_bc objects.
   int pos = 0;
   char* tag;
   void* bc;
-  while (str_ptr_unordered_map_next(bcs, &pos, &tag, &bc))
+  while (string_ptr_unordered_map_next(bcs, &pos, &tag, &bc))
   {
     periodic_bc_t* pbc = (periodic_bc_t*)bc;
     if (!periodic_bc_is_valid(pbc)) continue;
@@ -57,13 +57,13 @@ static str_ptr_unordered_map_t* generate_periodic_maps(mesh_t* mesh, str_ptr_uno
     // condition, assign it and move on.
     int_int_unordered_map_t** pmap;
     if (!strcmp(tag, tag1))
-      pmap = (int_int_unordered_map_t**)str_ptr_unordered_map_get(periodic_maps, tag2);
+      pmap = (int_int_unordered_map_t**)string_ptr_unordered_map_get(periodic_maps, tag2);
     else
-      pmap = (int_int_unordered_map_t**)str_ptr_unordered_map_get(periodic_maps, tag1);
+      pmap = (int_int_unordered_map_t**)string_ptr_unordered_map_get(periodic_maps, tag1);
     if (pmap != NULL)
     {
       // No destructor for this map, since it's already handled elsewhere.
-      str_ptr_unordered_map_insert(periodic_maps, tag, *pmap);
+      string_ptr_unordered_map_insert(periodic_maps, tag, *pmap);
       continue;
     }
 
@@ -71,27 +71,27 @@ static str_ptr_unordered_map_t* generate_periodic_maps(mesh_t* mesh, str_ptr_uno
     int_int_unordered_map_t* new_pmap = periodic_bc_generate_map(pbc, mesh);
 
     // Insert it into our table with this tag as the key.
-    str_ptr_unordered_map_insert_with_kv_dtor(periodic_maps, tag, new_pmap, destroy_pmap_entry);
+    string_ptr_unordered_map_insert_with_kv_dtor(periodic_maps, tag, new_pmap, destroy_pmap_entry);
   }
 
   return periodic_maps;
 }
 
-boundary_cell_map_t* boundary_cell_map_from_mesh_and_bcs(mesh_t* mesh, str_ptr_unordered_map_t* bcs)
+boundary_cell_map_t* boundary_cell_map_from_mesh_and_bcs(mesh_t* mesh, string_ptr_unordered_map_t* bcs)
 {
   ASSERT(mesh != NULL);
   ASSERT(bcs != NULL);
 
   // Firstly, we search through our table of boundary conditions and 
   // generate any face-face mappings needed by periodic boundary conditions.
-  str_ptr_unordered_map_t* periodic_maps = generate_periodic_maps(mesh, bcs);
+  string_ptr_unordered_map_t* periodic_maps = generate_periodic_maps(mesh, bcs);
 
   boundary_cell_map_t* boundary_cells = boundary_cell_map_new();
 
   int pos = 0;
   char* tag;
   void* bc;
-  while (str_ptr_unordered_map_next(bcs, &pos, &tag, &bc))
+  while (string_ptr_unordered_map_next(bcs, &pos, &tag, &bc))
   {
     // Retrieve the tag for this boundary condition.
     ASSERT(mesh_has_tag(mesh->face_tags, tag));
@@ -163,7 +163,7 @@ boundary_cell_map_t* boundary_cell_map_from_mesh_and_bcs(mesh_t* mesh, str_ptr_u
   // Now go back through and set the boundary faces and boundary 
   // conditions for each cell.
   pos = 0;
-  while (str_ptr_unordered_map_next(bcs, &pos, &tag, &bc))
+  while (string_ptr_unordered_map_next(bcs, &pos, &tag, &bc))
   {
     // Retrieve the tag for this boundary condition.
     ASSERT(mesh_has_tag(mesh->face_tags, tag));
@@ -191,7 +191,7 @@ boundary_cell_map_t* boundary_cell_map_from_mesh_and_bcs(mesh_t* mesh, str_ptr_u
       if (pointer_is_periodic_bc(bc))
       {
         boundary_cell->bc_for_face[i] = NULL;
-        int_int_unordered_map_t* periodic_map = *str_ptr_unordered_map_get(periodic_maps, tag);
+        int_int_unordered_map_t* periodic_map = *string_ptr_unordered_map_get(periodic_maps, tag);
         int face_index = face - &mesh->faces[0];
         int other_face_index = *int_int_unordered_map_get(periodic_map, face_index);
         face_t* other_face = &mesh->faces[other_face_index];
@@ -206,7 +206,7 @@ boundary_cell_map_t* boundary_cell_map_from_mesh_and_bcs(mesh_t* mesh, str_ptr_u
   }
 
   // Clean up the periodic mappings.
-  str_ptr_unordered_map_free(periodic_maps);
+  string_ptr_unordered_map_free(periodic_maps);
 
   return boundary_cells;
 }

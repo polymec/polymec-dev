@@ -10,7 +10,7 @@ model_t* poisson_model_new(options_t* options);
 // to run a problem defined by the given parameters.
 model_t* create_poisson(mesh_t* mesh,
                         st_func_t* rhs,
-                        str_ptr_unordered_map_t* bcs, 
+                        string_ptr_unordered_map_t* bcs, 
                         st_func_t* solution,
                         options_t* options);
 

@@ -42,7 +42,7 @@ typedef struct
   // have_diffusivity is set to false if D == 0.
   bool stationary, have_diffusivity;
 
-  str_ptr_unordered_map_t* bcs; // Boundary conditions.
+  string_ptr_unordered_map_t* bcs; // Boundary conditions.
 
   // Information for boundary cells.
   boundary_cell_map_t* boundary_cells;
@@ -615,7 +615,7 @@ static void advect_dtor(void* ctx)
   advect_t* a = (advect_t*)ctx;
 
   // Destroy BC table.
-  str_ptr_unordered_map_free(a->bcs);
+  string_ptr_unordered_map_free(a->bcs);
 
   if (a->mesh != NULL)
     mesh_free(a->mesh);
@@ -662,7 +662,7 @@ model_t* advect_model_new(options_t* options)
   a->initial_cond = NULL;
   a->slope_estimator = slope_estimator_new(SLOPE_LIMITER_MINMOD);
   a->diff_solver = NULL;
-  a->bcs = str_ptr_unordered_map_new();
+  a->bcs = string_ptr_unordered_map_new();
   a->boundary_cells = boundary_cell_map_new();
   a->comm = MPI_COMM_WORLD;
 
@@ -757,7 +757,7 @@ model_t* create_advect(mesh_t* mesh,
                        st_func_t* diffusivity, 
                        st_func_t* source, 
                        st_func_t* initial_cond, 
-                       str_ptr_unordered_map_t* bcs, 
+                       string_ptr_unordered_map_t* bcs, 
                        st_func_t* solution,
                        options_t* options)
 {
@@ -779,7 +779,7 @@ model_t* create_advect(mesh_t* mesh,
   a->source = source;
   a->initial_cond = initial_cond;
   if (a->bcs != NULL)
-    str_ptr_unordered_map_free(a->bcs);
+    string_ptr_unordered_map_free(a->bcs);
   a->bcs = bcs;
   a->solution = solution;
   return model;

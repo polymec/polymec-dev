@@ -13,7 +13,7 @@ model_t* create_advect(mesh_t* mesh,
                        st_func_t* diffusivity, 
                        st_func_t* source, 
                        st_func_t* initial_cond, 
-                       str_ptr_unordered_map_t* bcs, 
+                       string_ptr_unordered_map_t* bcs, 
                        st_func_t* solution,
                        options_t* options);
 

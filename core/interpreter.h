@@ -162,7 +162,7 @@ void interpreter_set_vector_function(interpreter_t* interp, const char* name, st
 // Fetches the given table from the interpreter, returning NULL if it 
 // is not found or if it is not a table. The caller assumes responsibility
 // for destroying the table after this call.
-str_ptr_unordered_map_t* interpreter_get_table(interpreter_t* interp, const char* name);
+string_ptr_unordered_map_t* interpreter_get_table(interpreter_t* interp, const char* name);
 
 // Sets the given variable within the interpreter to the given sequence of
 // nubmers.. Any existing value of this variable is overwritten.
@@ -170,7 +170,7 @@ void interpreter_set_sequence(interpreter_t* interp, const char* name, double* s
 
 // Sets the given variable within the interpreter to the given table of
 // objects. Any existing value of this variable is overwritten.
-void interpreter_set_table(interpreter_t* interp, const char* name, str_ptr_unordered_map_t* value);
+void interpreter_set_table(interpreter_t* interp, const char* name, string_ptr_unordered_map_t* value);
 
 // Fetches the given user-defined object from the interpreter, returning NULL 
 // if it is not found or if it is not a user-defined object. The caller 

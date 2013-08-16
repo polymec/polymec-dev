@@ -27,7 +27,7 @@ typedef struct
   lin_op_t* L;              // Laplacian operator.
   st_func_t* solution;      // Analytic solution (if non-NULL).
 
-  str_ptr_unordered_map_t* bcs; // Boundary conditions.
+  string_ptr_unordered_map_t* bcs; // Boundary conditions.
 
   boundary_cell_map_t* boundary_cells; // Boundary cell info
   bool use_least_squares;   // Use least squares for boundary conditions?
@@ -290,7 +290,7 @@ static void poisson_read_input(void* context, interpreter_t* interp, options_t* 
   int pos = 0;
   char* tag;
   poisson_bc_t* bc;
-  while (str_ptr_unordered_map_next(p->bcs, &pos, &tag, (void**)&bc))
+  while (string_ptr_unordered_map_next(p->bcs, &pos, &tag, (void**)&bc))
   {
     // Retrieve the tag for this boundary condition.
     if (!mesh_has_tag(p->mesh->face_tags, tag))
@@ -411,7 +411,7 @@ static void poisson_dtor(void* ctx)
   poisson_t* p = (poisson_t*)ctx;
 
   // Destroy BC table.
-  str_ptr_unordered_map_free(p->bcs);
+  string_ptr_unordered_map_free(p->bcs);
 
   if (p->mesh != NULL)
     mesh_free(p->mesh);
@@ -441,7 +441,7 @@ model_t* poisson_model_new(options_t* options)
   p->phi = NULL;
   p->L = NULL;
   p->solver = NULL;
-  p->bcs = str_ptr_unordered_map_new();
+  p->bcs = string_ptr_unordered_map_new();
   p->solution = NULL;
 
   char* ls_opt = options_value(options, "use_least_squares");
@@ -501,7 +501,7 @@ model_t* poisson_model_new(options_t* options)
 
 model_t* create_poisson(mesh_t* mesh,
                         st_func_t* rhs,
-                        str_ptr_unordered_map_t* bcs, 
+                        string_ptr_unordered_map_t* bcs, 
                         st_func_t* solution,
                         options_t* options)
 {
@@ -510,7 +510,7 @@ model_t* create_poisson(mesh_t* mesh,
   pm->mesh = mesh;
   pm->rhs = rhs;
   if (pm->bcs != NULL)
-    str_ptr_unordered_map_free(pm->bcs);
+    string_ptr_unordered_map_free(pm->bcs);
   pm->bcs = bcs;
   pm->solution = solution;
 

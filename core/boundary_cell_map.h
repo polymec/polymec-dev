@@ -37,6 +37,6 @@ DEFINE_UNORDERED_MAP(boundary_cell_map, int, boundary_cell_t*, int_hash, int_equ
 // boundary condition objects), constructs a boundary cell map that provides
 // access to metadata on the boundary cells (neighbor cell information, 
 // face information, boundary conditions for faces).
-boundary_cell_map_t* boundary_cell_map_from_mesh_and_bcs(mesh_t* mesh, str_ptr_unordered_map_t* bcs);
+boundary_cell_map_t* boundary_cell_map_from_mesh_and_bcs(mesh_t* mesh, string_ptr_unordered_map_t* bcs);
 
 #endif
