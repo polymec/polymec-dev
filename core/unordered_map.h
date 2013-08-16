@@ -333,8 +333,9 @@ static inline map_name##_t* map_name##_copy(map_name##_t* map) \
 DEFINE_UNORDERED_MAP(int_int_unordered_map, int, int, int_hash, int_equals)
 DEFINE_UNORDERED_MAP(int_ptr_unordered_map, int, void*, int_hash, int_equals)
 DEFINE_UNORDERED_MAP(int_pair_int_unordered_map, int*, int, int_pair_hash, int_pair_equals)
-DEFINE_UNORDERED_MAP(str_str_unordered_map, char*, char*, string_hash, string_equals)
-DEFINE_UNORDERED_MAP(str_ptr_unordered_map, char*, void*, string_hash, string_equals)
+DEFINE_UNORDERED_MAP(string_int_unordered_map, char*, int, string_hash, string_equals)
+DEFINE_UNORDERED_MAP(string_string_unordered_map, char*, char*, string_hash, string_equals)
+DEFINE_UNORDERED_MAP(string_ptr_unordered_map, char*, void*, string_hash, string_equals)
 DEFINE_UNORDERED_MAP(ptr_ptr_unordered_map, void*, void*, pointer_hash, pointer_equals)
 
 #endif

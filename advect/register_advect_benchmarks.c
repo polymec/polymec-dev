@@ -40,19 +40,19 @@ static void advect_run_1d_flow(options_t* options,
                                int num_runs)
 {
   // Boundary conditions.
-  str_ptr_unordered_map_t* bcs = str_ptr_unordered_map_new();
+  string_ptr_unordered_map_t* bcs = string_ptr_unordered_map_new();
 
   // Dirichlet on -x/+x.
-  str_ptr_unordered_map_insert(bcs, "-x", left_bc);
-  str_ptr_unordered_map_insert(bcs, "+x", right_bc);
+  string_ptr_unordered_map_insert(bcs, "-x", left_bc);
+  string_ptr_unordered_map_insert(bcs, "+x", right_bc);
 
   // Transverse faces - homogeneous Neumann BCs.
   double z = 0.0;
   st_func_t* zero = constant_st_func_new(1, &z);
-  str_ptr_unordered_map_insert(bcs, "-y", advect_bc_new(0.0, 1.0, zero));
-  str_ptr_unordered_map_insert(bcs, "+y", advect_bc_new(0.0, 1.0, zero));
-  str_ptr_unordered_map_insert(bcs, "-z", advect_bc_new(0.0, 1.0, zero));
-  str_ptr_unordered_map_insert(bcs, "+z", advect_bc_new(0.0, 1.0, zero));
+  string_ptr_unordered_map_insert(bcs, "-y", advect_bc_new(0.0, 1.0, zero));
+  string_ptr_unordered_map_insert(bcs, "+y", advect_bc_new(0.0, 1.0, zero));
+  string_ptr_unordered_map_insert(bcs, "-z", advect_bc_new(0.0, 1.0, zero));
+  string_ptr_unordered_map_insert(bcs, "+z", advect_bc_new(0.0, 1.0, zero));
 
   // Base resolution.
   int N0 = 1;
@@ -92,7 +92,7 @@ static void advect_run_1d_flow(options_t* options,
       Nz = Nx;
     mesh_t* mesh = create_cubic_lattice_mesh_with_bbox(Nx, Ny, Nz, &bbox);
     tag_cubic_lattice_mesh_faces(mesh, Nx, Ny, Nz, "-x", "+x", "-y", "+y", "-z", "+z");
-    str_ptr_unordered_map_t* bcs_copy = str_ptr_unordered_map_copy(bcs);
+    string_ptr_unordered_map_t* bcs_copy = string_ptr_unordered_map_copy(bcs);
 
     model_t* model = create_advect(mesh, velocity, diffusivity, source, 
                                    initial_cond, bcs_copy, solution, options);
@@ -129,7 +129,7 @@ static void advect_run_1d_flow(options_t* options,
   }
 
   // Clean up.
-  str_ptr_unordered_map_free(bcs);
+  string_ptr_unordered_map_free(bcs);
 }
 
 static void run_stationary_flow_1d(options_t* options)

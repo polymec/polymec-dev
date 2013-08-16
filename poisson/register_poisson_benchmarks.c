@@ -8,7 +8,7 @@
 #include "poisson/interpreter_register_poisson_functions.h"
 #include "poisson/register_poisson_benchmarks.h"
 
-static void run_analytic_problem(mesh_t* mesh, st_func_t* rhs, str_ptr_unordered_map_t* bcs, options_t* options, double t1, double t2, st_func_t* solution, double* lp_norms)
+static void run_analytic_problem(mesh_t* mesh, st_func_t* rhs, string_ptr_unordered_map_t* bcs, options_t* options, double t1, double t2, st_func_t* solution, double* lp_norms)
 {
   // Create the model.
   model_t* model = create_poisson(mesh, rhs, bcs, solution, options);
@@ -61,34 +61,34 @@ static void poisson_run_laplace_1d(options_t* options, int dim)
                                           ST_INHOMOGENEOUS, ST_CONSTANT, 3);
 
   // Boundary conditions: Dirichlet on -x/+x (unless they've been reversed).
-  str_ptr_unordered_map_t* bcs = str_ptr_unordered_map_new();
+  string_ptr_unordered_map_t* bcs = string_ptr_unordered_map_new();
   if (!reversed_bcs)
   {
-    str_ptr_unordered_map_insert(bcs, "-x", poisson_bc_new(1.0, 0.0, sol));
-    str_ptr_unordered_map_insert(bcs, "+x", poisson_bc_new(1.0, 0.0, sol));
+    string_ptr_unordered_map_insert(bcs, "-x", poisson_bc_new(1.0, 0.0, sol));
+    string_ptr_unordered_map_insert(bcs, "+x", poisson_bc_new(1.0, 0.0, sol));
   }
   else
   {
-    str_ptr_unordered_map_insert(bcs, "-x", poisson_bc_new(0.0, 1.0, sol_grad));
-    str_ptr_unordered_map_insert(bcs, "+x", poisson_bc_new(0.0, 1.0, sol_grad));
+    string_ptr_unordered_map_insert(bcs, "-x", poisson_bc_new(0.0, 1.0, sol_grad));
+    string_ptr_unordered_map_insert(bcs, "+x", poisson_bc_new(0.0, 1.0, sol_grad));
   }
 
   // Transverse faces.
   if (all_dirichlet || reversed_bcs)
   {
     // Dirichlet BCs.
-    str_ptr_unordered_map_insert(bcs, "-y", poisson_bc_new(1.0, 0.0, sol));
-    str_ptr_unordered_map_insert(bcs, "+y", poisson_bc_new(1.0, 0.0, sol));
-    str_ptr_unordered_map_insert(bcs, "-z", poisson_bc_new(1.0, 0.0, sol));
-    str_ptr_unordered_map_insert(bcs, "+z", poisson_bc_new(1.0, 0.0, sol));
+    string_ptr_unordered_map_insert(bcs, "-y", poisson_bc_new(1.0, 0.0, sol));
+    string_ptr_unordered_map_insert(bcs, "+y", poisson_bc_new(1.0, 0.0, sol));
+    string_ptr_unordered_map_insert(bcs, "-z", poisson_bc_new(1.0, 0.0, sol));
+    string_ptr_unordered_map_insert(bcs, "+z", poisson_bc_new(1.0, 0.0, sol));
   }
   else
   {
     // Homogeneous Neumann BCs.
-    str_ptr_unordered_map_insert(bcs, "-y", poisson_bc_new(0.0, 1.0, zero));
-    str_ptr_unordered_map_insert(bcs, "+y", poisson_bc_new(0.0, 1.0, zero));
-    str_ptr_unordered_map_insert(bcs, "-z", poisson_bc_new(0.0, 1.0, zero));
-    str_ptr_unordered_map_insert(bcs, "+z", poisson_bc_new(0.0, 1.0, zero));
+    string_ptr_unordered_map_insert(bcs, "-y", poisson_bc_new(0.0, 1.0, zero));
+    string_ptr_unordered_map_insert(bcs, "+y", poisson_bc_new(0.0, 1.0, zero));
+    string_ptr_unordered_map_insert(bcs, "-z", poisson_bc_new(0.0, 1.0, zero));
+    string_ptr_unordered_map_insert(bcs, "+z", poisson_bc_new(0.0, 1.0, zero));
   }
 
   // Run time.
@@ -131,7 +131,7 @@ static void poisson_run_laplace_1d(options_t* options, int dim)
       Nz = Nx;
     mesh_t* mesh = create_cubic_lattice_mesh_with_bbox(Nx, Ny, Nz, &bbox);
     tag_cubic_lattice_mesh_faces(mesh, Nx, Ny, Nz, "-x", "+x", "-y", "+y", "-z", "+z");
-    str_ptr_unordered_map_t* bcs_copy = str_ptr_unordered_map_copy(bcs);
+    string_ptr_unordered_map_t* bcs_copy = string_ptr_unordered_map_copy(bcs);
     run_analytic_problem(mesh, zero, bcs_copy, options, t, t, sol, Lp_norms[iter]);
 
     // If we run in 1D or 2D, we need to adjust the norms.
@@ -149,7 +149,7 @@ static void poisson_run_laplace_1d(options_t* options, int dim)
   }
 
   // Clean up.
-  str_ptr_unordered_map_free(bcs);
+  string_ptr_unordered_map_free(bcs);
 }
 
 static void run_laplace_1d(options_t* options)
@@ -206,24 +206,24 @@ static void poisson_run_paraboloid(options_t* options, int dim)
                                      ST_INHOMOGENEOUS, ST_CONSTANT, 1);
 
   // Set up a Dirichlet boundary condition along each of the outside faces.
-  str_ptr_unordered_map_t* bcs = str_ptr_unordered_map_new();
-  str_ptr_unordered_map_insert(bcs, "+x", poisson_bc_new(1.0, 0.0, sol));
-  str_ptr_unordered_map_insert(bcs, "-x", poisson_bc_new(1.0, 0.0, sol));
-  str_ptr_unordered_map_insert(bcs, "+y", poisson_bc_new(1.0, 0.0, sol));
-  str_ptr_unordered_map_insert(bcs, "-y", poisson_bc_new(1.0, 0.0, sol));
+  string_ptr_unordered_map_t* bcs = string_ptr_unordered_map_new();
+  string_ptr_unordered_map_insert(bcs, "+x", poisson_bc_new(1.0, 0.0, sol));
+  string_ptr_unordered_map_insert(bcs, "-x", poisson_bc_new(1.0, 0.0, sol));
+  string_ptr_unordered_map_insert(bcs, "+y", poisson_bc_new(1.0, 0.0, sol));
+  string_ptr_unordered_map_insert(bcs, "-y", poisson_bc_new(1.0, 0.0, sol));
   
   double z = 0.0;
   st_func_t* zero = constant_st_func_new(1, &z);
   if (all_dirichlet)
   {
-    str_ptr_unordered_map_insert(bcs, "+z", poisson_bc_new(1.0, 0.0, sol));
-    str_ptr_unordered_map_insert(bcs, "-z", poisson_bc_new(1.0, 0.0, sol));
+    string_ptr_unordered_map_insert(bcs, "+z", poisson_bc_new(1.0, 0.0, sol));
+    string_ptr_unordered_map_insert(bcs, "-z", poisson_bc_new(1.0, 0.0, sol));
   }
   else
   {
     // Set up a homogeneous Neumann boundary condition on +/- z.
-    str_ptr_unordered_map_insert(bcs, "+z", poisson_bc_new(0.0, 1.0, zero));
-    str_ptr_unordered_map_insert(bcs, "-z", poisson_bc_new(0.0, 1.0, zero));
+    string_ptr_unordered_map_insert(bcs, "+z", poisson_bc_new(0.0, 1.0, zero));
+    string_ptr_unordered_map_insert(bcs, "-z", poisson_bc_new(0.0, 1.0, zero));
   }
 
   // Start/end time.
@@ -267,7 +267,7 @@ static void poisson_run_paraboloid(options_t* options, int dim)
       bbox.z2 = 1.0/Nx;
     mesh_t* mesh = create_cubic_lattice_mesh_with_bbox(Nx, Ny, Nz, &bbox);
     tag_cubic_lattice_mesh_faces(mesh, Nx, Ny, Nz, "-x", "+x", "-y", "+y", "-z", "+z");
-    str_ptr_unordered_map_t* bcs_copy = str_ptr_unordered_map_copy(bcs);
+    string_ptr_unordered_map_t* bcs_copy = string_ptr_unordered_map_copy(bcs);
     run_analytic_problem(mesh, rhs, bcs_copy, options, t, t, sol, Lp_norms[iter]);
 
     // If we run in 2D, we need to adjust the norms.
@@ -280,7 +280,7 @@ static void poisson_run_paraboloid(options_t* options, int dim)
   }
 
   // Clean up.
-  str_ptr_unordered_map_free(bcs);
+  string_ptr_unordered_map_free(bcs);
 }
 
 static void run_paraboloid(options_t* options)

@@ -8,7 +8,7 @@ struct options_t
 {
   char* command;
   char* input;
-  str_str_unordered_map_t* params;
+  string_string_unordered_map_t* params;
 };
 
 static void options_free(void* ctx, void* dummy)
@@ -23,7 +23,7 @@ static void options_free(void* ctx, void* dummy)
   // Delete all parameter data.
   int pos = 0;
   char *key, *value;
-  while (str_str_unordered_map_next(opts->params, &pos, &key, &value))
+  while (string_string_unordered_map_next(opts->params, &pos, &key, &value))
   {
     free(key);
     free(value);
@@ -47,7 +47,7 @@ options_t* options_parse(int argc, char** argv)
   options_t* o = options_new();
   o->command = NULL;
   o->input = NULL;
-  o->params = str_str_unordered_map_new();
+  o->params = string_string_unordered_map_new();
   GC_register_finalizer(o, &options_free, o, NULL, NULL);
 
   // Parse the basic options.
@@ -101,13 +101,13 @@ char* options_input(options_t* opts)
 
 char* options_value(options_t* opts, const char* name)
 {
-  char** value = str_str_unordered_map_get(opts->params, (char*)name);
+  char** value = string_string_unordered_map_get(opts->params, (char*)name);
   return (value != NULL) ? *value : NULL;
 }
 
 void options_set(options_t* opts, const char* name, const char* value)
 {
-  str_str_unordered_map_insert_with_kv_dtor(opts->params, strdup(name), strdup(value), destroy_kv);
+  string_string_unordered_map_insert_with_kv_dtor(opts->params, strdup(name), strdup(value), destroy_kv);
 }
 
 

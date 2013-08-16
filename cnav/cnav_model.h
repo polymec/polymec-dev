@@ -23,7 +23,7 @@ model_t* create_cnav(cnav_time_integrator_t integrator,
                      cnav_eos_t* equation_of_state,
                      st_func_t* source,
                      st_func_t* initial_cond, 
-                     str_ptr_unordered_map_t* bcs, 
+                     string_ptr_unordered_map_t* bcs, 
                      st_func_t* solution,
                      options_t* options);
 
