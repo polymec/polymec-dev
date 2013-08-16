@@ -22,6 +22,13 @@ int kd_tree_size(kd_tree_t* tree);
 // the given point, or -1 if the tree is empty.
 int kd_tree_nearest(kd_tree_t* tree, point_t* point);
 
+// Fills the given array with the indices of the nearest n points within 
+// the tree to the given point. If the tree doesn't contain n points, the 
+// array will be filled with all of the points in the tree, listed in ascending
+// order of distance from the given point. It is assumed that the neighbors 
+// array has space for n integers.
+void kd_tree_nearest_n(kd_tree_t* tree, point_t* point, int* neighbors);
+
 // Returns a linked list containing the indices of the points in the set 
 // found within the given radius of the given point.
 int_slist_t* kd_tree_within_radius(kd_tree_t* tree, 
