@@ -228,6 +228,11 @@ int kd_tree_nearest(kd_tree_t* tree, point_t* point)
   return node->index;
 }
 
+void kd_tree_nearest_n(kd_tree_t* tree, point_t* point, int* neighbors)
+{
+  polymec_not_implemented("kd_tree_nearest_n");
+}
+
 static void find_within_radius(kd_tree_node_t* node, 
                                double* pos, 
                                double radius,
