@@ -228,8 +228,9 @@ int kd_tree_nearest(kd_tree_t* tree, point_t* point)
   return node->index;
 }
 
-void kd_tree_nearest_n(kd_tree_t* tree, point_t* point, int* neighbors)
+void kd_tree_nearest_n(kd_tree_t* tree, point_t* point, int n, int* neighbors)
 {
+  ASSERT(n > 0);
   polymec_not_implemented("kd_tree_nearest_n");
 }
 
