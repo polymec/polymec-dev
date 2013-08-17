@@ -194,7 +194,7 @@ static int grad(lua_State* lua)
 
   st_func_t* f = lua_toscalarfunction(lua, 1);
   if (!st_func_has_deriv(f, 1))
-    return luaL_error("grad: Scalar function '%s' has no derivative.", st_func_name(f));
+    return luaL_error(lua, "grad: Scalar function '%s' has no derivative.", st_func_name(f));
 
   double t = 0.0;
   if (num_args == 3)

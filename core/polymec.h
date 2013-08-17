@@ -19,6 +19,7 @@
 #endif
 
 #include "core/loggers.h"
+#include "core/arch.h"
 
 // Some macros.
 #ifndef NDEBUG

@@ -12,10 +12,6 @@
 #include <gc/gc.h>
 #include "geometry/voronoi_tessellator.h"
 
-// We use fmemopen and open_memstream to communicate with QHull.
-#ifdef __APPLE__
-#include "fmemopen.h"
-#endif
 #include <stdio.h>
 
 static char hidden_options[]=" d v H Qbb Qf Qg Qm Qr Qu Qv Qx Qz TR E V Fp Gt Q0 Q1 Q2 Q3 Q4 Q5 Q6 Q7 Q8 Q9 ";

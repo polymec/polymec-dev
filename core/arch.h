@@ -1,7 +1,7 @@
 #ifndef POLYMEC_ARCH_H
 #define POLYMEC_ARCH_H
 
-#include "core/polymec.h"
+#include <stdio.h>
 
 // This file contains functions that are unavailable on certain target 
 // architectures.
