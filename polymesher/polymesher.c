@@ -30,6 +30,7 @@ static void interpreter_register_mesher_functions(interpreter_t* interpreter)
   interpreter_register_function(interpreter, "read_meshvoro_mesh", read_meshvoro_mesh);
   interpreter_register_function(interpreter, "write_silo_plot", write_silo_plot);
   interpreter_register_function(interpreter, "write_vtk_plot", write_vtk_plot);
+  interpreter_register_function(interpreter, "write_tough_mesh", write_tough_mesh);
   interpreter_register_function(interpreter, "read_meshvoro_mesh", read_meshvoro_mesh);
 }
 

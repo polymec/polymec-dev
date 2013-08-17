@@ -23,33 +23,24 @@ int mesh_factory_cubic_lattice(lua_State* lua)
   int num_args = lua_gettop(lua);
   if ((num_args != 3) && (num_args != 4))
   {
-    lua_pushstring(lua, "Invalid arguments. Usage:\n"
-                  "mesh = cubic_lattice_mesh(nx, ny, nz) OR\n"
-                  "mesh = cubic_lattice_mesh(nx, ny, nz, bounds)");
-    lua_error(lua);
-    return LUA_ERRRUN;
+    return luaL_error(lua, "Invalid arguments. Usage:\n"
+                      "mesh = cubic_lattice_mesh(nx, ny, nz) OR\n"
+                      "mesh = cubic_lattice_mesh(nx, ny, nz, bounds)");
   }
+
   // Get the arguments.
   int nx = (int)lua_tonumber(lua, 1);
   int ny = (int)lua_tonumber(lua, 2);
   int nz = (int)lua_tonumber(lua, 3);
   if ((nx <= 0) || (ny <= 0) || (nz <= 0))
-  {
-    lua_pushstring(lua, "nx, ny, and nz must all be positive.");
-    lua_error(lua);
-    return LUA_ERRRUN;
-  }
+    return luaL_error(lua, "nx, ny, and nz must all be positive.");
 
   // Bounding box? 
   bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
   if (num_args == 4)
   {
     if (!lua_istable(lua, 4))
-    {
-      lua_pushstring(lua, "bounds must be a table containing x1, x2, y1, y2, z1, z2.");
-      lua_error(lua);
-      return LUA_ERRRUN;
-    }
+      return luaL_error(lua, "bounds must be a table containing x1, x2, y1, y2, z1, z2.");
 
     // Look for x1, x2, y1, y2, z1, z2 in the table.
     const char* bounds_names[] = {"x1", "x2", "y1", "y2", "z1", "z2"};
@@ -59,11 +50,8 @@ int mesh_factory_cubic_lattice(lua_State* lua)
       lua_pushstring(lua, bounds_names[i]);
       lua_gettable(lua, 4); // Reads name from top, replaces with bounds[name].
       if (!lua_isnumber(lua, -1))
-      {
-        lua_pushstring(lua, "x1, x2, y1, y2, z1, z2, must all be numbers.");
-        lua_error(lua);
-        return LUA_ERRRUN;
-      }
+        return luaL_error(lua, "x1, x2, y1, y2, z1, z2, must all be numbers.");
+
       bounds_values[i] = lua_tonumber(lua, -1);
       lua_pop(lua, 1); 
     }
@@ -76,23 +64,13 @@ int mesh_factory_cubic_lattice(lua_State* lua)
 
     // Now check the bounds.
     if (bbox.x1 >= bbox.x2)
-    {
-      lua_pushstring(lua, "x1 must be less than x2.");
-      lua_error(lua);
-      return LUA_ERRRUN;
-    }
+      return luaL_error(lua, "x1 must be less than x2.");
+
     if (bbox.y1 >= bbox.y2)
-    {
-      lua_pushstring(lua, "y1 must be less than y2.");
-      lua_error(lua);
-      return LUA_ERRRUN;
-    }
+      return luaL_error(lua, "y1 must be less than y2.");
+
     if (bbox.z1 >= bbox.z2)
-    {
-      lua_pushstring(lua, "z1 must be less than z2.");
-      lua_error(lua);
-      return LUA_ERRRUN;
-    }
+      return luaL_error(lua, "z1 must be less than z2.");
   }
 
   // Pop all the previous arguments off the stack.
@@ -114,19 +92,12 @@ int mesh_factory_cubic_lattice_periodic_bc(lua_State* lua)
   // Check the argument.
   int num_args = lua_gettop(lua);
   if (num_args != 2)
-  {
-    lua_pushstring(lua, "Arguments must be 2 boundary mesh (face) tags.");
-    lua_error(lua);
-    return LUA_ERRRUN;
-  }
+    return luaL_error(lua, "Arguments must be 2 boundary mesh (face) tags.");
+
   for (int i = 1; i <= 2; ++i)
   {
     if (!lua_isstring(lua, i))
-    {
-      lua_pushfstring(lua, "Argument %d must be a face tag.", i);
-      lua_error(lua);
-      return LUA_ERRRUN;
-    }
+      return luaL_error(lua, "Argument %d must be a face tag.", i);
   }
 
   const char* tag1 = lua_tostring(lua, 1);
@@ -138,61 +109,43 @@ int mesh_factory_cubic_lattice_periodic_bc(lua_State* lua)
   if (!strcmp(tag1, "x1"))
   {
     if (!strcmp(tag2, "x2"))
-    {
-      lua_pushfstring(lua, "Periodic boundary maps from 'x1' to '%s' (must be 'x2').", tag2);
-      lua_error(lua);
-      return LUA_ERRRUN;
-    }
+      return luaL_error(lua, "Periodic boundary maps from 'x1' to '%s' (must be 'x2').", tag2);
+
     bc = cubic_lattice_x_periodic_bc_new(tag1, tag2);
   }
   else if (!strcmp(tag1, "x2"))
   {
     if (!strcmp(tag2, "x1"))
-    {
-      lua_pushfstring(lua, "Periodic boundary maps from 'x2' to '%s' (must be 'x1').", tag2);
-      lua_error(lua);
-      return LUA_ERRRUN;
-    }
+      return luaL_error(lua, "Periodic boundary maps from 'x2' to '%s' (must be 'x1').", tag2);
+
     bc = cubic_lattice_x_periodic_bc_new(tag1, tag2);
   }
   else if (!strcmp(tag1, "y1"))
   {
     if (!strcmp(tag2, "y2"))
-    {
-      lua_pushfstring(lua, "Periodic boundary maps from 'y1' to '%s' (must be 'y2').", tag2);
-      lua_error(lua);
-      return LUA_ERRRUN;
-    }
+      return luaL_error(lua, "Periodic boundary maps from 'y1' to '%s' (must be 'y2').", tag2);
+
     bc = cubic_lattice_y_periodic_bc_new(tag1, tag2);
   }
   else if (!strcmp(tag1, "y2"))
   {
     if (!strcmp(tag2, "y1"))
-    {
-      lua_pushfstring(lua, "Periodic boundary maps from 'y2' to '%s' (must be 'y1').", tag2);
-      lua_error(lua);
-      return LUA_ERRRUN;
-    }
+      return luaL_error(lua, "Periodic boundary maps from 'y2' to '%s' (must be 'y1').", tag2);
+
     bc = cubic_lattice_y_periodic_bc_new(tag1, tag2);
   }
   else if (!strcmp(tag1, "z1"))
   {
     if (!strcmp(tag2, "z2"))
-    {
-      lua_pushfstring(lua, "Periodic boundary maps from 'z1' to '%s' (must be 'z2').", tag2);
-      lua_error(lua);
-      return LUA_ERRRUN;
-    }
+      return luaL_error(lua, "Periodic boundary maps from 'z1' to '%s' (must be 'z2').", tag2);
+
     bc = cubic_lattice_z_periodic_bc_new(tag1, tag2);
   }
   else if (!strcmp(tag1, "z2"))
   {
     if (!strcmp(tag2, "z1"))
-    {
-      lua_pushfstring(lua, "Periodic boundary maps from 'z2' to '%s' (must be 'z1').", tag2);
-      lua_error(lua);
-      return LUA_ERRRUN;
-    }
+      return luaL_error(lua, "Periodic boundary maps from 'z2' to '%s' (must be 'z1').", tag2);
+
     bc = cubic_lattice_z_periodic_bc_new(tag1, tag2);
   }
   lua_pushuserdefined(lua, bc, NULL);
@@ -210,10 +163,8 @@ int mesh_factory_voronoi(lua_State* lua)
   int num_args = lua_gettop(lua);
   if ((num_args != 1) || !lua_ispointlist(lua, 1))
   {
-    lua_pushstring(lua, "Invalid argument(s). Usage:\n"
-                        "mesh = mesh_factory.voronoi(generators)");
-    lua_error(lua);
-    return LUA_ERRRUN;
+    return luaL_error(lua, "Invalid argument(s). Usage:\n"
+                      "mesh = mesh_factory.voronoi(generators)");
   }
 
   // Get the generators.
@@ -234,75 +185,50 @@ int mesh_factory_cvt(lua_State* lua)
   int num_args = lua_gettop(lua);
   if ((num_args != 2) || !lua_istable(lua, 1) || !lua_istable(lua, 2))
   {
-    lua_pushstring(lua, "Invalid argument(s). Usage:\n"
-                        "mesh = mesh_factory.cvt(surface, options) OR\n"
-                        "mesh = mesh_factory.cvt(surfaces, options)");
-    lua_error(lua);
-    return LUA_ERRRUN;
+    return luaL_error(lua, "Invalid argument(s). Usage:\n"
+                      "mesh = mesh_factory.cvt(surface, options) OR\n"
+                      "mesh = mesh_factory.cvt(surfaces, options)");
   }
 
   // Get the options for the Voronoi tessellation.
   lua_getfield(lua, 2, "merge_distance");
   if (!lua_isnil(lua, -1) && !lua_isnumber(lua, -1))
-  {
-    lua_pushstring(lua, "Option 'merge_distance' must be a number.");
-    lua_error(lua);
-    return LUA_ERRRUN;
-  }
+    return luaL_error(lua, "Option 'merge_distance' must be a number.");
+
   double merge_distance = 1e-12;
   if (!lua_isnil(lua, -1))
     merge_distance = lua_tonumber(lua, -1);
   lua_pop(lua, 1);
   if (merge_distance <= 0.0)
-  {
-    lua_pushstring(lua, "Option 'merge_distance' must be a number.");
-    lua_error(lua);
-    return LUA_ERRRUN;
-  }
+    return luaL_error(lua, "Option 'merge_distance' must be a number.");
 
   lua_getfield(lua, 2, "num_interior_points");
   if (!lua_isnumber(lua, -1))
-  {
-    lua_pushstring(lua, "Option 'num_interior_points' must be a number.");
-    lua_error(lua);
-    return LUA_ERRRUN;
-  }
+    return luaL_error(lua, "Option 'num_interior_points' must be a number.");
+
   int num_interior_points = (int)lua_tonumber(lua, -1);
   lua_pop(lua, 1);
 
   lua_getfield(lua, 2, "iteration_method");
   if (!lua_isnil(lua, -1) && !lua_isstring(lua, -1))
-  {
-    lua_pushstring(lua, "Option 'iteration_method' must be a string.");
-    lua_error(lua);
-    return LUA_ERRRUN;
-  }
+    return luaL_error(lua, "Option 'iteration_method' must be a string.");
+
   char iteration_method[1024];
   strcpy(iteration_method, "lloyd");
   if (!lua_isnil(lua, -1))
     strcpy(iteration_method, lua_tostring(lua, -1));
   lua_pop(lua, 1);
   if (!strcasecmp(iteration_method, "lloyd"))
-  {
-    lua_pushstring(lua, "Supported iteration methods are 'lloyd'.");
-    lua_error(lua);
-    return LUA_ERRRUN;
-  }
+    return luaL_error(lua, "Supported iteration methods are 'lloyd'.");
 
   lua_getfield(lua, 2, "num_iterations");
   if (!lua_isnumber(lua, -1))
-  {
-    lua_pushstring(lua, "Option 'num_iterations' must be a number.");
-    lua_error(lua);
-    return LUA_ERRRUN;
-  }
+    return luaL_error(lua, "Option 'num_iterations' must be a number.");
+
   int num_iterations = lua_tonumber(lua, -1);
   if (num_iterations < 1)
-  {
-    lua_pushstring(lua, "Option 'num_iterations' must be positive.");
-    lua_error(lua);
-    return LUA_ERRRUN;
-  }
+    return luaL_error(lua, "Option 'num_iterations' must be positive.");
+
   lua_pop(lua, 1);
 
   // Determine whether the first argument is a surface or a table containing
@@ -441,9 +367,7 @@ int mesh_factory_cvt(lua_State* lua)
     int_array_free(num_surface_points);
     ptr_array_free(surface_points);
     ptr_array_free(surface_normals);
-    lua_pushstring(lua, "Argument 1 must be a surface (a table with points and normals fields) or a list of surfaces.");
-    lua_error(lua);
-    return LUA_ERRRUN;
+    return luaL_error(lua, "Argument 1 must be a surface (a table with points and normals fields) or a list of surfaces.");
   }
 
   // Now we organize the surface or surfaces into a list of points with 

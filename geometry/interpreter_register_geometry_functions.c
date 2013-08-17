@@ -31,35 +31,23 @@ static int sample_bbox(lua_State* lua)
       !lua_isnumber(lua, 2) || !lua_isnumber(lua, 3) ||
       !lua_isnumber(lua, 4))
   {
-    lua_pushstring(lua, "Invalid argument(s). Usage:\n"
-                        "points = sample_bounding_box(bbox, nx, ny, nz)\n"
-                        "Returns a set points on a lattice that covers a bounding box.");
-    lua_error(lua);
-    return LUA_ERRRUN;
+    return luaL_error(lua, "Invalid argument(s). Usage:\n"
+                      "points = sample_bounding_box(bbox, nx, ny, nz)\n"
+                      "Returns a set points on a lattice that covers a bounding box.");
   }
 
   bbox_t* bbox = lua_toboundingbox(lua, 1);
   int nx = (int)lua_tonumber(lua, 2);
   if (nx <= 0)
-  {
-    lua_pushstring(lua, "nx must be a positive number of x points.");
-    lua_error(lua);
-    return LUA_ERRRUN;
-  }
+    return luaL_error(lua, "nx must be a positive number of x points.");
+
   int ny = (int)lua_tonumber(lua, 3);
   if (ny <= 0)
-  {
-    lua_pushstring(lua, "ny must be a positive number of y points.");
-    lua_error(lua);
-    return LUA_ERRRUN;
-  }
+    return luaL_error(lua, "ny must be a positive number of y points.");
+
   int nz = (int)lua_tonumber(lua, 4);
   if (nz <= 0)
-  {
-    lua_pushstring(lua, "nz must be a positive number of z points.");
-    lua_error(lua);
-    return LUA_ERRRUN;
-  }
+    return luaL_error(lua, "nz must be a positive number of z points.");
 
   int num_points = 2*(nx*ny + ny*nz + nz*nx);
   double dx = (bbox->x2 - bbox->x1) / nx;
@@ -145,21 +133,15 @@ static int scaled_bounding_box(lua_State* lua)
   if ((num_args != 2) || !lua_isboundingbox(lua, 1) || 
       !lua_isnumber(lua, 2))
   {
-    lua_pushstring(lua, "Invalid argument(s). Usage:\n"
-                        "bbox2 = scaled_bounding_box(bbox, factor) ->\n"
-                        "Returns a bounding box scaled by the given factor.");
-    lua_error(lua);
-    return LUA_ERRRUN;
+    return luaL_error(lua, "Invalid argument(s). Usage:\n"
+                      "bbox2 = scaled_bounding_box(bbox, factor) ->\n"
+                      "Returns a bounding box scaled by the given factor.");
   }
 
   bbox_t* bbox = lua_toboundingbox(lua, 1);
   double f = lua_tonumber(lua, 2);
   if (f <= 0.0)
-  {
-    lua_pushstring(lua, "factor must be positive.");
-    lua_error(lua);
-    return LUA_ERRRUN;
-  }
+    return luaL_error(lua, "factor must be positive.");
 
   double xc = 0.5 * (bbox->x1 + bbox->x2);
   double yc = 0.5 * (bbox->y1 + bbox->y2);
@@ -184,56 +166,35 @@ static int sample_cyl_shell(lua_State* lua)
       !lua_isnumber(lua, 5) || !lua_isnumber(lua, 6) || 
       !lua_isnumber(lua, 7))
   {
-    lua_pushstring(lua, "Invalid argument(s). Usage:\n"
-                        "points = sample_cyl_shell(r1, r2, z1, z2, nr, nphi, nz)\n"
-                        "Returns a set points on a lattice that covers a cylindrical shell.");
-    lua_error(lua);
-    return LUA_ERRRUN;
+    return luaL_error(lua, "Invalid argument(s). Usage:\n"
+                      "points = sample_cyl_shell(r1, r2, z1, z2, nr, nphi, nz)\n"
+                      "Returns a set points on a lattice that covers a cylindrical shell.");
   }
 
   double r1 = lua_tonumber(lua, 1);
   if (r1 < 0.0)
-  {
-    lua_pushstring(lua, "r1 must be a non-negative inner radius.");
-    lua_error(lua);
-    return LUA_ERRRUN;
-  }
+    return luaL_error(lua, "r1 must be a non-negative inner radius.");
+
   double r2 = lua_tonumber(lua, 2);
   if (r2 <= r1)
-  {
-    lua_pushstring(lua, "r2 must be greater than r1.");
-    lua_error(lua);
-    return LUA_ERRRUN;
-  }
+    return luaL_error(lua, "r2 must be greater than r1.");
+
   double z1 = lua_tonumber(lua, 3);
   double z2 = lua_tonumber(lua, 4);
   if (z2 <= z1)
-  {
-    lua_pushstring(lua, "z2 must be greater than z1.");
-    lua_error(lua);
-    return LUA_ERRRUN;
-  }
+    return luaL_error(lua, "z2 must be greater than z1.");
+
   int nr = (int)lua_tonumber(lua, 5);
   if (nr <= 0)
-  {
-    lua_pushstring(lua, "nr must be a positive number of radial points.");
-    lua_error(lua);
-    return LUA_ERRRUN;
-  }
+    return luaL_error(lua, "nr must be a positive number of radial points.");
+
   int nphi = (int)lua_tonumber(lua, 6);
   if (nphi <= 0)
-  {
-    lua_pushstring(lua, "nphi must be a positive number of azimuthal points.");
-    lua_error(lua);
-    return LUA_ERRRUN;
-  }
+    return luaL_error(lua, "nphi must be a positive number of azimuthal points.");
+
   int nz = (int)lua_tonumber(lua, 7);
   if (nz <= 0)
-  {
-    lua_pushstring(lua, "nz must be a positive number of axial points.");
-    lua_error(lua);
-    return LUA_ERRRUN;
-  }
+    return luaL_error(lua, "nz must be a positive number of axial points.");
 
   int num_points = nr * nphi * nz;
   double dr = (r2 - r1) / nr;
@@ -269,15 +230,13 @@ static int translate_points(lua_State* lua)
       ((num_args == 2) && (!lua_ispointlist(lua, 1) || (!lua_isvector(lua, 2) && !lua_isvectorlist(lua, 2)))) || 
       ((num_args == 3) && (!lua_ispointlist(lua, 1) || (!lua_isvector(lua, 2) && !lua_isvectorlist(lua, 2)) || (!lua_isnumber(lua, 3) && !lua_issequence(lua, 3)))))
   {
-    lua_pushstring(lua, "Invalid argument(s). Usage:\n"
-                        "translate_points(points, vector) OR\n"
-                        "translate_points(points, vector, factor) OR\n"
-                        "translate_points(points, vectors) OR\n"
-                        "translate_points(points, vectors, factor) OR\n"
-                        "translate_points(points, vectors, factors) ->\n"
-                        "Translates a set of points by the given constant vector or corresponding vectors.");
-    lua_error(lua);
-    return LUA_ERRRUN;
+    return luaL_error(lua, "Invalid argument(s). Usage:\n"
+                      "translate_points(points, vector) OR\n"
+                      "translate_points(points, vector, factor) OR\n"
+                      "translate_points(points, vectors) OR\n"
+                      "translate_points(points, vectors, factor) OR\n"
+                      "translate_points(points, vectors, factors) ->\n"
+                      "Translates a set of points by the given constant vector or corresponding vectors.");
   }
 
   int num_points;
@@ -295,11 +254,7 @@ static int translate_points(lua_State* lua)
     {
       factors = lua_tosequence(lua, 3, &num_factors);
       if (num_factors != num_points)
-      {
-        lua_pushstring(lua, "Number of scale factors must equal number of points.");
-        lua_error(lua);
-        return LUA_ERRRUN;
-      }
+        return luaL_error(lua, "Number of scale factors must equal number of points.");
     }
   }
 
@@ -319,11 +274,7 @@ static int translate_points(lua_State* lua)
     int num_vectors;
     vector_t* vectors = lua_tovectorlist(lua, 2, &num_vectors);
     if (num_vectors != num_points)
-    {
-      lua_pushstring(lua, "Number of vectors must equal number of points.");
-      lua_error(lua);
-      return LUA_ERRRUN;
-    }
+      return luaL_error(lua, "Number of vectors must equal number of points.");
     for (int i = 0; i < num_points; ++i)
     {
       double f = (factors != NULL) ? factors[i] : factor;
@@ -344,11 +295,9 @@ static int rotate_points(lua_State* lua)
   if ((num_args != 4) || !lua_ispointlist(lua, 1) ||
       !lua_isvector(lua, 2) || !lua_ispoint(lua, 3) || !lua_isnumber(lua, 4))
   {
-    lua_pushstring(lua, "Invalid argument(s). Usage:\n"
-                        "rotate_points(points, axis, origin, angle) ->\n"
-                        "Rotates a set points about the axis by the given angle.");
-    lua_error(lua);
-    return LUA_ERRRUN;
+    return luaL_error(lua, "Invalid argument(s). Usage:\n"
+                      "rotate_points(points, axis, origin, angle) ->\n"
+                      "Rotates a set points about the axis by the given angle.");
   }
 
   int num_points;
@@ -392,11 +341,9 @@ static int copy_points(lua_State* lua)
   int num_args = lua_gettop(lua);
   if ((num_args != 1) || !lua_ispointlist(lua, 1))
   {
-    lua_pushstring(lua, "Invalid argument(s). Usage:\n"
-                        "new_points = copy_points(points) ->\n"
-                        "Creates a new copy of a list of points.");
-    lua_error(lua);
-    return LUA_ERRRUN;
+    return luaL_error(lua, "Invalid argument(s). Usage:\n"
+                      "new_points = copy_points(points) ->\n"
+                      "Creates a new copy of a list of points.");
   }
 
   int num_points;
@@ -414,11 +361,9 @@ static int remove_points(lua_State* lua)
   int num_args = lua_gettop(lua);
   if ((num_args != 1) || !lua_istable(lua, 1))
   {
-    lua_pushstring(lua, "Invalid argument(s). Usage:\n"
-                        "culled_points = remove_points{points, within_surface = S, at_time = t} ->\n"
-                        "Removes points in the given list that meet the given criterion.");
-    lua_error(lua);
-    return LUA_ERRRUN;
+    return luaL_error(lua, "Invalid argument(s). Usage:\n"
+                      "culled_points = remove_points{points, within_surface = S, at_time = t} ->\n"
+                      "Removes points in the given list that meet the given criterion.");
   }
 
   // Extract arguments.
@@ -441,11 +386,8 @@ static int remove_points(lua_State* lua)
         lua_gettable(lua, 1);
       }
       if (!lua_ispointlist(lua, -1))
-      {
-        lua_pushstring(lua, "points should be a list of points.");
-        lua_error(lua);
-        return LUA_ERRRUN;
-      }
+        return luaL_error(lua, "points should be a list of points.");
+
       points = lua_topointlist(lua, -1, &num_points);
     }
     else if (i == 1) 
@@ -460,21 +402,14 @@ static int remove_points(lua_State* lua)
       else if (lua_isscalarfunction(lua, -1))
         within_surface = lua_toscalarfunction(lua, -1);
       else
-      {
-        lua_pushstring(lua, "within_surface should be a scalar function.");
-        lua_error(lua);
-        return LUA_ERRRUN;
-      }
+        return luaL_error(lua, "within_surface should be a scalar function.");
     }
     else
     {
       if (lua_isnil(lua, -1)) break;
       if (!lua_isnumber(lua, -1))
-      {
-        lua_pushstring(lua, "at_time should be a number.");
-        lua_error(lua);
-        return LUA_ERRRUN;
-      }
+        return luaL_error(lua, "at_time should be a number.");
+
       at_time = lua_tonumber(lua, -1);
     }
   }

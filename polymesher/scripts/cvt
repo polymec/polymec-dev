@@ -1,0 +1,6 @@
+surface = point_factory.import_from_cad('cylinder.stl')
+--mesh = mesh_factory.cvt({'cylinder' = surface}, 
+--                        {'num_interior_points' = 1000,
+--                         'iteration_method' = 'lloyd',
+--                         'num_iterations' = 10})
+
