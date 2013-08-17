@@ -259,15 +259,6 @@ set(POLYMEC_TP_INCDIRS ${POLYMEC_TP_INCDIRS};${PROJECT_BINARY_DIR}/include/libxm
 #set_target_properties(tao PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libtao.a)
 #set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};tao)
 
-# On Macs, we need to build the fmemopen library.
-if (${APPLE})
-  if (NOT EXISTS ${PROJECT_BINARY_DIR}/include/fmemopen.h)
-    file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/fmemopen.h DESTINATION ${PROJECT_BINARY_DIR}/include)
-  endif()
-  add_library(fmemopen fmemopen.c)
-  set(POLYMEC_TP_LIBS fmemopen;${POLYMEC_TP_LIBS})
-endif()
-
 # Add all the libraries to the build system at large.
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${POLYMEC_TP_C_FLAGS}" PARENT_SCOPE)
 set(POLYMEC_LIBS ${POLYMEC_LIBS};${POLYMEC_TP_LIBS} PARENT_SCOPE)
