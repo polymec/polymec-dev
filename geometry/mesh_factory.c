@@ -470,15 +470,20 @@ int mesh_factory_cvt(lua_State* lua)
   }
   kd_tree_t* tree = kd_tree_new(all_surf_points, num_surf_points);
 
-  // Now merge the points and collect their normals and tags.
+  // Now merge the points and collect their normals and tags. Also compute 
+  // a bounding box that contains all of the surface points.
   ptr_array_t* merged_points = ptr_array_new();
   ptr_array_t* merged_normals = ptr_array_new();
   ptr_array_t* merged_tags = ptr_array_new();
+  bbox_t bbox = {.x1 = FLT_MAX, .x2 = -FLT_MAX, .y1 = FLT_MAX, .y2 = -FLT_MAX, .z1 = FLT_MAX, .z2 = -FLT_MAX};
   for (int i = 0; i < num_surf_points; ++i)
   {
     point_t* point = &all_surf_points[i];
     vector_t* normal = &all_normals[i];
     char* tag = surface_names->data[i];
+
+    // Alter the bounding box if needed.
+    bbox_grow(&bbox, point);
 
     // Search for the points within the merging distance.
     int_slist_t* coincident_points = kd_tree_within_radius(tree, point, merge_distance);
@@ -532,8 +537,13 @@ int mesh_factory_cvt(lua_State* lua)
                              &boundary_points, &num_boundary_points,
                              &tag_names, &tags, &num_tags);
 
-  // Initialize a set of interior points that is safely inside the surface.
+  
+
+  // Initialize a set of interior points that is inside the bounding box 
+  // that we computed.
   point_t* interior_points = malloc(sizeof(point_t) * num_interior_points);
+  for (int i = 0; i < num_interior_points; ++i)
+    point_randomize(&interior_points[i], random, &bbox);
 
   // Construct a centroidal voronoi tessellation using Lloyd iteration.
   mesh_t* mesh = create_cvt_with_lloyd_iteration(boundary_points, num_boundary_points,

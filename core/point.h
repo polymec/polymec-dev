@@ -149,6 +149,9 @@ static inline bool bbox_contains(bbox_t* bbox, point_t* p)
           (p->z >= bbox->z1) && (p->z <= bbox->z2));
 }
 
+// Grows the given bounding box to accommodate the given point.
+void bbox_grow(bbox_t* box, point_t* p);
+
 // Given a random number generator and a bounding box, generate random 
 // coordinates for the given point within the bounding box. The random 
 // number generator must generate an integer between 0 and RAND_MAX.
