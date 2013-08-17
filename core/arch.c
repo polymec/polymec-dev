@@ -1,6 +1,8 @@
 #include "core/arch.h"
 #include <sys/mman.h>
 #include <errno.h>
+#include <string.h>
+#include <stdlib.h>
 
 typedef struct 
 {
