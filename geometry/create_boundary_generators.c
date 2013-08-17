@@ -77,15 +77,15 @@ void create_boundary_generators(ptr_array_t* surface_points,
       // This point only belongs to one surface, so we create boundary points 
       // on either side of it.
       point_t* x_out = malloc(sizeof(point_t));
-      x_out->x = x_surf->x + 2.0*h_min[i]*normals[0].x;
-      x_out->y = x_surf->y + 2.0*h_min[i]*normals[0].y;
-      x_out->z = x_surf->z + 2.0*h_min[i]*normals[0].z;
+      x_out->x = x_surf->x + h_min[i]*normals[0].x;
+      x_out->y = x_surf->y + h_min[i]*normals[0].y;
+      x_out->z = x_surf->z + h_min[i]*normals[0].z;
       ptr_array_append_with_dtor(boundary_points, x_out, DTOR(free));
 
       point_t* x_in = malloc(sizeof(point_t));
-      x_in->x = x_surf->x - 2.0*h_min[i]*normals[0].x;
-      x_in->y = x_surf->y - 2.0*h_min[i]*normals[0].y;
-      x_in->z = x_surf->z - 2.0*h_min[i]*normals[0].z;
+      x_in->x = x_surf->x - h_min[i]*normals[0].x;
+      x_in->y = x_surf->y - h_min[i]*normals[0].y;
+      x_in->z = x_surf->z - h_min[i]*normals[0].z;
       ptr_array_append_with_dtor(boundary_points, x_in, DTOR(free));
     }
     else if (num_normals == 2)
@@ -95,15 +95,15 @@ void create_boundary_generators(ptr_array_t* surface_points,
       ASSERT(vector_dot(&normals[0], &normals[1]) < 0.0);
 
       point_t* x1 = malloc(sizeof(point_t));
-      x1->x = x_surf->x + 2.0*h_min[i]*normals[0].x;
-      x1->y = x_surf->y + 2.0*h_min[i]*normals[0].y;
-      x1->z = x_surf->z + 2.0*h_min[i]*normals[0].z;
+      x1->x = x_surf->x + h_min[i]*normals[0].x;
+      x1->y = x_surf->y + h_min[i]*normals[0].y;
+      x1->z = x_surf->z + h_min[i]*normals[0].z;
       ptr_array_append_with_dtor(boundary_points, x1, DTOR(free));
 
       point_t* x2 = malloc(sizeof(point_t));
-      x2->x = x_surf->x - 2.0*h_min[i]*normals[0].x;
-      x2->y = x_surf->y - 2.0*h_min[i]*normals[0].y;
-      x2->z = x_surf->z - 2.0*h_min[i]*normals[0].z;
+      x2->x = x_surf->x - h_min[i]*normals[0].x;
+      x2->y = x_surf->y - h_min[i]*normals[0].y;
+      x2->z = x_surf->z - h_min[i]*normals[0].z;
       ptr_array_append_with_dtor(boundary_points, x2, DTOR(free));
     }
 
