@@ -605,10 +605,8 @@ int read_meshvoro_mesh(lua_State* lua)
   if ((num_args != 3) || !lua_isstring(lua, 1) || 
       !lua_isstring(lua, 2) || !lua_isstring(lua, 3))
   {
-    lua_pushstring(lua, "read_meshvoro_mesh: invalid arguments. Usage:\n"
-                        "mesh = read_meshvoro_mesh(cell_file, vertex_file, neighbor_file)");
-    lua_error(lua);
-    return LUA_ERRRUN;
+    return luaL_error(lua, "read_meshvoro_mesh: invalid arguments. Usage:\n"
+                      "mesh = read_meshvoro_mesh(cell_file, vertex_file, neighbor_file)");
   }
 
   // Get the argument(s).

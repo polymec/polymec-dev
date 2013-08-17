@@ -253,10 +253,8 @@ int write_tough_mesh(lua_State* lua)
   int num_args = lua_gettop(lua);
   if ((num_args != 1) || !lua_istable(lua, 1))
   {
-    lua_pushstring(lua, "write_tough_mesh: invalid arguments. Usage:\n"
-                        "write_tough_mesh{filename [= 'MESH'], format [= 'T2'/'T+'], mesh [= mesh], inactive_tag [= 'inactive'], elem_name_len [= 5]}).");
-    lua_error(lua);
-    return LUA_ERRRUN;
+    return luaL_error(lua, "write_tough_mesh: invalid arguments. Usage:\n"
+                      "write_tough_mesh{filename [= 'MESH'], format [= 'T2'/'T+'], mesh [= mesh], inactive_tag [= 'inactive'], elem_name_len [= 5]}).");
   }
 
   // Get the argument(s).
@@ -266,9 +264,7 @@ int write_tough_mesh(lua_State* lua)
     mesh = lua_tomesh(lua, 2);
   else
   {
-    lua_pushstring(lua, "write_tough_mesh: mesh argument is required!");
-    lua_error(lua);
-    return LUA_ERRRUN;
+    return luaL_error(lua, "write_tough_mesh: mesh argument is required!");
   }
   lua_pop(lua, 1);
 
@@ -296,11 +292,7 @@ int write_tough_mesh(lua_State* lua)
     elem_name_len = (int)lua_tonumber(lua, 2);
   lua_pop(lua, 1);
   if (!lua_isnoneornil(lua, 2) && ((elem_name_len != 5) && (elem_name_len != 8)))
-  {
-    lua_pushstring(lua, "write_tough_mesh: elem_name_len must be 5 or 8.");
-    lua_error(lua);
-    return LUA_ERRRUN;
-  }
+    return luaL_error(lua, "write_tough_mesh: elem_name_len must be 5 or 8.");
 
   // Provide defaults.
   if (filename == NULL)
@@ -310,13 +302,7 @@ int write_tough_mesh(lua_State* lua)
 
   // Check our arguments.
   if ((strcasecmp(format, "t2") != 0) && (strcasecmp(format, "t+") != 0))
-  {
-    char err[128];
-    snprintf(err, 128, "write_tough_mesh: unrecognized format: '%s'", format);
-    lua_pushstring(lua, err);
-    lua_error(lua);
-    return LUA_ERRRUN;
-  }
+    return luaL_error(lua, "write_tough_mesh: unrecognized format: '%s'", format);
 
   // Pop all the arguments off the stack.
   lua_pop(lua, lua_gettop(lua));

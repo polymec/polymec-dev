@@ -13,20 +13,15 @@ static int sphere(lua_State* lua)
   int num_args = lua_gettop(lua);
   if ((num_args != 2) || !lua_ispoint(lua, 1) || !lua_isnumber(lua, 2))
   {
-    lua_pushstring(lua, "Invalid argument(s). Usage:\n"
-                        "F = sphere(x, r)");
-    lua_error(lua);
-    return LUA_ERRRUN;
+    return luaL_error(lua, "Invalid argument(s). Usage:\n"
+                      "F = sphere(x, r)");
   }
 
   // Get the arguments.
   point_t* x = lua_topoint(lua, 1);
   double r = (double)lua_tonumber(lua, 2);
   if (r <= 0.0)
-  {
-    lua_pushstring(lua, "Sphere radius must be positive.");
-    lua_error(lua);
-  }
+    return luaL_error(lua, "Sphere radius must be positive.");
 
   sp_func_t* s = sphere_new(x, r, INWARD_NORMAL);
   lua_pushscalarfunction(lua, st_func_from_sp_func(s));
@@ -39,10 +34,8 @@ static int rect_prism(lua_State* lua)
   int num_args = lua_gettop(lua);
   if ((num_args != 1) || !lua_isboundingbox(lua, 1))
   {
-    lua_pushstring(lua, "Invalid argument(s). Usage:\n"
-                        "F = rect_prism(bbox)");
-    lua_error(lua);
-    return LUA_ERRRUN;
+    return luaL_error(lua, "Invalid argument(s). Usage:\n"
+                      "F = rect_prism(bbox)");
   }
 
   // Get the arguments.

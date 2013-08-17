@@ -18,9 +18,7 @@ static int point(lua_State* lua)
   if ((num_args != 3) || 
       !lua_isnumber(lua, 1) || !lua_isnumber(lua, 2) || !lua_isnumber(lua, 3))
   {
-    lua_pushstring(lua, "Arguments must be x, y, z coordinates.");
-    lua_error(lua);
-    return LUA_ERRRUN;
+    return luaL_error(lua, "Arguments must be x, y, z coordinates.");
   }
 
   double x = lua_tonumber(lua, 1);
@@ -39,9 +37,7 @@ static int vector(lua_State* lua)
   if ((num_args != 3) || 
       !lua_isnumber(lua, 1) || !lua_isnumber(lua, 2) || !lua_isnumber(lua, 3))
   {
-    lua_pushstring(lua, "Arguments must be x, y, z components.");
-    lua_error(lua);
-    return LUA_ERRRUN;
+    return luaL_error(lua, "Arguments must be x, y, z components.");
   }
 
   double x = lua_tonumber(lua, 1);
@@ -60,11 +56,7 @@ static int bounding_box(lua_State* lua)
   if (num_args != 1)
   {
     if (!lua_istable(lua, 1))
-    {
-      lua_pushstring(lua, "Argument must be a table containing x1, x2, y1, y2, z1, z2 values.");
-      lua_error(lua);
-      return LUA_ERRRUN;
-    }
+      return luaL_error(lua, "Argument must be a table containing x1, x2, y1, y2, z1, z2 values.");
   }
 
   // Look for x1, x2, y1, y2, z1, z2 in the table.
@@ -76,12 +68,8 @@ static int bounding_box(lua_State* lua)
     lua_gettable(lua, 1); // Reads name from top, replaces with bounds[name].
     if (!lua_isnumber(lua, -1))
     {
-      char err[1024];
-      snprintf(err, 1024, "Invalid entry for '%s'.\n"
-               "x1, x2, y1, y2, z1, z2, must all be numbers.", entries[i]);
-      lua_pushstring(lua, err);
-      lua_error(lua);
-      return LUA_ERRRUN;
+      return luaL_error(lua, "Invalid entry for '%s'.\n"
+                        "x1, x2, y1, y2, z1, z2, must all be numbers.", entries[i]);
     }
     switch(i)
     {
@@ -115,30 +103,18 @@ static int constant_function(lua_State* lua)
   if (num_args == 1) // Scalar-valued constant.
   {
     if (!lua_isnumber(lua, 1))
-    {
-      lua_pushstring(lua, "Argument must be a number.");
-      lua_error(lua);
-      return LUA_ERRRUN;
-    }
+      return luaL_error(lua, "Argument must be a number.");
   }
   else if (num_args == 3) // Vector-valued constant.
   {
     for (int i = 0; i < 3; ++i)
     {
       if (!lua_isnumber(lua, i+1))
-      {
-        lua_pushfstring(lua, "Argument %d must be a number.", i);
-        lua_error(lua);
-        return LUA_ERRRUN;
-      }
+        return luaL_error(lua, "Argument %d must be a number.", i);
     }
   }
   else
-  {
-    lua_pushstring(lua, "Argument must be a 1 or 3 numbers.");
-    lua_error(lua);
-    return LUA_ERRRUN;
-  }
+    return luaL_error(lua, "Argument must be a 1 or 3 numbers.");
 
   // Get the arguments.
   double args[3];
@@ -160,19 +136,12 @@ static int vector_function(lua_State* lua)
   // Check the argument.
   int num_args = lua_gettop(lua);
   if (num_args != 3)
-  {
-    lua_pushstring(lua, "Arguments must be 3 scalar functions.");
-    lua_error(lua);
-    return LUA_ERRRUN;
-  }
+    return luaL_error(lua, "Arguments must be 3 scalar functions.");
+
   for (int i = 1; i <= 3; ++i)
   {
     if (!lua_isscalarfunction(lua, i))
-    {
-      lua_pushfstring(lua, "Argument %d must be a scalar function.", i);
-      lua_error(lua);
-      return LUA_ERRRUN;
-    }
+      return luaL_error(lua, "Argument %d must be a scalar function.", i);
   }
 
   st_func_t* functions[3];
@@ -188,19 +157,12 @@ static int periodic_bc(lua_State* lua)
   // Check the argument.
   int num_args = lua_gettop(lua);
   if (num_args != 2)
-  {
-    lua_pushstring(lua, "Arguments must be 2 boundary mesh (face) tags.");
-    lua_error(lua);
-    return LUA_ERRRUN;
-  }
+    return luaL_error(lua, "Arguments must be 2 boundary mesh (face) tags.");
+
   for (int i = 1; i <= 3; ++i)
   {
     if (!lua_isstring(lua, i))
-    {
-      lua_pushfstring(lua, "Argument %d must be a face tag.", i);
-      lua_error(lua);
-      return LUA_ERRRUN;
-    }
+      return luaL_error(lua, "Argument %d must be a face tag.", i);
   }
 
   const char* tag1 = lua_tostring(lua, 1);
@@ -216,37 +178,23 @@ static int grad(lua_State* lua)
   // Check the argument.
   int num_args = lua_gettop(lua);
   if ((num_args != 3) && (num_args != 2))
-  {
-    lua_pushstring(lua, "grad: Invalid number of arguments. Must be 2 or 3.");
-    lua_error(lua);
-    return LUA_ERRRUN;
-  }
+    return luaL_error(lua, "grad: Invalid number of arguments. Must be 2 or 3.");
   
   if ((num_args == 2) && (!lua_isscalarfunction(lua, 1) || 
       (!lua_ispoint(lua, 2) && !lua_ispointlist(lua, 2))))
   {
-    lua_pushstring(lua, "grad: Arguments must be (F, x).");
-    lua_error(lua);
-    return LUA_ERRRUN;
+    return luaL_error(lua, "grad: Arguments must be (F, x).");
   }
   else if ((num_args == 3) && (!lua_isscalarfunction(lua, 1) || 
       (!lua_ispoint(lua, 2) && !lua_ispointlist(lua, 2)) ||
       !lua_isnumber(lua, 3)))
   {
-    lua_pushstring(lua, "grad: Arguments must be (F, x, t).");
-    lua_error(lua);
-    return LUA_ERRRUN;
+    return luaL_error(lua, "grad: Arguments must be (F, x, t).");
   }
 
   st_func_t* f = lua_toscalarfunction(lua, 1);
   if (!st_func_has_deriv(f, 1))
-  {
-    char err[1024];
-    snprintf(err, 1024, "grad: Scalar function '%s' has no derivative.", st_func_name(f));
-    lua_pushstring(lua, err);
-    lua_error(lua);
-    return LUA_ERRRUN;
-  }
+    return luaL_error("grad: Scalar function '%s' has no derivative.", st_func_name(f));
 
   double t = 0.0;
   if (num_args == 3)

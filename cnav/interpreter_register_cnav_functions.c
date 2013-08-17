@@ -11,11 +11,7 @@ static int dirichlet_bc(lua_State* lua)
   // Check the argument.
   int num_args = lua_gettop(lua);
   if ((num_args != 1) || (!lua_isscalarfunction(lua, 1) && !lua_isnumber(lua, 1)))
-  {
-    lua_pushstring(lua, "Invalid arguments. Usage:\nbc = dirichlet_bc(F)\nwhere F is a number or function.");
-    lua_error(lua);
-    return LUA_ERRRUN;
-  }
+    return luaL_error(lua, "Invalid arguments. Usage:\nbc = dirichlet_bc(F)\nwhere F is a number or function.");
 
   // Get the argument. 
   st_func_t* F;
@@ -40,11 +36,7 @@ static int neumann_bc(lua_State* lua)
   // Check the argument.
   int num_args = lua_gettop(lua);
   if ((num_args != 1) || (!lua_isscalarfunction(lua, 1) && !lua_isnumber(lua, 1)))
-  {
-    lua_pushstring(lua, "Invalid arguments. Usage:\nbc = neumann_bc(F)\nwhere F is a number or function.");
-    lua_error(lua);
-    return LUA_ERRRUN;
-  }
+    return luaL_error(lua, "Invalid arguments. Usage:\nbc = neumann_bc(F)\nwhere F is a number or function.");
 
   // Get the argument. 
   st_func_t* F;
@@ -73,9 +65,7 @@ static int robin_bc(lua_State* lua)
       !lua_isnumber(lua, 2) ||
       (!lua_isscalarfunction(lua, 3) && !lua_isnumber(lua, 3)))
   {
-    lua_pushstring(lua, "Invalid arguments. Usage:\nbc = robin_bc(alpha, beta, F)\nwhere F is a number or function.");
-    lua_error(lua);
-    return LUA_ERRRUN;
+    return luaL_error(lua, "Invalid arguments. Usage:\nbc = robin_bc(alpha, beta, F)\nwhere F is a number or function.");
   }
 
   // Get the arguments. 

@@ -21,10 +21,8 @@ int point_factory_cubic_lattice(lua_State* lua)
   int num_args = lua_gettop(lua);
   if ((num_args != 1) || (!lua_istable(lua, 1)))
   {
-    lua_pushstring(lua, "Invalid arguments. Usage:\n"
-                  "points = point_factory.cubic_lattice{nx, ny, nz, num_ghost, bounding_box}");
-    lua_error(lua);
-    return LUA_ERRRUN;
+    return luaL_error(lua, "Invalid arguments. Usage:\n"
+                      "points = point_factory.cubic_lattice{nx, ny, nz, num_ghost, bounding_box}");
   }
 
   // Extract arguments.
@@ -38,13 +36,8 @@ int point_factory_cubic_lattice(lua_State* lua)
     if (i < 4)
     {
       if (!lua_isnumber(lua, -1))
-      {
-        char err[1024];
-        snprintf(err, 1024, "Missing integer argument: %s", entries[i]);
-        lua_pushstring(lua, err);
-        lua_error(lua);
-        return LUA_ERRRUN;
-      }
+        return luaL_error(lua, "Missing integer argument: %s", entries[i]);
+
       switch(i) 
       {
         case 0: nx = (int)lua_tonumber(lua, -1); break;
@@ -57,46 +50,27 @@ int point_factory_cubic_lattice(lua_State* lua)
     else 
     {
       if (!lua_isboundingbox(lua, -1))
-      {
-        lua_pushstring(lua, "bounding_box must be a bounding box.");
-        lua_error(lua);
-        return LUA_ERRRUN;
-      }
+        return luaL_error(lua, "bounding_box must be a bounding box.");
+
       bbox = lua_toboundingbox(lua, -1);
     }
   }
 
   // Validate arguments.
   if ((nx <= 0) || (ny <= 0) || (nz <= 0))
-  {
-    lua_pushstring(lua, "nx, ny, and nz must all be positive.");
-    lua_error(lua);
-    return LUA_ERRRUN;
-  }
+    return luaL_error(lua, "nx, ny, and nz must all be positive.");
+
   if (ng < 0)
-  {
-    lua_pushstring(lua, "ng must be non-negative.");
-    lua_error(lua);
-    return LUA_ERRRUN;
-  }
+    return luaL_error(lua, "ng must be non-negative.");
+
   if (bbox->x1 >= bbox->x2)
-  {
-    lua_pushstring(lua, "In bounding_box: x1 must be less than x2.");
-    lua_error(lua);
-    return LUA_ERRRUN;
-  }
+    return luaL_error(lua, "In bounding_box: x1 must be less than x2.");
+
   if (bbox->y1 >= bbox->y2)
-  {
-    lua_pushstring(lua, "In bounding_box: y1 must be less than y2.");
-    lua_error(lua);
-    return LUA_ERRRUN;
-  }
+    return luaL_error(lua, "In bounding_box: y1 must be less than y2.");
+
   if (bbox->z1 >= bbox->z2)
-  {
-    lua_pushstring(lua, "In bounding_box: z1 must be less than z2.");
-    lua_error(lua);
-    return LUA_ERRRUN;
-  }
+    return luaL_error(lua, "In bounding_box: z1 must be less than z2.");
 
   // Pop all the previous arguments off the stack.
   lua_pop(lua, lua_gettop(lua));
@@ -134,10 +108,8 @@ int point_factory_cylinder(lua_State* lua)
   int num_args = lua_gettop(lua);
   if ((num_args != 1) || (!lua_istable(lua, 1)))
   {
-    lua_pushstring(lua, "Invalid arguments. Usage:\n"
-                  "points = point_factory.cylinder{nr, ntheta, nz, num_ghost, radius, axial_point, axial_vector}");
-    lua_error(lua);
-    return LUA_ERRRUN;
+    return luaL_error(lua, "Invalid arguments. Usage:\n"
+                      "points = point_factory.cylinder{nr, ntheta, nz, num_ghost, radius, axial_point, axial_vector}");
   }
 
   // Extract arguments.
@@ -154,13 +126,8 @@ int point_factory_cylinder(lua_State* lua)
     if (i < 4)
     {
       if (!lua_isnumber(lua, -1))
-      {
-        char err[1024];
-        snprintf(err, 1024, "Missing integer argument: %s", entries[i]);
-        lua_pushstring(lua, err);
-        lua_error(lua);
-        return LUA_ERRRUN;
-      }
+        return luaL_error(lua, "Missing integer argument: %s", entries[i]);
+
       switch(i) 
       {
         case 0: nr = (int)lua_tonumber(lua, -1); break;
@@ -173,61 +140,39 @@ int point_factory_cylinder(lua_State* lua)
     else if (i == 4)
     {
       if (!lua_isnumber(lua, -1))
-      {
-        lua_pushstring(lua, "radius must be a positive number.");
-        lua_error(lua);
-        return LUA_ERRRUN;
-      }
+        return luaL_error(lua, "radius must be a positive number.");
+
       r = lua_tonumber(lua, -1);
     }
     else if (i == 5)
     {
       if (!lua_ispoint(lua, -1))
-      {
-        lua_pushstring(lua, "axial_point must be a point.");
-        lua_error(lua);
-        return LUA_ERRRUN;
-      }
+        return luaL_error(lua, "axial_point must be a point.");
+
       x0 = lua_topoint(lua, -1);
     }
     else // (i == 6)
     {
       if (!lua_isvector(lua, -1))
-      {
-        lua_pushstring(lua, "axial_vector must be a vector.");
-        lua_error(lua);
-        return LUA_ERRRUN;
-      }
+        return luaL_error(lua, "axial_vector must be a vector.");
+
       Z = lua_tovector(lua, -1);
     }
   }
 
   // Validate inputs.
   if ((nr <= 0) || (ntheta <= 0) || (nz <= 0))
-  {
-    lua_pushstring(lua, "nr, ntheta, and nz must all be positive.");
-    lua_error(lua);
-    return LUA_ERRRUN;
-  }
+    return luaL_error(lua, "nr, ntheta, and nz must all be positive.");
+
   if (ng < 0)
-  {
-    lua_pushstring(lua, "num_ghost must be non-negative.");
-    lua_error(lua);
-    return LUA_ERRRUN;
-  }
+    return luaL_error(lua, "num_ghost must be non-negative.");
+
   if (r <= 0)
-  {
-    lua_pushstring(lua, "radius must be positive.");
-    lua_error(lua);
-    return LUA_ERRRUN;
-  }
+    return luaL_error(lua, "radius must be positive.");
+
   double Zmag = vector_mag(Z);
   if (Zmag == 0)
-  {
-    lua_pushstring(lua, "axial_vector must not be the zero vector.");
-    lua_error(lua);
-    return LUA_ERRRUN;
-  }
+    return luaL_error(lua, "axial_vector must not be the zero vector.");
 
   // Pop all the previous arguments off the stack.
   lua_pop(lua, lua_gettop(lua));
@@ -547,10 +492,8 @@ int point_factory_import_from_cad(lua_State* lua)
   int num_args = lua_gettop(lua);
   if ((num_args != 1) || (!lua_isstring(lua, 1)))
   {
-    lua_pushstring(lua, "Invalid arguments. Usage:\n"
-                  "points, normals = point_factory.import_from_cad(cad_file_name)");
-    lua_error(lua);
-    return LUA_ERRRUN;
+    return luaL_error(lua, "Invalid arguments. Usage:\n"
+                      "points, normals = point_factory.import_from_cad(cad_file_name)");
   }
   const char* cad_file_name = lua_tostring(lua, 1);
 
@@ -560,11 +503,7 @@ int point_factory_import_from_cad(lua_State* lua)
   while ((next = strstr(&suffix[1], ".")) != NULL)
     suffix = next;
   if (suffix == NULL)
-  {
-    lua_pushstring(lua, "Argument must be a filename ending in a suffix that indicates its CAD format.");
-    lua_error(lua);
-    return LUA_ERRRUN;
-  }
+    return luaL_error(lua, "Argument must be a filename ending in a suffix that indicates its CAD format.");
 
   // Make sure the suffix indicates a supported format.
   static const char* supported_suffixes[] = {".stl", NULL};
@@ -572,24 +511,12 @@ int point_factory_import_from_cad(lua_State* lua)
   while ((supported_suffixes[i] != NULL) && strcasecmp(suffix, supported_suffixes[i]))
     ++i;
   if (supported_suffixes[i] == NULL)
-  {
-    char err[1024];
-    snprintf(err, 1024, "Unsupported file format: %s", suffix);
-    lua_pushstring(lua, err);
-    lua_error(lua);
-    return LUA_ERRRUN;
-  }
+    return luaL_error(lua, "Unsupported file format: %s", suffix);
   
   // Check for the existence of the CAD file on disk.
   FILE* cad_file = fopen(cad_file_name, "r");
   if (cad_file == NULL)
-  {
-    char err[1024];
-    snprintf(err, 1024, "Could not open file '%s'", cad_file_name);
-    lua_pushstring(lua, err);
-    lua_error(lua);
-    return LUA_ERRRUN;
-  }
+    return luaL_error(lua, "Could not open file '%s'", cad_file_name);
   fclose(cad_file);
 
   // Read the data and generate the list of points.
@@ -601,13 +528,7 @@ int point_factory_import_from_cad(lua_State* lua)
     import_points_from_stl(cad_file_name, &num_points, &points, &normals, error_message);
 
   if (points == NULL)
-  {
-    char err[1024];
-    snprintf(err, 1024, "Error reading %s: %s", cad_file_name, error_message);
-    lua_pushstring(lua, err);
-    lua_error(lua);
-    return LUA_ERRRUN;
-  }
+    return luaL_error(lua, "Error reading %s: %s", cad_file_name, error_message);
 
   // Close up shop and return the points and normals as fields in a table.
   lua_createtable(lua, 0, 2);
@@ -623,29 +544,20 @@ int point_factory_random_points(lua_State* lua)
   // Check the arguments.
   int num_args = lua_gettop(lua);
   if ((num_args != 2) && (num_args != 3))
-  {
-    lua_pushstring(lua, "Invalid arguments. Usage:\npoints = random_points(N, bounding_box) OR\npoints = random_points(N, density, bounding_box)");
-    lua_error(lua);
-    return LUA_ERRRUN;
-  }
+    return luaL_error(lua, "Invalid arguments. Usage:\npoints = random_points(N, bounding_box) OR\npoints = random_points(N, density, bounding_box)");
+
   // Get the arguments.
   int N = (int)lua_tonumber(lua, 1);
   if (N <= 0)
-  {
-    lua_pushstring(lua, "Invalid (nonpositive) number of points.");
-    lua_error(lua);
-    return LUA_ERRRUN;
-  }
+    return luaL_error(lua, "Invalid (nonpositive) number of points.");
+
   sp_func_t* density = NULL;
   bbox_t* bbox = NULL;
   if (num_args == 2)
   {
     if (!lua_isboundingbox(lua, 2))
-    {
-      lua_pushstring(lua, "Second argument must be a bounding box.");
-      lua_error(lua);
-      return LUA_ERRRUN;
-    }
+      return luaL_error(lua, "Second argument must be a bounding box.");
+
     bbox = lua_toboundingbox(lua, 2);
     ASSERT(bbox != NULL);
     double one = 1.0;
@@ -654,19 +566,13 @@ int point_factory_random_points(lua_State* lua)
   else
   {
     if (!lua_isscalarfunction(lua, 2))
-    {
-      lua_pushstring(lua, "Second argument must be a scalar function.");
-      lua_error(lua);
-      return LUA_ERRRUN;
-    }
+      return luaL_error(lua, "Second argument must be a scalar function.");
+
     st_func_t* density_t = lua_toscalarfunction(lua, 2);
     density = st_func_freeze(density_t, 0.0);
     if (!lua_isboundingbox(lua, 3))
-    {
-      lua_pushstring(lua, "Third argument must be a bounding box.");
-      lua_error(lua);
-      return LUA_ERRRUN;
-    }
+      return luaL_error(lua, "Third argument must be a bounding box.");
+
     bbox = lua_toboundingbox(lua, 3);
   }
 
@@ -684,10 +590,8 @@ int point_factory_ccp_points(lua_State* lua)
   int num_args = lua_gettop(lua);
   if (num_args != 4)
   {
-    lua_pushstring(lua, "Invalid arguments. Usage:\n"
-                        "points = ccp_points(Nx, Ny, Nz, bounding_box)");
-    lua_error(lua);
-    return LUA_ERRRUN;
+    return luaL_error(lua, "Invalid arguments. Usage:\n"
+                      "points = ccp_points(Nx, Ny, Nz, bounding_box)");
   }
 
   // Get the arguments.
@@ -695,17 +599,11 @@ int point_factory_ccp_points(lua_State* lua)
   int Ny = (int)lua_tonumber(lua, 2);
   int Nz = (int)lua_tonumber(lua, 3);
   if ((Nx <= 0) || (Ny <= 0) || (Nz <= 0))
-  {
-    lua_pushstring(lua, "Nx, Ny, and Nz must all be positive.");
-    lua_error(lua);
-    return LUA_ERRRUN;
-  }
+    return luaL_error(lua, "Nx, Ny, and Nz must all be positive.");
+
   if (!lua_isboundingbox(lua, 4))
-  {
-    lua_pushstring(lua, "Fourth argument must be a bounding box.");
-    lua_error(lua);
-    return LUA_ERRRUN;
-  }
+    return luaL_error(lua, "Fourth argument must be a bounding box.");
+
   bbox_t* bbox = lua_toboundingbox(lua, 4);
 
   // Create the point list.

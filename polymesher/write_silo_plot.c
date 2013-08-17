@@ -24,11 +24,9 @@ int write_silo_plot(lua_State* lua)
       ((num_args == 3) && (!lua_ismesh(lua, 1) || !lua_istable(lua, 2) || !lua_isstring(lua, 3))) || 
       ((num_args != 2) && (num_args != 3)))
   {
-    lua_pushstring(lua, "write_silo_plot: invalid arguments. Usage:\n"
-                        "write_silo_plot(mesh, filename) OR\n"
-                        "write_silo_plot(mesh, fields, filename)");
-    lua_error(lua);
-    return LUA_ERRRUN;
+    return luaL_error(lua, "write_silo_plot: invalid arguments. Usage:\n"
+                      "write_silo_plot(mesh, filename) OR\n"
+                      "write_silo_plot(mesh, fields, filename)");
   }
 
   // Get the argument(s).

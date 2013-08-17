@@ -18,10 +18,8 @@ int mesh_nodes(lua_State* lua)
   int num_args = lua_gettop(lua);
   if ((num_args != 1) || !lua_ismesh(lua, 1))
   {
-    lua_pushstring(lua, "mesh_nodes: invalid arguments. Usage:\n"
-                        "nodes = mesh_nodes(mesh)");
-    lua_error(lua);
-    return LUA_ERRRUN;
+    return luaL_error(lua, "mesh_nodes: invalid arguments. Usage:\n"
+                      "nodes = mesh_nodes(mesh)");
   }
 
   // Get the argument(s).
