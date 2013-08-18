@@ -37,8 +37,7 @@ def add_license(source_file):
     lines = f.readlines()
     f.close()
     first_line = lines[0]
-    print first_line
-    f = open('/tmp/' + source_file, 'w')
+    f = open(source_file, 'w')
     license_lines = license_text.split('\n')
     for line in license_lines:
         f.write('// ' + line + '\n')

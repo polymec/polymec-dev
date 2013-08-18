@@ -75,6 +75,9 @@ distclean:
 stats: 
 	@python tools/gather_stats.py
 
+prepend-license: 
+	@python tools/prepend_license.py
+
 #dist:
 #	utils/mkdist.sh $(PKGNAME)
 
