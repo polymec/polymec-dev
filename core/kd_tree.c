@@ -244,10 +244,94 @@ int kd_tree_nearest(kd_tree_t* tree, point_t* point)
   return node->index;
 }
 
+static void find_nearest_n(kd_tree_node_t* node, 
+                           double* pos, 
+                           int n, 
+                           int* neighbors, 
+                           double* square_distances, 
+                           kd_tree_rect_t* rect)
+{
+  // Go left or right?
+  int dir = node->dir;
+  double which = pos[dir] - node->pos[dir];
+  kd_tree_node_t *near_subtree, *far_subtree;
+  double *near_coord, *far_coord;
+  if (which <= 0.0)
+  {
+    near_subtree = node->left;
+    far_subtree = node->right;
+    near_coord = rect->max + dir;
+    far_coord = rect->min + dir;
+  }
+  else
+  {
+    near_subtree = node->right;
+    far_subtree = node->left;
+    near_coord = rect->min + dir;
+    far_coord = rect->max + dir;
+  }
+
+  if (near_subtree != NULL)
+  {
+    // Bisect and recurse.
+    double coord = *near_coord;
+    *near_coord = node->pos[dir];
+    find_nearest_n(near_subtree, pos, n, neighbors, square_distances, rect);
+    *near_coord = coord;
+  }
+
+  // Distance from point to current node.
+  double my_r2 = SQ_DIST(node->pos, pos);
+  if (my_r2 < square_distances[n-1])
+  {
+    int i = n;
+    while (my_r2 < square_distances[i]) --i;
+    for (int j = i; j < n-1; ++j)
+    {
+      neighbors[j+1] = neighbors[j];
+      square_distances[j+1] = square_distances[j];
+    }
+    neighbors[i] = node->index;
+    square_distances[i] = my_r2;
+  }
+
+  if (far_subtree != NULL)
+  {
+    // Bisect and recurse (if needed).
+    double coord = *far_coord;
+    *far_coord = node->pos[dir];
+    if (rect_square_dist(rect, pos) < square_distances[n-1])
+      find_nearest_n(far_subtree, pos, n, neighbors, square_distances, rect);
+    *far_coord = coord;
+  }
+}
+
 void kd_tree_nearest_n(kd_tree_t* tree, point_t* point, int n, int* neighbors)
 {
   ASSERT(n > 0);
-  polymec_not_implemented("kd_tree_nearest_n");
+  ASSERT(neighbors != NULL);
+  for (int i = 0; i < n; ++i)
+    neighbors[n] = -1;
+
+  if (tree->root == NULL)
+    return;
+
+  double square_distances[n];
+  for (int i = 0; i < n; ++i)
+    square_distances[i] = FLT_MAX;
+
+  // Start with the root.
+  kd_tree_node_t* node = tree->root;
+  double pos[3];
+  pos[0] = point->x, pos[1] = point->y, pos[2] = point->z;
+  square_distances[0] = SQ_DIST(pos, node->pos);
+  kd_tree_rect_t rect;
+  rect.min[0] = tree->rect->min[0]; rect.max[0] = tree->rect->max[0];
+  rect.min[1] = tree->rect->min[1]; rect.max[1] = tree->rect->max[1];
+  rect.min[2] = tree->rect->min[2]; rect.max[2] = tree->rect->max[2];
+  
+  // Search recursively for the closest nodes.
+  find_nearest_n(tree->root, pos, n, neighbors, square_distances, &rect);
 }
 
 static void find_within_radius(kd_tree_node_t* node, 
