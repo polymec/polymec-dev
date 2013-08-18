@@ -14,7 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "core/hypre_helpers.h"
+//#include "core/hypre_helpers.h"
 #include "integrators/elliptic_solver.h"
 
 struct elliptic_solver_t
@@ -22,10 +22,13 @@ struct elliptic_solver_t
   char* name;
 
   // Linear system and solver.
+  void *A, *x, *b, *solver, *pc;
+#if 0
   HYPRE_IJMatrix A;
   HYPRE_IJVector x, b;
   HYPRE_Solver solver;
 //  HYPRE_Solver pc; // Preconditioner
+#endif
 
   bool matrix_created;
 
@@ -39,6 +42,7 @@ struct elliptic_solver_t
 
 static void initialize(elliptic_solver_t* solver)
 {
+#if 0
   solver->A = HYPRE_IJMatrixNew(solver->index_space);
   solver->x = HYPRE_IJVectorNew(solver->index_space);
   solver->b = HYPRE_IJVectorNew(solver->index_space);
@@ -53,6 +57,7 @@ static void initialize(elliptic_solver_t* solver)
 //                        (HYPRE_PtrToSolverFcn)HYPRE_ParaSailsSolve,
 //                        (HYPRE_PtrToSolverFcn)HYPRE_ParaSailsSetup,
 //                        solver->pc);
+#endif
 }
 
 elliptic_solver_t* elliptic_solver_new(const char* name, 
@@ -86,12 +91,14 @@ elliptic_solver_t* elliptic_solver_new(const char* name,
 
 void elliptic_solver_free(elliptic_solver_t* solver)
 {
+#if 0
 //  if (solver->pc != NULL)
 //    HYPRE_ParaSailsDestroy(solver->pc);
   HYPRE_ParCSRHybridDestroy(solver->solver);
   HYPRE_IJMatrixDestroy(solver->A);
   HYPRE_IJVectorDestroy(solver->x);
   HYPRE_IJVectorDestroy(solver->b);
+#endif
 
   if ((solver->context != NULL) && (solver->vtable.dtor != NULL))
     solver->vtable.dtor(solver->context);
@@ -110,10 +117,7 @@ void* elliptic_solver_context(elliptic_solver_t* solver)
   return solver->context;
 }
 
-static inline void copy_table_to_matrix(index_space_t* is, double_table_t* table, HYPRE_IJMatrix matrix)
-{
-}
-
+#if 0
 static inline void copy_vector_to_array(index_space_t* is, HYPRE_IJVector vector, double* array)
 {
   int N = is->high - is->low;
@@ -122,6 +126,7 @@ static inline void copy_vector_to_array(index_space_t* is, HYPRE_IJVector vector
     indices[i] = is->low + i;
   HYPRE_IJVectorGetValues(vector, N, indices, array);
 }
+#endif
 
 static inline void compute_op_matrix(elliptic_solver_t* solver, double_table_t* A, double t)
 {
@@ -138,6 +143,7 @@ static inline void apply_bcs(elliptic_solver_t* solver, double_table_t* A, doubl
   solver->vtable.apply_bcs(solver->context, A, b, t);
 }
 
+#if 0
 static inline void solve(elliptic_solver_t* solver, HYPRE_IJMatrix A, HYPRE_IJVector b, HYPRE_IJVector x)
 {
 //HYPRE_IJMatrixPrint(solver->A, "A.txt");
@@ -161,6 +167,7 @@ static inline void solve(elliptic_solver_t* solver, HYPRE_IJMatrix A, HYPRE_IJVe
 
   HYPRE_ClearAllErrors();
 }
+#endif
 
 void elliptic_solver_solve(elliptic_solver_t* solver,
                            double t, double* solution)
@@ -178,6 +185,7 @@ void elliptic_solver_solve(elliptic_solver_t* solver,
   // Apply boundary conditions to the system.
   apply_bcs(solver, A, b, t);
 
+#if 0
   // Set up the linear system.
   if (!solver->matrix_created)
   {
@@ -192,6 +200,7 @@ void elliptic_solver_solve(elliptic_solver_t* solver,
 
   // Copy the solution to sol2.
   copy_vector_to_array(solver->index_space, solver->x, solution);
+#endif
 
   // Clean up.
   double_table_free(A);

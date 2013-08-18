@@ -26,13 +26,7 @@
 #include <stddef.h>
 #include <float.h>
 
-// Handle MPI (or its absence).
-#if USE_MPI
 #include <mpi.h>
-#else
-#include "HYPRE_utilities.h"
-#include "_hypre_utilities.h"
-#endif
 
 #include "core/loggers.h"
 #include "core/arch.h"

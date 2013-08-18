@@ -6,8 +6,8 @@ add_library(polymec_core polymec.c arch.c point.c mesh.c
             sp_func.c st_func.c constant_st_func.c dl_st_func.c 
             lagrange_poly.c cell_nsearch.c lin_op.c least_squares.c 
             sparse_lin_solver.c mf_krylov_sparse_lin_solvers.c
-            index_space.c hypre_helpers.c newton.c options.c 
-            interpreter.c interpreter_register_default_functions.c
+            index_space.c newton.c options.c interpreter.c 
+            interpreter_register_default_functions.c
             string_utils.c io.c linear_algebra.c loggers.c)
 set(POLYMEC_LIBS polymec_core;${POLYMEC_LIBS} PARENT_SCOPE)
 set(POLYMEC_LIBS polymec_core;${POLYMEC_LIBS})

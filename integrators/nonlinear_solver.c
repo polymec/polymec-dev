@@ -15,8 +15,9 @@
 // limitations under the License.
 
 #include <float.h>
+#include "core/index_space.h"
 #include "integrators/nonlinear_solver.h"
-#include "core/hypre_helpers.h"
+//#include "core/hypre_helpers.h"
 
 struct nonlinear_function_t 
 {
@@ -53,12 +54,14 @@ struct nonlinear_solver_t
   int** columns;
 
   int num_sites;
-
   // Linear system and solver.
+  void *A, *x, *b, *precond;
+#if 0
   HYPRE_IJMatrix A;
   HYPRE_IJVector x, b;
   HYPRE_Solver solver;
   HYPRE_Solver precond;
+#endif
 
   // Flag is set to true if the linear system above is initialized.
   bool initialized;
@@ -330,6 +333,7 @@ nonlinear_solver_t* nonlinear_solver_new(nonlinear_function_t* F,
 
 void nonlinear_solver_free(nonlinear_solver_t* solver)
 {
+#if 0
   if (solver->initialized)
   {
     HYPRE_ParCSRBiCGSTABDestroy(solver->solver);
@@ -340,6 +344,7 @@ void nonlinear_solver_free(nonlinear_solver_t* solver)
     HYPRE_IJVectorDestroy(solver->b);
     double_table_free(solver->Jij);
   }
+#endif
 
   int num_colors = adj_graph_coloring_num_colors(solver->coloring);
   for (int color = 0; color < num_colors; ++color)
@@ -532,6 +537,7 @@ static void initialize(nonlinear_solver_t* solver)
 {
   if (!solver->initialized)
   {
+#if 0
     solver->A = HYPRE_IJMatrixNew(solver->index_space);
     solver->x = HYPRE_IJVectorNew(solver->index_space);
     solver->b = HYPRE_IJVectorNew(solver->index_space);
@@ -554,12 +560,14 @@ static void initialize(nonlinear_solver_t* solver)
     // Uncomment this line to see the solver's narrative.
     HYPRE_ParCSRHybridSetPrintLevel(solver->solver, 1);
 #endif
+#endif
 
     solver->Jij = double_table_new();
     solver->initialized = true;
   }
 }
 
+#if 0
 static void solve_linearized_system(nonlinear_solver_t* solver, HYPRE_IJMatrix A, HYPRE_IJVector b, HYPRE_IJVector x)
 {
 HYPRE_IJMatrixPrint(solver->A, "A");
@@ -590,6 +598,7 @@ HYPRE_IJVectorPrint(solver->x, "x");
 
   HYPRE_ClearAllErrors();
 }
+#endif
 
 void nonlinear_solver_step(nonlinear_solver_t* solver,
                            double* t, double* x)
@@ -643,6 +652,7 @@ void nonlinear_solver_step(nonlinear_solver_t* solver,
         double_table_insert(backward_euler_J, i, j, -Jij);
     }
 
+#if 0
     // Set up the linear system.
     HYPRE_IJMatrixSetValuesFromTable(solver->A, solver->index_space, backward_euler_J);
     HYPRE_IJVectorSetValuesFromArray(solver->b, solver->index_space, solver->R);
@@ -653,6 +663,7 @@ void nonlinear_solver_step(nonlinear_solver_t* solver,
 
     // Copy the solution to dX.
     HYPRE_IJVectorGetValuesToArray(solver->x, solver->index_space, solver->deltaX);
+#endif
 
     // Add the increment to x.
     for (int i = 0; i < num_sites; ++i)
@@ -717,6 +728,7 @@ void nonlinear_solver_solve(nonlinear_solver_t* solver, double t, double* x)
     // Compute the components of the Jacobian.
     nonlinear_solver_compute_jacobian(solver, t, x, solver->Jij);
 
+#if 0
     // Set up the linear system.
     HYPRE_IJMatrixSetValuesFromTable(solver->A, solver->index_space, solver->Jij);
     HYPRE_IJVectorSetValuesFromArray(solver->b, solver->index_space, solver->R);
@@ -726,6 +738,7 @@ void nonlinear_solver_solve(nonlinear_solver_t* solver, double t, double* x)
 
     // Copy the solution to deltaX.
     HYPRE_IJVectorGetValuesToArray(solver->x, solver->index_space, solver->deltaX);
+#endif
 
     // Add the increment to x.
     for (int i = 0; i < num_sites; ++i)
