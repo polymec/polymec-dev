@@ -20,6 +20,8 @@
 #include <string.h>
 #include <stdlib.h>
 
+#ifdef APPLE
+
 typedef struct 
 {
   size_t pos;
@@ -227,4 +229,6 @@ FILE* open_memstream(char **buf, size_t *len)
   }
   return f;
 }
+
+#endif
 
