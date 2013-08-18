@@ -14,3 +14,8 @@ My areas of research in the development so far are:
     Additive Runge-Kutta (ARK) methods
 - Multi-species and multi-phase hydrodynamics with diffusion
 
+Polymec is licensed under the Apache License, Version 2.0, which is described
+in the LICENSE file. The 3rd-party libraries used by Polymec have their own 
+licenses which are described within the source archives in the 3rdparty 
+directory. No source files have been modified within these archives, and 
+instructions for obtaining the distributions are given within.
