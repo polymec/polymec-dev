@@ -142,27 +142,32 @@ add_library(silo STATIC IMPORTED)
 set_target_properties(silo PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/lib${SILOLIB}.a)
 set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};${SILOLIB})
 
-# Build CVODE, a C library for integrating stiff, nonlinear ODEs.
+# Build Sundials, a C library for integrating stiff, nonlinear ODEs and 
+# differential-algebraic equations.
 if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libsundials_cvode.a)
-  set(CVODE_CONFIG_OPTS --prefix=${PROJECT_BINARY_DIR} --enable-static --disable-shared --disable-fcmix --disable-cvodes --disable-ida --disable-idas --disable-kinsol --disable-cpodes)
+  set(SUNDIALS_CONFIG_OPTS --prefix=${PROJECT_BINARY_DIR} --enable-static --disable-shared --disable-fcmix)
   if (USE_MPI EQUAL 0)
-    set(CVODE_CONFIG_OPTS ${CVODE_CONFIG_OPTS} --disable-mpi)
+    set(SUNDIALS_CONFIG_OPTS ${SUNDIALS_CONFIG_OPTS} --disable-mpi)
   endif()
-  message("Unpacking CVODE...")
-  execute_process(COMMAND cmake -E tar xzvf ${CMAKE_CURRENT_SOURCE_DIR}/cvode-2.6.0.tar.gz
+  message("Unpacking sundials...")
+  execute_process(COMMAND cmake -E tar xzvf ${CMAKE_CURRENT_SOURCE_DIR}/sundials-2.4.0.tar.gz
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
                   OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
-  message("Configuring CVODE...")
-  execute_process(COMMAND env CC=${CC} ./configure ${CVODE_CONFIG_OPTS}
-                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/cvode-2.6.0
+  message("Configuring sundials...")
+  execute_process(COMMAND env CC=${CC} ./configure ${SUNDIALS_CONFIG_OPTS}
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/sundials-2.4.0
                   OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
-  message("Building CVODE...")
+  message("Building sundials...")
   execute_process(COMMAND make install -j4
-                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/cvode-2.6.0
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/sundials-2.4.0
                   OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
 endif()
-add_library(cvode STATIC IMPORTED)
-set_target_properties(cvode PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libsundials_cvode.a)
+add_library(sundials_cvode STATIC IMPORTED)
+set_target_properties(sundials_cvode PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libsundials_cvode.a)
+add_library(sundials_ida STATIC IMPORTED)
+set_target_properties(sundials_ida PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libsundials_ida.a)
+add_library(sundials_kinsol STATIC IMPORTED)
+set_target_properties(sundials_kinsol PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libsundials_kinsol.a)
 add_library(nvec STATIC IMPORTED)
 if (USE_MPI EQUAL 0)
   set (NVEC_LIB sundials_nvecserial)
@@ -171,7 +176,7 @@ else()
   set (NVEC_LIB sundials_nvecparallel)
   set_target_properties(nvec PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libsundials_nvecparallel.a)
 endif()
-set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};sundials_cvode;${NVEC_LIB})
+set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};sundials_cvode;sundials_ida;sundials_kinsol;${NVEC_LIB})
 
 # Build lua, a simple interpreted language library.
 if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/liblua.a)
