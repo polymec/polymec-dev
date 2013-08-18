@@ -80,29 +80,6 @@ file(GLOB arena_sources "${CMAKE_CURRENT_BINARY_DIR}/libarena-0.3.5/src/*.c")
 add_library(arena ${arena_sources})
 set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};arena)
 
-# Install HYPRE.
-if (NOT EXISTS ${CMAKE_BINARY_DIR}/lib/libHYPRE.a)
-  set(HYPRE_CONFIG_OPTS -DHYPRE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -DHYPRE_USING_FEI=OFF -DHYPRE_INSTALL_PREFIX=${PROJECT_BINARY_DIR} -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER} -DCMAKE_C_FLAGS=${CMAKE_C_FLAGS} -DHYPRE_USING_HYPRE_BLAS=OFF -DHYPRE_USING_HYPRE_LAPACK=OFF)
-  if (USE_MPI EQUAL 0)
-    set(HYPRE_CONFIG_OPTS ${HYPRE_CONFIG_OPTS} -DHYPRE_SEQUENTIAL=ON)
-  endif()
-  message("Unpacking HYPRE...")
-  execute_process(COMMAND cmake -E tar xzvf ${CMAKE_CURRENT_SOURCE_DIR}/hypre-2.9.0b.tar.gz
-                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-                  OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
-  message("Configuring HYPRE...")
-  execute_process(COMMAND cmake ${HYPRE_CONFIG_OPTS} ..
-                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/hypre-2.9.0b/src/cmbuild
-                  OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
-  message("Building HYPRE...")
-  execute_process(COMMAND make install -j4
-                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/hypre-2.9.0b/src/cmbuild
-                  OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
-endif()
-add_library(HYPRE STATIC IMPORTED)
-set_target_properties(HYPRE PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libHYPRE.a)
-set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};HYPRE)
-
 # Find HDF5 if we're building a serial version (PETSc is unable to do this for us).
 if (USE_MPI EQUAL 0)
   set(HDF5_USE_STATIC_LIBRARIES TRUE)

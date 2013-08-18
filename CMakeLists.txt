@@ -55,6 +55,10 @@ if (USE_MPI EQUAL 1)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DHAVE_MPI ${NO_MPI_CXX_FLAGS}")
 else()
   set(USE_MPI 0)
+
+  # Include our own serial implementation of MPI.
+  add_subdirectory(mpi_serial)
+  include_directories("${PROJECT_SOURCE_DIR}/mpi_serial")
 endif ()
 
 # Third-party libraries.

@@ -14,7 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "core/hypre_helpers.h"
+//#include "core/hypre_helpers.h"
+#include "core/index_space.h"
 #include "core/linear_algebra.h"
 #include "integrators/diffusion_solver.h"
 
@@ -23,9 +24,12 @@ struct diffusion_solver_t
   char* name;
 
   // Linear system and solver.
+  void *A, *x, *b, *solver;
+#if 0
   HYPRE_IJMatrix A;
   HYPRE_IJVector x, b;
   HYPRE_Solver solver;
+#endif
 
   // Flag is set to true if the linear system above is initialized.
   bool initialized;
@@ -40,6 +44,7 @@ struct diffusion_solver_t
 
 static void initialize(diffusion_solver_t* solver)
 {
+#if 0
   if (!solver->initialized)
   {
     solver->A = HYPRE_IJMatrixNew(solver->index_space);
@@ -50,6 +55,7 @@ static void initialize(diffusion_solver_t* solver)
     HYPRE_ParCSRHybridSetKDim(solver->solver, 5);
     solver->initialized = true;
   }
+#endif
 }
 
 diffusion_solver_t* diffusion_solver_new(const char* name, 
@@ -75,6 +81,7 @@ diffusion_solver_t* diffusion_solver_new(const char* name,
 
 void diffusion_solver_free(diffusion_solver_t* solver)
 {
+#if 0
   if (solver->initialized)
   {
     HYPRE_ParCSRHybridDestroy(solver->solver);
@@ -82,6 +89,7 @@ void diffusion_solver_free(diffusion_solver_t* solver)
     HYPRE_IJVectorDestroy(solver->x);
     HYPRE_IJVectorDestroy(solver->b);
   }
+#endif
 
   if ((solver->context != NULL) && (solver->vtable.dtor != NULL))
     solver->vtable.dtor(solver->context);
@@ -115,6 +123,7 @@ static inline void apply_bcs(diffusion_solver_t* solver, double_table_t* A, doub
   solver->vtable.apply_bcs(solver->context, A, b, t);
 }
 
+#if 0
 static inline void solve(diffusion_solver_t* solver, HYPRE_IJMatrix A, HYPRE_IJVector b, HYPRE_IJVector x)
 {
 //HYPRE_IJMatrixPrint(solver->A, "A");
@@ -139,6 +148,7 @@ static inline void solve(diffusion_solver_t* solver, HYPRE_IJMatrix A, HYPRE_IJV
 
   HYPRE_ClearAllErrors();
 }
+#endif
 
 void diffusion_solver_euler(diffusion_solver_t* solver,
                             double t1, double* sol1,
@@ -183,6 +193,7 @@ void diffusion_solver_euler(diffusion_solver_t* solver,
   for (int i = 0; i < N; ++i)
     b[i] = -dt * b[i] + sol1[i] + dt * si[i];
 
+#if 0
   // Set up the linear system.
   HYPRE_IJMatrixSetValuesFromTable(solver->A, solver->index_space, L);
 //HYPRE_IJMatrixPrint(solver->A, "L");
@@ -196,6 +207,7 @@ void diffusion_solver_euler(diffusion_solver_t* solver,
 //printf("x = ");
 //vector_fprintf(sol2, N, stdout);
 //printf("\n");
+#endif
 
   // Clean up.
   double_table_free(L);
@@ -284,23 +296,29 @@ void diffusion_solver_tga(diffusion_solver_t* solver,
              -r2 * dt * bi; 
   }
   
+#if 0
   // Now solve the linear system M1 * v = e.
   HYPRE_IJMatrixSetValuesFromTable(solver->A, solver->index_space, M1);
   HYPRE_IJVectorSetValuesFromArray(solver->b, solver->index_space, e);
   solve(solver, solver->A, solver->b, solver->x);
+#endif
   double v[N];
+#if 0
   HYPRE_IJVectorGetValuesToArray(solver->x, solver->index_space, v);
+#endif
 
   // Add the boundary terms to v.
   pos = double_table_start(A);
   for (int i = 0; i < N; ++i)
     v[i] -= r1 * dt * b[i];
 
+#if 0
   // Now set up the linear system M2 * sol2 = v.
   HYPRE_IJMatrixSetValuesFromTable(solver->A, solver->index_space, M2);
   HYPRE_IJVectorSetValuesFromArray(solver->b, solver->index_space, v);
   solve(solver, solver->A, solver->b, solver->x);
   HYPRE_IJVectorGetValuesToArray(solver->x, solver->index_space, sol2);
+#endif
 
   // Clean up.
   double_table_free(A);
@@ -364,7 +382,8 @@ void diffusion_solver_crank_nicolson(diffusion_solver_t* solver,
     double bi = b[i];
     rhs[i] += -dt * bi;
   }
-  
+ 
+#if 0
   // Set up the linear system.
   HYPRE_IJMatrixSetValuesFromTable(solver->A, solver->index_space, L);
 //HYPRE_IJMatrixPrint(solver->A, "L");
@@ -375,6 +394,7 @@ void diffusion_solver_crank_nicolson(diffusion_solver_t* solver,
 
   // Copy the solution to sol2.
   HYPRE_IJVectorGetValuesToArray(solver->x, solver->index_space, sol2);
+#endif
 
   // Clean up.
   double_table_free(L);
