@@ -42,7 +42,7 @@ set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};qhull)
 
 # Install xz-utils for the LZMA library.
 if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/liblzma.a)
-  set(XZ_CONFIG_OPTS --prefix=${PROJECT_BINARY_DIR} --enable-static --disable-shared)
+  set(XZ_CONFIG_OPTS --prefix=${PROJECT_BINARY_DIR} --enable-static --disable-shared --disable-xz --disable-xzdec --disable-lzmadec --disable-lzmainfo --disable-lzma-links --disable-scripts)
   if (${CMAKE_BUILD_TYPE} STREQUAL "Debug")
     set(XZ_CONFIG_OPTS ${XZ_CONFIG_OPTS} --enable-debug)
   endif()
