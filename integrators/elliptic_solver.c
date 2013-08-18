@@ -128,21 +128,6 @@ static inline void copy_vector_to_array(index_space_t* is, HYPRE_IJVector vector
 }
 #endif
 
-static inline void compute_op_matrix(elliptic_solver_t* solver, double_table_t* A, double t)
-{
-  solver->vtable.compute_operator_matrix(solver->context, A, t);
-}
-
-static inline void compute_source_vector(elliptic_solver_t* solver, double* source, double t)
-{
-  solver->vtable.compute_source_vector(solver->context, source, t);
-}
-
-static inline void apply_bcs(elliptic_solver_t* solver, double_table_t* A, double* b, double t)
-{
-  solver->vtable.apply_bcs(solver->context, A, b, t);
-}
-
 #if 0
 static inline void solve(elliptic_solver_t* solver, HYPRE_IJMatrix A, HYPRE_IJVector b, HYPRE_IJVector x)
 {
@@ -176,14 +161,14 @@ void elliptic_solver_solve(elliptic_solver_t* solver,
 
   // A -> operator matrix at time t.
   double_table_t* A = double_table_new();
-  compute_op_matrix(solver, A, t);
+  solver->vtable.compute_operator_matrix(solver, A, t);
 
   // Compute the source at time t.
   double b[N];
-  compute_source_vector(solver, b, t);
+  solver->vtable.compute_source_vector(solver, b, t);
 
   // Apply boundary conditions to the system.
-  apply_bcs(solver, A, b, t);
+  solver->vtable.apply_bcs(solver, A, b, t);
 
 #if 0
   // Set up the linear system.

@@ -108,21 +108,6 @@ void* diffusion_solver_context(diffusion_solver_t* solver)
   return solver->context;
 }
 
-static inline void compute_diff_matrix(diffusion_solver_t* solver, double_table_t* A, double t)
-{
-  solver->vtable.compute_diffusion_matrix(solver->context, A, t);
-}
-
-static inline void compute_source_vector(diffusion_solver_t* solver, double* source, double t)
-{
-  solver->vtable.compute_source_vector(solver->context, source, t);
-}
-
-static inline void apply_bcs(diffusion_solver_t* solver, double_table_t* A, double* b, double t)
-{
-  solver->vtable.apply_bcs(solver->context, A, b, t);
-}
-
 #if 0
 static inline void solve(diffusion_solver_t* solver, HYPRE_IJMatrix A, HYPRE_IJVector b, HYPRE_IJVector x)
 {
@@ -163,13 +148,13 @@ void diffusion_solver_euler(diffusion_solver_t* solver,
 
   // A -> diffusion matrix at time t2.
   double_table_t* A = double_table_new();
-  compute_diff_matrix(solver, A, t2);
+  solver->vtable.compute_diffusion_matrix(solver, A, t2);
 
   // Apply boundary conditions to the system.
   double b[N];
   for (int i = 0; i < N; ++i)
     b[i] = 0.0;
-  apply_bcs(solver, A, b, t2);
+  solver->vtable.apply_bcs(solver, A, b, t2);
 
   // L <- I - dt*A.
   double_table_cell_pos_t pos = double_table_start(A);
@@ -187,7 +172,7 @@ void diffusion_solver_euler(diffusion_solver_t* solver,
 
   // Compute the source at time t2.
   double si[N];
-  compute_source_vector(solver, si, t2);
+  solver->vtable.compute_source_vector(solver, si, t2);
 
   // b = -dt*(bc terms) + sol1 + dt * source.
   for (int i = 0; i < N; ++i)
@@ -233,13 +218,13 @@ void diffusion_solver_tga(diffusion_solver_t* solver,
 
   // A -> Components of diffusion matrix at time t2.
   double_table_t* A = double_table_new();
-  compute_diff_matrix(solver, A, t2);
+  solver->vtable.compute_diffusion_matrix(solver, A, t2);
 
   // Apply boundary conditions to the system.
   double b[N];
   for (int i = 0; i < N; ++i)
     b[i] = 0.0;
-  apply_bcs(solver, A, b, t2);
+  solver->vtable.apply_bcs(solver, A, b, t2);
 
   //-------------------------------------------
   // Construct e, the RHS for the first solve.
@@ -247,8 +232,8 @@ void diffusion_solver_tga(diffusion_solver_t* solver,
 
   // Compute the source at t1 and t2.
   double s1[N], s2[N];
-  compute_source_vector(solver, s1, t1);
-  compute_source_vector(solver, s2, t2);
+  solver->vtable.compute_source_vector(solver, s1, t1);
+  solver->vtable.compute_source_vector(solver, s2, t2);
 
   // e = [I + (1 - a) * dt * A] * sol1 + 
   //     0.5 * dt * [s1 + [I - 2*(a - 0.5) * dt * A] * s2].
@@ -339,13 +324,13 @@ void diffusion_solver_crank_nicolson(diffusion_solver_t* solver,
 
   // A -> diffusion matrix at time t2.
   double_table_t* A = double_table_new();
-  compute_diff_matrix(solver, A, t2);
+  solver->vtable.compute_diffusion_matrix(solver, A, t2);
 
   // Apply boundary conditions to the system.
   double b[N];
   for (int i = 0; i < N; ++i)
     b[i] = 0.0;
-  apply_bcs(solver, A, b, t2);
+  solver->vtable.apply_bcs(solver, A, b, t2);
 
   // L <- I - 0.5*dt*A, rhs <- (I + 0.5*dt*A)*x
   double_table_cell_pos_t pos = double_table_start(A);
@@ -370,8 +355,8 @@ void diffusion_solver_crank_nicolson(diffusion_solver_t* solver,
 
   // Compute the source at times t1 and t2.
   double s1[N], s2[N];
-  compute_source_vector(solver, s1, t1);
-  compute_source_vector(solver, s2, t2);
+  solver->vtable.compute_source_vector(solver, s1, t1);
+  solver->vtable.compute_source_vector(solver, s2, t2);
 
   // Add the purely diagonal terms to the right hand side.
   for (int i = 0; i < N; ++i)
