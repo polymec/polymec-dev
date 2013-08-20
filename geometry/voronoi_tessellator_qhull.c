@@ -25,12 +25,13 @@
 #include "core/tuple.h"
 #include "core/slist.h"
 #include "core/table.h"
+#include "core/array.h"
 #include <gc/gc.h>
 #include "geometry/voronoi_tessellator.h"
 
 #include <stdio.h>
 
-static char hidden_options[]=" d v H Qbb Qf Qg Qm Qr Qu Qv Qx Qz TR E V Fp Gt Q0 Q1 Q2 Q3 Q4 Q5 Q6 Q7 Q8 Q9 ";
+static char hidden_options[] = " d v H Qbb Qf Qg Qm Qr Qu Qv Qx Qz TR E V Fp Gt Q0 Q1 Q2 Q3 Q4 Q5 Q6 Q7 Q8 Q9 ";
 
 void voronoi_tessellation_free(voronoi_tessellation_t* tessellation)
 {
@@ -372,11 +373,10 @@ voronoi_tessellator_tessellate_2d(voronoi_tessellator_t* tessellator,
   FILE* fout = open_memstream(&output, &output_size);
 
   // Initialize QHull.
-  int argc = 4;
+  int argc = 3;
   char* argv[] = {"qvoronoi", // The program itself
                   "p",        // Coordinates of nodes
-                  "Fv",       // List of ridges (edges) for faces / cell pairs
-                  "Fo"};      // Hyperplanes separating unbounded cells.
+                  "Fv"};      // List of ridges (edges) for faces / cell pairs
   qh_init_A(fin, fout, stderr, argc, argv);
   int status = setjmp(qh errexit); 
 
@@ -459,15 +459,18 @@ voronoi_tessellator_tessellate_2d(voronoi_tessellator_t* tessellator,
            &(t->nodes[2*i]), &(t->nodes[2*i+1]));
   }
 
+  // We store the coordinates of nodes-at-infinity (which are projected
+  // to the bounding polygon) here.
+  double_array_t* boundary_nodes = double_array_new();
+
   // Faces and edges ("Fv" output).
-  // We do not construct faces that contain the point-at-infinity.
   sscanf(&output[line_offsets[2+t->num_nodes]], "%d\n", &t->num_faces);
   t->faces = malloc(sizeof(voronoi_face_t) * t->num_faces);
   memset(t->faces, 0, sizeof(voronoi_face_t) * t->num_faces);
   t->edges = malloc(sizeof(voronoi_edge_t) * t->num_edges);
   memset(t->edges, 0, sizeof(voronoi_edge_t) * t->num_edges);
   int_ptr_unordered_map_t* faces_for_cell = int_ptr_unordered_map_new();
-  int face_offset = 0, num_nodes_at_infinity = 0;
+  int face_offset = 0;
   for (int f = 0; f < t->num_faces; ++f)
   {
     // Read the line and parse it into a tuple of face node indices.
@@ -485,6 +488,7 @@ voronoi_tessellator_tessellate_2d(voronoi_tessellator_t* tessellator,
     int g2 = atoi(g2_str);
 
     int face_nodes[2];
+    int node_at_infinity = -1;
     for (int n = 0; n < 2; ++n)
     {
       char* n_str;
@@ -494,7 +498,31 @@ voronoi_tessellator_tessellate_2d(voronoi_tessellator_t* tessellator,
         n_str = str_p;
       face_nodes[n] = atoi(n_str) - 1; // subtract 1 from output node index!
       if (face_nodes[n] < 0)
-        ++num_nodes_at_infinity;
+        node_at_infinity = n;
+    }
+
+    // If face is infinite, we compute the outward ray and intersect it 
+    // with our bounding polygon.
+    if (node_at_infinity != -1)
+    {
+      // Compute the coordinates of the midpoint between g1 and g2.
+      point2_t midpt = {.x = 0.5 * (points[g1].x + points[g2].x),
+                        .y = 0.5 * (points[g1].y + points[g2].y)};   
+
+      // Compute the outgoing ray.
+      vector2_t ray;
+      int interior_index = (node_at_infinity == 0) ? 1 : 0;
+      point2_t interior_node = {.x = t->nodes[2*interior_index],
+                                .y = t->nodes[2*interior_index+1]};
+      point2_displacement(&interior_node, &midpt, &ray);
+  
+      // Project the ray to the bounding polygon.
+      point2_t boundary_node;
+      // FIXME
+
+      // Append the coordinates of the boundary node to our boundary nodes array.
+      double_array_append(boundary_nodes, boundary_node.x);
+      double_array_append(boundary_nodes, boundary_node.y);
     }
 
     // Hook up the face to the (generator) cells.
@@ -529,32 +557,6 @@ voronoi_tessellator_tessellate_2d(voronoi_tessellator_t* tessellator,
   }
   t->num_faces = face_offset;
 
-  // Construct any infinite edges for the tessellation.
-  int num_unbounded_edges = 0;
-  sscanf(&output[line_offsets[3+t->num_nodes+t->num_faces]], "%d\n", &num_unbounded_edges);
-  ASSERT(num_unbounded_edges == num_nodes_at_infinity);
-  for (int e = 0; e < num_unbounded_edges; ++e)
-  {
-    char unbounded_edge_str[8*100];
-    int line_size = line_offsets[4+t->num_nodes+t->num_faces+e+1] - line_offsets[4+t->num_nodes+t->num_faces+e];
-    memcpy(unbounded_edge_str, &output[line_offsets[4+t->num_nodes+t->num_faces+e]], 
-           sizeof(char) * line_size);
-    char* str_p = &unbounded_edge_str[0];
-    char* header_str = strsep(&str_p, " ");
-    int header_num = atoi(header_str);
-    ASSERT(header_num == 5);
-    char* g1_str = strsep(&str_p, " ");
-    int g1 = atoi(g1_str);
-    char* g2_str = strsep(&str_p, " ");
-    int g2 = atoi(g2_str);
-    char* nx_str = strsep(&str_p, " ");
-    double nx = atof(nx_str);
-    char* ny_str = str_p;
-    double ny = atof(ny_str);
-
-    // FIXME: Extrapolate this out past our bounding polygon.
-  }
-
   // Construct the cells for the tessellation. We do not construct any cell 
   // that has fewer than 3 faces.
   int cell_offset = 0;
@@ -581,6 +583,7 @@ voronoi_tessellator_tessellate_2d(voronoi_tessellator_t* tessellator,
   t->num_cells = cell_offset;
   t->cells = realloc(t->cells, t->num_cells*sizeof(voronoi_cell_t));
 
+  double_array_free(boundary_nodes);
   int_ptr_unordered_map_free(faces_for_cell);
 
   return t;
