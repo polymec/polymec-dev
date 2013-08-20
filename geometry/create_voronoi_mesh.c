@@ -36,20 +36,9 @@ mesh_t* create_voronoi_mesh(point_t* generators, int num_generators,
 
   // Gather the points to be tessellated.
   int num_points = num_generators + num_ghost_generators;
-  double* points = malloc(sizeof(double) * 3*num_points);
-  for (int i = 0; i < num_generators; ++i)
-  {
-    points[3*i]   = generators[i].x;
-    points[3*i+1] = generators[i].y;
-    points[3*i+2] = generators[i].z;
-  }
-  for (int i = num_generators; i < num_generators + num_ghost_generators; ++i)
-  {
-    int j = i - num_generators;
-    points[3*i]   = ghost_generators[j].x;
-    points[3*i+1] = ghost_generators[j].y;
-    points[3*i+2] = ghost_generators[j].z;
-  }
+  point_t* points = malloc(sizeof(point_t) * num_points);
+  memcpy(points, generators, sizeof(point_t) * num_generators);
+  memcpy(&points[num_generators], ghost_generators, sizeof(point_t) * num_ghost_generators);
 
   // Perform the tessellation.
   voronoi_tessellator_t* tessellator = voronoi_tessellator_new();

@@ -18,10 +18,8 @@
 #define POLYMEC_VORONOI_TESSELLATOR_H
 
 #include "core/slist.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include "core/point.h"
+#include "core/point2.h"
 
 // This represents a Voronoi cell in a tessellation.
 typedef struct
@@ -42,10 +40,10 @@ typedef struct
 typedef struct
 {
   int node1, node2;
-  double ray[3];
 } voronoi_edge_t;
 
-// This type holds a Voronoi tessellation produced by a tessellator.
+// This type holds a three-dimensional Voronoi tessellation 
+// produced by a tessellator.
 typedef struct
 {
   int num_cells;
@@ -69,25 +67,27 @@ typedef struct voronoi_tessellator_t voronoi_tessellator_t;
 // Constructs a new Voronoi tessellator.
 voronoi_tessellator_t* voronoi_tessellator_new();
 
-// Creates a tessellation with the given set of generators. The tessellation 
-// is unbounded, and its "outermost" cells have infinite extent. The edges 
-// on these cells have node2 == -1, and their "ray" field is a vector 
-// pointing outward to infinity. points is a (3*num_points) array containing 
-// the coordinates of the generator points in point-major order.
+// Creates a three-dimensional tessellation with the given set of generators. 
+// The tessellation is bounded--infinite cells are removed.
 // The last argument is an optionally provided (otherwise NULL) linked list
 // that gathers points that are deleted to construct a completely bounded
 // tessellation.
 voronoi_tessellation_t* 
 voronoi_tessellator_tessellate(voronoi_tessellator_t* tessellator,
-                               double* points, int num_points,
+                               point_t* points, int num_points,
                                int_slist_t* deleted_points);
+
+// Creates a planar tessellation with the given set of generators. 
+// The tessellation is bounded by a bounding polygon consisting of a 
+// set of vertices traversed in the order given. Note that in a 2D planar
+// Voronoi graph, each face corresponds to a single edge.
+voronoi_tessellation_t* 
+voronoi_tessellator_tessellate_2d(voronoi_tessellator_t* tessellator,
+                                  point2_t* points, int num_points,
+                                  point2_t* bounding_polygon, int num_bounding_edges);
 
 // Destroys a tessellation that has been created by a tessellator.
 void voronoi_tessellation_free(voronoi_tessellation_t* tessellation);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif
 
