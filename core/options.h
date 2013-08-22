@@ -17,7 +17,7 @@
 #ifndef POLYMEC_OPTIONS_H
 #define POLYMEC_OPTIONS_H
 
-#include "polymec.h"
+#include "core/polymec.h"
 
 // A type that stores command line options. Objects of this type are 
 // garbage-collected.
