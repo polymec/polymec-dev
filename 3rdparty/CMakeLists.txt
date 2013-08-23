@@ -238,18 +238,6 @@ set_target_properties(xml2 PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/li
 set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};xml2;iconv;z)
 set(POLYMEC_TP_INCDIRS ${POLYMEC_TP_INCDIRS};${PROJECT_BINARY_DIR}/include/libxml2)
 
-## Install TAO (for optimization problems).
-#if (NOT EXISTS ${CMAKE_BINARY_DIR}/lib/libtao.a)
-#  execute_process(COMMAND cmake -E tar xzvf ${CMAKE_CURRENT_SOURCE_DIR}/tao-2.1-p0.tar.gz
-#                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
-#  message("Building TAO...")
-#  execute_process(COMMAND make PETSC_DIR=${CMAKE_CURRENT_BINARY_DIR}/petsc-3.3-p5 PETSC_ARCH=${CMAKE_BUILD_TYPE} TAO_DIR=${CMAKE_CURRENT_BINARY_DIR}/tao-2.1-p0 all install
-#                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/tao-2.1-p0)
-#endif()
-#add_library(tao STATIC IMPORTED)
-#set_target_properties(tao PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libtao.a)
-#set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};tao)
-
 # Add all the libraries to the build system at large.
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${POLYMEC_TP_C_FLAGS}" PARENT_SCOPE)
 set(POLYMEC_LIBS ${POLYMEC_LIBS};${POLYMEC_TP_LIBS} PARENT_SCOPE)
