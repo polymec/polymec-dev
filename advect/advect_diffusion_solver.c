@@ -110,6 +110,7 @@ static void ad_apply_bcs(void* context, double_table_t* A, double* b, double t)
     {
       // Compute the diffusivity at the face center.
       face_t* face = &mesh->faces[cell_info->boundary_faces[f]];
+      double face_area = vector_mag(&face->normal);
       double Df;
       st_func_eval(a->diffusivity, &face->center, t, &Df);
 
@@ -130,11 +131,11 @@ static void ad_apply_bcs(void* context, double_table_t* A, double* b, double t)
 
         // Add in the diagonal term for (Df * dphi/dn)/V.
         double Aii = *double_table_get(A, bcell, bcell);
-        Aii += Df * ((beta/L - 0.5*alpha) / (beta/L + 0.5*alpha) - 1.0) * face->area / (V * L);
+        Aii += Df * ((beta/L - 0.5*alpha) / (beta/L + 0.5*alpha) - 1.0) * face_area / (V * L);
         double_table_insert(A, bcell, bcell, Aii);
 
         // Add in the right hand side contribution.
-        b[bcell] += -Df * (F / (beta/L + 0.5*alpha)) * face->area / (V * L);
+        b[bcell] += -Df * (F / (beta/L + 0.5*alpha)) * face_area / (V * L);
 //if (bc->alpha > 0.0)
 //printf("A[%d,%d] = %g, b[%d] = %g\n", bcell, bcell, Aii, bcell, bi);
       }
@@ -152,13 +153,13 @@ static void ad_apply_bcs(void* context, double_table_t* A, double* b, double t)
         // Add in the diagonal term (D * dphi/dn).
         // Don't forget to scale down by the volume of the cell.
         double Aii = *double_table_get(A, bcell, bcell);
-        Aii -= Df * face->area / (V * L);
+        Aii -= Df * face_area / (V * L);
         double_table_insert(A, bcell, bcell, Aii);
 
         // Add in the off-diagonal term (D * dphi/dn).
         int j = other_cell - &a->mesh->cells[0];
         double Aij = *double_table_get(A, bcell, j);
-        Aij += Df * face->area / (V * L);
+        Aij += Df * face_area / (V * L);
         double_table_insert(A, bcell, j, Aij);
       }
     }

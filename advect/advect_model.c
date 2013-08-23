@@ -193,7 +193,8 @@ static void compute_half_step_fluxes(mesh_t* mesh,
     int upwind_cell = (vn > 0.0) ? cell1 : cell2;
     int downwind_cell = (vn > 0.0) ? cell2 : cell1;
 
-    fluxes[f] = vn * phi[upwind_cell] * face->area;
+    double face_area = vector_mag(&face->normal);
+    fluxes[f] = vn * phi[upwind_cell] * face_area;
 
     if (slope_est != NULL)
     {
@@ -207,7 +208,7 @@ static void compute_half_step_fluxes(mesh_t* mesh,
 //if (slope != 0.0)
 //printf("slope = %g\n", slope);
 //      fluxes[f] += 0.5 * vn * (1.0 - nu) * L * slope;
-      fluxes[f] += 0.5 * vn * (SIGN(nu) - nu) * L * slope * face->area;
+      fluxes[f] += 0.5 * vn * (SIGN(nu) - nu) * L * slope * face_area;
     }
 // printf("%d,%d: vn = %g, F = %g\n", face->cell1 - &mesh->cells[0], face->cell2 - &mesh->cells[0], vn, fluxes[f]);
 
@@ -234,6 +235,7 @@ static void compute_half_step_fluxes(mesh_t* mesh,
     for (int f = 0; f < cell_info->num_boundary_faces; ++f)
     {
       face_t* face = &mesh->faces[cell_info->boundary_faces[f]];
+      double face_area = vector_mag(&face->normal);
       int face_index = face - &mesh->faces[0];
 
       // Compute the normal vector through this face.
@@ -298,7 +300,7 @@ static void compute_half_step_fluxes(mesh_t* mesh,
       }
 
       // First-order flux computation.
-      fluxes[face_index] = vn * phi_up * face->area;
+      fluxes[face_index] = vn * phi_up * face_area;
 
       if (slope_est != NULL)
       {

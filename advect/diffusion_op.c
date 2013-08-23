@@ -53,7 +53,7 @@ static void diffusion_op_compute_stencil(void* context, mesh_t* mesh, int index,
   for (int f = 0; f < cell->num_faces; ++f)
   {
     face_t* face = cell->faces[f];
-    double A = face->area;
+    double A = vector_mag(&face->normal);
     cell_t* opp_cell = face_opp_cell(face, cell);
     if (opp_cell != NULL)
     {
@@ -78,7 +78,7 @@ static void diffusion_op_apply(void* context, mesh_t* mesh, double* field, doubl
     for (int f = 0; f < cell->num_faces; ++f)
     {
       face_t* face = cell->faces[f];
-      double A = face->area;
+      double A = vector_mag(&face->normal);
       cell_t* opp_cell = face_opp_cell(face, cell);
       if (opp_cell != NULL)
       {

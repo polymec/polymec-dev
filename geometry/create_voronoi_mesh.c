@@ -103,8 +103,25 @@ mesh_t* create_voronoi_mesh(point_t* generators, int num_generators,
     }
   }
 
+  // Compute the normal vectors on faces.
+  for (int f = 0; f < mesh->num_faces; ++f)
+  {
+    face_t* face = &mesh->faces[f];
+    int cell1_index = face->cell1 - &mesh->cells[0];
+    if (face->cell2 != NULL)
+    {
+      int cell2_index = face->cell2 - &mesh->cells[0];
+      point_displacement(&generators[cell1_index], &generators[cell2_index], &face->normal);
+    }
+    else
+    {
+      point_displacement(&generators[cell1_index], &face->center, &face->normal);
+    }
+  }
+
   // Compute the mesh's geometry.
   mesh_compute_geometry(mesh);
+
 
   // Clean up.
   voronoi_tessellation_free(tessellation);

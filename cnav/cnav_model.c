@@ -266,7 +266,7 @@ static int compute_F_eulerian(double t, N_Vector U, N_Vector U_dot, void* contex
     {
       face_t* face = cell->faces[f];
       int face_index = face - &mesh->faces[0];
-      double A = face->area;
+      double A = vector_mag(&face->normal);
       vector_t normal;
       point_displacement(&cell->center, &face->center, &normal);
       vector_normalize(&normal);
@@ -322,7 +322,7 @@ static int compute_F_ale(double t, N_Vector U, N_Vector U_dot, void* context)
     {
       face_t* face = cell->faces[f];
       int face_index = face - &mesh->faces[0];
-      double A = face->area;
+      double A = vector_mag(&face->normal);
       vector_t normal;
       point_displacement(&cell->center, &face->center, &normal);
       vector_normalize(&normal);

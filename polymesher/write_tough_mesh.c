@@ -143,7 +143,7 @@ static void write_tough2_mesh(mesh_t* mesh,
       double d2 = point_distance(&face->cell2->center, &face->center);
 
       // Face area.
-      double A = face->area;
+      double A = vector_mag(&face->normal);
 
       // Cosine of the angle between the vertical and the line connecting 
       // the element centers. NOTE: this line only coincides with the face 
@@ -225,7 +225,7 @@ static void write_tough_plus_mesh(mesh_t* mesh,
       double d2 = point_distance(&face->cell2->center, &face->center);
 
       // Face area.
-      double A = face->area;
+      double A = vector_mag(&face->normal);
 
       // Cosine of the angle between the vertical and the line connecting 
       // the element centers. NOTE: this line only coincides with the face 
