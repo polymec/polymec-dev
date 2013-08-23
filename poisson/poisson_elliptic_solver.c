@@ -99,6 +99,7 @@ static void p_apply_bcs(void* context, double_table_t* A, double* b, double t)
     {
       // Retrieve the boundary condition for this face.
       face_t* face = &mesh->faces[cell_info->boundary_faces[f]];
+      double face_area = vector_mag(&face->normal);
       poisson_bc_t* bc = cell_info->bc_for_face[f];
 
       if (bc != NULL) // non-periodic BC
@@ -116,11 +117,11 @@ static void p_apply_bcs(void* context, double_table_t* A, double* b, double t)
         // Add in the diagonal term for (dphi/dn)/V.
         int i = bcell;
         double Aii = *double_table_get(A, i, i);
-        Aii += ((beta/L - 0.5*alpha) / (beta/L + 0.5*alpha) - 1.0) * face->area / (V * L);
+        Aii += ((beta/L - 0.5*alpha) / (beta/L + 0.5*alpha) - 1.0) * face_area / (V * L);
         double_table_insert(A, i, i, Aii);
 
         // Add in the right hand side contribution.
-        b[i] += -(F / (beta/L + 0.5*alpha)) * face->area / (V * L);
+        b[i] += -(F / (beta/L + 0.5*alpha)) * face_area / (V * L);
 //if (bc->alpha > 0.0)
 //printf("A[%d,%d] = %g, b[%d] = %g\n", bcell, bcell, Aii, bcell, bi);
       }
@@ -138,13 +139,13 @@ static void p_apply_bcs(void* context, double_table_t* A, double* b, double t)
         // Add in the diagonal term (dphi/dn).
         // Don't forget to scale down by the volume of the cell.
         double Aii = *double_table_get(A, bcell, bcell);
-        Aii -= face->area / (V * L);
+        Aii -= face_area / (V * L);
         double_table_insert(A, bcell, bcell, Aii);
 
         // Add in the off-diagonal term (dphi/dn).
         int j = other_cell - &p->mesh->cells[0];
         double Aij = *double_table_get(A, bcell, j);
-        Aij += face->area / (V * L);
+        Aij += face_area / (V * L);
         double_table_insert(A, bcell, j, Aij);
       }
     }

@@ -94,10 +94,10 @@ struct face_t
   edge_t** edges;
   // The number of edges bounding this face.
   int num_edges;
-  // Face area.
-  double area;
   // Face center.
   point_t center;
+  // Face normal vector (scaled by area).
+  vector_t normal;
 };
 
 // This function returns the cell opposite the given cell through the 

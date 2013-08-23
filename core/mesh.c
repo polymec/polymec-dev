@@ -590,7 +590,10 @@ void mesh_compute_geometry(mesh_t* mesh)
       }
       // Only the primal cell of a face computes its area.
       if (cell == face->cell1)
-        face->area = face_area;
+      {
+        vector_normalize(&face->normal);
+        vector_scale(&face->normal, face_area);
+      }
     }
   }
 }

@@ -111,7 +111,8 @@ void test_create_single_cube(void** state)
   // Verify the areas and centers of its faces.
   for (int f = 0; f < 4; ++f)
   {
-    assert_true(fabs(1.0 - mesh->faces[f].area) < 1e-12);
+    double face_area = vector_mag(&mesh->faces[f].normal);
+    assert_true(fabs(1.0 - face_area) < 1e-12);
   }
 
   int_slist_free(deleted_generators);

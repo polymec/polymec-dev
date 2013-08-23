@@ -37,7 +37,7 @@ static void laplacian_op_compute_stencil(void* context, mesh_t* mesh, int index,
   int i = 1;
   for (int f = 0; f < cell->num_faces; ++f)
   {
-    double A = cell->faces[f]->area;
+    double A = vector_mag(&cell->faces[f]->normal);
     cell_t* opp_cell = face_opp_cell(cell->faces[f], cell);
     if (opp_cell != NULL)
     {
@@ -58,7 +58,7 @@ static void laplacian_op_apply(void* context, mesh_t* mesh, double* field, doubl
     Lfield[c] = 0.0;
     for (int f = 0; f < cell->num_faces; ++f)
     {
-      double A = cell->faces[f]->area;
+      double A = vector_mag(&cell->faces[f]->normal);
       cell_t* opp_cell = face_opp_cell(cell->faces[f], cell);
       if (opp_cell != NULL)
       {
