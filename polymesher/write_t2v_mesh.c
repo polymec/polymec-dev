@@ -69,33 +69,34 @@ int write_t2v_mesh(lua_State* lua)
   FILE* fd = fopen(filename, "w");
   for (int c = 0; c < num_cells; ++c)
   {
-    char cell_line[4096];
-
     // Construct a string containing the nodes for the cell.
     int num_cell_nodes = cell_node_offsets[c+1] - cell_node_offsets[c];
-    char cell_nodes_string[1024];
+    char cell_nodes_string[16384];
     int offset = 0;
     for (int n = 0; n < num_cell_nodes; ++n)
     {
       char coords[64];
       int nid = cell_nodes[cell_node_offsets[c]+n];
-      snprintf(coords, 64, "%g %g %g ", mesh->nodes[nid].x, mesh->nodes[nid].y, mesh->nodes[nid].z);
+      snprintf(coords, 64, "(%g,%g,%g) ", mesh->nodes[nid].x, mesh->nodes[nid].y, mesh->nodes[nid].z);
       int len = strlen(coords);
       memcpy(&cell_nodes_string[offset], coords, len*sizeof(char));
       offset += len;
+      ASSERT(offset < 16384);
     }
+    cell_nodes_string[offset] = '\0';
 
     // Create a list of node indices for nodes belonging to faces.
     offset = 0;
-    char face_nodes_string[1024];
+    char face_nodes_string[16384];
     for (int f = 0; f < mesh->cells[c].num_faces; ++f)
     {
       face_t* face = mesh->cells[c].faces[f];
       int fid = face - &mesh->faces[0];
       int num_nodes = face_node_offsets[fid+1] - face_node_offsets[fid];
+      face_nodes_string[offset++] = '(';
       for (int n = 0; n < num_nodes; ++n)
       {
-        int nid = face_node_offsets[fid + n];
+        int nid = face_nodes[face_node_offsets[fid] + n];
 
         // Search for this node in the list of cell nodes.
         int nn;
@@ -105,16 +106,21 @@ int write_t2v_mesh(lua_State* lua)
           if (nid == cnid) break;
         }
         char cn_str[10];
-        snprintf(cn_str, 10, "%d ", nn);
+        if (n < num_nodes-1)
+          snprintf(cn_str, 10, "%d, ", nn);
+        else
+          snprintf(cn_str, 10, "%d) ", nn);
         int len = strlen(cn_str);
         memcpy(&face_nodes_string[offset], cn_str, len*sizeof(char));
         offset += len;
       }
+      ASSERT(offset < 16384);
     }
+    face_nodes_string[offset] = '\0';
 
     // Create a list of normal vectors for faces.
     offset = 0;
-    char face_normals_string[1024];
+    char face_normals_string[16384];
     for (int f = 0; f < mesh->cells[c].num_faces; ++f)
     {
       face_t* face = mesh->cells[c].faces[f];
@@ -123,15 +129,17 @@ int write_t2v_mesh(lua_State* lua)
       vector_t n;
       char n_str[64];
       if (face->cell1 == &mesh->cells[c])
-        snprintf(n_str, 64, "%g %g %g ", face->normal.x, face->normal.y, face->normal.z);
+        snprintf(n_str, 64, "(%g,%g,%g) ", face->normal.x, face->normal.y, face->normal.z);
       else
-        snprintf(n_str, 64, "%g %g %g ", -face->normal.x, -face->normal.y, -face->normal.z);
+        snprintf(n_str, 64, "(%g,%g,%g) ", -face->normal.x, -face->normal.y, -face->normal.z);
       int len = strlen(n_str);
       memcpy(&face_normals_string[offset], n_str, len*sizeof(char));
       offset += len;
+      ASSERT(offset < 16384);
     }
+    face_normals_string[offset] = '\0';
 
-    snprintf(cell_line, 4096, "%d %g %g %g %d %s %d %s %s\n",
+    fprintf(fd, "%d %g %g %g %d %s %d %s %s\n",
       c, mesh->cells[c].center.x, mesh->cells[c].center.y, mesh->cells[c].center.z,
       num_cell_nodes, cell_nodes_string, mesh->cells[c].num_faces, face_nodes_string, 
       face_normals_string);
