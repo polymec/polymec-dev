@@ -107,7 +107,7 @@ int write_t2v_mesh(lua_State* lua)
         }
         char cn_str[10];
         if (n < num_nodes-1)
-          snprintf(cn_str, 10, "%d, ", nn);
+          snprintf(cn_str, 10, "%d,", nn);
         else
           snprintf(cn_str, 10, "%d) ", nn);
         int len = strlen(cn_str);
@@ -139,7 +139,7 @@ int write_t2v_mesh(lua_State* lua)
     }
     face_normals_string[offset] = '\0';
 
-    fprintf(fd, "%d %g %g %g %d %s %d %s %s\n",
+    fprintf(fd, "%d %g %g %g %d %s%d %s%s\n",
       c, mesh->cells[c].center.x, mesh->cells[c].center.y, mesh->cells[c].center.z,
       num_cell_nodes, cell_nodes_string, mesh->cells[c].num_faces, face_nodes_string, 
       face_normals_string);
