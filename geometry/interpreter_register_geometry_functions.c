@@ -37,7 +37,7 @@ extern int point_factory_import_from_cad(lua_State* lua);
 extern int mesh_factory_cubic_lattice(lua_State* lua);
 extern int mesh_factory_cubic_lattice_periodic_bc(lua_State* lua);
 extern int mesh_factory_voronoi(lua_State* lua);
-//extern int mesh_factory_cvt(lua_State* lua);
+extern int mesh_factory_cvt(lua_State* lua);
 
 static int sample_bbox(lua_State* lua)
 {
@@ -464,6 +464,7 @@ void interpreter_register_geometry_functions(interpreter_t* interp)
   interpreter_register_global_method(interp, "mesh_factory", "cubic_lattice", mesh_factory_cubic_lattice);
   interpreter_register_global_method(interp, "mesh_factory", "cubic_lattice_periodic_bc", mesh_factory_cubic_lattice_periodic_bc);
   interpreter_register_global_method(interp, "mesh_factory", "voronoi", mesh_factory_voronoi);
+  interpreter_register_global_method(interp, "mesh_factory", "cvt", mesh_factory_cvt);
 
   interpreter_register_function(interp, "scaled_bounding_box", scaled_bounding_box);
   interpreter_register_function(interp, "sample_bounding_box", sample_bbox);

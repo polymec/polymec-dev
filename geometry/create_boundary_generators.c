@@ -49,6 +49,7 @@ void create_boundary_generators(ptr_array_t* surface_points,
       // Find the "nearest 2" points to the ith surface point--the first is 
       // the point itself, and the second is its nearest neighbor.
       kd_tree_nearest_n(tree, &surf_points[i], 2, neighbors);
+      ASSERT(neighbors[1] >= 0);
       h_min[i] = point_distance(&surf_points[i], &surf_points[neighbors[1]]);
     }
 

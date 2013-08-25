@@ -234,8 +234,8 @@ int mesh_factory_cvt(lua_State* lua)
   if (!lua_isnil(lua, -1))
     strcpy(iteration_method, lua_tostring(lua, -1));
   lua_pop(lua, 1);
-  if (!strcasecmp(iteration_method, "lloyd"))
-    return luaL_error(lua, "Supported iteration methods are 'lloyd'.");
+  if (strcasecmp(iteration_method, "lloyd"))
+    return luaL_error(lua, "Invalid iteration method: '%s'\nSupported methods are 'lloyd'.", iteration_method);
 
   lua_getfield(lua, 2, "num_iterations");
   if (!lua_isnumber(lua, -1))
@@ -292,32 +292,35 @@ int mesh_factory_cvt(lua_State* lua)
         is_invalid = true;
         break;
       }
-      int num_points;
-      ptr_array_append_with_dtor(surface_normals, lua_tovectorlist(lua, val_index, &num_points), DTOR(free));
+      int num_vectors;
+      ptr_array_append_with_dtor(surface_normals, lua_tovectorlist(lua, val_index, &num_vectors), DTOR(free));
       if (num_surface_points->size == surface_normals->size)
       {
-        if (num_surface_points->data[num_surface_points->size-1] != num_points)
+        if (num_surface_points->data[num_surface_points->size-1] != num_vectors)
         {
           is_invalid = true;
           break;
         }
       }
       else
-        int_array_append(num_surface_points, num_points);
+        int_array_append(num_surface_points, num_vectors);
       found_normals = true;
     }
     else
     {
       // Something else is in there. It must be a table.
-      if (!lua_istable(lua, key_index))
+      if (!lua_istable(lua, val_index))
       {
         is_invalid = true;
         break;
       }
-      lua_pushnil(lua);
       bool found_points = false, found_normals = false;
-      while (lua_next(lua, -2))
+      lua_pushnil(lua);
+      int table_index = val_index - 1;
+      while (lua_next(lua, table_index))
       {
+        int key_index = -2;
+        int val_index = -1;
         const char* key = lua_tostring(lua, key_index);
         if (!is_surface_list && !strcmp(key, "points"))
         {
@@ -361,6 +364,7 @@ int mesh_factory_cvt(lua_State* lua)
             int_array_append(num_surface_points, num_points);
           found_normals = true;
         }
+        lua_pop(lua, 1);
       }
       if (is_invalid) break;
       if (found_points && found_normals)
@@ -420,7 +424,8 @@ int mesh_factory_cvt(lua_State* lua)
   {
     point_t* point = &all_surf_points[i];
     vector_t* normal = &all_normals[i];
-    char* tag = surface_names->data[i];
+    int surf_index = all_surf_indices[i];
+    char* tag = surface_names->data[surf_index];
 
     // Alter the bounding box if needed.
     bbox_grow(&bbox, point);
@@ -476,8 +481,6 @@ int mesh_factory_cvt(lua_State* lua)
   create_boundary_generators(merged_points, merged_normals, merged_tags,
                              &boundary_points, &num_boundary_points,
                              &tag_names, &tags, &num_tags);
-
-  
 
   // Initialize a set of interior points that is inside the bounding box 
   // that we computed.
