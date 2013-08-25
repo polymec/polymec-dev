@@ -284,7 +284,7 @@ static void find_nearest_n(kd_tree_node_t* node,
   double my_r2 = SQ_DIST(node->pos, pos);
   if (my_r2 < square_distances[n-1])
   {
-    int i = n;
+    int i = n-1;
     while (my_r2 < square_distances[i]) --i;
     for (int j = i; j < n-1; ++j)
     {
@@ -332,6 +332,7 @@ void kd_tree_nearest_n(kd_tree_t* tree, point_t* point, int n, int* neighbors)
   
   // Search recursively for the closest nodes.
   find_nearest_n(tree->root, pos, n, neighbors, square_distances, &rect);
+  ASSERT((neighbors[n-1] >= 0) || ((tree->size < n) && (neighbors[n-1] == -1)));
 }
 
 static void find_within_radius(kd_tree_node_t* node, 
