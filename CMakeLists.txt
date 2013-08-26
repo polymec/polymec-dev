@@ -14,8 +14,10 @@ message("-- C compiler is ${CMAKE_C_COMPILER}")
 set(CMAKE_CXX_COMPILER "${CXX}")
 message("-- C++ compiler is ${CMAKE_CXX_COMPILER}")
 
-# Build everything as static libs.
-set (BUILD_SHARED_LIBS OFF)
+# Build everything as static libs if possible.
+if (NOT ${LINUX})
+  set (BUILD_SHARED_LIBS OFF)
+endif()
 
 # Project and version numbers.
 project (polymec)
@@ -41,6 +43,9 @@ if (CMAKE_C_COMPILER_ID STREQUAL "GNU")
 
   # Warning suppressants.
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-sign-compare -Wno-unused-parameter -Wno-int-to-pointer-cast -Wno-pointer-to-int-cast")
+
+  # Counter some of GCC's more recent stinginess.
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D_POSIX_C_SOURCE=200809L -D_BSD_SOURCE")
 endif ()
 
 # Figure out MPI.

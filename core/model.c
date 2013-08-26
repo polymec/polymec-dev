@@ -14,9 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <stdlib.h>
-#include <string.h>
-#include <float.h>
+#include "core/polymec.h"
 #include "core/model.h"
 #include "core/unordered_map.h"
 #include "core/options.h"
