@@ -19,6 +19,7 @@
 
 #include "core/polymec.h"
 #include "core/point.h"
+#include "core/linear_algebra.h" // For LAPACK prototypes.
 
 // Computes the coefficients A and b for a linear regression y = A*x + B 
 // given arrays of x and y values. Also computes the variance sigma.

@@ -21,6 +21,18 @@
 
 // Some LAPACK prototypes.
 
+#ifdef LINUX
+#define dgemv dgemv_
+#define dgemm dgemm_
+#define dgesv dgesv_
+#define dgetrf dgetrf_
+#define dgetrs dgetrs_
+#define dgeqrf dgeqrf_
+#define dorgqr dorgqr_
+#define dormqr dormqr_
+#define dgesvd dgesvd_
+#endif
+
 // Matrix-vector multiplication: y := alpha*A*x + beta*y.
 void dgemv(char* trans, int* m, int* n, double* alpha,
            void* a, int* lda, void* x, int* incx,
