@@ -303,7 +303,8 @@ static int read_ascii_stl_file(FILE* stl_file,
     // Add the entries.
     ptr_array_append(all_normals, n);
     ptr_array_append(all_normals, n);
-    ptr_array_append_with_dtor(all_normals, n, DTOR(free));
+    // FIXME: The following line results in a branch from an uninitialized value.
+    ptr_array_append_with_dtor(all_normals, n, DTOR(free)); 
     ptr_array_append_with_dtor(all_vertices, v1, DTOR(free));
     ptr_array_append_with_dtor(all_vertices, v2, DTOR(free));
     ptr_array_append_with_dtor(all_vertices, v3, DTOR(free));

@@ -49,7 +49,10 @@ void create_boundary_generators(ptr_array_t* surface_points,
       // Find the "nearest 2" points to the ith surface point--the first is 
       // the point itself, and the second is its nearest neighbor.
       kd_tree_nearest_n(tree, &surf_points[i], 2, neighbors);
+printf("neighbors for point %d are %d and %d\n", i, neighbors[0], neighbors[1]);
+      ASSERT(neighbors[0] == i);
       ASSERT(neighbors[1] >= 0);
+      ASSERT(neighbors[1] < num_surface_points);
       h_min[i] = point_distance(&surf_points[i], &surf_points[neighbors[1]]);
     }
 
@@ -148,8 +151,8 @@ void create_boundary_generators(ptr_array_t* surface_points,
     (*tags)[tag_index] = int_array_new();
     for (int j = 0; j < *num_boundary_generators; ++j)
     {
-      string_array_t* tags_for_point = boundary_tags->data[j];
-      for (int k = 0; k < tags_for_point->size; ++k)
+      string_slist_t* tags_for_point = boundary_tags->data[j];
+      for (string_slist_node_t* iter = tags_for_point->front; iter != NULL; iter = iter->next)
         int_array_append((*tags)[tag_index], tag_index);
     }
   }
