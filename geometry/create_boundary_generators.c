@@ -35,7 +35,7 @@ void create_boundary_generators(ptr_array_t* surface_points,
   int num_surface_points = surface_points->size;
 
   // Compute the minimum distance from each surface point to its neighbors.
-  double* h_min = malloc(sizeof(point_t) * num_surface_points);
+  double* h_min = malloc(sizeof(double) * num_surface_points);
   {
     // Dump the surface points into a kd-tree.
     point_t* surf_points = malloc(sizeof(point_t) * num_surface_points);
@@ -48,6 +48,7 @@ void create_boundary_generators(ptr_array_t* surface_points,
     {
       // Find the "nearest 2" points to the ith surface point--the first is 
       // the point itself, and the second is its nearest neighbor.
+      // FIXME: Serious memory error within here.
       kd_tree_nearest_n(tree, &surf_points[i], 2, neighbors);
 printf("neighbors for point %d are %d and %d\n", i, neighbors[0], neighbors[1]);
       ASSERT(neighbors[0] == i);
@@ -152,6 +153,7 @@ printf("neighbors for point %d are %d and %d\n", i, neighbors[0], neighbors[1]);
     for (int j = 0; j < *num_boundary_generators; ++j)
     {
       string_slist_t* tags_for_point = boundary_tags->data[j];
+      // FIXME: Big time memory error here!
       for (string_slist_node_t* iter = tags_for_point->front; iter != NULL; iter = iter->next)
         int_array_append((*tags)[tag_index], tag_index);
     }
