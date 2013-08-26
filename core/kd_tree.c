@@ -280,16 +280,21 @@ static void find_nearest_n(kd_tree_node_t* node,
     *near_coord = coord;
   }
 
-  // Distance from point to current node.
+  // Get the square distance from point to the current node, and insert 
+  // the current node into the list of n nearest neighbors if it's closer 
+  // than any of the current nearest neighbors.
   double my_r2 = SQ_DIST(node->pos, pos);
   if (my_r2 < square_distances[n-1])
   {
     int i = n-1;
-    while (my_r2 < square_distances[i]) --i;
-    for (int j = i; j < n-1; ++j)
+    while ((i > 0) && (my_r2 < square_distances[i])) --i;
+    if (my_r2 > square_distances[i])
+      ++i; // Back up one step to where we'll insert the new neighbor.
+printf("%g vs %g: %d slotted at %d\n", my_r2, square_distances[i], node->index, i);
+    for (int j = n-1; j > i; --j)
     {
-      neighbors[j+1] = neighbors[j];
-      square_distances[j+1] = square_distances[j];
+      neighbors[j] = neighbors[j-1];
+      square_distances[j] = square_distances[j-1];
     }
     neighbors[i] = node->index;
     square_distances[i] = my_r2;
@@ -324,7 +329,6 @@ void kd_tree_nearest_n(kd_tree_t* tree, point_t* point, int n, int* neighbors)
   kd_tree_node_t* node = tree->root;
   double pos[3];
   pos[0] = point->x, pos[1] = point->y, pos[2] = point->z;
-  square_distances[0] = SQ_DIST(pos, node->pos);
   kd_tree_rect_t rect;
   rect.min[0] = tree->rect->min[0]; rect.max[0] = tree->rect->max[0];
   rect.min[1] = tree->rect->min[1]; rect.max[1] = tree->rect->max[1];
