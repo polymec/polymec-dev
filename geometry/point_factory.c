@@ -247,55 +247,57 @@ static int read_ascii_stl_file(FILE* stl_file,
                                char* error_message)
 {
   int status = 0;
+  vector_t* n;
+  point_t *v1, *v2, *v3;
   do
   {
-    vector_t* n = malloc(sizeof(vector_t));
+    n = malloc(sizeof(vector_t));
+    v1 = malloc(sizeof(point_t));
+    v2 = malloc(sizeof(point_t));
+    v3 = malloc(sizeof(point_t));
     status = fscanf(stl_file, "facet normal %le %le %le\n", &n->x, &n->y, &n->z);
     if (status != 3)
     {
       snprintf(error_message, 1024, "Problem reading facet %d.", all_normals->size/3);
-      return -1;
+      goto exit_on_error;
     }
     status = fscanf(stl_file, "outer loop");
     if (status != 0)
     {
       snprintf(error_message, 1024, "Problem reading outer loop header for facet %d.", all_normals->size/3);
-      return -1;
+      goto exit_on_error;
     }
     fscanf(stl_file, "\n");
-    point_t* v1 = malloc(sizeof(point_t));
     status = fscanf(stl_file, "vertex %le %le %le\n", &v1->x, &v1->y, &v1->z);
     if (status != 3)
     {
       snprintf(error_message, 1024, "Problem reading vertex 1 for facet %d.", all_normals->size/3);
-      return -1;
+      goto exit_on_error;
     }
-    point_t* v2 = malloc(sizeof(point_t));
     status = fscanf(stl_file, "vertex %le %le %le\n", &v2->x, &v2->y, &v2->z);
     if (status != 3)
     {
       snprintf(error_message, 1024, "Problem reading vertex 2 for facet %d.", all_normals->size/3);
-      return -1;
+      goto exit_on_error;
     }
-    point_t* v3 = malloc(sizeof(point_t));
     status = fscanf(stl_file, "vertex %le %le %le\n", &v3->x, &v3->y, &v3->z);
     if (status != 3)
     {
       snprintf(error_message, 1024, "Problem reading vertex 3 for facet %d.", all_normals->size/3);
-      return -1;
+      goto exit_on_error;
     }
     status = fscanf(stl_file, "endloop");
     if (status != 0)
     {
       snprintf(error_message, 1024, "Problem reading outer loop footer for facet %d.", all_normals->size/3);
-      return -1;
+      goto exit_on_error;
     }
     fscanf(stl_file, "\n");
     status = fscanf(stl_file, "endfacet\n");
     if (status != 0)
     {
       snprintf(error_message, 1024, "Problem reading footer for facet %d.", all_normals->size/3);
-      return -1;
+      goto exit_on_error;
     }
 
     // Add the entries.
@@ -314,6 +316,11 @@ static int read_ascii_stl_file(FILE* stl_file,
   while (status != EOF);
   ASSERT(all_normals->size == all_vertices->size);
   return 0;
+
+exit_on_error:
+  free(n);
+  free(n);
+  return -1;
 }
 
 static int read_binary_stl_file(FILE* stl_file, 

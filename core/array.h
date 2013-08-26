@@ -102,7 +102,7 @@ static inline array_name##_t* array_name##_new() \
 \
 static inline array_name##_t empty_##array_name() \
 { \
-  static array_name##_t empty = {.data = NULL, .size = 0, .capacity = 0}; \
+  static array_name##_t empty = {.data = NULL, .size = 0, .capacity = 0, .dtors = NULL, .arena = NULL}; \
   return empty; \
 } \
 \
@@ -163,7 +163,16 @@ static inline void array_name##_append_with_dtor(array_name##_t* array, element 
   array->data[array->size-1] = value; \
   if (dtor != NULL) \
   { \
-    array->dtors = ARENA_REALLOC(array->arena, array->dtors, sizeof(array_name##_dtor) * array->capacity, 0); \
+    if (array->dtors == NULL) \
+    { \
+      array->dtors = ARENA_MALLOC(array->arena, sizeof(array_name##_dtor) * array->capacity, 0); \
+      memset(array->dtors, 0, sizeof(array_name##_dtor) * array->capacity); \
+    } \
+    else \
+    { \
+      array->dtors = ARENA_REALLOC(array->arena, array->dtors, sizeof(array_name##_dtor) * array->capacity, 0); \
+      memset(&array->dtors[array->size], 0, sizeof(array_name##_dtor) * (array->capacity - array->size)); \
+    } \
     array->dtors[array->size-1] = dtor; \
   } \
 } \
