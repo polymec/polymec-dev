@@ -39,11 +39,11 @@ point_t* witkin_heckbert_sampling(sp_func_t* surface,
   static const double phi = 5.0;
   static const double rho = 15.0;
   static const double alpha = 6.0;
-  static const double Ehat = 0.8 * alpha; // hexagonal close-packing energy
   static const double beta = 10.0;
   static const double gamma = 4.0;
   static const double nu = 0.2;
   static const double delta = 0.7;
+  double Ehat = 0.8 * alpha; // hexagonal close-packing energy
 
   double sigma_hat = 0.25 * surface_diameter;
   double sigma_max = MAX(0.5 * surface_diameter, 1.5 * sigma_hat);

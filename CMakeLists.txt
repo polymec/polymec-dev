@@ -23,11 +23,11 @@ set (POLYMEC_VERSION_MAJOR 1)
 set (POLYMEC_VERSION_MINOR 0)
 
 # Figure out the system type.
-if (${APPLE})
+if (APPLE EQUAL 1)
   set(SYS_FLAGS "-DAPPLE=1")
   set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -framework Veclib")
 else ()
-  if (${LINUX})
+  if (LINUX EQUAL 1)
     set(SYS_FLAGS "-DLINUX=1")
   endif ()
 endif ()
@@ -42,9 +42,23 @@ if (CMAKE_C_COMPILER_ID STREQUAL "GNU")
   # Warning suppressants.
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-sign-compare -Wno-unused-parameter -Wno-int-to-pointer-cast -Wno-pointer-to-int-cast")
 
-  # Counter some of GCC's more recent stinginess.
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D_POSIX_C_SOURCE=200809L -D_BSD_SOURCE")
+  if (LINUX EQUAL 1)
+    # Counter some of GCC's more recent stinginess on Linux.
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D_POSIX_C_SOURCE=200809L -D_BSD_SOURCE")
+    # Pass some more needed flags to the compiler.
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -pthread")
+  endif()
 endif ()
+
+# Basic libraries to be linked in.
+set(POLYMEC_LIBS m)
+if (LINUX EQUAL 1)
+  include(FindBLAS)
+  include(FindLAPACK)
+  find_package(BLAS)
+  find_package(LAPACK)
+  set(POLYMEC_LIBS ${LAPACK_LIBRARIES};${BLAS_LIBRARIES};${POLYMEC_LIBS};dl)
+endif()
 
 # Figure out MPI.
 if (USE_MPI EQUAL 1)
