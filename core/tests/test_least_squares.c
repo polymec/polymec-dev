@@ -52,11 +52,6 @@ static void average_points(point_t* points, int num_points, point_t* average)
   average->z /= num_points;
 }
 
-// LAPACK prototypes.
-void dgetrf(int *N, int *NRHS, double *A, int *LDA, int *IPIV, int *INFO);
-void dgetrs(char *TRANS, int *N, int *NRHS, double *A, 
-            int *LDA, int *IPIV, double *B, int *LDB, int *INFO);
-
 // Weighting function: W(x, x0) = 1/(|x-x0|^2 + eps^2)
 static const double epsilon = 1e-4;
 static void weighting_func(void* context, point_t* x, point_t* x0, double h, double* W, vector_t* gradient)

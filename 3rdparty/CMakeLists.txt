@@ -236,7 +236,7 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libxml2.a)
 endif()
 add_library(xml2 STATIC IMPORTED)
 set_target_properties(xml2 PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libxml2.a)
-set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};xml2;iconv;z)
+set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};xml2)
 set(POLYMEC_TP_INCDIRS ${POLYMEC_TP_INCDIRS};${PROJECT_BINARY_DIR}/include/libxml2)
 
 # Add all the libraries to the build system at large.
