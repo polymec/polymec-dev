@@ -17,7 +17,6 @@
 #ifndef POLYMEC_POINT_H
 #define POLYMEC_POINT_H
 
-#include <math.h>
 #include "core/polymec.h"
 
 // A point in 1, 2, or 3D space.

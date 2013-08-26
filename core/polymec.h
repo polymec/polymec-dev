@@ -31,6 +31,23 @@
 #include "core/loggers.h"
 #include "core/arch.h"
 
+// GCC on Linux with the C99 dialect is getting awfully stingy these days, so
+// we need to mention a few functions that happen to be nonstandard.
+// This is probably not a great fix, but it gets us past this stuff at the moment.
+#ifdef LINUX
+extern void qsort_r(void *base, size_t nmemb, size_t size, int (*compar)(const void *, const void *, void *), void *arg);
+#endif
+
+// The C99 standard no longer defines M_PI(!!!!). 
+// So we have to provide it ourselves.
+#ifndef M_PI
+#include <float.h>
+#define M_PI 3.1415926535897932384626433832795L
+#if LDBL_DIG > 32
+#error "Definition of PI doesn't use the full precision of long double"
+#endif
+#endif
+
 // Some macros.
 #ifndef NDEBUG
 #if USE_MPI
