@@ -14,10 +14,8 @@ message("-- C compiler is ${CMAKE_C_COMPILER}")
 set(CMAKE_CXX_COMPILER "${CXX}")
 message("-- C++ compiler is ${CMAKE_CXX_COMPILER}")
 
-# Build everything as static libs if possible.
-if (NOT ${LINUX})
-  set (BUILD_SHARED_LIBS OFF)
-endif()
+# Build everything as static libs.
+set (BUILD_SHARED_LIBS OFF)
 
 # Project and version numbers.
 project (polymec)
