@@ -63,6 +63,7 @@ mesh_t* create_cvt(point_t* stationary_generators, int num_stationary_generators
 
   // Create an initial tessellation from all the points.
   int num_generators = num_stationary_generators + num_mobile_generators;
+  log_info("%s: creating initial tessellation (%d generators)", cvt_iter->name, num_generators);
   point_t* all_generators = malloc(sizeof(point_t) * num_generators);
   point_t* my_mobile_generators = malloc(sizeof(point_t) * num_mobile_generators);
   memcpy(all_generators, stationary_generators, sizeof(point_t) * num_stationary_generators);
@@ -88,6 +89,8 @@ mesh_t* create_cvt(point_t* stationary_generators, int num_stationary_generators
   int iteration = 0;
   while (!cvt_iter->vtable.is_finished(cvt_iter->context, mesh, iteration))
   {
+    log_info("%s: iteration %d", cvt_iter->name, iteration);
+
     // Move the mobile points.
     cvt_iter->vtable.move_points(cvt_iter->context, my_mobile_generators, num_mobile_generators);
 
