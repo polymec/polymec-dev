@@ -471,7 +471,6 @@ int mesh_factory_cvt(lua_State* lua)
   ptr_array_free(surface_normals);
   ptr_array_free(surface_points);
   int_array_free(num_surface_points);
-  string_array_free(surface_names);
 
   // Initialize a set of stationary points that represent the above surfaces.
   int num_boundary_points, num_tags;
@@ -498,6 +497,7 @@ int mesh_factory_cvt(lua_State* lua)
   free(boundary_points);
   free(tags);
   free(tag_names);
+  string_array_free(surface_names);
   ptr_array_free(merged_tags);
   ptr_array_free(merged_normals);
   ptr_array_free(merged_points);

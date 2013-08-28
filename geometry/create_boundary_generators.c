@@ -42,20 +42,18 @@ void create_boundary_generators(ptr_array_t* surface_points,
     for (int i = 0; i < num_surface_points; ++i)
       surf_points[i] = *((point_t*)surface_points->data[i]);
     kd_tree_t* tree = kd_tree_new(surf_points, num_surface_points);
-printf("tree is originally %p\n", tree);
 
     int neighbors[2];
     for (int i = 0; i < num_surface_points; ++i)
     {
-printf("tree appears to be %p\n", tree);
-kd_tree_t* tree_p = tree;
       // Find the "nearest 2" points to the ith surface point--the first is 
       // the point itself, and the second is its nearest neighbor.
-      // FIXME: Serious memory error within here.
+      // FIXME: Serious memory error within here. We work around it for 
+      // FIXME: the moment by freshing the tree pointer, which is 
+      // FIXME: corrupted. ICK!
+      kd_tree_t* tree_p = tree;
       kd_tree_nearest_n(tree, &surf_points[i], 2, neighbors);
-printf("neighbors for point %d are %d and %d\n", i, neighbors[0], neighbors[1]);
-printf("also, tree is now %p\n", tree);
-printf("AND tree_p is now %p\n", tree_p);
+      tree = tree_p;
       ASSERT(neighbors[0] == i);
       ASSERT(neighbors[1] >= 0);
       ASSERT(neighbors[1] < num_surface_points);
@@ -156,12 +154,7 @@ printf("AND tree_p is now %p\n", tree_p);
     (*tag_names)[tag_index] = strdup(tag_name);
     (*tags)[tag_index] = int_array_new();
     for (int j = 0; j < *num_boundary_generators; ++j)
-    {
-      string_slist_t* tags_for_point = boundary_tags->data[j];
-      // FIXME: Big time memory error here!
-      for (string_slist_node_t* iter = tags_for_point->front; iter != NULL; iter = iter->next)
-        int_array_append((*tags)[tag_index], tag_index);
-    }
+      int_array_append((*tags)[tag_index], tag_index);
   }
 
   // Clean up.
