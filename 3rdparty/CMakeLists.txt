@@ -80,22 +80,19 @@ file(GLOB arena_sources "${CMAKE_CURRENT_BINARY_DIR}/libarena-0.3.5/src/*.c")
 add_library(arena ${arena_sources})
 set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};arena)
 
-# Find HDF5 if we're building a serial version (PETSc is unable to do this for us).
-if (USE_MPI EQUAL 0)
-  set(HDF5_USE_STATIC_LIBRARIES TRUE)
-  find_package(HDF5)
-  if (${HDF5_FOUND})
-    include_directories("${HDF5_INCLUDE_DIRS}")
-    link_directories("${HDF5_LIBRARY_DIRS}")
+# Find HDF5 if we're building a serial version.
+set(HDF5_USE_STATIC_LIBRARIES TRUE)
+find_package(HDF5)
+if (${HDF5_FOUND})
+  include_directories("${HDF5_INCLUDE_DIRS}")
+  link_directories("${HDF5_LIBRARY_DIRS}")
+  list(GET HDF5_LIBRARY_DIRS 0 HDF5_LIBRARY_DIR)
+  list(GET HDF5_INCLUDE_DIRS 0 HDF5_INCLUDE_DIR)
 
-    # Get rid of 'debug' and 'optimized' detritis.
-    list(REMOVE_ITEM HDF5_LIBRARIES debug optimized)
+  # Get rid of 'debug' and 'optimized' detritis.
+  list(REMOVE_ITEM HDF5_LIBRARIES debug optimized)
 
-    set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};${HDF5_LIBRARIES})
-    set(POLYMEC_TP_C_FLAGS "${POLYMEC_TP_C_FLAGS} -DHAVE_HDF5")
-  endif()
-else()
-  # PETSc built us a parallel version.
+  set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};${HDF5_LIBRARIES})
   set(POLYMEC_TP_C_FLAGS "${POLYMEC_TP_C_FLAGS} -DHAVE_HDF5")
 endif()
 
@@ -114,22 +111,20 @@ else()
   endif()
 endif()
 if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/lib${SILOLIB}.a)
-  set(SILO_CONFIG_OPTS --prefix=${PROJECT_BINARY_DIR} --enable-static --disable-shared --disable-fortran)
+  set(SILO_CONFIG_OPTS --enable-static --disable-shared --disable-fortran --without-readline --without-qt --disable-browser)
   if (${CMAKE_BUILD_TYPE} STREQUAL "Debug")
     set(SILO_CONFIG_OPTS ${SILO_CONFIG_OPTS} --enable-debug)
   endif()
-  if (USE_MPI EQUAL 1)
-    set(SILO_CONFIG_OPTS ${SILO_CONFIG_OPTS} --enable-debug --with-hdf5=${HDF5_INCLUDE_DIRS},${HDF5_LIBRARY_DIRS})
-  else()
-    if (${HDF5_FOUND})
-      set(SILO_CONFIG_OPTS ${SILO_CONFIG_OPTS} --enable-debug --with-hdf5=${HDF5_INCLUDE_DIRS},${HDF5_LIBRARY_DIRS})
-    endif()
+  if (${HDF5_FOUND})
+    set(SILO_CONFIG_OPTS ${SILO_CONFIG_OPTS} --with-hdf5=${HDF5_INCLUDE_DIR},${HDF5_LIBRARY_DIR})
   endif()
+  set(SILO_CONFIG_OPTS ${SILO_CONFIG_OPTS} --prefix=${PROJECT_BINARY_DIR})
   message("Unpacking silo...")
   execute_process(COMMAND cmake -E tar xzvf ${CMAKE_CURRENT_SOURCE_DIR}/silo-4.8-bsd-smalltest.tar.gz
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
                   OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
   message("Configuring silo...")
+  message(${SILO_CONFIG_OPTS})
   execute_process(COMMAND env CC=${CC} CXX=${CXX} ./configure ${SILO_CONFIG_OPTS}
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/silo-4.8-bsd
                   OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
