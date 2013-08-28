@@ -78,8 +78,9 @@ mesh_t* create_cvt(point_t* stationary_generators, int num_stationary_generators
   {
     if (dgen_iter->value > num_stationary_generators)
     {
-      polymec_error("create_cvt: mobile generator %d was deleted to bound the tessellation.\n"
-                    "Please ensure that the mobile generators are bounded by stationary generators.");
+      point_t* xg = &all_generators[dgen_iter->value];
+      polymec_error("create_cvt: mobile generator %d at (%g, %g, %g) was deleted to bound the tessellation.\n"
+                    "Please ensure that the mobile generators are bounded by stationary generators.", dgen_iter->value, xg->x, xg->y, xg->z);
     }
   }
 

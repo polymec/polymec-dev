@@ -290,7 +290,6 @@ static void find_nearest_n(kd_tree_node_t* node,
     while ((i > 0) && (my_r2 < square_distances[i])) --i;
     if (my_r2 > square_distances[i])
       ++i; // Back up one step to where we'll insert the new neighbor.
-printf("%g vs %g: %d slotted at %d\n", my_r2, square_distances[i], node->index, i);
     for (int j = n-1; j > i; --j)
     {
       neighbors[j] = neighbors[j-1];
@@ -334,9 +333,7 @@ void kd_tree_nearest_n(kd_tree_t* tree, point_t* point, int n, int* neighbors)
   rect.min[2] = tree->rect->min[2]; rect.max[2] = tree->rect->max[2];
   
   // Search recursively for the closest nodes.
-  printf("tree is %p\n", tree);
   find_nearest_n(tree->root, pos, n, neighbors, square_distances, &rect);
-  printf("tree is now %p\n", tree);
   ASSERT((neighbors[n-1] >= 0) || ((tree->size < n) && (neighbors[n-1] == -1)));
 }
 
