@@ -78,15 +78,15 @@ void bbox_grow(bbox_t* box, point_t* p)
 {
   if (box->x1 > p->x)
     box->x1 = p->x;
-  if (box->x2 > p->x)
+  if (box->x2 < p->x)
     box->x2 = p->x;
   if (box->y1 > p->y)
     box->y1 = p->y;
-  if (box->y2 > p->y)
+  if (box->y2 < p->y)
     box->y2 = p->y;
   if (box->z1 > p->z)
     box->z1 = p->z;
-  if (box->z2 > p->z)
+  if (box->z2 < p->z)
     box->z2 = p->z;
 }
 
