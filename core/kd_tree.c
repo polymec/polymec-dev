@@ -274,7 +274,6 @@ static void find_nearest_n(kd_tree_node_t* node,
   if (near_subtree != NULL)
   {
     // Bisect and recurse.
-printf("Going near\n");
     double coord = *near_coord;
     *near_coord = node->pos[dir];
     find_nearest_n(near_subtree, pos, n, neighbors, square_distances, rect);
@@ -303,7 +302,6 @@ printf("%g vs %g: %d slotted at %d\n", my_r2, square_distances[i], node->index, 
 
   if (far_subtree != NULL)
   {
-printf("Going far\n");
     // Bisect and recurse (if needed).
     double coord = *far_coord;
     *far_coord = node->pos[dir];
@@ -336,7 +334,9 @@ void kd_tree_nearest_n(kd_tree_t* tree, point_t* point, int n, int* neighbors)
   rect.min[2] = tree->rect->min[2]; rect.max[2] = tree->rect->max[2];
   
   // Search recursively for the closest nodes.
+  printf("tree is %p\n", tree);
   find_nearest_n(tree->root, pos, n, neighbors, square_distances, &rect);
+  printf("tree is now %p\n", tree);
   ASSERT((neighbors[n-1] >= 0) || ((tree->size < n) && (neighbors[n-1] == -1)));
 }
 
