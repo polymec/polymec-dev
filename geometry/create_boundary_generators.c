@@ -42,15 +42,20 @@ void create_boundary_generators(ptr_array_t* surface_points,
     for (int i = 0; i < num_surface_points; ++i)
       surf_points[i] = *((point_t*)surface_points->data[i]);
     kd_tree_t* tree = kd_tree_new(surf_points, num_surface_points);
+printf("tree is originally %p\n", tree);
 
     int neighbors[2];
     for (int i = 0; i < num_surface_points; ++i)
     {
+printf("tree appears to be %p\n", tree);
+kd_tree_t* tree_p = tree;
       // Find the "nearest 2" points to the ith surface point--the first is 
       // the point itself, and the second is its nearest neighbor.
       // FIXME: Serious memory error within here.
       kd_tree_nearest_n(tree, &surf_points[i], 2, neighbors);
 printf("neighbors for point %d are %d and %d\n", i, neighbors[0], neighbors[1]);
+printf("also, tree is now %p\n", tree);
+printf("AND tree_p is now %p\n", tree_p);
       ASSERT(neighbors[0] == i);
       ASSERT(neighbors[1] >= 0);
       ASSERT(neighbors[1] < num_surface_points);
