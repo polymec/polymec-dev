@@ -125,99 +125,94 @@ int point_factory_cylinder(lua_State* lua)
   if ((num_args != 1) || (!lua_istable(lua, 1)))
   {
     return luaL_error(lua, "Invalid arguments. Usage:\n"
-                      "points = point_factory.cylinder{nr, ntheta, nz, num_ghost, radius, axial_point, axial_vector}");
+                      "points = point_factory.cylinder{radius, length, center, nr, nz, num_ghost = 1}");
   }
 
   // Extract arguments.
-  const char* entries[] = {"nr", "ntheta", "nz", "num_ghost", 
-                           "radius", "axial_point", "axial_vector"};
-  int nr, ntheta, nz, ng;
-  double r;
+  const char* entries[] = {"radius", "length", "center", "nr", "nz", "num_ghost"};
+  double r, L;
   point_t* x0 = NULL;
-  vector_t* Z = NULL;
-  for (int i = 0; i < 7; ++i)
+  int nr, nz, ng = 1;
+  for (int i = 0; i < 6; ++i)
   {
     lua_pushstring(lua, entries[i]);
     lua_gettable(lua, 1);
-    if (i < 4)
+    if (i > 2)
     {
-      if (!lua_isnumber(lua, -1))
+      if ((i < 5) && !lua_isnumber(lua, -1))
         return luaL_error(lua, "Missing integer argument: %s", entries[i]);
 
       switch(i) 
       {
-        case 0: nr = (int)lua_tonumber(lua, -1); break;
-        case 1: ntheta = (int)lua_tonumber(lua, -1); break;
-        case 2: nz = (int)lua_tonumber(lua, -1); break;
-        case 3: ng = (int)lua_tonumber(lua, -1); break;
+        case 3: nr = (int)lua_tonumber(lua, -1); break;
+        case 4: nz = (int)lua_tonumber(lua, -1); break;
+        case 5: ng = (int)lua_tonumber(lua, -1); break;
         default: break;
       }
     }
-    else if (i == 4)
+    else if (i == 0)
     {
       if (!lua_isnumber(lua, -1))
         return luaL_error(lua, "radius must be a positive number.");
 
       r = lua_tonumber(lua, -1);
     }
-    else if (i == 5)
+    else if (i == 1)
+    {
+      if (!lua_isnumber(lua, -1))
+        return luaL_error(lua, "length must be a positive number.");
+
+      L = lua_tonumber(lua, -1);
+    }
+    else if (i == 2)
     {
       if (!lua_ispoint(lua, -1))
-        return luaL_error(lua, "axial_point must be a point.");
-
+        return luaL_error(lua, "center must be a point.");
       x0 = lua_topoint(lua, -1);
-    }
-    else // (i == 6)
-    {
-      if (!lua_isvector(lua, -1))
-        return luaL_error(lua, "axial_vector must be a vector.");
-
-      Z = lua_tovector(lua, -1);
     }
   }
 
   // Validate inputs.
-  if ((nr <= 0) || (ntheta <= 0) || (nz <= 0))
-    return luaL_error(lua, "nr, ntheta, and nz must all be positive.");
-
-  if (ng < 0)
-    return luaL_error(lua, "num_ghost must be non-negative.");
-
   if (r <= 0)
     return luaL_error(lua, "radius must be positive.");
 
-  double Zmag = vector_mag(Z);
-  if (Zmag == 0)
-    return luaL_error(lua, "axial_vector must not be the zero vector.");
+  if (L <= 0)
+    return luaL_error(lua, "length must be positive.");
+
+  if ((nr <= 0) || (nz <= 0))
+    return luaL_error(lua, "nr and nz must all be positive.");
+
+  if (ng < 0)
+    return luaL_error(lua, "num_ghost must be non-negative.");
 
   // Pop all the previous arguments off the stack.
   lua_pop(lua, lua_gettop(lua));
 
   // Create the points. They should be a set of concentric points with equal
   // angular spacing, with a single point at the center.
-  int num_points_in_disk = 1 + (nr - 1) * ntheta;
+//  int num_points_in_disk = 1 + (nr - 1) * ntheta;
+  int num_points_in_disk = 1;
+  for (int i = 0; i < nr-1; ++i)
+  {
+    double dtheta = 1.0 / (i+1);
+    int ntheta = (int)(2.0 * M_PI / dtheta);
+    num_points_in_disk += ntheta;
+  }
   int num_disks = nz;
   int num_points = num_points_in_disk * nz;
   point_t* points = malloc(sizeof(point_t) * num_points);
   double dr = r / (1.0*nr - 0.5);
-  double dtheta = 2.0 * M_PI / ntheta;
-  double dz = Zmag / nz;
-
-  // Compute an orthonormal basis for constructing disks.
-  vector_t ex, ey;
-  compute_orthonormal_basis(Z, &ex, &ey);
+  double dz = L / nz;
 
   // Find the point at the "bottom" of the cylinder.
-  point_t x_bottom = {.x = x0->x - 0.5*Z->x,
-                      .y = x0->y - 0.5*Z->y,
-                      .z = x0->z - 0.5*Z->z};
+  point_t x_bottom = {.x = x0->x, .y = x0->y, .z = x0->z - 0.5*L};
   int offset = 0;
   for (int i = 0; i < num_disks; ++i)
   {
     // Find the location of the center of the disk.
-    point_t x_center = {.x = x_bottom.x + (i+0.5) * dz * Z->x,
-                        .y = x_bottom.y + (i+0.5) * dz * Z->y,
-                        .z = x_bottom.z + (i+0.5) * dz * Z->z};
+    point_t x_center = {.x = x_bottom.x,
+                        .y = x_bottom.y,
+                        .z = x_bottom.z + (i+0.5) * dz};
 
     // Plant a point in the center of the disk.
     points[offset++] = x_center;
@@ -225,13 +220,15 @@ int point_factory_cylinder(lua_State* lua)
     // Construct the other points in the disk.
     for (int j = 0; j < nr-1; ++j)
     {
-      double rj = j * dr;
+      double rj = (j+1) * dr;
+      double dtheta = 1.0 / (j+1);
+      int ntheta = (int)(2.0 * M_PI / dtheta);
       for (int k = 0; k < ntheta; ++k, ++offset)
       {
         double thetak = k * dtheta;
-        points[offset].x = x_center.x + rj * (cos(thetak) * ex.x + sin(thetak) * ey.x);
-        points[offset].y = x_center.y + rj * (cos(thetak) * ex.y + sin(thetak) * ey.y);
-        points[offset].z = x_center.z + rj * (cos(thetak) * ex.z + sin(thetak) * ey.z);
+        points[offset].x = x_center.x + rj * cos(thetak);
+        points[offset].y = x_center.y + rj * sin(thetak);
+        points[offset].z = x_center.z;
       }
     }
   }
