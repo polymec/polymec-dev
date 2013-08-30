@@ -38,28 +38,30 @@ int point_factory_cubic_lattice(lua_State* lua)
   if ((num_args != 1) || (!lua_istable(lua, 1)))
   {
     return luaL_error(lua, "Invalid arguments. Usage:\n"
-                      "points = point_factory.cubic_lattice{nx, ny, nz, num_ghost, bounding_box}");
+                      "points = point_factory.cubic_lattice{bounding_box, nx, ny, nz, num_ghost = 1}");
   }
 
   // Extract arguments.
-  const char* entries[] = {"nx", "ny", "nz", "num_ghost", "bounding_box"};
-  int nx, ny, nz, ng;
+  const char* entries[] = {"bounding_box", "nx", "ny", "nz", "num_ghost"};
+  int nx, ny, nz, ng = 1;
   bbox_t* bbox = NULL;
   for (int i = 0; i < 5; ++i)
   {
     lua_pushstring(lua, entries[i]);
     lua_gettable(lua, 1);
-    if (i < 4)
+    if (i > 0)
     {
+      if ((i == 4) && lua_isnil(lua, -1)) continue;
+
       if (!lua_isnumber(lua, -1))
         return luaL_error(lua, "Missing integer argument: %s", entries[i]);
 
       switch(i) 
       {
-        case 0: nx = (int)lua_tonumber(lua, -1); break;
-        case 1: ny = (int)lua_tonumber(lua, -1); break;
-        case 2: nz = (int)lua_tonumber(lua, -1); break;
-        case 3: ng = (int)lua_tonumber(lua, -1); break;
+        case 1: nx = (int)lua_tonumber(lua, -1); break;
+        case 2: ny = (int)lua_tonumber(lua, -1); break;
+        case 3: nz = (int)lua_tonumber(lua, -1); break;
+        case 4: ng = (int)lua_tonumber(lua, -1); break;
         default: break;
       }
     }
@@ -99,13 +101,13 @@ int point_factory_cubic_lattice(lua_State* lua)
   double dz = (bbox->z2 - bbox->z1) / nz;
   for (int i = -ng; i < nx+ng; ++i)
   {
-    double xi = (i+0.5) * dx;
+    double xi = bbox->x1 + (i+0.5) * dx;
     for (int j = -ng; j < ny+ng; ++j)
     {
-      double yj = (j+0.5) * dy;
+      double yj = bbox->y1 + (j+0.5) * dy;
       for (int k = -ng; k < nz+ng; ++k, ++offset)
       {
-        double zk = (k+0.5) * dz;
+        double zk = bbox->z1 + (k+0.5) * dz;
         points[offset].x = xi;
         points[offset].y = yj;
         points[offset].z = zk;
@@ -141,6 +143,8 @@ int point_factory_cylinder(lua_State* lua)
     lua_gettable(lua, 1);
     if ((i > 2) && (i != 5) && (i != 6))
     {
+      if ((i == 7) && lua_isnil(lua, -1)) continue;
+
       if ((i < 5) && !lua_isnumber(lua, -1))
         return luaL_error(lua, "Missing integer argument: %s", entries[i]);
 
@@ -223,50 +227,50 @@ int point_factory_cylinder(lua_State* lua)
   // Pop all the previous arguments off the stack.
   lua_pop(lua, lua_gettop(lua));
 
-  // Create the points. They should be a set of concentric points with equal
-  // angular spacing, with a single point at the center.
-//  int num_points_in_disk = 1 + (nr - 1) * ntheta;
-  int num_points_in_disk = 1;
-  for (int i = 0; i < nr-1; ++i)
-  {
-    double dtheta = 1.0 / (i+1);
-    int ntheta = (int)(2.0 * M_PI / dtheta);
-    num_points_in_disk += ntheta;
-  }
-  int num_disks = nz;
-  int num_points = num_points_in_disk * nz;
-  point_t* points = malloc(sizeof(point_t) * num_points);
-  double dz = length / nz;
-
   // Determine the radial spacing.
   double linear_dr = radius / (1.0*nr - 0.5);
-  double r[nr-1], dr[nr-1];
+  double r[nr-1+ng], dr[nr-1+ng];
   if ((radial_spacing == NULL) || (!strcasecmp(radial_spacing, "linear")))
   {
-    for (int j = 0; j < nr-1; ++j)
+    for (int j = 0; j < nr-1+ng; ++j)
     {
       dr[j] = linear_dr;
-      r[nr-1] = (j+1) * linear_dr;
+      r[j] = (j+1) * linear_dr;
     }
   }
   else
   {
     // Figure out logarithmic spacing.
     double sum = 0.0;
-    for (int j = 0; j < nr-1; ++j)
+    for (int j = 0; j < nr; ++j)
       sum += pow(log_spacing_factor, 1.0*j);
     double dr0 = radius / sum;
-    for (int j = 0; j < nr-1; ++j)
+    for (int j = 0; j < nr-1+ng; ++j)
     {
       dr[j] = pow(log_spacing_factor, 1.0*j) * dr0;
       r[j] = (j == 0) ? dr[j] : r[j-1] + dr[j];
     }
   }
 
+  // Create the points. They should be a set of concentric points with equal
+  // angular spacing, with a single point at the center.
+//  int num_points_in_disk = 1 + (nr - 1) * ntheta;
+  int num_points_in_disk = 1;
+  for (int i = 0; i < nr-1+ng; ++i)
+  {
+    double dtheta = dr[i]/ r[i];
+    int ntheta = (int)(2.0 * M_PI / dtheta);
+    num_points_in_disk += ntheta;
+  }
+  int num_disks = nz;
+  int num_points = (num_points_in_disk + 2*ng) * (nz + 2*ng);
+  point_t* points = malloc(sizeof(point_t) * num_points);
+  double dz = length / nz;
+
   // Find the point at the "bottom" of the cylinder.
   point_t x_bottom = {.x = x0->x, .y = x0->y, .z = x0->z - 0.5*length};
   int offset = 0;
-  for (int i = 0; i < num_disks; ++i)
+  for (int i = -ng; i < num_disks+ng; ++i)
   {
     // Find the location of the center of the disk.
     point_t x_center = {.x = x_bottom.x,
@@ -277,7 +281,7 @@ int point_factory_cylinder(lua_State* lua)
     points[offset++] = x_center;
 
     // Construct the other points in the disk.
-    for (int j = 0; j < nr-1; ++j)
+    for (int j = 0; j < nr-1+ng; ++j)
     {
       double rj = r[j];
       double dtheta = dr[j]/ rj;

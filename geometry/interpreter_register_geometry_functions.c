@@ -16,6 +16,7 @@
 
 #include "core/boundary_cell_map.h"
 #include "core/constant_st_func.h"
+#include "core/kd_tree.h"
 #include "geometry/interpreter_register_geometry_functions.h"
 #include "geometry/rect_prism.h"
 
@@ -412,7 +413,7 @@ static int remove_points(lua_State* lua)
       if (!lua_ispointlist(lua, -1))
         return luaL_error(lua, "near_points should be a list of points.");
 
-      points = lua_topointlist(lua, -1, &num_points);
+      near_points = lua_topointlist(lua, -1, &num_near_points);
     }
     else if (i == 1) // within_distance
     {
@@ -422,7 +423,7 @@ static int remove_points(lua_State* lua)
       if (within_distance <= 0.0)
         return luaL_error(lua, "within_distance should be positive.");
     }
-    else if (i == 2) // within surface
+    else if (i == 2) // within_surface
     {
       if (lua_isboundingbox(lua, -1))
       {
@@ -433,7 +434,7 @@ static int remove_points(lua_State* lua)
       }
       else if (lua_isscalarfunction(lua, -1))
         within_surface = lua_toscalarfunction(lua, -1);
-      else
+      else if (!lua_isnil(lua, -1))
         return luaL_error(lua, "within_surface should be a scalar function.");
     }
     else // at_time
@@ -446,25 +447,58 @@ static int remove_points(lua_State* lua)
     }
   }
 
-  // Now remove the points.
-  point_t* culled_points = malloc(sizeof(point_t) * num_points);
-  int num_culled_points = 0;
-  for (int i = 0; i < num_points; ++i)
+  // Take stock of our arguments.
+  if (near_points != NULL) 
   {
-    double F;
-    st_func_eval(within_surface, &points[i], at_time, &F);
-    if (F >= 0.0)
-    {
-      culled_points[num_culled_points] = points[i];
-      ++num_culled_points;
-    }
+    if (within_distance == 0.0)
+      return luaL_error(lua, "within_distance should be given with near_points.");
+    if (within_surface != NULL)
+      return luaL_error(lua, "within_surface cannot be specified with near_points.");
   }
-  culled_points = realloc(culled_points, sizeof(point_t) * num_culled_points);
+  if ((near_points == NULL) && (within_surface == NULL))
+    return luaL_error(lua, "no criteria for removing points!");
+
+  // Now remove the points.
+  int num_removed_points = 0;
+  if (near_points != NULL)
+  {
+    // Stick our points in a kd-tree.
+    kd_tree_t* tree = kd_tree_new(near_points, num_near_points);
+    for (int i = 0; i < num_points; ++i)
+    {
+      int j = kd_tree_nearest(tree, &points[i]);
+      if (point_distance(&points[i], &near_points[j]) < within_distance)
+      {
+        ++num_removed_points;
+        points[i] = points[num_points-num_removed_points];
+      }
+    }
+    points = realloc(points, sizeof(point_t) * (num_points - num_removed_points));
+
+    // Clean up.
+    kd_tree_free(tree);
+  }
+  else 
+  {
+    ASSERT(within_surface != NULL);
+    for (int i = 0; i < num_points; ++i)
+    {
+      double F;
+      st_func_eval(within_surface, &points[i], at_time, &F);
+      if (F >= 0.0)
+      {
+        ++num_removed_points;
+        points[i] = points[num_points-num_removed_points];
+      }
+    }
+    points = realloc(points, sizeof(point_t) * (num_points - num_removed_points));
+  }
 
   // Clean up.
   within_surface = NULL;
 
-  lua_pushpointlist(lua, culled_points, num_culled_points);
+  // Return the number of removed points.
+  lua_pushinteger(lua, num_removed_points);
   return 1;
 }
 
