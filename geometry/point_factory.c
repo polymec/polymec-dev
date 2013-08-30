@@ -247,7 +247,10 @@ int point_factory_cylinder(lua_State* lua)
     double dr0 = radius / sum;
     for (int j = 0; j < nr-1+ng; ++j)
     {
-      dr[j] = pow(log_spacing_factor, 1.0*j) * dr0;
+      if (j < nr-1)
+        dr[j] = pow(log_spacing_factor, 1.0*j) * dr0;
+      else
+        dr[j] = dr[j-1];
       r[j] = (j == 0) ? dr[j] : r[j-1] + dr[j];
     }
   }
