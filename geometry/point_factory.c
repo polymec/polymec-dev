@@ -125,19 +125,21 @@ int point_factory_cylinder(lua_State* lua)
   if ((num_args != 1) || (!lua_istable(lua, 1)))
   {
     return luaL_error(lua, "Invalid arguments. Usage:\n"
-                      "points = point_factory.cylinder{radius, length, center, nr, nz, num_ghost = 1}");
+                      "points = point_factory.cylinder{radius, length, center = {0, 0, 0}, nr, nz, radial_spacing = 'linear', log_spacing_factor = 1.1, num_ghost = 1}");
   }
 
   // Extract arguments.
-  const char* entries[] = {"radius", "length", "center", "nr", "nz", "num_ghost"};
-  double r, L;
+  const char* entries[] = {"radius", "length", "center", "nr", "nz", "radial_spacing", "log_spacing_factor", "num_ghost"};
+  double radius, length;
+  double log_spacing_factor = 1.1;
   point_t* x0 = NULL;
   int nr, nz, ng = 1;
-  for (int i = 0; i < 6; ++i)
+  const char* radial_spacing = NULL;
+  for (int i = 0; i < 8; ++i)
   {
     lua_pushstring(lua, entries[i]);
     lua_gettable(lua, 1);
-    if (i > 2)
+    if ((i > 2) && (i != 5) && (i != 6))
     {
       if ((i < 5) && !lua_isnumber(lua, -1))
         return luaL_error(lua, "Missing integer argument: %s", entries[i]);
@@ -146,7 +148,7 @@ int point_factory_cylinder(lua_State* lua)
       {
         case 3: nr = (int)lua_tonumber(lua, -1); break;
         case 4: nz = (int)lua_tonumber(lua, -1); break;
-        case 5: ng = (int)lua_tonumber(lua, -1); break;
+        case 7: ng = (int)lua_tonumber(lua, -1); break;
         default: break;
       }
     }
@@ -155,32 +157,65 @@ int point_factory_cylinder(lua_State* lua)
       if (!lua_isnumber(lua, -1))
         return luaL_error(lua, "radius must be a positive number.");
 
-      r = lua_tonumber(lua, -1);
+      radius = lua_tonumber(lua, -1);
     }
     else if (i == 1)
     {
       if (!lua_isnumber(lua, -1))
         return luaL_error(lua, "length must be a positive number.");
 
-      L = lua_tonumber(lua, -1);
+      length = lua_tonumber(lua, -1);
     }
     else if (i == 2)
     {
-      if (!lua_ispoint(lua, -1))
-        return luaL_error(lua, "center must be a point.");
-      x0 = lua_topoint(lua, -1);
+      if (!lua_isnil(lua, -1))
+      {
+        if (!lua_ispoint(lua, -1))
+          return luaL_error(lua, "center must be a point.");
+        x0 = lua_topoint(lua, -1);
+      }
+    }
+    else if (i == 5)
+    {
+      if (!lua_isnil(lua, -1))
+      {
+        if (!lua_isstring(lua, -1))
+          return luaL_error(lua, "radial_spacing must be 'linear' or 'log'.");
+        radial_spacing = lua_tostring(lua, -1);
+      }
+    }
+    else if (i == 6)
+    {
+      if (!lua_isnil(lua, -1))
+      {
+        if (!lua_isnumber(lua, -1))
+          return luaL_error(lua, "log_spacing_factor must be positive.");
+        log_spacing_factor = lua_tonumber(lua, -1);
+      }
     }
   }
+  if (x0 == NULL)
+    x0 = point_new(0.0, 0.0, 0.0);
 
   // Validate inputs.
-  if (r <= 0)
+  if (radius <= 0)
     return luaL_error(lua, "radius must be positive.");
 
-  if (L <= 0)
+  if (length <= 0)
     return luaL_error(lua, "length must be positive.");
 
   if ((nr <= 0) || (nz <= 0))
     return luaL_error(lua, "nr and nz must all be positive.");
+
+  if ((radial_spacing != NULL) && 
+      !strcasecmp(radial_spacing, "linear") &&
+      !strcasecmp(radial_spacing, "log"))
+  {
+    return luaL_error(lua, "radial_spacing must be 'linear' or 'log'.");
+  }
+
+  if (log_spacing_factor <= 0.0)
+    return luaL_error(lua, "log_spacing_factor must be positive.");
 
   if (ng < 0)
     return luaL_error(lua, "num_ghost must be non-negative.");
@@ -201,11 +236,35 @@ int point_factory_cylinder(lua_State* lua)
   int num_disks = nz;
   int num_points = num_points_in_disk * nz;
   point_t* points = malloc(sizeof(point_t) * num_points);
-  double dr = r / (1.0*nr - 0.5);
-  double dz = L / nz;
+  double dz = length / nz;
+
+  // Determine the radial spacing.
+  double linear_dr = radius / (1.0*nr - 0.5);
+  double r[nr-1], dr[nr-1];
+  if ((radial_spacing == NULL) || (!strcasecmp(radial_spacing, "linear")))
+  {
+    for (int j = 0; j < nr-1; ++j)
+    {
+      dr[j] = linear_dr;
+      r[nr-1] = (j+1) * linear_dr;
+    }
+  }
+  else
+  {
+    // Figure out logarithmic spacing.
+    double sum = 0.0;
+    for (int j = 0; j < nr-1; ++j)
+      sum += pow(log_spacing_factor, 1.0*j);
+    double dr0 = radius / sum;
+    for (int j = 0; j < nr-1; ++j)
+    {
+      dr[j] = pow(log_spacing_factor, 1.0*j) * dr0;
+      r[j] = (j == 0) ? dr[j] : r[j-1] + dr[j];
+    }
+  }
 
   // Find the point at the "bottom" of the cylinder.
-  point_t x_bottom = {.x = x0->x, .y = x0->y, .z = x0->z - 0.5*L};
+  point_t x_bottom = {.x = x0->x, .y = x0->y, .z = x0->z - 0.5*length};
   int offset = 0;
   for (int i = 0; i < num_disks; ++i)
   {
@@ -220,8 +279,8 @@ int point_factory_cylinder(lua_State* lua)
     // Construct the other points in the disk.
     for (int j = 0; j < nr-1; ++j)
     {
-      double rj = (j+1) * dr;
-      double dtheta = 1.0 / (j+1);
+      double rj = r[j];
+      double dtheta = dr[j]/ rj;
       int ntheta = (int)(2.0 * M_PI / dtheta);
       for (int k = 0; k < ntheta; ++k, ++offset)
       {
