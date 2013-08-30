@@ -308,43 +308,48 @@ static int rotate_points(lua_State* lua)
 {
   // Check the arguments.
   int num_args = lua_gettop(lua);
-  if ((num_args != 4) || !lua_ispointlist(lua, 1) ||
-      !lua_isvector(lua, 2) || !lua_ispoint(lua, 3) || !lua_isnumber(lua, 4))
+  if ((num_args < 2) ||
+      !lua_ispointlist(lua, 1) || 
+      !lua_isnumber(lua, 2) || 
+      ((num_args >= 3) && !lua_isvector(lua, 3)) ||
+      ((num_args == 4) && !lua_ispoint(lua, 4)))
   {
     return luaL_error(lua, "Invalid argument(s). Usage:\n"
-                      "rotate_points(points, axis, origin, angle) ->\n"
+                      "rotate_points(points, angle, axis = {0, 0, 1}, origin = {0, 0, 0}) ->\n"
                       "Rotates a set points about the axis by the given angle.");
   }
 
   int num_points;
   point_t* points = lua_topointlist(lua, 1, &num_points);
-  vector_t* axis = lua_tovector(lua, 2);
-  point_t* origin = lua_topoint(lua, 3);
-  double angle = lua_tonumber(lua, 4);
+  double angle = lua_tonumber(lua, 2);
+  vector_t* axis = (num_args >= 3) ? lua_tovector(lua, 3) : vector_new(0.0, 0.0, 1.0);
+  point_t* origin = (num_args == 4) ? lua_topoint(lua, 4) : point_new(0.0, 0.0, 0.0);
 
   for (int i = 0; i < num_points; ++i)
   {
-    // Relative coordinates.
+    // Relative coordinates: y = x - origin.
     vector_t y;
     point_displacement(origin, &points[i], &y);
 
-    // Set up an orthonormal basis.
+    // Set up an orthonormal basis for the given axis.
     vector_t e1, e2;
     compute_orthonormal_basis(axis, &e1, &e2);
+printf("e1 = (%g, %g, %g), e2 = (%g, %g, %g)\n", e1.x, e1.y, e1.z, e2.x, e2.y, e2.z);
 
-    // Project u onto the e1 x e2 plane.
-    double u1 = vector_dot(&y, &e1);
-    double u2 = vector_dot(&y, &e2);
-    double u3 = vector_dot(&y, axis);
+    // Project y onto the e1 x e2 plane.
+    double y1 = vector_dot(&y, &e1);
+    double y2 = vector_dot(&y, &e2);
+    double y3 = vector_dot(&y, axis);
+printf("y = (%g, %g, %g)\n", y1, y2, y3);
 
     // Rotate it about the axis by the angle.
-    double Ru1 =  u1*cos(angle) + u2*sin(angle);
-    double Ru2 = -u1*sin(angle) + u2*cos(angle);
+    double Ry1 =  y1*cos(angle) + y2*sin(angle);
+    double Ry2 = -y1*sin(angle) + y2*cos(angle);
 
     // Back to original coordinate frame.
-    points[i].x = origin->x + Ru1*e1.x + Ru2*e2.x + u3*axis->x;
-    points[i].y = origin->y + Ru1*e1.y + Ru2*e2.y + u3*axis->y;
-    points[i].z = origin->z + Ru1*e1.z + Ru2*e2.z + u3*axis->z;
+    points[i].x = origin->x + Ry1*e1.x + Ry2*e2.x + y3*axis->x;
+    points[i].y = origin->y + Ry1*e1.y + Ry2*e2.y + y3*axis->y;
+    points[i].z = origin->z + Ry1*e1.z + Ry2*e2.z + y3*axis->z;
   }
 
   // Modified in place.
