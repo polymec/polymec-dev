@@ -18,9 +18,9 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libgc.a)
   execute_process(COMMAND make install -j4
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/gc-7.2
                   OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
-  add_library(gc STATIC IMPORTED)
-  set_target_properties(gc PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libgc.a)
 endif()
+add_library(gc STATIC IMPORTED)
+set_target_properties(gc PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libgc.a)
 set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};gc)
 
 # Build the QHull C library.
