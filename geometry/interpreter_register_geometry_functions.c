@@ -380,38 +380,49 @@ static int remove_points(lua_State* lua)
 {
   // Check the arguments.
   int num_args = lua_gettop(lua);
-  if ((num_args != 1) || !lua_istable(lua, 1))
+  if ((num_args != 2) || !lua_ispointlist(lua, 1) || !lua_istable(lua, 2))
   {
     return luaL_error(lua, "Invalid argument(s). Usage:\n"
-                      "culled_points = remove_points{points, within_surface = S, at_time = t} ->\n"
+                      "remove_points(points, options) ->\n"
                       "Removes points in the given list that meet the given criterion.");
   }
 
   // Extract arguments.
-  const char* entries[] = {"points", "within_surface", "at_time"};
-  point_t* points = NULL;
   int num_points = 0;
+  point_t* points = lua_topointlist(lua, 1, &num_points);
+  int num_near_points = 0;
+  point_t* near_points = NULL;
+  double within_distance = 0.0;
   st_func_t* within_surface = NULL;
   bbox_t* within_bbox = NULL;
   double at_time = 0.0;
-  for (int i = 0; i < 3; ++i)
+  const char* entries[] = {"near_points", "within_distance", "within_surface", "at_time"};
+  for (int i = 0; i < 4; ++i)
   {
     lua_pushstring(lua, entries[i]);
-    lua_gettable(lua, 1);
-    if (i == 0)
+    lua_gettable(lua, 2);
+    if (i == 0) // near_points
     {
       if (lua_isnil(lua, -1))
       {
         lua_pop(lua, 1);
         lua_pushinteger(lua, 1);
-        lua_gettable(lua, 1);
+        lua_gettable(lua, 2);
       }
       if (!lua_ispointlist(lua, -1))
-        return luaL_error(lua, "points should be a list of points.");
+        return luaL_error(lua, "near_points should be a list of points.");
 
       points = lua_topointlist(lua, -1, &num_points);
     }
-    else if (i == 1) 
+    else if (i == 1) // within_distance
+    {
+      if (!lua_isnumber(lua, -1))
+        return luaL_error(lua, "within_distance should be a number.");
+      within_distance = lua_tonumber(lua, -1);
+      if (within_distance <= 0.0)
+        return luaL_error(lua, "within_distance should be positive.");
+    }
+    else if (i == 2) // within surface
     {
       if (lua_isboundingbox(lua, -1))
       {
@@ -425,7 +436,7 @@ static int remove_points(lua_State* lua)
       else
         return luaL_error(lua, "within_surface should be a scalar function.");
     }
-    else
+    else // at_time
     {
       if (lua_isnil(lua, -1)) break;
       if (!lua_isnumber(lua, -1))
@@ -435,7 +446,7 @@ static int remove_points(lua_State* lua)
     }
   }
 
-  // Make a new list of points.
+  // Now remove the points.
   point_t* culled_points = malloc(sizeof(point_t) * num_points);
   int num_culled_points = 0;
   for (int i = 0; i < num_points; ++i)
