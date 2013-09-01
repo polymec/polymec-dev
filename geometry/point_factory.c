@@ -266,7 +266,7 @@ int point_factory_cylinder(lua_State* lua)
     num_points_in_disk += ntheta;
   }
   int num_disks = nz;
-  int num_points = (num_points_in_disk + 2*ng) * (nz + 2*ng);
+  int num_points = num_points_in_disk * (nz + 2*ng);
   point_t* points = malloc(sizeof(point_t) * num_points);
   double dz = length / nz;
 
@@ -298,6 +298,7 @@ int point_factory_cylinder(lua_State* lua)
       }
     }
   }
+  ASSERT(offset == num_points);
 
   // Push the points onto the stack.
   lua_pushpointlist(lua, points, num_points);
