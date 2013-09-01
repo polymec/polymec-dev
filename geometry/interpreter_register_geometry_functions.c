@@ -335,22 +335,20 @@ static int rotate_points(lua_State* lua)
     // Set up an orthonormal basis for the given axis.
     vector_t e1, e2;
     compute_orthonormal_basis(axis, &e1, &e2);
-printf("e1 = (%g, %g, %g), e2 = (%g, %g, %g)\n", e1.x, e1.y, e1.z, e2.x, e2.y, e2.z);
 
     // Project y onto the e1 x e2 plane.
-    double y1 = vector_dot(&y, &e1);
-    double y2 = vector_dot(&y, &e2);
+    double xi1 = vector_dot(&y, &e1);
+    double xi2 = vector_dot(&y, &e2);
     double y3 = vector_dot(&y, axis);
-printf("y = (%g, %g, %g)\n", y1, y2, y3);
 
     // Rotate it about the axis by the angle.
-    double Ry1 =  y1*cos(angle) + y2*sin(angle);
-    double Ry2 = -y1*sin(angle) + y2*cos(angle);
+    double Rxi1 = xi1*cos(angle) - xi2*sin(angle);
+    double Rxi2 = xi1*sin(angle) + xi2*cos(angle);
 
     // Back to original coordinate frame.
-    points[i].x = origin->x + Ry1*e1.x + Ry2*e2.x + y3*axis->x;
-    points[i].y = origin->y + Ry1*e1.y + Ry2*e2.y + y3*axis->y;
-    points[i].z = origin->z + Ry1*e1.z + Ry2*e2.z + y3*axis->z;
+    points[i].x = origin->x + Rxi1*e1.x + Rxi2*e2.x + y3*axis->x;
+    points[i].y = origin->y + Rxi1*e1.y + Rxi2*e2.y + y3*axis->y;
+    points[i].z = origin->z + Rxi1*e1.z + Rxi2*e2.z + y3*axis->z;
   }
 
   // Modified in place.
