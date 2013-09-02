@@ -96,6 +96,9 @@ voronoi_tessellator_tessellate(voronoi_tessellator_t* tessellator,
   char* argv[] = {"qvoronoi", // The program itself
                   "p",        // Coordinates of nodes
                   "Fv"};      // List of ridges (edges) for faces / cell pairs
+//                  "Qz"};       // List of ridges (edges) for faces / cell pairs
+//                  "Qt"};      // triangulated output.
+//                  "Tv"};      // verify
   qh_init_A(fin, fout, stderr, argc, argv);
   int status = setjmp(qh errexit); 
 
@@ -106,7 +109,7 @@ voronoi_tessellator_tessellate(voronoi_tessellator_t* tessellator,
     log_debug("voronoi_tessellator_qhull: Tessellating %d points\n", num_points);
     qh DELAUNAY = true;
     qh VORONOI = true;
-    qh SCALElast = true;
+    qh SCALElast = true; // -Qbb option.
     qh_checkflags(qh qhull_command, hidden_options);
     qh_initflags(qh qhull_command);
     int num_points, dim;
