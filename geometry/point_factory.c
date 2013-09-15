@@ -289,6 +289,7 @@ int point_factory_cylinder(lua_State* lua)
       double rj = r[j];
       double dtheta = dr[j]/ rj;
       int ntheta = (int)(2.0 * M_PI / dtheta);
+      dtheta = 2.0 * M_PI / ntheta; // Re-adjust.
       for (int k = 0; k < ntheta; ++k, ++offset)
       {
         double thetak = k * dtheta;
