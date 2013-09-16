@@ -63,7 +63,7 @@ typedef int (*list_name##_comparator)(element, element); \
 \
 static inline list_name##_t* list_name##_new() \
 { \
-  list_name##_t* list = malloc(sizeof(list_name##_t)); \
+  list_name##_t* list = (list_name##_t*)malloc(sizeof(list_name##_t)); \
   list->front = list->back = NULL; \
   list->size = 0; \
   list->arena = NULL; \
@@ -94,7 +94,7 @@ static inline list_name##_node_t* list_name##_find(list_name##_t* list, element 
 static inline void list_name##_insert_with_dtor(list_name##_t* list, element value, list_name##_dtor dtor, list_name##_node_t* node) \
 { \
   ASSERT(node != NULL); \
-  list_name##_node_t* n = malloc(sizeof(list_name##_node_t)); \
+  list_name##_node_t* n = (list_name##_node_t*)malloc(sizeof(list_name##_node_t)); \
   n->value = value; \
   n->next = NULL; \
   if (list->front == NULL) \
@@ -131,7 +131,7 @@ static inline void list_name##_insert(list_name##_t* list, element value, list_n
 } \
 static inline void list_name##_append_with_dtor(list_name##_t* list, element value, list_name##_dtor dtor) \
 { \
-  list_name##_node_t* n = malloc(sizeof(list_name##_node_t)); \
+  list_name##_node_t* n = (list_name##_node_t*)malloc(sizeof(list_name##_node_t)); \
   n->value = value; \
   n->dtor = dtor; \
   n->next = NULL; \

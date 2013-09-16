@@ -19,7 +19,11 @@
 
 #include "core/slist.h"
 #include "core/point.h"
-#include "core/point2.h"
+//#include "core/point2.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 // This represents a Voronoi cell in a tessellation.
 typedef struct
@@ -77,6 +81,7 @@ voronoi_tessellator_tessellate(voronoi_tessellator_t* tessellator,
                                point_t* points, int num_points,
                                int_slist_t* deleted_points);
 
+#if 0
 // Creates a planar tessellation with the given set of generators. 
 // The tessellation is bounded by a bounding polygon consisting of a 
 // set of vertices traversed in the order given. Note that in a 2D planar
@@ -85,9 +90,14 @@ voronoi_tessellation_t*
 voronoi_tessellator_tessellate_2d(voronoi_tessellator_t* tessellator,
                                   point2_t* points, int num_points,
                                   point2_t* bounding_polygon, int num_bounding_edges);
+#endif
 
 // Destroys a tessellation that has been created by a tessellator.
 void voronoi_tessellation_free(voronoi_tessellation_t* tessellation);
+
+#ifdef __cplusplus
+} // end extern "C"
+#endif
 
 #endif
 
