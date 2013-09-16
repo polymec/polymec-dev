@@ -95,7 +95,8 @@ voronoi_tessellator_tessellate(voronoi_tessellator_t* tessellator,
   int argc = 3;
   char* argv[] = {"qvoronoi", // The program itself
                   "p",        // Coordinates of nodes
-                  "Fv"};      // List of ridges (edges) for faces / cell pairs
+                  "Fv",       // List of ridges (edges) for faces / cell pairs
+                  "R1e-11"};      // List of ridges (edges) for faces / cell pairs
 //                  "Qz"};       // List of ridges (edges) for faces / cell pairs
 //                  "Qt"};      // triangulated output.
 //                  "Tv"};      // verify
