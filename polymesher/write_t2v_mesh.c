@@ -47,7 +47,7 @@ int write_t2v_mesh(lua_State* lua)
 
   // Get the argument(s).
   mesh_t* mesh = lua_tomesh(lua, 1);
-  char* filename = strdup(lua_tostring(lua, 2));
+  char* filename = string_dup(lua_tostring(lua, 2));
 
   log_info("Writing TOUGH2Viewer mesh with filename '%s'...", filename);
 

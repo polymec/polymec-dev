@@ -30,6 +30,7 @@
 
 #include "core/loggers.h"
 #include "core/arch.h"
+#include "core/string_utils.h"
 
 // GCC on Linux with the C99 dialect is getting awfully stingy these days, so
 // we need to mention a few functions that happen to be nonstandard.

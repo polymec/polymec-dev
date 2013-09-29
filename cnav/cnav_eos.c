@@ -44,7 +44,7 @@ cnav_eos_t* cnav_eos_new(const char* name, void* context,
   ASSERT(num_species > 0);
   ASSERT(masses != NULL);
   cnav_eos_t* eos = GC_MALLOC(sizeof(cnav_eos_t));
-  eos->name = strdup(name);
+  eos->name = string_dup(name);
   eos->context = context;
   eos->vtable = vtable;
   eos->num_species = num_species;

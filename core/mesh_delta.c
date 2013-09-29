@@ -56,7 +56,7 @@ static mesh_delta_t* mesh_delta_new(const char* name,
 {
   ASSERT(name != NULL);
   mesh_delta_t* delta = GC_MALLOC(sizeof(mesh_delta_t));
-  delta->name = strdup(name);
+  delta->name = string_dup(name);
   delta->context = context;
   delta->vtable = vtable;
   delta->diff = NULL;

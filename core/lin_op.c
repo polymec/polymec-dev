@@ -42,7 +42,7 @@ lin_op_t* lin_op_new(const char* name, void* context, lin_op_vtable vtable,
   ASSERT(vtable.stencil_size != NULL);
   ASSERT(vtable.compute_stencil != NULL);
   lin_op_t* L = GC_MALLOC(sizeof(lin_op_t));
-  L->name = strdup(name);
+  L->name = string_dup(name);
   L->context = context;
   L->vtable = vtable;
   L->mesh = mesh;

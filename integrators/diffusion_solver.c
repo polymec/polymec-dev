@@ -69,7 +69,7 @@ diffusion_solver_t* diffusion_solver_new(const char* name,
   ASSERT(index_space != NULL);
 
   diffusion_solver_t* solver = malloc(sizeof(diffusion_solver_t));
-  solver->name = strdup(name);
+  solver->name = string_dup(name);
   solver->context = context;
   solver->vtable = vtable;
   solver->index_space = index_space;

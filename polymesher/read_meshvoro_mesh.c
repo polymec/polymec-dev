@@ -76,7 +76,7 @@ static cell_with_faces_t* cell_with_faces_new(char* name, int index, int num_fac
   ASSERT(index >= 0);
   ASSERT(num_faces >= 4);
   cell_with_faces_t* cell = malloc(sizeof(cell_with_faces_t));
-  cell->name = strdup(name);
+  cell->name = string_dup(name);
   cell->index = index;
   cell->num_faces = num_faces;
   cell->faces = malloc(sizeof(face_with_vertices_t*)*num_faces);

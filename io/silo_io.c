@@ -329,7 +329,7 @@ static void silo_read_datasets(void* context, void* f, io_dataset_t** datasets, 
       char* cname = strstr(code_name, "_code_") + 6;
       dataset->code_lengths[d] = code->elemlengths[0];
       memcpy(dataset->codes[d], code->values, code->elemlengths[0]);
-      dataset->code_names[d] = strdup(cname);
+      dataset->code_names[d] = string_dup(cname);
       DBFreeCompoundarray(code);
     }
 #endif
@@ -417,17 +417,17 @@ static void silo_write_datasets(void* context, void* f, io_dataset_t** datasets,
       snprintf(conn_name, 1024, "%s_conn", name);
       int conn_lengths[6];
       char* conn_names[6];
-      conn_names[0] = strdup("ncell_faces");
+      conn_names[0] = string_dup("ncell_faces");
       conn_lengths[0] = 1 + num_cells;
-      conn_names[2] = strdup("face_cells");
+      conn_names[2] = string_dup("face_cells");
       conn_lengths[2] = cf_conn_size - 2*mesh->num_faces;
-      conn_names[1] = strdup("cell_faces");
+      conn_names[1] = string_dup("cell_faces");
       conn_lengths[1] = cf_conn_size - conn_lengths[2] - conn_lengths[0];
-      conn_names[3] = strdup("nface_edges");
+      conn_names[3] = string_dup("nface_edges");
       conn_lengths[3] = num_faces;
-      conn_names[4] = strdup("face_edges");
+      conn_names[4] = string_dup("face_edges");
       conn_lengths[4] = fe_conn_size - num_faces;
-      conn_names[5] = strdup("edge_nodes");
+      conn_names[5] = string_dup("edge_nodes");
       conn_lengths[5] = ne_conn_size;
 
       // Write it out.
@@ -458,7 +458,7 @@ static void silo_write_datasets(void* context, void* f, io_dataset_t** datasets,
       snprintf(nodes_name, 1024, "%s_nodes", name);
       char* nodes_names[1];
       int nodes_lengths[1];
-      nodes_names[0] = strdup("positions");
+      nodes_names[0] = string_dup("positions");
       nodes_lengths[0] = num_nodes;
       DBPutCompoundarray(file, nodes_name, nodes_names, nodes_lengths, 1, 
           (void*)&nodes[0], 3*num_nodes, DB_DOUBLE, 0);
@@ -500,7 +500,7 @@ static void silo_write_datasets(void* context, void* f, io_dataset_t** datasets,
         }
         snprintf(field_name, 1024, "%s_%s_field_%s", name, cstr, fname);
         char* f_names[1];
-        f_names[0] = strdup("data");
+        f_names[0] = string_dup("data");
         int f_lengths[1];
         f_lengths[0] = len;
 
@@ -524,7 +524,7 @@ static void silo_write_datasets(void* context, void* f, io_dataset_t** datasets,
         char code_name[1024];
         snprintf(code_name, 1024, "%s_code_%s", name, cname);
         char* c_names[1];
-        c_names[0] = strdup("code");
+        c_names[0] = string_dup("code");
         int c_lengths[1];
         c_lengths[0] = len;
 
@@ -675,7 +675,7 @@ static void silo_plot_write_datasets(void* context, void* f, io_dataset_t** data
       // Mesh.
       char mesh_name[1024];
       snprintf(mesh_name, 1024, "domain_%d/mesh", i);
-      mesh_names[i] = strdup(mesh_name);
+      mesh_names[i] = string_dup(mesh_name);
 
       // Field data.
       int pos = 0, field_index = 0, num_comps;
@@ -688,10 +688,10 @@ static void silo_plot_write_datasets(void* context, void* f, io_dataset_t** data
         if (centering == MESH_CELL)
         {
           if (i == 0)
-            field_names[i] = strdup(field_name);
+            field_names[i] = string_dup(field_name);
           char var_name[1024];
           snprintf(var_name, 1024, "domain_%d/%s", i, field_name);
-          var_names[field_index][i] = strdup(var_name);
+          var_names[field_index][i] = string_dup(var_name);
           ++field_index;
         }
       }
@@ -748,7 +748,7 @@ static void silo_plot_write_master(void* context, void* file, const char* prefix
       // Mesh.
       char mesh_name[1024];
       snprintf(mesh_name, 1024, "%d/%s.silo:/domain_%d/mesh", i, prefix, c);
-      mesh_names[i*procs_per_file+c] = strdup(mesh_name);
+      mesh_names[i*procs_per_file+c] = string_dup(mesh_name);
 
       // Field data.
       int pos = 0, f = 0, num_comps;
@@ -759,7 +759,7 @@ static void silo_plot_write_master(void* context, void* file, const char* prefix
       {
         char var_name[1024];
         snprintf(var_name, 1024, "%d/%s.silo:/domain_%d/%s", i, prefix, c, field_name);
-        var_names[f][i] = strdup(var_name);
+        var_names[f][i] = string_dup(var_name);
         ++f;
       }
     }

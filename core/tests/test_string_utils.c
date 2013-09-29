@@ -19,7 +19,7 @@
 #include <setjmp.h>
 #include <string.h>
 #include "cmockery.h"
-#include "core/string_utils.h"
+#include "core/polymec.h"
 
 void test_parse_path(void** state)
 {

@@ -81,13 +81,13 @@ static char* compile_so(const char* name, const char* source_file)
   {
     // By default, use the CWD.
     // FIXME: This is lousy.
-    _so_dir = strdup(".");
+    _so_dir = string_dup(".");
   }
 
   if (_cc == NULL)
   {
-    _cc = strdup(DEFAULT_CC);
-    _cflags = strdup(DEFAULT_CFLAGS);
+    _cc = string_dup(DEFAULT_CC);
+    _cflags = string_dup(DEFAULT_CFLAGS);
   }
 
   char obj_name[128];
@@ -102,7 +102,7 @@ static char* compile_so(const char* name, const char* source_file)
     polymec_error(err);
     return NULL;
   }
-  return strdup(obj_name);
+  return string_dup(obj_name);
 }
 
 static void preprocess_source(const char* source_code, char* pp_file)
@@ -122,7 +122,7 @@ void dl_st_func_set_so_dir(const char* path)
 {
   if (_so_dir != NULL)
     free(_so_dir);
-  _so_dir = strdup(path);
+  _so_dir = string_dup(path);
 }
 
 void dl_st_func_register(const char* name, const char* source_code)
@@ -158,7 +158,7 @@ void dl_st_func_register(const char* name, const char* source_code)
   }
 
   // Register the function.
-  _func_names[_num_funcs] = strdup(name);
+  _func_names[_num_funcs] = string_dup(name);
   ++_num_funcs;
 }
 
@@ -223,7 +223,7 @@ void dl_st_func_set_compiler(const char* cc,
     free(_cc);
     free(_cflags);
   }
-  _cc = strdup(cc);
-  _cflags = strdup(cflags);
+  _cc = string_dup(cc);
+  _cflags = string_dup(cflags);
 }
 

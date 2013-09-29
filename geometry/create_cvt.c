@@ -30,7 +30,7 @@ cvt_iterator_t* cvt_iterator_new(const char* name, void* context, cvt_iterator_v
   ASSERT(vtable.move_points != NULL);
   ASSERT(vtable.is_finished != NULL);
   cvt_iterator_t* iter = malloc(sizeof(cvt_iterator_t));
-  iter->name = strdup(name);
+  iter->name = string_dup(name);
   iter->context = context;
   iter->vtable = vtable;
   return iter;

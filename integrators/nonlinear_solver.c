@@ -93,7 +93,7 @@ nonlinear_function_t* nonlinear_function_new(const char* name,
   ASSERT(vtable.eval_residual != NULL);
 
   nonlinear_function_t* F = malloc(sizeof(nonlinear_function_t));
-  F->name = strdup(name);
+  F->name = string_dup(name);
   F->context = context;
   F->vtable = vtable;
 
@@ -138,7 +138,7 @@ nonlinear_timestepper_t* nonlinear_timestepper_new(const char* name,
   ASSERT(vtable.recompute_J != NULL);
 
   nonlinear_timestepper_t* timestepper = malloc(sizeof(nonlinear_timestepper_t));
-  timestepper->name = strdup(name);
+  timestepper->name = string_dup(name);
   timestepper->context = context;
   timestepper->history_length = 0;
   timestepper->max_history_length = max_history_length;

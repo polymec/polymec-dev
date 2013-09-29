@@ -48,7 +48,7 @@ int write_vtk_plot(lua_State* lua)
   // Get the argument(s).
   mesh_t* mesh = lua_tomesh(lua, 1);
   bool has_fields = (num_args == 3) ? lua_istable(lua, 2) : false;
-  char* filename = (num_args == 3) ? strdup(lua_tostring(lua, 3)) : strdup(lua_tostring(lua, 2));
+  char* filename = (num_args == 3) ? string_dup(lua_tostring(lua, 3)) : string_dup(lua_tostring(lua, 2));
 
   // Check the table of fields if it's there.
   if (has_fields)
@@ -68,7 +68,6 @@ int write_vtk_plot(lua_State* lua)
       if (lua_issequence(lua, val_index))
       {
         int num_vals;
-        double* vals = lua_tosequence(lua, val_index, &num_vals);
         if (num_vals != mesh->num_cells)
         {
           lua_pop(lua, 2);
@@ -78,7 +77,6 @@ int write_vtk_plot(lua_State* lua)
       else
       {
         int num_vals;
-        vector_t* vals = lua_tovectorlist(lua, val_index, &num_vals);
         if (num_vals != mesh->num_cells)
         {
           lua_pop(lua, 2);

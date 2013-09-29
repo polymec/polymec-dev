@@ -48,7 +48,7 @@ int write_silo_plot(lua_State* lua)
   // Get the argument(s).
   mesh_t* mesh = lua_tomesh(lua, 1);
   bool has_fields = (num_args == 3) ? lua_istable(lua, 2) : false;
-  char* filename = (num_args == 3) ? strdup(lua_tostring(lua, 3)) : strdup(lua_tostring(lua, 2));
+  char* filename = (num_args == 3) ? string_dup(lua_tostring(lua, 3)) : string_dup(lua_tostring(lua, 2));
 
   // Check the table of fields if it's there.
   if (has_fields)

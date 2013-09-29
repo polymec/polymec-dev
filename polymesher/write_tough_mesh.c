@@ -287,19 +287,19 @@ int write_tough_mesh(lua_State* lua)
   char* filename = NULL;
   lua_getfield(lua, 1, "filename");
   if (!lua_isnoneornil(lua, 2))
-    filename = strdup(lua_tostring(lua, 2));
+    filename = string_dup(lua_tostring(lua, 2));
   lua_pop(lua, 1);
 
   char* format = NULL;
   lua_getfield(lua, 1, "format");
   if (!lua_isnoneornil(lua, 2))
-    format = strdup(lua_tostring(lua, 2));
+    format = string_dup(lua_tostring(lua, 2));
   lua_pop(lua, 1);
 
   char* inactive_tag = NULL;
   lua_getfield(lua, 1, "inactive_tag");
   if (!lua_isnoneornil(lua, 2))
-    inactive_tag = strdup(lua_tostring(lua, 2));
+    inactive_tag = string_dup(lua_tostring(lua, 2));
   lua_pop(lua, 1);
 
   int elem_name_len = 5;
@@ -312,9 +312,9 @@ int write_tough_mesh(lua_State* lua)
 
   // Provide defaults.
   if (filename == NULL)
-    filename = strdup("MESH");
+    filename = string_dup("MESH");
   if (format == NULL)
-    format = strdup("T2");
+    format = string_dup("T2");
 
   // Check our arguments.
   if ((strcasecmp(format, "t2") != 0) && (strcasecmp(format, "t+") != 0))

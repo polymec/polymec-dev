@@ -38,7 +38,7 @@ mapping_t* mapping_new(const char* name, void* context, mapping_vtable vtable)
   ASSERT(vtable.map != NULL);
   ASSERT(vtable.jacobian != NULL);
   mapping_t* m = GC_MALLOC(sizeof(mapping_t));
-  m->name = strdup(name);
+  m->name = string_dup(name);
   m->context = context;
   m->vtable = vtable;
   GC_register_finalizer(m, mapping_free, m, NULL, NULL);

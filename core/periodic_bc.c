@@ -132,8 +132,8 @@ periodic_bc_t* periodic_bc_new_with_map_func(const char* tag1, const char* tag2,
 
   periodic_bc_t* bc = GC_MALLOC(sizeof(periodic_bc_t));
   bc->magic_number = periodic_bc_magic_number;
-  bc->tag1 = strdup(tag1);
-  bc->tag2 = strdup(tag2);
+  bc->tag1 = string_dup(tag1);
+  bc->tag2 = string_dup(tag2);
   GC_register_finalizer(bc, &periodic_bc_free, bc, NULL, NULL);
 
   // Set up the map generation stuff.
