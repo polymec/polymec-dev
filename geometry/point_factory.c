@@ -516,7 +516,6 @@ static void import_points_from_stl(const char* stl_file_name, int* num_points, p
     {
       // I think this can only happen in open surfaces.
       int_array_append(unique_point_indices, i);
-      vector_t* ni = all_normals->data[i];
       vector_t* n_avg = malloc(sizeof(vector_t));
       ptr_array_append_with_dtor(averaged_normals, n_avg, DTOR(free));
     }

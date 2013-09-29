@@ -44,7 +44,6 @@ void test_sample_bbox_uniformly(void** state)
   unsigned int seed = 1;
   srandom(seed);
 
-  point_t x0 = {.x = 0.0, .y = 0.0, .z = 0.0};
   bbox_t bbox = {.x1 = -0.5, .x2 = 0.5, 
                  .y1 = -0.5, .y2 = 0.5,
                  .z1 = -0.5, .z2 = 0.5};

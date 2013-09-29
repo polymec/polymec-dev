@@ -74,6 +74,7 @@ int write_silo_plot(lua_State* lua)
           lua_pop(lua, 2);
           polymec_error("write_silo_plot: a scalar field has %d values (should have %d).", num_vals, mesh->num_cells);
         }
+        vals = NULL;
       }
       else
       {
@@ -84,6 +85,7 @@ int write_silo_plot(lua_State* lua)
           lua_pop(lua, 2);
           polymec_error("write_silo_plot: a vector field has %d values (should have %d).", num_vals, mesh->num_cells);
         }
+        vals = NULL;
       }
       lua_pop(lua, 1);
     }

@@ -153,7 +153,6 @@ point_t* uniform_mgw_sampling(sp_func_t* C1_surface,
 
         // Now determine the desired velocity vi using the 
         // Levenberg-Marquardt method.
-        double E_new = 0.0;
         bool first_time = true;
         bool converged = false;
         // (If we're at a point where the derivatives of E w.r.t. r
@@ -250,7 +249,7 @@ point_t* uniform_mgw_sampling(sp_func_t* C1_surface,
             if (j != i)
             {
               point_t* pj = &points[j];
-              vector_t rij, nij;
+              vector_t rij;
               point_displacement(pj, pi, &rij);
               double r = vector_mag(&rij);
               double arg = M_PI*r/(2.0*sigma);
