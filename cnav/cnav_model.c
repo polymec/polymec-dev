@@ -226,6 +226,7 @@ static void compute_diffusive_fluxes(int order,
   }
 }
 
+#if 0
 static int compute_F_eulerian(double t, N_Vector U, N_Vector U_dot, void* context)
 {
   double* u = NULL; // FIXME: N_Vector_data(U);
@@ -338,6 +339,7 @@ static int compute_F_ale(double t, N_Vector U, N_Vector U_dot, void* context)
 
   return 0;
 }
+#endif
 
 static double cnav_max_dt(void* context, double t, char* reason)
 {

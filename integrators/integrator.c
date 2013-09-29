@@ -23,27 +23,26 @@ struct integrator_t
   integrator_vtable vtable;
   int order;
   integrator_type_t type;
-  int dim; // Number of unknowns.
-
-  N_Vector temp; // Work vector for Jacobians.
+  int N; // Number of unknowns.
 };
 
 integrator_t* integrator_new(const char* name, 
                              void* context,
                              integrator_vtable vtable,
                              int order,
-                             integrator_type_t type)
+                             integrator_type_t type,
+                             int N)
 {
   ASSERT(vtable.step != NULL);
   ASSERT(order > 0);
+  ASSERT(N > 0);
   integrator_t* integ = malloc(sizeof(integrator_t));
   integ->name = string_dup(name);
   integ->context = context;
   integ->vtable = vtable;
   integ->order = order;
   integ->type = type;
-  integ->dim = -1;
-  integ->temp = NULL;
+  integ->N = N;
   return integ;
 }
 
@@ -51,8 +50,6 @@ void integrator_free(integrator_t* integrator)
 {
   if ((integrator->context != NULL) && (integrator->vtable.dtor != NULL))
     integrator->vtable.dtor(integrator->context);
-  if (integrator->temp != NULL)
-    N_VDestroy(integrator->temp);
   free(integrator->name);
   free(integrator);
 }
@@ -77,29 +74,19 @@ integrator_type_t integrator_type(integrator_t* integrator)
   return integrator->type;
 }
 
-void integrator_init(integrator_t* integrator, int N)
+int integrator_N(integrator_t* integrator)
 {
-  if (integrator->temp != NULL)
-  {
-    N_VDestroy(integrator->temp);
-    integrator->temp = NULL;
-  }
-  integrator->vtable.init(integrator->context, N);
-  integrator->dim = N;
+  return integrator->N;
 }
 
-void integrator_step(integrator_t* integrator, double t1, double t2, 
-                     double* solution)
+void integrator_init(integrator_t* integrator, double t, double* X0)
+{
+  integrator->vtable.init(integrator->context, t, integrator->N, X0);
+}
+
+void integrator_step(integrator_t* integrator, double t1, double t2, double* X)
 {
   ASSERT(t2 > t1);
-  integrator->vtable.step(integrator->context, t1, t2, solution, integrator->dim);
-}
-
-void integrator_compute_Jv(integrator_t* integrator, double t, N_Vector x, N_Vector F, N_Vector v, N_Vector Jv)
-{
-  ASSERT(integrator->vtable.compute_Jv != NULL);
-  if (integrator->temp == NULL)
-    integrator->temp = N_VClone(x);
-  integrator->vtable.compute_Jv(v, Jv, t, x, F, integrator->context, integrator->temp);
+  integrator->vtable.step(integrator->context, t1, t2, integrator->N, X);
 }
 
