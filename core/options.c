@@ -68,15 +68,15 @@ options_t* options_parse(int argc, char** argv)
 
   // Parse the basic options.
   if ((argc == 1) || !strcmp(argv[1], "help") || !strcmp(argv[1], "--help"))
-    o->command = strdup("help");
+    o->command = string_dup("help");
   else 
-    o->command = strdup(argv[1]);
+    o->command = string_dup(argv[1]);
   bool has_input = false;
   if ((argc >= 3) && (!strcmp(o->command, "run") || 
                       !strcmp(o->command, "benchmark")))
   {
     has_input = true;
-    o->input = strdup(argv[2]);
+    o->input = string_dup(argv[2]);
   }
 
   // Now parse parameters.
@@ -85,7 +85,7 @@ options_t* options_parse(int argc, char** argv)
   {
     // Parse a key=value pair.
     char *string, *tofree;
-    tofree = string = strdup(argv[i]);
+    tofree = string = string_dup(argv[i]);
 
     char* key = strsep(&string, "=");
     char* value = NULL;
@@ -123,7 +123,7 @@ char* options_value(options_t* opts, const char* name)
 
 void options_set(options_t* opts, const char* name, const char* value)
 {
-  string_string_unordered_map_insert_with_kv_dtor(opts->params, strdup(name), strdup(value), destroy_kv);
+  string_string_unordered_map_insert_with_kv_dtor(opts->params, string_dup(name), string_dup(value), destroy_kv);
 }
 
 

@@ -47,7 +47,7 @@ st_func_t* st_func_new(const char* name, void* context, st_vtable vtable,
   ASSERT(vtable.eval != NULL);
   ASSERT(num_comp > 0);
   st_func_t* f = GC_MALLOC(sizeof(st_func_t));
-  f->name = strdup(name);
+  f->name = string_dup(name);
   f->context = context;
   f->vtable = vtable;
   f->homogeneous = (homogeneity == ST_HOMOGENEOUS);
@@ -66,7 +66,7 @@ st_func_t* st_func_from_func(const char* name, st_eval_func func,
   ASSERT(func != NULL);
   ASSERT(num_comp > 0);
   st_func_t* f = GC_MALLOC(sizeof(st_func_t));
-  f->name = strdup(name);
+  f->name = string_dup(name);
   f->context = NULL;
   f->vtable.eval = func;
   f->homogeneous = (homogeneity == ST_HOMOGENEOUS);
@@ -121,7 +121,7 @@ st_func_t* st_func_from_sp_func(sp_func_t* func)
 {
   ASSERT(func != NULL);
   st_func_t* f = GC_MALLOC(sizeof(st_func_t));
-  f->name = strdup(sp_func_name(func));
+  f->name = string_dup(sp_func_name(func));
   f->context = func;
   f->vtable.eval = eval_sp_func;
   f->homogeneous = sp_func_is_homogeneous(func);
@@ -145,7 +145,7 @@ const char* st_func_name(st_func_t* func)
 void st_func_rename(st_func_t* func, const char* new_name)
 {
   free(func->name);
-  func->name = strdup(new_name);
+  func->name = string_dup(new_name);
 }
 
 bool st_func_is_homogeneous(st_func_t* func)

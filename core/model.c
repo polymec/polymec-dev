@@ -69,7 +69,7 @@ model_t* model_new(const char* name, void* context, model_vtable vtable, options
   model_t* model = malloc(sizeof(model_t));
   model->vtable = vtable;
   model->context = context;
-  model->name = strdup(name);
+  model->name = string_dup(name);
   model->benchmarks = model_benchmark_map_new();
   model->sim_name = NULL;
   model->saver = NULL;
@@ -162,8 +162,8 @@ void model_register_benchmark(model_t* model, const char* benchmark, model_bench
   ASSERT(function != NULL);
   model_benchmark_t* metadata = malloc(sizeof(model_benchmark_t));
   metadata->function = function;
-  metadata->description = strdup(description);
-  model_benchmark_map_insert_with_kv_dtor(model->benchmarks, strdup(benchmark), metadata, free_benchmark_kv);
+  metadata->description = string_dup(description);
+  model_benchmark_map_insert_with_kv_dtor(model->benchmarks, string_dup(benchmark), metadata, free_benchmark_kv);
 }
 
 void model_run_all_benchmarks(model_t* model, options_t* options)
@@ -426,7 +426,7 @@ void model_set_sim_name(model_t* model, const char* sim_name)
   ASSERT(sim_name != NULL);
   if (model->sim_name != NULL)
     free(model->sim_name);
-  model->sim_name = strdup(sim_name);
+  model->sim_name = string_dup(sim_name);
 }
 
 void model_set_saver(model_t* model, io_interface_t* saver)

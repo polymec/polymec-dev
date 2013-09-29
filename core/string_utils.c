@@ -51,6 +51,14 @@ void join_paths(const char *dirname, const char *filename, char *path)
   snprintf(path, 1024, "%s%c%s", dirname, SEPARATOR, filename);
 }
 
+char* string_dup(const char* s)
+{
+  int len = strlen(s);
+  char* copy = malloc((len+1)*sizeof(char));
+  strcpy(copy, s);
+  return copy;
+}
+
 // This stuff is used for string_subst, below.
 
 typedef struct
@@ -71,7 +79,7 @@ char* string_subst(const char* string, string_subst_t substitutions[])
   if (string == NULL) 
     return NULL;
   else if (substitutions == NULL)
-    return strdup(string);
+    return string_dup(string);
 
   // How many tokens have we got?
   int num_tokens = 0;

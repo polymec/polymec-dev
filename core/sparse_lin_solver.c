@@ -36,7 +36,7 @@ sparse_lin_solver_t* sparse_lin_solver_new(const char* name, void* context,
 {
   ASSERT(vtable.solve != NULL);
   sparse_lin_solver_t* solver = malloc(sizeof(sparse_lin_solver_t));
-  solver->name = strdup(name);
+  solver->name = string_dup(name);
   solver->context = context;
   solver->vtable = vtable;
   solver->res_norm = 0.0;

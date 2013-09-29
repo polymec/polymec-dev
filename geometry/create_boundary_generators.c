@@ -151,7 +151,7 @@ void create_boundary_generators(ptr_array_t* surface_points,
   int pos = 0, tag_index;
   while (string_int_unordered_map_next(tag_indices, &pos, &tag_name, &tag_index))
   {
-    (*tag_names)[tag_index] = strdup(tag_name);
+    (*tag_names)[tag_index] = string_dup(tag_name);
     (*tags)[tag_index] = int_array_new();
     for (int j = 0; j < *num_boundary_generators; ++j)
       int_array_append((*tags)[tag_index], tag_index);

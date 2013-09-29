@@ -37,7 +37,7 @@ integrator_t* integrator_new(const char* name,
   ASSERT(vtable.step != NULL);
   ASSERT(order > 0);
   integrator_t* integ = malloc(sizeof(integrator_t));
-  integ->name = strdup(name);
+  integ->name = string_dup(name);
   integ->context = context;
   integ->vtable = vtable;
   integ->order = order;

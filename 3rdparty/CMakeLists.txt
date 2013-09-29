@@ -174,6 +174,36 @@ else()
 endif()
 set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};sundials_cvode;sundials_ida;sundials_kinsol;${NVEC_LIB})
 
+# Build SuperLU, a (serial) direct sparse linear solver library that 
+# we will use for preconditioning.
+if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libsuperlu.a)
+  message("Unpacking SuperLU...")
+  execute_process(COMMAND cmake -E tar xzvf ${CMAKE_CURRENT_SOURCE_DIR}/superlu_4.3.tar.gz
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+                  OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
+
+  message("Adjusting SuperLU make.inc...")
+  file(READ ${CMAKE_CURRENT_BINARY_DIR}/SuperLU_4.3/make.inc superlu_makeinc)
+  file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/SuperLU_4.3/make.inc.old ${superlu_makeinc})
+  string(REPLACE "gcc" ${CMAKE_C_COMPILER} superlu_makeinc ${superlu_makeinc})
+  string(REPLACE "$(HOME)/Codes/SuperLU/SuperLU_4.3" ${PROJECT_BINARY_DIR} superlu_makeinc ${superlu_makeinc})
+  string(REPLACE "libsuperlu_4.3.a" "libsuperlu.a" superlu_makeinc ${superlu_makeinc})
+  if (CMAKE_BUILD_TYPE STREQUAL "Debug")
+    string(REPLACE "-O2" "${CMAKE_C_FLAGS} -g3" superlu_makeinc ${superlu_makeinc})
+  endif()
+  file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/SuperLU_4.3/make.inc ${superlu_makeinc})
+  message("Building SuperLU...")
+  execute_process(COMMAND make -j4 lib
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/SuperLU_4.3
+                  OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
+#  file(COPY ${CMAKE_CURRENT_BINARY_DIR}/SuperLU_4.3/libsuperlu.a DESTINATION ${PROJECT_BINARY_DIR}/lib)
+  file(GLOB includes "${CMAKE_CURRENT_BINARY_DIR}/SuperLU_4.3/SRC/*.h")
+  foreach(inc ${includes})
+    execute_process(COMMAND cmake -E copy ${inc} ${PROJECT_BINARY_DIR}/include)
+  endforeach()
+endif()
+set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};superlu)
+
 # Build lua, a simple interpreted language library.
 if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/liblua.a)
   if (${APPLE})
@@ -208,8 +238,6 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/liblua.a)
   foreach(inc ${includes})
     execute_process(COMMAND cmake -E copy ${inc} ${PROJECT_BINARY_DIR}/include)
   endforeach()
-  add_library(lua STATIC IMPORTED)
-  set_target_properties(lua PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/liblua.a)
 endif()
 set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};lua)
 #set(POLYMEC_TP_INCDIRS ${POLYMEC_TP_INCDIRS};${PROJECT_BINARY_DIR}/include)

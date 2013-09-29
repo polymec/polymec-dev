@@ -48,6 +48,13 @@ if (CMAKE_C_COMPILER_ID STREQUAL "GNU")
     # Pass some more needed flags to the compiler.
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -pthread")
   endif()
+elseif (CMAKE_C_COMPILER_ID STREQUAL "Clang")
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c99 -Wall -Wextra -Werror-implicit-function-declaration")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Werror-implicit-function-declaration")
+
+  # Warning suppressants.
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-sign-compare -Wno-unused-parameter -Wno-int-to-pointer-cast -Wno-pointer-to-int-cast")
+
 endif ()
 
 # Basic libraries to be linked in.

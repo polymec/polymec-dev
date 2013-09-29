@@ -369,13 +369,13 @@ int mesh_factory_cvt(lua_State* lua)
       if (is_invalid) break;
       if (found_points && found_normals)
       {
-        string_array_append_with_dtor(surface_names, strdup(key), free_string);
+        string_array_append_with_dtor(surface_names, string_dup(key), free_string);
         is_surface_list = true;
       }
     }
     if (!is_surface_list && (found_points && found_normals)) 
     {
-      string_array_append_with_dtor(surface_names, strdup("all"), free_string);
+      string_array_append_with_dtor(surface_names, string_dup("all"), free_string);
       is_surface = true;
     }
     lua_pop(lua, 1);

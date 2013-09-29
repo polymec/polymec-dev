@@ -63,7 +63,7 @@ cvt_gen_dist_t* cvt_gen_dist_new(const char* name, void* context, cvt_gen_dist_v
   ASSERT(vtable.iterate != NULL);
 
   cvt_gen_dist_t* dist = GC_MALLOC(sizeof(cvt_gen_dist_t));
-  dist->name = strdup(name);
+  dist->name = string_dup(name);
   dist->context = context;
   dist->vtable = vtable;
   dist->scale_factor = 1.0;

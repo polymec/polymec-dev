@@ -71,7 +71,7 @@ elliptic_solver_t* elliptic_solver_new(const char* name,
   ASSERT(index_space != NULL);
 
   elliptic_solver_t* solver = malloc(sizeof(elliptic_solver_t));
-  solver->name = strdup(name);
+  solver->name = string_dup(name);
   solver->context = context;
   solver->vtable = vtable;
   solver->index_space = index_space;

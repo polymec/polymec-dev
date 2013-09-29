@@ -85,7 +85,7 @@ adj_graph_t* adj_graph_new_with_block_size(int block_size,
   // Distribute the vertices in a manner analogous to the way they are 
   // distributed in the given graph.
   int num_global_vertices = block_size * graph->vtx_dist[nproc];
-  int vtx_dist[nproc+1], offset = 0;
+  int vtx_dist[nproc+1];
   vtx_dist[0] = 0;
   for (int p = 1; p <= nproc; ++p)
     vtx_dist[p] = block_size * graph->vtx_dist[p];
@@ -313,8 +313,6 @@ static void compute_smallest_last_ordering(adj_graph_t* graph, int* vertices)
 
 static void compute_incidence_degree_ordering(adj_graph_t* graph, int* vertices)
 {
-  int num_vertices = adj_graph_num_vertices(graph);
-
   // In this ordering, the next vertex in the ordering is the one with the  
   // largest degree of incidence with the subgraph consisting only of those 
   // vertices that preceed it (and their edges).
