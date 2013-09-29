@@ -86,13 +86,6 @@ else()
   include_directories("${PROJECT_SOURCE_DIR}/mpi_serial")
 endif ()
 
-# Look for the Computational Geometry Algorithms Library (CGAL).
-find_package(CGAL)
-if (CGAL_FOUND)
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CGAL_DEFINITIONS}")
-  set(POLYMEC_LIBS ${CGAL_LIBRARIES};${POLYMEC_LIBS})
-endif()
-
 # Other third-party libraries.
 add_subdirectory(3rdparty)
 
