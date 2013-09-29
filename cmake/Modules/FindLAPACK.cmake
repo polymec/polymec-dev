@@ -28,11 +28,11 @@
 # TODO (CGAL):
 # - find CLAPACK (http://www.netlib.org/clapack) on Unix?
 
-include(CGAL_Macros)
+#include(CGAL_Macros)
 
 include(CheckFunctionExists)
 
-include(CGAL_GeneratorSpecificSettings)
+#include(CGAL_GeneratorSpecificSettings)
 
 
 
@@ -170,7 +170,7 @@ else()
 
   # Look first for the TAUCS library distributed with CGAL in auxiliary/taucs.
   # Set CGAL_TAUCS_FOUND, CGAL_TAUCS_INCLUDE_DIR and CGAL_TAUCS_LIBRARIES_DIR.
-  include(CGAL_Locate_CGAL_TAUCS)
+#  include(CGAL_Locate_CGAL_TAUCS)
 
   # Search for LAPACK in CGAL_TAUCS_INCLUDE_DIR/CGAL_TAUCS_LIBRARIES_DIR (TAUCS shipped with CGAL),
   # else in $LAPACK_INC_DIR/$LAPACK_LIB_DIR environment variables.
