@@ -68,20 +68,24 @@ int write_vtk_plot(lua_State* lua)
       if (lua_issequence(lua, val_index))
       {
         int num_vals;
+        double* vals = lua_tosequence(lua, val_index, &num_vals);
         if (num_vals != mesh->num_cells)
         {
           lua_pop(lua, 2);
           polymec_error("write_vtk_plot: a scalar field has %d values (should have %d).", num_vals, mesh->num_cells);
         }
+        vals = NULL;
       }
       else
       {
         int num_vals;
+        vector_t* vals = lua_tovectorlist(lua, val_index, &num_vals);
         if (num_vals != mesh->num_cells)
         {
           lua_pop(lua, 2);
           polymec_error("write_vtk_plot: a vector field has %d values (should have %d).", num_vals, mesh->num_cells);
         }
+        vals = NULL;
       }
       lua_pop(lua, 1);
     }
