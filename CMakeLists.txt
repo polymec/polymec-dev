@@ -13,6 +13,12 @@ set(CMAKE_C_COMPILER "${CC}")
 message("-- C compiler is ${CMAKE_C_COMPILER}")
 set(CMAKE_CXX_COMPILER "${CXX}")
 message("-- C++ compiler is ${CMAKE_CXX_COMPILER}")
+enable_language(C)
+enable_language(CXX)
+if (LINUX EQUAL 1)
+  set(CMAKE_Fortran_COMPILER "gfortran")
+  enable_language(Fortran)
+endif()
 
 # Build everything as static libs.
 set (BUILD_SHARED_LIBS OFF)
