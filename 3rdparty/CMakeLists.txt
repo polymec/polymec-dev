@@ -23,24 +23,22 @@ add_library(gc STATIC IMPORTED)
 set_target_properties(gc PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libgc.a)
 set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};gc)
 
-# Build the QHull C library (only if we don't use CGAL).
-if (NOT CGAL_FOUND)
-  if (NOT EXISTS ${PROJECT_BINARY_DIR}/include/libqhull/libqhull.h)
-    message("Unpacking qhull...")
-    execute_process(COMMAND cmake -E tar xzvf ${CMAKE_CURRENT_SOURCE_DIR}/qhull-2012.1-src.tgz
-                    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-                    OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
-    message("Preparing qhull...")
-    file(GLOB qhull_includes "${CMAKE_CURRENT_BINARY_DIR}/qhull-2012.1/src/libqhull/*.h")
-    execute_process(COMMAND cmake -E make_directory ${PROJECT_BINARY_DIR}/include/libqhull)
-    foreach(inc ${qhull_includes})
-      execute_process(COMMAND cmake -E copy ${inc} ${PROJECT_BINARY_DIR}/include/libqhull)
-    endforeach()
-  endif()
-  file(GLOB qhull_sources "${CMAKE_CURRENT_BINARY_DIR}/qhull-2012.1/src/libqhull/*.c")
-  add_library(qhull ${qhull_sources})
-  set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};qhull)
+# Build the QHull C library.
+if (NOT EXISTS ${PROJECT_BINARY_DIR}/include/libqhull/libqhull.h)
+  message("Unpacking qhull...")
+  execute_process(COMMAND cmake -E tar xzvf ${CMAKE_CURRENT_SOURCE_DIR}/qhull-2012.1-src.tgz
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+                  OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
+  message("Preparing qhull...")
+  file(GLOB qhull_includes "${CMAKE_CURRENT_BINARY_DIR}/qhull-2012.1/src/libqhull/*.h")
+  execute_process(COMMAND cmake -E make_directory ${PROJECT_BINARY_DIR}/include/libqhull)
+  foreach(inc ${qhull_includes})
+    execute_process(COMMAND cmake -E copy ${inc} ${PROJECT_BINARY_DIR}/include/libqhull)
+  endforeach()
 endif()
+file(GLOB qhull_sources "${CMAKE_CURRENT_BINARY_DIR}/qhull-2012.1/src/libqhull/*.c")
+add_library(qhull ${qhull_sources})
+set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};qhull)
 
 # Install xz-utils for the LZMA library.
 if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/liblzma.a)

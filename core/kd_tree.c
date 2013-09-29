@@ -395,11 +395,8 @@ int_slist_t* kd_tree_within_radius(kd_tree_t* tree,
   if (tree->root == NULL)
     return NULL;
 
-  // Start with the root.
-  kd_tree_node_t* node = tree->root;
   double pos[3];
   pos[0] = point->x, pos[1] = point->y, pos[2] = point->z;
-  double r2 = SQ_DIST(pos, node->pos);
   kd_tree_rect_t rect;
   int_slist_t* results = int_slist_new();
   rect.min[0] = tree->rect->min[0]; rect.max[0] = tree->rect->max[0];

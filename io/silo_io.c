@@ -493,8 +493,9 @@ static void silo_write_datasets(void* context, void* f, io_dataset_t** datasets,
           sprintf(cstr, "edge");
           len = num_comps * num_edges;
         }
-        else if (centering == MESH_NODE)
+        else
         {
+          ASSERT(centering == MESH_NODE);
           sprintf(cstr, "node");
           len = num_comps * num_nodes;
         }

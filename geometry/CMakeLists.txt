@@ -1,9 +1,4 @@
-if (CGAL_FOUND)
-  set(VORONOI_TESSELLATOR_SOURCES voronoi_tessellator_cgal.cpp)
-  set_source_files_properties(voronoi_tessellator_cgal.cpp PROPERTIES INCLUDE_DIRECTORIES ${CGAL_INCLUDE_DIR})
-else()
-  set(VORONOI_TESSELLATOR_SOURCES voronoi_tessellator_qhull.c)
-endif()
+set(VORONOI_TESSELLATOR_SOURCES voronoi_tessellator_qhull.c)
 
 add_library(polymec_geometry mapping.c plane.c cylinder.c sphere.c intersection.c 
             union.c difference.c scaled.c rect_prism.c 

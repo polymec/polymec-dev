@@ -17,7 +17,6 @@
 #ifndef POLYMEC_CVODE_INTEGRATOR_H
 #define POLYMEC_CVODE_INTEGRATOR_H
 
-#include "core/sparse_lin_solver.h"
 #include "integrators/integrator.h"
 #include "cvode/cvode.h"
 #include "cvode/cvode_spils.h"
