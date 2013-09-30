@@ -19,21 +19,20 @@
 
 #include "core/polymec.h"
 
-// A function for computing the ith equation within an N-dimensional 
-// differential algebraic system F(X) = 0 given a solution X at time t.
-typedef void (*nonlinear_solver_eval_func)(void* context, 
-                                           double t, 
-                                           int i, 
-                                           int N,
-                                           double* X, 
-                                           double* F);
+// A function for computing the value of the ith equation within an 
+// N-dimensional differential algebraic system F(X) = 0 given a solution X at time t.
+typedef double (*nonlinear_solver_eval_func)(void* context, 
+                                             double t, 
+                                             int i, 
+                                             int N,
+                                             double* X);
 
 // A function for solving a system of differential algebraic equations at 
 // a time t (in place).
 typedef void (*nonlinear_solver_solve_func)(void* context,
-                                      double t, 
-                                      int N,
-                                      double* X);
+                                            double t, 
+                                            int N,
+                                            double* X);
 
 // A destructor for nonlinear solvers.
 typedef void (*nonlinear_solver_dtor)(void* context);
