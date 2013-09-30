@@ -15,25 +15,25 @@
 // limitations under the License.
 
 #include <float.h>
-#include "integrators/dae_solver.h"
+#include "integrators/nonlinear_solver.h"
 
-struct dae_solver_t 
+struct nonlinear_solver_t 
 {
   void* context;
   char* name;
-  dae_solver_vtable vtable;
+  nonlinear_solver_vtable vtable;
   int N;
 };
 
-dae_solver_t* dae_solver_new(const char* name, 
+nonlinear_solver_t* nonlinear_solver_new(const char* name, 
                              void* context,
-                             dae_solver_vtable vtable, 
+                             nonlinear_solver_vtable vtable, 
                              int N)
 {
-  ASSERT(vtable.eval_dae != NULL);
+  ASSERT(vtable.eval != NULL);
   ASSERT(N > 0);
 
-  dae_solver_t* solver = malloc(sizeof(dae_solver_t));
+  nonlinear_solver_t* solver = malloc(sizeof(nonlinear_solver_t));
   solver->name = string_dup(name);
   solver->context = context;
   solver->vtable = vtable;
@@ -42,7 +42,7 @@ dae_solver_t* dae_solver_new(const char* name,
   return solver;
 }
 
-void dae_solver_free(dae_solver_t* solver)
+void nonlinear_solver_free(nonlinear_solver_t* solver)
 {
   if ((solver->context != NULL) && (solver->vtable.dtor != NULL))
     solver->vtable.dtor(solver->context);
@@ -50,17 +50,17 @@ void dae_solver_free(dae_solver_t* solver)
   free(solver);
 }
 
-char* dae_solver_name(dae_solver_t* solver)
+char* nonlinear_solver_name(nonlinear_solver_t* solver)
 {
   return solver->name;
 }
 
-void* dae_solver_context(dae_solver_t* solver)
+void* nonlinear_solver_context(nonlinear_solver_t* solver)
 {
   return solver->context;
 }
 
-void dae_solver_solve(dae_solver_t* solver,
+void nonlinear_solver_solve(nonlinear_solver_t* solver,
                       double t,
                       double* X)
 {
