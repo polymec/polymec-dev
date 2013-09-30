@@ -23,6 +23,7 @@
 // differential algebraic system F(X) = 0 given a solution X at time t.
 typedef void (*nonlinear_solver_eval_func)(void* context, 
                                            double t, 
+                                           int i, 
                                            int N,
                                            double* X, 
                                            double* F);
