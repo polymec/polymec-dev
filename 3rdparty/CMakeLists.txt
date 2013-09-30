@@ -21,23 +21,6 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libgc.a)
 endif()
 set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};gc)
 
-# Build the QHull C library.
-if (NOT EXISTS ${PROJECT_BINARY_DIR}/include/libqhull/libqhull.h)
-  message("Unpacking qhull...")
-  execute_process(COMMAND cmake -E tar xzvf ${CMAKE_CURRENT_SOURCE_DIR}/qhull-2012.1-src.tgz
-                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-                  OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
-  message("Preparing qhull...")
-  file(GLOB qhull_includes "${CMAKE_CURRENT_BINARY_DIR}/qhull-2012.1/src/libqhull/*.h")
-  execute_process(COMMAND cmake -E make_directory ${PROJECT_BINARY_DIR}/include/libqhull)
-  foreach(inc ${qhull_includes})
-    execute_process(COMMAND cmake -E copy ${inc} ${PROJECT_BINARY_DIR}/include/libqhull)
-  endforeach()
-endif()
-file(GLOB qhull_sources "${CMAKE_CURRENT_BINARY_DIR}/qhull-2012.1/src/libqhull/*.c")
-add_library(qhull ${qhull_sources})
-set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};qhull)
-
 # Install libarena -- A fast C arena/memory pool implementation.
 if (NOT EXISTS ${PROJECT_BINARY_DIR}/include/arena)
   message("Unpacking libarena...")
@@ -108,6 +91,44 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/lib${SILOLIB}.a)
                   OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
 endif()
 set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};${SILOLIB})
+
+# Build the polytope library.
+if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libpolytope.a)
+  message("Unpacking polytope...")
+  execute_process(COMMAND cmake -E tar xzvf ${CMAKE_CURRENT_SOURCE_DIR}/polytope-0.5.17.tbz
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+                  OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
+
+  message("Preparing polytope...")
+  # If a Tetgen tarball is in our 3rdparty directory, untar its contents into 
+  # the proper location in the polytope source tree.
+  if (EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/tetgen1.4.3.tar.gz)
+    message("Found Tetgen tarball--gifting to polytope...")
+    execute_process(COMMAND cmake -E tar xzvf ${CMAKE_CURRENT_SOURCE_DIR}/tetgen1.4.3.tar.gz
+                    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+                    OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
+    file(COPY ${CMAKE_CURRENT_BINARY_DIR}/tetgen1.4.3/tetgen.cxx DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/polytope-0.5.17/src)
+    file(COPY ${CMAKE_CURRENT_BINARY_DIR}/tetgen1.4.3/tetgen.h DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/polytope-0.5.17/src)
+    file(COPY ${CMAKE_CURRENT_BINARY_DIR}/tetgen1.4.3/predicates.cxx DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/polytope-0.5.17/src)
+  endif()
+  set(POLYTOPE_CONFIG_OPTS prefix=${PROJECT_BINARY_DIR} use_silo=1 CC=${CMAKE_C_COMPILER} CXX=${CMAKE_CXX_COMPILER})
+  if (${CMAKE_BUILD_TYPE} STREQUAL "Debug")
+    set(POLYTOPE_CONFIG_OPTS ${POLYTOPE_CONFIG_OPTS} debug=1)
+  endif()
+  if (USE_MPI EQUAL 1)
+    set(POLYTOPE_CONFIG_OPTS ${POLYTOPE_CONFIG_OPTS} MPI=1)
+  endif()
+  execute_process(COMMAND make config ${POLYTOPE_CONFIG_OPTS}
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/polytope-0.5.17
+                  OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
+  execute_process(COMMAND make -j4 ${POLYTOPE_CONFIG_OPTS}
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/polytope-0.5.17
+                  OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
+  execute_process(COMMAND make install ${POLYTOPE_CONFIG_OPTS}
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/polytope-0.5.17
+                  OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
+endif()
+set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};polytope)
 
 # Build Sundials, a C library for integrating stiff, nonlinear ODEs and 
 # differential-algebraic equations.
