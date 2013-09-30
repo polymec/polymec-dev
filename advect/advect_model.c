@@ -21,7 +21,6 @@
 #include "core/constant_st_func.h"
 #include "core/boundary_cell_map.h"
 #include "io/silo_io.h"
-#include "io/vtk_plot_io.h"
 #include "io/gnuplot_io.h"
 #include "advect/advect_model.h"
 #include "advect/advect_bc.h"
@@ -752,15 +751,13 @@ model_t* advect_model_new(options_t* options)
   char* which_plotter = options_value(options, "plotter");
   if (which_plotter != NULL)
   {
-    if (!strcasecmp(which_plotter, "vtk"))
-      plotter = vtk_plot_io_new(a->comm, 0, false);
-    else if (!strcasecmp(which_plotter, "silo"))
+    if (!strcasecmp(which_plotter, "silo"))
       plotter = silo_plot_io_new(a->comm, 0, false);
     else if (!strcasecmp(which_plotter, "gnuplot"))
       plotter = gnuplot_io_new();
   }
   else
-    plotter = vtk_plot_io_new(a->comm, 0, false);
+    plotter = silo_plot_io_new(a->comm, 0, false);
   if (plotter != NULL)
   {
     log_detail("Setting plotter to '%s'...", which_plotter);

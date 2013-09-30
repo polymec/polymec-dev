@@ -21,7 +21,7 @@
 #include "cmockery.h"
 #include "geometry/cubic_lattice.h"
 #include "geometry/create_cubic_lattice_mesh.h"
-#include "io/vtk_plot_io.h"
+#include "io/silo_io.h"
 
 void test_create_cubic_lattice_mesh(void** state)
 {
@@ -45,7 +45,7 @@ void test_plot_cubic_lattice_mesh(void** state)
   mesh_t* mesh = create_cubic_lattice_mesh(4, 4, 4);
 
   // Plot it.
-  io_interface_t* plot = vtk_plot_io_new(MPI_COMM_SELF, 0, false);
+  io_interface_t* plot = silo_plot_io_new(MPI_COMM_SELF, 0, false);
   io_open(plot, "cubic_lattice_4x4x4", ".", IO_WRITE);
   io_dataset_t* dataset = io_dataset_new("default");
   io_dataset_put_mesh(dataset, mesh);

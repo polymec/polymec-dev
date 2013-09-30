@@ -20,7 +20,6 @@
 #include <string.h>
 #include "cmockery.h"
 #include "geometry/create_voronoi_mesh.h"
-#include "io/vtk_plot_io.h"
 
 #if 0
 void test_create_single_tetrahedron(void** state)

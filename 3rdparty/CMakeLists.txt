@@ -19,8 +19,6 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libgc.a)
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/gc-7.2
                   OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
 endif()
-add_library(gc STATIC IMPORTED)
-set_target_properties(gc PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libgc.a)
 set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};gc)
 
 # Build the QHull C library.
@@ -39,29 +37,6 @@ endif()
 file(GLOB qhull_sources "${CMAKE_CURRENT_BINARY_DIR}/qhull-2012.1/src/libqhull/*.c")
 add_library(qhull ${qhull_sources})
 set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};qhull)
-
-# Install xz-utils for the LZMA library.
-if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/liblzma.a)
-  set(XZ_CONFIG_OPTS --prefix=${PROJECT_BINARY_DIR} --enable-static --disable-shared --disable-xz --disable-xzdec --disable-lzmadec --disable-lzmainfo --disable-lzma-links --disable-scripts)
-  if (${CMAKE_BUILD_TYPE} STREQUAL "Debug")
-    set(XZ_CONFIG_OPTS ${XZ_CONFIG_OPTS} --enable-debug)
-  endif()
-  message("Unpacking xz-utils...")
-  execute_process(COMMAND cmake -E tar xzvf ${CMAKE_CURRENT_SOURCE_DIR}/xz-utils_5.0.0.orig.tar.gz
-                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-                  OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
-  message("Configuring xz-utils...")
-  execute_process(COMMAND env CC=${CC} CXX=${CXX} ./configure ${XZ_CONFIG_OPTS}
-                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/xz-5.0.0
-                  OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
-  message("Building xz-utils...")
-  execute_process(COMMAND make install -j4
-                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/xz-5.0.0
-                  OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
-endif()
-add_library(lzma STATIC IMPORTED)
-set_target_properties(lzma PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/liblzma.a)
-set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};lzma)
 
 # Install libarena -- A fast C arena/memory pool implementation.
 if (NOT EXISTS ${PROJECT_BINARY_DIR}/include/arena)
@@ -132,8 +107,6 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/lib${SILOLIB}.a)
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/silo-4.8-bsd
                   OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
 endif()
-add_library(silo STATIC IMPORTED)
-set_target_properties(silo PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/lib${SILOLIB}.a)
 set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};${SILOLIB})
 
 # Build Sundials, a C library for integrating stiff, nonlinear ODEs and 
@@ -230,27 +203,6 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/liblua.a)
 endif()
 set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};lua)
 #set(POLYMEC_TP_INCDIRS ${POLYMEC_TP_INCDIRS};${PROJECT_BINARY_DIR}/include)
-
-# Build libxml2, an XML library.
-if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libxml2.a)
-  set(XML2_CONFIG_OPTS --prefix=${PROJECT_BINARY_DIR} --enable-static --disable-shared --without-threads --without-iconv --without-zlib)
-  message("Unpacking libxml2...")
-  execute_process(COMMAND cmake -E tar xzvf ${CMAKE_CURRENT_SOURCE_DIR}/libxml2-sources-2.9.0.tar.gz
-                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-                  OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
-  message("Configuring libxml2...")
-  execute_process(COMMAND env CC=${CC} ./configure ${XML2_CONFIG_OPTS}
-                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/libxml2-2.9.0
-                  OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
-  message("Building libxml2...")
-  execute_process(COMMAND make install -j4
-                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/libxml2-2.9.0
-                  OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
-endif()
-add_library(xml2 STATIC IMPORTED)
-set_target_properties(xml2 PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libxml2.a)
-set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};xml2)
-set(POLYMEC_TP_INCDIRS ${POLYMEC_TP_INCDIRS};${PROJECT_BINARY_DIR}/include/libxml2)
 
 # Add all the libraries to the build system at large.
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${POLYMEC_TP_C_FLAGS}" PARENT_SCOPE)
