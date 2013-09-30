@@ -25,7 +25,6 @@
 #include "geometry/create_cubic_lattice_mesh.h"
 #include "geometry/interpreter_register_geometry_functions.h"
 #include "io/silo_io.h"
-#include "io/vtk_plot_io.h"
 #include "io/gnuplot_io.h"
 #include "poisson/poisson_model.h"
 #include "poisson/poisson_bc.h"
@@ -497,15 +496,13 @@ model_t* poisson_model_new(options_t* options)
   char* which_plotter = options_value(options, "plotter");
   if (which_plotter != NULL)
   {
-    if (!strcasecmp(which_plotter, "vtk"))
-      plotter = vtk_plot_io_new(p->comm, 0, false);
-    else if (!strcasecmp(which_plotter, "silo"))
+    if (!strcasecmp(which_plotter, "silo"))
       plotter = silo_plot_io_new(p->comm, 0, false);
     else if (!strcasecmp(which_plotter, "gnuplot"))
       plotter = gnuplot_io_new();
   }
   else
-    plotter = vtk_plot_io_new(p->comm, 0, false);
+    plotter = silo_plot_io_new(p->comm, 0, false);
   if (plotter != NULL)
   {
     log_detail("Setting plotter to '%s'...", which_plotter);

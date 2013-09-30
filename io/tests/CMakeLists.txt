@@ -4,5 +4,4 @@
 include(add_polymec_test)
 
 add_polymec_test(test_silo_plot_io test_silo_plot_io.c)
-add_polymec_test(test_vtk_plot_io test_vtk_plot_io.c)
 

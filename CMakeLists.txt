@@ -111,8 +111,8 @@ add_subdirectory(io)
 add_subdirectory(geometry)
 add_subdirectory(integrators)
 
-# Mesher.
-add_subdirectory(polymesher)
+# Mesher -- deactivated till I incorporate polytope.
+#add_subdirectory(polymesher)
 
 # Models.
 

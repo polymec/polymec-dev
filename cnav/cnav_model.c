@@ -21,7 +21,6 @@
 #include "core/boundary_cell_map.h"
 #include "core/least_squares.h"
 #include "io/silo_io.h"
-#include "io/vtk_plot_io.h"
 #include "io/gnuplot_io.h"
 #include "cnav/cnav_model.h"
 #include "cnav/cnav_bc.h"
