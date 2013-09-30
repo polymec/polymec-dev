@@ -25,8 +25,8 @@
 #include "geometry/cubic_lattice.h"
 #include "geometry/create_cubic_lattice_mesh.h"
 #include "geometry/create_boundary_generators.h"
-#include "geometry/create_voronoi_mesh.h"
-#include "geometry/create_cvt_with_lloyd_iteration.h"
+//#include "geometry/create_voronoi_mesh.h"
+//#include "geometry/create_cvt_with_lloyd_iteration.h"
 
 // Lua stuff.
 #include "lua.h"
@@ -175,6 +175,7 @@ static void free_string(char* str)
 
 int mesh_factory_voronoi(lua_State* lua)
 {
+return luaL_error(lua, "CURRENTLY NOT SUPPORTED.");
   // Check the arguments.
   int num_args = lua_gettop(lua);
   if ((num_args != 1) || !lua_ispointlist(lua, 1))
@@ -188,15 +189,16 @@ int mesh_factory_voronoi(lua_State* lua)
   point_t* generators = lua_topointlist(lua, 1, &num_generators);
 
   // Create the mesh.
-  mesh_t* mesh = create_voronoi_mesh(generators, num_generators, NULL, 0, NULL);
+//  mesh_t* mesh = create_voronoi_mesh(generators, num_generators, NULL, 0, NULL);
 
   // Push the mesh onto the stack.
-  lua_pushmesh(lua, mesh);
-  return 1;
+//  lua_pushmesh(lua, mesh);
+//  return 1;
 }
 
 int mesh_factory_cvt(lua_State* lua)
 {
+return luaL_error(lua, "CURRENTLY NOT SUPPORTED.");
   // Check the arguments.
   int num_args = lua_gettop(lua);
   if ((num_args != 2) || !lua_istable(lua, 1) || !lua_istable(lua, 2))
@@ -488,9 +490,9 @@ int mesh_factory_cvt(lua_State* lua)
     point_randomize(&interior_points[i], random, &bbox);
 
   // Construct a centroidal voronoi tessellation using Lloyd iteration.
-  mesh_t* mesh = create_cvt_with_lloyd_iteration(boundary_points, num_boundary_points,
-                                                 interior_points, num_interior_points,
-                                                 tag_names, tags, num_tags, num_iterations);
+//  mesh_t* mesh = create_cvt_with_lloyd_iteration(boundary_points, num_boundary_points,
+//                                                 interior_points, num_interior_points,
+//                                                 tag_names, tags, num_tags, num_iterations);
 
   // Clean up the rest.
   free(interior_points);
@@ -506,7 +508,7 @@ int mesh_factory_cvt(lua_State* lua)
   free(all_surf_points);
 
   // Push the mesh onto the stack.
-  lua_pushmesh(lua, mesh);
+//  lua_pushmesh(lua, mesh);
   return 1;
 }
 
