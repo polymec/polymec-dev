@@ -14,61 +14,59 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef POLYMEC_DAE_SOLVER_H
-#define POLYMEC_DAE_SOLVER_H
+#ifndef POLYMEC_nonlinear_SOLVER_H
+#define POLYMEC_nonlinear_SOLVER_H
 
 #include "core/polymec.h"
-#include "core/adj_graph.h"
-#include "core/table.h"
 
 // A function for computing the ith equation within an N-dimensional 
 // differential algebraic system F(X) = 0 given a solution X at time t.
-typedef void (*dae_solver_eval_dae_func)(void* context, 
-                                         double t, 
-                                         int N,
-                                         double* X, 
-                                         double* F);
+typedef void (*nonlinear_solver_eval_func)(void* context, 
+                                           double t, 
+                                           int N,
+                                           double* X, 
+                                           double* F);
 
 // A function for solving a system of differential algebraic equations at 
 // a time t (in place).
-typedef void (*dae_solver_solve_func)(void* context,
+typedef void (*nonlinear_solver_solve_func)(void* context,
                                       double t, 
                                       int N,
                                       double* X);
 
-// A destructor for DAE solvers.
-typedef void (*dae_solver_dtor)(void* context);
+// A destructor for nonlinear solvers.
+typedef void (*nonlinear_solver_dtor)(void* context);
 
-// This virtual table must be implemented by any dae_solver_t.
+// This virtual table must be implemented by any nonlinear_solver_t.
 typedef struct 
 {
-  dae_solver_eval_dae_func eval_dae;
-  dae_solver_solve_func    solve;
-  dae_solver_dtor          dtor;
-} dae_solver_vtable;
+  nonlinear_solver_eval_func  eval;
+  nonlinear_solver_solve_func solve;
+  nonlinear_solver_dtor       dtor;
+} nonlinear_solver_vtable;
 
 // This class represents a way of integrating a system of 
-// differential algebraic equations (DAE).
-typedef struct dae_solver_t dae_solver_t;
+// nonlinear equations.
+typedef struct nonlinear_solver_t nonlinear_solver_t;
 
 // Creates a solver with the given name, context, and virtual table for 
 // solving a differential algebraic system with N equations.
-dae_solver_t* dae_solver_new(const char* name,
+nonlinear_solver_t* nonlinear_solver_new(const char* name,
                              void* context,
-                             dae_solver_vtable vtable,
+                             nonlinear_solver_vtable vtable,
                              int N);
 
-// Frees a DAE solver.
-void dae_solver_free(dae_solver_t* solver);
+// Frees a solver.
+void nonlinear_solver_free(nonlinear_solver_t* solver);
 
 // Returns an internal string storing the name of the solver.
-char* dae_solver_name(dae_solver_t* solver);
+char* nonlinear_solver_name(nonlinear_solver_t* solver);
 
 // Returns the context pointer for the solver.
-void* dae_solver_context(dae_solver_t* solver);
+void* nonlinear_solver_context(nonlinear_solver_t* solver);
 
 // Solves the system of equations F(X, t) = 0 in place, using X as the initial guess.
-void dae_solver_solve(dae_solver_t* solver, double t, double* X);
+void nonlinear_solver_solve(nonlinear_solver_t* solver, double t, double* X);
 
 #endif
 
