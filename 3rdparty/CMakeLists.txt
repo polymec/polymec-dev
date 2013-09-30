@@ -187,6 +187,17 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libsuperlu.a)
 endif()
 set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};superlu)
 
+# Build inih, an extremely simple config file parser.
+if (NOT EXISTS ${CMAKE_CURRENT_BINARY_DIR}/inih_r28)
+  execute_process(COMMAND cmake -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/inih_r28)
+  execute_process(COMMAND cmake -E tar xzvf ${CMAKE_CURRENT_SOURCE_DIR}/inih_r28.zip
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/inih_r28
+                  OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
+  execute_process(COMMAND cmake -E copy ${CMAKE_CURRENT_BINARY_DIR}/inih_r28/ini.h ${PROJECT_BINARY_DIR}/include)
+endif()
+add_library(inih ${CMAKE_CURRENT_BINARY_DIR}/inih_r28/ini.c)
+set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};inih)
+
 # Build lua, a simple interpreted language library.
 if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/liblua.a)
   if (${APPLE})
