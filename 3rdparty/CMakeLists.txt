@@ -7,7 +7,7 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libgc.a)
     set(GC_CONFIG_OPTS ${GC_CONFIG_OPTS} --enable-gc-debug)
   endif()
   message("Unpacking gc...")
-  execute_process(COMMAND cmake -E tar xzvf ${CMAKE_CURRENT_SOURCE_DIR}/gc-7.2.tar.gz
+  execute_process(COMMAND cmake -E tar xzf ${CMAKE_CURRENT_SOURCE_DIR}/gc-7.2.tar.gz
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
                   OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
   message("Configuring gc...")
@@ -24,7 +24,7 @@ set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};gc)
 # Install libarena -- A fast C arena/memory pool implementation.
 if (NOT EXISTS ${PROJECT_BINARY_DIR}/include/arena)
   message("Unpacking libarena...")
-  execute_process(COMMAND cmake -E tar xzvf ${CMAKE_CURRENT_SOURCE_DIR}/libarena-0.3.5.tgz
+  execute_process(COMMAND cmake -E tar xzf ${CMAKE_CURRENT_SOURCE_DIR}/libarena-0.3.5.tgz
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
                   OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
   message("Preparing libarena...")
@@ -78,7 +78,7 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/lib${SILOLIB}.a)
   endif()
   set(SILO_CONFIG_OPTS ${SILO_CONFIG_OPTS} --prefix=${PROJECT_BINARY_DIR})
   message("Unpacking silo...")
-  execute_process(COMMAND cmake -E tar xzvf ${CMAKE_CURRENT_SOURCE_DIR}/silo-4.8-bsd-smalltest.tar.gz
+  execute_process(COMMAND cmake -E tar xzf ${CMAKE_CURRENT_SOURCE_DIR}/silo-4.8-bsd-smalltest.tar.gz
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
                   OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
   message("Configuring silo...")
@@ -93,42 +93,75 @@ endif()
 set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};${SILOLIB})
 
 # Build the polytope library.
-if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libpolytope.a)
-  message("Unpacking polytope...")
-  execute_process(COMMAND cmake -E tar xzvf ${CMAKE_CURRENT_SOURCE_DIR}/polytope-0.5.17.tbz
-                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-                  OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
+set(HAVE_POLYTOPE FALSE)
+if (EXISTS ${PROJECT_BINARY_DIR}/lib/libpolytope.a)
+  set(HAVE_POLYTOPE TRUE)
+else()
+  set(polytope_version 0.5.17)
+  set(polytope_dir polytope-${polytope_version})
+  set(polytope_tarball ${polytope_dir}.tar.gz)
 
-  message("Preparing polytope...")
   # If a Tetgen tarball is in our 3rdparty directory, untar its contents into 
-  # the proper location in the polytope source tree.
-  if (EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/tetgen1.4.3.tar.gz)
-    message("Found Tetgen tarball--gifting to polytope...")
-    execute_process(COMMAND cmake -E tar xzvf ${CMAKE_CURRENT_SOURCE_DIR}/tetgen1.4.3.tar.gz
+  # the proper location in the polytope source tree, and then polytope is built.
+  set(tetgen_version 1.4.3)
+  set(tetgen_dir "tetgen${tetgen_version}")
+  set(tetgen_tarball "${tetgen_dir}.tar.gz")
+  if (EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/${tetgen_tarball})
+    message("Found Tetgen tarball (${tetgen_tarball}): enabling mesh generation...")
+    set(HAVE_POLYTOPE TRUE)
+
+    message("Unpacking polytope...")
+    execute_process(COMMAND cmake -E tar xzf ${CMAKE_CURRENT_SOURCE_DIR}/${polytope_tarball}
                     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
                     OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
-    file(COPY ${CMAKE_CURRENT_BINARY_DIR}/tetgen1.4.3/tetgen.cxx DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/polytope-0.5.17/src)
-    file(COPY ${CMAKE_CURRENT_BINARY_DIR}/tetgen1.4.3/tetgen.h DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/polytope-0.5.17/src)
-    file(COPY ${CMAKE_CURRENT_BINARY_DIR}/tetgen1.4.3/predicates.cxx DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/polytope-0.5.17/src)
+
+    message("Copying Tetgen source to polytope directory...")
+    execute_process(COMMAND cmake -E tar xzf ${CMAKE_CURRENT_SOURCE_DIR}/${tetgen_tarball}
+                    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+                    OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
+    file(COPY ${CMAKE_CURRENT_BINARY_DIR}/${tetgen_dir}/tetgen.cxx DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/${polytope_dir}/src)
+    file(COPY ${CMAKE_CURRENT_BINARY_DIR}/${tetgen_dir}/tetgen.h DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/${polytope_dir}/src)
+    file(COPY ${CMAKE_CURRENT_BINARY_DIR}/${tetgen_dir}/predicates.cxx DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/${polytope_dir}/src)
+
+    message("Configuring polytope...")
+    set(POLYTOPE_CONFIG_OPTS prefix=${PROJECT_BINARY_DIR} use_silo=1 CC=${CMAKE_C_COMPILER} CXX=${CMAKE_CXX_COMPILER})
+    if (${CMAKE_BUILD_TYPE} STREQUAL "Debug")
+      set(POLYTOPE_CONFIG_OPTS ${POLYTOPE_CONFIG_OPTS} debug=1)
+    endif()
+    if (USE_MPI EQUAL 1)
+      set(POLYTOPE_CONFIG_OPTS ${POLYTOPE_CONFIG_OPTS} MPI=1)
+    endif()
+    execute_process(COMMAND make config ${POLYTOPE_CONFIG_OPTS}
+                    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/${polytope_dir}
+                    OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
+
+    message("Building polytope...")
+    execute_process(COMMAND make -j4 ${POLYTOPE_CONFIG_OPTS}
+                    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/${polytope_dir}
+                    OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
+
+    message("Installing polytope in ${PROJECT_BINARY_DIR}...")
+    # We only need a few C headers and the libraries.
+    file(GLOB_RECURSE polytope_c_headers "${CMAKE_CURRENT_BINARY_DIR}/${polytope_dir}/*.h")
+    foreach(header ${polytope_c_headers})
+      file(COPY ${header} DESTINATION ${PROJECT_BINARY_DIR}/include)
+    endforeach()
+    file(GLOB_RECURSE polytope_c_lib "${CMAKE_CURRENT_BINARY_DIR}/${polytope_dir}/libpolytope_c.a")
+    file(GLOB_RECURSE polytope_lib "${CMAKE_CURRENT_BINARY_DIR}/${polytope_dir}/libpolytope.a")
+    file(GLOB_RECURSE tetgen_lib "${CMAKE_CURRENT_BINARY_DIR}/${polytope_dir}/libtetgen.a")
+    file(COPY ${polytope_c_lib} DESTINATION ${PROJECT_BINARY_DIR}/lib)
+    file(COPY ${polytope_lib} DESTINATION ${PROJECT_BINARY_DIR}/lib)
+    file(COPY ${tetgen_lib} DESTINATION ${PROJECT_BINARY_DIR}/lib)
+  else()
+    message("No Tetgen tarball (tetgen1.4.3.tar.gz) was found in 3rdparty directory.")
+    message("polytope library is not being built, and mesh generation is disabled.")
+    message("Please obtain tetgen1.4.3.tar.gz and place it into 3rdparty/ to build support for mesh generation.")
+    message("(NOTE that while Tetgen is free for research and educational purposes, an arrangement must be made with the author to use it in a commercial software package.")
   endif()
-  set(POLYTOPE_CONFIG_OPTS prefix=${PROJECT_BINARY_DIR} use_silo=1 CC=${CMAKE_C_COMPILER} CXX=${CMAKE_CXX_COMPILER})
-  if (${CMAKE_BUILD_TYPE} STREQUAL "Debug")
-    set(POLYTOPE_CONFIG_OPTS ${POLYTOPE_CONFIG_OPTS} debug=1)
-  endif()
-  if (USE_MPI EQUAL 1)
-    set(POLYTOPE_CONFIG_OPTS ${POLYTOPE_CONFIG_OPTS} MPI=1)
-  endif()
-  execute_process(COMMAND make config ${POLYTOPE_CONFIG_OPTS}
-                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/polytope-0.5.17
-                  OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
-  execute_process(COMMAND make -j4 ${POLYTOPE_CONFIG_OPTS}
-                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/polytope-0.5.17
-                  OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
-  execute_process(COMMAND make install ${POLYTOPE_CONFIG_OPTS}
-                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/polytope-0.5.17
-                  OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
 endif()
-set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};polytope)
+if (${HAVE_POLYTOPE})
+  set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};polytope_c;polytope)
+endif()
 
 # Build Sundials, a C library for integrating stiff, nonlinear ODEs and 
 # differential-algebraic equations.
@@ -138,7 +171,7 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libsundials_cvode.a)
     set(SUNDIALS_CONFIG_OPTS ${SUNDIALS_CONFIG_OPTS} --disable-mpi)
   endif()
   message("Unpacking sundials...")
-  execute_process(COMMAND cmake -E tar xzvf ${CMAKE_CURRENT_SOURCE_DIR}/sundials-2.4.0.tar.gz
+  execute_process(COMMAND cmake -E tar xzf ${CMAKE_CURRENT_SOURCE_DIR}/sundials-2.4.0.tar.gz
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
                   OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
   message("Configuring sundials...")
@@ -161,7 +194,7 @@ set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};sundials_cvode;sundials_ida;sundials_kins
 # we will use for preconditioning.
 if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libsuperlu.a)
   message("Unpacking SuperLU...")
-  execute_process(COMMAND cmake -E tar xzvf ${CMAKE_CURRENT_SOURCE_DIR}/superlu_4.3.tar.gz
+  execute_process(COMMAND cmake -E tar xzf ${CMAKE_CURRENT_SOURCE_DIR}/superlu_4.3.tar.gz
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
                   OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
 
@@ -190,7 +223,7 @@ set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};superlu)
 # Build inih, an extremely simple config file parser.
 if (NOT EXISTS ${CMAKE_CURRENT_BINARY_DIR}/inih_r28)
   execute_process(COMMAND cmake -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/inih_r28)
-  execute_process(COMMAND cmake -E tar xzvf ${CMAKE_CURRENT_SOURCE_DIR}/inih_r28.zip
+  execute_process(COMMAND cmake -E tar xzf ${CMAKE_CURRENT_SOURCE_DIR}/inih_r28.zip
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/inih_r28
                   OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
   execute_process(COMMAND cmake -E copy ${CMAKE_CURRENT_BINARY_DIR}/inih_r28/ini.h ${PROJECT_BINARY_DIR}/include)
@@ -211,7 +244,7 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/liblua.a)
 #    endif()
   endif()
   message("Unpacking lua...")
-  execute_process(COMMAND cmake -E tar xzvf ${CMAKE_CURRENT_SOURCE_DIR}/lua-5.2.1.tar.gz
+  execute_process(COMMAND cmake -E tar xzf ${CMAKE_CURRENT_SOURCE_DIR}/lua-5.2.1.tar.gz
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
                   OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
 
