@@ -111,8 +111,10 @@ add_subdirectory(io)
 add_subdirectory(geometry)
 add_subdirectory(integrators)
 
-# Mesher -- deactivated till I incorporate polytope.
-#add_subdirectory(polymesher)
+# Mesher -- enabled if polytope is present.
+if (${HAVE_POLYTOPE})
+  add_subdirectory(polymesher)
+endif()
 
 # Models.
 

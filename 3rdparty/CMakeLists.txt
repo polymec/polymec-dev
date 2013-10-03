@@ -160,7 +160,11 @@ else()
   endif()
 endif()
 if (${HAVE_POLYTOPE})
+  set(POLYMEC_TP_C_FLAGS "${POLYMEC_TP_C_FLAGS} -DHAVE_POLYTOPE")
   set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};polytope_c;polytope)
+  set(HAVE_POLYTOPE TRUE PARENT_SCOPE)
+else()
+  set(HAVE_POLYTOPE FALSE PARENT_SCOPE)
 endif()
 
 # Build Sundials, a C library for integrating stiff, nonlinear ODEs and 
