@@ -1,6 +1,6 @@
 if (HAVE_POLYTOPE)
-  set(VORONOI_TESSELLATOR_SOURCES voronoi_tessellator.c create_cvt.c 
-      create_cvt_with_lloyd_iteration.c create_voronoi_mesh.c create_boundary_generators.c
+  set(VORONOI_TESSELLATOR_SOURCES create_voronoi_mesh.c create_cvt.c 
+      create_cvt_with_lloyd_iteration.c create_boundary_generators.c
       generate_random_points.c point_factory.c mesh_factory.c)
 endif()
 

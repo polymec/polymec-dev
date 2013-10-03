@@ -28,6 +28,7 @@
 // Spatial function library.
 extern void interpreter_register_spfuncs(interpreter_t* interp);
 
+#ifdef HAVE_POLYTOPE
 // Functions for the point factory, which manufactures sets of points.
 extern int point_factory_random_points(lua_State* lua);
 extern int point_factory_cubic_lattice(lua_State* lua);
@@ -39,6 +40,7 @@ extern int mesh_factory_cubic_lattice(lua_State* lua);
 extern int mesh_factory_cubic_lattice_periodic_bc(lua_State* lua);
 extern int mesh_factory_voronoi(lua_State* lua);
 extern int mesh_factory_cvt(lua_State* lua);
+#endif
 
 static int sample_bbox(lua_State* lua)
 {
