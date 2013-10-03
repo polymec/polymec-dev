@@ -14,92 +14,85 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// This implementation of the Voronoi tessellator uses Tetgen. It is not built 
+// unless a Tetgen tarball was found in the 3rdparty/ directory, in which 
+// case the polytope library was built. Please see the license file in the 
+// Tetgen tarball for license information on Tetgen.
+
+#ifndef HAVE_POLYTOPE
+#error "create_voronoi_mesh.c should not be built without polytope!"
+#endif
+
+#undef HAVE_HDF5 // FIXME (HACK): Avoids warnings with polytope 
+#include "polytope_c.h"
+
+#include "core/table.h"
 #include "core/unordered_map.h"
 #include "core/unordered_set.h"
 #include "core/slist.h"
 #include "core/edit_mesh.h"
 #include "core/kd_tree.h"
 #include "geometry/create_voronoi_mesh.h"
-#include "geometry/voronoi_tessellator.h"
-#include "geometry/giftwrap_hull.h"
 
-mesh_t* create_voronoi_mesh(point_t* generators, int num_generators, 
-                            point_t* ghost_generators, int num_ghost_generators,
-                            int_slist_t* deleted_cells)
+static mesh_t* mesh_from_tessellation(polytope_tessellation_t* tess, 
+                                      point_t* generators, 
+                                      int_slist_t* deleted_cells)
 {
-  ASSERT(generators != NULL);
-  ASSERT(num_generators >= 2);
-  ASSERT(num_ghost_generators >= 0);
+  // Compute the number of edges, which we aren't given by polytope.
+  int_table_t* edge_for_nodes = int_table_new();
+  int num_edges = 0;
 
-  if (deleted_cells != NULL)
-    int_slist_clear(deleted_cells);
-
-  // Gather the points to be tessellated.
-  int num_points = num_generators + num_ghost_generators;
-  point_t* points = malloc(sizeof(point_t) * num_points);
-  memcpy(points, generators, sizeof(point_t) * num_generators);
-  memcpy(&points[num_generators], ghost_generators, sizeof(point_t) * num_ghost_generators);
-
-  // Perform the tessellation.
-  voronoi_tessellator_t* tessellator = voronoi_tessellator_new();
-  voronoi_tessellation_t* tessellation = voronoi_tessellator_tessellate(tessellator, points, num_points, deleted_cells);
-
-  // The number of cells generated may be less than the number of generators
-  // in cases in which generators lie on planes of the convex hull.
-  ASSERT(tessellation->num_cells <= (num_generators + num_ghost_generators));
-  free(points);
-
-  // Construct the Voronoi graph.
-  mesh_t* mesh = mesh_new(tessellation->num_cells,
-                          num_ghost_generators, // ???
-                          tessellation->num_faces,
-                          tessellation->num_edges,
-                          tessellation->num_nodes);
+  // Create the mesh.
+  mesh_t* mesh = mesh_new(tess->num_cells, 0, // ???
+                          tess->num_faces,
+                          num_edges,
+                          tess->num_nodes);
   
-  // Node coordinates.
+  // Copy node coordinates.
   for (int i = 0; i < mesh->num_nodes; ++i)
   {
-    mesh->nodes[i].x = tessellation->nodes[3*i];
-    mesh->nodes[i].y = tessellation->nodes[3*i+1];
-    mesh->nodes[i].z = tessellation->nodes[3*i+2];
+    mesh->nodes[i].x = tess->nodes[3*i];
+    mesh->nodes[i].y = tess->nodes[3*i+1];
+    mesh->nodes[i].z = tess->nodes[3*i+2];
   }
 
   // Edge <-> node connectivity.
-  for (int i = 0; i < mesh->num_edges; ++i)
   {
-    mesh->edges[i].node1 = &mesh->nodes[tessellation->edges[i].node1];
-    int n2 = tessellation->edges[i].node2; 
-    ASSERT(n2 >= 0);
-    mesh->edges[i].node2 = &mesh->nodes[n2];
+    int_table_cell_pos_t pos = int_table_start(edge_for_nodes);
+    int n1, n2, e;
+    while (int_table_next_cell(edge_for_nodes, &pos, &n1, &n2, &e))
+    {
+      mesh->edges[e].node1 = &mesh->nodes[n1];
+      ASSERT(n2 >= 0); // FIXME: Not yet enforced.
+      mesh->edges[e].node2 = &mesh->nodes[n2];
+    }
   }
 
   // Face <-> edge connectivity.
   for (int f = 0; f < mesh->num_faces; ++f)
   {
-    int Ne = tessellation->faces[f].num_edges;
+    int Ne = tess->face_offsets[f+1] - tess->face_offsets[f];
     for (int e = 0; e < Ne; ++e)
     {
-      int edge_id = tessellation->faces[f].edges[e];
+      int offset = tess->face_offsets[f];
+      int n1 = (int)tess->face_nodes[offset+e];
+      int n2 = (int)tess->face_nodes[offset+(e+1)%Ne];
+      int edge_id = *int_table_get(edge_for_nodes, n1, n2);
       mesh_attach_edge_to_face(mesh, &mesh->edges[edge_id], &mesh->faces[f]);
     }
     ASSERT(mesh->faces[f].num_edges == Ne);
   }
 
   // Cell <-> face connectivity.
-  int_ptr_unordered_map_t* oce = int_ptr_unordered_map_new();
   for (int i = 0; i < mesh->num_cells; ++i)
   {
-    int Nf = tessellation->cells[i].num_faces;
+    int Nf = tess->cell_offsets[i+1] - tess->cell_offsets[i];
     for (int f = 0; f < Nf; ++f)
     {
-      int face_index = tessellation->cells[i].faces[f];
+      int offset = tess->cell_offsets[f];
+      int face_index = tess->cell_faces[offset+f];
       face_t* face = &mesh->faces[face_index];
       mesh_attach_face_to_cell(mesh, face, &mesh->cells[i]);
-      for (int e = 0; e < face->num_edges; ++e)
-      {
-        int edge_index = tessellation->faces[face_index].edges[e];
-        ASSERT((face->edges[e] - &mesh->edges[0]) == edge_index);
-      }
     }
   }
 
@@ -122,9 +115,52 @@ mesh_t* create_voronoi_mesh(point_t* generators, int num_generators,
   // Compute the mesh's geometry.
   mesh_compute_geometry(mesh);
 
+  // Clean up.
+  int_table_free(edge_for_nodes);
+
+  return mesh;
+}
+
+mesh_t* create_voronoi_mesh(point_t* generators, int num_generators, 
+                            point_t* ghost_generators, int num_ghost_generators,
+                            int_slist_t* deleted_cells)
+{
+  ASSERT(generators != NULL);
+  ASSERT(num_generators >= 2);
+  ASSERT(num_ghost_generators >= 0);
+
+  if (deleted_cells != NULL)
+    int_slist_clear(deleted_cells);
+
+  // Gather the points to be tessellated.
+  int num_points = num_generators + num_ghost_generators;
+  double* points = malloc(sizeof(point_t) * 3 * num_points);
+  for (int i = 0; i < num_generators; ++i)
+  {
+    points[3*i] = generators[i].x;
+    points[3*i+1] = generators[i].y;
+    points[3*i+2] = generators[i].z;
+  }
+  for (int i = 0; i < num_ghost_generators; ++i)
+  {
+    points[3*(num_generators+i)] = ghost_generators[i].x;
+    points[3*(num_generators+i)+1] = ghost_generators[i].y;
+    points[3*(num_generators+i)+2] = ghost_generators[i].z;
+  }
+
+  // Perform an unbounded tessellation using polytope.
+  polytope_tessellator_t* tessellator = tetgen_tessellator_new();
+  polytope_tessellation_t* tess = polytope_tessellation_new(3);
+  polytope_tessellator_tessellate_unbounded(tessellator, points, num_points, tess);
+
+  // Create a Voronoi mesh from this tessellation, deleting unbounded cells.
+  // FIXME: This doesn't accommodate ghost generators.
+  mesh_t* mesh = mesh_from_tessellation(tess, generators, deleted_cells);
 
   // Clean up.
-  voronoi_tessellation_free(tessellation);
+  polytope_tessellation_free(tess);
+  polytope_tessellator_free(tessellator);
+  free(points);
 
   // Stick the generators into a point set (kd-tree) that the mesh can 
   // carry with it.
