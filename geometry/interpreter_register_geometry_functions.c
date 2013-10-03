@@ -28,7 +28,7 @@
 // Spatial function library.
 extern void interpreter_register_spfuncs(interpreter_t* interp);
 
-#ifdef HAVE_POLYTOPE
+#ifdef HAVE_TETGEN
 // Functions for the point factory, which manufactures sets of points.
 extern int point_factory_random_points(lua_State* lua);
 extern int point_factory_cubic_lattice(lua_State* lua);
@@ -39,7 +39,7 @@ extern int point_factory_import_from_cad(lua_State* lua);
 extern int mesh_factory_cubic_lattice(lua_State* lua);
 extern int mesh_factory_cubic_lattice_periodic_bc(lua_State* lua);
 extern int mesh_factory_voronoi(lua_State* lua);
-extern int mesh_factory_cvt(lua_State* lua);
+//extern int mesh_factory_cvt(lua_State* lua);
 #endif
 
 static int sample_bbox(lua_State* lua)
@@ -504,7 +504,7 @@ static int remove_points(lua_State* lua)
 
 void interpreter_register_geometry_functions(interpreter_t* interp)
 {
-#ifdef HAVE_POLYTOPE
+#ifdef HAVE_TETGEN
   interpreter_register_global_table(interp, "point_factory");
   interpreter_register_global_method(interp, "point_factory", "random_points", point_factory_random_points);
   interpreter_register_global_method(interp, "point_factory", "cubic_lattice", point_factory_cubic_lattice);
@@ -515,7 +515,7 @@ void interpreter_register_geometry_functions(interpreter_t* interp)
   interpreter_register_global_method(interp, "mesh_factory", "cubic_lattice", mesh_factory_cubic_lattice);
   interpreter_register_global_method(interp, "mesh_factory", "cubic_lattice_periodic_bc", mesh_factory_cubic_lattice_periodic_bc);
   interpreter_register_global_method(interp, "mesh_factory", "voronoi", mesh_factory_voronoi);
-  interpreter_register_global_method(interp, "mesh_factory", "cvt", mesh_factory_cvt);
+//  interpreter_register_global_method(interp, "mesh_factory", "cvt", mesh_factory_cvt);
 #endif
 
   interpreter_register_function(interp, "scaled_bounding_box", scaled_bounding_box);
