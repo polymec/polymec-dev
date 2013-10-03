@@ -21,17 +21,16 @@
 #include "core/point.h"
 #include "core/slist.h"
 
-// This function creates a Voronoi tessellation of the given points in 
-// three-dimensional space. The tessellation contains only bounded cells.
-// This means that generators corresponding to unbounded cells do not appear 
-// in the tessellation, so it's important to include any generators that 
-// produce a non-zero set of bounded Voronoi cells. Optionally, a linked list 
-// may be provided that will store the indices of any cells that were deleted to construct a 
-// completely bounded mesh. If such information is not desired, the final 
-// argument can be set to NULL.
+// This function creates an unbounded Voronoi tessellation of the given points 
+// in three-dimensional space. This includes unbounded infinite cells on the 
+// boundary of the problem domain.
 mesh_t* create_voronoi_mesh(point_t* generators, int num_generators, 
-                            point_t* ghost_generators, int num_ghost_generators,
-                            int_slist_t* deleted_cells);
+                            point_t* ghost_generators, int num_ghost_generators);
+
+// This function creates an Voronoi tessellation within the given bounding box.
+mesh_t* create_voronoi_mesh_in_box(point_t* generators, int num_generators, 
+                                   point_t* ghost_generators, int num_ghost_generators,
+                                   bbox_t* bounding_box);
 
 #endif
 

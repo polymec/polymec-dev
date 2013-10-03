@@ -93,13 +93,15 @@ endif()
 set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};${SILOLIB})
 
 # Build the polytope library.
-set(HAVE_POLYTOPE FALSE)
-if (EXISTS ${PROJECT_BINARY_DIR}/lib/libpolytope.a)
-  set(HAVE_POLYTOPE TRUE)
-else()
+set(HAVE_TETGEN FALSE)
+if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libpolytope.a)
   set(polytope_version 0.5.17)
   set(polytope_dir polytope-${polytope_version})
   set(polytope_tarball ${polytope_dir}.tar.gz)
+  message("Unpacking polytope...")
+  execute_process(COMMAND cmake -E tar xzf ${CMAKE_CURRENT_SOURCE_DIR}/${polytope_tarball}
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+                  OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
 
   # If a Tetgen tarball is in our 3rdparty directory, untar its contents into 
   # the proper location in the polytope source tree, and then polytope is built.
@@ -107,14 +109,8 @@ else()
   set(tetgen_dir "tetgen${tetgen_version}")
   set(tetgen_tarball "${tetgen_dir}.tar.gz")
   if (EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/${tetgen_tarball})
+    set(HAVE_TETGEN TRUE)
     message("Found Tetgen tarball (${tetgen_tarball}): enabling mesh generation...")
-    set(HAVE_POLYTOPE TRUE)
-
-    message("Unpacking polytope...")
-    execute_process(COMMAND cmake -E tar xzf ${CMAKE_CURRENT_SOURCE_DIR}/${polytope_tarball}
-                    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-                    OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
-
     message("Copying Tetgen source to polytope directory...")
     execute_process(COMMAND cmake -E tar xzf ${CMAKE_CURRENT_SOURCE_DIR}/${tetgen_tarball}
                     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
@@ -122,49 +118,51 @@ else()
     file(COPY ${CMAKE_CURRENT_BINARY_DIR}/${tetgen_dir}/tetgen.cxx DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/${polytope_dir}/src)
     file(COPY ${CMAKE_CURRENT_BINARY_DIR}/${tetgen_dir}/tetgen.h DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/${polytope_dir}/src)
     file(COPY ${CMAKE_CURRENT_BINARY_DIR}/${tetgen_dir}/predicates.cxx DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/${polytope_dir}/src)
-
-    message("Configuring polytope...")
-    set(POLYTOPE_CONFIG_OPTS prefix=${PROJECT_BINARY_DIR} use_silo=1 CC=${CMAKE_C_COMPILER} CXX=${CMAKE_CXX_COMPILER})
-    if (${CMAKE_BUILD_TYPE} STREQUAL "Debug")
-      set(POLYTOPE_CONFIG_OPTS ${POLYTOPE_CONFIG_OPTS} debug=1)
-    endif()
-    if (USE_MPI EQUAL 1)
-      set(POLYTOPE_CONFIG_OPTS ${POLYTOPE_CONFIG_OPTS} MPI=1)
-    endif()
-    execute_process(COMMAND make config ${POLYTOPE_CONFIG_OPTS}
-                    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/${polytope_dir}
-                    OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
-
-    message("Building polytope...")
-    execute_process(COMMAND make -j4 ${POLYTOPE_CONFIG_OPTS}
-                    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/${polytope_dir}
-                    OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
-
-    message("Installing polytope in ${PROJECT_BINARY_DIR}...")
-    # We only need a few C headers and the libraries.
-    file(GLOB_RECURSE polytope_c_headers "${CMAKE_CURRENT_BINARY_DIR}/${polytope_dir}/*.h")
-    foreach(header ${polytope_c_headers})
-      file(COPY ${header} DESTINATION ${PROJECT_BINARY_DIR}/include)
-    endforeach()
-    file(GLOB_RECURSE polytope_c_lib "${CMAKE_CURRENT_BINARY_DIR}/${polytope_dir}/libpolytope_c.a")
-    file(GLOB_RECURSE polytope_lib "${CMAKE_CURRENT_BINARY_DIR}/${polytope_dir}/libpolytope.a")
-    file(GLOB_RECURSE tetgen_lib "${CMAKE_CURRENT_BINARY_DIR}/${polytope_dir}/libtetgen.a")
-    file(COPY ${polytope_c_lib} DESTINATION ${PROJECT_BINARY_DIR}/lib)
-    file(COPY ${polytope_lib} DESTINATION ${PROJECT_BINARY_DIR}/lib)
-    file(COPY ${tetgen_lib} DESTINATION ${PROJECT_BINARY_DIR}/lib)
   else()
     message("No Tetgen tarball (tetgen1.4.3.tar.gz) was found in 3rdparty directory.")
     message("polytope library is not being built, and mesh generation is disabled.")
     message("Please obtain tetgen1.4.3.tar.gz and place it into 3rdparty/ to build support for mesh generation.")
     message("(NOTE that while Tetgen is free for research and educational purposes, an arrangement must be made with the author to use it in a commercial software package.)")
   endif()
+
+  message("Configuring polytope...")
+  set(POLYTOPE_CONFIG_OPTS prefix=${PROJECT_BINARY_DIR} use_silo=1 CC=${CMAKE_C_COMPILER} CXX=${CMAKE_CXX_COMPILER})
+  if (${CMAKE_BUILD_TYPE} STREQUAL "Debug")
+    set(POLYTOPE_CONFIG_OPTS ${POLYTOPE_CONFIG_OPTS} debug=1)
+  endif()
+  if (USE_MPI EQUAL 1)
+    set(POLYTOPE_CONFIG_OPTS ${POLYTOPE_CONFIG_OPTS} MPI=1)
+  endif()
+  execute_process(COMMAND make config ${POLYTOPE_CONFIG_OPTS}
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/${polytope_dir}
+                  OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
+
+  message("Building polytope...")
+  execute_process(COMMAND make -j4 ${POLYTOPE_CONFIG_OPTS}
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/${polytope_dir}
+                  OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
+
+  message("Installing polytope in ${PROJECT_BINARY_DIR}...")
+  # We only need a few C headers and the libraries.
+  file(GLOB_RECURSE polytope_c_headers "${CMAKE_CURRENT_BINARY_DIR}/${polytope_dir}/*.h")
+  foreach(header ${polytope_c_headers})
+    file(COPY ${header} DESTINATION ${PROJECT_BINARY_DIR}/include)
+  endforeach()
+  file(GLOB_RECURSE polytope_c_lib "${CMAKE_CURRENT_BINARY_DIR}/${polytope_dir}/libpolytope_c.a")
+  file(GLOB_RECURSE polytope_lib "${CMAKE_CURRENT_BINARY_DIR}/${polytope_dir}/libpolytope.a")
+  file(GLOB_RECURSE tetgen_lib "${CMAKE_CURRENT_BINARY_DIR}/${polytope_dir}/libtetgen.a")
+  file(COPY ${polytope_c_lib} DESTINATION ${PROJECT_BINARY_DIR}/lib)
+  file(COPY ${polytope_lib} DESTINATION ${PROJECT_BINARY_DIR}/lib)
+  file(COPY ${tetgen_lib} DESTINATION ${PROJECT_BINARY_DIR}/lib)
+elseif (EXISTS ${PROJECT_BINARY_DIR}/lib/libtetgen.a)
+  set(HAVE_TETGEN TRUE)
 endif()
-if (${HAVE_POLYTOPE})
-  set(POLYMEC_TP_C_FLAGS "${POLYMEC_TP_C_FLAGS} -DHAVE_POLYTOPE")
-  set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};polytope_c;polytope)
-  set(HAVE_POLYTOPE TRUE PARENT_SCOPE)
+set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};polytope_c;polytope)
+if (${HAVE_TETGEN})
+  set(POLYMEC_TP_C_FLAGS "${POLYMEC_TP_C_FLAGS} -DHAVE_TETGEN")
+  set(HAVE_TETGEN TRUE PARENT_SCOPE)
 else()
-  set(HAVE_POLYTOPE FALSE PARENT_SCOPE)
+  set(HAVE_TETGEN FALSE PARENT_SCOPE)
 endif()
 
 # Build Sundials, a C library for integrating stiff, nonlinear ODEs and 

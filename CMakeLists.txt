@@ -111,8 +111,8 @@ add_subdirectory(io)
 add_subdirectory(geometry)
 add_subdirectory(integrators)
 
-# Mesher -- enabled if polytope is present.
-if (${HAVE_POLYTOPE})
+# Mesher -- enabled if tetgen is present.
+if (${HAVE_TETGEN})
   add_subdirectory(polymesher)
 endif()
 
