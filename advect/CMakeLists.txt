@@ -1,10 +1,9 @@
-# Executable.
-add_executable(advect advect.c diffusion_op.c advect_model.c
-               advect_bc.c interpreter_register_advect_functions.c
-               register_advect_benchmarks.c slope_estimator.c
-               advect_diffusion_solver.c)
-set_target_properties(advect PROPERTIES OUTPUT_NAME advect LINKER_LANGUAGE CXX)
-target_link_libraries(advect ${POLYMEC_LIBS})
+include(add_polymec_executable)
+
+add_polymec_executable(advect advect.c diffusion_op.c advect_model.c
+                       advect_bc.c interpreter_register_advect_functions.c
+                       register_advect_benchmarks.c slope_estimator.c
+                       advect_diffusion_solver.c)
 
 # Benchmark tests.
 add_polymec_benchmark_test(advect stationary_blayer_1d)
