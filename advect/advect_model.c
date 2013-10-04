@@ -20,8 +20,7 @@
 #include "core/linear_algebra.h"
 #include "core/constant_st_func.h"
 #include "core/boundary_cell_map.h"
-#include "io/silo_io.h"
-#include "io/gnuplot_io.h"
+#include "core/write_silo.h"
 #include "advect/advect_model.h"
 #include "advect/advect_bc.h"
 #include "advect/advect_diffusion_solver.h"
@@ -531,31 +530,32 @@ static void advect_init(void* context, double t)
     st_func_eval(a->initial_cond, &a->mesh->cells[c].center, t, &a->phi[c]);
 }
 
-static void advect_plot(void* context, io_interface_t* io, double t, int step)
+static void advect_plot(void* context, const char* prefix, const char* directory, double t, int step)
 {
   ASSERT(context != NULL);
   advect_t* a = (advect_t*)context;
 
-  io_dataset_t* dataset = io_dataset_new("default");
-  io_dataset_put_mesh(dataset, a->mesh);
+  string_ptr_unordered_map_t* cell_fields = string_ptr_unordered_map_new();
   for (int s = 0; s < a->num_species; ++s)
   {
-    double phi[a->mesh->num_cells];
+    double* phi = malloc(sizeof(double) * a->mesh->num_cells);
     for (int c = 0; c < a->mesh->num_cells; ++c)
       phi[c] = a->phi[a->num_species*c + s];
     char phi_name[128];
     sprintf(phi_name, "phi[%d]", s);
-    io_dataset_put_field(dataset, phi_name, a->phi, 1, MESH_CELL, true);
+    string_ptr_unordered_map_t* cell_fields = string_ptr_unordered_map_new();
+    string_ptr_unordered_map_insert_with_v_dtor(cell_fields, phi_name, phi, DTOR(free));
   }
 
   // Compute the cell-centered velocity, diffusivities, and sources, 
   // and write them.
-  double vel[a->mesh->num_cells];
+  double* vel = malloc(sizeof(double) * a->mesh->num_cells);
   for (int c = 0; c < a->mesh->num_cells; ++c)
     st_func_eval(a->velocity, &a->mesh->cells[c].center, t, &vel[c]);
-  io_dataset_put_field(dataset, "velocity", vel, 1, MESH_CELL, true);
+  string_ptr_unordered_map_insert_with_v_dtor(cell_fields, "velocity", vel, DTOR(free));
 
-  double diff[a->mesh->num_cells], source[a->mesh->num_cells];
+  double *diff = malloc(sizeof(double) * a->mesh->num_cells), 
+         *source = malloc(sizeof(double) * a->mesh->num_cells);
   for (int s = 0; s < a->num_species; ++s)
   {
     for (int c = 0; c < a->mesh->num_cells; ++c)
@@ -565,38 +565,38 @@ static void advect_plot(void* context, io_interface_t* io, double t, int step)
     }
     char diff_name[128];
     sprintf(diff_name, "diffusivity[%d]", s);
-    io_dataset_put_field(dataset, diff_name, diff, 1, MESH_CELL, true);
+    string_ptr_unordered_map_insert_with_v_dtor(cell_fields, diff_name, diff, DTOR(free));
     char source_name[128];
     sprintf(source_name, "source[%d]", s);
-    io_dataset_put_field(dataset, source_name, source, 1, MESH_CELL, true);
+    string_ptr_unordered_map_insert_with_v_dtor(cell_fields, source_name, source, DTOR(free));
   }
 
   // If we are given an analytic solution, write it and the solution error.
   if (a->solution != NULL)
   {
-    int num_cells = a->mesh->num_cells;
-    double soln[num_cells], error[num_cells];
-    for (int c = 0; c < num_cells; ++c)
+    double *soln = malloc(sizeof(double) * a->mesh->num_cells), 
+           *error = malloc(sizeof(double) * a->mesh->num_cells);
+    for (int c = 0; c < a->mesh->num_cells; ++c)
     {
       st_func_eval(a->solution, &a->mesh->cells[c].center, t, &soln[c]);
       error[c] = a->phi[c] - soln[c];
     }
-    io_dataset_put_field(dataset, "solution", soln, 1, MESH_CELL, true);
-    io_dataset_put_field(dataset, "error", error, 1, MESH_CELL, true);
+    string_ptr_unordered_map_insert_with_v_dtor(cell_fields, "solution", soln, DTOR(free));
+    string_ptr_unordered_map_insert_with_v_dtor(cell_fields, "error", error, DTOR(free));
   }
-
-  io_append_dataset(io, dataset);
+  write_silo(a->mesh, NULL, NULL, NULL, cell_fields, prefix, directory, 0, 0.0, 
+             MPI_COMM_SELF, 1, 0);
 }
 
-static void advect_save(void* context, io_interface_t* io, double t, int step)
+static void advect_save(void* context, const char* prefix, const char* directory, double t, int step)
 {
   ASSERT(context != NULL);
   advect_t* a = (advect_t*)context;
 
-  io_dataset_t* dataset = io_dataset_new("default");
-  io_dataset_put_mesh(dataset, a->mesh);
-  io_dataset_put_field(dataset, "phi", a->phi, 1, MESH_CELL, false);
-  io_append_dataset(io, dataset);
+  string_ptr_unordered_map_t* cell_fields = string_ptr_unordered_map_new();
+  string_ptr_unordered_map_insert(cell_fields, "phi", a->phi);
+  write_silo(a->mesh, NULL, NULL, NULL, cell_fields, prefix, directory, 0, 0.0, 
+             MPI_COMM_SELF, 1, 0);
 }
 
 static void advect_compute_error_norms(void* context, st_func_t* solution, double t, double* lp_norms)
@@ -742,27 +742,6 @@ model_t* advect_model_new(options_t* options)
 
   // Register benchmarks.
   register_advect_benchmarks(model);
-
-  // Set up saver/plotter.
-  io_interface_t* saver = silo_io_new(a->comm, 0, false);
-  model_set_saver(model, saver);
-
-  io_interface_t* plotter = NULL;
-  char* which_plotter = options_value(options, "plotter");
-  if (which_plotter != NULL)
-  {
-    if (!strcasecmp(which_plotter, "silo"))
-      plotter = silo_plot_io_new(a->comm, 0, false);
-    else if (!strcasecmp(which_plotter, "gnuplot"))
-      plotter = gnuplot_io_new();
-  }
-  else
-    plotter = silo_plot_io_new(a->comm, 0, false);
-  if (plotter != NULL)
-  {
-    log_detail("Setting plotter to '%s'...", which_plotter);
-    model_set_plotter(model, plotter);
-  }
 
   return model;
 }

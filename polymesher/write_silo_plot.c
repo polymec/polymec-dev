@@ -19,12 +19,13 @@
 #include <string.h>
 #include "core/polymec.h"
 #include "core/interpreter.h"
-#include "io/silo_io.h"
 
 // Lua stuff.
 #include "lua.h"
 #include "lualib.h"
 #include "lauxlib.h"
+
+#include "core/write_silo.h"
 
 // write_silo_plot(args) -- This function writes a given mesh to a file 
 // on disk. Arguments (passed in a table according to Chapter 5.3 of the 
@@ -91,19 +92,12 @@ int write_silo_plot(lua_State* lua)
     }
   }
 
-  log_info("Writing SILO plot with prefix '%s'...", filename);
-
-  // Write the mesh to a plot file.
-  io_interface_t* plot = silo_plot_io_new(MPI_COMM_SELF, 0, false);
-  io_open(plot, filename, ".", IO_WRITE);
-  io_dataset_t* dataset = io_dataset_new("default");
-  io_dataset_put_mesh(dataset, mesh);
-
-  // Stick in a couple of diagnostic fields.
-  double volume[mesh->num_cells];
+  // Construct a set of cell-centered fields.
+  string_ptr_unordered_map_t* cell_fields = string_ptr_unordered_map_new();
+  double* volume = malloc(sizeof(double) * mesh->num_cells);
   for (int c = 0; c < mesh->num_cells; ++c)
     volume[c] = mesh->cells[c].volume;
-  io_dataset_put_field(dataset, "volume", volume, 1, MESH_CELL, true);
+  string_ptr_unordered_map_insert_with_v_dtor(cell_fields, "volume", volume, DTOR(free));
 
   // Stick in any other fields.
   if (has_fields)
@@ -118,7 +112,7 @@ int write_silo_plot(lua_State* lua)
       {
         int num_vals;
         double* field_data = lua_tosequence(lua, val_index, &num_vals);
-        io_dataset_put_field(dataset, field_name, field_data, 1, MESH_CELL, true);
+        string_ptr_unordered_map_insert(cell_fields, (char*)field_name, field_data);
       }
       else
       {
@@ -132,17 +126,20 @@ int write_silo_plot(lua_State* lua)
           field_data[3*i+1] = vector_data[i].y;
           field_data[3*i+2] = vector_data[i].z;
         }
-        io_dataset_put_field(dataset, field_name, field_data, 3, MESH_CELL, false);
+        string_ptr_unordered_map_insert(cell_fields, (char*)field_name, field_data);
       }
       lua_pop(lua, 1);
     }
   }
 
-  io_append_dataset(plot, dataset);
-  io_close(plot);
+  log_info("Writing SILO plot with prefix '%s'...", filename);
+
+  // Write the mesh to a plot file.
+  write_silo(mesh, NULL, NULL, NULL, cell_fields, filename, ".", 0, 0.0, 
+             MPI_COMM_SELF, 1, 0);
 
   // Clean up.
-  io_free(plot);
+  string_ptr_unordered_map_free(cell_fields);
 
   return 1;
 }

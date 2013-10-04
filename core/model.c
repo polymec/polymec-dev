@@ -46,10 +46,7 @@ struct model_t
   model_vtable vtable;
   model_benchmark_map_t* benchmarks;
 
-  // Functions that are called periodically. 
-  io_interface_t* saver; // I/O interface for saving.
   int save_every; // Save frequency.
-  io_interface_t* plotter; // I/O interface for plotting.
   int plot_every; // Plot frequency.
 
   // Data related to a given simulation.
@@ -72,9 +69,7 @@ model_t* model_new(const char* name, void* context, model_vtable vtable, options
   model->name = string_dup(name);
   model->benchmarks = model_benchmark_map_new();
   model->sim_name = NULL;
-  model->saver = NULL;
   model->save_every = -1;
-  model->plotter = NULL;
   model->plot_every = -1;
   model->max_dt = FLT_MAX;
   model->interpreter = NULL;
@@ -125,10 +120,6 @@ void model_free(model_t* model)
 
   if (model->sim_name != NULL)
     free(model->sim_name);
-  if (model->saver != NULL)
-    io_free(model->saver);
-  if (model->plotter != NULL)
-    io_free(model->plotter);
 
   if (model->interpreter != NULL)
     interpreter_free(model->interpreter);
@@ -315,45 +306,33 @@ void model_finalize(model_t* model)
 void model_load(model_t* model, int step)
 {
   ASSERT(step >= 0);
-  if (model->saver == NULL)
-    polymec_error("No saver/loader was set with model_set_saver.");
   if (model->sim_name == NULL)
     polymec_error("No simulation name was set with model_set_sim_name.");
   char prefix[strlen(model->sim_name) + 16];
   snprintf(prefix, strlen(model->sim_name) + 16, "%s-%d", model->sim_name, step);
   log_detail("%s: Loading save file from directory %s...", model->name, model->sim_name);
-  io_open(model->saver, prefix, model->sim_name, IO_READ);
-  model->vtable.load(model->context, model->saver, &model->time, step);
+  model->vtable.load(model->context, prefix, model->sim_name, &model->time, step);
   model->step = step;
-  io_close(model->saver);
 }
 
 void model_save(model_t* model)
 {
-  if (model->saver == NULL)
-    polymec_error("No saver/loader was set with model_set_saver.");
   if (model->sim_name == NULL)
     polymec_error("No simulation name was set with model_set_sim_name.");
   char prefix[strlen(model->sim_name) + 16];
   snprintf(prefix, strlen(model->sim_name) + 16, "%s-%d", model->sim_name, model->step);
   log_detail("%s: Writing save file to directory %s...", model->name, model->sim_name);
-  io_open(model->saver, prefix, model->sim_name, IO_WRITE);
-  model->vtable.save(model->context, model->saver, model->time, model->step);
-  io_close(model->saver);
+  model->vtable.save(model->context, prefix, model->sim_name, model->time, model->step);
 }
 
 void model_plot(model_t* model)
 {
-  if (model->plotter == NULL)
-    polymec_error("No plotter was set with model_set_plotter.");
   if (model->sim_name == NULL)
     polymec_error("No simulation name was set with model_set_sim_name.");
   char prefix[strlen(model->sim_name) + 16];
   snprintf(prefix, strlen(model->sim_name) + 16, "%s-%d", model->sim_name, model->step);
   log_detail("%s: Writing plot to directory %s...", model->name, model->sim_name);
-  io_open(model->plotter, prefix, model->sim_name, IO_WRITE);
-  model->vtable.plot(model->context, model->plotter, model->time, model->step);
-  io_close(model->plotter);
+  model->vtable.plot(model->context, prefix, model->sim_name, model->time, model->step);
 }
 
 void model_compute_error_norms(model_t* model, st_func_t* solution, double* error_norms)
@@ -427,24 +406,6 @@ void model_set_sim_name(model_t* model, const char* sim_name)
   if (model->sim_name != NULL)
     free(model->sim_name);
   model->sim_name = string_dup(sim_name);
-}
-
-void model_set_saver(model_t* model, io_interface_t* saver)
-{
-  ASSERT(saver != NULL);
-  ASSERT(saver != model->plotter);
-  if (model->saver != NULL)
-    io_free(model->saver);
-  model->saver = saver;
-}
-
-void model_set_plotter(model_t* model, io_interface_t* plotter)
-{
-  ASSERT(plotter != NULL);
-  ASSERT(plotter != model->saver);
-  if (model->plotter != NULL)
-    io_free(model->plotter);
-  model->plotter = plotter;
 }
 
 int model_main(const char* model_name, model_ctor constructor, int argc, char* argv[])
