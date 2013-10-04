@@ -21,11 +21,10 @@
 #include "core/linear_algebra.h"
 #include "core/constant_st_func.h"
 #include "core/boundary_cell_map.h"
+#include "core/write_silo.h"
 #include "geometry/cubic_lattice.h"
 #include "geometry/create_cubic_lattice_mesh.h"
 #include "geometry/interpreter_register_geometry_functions.h"
-#include "io/silo_io.h"
-#include "io/gnuplot_io.h"
 #include "poisson/poisson_model.h"
 #include "poisson/poisson_bc.h"
 #include "poisson/laplacian_op.h"
@@ -349,48 +348,40 @@ static void poisson_init(void* context, double t)
   p->initialized = true;
 }
 
-static void poisson_plot(void* context, io_interface_t* io, double t, int step)
+static void poisson_plot(void* context, const char* prefix, const char* directory, double t, int step)
 {
   ASSERT(context != NULL);
   poisson_t* p = (poisson_t*)context;
 
-  io_dataset_t* dataset = io_dataset_new("default");
-  io_dataset_put_mesh(dataset, p->mesh);
-  io_dataset_put_field(dataset, "phi", p->phi, 1, MESH_CELL, false);
+  string_ptr_unordered_map_t* cell_fields = string_ptr_unordered_map_new();
+  string_ptr_unordered_map_insert(cell_fields, "phi", p->phi);
 
   // If we are given an analytic solution, write it and the solution error.
   if (p->solution != NULL)
   {
-    double soln[p->mesh->num_cells], error[p->mesh->num_cells];
+    double *soln = malloc(sizeof(double) * p->mesh->num_cells), 
+           *error = malloc(sizeof(double) * p->mesh->num_cells);
     for (int c = 0; c < p->mesh->num_cells; ++c)
     {
       st_func_eval(p->solution, &p->mesh->cells[c].center, t, &soln[c]);
       error[c] = p->phi[c] - soln[c];
     }
-    io_dataset_put_field(dataset, "solution", soln, 1, MESH_CELL, true);
-    io_dataset_put_field(dataset, "error", error, 1, MESH_CELL, true);
+    string_ptr_unordered_map_insert_with_v_dtor(cell_fields, "solution", soln, DTOR(free));
+    string_ptr_unordered_map_insert_with_v_dtor(cell_fields, "error", error, DTOR(free));
   }
-
-#ifndef NDEBUG
-  // If we're in debug mode, compute the laplacian of phi and dump that, too.
-  // This ignores boundary conditions, so it's only useful as a diagnostic.
-  double Lphi[p->mesh->num_cells];
-  lin_op_apply(p->L, p->phi, Lphi);
-  io_dataset_put_field(dataset, "L(phi)", Lphi, 1, MESH_CELL, true);
-#endif
-
-  io_append_dataset(io, dataset);
+  write_silo(p->mesh, NULL, NULL, NULL, cell_fields, prefix, directory, 0, 0.0, 
+             MPI_COMM_SELF, 1, 0);
 }
 
-static void poisson_save(void* context, io_interface_t* io, double t, int step)
+static void poisson_save(void* context, const char* prefix, const char* directory, double t, int step)
 {
   ASSERT(context != NULL);
   poisson_t* p = (poisson_t*)context;
 
-  io_dataset_t* dataset = io_dataset_new("default");
-  io_dataset_put_mesh(dataset, p->mesh);
-  io_dataset_put_field(dataset, "phi", p->phi, 1, MESH_CELL, false);
-  io_append_dataset(io, dataset);
+  string_ptr_unordered_map_t* cell_fields = string_ptr_unordered_map_new();
+  string_ptr_unordered_map_insert(cell_fields, "phi", p->phi);
+  write_silo(p->mesh, NULL, NULL, NULL, cell_fields, prefix, directory, 0, 0.0, 
+             MPI_COMM_SELF, 1, 0);
 }
 
 static void poisson_compute_error_norms(void* context, st_func_t* solution, double t, double* lp_norms)
@@ -487,27 +478,6 @@ model_t* poisson_model_new(options_t* options)
 
   // Register benchmarks.
   register_poisson_benchmarks(model);
-
-  // Set up saver/plotter.
-  io_interface_t* saver = silo_io_new(MPI_COMM_SELF, 0, false);
-  model_set_saver(model, saver);
-
-  io_interface_t* plotter = NULL;
-  char* which_plotter = options_value(options, "plotter");
-  if (which_plotter != NULL)
-  {
-    if (!strcasecmp(which_plotter, "silo"))
-      plotter = silo_plot_io_new(p->comm, 0, false);
-    else if (!strcasecmp(which_plotter, "gnuplot"))
-      plotter = gnuplot_io_new();
-  }
-  else
-    plotter = silo_plot_io_new(p->comm, 0, false);
-  if (plotter != NULL)
-  {
-    log_detail("Setting plotter to '%s'...", which_plotter);
-    model_set_plotter(model, plotter);
-  }
 
   return model;
 }

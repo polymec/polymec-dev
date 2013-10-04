@@ -154,11 +154,20 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libpolytope.a)
   file(COPY ${polytope_c_lib} DESTINATION ${PROJECT_BINARY_DIR}/lib)
   file(COPY ${polytope_lib} DESTINATION ${PROJECT_BINARY_DIR}/lib)
   file(COPY ${tetgen_lib} DESTINATION ${PROJECT_BINARY_DIR}/lib)
+
+  # FIXME: Eventually, we should prune Voro++, since we don't use it.
+  file(GLOB_RECURSE voro2d_lib "${CMAKE_CURRENT_BINARY_DIR}/${polytope_dir}/libvoro_2d.a")
+  file(GLOB_RECURSE voro3d_lib "${CMAKE_CURRENT_BINARY_DIR}/${polytope_dir}/libvoro_3d.a")
+  file(COPY ${voro2d_lib} DESTINATION ${PROJECT_BINARY_DIR}/lib)
+  file(COPY ${voro3d_lib} DESTINATION ${PROJECT_BINARY_DIR}/lib)
+
 elseif (EXISTS ${PROJECT_BINARY_DIR}/lib/libtetgen.a)
   set(HAVE_TETGEN TRUE)
 endif()
 set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};polytope_c;polytope)
+set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};voro_2d;voro_3d) # FIXME: Curb these.
 if (${HAVE_TETGEN})
+  set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};tetgen)
   set(POLYMEC_TP_C_FLAGS "${POLYMEC_TP_C_FLAGS} -DHAVE_TETGEN")
   set(HAVE_TETGEN TRUE PARENT_SCOPE)
 else()

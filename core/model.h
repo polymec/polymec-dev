@@ -20,7 +20,6 @@
 #include "core/polymec.h"
 #include "core/options.h"
 #include "core/interpreter.h"
-#include "core/io.h"
 
 // The maximum amount of storage allowed for an explanation of the 
 // time step choice.
@@ -47,14 +46,14 @@ typedef void (*model_advance_func)(void*, double, double);
 // A function for work to be performed after a run completes.
 typedef void (*model_finalize_func)(void*, int, double);
 
-// A function for loading the model's state from the given I/O interface.
-typedef void (*model_load_func)(void*, io_interface_t*, double*, int);
+// A function for loading the model's state.
+typedef void (*model_load_func)(void* context, const char* filename, const char* directory, double* time, int step);
 
 // A function for saving the model's state to the given I/O interface.
-typedef void (*model_save_func)(void*, io_interface_t*, double, int);
+typedef void (*model_save_func)(void* context, const char* filename, const char* directory, double time, int step);
 
 // A function for plotting the model to the given I/O interface.
-typedef void (*model_plot_func)(void*, io_interface_t*, double, int);
+typedef void (*model_plot_func)(void* context, const char* filename, const char* directory, double time, int step);
 
 // A function for computing error norms for the computed solution, compared 
 // with an analytic solution. The error norms can be specific to the model.
@@ -156,12 +155,6 @@ void model_run(model_t* model, double t1, double t2, int max_steps);
 // Sets the name of the simulation within the model. This name 
 // will be used to identify and/or generate names of plot and save files.
 void model_set_sim_name(model_t* model, const char* sim_name);
-
-// Sets the I/O interface that will be used to save the model's state.
-void model_set_saver(model_t* model, io_interface_t* saver);
-
-// Sets the I/O interface that will be used to plot the model's data.
-void model_set_plotter(model_t* model, io_interface_t* plotter);
 
 // This function implements a simple driver for a model and behaves
 // in the same way as a main() function, returning 0 on success and nonzero
