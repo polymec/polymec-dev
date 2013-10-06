@@ -25,7 +25,7 @@
 #include "geometry/cubic_lattice.h"
 #include "geometry/create_cubic_lattice_mesh.h"
 #include "geometry/create_boundary_generators.h"
-//#include "geometry/create_voronoi_mesh.h"
+#include "geometry/create_voronoi_mesh.h"
 //#include "geometry/create_cvt_with_lloyd_iteration.h"
 
 // Lua stuff.
@@ -175,25 +175,33 @@ static void free_string(char* str)
 
 int mesh_factory_voronoi(lua_State* lua)
 {
-return luaL_error(lua, "CURRENTLY NOT SUPPORTED.");
   // Check the arguments.
   int num_args = lua_gettop(lua);
-  if ((num_args != 1) || !lua_ispointlist(lua, 1))
+  if (((num_args != 1) && !lua_ispointlist(lua, 1)) || 
+      ((num_args != 2) && (!lua_ispointlist(lua, 1) && !lua_isboundingbox(lua, 2))))
   {
     return luaL_error(lua, "Invalid argument(s). Usage:\n"
-                      "mesh = mesh_factory.voronoi(generators)");
+                      "mesh = mesh_factory.voronoi(generators) OR\n"
+                      "mesh = mesh_factory.voronoi(generators, bounding_box)");
   }
 
   // Get the generators.
   int num_generators;
   point_t* generators = lua_topointlist(lua, 1, &num_generators);
+  bbox_t* bbox = NULL;
+  if (num_args == 2)
+    bbox = lua_toboundingbox(lua, 2);
 
   // Create the mesh.
-//  mesh_t* mesh = create_voronoi_mesh(generators, num_generators, NULL, 0, NULL);
+  mesh_t* mesh = NULL;
+  if (bbox != NULL)
+    create_voronoi_mesh_in_box(generators, num_generators, NULL, 0, bbox);
+  else
+    create_voronoi_mesh(generators, num_generators, NULL, 0);
 
   // Push the mesh onto the stack.
-//  lua_pushmesh(lua, mesh);
-//  return 1;
+  lua_pushmesh(lua, mesh);
+  return 1;
 }
 
 int mesh_factory_cvt(lua_State* lua)
