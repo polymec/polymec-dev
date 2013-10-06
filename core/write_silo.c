@@ -83,34 +83,46 @@ void write_silo(mesh_t* mesh,
   polytope_tessellation_t* tess = tessellation_from_mesh(mesh);
 
   // Translate everything into polytope lingo.
-  int num_node_fields = node_fields->size;
+  int num_node_fields = (node_fields != NULL) ? node_fields->size : 0;
   char* node_field_names[num_node_fields];
   double* node_field_data[num_node_fields];
-
   int pos = 0, i = 0;
   void* ptr;
-  while (string_ptr_unordered_map_next(node_fields, &pos, &node_field_names[i], &ptr))
-    node_field_data[i++] = ptr;
-  int num_edge_fields = edge_fields->size;
+  if (node_fields != NULL)
+  {
+    while (string_ptr_unordered_map_next(node_fields, &pos, &node_field_names[i], &ptr))
+      node_field_data[i++] = ptr;
+  }
+
+  int num_edge_fields = (edge_fields != NULL) ? edge_fields->size : 0;
   char* edge_field_names[num_edge_fields];
   double* edge_field_data[num_edge_fields];
   pos = 0, i = 0;
-  while (string_ptr_unordered_map_next(edge_fields, &pos, &edge_field_names[i], &ptr))
-    edge_field_data[i++] = ptr;
+  if (edge_fields != NULL)
+  {
+    while (string_ptr_unordered_map_next(edge_fields, &pos, &edge_field_names[i], &ptr))
+      edge_field_data[i++] = ptr;
+  }
 
-  int num_face_fields = face_fields->size;
+  int num_face_fields = (face_fields != NULL) ? face_fields->size : 0;
   char* face_field_names[num_face_fields];
   double* face_field_data[num_face_fields];
   pos = 0, i = 0;
-  while (string_ptr_unordered_map_next(face_fields, &pos, &face_field_names[i], &ptr))
-    face_field_data[i++] = ptr;
+  if (face_fields != NULL)
+  {
+    while (string_ptr_unordered_map_next(face_fields, &pos, &face_field_names[i], &ptr))
+      face_field_data[i++] = ptr;
+  }
 
-  int num_cell_fields = cell_fields->size;
+  int num_cell_fields = (cell_fields != NULL) ? cell_fields->size : 0;
   char* cell_field_names[num_cell_fields];
   double* cell_field_data[num_cell_fields];
   pos = 0, i = 0;
-  while (string_ptr_unordered_map_next(cell_fields, &pos, &cell_field_names[i], &ptr))
-    cell_field_data[i++] = ptr;
+  if (cell_fields != NULL)
+  {
+    while (string_ptr_unordered_map_next(cell_fields, &pos, &cell_field_names[i], &ptr))
+      cell_field_data[i++] = ptr;
+  }
 
   polytope_write_silo(tess, num_node_fields, node_field_names, node_field_data,
                       num_edge_fields, edge_field_names, edge_field_data,
