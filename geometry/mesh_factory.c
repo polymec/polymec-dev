@@ -22,7 +22,7 @@
 #include "core/mesh.h"
 #include "core/kd_tree.h"
 #include "core/interpreter.h"
-#include "geometry/cubic_lattice.h"
+//#include "core/periodic_bc.h"
 #include "geometry/create_cubic_lattice_mesh.h"
 #include "geometry/create_boundary_generators.h"
 #include "geometry/create_voronoi_mesh.h"
@@ -33,7 +33,7 @@
 #include "lualib.h"
 #include "lauxlib.h"
 
-int mesh_factory_cubic_lattice(lua_State* lua)
+int mesh_factory_cubic_lattice_mesh(lua_State* lua)
 {
   // Check the arguments.
   int num_args = lua_gettop(lua);
@@ -93,16 +93,17 @@ int mesh_factory_cubic_lattice(lua_State* lua)
   lua_pop(lua, lua_gettop(lua));
 
   // Create the mesh.
-  mesh_t* mesh = create_cubic_lattice_mesh_with_bbox(nx, ny, nz, &bbox);
+  mesh_t* mesh = create_cubic_lattice_mesh(nx, ny, nz, &bbox);
 
   // Tag its faces.
-  tag_cubic_lattice_mesh_faces(mesh, nx, ny, nz, "x1", "x2", "y1", "y2", "z1", "z2");
+//  tag_cubic_lattice_mesh_faces(mesh, nx, ny, nz, "x1", "x2", "y1", "y2", "z1", "z2");
 
   // Push the mesh onto the stack.
   lua_pushmesh(lua, mesh);
   return 1;
 }
 
+#if 0
 int mesh_factory_cubic_lattice_periodic_bc(lua_State* lua)
 {
   // Check the argument.
@@ -167,6 +168,7 @@ int mesh_factory_cubic_lattice_periodic_bc(lua_State* lua)
   lua_pushuserdefined(lua, bc, NULL);
   return 1;
 }
+#endif
 
 static void free_string(char* str)
 {

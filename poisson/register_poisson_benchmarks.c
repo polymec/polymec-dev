@@ -17,7 +17,6 @@
 #include <string.h>
 #include "core/unordered_map.h"
 #include "core/constant_st_func.h"
-#include "geometry/cubic_lattice.h"
 #include "geometry/create_cubic_lattice_mesh.h"
 #include "poisson/poisson_model.h"
 #include "poisson/poisson_bc.h"
@@ -145,8 +144,8 @@ static void poisson_run_laplace_1d(options_t* options, int dim)
     }
     if (dim == 3)
       Nz = Nx;
-    mesh_t* mesh = create_cubic_lattice_mesh_with_bbox(Nx, Ny, Nz, &bbox);
-    tag_cubic_lattice_mesh_faces(mesh, Nx, Ny, Nz, "-x", "+x", "-y", "+y", "-z", "+z");
+    mesh_t* mesh = create_cubic_lattice_mesh(Nx, Ny, Nz, &bbox);
+//    tag_cubic_lattice_mesh_faces(mesh, Nx, Ny, Nz, "-x", "+x", "-y", "+y", "-z", "+z");
     string_ptr_unordered_map_t* bcs_copy = string_ptr_unordered_map_copy(bcs);
     run_analytic_problem(mesh, zero, bcs_copy, options, t, t, sol, Lp_norms[iter]);
 
@@ -281,8 +280,8 @@ static void poisson_run_paraboloid(options_t* options, int dim)
     bbox.z1 = 0.0, bbox.z2 = 1.0;
     if (dim == 2)
       bbox.z2 = 1.0/Nx;
-    mesh_t* mesh = create_cubic_lattice_mesh_with_bbox(Nx, Ny, Nz, &bbox);
-    tag_cubic_lattice_mesh_faces(mesh, Nx, Ny, Nz, "-x", "+x", "-y", "+y", "-z", "+z");
+    mesh_t* mesh = create_cubic_lattice_mesh(Nx, Ny, Nz, &bbox);
+//    tag_cubic_lattice_mesh_faces(mesh, Nx, Ny, Nz, "-x", "+x", "-y", "+y", "-z", "+z");
     string_ptr_unordered_map_t* bcs_copy = string_ptr_unordered_map_copy(bcs);
     run_analytic_problem(mesh, rhs, bcs_copy, options, t, t, sol, Lp_norms[iter]);
 

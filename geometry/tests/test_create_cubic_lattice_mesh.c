@@ -20,7 +20,6 @@
 #include <string.h>
 #include "cmockery.h"
 #include "core/write_silo.h"
-#include "geometry/cubic_lattice.h"
 #include "geometry/create_cubic_lattice_mesh.h"
 
 #undef HAVE_HDF5
@@ -30,15 +29,13 @@
 void test_create_cubic_lattice_mesh(void** state)
 {
   // Create a 10x10x10 cubic lattice mesh.
-  cubic_lattice_t* lattice = cubic_lattice_new(10, 10, 10);
-  mesh_t* mesh = create_cubic_lattice_mesh(10, 10, 10);
+  bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
+  mesh_t* mesh = create_cubic_lattice_mesh(10, 10, 10, &bbox);
   mesh_verify(mesh);
-  assert_int_equal(mesh->num_cells, cubic_lattice_num_cells(lattice));
-  assert_int_equal(1000, mesh->num_cells);
+  assert_int_equal(10*10*100, mesh->num_cells);
   assert_int_equal(0, mesh->num_ghost_cells);
-  assert_int_equal(mesh->num_faces, cubic_lattice_num_faces(lattice));
-  assert_int_equal(mesh->num_edges, cubic_lattice_num_edges(lattice));
-  assert_int_equal(mesh->num_nodes, cubic_lattice_num_nodes(lattice));
+//  assert_int_equal(mesh->num_faces, cubic_lattice_num_faces(lattice));
+//  assert_int_equal(mesh->num_edges, cubic_lattice_num_edges(lattice));
   assert_int_equal(11*11*11, mesh->num_nodes);
   mesh_free(mesh);
 }
@@ -46,7 +43,8 @@ void test_create_cubic_lattice_mesh(void** state)
 void test_plot_cubic_lattice_mesh(void** state)
 {
   // Create a 4x4x4 cubic lattice mesh.
-  mesh_t* mesh = create_cubic_lattice_mesh(4, 4, 4);
+  bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
+  mesh_t* mesh = create_cubic_lattice_mesh(4, 4, 4, &bbox);
 
   // Plot it.
   double ones[4*4*4];
