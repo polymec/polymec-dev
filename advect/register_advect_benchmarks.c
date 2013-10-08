@@ -18,7 +18,6 @@
 #include "core/unordered_map.h"
 #include "core/constant_st_func.h"
 #include "core/least_squares.h"
-#include "geometry/cubic_lattice.h"
 #include "geometry/create_cubic_lattice_mesh.h"
 #include "advect/advect_model.h"
 #include "advect/advect_bc.h"
@@ -106,8 +105,8 @@ static void advect_run_1d_flow(options_t* options,
     }
     if (dim == 3)
       Nz = Nx;
-    mesh_t* mesh = create_cubic_lattice_mesh_with_bbox(Nx, Ny, Nz, &bbox);
-    tag_cubic_lattice_mesh_faces(mesh, Nx, Ny, Nz, "-x", "+x", "-y", "+y", "-z", "+z");
+    mesh_t* mesh = create_cubic_lattice_mesh(Nx, Ny, Nz, &bbox);
+//    tag_cubic_lattice_mesh_faces(mesh, Nx, Ny, Nz, "-x", "+x", "-y", "+y", "-z", "+z");
     string_ptr_unordered_map_t* bcs_copy = string_ptr_unordered_map_copy(bcs);
 
     model_t* model = create_advect(mesh, velocity, diffusivity, source, 
@@ -197,8 +196,8 @@ static void run_square_wave_1d(options_t* options)
   st_func_t* v0 = constant_st_func_new(3, v);
   st_func_t* soln = st_func_from_func("square wave 1d", square_wave_1d_soln,
                                       ST_INHOMOGENEOUS, ST_NONCONSTANT, 1);
-  periodic_bc_t* bc = cubic_lattice_x_periodic_bc_new("-x", "+x");
-  advect_run_1d_flow(options, v0, zero, zero, soln, bc, bc, soln, 0.0, 10.0, 1, 4);
+//  periodic_bc_t* bc = cubic_lattice_x_periodic_bc_new("-x", "+x");
+//  advect_run_1d_flow(options, v0, zero, zero, soln, bc, bc, soln, 0.0, 10.0, 1, 4);
 }
 
 static void gaussian_wave_1d_soln(void* ctx, point_t* x, double t, double* phi)
@@ -220,8 +219,8 @@ static void run_gaussian_wave_1d(options_t* options)
   st_func_t* v0 = constant_st_func_new(3, v);
   st_func_t* soln = st_func_from_func("gaussian wave 1d", gaussian_wave_1d_soln,
                                       ST_INHOMOGENEOUS, ST_NONCONSTANT, 1);
-  periodic_bc_t* bc = cubic_lattice_x_periodic_bc_new("-x", "+x");
-  advect_run_1d_flow(options, v0, zero, zero, soln, bc, bc, soln, 0.0, 10.0, 1, 4);
+//  periodic_bc_t* bc = cubic_lattice_x_periodic_bc_new("-x", "+x");
+//  advect_run_1d_flow(options, v0, zero, zero, soln, bc, bc, soln, 0.0, 10.0, 1, 4);
 }
 
 static void sine_wave_1d_soln(void* ctx, point_t* x, double t, double* phi)
@@ -238,8 +237,8 @@ static void run_sine_wave_1d(options_t* options)
   st_func_t* v0 = constant_st_func_new(3, v);
   st_func_t* soln = st_func_from_func("sine wave 1d", sine_wave_1d_soln,
                                       ST_INHOMOGENEOUS, ST_NONCONSTANT, 1);
-  periodic_bc_t* bc = cubic_lattice_x_periodic_bc_new("-x", "+x");
-  advect_run_1d_flow(options, v0, zero, zero, soln, bc, bc, soln, 0.0, 5.0, 1, 4);
+//  periodic_bc_t* bc = cubic_lattice_x_periodic_bc_new("-x", "+x");
+//  advect_run_1d_flow(options, v0, zero, zero, soln, bc, bc, soln, 0.0, 5.0, 1, 4);
 }
 
 static void square_diffusion_1d_soln(void* ctx, point_t* x, double t, double* phi)
