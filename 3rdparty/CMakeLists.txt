@@ -119,6 +119,7 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libpolytope.a)
   set(tetgen_tarball "${tetgen_dir}.tar.gz")
   if (EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/${tetgen_tarball})
     set(HAVE_TETGEN TRUE)
+    set(HAVE_TETGEN TRUE PARENT_SCOPE)
     message("Found Tetgen tarball (${tetgen_tarball}): enabling mesh generation...")
     message("Copying Tetgen source to polytope directory...")
     execute_process(COMMAND cmake -E tar xzf ${CMAKE_CURRENT_SOURCE_DIR}/${tetgen_tarball}
@@ -159,10 +160,8 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libpolytope.a)
   endforeach()
   file(GLOB_RECURSE polytope_c_lib "${CMAKE_CURRENT_BINARY_DIR}/${polytope_dir}/libpolytope_c.a")
   file(GLOB_RECURSE polytope_lib "${CMAKE_CURRENT_BINARY_DIR}/${polytope_dir}/libpolytope.a")
-  file(GLOB_RECURSE tetgen_lib "${CMAKE_CURRENT_BINARY_DIR}/${polytope_dir}/libtetgen.a")
   file(COPY ${polytope_c_lib} DESTINATION ${PROJECT_BINARY_DIR}/lib)
   file(COPY ${polytope_lib} DESTINATION ${PROJECT_BINARY_DIR}/lib)
-  file(COPY ${tetgen_lib} DESTINATION ${PROJECT_BINARY_DIR}/lib)
 
   # FIXME: Eventually, we should prune Voro++, since we don't use it.
   file(GLOB_RECURSE voro2d_lib "${CMAKE_CURRENT_BINARY_DIR}/${polytope_dir}/libvoro_2d.a")
@@ -170,7 +169,12 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libpolytope.a)
   file(COPY ${voro2d_lib} DESTINATION ${PROJECT_BINARY_DIR}/lib)
   file(COPY ${voro3d_lib} DESTINATION ${PROJECT_BINARY_DIR}/lib)
 
-  set(POLYMEC_TP_LIBS tetgen;${POLYMEC_TP_LIBS})
+  if (${HAVE_TETGEN})
+    file(GLOB_RECURSE tetgen_lib "${CMAKE_CURRENT_BINARY_DIR}/${polytope_dir}/libtetgen.a")
+    file(COPY ${tetgen_lib} DESTINATION ${PROJECT_BINARY_DIR}/lib)
+    set(POLYMEC_TP_LIBS tetgen;${POLYMEC_TP_LIBS})
+    set(POLYMEC_TP_C_FLAGS "${POLYMEC_TP_C_FLAGS} -DHAVE_TETGEN")
+  endif()
 
 elseif (EXISTS ${PROJECT_BINARY_DIR}/lib/libtetgen.a)
   set(HAVE_TETGEN TRUE)
@@ -181,7 +185,7 @@ else()
   set(HAVE_TETGEN FALSE PARENT_SCOPE)
 endif()
 set(POLYMEC_TP_LIBS voro_2d;voro_3d;${POLYMEC_TP_LIBS}) # FIXME: Curb these.
-set(POLYMEC_TP_LIBS polytope_c;polytope;${POLYMEC_TP_LIBS};polytope_c;polytope)
+set(POLYMEC_TP_LIBS polytope_c;polytope;${POLYMEC_TP_LIBS})
 
 # Build SuperLU, a (serial) direct sparse linear solver library that 
 # we will use for preconditioning.
