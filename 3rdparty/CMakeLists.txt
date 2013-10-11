@@ -19,7 +19,7 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libgc.a)
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/gc-7.2
                   OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
 endif()
-set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};gc)
+set(POLYMEC_TP_LIBS gc;${POLYMEC_TP_LIBS})
 
 # Install libarena -- A fast C arena/memory pool implementation.
 if (NOT EXISTS ${PROJECT_BINARY_DIR}/include/arena)
@@ -36,45 +36,54 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/include/arena)
 endif()
 file(GLOB arena_sources "${CMAKE_CURRENT_BINARY_DIR}/libarena-0.3.5/src/*.c")
 add_library(arena ${arena_sources})
-set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};arena)
+set(POLYMEC_TP_LIBS arena;${POLYMEC_TP_LIBS})
 
-# Find HDF5 if we're building a serial version.
-set(HDF5_USE_STATIC_LIBRARIES TRUE)
-find_package(HDF5)
-if (${HDF5_FOUND})
-  include_directories("${HDF5_INCLUDE_DIRS}")
-  link_directories("${HDF5_LIBRARY_DIRS}")
-  list(GET HDF5_LIBRARY_DIRS 0 HDF5_LIBRARY_DIR)
-  list(GET HDF5_INCLUDE_DIRS 0 HDF5_INCLUDE_DIR)
-
-  # Get rid of 'debug' and 'optimized' detritis.
-  list(REMOVE_ITEM HDF5_LIBRARIES debug optimized)
-
-  set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};${HDF5_LIBRARIES})
-  set(POLYMEC_TP_C_FLAGS "${POLYMEC_TP_C_FLAGS} -DHAVE_HDF5")
+# Build zlib for compression.
+if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libz.a)
+  set(ZLIB_CONFIG_OPTS --prefix=${PROJECT_BINARY_DIR} --static)
+  message("Unpacking zlib...")
+  execute_process(COMMAND cmake -E tar xzf ${CMAKE_CURRENT_SOURCE_DIR}/zlib-1.2.8.tar.gz
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+                  OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
+  message("Configuring zlib...")
+  execute_process(COMMAND env CC=${CMAKE_C_COMPILER} ./configure ${ZLIB_CONFIG_OPTS}
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/zlib-1.2.8
+                  OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
+  message("Building zlib...")
+  execute_process(COMMAND make install -j4
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/zlib-1.2.8
+                  OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
 endif()
+set(POLYMEC_TP_LIBS z;${POLYMEC_TP_LIBS})
 
-# Install silo.
-if (USE_MPI EQUAL 1)
-  if (${HDF5_FOUND})
-    set(SILOLIB siloh5)
-  else()
-    set(SILOLIB silo)
+# Build the HDF5 parallel I/O library.
+if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libhdf5.a)
+  set(HDF5_CONFIG_OPTS --enable-static --disable-shared --with-zlib=${PROJECT_BINARY_DIR})
+  set(HDF5_CONFIG_OPTS ${HDF5_CONFIG_OPTS} --prefix=${PROJECT_BINARY_DIR})
+  if (${USE_MPI} EQUAL 1)
+    set(HDF5_CONFIG_OPTS ${HDF5_CONFIG_OPTS} --enable-parallel)
   endif()
-else()
-  if (${HDF5_FOUND})
-    set(SILOLIB siloh5)
-  else()
-    set(SILOLIB silo)
-  endif()
+  message("Unpacking hdf5...")
+  execute_process(COMMAND cmake -E tar xzf ${CMAKE_CURRENT_SOURCE_DIR}/hdf5-1.8.11.tar.gz
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+                  OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
+  message("Configuring hdf5...")
+  execute_process(COMMAND env CC=${CMAKE_C_COMPILER} FC=${MAKE_Fortran_COMPILER} ./configure ${HDF5_CONFIG_OPTS}
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/hdf5-1.8.11
+                  OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
+  message("Building hdf5...")
+  execute_process(COMMAND make install -j4
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/hdf5-1.8.11
+                  OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
 endif()
-if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/lib${SILOLIB}.a)
+set(POLYMEC_TP_LIBS hdf5;${POLYMEC_TP_LIBS})
+
+# Install silo with HDF5 support.
+if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libsiloh5.a)
   set(SILO_CONFIG_OPTS --enable-static --disable-shared --disable-fortran --without-readline --without-qt --disable-browser)
+  set(SILO_CONFIG_OPTS ${SILO_CONFIG_OPTS} --with-hdf5=${PROJECT_BINARY_DIR}/include,${PROJECT_BINARY_DIR}/lib)
   if (${CMAKE_BUILD_TYPE} STREQUAL "Debug")
     set(SILO_CONFIG_OPTS ${SILO_CONFIG_OPTS} --enable-debug)
-  endif()
-  if (${HDF5_FOUND})
-    set(SILO_CONFIG_OPTS ${SILO_CONFIG_OPTS} --with-hdf5=${HDF5_INCLUDE_DIR},${HDF5_LIBRARY_DIR})
   endif()
   set(SILO_CONFIG_OPTS ${SILO_CONFIG_OPTS} --prefix=${PROJECT_BINARY_DIR})
   message("Unpacking silo...")
@@ -90,7 +99,7 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/lib${SILOLIB}.a)
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/silo-4.8-bsd
                   OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
 endif()
-set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};${SILOLIB})
+set(POLYMEC_TP_LIBS siloh5;${POLYMEC_TP_LIBS})
 
 # Build the polytope library.
 set(HAVE_TETGEN FALSE)
@@ -161,45 +170,18 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libpolytope.a)
   file(COPY ${voro2d_lib} DESTINATION ${PROJECT_BINARY_DIR}/lib)
   file(COPY ${voro3d_lib} DESTINATION ${PROJECT_BINARY_DIR}/lib)
 
+  set(POLYMEC_TP_LIBS tetgen;${POLYMEC_TP_LIBS})
+
 elseif (EXISTS ${PROJECT_BINARY_DIR}/lib/libtetgen.a)
   set(HAVE_TETGEN TRUE)
-endif()
-set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};polytope_c;polytope)
-set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};voro_2d;voro_3d) # FIXME: Curb these.
-if (${HAVE_TETGEN})
-  set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};tetgen)
+  set(POLYMEC_TP_LIBS tetgen;${POLYMEC_TP_LIBS})
   set(POLYMEC_TP_C_FLAGS "${POLYMEC_TP_C_FLAGS} -DHAVE_TETGEN")
   set(HAVE_TETGEN TRUE PARENT_SCOPE)
 else()
   set(HAVE_TETGEN FALSE PARENT_SCOPE)
 endif()
-
-# Build Sundials, a C library for integrating stiff, nonlinear ODEs and 
-# differential-algebraic equations.
-if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libsundials_cvode.a)
-  set(SUNDIALS_CONFIG_OPTS --prefix=${PROJECT_BINARY_DIR} --enable-static --disable-shared --disable-fcmix)
-  if (USE_MPI EQUAL 0)
-    set(SUNDIALS_CONFIG_OPTS ${SUNDIALS_CONFIG_OPTS} --disable-mpi)
-  endif()
-  message("Unpacking sundials...")
-  execute_process(COMMAND cmake -E tar xzf ${CMAKE_CURRENT_SOURCE_DIR}/sundials-2.4.0.tar.gz
-                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-                  OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
-  message("Configuring sundials...")
-  execute_process(COMMAND env CC=${CC} ./configure ${SUNDIALS_CONFIG_OPTS}
-                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/sundials-2.4.0
-                  OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
-  message("Building sundials...")
-  execute_process(COMMAND make install -j4
-                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/sundials-2.4.0
-                  OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
-endif()
-if (USE_MPI EQUAL 0)
-  set (NVEC_LIB sundials_nvecserial)
-else()
-  set (NVEC_LIB sundials_nvecparallel)
-endif()
-set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};sundials_cvode;sundials_ida;sundials_kinsol;${NVEC_LIB})
+set(POLYMEC_TP_LIBS voro_2d;voro_3d;${POLYMEC_TP_LIBS}) # FIXME: Curb these.
+set(POLYMEC_TP_LIBS polytope_c;polytope;${POLYMEC_TP_LIBS};polytope_c;polytope)
 
 # Build SuperLU, a (serial) direct sparse linear solver library that 
 # we will use for preconditioning.
@@ -229,7 +211,34 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libsuperlu.a)
     execute_process(COMMAND cmake -E copy ${inc} ${PROJECT_BINARY_DIR}/include)
   endforeach()
 endif()
-set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};superlu)
+set(POLYMEC_TP_LIBS superlu;${POLYMEC_TP_LIBS})
+
+# Build Sundials, a C library for integrating stiff, nonlinear ODEs and 
+# differential-algebraic equations.
+if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libsundials_cvode.a)
+  set(SUNDIALS_CONFIG_OPTS --prefix=${PROJECT_BINARY_DIR} --enable-static --disable-shared --disable-fcmix)
+  if (USE_MPI EQUAL 0)
+    set(SUNDIALS_CONFIG_OPTS ${SUNDIALS_CONFIG_OPTS} --disable-mpi)
+  endif()
+  message("Unpacking sundials...")
+  execute_process(COMMAND cmake -E tar xzf ${CMAKE_CURRENT_SOURCE_DIR}/sundials-2.4.0.tar.gz
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+                  OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
+  message("Configuring sundials...")
+  execute_process(COMMAND env CC=${CC} ./configure ${SUNDIALS_CONFIG_OPTS}
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/sundials-2.4.0
+                  OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
+  message("Building sundials...")
+  execute_process(COMMAND make install -j4
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/sundials-2.4.0
+                  OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
+endif()
+if (USE_MPI EQUAL 0)
+  set (NVEC_LIB sundials_nvecserial)
+else()
+  set (NVEC_LIB sundials_nvecparallel)
+endif()
+set(POLYMEC_TP_LIBS sundials_cvode;sundials_ida;sundials_kinsol;${NVEC_LIB};${POLYMEC_TP_LIBS})
 
 # Build inih, an extremely simple config file parser.
 if (NOT EXISTS ${CMAKE_CURRENT_BINARY_DIR}/inih_r28)
@@ -240,7 +249,7 @@ if (NOT EXISTS ${CMAKE_CURRENT_BINARY_DIR}/inih_r28)
   execute_process(COMMAND cmake -E copy ${CMAKE_CURRENT_BINARY_DIR}/inih_r28/ini.h ${PROJECT_BINARY_DIR}/include)
 endif()
 add_library(inih ${CMAKE_CURRENT_BINARY_DIR}/inih_r28/ini.c)
-set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};inih)
+set(POLYMEC_TP_LIBS inih;${POLYMEC_TP_LIBS})
 
 # Build lua, a simple interpreted language library.
 if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/liblua.a)
@@ -277,7 +286,7 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/liblua.a)
     execute_process(COMMAND cmake -E copy ${inc} ${PROJECT_BINARY_DIR}/include)
   endforeach()
 endif()
-set(POLYMEC_TP_LIBS ${POLYMEC_TP_LIBS};lua)
+set(POLYMEC_TP_LIBS lua;${POLYMEC_TP_LIBS})
 #set(POLYMEC_TP_INCDIRS ${POLYMEC_TP_INCDIRS};${PROJECT_BINARY_DIR}/include)
 
 # Add all the libraries to the build system at large.
