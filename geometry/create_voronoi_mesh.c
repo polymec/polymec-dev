@@ -27,12 +27,21 @@
 #undef HAVE_TETGEN // FIXME (HACK): Avoids warnings with polytope 
 #include "polytope_c.h"
 
+#include "core/mesh_storage.h"
 #include "core/table.h"
 #include "core/unordered_map.h"
 #include "core/unordered_set.h"
 #include "core/slist.h"
 #include "core/kd_tree.h"
 #include "geometry/create_voronoi_mesh.h"
+
+// This function rounds the given number up to the nearest power of 2.
+static int round_to_pow2(int x)
+{
+  int y = 2;
+  while (y < x) y *= 2;
+  return y;
+}
 
 static int_table_t* gather_edges(polytope_tessellation_t* tess, 
                                  int* num_edges)
@@ -90,6 +99,7 @@ static mesh_t* mesh_from_unbounded_tessellation(polytope_tessellation_t* tess,
   memcpy(mesh->face_node_offsets, tess->face_offsets, sizeof(int) * tess->num_faces);
   mesh->face_nodes = ARENA_REALLOC(mesh->arena, mesh->face_nodes, sizeof(int) * tess->face_offsets[tess->num_faces], 0);
   memcpy(mesh->face_nodes, tess->face_nodes, sizeof(int) * tess->face_offsets[tess->num_faces]);
+  mesh->storage->face_node_capacity = tess->cell_offsets[tess->num_cells];
 
   // Face <-> edge connectivity.
   memset(mesh->face_edge_offsets, 0, sizeof(int) * (mesh->num_faces + 1));
@@ -103,6 +113,8 @@ static mesh_t* mesh_from_unbounded_tessellation(polytope_tessellation_t* tess,
       int n1 = (int)tess->face_nodes[offset+e];
       int n2 = (int)tess->face_nodes[offset+(e+1)%Ne];
       int edge_id = *int_table_get(edge_for_nodes, n1, n2);
+      mesh->storage->face_edge_capacity = round_to_pow2(edge_id+1);
+      mesh->face_edges = ARENA_REALLOC(mesh->arena, mesh->face_edges, sizeof(int) * mesh->storage->face_edge_capacity, 0);
       mesh->face_edges[tess->face_offsets[f+1]+e] = edge_id;
     }
   }
@@ -112,6 +124,7 @@ static mesh_t* mesh_from_unbounded_tessellation(polytope_tessellation_t* tess,
   mesh->cell_faces = ARENA_REALLOC(mesh->arena, mesh->cell_faces, sizeof(int) * tess->cell_offsets[tess->num_cells], 0);
   memcpy(mesh->cell_faces, tess->cell_faces, sizeof(int) * tess->cell_offsets[tess->num_cells]);
   memcpy(mesh->face_cells, tess->face_cells, sizeof(int) * 2 * tess->num_faces);
+  mesh->storage->cell_face_capacity = tess->cell_offsets[tess->num_cells];
 
   // Compute the mesh's geometry.
   mesh_compute_geometry(mesh);
