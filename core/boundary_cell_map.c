@@ -118,12 +118,11 @@ boundary_cell_map_t* boundary_cell_map_from_mesh_and_bcs(mesh_t* mesh, string_pt
     // faces and neighbors.
     for (int f = 0; f < num_faces; ++f)
     {
-      face_t* face = &mesh->faces[faces[f]];
-      ASSERT(face->cell2 == NULL); // ... true for now.
+      int face = faces[f];
+      ASSERT(mesh->face_cells[2*face+1] == -1); // ... true for now.
 
       // Get the cell for this boundary face. This is the boundary cell.
-      cell_t* cell = face->cell1;
-      int bcell = cell - &mesh->cells[0];
+      int bcell = mesh->face_cells[2*face];
 
       // Have we created an entry for this one yet? If not, do so.
       boundary_cell_t* boundary_cell;
@@ -133,21 +132,20 @@ boundary_cell_map_t* boundary_cell_map_from_mesh_and_bcs(mesh_t* mesh, string_pt
         boundary_cell_map_insert_with_kv_dtor(boundary_cells, bcell, boundary_cell, destroy_boundary_cell_entry);
 
         // Gather the interior faces for the cell.
-        for (int ff = 0; ff < cell->num_faces; ++ff)
+        int ff = -1;
+        while (mesh_next_cell_face(mesh, bcell, &ff))
         {
-          if (face_opp_cell(cell->faces[ff], cell) != NULL)
+          if (mesh_face_opp_cell(mesh, bcell, ff) != -1)
             boundary_cell->num_neighbor_cells++;
         }
         boundary_cell->neighbor_cells = malloc(sizeof(int)*boundary_cell->num_neighbor_cells);
         int nc = 0;
-        for (int ff = 0; ff < cell->num_faces; ++ff)
+        ff = -1;
+        while (mesh_next_cell_face(mesh, bcell, &ff))
         {
-          cell_t* opp_cell = face_opp_cell(cell->faces[ff], cell);
-          if (opp_cell != NULL)
-          {
-            int opp = opp_cell - &mesh->cells[0];
-            boundary_cell->neighbor_cells[nc++] = opp;
-          }
+          int opp_cell = mesh_face_opp_cell(mesh, ff, bcell);
+          if (opp_cell != -1)
+            boundary_cell->neighbor_cells[nc++] = opp_cell;
         }
       }
       else
@@ -172,7 +170,7 @@ boundary_cell_map_t* boundary_cell_map_from_mesh_and_bcs(mesh_t* mesh, string_pt
       for (int f = 0; f < bcell->num_boundary_faces; ++f)
         bcell->boundary_faces[f] = -1;
       bcell->bc_for_face = malloc(sizeof(void*)*bcell->num_boundary_faces);
-      bcell->opp_faces = malloc(sizeof(face_t*)*bcell->num_boundary_faces);
+      bcell->opp_faces = malloc(sizeof(int)*bcell->num_boundary_faces);
     }
   }
 
@@ -190,16 +188,15 @@ boundary_cell_map_t* boundary_cell_map_from_mesh_and_bcs(mesh_t* mesh, string_pt
     // faces and neighbors.
     for (int f = 0; f < num_faces; ++f)
     {
-      face_t* face = &mesh->faces[faces[f]];
-      cell_t* cell = face->cell1;
-      int bcell = cell - &mesh->cells[0];
+      int face = faces[f];
+      int bcell = mesh->face_cells[2*face];
 
       boundary_cell_t* boundary_cell = *boundary_cell_map_get(boundary_cells, bcell);
       ASSERT(boundary_cell != NULL);
 
       int i = 0;
       while (boundary_cell->boundary_faces[i] != -1) ++i;
-      boundary_cell->boundary_faces[i] = faces[f];
+      boundary_cell->boundary_faces[i] = face;
 
       // If the boundary condition is periodic, we have to identify this 
       // boundary face with its other face, and fill in the appropriate 
@@ -208,15 +205,13 @@ boundary_cell_map_t* boundary_cell_map_from_mesh_and_bcs(mesh_t* mesh, string_pt
       {
         boundary_cell->bc_for_face[i] = NULL;
         int_int_unordered_map_t* periodic_map = *string_ptr_unordered_map_get(periodic_maps, tag);
-        int face_index = face - &mesh->faces[0];
-        int other_face_index = *int_int_unordered_map_get(periodic_map, face_index);
-        face_t* other_face = &mesh->faces[other_face_index];
-        boundary_cell->opp_faces[i] = other_face;
+        int other_face_index = *int_int_unordered_map_get(periodic_map, face);
+        boundary_cell->opp_faces[i] = other_face_index;
       }
       else
       {
         boundary_cell->bc_for_face[i] = bc;
-        boundary_cell->opp_faces[i] = NULL;
+        boundary_cell->opp_faces[i] = -1;
       }
     }
   }

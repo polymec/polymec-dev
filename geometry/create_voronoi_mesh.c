@@ -31,7 +31,6 @@
 #include "core/unordered_map.h"
 #include "core/unordered_set.h"
 #include "core/slist.h"
-#include "core/edit_mesh.h"
 #include "core/kd_tree.h"
 #include "geometry/create_voronoi_mesh.h"
 
@@ -82,55 +81,37 @@ static mesh_t* mesh_from_unbounded_tessellation(polytope_tessellation_t* tess,
     int n1, n2, e;
     while (int_table_next_cell(edge_for_nodes, &pos, &n1, &n2, &e))
     {
-      mesh->edges[e].node1 = &mesh->nodes[n1];
-      ASSERT(n2 >= 0); // FIXME: Not yet enforced.
-      mesh->edges[e].node2 = &mesh->nodes[n2];
+      mesh->edge_nodes[2*e] = n1;
+      mesh->edge_nodes[2*e+1] = n2;
     }
   }
 
+  // Face <-> node connectivity.
+  memcpy(mesh->face_node_offsets, tess->face_offsets, sizeof(int) * tess->num_faces);
+  mesh->face_nodes = ARENA_REALLOC(mesh->arena, mesh->face_nodes, sizeof(int) * tess->face_offsets[tess->num_faces], 0);
+  memcpy(mesh->face_nodes, tess->face_nodes, sizeof(int) * tess->face_offsets[tess->num_faces]);
+
   // Face <-> edge connectivity.
+  memset(mesh->face_edge_offsets, 0, sizeof(int) * (mesh->num_faces + 1));
   for (int f = 0; f < mesh->num_faces; ++f)
   {
     int Ne = tess->face_offsets[f+1] - tess->face_offsets[f];
+    mesh->face_edge_offsets[f+1] = Ne;
     for (int e = 0; e < Ne; ++e)
     {
       int offset = tess->face_offsets[f];
       int n1 = (int)tess->face_nodes[offset+e];
       int n2 = (int)tess->face_nodes[offset+(e+1)%Ne];
       int edge_id = *int_table_get(edge_for_nodes, n1, n2);
-      mesh_attach_edge_to_face(mesh, &mesh->edges[edge_id], &mesh->faces[f]);
+      mesh->face_edges[tess->face_offsets[f+1]+e] = edge_id;
     }
-    ASSERT(mesh->faces[f].num_edges == Ne);
   }
 
   // Cell <-> face connectivity.
-  for (int i = 0; i < mesh->num_cells; ++i)
-  {
-    int Nf = tess->cell_offsets[i+1] - tess->cell_offsets[i];
-    for (int f = 0; f < Nf; ++f)
-    {
-      int offset = tess->cell_offsets[f];
-      int face_index = tess->cell_faces[offset+f];
-      face_t* face = &mesh->faces[face_index];
-      mesh_attach_face_to_cell(mesh, face, &mesh->cells[i]);
-    }
-  }
-
-  // Compute the normal vectors on faces.
-  for (int f = 0; f < mesh->num_faces; ++f)
-  {
-    face_t* face = &mesh->faces[f];
-    int cell1_index = face->cell1 - &mesh->cells[0];
-    if (face->cell2 != NULL)
-    {
-      int cell2_index = face->cell2 - &mesh->cells[0];
-      point_displacement(&generators[cell1_index], &generators[cell2_index], &face->normal);
-    }
-    else
-    {
-      point_displacement(&generators[cell1_index], &face->center, &face->normal);
-    }
-  }
+  memcpy(mesh->cell_face_offsets, tess->cell_offsets, sizeof(int) * tess->num_cells);
+  mesh->cell_faces = ARENA_REALLOC(mesh->arena, mesh->cell_faces, sizeof(int) * tess->cell_offsets[tess->num_cells], 0);
+  memcpy(mesh->cell_faces, tess->cell_faces, sizeof(int) * tess->cell_offsets[tess->num_cells]);
+  memcpy(mesh->face_cells, tess->face_cells, sizeof(int) * 2 * tess->num_cells);
 
   // Compute the mesh's geometry.
   mesh_compute_geometry(mesh);
@@ -213,55 +194,37 @@ static mesh_t* mesh_from_bounded_tessellation(polytope_tessellation_t* tess,
     int n1, n2, e;
     while (int_table_next_cell(edge_for_nodes, &pos, &n1, &n2, &e))
     {
-      mesh->edges[e].node1 = &mesh->nodes[n1];
-      ASSERT(n2 >= 0); // FIXME: Not yet enforced.
-      mesh->edges[e].node2 = &mesh->nodes[n2];
+      mesh->edge_nodes[2*e] = n1;
+      mesh->edge_nodes[2*e+1] = n2;
     }
   }
 
+  // Face <-> node connectivity.
+  memcpy(mesh->face_node_offsets, tess->face_offsets, sizeof(int) * tess->num_faces);
+  mesh->face_nodes = ARENA_REALLOC(mesh->arena, mesh->face_nodes, sizeof(int) * tess->face_offsets[tess->num_faces], 0);
+  memcpy(mesh->face_nodes, tess->face_nodes, sizeof(int) * tess->face_offsets[tess->num_faces]);
+
   // Face <-> edge connectivity.
+  memset(mesh->face_edge_offsets, 0, sizeof(int) * (mesh->num_faces + 1));
   for (int f = 0; f < mesh->num_faces; ++f)
   {
     int Ne = tess->face_offsets[f+1] - tess->face_offsets[f];
+    mesh->face_edge_offsets[f+1] = Ne;
     for (int e = 0; e < Ne; ++e)
     {
       int offset = tess->face_offsets[f];
       int n1 = (int)tess->face_nodes[offset+e];
       int n2 = (int)tess->face_nodes[offset+(e+1)%Ne];
       int edge_id = *int_table_get(edge_for_nodes, n1, n2);
-      mesh_attach_edge_to_face(mesh, &mesh->edges[edge_id], &mesh->faces[f]);
+      mesh->face_edges[tess->face_offsets[f+1]+e] = edge_id;
     }
-    ASSERT(mesh->faces[f].num_edges == Ne);
   }
 
   // Cell <-> face connectivity.
-  for (int i = 0; i < mesh->num_cells; ++i)
-  {
-    int Nf = tess->cell_offsets[i+1] - tess->cell_offsets[i];
-    for (int f = 0; f < Nf; ++f)
-    {
-      int offset = tess->cell_offsets[f];
-      int face_index = tess->cell_faces[offset+f];
-      face_t* face = &mesh->faces[face_index];
-      mesh_attach_face_to_cell(mesh, face, &mesh->cells[i]);
-    }
-  }
-
-  // Compute the normal vectors on faces.
-  for (int f = 0; f < mesh->num_faces; ++f)
-  {
-    face_t* face = &mesh->faces[f];
-    int cell1_index = face->cell1 - &mesh->cells[0];
-    if (face->cell2 != NULL)
-    {
-      int cell2_index = face->cell2 - &mesh->cells[0];
-      point_displacement(&generators[cell1_index], &generators[cell2_index], &face->normal);
-    }
-    else
-    {
-      point_displacement(&generators[cell1_index], &face->center, &face->normal);
-    }
-  }
+  memcpy(mesh->cell_face_offsets, tess->cell_offsets, sizeof(int) * tess->num_cells);
+  mesh->cell_faces = ARENA_REALLOC(mesh->arena, mesh->cell_faces, sizeof(int) * tess->cell_offsets[tess->num_cells], 0);
+  memcpy(mesh->cell_faces, tess->cell_faces, sizeof(int) * tess->cell_offsets[tess->num_cells]);
+  memcpy(mesh->face_cells, tess->face_cells, sizeof(int) * 2 * tess->num_cells);
 
   // Compute the mesh's geometry.
   mesh_compute_geometry(mesh);

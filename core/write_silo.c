@@ -20,7 +20,8 @@
 #undef HAVE_TETGEN
 #include "polytope_c.h"
 
-// Create a polytope tessellation from our mesh.
+// Create a polytope tessellation from our mesh. This tessellation 
+// borrows memory from the mesh, so it shouldn't be freed.
 static polytope_tessellation_t* tessellation_from_mesh(mesh_t* mesh)
 {
   polytope_tessellation_t* tess = polytope_tessellation_new(3);
@@ -37,32 +38,19 @@ static polytope_tessellation_t* tessellation_from_mesh(mesh_t* mesh)
 
   // Faces.
   tess->num_faces = mesh->num_faces;
-  tess->face_offsets = malloc(sizeof(int) * (tess->num_faces + 1));
-  tess->face_offsets[0] = 0;
+  tess->face_offsets = malloc(sizeof(int) * (mesh->num_faces + 1));
+  memcpy(tess->face_offsets, mesh->face_node_offsets, sizeof(int) * (mesh->num_faces + 1));
   tess->face_cells = malloc(sizeof(int) * 2*tess->num_faces);
-  for (int f = 0; f < mesh->num_faces; ++f)
-    tess->face_offsets[f+1] = tess->face_offsets[f] + mesh->faces[f].num_edges; // FIXME: Not valid for unbounded faces!
+  memcpy(tess->face_cells, mesh->face_cells, sizeof(int) * 2 * tess->num_faces);
   tess->face_nodes = malloc(sizeof(int) * tess->face_offsets[tess->num_faces]);
-  for (int f = 0; f < mesh->num_faces; ++f)
-  {
-    for (int e = 0; e < mesh->faces[f].num_edges; ++e)
-      tess->face_nodes[tess->face_offsets[f]+e] = mesh->faces[f].edges[e]->node1 - &mesh->nodes[0];
-    tess->face_cells[2*f] = mesh->faces[f].cell1 - &mesh->cells[0];
-    tess->face_cells[2*f+1] = (mesh->faces[f].cell2 != NULL) ? mesh->faces[f].cell2 - &mesh->cells[0] : -1;
-  }
+  memcpy(tess->face_nodes, mesh->face_nodes, sizeof(int) * tess->face_offsets[tess->num_faces]);
 
   // Cells.
   tess->num_cells = mesh->num_cells;
   tess->cell_offsets = malloc(sizeof(int) * (tess->num_cells + 1));
-  tess->cell_offsets[0] = 0;
-  for (int c = 0; c < mesh->num_cells; ++c)
-    tess->cell_offsets[c+1] = tess->cell_offsets[c] + mesh->cells[c].num_faces; 
+  memcpy(tess->cell_offsets, mesh->cell_face_offsets, sizeof(int) * (tess->num_cells + 1));
   tess->cell_faces = malloc(sizeof(int) * tess->cell_offsets[tess->num_cells]);
-  for (int c = 0; c < mesh->num_cells; ++c)
-  {
-    for (int f = 0; f < mesh->cells[c].num_faces; ++f)
-      tess->cell_faces[tess->cell_offsets[c]+f] = mesh->cells[c].faces[f] - &mesh->faces[0];
-  }
+  memcpy(tess->cell_faces, mesh->cell_faces, sizeof(int) * tess->cell_offsets[tess->num_cells]);
 
   return tess;
 }
@@ -130,5 +118,7 @@ void write_silo(mesh_t* mesh,
                       num_cell_fields, cell_field_names, cell_field_data,
                       file_prefix, directory, cycle, time,
                       comm, num_files, mpi_tag);
+
+  polytope_tessellation_free(tess);
 }
 

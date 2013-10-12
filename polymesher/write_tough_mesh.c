@@ -111,12 +111,12 @@ static void write_tough2_mesh(mesh_t* mesh,
   char** elem_names = malloc(sizeof(char*) * mesh->num_cells);
   for (int c = 0; c < mesh->num_cells; ++c)
   {
-    cell_t* cell = &mesh->cells[c];
     // Figure out the element name, active/inactive flag.
     elem_names[c] = malloc(sizeof(char)*9);
     make_elem_name(elem_name_len, c, elem_names[c]);
     make_inactive_flag(tag, tag_len, c, &inactive);
-    fprintf(file, "%s           %.4e%.4e%.4e%.4e%.4e%.4e %c\n", elem_names[c], cell->volume, 0.0, 0.0, cell->center.x, cell->center.y, cell->center.z, inactive);
+    point_t* xc = &mesh->cell_centers[c];
+    fprintf(file, "%s           %.4e%.4e%.4e%.4e%.4e%.4e %c\n", elem_names[c], mesh->cell_volumes[c], 0.0, 0.0, xc->x, xc->y, xc->z, inactive);
   }
 
   fprintf(file, "\n");
@@ -124,12 +124,10 @@ static void write_tough2_mesh(mesh_t* mesh,
   char conn_name[17];
   for (int f = 0; f < mesh->num_faces; ++f)
   {
-    face_t* face = &mesh->faces[f];
-
-    int cell1 = face->cell1 - &mesh->cells[0];
-    if (face->cell2 != NULL)
+    int cell1 = mesh->face_cells[2*f];
+    if (mesh->face_cells[2*f+1] != -1)
     {
-      int cell2 = face->cell2 - &mesh->cells[0];
+      int cell2 = mesh->face_cells[2*f+1];
 
       // The connection name is the concatenation of the two element names.
       strcpy(&conn_name[0], elem_names[cell1]); 
@@ -139,18 +137,18 @@ static void write_tough2_mesh(mesh_t* mesh,
       conn_name[16] = '\0';
 
       // Distances from face to cell centers.
-      double d1 = point_distance(&face->cell1->center, &face->center);
-      double d2 = point_distance(&face->cell2->center, &face->center);
+      double d1 = point_distance(&mesh->cell_centers[cell1], &mesh->face_centers[f]);
+      double d2 = point_distance(&mesh->cell_centers[cell2], &mesh->face_centers[f]);
 
       // Face area.
-      double A = vector_mag(&face->normal);
+      double A = mesh->face_areas[f];
 
       // Cosine of the angle between the vertical and the line connecting 
       // the element centers. NOTE: this line only coincides with the face 
       // normal for centroidal Voronoi meshes!
       static vector_t vert = {.x = 0.0, .y = 0.0, .z = 1.0};
       vector_t d12;
-      point_displacement(&face->cell1->center, &face->cell2->center, &d12);
+      point_displacement(&mesh->cell_centers[cell1], &mesh->cell_centers[cell2], &d12);
       double beta = vector_dot(&d12, &vert) / vector_mag(&d12);
 
       // For now, we assume the isotropic index for the permeability is 3.
@@ -190,15 +188,14 @@ static void write_tough_plus_mesh(mesh_t* mesh,
   char** elem_names = malloc(sizeof(char*) * mesh->num_cells);
   for (int c = 0; c < mesh->num_cells; ++c)
   {
-    cell_t* cell = &mesh->cells[c];
     // Figure out the element name, active/inactive flag.
     elem_names[c] = malloc(sizeof(char)*9);
     make_elem_name(elem_name_len, c, elem_names[c]);
     make_inactive_flag(tag, tag_len, c, &inactive);
 
+    point_t* xc = &mesh->cell_centers[c];
     fprintf(file, "%s &Elem  V= %.10e, MedName=\"Generic\", MedNum= 1, x= %.10e, y= %.10e, z= %.10e, act=\"%c\" /\n",
-            elem_names[c], cell->volume, cell->center.x, cell->center.y, 
-            cell->center.z, inactive);
+            elem_names[c], mesh->cell_volumes[c], xc->x, xc->y, xc->z, inactive);
   }
 
   fprintf(file, "<<<End of ELEMENT block\n\n");
@@ -206,12 +203,10 @@ static void write_tough_plus_mesh(mesh_t* mesh,
   char conn_name[17];
   for (int f = 0; f < mesh->num_faces; ++f)
   {
-    face_t* face = &mesh->faces[f];
-
-    int cell1 = face->cell1 - &mesh->cells[0];
-    if (face->cell2 != NULL)
+    int cell1 = mesh->face_cells[2*f];
+    if (mesh->face_cells[2*f+1] != -1)
     {
-      int cell2 = face->cell2 - &mesh->cells[0];
+      int cell2 = mesh->face_cells[2*f+1];
 
       // The connection name is the concatenation of the two element names.
       strcpy(&conn_name[0], elem_names[cell1]); 
@@ -221,18 +216,18 @@ static void write_tough_plus_mesh(mesh_t* mesh,
       conn_name[16] = '\0';
 
       // Distances from face to cell centers.
-      double d1 = point_distance(&face->cell1->center, &face->center);
-      double d2 = point_distance(&face->cell2->center, &face->center);
+      double d1 = point_distance(&mesh->cell_centers[cell1], &mesh->face_centers[f]);
+      double d2 = point_distance(&mesh->cell_centers[cell2], &mesh->face_centers[f]);
 
       // Face area.
-      double A = vector_mag(&face->normal);
+      double A = mesh->face_areas[f];
 
       // Cosine of the angle between the vertical and the line connecting 
       // the element centers. NOTE: this line only coincides with the face 
       // normal for centroidal Voronoi meshes!
       static vector_t vert = {.x = 0.0, .y = 0.0, .z = 1.0};
       vector_t d12;
-      point_displacement(&face->cell1->center, &face->cell2->center, &d12);
+      point_displacement(&mesh->cell_centers[cell1], &mesh->cell_centers[cell2], &d12);
       double beta = vector_dot(&d12, &vert) / vector_mag(&d12);
 
       // Emissivity.

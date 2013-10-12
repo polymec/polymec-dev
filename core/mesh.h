@@ -35,108 +35,57 @@ typedef enum
 // with attributes. 
 typedef struct mesh_tags_t mesh_tags_t;
 
-typedef struct face_t face_t;
-
-// A node in 1, 2, or 3D space.
-typedef struct
-{
-  double x, y, z;
-} node_t;
-
-// This helper function computes the displacement vector pointing from 
-// node1 to node2, storing it in displacement.
-static inline void node_displacement(node_t* node1, node_t* node2, vector_t* displacement)
-{
-  displacement->x = node2->x - node1->x;
-  displacement->y = node2->y - node1->y;
-  displacement->z = node2->z - node1->z;
-}
-
-// An edge, which is bounded by two nodes.
-typedef struct 
-{
-  // Nodes that bound this edge. node1 is always the node with the lower index.
-  node_t* node1;
-  node_t* node2;
-  // Length of the edge.
-  double length;
-} edge_t;
-
-// A full-featured cell. This cell is bounded by a set of faces.
-typedef struct
-{
-  // Faces bounding this cell. If this cell is a ghost cell, the faces 
-  // do not bound the entire cell--only those that connect this cell 
-  // with interior cells are included.
-  face_t** faces;
-  // Number of faces attached to this cell.
-  int num_faces;
-  // Cell center position.
-  point_t center;
-  // Cell volume.
-  double volume;
-} cell_t;
-
-// Returns the edge within the given cell whose nodes are node1 and node2,
-// or NULL if the cell contains no such edge. The order of the nodes in 
-// the edge does not matter.
-edge_t* cell_find_edge_with_nodes(cell_t* cell, node_t* node1, node_t* node2);
-
-// A full-featured face. This face connects exactly two cells and is 
-// bounded by edges.
-struct face_t
-{
-  // The cells connected by this face. cell1 is always the face with 
-  // the lower index in the mesh.
-  cell_t* cell1;
-  cell_t* cell2;
-  // Edges that bound this face.
-  edge_t** edges;
-  // The number of edges bounding this face.
-  int num_edges;
-  // Face center.
-  point_t center;
-  // Face normal vector (scaled by area).
-  vector_t normal;
-};
-
-// This function returns the cell opposite the given cell through the 
-// given face.
-static inline cell_t* face_opp_cell(face_t* face, cell_t* cell)
-{
-  return (face->cell1 == cell) ? face->cell2 : face->cell1;
-}
-
-// This function fills the given array with the nodes of its constituent 
-// edges, ordered in one of the two possible traversal orders. The number of 
-// nodes is less than or equal to the number of edges. This fills the array 
-// of nodes, assuming that it is properly sized for the face.
-void face_get_nodes(face_t* face, node_t** nodes);
- 
 typedef struct mesh_storage_t mesh_storage_t;
 
 // This data type represents an unstructured mesh, consisting of 
 // stationary cells and the faces connecting them.
 typedef struct 
 {
-  // Mesh cells, indexed from 0 to C-1.
-  cell_t* cells;
-  // Total number of (locally-owned) cells in the mesh.
+  // The total number of (locally-owned) cells in the mesh.
   int num_cells;
-  // Total number of ghost cells in the mesh.
+  // The number of ghost cells on the local domain in the mesh.
   int num_ghost_cells;
-  // Mesh faces, indexed from 0 to F-1.
-  face_t* faces;
-  // Total number of faces in the mesh.
+  // The offsets of the sets of faces attached to cells, stored in CRS format.
+  int* cell_face_offsets;
+  // The indices of faces attached to cells, stored in CRS format.
+  int* cell_faces;
+
+  // The total number of local faces in the mesh.
   int num_faces;
-  // Mesh edges, indexed from 0 to E-1.
-  edge_t* edges;
-  // Total number of edges in the mesh.
+  // The offsets of the sets of nodes attached to faces, stored in CRS format.
+  int* face_node_offsets;
+  // The indices of nodes attached to faces, stored in CRS format.
+  int* face_nodes;
+
+  // The offsets of the sets of edges attached to faces, stored in CRS format.
+  int* face_edge_offsets;
+  // The indices of edges attached to faces, stored in CRS format.
+  int* face_edges;
+
+  // The cells attached to the faces in the mesh. Each face has 2 cells, 
+  // so the first cell of the ith face is face_cells[2*i] and the second 
+  // is face_cells[2*i+1].
+  int* face_cells;
+
+  // The total number of local edges in the mesh.
   int num_edges;
-  // Mesh nodes, indexed from 0 to N-1.
-  node_t* nodes;
-  // Total number of nodes in the mesh.
+
+  // The nodes of the edges in the mesh. Each edge has 2 nodes, so the 
+  // the first node of the ith edge is edge_nodes[2*i] and the second is 
+  // edge_nodes[2*i+1].
+  int* edge_nodes;
+
+  // The total number of local nodes in the mesh.
   int num_nodes;
+  // Coordinates of the mesh nodes, indexed from 0 to N-1.
+  point_t* nodes;
+
+  // Geometry information.
+  double* cell_volumes;
+  point_t* cell_centers;
+  point_t* face_centers;
+  double* face_areas;
+  vector_t* face_normals;
 
   // Mesh tagging mechanisms.
   mesh_tags_t* cell_tags;
@@ -216,38 +165,68 @@ void mesh_rename_tag(mesh_tags_t* tagger, const char* old_tag, const char* new_t
 // Deletes the given tag. This has no effect if the tag is not found.
 void mesh_delete_tag(mesh_tags_t* tagger, const char* tag);
 
-// Maps the mesh from its existing coordinates to a set of coordinates
-// defined by the (vector-valued) tranformation function.
-void mesh_map(mesh_t* mesh, sp_func_t* mapping);
-
 // Computes face areas and cell volumes for the mesh (for those that are 
 // bounded).
 void mesh_compute_geometry(mesh_t* mesh);
 
-// Performs some basic mesh consistency checks and calls polymec_error 
-// if any inconsistencies are found. NOTE that you shouldn't call this 
-// on a mesh with unbounded cells, since those cells are not "consistent" 
-// in the usual sense.
-void mesh_check_consistency(mesh_t* mesh);
+// Returns the number of faces attached to the given cell in the mesh.
+static inline int mesh_cell_num_faces(mesh_t* mesh, int cell)
+{
+  return mesh->cell_face_offsets[cell+1] - mesh->cell_face_offsets[cell];
+}
 
-// Computes the cell volume and center for a bounded cell.
-void cell_compute_geometry(cell_t* cell);
+// Allows iteration over the faces attached to the given cell in the mesh.
+// Set *face to -1 to reset the iteration. Returns true if faces remain in 
+// the cell, false otherwise.
+static inline bool mesh_next_cell_face(mesh_t* mesh, int cell, int* face)
+{
+  if (*face == -1)
+    *face = mesh->cell_face_offsets[cell];
+  else
+    *face += 1;
+  return (*face >= mesh->cell_face_offsets[cell+1]);
+}
 
-// This prints a text representation of the given node to the given FILE.
-// It needs to mesh to convey its topology.
-void node_fprintf(node_t* node, mesh_t* mesh, FILE* stream);
+// Returns the number of nodes attached to the given face in the mesh.
+static inline int mesh_face_num_nodes(mesh_t* mesh, int face)
+{
+  return mesh->face_node_offsets[face+1] - mesh->face_node_offsets[face];
+}
 
-// This prints a text representation of the given edge to the given FILE.
-// It needs to mesh to convey its topology.
-void edge_fprintf(edge_t* edge, mesh_t* mesh, FILE* stream);
+// Allows iteration over the nodes attached to the given face in the mesh.
+// Set *node to -1 to reset the iteration. Returns true if nodes remain in 
+// the face, false otherwise.
+static inline bool mesh_next_face_node(mesh_t* mesh, int face, int* node)
+{
+  if (*node == -1)
+    *node = mesh->face_node_offsets[face];
+  else
+    *node += 1;
+  return (*node >= mesh->face_node_offsets[face+1]);
+}
 
-// This prints a text representation of the given face to the given FILE.
-// It needs to mesh to convey its topology.
-void face_fprintf(face_t* face, mesh_t* mesh, FILE* stream);
+// Returns the number of edges attached to the given face in the mesh.
+static inline int mesh_face_num_edges(mesh_t* mesh, int face)
+{
+  return mesh->face_node_offsets[face+1] - mesh->face_node_offsets[face];
+}
 
-// This prints a text representation of the given cell to the given FILE.
-// It needs to mesh to convey its topology.
-void cell_fprintf(cell_t* cell, mesh_t* mesh, FILE* stream);
+// Allows iteration over the edges attached to the given face in the mesh.
+// Set *edge to -1 to reset the iteration. Returns true if edges remain in 
+// the face, false otherwise.
+static inline bool mesh_next_face_edge(mesh_t* mesh, int face, int* edge)
+{
+  return mesh_next_face_node(mesh, face, edge);
+}
+
+// Given a face within the mesh and one of its cells, returns the cell on 
+// the opposite side of the face, or -1 if there is no such cell.
+static inline int mesh_face_opp_cell(mesh_t* mesh, int face, int cell)
+{
+  return (cell == mesh->face_cells[2*face]) ? mesh->face_cells[2*face+1] 
+                                            : mesh->face_cells[2*face];
+}
+
 
 #endif
 
