@@ -25,10 +25,9 @@ struct mesh_storage_t
   ARENA* arena;
   bool close_arena;
 
-  int node_capacity;
-  int edge_capacity;
-  int face_capacity;
-  int cell_capacity;
+  int cell_face_capacity;
+  int face_edge_capacity;
+  int face_node_capacity;
 };
 
 // Initializes a new storage mechanism for a mesh.

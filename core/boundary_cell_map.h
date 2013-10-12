@@ -39,11 +39,11 @@ typedef struct
   // NOTE: boundary_faces[i] will be NULL.
   void** bc_for_face;
 
-  // For faces with periodic boundary conditions, this array has non-NULL
+  // For faces with periodic boundary conditions, this array has non-negative
   // entries identifying the face on the opposite side of the ith face.
-  // opp_faces[i] is NULL if the ith boundary face does not have a periodic 
+  // opp_faces[i] is -1 if the ith boundary face does not have a periodic 
   // boundary condition. 
-  face_t** opp_faces;
+  int* opp_faces;
 } boundary_cell_t;
 
 // Define the mapping type.

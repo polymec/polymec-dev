@@ -40,17 +40,17 @@ static int_int_unordered_map_t* generate_periodic_map(void* context, mesh_t* mes
   // in each and assemble a plane representation.
   point_t xp1, xp2;
   vector_t n1, n2;
-  point_copy(&xp1, &mesh->faces[faces1[0]].center);
-  point_copy(&xp2, &mesh->faces[faces2[0]].center);
+  point_copy(&xp1, &mesh->face_centers[faces1[0]]);
+  point_copy(&xp2, &mesh->face_centers[faces2[0]]);
   for (int p = 0; p < 2; ++p)
   {
     // Find 3 non-colinear points.
     point_t p1, p2, p3;
-    point_copy(&p1, &mesh->faces[faces1[0]].center);
-    point_copy(&p2, &mesh->faces[faces1[1]].center);
-    point_copy(&p3, &mesh->faces[faces1[2]].center);
+    point_copy(&p1, &mesh->face_centers[faces1[0]]);
+    point_copy(&p2, &mesh->face_centers[faces1[1]]);
+    point_copy(&p3, &mesh->face_centers[faces1[2]]);
     for (int i = 3; points_are_colinear(&p1, &p2, &p3); ++i)
-      point_copy(&p3, &mesh->faces[faces1[i]].center);
+      point_copy(&p3, &mesh->face_centers[faces1[i]]);
 
     // Find the normal vector of the plane containing these points.
     vector_t v1, v2, n;

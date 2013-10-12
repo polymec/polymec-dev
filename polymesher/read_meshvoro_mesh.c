@@ -24,7 +24,6 @@
 #include "core/slist.h"
 #include "core/table.h"
 #include "core/unordered_map.h"
-#include "core/edit_mesh.h"
 
 // Lua stuff.
 #include "lua.h"
@@ -495,8 +494,8 @@ static mesh_t* construct_mesh(cell_with_faces_t** cells,
     int n1, n2, e;
     while (int_table_next_cell(edge_for_nodes, &pos, &n1, &n2, &e))
     {
-      mesh->edges[e].node1 = &mesh->nodes[n1];
-      mesh->edges[e].node2 = &mesh->nodes[n2];
+      mesh->edge_nodes[2*e] = n1;
+      mesh->edge_nodes[2*e+1] = n2;
     }
   }
 

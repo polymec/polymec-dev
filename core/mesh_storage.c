@@ -28,10 +28,9 @@ mesh_storage_t* mesh_storage_new_with_arena(ARENA* arena)
 {
   mesh_storage_t* storage = ARENA_MALLOC(arena, sizeof(mesh_storage_t), 0);
   storage->arena = arena;
-  storage->node_capacity = 0;
-  storage->edge_capacity = 0;
-  storage->face_capacity = 0;
-  storage->cell_capacity = 0;
+  storage->cell_face_capacity = 0;
+  storage->face_edge_capacity = 0;
+  storage->face_node_capacity = 0;
   storage->close_arena = false;
   return storage;
 }

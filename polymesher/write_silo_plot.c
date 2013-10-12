@@ -96,7 +96,7 @@ int write_silo_plot(lua_State* lua)
   string_ptr_unordered_map_t* cell_fields = string_ptr_unordered_map_new();
   double* volume = malloc(sizeof(double) * mesh->num_cells);
   for (int c = 0; c < mesh->num_cells; ++c)
-    volume[c] = mesh->cells[c].volume;
+    volume[c] = mesh->cell_volumes[c];
   string_ptr_unordered_map_insert_with_v_dtor(cell_fields, "volume", volume, DTOR(free));
 
   // Stick in any other fields.
