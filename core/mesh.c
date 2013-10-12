@@ -276,8 +276,8 @@ void mesh_verify(mesh_t* mesh)
   // Check cell-face topology.
   for (int c = 0; c < mesh->num_cells; ++c)
   {
-    int f = -1;
-    while (mesh_next_cell_face(mesh, c, &f))
+    int pos = 0, f;
+    while (mesh_next_cell_face(mesh, c, &pos, &f))
     {
       if ((mesh->face_cells[2*f] != c) && (mesh->face_cells[2*f+1] != c))
         polymec_error("cell %d has face %d but is not attached to it.", c, f);
@@ -394,14 +394,14 @@ void mesh_compute_geometry(mesh_t* mesh)
     // knowing that it's convex.
     mesh->cell_centers[cell].x = mesh->cell_centers[cell].y = mesh->cell_centers[cell].z = 0.0;
     int num_cell_nodes = 0, num_cell_faces = 0;
-    int face = -1;
-    while (mesh_next_cell_face(mesh, cell, &face))
+    int pos = 0, face;
+    while (mesh_next_cell_face(mesh, cell, &pos, &face))
     {
       // NOTE: Only the primal cell of a face computes its center.
       if (cell == mesh->face_cells[2*face])
         mesh->face_centers[face].x = mesh->face_centers[face].y = mesh->face_centers[face].z = 0.0;
-      int node = -1;
-      while (mesh_next_face_node(mesh, face, &node))
+      int npos = 0, node;
+      while (mesh_next_face_node(mesh, face, &npos, &node))
       {
         mesh->cell_centers[cell].x += mesh->nodes[node].x;
         mesh->cell_centers[cell].y += mesh->nodes[node].y;
@@ -420,7 +420,7 @@ void mesh_compute_geometry(mesh_t* mesh)
         mesh->face_centers[face].y /= nn;
         mesh->face_centers[face].z /= nn;
       }
-      num_cell_nodes += mesh_face_num_edges(mesh, face);
+      num_cell_nodes += mesh_face_num_nodes(mesh, face);
       ++num_cell_faces;
     }
     mesh->cell_centers[cell].x /= num_cell_nodes;
@@ -434,8 +434,8 @@ void mesh_compute_geometry(mesh_t* mesh)
     {
       double face_area = 0.0;
       vector_t face_normal;
-      int edge = -1;
-      while (mesh_next_face_edge(mesh, face, &edge))
+      int pos = 0, edge;
+      while (mesh_next_face_edge(mesh, face, &pos, &edge))
       {
         // Construct a tetrahedron whose vertices are the cell center, 
         // the face center, and the two nodes of this edge. The volume 
