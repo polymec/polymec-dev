@@ -176,15 +176,13 @@ static inline int mesh_cell_num_faces(mesh_t* mesh, int cell)
 }
 
 // Allows iteration over the faces attached to the given cell in the mesh.
-// Set *face to -1 to reset the iteration. Returns true if faces remain in 
+// Set *pos to 0 to reset the iteration. Returns true if faces remain in 
 // the cell, false otherwise.
-static inline bool mesh_next_cell_face(mesh_t* mesh, int cell, int* face)
+static inline bool mesh_next_cell_face(mesh_t* mesh, int cell, int* pos, int* face)
 {
-  if (*face == -1)
-    *face = mesh->cell_face_offsets[cell];
-  else
-    *face += 1;
-  return (*face >= mesh->cell_face_offsets[cell+1]);
+  *face = mesh->cell_faces[mesh->cell_face_offsets[cell] + *pos];
+  ++(*pos);
+  return (*pos < (mesh->cell_face_offsets[cell+1] - mesh->cell_face_offsets[cell]));
 }
 
 // Returns the number of nodes attached to the given face in the mesh.
@@ -194,15 +192,13 @@ static inline int mesh_face_num_nodes(mesh_t* mesh, int face)
 }
 
 // Allows iteration over the nodes attached to the given face in the mesh.
-// Set *node to -1 to reset the iteration. Returns true if nodes remain in 
+// Set *pos to 0 to reset the iteration. Returns true if nodes remain in 
 // the face, false otherwise.
-static inline bool mesh_next_face_node(mesh_t* mesh, int face, int* node)
+static inline bool mesh_next_face_node(mesh_t* mesh, int face, int* pos, int* node)
 {
-  if (*node == -1)
-    *node = mesh->face_node_offsets[face];
-  else
-    *node += 1;
-  return (*node >= mesh->face_node_offsets[face+1]);
+  *node = mesh->face_nodes[mesh->face_node_offsets[face] + *pos];
+  ++(*pos);
+  return (*pos < (mesh->face_node_offsets[face+1] - mesh->face_node_offsets[face]));
 }
 
 // Returns the number of edges attached to the given face in the mesh.
@@ -212,11 +208,13 @@ static inline int mesh_face_num_edges(mesh_t* mesh, int face)
 }
 
 // Allows iteration over the edges attached to the given face in the mesh.
-// Set *edge to -1 to reset the iteration. Returns true if edges remain in 
+// Set *pos to 0 to reset the iteration. Returns true if edges remain in 
 // the face, false otherwise.
-static inline bool mesh_next_face_edge(mesh_t* mesh, int face, int* edge)
+static inline bool mesh_next_face_edge(mesh_t* mesh, int face, int* pos, int* edge)
 {
-  return mesh_next_face_node(mesh, face, edge);
+  *edge = mesh->face_edges[mesh->face_edge_offsets[face] + *pos];
+  ++(*pos);
+  return (*pos < (mesh->face_edge_offsets[face+1] - mesh->face_edge_offsets[face]));
 }
 
 // Given a face within the mesh and one of its cells, returns the cell on 

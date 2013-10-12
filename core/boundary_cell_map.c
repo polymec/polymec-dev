@@ -132,16 +132,16 @@ boundary_cell_map_t* boundary_cell_map_from_mesh_and_bcs(mesh_t* mesh, string_pt
         boundary_cell_map_insert_with_kv_dtor(boundary_cells, bcell, boundary_cell, destroy_boundary_cell_entry);
 
         // Gather the interior faces for the cell.
-        int ff = -1;
-        while (mesh_next_cell_face(mesh, bcell, &ff))
+        int pos = 0, ff;
+        while (mesh_next_cell_face(mesh, bcell, &pos, &ff))
         {
           if (mesh_face_opp_cell(mesh, bcell, ff) != -1)
             boundary_cell->num_neighbor_cells++;
         }
         boundary_cell->neighbor_cells = malloc(sizeof(int)*boundary_cell->num_neighbor_cells);
         int nc = 0;
-        ff = -1;
-        while (mesh_next_cell_face(mesh, bcell, &ff))
+        pos = 0;
+        while (mesh_next_cell_face(mesh, bcell, &pos, &ff))
         {
           int opp_cell = mesh_face_opp_cell(mesh, ff, bcell);
           if (opp_cell != -1)
