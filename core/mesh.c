@@ -279,7 +279,8 @@ void mesh_verify(mesh_t* mesh)
     int pos = 0, f;
     while (mesh_next_cell_face(mesh, c, &pos, &f))
     {
-      if ((mesh->face_cells[2*f] != c) && (mesh->face_cells[2*f+1] != c))
+      if ((mesh->face_cells[2*f] != c) && (mesh->face_cells[2*f] != ~c) && 
+          (mesh->face_cells[2*f+1] != c) && (mesh->face_cells[2*f+1] != ~c))
         polymec_error("cell %d has face %d but is not attached to it.", c, f);
     }
   }
