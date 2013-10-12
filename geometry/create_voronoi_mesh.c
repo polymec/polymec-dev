@@ -108,10 +108,10 @@ static mesh_t* mesh_from_unbounded_tessellation(polytope_tessellation_t* tess,
   }
 
   // Cell <-> face connectivity.
-  memcpy(mesh->cell_face_offsets, tess->cell_offsets, sizeof(int) * tess->num_cells);
+  memcpy(mesh->cell_face_offsets, tess->cell_offsets, sizeof(int) * (tess->num_cells+1));
   mesh->cell_faces = ARENA_REALLOC(mesh->arena, mesh->cell_faces, sizeof(int) * tess->cell_offsets[tess->num_cells], 0);
   memcpy(mesh->cell_faces, tess->cell_faces, sizeof(int) * tess->cell_offsets[tess->num_cells]);
-  memcpy(mesh->face_cells, tess->face_cells, sizeof(int) * 2 * tess->num_cells);
+  memcpy(mesh->face_cells, tess->face_cells, sizeof(int) * 2 * tess->num_faces);
 
   // Compute the mesh's geometry.
   mesh_compute_geometry(mesh);
@@ -205,6 +205,8 @@ static mesh_t* mesh_from_bounded_tessellation(polytope_tessellation_t* tess,
   memcpy(mesh->face_nodes, tess->face_nodes, sizeof(int) * tess->face_offsets[tess->num_faces]);
 
   // Face <-> edge connectivity.
+  // FIXME: Need to make sure that mesh->face_edges is big enough to 
+  // FIXME: hold all the edges!
   memset(mesh->face_edge_offsets, 0, sizeof(int) * (mesh->num_faces + 1));
   for (int f = 0; f < mesh->num_faces; ++f)
   {
@@ -221,10 +223,10 @@ static mesh_t* mesh_from_bounded_tessellation(polytope_tessellation_t* tess,
   }
 
   // Cell <-> face connectivity.
-  memcpy(mesh->cell_face_offsets, tess->cell_offsets, sizeof(int) * tess->num_cells);
+  memcpy(mesh->cell_face_offsets, tess->cell_offsets, sizeof(int) * (tess->num_cells+1));
   mesh->cell_faces = ARENA_REALLOC(mesh->arena, mesh->cell_faces, sizeof(int) * tess->cell_offsets[tess->num_cells], 0);
   memcpy(mesh->cell_faces, tess->cell_faces, sizeof(int) * tess->cell_offsets[tess->num_cells]);
-  memcpy(mesh->face_cells, tess->face_cells, sizeof(int) * 2 * tess->num_cells);
+  memcpy(mesh->face_cells, tess->face_cells, sizeof(int) * 2 * tess->num_faces);
 
   // Compute the mesh's geometry.
   mesh_compute_geometry(mesh);
