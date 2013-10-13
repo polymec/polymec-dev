@@ -43,7 +43,7 @@ int point_factory_cubic_lattice(lua_State* lua)
 
   // Extract arguments.
   const char* entries[] = {"bounding_box", "nx", "ny", "nz", "num_ghost"};
-  int nx, ny, nz, ng = 1;
+  int nx, ny, nz, ng = 0;
   bbox_t* bbox = NULL;
   for (int i = 0; i < 5; ++i)
   {
@@ -135,7 +135,7 @@ int point_factory_cylinder(lua_State* lua)
   double radius, length;
   double log_spacing_factor = 1.1;
   point_t* x0 = NULL;
-  int nr, nz, ng = 1;
+  int nr, nz, ng = 0;
   const char* radial_spacing = NULL;
   for (int i = 0; i < 8; ++i)
   {
