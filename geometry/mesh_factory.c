@@ -197,9 +197,10 @@ int mesh_factory_voronoi(lua_State* lua)
   // Create the mesh.
   mesh_t* mesh = NULL;
   if (bbox != NULL)
-    create_voronoi_mesh_in_box(generators, num_generators, NULL, 0, bbox);
+    mesh = create_voronoi_mesh_in_box(generators, num_generators, NULL, 0, bbox);
   else
-    create_voronoi_mesh(generators, num_generators, NULL, 0);
+    mesh = create_voronoi_mesh(generators, num_generators, NULL, 0);
+  ASSERT(mesh != NULL);
 
   // Push the mesh onto the stack.
   lua_pushmesh(lua, mesh);

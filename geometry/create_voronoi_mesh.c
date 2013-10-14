@@ -96,7 +96,7 @@ static mesh_t* mesh_from_unbounded_tessellation(polytope_tessellation_t* tess,
   }
 
   // Face <-> node connectivity.
-  memcpy(mesh->face_node_offsets, tess->face_offsets, sizeof(int) * tess->num_faces);
+  memcpy(mesh->face_node_offsets, tess->face_offsets, sizeof(int) * (tess->num_faces+1));
   mesh->face_nodes = ARENA_REALLOC(mesh->arena, mesh->face_nodes, sizeof(int) * tess->face_offsets[tess->num_faces], 0);
   memcpy(mesh->face_nodes, tess->face_nodes, sizeof(int) * tess->face_offsets[tess->num_faces]);
   mesh->storage->face_node_capacity = tess->cell_offsets[tess->num_cells];
