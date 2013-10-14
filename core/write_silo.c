@@ -24,6 +24,18 @@
 // borrows memory from the mesh, so it shouldn't be freed.
 static polytope_tessellation_t* tessellation_from_mesh(mesh_t* mesh)
 {
+#ifndef NDEBUG
+  // Check the validity of our mesh.
+  for (int i = 0; i < mesh->num_cells; ++i)
+  {
+    ASSERT((mesh->cell_face_offsets[i+1] - mesh->cell_face_offsets[i]) > 0);
+  }
+  for (int i = 0; i < mesh->num_faces; ++i)
+  {
+    ASSERT((mesh->face_node_offsets[i+1] - mesh->face_node_offsets[i]) > 0);
+  }
+#endif
+
   polytope_tessellation_t* tess = polytope_tessellation_new(3);
 
   // Nodes.
