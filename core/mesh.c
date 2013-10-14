@@ -391,6 +391,9 @@ void mesh_compute_geometry(mesh_t* mesh)
 {
   for (int cell = 0; cell < mesh->num_cells; ++cell)
   {
+    // Make sure each cell has at least 4 faces.
+    ASSERT((mesh->cell_face_offsets[cell+1] - mesh->cell_face_offsets[cell]) >= 4);
+
     // Compute cell centers and face centers for the cell, 
     // knowing that it's convex.
     mesh->cell_centers[cell].x = mesh->cell_centers[cell].y = mesh->cell_centers[cell].z = 0.0;
