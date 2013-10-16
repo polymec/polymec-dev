@@ -17,6 +17,7 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <gc/gc.h>
+#include "polytope_c.h"
 #include "core/polymec.h"
 #include "core/options.h"
 #include "core/model.h"
@@ -105,10 +106,16 @@ polymec_error(const char* message, ...)
   return error_handler(err);
 }
 
+static void polymec_polytope_error_handler(const char* error, int status)
+{
+  polymec_error(error);
+}
+
 void 
 polymec_set_error_handler(polymec_error_handler_function handler)
 {
   error_handler = handler;
+  polytope_set_error_handler(polymec_polytope_error_handler);
 }
 
 void 
