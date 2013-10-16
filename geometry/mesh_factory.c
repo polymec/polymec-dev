@@ -26,6 +26,7 @@
 #include "geometry/create_cubic_lattice_mesh.h"
 #include "geometry/create_boundary_generators.h"
 #include "geometry/create_voronoi_mesh.h"
+#include "geometry/rect_prism.h"
 //#include "geometry/create_cvt_with_lloyd_iteration.h"
 
 // Lua stuff.
@@ -197,9 +198,23 @@ int mesh_factory_voronoi(lua_State* lua)
   // Create the mesh.
   mesh_t* mesh = NULL;
   if (bbox != NULL)
+  {
+    // Make sure all the points are within the bounding box.
+    sp_func_t* boxy = rect_prism_new_from_bbox(bbox);
+    for (int i = 0; i < num_generators; ++i)
+    {
+      double F = 0.0;
+      sp_func_eval(boxy, &generators[i], &F);
+      if (F > 0.0)
+        return luaL_error(lua, "mesh_factory.voronoi: Generator %d is outside the given bounding box.", i);
+    }
+    boxy = NULL;
     mesh = create_voronoi_mesh_in_box(generators, num_generators, NULL, 0, bbox);
+  }
   else
+  {
     mesh = create_voronoi_mesh(generators, num_generators, NULL, 0);
+  }
   ASSERT(mesh != NULL);
 
   // Push the mesh onto the stack.
