@@ -16,6 +16,9 @@ num_removed = remove_points(lat_points, {near_points = cyl_points, within_distan
 -- with the lattice points subtracted where they are close to the cylinder 
 -- points. This may have to do with violating the assumption in Polytope that
 -- a cell has at most 1 "inf" face.
-mesh = mesh_factory.voronoi(cyl_points .. lat_points, box)
+--mesh = mesh_factory.voronoi(cyl_points .. lat_points, box)
+mesh = mesh_factory.voronoi({cylinder = cyl_points,
+                             lattice = lat_points}, 
+                            box)
 print(mesh)
 write_silo_plot(mesh, 'cylinder')

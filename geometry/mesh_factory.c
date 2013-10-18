@@ -22,6 +22,8 @@
 #include "core/mesh.h"
 #include "core/kd_tree.h"
 #include "core/interpreter.h"
+#include "core/unordered_map.h"
+#include "core/tuple.h"
 //#include "core/periodic_bc.h"
 #include "geometry/create_cubic_lattice_mesh.h"
 #include "geometry/create_boundary_generators.h"
@@ -180,17 +182,53 @@ int mesh_factory_voronoi(lua_State* lua)
 {
   // Check the arguments.
   int num_args = lua_gettop(lua);
-  if (((num_args != 1) && !lua_ispointlist(lua, 1)) || 
-      ((num_args != 2) && (!lua_ispointlist(lua, 1) && !lua_isboundingbox(lua, 2))))
+  if (((num_args != 1) && !lua_istable(lua, 1)) || 
+      ((num_args != 2) && (!lua_istable(lua, 1) && !lua_isboundingbox(lua, 2))))
   {
     return luaL_error(lua, "Invalid argument(s). Usage:\n"
                       "mesh = mesh_factory.voronoi(generators) OR\n"
-                      "mesh = mesh_factory.voronoi(generators, bounding_box)");
+                      "mesh = mesh_factory.voronoi(generators, bounding_box)\n\n"
+                      "Above, generators is a list of points or a table mapping\n"
+                      "tag names to points.");
   }
 
   // Get the generators.
-  int num_generators;
-  point_t* generators = lua_topointlist(lua, 1, &num_generators);
+  int num_generators = 0;
+  point_t* generators = NULL;
+  string_ptr_unordered_map_t* tag_map = NULL;
+  if (lua_ispointlist(lua, 1))
+    generators = lua_topointlist(lua, 1, &num_generators);
+  else
+  {
+    if (!lua_istable(lua, 1))
+      return luaL_error(lua, "Argument 1 must be a list of points or a table mapping tag names to points.");
+
+    lua_pushnil(lua);
+    tag_map = string_ptr_unordered_map_new();
+    while (lua_next(lua, 1))
+    {
+      static const int key_index = -2;
+      static const int val_index = -1;
+      const char* key = lua_tostring(lua, key_index);
+      if (!lua_ispointlist(lua, val_index))
+        return luaL_error(lua, "Table values must be lists of points.");
+
+      // Extract the points associated with this tag.
+      int Np;
+      point_t* p = lua_topointlist(lua, val_index, &Np);
+      num_generators += Np;
+      generators = realloc(generators, sizeof(point_t) * num_generators);
+      memcpy(&generators[num_generators-Np], p, sizeof(point_t) * Np);
+
+      // Write down the generator offset and size associated with this tag.
+      int* tuple = int_tuple_new(2);
+      tuple[0] = num_generators - Np;
+      tuple[1] = Np;
+      string_ptr_unordered_map_insert_with_v_dtor(tag_map, (char*)key, tuple, DTOR(int_tuple_free));
+
+      lua_pop(lua, 1);
+    }
+  }
   bbox_t* bbox = NULL;
   if (num_args == 2)
     bbox = lua_toboundingbox(lua, 2);
@@ -216,6 +254,23 @@ int mesh_factory_voronoi(lua_State* lua)
     mesh = create_voronoi_mesh(generators, num_generators, NULL, 0);
   }
   ASSERT(mesh != NULL);
+
+  // Tag the generators if necessary.
+  if (tag_map != NULL)
+  {
+    int pos = 0, *tuple;
+    char* tag_name;
+    while (string_ptr_unordered_map_next(tag_map, &pos, &tag_name, (void*)(&tuple)))
+    {
+      int tag_offset = tuple[0];
+      int tag_size = tuple[1];
+      int* tag = mesh_create_tag(mesh->cell_tags, tag_name, tag_size);
+      for (int i = 0; i < tag_size; ++i)
+        tag[i] = tag_offset + i;
+    }
+
+    string_ptr_unordered_map_free(tag_map);
+  }
 
   // Push the mesh onto the stack.
   lua_pushmesh(lua, mesh);
