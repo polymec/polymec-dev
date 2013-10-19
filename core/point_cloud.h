@@ -23,14 +23,6 @@
 
 typedef struct tagger_t tagger_t;
 
-// Neighbor search results.
-typedef enum
-{
-  FOUND_NEIGHBORS,
-  FOUND_NO_NEIGHBORS,
-  FOUND_TOO_MANY_NEIGHBORS
-} point_cloud_neighbor_search_result_t;
-
 // This strategy (base) class provides an interface to algorithms for 
 // connecting points in point clouds.
 typedef struct point_cloud_neighbor_search_t point_cloud_neighbor_search_t;
@@ -40,17 +32,16 @@ typedef struct point_cloud_neighbor_search_t point_cloud_neighbor_search_t;
 typedef void (*point_cloud_neighbor_search_init_func)(void*, point_t* points, int num_points);
 
 // This function finds the neighboring points for point i in the point cloud, 
-// storing the results in the given array (with the given maximum size). 
-// It should return FOUND_NEIGHBORS if it finds a number of neighbors less than or 
-// equal to max_num_neighbors, FOUND_NO_NEIGHBORS if it finds none, and 
-// FOUND_TOO_MANY_NEIGHBORS if it found a number of neighbors greater than 
-// max_num_neighbors.
-typedef point_cloud_neighbor_search_result_t (*point_cloud_neighbor_search_find_func)(void*, int i, int max_num_neighbors, int* neighbors, int* num_neighbors);
+// storing the results in the given array (with size max_num_neighbors) and 
+// the number of neighbors in *num_neighbors. If more neighbors are found 
+// than will fit in the given array, the actual number found should be returned
+// and the array should not be re-allocated or abused.
+typedef void (*point_cloud_neighbor_search_find_func)(void*, int i, int max_num_neighbors, int* neighbors, int* num_neighbors);
 
-// A destructor function for the point cloud connector object (if any).
+// A destructor function for the point cloud neighbor search object (if any).
 typedef void (*point_cloud_neighbor_search_dtor)(void*);
 
-// This virtual table must be implemented by any point cloud connector algorithm.
+// This virtual table must be implemented by any point cloud neighbor search algorithm.
 typedef struct 
 {
   point_cloud_neighbor_search_init_func init;
@@ -58,7 +49,7 @@ typedef struct
   point_cloud_neighbor_search_dtor      dtor;
 } point_cloud_neighbor_search_vtable;
 
-// Create a new point cloud connector algorithm with a name, context, 
+// Create a new point cloud neighbor search algorithm with a name, context, 
 // and virtual table. Also includes a flag indicating whether neighbor 
 // relations are symmetric [(i, j) are neighbors implies (j, i) are neighbors].
 point_cloud_neighbor_search_t* 
@@ -68,11 +59,11 @@ point_cloud_neighbor_search_new(const char* name,
                                 bool neighbor_relations_are_symmetric);
 
 // Returns true if the neighbor relations are symmetric for the given 
-// point cloud connector, false if not.
-bool point_cloud_neighbor_search_neighbor_relations_are_symmetric(point_cloud_neighbor_search_t* connector);
+// point cloud neighbor search, false if not.
+bool point_cloud_neighbor_search_neighbor_relations_are_symmetric(point_cloud_neighbor_search_t* search);
 
-// Destroys the given point cloud connector algorithm.
-void point_cloud_neighbor_search_free(point_cloud_neighbor_search_t* connector);
+// Destroys the given point cloud neighbor search algorithm.
+void point_cloud_neighbor_search_free(point_cloud_neighbor_search_t* search);
 
 // This data type represents a cloud of points, connected topologically 
 // by a neighbor relationship.
@@ -112,9 +103,9 @@ point_cloud_t* point_cloud_new_with_arena(ARENA* arena, int num_points, point_t*
 void point_cloud_free(point_cloud_t* cloud);
 
 // Constructs neighbor information for the point cloud using the given 
-// point cloud neighbor connector algorithm, overwriting any existing 
+// point cloud neighbor search algorithm, overwriting any existing 
 // neighbor information.
-void point_cloud_find_neighbors(point_cloud_t* cloud, point_cloud_neighbor_search_t* connector);
+void point_cloud_find_neighbors(point_cloud_t* cloud, point_cloud_neighbor_search_t* search);
 
 // Associates a named piece of metadata (a "property") with the point cloud itself.
 // This can be used to store information about (for example) how the cloud 
