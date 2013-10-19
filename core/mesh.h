@@ -33,7 +33,7 @@ typedef enum
 
 // A tagging mechanism for tagging mesh nodes/edges/faces/cells 
 // with attributes. 
-typedef struct mesh_tags_t mesh_tags_t;
+typedef struct tagger_t tagger_t;
 
 typedef struct mesh_storage_t mesh_storage_t;
 
@@ -88,10 +88,10 @@ typedef struct
   vector_t* face_normals;
 
   // Mesh tagging mechanisms.
-  mesh_tags_t* cell_tags;
-  mesh_tags_t* face_tags;
-  mesh_tags_t* edge_tags;
-  mesh_tags_t* node_tags;
+  tagger_t* cell_tags;
+  tagger_t* face_tags;
+  tagger_t* edge_tags;
+  tagger_t* node_tags;
 
   // Mesh storage information -- used internally.
   ARENA* arena;
@@ -134,14 +134,14 @@ void mesh_delete_property(mesh_t* mesh, const char* property);
 // Returns a newly-allocated list of indices that will define a tags for 
 // cells/faces/edges/nodes with the given descriptor. If the tag already 
 // exists, returns NULL.
-int* mesh_create_tag(mesh_tags_t* tagger, const char* tag, int num_indices);
+int* mesh_create_tag(tagger_t* tagger, const char* tag, int num_indices);
 
 // Retrieves the given tag, returning an array of indices if found (and 
 // writing the number of tagged elements to num_elements), or NULL if not.
-int* mesh_tag(mesh_tags_t* tagger, const char* tag, int* num_indices);
+int* mesh_tag(tagger_t* tagger, const char* tag, int* num_indices);
 
 // Returns true if the given tag exists, false if not.
-bool mesh_has_tag(mesh_tags_t* tagger, const char* tag);
+bool mesh_has_tag(tagger_t* tagger, const char* tag);
 
 // Associates a named piece of metadata (a "property") with the given tag.
 // This can be used to store data related to tagged indices.
@@ -149,21 +149,21 @@ bool mesh_has_tag(mesh_tags_t* tagger, const char* tag);
 // If the tag is not found, this function has no effect. If the given property
 // exists on the tag, it is overwritten. Returns true if the property was 
 // added, false if not.
-bool mesh_tag_set_property(mesh_tags_t* tagger, const char* tag, const char* property, void* data, void (*destructor)(void*));
+bool mesh_tag_set_property(tagger_t* tagger, const char* tag, const char* property, void* data, void (*destructor)(void*));
 
 // Retrieves the given property associated with the given tag, if any. If the 
 // tag or property are not found, this returns NULL.
-void* mesh_tag_property(mesh_tags_t* tagger, const char* tag, const char* property);
+void* mesh_tag_property(tagger_t* tagger, const char* tag, const char* property);
 
 // Deletes the given property from the tag. This has no effect if the tag
 // or property are not found.
-void mesh_tag_delete_property(mesh_tags_t* tagger, const char* tag, const char* property);
+void mesh_tag_delete_property(tagger_t* tagger, const char* tag, const char* property);
 
 // Renames the given tag. This has no effect if the tag is not found.
-void mesh_rename_tag(mesh_tags_t* tagger, const char* old_tag, const char* new_tag);
+void mesh_rename_tag(tagger_t* tagger, const char* old_tag, const char* new_tag);
 
 // Deletes the given tag. This has no effect if the tag is not found.
-void mesh_delete_tag(mesh_tags_t* tagger, const char* tag);
+void mesh_delete_tag(tagger_t* tagger, const char* tag);
 
 // Computes face areas and cell volumes for the mesh (for those that are 
 // bounded).
