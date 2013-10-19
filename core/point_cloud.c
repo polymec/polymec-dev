@@ -28,6 +28,14 @@ extern void* tagger_property(tagger_t* tagger, const char* tag_name, const char*
 extern void tagger_delete_property(tagger_t* tagger, const char* tag_name, const char* property_name);
 extern void tagger_rename_tag(tagger_t* tagger, const char* old_tag_name, const char* new_tag_name);
 
+// This function rounds the given number up to the nearest power of 2.
+static int round_to_pow2(int x)
+{
+  int y = 2;
+  while (y < x) y *= 2;
+  return y;
+}
+
 struct point_cloud_neighbor_search_t
 {
   char* name;
@@ -50,17 +58,17 @@ point_cloud_neighbor_search_new(const char* name,
   return conn;
 }
 
-bool point_cloud_neighbor_search_neighbor_relations_are_symmetric(point_cloud_neighbor_search_t* connector)
+bool point_cloud_neighbor_search_neighbor_relations_are_symmetric(point_cloud_neighbor_search_t* search)
 {
-  return connector->neighbor_relations_are_symmetric;
+  return search->neighbor_relations_are_symmetric;
 }
 
-void point_cloud_neighbor_search_free(point_cloud_neighbor_search_t* connector)
+void point_cloud_neighbor_search_free(point_cloud_neighbor_search_t* search)
 {
-  if ((connector->vtable.dtor != NULL) && (connector->context != NULL))
-    connector->vtable.dtor(connector->context);
-  free(connector->name);
-  free(connector);
+  if ((search->vtable.dtor != NULL) && (search->context != NULL))
+    search->vtable.dtor(search->context);
+  free(search->name);
+  free(search);
 }
 
 point_cloud_t* point_cloud_new(int num_points, point_t* coords)
@@ -114,8 +122,26 @@ void point_cloud_free(point_cloud_t* cloud)
   ARENA_FREE(cloud->arena, cloud->point_coords);
 }
 
-void point_cloud_find_neighbors(point_cloud_t* cloud, point_cloud_neighbor_search_t* connector)
+void point_cloud_find_neighbors(point_cloud_t* cloud, point_cloud_neighbor_search_t* search)
 {
+  // Initialize the search.
+  search->vtable.init(search->context, cloud->point_coords, cloud->num_points); 
+
+  // Do it.
+  int max_num_neighbors = 32;
+  int* neighbors = ARENA_MALLOC(cloud->arena, sizeof(int) * max_num_neighbors, 0);
+  for (int i = 0; i < cloud->num_points; ++i)
+  {
+    int num_neighbors = 0;
+    search->vtable.find_neighbors(search->context, i, max_num_neighbors, neighbors, &num_neighbors);
+    if (num_neighbors > max_num_neighbors)
+    {
+      max_num_neighbors = round_to_pow2(num_neighbors);
+      neighbors = ARENA_REALLOC(cloud->arena, neighbors, sizeof(int) * max_num_neighbors, 0);
+      search->vtable.find_neighbors(search->context, i, max_num_neighbors, neighbors, &num_neighbors);
+      ASSERT(num_neighbors <= max_num_neighbors);
+    }
+  }
 }
 
 void point_cloud_set_property(point_cloud_t* cloud, const char* property, void* data, void (*dtor)(void*))
