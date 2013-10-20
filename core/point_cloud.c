@@ -87,15 +87,18 @@ point_cloud_t* point_cloud_new_with_arena(ARENA* arena, int num_points, point_t*
   cloud->arena = arena;
   cloud->close_arena = false;
 
-  // NOTE: We round stored elements up to the nearest power of 2.
-
-  // Allocate cell information.
+  // Allocate point information.
   cloud->num_points = num_points;
   cloud->num_ghost_points = 0;
   cloud->point_coords = ARENA_MALLOC(cloud->arena, sizeof(point_t)*num_points, 0);
   memcpy(cloud->point_coords, coords, sizeof(point_t)*num_points);
+
+  // Allocate some preliminary neighbor information.
   cloud->neighbor_offsets = ARENA_MALLOC(cloud->arena, sizeof(int)*(num_points+1), 0);
   memset(cloud->neighbor_offsets, 0, sizeof(int)*(num_points+1));
+  cloud->num_neighbors = 0;
+  cloud->neighbor_cap = 32 * num_points;
+  cloud->neighbors = ARENA_MALLOC(cloud->arena, sizeof(int)*cloud->neighbor_cap, 0);
 
   // Allocate tagging mechanisms.
   cloud->tags = tagger_new(cloud->arena);
@@ -113,11 +116,7 @@ void point_cloud_free(point_cloud_t* cloud)
 
   tagger_free(cloud->tags);
 
-  if (cloud->neighbor_indices != NULL)
-  {
-    ARENA_FREE(cloud->arena, cloud->neighbor_indices);
-  }
-
+  ARENA_FREE(cloud->arena, cloud->neighbors);
   ARENA_FREE(cloud->arena, cloud->neighbor_offsets);
   ARENA_FREE(cloud->arena, cloud->point_coords);
 }
@@ -132,16 +131,28 @@ void point_cloud_find_neighbors(point_cloud_t* cloud, point_cloud_neighbor_searc
   int* neighbors = ARENA_MALLOC(cloud->arena, sizeof(int) * max_num_neighbors, 0);
   for (int i = 0; i < cloud->num_points; ++i)
   {
+    // Find the neighbors of point i.
     int num_neighbors = 0;
-    search->vtable.find_neighbors(search->context, i, max_num_neighbors, neighbors, &num_neighbors);
-    if (num_neighbors > max_num_neighbors)
+    bool found_too_many_neighbors = search->vtable.find_neighbors(search->context, i, max_num_neighbors, neighbors, &num_neighbors);
+    while (found_too_many_neighbors)
     {
-      max_num_neighbors = round_to_pow2(num_neighbors);
+      max_num_neighbors *= 2;
       neighbors = ARENA_REALLOC(cloud->arena, neighbors, sizeof(int) * max_num_neighbors, 0);
-      search->vtable.find_neighbors(search->context, i, max_num_neighbors, neighbors, &num_neighbors);
-      ASSERT(num_neighbors <= max_num_neighbors);
+      found_too_many_neighbors = search->vtable.find_neighbors(search->context, i, max_num_neighbors, neighbors, &num_neighbors);
     }
+
+    // Resize the neighbors array if needed.
+    if (cloud->num_neighbors + num_neighbors > cloud->neighbor_cap)
+    {
+      cloud->neighbor_cap = round_to_pow2(cloud->num_neighbors + num_neighbors);
+      cloud->neighbors = ARENA_REALLOC(cloud->arena, cloud->neighbors, sizeof(int) * cloud->neighbor_cap, 0);
+    }
+
+    // Place the new neighbors into the neighbors array.
+    memcpy(&cloud->neighbors[cloud->num_neighbors], neighbors, sizeof(int) * num_neighbors);
+    cloud->num_neighbors += num_neighbors;
   }
+  ARENA_FREE(cloud->arena, neighbors);
 }
 
 void point_cloud_set_property(point_cloud_t* cloud, const char* property, void* data, void (*dtor)(void*))
