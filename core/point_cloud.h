@@ -33,10 +33,12 @@ typedef void (*point_cloud_neighbor_search_init_func)(void*, point_t* points, in
 
 // This function finds the neighboring points for point i in the point cloud, 
 // storing the results in the given array (with size max_num_neighbors) and 
-// the number of neighbors in *num_neighbors. If more neighbors are found 
-// than will fit in the given array, the actual number found should be returned
-// and the array should not be re-allocated or abused.
-typedef void (*point_cloud_neighbor_search_find_func)(void*, int i, int max_num_neighbors, int* neighbors, int* num_neighbors);
+// the number of neighbors in *num_neighbors. Returns true if too many neighbors
+// were found to fit in the array, false if a number of neighbors less than or 
+// equal to max_num_neighbors is found. DO NOT ABUSE THE neighbors ARRAY! If 
+// you find more neighbors than will fit, simply return true when you implement 
+// this function.
+typedef bool (*point_cloud_neighbor_search_find_func)(void*, int i, int max_num_neighbors, int* neighbors, int* num_neighbors);
 
 // A destructor function for the point cloud neighbor search object (if any).
 typedef void (*point_cloud_neighbor_search_dtor)(void*);
@@ -79,9 +81,12 @@ typedef struct
   // The offsets of the sets of neighbors of points, stored in CRS format.
   int* neighbor_offsets;
   // The indices of neighbors of points, stored in CRS format.
-  int* neighbor_indices;
-  // The total number of local point neighbor pairs in the cloud.
-  int num_neighbor_pairs;
+  int* neighbors;
+  // The total number of local point neighbors in the cloud. Note that 
+  // this includes both i -> j and j -> i neighbor relations.
+  int num_neighbors;
+  // The current carrying capacity of the neighbors array in the point cloud.
+  int neighbor_cap;
 
   // Point tagging mechanism.
   tagger_t* tags;
@@ -167,7 +172,7 @@ static inline int point_cloud_num_neighbors(point_cloud_t* cloud, int point)
 // the point, false otherwise.
 static inline bool point_cloud_next_neighbor(point_cloud_t* cloud, int point, int* pos, int* neighbor)
 {
-  *neighbor = cloud->neighbor_indices[cloud->neighbor_offsets[point] + *pos];
+  *neighbor = cloud->neighbors[cloud->neighbor_offsets[point] + *pos];
   ++(*pos);
   return (*pos < (cloud->neighbor_offsets[point+1] - cloud->neighbor_offsets[point]));
 }
