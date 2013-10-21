@@ -14,11 +14,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef POLYMEC_LAGRANGE_POLY_H
-#define POLYMEC_LAGRANGE_POLY_H
+#ifndef POLYMEC_POLYNOMIALS_H
+#define POLYMEC_POLYNOMIALS_H
 
 #include "core/polymec.h"
-#include "core/point.h"
 
 // A Lagrange interpolation polynomial of the given order. Objects of this 
 // type are garbage-collected.
