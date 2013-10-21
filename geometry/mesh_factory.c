@@ -36,7 +36,7 @@
 #include "lualib.h"
 #include "lauxlib.h"
 
-int mesh_factory_cubic_lattice_mesh(lua_State* lua)
+int mesh_factory_cubic_lattice(lua_State* lua)
 {
   // Check the arguments.
   int num_args = lua_gettop(lua);
@@ -55,48 +55,20 @@ int mesh_factory_cubic_lattice_mesh(lua_State* lua)
     return luaL_error(lua, "nx, ny, and nz must all be positive.");
 
   // Bounding box? 
-  bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
+  bbox_t bbox0 = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
+  bbox_t* bbox = &bbox0;
   if (num_args == 4)
   {
-    if (!lua_istable(lua, 4))
-      return luaL_error(lua, "bounds must be a table containing x1, x2, y1, y2, z1, z2.");
-
-    // Look for x1, x2, y1, y2, z1, z2 in the table.
-    const char* bounds_names[] = {"x1", "x2", "y1", "y2", "z1", "z2"};
-    double bounds_values[6];
-    for (int i = 0; i < 6; ++i)
-    {
-      lua_pushstring(lua, bounds_names[i]);
-      lua_gettable(lua, 4); // Reads name from top, replaces with bounds[name].
-      if (!lua_isnumber(lua, -1))
-        return luaL_error(lua, "x1, x2, y1, y2, z1, z2, must all be numbers.");
-
-      bounds_values[i] = lua_tonumber(lua, -1);
-      lua_pop(lua, 1); 
-    }
-    bbox.x1 = bounds_values[0];
-    bbox.x2 = bounds_values[1];
-    bbox.y1 = bounds_values[2];
-    bbox.y2 = bounds_values[3];
-    bbox.z1 = bounds_values[4];
-    bbox.z2 = bounds_values[5];
-
-    // Now check the bounds.
-    if (bbox.x1 >= bbox.x2)
-      return luaL_error(lua, "x1 must be less than x2.");
-
-    if (bbox.y1 >= bbox.y2)
-      return luaL_error(lua, "y1 must be less than y2.");
-
-    if (bbox.z1 >= bbox.z2)
-      return luaL_error(lua, "z1 must be less than z2.");
+    if (!lua_isboundingbox(lua, 4))
+      return luaL_error(lua, "bounds must be a bounding box.");
+    bbox = lua_toboundingbox(lua, 4);
   }
 
   // Pop all the previous arguments off the stack.
   lua_pop(lua, lua_gettop(lua));
 
   // Create the mesh.
-  mesh_t* mesh = create_cubic_lattice_mesh(nx, ny, nz, &bbox);
+  mesh_t* mesh = create_cubic_lattice_mesh(nx, ny, nz, bbox);
 
   // Tag its faces.
 //  tag_cubic_lattice_mesh_faces(mesh, nx, ny, nz, "x1", "x2", "y1", "y2", "z1", "z2");
@@ -182,7 +154,7 @@ int mesh_factory_voronoi(lua_State* lua)
 {
   // Check the arguments.
   int num_args = lua_gettop(lua);
-  if (((num_args != 1) && !lua_istable(lua, 1)) || 
+  if (((num_args != 1) && !lua_ispointlist(lua, 1) && !lua_istable(lua, 1)) || 
       ((num_args != 2) && (!lua_istable(lua, 1) && !lua_isboundingbox(lua, 2))))
   {
     return luaL_error(lua, "Invalid argument(s). Usage:\n"
