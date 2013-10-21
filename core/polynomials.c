@@ -15,7 +15,7 @@
 // limitations under the License.
 
 #include <gc/gc.h>
-#include "core/lagrange_poly.h"
+#include "core/polynomials.h"
 
 struct lagrange_poly_t 
 {

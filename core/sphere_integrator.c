@@ -15,6 +15,20 @@
 // limitations under the License.
 
 #include "core/sphere_integrator.h"
+#include "core/gauss_rules.h"
+
+// Constructs points and weights for the azimuthal interval [0, 2*pi).
+static void get_azi_points_and_weights(int n, double* points, double* weights)
+{
+  ASSERT(n >= 0);
+  ASSERT(points != NULL);
+  ASSERT(weights != NULL);
+  for (int j = 0; j < n+1; ++j)
+  {
+    points[j] = 2.0 * M_PI * (j-1) / (n+1);
+    weights[j] = 2.0 * M_PI / (n+1);
+  }
+}
 
 struct sphere_integrator_t 
 {
@@ -33,17 +47,20 @@ sphere_integrator_t* sphere_integrator_new(int order, sphere_integrator_rule_t r
   integ->num_azi_nodes = order + 1;
   integ->azi_nodes = malloc(sizeof(double) * integ->num_azi_nodes);
   integ->azi_weights = malloc(sizeof(double) * integ->num_azi_nodes);
+  get_azi_points_and_weights(order, integ->azi_nodes, integ->azi_weights);
   if (rule == GAUSS_LEGENDRE)
   {
     integ->num_colat_nodes = order/2 + 1;
     integ->colat_nodes = malloc(sizeof(double) * integ->num_colat_nodes);
     integ->colat_weights = malloc(sizeof(double) * integ->num_colat_nodes);
+    get_gauss_legendre_points(order, integ->azi_nodes, integ->azi_weights);
   }
   else if (rule == GAUSS_RADAU)
   {
     integ->num_colat_nodes = order/2 + 1;
     integ->colat_nodes = malloc(sizeof(double) * integ->num_colat_nodes);
     integ->colat_weights = malloc(sizeof(double) * integ->num_colat_nodes);
+    get_gauss_radau_points(order, integ->azi_nodes, integ->azi_weights);
   }
   else
   {
@@ -51,6 +68,7 @@ sphere_integrator_t* sphere_integrator_new(int order, sphere_integrator_rule_t r
     integ->num_colat_nodes = order/2 + 2;
     integ->colat_nodes = malloc(sizeof(double) * integ->num_colat_nodes);
     integ->colat_weights = malloc(sizeof(double) * integ->num_colat_nodes);
+    get_gauss_lobatto_points(order, integ->azi_nodes, integ->azi_weights);
   }
   return integ;
 }
@@ -74,17 +92,22 @@ static inline void construct_quad_point_and_weight(sphere_integrator_t* integ,
                                                    point_t* xij,
                                                    double* wij)
 {
-  // We use the notation of Hesse (2012).
+  // We use the notation of Hesse (2012), and transform the colatitudinal 
+  // quadrature points from the interval [-1, 1] to [cos(gamma), 1] with 
+  // an affine transformation.
+  double cos_gamma = cos(gamma);
   double phi = integ->azi_nodes[i];
-  double tau = integ->colat_nodes[j];
+  double tau = 0.5 * (1.0 - cos_gamma) * integ->colat_nodes[j];
   double sqrt_tau = sqrt(1.0-tau*tau);
   double x1 = sqrt_tau * cos(phi);
   double x2 = sqrt_tau * sin(phi);
   double x3 = tau;
+
+  // Now we rotate into the coordinate frame in which e3 is the north pole.
   xij->x = x1 * e1->x + x2 * e2->x + x3 * e3->x;
   xij->y = x1 * e1->y + x2 * e2->y + x3 * e3->y;
   xij->z = x1 * e1->z + x2 * e2->z + x3 * e3->z;
-  *wij = integ->azi_weights[i] * integ->colat_weights[j];
+  *wij = 0.5 * (1.0 - cos_gamma) * integ->azi_weights[i] * integ->colat_weights[j];
 }
 
 void sphere_integrator_cap(sphere_integrator_t* integ, 

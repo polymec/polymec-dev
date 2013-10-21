@@ -20,7 +20,7 @@
 #include <setjmp.h>
 #include <string.h>
 #include "cmockery.h"
-#include "core/lagrange_poly.h"
+#include "core/polynomials.h"
 
 void test_L1(void** state)
 {
