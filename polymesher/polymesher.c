@@ -21,7 +21,7 @@
 
 static void mesher_usage(FILE* stream)
 {
-  fprintf(stream, "polymesher v%s:\n", POLYMEC_VERSION);
+  fprintf(stream, "polymesher v%s\n", POLYMEC_VERSION);
   fprintf(stream, "usage: polymesher [file]\n\n");
   fprintf(stream, "Here, [file] is a file specifying instructions\n");
   fprintf(stream, "for generating a mesh.\n\n");
