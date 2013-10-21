@@ -80,12 +80,13 @@ void polymec_init(int argc, char** argv)
 static int default_error_handler(const char* message)
 {
   printf("Fatal error: %s\n", message);
-#if USE_MPI
-  MPI_Abort(MPI_COMM_WORLD, -1);
+//#if USE_MPI
+//  MPI_Abort(MPI_COMM_WORLD, -1);
+//#else
+//  abort();
+//#endif
+  exit(-1);
   return -1; // Not reached.
-#else
-  abort();
-#endif
 }
 
 int 

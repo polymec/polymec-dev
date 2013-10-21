@@ -4,6 +4,7 @@
 debug      = not-set
 mpi        = not-set
 verbose    = not-set
+prefix     = not-set
 
 # This proxies everything to the builddir cmake.
 
@@ -43,6 +44,13 @@ ifneq ($(debug), not-set)
 else
   BUILDDIR := ${BUILDDIR}-Release
   CONFIG_FLAGS += -DCMAKE_BUILD_TYPE=Release
+endif
+
+# Installation prefix.
+ifneq ($(prefix), not-set)
+  CONFIG_FLAGS += -DCMAKE_INSTALL_PREFIX:PATH=$(prefix)
+else
+  CONFIG_FLAGS += -DCMAKE_INSTALL_PREFIX:PATH=/usr/local
 endif
 
 # Special considerations for specific systems.
