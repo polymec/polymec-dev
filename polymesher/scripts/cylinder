@@ -12,9 +12,8 @@ num_removed = remove_points(lat_points, {near_points = cyl_points, within_distan
 --print(num_removed)
 
 --mesh = mesh_factory.voronoi(cyl_points .. lat_points, box)
---mesh = mesh_factory.voronoi({cylinder = cyl_points,
---                             lattice = lat_points}, 
---                            box)
-mesh = mesh_factory.voronoi(cyl_points, box)
+mesh = mesh_factory.voronoi({cylinder = cyl_points,
+                             lattice = lat_points}, 
+                            box)
 print(mesh)
 write_silo_plot(mesh, 'cylinder')

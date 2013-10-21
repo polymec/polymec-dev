@@ -40,9 +40,9 @@ mesh_t* create_cubic_lattice_mesh(int nx, int ny, int nz, bbox_t* bbox)
     {
       for (int k = 0; k < nz; ++k, ++offset)
       {
-        generators[offset].x = (i + 0.5) * dx;
-        generators[offset].y = (j + 0.5) * dy;
-        generators[offset].z = (k + 0.5) * dz;
+        generators[offset].x = bbox->x1 + (i + 0.5) * dx;
+        generators[offset].y = bbox->y1 + (j + 0.5) * dy;
+        generators[offset].z = bbox->z1 + (k + 0.5) * dz;
       }
     }
   }

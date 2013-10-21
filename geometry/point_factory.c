@@ -38,7 +38,7 @@ int point_factory_cubic_lattice(lua_State* lua)
   if ((num_args != 1) || (!lua_istable(lua, 1)))
   {
     return luaL_error(lua, "Invalid arguments. Usage:\n"
-                      "points = point_factory.cubic_lattice{bounding_box, nx, ny, nz, num_ghost = 1}");
+                      "points = point_factory.cubic_lattice{bounding_box, nx, ny, nz, num_ghost = 0}");
   }
 
   // Extract arguments.
