@@ -34,8 +34,8 @@ void test_create_cubic_lattice_mesh(void** state)
   mesh_verify(mesh);
   assert_int_equal(10*10*10, mesh->num_cells);
   assert_int_equal(0, mesh->num_ghost_cells);
-//  assert_int_equal(mesh->num_faces, cubic_lattice_num_faces(lattice));
-//  assert_int_equal(mesh->num_edges, cubic_lattice_num_edges(lattice));
+  assert_int_equal(mesh->num_faces, 10*11*11);
+  assert_int_equal(mesh->num_edges, 10*10*11);
   assert_int_equal(11*11*11, mesh->num_nodes);
   mesh_free(mesh);
 }
