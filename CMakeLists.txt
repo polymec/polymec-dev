@@ -41,14 +41,22 @@ else ()
 endif ()
 
 # Retrieve the Git commit identifier if it's available.
-execute_process(COMMAND git log
+execute_process(COMMAND git log -1 --format=format:%h
                 WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
-                OUTPUT_VARIABLE git_log ERROR_VARIABLE git_log_err)
+                OUTPUT_VARIABLE git_commit_id ERROR_VARIABLE git_log_err)
 if (git_log_err STREQUAL "")
-  string(REGEX MATCH "^commit [a-z0-9]*" git_commit_id ${git_log})
-  string(SUBSTRING ${git_commit_id} 7 -1 git_commit_id)
   message("-- Git commit ID is ${git_commit_id}")
-  set(POLYMEC_VERSION "${POLYMEC_VERSION} (git commit ${git_commit_id})")
+  set(POLYMEC_VERSION "${POLYMEC_VERSION} (git commit ${git_commit_id}")
+
+  # Has the software been modified?
+  execute_process(COMMAND git diff --shortstat
+                  WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+                  OUTPUT_VARIABLE git_diff ERROR_VARIABLE git_diff_err)
+  if (NOT git_diff STREQUAL "")
+    message("-- ${git_diff}")
+    set(POLYMEC_VERSION "${POLYMEC_VERSION}, modified)")
+  endif()
+  set(POLYMEC_VERSION "${POLYMEC_VERSION})")
 endif()
 
 # General compiler flags.

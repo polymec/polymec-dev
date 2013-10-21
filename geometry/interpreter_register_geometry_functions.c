@@ -28,7 +28,7 @@
 // Spatial function library.
 extern void interpreter_register_spfuncs(interpreter_t* interp);
 
-#ifdef HAVE_TETGEN
+#ifdef POLYMEC_HAVE_TETGEN
 // Functions for the point factory, which manufactures sets of points.
 extern int point_factory_random_points(lua_State* lua);
 extern int point_factory_cubic_lattice(lua_State* lua);
@@ -504,7 +504,7 @@ static int remove_points(lua_State* lua)
 
 void interpreter_register_geometry_functions(interpreter_t* interp)
 {
-#ifdef HAVE_TETGEN
+#ifdef POLYMEC_HAVE_TETGEN
   interpreter_register_global_table(interp, "point_factory");
   interpreter_register_global_method(interp, "point_factory", "random_points", point_factory_random_points);
   interpreter_register_global_method(interp, "point_factory", "cubic_lattice", point_factory_cubic_lattice);

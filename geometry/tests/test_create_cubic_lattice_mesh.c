@@ -21,9 +21,6 @@
 #include "cmockery.h"
 #include "core/write_silo.h"
 #include "geometry/create_cubic_lattice_mesh.h"
-
-#undef HAVE_HDF5
-#undef HAVE_TETGEN
 #include "polytope_c.h"
 
 void test_create_cubic_lattice_mesh(void** state)

@@ -15,9 +15,6 @@
 // limitations under the License.
 
 #include "core/write_silo.h"
-
-#undef HAVE_HDF5
-#undef HAVE_TETGEN
 #include "polytope_c.h"
 
 // Create a polytope tessellation from our mesh. This tessellation 
