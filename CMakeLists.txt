@@ -25,8 +25,10 @@ set (BUILD_SHARED_LIBS OFF)
 
 # Project and version numbers.
 project (polymec)
-set (POLYMEC_VERSION_MAJOR 1)
-set (POLYMEC_VERSION_MINOR 0)
+set (POLYMEC_MAJOR_VERSION 0)
+set (POLYMEC_MINOR_VERSION 1)
+set (POLYMEC_PATCH_VERSION 0)
+set (POLYMEC_VERSION "${POLYMEC_MAJOR_VERSION}.${POLYMEC_MINOR_VERSION}.${POLYMEC_PATCH_VERSION}")
 
 # Figure out the system type.
 if (APPLE EQUAL 1)
@@ -37,8 +39,17 @@ else ()
     set(SYS_FLAGS "-DLINUX=1")
   endif ()
 endif ()
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${SYS_FLAGS}")
-set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} ${SYS_FLAGS}")
+
+# Retrieve the Git commit identifier if it's available.
+execute_process(COMMAND git log
+                WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+                OUTPUT_VARIABLE git_log ERROR_VARIABLE git_log_err)
+if (git_log_err STREQUAL "")
+  string(REGEX MATCH "^commit [a-z0-9]*" git_commit_id ${git_log})
+  string(SUBSTRING ${git_commit_id} 7 -1 git_commit_id)
+  message("-- Git commit ID is ${git_commit_id}")
+  set(POLYMEC_VERSION "${POLYMEC_VERSION} (git commit ${git_commit_id})")
+endif()
 
 # General compiler flags.
 if (CMAKE_C_COMPILER_ID STREQUAL "GNU")
@@ -75,18 +86,15 @@ if (LINUX EQUAL 1)
 endif()
 
 # Figure out MPI.
-if (USE_MPI EQUAL 1)
+if (HAVE_MPI EQUAL 1)
   # CC should already have been set in Makefile or whereever.
   set(MPIEXEC mpirun)
   set(MPIEXEC_NUMPROC_FLAG -np)
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DHAVE_MPI")
 
   # NOTE: Disable C++ bindings for MPI, since they have never worked for anyone. 
   set(NO_MPI_CXX_FLAGS "-DMPICH_SKIP_MPICXX -UHAVE_MPI_CPP -DLAM_WANT_MPI2CPP=0 -DLAM_BUILDING=1 -DOMPI_WANT_CXX_BINDINGS=0 -DOMPI_BUILDING=1")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DHAVE_MPI ${NO_MPI_CXX_FLAGS}")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${NO_MPI_CXX_FLAGS}")
 else()
-  set(USE_MPI 0)
-
   # Include our own serial implementation of MPI.
   add_subdirectory(mpi_serial)
   include_directories("${PROJECT_SOURCE_DIR}/mpi_serial")
@@ -97,6 +105,7 @@ add_subdirectory(3rdparty)
 
 # Include the binary directory in the header file search path,
 # since it's where we place the third-party libraries.
+include_directories("${PROJECT_BINARY_DIR}")
 include_directories("${PROJECT_BINARY_DIR}/include")
 link_directories("${PROJECT_BINARY_DIR}/lib")
 include_directories(${POLYMEC_INCDIRS})
