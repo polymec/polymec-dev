@@ -57,6 +57,9 @@ if (git_log_err STREQUAL "")
     set(POLYMEC_VERSION "${POLYMEC_VERSION}, modified)")
   endif()
   set(POLYMEC_VERSION "${POLYMEC_VERSION})")
+else()
+  # We're working with a release version, so for the moment we simply assume
+  # it hasn't been modified.
 endif()
 
 # General compiler flags.
