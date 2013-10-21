@@ -25,13 +25,13 @@ endif
 ifeq ($(mpi), 1)
   BUILDDIR := ${BUILDDIR}-mpi
   CC = mpicc
-  CONFIG_FLAGS += -DUSE_MPI=1
+  CONFIG_FLAGS += -DHAVE_MPI=1
 else
   ifeq ($(CC), )
     CC  = cc
     CXX = c++
   endif
-  CONFIG_FLAGS += -DUSE_MPI=0
+  CONFIG_FLAGS += -DHAVE_MPI=0
 endif
 
 BUILDDIR := ${BUILDDIR}-${CC}
@@ -63,8 +63,8 @@ else
 endif
 
 define run-config
-mkdir -p $(BUILDDIR)
-cd $(BUILDDIR) && cmake $(CURDIR) $(CONFIG_FLAGS)
+@mkdir -p $(BUILDDIR)
+@cd $(BUILDDIR) && cmake $(CURDIR) $(CONFIG_FLAGS)
 endef
 
 all test clean install:
@@ -78,7 +78,7 @@ config: distclean
 	$(run-config)
 
 distclean:
-	rm -rf $(BUILDDIR)
+	@rm -rf $(BUILDDIR)
 
 stats: 
 	@python tools/gather_stats.py

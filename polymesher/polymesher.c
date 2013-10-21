@@ -21,7 +21,7 @@
 
 static void mesher_usage(FILE* stream)
 {
-  fprintf(stream, "polymesher: usage:\n");
+  fprintf(stream, "polymesher v%s: usage:\n", POLYMEC_VERSION);
   fprintf(stream, "polymesher [file] [args]\n\n");
   fprintf(stream, "Here, [file] is a file specifying instructions\n");
   fprintf(stream, "for generating a mesh.\n\n");
@@ -93,6 +93,12 @@ int main(int argc, char** argv)
     else if (!strcasecmp(logging, "off"))
       set_log_level(LOG_NONE);
   }
+
+  // Print a version identifier.
+  int rank;
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  if (rank == 0)
+    printf("polymesher v%s\n", POLYMEC_VERSION);
 
   // Set up an interpreter for parsing the input file.
   interpreter_t* interp = interpreter_new(NULL);

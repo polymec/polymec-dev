@@ -19,14 +19,6 @@
 // Please see the license file in the Tetgen tarball for license information 
 // on Tetgen.
 
-#ifndef HAVE_TETGEN
-#error "create_voronoi_mesh.c should not be built without Tetgen!"
-#endif
-
-#undef HAVE_HDF5 // FIXME (HACK): Avoids warnings with polytope 
-#undef HAVE_TETGEN // FIXME (HACK): Avoids warnings with polytope 
-#include "polytope_c.h"
-
 #include "core/mesh_storage.h"
 #include "core/table.h"
 #include "core/unordered_map.h"
@@ -34,6 +26,12 @@
 #include "core/slist.h"
 #include "core/kd_tree.h"
 #include "geometry/create_voronoi_mesh.h"
+
+#if !POLYMEC_HAVE_TETGEN
+#error "create_voronoi_mesh.c should not be built without Tetgen!"
+#endif
+
+#include "polytope_c.h"
 
 // This function rounds the given number up to the nearest power of 2.
 static int round_to_pow2(int x)
