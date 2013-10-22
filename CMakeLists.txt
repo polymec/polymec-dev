@@ -57,6 +57,16 @@ if (git_log_err STREQUAL "")
     set(POLYMEC_VERSION "${POLYMEC_VERSION}, modified)")
   endif()
   set(POLYMEC_VERSION "${POLYMEC_VERSION})")
+
+  # If this version string doesn't match the one in polymec.h, that file 
+  # must be regenerated.
+  if (EXISTS ${PROJECT_BINARY_DIR}/core/polymec.h)
+    file(READ ${PROJECT_BINARY_DIR}/core/polymec.h polymec_header)
+    string(FIND "${polymec_header}" "${POLYMEC_VERSION}" version_index)
+    if (version_index EQUAL -1)
+      file(REMOVE ${PROJECT_BINARY_DIR}/core/polymec.h)
+    endif()
+  endif()
 else()
   # We're working with a release version, so for the moment we simply assume
   # it hasn't been modified.
