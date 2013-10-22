@@ -31,6 +31,7 @@ extern bool tagger_set_property(tagger_t* tagger, const char* tag_name, const ch
 extern void* tagger_property(tagger_t* tagger, const char* tag_name, const char* property_name);
 extern void tagger_delete_property(tagger_t* tagger, const char* tag_name, const char* property_name);
 extern void tagger_rename_tag(tagger_t* tagger, const char* old_tag_name, const char* new_tag_name);
+extern bool tagger_next_tag(tagger_t* tagger, int* pos, char** tag_name, int** tag_indices, int* tag_size);
 
 // This function rounds the given number up to the nearest power of 2.
 static int round_to_pow2(int x)
@@ -257,6 +258,11 @@ void mesh_rename_tag(tagger_t* tagger, const char* old_tag, const char* new_tag)
 void mesh_delete_tag(tagger_t* tagger, const char* tag)
 {
   tagger_delete_tag(tagger, tag);
+}
+
+bool mesh_next_tag(tagger_t* tagger, int* pos, char** tag_name, int** tag_indices, int* tag_size)
+{
+  return tagger_next_tag(tagger, pos, tag_name, tag_indices, tag_size);
 }
 
 void mesh_compute_geometry(mesh_t* mesh)

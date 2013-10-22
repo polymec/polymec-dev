@@ -202,3 +202,14 @@ void tagger_delete_tag(tagger_t* tagger, const char* tag)
   tagger_data_map_delete(tagger->data, (char*)tag);
 }
 
+bool tagger_next_tag(tagger_t* tagger, int* pos, char** tag_name, int** tag_indices, int* tag_size)
+{
+  tagger_data_t* data;
+  bool result = tagger_data_map_next(tagger->data, pos, tag_name, &data);
+  if (result)
+  {
+    *tag_size = data->num_indices;
+    *tag_indices = data->indices;
+  }
+  return result;
+}

@@ -502,6 +502,92 @@ static int remove_points(lua_State* lua)
   return 1;
 }
 
+#if 0
+static int cell_tags(lua_State* lua)
+{
+  // Check the arguments.
+  int num_args = lua_gettop(lua);
+  if ((num_args != 1) || !lua_ismesh(lua, 1))
+  {
+    return luaL_error(lua, "Invalid argument(s). Usage:\n"
+                      "tags = cell_tags(mesh) ->\n"
+                      "Returns a list of names of cell tags for the given mesh.");
+  }
+}
+
+static int cell_tag(lua_State* lua)
+{
+  // Check the arguments.
+  int num_args = lua_gettop(lua);
+  if ((num_args != 2) || !lua_ispointlist(lua, 1) || !lua_istable(lua, 2))
+  {
+    return luaL_error(lua, "Invalid argument(s). Usage:\n"
+                      "remove_points(points, options) ->\n"
+                      "Removes points in the given list that meet the given criterion.");
+  }
+
+  // Extract arguments.
+  int num_points = 0;
+  point_t* points = lua_topointlist(lua, 1, &num_points);
+  int num_near_points = 0;
+  point_t* near_points = NULL;
+  double within_distance = 0.0;
+  st_func_t* within_surface = NULL;
+  bbox_t* within_bbox = NULL;
+  double at_time = 0.0;
+  const char* entries[] = {"near_points", "within_distance", "within_surface", "at_time"};
+  for (int i = 0; i < 4; ++i)
+  {
+    lua_pushstring(lua, entries[i]);
+    lua_gettable(lua, 2);
+    if (i == 0) // near_points
+    {
+      if (lua_isnil(lua, -1))
+      {
+        lua_pop(lua, 1);
+        lua_pushinteger(lua, 1);
+        lua_gettable(lua, 2);
+      }
+      if (!lua_ispointlist(lua, -1))
+        return luaL_error(lua, "near_points should be a list of points.");
+
+      near_points = lua_topointlist(lua, -1, &num_near_points);
+    }
+    else if (i == 1) // within_distance
+    {
+      if (!lua_isnumber(lua, -1))
+        return luaL_error(lua, "within_distance should be a number.");
+      within_distance = lua_tonumber(lua, -1);
+      if (within_distance <= 0.0)
+        return luaL_error(lua, "within_distance should be positive.");
+    }
+    else if (i == 2) // within_surface
+    {
+      if (lua_isboundingbox(lua, -1))
+      {
+        within_bbox = lua_toboundingbox(lua, -1);
+        sp_func_t* bbox_surface = rect_prism_new_from_bbox(within_bbox);
+        within_surface = st_func_from_sp_func(bbox_surface);
+        bbox_surface = NULL;
+      }
+      else if (lua_isscalarfunction(lua, -1))
+        within_surface = lua_toscalarfunction(lua, -1);
+      else if (!lua_isnil(lua, -1))
+        return luaL_error(lua, "within_surface should be a scalar function.");
+    }
+    else // at_time
+    {
+      if (lua_isnil(lua, -1)) break;
+      if (!lua_isnumber(lua, -1))
+        return luaL_error(lua, "at_time should be a number.");
+
+      at_time = lua_tonumber(lua, -1);
+    }
+  }
+}
+#endif
+
+
 void interpreter_register_geometry_functions(interpreter_t* interp)
 {
 #ifdef POLYMEC_HAVE_TETGEN
@@ -526,5 +612,11 @@ void interpreter_register_geometry_functions(interpreter_t* interp)
   interpreter_register_function(interp, "copy_points", copy_points);
   interpreter_register_function(interp, "remove_points", remove_points);
   interpreter_register_spfuncs(interp);
+
+  // Mesh-specific functions.
+//  interpreter_register_function(interp, "cell_tags", cell_tags);
+//  interpreter_register_function(interp, "cell_tag", cell_tag);
+//  interpreter_register_function(interp, "face_tags", face_tags);
+//  interpreter_register_function(interp, "face_tag", face_tag);
 }
 
