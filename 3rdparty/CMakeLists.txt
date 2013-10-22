@@ -26,7 +26,7 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libgc.a)
     message(FATAL_ERROR "Configuration of gc library failed.")
   endif()
 
-  message("Building gc...")
+  message("Building and installing gc...")
   execute_process(COMMAND make install -j4
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/gc-7.2
                   OUTPUT_VARIABLE gc_build_log ERROR_VARIABLE gc_build_err
@@ -85,7 +85,7 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libz.a)
     message(FATAL_ERROR "Configuration of zlib library failed.")
   endif()
 
-  message("Building zlib...")
+  message("Building and installing zlib...")
   execute_process(COMMAND make install -j4
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/zlib-1.2.8
                   OUTPUT_VARIABLE zlib_build_log ERROR_VARIABLE zlib_build_err
@@ -126,7 +126,7 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libhdf5.a)
     message(FATAL_ERROR "Configuration of hdf5 library failed.")
   endif()
 
-  message("Building hdf5...")
+  message("Building and installing hdf5...")
   execute_process(COMMAND make install -j4
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/hdf5-1.8.11
                   OUTPUT_VARIABLE hdf5_build_log ERROR_VARIABLE hdf5_build_err
@@ -142,14 +142,14 @@ set(POLYMEC_TP_LIBS hdf5;${POLYMEC_TP_LIBS})
 
 # Install silo with HDF5 support.
 if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libsiloh5.a)
-  set(SILO_CONFIG_OPTS --enable-static --disable-shared --disable-fortran --without-readline --without-qt --disable-browser)
+  set(SILO_CONFIG_OPTS --enable-static --disable-shared --disable-fortran --without-readline --disable-browser --disable-silex)
   set(SILO_CONFIG_OPTS ${SILO_CONFIG_OPTS} --with-hdf5=${PROJECT_BINARY_DIR}/include,${PROJECT_BINARY_DIR}/lib)
   if (${CMAKE_BUILD_TYPE} STREQUAL "Debug")
     set(SILO_CONFIG_OPTS ${SILO_CONFIG_OPTS} --enable-debug)
   endif()
   set(SILO_CONFIG_OPTS ${SILO_CONFIG_OPTS} --prefix=${PROJECT_BINARY_DIR})
   message("Unpacking silo...")
-  execute_process(COMMAND cmake -E tar xzf ${CMAKE_CURRENT_SOURCE_DIR}/silo-4.8-bsd-smalltest.tar.gz
+  execute_process(COMMAND cmake -E tar xzf ${CMAKE_CURRENT_SOURCE_DIR}/silo-4.9.1-bsd-smalltest.tar.gz
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
                   OUTPUT_VARIABLE silo_config_log ERROR_VARIABLE silo_config_err
                   RESULT_VARIABLE stat)
@@ -159,7 +159,7 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libsiloh5.a)
 
   message("Configuring silo...")
   execute_process(COMMAND env CC=${CC} CXX=${CXX} ./configure ${SILO_CONFIG_OPTS}
-                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/silo-4.8-bsd
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/silo-4.9.1-bsd
                   OUTPUT_VARIABLE silo_config_log ERROR_VARIABLE silo_config_err
                   RESULT_VARIABLE stat)
   file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/silo_config.log ${silo_config_log})
@@ -168,9 +168,9 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libsiloh5.a)
     message(FATAL_ERROR "Configuration of silo library failed.")
   endif()
 
-  message("Building silo...")
+  message("Building and installing silo...")
   execute_process(COMMAND make install -j4
-                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/silo-4.8-bsd
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/silo-4.9.1-bsd
                   OUTPUT_VARIABLE silo_build_log ERROR_VARIABLE silo_build_err
                   RESULT_VARIABLE stat)
   file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/silo_build.log ${silo_build_log})
@@ -352,7 +352,7 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libsundials_cvode.a)
     message(FATAL_ERROR "Configuration of sundials library failed.")
   endif()
 
-  message("Building sundials...")
+  message("Building and installing sundials...")
   execute_process(COMMAND make install -j4
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/sundials-2.4.0
                   OUTPUT_VARIABLE sundials_build_log ERROR_VARIABLE sundials_build_err
