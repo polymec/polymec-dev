@@ -15,5 +15,6 @@ lat_points = point_factory.cubic_lattice{bounding_box = box, nx = 20, ny = 20, n
 mesh = mesh_factory.voronoi({cylinder = cyl_points,
                              lattice = lat_points})
 --                            box)
+tag = cell_tag(mesh, 'inf_cells')
 print(mesh)
 write_silo_plot(mesh, 'cylinder')
