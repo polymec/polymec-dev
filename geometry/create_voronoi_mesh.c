@@ -130,10 +130,13 @@ static mesh_t* mesh_from_unbounded_tessellation(polytope_tessellation_t* tess,
   // Clean up.
   int_table_free(edge_for_nodes);
 
-  // Tag all the "inf" faces.
+  // Tag all the "inf" faces and "inf" nodes.
   int* inf_faces = mesh_create_tag(mesh->face_tags, "inf_faces", tess->num_inf_faces);
   for (int i = 0; i < tess->num_inf_faces; ++i)
     inf_faces[i] = (int)tess->inf_faces[i];
+  int* inf_nodes = mesh_create_tag(mesh->node_tags, "inf_nodes", tess->num_inf_nodes);
+  for (int i = 0; i < tess->num_inf_nodes; ++i)
+    inf_nodes[i] = (int)tess->inf_nodes[i];
 
   return mesh;
 }

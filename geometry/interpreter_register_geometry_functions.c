@@ -28,13 +28,13 @@
 // Spatial function library.
 extern void interpreter_register_spfuncs(interpreter_t* interp);
 
-#ifdef POLYMEC_HAVE_TETGEN
 // Functions for the point factory, which manufactures sets of points.
 extern int point_factory_random_points(lua_State* lua);
 extern int point_factory_cubic_lattice(lua_State* lua);
 extern int point_factory_cylinder(lua_State* lua);
 extern int point_factory_import_from_cad(lua_State* lua);
 
+#ifdef POLYMEC_HAVE_TETGEN
 // Functions for the mesh factory, which generates meshes.
 extern int mesh_factory_cubic_lattice(lua_State* lua);
 //extern int mesh_factory_cubic_lattice_periodic_bc(lua_State* lua);
@@ -502,7 +502,6 @@ static int remove_points(lua_State* lua)
   return 1;
 }
 
-#if 0
 static int cell_tags(lua_State* lua)
 {
   // Check the arguments.
@@ -513,90 +512,221 @@ static int cell_tags(lua_State* lua)
                       "tags = cell_tags(mesh) ->\n"
                       "Returns a list of names of cell tags for the given mesh.");
   }
+  mesh_t* mesh = lua_tomesh(lua, 1);
+
+  lua_newtable(lua);
+  int pos = 0, index = 1, *tag_indices, tag_size;
+  char* tag_name;
+  while (mesh_next_tag(mesh->cell_tags, &pos, &tag_name, &tag_indices, &tag_size))
+  {
+    lua_pushinteger(lua, index++);
+    lua_pushstring(lua, (const char*)tag_name);
+    lua_settable(lua, -3);
+  }
+
+  return 1;
 }
 
 static int cell_tag(lua_State* lua)
 {
   // Check the arguments.
   int num_args = lua_gettop(lua);
-  if ((num_args != 2) || !lua_ispointlist(lua, 1) || !lua_istable(lua, 2))
+  if ((num_args != 2) || !lua_ismesh(lua, 1) || !lua_isstring(lua, 2))
   {
     return luaL_error(lua, "Invalid argument(s). Usage:\n"
-                      "remove_points(points, options) ->\n"
-                      "Removes points in the given list that meet the given criterion.");
+                      "tag = cell_tag(mesh, tag_name) ->\n"
+                      "Returns a list of cell indices associated with the given tag in the mesh.");
   }
+  mesh_t* mesh = lua_tomesh(lua, 1);
+  const char* tag_name = lua_tostring(lua, 2);
 
-  // Extract arguments.
-  int num_points = 0;
-  point_t* points = lua_topointlist(lua, 1, &num_points);
-  int num_near_points = 0;
-  point_t* near_points = NULL;
-  double within_distance = 0.0;
-  st_func_t* within_surface = NULL;
-  bbox_t* within_bbox = NULL;
-  double at_time = 0.0;
-  const char* entries[] = {"near_points", "within_distance", "within_surface", "at_time"};
-  for (int i = 0; i < 4; ++i)
+  if (!mesh_has_tag(mesh->cell_tags, tag_name))
+    return luaL_error(lua, "The given mesh has no cell tag named '%s'.", tag_name);
+
+  int size;
+  int* tag = mesh_tag(mesh->cell_tags, tag_name, &size);
+  lua_newtable(lua);
+  for (int i = 0; i < size; ++i)
   {
-    lua_pushstring(lua, entries[i]);
-    lua_gettable(lua, 2);
-    if (i == 0) // near_points
-    {
-      if (lua_isnil(lua, -1))
-      {
-        lua_pop(lua, 1);
-        lua_pushinteger(lua, 1);
-        lua_gettable(lua, 2);
-      }
-      if (!lua_ispointlist(lua, -1))
-        return luaL_error(lua, "near_points should be a list of points.");
-
-      near_points = lua_topointlist(lua, -1, &num_near_points);
-    }
-    else if (i == 1) // within_distance
-    {
-      if (!lua_isnumber(lua, -1))
-        return luaL_error(lua, "within_distance should be a number.");
-      within_distance = lua_tonumber(lua, -1);
-      if (within_distance <= 0.0)
-        return luaL_error(lua, "within_distance should be positive.");
-    }
-    else if (i == 2) // within_surface
-    {
-      if (lua_isboundingbox(lua, -1))
-      {
-        within_bbox = lua_toboundingbox(lua, -1);
-        sp_func_t* bbox_surface = rect_prism_new_from_bbox(within_bbox);
-        within_surface = st_func_from_sp_func(bbox_surface);
-        bbox_surface = NULL;
-      }
-      else if (lua_isscalarfunction(lua, -1))
-        within_surface = lua_toscalarfunction(lua, -1);
-      else if (!lua_isnil(lua, -1))
-        return luaL_error(lua, "within_surface should be a scalar function.");
-    }
-    else // at_time
-    {
-      if (lua_isnil(lua, -1)) break;
-      if (!lua_isnumber(lua, -1))
-        return luaL_error(lua, "at_time should be a number.");
-
-      at_time = lua_tonumber(lua, -1);
-    }
+    lua_pushinteger(lua, i);
+    lua_pushinteger(lua, tag[i]);
+    lua_settable(lua, -3);
   }
-}
-#endif
 
+  return 1;
+}
+
+static int face_tags(lua_State* lua)
+{
+  // Check the arguments.
+  int num_args = lua_gettop(lua);
+  if ((num_args != 1) || !lua_ismesh(lua, 1))
+  {
+    return luaL_error(lua, "Invalid argument(s). Usage:\n"
+                      "tags = face_tags(mesh) ->\n"
+                      "Returns a list of names of face tags for the given mesh.");
+  }
+  mesh_t* mesh = lua_tomesh(lua, 1);
+
+  lua_newtable(lua);
+  int pos = 0, index = 1, *tag_indices, tag_size;
+  char* tag_name;
+  while (mesh_next_tag(mesh->face_tags, &pos, &tag_name, &tag_indices, &tag_size))
+  {
+    lua_pushinteger(lua, index++);
+    lua_pushstring(lua, (const char*)tag_name);
+    lua_settable(lua, -3);
+  }
+
+  return 1;
+}
+
+static int face_tag(lua_State* lua)
+{
+  // Check the arguments.
+  int num_args = lua_gettop(lua);
+  if ((num_args != 2) || !lua_ismesh(lua, 1) || !lua_isstring(lua, 2))
+  {
+    return luaL_error(lua, "Invalid argument(s). Usage:\n"
+                      "tag = face_tag(mesh, tag_name) ->\n"
+                      "Returns a list of face indices associated with the given tag in the mesh.");
+  }
+  mesh_t* mesh = lua_tomesh(lua, 1);
+  const char* tag_name = lua_tostring(lua, 2);
+
+  if (!mesh_has_tag(mesh->face_tags, tag_name))
+    return luaL_error(lua, "The given mesh has no face tag named '%s'.", tag_name);
+
+  int size;
+  int* tag = mesh_tag(mesh->face_tags, tag_name, &size);
+  lua_newtable(lua);
+  for (int i = 0; i < size; ++i)
+  {
+    lua_pushinteger(lua, i);
+    lua_pushinteger(lua, tag[i]);
+    lua_settable(lua, -3);
+  }
+
+  return 1;
+}
+
+static int edge_tags(lua_State* lua)
+{
+  // Check the arguments.
+  int num_args = lua_gettop(lua);
+  if ((num_args != 1) || !lua_ismesh(lua, 1))
+  {
+    return luaL_error(lua, "Invalid argument(s). Usage:\n"
+                      "tags = edge_tags(mesh) ->\n"
+                      "Returns a list of names of edge tags for the given mesh.");
+  }
+  mesh_t* mesh = lua_tomesh(lua, 1);
+
+  lua_newtable(lua);
+  int pos = 0, index = 1, *tag_indices, tag_size;
+  char* tag_name;
+  while (mesh_next_tag(mesh->edge_tags, &pos, &tag_name, &tag_indices, &tag_size))
+  {
+    lua_pushinteger(lua, index++);
+    lua_pushstring(lua, (const char*)tag_name);
+    lua_settable(lua, -3);
+  }
+
+  return 1;
+}
+
+static int edge_tag(lua_State* lua)
+{
+  // Check the arguments.
+  int num_args = lua_gettop(lua);
+  if ((num_args != 2) || !lua_ismesh(lua, 1) || !lua_isstring(lua, 2))
+  {
+    return luaL_error(lua, "Invalid argument(s). Usage:\n"
+                      "tag = edge_tag(mesh, tag_name) ->\n"
+                      "Returns a list of edge indices associated with the given tag in the mesh.");
+  }
+  mesh_t* mesh = lua_tomesh(lua, 1);
+  const char* tag_name = lua_tostring(lua, 2);
+
+  if (!mesh_has_tag(mesh->edge_tags, tag_name))
+    return luaL_error(lua, "The given mesh has no edge tag named '%s'.", tag_name);
+
+  int size;
+  int* tag = mesh_tag(mesh->edge_tags, tag_name, &size);
+  lua_newtable(lua);
+  for (int i = 0; i < size; ++i)
+  {
+    lua_pushinteger(lua, i);
+    lua_pushinteger(lua, tag[i]);
+    lua_settable(lua, -3);
+  }
+
+  return 1;
+}
+
+static int node_tags(lua_State* lua)
+{
+  // Check the arguments.
+  int num_args = lua_gettop(lua);
+  if ((num_args != 1) || !lua_ismesh(lua, 1))
+  {
+    return luaL_error(lua, "Invalid argument(s). Usage:\n"
+                      "tags = node_tags(mesh) ->\n"
+                      "Returns a list of names of node tags for the given mesh.");
+  }
+  mesh_t* mesh = lua_tomesh(lua, 1);
+
+  lua_newtable(lua);
+  int pos = 0, index = 1, *tag_indices, tag_size;
+  char* tag_name;
+  while (mesh_next_tag(mesh->node_tags, &pos, &tag_name, &tag_indices, &tag_size))
+  {
+    lua_pushinteger(lua, index++);
+    lua_pushstring(lua, (const char*)tag_name);
+    lua_settable(lua, -3);
+  }
+
+  return 1;
+}
+
+static int node_tag(lua_State* lua)
+{
+  // Check the arguments.
+  int num_args = lua_gettop(lua);
+  if ((num_args != 2) || !lua_ismesh(lua, 1) || !lua_isstring(lua, 2))
+  {
+    return luaL_error(lua, "Invalid argument(s). Usage:\n"
+                      "tag = node_tag(mesh, tag_name) ->\n"
+                      "Returns a list of node indices associated with the given tag in the mesh.");
+  }
+  mesh_t* mesh = lua_tomesh(lua, 1);
+  const char* tag_name = lua_tostring(lua, 2);
+
+  if (!mesh_has_tag(mesh->node_tags, tag_name))
+    return luaL_error(lua, "The given mesh has no node tag named '%s'.", tag_name);
+
+  int size;
+  int* tag = mesh_tag(mesh->node_tags, tag_name, &size);
+  lua_newtable(lua);
+  for (int i = 0; i < size; ++i)
+  {
+    lua_pushinteger(lua, i);
+    lua_pushinteger(lua, tag[i]);
+    lua_settable(lua, -3);
+  }
+
+  return 1;
+}
 
 void interpreter_register_geometry_functions(interpreter_t* interp)
 {
-#ifdef POLYMEC_HAVE_TETGEN
   interpreter_register_global_table(interp, "point_factory");
   interpreter_register_global_method(interp, "point_factory", "random_points", point_factory_random_points);
   interpreter_register_global_method(interp, "point_factory", "cubic_lattice", point_factory_cubic_lattice);
   interpreter_register_global_method(interp, "point_factory", "cylinder", point_factory_cylinder);
   interpreter_register_global_method(interp, "point_factory", "import_from_cad", point_factory_import_from_cad);
 
+#ifdef POLYMEC_HAVE_TETGEN
   interpreter_register_global_table(interp, "mesh_factory");
   interpreter_register_global_method(interp, "mesh_factory", "cubic_lattice", mesh_factory_cubic_lattice);
 //  interpreter_register_global_method(interp, "mesh_factory", "cubic_lattice_periodic_bc", mesh_factory_cubic_lattice_periodic_bc);
@@ -614,9 +744,13 @@ void interpreter_register_geometry_functions(interpreter_t* interp)
   interpreter_register_spfuncs(interp);
 
   // Mesh-specific functions.
-//  interpreter_register_function(interp, "cell_tags", cell_tags);
-//  interpreter_register_function(interp, "cell_tag", cell_tag);
-//  interpreter_register_function(interp, "face_tags", face_tags);
-//  interpreter_register_function(interp, "face_tag", face_tag);
+  interpreter_register_function(interp, "cell_tags", cell_tags);
+  interpreter_register_function(interp, "cell_tag", cell_tag);
+  interpreter_register_function(interp, "face_tags", face_tags);
+  interpreter_register_function(interp, "face_tag", face_tag);
+  interpreter_register_function(interp, "edge_tags", edge_tags);
+  interpreter_register_function(interp, "edge_tag", edge_tag);
+  interpreter_register_function(interp, "node_tags", node_tags);
+  interpreter_register_function(interp, "node_tag", node_tag);
 }
 
