@@ -7,11 +7,9 @@ header_file = sys.argv[2]
 # Git commit ID
 try:
     git_commit = ' (git commit %s'%subprocess.check_output(['git', 'log', '-1', '--format=format:%h']).strip()
-#    try:
     git_diff = subprocess.check_output(['git', 'diff', '--stat']).strip().replace('\n', '"\n"')
-    git_commit += ', modified'
-#    except:
-#        git_diff = ''
+    if git_diff != '':
+        git_commit += ', modified'
     git_commit += ')'
 except:
     git_commit = ''
