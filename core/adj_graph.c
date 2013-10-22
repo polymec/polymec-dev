@@ -257,6 +257,7 @@ static int compare_degrees(void* data, const void* left, const void* right)
                                        : 0;
 }
 
+#if 0
 static void sort_vertices_by_degree(int* degree, int num_vertices, int* vertices)
 {
   vertex_sorter_t sorter = {.degree = degree, 
@@ -470,4 +471,5 @@ bool adj_graph_coloring_has_vertex(adj_graph_coloring_t* coloring,
   }
   return false;
 }
+#endif
 
