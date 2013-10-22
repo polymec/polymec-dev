@@ -199,7 +199,9 @@ void polymec_provenance_fprintf(int argc, char** argv, FILE* stream)
   for (int i = 0; i < argc; ++i)
     fprintf(stream, "%s ", argv[i]);
   fprintf(stream, "\n");
-  fprintf(stream, "Invoked on: %s\n\n", asctime(NULL));
+  time_t raw_time;
+  time(&raw_time);
+  fprintf(stream, "Invoked on: %s\n\n", ctime(&raw_time));
 
   if (strlen(POLYMEC_GIT_DIFF) > 0)
   {
