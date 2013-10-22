@@ -12,6 +12,10 @@ add_library(polymec_core polymec.c arch.c point.c tagger.c mesh.c
             sphere_integrator.c index_space.c newton.c options.c interpreter.c 
             interpreter_register_default_functions.c
             string_utils.c linear_algebra.c loggers.c write_silo.c)
+
+# polymec.c depends on the creation of polymec_version.h.
+add_dependencies(polymec_core update_polymec_version_h)
+
 set(POLYMEC_LIBS polymec_core;${POLYMEC_LIBS} PARENT_SCOPE)
 set(POLYMEC_LIBS polymec_core;${POLYMEC_LIBS})
 add_subdirectory(tests)

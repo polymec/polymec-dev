@@ -9,15 +9,34 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libgc.a)
   message("Unpacking gc...")
   execute_process(COMMAND cmake -E tar xzf ${CMAKE_CURRENT_SOURCE_DIR}/gc-7.2.tar.gz
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-                  OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
+                  OUTPUT_VARIABLE crap ERROR_VARIABLE crap
+                  RESULT_VARIABLE stat)
+  if (NOT stat EQUAL 0)
+    message(FATAL_ERROR "Unpacking gc library failed.")
+  endif()
+
   message("Configuring gc...")
   execute_process(COMMAND env CC=${CC} ./configure ${GC_CONFIG_OPTS}
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/gc-7.2
-                  OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
+                  OUTPUT_VARIABLE gc_config_log ERROR_VARIABLE gc_config_err
+                  RESULT_VARIABLE stat)
+  file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/gc_config.log ${gc_config_log})
+  if (NOT stat EQUAL 0)
+    file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/gc_config_errors.log ${gc_config_err})
+    message(FATAL_ERROR "Configuration of gc library failed.")
+  endif()
+
   message("Building gc...")
   execute_process(COMMAND make install -j4
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/gc-7.2
-                  OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
+                  OUTPUT_VARIABLE gc_build_log ERROR_VARIABLE gc_build_err
+                  RESULT_VARIABLE stat)
+  file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/gc_build.log ${gc_build_log})
+  if (NOT stat EQUAL 0)
+    file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/gc_build_errors.log ${gc_build_err})
+    message(FATAL_ERROR "Build of gc library failed.")
+  endif()
+
 endif()
 set(POLYMEC_TP_LIBS gc;${POLYMEC_TP_LIBS})
 
@@ -26,7 +45,12 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/include/arena)
   message("Unpacking libarena...")
   execute_process(COMMAND cmake -E tar xzf ${CMAKE_CURRENT_SOURCE_DIR}/libarena-0.3.5.tgz
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-                  OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
+                  OUTPUT_VARIABLE crap ERROR_VARIABLE crap
+                  RESULT_VARIABLE stat)
+  if (NOT stat EQUAL 0)
+    message(FATAL_ERROR "Unpacking arena library failed.")
+  endif()
+
   message("Preparing libarena...")
   file(GLOB arena_includes "${CMAKE_CURRENT_BINARY_DIR}/libarena-0.3.5/src/*.h")
   execute_process(COMMAND cmake -E make_directory ${PROJECT_BINARY_DIR}/include/arena)
@@ -44,15 +68,32 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libz.a)
   message("Unpacking zlib...")
   execute_process(COMMAND cmake -E tar xzf ${CMAKE_CURRENT_SOURCE_DIR}/zlib-1.2.8.tar.gz
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-                  OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
+                  OUTPUT_VARIABLE crap ERROR_VARIABLE crap
+                  RESULT_VARIABLE stat)
+  if (NOT stat EQUAL 0)
+    message(FATAL_ERROR "Unpacking zlib library failed.")
+  endif()
+
   message("Configuring zlib...")
   execute_process(COMMAND env CC=${CMAKE_C_COMPILER} ./configure ${ZLIB_CONFIG_OPTS}
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/zlib-1.2.8
-                  OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
+                  OUTPUT_VARIABLE zlib_config_log ERROR_VARIABLE zlib_config_err
+                  RESULT_VARIABLE stat)
+  if (NOT stat EQUAL 0)
+    file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/zlib_config_errors.log ${zlib_config_err})
+    message(FATAL_ERROR "Configuration of zlib library failed.")
+  endif()
+
   message("Building zlib...")
   execute_process(COMMAND make install -j4
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/zlib-1.2.8
-                  OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
+                  OUTPUT_VARIABLE zlib_build_log ERROR_VARIABLE zlib_build_err
+                  RESULT_VARIABLE stat)
+  if (NOT stat EQUAL 0)
+    file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/zlib_build_errors.log ${zlib_build_err})
+    message(FATAL_ERROR "Build of zlib library failed.")
+  endif()
+
 endif()
 set(POLYMEC_TP_LIBS z;${POLYMEC_TP_LIBS})
 
@@ -66,15 +107,32 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libhdf5.a)
   message("Unpacking hdf5...")
   execute_process(COMMAND cmake -E tar xzf ${CMAKE_CURRENT_SOURCE_DIR}/hdf5-1.8.11.tar.gz
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-                  OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
+                  OUTPUT_VARIABLE crap ERROR_VARIABLE crap
+                  RESULT_VARIABLE stat)
+  if (NOT stat EQUAL 0)
+    message(FATAL_ERROR "Unpacking hdf5 library failed.")
+  endif()
+
   message("Configuring hdf5...")
   execute_process(COMMAND env CC=${CMAKE_C_COMPILER} FC=${MAKE_Fortran_COMPILER} ./configure ${HDF5_CONFIG_OPTS}
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/hdf5-1.8.11
-                  OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
+                  OUTPUT_VARIABLE hdf5_config_log ERROR_VARIABLE hdf5_config_err
+                  RESULT_VARIABLE stat)
+  if (NOT stat EQUAL 0)
+    file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/hdf5_config_errors.log ${hdf5_config_err})
+    message(FATAL_ERROR "Configuration of hdf5 library failed.")
+  endif()
+
   message("Building hdf5...")
   execute_process(COMMAND make install -j4
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/hdf5-1.8.11
-                  OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
+                  OUTPUT_VARIABLE hdf5_build_log ERROR_VARIABLE hdf5_build_err
+                  RESULT_VARIABLE stat)
+  if (NOT stat EQUAL 0)
+    file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/hdf5_build_errors.log ${hdf5_build_err})
+    message(FATAL_ERROR "Build of hdf5 library failed.")
+  endif()
+
 endif()
 set(POLYMEC_TP_LIBS hdf5;${POLYMEC_TP_LIBS})
 
@@ -89,15 +147,31 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libsiloh5.a)
   message("Unpacking silo...")
   execute_process(COMMAND cmake -E tar xzf ${CMAKE_CURRENT_SOURCE_DIR}/silo-4.8-bsd-smalltest.tar.gz
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-                  OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
+                  OUTPUT_VARIABLE silo_config_log ERROR_VARIABLE silo_config_err
+                  RESULT_VARIABLE stat)
+  if (NOT stat EQUAL 0)
+    message(FATAL_ERROR "Unpacking silo library failed.")
+  endif()
+
   message("Configuring silo...")
   execute_process(COMMAND env CC=${CC} CXX=${CXX} ./configure ${SILO_CONFIG_OPTS}
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/silo-4.8-bsd
-                  OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
+                  OUTPUT_VARIABLE silo_build_log ERROR_VARIABLE silo_build_err
+                  RESULT_VARIABLE stat)
+  if (NOT stat EQUAL 0)
+    file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/silo_config_errors.log ${silo_config_err})
+    message(FATAL_ERROR "Configuration of silo library failed.")
+  endif()
+
   message("Building silo...")
   execute_process(COMMAND make install -j4
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/silo-4.8-bsd
-                  OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
+                  OUTPUT_VARIABLE crap ERROR_VARIABLE crap
+                  RESULT_VARIABLE stat)
+  if (NOT stat EQUAL 0)
+    file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/silo_build_errors.log ${silo_build_err})
+    message(FATAL_ERROR "Build of silo library failed.")
+  endif()
 endif()
 set(POLYMEC_TP_LIBS siloh5;${POLYMEC_TP_LIBS})
 
@@ -110,7 +184,11 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libpolytope.a)
   message("Unpacking polytope...")
   execute_process(COMMAND cmake -E tar xzf ${CMAKE_CURRENT_SOURCE_DIR}/${polytope_tarball}
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-                  OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
+                  OUTPUT_VARIABLE crap ERROR_VARIABLE crap
+                  RESULT_VARIABLE stat)
+  if (NOT stat EQUAL 0)
+    message(FATAL_ERROR "Unpacking polytope library failed.")
+  endif()
 
   # If a Tetgen tarball is in our 3rdparty directory, untar its contents into 
   # the proper location in the polytope source tree, and then polytope is built.
@@ -124,7 +202,8 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libpolytope.a)
     message("Copying Tetgen source to polytope directory...")
     execute_process(COMMAND cmake -E tar xzf ${CMAKE_CURRENT_SOURCE_DIR}/${tetgen_tarball}
                     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-                    OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
+                    OUTPUT_VARIABLE crap ERROR_VARIABLE crap
+                    RESULT_VARIABLE stat)
     file(COPY ${CMAKE_CURRENT_BINARY_DIR}/${tetgen_dir}/tetgen.cxx DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/${polytope_dir}/src)
     file(COPY ${CMAKE_CURRENT_BINARY_DIR}/${tetgen_dir}/tetgen.h DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/${polytope_dir}/src)
     file(COPY ${CMAKE_CURRENT_BINARY_DIR}/${tetgen_dir}/predicates.cxx DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/${polytope_dir}/src)
@@ -145,9 +224,10 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libpolytope.a)
   endif()
   execute_process(COMMAND make config ${POLYTOPE_CONFIG_OPTS}
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/${polytope_dir}
-                  OUTPUT_VARIABLE polytope_config_log ERROR_VARIABLE polytope_config_err)
+                  OUTPUT_VARIABLE polytope_config_log ERROR_VARIABLE polytope_config_err
+                  RESULT_VARIABLE stat)
   file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/polytope_config.log ${polytope_config_log})
-  if (NOT polytope_config_err STREQUAL "")
+  if (NOT stat EQUAL 0)
     file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/polytope_config_errors.log ${polytope_config_err})
     message(FATAL_ERROR "Configuration of polytope library failed.")
   endif()
@@ -155,9 +235,10 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libpolytope.a)
   message("Building polytope...")
   execute_process(COMMAND make -j4 ${POLYTOPE_CONFIG_OPTS}
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/${polytope_dir}
-                  OUTPUT_VARIABLE polytope_build_log ERROR_VARIABLE polytope_build_err)
+                  OUTPUT_VARIABLE polytope_build_log ERROR_VARIABLE polytope_build_err
+                  RESULT_VARIABLE stat)
   file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/polytope_build.log ${polytope_build_log})
-  if (NOT polytope_build_err STREQUAL "")
+  if (NOT stat EQUAL 0)
     file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/polytope_build_errors.log ${polytope_build_err})
     message(FATAL_ERROR "Build of polytope library failed.")
   endif()
@@ -201,7 +282,11 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libsuperlu.a)
   message("Unpacking SuperLU...")
   execute_process(COMMAND cmake -E tar xzf ${CMAKE_CURRENT_SOURCE_DIR}/superlu_4.3.tar.gz
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-                  OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
+                  OUTPUT_VARIABLE crap ERROR_VARIABLE crap
+                  RESULT_VARIABLE stat)
+  if (NOT stat EQUAL 0)
+    message(FATAL_ERROR "Unpacking SuperLU library failed.")
+  endif()
 
   message("Adjusting SuperLU make.inc...")
   file(READ ${CMAKE_CURRENT_BINARY_DIR}/SuperLU_4.3/make.inc superlu_makeinc)
@@ -213,10 +298,18 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libsuperlu.a)
     string(REPLACE "-O2" "${CMAKE_C_FLAGS} -g3" superlu_makeinc ${superlu_makeinc})
   endif()
   file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/SuperLU_4.3/make.inc ${superlu_makeinc})
+
   message("Building SuperLU...")
-  execute_process(COMMAND make -j4 lib
+  # Looks like SuperLU wants to be built serially, so no -j4 here.
+  execute_process(COMMAND make lib
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/SuperLU_4.3
-                  OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
+                  OUTPUT_VARIABLE superlu_build_log ERROR_VARIABLE superlu_build_err
+                  RESULT_VARIABLE stat)
+  if (NOT stat EQUAL 0)
+    file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/superlu_build_errors.log ${superlu_build_err})
+    message(FATAL_ERROR "Build of SuperLU library failed.")
+  endif()
+
 #  file(COPY ${CMAKE_CURRENT_BINARY_DIR}/SuperLU_4.3/libsuperlu.a DESTINATION ${PROJECT_BINARY_DIR}/lib)
   file(GLOB includes "${CMAKE_CURRENT_BINARY_DIR}/SuperLU_4.3/SRC/*.h")
   foreach(inc ${includes})
@@ -235,15 +328,32 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libsundials_cvode.a)
   message("Unpacking sundials...")
   execute_process(COMMAND cmake -E tar xzf ${CMAKE_CURRENT_SOURCE_DIR}/sundials-2.4.0.tar.gz
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-                  OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
+                  OUTPUT_VARIABLE crap ERROR_VARIABLE crap
+                  RESULT_VARIABLE stat)
+  if (NOT stat EQUAL 0)
+    message(FATAL_ERROR "Unpacking sundials library failed.")
+  endif()
+
   message("Configuring sundials...")
   execute_process(COMMAND env CC=${CC} ./configure ${SUNDIALS_CONFIG_OPTS}
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/sundials-2.4.0
-                  OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
+                  OUTPUT_VARIABLE sundials_config_log ERROR_VARIABLE sundials_config_err
+                  RESULT_VARIABLE stat)
+  if (NOT stat EQUAL 0)
+    file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/sundials_config_errors.log ${sundials_config_err})
+    message(FATAL_ERROR "Configuration of sundials library failed.")
+  endif()
+
   message("Building sundials...")
   execute_process(COMMAND make install -j4
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/sundials-2.4.0
-                  OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
+                  OUTPUT_VARIABLE sundials_build_log ERROR_VARIABLE sundials_build_err
+                  RESULT_VARIABLE stat)
+  if (NOT stat EQUAL 0)
+    file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/sundials_build_errors.log ${sundials_build_err})
+    message(FATAL_ERROR "Build of sundials library failed.")
+  endif()
+
 endif()
 if (HAVE_MPI EQUAL 0)
   set (NVEC_LIB sundials_nvecserial)
@@ -257,7 +367,8 @@ if (NOT EXISTS ${CMAKE_CURRENT_BINARY_DIR}/inih_r28)
   execute_process(COMMAND cmake -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/inih_r28)
   execute_process(COMMAND cmake -E tar xzf ${CMAKE_CURRENT_SOURCE_DIR}/inih_r28.zip
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/inih_r28
-                  OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
+                  OUTPUT_VARIABLE crap ERROR_VARIABLE crap
+                  RESULT_VARIABLE stat)
   execute_process(COMMAND cmake -E copy ${CMAKE_CURRENT_BINARY_DIR}/inih_r28/ini.h ${PROJECT_BINARY_DIR}/include)
 endif()
 add_library(inih ${CMAKE_CURRENT_BINARY_DIR}/inih_r28/ini.c)
@@ -278,7 +389,11 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/liblua.a)
   message("Unpacking lua...")
   execute_process(COMMAND cmake -E tar xzf ${CMAKE_CURRENT_SOURCE_DIR}/lua-5.2.1.tar.gz
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-                  OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
+                  OUTPUT_VARIABLE crap ERROR_VARIABLE crap
+                  RESULT_VARIABLE stat)
+  if (NOT stat EQUAL 0)
+    message(FATAL_ERROR "Unpacking lua library failed.")
+  endif()
 
   message("Adjusting lua Makefile...")
   file(READ ${CMAKE_CURRENT_BINARY_DIR}/lua-5.2.1/src/Makefile lua_makefile)
@@ -288,10 +403,17 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/liblua.a)
     string(REPLACE "-O2 -Wall" "${CMAKE_C_FLAGS} -g3" lua_makefile ${lua_makefile})
   endif()
   file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/lua-5.2.1/src/Makefile ${lua_makefile})
+
   message("Building lua...")
   execute_process(COMMAND make ${LUA_ARCH}
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/lua-5.2.1
-                  OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
+                  OUTPUT_VARIABLE lua_build_log ERROR_VARIABLE lua_build_err
+                  RESULT_VARIABLE stat)
+  if (NOT stat EQUAL 0)
+    file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/lua_build_errors.log ${lua_build_err})
+    message(FATAL_ERROR "Build of lua library failed.")
+  endif()
+
   file(COPY ${CMAKE_CURRENT_BINARY_DIR}/lua-5.2.1/src/liblua.a DESTINATION ${PROJECT_BINARY_DIR}/lib)
   file(GLOB includes "${CMAKE_CURRENT_BINARY_DIR}/lua-5.2.1/src/*.h")
   foreach(inc ${includes})
