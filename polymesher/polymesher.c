@@ -15,17 +15,17 @@
 // limitations under the License.
 
 #include "core/polymec.h"
-#include "core/polymec_version.h"
 #include "core/options.h"
 #include "core/interpreter.h"
 #include "geometry/interpreter_register_geometry_functions.h"
 
 static void mesher_usage(FILE* stream)
 {
-  fprintf(stream, "polymesher v%s\n", POLYMEC_VERSION);
-  fprintf(stream, "usage: polymesher [file]\n\n");
-  fprintf(stream, "Here, [file] is a file specifying instructions\n");
-  fprintf(stream, "for generating a mesh.\n\n");
+  polymec_version_fprintf("polymesher", stream);
+  fprintf(stream, "usage: polymesher [file] [options]\n\n");
+  fprintf(stream, "Here, [file] is a file specifying instructions for generating a mesh.\n");
+  fprintf(stream, "Options are:\n");
+  fprintf(stream, "  provenance={*0*,1} - provides full provenance information (w/ diffs)\n");
   exit(-1);
 }
 
@@ -69,6 +69,10 @@ int main(int argc, char** argv)
   if (!strcmp(input, "help") || (input == NULL))
     mesher_usage(stderr);
 
+  // Full provenance, or no?
+  char* provenance_str = options_value(opts, "provenance");
+  bool provenance = ((provenance_str != NULL) && !strcmp(provenance_str, "1"));
+
   // Check to see whether the given file exists.
   FILE* fp = fopen(input, "r");
   if (fp == NULL)
@@ -99,7 +103,13 @@ int main(int argc, char** argv)
   int rank;
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   if (rank == 0)
-    printf("polymesher v%s\n", POLYMEC_VERSION);
+  {
+    // If we're providing full provenance, do so here.
+    if (provenance)
+      polymec_provenance_fprintf(argc, argv, stdout);
+    else
+      polymec_version_fprintf("polymesher", stdout);
+  }
 
   // Set up an interpreter for parsing the input file.
   interpreter_t* interp = interpreter_new(NULL);

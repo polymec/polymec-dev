@@ -19,6 +19,7 @@
 #include <gc/gc.h>
 #include "polytope_c.h"
 #include "core/polymec.h"
+#include "core/polymec_version.h"
 #include "core/options.h"
 #include "core/model.h"
 
@@ -180,5 +181,29 @@ void polymec_atexit(void (*func)())
 {
   ASSERT(_num_atexit_funcs <= 32);
   _atexit_funcs[_num_atexit_funcs++] = func;
+}
+
+void polymec_version_fprintf(const char* exe_name, FILE* stream)
+{
+  fprintf(stream, "%s v%s\n", exe_name, POLYMEC_VERSION);
+}
+
+void polymec_provenance_fprintf(int argc, char** argv, FILE* stream)
+{
+  fprintf(stream, "=======================================================================\n");
+  fprintf(stream, "                                Provenance:\n");
+  fprintf(stream, "=======================================================================\n");
+  fprintf(stream, "Version: %s\n", POLYMEC_VERSION);
+  fprintf(stream, "Invoked with: ");
+  for (int i = 0; i < argc; ++i)
+    fprintf(stream, "%s ", argv[i]);
+  fprintf(stream, "\n\n");
+
+  if (strlen(POLYMEC_GIT_DIFF) > 0)
+  {
+    fprintf(stream, "Modifications to revision:\n");
+    fprintf(stream, "%s\n", POLYMEC_GIT_DIFF);
+  }
+  fprintf(stream, "=======================================================================\n\n");
 }
 
