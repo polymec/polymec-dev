@@ -145,12 +145,22 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libpolytope.a)
   endif()
   execute_process(COMMAND make config ${POLYTOPE_CONFIG_OPTS}
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/${polytope_dir}
-                  OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
+                  OUTPUT_VARIABLE polytope_config_log ERROR_VARIABLE polytope_config_err)
+  file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/polytope_config.log ${polytope_config_log})
+  if (NOT polytope_config_err STREQUAL "")
+    file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/polytope_config_errors.log ${polytope_config_err})
+    message(FATAL_ERROR "Configuration of polytope library failed.")
+  endif()
 
   message("Building polytope...")
   execute_process(COMMAND make -j4 ${POLYTOPE_CONFIG_OPTS}
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/${polytope_dir}
-                  OUTPUT_VARIABLE crap ERROR_VARIABLE crap)
+                  OUTPUT_VARIABLE polytope_build_log ERROR_VARIABLE polytope_build_err)
+  file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/polytope_build.log ${polytope_build_log})
+  if (NOT polytope_build_err STREQUAL "")
+    file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/polytope_build_errors.log ${polytope_build_err})
+    message(FATAL_ERROR "Build of polytope library failed.")
+  endif()
 
   message("Installing polytope in ${PROJECT_BINARY_DIR}...")
   # We only need a few C headers and the libraries.
