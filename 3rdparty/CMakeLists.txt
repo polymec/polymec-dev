@@ -79,6 +79,7 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libz.a)
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/zlib-1.2.8
                   OUTPUT_VARIABLE zlib_config_log ERROR_VARIABLE zlib_config_err
                   RESULT_VARIABLE stat)
+  file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/zlib_config.log ${zlib_config_log})
   if (NOT stat EQUAL 0)
     file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/zlib_config_errors.log ${zlib_config_err})
     message(FATAL_ERROR "Configuration of zlib library failed.")
@@ -89,6 +90,7 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libz.a)
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/zlib-1.2.8
                   OUTPUT_VARIABLE zlib_build_log ERROR_VARIABLE zlib_build_err
                   RESULT_VARIABLE stat)
+  file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/zlib_build.log ${zlib_build_log})
   if (NOT stat EQUAL 0)
     file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/zlib_build_errors.log ${zlib_build_err})
     message(FATAL_ERROR "Build of zlib library failed.")
@@ -118,6 +120,7 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libhdf5.a)
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/hdf5-1.8.11
                   OUTPUT_VARIABLE hdf5_config_log ERROR_VARIABLE hdf5_config_err
                   RESULT_VARIABLE stat)
+  file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/hdf5_config.log ${hdf5_config_log})
   if (NOT stat EQUAL 0)
     file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/hdf5_config_errors.log ${hdf5_config_err})
     message(FATAL_ERROR "Configuration of hdf5 library failed.")
@@ -128,6 +131,7 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libhdf5.a)
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/hdf5-1.8.11
                   OUTPUT_VARIABLE hdf5_build_log ERROR_VARIABLE hdf5_build_err
                   RESULT_VARIABLE stat)
+  file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/hdf5_build.log ${hdf5_build_log})
   if (NOT stat EQUAL 0)
     file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/hdf5_build_errors.log ${hdf5_build_err})
     message(FATAL_ERROR "Build of hdf5 library failed.")
@@ -156,8 +160,9 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libsiloh5.a)
   message("Configuring silo...")
   execute_process(COMMAND env CC=${CC} CXX=${CXX} ./configure ${SILO_CONFIG_OPTS}
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/silo-4.8-bsd
-                  OUTPUT_VARIABLE silo_build_log ERROR_VARIABLE silo_build_err
+                  OUTPUT_VARIABLE silo_config_log ERROR_VARIABLE silo_config_err
                   RESULT_VARIABLE stat)
+  file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/silo_config.log ${silo_config_log})
   if (NOT stat EQUAL 0)
     file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/silo_config_errors.log ${silo_config_err})
     message(FATAL_ERROR "Configuration of silo library failed.")
@@ -166,8 +171,9 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libsiloh5.a)
   message("Building silo...")
   execute_process(COMMAND make install -j4
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/silo-4.8-bsd
-                  OUTPUT_VARIABLE crap ERROR_VARIABLE crap
+                  OUTPUT_VARIABLE silo_build_log ERROR_VARIABLE silo_build_err
                   RESULT_VARIABLE stat)
+  file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/silo_build.log ${silo_build_log})
   if (NOT stat EQUAL 0)
     file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/silo_build_errors.log ${silo_build_err})
     message(FATAL_ERROR "Build of silo library failed.")
@@ -305,6 +311,7 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libsuperlu.a)
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/SuperLU_4.3
                   OUTPUT_VARIABLE superlu_build_log ERROR_VARIABLE superlu_build_err
                   RESULT_VARIABLE stat)
+  file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/superlu_build.log ${superlu_build_log})
   if (NOT stat EQUAL 0)
     file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/superlu_build_errors.log ${superlu_build_err})
     message(FATAL_ERROR "Build of SuperLU library failed.")
@@ -339,6 +346,7 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libsundials_cvode.a)
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/sundials-2.4.0
                   OUTPUT_VARIABLE sundials_config_log ERROR_VARIABLE sundials_config_err
                   RESULT_VARIABLE stat)
+  file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/sundials_config.log ${sundials_config_log})
   if (NOT stat EQUAL 0)
     file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/sundials_config_errors.log ${sundials_config_err})
     message(FATAL_ERROR "Configuration of sundials library failed.")
@@ -349,6 +357,7 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libsundials_cvode.a)
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/sundials-2.4.0
                   OUTPUT_VARIABLE sundials_build_log ERROR_VARIABLE sundials_build_err
                   RESULT_VARIABLE stat)
+  file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/sundials_build.log ${sundials_build_log})
   if (NOT stat EQUAL 0)
     file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/sundials_build_errors.log ${sundials_build_err})
     message(FATAL_ERROR "Build of sundials library failed.")
@@ -409,6 +418,7 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/liblua.a)
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/lua-5.2.1
                   OUTPUT_VARIABLE lua_build_log ERROR_VARIABLE lua_build_err
                   RESULT_VARIABLE stat)
+  file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/lua_build.log ${lua_build_log})
   if (NOT stat EQUAL 0)
     file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/lua_build_errors.log ${lua_build_err})
     message(FATAL_ERROR "Build of lua library failed.")
