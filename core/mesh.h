@@ -165,6 +165,9 @@ void mesh_rename_tag(tagger_t* tagger, const char* old_tag, const char* new_tag)
 // Deletes the given tag. This has no effect if the tag is not found.
 void mesh_delete_tag(tagger_t* tagger, const char* tag);
 
+// Allows the traversal of all mesh tags.
+bool mesh_next_tag(tagger_t* tagger, int* pos, char** tag_name, int** tag_indices, int* tag_size);
+
 // Computes face areas and cell volumes for the mesh (for those that are 
 // bounded).
 void mesh_compute_geometry(mesh_t* mesh);

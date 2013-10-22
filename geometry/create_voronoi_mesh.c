@@ -130,6 +130,11 @@ static mesh_t* mesh_from_unbounded_tessellation(polytope_tessellation_t* tess,
   // Clean up.
   int_table_free(edge_for_nodes);
 
+  // Tag all the "inf" faces.
+  int* inf_faces = mesh_create_tag(mesh->face_tags, "inf_faces", tess->num_inf_faces);
+  for (int i = 0; i < tess->num_inf_faces; ++i)
+    inf_faces[i] = (int)tess->inf_faces[i];
+
   return mesh;
 }
 
@@ -216,8 +221,6 @@ static mesh_t* mesh_from_bounded_tessellation(polytope_tessellation_t* tess,
   memcpy(mesh->face_nodes, tess->face_nodes, sizeof(int) * tess->face_offsets[tess->num_faces]);
 
   // Face <-> edge connectivity.
-  // FIXME: Need to make sure that mesh->face_edges is big enough to 
-  // FIXME: hold all the edges!
   memset(mesh->face_edge_offsets, 0, sizeof(int) * (mesh->num_faces + 1));
   for (int f = 0; f < mesh->num_faces; ++f)
   {
@@ -229,6 +232,8 @@ static mesh_t* mesh_from_bounded_tessellation(polytope_tessellation_t* tess,
       int n1 = (int)tess->face_nodes[offset+e];
       int n2 = (int)tess->face_nodes[offset+(e+1)%Ne];
       int edge_id = *int_table_get(edge_for_nodes, n1, n2);
+      mesh->storage->face_edge_capacity = round_to_pow2(edge_id+1);
+      mesh->face_edges = ARENA_REALLOC(mesh->arena, mesh->face_edges, sizeof(int) * mesh->storage->face_edge_capacity, 0);
       mesh->face_edges[tess->face_offsets[f+1]+e] = edge_id;
     }
   }
