@@ -49,24 +49,21 @@ if (git_log_err STREQUAL "")
   set(POLYMEC_VERSION "${POLYMEC_VERSION} (git commit ${git_commit_id}")
 
   # Has the software been modified?
-  execute_process(COMMAND git diff --shortstat
+  execute_process(COMMAND git diff --stat
                   WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
                   OUTPUT_VARIABLE git_diff ERROR_VARIABLE git_diff_err)
   if (NOT git_diff STREQUAL "")
     message("-- ${git_diff}")
     set(POLYMEC_VERSION "${POLYMEC_VERSION}, modified)")
+
+    # If it has been modified, provide information on how it has been modified.
+    execute_process(COMMAND git diff --stat
+                    WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+                    OUTPUT_VARIABLE git_diff ERROR_VARIABLE git_diff_err)
+    
   endif()
   set(POLYMEC_VERSION "${POLYMEC_VERSION})")
 
-  # If this version string doesn't match the one in polymec.h, that file 
-  # must be regenerated.
-  if (EXISTS ${PROJECT_BINARY_DIR}/core/polymec.h)
-    file(READ ${PROJECT_BINARY_DIR}/core/polymec.h polymec_header)
-    string(FIND "${polymec_header}" "${POLYMEC_VERSION}" version_index)
-    if (version_index EQUAL -1)
-      file(REMOVE ${PROJECT_BINARY_DIR}/core/polymec.h)
-    endif()
-  endif()
 else()
   # We're working with a release version, so for the moment we simply assume
   # it hasn't been modified.
