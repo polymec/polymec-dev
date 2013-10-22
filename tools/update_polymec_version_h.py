@@ -7,7 +7,7 @@ header_file = sys.argv[2]
 # Git commit ID
 try:
     git_commit = ' (git commit %s'%subprocess.check_output(['git', 'log', '-1', '--format=format:%h']).strip()
-    git_diff = subprocess.check_output(['git', 'diff', '--stat']).strip().replace('\n', '"\n"')
+    git_diff = subprocess.check_output(['git', 'diff']).strip().replace('"', '\\"').replace('\n', '\\n"\n"')
     if git_diff != '':
         git_commit += ', modified'
     git_commit += ')'
@@ -18,8 +18,8 @@ contents = """\n
 #ifndef POLYMEC_VERSION_H
 #define POLYMEC_VERSION_H
 
-const char* POLYMEC_VERSION = "%s%s";
-const char* POLYMEC_DIFF = "%s";
+static const char* POLYMEC_VERSION = "%s%s";
+static const char* POLYMEC_GIT_DIFF = "%s";
 
 #endif
 """%(version_number, git_commit, git_diff)
