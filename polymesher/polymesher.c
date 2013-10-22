@@ -15,6 +15,7 @@
 // limitations under the License.
 
 #include "core/polymec.h"
+#include "core/polymec_version.h"
 #include "core/options.h"
 #include "core/interpreter.h"
 #include "geometry/interpreter_register_geometry_functions.h"

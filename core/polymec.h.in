@@ -37,7 +37,6 @@
 #define POLYMEC_HAVE_TETGEN @HAVE_TETGEN@
 #define POLYMEC_C_COMPILER "@CMAKE_C_COMPILER@"
 #define POLYMEC_INCLUDE_DIR "@PROJECT_BINARY_DIR@/include"
-#define POLYMEC_VERSION "@POLYMEC_VERSION@"
 
 // GCC on Linux with the C99 dialect is getting awfully stingy these days, so
 // we need to mention a few functions that happen to be nonstandard.

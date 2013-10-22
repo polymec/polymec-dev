@@ -30,6 +30,10 @@ set (POLYMEC_MINOR_VERSION 1)
 set (POLYMEC_PATCH_VERSION 0)
 set (POLYMEC_VERSION "${POLYMEC_MAJOR_VERSION}.${POLYMEC_MINOR_VERSION}.${POLYMEC_PATCH_VERSION}")
 
+# Add a custom target (always out of date) that generates polymec_version.h.
+add_custom_target(update_polymec_version_h ALL
+                  python ${PROJECT_SOURCE_DIR}/tools/update_polymec_version_h.py ${POLYMEC_VERSION} ${PROJECT_BINARY_DIR}/core/polymec_version.h)
+                  
 # Figure out the system type.
 if (APPLE EQUAL 1)
   set(SYS_FLAGS "-DAPPLE=1")
@@ -39,35 +43,6 @@ else ()
     set(SYS_FLAGS "-DLINUX=1")
   endif ()
 endif ()
-
-# Retrieve the Git commit identifier if it's available.
-execute_process(COMMAND git log -1 --format=format:%h
-                WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
-                OUTPUT_VARIABLE git_commit_id ERROR_VARIABLE git_log_err)
-if (git_log_err STREQUAL "")
-  message("-- Git commit ID is ${git_commit_id}")
-  set(POLYMEC_VERSION "${POLYMEC_VERSION} (git commit ${git_commit_id}")
-
-  # Has the software been modified?
-  execute_process(COMMAND git diff --stat
-                  WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
-                  OUTPUT_VARIABLE git_diff ERROR_VARIABLE git_diff_err)
-  if (NOT git_diff STREQUAL "")
-    message("-- ${git_diff}")
-    set(POLYMEC_VERSION "${POLYMEC_VERSION}, modified)")
-
-    # If it has been modified, provide information on how it has been modified.
-    execute_process(COMMAND git diff --stat
-                    WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
-                    OUTPUT_VARIABLE git_diff ERROR_VARIABLE git_diff_err)
-    
-  endif()
-  set(POLYMEC_VERSION "${POLYMEC_VERSION})")
-
-else()
-  # We're working with a release version, so for the moment we simply assume
-  # it hasn't been modified.
-endif()
 
 # General compiler flags.
 if (CMAKE_C_COMPILER_ID STREQUAL "GNU")
