@@ -15,6 +15,7 @@
 // limitations under the License.
 
 #include <stdlib.h>
+#include <time.h>
 #include <stdarg.h>
 #include <gc/gc.h>
 #include "polytope_c.h"
@@ -197,7 +198,8 @@ void polymec_provenance_fprintf(int argc, char** argv, FILE* stream)
   fprintf(stream, "Invoked with: ");
   for (int i = 0; i < argc; ++i)
     fprintf(stream, "%s ", argv[i]);
-  fprintf(stream, "\n\n");
+  fprintf(stream, "\n");
+  fprintf(stream, "Invoked on: %s\n\n", asctime(NULL));
 
   if (strlen(POLYMEC_GIT_DIFF) > 0)
   {

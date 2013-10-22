@@ -73,9 +73,9 @@ set(POLYMEC_LIBS m)
 if (LINUX EQUAL 1)
   include(FindBLAS)
   include(FindLAPACK)
-  find_package(BLAS)
-  find_package(LAPACK)
-  set(POLYMEC_LIBS ${LAPACK_LIBRARIES};${BLAS_LIBRARIES};${POLYMEC_LIBS};dl)
+  find_package(BLAS REQUIRED)
+  find_package(LAPACK REQUIRED)
+  set(POLYMEC_LIBS ${LAPACK_LIBRARIES};${BLAS_LIBRARIES};${POLYMEC_LIBS})
 endif()
 
 # Figure out MPI.
