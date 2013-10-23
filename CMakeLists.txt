@@ -37,7 +37,7 @@ add_custom_target(update_polymec_version_h ALL
 # Figure out the system type.
 if (APPLE EQUAL 1)
   set(SYS_FLAGS "-DAPPLE=1")
-  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -framework Veclib")
+  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -framework Accelerate")
 else ()
   if (LINUX EQUAL 1)
     set(SYS_FLAGS "-DLINUX=1")
