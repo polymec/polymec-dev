@@ -101,7 +101,7 @@ set(POLYMEC_TP_LIBS z;${POLYMEC_TP_LIBS})
 
 # Build the HDF5 parallel I/O library.
 if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libhdf5.a)
-  set(HDF5_CONFIG_OPTS --enable-static --disable-shared --with-zlib=${PROJECT_BINARY_DIR})
+  set(HDF5_CONFIG_OPTS --enable-shared --with-zlib=${PROJECT_BINARY_DIR})
   set(HDF5_CONFIG_OPTS ${HDF5_CONFIG_OPTS} --prefix=${PROJECT_BINARY_DIR})
   if (${HAVE_MPI} EQUAL 1)
     set(HDF5_CONFIG_OPTS ${HDF5_CONFIG_OPTS} --enable-parallel)
@@ -142,7 +142,7 @@ set(POLYMEC_TP_LIBS hdf5;${POLYMEC_TP_LIBS})
 
 # Install silo with HDF5 support.
 if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libsiloh5.a)
-  set(SILO_CONFIG_OPTS --enable-static --disable-shared --disable-fortran --without-readline --disable-browser --disable-silex)
+  set(SILO_CONFIG_OPTS --disable-fortran --without-readline --disable-browser --disable-silex)
   set(SILO_CONFIG_OPTS ${SILO_CONFIG_OPTS} --with-hdf5=${PROJECT_BINARY_DIR}/include,${PROJECT_BINARY_DIR}/lib)
   if (${CMAKE_BUILD_TYPE} STREQUAL "Debug")
     set(SILO_CONFIG_OPTS ${SILO_CONFIG_OPTS} --enable-debug)
