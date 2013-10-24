@@ -66,8 +66,9 @@ elseif (CMAKE_C_COMPILER_ID STREQUAL "Clang")
   # Warning suppressants.
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-sign-compare -Wno-unused-parameter -Wno-int-to-pointer-cast -Wno-pointer-to-int-cast")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-sign-compare -Wno-unused-parameter -Wno-int-to-pointer-cast -Wno-pointer-to-int-cast")
-
 endif ()
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${SYS_FLAGS}")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${SYS_FLAGS}")
 
 # Basic libraries to be linked in.
 set(POLYMEC_LIBS m)
@@ -82,7 +83,7 @@ if (LINUX EQUAL 1)
   if (${BLAS_LIBRARY_DIR})
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -L${BLAS_LIBRARY_DIR}")
   endif()
-  set(POLYMEC_LIBS ${POLYMEC_LIBS};lapack;blas)
+  set(POLYMEC_LIBS ${POLYMEC_LIBS};lapack;blas;dl)
 endif()
 
 # Figure out MPI.
