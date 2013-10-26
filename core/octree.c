@@ -16,11 +16,15 @@
 
 #include "core/octree.h"
 
-#ifdef SQ
-#undef SQ
-#endif
-#define SQ(x) ((x)*(x))
-#define SQ_DIST(x, y) (SQ(x[0]-y[0]) + SQ(x[1]-y[1]) + SQ(x[2]-y[2]))
+static double square(x) 
+{
+  return x*x;
+}
+
+static double square_dist(double* x, double* y)
+{
+  return square(x[0]-y[0]) + square(x[1]-y[1]) + square(x[2]-y[2]);
+}
 
 // A bucket PR (point region) octree.
 
@@ -305,7 +309,7 @@ int_slist_t* octree_within_radius(octree_t* tree,
   octree_node_t* node = tree->root;
   double pos[3];
   pos[0] = point->x, pos[1] = point->y, pos[2] = point->z;
-  double r2 = SQ_DIST(pos, node->pos);
+  double r2 = square_dist(pos, node->pos);
   octree_rect_t rect;
   int_slist_t* results = int_slist_new();
   rect.min[0] = tree->rect->min[0]; rect.max[0] = tree->rect->max[0];
