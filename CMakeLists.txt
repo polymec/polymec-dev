@@ -83,8 +83,9 @@ if (LINUX EQUAL 1)
   if (${BLAS_LIBRARY_DIR})
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -L${BLAS_LIBRARY_DIR}")
   endif()
-  set(POLYMEC_LIBS ${POLYMEC_LIBS};lapack;blas;dl)
+  set(POLYMEC_LIBS ${POLYMEC_LIBS};lapack;blas)
 endif()
+set(POLYMEC_LIBS ${POLYMEC_LIBS};dl)
 
 # Figure out MPI.
 if (HAVE_MPI EQUAL 1)
