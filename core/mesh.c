@@ -315,7 +315,7 @@ void mesh_compute_geometry(mesh_t* mesh)
     for (int f = 0; f < num_cell_faces; ++f)
     {
       double face_area = 0.0;
-      vector_t face_normal;
+      vector_t face_normal = {0.0, 0.0, 0.0};
       int pos = 0, edge;
       while (mesh_next_face_edge(mesh, face, &pos, &edge))
       {
