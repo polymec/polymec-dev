@@ -74,7 +74,7 @@ all test clean install:
 		make -C $(BUILDDIR) $@ $(MAKEFLAGS); \
 	fi
 
-config: 
+config: distclean
 	$(run-config)
 
 distclean:
