@@ -85,6 +85,8 @@ if (LINUX EQUAL 1)
   endif()
   set(POLYMEC_LIBS ${POLYMEC_LIBS};lapack;blas)
 endif()
+
+# NOTE: HDF5 requires dynamic loading as of v1.8.11, so we need libdl.
 set(POLYMEC_LIBS ${POLYMEC_LIBS};dl)
 
 # Figure out MPI.
