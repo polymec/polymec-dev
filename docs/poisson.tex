@@ -379,13 +379,15 @@ gradients replaced by $-\vec{n}$, and we are left with
 
 \begin{equation}
 \int_{\Gamma_{ib}} \lambda (\vec{n}\cdot\grad{\phi}) \dS + 
-\int_{\Gamma_i} \lambda (\vec{n}\cdot\grad{\phi}) \dS - 
+\int_{\Gamma_{ii}} \lambda (\vec{n}\cdot\grad{\phi}) \dS - 
 \int_{\Omega_c} \rho \dV = 0. \labelEq{fvpmEqTopHat}
 \end{equation}
 
-Plugging in the moving least-squares representation $\grad{\phi}$
-breaks the second term into a sum of integrals over spherical caps--the intersection of $\Omega_i$ with the various $\Omega_j$ subdomains of 
-the neighboring points. Writing $\Gamma_i = \bigcup(\{\Gamma_{ij}\})$, where $\Gamma_{ij}$ is the area of intersection of the boundary of $\Gamma_i$
+\noindent
+where we have re-introduced $\Gamma_{ii}$ as the portion of $\Gamma_i$ that interacts with other points on the 
+interior of the domain. Plugging in the moving least-squares representation $\grad{\phi}$
+breaks the second term into a sum of integrals over spherical caps--the intersection of $\Gamma_i$ with the various $\Omega_j$ subdomains of 
+the neighboring points. Writing $\Gamma_{ii} = \bigcup(\{\Gamma_{ij}\})$, where $\Gamma_{ij}$ is the area of intersection of the boundary of $\Gamma_i$
 with the interior of $\Omega_j$, the subdomain of the neighboring particle $j$, we obtain
 
 \begin{equation}
@@ -395,7 +397,7 @@ with the interior of $\Omega_j$, the subdomain of the neighboring particle $j$, 
 \end{equation}
 
 If $\int_\Omega \phi \dV$ is a conserved quantity, the integrals involving $i$ and $j$ in the second term must be the same as evaluated for 
-points $i$ and $j$. To enforce boundary conditions in the first term. we use a procedure analogous to that given for the finite volume (FV) method.
+points $i$ and $j$. To enforce boundary conditions in the first term, we use a procedure analogous to that given for the finite volume (FV) method.
 
 \subsubsection*{Numerical quadrature}
 
