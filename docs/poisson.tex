@@ -211,7 +211,7 @@ simplicity, we zero out the right-hand side by subtracting the $\rho$ term:
 \end{equation}
 
 \noindent
-Solving this equation then consists of evaluating these integrals discreetly in terms of the 
+Solving this equation then consists of evaluating these integrals discretely in terms of the 
 boundary conditions and the solution, constructing a nonlinear system of equations for 
 the components of the solution vector, and solving that nonlinear problem.
 
@@ -290,6 +290,9 @@ We can treat the first term in the equation above using the corresponding proced
   expression for $\grad{\phi}$ in the integral.
 \end{itemize}
 
+If $\int_\Omega \phi \dV$ is a conserved quantity, the quantity $\lambda(\vec{n}\cdot\grad{\phi})$ must be the same at all points
+on the face, as seen by the cells on either side.
+
 \subsubsection*{Numerical quadrature}
 
 The numerical quadrature we use depends on the order of the least-squares representation of the solution. We can adopt any sufficiently
@@ -307,7 +310,102 @@ The equation \refEq{fvContEq} gives us a nonlinear function $\vec{F}$ in the sol
 We can then construct the Jacobian of this function using finite-difference approximations and use a nonlinear solver 
 to obtain sufficient accuracy.
 
+Note that nonlinear forms of Poisson's equation--for example, those in which $\lambda$ and/or $\rho$ are functions of $\phi$ as well 
+as $\vec{x}$ and $t$--can be used with this finite volume approach simply by using the polynomial representaton for $\phi$ wherever 
+it is required.
+
 \subsection{FVPM formulation}
+
+In a finite volume particle method, the domain $\Omega$ is represented by a point cloud consisting of particles with corresponding 
+subdomains $\{\Omega_i\}$ having compact support. These subdomains overlap with one another, so they do not partition $\Omega$.
+In the most common version of the finite volume particle method found in the literature, a particle $i$ represents the solution using 
+a test function of the sort
+
+\begin{equation}
+\psi(\vec{x}, t) = \frac{W_i}{\sum_{j=1}^N W_j}
+\end{equation}
+
+\noindent
+where $W_i = W(\vec{x} - \vec{x}_i(t), h)$ is a compactly-supported kernel function centered at the particle's location $\vec{x}_i$, 
+$h$ is (proportional to) the radius over which $W$ falls to zero, and the $W_j$ functions are functions corresponding to the neighbors 
+of point $p$. More recently, it has been found that using a ``top-hat" test function (in which $W_i$ is 1 within $\Omega_i$ and drops 
+abruptly to 0 outside it) simplifies the evaluation of integrals, and so we adopt this approach.
+
+This method solves the model equation separately on the subdomain of each particle. To begin, we multiply \refEq{modelEq} by the test function $\psi_i$ and 
+integrate over the subdomain $\Omega_i$ (the portion of $\Omega$ for which $\psi_i > 0$):
+
+\begin{equation}
+\int_{\Omega_i} \diverg(\lambda \grad{\phi}) \psi_i \dV = \int_{\Omega_c} \rho \psi_i \dV.
+\end{equation}
+
+As in the finite volume method, we continue by integrating the left-hand side by parts, though in this case we end up with both surface and
+volume integrals because of the presence of the test function:
+
+\begin{equation}
+\int_{\Gamma_i} \lambda (\vec{n}\cdot\grad{\phi}) \psi_i \dS - 
+\int_{\Omega_i} \lambda \grad{\phi}\cdot\grad{\psi_i} \dV = \int_{\Omega_c} \rho \psi_i \dV.
+\end{equation}
+
+\noindent
+Here, we use notation similar to that in the finite volume method: $\Gamma_i$ is the boundary of the $i$th particle, which we can break into 
+two parts: $\Gamma_{ii}$, the region in which $p$ interacts with other particles within $\Omega$, and $\Gamma_{ib}$, which is the region of
+the subdomain that coincides with the domain boundary $\partial\Omega.$ However, 
+in this case, the second term vanishes, since $\psi_i = 0$ on the boundary of $\Omega_i$.
+Subtracting the right hand side as before, we have
+
+\begin{equation}
+\int_{\Gamma_{ib}} \lambda (\vec{n}\cdot\grad{\phi}) \psi_i \dS + 
+\int_{\Omega_i} \lambda \grad{\phi}\cdot\grad{\psi_i} \dV - 
+\int_{\Omega_c} \rho \psi_i \dV = 0, \labelEq{fvpmContEq}
+\end{equation}
+
+\noindent 
+As in the finite volume method, the solution to \refEq{fvpmContEq} requires that we evaluate these integrals discretely in terms of the 
+boundary conditions and the solution, after which we can use the same nonlinear solver machinery.
+
+\subsubsection*{Representation of the solution $\phi$}
+
+The solution $\phi$ is stored on the points in the point cloud and assumes its values exactly there (to whatever order our polynomial 
+representation allows). When we are asked to evaluate $\phi$ within the vicinity of a given particle $p$, we construct a moving least-squares 
+approximation of polynomial order $p$, and this requires us to sample values of the solution from points that neighbor $i$. 
+Moving least squares representations have been used in various other mesh-free methods\cite{Dilts1999}.
+The degree of the polynomial determines the extent of the neighbor search as before.
+
+\subsubsection*{Spatial discretization}
+
+If we use top-hat functions for $\psi$, we may write $1$ in place of $\psi$ within \refEq{fvpmContEq}.
+Meanwhile, the volume integrals involving $\grad{\psi}$ are reduced to surface integrals with those 
+gradients replaced by $-\vec{n}$, and we are left with
+
+\begin{equation}
+\int_{\Gamma_{ib}} \lambda (\vec{n}\cdot\grad{\phi}) \dS + 
+\int_{\Gamma_i} \lambda (\vec{n}\cdot\grad{\phi}) \dS - 
+\int_{\Omega_c} \rho \dV = 0. \labelEq{fvpmEqTopHat}
+\end{equation}
+
+Plugging in the moving least-squares representation $\grad{\phi}$
+breaks the second term into a sum of integrals over spherical caps--the intersection of $\Omega_i$ with the various $\Omega_j$ subdomains of 
+the neighboring points. Writing $\Gamma_i = \bigcup(\{\Gamma_{ij}\})$, where $\Gamma_{ij}$ is the area of intersection of the boundary of $\Gamma_i$
+with the interior of $\Omega_j$, the subdomain of the neighboring particle $j$, we obtain
+
+\begin{equation}
+\int_{\Gamma_{ib}} \lambda (\vec{n}\cdot\grad{\phi}) \dS + 
+\sum_j \int_{\Gamma_{ij}} \lambda (\vec{n}\cdot\grad{\phi}) \dS -
+\int_{\Omega_c} \rho \dV = 0. \labelEq{fvpmEqTopHat}
+\end{equation}
+
+If $\int_\Omega \phi \dV$ is a conserved quantity, the integrals involving $i$ and $j$ in the second term must be the same as evaluated for 
+points $i$ and $j$. To enforce boundary conditions in the first term. we use a procedure analogous to that given for the finite volume (FV) method.
+
+\subsubsection*{Numerical quadrature}
+
+The challenge in this method is to evaluate integrals on the surface of spheres and their intersections with other spheres. On the interior, the 
+intersections $\Gamma_{ij}$ are spherical caps. Recently, Hesse has describe polynomial-exact quadrature rules for integrals of this sort\cite{Hesse2012}.
+For the boundary term, or the first term in \refEq{fvpmEqTopHat}, we have to be more careful, since the intersection of a sphere with a general boundary can 
+be quite complicated.
+
+The source term in \refEq{fvpmEqTopHat} must be evaluated over the interior of the spherical subdomain. We can experiment with various 
+quadrature rules for this simple but compute-intensive task.
 
 \section{Requirements}\labelSec{Requirements}
 
