@@ -83,7 +83,7 @@ and $\rho$ is some source term that may vary in space.
 
 This equation has several applications. In vacuum electrostatics, it is used to find 
 an electric field caused by a potential gradient, $\vec{E} = -\grad{\phi}$, 
-using Gauss's Law $\diverg{\vec{E}} = -4\pi\rho$, where $\rho$ is a volumetric 
+using Gauss's Law $\diverg{\vec{E}} = \rho/\epsilon_0$, where $\rho$ is a volumetric 
 charge density. Newton's classical law of gravitation may be written in terms of a 
 gravitational potential $\phi$ for which the acceleration is its gradient and 
 the source term $\rho$ is the density of mass in space. Similarly, the steady 
@@ -286,8 +286,8 @@ We can treat the first term in the equation above using the corresponding proced
   resulting polynomial expression and integrate.
  \item On a face subject to a Neumann boundary condition, we can replace the integrand by $\phi_N$ and integrate.
  \item On a face $f$ subject to a Robin boundary condition, we can follow the same procedure as for the Dirichlet boundary condition, 
-  constructing the polynomial fit to the condition $\alpha\phi + \beta(\vec{n}\cdot\grad{\phi})$, and then use the resulting 
-  expression for $\grad{\phi}$ in the integral.
+  constructing the polynomial fit to the condition $\alpha\phi + \beta(\vec{n}\cdot\grad{\phi}) = \phi_R$, and then use the resulting 
+  expression for $\vec{\n}\cdot\grad{\phi}$ in the integral.
 \end{itemize}
 
 If $\int_\Omega \phi \dV$ is a conserved quantity, the quantity $\lambda(\vec{n}\cdot\grad{\phi})$ must be the same at all points
