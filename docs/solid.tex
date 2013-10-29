@@ -1,0 +1,186 @@
+\documentclass[12pt]{article}
+
+\tolerance=750
+
+%\input{../Common/fontset.tex}
+%\input{../Common/preamble.tex}
+%\input{../Common/macros.tex}
+
+\usepackage{makeidx}
+\usepackage{amsmath, amsthm, amssymb}
+\usepackage{graphicx}
+\usepackage{subfigure}
+\usepackage{url} % For web pages
+\usepackage{listings} % For source code with captions.
+\lstset{numbers=left, stepnumber=2, frame=single, basicstyle=\footnotesize}
+
+% Useful Commands
+\newcommand{\labelSec}[1]{\label{sec:#1}}
+\newcommand{\labelEq}[1]{\label{eq:#1}}
+\newcommand{\labelFig}[1]{\label{fig:#1}}
+\newcommand{\labelTab}[1]{\label{tab:#1}}
+\newcommand{\labelApp}[1]{\label{app:#1}}
+\newcommand{\labelListing}[1]{\label{listing:#1}}
+\newcommand{\refEq}[1]{(\ref{eq:#1})}
+\newcommand{\refFig}[1]{Figure \ref{fig:#1}}
+\newcommand{\refSec}[1]{Section \ref{sec:#1}}
+\newcommand{\refTab}[1]{Table \ref{tab:#1}}
+\newcommand{\refApp}[1]{Appendix \ref{app:#1}}
+\newcommand{\refListing}[1]{Listing \ref{listing:#1}}
+\newcommand{\polymec}{\textsc{polymec} }
+\newcommand{\Lame}{Lam\'e } 
+\newcommand{\newEq}[2]{\begin{equation} \label{eq:#1} #2 \end{equation}}
+
+% Mathy math.
+\renewcommand{\vec}[1]{\mathbf{#1}}
+\newcommand{\tens}[1]{\mathbf{#1}}
+\newcommand{\ddx}[1]{\frac{\partial #1}{\partial x}}
+\newcommand{\ddy}[1]{\frac{\partial #1}{\partial y}}
+\newcommand{\ddz}[1]{\frac{\partial #1}{\partial z}}
+\newcommand{\ddt}[1]{\frac{\partial #1}{\partial t}}
+\newcommand{\DDt}[1]{\frac{\text{d}#1}{\text{d}t}}
+\newcommand{\ddr}[1]{\frac{\partial #1}{\partial r}}
+\newcommand{\diverg}[1]{\nabla\cdot#1}
+\newcommand{\grad}[1]{\nabla#1}
+\newcommand{\curl}[1]{\nabla \times #1}
+\newcommand{\laplacian}[1]{\nabla^2 #1}
+\newcommand{\half}{\small\frac{1}{2}}
+\newcommand{\third}{\small\frac{1}{3}}
+\newcommand{\dV}{~\mathrm{d}V}
+\newcommand{\dS}{~\mathrm{d}S}
+\newcommand{\stress}{\boldsymbol\sigma}
+\newcommand{\strain}{\boldsymbol\epsilon}
+\DeclareMathOperator{\trace}{Tr}
+\DeclareMathOperator{\erf}{erf}
+\DeclareMathOperator{\sgn}{sgn}
+
+% Make pdflatex act like latex.
+%\pdfadjustspacing=1
+
+\title{Polymec's solid mechanics model}
+\author{Jeffrey Johnson \\ 
+jjphatt@gmail.com}
+
+\makeindex % tell \index to actually write the .idx file
+
+\begin{document}
+
+\maketitle
+
+%\input{disclaimer.tex} 
+
+\section{Overview}\labelSec{Overview}
+
+We discuss here the specification for a \polymec model that solves the equations 
+of solid mechanics, with attention to fractures and geomechanical material models.
+We are interested in the static approximation, in which a material responds instantaneously
+to stresses. In this description, a material defines a domain $\Omega$ containing a 
+field $\vec{u}(\vec{x}, t)$ describing the {\em displacement} of the point $\vec{x}$ from
+its equilibrium position at time $t$. If $\stress(\vec{u})$ is the stress in the 
+material resulting from the displacement $\vec{u}$, then the static equation of solid 
+mechanics is written
+
+\begin{equation}
+\diverg{\stress(\vec{u})} = \vec{f} \labelEq{staticSolidMechEq}
+\end{equation}
+
+\noindent
+where $\vec{f}$ is some force (per unit volume) within the material. The displacement 
+field $\vec{u}$ is subject to some set of boundary conditions on the material's surface 
+$\Gamma = \partial\Omega$.
+
+The equation for calculating the stress tensor $\stress$ is given by the 
+{\em stress-strain relations}, which form an algebraic relationship between 
+$\stress$ and the {\em strain} tensor, which is defined as the antisymmetric 
+portion of the gradient of the displacement field:
+
+\begin{equation}
+\strain = \half\left[\grad{\vec{u}} + (\vec{u})^T\right]
+\end{equation}
+
+\noindent
+In ``linear" materials, the stress and strain tensors are related linearly through 
+the (rank 4) {\em stiffness} tensor $\tens{C}$:
+
+\begin{equation}
+\sigma_{ij} = C_{ijkl} \epsilon_{kl}
+\end{equation}
+
+\noindent
+Here, we have used index notation, since vector notation does not convey the significance 
+of higher-rank tensors. In practice, many linear materials are characterized in terms 
+of coefficients representing stiffness tensors with high degrees of symmetry, which eliminate
+many of the components. For example, the stress-strain relations in a linear  isotropic medium 
+are described by a {\em bulk modulus} $K$ and a {\em shear modulus} $\mu$:
+
+\begin{equation}
+\sigma_{ij} = K \delta_{ij}\epsilon_{kk} + 2\mu(\epsilon_{ij} - \third\delta_{ij}\epsilon_{kk})
+\end{equation}
+
+\noindent
+Equivalently, such a material may described in terms of the {\em \Lame coefficients}, which 
+consist of $\mu$ and the parameter $\lambda = K - 2\mu/3$. Finally, many isotropic materials are 
+described in terms of Poisson's Ratio $\nu$ and Young's modulus $E$.
+
+\subsection*{Boundary conditions}
+
+There are two basic types of boundary conditions that can be applied to the 
+displacement field:
+
+\begin{enumerate}
+ \item {\em Displacements}, in which the value of $\vec{u}$ itself is prescribed at the boundary:
+ \begin{equation}
+ \vec{u}(\vec{x}) = \vec{u}_D(\vec{x}), ~~\vec{x} \in \Gamma \labelEq{displacementBC}
+ \end{equation}
+ \item {\em Tractions}, in which the normal force is given at the boundary:
+ \begin{equation}
+ \vec{n}\cdot\stress\big|_\vec{x} = \tau, ~~\vec{x} \in \Gamma \labelEq{tractionBC}
+ \end{equation}
+ \noindent
+\end{enumerate}
+
+\subsection*{Model Equations}
+
+Our \polymec model will treat solid mechanics by solving the following partial differential equation 
+with a solution $\vec{u}(\vec{x}, t)$, defined on the domain $\Omega$ with a boundary 
+$\Gamma = \partial\Omega = \bigcup(\Gamma_D, \Gamma_T)$, with the two $\Gamma$ regions 
+corresponding to the two types of boundary conditions:
+
+\begin{align}
+\diverg\stress(\vec{u}) &= \vec{f}(\vec{u}, \vec{x}, t), ~~\vec{x} \in \Omega \labelEq{modelEq} \\
+\vec{u}(\vec{x}, t) &= \vec{u}_D(\vec{x}, t), ~~\vec{x} \in \Gamma_D, \notag \\
+\vec{n}\cdot\stress &= \tau(\vec{x}, t) ~~\vec{x} \in \Gamma_T \notag
+\end{align}
+
+\noindent
+Here, we have added a parameter $t$ to represent a time in a simulation, which allows us to 
+make use of time-dependent source functions and boundary conditions for various model problems. 
+
+\section{Numerical Formulations}\labelSec{Numerics}
+
+\polymec targets two different numerical formulations for its applications:
+
+\begin{enumerate}
+ \item Finite-volume methods on arbitrary polyhedral meshes (FV).
+ \item Finite-volume-like methods on point clouds that use neighbor searches 
+       to construct topological relationships in lieu of a mesh. The particular 
+       family of methods we are concerned with here are known as {\em Finite Volume Particle Methods} (FVPM), 
+       described in \cite{Hietel2000}, \cite{Teleaga2005}, and \cite{Nestor2009}.
+\end{enumerate}
+
+\noindent
+We describe approaches for each of these formulations in this section.
+
+\subsection{FV formulation}
+
+\subsection{FVPM formulation}
+
+\section{Requirements}\labelSec{Requirements}
+
+\section{Design}\labelSec{Design}
+
+% Bibliography
+\bibliography{references}
+\bibliographystyle{plain}
+
+\end{document} 
