@@ -49,8 +49,8 @@ void test_plot_cubic_lattice_mesh(void** state)
     ones[c] = 1.0*c;
   string_ptr_unordered_map_t* fields = string_ptr_unordered_map_new();
   string_ptr_unordered_map_insert(fields, "solution", ones);
-  write_silo(mesh, NULL, NULL, NULL, fields, "cubic_lattice_4x4x4", ".",
-             0, 0.0, MPI_COMM_SELF, 1, 0);
+  write_silo_mesh(mesh, NULL, NULL, NULL, fields, "cubic_lattice_4x4x4", ".",
+                  0, 0.0, MPI_COMM_SELF, 1, 0);
 
   // Clean up.
   string_ptr_unordered_map_free(fields);

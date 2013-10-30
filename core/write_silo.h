@@ -21,18 +21,31 @@
 #include "core/mesh.h"
 #include "core/unordered_map.h"
 
-// This function is a thin wrapper around polytope's SILO I/O interface.
-void write_silo(mesh_t* mesh,
-                string_ptr_unordered_map_t* node_fields,
-                string_ptr_unordered_map_t* edge_fields,
-                string_ptr_unordered_map_t* face_fields,
-                string_ptr_unordered_map_t* cell_fields,
-                const char* file_prefix,
-                const char* directory,
-                int cycle,
-                double time,
-                MPI_Comm comm,
-                int num_files,
-                int mpi_tag);
+// Writes a silo mesh file, with the given named node-, edge-, face-, and 
+// cell-centered fields.
+void write_silo_mesh(mesh_t* mesh,
+                     string_ptr_unordered_map_t* node_fields,
+                     string_ptr_unordered_map_t* edge_fields,
+                     string_ptr_unordered_map_t* face_fields,
+                     string_ptr_unordered_map_t* cell_fields,
+                     const char* file_prefix,
+                     const char* directory,
+                     int cycle,
+                     double time,
+                     MPI_Comm comm,
+                     int num_files,
+                     int mpi_tag);
+
+// Writes a silo point file, with the given fields defined on the points.
+void write_silo_points(point_t* points,
+                       int num_points,
+                       string_ptr_unordered_map_t* point_fields,
+                       const char* file_prefix,
+                       const char* directory,
+                       int cycle,
+                       double time,
+                       MPI_Comm comm,
+                       int num_files,
+                       int mpi_tag);
 
 #endif

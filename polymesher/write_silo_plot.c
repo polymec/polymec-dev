@@ -37,17 +37,40 @@ int write_silo_plot(lua_State* lua)
 {
   // Check the arguments.
   int num_args = lua_gettop(lua);
-  if (((num_args == 2) && (!lua_ismesh(lua, 1) || !lua_isstring(lua, 2))) || 
-      ((num_args == 3) && (!lua_ismesh(lua, 1) || !lua_istable(lua, 2) || !lua_isstring(lua, 3))) || 
-      ((num_args != 2) && (num_args != 3)))
+  bool is_mesh = false;
+  if (lua_ismesh(lua, 1))
   {
-    return luaL_error(lua, "write_silo_plot: invalid arguments. Usage:\n"
-                      "write_silo_plot(mesh, filename) OR\n"
-                      "write_silo_plot(mesh, fields, filename)");
+    is_mesh = true;
+    if (((num_args == 2) && (!lua_ismesh(lua, 1) || !lua_isstring(lua, 2))) || 
+        ((num_args == 3) && (!lua_ismesh(lua, 1) || !lua_istable(lua, 2) || !lua_isstring(lua, 3))) || 
+        ((num_args != 2) && (num_args != 3)))
+    {
+      return luaL_error(lua, "write_silo_plot: invalid arguments. Usage:\n"
+                        "write_silo_plot(mesh, filename) OR\n"
+                        "write_silo_plot(mesh, fields, filename)");
+    }
+  }
+  else
+  {
+    if (((num_args == 2) && (!lua_ispointlist(lua, 1) || !lua_isstring(lua, 2))) || 
+        ((num_args == 3) && (!lua_ispointlist(lua, 1) || !lua_istable(lua, 2) || !lua_isstring(lua, 3))) || 
+        ((num_args != 2) && (num_args != 3)))
+    {
+      return luaL_error(lua, "write_silo_plot: invalid arguments. Usage:\n"
+                        "write_silo_plot(points, filename) OR\n"
+                        "write_silo_plot(points, fields, filename)");
+    }
   }
 
   // Get the argument(s).
-  mesh_t* mesh = lua_tomesh(lua, 1);
+  mesh_t* mesh = NULL;
+  point_t* points = NULL;
+  int num_points;
+
+  if (is_mesh)
+    mesh = lua_tomesh(lua, 1);
+  else
+    points = lua_topointlist(lua, 1, &num_points);
   bool has_fields = (num_args == 3) ? lua_istable(lua, 2) : false;
   char* filename = (num_args == 3) ? string_dup(lua_tostring(lua, 3)) : string_dup(lua_tostring(lua, 2));
 
@@ -92,12 +115,12 @@ int write_silo_plot(lua_State* lua)
     }
   }
 
-  // Construct a set of cell-centered fields.
-  string_ptr_unordered_map_t* cell_fields = string_ptr_unordered_map_new();
+  // Construct a set of fields.
+  string_ptr_unordered_map_t* fields = string_ptr_unordered_map_new();
   double* volume = malloc(sizeof(double) * mesh->num_cells);
   for (int c = 0; c < mesh->num_cells; ++c)
     volume[c] = mesh->cell_volumes[c];
-  string_ptr_unordered_map_insert_with_v_dtor(cell_fields, "volume", volume, DTOR(free));
+  string_ptr_unordered_map_insert_with_v_dtor(fields, "volume", volume, DTOR(free));
 
   // Stick in any other fields.
   if (has_fields)
@@ -112,21 +135,32 @@ int write_silo_plot(lua_State* lua)
       {
         int num_vals;
         double* field_data = lua_tosequence(lua, val_index, &num_vals);
-        string_ptr_unordered_map_insert(cell_fields, (char*)field_name, field_data);
+        string_ptr_unordered_map_insert(fields, (char*)field_name, field_data);
       }
       else
       {
         ASSERT(lua_isvectorlist(lua, val_index));
         int num_vals;
         vector_t* vector_data = lua_tovectorlist(lua, val_index, &num_vals);
-        double* field_data = malloc(sizeof(double) * 3 * num_vals);
+        double* Fx = malloc(sizeof(double) * num_vals);
+        double* Fy = malloc(sizeof(double) * num_vals);
+        double* Fz = malloc(sizeof(double) * num_vals);
         for (int i = 0; i < num_vals; ++i)
         {
-          field_data[3*i  ] = vector_data[i].x;
-          field_data[3*i+1] = vector_data[i].y;
-          field_data[3*i+2] = vector_data[i].z;
+          Fx[i] = vector_data[i].x;
+          Fy[i] = vector_data[i].y;
+          Fz[i] = vector_data[i].z;
         }
-        string_ptr_unordered_map_insert(cell_fields, (char*)field_name, field_data);
+        char Fx_name[128], Fy_name[128], Fz_name[128];
+        snprintf(Fx_name, 128, "%s_x", field_name);
+        snprintf(Fy_name, 128, "%s_y", field_name);
+        snprintf(Fz_name, 128, "%s_z", field_name);
+        string_ptr_unordered_map_insert(fields, Fx_name, Fx);
+        string_ptr_unordered_map_insert(fields, Fy_name, Fy);
+        string_ptr_unordered_map_insert(fields, Fz_name, Fz);
+        free(Fx);
+        free(Fy);
+        free(Fz);
       }
       lua_pop(lua, 1);
     }
@@ -134,12 +168,20 @@ int write_silo_plot(lua_State* lua)
 
   log_info("Writing SILO plot with prefix '%s'...", filename);
 
-  // Write the mesh to a plot file.
-  write_silo(mesh, NULL, NULL, NULL, cell_fields, filename, ".", 0, 0.0, 
-             MPI_COMM_SELF, 1, 0);
+  // Write the thing to a plot file.
+  if (is_mesh)
+  {
+    write_silo_mesh(mesh, NULL, NULL, NULL, fields, filename, ".", 0, 0.0, 
+                    MPI_COMM_SELF, 1, 0);
+  }
+  else
+  {
+    write_silo_points(points, num_points, fields, filename, ".", 0, 0.0, 
+                      MPI_COMM_SELF, 1, 0);
+  }
 
   // Clean up.
-  string_ptr_unordered_map_free(cell_fields);
+  string_ptr_unordered_map_free(fields);
 
   return 1;
 }
