@@ -1,0 +1,21 @@
+Source: libarena
+Priority: extra
+Maintainer: William Ahern <william@25thandClement.com>
+Build-Depends: debhelper (>= 5)
+Standards-Version: 3.7.2
+Section: libs
+
+Package: libarena-dev
+Section: libdevel
+Architecture: any
+Depends: libarena0 (= ${Source-Version})
+Description: Development header(s) for libarena
+ Contains development header(s) for libarena, a custom memory allocator
+ interface library.
+
+Package: libarena0
+Section: libs
+Architecture: any
+Depends: libc6 (>= 2.5-0ubuntu1)
+Description: Custom memory allocator interface library
+ Custom memory allocator interface library.

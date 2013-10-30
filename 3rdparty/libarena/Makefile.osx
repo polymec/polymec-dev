@@ -1,0 +1,7 @@
+#
+# OS X has it's own incompatible libtool, and as of 10.4 the GNU version
+# seems to be ancient.
+#
+LIBTOOL	= glibtool --tag=CC
+
+include Makefile
