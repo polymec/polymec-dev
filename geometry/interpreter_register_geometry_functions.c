@@ -17,6 +17,7 @@
 #include "core/boundary_cell_map.h"
 #include "core/constant_st_func.h"
 #include "core/kd_tree.h"
+#include "core/unordered_set.h"
 #include "geometry/interpreter_register_geometry_functions.h"
 #include "geometry/rect_prism.h"
 
@@ -384,8 +385,8 @@ static int remove_points(lua_State* lua)
   if ((num_args != 2) || !lua_ispointlist(lua, 1) || !lua_istable(lua, 2))
   {
     return luaL_error(lua, "Invalid argument(s). Usage:\n"
-                      "remove_points(points, options) ->\n"
-                      "Removes points in the given list that meet the given criterion.");
+                      "trimmed_points = remove_points(points, options) ->\n"
+                      "Returns a copy of points with certain points removed.");
   }
 
   // Extract arguments.
@@ -459,7 +460,7 @@ static int remove_points(lua_State* lua)
     return luaL_error(lua, "no criteria for removing points!");
 
   // Now remove the points.
-  int num_removed_points = 0;
+  int_unordered_set_t* removed_points = int_unordered_set_new();
   if (near_points != NULL)
   {
     // Stick our points in a kd-tree.
@@ -468,12 +469,8 @@ static int remove_points(lua_State* lua)
     {
       int j = kd_tree_nearest(tree, &points[i]);
       if (point_distance(&points[i], &near_points[j]) < within_distance)
-      {
-        ++num_removed_points;
-        points[i] = points[num_points-num_removed_points];
-      }
+        int_unordered_set_insert(removed_points, i);
     }
-    points = realloc(points, sizeof(point_t) * (num_points - num_removed_points));
 
     // Clean up.
     kd_tree_free(tree);
@@ -486,19 +483,24 @@ static int remove_points(lua_State* lua)
       double F;
       st_func_eval(within_surface, &points[i], at_time, &F);
       if (F >= 0.0)
-      {
-        ++num_removed_points;
-        points[i] = points[num_points-num_removed_points];
-      }
+        int_unordered_set_insert(removed_points, i);
     }
-    points = realloc(points, sizeof(point_t) * (num_points - num_removed_points));
   }
+
+  // Construct a copy of the list of points, with the removed points absent.
+  point_t* trimmed_points = malloc(sizeof(point_t) * num_points - removed_points->size);
+  int j = 0;
+  for (int i = 0; i < num_points; ++i)
+  {
+    if (!int_unordered_set_contains(removed_points, i))
+      trimmed_points[j++] = points[i];
+  }
+  lua_pushpointlist(lua, trimmed_points, num_points - removed_points->size);
 
   // Clean up.
   within_surface = NULL;
+  int_unordered_set_free(removed_points);
 
-  // Return the number of removed points.
-  lua_pushinteger(lua, num_removed_points);
   return 1;
 }
 

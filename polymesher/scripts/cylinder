@@ -4,17 +4,18 @@ deg_to_rad = math.pi / 180.0
 
 cyl_points = point_factory.cylinder{radius = 1, length = 9, nr = 8, nz = 60, 
                                     radial_spacing = 'log', log_spacing_factor = 1.3}
+--rotate_points(cyl_points, 5.0 * deg_to_rad, {1, 0, 0})
 
-rotate_points(cyl_points, 5.0 * deg_to_rad, {1, 0, 0})
 box = bounding_box{x1 = -2, x2 = 2, y1 = -2, y2 = 2, z1 = -5, z2 = 5}
 lat_points = point_factory.cubic_lattice{bounding_box = box, nx = 20, ny = 20, nz = 60}
---num_removed = remove_points(lat_points, {near_points = cyl_points, within_distance=0.1})
---print(num_removed, #lat_points + #cyl_points)
+
+lat_points = remove_points(lat_points, {near_points = cyl_points, within_distance=0.1})
 
 --mesh = mesh_factory.voronoi(cyl_points .. lat_points, box)
 mesh = mesh_factory.voronoi({cylinder = cyl_points,
                              lattice = lat_points})
 --                            box)
+
 tag = cell_tag(mesh, 'inf_cells')
 print(mesh)
 write_silo_plot(mesh, 'cylinder')
