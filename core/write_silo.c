@@ -309,8 +309,8 @@ void write_silo_points(point_t* points,
   for (int i = 0; i < num_points; ++i)
   {
     x[i] = points[i].x;
-    x[i] = points[i].y;
-    x[i] = points[i].z;
+    y[i] = points[i].y;
+    z[i] = points[i].z;
   }
   double* coords[3];
   coords[0] = &(x[0]);
