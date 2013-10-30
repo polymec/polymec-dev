@@ -154,8 +154,8 @@ int mesh_factory_voronoi(lua_State* lua)
 {
   // Check the arguments.
   int num_args = lua_gettop(lua);
-  if (((num_args != 1) && !lua_ispointlist(lua, 1) && !lua_istable(lua, 1)) || 
-      ((num_args != 2) && (!lua_istable(lua, 1) && !lua_isboundingbox(lua, 2))))
+  if (((num_args == 1) && !lua_ispointlist(lua, 1) && !lua_istable(lua, 1)) || 
+      ((num_args == 2) && (!lua_istable(lua, 1) && !lua_isboundingbox(lua, 2))))
   {
     return luaL_error(lua, "Invalid argument(s). Usage:\n"
                       "mesh = mesh_factory.voronoi(generators) OR\n"

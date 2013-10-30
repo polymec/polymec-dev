@@ -127,14 +127,15 @@ int point_factory_cylinder(lua_State* lua)
   if ((num_args != 1) || (!lua_istable(lua, 1)))
   {
     return luaL_error(lua, "Invalid arguments. Usage:\n"
-                      "points = point_factory.cylinder{radius, length, center = {0, 0, 0}, nr, nz, radial_spacing = 'linear', log_spacing_factor = 1.1, num_ghost = 1}");
+                      "points = point_factory.cylinder{radius, length, center = {0, 0, 0}, nr, nz, axis = {0, 0, 1}, radial_spacing = 'linear', log_spacing_factor = 1.1, num_ghost = 1}");
   }
 
   // Extract arguments.
-  const char* entries[] = {"radius", "length", "center", "nr", "nz", "radial_spacing", "log_spacing_factor", "num_ghost"};
+  const char* entries[] = {"radius", "length", "center", "nr", "nz", "axis", "radial_spacing", "log_spacing_factor", "num_ghost"};
   double radius, length;
   double log_spacing_factor = 1.1;
   point_t* x0 = NULL;
+  vector_t* axis = NULL;
   int nr, nz, ng = 0;
   const char* radial_spacing = NULL;
   for (int i = 0; i < 8; ++i)
@@ -143,7 +144,7 @@ int point_factory_cylinder(lua_State* lua)
     lua_gettable(lua, 1);
     if ((i > 2) && (i != 5) && (i != 6))
     {
-      if ((i == 7) && lua_isnil(lua, -1)) continue;
+      if ((i == 8) && lua_isnil(lua, -1)) continue;
 
       if ((i < 5) && !lua_isnumber(lua, -1))
         return luaL_error(lua, "Missing integer argument: %s", entries[i]);
@@ -152,7 +153,7 @@ int point_factory_cylinder(lua_State* lua)
       {
         case 3: nr = (int)lua_tonumber(lua, -1); break;
         case 4: nz = (int)lua_tonumber(lua, -1); break;
-        case 7: ng = (int)lua_tonumber(lua, -1); break;
+        case 8: ng = (int)lua_tonumber(lua, -1); break;
         default: break;
       }
     }
@@ -183,12 +184,24 @@ int point_factory_cylinder(lua_State* lua)
     {
       if (!lua_isnil(lua, -1))
       {
+        if (!lua_isvector(lua, -1))
+          return luaL_error(lua, "axis must be a vector.");
+        axis = lua_tovector(lua, -1);
+        if (vector_mag(axis) == 0.0)
+          return luaL_error(lua, "axis must not be the zero vector.");
+        vector_normalize(axis);
+      }
+    }
+    else if (i == 6)
+    {
+      if (!lua_isnil(lua, -1))
+      {
         if (!lua_isstring(lua, -1))
           return luaL_error(lua, "radial_spacing must be 'linear' or 'log'.");
         radial_spacing = lua_tostring(lua, -1);
       }
     }
-    else if (i == 6)
+    else if (i == 7)
     {
       if (!lua_isnil(lua, -1))
       {
@@ -200,6 +213,8 @@ int point_factory_cylinder(lua_State* lua)
   }
   if (x0 == NULL)
     x0 = point_new(0.0, 0.0, 0.0);
+  if (axis == NULL)
+    axis = vector_new(0.0, 0.0, 1.0);
 
   // Validate inputs.
   if (radius <= 0)
@@ -270,15 +285,22 @@ int point_factory_cylinder(lua_State* lua)
   point_t* points = malloc(sizeof(point_t) * num_points);
   double dz = length / nz;
 
+  // Set up an orthonormal basis for the given axis.
+  vector_t e1, e2;
+  compute_orthonormal_basis(axis, &e1, &e2);
+
   // Find the point at the "bottom" of the cylinder.
-  point_t x_bottom = {.x = x0->x, .y = x0->y, .z = x0->z - 0.5*length};
+  point_t x_bottom;
+  x_bottom.x = x0->x - 0.5*length*axis->x;
+  x_bottom.y = x0->y - 0.5*length*axis->y;
+  x_bottom.z = x0->z - 0.5*length*axis->z;
   int offset = 0;
   for (int i = -ng; i < num_disks+ng; ++i)
   {
     // Find the location of the center of the disk.
-    point_t x_center = {.x = x_bottom.x,
-                        .y = x_bottom.y,
-                        .z = x_bottom.z + (i+0.5) * dz};
+    point_t x_center = {.x = x_bottom.x + (i+0.5) * dz * axis->x,
+                        .y = x_bottom.y + (i+0.5) * dz * axis->y,
+                        .z = x_bottom.z + (i+0.5) * dz * axis->z};
 
     // Plant a point in the center of the disk.
     points[offset++] = x_center;
@@ -293,9 +315,11 @@ int point_factory_cylinder(lua_State* lua)
       for (int k = 0; k < ntheta; ++k, ++offset)
       {
         double thetak = k * dtheta;
-        points[offset].x = x_center.x + rj * cos(thetak);
-        points[offset].y = x_center.y + rj * sin(thetak);
-        points[offset].z = x_center.z;
+        double cos_thetak = cos(thetak);
+        double sin_thetak = sin(thetak);
+        points[offset].x = x_center.x + rj * (cos_thetak*e1.x + sin_thetak*e2.x);
+        points[offset].y = x_center.y + rj * (cos_thetak*e1.y + sin_thetak*e2.y);
+        points[offset].z = x_center.z + rj * (cos_thetak*e1.z + sin_thetak*e2.z);
       }
     }
   }
