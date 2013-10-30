@@ -65,12 +65,15 @@ int write_silo_plot(lua_State* lua)
   // Get the argument(s).
   mesh_t* mesh = NULL;
   point_t* points = NULL;
-  int num_points;
-
+  int N;
   if (is_mesh)
+  {
     mesh = lua_tomesh(lua, 1);
+    N = mesh->num_cells;
+    ASSERT(mesh != NULL);
+  }
   else
-    points = lua_topointlist(lua, 1, &num_points);
+    points = lua_topointlist(lua, 1, &N);
   bool has_fields = (num_args == 3) ? lua_istable(lua, 2) : false;
   char* filename = (num_args == 3) ? string_dup(lua_tostring(lua, 3)) : string_dup(lua_tostring(lua, 2));
 
@@ -93,10 +96,10 @@ int write_silo_plot(lua_State* lua)
       {
         int num_vals;
         double* vals = lua_tosequence(lua, val_index, &num_vals);
-        if (num_vals != mesh->num_cells)
+        if (num_vals != N)
         {
           lua_pop(lua, 2);
-          polymec_error("write_silo_plot: a scalar field has %d values (should have %d).", num_vals, mesh->num_cells);
+          polymec_error("write_silo_plot: a scalar field has %d values (should have %d).", num_vals, N);
         }
         vals = NULL;
       }
@@ -104,10 +107,10 @@ int write_silo_plot(lua_State* lua)
       {
         int num_vals;
         vector_t* vals = lua_tovectorlist(lua, val_index, &num_vals);
-        if (num_vals != mesh->num_cells)
+        if (num_vals != N)
         {
           lua_pop(lua, 2);
-          polymec_error("write_silo_plot: a vector field has %d values (should have %d).", num_vals, mesh->num_cells);
+          polymec_error("write_silo_plot: a vector field has %d values (should have %d).", num_vals, N);
         }
         vals = NULL;
       }
@@ -117,10 +120,13 @@ int write_silo_plot(lua_State* lua)
 
   // Construct a set of fields.
   string_ptr_unordered_map_t* fields = string_ptr_unordered_map_new();
-  double* volume = malloc(sizeof(double) * mesh->num_cells);
-  for (int c = 0; c < mesh->num_cells; ++c)
-    volume[c] = mesh->cell_volumes[c];
-  string_ptr_unordered_map_insert_with_v_dtor(fields, "volume", volume, DTOR(free));
+  if (is_mesh)
+  {
+    double* volume = malloc(sizeof(double) * N);
+    for (int c = 0; c < N; ++c)
+      volume[c] = mesh->cell_volumes[c];
+    string_ptr_unordered_map_insert_with_v_dtor(fields, "volume", volume, DTOR(free));
+  }
 
   // Stick in any other fields.
   if (has_fields)
@@ -176,7 +182,7 @@ int write_silo_plot(lua_State* lua)
   }
   else
   {
-    write_silo_points(points, num_points, fields, filename, ".", 0, 0.0, 
+    write_silo_points(points, N, fields, filename, ".", 0, 0.0, 
                       MPI_COMM_SELF, 1, 0);
   }
 

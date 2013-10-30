@@ -18,5 +18,5 @@ mesh = mesh_factory.voronoi({cylinder = cyl_points,
 
 tag = cell_tag(mesh, 'inf_cells')
 print(mesh)
---write_silo_plot(mesh, 'cylinder')
+write_silo_plot(mesh, 'cylinder')
 write_silo_plot(cyl_points, 'cylinder_points')
