@@ -1124,7 +1124,10 @@ double* lua_tosequence(struct lua_State* lua, int index, int* len)
   }
   interpreter_storage_t* storage = (interpreter_storage_t*)lua_topointer(lua, index);
   if (storage->type == INTERPRETER_SEQUENCE)
+  {
+    *len = storage->size;
     return (double*)storage->datum;
+  }
   else
     return NULL;
 }
@@ -1169,6 +1172,14 @@ static int sequence_concat(lua_State* lua)
   return 1;
 }
 
+static int sequence_len(lua_State* lua)
+{
+  interpreter_storage_t* var = (void*)lua_topointer(lua, -1);
+  ASSERT(var->type == INTERPRETER_SEQUENCE);
+  lua_pushinteger(lua, var->size);
+  return 1;
+}
+
 void lua_pushsequence(struct lua_State* lua, double* sequence, int len)
 {
   // Bundle it up and store it in the given variable.
@@ -1176,6 +1187,7 @@ void lua_pushsequence(struct lua_State* lua, double* sequence, int len)
   lua_meta_key_val_t metatable[] = 
     {{"__tostring", sequence_tostring},
      {"__concat", sequence_concat},
+     {"__len", sequence_len},
      {NULL, NULL}};
   set_metatable(lua, "sequence_metatable", metatable);
 }

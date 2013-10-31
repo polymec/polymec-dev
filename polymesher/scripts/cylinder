@@ -9,7 +9,11 @@ cyl_points = point_factory.cylinder{radius = 1, length = 9, nr = 8, nz = 60,
 box = bounding_box{x1 = -2, x2 = 2, y1 = -2, y2 = 2, z1 = -5, z2 = 5}
 lat_points = point_factory.cubic_lattice{bounding_box = box, nx = 20, ny = 20, nz = 60}
 
-lat_points = remove_points(lat_points, {near_points = cyl_points, within_distance=0.1})
+print(#lat_points)
+points_to_remove = select_points(lat_points, {near_points = cyl_points, within_distance=0.1})
+print(#points_to_remove)
+lat_points = remove_points(lat_points, points_to_remove)
+print(#lat_points)
 
 --mesh = mesh_factory.voronoi(cyl_points .. lat_points, box)
 mesh = mesh_factory.voronoi({cylinder = cyl_points,

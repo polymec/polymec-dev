@@ -24,17 +24,19 @@ horiz_well_points = point_factory.cylinder{radius = 30, length = 50,
                                            log_spacing_factor = 1.5}
 
 -- Punch out points in the vertical well that interfere with the horizontal well.
-vert_well_points = remove_points(vert_well_points, 
+points_to_remove = select_points(vert_well_points, 
                                  {near_points = horiz_well_points,
                                   within_distance = 5})
+vert_well_points = remove_points(vert_well_points, points_to_remove) 
 
 -- Generate a cubic lattice that fills the space.
 lattice_points = point_factory.cubic_lattice{bounding_box = box, nx = 350/dx, ny = 300/dx, nz = 1000/dx}
 
 -- Knock out all the points that are within 0.5*dx of a well point.
-lattice_points = remove_points(lattice_points, 
-                               {near_points = vert_well_points .. horiz_well_points, 
-                                within_distance=0.5*dx})
+points_to_remove = select_points(lattice_points, 
+                                 {near_points = vert_well_points .. horiz_well_points, 
+                                 within_distance=0.5*dx})
+lattice_points = remove_points(lattice_points, points_to_remove)
 
 print("Number of points in vertical well: ", #vert_well_points)
 print("Number of points in horizontal well: ", #horiz_well_points)

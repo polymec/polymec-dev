@@ -17,6 +17,7 @@
 #include "core/boundary_cell_map.h"
 #include "core/constant_st_func.h"
 #include "core/kd_tree.h"
+#include "core/slist.h"
 #include "core/unordered_set.h"
 #include "geometry/interpreter_register_geometry_functions.h"
 #include "geometry/rect_prism.h"
@@ -378,15 +379,15 @@ static int copy_points(lua_State* lua)
   return 1;
 }
 
-static int remove_points(lua_State* lua)
+static int select_points(lua_State* lua)
 {
   // Check the arguments.
   int num_args = lua_gettop(lua);
   if ((num_args != 2) || !lua_ispointlist(lua, 1) || !lua_istable(lua, 2))
   {
     return luaL_error(lua, "Invalid argument(s). Usage:\n"
-                      "trimmed_points = remove_points(points, options) ->\n"
-                      "Returns a copy of points with certain points removed.");
+                      "selected_points = select_points(points, options) ->\n"
+                      "Returns a list of indices of points from the given list that satisfy certain critieria.");
   }
 
   // Extract arguments.
@@ -457,10 +458,10 @@ static int remove_points(lua_State* lua)
       return luaL_error(lua, "within_surface cannot be specified with near_points.");
   }
   if ((near_points == NULL) && (within_surface == NULL))
-    return luaL_error(lua, "no criteria for removing points!");
+    return luaL_error(lua, "no criteria for selecting points!");
 
-  // Now remove the points.
-  int_unordered_set_t* removed_points = int_unordered_set_new();
+  // Now go get the points.
+  int_slist_t* selected_points = int_slist_new();
   if (near_points != NULL)
   {
     // Stick our points in a kd-tree.
@@ -469,7 +470,7 @@ static int remove_points(lua_State* lua)
     {
       int j = kd_tree_nearest(tree, &points[i]);
       if (point_distance(&points[i], &near_points[j]) < within_distance)
-        int_unordered_set_insert(removed_points, i);
+        int_slist_append(selected_points, i);
     }
 
     // Clean up.
@@ -483,22 +484,61 @@ static int remove_points(lua_State* lua)
       double F;
       st_func_eval(within_surface, &points[i], at_time, &F);
       if (F >= 0.0)
-        int_unordered_set_insert(removed_points, i);
+        int_slist_append(selected_points, i);
     }
   }
 
+  // Construct a sequence consisting of the point indices.
+  // NOTE: we use doubles because that's how lua represents numbers.
+  double* s_points = malloc(sizeof(double) * selected_points->size);
+
+  int i = 0;
+  for (int_slist_node_t* node = selected_points->front; node != NULL; node = node->next, ++i)
+    s_points[i] = node->value;
+  lua_pushsequence(lua, s_points, selected_points->size);
+
+  // Clean up.
+  within_surface = NULL;
+  int_slist_free(selected_points);
+
+  return 1;
+}
+
+static int remove_points(lua_State* lua)
+{
+  // Check the arguments.
+  int num_args = lua_gettop(lua);
+  if ((num_args != 2) || !lua_ispointlist(lua, 1) || !lua_issequence(lua, 2))
+  {
+    return luaL_error(lua, "Invalid argument(s). Usage:\n"
+                      "trimmed_points = remove_points(points, selected_indices) ->\n"
+                      "Returns a copy of points with the given selected points (identified by a sequence of indices) removed.");
+  }
+
+  // Extract arguments.
+  int num_points = 0, num_selected_points = 0;
+  point_t* points = lua_topointlist(lua, 1, &num_points);
+  double* selected_points = lua_tosequence(lua, 2, &num_selected_points);
+
+  if (num_selected_points > num_points)
+    return luaL_error(lua, "remove_points: Cannot remove %d points from a set of %d.", num_selected_points, num_points);
+
+  // Now remove the points.
+  int_unordered_set_t* removed_points = int_unordered_set_new();
+  for (int i = 0; i < num_selected_points; ++i)
+    int_unordered_set_insert(removed_points, (int)selected_points[i]);
+
   // Construct a copy of the list of points, with the removed points absent.
-  point_t* trimmed_points = malloc(sizeof(point_t) * num_points - removed_points->size);
+  point_t* trimmed_points = malloc(sizeof(point_t) * num_points - num_selected_points);
   int j = 0;
   for (int i = 0; i < num_points; ++i)
   {
     if (!int_unordered_set_contains(removed_points, i))
       trimmed_points[j++] = points[i];
   }
-  lua_pushpointlist(lua, trimmed_points, num_points - removed_points->size);
+  lua_pushpointlist(lua, trimmed_points, num_points - num_selected_points);
 
   // Clean up.
-  within_surface = NULL;
   int_unordered_set_free(removed_points);
 
   return 1;
@@ -742,6 +782,7 @@ void interpreter_register_geometry_functions(interpreter_t* interp)
   interpreter_register_function(interp, "translate_points", translate_points);
   interpreter_register_function(interp, "rotate_points", rotate_points);
   interpreter_register_function(interp, "copy_points", copy_points);
+  interpreter_register_function(interp, "select_points", select_points);
   interpreter_register_function(interp, "remove_points", remove_points);
   interpreter_register_spfuncs(interp);
 
