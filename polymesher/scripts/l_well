@@ -41,12 +41,12 @@ print("Number of points in horizontal well: ", #horiz_well_points)
 print("Number of points in lattice: ", #lattice_points)
 
 -- Mesh it up, tagging the different regions.
---mesh = mesh_factory.voronoi({vert_well = vert_well_points,
---                             horiz_well = horiz_well_points,
---                             lattice = lattice_points})
+mesh = mesh_factory.voronoi({vert_well = vert_well_points,
+                             horiz_well = horiz_well_points,
+                             lattice = lattice_points})
 --                            box)
 
---tag = cell_tag(mesh, 'inf_cells')
---print(mesh)
---write_silo_plot(mesh, 'l_well')
+inf_cells = cell_tag(mesh, 'inf_cells')
+print(mesh)
+write_silo_plot(mesh, 'l_well')
 write_silo_plot(vert_well_points .. horiz_well_points .. lattice_points, 'l_well_points')
