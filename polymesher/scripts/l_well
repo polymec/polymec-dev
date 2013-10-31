@@ -14,7 +14,6 @@ vert_well_points = point_factory.cylinder{radius = 30, length = 950,
                                           nr = 8, nz = 950.0/dx, 
                                           radial_spacing = 'log', 
                                           log_spacing_factor = 1.3}
-print("Number of points in vertical well: ", #vert_well_points)
 
 -- A horizontal well meets the vertical well at the bottom, extending from 
 -- x = 15 to x = 65m.
@@ -23,28 +22,31 @@ horiz_well_points = point_factory.cylinder{radius = 30, length = 50,
                                            nr = 6, nz = 10, 
                                            radial_spacing = 'log', 
                                            log_spacing_factor = 1.5}
-print("Number of points in horizontal well: ", #horiz_well_points)
 
--- Here we generate a cubic lattice and knock out all the points that are within 
--- 0.5*dx of a well point.
+-- Punch out points in the vertical well that interfere with the horizontal well.
+vert_well_points = remove_points(vert_well_points, 
+                                 {near_points = horiz_well_points,
+                                  within_distance = 5})
+
+-- Generate a cubic lattice that fills the space.
 lattice_points = point_factory.cubic_lattice{bounding_box = box, nx = 350/dx, ny = 300/dx, nz = 1000/dx}
+
+-- Knock out all the points that are within 0.5*dx of a well point.
 lattice_points = remove_points(lattice_points, 
-                               {near_points = horiz_well_points,
---                               {near_points = vert_well_points .. horiz_well_points, 
+                               {near_points = vert_well_points .. horiz_well_points, 
                                 within_distance=0.5*dx})
+
+print("Number of points in vertical well: ", #vert_well_points)
+print("Number of points in horizontal well: ", #horiz_well_points)
 print("Number of points in lattice: ", #lattice_points)
 
 -- Mesh it up, tagging the different regions.
-mesh = mesh_factory.voronoi({well = horiz_well_points,
-                             lattice = lattice_points})
---mesh = mesh_factory.voronoi({well1 = horiz_well_points,
---                             well2 = vert_well_points})
 --mesh = mesh_factory.voronoi({vert_well = vert_well_points,
 --                             horiz_well = horiz_well_points,
 --                             lattice = lattice_points})
 --                            box)
 
-tag = cell_tag(mesh, 'inf_cells')
-print(mesh)
-write_silo_plot(mesh, 'l_well')
---write_silo_plot(vert_well_points .. horiz_well_points .. lattice_points, 'l_well_points')
+--tag = cell_tag(mesh, 'inf_cells')
+--print(mesh)
+--write_silo_plot(mesh, 'l_well')
+write_silo_plot(vert_well_points .. horiz_well_points .. lattice_points, 'l_well_points')
