@@ -5,4 +5,4 @@ bbox = bounding_box{x1 = -1, x2 = 1,
                     z1 = -1, z2 = 1}
 mesh = mesh_factory.cubic_lattice(10, 10, 10), bbox)
 print(mesh)
-write_silo_plot(mesh, 'cubic_lattice')
+write_silo_mesh(mesh, 'cubic_lattice')

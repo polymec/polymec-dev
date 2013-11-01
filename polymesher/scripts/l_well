@@ -50,5 +50,5 @@ mesh = mesh_factory.voronoi({vert_well = vert_well_points,
 
 inf_cells = cell_tag(mesh, 'inf_cells')
 print(mesh)
-write_silo_plot(mesh, 'l_well')
-write_silo_plot(vert_well_points .. horiz_well_points .. lattice_points, 'l_well_points')
+write_silo_mesh(mesh, 'l_well')
+write_silo_points(vert_well_points .. horiz_well_points .. lattice_points, 'l_well_points')
