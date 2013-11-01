@@ -126,6 +126,10 @@ static interpreter_storage_t* NEW_USER_DATA(lua_State* lua)
     storage->creator = LUA;
     storage->owner = LUA;
   }
+  storage->datum = NULL;
+  storage->size = 0;
+  storage->type = INTERPRETER_TERMINUS;
+  storage->dtor = NULL;
   return storage;
 }
 
@@ -240,7 +244,7 @@ static interpreter_storage_t* store_sequence(lua_State* lua, double* sequence, i
   interpreter_storage_t* storage = NEW_USER_DATA(lua);
   storage->datum = sequence;
   storage->type = INTERPRETER_SEQUENCE;
-  storage->dtor = free;
+//  storage->dtor = free; // FIXME: Handled by __gc? Why isn't this true for vector/point lists?
   storage->size = len;
   return storage;
 }
