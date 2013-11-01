@@ -487,6 +487,380 @@ static int lua_write_silo_points(lua_State* lua)
   return 1;
 }
 
+static int cell_centers(lua_State* lua)
+{
+  // Check the arguments.
+  int num_args = lua_gettop(lua);
+  if ((num_args != 1) || !lua_ismesh(lua, 1))
+  {
+    return luaL_error(lua, "Invalid argument(s). Usage:\n"
+                      "xc = cell_centers(mesh) ->\n"
+                      "Returns a list of cell centers for the given mesh.");
+  }
+  mesh_t* mesh = lua_tomesh(lua, 1);
+
+  // Copy the cell centers to a pointlist and push this list into the interpreter.
+  point_t* cc = malloc(sizeof(point_t) * mesh->num_cells);
+  memcpy(cc, mesh->cell_centers, sizeof(point_t) * mesh->num_cells);
+  lua_pushpointlist(lua, cc, mesh->num_cells);
+  return 1;
+}
+
+static int cell_tags(lua_State* lua)
+{
+  // Check the arguments.
+  int num_args = lua_gettop(lua);
+  if ((num_args != 1) || !lua_ismesh(lua, 1))
+  {
+    return luaL_error(lua, "Invalid argument(s). Usage:\n"
+                      "tags = cell_tags(mesh) ->\n"
+                      "Returns a list of names of cell tags for the given mesh.");
+  }
+  mesh_t* mesh = lua_tomesh(lua, 1);
+
+  lua_newtable(lua);
+  int pos = 0, index = 1, *tag_indices, tag_size;
+  char* tag_name;
+  while (mesh_next_tag(mesh->cell_tags, &pos, &tag_name, &tag_indices, &tag_size))
+  {
+    lua_pushinteger(lua, index++);
+    lua_pushstring(lua, (const char*)tag_name);
+    lua_settable(lua, -3);
+  }
+
+  return 1;
+}
+
+static int cell_tag(lua_State* lua)
+{
+  // Check the arguments.
+  int num_args = lua_gettop(lua);
+  if ((num_args != 2) || !lua_ismesh(lua, 1) || !lua_isstring(lua, 2))
+  {
+    return luaL_error(lua, "Invalid argument(s). Usage:\n"
+                      "tag = cell_tag(mesh, tag_name) ->\n"
+                      "Returns a list of cell indices associated with the given tag in the mesh.");
+  }
+  mesh_t* mesh = lua_tomesh(lua, 1);
+  const char* tag_name = lua_tostring(lua, 2);
+
+  if (!mesh_has_tag(mesh->cell_tags, tag_name))
+    return luaL_error(lua, "The given mesh has no cell tag named '%s'.", tag_name);
+
+  int size;
+  int* tag = mesh_tag(mesh->cell_tags, tag_name, &size);
+  double* seq = malloc(sizeof(double) * size);
+  for (int i = 0; i < size; ++i)
+    seq[i] = (double)tag[i];
+
+  lua_pushsequence(lua, seq, size);
+  return 1;
+}
+
+static int tag_cells(lua_State* lua)
+{
+  // Check the arguments.
+  int num_args = lua_gettop(lua);
+  if ((num_args != 3) || !lua_ismesh(lua, 1) || !lua_isstring(lua, 2) || !lua_issequence(lua, 3))
+  {
+    return luaL_error(lua, "Invalid argument(s). Usage:\n"
+                      "tag_cells(mesh, cell_indices, tag_name) ->\n"
+                      "Tags a given list of cell indices with the given name within the mesh.");
+  }
+  mesh_t* mesh = lua_tomesh(lua, 1);
+  const char* tag_name = lua_tostring(lua, 2);
+  int num_indices = 0;
+  double* indices = lua_tosequence(lua, 3, &num_indices);
+
+  // Check the validity of the indices.
+  for (int i = 0; i < num_indices; ++i)
+  {
+    if ((indices[i] < 0) || (indices[i] >= mesh->num_cells))
+      return luaL_error(lua, "tag_cells: invalid cell index at %d: %d", i, indices[i]);
+  }
+
+  // Overwrite any existing tag.
+  if (mesh_has_tag(mesh->cell_tags, tag_name))
+    mesh_delete_tag(mesh->cell_tags, tag_name);
+
+  int* tag = mesh_create_tag(mesh->cell_tags, tag_name, num_indices);
+  for (int i = 0; i < num_indices; ++i)
+    tag[i] = indices[i];
+
+  return 0;
+}
+
+static int face_tags(lua_State* lua)
+{
+  // Check the arguments.
+  int num_args = lua_gettop(lua);
+  if ((num_args != 1) || !lua_ismesh(lua, 1))
+  {
+    return luaL_error(lua, "Invalid argument(s). Usage:\n"
+                      "tags = face_tags(mesh) ->\n"
+                      "Returns a list of names of face tags for the given mesh.");
+  }
+  mesh_t* mesh = lua_tomesh(lua, 1);
+
+  lua_newtable(lua);
+  int pos = 0, index = 1, *tag_indices, tag_size;
+  char* tag_name;
+  while (mesh_next_tag(mesh->face_tags, &pos, &tag_name, &tag_indices, &tag_size))
+  {
+    lua_pushinteger(lua, index++);
+    lua_pushstring(lua, (const char*)tag_name);
+    lua_settable(lua, -3);
+  }
+
+  return 1;
+}
+
+static int face_tag(lua_State* lua)
+{
+  // Check the arguments.
+  int num_args = lua_gettop(lua);
+  if ((num_args != 2) || !lua_ismesh(lua, 1) || !lua_isstring(lua, 2))
+  {
+    return luaL_error(lua, "Invalid argument(s). Usage:\n"
+                      "tag = face_tag(mesh, tag_name) ->\n"
+                      "Returns a list of face indices associated with the given tag in the mesh.");
+  }
+  mesh_t* mesh = lua_tomesh(lua, 1);
+  const char* tag_name = lua_tostring(lua, 2);
+
+  if (!mesh_has_tag(mesh->face_tags, tag_name))
+    return luaL_error(lua, "The given mesh has no face tag named '%s'.", tag_name);
+
+  int size;
+  int* tag = mesh_tag(mesh->face_tags, tag_name, &size);
+  double* seq = malloc(sizeof(double) * size);
+  for (int i = 0; i < size; ++i)
+    seq[i] = (double)tag[i];
+
+  lua_pushsequence(lua, seq, size);
+  return 1;
+}
+
+static int tag_faces(lua_State* lua)
+{
+  // Check the arguments.
+  int num_args = lua_gettop(lua);
+  if ((num_args != 3) || !lua_ismesh(lua, 1) || !lua_isstring(lua, 2) || !lua_issequence(lua, 3))
+  {
+    return luaL_error(lua, "Invalid argument(s). Usage:\n"
+                      "tag_faces(mesh, face_indices, tag_name) ->\n"
+                      "Tags a given list of face indices with the given name within the mesh.");
+  }
+  mesh_t* mesh = lua_tomesh(lua, 1);
+  const char* tag_name = lua_tostring(lua, 2);
+  int num_indices = 0;
+  double* indices = lua_tosequence(lua, 3, &num_indices);
+
+  // Check the validity of the indices.
+  for (int i = 0; i < num_indices; ++i)
+  {
+    if ((indices[i] < 0) || (indices[i] >= mesh->num_faces))
+      return luaL_error(lua, "tag_faces: invalid face index at %d: %d", i, indices[i]);
+  }
+
+  // Overwrite any existing tag.
+  if (mesh_has_tag(mesh->face_tags, tag_name))
+    mesh_delete_tag(mesh->face_tags, tag_name);
+
+  int* tag = mesh_create_tag(mesh->face_tags, tag_name, num_indices);
+  for (int i = 0; i < num_indices; ++i)
+    tag[i] = indices[i];
+
+  return 0;
+}
+
+static int edge_tags(lua_State* lua)
+{
+  // Check the arguments.
+  int num_args = lua_gettop(lua);
+  if ((num_args != 1) || !lua_ismesh(lua, 1))
+  {
+    return luaL_error(lua, "Invalid argument(s). Usage:\n"
+                      "tags = edge_tags(mesh) ->\n"
+                      "Returns a list of names of edge tags for the given mesh.");
+  }
+  mesh_t* mesh = lua_tomesh(lua, 1);
+
+  lua_newtable(lua);
+  int pos = 0, index = 1, *tag_indices, tag_size;
+  char* tag_name;
+  while (mesh_next_tag(mesh->edge_tags, &pos, &tag_name, &tag_indices, &tag_size))
+  {
+    lua_pushinteger(lua, index++);
+    lua_pushstring(lua, (const char*)tag_name);
+    lua_settable(lua, -3);
+  }
+
+  return 1;
+}
+
+static int edge_tag(lua_State* lua)
+{
+  // Check the arguments.
+  int num_args = lua_gettop(lua);
+  if ((num_args != 2) || !lua_ismesh(lua, 1) || !lua_isstring(lua, 2))
+  {
+    return luaL_error(lua, "Invalid argument(s). Usage:\n"
+                      "tag = edge_tag(mesh, tag_name) ->\n"
+                      "Returns a list of edge indices associated with the given tag in the mesh.");
+  }
+  mesh_t* mesh = lua_tomesh(lua, 1);
+  const char* tag_name = lua_tostring(lua, 2);
+
+  if (!mesh_has_tag(mesh->edge_tags, tag_name))
+    return luaL_error(lua, "The given mesh has no edge tag named '%s'.", tag_name);
+
+  int size;
+  int* tag = mesh_tag(mesh->edge_tags, tag_name, &size);
+  double* seq = malloc(sizeof(double) * size);
+  for (int i = 0; i < size; ++i)
+    seq[i] = (double)tag[i];
+
+  lua_pushsequence(lua, seq, size);
+  return 1;
+}
+
+static int tag_edges(lua_State* lua)
+{
+  // Check the arguments.
+  int num_args = lua_gettop(lua);
+  if ((num_args != 3) || !lua_ismesh(lua, 1) || !lua_isstring(lua, 2) || !lua_issequence(lua, 3))
+  {
+    return luaL_error(lua, "Invalid argument(s). Usage:\n"
+                      "tag_edges(mesh, edge_indices, tag_name) ->\n"
+                      "Tags a given list of edge indices with the given name within the mesh.");
+  }
+  mesh_t* mesh = lua_tomesh(lua, 1);
+  const char* tag_name = lua_tostring(lua, 2);
+  int num_indices = 0;
+  double* indices = lua_tosequence(lua, 3, &num_indices);
+
+  // Check the validity of the indices.
+  for (int i = 0; i < num_indices; ++i)
+  {
+    if ((indices[i] < 0) || (indices[i] >= mesh->num_edges))
+      return luaL_error(lua, "tag_edges: invalid edge index at %d: %d", i, indices[i]);
+  }
+
+  // Overwrite any existing tag.
+  if (mesh_has_tag(mesh->edge_tags, tag_name))
+    mesh_delete_tag(mesh->edge_tags, tag_name);
+
+  int* tag = mesh_create_tag(mesh->edge_tags, tag_name, num_indices);
+  for (int i = 0; i < num_indices; ++i)
+    tag[i] = indices[i];
+
+  return 0;
+}
+
+static int node_positions(lua_State* lua)
+{
+  // Check the arguments.
+  int num_args = lua_gettop(lua);
+  if ((num_args != 1) || !lua_ismesh(lua, 1))
+  {
+    return luaL_error(lua, "Invalid argument(s). Usage:\n"
+                      "xn = node_positions(mesh) ->\n"
+                      "Returns a list of node positions for the given mesh.");
+  }
+  mesh_t* mesh = lua_tomesh(lua, 1);
+
+  // Copy the node positions to a pointlist and push this list into the interpreter.
+  point_t* np = malloc(sizeof(point_t) * mesh->num_nodes);
+  memcpy(np, mesh->nodes, sizeof(point_t) * mesh->num_nodes);
+  lua_pushpointlist(lua, np, mesh->num_nodes);
+  return 1;
+}
+
+static int node_tags(lua_State* lua)
+{
+  // Check the arguments.
+  int num_args = lua_gettop(lua);
+  if ((num_args != 1) || !lua_ismesh(lua, 1))
+  {
+    return luaL_error(lua, "Invalid argument(s). Usage:\n"
+                      "tags = node_tags(mesh) ->\n"
+                      "Returns a list of names of node tags for the given mesh.");
+  }
+  mesh_t* mesh = lua_tomesh(lua, 1);
+
+  lua_newtable(lua);
+  int pos = 0, index = 1, *tag_indices, tag_size;
+  char* tag_name;
+  while (mesh_next_tag(mesh->node_tags, &pos, &tag_name, &tag_indices, &tag_size))
+  {
+    lua_pushinteger(lua, index++);
+    lua_pushstring(lua, (const char*)tag_name);
+    lua_settable(lua, -3);
+  }
+
+  return 1;
+}
+
+static int node_tag(lua_State* lua)
+{
+  // Check the arguments.
+  int num_args = lua_gettop(lua);
+  if ((num_args != 2) || !lua_ismesh(lua, 1) || !lua_isstring(lua, 2))
+  {
+    return luaL_error(lua, "Invalid argument(s). Usage:\n"
+                      "tag = node_tag(mesh, tag_name) ->\n"
+                      "Returns a list of node indices associated with the given tag in the mesh.");
+  }
+  mesh_t* mesh = lua_tomesh(lua, 1);
+  const char* tag_name = lua_tostring(lua, 2);
+
+  if (!mesh_has_tag(mesh->node_tags, tag_name))
+    return luaL_error(lua, "The given mesh has no node tag named '%s'.", tag_name);
+
+  int size;
+  int* tag = mesh_tag(mesh->node_tags, tag_name, &size);
+  double* seq = malloc(sizeof(double) * size);
+  for (int i = 0; i < size; ++i)
+    seq[i] = (double)tag[i];
+
+  lua_pushsequence(lua, seq, size);
+  return 1;
+}
+
+static int tag_nodes(lua_State* lua)
+{
+  // Check the arguments.
+  int num_args = lua_gettop(lua);
+  if ((num_args != 3) || !lua_ismesh(lua, 1) || !lua_isstring(lua, 2) || !lua_issequence(lua, 3))
+  {
+    return luaL_error(lua, "Invalid argument(s). Usage:\n"
+                      "tag_nodes(mesh, node_indices, tag_name) ->\n"
+                      "Tags a given list of node indices with the given name within the mesh.");
+  }
+  mesh_t* mesh = lua_tomesh(lua, 1);
+  const char* tag_name = lua_tostring(lua, 2);
+  int num_indices = 0;
+  double* indices = lua_tosequence(lua, 3, &num_indices);
+
+  // Check the validity of the indices.
+  for (int i = 0; i < num_indices; ++i)
+  {
+    if ((indices[i] < 0) || (indices[i] >= mesh->num_nodes))
+      return luaL_error(lua, "tag_nodes: invalid node index at %d: %d", i, indices[i]);
+  }
+
+  // Overwrite any existing tag.
+  if (mesh_has_tag(mesh->node_tags, tag_name))
+    mesh_delete_tag(mesh->node_tags, tag_name);
+
+  int* tag = mesh_create_tag(mesh->node_tags, tag_name, num_indices);
+  for (int i = 0; i < num_indices; ++i)
+    tag[i] = indices[i];
+
+  return 0;
+}
+
 void interpreter_register_default_functions(interpreter_t* interp)
 {
   interpreter_register_function(interp, "point", point);
@@ -498,5 +872,21 @@ void interpreter_register_default_functions(interpreter_t* interp)
   interpreter_register_function(interp, "grad", grad);
   interpreter_register_function(interp, "write_silo_mesh", lua_write_silo_mesh);
   interpreter_register_function(interp, "write_silo_points", lua_write_silo_points);
+
+  // Mesh query functions.
+  interpreter_register_function(interp, "cell_centers", cell_centers);
+  interpreter_register_function(interp, "cell_tags", cell_tags);
+  interpreter_register_function(interp, "cell_tag", cell_tag);
+  interpreter_register_function(interp, "tag_cells", tag_cells);
+  interpreter_register_function(interp, "face_tags", face_tags);
+  interpreter_register_function(interp, "face_tag", face_tag);
+  interpreter_register_function(interp, "tag_faces", tag_faces);
+  interpreter_register_function(interp, "edge_tags", edge_tags);
+  interpreter_register_function(interp, "edge_tag", edge_tag);
+  interpreter_register_function(interp, "tag_edges", tag_edges);
+  interpreter_register_function(interp, "node_positions", node_positions);
+  interpreter_register_function(interp, "node_tags", node_tags);
+  interpreter_register_function(interp, "node_tag", node_tag);
+  interpreter_register_function(interp, "tag_nodes", tag_nodes);
 }
 
