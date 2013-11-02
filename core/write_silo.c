@@ -141,7 +141,7 @@ void write_silo_mesh(mesh_t* mesh,
   {
     node_tag_names[offset] = tag_name; // borrowed!
     node_tag_sizes[offset] = tag_size;
-    node_tag_indices[offset] = tag_indices; // borrowed!
+    node_tag_indices[offset++] = tag_indices; // borrowed!
   }
 
   int num_edge_tags = 0;
@@ -156,7 +156,7 @@ void write_silo_mesh(mesh_t* mesh,
   {
     edge_tag_names[offset] = tag_name; // borrowed!
     edge_tag_sizes[offset] = tag_size;
-    edge_tag_indices[offset] = tag_indices; // borrowed!
+    edge_tag_indices[offset++] = tag_indices; // borrowed!
   }
 
   int num_face_tags = 0;
@@ -171,7 +171,7 @@ void write_silo_mesh(mesh_t* mesh,
   {
     face_tag_names[offset] = tag_name; // borrowed!
     face_tag_sizes[offset] = tag_size;
-    face_tag_indices[offset] = tag_indices; // borrowed!
+    face_tag_indices[offset++] = tag_indices; // borrowed!
   }
 
   int num_cell_tags = 0;
@@ -186,7 +186,7 @@ void write_silo_mesh(mesh_t* mesh,
   {
     cell_tag_names[offset] = tag_name; // borrowed!
     cell_tag_sizes[offset] = tag_size;
-    cell_tag_indices[offset] = tag_indices; // borrowed!
+    cell_tag_indices[offset++] = tag_indices; // borrowed!
   }
 
   polytope_write_silo_with_tags(tess, 
