@@ -83,7 +83,7 @@ void write_silo_mesh(mesh_t* mesh,
 {
   polytope_tessellation_t* tess = tessellation_from_mesh(mesh);
 
-  // Translate everything into polytope lingo.
+  // Translate the fields into polytope lingo.
   int num_node_fields = (node_fields != NULL) ? node_fields->size : 0;
   char* node_field_names[num_node_fields];
   double* node_field_data[num_node_fields];
@@ -125,21 +125,102 @@ void write_silo_mesh(mesh_t* mesh,
       cell_field_data[i++] = ptr;
   }
 
-  polytope_write_silo(tess, num_node_fields, node_field_names, node_field_data,
-                      num_edge_fields, edge_field_names, edge_field_data,
-                      num_face_fields, face_field_names, face_field_data,
-                      num_cell_fields, cell_field_names, cell_field_data,
-                      file_prefix, directory, cycle, time,
-                      comm, num_files, mpi_tag);
+  // Now fetch tags from the mesh and translate them too.
 
+  int num_node_tags = 0;
+  char* tag_name;
+  int *tag_indices, tag_size, offset;
+  pos = 0;
+  while (mesh_next_tag(mesh->node_tags, &pos, &tag_name, &tag_indices, &tag_size))
+    ++num_node_tags;
+  char** node_tag_names = malloc(sizeof(char*) * MAX(1, num_node_tags));
+  int* node_tag_sizes = malloc(sizeof(int) * MAX(1, num_node_tags));
+  int** node_tag_indices = malloc(sizeof(int*) * MAX(1, num_node_tags));
+  pos = offset = 0;
+  while (mesh_next_tag(mesh->node_tags, &pos, &tag_name, &tag_indices, &tag_size))
+  {
+    node_tag_names[offset] = tag_name; // borrowed!
+    node_tag_sizes[offset] = tag_size;
+    node_tag_indices[offset] = tag_indices; // borrowed!
+  }
+
+  int num_edge_tags = 0;
+  pos = 0;
+  while (mesh_next_tag(mesh->edge_tags, &pos, &tag_name, &tag_indices, &tag_size))
+    ++num_edge_tags;
+  char** edge_tag_names = malloc(sizeof(char*) * MAX(1, num_edge_tags));
+  int* edge_tag_sizes = malloc(sizeof(int) * MAX(1, num_edge_tags));
+  int** edge_tag_indices = malloc(sizeof(int*) * MAX(1, num_edge_tags));
+  pos = offset = 0;
+  while (mesh_next_tag(mesh->edge_tags, &pos, &tag_name, &tag_indices, &tag_size))
+  {
+    edge_tag_names[offset] = tag_name; // borrowed!
+    edge_tag_sizes[offset] = tag_size;
+    edge_tag_indices[offset] = tag_indices; // borrowed!
+  }
+
+  int num_face_tags = 0;
+  pos = 0;
+  while (mesh_next_tag(mesh->face_tags, &pos, &tag_name, &tag_indices, &tag_size))
+    ++num_face_tags;
+  char** face_tag_names = malloc(sizeof(char*) * MAX(1, num_face_tags));
+  int* face_tag_sizes = malloc(sizeof(int) * MAX(1, num_face_tags));
+  int** face_tag_indices = malloc(sizeof(int*) * MAX(1, num_face_tags));
+  pos = offset = 0;
+  while (mesh_next_tag(mesh->face_tags, &pos, &tag_name, &tag_indices, &tag_size))
+  {
+    face_tag_names[offset] = tag_name; // borrowed!
+    face_tag_sizes[offset] = tag_size;
+    face_tag_indices[offset] = tag_indices; // borrowed!
+  }
+
+  int num_cell_tags = 0;
+  pos = 0;
+  while (mesh_next_tag(mesh->cell_tags, &pos, &tag_name, &tag_indices, &tag_size))
+    ++num_cell_tags;
+  char** cell_tag_names = malloc(sizeof(char*) * MAX(1, num_cell_tags));
+  int* cell_tag_sizes = malloc(sizeof(int) * MAX(1, num_cell_tags));
+  int** cell_tag_indices = malloc(sizeof(int*) * MAX(1, num_cell_tags));
+  pos = offset = 0;
+  while (mesh_next_tag(mesh->cell_tags, &pos, &tag_name, &tag_indices, &tag_size))
+  {
+    cell_tag_names[offset] = tag_name; // borrowed!
+    cell_tag_sizes[offset] = tag_size;
+    cell_tag_indices[offset] = tag_indices; // borrowed!
+  }
+
+  polytope_write_silo_with_tags(tess, 
+                                num_node_fields, node_field_names, node_field_data,
+                                num_node_tags, node_tag_names, node_tag_sizes, node_tag_indices,
+                                num_edge_fields, edge_field_names, edge_field_data,
+                                num_edge_tags, edge_tag_names, edge_tag_sizes, edge_tag_indices,
+                                num_face_fields, face_field_names, face_field_data,
+                                num_face_tags, face_tag_names, face_tag_sizes, face_tag_indices,
+                                num_cell_fields, cell_field_names, cell_field_data,
+                                num_cell_tags, cell_tag_names, cell_tag_sizes, cell_tag_indices,
+                                file_prefix, directory, cycle, time,
+                                comm, num_files, mpi_tag);
+
+  // Clean up.
+  free(cell_tag_indices);
+  free(cell_tag_sizes);
+  free(cell_tag_names);
+  free(face_tag_indices);
+  free(face_tag_sizes);
+  free(face_tag_names);
+  free(edge_tag_indices);
+  free(edge_tag_sizes);
+  free(edge_tag_names);
+  free(node_tag_indices);
+  free(node_tag_sizes);
+  free(node_tag_names);
   polytope_tessellation_free(tess);
 }
 
 #if HAVE_MPI
-
 static void* pmpio_create_file(const char* filename,
-                 const char* dir_name,
-                 void* userData)
+                               const char* dir_name,
+                               void* userData)
 {
   int driver = DB_HDF5;
   DBfile* file = DBCreate(filename, 0, DB_LOCAL, 0, driver);
@@ -147,14 +228,12 @@ static void* pmpio_create_file(const char* filename,
   DBSetDir(file, dir_name);
   return (void*)file;
 }
-//-------------------------------------------------------------------
 
-//-------------------------------------------------------------------
 void*
 pmpio_open_file(const char* filename, 
-               const char* dir_name,
-               PMPIO_iomode_t iomode, 
-               void* userData)
+                const char* dir_name,
+                PMPIO_iomode_t iomode, 
+                void* userData)
 {
   int driver = DB_HDF5;
   DBfile* file;
@@ -171,16 +250,13 @@ pmpio_open_file(const char* filename,
   }
   return (void*)file;
 }
-//-------------------------------------------------------------------
 
-//-------------------------------------------------------------------
 void
 pmpio_close_file(void* file,
                 void* userData)
 {
   DBClose((DBfile*)file);
 }
-//-------------------------------------------------------------------
 #endif
 
 void write_silo_points(point_t* points,
