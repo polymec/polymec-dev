@@ -11,7 +11,7 @@ add_library(polymec_core polymec.c arch.c point.c tagger.c mesh.c
             gauss_rules.c polynomials.c lin_op.c least_squares.c 
             sphere_integrator.c index_space.c newton.c options.c interpreter.c 
             interpreter_register_default_functions.c
-            string_utils.c linear_algebra.c loggers.c write_silo.c)
+            string_utils.c linear_algebra.c loggers.c read_silo.c write_silo.c)
 
 # polymec.c depends on the creation of polymec_version.h.
 add_dependencies(polymec_core update_polymec_version_h)
