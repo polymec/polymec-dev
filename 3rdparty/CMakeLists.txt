@@ -248,7 +248,6 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libpolytope.a)
     # FIXME: with a message like "No rule to make target 'w'". Need to figure this out.
     if (${LINUX})
       string(FIND ${polytope_build_err} "No rule to make target 'w'" bogus_problem)
-      message("bogus problem is ${bogus_problem}")
       if (${bogus_problem} EQUAL -1)
         message("Polytope build generated spurious make error: ignoring...")
       else()
