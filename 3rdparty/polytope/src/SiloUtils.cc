@@ -1,6 +1,7 @@
 // A collection of low-level utilities to help with silo file input/output.
 
 #include <cstdlib>
+#include <cstring>
 #include <iostream>
 #include "polytope_internal.hh"
 #include "SiloUtils.hh"
