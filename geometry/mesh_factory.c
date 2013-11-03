@@ -26,6 +26,7 @@
 #include "core/tuple.h"
 //#include "core/periodic_bc.h"
 #include "geometry/create_cubic_lattice_mesh.h"
+#include "geometry/create_rectilinear_lattice_mesh.h"
 #include "geometry/create_boundary_generators.h"
 #include "geometry/create_voronoi_mesh.h"
 #include "geometry/rect_prism.h"
@@ -40,10 +41,9 @@ int mesh_factory_cubic_lattice(lua_State* lua)
 {
   // Check the arguments.
   int num_args = lua_gettop(lua);
-  if ((num_args != 3) && (num_args != 4))
+  if (num_args != 4)
   {
     return luaL_error(lua, "Invalid arguments. Usage:\n"
-                      "mesh = cubic_lattice_mesh(nx, ny, nz) OR\n"
                       "mesh = cubic_lattice_mesh(nx, ny, nz, bounds)");
   }
 
@@ -53,16 +53,11 @@ int mesh_factory_cubic_lattice(lua_State* lua)
   int nz = (int)lua_tonumber(lua, 3);
   if ((nx <= 0) || (ny <= 0) || (nz <= 0))
     return luaL_error(lua, "nx, ny, and nz must all be positive.");
+  if (!lua_isboundingbox(lua, 4))
+    return luaL_error(lua, "bounds must be a bounding box.");
 
-  // Bounding box? 
-  bbox_t bbox0 = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
-  bbox_t* bbox = &bbox0;
-  if (num_args == 4)
-  {
-    if (!lua_isboundingbox(lua, 4))
-      return luaL_error(lua, "bounds must be a bounding box.");
-    bbox = lua_toboundingbox(lua, 4);
-  }
+  // Bounding box.
+  bbox_t* bbox = lua_toboundingbox(lua, 4);
 
   // Pop all the previous arguments off the stack.
   lua_pop(lua, lua_gettop(lua));
@@ -71,7 +66,37 @@ int mesh_factory_cubic_lattice(lua_State* lua)
   mesh_t* mesh = create_cubic_lattice_mesh(nx, ny, nz, bbox);
 
   // Tag its faces.
-//  tag_cubic_lattice_mesh_faces(mesh, nx, ny, nz, "x1", "x2", "y1", "y2", "z1", "z2");
+  tag_cubic_lattice_mesh_faces(mesh, nx, ny, nz, "x1", "x2", "y1", "y2", "z1", "z2");
+
+  // Push the mesh onto the stack.
+  lua_pushmesh(lua, mesh);
+  return 1;
+}
+
+int mesh_factory_rectilinear_lattice(lua_State* lua)
+{
+  // Check the arguments.
+  int num_args = lua_gettop(lua);
+  if ((num_args != 3) || !lua_issequence(lua, 1) || !lua_issequence(lua, 2) || !lua_issequence(lua, 3))
+  {
+    return luaL_error(lua, "Invalid arguments. Usage:\n"
+                      "mesh = rectilinear_lattice_mesh(xs, ys, zs)");
+  }
+
+  // Get the arguments.
+  int nxs, nys, nzs;
+  double* xs = lua_tosequence(lua, 1, &nxs);
+  double* ys = lua_tosequence(lua, 2, &nys);
+  double* zs = lua_tosequence(lua, 3, &nzs);
+
+  // Pop all the previous arguments off the stack.
+  lua_pop(lua, lua_gettop(lua));
+
+  // Create the mesh.
+  mesh_t* mesh = create_rectilinear_lattice_mesh(xs, nxs, ys, nys, zs, nzs);
+
+  // Tag its faces.
+  tag_cubic_lattice_mesh_faces(mesh, nxs-1, nys-1, nzs-1, "x1", "x2", "y1", "y2", "z1", "z2");
 
   // Push the mesh onto the stack.
   lua_pushmesh(lua, mesh);
