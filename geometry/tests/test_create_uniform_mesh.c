@@ -20,14 +20,14 @@
 #include <string.h>
 #include "cmockery.h"
 #include "core/write_silo.h"
-#include "geometry/create_cubic_lattice_mesh.h"
+#include "geometry/create_uniform_mesh.h"
 #include "polytope_c.h"
 
-void test_create_cubic_lattice_mesh(void** state)
+void test_create_uniform_mesh(void** state)
 {
-  // Create a 10x10x10 cubic lattice mesh.
+  // Create a 10x10x10 uniform mesh.
   bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
-  mesh_t* mesh = create_cubic_lattice_mesh(10, 10, 10, &bbox);
+  mesh_t* mesh = create_uniform_mesh(10, 10, 10, &bbox);
   mesh_verify(mesh);
   assert_int_equal(10*10*10, mesh->num_cells);
   assert_int_equal(0, mesh->num_ghost_cells);
@@ -37,11 +37,11 @@ void test_create_cubic_lattice_mesh(void** state)
   mesh_free(mesh);
 }
 
-void test_plot_cubic_lattice_mesh(void** state)
+void test_plot_uniform_mesh(void** state)
 {
-  // Create a 4x4x4 cubic lattice mesh.
+  // Create a 4x4x4 uniform mesh.
   bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
-  mesh_t* mesh = create_cubic_lattice_mesh(4, 4, 4, &bbox);
+  mesh_t* mesh = create_uniform_mesh(4, 4, 4, &bbox);
 
   // Plot it.
   double ones[4*4*4];
@@ -49,7 +49,7 @@ void test_plot_cubic_lattice_mesh(void** state)
     ones[c] = 1.0*c;
   string_ptr_unordered_map_t* fields = string_ptr_unordered_map_new();
   string_ptr_unordered_map_insert(fields, "solution", ones);
-  write_silo_mesh(mesh, NULL, NULL, NULL, fields, "cubic_lattice_4x4x4", ".",
+  write_silo_mesh(mesh, NULL, NULL, NULL, fields, "uniform_mesh_4x4x4", ".",
                   0, 0.0, MPI_COMM_SELF, 1, 0);
 
   // Clean up.
@@ -62,8 +62,8 @@ int main(int argc, char* argv[])
   polymec_init(argc, argv);
   const UnitTest tests[] = 
   {
-    unit_test(test_create_cubic_lattice_mesh),
-    unit_test(test_plot_cubic_lattice_mesh)
+    unit_test(test_create_uniform_mesh),
+    unit_test(test_plot_uniform_mesh)
   };
   return run_tests(tests);
 }

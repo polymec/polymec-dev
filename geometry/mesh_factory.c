@@ -25,8 +25,8 @@
 #include "core/unordered_map.h"
 #include "core/tuple.h"
 //#include "core/periodic_bc.h"
-#include "geometry/create_cubic_lattice_mesh.h"
-#include "geometry/create_rectilinear_lattice_mesh.h"
+#include "geometry/create_uniform_mesh.h"
+#include "geometry/create_rectilinear_mesh.h"
 #include "geometry/create_boundary_generators.h"
 #include "geometry/create_voronoi_mesh.h"
 #include "geometry/rect_prism.h"
@@ -37,14 +37,14 @@
 #include "lualib.h"
 #include "lauxlib.h"
 
-int mesh_factory_cubic_lattice(lua_State* lua)
+int mesh_factory_uniform(lua_State* lua)
 {
   // Check the arguments.
   int num_args = lua_gettop(lua);
   if (num_args != 4)
   {
     return luaL_error(lua, "Invalid arguments. Usage:\n"
-                      "mesh = cubic_lattice_mesh(nx, ny, nz, bounds)");
+                      "mesh = mesh_factory.uniform(nx, ny, nz, bounds)");
   }
 
   // Get the arguments.
@@ -63,24 +63,24 @@ int mesh_factory_cubic_lattice(lua_State* lua)
   lua_pop(lua, lua_gettop(lua));
 
   // Create the mesh.
-  mesh_t* mesh = create_cubic_lattice_mesh(nx, ny, nz, bbox);
+  mesh_t* mesh = create_uniform_mesh(nx, ny, nz, bbox);
 
   // Tag its faces.
-  tag_cubic_lattice_mesh_faces(mesh, nx, ny, nz, "x1", "x2", "y1", "y2", "z1", "z2");
+  tag_rectilinear_mesh_faces(mesh, nx, ny, nz, "x1", "x2", "y1", "y2", "z1", "z2");
 
   // Push the mesh onto the stack.
   lua_pushmesh(lua, mesh);
   return 1;
 }
 
-int mesh_factory_rectilinear_lattice(lua_State* lua)
+int mesh_factory_rectilinear(lua_State* lua)
 {
   // Check the arguments.
   int num_args = lua_gettop(lua);
   if ((num_args != 3) || !lua_issequence(lua, 1) || !lua_issequence(lua, 2) || !lua_issequence(lua, 3))
   {
     return luaL_error(lua, "Invalid arguments. Usage:\n"
-                      "mesh = rectilinear_lattice_mesh(xs, ys, zs)");
+                      "mesh = mesh_factory.rectilinear(xs, ys, zs)");
   }
 
   // Get the arguments.
@@ -88,15 +88,19 @@ int mesh_factory_rectilinear_lattice(lua_State* lua)
   double* xs = lua_tosequence(lua, 1, &nxs);
   double* ys = lua_tosequence(lua, 2, &nys);
   double* zs = lua_tosequence(lua, 3, &nzs);
+  if ((nxs < 2) || (nys < 2) || (nzs < 2))
+  {
+    return luaL_error(lua, "xs, ys, and zs must all contain at least 2 values.");
+  }
 
   // Pop all the previous arguments off the stack.
   lua_pop(lua, lua_gettop(lua));
 
   // Create the mesh.
-  mesh_t* mesh = create_rectilinear_lattice_mesh(xs, nxs, ys, nys, zs, nzs);
+  mesh_t* mesh = create_rectilinear_mesh(xs, nxs, ys, nys, zs, nzs);
 
   // Tag its faces.
-  tag_cubic_lattice_mesh_faces(mesh, nxs-1, nys-1, nzs-1, "x1", "x2", "y1", "y2", "z1", "z2");
+  tag_rectilinear_mesh_faces(mesh, nxs-1, nys-1, nzs-1, "x1", "x2", "y1", "y2", "z1", "z2");
 
   // Push the mesh onto the stack.
   lua_pushmesh(lua, mesh);

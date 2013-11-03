@@ -36,8 +36,8 @@ extern int point_factory_cubic_lattice(lua_State* lua);
 extern int point_factory_cylinder(lua_State* lua);
 extern int point_factory_import_from_cad(lua_State* lua);
 
-extern int mesh_factory_cubic_lattice(lua_State* lua);
-extern int mesh_factory_rectilinear_lattice(lua_State* lua);
+extern int mesh_factory_uniform(lua_State* lua);
+extern int mesh_factory_rectilinear(lua_State* lua);
 
 #ifdef POLYMEC_HAVE_TETGEN
 // Functions for the mesh factory, which generates meshes.
@@ -555,8 +555,8 @@ void interpreter_register_geometry_functions(interpreter_t* interp)
   interpreter_register_global_method(interp, "point_factory", "import_from_cad", point_factory_import_from_cad);
 
   interpreter_register_global_table(interp, "mesh_factory");
-  interpreter_register_global_method(interp, "mesh_factory", "cubic_lattice", mesh_factory_cubic_lattice);
-  interpreter_register_global_method(interp, "mesh_factory", "rectilinear_lattice", mesh_factory_rectilinear_lattice);
+  interpreter_register_global_method(interp, "mesh_factory", "uniform", mesh_factory_uniform);
+  interpreter_register_global_method(interp, "mesh_factory", "rectilinear", mesh_factory_rectilinear);
 #ifdef POLYMEC_HAVE_TETGEN
 //  interpreter_register_global_method(interp, "mesh_factory", "cubic_lattice_periodic_bc", mesh_factory_cubic_lattice_periodic_bc);
   interpreter_register_global_method(interp, "mesh_factory", "voronoi", mesh_factory_voronoi);

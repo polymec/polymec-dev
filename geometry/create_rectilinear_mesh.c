@@ -16,12 +16,12 @@
 
 #include "core/unordered_set.h"
 #include "core/table.h"
-#include "geometry/create_rectilinear_lattice_mesh.h"
+#include "geometry/create_rectilinear_mesh.h"
 #include "geometry/cubic_lattice.h"
 
-mesh_t* create_rectilinear_lattice_mesh(double* xs, int nxs, 
-                                        double* ys, int nys, 
-                                        double* zs, int nzs)
+mesh_t* create_rectilinear_mesh(double* xs, int nxs, 
+                                double* ys, int nys, 
+                                double* zs, int nzs)
 {
   ASSERT(nxs > 1);
   ASSERT(nys > 1);
@@ -310,5 +310,52 @@ mesh_t* create_rectilinear_lattice_mesh(double* xs, int nxs,
   int_unordered_set_free(processed_nodes);
 
   return mesh;
+}
+
+void tag_rectilinear_mesh_faces(mesh_t* mesh, 
+                                  int nx, int ny, int nz,
+                                  const char* x1_tag, 
+                                  const char* x2_tag, 
+                                  const char* y1_tag,
+                                  const char* y2_tag,
+                                  const char* z1_tag,
+                                  const char* z2_tag)
+{
+  // Tag the boundaries of the mesh.
+  cubic_lattice_t* lattice = mesh_property(mesh, "lattice");
+  ASSERT(lattice != NULL);
+  int* x1tag = mesh_create_tag(mesh->face_tags, x1_tag, ny*nz);
+  int* x2tag = mesh_create_tag(mesh->face_tags, x2_tag, ny*nz);
+  for (int j = 0; j < ny; ++j)
+  {
+    for (int k = 0; k < nz; ++k)
+    {
+      x1tag[nz*j + k] = cubic_lattice_x_face(lattice, 0, j, k);
+      x2tag[nz*j + k] = cubic_lattice_x_face(lattice, nx, j, k);
+    }
+  }
+
+  int* y1tag = mesh_create_tag(mesh->face_tags, y1_tag, nx*nz);
+  int* y2tag = mesh_create_tag(mesh->face_tags, y2_tag, nx*nz);
+  for (int i = 0; i < nx; ++i)
+  {
+    for (int k = 0; k < nz; ++k)
+    {
+      y1tag[nz*i + k] = cubic_lattice_y_face(lattice, i, 0, k);
+      y2tag[nz*i + k] = cubic_lattice_y_face(lattice, i, ny, k);
+    }
+  }
+
+  int* z1tag = mesh_create_tag(mesh->face_tags, z1_tag, nx*ny);
+  int* z2tag = mesh_create_tag(mesh->face_tags, z2_tag, nx*ny);
+  for (int i = 0; i < nx; ++i)
+  {
+    for (int j = 0; j < ny; ++j)
+    {
+      z1tag[ny*i + j] = cubic_lattice_z_face(lattice, i, j, 0);
+      z2tag[ny*i + j] = cubic_lattice_z_face(lattice, i, j, nz);
+    }
+  }
+  lattice = NULL;
 }
 

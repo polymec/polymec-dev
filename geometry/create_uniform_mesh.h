@@ -14,16 +14,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef POLYMEC_CREATE_RECTILINEAR_LATTICE_MESH_H
-#define POLYMEC_CREATE_RECTILINEAR_LATTICE_MESH_H
+#ifndef POLYMEC_CREATE_UNIFORM_MESH_H
+#define POLYMEC_CREATE_UNIFORM_MESH_H
 
 #include "core/mesh.h"
 
-// This function creates and returns a mesh for a rectilinear lattice 
-// whose nodes are given by the xs, ys, and zs array.
-mesh_t* create_rectilinear_lattice_mesh(double* xs, int nxs, 
-                                        double* ys, int nys, 
-                                        double* zs, int nzs);
+// This function creates and returns a uniform mesh of nx x ny x nz cells. 
+// The mesh spans the rectangular region of space defined by the bounding box.
+mesh_t* create_uniform_mesh(int nx, int ny, int nz, bbox_t* bbox);
 
 #endif
 
