@@ -159,7 +159,7 @@ mesh_t* create_rectilinear_mesh(double* xs, int nxs,
           if (face < 0) face = ~face;
           if (mesh->face_cells[2*face] == -1)
             mesh->face_cells[2*face] = cell;
-          else if (mesh->face_cells[2*face] == -1)
+          else if (mesh->face_cells[2*face+1] == -1)
             mesh->face_cells[2*face+1] = cell;
 
           mesh->face_node_offsets[face] = 4*face;

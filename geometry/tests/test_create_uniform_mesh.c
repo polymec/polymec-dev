@@ -31,8 +31,8 @@ void test_create_uniform_mesh(void** state)
   mesh_verify(mesh);
   assert_int_equal(10*10*10, mesh->num_cells);
   assert_int_equal(0, mesh->num_ghost_cells);
-  assert_int_equal(mesh->num_faces, 10*11*11);
-  assert_int_equal(mesh->num_edges, 10*10*11);
+  assert_int_equal(mesh->num_faces, 3*10*10*11);
+  assert_int_equal(mesh->num_edges, 3*10*11*11);
   assert_int_equal(11*11*11, mesh->num_nodes);
   mesh_free(mesh);
 }
