@@ -552,9 +552,9 @@ void interpreter_register_geometry_functions(interpreter_t* interp)
   interpreter_register_global_method(interp, "point_factory", "cylinder", point_factory_cylinder);
   interpreter_register_global_method(interp, "point_factory", "import_from_cad", point_factory_import_from_cad);
 
-#ifdef POLYMEC_HAVE_TETGEN
   interpreter_register_global_table(interp, "mesh_factory");
   interpreter_register_global_method(interp, "mesh_factory", "cubic_lattice", mesh_factory_cubic_lattice);
+#ifdef POLYMEC_HAVE_TETGEN
 //  interpreter_register_global_method(interp, "mesh_factory", "cubic_lattice_periodic_bc", mesh_factory_cubic_lattice_periodic_bc);
   interpreter_register_global_method(interp, "mesh_factory", "voronoi", mesh_factory_voronoi);
 //  interpreter_register_global_method(interp, "mesh_factory", "cvt", mesh_factory_cvt);
