@@ -34,9 +34,6 @@ mesh_t* create_cubic_lattice_mesh(int nx, int ny, int nz, bbox_t* bbox)
   double Lx = bbox->x2 - bbox->x1;
   double Ly = bbox->y2 - bbox->y1;
   double Lz = bbox->z2 - bbox->z1;
-  double x1 = bbox->x1;
-  double y1 = bbox->y1;
-  double z1 = bbox->z1;
   double dx = Lx/nx, dy = Ly/ny, dz = Lz/nz;
 
   // Create a uniform rectilinear lattice mesh!

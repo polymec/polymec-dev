@@ -15,6 +15,7 @@
 // limitations under the License.
 
 #include "core/unordered_set.h"
+#include "core/table.h"
 #include "geometry/create_rectilinear_lattice_mesh.h"
 #include "geometry/cubic_lattice.h"
 
@@ -58,7 +59,7 @@ mesh_t* create_rectilinear_lattice_mesh(double* xs, int nxs,
                           cubic_lattice_num_nodes(lattice));
   mesh->cell_faces = ARENA_REALLOC(mesh->arena, mesh->cell_faces, sizeof(int)*6*mesh->num_cells, 0);
   mesh->face_nodes = ARENA_REALLOC(mesh->arena, mesh->face_nodes, sizeof(int)*4*mesh->num_faces, 0);
-  mesh->face_edges = ARENA_REALLOC(mesh->arena, mesh->face_nodes, sizeof(int)*4*mesh->num_faces, 0);
+  mesh->face_edges = ARENA_REALLOC(mesh->arena, mesh->face_edges, sizeof(int)*4*mesh->num_faces, 0);
   mesh->cell_face_offsets[mesh->num_cells] = 6*mesh->num_cells;
   mesh->face_node_offsets[mesh->num_faces] = 4*mesh->num_faces;
   mesh->face_edge_offsets[mesh->num_faces] = 4*mesh->num_faces;
@@ -90,11 +91,8 @@ mesh_t* create_rectilinear_lattice_mesh(double* xs, int nxs,
         mesh->cell_faces[6*cell+4] = ~cubic_lattice_z_face(lattice, i, j, k);
         mesh->cell_faces[6*cell+5] = cubic_lattice_z_face(lattice, i, j, k+1);
 
-        // Hook up each face to its edges, and each edge to its nodes. 
-        // edges[i][j] is the jth edge for the ith face.
-        // nodes[i][j][k] is the kth node for the jth edge for the ith face.
-        int nodes[6][4][2];
-        int edges[6][4];
+        // Hook up each face to its nodes.
+        int nodes[6][4];
 
         // We use the reference cell below, which is typical of 3D
         // finite element schemes:
@@ -118,126 +116,41 @@ mesh_t* create_rectilinear_lattice_mesh(double* xs, int nxs,
         node_indices[6] = cubic_lattice_node(lattice, i+1, j+1, k+1);
         node_indices[7] = cubic_lattice_node(lattice, i, j+1, k+1);
 
-        // The edges 0-3 traverse the bottom from 0->1->2->3->0.
-        int edge_indices[12];
-        edge_indices[0] = cubic_lattice_x_edge(lattice, i, j, k);
-        edge_indices[1] = cubic_lattice_y_edge(lattice, i+1, j, k);
-        edge_indices[2] = cubic_lattice_x_edge(lattice, i, j+1, k);
-        edge_indices[3] = cubic_lattice_y_edge(lattice, i, j, k);
-
-        // The edges 4-7 scale the sides, connecting 0-3 to 4-7.
-        edge_indices[4] = cubic_lattice_z_edge(lattice, i, j, k);
-        edge_indices[5] = cubic_lattice_z_edge(lattice, i+1, j, k);
-        edge_indices[6] = cubic_lattice_z_edge(lattice, i+1, j+1, k);
-        edge_indices[7] = cubic_lattice_z_edge(lattice, i, j+1, k);
-
-        // The edges 8-11 traverse the top from 4->5->6->7->4.
-        edge_indices[8]  = cubic_lattice_x_edge(lattice, i, j, k+1);
-        edge_indices[9]  = cubic_lattice_y_edge(lattice, i+1, j, k+1);
-        edge_indices[10] = cubic_lattice_x_edge(lattice, i, j+1, k+1);
-        edge_indices[11] = cubic_lattice_y_edge(lattice, i, j, k+1);
-
         // Face 0 (-x) -- backward traversal
-        edges[0][0] = edge_indices[7];
-        nodes[0][0][0] = node_indices[7];
-        nodes[0][0][1] = node_indices[4];
-
-        edges[0][1] = edge_indices[11];
-        nodes[0][1][0] = node_indices[4];
-        nodes[0][1][1] = node_indices[0];
-
-        edges[0][2] = edge_indices[4];
-        nodes[0][2][0] = node_indices[0];
-        nodes[0][2][1] = node_indices[3];
-
-        edges[0][3] = edge_indices[3];
-        nodes[0][3][0] = node_indices[3];
-        nodes[0][3][1] = node_indices[7];
+        nodes[0][0] = node_indices[7];
+        nodes[0][1] = node_indices[4];
+        nodes[0][2] = node_indices[0];
+        nodes[0][3] = node_indices[3];
 
         // Face 1 (+x) -- forward traversal
-        edges[1][0] = edge_indices[1];
-        nodes[1][0][0] = node_indices[1];
-        nodes[1][0][1] = node_indices[2];
-
-        edges[1][1] = edge_indices[6];
-        nodes[1][1][0] = node_indices[2];
-        nodes[1][1][1] = node_indices[6];
-
-        edges[1][2] = edge_indices[9];
-        nodes[1][2][0] = node_indices[6];
-        nodes[1][2][1] = node_indices[5];
-
-        edges[1][3] = edge_indices[5];
-        nodes[1][3][0] = node_indices[5];
-        nodes[1][3][1] = node_indices[1];
+        nodes[1][0] = node_indices[1];
+        nodes[1][1] = node_indices[2];
+        nodes[1][2] = node_indices[6];
+        nodes[1][3] = node_indices[5];
 
         // Face 2 (-y) -- backward traversal
-        edges[2][0] = edge_indices[4];
-        nodes[2][0][0] = node_indices[4];
-        nodes[2][0][1] = node_indices[5];
-
-        edges[2][1] = edge_indices[8];
-        nodes[2][1][0] = node_indices[5];
-        nodes[2][1][1] = node_indices[1];
-
-        edges[2][2] = edge_indices[5];
-        nodes[2][2][0] = node_indices[1];
-        nodes[2][2][1] = node_indices[0];
-
-        edges[2][3] = edge_indices[0];
-        nodes[2][3][0] = node_indices[0];
-        nodes[2][3][1] = node_indices[4];
+        nodes[2][0] = node_indices[4];
+        nodes[2][1] = node_indices[5];
+        nodes[2][2] = node_indices[1];
+        nodes[2][3] = node_indices[0];
 
         // Face 3 (+y) -- forward traversal
-        edges[3][0] = edge_indices[2];
-        nodes[3][0][0] = node_indices[2];
-        nodes[3][0][1] = node_indices[3];
-
-        edges[3][1] = edge_indices[7];
-        nodes[3][1][0] = node_indices[3];
-        nodes[3][1][1] = node_indices[7];
-
-        edges[3][2] = edge_indices[10];
-        nodes[3][2][0] = node_indices[7];
-        nodes[3][2][1] = node_indices[6];
-
-        edges[3][3] = edge_indices[6];
-        nodes[3][3][0] = node_indices[6];
-        nodes[3][3][1] = node_indices[2];
+        nodes[3][0] = node_indices[2];
+        nodes[3][1] = node_indices[3];
+        nodes[3][2] = node_indices[7];
+        nodes[3][3] = node_indices[6];
 
         // Face 4 (-z) -- backward traversal
-        edges[4][0] = edge_indices[0];
-        nodes[4][0][0] = node_indices[0];
-        nodes[4][0][1] = node_indices[1];
-
-        edges[4][1] = edge_indices[1];
-        nodes[4][1][0] = node_indices[1];
-        nodes[4][1][1] = node_indices[2];
-
-        edges[4][2] = edge_indices[2];
-        nodes[4][2][0] = node_indices[2];
-        nodes[4][2][1] = node_indices[3];
-
-        edges[4][3] = edge_indices[3];
-        nodes[4][3][0] = node_indices[3];
-        nodes[4][3][1] = node_indices[0];
+        nodes[4][0] = node_indices[0];
+        nodes[4][1] = node_indices[1];
+        nodes[4][2] = node_indices[2];
+        nodes[4][3] = node_indices[3];
 
         // Face 5 (+z) -- forward traversal
-        edges[5][0] = edge_indices[8];
-        nodes[5][0][0] = node_indices[4];
-        nodes[5][0][1] = node_indices[5];
-
-        edges[5][1] = edge_indices[9];
-        nodes[5][1][0] = node_indices[5];
-        nodes[5][1][1] = node_indices[6];
-
-        edges[5][2] = edge_indices[10];
-        nodes[5][2][0] = node_indices[6];
-        nodes[5][2][1] = node_indices[7];
-
-        edges[5][3] = edge_indices[11];
-        nodes[5][3][0] = node_indices[7];
-        nodes[5][3][1] = node_indices[4];
+        nodes[5][0] = node_indices[4];
+        nodes[5][1] = node_indices[5];
+        nodes[5][2] = node_indices[6];
+        nodes[5][3] = node_indices[7];
 
         // Hook everything up.
         for (int f = 0; f < 6; ++f)
@@ -249,21 +162,12 @@ mesh_t* create_rectilinear_lattice_mesh(double* xs, int nxs,
           else if (mesh->face_cells[2*face] == -1)
             mesh->face_cells[2*face+1] = cell;
 
-          mesh->face_edge_offsets[face] = 4*face;
-          for (int e = 0; e < 4; ++e)
-          {
-            int edge = edges[f][e];
-            mesh->face_edges[4*face+e] = edge;
-            mesh->edge_nodes[2*edge] = nodes[f][e][0];
-            mesh->edge_nodes[2*edge+1] = nodes[f][e][1];
-          }
-
           mesh->face_node_offsets[face] = 4*face;
           for (int n = 0; n < 4; ++n)
-            mesh->face_nodes[4*face+n] = nodes[f][n][0];
+            mesh->face_nodes[4*face+n] = nodes[f][n];
         }
 
-        // Assign the node positions for a uniform grid spanning [0,1]x[0,1]x[0,1].
+        // Assign the node positions for the cell.
         static const int i_offsets[] = {0, 1, 1, 0, 0, 1, 1, 0};
         static const int j_offsets[] = {0, 0, 1, 1, 0, 0, 1, 1};
         static const int k_offsets[] = {0, 0, 0, 0, 1, 1, 1, 1};
@@ -281,6 +185,40 @@ mesh_t* create_rectilinear_lattice_mesh(double* xs, int nxs,
       }
     }
   }
+
+  // Construct edge information.
+  int_table_t* edge_for_nodes = int_table_new();
+  {
+    int num_edges = 0;
+    for (int f = 0; f < mesh->num_faces; ++f)
+    {
+      int offset = 4*f;
+      mesh->face_edge_offsets[f] = offset;
+      for (int n = 0; n < 4; ++n)
+      {
+        int n1 = (int)mesh->face_nodes[offset+n];
+        int n2 = (int)mesh->face_nodes[offset+(n+1)%4];
+        if (!int_table_contains(edge_for_nodes, MIN(n1, n2), MAX(n1, n2)))
+        {
+          int_table_insert(edge_for_nodes, MIN(n1, n2), MAX(n1, n2), num_edges);
+          mesh->face_edges[offset+n] = num_edges;
+          ++num_edges;
+        }
+        else
+          mesh->face_edges[offset+n] = *int_table_get(edge_for_nodes, MIN(n1, n2), MAX(n1, n2));
+      }
+    }
+    ASSERT(num_edges == mesh->num_edges);
+
+    int_table_cell_pos_t pos = int_table_start(edge_for_nodes);
+    int n1, n2, e;
+    while (int_table_next_cell(edge_for_nodes, &pos, &n1, &n2, &e))
+    {
+      mesh->edge_nodes[2*e] = n1;
+      mesh->edge_nodes[2*e+1] = n2;
+    }
+  }
+  free(edge_for_nodes);
 
 #if 0
   // Set up ghost cells.

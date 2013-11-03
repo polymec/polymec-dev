@@ -188,7 +188,7 @@ static inline bool mesh_next_cell_face(mesh_t* mesh, int cell, int* pos, int* fa
   // FIXME: polytope provides -- we only transform indices back.
   if (*face < 0) *face = ~(*face);
   ++(*pos);
-  return (*pos < (mesh->cell_face_offsets[cell+1] - mesh->cell_face_offsets[cell]));
+  return (*pos <= (mesh->cell_face_offsets[cell+1] - mesh->cell_face_offsets[cell]));
 }
 
 // Returns the number of nodes attached to the given face in the mesh.
@@ -204,7 +204,7 @@ static inline bool mesh_next_face_node(mesh_t* mesh, int face, int* pos, int* no
 {
   *node = mesh->face_nodes[mesh->face_node_offsets[face] + *pos];
   ++(*pos);
-  return (*pos < (mesh->face_node_offsets[face+1] - mesh->face_node_offsets[face]));
+  return (*pos <= (mesh->face_node_offsets[face+1] - mesh->face_node_offsets[face]));
 }
 
 // Returns the number of edges attached to the given face in the mesh.
@@ -220,7 +220,7 @@ static inline bool mesh_next_face_edge(mesh_t* mesh, int face, int* pos, int* ed
 {
   *edge = mesh->face_edges[mesh->face_edge_offsets[face] + *pos];
   ++(*pos);
-  return (*pos < (mesh->face_edge_offsets[face+1] - mesh->face_edge_offsets[face]));
+  return (*pos <= (mesh->face_edge_offsets[face+1] - mesh->face_edge_offsets[face]));
 }
 
 // Given a face within the mesh and one of its cells, returns the cell on 

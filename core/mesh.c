@@ -312,12 +312,13 @@ void mesh_compute_geometry(mesh_t* mesh)
     // Use the preceding geometry to compute face areas and the 
     // cell's volume.
     mesh->cell_volumes[cell] = 0.0;
-    for (int f = 0; f < num_cell_faces; ++f)
+    pos = 0;
+    while (mesh_next_cell_face(mesh, cell, &pos, &face))
     {
       double face_area = 0.0;
       vector_t face_normal = {0.0, 0.0, 0.0};
-      int pos = 0, edge;
-      while (mesh_next_face_edge(mesh, face, &pos, &edge))
+      int epos = 0, edge;
+      while (mesh_next_face_edge(mesh, face, &epos, &edge))
       {
         // Construct a tetrahedron whose vertices are the cell center, 
         // the face center, and the two nodes of this edge. The volume 
