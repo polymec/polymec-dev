@@ -919,7 +919,7 @@ computeUnboundedQuantizedTessellation(const vector<double>& points,
         e1 = qmesh.edgePosition(meshEdges[internal::positiveID(edgeOrder[1])]);
         e2 = qmesh.edgePosition(meshEdges[internal::positiveID(edgeOrder[2])]);
         vol = geometry::tetrahedralVolume6(&qmesh.generators[3*a], &e2.x, &e1.x, &e0.x);
-//        POLY_ASSERT(vol != 0.0);
+        POLY_ASSERT(vol != 0.0);
         if (vol > 0.0) {
           qmesh.cells[a].push_back(iface);
           qmesh.cells[b].push_back(~iface);

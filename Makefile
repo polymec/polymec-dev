@@ -80,6 +80,13 @@ config: distclean
 distclean:
 	@rm -rf $(BUILDDIR)
 
+# For rebuilding the polytope library, which is a common thing to do 
+# at the moment.
+rebuild-polytope:
+	@rm -f $(BUILDDIR)/lib/libpolytope*
+	@touch 3rdparty/CMakeLists.txt
+	@make -C $(BUILDDIR) $(MAKEFLAGS)
+
 stats: 
 	@python tools/gather_stats.py
 
