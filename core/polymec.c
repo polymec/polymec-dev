@@ -201,13 +201,57 @@ void polymec_provenance_fprintf(int argc, char** argv, FILE* stream)
   fprintf(stream, "\n");
   time_t raw_time;
   time(&raw_time);
-  fprintf(stream, "Invoked on: %s\n\n", ctime(&raw_time));
+  fprintf(stream, "Invoked on: %s\n", ctime(&raw_time));
 
   if (strlen(POLYMEC_GIT_DIFF) > 0)
   {
+    fprintf(stream, "=======================================================================\n");
     fprintf(stream, "Modifications to revision:\n");
-    fprintf(stream, "%s\n", POLYMEC_GIT_DIFF);
+    fprintf(stream, "%s\n\n", POLYMEC_GIT_DIFF);
   }
+
+  // If we received an input script, write out its contents.
+  options_t* options = options_parse(argc, argv);
+  char* input = options_input(options);
+  if (input == NULL)
+  {
+    // It's possible that the 1st argument is actually the input file.
+    char* command = options_command(options);
+    FILE* fp = fopen(command, "r");
+    if (fp != NULL)
+    {
+      input = command;
+      fclose(fp);
+    }
+  }
+  if (input != NULL)
+  {
+    FILE* fp = fopen(input, "r");
+    if (fp == NULL)
+      fprintf(stream, "Invalid input specified.");
+    else
+    {
+      fprintf(stream, "=======================================================================\n");
+      fprintf(stream, "Contents of input script:\n");
+      char buff[sizeof(char)*1024];
+      fseek(fp, 0L, SEEK_END);
+      int end = ftell(fp);
+      rewind(fp);
+      int offset = 0;
+      while (offset < end)
+      {
+        fread(buff, 1, MIN(1000, end-offset), fp);
+        if (end-offset < 1000)
+          buff[end-offset] = '\0';
+        fprintf(stream, "%s", buff);
+        offset += MIN(1000, end-offset);
+      }
+      fclose(fp);
+    }
+    fprintf(stream, "\n");
+  }
+  options = NULL;
+
   fprintf(stream, "=======================================================================\n\n");
 }
 
