@@ -15,6 +15,7 @@
 #include "ReducedPLC.hh"
 #include "polytope_internal.hh"
 #include "polytope_geometric_utilities.hh"
+#include "PLC_CSG_2d.hh"
 
 namespace polytope {
 
@@ -33,7 +34,6 @@ simplifyPLCfacets(const PLC<2, RealType>& plc,
   ReducedPLC<2, RealType> result;
   
   // Reduce to the set of unique points.
-  std::vector<RealType> newpoints;
   std::vector<unsigned> old2new;
   geometry::uniquePoints<2, RealType>(points, xmin, xmax, tol, result.points, old2new);
   const unsigned nnewpoints = result.points.size()/2;
@@ -145,21 +145,21 @@ simplifyPLCfacets(const PLC<3, RealType>& plc,
                   const RealType tol) {
   typedef Point3<RealType> PointType;
   typedef std::pair<int, int> EdgeHash;
+  typedef geometry::Hasher<2, RealType> HasherType2d;
   ReducedPLC<3, RealType> result;
   
   // Reduce to the set of unique points.
-  std::vector<RealType> newpoints;
   std::vector<unsigned> old2new;
   geometry::uniquePoints<3, RealType>(points, xmin, xmax, tol, result.points, old2new);
   const unsigned nnewpoints = result.points.size()/3;
-  std::cerr << "Original points: " << std::endl;
-  for (unsigned i = 0; i != points.size()/3; ++i) {
-    std::cerr << "    " << i << " : (" << points[3*i] << " " << points[3*i+1] << " " << points[3*i+2] << ")" << std::endl;
-  }
-  std::cerr << "Unique points: " << std::endl;
-  for (unsigned i = 0; i != nnewpoints; ++i) {
-    std::cerr << "    " << i << " : (" << result.points[3*i] << " " << result.points[3*i+1] << " " << result.points[3*i+2] << ")" << std::endl;
-  }
+  // std::cerr << "Original points: " << std::endl;
+  // for (unsigned i = 0; i != points.size()/3; ++i) {
+  //   std::cerr << "    " << i << " : (" << points[3*i] << " " << points[3*i+1] << " " << points[3*i+2] << ")" << std::endl;
+  // }
+  // std::cerr << "Unique points: " << std::endl;
+  // for (unsigned i = 0; i != nnewpoints; ++i) {
+  //   std::cerr << "    " << i << " : (" << result.points[3*i] << " " << result.points[3*i+1] << " " << result.points[3*i+2] << ")" << std::endl;
+  // }
 
   // Build a map of the old facets attached to each unique point.
   const unsigned noldfacets = plc.facets.size();
@@ -201,9 +201,8 @@ simplifyPLCfacets(const PLC<3, RealType>& plc,
                  b[3] = {points[3*k2  ] - points[3*k1  ],
                          points[3*k2+1] - points[3*k1+1],
                          points[3*k2+2] - points[3*k1+2]};
-          geometry::cross<3, RealType>(a, b, &facetNormals[i].x);
+          geometry::cross<3, RealType>(b, a, &facetNormals[i].x);
           facetNormalMag[i] = sqrt(double(geometry::dot<3, RealType>(&facetNormals[i].x, &facetNormals[i].x)));
-          // geometry::unitVector<3, RealType>(&facetNormals[i].x);
       }
     }
   }
@@ -219,7 +218,7 @@ simplifyPLCfacets(const PLC<3, RealType>& plc,
       std::set<unsigned> oldfacets, nodes2check;
       std::map<unsigned, unsigned> nodeFacetUsedCount;
       oldfacets.insert(i);
-      std::cerr << " gluing together old facets : " << i;
+      // std::cerr << " gluing together old facets : " << i;
       for (std::vector<int>::const_iterator nodeItr = plc.facets[i].begin();
            nodeItr != plc.facets[i].end();
            ++nodeItr) nodes2check.insert(old2new[*nodeItr]);
@@ -231,7 +230,7 @@ simplifyPLCfacets(const PLC<3, RealType>& plc,
              ++otherFacetItr) {
           if ((*otherFacetItr != i) and (facetUsed[*otherFacetItr] == 0) and
               (std::abs(geometry::dot<3, RealType>(&facetNormals[i].x, &facetNormals[*otherFacetItr].x) - facetNormalMag[i]*facetNormalMag[*otherFacetItr]) < tol)) {
-            std::cerr << " " << *otherFacetItr;
+            // std::cerr << " " << *otherFacetItr;
             facetUsed[*otherFacetItr] = 1;
             oldfacets.insert(*otherFacetItr);
             for (std::vector<int>::const_iterator otherNodeItr = plc.facets[*otherFacetItr].begin();
@@ -240,7 +239,7 @@ simplifyPLCfacets(const PLC<3, RealType>& plc,
           }
         }
       }
-      std::cerr << std::endl;
+      // std::cerr << std::endl;
 
       // oldfacets now contains all the facets we're going to glue together into a single new one.
       // Walk the edges of each facet.  Any edges we walk only once is one we're keeping.
@@ -257,17 +256,17 @@ simplifyPLCfacets(const PLC<3, RealType>& plc,
           ++edgeCount[ehash];
         }
       }
-      std::cerr << "edges: " << std::endl;;
+      // std::cerr << "edges: " << std::endl;;
       for (typename internal::CounterMap<EdgeHash>::const_iterator itr = edgeCount.begin();
            itr != edgeCount.end();
            ++itr) {
         if (itr->second == 1) edges.push_back(itr->first);
         const EdgeHash ehash = itr->first;
-        std::cerr << "  --> " << itr->second 
-                  << " [" << ehash.first << " " << ehash.second << "] : ("
-                  << result.points[3*ehash.first] << " " << result.points[3*ehash.first+1] << " " << result.points[3*ehash.first+2] << ") (" 
-                  << result.points[3*ehash.second] << " " << result.points[3*ehash.second+1] << " " << result.points[3*ehash.second+2] << ") "
-                  << std::endl;
+        // std::cerr << "  --> " << itr->second 
+        //           << " [" << ehash.first << " " << ehash.second << "] : ("
+        //           << result.points[3*ehash.first] << " " << result.points[3*ehash.first+1] << " " << result.points[3*ehash.first+2] << ") (" 
+        //           << result.points[3*ehash.second] << " " << result.points[3*ehash.second+1] << " " << result.points[3*ehash.second+2] << ") "
+        //           << std::endl;
       }
       POLY_ASSERT(edges.size() >= 3);
 

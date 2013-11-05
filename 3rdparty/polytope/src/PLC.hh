@@ -28,7 +28,7 @@ class PLC
   //! generating point of the ith facet of the kth hole.
   std::vector<std::vector<std::vector<int> > > holes;
   
-  //! Clearns facets and holes to empty the PLC
+  //! Clears facets and holes to empty the PLC
   void clear()
   {
     facets.clear(); holes.clear();
