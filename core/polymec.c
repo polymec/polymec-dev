@@ -231,12 +231,19 @@ void polymec_provenance_fprintf(int argc, char** argv, FILE* stream)
       fprintf(stream, "Invalid input specified.");
     else
     {
-      fprintf(stream, "=======================================================================\n");
-      fprintf(stream, "Contents of input script:\n");
       char buff[sizeof(char)*1024];
       fseek(fp, 0L, SEEK_END);
       int end = ftell(fp);
       rewind(fp);
+      static const int input_len_limit = 10 * 1024 * 1024; // 10kb input limit.
+      bool truncated = false;
+      if (input_len_limit < end)
+      {
+        truncated = true;
+        end = input_len_limit; 
+      }
+      fprintf(stream, "=======================================================================\n");
+      fprintf(stream, "Contents of input script:\n");
       int offset = 0;
       while (offset < end)
       {
@@ -246,6 +253,8 @@ void polymec_provenance_fprintf(int argc, char** argv, FILE* stream)
         fprintf(stream, "%s", buff);
         offset += MIN(1000, end-offset);
       }
+      if (truncated)
+        fprintf(stream, "\n<<< truncated >>>\n");
       fclose(fp);
     }
     fprintf(stream, "\n");
