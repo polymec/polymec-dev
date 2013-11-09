@@ -47,7 +47,7 @@ adj_graph_t* graph_from_mesh_cells(mesh_t* mesh)
       {
         int c = (i == mesh->face_cells[2*f]) ? mesh->face_cells[2*f+1] : mesh->face_cells[2*f];
         edges[offset] = c;
-printf("%d face %d: %d\n", i, offset, c);
+//printf("%d face %d: %d\n", i, offset, c);
         ++offset;
       }
     }
