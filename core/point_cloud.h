@@ -71,6 +71,9 @@ void point_cloud_neighbor_search_free(point_cloud_neighbor_search_t* search);
 // by a neighbor relationship.
 typedef struct 
 {
+  // MPI communicator.
+  MPI_Comm comm;
+
   // The total number of (locally-owned) points in the cloud.
   int num_points;
   // The number of ghost points on the local domain in the cloud.
@@ -99,10 +102,10 @@ typedef struct
 // Construct a new point cloud from the set of points with the given 
 // coordinates. Coordinates are copied. All points will be stored locally, 
 // and all points are initially disconnected.
-point_cloud_t* point_cloud_new(int num_points, point_t* coords);
+point_cloud_t* point_cloud_new(MPI_Comm comm, int num_points, point_t* coords);
 
 // Construct a new point cloud, using the given arena for memory allocations.
-point_cloud_t* point_cloud_new_with_arena(ARENA* arena, int num_points, point_t* coords);
+point_cloud_t* point_cloud_new_with_arena(ARENA* arena, MPI_Comm comm, int num_points, point_t* coords);
 
 // Destroys the given point cloud.
 void point_cloud_free(point_cloud_t* cloud);

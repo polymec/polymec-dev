@@ -47,7 +47,7 @@ void test_create_unbounded_voronoi_mesh(void** state)
   cvt_gen_dist_iterate(prob, density, NULL, &bbox, generators, N, &Nb);
 
   // Now generate the unbounded Voronoi thingy.
-  mesh_t* mesh = create_unbounded_voronoi_mesh(generators, N, NULL, 0);
+  mesh_t* mesh = create_unbounded_voronoi_mesh(MPI_COMM_WORLD, generators, N, NULL, 0);
   mesh_verify(mesh);
   assert_int_equal(N, mesh->num_cells);
   assert_int_equal(0, mesh->num_ghost_cells);

@@ -19,18 +19,33 @@
 #include <setjmp.h>
 #include <string.h>
 #include "cmockery.h"
-#include "core/mesh.h"
+#include "core/polymec.h"
+#include "core/adj_graph.h"
 
-void test_single_cell_mesh_no_topo(void** state)
+void test_constructor(void** state)
 {
-  // Create a single hexahedron without topology.
-  mesh_t* mesh = mesh_new(MPI_COMM_WORLD, 1, 0, 6, 12, 8);
-  assert_int_equal(1, mesh->num_cells);
-  assert_int_equal(0, mesh->num_ghost_cells);
-  assert_int_equal(6, mesh->num_faces);
-  assert_int_equal(12, mesh->num_edges);
-  assert_int_equal(8, mesh->num_nodes);
-  mesh_free(mesh);
+  int nprocs;
+  MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
+  adj_graph_t* g = adj_graph_new(MPI_COMM_WORLD, 100);
+  assert_int_equal(100*nprocs, adj_graph_num_vertices(g));
+  adj_graph_free(g);
+}
+
+void test_distributed_constructor(void** state)
+{
+  int nprocs;
+  MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
+  int vertex_dist[nprocs+1];
+  vertex_dist[0] = 0;
+  for (int p = 0; p < nprocs; ++p)
+    vertex_dist[p+1] = vertex_dist[p] + 1000/nprocs;
+  adj_graph_t* g = adj_graph_new_with_dist(MPI_COMM_WORLD, 1000, vertex_dist);
+  assert_int_equal(1000/nprocs, adj_graph_num_vertices(g));
+  int rank;
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  assert_int_equal(rank*1000/nprocs, adj_graph_first_vertex(g));
+  assert_int_equal((rank+1)*1000/nprocs-1, adj_graph_last_vertex(g));
+  adj_graph_free(g);
 }
 
 int main(int argc, char* argv[]) 
@@ -38,7 +53,8 @@ int main(int argc, char* argv[])
   polymec_init(argc, argv);
   const UnitTest tests[] = 
   {
-    unit_test(test_single_cell_mesh_no_topo),
+    unit_test(test_constructor),
+    unit_test(test_distributed_constructor)
   };
   return run_tests(tests);
 }

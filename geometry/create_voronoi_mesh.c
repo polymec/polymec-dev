@@ -61,7 +61,8 @@ static int_table_t* gather_edges(polytope_tessellation_t* tess,
   return edge_for_nodes;
 }
 
-static mesh_t* mesh_from_unbounded_tessellation(polytope_tessellation_t* tess, 
+static mesh_t* mesh_from_unbounded_tessellation(MPI_Comm comm, 
+                                                polytope_tessellation_t* tess, 
                                                 point_t* generators)
 {
   // Compute the number of edges, which we aren't given by polytope.
@@ -69,7 +70,7 @@ static mesh_t* mesh_from_unbounded_tessellation(polytope_tessellation_t* tess,
   int_table_t* edge_for_nodes = gather_edges(tess, &num_edges);
 
   // Create the mesh.
-  mesh_t* mesh = mesh_new(tess->num_cells, 0, // ???
+  mesh_t* mesh = mesh_new(comm, tess->num_cells, 0, // ???
                           tess->num_faces,
                           num_edges,
                           tess->num_nodes);
@@ -146,7 +147,8 @@ static mesh_t* mesh_from_unbounded_tessellation(polytope_tessellation_t* tess,
   return mesh;
 }
 
-mesh_t* create_voronoi_mesh(point_t* generators, int num_generators, 
+mesh_t* create_voronoi_mesh(MPI_Comm comm, 
+                            point_t* generators, int num_generators, 
                             point_t* ghost_generators, int num_ghost_generators)
 {
   ASSERT(generators != NULL);
@@ -176,7 +178,7 @@ mesh_t* create_voronoi_mesh(point_t* generators, int num_generators,
 
   // Create a Voronoi mesh from this tessellation, deleting unbounded cells.
   // FIXME: This doesn't accommodate ghost generators.
-  mesh_t* mesh = mesh_from_unbounded_tessellation(tess, generators);
+  mesh_t* mesh = mesh_from_unbounded_tessellation(comm, tess, generators);
 
   // Clean up.
   polytope_tessellation_free(tess);
@@ -191,7 +193,8 @@ mesh_t* create_voronoi_mesh(point_t* generators, int num_generators,
   return mesh;
 }
 
-static mesh_t* mesh_from_bounded_tessellation(polytope_tessellation_t* tess, 
+static mesh_t* mesh_from_bounded_tessellation(MPI_Comm comm, 
+                                              polytope_tessellation_t* tess, 
                                               point_t* generators)
 {
   // Compute the number of edges, which we aren't given by polytope.
@@ -199,7 +202,7 @@ static mesh_t* mesh_from_bounded_tessellation(polytope_tessellation_t* tess,
   int_table_t* edge_for_nodes = gather_edges(tess, &num_edges);
 
   // Create the mesh.
-  mesh_t* mesh = mesh_new(tess->num_cells, 0, // ???
+  mesh_t* mesh = mesh_new(comm, tess->num_cells, 0, // ???
                           tess->num_faces,
                           num_edges,
                           tess->num_nodes);
@@ -261,7 +264,8 @@ static mesh_t* mesh_from_bounded_tessellation(polytope_tessellation_t* tess,
   return mesh;
 }
 
-mesh_t* create_voronoi_mesh_in_box(point_t* generators, int num_generators, 
+mesh_t* create_voronoi_mesh_in_box(MPI_Comm comm, 
+                                   point_t* generators, int num_generators, 
                                    point_t* ghost_generators, int num_ghost_generators,
                                    bbox_t* bounding_box)
 {
@@ -295,7 +299,7 @@ mesh_t* create_voronoi_mesh_in_box(point_t* generators, int num_generators,
 
   // Create a Voronoi mesh from this tessellation.
   // FIXME: This doesn't accommodate ghost generators.
-  mesh_t* mesh = mesh_from_bounded_tessellation(tess, generators);
+  mesh_t* mesh = mesh_from_bounded_tessellation(comm, tess, generators);
 
   // Clean up.
   polytope_tessellation_free(tess);

@@ -8,6 +8,7 @@ add_library(polymec_core polymec.c arch.c point.c tagger.c mesh.c
             model.c boundary_cell_map.c mesh_storage.c exchanger.c 
             repartition.c point_cloud.c kd_tree.c octree.c adj_graph.c
             periodic_bc.c sp_func.c st_func.c constant_st_func.c 
+            graph_from_mesh_cells.c graph_from_point_cloud.c
             gauss_rules.c polynomials.c least_squares.c 
             sphere_integrator.c index_space.c newton.c options.c interpreter.c 
             interpreter_register_default_functions.c

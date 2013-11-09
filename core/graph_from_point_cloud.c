@@ -14,31 +14,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <stdarg.h>
-#include <stddef.h>
-#include <setjmp.h>
-#include <string.h>
-#include "cmockery.h"
-#include "core/mesh.h"
+#include "core/graph_from_point_cloud.h"
 
-void test_single_cell_mesh_no_topo(void** state)
+adj_graph_t* graph_from_point_cloud(point_cloud_t* cloud)
 {
-  // Create a single hexahedron without topology.
-  mesh_t* mesh = mesh_new(MPI_COMM_WORLD, 1, 0, 6, 12, 8);
-  assert_int_equal(1, mesh->num_cells);
-  assert_int_equal(0, mesh->num_ghost_cells);
-  assert_int_equal(6, mesh->num_faces);
-  assert_int_equal(12, mesh->num_edges);
-  assert_int_equal(8, mesh->num_nodes);
-  mesh_free(mesh);
-}
+  // Create a graph whose vertices are the cloud's points.
+  adj_graph_t* g = adj_graph_new(cloud->comm, cloud->num_points);
 
-int main(int argc, char* argv[]) 
-{
-  polymec_init(argc, argv);
-  const UnitTest tests[] = 
+  // Allocate space in the graph for the edges (neighbor relations).
+  for (int i = 0; i < cloud->num_points; ++i)
+    adj_graph_set_num_edges(g, i, cloud->neighbor_offsets[i+1] - cloud->neighbor_offsets[i]);
+
+  // Now fill in the edges.
+  for (int i = 0; i < cloud->num_points; ++i)
   {
-    unit_test(test_single_cell_mesh_no_topo),
-  };
-  return run_tests(tests);
+    int* edges = adj_graph_edges(g, i);
+    for (int j = cloud->neighbor_offsets[i]; j < cloud->neighbor_offsets[i+1]; ++j)
+      edges[j-cloud->neighbor_offsets[i]] = cloud->neighbors[j];
+  }
+
+  return g;
 }
+

@@ -19,7 +19,7 @@
 #include "geometry/create_rectilinear_mesh.h"
 #include "geometry/cubic_lattice.h"
 
-mesh_t* create_uniform_mesh(int nx, int ny, int nz, bbox_t* bbox)
+mesh_t* create_uniform_mesh(MPI_Comm comm, int nx, int ny, int nz, bbox_t* bbox)
 {
   ASSERT(nx > 0);
   ASSERT(ny > 0);
@@ -47,7 +47,7 @@ mesh_t* create_uniform_mesh(int nx, int ny, int nz, bbox_t* bbox)
   for (int i = 0; i <= nz; ++i)
     zs[i] = i*dz;
 
-  mesh_t* mesh = create_rectilinear_mesh(xs, nx+1, ys, ny+1, zs, nz+1);
+  mesh_t* mesh = create_rectilinear_mesh(comm, xs, nx+1, ys, ny+1, zs, nz+1);
 
   // Clean up.
   free(zs);

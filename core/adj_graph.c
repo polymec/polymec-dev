@@ -35,15 +35,22 @@ struct adj_graph_t
   int edge_cap;
 };
 
-adj_graph_t* adj_graph_new(MPI_Comm comm, int num_global_vertices)
+adj_graph_t* adj_graph_new(MPI_Comm comm, int num_local_vertices)
 {
-  int nproc;
-  MPI_Comm_size(comm, &nproc);
-  int vtxdist[nproc+1], offset = 0;
-  for (int p = 0; p <= nproc; ++p)
+  int nprocs;
+  MPI_Comm_size(comm, &nprocs);
+  int num_verts[nprocs];
+#ifdef HAVE_MPI
+  MPI_Allgather(&num_local_vertices, 1, MPI_INT, num_verts, 1, MPI_INT, comm);
+#else
+  num_verts[0] = num_local_vertices;
+#endif
+  int vtxdist[nprocs+1], num_global_vertices = 0;
+  vtxdist[0] = 0;
+  for (int p = 0; p < nprocs; ++p)
   {
-    vtxdist[p] = offset;
-    offset += MIN(num_global_vertices, offset + num_global_vertices/nproc);
+    vtxdist[p+1] = vtxdist[p] + num_verts[p];
+    num_global_vertices += num_verts[p];
   }
   return adj_graph_new_with_dist(comm, num_global_vertices, vtxdist);
 }

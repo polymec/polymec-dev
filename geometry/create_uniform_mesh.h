@@ -21,7 +21,7 @@
 
 // This function creates and returns a uniform mesh of nx x ny x nz cells. 
 // The mesh spans the rectangular region of space defined by the bounding box.
-mesh_t* create_uniform_mesh(int nx, int ny, int nz, bbox_t* bbox);
+mesh_t* create_uniform_mesh(MPI_Comm comm, int nx, int ny, int nz, bbox_t* bbox);
 
 #endif
 

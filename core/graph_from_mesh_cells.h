@@ -14,31 +14,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <stdarg.h>
-#include <stddef.h>
-#include <setjmp.h>
-#include <string.h>
-#include "cmockery.h"
+#ifndef POLYMEC_GRAPH_FROM_MESH_CELLS_H
+#define POLYMEC_GRAPH_FROM_MESH_CELLS_H
+
+#include "core/polymec.h"
 #include "core/mesh.h"
+#include "core/adj_graph.h"
 
-void test_single_cell_mesh_no_topo(void** state)
-{
-  // Create a single hexahedron without topology.
-  mesh_t* mesh = mesh_new(MPI_COMM_WORLD, 1, 0, 6, 12, 8);
-  assert_int_equal(1, mesh->num_cells);
-  assert_int_equal(0, mesh->num_ghost_cells);
-  assert_int_equal(6, mesh->num_faces);
-  assert_int_equal(12, mesh->num_edges);
-  assert_int_equal(8, mesh->num_nodes);
-  mesh_free(mesh);
-}
+// Constructs an adjacency graph expressing the connectivity of the cells of 
+// the given mesh.
+adj_graph_t* graph_from_mesh_cells(mesh_t* mesh);
 
-int main(int argc, char* argv[]) 
-{
-  polymec_init(argc, argv);
-  const UnitTest tests[] = 
-  {
-    unit_test(test_single_cell_mesh_no_topo),
-  };
-  return run_tests(tests);
-}
+#endif

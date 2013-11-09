@@ -19,7 +19,8 @@
 #include "geometry/create_rectilinear_mesh.h"
 #include "geometry/cubic_lattice.h"
 
-mesh_t* create_rectilinear_mesh(double* xs, int nxs, 
+mesh_t* create_rectilinear_mesh(MPI_Comm comm, 
+                                double* xs, int nxs, 
                                 double* ys, int nys, 
                                 double* zs, int nzs)
 {
@@ -53,7 +54,8 @@ mesh_t* create_rectilinear_mesh(double* xs, int nxs,
 
   // Create the mesh.
   // FIXME: Not parallel safe.
-  mesh_t* mesh = mesh_new(cubic_lattice_num_cells(lattice), 0,
+  mesh_t* mesh = mesh_new(comm, 
+                          cubic_lattice_num_cells(lattice), 0,
                           cubic_lattice_num_faces(lattice),
                           cubic_lattice_num_edges(lattice),
                           cubic_lattice_num_nodes(lattice));

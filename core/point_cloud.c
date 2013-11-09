@@ -71,20 +71,21 @@ void point_cloud_neighbor_search_free(point_cloud_neighbor_search_t* search)
   free(search);
 }
 
-point_cloud_t* point_cloud_new(int num_points, point_t* coords)
+point_cloud_t* point_cloud_new(MPI_Comm comm, int num_points, point_t* coords)
 {
   ARENA* a = arena_open(&arena_defaults, 0);
-  point_cloud_t* cloud = point_cloud_new_with_arena(a, num_points, coords);
+  point_cloud_t* cloud = point_cloud_new_with_arena(a, comm, num_points, coords);
   cloud->close_arena = true;
   return cloud;
 }
 
-point_cloud_t* point_cloud_new_with_arena(ARENA* arena, int num_points, point_t* coords)
+point_cloud_t* point_cloud_new_with_arena(ARENA* arena, MPI_Comm comm, int num_points, point_t* coords)
 {
   ASSERT(num_points >= 0);
 
   point_cloud_t* cloud = ARENA_MALLOC(arena, sizeof(point_cloud_t), 0);
   cloud->arena = arena;
+  cloud->comm = comm;
   cloud->close_arena = false;
 
   // Allocate point information.

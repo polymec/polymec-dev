@@ -29,7 +29,7 @@ void test_create_rectilinear_mesh(void** state)
   double xs[] = {0.0, 1.0, 2.0, 4.0, 8.0, 16.0, 32.0, 64.0, 128.0, 256.0, 512.0};
   double ys[] = {0.0, 1.0, 2.0, 4.0, 8.0, 16.0, 32.0, 64.0, 128.0, 256.0, 512.0};
   double zs[] = {0.0, 1.0, 2.0, 4.0, 8.0, 16.0, 32.0, 64.0, 128.0, 256.0, 512.0};
-  mesh_t* mesh = create_rectilinear_mesh(xs, 11, ys, 11, zs, 11);
+  mesh_t* mesh = create_rectilinear_mesh(MPI_COMM_WORLD, xs, 11, ys, 11, zs, 11);
   mesh_verify(mesh);
   assert_int_equal(10*10*10, mesh->num_cells);
   assert_int_equal(0, mesh->num_ghost_cells);
@@ -45,7 +45,7 @@ void test_plot_rectilinear_mesh(void** state)
   double xs[] = {0.0, 1.0, 2.0, 4.0, 8.0};
   double ys[] = {0.0, 1.0, 2.0, 4.0, 8.0};
   double zs[] = {0.0, 1.0, 2.0, 4.0, 8.0};
-  mesh_t* mesh = create_rectilinear_mesh(xs, 5, ys, 5, zs, 5);
+  mesh_t* mesh = create_rectilinear_mesh(MPI_COMM_WORLD, xs, 5, ys, 5, zs, 5);
 
   // Plot it.
   double ones[4*4*4];

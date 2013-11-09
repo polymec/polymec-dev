@@ -21,7 +21,8 @@
 
 // This function creates and returns a rectilinear mesh whose nodes are 
 // given by the xs, ys, and zs arrays.
-mesh_t* create_rectilinear_mesh(double* xs, int nxs, 
+mesh_t* create_rectilinear_mesh(MPI_Comm comm, 
+                                double* xs, int nxs, 
                                 double* ys, int nys, 
                                 double* zs, int nzs);
 

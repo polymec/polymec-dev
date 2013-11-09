@@ -63,7 +63,7 @@ int mesh_factory_uniform(lua_State* lua)
   lua_pop(lua, lua_gettop(lua));
 
   // Create the mesh.
-  mesh_t* mesh = create_uniform_mesh(nx, ny, nz, bbox);
+  mesh_t* mesh = create_uniform_mesh(MPI_COMM_WORLD, nx, ny, nz, bbox);
 
   // Tag its faces.
   tag_rectilinear_mesh_faces(mesh, nx, ny, nz, "x1", "x2", "y1", "y2", "z1", "z2");
@@ -97,7 +97,7 @@ int mesh_factory_rectilinear(lua_State* lua)
   lua_pop(lua, lua_gettop(lua));
 
   // Create the mesh.
-  mesh_t* mesh = create_rectilinear_mesh(xs, nxs, ys, nys, zs, nzs);
+  mesh_t* mesh = create_rectilinear_mesh(MPI_COMM_WORLD, xs, nxs, ys, nys, zs, nzs);
 
   // Tag its faces.
   tag_rectilinear_mesh_faces(mesh, nxs-1, nys-1, nzs-1, "x1", "x2", "y1", "y2", "z1", "z2");
@@ -248,11 +248,11 @@ int mesh_factory_voronoi(lua_State* lua)
         return luaL_error(lua, "mesh_factory.voronoi: Generator %d is outside the given bounding box.", i);
     }
     boxy = NULL;
-    mesh = create_voronoi_mesh_in_box(generators, num_generators, NULL, 0, bbox);
+    mesh = create_voronoi_mesh_in_box(MPI_COMM_WORLD, generators, num_generators, NULL, 0, bbox);
   }
   else
   {
-    mesh = create_voronoi_mesh(generators, num_generators, NULL, 0);
+    mesh = create_voronoi_mesh(MPI_COMM_WORLD, generators, num_generators, NULL, 0);
   }
   ASSERT(mesh != NULL);
 

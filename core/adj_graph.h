@@ -27,8 +27,9 @@
 typedef struct adj_graph_t adj_graph_t;
 
 // Allocates a new adjacency graph on the given MPI communicator 
-// with the given number of vertices evenly distributed across processes.
-adj_graph_t* adj_graph_new(MPI_Comm comm, int num_global_vertices);
+// with the vertices distributed according to the number of local vertices 
+// on each process.
+adj_graph_t* adj_graph_new(MPI_Comm comm, int num_local_vertices);
 
 // Allocates a new adjacency graph on the given MPI communicator 
 // with the given number of vertices distributed according to vertex_dist.

@@ -27,7 +27,7 @@ void test_create_uniform_mesh(void** state)
 {
   // Create a 10x10x10 uniform mesh.
   bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
-  mesh_t* mesh = create_uniform_mesh(10, 10, 10, &bbox);
+  mesh_t* mesh = create_uniform_mesh(MPI_COMM_WORLD, 10, 10, 10, &bbox);
   mesh_verify(mesh);
   assert_int_equal(10*10*10, mesh->num_cells);
   assert_int_equal(0, mesh->num_ghost_cells);
@@ -41,7 +41,7 @@ void test_plot_uniform_mesh(void** state)
 {
   // Create a 4x4x4 uniform mesh.
   bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
-  mesh_t* mesh = create_uniform_mesh(4, 4, 4, &bbox);
+  mesh_t* mesh = create_uniform_mesh(MPI_COMM_WORLD, 4, 4, 4, &bbox);
 
   // Plot it.
   double ones[4*4*4];

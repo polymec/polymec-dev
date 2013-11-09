@@ -41,16 +41,17 @@ static int round_to_pow2(int x)
   return y;
 }
 
-mesh_t* mesh_new(int num_cells, int num_ghost_cells, int num_faces,
-                 int num_edges, int num_nodes)
+mesh_t* mesh_new(MPI_Comm comm, int num_cells, int num_ghost_cells, 
+                 int num_faces, int num_edges, int num_nodes)
 {
   ARENA* a = arena_open(&arena_defaults, 0);
-  mesh_t* mesh = mesh_new_with_arena(a, num_cells, num_ghost_cells, num_faces, num_edges, num_nodes);
+  mesh_t* mesh = mesh_new_with_arena(a, comm, num_cells, num_ghost_cells, num_faces, num_edges, num_nodes);
   mesh->close_arena = true;
   return mesh;
 }
 
-mesh_t* mesh_new_with_arena(ARENA* arena, int num_cells, int num_ghost_cells, int num_faces,
+mesh_t* mesh_new_with_arena(ARENA* arena, MPI_Comm comm, int num_cells, 
+                            int num_ghost_cells, int num_faces,
                             int num_edges, int num_nodes)
 {
   ASSERT(num_cells >= 0);
@@ -61,6 +62,7 @@ mesh_t* mesh_new_with_arena(ARENA* arena, int num_cells, int num_ghost_cells, in
 
   mesh_t* mesh = ARENA_MALLOC(arena, sizeof(mesh_t), 0);
   mesh->arena = arena;
+  mesh->comm = comm;
   mesh->close_arena = false;
 
   // NOTE: We round stored elements up to the nearest power of 2.
