@@ -65,11 +65,6 @@ mesh_t* create_rectilinear_mesh(MPI_Comm comm,
   mesh->cell_face_offsets[mesh->num_cells] = 6*mesh->num_cells;
   mesh->face_node_offsets[mesh->num_faces] = 4*mesh->num_faces;
   mesh->face_edge_offsets[mesh->num_faces] = 4*mesh->num_faces;
-  for (int f = 0; f < mesh->num_faces; ++f)
-  {
-    mesh->face_cells[2*f] = -1;
-    mesh->face_cells[2*f+1] = -1;
-  }
 
   int_unordered_set_t* processed_nodes = int_unordered_set_new();
   for (int k = 0; k < nz; ++k)

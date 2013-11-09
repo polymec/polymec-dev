@@ -87,12 +87,13 @@ mesh_t* mesh_new_with_arena(ARENA* arena, MPI_Comm comm, int num_cells,
 
   mesh->face_edge_offsets = ARENA_MALLOC(mesh->arena, sizeof(int)*(num_faces+1), 0);
   memset(mesh->face_edge_offsets, 0, sizeof(int)*(num_faces+1));
-  int face_edge_cap = round_to_pow2(18 * num_faces);
+  int face_edge_cap = round_to_pow2(4 * num_faces);
   mesh->face_edges = ARENA_MALLOC(mesh->arena, sizeof(int)*(face_edge_cap), 0);
   memset(mesh->face_edges, 0, sizeof(int)*face_edge_cap);
 
   mesh->face_cells = ARENA_MALLOC(mesh->arena, sizeof(int)*2*num_faces, 0);
-  memset(mesh->face_cells, 0, sizeof(int)*2*num_faces);
+  for (int f = 0; f < 2*mesh->num_faces; ++f)
+    mesh->face_cells[f] = -1;
 
   // Allocate edge information.
   mesh->num_edges = num_edges;
