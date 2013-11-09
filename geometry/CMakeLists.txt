@@ -8,7 +8,6 @@ endif()
 add_library(polymec_geometry mapping.c plane.c cylinder.c sphere.c intersection.c 
             union.c difference.c scaled.c rect_prism.c 
             giftwrap_hull.c polygon2.c polygon.c
-            cubic_lattice.c create_uniform_mesh.c create_rectilinear_mesh.c
             ${MESH_GENERATION_SOURCES}
             interpreter_register_geometry_functions.c 
             interpreter_register_spfuncs.c)

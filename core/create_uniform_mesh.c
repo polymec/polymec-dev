@@ -15,9 +15,9 @@
 // limitations under the License.
 
 #include "core/unordered_set.h"
-#include "geometry/create_uniform_mesh.h"
-#include "geometry/create_rectilinear_mesh.h"
-#include "geometry/cubic_lattice.h"
+#include "core/create_uniform_mesh.h"
+#include "core/create_rectilinear_mesh.h"
+#include "core/cubic_lattice.h"
 
 mesh_t* create_uniform_mesh(MPI_Comm comm, int nx, int ny, int nz, bbox_t* bbox)
 {

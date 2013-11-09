@@ -15,7 +15,7 @@
 // limitations under the License.
 
 #include "core/polymec.h"
-#include "geometry/cubic_lattice.h"
+#include "core/cubic_lattice.h"
 #include <gc/gc.h>
 
 cubic_lattice_t* cubic_lattice_new(int nx, int ny, int nz)
