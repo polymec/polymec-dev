@@ -34,7 +34,7 @@ else
   CONFIG_FLAGS += -DHAVE_MPI=0
 endif
 
-BUILDDIR := ${BUILDDIR}-${CC}
+BUILDDIR := ${BUILDDIR}-`basename ${CC}`
 CONFIG_FLAGS += -DCC=${CC} -DCXX=${CXX}
 
 # Debugging symbols
