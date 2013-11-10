@@ -221,6 +221,16 @@ int adj_graph_last_vertex(adj_graph_t* graph)
   return graph->vtx_dist[graph->rank+1] - 1;
 }
 
+bool adj_graph_next_edge(adj_graph_t* graph, 
+                         int vertex,
+                         int* pos, 
+                         int* other_vertex)
+{
+  *other_vertex = graph->adjacency[graph->xadj[vertex] + *pos];
+  ++(*pos);
+  return ((graph->xadj[vertex] + *pos) < graph->xadj[vertex+1]);
+}
+
 int* adj_graph_adjacency(adj_graph_t* graph)
 {
   return graph->adjacency;
@@ -465,7 +475,7 @@ bool adj_graph_coloring_has_vertex(adj_graph_coloring_t* coloring,
                                    int color,
                                    int vertex)
 {
-  // FIXME: This is linear in time, so it may be too slow.
+  // FIXME: This is linear in time, so it may be too slow. I think the vertices are in order anyway...?
   ASSERT(color >= 0);
   ASSERT(color < coloring->num_colors);
   for (int v = coloring->offsets[color]; v < coloring->offsets[color+1]; ++v)

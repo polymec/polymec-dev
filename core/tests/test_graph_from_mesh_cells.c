@@ -59,11 +59,27 @@ void test_graph_from_uniform_mesh_cells(void** state)
   adj_graph_free(g);
 }
 
+void test_coloring_against_graph(adj_graph_coloring_t* coloring, adj_graph_t* graph)
+{
+  int num_colors = adj_graph_coloring_num_colors(coloring);
+  for (int color = 0; color < num_colors; ++color)
+  {
+    int pos = 0, v;
+    while (adj_graph_coloring_next_vertex(coloring, color, &pos, &v))
+    {
+      // This color consists of those vertices not connected to v.
+      int pos = 0, v1;
+      while (adj_graph_next_edge(graph, v, &pos, &v1))
+        assert_false(adj_graph_coloring_has_vertex(coloring, color, v1));
+    }
+  }
+}
+
 void test_smallest_last_graph_coloring_on_uniform_mesh(void** state)
 {
   adj_graph_t* g = graph_from_uniform_mesh();
   adj_graph_coloring_t* c = adj_graph_coloring_new(g, SMALLEST_LAST);
-  printf("%d\n", adj_graph_coloring_num_colors(c));
+  test_coloring_against_graph(c, g);
   adj_graph_coloring_free(c);
   adj_graph_free(g);
 }
@@ -72,7 +88,7 @@ void test_largest_first_graph_coloring_on_uniform_mesh(void** state)
 {
   adj_graph_t* g = graph_from_uniform_mesh();
   adj_graph_coloring_t* c = adj_graph_coloring_new(g, LARGEST_FIRST);
-  printf("%d\n", adj_graph_coloring_num_colors(c));
+  test_coloring_against_graph(c, g);
   adj_graph_coloring_free(c);
   adj_graph_free(g);
 }
@@ -81,7 +97,7 @@ void test_incidence_degree_graph_coloring_on_uniform_mesh(void** state)
 {
   adj_graph_t* g = graph_from_uniform_mesh();
   adj_graph_coloring_t* c = adj_graph_coloring_new(g, INCIDENCE_DEGREE);
-  printf("%d\n", adj_graph_coloring_num_colors(c));
+  test_coloring_against_graph(c, g);
   adj_graph_coloring_free(c);
   adj_graph_free(g);
 }
