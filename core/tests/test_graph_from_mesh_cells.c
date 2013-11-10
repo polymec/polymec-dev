@@ -22,13 +22,21 @@
 #include "core/graph_from_mesh_cells.h"
 #include "core/create_uniform_mesh.h"
 
-void test_graph_from_uniform_mesh_cells(void** state)
+static adj_graph_t* graph_from_uniform_mesh()
 {
   int nprocs;
   MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
   bbox_t box = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
   mesh_t* m = create_uniform_mesh(MPI_COMM_WORLD, 10, 10, 10, &box);
   adj_graph_t* g = graph_from_mesh_cells(m);
+  mesh_free(m);
+  return g;
+}
+
+void test_graph_from_uniform_mesh_cells(void** state)
+{
+  adj_graph_t* g = graph_from_uniform_mesh();
+
   int first = adj_graph_first_vertex(g);
   int last = adj_graph_last_vertex(g);
   int interior_cells = 0, plane_cells = 0, edge_cells = 0, corner_cells = 0;
@@ -51,12 +59,42 @@ void test_graph_from_uniform_mesh_cells(void** state)
   adj_graph_free(g);
 }
 
+void test_smallest_last_graph_coloring_on_uniform_mesh(void** state)
+{
+  adj_graph_t* g = graph_from_uniform_mesh();
+  adj_graph_coloring_t* c = adj_graph_coloring_new(g, SMALLEST_LAST);
+  printf("%d\n", adj_graph_coloring_num_colors(c));
+  adj_graph_coloring_free(c);
+  adj_graph_free(g);
+}
+
+void test_largest_first_graph_coloring_on_uniform_mesh(void** state)
+{
+  adj_graph_t* g = graph_from_uniform_mesh();
+  adj_graph_coloring_t* c = adj_graph_coloring_new(g, LARGEST_FIRST);
+  printf("%d\n", adj_graph_coloring_num_colors(c));
+  adj_graph_coloring_free(c);
+  adj_graph_free(g);
+}
+
+void test_incidence_degree_graph_coloring_on_uniform_mesh(void** state)
+{
+  adj_graph_t* g = graph_from_uniform_mesh();
+  adj_graph_coloring_t* c = adj_graph_coloring_new(g, INCIDENCE_DEGREE);
+  printf("%d\n", adj_graph_coloring_num_colors(c));
+  adj_graph_coloring_free(c);
+  adj_graph_free(g);
+}
+
 int main(int argc, char* argv[]) 
 {
   polymec_init(argc, argv);
   const UnitTest tests[] = 
   {
-    unit_test(test_graph_from_uniform_mesh_cells)
+    unit_test(test_graph_from_uniform_mesh_cells),
+    unit_test(test_smallest_last_graph_coloring_on_uniform_mesh),
+    unit_test(test_largest_first_graph_coloring_on_uniform_mesh),
+    unit_test(test_incidence_degree_graph_coloring_on_uniform_mesh)
   };
   return run_tests(tests);
 }
