@@ -59,6 +59,43 @@ void test_graph_from_uniform_mesh_cells(void** state)
   adj_graph_free(g);
 }
 
+void test_block_graphs_from_uniform_mesh_cells(void** state)
+{
+  adj_graph_t* g = graph_from_uniform_mesh();
+  int first = adj_graph_first_vertex(g);
+  int last = adj_graph_last_vertex(g);
+
+  // Test with block sizes of 1-5.
+  for (int b = 1; b <= 5; ++b)
+  {
+    // Make a block graph from the single one.
+    adj_graph_t* bg = adj_graph_new_with_block_size(b, g);
+    int nv = adj_graph_num_vertices(bg);
+    assert_int_equal(b * adj_graph_num_vertices(g), nv);
+
+    for (int v = first; v <= last; ++v)
+    {
+      assert_false(adj_graph_contains_edge(bg, b*v, b*v));
+      for (int bb = 1; bb < b; ++bb)
+      {
+        assert_true(adj_graph_contains_edge(bg, b*v, b*v+bb));
+      }
+      int pos = 0, other_v;
+      while (adj_graph_next_edge(g, v, &pos, &other_v))
+      {
+        for (int bb = 0; bb < b; ++bb)
+        {
+          assert_true(adj_graph_contains_edge(bg, b*v, b*other_v+bb));
+        }
+      }
+    }
+
+    adj_graph_free(bg);
+  }
+
+  adj_graph_free(g);
+}
+
 void test_coloring_against_graph(adj_graph_coloring_t* coloring, adj_graph_t* graph)
 {
   int num_colors = adj_graph_coloring_num_colors(coloring);
@@ -108,6 +145,7 @@ int main(int argc, char* argv[])
   const UnitTest tests[] = 
   {
     unit_test(test_graph_from_uniform_mesh_cells),
+    unit_test(test_block_graphs_from_uniform_mesh_cells),
     unit_test(test_smallest_last_graph_coloring_on_uniform_mesh),
     unit_test(test_largest_first_graph_coloring_on_uniform_mesh)
 //    unit_test(test_incidence_degree_graph_coloring_on_uniform_mesh)
