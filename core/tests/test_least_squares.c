@@ -19,21 +19,16 @@
 #include <stddef.h>
 #include <setjmp.h>
 #include <string.h>
+#include <time.h>
 #include "cmockery.h"
 #include "core/least_squares.h"
 
-// Random number generator.
-#define RNG_SIZE 256
-static char rng_state[RNG_SIZE];
-
 static void generate_random_points(int num_points, point_t* points)
 {
+  static bbox_t bbox = {.x1 = -1.0, .x2 = 1.0, .y1 = -1.0, .y2 = 1.0, .z1 = -1.0, .z2 = 1.0};
+
   for (int i = 0; i < num_points; ++i)
-  {
-    points[i].x = 1.0*random()/RAND_MAX;
-    points[i].y = 1.0*random()/RAND_MAX;
-    points[i].z = 1.0*random()/RAND_MAX;
-  }
+    point_randomize(&points[i], rand, &bbox);
 }
 
 static void average_points(point_t* points, int num_points, point_t* average)
@@ -619,8 +614,7 @@ int main(int argc, char* argv[])
   polymec_init(argc, argv);
 
   // Initialize the random number generator.
-  unsigned seed = 1;
-  initstate(seed, rng_state, RNG_SIZE);
+  srand((unsigned)time(NULL));
 
   const UnitTest tests[] = 
   {

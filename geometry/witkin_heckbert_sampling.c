@@ -81,7 +81,7 @@ point_t* witkin_heckbert_sampling(sp_func_t* surface,
 
     // Loop over all the points and perform a step.
     double max_vel = 0.0;
-    point_t x_max_vel;
+    point_t x_max_vel = {0.0, 0.0, 0.0};
     double sigma_max_vel = 0.0;
 //char filename[128];
 //snprintf(filename, 128, "iter-%d", iter);
@@ -100,8 +100,8 @@ point_t* witkin_heckbert_sampling(sp_func_t* surface,
       // Newly-created particles received random desired velocites.
       if (statuses[i] == 2) // newly-created
       {
-        double frac = 1.0 * random() / RAND_MAX;
-        vector_randomize(&P, random, frac * sigmai);
+        double frac = 1.0 * rand() / RAND_MAX;
+        vector_randomize(&P, rand, frac * sigmai);
         statuses[i] = 0; // No longer new.
       }
 
@@ -195,7 +195,7 @@ point_t* witkin_heckbert_sampling(sp_func_t* surface,
         else 
         {
           // Generate a random number R between 0 and 1.
-          double R = 1.0 * random() / RAND_MAX;
+          double R = 1.0 * rand() / RAND_MAX;
 
           // Randomized shooting squad!
           if ((sigmai < delta * sigma_hat) &&

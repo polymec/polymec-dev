@@ -18,6 +18,7 @@
 #include "core/model.h"
 #include "core/unordered_map.h"
 #include "core/options.h"
+#include <strings.h>
 
 
 // Benchmark metadatum.

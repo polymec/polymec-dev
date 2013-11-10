@@ -23,7 +23,7 @@ typedef struct
 {
   int num_samples; // Number of sample points.
   double alpha1, beta1, alpha2, beta2; // Algorithm coefficients.
-  long (*rng)(); // Random number generator.
+  int (*rng)(); // Random number generator.
   double min_dist; // Minimum distance of a point from the boundary.
   int max_iters; // Maximum number of iterations.
 } prob_cvt_gen_dist_t;
@@ -160,7 +160,7 @@ void prob_cvt_gen_dist_iterate(void* context,
     ptr_slist_free(near_ipoints[i]);
 }
 
-cvt_gen_dist_t* prob_cvt_gen_dist_new(long (*random_gen)(), 
+cvt_gen_dist_t* prob_cvt_gen_dist_new(int (*random_gen)(), 
                                       int num_samples, 
                                       double alpha, 
                                       double beta, 

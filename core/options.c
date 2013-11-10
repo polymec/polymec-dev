@@ -14,9 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <stdlib.h>
-#include <string.h>
 #include <gc/gc.h>
+#include "core/polymec.h"
 #include "core/options.h"
 #include "core/unordered_map.h"
 
@@ -84,19 +83,12 @@ options_t* options_parse(int argc, char** argv)
   while (i < argc)
   {
     // Parse a key=value pair.
-    char *string, *tofree;
-    tofree = string = string_dup(argv[i]);
-
-    char* key = strsep(&string, "=");
-    char* value = NULL;
-    if ((key != NULL) && (string != NULL))
-    {
-      value = string;
+    char arg[80];
+    strncpy(arg, argv[i], 80);
+    char *value = NULL;
+    char* key = strtok_r(arg, "=", &value);
+    if ((key != NULL) && (value != NULL))
       options_set(o, key, value);
-    }
-
-    // Clean up.
-    free(tofree);
 
     // Next!
     ++i;

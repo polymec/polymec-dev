@@ -75,7 +75,7 @@ sp_func_t* plane_new_best_fit(point_t* points, int num_points)
     // Otherwise, we resort to an orthogonal distance regression.
 
     // Note: the plane point x0 is the centroid of the given points.
-    point_t x0;
+    point_t x0 = {0.0, 0.0, 0.0};
     for (int i = 0; i < num_points; ++i)
     {
       x0.x += points[i].x;

@@ -39,7 +39,7 @@
 // min_dist    - Points that are closer to the boundary than this number are 
 //               projected to the boundary.
 // max_iters   - The maximum number of iterations to perform before quitting.
-cvt_gen_dist_t* prob_cvt_gen_dist_new(long (*random_gen)(), 
+cvt_gen_dist_t* prob_cvt_gen_dist_new(int (*random_gen)(), 
                                       int num_samples, 
                                       double alpha, 
                                       double beta, 

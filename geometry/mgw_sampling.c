@@ -62,7 +62,7 @@ point_t* uniform_mgw_sampling(sp_func_t* C1_surface,
     for (int i = old_num_points; i < num_points; ++i)
     {
       // Generate a random point within the bounding box.
-      point_randomize(&points[i], random, bounding_box);
+      point_randomize(&points[i], rand, bounding_box);
 
       // Project it to the surface.
       double Fi, dFi[3];

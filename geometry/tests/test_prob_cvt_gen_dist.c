@@ -39,7 +39,7 @@ void plot_generators(point_t* generators, int num_generators, const char* filena
 void test_create_generators_in_box(void** state)
 {
   unsigned int seed = 1;
-  srandom(seed);
+  srand(seed);
 
   // Create an unbounded Voronoi mesh with N generators within a
   // bounding box. We generate an initial distribution randomly.
@@ -47,11 +47,11 @@ void test_create_generators_in_box(void** state)
   point_t generators[N];
   bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
   for (int i = 0; i < N; ++i)
-    point_randomize(&generators[i], random, &bbox);
+    point_randomize(&generators[i], rand, &bbox);
 
   // Probabilistic algorithm.
   int num_sample_pts = 300;
-  cvt_gen_dist_t* prob = prob_cvt_gen_dist_new(random, num_sample_pts, 0.5, 0.5, 0.0, 100);
+  cvt_gen_dist_t* prob = prob_cvt_gen_dist_new(rand, num_sample_pts, 0.5, 0.5, 0.0, 100);
   double one = 1.0;
   sp_func_t* density = constant_sp_func_new(1, &one); // Constant density.
 
@@ -66,7 +66,7 @@ void test_create_generators_in_box(void** state)
 void test_create_generators_in_cylinder(void** state)
 {
   unsigned int seed = 1;
-  srandom(seed);
+  srand(seed);
 
   // Boundary function.
   point_t origin = {0.0, 0.0, 0.0};
@@ -82,7 +82,7 @@ void test_create_generators_in_cylinder(void** state)
     double F;
     do
     {
-      point_randomize(&generators[i], random, &bbox);
+      point_randomize(&generators[i], rand, &bbox);
       sp_func_eval(cylinder, &generators[i], &F);
     }
     while (F >= 0.0);
@@ -90,7 +90,7 @@ void test_create_generators_in_cylinder(void** state)
 
   // Probabilistic algorithm.
   int num_sample_pts = 300;
-  cvt_gen_dist_t* prob = prob_cvt_gen_dist_new(random, num_sample_pts, 0.5, 0.5, 0.0, 100);
+  cvt_gen_dist_t* prob = prob_cvt_gen_dist_new(rand, num_sample_pts, 0.5, 0.5, 0.0, 100);
   double one = 1.0;
   sp_func_t* density = constant_sp_func_new(1, &one); // Constant density.
   int Nb;

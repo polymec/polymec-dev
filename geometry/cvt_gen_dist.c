@@ -141,7 +141,7 @@ void cvt_gen_dist_iterate(cvt_gen_dist_t* dist,
   }
 }
 
-void cvt_gen_dist_generate_random_points(long (*rng)(), sp_func_t* density, bbox_t* bounding_box, int num_points, point_t* points)
+void cvt_gen_dist_generate_random_points(int (*rng)(), sp_func_t* density, bbox_t* bounding_box, int num_points, point_t* points)
 {
   ASSERT(density != NULL);
   ASSERT(bounding_box != NULL);

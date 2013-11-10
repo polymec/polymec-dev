@@ -17,6 +17,7 @@
 // point_factory.c - Implementations of interpreter functions for generating
 // sets of points.
 
+#include <strings.h>
 #include "core/polymec.h"
 #include "core/point.h"
 #include "core/interpreter.h"
@@ -43,7 +44,7 @@ int point_factory_cubic_lattice(lua_State* lua)
 
   // Extract arguments.
   const char* entries[] = {"bounding_box", "nx", "ny", "nz", "num_ghost"};
-  int nx, ny, nz, ng = 0;
+  int nx = 0, ny = 0, nz = 0, ng = 0;
   bbox_t* bbox = NULL;
   for (int i = 0; i < 5; ++i)
   {
@@ -132,11 +133,11 @@ int point_factory_cylinder(lua_State* lua)
 
   // Extract arguments.
   const char* entries[] = {"radius", "length", "center", "nr", "nz", "axis", "radial_spacing", "log_spacing_factor", "num_ghost"};
-  double radius, length;
+  double radius = 0.0, length = 0.0;
   double log_spacing_factor = 1.1;
   point_t* x0 = NULL;
   vector_t* axis = NULL;
-  int nr, nz, ng = 0;
+  int nr = 0, nz = 0, ng = 0;
   const char* radial_spacing = NULL;
   for (int i = 0; i < 8; ++i)
   {
@@ -347,45 +348,45 @@ static int read_ascii_stl_file(FILE* stl_file,
     status = fscanf(stl_file, "facet normal %le %le %le\n", &n->x, &n->y, &n->z);
     if (status != 3)
     {
-      snprintf(error_message, 1024, "Problem reading facet %d.", all_normals->size/3);
+      snprintf(error_message, 1024, "Problem reading facet %zd.", all_normals->size/3);
       goto exit_on_error;
     }
     status = fscanf(stl_file, "outer loop");
     if (status != 0)
     {
-      snprintf(error_message, 1024, "Problem reading outer loop header for facet %d.", all_normals->size/3);
+      snprintf(error_message, 1024, "Problem reading outer loop header for facet %zd.", all_normals->size/3);
       goto exit_on_error;
     }
     fscanf(stl_file, "\n");
     status = fscanf(stl_file, "vertex %le %le %le\n", &v1->x, &v1->y, &v1->z);
     if (status != 3)
     {
-      snprintf(error_message, 1024, "Problem reading vertex 1 for facet %d.", all_normals->size/3);
+      snprintf(error_message, 1024, "Problem reading vertex 1 for facet %zd.", all_normals->size/3);
       goto exit_on_error;
     }
     status = fscanf(stl_file, "vertex %le %le %le\n", &v2->x, &v2->y, &v2->z);
     if (status != 3)
     {
-      snprintf(error_message, 1024, "Problem reading vertex 2 for facet %d.", all_normals->size/3);
+      snprintf(error_message, 1024, "Problem reading vertex 2 for facet %zd.", all_normals->size/3);
       goto exit_on_error;
     }
     status = fscanf(stl_file, "vertex %le %le %le\n", &v3->x, &v3->y, &v3->z);
     if (status != 3)
     {
-      snprintf(error_message, 1024, "Problem reading vertex 3 for facet %d.", all_normals->size/3);
+      snprintf(error_message, 1024, "Problem reading vertex 3 for facet %zd.", all_normals->size/3);
       goto exit_on_error;
     }
     status = fscanf(stl_file, "endloop");
     if (status != 0)
     {
-      snprintf(error_message, 1024, "Problem reading outer loop footer for facet %d.", all_normals->size/3);
+      snprintf(error_message, 1024, "Problem reading outer loop footer for facet %zd.", all_normals->size/3);
       goto exit_on_error;
     }
     fscanf(stl_file, "\n");
     status = fscanf(stl_file, "endfacet\n");
     if (status != 0)
     {
-      snprintf(error_message, 1024, "Problem reading footer for facet %d.", all_normals->size/3);
+      snprintf(error_message, 1024, "Problem reading footer for facet %zd.", all_normals->size/3);
       goto exit_on_error;
     }
 
@@ -689,7 +690,7 @@ int point_factory_random_points(lua_State* lua)
   }
 
   point_t* points = malloc(sizeof(point_t) * N);
-  generate_random_points(random, density, bbox, N, points);
+  generate_random_points(rand, density, bbox, N, points);
 
   // Return the point list.
   lua_pushpointlist(lua, points, N);

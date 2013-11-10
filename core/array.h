@@ -55,16 +55,15 @@ typedef struct \
 { \
   element* data; \
   array_name##_dtor* dtors; \
-  int size; \
-  int capacity; \
+  size_t size; \
+  size_t capacity; \
   ARENA* arena; \
 } array_name##_t; \
 \
 typedef int (*array_name##_comparator)(element, element); \
 \
-static inline void array_name##_reserve(array_name##_t* array, int new_capacity) \
+static inline void array_name##_reserve(array_name##_t* array, size_t new_capacity) \
 { \
-  ASSERT(new_capacity > 0); \
   if (new_capacity > array->capacity) \
   { \
     array->data = ARENA_REALLOC(array->arena, array->data, sizeof(element) * new_capacity, 0); \
@@ -72,9 +71,8 @@ static inline void array_name##_reserve(array_name##_t* array, int new_capacity)
   } \
 } \
 \
-static inline array_name##_t* array_name##_new_with_arena_and_capacity(ARENA* arena, int capacity) \
+static inline array_name##_t* array_name##_new_with_arena_and_capacity(ARENA* arena, size_t capacity) \
 { \
-  ASSERT(capacity > 0); \
   array_name##_t* array = ARENA_MALLOC(arena, sizeof(array_name##_t), 0); \
   array->data = NULL; \
   array->dtors = NULL; \
@@ -90,7 +88,7 @@ static inline array_name##_t* array_name##_new_with_arena(ARENA* arena) \
   return array_name##_new_with_arena_and_capacity(arena, 16); \
 } \
 \
-static inline array_name##_t* array_name##_new_with_capacity(int capacity) \
+static inline array_name##_t* array_name##_new_with_capacity(size_t capacity) \
 { \
   return array_name##_new_with_arena_and_capacity(NULL, capacity); \
 } \
@@ -106,9 +104,8 @@ static inline array_name##_t empty_##array_name() \
   return empty; \
 } \
 \
-static inline void array_name##_resize(array_name##_t* array, int new_size) \
+static inline void array_name##_resize(array_name##_t* array, size_t new_size) \
 { \
-  ASSERT(new_size >= 0); \
   if (new_size > array->capacity) \
   { \
     while (array->capacity < new_size) \

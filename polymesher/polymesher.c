@@ -14,6 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <strings.h>
 #include "core/polymec.h"
 #include "core/options.h"
 #include "core/interpreter.h"

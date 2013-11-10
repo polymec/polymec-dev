@@ -17,6 +17,7 @@
 // mesh_factory.c - Implementations of interpreter functions for generating
 // meshes.
 
+#include <strings.h>
 #include "core/polymec.h"
 #include "core/array.h"
 #include "core/mesh.h"
@@ -569,7 +570,7 @@ return luaL_error(lua, "CURRENTLY NOT SUPPORTED.");
   // that we computed.
   point_t* interior_points = malloc(sizeof(point_t) * num_interior_points);
   for (int i = 0; i < num_interior_points; ++i)
-    point_randomize(&interior_points[i], random, &bbox);
+    point_randomize(&interior_points[i], rand, &bbox);
 
   // Construct a centroidal voronoi tessellation using Lloyd iteration.
 //  mesh_t* mesh = create_cvt_with_lloyd_iteration(boundary_points, num_boundary_points,
