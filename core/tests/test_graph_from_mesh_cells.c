@@ -75,9 +75,11 @@ void test_block_graphs_from_uniform_mesh_cells(void** state)
 
     for (int v = first; v <= last; ++v)
     {
+      assert_int_equal(b * adj_graph_num_edges(g, v) + (b-1), adj_graph_num_edges(bg, b*v));
       assert_false(adj_graph_contains_edge(bg, b*v, b*v));
       for (int bb = 1; bb < b; ++bb)
       {
+        assert_int_equal(b * adj_graph_num_edges(g, v) + (b-1), adj_graph_num_edges(bg, b*v+bb));
         assert_true(adj_graph_contains_edge(bg, b*v, b*v+bb));
       }
       int pos = 0, other_v;
