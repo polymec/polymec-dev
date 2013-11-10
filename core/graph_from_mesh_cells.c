@@ -29,6 +29,7 @@ adj_graph_t* graph_from_mesh_cells(mesh_t* mesh)
     for (int j = mesh->cell_face_offsets[i]; j < mesh->cell_face_offsets[i+1]; ++j)
     {
       int f = mesh->cell_faces[j];
+      if (f < 0) f = ~f;
       if (mesh->face_cells[2*f+1] == -1)
         ++outer_faces;
     }
@@ -43,11 +44,11 @@ adj_graph_t* graph_from_mesh_cells(mesh_t* mesh)
     for (int j = mesh->cell_face_offsets[i]; j < mesh->cell_face_offsets[i+1]; ++j)
     {
       int f = mesh->cell_faces[j];
+      if (f < 0) f = ~f;
       if (mesh->face_cells[2*f+1] != -1)
       {
         int c = (i == mesh->face_cells[2*f]) ? mesh->face_cells[2*f+1] : mesh->face_cells[2*f];
         edges[offset] = c;
-//printf("%d face %d: %d\n", i, offset, c);
         ++offset;
       }
     }

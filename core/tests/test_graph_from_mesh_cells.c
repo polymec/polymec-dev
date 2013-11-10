@@ -45,7 +45,7 @@ void test_graph_from_uniform_mesh_cells(void** state)
     }
   }
   assert_int_equal(8, corner_cells);
-  assert_int_equal(32*12, edge_cells);
+  assert_int_equal(8*12, edge_cells);
   assert_int_equal(64*6, plane_cells);
   assert_int_equal(8*8*8, interior_cells);
   adj_graph_free(g);
