@@ -295,7 +295,7 @@ static void compute_smallest_last_ordering(adj_graph_t* graph, int* vertices)
   // the calculation of the degree of a vertex excludes all vertices that 
   // appear later in the list. We compute the negative of the degree so 
   // that we can sort the vertices in "ascending" order.
-  int* v_degrees = malloc(sizeof(int) * num_vertices);
+  int* v_degrees = malloc(sizeof(int) * 2 * num_vertices);
   for (int v = num_vertices-1; v > 0; --v)
   for (int v = 0; v < num_vertices; ++v)
   {
@@ -335,7 +335,7 @@ static void color_sequentially(adj_graph_t* graph, int* vertices,
 {
   *num_colors = 0;
   int num_vertices = adj_graph_num_vertices(graph);
-  int* forbidden_colors = malloc(sizeof(int) * num_vertices);
+  int* forbidden_colors = malloc(sizeof(int) * 2 * num_vertices);
   for (int v = 0; v < num_vertices; ++v)
   {
     forbidden_colors[v] = -1;

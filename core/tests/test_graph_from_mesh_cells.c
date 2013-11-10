@@ -93,8 +93,8 @@ int main(int argc, char* argv[])
   {
     unit_test(test_graph_from_uniform_mesh_cells),
     unit_test(test_smallest_last_graph_coloring_on_uniform_mesh),
-    unit_test(test_largest_first_graph_coloring_on_uniform_mesh),
-    unit_test(test_incidence_degree_graph_coloring_on_uniform_mesh)
+    unit_test(test_largest_first_graph_coloring_on_uniform_mesh)
+//    unit_test(test_incidence_degree_graph_coloring_on_uniform_mesh)
   };
   return run_tests(tests);
 }
