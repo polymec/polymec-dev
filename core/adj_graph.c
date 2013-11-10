@@ -250,27 +250,22 @@ typedef struct
   int num_vertices;
 } vertex_sorter_t;
 
-static int compare_degrees(void* data, const void* left, const void* right)
+static int compare_degrees(const void* left, const void* right)
 {
-  vertex_sorter_t* sorter = data;
-  const int* left_vertex = left;
-  ptrdiff_t l = left_vertex - sorter->vertices;
-  const int* right_vertex = left;
-  ptrdiff_t r = right_vertex - sorter->vertices;
-  int ldeg = sorter->degree[l];
-  int rdeg = sorter->degree[r];
+  const int* p_left = left;
+  const int* p_right = left;
+  int ldeg = p_left[1];
+  int rdeg = p_right[1];
   return (ldeg < rdeg) ? -1 
                        : (ldeg > rdeg) ? 1 
                                        : 0;
 }
 
-#if 0
-static void sort_vertices_by_degree(int* degree, int num_vertices, int* vertices)
+// This function sorts an array consisting of interlaced (vertex, degree) 
+// tuples in order of vertex degrees.
+static void sort_vertices_by_degree(int* v_degrees, int num_vertices)
 {
-  vertex_sorter_t sorter = {.degree = degree, 
-                            .num_vertices = num_vertices,
-                            .vertices = vertices};
-  qsort_r(vertices, (size_t)num_vertices, sizeof(int), &sorter, compare_degrees);
+  qsort(v_degrees, (size_t)num_vertices, 2*sizeof(int), compare_degrees);
 }
 
 static void compute_largest_first_ordering(adj_graph_t* graph, int* vertices)
@@ -280,16 +275,16 @@ static void compute_largest_first_ordering(adj_graph_t* graph, int* vertices)
 
   // Compute the degree of each vertex. We compute the negative of the 
   // degree so that we can sort the vertices in "ascending" order.
-  int* degree = malloc(sizeof(int) * num_vertices);
+  int* v_degrees = malloc(sizeof(int) * 2 * num_vertices);
   for (int v = 0; v < num_vertices; ++v)
   {
-    vertices[v] = v;
-    degree[v] = -adj_graph_num_edges(graph, v);
+    v_degrees[2*v] = v;
+    v_degrees[2*v+1] = -adj_graph_num_edges(graph, v);
   }
 
   // Now sort the vertices on their degree.
-  sort_vertices_by_degree(degree, num_vertices, vertices);
-  free(degree);
+  sort_vertices_by_degree(v_degrees, num_vertices);
+  free(v_degrees);
 }
 
 static void compute_smallest_last_ordering(adj_graph_t* graph, int* vertices)
@@ -300,23 +295,25 @@ static void compute_smallest_last_ordering(adj_graph_t* graph, int* vertices)
   // the calculation of the degree of a vertex excludes all vertices that 
   // appear later in the list. We compute the negative of the degree so 
   // that we can sort the vertices in "ascending" order.
-  int* degree = malloc(sizeof(int) * num_vertices);
+  int* v_degrees = malloc(sizeof(int) * num_vertices);
   for (int v = num_vertices-1; v > 0; --v)
+  for (int v = 0; v < num_vertices; ++v)
   {
-    vertices[v] = v;
+    v_degrees[2*v] = v;
     int num_edges = adj_graph_num_edges(graph, v);
     int* edges = adj_graph_edges(graph, v);
-    degree[v] = -num_edges;
+    int degree = -num_edges;
     for (int e = 0; e < num_edges; ++e)
     {
       if (edges[e] > v)
-        ++degree[v];
+        ++degree;
     }
+    v_degrees[2*v+1] = degree;
   }
 
   // Now sort the vertices on their degree.
-  sort_vertices_by_degree(degree, num_vertices, vertices);
-  free(degree);
+  sort_vertices_by_degree(v_degrees, num_vertices);
+  free(v_degrees);
 }
 
 static void compute_incidence_degree_ordering(adj_graph_t* graph, int* vertices)
@@ -478,5 +475,4 @@ bool adj_graph_coloring_has_vertex(adj_graph_coloring_t* coloring,
   }
   return false;
 }
-#endif
 
