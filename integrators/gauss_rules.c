@@ -15,7 +15,7 @@
 // limitations under the License.
 
 #include "core/polymec.h"
-#include "core/gauss_rules.h"
+#include "integrators/gauss_rules.h"
 
 void get_gauss_points(int n, double* points, double* weights)
 {

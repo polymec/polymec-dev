@@ -14,8 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "core/sphere_integrator.h"
-#include "core/gauss_rules.h"
+#include "integrators/sphere_integrator.h"
+#include "integrators/gauss_rules.h"
 
 // Constructs points and weights for the azimuthal interval [0, 2*pi).
 static void get_azi_points_and_weights(int n, double* points, double* weights)
