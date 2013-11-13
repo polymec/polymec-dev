@@ -23,7 +23,6 @@
 #include "kinsol/kinsol.h"
 #include "slu_ddefs.h"
 #include "supermatrix.h"
-#include "slu_util.h"
 
 // This class represents a way of integrating a system of 
 // nonlinear equations.
@@ -46,6 +45,10 @@ supermatrix_factory_t* supermatrix_factory_from_rhs(adj_graph_t* graph,
 // Frees the factory.
 void supermatrix_factory_free(supermatrix_factory_t* factory);
 
+// Produces a supermatrix with a sparsity that matches the given graph 
+// from which the factory was constructed.
+SuperMatrix* supermatrix_factory_matrix(supermatrix_factory_t* factory);
+
 // Produces a Jacobian supermatrix from finite difference quotients applied 
 // to the given function F at the solution u and t.
 SuperMatrix* supermatrix_factory_jacobian(supermatrix_factory_t* factory, N_Vector u, double t);
@@ -53,6 +56,10 @@ SuperMatrix* supermatrix_factory_jacobian(supermatrix_factory_t* factory, N_Vect
 // Updates a Jacobian supermatrix from finite difference quotients applied 
 // to the given function F at the solution u and t.
 void supermatrix_factory_update_jacobian(supermatrix_factory_t* factory, N_Vector u, double t, SuperMatrix* J);
+
+// Call this function to destroy supermatrices that have been created by this 
+// factory.
+void supermatrix_free(SuperMatrix* matrix);
 
 #endif
 
