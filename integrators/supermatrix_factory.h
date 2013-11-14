@@ -33,6 +33,7 @@ typedef struct supermatrix_factory_t supermatrix_factory_t;
 // factory does NOT assume ownership of the factory or context.
 supermatrix_factory_t* supermatrix_factory_from_sys_func(adj_graph_t* graph,
                                                          KINSysFn F,
+                                                         void (*set_F_time)(double, void*),
                                                          void* context);
 
 // Creates a factory that produces SuperLU SuperMatrix objects using 

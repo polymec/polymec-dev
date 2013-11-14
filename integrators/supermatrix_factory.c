@@ -14,6 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "core/sundials_helpers.h"
 #include "integrators/supermatrix_factory.h"
 #include "slu_util.h"
 
@@ -22,20 +23,35 @@ struct supermatrix_factory_t
   adj_graph_t* graph;
   adj_graph_coloring_t* coloring;
   KINSysFn F;
+  void (*set_F_time)(double, void*);
   CVRhsFn rhs;
   void* context;
+
+  // Work vectors.
+  N_Vector* work;
 };
 
 supermatrix_factory_t* supermatrix_factory_from_sys_func(adj_graph_t* graph,
                                                          KINSysFn F,
+                                                         void (*set_F_time)(double, void*),
                                                          void* context)
 {
   supermatrix_factory_t* factory = malloc(sizeof(supermatrix_factory_t));
   factory->graph = graph;
   factory->coloring = adj_graph_coloring_new(graph, SMALLEST_LAST);
   factory->F = F;
+  factory->set_F_time = set_F_time;
   factory->rhs = NULL;
   factory->context = context;
+
+  // Make work vectors.
+  MPI_Comm comm = adj_graph_comm(factory->graph);
+  int num_vertices = adj_graph_num_vertices(factory->graph);
+  N_Vector prototype = N_VNew(comm, num_vertices);
+//  int num_colors = adj_graph_coloring_num_colors(factory->coloring);
+//  factory->work = N_VCloneVectorArray(num_colors, prototype);
+  factory->work = N_VCloneVectorArray(2, prototype);
+  N_VDestroy(prototype);
   return factory;
 }
 
@@ -47,13 +63,26 @@ supermatrix_factory_t* supermatrix_factory_from_rhs(adj_graph_t* graph,
   factory->graph = graph;
   factory->coloring = adj_graph_coloring_new(graph, SMALLEST_LAST);
   factory->F = NULL;
+  factory->set_F_time = NULL;
   factory->rhs = rhs;
   factory->context = context;
+
+  // Make work vectors.
+  MPI_Comm comm = adj_graph_comm(factory->graph);
+  int num_vertices = adj_graph_num_vertices(factory->graph);
+  N_Vector prototype = N_VNew(comm, num_vertices);
+//  int num_colors = adj_graph_coloring_num_colors(factory->coloring);
+//  factory->work = N_VCloneVectorArray(num_colors, prototype);
+  factory->work = N_VCloneVectorArray(2, prototype);
+  N_VDestroy(prototype);
   return factory;
 }
 
 void supermatrix_factory_free(supermatrix_factory_t* factory)
 {
+//  int num_colors = adj_graph_coloring_num_colors(factory->coloring);
+//  N_VDestroyVectorArray(factory->work, num_colors);
+  N_VDestroyVectorArray(factory->work, 1);
   adj_graph_coloring_free(factory->coloring);
   free(factory);
 }
@@ -103,9 +132,82 @@ SuperMatrix* supermatrix_factory_jacobian(supermatrix_factory_t* factory, N_Vect
   return J;
 }
 
+// Here's our finite difference implementation of the Jacobian matrix-vector 
+// product. 
+static void finite_diff_F_Jv(KINSysFn F, void* context, N_Vector u, N_Vector v, N_Vector* work, N_Vector Jv)
+{
+  static double eps = UNIT_ROUNDOFF;
+
+  // F(u) -> Jv.
+  F(u, Jv, context); 
+
+  // u + eps*v -> work[0].
+  for (int i = 0; i < NV_LOCLENGTH(u); ++i)
+    NV_Ith(work[0], i) = NV_Ith(u, i) + eps*NV_Ith(v, i);
+
+  // F(u + eps*v) -> work[1].
+  F(work[0], work[1], context);
+
+  // (F(u + eps*v) - F(u)) / eps -> Jv
+  for (int i = 0; i < NV_LOCLENGTH(u); ++i)
+    NV_Ith(Jv, i) = (NV_Ith(work[1], i) - NV_Ith(Jv, i)) / eps;
+}
+
+static void compute_F_jacobian(KINSysFn F, 
+                               void* context, 
+                               N_Vector u, 
+                               adj_graph_t* graph, 
+                               adj_graph_coloring_t* coloring, 
+                               SuperMatrix* J)
+{
+  // We compute the system Jacobian using the method described in 
+  // Gebremedhin, et al (2005).
+
+}
+
+// Here's our finite difference implementation of the RHS Jacobian 
+// matrix-vector product. 
+static void finite_diff_rhs_Jv(CVRhsFn rhs, void* context, N_Vector u, double t, N_Vector v, N_Vector* work, N_Vector Jv)
+{
+  static double eps = UNIT_ROUNDOFF;
+
+  // rhs(u, t) -> Jv.
+  rhs(t, u, Jv, context); 
+
+  // u + eps*v -> work[0].
+  for (int i = 0; i < NV_LOCLENGTH(u); ++i)
+    NV_Ith(work[0], i) = NV_Ith(u, i) + eps*NV_Ith(v, i);
+
+  // F(u + eps*v, t) -> work[1].
+  rhs(t, work[0], work[1], context);
+
+  // (F(u + eps*v) - F(u)) / eps -> Jv
+  for (int i = 0; i < NV_LOCLENGTH(u); ++i)
+    NV_Ith(Jv, i) = (NV_Ith(work[1], i) - NV_Ith(Jv, i)) / eps;
+}
+
+static void compute_rhs_jacobian(CVRhsFn rhs, 
+                                 void* context, 
+                                 N_Vector u, 
+                                 double t, 
+                                 adj_graph_t* graph, 
+                                 adj_graph_coloring_t* coloring, 
+                                 SuperMatrix* J)
+{
+}
+
 void supermatrix_factory_update_jacobian(supermatrix_factory_t* factory, N_Vector u, double t, SuperMatrix* J)
 {
-  // FIXME
+  if (factory->F != NULL)
+  {
+    factory->set_F_time(t, factory->context);
+    compute_F_jacobian(factory->F, factory->context, u, factory->graph, factory->coloring, J);
+  }
+  else
+  {
+    ASSERT(factory->rhs != NULL);
+    compute_rhs_jacobian(factory->rhs, factory->context, u, t, factory->graph, factory->coloring, J);
+  }
 }
 
 void supermatrix_free(SuperMatrix* matrix)
