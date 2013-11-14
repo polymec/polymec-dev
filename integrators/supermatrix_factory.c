@@ -82,7 +82,7 @@ void supermatrix_factory_free(supermatrix_factory_t* factory)
 {
 //  int num_colors = adj_graph_coloring_num_colors(factory->coloring);
 //  N_VDestroyVectorArray(factory->work, num_colors);
-  N_VDestroyVectorArray(factory->work, 1);
+  N_VDestroyVectorArray(factory->work, 2);
   adj_graph_coloring_free(factory->coloring);
   free(factory);
 }
@@ -158,6 +158,7 @@ static void compute_F_jacobian(KINSysFn F,
                                N_Vector u, 
                                adj_graph_t* graph, 
                                adj_graph_coloring_t* coloring, 
+                               N_Vector* work,
                                SuperMatrix* J)
 {
   // We compute the system Jacobian using the method described in 
@@ -192,6 +193,7 @@ static void compute_rhs_jacobian(CVRhsFn rhs,
                                  double t, 
                                  adj_graph_t* graph, 
                                  adj_graph_coloring_t* coloring, 
+                                 N_Vector* work,
                                  SuperMatrix* J)
 {
 }
@@ -201,12 +203,12 @@ void supermatrix_factory_update_jacobian(supermatrix_factory_t* factory, N_Vecto
   if (factory->F != NULL)
   {
     factory->set_F_time(t, factory->context);
-    compute_F_jacobian(factory->F, factory->context, u, factory->graph, factory->coloring, J);
+    compute_F_jacobian(factory->F, factory->context, u, factory->graph, factory->coloring, factory->work, J);
   }
   else
   {
     ASSERT(factory->rhs != NULL);
-    compute_rhs_jacobian(factory->rhs, factory->context, u, t, factory->graph, factory->coloring, J);
+    compute_rhs_jacobian(factory->rhs, factory->context, u, t, factory->graph, factory->coloring, factory->work, J);
   }
 }
 
