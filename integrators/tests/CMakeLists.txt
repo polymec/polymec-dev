@@ -4,4 +4,5 @@
 include(add_polymec_test)
 
 #add_polymec_test(test_nonlinear_solver test_nonlinear_solver.c)
+add_polymec_test(test_supermatrix_factory test_supermatrix_factory.c)
 

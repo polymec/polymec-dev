@@ -3,4 +3,5 @@ add_library(polymec_integrators integrator.c nonlinear_solver.c
             supermatrix_factory.c)
 set(POLYMEC_LIBS polymec_integrators;${POLYMEC_LIBS} PARENT_SCOPE)
 set(POLYMEC_LIBS polymec_integrators;${POLYMEC_LIBS})
-#add_subdirectory(tests)
+
+add_subdirectory(tests)
