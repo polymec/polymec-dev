@@ -16,6 +16,8 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License."""
 
+old_license_text = ""
+
 import os.path
 
 def visit_files(sources, dirname, files):
@@ -32,7 +34,25 @@ def find_sources(dirname):
     os.path.walk(dirname, visit_files, sources)
     return sources
 
-def add_license(source_file):
+def remove_old_license(source_file):
+    f = open(source_file, 'r')
+    lines = f.readlines()
+    f.close()
+    first_line = lines[0]
+    f = open(source_file, 'w')
+    old_license_lines = old_license_text.split('\n')
+    if old_license_lines[0] in first_line:
+        last_line = 1
+        while old_license_lines[-1] not in lines[i]:
+            last_line += 1
+        for line in lines[last_line+1:]:
+            f.write(line)
+    else:
+        for line in lines:
+            f.write(line)
+    f.close()
+
+def add_new_license(source_file):
     f = open(source_file, 'r')
     lines = f.readlines()
     f.close()
@@ -42,9 +62,9 @@ def add_license(source_file):
     for line in license_lines:
         f.write('// ' + line + '\n')
     f.write('\n')
-    if 'Copyright' in first_line:
+    if license_lines[0] in first_line:
         last_line = 1
-        while 'limitations under the license' not in lines[i]:
+        while license_lines[-1] not in lines[i]:
             last_line += 1
         for line in lines[last_line+1:]:
             f.write(line)
@@ -58,4 +78,6 @@ sources = find_sources('.')
 
 # Add the license.
 for source in sources:
-    add_license(source)   
+    if (old_license_text != ''):
+        remove_old_license(source)   
+    add_new_license(source)   
