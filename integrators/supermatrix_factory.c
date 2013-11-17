@@ -14,6 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "core/array_utils.h"
 #include "core/sundials_helpers.h"
 #include "integrators/supermatrix_factory.h"
 #include "slu_util.h"
@@ -95,23 +96,28 @@ SuperMatrix* supermatrix_factory_matrix(supermatrix_factory_t* factory)
   adj_graph_t* graph = factory->graph;
   int* edge_offsets = adj_graph_edge_offsets(graph);
   int num_rows = adj_graph_num_vertices(graph);
-  int num_edges = edge_offsets[num_rows+1];
+  int num_edges = edge_offsets[num_rows];
   int num_nz = num_rows + num_edges;
 
   // Translate the sparsity information in the graph to column indices and 
   // row pointers. Since the graph is effectively stored in compressed 
   // row format, we will use SuperLU's compressed row matrix format.
   int* row_ptrs = intMalloc(num_rows + 1);
-  memcpy(row_ptrs, edge_offsets, sizeof(int) * (num_rows+1));
   int* col_indices = intMalloc(num_nz);
   int* edges = adj_graph_adjacency(graph);
   int offset = 0;
   for (int i = 0; i < num_rows; ++i)
   {
+    row_ptrs[i] = offset;
     col_indices[offset++] = i; // diagonal column
+
+    // Off-diagonal columns.
     for (int j = edge_offsets[i]; j < edge_offsets[i+1]; ++j)
       col_indices[offset++] = edges[j];
+    int_qsort(&col_indices[row_ptrs[i]+1], edge_offsets[i+1]-edge_offsets[i]);
   }
+  row_ptrs[num_rows] = offset;
+  ASSERT(offset == num_nz);
 
   // Create zeros for the matrix.
   double* mat_zeros = doubleMalloc(num_nz);
@@ -153,18 +159,6 @@ static void finite_diff_F_Jv(KINSysFn F, void* context, N_Vector u, N_Vector v, 
     NV_Ith(Jv, i) = (NV_Ith(work[2], i) - NV_Ith(Jv, i)) / eps;
 }
 
-// Column index comparison function for bsearch within supermatrix NRformat.
-static int ind_comp(const void* l, const void* r)
-{
-  int li = *((int*)l), ri = *((int*)r);
-  if (li < ri)
-    return -1;
-  else if (li > ri)
-    return 1;
-  else
-    return 0;
-}
-
 static void insert_Jv_into_matrix(adj_graph_t* graph, 
                                   adj_graph_coloring_t* coloring, 
                                   int color, 
@@ -191,8 +185,7 @@ static void insert_Jv_into_matrix(adj_graph_t* graph,
           // Off-diagonal value.
           int row_index = Jdata->rowptr[i];
           size_t num_cols = Jdata->colind[Jdata->rowptr[i+1]] - Jdata->colind[row_index];
-          int* entry = (int*)bsearch(&j, &Jdata->colind[row_index+1], 
-              num_cols - 1, sizeof(int), ind_comp);
+          int* entry = int_bsearch(&Jdata->colind[row_index+1], num_cols - 1, j);
           ASSERT(entry != NULL);
           Jij[*entry] = NV_Ith(Jv, i);
         }

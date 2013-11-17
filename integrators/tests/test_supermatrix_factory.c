@@ -22,6 +22,7 @@
 #include "core/polymec.h"
 #include "core/graph_from_mesh_cells.h"
 #include "core/create_uniform_mesh.h"
+#include "core/array_utils.h"
 #include "integrators/supermatrix_factory.h"
 
 static adj_graph_t* graph_from_uniform_mesh()
@@ -98,13 +99,41 @@ void test_rhs_ctor(void** state)
 
 void test_supermatrix(void** state)
 {
+  // Build a supermatrix A.
   adj_graph_t* g = graph_from_uniform_mesh();
-
   sys_func_t F = {.time = 0.0};
   supermatrix_factory_t* factory = 
     supermatrix_factory_from_sys_func(g, sys_func, NULL, &F);
   SuperMatrix* A = supermatrix_factory_matrix(factory);
 
+  // Check the non-zero structure of A.
+  int N = adj_graph_num_vertices(g);
+  NRformat* Adata = A->Store;
+  for (int i = 0; i < N; ++i)
+  {
+    int row_index = Adata->rowptr[i];
+    int next_row_index = Adata->rowptr[i+1];
+    int num_cols = next_row_index - row_index;
+
+    // The column indices in row i start with the diagonal element
+    // and are followed by the off-diagonals in ascending order.
+
+    // Check the diagonal element.
+    {
+      int j = Adata->colind[row_index];
+      assert_int_equal(j, i);
+    }
+    
+    // Check off-diagonals.
+    int pos = 0, j;
+    while (adj_graph_next_edge(g, i, &pos, &j))
+    {
+      int* jptr = int_bsearch(&Adata->colind[row_index+1], num_cols-1, j);
+      assert_true(jptr != NULL);
+    }
+  }
+
+  // Clean up.
   Destroy_CompRow_Matrix(A);
   supermatrix_factory_free(factory);
   adj_graph_free(g);
