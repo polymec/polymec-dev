@@ -17,16 +17,16 @@
 #include <string.h>
 #include "core/unordered_map.h"
 #include "core/constant_st_func.h"
-#include "geometry/create_cubic_lattice_mesh.h"
+#include "core/create_uniform_mesh.h"
 #include "poisson/poisson_model.h"
 #include "poisson/poisson_bc.h"
 #include "poisson/interpreter_register_poisson_functions.h"
 #include "poisson/register_poisson_benchmarks.h"
 
-static void run_analytic_problem(mesh_t* mesh, st_func_t* rhs, string_ptr_unordered_map_t* bcs, options_t* options, double t1, double t2, st_func_t* solution, double* lp_norms)
+static void run_analytic_problem(mesh_t* mesh, st_func_t* lambda, st_func_t* rhs, string_ptr_unordered_map_t* bcs, options_t* options, double t1, double t2, st_func_t* solution, double* lp_norms)
 {
   // Create the model.
-  model_t* model = create_poisson(mesh, rhs, bcs, solution, options);
+  model_t* model = create_fv_poisson(mesh, lambda, rhs, bcs, solution, options);
 
   // Run the thing.
   model_run(model, t1, t2, INT_MAX);
@@ -64,6 +64,10 @@ static void poisson_run_laplace_1d(options_t* options, int dim)
     else if (!strcmp(bcs_opt, "reversed"))
       reversed_bcs = true;
   }
+
+  // Lambda is one for Laplace's equation.
+  double o = 1.0;
+  st_func_t* one = constant_st_func_new(1, &o);
 
   // RHS function is zero for Laplace's equation.
   double z = 0.0;
@@ -144,10 +148,10 @@ static void poisson_run_laplace_1d(options_t* options, int dim)
     }
     if (dim == 3)
       Nz = Nx;
-    mesh_t* mesh = create_cubic_lattice_mesh(Nx, Ny, Nz, &bbox);
-//    tag_cubic_lattice_mesh_faces(mesh, Nx, Ny, Nz, "-x", "+x", "-y", "+y", "-z", "+z");
+    mesh_t* mesh = create_uniform_mesh(MPI_COMM_WORLD, Nx, Ny, Nz, &bbox);
+    tag_rectilinear_mesh_faces(mesh, Nx, Ny, Nz, "-x", "+x", "-y", "+y", "-z", "+z");
     string_ptr_unordered_map_t* bcs_copy = string_ptr_unordered_map_copy(bcs);
-    run_analytic_problem(mesh, zero, bcs_copy, options, t, t, sol, Lp_norms[iter]);
+    run_analytic_problem(mesh, one, zero, bcs_copy, options, t, t, sol, Lp_norms[iter]);
 
     // If we run in 1D or 2D, we need to adjust the norms.
     if (dim == 1)
@@ -211,6 +215,10 @@ static void poisson_run_paraboloid(options_t* options, int dim)
     if (!strcasecmp(geom, "offcenter"))
       offcenter = true;
   }
+
+  // Lambda is one for Laplace's equation.
+  double o = 1.0;
+  st_func_t* one = constant_st_func_new(1, &o);
 
   // RHS function.
   double four = 4.0;
@@ -280,10 +288,10 @@ static void poisson_run_paraboloid(options_t* options, int dim)
     bbox.z1 = 0.0, bbox.z2 = 1.0;
     if (dim == 2)
       bbox.z2 = 1.0/Nx;
-    mesh_t* mesh = create_cubic_lattice_mesh(Nx, Ny, Nz, &bbox);
-//    tag_cubic_lattice_mesh_faces(mesh, Nx, Ny, Nz, "-x", "+x", "-y", "+y", "-z", "+z");
+    mesh_t* mesh = create_uniform_mesh(MPI_COMM_WORLD, Nx, Ny, Nz, &bbox);
+    tag_rectilinear_mesh_faces(mesh, Nx, Ny, Nz, "-x", "+x", "-y", "+y", "-z", "+z");
     string_ptr_unordered_map_t* bcs_copy = string_ptr_unordered_map_copy(bcs);
-    run_analytic_problem(mesh, rhs, bcs_copy, options, t, t, sol, Lp_norms[iter]);
+    run_analytic_problem(mesh, one, rhs, bcs_copy, options, t, t, sol, Lp_norms[iter]);
 
     // If we run in 2D, we need to adjust the norms.
     if (dim == 2)

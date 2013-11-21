@@ -17,7 +17,7 @@
 #ifndef POLYMEC_CREATE_UNIFORM_MESH_H
 #define POLYMEC_CREATE_UNIFORM_MESH_H
 
-#include "core/mesh.h"
+#include "core/create_rectilinear_mesh.h"
 
 // This function creates and returns a uniform mesh of nx x ny x nz cells. 
 // The mesh spans the rectangular region of space defined by the bounding box.

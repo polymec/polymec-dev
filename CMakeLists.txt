@@ -130,12 +130,9 @@ endif()
 
 # Models.
 
-# Poisson solver.
-#add_subdirectory(poisson)
+# Poisson's equation.
+add_subdirectory(poisson)
 
 # Advection/diffusion/reaction solver.
 #add_subdirectory(advect)
-
-# Compressible Navier-Stokes solver.
-#add_subdirectory(cnav)
 

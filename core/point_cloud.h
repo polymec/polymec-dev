@@ -21,7 +21,10 @@
 #include "core/point.h"
 #include "arena/proto.h"
 
+#ifndef TAGGER_T
+#define TAGGER_T
 typedef struct tagger_t tagger_t;
+#endif
 
 // This strategy (base) class provides an interface to algorithms for 
 // connecting points in point clouds.

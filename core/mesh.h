@@ -33,7 +33,10 @@ typedef enum
 
 // A tagging mechanism for tagging mesh nodes/edges/faces/cells 
 // with attributes. 
+#ifndef TAGGER_T
+#define TAGGER_T
 typedef struct tagger_t tagger_t;
+#endif
 
 typedef struct mesh_storage_t mesh_storage_t;
 
