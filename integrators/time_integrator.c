@@ -24,17 +24,14 @@ struct time_integrator_t
 {
   char* name;
   void* context;
-  void (*dtor)(void*);
-  adj_graph_t* graph;
+  time_integrator_vtable vtable;
   int order;
   time_integrator_solver_type_t solver_type;
 };
 
 time_integrator_t* time_integrator_new(const char* name, 
                                        void* context,
-                                       CVRhsFn rhs,
-                                       void (*dtor)(void*),
-                                       adj_graph_t* graph,
+                                       time_integrator_vtable vtable,
                                        int order,
                                        time_integrator_solver_type_t solver_type)
 {
@@ -43,7 +40,7 @@ time_integrator_t* time_integrator_new(const char* name,
   time_integrator_t* integ = malloc(sizeof(time_integrator_t));
   integ->name = string_dup(name);
   integ->context = context;
-  integ->graph = graph;
+  integ->vtable = vtable;
   integ->order = order;
   integ->solver_type = solver_type;
   return integ;
@@ -51,8 +48,8 @@ time_integrator_t* time_integrator_new(const char* name,
 
 void time_integrator_free(time_integrator_t* integrator)
 {
-  if ((integrator->context != NULL) && (integrator->dtor != NULL))
-    integrator->dtor(integrator->context);
+  if ((integrator->context != NULL) && (integrator->vtable.dtor != NULL))
+    integrator->vtable.dtor(integrator->context);
   free(integrator->name);
   free(integrator);
 }

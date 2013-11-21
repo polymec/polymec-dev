@@ -35,11 +35,9 @@ struct nonlinear_solver_t
 
   char* name;
   void* context;
-  int block_size;
-  void (*dtor)(void*);
-  mf_nonlinear_solver_type_t solver_type;
-  adj_graph_t* graph;
   void* kinsol;
+  nonlinear_solver_vtable vtable;
+  nonlinear_solver_type_t solver_type;
 
   // Preconditioning stuff.
   SuperMatrix precond_mat, precond_rhs, precond_L, precond_U;
@@ -48,16 +46,14 @@ struct nonlinear_solver_t
 
 nonlinear_solver_t* nonlinear_solver_new(const char* name, 
                                          void* context,
-                                         KINSysFn F,
-                                         void (*dtor)(void*),
-                                         adj_graph_t* graph,
-                                         mf_nonlinear_solver_type_t type)
+                                         nonlinear_solver_vtable vtable,
+                                         nonlinear_solver_type_t type)
 {
   ASSERT(F != NULL);
   nonlinear_solver_t* solver = malloc(sizeof(nonlinear_solver_t));
   solver->name = string_dup(name);
   solver->context = context;
-  solver->graph = graph;
+  solver->vtable = vtable;
   solver->solver_type = type;
 
   return solver;
@@ -77,8 +73,8 @@ void nonlinear_solver_free(nonlinear_solver_t* solver)
 {
   free_preconditioner(solver);
   KINFree(&solver->kinsol);
-  if ((solver->dtor != NULL) && (solver->context != NULL))
-    solver->dtor(solver->context);
+  if ((solver->vtable.dtor != NULL) && (solver->context != NULL))
+    solver->vtable.dtor(solver->context);
   free(solver->name);
   free(solver);
 }

@@ -14,8 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef POLYMEC_nonlinear_SOLVER_H
-#define POLYMEC_nonlinear_SOLVER_H
+#ifndef POLYMEC_NONLINEAR_SOLVER_H
+#define POLYMEC_NONLINEAR_SOLVER_H
 
 #include "kinsol/kinsol.h"
 #include "core/polymec.h"
@@ -27,7 +27,14 @@ typedef enum
   GMRES,
   BICGSTAB,
   TFQMR
-} mf_nonlinear_solver_type_t;
+} nonlinear_solver_type_t;
+
+typedef struct
+{
+  KINSysFn eval;
+  void (*dtor)(void*);
+  adj_graph_t* (*graph)(void*);
+} nonlinear_solver_vtable;
 
 // This class represents a way of integrating a system of 
 // nonlinear equations.
@@ -37,10 +44,8 @@ typedef struct nonlinear_solver_t nonlinear_solver_t;
 // solving a differential algebraic system with N equations.
 nonlinear_solver_t* nonlinear_solver_new(const char* name,
                                          void* context,
-                                         KINSysFn F,
-                                         void (*dtor)(void*),
-                                         adj_graph_t* graph,
-                                         mf_nonlinear_solver_type_t type);
+                                         nonlinear_solver_vtable vtable,
+                                         nonlinear_solver_type_t type);
 
 // Frees a solver.
 void nonlinear_solver_free(nonlinear_solver_t* solver);

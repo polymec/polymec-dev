@@ -28,6 +28,13 @@ typedef enum
   BICGSTAB
 } time_integrator_solver_type_t;
 
+typedef struct
+{
+  CVRhsFn rhs;
+  void (*dtor)(void*);
+  adj_graph_t* (*graph)(void*);
+} time_integrator_vtable;
+
 // This class provides an abstract interface for integrating systems of 
 // nonlinear differential equations. 
 typedef struct time_integrator_t time_integrator_t;
@@ -38,9 +45,7 @@ typedef struct time_integrator_t time_integrator_t;
 // a system of N differential equations.
 time_integrator_t* time_integrator_new(const char* name, 
                                        void* context,
-                                       CVRhsFn rhs,
-                                       void (*dtor)(void*),
-                                       adj_graph_t* graph,
+                                       time_integrator_vtable vtable,
                                        int order,
                                        time_integrator_solver_type_t solver_type);
 
