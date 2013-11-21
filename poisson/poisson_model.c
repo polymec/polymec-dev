@@ -23,7 +23,7 @@
 #include "core/boundary_cell_map.h"
 #include "core/write_silo.h"
 #include "geometry/interpreter_register_geometry_functions.h"
-#include "integrators/nonlinear_solver.h"
+#include "integrators/mf_nonlinear_solver.h"
 #include "poisson/poisson_model.h"
 #include "poisson/poisson_bc.h"
 #include "poisson/interpreter_register_poisson_functions.h"
@@ -224,6 +224,16 @@ static void poisson_dtor(void* ctx)
 
   boundary_cell_map_free(p->boundary_cells);
   free(p);
+}
+
+static int fv_poisson_residual(N_Vector u, N_Vector F, void* context)
+{
+  return 0;
+}
+
+static int fvpm_poisson_residual(N_Vector u, N_Vector F, void* context)
+{
+  return 0;
 }
 
 model_t* poisson_model_new(options_t* options)

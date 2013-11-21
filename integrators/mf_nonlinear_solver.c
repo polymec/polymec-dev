@@ -88,62 +88,6 @@ static void free_preconditioner(mf_nonlinear_solver_t* mf_solver)
   Destroy_CompCol_Matrix(&mf_solver->precond_mat);
 }
 
-// This function computes a block row in the Jacobian preconditioner matrix 
-// and inserts it into the given sparse matrix.
-static void compute_precond_jacobian_block_row(void* context, 
-                                               nonlinear_solver_eval_func eval,
-                                               double t, 
-                                               int block_row, 
-                                               int* block_cols, 
-                                               int num_block_cols, 
-                                               int N,
-                                               double* X, 
-                                               SuperMatrix* jacobian)
-{
-  mf_nonlinear_solver_t* mf_solver = context;
-  static const double epsilon = 1e-8;
-
-  // We will temporarily store the values of the Jacobian here.
-  int block_size = mf_solver->block_size;
-  double jacobian_cols[block_size][block_size*(1+num_block_cols)];
-
-  for (int i = 0; i < block_size; ++i)
-  {
-    int row = block_size*block_row + i;
-    double F0 = eval(mf_solver->context, t, row, N, X);
-    // Diagonal terms.
-    for (int j = 0; j < block_size; ++j)
-    {
-      int col = block_size*row + j;
-      double Xj = X[col];
-      double dXj = (Xj == 0.0) ? epsilon : epsilon * Xj;
-      X[col] = Xj + dXj;
-      double F1 = eval(mf_solver->context, t, row, N, X);
-      X[col] = Xj;
-      jacobian_cols[i][j] = (F1 - F0) / dXj;
-    }
-    // Off-diagonal terms (local domain only).
-    for (int j = 0; j < num_block_cols; ++j)
-    {
-      for (int k = 0; k < block_size; ++k)
-      {
-        int col = block_size*block_cols[j] + k;
-        double Xj = X[col];
-        double dXj = (Xj == 0.0) ? epsilon : epsilon * Xj;
-        X[col] = Xj + dXj;
-        double F1 = eval(mf_solver->context, t, row, N, X);
-        X[col] = Xj;
-        jacobian_cols[i][block_size*(j+1)+k] = (F1 - F0) / dXj;
-      }
-    }
-  }
-
-  // Grab the column-compressed matrix storage.
-  struct NCformat* cc_mat = jacobian->Store;
-
-  // Inject the values into the Jacobian matrix.
-}
-
 static void mf_nonlinear_solver_solve(void* context, double t, int N, double* X)
 {
   mf_nonlinear_solver_t* mf_solver = context;
@@ -159,17 +103,25 @@ static void mf_nonlinear_solver_free(void* context)
   free(mf_solver);
 }
 
+// FIXME: Not correct.
+static double eval_residual(void* context, 
+                            double t, 
+                            int i, 
+                            int N,
+                            double* X)
+{
+  return 0.0;
+}
+
 nonlinear_solver_t* mf_nonlinear_solver_new(const char* name,
                                             void* context,
-                                            nonlinear_solver_eval_func eval,
+                                            KINSysFn F,
                                             nonlinear_solver_dtor dtor,
                                             adj_graph_t* graph,
-                                            int num_equations_per_site,
                                             mf_nonlinear_solver_type_t type)
 {
-  ASSERT(eval != NULL);
+  ASSERT(F != NULL);
   ASSERT(graph != NULL);
-  ASSERT(num_equations_per_site > 0);
 
   mf_nonlinear_solver_t* mf_solver = malloc(sizeof(mf_nonlinear_solver_t));
 
@@ -178,16 +130,14 @@ nonlinear_solver_t* mf_nonlinear_solver_new(const char* name,
   MPI_Comm_rank(comm, &mf_solver->rank);
 
   mf_solver->context = context;
-  mf_solver->block_size = num_equations_per_site;
   mf_solver->graph = graph; // borrowed.
   mf_solver->dtor = dtor;
   mf_solver->solver_type = type;
 
-  nonlinear_solver_vtable vtable = {.eval = eval, 
+  nonlinear_solver_vtable vtable = {.eval = eval_residual, 
                                     .solve = mf_nonlinear_solver_solve,
                                     .dtor = mf_nonlinear_solver_free};
-  int num_sites = adj_graph_num_vertices(graph);
-  int N = num_sites * num_equations_per_site;
+  int N = adj_graph_num_vertices(graph);
 
   // Set up the kinsol solver object.
   mf_solver->kinsol = KINCreate();

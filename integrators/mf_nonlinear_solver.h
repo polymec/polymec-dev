@@ -17,6 +17,7 @@
 #ifndef POLYMEC_MF_NONLINEAR_SOLVER_H
 #define POLYMEC_MF_NONLINEAR_SOLVER_H
 
+#include "kinsol/kinsol.h"
 #include "core/adj_graph.h"
 #include "integrators/nonlinear_solver.h"
 
@@ -32,10 +33,9 @@ typedef enum
 // using a preconditioned matrix-free Newton method.
 nonlinear_solver_t* mf_nonlinear_solver_new(const char* name,
                                             void* context,
-                                            nonlinear_solver_eval_func eval,
+                                            KINSysFn F,
                                             nonlinear_solver_dtor dtor,
                                             adj_graph_t* graph,
-                                            int num_equations_per_site,
                                             mf_nonlinear_solver_type_t type);
 
 #endif
