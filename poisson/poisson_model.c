@@ -23,7 +23,7 @@
 #include "core/boundary_cell_map.h"
 #include "core/write_silo.h"
 #include "geometry/interpreter_register_geometry_functions.h"
-#include "integrators/mf_nonlinear_solver.h"
+#include "integrators/nonlinear_solver.h"
 #include "poisson/poisson_model.h"
 #include "poisson/poisson_bc.h"
 #include "poisson/interpreter_register_poisson_functions.h"

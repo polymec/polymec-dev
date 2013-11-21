@@ -17,33 +17,17 @@
 #ifndef POLYMEC_nonlinear_SOLVER_H
 #define POLYMEC_nonlinear_SOLVER_H
 
+#include "kinsol/kinsol.h"
 #include "core/polymec.h"
+#include "core/adj_graph.h"
 
-// A function for computing the value of the ith equation within an 
-// N-dimensional differential algebraic system F(X) = 0 given a solution X at time t.
-typedef double (*nonlinear_solver_eval_func)(void* context, 
-                                             double t, 
-                                             int i, 
-                                             int N,
-                                             double* X);
-
-// A function for solving a system of differential algebraic equations at 
-// a time t (in place).
-typedef void (*nonlinear_solver_solve_func)(void* context,
-                                            double t, 
-                                            int N,
-                                            double* X);
-
-// A destructor for nonlinear solvers.
-typedef void (*nonlinear_solver_dtor)(void* context);
-
-// This virtual table must be implemented by any nonlinear_solver_t.
-typedef struct 
+// The different algorithms for matrix-free solution of nonlinear equations.
+typedef enum
 {
-  nonlinear_solver_eval_func  eval;
-  nonlinear_solver_solve_func solve;
-  nonlinear_solver_dtor       dtor;
-} nonlinear_solver_vtable;
+  GMRES,
+  BICGSTAB,
+  TFQMR
+} mf_nonlinear_solver_type_t;
 
 // This class represents a way of integrating a system of 
 // nonlinear equations.
@@ -52,9 +36,11 @@ typedef struct nonlinear_solver_t nonlinear_solver_t;
 // Creates a solver with the given name, context, and virtual table for 
 // solving a differential algebraic system with N equations.
 nonlinear_solver_t* nonlinear_solver_new(const char* name,
-                             void* context,
-                             nonlinear_solver_vtable vtable,
-                             int N);
+                                         void* context,
+                                         KINSysFn F,
+                                         void (*dtor)(void*),
+                                         adj_graph_t* graph,
+                                         mf_nonlinear_solver_type_t type);
 
 // Frees a solver.
 void nonlinear_solver_free(nonlinear_solver_t* solver);

@@ -17,35 +17,68 @@
 #include <float.h>
 #include "integrators/nonlinear_solver.h"
 
+// We use KINSOL for doing the matrix-free nonlinear solve.
+#include "kinsol/kinsol.h"
+#include "kinsol/kinsol_spgmr.h"
+#include "kinsol/kinsol_spbcgs.h"
+#include "kinsol/kinsol_sptfqmr.h"
+
+// We use a serial version of SuperLU to do preconditioning.
+#include "slu_ddefs.h"
+#include "supermatrix.h"
+#include "slu_util.h"
+
 struct nonlinear_solver_t 
 {
-  void* context;
+  // Parallel stuff.
+  int rank, nprocs;
+
   char* name;
-  nonlinear_solver_vtable vtable;
-  int N;
+  void* context;
+  int block_size;
+  void (*dtor)(void*);
+  mf_nonlinear_solver_type_t solver_type;
+  adj_graph_t* graph;
+  void* kinsol;
+
+  // Preconditioning stuff.
+  SuperMatrix precond_mat, precond_rhs, precond_L, precond_U;
+  int *precond_rperm, *precond_cperm;
 };
 
 nonlinear_solver_t* nonlinear_solver_new(const char* name, 
-                             void* context,
-                             nonlinear_solver_vtable vtable, 
-                             int N)
+                                         void* context,
+                                         KINSysFn F,
+                                         void (*dtor)(void*),
+                                         adj_graph_t* graph,
+                                         mf_nonlinear_solver_type_t type)
 {
-  ASSERT(vtable.eval != NULL);
-  ASSERT(N > 0);
-
+  ASSERT(F != NULL);
   nonlinear_solver_t* solver = malloc(sizeof(nonlinear_solver_t));
   solver->name = string_dup(name);
   solver->context = context;
-  solver->vtable = vtable;
-  solver->N = N;
+  solver->graph = graph;
+  solver->solver_type = type;
 
   return solver;
 }
 
+static void free_preconditioner(nonlinear_solver_t* solver)
+{
+  SUPERLU_FREE(solver->precond_cperm);
+  SUPERLU_FREE(solver->precond_rperm);
+//  Destroy_CompCol_Matrix(&mf_solver->precond_U);
+//  Destroy_SuperNode_Matrix(&mf_solver->precond_L);
+  Destroy_SuperMatrix_Store(&solver->precond_rhs);
+  Destroy_CompRow_Matrix(&solver->precond_mat);
+}
+
 void nonlinear_solver_free(nonlinear_solver_t* solver)
 {
-  if ((solver->context != NULL) && (solver->vtable.dtor != NULL))
-    solver->vtable.dtor(solver->context);
+  free_preconditioner(solver);
+  KINFree(&solver->kinsol);
+  if ((solver->dtor != NULL) && (solver->context != NULL))
+    solver->dtor(solver->context);
   free(solver->name);
   free(solver);
 }
@@ -61,10 +94,9 @@ void* nonlinear_solver_context(nonlinear_solver_t* solver)
 }
 
 void nonlinear_solver_solve(nonlinear_solver_t* solver,
-                      double t,
-                      double* X)
+                            double t,
+                            double* X)
 {
   ASSERT(X != NULL);
-  solver->vtable.solve(solver->context, t, solver->N, X);
 }
                                   

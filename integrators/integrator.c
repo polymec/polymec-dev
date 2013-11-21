@@ -15,41 +15,44 @@
 // limitations under the License.
 
 #include "integrators/integrator.h"
+#include "core/sundials_helpers.h"
+#include "cvode/cvode_spils.h"
+#include "cvode/cvode_spgmr.h"
+#include "cvode/cvode_spbcgs.h"
 
 struct integrator_t 
 {
   char* name;
   void* context;
-  integrator_vtable vtable;
+  void (*dtor)(void*);
+  adj_graph_t* graph;
   int order;
-  integrator_type_t type;
-  int N; // Number of unknowns.
+  integrator_solver_type_t solver_type;
 };
 
 integrator_t* integrator_new(const char* name, 
                              void* context,
-                             integrator_vtable vtable,
+                             CVRhsFn rhs,
+                             void (*dtor)(void*),
+                             adj_graph_t* graph,
                              int order,
-                             integrator_type_t type,
-                             int N)
+                             integrator_solver_type_t solver_type)
 {
-  ASSERT(vtable.step != NULL);
+  ASSERT(rhs != NULL);
   ASSERT(order > 0);
-  ASSERT(N > 0);
   integrator_t* integ = malloc(sizeof(integrator_t));
   integ->name = string_dup(name);
   integ->context = context;
-  integ->vtable = vtable;
+  integ->graph = graph;
   integ->order = order;
-  integ->type = type;
-  integ->N = N;
+  integ->solver_type = solver_type;
   return integ;
 }
 
 void integrator_free(integrator_t* integrator)
 {
-  if ((integrator->context != NULL) && (integrator->vtable.dtor != NULL))
-    integrator->vtable.dtor(integrator->context);
+  if ((integrator->context != NULL) && (integrator->dtor != NULL))
+    integrator->dtor(integrator->context);
   free(integrator->name);
   free(integrator);
 }
@@ -69,24 +72,9 @@ int integrator_order(integrator_t* integrator)
   return integrator->order;
 }
 
-integrator_type_t integrator_type(integrator_t* integrator)
-{
-  return integrator->type;
-}
-
-int integrator_N(integrator_t* integrator)
-{
-  return integrator->N;
-}
-
-void integrator_init(integrator_t* integrator, double t, double* X0)
-{
-  integrator->vtable.init(integrator->context, t, integrator->N, X0);
-}
-
 void integrator_step(integrator_t* integrator, double t1, double t2, double* X)
 {
   ASSERT(t2 > t1);
-  integrator->vtable.step(integrator->context, t1, t2, integrator->N, X);
+  // FIXME
 }
 
