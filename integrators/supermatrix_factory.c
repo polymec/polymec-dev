@@ -51,7 +51,7 @@ supermatrix_factory_t* supermatrix_factory_from_sys_func(adj_graph_t* graph,
   N_Vector prototype = N_VNew(comm, num_vertices);
 //  int num_colors = adj_graph_coloring_num_colors(factory->coloring);
 //  factory->work = N_VCloneVectorArray(num_colors, prototype);
-  factory->work = N_VCloneVectorArray(3, prototype);
+  factory->work = N_VCloneVectorArray(4, prototype);
   N_VDestroy(prototype);
   return factory;
 }
@@ -74,7 +74,7 @@ supermatrix_factory_t* supermatrix_factory_from_rhs(adj_graph_t* graph,
   N_Vector prototype = N_VNew(comm, num_vertices);
 //  int num_colors = adj_graph_coloring_num_colors(factory->coloring);
 //  factory->work = N_VCloneVectorArray(num_colors, prototype);
-  factory->work = N_VCloneVectorArray(3, prototype);
+  factory->work = N_VCloneVectorArray(4, prototype);
   N_VDestroy(prototype);
   return factory;
 }
@@ -83,7 +83,7 @@ void supermatrix_factory_free(supermatrix_factory_t* factory)
 {
 //  int num_colors = adj_graph_coloring_num_colors(factory->coloring);
 //  N_VDestroyVectorArray(factory->work, num_colors);
-  N_VDestroyVectorArray(factory->work, 3);
+  N_VDestroyVectorArray(factory->work, 4);
   adj_graph_coloring_free(factory->coloring);
   free(factory);
 }
@@ -144,19 +144,18 @@ static void finite_diff_F_Jv(KINSysFn F, void* context, N_Vector u, N_Vector v, 
 {
   static double eps = UNIT_ROUNDOFF;
 
-  // F(u) -> Jv.
-  F(u, Jv, context); 
+  // work[1] contains F(u).
 
-  // u + eps*v -> work[1].
+  // u + eps*v -> work[2].
   for (int i = 0; i < NV_LOCLENGTH(u); ++i)
-    NV_Ith(work[1], i) = NV_Ith(u, i) + eps*NV_Ith(v, i);
+    NV_Ith(work[2], i) = NV_Ith(u, i) + eps*NV_Ith(v, i);
 
-  // F(u + eps*v) -> work[2].
-  F(work[1], work[2], context);
+  // F(u + eps*v) -> work[3].
+  F(work[2], work[3], context);
 
   // (F(u + eps*v) - F(u)) / eps -> Jv
   for (int i = 0; i < NV_LOCLENGTH(u); ++i)
-    NV_Ith(Jv, i) = (NV_Ith(work[2], i) - NV_Ith(Jv, i)) / eps;
+    NV_Ith(Jv, i) = (NV_Ith(work[3], i) - NV_Ith(work[1], i)) / eps;
 }
 
 static void insert_Jv_into_matrix(adj_graph_t* graph, 
@@ -215,6 +214,9 @@ static void compute_F_jacobian(KINSysFn F,
     while (adj_graph_coloring_next_vertex(coloring, c, &pos, &i))
       NV_Ith(work[0], i) = 1.0;
 
+    // We evaluate F(u) and place it into work[1].
+    F(u, work[1], context);
+
     // Now evaluate the matrix-vector product.
     memset(NV_DATA(Jv), 0, sizeof(double) * N);
     finite_diff_F_Jv(F, context, u, work[0], work, Jv);
@@ -231,19 +233,18 @@ static void finite_diff_rhs_Jv(CVRhsFn rhs, void* context, N_Vector u, double t,
 {
   static double eps = UNIT_ROUNDOFF;
 
-  // rhs(u, t) -> Jv.
-  rhs(t, u, Jv, context); 
+  // work[1] contains rhs(u, t).
 
-  // u + eps*v -> work[1].
+  // u + eps*v -> work[2].
   for (int i = 0; i < NV_LOCLENGTH(u); ++i)
-    NV_Ith(work[1], i) = NV_Ith(u, i) + eps*NV_Ith(v, i);
+    NV_Ith(work[2], i) = NV_Ith(u, i) + eps*NV_Ith(v, i);
 
-  // F(u + eps*v, t) -> work[2].
-  rhs(t, work[1], work[2], context);
+  // F(u + eps*v, t) -> work[3].
+  rhs(t, work[2], work[3], context);
 
   // (F(u + eps*v) - F(u)) / eps -> Jv
   for (int i = 0; i < NV_LOCLENGTH(u); ++i)
-    NV_Ith(Jv, i) = (NV_Ith(work[2], i) - NV_Ith(Jv, i)) / eps;
+    NV_Ith(Jv, i) = (NV_Ith(work[3], i) - NV_Ith(work[1], i)) / eps;
 }
 
 static void compute_rhs_jacobian(CVRhsFn rhs, 
@@ -267,6 +268,9 @@ static void compute_rhs_jacobian(CVRhsFn rhs,
     int pos = 0, i;
     while (adj_graph_coloring_next_vertex(coloring, c, &pos, &i))
       NV_Ith(work[0], i) = 1.0;
+
+    // We evaluate rhs(u, t) and place it in work[1].
+    rhs(t, u, work[1], context); 
 
     // Now evaluate the matrix-vector product.
     memset(NV_DATA(Jv), 0, sizeof(double) * N);

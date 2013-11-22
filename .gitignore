@@ -3,6 +3,18 @@
 
 # Editor backup files
 *~
+.*.swp
 
 # Generated files
 build/
+
+# Documentation kibble.
+docs/*.aux
+docs/*.bbl
+docs/*.blg
+docs/*.idx
+docs/*.log
+docs/*.pdf
+
+# Tetgen tarball.
+3rdparty/tetgen*.tar.gz
