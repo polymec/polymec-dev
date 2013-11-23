@@ -70,8 +70,8 @@ static void free_preconditioner(nonlinear_solver_t* solver)
 
 void nonlinear_solver_free(nonlinear_solver_t* solver)
 {
-  free_preconditioner(solver);
-  KINFree(&solver->kinsol);
+//  free_preconditioner(solver);
+//  KINFree(&solver->kinsol);
   if ((solver->vtable.dtor != NULL) && (solver->context != NULL))
     solver->vtable.dtor(solver->context);
   free(solver->name);

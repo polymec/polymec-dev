@@ -127,26 +127,43 @@ static void poisson_init(void* context, double t)
   {
     free(p->phi);
     p->phi = NULL;
-    boundary_cell_map_free(p->boundary_cells);
   }
 
-  // Figure out the boundary cells.
-  p->boundary_cells = boundary_cell_map_from_mesh_and_bcs(p->mesh, p->bcs);
+  if (p->boundary_cells != NULL)
+  {
+    boundary_cell_map_free(p->boundary_cells);
+    p->boundary_cells = NULL;
+  }
 
-  // Initialize the solution vector.
-  p->phi = malloc(sizeof(double)*p->mesh->num_cells);
+  if (p->solver != NULL)
+  {
+    nonlinear_solver_free(p->solver);
+    p->solver = NULL;
+  }
 
-  // Gather information about boundary cells.
-  p->boundary_cells = boundary_cell_map_from_mesh_and_bcs(p->mesh, p->bcs);
-
-  // Initialize the nonlinear solver.
   if (p->mesh != NULL)
   {
+    // Initialize the solution vector.
+    p->phi = malloc(sizeof(double)*p->mesh->num_cells);
+    memset(p->phi, 0, sizeof(double)*p->mesh->num_cells);
+
+    // Gather information about boundary cells.
+    p->boundary_cells = boundary_cell_map_from_mesh_and_bcs(p->mesh, p->bcs);
+
+    // Initialize the nonlinear solver.
     nonlinear_solver_vtable vtable = {.eval = fv_poisson_residual, .dtor = NULL, .graph = get_graph};
     p->solver = nonlinear_solver_new("Poisson (FV)", p, vtable, GMRES);
   }
   else
   {
+    // Initialize the solution vector.
+    p->phi = malloc(sizeof(double)*p->point_cloud->num_points);
+    memset(p->phi, 0, sizeof(double)*p->point_cloud->num_points);
+
+    // Gather information about boundary cells.
+    //p->boundary_cells = boundary_cell_map_from_mesh_and_bcs(p->mesh, p->bcs);
+
+    // Initialize the nonlinear solver.
     nonlinear_solver_vtable vtable = {.eval = fvpm_poisson_residual, .dtor = NULL, .graph = get_graph};
     p->solver = nonlinear_solver_new("Poisson (FVPM)", p, vtable, GMRES);
   }
@@ -230,7 +247,16 @@ static void poisson_compute_error_norms(void* context, st_func_t* solution, doub
   }
   else
   {
-    // FIXME
+    for (int i = 0; i < p->point_cloud->num_points; ++i)
+    {
+      double phi_sol;
+      st_func_eval(solution, &p->point_cloud->point_coords[i], t, &phi_sol);
+      double V = 1.0; // FIXME: What's the volume factor?
+      double err = fabs(p->phi[i] - phi_sol);
+      Linf = (Linf < err) ? err : Linf;
+      L1 += err*V;
+      L2 += err*err*V*V;
+    }
   }
 
   L2 = sqrt(L2);
@@ -250,13 +276,19 @@ static void poisson_dtor(void* context)
     mesh_free(p->mesh);
   else if (p->point_cloud != NULL)
     point_cloud_free(p->point_cloud);
+
   if (p->phi != NULL)
   {
     p->shape = NULL;
     free(p->phi);
   }
 
-  boundary_cell_map_free(p->boundary_cells);
+  if (p->boundary_cells != NULL)
+    boundary_cell_map_free(p->boundary_cells);
+
+  if (p->solver != NULL)
+    nonlinear_solver_free(p->solver);
+
   free(p);
 }
 
