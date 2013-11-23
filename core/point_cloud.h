@@ -105,10 +105,10 @@ typedef struct
 // Construct a new point cloud from the set of points with the given 
 // coordinates. Coordinates are copied. All points will be stored locally, 
 // and all points are initially disconnected.
-point_cloud_t* point_cloud_new(MPI_Comm comm, int num_points, point_t* coords);
+point_cloud_t* point_cloud_new(MPI_Comm comm, point_t* coords, int num_points);
 
 // Construct a new point cloud, using the given arena for memory allocations.
-point_cloud_t* point_cloud_new_with_arena(ARENA* arena, MPI_Comm comm, int num_points, point_t* coords);
+point_cloud_t* point_cloud_new_with_arena(ARENA* arena, MPI_Comm comm, point_t* points, int num_point);
 
 // Destroys the given point cloud.
 void point_cloud_free(point_cloud_t* cloud);

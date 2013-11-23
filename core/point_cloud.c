@@ -71,15 +71,15 @@ void point_cloud_neighbor_search_free(point_cloud_neighbor_search_t* search)
   free(search);
 }
 
-point_cloud_t* point_cloud_new(MPI_Comm comm, int num_points, point_t* coords)
+point_cloud_t* point_cloud_new(MPI_Comm comm, point_t* points, int num_points)
 {
   ARENA* a = arena_open(&arena_defaults, 0);
-  point_cloud_t* cloud = point_cloud_new_with_arena(a, comm, num_points, coords);
+  point_cloud_t* cloud = point_cloud_new_with_arena(a, comm, points, num_points);
   cloud->close_arena = true;
   return cloud;
 }
 
-point_cloud_t* point_cloud_new_with_arena(ARENA* arena, MPI_Comm comm, int num_points, point_t* coords)
+point_cloud_t* point_cloud_new_with_arena(ARENA* arena, MPI_Comm comm, point_t* points, int num_points)
 {
   ASSERT(num_points >= 0);
 
@@ -92,7 +92,7 @@ point_cloud_t* point_cloud_new_with_arena(ARENA* arena, MPI_Comm comm, int num_p
   cloud->num_points = num_points;
   cloud->num_ghost_points = 0;
   cloud->point_coords = ARENA_MALLOC(cloud->arena, sizeof(point_t)*num_points, 0);
-  memcpy(cloud->point_coords, coords, sizeof(point_t)*num_points);
+  memcpy(cloud->point_coords, points, sizeof(point_t)*num_points);
 
   // Allocate some preliminary neighbor information.
   cloud->neighbor_offsets = ARENA_MALLOC(cloud->arena, sizeof(int)*(num_points+1), 0);

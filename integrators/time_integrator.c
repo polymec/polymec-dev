@@ -35,7 +35,6 @@ time_integrator_t* time_integrator_new(const char* name,
                                        int order,
                                        time_integrator_solver_type_t solver_type)
 {
-  ASSERT(rhs != NULL);
   ASSERT(order > 0);
   time_integrator_t* integ = malloc(sizeof(time_integrator_t));
   integ->name = string_dup(name);

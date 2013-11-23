@@ -18,12 +18,26 @@
 #include "core/unordered_map.h"
 #include "core/constant_st_func.h"
 #include "core/create_uniform_mesh.h"
+#include "core/least_squares.h"
 #include "poisson/poisson_model.h"
 #include "poisson/poisson_bc.h"
 #include "poisson/interpreter_register_poisson_functions.h"
 #include "poisson/register_poisson_benchmarks.h"
 
-static void run_analytic_problem(mesh_t* mesh, st_func_t* lambda, st_func_t* rhs, string_ptr_unordered_map_t* bcs, options_t* options, double t1, double t2, st_func_t* solution, double* lp_norms)
+typedef enum
+{
+  FV, FVPM
+} poisson_sim_type;
+
+static void run_analytic_problem_on_mesh(mesh_t* mesh, 
+                                         st_func_t* lambda, 
+                                         st_func_t* rhs, 
+                                         string_ptr_unordered_map_t* bcs, 
+                                         options_t* options, 
+                                         double t1, 
+                                         double t2, 
+                                         st_func_t* solution, 
+                                         double* lp_norms)
 {
   // Create the model.
   model_t* model = create_fv_poisson(mesh, lambda, rhs, bcs, solution, options);
@@ -35,7 +49,29 @@ static void run_analytic_problem(mesh_t* mesh, st_func_t* lambda, st_func_t* rhs
   model_compute_error_norms(model, solution, lp_norms);
 
   // Clean up.
-//  lp_norm = NULL;
+  model_free(model);
+}
+
+static void run_analytic_problem_on_points(point_cloud_t* point_cloud, 
+                                           st_func_t* lambda, 
+                                           st_func_t* rhs, 
+                                           string_ptr_unordered_map_t* bcs, 
+                                           options_t* options, 
+                                           double t1, 
+                                           double t2, 
+                                           st_func_t* solution, 
+                                           double* lp_norms)
+{
+  // Create the model.
+  model_t* model = create_fvpm_poisson(point_cloud, lambda, rhs, bcs, solution, options);
+
+  // Run the thing.
+  model_run(model, t1, t2, INT_MAX);
+
+  // Calculate the Lp norms of the error and write it to Lp_norms.
+  model_compute_error_norms(model, solution, lp_norms);
+
+  // Clean up.
   model_free(model);
 }
 
@@ -51,7 +87,9 @@ static void laplace_1d_solution_grad(void* context, point_t* x, double t, double
   grad_phi[2] = 0.0;
 }
 
-static void poisson_run_laplace_1d(options_t* options, int dim)
+static void poisson_run_laplace_1d(options_t* options, 
+                                   poisson_sim_type sim_type, 
+                                   int dim)
 {
   // Parse any benchmark-specific options.
   bool all_dirichlet = false;
@@ -148,10 +186,23 @@ static void poisson_run_laplace_1d(options_t* options, int dim)
     }
     if (dim == 3)
       Nz = Nx;
-    mesh_t* mesh = create_uniform_mesh(MPI_COMM_WORLD, Nx, Ny, Nz, &bbox);
-    tag_rectilinear_mesh_faces(mesh, Nx, Ny, Nz, "-x", "+x", "-y", "+y", "-z", "+z");
-    string_ptr_unordered_map_t* bcs_copy = string_ptr_unordered_map_copy(bcs);
-    run_analytic_problem(mesh, one, zero, bcs_copy, options, t, t, sol, Lp_norms[iter]);
+
+    if (sim_type == FV)
+    {
+      mesh_t* mesh = create_uniform_mesh(MPI_COMM_WORLD, Nx, Ny, Nz, &bbox);
+      tag_rectilinear_mesh_faces(mesh, Nx, Ny, Nz, "-x", "+x", "-y", "+y", "-z", "+z");
+      string_ptr_unordered_map_t* bcs_copy = string_ptr_unordered_map_copy(bcs);
+      run_analytic_problem_on_mesh(mesh, one, zero, bcs_copy, options, t, t, sol, Lp_norms[iter]);
+    }
+    else
+    {
+      point_t* points = malloc(sizeof(point_t) * Nx*Ny*Nz);
+//      tag_rectilinear_mesh_faces(mesh, Nx, Ny, Nz, "-x", "+x", "-y", "+y", "-z", "+z");
+      point_cloud_t* cloud = point_cloud_new(MPI_COMM_WORLD, points, Nx*Ny*Nz);
+      free(points);
+      string_ptr_unordered_map_t* bcs_copy = string_ptr_unordered_map_copy(bcs);
+      run_analytic_problem_on_points(cloud, one, zero, bcs_copy, options, t, t, sol, Lp_norms[iter]);
+    }
 
     // If we run in 1D or 2D, we need to adjust the norms.
     if (dim == 1)
@@ -167,23 +218,53 @@ static void poisson_run_laplace_1d(options_t* options, int dim)
     log_urgent("iteration %d (Nx = %d): L1 = %g, L2 = %g, Linf = %g", iter, Nx, Lp_norms[iter][1], Lp_norms[iter][2], Lp_norms[iter][0]);
   }
 
+  if ((num_runs > 2) && (Lp_norms[0][2] > 0.0))
+  {
+    // Fit the log of the L2 norms to a line.
+    double log_N_ratios[num_runs-1], log_L2_ratios[num_runs-1];
+    for (int i = 0; i < num_runs-1; ++i)
+    {
+      log_N_ratios[i] = log(pow(2.0, i));
+      log_L2_ratios[i] = log(Lp_norms[i+1][2] / Lp_norms[0][2]);
+    }
+    double A, B, sigma;
+    linear_regression(log_N_ratios, log_L2_ratios, num_runs-1, &A, &B, &sigma);
+    double rate = -A;
+    model_report_conv_rate(options, rate, sigma);
+  }
+
   // Clean up.
   string_ptr_unordered_map_free(bcs);
 }
 
-static void run_laplace_1d(options_t* options)
+static void run_fv_laplace_1d(options_t* options)
 {
-  poisson_run_laplace_1d(options, 1);
+  poisson_run_laplace_1d(options, FV, 1);
 }
 
-static void run_laplace_1d_2(options_t* options)
+static void run_fv_laplace_1d_2(options_t* options)
 {
-  poisson_run_laplace_1d(options, 2);
+  poisson_run_laplace_1d(options, FV, 2);
 }
 
-static void run_laplace_1d_3(options_t* options)
+static void run_fv_laplace_1d_3(options_t* options)
 {
-  poisson_run_laplace_1d(options, 3);
+  poisson_run_laplace_1d(options, FV, 3);
+}
+
+static void run_fvpm_laplace_1d(options_t* options)
+{
+  poisson_run_laplace_1d(options, FVPM, 1);
+}
+
+static void run_fvpm_laplace_1d_2(options_t* options)
+{
+  poisson_run_laplace_1d(options, FVPM, 2);
+}
+
+static void run_fvpm_laplace_1d_3(options_t* options)
+{
+  poisson_run_laplace_1d(options, FVPM, 3);
 }
 
 static void paraboloid_solution(void* context, point_t* x, double t, double* phi)
@@ -193,7 +274,7 @@ static void paraboloid_solution(void* context, point_t* x, double t, double* phi
 //  printf("phi(%g, %g) = %g\n", x->x, x->y, phi[0]);
 }
 
-static void poisson_run_paraboloid(options_t* options, int dim)
+static void poisson_run_paraboloid(options_t* options, poisson_sim_type sim_type, int dim)
 {
   ASSERT((dim == 2) || (dim == 3));
 
@@ -288,10 +369,22 @@ static void poisson_run_paraboloid(options_t* options, int dim)
     bbox.z1 = 0.0, bbox.z2 = 1.0;
     if (dim == 2)
       bbox.z2 = 1.0/Nx;
-    mesh_t* mesh = create_uniform_mesh(MPI_COMM_WORLD, Nx, Ny, Nz, &bbox);
-    tag_rectilinear_mesh_faces(mesh, Nx, Ny, Nz, "-x", "+x", "-y", "+y", "-z", "+z");
-    string_ptr_unordered_map_t* bcs_copy = string_ptr_unordered_map_copy(bcs);
-    run_analytic_problem(mesh, one, rhs, bcs_copy, options, t, t, sol, Lp_norms[iter]);
+    if (sim_type == FV)
+    {
+      mesh_t* mesh = create_uniform_mesh(MPI_COMM_WORLD, Nx, Ny, Nz, &bbox);
+      tag_rectilinear_mesh_faces(mesh, Nx, Ny, Nz, "-x", "+x", "-y", "+y", "-z", "+z");
+      string_ptr_unordered_map_t* bcs_copy = string_ptr_unordered_map_copy(bcs);
+      run_analytic_problem_on_mesh(mesh, one, rhs, bcs_copy, options, t, t, sol, Lp_norms[iter]);
+    }
+    else
+    {
+      point_t* points = malloc(sizeof(point_t) * Nx*Ny*Nz);
+      point_cloud_t* cloud = point_cloud_new(MPI_COMM_WORLD, points, Nx*Ny*Nz);
+      free(points);
+//      tag_rectilinear_mesh_faces(mesh, Nx, Ny, Nz, "-x", "+x", "-y", "+y", "-z", "+z");
+      string_ptr_unordered_map_t* bcs_copy = string_ptr_unordered_map_copy(bcs);
+      run_analytic_problem_on_points(cloud, one, rhs, bcs_copy, options, t, t, sol, Lp_norms[iter]);
+    }
 
     // If we run in 2D, we need to adjust the norms.
     if (dim == 2)
@@ -302,26 +395,56 @@ static void poisson_run_paraboloid(options_t* options, int dim)
     log_urgent("iteration %d (Nx = Ny = %d): L1 = %g, L2 = %g, Linf = %g", iter, Nx, Lp_norms[iter][1], Lp_norms[iter][2], Lp_norms[iter][0]);
   }
 
+  if ((num_runs > 2) && (Lp_norms[0][2] > 0.0))
+  {
+    // Fit the log of the L2 norms to a line.
+    double log_N_ratios[num_runs-1], log_L2_ratios[num_runs-1];
+    for (int i = 0; i < num_runs-1; ++i)
+    {
+      log_N_ratios[i] = log(pow(2.0, i));
+      log_L2_ratios[i] = log(Lp_norms[i+1][2] / Lp_norms[0][2]);
+    }
+    double A, B, sigma;
+    linear_regression(log_N_ratios, log_L2_ratios, num_runs-1, &A, &B, &sigma);
+    double rate = -A;
+    model_report_conv_rate(options, rate, sigma);
+  }
+
   // Clean up.
   string_ptr_unordered_map_free(bcs);
 }
 
-static void run_paraboloid(options_t* options)
+static void run_fv_paraboloid(options_t* options)
 {
-  poisson_run_paraboloid(options, 2);
+  poisson_run_paraboloid(options, FV, 2);
 }
 
-static void run_paraboloid_3(options_t* options)
+static void run_fv_paraboloid_3(options_t* options)
 {
-  poisson_run_paraboloid(options, 3);
+  poisson_run_paraboloid(options, FV, 3);
+}
+
+static void run_fvpm_paraboloid(options_t* options)
+{
+  poisson_run_paraboloid(options, FVPM, 2);
+}
+
+static void run_fvpm_paraboloid_3(options_t* options)
+{
+  poisson_run_paraboloid(options, FVPM, 3);
 }
 
 void register_poisson_benchmarks(model_t* model)
 {
-  model_register_benchmark(model, "laplace_1d", run_laplace_1d, "Laplace's equation in 1D Cartesian coordinates.");
-  model_register_benchmark(model, "laplace_1d_2", run_laplace_1d_2, "Laplace's equation in 1D Cartesian coordinates (run in 2D).");
-  model_register_benchmark(model, "laplace_1d_3", run_laplace_1d_3, "Laplace's equation in 1D Cartesian coordinates (run in 3D).");
-  model_register_benchmark(model, "paraboloid", run_paraboloid, "A paraboloid solution to Poisson's equation (2D).");
-  model_register_benchmark(model, "paraboloid_3", run_paraboloid_3, "A paraboloid solution to Poisson's equation (3D).");
+  model_register_benchmark(model, "fv_laplace_1d", run_fv_laplace_1d, "Laplace's equation in 1D Cartesian coordinates (FV).");
+  model_register_benchmark(model, "fv_laplace_1d_2", run_fv_laplace_1d_2, "Laplace's equation in 1D Cartesian coordinates (FV, run in 2D).");
+  model_register_benchmark(model, "fv_laplace_1d_3", run_fv_laplace_1d_3, "Laplace's equation in 1D Cartesian coordinates (FV, run in 3D).");
+  model_register_benchmark(model, "fvpm_laplace_1d", run_fvpm_laplace_1d, "Laplace's equation in 1D Cartesian coordinates (FVPM).");
+  model_register_benchmark(model, "fvpm_laplace_1d_2", run_fvpm_laplace_1d_2, "Laplace's equation in 1D Cartesian coordinates (FVPM, run in 2D).");
+  model_register_benchmark(model, "fvpm_laplace_1d_3", run_fvpm_laplace_1d_3, "Laplace's equation in 1D Cartesian coordinates (FVPM, run in 3D).");
+  model_register_benchmark(model, "fv_paraboloid", run_fv_paraboloid, "A paraboloid solution to Poisson's equation (FV, 2D).");
+  model_register_benchmark(model, "fv_paraboloid_3", run_fv_paraboloid_3, "A paraboloid solution to Poisson's equation (FV, 3D).");
+  model_register_benchmark(model, "fvpm_paraboloid", run_fvpm_paraboloid, "A paraboloid solution to Poisson's equation (FVPM, 2D).");
+  model_register_benchmark(model, "fvpm_paraboloid_3", run_fvpm_paraboloid_3, "A paraboloid solution to Poisson's equation (FVPM, 3D).");
 }
 

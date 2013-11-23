@@ -49,7 +49,6 @@ nonlinear_solver_t* nonlinear_solver_new(const char* name,
                                          nonlinear_solver_vtable vtable,
                                          nonlinear_solver_type_t type)
 {
-  ASSERT(F != NULL);
   nonlinear_solver_t* solver = malloc(sizeof(nonlinear_solver_t));
   solver->name = string_dup(name);
   solver->context = context;

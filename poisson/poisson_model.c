@@ -31,7 +31,7 @@
 #include "poisson/interpreter_register_poisson_functions.h"
 #include "poisson/register_poisson_benchmarks.h"
 
-// Poisson model context structure.
+// Poisson model structure.
 typedef struct 
 {
   mesh_t* mesh;             
@@ -68,7 +68,7 @@ static void poisson_read_input(void* context, interpreter_t* interp, options_t* 
     if (points == NULL)
       polymec_error("poisson: Neither points nor mesh were specified.");
     else
-      p->point_cloud = point_cloud_new(MPI_COMM_WORLD, N, points);
+      p->point_cloud = point_cloud_new(MPI_COMM_WORLD, points, N);
   }
   p->rhs = interpreter_get_scalar_function(interp, "rhs");
   if (p->rhs == NULL)
@@ -239,9 +239,9 @@ static void poisson_compute_error_norms(void* context, st_func_t* solution, doub
   lp_norms[2] = L2;
 }
 
-static void poisson_dtor(void* ctx)
+static void poisson_dtor(void* context)
 {
-  poisson_t* p = ctx;
+  poisson_t* p = context;
 
   // Destroy BC table.
   string_ptr_unordered_map_free(p->bcs);
