@@ -22,6 +22,8 @@
 #include "core/constant_st_func.h"
 #include "core/boundary_cell_map.h"
 #include "core/write_silo.h"
+#include "core/graph_from_mesh_cells.h"
+#include "core/graph_from_point_cloud.h"
 #include "geometry/interpreter_register_geometry_functions.h"
 #include "integrators/nonlinear_solver.h"
 #include "poisson/poisson_model.h"
@@ -34,6 +36,7 @@ typedef struct
 {
   mesh_t* mesh;             
   point_cloud_t* point_cloud;
+  adj_graph_t* graph;
   st_func_t* rhs;           // Right-hand side function.
   st_func_t* lambda;        // "Conduction" operator. 
   double* phi;              // Solution array.
@@ -50,13 +53,13 @@ typedef struct
 
 static void poisson_advance(void* context, double t, double dt)
 {
-  poisson_t* p = (poisson_t*)context;
+  poisson_t* p = context;
   nonlinear_solver_solve(p->solver, t+dt, p->phi);
 }
 
 static void poisson_read_input(void* context, interpreter_t* interp, options_t* options)
 {
-  poisson_t* p = (poisson_t*)context;
+  poisson_t* p = context;
   p->mesh = interpreter_get_mesh(interp, "mesh");
   if (p->mesh == NULL)
   {
@@ -96,9 +99,28 @@ static void poisson_read_input(void* context, interpreter_t* interp, options_t* 
   }
 }
 
+static int fv_poisson_residual(N_Vector u, N_Vector F, void* context)
+{
+  // FIXME
+  return 0;
+}
+
+static int fvpm_poisson_residual(N_Vector u, N_Vector F, void* context)
+{
+  // FIXME
+  return 0;
+}
+
+// Accesses the adjacency graph for the Poisson solver.
+static adj_graph_t* get_graph(void* context)
+{
+  poisson_t* p = context;
+  return p->graph;
+}
+
 static void poisson_init(void* context, double t)
 {
-  poisson_t* p = (poisson_t*)context;
+  poisson_t* p = context;
 
   // If the model has been previously initialized, clean everything out.
   if (p->phi != NULL)
@@ -117,6 +139,18 @@ static void poisson_init(void* context, double t)
   // Gather information about boundary cells.
   p->boundary_cells = boundary_cell_map_from_mesh_and_bcs(p->mesh, p->bcs);
 
+  // Initialize the nonlinear solver.
+  if (p->mesh != NULL)
+  {
+    nonlinear_solver_vtable vtable = {.eval = fv_poisson_residual, .dtor = NULL, .graph = get_graph};
+    p->solver = nonlinear_solver_new("Poisson (FV)", p, vtable, GMRES);
+  }
+  else
+  {
+    nonlinear_solver_vtable vtable = {.eval = fvpm_poisson_residual, .dtor = NULL, .graph = get_graph};
+    p->solver = nonlinear_solver_new("Poisson (FVPM)", p, vtable, GMRES);
+  }
+
   // Now we simply solve the problem for the initial time.
   nonlinear_solver_solve(p->solver, t, p->phi);
 
@@ -125,7 +159,7 @@ static void poisson_init(void* context, double t)
 static void poisson_plot(void* context, const char* prefix, const char* directory, double t, int step)
 {
   ASSERT(context != NULL);
-  poisson_t* p = (poisson_t*)context;
+  poisson_t* p = context;
 
   string_ptr_unordered_map_t* cell_fields = string_ptr_unordered_map_new();
   string_ptr_unordered_map_insert(cell_fields, "phi", p->phi);
@@ -159,7 +193,7 @@ static void poisson_plot(void* context, const char* prefix, const char* director
 static void poisson_save(void* context, const char* prefix, const char* directory, double t, int step)
 {
   ASSERT(context != NULL);
-  poisson_t* p = (poisson_t*)context;
+  poisson_t* p = context;
 
   string_ptr_unordered_map_t* cell_fields = string_ptr_unordered_map_new();
   string_ptr_unordered_map_insert(cell_fields, "phi", p->phi);
@@ -178,7 +212,7 @@ static void poisson_save(void* context, const char* prefix, const char* director
 
 static void poisson_compute_error_norms(void* context, st_func_t* solution, double t, double* lp_norms)
 {
-  poisson_t* p = (poisson_t*)context;
+  poisson_t* p = context;
   double Linf = 0.0, L1 = 0.0, L2 = 0.0;
   if (p->mesh != NULL)
   {
@@ -207,7 +241,7 @@ static void poisson_compute_error_norms(void* context, st_func_t* solution, doub
 
 static void poisson_dtor(void* ctx)
 {
-  poisson_t* p = (poisson_t*)ctx;
+  poisson_t* p = ctx;
 
   // Destroy BC table.
   string_ptr_unordered_map_free(p->bcs);
@@ -224,16 +258,6 @@ static void poisson_dtor(void* ctx)
 
   boundary_cell_map_free(p->boundary_cells);
   free(p);
-}
-
-static int fv_poisson_residual(N_Vector u, N_Vector F, void* context)
-{
-  return 0;
-}
-
-static int fvpm_poisson_residual(N_Vector u, N_Vector F, void* context)
-{
-  return 0;
 }
 
 model_t* poisson_model_new(options_t* options)
