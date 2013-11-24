@@ -53,14 +53,14 @@ sphere_integrator_t* sphere_integrator_new(int order, sphere_integrator_rule_t r
     integ->num_colat_nodes = order/2 + 1;
     integ->colat_nodes = malloc(sizeof(double) * integ->num_colat_nodes);
     integ->colat_weights = malloc(sizeof(double) * integ->num_colat_nodes);
-    get_gauss_legendre_points(order, integ->azi_nodes, integ->azi_weights);
+    get_gauss_legendre_points(order/2+1, integ->colat_nodes, integ->colat_weights);
   }
   else if (rule == GAUSS_RADAU)
   {
     integ->num_colat_nodes = order/2 + 1;
     integ->colat_nodes = malloc(sizeof(double) * integ->num_colat_nodes);
     integ->colat_weights = malloc(sizeof(double) * integ->num_colat_nodes);
-    get_gauss_radau_points(order, integ->azi_nodes, integ->azi_weights);
+    get_gauss_radau_points(order, integ->colat_nodes, integ->colat_weights);
   }
   else
   {
@@ -68,7 +68,7 @@ sphere_integrator_t* sphere_integrator_new(int order, sphere_integrator_rule_t r
     integ->num_colat_nodes = order/2 + 2;
     integ->colat_nodes = malloc(sizeof(double) * integ->num_colat_nodes);
     integ->colat_weights = malloc(sizeof(double) * integ->num_colat_nodes);
-    get_gauss_lobatto_points(order, integ->azi_nodes, integ->azi_weights);
+    get_gauss_lobatto_points(order, integ->colat_nodes, integ->colat_weights);
   }
   return integ;
 }
@@ -141,7 +141,7 @@ void sphere_integrator_cap(sphere_integrator_t* integ,
 
       // Add the contribution into the integral.
       for (int k = 0; k < num_comp; ++k)
-        integral[k] += wij * contrib[k];
+        integral[k] += wij * R * R * contrib[k];
     }
   }
 }
@@ -178,7 +178,7 @@ void sphere_integrator_cap_at_time(sphere_integrator_t* integ,
 
       // Add the contribution into the integral.
       for (int k = 0; k < num_comp; ++k)
-        integral[k] += wij * contrib[k];
+        integral[k] += wij * R * R * contrib[k];
     }
   }
 
