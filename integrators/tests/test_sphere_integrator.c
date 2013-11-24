@@ -65,13 +65,197 @@ void test_cap_area(void** state)
   one = NULL;
 }
 
+// Radial functions.
+static void r(void* context, point_t* x, double* result)
+{
+  *result = sqrt(x->x*x->x + x->y*x->y + x->z*x->z);
+}
+
+static void r2(void* context, point_t* x, double* result)
+{
+  *result = x->x*x->x + x->y*x->y + x->z*x->z;
+}
+
+static void r3(void* context, point_t* x, double* result)
+{
+  *result = pow(x->x*x->x + x->y*x->y + x->z*x->z, 1.5);
+}
+
+static void r4(void* context, point_t* x, double* result)
+{
+  *result = pow(x->x*x->x + x->y*x->y + x->z*x->z, 2.0);
+}
+
+static void test_cap_radial_function(void** state, 
+                                     sp_func_t* f, 
+                                     int f_order,
+                                     double radius, 
+                                     double gamma,
+                                     double answer)
+{
+  // Try a random orientation.
+  vector_t e3;
+  vector_randomize(&e3, rand, 1.0);
+
+  sphere_integrator_t* I = sphere_integrator_new(f_order);
+
+  double result;
+  sphere_integrator_cap(I, radius, f, &e3, gamma, &result);
+  assert_true(fabs(result - answer) < 1e-12);
+
+  sphere_integrator_free(I);
+}
+
+void test_cap_r(void** state)
+{
+  sp_func_t* f = sp_func_from_func("r", r, SP_INHOMOGENEOUS, 1);
+
+  for (int order = 1; order <= 4; ++order)
+  {
+    // Integrate over the entire sphere.
+    test_cap_radial_function(state, f, order, 2.0, M_PI, 32.0*M_PI);
+
+    // Integrate over half.
+    test_cap_radial_function(state, f, order, 2.0, 0.5*M_PI, 16.0*M_PI);
+  }
+
+  f = NULL;
+}
+
+void test_cap_r2(void** state)
+{
+  sp_func_t* f = sp_func_from_func("r", r2, SP_INHOMOGENEOUS, 1);
+
+  for (int order = 2; order <= 4; ++order)
+  {
+    // Integrate over the entire sphere.
+    test_cap_radial_function(state, f, order, 2.0, M_PI, 64.0*M_PI);
+
+    // Integrate over half.
+    test_cap_radial_function(state, f, order, 2.0, 0.5*M_PI, 32.0*M_PI);
+  }
+
+  f = NULL;
+}
+
+void test_cap_r3(void** state)
+{
+  sp_func_t* f = sp_func_from_func("r", r3, SP_INHOMOGENEOUS, 1);
+
+  for (int order = 3; order <= 4; ++order)
+  {
+    // Integrate over the entire sphere.
+    test_cap_radial_function(state, f, order, 2.0, M_PI, 128.0*M_PI);
+
+    // Integrate over half.
+    test_cap_radial_function(state, f, order, 2.0, 0.5*M_PI, 64.0*M_PI);
+  }
+
+  f = NULL;
+}
+
+void test_cap_r4(void** state)
+{
+  sp_func_t* f = sp_func_from_func("r", r4, SP_INHOMOGENEOUS, 1);
+
+  int order = 4;
+  // Integrate over the entire sphere.
+
+  test_cap_radial_function(state, f, order, 2.0, M_PI, 256.0*M_PI);
+
+  // Integrate over half.
+  test_cap_radial_function(state, f, order, 2.0, 0.5*M_PI, 128.0*M_PI);
+
+  f = NULL;
+}
+
+static void test_cap_time_dep_radial_function(void** state, 
+                                              st_func_t* f, 
+                                              int f_order,
+                                              double radius, 
+                                              double gamma,
+                                              double t, 
+                                              double answer,
+                                              double tolerance)
+{
+  // Try a random orientation.
+  vector_t e3;
+  vector_randomize(&e3, rand, 1.0);
+
+  sphere_integrator_t* I = sphere_integrator_new(f_order);
+
+  double result;
+  sphere_integrator_cap_at_time(I, radius, f, &e3, gamma, t, &result);
+  assert_true(fabs(result - answer) < tolerance);
+
+  sphere_integrator_free(I);
+}
+
+static void linear_growth(void* context, point_t* x, double t, double* result)
+{
+  *result = t * sqrt(x->x*x->x + x->y*x->y + x->z*x->z);
+}
+
+static void quadratic_growth(void* context, point_t* x, double t, double* result)
+{
+  *result = t * t * (x->x*x->x + x->y*x->y + x->z*x->z);
+}
+
+void test_cap_linear_growth(void** state)
+{
+  st_func_t* f = st_func_from_func("linear_growth", linear_growth, ST_INHOMOGENEOUS, ST_NONCONSTANT, 1);
+
+  for (int order = 1; order <= 4; ++order)
+  {
+    for (int i = 1; i <= 10; ++i)
+    {
+      double t = 1.0*i;
+
+      // Integrate over the entire sphere.
+      test_cap_time_dep_radial_function(state, f, order, 2.0, M_PI, t, t*32.0*M_PI, 1e-12);
+
+      // Integrate over half.
+      test_cap_time_dep_radial_function(state, f, order, 2.0, 0.5*M_PI, t, t*16.0*M_PI, 1e-12);
+    }
+  }
+
+  f = NULL;
+}
+
+void test_cap_quadratic_growth(void** state)
+{
+  st_func_t* f = st_func_from_func("quadratic_growth", quadratic_growth, ST_INHOMOGENEOUS, ST_NONCONSTANT, 1);
+
+  for (int order = 2; order <= 4; ++order)
+  {
+    for (int i = 1; i <= 10; ++i)
+    {
+      double t = 1.0*i;
+
+      // Integrate over the entire sphere.
+      test_cap_time_dep_radial_function(state, f, order, 2.0, M_PI, t, t*t*64.0*M_PI, 1e-10);
+
+      // Integrate over half.
+      test_cap_time_dep_radial_function(state, f, order, 2.0, 0.5*M_PI, t, t*t*32.0*M_PI, 1e-10);
+    }
+  }
+
+  f = NULL;
+}
+
 int main(int argc, char* argv[]) 
 {
   polymec_init(argc, argv);
   const UnitTest tests[] = 
   {
     unit_test(test_ctor),
-    unit_test(test_cap_area)
+    unit_test(test_cap_area),
+    unit_test(test_cap_r),
+    unit_test(test_cap_r2),
+    unit_test(test_cap_r3),
+    unit_test(test_cap_r4),
+    unit_test(test_cap_linear_growth),
+    unit_test(test_cap_quadratic_growth)
 //    unit_test(test_cap_at_time)
   };
   return run_tests(tests);

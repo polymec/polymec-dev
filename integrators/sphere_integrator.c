@@ -70,6 +70,7 @@ static inline void construct_quad_point_and_weight(sphere_integrator_t* integ,
                                                    vector_t* e1, 
                                                    vector_t* e2, 
                                                    vector_t* e3, 
+                                                   double R, 
                                                    double gamma, 
                                                    int i, 
                                                    int j, 
@@ -84,9 +85,9 @@ static inline void construct_quad_point_and_weight(sphere_integrator_t* integ,
   double s = cos(integ->colat_nodes[j]);
   double tau = 0.5 * (1.0 - cos_gamma) * s + 0.5 * (1.0 + cos_gamma);
   double sqrt_tau = sqrt(1.0-tau*tau);
-  double x1 = sqrt_tau * cos(phi);
-  double x2 = sqrt_tau * sin(phi);
-  double x3 = tau;
+  double x1 = R * sqrt_tau * cos(phi);
+  double x2 = R * sqrt_tau * sin(phi);
+  double x3 = R * tau;
 
   // Now we rotate into the coordinate frame in which e3 is the north pole.
   xij->x = x1 * e1->x + x2 * e2->x + x3 * e3->x;
@@ -118,7 +119,7 @@ void sphere_integrator_cap(sphere_integrator_t* integ,
       // Construct the (i, j)th quadrature point and its weight.
       point_t xij;
       double wij;
-      construct_quad_point_and_weight(integ, &e1, &e2, &e3, gamma, i, j, &xij, &wij);
+      construct_quad_point_and_weight(integ, &e1, &e2, &e3, R, gamma, i, j, &xij, &wij);
 
       // Evaluate the function at this point.
       double contrib[num_comp];
@@ -155,7 +156,7 @@ void sphere_integrator_cap_at_time(sphere_integrator_t* integ,
       // Construct the (i, j)th quadrature point and its weight.
       point_t xij;
       double wij;
-      construct_quad_point_and_weight(integ, &e1, &e2, &e3, gamma, i, j, &xij, &wij);
+      construct_quad_point_and_weight(integ, &e1, &e2, &e3, R, gamma, i, j, &xij, &wij);
 
       // Evaluate the function at this point.
       double contrib[num_comp];
