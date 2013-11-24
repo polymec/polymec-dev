@@ -105,7 +105,7 @@ void get_gauss_legendre_points(int n, double* points, double* weights)
   {
     points[0] = x[n-1][0];
     weights[0] = w[n-1][0];
-    for (int i = 1; i < n/2; ++i)
+    for (int i = 1; i < n/2+1; ++i)
     {
       points[2*i-1]  = -x[n-1][i];
       weights[2*i-1] = w[n-1][i];

@@ -25,7 +25,7 @@
 
 void test_ctor(void** state)
 {
-  for (int order = 1; order <= 4; ++order)
+  for (int order = 1; order <= 5; ++order)
   {
     sphere_integrator_t* I = sphere_integrator_new(order);
     sphere_integrator_free(I);
@@ -37,9 +37,8 @@ void test_cap_area(void** state)
   double o = 1.0;
   sp_func_t* one = constant_sp_func_new(1, &o);
   vector_t e3 = {.x = 0.0, .y = 0.0, .z = 1.0};
-  for (int order = 1; order <= 4; ++order)
+  for (int order = 1; order <= 5; ++order)
   {
-    printf("order = %d\n",order);
     sphere_integrator_t* I = sphere_integrator_new(order);
 
     static const double radii[] = {1.0, 2.0, 3.0};
@@ -54,7 +53,6 @@ void test_cap_area(void** state)
 
       // This should give the area of the entire sphere.
       sphere_integrator_cap(I, radius, one, &e3, M_PI, &area);
-      printf("%g - %g = %g\n", area, 4.0*M_PI*radius*radius, area - 4.0*M_PI*radius*radius);
       assert_true(fabs(area - 4.0*M_PI*radius*radius) < 1e-12);
 
       // This should give half the area of the sphere.
