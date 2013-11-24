@@ -41,35 +41,19 @@ struct sphere_integrator_t
   double *azi_nodes, *azi_weights;
 };
 
-sphere_integrator_t* sphere_integrator_new(int order, sphere_integrator_rule_t rule)
+sphere_integrator_t* sphere_integrator_new(int order)
 {
   sphere_integrator_t* integ = malloc(sizeof(sphere_integrator_t));
   integ->num_azi_nodes = order + 1;
   integ->azi_nodes = malloc(sizeof(double) * integ->num_azi_nodes);
   integ->azi_weights = malloc(sizeof(double) * integ->num_azi_nodes);
   get_azi_points_and_weights(order, integ->azi_nodes, integ->azi_weights);
-  if (rule == GAUSS_LEGENDRE)
-  {
-    integ->num_colat_nodes = order/2 + 1;
-    integ->colat_nodes = malloc(sizeof(double) * integ->num_colat_nodes);
-    integ->colat_weights = malloc(sizeof(double) * integ->num_colat_nodes);
-    get_gauss_legendre_points(order/2+1, integ->colat_nodes, integ->colat_weights);
-  }
-  else if (rule == GAUSS_RADAU)
-  {
-    integ->num_colat_nodes = order/2 + 1;
-    integ->colat_nodes = malloc(sizeof(double) * integ->num_colat_nodes);
-    integ->colat_weights = malloc(sizeof(double) * integ->num_colat_nodes);
-    get_gauss_radau_points(order, integ->colat_nodes, integ->colat_weights);
-  }
-  else
-  {
-    ASSERT(rule == GAUSS_LOBATTO);
-    integ->num_colat_nodes = order/2 + 2;
-    integ->colat_nodes = malloc(sizeof(double) * integ->num_colat_nodes);
-    integ->colat_weights = malloc(sizeof(double) * integ->num_colat_nodes);
-    get_gauss_lobatto_points(order, integ->colat_nodes, integ->colat_weights);
-  }
+
+  integ->num_colat_nodes = order/2 + 1;
+  integ->colat_nodes = malloc(sizeof(double) * integ->num_colat_nodes);
+  integ->colat_weights = malloc(sizeof(double) * integ->num_colat_nodes);
+  get_gauss_legendre_points(order/2+1, integ->colat_nodes, integ->colat_weights);
+
   return integ;
 }
 
@@ -97,7 +81,8 @@ static inline void construct_quad_point_and_weight(sphere_integrator_t* integ,
   // an affine transformation.
   double cos_gamma = cos(gamma);
   double phi = integ->azi_nodes[i];
-  double tau = 0.5 * (1.0 - cos_gamma) * integ->colat_nodes[j];
+  double s = cos(integ->colat_nodes[j]);
+  double tau = 0.5 * (1.0 - cos_gamma) * s + 0.5 * (1.0 + cos_gamma);
   double sqrt_tau = sqrt(1.0-tau*tau);
   double x1 = sqrt_tau * cos(phi);
   double x2 = sqrt_tau * sin(phi);

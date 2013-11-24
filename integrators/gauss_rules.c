@@ -66,7 +66,7 @@ void get_gauss_legendre_points(int n, double* points, double* weights)
 
   // Tables of points and weights up to 16.
   static const double x[16][8] = 
-  {{0.000000000000000},
+   {{0.000000000000000},
     {0.577350269189626},
     {0.000000000000000, 0.774596669241483},
     {0.339981043584856, 0.861136311594053},
@@ -84,7 +84,7 @@ void get_gauss_legendre_points(int n, double* points, double* weights)
     {0.095012509837637, 0.281603550779259, 0.458016777657227, 0.617876244402644, 0.755404408355003, 0.865631202387832, 0.944575023073233, 0.989400934991650}};
 
   static const double w[16][8] = 
-  {{2.0}, 
+   {{2.0}, 
     {1.0}, 
     {0.888888888888889, 0.555555555555556},
     {0.652145154862546, 0.347854845137454},
@@ -127,14 +127,14 @@ void get_gauss_legendre_points(int n, double* points, double* weights)
 
 void get_gauss_radau_points(int n, double* points, double* weights)
 {
-  ASSERT(n >= 0);
+  ASSERT(n >= 2);
   ASSERT(points != NULL);
   ASSERT(weights != NULL);
 }
 
 void get_gauss_lobatto_points(int n, double* points, double* weights)
 {
-  ASSERT(n >= 0);
+  ASSERT(n >= 2);
   ASSERT(points != NULL);
   ASSERT(weights != NULL);
 

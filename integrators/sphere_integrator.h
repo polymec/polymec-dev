@@ -24,6 +24,7 @@
 // This class calculates integrals on the surface of a sphere.
 typedef struct sphere_integrator_t sphere_integrator_t;
 
+#if 0
 // Types of radial integration rules.
 typedef enum
 {
@@ -31,10 +32,11 @@ typedef enum
   GAUSS_RADAU,
   GAUSS_LOBATTO
 } sphere_integrator_rule_t;
+#endif
 
 // Construct a new sphere integrator with the given polynomial order and 
 // integration rule.
-sphere_integrator_t* sphere_integrator_new(int order, sphere_integrator_rule_t rule);
+sphere_integrator_t* sphere_integrator_new(int order);
 
 // Destroys the given sphere integrator.
 void sphere_integrator_free(sphere_integrator_t* integ);
