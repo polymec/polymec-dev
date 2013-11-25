@@ -31,9 +31,10 @@ struct sp_func_t
 
 static void sp_func_free(void* ctx, void* dummy)
 {
-  sp_func_t* func = (sp_func_t*)ctx;
+  sp_func_t* func = ctx;
   if (func->vtable.dtor)
     free(func->context);
+  func->context = NULL;
   free(func->name);
 }
 

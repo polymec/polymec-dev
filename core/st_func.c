@@ -32,9 +32,10 @@ struct st_func_t
 
 static void st_func_free(void* ctx, void* dummy)
 {
-  st_func_t* func = (st_func_t*)ctx;
+  st_func_t* func = ctx;
   if (func->vtable.dtor)
     func->vtable.dtor(func->context);
+  func->context = NULL;
   free(func->name);
 }
 
