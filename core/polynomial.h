@@ -49,6 +49,11 @@ double polynomial_value(polynomial_t* p, point_t* x);
 // Evaluates the (mixed partial) derivative of the polynomial at the given point x.
 double polynomial_deriv(polynomial_t* p, int x_deriv, int y_deriv, int z_deriv, point_t* x);
 
+// Allows iteration over the (monomial) terms of the polynomial. Returns true 
+// if terms remain, false if this iteration yields nothing. Set pos to 0 to 
+// reset iteration.
+bool polynomial_next(polynomial_t* p, int* pos, double* coeff, int* x_power, int* y_power, int* z_power);
+
 // Returns an sp_func corresponding to the given polynomial.
 sp_func_t* polynomial_sp_func(polynomial_t* p);
 

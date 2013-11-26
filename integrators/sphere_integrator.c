@@ -70,6 +70,7 @@ static inline void construct_quad_point_and_weight(sphere_integrator_t* integ,
                                                    vector_t* e1, 
                                                    vector_t* e2, 
                                                    vector_t* e3, 
+                                                   point_t* x0, 
                                                    double R, 
                                                    double gamma, 
                                                    int i, 
@@ -90,13 +91,14 @@ static inline void construct_quad_point_and_weight(sphere_integrator_t* integ,
   double x3 = R * tau;
 
   // Now we rotate into the coordinate frame in which e3 is the north pole.
-  xij->x = x1 * e1->x + x2 * e2->x + x3 * e3->x;
-  xij->y = x1 * e1->y + x2 * e2->y + x3 * e3->y;
-  xij->z = x1 * e1->z + x2 * e2->z + x3 * e3->z;
+  xij->x = x0->x + x1 * e1->x + x2 * e2->x + x3 * e3->x;
+  xij->y = x0->y + x1 * e1->y + x2 * e2->y + x3 * e3->y;
+  xij->z = x0->z + x1 * e1->z + x2 * e2->z + x3 * e3->z;
   *wij = 0.5 * (1.0 - cos_gamma) * integ->azi_weights[i] * integ->colat_weights[j];
 }
 
 void sphere_integrator_cap(sphere_integrator_t* integ, 
+                           point_t* x0,
                            double R, 
                            sp_func_t* F, 
                            vector_t* z,
@@ -119,7 +121,7 @@ void sphere_integrator_cap(sphere_integrator_t* integ,
       // Construct the (i, j)th quadrature point and its weight.
       point_t xij;
       double wij;
-      construct_quad_point_and_weight(integ, &e1, &e2, &e3, R, gamma, i, j, &xij, &wij);
+      construct_quad_point_and_weight(integ, &e1, &e2, &e3, x0, R, gamma, i, j, &xij, &wij);
 
       // Evaluate the function at this point.
       double contrib[num_comp];
@@ -133,6 +135,7 @@ void sphere_integrator_cap(sphere_integrator_t* integ,
 }
 
 void sphere_integrator_cap_at_time(sphere_integrator_t* integ, 
+                                   point_t* x0,
                                    double R, 
                                    st_func_t* F,
                                    vector_t* z,
@@ -156,7 +159,7 @@ void sphere_integrator_cap_at_time(sphere_integrator_t* integ,
       // Construct the (i, j)th quadrature point and its weight.
       point_t xij;
       double wij;
-      construct_quad_point_and_weight(integ, &e1, &e2, &e3, R, gamma, i, j, &xij, &wij);
+      construct_quad_point_and_weight(integ, &e1, &e2, &e3, x0, R, gamma, i, j, &xij, &wij);
 
       // Evaluate the function at this point.
       double contrib[num_comp];
@@ -167,6 +170,30 @@ void sphere_integrator_cap_at_time(sphere_integrator_t* integ,
         integral[k] += wij * R * R * contrib[k];
     }
   }
+}
 
+// This uses the method described by Folland (2001).
+double sphere_integrator_ball(sphere_integrator_t* integ,
+                              point_t* x0,
+                              double R,
+                              polynomial_t* p)
+{
+  double I = 0.0; // Integral value.
+  double coeff;
+  int pos = 0, x_pow, y_pow, z_pow;
+  while (polynomial_next(p, &pos, &coeff, &x_pow, &y_pow, &z_pow))
+  {
+    if ((x_pow % 2 == 0) && (y_pow % 2 == 0) && (z_pow % 2 == 0))
+    {
+      double sum_alpha = 1.0 * (x_pow + y_pow + z_pow);
+      double beta1 = 0.5 * (x_pow+1);
+      double beta2 = 0.5 * (y_pow+1);
+      double beta3 = 0.5 * (z_pow+1);
+      double radial_term = pow(R, sum_alpha + 3.0) / (sum_alpha + 3.0);
+      double azi_term = 2.0 * tgamma(beta1) * tgamma(beta2) * tgamma(beta3) / tgamma(beta1 + beta2 + beta3);
+      I += radial_term * azi_term;
+    }
+  }
+  return I;
 }
 

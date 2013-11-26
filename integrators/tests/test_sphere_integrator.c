@@ -36,6 +36,7 @@ void test_cap_area(void** state)
 {
   double o = 1.0;
   sp_func_t* one = constant_sp_func_new(1, &o);
+  point_t x0 = {0.0, 0.0, 0.0};
   vector_t e3 = {.x = 0.0, .y = 0.0, .z = 1.0};
   for (int order = 1; order <= 5; ++order)
   {
@@ -48,15 +49,15 @@ void test_cap_area(void** state)
 
       // This should give zero.
       double area;
-      sphere_integrator_cap(I, radius, one, &e3, 0.0, &area);
+      sphere_integrator_cap(I, &x0, radius, one, &e3, 0.0, &area);
       assert_true(fabs(area) < 1e-12);
 
       // This should give the area of the entire sphere.
-      sphere_integrator_cap(I, radius, one, &e3, M_PI, &area);
+      sphere_integrator_cap(I, &x0, radius, one, &e3, M_PI, &area);
       assert_true(fabs(area - 4.0*M_PI*radius*radius) < 1e-12);
 
       // This should give half the area of the sphere.
-      sphere_integrator_cap(I, radius, one, &e3, 0.5*M_PI, &area);
+      sphere_integrator_cap(I, &x0, radius, one, &e3, 0.5*M_PI, &area);
       assert_true(fabs(area - 2.0*M_PI*radius*radius) < 1e-12);
     }
 
@@ -93,6 +94,8 @@ static void test_cap_radial_function(void** state,
                                      double gamma,
                                      double answer)
 {
+  point_t x0 = {0.0, 0.0, 0.0};
+
   // Try a random orientation.
   vector_t e3;
   vector_randomize(&e3, rand, 1.0);
@@ -100,7 +103,7 @@ static void test_cap_radial_function(void** state,
   sphere_integrator_t* I = sphere_integrator_new(f_order);
 
   double result;
-  sphere_integrator_cap(I, radius, f, &e3, gamma, &result);
+  sphere_integrator_cap(I, &x0, radius, f, &e3, gamma, &result);
   assert_true(fabs(result - answer) < 1e-12);
 
   sphere_integrator_free(I);
@@ -178,6 +181,8 @@ static void test_cap_time_dep_radial_function(void** state,
                                               double answer,
                                               double tolerance)
 {
+  point_t x0 = {0.0, 0.0, 0.0};
+
   // Try a random orientation.
   vector_t e3;
   vector_randomize(&e3, rand, 1.0);
@@ -185,7 +190,7 @@ static void test_cap_time_dep_radial_function(void** state,
   sphere_integrator_t* I = sphere_integrator_new(f_order);
 
   double result;
-  sphere_integrator_cap_at_time(I, radius, f, &e3, gamma, t, &result);
+  sphere_integrator_cap_at_time(I, &x0, radius, f, &e3, gamma, t, &result);
   assert_true(fabs(result - answer) < tolerance);
 
   sphere_integrator_free(I);

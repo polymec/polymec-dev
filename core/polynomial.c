@@ -30,7 +30,7 @@ static void polynomial_free(void* ctx, void* dummy)
   free(p->coeffs);
 }
 
-static const int N_coeffs[5] = {1, 4, 10, 20, 34};
+static const int N_coeffs[5] = {1, 4, 10, 20, 35};
 
 polynomial_t* polynomial_new(int order, double* coeffs, point_t* x0)
 {
@@ -99,11 +99,11 @@ static double poly4_value(polynomial_t* p, point_t* X)
 {
   double x = X->x, y = X->y, z = X->z;
   return poly3_value(p, X) + 
-         p->coeffs[19]*x*x*x*x + p->coeffs[20]*x*x*x*y + p->coeffs[21]*x*x*x*z + 
-         p->coeffs[22]*x*x*y*y + p->coeffs[23]*x*x*y*z + p->coeffs[24]*x*x*z*z + 
-         p->coeffs[25]*x*y*y*y + p->coeffs[26]*x*y*y*z + p->coeffs[27]*x*y*z*z + 
-         p->coeffs[28]*x*z*z*z + p->coeffs[29]*y*y*y*y + p->coeffs[30]*y*y*y*z + 
-         p->coeffs[31]*y*y*z*z + p->coeffs[32]*y*z*z*z + p->coeffs[33]*z*z*z*z;
+         p->coeffs[20]*x*x*x*x + p->coeffs[21]*x*x*x*y + p->coeffs[22]*x*x*x*z + 
+         p->coeffs[23]*x*x*y*y + p->coeffs[24]*x*x*y*z + p->coeffs[25]*x*x*z*z + 
+         p->coeffs[26]*x*y*y*y + p->coeffs[27]*x*y*y*z + p->coeffs[28]*x*y*z*z + 
+         p->coeffs[29]*x*z*z*z + p->coeffs[30]*y*y*y*y + p->coeffs[31]*y*y*y*z + 
+         p->coeffs[32]*y*y*z*z + p->coeffs[33]*y*z*z*z + p->coeffs[34]*z*z*z*z;
 }
 
 typedef double (*poly_value_func)(polynomial_t*, point_t*);
@@ -339,222 +339,222 @@ static double poly4_dx(polynomial_t* p, point_t* X)
 {
   double x = X->x, y = X->y, z = X->z;
   return poly3_dx(p, X) + 
-    4.0*p->coeffs[19]*x*x*x + 3.0*p->coeffs[20]*x*x*y + 3.0*p->coeffs[21]*x*x*z +
-    2.0*p->coeffs[22]*x*y*y + 2.0*p->coeffs[23]*x*y*z + 2.0*p->coeffs[24]*x*z*z + 
-    p->coeffs[25]*y*y*y + p->coeffs[26]*y*y*z + p->coeffs[27]*y*z*z + p->coeffs[28]*z*z*z;
+    4.0*p->coeffs[20]*x*x*x + 3.0*p->coeffs[21]*x*x*y + 3.0*p->coeffs[22]*x*x*z +
+    2.0*p->coeffs[23]*x*y*y + 2.0*p->coeffs[24]*x*y*z + 2.0*p->coeffs[25]*x*z*z + 
+    p->coeffs[26]*y*y*y + p->coeffs[27]*y*y*z + p->coeffs[28]*y*z*z + p->coeffs[29]*z*z*z;
 }
 
 static double poly4_dy(polynomial_t* p, point_t* X)
 {
   double x = X->x, y = X->y, z = X->z;
   return poly3_dy(p, X) + 
-    p->coeffs[20]*x*x*x + 2.0*p->coeffs[22]*x*x*y + p->coeffs[23]*x*x*z + 
-    3.0*p->coeffs[25]*x*y*y + 2.0*p->coeffs[26]*x*y*z + p->coeffs[27]*x*z*z + 
-    4.0*p->coeffs[29]*y*y*y + 3.0*p->coeffs[30]*y*y*z + 2.0*p->coeffs[31]*y*z*z + 
-    p->coeffs[32]*z*z*z;
+    p->coeffs[21]*x*x*x + 2.0*p->coeffs[23]*x*x*y + p->coeffs[24]*x*x*z + 
+    3.0*p->coeffs[26]*x*y*y + 2.0*p->coeffs[27]*x*y*z + p->coeffs[28]*x*z*z + 
+    4.0*p->coeffs[30]*y*y*y + 3.0*p->coeffs[31]*y*y*z + 2.0*p->coeffs[32]*y*z*z + 
+    p->coeffs[33]*z*z*z;
 }
 
 static double poly4_dz(polynomial_t* p, point_t* X)
 {
   double x = X->x, y = X->y, z = X->z;
   return poly3_dz(p, X) + 
-    p->coeffs[21]*x*x*x + p->coeffs[23]*x*x*y + 2.0*p->coeffs[24]*x*x*z + 
-    p->coeffs[26]*x*y*y + 2.0*p->coeffs[27]*x*y*z + 3.0*p->coeffs[28]*x*z*z + 
-    p->coeffs[30]*y*y*y + 2.0*p->coeffs[31]*y*y*z + 3.0*p->coeffs[32]*y*z*z + 
-    4.0*p->coeffs[33]*z*z*z;
+    p->coeffs[22]*x*x*x + p->coeffs[24]*x*x*y + 2.0*p->coeffs[25]*x*x*z + 
+    p->coeffs[27]*x*y*y + 2.0*p->coeffs[28]*x*y*z + 3.0*p->coeffs[29]*x*z*z + 
+    p->coeffs[31]*y*y*y + 2.0*p->coeffs[32]*y*y*z + 3.0*p->coeffs[33]*y*z*z + 
+    4.0*p->coeffs[34]*z*z*z;
 }
 
 static double poly4_dxx(polynomial_t* p, point_t* X)
 {
   double x = X->x, y = X->y, z = X->z;
   return poly3_dxx(p, X) + 
-    12.0*p->coeffs[19]*x*x + 6.0*p->coeffs[20]*x*y + 6.0*p->coeffs[21]*x*z +
-    2.0*p->coeffs[22]*y*y + 2.0*p->coeffs[23]*y*z + 2.0*p->coeffs[24]*z*z;
+    12.0*p->coeffs[20]*x*x + 6.0*p->coeffs[21]*x*y + 6.0*p->coeffs[22]*x*z +
+    2.0*p->coeffs[23]*y*y + 2.0*p->coeffs[24]*y*z + 2.0*p->coeffs[25]*z*z;
 }
 
 static double poly4_dxy(polynomial_t* p, point_t* X)
 {
   double x = X->x, y = X->y, z = X->z;
   return poly3_dxy(p, X) + 
-    3.0*p->coeffs[20]*x*x + 4.0*p->coeffs[22]*x*y + 2.0*p->coeffs[23]*x*z + 
-    3.0*p->coeffs[25]*y*y + 2.0*p->coeffs[26]*y*z + p->coeffs[27]*z*z;
+    3.0*p->coeffs[21]*x*x + 4.0*p->coeffs[23]*x*y + 2.0*p->coeffs[24]*x*z + 
+    3.0*p->coeffs[26]*y*y + 2.0*p->coeffs[27]*y*z + p->coeffs[28]*z*z;
 }
 
 static double poly4_dxz(polynomial_t* p, point_t* X)
 {
   double x = X->x, y = X->y, z = X->z;
   return poly3_dxz(p, X) + 
-    3.0*p->coeffs[21]*x*x + 2.0*p->coeffs[23]*x*y + 4.0*p->coeffs[24]*x*z + 
-    p->coeffs[26]*y*y + 2.0*p->coeffs[27]*y*z + 3.0*p->coeffs[28]*z*z;
+    3.0*p->coeffs[22]*x*x + 2.0*p->coeffs[24]*x*y + 4.0*p->coeffs[25]*x*z + 
+    p->coeffs[27]*y*y + 2.0*p->coeffs[28]*y*z + 3.0*p->coeffs[29]*z*z;
 }
 
 static double poly4_dyy(polynomial_t* p, point_t* X)
 {
   double x = X->x, y = X->y, z = X->z;
   return poly3_dyy(p, X) + 
-    2.0*p->coeffs[22]*x*x + 6.0*p->coeffs[25]*x*y + 2.0*p->coeffs[26]*x*z + 
-    12.0*p->coeffs[29]*y*y + 6.0*p->coeffs[30]*y*z + 2.0*p->coeffs[31]*z*z;
+    2.0*p->coeffs[23]*x*x + 6.0*p->coeffs[26]*x*y + 2.0*p->coeffs[27]*x*z + 
+    12.0*p->coeffs[30]*y*y + 6.0*p->coeffs[31]*y*z + 2.0*p->coeffs[32]*z*z;
 }
 
 static double poly4_dyz(polynomial_t* p, point_t* X)
 {
   double x = X->x, y = X->y, z = X->z;
   return poly3_dyz(p, X) + 
-    p->coeffs[23]*x*x + 2.0*p->coeffs[26]*x*y + 2.0*p->coeffs[27]*x*z + 
-    3.0*p->coeffs[30]*y*y + 4.0*p->coeffs[31]*y*z + 3.0*p->coeffs[32]*z*z;
+    p->coeffs[24]*x*x + 2.0*p->coeffs[27]*x*y + 2.0*p->coeffs[28]*x*z + 
+    3.0*p->coeffs[31]*y*y + 4.0*p->coeffs[32]*y*z + 3.0*p->coeffs[33]*z*z;
 }
 
 static double poly4_dzz(polynomial_t* p, point_t* X)
 {
   double x = X->x, y = X->y, z = X->z;
   return poly3_dzz(p, X) + 
-    2.0*p->coeffs[24]*x*x + 2.0*p->coeffs[27]*x*y + 6.0*p->coeffs[28]*x*z + 
-    2.0*p->coeffs[31]*y*y + 6.0*p->coeffs[32]*y*z + 12.0*p->coeffs[33]*z*z;
+    2.0*p->coeffs[25]*x*x + 2.0*p->coeffs[28]*x*y + 6.0*p->coeffs[29]*x*z + 
+    2.0*p->coeffs[32]*y*y + 6.0*p->coeffs[33]*y*z + 12.0*p->coeffs[34]*z*z;
 }
 
 static double poly4_dxxx(polynomial_t* p, point_t* X)
 {
   double x = X->x, y = X->y, z = X->z;
   return poly3_dxxx(p, X) + 
-    24.0*p->coeffs[19]*x + 6.0*p->coeffs[20]*y + 6.0*p->coeffs[21]*z;
+    24.0*p->coeffs[20]*x + 6.0*p->coeffs[21]*y + 6.0*p->coeffs[22]*z;
 }
 
 static double poly4_dxxy(polynomial_t* p, point_t* X)
 {
   double x = X->x, y = X->y, z = X->z;
   return poly3_dxxy(p, X) + 
-    6.0*p->coeffs[20]*x + 4.0*p->coeffs[22]*y + 2.0*p->coeffs[23]*z;
+    6.0*p->coeffs[21]*x + 4.0*p->coeffs[23]*y + 2.0*p->coeffs[24]*z;
 }
 
 static double poly4_dxxz(polynomial_t* p, point_t* X)
 {
   double x = X->x, y = X->y, z = X->z;
   return poly3_dxxz(p, X) + 
-    6.0*p->coeffs[21]*x + 2.0*p->coeffs[23]*y + 4.0*p->coeffs[24]*z;
+    6.0*p->coeffs[22]*x + 2.0*p->coeffs[24]*y + 4.0*p->coeffs[25]*z;
 }
 
 static double poly4_dxyy(polynomial_t* p, point_t* X)
 {
   double x = X->x, y = X->y, z = X->z;
   return poly3_dxyy(p, X) + 
-    4.0*p->coeffs[22]*x + 6.0*p->coeffs[25]*y + 2.0*p->coeffs[26]*z;
+    4.0*p->coeffs[23]*x + 6.0*p->coeffs[26]*y + 2.0*p->coeffs[27]*z;
 }
 
 static double poly4_dxyz(polynomial_t* p, point_t* X)
 {
   double x = X->x, y = X->y, z = X->z;
   return poly3_dxyz(p, X) + 
-    2.0*p->coeffs[23]*x + 2.0*p->coeffs[26]*y + 2.0*p->coeffs[27]*z;
+    2.0*p->coeffs[24]*x + 2.0*p->coeffs[27]*y + 2.0*p->coeffs[28]*z;
 }
 
 static double poly4_dxzz(polynomial_t* p, point_t* X)
 {
   double x = X->x, y = X->y, z = X->z;
   return poly3_dxzz(p, X) + 
-    4.0*p->coeffs[24]*x + 2.0*p->coeffs[27]*y + 6.0*p->coeffs[28]*z;
+    4.0*p->coeffs[25]*x + 2.0*p->coeffs[28]*y + 6.0*p->coeffs[29]*z;
 }
 
 static double poly4_dyyy(polynomial_t* p, point_t* X)
 {
   double x = X->x, y = X->y, z = X->z;
   return poly3_dyyy(p, X) + 
-    6.0*p->coeffs[25]*x + 24.0*p->coeffs[29]*y + 6.0*p->coeffs[30]*z;
+    6.0*p->coeffs[26]*x + 24.0*p->coeffs[30]*y + 6.0*p->coeffs[31]*z;
 }
 
 static double poly4_dyyz(polynomial_t* p, point_t* X)
 {
   double x = X->x, y = X->y, z = X->z;
   return poly3_dyyz(p, X) + 
-    2.0*p->coeffs[26]*x + 6.0*p->coeffs[30]*y + 4.0*p->coeffs[31]*z;
+    2.0*p->coeffs[27]*x + 6.0*p->coeffs[31]*y + 4.0*p->coeffs[32]*z;
 }
 
 static double poly4_dyzz(polynomial_t* p, point_t* X)
 {
   double x = X->x, y = X->y, z = X->z;
   return poly3_dyzz(p, X) + 
-    2.0*p->coeffs[27]*x + 4.0*p->coeffs[31]*y + 6.0*p->coeffs[32]*z;
+    2.0*p->coeffs[28]*x + 4.0*p->coeffs[32]*y + 6.0*p->coeffs[33]*z;
 }
 
 static double poly4_dzzz(polynomial_t* p, point_t* X)
 {
   double x = X->x, y = X->y, z = X->z;
   return poly3_dzzz(p, X) + 
-    6.0*p->coeffs[28]*x + 6.0*p->coeffs[32]*y + 24.0*p->coeffs[33]*z;
+    6.0*p->coeffs[29]*x + 6.0*p->coeffs[33]*y + 24.0*p->coeffs[34]*z;
 }
 
 static double poly4_dxxxx(polynomial_t* p, point_t* X)
 {
-  return 24.0*p->coeffs[19];
+  return 24.0*p->coeffs[20];
 }
 
 static double poly4_dxxxy(polynomial_t* p, point_t* X)
 {
-  return 6.0*p->coeffs[20];
+  return 6.0*p->coeffs[21];
 }
 
 static double poly4_dxxxz(polynomial_t* p, point_t* X)
 {
-  return 6.0*p->coeffs[21];
+  return 6.0*p->coeffs[22];
 }
 
 static double poly4_dxxyy(polynomial_t* p, point_t* X)
 {
-  return 4.0*p->coeffs[22];
+  return 4.0*p->coeffs[23];
 }
 
 static double poly4_dxxyz(polynomial_t* p, point_t* X)
 {
-  return 2.0*p->coeffs[23];
+  return 2.0*p->coeffs[24];
 }
 
 static double poly4_dxxzz(polynomial_t* p, point_t* X)
 {
-  return 4.0*p->coeffs[24];
+  return 4.0*p->coeffs[25];
 }
 
 static double poly4_dxyyy(polynomial_t* p, point_t* X)
 {
-  return 6.0*p->coeffs[25];
+  return 6.0*p->coeffs[26];
 }
 
 static double poly4_dxyyz(polynomial_t* p, point_t* X)
 {
-  return 2.0*p->coeffs[26];
+  return 2.0*p->coeffs[27];
 }
 
 static double poly4_dxyzz(polynomial_t* p, point_t* X)
 {
-  return 2.0*p->coeffs[27];
+  return 2.0*p->coeffs[28];
 }
 
 static double poly4_dxzzz(polynomial_t* p, point_t* X)
 {
-  return 6.0*p->coeffs[28];
+  return 6.0*p->coeffs[29];
 }
 
 static double poly4_dyyyy(polynomial_t* p, point_t* X)
 {
-  return 24.0*p->coeffs[29];
+  return 24.0*p->coeffs[30];
 }
 
 static double poly4_dyyyz(polynomial_t* p, point_t* X)
 {
-  return 6.0*p->coeffs[30];
+  return 6.0*p->coeffs[31];
 }
 
 static double poly4_dyyzz(polynomial_t* p, point_t* X)
 {
-  return 4.0*p->coeffs[31];
+  return 4.0*p->coeffs[32];
 }
 
 static double poly4_dyzzz(polynomial_t* p, point_t* X)
 {
-  return 6.0*p->coeffs[32];
+  return 6.0*p->coeffs[33];
 }
 
 static double poly4_dzzzz(polynomial_t* p, point_t* X)
 {
-  return 24.0*p->coeffs[33];
+  return 24.0*p->coeffs[34];
 }
 
 static poly_deriv_func poly4_deriv[5][5][5] = { 
@@ -599,6 +599,31 @@ double polynomial_deriv(polynomial_t* p, int x_deriv, int y_deriv, int z_deriv, 
     ASSERT(p->order == 4);
     return poly4_deriv[x_deriv][y_deriv][z_deriv](p, x);
   }
+}
+
+static int x_pow[35] = {0, 1, 0, 0, 2, 1, 1, 0, 0, 0, 
+                        3, 2, 2, 1, 1, 1, 0, 0, 0, 0, 
+                        4, 3, 3, 2, 2, 2, 1, 1, 1, 1, 
+                        0, 0, 0, 0, 0};
+static int y_pow[35] = {0, 0, 1, 0, 0, 1, 0, 2, 1, 0, 
+                        0, 1, 0, 2, 1, 0, 3, 2, 1, 0, 
+                        0, 1, 0, 2, 1, 0, 3, 2, 1, 0, 
+                        4, 3, 2, 1, 0};
+static int z_pow[35] = {0, 0, 0, 1, 0, 0, 1, 0, 1, 2, 
+                        0, 0, 1, 0, 1, 2, 0, 1, 2, 3, 
+                        0, 0, 1, 0, 1, 2, 0, 1, 2, 3, 
+                        0, 1, 2, 3, 4};
+
+bool polynomial_next(polynomial_t* p, int* pos, double* coeff, int* x_power, int* y_power, int* z_power)
+{
+  if (*pos >= N_coeffs[p->order])
+    return false;
+  *coeff = p->coeffs[*pos];
+  *x_power = x_pow[*pos];
+  *y_power = y_pow[*pos];
+  *z_power = z_pow[*pos];
+  ++(*pos);
+  return true;
 }
 
 static void wrap_eval(void* context, point_t* x, double* result)

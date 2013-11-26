@@ -20,6 +20,7 @@
 #include "core/polymec.h"
 #include "core/point.h"
 #include "core/st_func.h"
+#include "core/polynomial.h"
 
 // This class calculates integrals on the surface of a sphere.
 typedef struct sphere_integrator_t sphere_integrator_t;
@@ -42,11 +43,13 @@ sphere_integrator_t* sphere_integrator_new(int order);
 void sphere_integrator_free(sphere_integrator_t* integ);
 
 // Calculates the integral of the given spatial function F on the spherical cap
-// on the sphere with radius R, defined by the set 
+// on the sphere centered at x0 with radius R, defined by the set 
 //   C(z) := {x: x o z >= cos(gamma)
 // where 0 <= gamma <= pi. Here, gamma == 0 indicates a zero integral, and 
 // gamma == pi indicates an integral over the entire sphere of radius R.
+// The integral is placed in the variable integral.
 void sphere_integrator_cap(sphere_integrator_t* integ, 
+                           point_t* x0, 
                            double R, 
                            sp_func_t* F, 
                            vector_t* z,
@@ -56,12 +59,20 @@ void sphere_integrator_cap(sphere_integrator_t* integ,
 // Calculates the integral of the given space-time function F on the 
 // spherical cap as above, evaluated at the given time t.
 void sphere_integrator_cap_at_time(sphere_integrator_t* integ, 
+                                   point_t* x0, 
                                    double R, 
                                    st_func_t* F,
                                    vector_t* z,
                                    double gamma,
                                    double t, 
                                    double* integral);
+
+// Calculates and returns the integral of the given polynomial p in the 
+// ball with radius R.
+double sphere_integrator_ball(sphere_integrator_t* integ,
+                              point_t* x0, 
+                              double R,
+                              polynomial_t* p);
 
 #endif
 
