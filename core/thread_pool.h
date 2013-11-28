@@ -21,14 +21,23 @@
 // given task.
 typedef struct thread_pool_t thread_pool_t;
 
+// Creates a thread pool with a number of threads equal to the number of 
+// cores on the machine. Uses polymec_num_cores().
+thread_pool_t* thread_pool_new();
+
 // Creates a thread pool with the given number of threads.
-thread_pool_t* thread_pool_new(int num_threads);
+thread_pool_t* thread_pool_with_threads(int num_threads);
 
 // Destroys a thread pool.
 void thread_pool_free(thread_pool_t* pool);
 
+// Returns the number of threads in the given thread pool.
+int thread_pool_num_threads(thread_pool_t* pool);
+
 // Schedules a task within the thread pool, providing a function to 
-// perform the work and a context to be used by the function.
+// perform the work and a context to be used by the function. Here, 
+// do_work is a function that receives a context object that contains any 
+// data to be used.
 void thread_pool_schedule(thread_pool_t* pool,
                           void* context,
                           void (*do_work)(void*));

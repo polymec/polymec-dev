@@ -15,6 +15,7 @@
 // limitations under the License.
 
 #include <stdlib.h>
+#include <unistd.h>
 #include <time.h>
 #include <stdarg.h>
 #include <gc/gc.h>
@@ -264,3 +265,11 @@ void polymec_provenance_fprintf(int argc, char** argv, FILE* stream)
   fprintf(stream, "=======================================================================\n\n");
 }
 
+int polymec_num_cores()
+{
+#ifdef LINUX
+  return sysconf(_SC_NPROCESSORS_ONLN);
+#elif defined APPLE
+  return sysconf(_SC_NPROCESSORS_ONLN);
+#endif
+}
