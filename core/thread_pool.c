@@ -71,7 +71,6 @@ static void* thread_life(void* context)
       // Mark the job as completed.
       pthread_mutex_lock(&pool->finished_lock);
       --pool->work_remaining;
-//printf("work now: %d\n", pool->work_remaining);
 
       // If there's no more work, tell the host thread that we're finished.
       if (pool->work_remaining == 0)
