@@ -640,16 +640,15 @@ static void wrap_eval_deriv(void* context, int deriv, point_t* x, double* result
     memset(result, 0, sizeof(double) * result_size);
   else if (deriv == 0)
     *result = polynomial_value(p, x);
-  else if (deriv == 1)
-  {
-    result[0] = polynomial_deriv(p, 1, 0, 0, x);
-    result[1] = polynomial_deriv(p, 0, 1, 0, x);
-    result[2] = polynomial_deriv(p, 0, 0, 1, x);
-  }
   else 
   {
-    // FIXME
-    POLYMEC_NOT_IMPLEMENTED
+    double coeff;
+    int pos = 0, x_pow, y_pow, z_pow;
+    while (polynomial_next(p, &pos, &coeff, &x_pow, &y_pow, &z_pow))
+    {
+      // FIXME
+      POLYMEC_NOT_IMPLEMENTED
+    }
   }
 }
 

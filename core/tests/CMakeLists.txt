@@ -5,6 +5,7 @@ include(add_polymec_test)
 
 add_polymec_test(test_string_utils test_string_utils.c)
 add_polymec_test(test_tuple test_tuple.c)
+add_polymec_test(test_thread_pool test_thread_pool.c)
 add_polymec_test(test_avl_tree test_avl_tree.c)
 add_polymec_test(test_ordered_set test_ordered_set.c)
 add_polymec_test(test_ordered_map test_ordered_map.c)
