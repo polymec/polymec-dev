@@ -31,16 +31,34 @@ typedef struct
 struct thread_pool_t 
 {
   int num_threads;
+
+  // Indicates to threads whether the pool is in the process of shutting down.
+  bool shutting_down;
+
+  // Task queue and number of remaining items. 
   ptr_slist_t* queue;
   int work_remaining;
-  bool shutting_down;
+
+  // Mutexes for controlling access to the queue and the information 
+  // about finished jobs.
   pthread_mutex_t queue_lock, finished_lock;
+
+  // Condition variables that are used for signaling other threads 
+  // regarding ready and finished work.
   pthread_cond_t queue_cond, finished_cond;
-  pthread_t* threads;
-  bool* thread_started;
+
+  // Attributes of created threads are stored in this thing.
   pthread_attr_t thread_attr;
+
+  // Threads!
+  pthread_t* threads;
+
+  // An array used only to indicate when threads have started.
+  bool* thread_started;
 };
 
+// It's a thread's life! This function represents the entire lifetime of 
+// a worker thread.
 static void* thread_life(void* context)
 {
   thread_context_t* thread = context;
@@ -88,6 +106,7 @@ static void* thread_life(void* context)
   }
 
   pthread_mutex_unlock(&pool->queue_lock);
+  free(thread); // Kill the thread's context.
   pthread_exit(NULL);
   return NULL;
 }
@@ -104,8 +123,6 @@ thread_pool_t* thread_pool_with_threads(int num_threads)
   thread_pool_t* pool = malloc(sizeof(thread_pool_t));
   pool->num_threads = num_threads;
   pool->threads = malloc(sizeof(pthread_t) * num_threads);
-  pool->thread_started = malloc(sizeof(bool) * num_threads);
-  memset(pool->thread_started, 0, sizeof(bool) * num_threads);
   pool->queue = ptr_slist_new();
   pool->shutting_down = false;
   pool->work_remaining = 0;
@@ -130,6 +147,8 @@ thread_pool_t* thread_pool_with_threads(int num_threads)
   pthread_mutex_lock(&pool->queue_lock);
 
   // Gentlemen, start your engines!
+  pool->thread_started = malloc(sizeof(bool) * num_threads);
+  memset(pool->thread_started, 0, sizeof(bool) * num_threads);
   for (int i = 0; i < num_threads; ++i)
   {
     thread_context_t* thread = malloc(sizeof(thread_context_t));
@@ -150,6 +169,7 @@ thread_pool_t* thread_pool_with_threads(int num_threads)
       num_started += (pool->thread_started[i]) ? 1 : 0;
   }
   while (num_started < num_threads);
+  free(pool->thread_started); // <-- no longer needed.
 
   return pool;
 }
