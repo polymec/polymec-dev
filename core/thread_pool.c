@@ -33,6 +33,7 @@ struct thread_pool_t
   int num_threads;
   ptr_slist_t* queue;
   int work_remaining;
+  bool shutting_down;
   pthread_mutex_t queue_lock, finished_lock;
   pthread_cond_t queue_cond, finished_cond;
   pthread_t* threads;
@@ -44,16 +45,23 @@ static void* thread_life(void* context)
 {
   thread_context_t* thread = context;
   thread_pool_t* pool = thread->pool;
-  pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
   pool->thread_started[thread->id] = true;
   
   while (true)
   {
-    // Wait on the condition variable for work to show up in the queue.
+    // Acquire the queue lock.
     pthread_mutex_lock(&pool->queue_lock);
-    pthread_cond_wait(&pool->queue_cond, &pool->queue_lock);
 
-    while (!ptr_slist_empty(pool->queue))
+    // Wait on the condition variable for work to show up in the queue.
+    while (!pool->shutting_down && (pool->work_remaining == 0))
+      pthread_cond_wait(&pool->queue_cond, &pool->queue_lock);
+
+    if (pool->shutting_down)
+      break;
+
+    if (pool->work_remaining == 0)
+      pthread_mutex_unlock(&pool->queue_lock);
+    else
     {
       // Grab the next item in the queue and process it.
       void (*dtor)(void*);
@@ -78,6 +86,10 @@ static void* thread_life(void* context)
       pthread_mutex_unlock(&pool->finished_lock);
     }
   }
+
+  pthread_mutex_unlock(&pool->queue_lock);
+  pthread_exit(NULL);
+  return NULL;
 }
 
 thread_pool_t* thread_pool_new()
@@ -95,6 +107,7 @@ thread_pool_t* thread_pool_with_threads(int num_threads)
   pool->thread_started = malloc(sizeof(bool) * num_threads);
   memset(pool->thread_started, 0, sizeof(bool) * num_threads);
   pool->queue = ptr_slist_new();
+  pool->shutting_down = false;
   pool->work_remaining = 0;
 
   // Thread creation attribute(s).
@@ -112,6 +125,10 @@ thread_pool_t* thread_pool_with_threads(int num_threads)
   // Now for the condition variable that signals when thread work is finished.
   pthread_cond_init(&pool->finished_cond, NULL);
 
+  // Prevent newly-created threads from doing anything silly by acquiring
+  // a lock on our queue.
+  pthread_mutex_lock(&pool->queue_lock);
+
   // Gentlemen, start your engines!
   for (int i = 0; i < num_threads; ++i)
   {
@@ -123,7 +140,8 @@ thread_pool_t* thread_pool_with_threads(int num_threads)
       polymec_error("thread_pool: could not create thread %d.", i);
   }
 
-  // Wait for the threads to start up.
+  // Unlock the queue and wait for the threads to start up.
+  pthread_mutex_unlock(&pool->queue_lock);
   int num_started;
   do 
   {
@@ -139,13 +157,17 @@ thread_pool_t* thread_pool_with_threads(int num_threads)
 void thread_pool_free(thread_pool_t* pool)
 {
   if (pool->work_remaining != 0)
-    polymec_error("thread_pool_free() called within thread pool job.");
+    polymec_error("thread_pool_free() called within thread_pool_execute().");
 
-  // Cancel all the threads -- since thread_pool_execute is blocking, 
-  // we are guaranteed that this will work unless something is REALLY 
-  // wrong.
+  // Tell the threads we're shutting down.
+  pthread_mutex_lock(&pool->queue_lock);
+  pool->shutting_down = true;
+  pthread_cond_broadcast(&pool->queue_cond);
+  pthread_mutex_unlock(&pool->queue_lock);
+
+  // Wait for all the threads to join.
   for (int i = 0; i < pool->num_threads; ++i)
-    pthread_cancel(pool->threads[i]);
+    pthread_join(pool->threads[i], NULL);
 
   pthread_cond_destroy(&pool->finished_cond);
   pthread_cond_destroy(&pool->queue_cond);
@@ -167,7 +189,7 @@ void thread_pool_schedule(thread_pool_t* pool,
                           void (*do_work)(void*))
 {
   if (pool->work_remaining != 0)
-    polymec_error("thread_pool_schedule() called within thread pool job.");
+    polymec_error("thread_pool_schedule() called within thread_pool_execute().");
 
   thread_work_t* work = malloc(sizeof(thread_work_t));
   work->context = context;
@@ -182,8 +204,8 @@ void thread_pool_execute(thread_pool_t* pool)
   pthread_mutex_lock(&pool->finished_lock);
 
   // Signal the threads that there's work in the pool.
-  pool->work_remaining = pool->queue->size;
   pthread_mutex_lock(&pool->queue_lock);
+  pool->work_remaining = pool->queue->size;
   pthread_cond_broadcast(&pool->queue_cond);
   pthread_mutex_unlock(&pool->queue_lock);
 

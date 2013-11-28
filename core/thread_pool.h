@@ -42,7 +42,8 @@ void thread_pool_schedule(thread_pool_t* pool,
                           void* context,
                           void (*do_work)(void*));
 
-// Runs the thread pool, executing its queue of tasks.
+// Runs the thread pool, executing its queue of tasks, and blocking until 
+// completion.
 void thread_pool_execute(thread_pool_t* pool);
 
 #endif
