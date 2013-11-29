@@ -41,12 +41,11 @@ static void crunch_numbers(void* context)
   global_array[index] = 1.0*index*index;
 }
 
-void test_number_crunching(void** state)
+static void do_number_crunching_test(void** state, thread_pool_t* pool)
 {
   int num_numbers = 20;
   global_array = malloc(sizeof(double) * 20);
   int indices[num_numbers];
-  thread_pool_t* pool = thread_pool_new();
   for (int i = 0; i < num_numbers; ++i)
   {
     indices[i] = i;
@@ -59,7 +58,28 @@ void test_number_crunching(void** state)
     assert_true(global_array[i] == 1.0*i*i);
   }
   free(global_array);
+}
+
+void test_number_crunching(void** state)
+{
+  thread_pool_t* pool = thread_pool_new();
+  do_number_crunching_test(state, pool);
   thread_pool_free(pool);
+}
+
+void test_N_executions(void** state, int N)
+{
+  // Same as above test, but N in a row.
+  thread_pool_t* pool = thread_pool_new();
+  for (int i = 0; i < N; ++i)
+    do_number_crunching_test(state, pool);
+  thread_pool_free(pool);
+}
+
+void test_several_executions(void** state)
+{
+  for (int N = 2; N <= 10; ++N)
+    test_N_executions(state, N);
 }
 
 int main(int argc, char* argv[]) 
@@ -68,7 +88,8 @@ int main(int argc, char* argv[])
   const UnitTest tests[] = 
   {
     unit_test(test_constructors),
-    unit_test(test_number_crunching)
+    unit_test(test_number_crunching),
+    unit_test(test_several_executions)
   };
   return run_tests(tests);
 }

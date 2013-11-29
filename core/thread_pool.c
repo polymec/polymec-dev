@@ -85,6 +85,9 @@ static void* thread_life(void* context)
       void (*dtor)(void*);
       thread_work_t* work = ptr_slist_pop(pool->queue, &dtor);
 
+      // Decrement the work remaining while we have the lock.
+      --pool->work_remaining;
+
       // Surrender the queue lock.
       pthread_mutex_unlock(&pool->queue_lock);
 
@@ -96,7 +99,6 @@ static void* thread_life(void* context)
 
       // Mark the job as completed.
       pthread_mutex_lock(&pool->finished_lock);
-      --pool->work_remaining;
 
       // If there's no more work, tell the host thread that we're finished.
       if (pool->work_remaining == 0)
