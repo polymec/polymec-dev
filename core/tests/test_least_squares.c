@@ -21,6 +21,7 @@
 #include <string.h>
 #include <time.h>
 #include "cmockery.h"
+#include "core/polynomial.h"
 #include "core/least_squares.h"
 
 static void generate_random_points(int num_points, point_t* points)
@@ -62,27 +63,15 @@ static void weighting_func(void* context, point_t* x, point_t* x0, double h, dou
 
 void test_poly_fit(int p, point_t* x0, point_t* points, int num_points, double* coeffs, bool weighted)
 {
-  int dim = poly_ls_basis_size(p);
+  polynomial_t* poly = polynomial_new(p, coeffs, x0);
 
   // Create scatter data.
-  double data[num_points], basis[dim];
-  memset(data, 0, sizeof(double)*num_points);
+  double data[num_points];
   for (int i = 0; i < num_points; ++i)
-  {
-    if (x0 != NULL)
-    {
-      point_t y = {.x = points[i].x - x0->x, 
-                   .y = points[i].y - x0->y,
-                   .z = points[i].z - x0->z};
-      compute_poly_ls_basis_vector(p, &y, basis);
-    }
-    else
-      compute_poly_ls_basis_vector(p, &points[i], basis);
-    for (int k = 0; k < dim; ++k)
-      data[i] += coeffs[k]*basis[k];
-  }
+    data[i] = polynomial_value(poly, &points[i]);
 
   // Assemble the linear system.
+  int dim = polynomial_num_coeffs(poly);
   double A[dim*dim], b[dim];
   if (weighted)
     compute_weighted_poly_ls_system(p, weighting_func, x0, points, num_points, data, A, b);
@@ -104,24 +93,18 @@ void test_poly_fit(int p, point_t* x0, point_t* points, int num_points, double* 
 //printf("%g %g %g\n", b[i], coeffs[i], fabs(b[i] - coeffs[i]));
     assert_true(fabs(b[i] - coeffs[i]) < tolerances[p]);
   }
+
+  poly = NULL;
 }
 
 void test_poly_shape_functions(int p, point_t* x0, point_t* points, int num_points, double* coeffs, bool weighted)
 {
-  int dim = poly_ls_basis_size(p);
+  polynomial_t* poly = polynomial_new(p, coeffs, x0);
 
   // Create scatter data.
-  double data[num_points], basis[dim];
-  memset(data, 0, sizeof(double)*num_points);
+  double data[num_points];
   for (int i = 0; i < num_points; ++i)
-  {
-    point_t y = {.x = points[i].x - x0->x, 
-                 .y = points[i].y - x0->y,
-                 .z = points[i].z - x0->z};
-    compute_poly_ls_basis_vector(p, &y, basis);
-    for (int k = 0; k < dim; ++k)
-      data[i] += coeffs[k]*basis[k];
-  }
+    data[i] = polynomial_value(poly, &points[i]);
 
   // Compute shape functions for the given data.
   poly_ls_shape_t* N = poly_ls_shape_new(p, false);
@@ -145,45 +128,33 @@ void test_poly_shape_functions(int p, point_t* x0, point_t* points, int num_poin
   point_t point;
   generate_random_points(1, &point);
   poly_ls_shape_compute(N, &point, Nk);
-  double phi = 0.0, phi_fit = 0.0;
-  point_t z = {.x = point.x - x0->x, 
-               .y = point.y - x0->y,
-               .z = point.z - x0->z};
-  compute_poly_ls_basis_vector(p, &z, basis);
-  for (int k = 0; k < dim; ++k)
-    phi += coeffs[k] * basis[k];
+  double phi_fit = 0.0;
   for (int k = 0; k < num_points; ++k)
     phi_fit += Nk[k] * data[k];
+  double phi = polynomial_value(poly, &point);
 //  printf("%g %g %g\n", phi_fit, phi, fabs(phi_fit - phi));
   assert_true(fabs(phi_fit - phi) < 4e-14);
 
   // Clean up.
   N = NULL;
+  poly = NULL;
 }
 
 void test_poly_shape_function_gradients(int p, point_t* x0, point_t* points, int num_points, double* coeffs, bool weighted)
 {
-  int dim = poly_ls_basis_size(p);
+  polynomial_t* poly = polynomial_new(p, coeffs, x0);
 
   // Create scatter data.
-  double data[num_points], basis[dim];
-  vector_t data_grads[num_points], basis_grad[dim];
+  double data[num_points];
+  vector_t data_grads[num_points];
   memset(data, 0, sizeof(double)*num_points);
   memset(data_grads, 0, sizeof(vector_t)*num_points);
   for (int i = 0; i < num_points; ++i)
   {
-    point_t y = {.x = points[i].x - x0->x, 
-                 .y = points[i].y - x0->y,
-                 .z = points[i].z - x0->z};
-    compute_poly_ls_basis_vector(p, &y, basis);
-    compute_poly_ls_basis_gradient(p, &y, basis_grad);
-    for (int k = 0; k < dim; ++k)
-    {
-      data[i] += coeffs[k]*basis[k];
-      data_grads[i].x += coeffs[k]*basis_grad[k].x;
-      data_grads[i].y += coeffs[k]*basis_grad[k].y;
-      data_grads[i].z += coeffs[k]*basis_grad[k].z;
-    }
+    data[i] = polynomial_value(poly, &points[i]);
+    data_grads[i].x = polynomial_deriv(poly, 1, 0, 0, &points[i]);
+    data_grads[i].y = polynomial_deriv(poly, 0, 1, 0, &points[i]);
+    data_grads[i].z = polynomial_deriv(poly, 0, 0, 1, &points[i]);
   }
 
   // Compute shape functions for the given data.
@@ -220,21 +191,8 @@ void test_poly_shape_function_gradients(int p, point_t* x0, point_t* points, int
   generate_random_points(1, &point);
   poly_ls_shape_compute(N, &point, Nk);
   poly_ls_shape_compute_gradients(N, &point, Nk, gradNk);
-  double phi = 0.0, phi_fit = 0.0;
-  vector_t grad_phi = {.x = 0.0, .y = 0.0, .z = 0.0},
-           grad_phi_fit = {.x = 0.0, .y = 0.0, .z = 0.0};
-  point_t z = {.x = point.x - x0->x, 
-               .y = point.y - x0->y,
-               .z = point.z - x0->z};
-  compute_poly_ls_basis_vector(p, &z, basis);
-  compute_poly_ls_basis_gradient(p, &z, basis_grad);
-  for (int k = 0; k < dim; ++k)
-  {
-    phi += coeffs[k] * basis[k];
-    grad_phi.x += coeffs[k] * basis_grad[k].x;
-    grad_phi.y += coeffs[k] * basis_grad[k].y;
-    grad_phi.z += coeffs[k] * basis_grad[k].z;
-  }
+  double phi_fit = 0.0;
+  vector_t grad_phi_fit = {.x = 0.0, .y = 0.0, .z = 0.0};
   for (int k = 0; k < num_points; ++k)
   {
     phi_fit += Nk[k] * data[k];
@@ -242,6 +200,11 @@ void test_poly_shape_function_gradients(int p, point_t* x0, point_t* points, int
     grad_phi_fit.y += gradNk[k].y * data[k];
     grad_phi_fit.z += gradNk[k].z * data[k];
   }
+  double phi = polynomial_value(poly, &point);
+  vector_t grad_phi;
+  grad_phi.x = polynomial_deriv(poly, 1, 0, 0, &point);
+  grad_phi.y = polynomial_deriv(poly, 0, 1, 0, &point);
+  grad_phi.z = polynomial_deriv(poly, 0, 0, 1, &point);
 //  printf("%g %g %g\n", phi_fit, phi, fabs(phi_fit - phi));
   assert_true(fabs(phi_fit - phi) < 5e-14);
 //printf("%g %g %g\n", grad_phi_fit.x, grad_phi.x, fabs(grad_phi_fit.x - grad_phi.x));
@@ -251,33 +214,27 @@ void test_poly_shape_function_gradients(int p, point_t* x0, point_t* points, int
 
   // Clean up.
   N = NULL;
+  poly = NULL;
 }
 
 void test_poly_shape_function_constraints(int p, point_t* x0, point_t* points, int num_points, int num_ghosts, double* coeffs, bool weighted)
 {
   ASSERT(p > 0);
   ASSERT(num_ghosts <= num_points/2);
-  int dim = poly_ls_basis_size(p);
+
+  polynomial_t* poly = polynomial_new(p, coeffs, x0);
 
   // Create scatter data.
-  double data[num_points], basis[dim];
-  vector_t data_grads[num_points], basis_grad[dim];
+  double data[num_points];
+  vector_t data_grads[num_points];
   memset(data, 0, sizeof(double)*num_points);
   memset(data_grads, 0, sizeof(vector_t)*num_points);
   for (int i = 0; i < num_points; ++i)
   {
-    point_t y = {.x = points[i].x - x0->x, 
-                 .y = points[i].y - x0->y,
-                 .z = points[i].z - x0->z};
-    compute_poly_ls_basis_vector(p, &y, basis);
-    compute_poly_ls_basis_gradient(p, &y, basis_grad);
-    for (int k = 0; k < dim; ++k)
-    {
-      data[i] += coeffs[k]*basis[k];
-      data_grads[i].x += coeffs[k]*basis_grad[k].x;
-      data_grads[i].y += coeffs[k]*basis_grad[k].y;
-      data_grads[i].z += coeffs[k]*basis_grad[k].z;
-    }
+    data[i] = polynomial_value(poly, &points[i]);
+    data_grads[i].x = polynomial_deriv(poly, 1, 0, 0, &points[i]);
+    data_grads[i].y = polynomial_deriv(poly, 0, 1, 0, &points[i]);
+    data_grads[i].z = polynomial_deriv(poly, 0, 0, 1, &points[i]);
   }
 
   // Compute shape functions for the given data.
@@ -329,6 +286,7 @@ void test_poly_shape_function_constraints(int p, point_t* x0, point_t* points, i
 
   // Clean up.
   N = NULL;
+  poly = NULL;
 }
 
 void test_p0_fit(void** state)

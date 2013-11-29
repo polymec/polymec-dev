@@ -21,23 +21,27 @@
 #include "core/point.h"
 #include "core/sp_func.h"
 
-// This type represents a polynomial function (in x, y, and z) of a given order.
+// This type represents a polynomial function (in x, y, and z) of a given degree.
 // Objects of this type are garbage-collected.
 typedef struct polynomial_t polynomial_t;
 
-// Creates a polynomial of the given order from the given set of coefficients, 
-// expanded about the given point x0.
+// This returns the number of coefficients in polynomial of given degree.
+int polynomial_basis_size(int degree);
+
+// Creates a polynomial of the given degree from the given set of coefficients, 
+// expanded about the given point x0. If x0 is NULL, x0 = 0.
 // The coefficients move from x^p to z^p across the corresponding row in 
 // Pascal's (hyper-)triangle.
-polynomial_t* polynomial_new(int order, double* coeffs, point_t* x0);
+polynomial_t* polynomial_new(int degree, double* coeffs, point_t* x0);
 
-// Returns the order of the polynomial.
-int polynomial_order(polynomial_t* p);
+// Returns the degree of the polynomial.
+int polynomial_degree(polynomial_t* p);
 
 // Returns the number of coefficients in the polynomial.
 int polynomial_num_coeffs(polynomial_t* p);
 
-// Returns an internal array of the polynomial's coefficients.
+// Returns an internal array of the polynomial's coefficients. Can be used 
+// to get or set the coefficients.
 double* polynomial_coeffs(polynomial_t* p);
 
 // Returns the point about which the polynomial is expanded.

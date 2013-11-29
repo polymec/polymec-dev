@@ -25,27 +25,6 @@
 // given arrays of x and y values. Also computes the variance sigma.
 void linear_regression(double* x, double* y, int N, double* A, double* B, double* sigma);
 
-// This multi-index represents a pth-order multinomial term of the given 
-// orders in x, y, and z.
-typedef struct multi_index_t multi_index_t;
-
-// Creates a multi-index object with the given order.
-// Objects of this type are garbage-collected.
-multi_index_t* multi_index_new(int p);
-
-// Returns the order of the polynomial basis of the multi-index.
-int multi_index_order(multi_index_t* m);
-
-// Returns the number of terms in the polynomial basis of the multi-index.
-int multi_index_size(multi_index_t* m);
-
-// Increments the given multi-index to move to the next term.
-// Returns true if the multi-index can be incremented again, false if not.
-bool multi_index_next(multi_index_t* m, int* x_order, int* y_order, int* z_order);
-
-// Resets the given multi-index to its first term.
-void multi_index_reset(multi_index_t* m);
-
 // This is a weighting function used for least-squares systems. Arguments:
 // - A context pointer storing information peculiar to this weighting function.
 // - A point x at which the weighting function is evaluated.
@@ -54,15 +33,6 @@ void multi_index_reset(multi_index_t* m);
 // - A pointer to storage for the weighting function value.
 // - A pointer to storage for the weighting function gradient.
 typedef void (*ls_weighting_func_t)(void*, point_t*, point_t*, double, double*, vector_t*);
-
-// Returns the size of the least-squares polynomial basis of order p.
-int poly_ls_basis_size(int p);
-
-// Computes the pth-order polynomial basis vector for the given point.
-void compute_poly_ls_basis_vector(int p, point_t* point, double* basis);
-
-// Computes the pth-order polynomial gradient basis vector for the given point.
-void compute_poly_ls_basis_gradient(int p, point_t* point, vector_t* gradients);
 
 // Computes the least squares system for a pth-order polynomial fit to a set 
 // of scattered point data, centered about the point x0. This computes the 

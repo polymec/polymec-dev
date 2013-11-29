@@ -22,7 +22,6 @@ add_polymec_test(test_create_rectilinear_mesh test_create_rectilinear_mesh.c)
 add_polymec_test(test_create_uniform_mesh test_create_uniform_mesh.c)
 add_polymec_test(test_graph_from_mesh_cells test_graph_from_mesh_cells.c)
 add_polymec_test(test_least_squares test_least_squares.c)
-add_polymec_test(test_lagrange_poly test_lagrange_poly.c)
 add_polymec_test(test_interpreter test_interpreter.c)
 add_polymec_test(test_exchanger test_exchanger.c)
 

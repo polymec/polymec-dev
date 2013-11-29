@@ -19,7 +19,7 @@
 
 struct polynomial_t 
 {
-  int order;
+  int degree;
   double* coeffs;
   point_t x0;
 };
@@ -32,27 +32,37 @@ static void polynomial_free(void* ctx, void* dummy)
 
 static const int N_coeffs[5] = {1, 4, 10, 20, 35};
 
-polynomial_t* polynomial_new(int order, double* coeffs, point_t* x0)
+int polynomial_basis_size(int degree)
 {
-  ASSERT(order >= 0);
-  ASSERT(order <= 4);
+  return N_coeffs[degree];
+}
+
+polynomial_t* polynomial_new(int degree, double* coeffs, point_t* x0)
+{
+  ASSERT(degree >= 0);
+  ASSERT(degree <= 4);
   polynomial_t* p = GC_MALLOC(sizeof(polynomial_t));
-  p->order = order;
-  p->coeffs = malloc(sizeof(double) * N_coeffs[order]);
-  memset(p->coeffs, 0, sizeof(double) * N_coeffs[order]);
-  p->x0 = *x0;
+  p->degree = degree;
+  p->coeffs = malloc(sizeof(double) * N_coeffs[degree]);
+  memset(p->coeffs, 0, sizeof(double) * N_coeffs[degree]);
+  if (x0 != NULL)
+    p->x0 = *x0;
+  else
+  {
+    p->x0.x = 0.0, p->x0.y = 0.0, p->x0.z = 0.0;
+  }
   GC_register_finalizer(p, polynomial_free, p, NULL, NULL);
   return p;
 }
 
-int polynomial_order(polynomial_t* p)
+int polynomial_degree(polynomial_t* p)
 {
-  return p->order;
+  return p->degree;
 }
 
 int polynomial_num_coeffs(polynomial_t* p)
 {
-  return N_coeffs[p->order];
+  return N_coeffs[p->degree];
 }
 
 double* polynomial_coeffs(polynomial_t* p)
@@ -70,24 +80,28 @@ static inline double poly_value0(polynomial_t* p, point_t* x)
   return p->coeffs[0];
 }
 
-static inline double poly1_value(polynomial_t* p, point_t* x)
+static inline double poly1_value(polynomial_t* p, point_t* X)
 {
-  return poly_value0(p, x) + 
-         p->coeffs[1]*x->x + p->coeffs[2]*x->y + p->coeffs[3]*x->z;
+  point_t Y = {X->x - p->x0.x, .y = X->y - p->x0.y, .z = X->z - p->x0.z};
+  double x = Y.x, y = Y.y, z = Y.z;
+  return poly_value0(p, &Y) + 
+         p->coeffs[1]*x + p->coeffs[2]*y + p->coeffs[3]*z;
 }
 
 static inline double poly2_value(polynomial_t* p, point_t* X)
 {
-  double x = X->x, y = X->y, z = X->z;
-  return poly1_value(p, X) + 
+  point_t Y = {X->x - p->x0.x, .y = X->y - p->x0.y, .z = X->z - p->x0.z};
+  double x = Y.x, y = Y.y, z = Y.z;
+  return poly1_value(p, &Y) + 
          p->coeffs[4]*x*x + p->coeffs[5]*x*y + p->coeffs[6]*x*z + 
          p->coeffs[7]*y*y + p->coeffs[8]*y*z + p->coeffs[9]*z*z;
 }
 
 static double poly3_value(polynomial_t* p, point_t* X)
 {
-  double x = X->x, y = X->y, z = X->z;
-  return poly2_value(p, X) + 
+  point_t Y = {X->x - p->x0.x, .y = X->y - p->x0.y, .z = X->z - p->x0.z};
+  double x = Y.x, y = Y.y, z = Y.z;
+  return poly2_value(p, &Y) + 
          p->coeffs[10]*x*x*x + p->coeffs[11]*x*x*y + p->coeffs[12]*x*x*z + 
          p->coeffs[13]*x*y*y + p->coeffs[14]*x*y*z + p->coeffs[15]*x*z*z + 
          p->coeffs[16]*y*y*y + p->coeffs[17]*y*y*z + p->coeffs[18]*y*z*z + 
@@ -97,8 +111,9 @@ static double poly3_value(polynomial_t* p, point_t* X)
 
 static double poly4_value(polynomial_t* p, point_t* X)
 {
-  double x = X->x, y = X->y, z = X->z;
-  return poly3_value(p, X) + 
+  point_t Y = {X->x - p->x0.x, .y = X->y - p->x0.y, .z = X->z - p->x0.z};
+  double x = Y.x, y = Y.y, z = Y.z;
+  return poly3_value(p, &Y) + 
          p->coeffs[20]*x*x*x*x + p->coeffs[21]*x*x*x*y + p->coeffs[22]*x*x*x*z + 
          p->coeffs[23]*x*x*y*y + p->coeffs[24]*x*x*y*z + p->coeffs[25]*x*x*z*z + 
          p->coeffs[26]*x*y*y*y + p->coeffs[27]*x*y*y*z + p->coeffs[28]*x*y*z*z + 
@@ -111,7 +126,7 @@ static poly_value_func poly_value[] = { poly_value0, poly1_value, poly2_value, p
 
 double polynomial_value(polynomial_t* p, point_t* x)
 {
-  return poly_value[p->order](p, x);
+  return poly_value[p->degree](p, x);
 }
 
 // Polynomial derivatives -- kind of a pain.
@@ -145,19 +160,19 @@ static poly_deriv_func poly1_deriv[2][2][2] = {
 
 static double poly2_dx(polynomial_t* p, point_t* X)
 {
-  double x = X->x, y = X->y, z = X->z;
+  double x = X->x - p->x0.x, y = X->y - p->x0.y, z = X->z - p->x0.z;
   return p->coeffs[1] + 2.0*p->coeffs[4]*x + p->coeffs[5]*y + p->coeffs[6]*z;
 }
 
 static double poly2_dy(polynomial_t* p, point_t* X)
 {
-  double x = X->x, y = X->y, z = X->z;
+  double x = X->x - p->x0.x, y = X->y - p->x0.y, z = X->z - p->x0.z;
   return p->coeffs[2] + p->coeffs[5]*x + 2.0*p->coeffs[7]*y + p->coeffs[8]*z;
 }
 
 static double poly2_dz(polynomial_t* p, point_t* X)
 {
-  double x = X->x, y = X->y, z = X->z;
+  double x = X->x - p->x0.x, y = X->y - p->x0.y, z = X->z - p->x0.z;
   return p->coeffs[3] + p->coeffs[6]*x + p->coeffs[8]*y + 2.0*p->coeffs[9]*z;
 }
 
@@ -204,7 +219,7 @@ static poly_deriv_func poly2_deriv[3][3][3] = {
 
 static double poly3_dx(polynomial_t* p, point_t* X)
 {
-  double x = X->x, y = X->y, z = X->z;
+  double x = X->x - p->x0.x, y = X->y - p->x0.y, z = X->z - p->x0.z;
   return p->coeffs[1] + 2.0*p->coeffs[4]*x + p->coeffs[5]*y + p->coeffs[6]*z +
          3.0*p->coeffs[10]*x*x + 2.0*p->coeffs[11]*x*y + 2.0*p->coeffs[12]*x*z +
          p->coeffs[13]*y*y + p->coeffs[14]*y*z + p->coeffs[15]*z*z;
@@ -212,7 +227,7 @@ static double poly3_dx(polynomial_t* p, point_t* X)
 
 static double poly3_dy(polynomial_t* p, point_t* X)
 {
-  double x = X->x, y = X->y, z = X->z;
+  double x = X->x - p->x0.x, y = X->y - p->x0.y, z = X->z - p->x0.z;
   return p->coeffs[2] + p->coeffs[5]*x + 2.0*p->coeffs[7]*y + p->coeffs[8]*z +
          p->coeffs[11]*x*x + 2.0*p->coeffs[13]*x*y + p->coeffs[14]*x*z + 
          3.0*p->coeffs[16]*y*y + 2.0*p->coeffs[17]*y*z + p->coeffs[18]*z*z;
@@ -220,7 +235,7 @@ static double poly3_dy(polynomial_t* p, point_t* X)
 
 static double poly3_dz(polynomial_t* p, point_t* X)
 {
-  double x = X->x, y = X->y, z = X->z;
+  double x = X->x - p->x0.x, y = X->y - p->x0.y, z = X->z - p->x0.z;
   return p->coeffs[3] + p->coeffs[6]*x + p->coeffs[8]*y + 2.0*p->coeffs[9]*z +
          p->coeffs[12]*x*x + p->coeffs[14]*x*y + 2.0*p->coeffs[15]*x*z + 
          p->coeffs[17]*y*y + 2.0*p->coeffs[18]*y*z + 3.0*p->coeffs[19]*z*z;
@@ -228,41 +243,41 @@ static double poly3_dz(polynomial_t* p, point_t* X)
 
 static double poly3_dxx(polynomial_t* p, point_t* X)
 {
-  double x = X->x, y = X->y, z = X->z;
+  double x = X->x - p->x0.x, y = X->y - p->x0.y, z = X->z - p->x0.z;
   return 2.0*p->coeffs[4] + 6.0*p->coeffs[10]*x + 2.0*p->coeffs[11]*y + 2.0*p->coeffs[12]*z;
 }
 
 static double poly3_dxy(polynomial_t* p, point_t* X)
 {
-  double x = X->x, y = X->y, z = X->z;
+  double x = X->x - p->x0.x, y = X->y - p->x0.y, z = X->z - p->x0.z;
   return p->coeffs[5] + 2.0*p->coeffs[11]*x + 
          2.0*p->coeffs[13]*y + p->coeffs[14]*z;
 }
 
 static double poly3_dxz(polynomial_t* p, point_t* X)
 {
-  double x = X->x, y = X->y, z = X->z;
+  double x = X->x - p->x0.x, y = X->y - p->x0.y, z = X->z - p->x0.z;
   return p->coeffs[6] + 2.0*p->coeffs[12]*x +
          p->coeffs[14]*y + 2.0*p->coeffs[15]*z;
 }
 
 static double poly3_dyy(polynomial_t* p, point_t* X)
 {
-  double x = X->x, y = X->y, z = X->z;
+  double x = X->x - p->x0.x, y = X->y - p->x0.y, z = X->z - p->x0.z;
   return 2.0*p->coeffs[7] + 2.0*p->coeffs[13]*x +
          6.0*p->coeffs[16]*y + 2.0*p->coeffs[17]*z;
 }
 
 static double poly3_dyz(polynomial_t* p, point_t* X)
 {
-  double x = X->x, y = X->y, z = X->z;
+  double x = X->x - p->x0.x, y = X->y - p->x0.y, z = X->z - p->x0.z;
   return p->coeffs[8] + p->coeffs[14]*x + 
          2.0*p->coeffs[17]*y + 2.0*p->coeffs[18]*z;
 }
 
 static double poly3_dzz(polynomial_t* p, point_t* X)
 {
-  double y = X->y, z = X->z;
+  double x = X->x - p->x0.x, y = X->y - p->x0.y, z = X->z - p->x0.z;
   return 2.0*p->coeffs[9] + 2.0*p->coeffs[15]*z + 
          2.0*p->coeffs[18]*y + 6.0*p->coeffs[19]*z;
 }
@@ -337,8 +352,9 @@ static poly_deriv_func poly3_deriv[4][4][4] = {
 
 static double poly4_dx(polynomial_t* p, point_t* X)
 {
-  double x = X->x, y = X->y, z = X->z;
-  return poly3_dx(p, X) + 
+  point_t Y = {X->x - p->x0.x, .y = X->y - p->x0.y, .z = X->z - p->x0.z};
+  double x = Y.x, y = Y.y, z = Y.z;
+  return poly3_dx(p, &Y) + 
     4.0*p->coeffs[20]*x*x*x + 3.0*p->coeffs[21]*x*x*y + 3.0*p->coeffs[22]*x*x*z +
     2.0*p->coeffs[23]*x*y*y + 2.0*p->coeffs[24]*x*y*z + 2.0*p->coeffs[25]*x*z*z + 
     p->coeffs[26]*y*y*y + p->coeffs[27]*y*y*z + p->coeffs[28]*y*z*z + p->coeffs[29]*z*z*z;
@@ -346,8 +362,9 @@ static double poly4_dx(polynomial_t* p, point_t* X)
 
 static double poly4_dy(polynomial_t* p, point_t* X)
 {
-  double x = X->x, y = X->y, z = X->z;
-  return poly3_dy(p, X) + 
+  point_t Y = {X->x - p->x0.x, .y = X->y - p->x0.y, .z = X->z - p->x0.z};
+  double x = Y.x, y = Y.y, z = Y.z;
+  return poly3_dy(p, &Y) + 
     p->coeffs[21]*x*x*x + 2.0*p->coeffs[23]*x*x*y + p->coeffs[24]*x*x*z + 
     3.0*p->coeffs[26]*x*y*y + 2.0*p->coeffs[27]*x*y*z + p->coeffs[28]*x*z*z + 
     4.0*p->coeffs[30]*y*y*y + 3.0*p->coeffs[31]*y*y*z + 2.0*p->coeffs[32]*y*z*z + 
@@ -356,8 +373,9 @@ static double poly4_dy(polynomial_t* p, point_t* X)
 
 static double poly4_dz(polynomial_t* p, point_t* X)
 {
-  double x = X->x, y = X->y, z = X->z;
-  return poly3_dz(p, X) + 
+  point_t Y = {X->x - p->x0.x, .y = X->y - p->x0.y, .z = X->z - p->x0.z};
+  double x = Y.x, y = Y.y, z = Y.z;
+  return poly3_dz(p, &Y) + 
     p->coeffs[22]*x*x*x + p->coeffs[24]*x*x*y + 2.0*p->coeffs[25]*x*x*z + 
     p->coeffs[27]*x*y*y + 2.0*p->coeffs[28]*x*y*z + 3.0*p->coeffs[29]*x*z*z + 
     p->coeffs[31]*y*y*y + 2.0*p->coeffs[32]*y*y*z + 3.0*p->coeffs[33]*y*z*z + 
@@ -366,119 +384,135 @@ static double poly4_dz(polynomial_t* p, point_t* X)
 
 static double poly4_dxx(polynomial_t* p, point_t* X)
 {
-  double x = X->x, y = X->y, z = X->z;
-  return poly3_dxx(p, X) + 
+  point_t Y = {X->x - p->x0.x, .y = X->y - p->x0.y, .z = X->z - p->x0.z};
+  double x = Y.x, y = Y.y, z = Y.z;
+  return poly3_dxx(p, &Y) + 
     12.0*p->coeffs[20]*x*x + 6.0*p->coeffs[21]*x*y + 6.0*p->coeffs[22]*x*z +
     2.0*p->coeffs[23]*y*y + 2.0*p->coeffs[24]*y*z + 2.0*p->coeffs[25]*z*z;
 }
 
 static double poly4_dxy(polynomial_t* p, point_t* X)
 {
-  double x = X->x, y = X->y, z = X->z;
-  return poly3_dxy(p, X) + 
+  point_t Y = {X->x - p->x0.x, .y = X->y - p->x0.y, .z = X->z - p->x0.z};
+  double x = Y.x, y = Y.y, z = Y.z;
+  return poly3_dxy(p, &Y) + 
     3.0*p->coeffs[21]*x*x + 4.0*p->coeffs[23]*x*y + 2.0*p->coeffs[24]*x*z + 
     3.0*p->coeffs[26]*y*y + 2.0*p->coeffs[27]*y*z + p->coeffs[28]*z*z;
 }
 
 static double poly4_dxz(polynomial_t* p, point_t* X)
 {
-  double x = X->x, y = X->y, z = X->z;
-  return poly3_dxz(p, X) + 
+  point_t Y = {X->x - p->x0.x, .y = X->y - p->x0.y, .z = X->z - p->x0.z};
+  double x = Y.x, y = Y.y, z = Y.z;
+  return poly3_dxz(p, &Y) + 
     3.0*p->coeffs[22]*x*x + 2.0*p->coeffs[24]*x*y + 4.0*p->coeffs[25]*x*z + 
     p->coeffs[27]*y*y + 2.0*p->coeffs[28]*y*z + 3.0*p->coeffs[29]*z*z;
 }
 
 static double poly4_dyy(polynomial_t* p, point_t* X)
 {
-  double x = X->x, y = X->y, z = X->z;
-  return poly3_dyy(p, X) + 
+  point_t Y = {X->x - p->x0.x, .y = X->y - p->x0.y, .z = X->z - p->x0.z};
+  double x = Y.x, y = Y.y, z = Y.z;
+  return poly3_dyy(p, &Y) + 
     2.0*p->coeffs[23]*x*x + 6.0*p->coeffs[26]*x*y + 2.0*p->coeffs[27]*x*z + 
     12.0*p->coeffs[30]*y*y + 6.0*p->coeffs[31]*y*z + 2.0*p->coeffs[32]*z*z;
 }
 
 static double poly4_dyz(polynomial_t* p, point_t* X)
 {
-  double x = X->x, y = X->y, z = X->z;
-  return poly3_dyz(p, X) + 
+  point_t Y = {X->x - p->x0.x, .y = X->y - p->x0.y, .z = X->z - p->x0.z};
+  double x = Y.x, y = Y.y, z = Y.z;
+  return poly3_dyz(p, &Y) + 
     p->coeffs[24]*x*x + 2.0*p->coeffs[27]*x*y + 2.0*p->coeffs[28]*x*z + 
     3.0*p->coeffs[31]*y*y + 4.0*p->coeffs[32]*y*z + 3.0*p->coeffs[33]*z*z;
 }
 
 static double poly4_dzz(polynomial_t* p, point_t* X)
 {
-  double x = X->x, y = X->y, z = X->z;
-  return poly3_dzz(p, X) + 
+  point_t Y = {X->x - p->x0.x, .y = X->y - p->x0.y, .z = X->z - p->x0.z};
+  double x = Y.x, y = Y.y, z = Y.z;
+  return poly3_dzz(p, &Y) + 
     2.0*p->coeffs[25]*x*x + 2.0*p->coeffs[28]*x*y + 6.0*p->coeffs[29]*x*z + 
     2.0*p->coeffs[32]*y*y + 6.0*p->coeffs[33]*y*z + 12.0*p->coeffs[34]*z*z;
 }
 
 static double poly4_dxxx(polynomial_t* p, point_t* X)
 {
-  double x = X->x, y = X->y, z = X->z;
-  return poly3_dxxx(p, X) + 
+  point_t Y = {X->x - p->x0.x, .y = X->y - p->x0.y, .z = X->z - p->x0.z};
+  double x = Y.x, y = Y.y, z = Y.z;
+  return poly3_dxxx(p, &Y) + 
     24.0*p->coeffs[20]*x + 6.0*p->coeffs[21]*y + 6.0*p->coeffs[22]*z;
 }
 
 static double poly4_dxxy(polynomial_t* p, point_t* X)
 {
-  double x = X->x, y = X->y, z = X->z;
-  return poly3_dxxy(p, X) + 
+  point_t Y = {X->x - p->x0.x, .y = X->y - p->x0.y, .z = X->z - p->x0.z};
+  double x = Y.x, y = Y.y, z = Y.z;
+  return poly3_dxxy(p, &Y) + 
     6.0*p->coeffs[21]*x + 4.0*p->coeffs[23]*y + 2.0*p->coeffs[24]*z;
 }
 
 static double poly4_dxxz(polynomial_t* p, point_t* X)
 {
-  double x = X->x, y = X->y, z = X->z;
-  return poly3_dxxz(p, X) + 
+  point_t Y = {X->x - p->x0.x, .y = X->y - p->x0.y, .z = X->z - p->x0.z};
+  double x = Y.x, y = Y.y, z = Y.z;
+  return poly3_dxxz(p, &Y) + 
     6.0*p->coeffs[22]*x + 2.0*p->coeffs[24]*y + 4.0*p->coeffs[25]*z;
 }
 
 static double poly4_dxyy(polynomial_t* p, point_t* X)
 {
-  double x = X->x, y = X->y, z = X->z;
-  return poly3_dxyy(p, X) + 
+  point_t Y = {X->x - p->x0.x, .y = X->y - p->x0.y, .z = X->z - p->x0.z};
+  double x = Y.x, y = Y.y, z = Y.z;
+  return poly3_dxyy(p, &Y) + 
     4.0*p->coeffs[23]*x + 6.0*p->coeffs[26]*y + 2.0*p->coeffs[27]*z;
 }
 
 static double poly4_dxyz(polynomial_t* p, point_t* X)
 {
-  double x = X->x, y = X->y, z = X->z;
-  return poly3_dxyz(p, X) + 
+  point_t Y = {X->x - p->x0.x, .y = X->y - p->x0.y, .z = X->z - p->x0.z};
+  double x = Y.x, y = Y.y, z = Y.z;
+  return poly3_dxyz(p, &Y) + 
     2.0*p->coeffs[24]*x + 2.0*p->coeffs[27]*y + 2.0*p->coeffs[28]*z;
 }
 
 static double poly4_dxzz(polynomial_t* p, point_t* X)
 {
-  double x = X->x, y = X->y, z = X->z;
-  return poly3_dxzz(p, X) + 
+  point_t Y = {X->x - p->x0.x, .y = X->y - p->x0.y, .z = X->z - p->x0.z};
+  double x = Y.x, y = Y.y, z = Y.z;
+  return poly3_dxzz(p, &Y) + 
     4.0*p->coeffs[25]*x + 2.0*p->coeffs[28]*y + 6.0*p->coeffs[29]*z;
 }
 
 static double poly4_dyyy(polynomial_t* p, point_t* X)
 {
-  double x = X->x, y = X->y, z = X->z;
-  return poly3_dyyy(p, X) + 
+  point_t Y = {X->x - p->x0.x, .y = X->y - p->x0.y, .z = X->z - p->x0.z};
+  double x = Y.x, y = Y.y, z = Y.z;
+  return poly3_dyyy(p, &Y) + 
     6.0*p->coeffs[26]*x + 24.0*p->coeffs[30]*y + 6.0*p->coeffs[31]*z;
 }
 
 static double poly4_dyyz(polynomial_t* p, point_t* X)
 {
-  double x = X->x, y = X->y, z = X->z;
-  return poly3_dyyz(p, X) + 
+  point_t Y = {X->x - p->x0.x, .y = X->y - p->x0.y, .z = X->z - p->x0.z};
+  double x = Y.x, y = Y.y, z = Y.z;
+  return poly3_dyyz(p, &Y) + 
     2.0*p->coeffs[27]*x + 6.0*p->coeffs[31]*y + 4.0*p->coeffs[32]*z;
 }
 
 static double poly4_dyzz(polynomial_t* p, point_t* X)
 {
-  double x = X->x, y = X->y, z = X->z;
-  return poly3_dyzz(p, X) + 
+  point_t Y = {X->x - p->x0.x, .y = X->y - p->x0.y, .z = X->z - p->x0.z};
+  double x = Y.x, y = Y.y, z = Y.z;
+  return poly3_dyzz(p, &Y) + 
     2.0*p->coeffs[28]*x + 4.0*p->coeffs[32]*y + 6.0*p->coeffs[33]*z;
 }
 
 static double poly4_dzzz(polynomial_t* p, point_t* X)
 {
-  double x = X->x, y = X->y, z = X->z;
-  return poly3_dzzz(p, X) + 
+  point_t Y = {X->x - p->x0.x, .y = X->y - p->x0.y, .z = X->z - p->x0.z};
+  double x = Y.x, y = Y.y, z = Y.z;
+  return poly3_dzzz(p, &Y) + 
     6.0*p->coeffs[29]*x + 6.0*p->coeffs[33]*y + 24.0*p->coeffs[34]*z;
 }
 
@@ -586,17 +620,17 @@ static poly_deriv_func poly4_deriv[5][5][5] = {
 
 double polynomial_deriv(polynomial_t* p, int x_deriv, int y_deriv, int z_deriv, point_t* x)
 {
-  if ((x_deriv + y_deriv + z_deriv) > p->order)
+  if ((x_deriv + y_deriv + z_deriv) > p->degree)
     return 0.0;
-  else if (p->order == 1)
+  else if (p->degree == 1)
     return poly1_deriv[x_deriv][y_deriv][z_deriv](p, x);
-  else if (p->order == 2)
+  else if (p->degree == 2)
     return poly2_deriv[x_deriv][y_deriv][z_deriv](p, x);
-  else if (p->order == 3)
+  else if (p->degree == 3)
     return poly3_deriv[x_deriv][y_deriv][z_deriv](p, x);
   else 
   {
-    ASSERT(p->order == 4);
+    ASSERT(p->degree == 4);
     return poly4_deriv[x_deriv][y_deriv][z_deriv](p, x);
   }
 }
@@ -616,7 +650,7 @@ static int z_pow[35] = {0, 0, 0, 1, 0, 0, 1, 0, 1, 2,
 
 bool polynomial_next(polynomial_t* p, int* pos, double* coeff, int* x_power, int* y_power, int* z_power)
 {
-  if (*pos >= N_coeffs[p->order])
+  if (*pos >= N_coeffs[p->degree])
     return false;
   *coeff = p->coeffs[*pos];
   *x_power = x_pow[*pos];
@@ -636,7 +670,7 @@ static void wrap_eval_deriv(void* context, int deriv, point_t* x, double* result
 {
   polynomial_t* p = context;
   int result_size = pow(3, deriv);
-  if (deriv > p->order)
+  if (deriv > p->degree)
     memset(result, 0, sizeof(double) * result_size);
   else if (deriv == 0)
     *result = polynomial_value(p, x);
@@ -665,7 +699,7 @@ sp_func_t* polynomial_sp_func(polynomial_t* p)
                       .has_deriv = wrap_has_deriv,
                       .dtor = NULL};
   char name[128];
-  snprintf(name, 128, "polynomial (p = %d)", p->order);
+  snprintf(name, 128, "polynomial (p = %d)", p->degree);
   return sp_func_new(name, p, vtable, SP_INHOMOGENEOUS, 1);
 }
 

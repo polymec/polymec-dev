@@ -18,149 +18,32 @@
 #include <string.h>
 #include <gc/gc.h>
 #include "core/least_squares.h"
+#include "core/polynomial.h"
 #include "core/linear_algebra.h"
 
-struct multi_index_t 
+static void compute_poly_basis_vector(polynomial_t* p, point_t* X, double* basis_vector)
 {
-  int p, x_order, y_order, z_order;
-  int offset; // Offset in flattened index space.
-};
-
-multi_index_t* multi_index_new(int p)
-{
-  ASSERT(p >= 0);
-  ASSERT(p < 4);
-  multi_index_t* m = GC_MALLOC(sizeof(multi_index_t));
-  m->p = p;
-  m->x_order = m->y_order = m->z_order = 0;
-  m->offset = 0;
-  return m;
+  point_t* x0 = polynomial_x0(p);
+  double x = X->x - x0->x, y = X->y - x0->y, z = X->z - x0->z;
+  int pos = 0, x_pow, y_pow, z_pow, offset = 0;
+  double coeff;
+  while (polynomial_next(p, &pos, &coeff, &x_pow, &y_pow, &z_pow))
+    basis_vector[offset++] = pow(x, x_pow) * pow(y, y_pow) * pow(z, z_pow);
 }
 
-static int multi_index_sizes[] = {1, 4, 10, 18};
-
-bool multi_index_next(multi_index_t* m, int* x_order, int* y_order, int* z_order)
+static void compute_poly_basis_gradients(polynomial_t* p, point_t* X, vector_t* basis_gradients)
 {
-  ASSERT(m->p >= 0);
-  ASSERT(m->p < 4);
-  if (m->offset == -1)
-    return false;
-  if (m->p == 0)
+  point_t* x0 = polynomial_x0(p);
+  double x = X->x - x0->x, y = X->y - x0->y, z = X->z - x0->z;
+  int pos = 0, x_pow, y_pow, z_pow, offset = 0;
+  double coeff;
+  while (polynomial_next(p, &pos, &coeff, &x_pow, &y_pow, &z_pow))
   {
-    *x_order = m->x_order;
-    *y_order = m->y_order;
-    *z_order = m->z_order;
-    m->offset = -1;
+    basis_gradients[offset].x = 1.0*x_pow*pow(x, x_pow-1) * pow(y, y_pow) * pow(z, z_pow);
+    basis_gradients[offset].y = pow(x, x_pow-1) * 1.0*y_pow*pow(y, y_pow-1) * pow(z, z_pow);
+    basis_gradients[offset].z = pow(x, x_pow-1) * pow(y, y_pow) * 1.0*z_pow*pow(z, z_pow-1);
+    ++offset;
   }
-  if (m->p == 1)
-  {
-    static const multi_index_t multi_index[] = 
-    {
-      {.p = 1, .x_order = 0, .y_order = 0, .z_order = 0, .offset = 0}, 
-      {.p = 1, .x_order = 1, .y_order = 0, .z_order = 0, .offset = 1}, 
-      {.p = 1, .x_order = 0, .y_order = 1, .z_order = 0, .offset = 2}, 
-      {.p = 1, .x_order = 0, .y_order = 0, .z_order = 1, .offset = 3},
-      {.p = 1, .offset = -1}
-    };
-    *x_order = m->x_order;
-    *y_order = m->y_order;
-    *z_order = m->z_order;
-    *m = multi_index[m->offset+1];
-  }
-  else if (m->p == 2)
-  {
-    static const multi_index_t multi_index[] = 
-    {
-      {.p = 2, .x_order = 0, .y_order = 0, .z_order = 0, .offset = 0}, 
-      {.p = 2, .x_order = 1, .y_order = 0, .z_order = 0, .offset = 1}, 
-      {.p = 2, .x_order = 0, .y_order = 1, .z_order = 0, .offset = 2}, 
-      {.p = 2, .x_order = 0, .y_order = 0, .z_order = 1, .offset = 3},
-      {.p = 2, .x_order = 2, .y_order = 0, .z_order = 0, .offset = 4},
-      {.p = 2, .x_order = 1, .y_order = 1, .z_order = 0, .offset = 5},
-      {.p = 2, .x_order = 1, .y_order = 0, .z_order = 1, .offset = 6},
-      {.p = 2, .x_order = 0, .y_order = 2, .z_order = 0, .offset = 7},
-      {.p = 2, .x_order = 0, .y_order = 1, .z_order = 1, .offset = 8},
-      {.p = 2, .x_order = 0, .y_order = 0, .z_order = 2, .offset = 9},
-      {.p = 1, .offset = -1}
-    };
-    *x_order = m->x_order;
-    *y_order = m->y_order;
-    *z_order = m->z_order;
-    *m = multi_index[m->offset+1];
-  }
-  else if (m->p == 3)
-  {
-    static const multi_index_t multi_index[] = 
-    {
-      {.p = 3, .x_order = 0, .y_order = 0, .z_order = 0, .offset = 0}, 
-      {.p = 3, .x_order = 1, .y_order = 0, .z_order = 0, .offset = 1}, 
-      {.p = 3, .x_order = 0, .y_order = 1, .z_order = 0, .offset = 2}, 
-      {.p = 3, .x_order = 0, .y_order = 0, .z_order = 1, .offset = 3},
-      {.p = 3, .x_order = 2, .y_order = 0, .z_order = 0, .offset = 4},
-      {.p = 3, .x_order = 1, .y_order = 1, .z_order = 0, .offset = 5},
-      {.p = 3, .x_order = 1, .y_order = 0, .z_order = 1, .offset = 6},
-      {.p = 3, .x_order = 0, .y_order = 2, .z_order = 0, .offset = 7},
-      {.p = 3, .x_order = 0, .y_order = 1, .z_order = 1, .offset = 8},
-      {.p = 3, .x_order = 0, .y_order = 0, .z_order = 2, .offset = 9},
-      {.p = 3, .x_order = 3, .y_order = 0, .z_order = 0, .offset = 10},
-      {.p = 3, .x_order = 2, .y_order = 1, .z_order = 0, .offset = 11},
-      {.p = 3, .x_order = 2, .y_order = 0, .z_order = 1, .offset = 12},
-      {.p = 3, .x_order = 1, .y_order = 2, .z_order = 0, .offset = 13},
-      {.p = 3, .x_order = 1, .y_order = 1, .z_order = 1, .offset = 14},
-      {.p = 3, .x_order = 0, .y_order = 3, .z_order = 0, .offset = 15},
-      {.p = 3, .x_order = 0, .y_order = 2, .z_order = 1, .offset = 16},
-      {.p = 3, .x_order = 0, .y_order = 1, .z_order = 2, .offset = 17},
-      {.p = 1, .offset = -1}
-    };
-    *x_order = m->x_order;
-    *y_order = m->y_order;
-    *z_order = m->z_order;
-    *m = multi_index[m->offset+1];
-  }
-  return true; 
-}
-
-void multi_index_reset(multi_index_t* m)
-{
-  m->offset = 0;
-  m->x_order = m->y_order = m->z_order = 0;
-}
-
-int multi_index_order(multi_index_t* m)
-{
-  return m->p;
-}
-
-int multi_index_size(multi_index_t* m)
-{
-  return multi_index_sizes[m->p];
-}
-
-int poly_ls_basis_size(int p)
-{
-  return multi_index_sizes[p];
-}
-
-void compute_poly_ls_basis_vector(int p, point_t* point, double* basis)
-{
-  multi_index_t* m = multi_index_new(p);
-  int i = 0, x = 0, y = 0, z = 0;
-  while (multi_index_next(m, &x, &y, &z))
-    basis[i++] = pow(point->x, x)*pow(point->y, y)*pow(point->z, z);
-  m = NULL;
-}
-
-void compute_poly_ls_basis_gradient(int p, point_t* point, vector_t* gradients)
-{
-  multi_index_t* m = multi_index_new(p);
-  int i = 0, x = 0, y = 0, z = 0;
-  while (multi_index_next(m, &x, &y, &z))
-  {
-    gradients[i].x = (x == 0) ? 0.0 : x*pow(point->x, x-1)*pow(point->y, y)*pow(point->z, z);
-    gradients[i].y = (y == 0) ? 0.0 : pow(point->x, x)*y*pow(point->y, y-1)*pow(point->z, z);
-    gradients[i++].z = (z == 0) ? 0.0 : pow(point->x, x)*pow(point->y, y)*z*pow(point->z, z-1);
-  }
-  m = NULL;
 }
 
 void compute_poly_ls_system(int p, point_t* x0, point_t* points, int num_points, 
@@ -168,10 +51,16 @@ void compute_poly_ls_system(int p, point_t* x0, point_t* points, int num_points,
 {
   ASSERT(p >= 0);
   ASSERT(p < 4);
-  ASSERT(num_points >= multi_index_sizes[p]);
   ASSERT(moment_matrix != NULL);
   ASSERT(rhs != NULL);
-  int size = multi_index_sizes[p];
+  int size = polynomial_basis_size(p);
+  ASSERT(num_points >= size);
+
+  // Set up a polynomial basis, expanded about x0.
+  double coeffs[size];
+  for (int i = 0; i < size; ++i)
+    coeffs[i] = 1.0;
+  polynomial_t* poly = polynomial_new(p, coeffs, x0);
   double basis[size];
 
   // Zero the system.
@@ -180,17 +69,7 @@ void compute_poly_ls_system(int p, point_t* x0, point_t* points, int num_points,
  
   for (int n = 0; n < num_points; ++n)
   {
-    if (x0 != NULL)
-    {
-      point_t y = {.x = points[n].x - x0->x, 
-                   .y = points[n].y - x0->y,
-                   .z = points[n].z - x0->z};
-      compute_poly_ls_basis_vector(p, &y, basis);
-    }
-    else
-    {
-      compute_poly_ls_basis_vector(p, &points[n], basis);
-    }
+    compute_poly_basis_vector(poly, &points[n], basis);
     for (int i = 0; i < size; ++i)
     {
       for (int j = 0; j < size; ++j)
@@ -198,6 +77,8 @@ void compute_poly_ls_system(int p, point_t* x0, point_t* points, int num_points,
       rhs[i] += basis[i]*data[n];
     }
   }
+
+  poly = NULL;
 }
 
 void compute_weighted_poly_ls_system(int p, ls_weighting_func_t W, point_t* x0, point_t* points, int num_points, 
@@ -207,8 +88,8 @@ void compute_weighted_poly_ls_system(int p, ls_weighting_func_t W, point_t* x0, 
   ASSERT(p < 4);
   ASSERT(moment_matrix != NULL);
   ASSERT(rhs != NULL);
-  int size = multi_index_sizes[p];
-  double basis[size];
+  int size = polynomial_basis_size(p);
+  ASSERT(num_points >= size);
 
   memset(moment_matrix, 0, sizeof(double)*size*size);
   memset(rhs, 0, sizeof(double)*size);
@@ -221,25 +102,20 @@ void compute_weighted_poly_ls_system(int p, ls_weighting_func_t W, point_t* x0, 
       h += point_distance(&points[n], &points[l]);
   h /= (num_points*(num_points+1)/2 - num_points);
 
+  // Set up a polynomial basis, expanded about x0.
+  double coeffs[size];
+  for (int i = 0; i < size; ++i)
+    coeffs[i] = 1.0;
+  polynomial_t* poly = polynomial_new(p, coeffs, x0);
+  double basis[size];
+
   for (int n = 0; n < num_points; ++n)
   {
-    double d;
-    if (x0 != NULL)
-    {
-      point_t y = {.x = points[n].x - x0->x, 
-                   .y = points[n].y - x0->y,
-                   .z = points[n].z - x0->z};
-      compute_poly_ls_basis_vector(p, &y, basis);
-      d = y.x*y.x + y.y*y.y + y.z*y.z;
-    }
-    else
-    {
-      compute_poly_ls_basis_vector(p, &points[n], basis);
-      d = points[n].x*points[n].x + points[n].y*points[n].y + points[n].z*points[n].z;
-    }
+    compute_poly_basis_vector(poly, &points[n], basis);
+
     double Wd;
     vector_t gradWd;
-    W(NULL, &points[n], x0, h, &Wd, &gradWd);
+    W(NULL, &points[n], polynomial_x0(poly), h, &Wd, &gradWd);
     for (int i = 0; i < size; ++i)
     {
       for (int j = 0; j < size; ++j)
@@ -252,13 +128,11 @@ void compute_weighted_poly_ls_system(int p, ls_weighting_func_t W, point_t* x0, 
 // Shape function basis.
 struct poly_ls_shape_t 
 {
-  int p; // Order of basis.
+  polynomial_t* poly; // Polynomial expanded about origin.
   bool compute_gradients; // Compute gradients, or no?
-  int dim; // Dimension of basis.
   double *domain_basis; // Polynomial basis, calculated during set_domain().
   int num_points; // Number of points in domain.
   point_t* points; // Points in domain.
-  point_t x0; // Origin.
   double h; // Smoothing length scale.
   ls_weighting_func_t weighting_func; // Weighting function.
   void* w_context; // Context pointer for weighting function.
@@ -287,14 +161,17 @@ static void no_weighting_func(void* context, point_t* x, point_t* x0, double h, 
 poly_ls_shape_t* poly_ls_shape_new(int p, bool compute_gradients)
 {
   ASSERT(p >= 0);
-  ASSERT(p < 4);
+  ASSERT(p <= 4);
   poly_ls_shape_t* N = GC_MALLOC(sizeof(poly_ls_shape_t));
-  N->p = p;
+  int dim = polynomial_basis_size(p);
+  double coeffs[dim];
+  for (int i = 0; i < dim; ++i)
+    coeffs[i] = 1.0;
+  N->poly = polynomial_new(p, coeffs, NULL);
   N->compute_gradients = compute_gradients;
   N->weighting_func = &no_weighting_func;
   N->w_context = NULL;
   N->w_dtor = NULL;
-  N->dim = poly_ls_basis_size(p);
   N->domain_basis = NULL;
   N->num_points = 0;
   N->points = NULL;
@@ -305,26 +182,21 @@ poly_ls_shape_t* poly_ls_shape_new(int p, bool compute_gradients)
 
 void poly_ls_shape_set_domain(poly_ls_shape_t* N, point_t* x0, point_t* points, int num_points)
 {
-  int dim = N->dim;
+  ASSERT(x0 != NULL);
+
+  int dim = polynomial_num_coeffs(N->poly);
   if (num_points != N->num_points)
   {
     N->num_points = num_points;
     N->points = realloc(N->points, sizeof(point_t)*num_points);
     N->domain_basis = realloc(N->domain_basis, sizeof(double)*dim*num_points);
   }
-  N->x0.x = x0->x;
-  N->x0.y = x0->y;
-  N->x0.z = x0->z;
+  *polynomial_x0(N->poly) = *x0;
   memcpy(N->points, points, sizeof(point_t)*num_points);
 
+  // Compute the basis vectors.
   for (int n = 0; n < num_points; ++n)
-  {
-    // Expand about x0.
-    point_t y = {.x = points[n].x - x0->x, 
-                 .y = points[n].y - x0->y,
-                 .z = points[n].z - x0->z};
-    compute_poly_ls_basis_vector(N->p, &y, &N->domain_basis[dim*n]);
-  }
+    compute_poly_basis_vector(N->poly, &points[n], &N->domain_basis[dim*n]);
 
   // Compute the average distance between the points. This will serve as 
   // our spatial scale length, h.
@@ -343,7 +215,7 @@ void poly_ls_shape_compute(poly_ls_shape_t* N, point_t* x, double* values)
 void poly_ls_shape_compute_gradients(poly_ls_shape_t* N, point_t* x, double* values, vector_t* gradients)
 {
   ASSERT((gradients == NULL) || N->compute_gradients);
-  int dim = N->dim;
+  int dim = polynomial_num_coeffs(N->poly);
   int num_points = N->num_points;
 
   // Compute the weights and their gradients at x.
@@ -387,8 +259,7 @@ void poly_ls_shape_compute_gradients(poly_ls_shape_t* N, point_t* x, double* val
   int one = 1;
   char trans = 'T';
   double basis[dim];
-  point_t y = {.x = x->x - N->x0.x, .y = x->y - N->x0.y, .z = x->z - N->x0.z};
-  compute_poly_ls_basis_vector(N->p, &y, basis);
+  compute_poly_basis_vector(N->poly, x, basis);
   //printf("y = %g %g %g, basis = ", y.x, y.y, y.z);
   //for (int i = 0; i < dim; ++i)
   //printf("%g ", basis[i]);
@@ -459,7 +330,7 @@ void poly_ls_shape_compute_gradients(poly_ls_shape_t* N, point_t* x, double* val
 
     // 1st term: gradient of basis, dotted with Ainv * B.
     vector_t basis_grads[dim];
-    compute_poly_ls_basis_gradient(N->p, &y, basis_grads);
+    compute_poly_basis_gradients(N->poly, x, basis_grads);
     double dpdx[dim], dpdy[dim], dpdz[dim];
     for (int i = 0; i < dim; ++i)
     {
