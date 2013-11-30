@@ -94,7 +94,7 @@ static ls_weight_func_t* simple_w_new(int A, double B)
   return ls_weight_func_new("Simple", &W_data, vtable);
 }
 
-void test_poly_fit(int p, point_t* x0, point_t* points, int num_points, double* coeffs, bool weighted)
+void test_poly_fit(void** state, int p, point_t* x0, point_t* points, int num_points, double* coeffs, bool weighted)
 {
   polynomial_t* poly = polynomial_new(p, coeffs, x0);
 
@@ -134,7 +134,7 @@ void test_poly_fit(int p, point_t* x0, point_t* points, int num_points, double* 
   poly = NULL;
 }
 
-void test_poly_shape_functions(int p, point_t* x0, point_t* points, int num_points, double* coeffs, bool weighted)
+void test_poly_shape_functions(void** state, int p, point_t* x0, point_t* points, int num_points, double* coeffs, bool weighted)
 {
   polynomial_t* poly = polynomial_new(p, coeffs, x0);
 
@@ -178,7 +178,7 @@ void test_poly_shape_functions(int p, point_t* x0, point_t* points, int num_poin
   poly = NULL;
 }
 
-void test_poly_shape_function_gradients(int p, point_t* x0, point_t* points, int num_points, double* coeffs, bool weighted)
+void test_poly_shape_function_gradients(void** state, int p, point_t* x0, point_t* points, int num_points, double* coeffs, bool weighted)
 {
   polynomial_t* poly = polynomial_new(p, coeffs, x0);
 
@@ -256,7 +256,7 @@ void test_poly_shape_function_gradients(int p, point_t* x0, point_t* points, int
   poly = NULL;
 }
 
-void test_poly_shape_function_constraints(int p, point_t* x0, point_t* points, int num_points, int num_ghosts, double* coeffs, bool weighted)
+void test_poly_shape_function_constraints(void** state, int p, point_t* x0, point_t* points, int num_points, int num_ghosts, double* coeffs, bool weighted)
 {
   ASSERT(p > 0);
   ASSERT(num_ghosts <= num_points/2);
@@ -334,9 +334,9 @@ void test_p0_fit(void** state)
   static double coeffs[] = {1.0};
   point_t x0, points[4];
   generate_random_points(4, points);
-  test_poly_fit(0, NULL, points, 4, coeffs, false);
+  test_poly_fit(state, 0, NULL, points, 4, coeffs, false);
   average_points(points, 4, &x0);
-  test_poly_fit(0, &x0, points, 4, coeffs, false);
+  test_poly_fit(state, 0, &x0, points, 4, coeffs, false);
 }
 
 void test_weighted_p0_fit(void** state)
@@ -344,9 +344,9 @@ void test_weighted_p0_fit(void** state)
   static double coeffs[] = {1.0};
   point_t x0, points[4];
   generate_random_points(4, points);
-  test_poly_fit(0, NULL, points, 4, coeffs, true);
+  test_poly_fit(state, 0, NULL, points, 4, coeffs, true);
   average_points(points, 4, &x0);
-  test_poly_fit(0, &x0, points, 4, coeffs, true);
+  test_poly_fit(state, 0, &x0, points, 4, coeffs, true);
 }
 
 void test_p0_shape_funcs(void** state)
@@ -355,7 +355,7 @@ void test_p0_shape_funcs(void** state)
   point_t x0, points[4];
   generate_random_points(4, points);
   average_points(points, 4, &x0);
-  test_poly_shape_functions(0, &x0, points, 4, coeffs, false);
+  test_poly_shape_functions(state, 0, &x0, points, 4, coeffs, false);
 }
 
 void test_weighted_p0_shape_funcs(void** state)
@@ -364,7 +364,7 @@ void test_weighted_p0_shape_funcs(void** state)
   point_t x0, points[4];
   generate_random_points(4, points);
   average_points(points, 4, &x0);
-  test_poly_shape_functions(0, &x0, points, 4, coeffs, true);
+  test_poly_shape_functions(state, 0, &x0, points, 4, coeffs, true);
 }
 
 void test_p0_shape_func_gradients(void** state)
@@ -373,7 +373,7 @@ void test_p0_shape_func_gradients(void** state)
   point_t x0, points[4];
   generate_random_points(4, points);
   average_points(points, 4, &x0);
-  test_poly_shape_function_gradients(0, &x0, points, 4, coeffs, false);
+  test_poly_shape_function_gradients(state, 0, &x0, points, 4, coeffs, false);
 }
 
 void test_weighted_p0_shape_func_gradients(void** state)
@@ -382,7 +382,7 @@ void test_weighted_p0_shape_func_gradients(void** state)
   point_t x0, points[4];
   generate_random_points(4, points);
   average_points(points, 4, &x0);
-  test_poly_shape_function_gradients(0, &x0, points, 4, coeffs, true);
+  test_poly_shape_function_gradients(state, 0, &x0, points, 4, coeffs, true);
 }
 
 void test_p1_fit(void** state)
@@ -390,9 +390,9 @@ void test_p1_fit(void** state)
   static double coeffs[] = {1.0, 2.0, 3.0, 4.0};
   point_t x0, points[8];
   generate_random_points(8, points);
-  test_poly_fit(1, NULL, points, 8, coeffs, false);
+  test_poly_fit(state, 1, NULL, points, 8, coeffs, false);
   average_points(points, 8, &x0);
-  test_poly_fit(1, &x0, points, 8, coeffs, false);
+  test_poly_fit(state, 1, &x0, points, 8, coeffs, false);
 }
 
 void test_weighted_p1_fit(void** state)
@@ -400,9 +400,9 @@ void test_weighted_p1_fit(void** state)
   static double coeffs[] = {1.0, 2.0, 3.0, 4.0};
   point_t x0, points[8];
   generate_random_points(8, points);
-  test_poly_fit(1, NULL, points, 8, coeffs, true);
+  test_poly_fit(state, 1, NULL, points, 8, coeffs, true);
   average_points(points, 8, &x0);
-  test_poly_fit(1, &x0, points, 8, coeffs, true);
+  test_poly_fit(state, 1, &x0, points, 8, coeffs, true);
 }
 
 void test_p1_shape_funcs(void** state)
@@ -411,7 +411,7 @@ void test_p1_shape_funcs(void** state)
   point_t x0, points[8];
   generate_random_points(8, points);
   average_points(points, 8, &x0);
-  test_poly_shape_functions(1, &x0, points, 8, coeffs, false);
+  test_poly_shape_functions(state, 1, &x0, points, 8, coeffs, false);
 }
 
 void test_weighted_p1_shape_funcs(void** state)
@@ -420,7 +420,7 @@ void test_weighted_p1_shape_funcs(void** state)
   point_t x0, points[8];
   generate_random_points(8, points);
   average_points(points, 8, &x0);
-  test_poly_shape_functions(1, &x0, points, 8, coeffs, true);
+  test_poly_shape_functions(state, 1, &x0, points, 8, coeffs, true);
 }
 
 void test_p1_shape_func_gradients(void** state)
@@ -429,7 +429,7 @@ void test_p1_shape_func_gradients(void** state)
   point_t x0, points[8];
   generate_random_points(8, points);
   average_points(points, 8, &x0);
-  test_poly_shape_function_gradients(1, &x0, points, 8, coeffs, false);
+  test_poly_shape_function_gradients(state, 1, &x0, points, 8, coeffs, false);
 }
 
 void test_weighted_p1_shape_func_gradients(void** state)
@@ -438,7 +438,7 @@ void test_weighted_p1_shape_func_gradients(void** state)
   point_t x0, points[8];
   generate_random_points(8, points);
   average_points(points, 8, &x0);
-  test_poly_shape_function_gradients(1, &x0, points, 8, coeffs, true);
+  test_poly_shape_function_gradients(state, 1, &x0, points, 8, coeffs, true);
 }
 
 void test_p1_shape_func_constraints(void** state)
@@ -447,7 +447,7 @@ void test_p1_shape_func_constraints(void** state)
   point_t x0, points[8];
   generate_random_points(8, points);
   average_points(points, 8, &x0);
-  test_poly_shape_function_constraints(1, &x0, points, 8, 2, coeffs, false);
+  test_poly_shape_function_constraints(state, 1, &x0, points, 8, 2, coeffs, false);
 }
 
 void test_weighted_p1_shape_func_constraints(void** state)
@@ -456,7 +456,7 @@ void test_weighted_p1_shape_func_constraints(void** state)
   point_t x0, points[8];
   generate_random_points(8, points);
   average_points(points, 8, &x0);
-  test_poly_shape_function_constraints(1, &x0, points, 8, 2, coeffs, true);
+  test_poly_shape_function_constraints(state, 1, &x0, points, 8, 2, coeffs, true);
 }
 
 void test_p2_fit(void** state)
@@ -464,9 +464,9 @@ void test_p2_fit(void** state)
   static double coeffs[] = {1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0};
   point_t x0, points[16];
   generate_random_points(16, points);
-  test_poly_fit(2, NULL, points, 16, coeffs, false);
+  test_poly_fit(state, 2, NULL, points, 16, coeffs, false);
   average_points(points, 16, &x0);
-  test_poly_fit(2, &x0, points, 16, coeffs, false);
+  test_poly_fit(state, 2, &x0, points, 16, coeffs, false);
 }
 
 void test_weighted_p2_fit(void** state)
@@ -474,9 +474,9 @@ void test_weighted_p2_fit(void** state)
   static double coeffs[] = {1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0};
   point_t x0, points[16];
   generate_random_points(16, points);
-  test_poly_fit(2, NULL, points, 16, coeffs, true);
+  test_poly_fit(state, 2, NULL, points, 16, coeffs, true);
   average_points(points, 16, &x0);
-  test_poly_fit(2, &x0, points, 16, coeffs, true);
+  test_poly_fit(state, 2, &x0, points, 16, coeffs, true);
 }
 
 void test_p2_shape_funcs(void** state)
@@ -485,7 +485,7 @@ void test_p2_shape_funcs(void** state)
   point_t x0, points[16];
   generate_random_points(16, points);
   average_points(points, 16, &x0);
-  test_poly_shape_functions(2, &x0, points, 16, coeffs, false);
+  test_poly_shape_functions(state, 2, &x0, points, 16, coeffs, false);
 }
 
 void test_weighted_p2_shape_funcs(void** state)
@@ -494,7 +494,7 @@ void test_weighted_p2_shape_funcs(void** state)
   point_t x0, points[16];
   generate_random_points(16, points);
   average_points(points, 16, &x0);
-  test_poly_shape_functions(2, &x0, points, 16, coeffs, true);
+  test_poly_shape_functions(state, 2, &x0, points, 16, coeffs, true);
 }
 
 void test_p2_shape_func_gradients(void** state)
@@ -503,7 +503,7 @@ void test_p2_shape_func_gradients(void** state)
   point_t x0, points[16];
   generate_random_points(16, points);
   average_points(points, 16, &x0);
-  test_poly_shape_function_gradients(2, &x0, points, 16, coeffs, false);
+  test_poly_shape_function_gradients(state, 2, &x0, points, 16, coeffs, false);
 }
 
 void test_weighted_p2_shape_func_gradients(void** state)
@@ -512,7 +512,7 @@ void test_weighted_p2_shape_func_gradients(void** state)
   point_t x0, points[16];
   generate_random_points(16, points);
   average_points(points, 16, &x0);
-  test_poly_shape_function_gradients(2, &x0, points, 16, coeffs, true);
+  test_poly_shape_function_gradients(state, 2, &x0, points, 16, coeffs, true);
 }
 
 void test_p2_shape_func_constraints(void** state)
@@ -521,7 +521,7 @@ void test_p2_shape_func_constraints(void** state)
   point_t x0, points[16];
   generate_random_points(16, points);
   average_points(points, 16, &x0);
-  test_poly_shape_function_constraints(2, &x0, points, 16, 6, coeffs, false);
+  test_poly_shape_function_constraints(state, 2, &x0, points, 16, 6, coeffs, false);
 }
 
 void test_weighted_p2_shape_func_constraints(void** state)
@@ -530,7 +530,7 @@ void test_weighted_p2_shape_func_constraints(void** state)
   point_t x0, points[16];
   generate_random_points(16, points);
   average_points(points, 16, &x0);
-  test_poly_shape_function_constraints(2, &x0, points, 16, 6, coeffs, true);
+  test_poly_shape_function_constraints(state, 2, &x0, points, 16, 6, coeffs, true);
 }
 
 void test_p3_fit(void** state)
@@ -538,9 +538,9 @@ void test_p3_fit(void** state)
   static double coeffs[] = {1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0};
   point_t x0, points[30];
   generate_random_points(30, points);
-  test_poly_fit(3, NULL, points, 30, coeffs, false);
+  test_poly_fit(state, 3, NULL, points, 30, coeffs, false);
   average_points(points, 30, &x0);
-  test_poly_fit(3, &x0, points, 30, coeffs, false);
+  test_poly_fit(state, 3, &x0, points, 30, coeffs, false);
 }
 
 void test_weighted_p3_fit(void** state)
@@ -548,9 +548,9 @@ void test_weighted_p3_fit(void** state)
   static double coeffs[] = {1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0};
   point_t x0, points[30];
   generate_random_points(30, points);
-  test_poly_fit(3, NULL, points, 30, coeffs, true);
+  test_poly_fit(state, 3, NULL, points, 30, coeffs, true);
   average_points(points, 30, &x0);
-  test_poly_fit(3, &x0, points, 30, coeffs, true);
+  test_poly_fit(state, 3, &x0, points, 30, coeffs, true);
 }
 
 void test_p3_shape_funcs(void** state)
@@ -559,7 +559,7 @@ void test_p3_shape_funcs(void** state)
   point_t x0, points[30];
   generate_random_points(30, points);
   average_points(points, 30, &x0);
-  test_poly_shape_functions(3, &x0, points, 30, coeffs, false);
+  test_poly_shape_functions(state, 3, &x0, points, 30, coeffs, false);
 }
 
 void test_weighted_p3_shape_funcs(void** state)
@@ -568,7 +568,7 @@ void test_weighted_p3_shape_funcs(void** state)
   point_t x0, points[30];
   generate_random_points(30, points);
   average_points(points, 30, &x0);
-  test_poly_shape_functions(3, &x0, points, 30, coeffs, true);
+  test_poly_shape_functions(state, 3, &x0, points, 30, coeffs, true);
 }
 
 void test_p3_shape_func_gradients(void** state)
@@ -577,7 +577,7 @@ void test_p3_shape_func_gradients(void** state)
   point_t x0, points[30];
   generate_random_points(30, points);
   average_points(points, 30, &x0);
-  test_poly_shape_function_gradients(3, &x0, points, 30, coeffs, false);
+  test_poly_shape_function_gradients(state, 3, &x0, points, 30, coeffs, false);
 }
 
 void test_weighted_p3_shape_func_gradients(void** state)
@@ -586,7 +586,7 @@ void test_weighted_p3_shape_func_gradients(void** state)
   point_t x0, points[30];
   generate_random_points(30, points);
   average_points(points, 30, &x0);
-  test_poly_shape_function_gradients(3, &x0, points, 30, coeffs, true);
+  test_poly_shape_function_gradients(state, 3, &x0, points, 30, coeffs, true);
 }
 
 void test_p3_shape_func_constraints(void** state)
@@ -595,7 +595,7 @@ void test_p3_shape_func_constraints(void** state)
   point_t x0, points[30];
   generate_random_points(30, points);
   average_points(points, 30, &x0);
-  test_poly_shape_function_constraints(3, &x0, points, 30, 12, coeffs, false);
+  test_poly_shape_function_constraints(state, 3, &x0, points, 30, 12, coeffs, false);
 }
 
 void test_weighted_p3_shape_func_constraints(void** state)
@@ -604,7 +604,7 @@ void test_weighted_p3_shape_func_constraints(void** state)
   point_t x0, points[30];
   generate_random_points(30, points);
   average_points(points, 30, &x0);
-  test_poly_shape_function_constraints(3, &x0, points, 30, 12, coeffs, true);
+  test_poly_shape_function_constraints(state, 3, &x0, points, 30, 12, coeffs, true);
 }
 
 int main(int argc, char* argv[]) 
