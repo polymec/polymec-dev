@@ -286,7 +286,9 @@ void supermatrix_factory_update_jacobian(supermatrix_factory_t* factory, N_Vecto
 {
   if (factory->F != NULL)
   {
-    factory->set_F_time(t, factory->context);
+    if (factory->set_F_time != NULL) {
+      factory->set_F_time(t, factory->context);
+    }
     compute_F_jacobian(factory->F, factory->context, u, factory->graph, factory->coloring, factory->work, J);
   }
   else
