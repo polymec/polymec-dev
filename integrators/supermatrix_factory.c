@@ -187,7 +187,7 @@ static void insert_Jv_into_matrix(adj_graph_t* graph,
         {
           // Off-diagonal value.
           int row_index = Jdata->rowptr[i];
-          size_t num_cols = Jdata->colind[Jdata->rowptr[i+1]] - Jdata->colind[row_index];
+          size_t num_cols = Jdata->rowptr[i+1] - row_index;
           int* entry = int_bsearch(&Jdata->colind[row_index+1], num_cols - 1, j);
           ASSERT(entry != NULL);
           Jij[*entry] = NV_Ith(Jv, i);

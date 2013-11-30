@@ -270,7 +270,7 @@ static double poly3_dyz(polynomial_t* p, point_t* X)
 
 static double poly3_dzz(polynomial_t* p, point_t* X)
 {
-  double x = X->x - p->x0.x, y = X->y - p->x0.y, z = X->z - p->x0.z;
+  double y = X->y - p->x0.y, z = X->z - p->x0.z;
   return 2.0*p->coeffs[9] + 2.0*p->coeffs[15]*z + 
          2.0*p->coeffs[18]*y + 6.0*p->coeffs[19]*z;
 }
