@@ -118,6 +118,23 @@ SuperMatrix* supermatrix_factory_matrix(supermatrix_factory_t* factory)
   return A;
 }
 
+SuperMatrix* supermatrix_factory_vector(supermatrix_factory_t* factory,
+                                        const int num_rhs)
+{
+  SuperMatrix* B = malloc(sizeof(SuperMatrix));
+  
+  // Fetch numrows information from the graph.
+  int num_rows = adj_graph_num_vertices(factory->graph);
+  double* b_mem;
+  if ( !(b_mem = doubleMalloc(num_rows * num_rhs)) ) {
+    ABORT("Malloc fails for SuperLU b/rhs vector.");
+  }
+  dCreate_Dense_Matrix(B, num_rows, num_rhs,
+                       b_mem, num_rows,
+                       SLU_DN, SLU_D, SLU_GE);
+  return B;
+}
+
 SuperMatrix* supermatrix_factory_jacobian(supermatrix_factory_t* factory, N_Vector u, double t)
 {
   SuperMatrix* J = supermatrix_factory_matrix(factory);

@@ -77,14 +77,6 @@
  * -----------------------------------------------------------------
  */
 
-/*
- * NOTE(bja, 2013-11-09) adapt to use SuperLU ILU as the
- * preconditioner. Since this example is using KINSOL's
- * pre-conditioned GMRES (KINSpgmr) solver, we can base the ILU
- * proconditioner off of the SuperLU ditersol.c example.
-*/
-
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
@@ -96,7 +88,11 @@
 #include <sundials/sundials_types.h>
 #include <sundials/sundials_math.h>
 
-#include <slu_ddefs.h>
+#include "supermatrix_factory.h"
+#include "core/graph_from_mesh_cells.h"
+#include "core/point.h"
+#include "core/create_uniform_mesh.h"
+
 
 /* Problem Constants */
 
@@ -149,21 +145,21 @@ typedef struct {
   realtype uround, sqruround;
   long int mx, my, ns, np;
 
-  /* SuperLU preconditioner */
   superlu_options_t slu_opts;
   SuperLUStat_t slu_stat;
-  int slu_num_columns;
-  int slu_num_rows;
-  int slu_num_nonzero;
-  SuperMatrix slu_precond_matrix;
-  double *slu_nonzero_values;
-  int *slu_row_indicies;
-  int *slu_column_pointers;
-  int slu_num_rhs;
-  double* slu_rhs;
-  double* slu_solution;
-  SuperMatrix slu_B;
-  SuperMatrix slu_X;
+  supermatrix_factory_t *supermatrix_factory;
+  SuperMatrix *slu_P;
+  SuperMatrix *slu_X;
+  SuperMatrix *slu_B;
+  SuperMatrix *slu_L;
+  SuperMatrix *slu_U;
+
+  int *slu_etree;
+  int *slu_perm_r;
+  int *slu_perm_c;
+  double *slu_R;
+  double *slu_C;
+
 } *UserData;
 
 /* Functions Called by the KINSOL Solver */
@@ -201,7 +197,7 @@ static int check_flag(void *flagvalue, char *funcname, int opt);
  *--------------------------------------------------------------------
  */
 
-int main(void)
+int main(int argc, char **argv)
 {
   int globalstrategy;
   realtype fnormtol, scsteptol;
@@ -216,6 +212,8 @@ int main(void)
 
   /* Allocate memory, and set problem data, initial values, tolerances */ 
   globalstrategy = KIN_NONE;
+
+  polymec_init(argc, argv);
 
   data = AllocUserData();
   if (check_flag((void *)data, "AllocUserData", 2)) return(1);
@@ -373,7 +371,7 @@ static int func(N_Vector cc, N_Vector fval, void *user_data)
 }
 
 /*
- * Preconditioner setup routine. Generate and preprocess P approximation for J. 
+ * Preconditioner setup routine. Generate and preprocess P. 
  */
 
 static int PrecSetupBD(N_Vector cc, N_Vector cscale,
@@ -381,66 +379,18 @@ static int PrecSetupBD(N_Vector cc, N_Vector cscale,
                        void *user_data,
                        N_Vector vtemp1, N_Vector vtemp2)
 {
-  realtype r, r0, uround, sqruround, xx, yy, delx, dely, csave, fac;
-  realtype *cxy, *scxy, **Pxy, *ratesxy, *Pxycol, perturb_rates[NUM_SPECIES];
-  long int i, j, jx, jy, ret;
   UserData data;
   
   data = (UserData) user_data;
-  delx = data->dx;
-  dely = data->dy;
-  
-  uround = data->uround;
-  sqruround = data->sqruround;
-  fac = N_VWL2Norm(fval, fscale);
-  r0 = THOUSAND * uround * fac * NEQ;
-  if(r0 == ZERO) r0 = ONE;
-  
-  /* Loop over spatial points; get size NUM_SPECIES Jacobian block at each */
-  for (jy = 0; jy < MY; jy++) {
-    yy = jy*dely;
-    
-    for (jx = 0; jx < MX; jx++) {
-      xx = jx*delx;
-      Pxy = (data->P)[jx][jy];
-      cxy = IJ_Vptr(cc,jx,jy);
-      scxy= IJ_Vptr(cscale,jx,jy);
-      ratesxy = IJ_Vptr((data->rates),jx,jy);
-      
-      /* Compute difference quotients of interaction rate fn. */
-      for (j = 0; j < NUM_SPECIES; j++) {
-        
-        csave = cxy[j];  /* Save the j,jx,jy element of cc */
-        r = MAX(sqruround*ABS(csave), r0/scxy[j]);
-        cxy[j] += r; /* Perturb the j,jx,jy element of cc */
-        fac = ONE/r;
-        
-        WebRate(xx, yy, cxy, perturb_rates, data);
-        
-        /* Restore j,jx,jy element of cc */
-        cxy[j] = csave;
-        
-        /* Load the j-th column of difference quotients */
-        Pxycol = Pxy[j];
-        for (i = 0; i < NUM_SPECIES; i++)
-          Pxycol[i] = (perturb_rates[i] - ratesxy[i]) * fac;
-        
-        
-      } /* end of j loop */
-      
-      /* Do LU decomposition of size NUM_SPECIES preconditioner block */
-      ret = denseGETRF(Pxy, NUM_SPECIES, NUM_SPECIES, (data->pivot)[jx][jy]);
-      if (ret != 0) return(1);
-      
-    } /* end of jx loop */
-    
-  } /* end of jy loop */
-  
+  double current_time = 0.0;
+  supermatrix_factory_update_jacobian(data->supermatrix_factory,
+                                      cc, current_time, data->slu_P);
+
   return(0);  
 }
 
 /*
- * Preconditioner solve routine, P*z=r for z
+ * Preconditioner solve routine 
  */
 
 static int PrecSolveBD(N_Vector cc, N_Vector cscale, 
@@ -448,29 +398,24 @@ static int PrecSolveBD(N_Vector cc, N_Vector cscale,
                        N_Vector vv, void *user_data,
                        N_Vector ftem)
 {
-  realtype **Pxy, *vxy;
-  int *piv, jx, jy;
+  int info;
+  int lwork = 0;
+  char equed[1] = {'N'};
+  double *work = NULL;
+  double rpg, rcond;
+  mem_usage_t mem_usage;
   UserData data;
   
   data = (UserData)user_data;
   
-  for (jx=0; jx<MX; jx++) {
-    
-    for (jy=0; jy<MY; jy++) {
-      
-      /* For each (jx,jy), solve a linear system of size NUM_SPECIES.
-         vxy is the address of the corresponding portion of the vector vv;
-         Pxy is the address of the corresponding block of the matrix P;
-         piv is the address of the corresponding block of the array pivot. */
-      vxy = IJ_Vptr(vv,jx,jy);
-      Pxy = (data->P)[jx][jy];
-      piv = (data->pivot)[jx][jy];
-      denseGETRS(Pxy, NUM_SPECIES, piv, vxy);
-      
-    } /* end of jy loop */
-    
-  } /* end of jx loop */
-  
+  // copy cc into B 
+
+  dgsisx(&(data->slu_opts), data->slu_P,
+         data->slu_perm_c, data->slu_perm_r, data->slu_etree,
+         equed, data->slu_R, data->slu_C, data->slu_L, data->slu_U,
+         work, lwork, data->slu_B, data->slu_X,
+         &rpg, &rcond, &mem_usage, &(data->slu_stat), &info);
+
   return(0);
 }
 
@@ -538,37 +483,46 @@ static UserData AllocUserData(void)
   bcoef = (realtype *)malloc(NUM_SPECIES * sizeof(realtype));
   cox   = (realtype *)malloc(NUM_SPECIES * sizeof(realtype));
   coy   = (realtype *)malloc(NUM_SPECIES * sizeof(realtype));
-
-  /* Create SuperLU preconditioner maxtrix */
-  data->slu_num_columns = NEQ;
-  data->slu_num_rows = NEQ;
-  data->slu_num_nonzero = NEQ*NEQ;
-  dallocateA(data->slu_num_columns, data->slu_num_nonzero,
-             &(data->slu_nonzero_values),
-             &(data->slu_row_indicies),
-             &(data->slu_column_pointers));
-  dCreate_CompCol_Matrix(&(data->slu_precond_matrix),
-                         data->slu_num_columns, data->slu_num_rows, data->slu_num_nonzero,
-                         data->slu_nonzero_values, data->slu_row_indicies, data->slu_column_pointers,
-                         SLU_NC, SLU_D, SLU_GE);
   
-  /* create SuperLU RHS B matrix */
-  data->slu_num_rhs = 1;
-  if ( !(data->slu_rhs = doubleMalloc(data->slu_num_rows * data->slu_num_rhs)) ) {
-    ABORT("Malloc fails for SuperLU rhs[].");
-  }
-  dCreate_Dense_Matrix(&(data->slu_B), data->slu_num_rows, data->slu_num_rhs,
-                       data->slu_rhs, data->slu_num_rows,
-                       SLU_DN, SLU_D, SLU_GE);
+  //
+  // create SuperLU preconditioner matrix with polymec
+  // supermatrix_factory.
+  //
 
-  /* create SuperLU Solution X matrix */
-  if ( !(data->slu_solution = doubleMalloc(data->slu_num_rows * data->slu_num_rhs)) ) {
-    ABORT("Malloc fails for SuperLU x[].");
+  // create an adjacency graph for NX x NY with NS block size
+  bbox_t box = {.x1 = 0.0, .x2 = AX, .y1 = 0.0, .y2 = AY, .z1 = 0.0, .z2 = 1.0};
+  // FIXME mpi_comm_world or mpi_comm_local?
+  mesh_t* m = create_uniform_mesh(MPI_COMM_WORLD, MX, MY, 1, &box);
+  // create an adjcency graph for the mesh
+  adj_graph_t* g = graph_from_mesh_cells(m);
+  mesh_free(m);
+  // create an adjency graph with the block structure
+  adj_graph_t* bg = adj_graph_new_with_block_size(NUM_SPECIES, g);
+  adj_graph_free(g);
+
+  data->supermatrix_factory = supermatrix_factory_from_sys_func(bg, func, NULL, data);
+  data->slu_P = supermatrix_factory_matrix(data->supermatrix_factory);
+
+  // create rhs and solution vectors for a single set of unknowns.
+  int num_rhs = 1;
+  data->slu_X = supermatrix_factory_vector(data->supermatrix_factory, num_rhs);
+  data->slu_B = supermatrix_factory_vector(data->supermatrix_factory, num_rhs);
+
+  if ( !(data->slu_etree = intMalloc(data->slu_P->ncol)) ) {
+    ABORT("Malloc fails for etree[].");
   }
-  dCreate_Dense_Matrix(&(data->slu_X), data->slu_num_rows, data->slu_num_rhs,
-                       data->slu_solution, data->slu_num_rows,
-                       SLU_DN, SLU_D, SLU_GE);
-  
+  if ( !(data->slu_perm_r = intMalloc(data->slu_P->nrow)) ) {
+    ABORT("Malloc fails for perm_r[].");
+  }
+  if ( !(data->slu_perm_c = intMalloc(data->slu_P->ncol)) ) {
+    ABORT("Malloc fails for perm_c[].");
+  }
+  if ( !(data->slu_R = (double *) SUPERLU_MALLOC(data->slu_P->nrow * sizeof(double))) ) {
+    ABORT("SUPERLU_MALLOC fails for R[].");
+  }
+  if ( !(data->slu_C = (double *) SUPERLU_MALLOC(data->slu_P->ncol * sizeof(double))) ) {
+    ABORT("SUPERLU_MALLOC fails for C[].");
+  }
 
 
   return(data);
@@ -627,11 +581,9 @@ static void InitUserData(UserData data)
     coy[i+np]=DPRED/dy2;
   }
 
-  /* Setup SuperLU */
+  // Setup SuperLU options and statistics
   ilu_set_default_options(&(data->slu_opts));
   StatInit(&(data->slu_stat));
-  
-  
 }
 
 /* 
@@ -655,13 +607,21 @@ static void FreeUserData(UserData data)
   free(coy);
   N_VDestroy_Serial(data->rates);
 
-  /* free SuperLU data */
+  adj_graph_free(data->supermatrix_factory->graph);
+  supermatrix_factory_free(data->supermatrix_factory);
+  supermatrix_free(data->slu_P);
+  supermatrix_free(data->slu_X);
+  supermatrix_free(data->slu_B);
+  supermatrix_free(data->slu_L);
+  supermatrix_free(data->slu_U);
+
+  SUPERLU_FREE (data->slu_etree);
+  SUPERLU_FREE (data->slu_perm_r);
+  SUPERLU_FREE (data->slu_perm_c);
+  SUPERLU_FREE (data->slu_R);
+  SUPERLU_FREE (data->slu_C);
+
   StatFree(&(data->slu_stat));
-  SUPERLU_FREE (data->slu_rhs);
-  SUPERLU_FREE (data->slu_solution);
-  Destroy_CompCol_Matrix(&(data->slu_precond_matrix));
-  Destroy_SuperMatrix_Store(&(data->slu_B));
-  Destroy_SuperMatrix_Store(&(data->slu_X));
 
   free(data);
 }

@@ -8,7 +8,6 @@ include(add_polymec_executable)
 
 add_polymec_executable(kinsol-foodweb kinFoodWeb_kry.c)
 
-add_polymec_executable(kinsol-foodweb-ilu kinFoodWeb_kry_ilu.c)
-
+add_polymec_executable(kinsol-foodweb-smf kinFoodWeb_kry_smf.c)
 
 add_subdirectory(tests)

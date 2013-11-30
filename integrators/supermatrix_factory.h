@@ -63,6 +63,9 @@ void supermatrix_factory_free(supermatrix_factory_t* factory);
 // from which the factory was constructed.
 SuperMatrix* supermatrix_factory_matrix(supermatrix_factory_t* factory);
 
+SuperMatrix* supermatrix_factory_vector(supermatrix_factory_t* factory,
+                                        const int num_rhs);
+
 // Produces a Jacobian supermatrix from finite difference quotients applied 
 // to the given function F at the solution u and t.
 SuperMatrix* supermatrix_factory_jacobian(supermatrix_factory_t* factory, N_Vector u, double t);
