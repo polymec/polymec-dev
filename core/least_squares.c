@@ -364,7 +364,7 @@ void poly_ls_shape_compute_ghost_transform(poly_ls_shape_t* N, int* ghost_indice
                                            double* a, double* b, double* c, double* d, double* e,
                                            double* A, double* B)
 {
-  ASSERT(N->p > 0); // Constraints cannot be applied to constants.
+  ASSERT(N->poly->degree > 0); // Constraints cannot be applied to constants.
   ASSERT(N->compute_gradients);
   ASSERT(ghost_indices != NULL);
   ASSERT(num_ghosts < N->num_points);
