@@ -26,11 +26,24 @@
 
 // This class represents a way of integrating a system of 
 // nonlinear equations.
+struct supermatrix_factory_t 
+{
+  adj_graph_t* graph;
+  adj_graph_coloring_t* coloring;
+  KINSysFn F;
+  void (*set_F_time)(double, void*);
+  CVRhsFn rhs;
+  void* context;
+
+  // Work vectors.
+  N_Vector* work;
+};
+
 typedef struct supermatrix_factory_t supermatrix_factory_t;
 
 // Creates a factory that produces SuperLU SuperMatrix objects using 
 // the given adjacency graph and system function F (and context). The 
-// factory does NOT assume ownership of the factory or context.
+// factory does NOT assume ownership of the factory, graph, or context.
 supermatrix_factory_t* supermatrix_factory_from_sys_func(adj_graph_t* graph,
                                                          KINSysFn F,
                                                          void (*set_F_time)(double, void*),
@@ -38,7 +51,7 @@ supermatrix_factory_t* supermatrix_factory_from_sys_func(adj_graph_t* graph,
 
 // Creates a factory that produces SuperLU SuperMatrix objects using 
 // the given adjacency graph and RHS function (and context). The
-// factory does NOT assume ownership of the factory or context.
+// factory does NOT assume ownership of the factory, graph, or context.
 supermatrix_factory_t* supermatrix_factory_from_rhs(adj_graph_t* graph,
                                                     CVRhsFn rhs,
                                                     void* context);

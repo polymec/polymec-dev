@@ -19,19 +19,6 @@
 #include "integrators/supermatrix_factory.h"
 #include "slu_util.h"
 
-struct supermatrix_factory_t 
-{
-  adj_graph_t* graph;
-  adj_graph_coloring_t* coloring;
-  KINSysFn F;
-  void (*set_F_time)(double, void*);
-  CVRhsFn rhs;
-  void* context;
-
-  // Work vectors.
-  N_Vector* work;
-};
-
 supermatrix_factory_t* supermatrix_factory_from_sys_func(adj_graph_t* graph,
                                                          KINSysFn F,
                                                          void (*set_F_time)(double, void*),
