@@ -23,13 +23,6 @@
 
 // This type represents a polynomial function (in x, y, and z) of a given degree.
 // Objects of this type are garbage-collected.
-struct polynomial_t 
-{
-  int degree;
-  double* coeffs;
-  point_t x0;
-};
-
 typedef struct polynomial_t polynomial_t;
 
 // This returns the number of coefficients in polynomial of given degree.

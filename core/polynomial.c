@@ -17,6 +17,13 @@
 #include <gc/gc.h>
 #include "core/polynomial.h"
 
+struct polynomial_t 
+{
+  int degree;
+  double* coeffs;
+  point_t x0;
+};
+
 static void polynomial_free(void* ctx, void* dummy)
 {
   polynomial_t* p = ctx;
