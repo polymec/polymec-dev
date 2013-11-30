@@ -300,7 +300,20 @@ void supermatrix_factory_update_jacobian(supermatrix_factory_t* factory, N_Vecto
 
 void supermatrix_free(SuperMatrix* matrix)
 {
-  Destroy_CompCol_Matrix(matrix);
+  switch(matrix->Stype) {
+  case SLU_DN:
+    Destroy_Dense_Matrix(matrix);
+    break;
+  case SLU_NR:
+    Destroy_CompRow_Matrix(matrix);
+    break;
+  case SLU_NC:
+    Destroy_CompCol_Matrix(matrix);
+    break;
+  default:
+    printf("ERROR: unknown matrix type passed to supermatrix_free!");
+    break;
+  }
   free(matrix);
 }
 
