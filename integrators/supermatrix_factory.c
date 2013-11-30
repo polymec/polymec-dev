@@ -213,7 +213,7 @@ static void compute_F_jacobian(KINSysFn F,
   for (int c = 0; c < num_colors; ++c)
   {
     // We construct d, the binary vector corresponding to this color, in work[0].
-    memset(work[0], 0, sizeof(double) * N);
+    memset(NV_DATA(work[0]), 0, sizeof(double) * N);
     int pos = 0, i;
     while (adj_graph_coloring_next_vertex(coloring, c, &pos, &i))
       NV_Ith(work[0], i) = 1.0;
@@ -268,7 +268,7 @@ static void compute_rhs_jacobian(CVRhsFn rhs,
   for (int c = 0; c < num_colors; ++c)
   {
     // We construct d, the binary vector corresponding to this color, in work[0].
-    memset(work[0], 0, sizeof(double) * N);
+    memset(NV_DATA(work[0]), 0, sizeof(double) * N);
     int pos = 0, i;
     while (adj_graph_coloring_next_vertex(coloring, c, &pos, &i))
       NV_Ith(work[0], i) = 1.0;

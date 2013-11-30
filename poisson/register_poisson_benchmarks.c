@@ -15,6 +15,7 @@
 // limitations under the License.
 
 #include <string.h>
+#include <strings.h>
 #include "core/unordered_map.h"
 #include "core/constant_st_func.h"
 #include "core/create_uniform_mesh.h"
