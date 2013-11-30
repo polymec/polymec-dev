@@ -43,9 +43,7 @@ typedef struct
   st_func_t* solution;      // Analytic solution (if non-NULL).
 
   string_ptr_unordered_map_t* bcs; // Boundary conditions.
-
   boundary_cell_map_t* boundary_cells; // Boundary cell info
-  poly_ls_shape_t* shape;   // Least-squares shape functions.
 
   // Nonlinear solver that integrates Poisson's equation.
   nonlinear_solver_t* solver;
@@ -278,10 +276,7 @@ static void poisson_dtor(void* context)
     point_cloud_free(p->point_cloud);
 
   if (p->phi != NULL)
-  {
-    p->shape = NULL;
     free(p->phi);
-  }
 
   if (p->boundary_cells != NULL)
     boundary_cell_map_free(p->boundary_cells);
@@ -309,8 +304,6 @@ model_t* poisson_model_new(options_t* options)
   p->bcs = string_ptr_unordered_map_new();
   p->solution = NULL;
 
-  p->shape = poly_ls_shape_new(1, true);
-  poly_ls_shape_set_simple_weighting_func(p->shape, 2, 1e-2);
   p->boundary_cells = boundary_cell_map_new();
   model_t* model = model_new("poisson", p, vtable, options);
 

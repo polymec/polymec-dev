@@ -23,6 +23,7 @@
 #include "cmockery.h"
 #include "core/polynomial.h"
 #include "core/least_squares.h"
+#include "core/linear_algebra.h"
 
 static void generate_random_points(int num_points, point_t* points)
 {
@@ -48,17 +49,49 @@ static void average_points(point_t* points, int num_points, point_t* average)
   average->z /= num_points;
 }
 
-// Weighting function: W(x, x0) = 1/(|x-x0|^2 + eps^2)
-static const double epsilon = 1e-4;
-static void weighting_func(void* context, point_t* x, point_t* x0, double h, double* W, vector_t* gradient)
+// Simple weighting function: W(x, x0) = 1/((|x-x0|/h) + B)^A
+typedef struct
 {
-  double D = (x0 != NULL) ? point_distance(x, x0) / h : sqrt(x->x*x->x+x->y*x->y+x->z*x->z/(h*h));
-  *W = 1.0 / (pow(D, 2) + pow(epsilon, 2));
-  double dDdx = x->x / D, dDdy = x->y / D, dDdz = x->z / D;
+  double A, B, h;
+} simple_W;
+
+static void simple_W_set_domain(void* context, point_t* x0, point_t* points, int num_points)
+{
+  simple_W* wf = context;
+
+  // Compute the average distance between the points. This will serve as 
+  // our spatial scale length, h.
+  wf->h = 0.0;
+  for (int n = 0; n < num_points; ++n)
+    for (int l = n+1; l < num_points; ++l)
+      wf->h += point_distance(&points[n], &points[l]);
+  wf->h /= (num_points*(num_points+1)/2 - num_points);
+}
+
+static void simple_W_eval(void* context, vector_t* y, double* W, vector_t* gradient)
+{
+  simple_W* wf = context;
+  double D = vector_mag(y) / wf->h;
+  *W = 1.0 / (pow(D, wf->A) + pow(wf->B, wf->A));
+  double dDdx = y->x / D, dDdy = y->y / D, dDdz = y->z / D;
   double deriv_term = -(*W)*(*W) * 2.0 * D;
   gradient->x = deriv_term * dDdx;
   gradient->y = deriv_term * dDdy;
   gradient->z = deriv_term * dDdz;
+}
+
+static ls_weight_func_t* simple_w_new(int A, double B)
+{
+  ASSERT(A > 0);
+  ASSERT(B > 0.0);
+
+  simple_W* W_data = malloc(sizeof(simple_W));
+  W_data->A = A;
+  W_data->B = B;
+  ls_weight_func_vtable vtable = {.set_domain = simple_W_set_domain,
+                                  .eval = simple_W_eval,
+                                  .dtor = free};
+  return ls_weight_func_new("Simple", &W_data, vtable);
 }
 
 void test_poly_fit(int p, point_t* x0, point_t* points, int num_points, double* coeffs, bool weighted)
@@ -74,7 +107,11 @@ void test_poly_fit(int p, point_t* x0, point_t* points, int num_points, double* 
   int dim = polynomial_num_coeffs(poly);
   double A[dim*dim], b[dim];
   if (weighted)
-    compute_weighted_poly_ls_system(p, weighting_func, x0, points, num_points, data, A, b);
+  {
+    ls_weight_func_t* W = simple_w_new(2, 1e-4);
+    compute_weighted_poly_ls_system(p, W, x0, points, num_points, data, A, b);
+    W = NULL;
+  }
   else
     compute_poly_ls_system(p, x0, points, num_points, data, A, b);
 
@@ -107,9 +144,10 @@ void test_poly_shape_functions(int p, point_t* x0, point_t* points, int num_poin
     data[i] = polynomial_value(poly, &points[i]);
 
   // Compute shape functions for the given data.
-  poly_ls_shape_t* N = poly_ls_shape_new(p, false);
+  ls_weight_func_t* W = NULL;
   if (weighted)
-    poly_ls_shape_set_simple_weighting_func(N, 2.0, 1e-4);
+    W = simple_w_new(2, 1e-4);
+  poly_ls_shape_t* N = poly_ls_shape_new(p, W, false);
   poly_ls_shape_set_domain(N, x0, points, num_points);
   double Nk[num_points];
 
@@ -158,9 +196,10 @@ void test_poly_shape_function_gradients(int p, point_t* x0, point_t* points, int
   }
 
   // Compute shape functions for the given data.
-  poly_ls_shape_t* N = poly_ls_shape_new(p, true);
+  ls_weight_func_t* W = NULL;
   if (weighted)
-    poly_ls_shape_set_simple_weighting_func(N, 2.0, 1e-4);
+    W = simple_w_new(2, 1e-4);
+  poly_ls_shape_t* N = poly_ls_shape_new(p, W, true);
   poly_ls_shape_set_domain(N, x0, points, num_points);
 
   // Make sure the shape functions interpolate the data and their gradients.
@@ -238,9 +277,10 @@ void test_poly_shape_function_constraints(int p, point_t* x0, point_t* points, i
   }
 
   // Compute shape functions for the given data.
-  poly_ls_shape_t* N = poly_ls_shape_new(p, true);
+  ls_weight_func_t* W = NULL;
   if (weighted)
-    poly_ls_shape_set_simple_weighting_func(N, 2.0, 1e-2);
+    W = simple_w_new(2, 1e-4);
+  poly_ls_shape_t* N = poly_ls_shape_new(p, W, true);
   poly_ls_shape_set_domain(N, x0, points, num_points);
 
   // Constraints: make the constraint points match their corresponding 

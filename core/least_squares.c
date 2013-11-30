@@ -17,9 +17,33 @@
 #include <stdlib.h>
 #include <string.h>
 #include <gc/gc.h>
+#include "core/polymec.h"
 #include "core/least_squares.h"
 #include "core/polynomial.h"
 #include "core/linear_algebra.h"
+
+void linear_regression(double* x, double* y, int N, double* A, double* B, double* sigma)
+{
+  ASSERT(N > 2);
+  double sumXY = 0.0, sumX = 0.0, sumY = 0.0, sumX2 = 0.0, sumY2 = 0.0;
+  for (int i = 0; i < N; ++i)
+  {
+    sumX += x[i];
+    sumX2 += x[i]*x[i];
+    sumY += y[i];
+    sumY2 += y[i]*y[i];
+    sumXY += x[i]*y[i];
+  }
+  *A = (N * sumXY - sumX*sumY) / (N * sumX2 - sumX*sumX);
+  *B = (sumY - *A * sumX) / N;
+  double SSE = 0.0;
+  for (int i = 0; i < N; ++i)
+  {
+    double e = (*A) * x[i] + (*B) - y[i];
+    SSE += e*e;
+  }
+  *sigma = SSE / (N - 2);
+}
 
 static void compute_poly_basis_vector(polynomial_t* p, point_t* X, double* basis_vector)
 {
@@ -44,6 +68,74 @@ static void compute_poly_basis_gradients(polynomial_t* p, point_t* X, vector_t* 
     basis_gradients[offset].z = pow(x, x_pow-1) * pow(y, y_pow) * 1.0*z_pow*pow(z, z_pow-1);
     ++offset;
   }
+}
+
+// Least-squares weight function implementation.
+struct ls_weight_func_t
+{
+  char* name;
+  void* context;
+  ls_weight_func_vtable vtable;
+  point_t x0;
+};
+
+static void ls_weight_func_free(void* context, void* dummy)
+{
+  ls_weight_func_t* W = context;
+  if ((W->context != NULL) && (W->vtable.dtor != NULL))
+    W->vtable.dtor(W->context);
+  free(W->name);
+}
+
+ls_weight_func_t* ls_weight_func_new(const char* name,
+                                     void* context,
+                                     ls_weight_func_vtable vtable)
+{
+  ASSERT(vtable.eval != NULL);
+
+  ls_weight_func_t* W = GC_MALLOC(sizeof(ls_weight_func_t));
+  W->name = string_dup(name);
+  W->context = context;
+  W->vtable = vtable;
+  W->x0.x = W->x0.y = W->x0.z = 0.0;
+  GC_register_finalizer(W, &ls_weight_func_free, W, NULL, NULL);
+  return W;
+}
+
+const char* ls_weight_func_name(ls_weight_func_t* W)
+{
+  return (const char*)W->name;
+}
+
+void ls_weight_func_set_domain(ls_weight_func_t* W, point_t* x0, point_t* points, int num_points)
+{
+  if (W->vtable.set_domain != NULL)
+    W->vtable.set_domain(W->context, x0, points, num_points);
+}
+
+void ls_weight_func_eval(ls_weight_func_t* W, point_t* x, double* value, vector_t* gradient)
+{
+  vector_t y;
+  point_displacement(&W->x0, x, &y);
+  W->vtable.eval(W->context, &y, value, gradient);
+}
+
+point_t* ls_weight_func_x0(ls_weight_func_t* W)
+{
+  return &W->x0;
+}
+
+// The following machinery sets up a weight function that just returns 1.
+static void unweighted_eval(void* context, vector_t* y, double* W, vector_t* gradient)
+{
+  *W = 1.0;
+  gradient->x = gradient->y = gradient->z = 0.0;
+}
+
+static ls_weight_func_t* unweighted_func_new()
+{
+  ls_weight_func_vtable vtable = {.eval = unweighted_eval};
+  return ls_weight_func_new("Unweighted", NULL, vtable);
 }
 
 void compute_poly_ls_system(int p, point_t* x0, point_t* points, int num_points, 
@@ -81,8 +173,9 @@ void compute_poly_ls_system(int p, point_t* x0, point_t* points, int num_points,
   poly = NULL;
 }
 
-void compute_weighted_poly_ls_system(int p, ls_weighting_func_t W, point_t* x0, point_t* points, int num_points, 
-                                     double* data, double* moment_matrix, double* rhs)
+void compute_weighted_poly_ls_system(int p, ls_weight_func_t* W, point_t* x0, 
+                                     point_t* points, int num_points, double* data, 
+                                     double* moment_matrix, double* rhs)
 {
   ASSERT(p >= 0);
   ASSERT(p < 4);
@@ -91,17 +184,11 @@ void compute_weighted_poly_ls_system(int p, ls_weighting_func_t W, point_t* x0, 
   int size = polynomial_basis_size(p);
   ASSERT(num_points >= size);
 
+  ls_weight_func_t* wf = (W != NULL) ? W : unweighted_func_new();
+
   memset(moment_matrix, 0, sizeof(double)*size*size);
   memset(rhs, 0, sizeof(double)*size);
  
-  // Compute the average distance between the points. This will serve as 
-  // our spatial scale length, h.
-  double h = 0.0;
-  for (int n = 0; n < num_points; ++n)
-    for (int l = n+1; l < num_points; ++l)
-      h += point_distance(&points[n], &points[l]);
-  h /= (num_points*(num_points+1)/2 - num_points);
-
   // Set up a polynomial basis, expanded about x0.
   double coeffs[size];
   for (int i = 0; i < size; ++i)
@@ -109,13 +196,14 @@ void compute_weighted_poly_ls_system(int p, ls_weighting_func_t W, point_t* x0, 
   polynomial_t* poly = polynomial_new(p, coeffs, x0);
   double basis[size];
 
+  ls_weight_func_set_domain(wf, x0, points, num_points);
   for (int n = 0; n < num_points; ++n)
   {
     compute_poly_basis_vector(poly, &points[n], basis);
 
     double Wd;
     vector_t gradWd;
-    W(NULL, &points[n], polynomial_x0(poly), h, &Wd, &gradWd);
+    ls_weight_func_eval(wf, &points[n], &Wd, &gradWd); 
     for (int i = 0; i < size; ++i)
     {
       for (int j = 0; j < size; ++j)
@@ -133,17 +221,14 @@ struct poly_ls_shape_t
   double *domain_basis; // Polynomial basis, calculated during set_domain().
   int num_points; // Number of points in domain.
   point_t* points; // Points in domain.
-  double h; // Smoothing length scale.
-  ls_weighting_func_t weighting_func; // Weighting function.
-  void* w_context; // Context pointer for weighting function.
-  void (*w_dtor)(void*); // Destructor for weighting function context pointer.
+  ls_weight_func_t* W; // Weighting function.
 };
 
 static void poly_ls_shape_free(void* context, void* dummy)
 {
   poly_ls_shape_t* N = (poly_ls_shape_t*)context;
-  if ((N->w_context != NULL) && (N->w_dtor != NULL))
-    (*N->w_dtor)(N->w_context);
+  if (N->W != NULL)
+    N->W = NULL;
   if (N->points != NULL)
     free(N->points);
   if (N->domain_basis != NULL)
@@ -151,14 +236,7 @@ static void poly_ls_shape_free(void* context, void* dummy)
   free(N);
 }
 
-static void no_weighting_func(void* context, point_t* x, point_t* x0, double h, double* W, vector_t* gradient)
-{
-  *W = 1.0;
-  gradient->x = gradient->y = gradient->z = 0.0;
-//  polymec_error("No weighting function has been set for this LS shape function.");
-}
-
-poly_ls_shape_t* poly_ls_shape_new(int p, bool compute_gradients)
+poly_ls_shape_t* poly_ls_shape_new(int p, ls_weight_func_t* W, bool compute_gradients)
 {
   ASSERT(p >= 0);
   ASSERT(p <= 4);
@@ -169,13 +247,13 @@ poly_ls_shape_t* poly_ls_shape_new(int p, bool compute_gradients)
     coeffs[i] = 1.0;
   N->poly = polynomial_new(p, coeffs, NULL);
   N->compute_gradients = compute_gradients;
-  N->weighting_func = &no_weighting_func;
-  N->w_context = NULL;
-  N->w_dtor = NULL;
+  if (W == NULL)
+    N->W = unweighted_func_new();
+  else
+    N->W = W;
   N->domain_basis = NULL;
   N->num_points = 0;
   N->points = NULL;
-  N->h = 0.0;
   GC_register_finalizer(N, &poly_ls_shape_free, N, NULL, NULL);
   return N;
 }
@@ -198,13 +276,8 @@ void poly_ls_shape_set_domain(poly_ls_shape_t* N, point_t* x0, point_t* points, 
   for (int n = 0; n < num_points; ++n)
     compute_poly_basis_vector(N->poly, &points[n], &N->domain_basis[dim*n]);
 
-  // Compute the average distance between the points. This will serve as 
-  // our spatial scale length, h.
-  N->h = 0.0;
-  for (int n = 0; n < num_points; ++n)
-    for (int l = n+1; l < num_points; ++l)
-      N->h += point_distance(&N->points[n], &N->points[l]);
-  N->h /= (num_points*(num_points+1)/2 - num_points);
+  // Set the domain for the weight function.
+  ls_weight_func_set_domain(N->W, x0, points, num_points);
 }
 
 void poly_ls_shape_compute(poly_ls_shape_t* N, point_t* x, double* values)
@@ -222,7 +295,12 @@ void poly_ls_shape_compute_gradients(poly_ls_shape_t* N, point_t* x, double* val
   double W[num_points];
   vector_t grad_W[num_points];
   for (int n = 0; n < num_points; ++n)
-    N->weighting_func(N->w_context, x, &N->points[n], N->h, &W[n], &grad_W[n]);
+  {
+    // We use a cute trick here to re-center the weight functions to each 
+    // of the points.
+    *ls_weight_func_x0(N->W) = N->points[n];
+    ls_weight_func_eval(N->W, x, &W[n], &grad_W[n]);
+  }
 
   // Compute the moment matrix A.
   double A[dim*dim], AinvB[dim*num_points];
@@ -442,67 +520,5 @@ void poly_ls_shape_compute_ghost_transform(poly_ls_shape_t* N, int* ghost_indice
   memcpy(B, e, sizeof(double)*num_ghosts);
   dgetrs(&no_trans, &num_ghosts, &one, amat, &num_ghosts, pivot, B, &num_ghosts, &info);
   ASSERT(info == 0);
-}
-
-typedef struct 
-{
-  int A;
-  double B;
-} simple_weighting_func_params_t;
-
-static void simple_weighting_func(void* context, point_t* x, point_t* x0, double h, double* W, vector_t* gradient)
-{
-  simple_weighting_func_params_t* params = (simple_weighting_func_params_t*)context;
-  double D = point_distance(x, x0)/h;
-  *W = 1.0 / (pow(D, params->A) + pow(params->B, params->A));
-  if (D == 0.0)
-  {
-    gradient->x = gradient->y = gradient->z = 0.0;
-  }
-  else
-  {
-    double dDdx = (x->x - x0->x) / D, 
-           dDdy = (x->y - x0->y) / D, 
-           dDdz = (x->z - x0->z) / D;
-    double deriv_term = -(*W)*(*W) * params->A * pow(D, params->A-1);
-    gradient->x = deriv_term * dDdx;
-    gradient->y = deriv_term * dDdy;
-    gradient->z = deriv_term * dDdz;
-  }
-}
-
-void poly_ls_shape_set_simple_weighting_func(poly_ls_shape_t* N, int A, double B)
-{
-  ASSERT(A > 0);
-  ASSERT(B > 0);
-  N->weighting_func = &simple_weighting_func;
-  simple_weighting_func_params_t* params = malloc(sizeof(simple_weighting_func_params_t));
-  params->A = A;
-  params->B = B;
-  N->w_context = params;
-  N->w_dtor = &free;
-}
-
-void linear_regression(double* x, double* y, int N, double* A, double* B, double* sigma)
-{
-  ASSERT(N > 2);
-  double sumXY = 0.0, sumX = 0.0, sumY = 0.0, sumX2 = 0.0, sumY2 = 0.0;
-  for (int i = 0; i < N; ++i)
-  {
-    sumX += x[i];
-    sumX2 += x[i]*x[i];
-    sumY += y[i];
-    sumY2 += y[i]*y[i];
-    sumXY += x[i]*y[i];
-  }
-  *A = (N * sumXY - sumX*sumY) / (N * sumX2 - sumX*sumX);
-  *B = (sumY - *A * sumX) / N;
-  double SSE = 0.0;
-  for (int i = 0; i < N; ++i)
-  {
-    double e = (*A) * x[i] + (*B) - y[i];
-    SSE += e*e;
-  }
-  *sigma = SSE / (N - 2);
 }
 

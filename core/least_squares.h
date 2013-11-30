@@ -19,20 +19,58 @@
 
 #include "core/polymec.h"
 #include "core/point.h"
-#include "core/linear_algebra.h" // For LAPACK prototypes.
+#include "core/polynomial.h"
+
+// These functions and types are intended to help with the construction of 
+// least-squares fits to scattered data.
 
 // Computes the coefficients A and b for a linear regression y = A*x + B 
-// given arrays of x and y values. Also computes the variance sigma.
+// given arrays of (scalar) x and y values. Also computes the variance sigma.
 void linear_regression(double* x, double* y, int N, double* A, double* B, double* sigma);
 
-// This is a weighting function used for least-squares systems. Arguments:
-// - A context pointer storing information peculiar to this weighting function.
-// - A point x at which the weighting function is evaluated.
-// - A point x0 at which the weighting function is "centered."
-// - A number h that characterizes the spatial extent of the weight function.
+// This type is a weight function used for least-squares systems. Objects 
+// of this type are garbage-collected.
+typedef struct ls_weight_func_t ls_weight_func_t;
+
+// This is the signature for least-squares weight functions. Arguments:
+// - A context pointer for this weighting function.
+// - The displacement y = x - x0 of the evaluated point from the function's "center".
 // - A pointer to storage for the weighting function value.
 // - A pointer to storage for the weighting function gradient.
-typedef void (*ls_weighting_func_t)(void*, point_t*, point_t*, double, double*, vector_t*);
+typedef void (*ls_weight_func_eval_func)(void* context, vector_t* y, double* W, vector_t* grad_W);
+
+// This is the signature for setting the "domain" (set of points) that will 
+// define the extent of a least-squares weight function.
+typedef void (*ls_weight_func_set_domain_func)(void* context, point_t* x0, point_t* points, int num_points);
+
+// Destructor function for weight function context.
+typedef void (*ls_weight_func_dtor)(void*);
+
+// This virtual table must be implemented for a least-squares weight function.
+typedef struct
+{
+  ls_weight_func_set_domain_func set_domain;
+  ls_weight_func_eval_func       eval;
+  ls_weight_func_dtor            dtor; 
+} ls_weight_func_vtable;
+
+// Creates a least-squares weight function from a name, a context, and a 
+// virtual table.
+ls_weight_func_t* ls_weight_func_new(const char* name,
+                                     void* context,
+                                     ls_weight_func_vtable vtable);
+
+// Returns the name of the weight function.
+const char* ls_weight_func_name(ls_weight_func_t* W);
+
+// Sets the domain (the center point x0 and the points on which data exist) of the weight function.
+void ls_weight_func_set_domain(ls_weight_func_t* W, point_t* x0, point_t* points, int num_points);
+
+// Evaluates the value and the gradient of the weight function at the given point x.
+void ls_weight_func_eval(ls_weight_func_t* W, point_t* x, double* value, vector_t* gradient);
+
+// Returns the current center point x0 of the weight function. 
+point_t* ls_weight_func_x0(ls_weight_func_t* W);
 
 // Computes the least squares system for a pth-order polynomial fit to a set 
 // of scattered point data, centered about the point x0. This computes the 
@@ -41,9 +79,16 @@ typedef void (*ls_weighting_func_t)(void*, point_t*, point_t*, double, double*, 
 void compute_poly_ls_system(int p, point_t* x0, point_t* points, int num_points, 
                             double* data, double* moment_matrix, double* rhs);
 
-// This computes the weighted least squares system for the weighting function W.
-void compute_weighted_poly_ls_system(int p, ls_weighting_func_t W, point_t* x0, point_t* points, int num_points, 
-                                     double* data, double* moment_matrix, double* rhs);
+// This computes the weighted least squares system for the weighting function W, centered 
+// about the point x0 and with spatial extent h.
+void compute_weighted_poly_ls_system(int p, ls_weight_func_t* W, point_t* x0, 
+                                     point_t* points, int num_points, double* data, 
+                                     double* moment_matrix, double* rhs);
+
+// Computes the polynomial for a degree-p weighted least-squares fit with 
+// the given weight function and scatter point data.
+polynomial_t* ls_polynomial_new(int p, ls_weight_func_t* W, point_t* x0, 
+                                point_t* points, int num_points, double* data);
 
 // This class represents a shape function basis for a polynomial least-squares 
 // fit. A shape function maps a set of data (associated a given set of points in 
@@ -55,7 +100,8 @@ typedef struct poly_ls_shape_t poly_ls_shape_t;
 // with a weighting function, a context pointer, and its destructor.
 // Set compute_gradients to true to allow the calculation of gradients of 
 // shape functions at the cost of additional work in poly_ls_shape_set_domain.
-poly_ls_shape_t* poly_ls_shape_new(int p, bool compute_gradients);
+// If W is NULL, an unweighted least-squares procedure will be used.
+poly_ls_shape_t* poly_ls_shape_new(int p, ls_weight_func_t* W, bool compute_gradients);
 
 // Sets the domain of the shape function: its origin x0, and its support points.
 void poly_ls_shape_set_domain(poly_ls_shape_t* N, point_t* x0, point_t* points, int num_points);
@@ -110,9 +156,5 @@ void poly_ls_shape_compute_ghost_transform(poly_ls_shape_t* N, int* constraint_i
                                            point_t* constraint_points,
                                            double* a, double* b, double* c, double* d, double* e,
                                            double* A, double* B);
-
-// Selects a weighting function for the shape function with the form 
-// W(d) = 1 / (d**A + B**A), where A and B are parameters.
-void poly_ls_shape_set_simple_weighting_func(poly_ls_shape_t* N, int A, double B);
 
 #endif
