@@ -148,6 +148,7 @@ typedef struct {
   superlu_options_t slu_opts;
   SuperLUStat_t slu_stat;
   supermatrix_factory_t *supermatrix_factory;
+  adj_graph_t* pc_graph;
   SuperMatrix *slu_P;
   SuperMatrix *slu_X;
   SuperMatrix *slu_B;
@@ -497,10 +498,10 @@ static UserData AllocUserData(void)
   adj_graph_t* g = graph_from_mesh_cells(m);
   mesh_free(m);
   // create an adjency graph with the block structure
-  adj_graph_t* bg = adj_graph_new_with_block_size(NUM_SPECIES, g);
+  data->pc_graph = adj_graph_new_with_block_size(NUM_SPECIES, g);
   adj_graph_free(g);
 
-  data->supermatrix_factory = supermatrix_factory_from_sys_func(bg, func, NULL, data);
+  data->supermatrix_factory = supermatrix_factory_from_sys_func(data->pc_graph, func, NULL, data);
   data->slu_P = supermatrix_factory_matrix(data->supermatrix_factory);
 
   // create rhs and solution vectors for a single set of unknowns.
@@ -607,7 +608,7 @@ static void FreeUserData(UserData data)
   free(coy);
   N_VDestroy_Serial(data->rates);
 
-  adj_graph_free(data->supermatrix_factory->graph);
+  adj_graph_free(data->pc_graph);
   supermatrix_factory_free(data->supermatrix_factory);
   supermatrix_free(data->slu_P);
   supermatrix_free(data->slu_X);

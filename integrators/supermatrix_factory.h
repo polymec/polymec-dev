@@ -26,19 +26,6 @@
 
 // This class represents a way of integrating a system of 
 // nonlinear equations.
-struct supermatrix_factory_t 
-{
-  adj_graph_t* graph;
-  adj_graph_coloring_t* coloring;
-  KINSysFn F;
-  void (*set_F_time)(double, void*);
-  CVRhsFn rhs;
-  void* context;
-
-  // Work vectors.
-  N_Vector* work;
-};
-
 typedef struct supermatrix_factory_t supermatrix_factory_t;
 
 // Creates a factory that produces SuperLU SuperMatrix objects using 
