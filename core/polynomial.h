@@ -28,10 +28,12 @@ typedef struct polynomial_t polynomial_t;
 // This returns the number of coefficients in polynomial of given degree.
 int polynomial_basis_size(int degree);
 
-// Creates a polynomial of the given degree from the given set of coefficients, 
+// Creates a polynomial of the given degree from the given set of coefficients,
 // expanded about the given point x0. If x0 is NULL, x0 = 0.
 // The coefficients move from x^p to z^p across the corresponding row in 
-// Pascal's (hyper-)triangle.
+// Pascal's (hyper-)triangle. coeffs is an array of size 
+// polynomial_basis_size(degree), and data is copied from coeffs into the 
+// polynomial object.
 polynomial_t* polynomial_new(int degree, double* coeffs, point_t* x0);
 
 // Returns the degree of the polynomial.

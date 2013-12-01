@@ -138,47 +138,12 @@ static ls_weight_func_t* unweighted_func_new()
   return ls_weight_func_new("Unweighted", NULL, vtable);
 }
 
-void compute_poly_ls_system(int p, point_t* x0, point_t* points, int num_points, 
-                            double* data, double* moment_matrix, double* rhs)
-{
-  ASSERT(p >= 0);
-  ASSERT(p < 4);
-  ASSERT(moment_matrix != NULL);
-  ASSERT(rhs != NULL);
-  int size = polynomial_basis_size(p);
-  ASSERT(num_points >= size);
-
-  // Set up a polynomial basis, expanded about x0.
-  double coeffs[size];
-  for (int i = 0; i < size; ++i)
-    coeffs[i] = 1.0;
-  polynomial_t* poly = polynomial_new(p, coeffs, x0);
-  double basis[size];
-
-  // Zero the system.
-  memset(moment_matrix, 0, sizeof(double)*size*size);
-  memset(rhs, 0, sizeof(double)*size);
- 
-  for (int n = 0; n < num_points; ++n)
-  {
-    compute_poly_basis_vector(poly, &points[n], basis);
-    for (int i = 0; i < size; ++i)
-    {
-      for (int j = 0; j < size; ++j)
-        moment_matrix[size*j+i] += basis[i]*basis[j];
-      rhs[i] += basis[i]*data[n];
-    }
-  }
-
-  poly = NULL;
-}
-
 void compute_weighted_poly_ls_system(int p, ls_weight_func_t* W, point_t* x0, 
                                      point_t* points, int num_points, double* data, 
                                      double* moment_matrix, double* rhs)
 {
   ASSERT(p >= 0);
-  ASSERT(p < 4);
+  ASSERT(p <= 4);
   ASSERT(moment_matrix != NULL);
   ASSERT(rhs != NULL);
   int size = polynomial_basis_size(p);
@@ -211,6 +176,44 @@ void compute_weighted_poly_ls_system(int p, ls_weight_func_t* W, point_t* x0,
       rhs[i] += Wd*basis[i]*data[n];
     }
   }
+
+  wf = NULL;
+}
+
+void compute_poly_ls_system(int p, point_t* x0, point_t* points, int num_points, 
+                            double* data, double* moment_matrix, double* rhs)
+{
+  ASSERT(p >= 0);
+  ASSERT(p <= 4);
+  ASSERT(moment_matrix != NULL);
+  ASSERT(rhs != NULL);
+  int size = polynomial_basis_size(p);
+  ASSERT(num_points >= size);
+
+  ls_weight_func_t* W = unweighted_func_new();
+  compute_weighted_poly_ls_system(p, W, x0, points, num_points, data, moment_matrix, rhs);
+  W = NULL;
+}
+
+polynomial_t* ls_polynomial_new(int p, ls_weight_func_t* W, point_t* x0, 
+                                point_t* points, int num_points, double* data)
+{
+  // Compute the least-squares coefficients.
+  int dim = polynomial_basis_size(p);
+  double coeffs[dim], A[dim*dim];
+  if (W != NULL)
+    compute_weighted_poly_ls_system(p, W, x0, points, num_points, data, A, coeffs);
+  else
+    compute_poly_ls_system(p, x0, points, num_points, data, A, coeffs);
+  int lda = dim, ldb = dim, pivot[dim], info, one = 1;
+  char trans = 'N';
+  dgetrf(&dim, &dim, A, &lda, pivot, &info);
+  ASSERT(info == 0);
+  dgetrs(&trans, &dim, &one, A, &lda, pivot, coeffs, &ldb, &info);
+  ASSERT(info == 0);
+
+  // Construct and return the polynomial.
+  return polynomial_new(p, coeffs, x0);
 }
 
 // Shape function basis.
