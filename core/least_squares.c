@@ -187,8 +187,7 @@ void compute_poly_ls_system(int p, point_t* x0, point_t* points, int num_points,
   ASSERT(p <= 4);
   ASSERT(moment_matrix != NULL);
   ASSERT(rhs != NULL);
-  int size = polynomial_basis_size(p);
-  ASSERT(num_points >= size);
+  ASSERT(num_points >= polynomial_basis_size(p));
 
   ls_weight_func_t* W = unweighted_func_new();
   compute_weighted_poly_ls_system(p, W, x0, points, num_points, data, moment_matrix, rhs);

@@ -67,12 +67,53 @@ void sphere_integrator_cap_at_time(sphere_integrator_t* integ,
                                    double t, 
                                    double* integral);
 
+// Returns the number of quadrature points in the rule that we use to 
+// integrate over spherical caps. This is useful for generating quadrature 
+// weights for integrations over intersections of spheres with zero sets of 
+// implicit functions.
+int sphere_integrator_num_cap_points(sphere_integrator_t* integ);
+
+// This version of sphere_integrator_cap() allows one to pass in a set of 
+// quadrature weights. This can be used to compute integrals over the intersection
+// of the sphere with zero sets of implicit functions. 
+void sphere_integrator_cap_using_weights(sphere_integrator_t* integ, 
+                                         point_t* x0, 
+                                         double R, 
+                                         sp_func_t* F, 
+                                         vector_t* z,
+                                         double gamma,
+                                         double* weights,
+                                         double* integral);
+
+// This version of sphere_integrator_cap_at_time allows one to pass in a set of 
+// quadrature weights. 
+void sphere_integrator_cap_using_weights_at_time(sphere_integrator_t* integ, 
+                                                 point_t* x0, 
+                                                 double R, 
+                                                 st_func_t* F,
+                                                 vector_t* z,
+                                                 double gamma,
+                                                 double* weights,
+                                                 double t, 
+                                                 double* integral);
+
 // Calculates and returns the integral of the given polynomial p in the 
 // ball with radius R.
 double sphere_integrator_ball(sphere_integrator_t* integ,
                               point_t* x0, 
                               double R,
                               polynomial_t* p);
+
+// Computes the quadrature weights corresponding to a surface integral over
+// the intersection of a sphere of radius R centered at x0 with a boundary 
+// represented by the zero set of the implicit function called boundary_func.
+// Here, weights is an array equal in size to the value returned by 
+// sphere_integrator_num_cap_points(integ).
+void sphere_integrator_compute_boundary_weights(sphere_integrator_t* integ,
+                                                point_t* x0,
+                                                double R,
+                                                sp_func_t* boundary_func,
+                                                double* weights);
 
 #endif
 

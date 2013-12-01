@@ -97,6 +97,11 @@ static inline void construct_quad_point_and_weight(sphere_integrator_t* integ,
   *wij = 0.5 * (1.0 - cos_gamma) * integ->azi_weights[i] * integ->colat_weights[j];
 }
 
+int sphere_integrator_num_cap_points(sphere_integrator_t* integ)
+{
+  return integ->num_azi_nodes * integ->num_colat_nodes;
+}
+
 void sphere_integrator_cap(sphere_integrator_t* integ, 
                            point_t* x0,
                            double R, 
@@ -172,6 +177,85 @@ void sphere_integrator_cap_at_time(sphere_integrator_t* integ,
   }
 }
 
+void sphere_integrator_cap_using_weights(sphere_integrator_t* integ, 
+                                         point_t* x0,
+                                         double R, 
+                                         sp_func_t* F, 
+                                         vector_t* z,
+                                         double gamma,
+                                         double* weights,
+                                         double* integral)
+{
+  ASSERT(gamma >= 0.0);
+  ASSERT(gamma <= M_PI);
+
+  int num_comp = sp_func_num_comp(F);
+  memset(integral, 0, sizeof(double) * num_comp);
+
+  vector_t e1, e2, e3 = *z;
+  vector_normalize(&e3);
+  compute_orthonormal_basis(&e3, &e1, &e2);
+  int weight_index = 0;
+  for (int i = 0; i < integ->num_azi_nodes; ++i)
+  {
+    for (int j = 0; j < integ->num_colat_nodes; ++j, ++weight_index)
+    {
+      // Construct the (i, j)th quadrature point and its weight.
+      point_t xij;
+      double wij;
+      construct_quad_point_and_weight(integ, &e1, &e2, &e3, x0, R, gamma, i, j, &xij, &wij);
+
+      // Evaluate the function at this point.
+      double contrib[num_comp];
+      sp_func_eval(F, &xij, contrib);
+
+      // Add the contribution into the integral.
+      for (int k = 0; k < num_comp; ++k)
+        integral[k] += weights[weight_index] * R * R * contrib[k];
+    }
+  }
+}
+
+void sphere_integrator_cap_using_weights_at_time(sphere_integrator_t* integ, 
+                                                 point_t* x0,
+                                                 double R, 
+                                                 st_func_t* F,
+                                                 vector_t* z,
+                                                 double gamma,
+                                                 double* weights,
+                                                 double t, 
+                                                 double* integral)
+{
+  ASSERT(gamma >= 0.0);
+  ASSERT(gamma <= M_PI);
+
+  int num_comp = st_func_num_comp(F);
+  memset(integral, 0, sizeof(double) * num_comp);
+
+  vector_t e1, e2, e3 = *z;
+  vector_normalize(&e3);
+  compute_orthonormal_basis(&e3, &e1, &e2);
+  int weight_index = 0;
+  for (int i = 0; i < integ->num_azi_nodes; ++i)
+  {
+    for (int j = 0; j < integ->num_colat_nodes; ++j, ++weight_index)
+    {
+      // Construct the (i, j)th quadrature point and its weight.
+      point_t xij;
+      double wij;
+      construct_quad_point_and_weight(integ, &e1, &e2, &e3, x0, R, gamma, i, j, &xij, &wij);
+
+      // Evaluate the function at this point.
+      double contrib[num_comp];
+      st_func_eval(F, &xij, t, contrib);
+
+      // Add the contribution into the integral.
+      for (int k = 0; k < num_comp; ++k)
+        integral[k] += weights[weight_index] * R * R * contrib[k];
+    }
+  }
+}
+
 // This uses the method described by Folland (2001).
 double sphere_integrator_ball(sphere_integrator_t* integ,
                               point_t* x0,
@@ -195,5 +279,13 @@ double sphere_integrator_ball(sphere_integrator_t* integ,
     }
   }
   return I;
+}
+
+void sphere_integrator_compute_boundary_weights(sphere_integrator_t* integ,
+                                                point_t* x0,
+                                                double R,
+                                                sp_func_t* boundary_func,
+                                                double* weights)
+{
 }
 
