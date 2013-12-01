@@ -34,6 +34,7 @@ void test_constructors(void** state)
 }
 
 static double* global_array;
+static int* global_indices;
 
 static void crunch_numbers(void* context)
 {
@@ -45,11 +46,11 @@ static void do_number_crunching_test(void** state, thread_pool_t* pool)
 {
   int num_numbers = 20;
   global_array = malloc(sizeof(double) * 20);
-  int indices[num_numbers];
+  global_indices = malloc(sizeof(int) * 20);
   for (int i = 0; i < num_numbers; ++i)
   {
-    indices[i] = i;
-    thread_pool_schedule(pool, &indices[i], crunch_numbers);
+    global_indices[i] = i;
+    thread_pool_schedule(pool, &global_indices[i], crunch_numbers);
   }
   thread_pool_execute(pool);
 
@@ -57,6 +58,7 @@ static void do_number_crunching_test(void** state, thread_pool_t* pool)
   {
     assert_true(global_array[i] == 1.0*i*i);
   }
+  free(global_indices);
   free(global_array);
 }
 
