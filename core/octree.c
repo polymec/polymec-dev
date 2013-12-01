@@ -16,7 +16,7 @@
 
 #include "core/octree.h"
 
-static double square(x) 
+static double square(double x) 
 {
   return x*x;
 }

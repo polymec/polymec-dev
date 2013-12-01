@@ -372,12 +372,6 @@ void write_silo_points(point_t* points,
   if (time != -FLT_MAX)
     DBAddOption(optlist, DBOPT_DTIME, &time);
 
-  // This is optional for now, but we'll give it anyway.
-  char *coordnames[3];
-  coordnames[0] = (char*)"xcoords";
-  coordnames[1] = (char*)"ycoords";
-  coordnames[2] = (char*)"zcoords";
-
   // Point coordinates.
   double* x = malloc(sizeof(double) * num_points);
   double* y = malloc(sizeof(double) * num_points);
