@@ -263,7 +263,7 @@ static inline key_type map_name##_change_key(map_name##_t* map, key_type old_key
   int index = map_name##_index(map->bucket_count, h); \
   map_name##_entry_t** p = &(map->buckets[index]); \
   map_name##_entry_t* current; \
-  key_type key; \
+  key_type key = old_key; \
   value_type value; \
   map_name##_kv_dtor kv_dtor = NULL; \
   map_name##_k_dtor k_dtor = NULL; \
