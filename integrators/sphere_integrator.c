@@ -16,6 +16,7 @@
 
 #include "integrators/sphere_integrator.h"
 #include "integrators/gauss_rules.h"
+#include "core/linear_algebra.h"
 
 // Constructs points and weights for the azimuthal interval [0, 2*pi).
 static void get_azi_points_and_weights(int n, double* points, double* weights)
@@ -287,5 +288,25 @@ void sphere_integrator_compute_boundary_weights(sphere_integrator_t* integ,
                                                 sp_func_t* boundary_func,
                                                 double* weights)
 {
+  // How many weights will we be computing?
+  int N = sphere_integrator_num_cap_points(integ);
+
+  // How many moments are we using for the calculation?
+  int M = 1;
+  // FIXME
+
+  // Assemble the moment matrix and the right-hand side in equation (13) 
+  // of Muller (2013).
+  double A[M*N], b[N];
+  // FIXME
+
+  // Solve the least-squares problem.
+  int nrhs = 1, lda = M, ldb = MAX(M, N), rank,
+      lwork = MAX(M*N+3*N+1, 2*M*N+1), jpvt[N], info;
+  double work[lwork];
+  double rcond = 1e-12; // Accuracy of integrands for estimating condition number of A.
+  memset(jpvt, 0, sizeof(int) * N);
+  dgelsy(&M, &N, &nrhs, A, &lda, b, &ldb, jpvt, &rcond, &rank, work, &lwork, &info);
+
 }
 

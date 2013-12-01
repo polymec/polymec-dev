@@ -31,6 +31,7 @@
 #define dorgqr dorgqr_
 #define dormqr dormqr_
 #define dgesvd dgesvd_
+#define dgelsy dgelsy_
 #endif
 
 // Matrix-vector multiplication: y := alpha*A*x + beta*y.
@@ -111,6 +112,15 @@ void dormqr(char* side, char* trans, int* m, int* n, int* k, double* A,
 int dgesvd(char* jobU, char* jobVT, int* m, int* n, 
            double *A, int* lda, double* S, double* U, int* ldu, 
            double* VT, int* ldvt, double *work, int* lwork, int* info);
+
+// DGELSY computes the minimum-norm solution to a real linear least
+// squares problem:
+//       minimize || A * X - B ||
+// using a complete orthogonal factorization of A. A is an M-by-N
+// matrix which may be rank-deficient. See LAPACK documentation for details.
+void dgelsy(int* m, int* n, int* nrhs, double* A, int* lda, double* B, int* ldb, 
+            int* jpvt, double* rcond, int* rank, double* work, int* lwork, 
+            int* info);
 
 // Print a (column-major-ordered) matrix to the given file stream.
 void matrix_fprintf(double* matrix, int nr, int nc, FILE* stream);
