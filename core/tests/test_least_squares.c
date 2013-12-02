@@ -175,7 +175,7 @@ void test_poly_shape_functions(void** state, int p, point_t* x0, point_t* points
   for (int k = 0; k < num_points; ++k)
     phi_fit += Nk[k] * data[k];
   double phi = polynomial_value(poly, &point);
-  printf("%g %g %g\n", phi_fit, phi, fabs(phi_fit - phi));
+//  printf("%g %g %g\n", phi_fit, phi, fabs(phi_fit - phi));
   assert_true(fabs(phi_fit - phi) < 1e-12);
 
   // Clean up.
@@ -223,7 +223,7 @@ void test_poly_shape_function_gradients(void** state, int p, point_t* x0, point_
       gradient.z += gradNk[k].z*data[k];
     }
     assert_true(fabs(value - data[i]) < 2e-14);
-    printf("%g %g %g\n", gradient.x, data_grads[i].x, fabs(gradient.x - data_grads[i].x));
+//    printf("%g %g %g\n", gradient.x, data_grads[i].x, fabs(gradient.x - data_grads[i].x));
     assert_true(fabs(gradient.x - data_grads[i].x) < 1e-4);
     assert_true(fabs(gradient.y - data_grads[i].y) < 1e-4);
     assert_true(fabs(gradient.z - data_grads[i].z) < 1e-4);

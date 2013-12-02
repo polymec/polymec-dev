@@ -35,12 +35,15 @@ typedef enum
 } sphere_integrator_rule_t;
 #endif
 
-// Construct a new sphere integrator with the given polynomial order and 
+// Construct a new sphere integrator with the given polynomial degree and 
 // integration rule.
-sphere_integrator_t* sphere_integrator_new(int order);
+sphere_integrator_t* sphere_integrator_new(int degree);
 
 // Destroys the given sphere integrator.
 void sphere_integrator_free(sphere_integrator_t* integ);
+
+// Returns the degree of the polynomial that this integrator can exactly integrate.
+int sphere_integrator_degree(sphere_integrator_t* integ);
 
 // Calculates the integral of the given spatial function F on the spherical cap
 // on the sphere centered at x0 with radius R, defined by the set 

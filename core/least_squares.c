@@ -146,7 +146,7 @@ void compute_weighted_poly_ls_system(int p, ls_weight_func_t* W, point_t* x0,
   ASSERT(p <= 4);
   ASSERT(moment_matrix != NULL);
   ASSERT(rhs != NULL);
-  int size = polynomial_basis_size(p);
+  int size = polynomial_basis_dim(p);
   ASSERT(num_points >= size);
 
   ls_weight_func_t* wf = (W != NULL) ? W : unweighted_func_new();
@@ -187,7 +187,7 @@ void compute_poly_ls_system(int p, point_t* x0, point_t* points, int num_points,
   ASSERT(p <= 4);
   ASSERT(moment_matrix != NULL);
   ASSERT(rhs != NULL);
-  ASSERT(num_points >= polynomial_basis_size(p));
+  ASSERT(num_points >= polynomial_basis_dim(p));
 
   ls_weight_func_t* W = unweighted_func_new();
   compute_weighted_poly_ls_system(p, W, x0, points, num_points, data, moment_matrix, rhs);
@@ -198,7 +198,7 @@ polynomial_t* ls_polynomial_new(int p, ls_weight_func_t* W, point_t* x0,
                                 point_t* points, int num_points, double* data)
 {
   // Compute the least-squares coefficients.
-  int dim = polynomial_basis_size(p);
+  int dim = polynomial_basis_dim(p);
   double coeffs[dim], A[dim*dim];
   if (W != NULL)
     compute_weighted_poly_ls_system(p, W, x0, points, num_points, data, A, coeffs);
@@ -243,7 +243,7 @@ poly_ls_shape_t* poly_ls_shape_new(int p, ls_weight_func_t* W, bool compute_grad
   ASSERT(p >= 0);
   ASSERT(p <= 4);
   poly_ls_shape_t* N = GC_MALLOC(sizeof(poly_ls_shape_t));
-  int dim = polynomial_basis_size(p);
+  int dim = polynomial_basis_dim(p);
   double coeffs[dim];
   for (int i = 0; i < dim; ++i)
     coeffs[i] = 1.0;

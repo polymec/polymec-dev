@@ -42,18 +42,18 @@ struct sphere_integrator_t
   double *azi_nodes, *azi_weights;
 };
 
-sphere_integrator_t* sphere_integrator_new(int order)
+sphere_integrator_t* sphere_integrator_new(int degree)
 {
   sphere_integrator_t* integ = malloc(sizeof(sphere_integrator_t));
-  integ->num_azi_nodes = order + 1;
+  integ->num_azi_nodes = degree + 1;
   integ->azi_nodes = malloc(sizeof(double) * integ->num_azi_nodes);
   integ->azi_weights = malloc(sizeof(double) * integ->num_azi_nodes);
-  get_azi_points_and_weights(order, integ->azi_nodes, integ->azi_weights);
+  get_azi_points_and_weights(degree, integ->azi_nodes, integ->azi_weights);
 
-  integ->num_colat_nodes = order/2 + 1;
+  integ->num_colat_nodes = degree/2 + 1;
   integ->colat_nodes = malloc(sizeof(double) * integ->num_colat_nodes);
   integ->colat_weights = malloc(sizeof(double) * integ->num_colat_nodes);
-  get_gauss_legendre_points(order/2+1, integ->colat_nodes, integ->colat_weights);
+  get_gauss_legendre_points(degree/2+1, integ->colat_nodes, integ->colat_weights);
 
   return integ;
 }
@@ -65,6 +65,11 @@ void sphere_integrator_free(sphere_integrator_t* integ)
   free(integ->azi_weights);
   free(integ->azi_nodes);
   free(integ);
+}
+
+int sphere_integrator_degree(sphere_integrator_t* integ)
+{
+  return integ->num_azi_nodes - 1;
 }
 
 static inline void construct_quad_point_and_weight(sphere_integrator_t* integ, 
