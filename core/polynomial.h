@@ -72,26 +72,4 @@ bool polynomial_next(polynomial_t* p, int* pos, double* coeff, int* x_power, int
 // Returns an sp_func corresponding to the given polynomial.
 sp_func_t* polynomial_sp_func(polynomial_t* p);
 
-// This type represents a vector space consisting of polynomials. The 
-// polynomials are not necessarily orthogonal, though they may be made so by 
-// the Gram-Schmidt process. Objects of this type are garbage-collected.
-typedef struct polynomial_space_t polynomial_space_t;
-
-// Constructs a new polynomial space of dimension 0. 
-polynomial_space_t* polynomial_space();
-
-// Constructs a new (orthonormal) polynomial space by applying the Gram-Schmidt
-// procedure to the given polynomial space.
-polynomial_space_t* polynomial_space_from_gram_schmidt(polynomial_space_t* poly_space);
-
-// Returns the dimension of the polynomial space.
-int polynomial_space_dim(polynomial_space_t* poly_space);
-
-// Add a polynomial p to the given space, increasing its dimension by 1.
-void polynomial_space_add(polynomial_space_t* poly_space, polynomial_t* p);
-
-// Traverses the polynomials in the space, much as polynomial_next() traverses
-// the monomial terms in a polynomial.
-bool polynomial_space_next(polynomial_space_t* poly_space, int* pos, polynomial_t** poly);
-
 #endif
