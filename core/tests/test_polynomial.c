@@ -49,7 +49,7 @@ void test_ctor(void** state, int p)
 
   // Construct a polynomial about the origin.
   polynomial_t* poly = polynomial_new(p, coeffs, NULL);
-  assert_int_equal(dim, polynomial_num_coeffs(poly));
+  assert_int_equal(dim, polynomial_num_terms(poly));
   point_t origin = {.x = 0.0, .y = 0.0, .z = 0.0};
   assert_true(point_distance(&origin, polynomial_x0(poly)) < 1e-14);
   int pos = 0, x_pow, y_pow, z_pow, index = 0;
@@ -66,7 +66,7 @@ void test_ctor(void** state, int p)
   // Construct a polynomial about a point x0.
   point_t x0 = {.x = 1.0, .y = 2.0, .z = 3.0};
   poly = polynomial_new(p, coeffs, &x0);
-  assert_int_equal(dim, polynomial_num_coeffs(poly));
+  assert_int_equal(dim, polynomial_num_terms(poly));
   assert_true(point_distance(&x0, polynomial_x0(poly)) < 1e-14);
   pos = 0, index = 0;
   while (polynomial_next(poly, &pos, &coeff, &x_pow, &y_pow, &z_pow))

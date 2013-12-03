@@ -37,24 +37,102 @@ static void div_free_poly_basis_free(void* ctx, void* dummy)
   free(basis->z_poly);
 }
 
+// Basis dimension for given degree.
+// FIXME: Currently only up to degree 2.
+static int basis_dim[] = {3, 11, 26};
+
+// Coefficients and powers of x, y, z polynomials for degrees.
+
+// x polynomial coefficients and powers.
+static double x_poly_coeffs[3][26] = 
+  {{1.0, 0.0, 0.0},
+   {1.0, 0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0},
+   {1.0, 0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0}};
+static int x_poly_x_powers[3][26] = 
+  {{0, 0, 0},
+   {0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0},
+   {0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 2, 0, 0}};
+static int x_poly_y_powers[3][26] = 
+  {{0, 0, 0},
+   {0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0},
+   {0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 2, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0}};
+static int x_poly_z_powers[3][26] = 
+  {{0, 0, 0},
+   {0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0},
+   {0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 2, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0}};
+
+// y polynomial coefficients and powers.
+static double y_poly_coeffs[3][26] = 
+  {{0.0, 1.0, 0.0},
+   {0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0},
+   {0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0}};
+static int y_poly_x_powers[3][26] = 
+  {{0, 0, 0},
+   {0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0},
+   {0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 2, 0}};
+static int y_poly_y_powers[3][26] = 
+  {{0, 0, 0},
+   {0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0},
+   {0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 2, 0, 0, 0, 0, 1, 0, 0, 0, 0}};
+static int y_poly_z_powers[3][26] = 
+  {{0, 0, 0},
+   {0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0},
+   {0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 2, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0}};
+
+// z polynomial coefficients and powers.
+static double z_poly_coeffs[3][26] = 
+  {{0.0, 0.0, 1.0},
+   {0.0, 0.0, 1.0, 0.0, 0.0, 0.0, -1.0, 1.0, -1.0, 0.0, 1.0},
+   {0.0, 0.0, 1.0, 0.0, 0.0, 0.0, -1.0, 1.0, -1.0, 0.0, 1.0, 0.0, 0.0, 0.0, -1.0, 0.0, -2.0, 1.0, -1.0, 0.0, -1.0, -1.0, 1.0, -2.0, 0.0, 1.0}};
+static int z_poly_x_powers[3][26] = 
+  {{0, 0, 0},
+   {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
+   {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 2}};
+static int z_poly_y_powers[3][26] = 
+  {{0, 0, 0},
+   {0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0},
+   {0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 0, 0, 1, 0, 1, 0, 0, 0}};
+static int z_poly_z_powers[3][26] = 
+  {{0, 0, 0},
+   {0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0},
+   {0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 2, 0, 1, 0, 2, 0, 1, 1, 0, 1, 0, 0}};
+
 div_free_poly_basis_t* div_free_poly_basis_new(int degree)
 {
   ASSERT(degree >= 0);
-  ASSERT(degree <= 4);
+  ASSERT(degree <= 2); // FIXME
   div_free_poly_basis_t* basis = GC_MALLOC(sizeof(div_free_poly_basis_t));
-  // FIXME: Determine basis dimension.
-  basis->dim = 1;
+  basis->dim = basis_dim[degree];
   basis->x_poly = malloc(sizeof(polynomial_t*) * basis->dim);
   basis->y_poly = malloc(sizeof(polynomial_t*) * basis->dim);
   basis->z_poly = malloc(sizeof(polynomial_t*) * basis->dim);
+  GC_register_finalizer(basis, div_free_poly_basis_free, basis, NULL, NULL);
 
-  // Construct the naive basis.
-  // FIXME
+  // Construct the naive monomial basis.
+  polynomial_t** naive_x = malloc(sizeof(polynomial_t*) * basis->dim);
+  polynomial_t** naive_y = malloc(sizeof(polynomial_t*) * basis->dim);
+  polynomial_t** naive_z = malloc(sizeof(polynomial_t*) * basis->dim);
+  for (int i = 0; i < basis->dim; ++i)
+  {
+    naive_x[i] = polynomial_from_monomials(degree, 1, &x_poly_coeffs[degree][i], &x_poly_x_powers[degree][i], &x_poly_y_powers[degree][i], &x_poly_z_powers[degree][i], NULL);
+    naive_y[i] = polynomial_from_monomials(degree, 1, &y_poly_coeffs[degree][i], &y_poly_x_powers[degree][i], &y_poly_y_powers[degree][i], &y_poly_z_powers[degree][i], NULL);
+    naive_z[i] = polynomial_from_monomials(degree, 1, &z_poly_coeffs[degree][i], &z_poly_x_powers[degree][i], &z_poly_y_powers[degree][i], &z_poly_z_powers[degree][i], NULL);
+  }
 
   // Use Gram-Schmidt orthogonalization to figure out an orthonormal basis.
   // FIXME
 
-  GC_register_finalizer(basis, div_free_poly_basis_free, basis, NULL, NULL);
+  // Clean up.
+  for (int i = 0; i < basis->dim; ++i)
+  {
+    naive_x[i] = NULL;
+    naive_y[i] = NULL;
+    naive_z[i] = NULL;
+  }
+  free(naive_x);
+  free(naive_y);
+  free(naive_z);
+
   return basis;
 }
 

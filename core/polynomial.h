@@ -37,19 +37,19 @@ int polynomial_basis_dim(int degree);
 // and data is copied from coeffs into the polynomial object.
 polynomial_t* polynomial_new(int degree, double* coeffs, point_t* x0);
 
-// Creates a polynomial of the given degree using the given (non-standard) 
-// basis of the given dimension, expressed in terms of its coefficients 
-// and powers of x, y, and z. The polynomial is expanded about x0, unless 
-// x0 is NULL, in which case it is expanded about the origin.
-polynomial_t* polynomial_from_basis(int degree, int dim, double* coeffs, 
-                                    int* x_powers, int* y_powers, int* z_powers, 
-                                    point_t* x0);
+// Creates a polynomial of the given degree using the given monomials
+// expressed in terms of coefficients and powers of x, y, and z. The 
+// polynomial is expanded about x0, unless x0 is NULL, in which case it is 
+// expanded about the origin.
+polynomial_t* polynomial_from_monomials(int degree, int num_monomials, double* coeffs, 
+                                        int* x_powers, int* y_powers, int* z_powers, 
+                                        point_t* x0);
 
 // Returns the degree of the polynomial.
 int polynomial_degree(polynomial_t* p);
 
-// Returns the number of coefficients in the polynomial.
-int polynomial_num_coeffs(polynomial_t* p);
+// Returns the number of terms in the polynomial.
+int polynomial_num_terms(polynomial_t* p);
 
 // Returns an internal array of the polynomial's coefficients. Can be used 
 // to get or set the coefficients.

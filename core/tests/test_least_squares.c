@@ -110,7 +110,7 @@ void test_poly_fit(void** state, int p, point_t* x0, point_t* points, int num_po
     data[i] = polynomial_value(poly, &points[i]);
 
   // Assemble the linear system to recover the coefficients.
-  int dim = polynomial_num_coeffs(poly);
+  int dim = polynomial_num_terms(poly);
   double A[dim*dim], b[dim];
   if (weighted)
   {

@@ -264,7 +264,7 @@ void poly_ls_shape_set_domain(poly_ls_shape_t* N, point_t* x0, point_t* points, 
 {
   ASSERT(x0 != NULL);
 
-  int dim = polynomial_num_coeffs(N->poly);
+  int dim = polynomial_num_terms(N->poly);
   if (num_points != N->num_points)
   {
     N->num_points = num_points;
@@ -290,7 +290,7 @@ void poly_ls_shape_compute(poly_ls_shape_t* N, point_t* x, double* values)
 void poly_ls_shape_compute_gradients(poly_ls_shape_t* N, point_t* x, double* values, vector_t* gradients)
 {
   ASSERT((gradients == NULL) || N->compute_gradients);
-  int dim = polynomial_num_coeffs(N->poly);
+  int dim = polynomial_num_terms(N->poly);
   int num_points = N->num_points;
 
   // Compute the weights and their gradients at x.

@@ -20,7 +20,7 @@
 
 struct polynomial_t 
 {
-  int degree, dim;
+  int degree, num_terms;
   double* coeffs;
   int *x_pow, *y_pow, *z_pow;
   point_t x0;
@@ -70,7 +70,7 @@ polynomial_t* polynomial_new(int degree, double* coeffs, point_t* x0)
   memcpy(p->y_pow, std_y_pow, sizeof(int) * N_coeffs[degree]);
   p->z_pow = malloc(sizeof(int) * N_coeffs[degree]);
   memcpy(p->z_pow, std_z_pow, sizeof(int) * N_coeffs[degree]);
-  p->dim = N_coeffs[degree];
+  p->num_terms = N_coeffs[degree];
   if (x0 != NULL)
     p->x0 = *x0;
   else
@@ -81,29 +81,29 @@ polynomial_t* polynomial_new(int degree, double* coeffs, point_t* x0)
   return p;
 }
 
-polynomial_t* polynomial_from_basis(int degree, int dim, double* coeffs, 
-                                    int* x_powers, int* y_powers, int* z_powers, 
-                                    point_t* x0)
+polynomial_t* polynomial_from_monomials(int degree, int num_monomials, double* coeffs, 
+                                        int* x_powers, int* y_powers, int* z_powers, 
+                                        point_t* x0)
 {
   ASSERT(degree >= 0);
-  ASSERT(dim > 0);
+  ASSERT(num_monomials > 0);
   polynomial_t* p = GC_MALLOC(sizeof(polynomial_t));
   p->degree = degree;
-  p->coeffs = malloc(sizeof(double) * dim);
-  memcpy(p->coeffs, coeffs, sizeof(double) * dim);
-  p->x_pow = malloc(sizeof(int) * dim);
-  memcpy(p->x_pow, x_powers, sizeof(int) * dim);
-  p->y_pow = malloc(sizeof(int) * dim);
-  memcpy(p->y_pow, y_powers, sizeof(int) * dim);
-  p->z_pow = malloc(sizeof(int) * dim);
-  memcpy(p->z_pow, z_powers, sizeof(int) * dim);
+  p->coeffs = malloc(sizeof(double) * num_monomials);
+  memcpy(p->coeffs, coeffs, sizeof(double) * num_monomials);
+  p->x_pow = malloc(sizeof(int) * num_monomials);
+  memcpy(p->x_pow, x_powers, sizeof(int) * num_monomials);
+  p->y_pow = malloc(sizeof(int) * num_monomials);
+  memcpy(p->y_pow, y_powers, sizeof(int) * num_monomials);
+  p->z_pow = malloc(sizeof(int) * num_monomials);
+  memcpy(p->z_pow, z_powers, sizeof(int) * num_monomials);
   if (x0 != NULL)
     p->x0 = *x0;
   else
   {
     p->x0.x = 0.0, p->x0.y = 0.0, p->x0.z = 0.0;
   }
-  p->dim = dim;
+  p->num_terms = num_monomials;
   GC_register_finalizer(p, polynomial_free, p, NULL, NULL);
   return p;
 }
@@ -113,9 +113,9 @@ int polynomial_degree(polynomial_t* p)
   return p->degree;
 }
 
-int polynomial_num_coeffs(polynomial_t* p)
+int polynomial_num_terms(polynomial_t* p)
 {
-  return p->dim;
+  return p->num_terms;
 }
 
 double* polynomial_coeffs(polynomial_t* p)
