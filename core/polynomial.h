@@ -45,6 +45,9 @@ polynomial_t* polynomial_from_monomials(int degree, int num_monomials, double* c
                                         int* x_powers, int* y_powers, int* z_powers, 
                                         point_t* x0);
 
+// Clones an existing polynomial p.
+polynomial_t* polynomial_clone(polynomial_t* p);
+
 // Returns the degree of the polynomial.
 int polynomial_degree(polynomial_t* p);
 
@@ -68,6 +71,9 @@ double polynomial_deriv(polynomial_t* p, int x_deriv, int y_deriv, int z_deriv, 
 // if terms remain, false if this iteration yields nothing. Set pos to 0 to 
 // reset iteration.
 bool polynomial_next(polynomial_t* p, int* pos, double* coeff, int* x_power, int* y_power, int* z_power);
+
+// Adds the polynomial q (times the given factor) to the polynomial p in-place.
+void polynomial_add(polynomial_t* p, double factor, polynomial_t* q);
 
 // Returns an sp_func corresponding to the given polynomial.
 sp_func_t* polynomial_sp_func(polynomial_t* p);

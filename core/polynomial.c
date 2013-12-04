@@ -16,7 +16,7 @@
 
 #include <gc/gc.h>
 #include "core/polynomial.h"
-#include "core/array.h"
+#include "core/slist.h"
 
 struct polynomial_t 
 {
@@ -108,6 +108,24 @@ polynomial_t* polynomial_from_monomials(int degree, int num_monomials, double* c
   return p;
 }
 
+polynomial_t* polynomial_clone(polynomial_t* p)
+{
+  polynomial_t* q = GC_MALLOC(sizeof(polynomial_t));
+  q->degree = p->degree;
+  q->num_terms = p->num_terms;
+  q->coeffs = malloc(sizeof(double) * q->num_terms);
+  memcpy(q->coeffs, p->coeffs, sizeof(double) * q->num_terms);
+  q->x_pow = malloc(sizeof(int) * q->num_terms);
+  memcpy(q->x_pow, p->x_pow, sizeof(int) * q->num_terms);
+  q->y_pow = malloc(sizeof(int) * q->num_terms);
+  memcpy(q->y_pow, p->y_pow, sizeof(int) * q->num_terms);
+  q->z_pow = malloc(sizeof(int) * q->num_terms);
+  memcpy(q->z_pow, p->z_pow, sizeof(int) * q->num_terms);
+  q->x0 = p->x0;
+  GC_register_finalizer(q, polynomial_free, q, NULL, NULL);
+  return q;
+}
+
 int polynomial_degree(polynomial_t* p)
 {
   return p->degree;
@@ -179,6 +197,58 @@ bool polynomial_next(polynomial_t* p, int* pos, double* coeff, int* x_power, int
   *z_power = p->z_pow[*pos];
   ++(*pos);
   return true;
+}
+
+// Returns the index of the term within p for which the x, y, and z powers 
+// match those given. If such a term is not found, returns -1. This function 
+// uses a linear search.
+static int matching_term_index(polynomial_t* p, int x_pow, int y_pow, int z_pow)
+{
+  for (int i = 0; i < p->num_terms; ++i)
+  {
+    if ((p->x_pow[i] == x_pow) && (p->y_pow[i] == y_pow) && (p->z_pow[i] == z_pow))
+      return i;
+  }
+  return -1;
+}
+
+void polynomial_add(polynomial_t* p, double factor, polynomial_t* q)
+{
+  // There are two cases we need to consider for each term in q:
+  // 1. We have a term matching this term in p, and the coefficient should 
+  //    simply be added in.
+  // 2. We have no such matching term, and a new term should be appended 
+  //    to p.
+  int_slist_t* terms_to_append = int_slist_new();
+  for (int i = 0; i < q->num_terms; ++i)
+  {
+    int index = matching_term_index(p, q->x_pow[i], q->y_pow[i], q->z_pow[i]);
+    if (index != -1)
+      p->coeffs[index] += factor * q->coeffs[i];
+    else
+      int_slist_append(terms_to_append, i);
+  }
+
+  if (!int_slist_empty(terms_to_append))
+  {
+    int old_size = p->num_terms;
+    p->num_terms = old_size + terms_to_append->size;
+    p->coeffs = realloc(p->coeffs, sizeof(double) * p->num_terms);
+    p->x_pow = realloc(p->x_pow, sizeof(int) * p->num_terms);
+    p->y_pow = realloc(p->y_pow, sizeof(int) * p->num_terms);
+    p->z_pow = realloc(p->z_pow, sizeof(int) * p->num_terms);
+
+    for (int i = old_size; i < p->num_terms; ++i)
+    {
+      int j = int_slist_pop(terms_to_append, NULL);
+      p->coeffs[i] = factor * q->coeffs[j];
+      p->x_pow[i] = q->x_pow[j];
+      p->y_pow[i] = q->y_pow[j];
+      p->z_pow[i] = q->z_pow[j];
+    }
+  }
+
+  int_slist_free(terms_to_append);
 }
 
 static void wrap_eval(void* context, point_t* x, double* result)

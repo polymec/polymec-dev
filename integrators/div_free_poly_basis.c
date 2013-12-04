@@ -23,6 +23,7 @@ struct div_free_poly_basis_t
   polynomial_t **x_poly, **y_poly, **z_poly;
 };
 
+// Destructor function -- called by garbage collector.
 static void div_free_poly_basis_free(void* ctx, void* dummy)
 {
   div_free_poly_basis_t* basis = ctx;
@@ -97,6 +98,14 @@ static int z_poly_z_powers[3][26] =
    {0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0},
    {0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 2, 0, 1, 0, 2, 0, 1, 1, 0, 1, 0, 0}};
 
+// This type is used for polynomial vector arithmetic.
+typedef struct
+{
+  polynomial_t* x;
+  polynomial_t* y;
+  polynomial_t* z;
+} polynomial_vector_t;
+
 div_free_poly_basis_t* div_free_poly_basis_new(int degree)
 {
   ASSERT(degree >= 0);
@@ -119,8 +128,32 @@ div_free_poly_basis_t* div_free_poly_basis_new(int degree)
     naive_z[i] = polynomial_from_monomials(degree, 1, &z_poly_coeffs[degree][i], &z_poly_x_powers[degree][i], &z_poly_y_powers[degree][i], &z_poly_z_powers[degree][i], NULL);
   }
 
-  // Use Gram-Schmidt orthogonalization to figure out an orthonormal basis.
-  // FIXME
+  // Use Gram-Schmidt orthogonalization to figure out an orthogonal basis.
+  // Here we suppose that {v} is the naive basis and {u} is our desired one.
+  for (int i = 0; i < basis->dim; ++i)
+  {
+    // ui begins as vi.
+    polynomial_vector_t ui = {.x = polynomial_clone(naive_x[i]),
+                              .y = polynomial_clone(naive_y[i]), 
+                              .z = polynomial_clone(naive_z[i])};
+
+    for (int j = 0; j < i; ++j)
+    {
+      // Compute the projection of vi onto uj, which is itself a polynomial.
+      polynomial_vector_t proj;
+      // FIXME
+
+      // Subtract off this projection from ui.
+      polynomial_add(ui.x, -1.0, proj.x);
+      polynomial_add(ui.y, -1.0, proj.y);
+      polynomial_add(ui.z, -1.0, proj.z);
+    }
+
+    // Set this polynomial as the basis.
+    basis->x_poly[i] = ui.x;
+    basis->y_poly[i] = ui.y;
+    basis->z_poly[i] = ui.z;
+  }
 
   // Clean up.
   for (int i = 0; i < basis->dim; ++i)
