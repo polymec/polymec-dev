@@ -26,11 +26,16 @@
 // Otherwise, just ignore it. :-) Objects of this type are garbage-collected.
 typedef struct div_free_poly_basis_t div_free_poly_basis_t;
 
-// Constructs a divergence-free polynomial basis suitable for representing 
+// Constructs a naive monomial divergence-free basis suitable for representing 
+// functions that can be exactly represented by polynomials of the given 
+// degree. 
+div_free_poly_basis_t* naive_div_free_poly_basis_new(int degree);
+
+// Constructs an orthogonal divergence-free basis suitable for representing 
 // functions that can be exactly represented by polynomials of the given 
 // degree. This basis is obtained by performing a Gram-Schmidt orthogonalization
 // on the naive basis whose vector components are monomials.
-div_free_poly_basis_t* div_free_poly_basis_new(int degree);
+div_free_poly_basis_t* orthogonal_div_free_poly_basis_new(int degree);
 
 // Returns the dimension of the given divergence-free polynomial basis.
 int div_free_poly_basis_dim(div_free_poly_basis_t* basis);

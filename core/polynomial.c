@@ -251,6 +251,60 @@ void polynomial_add(polynomial_t* p, double factor, polynomial_t* q)
   int_slist_free(terms_to_append);
 }
 
+polynomial_t* polynomial_product(polynomial_t* p, polynomial_t* q)
+{
+  // We cannot compute the product of two polynomials centered at 
+  // different points.
+  ASSERT(point_distance(&p->x0, &q->x0) < 1e-14);
+
+  int degree = p->degree + q->degree;
+
+  // All terms in the product.
+  int num_terms = p->num_terms * q->num_terms;
+  double coeffs[num_terms];
+  int x_pow[num_terms], y_pow[num_terms], z_pow[num_terms];
+  int k = 0;
+  for (int i = 0; i < p->num_terms; ++i)
+  {
+    for (int j = 0; j < q->num_terms; ++j, ++k)
+    {
+      coeffs[k] = p->coeffs[i] * q->coeffs[j];
+      x_pow[k] = p->x_pow[i] + q->x_pow[j];
+      y_pow[k] = p->y_pow[i] + q->y_pow[j];
+      z_pow[k] = p->z_pow[i] + q->z_pow[j];
+    }
+  }
+
+  // Add like terms. This is probably slower than it needs to be.
+  for (int i = 0; i < num_terms; ++i)
+  {
+    for (int j = i+1; j < num_terms; ++j)
+    {
+      if ((x_pow[j] == x_pow[i]) && (y_pow[j] == y_pow[i]) && (z_pow[j] == z_pow[i]))
+      {
+        // Add in the coefficient.
+        coeffs[i] += coeffs[j];
+
+        // Replace this term with the last one in our last, and shorten the 
+        // list by one.
+        coeffs[j] = coeffs[num_terms-1];
+        x_pow[j] = x_pow[num_terms-1];
+        y_pow[j] = y_pow[num_terms-1];
+        z_pow[j] = z_pow[num_terms-1];
+        --num_terms;
+
+        // Take a step back.
+        --j;
+      }
+    }
+  }
+
+  // Create a polynomial from the reduced terms.
+  return polynomial_from_monomials(degree, num_terms, coeffs, 
+                                   x_pow, y_pow, z_pow, &p->x0);
+
+}
+
 static void wrap_eval(void* context, point_t* x, double* result)
 {
   polynomial_t* p = context;

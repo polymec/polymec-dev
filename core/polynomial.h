@@ -75,6 +75,10 @@ bool polynomial_next(polynomial_t* p, int* pos, double* coeff, int* x_power, int
 // Adds the polynomial q (times the given factor) to the polynomial p in-place.
 void polynomial_add(polynomial_t* p, double factor, polynomial_t* q);
 
+// Returns a newly-created polynomial that is the product of the two 
+// polynomials p and q.
+polynomial_t* polynomial_product(polynomial_t* p, polynomial_t* q);
+
 // Returns an sp_func corresponding to the given polynomial.
 sp_func_t* polynomial_sp_func(polynomial_t* p);
 

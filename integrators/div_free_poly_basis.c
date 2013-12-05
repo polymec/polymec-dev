@@ -106,7 +106,7 @@ typedef struct
   polynomial_t* z;
 } polynomial_vector_t;
 
-div_free_poly_basis_t* div_free_poly_basis_new(int degree)
+div_free_poly_basis_t* naive_div_free_poly_basis_new(int degree)
 {
   ASSERT(degree >= 0);
   ASSERT(degree <= 2); // FIXME
@@ -118,30 +118,61 @@ div_free_poly_basis_t* div_free_poly_basis_new(int degree)
   GC_register_finalizer(basis, div_free_poly_basis_free, basis, NULL, NULL);
 
   // Construct the naive monomial basis.
-  polynomial_t** naive_x = malloc(sizeof(polynomial_t*) * basis->dim);
-  polynomial_t** naive_y = malloc(sizeof(polynomial_t*) * basis->dim);
-  polynomial_t** naive_z = malloc(sizeof(polynomial_t*) * basis->dim);
   for (int i = 0; i < basis->dim; ++i)
   {
-    naive_x[i] = polynomial_from_monomials(degree, 1, &x_poly_coeffs[degree][i], &x_poly_x_powers[degree][i], &x_poly_y_powers[degree][i], &x_poly_z_powers[degree][i], NULL);
-    naive_y[i] = polynomial_from_monomials(degree, 1, &y_poly_coeffs[degree][i], &y_poly_x_powers[degree][i], &y_poly_y_powers[degree][i], &y_poly_z_powers[degree][i], NULL);
-    naive_z[i] = polynomial_from_monomials(degree, 1, &z_poly_coeffs[degree][i], &z_poly_x_powers[degree][i], &z_poly_y_powers[degree][i], &z_poly_z_powers[degree][i], NULL);
+    basis->x_poly[i] = polynomial_from_monomials(degree, 1, &x_poly_coeffs[degree][i], &x_poly_x_powers[degree][i], &x_poly_y_powers[degree][i], &x_poly_z_powers[degree][i], NULL);
+    basis->y_poly[i] = polynomial_from_monomials(degree, 1, &y_poly_coeffs[degree][i], &y_poly_x_powers[degree][i], &y_poly_y_powers[degree][i], &y_poly_z_powers[degree][i], NULL);
+    basis->z_poly[i] = polynomial_from_monomials(degree, 1, &z_poly_coeffs[degree][i], &z_poly_x_powers[degree][i], &z_poly_y_powers[degree][i], &z_poly_z_powers[degree][i], NULL);
   }
+
+  return basis;
+}
+
+div_free_poly_basis_t* orthogonal_div_free_poly_basis_new(int degree)
+{
+  ASSERT(degree >= 0);
+  ASSERT(degree <= 2); // FIXME
+  div_free_poly_basis_t* basis = GC_MALLOC(sizeof(div_free_poly_basis_t));
+  basis->dim = basis_dim[degree];
+  basis->x_poly = malloc(sizeof(polynomial_t*) * basis->dim);
+  basis->y_poly = malloc(sizeof(polynomial_t*) * basis->dim);
+  basis->z_poly = malloc(sizeof(polynomial_t*) * basis->dim);
+  GC_register_finalizer(basis, div_free_poly_basis_free, basis, NULL, NULL);
+
+  // Construct the naive monomial basis.
+  div_free_poly_basis_t* naive = naive_div_free_poly_basis_new(degree);
 
   // Use Gram-Schmidt orthogonalization to figure out an orthogonal basis.
   // Here we suppose that {v} is the naive basis and {u} is our desired one.
   for (int i = 0; i < basis->dim; ++i)
   {
     // ui begins as vi.
-    polynomial_vector_t ui = {.x = polynomial_clone(naive_x[i]),
-                              .y = polynomial_clone(naive_y[i]), 
-                              .z = polynomial_clone(naive_z[i])};
+    polynomial_t* vi_x = naive->x_poly[i];
+    polynomial_t* vi_y = naive->y_poly[i];
+    polynomial_t* vi_z = naive->z_poly[i];
+    polynomial_vector_t ui = {.x = polynomial_clone(vi_x),
+                              .y = polynomial_clone(vi_y),
+                              .z = polynomial_clone(vi_z)};
 
     for (int j = 0; j < i; ++j)
     {
-      // Compute the projection of vi onto uj, which is itself a polynomial.
-      polynomial_vector_t proj;
-      // FIXME
+      // Compute the projection of vi onto uj, which is itself a vector
+      // with polynomial components.
+      polynomial_t* uj_x = basis->x_poly[j];
+      polynomial_t* uj_y = basis->y_poly[j];
+      polynomial_t* uj_z = basis->z_poly[j];
+
+      // First compute vi o uj, which is a polynomial.
+      polynomial_t* dot_product = polynomial_product(vi_x, uj_x);
+      polynomial_add(dot_product, 1.0, polynomial_product(vi_y, uj_y));
+      polynomial_add(dot_product, 1.0, polynomial_product(vi_z, uj_z));
+
+      // The projection is the product of the dot product with 
+      // "the unit vector in the uj direction."
+      polynomial_vector_t proj = {.x = polynomial_product(dot_product, uj_x),
+                                  .y = polynomial_product(dot_product, uj_y),
+                                  .z = polynomial_product(dot_product, uj_z)};
+      // FIXME: Still need to normalize the projection somehow!
 
       // Subtract off this projection from ui.
       polynomial_add(ui.x, -1.0, proj.x);
@@ -156,15 +187,7 @@ div_free_poly_basis_t* div_free_poly_basis_new(int degree)
   }
 
   // Clean up.
-  for (int i = 0; i < basis->dim; ++i)
-  {
-    naive_x[i] = NULL;
-    naive_y[i] = NULL;
-    naive_z[i] = NULL;
-  }
-  free(naive_x);
-  free(naive_y);
-  free(naive_z);
+  naive = NULL;
 
   return basis;
 }
