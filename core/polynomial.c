@@ -305,7 +305,7 @@ polynomial_t* polynomial_product(polynomial_t* p, polynomial_t* q)
 
 }
 
-polynomial_t* polynomial_quotient(polynomial_t* p, polynomial_t* q)
+polynomial_t* polynomial_quotient(polynomial_t* p, polynomial_t* q, polynomial_t** r)
 {
   // We cannot compute the quotient of two polynomials centered at 
   // different points.

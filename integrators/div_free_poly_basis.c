@@ -177,9 +177,9 @@ div_free_poly_basis_t* orthogonal_div_free_poly_basis_new(int degree)
       polynomial_t* uj2 = polynomial_product(uj_x, uj_x);
       polynomial_add(uj2, 1.0, polynomial_product(uj_y, uj_y));
       polynomial_add(uj2, 1.0, polynomial_product(uj_z, uj_z));
-      proj.x = polynomial_quotient(proj.x, uj2);
-      proj.y = polynomial_quotient(proj.y, uj2);
-      proj.z = polynomial_quotient(proj.z, uj2);
+      proj.x = polynomial_quotient(proj.x, uj2, NULL);
+      proj.y = polynomial_quotient(proj.y, uj2, NULL);
+      proj.z = polynomial_quotient(proj.z, uj2, NULL);
 
       // Subtract off this projection from ui.
       polynomial_add(ui.x, -1.0, proj.x);
