@@ -405,17 +405,32 @@ static int PrecSolveBD(N_Vector cc, N_Vector cscale,
   double *work = NULL;
   double rpg, rcond;
   mem_usage_t mem_usage;
-  UserData data;
   
-  data = (UserData)user_data;
-  
-  // copy cc into B 
+  UserData data = (UserData)user_data;
+  // copy vv into B 
+  NRformat* B_data = data->slu_B->Store;
+  printf("B_nnz = %d    vv_length = %ld\n", B_data->nnz, NV_LENGTH_S(vv));
+  assert(B_data->nnz == NV_LENGTH_S(vv));
+  for (int i = 0; i < B_data->nnz; ++i) {
+    double* B_nzval = B_data->nzval; 
+    B_nzval[i] = NV_Ith_S(vv, i);
+  }
 
   dgsisx(&(data->slu_opts), data->slu_P,
          data->slu_perm_c, data->slu_perm_r, data->slu_etree,
          equed, data->slu_R, data->slu_C, data->slu_L, data->slu_U,
          work, lwork, data->slu_B, data->slu_X,
          &rpg, &rcond, &mem_usage, &(data->slu_stat), &info);
+
+  // copy X into vv
+  NRformat* X_data = data->slu_X->Store;
+  printf("X_nnz = %d    vv_length = %ld\n", X_data->nnz, NV_LENGTH_S(vv));
+  assert(X_data->nnz == NV_LENGTH_S(vv));
+  for (int i = 0; i < X_data->nnz; ++i) {
+    double* X_nzval = X_data->nzval; 
+    NV_Ith_S(vv, i) = X_nzval[i];
+  }
+
 
   return(0);
 }
