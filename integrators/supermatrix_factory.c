@@ -161,7 +161,10 @@ static void finite_diff_F_Jv(KINSysFn F, void* context, N_Vector u, N_Vector v, 
 {
   static double eps = UNIT_ROUNDOFF;
 
+  // work[0] == v
   // work[1] contains F(u).
+  // work[2] == u + eps*v
+  // work[3] == F(u + eps*v)
 
   // u + eps*v -> work[2].
   for (int i = 0; i < NV_LOCLENGTH(u); ++i)

@@ -18,6 +18,9 @@
 #include <stddef.h>
 #include <setjmp.h>
 #include <string.h>
+
+#include <nvector/nvector_serial.h>
+
 #include "cmockery.h"
 #include "core/polymec.h"
 #include "core/graph_from_mesh_cells.h"
@@ -137,6 +140,54 @@ void test_supermatrix(void** state)
   adj_graph_free(g);
 }
 
+/*******************************************************************************
+**
+** Example from Dennis and Schnabel (1996) Numerical Methods for
+** Unconstrained Optimization and Nonlinear Equations, pg 87
+**
+*******************************************************************************/
+typedef struct {
+  int num_unknown;
+} context_t;
+
+static int dennis_schnabel_1(N_Vector X, N_Vector F, void* context) {
+  // F(x) = [ x1 + x2 - 3.0,
+  //        [ x1^2 + x2^2 - 9.0
+  double *x, *f;
+  x = NV_DATA_S(X);
+  f = NV_DATA_S(F);
+
+  f[0] = x[0] + x[1] - 3.0;
+  f[1] = x[0] * x[0] + x[1] * x[1] - 9.0;
+  return 0;
+}
+
+void test_numerical_jacobian_ds1(void **state) {
+  adj_graph_t* g = adj_graph_new(MPI_COMM_WORLD, 1);
+  adj_graph_t* bg = adj_graph_new_with_block_size(2, g);
+  adj_graph_free(g);
+  context_t context;
+  supermatrix_factory_t* factory = 
+    supermatrix_factory_from_sys_func(bg, &dennis_schnabel_1, NULL, &context);
+
+  double time = 0.0;
+  N_Vector X = N_VNew_Serial(2);
+  double *x = NV_DATA_S(X);
+  x[0] = 1.0;
+  x[1] = 5.0;
+  SuperMatrix* J = supermatrix_factory_jacobian(factory, X, time);
+
+  // expected jacobian:
+  // J = [ 1  1  ]
+  //     [ 2  10 ]
+
+  dPrint_CompCol_Matrix("jacobian", J);
+
+  supermatrix_free(J);
+  adj_graph_free(bg);
+  supermatrix_factory_free(factory);
+}  // end test_numerical_jacobian
+
 int main(int argc, char* argv[]) 
 {
   polymec_init(argc, argv);
@@ -145,7 +196,8 @@ int main(int argc, char* argv[])
     unit_test(test_F_ctor),
     unit_test(test_time_dep_F_ctor),
     unit_test(test_rhs_ctor),
-    unit_test(test_supermatrix)
+    unit_test(test_supermatrix),
+    unit_test(test_numerical_jacobian_ds1)
   };
   return run_tests(tests);
 }
