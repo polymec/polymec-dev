@@ -106,7 +106,7 @@ typedef struct
   polynomial_t* z;
 } polynomial_vector_t;
 
-div_free_poly_basis_t* naive_div_free_poly_basis_new(int degree)
+div_free_poly_basis_t* div_free_poly_basis_new(int degree)
 {
   ASSERT(degree >= 0);
   ASSERT(degree <= 2); // FIXME
@@ -128,94 +128,44 @@ div_free_poly_basis_t* naive_div_free_poly_basis_new(int degree)
   return basis;
 }
 
-div_free_poly_basis_t* orthogonal_div_free_poly_basis_new(int degree)
-{
-  ASSERT(degree >= 0);
-  ASSERT(degree <= 2); // FIXME
-  div_free_poly_basis_t* basis = GC_MALLOC(sizeof(div_free_poly_basis_t));
-  basis->dim = basis_dim[degree];
-  basis->x_poly = malloc(sizeof(polynomial_t*) * basis->dim);
-  basis->y_poly = malloc(sizeof(polynomial_t*) * basis->dim);
-  basis->z_poly = malloc(sizeof(polynomial_t*) * basis->dim);
-  GC_register_finalizer(basis, div_free_poly_basis_free, basis, NULL, NULL);
-
-  // Construct the naive monomial basis.
-  div_free_poly_basis_t* naive = naive_div_free_poly_basis_new(degree);
-
-  // Use Gram-Schmidt orthogonalization to figure out an orthogonal basis.
-  // Here we suppose that {v} is the naive basis and {u} is our desired one.
-  for (int i = 0; i < basis->dim; ++i)
-  {
-    // ui begins as vi.
-    polynomial_t* vi_x = naive->x_poly[i];
-    polynomial_t* vi_y = naive->y_poly[i];
-    polynomial_t* vi_z = naive->z_poly[i];
-    polynomial_vector_t ui = {.x = polynomial_clone(vi_x),
-                              .y = polynomial_clone(vi_y),
-                              .z = polynomial_clone(vi_z)};
-
-    for (int j = 0; j < i; ++j)
-    {
-      // Compute the projection of vi onto uj, which is itself a vector
-      // with polynomial components.
-      polynomial_t* uj_x = basis->x_poly[j];
-      polynomial_t* uj_y = basis->y_poly[j];
-      polynomial_t* uj_z = basis->z_poly[j];
-
-      // First compute vi o uj, which is a polynomial.
-      polynomial_t* dot_product = polynomial_product(vi_x, uj_x);
-      polynomial_add(dot_product, 1.0, polynomial_product(vi_y, uj_y));
-      polynomial_add(dot_product, 1.0, polynomial_product(vi_z, uj_z));
-
-      // The projection is the product of the dot product with 
-      // "the unit vector in the uj direction."
-      polynomial_vector_t proj = {.x = polynomial_product(dot_product, uj_x),
-                                  .y = polynomial_product(dot_product, uj_y),
-                                  .z = polynomial_product(dot_product, uj_z)};
-
-      // Normalize by dividing proj by u o u.
-      polynomial_t* uj2 = polynomial_product(uj_x, uj_x);
-      polynomial_add(uj2, 1.0, polynomial_product(uj_y, uj_y));
-      polynomial_add(uj2, 1.0, polynomial_product(uj_z, uj_z));
-      proj.x = polynomial_quotient(proj.x, uj2, NULL);
-      proj.y = polynomial_quotient(proj.y, uj2, NULL);
-      proj.z = polynomial_quotient(proj.z, uj2, NULL);
-
-      // Subtract off this projection from ui.
-      polynomial_add(ui.x, -1.0, proj.x);
-      polynomial_add(ui.y, -1.0, proj.y);
-      polynomial_add(ui.z, -1.0, proj.z);
-    }
-
-    // Set this polynomial as the basis.
-    basis->x_poly[i] = ui.x;
-    basis->y_poly[i] = ui.y;
-    basis->z_poly[i] = ui.z;
-  }
-
-  // Clean up.
-  naive = NULL;
-
-  return basis;
-}
-
 int div_free_poly_basis_dim(div_free_poly_basis_t* basis)
 {
   return basis->dim;
 }
 
-bool div_free_poly_basis_next(div_free_poly_basis_t* basis, 
-                              int* pos, 
-                              polynomial_t** x_polynomial,
-                              polynomial_t** y_polynomial,
-                              polynomial_t** z_polynomial)
+static void gram_schmidt(vector_t** vectors, int dim)
 {
-  if (*pos >= basis->dim)
-    return false;
-  *x_polynomial = basis->x_poly[*pos];
-  *y_polynomial = basis->y_poly[*pos];
-  *z_polynomial = basis->z_poly[*pos];
-  ++(*pos);
-  return true;
+  for (int i = 1; i < dim; ++i)
+  {
+    vector_t vi = *vectors[i];
+    for (int j = 0; j < i; ++j)
+    {
+      vector_t uj = *vectors[j];
+      double vi_o_uj = vector_dot(&vi, &uj);
+      double uj2 = vector_dot(&uj, &uj);
+      vector_t proj_uj = {.x = vi_o_uj*uj.x/uj2, 
+                          .y = vi_o_uj*uj.y/uj2, 
+                          .z = vi_o_uj*uj.z/uj2};
+      vectors[i]->x -= proj_uj.x; 
+      vectors[i]->y -= proj_uj.y; 
+      vectors[i]->z -= proj_uj.z; 
+    }
+  }
+}
+
+void div_free_poly_basis_compute(div_free_poly_basis_t* basis,
+                                 point_t* x, 
+                                 vector_t** vectors)
+{
+  // Compute the monomial basis at x.
+  for (int i = 0; i < basis->dim; ++i)
+  {
+    vectors[i]->x = polynomial_value(basis->x_poly[i], x);
+    vectors[i]->y = polynomial_value(basis->y_poly[i], x);
+    vectors[i]->z = polynomial_value(basis->z_poly[i], x);
+  }
+
+  // Perform a Gram-Schmidt orthogonalization.
+  gram_schmidt(vectors, basis->dim);
 }
 

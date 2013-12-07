@@ -305,16 +305,6 @@ polynomial_t* polynomial_product(polynomial_t* p, polynomial_t* q)
 
 }
 
-polynomial_t* polynomial_quotient(polynomial_t* p, polynomial_t* q, polynomial_t** r)
-{
-  // We cannot compute the quotient of two polynomials centered at 
-  // different points.
-  ASSERT(point_distance(&p->x0, &q->x0) < 1e-14);
-  // FIXME
-  POLYMEC_NOT_IMPLEMENTED
-  return NULL;
-}
-
 static void wrap_eval(void* context, point_t* x, double* result)
 {
   polynomial_t* p = context;

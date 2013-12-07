@@ -26,28 +26,20 @@
 // Otherwise, just ignore it. :-) Objects of this type are garbage-collected.
 typedef struct div_free_poly_basis_t div_free_poly_basis_t;
 
-// Constructs a naive monomial divergence-free basis suitable for representing 
+// Constructs a divergence-free basis suitable for representing 
 // functions that can be exactly represented by polynomials of the given 
 // degree. 
-div_free_poly_basis_t* naive_div_free_poly_basis_new(int degree);
-
-// Constructs an orthogonal divergence-free basis suitable for representing 
-// functions that can be exactly represented by polynomials of the given 
-// degree. This basis is obtained by performing a Gram-Schmidt orthogonalization
-// on the naive basis whose vector components are monomials.
-div_free_poly_basis_t* orthogonal_div_free_poly_basis_new(int degree);
+div_free_poly_basis_t* div_free_poly_basis_new(int degree);
 
 // Returns the dimension of the given divergence-free polynomial basis.
 int div_free_poly_basis_dim(div_free_poly_basis_t* basis);
 
-// Allows iteration over the polynomials in the basis. Returns true 
-// if terms remain, false if this iteration yields nothing. Gives access to 
-// polynomials representing x, y, and z components of each vector within the 
-// basis. Set pos to 0 to reset iteration.
-bool div_free_poly_basis_next(div_free_poly_basis_t* basis, 
-                              int* pos, 
-                              polynomial_t** x_polynomial,
-                              polynomial_t** y_polynomial,
-                              polynomial_t** z_polynomial);
+// Computes an array of vectors belonging to the divergence-free polynomial 
+// basis, evaluated at the given point x. vectors is an array of vectors 
+// equal in length to the dimension of the basis that will store the computed 
+// vectors in the basis.
+void div_free_poly_basis_compute(div_free_poly_basis_t* basis,
+                                 point_t* x, 
+                                 vector_t** vectors);
 
 #endif

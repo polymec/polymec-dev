@@ -79,10 +79,6 @@ void polynomial_add(polynomial_t* p, double factor, polynomial_t* q);
 // polynomials p and q.
 polynomial_t* polynomial_product(polynomial_t* p, polynomial_t* q);
 
-// Returns a newly-created polynomial that is the quotient p / q. The 
-// remainder polynomial is stored in *r unless r is NULL.
-polynomial_t* polynomial_quotient(polynomial_t* p, polynomial_t* q, polynomial_t** r);
-
 // Returns an sp_func corresponding to the given polynomial.
 sp_func_t* polynomial_sp_func(polynomial_t* p);
 
