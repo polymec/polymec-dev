@@ -227,9 +227,11 @@ bool adj_graph_next_edge(adj_graph_t* graph,
                          int* pos, 
                          int* other_vertex)
 {
+  if ((graph->xadj[vertex] + *pos) >= graph->xadj[vertex+1])
+    return false;
   *other_vertex = graph->adjacency[graph->xadj[vertex] + *pos];
   ++(*pos);
-  return ((graph->xadj[vertex] + *pos) < graph->xadj[vertex+1]);
+  return true;
 }
 
 int* adj_graph_adjacency(adj_graph_t* graph)
@@ -245,6 +247,22 @@ int* adj_graph_edge_offsets(adj_graph_t* graph)
 int* adj_graph_vertex_dist(adj_graph_t* graph)
 {
   return graph->vtx_dist;
+}
+
+void adj_graph_fprintf(adj_graph_t* graph, FILE* stream)
+{
+  int num_vertices = adj_graph_num_vertices(graph);
+  fprintf(stream, "Adjacency graph (%d/%d vertices locally):\n", num_vertices, graph->vtx_dist[graph->nproc]);
+  for (int i = 0; i < num_vertices; ++i)
+  {
+    fprintf(stream, " %d: ", i);
+    int num_edges = adj_graph_num_edges(graph, i);
+    int* edges = adj_graph_edges(graph, i);
+    for (int i = 0; i < num_edges; ++i)
+      printf("%d ", edges[i]);
+    printf("\n");
+  }
+  printf("\n");
 }
 
 struct adj_graph_coloring_t 

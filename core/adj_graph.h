@@ -100,6 +100,9 @@ int* adj_graph_edge_offsets(adj_graph_t* graph);
 // documentation.
 int* adj_graph_vertex_dist(adj_graph_t* graph);
 
+// Prints a textual representation of the graph to the given file.
+void adj_graph_fprintf(adj_graph_t* graph, FILE* stream);
+
 //------------------------------------------------------------------------
 //                       Adjacency graph coloring
 //------------------------------------------------------------------------

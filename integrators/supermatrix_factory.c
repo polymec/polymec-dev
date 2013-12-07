@@ -159,7 +159,7 @@ SuperMatrix* supermatrix_factory_jacobian(supermatrix_factory_t* factory, N_Vect
 // product. 
 static void finite_diff_F_Jv(KINSysFn F, void* context, N_Vector u, N_Vector v, N_Vector* work, N_Vector Jv)
 {
-  static double eps = UNIT_ROUNDOFF;
+  double eps = sqrt(UNIT_ROUNDOFF);
 
   // work[0] == v
   // work[1] contains F(u).
@@ -184,30 +184,26 @@ static void insert_Jv_into_matrix(adj_graph_t* graph,
                                   N_Vector Jv, 
                                   SuperMatrix* J)
 {
-  int N = NV_LOCLENGTH(Jv);
   NRformat* Jdata = J->Store;
   double* Jij = Jdata->nzval;
-  for (int i = 0; i < N; ++i)
+  int pos = 0, i;
+  while (adj_graph_coloring_next_vertex(coloring, color, &pos, &i))
   {
     if (NV_Ith(Jv, i) != 0.0)
     {
+      // Fill in the diagonal element.
+      Jij[Jdata->rowptr[i]] = NV_Ith(Jv, i);
+
       int pos = 0, j;
       while (adj_graph_next_edge(graph, i, &pos, &j))
       {
-        if (i == j)
-        {
-          // Diagonal value.
-          Jij[Jdata->rowptr[i]] = NV_Ith(Jv, i);
-        }
-        else if (adj_graph_coloring_has_vertex(coloring, color, j))
-        {
-          // Off-diagonal value.
-          int row_index = Jdata->rowptr[i];
-          size_t num_cols = Jdata->rowptr[i+1] - row_index;
-          int* entry = int_bsearch(&Jdata->colind[row_index+1], num_cols - 1, j);
-          ASSERT(entry != NULL);
-          Jij[*entry] = NV_Ith(Jv, i);
-        }
+        // Off-diagonal value.
+        int row_index = Jdata->rowptr[i];
+        size_t num_cols = Jdata->rowptr[i+1] - row_index;
+        int* entry = int_bsearch(&Jdata->colind[row_index+1], num_cols - 1, j);
+        ASSERT(entry != NULL);
+        size_t offset = entry - &Jdata->colind[row_index];
+        Jij[Jdata->rowptr[i] + offset] = NV_Ith(Jv, j);
       }
     }
   }
@@ -232,7 +228,9 @@ static void compute_F_jacobian(KINSysFn F,
     memset(NV_DATA(work[0]), 0, sizeof(double) * N);
     int pos = 0, i;
     while (adj_graph_coloring_next_vertex(coloring, c, &pos, &i))
+    {
       NV_Ith(work[0], i) = 1.0;
+    }
 
     // We evaluate F(u) and place it into work[1].
     F(u, work[1], context);
@@ -251,7 +249,7 @@ static void compute_F_jacobian(KINSysFn F,
 // matrix-vector product. 
 static void finite_diff_rhs_Jv(CVRhsFn rhs, void* context, N_Vector u, double t, N_Vector v, N_Vector* work, N_Vector Jv)
 {
-  static double eps = UNIT_ROUNDOFF;
+  double eps = sqrt(UNIT_ROUNDOFF);
 
   // work[1] contains rhs(u, t).
 
