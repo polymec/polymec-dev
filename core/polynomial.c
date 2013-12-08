@@ -56,6 +56,32 @@ static int std_z_pow[35] = {0, 0, 0, 1, 0, 0, 1, 0, 1, 2,
                             0, 0, 1, 0, 1, 2, 0, 1, 2, 3, 
                             0, 1, 2, 3, 4};
 
+// Trims terms with zero coefficients from polynomials.
+static void polynomial_trim(polynomial_t* p)
+{
+  for (int i = 0; i < p->num_terms; ++i)
+  {
+    if (p->coeffs[i] == 0.0)
+    {
+      p->coeffs[i] = p->coeffs[p->num_terms-1];
+      p->x_pow[i] = p->x_pow[p->num_terms-1];
+      p->y_pow[i] = p->y_pow[p->num_terms-1];
+      p->z_pow[i] = p->z_pow[p->num_terms-1];
+      --(p->num_terms);
+      --i;
+    }
+  }
+
+  // Make sure we haven't trimmed everything! If all the terms evaporated, 
+  // add a single zero term back.
+  if (p->num_terms == 0)
+  {
+    p->coeffs[0] = 0.0;
+    p->x_pow[0] = p->y_pow[0] = p->z_pow[0] = 0;
+    p->num_terms = 1;
+  }
+}
+
 polynomial_t* polynomial_new(int degree, double* coeffs, point_t* x0)
 {
   ASSERT(degree >= 0);
@@ -105,6 +131,10 @@ polynomial_t* polynomial_from_monomials(int degree, int num_monomials, double* c
   }
   p->num_terms = num_monomials;
   GC_register_finalizer(p, polynomial_free, p, NULL, NULL);
+
+  // Touch it up by killing terms with zero coefficients.
+  polynomial_trim(p);
+
   return p;
 }
 
@@ -260,6 +290,8 @@ void polynomial_add(polynomial_t* p, double factor, polynomial_t* q)
   }
 
   int_slist_free(terms_to_append);
+
+  polynomial_trim(p);
 }
 
 polynomial_t* polynomial_product(polynomial_t* p, polynomial_t* q)
