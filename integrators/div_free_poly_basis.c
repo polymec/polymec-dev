@@ -16,11 +16,26 @@
 
 #include <gc/gc.h>
 #include "integrators/div_free_poly_basis.h"
+#include "integrators/sphere_integrator.h" // For spherical integrals.
+
+typedef enum
+{
+  SPHERE
+} div_free_polytope_t;
+
+// This is used to hold vector-valued polynomial functions.
+typedef struct
+{
+  polynomial_t *x, *y, *z;
+} polynomial_vector_t;
 
 struct div_free_poly_basis_t 
 {
   int dim;
-  polynomial_t **x_poly, **y_poly, **z_poly;
+  div_free_polytope_t polytope;
+  point_t x0;
+  double radius; // Radius of the sphere
+  polynomial_vector_t* vectors;
 };
 
 // Destructor function -- called by garbage collector.
@@ -28,14 +43,8 @@ static void div_free_poly_basis_free(void* ctx, void* dummy)
 {
   div_free_poly_basis_t* basis = ctx;
   for (int i = 0; i < basis->dim; ++i)
-  {
-    basis->x_poly[i] = NULL;
-    basis->y_poly[i] = NULL;
-    basis->z_poly[i] = NULL;
-  }
-  free(basis->x_poly);
-  free(basis->y_poly);
-  free(basis->z_poly);
+    basis->vectors[i].x = basis->vectors[i].y = basis->vectors[i].z = NULL;
+  free(basis->vectors);
 }
 
 // Basis dimension for given degree.
@@ -98,32 +107,107 @@ static int z_poly_z_powers[3][26] =
    {0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0},
    {0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 2, 0, 1, 0, 2, 0, 1, 1, 0, 1, 0, 0}};
 
-// This type is used for polynomial vector arithmetic.
-typedef struct
+// Compute <ui, uj>.
+static double inner_product(div_free_poly_basis_t* basis, 
+                            polynomial_vector_t* ui,
+                            polynomial_vector_t* uj)
 {
-  polynomial_t* x;
-  polynomial_t* y;
-  polynomial_t* z;
-} polynomial_vector_t;
+  // Compute the polynomial that is the dot product of ui and uj.
+  polynomial_t* prod = polynomial_product(ui->x, uj->x);
+  polynomial_fprintf(ui->x, stdout);
+  polynomial_fprintf(uj->x, stdout);
+  polynomial_fprintf(prod, stdout);
+  polynomial_t* y_prod = polynomial_product(ui->y, uj->y);
+  polynomial_t* z_prod = polynomial_product(ui->z, uj->z);
+  polynomial_add(prod, 1.0, y_prod);
+  polynomial_fprintf(prod, stdout);
+  polynomial_add(prod, 1.0, z_prod);
+  polynomial_fprintf(prod, stdout);
+  y_prod = z_prod = NULL;
 
-div_free_poly_basis_t* div_free_poly_basis_new(int degree)
+  // Now integrate this product over our polytope.
+  ASSERT(basis->polytope == SPHERE);
+  double I = sphere_integrator_sphere(NULL, &basis->x0, basis->radius, prod);
+
+  prod = NULL;
+
+  return I;
+}
+
+// This performs a Gram-Schmidt orthogonalization process on a monomial basis.
+static void gram_schmidt(div_free_poly_basis_t* basis)
 {
+  // Make a copy of the original basis vectors.
+  polynomial_vector_t v[basis->dim];
+  for (int i = 0; i < basis->dim; ++i)
+{
+   v[i] = basis->vectors[i];
+polynomial_fprintf(basis->vectors[i].x, stdout);
+polynomial_fprintf(basis->vectors[i].y, stdout);
+polynomial_fprintf(basis->vectors[i].z, stdout);
+polynomial_fprintf(v[i].x, stdout);
+polynomial_fprintf(v[i].y, stdout);
+polynomial_fprintf(v[i].z, stdout);
+}
+
+  for (int i = 0; i < basis->dim; ++i)
+  {
+    // ui = vi.
+    polynomial_vector_t ui = v[i];
+
+    for (int j = 0; j < i; ++j)
+    {
+      polynomial_vector_t uj = basis->vectors[j];
+
+      // Compute <vi, uj>.
+      double vi_o_uj = inner_product(basis, &v[i], &uj);
+
+      // Compute <uj, uj>.
+      double uj2 = inner_product(basis, &uj, &uj);
+      ASSERT(uj2 > 0.0);
+
+      // Compute the projection of vi onto uj.
+      polynomial_vector_t proj_uj = {.x = scaled_polynomial_new(uj.x, vi_o_uj/uj2),
+                                     .y = scaled_polynomial_new(uj.y, vi_o_uj/uj2),
+                                     .z = scaled_polynomial_new(uj.z, vi_o_uj/uj2)};
+
+      // Subtract this off of ui.
+      polynomial_add(ui.x, -1.0, proj_uj.x); 
+      polynomial_add(ui.y, -1.0, proj_uj.y); 
+      polynomial_add(ui.z, -1.0, proj_uj.z); 
+    }
+
+    // Copy the new ui basis vector into place.
+    basis->vectors[i] = ui;
+  }
+}
+
+div_free_poly_basis_t* spherical_div_free_poly_basis_new(int degree, point_t* x0, double radius)
+{
+  ASSERT(radius > 0.0);
   ASSERT(degree >= 0);
   ASSERT(degree <= 2); // FIXME
   div_free_poly_basis_t* basis = GC_MALLOC(sizeof(div_free_poly_basis_t));
+  basis->polytope = SPHERE;
+  basis->x0 = *x0;
+  basis->radius = radius;
   basis->dim = basis_dim[degree];
-  basis->x_poly = malloc(sizeof(polynomial_t*) * basis->dim);
-  basis->y_poly = malloc(sizeof(polynomial_t*) * basis->dim);
-  basis->z_poly = malloc(sizeof(polynomial_t*) * basis->dim);
+  basis->vectors = malloc(sizeof(polynomial_vector_t*) * basis->dim);
   GC_register_finalizer(basis, div_free_poly_basis_free, basis, NULL, NULL);
 
   // Construct the naive monomial basis.
   for (int i = 0; i < basis->dim; ++i)
   {
-    basis->x_poly[i] = polynomial_from_monomials(degree, 1, &x_poly_coeffs[degree][i], &x_poly_x_powers[degree][i], &x_poly_y_powers[degree][i], &x_poly_z_powers[degree][i], NULL);
-    basis->y_poly[i] = polynomial_from_monomials(degree, 1, &y_poly_coeffs[degree][i], &y_poly_x_powers[degree][i], &y_poly_y_powers[degree][i], &y_poly_z_powers[degree][i], NULL);
-    basis->z_poly[i] = polynomial_from_monomials(degree, 1, &z_poly_coeffs[degree][i], &z_poly_x_powers[degree][i], &z_poly_y_powers[degree][i], &z_poly_z_powers[degree][i], NULL);
+    basis->vectors[i].x = polynomial_from_monomials(degree, 1, &x_poly_coeffs[degree][i], &x_poly_x_powers[degree][i], &x_poly_y_powers[degree][i], &x_poly_z_powers[degree][i], NULL);
+    basis->vectors[i].y = polynomial_from_monomials(degree, 1, &y_poly_coeffs[degree][i], &y_poly_x_powers[degree][i], &y_poly_y_powers[degree][i], &y_poly_z_powers[degree][i], NULL);
+    basis->vectors[i].z = polynomial_from_monomials(degree, 1, &z_poly_coeffs[degree][i], &z_poly_x_powers[degree][i], &z_poly_y_powers[degree][i], &z_poly_z_powers[degree][i], NULL);
+polynomial_fprintf(basis->vectors[i].x, stdout);
+polynomial_fprintf(basis->vectors[i].y, stdout);
+polynomial_fprintf(basis->vectors[i].z, stdout);
   }
+
+  // Perform a Gram-Schmidt orthogonalization.
+  gram_schmidt(basis);
 
   return basis;
 }
@@ -133,39 +217,15 @@ int div_free_poly_basis_dim(div_free_poly_basis_t* basis)
   return basis->dim;
 }
 
-static void gram_schmidt(vector_t** vectors, int dim)
-{
-  for (int i = 1; i < dim; ++i)
-  {
-    vector_t vi = *vectors[i];
-    for (int j = 0; j < i; ++j)
-    {
-      vector_t uj = *vectors[j];
-      double vi_o_uj = vector_dot(&vi, &uj);
-      double uj2 = vector_dot(&uj, &uj);
-      vector_t proj_uj = {.x = vi_o_uj*uj.x/uj2, 
-                          .y = vi_o_uj*uj.y/uj2, 
-                          .z = vi_o_uj*uj.z/uj2};
-      vectors[i]->x -= proj_uj.x; 
-      vectors[i]->y -= proj_uj.y; 
-      vectors[i]->z -= proj_uj.z; 
-    }
-  }
-}
-
 void div_free_poly_basis_compute(div_free_poly_basis_t* basis,
                                  point_t* x, 
-                                 vector_t** vectors)
+                                 vector_t* vectors)
 {
-  // Compute the monomial basis at x.
   for (int i = 0; i < basis->dim; ++i)
   {
-    vectors[i]->x = polynomial_value(basis->x_poly[i], x);
-    vectors[i]->y = polynomial_value(basis->y_poly[i], x);
-    vectors[i]->z = polynomial_value(basis->z_poly[i], x);
+    vectors[i].x = polynomial_value(basis->vectors[i].x, x);
+    vectors[i].y = polynomial_value(basis->vectors[i].y, x);
+    vectors[i].z = polynomial_value(basis->vectors[i].z, x);
   }
-
-  // Perform a Gram-Schmidt orthogonalization.
-  gram_schmidt(vectors, basis->dim);
 }
 

@@ -268,12 +268,16 @@ double sphere_integrator_ball(sphere_integrator_t* integ,
                               double R,
                               polynomial_t* p)
 {
+  // Recenter the polynomial.
+  point_t old_x0 = *polynomial_x0(p);
+  *polynomial_x0(p) = *x0;
+
   double I = 0.0; // Integral value.
   double coeff;
   int pos = 0, x_pow, y_pow, z_pow;
   while (polynomial_next(p, &pos, &coeff, &x_pow, &y_pow, &z_pow))
   {
-    if ((x_pow % 2 == 0) && (y_pow % 2 == 0) && (z_pow % 2 == 0))
+    if ((coeff != 0.0) && (x_pow % 2 == 0) && (y_pow % 2 == 0) && (z_pow % 2 == 0))
     {
       double sum_alpha = 1.0 * (x_pow + y_pow + z_pow);
       double beta1 = 0.5 * (x_pow+1);
@@ -281,9 +285,44 @@ double sphere_integrator_ball(sphere_integrator_t* integ,
       double beta3 = 0.5 * (z_pow+1);
       double radial_term = pow(R, sum_alpha + 3.0) / (sum_alpha + 3.0);
       double azi_term = 2.0 * tgamma(beta1) * tgamma(beta2) * tgamma(beta3) / tgamma(beta1 + beta2 + beta3);
-      I += radial_term * azi_term;
+      I += coeff * radial_term * azi_term;
     }
   }
+
+  // Restore the polynomial's original center.
+  *polynomial_x0(p) = old_x0;
+
+  return I;
+}
+
+// This also uses the method described by Folland (2001).
+double sphere_integrator_sphere(sphere_integrator_t* integ,
+                                point_t* x0,
+                                double R,
+                                polynomial_t* p)
+{
+  // Recenter the polynomial.
+  point_t old_x0 = *polynomial_x0(p);
+  *polynomial_x0(p) = *x0;
+
+  double I = 0.0; // Integral value.
+  double coeff;
+  int pos = 0, x_pow, y_pow, z_pow;
+  while (polynomial_next(p, &pos, &coeff, &x_pow, &y_pow, &z_pow))
+  {
+    if ((coeff != 0.0) && (x_pow % 2 == 0) && (y_pow % 2 == 0) && (z_pow % 2 == 0))
+    {
+      double beta1 = 0.5 * (x_pow+1);
+      double beta2 = 0.5 * (y_pow+1);
+      double beta3 = 0.5 * (z_pow+1);
+      double azi_term = 2.0 * tgamma(beta1) * tgamma(beta2) * tgamma(beta3) / tgamma(beta1 + beta2 + beta3);
+      I += coeff * R * R * azi_term;
+    }
+  }
+
+  // Restore the polynomial's original center.
+  *polynomial_x0(p) = old_x0;
+
   return I;
 }
 

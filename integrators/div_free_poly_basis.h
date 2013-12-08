@@ -21,15 +21,14 @@
 
 // This type represents a basis for a vector space whose elements are 
 // (vector-valued) divergence-free vectors with polynomial components.
-// Yes, it is that specific and esoteric, and its name is abbreviated 
-// to something confusing. If you need this, you'll be glad it exists. 
-// Otherwise, just ignore it. :-) Objects of this type are garbage-collected.
+// The polynomials are orthogonal in the sense that an inner product <u, v>
+// is defined as the dot product of the polynomial vectors u and v, integrated
+// over the surface of a given polytope.
 typedef struct div_free_poly_basis_t div_free_poly_basis_t;
 
-// Constructs a divergence-free basis suitable for representing 
-// functions that can be exactly represented by polynomials of the given 
-// degree. 
-div_free_poly_basis_t* div_free_poly_basis_new(int degree);
+// Constructs a divergence-free basis of the given degree over the sphere
+// at the given center point x0 and of the given radius.
+div_free_poly_basis_t* spherical_div_free_poly_basis_new(int degree, point_t* x0, double radius);
 
 // Returns the dimension of the given divergence-free polynomial basis.
 int div_free_poly_basis_dim(div_free_poly_basis_t* basis);
@@ -40,6 +39,6 @@ int div_free_poly_basis_dim(div_free_poly_basis_t* basis);
 // vectors in the basis.
 void div_free_poly_basis_compute(div_free_poly_basis_t* basis,
                                  point_t* x, 
-                                 vector_t** vectors);
+                                 vector_t* vectors);
 
 #endif

@@ -48,6 +48,9 @@ polynomial_t* polynomial_from_monomials(int degree, int num_monomials, double* c
 // Clones an existing polynomial p.
 polynomial_t* polynomial_clone(polynomial_t* p);
 
+// Creates a copy of the given polynomial scaled by the given factor.
+polynomial_t* scaled_polynomial_new(polynomial_t* p, double factor);
+
 // Returns the degree of the polynomial.
 int polynomial_degree(polynomial_t* p);
 
@@ -81,5 +84,8 @@ polynomial_t* polynomial_product(polynomial_t* p, polynomial_t* q);
 
 // Returns an sp_func corresponding to the given polynomial.
 sp_func_t* polynomial_sp_func(polynomial_t* p);
+
+// Writes a text representation of the polynomial to the given stream.
+void polynomial_fprintf(polynomial_t* p, FILE* stream);
 
 #endif

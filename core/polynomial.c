@@ -110,11 +110,22 @@ polynomial_t* polynomial_from_monomials(int degree, int num_monomials, double* c
 
 polynomial_t* polynomial_clone(polynomial_t* p)
 {
+  return scaled_polynomial_new(p, 1.0);
+}
+
+polynomial_t* scaled_polynomial_new(polynomial_t* p, double factor)
+{
   polynomial_t* q = GC_MALLOC(sizeof(polynomial_t));
   q->degree = p->degree;
   q->num_terms = p->num_terms;
   q->coeffs = malloc(sizeof(double) * q->num_terms);
-  memcpy(q->coeffs, p->coeffs, sizeof(double) * q->num_terms);
+  for (int i = 0; i < q->num_terms; ++i)
+  {
+    if (factor == 1.0)
+      q->coeffs[i] = p->coeffs[i];
+    else
+      q->coeffs[i] = factor * p->coeffs[i];
+  }
   q->x_pow = malloc(sizeof(int) * q->num_terms);
   memcpy(q->x_pow, p->x_pow, sizeof(int) * q->num_terms);
   q->y_pow = malloc(sizeof(int) * q->num_terms);
@@ -291,6 +302,7 @@ polynomial_t* polynomial_product(polynomial_t* p, polynomial_t* q)
         x_pow[j] = x_pow[num_terms-1];
         y_pow[j] = y_pow[num_terms-1];
         z_pow[j] = z_pow[num_terms-1];
+        // FIXME: Powers can be screwy here!
         --num_terms;
 
         // Take a step back.
@@ -302,7 +314,6 @@ polynomial_t* polynomial_product(polynomial_t* p, polynomial_t* q)
   // Create a polynomial from the reduced terms.
   return polynomial_from_monomials(degree, num_terms, coeffs, 
                                    x_pow, y_pow, z_pow, &p->x0);
-
 }
 
 static void wrap_eval(void* context, point_t* x, double* result)
@@ -346,5 +357,43 @@ sp_func_t* polynomial_sp_func(polynomial_t* p)
   char name[128];
   snprintf(name, 128, "polynomial (p = %d)", p->degree);
   return sp_func_new(name, p, vtable, SP_INHOMOGENEOUS, 1);
+}
+
+void polynomial_fprintf(polynomial_t* p, FILE* stream)
+{
+  fprintf(stream, "polynomial (degree %d): ", p->degree);
+  double coeff;
+  int pos = 0, x_pow, y_pow, z_pow;
+  while (polynomial_next(p, &pos, &coeff, &x_pow, &y_pow, &z_pow))
+  {
+    if (pos > 1)
+    {
+      if (coeff < 0.0)
+        fprintf(stream, "- ");
+      else
+        fprintf(stream, "+ ");
+    }
+    if ((coeff == 0.0) && (p->degree == 0))
+    {
+      fprintf(stream, "0");
+      continue;
+    }
+    else if (coeff != 1.0)
+    {
+      if (pos > 1)
+        fprintf(stream, "%g ", fabs(coeff));
+      else
+        fprintf(stream, "%g ", coeff);
+    }
+    else if ((x_pow + y_pow + z_pow) == 0)
+      fprintf(stream, "1");
+    if (x_pow > 0)
+      fprintf(stream, "x**%d ", x_pow);
+    if (y_pow > 0)
+      fprintf(stream, "y**%d ", y_pow);
+    if (z_pow > 0)
+      fprintf(stream, "z**%d ", z_pow);
+  }
+  fprintf(stream, "\n");
 }
 

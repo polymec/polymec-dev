@@ -101,11 +101,22 @@ void sphere_integrator_cap_using_weights_at_time(sphere_integrator_t* integ,
                                                  double* integral);
 
 // Calculates and returns the integral of the given polynomial p in the 
-// ball with radius R.
+// ball with radius R. NOTE: This implementation uses Folland's formula, 
+// which is a closed form requiring no quadrature, so the first argument 
+// can actually be NULL.
 double sphere_integrator_ball(sphere_integrator_t* integ,
                               point_t* x0, 
                               double R,
                               polynomial_t* p);
+
+// Calculates and returns the integral of the given polynomial p on the 
+// sphere with radius R. NOTE: This implementation uses Folland's formula, 
+// which is a closed form requiring no quadrature, so the first argument 
+// can actually be NULL.
+double sphere_integrator_sphere(sphere_integrator_t* integ,
+                                point_t* x0, 
+                                double R,
+                                polynomial_t* p);
 
 // Computes the quadrature weights corresponding to a surface integral over
 // the intersection of a sphere of radius R centered at x0 with a boundary 

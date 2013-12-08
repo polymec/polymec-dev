@@ -25,9 +25,9 @@
 
 void test_ctor(void** state)
 {
-  for (int order = 1; order <= 5; ++order)
+  for (int degree = 1; degree <= 5; ++degree)
   {
-    sphere_integrator_t* I = sphere_integrator_new(order);
+    sphere_integrator_t* I = sphere_integrator_new(degree);
     sphere_integrator_free(I);
   }
 }
@@ -38,9 +38,9 @@ void test_cap_area(void** state)
   sp_func_t* one = constant_sp_func_new(1, &o);
   point_t x0 = {0.0, 0.0, 0.0};
   vector_t e3 = {.x = 0.0, .y = 0.0, .z = 1.0};
-  for (int order = 1; order <= 5; ++order)
+  for (int degree = 1; degree <= 5; ++degree)
   {
-    sphere_integrator_t* I = sphere_integrator_new(order);
+    sphere_integrator_t* I = sphere_integrator_new(degree);
 
     static const double radii[] = {1.0, 2.0, 3.0};
     for (int r = 0; r < 3; ++r)
@@ -89,7 +89,7 @@ static void r4(void* context, point_t* x, double* result)
 
 static void test_cap_radial_function(void** state, 
                                      sp_func_t* f, 
-                                     int f_order,
+                                     int f_degree,
                                      double radius, 
                                      double gamma,
                                      double answer)
@@ -100,7 +100,7 @@ static void test_cap_radial_function(void** state,
   vector_t e3;
   vector_randomize(&e3, rand, 1.0);
 
-  sphere_integrator_t* I = sphere_integrator_new(f_order);
+  sphere_integrator_t* I = sphere_integrator_new(f_degree);
 
   double result;
   sphere_integrator_cap(I, &x0, radius, f, &e3, gamma, &result);
@@ -113,13 +113,13 @@ void test_cap_r(void** state)
 {
   sp_func_t* f = sp_func_from_func("r", r, SP_INHOMOGENEOUS, 1);
 
-  for (int order = 1; order <= 4; ++order)
+  for (int degree = 1; degree <= 4; ++degree)
   {
     // Integrate over the entire sphere.
-    test_cap_radial_function(state, f, order, 2.0, M_PI, 32.0*M_PI);
+    test_cap_radial_function(state, f, degree, 2.0, M_PI, 32.0*M_PI);
 
     // Integrate over half.
-    test_cap_radial_function(state, f, order, 2.0, 0.5*M_PI, 16.0*M_PI);
+    test_cap_radial_function(state, f, degree, 2.0, 0.5*M_PI, 16.0*M_PI);
   }
 
   f = NULL;
@@ -129,13 +129,13 @@ void test_cap_r2(void** state)
 {
   sp_func_t* f = sp_func_from_func("r", r2, SP_INHOMOGENEOUS, 1);
 
-  for (int order = 2; order <= 4; ++order)
+  for (int degree = 2; degree <= 4; ++degree)
   {
     // Integrate over the entire sphere.
-    test_cap_radial_function(state, f, order, 2.0, M_PI, 64.0*M_PI);
+    test_cap_radial_function(state, f, degree, 2.0, M_PI, 64.0*M_PI);
 
     // Integrate over half.
-    test_cap_radial_function(state, f, order, 2.0, 0.5*M_PI, 32.0*M_PI);
+    test_cap_radial_function(state, f, degree, 2.0, 0.5*M_PI, 32.0*M_PI);
   }
 
   f = NULL;
@@ -145,13 +145,13 @@ void test_cap_r3(void** state)
 {
   sp_func_t* f = sp_func_from_func("r", r3, SP_INHOMOGENEOUS, 1);
 
-  for (int order = 3; order <= 4; ++order)
+  for (int degree = 3; degree <= 4; ++degree)
   {
     // Integrate over the entire sphere.
-    test_cap_radial_function(state, f, order, 2.0, M_PI, 128.0*M_PI);
+    test_cap_radial_function(state, f, degree, 2.0, M_PI, 128.0*M_PI);
 
     // Integrate over half.
-    test_cap_radial_function(state, f, order, 2.0, 0.5*M_PI, 64.0*M_PI);
+    test_cap_radial_function(state, f, degree, 2.0, 0.5*M_PI, 64.0*M_PI);
   }
 
   f = NULL;
@@ -161,20 +161,20 @@ void test_cap_r4(void** state)
 {
   sp_func_t* f = sp_func_from_func("r", r4, SP_INHOMOGENEOUS, 1);
 
-  int order = 4;
+  int degree = 4;
   // Integrate over the entire sphere.
 
-  test_cap_radial_function(state, f, order, 2.0, M_PI, 256.0*M_PI);
+  test_cap_radial_function(state, f, degree, 2.0, M_PI, 256.0*M_PI);
 
   // Integrate over half.
-  test_cap_radial_function(state, f, order, 2.0, 0.5*M_PI, 128.0*M_PI);
+  test_cap_radial_function(state, f, degree, 2.0, 0.5*M_PI, 128.0*M_PI);
 
   f = NULL;
 }
 
 static void test_cap_time_dep_radial_function(void** state, 
                                               st_func_t* f, 
-                                              int f_order,
+                                              int f_degree,
                                               double radius, 
                                               double gamma,
                                               double t, 
@@ -187,7 +187,7 @@ static void test_cap_time_dep_radial_function(void** state,
   vector_t e3;
   vector_randomize(&e3, rand, 1.0);
 
-  sphere_integrator_t* I = sphere_integrator_new(f_order);
+  sphere_integrator_t* I = sphere_integrator_new(f_degree);
 
   double result;
   sphere_integrator_cap_at_time(I, &x0, radius, f, &e3, gamma, t, &result);
@@ -210,17 +210,17 @@ void test_cap_linear_growth(void** state)
 {
   st_func_t* f = st_func_from_func("linear_growth", linear_growth, ST_INHOMOGENEOUS, ST_NONCONSTANT, 1);
 
-  for (int order = 1; order <= 4; ++order)
+  for (int degree = 1; degree <= 4; ++degree)
   {
     for (int i = 1; i <= 10; ++i)
     {
       double t = 1.0*i;
 
       // Integrate over the entire sphere.
-      test_cap_time_dep_radial_function(state, f, order, 2.0, M_PI, t, t*32.0*M_PI, 1e-12);
+      test_cap_time_dep_radial_function(state, f, degree, 2.0, M_PI, t, t*32.0*M_PI, 1e-12);
 
       // Integrate over half.
-      test_cap_time_dep_radial_function(state, f, order, 2.0, 0.5*M_PI, t, t*16.0*M_PI, 1e-12);
+      test_cap_time_dep_radial_function(state, f, degree, 2.0, 0.5*M_PI, t, t*16.0*M_PI, 1e-12);
     }
   }
 
@@ -231,17 +231,17 @@ void test_cap_quadratic_growth(void** state)
 {
   st_func_t* f = st_func_from_func("quadratic_growth", quadratic_growth, ST_INHOMOGENEOUS, ST_NONCONSTANT, 1);
 
-  for (int order = 2; order <= 4; ++order)
+  for (int degree = 2; degree <= 4; ++degree)
   {
     for (int i = 1; i <= 10; ++i)
     {
       double t = 1.0*i;
 
       // Integrate over the entire sphere.
-      test_cap_time_dep_radial_function(state, f, order, 2.0, M_PI, t, t*t*64.0*M_PI, 1e-10);
+      test_cap_time_dep_radial_function(state, f, degree, 2.0, M_PI, t, t*t*64.0*M_PI, 1e-10);
 
       // Integrate over half.
-      test_cap_time_dep_radial_function(state, f, order, 2.0, 0.5*M_PI, t, t*t*32.0*M_PI, 1e-10);
+      test_cap_time_dep_radial_function(state, f, degree, 2.0, 0.5*M_PI, t, t*t*32.0*M_PI, 1e-10);
     }
   }
 
