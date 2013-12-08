@@ -200,7 +200,7 @@ double polynomial_deriv(polynomial_t* p, int x_deriv, int y_deriv, int z_deriv, 
 
 bool polynomial_next(polynomial_t* p, int* pos, double* coeff, int* x_power, int* y_power, int* z_power)
 {
-  if (*pos >= N_coeffs[p->degree])
+  if (*pos >= p->num_terms)
     return false;
   *coeff = p->coeffs[*pos];
   *x_power = p->x_pow[*pos];

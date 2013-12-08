@@ -114,15 +114,10 @@ static double inner_product(div_free_poly_basis_t* basis,
 {
   // Compute the polynomial that is the dot product of ui and uj.
   polynomial_t* prod = polynomial_product(ui->x, uj->x);
-  polynomial_fprintf(ui->x, stdout);
-  polynomial_fprintf(uj->x, stdout);
-  polynomial_fprintf(prod, stdout);
   polynomial_t* y_prod = polynomial_product(ui->y, uj->y);
   polynomial_t* z_prod = polynomial_product(ui->z, uj->z);
   polynomial_add(prod, 1.0, y_prod);
-  polynomial_fprintf(prod, stdout);
   polynomial_add(prod, 1.0, z_prod);
-  polynomial_fprintf(prod, stdout);
   y_prod = z_prod = NULL;
 
   // Now integrate this product over our polytope.
@@ -140,15 +135,7 @@ static void gram_schmidt(div_free_poly_basis_t* basis)
   // Make a copy of the original basis vectors.
   polynomial_vector_t v[basis->dim];
   for (int i = 0; i < basis->dim; ++i)
-{
    v[i] = basis->vectors[i];
-polynomial_fprintf(basis->vectors[i].x, stdout);
-polynomial_fprintf(basis->vectors[i].y, stdout);
-polynomial_fprintf(basis->vectors[i].z, stdout);
-polynomial_fprintf(v[i].x, stdout);
-polynomial_fprintf(v[i].y, stdout);
-polynomial_fprintf(v[i].z, stdout);
-}
 
   for (int i = 0; i < basis->dim; ++i)
   {
@@ -192,7 +179,7 @@ div_free_poly_basis_t* spherical_div_free_poly_basis_new(int degree, point_t* x0
   basis->x0 = *x0;
   basis->radius = radius;
   basis->dim = basis_dim[degree];
-  basis->vectors = malloc(sizeof(polynomial_vector_t*) * basis->dim);
+  basis->vectors = malloc(sizeof(polynomial_vector_t) * basis->dim);
   GC_register_finalizer(basis, div_free_poly_basis_free, basis, NULL, NULL);
 
   // Construct the naive monomial basis.
@@ -201,9 +188,6 @@ div_free_poly_basis_t* spherical_div_free_poly_basis_new(int degree, point_t* x0
     basis->vectors[i].x = polynomial_from_monomials(degree, 1, &x_poly_coeffs[degree][i], &x_poly_x_powers[degree][i], &x_poly_y_powers[degree][i], &x_poly_z_powers[degree][i], NULL);
     basis->vectors[i].y = polynomial_from_monomials(degree, 1, &y_poly_coeffs[degree][i], &y_poly_x_powers[degree][i], &y_poly_y_powers[degree][i], &y_poly_z_powers[degree][i], NULL);
     basis->vectors[i].z = polynomial_from_monomials(degree, 1, &z_poly_coeffs[degree][i], &z_poly_x_powers[degree][i], &z_poly_y_powers[degree][i], &z_poly_z_powers[degree][i], NULL);
-polynomial_fprintf(basis->vectors[i].x, stdout);
-polynomial_fprintf(basis->vectors[i].y, stdout);
-polynomial_fprintf(basis->vectors[i].z, stdout);
   }
 
   // Perform a Gram-Schmidt orthogonalization.
