@@ -204,7 +204,7 @@ static int fact(int x)
 {
   if ((x == 0) || (x == 1))
     return 1;
-  else return fact(x-1);
+  else return x*fact(x-1);
 }
 
 double polynomial_deriv_value(polynomial_t* p, int x_deriv, int y_deriv, int z_deriv, point_t* x)
@@ -220,9 +220,9 @@ double polynomial_deriv_value(polynomial_t* p, int x_deriv, int y_deriv, int z_d
   double coeff, val = 0.0;
   while (polynomial_next(p, &pos, &coeff, &x_pow, &y_pow, &z_pow))
   {
-    double x_term = pow(x->x - p->x0.x, x_pow - x_deriv) * fact(x_pow)/fact(x_deriv);
-    double y_term = pow(x->y - p->x0.y, y_pow - y_deriv) * fact(y_pow)/fact(y_deriv);
-    double z_term = pow(x->z - p->x0.z, z_pow - z_deriv) * fact(z_pow)/fact(z_deriv);
+    double x_term = (x_pow >= x_deriv) ? pow(x->x - p->x0.x, x_pow - x_deriv) * fact(x_pow)/fact(x_deriv) : 0.0;
+    double y_term = (y_pow >= y_deriv) ? pow(x->y - p->x0.y, y_pow - y_deriv) * fact(y_pow)/fact(y_deriv) : 0.0;
+    double z_term = (z_pow >= z_deriv) ? pow(x->z - p->x0.z, z_pow - z_deriv) * fact(z_pow)/fact(z_deriv) : 0.0;
     val += coeff * x_term * y_term * z_term;
   }
   return val;

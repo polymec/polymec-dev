@@ -64,16 +64,23 @@ void test_divergence(void** state)
     div_free_poly_basis_t* basis = spherical_div_free_poly_basis_new(degree, &x0, R);
     int pos = 0;
     polynomial_t *x, *y, *z;
+//    printf("p = %d:\n", degree);
     while (div_free_poly_basis_next(basis, &pos, &x, &y, &z))
     {
       point_t X;
       point_randomize(&X, rand, &bbox);
-//      printf("%g\n", polynomial_deriv_value(x, 1, 0, 0, &X));
-//      printf("%g\n", polynomial_deriv_value(y, 0, 1, 0, &X));
-//      printf("%g\n", polynomial_deriv_value(z, 0, 0, 1, &X));
-      assert_true(fabs(polynomial_deriv_value(x, 1, 0, 0, &X)) < 1e-14);
-      assert_true(fabs(polynomial_deriv_value(y, 0, 1, 0, &X)) < 1e-14);
-      assert_true(fabs(polynomial_deriv_value(z, 0, 0, 1, &X)) < 1e-14);
+      double dfxdx = polynomial_deriv_value(x, 1, 0, 0, &X);
+      double dfydy = polynomial_deriv_value(y, 0, 1, 0, &X);
+      double dfzdz = polynomial_deriv_value(z, 0, 0, 1, &X);
+      double divf = dfxdx + dfydy + dfzdz;
+//      printf(" f%d =\n   ", pos);
+//      polynomial_fprintf(x, stdout);
+//      printf("   ");
+//      polynomial_fprintf(y, stdout);
+//      printf("   ");
+//      polynomial_fprintf(z, stdout);
+//      printf(" div f%d = %g\n", pos, divf);
+      assert_true(fabs(divf) < 1e-14);
     }
     basis = NULL;
   }
