@@ -195,9 +195,9 @@ void test_poly_shape_function_gradients(void** state, int p, point_t* x0, point_
   for (int i = 0; i < num_points; ++i)
   {
     data[i] = polynomial_value(poly, &points[i]);
-    data_grads[i].x = polynomial_deriv(poly, 1, 0, 0, &points[i]);
-    data_grads[i].y = polynomial_deriv(poly, 0, 1, 0, &points[i]);
-    data_grads[i].z = polynomial_deriv(poly, 0, 0, 1, &points[i]);
+    data_grads[i].x = polynomial_deriv_value(poly, 1, 0, 0, &points[i]);
+    data_grads[i].y = polynomial_deriv_value(poly, 0, 1, 0, &points[i]);
+    data_grads[i].z = polynomial_deriv_value(poly, 0, 0, 1, &points[i]);
   }
 
   // Compute shape functions for the given data.
@@ -246,9 +246,9 @@ void test_poly_shape_function_gradients(void** state, int p, point_t* x0, point_
   }
   double phi = polynomial_value(poly, &point);
   vector_t grad_phi;
-  grad_phi.x = polynomial_deriv(poly, 1, 0, 0, &point);
-  grad_phi.y = polynomial_deriv(poly, 0, 1, 0, &point);
-  grad_phi.z = polynomial_deriv(poly, 0, 0, 1, &point);
+  grad_phi.x = polynomial_deriv_value(poly, 1, 0, 0, &point);
+  grad_phi.y = polynomial_deriv_value(poly, 0, 1, 0, &point);
+  grad_phi.z = polynomial_deriv_value(poly, 0, 0, 1, &point);
 //  printf("%g %g %g\n", phi_fit, phi, fabs(phi_fit - phi));
   assert_true(fabs(phi_fit - phi) < 5e-14);
 //printf("%g %g %g\n", grad_phi_fit.x, grad_phi.x, fabs(grad_phi_fit.x - grad_phi.x));
@@ -276,9 +276,9 @@ void test_poly_shape_function_constraints(void** state, int p, point_t* x0, poin
   for (int i = 0; i < num_points; ++i)
   {
     data[i] = polynomial_value(poly, &points[i]);
-    data_grads[i].x = polynomial_deriv(poly, 1, 0, 0, &points[i]);
-    data_grads[i].y = polynomial_deriv(poly, 0, 1, 0, &points[i]);
-    data_grads[i].z = polynomial_deriv(poly, 0, 0, 1, &points[i]);
+    data_grads[i].x = polynomial_deriv_value(poly, 1, 0, 0, &points[i]);
+    data_grads[i].y = polynomial_deriv_value(poly, 0, 1, 0, &points[i]);
+    data_grads[i].z = polynomial_deriv_value(poly, 0, 0, 1, &points[i]);
   }
 
   // Compute shape functions for the given data.

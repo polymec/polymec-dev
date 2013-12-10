@@ -207,7 +207,7 @@ static int fact(int x)
   else return fact(x-1);
 }
 
-double polynomial_deriv(polynomial_t* p, int x_deriv, int y_deriv, int z_deriv, point_t* x)
+double polynomial_deriv_value(polynomial_t* p, int x_deriv, int y_deriv, int z_deriv, point_t* x)
 {
   ASSERT(x_deriv >= 0);
   ASSERT(y_deriv >= 0);
@@ -346,6 +346,33 @@ polynomial_t* polynomial_product(polynomial_t* p, polynomial_t* q)
   // Create a polynomial from the reduced terms.
   return polynomial_from_monomials(degree, num_terms, coeffs, 
                                    x_pow, y_pow, z_pow, &p->x0);
+}
+
+polynomial_t* polynomial_derivative(polynomial_t* p, int x_deriv, int y_deriv, int z_deriv)
+{
+  if (x_deriv + y_deriv + z_deriv > p->degree)
+  {
+    double zero = 0.0;
+    int zero_pow = 0;
+    return polynomial_from_monomials(0, 1, &zero, 
+                                     &zero_pow, &zero_pow, &zero_pow, NULL);
+  }
+
+  double coeffs[p->num_terms];
+  int x_pow[p->num_terms], y_pow[p->num_terms], z_pow[p->num_terms];
+  for (int i = 0; i < p->num_terms; ++i)
+  {
+    coeffs[i] = p->coeffs[i] * fact(p->x_pow[i])/fact(x_deriv) 
+                             * fact(p->y_pow[i])/fact(y_deriv)
+                             * fact(p->z_pow[i])/fact(z_deriv);
+    x_pow[i] -= x_deriv;
+    y_pow[i] -= y_deriv;
+    z_pow[i] -= z_deriv;
+  }
+
+  return polynomial_from_monomials(p->degree - (x_deriv + y_deriv + z_deriv), 
+                                   p->num_terms, coeffs, x_pow, y_pow, z_pow, 
+                                   &p->x0);
 }
 
 static void wrap_eval(void* context, point_t* x, double* result)

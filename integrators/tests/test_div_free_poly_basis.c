@@ -53,13 +53,40 @@ void test_compute(void** state)
   }
 }
 
+// Tests that the divergence of each vector in the basis is zero.
+void test_divergence(void** state)
+{
+  point_t x0 = {0.0, 0.0, 0.0};
+  double R = 1.0;
+  bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
+  for (int degree = 0; degree <= 2; ++degree)
+  {
+    div_free_poly_basis_t* basis = spherical_div_free_poly_basis_new(degree, &x0, R);
+    int pos = 0;
+    polynomial_t *x, *y, *z;
+    while (div_free_poly_basis_next(basis, &pos, &x, &y, &z))
+    {
+      point_t X;
+      point_randomize(&X, rand, &bbox);
+//      printf("%g\n", polynomial_deriv_value(x, 1, 0, 0, &X));
+//      printf("%g\n", polynomial_deriv_value(y, 0, 1, 0, &X));
+//      printf("%g\n", polynomial_deriv_value(z, 0, 0, 1, &X));
+      assert_true(fabs(polynomial_deriv_value(x, 1, 0, 0, &X)) < 1e-14);
+      assert_true(fabs(polynomial_deriv_value(y, 0, 1, 0, &X)) < 1e-14);
+      assert_true(fabs(polynomial_deriv_value(z, 0, 0, 1, &X)) < 1e-14);
+    }
+    basis = NULL;
+  }
+}
+
 int main(int argc, char* argv[]) 
 {
   polymec_init(argc, argv);
   const UnitTest tests[] = 
   {
     unit_test(test_ctor),
-    unit_test(test_compute)
+    unit_test(test_compute),
+    unit_test(test_divergence)
   };
   return run_tests(tests);
 }

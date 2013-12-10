@@ -33,6 +33,17 @@ div_free_poly_basis_t* spherical_div_free_poly_basis_new(int degree, point_t* x0
 // Returns the dimension of the given divergence-free polynomial basis.
 int div_free_poly_basis_dim(div_free_poly_basis_t* basis);
 
+// Steps through the vectors (with polynomial components) in the 
+// divergence-free basis, in the same manner as polynomial_next().
+// x, y, and z are set to polynomials representing the x, y, and z 
+// components of the present vector. Returns true if the traversal yields
+// another vector.
+bool div_free_poly_basis_next(div_free_poly_basis_t* basis,
+                              int* pos,
+                              polynomial_t** x,
+                              polynomial_t** y,
+                              polynomial_t** z);
+
 // Computes an array of vectors belonging to the divergence-free polynomial 
 // basis, evaluated at the given point x. vectors is an array of vectors 
 // equal in length to the dimension of the basis that will store the computed 

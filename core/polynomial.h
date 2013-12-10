@@ -68,7 +68,7 @@ point_t* polynomial_x0(polynomial_t* p);
 double polynomial_value(polynomial_t* p, point_t* x);
 
 // Evaluates the (mixed partial) derivative of the polynomial at the given point x.
-double polynomial_deriv(polynomial_t* p, int x_deriv, int y_deriv, int z_deriv, point_t* x);
+double polynomial_deriv_value(polynomial_t* p, int x_deriv, int y_deriv, int z_deriv, point_t* x);
 
 // Allows iteration over the (monomial) terms of the polynomial. Returns true 
 // if terms remain, false if this iteration yields nothing. Set pos to 0 to 
@@ -81,6 +81,10 @@ void polynomial_add(polynomial_t* p, double factor, polynomial_t* q);
 // Returns a newly-created polynomial that is the product of the two 
 // polynomials p and q.
 polynomial_t* polynomial_product(polynomial_t* p, polynomial_t* q);
+
+// Returns a newly-created polynomial that is the partial derivative of 
+// the given polynomial with the given degrees in x, y, and z.
+polynomial_t* polynomial_derivative(polynomial_t* p, int x_deriv, int y_deriv, int z_deriv);
 
 // Returns an sp_func corresponding to the given polynomial.
 sp_func_t* polynomial_sp_func(polynomial_t* p);

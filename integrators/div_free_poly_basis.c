@@ -201,6 +201,21 @@ int div_free_poly_basis_dim(div_free_poly_basis_t* basis)
   return basis->dim;
 }
 
+bool div_free_poly_basis_next(div_free_poly_basis_t* basis,
+                              int* pos,
+                              polynomial_t** x,
+                              polynomial_t** y,
+                              polynomial_t** z)
+{
+  if (*pos >= basis->dim)
+    return false;
+  *x = basis->vectors[*pos].x;
+  *y = basis->vectors[*pos].y;
+  *z = basis->vectors[*pos].z;
+  ++(*pos);
+  return true;
+}
+
 void div_free_poly_basis_compute(div_free_poly_basis_t* basis,
                                  point_t* x, 
                                  vector_t* vectors)
