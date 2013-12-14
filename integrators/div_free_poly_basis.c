@@ -22,7 +22,6 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-
 #include <gc/gc.h>
 #include "integrators/div_free_poly_basis.h"
 #include "integrators/sphere_integrator.h" // For spherical integrals.

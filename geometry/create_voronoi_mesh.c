@@ -22,7 +22,6 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-
 // This implementation of the Voronoi tessellator uses Tetgen. It is not built 
 // unless a Tetgen tarball was found in the 3rdparty/ directory.
 // Please see the license file in the Tetgen tarball for license information 

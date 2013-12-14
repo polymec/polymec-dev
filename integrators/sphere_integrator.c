@@ -22,7 +22,6 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-
 #include "integrators/sphere_integrator.h"
 #include "integrators/gauss_rules.h"
 #include "integrators/div_free_poly_basis.h"
@@ -356,7 +355,7 @@ void sphere_integrator_compute_boundary_surface_weights(sphere_integrator_t* int
   do
   {
     --basis_degree;
-    df_basis = spherical_div_free_poly_basis_new(basis_degree);
+    df_basis = spherical_div_free_poly_basis_new(basis_degree, x0, R);
     M = div_free_poly_basis_dim(df_basis);
   }
   while (N <= M);
@@ -368,6 +367,7 @@ void sphere_integrator_compute_boundary_surface_weights(sphere_integrator_t* int
   polynomial_t *fx, *fy, *fz;
   while (div_free_poly_basis_next(df_basis, &pos, &fx, &fy, &fz))
   {
+#if 0
     for (int j = 0; j < M; ++j)
     {
       // Get the ith quadrature point.
@@ -393,6 +393,7 @@ void sphere_integrator_compute_boundary_surface_weights(sphere_integrator_t* int
     // FIXME: We need to get f o n, where n is the normal vector 
     // FIXME: for our sphere. How do we do this??
     weights[i] = sphere_integrator_sphere(integ, x0, R, ...);
+  #endif
 
     ++i;
   }

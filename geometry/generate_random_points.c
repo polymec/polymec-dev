@@ -22,7 +22,6 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-
 #include "geometry/generate_random_points.h"
 
 void generate_random_points(int (*rng)(), sp_func_t* density, bbox_t* bounding_box, int num_points, point_t* points)
