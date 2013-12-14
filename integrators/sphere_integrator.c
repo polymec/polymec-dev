@@ -136,7 +136,9 @@ void sphere_integrator_cap(sphere_integrator_t* integ,
   int num_comp = sp_func_num_comp(F);
   memset(integral, 0, sizeof(double) * num_comp);
 
-  vector_t e1, e2, e3 = *z;
+  vector_t e1, e2, e3 = {.x = 0.0, .y = 0.0, .z = 1.0};
+  if (z != NULL)
+    e3 = *z;
   vector_normalize(&e3);
   compute_orthonormal_basis(&e3, &e1, &e2);
   for (int i = 0; i < integ->num_azi_nodes; ++i)
@@ -340,6 +342,40 @@ double sphere_integrator_sphere(sphere_integrator_t* integ,
   return I;
 }
 
+//------------------------------------------------------------------------
+// This apparatus represents the dot product of the polynomial vector F with 
+// the normal n of the given implicit surface.
+typedef struct 
+{
+  point_t x0;
+  polynomial_t *Fx, *Fy, *Fz;
+} radial_F;
+
+static void eval_F_o_n(void* context, point_t* x, double* F_o_n)
+{
+  radial_F* Fr = context;
+
+  // Compute the normal vector of the sphere at the point x.
+  point_t X = {.x = x->x - Fr->x0.x, 
+               .y = x->y - Fr->x0.y,
+               .z = x->z - Fr->x0.z};
+  double theta = atan2(X.z, sqrt(X.x*X.x + X.y*X.y));
+  double phi = atan2(X.y, X.x);
+  vector_t n = {.x = cos(phi) * sin(theta), 
+                .y = sin(phi) * sin(theta),
+                .z = cos(theta)};
+  ASSERT(fabs(vector_mag(&n) - 1.0) < 1e-12);
+
+  // Compute the polynomial vector F at the point x.
+  vector_t F = {.x = polynomial_value(Fr->Fx, x),
+                .y = polynomial_value(Fr->Fy, x),
+                .z = polynomial_value(Fr->Fz, x)};
+
+  // Compute their dot product.
+  *F_o_n = vector_dot(&F, &n);
+}
+//------------------------------------------------------------------------
+
 void sphere_integrator_compute_boundary_surface_weights(sphere_integrator_t* integ,
                                                         point_t* x0,
                                                         double R,
@@ -349,7 +385,8 @@ void sphere_integrator_compute_boundary_surface_weights(sphere_integrator_t* int
   // How many weights will we be computing?
   int N = sphere_integrator_num_cap_points(integ);
 
-  // How many moments are we using for the calculation?
+  // How many moments are we using for the calculation? Make sure N > M so 
+  // that the least-squares system is underdetermined.
   div_free_poly_basis_t* df_basis;
   int basis_degree = integ->degree, M;
   do
@@ -360,19 +397,43 @@ void sphere_integrator_compute_boundary_surface_weights(sphere_integrator_t* int
   }
   while (N <= M);
 
+  // Set up a spatial function that computes F o n for the right hand side.
+  radial_F Fr;
+  Fr.x0 = *x0;
+  sp_vtable vtable = {.eval = eval_F_o_n};
+  sp_func_t* F_o_n = sp_func_new("F_o_n", &Fr, vtable, SP_INHOMOGENEOUS, 1);
+
+  // Construct an orthonormal basis for the sphere. We need this to get the 
+  // quadrature points.
+  vector_t e1 = {.x = 1.0, .y = 0.0, .z = 0.0},
+           e2 = {.x = 0.0, .y = 1.0, .z = 0.0},
+           e3 = {.x = 0.0, .y = 0.0, .z = 1.0};
+
   // Assemble the moment matrix and the right-hand side in equation (13) 
   // of Muller (2013). NOTE: A is stored in column-major order.
   double A[M*N];
   int i = 0, pos = 0;
-  polynomial_t *fx, *fy, *fz;
-  while (div_free_poly_basis_next(df_basis, &pos, &fx, &fy, &fz))
+  polynomial_t *Fx, *Fy, *Fz;
+  while (div_free_poly_basis_next(df_basis, &pos, &Fx, &Fy, &Fz))
   {
-#if 0
+    // Set the components of the polynomial vector.
+    Fr.Fx = Fx;
+    Fr.Fy = Fy;
+    Fr.Fz = Fz;
+
+    // Integrate the F o n over the sphere and stash the result in the 
+    // weights array (which serves as the RHS vector).
+    sphere_integrator_cap(integ, x0, R, F_o_n, NULL, M_PI, &weights[i]);
+
+    // Now compute the matrix.
     for (int j = 0; j < M; ++j)
     {
-      // Get the ith quadrature point.
+      // Get the ith quadrature point. Ignore the weight.
       point_t xi;
-      // FIXME
+      double wi;
+      int k = M / integ->num_colat_nodes;
+      int l = M % integ->num_colat_nodes;
+      construct_quad_point_and_weight(integ, &e1, &e2, &e3, x0, R, M_PI, k, l, &xi, &wi);
 
       // Compute the dot product of the ith basis vector with the normal vector.
 
@@ -381,23 +442,17 @@ void sphere_integrator_compute_boundary_surface_weights(sphere_integrator_t* int
       sp_func_eval_deriv(boundary_func, 1, &xi, n);
 
       // Polynomial dot product.
-      polynomial_t* f_o_n = scaled_polynomial_new(fx, n[0]);
-      polynomial_add(f_o_n, scaled_polynomial_new(fy, n[1]));
-      polynomial_add(f_o_n, scaled_polynomial_new(fz, n[2]));
-      A[N*j+i] = polynomial_value(f_o_n, &xi);
+      // polynomial_t* F_o_n = linear_combination_polynomial_new(3, n[0], Fx, n[1], Fy, n[2], Fz);
+      polynomial_t* F_o_n = scaled_polynomial_new(Fx, n[0]);
+      polynomial_add(F_o_n, 1.0, scaled_polynomial_new(Fy, n[1]));
+      polynomial_add(F_o_n, 1.0, scaled_polynomial_new(Fz, n[2]));
+      A[N*j+i] = polynomial_value(F_o_n, &xi);
 
-      f_o_n = NULL;
+      F_o_n = NULL;
     }
-
-    // Right hand side. 
-    // FIXME: We need to get f o n, where n is the normal vector 
-    // FIXME: for our sphere. How do we do this??
-    weights[i] = sphere_integrator_sphere(integ, x0, R, ...);
-  #endif
 
     ++i;
   }
-  // FIXME
 
   // Solve the least-squares problem.
   int nrhs = 1, lda = M, ldb = MAX(M, N), rank,
@@ -408,6 +463,7 @@ void sphere_integrator_compute_boundary_surface_weights(sphere_integrator_t* int
   dgelsy(&M, &N, &nrhs, A, &lda, weights, &ldb, jpvt, &rcond, &rank, work, &lwork, &info);
 
   df_basis = NULL;
+  F_o_n = NULL;
 }
 
 void sphere_integrator_compute_boundary_volume_weights(sphere_integrator_t* integ,

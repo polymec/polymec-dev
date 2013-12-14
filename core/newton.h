@@ -26,6 +26,52 @@
 #define POLYMEC_NEWTON_H
 
 #include "core/polymec.h"
+#include "core/sundials_helpers.h"
+
+// This class solves (dense) systems of nonlinear equations using 
+// Newton's method.
+typedef struct newton_solver_t newton_solver_t;
+
+// This function F(X) = 0 represents a nonlinear system of equations, and 
+// uses the KINSOL interface.
+typedef int (*newton_system_func_t)(N_Vector X, N_Vector F, void* context);
+
+// Creates a new Newton solver for the given system of equations represented
+// by the function F(X) = 0. The user-defined context is fed to the system 
+// function when it is called. The last argument is an optional destructor 
+// function for destroying the context when the Newton solver is destroyed.
+newton_solver_t* newton_solver_new(int dimension,
+                                   void* context,
+                                   newton_system_func_t system_func,
+                                   void (*context_dtor)(void*));
+
+// Destroys the given Newton solver.
+void newton_solver_free(newton_solver_t* solver);
+
+// Returns the dimension of the system solved by the Newton solver.
+int newton_solver_dimension(newton_solver_t* solver);
+
+// Sets the tolerances for the function norm (norm_tolerance) and the Newton
+// step (step_tolerance).
+void newton_solver_set_tolerances(newton_solver_t* solver, double norm_tolerance, double step_tolerance);
+
+// Sets the maximum number of Newton iterations for the solver.
+void newton_solver_set_max_iterations(newton_solver_t* solver, int max_iterations);
+
+// Given an initial guess, solve the system represented by the Newton solver.
+// Returns true if the solve succeeded, false if not. num_iterations will 
+// store the number of Newton iterations used to achieve the solution.
+bool newton_solver_solve(newton_solver_t* solver, double* X, int* num_iterations);
+
+// This variant of newton_solver_solve() lets one specify two vectors which can 
+// scale the solution and the function to accelerate convergence:
+// - x_scale: the diagonal components of a matrix Dx such that the components 
+//            of Dx * x all have roughly the same magnitude as F(x) approaches 0.
+// - F_scale: the diagonal components of a matrix Df such that the components 
+//            of Df * F(x) all have roughly the same magnitude as F(x) approaches 0.
+// If either of these arguments is NULL, the components of the corresponding 
+// vector are assumed to be 1.
+bool newton_solver_solve_scaled(newton_solver_t* solver, double* X, double* x_scale, double* F_scale, int* num_iterations);
 
 // This defines a function that computes the value and derivative of a 
 // (real-valued) function of a single variable given a context.
@@ -42,34 +88,6 @@ bool newton_solve(nonlinear_function_t F, void* context, double* x, double min, 
 // and desired tolerance. Returns the solution x. NOTE that the nonlinear
 // function F need not have a derivative for Brent's method.
 double brent_solve(nonlinear_function_t F, void* context, double x1, double x2, double tolerance, int max_iters, double* error); 
-
-// This defines a vector-valued function that computes its value 
-// given a context. 
-typedef void (*nonlinear_vector_function_t)(void*, double*, double*);
-
-// This function prototype describes functions that compute Jacobians.
-typedef void (*jacobian_function_t)(void*, nonlinear_vector_function_t, int, double*, double*);
-
-// This struct represents a nonlinear system of equations F(x) = 0.
-typedef struct
-{
-  int dim;                                // Dimension of the system.
-  nonlinear_vector_function_t compute_F;  // Vector-valued function F.
-  jacobian_function_t compute_J;          // Jacobian calculation (optional).
-  void* context;                          // Context pointer.
-} nonlinear_system_t;
-
-// Solve the nonlinear system F(x) = 0 using a globally-convergent version 
-// of Newton's method with the initial estimate vector x, with the specified 
-// maximum number of iterations and desired tolerance. Returns true if the 
-// solution converged, false otherwise. If check_solution is set to true, it is possible that spurious convergence occurred.
-bool newton_solve_system(nonlinear_system_t* system, double* x, double tolerance, int max_iters, int* num_iters);
-
-// Solve the nonlinear system F(x) = 0 using Broyden's method with the 
-// initial estimate vector x, with the specified maximum number of iterations 
-// and desired tolerance. Returns true if the solution converged, false otherwise. 
-// If check_solution is set to true, it is possible that spurious convergence occurred.
-bool broyden_solve_system(nonlinear_system_t* system, double* x, double tolerance, int max_iters, int* num_iters);
 
 #endif
 

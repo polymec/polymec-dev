@@ -58,6 +58,7 @@ int sphere_integrator_degree(sphere_integrator_t* integ);
 //   C(z) := {x: x o z >= cos(gamma)
 // where 0 <= gamma <= pi. Here, gamma == 0 indicates a zero integral, and 
 // gamma == pi indicates an integral over the entire sphere of radius R.
+// If z is NULL, it is assumed to be e3 = {0, 0, 1}.
 // The integral is placed in the variable integral.
 void sphere_integrator_cap(sphere_integrator_t* integ, 
                            point_t* x0, 
