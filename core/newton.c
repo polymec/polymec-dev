@@ -71,7 +71,7 @@ void newton_solver_free(newton_solver_t* solver)
   N_VDestroy(solver->x);
   N_VDestroy(solver->x_scale);
   N_VDestroy(solver->F_scale);
-  KINFree(solver->kinsol);
+  KINFree(&(solver->kinsol));
   if ((solver->context != NULL) && (solver->dtor != NULL))
     solver->dtor(solver->context);
   free(solver);
