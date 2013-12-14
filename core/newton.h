@@ -27,6 +27,7 @@
 
 #include "core/polymec.h"
 #include "core/sundials_helpers.h"
+#include "sundials/sundials_direct.h"
 
 // This class solves (dense) systems of nonlinear equations using 
 // Newton's method.
@@ -34,7 +35,12 @@ typedef struct newton_solver_t newton_solver_t;
 
 // This function F(X) = 0 represents a nonlinear system of equations, and 
 // uses the KINSOL interface.
-typedef int (*newton_system_func_t)(N_Vector X, N_Vector F, void* context);
+typedef int (*newton_system_func)(N_Vector X, N_Vector F, void* context);
+
+// This function represents the Jacobian of a nonlinear system of equations, 
+// and uses the KINSOL interface.
+typedef int (*newton_jacobian_func)(int N, N_Vector X, N_Vector F, DlsMat J,
+                                    void* context, N_Vector work1, N_Vector work2);
 
 // Creates a new Newton solver for the given system of equations represented
 // by the function F(X) = 0. The user-defined context is fed to the system 
@@ -42,8 +48,16 @@ typedef int (*newton_system_func_t)(N_Vector X, N_Vector F, void* context);
 // function for destroying the context when the Newton solver is destroyed.
 newton_solver_t* newton_solver_new(int dimension,
                                    void* context,
-                                   newton_system_func_t system_func,
+                                   newton_system_func system_func,
                                    void (*context_dtor)(void*));
+
+// This variant of newton_solver_new creates a Newton solver that uses the 
+// additionally-supplied Jacobian function to accelerate the solution process.
+newton_solver_t* newton_solver_new_with_jacobian(int dimension,
+                                                 void* context,
+                                                 newton_system_func system_func,
+                                                 newton_jacobian_func jacobian_func,
+                                                 void (*context_dtor)(void*));
 
 // Destroys the given Newton solver.
 void newton_solver_free(newton_solver_t* solver);

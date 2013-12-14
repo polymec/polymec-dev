@@ -44,8 +44,18 @@ struct newton_solver_t
 
 newton_solver_t* newton_solver_new(int dimension,
                                    void* context,
-                                   newton_system_func_t system_func,
+                                   newton_system_func system_func,
                                    void (*context_dtor)(void*))
+{
+  return newton_solver_new_with_jacobian(dimension, context, system_func,
+                                         NULL, context_dtor);
+}
+
+newton_solver_t* newton_solver_new_with_jacobian(int dimension,
+                                                 void* context,
+                                                 newton_system_func system_func,
+                                                 newton_jacobian_func jacobian_func,
+                                                 void (*context_dtor)(void*))
 {
   ASSERT(dimension > 0);
   ASSERT(system_func != NULL);
@@ -59,6 +69,10 @@ newton_solver_t* newton_solver_new(int dimension,
   solver->kinsol = KINCreate();
   KINInit(solver->kinsol, system_func, solver->x);
   KINDense(solver->kinsol, dimension);
+
+  // Do we have a Jacobian function?
+  if (jacobian_func != NULL)
+    KINDlsSetDenseJacFn(solver->kinsol, jacobian_func);
 
   // Use exact Newton?
   // KINSetMaxSetupCalls(solver->kinsol, 1);
