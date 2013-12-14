@@ -32,13 +32,14 @@
 static int cubic_poly_1(N_Vector x, N_Vector F, void* context)
 {
   double X = NV_Ith_S(x, 0);
-  NV_Ith_S(F,0) = (X + 1.0) * (X - 2.0) * (X + 3.0);
+  NV_Ith_S(F, 0) = (X + 1.0) * (X - 2.0) * (X + 3.0);
   return 0;
 }
 
 void test_newton_solve_system_1(void** state)
 {
   newton_solver_t* solver = newton_solver_new(1, NULL, cubic_poly_1, NULL);
+  newton_solver_set_tolerances(solver, 1e-12, 1e-8);
   double x = 3.0;
   int num_iters;
   assert_true(newton_solver_solve(solver, &x, &num_iters));

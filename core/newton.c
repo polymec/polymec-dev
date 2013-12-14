@@ -104,6 +104,9 @@ bool newton_solver_solve(newton_solver_t* solver, double* X, int* num_iterations
 
 bool newton_solver_solve_scaled(newton_solver_t* solver, double* X, double* x_scale, double* F_scale, int* num_iterations)
 {
+  // Suspend the currently active floating point exceptions for now.
+  polymec_suspend_fpe_exceptions();
+
   // Set the x_scale and F_scale vectors.
   if (x_scale != NULL)
     memcpy(NV_DATA_S(solver->x_scale), x_scale, sizeof(double) * solver->dim);
@@ -126,6 +129,10 @@ bool newton_solver_solve_scaled(newton_solver_t* solver, double* X, double* x_sc
   // Solve.
   int status = KINSol(solver->kinsol, solver->x, KIN_LINESEARCH, 
                       solver->x_scale, solver->F_scale);
+
+  // Reinstate the floating point exceptions.
+  polymec_restore_fpe_exceptions();
+
   if ((status == KIN_SUCCESS) || (status == KIN_INITIAL_GUESS_OK))
   {
     // Get the number of iterations it took.

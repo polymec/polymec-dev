@@ -33,8 +33,11 @@
 #include "core/options.h"
 #include "core/model.h"
 
-#ifdef Linux
+// C99 support for floating point environment.
 #include <fenv.h>
+//#pragma STDC FENV_ACCESS ON
+
+#ifdef Linux
 // FE_INEXACT    inexact result
 // FE_DIVBYZERO  division by zero
 // FE_UNDERFLOW  result not representable due to underflow
@@ -73,6 +76,7 @@ static void shutdown()
 
 void polymec_init(int argc, char** argv)
 {
+  // By default, we enable floating point exceptions for debug builds.
 #ifndef NDEBUG
   polymec_enable_fpe_exceptions();
 #endif
@@ -140,13 +144,10 @@ polymec_warn(const char* message, ...)
   va_end(argp);
 }
 
-void 
-polymec_enable_fpe_exceptions()
+void polymec_enable_fpe_exceptions()
 {
-#ifndef NDEBUG
-
-#ifdef Linux
   feclearexcept(FE_ALL_EXCEPT);
+#ifdef Linux
   int flags = FE_DIVBYZERO |
               FE_INVALID   |
 //              FE_UNDERFLOW |
@@ -156,28 +157,41 @@ polymec_enable_fpe_exceptions()
 #endif
 
 #ifdef APPLE
-  unsigned int mask = _MM_MASK_INVALID | _MM_MASK_DIV_ZERO | _MM_MASK_OVERFLOW;
-  _MM_SET_EXCEPTION_MASK(_MM_GET_EXCEPTION_MASK() &~ mask);
-#endif
-
+  unsigned int mask = _MM_MASK_INVALID | _MM_MASK_DIV_ZERO | _MM_MASK_OVERFLOW | _MM_MASK_DENORM;
+  _MM_SET_EXCEPTION_MASK(_MM_GET_EXCEPTION_MASK() & ~mask);
 #endif
 }
 
-void 
-polymec_disable_fpe_exceptions()
+void polymec_disable_fpe_exceptions()
 {
-#ifndef NDEBUG
-
 #ifdef Linux
   fedisableexcept(fegetexcept());
 #endif
 
 #ifdef APPLE
-  unsigned int mask = _MM_MASK_INVALID | _MM_MASK_DIV_ZERO | _MM_MASK_OVERFLOW;
+  unsigned int mask = _MM_MASK_INVALID | _MM_MASK_DIV_ZERO | _MM_MASK_OVERFLOW | _MM_MASK_DENORM;
   _MM_SET_EXCEPTION_MASK(_MM_GET_EXCEPTION_MASK() & mask);
 #endif
+}
 
-#endif
+
+// The following suspend/restore mechanism uses standard C99 floating point 
+// kung fu.
+static fenv_t fpe_env;
+
+void polymec_suspend_fpe_exceptions()
+{
+  // Hold exceptions till further notice.
+  feholdexcept(&fpe_env);
+}
+
+void polymec_restore_fpe_exceptions()
+{
+  // Clear all exception flags.
+  feclearexcept(FE_ALL_EXCEPT);
+
+  // Now restore the previous floating point environment.
+  fesetenv(&fpe_env);
 }
 
 void polymec_not_implemented(const char* component)
