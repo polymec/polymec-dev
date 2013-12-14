@@ -16,6 +16,7 @@
 
 #include "integrators/sphere_integrator.h"
 #include "integrators/gauss_rules.h"
+#include "integrators/div_free_poly_basis.h"
 #include "core/linear_algebra.h"
 
 // Constructs points and weights for the azimuthal interval [0, 2*pi).
@@ -33,6 +34,8 @@ static void get_azi_points_and_weights(int n, double* points, double* weights)
 
 struct sphere_integrator_t 
 {
+  int degree;
+
   // Co-latitudinal (t = cos(theta)) integration nodes and weights.
   int num_colat_nodes;
   double *colat_nodes, *colat_weights;
@@ -44,7 +47,10 @@ struct sphere_integrator_t
 
 sphere_integrator_t* sphere_integrator_new(int degree)
 {
+  ASSERT(degree >= 0);
+
   sphere_integrator_t* integ = malloc(sizeof(sphere_integrator_t));
+  integ->degree = degree;
   integ->num_azi_nodes = degree + 1;
   integ->azi_nodes = malloc(sizeof(double) * integ->num_azi_nodes);
   integ->azi_weights = malloc(sizeof(double) * integ->num_azi_nodes);
@@ -326,22 +332,61 @@ double sphere_integrator_sphere(sphere_integrator_t* integ,
   return I;
 }
 
-void sphere_integrator_compute_boundary_weights(sphere_integrator_t* integ,
-                                                point_t* x0,
-                                                double R,
-                                                sp_func_t* boundary_func,
-                                                double* weights)
+void sphere_integrator_compute_boundary_surface_weights(sphere_integrator_t* integ,
+                                                        point_t* x0,
+                                                        double R,
+                                                        sp_func_t* boundary_func,
+                                                        double* weights)
 {
   // How many weights will we be computing?
   int N = sphere_integrator_num_cap_points(integ);
 
   // How many moments are we using for the calculation?
-  int M = 1;
-  // FIXME
+  div_free_poly_basis_t* df_basis;
+  int basis_degree = integ->degree, M;
+  do
+  {
+    --basis_degree;
+    df_basis = spherical_div_free_poly_basis_new(basis_degree);
+    M = div_free_poly_basis_dim(df_basis);
+  }
+  while (N <= M);
 
   // Assemble the moment matrix and the right-hand side in equation (13) 
-  // of Muller (2013).
-  double A[M*N], b[N];
+  // of Muller (2013). NOTE: A is stored in column-major order.
+  double A[M*N];
+  int i = 0, pos = 0;
+  polynomial_t *fx, *fy, *fz;
+  while (div_free_poly_basis_next(df_basis, &pos, &fx, &fy, &fz))
+  {
+    for (int j = 0; j < M; ++j)
+    {
+      // Get the ith quadrature point.
+      point_t xi;
+      // FIXME
+
+      // Compute the dot product of the ith basis vector with the normal vector.
+
+      // Normal vector at jth quadrature point.
+      double n[3];
+      sp_func_eval_deriv(boundary_func, 1, &xi, n);
+
+      // Polynomial dot product.
+      polynomial_t* f_o_n = scaled_polynomial_new(fx, n[0]);
+      polynomial_add(f_o_n, scaled_polynomial_new(fy, n[1]));
+      polynomial_add(f_o_n, scaled_polynomial_new(fz, n[2]));
+      A[N*j+i] = polynomial_value(f_o_n, &xi);
+
+      f_o_n = NULL;
+    }
+
+    // Right hand side. 
+    // FIXME: We need to get f o n, where n is the normal vector 
+    // FIXME: for our sphere. How do we do this??
+    weights[i] = sphere_integrator_sphere(integ, x0, R, ...);
+
+    ++i;
+  }
   // FIXME
 
   // Solve the least-squares problem.
@@ -350,7 +395,16 @@ void sphere_integrator_compute_boundary_weights(sphere_integrator_t* integ,
   double work[lwork];
   double rcond = 1e-12; // Accuracy of integrands for estimating condition number of A.
   memset(jpvt, 0, sizeof(int) * N);
-  dgelsy(&M, &N, &nrhs, A, &lda, b, &ldb, jpvt, &rcond, &rank, work, &lwork, &info);
+  dgelsy(&M, &N, &nrhs, A, &lda, weights, &ldb, jpvt, &rcond, &rank, work, &lwork, &info);
 
+  df_basis = NULL;
+}
+
+void sphere_integrator_compute_boundary_volume_weights(sphere_integrator_t* integ,
+                                                       point_t* x0,
+                                                       double R,
+                                                       sp_func_t* boundary_func,
+                                                       double* weights)
+{
 }
 

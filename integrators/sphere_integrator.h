@@ -123,11 +123,22 @@ double sphere_integrator_sphere(sphere_integrator_t* integ,
 // represented by the zero set of the implicit function called boundary_func.
 // Here, weights is an array equal in size to the value returned by 
 // sphere_integrator_num_cap_points(integ).
-void sphere_integrator_compute_boundary_weights(sphere_integrator_t* integ,
-                                                point_t* x0,
-                                                double R,
-                                                sp_func_t* boundary_func,
-                                                double* weights);
+void sphere_integrator_compute_boundary_surface_weights(sphere_integrator_t* integ,
+                                                        point_t* x0,
+                                                        double R,
+                                                        sp_func_t* boundary_func,
+                                                        double* weights);
+
+// Computes the quadrature weights corresponding to a volume integral over
+// the intersection of a sphere of radius R centered at x0 with a boundary 
+// represented by the zero set of the implicit function called boundary_func.
+// Here, weights is an array equal in size to the value returned by 
+// sphere_integrator_num_cap_points(integ).
+void sphere_integrator_compute_boundary_volume_weights(sphere_integrator_t* integ,
+                                                       point_t* x0,
+                                                       double R,
+                                                       sp_func_t* boundary_func,
+                                                       double* weights);
 
 #endif
 
