@@ -29,6 +29,7 @@
 #include "cmockery.h"
 #include "core/polymec.h"
 #include "core/constant_st_func.h"
+#include "geometry/plane.h"
 #include "integrators/sphere_integrator.h"
 
 void test_ctor(void** state)
@@ -256,6 +257,34 @@ void test_cap_quadratic_growth(void** state)
   f = NULL;
 }
 
+void test_boundary_surface_weights_for_degree_and_boundary(void** state, point_t* x0, double R, int degree, sp_func_t* boundary)
+{
+  sphere_integrator_t* I = sphere_integrator_new(degree);
+  int num_weights = sphere_integrator_num_cap_points(I);
+  double weights[num_weights];
+
+  sphere_integrator_compute_boundary_surface_weights(I, x0, R, boundary, weights);
+//for (int i = 0; i < num_weights; ++i)
+//printf("%g ", weights[i]);
+//printf("\n");
+}
+
+void test_boundary_surface_weights_for_boundary(void** state, point_t* x0, double R, sp_func_t* boundary)
+{
+  for (int p = 0; p < 5; ++p)
+    test_boundary_surface_weights_for_degree_and_boundary(state, x0, R, p, boundary);
+}
+
+void test_compute_boundary_surface_weights(void** state)
+{
+  vector_t np = {1.0, 0.0, 0.0};
+  point_t xp = {0.5, 0.0, 0.0};
+  point_t x0 = {0.0, 0.0, 0.0};
+  sp_func_t* plane = plane_new(&np, &xp);
+  double R = 1.0;
+  test_boundary_surface_weights_for_boundary(state, &x0, R, plane);
+}
+
 int main(int argc, char* argv[]) 
 {
   polymec_init(argc, argv);
@@ -268,7 +297,8 @@ int main(int argc, char* argv[])
     unit_test(test_cap_r3),
     unit_test(test_cap_r4),
     unit_test(test_cap_linear_growth),
-    unit_test(test_cap_quadratic_growth)
+    unit_test(test_cap_quadratic_growth),
+    unit_test(test_compute_boundary_surface_weights)
 //    unit_test(test_cap_at_time)
   };
   return run_tests(tests);

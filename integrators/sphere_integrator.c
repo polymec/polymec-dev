@@ -344,7 +344,7 @@ double sphere_integrator_sphere(sphere_integrator_t* integ,
 
 //------------------------------------------------------------------------
 // This apparatus represents the dot product of the polynomial vector F with 
-// the normal n of the given implicit surface.
+// the normal n of our sphere.
 typedef struct 
 {
   point_t x0;
@@ -387,15 +387,15 @@ void sphere_integrator_compute_boundary_surface_weights(sphere_integrator_t* int
 
   // How many moments are we using for the calculation? Make sure N > M so 
   // that the least-squares system is underdetermined.
-  div_free_poly_basis_t* df_basis;
-  int basis_degree = integ->degree, M;
-  do
+  int basis_degree = MIN(integ->degree, 2); // FIXME: Div-free poly basis tops out at degree 2.
+  div_free_poly_basis_t* df_basis = spherical_div_free_poly_basis_new(basis_degree, x0, R);
+  int M = div_free_poly_basis_dim(df_basis);
+  while ((basis_degree > 0) && (N <= M))
   {
     --basis_degree;
     df_basis = spherical_div_free_poly_basis_new(basis_degree, x0, R);
     M = div_free_poly_basis_dim(df_basis);
   }
-  while (N <= M);
 
   // Set up a spatial function that computes F o n for the right hand side.
   radial_F Fr;
@@ -426,27 +426,27 @@ void sphere_integrator_compute_boundary_surface_weights(sphere_integrator_t* int
     sphere_integrator_cap(integ, x0, R, F_o_n, NULL, M_PI, &weights[i]);
 
     // Now compute the matrix.
-    for (int j = 0; j < M; ++j)
+    for (int j = 0; j < N; ++j)
     {
-      // Get the ith quadrature point. Ignore the weight.
-      point_t xi;
-      double wi;
-      int k = M / integ->num_colat_nodes;
-      int l = M % integ->num_colat_nodes;
-      construct_quad_point_and_weight(integ, &e1, &e2, &e3, x0, R, M_PI, k, l, &xi, &wi);
+      // Get the jth quadrature point. Ignore the weight.
+      point_t xj;
+      double wj;
+      int k = j / integ->num_colat_nodes;
+      int l = j % integ->num_colat_nodes;
+      construct_quad_point_and_weight(integ, &e1, &e2, &e3, x0, R, M_PI, k, l, &xj, &wj);
 
       // Compute the dot product of the ith basis vector with the normal vector.
 
       // Normal vector at jth quadrature point.
       double n[3];
-      sp_func_eval_deriv(boundary_func, 1, &xi, n);
+      sp_func_eval_deriv(boundary_func, 1, &xj, n);
 
       // Polynomial dot product.
       // polynomial_t* F_o_n = linear_combination_polynomial_new(3, n[0], Fx, n[1], Fy, n[2], Fz);
       polynomial_t* F_o_n = scaled_polynomial_new(Fx, n[0]);
       polynomial_add(F_o_n, 1.0, scaled_polynomial_new(Fy, n[1]));
       polynomial_add(F_o_n, 1.0, scaled_polynomial_new(Fz, n[2]));
-      A[N*j+i] = polynomial_value(F_o_n, &xi);
+      A[M*j+i] = polynomial_value(F_o_n, &xj);
 
       F_o_n = NULL;
     }
