@@ -29,6 +29,18 @@
 #include "cmockery.h"
 #include "core/newton.h"
 
+static double cubic_poly(void* context, double x)
+{
+  return (x + 1.0) * (x - 2.0) * (x + 3.0);
+}
+
+void test_brent(void** state)
+{
+  // Our cubic polynomial has a root x = 2 in the range [0, 10].
+  double x = brent_solve(cubic_poly, NULL, 0.0, 10.0, 1e-12, 100);
+  assert_true(fabs(cubic_poly(NULL, x)) < 1e-12);
+}
+
 static int cubic_poly_1(N_Vector x, N_Vector F, void* context)
 {
   double X = NV_Ith_S(x, 0);
@@ -165,6 +177,7 @@ int main(int argc, char* argv[])
   polymec_init(argc, argv);
   const UnitTest tests[] = 
   {
+    unit_test(test_brent),
     unit_test(test_newton_solve_system_1),
     unit_test(test_newton_solve_system_1_with_jacobian),
     unit_test(test_newton_solve_system_2),

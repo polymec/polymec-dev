@@ -163,102 +163,81 @@ bool newton_solver_solve_scaled(newton_solver_t* solver, double* X, double* x_sc
   return false;
 }
 
-#define BRENT_SIGN(a, b) (((b) >= 0.0) ? fabs(a) : -fabs(a))
-
-bool newton_solve(nonlinear_function_t F, void* context, double* x, double min, double max, double tolerance, int max_iters)
+static bool in_range(double x, double a, double b)
 {
-  double f, dfdx;
-  F(context, *x, &f, &dfdx);
-  if (f < tolerance) 
-    return true;
-  for (int iter = 0; iter < max_iters; ++iter)
-  {
-    *x -= f/dfdx;
-    F(context, *x, &f, &dfdx);
-    if (f < tolerance) 
-      return true;
-  }
-  return false;
+  return ((MIN(a, b) <= x) && (x <= MAX(a, b)));
 }
 
-double brent_solve(nonlinear_function_t F, void* context, double x1, double x2, double tolerance, int max_iters, double* error)
+// This version of Brent's method was taken from Wikipedia.
+double brent_solve(double (*F)(void*, double), void* context, double x1, double x2, double tolerance, int max_iters)
 {
+  static const double delta = 1e-8;
   static const double eps = 1e-8;
   double a = x1, b = x2;
-  double fa, fb, deriv_dummy;
-  F(context, a, &fa, &deriv_dummy);
-  F(context, b, &fb, &deriv_dummy);
-  if (((fa > 0.0) && (fb > 0.0)) || ((fa < 0.0) && (fb < 0.0)))
+  double fa = F(context, a);
+  double fb = F(context, b);
+  if (fa * fb >= 0.0)
     polymec_error("brent_solve: Root is not bracketed by [x1, x2].");
-  double fc = fb;
-  for (int iter = 0; iter < max_iters; ++iter)
+  if (fabs(fa) < fabs(fb))
   {
-    double c = 0.0, d = 0.0, e = 0.0;
-    if (((fb > 0.0) && (fc > 0.0)) || (((fb < 0.0) && (fc < 0.0))))
-    {
-      c = a;
-      fc = fa;
-      e = d = b - a;
-    }
-    if (fabs(fc) < fabs(fb)) 
-    {
-      c = a;
-      b = c;
-      c = a;
-      fa = fb;
-      fb = fc;
-      fc = fa;
-    }
-    double tol1 = 2.0*eps*fabs(b)+0.5*tolerance;
-    double xm = 0.5*(c - b);
-    if ((fabs(xm) <= tol1) || (fb == 0.0))
-      return b;
-    if ((fabs(e) >= tol1) && (fabs(fa) > fabs(fb))) 
-    {
-      double p, q, r, s;
-      s = fb/fa; // Attempt inverse quadratic interpolation
-      if (a == c)
-      {
-        p = 2.0*xm*s;
-        q = 1.0 - s;
-      }
-      else
-      {
-        q = fa/fc;
-        r = fb/fc;
-        p = s*(2.0*xm*q*(q-r)-(b-a)*(r-1.0));
-        q = (q-1.0)*(r-1.0)*(s-1.0);
-      }
-      if (p > 0.0) 
-        q = -q;
-      p = fabs(p);
-      double min1 = 3.0*xm*q - fabs(tol1*q);
-      double min2 = fabs(e*q);
-      if (2.0*p < ((min1 < min2) ? min1 : min2))
-      {
-        e = d;
-        d = p/q;
-      }
-      else
-      {
-        d = xm;
-        e = d;
-      }
-    }
-    else
-    {
-      d = xm;
-      e = d;
-    }
-    a = b;
-    fa = fb;
-    if (fabs(d) > tol1)
-      b += d;
-    else
-      b += BRENT_SIGN(tol1, xm);
-    F(context, b, &fb, &deriv_dummy);
-    *error = fb;
+    double tmp1 = b, tmp2 = fb;
+    b = a;
+    fb = fa;
+    a = tmp1;
+    fa = tmp2;
   }
-  return false;
+  double c = a;
+  bool mflag = true;
+  double fs, d, s;
+  int num_iter = 0;
+  do
+  {
+    double fc = F(context, c);
+    if ((fa != fc) && (fb != fc))
+    {
+      s = a*fb*fc / ((fa-fb)*(fa-fc)) + 
+          b*fa*fc / ((fb-fa)*(fb-fc)) + 
+          c*fa*fb / ((fc-fa)*(fc-fb));
+    }
+    else
+    {
+      s = b - fb * (b-a)/(fb-fa);
+    }
+    if (!in_range(s, (3.0*a + b)/4.0, b) || 
+        (mflag && fabs(s-b) >= 0.5*fabs(b-c)) ||
+        (!mflag && fabs(s-b) >= 0.5*fabs(c-d)) || 
+        (mflag && fabs(b-c) < delta) ||
+        (!mflag && fabs(c-d) < delta))
+    {
+      s = 0.5 * (a + b);
+      mflag = true;
+    }
+    else
+      mflag = false;
+    fs = F(context, s);
+    d = c; // First assignment of d (protected by mflag).
+    c = b;
+    if (fa * fs < 0.0) 
+    {
+      b = s;
+      fb = fs;
+    }
+    else
+    {
+      a = s;
+      fa = fs;
+    }
+    if (fabs(fa) < fabs(fb))
+    {
+      double tmp1 = b, tmp2 = fb;
+      b = a;
+      fb = fa;
+      a = tmp1;
+      fa = tmp2;
+    }
+    ++num_iter;
+  }
+  while ((MAX(fabs(fb), fabs(fs)) > tolerance) && (num_iter < max_iters));
+  return (fabs(fb) < fabs(fs)) ? b : s;
 }
 

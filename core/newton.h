@@ -29,6 +29,13 @@
 #include "core/sundials_helpers.h"
 #include "sundials/sundials_direct.h"
 
+// Solves the (scalar) nonlinear equation F(x) = 0 using Brent's method on 
+// the interval [x1, x2] with the specified maximum number of iterations 
+// and desired tolerance. F is a function that takes a user-defined context and 
+// a value x and returns F(x). This function returns the solution x which 
+// satisfies fabs(F(x)) = tolerance.
+double brent_solve(double (*F)(void*, double), void* context, double x1, double x2, double tolerance, int max_iters); 
+
 // This class solves (dense) systems of nonlinear equations using 
 // Newton's method.
 typedef struct newton_solver_t newton_solver_t;
@@ -86,22 +93,6 @@ bool newton_solver_solve(newton_solver_t* solver, double* X, int* num_iterations
 // If either of these arguments is NULL, the components of the corresponding 
 // vector are assumed to be 1.
 bool newton_solver_solve_scaled(newton_solver_t* solver, double* X, double* x_scale, double* F_scale, int* num_iterations);
-
-// This defines a function that computes the value and derivative of a 
-// (real-valued) function of a single variable given a context.
-typedef void (*nonlinear_function_t)(void*, double, double*, double*);
-
-// Solve the nonlinear equation F(x) = 0 using Newton-Raphson iteration on 
-// the interval [min, max] using the initial estimate x, with the specified 
-// maximum number of iterations and desired tolerance.
-// Returns true if the solution was achieved, false otherwise.
-bool newton_solve(nonlinear_function_t F, void* context, double* x, double min, double max, double tolerance, int max_iters); 
-
-// Solve the nonlinear equation F(x) = 0 using Brent's method on 
-// the interval [x1, x2] with the specified maximum number of iterations 
-// and desired tolerance. Returns the solution x. NOTE that the nonlinear
-// function F need not have a derivative for Brent's method.
-double brent_solve(nonlinear_function_t F, void* context, double x1, double x2, double tolerance, int max_iters, double* error); 
 
 #endif
 
