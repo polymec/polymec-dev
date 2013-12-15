@@ -27,6 +27,7 @@
 
 #include "core/polymec.h"
 #include "core/point.h"
+#include "core/adj_graph.h"
 #include "arena/proto.h"
 
 #ifndef TAGGER_T
@@ -190,6 +191,10 @@ static inline bool point_cloud_next_neighbor(point_cloud_t* cloud, int point, in
   ++(*pos);
   return (*pos < (cloud->neighbor_offsets[point+1] - cloud->neighbor_offsets[point]));
 }
+
+// Creates an adjacency graph representing the topological relationships 
+// between the points in the given point cloud.
+adj_graph_t* graph_from_point_cloud(point_cloud_t* cloud);
 
 #endif
 

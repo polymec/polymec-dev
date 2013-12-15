@@ -31,7 +31,6 @@
 
 #include "cmockery.h"
 #include "core/polymec.h"
-#include "core/graph_from_mesh_cells.h"
 #include "core/create_uniform_mesh.h"
 #include "core/array_utils.h"
 #include "integrators/supermatrix_factory.h"

@@ -113,7 +113,6 @@
 #include <sundials/sundials_math.h>
 
 #include "supermatrix_factory.h"
-#include "core/graph_from_mesh_cells.h"
 #include "core/point.h"
 #include "core/create_uniform_mesh.h"
 

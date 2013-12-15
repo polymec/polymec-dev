@@ -222,4 +222,23 @@ void point_cloud_delete_tag(point_cloud_t* cloud, const char* tag)
   return tagger_delete_tag(cloud->tags, tag);
 }
 
+adj_graph_t* graph_from_point_cloud(point_cloud_t* cloud)
+{
+  // Create a graph whose vertices are the cloud's points.
+  adj_graph_t* g = adj_graph_new(cloud->comm, cloud->num_points);
+
+  // Allocate space in the graph for the edges (neighbor relations).
+  for (int i = 0; i < cloud->num_points; ++i)
+    adj_graph_set_num_edges(g, i, cloud->neighbor_offsets[i+1] - cloud->neighbor_offsets[i]);
+
+  // Now fill in the edges.
+  for (int i = 0; i < cloud->num_points; ++i)
+  {
+    int* edges = adj_graph_edges(g, i);
+    for (int j = cloud->neighbor_offsets[i]; j < cloud->neighbor_offsets[i+1]; ++j)
+      edges[j-cloud->neighbor_offsets[i]] = cloud->neighbors[j];
+  }
+
+  return g;
+}
 

@@ -27,7 +27,7 @@
 
 #include "core/polymec.h"
 #include "core/point.h"
-#include "core/sp_func.h"
+#include "core/adj_graph.h"
 #include "arena/proto.h"
 
 // Mesh centerings.
@@ -246,6 +246,9 @@ static inline int mesh_face_opp_cell(mesh_t* mesh, int face, int cell)
                                             : mesh->face_cells[2*face];
 }
 
+// This function constructs an adjacency graph expressing the connectivity of 
+// the cells of the given mesh.
+adj_graph_t* graph_from_mesh_cells(mesh_t* mesh);
 
 #endif
 

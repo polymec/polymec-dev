@@ -172,7 +172,6 @@ static bool in_range(double x, double a, double b)
 double brent_solve(double (*F)(void*, double), void* context, double x1, double x2, double tolerance, int max_iters)
 {
   static const double delta = 1e-8;
-  static const double eps = 1e-8;
   double a = x1, b = x2;
   double fa = F(context, a);
   double fb = F(context, b);
