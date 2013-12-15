@@ -30,7 +30,7 @@
 #include "core/boundary_cell_map.h"
 #include "core/write_silo.h"
 #include "geometry/interpreter_register_geometry_functions.h"
-#include "integrators/nonlinear_solver.h"
+#include "integrators/nonlinear_integrator.h"
 #include "poisson/poisson_model.h"
 #include "poisson/poisson_bc.h"
 #include "poisson/interpreter_register_poisson_functions.h"
@@ -51,13 +51,13 @@ typedef struct
   boundary_cell_map_t* boundary_cells; // Boundary cell info
 
   // Nonlinear solver that integrates Poisson's equation.
-  nonlinear_solver_t* solver;
+  nonlinear_integrator_t* solver;
 } poisson_t;
 
 static void poisson_advance(void* context, double t, double dt)
 {
   poisson_t* p = context;
-  nonlinear_solver_solve(p->solver, t+dt, p->phi);
+  nonlinear_integrator_solve(p->solver, t+dt, p->phi);
 }
 
 static void poisson_read_input(void* context, interpreter_t* interp, options_t* options)
@@ -140,7 +140,7 @@ static void poisson_init(void* context, double t)
 
   if (p->solver != NULL)
   {
-    nonlinear_solver_free(p->solver);
+    nonlinear_integrator_free(p->solver);
     p->solver = NULL;
   }
 
@@ -154,8 +154,8 @@ static void poisson_init(void* context, double t)
     p->boundary_cells = boundary_cell_map_from_mesh_and_bcs(p->mesh, p->bcs);
 
     // Initialize the nonlinear solver.
-    nonlinear_solver_vtable vtable = {.eval = fv_poisson_residual, .dtor = NULL, .graph = get_graph};
-    p->solver = nonlinear_solver_new("Poisson (FV)", p, vtable, GMRES);
+    nonlinear_integrator_vtable vtable = {.eval = fv_poisson_residual, .dtor = NULL, .graph = get_graph};
+    p->solver = nonlinear_integrator_new("Poisson (FV)", p, vtable, GMRES);
   }
   else
   {
@@ -167,12 +167,12 @@ static void poisson_init(void* context, double t)
     //p->boundary_cells = boundary_cell_map_from_mesh_and_bcs(p->mesh, p->bcs);
 
     // Initialize the nonlinear solver.
-    nonlinear_solver_vtable vtable = {.eval = fvpm_poisson_residual, .dtor = NULL, .graph = get_graph};
-    p->solver = nonlinear_solver_new("Poisson (FVPM)", p, vtable, GMRES);
+    nonlinear_integrator_vtable vtable = {.eval = fvpm_poisson_residual, .dtor = NULL, .graph = get_graph};
+    p->solver = nonlinear_integrator_new("Poisson (FVPM)", p, vtable, GMRES);
   }
 
   // Now we simply solve the problem for the initial time.
-  nonlinear_solver_solve(p->solver, t, p->phi);
+  nonlinear_integrator_solve(p->solver, t, p->phi);
 
 }
 
@@ -287,7 +287,7 @@ static void poisson_dtor(void* context)
     boundary_cell_map_free(p->boundary_cells);
 
   if (p->solver != NULL)
-    nonlinear_solver_free(p->solver);
+    nonlinear_integrator_free(p->solver);
 
   free(p);
 }

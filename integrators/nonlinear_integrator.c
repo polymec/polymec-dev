@@ -23,7 +23,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <float.h>
-#include "integrators/nonlinear_solver.h"
+#include "integrators/nonlinear_integrator.h"
 
 // We use KINSOL for doing the matrix-free nonlinear solve.
 #include "kinsol/kinsol.h"
@@ -36,7 +36,7 @@
 #include "supermatrix.h"
 #include "slu_util.h"
 
-struct nonlinear_solver_t 
+struct nonlinear_integrator_t 
 {
   // Parallel stuff.
   int rank, nprocs;
@@ -44,61 +44,61 @@ struct nonlinear_solver_t
   char* name;
   void* context;
   void* kinsol;
-  nonlinear_solver_vtable vtable;
-  nonlinear_solver_type_t solver_type;
+  nonlinear_integrator_vtable vtable;
+  nonlinear_integrator_type_t type;
 
   // Preconditioning stuff.
   SuperMatrix precond_mat, precond_rhs, precond_L, precond_U;
   int *precond_rperm, *precond_cperm;
 };
 
-nonlinear_solver_t* nonlinear_solver_new(const char* name, 
+nonlinear_integrator_t* nonlinear_integrator_new(const char* name, 
                                          void* context,
-                                         nonlinear_solver_vtable vtable,
-                                         nonlinear_solver_type_t type)
+                                         nonlinear_integrator_vtable vtable,
+                                         nonlinear_integrator_type_t type)
 {
-  nonlinear_solver_t* solver = malloc(sizeof(nonlinear_solver_t));
-  solver->name = string_dup(name);
-  solver->context = context;
-  solver->vtable = vtable;
-  solver->solver_type = type;
+  nonlinear_integrator_t* integrator = malloc(sizeof(nonlinear_integrator_t));
+  integrator->name = string_dup(name);
+  integrator->context = context;
+  integrator->vtable = vtable;
+  integrator->type = type;
 
-  return solver;
+  return integrator;
 }
 
-static void free_preconditioner(nonlinear_solver_t* solver)
+static void free_preconditioner(nonlinear_integrator_t* integrator)
 {
-  SUPERLU_FREE(solver->precond_cperm);
-  SUPERLU_FREE(solver->precond_rperm);
-//  Destroy_CompCol_Matrix(&mf_solver->precond_U);
-//  Destroy_SuperNode_Matrix(&mf_solver->precond_L);
-  Destroy_SuperMatrix_Store(&solver->precond_rhs);
-  Destroy_CompRow_Matrix(&solver->precond_mat);
+  SUPERLU_FREE(integrator->precond_cperm);
+  SUPERLU_FREE(integrator->precond_rperm);
+//  Destroy_CompCol_Matrix(&mf_integrator->precond_U);
+//  Destroy_SuperNode_Matrix(&mf_integrator->precond_L);
+  Destroy_SuperMatrix_Store(&integrator->precond_rhs);
+  Destroy_CompRow_Matrix(&integrator->precond_mat);
 }
 
-void nonlinear_solver_free(nonlinear_solver_t* solver)
+void nonlinear_integrator_free(nonlinear_integrator_t* integrator)
 {
-//  free_preconditioner(solver);
-//  KINFree(&solver->kinsol);
-  if ((solver->vtable.dtor != NULL) && (solver->context != NULL))
-    solver->vtable.dtor(solver->context);
-  free(solver->name);
-  free(solver);
+//  free_preconditioner(integrator);
+//  KINFree(&integrator->kinsol);
+  if ((integrator->vtable.dtor != NULL) && (integrator->context != NULL))
+    integrator->vtable.dtor(integrator->context);
+  free(integrator->name);
+  free(integrator);
 }
 
-char* nonlinear_solver_name(nonlinear_solver_t* solver)
+char* nonlinear_integrator_name(nonlinear_integrator_t* integrator)
 {
-  return solver->name;
+  return integrator->name;
 }
 
-void* nonlinear_solver_context(nonlinear_solver_t* solver)
+void* nonlinear_integrator_context(nonlinear_integrator_t* integrator)
 {
-  return solver->context;
+  return integrator->context;
 }
 
-void nonlinear_solver_solve(nonlinear_solver_t* solver,
-                            double t,
-                            double* X)
+void nonlinear_integrator_solve(nonlinear_integrator_t* integrator,
+                                double t,
+                                double* X)
 {
   ASSERT(X != NULL);
 }

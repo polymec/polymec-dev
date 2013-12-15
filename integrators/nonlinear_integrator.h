@@ -22,8 +22,8 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef POLYMEC_NONLINEAR_SOLVER_H
-#define POLYMEC_NONLINEAR_SOLVER_H
+#ifndef POLYMEC_NONLINEAR_INTEGRATOR_H
+#define POLYMEC_NONLINEAR_INTEGRATOR_H
 
 #include "kinsol/kinsol.h"
 #include "core/polymec.h"
@@ -35,37 +35,40 @@ typedef enum
   GMRES,
   BICGSTAB,
   TFQMR
-} nonlinear_solver_type_t;
+} nonlinear_integrator_type_t;
 
 typedef struct
 {
   KINSysFn eval;
   void (*dtor)(void*);
   adj_graph_t* (*graph)(void*);
-} nonlinear_solver_vtable;
+} nonlinear_integrator_vtable;
 
-// This class represents a way of integrating a system of 
-// nonlinear equations.
-typedef struct nonlinear_solver_t nonlinear_solver_t;
+// This class represents a collection of algorithms for integrating partial 
+// differential equations that are discretized into a (sparse) system of 
+// nonlinear equations. The integration is performed using Matrix-free 
+// Newton-Krylov methods provided by KINSol.
+typedef struct nonlinear_integrator_t nonlinear_integrator_t;
 
 // Creates a solver with the given name, context, and virtual table for 
 // solving a differential algebraic system with N equations.
-nonlinear_solver_t* nonlinear_solver_new(const char* name,
-                                         void* context,
-                                         nonlinear_solver_vtable vtable,
-                                         nonlinear_solver_type_t type);
+nonlinear_integrator_t* nonlinear_integrator_new(const char* name,
+                                                 void* context,
+                                                 nonlinear_integrator_vtable vtable,
+                                                 nonlinear_integrator_type_t type);
 
 // Frees a solver.
-void nonlinear_solver_free(nonlinear_solver_t* solver);
+void nonlinear_integrator_free(nonlinear_integrator_t* integrator);
 
 // Returns an internal string storing the name of the solver.
-char* nonlinear_solver_name(nonlinear_solver_t* solver);
+char* nonlinear_integrator_name(nonlinear_integrator_t* integrator);
 
 // Returns the context pointer for the solver.
-void* nonlinear_solver_context(nonlinear_solver_t* solver);
+void* nonlinear_integrator_context(nonlinear_integrator_t* integrator);
 
-// Solves the system of equations F(X, t) = 0 in place, using X as the initial guess.
-void nonlinear_solver_solve(nonlinear_solver_t* solver, double t, double* X);
+// Integrates the nonlinear system of equations F(X, t) = 0 in place, 
+// using X as the initial guess.
+void nonlinear_integrator_solve(nonlinear_integrator_t* integrator, double t, double* X);
 
 #endif
 
