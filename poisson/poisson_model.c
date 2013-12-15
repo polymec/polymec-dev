@@ -27,7 +27,6 @@
 #include "core/point_cloud.h"
 #include "core/least_squares.h"
 #include "core/linear_algebra.h"
-#include "core/constant_st_func.h"
 #include "core/boundary_cell_map.h"
 #include "core/write_silo.h"
 #include "geometry/interpreter_register_geometry_functions.h"

@@ -116,16 +116,20 @@ void st_func_eval_deriv(st_func_t* func, int n, point_t* x, double t, double* re
 // Creates an sp_func from this st_func by "freezing" it at the given time.
 sp_func_t* st_func_freeze(st_func_t* func, double t);
 
-// Construct a multi-component space-time function from a set of 
+// Constructs a multi-component space-time function from a set of 
 // single-valued space-time functions.
 st_func_t* multicomp_st_func_from_funcs(const char* name, 
                                         st_func_t** functions,
                                         int num_comp);
 
-// Construct a single-component space-time function from one of the 
+// Constructs a single-component space-time function from one of the 
 // components of a multicomponent function.
 st_func_t* st_func_from_component(st_func_t* multicomp_func,
                                   int component);
+
+// Creates a function that is constant in space and time, with the given 
+// components.
+st_func_t* constant_st_func_new(int num_comp, double comp[]);
 
 #endif
 

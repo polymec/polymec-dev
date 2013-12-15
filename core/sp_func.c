@@ -115,7 +115,6 @@ void sp_func_eval(sp_func_t* func, point_t* x, double* result)
 
 void sp_func_register_deriv(sp_func_t* func, int n, sp_func_t* nth_deriv)
 {
-  ASSERT(!sp_func_is_homogeneous(func));
   ASSERT(n > 0);
   ASSERT(n <= 4);
   ASSERT(nth_deriv != NULL);
@@ -182,5 +181,54 @@ void sp_func_grad_richardson(sp_func_t* func, point_t* x0, vector_t* dx, vector_
   gradient->z = (twoN * Gh.z - Gl.z) / (twoN - 1.0);
 }
 #endif
+
+// Constant spatial function implementation.
+
+typedef struct
+{
+  int num_comp;
+  double *comp;
+} const_sp_func_t;
+
+static void constant_eval(void* ctx, point_t* x, double* res)
+{
+  const_sp_func_t* f = ctx;
+  for (int i = 0; i < f->num_comp; ++i)
+    res[i] = f->comp[i];
+}
+
+static void constant_dtor(void* ctx)
+{
+  const_sp_func_t* f = ctx;
+  free(f->comp);
+  free(f);
+}
+
+static sp_func_t* create_constant_sp_func(int num_comp, double comp[])
+{
+  sp_vtable vtable = {.eval = constant_eval, .dtor = constant_dtor};
+  char name[1024];
+  snprintf(name, 1024, "constant spatial function"); // FIXME
+  const_sp_func_t* f = malloc(sizeof(const_sp_func_t));
+  f->num_comp = num_comp;
+  f->comp = malloc(num_comp*sizeof(double));
+  for (int i = 0; i < num_comp; ++i)
+    f->comp[i] = comp[i];
+  return sp_func_new(name, (void*)f, vtable, SP_HOMOGENEOUS, num_comp);
+}
+
+sp_func_t* constant_sp_func_new(int num_comp, double comp[])
+{
+  sp_func_t* func = create_constant_sp_func(num_comp, comp);
+
+  // Just to be complete, we register the 3-component zero function as this 
+  // function's gradient.
+  double zeros[3*num_comp];
+  memset(zeros, 0, 3*num_comp*sizeof(double));
+  sp_func_t* zero = create_constant_sp_func(3*num_comp, zeros);
+  sp_func_register_deriv(func, 1, zero);
+
+  return func;
+}
 
 

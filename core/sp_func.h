@@ -106,5 +106,9 @@ bool sp_func_has_deriv(sp_func_t* func, int n);
 // Evaluates the nth derivative of this function, placing the result in result.
 void sp_func_eval_deriv(sp_func_t* func, int n, point_t* x, double* result);
 
+// Creates a function that is constant everywhere in space, with the given 
+// components.
+sp_func_t* constant_sp_func_new(int num_comp, double comp[]);
+
 #endif
 

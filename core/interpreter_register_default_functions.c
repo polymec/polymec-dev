@@ -23,7 +23,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "core/interpreter.h"
-#include "core/constant_st_func.h"
+#include "core/st_func.h"
 #include "core/periodic_bc.h"
 #include "core/write_silo.h"
 

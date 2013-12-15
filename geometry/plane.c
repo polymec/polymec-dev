@@ -22,7 +22,6 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "core/constant_st_func.h"
 #include "core/linear_algebra.h"
 #include "geometry/plane.h"
 

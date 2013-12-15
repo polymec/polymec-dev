@@ -27,7 +27,6 @@
 #include <setjmp.h>
 #include <string.h>
 #include "cmockery.h"
-#include "core/constant_st_func.h"
 #include "geometry/prob_cvt_gen_dist.h"
 #include "geometry/cylinder.h"
 

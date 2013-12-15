@@ -23,7 +23,6 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "core/boundary_cell_map.h"
-#include "core/constant_st_func.h"
 #include "core/kd_tree.h"
 #include "core/slist.h"
 #include "core/unordered_set.h"

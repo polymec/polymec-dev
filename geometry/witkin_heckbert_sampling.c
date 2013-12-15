@@ -24,7 +24,6 @@
 
 #include "geometry/witkin_heckbert_sampling.h"
 #include "core/kd_tree.h"
-#include "core/constant_st_func.h"
 
 point_t* witkin_heckbert_sampling(sp_func_t* surface, 
                                   sp_func_t* surface_density,

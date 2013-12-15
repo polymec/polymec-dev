@@ -29,7 +29,6 @@
 #include "core/polymec.h"
 #include "core/point.h"
 #include "core/interpreter.h"
-#include "core/constant_st_func.h"
 #include "core/slist.h"
 #include "core/array.h"
 #include "core/kd_tree.h"
