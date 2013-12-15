@@ -28,7 +28,6 @@
 #include <string.h>
 #include "cmockery.h"
 #include "core/polymec.h"
-#include "core/constant_st_func.h"
 #include "geometry/plane.h"
 #include "integrators/sphere_integrator.h"
 
@@ -264,14 +263,14 @@ void test_boundary_surface_weights_for_degree_and_boundary(void** state, point_t
   double weights[num_weights];
 
   sphere_integrator_compute_boundary_surface_weights(I, x0, R, boundary, weights);
-//for (int i = 0; i < num_weights; ++i)
-//printf("%g ", weights[i]);
-//printf("\n");
+for (int i = 0; i < num_weights; ++i)
+printf("%g ", weights[i]);
+printf("\n");
 }
 
 void test_boundary_surface_weights_for_boundary(void** state, point_t* x0, double R, sp_func_t* boundary)
 {
-  for (int p = 0; p < 5; ++p)
+  for (int p = 4; p < 5; ++p)
     test_boundary_surface_weights_for_degree_and_boundary(state, x0, R, p, boundary);
 }
 

@@ -26,7 +26,6 @@
 #include <stdarg.h>
 #include <string.h>
 #include "core/polymec.h"
-#include "core/loggers.h"
 
 typedef struct 
 {

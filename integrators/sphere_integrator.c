@@ -390,11 +390,13 @@ void sphere_integrator_compute_boundary_surface_weights(sphere_integrator_t* int
   int basis_degree = MIN(integ->degree, 2); // FIXME: Div-free poly basis tops out at degree 2.
   div_free_poly_basis_t* df_basis = spherical_div_free_poly_basis_new(basis_degree, x0, R);
   int M = div_free_poly_basis_dim(df_basis);
+printf("N = %d, M = %d\n", N, M);
   while ((basis_degree > 0) && (N <= M))
   {
     --basis_degree;
     df_basis = spherical_div_free_poly_basis_new(basis_degree, x0, R);
     M = div_free_poly_basis_dim(df_basis);
+printf("N = %d, M = %d\n", N, M);
   }
 
   // Set up a spatial function that computes F o n for the right hand side.
@@ -446,6 +448,8 @@ void sphere_integrator_compute_boundary_surface_weights(sphere_integrator_t* int
       polynomial_t* F_o_n = scaled_polynomial_new(Fx, n[0]);
       polynomial_add(F_o_n, 1.0, scaled_polynomial_new(Fy, n[1]));
       polynomial_add(F_o_n, 1.0, scaled_polynomial_new(Fz, n[2]));
+printf("F o n = ");
+polynomial_fprintf(F_o_n, stdout);
       A[M*j+i] = polynomial_value(F_o_n, &xj);
 
       F_o_n = NULL;
@@ -460,6 +464,10 @@ void sphere_integrator_compute_boundary_surface_weights(sphere_integrator_t* int
   double work[lwork];
   double rcond = 1e-12; // Accuracy of integrands for estimating condition number of A.
   memset(jpvt, 0, sizeof(int) * N);
+printf("A = \n");
+matrix_fprintf(A, M, N, stdout);
+printf("\nb = \n");
+vector_fprintf(weights, N, stdout);
   dgelsy(&M, &N, &nrhs, A, &lda, weights, &ldb, jpvt, &rcond, &rank, work, &lwork, &info);
 
   df_basis = NULL;
