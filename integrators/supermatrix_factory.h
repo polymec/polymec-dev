@@ -41,7 +41,7 @@ typedef struct supermatrix_factory_t supermatrix_factory_t;
 // factory does NOT assume ownership of the factory, graph, or context.
 supermatrix_factory_t* supermatrix_factory_from_sys_func(adj_graph_t* graph,
                                                          KINSysFn F,
-                                                         void (*set_F_time)(double, void*),
+                                                         void (*set_F_time)(void* context, double t),
                                                          void* context);
 
 // Creates a factory that produces SuperLU SuperMatrix objects using 
@@ -59,15 +59,15 @@ void supermatrix_factory_free(supermatrix_factory_t* factory);
 SuperMatrix* supermatrix_factory_matrix(supermatrix_factory_t* factory);
 
 SuperMatrix* supermatrix_factory_vector(supermatrix_factory_t* factory,
-                                        const int num_rhs);
+                                        int num_rhs);
 
 // Produces a Jacobian supermatrix from finite difference quotients applied 
-// to the given function F at the solution u and t.
-SuperMatrix* supermatrix_factory_jacobian(supermatrix_factory_t* factory, N_Vector u, double t);
+// to the given function F at the solution x and time t.
+SuperMatrix* supermatrix_factory_jacobian(supermatrix_factory_t* factory, N_Vector x, double t);
 
 // Updates a Jacobian supermatrix from finite difference quotients applied 
-// to the given function F at the solution u and t.
-void supermatrix_factory_update_jacobian(supermatrix_factory_t* factory, N_Vector u, double t, SuperMatrix* J);
+// to the given function F at the solution x and time t.
+void supermatrix_factory_update_jacobian(supermatrix_factory_t* factory, N_Vector x, double t, SuperMatrix* J);
 
 // Call this function to destroy supermatrices that have been created by this 
 // factory.

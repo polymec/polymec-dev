@@ -32,7 +32,7 @@ struct supermatrix_factory_t
   adj_graph_t* graph;
   adj_graph_coloring_t* coloring;
   KINSysFn F;
-  void (*set_F_time)(double, void*);
+  void (*set_F_time)(void* context, double t);
   CVRhsFn rhs;
   void* context;
 
@@ -42,7 +42,7 @@ struct supermatrix_factory_t
 
 supermatrix_factory_t* supermatrix_factory_from_sys_func(adj_graph_t* graph,
                                                          KINSysFn F,
-                                                         void (*set_F_time)(double, void*),
+                                                         void (*set_F_time)(void*, double),
                                                          void* context)
 {
   supermatrix_factory_t* factory = malloc(sizeof(supermatrix_factory_t));
@@ -140,7 +140,7 @@ SuperMatrix* supermatrix_factory_matrix(supermatrix_factory_t* factory)
 }
 
 SuperMatrix* supermatrix_factory_vector(supermatrix_factory_t* factory,
-                                        const int num_rhs)
+                                        int num_rhs)
 {
   SuperMatrix* B = malloc(sizeof(SuperMatrix));
   
@@ -156,33 +156,33 @@ SuperMatrix* supermatrix_factory_vector(supermatrix_factory_t* factory,
   return B;
 }
 
-SuperMatrix* supermatrix_factory_jacobian(supermatrix_factory_t* factory, N_Vector u, double t)
+SuperMatrix* supermatrix_factory_jacobian(supermatrix_factory_t* factory, N_Vector x, double t)
 {
   SuperMatrix* J = supermatrix_factory_matrix(factory);
-  supermatrix_factory_update_jacobian(factory, u, t, J);
+  supermatrix_factory_update_jacobian(factory, x, t, J);
   return J;
 }
 
 // Here's our finite difference implementation of the Jacobian matrix-vector 
 // product. 
-static void finite_diff_F_Jv(KINSysFn F, void* context, N_Vector u, N_Vector v, N_Vector* work, N_Vector Jv)
+static void finite_diff_F_Jv(KINSysFn F, void* context, N_Vector x, N_Vector v, N_Vector* work, N_Vector Jv)
 {
   double eps = sqrt(UNIT_ROUNDOFF);
 
   // work[0] == v
-  // work[1] contains F(u).
+  // work[1] contains F(x).
   // work[2] == u + eps*v
-  // work[3] == F(u + eps*v)
+  // work[3] == F(x + eps*v)
 
   // u + eps*v -> work[2].
-  for (int i = 0; i < NV_LOCLENGTH(u); ++i)
-    NV_Ith(work[2], i) = NV_Ith(u, i) + eps*NV_Ith(v, i);
+  for (int i = 0; i < NV_LOCLENGTH(x); ++i)
+    NV_Ith(work[2], i) = NV_Ith(x, i) + eps*NV_Ith(v, i);
 
-  // F(u + eps*v) -> work[3].
+  // F(x + eps*v) -> work[3].
   F(work[2], work[3], context);
 
-  // (F(u + eps*v) - F(u)) / eps -> Jv
-  for (int i = 0; i < NV_LOCLENGTH(u); ++i)
+  // (F(x + eps*v) - F(x)) / eps -> Jv
+  for (int i = 0; i < NV_LOCLENGTH(x); ++i)
     NV_Ith(Jv, i) = (NV_Ith(work[3], i) - NV_Ith(work[1], i)) / eps;
 }
 
@@ -219,7 +219,7 @@ static void insert_Jv_into_matrix(adj_graph_t* graph,
 
 static void compute_F_jacobian(KINSysFn F, 
                                void* context, 
-                               N_Vector u, 
+                               N_Vector x, 
                                adj_graph_t* graph, 
                                adj_graph_coloring_t* coloring, 
                                N_Vector* work,
@@ -227,8 +227,8 @@ static void compute_F_jacobian(KINSysFn F,
 {
   // We compute the system Jacobian using the method described in 
   // Curtis, Powell, and Reed.
-  int N = NV_LOCLENGTH(u);
-  N_Vector Jv = N_VClone(u);
+  int N = NV_LOCLENGTH(x);
+  N_Vector Jv = N_VClone(x);
   int num_colors = adj_graph_coloring_num_colors(coloring);
   for (int c = 0; c < num_colors; ++c)
   {
@@ -240,12 +240,12 @@ static void compute_F_jacobian(KINSysFn F,
       NV_Ith(work[0], i) = 1.0;
     }
 
-    // We evaluate F(u) and place it into work[1].
-    F(u, work[1], context);
+    // We evaluate F(x) and place it into work[1].
+    F(x, work[1], context);
 
     // Now evaluate the matrix-vector product.
     memset(NV_DATA(Jv), 0, sizeof(double) * N);
-    finite_diff_F_Jv(F, context, u, work[0], work, Jv);
+    finite_diff_F_Jv(F, context, x, work[0], work, Jv);
 
     // Copy the components of Jv into their proper locations.
     insert_Jv_into_matrix(graph, coloring, c, Jv, J);
@@ -255,27 +255,27 @@ static void compute_F_jacobian(KINSysFn F,
 
 // Here's our finite difference implementation of the RHS Jacobian 
 // matrix-vector product. 
-static void finite_diff_rhs_Jv(CVRhsFn rhs, void* context, N_Vector u, double t, N_Vector v, N_Vector* work, N_Vector Jv)
+static void finite_diff_rhs_Jv(CVRhsFn rhs, void* context, N_Vector x, double t, N_Vector v, N_Vector* work, N_Vector Jv)
 {
   double eps = sqrt(UNIT_ROUNDOFF);
 
-  // work[1] contains rhs(u, t).
+  // work[1] contains rhs(x, t).
 
   // u + eps*v -> work[2].
-  for (int i = 0; i < NV_LOCLENGTH(u); ++i)
-    NV_Ith(work[2], i) = NV_Ith(u, i) + eps*NV_Ith(v, i);
+  for (int i = 0; i < NV_LOCLENGTH(x); ++i)
+    NV_Ith(work[2], i) = NV_Ith(x, i) + eps*NV_Ith(v, i);
 
-  // F(u + eps*v, t) -> work[3].
+  // F(x + eps*v, t) -> work[3].
   rhs(t, work[2], work[3], context);
 
-  // (F(u + eps*v) - F(u)) / eps -> Jv
-  for (int i = 0; i < NV_LOCLENGTH(u); ++i)
+  // (F(x + eps*v) - F(x)) / eps -> Jv
+  for (int i = 0; i < NV_LOCLENGTH(x); ++i)
     NV_Ith(Jv, i) = (NV_Ith(work[3], i) - NV_Ith(work[1], i)) / eps;
 }
 
 static void compute_rhs_jacobian(CVRhsFn rhs, 
                                  void* context, 
-                                 N_Vector u, 
+                                 N_Vector x, 
                                  double t, 
                                  adj_graph_t* graph, 
                                  adj_graph_coloring_t* coloring, 
@@ -284,8 +284,8 @@ static void compute_rhs_jacobian(CVRhsFn rhs,
 {
   // We compute the system Jacobian using the method described in 
   // Curtis, Powell, and Reed.
-  int N = NV_LOCLENGTH(u);
-  N_Vector Jv = N_VClone(u);
+  int N = NV_LOCLENGTH(x);
+  N_Vector Jv = N_VClone(x);
   int num_colors = adj_graph_coloring_num_colors(coloring);
   for (int c = 0; c < num_colors; ++c)
   {
@@ -295,12 +295,12 @@ static void compute_rhs_jacobian(CVRhsFn rhs,
     while (adj_graph_coloring_next_vertex(coloring, c, &pos, &i))
       NV_Ith(work[0], i) = 1.0;
 
-    // We evaluate rhs(u, t) and place it in work[1].
-    rhs(t, u, work[1], context); 
+    // We evaluate rhs(x, t) and place it in work[1].
+    rhs(t, x, work[1], context); 
 
     // Now evaluate the matrix-vector product.
     memset(NV_DATA(Jv), 0, sizeof(double) * N);
-    finite_diff_rhs_Jv(rhs, context, u, t, work[0], work, Jv);
+    finite_diff_rhs_Jv(rhs, context, x, t, work[0], work, Jv);
 
     // Copy the components of Jv into their proper locations.
     insert_Jv_into_matrix(graph, coloring, c, Jv, J);
@@ -308,19 +308,19 @@ static void compute_rhs_jacobian(CVRhsFn rhs,
   N_VDestroy(Jv);
 }
 
-void supermatrix_factory_update_jacobian(supermatrix_factory_t* factory, N_Vector u, double t, SuperMatrix* J)
+void supermatrix_factory_update_jacobian(supermatrix_factory_t* factory, N_Vector x, double t, SuperMatrix* J)
 {
   if (factory->F != NULL)
   {
     if (factory->set_F_time != NULL) {
-      factory->set_F_time(t, factory->context);
+      factory->set_F_time(factory->context, t);
     }
-    compute_F_jacobian(factory->F, factory->context, u, factory->graph, factory->coloring, factory->work, J);
+    compute_F_jacobian(factory->F, factory->context, x, factory->graph, factory->coloring, factory->work, J);
   }
   else
   {
     ASSERT(factory->rhs != NULL);
-    compute_rhs_jacobian(factory->rhs, factory->context, u, t, factory->graph, factory->coloring, factory->work, J);
+    compute_rhs_jacobian(factory->rhs, factory->context, x, t, factory->graph, factory->coloring, factory->work, J);
   }
 }
 

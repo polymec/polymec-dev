@@ -54,7 +54,7 @@ typedef struct
   double time;
 } sys_func_t;
 
-static void set_sys_func_time(double t, void* sys_func)
+static void set_sys_func_time(void* sys_func, double t)
 {
   sys_func_t* F = sys_func;
   F->time = t;

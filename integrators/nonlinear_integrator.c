@@ -24,6 +24,7 @@
 
 #include <float.h>
 #include "integrators/nonlinear_integrator.h"
+#include "integrators/supermatrix_factory.h"
 
 // We use KINSOL for doing the matrix-free nonlinear solve.
 #include "kinsol/kinsol.h"
@@ -32,8 +33,6 @@
 #include "kinsol/kinsol_sptfqmr.h"
 
 // We use a serial version of SuperLU to do preconditioning.
-#include "slu_ddefs.h"
-#include "supermatrix.h"
 #include "slu_util.h"
 
 struct nonlinear_integrator_t 
@@ -47,13 +46,20 @@ struct nonlinear_integrator_t
   nonlinear_integrator_vtable vtable;
   nonlinear_integrator_type_t type;
 
+  // Adjacency graph -- keeps track of topological changes.
+  adj_graph_t* graph;
+
   // KINSol data structures.
   void* kinsol;
   N_Vector x, x_scale, F_scale; // Stores solution vector and scaling vectors.
 
   // Preconditioning stuff.
-  SuperMatrix precond_mat, precond_rhs, precond_L, precond_U;
+  supermatrix_factory_t* precond_factory;
+  SuperMatrix *precond_mat, *precond_rhs, precond_L, precond_U;
   int *precond_rperm, *precond_cperm;
+
+  // Current time -- used for preconditioner.
+  double current_time;
 };
 
 // This function sets up the preconditioner data within the integrator.
@@ -62,7 +68,10 @@ static int set_up_preconditioner(N_Vector x, N_Vector x_scale,
                                  void* context, 
                                  N_Vector work1, N_Vector work2)
 {
-  // FIXME: SuperLU stuff goes here!
+  nonlinear_integrator_t* integrator = context;
+  double t = integrator->current_time;
+  supermatrix_factory_update_jacobian(integrator->precond_factory, 
+                                      x, t, integrator->precond_mat);
   return 0;
 }
 
@@ -95,6 +104,7 @@ nonlinear_integrator_t* nonlinear_integrator_new(const char* name,
   integrator->comm = comm;
   integrator->vtable = vtable;
   integrator->type = type;
+  integrator->graph = NULL;
 
   // Get the adjacency graph that expresses the sparsity of the nonlinear system.
   adj_graph_t* graph = vtable.graph(context);
@@ -132,24 +142,20 @@ nonlinear_integrator_t* nonlinear_integrator_new(const char* name,
   // Set up preconditioner machinery.
   KINSpilsSetPreconditioner(integrator->kinsol, set_up_preconditioner,
                             solve_preconditioner_system);
+  integrator->precond_factory = NULL;
+  integrator->precond_mat = NULL;
+  integrator->precond_rhs = NULL;
+  integrator->current_time = 0.0;
 
   return integrator;
 }
 
-// This function frees all of the machinery having to do with the preconditioner.
-static void free_preconditioner(nonlinear_integrator_t* integrator)
-{
-  SUPERLU_FREE(integrator->precond_cperm);
-  SUPERLU_FREE(integrator->precond_rperm);
-//  Destroy_CompCol_Matrix(&mf_integrator->precond_U);
-//  Destroy_SuperNode_Matrix(&mf_integrator->precond_L);
-  Destroy_SuperMatrix_Store(&integrator->precond_rhs);
-  Destroy_CompRow_Matrix(&integrator->precond_mat);
-}
-
 void nonlinear_integrator_free(nonlinear_integrator_t* integrator)
 {
-//  free_preconditioner(integrator);
+  supermatrix_factory_free(integrator->precond_factory);
+  supermatrix_free(integrator->precond_mat);
+  supermatrix_free(integrator->precond_rhs);
+
   N_VDestroy(integrator->x);
   N_VDestroy(integrator->x_scale);
   N_VDestroy(integrator->F_scale);
@@ -195,12 +201,30 @@ bool nonlinear_integrator_solve(nonlinear_integrator_t* integrator,
   adj_graph_t* graph = integrator->vtable.graph(integrator->context);
   ASSERT(graph != NULL);
 
+  // Compare the graph with the one we've got to see whether the topology has 
+  // changed.
+  if (graph != integrator->graph)
+  {
+    // Update the graph and the supermatrix factory.
+    integrator->graph = graph;
+    supermatrix_factory_free(integrator->precond_factory);
+    supermatrix_free(integrator->precond_mat);
+    supermatrix_free(integrator->precond_rhs);
+    integrator->precond_factory = 
+      supermatrix_factory_from_sys_func(graph, integrator->vtable.eval,
+                                        integrator->vtable.set_time,
+                                        integrator->context);
+    integrator->precond_mat = supermatrix_factory_matrix(integrator->precond_factory);
+    integrator->precond_rhs = supermatrix_factory_vector(integrator->precond_factory, 1);
+  }
+
   // The dimension N of the system is the number of local vertices in the 
   // adjacency graph.
   int N = adj_graph_num_vertices(graph);
   ASSERT(NV_LOCLENGTH(integrator->x) == N); // No adaptivity allowed yet!
 
   // Set the current time in the state.
+  integrator->current_time = t;
   if (integrator->vtable.set_time != NULL)
     integrator->vtable.set_time(integrator->context, t);
 
