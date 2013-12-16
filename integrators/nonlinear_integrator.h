@@ -25,9 +25,10 @@
 #ifndef POLYMEC_NONLINEAR_INTEGRATOR_H
 #define POLYMEC_NONLINEAR_INTEGRATOR_H
 
-#include "kinsol/kinsol.h"
 #include "core/polymec.h"
 #include "core/adj_graph.h"
+#include "core/sundials_helpers.h"
+#include "kinsol/kinsol.h"
 
 // The different algorithms for matrix-free solution of nonlinear equations.
 typedef enum
@@ -37,11 +38,46 @@ typedef enum
   TFQMR
 } nonlinear_integrator_type_t;
 
+// This virtual table determines the behavior of the nonlinear integrator.
 typedef struct
 {
-  KINSysFn eval;
-  void (*dtor)(void*);
-  adj_graph_t* (*graph)(void*);
+  // This function evaluates the residual function for the nonlinear system
+  // of equations using the solution vector x and placing the result in F.
+  int (*eval)(N_Vector x, N_Vector F, void* context);
+
+  // This (optional) function allows the state (context) to set the time at 
+  // which the equations are to be integrated.
+  void (*set_time)(void* context, double t);
+
+  // This (optional) function sets the "x-scaling vector," which contains the diagonal 
+  // components of a matrix Dx such that the components of Dx * x all have 
+  // roughly the same magnitude as F(x) approaches 0.
+  // - F_scale: the diagonal components of a matrix Df such that the components 
+  //            of Df * F(x) all have roughly the same magnitude as F(x) approaches 0.
+  void (*set_x_scale)(void* context, double* x_scale);
+
+  // This (optional) function sets the "F-scaling vector," which contains the diagonal 
+  // components of a matrix Df such that the components of Df * F(x) all have 
+  // roughly the same magnitude as F(x) approaches 0.
+  void (*set_F_scale)(void* context, double* F_scale);
+
+  // This (optional) function sets the contraints vector, which places algebraic 
+  // constraints on the components of the solution vector x. If constraints[i] is:
+  // 0.0  - no constraint is placed on x[i].
+  // 1.0  - x[i] must be non-negative.
+  // -1.0 - x[i] must be non-positive.
+  // 2.0  - x[i] must be positive.
+  void (*set_constraints)(void* context, double* constraints);
+
+  // This (optional) function destroys the state (context) when the nonlinear integrator 
+  // is destroyed.
+  void (*dtor)(void* context);
+
+  // This function returns the adjacency graph reflecting the sparsity of the 
+  // nonlinear system. It is *not* a block graph, so any nonzero blocks should 
+  // be reflected as groups of vertices in the graph.
+  adj_graph_t* (*graph)(void* context);
+
 } nonlinear_integrator_vtable;
 
 // This class represents a collection of algorithms for integrating partial 
@@ -50,12 +86,18 @@ typedef struct
 // Newton-Krylov methods provided by KINSol.
 typedef struct nonlinear_integrator_t nonlinear_integrator_t;
 
-// Creates a solver with the given name, context, and virtual table for 
-// solving a differential algebraic system with N equations.
+// Creates an integrator with the given name, context, and virtual table for 
+// integrated a discretized system of partial differential equations
+// represented by a sparse nonlinear system of equations. The virtual table 
+// defines accessor methods for the residual function and the adjacency graph, 
+// and type indicates which type of Krylov method is used to solve the underlying 
+// linear systems (using a maximum subspace dimension of max_krylov_dim).
 nonlinear_integrator_t* nonlinear_integrator_new(const char* name,
                                                  void* context,
+                                                 MPI_Comm comm,
                                                  nonlinear_integrator_vtable vtable,
-                                                 nonlinear_integrator_type_t type);
+                                                 nonlinear_integrator_type_t type,
+                                                 int max_krylov_dim);
 
 // Frees a solver.
 void nonlinear_integrator_free(nonlinear_integrator_t* integrator);
@@ -66,9 +108,18 @@ char* nonlinear_integrator_name(nonlinear_integrator_t* integrator);
 // Returns the context pointer for the solver.
 void* nonlinear_integrator_context(nonlinear_integrator_t* integrator);
 
+// Sets the tolerances for the function norm (norm_tolerance) and the Newton
+// step (step_tolerance) for the nonlinear integrator.
+void newton_solver_set_tolerances(nonlinear_integrator_t* integrator, double norm_tolerance, double step_tolerance);
+
+// Sets the maximum number of Newton iterations for the integrator.
+void newton_solver_set_max_iterations(nonlinear_integrator_t* integrator, int max_iterations);
+
 // Integrates the nonlinear system of equations F(X, t) = 0 in place, 
-// using X as the initial guess.
-void nonlinear_integrator_solve(nonlinear_integrator_t* integrator, double t, double* X);
+// using X as the initial guess. Returns true if the solution was obtained, 
+// false if not. The number of nonlinear iterations will be stored in 
+// num_iterations upon success.
+bool nonlinear_integrator_solve(nonlinear_integrator_t* integrator, double t, double* X, int* num_iterations);
 
 #endif
 

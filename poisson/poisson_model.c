@@ -52,12 +52,15 @@ typedef struct
 
   // Nonlinear solver that integrates Poisson's equation.
   nonlinear_integrator_t* solver;
+
+  // Number of iterations for most recent nonlinear solve.
+  int num_iterations;
 } poisson_t;
 
 static void poisson_advance(void* context, double t, double dt)
 {
   poisson_t* p = context;
-  nonlinear_integrator_solve(p->solver, t+dt, p->phi);
+  nonlinear_integrator_solve(p->solver, t+dt, p->phi, &p->num_iterations);
 }
 
 static void poisson_read_input(void* context, interpreter_t* interp, options_t* options)
@@ -155,7 +158,7 @@ static void poisson_init(void* context, double t)
 
     // Initialize the nonlinear solver.
     nonlinear_integrator_vtable vtable = {.eval = fv_poisson_residual, .dtor = NULL, .graph = get_graph};
-    p->solver = nonlinear_integrator_new("Poisson (FV)", p, vtable, GMRES);
+    p->solver = nonlinear_integrator_new("Poisson (FV)", p, MPI_COMM_WORLD, vtable, GMRES, 5);
   }
   else
   {
@@ -168,11 +171,11 @@ static void poisson_init(void* context, double t)
 
     // Initialize the nonlinear solver.
     nonlinear_integrator_vtable vtable = {.eval = fvpm_poisson_residual, .dtor = NULL, .graph = get_graph};
-    p->solver = nonlinear_integrator_new("Poisson (FVPM)", p, vtable, GMRES);
+    p->solver = nonlinear_integrator_new("Poisson (FVPM)", p, MPI_COMM_WORLD, vtable, GMRES, 5);
   }
 
   // Now we simply solve the problem for the initial time.
-  nonlinear_integrator_solve(p->solver, t, p->phi);
+  nonlinear_integrator_solve(p->solver, t, p->phi, &p->num_iterations);
 
 }
 

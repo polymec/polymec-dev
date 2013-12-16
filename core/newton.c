@@ -67,6 +67,7 @@ newton_solver_t* newton_solver_new_with_jacobian(int dimension,
   solver->x_scale = N_VNew_Serial(dimension);
   solver->F_scale = N_VNew_Serial(dimension);
   solver->kinsol = KINCreate();
+  KINSetUserData(solver->kinsol, solver->context);
   KINInit(solver->kinsol, system_func, solver->x);
   KINDense(solver->kinsol, dimension);
 
@@ -118,9 +119,6 @@ bool newton_solver_solve(newton_solver_t* solver, double* X, int* num_iterations
 
 bool newton_solver_solve_scaled(newton_solver_t* solver, double* X, double* x_scale, double* F_scale, int* num_iterations)
 {
-  // Suspend the currently active floating point exceptions for now.
-  polymec_suspend_fpe_exceptions();
-
   // Set the x_scale and F_scale vectors.
   if (x_scale != NULL)
     memcpy(NV_DATA_S(solver->x_scale), x_scale, sizeof(double) * solver->dim);
@@ -139,6 +137,9 @@ bool newton_solver_solve_scaled(newton_solver_t* solver, double* X, double* x_sc
 
   // Copy the values in X to the internal solution vector.
   memcpy(NV_DATA_S(solver->x), X, sizeof(double) * solver->dim);
+
+  // Suspend the currently active floating point exceptions for now.
+  polymec_suspend_fpe_exceptions();
 
   // Solve.
   int status = KINSol(solver->kinsol, solver->x, KIN_LINESEARCH, 
