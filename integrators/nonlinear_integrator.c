@@ -57,6 +57,8 @@ struct nonlinear_integrator_t
   supermatrix_factory_t* precond_factory;
   SuperMatrix *precond_mat, *precond_rhs, precond_L, precond_U;
   int *precond_rperm, *precond_cperm;
+  superlu_options_t precond_options;
+  SuperLUStat_t precond_stat;
 
   // Current time -- used for preconditioner.
   double current_time;
@@ -83,7 +85,31 @@ static int solve_preconditioner_system(N_Vector x, N_Vector x_scale,
                                        N_Vector r, void* context,
                                        N_Vector work)
 {
-  // FIXME: SuperLU stuff goes here!
+  nonlinear_integrator_t* integrator = context;
+  int N = NV_LOCLENGTH(x); // Dimension of the matrix.
+  
+  // Copy the values from the vector r to the preconditioner right-hand side.
+  {
+    double *rhs = (double*) ((DNformat*) integrator->precond_rhs->Store)->nzval; 
+    memcpy(rhs, NV_DATA(x), sizeof(double) * N);
+  }
+
+  // Solve the preconditioner system.
+  int info;
+  dgssv(&integrator->precond_options, integrator->precond_mat, integrator->precond_cperm,
+        integrator->precond_rperm, &integrator->precond_L, 
+        &integrator->precond_U, integrator->precond_rhs,
+        &integrator->precond_stat, &info);
+
+  // Tell SuperLU to use the same nonzero pattern for the next factorization.
+  integrator->precond_options.Fact = SamePattern;
+
+  // Copy the values from the solution to the vector r.
+  {
+    double *sol = (double*) ((DNformat*) integrator->precond_rhs->Store)->nzval; 
+    memcpy(NV_DATA(x), sol, sizeof(double) * N);
+  }
+
   return 0;
 }
 
@@ -142,6 +168,8 @@ nonlinear_integrator_t* nonlinear_integrator_new(const char* name,
   // Set up preconditioner machinery.
   KINSpilsSetPreconditioner(integrator->kinsol, set_up_preconditioner,
                             solve_preconditioner_system);
+  set_default_options(&integrator->precond_options);
+  StatInit(&integrator->precond_stat);
   integrator->precond_factory = NULL;
   integrator->precond_mat = NULL;
   integrator->precond_rhs = NULL;
@@ -152,14 +180,23 @@ nonlinear_integrator_t* nonlinear_integrator_new(const char* name,
 
 void nonlinear_integrator_free(nonlinear_integrator_t* integrator)
 {
+  // Kill the preconditioner stuff.
+  Destroy_SuperNode_Matrix(&integrator->precond_L);
+  Destroy_CompCol_Matrix(&integrator->precond_U);
+  StatFree(&integrator->precond_stat);
+  SUPERLU_FREE(integrator->precond_cperm);
+  SUPERLU_FREE(integrator->precond_rperm);
   supermatrix_factory_free(integrator->precond_factory);
   supermatrix_free(integrator->precond_mat);
   supermatrix_free(integrator->precond_rhs);
 
+  // Kill the KINSol stuff.
   N_VDestroy(integrator->x);
   N_VDestroy(integrator->x_scale);
   N_VDestroy(integrator->F_scale);
   KINFree(&integrator->kinsol);
+
+  // Kill the rest.
   if ((integrator->vtable.dtor != NULL) && (integrator->context != NULL))
     integrator->vtable.dtor(integrator->context);
   free(integrator->name);
@@ -201,27 +238,34 @@ bool nonlinear_integrator_solve(nonlinear_integrator_t* integrator,
   adj_graph_t* graph = integrator->vtable.graph(integrator->context);
   ASSERT(graph != NULL);
 
+  // The dimension N of the system is the number of local vertices in the 
+  // adjacency graph.
+  int N = adj_graph_num_vertices(graph);
+  ASSERT(NV_LOCLENGTH(integrator->x) == N); // No adaptivity allowed yet!
+
   // Compare the graph with the one we've got to see whether the topology has 
   // changed.
   if (graph != integrator->graph)
   {
-    // Update the graph and the supermatrix factory.
+    // Update the graph and the preconditioner stuff.
     integrator->graph = graph;
     supermatrix_factory_free(integrator->precond_factory);
     supermatrix_free(integrator->precond_mat);
     supermatrix_free(integrator->precond_rhs);
+    SUPERLU_FREE(integrator->precond_cperm);
+    SUPERLU_FREE(integrator->precond_rperm);
     integrator->precond_factory = 
       supermatrix_factory_from_sys_func(graph, integrator->vtable.eval,
                                         integrator->vtable.set_time,
                                         integrator->context);
     integrator->precond_mat = supermatrix_factory_matrix(integrator->precond_factory);
     integrator->precond_rhs = supermatrix_factory_vector(integrator->precond_factory, 1);
-  }
+    integrator->precond_cperm = intMalloc(N);
+    integrator->precond_rperm = intMalloc(N);
 
-  // The dimension N of the system is the number of local vertices in the 
-  // adjacency graph.
-  int N = adj_graph_num_vertices(graph);
-  ASSERT(NV_LOCLENGTH(integrator->x) == N); // No adaptivity allowed yet!
+    // Tell SuperLU to do the LU factorization from scratch.
+    integrator->precond_options.Fact = DOFACT;
+  }
 
   // Set the current time in the state.
   integrator->current_time = t;
