@@ -46,6 +46,7 @@ typedef struct
   st_func_t* lambda;        // "Conduction" operator. 
   double* phi;              // Solution array.
   st_func_t* solution;      // Analytic solution (if non-NULL).
+  double current_time;      // Current simulation time.
 
   string_ptr_unordered_map_t* bcs; // Boundary conditions.
   boundary_cell_map_t* boundary_cells; // Boundary cell info
@@ -124,6 +125,13 @@ static adj_graph_t* get_graph(void* context)
   return p->graph;
 }
 
+// Sets the current simulation time for the Poisson solver.
+static void set_time(void* context, double t)
+{
+  poisson_t* p = context;
+  p->current_time = t;
+}
+
 static void poisson_init(void* context, double t)
 {
   poisson_t* p = context;
@@ -157,8 +165,11 @@ static void poisson_init(void* context, double t)
     p->boundary_cells = boundary_cell_map_from_mesh_and_bcs(p->mesh, p->bcs);
 
     // Initialize the nonlinear solver.
-    nonlinear_integrator_vtable vtable = {.eval = fv_poisson_residual, .dtor = NULL, .graph = get_graph};
-    p->solver = nonlinear_integrator_new("Poisson (FV)", p, MPI_COMM_WORLD, vtable, GMRES, 5);
+    nonlinear_integrator_vtable vtable = {.eval = fv_poisson_residual, 
+                                          .set_time = set_time,
+                                          .dtor = NULL, 
+                                          .graph = get_graph};
+    p->solver = nonlinear_integrator_new("Poisson (FV)", p, MPI_COMM_WORLD, vtable, BICGSTAB, 5);
   }
   else
   {
@@ -170,13 +181,15 @@ static void poisson_init(void* context, double t)
     //p->boundary_cells = boundary_cell_map_from_mesh_and_bcs(p->mesh, p->bcs);
 
     // Initialize the nonlinear solver.
-    nonlinear_integrator_vtable vtable = {.eval = fvpm_poisson_residual, .dtor = NULL, .graph = get_graph};
-    p->solver = nonlinear_integrator_new("Poisson (FVPM)", p, MPI_COMM_WORLD, vtable, GMRES, 5);
+    nonlinear_integrator_vtable vtable = {.eval = fvpm_poisson_residual, 
+                                          .set_time = set_time,
+                                          .dtor = NULL, 
+                                          .graph = get_graph};
+    p->solver = nonlinear_integrator_new("Poisson (FVPM)", p, MPI_COMM_WORLD, vtable, BICGSTAB, 5);
   }
 
   // Now we simply solve the problem for the initial time.
   nonlinear_integrator_solve(p->solver, t, p->phi, &p->num_iterations);
-
 }
 
 static void poisson_plot(void* context, const char* prefix, const char* directory, double t, int step)

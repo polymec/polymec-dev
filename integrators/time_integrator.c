@@ -23,10 +23,13 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "integrators/time_integrator.h"
-#include "core/sundials_helpers.h"
+#include "integrators/supermatrix_factory.h"
+
+#include "cvode/cvode.h"
 #include "cvode/cvode_spils.h"
 #include "cvode/cvode_spgmr.h"
 #include "cvode/cvode_spbcgs.h"
+#include "cvode/cvode_sptfqmr.h"
 
 struct time_integrator_t 
 {
@@ -34,51 +37,185 @@ struct time_integrator_t
   void* context;
   time_integrator_vtable vtable;
   int order;
+  MPI_Comm comm;
   time_integrator_solver_type_t solver_type;
+
+  // Adjacency graph -- keeps track of topological changes.
+  adj_graph_t* graph;
+
+  // CVODE data structures.
+  void* cvode;
+  N_Vector x; 
+  double current_time;
+
+  // Preconditioning stuff.
+  supermatrix_factory_t* precond_factory;
+  SuperMatrix *precond_mat, *precond_rhs, precond_L, precond_U;
+  int *precond_rperm, *precond_cperm;
+  superlu_options_t precond_options;
+  SuperLUStat_t precond_stat;
 };
+
+// This function sets up the preconditioner data within the integrator.
+static int set_up_preconditioner(double t, N_Vector x, N_Vector F,
+                                 int jacobian_is_current, int* jacobian_was_updated, 
+                                 double gamma, void* context, 
+                                 N_Vector work1, N_Vector work2, N_Vector work3)
+{
+  time_integrator_t* integ = context;
+  if (!jacobian_is_current)
+  {
+    supermatrix_factory_update_jacobian(integ->precond_factory, 
+                                        x, t, integ->precond_mat);
+    *jacobian_was_updated = 1;
+    // FIXME: Incorporate gamma
+  }
+  else
+    *jacobian_was_updated = 0;
+  return 0;
+}
+
+// This function solves the preconditioner equation. On input, the vector r 
+// contains the right-hand side of the preconditioner system, and on output 
+// it contains the solution to the system.
+static int solve_preconditioner_system(double t, N_Vector x, N_Vector F, 
+                                       N_Vector r, N_Vector z, 
+                                       double gamma, double delta, 
+                                       int lr, void* context, 
+                                       N_Vector work)
+{
+  time_integrator_t* integ = context;
+  int N = NV_LOCLENGTH(x); // Dimension of the matrix.
+  
+  // Copy the values from the vector r to the preconditioner right-hand side.
+  {
+    double *rhs = (double*) ((DNformat*) integ->precond_rhs->Store)->nzval; 
+    memcpy(rhs, NV_DATA(x), sizeof(double) * N);
+  }
+
+  // Solve the preconditioner system.
+  int info;
+  dgssv(&integ->precond_options, integ->precond_mat, integ->precond_cperm,
+        integ->precond_rperm, &integ->precond_L, 
+        &integ->precond_U, integ->precond_rhs,
+        &integ->precond_stat, &info);
+
+  // Tell SuperLU to use the same nonzero pattern for the next factorization.
+  integ->precond_options.Fact = SamePattern;
+
+  // Copy the values from the solution to the vector r.
+  {
+    double *sol = (double*) ((DNformat*) integ->precond_rhs->Store)->nzval; 
+    memcpy(NV_DATA(x), sol, sizeof(double) * N);
+  }
+
+  return 0;
+}
 
 time_integrator_t* time_integrator_new(const char* name, 
                                        void* context,
+                                       MPI_Comm comm,
                                        time_integrator_vtable vtable,
                                        int order,
-                                       time_integrator_solver_type_t solver_type)
+                                       time_integrator_solver_type_t solver_type,
+                                       int max_krylov_dim)
 {
   ASSERT(order > 0);
+  ASSERT(vtable.rhs != NULL);
+  ASSERT(vtable.graph != NULL);
+  ASSERT(max_krylov_dim >= 3);
+
   time_integrator_t* integ = malloc(sizeof(time_integrator_t));
   integ->name = string_dup(name);
   integ->context = context;
+  integ->comm = comm;
   integ->vtable = vtable;
   integ->order = order;
   integ->solver_type = solver_type;
+  integ->graph = NULL;
+  integ->current_time = 0.0;
+
+  // Get the adjacency graph that expresses the sparsity of the nonlinear system.
+  adj_graph_t* graph = vtable.graph(context);
+  ASSERT(graph != NULL);
+
+  // The dimension N of the system is the number of local vertices in the 
+  // adjacency graph.
+  int N = adj_graph_num_vertices(graph);
+
+  // Set up KINSol and accessories.
+  integ->x = N_VNew(comm, N);
+  integ->cvode = CVodeCreate(CV_BDF, CV_NEWTON);
+  CVodeSetUserData(integ->cvode, integ->context);
+  CVodeInit(integ->cvode, vtable.rhs, integ->current_time, integ->x);
+
+  // Select the particular type of Krylov method for the underlying linear solves.
+  if (solver_type == GMRES)
+    CVSpgmr(integ->cvode, PREC_LEFT, max_krylov_dim); 
+  else if (solver_type == BICGSTAB)
+    CVSpbcg(integ->cvode, PREC_LEFT, max_krylov_dim);
+  else
+    CVSptfqmr(integ->cvode, PREC_LEFT, max_krylov_dim);
+
+  // Set up preconditioner machinery.
+  CVSpilsSetPreconditioner(integ->cvode, set_up_preconditioner,
+                           solve_preconditioner_system);
+  set_default_options(&integ->precond_options);
+  StatInit(&integ->precond_stat);
+  integ->precond_factory = NULL;
+  integ->precond_mat = NULL;
+  integ->precond_rhs = NULL;
+
   return integ;
 }
 
-void time_integrator_free(time_integrator_t* integrator)
+void time_integrator_free(time_integrator_t* integ)
 {
-  if ((integrator->context != NULL) && (integrator->vtable.dtor != NULL))
-    integrator->vtable.dtor(integrator->context);
-  free(integrator->name);
-  free(integrator);
+  // Kill the preconditioner stuff.
+  Destroy_SuperNode_Matrix(&integ->precond_L);
+  Destroy_CompCol_Matrix(&integ->precond_U);
+  StatFree(&integ->precond_stat);
+  SUPERLU_FREE(integ->precond_cperm);
+  SUPERLU_FREE(integ->precond_rperm);
+  supermatrix_factory_free(integ->precond_factory);
+  supermatrix_free(integ->precond_mat);
+  supermatrix_free(integ->precond_rhs);
+
+  // Kill the CVode stuff.
+  N_VDestroy(integ->x);
+  CVodeFree(&integ->cvode);
+
+  // Kill the rest.
+  if ((integ->context != NULL) && (integ->vtable.dtor != NULL))
+    integ->vtable.dtor(integ->context);
+  free(integ->name);
+  free(integ);
 }
 
-char* time_integrator_name(time_integrator_t* integrator)
+char* time_integrator_name(time_integrator_t* integ)
 {
-  return integrator->name;
+  return integ->name;
 }
 
-void* time_integrator_context(time_integrator_t* integrator)
+void* time_integrator_context(time_integrator_t* integ)
 {
-  return integrator->context;
+  return integ->context;
 }
 
-int time_integrator_order(time_integrator_t* integrator)
+int time_integrator_order(time_integrator_t* integ)
 {
-  return integrator->order;
+  return integ->order;
 }
 
-void time_integrator_step(time_integrator_t* integrator, double t1, double t2, double* X)
+void time_integrator_step(time_integrator_t* integ, double t1, double t2, double* X)
 {
   ASSERT(t2 > t1);
-  // FIXME
+  if (integ->current_time != t1)
+  {
+    CVodeReInit(integ->cvode, t1, integ->x);
+    integ->current_time = t1;
+  }
+  double t;
+  CVode(integ->cvode, t2, integ->x, &t, CV_NORMAL);
 }
 

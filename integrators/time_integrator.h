@@ -28,7 +28,7 @@
 #include "core/polymec.h"
 #include "core/adj_graph.h"
 #include "cvode/cvode.h"
-#include "cvode/cvode_spils.h"
+#include "core/sundials_helpers.h"
 
 typedef enum
 {
@@ -36,10 +36,20 @@ typedef enum
   BICGSTAB
 } time_integrator_solver_type_t;
 
+// This virtual table determines the behavior of the time integrator.
 typedef struct
 {
-  CVRhsFn rhs;
-  void (*dtor)(void*);
+  // This function evaluates the right hand side of a coupled system of 
+  // nonlinear partial differential equations at time t with solution x.
+  int (*rhs)(double t, N_Vector x, N_Vector x_dot, void* context);
+
+  // This (optional) function destroys the state (context) when the time integrator 
+  // is destroyed.
+  void (*dtor)(void* context);
+
+  // This function returns the adjacency graph reflecting the sparsity of the 
+  // nonlinear system. It is *not* a block graph, so any nonzero blocks should 
+  // be reflected as groups of vertices in the graph.
   adj_graph_t* (*graph)(void*);
 } time_integrator_vtable;
 
@@ -53,9 +63,11 @@ typedef struct time_integrator_t time_integrator_t;
 // a system of N differential equations.
 time_integrator_t* time_integrator_new(const char* name, 
                                        void* context,
+                                       MPI_Comm comm,
                                        time_integrator_vtable vtable,
                                        int order,
-                                       time_integrator_solver_type_t solver_type);
+                                       time_integrator_solver_type_t solver_type,
+                                       int max_krylov_dim);
 
 // Frees a time integrator.
 void time_integrator_free(time_integrator_t* integrator);
