@@ -217,5 +217,7 @@ void time_integrator_step(time_integrator_t* integ, double t1, double t2, double
   }
   double t;
   CVode(integ->cvode, t2, integ->x, &t, CV_NORMAL);
+  ASSERT(fabs(t - t2) < 1e-14);
+  integ->current_time = t;
 }
 

@@ -19,3 +19,5 @@ add_dependencies(polymec_core update_polymec_version_h)
 set(POLYMEC_LIBS polymec_core;${POLYMEC_LIBS} PARENT_SCOPE)
 set(POLYMEC_LIBS polymec_core;${POLYMEC_LIBS})
 add_subdirectory(tests)
+
+install(TARGETS polymec_core DESTINATION lib)

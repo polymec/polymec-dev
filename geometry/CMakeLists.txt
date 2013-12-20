@@ -16,3 +16,5 @@ set(POLYMEC_LIBS polymec_geometry;${POLYMEC_LIBS} PARENT_SCOPE)
 set(POLYMEC_LIBS polymec_geometry;${POLYMEC_LIBS})
 
 add_subdirectory(tests)
+
+install(TARGETS polymec_geometry DESTINATION lib)
