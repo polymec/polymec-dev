@@ -1,7 +1,7 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 1.1 $
- * $Date: 2007/10/25 20:03:39 $
+ * $Revision: 1.3 $
+ * $Date: 2010/12/01 23:05:10 $
  * -----------------------------------------------------------------
  * Programmer(s): Allan Taylor, Alan Hindmarsh and
  *                Radu Serban @ LLNL
@@ -55,7 +55,7 @@ int resrob(realtype tres, N_Vector yy, N_Vector yp,
 static int grob(realtype t, N_Vector yy, N_Vector yp,
                 realtype *gout, void *user_data);
 
-int jacrob(int Neq, realtype tt,  realtype cj, 
+int jacrob(long int Neq, realtype tt,  realtype cj, 
            N_Vector yy, N_Vector yp, N_Vector resvec,
            DlsMat JJ, void *user_data,
            N_Vector tempv1, N_Vector tempv2, N_Vector tempv3);
@@ -224,7 +224,7 @@ static int grob(realtype t, N_Vector yy, N_Vector yp, realtype *gout,
  * Define the Jacobian function. 
  */
 
-int jacrob(int Neq, realtype tt,  realtype cj, 
+int jacrob(long int Neq, realtype tt,  realtype cj, 
            N_Vector yy, N_Vector yp, N_Vector resvec,
            DlsMat JJ, void *user_data,
            N_Vector tempv1, N_Vector tempv2, N_Vector tempv3)
@@ -263,7 +263,7 @@ static void PrintHeader(realtype rtol, N_Vector avtol, N_Vector y)
   atval  = NV_DATA_S(avtol);
   yval  = NV_DATA_S(y);
 
-  printf("\nidasRobertson: Robertson kinetics DAE serial example problem for IDA.\n");
+  printf("\nidasRoberts_dns: Robertson kinetics DAE serial example problem for IDA.\n");
   printf("               Three equation chemical kinetics problem.\n\n");
   printf("Linear solver: IDADENSE, with user-supplied Jacobian.\n");
 #if defined(SUNDIALS_EXTENDED_PRECISION)

@@ -1,7 +1,7 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 1.7 $
- * $Date: 2007/07/30 18:46:24 $
+ * $Revision: 1.9 $
+ * $Date: 2010/12/15 19:40:08 $
  * ----------------------------------------------------------------- 
  * Programmer(s): Alan Hindmarsh, Radu Serban and
  *                Aaron Collier @ LLNL
@@ -287,16 +287,16 @@ extern "C" {
 
 /* Definitions of interface function names */
 
-#if defined(F77_FUNC)
+#if defined(SUNDIALS_F77_FUNC)
 
-#define FCV_BBDINIT    F77_FUNC(fcvbbdinit, FCVBBDINIT)
-#define FCV_BBDSPTFQMR F77_FUNC(fcvbbdsptfqmr, FCVBBDSPTFQMR)
-#define FCV_BBDSPBCG   F77_FUNC(fcvbbdspbcg, FCVBBDSPBCG)
-#define FCV_BBDSPGMR   F77_FUNC(fcvbbdspgmr, FCVBBDSPGMR)
-#define FCV_BBDREINIT  F77_FUNC(fcvbbdreinit, FCVBBDREINIT)
-#define FCV_BBDOPT     F77_FUNC(fcvbbdopt, FCVBBDOPT)
-#define FCV_GLOCFN     F77_FUNC(fcvglocfn, FCVGLOCFN)
-#define FCV_COMMFN     F77_FUNC(fcvcommfn, FCVCOMMFN)
+#define FCV_BBDINIT    SUNDIALS_F77_FUNC(fcvbbdinit, FCVBBDINIT)
+#define FCV_BBDSPTFQMR SUNDIALS_F77_FUNC(fcvbbdsptfqmr, FCVBBDSPTFQMR)
+#define FCV_BBDSPBCG   SUNDIALS_F77_FUNC(fcvbbdspbcg, FCVBBDSPBCG)
+#define FCV_BBDSPGMR   SUNDIALS_F77_FUNC(fcvbbdspgmr, FCVBBDSPGMR)
+#define FCV_BBDREINIT  SUNDIALS_F77_FUNC(fcvbbdreinit, FCVBBDREINIT)
+#define FCV_BBDOPT     SUNDIALS_F77_FUNC(fcvbbdopt, FCVBBDOPT)
+#define FCV_GLOCFN     SUNDIALS_F77_FUNC(fcvglocfn, FCVGLOCFN)
+#define FCV_COMMFN     SUNDIALS_F77_FUNC(fcvcommfn, FCVCOMMFN)
 
 #else
 
@@ -313,15 +313,16 @@ extern "C" {
 
 /* Prototypes of exported functions */
 
-void FCV_BBDINIT(int *Nloc, int *mudq, int *mldq, int *mu, int *ml, realtype* dqrely, int *ier);
-void FCV_BBDREINIT(int *Nloc, int *mudq, int *mldq, realtype* dqrely, int *ier);
+void FCV_BBDINIT(long int *Nloc, long int *mudq, long int *mldq, long int *mu, long int *ml,
+                 realtype* dqrely, int *ier);
+void FCV_BBDREINIT(long int *Nloc, long int *mudq, long int *mldq, realtype* dqrely, int *ier);
 void FCV_BBDOPT(long int *lenrwbbd, long int *leniwbbd, long int *ngebbd);
 
 /* Prototypes: Functions Called by the CVBBDPRE Module */
 
-int FCVgloc(int Nloc, realtype t, N_Vector yloc, N_Vector gloc, void *user_data);
+int FCVgloc(long int Nloc, realtype t, N_Vector yloc, N_Vector gloc, void *user_data);
 
-int FCVcfn(int Nloc, realtype t, N_Vector y, void *user_data);
+int FCVcfn(long int Nloc, realtype t, N_Vector y, void *user_data);
 
 #ifdef __cplusplus
 }

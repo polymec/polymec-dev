@@ -1,7 +1,7 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 1.7 $
- * $Date: 2009/03/29 23:28:01 $
+ * $Revision: 1.11 $
+ * $Date: 2011/07/13 22:29:01 $
  * -----------------------------------------------------------------
  * Programmer(s): Allan Taylor, Alan Hindmarsh, Radu Serban, and
  *                Aaron Collier @ LLNL
@@ -62,6 +62,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
+#include <string.h>
+
 #include <math.h>
 
 #include "kinsol_impl.h"
@@ -89,6 +91,7 @@
 #define TWO       RCONST(2.0)
 #define THREE     RCONST(3.0)
 #define FIVE      RCONST(5.0)
+#define TWELVE    RCONST(12.0)
 #define POINT1    RCONST(0.1)
 #define POINT01   RCONST(0.01)
 #define POINT99   RCONST(0.99)
@@ -210,6 +213,9 @@ void *KINCreate(void)
     KINProcessError(kin_mem, 0, "KINSOL", "KINCreate", MSG_MEM_FAIL);
     return(NULL);
   }
+
+  /* Zero out kin_mem */
+  memset(kin_mem, 0, sizeof(struct KINMemRec));
 
   /* set uround (unit roundoff) */
 
@@ -551,7 +557,7 @@ int KINSol(void *kinmem, N_Vector u, int strategy,
       sflag = KINLineSearch(kin_mem, &fnormp, &f1normp, &maxStepTaken);
 
       /* if sysfunc failed unrecoverably, stop */
-      if (sflag == KIN_SYSFUNC_FAIL) {
+      if ((sflag == KIN_SYSFUNC_FAIL) || (sflag == KIN_REPTD_SYSFUNC_ERR)) {
         ret = sflag;
         break;
       }
@@ -1056,7 +1062,9 @@ static int KINFullNewton(KINMem kin_mem, realtype *fnormp, realtype *f1normp,
       stepl = pnorm;
       if (printfl > 0)
         KINPrintInfo(kin_mem, PRNT_PNORM, "KINSOL", "KINFullNewton", INFO_PNORM, pnorm);
-      if (pnorm <= scsteptol) return(STEP_TOO_SMALL);
+      if (pnorm <= scsteptol) {
+        N_VLinearSum(ONE, uu, ONE, pp, unew);
+        return(STEP_TOO_SMALL);}
     }
   }
  
@@ -1205,7 +1213,9 @@ static int KINLineSearch(KINMem kin_mem, realtype *fnormp, realtype *f1normp,
       rlmax = ONE;
       stepl = pnorm;
       if (printfl > 0) KINPrintInfo(kin_mem, PRNT_PNORM1, "KINSOL", "KINLineSearch", INFO_PNORM1, pnorm);
-      if (pnorm <= scsteptol) return(STEP_TOO_SMALL);
+      if (pnorm <= scsteptol) {
+        N_VLinearSum(ONE, uu, ONE, pp, unew);
+        return(STEP_TOO_SMALL);}
     }
   }
 
@@ -1294,10 +1304,8 @@ static int KINLineSearch(KINMem kin_mem, realtype *fnormp, realtype *f1normp,
       } else {                         /* real cubic */
         rltmp = (-rl_b + RSqrt(disc)) / (THREE * rl_a);
       }
-
-      if (rltmp > (HALF * rl)) rltmp = HALF * rl;
-
     }
+      if (rltmp > (HALF * rl)) rltmp = HALF * rl;
 
     /* Set new rl (do not allow a reduction by a factor larger than 10) */
 
@@ -1489,7 +1497,7 @@ static int KINConstraint(KINMem kin_mem)
 
 static int KINStop(KINMem kin_mem, int strategy, booleantype maxStepTaken, int sflag)
 {
-  realtype fmax, rlength;
+  realtype fmax, rlength, omexp;
   N_Vector delta;
 
   /* Check for too small a step */
@@ -1570,9 +1578,10 @@ static int KINStop(KINMem kin_mem, int strategy, booleantype maxStepTaken, int s
       nnilset_sub = nni;
 
       /* If indicated, estimate new OMEGA value */
-      if (eval_omega)
-        omega = MIN(omega_min*EXP(MAX(ZERO,(fnorm/fnormtol)-ONE)), omega_max);
-
+      if (eval_omega) {
+        omexp = MAX(ZERO,(fnorm/fnormtol)-ONE);
+        omega = (omexp > TWELVE)? omega_max : MIN(omega_min*EXP(omexp), omega_max);
+      }   
       /* Check if making satisfactory progress */
 
       if (fnorm > omega*fnorm_sub) {
@@ -1750,6 +1759,9 @@ void KINPrintInfo(KINMem kin_mem,
     switch(ret) {
     case KIN_SUCCESS:
       sprintf(retstr, "KIN_SUCCESS");
+      break;
+    case KIN_SYSFUNC_FAIL:
+      sprintf(retstr, "KIN_SYSFUNC_FAIL");
       break;
     case KIN_STEP_LT_STPTOL:
       sprintf(retstr, "KIN_STEP_LT_STPTOL");

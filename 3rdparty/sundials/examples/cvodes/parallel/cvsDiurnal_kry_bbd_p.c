@@ -1,7 +1,7 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 1.1 $
- * $Date: 2007/10/25 20:03:31 $
+ * $Revision: 1.3 $
+ * $Date: 2010/12/14 22:15:31 $
  * -----------------------------------------------------------------
  * Programmer(s): S. D. Cohen, A. C. Hindmarsh, M. R. Wittman, and
  *                Radu Serban  @ LLNL
@@ -151,7 +151,7 @@ static int f(realtype t, N_Vector u, N_Vector udot, void *user_data);
 
 /* Prototype of functions called by the CVBBDPRE module */
 
-static int flocal(int Nlocal, realtype t, N_Vector u,
+static int flocal(long int Nlocal, realtype t, N_Vector u,
                   N_Vector udot, void *user_data);
 
 /* Private function to check function return values */
@@ -167,7 +167,7 @@ int main(int argc, char *argv[])
   realtype abstol, reltol, t, tout;
   N_Vector u;
   int iout, my_pe, npes, flag, jpre;
-  int neq, local_N, mudq, mldq, mukeep, mlkeep;
+  long int neq, local_N, mudq, mldq, mukeep, mlkeep;
   MPI_Comm comm;
 
   data = NULL;
@@ -708,7 +708,7 @@ static int f(realtype t, N_Vector u, N_Vector udot, void *user_data)
    inter-processor communication of data needed to calculate f has already
    been done, and this data is in the work array uext.                    */
 
-static int flocal(int Nlocal, realtype t, N_Vector u,
+static int flocal(long int Nlocal, realtype t, N_Vector u,
                   N_Vector udot, void *user_data)
 {
   realtype *uext;

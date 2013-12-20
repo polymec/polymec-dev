@@ -1,7 +1,7 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 1.4 $
- * $Date: 2007/04/30 19:29:01 $
+ * $Revision: 1.6 $
+ * $Date: 2011/06/23 00:36:18 $
  * -----------------------------------------------------------------
  * Programmer(s): Radu Serban and Aaron Collier @ LLNL
  * -----------------------------------------------------------------
@@ -407,7 +407,7 @@ int KINSpilsGetNumFuncEvals(void *kinmem, long int *nfevalsS)
  * -----------------------------------------------------------------
  */
 
-int KINSpilsGetLastFlag(void *kinmem, int *flag)
+int KINSpilsGetLastFlag(void *kinmem, long int *flag)
 {
   KINMem kin_mem;
   KINSpilsMem kinspils_mem;
@@ -437,7 +437,7 @@ int KINSpilsGetLastFlag(void *kinmem, int *flag)
  * -----------------------------------------------------------------
  */
 
-char *KINSpilsGetReturnFlagName(int flag)
+char *KINSpilsGetReturnFlagName(long int flag)
 {
   char *name;
 
@@ -511,13 +511,14 @@ int KINSpilsAtimes(void *kinsol_mem, N_Vector v, N_Vector z)
  * -----------------------------------------------------------------
  * Function : KINSpilsPSolve
  * -----------------------------------------------------------------
- * This routine interfaces between the generic SpgmrSolve routine
- * and the user's psolve routine. It passes to psolve all required
- * state information from kinsol_mem. Its return value is the same
- * as that returned by psolve. Note that the generic SPGMR solver
- * guarantees that KINSpilsPSolve will not be called in the case in
- * which preconditioning is not done. This is the only case in which
- * the user's psolve routine is allowed to be NULL.
+ * This routine interfaces between the generic Sp***Solve routine
+ * (within the SPGMR, SPBCG, or SPTFQMR solver) and the
+ * user's psolve routine.  It passes to psolve all required state 
+ * information from kinsol_mem.  Its return value is the same as that
+ * returned by psolve. Note that the generic SP*** solver guarantees
+ * that KINSpilsPSolve will not be called in the case in which
+ * preconditioning is not done. This is the only case in which the
+ * user's psolve routine is allowed to be NULL.
  * -----------------------------------------------------------------
  */
 

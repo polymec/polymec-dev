@@ -1,7 +1,7 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 1.34 $
- * $Date: 2009/05/06 22:13:07 $
+ * $Revision: 1.39 $
+ * $Date: 2012/03/06 21:58:55 $
  * ----------------------------------------------------------------- 
  * Programmer(s): Radu Serban @ LLNL
  * -----------------------------------------------------------------
@@ -110,6 +110,8 @@
  *       IDAReset
  *   Function called after a successful step
  *       IDACompleteStep
+ *   Get solution
+ *       IDAGetSolution
  *   Norm functions
  *       IDAWrmsNorm
  *       IDASensWrmsNorm
@@ -142,6 +144,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
+#include <string.h>
 
 #include "idas_impl.h"
 #include <sundials/sundials_math.h>
@@ -439,6 +442,9 @@ void *IDACreate(void)
     IDAProcessError(NULL, 0, "IDAS", "IDACreate", MSG_MEM_FAIL);
     return (NULL);
   }
+
+  /* Zero out ida_mem */
+  memset(IDA_mem, 0, sizeof(struct IDAMemRec));
 
   /* Set unit roundoff in IDA_mem */
   IDA_mem->ida_uround = UNIT_ROUNDOFF;
@@ -2475,6 +2481,12 @@ int IDASolve(void *ida_mem, realtype tout, realtype *tret,
     
     nstloc++;
 
+    /* If tstop is set and was reached, reset tn = tstop */
+    if (tstopset) {
+      troundoff = HUNDRED*uround*(ABS(tn) + ABS(hh));
+      if (ABS(tn - tstop) <= troundoff) tn = tstop;
+    }
+
     /* After successful step, check for stop conditions; continue or break. */
 
     /* First check for root in the last step taken. */
@@ -2539,9 +2551,6 @@ int IDASolve(void *ida_mem, realtype tout, realtype *tret,
  * the k-th derivative of the interpolating polynomial at the independent 
  * variable t, and stores the results in the vector dky.  It uses the current
  * independent variable value, tn, and the method order last used, kused.
- * 
- * If kused = 0 (no step has been taken), or if t = tn, then the order used
- * here is taken to be 1, giving yret = phi[0], ypret = phi[1]/psi[0].
  * 
  * The return values are:
  *   IDA_SUCCESS  if t is legal, or
@@ -4860,7 +4869,6 @@ static int IDAStep(IDAMem IDA_mem)
  * The return values are:
  *   IDA_SUCCESS  if t is legal, or
  *   IDA_BAD_T    if t is not within the interval of the last step taken.
- *
  */
 
 int IDAGetSolution(void *ida_mem, realtype t, N_Vector yret, N_Vector ypret)
@@ -6134,7 +6142,7 @@ static void IDACompleteStep(IDAMem IDA_mem, realtype err_k, realtype err_km1)
       enorm = IDASensWrmsNormUpdate(IDA_mem, enorm, tempvS, ewtS, suppressalg);
     }
 
-    if(errconQS) {
+    if (errconQS) {
       for (is=0; is<Ns; is++)
         N_VLinearSum(ONE, eeQS[is], -ONE, phiQS[kk+1][is], tempvQS[is]);
       enorm = IDAQuadSensWrmsNormUpdate(IDA_mem, enorm, tempvQS, ewtQS);
@@ -6182,20 +6190,20 @@ static void IDACompleteStep(IDAMem IDA_mem, realtype err_k, realtype err_km1)
     
   } /* end of phase if block */
   
-  /* Save ee for possible order increase on next step */
+  /* Save ee etc. for possible order increase on next step */
   
   if (kused < maxord) {
 
     N_VScale(ONE, ee, phi[kused+1]);
 
-    if (errconQ)
+    if (quadr)
       N_VScale(ONE, eeQ, phiQ[kused+1]);
 
-    if (errconS)
+    if (sensi)
       for (is=0; is<Ns; is++)
         N_VScale(ONE, eeS[is], phiS[kused+1][is]);
 
-    if (errconQS)
+    if (quadr_sensi)
       for (is=0; is<Ns; is++)
         N_VScale(ONE, eeQS[is], phiQS[kused+1][is]);
   }
@@ -6383,7 +6391,7 @@ static realtype IDAQuadSensWrmsNormUpdate(IDAMem IDA_mem, realtype old_nrm,
 static int IDARcheck1(IDAMem IDA_mem)
 {
   int i, retval;
-  realtype smallh, hratio;
+  realtype smallh, hratio, tplus;
   booleantype zroot;
 
   for (i = 0; i < nrtfn; i++) iroots[i] = 0;
@@ -6407,22 +6415,20 @@ static int IDARcheck1(IDAMem IDA_mem)
   /* Some g_i is zero at t0; look at g at t0+(small increment). */
   hratio = MAX(ttol/ABS(hh), PT1);
   smallh = hratio*hh;
-  tlo += smallh;
+  tplus = tlo + smallh;
   N_VLinearSum(ONE, phi[0], smallh, phi[1], yy);
-  retval = gfun (tlo, yy, phi[1], glo, user_data);  
+  retval = gfun (tplus, yy, phi[1], ghi, user_data);  
   nge++;
   if (retval != 0) return(IDA_RTFUNC_FAIL);
 
   /* We check now only the components of g which were exactly 0.0 at t0
    * to see if we can 'activate' them. */
-
   for (i = 0; i < nrtfn; i++) {
-    if (!gactive[i] && ABS(glo[i]) != ZERO) {
+    if (!gactive[i] && ABS(ghi[i]) != ZERO) {
       gactive[i] = TRUE;
-
+      glo[i] = ghi[i];
     }
   }
-
   return(IDA_SUCCESS);
 }
 
@@ -6430,9 +6436,9 @@ static int IDARcheck1(IDAMem IDA_mem)
  * IDARcheck2
  *
  * This routine checks for exact zeros of g at the last root found,
- * if the last return was a root.  It then checks for a close
- * pair of zeros (an error condition), and for a new root at a
- * nearby point.  The left endpoint (tlo) of the search interval
+ * if the last return was a root.  It then checks for a close pair of
+ * zeros (an error condition), and for a new root at a nearby point.
+ * The array glo = g(tlo) at the left endpoint of the search interval
  * is adjusted if necessary to assure that all g_i are nonzero
  * there, before returning to do a root search in the interval.
  *
@@ -6450,7 +6456,7 @@ static int IDARcheck1(IDAMem IDA_mem)
 static int IDARcheck2(IDAMem IDA_mem)
 {
   int i, retval;
-  realtype smallh, hratio;
+  realtype smallh, hratio, tplus;
   booleantype zroot;
 
   if (irfnd == 0) return(IDA_SUCCESS);
@@ -6474,29 +6480,32 @@ static int IDARcheck2(IDAMem IDA_mem)
   /* One or more g_i has a zero at tlo.  Check g at tlo+smallh. */
   ttol = (ABS(tn) + ABS(hh))*uround*HUNDRED;
   smallh = (hh > ZERO) ? ttol : -ttol;
-  tlo += smallh;
-  if ( (tlo - tn)*hh >= ZERO) {
+  tplus = tlo + smallh;
+  if ( (tplus - tn)*hh >= ZERO) {
     hratio = smallh/hh;
     N_VLinearSum(ONE, yy, hratio, phi[1], yy);
   } else {
-    (void) IDAGetSolution(IDA_mem, tlo, yy, yp);
+    (void) IDAGetSolution(IDA_mem, tplus, yy, yp);
   }
-  retval = gfun (tlo, yy, yp, glo, user_data);  
+  retval = gfun (tplus, yy, yp, ghi, user_data);  
   nge++;
   if (retval != 0) return(IDA_RTFUNC_FAIL);
 
+  /* Check for close roots (error return), for a new zero at tlo+smallh,
+  and for a g_i that changed from zero to nonzero. */
   zroot = FALSE;
   for (i = 0; i < nrtfn; i++) {
     if (!gactive[i]) continue;
-    if (ABS(glo[i]) == ZERO) {
+    if (ABS(ghi[i]) == ZERO) {
       if (iroots[i] == 1) return(CLOSERT);
       zroot = TRUE;
       iroots[i] = 1;
+    } else {
+      if (iroots[i] == 1) glo[i] = ghi[i];
     }
   }
   if (zroot) return(RTFOUND);
   return(IDA_SUCCESS);
-
 }
 
 /*

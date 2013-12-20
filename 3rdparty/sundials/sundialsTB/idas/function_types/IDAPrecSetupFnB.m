@@ -5,7 +5,7 @@
 %   or as
 %        FUNCTION [FLAG,NEW_DATA] = PSETFUNB(T,YY,YP,YYB,YPB,RRB,CJB,DATA)
 %   depending on whether a user data structure DATA was specified in
-%   IDAMalloc.
+%   IDASetUserData.
 %
 %   See also IDAPrecSolveFnB, IDAPrecSetupFn, IDASetOptions
 %
@@ -15,4 +15,4 @@
 
 % Radu Serban <radu@llnl.gov>
 % Copyright (c) 2007, The Regents of the University of California.
-% $Revision: 1.1 $Date: 2007/08/21 17:38:44 $
+% $Revision: 1.2 $Date: 2011/05/26 00:01:23 $

@@ -1,7 +1,7 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 1.7 $
- * $Date: 2008/04/16 21:18:22 $
+ * $Revision: 1.9 $
+ * $Date: 2010/12/15 19:40:08 $
  * ----------------------------------------------------------------- 
  * Programmer(s): Aaron Collier @ LLNL
  * -----------------------------------------------------------------
@@ -298,13 +298,13 @@ extern "C" {
 #include <sundials/sundials_nvector.h>
 #include <sundials/sundials_types.h>
 
-#if defined(F77_FUNC)
+#if defined(SUNDIALS_F77_FUNC)
 
-#define FIDA_BBDINIT    F77_FUNC(fidabbdinit, FIDABBDINIT)
-#define FIDA_BBDREINIT  F77_FUNC(fidabbdreinit, FIDABBDREINIT)
-#define FIDA_BBDOPT     F77_FUNC(fidabbdopt, FIDABBDOPT)
-#define FIDA_GLOCFN     F77_FUNC(fidaglocfn, FIDAGLOCFN)
-#define FIDA_COMMFN     F77_FUNC(fidacommfn, FIDACOMMFN)
+#define FIDA_BBDINIT    SUNDIALS_F77_FUNC(fidabbdinit, FIDABBDINIT)
+#define FIDA_BBDREINIT  SUNDIALS_F77_FUNC(fidabbdreinit, FIDABBDREINIT)
+#define FIDA_BBDOPT     SUNDIALS_F77_FUNC(fidabbdopt, FIDABBDOPT)
+#define FIDA_GLOCFN     SUNDIALS_F77_FUNC(fidaglocfn, FIDAGLOCFN)
+#define FIDA_COMMFN     SUNDIALS_F77_FUNC(fidacommfn, FIDACOMMFN)
 
 #else
 
@@ -318,13 +318,18 @@ extern "C" {
 
 /* Prototypes of exported functions */
 
-void FIDA_BBDINIT(int *Nloc, int *mudq, int *mldq, int *mu, int *ml, realtype *dqrely, int *ier);
+void FIDA_BBDINIT(long int *Nloc, long int *mudq, long int *mldq,
+                  long int *mu, long int *ml, realtype *dqrely, int *ier);
+
+void FIDA_BBDREINIT(long int *Nloc, long int *mudq, long int *mldq,
+		    realtype *dqrely, int *ier);
+
 void FIDA_BBDOPT(long int *lenrwbbd, long int *leniwbbd, long int *ngebbd);
 
 /* Prototypes: Functions Called by the IDABBD Module */
 
-int FIDAgloc(int Nloc, realtype t, N_Vector yy, N_Vector yp, N_Vector gval, void *user_data);
-int FIDAcfn(int Nloc, realtype t, N_Vector yy, N_Vector yp, void *user_data);
+int FIDAgloc(long int Nloc, realtype t, N_Vector yy, N_Vector yp, N_Vector gval, void *user_data);
+int FIDAcfn(long int Nloc, realtype t, N_Vector yy, N_Vector yp, void *user_data);
 
 #ifdef __cplusplus
 }

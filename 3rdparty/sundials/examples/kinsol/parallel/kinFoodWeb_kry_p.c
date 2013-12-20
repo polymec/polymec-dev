@@ -1,7 +1,7 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 1.1 $
- * $Date: 2007/10/25 20:03:40 $
+ * $Revision: 1.3 $
+ * $Date: 2010/12/01 23:09:24 $
  * -----------------------------------------------------------------
  * Programmer(s): Allan Taylor, Alan Hindmarsh and
  *                Radu Serban @ LLNL
@@ -71,10 +71,10 @@
  *    Computation, Vol. 31 (May 1989), pp. 40-91. (Presents a
  *    description of the time-dependent version of this test
  *    problem.)
- * -----------------------------------------------------------------
- *  Run command line: mpirun -np N -machinefile machines kinkryx_p
+ * ----------------------------------------------------------------------
+ *  Run command line: mpirun -np N -machinefile machines kinFoodWeb_kry_p
  *  where N = NPEX * NPEY is the number of processors.
- * -----------------------------------------------------------------
+ * ----------------------------------------------------------------------
  */
 
 #include <stdio.h>
@@ -138,7 +138,7 @@
 
 typedef struct {
   realtype **P[MXSUB][MYSUB];
-  int *pivot[MXSUB][MYSUB];
+  long int *pivot[MXSUB][MYSUB];
   realtype **acoef, *bcoef;
   N_Vector rates;
   realtype *cox, *coy;
@@ -201,7 +201,7 @@ int main(int argc, char *argv[])
 
 {
   int globalstrategy;
-  int local_N;
+  long int local_N;
   realtype fnormtol, scsteptol;
   N_Vector cc, sc, constraints;
   UserData data;
@@ -436,7 +436,7 @@ static int PSolvebd(N_Vector cc, N_Vector cscale,
                     N_Vector vtemp)
 {
   realtype **Pxy, *vxy;
-  int *piv, jx, jy;
+  long int *piv, jx, jy;
   UserData data;
   
   data = (UserData)user_data;
@@ -519,7 +519,7 @@ static UserData AllocUserData(void)
   for (jx = 0; jx < MXSUB; jx++) {
     for (jy = 0; jy < MYSUB; jy++) {
       (data->P)[jx][jy] = newDenseMat(NUM_SPECIES, NUM_SPECIES);
-      (data->pivot)[jx][jy] = newIntArray(NUM_SPECIES);
+      (data->pivot)[jx][jy] = newLintArray(NUM_SPECIES);
     }
   }
 

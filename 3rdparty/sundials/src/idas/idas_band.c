@@ -1,7 +1,7 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 1.12 $
- * $Date: 2009/02/17 02:42:29 $
+ * $Revision: 1.14 $
+ * $Date: 2011/03/23 21:12:45 $
  * ----------------------------------------------------------------- 
  * Programmer(s): Alan C. Hindmarsh and Radu Serban @ LLNL
  * -----------------------------------------------------------------
@@ -21,7 +21,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 #include <idas/idas_band.h>
 #include "idas_direct_impl.h"
@@ -86,7 +85,7 @@ static void IDABandFreeB(IDABMem IDAB_mem);
 #define bjac        (idadls_mem->d_bjac)
 #define JJ          (idadls_mem->d_J)
 #define smu         (idadls_mem->d_smu)
-#define pivots      (idadls_mem->d_pivots)
+#define lpivots     (idadls_mem->d_lpivots)
 #define nje         (idadls_mem->d_nje)
 #define nreDQ       (idadls_mem->d_nreDQ)
 #define jacdata     (idadls_mem->d_J_data)
@@ -109,7 +108,7 @@ static void IDABandFreeB(IDABMem IDAB_mem);
  * the d_bjac field to be:
  *   (1) the input parameter bjac, if bjac != NULL, or
  *   (2) IDABandDQJac, if bjac == NULL.
- * Finally, it allocates memory for JJ and pivots.
+ * Finally, it allocates memory for JJ and lpivots.
  * IDABand returns IDADLS_SUCCESS = 0, IDADLS_LMEM_FAIL = -1,
  * or IDADLS_ILL_INPUT = -2.
  *
@@ -120,7 +119,7 @@ static void IDABandFreeB(IDABMem IDAB_mem);
  * -----------------------------------------------------------------
  */
 
-int IDABand(void *ida_mem, int Neq, int mupper, int mlower)
+int IDABand(void *ida_mem, long int Neq, long int mupper, long int mlower)
 {
   IDAMem IDA_mem;
   IDADlsMem idadls_mem;
@@ -191,9 +190,9 @@ int IDABand(void *ida_mem, int Neq, int mupper, int mlower)
     return(IDADLS_MEM_FAIL);
   }
 
-  pivots = NULL;
-  pivots = NewIntArray(Neq);
-  if (pivots == NULL) {
+  lpivots = NULL;
+  lpivots = NewLintArray(Neq);
+  if (lpivots == NULL) {
     IDAProcessError(IDA_mem, IDADLS_MEM_FAIL, "IDASBAND", "IDABand", MSGD_MEM_FAIL);
     DestroyMat(JJ);
     free(idadls_mem); idadls_mem = NULL;
@@ -278,7 +277,7 @@ static int IDABandSetup(IDAMem IDA_mem, N_Vector yyp, N_Vector ypp,
   }
 
   /* Do LU factorization of JJ; return success or fail flag. */
-  retfac = BandGBTRF(JJ, pivots);
+  retfac = BandGBTRF(JJ, lpivots);
   
   if (retfac != 0) {
     last_flag = retfac;
@@ -302,7 +301,7 @@ static int IDABandSolve(IDAMem IDA_mem, N_Vector b, N_Vector weight,
   idadls_mem = (IDADlsMem) lmem;
   
   bd = N_VGetArrayPointer(b);
-  BandGBTRS(JJ, pivots, bd);
+  BandGBTRS(JJ, lpivots, bd);
 
   /* Scale the correction to account for change in cj. */
   if (cjratio != ONE) N_VScale(TWO/(ONE + cjratio), b, b);
@@ -322,7 +321,7 @@ static int IDABandFree(IDAMem IDA_mem)
   idadls_mem = (IDADlsMem) lmem;
   
   DestroyMat(JJ);
-  DestroyArray(pivots);
+  DestroyArray(lpivots);
   free(lmem); lmem = NULL;
 
   return(0);
@@ -344,7 +343,7 @@ static int IDABandFree(IDAMem IDA_mem)
  */
 
 int IDABandB(void *ida_mem, int which,
-             int NeqB, int mupperB, int mlowerB)
+             long int NeqB, long int mupperB, long int mlowerB)
 {
   IDAMem IDA_mem;
   IDAadjMem IDAADJ_mem;

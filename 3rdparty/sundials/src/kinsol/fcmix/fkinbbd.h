@@ -1,7 +1,7 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 1.6 $
- * $Date: 2008/04/18 17:23:05 $
+ * $Revision: 1.8 $
+ * $Date: 2010/12/15 19:40:08 $
  * -----------------------------------------------------------------
  * Programmer(s): Allan Taylor, Alan Hindmarsh, Radu Serban, and
  *                Aaron Collier @ LLNL
@@ -261,12 +261,12 @@ extern "C" {
  * -----------------------------------------------------------------
  */
 
-#if defined(F77_FUNC)
+#if defined(SUNDIALS_F77_FUNC)
 
-#define FKIN_BBDINIT    F77_FUNC(fkinbbdinit, FKINBBDINIT)
-#define FKIN_BBDOPT     F77_FUNC(fkinbbdopt, FKINBBDOPT)
-#define FK_COMMFN       F77_FUNC(fkcommfn, FKCOMMFN)
-#define FK_LOCFN        F77_FUNC(fklocfn, FKLOCFN)
+#define FKIN_BBDINIT    SUNDIALS_F77_FUNC(fkinbbdinit, FKINBBDINIT)
+#define FKIN_BBDOPT     SUNDIALS_F77_FUNC(fkinbbdopt, FKINBBDOPT)
+#define FK_COMMFN       SUNDIALS_F77_FUNC(fkcommfn, FKCOMMFN)
+#define FK_LOCFN        SUNDIALS_F77_FUNC(fklocfn, FKLOCFN)
 
 #else
 
@@ -283,8 +283,8 @@ extern "C" {
  * -----------------------------------------------------------------
  */
 
-void FKIN_BBDINIT(int *nlocal, int *mudq, int *mldq,
-		  int *mu, int *ml, int *ier);
+void FKIN_BBDINIT(long int *nlocal, long int *mudq, long int *mldq,
+		  long int *mu, long int *ml, int *ier);
 void FKIN_BBDOPT(long int *lenrpw, long int *lenipw, long int *nge);
 
 /*
@@ -293,8 +293,8 @@ void FKIN_BBDOPT(long int *lenrpw, long int *lenipw, long int *nge);
  * -----------------------------------------------------------------
  */
 
-int FKINgloc(int Nloc, N_Vector uu, N_Vector gval, void *user_data);
-int FKINgcomm(int Nloc, N_Vector uu, void *user_data);
+int FKINgloc(long int Nloc, N_Vector uu, N_Vector gval, void *user_data);
+int FKINgcomm(long int Nloc, N_Vector uu, void *user_data);
 
 #ifdef __cplusplus
 }

@@ -5,7 +5,7 @@
 %   and must return a vector GLOC corresponding to an approximation to f(t,yy,yp)
 %   which will be used in the BBDPRE preconditioner module. The case where
 %   G is mathematically identical to F is allowed.
-%   If a user data structure DATA was specified in IDAMalloc, then
+%   If a user data structure DATA was specified in IDAInit, then
 %   GLOCFUN must be defined as
 %        FUNCTION [GLOC, FLAG, NEW_DATA] = GLOCFUN(T,YY,YP,DATA)
 %   If the local modifications to the user data structure are needed 
@@ -26,4 +26,4 @@
 
 % Radu Serban <radu@llnl.gov>
 % Copyright (c) 2007, The Regents of the University of California.
-% $Revision: 1.2 $Date: 2007/08/21 17:38:44 $
+% $Revision: 1.3 $Date: 2011/05/26 00:01:23 $

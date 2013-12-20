@@ -1,7 +1,7 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 1.10 $
- * $Date: 2007/08/21 17:42:39 $
+ * $Revision: 1.12 $
+ * $Date: 2012/03/07 21:44:21 $
  * -----------------------------------------------------------------
  * Programmer: Radu Serban @ LLNL
  * -----------------------------------------------------------------
@@ -53,7 +53,7 @@ int mxW_CVodeRhs(realtype t, N_Vector y, N_Vector yd, void *user_data)
   fwdPb = (cvmPbData) user_data;
 
   /* Inputs to the Matlab function */
-  mx_in[0] = mxCreateScalarDouble(t);          /* current t */
+  mx_in[0] = mxCreateDoubleScalar(t);          /* current t */
   mx_in[1] = mxCreateDoubleMatrix(N,1,mxREAL); /* current y */
   mx_in[2] = fwdPb->RHSfct;                    /* matlab function handle */ 
   mx_in[3] = fwdPb->mtlb_data;                 /* matlab user data */
@@ -90,7 +90,7 @@ int mxW_CVodeQUADfct(realtype t, N_Vector y, N_Vector yQd, void *user_data)
   fwdPb = (cvmPbData) user_data;
 
   /* Inputs to the Matlab function */
-  mx_in[0] = mxCreateScalarDouble(t);          /* current t */
+  mx_in[0] = mxCreateDoubleScalar(t);          /* current t */
   mx_in[1] = mxCreateDoubleMatrix(N,1,mxREAL); /* current y */
   mx_in[2] = fwdPb->QUADfct;                   /* matlab function handle */ 
   mx_in[3] = fwdPb->mtlb_data;                 /* matlab user data */
@@ -128,7 +128,7 @@ int mxW_CVodeGfct(realtype t, N_Vector y, double *g, void *user_data)
   fwdPb = (cvmPbData) user_data;
 
   /* Inputs to the Matlab function */
-  mx_in[0] = mxCreateScalarDouble(t);          /* current t */
+  mx_in[0] = mxCreateDoubleScalar(t);          /* current t */
   mx_in[1] = mxCreateDoubleMatrix(N,1,mxREAL); /* current y */
   mx_in[2] = fwdPb->Gfct;                      /* matlab function handle */
   mx_in[3] = fwdPb->mtlb_data;                 /* matlab user data */
@@ -158,7 +158,7 @@ int mxW_CVodeGfct(realtype t, N_Vector y, double *g, void *user_data)
 }
 
 
-int mxW_CVodeDenseJac(int Neq, realtype t,
+int mxW_CVodeDenseJac(long int Neq, realtype t,
                       N_Vector y, N_Vector fy, 
                       DlsMat J, void *user_data,
                       N_Vector tmp1, N_Vector tmp2, N_Vector tmp3)
@@ -173,7 +173,7 @@ int mxW_CVodeDenseJac(int Neq, realtype t,
   fwdPb = (cvmPbData) user_data;
 
   /* Inputs to the Matlab function */
-  mx_in[0] = mxCreateScalarDouble(t);           /* current t */  
+  mx_in[0] = mxCreateDoubleScalar(t);           /* current t */  
   mx_in[1] = mxCreateDoubleMatrix(N,1,mxREAL);  /* current y */
   mx_in[2] = mxCreateDoubleMatrix(N,1,mxREAL);  /* current fy */
   mx_in[3] = fwdPb->JACfct;                     /* matlab function handle */
@@ -207,21 +207,22 @@ int mxW_CVodeDenseJac(int Neq, realtype t,
   return(ret);
 }
 
-int mxW_CVodeBandJac(int Neq, int mupper, int mlower, realtype t,
+int mxW_CVodeBandJac(long int Neq, long int mupper, long int mlower, realtype t,
                      N_Vector y, N_Vector fy, 
                      DlsMat J, void *user_data,
                      N_Vector tmp1, N_Vector tmp2, N_Vector tmp3)
 {
   cvmPbData fwdPb;
   double *J_data;
-  int eband, i, ret;
+  long int eband, i;
+  int ret;
   mxArray *mx_in[5], *mx_out[3];
 
   /* Extract global interface data from user-data */
   fwdPb = (cvmPbData) user_data;
 
   /* Inputs to the Matlab function */
-  mx_in[0] = mxCreateScalarDouble(t);           /* current t */
+  mx_in[0] = mxCreateDoubleScalar(t);           /* current t */
   mx_in[1] = mxCreateDoubleMatrix(N,1,mxREAL);  /* current y */
   mx_in[2] = mxCreateDoubleMatrix(N,1,mxREAL);  /* current fy */
   mx_in[3] = fwdPb->JACfct;                     /* matlab function handle */
@@ -269,7 +270,7 @@ int mxW_CVodeSpilsJac(N_Vector v, N_Vector Jv, realtype t,
   fwdPb = (cvmPbData) user_data;
 
   /* Inputs to the Matlab function */
-  mx_in[0] = mxCreateScalarDouble(t);           /* current t */ 
+  mx_in[0] = mxCreateDoubleScalar(t);           /* current t */ 
   mx_in[1] = mxCreateDoubleMatrix(N,1,mxREAL);  /* current y */
   mx_in[2] = mxCreateDoubleMatrix(N,1,mxREAL);  /* current fy */
   mx_in[3] = mxCreateDoubleMatrix(N,1,mxREAL);  /* vector v */
@@ -317,11 +318,11 @@ int mxW_CVodeSpilsPset(realtype t, N_Vector y, N_Vector fy,
   fwdPb = (cvmPbData) user_data;
 
   /* Inputs to the Matlab function */
-  mx_in[0] = mxCreateScalarDouble(t);           /* current t */
+  mx_in[0] = mxCreateDoubleScalar(t);           /* current t */
   mx_in[1] = mxCreateDoubleMatrix(N,1,mxREAL);  /* current y */
   mx_in[2] = mxCreateDoubleMatrix(N,1,mxREAL);  /* current fy */
   mx_in[3] = mxCreateLogicalScalar(jok);        /* jok flag */
-  mx_in[4] = mxCreateScalarDouble(gamma);       /* gamma value */
+  mx_in[4] = mxCreateDoubleScalar(gamma);       /* gamma value */
   mx_in[5] = fwdPb->PSETfct;                    /* matlab function handle */
   mx_in[6] = fwdPb->mtlb_data;                  /* matlab user data */
   
@@ -365,7 +366,7 @@ int mxW_CVodeSpilsPsol(realtype t, N_Vector y, N_Vector fy,
   fwdPb = (cvmPbData) user_data;
 
   /* Inputs to the Matlab function */
-  mx_in[0] = mxCreateScalarDouble(t);          /* current t */   
+  mx_in[0] = mxCreateDoubleScalar(t);          /* current t */   
   mx_in[1] = mxCreateDoubleMatrix(N,1,mxREAL); /* current y */
   mx_in[2] = mxCreateDoubleMatrix(N,1,mxREAL); /* current fy */
   mx_in[3] = mxCreateDoubleMatrix(N,1,mxREAL); /* right hand side r */
@@ -404,7 +405,7 @@ int mxW_CVodeSpilsPsol(realtype t, N_Vector y, N_Vector fy,
  * ----------------------------
  */
 
-int mxW_CVodeBBDgloc(int Nlocal, realtype t, N_Vector y,
+int mxW_CVodeBBDgloc(long int Nlocal, realtype t, N_Vector y,
                      N_Vector g, void *user_data)
 {
   cvmPbData fwdPb;
@@ -415,7 +416,7 @@ int mxW_CVodeBBDgloc(int Nlocal, realtype t, N_Vector y,
   fwdPb = (cvmPbData) user_data;
 
   /* Inputs to the Matlab function */
-  mx_in[0] = mxCreateScalarDouble(t);           /* current t */
+  mx_in[0] = mxCreateDoubleScalar(t);           /* current t */
   mx_in[1] = mxCreateDoubleMatrix(N,1,mxREAL);  /* current y */
   mx_in[2] = fwdPb->GLOCfct;                    /* matlab function handle */
   mx_in[3] = fwdPb->mtlb_data;                  /* matlab user data */
@@ -442,7 +443,7 @@ int mxW_CVodeBBDgloc(int Nlocal, realtype t, N_Vector y,
   return(ret);
 }
 
-int mxW_CVodeBBDgcom(int Nlocal, realtype t, N_Vector y, void *user_data)
+int mxW_CVodeBBDgcom(long int Nlocal, realtype t, N_Vector y, void *user_data)
 {
   cvmPbData fwdPb;
   mxArray *mx_in[4], *mx_out[2];
@@ -452,7 +453,7 @@ int mxW_CVodeBBDgcom(int Nlocal, realtype t, N_Vector y, void *user_data)
   fwdPb = (cvmPbData) user_data;
 
   /* Inputs to the Matlab function */
-  mx_in[0] = mxCreateScalarDouble(t);           /* current t */
+  mx_in[0] = mxCreateDoubleScalar(t);           /* current t */
   mx_in[1] = mxCreateDoubleMatrix(N,1,mxREAL);  /* current y */
   mx_in[2] = fwdPb->GCOMfct;                    /* matlab function handle */
   mx_in[3] = fwdPb->mtlb_data;                  /* matlab user data */
@@ -498,10 +499,10 @@ int mxW_CVodeSensRhs(int Nsens, realtype t,
   fwdPb = (cvmPbData) user_data;
 
   /* Inputs to the Matlab function */
-  mx_in[0] = mxCreateScalarDouble(t);             /* current t */
+  mx_in[0] = mxCreateDoubleScalar(t);             /* current t */
   mx_in[1] = mxCreateDoubleMatrix(N,1,mxREAL);    /* current y */
   mx_in[2] = mxCreateDoubleMatrix(N,1,mxREAL);    /* current yd */
-  mx_in[3] = mxCreateScalarDouble(Ns);            /* number of sensitivities */
+  mx_in[3] = mxCreateDoubleScalar(Ns);            /* number of sensitivities */
   mx_in[4] = mxCreateDoubleMatrix(N*Ns,1,mxREAL); /* current yS */
   mx_in[5] = fwdPb->SRHSfct;                      /* matlab function handle */      
   mx_in[6] = fwdPb->mtlb_data;                    /* matlab user data */
@@ -558,8 +559,8 @@ int mxW_CVodeRhsB(realtype t, N_Vector y, N_Vector yB, N_Vector yBd, void *user_
   fwdPb = bckPb->fwd;
 
   /* Inputs to the Matlab function */
-  mx_in[0] = mxCreateScalarDouble(0.0);         /* type=0: not dependent on yS */
-  mx_in[1] = mxCreateScalarDouble(t);           /* current t */
+  mx_in[0] = mxCreateDoubleScalar(0.0);         /* type=0: not dependent on yS */
+  mx_in[1] = mxCreateDoubleScalar(t);           /* current t */
   mx_in[2] = mxCreateDoubleMatrix(N,1,mxREAL);  /* current y */
   mx_in[3] = mxCreateDoubleMatrix(NB,1,mxREAL); /* current yB */
   mx_in[4] = bckPb->RHSfct;                     /* matlab function handle */ 
@@ -605,10 +606,10 @@ int mxW_CVodeRhsBS(realtype t, N_Vector y,  N_Vector *yS,
   fwdPb = bckPb->fwd;
 
   /* Inputs to the Matlab function */
-  mx_in[0] = mxCreateScalarDouble(1.0);           /* type=1: dependent on yS */
-  mx_in[1] = mxCreateScalarDouble(t);             /* current t */
+  mx_in[0] = mxCreateDoubleScalar(1.0);           /* type=1: dependent on yS */
+  mx_in[1] = mxCreateDoubleScalar(t);             /* current t */
   mx_in[2] = mxCreateDoubleMatrix(N,1,mxREAL);    /* current y */
-  mx_in[3] = mxCreateScalarDouble(Ns);            /* number of sensitivities */
+  mx_in[3] = mxCreateDoubleScalar(Ns);            /* number of sensitivities */
   mx_in[4] = mxCreateDoubleMatrix(N*Ns,1,mxREAL); /* current yS */
   mx_in[5] = mxCreateDoubleMatrix(NB,1,mxREAL);   /* current yB */
   mx_in[6] = bckPb->RHSfct;                       /* matlab function handle */ 
@@ -660,8 +661,8 @@ int mxW_CVodeQUADfctB(realtype t, N_Vector y, N_Vector yB, N_Vector yQBd, void *
   fwdPb = bckPb->fwd;
 
   /* Inputs to the Matlab function */
-  mx_in[0] = mxCreateScalarDouble(0.0);         /* type=0: not dependent on yS */
-  mx_in[1] = mxCreateScalarDouble(t);           /* current t */
+  mx_in[0] = mxCreateDoubleScalar(0.0);         /* type=0: not dependent on yS */
+  mx_in[1] = mxCreateDoubleScalar(t);           /* current t */
   mx_in[2] = mxCreateDoubleMatrix(N,1,mxREAL);  /* current y */
   mx_in[3] = mxCreateDoubleMatrix(NB,1,mxREAL); /* current yB */
   mx_in[4] = bckPb->QUADfct;                    /* matlab function handle */ 
@@ -707,10 +708,10 @@ int mxW_CVodeQUADfctBS(realtype t, N_Vector y,  N_Vector *yS,
   fwdPb = bckPb->fwd;
 
   /* Inputs to the Matlab function */
-  mx_in[0] = mxCreateScalarDouble(1.0);           /* type=1: dependent on yS */
-  mx_in[1] = mxCreateScalarDouble(t);             /* current t */
+  mx_in[0] = mxCreateDoubleScalar(1.0);           /* type=1: dependent on yS */
+  mx_in[1] = mxCreateDoubleScalar(t);             /* current t */
   mx_in[2] = mxCreateDoubleMatrix(N,1,mxREAL);    /* current y */
-  mx_in[3] = mxCreateScalarDouble(Ns);            /* number of sensitivities */
+  mx_in[3] = mxCreateDoubleScalar(Ns);            /* number of sensitivities */
   mx_in[4] = mxCreateDoubleMatrix(N*Ns,1,mxREAL); /* current yS */
   mx_in[5] = mxCreateDoubleMatrix(NB,1,mxREAL);   /* current yB */
   mx_in[6] = bckPb->QUADfct;                      /* matlab function handle */ 
@@ -753,7 +754,7 @@ int mxW_CVodeQUADfctBS(realtype t, N_Vector y,  N_Vector *yS,
 
 
 
-int mxW_CVodeDenseJacB(int NeqB, realtype t,
+int mxW_CVodeDenseJacB(long int NeqB, realtype t,
                        N_Vector y, N_Vector yB, N_Vector fyB,
                        DlsMat JB, void *user_dataB, 
                        N_Vector tmp1B, N_Vector tmp2B, N_Vector tmp3B)
@@ -768,7 +769,7 @@ int mxW_CVodeDenseJacB(int NeqB, realtype t,
   fwdPb = bckPb->fwd;
 
   /* Inputs to the Matlab function */
-  mx_in[0] = mxCreateScalarDouble(t);           /* current t */  
+  mx_in[0] = mxCreateDoubleScalar(t);           /* current t */  
   mx_in[1] = mxCreateDoubleMatrix(N,1,mxREAL);  /* current y */
   mx_in[2] = mxCreateDoubleMatrix(NB,1,mxREAL); /* current yB */
   mx_in[3] = mxCreateDoubleMatrix(NB,1,mxREAL); /* current fyB */
@@ -805,7 +806,7 @@ int mxW_CVodeDenseJacB(int NeqB, realtype t,
 }
 
 
-int mxW_CVodeBandJacB(int NeqB, int mupperB, int mlowerB, realtype t, 
+int mxW_CVodeBandJacB(long int NeqB, long int mupperB, long int mlowerB, realtype t, 
                        N_Vector y, N_Vector yB, N_Vector fyB,
                        DlsMat JB, void *user_dataB, 
                        N_Vector tmp1B, N_Vector tmp2B, N_Vector tmp3B)
@@ -813,14 +814,15 @@ int mxW_CVodeBandJacB(int NeqB, int mupperB, int mlowerB, realtype t,
   cvmPbData fwdPb, bckPb;
   double *JB_data;
   mxArray *mx_in[6], *mx_out[3];
-  int ebandB, i, ret;
+  long int ebandB, i;
+  int ret;
 
   /* Extract global interface data from user-data */
   bckPb = (cvmPbData) user_dataB;
   fwdPb = bckPb->fwd;
 
   /* Inputs to the Matlab function */
-  mx_in[0] = mxCreateScalarDouble(t);           /* current t */
+  mx_in[0] = mxCreateDoubleScalar(t);           /* current t */
   mx_in[1] = mxCreateDoubleMatrix(N,1,mxREAL);  /* current y */
   mx_in[2] = mxCreateDoubleMatrix(NB,1,mxREAL); /* current yB */
   mx_in[3] = mxCreateDoubleMatrix(NB,1,mxREAL); /* current fyB */
@@ -871,7 +873,7 @@ int mxW_CVodeSpilsJacB(N_Vector vB, N_Vector JvB, realtype t,
   fwdPb = bckPb->fwd;
 
   /* Inputs to the Matlab function */
-  mx_in[0] = mxCreateScalarDouble(t);           /* current t */ 
+  mx_in[0] = mxCreateDoubleScalar(t);           /* current t */ 
   mx_in[1] = mxCreateDoubleMatrix(N,1,mxREAL);  /* current y */
   mx_in[2] = mxCreateDoubleMatrix(NB,1,mxREAL); /* current yB */
   mx_in[3] = mxCreateDoubleMatrix(NB,1,mxREAL); /* current fyB */
@@ -926,12 +928,12 @@ int mxW_CVodeSpilsPsetB(realtype t, N_Vector y,
   fwdPb = bckPb->fwd;
 
   /* Inputs to the Matlab function */
-  mx_in[0] = mxCreateScalarDouble(t);           /* current t */
+  mx_in[0] = mxCreateDoubleScalar(t);           /* current t */
   mx_in[1] = mxCreateDoubleMatrix(N,1,mxREAL);  /* current y */
   mx_in[2] = mxCreateDoubleMatrix(NB,1,mxREAL); /* current yB */
   mx_in[3] = mxCreateDoubleMatrix(NB,1,mxREAL); /* current fyB */
   mx_in[4] = mxCreateLogicalScalar(jokB);       /* jokB flag */
-  mx_in[5] = mxCreateScalarDouble(gammaB);      /* gammaB value */
+  mx_in[5] = mxCreateDoubleScalar(gammaB);      /* gammaB value */
   mx_in[6] = bckPb->PSETfct;                    /* matlab function handle */
   mx_in[7] = bckPb->mtlb_data;                  /* matlab user data */
   
@@ -980,7 +982,7 @@ int mxW_CVodeSpilsPsolB(realtype t, N_Vector y,
   fwdPb = bckPb->fwd;
 
   /* Inputs to the Matlab function */
-  mx_in[0] = mxCreateScalarDouble(t);           /* current t */   
+  mx_in[0] = mxCreateDoubleScalar(t);           /* current t */   
   mx_in[1] = mxCreateDoubleMatrix(N,1,mxREAL);  /* current y */
   mx_in[2] = mxCreateDoubleMatrix(NB,1,mxREAL); /* current yB */
   mx_in[3] = mxCreateDoubleMatrix(NB,1,mxREAL); /* current fyB */
@@ -1017,7 +1019,7 @@ int mxW_CVodeSpilsPsolB(realtype t, N_Vector y,
 
 }
 
-int mxW_CVodeBBDglocB(int NlocalB, realtype t, N_Vector y,
+int mxW_CVodeBBDglocB(long int NlocalB, realtype t, N_Vector y,
                        N_Vector yB, N_Vector gB, void *user_dataB)
 {
   cvmPbData fwdPb, bckPb;
@@ -1029,7 +1031,7 @@ int mxW_CVodeBBDglocB(int NlocalB, realtype t, N_Vector y,
   fwdPb = bckPb->fwd;
 
   /* Inputs to the Matlab function */
-  mx_in[0] = mxCreateScalarDouble(t);           /* current t */
+  mx_in[0] = mxCreateDoubleScalar(t);           /* current t */
   mx_in[1] = mxCreateDoubleMatrix(N,1,mxREAL);  /* current y */
   mx_in[2] = mxCreateDoubleMatrix(NB,1,mxREAL); /* current yB */
   mx_in[3] = bckPb->GLOCfct;                    /* matlab function handle */
@@ -1060,7 +1062,7 @@ int mxW_CVodeBBDglocB(int NlocalB, realtype t, N_Vector y,
   return(ret);
 }
 
-int mxW_CVodeBBDgcomB(int NlocalB, realtype t, N_Vector y, 
+int mxW_CVodeBBDgcomB(long int NlocalB, realtype t, N_Vector y, 
                        N_Vector yB, void *user_dataB)
 {
   cvmPbData fwdPb, bckPb;
@@ -1072,7 +1074,7 @@ int mxW_CVodeBBDgcomB(int NlocalB, realtype t, N_Vector y,
   fwdPb = bckPb->fwd;
 
   /* Inputs to the Matlab function */
-  mx_in[0] = mxCreateScalarDouble(t);           /* current t */
+  mx_in[0] = mxCreateDoubleScalar(t);           /* current t */
   mx_in[1] = mxCreateDoubleMatrix(N,1,mxREAL);  /* current y */
   mx_in[2] = mxCreateDoubleMatrix(NB,1,mxREAL); /* current yB */
   mx_in[3] = bckPb->GCOMfct;                    /* matlab function handle */
@@ -1113,14 +1115,14 @@ void mxW_CVodeMonitor(int call, double t, N_Vector y, N_Vector yQ, N_Vector *yS,
   double *tmp;
   int is;
 
-  mx_in[0] = mxCreateScalarDouble(call);            /* call type (0:first, 1:interm. 2:last) */
-  mx_in[1] = mxCreateScalarDouble(t);               /* current time */
+  mx_in[0] = mxCreateDoubleScalar(call);            /* call type (0:first, 1:interm. 2:last) */
+  mx_in[1] = mxCreateDoubleScalar(t);               /* current time */
   mx_in[2] = mxCreateDoubleMatrix(N,1,mxREAL);      /* current solution */
   if (quadr)
     mx_in[3] = mxCreateDoubleMatrix(Nq,1,mxREAL);   /* current quadratures */
   else
     mx_in[3] = mxCreateDoubleMatrix(0,0,mxREAL);
-  mx_in[4] = mxCreateScalarDouble(Ns);              /* number of sensitivities */
+  mx_in[4] = mxCreateDoubleScalar(Ns);              /* number of sensitivities */
   if (fsa)
     mx_in[5] = mxCreateDoubleMatrix(N*Ns,1,mxREAL); /* current sensitivities */
   else
@@ -1163,9 +1165,9 @@ void mxW_CVodeMonitorB(int call, int idxB, double tB, N_Vector yB, N_Vector yQB,
 {
   mxArray *mx_in[7], *mx_out[1];
 
-  mx_in[0] = mxCreateScalarDouble(call);            /* 0: first, 1: interm. 2: last */
-  mx_in[1] = mxCreateScalarDouble(idxB);            /* index of current problem */
-  mx_in[2] = mxCreateScalarDouble(tB);              /* current time */
+  mx_in[0] = mxCreateDoubleScalar(call);            /* 0: first, 1: interm. 2: last */
+  mx_in[1] = mxCreateDoubleScalar(idxB);            /* index of current problem */
+  mx_in[2] = mxCreateDoubleScalar(tB);              /* current time */
   mx_in[3] = mxCreateDoubleMatrix(NB,1,mxREAL);     /* current solution */
   if (quadrB)
     mx_in[4] = mxCreateDoubleMatrix(NqB,1,mxREAL);  /* current quadratures */

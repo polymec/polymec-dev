@@ -4,7 +4,7 @@
 %        FUNCTION [YQD, FLAG] = QFUN(T, YY, YP)
 %   and must return a vector YQD corresponding to fQ(t,yy,yp), the 
 %   integrand for the integral to be evaluated.
-%   If a user data structure DATA was specified in IDAMalloc, then
+%   If a user data structure DATA was specified in IDAInit, then
 %   QFUN must be defined as
 %        FUNCTION [YQD, FLAG, NEW_DATA] = QFUN(T, YY, YP, DATA)
 %   If the local modifications to the user data structure are needed in
@@ -21,4 +21,4 @@
 
 % Radu Serban <radu@llnl.gov>
 % Copyright (c) 2005, The Regents of the University of California.
-% $Revision: 1.2 $Date: 2007/08/21 17:38:44 $
+% $Revision: 1.3 $Date: 2011/05/26 00:01:23 $

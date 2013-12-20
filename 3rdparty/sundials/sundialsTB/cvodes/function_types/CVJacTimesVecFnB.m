@@ -5,7 +5,7 @@
 %   or as
 %        FUNCTION [JVB, FLAG, NEW_DATA] = JTVFUNB(T,Y,YB,FYB,VB,DATA)
 %   depending on whether a user data structure DATA was specified in
-%   CVodeMalloc. In either case, it must return the vector JVB, the
+%   CVodeInit. In either case, it must return the vector JVB, the
 %   product of the Jacobian of fB(t,y,yB) with respect to yB and a vector
 %   vB. The input argument FYB contains the current value of f(t,y,yB).
 %
@@ -20,4 +20,4 @@
 
 % Radu Serban <radu@llnl.gov>
 % Copyright (c) 2005, The Regents of the University of California.
-% $Revision: 1.1 $Date: 2007/05/11 18:51:33 $
+% $Revision: 1.2 $Date: 2011/06/01 20:44:05 $

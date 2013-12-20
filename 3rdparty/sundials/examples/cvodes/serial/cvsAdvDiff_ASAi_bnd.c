@@ -1,7 +1,7 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 1.1 $
- * $Date: 2007/10/25 20:03:32 $
+ * $Revision: 1.3 $
+ * $Date: 2011/11/23 23:53:02 $
  * -----------------------------------------------------------------
  * Programmer(s): Radu Serban @ LLNL
  * -----------------------------------------------------------------
@@ -93,14 +93,14 @@ typedef struct {
 
 static int f(realtype t, N_Vector u, N_Vector udot, void *user_data);
 
-static int Jac(int N, int mu, int ml,
+static int Jac(long int N, long int mu, long int ml,
                realtype t, N_Vector u, N_Vector fu, 
                DlsMat J, void *user_data,
                N_Vector tmp1, N_Vector tmp2, N_Vector tmp3); 
 
 static int fB(realtype tB, N_Vector u, N_Vector uB, N_Vector uBdot, void *user_dataB);
 
-static int JacB(int NB, int muB, int mlB,
+static int JacB(long int NB, long int muB, long int mlB,
                 realtype tB, N_Vector u, 
                 N_Vector uB, N_Vector fuB,
                 DlsMat JB, void *user_dataB,
@@ -195,6 +195,8 @@ int main(int argc, char *argv[])
   printf("\nForward integration\n");
   flag = CVodeF(cvode_mem, TOUT, u, &t, CV_NORMAL, &ncheck);
   if(check_flag(&flag, "CVodeF", 1)) return(1);
+
+  printf("\nncheck = %d\n", ncheck);
 
   /* Set the tolerances for the backward integration */
   reltolB = RTOLB;
@@ -304,7 +306,7 @@ static int f(realtype t, N_Vector u, N_Vector udot, void *user_data)
  * Jac function. Jacobian of forward ODE.
  */
 
-static int Jac(int N, int mu, int ml,
+static int Jac(long int N, long int mu, long int ml,
                realtype t, N_Vector u, N_Vector fu, 
                DlsMat J, void *user_data,
                N_Vector tmp1, N_Vector tmp2, N_Vector tmp3)
@@ -400,7 +402,7 @@ static int fB(realtype tB, N_Vector u, N_Vector uB, N_Vector uBdot,
  * JacB function. Jacobian of backward ODE
  */
 
-static int JacB(int NB, int muB, int mlB,
+static int JacB(long int NB, long int muB, long int mlB,
                 realtype tB, N_Vector u, 
                 N_Vector uB, N_Vector fuB,
                 DlsMat JB, void *user_dataB,

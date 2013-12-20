@@ -13,7 +13,7 @@
 # ------------------------------------------------------------------------
 
 # Initialize configure
-AC_INIT(SUNDIALS, 2.4.0, radu@llnl.gov)
+AC_INIT(SUNDIALS, 2.5.0, radu@llnl.gov)
 
 # Display greeting
 SUNDIALS_GREETING

@@ -1,7 +1,7 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 1.29 $
- * $Date: 2009/05/06 21:49:02 $
+ * $Revision: 1.34 $
+ * $Date: 2012/03/06 21:58:49 $
  * ----------------------------------------------------------------- 
  * Programmer(s): Alan C. Hindmarsh and Radu Serban @ LLNL
  * -----------------------------------------------------------------
@@ -199,6 +199,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
+#include <string.h>
 
 #include "cvodes_impl.h"
 #include <sundials/sundials_math.h>
@@ -647,6 +648,9 @@ void *CVodeCreate(int lmm, int iter)
     cvProcessError(NULL, 0, "CVODES", "CVodeCreate", MSGCV_CVMEM_FAIL);
     return(NULL);
   }
+
+  /* Zero out cv_mem */
+  memset(cv_mem, 0, sizeof(struct CVodeMemRec));
 
   maxord = (lmm == CV_ADAMS) ? ADAMS_Q_MAX : BDF_Q_MAX;
 
@@ -3038,6 +3042,12 @@ int CVode(void *cvode_mem, realtype tout, N_Vector yout,
     
     nstloc++;
 
+    /* If tstop is set and was reached, reset tn = tstop */
+    if ( tstopset ) {
+      troundoff = FUZZ_FACTOR*uround*(ABS(tn) + ABS(h));
+      if ( ABS(tn - tstop) <= troundoff) tn = tstop;
+    }
+
     /* Check for root in last step taken. */    
     if (nrtfn > 0) {
       
@@ -3084,7 +3094,7 @@ int CVode(void *cvode_mem, realtype tout, N_Vector yout,
       break;
     }
 
-    /* Check if tn is at tstop or near tstop */
+    /* Check if tn is at tstop, or about to pass tstop */
     if ( tstopset ) {
 
       troundoff = FUZZ_FACTOR*uround*(ABS(tn) + ABS(h));
@@ -5831,11 +5841,14 @@ static void cvSetTqBDF(CVodeMem cv_mem, realtype hsum, realtype alpha0,
   tq[2] = ABS(A1 / (alpha0 * A2));
   tq[5] = ABS(A2 * xistar_inv / (l[q] * xi_inv));
   if (qwait == 1) {
-    C = xistar_inv / l[q];
-    A3 = alpha0 + ONE / q;
-    A4 = alpha0_hat + xi_inv;
-    Cpinv = (ONE - A4 + A3) / A3;
-    tq[1] = ABS(C * Cpinv);
+    if (q > 1) {
+      C = xistar_inv / l[q];
+      A3 = alpha0 + ONE / q;
+      A4 = alpha0_hat + xi_inv;
+      Cpinv = (ONE - A4 + A3) / A3;
+      tq[1] = ABS(C * Cpinv);
+    }
+    else tq[1] = ONE;
     hsum += tau[q];
     xi_inv = h / hsum;
     A5 = alpha0 - (ONE / (q+1));
@@ -8009,7 +8022,7 @@ static int cvSLdet(CVodeMem cv_mem)
 static int cvRcheck1(CVodeMem cv_mem)
 {
   int i, retval;
-  realtype smallh, hratio;
+  realtype smallh, hratio, tplus;
   booleantype zroot;
 
   for (i = 0; i < nrtfn; i++) iroots[i] = 0;
@@ -8033,9 +8046,9 @@ static int cvRcheck1(CVodeMem cv_mem)
   /* Some g_i is zero at t0; look at g at t0+(small increment). */
   hratio = MAX(ttol/ABS(h), TENTH);
   smallh = hratio*h;
-  tlo += smallh;
+  tplus = tlo + smallh;
   N_VLinearSum(ONE, zn[0], hratio, zn[1], y);
-  retval = gfun(tlo, y, glo, user_data);
+  retval = gfun(tplus, y, ghi, user_data);
   nge++;
   if (retval != 0) return(CV_RTFUNC_FAIL);
 
@@ -8043,11 +8056,11 @@ static int cvRcheck1(CVodeMem cv_mem)
    * to see if we can 'activate' them. */
 
   for (i = 0; i < nrtfn; i++) {
-    if (!gactive[i] && ABS(glo[i]) != ZERO) {
+    if (!gactive[i] && ABS(ghi[i]) != ZERO) {
       gactive[i] = TRUE;
+      glo[i] = ghi[i];
     }
   }
-
   return(CV_SUCCESS);
 }
 
@@ -8055,9 +8068,9 @@ static int cvRcheck1(CVodeMem cv_mem)
  * cvRcheck2
  *
  * This routine checks for exact zeros of g at the last root found,
- * if the last return was a root.  It then checks for a close
- * pair of zeros (an error condition), and for a new root at a
- * nearby point.  The left endpoint (tlo) of the search interval
+ * if the last return was a root.  It then checks for a close pair of
+ * zeros (an error condition), and for a new root at a nearby point.
+ * The array glo = g(tlo) at the left endpoint of the search interval
  * is adjusted if necessary to assure that all g_i are nonzero
  * there, before returning to do a root search in the interval.
  *
@@ -8075,7 +8088,7 @@ static int cvRcheck1(CVodeMem cv_mem)
 static int cvRcheck2(CVodeMem cv_mem)
 {
   int i, retval;
-  realtype smallh, hratio;
+  realtype smallh, hratio, tplus;
   booleantype zroot;
 
   if (irfnd == 0) return(CV_SUCCESS);
@@ -8099,29 +8112,32 @@ static int cvRcheck2(CVodeMem cv_mem)
   /* One or more g_i has a zero at tlo.  Check g at tlo+smallh. */
   ttol = (ABS(tn) + ABS(h))*uround*HUN;
   smallh = (h > ZERO) ? ttol : -ttol;
-  tlo += smallh;
-  if ( (tlo - tn)*h >= ZERO) {
+  tplus = tlo + smallh;
+  if ( (tplus - tn)*h >= ZERO) {
     hratio = smallh/h;
     N_VLinearSum(ONE, y, hratio, zn[1], y);
   } else {
-    (void) CVodeGetDky(cv_mem, tlo, 0, y);
+    (void) CVodeGetDky(cv_mem, tplus, 0, y);
   }
-  retval = gfun(tlo, y, glo, user_data);
+  retval = gfun(tplus, y, ghi, user_data);
   nge++;
   if (retval != 0) return(CV_RTFUNC_FAIL);
 
+  /* Check for close roots (error return), for a new zero at tlo+smallh,
+  and for a g_i that changed from zero to nonzero. */
   zroot = FALSE;
   for (i = 0; i < nrtfn; i++) {
-    if (ABS(glo[i]) == ZERO) {
+    if (ABS(ghi[i]) == ZERO) {
       if (!gactive[i]) continue;
       if (iroots[i] == 1) return(CLOSERT);
       zroot = TRUE;
       iroots[i] = 1;
+    } else {
+      if (iroots[i] == 1) glo[i] = ghi[i];
     }
   }
   if (zroot) return(RTFOUND);
   return(CV_SUCCESS);
-
 }
 
 /*

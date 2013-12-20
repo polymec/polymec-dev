@@ -1,7 +1,7 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 1.13 $
- * $Date: 2009/02/17 02:42:29 $
+ * $Revision: 1.16 $
+ * $Date: 2011/03/23 22:58:46 $
  * ----------------------------------------------------------------- 
  * Programmer(s): Radu Serban @ LLNL
  * -----------------------------------------------------------------
@@ -78,7 +78,7 @@ static void cvBandFreeB(CVodeBMem cvB_mem);
 #define mu         (cvdls_mem->d_mu)
 #define ml         (cvdls_mem->d_ml)
 #define smu        (cvdls_mem->d_smu)
-#define pivots     (cvdls_mem->d_pivots)
+#define lpivots    (cvdls_mem->d_lpivots)
 #define savedJ     (cvdls_mem->d_savedJ)
 #define nstlj      (cvdls_mem->d_nstlj)
 #define nje        (cvdls_mem->d_nje)
@@ -100,7 +100,7 @@ static void cvBandFreeB(CVodeBMem cvB_mem);
  * address of this structure.  It sets setupNonNull in (*cvode_mem) to be
  * TRUE, b_mu to be mupper, b_ml to be mlower, and the b_jac field to be 
  * CVBandDQJac.
- * Finally, it allocates memory for M, savedJ, and pivot.  The CVBand
+ * Finally, it allocates memory for M, savedJ, and lpivots.  The CVBand
  * return value is SUCCESS = 0, LMEM_FAIL = -1, or LIN_ILL_INPUT = -2.
  *
  * NOTE: The band linear solver assumes a serial implementation
@@ -111,7 +111,7 @@ static void cvBandFreeB(CVodeBMem cvB_mem);
  * -----------------------------------------------------------------
  */
                   
-int CVBand(void *cvode_mem, int N, int mupper, int mlower)
+int CVBand(void *cvode_mem, long int N, long int mupper, long int mlower)
 {
   CVodeMem cv_mem;
   CVDlsMem cvdls_mem;
@@ -167,6 +167,7 @@ int CVBand(void *cvode_mem, int N, int mupper, int mlower)
   /* Test ml and mu for legality */
   if ((ml < 0) || (mu < 0) || (ml >= N) || (mu >= N)) {
     cvProcessError(cv_mem, CVDLS_ILL_INPUT, "CVSBAND", "CVBand", MSGD_BAD_SIZES);
+    free(cvdls_mem); cvdls_mem = NULL;
     return(CVDLS_ILL_INPUT);
   }
 
@@ -189,9 +190,9 @@ int CVBand(void *cvode_mem, int N, int mupper, int mlower)
     free(cvdls_mem); cvdls_mem = NULL;
     return(CVDLS_MEM_FAIL);
   }
-  pivots = NULL;
-  pivots = NewIntArray(N);
-  if (pivots == NULL) {
+  lpivots = NULL;
+  lpivots = NewLintArray(N);
+  if (lpivots == NULL) {
     cvProcessError(cv_mem, CVDLS_MEM_FAIL, "CVSBAND", "CVBand", MSGD_MEM_FAIL);
     DestroyMat(M);
     DestroyMat(savedJ);
@@ -256,7 +257,8 @@ static int cvBandSetup(CVodeMem cv_mem, int convfail, N_Vector ypred,
   CVDlsMem cvdls_mem;
   booleantype jbad, jok;
   realtype dgamma;
-  int ier, retval;
+  int retval;
+  long int ier;
 
   cvdls_mem = (CVDlsMem) lmem;
 
@@ -302,7 +304,7 @@ static int cvBandSetup(CVodeMem cv_mem, int convfail, N_Vector ypred,
   AddIdentity(M);
 
   /* Do LU factorization of M */
-  ier = BandGBTRF(M, pivots);
+  ier = BandGBTRF(M, lpivots);
 
   /* Return 0 if the LU was complete; otherwise return 1 */
   if (ier > 0) {
@@ -332,7 +334,7 @@ static int cvBandSolve(CVodeMem cv_mem, N_Vector b, N_Vector weight,
 
   bd = N_VGetArrayPointer(b);
 
-  BandGBTRS(M, pivots, bd);
+  BandGBTRS(M, lpivots, bd);
 
   /* If CV_BDF, scale the correction to account for change in gamma */
   if ((lmm == CV_BDF) && (gamrat != ONE)) {
@@ -359,8 +361,9 @@ static void cvBandFree(CVodeMem cv_mem)
 
   DestroyMat(M);
   DestroyMat(savedJ);
-  DestroyArray(pivots);
-  free(cvdls_mem); cvdls_mem = NULL;
+  DestroyArray(lpivots);
+  free(cvdls_mem);
+  cv_mem->cv_lmem = NULL;
 }
 
 /* 
@@ -372,12 +375,12 @@ static void cvBandFree(CVodeMem cv_mem)
  */
 
 /*
- * CVBandB is a wraper around CVBand. It attaches the CVSBAND linear solver
+ * CVBandB is a wrapper around CVBand. It attaches the CVSBAND linear solver
  * to the backward problem memory block.
  */
 
 int CVBandB(void *cvode_mem, int which,
-            int nB, int mupperB, int mlowerB)
+            long int nB, long int mupperB, long int mlowerB)
 {
   CVodeMem cv_mem;
   CVadjMem ca_mem;

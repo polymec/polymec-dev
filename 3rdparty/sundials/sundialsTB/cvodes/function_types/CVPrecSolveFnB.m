@@ -10,7 +10,7 @@
 %   or as
 %        FUNCTION [ZB, FLAG, NEW_DATA] = PSOLFUNB(T,Y,YB,FYB,RB,DATA)
 %   depending on whether a user data structure DATA was specified in
-%   CVodeMalloc. In either case, it must return the vector ZB and the
+%   CVodeInit. In either case, it must return the vector ZB and the
 %   flag FLAG.
 %
 %   See also CVPrecSetupFnB, CVodeSetOptions
@@ -22,4 +22,4 @@
 
 % Radu Serban <radu@llnl.gov>
 % Copyright (c) 2005, The Regents of the University of California.
-% $Revision: 1.1 $Date: 2007/05/11 18:51:33 $
+% $Revision: 1.2 $Date: 2011/06/01 20:44:05 $
