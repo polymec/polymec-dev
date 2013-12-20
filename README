@@ -1,21 +1,22 @@
 Jeffrey N. Johnson
-January 15, 2013
+December 19, 2013
 
 Polymec (pronounced "polimec") is a set of libraries that can be used to
-construct models for linear and nonlinear physical systems. Specifically, 
-Polymec is designed with the goal of solving nonlinear partial differential 
-equations on arbitrary polyhedral grids such as 3D Voronoi tessellations.
-My areas of research in the development so far are:
+construct models for physical systems. Specifically, Polymec is designed with 
+the goal of solving nonlinear partial differential equations on arbitrary 
+polyhedral grids such as 3D Voronoi tessellations, or using mesh-free methods.
+The framework is designed to make for low-maintenance science applications 
+with robust capabilities. Areas of emphasis are:
 
-- High-quality, centroidal Voronoi grid generation
-- More sophisticated forms of time integration
-  - Stiffly-accurate fully-implicit integrators
-  - Stiffly-accurate, A-stable semi-implicit integrators such as 
-    Additive Runge-Kutta (ARK) methods
-- Multi-species and multi-phase hydrodynamics with diffusion
+- High-quality, robust geometry generation and representation.
+- Stiffly-accurate, A-stable implicit time integrators that use matrix-free 
+  Jacobian formulations with high-quality preconditioners without a lot of 
+  application-specific design.
+- A strategy that favors a small code footprint and good scalability, likely 
+  at the expense of implementations that run optimally on serial computers.
 
-Polymec is licensed under the Apache License, Version 2.0, which is described
-in the LICENSE file. The 3rd-party libraries used by Polymec have their own 
-licenses which are described within the source archives in the 3rdparty 
-directory. No source files have been modified within these archives, and 
-instructions for obtaining the distributions are given within.
+Polymec is licensed under the 2-clause modified BSD License, which is 
+described in the LICENSE file. The 3rd-party libraries used by Polymec have 
+their own licenses which are described within the source archives in the 
+3rdparty directory. No source files have been modified within these archives, 
+and instructions for obtaining the distributions are given within.
