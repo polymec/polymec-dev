@@ -21,3 +21,6 @@ set(POLYMEC_LIBS polymec_core;${POLYMEC_LIBS})
 add_subdirectory(tests)
 
 install(TARGETS polymec_core DESTINATION lib)
+file(GLOB HEADERS *.h)
+LIST(APPEND HEADERS ${CMAKE_CURRENT_BINARY_DIR}/polymec.h)
+install(FILES ${HEADERS} DESTINATION include/polymec/core)

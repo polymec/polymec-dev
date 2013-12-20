@@ -18,3 +18,5 @@ set(POLYMEC_LIBS polymec_geometry;${POLYMEC_LIBS})
 add_subdirectory(tests)
 
 install(TARGETS polymec_geometry DESTINATION lib)
+file(GLOB HEADERS *.h)
+install(FILES ${HEADERS} DESTINATION include/polymec/geometry)
