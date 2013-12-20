@@ -48,7 +48,7 @@ static int cubic_poly_1(N_Vector x, N_Vector F, void* context)
   return 0;
 }
 
-static int cubic_poly_1_jac(int N, N_Vector x, N_Vector F, DlsMat J,
+static int cubic_poly_1_jac(long N, N_Vector x, N_Vector F, DlsMat J,
                             void* context, N_Vector work1, N_Vector work2)
 {
   double X = NV_Ith_S(x, 0);
@@ -91,7 +91,7 @@ static int circle_2(N_Vector x, N_Vector F, void* context)
   return 0;
 }
 
-static int circle_2_jac(int N, N_Vector x, N_Vector F, DlsMat J, 
+static int circle_2_jac(long N, N_Vector x, N_Vector F, DlsMat J, 
                         void* context, N_Vector work1, N_Vector work2)
 {
   double X = NV_Ith_S(x, 0), Y = NV_Ith_S(x, 1);
@@ -134,7 +134,7 @@ static int sphere_3(N_Vector x, N_Vector F, void* context)
   return 0;
 }
 
-static int sphere_3_jac(int N, N_Vector x, N_Vector F, DlsMat J,
+static int sphere_3_jac(long N, N_Vector x, N_Vector F, DlsMat J,
                         void* context, N_Vector work1, N_Vector work2)
 {
   double X = NV_Ith_S(x, 0), Y = NV_Ith_S(x, 1), Z = NV_Ith_S(x, 2);

@@ -46,7 +46,7 @@ typedef int (*newton_system_func)(N_Vector X, N_Vector F, void* context);
 
 // This function represents the Jacobian of a nonlinear system of equations, 
 // and uses the KINSOL interface.
-typedef int (*newton_jacobian_func)(int N, N_Vector X, N_Vector F, DlsMat J,
+typedef int (*newton_jacobian_func)(long N, N_Vector X, N_Vector F, DlsMat J,
                                     void* context, N_Vector work1, N_Vector work2);
 
 // Creates a new Newton solver for the given system of equations represented

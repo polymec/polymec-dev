@@ -155,7 +155,7 @@
 
 typedef struct {
   realtype **P[MX][MY];
-  int *pivot[MX][MY];
+  long *pivot[MX][MY];
   realtype **acoef, *bcoef;
   N_Vector rates;
   realtype *cox, *coy;
@@ -447,7 +447,7 @@ static int PrecSolveBD(N_Vector cc, N_Vector cscale,
                        N_Vector ftem)
 {
   realtype **Pxy, *vxy;
-  int *piv, jx, jy;
+  long *piv, jx, jy;
   UserData data;
   
   data = (UserData)user_data;
@@ -529,7 +529,7 @@ static UserData AllocUserData(void)
   for (jx=0; jx < MX; jx++) {
     for (jy=0; jy < MY; jy++) {
       (data->P)[jx][jy] = newDenseMat(NUM_SPECIES, NUM_SPECIES);
-      (data->pivot)[jx][jy] = newIntArray(NUM_SPECIES);
+      (data->pivot)[jx][jy] = newLintArray(NUM_SPECIES);
     }
   }
   acoef = newDenseMat(NUM_SPECIES, NUM_SPECIES);
