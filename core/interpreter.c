@@ -714,7 +714,7 @@ static void interpreter_store_chunk_contents(interpreter_t* interp)
     {
       // Before we do anything, we validate the table.
       interpreter_var_type_t value_type = INTERPRETER_TERMINUS;
-      static const char* type_names[] = {"string", "number", "mesh", "function"};
+      static const char* type_names[] = {"string", "number", "boolean", "mesh", "function"};
       // Traverse this table and make sure its values are all of one type.
       lua_pushnil(lua);
       while (lua_next(lua, -2))
@@ -730,6 +730,7 @@ static void interpreter_store_chunk_contents(interpreter_t* interp)
             polymec_error("Type error: %s must be a sequence or a table mapping strings to objects.", key);
         }
         if (!lua_isnumber(lua, val_index) && 
+            !lua_isboolean(lua, val_index) && 
             !lua_isstring(lua, val_index) && 
             !lua_isuserdata(lua, val_index))
         {
@@ -795,6 +796,12 @@ static void interpreter_store_chunk_contents(interpreter_t* interp)
         {
           double* var = malloc(sizeof(double));
           *var = lua_tonumber(lua, val_index);
+          string_ptr_unordered_map_insert_with_kv_dtor(table, tkey, var, destroy_table_entry);
+        }
+        else if (lua_isboolean(lua, val_index))
+        {
+          bool* var = malloc(sizeof(bool));
+          *var = lua_toboolean(lua, val_index);
           string_ptr_unordered_map_insert_with_kv_dtor(table, tkey, var, destroy_table_entry);
         }
         else if (lua_isstring(lua, val_index))
