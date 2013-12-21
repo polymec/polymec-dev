@@ -161,6 +161,17 @@ static interpreter_storage_t* store_number(lua_State* lua, double var)
   return storage;
 }
 
+static interpreter_storage_t* store_boolean(lua_State* lua, bool var)
+{
+  interpreter_storage_t* storage = NEW_USER_DATA(lua);
+  bool* bvar = malloc(sizeof(bool));
+  *bvar = var;
+  storage->datum = bvar;
+  storage->type = INTERPRETER_BOOLEAN;
+  storage->dtor = free;
+  return storage;
+}
+
 static interpreter_storage_t* store_point(lua_State* lua, point_t* point)
 {
   interpreter_storage_t* storage = NEW_USER_DATA(lua);
@@ -653,6 +664,8 @@ static void interpreter_store_chunk_contents(interpreter_t* interp)
     interpreter_storage_t* var = NULL;
     if (lua_isnumber(lua, val_index))
       var = store_number(NULL, lua_tonumber(lua, val_index));
+    else if (lua_isboolean(lua, val_index))
+      var = store_boolean(NULL, lua_toboolean(lua, val_index));
     else if (lua_isstring(lua, val_index))
       var = store_string(NULL, lua_tostring(lua, val_index));
     else if (lua_issequence(lua, val_index))
@@ -899,6 +912,22 @@ double interpreter_get_number(interpreter_t* interp, const char* name)
 void interpreter_set_number(interpreter_t* interp, const char* name, double value)
 {
   interpreter_storage_t* storage = store_number(NULL, value);
+  interpreter_map_insert_with_kv_dtor(interp->store, string_dup(name), storage, destroy_variable);
+}
+
+bool interpreter_get_boolean(interpreter_t* interp, const char* name)
+{
+  interpreter_storage_t** storage = interpreter_map_get(interp->store, (char*)name);
+  if (storage == NULL)
+    return false;
+  if ((*storage)->type != INTERPRETER_BOOLEAN)
+    return false;
+  return *((bool*)(*storage)->datum);
+}
+
+void interpreter_set_boolean(interpreter_t* interp, const char* name, bool value)
+{
+  interpreter_storage_t* storage = store_boolean(NULL, value);
   interpreter_map_insert_with_kv_dtor(interp->store, string_dup(name), storage, destroy_variable);
 }
 

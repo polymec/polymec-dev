@@ -41,6 +41,7 @@ typedef enum
 {
   INTERPRETER_STRING,
   INTERPRETER_NUMBER,
+  INTERPRETER_BOOLEAN,
   INTERPRETER_MESH,
   INTERPRETER_POINT,
   INTERPRETER_POINT_LIST,
@@ -114,6 +115,14 @@ double interpreter_get_number(interpreter_t* interp, const char* name);
 // Sets the given variable within the interpreter to the given numeric 
 // value. Any existing value of this variable is overwritten.
 void interpreter_set_number(interpreter_t* interp, const char* name, double value);
+
+// Fetches the given boolean value from the interpreter, returning false if it 
+// is not found or if it is not a boolean.
+bool interpreter_get_boolean(interpreter_t* interp, const char* name);
+
+// Sets the given variable within the interpreter to the given boolean 
+// value. Any existing value of this variable is overwritten.
+void interpreter_set_boolean(interpreter_t* interp, const char* name, bool value);
 
 // Fetches the given point from the interpreter, returning NULL if it 
 // is not found or if it is not a point.
