@@ -545,6 +545,85 @@ int model_main(const char* model_name, model_ctor constructor, int argc, char* a
   return 0;
 }
 
+static void minimal_driver_usage(const char* model_name, FILE* stream)
+{
+  fprintf(stream, "%s: usage:\n", model_name);
+  fprintf(stream, "%s input [option1=val [option2=val2 [...]]]\n\n", model_name);
+  exit(-1);
+}
+
+int model_minimal_main(const char* model_name, model_ctor constructor, int argc, char* argv[])
+{
+  // Start everything up.
+  polymec_init(argc, argv);
+
+  // Parse options on the command line.
+  options_t* opts = options_parse(argc, argv);
+  if (opts == NULL)
+    minimal_driver_usage(model_name, stderr);
+
+  // Here, the command serves as the input.
+  char* input = options_command(opts);
+  if (input == NULL)
+  {
+    fprintf(stderr, "%s: No input file given!\n", model_name);
+    minimal_driver_usage(model_name, stderr);
+  }
+
+  // Attempt to construct the model.
+  model_t* model = (*constructor)(opts);
+  ASSERT(model != NULL);
+
+  // Check to see whether the given file exists.
+  FILE* fp = fopen(input, "r");
+  if (fp == NULL)
+  {
+    fprintf(stderr, "%s: Input file not found: %s\n", model_name, input);
+    return -1;
+  }
+  fclose(fp);
+
+  // By default, the simulation is named after the input file (minus its suffix).
+  model_set_sim_name(model, input);
+
+  // Read the contents of the input file into the model's interpreter.
+  model_read_input_file(model, input, opts);
+
+  // Default time endpoints, max number of steps.
+  double t1 = 0.0, t2 = 1.0;
+  int max_steps = INT_MAX;
+
+  // Overwrite these defaults with interpreted values.
+  interpreter_t* interp = model_interpreter(model);
+  if (interpreter_contains(interp, "t1", INTERPRETER_NUMBER))
+    t1 = interpreter_get_number(interp, "t1");
+  if (interpreter_contains(interp, "t2", INTERPRETER_NUMBER))
+    t2 = interpreter_get_number(interp, "t2");
+  if (interpreter_contains(interp, "max_steps", INTERPRETER_NUMBER))
+    max_steps = (int)interpreter_get_number(interp, "max_steps");
+
+  // If these are given as options, they are overridden by the command line.
+  {
+    char* opt = options_value(opts, "t1");
+    if (opt != NULL)
+      t1 = atof(opt);
+    opt = options_value(opts, "t2");
+    if (opt != NULL)
+      t2 = atof(opt);
+    opt = options_value(opts, "max_steps");
+    if (opt != NULL)
+      max_steps = atoi(opt);
+  }
+
+  // Run the model.
+  model_run(model, t1, t2, max_steps);
+
+  // Clean up.
+  model_free(model);
+
+  return 0;
+}
+
 void model_report_conv_rate(options_t* options, double conv_rate, double sigma)
 {
   ASSERT(options != NULL);
