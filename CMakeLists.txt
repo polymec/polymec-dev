@@ -123,6 +123,16 @@ add_subdirectory(core)
 add_subdirectory(geometry)
 add_subdirectory(integrators)
 
+# Now that we have gathered all our libraries, generate a polymec.cmake 
+# file that contains all the vital information.
+configure_file(
+  "${CMAKE_CURRENT_SOURCE_DIR}/cmake/Templates/polymec.cmake.in"
+  "${CMAKE_CURRENT_BINARY_DIR}/polymec.cmake"
+)
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/polymec.cmake DESTINATION share/polymec)
+# Also copy add_polymec_executable.cmake into the shared directory.
+install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/cmake/Modules/add_polymec_executable.cmake DESTINATION share/polymec)
+
 # Mesher -- enabled if tetgen is present.
 if (${HAVE_TETGEN})
   add_subdirectory(polymesher)
