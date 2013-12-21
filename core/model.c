@@ -564,9 +564,8 @@ int model_minimal_main(const char* model_name, model_ctor constructor, int argc,
 
   // Here, the command serves as the input.
   char* input = options_command(opts);
-  if (input == NULL)
+  if ((input == NULL) || !strcmp(input, "help"))
   {
-    fprintf(stderr, "%s: No input file given!\n", model_name);
     minimal_driver_usage(model_name, stderr);
   }
 

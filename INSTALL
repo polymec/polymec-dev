@@ -13,7 +13,7 @@ To install polymec, run
     $ make install
 
 The default installation prefix is /usr/local. To pick an installation 
-prefix for clide pass prefix=[path] to make config. For example,
+prefix for polymec pass prefix=[path] to make config. For example,
 
     $ make config prefix=~/myroot/
 
