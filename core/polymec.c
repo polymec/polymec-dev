@@ -55,6 +55,9 @@
 // _MM_MASK_DENORM          denormalized number
 #endif
 
+// This flag tells us whether polymec is already initialized.
+static bool polymec_initialized = false;
+
 // Error handler.
 static polymec_error_handler_function error_handler = NULL;
 
@@ -76,19 +79,25 @@ static void shutdown()
 
 void polymec_init(int argc, char** argv)
 {
-  // By default, we enable floating point exceptions for debug builds.
+  if (!polymec_initialized)
+  {
+    // By default, we enable floating point exceptions for debug builds.
 #ifndef NDEBUG
-  polymec_enable_fpe_exceptions();
+    polymec_enable_fpe_exceptions();
 #endif
 
-  // Start up MPI.
-  MPI_Init(&argc, &argv);
+    // Start up MPI.
+    MPI_Init(&argc, &argv);
 
-  // Start up the garbage collector.
-  GC_INIT();
+    // Start up the garbage collector.
+    GC_INIT();
 
-  // Register a shutdown function.
-  polymec_atexit(&shutdown);
+    // Register a shutdown function.
+    polymec_atexit(&shutdown);
+
+    // Okay! We're initialized.
+    polymec_initialized = true;
+  }
 }
 
 // Default error handler.
