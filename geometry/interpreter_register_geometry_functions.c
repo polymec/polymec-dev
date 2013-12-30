@@ -46,9 +46,20 @@ extern int point_factory_import_from_cad(lua_State* lua);
 extern int mesh_factory_uniform(lua_State* lua);
 extern int mesh_factory_rectilinear(lua_State* lua);
 
+extern int cartesian_1d_uniform(lua_State* lua);
+extern int cartesian_1d_logarithmic(lua_State* lua);
+extern int cartesian_1d_irregular(lua_State* lua);
+
+extern int cylindrical_1d_uniform(lua_State* lua);
+extern int cylindrical_1d_logarithmic(lua_State* lua);
+extern int cylindrical_1d_irregular(lua_State* lua);
+
+extern int spherical_1d_uniform(lua_State* lua);
+extern int spherical_1d_logarithmic(lua_State* lua);
+extern int spherical_1d_irregular(lua_State* lua);
+
 #ifdef POLYMEC_HAVE_TETGEN
 // Functions for the mesh factory, which generates meshes.
-//extern int mesh_factory_cubic_lattice_periodic_bc(lua_State* lua);
 extern int mesh_factory_voronoi(lua_State* lua);
 //extern int mesh_factory_cvt(lua_State* lua);
 #endif
@@ -555,20 +566,39 @@ static int remove_points(lua_State* lua)
 
 void interpreter_register_geometry_functions(interpreter_t* interp)
 {
+  // Set up a point factory for generating points in 3D.
   interpreter_register_global_table(interp, "point_factory");
   interpreter_register_global_method(interp, "point_factory", "random_points", point_factory_random_points);
   interpreter_register_global_method(interp, "point_factory", "cubic_lattice", point_factory_cubic_lattice);
   interpreter_register_global_method(interp, "point_factory", "cylinder", point_factory_cylinder);
   interpreter_register_global_method(interp, "point_factory", "import_from_cad", point_factory_import_from_cad);
 
+  // Set up a mesh factory for generating 3D meshes.
   interpreter_register_global_table(interp, "mesh_factory");
   interpreter_register_global_method(interp, "mesh_factory", "uniform", mesh_factory_uniform);
   interpreter_register_global_method(interp, "mesh_factory", "rectilinear", mesh_factory_rectilinear);
 #ifdef POLYMEC_HAVE_TETGEN
-//  interpreter_register_global_method(interp, "mesh_factory", "cubic_lattice_periodic_bc", mesh_factory_cubic_lattice_periodic_bc);
   interpreter_register_global_method(interp, "mesh_factory", "voronoi", mesh_factory_voronoi);
 //  interpreter_register_global_method(interp, "mesh_factory", "cvt", mesh_factory_cvt);
 #endif
+
+  // Set up a factory for generating 1D Cartesian meshes
+  interpreter_register_global_table(interp, "cartesian_1d");
+  interpreter_register_global_method(interp, "cartesian_1d", "uniform", cartesian_1d_uniform);
+  interpreter_register_global_method(interp, "cartesian_1d", "logarithmic", cartesian_1d_logarithmic);
+  interpreter_register_global_method(interp, "cartesian_1d", "irregular", cartesian_1d_irregular);
+
+  // Set up a factory for generating 1D cylindrical meshes
+  interpreter_register_global_table(interp, "cylindrical_1d");
+  interpreter_register_global_method(interp, "cylindrical_1d", "uniform", cylindrical_1d_uniform);
+  interpreter_register_global_method(interp, "cylindrical_1d", "logarithmic", cylindrical_1d_logarithmic);
+  interpreter_register_global_method(interp, "cylindrical_1d", "irregular", cylindrical_1d_irregular);
+
+  // Set up a factory for generating 1D spherical meshes
+  interpreter_register_global_table(interp, "spherical_1d");
+  interpreter_register_global_method(interp, "spherical_1d", "uniform", spherical_1d_uniform);
+  interpreter_register_global_method(interp, "spherical_1d", "logarithmic", spherical_1d_logarithmic);
+  interpreter_register_global_method(interp, "spherical_1d", "irregular", spherical_1d_irregular);
 
   interpreter_register_function(interp, "scaled_bounding_box", scaled_bounding_box);
   interpreter_register_function(interp, "sample_bounding_box", sample_bbox);

@@ -37,9 +37,12 @@
 #include "core/create_uniform_mesh.h"
 #include "core/create_rectilinear_mesh.h"
 #include "geometry/create_boundary_generators.h"
-#include "geometry/create_voronoi_mesh.h"
 #include "geometry/rect_prism.h"
+
+#ifdef POLYMEC_HAVE_TETGEN
+#include "geometry/create_voronoi_mesh.h"
 //#include "geometry/create_cvt_with_lloyd_iteration.h"
+#endif
 
 // Lua stuff.
 #include "lua.h"
@@ -188,6 +191,7 @@ static void free_string(char* str)
   free(str);
 }
 
+#ifdef POLYMEC_HAVE_TETGEN
 int mesh_factory_voronoi(lua_State* lua)
 {
   // Check the arguments.
@@ -602,4 +606,5 @@ return luaL_error(lua, "CURRENTLY NOT SUPPORTED.");
 //  lua_pushmesh(lua, mesh);
   return 1;
 }
+#endif
 
