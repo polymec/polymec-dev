@@ -28,6 +28,13 @@
 #include "core/unordered_set.h"
 #include "core/linear_algebra.h"
 
+// Symmetry-related features.
+const char* SYMMETRIC = "symmetric";
+const char* ONE_DIMENSIONAL = "one dimensional";
+const char* TWO_DIMENSIONAL = "two dimensional";
+const char* CYLINDRICAL = "cylindrical";
+const char* SPHERICAL = "spherical";
+
 // Generic tagging functions -- defined in tagger.c.
 extern tagger_t* tagger_new(ARENA* arena);
 extern void tagger_free(tagger_t* tagger);
@@ -136,6 +143,10 @@ mesh_t* mesh_new_with_arena(ARENA* arena, MPI_Comm comm, int num_cells,
   int* prop_tag = mesh_create_tag(mesh->cell_tags, "properties", 1);
   prop_tag[0] = 0;
 
+  // We also create a bogus tag that we can use to store mesh features.
+  int* feature_tag = mesh_create_tag(mesh->cell_tags, "features", 1);
+  feature_tag[0] = 0;
+
   return mesh;
 }
 
@@ -228,6 +239,25 @@ void* mesh_property(mesh_t* mesh, const char* property)
 void mesh_delete_property(mesh_t* mesh, const char* property)
 {
   return tagger_delete_property(mesh->cell_tags, "properties", property);
+}
+
+void mesh_add_feature(mesh_t* mesh, const char* feature)
+{
+  // Use the bogus tag to store our junk.
+  bool* data = malloc(sizeof(bool));
+  *data = true;
+  tagger_set_property(mesh->cell_tags, "features", feature, data, free);
+}
+
+bool mesh_has_feature(mesh_t* mesh, const char* feature)
+{
+  // Get this feature from our bogus tag.
+  return (tagger_property(mesh->cell_tags, "features", feature) != NULL);
+}
+
+void mesh_delete_feature(mesh_t* mesh, const char* feature)
+{
+  return tagger_delete_property(mesh->cell_tags, "features", feature);
 }
 
 int* mesh_create_tag(tagger_t* tagger, const char* tag, int num_indices)

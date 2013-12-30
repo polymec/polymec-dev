@@ -39,6 +39,15 @@ typedef enum
   MESH_CELL
 } mesh_centering_t;
 
+// Some common features of meshes, for use by algorithms computing upon them.
+
+// Symmetry-related features.
+const char* SYMMETRIC;       // Has 1D or 2D symmetry
+const char* ONE_DIMENSIONAL; // Has 1D symmetry.
+const char* TWO_DIMENSIONAL; // Has 2D symmetry.
+const char* CYLINDRICAL;     // Has cylindrical symmetry.
+const char* SPHERICAL;       // Has spherical symmetry.
+
 // A tagging mechanism for tagging mesh nodes/edges/faces/cells 
 // with attributes. 
 #ifndef TAGGER_T
@@ -145,6 +154,19 @@ void* mesh_property(mesh_t* mesh, const char* property);
 // Deletes the given property from the mesh. This has no effect if the 
 // property is not found.
 void mesh_delete_property(mesh_t* mesh, const char* property);
+
+// Adds a named "feature" to the mesh. A mesh either has a feature or it doesn't.
+// Features can be used to make algorithmic decisions about how to perform 
+// calculations on a given mesh. This function has no effect if the given 
+// feature exists on the mesh.
+void mesh_add_feature(mesh_t* mesh, const char* feature);
+
+// Returns true if the mesh has the given feature, false if not.
+bool mesh_has_feature(mesh_t* mesh, const char* feature);
+
+// Deletes the given feature from the mesh if it exists. This function has 
+// no effect if the mesh does not have the feature.
+void mesh_delete_feature(mesh_t* mesh, const char* feature);
 
 // Returns a newly-allocated list of indices that will define a tags for 
 // cells/faces/edges/nodes with the given descriptor. If the tag already 
