@@ -60,9 +60,7 @@ struct model_t
 
   // Observations.
   string_ptr_unordered_map_t* point_obs;
-  string_ptr_unordered_map_t* integ_obs;
-  string_ptr_unordered_map_t* min_obs;
-  string_ptr_unordered_map_t* max_obs;
+  string_ptr_unordered_map_t* global_obs;
   string_array_t* observations;
   real_t* obs_times;
   int num_obs_times, obs_time_index;
@@ -94,10 +92,9 @@ model_t* model_new(const char* name, void* context, model_vtable vtable, options
 
   // Initialize observation arrays.
   model->point_obs = string_ptr_unordered_map_new();
-  model->integ_obs = string_ptr_unordered_map_new();
-  model->min_obs = string_ptr_unordered_map_new();
-  model->max_obs = string_ptr_unordered_map_new();
+  model->global_obs = string_ptr_unordered_map_new();
   model->observations = string_array_new();
+  model->num_obs_times = 0;
   model->obs_times = NULL;
   model->obs_time_index = 0;
 
@@ -154,9 +151,7 @@ void model_free(model_t* model)
   // Clear observations.
   free(model->obs_times);
   string_array_free(model->observations);
-  string_ptr_unordered_map_free(model->min_obs);
-  string_ptr_unordered_map_free(model->max_obs);
-  string_ptr_unordered_map_free(model->integ_obs);
+  string_ptr_unordered_map_free(model->global_obs);
   string_ptr_unordered_map_free(model->point_obs);
 
   free(model);
@@ -320,36 +315,14 @@ static void key_dtor(char* key)
   free(key);
 }
 
-void model_define_integrated_observation(model_t* model, 
-                                         const char* name, 
-                                         real_t (*compute_integrated_observation)(void* context,
+void model_define_global_observation(model_t* model, 
+                                     const char* name, 
+                                     real_t (*compute_global_observation)(void* context,
                                                                                   real_t t))
 {
-  string_ptr_unordered_map_insert_with_k_dtor(model->integ_obs, 
+  string_ptr_unordered_map_insert_with_k_dtor(model->global_obs, 
                                               string_dup(name), 
-                                              compute_integrated_observation, 
-                                              key_dtor);
-}
-
-void model_define_max_observation(model_t* model, 
-                                  const char* name, 
-                                  real_t (*compute_max_observation)(void* context, 
-                                                                    real_t t))
-{
-  string_ptr_unordered_map_insert_with_k_dtor(model->max_obs, 
-                                              string_dup(name), 
-                                              compute_max_observation,
-                                              key_dtor);
-}
-
-void model_define_min_observation(model_t* model, 
-                                  const char* name, 
-                                  real_t (*compute_min_observation)(void* context, 
-                                                                    real_t t))
-{
-  string_ptr_unordered_map_insert_with_k_dtor(model->min_obs, 
-                                              string_dup(name), 
-                                              compute_min_observation,
+                                              compute_global_observation, 
                                               key_dtor);
 }
 
@@ -357,9 +330,7 @@ void model_observe(model_t* model, const char* observation)
 {
   // Make sure this is an observation in the model.
   if (!string_ptr_unordered_map_contains(model->point_obs, (char*)observation) && 
-      !string_ptr_unordered_map_contains(model->integ_obs, (char*)observation) && 
-      !string_ptr_unordered_map_contains(model->min_obs, (char*)observation) && 
-      !string_ptr_unordered_map_contains(model->max_obs, (char*)observation))
+      !string_ptr_unordered_map_contains(model->global_obs, (char*)observation))
   {
     polymec_error("Observation '%s' is not defined for this model.", observation);
   }
@@ -515,27 +486,11 @@ void model_record_observations(model_t* model)
       value = (*point_obs_data)->func(model->context, &((*point_obs_data)->point), model->time);
     else
     {
-      // Is it an integrated observation?
-      typedef real_t (*integ_observation_func)(void*, real_t);
-      integ_observation_func* integ_func = (integ_observation_func*)string_ptr_unordered_map_get(model->integ_obs, obs_name);
-      if (integ_func != NULL)
-        value = (*integ_func)(model->context, model->time);
-      else
-      {
-        // Is it an minimum value observation?
-        typedef real_t (*min_observation_func)(void*, real_t);
-        min_observation_func* min_func = (min_observation_func*)string_ptr_unordered_map_get(model->min_obs, obs_name);
-        if (min_func != NULL)
-          value = (*min_func)(model->context, model->time);
-        else
-        {
-          // It's an minimum value observation.
-          typedef real_t (*max_observation_func)(void*, real_t);
-          max_observation_func* max_func = (max_observation_func*)string_ptr_unordered_map_get(model->min_obs, obs_name);
-          ASSERT(max_func != NULL);
-          value = (*max_func)(model->context, model->time);
-        }
-      }
+      // It must be a global observation.
+      typedef real_t (*global_observation_func)(void*, real_t);
+      global_observation_func* global_func = (global_observation_func*)string_ptr_unordered_map_get(model->global_obs, obs_name);
+      ASSERT(global_func != NULL);
+      value = (*global_func)(model->context, model->time);
     }
 
     // Write the observation to the file.

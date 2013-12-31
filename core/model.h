@@ -139,26 +139,13 @@ void model_define_point_observation(model_t* model,
                                                                         real_t t),
                                     point_t* point);
 
-// Defines a spatially-integrated observation by its name, 
-// number of components, and calculation function.
-void model_define_integrated_observation(model_t* model, 
-                                         const char* name, 
-                                         real_t (*compute_integrated_observation)(void* context, 
-                                                                                  real_t t));
-
-// Defines a maximum-value observation by its name, number of components, 
-// and calculation function.
-void model_define_max_observation(model_t* model, 
-                                  const char* name, 
-                                  real_t (*compute_max_observation)(void* context, 
-                                                                    real_t t));
-
-// Defines a minimum-value observation by its name, number of components, 
-// and calculation function.
-void model_define_min_observation(model_t* model, 
-                                  const char* name, 
-                                  real_t (*compute_min_observation)(void* context, 
-                                                                    real_t t));
+// Defines a global (non-point-specific) observation by its name, 
+// number of components, and calculation function. Examples of global 
+// observations are integrated quantities, maxima, and minima.
+void model_define_global_observation(model_t* model, 
+                                     const char* name, 
+                                     real_t (*compute_global_observation)(void* context, 
+                                                                          real_t t));
 
 // Adds the given observation to the set that will be recorded by the 
 // model during a simulation.
