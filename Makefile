@@ -3,7 +3,7 @@
 # Options set on command line.
 debug      = not-set
 mpi        = not-set
-real       = not-set
+precision  = not-set
 verbose    = not-set
 prefix     = not-set
 
@@ -35,13 +35,13 @@ else
   CONFIG_FLAGS += -DHAVE_MPI=0
 endif
 
-# Real number representation
-ifneq ($(real), not-set)
-  BUILDDIR := ${BUILDDIR}-$(real)
-  CONFIG_FLAGS += -DPOLYMEC_REAL_TYPE=$(real)
+# Precision.
+ifneq ($(precision), not-set)
+  BUILDDIR := ${BUILDDIR}-$(precision)
+  CONFIG_FLAGS += -DPOLYMEC_PRECISION=$(precision)
 else
   BUILDDIR := ${BUILDDIR}-double
-  CONFIG_FLAGS += -DPOLYMEC_REAL_TYPE=double
+  CONFIG_FLAGS += -DPOLYMEC_PRECISION=double
 endif
 
 BUILDDIR := ${BUILDDIR}-`basename ${CC}`

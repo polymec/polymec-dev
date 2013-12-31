@@ -30,7 +30,15 @@ set (POLYMEC_MINOR_VERSION 1)
 set (POLYMEC_PATCH_VERSION 0)
 set (POLYMEC_VERSION "${POLYMEC_MAJOR_VERSION}.${POLYMEC_MINOR_VERSION}.${POLYMEC_PATCH_VERSION}")
 
+if (POLYMEC_PRECISION STREQUAL "single")
+  set(POLYMEC_REAL_TYPE float)
+elseif(POLYMEC_PRECISION STREQUAL "double")
+  set(POLYMEC_REAL_TYPE double)
+else()
+  message(FATAL_ERROR "Unknown precision: ${POLYMEC_PRECISION}")
+endif()
 message("-- Real number representation is ${POLYMEC_REAL_TYPE}")
+
 # Add a custom target (always out of date) that generates polymec_version.h.
 add_custom_target(update_polymec_version_h ALL
                   python ${PROJECT_SOURCE_DIR}/tools/update_polymec_version_h.py ${POLYMEC_VERSION} ${PROJECT_BINARY_DIR}/core/polymec_version.h)

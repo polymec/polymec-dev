@@ -234,7 +234,7 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libpolytope.a)
   endif()
 
   message("Configuring polytope...")
-  set(POLYTOPE_CONFIG_OPTS prefix=${PROJECT_BINARY_DIR} use_silo=1 CC=${CMAKE_C_COMPILER} CXX=${CMAKE_CXX_COMPILER})
+  set(POLYTOPE_CONFIG_OPTS prefix=${PROJECT_BINARY_DIR} use_silo=1 c_real_type=${POLYTOPE_REAL_TYPE} CC=${CMAKE_C_COMPILER} CXX=${CMAKE_CXX_COMPILER})
   if (${CMAKE_BUILD_TYPE} STREQUAL "Debug")
     set(POLYTOPE_CONFIG_OPTS ${POLYTOPE_CONFIG_OPTS} debug=1)
   endif()
@@ -375,7 +375,7 @@ set(POLYMEC_TP_LIBS superlu;${POLYMEC_TP_LIBS})
 # Build Sundials, a C library for integrating stiff, nonlinear ODEs and 
 # differential-algebraic equations.
 if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libsundials_cvode.a)
-  set(SUNDIALS_CONFIG_OPTS --prefix=${PROJECT_BINARY_DIR} --enable-static --disable-shared --disable-fcmix)
+  set(SUNDIALS_CONFIG_OPTS --prefix=${PROJECT_BINARY_DIR} --with-precision=${POLYMEC_PRECISION} --enable-static --disable-shared --disable-fcmix)
   if (HAVE_MPI EQUAL 0)
     set(SUNDIALS_CONFIG_OPTS ${SUNDIALS_CONFIG_OPTS} --disable-mpi)
   endif()
