@@ -25,10 +25,21 @@
 #ifndef POLYMEC_ARRAY_UTILS_H
 #define POLYMEC_ARRAY_UTILS_H
 
-// Column index comparison function for bsearch within supermatrix NRformat.
+#include "core/polymec.h"
+
+// Integer binary search comparison function.
 static inline int int_bsearch_comp(const void* l, const void* r)
 {
   int li = *((int*)l), ri = *((int*)r);
+  return (li < ri) ? -1
+                   : (li > ri) ? 1
+                               : 0;
+}
+
+// Real-valued binary search comparison function.
+static inline int real_bsearch_comp(const void* l, const void* r)
+{
+  real_t li = *((real_t*)l), ri = *((real_t*)r);
   return (li < ri) ? -1
                    : (li > ri) ? 1
                                : 0;
@@ -40,5 +51,12 @@ int* int_bsearch(int* array, int length, int element);
 
 // Sorts (in-place) the elements in an array of integers. Uses qsort().
 void int_qsort(int* array, int length);
+
+// Executes a binary search for an element in a sorted array of real numbers, 
+// returning a pointer to the element if it's found and NULL if it's not.
+real_t* real_bsearch(real_t* array, int length, int element);
+
+// Sorts (in-place) the elements in an array of reals. Uses qsort().
+void real_qsort(real_t* array, int length);
 
 #endif

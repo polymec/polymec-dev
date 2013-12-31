@@ -26,8 +26,8 @@
 #include "core/model.h"
 #include "core/unordered_map.h"
 #include "core/options.h"
-#include <strings.h>
-
+#include "core/array.h"
+#include "core/array_utils.h"
 
 // Benchmark metadatum.
 typedef struct
@@ -58,11 +58,20 @@ struct model_t
   int save_every; // Save frequency.
   int plot_every; // Plot frequency.
 
+  // Observations.
+  string_ptr_unordered_map_t* point_obs;
+  string_ptr_unordered_map_t* integ_obs;
+  string_ptr_unordered_map_t* min_obs;
+  string_ptr_unordered_map_t* max_obs;
+  string_array_t* observations;
+  real_t* obs_times;
+  int num_obs_times, obs_time_index;
+
   // Data related to a given simulation.
   char* sim_name; // Simulation name.
-  double time;    // Current simulation time.
+  real_t time;    // Current simulation time.
   int step;       // Current simulation step.
-  double max_dt;  // Maximum time step.
+  real_t max_dt;  // Maximum time step.
 
   // Interpreter for parsing input files.
   interpreter_t* interpreter;
@@ -82,6 +91,15 @@ model_t* model_new(const char* name, void* context, model_vtable vtable, options
   model->plot_every = -1;
   model->max_dt = FLT_MAX;
   model->interpreter = NULL;
+
+  // Initialize observation arrays.
+  model->point_obs = string_ptr_unordered_map_new();
+  model->integ_obs = string_ptr_unordered_map_new();
+  model->min_obs = string_ptr_unordered_map_new();
+  model->max_obs = string_ptr_unordered_map_new();
+  model->observations = string_array_new();
+  model->obs_times = NULL;
+  model->obs_time_index = 0;
 
   // Some generic options.
   char* logging = options_value(options, "logging");
@@ -132,6 +150,14 @@ void model_free(model_t* model)
 
   if (model->interpreter != NULL)
     interpreter_free(model->interpreter);
+
+  // Clear observations.
+  free(model->obs_times);
+  string_array_free(model->observations);
+  string_ptr_unordered_map_free(model->min_obs);
+  string_ptr_unordered_map_free(model->max_obs);
+  string_ptr_unordered_map_free(model->integ_obs);
+  string_ptr_unordered_map_free(model->point_obs);
 
   free(model);
 }
@@ -196,9 +222,9 @@ void model_run_benchmark(model_t* model, const char* benchmark, options_t* optio
     char* exp_conv_rate = options_value(options, "expected_conv_rate");
     if ((exp_conv_rate != NULL) && (conv_rate != NULL))
     {
-      double expected_rate = atof(exp_conv_rate);
-      double actual_rate = atof(conv_rate);
-      double actual_rate_sigma = atof(sigma);
+      real_t expected_rate = atof(exp_conv_rate);
+      real_t actual_rate = atof(conv_rate);
+      real_t actual_rate_sigma = atof(sigma);
       log_urgent("%s: Expected convergence rate: %g", model->name, expected_rate);
       if (actual_rate_sigma != 0.0)
         log_urgent("%s: Measured convergence rate: %g +/- %g", model->name, actual_rate, actual_rate_sigma);
@@ -215,8 +241,8 @@ void model_run_benchmark(model_t* model, const char* benchmark, options_t* optio
       char* err_norm = options_value(options, "error_norm");
       if ((exp_err_norm != NULL) && (err_norm != NULL))
       {
-        double expected_norm = atof(exp_err_norm);
-        double actual_norm = atof(err_norm);
+        real_t expected_norm = atof(exp_err_norm);
+        real_t actual_norm = atof(err_norm);
         log_urgent("%s: Expected error norm: %g", model->name, expected_norm);
         log_urgent("%s: Measured error norm: %g", model->name, actual_norm);
         if (actual_norm <= expected_norm)
@@ -260,66 +286,133 @@ void model_read_input_file(model_t* model, const char* file, options_t* options)
     options = NULL; 
 }
 
+typedef struct 
+{
+  real_t (*func)(void*, point_t*, real_t);
+  point_t point;
+} point_obs_t;
+
+static void point_obs_dtor(char* key, void* val)
+{
+  free(key);
+  point_obs_t* data = val;
+  free(data);
+}
+
 void model_define_point_observation(model_t* model, 
                                     const char* name, 
-                                    double (*compute_point_observation)(void* context, 
+                                    real_t (*compute_point_observation)(void* context, 
                                                                         point_t* x,
-                                                                        double t))
+                                                                        real_t t),
+                                    point_t* point)
+
 {
+  point_obs_t* data = malloc(sizeof(point_obs_t));
+  data->func = compute_point_observation;
+  data->point = *point;
+  string_ptr_unordered_map_insert_with_kv_dtor(model->point_obs, 
+                                               string_dup(name), 
+                                               data, point_obs_dtor);
+}
+
+static void key_dtor(char* key)
+{
+  free(key);
 }
 
 void model_define_integrated_observation(model_t* model, 
                                          const char* name, 
-                                         double (*compute_integrated_observation)(void* context,
-                                                                                  double t))
+                                         real_t (*compute_integrated_observation)(void* context,
+                                                                                  real_t t))
 {
+  string_ptr_unordered_map_insert_with_k_dtor(model->integ_obs, 
+                                              string_dup(name), 
+                                              compute_integrated_observation, 
+                                              key_dtor);
 }
 
 void model_define_max_observation(model_t* model, 
                                   const char* name, 
-                                  double (*compute_max_observation)(void* context, 
-                                                                    double t,
-                                                                    double* current_max))
+                                  real_t (*compute_max_observation)(void* context, 
+                                                                    real_t t))
 {
+  string_ptr_unordered_map_insert_with_k_dtor(model->max_obs, 
+                                              string_dup(name), 
+                                              compute_max_observation,
+                                              key_dtor);
 }
 
 void model_define_min_observation(model_t* model, 
                                   const char* name, 
-                                  double (*compute_min_observation)(void* context, 
-                                                                    double t,
-                                                                    double current_min))
+                                  real_t (*compute_min_observation)(void* context, 
+                                                                    real_t t))
 {
+  string_ptr_unordered_map_insert_with_k_dtor(model->min_obs, 
+                                              string_dup(name), 
+                                              compute_min_observation,
+                                              key_dtor);
 }
 
 void model_observe(model_t* model, const char* observation)
 {
+  // Make sure this is an observation in the model.
+  if (!string_ptr_unordered_map_contains(model->point_obs, (char*)observation) && 
+      !string_ptr_unordered_map_contains(model->integ_obs, (char*)observation) && 
+      !string_ptr_unordered_map_contains(model->min_obs, (char*)observation) && 
+      !string_ptr_unordered_map_contains(model->max_obs, (char*)observation))
+  {
+    polymec_error("Observation '%s' is not defined for this model.", observation);
+  }
+  string_array_append_with_dtor(model->observations, string_dup(observation), key_dtor);
+}
+
+void model_set_observation_times(model_t* model, real_t* times, int num_times)
+{
+  ASSERT(num_times > 0);
+
+  if (model->obs_times != NULL)
+    free(model->obs_times);
+  model->num_obs_times = num_times;
+  model->obs_times = malloc(sizeof(real_t) * num_times);
+  memcpy(model->obs_times, times, sizeof(real_t) * num_times);
+
+  // Sort the observation times.
+  real_qsort(model->obs_times, model->num_obs_times);
 }
 
 static void model_do_periodic_work(model_t* model)
 {
+  // Do plots and saves.
   if ((model->plot_every > 0) && (model->step % model->plot_every) == 0)
     model_plot(model);
   if ((model->save_every > 0) && (model->step % model->save_every) == 0)
     model_save(model);
-  // FIXME: Accommodate observations here.
+
+  // Now record any observations we need to.
+  if (model->time >= model->obs_times[model->obs_time_index])
+  {
+    model_record_observations(model);
+    ++model->obs_time_index;
+  }
 }
 
 // Initialize the model at the given time.
-void model_init(model_t* model, double t)
+void model_init(model_t* model, real_t t)
 {
   log_detail("%s: Initializing at time %g.", model->name, t);
   model->vtable.init(model->context, t);
   model->step = 0;
   model->time = t;
+  model->obs_time_index = 0;
 
   model_do_periodic_work(model);
 }
 
 // Returns the largest permissible time step that can be taken by the model
 // starting at time t.
-double model_max_dt(model_t* model, char* reason)
+real_t model_max_dt(model_t* model, char* reason)
 {
-  double dt = FLT_MAX;
+  real_t dt = FLT_MAX;
   strcpy(reason, "No time step constraints.");
   if (model->max_dt < FLT_MAX)
   {
@@ -331,7 +424,7 @@ double model_max_dt(model_t* model, char* reason)
   return dt;
 }
 
-void model_advance(model_t* model, double dt)
+void model_advance(model_t* model, real_t dt)
 {
   log_info("%s: Step %d (t = %g, dt = %g)", model->name, model->step, model->time, dt);
   model->vtable.advance(model->context, model->time, dt);
@@ -384,10 +477,49 @@ void model_record_observations(model_t* model)
 {
   if (model->sim_name == NULL)
     polymec_error("No simulation name was set with model_set_sim_name.");
-  // FIXME
+
+  // Open up the observation file.
+  char obs_fn[strlen(model->sim_name) + 5];
+  snprintf(obs_fn, strlen(model->sim_name) + 4, "%s.obs", model->sim_name);
+  FILE* obs = fopen(obs_fn, "w+");
+
+  // Go through all the desired observations.
+  for (int i = 0; i < model->observations->size; ++i)
+  {
+    char* obs_name = model->observations->data[i];
+
+    // Is this one a point observation?
+    point_obs_t** point_obs_data = (point_obs_t**)string_ptr_unordered_map_get(model->point_obs, obs_name);
+    if (point_obs_data != NULL)
+      (*point_obs_data)->func(model->context, &((*point_obs_data)->point), model->time);
+    else
+    {
+      typedef real_t (*integ_observation_func)(void*, real_t);
+      integ_observation_func* integ_func = (integ_observation_func*)string_ptr_unordered_map_get(model->integ_obs, obs_name);
+      if (integ_func != NULL)
+        (*integ_func)(model->context, model->time);
+      else
+      {
+        typedef real_t (*min_observation_func)(void*, real_t);
+        min_observation_func* min_func = (min_observation_func*)string_ptr_unordered_map_get(model->min_obs, obs_name);
+        if (min_func != NULL)
+          (*min_func)(model->context, model->time);
+        else
+        {
+          typedef real_t (*max_observation_func)(void*, real_t);
+          max_observation_func* max_func = (max_observation_func*)string_ptr_unordered_map_get(model->min_obs, obs_name);
+          ASSERT(max_func != NULL);
+          (*max_func)(model->context, model->time);
+        }
+      }
+    }
+  }
+
+  // Close the file.
+  fclose(obs);
 }
 
-void model_compute_error_norms(model_t* model, st_func_t* solution, double* error_norms)
+void model_compute_error_norms(model_t* model, st_func_t* solution, real_t* error_norms)
 { 
   if (model->vtable.compute_error_norms != NULL)
     model->vtable.compute_error_norms(model->context, solution, model->time, error_norms);
@@ -395,7 +527,7 @@ void model_compute_error_norms(model_t* model, st_func_t* solution, double* erro
     polymec_error("%s: This model is not equipped to compute error norms.", model->name);
 }
 
-void model_run(model_t* model, double t1, double t2, int max_steps)
+void model_run(model_t* model, real_t t1, real_t t2, int max_steps)
 {
   ASSERT(t2 >= t1);
   if (t2 > t1)
@@ -418,7 +550,7 @@ void model_run(model_t* model, double t1, double t2, int max_steps)
     while ((model->time < t2) && (model->step < max_steps))
     {
       char reason[POLYMEC_MODEL_MAXDT_REASON_SIZE];
-      double dt = model_max_dt(model, reason);
+      real_t dt = model_max_dt(model, reason);
       if (dt > t2 - model->time)
       {
         dt = t2 - model->time;
@@ -554,7 +686,7 @@ int model_main(const char* model_name, model_ctor constructor, int argc, char* a
   model_read_input_file(model, input, opts);
 
   // Default time endpoints, max number of steps.
-  double t1 = 0.0, t2 = 1.0;
+  real_t t1 = 0.0, t2 = 1.0;
   int max_steps = INT_MAX;
 
   // Overwrite these defaults with interpreted values.
@@ -632,7 +764,7 @@ int model_minimal_main(const char* model_name, model_ctor constructor, int argc,
   model_read_input_file(model, input, opts);
 
   // Default time endpoints, max number of steps.
-  double t1 = 0.0, t2 = 1.0;
+  real_t t1 = 0.0, t2 = 1.0;
   int max_steps = INT_MAX;
 
   // Overwrite these defaults with interpreted values.
@@ -666,7 +798,7 @@ int model_minimal_main(const char* model_name, model_ctor constructor, int argc,
   return 0;
 }
 
-void model_report_conv_rate(options_t* options, double conv_rate, double sigma)
+void model_report_conv_rate(options_t* options, real_t conv_rate, real_t sigma)
 {
   ASSERT(options != NULL);
   char crstr[1024], sigmastr[1024];
@@ -676,7 +808,7 @@ void model_report_conv_rate(options_t* options, double conv_rate, double sigma)
   options_set(options, "conv_rate_sigma", sigmastr);
 }
 
-void model_report_error_norm(options_t* options, double error_norm)
+void model_report_error_norm(options_t* options, real_t error_norm)
 {
   ASSERT(options != NULL);
   char nstr[1024];

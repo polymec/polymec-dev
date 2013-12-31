@@ -25,6 +25,7 @@
 #ifndef POLYMEC_H
 #define POLYMEC_H
 
+#include <strings.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>

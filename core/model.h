@@ -43,29 +43,29 @@ typedef model_t* (*model_ctor)(options_t*);
 typedef void (*model_read_input_func)(void*, interpreter_t*, options_t*);
 
 // A function for initializing the model.
-typedef void (*model_init_func)(void*, double);
+typedef void (*model_init_func)(void*, real_t);
 
 // A function for calculating the maximum step size.
-typedef double (*model_max_dt_func)(void*, double, char*);
+typedef real_t (*model_max_dt_func)(void*, real_t, char*);
 
 // A function for advancing the model.
-typedef void (*model_advance_func)(void*, double, double);
+typedef void (*model_advance_func)(void*, real_t, real_t);
 
 // A function for work to be performed after a run completes.
-typedef void (*model_finalize_func)(void*, int, double);
+typedef void (*model_finalize_func)(void*, int, real_t);
 
 // A function for loading the model's state.
-typedef void (*model_load_func)(void* context, const char* filename, const char* directory, double* time, int step);
+typedef void (*model_load_func)(void* context, const char* filename, const char* directory, real_t* time, int step);
 
 // A function for saving the model's state to the given I/O interface.
-typedef void (*model_save_func)(void* context, const char* filename, const char* directory, double time, int step);
+typedef void (*model_save_func)(void* context, const char* filename, const char* directory, real_t time, int step);
 
 // A function for plotting the model to the given I/O interface.
-typedef void (*model_plot_func)(void* context, const char* filename, const char* directory, double time, int step);
+typedef void (*model_plot_func)(void* context, const char* filename, const char* directory, real_t time, int step);
 
 // A function for computing error norms for the computed solution, compared 
 // with an analytic solution. The error norms can be specific to the model.
-typedef void (*model_compute_error_norms_func)(void*, st_func_t*, double, double*);
+typedef void (*model_compute_error_norms_func)(void*, st_func_t*, real_t, real_t*);
 
 // A destructor function for the context object (if any).
 typedef void (*model_dtor)(void*);
@@ -131,49 +131,48 @@ void model_read_input_string(model_t* model, const char* input, options_t* optio
 void model_read_input_file(model_t* model, const char* file, options_t* options);
 
 // Defines a point observation by its name, number of components, and 
-// calculation function.
+// calculation function, and at the given point.
 void model_define_point_observation(model_t* model, 
                                     const char* name, 
-                                    double (*compute_point_observation)(void* context, 
+                                    real_t (*compute_point_observation)(void* context, 
                                                                         point_t* x,
-                                                                        double t));
+                                                                        real_t t),
+                                    point_t* point);
 
 // Defines a spatially-integrated observation by its name, 
 // number of components, and calculation function.
 void model_define_integrated_observation(model_t* model, 
                                          const char* name, 
-                                         double (*compute_integrated_observation)(void* context, 
-                                                                                  double t));
+                                         real_t (*compute_integrated_observation)(void* context, 
+                                                                                  real_t t));
 
 // Defines a maximum-value observation by its name, number of components, 
 // and calculation function.
 void model_define_max_observation(model_t* model, 
                                   const char* name, 
-                                  double (*compute_max_observation)(void* context, 
-                                                                    double t,
-                                                                    double* current_max));
+                                  real_t (*compute_max_observation)(void* context, 
+                                                                    real_t t));
 
 // Defines a minimum-value observation by its name, number of components, 
 // and calculation function.
 void model_define_min_observation(model_t* model, 
                                   const char* name, 
-                                  double (*compute_min_observation)(void* context, 
-                                                                    double t,
-                                                                    double current_min));
+                                  real_t (*compute_min_observation)(void* context, 
+                                                                    real_t t));
 
 // Adds the given observation to the set that will be recorded by the 
 // model during a simulation.
 void model_observe(model_t* model, const char* observation);
 
 // Initializes the model at the given time.
-void model_init(model_t* model, double t);
+void model_init(model_t* model, real_t t);
 
 // Returns the largest permissible time step that can be taken by the model
 // starting at time t.
-double model_max_dt(model_t* model, char* reason);
+real_t model_max_dt(model_t* model, char* reason);
 
 // Advances the model by a single time step of size dt.
-void model_advance(model_t* model, double dt);
+void model_advance(model_t* model, real_t dt);
 
 // Performs any post-simulation work for the model.
 void model_finalize(model_t* model);
@@ -192,11 +191,11 @@ void model_record_observations(model_t* model);
 
 // Given a model with a computed solution, compute the error norms for 
 // the solution versus a specified analytic solution (at the given time).
-void model_compute_error_norms(model_t* model, st_func_t* solution, double* error_norms);
+void model_compute_error_norms(model_t* model, st_func_t* solution, real_t* error_norms);
 
 // Runs a simulation of the model from time t1 to t2, or for a maximum of 
 // max_steps.
-void model_run(model_t* model, double t1, double t2, int max_steps);
+void model_run(model_t* model, real_t t1, real_t t2, int max_steps);
 
 // Sets the name of the simulation within the model. This name 
 // will be used to identify and/or generate names of plot and save files.
@@ -219,11 +218,11 @@ int model_minimal_main(const char* model_name, model_ctor constructor, int argc,
 
 // Use this to report a convergence rate from within a benchmark. This can be 
 // used to determine whether the given benchmark "passed."
-void model_report_conv_rate(options_t* options, double conv_rate, double sigma);
+void model_report_conv_rate(options_t* options, real_t conv_rate, real_t sigma);
 
 // Use this to report an error norm from within a benchmark. This can be 
 // used to determine whether the given benchmark "passed."
-void model_report_error_norm(options_t* options, double error_norm);
+void model_report_error_norm(options_t* options, real_t error_norm);
 
 #endif
 

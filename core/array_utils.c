@@ -35,3 +35,13 @@ void int_qsort(int* array, int length)
   qsort(array, (size_t)length, sizeof(int), int_bsearch_comp);
 }
 
+real_t* real_bsearch(real_t* array, int length, int element)
+{
+  return bsearch(&element, array, (size_t)length, sizeof(real_t), real_bsearch_comp);
+}
+
+void real_qsort(real_t* array, int length)
+{
+  qsort(array, (size_t)length, sizeof(real_t), real_bsearch_comp);
+}
+
