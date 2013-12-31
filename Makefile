@@ -3,6 +3,7 @@
 # Options set on command line.
 debug      = not-set
 mpi        = not-set
+real       = not-set
 verbose    = not-set
 prefix     = not-set
 
@@ -32,6 +33,15 @@ else
     CXX = c++
   endif
   CONFIG_FLAGS += -DHAVE_MPI=0
+endif
+
+# Real number representation
+ifneq ($(real), not-set)
+  BUILDDIR := ${BUILDDIR}-$(real)
+  CONFIG_FLAGS += -DPOLYMEC_REAL_TYPE=$(real)
+else
+  BUILDDIR := ${BUILDDIR}-double
+  CONFIG_FLAGS += -DPOLYMEC_REAL_TYPE=double
 endif
 
 BUILDDIR := ${BUILDDIR}-`basename ${CC}`

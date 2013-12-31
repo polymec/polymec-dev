@@ -30,6 +30,7 @@ set (POLYMEC_MINOR_VERSION 1)
 set (POLYMEC_PATCH_VERSION 0)
 set (POLYMEC_VERSION "${POLYMEC_MAJOR_VERSION}.${POLYMEC_MINOR_VERSION}.${POLYMEC_PATCH_VERSION}")
 
+message("-- Real number representation is ${POLYMEC_REAL_TYPE}")
 # Add a custom target (always out of date) that generates polymec_version.h.
 add_custom_target(update_polymec_version_h ALL
                   python ${PROJECT_SOURCE_DIR}/tools/update_polymec_version_h.py ${POLYMEC_VERSION} ${PROJECT_BINARY_DIR}/core/polymec_version.h)

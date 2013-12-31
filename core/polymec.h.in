@@ -94,7 +94,8 @@
 for (int i = start; i < start + num; ++i) \
   array[i] = val
 
-#define real_t double
+// Real number representation.
+typedef @POLYMEC_REAL_TYPE@ real_t;
 
 // This returns the minimum of a and b.
 #ifndef MIN
