@@ -25,6 +25,8 @@
 #ifndef POLYMEC_STRING_UTILS_H
 #define POLYMEC_STRING_UTILS_H
 
+#include <stdbool.h>
+
 // Given a full pathname, parse it into directory and file portions.
 // Memory must be allocated for dirname and for filename that is sufficient 
 // to store any portion of path.
@@ -36,6 +38,19 @@ void join_paths(const char *dirname, const char* filename, char* path);
 
 // Since strdup() is not standard C, we provide a surrogate here.
 char* string_dup(const char* s);
+
+// Returns the number of substrings (separated by the given delimiter)
+// occur in the given string.
+int string_num_tokens(const char* s, const char* delimiter);
+
+// Split a string into substrings using the given delimiter, and return 
+// an array of newly-allocated strings. num_substrings will contain the 
+// length of this array. If the delimitor is not found, the whole string will 
+// be a single substring.
+char** string_split(const char* s, const char* delimiter, int* num_substrings);
+
+// Returns true if the given string is numeric, false if not.
+bool string_is_number(const char* s);
 
 // Given a string and a NULL-terminated list of token-value pairs, 
 // returns a newly-allocated string containing the original string with 

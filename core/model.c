@@ -62,7 +62,7 @@ struct model_t
   string_ptr_unordered_map_t* point_obs;
   string_ptr_unordered_map_t* global_obs;
   string_array_t* observations;
-  real_t* obs_times;
+  real_t* obs_times, observe_every;
   int num_obs_times, obs_time_index;
 
   // Data related to a given simulation.
@@ -74,6 +74,29 @@ struct model_t
   // Interpreter for parsing input files.
   interpreter_t* interpreter;
 };
+
+// This helper parses a comma-delimited list of observation times, returning 
+// an array of times.
+static real_t* parse_observation_times(char* observation_time_str, int* num_times)
+{
+  char** time_strings = string_split(observation_time_str, ",", num_times);
+  ASSERT(time_strings != NULL);
+  ASSERT(*num_times > 0);
+  for (int i = 0; i < *num_times; ++i)
+  {
+    if (!string_is_number(time_strings[i]))
+      polymec_error("Invalid observation time at index %d: %s\n", i, time_strings[i]);
+  }
+  real_t* times = malloc(sizeof(real_t) * (*num_times));
+  for (int i = 0; i < *num_times; ++i)
+  {
+    times[i] = (real_t)atof(time_strings[i]);
+    free(time_strings[i]);
+  }
+  free(time_strings);
+
+  return times;
+}
 
 model_t* model_new(const char* name, void* context, model_vtable vtable, options_t* options)
 {
@@ -87,6 +110,7 @@ model_t* model_new(const char* name, void* context, model_vtable vtable, options
   model->sim_name = NULL;
   model->save_every = -1;
   model->plot_every = -1;
+  model->observe_every = -FLT_MAX;
   model->max_dt = FLT_MAX;
   model->interpreter = NULL;
 
@@ -116,11 +140,45 @@ model_t* model_new(const char* name, void* context, model_vtable vtable, options
 
   char* plot_every = options_value(options, "plot_every");
   if (plot_every != NULL)
+  {
     model->plot_every = atoi(plot_every);
+    if (model->plot_every < 1)
+      polymec_error("Invalid (non-positive) plot interval: %d\n", model->plot_every);
+  }
 
   char* save_every = options_value(options, "save_every");
   if (save_every != NULL)
+  {
     model->save_every = atoi(save_every);
+    if (model->save_every < 1)
+      polymec_error("Invalid (non-positive) save interval: %d\n", model->save_every);
+  }
+
+  // Handle observation times. Times can be specified with a regular interval
+  // or a comma-delimited list.
+  char* observe_every = options_value(options, "observe_every");
+  if (observe_every != NULL)
+  {
+    model->observe_every = (real_t)atof(observe_every);
+    if (model->observe_every <= 0.0)
+      polymec_error("Invalid (non-positive) observation interval: %g\n", model->observe_every);
+  }
+
+  char* obs_times_str = options_value(options, "observation_times");
+  if (obs_times_str != NULL)
+  {
+    double* obs_times;
+    int num_obs_times;
+    obs_times = parse_observation_times(obs_times_str, &num_obs_times);
+    if (obs_times != NULL)
+    {
+      model->observe_every = -FLT_MAX;
+      model_set_observation_times(model, obs_times, num_obs_times);
+      free(obs_times);
+    }
+    else
+      polymec_error("Could not parse observation times string: %s\n", obs_times_str);
+  }
 
   char* max_dt = options_value(options, "max_dt");
   if (max_dt != NULL)
@@ -449,7 +507,7 @@ void model_record_observations(model_t* model)
   if (model->sim_name == NULL)
     polymec_error("No simulation name was set with model_set_sim_name.");
 
-  if (model->observations->size == 0)
+  if ((model->observations->size == 0) || (model->num_obs_times == 0))
     return;
 
   // Open up the observation file.
@@ -529,6 +587,19 @@ void model_run(model_t* model, real_t t1, real_t t2, int max_steps)
   }
   else
   {
+    // If we've not set observation times at this point, and if we got a 
+    // value for observe_every, set the observation times.
+    if (model->observe_every > 0.0)
+    {
+      int num_obs_times = (t2 - t1) / model->observe_every;
+      real_t* obs_times = malloc(sizeof(real_t) * num_obs_times);
+      for (int i = 0; i < num_obs_times; ++i)
+        obs_times[i] = i * model->observe_every;
+      model_set_observation_times(model, obs_times, num_obs_times);
+      free(obs_times);
+    }
+
+    // Now run the calculation.
     while ((model->time < t2) && (model->step < max_steps))
     {
       char reason[POLYMEC_MODEL_MAXDT_REASON_SIZE];

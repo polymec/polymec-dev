@@ -23,6 +23,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <string.h>
+#include <ctype.h>
 #include "core/string_utils.h"
 #include "core/slist.h"
 
@@ -56,7 +57,11 @@ void parse_path(const char *path, char *dirname, char *filename)
 
 void join_paths(const char *dirname, const char *filename, char *path)
 {
-  snprintf(path, 1024, "%s%c%s", dirname, SEPARATOR, filename);
+  // If the directory includes a separator at the end, we don't add another one. 
+  if (dirname[strlen(dirname)-1] == SEPARATOR)
+    snprintf(path, 1024, "%s%s", dirname, filename);
+  else
+    snprintf(path, 1024, "%s%c%s", dirname, SEPARATOR, filename);
 }
 
 char* string_dup(const char* s)
@@ -65,6 +70,46 @@ char* string_dup(const char* s)
   char* copy = malloc((len+1)*sizeof(char));
   strcpy(copy, s);
   return copy;
+}
+
+int string_num_tokens(const char* s, const char* delimiter)
+{
+  int num_tokens = 0;
+  if (s != NULL) 
+  {
+    char* copy = string_dup(s);
+    char* tofree = copy;
+    char* token;
+    while ((token = strsep(&copy, delimiter)) != NULL) 
+      ++num_tokens;
+    free(tofree);
+  }
+  return num_tokens;
+}
+
+char** string_split(const char* s, const char* delimiter, int* num_substrings)
+{
+  *num_substrings = string_num_tokens(s, delimiter);
+  if (*num_substrings == 0)
+    return NULL;
+  char** strs = malloc(sizeof(char*) * (*num_substrings));
+
+  char* copy = string_dup(s);
+  char* tofree = copy;
+  for (int i = 0; i < (*num_substrings); ++i)
+    strs[i] = string_dup(strsep(&copy, delimiter));
+  free(tofree);
+
+  return strs;
+}
+
+bool string_is_number(const char* s)
+{
+  if ((s == NULL) || (*s == '\0') || isspace(*s))
+    return 0;
+  char* p;
+  strtod(s, &p);
+  return (*p == '\0');
 }
 
 // This stuff is used for string_subst, below.

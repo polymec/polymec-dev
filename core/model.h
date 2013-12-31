@@ -151,6 +151,10 @@ void model_define_global_observation(model_t* model,
 // model during a simulation.
 void model_observe(model_t* model, const char* observation);
 
+// Sets the observation times for the model, overwriting any old observation
+// times.
+void model_set_observation_times(model_t* model, real_t* times, int num_times);
+
 // Initializes the model at the given time.
 void model_init(model_t* model, real_t t);
 
