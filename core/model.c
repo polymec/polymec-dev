@@ -478,10 +478,30 @@ void model_record_observations(model_t* model)
   if (model->sim_name == NULL)
     polymec_error("No simulation name was set with model_set_sim_name.");
 
+  if (model->observations->size == 0)
+    return;
+
   // Open up the observation file.
   char obs_fn[strlen(model->sim_name) + 5];
   snprintf(obs_fn, strlen(model->sim_name) + 4, "%s.obs", model->sim_name);
-  FILE* obs = fopen(obs_fn, "w+");
+  FILE* obs = fopen(obs_fn, "r");
+  bool first_time = (obs == NULL);
+  if (!first_time)
+    fclose(obs);
+  obs = fopen(obs_fn, "w+");
+
+  // If we're writing the first entry, write a header
+  if (first_time)
+  {
+    fprintf(obs, "# Observations for %s\n", model->sim_name);
+    fprintf(obs, "# time ");
+    for (int i = 0; i < model->observations->size; ++i)
+      fprintf(obs, "%s ", model->observations->data[i]);
+    fprintf(obs, "\n");
+  }
+
+  // Write the current simulation time.
+  fprintf(obs, "%g ", model->time);
 
   // Go through all the desired observations.
   for (int i = 0; i < model->observations->size; ++i)
@@ -490,29 +510,36 @@ void model_record_observations(model_t* model)
 
     // Is this one a point observation?
     point_obs_t** point_obs_data = (point_obs_t**)string_ptr_unordered_map_get(model->point_obs, obs_name);
+    double value;
     if (point_obs_data != NULL)
-      (*point_obs_data)->func(model->context, &((*point_obs_data)->point), model->time);
+      value = (*point_obs_data)->func(model->context, &((*point_obs_data)->point), model->time);
     else
     {
+      // Is it an integrated observation?
       typedef real_t (*integ_observation_func)(void*, real_t);
       integ_observation_func* integ_func = (integ_observation_func*)string_ptr_unordered_map_get(model->integ_obs, obs_name);
       if (integ_func != NULL)
-        (*integ_func)(model->context, model->time);
+        value = (*integ_func)(model->context, model->time);
       else
       {
+        // Is it an minimum value observation?
         typedef real_t (*min_observation_func)(void*, real_t);
         min_observation_func* min_func = (min_observation_func*)string_ptr_unordered_map_get(model->min_obs, obs_name);
         if (min_func != NULL)
-          (*min_func)(model->context, model->time);
+          value = (*min_func)(model->context, model->time);
         else
         {
+          // It's an minimum value observation.
           typedef real_t (*max_observation_func)(void*, real_t);
           max_observation_func* max_func = (max_observation_func*)string_ptr_unordered_map_get(model->min_obs, obs_name);
           ASSERT(max_func != NULL);
-          (*max_func)(model->context, model->time);
+          value = (*max_func)(model->context, model->time);
         }
       }
     }
+
+    // Write the observation to the file.
+    fprintf(obs, "%g ", value);
   }
 
   // Close the file.

@@ -1,10 +1,6 @@
 # Minimum CMake version.
 cmake_minimum_required (VERSION 2.8.5)
 
-# Parameters
-set (POLYMEC_REAL double)
-set (POLYMEC_MPI_REAL MPI_DOUBLE)
-
 # Adjust CMake's module path.
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/Modules/")
 
@@ -32,8 +28,10 @@ set (POLYMEC_VERSION "${POLYMEC_MAJOR_VERSION}.${POLYMEC_MINOR_VERSION}.${POLYME
 
 if (POLYMEC_PRECISION STREQUAL "single")
   set(POLYMEC_REAL_TYPE float)
+  set(POLYMEC_MPI_REAL_TYPE MPI_FLOAT)
 elseif(POLYMEC_PRECISION STREQUAL "double")
   set(POLYMEC_REAL_TYPE double)
+  set(POLYMEC_MPI_REAL_TYPE MPI_DOUBLE)
 else()
   message(FATAL_ERROR "Unknown precision: ${POLYMEC_PRECISION}")
 endif()
