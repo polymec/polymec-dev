@@ -260,12 +260,48 @@ void model_read_input_file(model_t* model, const char* file, options_t* options)
     options = NULL; 
 }
 
+void model_define_point_observation(model_t* model, 
+                                    const char* name, 
+                                    double (*compute_point_observation)(void* context, 
+                                                                        point_t* x,
+                                                                        double t))
+{
+}
+
+void model_define_integrated_observation(model_t* model, 
+                                         const char* name, 
+                                         double (*compute_integrated_observation)(void* context,
+                                                                                  double t))
+{
+}
+
+void model_define_max_observation(model_t* model, 
+                                  const char* name, 
+                                  double (*compute_max_observation)(void* context, 
+                                                                    double t,
+                                                                    double* current_max))
+{
+}
+
+void model_define_min_observation(model_t* model, 
+                                  const char* name, 
+                                  double (*compute_min_observation)(void* context, 
+                                                                    double t,
+                                                                    double current_min))
+{
+}
+
+void model_observe(model_t* model, const char* observation)
+{
+}
+
 static void model_do_periodic_work(model_t* model)
 {
   if ((model->plot_every > 0) && (model->step % model->plot_every) == 0)
     model_plot(model);
   if ((model->save_every > 0) && (model->step % model->save_every) == 0)
     model_save(model);
+  // FIXME: Accommodate observations here.
 }
 
 // Initialize the model at the given time.
@@ -342,6 +378,13 @@ void model_plot(model_t* model)
   snprintf(prefix, strlen(model->sim_name) + 16, "%s-%d", model->sim_name, model->step);
   log_detail("%s: Writing plot to directory %s...", model->name, model->sim_name);
   model->vtable.plot(model->context, prefix, model->sim_name, model->time, model->step);
+}
+
+void model_record_observations(model_t* model)
+{
+  if (model->sim_name == NULL)
+    polymec_error("No simulation name was set with model_set_sim_name.");
+  // FIXME
 }
 
 void model_compute_error_norms(model_t* model, st_func_t* solution, double* error_norms)

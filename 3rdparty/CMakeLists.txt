@@ -234,7 +234,10 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libpolytope.a)
   endif()
 
   message("Configuring polytope...")
-  set(POLYTOPE_CONFIG_OPTS prefix=${PROJECT_BINARY_DIR} use_silo=1 c_real_type=${POLYTOPE_REAL_TYPE} CC=${CMAKE_C_COMPILER} CXX=${CMAKE_CXX_COMPILER})
+  # FIXME: We should set c_real_type=${POLYMEC_REAL_TYPE} here, but the Tetgen
+  # FIXME: tessellator is presently only available for double precision. 
+  # FIXME: Have to figure out how to handle this.
+  set(POLYTOPE_CONFIG_OPTS prefix=${PROJECT_BINARY_DIR} use_silo=1 CC=${CMAKE_C_COMPILER} CXX=${CMAKE_CXX_COMPILER})
   if (${CMAKE_BUILD_TYPE} STREQUAL "Debug")
     set(POLYTOPE_CONFIG_OPTS ${POLYTOPE_CONFIG_OPTS} debug=1)
   endif()

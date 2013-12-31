@@ -130,6 +130,41 @@ void model_read_input_string(model_t* model, const char* input, options_t* optio
 // tempered by options.
 void model_read_input_file(model_t* model, const char* file, options_t* options);
 
+// Defines a point observation by its name, number of components, and 
+// calculation function.
+void model_define_point_observation(model_t* model, 
+                                    const char* name, 
+                                    double (*compute_point_observation)(void* context, 
+                                                                        point_t* x,
+                                                                        double t));
+
+// Defines a spatially-integrated observation by its name, 
+// number of components, and calculation function.
+void model_define_integrated_observation(model_t* model, 
+                                         const char* name, 
+                                         double (*compute_integrated_observation)(void* context, 
+                                                                                  double t));
+
+// Defines a maximum-value observation by its name, number of components, 
+// and calculation function.
+void model_define_max_observation(model_t* model, 
+                                  const char* name, 
+                                  double (*compute_max_observation)(void* context, 
+                                                                    double t,
+                                                                    double* current_max));
+
+// Defines a minimum-value observation by its name, number of components, 
+// and calculation function.
+void model_define_min_observation(model_t* model, 
+                                  const char* name, 
+                                  double (*compute_min_observation)(void* context, 
+                                                                    double t,
+                                                                    double current_min));
+
+// Adds the given observation to the set that will be recorded by the 
+// model during a simulation.
+void model_observe(model_t* model, const char* observation);
+
 // Initializes the model at the given time.
 void model_init(model_t* model, double t);
 
@@ -143,14 +178,17 @@ void model_advance(model_t* model, double dt);
 // Performs any post-simulation work for the model.
 void model_finalize(model_t* model);
 
-// Loads the model's state from its I/O interface.
+// Loads the model's state.
 void model_load(model_t* model, int step);
 
-// Saves the model's state to its I/O interface.
+// Saves the model's state.
 void model_save(model_t* model);
 
-// Plots the model's state to its I/O interface.
+// Plots the model's state.
 void model_plot(model_t* model);
+
+// Records any desired observations for the model at the current time.
+void model_record_observations(model_t* model);
 
 // Given a model with a computed solution, compute the error norms for 
 // the solution versus a specified analytic solution (at the given time).
