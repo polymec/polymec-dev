@@ -49,9 +49,9 @@
 // max_iters   - The maximum number of iterations to perform before quitting.
 cvt_gen_dist_t* prob_cvt_gen_dist_new(int (*random_gen)(), 
                                       int num_samples, 
-                                      double alpha, 
-                                      double beta, 
-                                      double min_dist,
+                                      real_t alpha, 
+                                      real_t beta, 
+                                      real_t min_dist,
                                       int max_iters);
 
 #endif

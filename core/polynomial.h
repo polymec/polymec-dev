@@ -43,13 +43,13 @@ int polynomial_basis_dim(int degree);
 // basis, moving from across the corresponding row in Pascal's 
 // (hyper-)triangle. coeffs is an array of size polynomial_basis_dim(degree), 
 // and data is copied from coeffs into the polynomial object.
-polynomial_t* polynomial_new(int degree, double* coeffs, point_t* x0);
+polynomial_t* polynomial_new(int degree, real_t* coeffs, point_t* x0);
 
 // Creates a polynomial of the given degree using the given monomials
 // expressed in terms of coefficients and powers of x, y, and z. The 
 // polynomial is expanded about x0, unless x0 is NULL, in which case it is 
 // expanded about the origin.
-polynomial_t* polynomial_from_monomials(int degree, int num_monomials, double* coeffs, 
+polynomial_t* polynomial_from_monomials(int degree, int num_monomials, real_t* coeffs, 
                                         int* x_powers, int* y_powers, int* z_powers, 
                                         point_t* x0);
 
@@ -57,7 +57,7 @@ polynomial_t* polynomial_from_monomials(int degree, int num_monomials, double* c
 polynomial_t* polynomial_clone(polynomial_t* p);
 
 // Creates a copy of the given polynomial scaled by the given factor.
-polynomial_t* scaled_polynomial_new(polynomial_t* p, double factor);
+polynomial_t* scaled_polynomial_new(polynomial_t* p, real_t factor);
 
 // Returns the degree of the polynomial.
 int polynomial_degree(polynomial_t* p);
@@ -67,24 +67,24 @@ int polynomial_num_terms(polynomial_t* p);
 
 // Returns an internal array of the polynomial's coefficients. Can be used 
 // to get or set the coefficients.
-double* polynomial_coeffs(polynomial_t* p);
+real_t* polynomial_coeffs(polynomial_t* p);
 
 // Returns the point about which the polynomial is expanded.
 point_t* polynomial_x0(polynomial_t* p);
 
 // Evaluates the polynomial at the given point x.
-double polynomial_value(polynomial_t* p, point_t* x);
+real_t polynomial_value(polynomial_t* p, point_t* x);
 
 // Evaluates the (mixed partial) derivative of the polynomial at the given point x.
-double polynomial_deriv_value(polynomial_t* p, int x_deriv, int y_deriv, int z_deriv, point_t* x);
+real_t polynomial_deriv_value(polynomial_t* p, int x_deriv, int y_deriv, int z_deriv, point_t* x);
 
 // Allows iteration over the (monomial) terms of the polynomial. Returns true 
 // if terms remain, false if this iteration yields nothing. Set pos to 0 to 
 // reset iteration.
-bool polynomial_next(polynomial_t* p, int* pos, double* coeff, int* x_power, int* y_power, int* z_power);
+bool polynomial_next(polynomial_t* p, int* pos, real_t* coeff, int* x_power, int* y_power, int* z_power);
 
 // Adds the polynomial q (times the given factor) to the polynomial p in-place.
-void polynomial_add(polynomial_t* p, double factor, polynomial_t* q);
+void polynomial_add(polynomial_t* p, real_t factor, polynomial_t* q);
 
 // Returns a newly-created polynomial that is the product of the two 
 // polynomials p and q.

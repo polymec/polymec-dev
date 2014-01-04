@@ -33,11 +33,11 @@
 // Objects of this type are garbage collected.
 typedef struct
 {
-  double alpha, beta;
+  real_t alpha, beta;
   st_func_t* F;
 } poisson_bc_t;
 
 // Constructor for a Poisson BC.
-poisson_bc_t* poisson_bc_new(double alpha, double beta, st_func_t* F);
+poisson_bc_t* poisson_bc_new(real_t alpha, real_t beta, st_func_t* F);
 
 #endif

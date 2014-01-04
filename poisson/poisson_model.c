@@ -44,9 +44,9 @@ typedef struct
   adj_graph_t* graph;
   st_func_t* rhs;           // Right-hand side function.
   st_func_t* lambda;        // "Conduction" operator. 
-  double* phi;              // Solution array.
+  real_t* phi;              // Solution array.
   st_func_t* solution;      // Analytic solution (if non-NULL).
-  double current_time;      // Current simulation time.
+  real_t current_time;      // Current simulation time.
 
   string_ptr_unordered_map_t* bcs; // Boundary conditions.
   boundary_cell_map_t* boundary_cells; // Boundary cell info
@@ -58,7 +58,7 @@ typedef struct
   int num_iterations;
 } poisson_t;
 
-static void poisson_advance(void* context, double t, double dt)
+static void poisson_advance(void* context, real_t t, real_t dt)
 {
   poisson_t* p = context;
   nonlinear_integrator_solve(p->solver, t+dt, p->phi, &p->num_iterations);
@@ -83,7 +83,7 @@ static void poisson_read_input(void* context, interpreter_t* interp, options_t* 
   p->lambda = interpreter_get_scalar_function(interp, "lambda");
   if (p->lambda == NULL)
   {
-    double one = 1.0;
+    real_t one = 1.0;
     p->lambda = constant_st_func_new(1, &one);
   }
   p->bcs = interpreter_get_table(interp, "bcs");
@@ -126,13 +126,13 @@ static adj_graph_t* get_graph(void* context)
 }
 
 // Sets the current simulation time for the Poisson solver.
-static void set_time(void* context, double t)
+static void set_time(void* context, real_t t)
 {
   poisson_t* p = context;
   p->current_time = t;
 }
 
-static void poisson_init(void* context, double t)
+static void poisson_init(void* context, real_t t)
 {
   poisson_t* p = context;
 
@@ -158,8 +158,8 @@ static void poisson_init(void* context, double t)
   if (p->mesh != NULL)
   {
     // Initialize the solution vector.
-    p->phi = malloc(sizeof(double)*p->mesh->num_cells);
-    memset(p->phi, 0, sizeof(double)*p->mesh->num_cells);
+    p->phi = malloc(sizeof(real_t)*p->mesh->num_cells);
+    memset(p->phi, 0, sizeof(real_t)*p->mesh->num_cells);
 
     // Gather information about boundary cells.
     p->boundary_cells = boundary_cell_map_from_mesh_and_bcs(p->mesh, p->bcs);
@@ -174,8 +174,8 @@ static void poisson_init(void* context, double t)
   else
   {
     // Initialize the solution vector.
-    p->phi = malloc(sizeof(double)*p->point_cloud->num_points);
-    memset(p->phi, 0, sizeof(double)*p->point_cloud->num_points);
+    p->phi = malloc(sizeof(real_t)*p->point_cloud->num_points);
+    memset(p->phi, 0, sizeof(real_t)*p->point_cloud->num_points);
 
     // Gather information about boundary cells.
     //p->boundary_cells = boundary_cell_map_from_mesh_and_bcs(p->mesh, p->bcs);
@@ -192,7 +192,7 @@ static void poisson_init(void* context, double t)
   nonlinear_integrator_solve(p->solver, t, p->phi, &p->num_iterations);
 }
 
-static void poisson_plot(void* context, const char* prefix, const char* directory, double t, int step)
+static void poisson_plot(void* context, const char* prefix, const char* directory, real_t t, int step)
 {
   ASSERT(context != NULL);
   poisson_t* p = context;
@@ -203,8 +203,8 @@ static void poisson_plot(void* context, const char* prefix, const char* director
   // If we are given an analytic solution, write it and the solution error.
   if (p->solution != NULL)
   {
-    double *soln = malloc(sizeof(double) * p->mesh->num_cells), 
-           *error = malloc(sizeof(double) * p->mesh->num_cells);
+    real_t *soln = malloc(sizeof(real_t) * p->mesh->num_cells), 
+           *error = malloc(sizeof(real_t) * p->mesh->num_cells);
     for (int c = 0; c < p->mesh->num_cells; ++c)
     {
       st_func_eval(p->solution, &p->mesh->cell_centers[c], t, &soln[c]);
@@ -223,7 +223,7 @@ static void poisson_plot(void* context, const char* prefix, const char* director
   }
 }
 
-static void poisson_save(void* context, const char* prefix, const char* directory, double t, int step)
+static void poisson_save(void* context, const char* prefix, const char* directory, real_t t, int step)
 {
   ASSERT(context != NULL);
   poisson_t* p = context;
@@ -240,18 +240,18 @@ static void poisson_save(void* context, const char* prefix, const char* director
   }
 }
 
-static void poisson_compute_error_norms(void* context, st_func_t* solution, double t, double* lp_norms)
+static void poisson_compute_error_norms(void* context, st_func_t* solution, real_t t, real_t* lp_norms)
 {
   poisson_t* p = context;
-  double Linf = 0.0, L1 = 0.0, L2 = 0.0;
+  real_t Linf = 0.0, L1 = 0.0, L2 = 0.0;
   if (p->mesh != NULL)
   {
     for (int c = 0; c < p->mesh->num_cells; ++c)
     {
-      double phi_sol;
+      real_t phi_sol;
       st_func_eval(solution, &p->mesh->cell_centers[c], t, &phi_sol);
-      double V = p->mesh->cell_volumes[c];
-      double err = fabs(p->phi[c] - phi_sol);
+      real_t V = p->mesh->cell_volumes[c];
+      real_t err = fabs(p->phi[c] - phi_sol);
       //printf("i = %d, phi = %g, phi_s = %g, err = %g\n", c, a->phi[c], phi_sol, err);
       Linf = (Linf < err) ? err : Linf;
       L1 += err*V;
@@ -262,10 +262,10 @@ static void poisson_compute_error_norms(void* context, st_func_t* solution, doub
   {
     for (int i = 0; i < p->point_cloud->num_points; ++i)
     {
-      double phi_sol;
+      real_t phi_sol;
       st_func_eval(solution, &p->point_cloud->point_coords[i], t, &phi_sol);
-      double V = 1.0; // FIXME: What's the volume factor?
-      double err = fabs(p->phi[i] - phi_sol);
+      real_t V = 1.0; // FIXME: What's the volume factor?
+      real_t err = fabs(p->phi[i] - phi_sol);
       Linf = (Linf < err) ? err : Linf;
       L1 += err*V;
       L2 += err*err*V*V;

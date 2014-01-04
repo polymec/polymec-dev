@@ -33,7 +33,7 @@
 void test_ctor(void** state)
 {
   point_t x0 = {0.0, 0.0, 0.0};
-  double R = 1.0;
+  real_t R = 1.0;
   for (int degree = 0; degree <= 2; ++degree)
   {
     div_free_poly_basis_t* basis = spherical_div_free_poly_basis_new(degree, &x0, R);
@@ -44,7 +44,7 @@ void test_ctor(void** state)
 void test_compute(void** state)
 {
   point_t x0 = {0.0, 0.0, 0.0};
-  double R = 1.0;
+  real_t R = 1.0;
   bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
   for (int degree = 0; degree <= 2; ++degree)
   {
@@ -65,7 +65,7 @@ void test_compute(void** state)
 void test_divergence(void** state)
 {
   point_t x0 = {0.0, 0.0, 0.0};
-  double R = 1.0;
+  real_t R = 1.0;
   bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
   for (int degree = 0; degree <= 2; ++degree)
   {
@@ -77,10 +77,10 @@ void test_divergence(void** state)
     {
       point_t X;
       point_randomize(&X, rand, &bbox);
-      double dfxdx = polynomial_deriv_value(x, 1, 0, 0, &X);
-      double dfydy = polynomial_deriv_value(y, 0, 1, 0, &X);
-      double dfzdz = polynomial_deriv_value(z, 0, 0, 1, &X);
-      double divf = dfxdx + dfydy + dfzdz;
+      real_t dfxdx = polynomial_deriv_value(x, 1, 0, 0, &X);
+      real_t dfydy = polynomial_deriv_value(y, 0, 1, 0, &X);
+      real_t dfzdz = polynomial_deriv_value(z, 0, 0, 1, &X);
+      real_t divf = dfxdx + dfydy + dfzdz;
 //      printf(" f%d =\n   ", pos);
 //      polynomial_fprintf(x, stdout);
 //      printf("   ");

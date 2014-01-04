@@ -97,7 +97,7 @@ int newton_solver_dimension(newton_solver_t* solver)
   return solver->dim;
 }
 
-void newton_solver_set_tolerances(newton_solver_t* solver, double norm_tolerance, double step_tolerance)
+void newton_solver_set_tolerances(newton_solver_t* solver, real_t norm_tolerance, real_t step_tolerance)
 {
   ASSERT(norm_tolerance > 0.0);
   ASSERT(step_tolerance > 0.0);
@@ -111,24 +111,24 @@ void newton_solver_set_max_iterations(newton_solver_t* solver, int max_iteration
   KINSetNumMaxIters(solver->kinsol, max_iterations);
 }
 
-bool newton_solver_solve(newton_solver_t* solver, double* X, int* num_iterations)
+bool newton_solver_solve(newton_solver_t* solver, real_t* X, int* num_iterations)
 {
   // Call the scaled solve.
   return newton_solver_solve_scaled(solver, X, NULL, NULL, num_iterations);
 }
 
-bool newton_solver_solve_scaled(newton_solver_t* solver, double* X, double* x_scale, double* F_scale, int* num_iterations)
+bool newton_solver_solve_scaled(newton_solver_t* solver, real_t* X, real_t* x_scale, real_t* F_scale, int* num_iterations)
 {
   // Set the x_scale and F_scale vectors.
   if (x_scale != NULL)
-    memcpy(NV_DATA_S(solver->x_scale), x_scale, sizeof(double) * solver->dim);
+    memcpy(NV_DATA_S(solver->x_scale), x_scale, sizeof(real_t) * solver->dim);
   else
   {
     for (int i = 0; i < solver->dim; ++i)
       NV_Ith_S(solver->x_scale, i) = 1.0;
   }
   if (F_scale != NULL)
-    memcpy(NV_DATA_S(solver->F_scale), F_scale, sizeof(double) * solver->dim);
+    memcpy(NV_DATA_S(solver->F_scale), F_scale, sizeof(real_t) * solver->dim);
   else
   {
     for (int i = 0; i < solver->dim; ++i)
@@ -136,7 +136,7 @@ bool newton_solver_solve_scaled(newton_solver_t* solver, double* X, double* x_sc
   }
 
   // Copy the values in X to the internal solution vector.
-  memcpy(NV_DATA_S(solver->x), X, sizeof(double) * solver->dim);
+  memcpy(NV_DATA_S(solver->x), X, sizeof(real_t) * solver->dim);
 
   // Suspend the currently active floating point exceptions for now.
   polymec_suspend_fpe_exceptions();
@@ -156,7 +156,7 @@ bool newton_solver_solve_scaled(newton_solver_t* solver, double* X, double* x_sc
     *num_iterations = (int)num_iters;
 
     // Copy the data back into X.
-    memcpy(X, NV_DATA_S(solver->x), sizeof(double) * solver->dim);
+    memcpy(X, NV_DATA_S(solver->x), sizeof(real_t) * solver->dim);
     return true;
   }
 
@@ -164,35 +164,35 @@ bool newton_solver_solve_scaled(newton_solver_t* solver, double* X, double* x_sc
   return false;
 }
 
-static bool in_range(double x, double a, double b)
+static bool in_range(real_t x, real_t a, real_t b)
 {
   return ((MIN(a, b) <= x) && (x <= MAX(a, b)));
 }
 
 // This version of Brent's method was taken from Wikipedia.
-double brent_solve(double (*F)(void*, double), void* context, double x1, double x2, double tolerance, int max_iters)
+real_t brent_solve(real_t (*F)(void*, real_t), void* context, real_t x1, real_t x2, real_t tolerance, int max_iters)
 {
-  static const double delta = 1e-8;
-  double a = x1, b = x2;
-  double fa = F(context, a);
-  double fb = F(context, b);
+  static const real_t delta = 1e-8;
+  real_t a = x1, b = x2;
+  real_t fa = F(context, a);
+  real_t fb = F(context, b);
   if (fa * fb >= 0.0)
     polymec_error("brent_solve: Root is not bracketed by [x1, x2].");
   if (fabs(fa) < fabs(fb))
   {
-    double tmp1 = b, tmp2 = fb;
+    real_t tmp1 = b, tmp2 = fb;
     b = a;
     fb = fa;
     a = tmp1;
     fa = tmp2;
   }
-  double c = a;
+  real_t c = a;
   bool mflag = true;
-  double fs, d, s;
+  real_t fs, d, s;
   int num_iter = 0;
   do
   {
-    double fc = F(context, c);
+    real_t fc = F(context, c);
     if ((fa != fc) && (fb != fc))
     {
       s = a*fb*fc / ((fa-fb)*(fa-fc)) + 
@@ -229,7 +229,7 @@ double brent_solve(double (*F)(void*, double), void* context, double x1, double 
     }
     if (fabs(fa) < fabs(fb))
     {
-      double tmp1 = b, tmp2 = fb;
+      real_t tmp1 = b, tmp2 = fb;
       b = a;
       fb = fa;
       a = tmp1;

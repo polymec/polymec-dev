@@ -32,7 +32,7 @@
 int rows[] = {0, 1, 2, 4, 8, 16};
 int cols[] = {0, 10, 20, 40, 80, 160};
 int int_values[] = {0, 1, 2, 3, 4, 5};
-double double_values[] = {0., 1., 2., 3., 4., 5.};
+real_t real_values[] = {0., 1., 2., 3., 4., 5.};
 
 #define DEFINE_TABLE_TEST(table_name, element) \
 void test_##table_name##_ctor(void** state) \
@@ -124,7 +124,7 @@ void test_##element##_table(void** state) \
 }
 
 DEFINE_TABLE_TEST(int_table, int)
-DEFINE_TABLE_TEST(double_table, double)
+DEFINE_TABLE_TEST(real_table, real)
 
 int main(int argc, char* argv[]) 
 {
@@ -132,7 +132,7 @@ int main(int argc, char* argv[])
   const UnitTest tests[] = 
   {
     unit_test(test_int_table),
-    unit_test(test_double_table)
+    unit_test(test_real_table)
   };
   return run_tests(tests);
 }

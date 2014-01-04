@@ -32,7 +32,7 @@ void generate_random_points(int (*rng)(), sp_func_t* density, bbox_t* bounding_b
   ASSERT(points != NULL);
 
   // Keep track of the maximum value of the density we've hit so far.
-  double rho_max = 1e-12;
+  real_t rho_max = 1e-12;
 
   for (int i = 0; i < num_points; ++i)
   {
@@ -45,11 +45,11 @@ void generate_random_points(int (*rng)(), sp_func_t* density, bbox_t* bounding_b
       // Now evaluate the density at this point and reject the point if 
       // if the relative density is less than a random number between 0 
       // and 1.
-      double rho;
+      real_t rho;
       sp_func_eval(density, &points[i], &rho);
       if (rho > rho_max) rho_max = rho;
 
-      double P = rng()/RAND_MAX;
+      real_t P = rng()/RAND_MAX;
       rejected = (rho/rho_max < P);
     }
     while (rejected);

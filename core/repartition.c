@@ -29,7 +29,7 @@
 #endif
 
 #ifdef HAVE_PARMETIS
-static exchanger_t* repartition_points_with_parmetis(MPI_Comm comm, point_t* points, double* weights, int num_points)
+static exchanger_t* repartition_points_with_parmetis(MPI_Comm comm, point_t* points, real_t* weights, int num_points)
 {
   int nprocs, rank;
   MPI_Comm_size(comm, &nprocs);
@@ -153,7 +153,7 @@ static exchanger_t* repartition_points_with_parmetis(MPI_Comm comm, point_t* poi
   // Now it only remains to transfer the coordinate data and unpack it on 
   // the other side.
   int count, xfer_tag = 10;
-  exchanger_transfer(ex, coords, count, 3, xfer_tag, MPI_DOUBLE);
+  exchanger_transfer(ex, coords, count, 3, xfer_tag, MPI_REAL);
   for (int i = 0; i < count; ++i)
   {
     points[i].x = coords[3*i];
@@ -166,7 +166,7 @@ static exchanger_t* repartition_points_with_parmetis(MPI_Comm comm, point_t* poi
 }
 #endif
 
-exchanger_t* repartition_points(MPI_Comm comm, point_t* points, double* weights, int num_points)
+exchanger_t* repartition_points(MPI_Comm comm, point_t* points, real_t* weights, int num_points)
 {
 #ifdef HAVE_PARMETIS
   return repartition_points_with_parmetis(comm, points, weights, num_points);

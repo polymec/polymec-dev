@@ -43,8 +43,8 @@
 point_t* uniform_mgw_sampling(sp_func_t* C1_surface, 
                               bbox_t* bounding_box, 
                               int min_num_points,
-                              double desired_spacing,
-                              double ideal_energy_tolerance,
+                              real_t desired_spacing,
+                              real_t ideal_energy_tolerance,
                               int* actual_num_points);
 
 // Given a twice differentiable surface, this version computes the curvature 
@@ -53,8 +53,8 @@ point_t* uniform_mgw_sampling(sp_func_t* C1_surface,
 point_t* adaptive_mgw_sampling(sp_func_t* C2_surface, 
                                bbox_t* bounding_box, 
                                int min_num_points,
-                               double desired_spacing,
-                               double ideal_energy_tolerance,
+                               real_t desired_spacing,
+                               real_t ideal_energy_tolerance,
                                int* actual_num_points);
 
 #endif

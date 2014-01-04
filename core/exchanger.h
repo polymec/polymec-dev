@@ -66,7 +66,7 @@ int exchanger_max_receive(exchanger_t* ex);
 // Enables deadlock detection, setting the threshold to the given number of 
 // seconds. Deadlocks will be reported to the given rank on the given stream.
 void exchanger_enable_deadlock_detection(exchanger_t* ex, 
-                                         double threshold,
+                                         real_t threshold,
                                          int outputRank,
                                          FILE* stream);
 

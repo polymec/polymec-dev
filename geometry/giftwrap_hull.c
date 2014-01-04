@@ -24,22 +24,22 @@
 
 #include "geometry/giftwrap_hull.h"
 
-static inline double triangle_area(double x1, double y1, double x2, double y2, double x3, double y3)
+static inline real_t triangle_area(real_t x1, real_t y1, real_t x2, real_t y2, real_t x3, real_t y3)
 {
   return 0.5 * ((x2 - x1) * (y3 - y1) - (x3 - x1) * (y2 - y1));
 }
 
-void giftwrap_hull(double* points, int num_points, int* indices, int* count)
+void giftwrap_hull(real_t* points, int num_points, int* indices, int* count)
 {
   giftwrap_hull_with_area(points, num_points, indices, count, NULL);
 }
 
-void giftwrap_hull_with_area(double* points, int num_points, int* indices, int* count, double *area)
+void giftwrap_hull_with_area(real_t* points, int num_points, int* indices, int* count, real_t *area)
 {
   *count = 0;
 
   // Find the "lowest" point in the set.
-  double ymin = FLT_MAX;
+  real_t ymin = FLT_MAX;
   int index0 = -1;
   for (int p = 0; p < num_points; ++p)
   {
@@ -51,23 +51,23 @@ void giftwrap_hull_with_area(double* points, int num_points, int* indices, int* 
   }
 
   // We start with this point and a horizontal angle.
-  double theta_prev = 0.0;
+  real_t theta_prev = 0.0;
   indices[(*count)++] = index0;
 
   // Now start gift wrapping.
   int i = index0;
   do 
   {
-    double dtheta_min = 2.0*M_PI;
+    real_t dtheta_min = 2.0*M_PI;
     int j_min = -1;
     for (int j = 0; j < num_points; ++j)
     {
       if (j != i)
       {
-        double dx = points[2*j] - points[2*i],
+        real_t dx = points[2*j] - points[2*i],
                dy = points[2*j+1] - points[2*i+1];
-        double theta = atan2(dy, dx);
-        double dtheta = theta - theta_prev;
+        real_t theta = atan2(dy, dx);
+        real_t dtheta = theta - theta_prev;
         if (dtheta < 0.0)
           dtheta += 2.0*M_PI;
         if (dtheta_min > dtheta)
@@ -93,11 +93,11 @@ void giftwrap_hull_with_area(double* points, int num_points, int* indices, int* 
 
   // Compute the area using the fan algorithm.
   *area = 0.0;
-  double x0 = points[0], y0 = points[1];
+  real_t x0 = points[0], y0 = points[1];
   for (int j = 1; j < *count - 1; ++j)
   {
     // Form a triangle from vertex 0, vertex j, and vertex j+1.
-    double xj = points[2*j], yj = points[2*j+1],
+    real_t xj = points[2*j], yj = points[2*j+1],
            xj1 = points[2*(j+1)], yj1 = points[2*(j+1)+1];
     *area += triangle_area(x0, y0, xj, yj, xj1, yj1);
   }

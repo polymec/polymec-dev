@@ -27,30 +27,30 @@
 typedef struct
 {
   sp_func_t* func;
-  double scale_factor;
+  real_t scale_factor;
 } sc_t;
 
-static void sc_eval(void* ctx, point_t* x, double* result)
+static void sc_eval(void* ctx, point_t* x, real_t* result)
 {
   sc_t* sc = ctx;
   // Scale x.
-  double A = sc->scale_factor;
+  real_t A = sc->scale_factor;
   point_t y = {.x = x->x/A, .y = x->y/A, .z = x->z/A};
   sp_func_eval(sc->func, &y, result);
 }
 
-static void sc_eval_gradient(void* ctx, point_t* x, double* result)
+static void sc_eval_gradient(void* ctx, point_t* x, real_t* result)
 {
   sc_t* sc = ctx;
   ASSERT(sp_func_has_deriv(sc->func, 1));
 
   // Scale x.
-  double A = sc->scale_factor;
+  real_t A = sc->scale_factor;
   point_t y = {.x = x->x/A, .y = x->y/A, .z = x->z/A};
   sp_func_eval_deriv(sc->func, 1, &y, result);
 }
 
-sp_func_t* scaled_new(sp_func_t* func, double scale_factor)
+sp_func_t* scaled_new(sp_func_t* func, real_t scale_factor)
 {
   ASSERT(func != NULL);
   ASSERT(sp_func_num_comp(func) == 1);

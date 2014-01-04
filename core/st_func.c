@@ -86,7 +86,7 @@ st_func_t* st_func_from_func(const char* name, st_eval_func func,
   return f;
 }
 
-static void eval_sp_func(void* context, point_t* x , double t, double* val)
+static void eval_sp_func(void* context, point_t* x , real_t t, real_t* val)
 {
   sp_func_t* sp_func = context;
   sp_func_eval(sp_func, x, val);
@@ -99,7 +99,7 @@ typedef struct
   int deriv;
 } st_func_sp_deriv_t;
 
-static void st_func_sp_deriv_eval(void* context, point_t* x, double t, double* result)
+static void st_func_sp_deriv_eval(void* context, point_t* x, real_t t, real_t* result)
 {
   st_func_sp_deriv_t* F = context;
   return sp_func_eval_deriv(F->func, F->deriv, x, result);
@@ -177,7 +177,7 @@ void* st_func_context(st_func_t* func)
   return func->context;
 }
 
-void st_func_eval(st_func_t* func, point_t* x, double t, double* result)
+void st_func_eval(st_func_t* func, point_t* x, real_t t, real_t* result)
 {
   func->vtable.eval(func->context, x, t, result);
 }
@@ -199,7 +199,7 @@ bool st_func_has_deriv(st_func_t* func, int n)
 }
 
 // Evaluates the nth derivative of this function, placing the result in result.
-void st_func_eval_deriv(st_func_t* func, int n, point_t* x, double t, double* result)
+void st_func_eval_deriv(st_func_t* func, int n, point_t* x, real_t t, real_t* result)
 {
   st_func_eval(func->derivs[n-1], x, t, result);
 }
@@ -207,10 +207,10 @@ void st_func_eval_deriv(st_func_t* func, int n, point_t* x, double t, double* re
 typedef struct
 {
   st_func_t* f; // Borrowed ref
-  double t;
+  real_t t;
 } st_frozen_ctx;
 
-static void st_frozen_eval(void* ctx, point_t* x, double* result)
+static void st_frozen_eval(void* ctx, point_t* x, real_t* result)
 {
   st_frozen_ctx* c = (st_frozen_ctx*)ctx;
   st_func_eval(c->f, x, c->t, result); 
@@ -222,7 +222,7 @@ static void st_frozen_dtor(void* ctx)
   free(c);
 }
 
-sp_func_t* st_func_freeze(st_func_t* func, double t)
+sp_func_t* st_func_freeze(st_func_t* func, real_t t)
 {
   sp_vtable vtable = {.eval = &st_frozen_eval, .dtor = &st_frozen_dtor };
   char name[1024];
@@ -245,7 +245,7 @@ typedef struct
   int num_comp;
 } multicomp_st_func_t;
 
-static void multicomp_eval(void* context, point_t* x, double t, double* result)
+static void multicomp_eval(void* context, point_t* x, real_t t, real_t* result)
 {
   multicomp_st_func_t* mc = (multicomp_st_func_t*)context;
   for (int i = 0; i < mc->num_comp; ++i)
@@ -293,10 +293,10 @@ typedef struct
   int num_comp, comp;
 } extractedcomp_st_func_t;
 
-static void extractedcomp_eval(void* context, point_t* x, double t, double* result)
+static void extractedcomp_eval(void* context, point_t* x, real_t t, real_t* result)
 {
   extractedcomp_st_func_t* ec = (extractedcomp_st_func_t*)context;
-  double vals[ec->num_comp];
+  real_t vals[ec->num_comp];
   st_func_eval(ec->func, x, t, vals);
   *result = vals[ec->comp];
 }
@@ -343,10 +343,10 @@ st_func_t* st_func_from_component(st_func_t* multicomp_func,
 typedef struct
 {
   int num_comp;
-  double *comp;
+  real_t *comp;
 } const_st_func_t;
 
-static void constant_eval(void* ctx, point_t* x, double t, double* res)
+static void constant_eval(void* ctx, point_t* x, real_t t, real_t* res)
 {
   const_st_func_t* f = (const_st_func_t*)ctx;
   for (int i = 0; i < f->num_comp; ++i)
@@ -360,27 +360,27 @@ static void constant_dtor(void* ctx)
   free(f);
 }
 
-static st_func_t* create_constant_st_func(int num_comp, double comp[])
+static st_func_t* create_constant_st_func(int num_comp, real_t comp[])
 {
   st_vtable vtable = {.eval = constant_eval, .dtor = constant_dtor};
   char name[1024];
   snprintf(name, 1024, "constant space-time function"); // FIXME
   const_st_func_t* f = malloc(sizeof(const_st_func_t));
   f->num_comp = num_comp;
-  f->comp = malloc(num_comp*sizeof(double));
+  f->comp = malloc(num_comp*sizeof(real_t));
   for (int i = 0; i < num_comp; ++i)
     f->comp[i] = comp[i];
   return st_func_new(name, (void*)f, vtable, ST_HOMOGENEOUS, ST_CONSTANT, num_comp);
 }
 
-st_func_t* constant_st_func_new(int num_comp, double comp[])
+st_func_t* constant_st_func_new(int num_comp, real_t comp[])
 {
   st_func_t* func = create_constant_st_func(num_comp, comp);
 
   // Just to be complete, we register the 3-component zero function as this 
   // function's gradient.
-  double zeros[3*num_comp];
-  memset(zeros, 0, 3*num_comp*sizeof(double));
+  real_t zeros[3*num_comp];
+  memset(zeros, 0, 3*num_comp*sizeof(real_t));
   st_func_t* zero = create_constant_st_func(3*num_comp, zeros);
   st_func_register_deriv(func, 1, zero);
 

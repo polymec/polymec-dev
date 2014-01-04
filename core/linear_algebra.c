@@ -26,7 +26,7 @@
 
 // NOTE: All LAPACK functions are implemented within the library, not here.
 
-void matrix_fprintf(double* matrix, int nr, int nc, FILE* stream)
+void matrix_fprintf(real_t* matrix, int nr, int nc, FILE* stream)
 {
   fprintf(stream, "[");
   for (int i = 0; i < nr; ++i)
@@ -38,7 +38,7 @@ void matrix_fprintf(double* matrix, int nr, int nc, FILE* stream)
   fprintf(stream, "]");
 }
 
-void vector_fprintf(double* vec, int nr, FILE* stream)
+void vector_fprintf(real_t* vec, int nr, FILE* stream)
 {
   fprintf(stream, "[");
   for (int i = 0; i < nr; ++i)
@@ -46,32 +46,32 @@ void vector_fprintf(double* vec, int nr, FILE* stream)
   fprintf(stream, "]");
 }
 
-double matrix2_det(double* matrix)
+real_t matrix2_det(real_t* matrix)
 {
   return matrix[0]*matrix[3] - matrix[1]*matrix[2];
 }
 
-double matrix3_det(double* matrix)
+real_t matrix3_det(real_t* matrix)
 {
   return matrix[0]*(matrix[4]*matrix[8] - matrix[5]*matrix[7]) -
          matrix[3]*(matrix[1]*matrix[8] - matrix[2]*matrix[7]) + 
          matrix[6]*(matrix[1]*matrix[5] - matrix[2]*matrix[4]);
 }
 
-void solve_2x2(double* A, double* b, double* x)
+void solve_2x2(real_t* A, real_t* b, real_t* x)
 {
-  double b0 = b[0], b1 = b[1];
-  double inv_det_A = 1.0 / matrix2_det(A);
+  real_t b0 = b[0], b1 = b[1];
+  real_t inv_det_A = 1.0 / matrix2_det(A);
   x[0] = inv_det_A * ( A[3]*b0 - A[2]*b1);
   x[1] = inv_det_A * (-A[1]*b0 + A[0]*b1);
 }
 
-void solve_3x3(double* A, double* b, double* x)
+void solve_3x3(real_t* A, real_t* b, real_t* x)
 {
-  double b0 = b[0], b1 = b[1], b2 = b[2];
+  real_t b0 = b[0], b1 = b[1], b2 = b[2];
 
   // x = Ainv * b.
-  double inv_det_A = 1.0 / matrix3_det(A);
+  real_t inv_det_A = 1.0 / matrix3_det(A);
 
   x[0] = inv_det_A * 
          ((A[8]*A[4]-A[5]*A[7]) * b0 - 

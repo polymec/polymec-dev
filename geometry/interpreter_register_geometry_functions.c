@@ -91,9 +91,9 @@ static int sample_bbox(lua_State* lua)
     return luaL_error(lua, "nz must be a positive number of z points.");
 
   int num_points = 2*(nx*ny + ny*nz + nz*nx);
-  double dx = (bbox->x2 - bbox->x1) / nx;
-  double dy = (bbox->y2 - bbox->y1) / ny;
-  double dz = (bbox->z2 - bbox->z1) / nz;
+  real_t dx = (bbox->x2 - bbox->x1) / nx;
+  real_t dy = (bbox->y2 - bbox->y1) / ny;
+  real_t dz = (bbox->z2 - bbox->z1) / nz;
   point_t* points = malloc(sizeof(point_t) * num_points);
   int offset = 0;
 
@@ -180,13 +180,13 @@ static int scaled_bounding_box(lua_State* lua)
   }
 
   bbox_t* bbox = lua_toboundingbox(lua, 1);
-  double f = lua_tonumber(lua, 2);
+  real_t f = (real_t)lua_tonumber(lua, 2);
   if (f <= 0.0)
     return luaL_error(lua, "factor must be positive.");
 
-  double xc = 0.5 * (bbox->x1 + bbox->x2);
-  double yc = 0.5 * (bbox->y1 + bbox->y2);
-  double zc = 0.5 * (bbox->z1 + bbox->z2);
+  real_t xc = 0.5 * (bbox->x1 + bbox->x2);
+  real_t yc = 0.5 * (bbox->y1 + bbox->y2);
+  real_t zc = 0.5 * (bbox->z1 + bbox->z2);
   bbox_t* scaled_bbox = bbox_new((bbox->x1 - xc) * f + xc, 
                                  (bbox->x2 - xc) * f + xc,
                                  (bbox->y1 - yc) * f + yc,
@@ -212,16 +212,16 @@ static int sample_cyl_shell(lua_State* lua)
                       "Returns a set points on a lattice that covers a cylindrical shell.");
   }
 
-  double r1 = lua_tonumber(lua, 1);
+  real_t r1 = (real_t)lua_tonumber(lua, 1);
   if (r1 < 0.0)
     return luaL_error(lua, "r1 must be a non-negative inner radius.");
 
-  double r2 = lua_tonumber(lua, 2);
+  real_t r2 = (real_t)lua_tonumber(lua, 2);
   if (r2 <= r1)
     return luaL_error(lua, "r2 must be greater than r1.");
 
-  double z1 = lua_tonumber(lua, 3);
-  double z2 = lua_tonumber(lua, 4);
+  real_t z1 = (real_t)lua_tonumber(lua, 3);
+  real_t z2 = (real_t)lua_tonumber(lua, 4);
   if (z2 <= z1)
     return luaL_error(lua, "z2 must be greater than z1.");
 
@@ -238,21 +238,21 @@ static int sample_cyl_shell(lua_State* lua)
     return luaL_error(lua, "nz must be a positive number of axial points.");
 
   int num_points = nr * nphi * nz;
-  double dr = (r2 - r1) / nr;
-  double dphi = 2.0 * M_PI / nphi;
-  double dz = (z2 - z1) / nz;
+  real_t dr = (r2 - r1) / nr;
+  real_t dphi = 2.0 * M_PI / nphi;
+  real_t dz = (z2 - z1) / nz;
   point_t* points = malloc(sizeof(point_t) * num_points);
   int offset = 0;
 
   for (int i = 0; i < nr; ++i)
   {
-    double r = r1 + (i+0.5) * dr;
+    real_t r = r1 + (i+0.5) * dr;
     for (int j = 0; j < nphi; ++j)
     {
-      double phi = (j+0.5) * dphi;
+      real_t phi = (j+0.5) * dphi;
       for (int k = 0; k < nz; ++k, ++offset)
       {
-        double z = z1 + (k+0.5) * dz;
+        real_t z = z1 + (k+0.5) * dz;
         points[offset].x = r*cos(phi);
         points[offset].y = r*sin(phi);
         points[offset].z = z;
@@ -283,14 +283,14 @@ static int translate_points(lua_State* lua)
   int num_points;
   point_t* points = lua_topointlist(lua, 1, &num_points);
 
-  double factor = 1.0;
-  double *factors = NULL;
+  real_t factor = 1.0;
+  real_t *factors = NULL;
   int num_factors = -1;
 
   if (num_args == 3)
   {
     if (lua_isnumber(lua, 3))
-      factor = lua_tonumber(lua, 3);
+      factor = (real_t)lua_tonumber(lua, 3);
     else
     {
       factors = lua_tosequence(lua, 3, &num_factors);
@@ -304,7 +304,7 @@ static int translate_points(lua_State* lua)
     vector_t* vector = lua_tovector(lua, 2);
     for (int i = 0; i < num_points; ++i)
     {
-      double f = (factors != NULL) ? factors[i] : factor;
+      real_t f = (factors != NULL) ? factors[i] : factor;
       points[i].x += f * vector->x;
       points[i].y += f * vector->y;
       points[i].z += f * vector->z;
@@ -318,7 +318,7 @@ static int translate_points(lua_State* lua)
       return luaL_error(lua, "Number of vectors must equal number of points.");
     for (int i = 0; i < num_points; ++i)
     {
-      double f = (factors != NULL) ? factors[i] : factor;
+      real_t f = (factors != NULL) ? factors[i] : factor;
       points[i].x += f * vectors[i].x;
       points[i].y += f * vectors[i].y;
       points[i].z += f * vectors[i].z;
@@ -346,7 +346,7 @@ static int rotate_points(lua_State* lua)
 
   int num_points;
   point_t* points = lua_topointlist(lua, 1, &num_points);
-  double angle = lua_tonumber(lua, 2);
+  real_t angle = (real_t)lua_tonumber(lua, 2);
   vector_t* axis = (num_args >= 3) ? lua_tovector(lua, 3) : vector_new(0.0, 0.0, 1.0);
   point_t* origin = (num_args == 4) ? lua_topoint(lua, 4) : point_new(0.0, 0.0, 0.0);
 
@@ -361,13 +361,13 @@ static int rotate_points(lua_State* lua)
     compute_orthonormal_basis(axis, &e1, &e2);
 
     // Project y onto the e1 x e2 plane.
-    double xi1 = vector_dot(&y, &e1);
-    double xi2 = vector_dot(&y, &e2);
-    double y3 = vector_dot(&y, axis);
+    real_t xi1 = vector_dot(&y, &e1);
+    real_t xi2 = vector_dot(&y, &e2);
+    real_t y3 = vector_dot(&y, axis);
 
     // Rotate it about the axis by the angle.
-    double Rxi1 = xi1*cos(angle) - xi2*sin(angle);
-    double Rxi2 = xi1*sin(angle) + xi2*cos(angle);
+    real_t Rxi1 = xi1*cos(angle) - xi2*sin(angle);
+    real_t Rxi2 = xi1*sin(angle) + xi2*cos(angle);
 
     // Back to original coordinate frame.
     points[i].x = origin->x + Rxi1*e1.x + Rxi2*e2.x + y3*axis->x;
@@ -415,10 +415,10 @@ static int select_points(lua_State* lua)
   point_t* points = lua_topointlist(lua, 1, &num_points);
   int num_near_points = 0;
   point_t* near_points = NULL;
-  double within_distance = 0.0;
+  real_t within_distance = 0.0;
   st_func_t* within_surface = NULL;
   bbox_t* within_bbox = NULL;
-  double at_time = 0.0;
+  real_t at_time = 0.0;
   const char* entries[] = {"near_points", "within_distance", "within_surface", "at_time"};
   for (int i = 0; i < 4; ++i)
   {
@@ -441,7 +441,7 @@ static int select_points(lua_State* lua)
     {
       if (!lua_isnumber(lua, -1))
         return luaL_error(lua, "within_distance should be a number.");
-      within_distance = lua_tonumber(lua, -1);
+      within_distance = (real_t)lua_tonumber(lua, -1);
       if (within_distance <= 0.0)
         return luaL_error(lua, "within_distance should be positive.");
     }
@@ -465,7 +465,7 @@ static int select_points(lua_State* lua)
       if (!lua_isnumber(lua, -1))
         return luaL_error(lua, "at_time should be a number.");
 
-      at_time = lua_tonumber(lua, -1);
+      at_time = (real_t)lua_tonumber(lua, -1);
     }
   }
 
@@ -501,7 +501,7 @@ static int select_points(lua_State* lua)
     ASSERT(within_surface != NULL);
     for (int i = 0; i < num_points; ++i)
     {
-      double F;
+      real_t F;
       st_func_eval(within_surface, &points[i], at_time, &F);
       if (F >= 0.0)
         int_slist_append(selected_points, i);
@@ -509,12 +509,12 @@ static int select_points(lua_State* lua)
   }
 
   // Construct a sequence consisting of the point indices.
-  // NOTE: we use doubles because that's how lua represents numbers.
-  double* s_points = malloc(sizeof(double) * selected_points->size);
+  // NOTE: we use real_t because that's how lua represents numbers.
+  real_t* s_points = malloc(sizeof(real_t) * selected_points->size);
 
   int i = 0;
   for (int_slist_node_t* node = selected_points->front; node != NULL; node = node->next, ++i)
-    s_points[i] = (double)node->value;
+    s_points[i] = (real_t)node->value;
   lua_pushsequence(lua, s_points, selected_points->size);
 
   // Clean up.
@@ -538,7 +538,7 @@ static int remove_points(lua_State* lua)
   // Extract arguments.
   int num_points = 0, num_selected_points = 0;
   point_t* points = lua_topointlist(lua, 1, &num_points);
-  double* selected_points = lua_tosequence(lua, 2, &num_selected_points);
+  real_t* selected_points = lua_tosequence(lua, 2, &num_selected_points);
 
   if (num_selected_points > num_points)
     return luaL_error(lua, "remove_points: Cannot remove %d points from a set of %d.", num_selected_points, num_points);

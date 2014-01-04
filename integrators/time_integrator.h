@@ -41,7 +41,7 @@ typedef struct
 {
   // This function evaluates the right hand side of a coupled system of 
   // nonlinear partial differential equations at time t with solution x.
-  int (*rhs)(double t, N_Vector x, N_Vector x_dot, void* context);
+  int (*rhs)(real_t t, N_Vector x, N_Vector x_dot, void* context);
 
   // This (optional) function destroys the state (context) when the time integrator 
   // is destroyed.
@@ -82,7 +82,7 @@ void* time_integrator_context(time_integrator_t* integrator);
 int time_integrator_order(time_integrator_t* integrator);
 
 // Integrates the given solution X in place from time t1 to t2.
-void time_integrator_step(time_integrator_t* integrator, double t1, double t2, double* X);
+void time_integrator_step(time_integrator_t* integrator, real_t t1, real_t t2, real_t* X);
 
 #endif
 

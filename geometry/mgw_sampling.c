@@ -29,8 +29,8 @@
 point_t* uniform_mgw_sampling(sp_func_t* C1_surface, 
                               bbox_t* bounding_box, 
                               int min_num_points,
-                              double desired_spacing,
-                              double ideal_energy_tolerance,
+                              real_t desired_spacing,
+                              real_t ideal_energy_tolerance,
                               int* actual_num_points)
 {
   ASSERT(sp_func_num_comp(C1_surface) == 1);
@@ -45,38 +45,38 @@ point_t* uniform_mgw_sampling(sp_func_t* C1_surface,
   // The radius of a particle is related to the interparticle spacing by 
   // the desired to only have the inner ring of neighbors contribute. This is 
   // described in section 6.1 of MGW.
-  double sigma = desired_spacing / 0.57;
+  real_t sigma = desired_spacing / 0.57;
 
   // While we're at it, we compute the energy for particles at this 
   // "ideal" spacing.
-  double E_ideal = 6.0 * (1.0 / (tan(M_PI*desired_spacing/(2.0*sigma))) + M_PI*desired_spacing/(2.0*sigma) - 0.5*M_PI);
+  real_t E_ideal = 6.0 * (1.0 / (tan(M_PI*desired_spacing/(2.0*sigma))) + M_PI*desired_spacing/(2.0*sigma) - 0.5*M_PI);
   ASSERT(E_ideal > 0.0);
 
   // Now we iterate until our surface is sampled by particles within the 
   // fractional threshold of our ideal energy.
   bool within_energy_threshold = false;
   point_t* points = NULL;
-  double* lambda = NULL;
+  real_t* lambda = NULL;
   int num_points = min_num_points, old_num_points = 0;
   while (!within_energy_threshold)
   {
-    double E_sys = 0.0; // System energy.
+    real_t E_sys = 0.0; // System energy.
 
     // Generate a set of random points in the vicinity of the surface,
     // their extents (sigma) to some fraction of the domain, and their 
     // repulsion factors (alpha) to the inverse curvature.
     points = realloc(points, sizeof(point_t) * num_points);
-    lambda = realloc(lambda, sizeof(double) * num_points);
+    lambda = realloc(lambda, sizeof(real_t) * num_points);
     for (int i = old_num_points; i < num_points; ++i)
     {
       // Generate a random point within the bounding box.
       point_randomize(&points[i], rand, bounding_box);
 
       // Project it to the surface.
-      double Fi, dFi[3];
+      real_t Fi, dFi[3];
       sp_func_eval(C1_surface, &points[i], &Fi);
       sp_func_eval_deriv(C1_surface, 1, &points[i], dFi);
-      double dFi2 = dFi[0]*dFi[0] + dFi[1]*dFi[1] + dFi[2]*dFi[2];
+      real_t dFi2 = dFi[0]*dFi[0] + dFi[1]*dFi[1] + dFi[2]*dFi[2];
       points[i].x -= Fi * dFi[0]/dFi2;
       points[i].y -= Fi * dFi[1]/dFi2;
       points[i].z -= Fi * dFi[2]/dFi2;
@@ -108,11 +108,11 @@ point_t* uniform_mgw_sampling(sp_func_t* C1_surface,
         int_slist_t* neighbors = kd_tree_within_radius(tree, pi, sigma);
 
         // Compute the Hessian Hi, the force Di, and the energy Ei for this particle.
-        double Hi[9] = {0.0, 0.0, 0.0,
+        real_t Hi[9] = {0.0, 0.0, 0.0,
           0.0, 0.0, 0.0,
           0.0, 0.0, 0.0};
-        double Di[3] = {0.0, 0.0, 0.0};
-        double Ei = 0.0, r_min = FLT_MAX;
+        real_t Di[3] = {0.0, 0.0, 0.0};
+        real_t Ei = 0.0, r_min = FLT_MAX;
         int_slist_node_t* n = neighbors->front;
         while (n != NULL)
         {
@@ -128,28 +128,28 @@ point_t* uniform_mgw_sampling(sp_func_t* C1_surface,
             vector_normalize(&nij);
 
             // Compute the dyadic product of nij with itself.
-            double nijxnij[9] = {nij.x*nij.x, nij.x*nij.y, nij.x*nij.z,
+            real_t nijxnij[9] = {nij.x*nij.x, nij.x*nij.y, nij.x*nij.z,
               nij.y*nij.x, nij.y*nij.y, nij.y*nij.z,
               nij.z*nij.x, nij.z*nij.y, nij.z*nij.z};
 
             // Contribute the energy from this interaction to Ei.
-            double r = vector_mag(&rij);
+            real_t r = vector_mag(&rij);
             r_min = MIN(r, r_min);
-            double arg = M_PI*r/(2.0*sigma);
-            double cot = 1.0 / tan(arg);
-            double Eij = cot + arg - 0.5*M_PI;
+            real_t arg = M_PI*r/(2.0*sigma);
+            real_t cot = 1.0 / tan(arg);
+            real_t Eij = cot + arg - 0.5*M_PI;
             Ei += Eij;
 
             // Contribute to the repulsive force.
-            double csc = 1.0 / sin(arg);
-            double dEdr = M_PI/(2.0*sigma) * (1.0 - csc*csc);
+            real_t csc = 1.0 / sin(arg);
+            real_t dEdr = M_PI/(2.0*sigma) * (1.0 - csc*csc);
             Di[0] += -dEdr * nij.x;
             Di[1] += -dEdr * nij.y;
             Di[2] += -dEdr * nij.z;
 
             // Compute the 2nd derivative of the energy function Eij w.r.t. 
             // the distance between pi and pj.
-            double d2Edr2 = M_PI*M_PI / (2.0*sigma*sigma) * csc * csc * cot;
+            real_t d2Edr2 = M_PI*M_PI / (2.0*sigma*sigma) * csc * csc * cot;
 
             // Add the contribution to the Hessian.
             for (int k = 0; k < 9; ++k)
@@ -171,11 +171,11 @@ point_t* uniform_mgw_sampling(sp_func_t* C1_surface,
         while ((lambda[i] < 1e16) && !converged)
         {
           // Solve for the velocity using the preconditioned Hessian.
-          double H_hat[9] = {Hi[0] * (1.0 + lambda[i]), Hi[1], Hi[2],
+          real_t H_hat[9] = {Hi[0] * (1.0 + lambda[i]), Hi[1], Hi[2],
             Hi[3], Hi[4] * (1.0 + lambda[i]), Hi[5],
             Hi[6], Hi[7], Hi[8] * (1.0 + lambda[i])};
-          double det_H_hat = matrix3_det(H_hat);
-          double vi[3];
+          real_t det_H_hat = matrix3_det(H_hat);
+          real_t vi[3];
           if (det_H_hat != 0.0)
           {
             solve_3x3(H_hat, Di, vi);
@@ -186,29 +186,29 @@ point_t* uniform_mgw_sampling(sp_func_t* C1_surface,
             // surface aligned with the coordinate axes.
             if (Di[0] == 0.0)
             {
-              double H2[4] = {H_hat[4], H_hat[5], 
+              real_t H2[4] = {H_hat[4], H_hat[5], 
                 H_hat[7], H_hat[8]};
-              double D2[2] = {Di[1], Di[2]};        
-              double v2[2];
+              real_t D2[2] = {Di[1], Di[2]};        
+              real_t v2[2];
               solve_2x2(H2, D2, v2);
               vi[0] = 0.0, vi[1] = v2[0], vi[2] = v2[1];
             }
             else if (Di[1] == 0.0)
             {
-              double H2[4] = {H_hat[0], H_hat[2], 
+              real_t H2[4] = {H_hat[0], H_hat[2], 
                 H_hat[6], H_hat[8]};
-              double D2[2] = {Di[0], Di[2]};        
-              double v2[2];
+              real_t D2[2] = {Di[0], Di[2]};        
+              real_t v2[2];
               solve_2x2(H2, D2, v2);
               vi[0] = v2[0], vi[1] = 0.0, vi[2] = v2[1];
             }
             else 
             {
               ASSERT(Di[2] == 0.0);
-              double H2[4] = {H_hat[0], H_hat[1], 
+              real_t H2[4] = {H_hat[0], H_hat[1], 
                 H_hat[3], H_hat[4]};
-              double D2[2] = {Di[0], Di[1]};        
-              double v2[2];
+              real_t D2[2] = {Di[0], Di[1]};        
+              real_t v2[2];
               solve_2x2(H2, D2, v2);
               vi[0] = v2[0], vi[1] = v2[1], vi[2] = 0.0;
             }
@@ -218,9 +218,9 @@ point_t* uniform_mgw_sampling(sp_func_t* C1_surface,
           point_t pi_old = *pi;
 
           // Compute the new particle position.
-          double dFi[3];
+          real_t dFi[3];
           sp_func_eval_deriv(C1_surface, 1, pi, dFi);
-          double dFi2 = dFi[0]*dFi[0] + dFi[1]*dFi[1] + dFi[2]*dFi[2];
+          real_t dFi2 = dFi[0]*dFi[0] + dFi[1]*dFi[1] + dFi[2]*dFi[2];
           pi->x += vi[0] - (dFi[0]*dFi[0]*vi[0] + 
               dFi[0]*dFi[1]*vi[1] +
               dFi[0]*dFi[2]*vi[2]) / dFi2;
@@ -233,13 +233,13 @@ point_t* uniform_mgw_sampling(sp_func_t* C1_surface,
 
           // Did we move further than the distance to the nearest neighbor?
           // If so, we incur a large energy penalty.
-          double E_penalty = 0.0;
-          double distance_moved = point_distance(&pi_old, pi);
+          real_t E_penalty = 0.0;
+          real_t distance_moved = point_distance(&pi_old, pi);
           if (distance_moved > r_min)
             E_penalty = 1000.0 * Ei;
 
           // Project pi back to the surface.
-          double Fi;
+          real_t Fi;
           sp_func_eval(C1_surface, pi, &Fi);
           pi->x -= Fi * dFi[0]/dFi2;
           pi->y -= Fi * dFi[1]/dFi2;
@@ -250,7 +250,7 @@ point_t* uniform_mgw_sampling(sp_func_t* C1_surface,
           tree = kd_tree_new(points, num_points);
           int_slist_t* neighbors = kd_tree_within_radius(tree, pi, sigma);
           int_slist_node_t* n = neighbors->front;
-          double E_new = E_penalty;
+          real_t E_new = E_penalty;
           while (n != NULL)
           {
             int j = n->value;
@@ -259,10 +259,10 @@ point_t* uniform_mgw_sampling(sp_func_t* C1_surface,
               point_t* pj = &points[j];
               vector_t rij;
               point_displacement(pj, pi, &rij);
-              double r = vector_mag(&rij);
-              double arg = M_PI*r/(2.0*sigma);
-              double cot = 1.0 / tan(arg);
-              double Eij = cot + arg - 0.5*M_PI;
+              real_t r = vector_mag(&rij);
+              real_t arg = M_PI*r/(2.0*sigma);
+              real_t cot = 1.0 / tan(arg);
+              real_t Eij = cot + arg - 0.5*M_PI;
               E_new += Eij;
             }
             n = n->next;
@@ -300,12 +300,12 @@ point_t* uniform_mgw_sampling(sp_func_t* C1_surface,
       }
 
       // Now that we've moved all the points, are we stable?
-      double avg_log10_lambda = 0.0;
+      real_t avg_log10_lambda = 0.0;
       for (int i = 0; i < num_points; ++i)
         avg_log10_lambda += log10(lambda[i]);
       avg_log10_lambda /= num_points;
 
-      static const double log_lambda_max = 14.0;
+      static const real_t log_lambda_max = 14.0;
       log_debug("mgw_sampling: avg{log10(lambda)} = %g", avg_log10_lambda);
       if (avg_log10_lambda > log_lambda_max) // Steady state!
         done = true;
@@ -315,7 +315,7 @@ point_t* uniform_mgw_sampling(sp_func_t* C1_surface,
 
     // Are we within our energy threshold?
     old_num_points = num_points;
-    double E_diff = (E_sys - num_points*E_ideal) / (num_points*E_ideal);
+    real_t E_diff = (E_sys - num_points*E_ideal) / (num_points*E_ideal);
     if (E_diff > ideal_energy_tolerance)
     {
       // We have too much energy => particles have too many neighbors. 
@@ -355,8 +355,8 @@ point_t* uniform_mgw_sampling(sp_func_t* C1_surface,
 point_t* adaptive_mgw_sampling(sp_func_t* C2_surface, 
                                bbox_t* bounding_box, 
                                int min_num_points,
-                               double desired_spacing,
-                               double ideal_energy_tolerance,
+                               real_t desired_spacing,
+                               real_t ideal_energy_tolerance,
                                int* actual_num_points)
 {
   ASSERT(sp_func_num_comp(C2_surface) == 1);

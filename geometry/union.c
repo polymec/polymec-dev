@@ -38,27 +38,27 @@ static void un_free(void* ctx)
   free(un);
 }
 
-static void un_eval(void* ctx, point_t* x, double* result)
+static void un_eval(void* ctx, point_t* x, real_t* result)
 {
   un_t* un = ctx;
-  double minval = FLT_MAX;
+  real_t minval = FLT_MAX;
   for (int i = 0; i < un->num_funcs; ++i)
   {
-    double ival;
+    real_t ival;
     sp_func_eval(un->funcs[i], x, &ival);
     minval = MIN(minval, ival);
   }
   result[0] = minval;
 }
 
-static void un_eval_gradient(void* ctx, point_t* x, double* result)
+static void un_eval_gradient(void* ctx, point_t* x, real_t* result)
 {
   un_t* un = ctx;
-  double minval = FLT_MAX;
+  real_t minval = FLT_MAX;
   int index = -1;
   for (int i = 0; i < un->num_funcs; ++i)
   {
-    double ival;
+    real_t ival;
     sp_func_eval(un->funcs[i], x, &ival);
     if (ival < minval)
     {

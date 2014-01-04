@@ -326,7 +326,7 @@ static inline int tree_name##_size(tree_name##_t* tree) \
 
 // Define some avl_trees.
 DEFINE_AVL_TREE(int_avl_tree, int, int_cmp)
-DEFINE_AVL_TREE(double_avl_tree, double, double_cmp)
+DEFINE_AVL_TREE(real_avl_tree, real_t, real_cmp)
 DEFINE_AVL_TREE(string_avl_tree, char*, strcmp)
 
 #endif

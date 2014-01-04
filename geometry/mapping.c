@@ -68,7 +68,7 @@ void mapping_map(mapping_t* mapping, point_t* x, point_t* y)
   mapping->vtable.map(mapping->context, x, y);
 }
 
-void mapping_compute_jacobian(mapping_t* mapping, point_t* x, double* J)
+void mapping_compute_jacobian(mapping_t* mapping, point_t* x, real_t* J)
 {
   mapping->vtable.jacobian(mapping->context, x, J);
 }

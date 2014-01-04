@@ -35,7 +35,7 @@ typedef struct
   vector_t e1, e2, e3;
 } plane_t;
 
-static void plane_eval(void* ctx, point_t* x, double* result)
+static void plane_eval(void* ctx, point_t* x, real_t* result)
 {
   plane_t* p = ctx;
   vector_t D;
@@ -93,7 +93,7 @@ sp_func_t* plane_new_best_fit(point_t* points, int num_points)
     x0.y /= num_points;
     x0.z /= num_points;
 
-    double M[num_points*3]; // num_points x 3 matrix in column-major form.
+    real_t M[num_points*3]; // num_points x 3 matrix in column-major form.
     for (int i = 0; i < num_points; ++i)
     {
       M[3*i]   = points[i].x - x0.x;
@@ -104,10 +104,10 @@ sp_func_t* plane_new_best_fit(point_t* points, int num_points)
     // Compute the singular value decomposition of M to find the singular 
     // vectors. We will destroy M in the process and only compute the right 
     // singular vectors.
-    double sigma[3]; // Singular values.
-    double VT[3*3]; // Right singular vectors.
+    real_t sigma[3]; // Singular values.
+    real_t VT[3*3]; // Right singular vectors.
     int work_size = 10*num_points;
-    double work[work_size]; // Work array.
+    real_t work[work_size]; // Work array.
     int one = 1, three = 3, info;
     char jobU = 'N', jobVT = 'S';
     dgesvd(&jobU, &jobVT, &num_points, &three, M, &num_points, sigma, 
@@ -116,7 +116,7 @@ sp_func_t* plane_new_best_fit(point_t* points, int num_points)
 
     // The normal vector of the plane is the singular vector corresponding to 
     // the smallest singular value.
-    double min_s = FLT_MAX;
+    real_t min_s = FLT_MAX;
     int min_index = -1;
     for (int i = 0; i < 3; ++i)
     {
@@ -147,7 +147,7 @@ void plane_reset(sp_func_t* plane, vector_t* n, point_t* x)
   sp_func_rename(plane, plane_str);
 
   // Register the negative of the normal as the derivative.
-  double nn[3];
+  real_t nn[3];
   nn[0] = -n->x, nn[1] = -n->y, nn[2] = -n->z; 
   sp_func_t* G = constant_sp_func_new(3, nn);
   sp_func_register_deriv(plane, 1, G);
@@ -162,17 +162,17 @@ void plane_project(sp_func_t* plane, point_t* x, point2_t* xi)
 {
   plane_t* p = sp_func_context(plane);
   vector_t v = {.x = x->x - p->x.x, .y = x->y - p->x.y, .z = x->z - p->x.z};
-  double voe3 = vector_dot(&v, &p->e3);
+  real_t voe3 = vector_dot(&v, &p->e3);
   vector_t v_perp = {.x = v.x - voe3 * p->e3.x, .y = v.y - voe3 * p->e3.y, .z = v.z - voe3 * p->e3.z};
   xi->x = vector_dot(&v_perp, &p->e1);
   xi->y = vector_dot(&v_perp, &p->e2);
 }
 
-void plane_project2(sp_func_t* plane, point_t* x, double* eta, double* xi)
+void plane_project2(sp_func_t* plane, point_t* x, real_t* eta, real_t* xi)
 {
   plane_t* p = sp_func_context(plane);
   vector_t v = {.x = x->x - p->x.x, .y = x->y - p->x.y, .z = x->z - p->x.z};
-  double voe3 = vector_dot(&v, &p->e3);
+  real_t voe3 = vector_dot(&v, &p->e3);
   vector_t v_perp = {.x = v.x - voe3 * p->e3.x, .y = v.y - voe3 * p->e3.y, .z = v.z - voe3 * p->e3.z};
   *eta = vector_dot(&v_perp, &p->e1);
   *xi = vector_dot(&v_perp, &p->e2);
@@ -186,15 +186,15 @@ void plane_embed(sp_func_t* plane, point2_t* xi, point_t* x)
   x->z = p->x.z + p->e1.z * xi->x * p->e2.z + xi->y;
 }
 
-double plane_intersect_with_line(sp_func_t* plane, point_t* x0, vector_t* t)
+real_t plane_intersect_with_line(sp_func_t* plane, point_t* x0, vector_t* t)
 {
   plane_t* p = sp_func_context(plane);
-  double not = vector_dot(&p->n, t);
+  real_t not = vector_dot(&p->n, t);
   if (not == 0.0) // No intersection!
     return -FLT_MAX;
   else
   {
-    double numer = p->n.x * (p->x.x - x0->x) +
+    real_t numer = p->n.x * (p->x.x - x0->x) +
                    p->n.y * (p->x.y - x0->y) +
                    p->n.z * (p->x.z - x0->z);
     return numer / not;

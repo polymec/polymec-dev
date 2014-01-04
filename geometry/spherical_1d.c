@@ -46,10 +46,10 @@ int spherical_1d_uniform(lua_State* lua)
   }
 
   // Get the arguments.
-  double r1 = lua_tonumber(lua, 1);
+  real_t r1 = (real_t)lua_tonumber(lua, 1);
   if (r1 < 0.0)
     return luaL_error(lua, "r1 must be non-negative.");
-  double r2 = lua_tonumber(lua, 2);
+  real_t r2 = (real_t)lua_tonumber(lua, 2);
   if (r1 >= r2)
     return luaL_error(lua, "r1 must be less than r2.");
   int N = (int)lua_tonumber(lua, 3);
@@ -80,10 +80,10 @@ int spherical_1d_logarithmic(lua_State* lua)
   }
 
   // Get the arguments.
-  double r1 = lua_tonumber(lua, 1);
+  real_t r1 = (real_t)lua_tonumber(lua, 1);
   if (r1 < 0.0)
     return luaL_error(lua, "r1 must be non-negative.");
-  double log_factor = lua_tonumber(lua, 2);
+  real_t log_factor = (real_t)lua_tonumber(lua, 2);
   if (log_factor <= 0.0)
     return luaL_error(lua, "log factor must be positive.");
   int N = (int)lua_tonumber(lua, 3);
@@ -115,7 +115,7 @@ int spherical_1d_irregular(lua_State* lua)
 
   // Get the arguments.
   int N;
-  double* rs = lua_tosequence(lua, 1, &N);
+  real_t* rs = lua_tosequence(lua, 1, &N);
   if (rs == NULL)
     return luaL_error(lua, "argument must be a list of coordinates.");
   if (rs[0] < 0.0)

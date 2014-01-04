@@ -51,7 +51,7 @@ typedef enum
 } st_func_constancy_t;
 
 // A function pointer type for evaluating the function at a point.
-typedef void (*st_eval_func)(void*, point_t*, double, double*);
+typedef void (*st_eval_func)(void* context, point_t* x, real_t t, real_t* F);
 
 // A destructor for any given context object.
 typedef void (*st_dtor)(void*);
@@ -98,7 +98,7 @@ int st_func_num_comp(st_func_t* func);
 void* st_func_context(st_func_t* func);
 
 // Evaluates the function at the given point, placing the result in result.
-void st_func_eval(st_func_t* func, point_t* x, double t, double* result);
+void st_func_eval(st_func_t* func, point_t* x, real_t t, real_t* result);
 
 // Registers another function as the nth derivative of this function.
 // NOTE: These are vector derivatives, so the first derivative is the 
@@ -111,10 +111,10 @@ void st_func_register_deriv(st_func_t* func, int n, st_func_t* nth_deriv);
 bool st_func_has_deriv(st_func_t* func, int n);
 
 // Evaluates the nth derivative of this function, placing the result in result.
-void st_func_eval_deriv(st_func_t* func, int n, point_t* x, double t, double* result);
+void st_func_eval_deriv(st_func_t* func, int n, point_t* x, real_t t, real_t* result);
 
 // Creates an sp_func from this st_func by "freezing" it at the given time.
-sp_func_t* st_func_freeze(st_func_t* func, double t);
+sp_func_t* st_func_freeze(st_func_t* func, real_t t);
 
 // Constructs a multi-component space-time function from a set of 
 // single-valued space-time functions.
@@ -129,7 +129,7 @@ st_func_t* st_func_from_component(st_func_t* multicomp_func,
 
 // Creates a function that is constant in space and time, with the given 
 // components.
-st_func_t* constant_st_func_new(int num_comp, double comp[]);
+st_func_t* constant_st_func_new(int num_comp, real_t comp[]);
 
 #endif
 

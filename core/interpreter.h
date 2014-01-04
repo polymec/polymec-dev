@@ -110,11 +110,11 @@ void interpreter_set_string(interpreter_t* interp, const char* name, const char*
 
 // Fetches the given number from the interpreter, returning -FLT_MAX if it 
 // is not found or if it is not a number.
-double interpreter_get_number(interpreter_t* interp, const char* name);
+real_t interpreter_get_number(interpreter_t* interp, const char* name);
 
 // Sets the given variable within the interpreter to the given numeric 
 // value. Any existing value of this variable is overwritten.
-void interpreter_set_number(interpreter_t* interp, const char* name, double value);
+void interpreter_set_number(interpreter_t* interp, const char* name, real_t value);
 
 // Fetches the given boolean value from the interpreter, returning false if it 
 // is not found or if it is not a boolean.
@@ -199,7 +199,7 @@ string_ptr_unordered_map_t* interpreter_get_table(interpreter_t* interp, const c
 
 // Sets the given variable within the interpreter to the given sequence of
 // nubmers.. Any existing value of this variable is overwritten.
-void interpreter_set_sequence(interpreter_t* interp, const char* name, double* sequence, int len);
+void interpreter_set_sequence(interpreter_t* interp, const char* name, real_t* sequence, int len);
 
 // Sets the given variable within the interpreter to the given table of
 // objects. Any existing value of this variable is overwritten.
@@ -228,11 +228,11 @@ bool lua_issequence(struct lua_State* lua, int index);
 
 // This helper retrieves a sequence from the given index on an active lua 
 // interpreter, or returns NULL if the index does not point to a sequence.
-double* lua_tosequence(struct lua_State* lua, int index, int* len);
+real_t* lua_tosequence(struct lua_State* lua, int index, int* len);
 
 // Pushes a sequence onto the interpreter's stack (as a return value for a 
 // function).
-void lua_pushsequence(struct lua_State* lua, double* sequence, int len);
+void lua_pushsequence(struct lua_State* lua, real_t* sequence, int len);
 
 // This helper returns true if the object at the given index is a point
 // in 3-dimensional space, false if not.

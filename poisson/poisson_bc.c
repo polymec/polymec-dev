@@ -34,7 +34,7 @@ static void poisson_bc_free(void* bc, void* dummy)
   pbc->F = NULL;
 }
 
-poisson_bc_t* poisson_bc_new(double alpha, double beta, st_func_t* F)
+poisson_bc_t* poisson_bc_new(real_t alpha, real_t beta, st_func_t* F)
 {
   ASSERT(F != NULL);
   poisson_bc_t* bc = GC_MALLOC(sizeof(poisson_bc_t));

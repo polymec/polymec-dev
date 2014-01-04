@@ -30,22 +30,22 @@
 // A point in 1, 2, or 3D space.
 typedef struct
 {
-  double x, y, z;
+  real_t x, y, z;
 } point_t;
 
 // Allocates a new point on the heap with the given coordinates. Not 
 // necessary if you are allocating a point on the stack. Objects of this 
 // type are garbage-collected when allocated on the heap.
-point_t* point_new(double x, double y, double z);
+point_t* point_new(real_t x, real_t y, real_t z);
 
 // Square distance between two points in 3D space.
-static inline double point_square_distance(point_t* x, point_t* y)
+static inline real_t point_square_distance(point_t* x, point_t* y)
 {
   return (x->x-y->x)*(x->x-y->x) + (x->y-y->y)*(x->y-y->y) + (x->z-y->z)*(x->z-y->z);
 }
 
 // Distance between two points in 3D space.
-static inline double point_distance(point_t* x, point_t* y)
+static inline real_t point_distance(point_t* x, point_t* y)
 {
   return sqrt(point_square_distance(x, y));
 }
@@ -61,22 +61,22 @@ static inline void point_copy(point_t* dest, point_t* source)
 // A vector in 1, 2, or 3D space.
 typedef struct
 {
-  double x, y, z;
+  real_t x, y, z;
 } vector_t;
 
 // Allocates a new vector on the heap with the given components. Not 
 // necessary if you are allocating a vector on the stack. Objects of this 
 // type are garbage-collected when allocated on the heap.
-vector_t* vector_new(double vx, double vy, double vz);
+vector_t* vector_new(real_t vx, real_t vy, real_t vz);
 
 // Vector dot product.
-static inline double vector_dot(vector_t* v1, vector_t* v2)
+static inline real_t vector_dot(vector_t* v1, vector_t* v2)
 {
   return v1->x*v2->x + v1->y*v2->y + v1->z*v2->z;
 }
 
 // Vector magnitude.
-static inline double vector_mag(vector_t* v)
+static inline real_t vector_mag(vector_t* v)
 {
   return sqrt(vector_dot(v, v));
 }
@@ -84,7 +84,7 @@ static inline double vector_mag(vector_t* v)
 // Normalizes the given vector.
 static inline void vector_normalize(vector_t* v)
 {
-  double vmag = vector_mag(v);
+  real_t vmag = vector_mag(v);
   if (vmag != 0.0)
   {
     v->x /= vmag;
@@ -102,7 +102,7 @@ static inline void vector_cross(vector_t* v1, vector_t* v2, vector_t* v1xv2)
 }
 
 // Magnitude of cross product.
-static inline double vector_cross_mag(vector_t* v1, vector_t* v2)
+static inline real_t vector_cross_mag(vector_t* v1, vector_t* v2)
 {
   vector_t v1xv2;
   vector_cross(v1, v2, &v1xv2);
@@ -110,7 +110,7 @@ static inline double vector_cross_mag(vector_t* v1, vector_t* v2)
 }
 
 // (Scalar) vector triple product.
-static inline double vector_triple_product(vector_t* v1, vector_t* v2, vector_t* v3)
+static inline real_t vector_triple_product(vector_t* v1, vector_t* v2, vector_t* v3)
 {
   vector_t v2xv3;
   vector_cross(v2, v3, &v2xv3);
@@ -133,7 +133,7 @@ static inline void vector_copy(vector_t* dest, vector_t* source)
   dest->z = source->z;
 }
 
-static inline void vector_scale(vector_t* v, double s)
+static inline void vector_scale(vector_t* v, real_t s)
 {
   v->x *= s;
   v->y *= s;
@@ -155,14 +155,14 @@ static inline bool points_are_colinear(point_t* p1, point_t* p2, point_t* p3)
 // A bounding box.
 typedef struct
 {
-  double x1, x2;
-  double y1, y2;
-  double z1, z2;
+  real_t x1, x2;
+  real_t y1, y2;
+  real_t z1, z2;
 } bbox_t;
 
 // Allocates a bounding box on the heap. Objects of this type are garbage-
 // collected when allocated on the heap.
-bbox_t* bbox_new(double x1, double x2, double y1, double y2, double z1, double z2);
+bbox_t* bbox_new(real_t x1, real_t x2, real_t y1, real_t y2, real_t z1, real_t z2);
 
 // Returns true if the given bounding box contains the given point, false otherwise.
 static inline bool bbox_contains(bbox_t* bbox, point_t* p)
@@ -188,10 +188,10 @@ static inline void point_randomize(point_t* point, int (*rand_gen)(), bbox_t* bo
 // Given a random number generator, generate a vector with the given magnitude
 // pointing in a random direction. The random number generator must generate 
 // an integer between 0 and RAND_MAX.
-static inline void vector_randomize(vector_t* vector, int (*rand_gen)(), double magnitude)
+static inline void vector_randomize(vector_t* vector, int (*rand_gen)(), real_t magnitude)
 {
-  double theta = (1.0*rand_gen()/RAND_MAX) * M_PI;
-  double phi = (1.0*rand_gen()/RAND_MAX) * 2.0 * M_PI;
+  real_t theta = (1.0*rand_gen()/RAND_MAX) * M_PI;
+  real_t phi = (1.0*rand_gen()/RAND_MAX) * 2.0 * M_PI;
   vector->x = magnitude * cos(theta) * sin(phi);
   vector->y = magnitude * sin(theta) * sin(phi);
   vector->z = magnitude * cos(phi);

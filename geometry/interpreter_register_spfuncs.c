@@ -43,7 +43,7 @@ static int sphere(lua_State* lua)
 
   // Get the arguments.
   point_t* x = lua_topoint(lua, 1);
-  double r = (double)lua_tonumber(lua, 2);
+  real_t r = (real_t)lua_tonumber(lua, 2);
   if (r <= 0.0)
     return luaL_error(lua, "Sphere radius must be positive.");
 

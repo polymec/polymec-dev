@@ -150,10 +150,10 @@ static interpreter_storage_t* store_string(lua_State* lua, const char* var)
   return storage;
 }
 
-static interpreter_storage_t* store_number(lua_State* lua, double var)
+static interpreter_storage_t* store_number(lua_State* lua, real_t var)
 {
   interpreter_storage_t* storage = NEW_USER_DATA(lua);
-  double* dvar = malloc(sizeof(double));
+  real_t* dvar = malloc(sizeof(real_t));
   *dvar = var;
   storage->datum = dvar;
   storage->type = INTERPRETER_NUMBER;
@@ -258,7 +258,7 @@ static void destroy_table(void* table)
   string_ptr_unordered_map_free((string_ptr_unordered_map_t*)table);
 }
 
-static interpreter_storage_t* store_sequence(lua_State* lua, double* sequence, int len)
+static interpreter_storage_t* store_sequence(lua_State* lua, real_t* sequence, int len)
 {
   interpreter_storage_t* storage = NEW_USER_DATA(lua);
   storage->datum = sequence;
@@ -663,7 +663,7 @@ static void interpreter_store_chunk_contents(interpreter_t* interp)
 
     interpreter_storage_t* var = NULL;
     if (lua_isnumber(lua, val_index))
-      var = store_number(NULL, lua_tonumber(lua, val_index));
+      var = store_number(NULL, (real_t)lua_tonumber(lua, val_index));
     else if (lua_isboolean(lua, val_index))
       var = store_boolean(NULL, lua_toboolean(lua, val_index));
     else if (lua_isstring(lua, val_index))
@@ -673,7 +673,7 @@ static void interpreter_store_chunk_contents(interpreter_t* interp)
       // Sequences can be interpreted in many ways. Are we asked to 
       // interpret this sequence as something other than just a sequence?
       int len;
-      double* seq = lua_tosequence(lua, val_index, &len);
+      real_t* seq = lua_tosequence(lua, val_index, &len);
       if ((entry == NULL) || (entry->type == INTERPRETER_SEQUENCE))
       {
         var = store_sequence(NULL, seq, len);
@@ -794,8 +794,8 @@ static void interpreter_store_chunk_contents(interpreter_t* interp)
         char* tkey = (char*)lua_tostring(lua, key_index);
         if (lua_isnumber(lua, val_index))
         {
-          double* var = malloc(sizeof(double));
-          *var = lua_tonumber(lua, val_index);
+          real_t* var = malloc(sizeof(real_t));
+          *var = (real_t)lua_tonumber(lua, val_index);
           string_ptr_unordered_map_insert_with_kv_dtor(table, tkey, var, destroy_table_entry);
         }
         else if (lua_isboolean(lua, val_index))
@@ -906,17 +906,17 @@ void interpreter_set_string(interpreter_t* interp, const char* name, const char*
   interpreter_map_insert_with_kv_dtor(interp->store, string_dup(name), storage, destroy_variable);
 }
 
-double interpreter_get_number(interpreter_t* interp, const char* name)
+real_t interpreter_get_number(interpreter_t* interp, const char* name)
 {
   interpreter_storage_t** storage = interpreter_map_get(interp->store, (char*)name);
   if (storage == NULL)
     return -FLT_MAX;
   if ((*storage)->type != INTERPRETER_NUMBER)
     return -FLT_MAX;
-  return *((double*)(*storage)->datum);
+  return *((real_t*)(*storage)->datum);
 }
 
-void interpreter_set_number(interpreter_t* interp, const char* name, double value)
+void interpreter_set_number(interpreter_t* interp, const char* name, real_t value)
 {
   interpreter_storage_t* storage = store_number(NULL, value);
   interpreter_map_insert_with_kv_dtor(interp->store, string_dup(name), storage, destroy_variable);
@@ -1091,7 +1091,7 @@ string_ptr_unordered_map_t* interpreter_get_table(interpreter_t* interp, const c
   return (string_ptr_unordered_map_t*)((*storage)->datum);
 }
 
-void interpreter_set_sequence(interpreter_t* interp, const char* name, double* sequence, int len)
+void interpreter_set_sequence(interpreter_t* interp, const char* name, real_t* sequence, int len)
 {
   interpreter_storage_t* storage = store_sequence(NULL, sequence, len);
   interpreter_map_insert_with_kv_dtor(interp->store, string_dup(name), storage, destroy_variable);
@@ -1152,7 +1152,7 @@ bool lua_issequence(struct lua_State* lua, int index)
   return (storage->type == INTERPRETER_SEQUENCE);
 }
 
-double* lua_tosequence(struct lua_State* lua, int index, int* len)
+real_t* lua_tosequence(struct lua_State* lua, int index, int* len)
 {
   if (!lua_issequence(lua, index))
     return NULL;
@@ -1160,12 +1160,12 @@ double* lua_tosequence(struct lua_State* lua, int index, int* len)
   if (lua_istable(lua, index))
   {
     *len = lua_rawlen(lua, index);
-    double* seq = malloc(sizeof(double)*(*len));
+    real_t* seq = malloc(sizeof(real_t)*(*len));
     for (int i = 1; i <= *len; ++i)
     {
       lua_pushinteger(lua, (lua_Integer)i);
       lua_gettable(lua, index);
-      seq[i-1] = lua_tonumber(lua, -1);
+      seq[i-1] = (real_t)lua_tonumber(lua, -1);
       lua_pop(lua, 1);
     }
     return seq;
@@ -1174,7 +1174,7 @@ double* lua_tosequence(struct lua_State* lua, int index, int* len)
   if (storage->type == INTERPRETER_SEQUENCE)
   {
     *len = storage->size;
-    return (double*)storage->datum;
+    return (real_t*)storage->datum;
   }
   else
     return NULL;
@@ -1184,7 +1184,7 @@ static int sequence_tostring(lua_State* lua)
 {
   interpreter_storage_t* var = (void*)lua_topointer(lua, -1);
   ASSERT(var->type == INTERPRETER_SEQUENCE);
-  double* data = var->datum;
+  real_t* data = var->datum;
   char* str = malloc(sizeof(char) * 18 * var->size);
   str[0] = '{';
   int offset = 1;
@@ -1207,15 +1207,15 @@ static int sequence_concat(lua_State* lua)
 {
   interpreter_storage_t* var1 = (void*)lua_topointer(lua, -1);
   ASSERT(var1->type == INTERPRETER_SEQUENCE);
-  double* data1 = var1->datum;
+  real_t* data1 = var1->datum;
   interpreter_storage_t* var2 = (void*)lua_topointer(lua, -2);
   ASSERT(var2->type == INTERPRETER_SEQUENCE);
-  double* data2 = var2->datum;
+  real_t* data2 = var2->datum;
 
   int len = var1->size + var2->size;
-  double* concat_data = malloc(sizeof(double) * len);
-  memcpy(concat_data, data1, sizeof(double) * var1->size);
-  memcpy(&concat_data[var1->size], data2, sizeof(double) * var2->size);
+  real_t* concat_data = malloc(sizeof(real_t) * len);
+  memcpy(concat_data, data1, sizeof(real_t) * var1->size);
+  memcpy(&concat_data[var1->size], data2, sizeof(real_t) * var2->size);
   lua_pushsequence(lua, concat_data, len);
   return 1;
 }
@@ -1228,7 +1228,7 @@ static int sequence_len(lua_State* lua)
   return 1;
 }
 
-void lua_pushsequence(struct lua_State* lua, double* sequence, int len)
+void lua_pushsequence(struct lua_State* lua, real_t* sequence, int len)
 {
   // Bundle it up and store it in the given variable.
   store_sequence(lua, sequence, len);
@@ -1258,7 +1258,7 @@ point_t* lua_topoint(struct lua_State* lua, int index)
   if (lua_istable(lua, index))
   {
     int len;
-    double* seq = lua_tosequence(lua, index, &len);
+    real_t* seq = lua_tosequence(lua, index, &len);
     point_t* p = point_new(seq[0], seq[1], seq[2]);
     free(seq);
     return p;
@@ -1268,7 +1268,7 @@ point_t* lua_topoint(struct lua_State* lua, int index)
     return (point_t*)storage->datum;
   else if (storage->type == INTERPRETER_SEQUENCE)
   {
-    double* seq = storage->datum;
+    real_t* seq = storage->datum;
     return point_new(seq[0], seq[1], seq[2]);
   }
   else
@@ -1296,7 +1296,7 @@ static int point_index(lua_State* lua)
   if ((index < 1) || (index > 3))
     return luaL_error(lua, "Invalid index for point: %d", index);
   point_t* data = var->datum;
-  double comp = (index == 1) ? data->x : (index == 2) ? data->y : data->z;
+  real_t comp = (index == 1) ? data->x : (index == 2) ? data->y : data->z;
   lua_pushnumber(lua, comp);
   return 1;
 }
@@ -1486,7 +1486,7 @@ vector_t* lua_tovector(struct lua_State* lua, int index)
   if (lua_istable(lua, index))
   {
     int len;
-    double* seq = lua_tosequence(lua, index, &len);
+    real_t* seq = lua_tosequence(lua, index, &len);
     vector_t* v = vector_new(seq[0], seq[1], seq[2]);
     free(seq);
     return v;
@@ -1496,7 +1496,7 @@ vector_t* lua_tovector(struct lua_State* lua, int index)
     return (vector_t*)storage->datum;
   else if (storage->type == INTERPRETER_SEQUENCE)
   {
-    double* seq = storage->datum;
+    real_t* seq = storage->datum;
     return vector_new(seq[0], seq[1], seq[2]);
   }
   else
@@ -1526,7 +1526,7 @@ static int vector_index(lua_State* lua)
   if ((index < 1) || (index > 3))
     return luaL_error(lua, "Invalid index for vector: %d", index);
   vector_t* data = var->datum;
-  double comp = (index == 1) ? data->x : (index == 2) ? data->y : data->z;
+  real_t comp = (index == 1) ? data->x : (index == 2) ? data->y : data->z;
   lua_pushnumber(lua, comp);
   return 1;
 }
@@ -1741,8 +1741,8 @@ static int scalarfunction_call(lua_State* lua)
   if (lua_ispoint(lua, 2))
   {
     point_t* x = lua_topoint(lua, 2);
-    double t = lua_tonumber(lua, 3);
-    double v;
+    real_t t = (real_t)lua_tonumber(lua, 3);
+    real_t v;
     st_func_eval(f, x, t, &v);
     lua_pushnumber(lua, v);
   }
@@ -1750,8 +1750,8 @@ static int scalarfunction_call(lua_State* lua)
   {
     int num_points;
     point_t* x = lua_topointlist(lua, 2, &num_points);
-    double t = lua_tonumber(lua, 3);
-    double* v = malloc(sizeof(double) * num_points);
+    real_t t = (real_t)lua_tonumber(lua, 3);
+    real_t* v = malloc(sizeof(real_t) * num_points);
     for (int i = 0; i < num_points; ++i)
       st_func_eval(f, &x[i], t, &v[i]);
     lua_pushsequence(lua, v, num_points);
@@ -1822,8 +1822,8 @@ static int vectorfunction_call(lua_State* lua)
   if (lua_ispoint(lua, 2))
   {
     point_t* x = lua_topoint(lua, 2);
-    double t = lua_tonumber(lua, 3);
-    double v[3];
+    real_t t = (real_t)lua_tonumber(lua, 3);
+    real_t v[3];
     st_func_eval(f, x, t, v);
     vector_t V = {.x = v[0], .y = v[1], .z = v[2]};
     lua_pushvector(lua, &V);
@@ -1832,11 +1832,11 @@ static int vectorfunction_call(lua_State* lua)
   {
     int num_points;
     point_t* x = lua_topointlist(lua, 2, &num_points);
-    double t = lua_tonumber(lua, 3);
+    real_t t = (real_t)lua_tonumber(lua, 3);
     vector_t* V = malloc(sizeof(vector_t) * num_points);
     for (int i = 0; i < num_points; ++i)
     {
-      double v[3];
+      real_t v[3];
       st_func_eval(f, x, t, v);
       V[i].x = v[0], V[i].y = v[1], V[i].z = v[2];
     }

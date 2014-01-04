@@ -165,7 +165,7 @@ mesh_t* create_voronoi_mesh(MPI_Comm comm,
 
   // Gather the points to be tessellated.
   int num_points = num_generators + num_ghost_generators;
-  double* points = malloc(sizeof(point_t) * 3 * num_points);
+  real_t* points = malloc(sizeof(point_t) * 3 * num_points);
   for (int i = 0; i < num_generators; ++i)
   {
     points[3*i] = generators[i].x;
@@ -283,7 +283,7 @@ mesh_t* create_voronoi_mesh_in_box(MPI_Comm comm,
 
   // Gather the points to be tessellated.
   int num_points = num_generators + num_ghost_generators;
-  double* points = malloc(sizeof(point_t) * 3 * num_points);
+  real_t* points = malloc(sizeof(point_t) * 3 * num_points);
   for (int i = 0; i < num_generators; ++i)
   {
     points[3*i] = generators[i].x;
@@ -300,8 +300,8 @@ mesh_t* create_voronoi_mesh_in_box(MPI_Comm comm,
   // Perform an unbounded tessellation using polytope.
   polytope_tessellator_t* tessellator = tetgen_tessellator_new();
   polytope_tessellation_t* tess = polytope_tessellation_new(3);
-  double low[3] = {bounding_box->x1, bounding_box->y1, bounding_box->z1};
-  double high[3] = {bounding_box->x2, bounding_box->y2, bounding_box->z2};
+  real_t low[3] = {bounding_box->x1, bounding_box->y1, bounding_box->z1};
+  real_t high[3] = {bounding_box->x2, bounding_box->y2, bounding_box->z2};
   polytope_tessellator_tessellate_in_box(tessellator, points, num_points, 
                                          low, high, tess);
 

@@ -36,10 +36,10 @@ typedef enum
 struct cvt_gen_force_t 
 {
   cvt_gen_force_type_t type;
-  double param1;
+  real_t param1;
 };
 
-cvt_gen_force_t* linear_spring_force_new(double k)
+cvt_gen_force_t* linear_spring_force_new(real_t k)
 {
   cvt_gen_force_t* F = GC_MALLOC(sizeof(cvt_gen_force_t));
   F->type = FORCE_LINEAR_SPRING;
@@ -50,10 +50,10 @@ cvt_gen_force_t* linear_spring_force_new(double k)
 typedef struct
 {
   cvt_gen_force_t* force;
-  double tolerance;
+  real_t tolerance;
 } force_cvt_gen_dist_t;
 
-static void move_points(point_t* points, int num_points, vector_t* forces, double dt)
+static void move_points(point_t* points, int num_points, vector_t* forces, real_t dt)
 {
   for (int i = 0; i < num_points; ++i)
   {
@@ -66,16 +66,16 @@ static void move_points(point_t* points, int num_points, vector_t* forces, doubl
 static void accumulate_forces_on_vertices(cvt_gen_force_t* force,
                                           sp_func_t* density, 
                                           delaunay_triangulation_t* t,
-                                          double* forces,
-                                          double* max_force)
+                                          real_t* forces,
+                                          real_t* max_force)
 {
   // FIXME: Assume linear spring model for now.
   ASSERT(force->type == FORCE_LINEAR_SPRING);
-  double k = force->param1;
+  real_t k = force->param1;
 
   // Compute equilibrium lengths for each of the vertices.
   point_t vertices[t->num_vertices];
-  double Leq[t->num_vertices];
+  real_t Leq[t->num_vertices];
   for (int i = 0; i < t->num_vertices; ++i)
   {
     vertices[i].x = t->vertices[3*i];
@@ -94,33 +94,33 @@ static void accumulate_forces_on_vertices(cvt_gen_force_t* force,
     int j3 = t->tets[i].vertices[3];
 
     // Distances.
-    double L01 = point_distance(&vertices[j0], &vertices[j1]);
-    double L02 = point_distance(&vertices[j0], &vertices[j2]);
-    double L03 = point_distance(&vertices[j0], &vertices[j3]);
-    double L12 = point_distance(&vertices[j1], &vertices[j2]);
-    double L13 = point_distance(&vertices[j1], &vertices[j3]);
-    double L23 = point_distance(&vertices[j2], &vertices[j3]);
+    real_t L01 = point_distance(&vertices[j0], &vertices[j1]);
+    real_t L02 = point_distance(&vertices[j0], &vertices[j2]);
+    real_t L03 = point_distance(&vertices[j0], &vertices[j3]);
+    real_t L12 = point_distance(&vertices[j1], &vertices[j2]);
+    real_t L13 = point_distance(&vertices[j1], &vertices[j3]);
+    real_t L23 = point_distance(&vertices[j2], &vertices[j3]);
 
     // Force magnitudes.
-    double L0 = Leq[j0];
-    double F01 = MAX(k * (L0 - L01), 0.0);
-    double F02 = MAX(k * (L0 - L02), 0.0);
-    double F03 = MAX(k * (L0 - L03), 0.0);
+    real_t L0 = Leq[j0];
+    real_t F01 = MAX(k * (L0 - L01), 0.0);
+    real_t F02 = MAX(k * (L0 - L02), 0.0);
+    real_t F03 = MAX(k * (L0 - L03), 0.0);
 
-    double L1 = Leq[j1];
-    double F10 = MAX(k * (L1 - L01), 0.0);
-    double F12 = MAX(k * (L1 - L12), 0.0);
-    double F13 = MAX(k * (L1 - L13), 0.0);
+    real_t L1 = Leq[j1];
+    real_t F10 = MAX(k * (L1 - L01), 0.0);
+    real_t F12 = MAX(k * (L1 - L12), 0.0);
+    real_t F13 = MAX(k * (L1 - L13), 0.0);
 
-    double L2 = Leq[j2];
-    double F20 = MAX(k * (L2 - L02), 0.0);
-    double F21 = MAX(k * (L2 - L12), 0.0);
-    double F23 = MAX(k * (L2 - L23), 0.0);
+    real_t L2 = Leq[j2];
+    real_t F20 = MAX(k * (L2 - L02), 0.0);
+    real_t F21 = MAX(k * (L2 - L12), 0.0);
+    real_t F23 = MAX(k * (L2 - L23), 0.0);
 
-    double L3 = Leq[j3];
-    double F30 = MAX(k * (L3 - L03), 0.0);
-    double F31 = MAX(k * (L3 - L13), 0.0);
-    double F33 = MAX(k * (L3 - L23), 0.0);
+    real_t L3 = Leq[j3];
+    real_t F30 = MAX(k * (L3 - L03), 0.0);
+    real_t F31 = MAX(k * (L3 - L13), 0.0);
+    real_t F33 = MAX(k * (L3 - L23), 0.0);
   }
 }
 
@@ -147,9 +147,9 @@ void force_cvt_gen_dist_iterate(void* context,
   // Compute the initial forces on each point.
   for (int i = 0; i < num_points; ++i)
     forces[i].x = forces[i].y = forces[i].z = 0.0;
-  double Fmax;
+  real_t Fmax;
   accumulate_forces_on_vertices(algo->force, density, t, forces, &Fmax);
-  double dt = 0.1;
+  real_t dt = 0.1;
 
   while (Fmax > algo->tolerance)
   {
@@ -169,7 +169,7 @@ void force_cvt_gen_dist_iterate(void* context,
 }
 
 cvt_gen_dist_t* force_cvt_gen_dist_new(cvt_gen_force_t* force,
-                                       double tolerance)
+                                       real_t tolerance)
 {
   ASSERT(force != NULL);
   ASSERT(tolerance > 0.0);

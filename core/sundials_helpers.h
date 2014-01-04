@@ -70,7 +70,7 @@ static inline N_Vector N_VNewEmpty(MPI_Comm comm, int local_len)
 #endif
 }
 
-static inline N_Vector N_VMake(MPI_Comm comm, int local_len, double* v_data)
+static inline N_Vector N_VMake(MPI_Comm comm, int local_len, real_t* v_data)
 {
 #if HAVE_MPI
   int global_len;

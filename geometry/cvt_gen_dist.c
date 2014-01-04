@@ -30,7 +30,7 @@ struct cvt_gen_dist_t
 {
   char* name;
   void* context;
-  double scale_factor;
+  real_t scale_factor;
   cvt_gen_dist_vtable vtable;
 };
 
@@ -45,7 +45,7 @@ static void cvt_gen_dist_free(void* ctx, void* dummy)
 static void project_point_to_boundary(sp_func_t* boundary, point_t* x)
 {
   ASSERT(sp_func_has_deriv(boundary, 1));
-  double D, grad_D[3];
+  real_t D, grad_D[3];
   static int max_proj = 100;
   int i = 0;
   do 
@@ -109,12 +109,12 @@ void cvt_gen_dist_iterate(cvt_gen_dist_t* dist,
   {
     for (int i = 0; i < num_points; ++i)
     {
-      double D;
+      real_t D;
       sp_func_eval(boundary, &points[i], &D);
       if (D >= 0.0)
       {
         project_point_to_boundary(boundary, &points[i]);
-        double D;
+        real_t D;
         sp_func_eval(boundary, &points[i], &D);
         ASSERT(fabs(D) < 1e-12);
       }
@@ -132,7 +132,7 @@ void cvt_gen_dist_iterate(cvt_gen_dist_t* dist,
   {
     for (int i = 0; i < num_points - *num_boundary_points; ++i)
     {
-      double D;
+      real_t D;
       sp_func_eval(boundary, &points[i], &D);
       if (D > 1e-12)
       {
@@ -157,7 +157,7 @@ void cvt_gen_dist_generate_random_points(int (*rng)(), sp_func_t* density, bbox_
   ASSERT(points != NULL);
 
   // Keep track of the maximum value of the density we've hit so far.
-  double rho_max = 1e-12;
+  real_t rho_max = 1e-12;
 
   for (int i = 0; i < num_points; ++i)
   {
@@ -170,11 +170,11 @@ void cvt_gen_dist_generate_random_points(int (*rng)(), sp_func_t* density, bbox_
       // Now evaluate the density at this point and reject the point if 
       // if the relative density is less than a random number between 0 
       // and 1.
-      double rho;
+      real_t rho;
       sp_func_eval(density, &points[i], &rho);
       if (rho > rho_max) rho_max = rho;
 
-      double P = rng()/RAND_MAX;
+      real_t P = rng()/RAND_MAX;
       rejected = (rho/rho_max < P);
     }
     while (rejected);

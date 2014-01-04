@@ -59,7 +59,7 @@ void test_create_generators_in_box(void** state)
   // Probabilistic algorithm.
   int num_sample_pts = 300;
   cvt_gen_dist_t* prob = prob_cvt_gen_dist_new(rand, num_sample_pts, 0.5, 0.5, 0.0, 100);
-  double one = 1.0;
+  real_t one = 1.0;
   sp_func_t* density = constant_sp_func_new(1, &one); // Constant density.
 
   // Iterate 100 times to find the right generator distribution.
@@ -86,7 +86,7 @@ void test_create_generators_in_cylinder(void** state)
   bbox_t bbox = {.x1 = -0.5, .x2 = 0.5, .y1 = -0.5, .y2 = 0.5, .z1 = -0.5, .z2 = 0.5};
   for (int i = 0; i < N; ++i)
   {
-    double F;
+    real_t F;
     do
     {
       point_randomize(&generators[i], rand, &bbox);
@@ -98,7 +98,7 @@ void test_create_generators_in_cylinder(void** state)
   // Probabilistic algorithm.
   int num_sample_pts = 300;
   cvt_gen_dist_t* prob = prob_cvt_gen_dist_new(rand, num_sample_pts, 0.5, 0.5, 0.0, 100);
-  double one = 1.0;
+  real_t one = 1.0;
   sp_func_t* density = constant_sp_func_new(1, &one); // Constant density.
   int Nb;
   cvt_gen_dist_iterate(prob, density, cylinder, &bbox, generators, N, &Nb);
@@ -106,7 +106,7 @@ void test_create_generators_in_cylinder(void** state)
   // Make sure all of the generators are inside or on the cylinder.
   for (int i = 0; i < N; ++i)
   {
-    double F;
+    real_t F;
     sp_func_eval(cylinder, &generators[i], &F);
     assert_true(F < 1e-12);
   }

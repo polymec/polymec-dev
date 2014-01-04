@@ -105,10 +105,10 @@ typedef struct
   point_t* nodes;
 
   // Geometry information.
-  double* cell_volumes;
+  real_t* cell_volumes;
   point_t* cell_centers;
   point_t* face_centers;
-  double* face_areas;
+  real_t* face_areas;
   vector_t* face_normals;
 
   // Mesh tagging mechanisms.

@@ -51,6 +51,7 @@
 
 #define DEFINE_TUPLE(tuple_name, element, element_cmp) \
 \
+typedef element tuple_name##_value_t; \
 static inline element* tuple_name##_new(int N) \
 { \
   ASSERT(N > 0); \
@@ -103,6 +104,6 @@ static inline int tuple_name##_hash(element* tuple) \
 
 // Define some basic tuple types.
 DEFINE_TUPLE(int_tuple, int, int_cmp)
-DEFINE_TUPLE(double_tuple, double, double_cmp)
+DEFINE_TUPLE(real_tuple, real_t, real_cmp)
 
 #endif

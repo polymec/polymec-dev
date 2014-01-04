@@ -61,7 +61,7 @@ struct nonlinear_integrator_t
   SuperLUStat_t precond_stat;
 
   // Current time -- used for preconditioner.
-  double current_time;
+  real_t current_time;
 };
 
 // This function sets up the preconditioner data within the integrator.
@@ -71,7 +71,7 @@ static int set_up_preconditioner(N_Vector x, N_Vector x_scale,
                                  N_Vector work1, N_Vector work2)
 {
   nonlinear_integrator_t* integrator = context;
-  double t = integrator->current_time;
+  real_t t = integrator->current_time;
   supermatrix_factory_update_jacobian(integrator->precond_factory, 
                                       x, t, integrator->precond_mat);
   return 0;
@@ -90,8 +90,8 @@ static int solve_preconditioner_system(N_Vector x, N_Vector x_scale,
   
   // Copy the values from the vector r to the preconditioner right-hand side.
   {
-    double *rhs = (double*) ((DNformat*) integrator->precond_rhs->Store)->nzval; 
-    memcpy(rhs, NV_DATA(x), sizeof(double) * N);
+    real_t *rhs = (real_t*) ((DNformat*) integrator->precond_rhs->Store)->nzval; 
+    memcpy(rhs, NV_DATA(x), sizeof(real_t) * N);
   }
 
   // Solve the preconditioner system.
@@ -106,8 +106,8 @@ static int solve_preconditioner_system(N_Vector x, N_Vector x_scale,
 
   // Copy the values from the solution to the vector r.
   {
-    double *sol = (double*) ((DNformat*) integrator->precond_rhs->Store)->nzval; 
-    memcpy(NV_DATA(x), sol, sizeof(double) * N);
+    real_t *sol = (real_t*) ((DNformat*) integrator->precond_rhs->Store)->nzval; 
+    memcpy(NV_DATA(x), sol, sizeof(real_t) * N);
   }
 
   return 0;
@@ -213,7 +213,7 @@ void* nonlinear_integrator_context(nonlinear_integrator_t* integrator)
   return integrator->context;
 }
 
-void nonlinear_integrator_set_tolerances(nonlinear_integrator_t* integrator, double norm_tolerance, double step_tolerance)
+void nonlinear_integrator_set_tolerances(nonlinear_integrator_t* integrator, real_t norm_tolerance, real_t step_tolerance)
 {
   ASSERT(norm_tolerance > 0.0);
   ASSERT(step_tolerance > 0.0);
@@ -228,8 +228,8 @@ void newton_solver_set_max_iterations(nonlinear_integrator_t* integrator, int ma
 }
 
 bool nonlinear_integrator_solve(nonlinear_integrator_t* integrator,
-                                double t,
-                                double* X,
+                                real_t t,
+                                real_t* X,
                                 int* num_iterations)
 {
   ASSERT(X != NULL);
@@ -291,7 +291,7 @@ bool nonlinear_integrator_solve(nonlinear_integrator_t* integrator,
   }
 
   // Copy the values in X to the internal solution vector.
-  memcpy(NV_DATA(integrator->x), X, sizeof(double) * N);
+  memcpy(NV_DATA(integrator->x), X, sizeof(real_t) * N);
 
   // Suspend the currently active floating point exceptions for now.
   polymec_suspend_fpe_exceptions();
@@ -311,7 +311,7 @@ bool nonlinear_integrator_solve(nonlinear_integrator_t* integrator,
     *num_iterations = (int)num_iters;
 
     // Copy the data back into X.
-    memcpy(X, NV_DATA(integrator->x), sizeof(double) * N);
+    memcpy(X, NV_DATA(integrator->x), sizeof(real_t) * N);
     return true;
   }
 

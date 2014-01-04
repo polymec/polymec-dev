@@ -111,7 +111,7 @@ DEFINE_ORDERED_SET_USING_TREE(set_name, set_name##_avl_tree)
 
 // Define some ordered_sets.
 DEFINE_ORDERED_SET_USING_AVL_TREE(int_ordered_set, int_avl_tree)
-DEFINE_ORDERED_SET_USING_AVL_TREE(double_ordered_set, double_avl_tree)
+DEFINE_ORDERED_SET_USING_AVL_TREE(real_ordered_set, real_avl_tree)
 DEFINE_ORDERED_SET_USING_AVL_TREE(string_ordered_set, string_avl_tree)
 
 #endif

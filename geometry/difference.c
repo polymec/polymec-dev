@@ -29,23 +29,23 @@ typedef struct
   sp_func_t *s1, *s2;
 } diff_t;
 
-static void diff_eval(void* ctx, point_t* x, double* result)
+static void diff_eval(void* ctx, point_t* x, real_t* result)
 {
   diff_t* diff = ctx;
-  double v1, v2;
+  real_t v1, v2;
   sp_func_eval(diff->s1, x, &v1);
   sp_func_eval(diff->s2, x, &v2);
   result[0] = MAX(v1, -v2);
 }
 
-static void diff_eval_gradient(void* ctx, point_t* x, double* result)
+static void diff_eval_gradient(void* ctx, point_t* x, real_t* result)
 {
   diff_t* diff = ctx;
-  double v1[3], v2[3];
+  real_t v1[3], v2[3];
   sp_func_eval(diff->s1, x, v1);
-  double v1mag2 = v1[0]*v1[0] + v1[1]*v1[1] + v1[2]*v1[2];
+  real_t v1mag2 = v1[0]*v1[0] + v1[1]*v1[1] + v1[2]*v1[2];
   sp_func_eval(diff->s2, x, v2);
-  double v2mag2 = v2[0]*v2[0] + v2[1]*v2[1] + v2[2]*v2[2];
+  real_t v2mag2 = v2[0]*v2[0] + v2[1]*v2[1] + v2[2]*v2[2];
 
   if (v1mag2 > v2mag2)
   {

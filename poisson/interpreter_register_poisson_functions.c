@@ -40,7 +40,7 @@ static int dirichlet_bc(lua_State* lua)
   st_func_t* F;
   if (lua_isnumber(lua, 1))
   {
-    double F0 = lua_tonumber(lua, 1);
+    real_t F0 = (real_t)lua_tonumber(lua, 1);
     F = constant_st_func_new(1, &F0);
   }
   else
@@ -65,7 +65,7 @@ static int neumann_bc(lua_State* lua)
   st_func_t* F;
   if (lua_isnumber(lua, 1))
   {
-    double F0 = lua_tonumber(lua, 1);
+    real_t F0 = (real_t)lua_tonumber(lua, 1);
     F = constant_st_func_new(1, &F0);
   }
   else
@@ -92,12 +92,12 @@ static int robin_bc(lua_State* lua)
   }
 
   // Get the arguments. 
-  double alpha = lua_tonumber(lua, 1);
-  double beta = lua_tonumber(lua, 2);
+  real_t alpha = (real_t)lua_tonumber(lua, 1);
+  real_t beta = (real_t)lua_tonumber(lua, 2);
   st_func_t* F;
   if (lua_isnumber(lua, 3))
   {
-    double F0 = lua_tonumber(lua, 3);
+    real_t F0 = (real_t)lua_tonumber(lua, 3);
     F = constant_st_func_new(1, &F0);
   }
   else

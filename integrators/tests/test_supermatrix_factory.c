@@ -51,10 +51,10 @@ static int sys_func(N_Vector u, N_Vector F, void* context)
 
 typedef struct
 {
-  double time;
+  real_t time;
 } sys_func_t;
 
-static void set_sys_func_time(void* sys_func, double t)
+static void set_sys_func_time(void* sys_func, real_t t)
 {
   sys_func_t* F = sys_func;
   F->time = t;
@@ -84,7 +84,7 @@ void test_time_dep_F_ctor(void** state)
   adj_graph_free(g);
 }
 
-static int rhs_func(double t, N_Vector u, N_Vector F, void* context)
+static int rhs_func(real_t t, N_Vector u, N_Vector F, void* context)
 {
   return 0;
 }
@@ -160,7 +160,7 @@ typedef struct {
 static int dennis_schnabel_1(N_Vector X, N_Vector F, void* context) {
   // F(x) = [ x1 + x2 - 3.0,
   //        [ x1^2 + x2^2 - 9.0
-  double *x, *f;
+  real_t *x, *f;
   x = NV_DATA_S(X);
   f = NV_DATA_S(F);
 
@@ -177,9 +177,9 @@ void test_numerical_jacobian_ds1(void **state) {
   supermatrix_factory_t* factory = 
     supermatrix_factory_from_sys_func(bg, &dennis_schnabel_1, NULL, &context);
 
-  double time = 0.0;
+  real_t time = 0.0;
   N_Vector X = N_VNew_Serial(2);
-  double *x = NV_DATA_S(X);
+  real_t *x = NV_DATA_S(X);
   x[0] = 1.0;
   x[1] = 5.0;
   SuperMatrix* J = supermatrix_factory_jacobian(factory, X, time);

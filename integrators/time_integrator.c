@@ -46,7 +46,7 @@ struct time_integrator_t
   // CVODE data structures.
   void* cvode;
   N_Vector x; 
-  double current_time;
+  real_t current_time;
 
   // Preconditioning stuff.
   supermatrix_factory_t* precond_factory;
@@ -57,9 +57,9 @@ struct time_integrator_t
 };
 
 // This function sets up the preconditioner data within the integrator.
-static int set_up_preconditioner(double t, N_Vector x, N_Vector F,
+static int set_up_preconditioner(real_t t, N_Vector x, N_Vector F,
                                  int jacobian_is_current, int* jacobian_was_updated, 
-                                 double gamma, void* context, 
+                                 real_t gamma, void* context, 
                                  N_Vector work1, N_Vector work2, N_Vector work3)
 {
   time_integrator_t* integ = context;
@@ -78,9 +78,9 @@ static int set_up_preconditioner(double t, N_Vector x, N_Vector F,
 // This function solves the preconditioner equation. On input, the vector r 
 // contains the right-hand side of the preconditioner system, and on output 
 // it contains the solution to the system.
-static int solve_preconditioner_system(double t, N_Vector x, N_Vector F, 
+static int solve_preconditioner_system(real_t t, N_Vector x, N_Vector F, 
                                        N_Vector r, N_Vector z, 
-                                       double gamma, double delta, 
+                                       real_t gamma, real_t delta, 
                                        int lr, void* context, 
                                        N_Vector work)
 {
@@ -89,8 +89,8 @@ static int solve_preconditioner_system(double t, N_Vector x, N_Vector F,
   
   // Copy the values from the vector r to the preconditioner right-hand side.
   {
-    double *rhs = (double*) ((DNformat*) integ->precond_rhs->Store)->nzval; 
-    memcpy(rhs, NV_DATA(x), sizeof(double) * N);
+    real_t *rhs = (real_t*) ((DNformat*) integ->precond_rhs->Store)->nzval; 
+    memcpy(rhs, NV_DATA(x), sizeof(real_t) * N);
   }
 
   // Solve the preconditioner system.
@@ -105,8 +105,8 @@ static int solve_preconditioner_system(double t, N_Vector x, N_Vector F,
 
   // Copy the values from the solution to the vector r.
   {
-    double *sol = (double*) ((DNformat*) integ->precond_rhs->Store)->nzval; 
-    memcpy(NV_DATA(x), sol, sizeof(double) * N);
+    real_t *sol = (real_t*) ((DNformat*) integ->precond_rhs->Store)->nzval; 
+    memcpy(NV_DATA(x), sol, sizeof(real_t) * N);
   }
 
   return 0;
@@ -207,7 +207,7 @@ int time_integrator_order(time_integrator_t* integ)
   return integ->order;
 }
 
-void time_integrator_step(time_integrator_t* integ, double t1, double t2, double* X)
+void time_integrator_step(time_integrator_t* integ, real_t t1, real_t t2, real_t* X)
 {
   ASSERT(t2 > t1);
   if (integ->current_time != t1)
@@ -215,7 +215,7 @@ void time_integrator_step(time_integrator_t* integ, double t1, double t2, double
     CVodeReInit(integ->cvode, t1, integ->x);
     integ->current_time = t1;
   }
-  double t;
+  real_t t;
   CVode(integ->cvode, t2, integ->x, &t, CV_NORMAL);
   ASSERT(fabs(t - t2) < 1e-14);
   integ->current_time = t;

@@ -36,7 +36,7 @@ typedef struct div_free_poly_basis_t div_free_poly_basis_t;
 
 // Constructs a divergence-free basis of the given degree over the sphere
 // at the given center point x0 and of the given radius.
-div_free_poly_basis_t* spherical_div_free_poly_basis_new(int degree, point_t* x0, double radius);
+div_free_poly_basis_t* spherical_div_free_poly_basis_new(int degree, point_t* x0, real_t radius);
 
 // Returns the dimension of the given divergence-free polynomial basis.
 int div_free_poly_basis_dim(div_free_poly_basis_t* basis);

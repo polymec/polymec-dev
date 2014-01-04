@@ -57,7 +57,7 @@ void kd_tree_nearest_n(kd_tree_t* tree, point_t* point, int n, int* neighbors);
 // found within the given radius of the given point.
 int_slist_t* kd_tree_within_radius(kd_tree_t* tree, 
                                    point_t* point, 
-                                   double radius);
+                                   real_t radius);
 
 // This type allows iteration over trees.
 typedef struct 
@@ -69,7 +69,7 @@ typedef struct
 kd_tree_pos_t kd_tree_start(kd_tree_t* tree);
 
 // Traverses a kd tree.
-bool kd_tree_next(kd_tree_t* tree, kd_tree_pos_t* pos, int* index, double* coords);
+bool kd_tree_next(kd_tree_t* tree, kd_tree_pos_t* pos, int* index, real_t* coords);
 
 #endif
 

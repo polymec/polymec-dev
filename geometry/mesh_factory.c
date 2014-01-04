@@ -97,9 +97,9 @@ int mesh_factory_rectilinear(lua_State* lua)
 
   // Get the arguments.
   int nxs, nys, nzs;
-  double* xs = lua_tosequence(lua, 1, &nxs);
-  double* ys = lua_tosequence(lua, 2, &nys);
-  double* zs = lua_tosequence(lua, 3, &nzs);
+  real_t* xs = lua_tosequence(lua, 1, &nxs);
+  real_t* ys = lua_tosequence(lua, 2, &nys);
+  real_t* zs = lua_tosequence(lua, 3, &nzs);
   if ((nxs < 2) || (nys < 2) || (nzs < 2))
   {
     return luaL_error(lua, "xs, ys, and zs must all contain at least 2 values.");
@@ -255,7 +255,7 @@ int mesh_factory_voronoi(lua_State* lua)
     sp_func_t* boxy = rect_prism_new_from_bbox(bbox);
     for (int i = 0; i < num_generators; ++i)
     {
-      double F = 0.0;
+      real_t F = 0.0;
       sp_func_eval(boxy, &generators[i], &F);
       if (F > 0.0)
         return luaL_error(lua, "mesh_factory.voronoi: Generator %d is outside the given bounding box.", i);
@@ -308,9 +308,9 @@ return luaL_error(lua, "CURRENTLY NOT SUPPORTED.");
   if (!lua_isnil(lua, -1) && !lua_isnumber(lua, -1))
     return luaL_error(lua, "Option 'merge_distance' must be a number.");
 
-  double merge_distance = 1e-12;
+  real_t merge_distance = 1e-12;
   if (!lua_isnil(lua, -1))
-    merge_distance = lua_tonumber(lua, -1);
+    merge_distance = (real_t)lua_tonumber(lua, -1);
   lua_pop(lua, 1);
   if (merge_distance <= 0.0)
     return luaL_error(lua, "Option 'merge_distance' must be a number.");
@@ -338,7 +338,7 @@ return luaL_error(lua, "CURRENTLY NOT SUPPORTED.");
   if (!lua_isnumber(lua, -1))
     return luaL_error(lua, "Option 'num_iterations' must be a number.");
 
-  int num_iterations = lua_tonumber(lua, -1);
+  int num_iterations = (int)lua_tonumber(lua, -1);
   if (num_iterations < 1)
     return luaL_error(lua, "Option 'num_iterations' must be positive.");
 

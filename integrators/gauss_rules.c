@@ -25,15 +25,15 @@
 #include "core/polymec.h"
 #include "integrators/gauss_rules.h"
 
-void get_gauss_points(int n, double* points, double* weights)
+void get_gauss_points(int n, real_t* points, real_t* weights)
 {
   ASSERT(n >= 0);
   ASSERT(points != NULL);
   ASSERT(weights != NULL);
 
   int m = (n+1)/2;
-  double p1, p2, p3;
-  double pp, z;
+  real_t p1, p2, p3;
+  real_t pp, z;
   for (int i = 1; i <= m; ++i)
   {
     z = cos(M_PI * (i - 0.25) / (n + 0.5));
@@ -65,7 +65,7 @@ void get_gauss_points(int n, double* points, double* weights)
   }
 }
 
-void get_gauss_legendre_points(int n, double* points, double* weights)
+void get_gauss_legendre_points(int n, real_t* points, real_t* weights)
 {
   ASSERT(n >= 0);
   //  ASSERT(n <= 16);
@@ -73,7 +73,7 @@ void get_gauss_legendre_points(int n, double* points, double* weights)
   ASSERT(weights != NULL);
 
   // Tables of points and weights up to 16.
-  static const double x[16][8] = 
+  static const real_t x[16][8] = 
    {{0.000000000000000},
     {0.577350269189626},
     {0.000000000000000, 0.774596669241483},
@@ -91,7 +91,7 @@ void get_gauss_legendre_points(int n, double* points, double* weights)
     {0.000000000000000, 0.201194093997435, 0.394151347077563, 0.570972172608539, 0.724417731360170, 0.848206583410427, 0.937273392400706, 0.987992518020485},
     {0.095012509837637, 0.281603550779259, 0.458016777657227, 0.617876244402644, 0.755404408355003, 0.865631202387832, 0.944575023073233, 0.989400934991650}};
 
-  static const double w[16][8] = 
+  static const real_t w[16][8] = 
    {{2.0}, 
     {1.0}, 
     {0.888888888888889, 0.555555555555556},
@@ -133,14 +133,14 @@ void get_gauss_legendre_points(int n, double* points, double* weights)
   }
 }
 
-void get_gauss_radau_points(int n, double* points, double* weights)
+void get_gauss_radau_points(int n, real_t* points, real_t* weights)
 {
   ASSERT(n >= 2);
   ASSERT(points != NULL);
   ASSERT(weights != NULL);
 }
 
-void get_gauss_lobatto_points(int n, double* points, double* weights)
+void get_gauss_lobatto_points(int n, real_t* points, real_t* weights)
 {
   ASSERT(n >= 2);
   ASSERT(points != NULL);
@@ -168,7 +168,7 @@ void get_gauss_lobatto_points(int n, double* points, double* weights)
     }
     for (int i = 0; i < m; )
     {
-      double y, z, d0, s0;
+      real_t y, z, d0, s0;
       z = cos(M_PI*(i + 1)/n);
 
       int k = 0;
@@ -179,7 +179,7 @@ void get_gauss_lobatto_points(int n, double* points, double* weights)
         // P'_{n+1}(z) = (2*n+1)* P_n(z)+P'_{n-1}(z)
         // P"_{n+1}(z) = (2*n+1)*P'_n(z)+P"_{n-1}(z)
         {
-          double p0, p1, p2, d1;
+          real_t p0, p1, p2, d1;
           p2 = 1.;
           p1 = z;
           d0 = odd_n;

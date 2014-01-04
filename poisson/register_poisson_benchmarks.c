@@ -42,10 +42,10 @@ static void run_analytic_problem_on_mesh(mesh_t* mesh,
                                          st_func_t* rhs, 
                                          string_ptr_unordered_map_t* bcs, 
                                          options_t* options, 
-                                         double t1, 
-                                         double t2, 
+                                         real_t t1, 
+                                         real_t t2, 
                                          st_func_t* solution, 
-                                         double* lp_norms)
+                                         real_t* lp_norms)
 {
   // Create the model.
   model_t* model = create_fv_poisson(mesh, lambda, rhs, bcs, solution, options);
@@ -65,10 +65,10 @@ static void run_analytic_problem_on_points(point_cloud_t* point_cloud,
                                            st_func_t* rhs, 
                                            string_ptr_unordered_map_t* bcs, 
                                            options_t* options, 
-                                           double t1, 
-                                           double t2, 
+                                           real_t t1, 
+                                           real_t t2, 
                                            st_func_t* solution, 
-                                           double* lp_norms)
+                                           real_t* lp_norms)
 {
   // Create the model.
   model_t* model = create_fvpm_poisson(point_cloud, lambda, rhs, bcs, solution, options);
@@ -83,12 +83,12 @@ static void run_analytic_problem_on_points(point_cloud_t* point_cloud,
   model_free(model);
 }
 
-static void laplace_1d_solution(void* context, point_t* x, double t, double* phi)
+static void laplace_1d_solution(void* context, point_t* x, real_t t, real_t* phi)
 {
   phi[0] = 1.0 + 2.0*x->x;
 }
 
-static void laplace_1d_solution_grad(void* context, point_t* x, double t, double* grad_phi)
+static void laplace_1d_solution_grad(void* context, point_t* x, real_t t, real_t* grad_phi)
 {
   grad_phi[0] = 2.0;
   grad_phi[1] = 0.0;
@@ -112,11 +112,11 @@ static void poisson_run_laplace_1d(options_t* options,
   }
 
   // Lambda is one for Laplace's equation.
-  double o = 1.0;
+  real_t o = 1.0;
   st_func_t* one = constant_st_func_new(1, &o);
 
   // RHS function is zero for Laplace's equation.
-  double z = 0.0;
+  real_t z = 0.0;
   st_func_t* zero = constant_st_func_new(1, &z);
 
   // Analytic solution and gradient.
@@ -157,7 +157,7 @@ static void poisson_run_laplace_1d(options_t* options,
   }
 
   // Run time.
-  double t = 0.0;
+  real_t t = 0.0;
 
   // Base resolution, number of runs.
   int N0 = 1;
@@ -179,11 +179,11 @@ static void poisson_run_laplace_1d(options_t* options,
   }
 
   // Do a convergence study.
-  double Lp_norms[num_runs][3];
+  real_t Lp_norms[num_runs][3];
   for (int iter = 0; iter < num_runs; ++iter)
   {
     int Nx = N0 * pow(2, iter), Ny = 1, Nz = 1;
-    double dx = 1.0/Nx;
+    real_t dx = 1.0/Nx;
     bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
     if (dim == 1)
       bbox.y2 = bbox.z2 = dx;
@@ -229,15 +229,15 @@ static void poisson_run_laplace_1d(options_t* options,
   if ((num_runs > 2) && (Lp_norms[0][2] > 0.0))
   {
     // Fit the log of the L2 norms to a line.
-    double log_N_ratios[num_runs-1], log_L2_ratios[num_runs-1];
+    real_t log_N_ratios[num_runs-1], log_L2_ratios[num_runs-1];
     for (int i = 0; i < num_runs-1; ++i)
     {
       log_N_ratios[i] = log(pow(2.0, i));
       log_L2_ratios[i] = log(Lp_norms[i+1][2] / Lp_norms[0][2]);
     }
-    double A, B, sigma;
+    real_t A, B, sigma;
     linear_regression(log_N_ratios, log_L2_ratios, num_runs-1, &A, &B, &sigma);
-    double rate = -A;
+    real_t rate = -A;
     model_report_conv_rate(options, rate, sigma);
   }
 
@@ -275,9 +275,9 @@ static void run_fvpm_laplace_1d_3(options_t* options)
   poisson_run_laplace_1d(options, FVPM, 3);
 }
 
-static void paraboloid_solution(void* context, point_t* x, double t, double* phi)
+static void paraboloid_solution(void* context, point_t* x, real_t t, real_t* phi)
 {
-  double r2 = x->x*x->x + x->y*x->y; // Distance from center axis.
+  real_t r2 = x->x*x->x + x->y*x->y; // Distance from center axis.
   phi[0] = 1.0 + r2;
 //  printf("phi(%g, %g) = %g\n", x->x, x->y, phi[0]);
 }
@@ -306,11 +306,11 @@ static void poisson_run_paraboloid(options_t* options, poisson_sim_type sim_type
   }
 
   // Lambda is one for Laplace's equation.
-  double o = 1.0;
+  real_t o = 1.0;
   st_func_t* one = constant_st_func_new(1, &o);
 
   // RHS function.
-  double four = 4.0;
+  real_t four = 4.0;
   st_func_t* rhs = constant_st_func_new(1, &four);
 
   // Analytic solution.
@@ -324,7 +324,7 @@ static void poisson_run_paraboloid(options_t* options, poisson_sim_type sim_type
   string_ptr_unordered_map_insert(bcs, "+y", poisson_bc_new(1.0, 0.0, sol));
   string_ptr_unordered_map_insert(bcs, "-y", poisson_bc_new(1.0, 0.0, sol));
   
-  double z = 0.0;
+  real_t z = 0.0;
   st_func_t* zero = constant_st_func_new(1, &z);
   if (all_dirichlet)
   {
@@ -339,7 +339,7 @@ static void poisson_run_paraboloid(options_t* options, poisson_sim_type sim_type
   }
 
   // Start/end time.
-  double t = 0.0;
+  real_t t = 0.0;
 
   // Base resolution and number of runs.
   int N0 = 1;
@@ -357,7 +357,7 @@ static void poisson_run_paraboloid(options_t* options, poisson_sim_type sim_type
   }
  
   // Do a convergence study.
-  double Lp_norms[num_runs][3];
+  real_t Lp_norms[num_runs][3];
   for (int iter = 0; iter < num_runs; ++iter)
   {
     int Nx = N0 * pow(2, iter), Ny = 1, Nz = 1;
@@ -406,15 +406,15 @@ static void poisson_run_paraboloid(options_t* options, poisson_sim_type sim_type
   if ((num_runs > 2) && (Lp_norms[0][2] > 0.0))
   {
     // Fit the log of the L2 norms to a line.
-    double log_N_ratios[num_runs-1], log_L2_ratios[num_runs-1];
+    real_t log_N_ratios[num_runs-1], log_L2_ratios[num_runs-1];
     for (int i = 0; i < num_runs-1; ++i)
     {
       log_N_ratios[i] = log(pow(2.0, i));
       log_L2_ratios[i] = log(Lp_norms[i+1][2] / Lp_norms[0][2]);
     }
-    double A, B, sigma;
+    real_t A, B, sigma;
     linear_regression(log_N_ratios, log_L2_ratios, num_runs-1, &A, &B, &sigma);
-    double rate = -A;
+    real_t rate = -A;
     model_report_conv_rate(options, rate, sigma);
   }
 

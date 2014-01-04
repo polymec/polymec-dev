@@ -39,8 +39,8 @@
 //               beta - A rotation about the N axis (line of nodes).
 //              gamma - A rotation about the Z axis.
 sp_func_t* rect_prism_new(point_t* x0, 
-                          double L1, double L2, double L3,
-                          double alpha, double beta, double gamma);
+                          real_t L1, real_t L2, real_t L3,
+                          real_t alpha, real_t beta, real_t gamma);
 
 // Creates a rectangular prism identical to the given bounding box.
 sp_func_t* rect_prism_new_from_bbox(bbox_t* bounding_box);

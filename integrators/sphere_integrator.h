@@ -62,22 +62,22 @@ int sphere_integrator_degree(sphere_integrator_t* integ);
 // The integral is placed in the variable integral.
 void sphere_integrator_cap(sphere_integrator_t* integ, 
                            point_t* x0, 
-                           double R, 
+                           real_t R, 
                            sp_func_t* F, 
                            vector_t* z,
-                           double gamma,
-                           double* integral);
+                           real_t gamma,
+                           real_t* integral);
 
 // Calculates the integral of the given space-time function F on the 
 // spherical cap as above, evaluated at the given time t.
 void sphere_integrator_cap_at_time(sphere_integrator_t* integ, 
                                    point_t* x0, 
-                                   double R, 
+                                   real_t R, 
                                    st_func_t* F,
                                    vector_t* z,
-                                   double gamma,
-                                   double t, 
-                                   double* integral);
+                                   real_t gamma,
+                                   real_t t, 
+                                   real_t* integral);
 
 // Returns the number of quadrature points in the rule that we use to 
 // integrate over spherical caps. This is useful for generating quadrature 
@@ -90,41 +90,41 @@ int sphere_integrator_num_cap_points(sphere_integrator_t* integ);
 // of the sphere with zero sets of implicit functions. 
 void sphere_integrator_cap_using_weights(sphere_integrator_t* integ, 
                                          point_t* x0, 
-                                         double R, 
+                                         real_t R, 
                                          sp_func_t* F, 
                                          vector_t* z,
-                                         double gamma,
-                                         double* weights,
-                                         double* integral);
+                                         real_t gamma,
+                                         real_t* weights,
+                                         real_t* integral);
 
 // This version of sphere_integrator_cap_at_time allows one to pass in a set of 
 // quadrature weights. 
 void sphere_integrator_cap_using_weights_at_time(sphere_integrator_t* integ, 
                                                  point_t* x0, 
-                                                 double R, 
+                                                 real_t R, 
                                                  st_func_t* F,
                                                  vector_t* z,
-                                                 double gamma,
-                                                 double* weights,
-                                                 double t, 
-                                                 double* integral);
+                                                 real_t gamma,
+                                                 real_t* weights,
+                                                 real_t t, 
+                                                 real_t* integral);
 
 // Calculates and returns the integral of the given polynomial p in the 
 // ball with radius R. NOTE: This implementation uses Folland's formula, 
 // which is a closed form requiring no quadrature, so the first argument 
 // can actually be NULL.
-double sphere_integrator_ball(sphere_integrator_t* integ,
+real_t sphere_integrator_ball(sphere_integrator_t* integ,
                               point_t* x0, 
-                              double R,
+                              real_t R,
                               polynomial_t* p);
 
 // Calculates and returns the integral of the given polynomial p on the 
 // sphere with radius R. NOTE: This implementation uses Folland's formula, 
 // which is a closed form requiring no quadrature, so the first argument 
 // can actually be NULL.
-double sphere_integrator_sphere(sphere_integrator_t* integ,
+real_t sphere_integrator_sphere(sphere_integrator_t* integ,
                                 point_t* x0, 
-                                double R,
+                                real_t R,
                                 polynomial_t* p);
 
 // Computes the quadrature weights corresponding to a surface integral over
@@ -134,9 +134,9 @@ double sphere_integrator_sphere(sphere_integrator_t* integ,
 // sphere_integrator_num_cap_points(integ).
 void sphere_integrator_compute_boundary_surface_weights(sphere_integrator_t* integ,
                                                         point_t* x0,
-                                                        double R,
+                                                        real_t R,
                                                         sp_func_t* boundary_func,
-                                                        double* weights);
+                                                        real_t* weights);
 
 // Computes the quadrature weights corresponding to a volume integral over
 // the intersection of a sphere of radius R centered at x0 with a boundary 
@@ -145,9 +145,9 @@ void sphere_integrator_compute_boundary_surface_weights(sphere_integrator_t* int
 // sphere_integrator_num_cap_points(integ).
 void sphere_integrator_compute_boundary_volume_weights(sphere_integrator_t* integ,
                                                        point_t* x0,
-                                                       double R,
+                                                       real_t R,
                                                        sp_func_t* boundary_func,
-                                                       double* weights);
+                                                       real_t* weights);
 
 #endif
 

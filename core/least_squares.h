@@ -34,7 +34,7 @@
 
 // Computes the coefficients A and b for a linear regression y = A*x + B 
 // given arrays of (scalar) x and y values. Also computes the variance sigma.
-void linear_regression(double* x, double* y, int N, double* A, double* B, double* sigma);
+void linear_regression(real_t* x, real_t* y, int N, real_t* A, real_t* B, real_t* sigma);
 
 // This type is a weight function used for least-squares systems. Objects 
 // of this type are garbage-collected.
@@ -45,7 +45,7 @@ typedef struct ls_weight_func_t ls_weight_func_t;
 // - The displacement y = x - x0 of the evaluated point from the function's "center".
 // - A pointer to storage for the weighting function value.
 // - A pointer to storage for the weighting function gradient.
-typedef void (*ls_weight_func_eval_func)(void* context, vector_t* y, double* W, vector_t* grad_W);
+typedef void (*ls_weight_func_eval_func)(void* context, vector_t* y, real_t* W, vector_t* grad_W);
 
 // This is the signature for setting the "domain" (set of points) that will 
 // define the extent of a least-squares weight function.
@@ -75,7 +75,7 @@ const char* ls_weight_func_name(ls_weight_func_t* W);
 void ls_weight_func_set_domain(ls_weight_func_t* W, point_t* x0, point_t* points, int num_points);
 
 // Evaluates the value and the gradient of the weight function at the given point x.
-void ls_weight_func_eval(ls_weight_func_t* W, point_t* x, double* value, vector_t* gradient);
+void ls_weight_func_eval(ls_weight_func_t* W, point_t* x, real_t* value, vector_t* gradient);
 
 // Returns the current center point x0 of the weight function. 
 point_t* ls_weight_func_x0(ls_weight_func_t* W);
@@ -85,18 +85,18 @@ point_t* ls_weight_func_x0(ls_weight_func_t* W);
 // moment matrix and the right-hand side vector for a polynomial fit to the 
 // given (scalar) data on the given points.
 void compute_poly_ls_system(int p, point_t* x0, point_t* points, int num_points, 
-                            double* data, double* moment_matrix, double* rhs);
+                            real_t* data, real_t* moment_matrix, real_t* rhs);
 
 // This computes the weighted least squares system for the weighting function W, centered 
 // about the point x0 and with spatial extent h.
 void compute_weighted_poly_ls_system(int p, ls_weight_func_t* W, point_t* x0, 
-                                     point_t* points, int num_points, double* data, 
-                                     double* moment_matrix, double* rhs);
+                                     point_t* points, int num_points, real_t* data, 
+                                     real_t* moment_matrix, real_t* rhs);
 
 // Computes the polynomial for a degree-p weighted least-squares fit with 
 // the given weight function and scatter point data.
 polynomial_t* ls_polynomial_new(int p, ls_weight_func_t* W, point_t* x0, 
-                                point_t* points, int num_points, double* data);
+                                point_t* points, int num_points, real_t* data);
 
 // This class represents a shape function basis for a polynomial least-squares 
 // fit. A shape function maps a set of data (associated a given set of points in 
@@ -116,11 +116,11 @@ void poly_ls_shape_set_domain(poly_ls_shape_t* N, point_t* x0, point_t* points, 
 
 // Computes the shape function basis evaluating each shape function at the point x.
 // poly_ls_shape_set_domain must have been called previously.
-void poly_ls_shape_compute(poly_ls_shape_t* N, point_t* x, double* values);
+void poly_ls_shape_compute(poly_ls_shape_t* N, point_t* x, real_t* values);
 
 // Computes the gradients of the shape function basis (expanded about the 
 // point x0 and fitted to the given points), evaluating each gradient at the point x.
-void poly_ls_shape_compute_gradients(poly_ls_shape_t* N, point_t* x, double* values, vector_t* gradients);
+void poly_ls_shape_compute_gradients(poly_ls_shape_t* N, point_t* x, real_t* values, vector_t* gradients);
 
 // Computes the matrix and vector for the affine transformation that maps 
 // the set of all solution values {phi} to a set of constrained solutions 
@@ -162,7 +162,7 @@ void poly_ls_shape_compute_gradients(poly_ls_shape_t* N, point_t* x, double* val
 //                         transformation above.
 void poly_ls_shape_compute_ghost_transform(poly_ls_shape_t* N, int* constraint_indices, int num_constraints,
                                            point_t* constraint_points,
-                                           double* a, double* b, double* c, double* d, double* e,
-                                           double* A, double* B);
+                                           real_t* a, real_t* b, real_t* c, real_t* d, real_t* e,
+                                           real_t* A, real_t* B);
 
 #endif

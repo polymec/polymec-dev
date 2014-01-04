@@ -31,13 +31,13 @@
 
 int int_values[] = {0, 1, 2, 3, 4, 5};
 int int_greater_values[] = {1, 2, 3, 4, 5, 6};
-double double_values[] = {0., 1., 2., 3., 4., 5.};
-double double_greater_values[] = {1., 2., 3., 4., 5., 6.};
+real_t real_values[] = {0., 1., 2., 3., 4., 5.};
+real_t real_greater_values[] = {1., 2., 3., 4., 5., 6.};
 
 #define DEFINE_TUPLE_TEST(tuple_name, element) \
 void test_##tuple_name##_ctor(void** state) \
 { \
-  element* t = tuple_name##_new(6); \
+  tuple_name##_value_t* t = tuple_name##_new(6); \
   assert_int_equal(6, tuple_name##_length(t)); \
   for (int i = 0; i < 6; ++i) \
     t[i] = element##_values[i]; \
@@ -47,8 +47,8 @@ void test_##tuple_name##_ctor(void** state) \
 \
 void test_##tuple_name##_cmp(void** state) \
 { \
-  element* t1 = tuple_name##_new(6); \
-  element* t2 = tuple_name##_new(6); \
+  tuple_name##_value_t* t1 = tuple_name##_new(6); \
+  tuple_name##_value_t* t2 = tuple_name##_new(6); \
   for (int i = 0; i < 6; ++i) \
   { \
     t1[i] = element##_values[i]; \
@@ -72,8 +72,8 @@ void test_##tuple_name##_cmp(void** state) \
 \
 void test_##tuple_name##_hash(void** state) \
 { \
-  element* t1 = tuple_name##_new(6); \
-  element* t2 = tuple_name##_new(6); \
+  tuple_name##_value_t* t1 = tuple_name##_new(6); \
+  tuple_name##_value_t* t2 = tuple_name##_new(6); \
   for (int i = 0; i < 6; ++i) \
   { \
     t1[i] = element##_values[i]; \
@@ -93,7 +93,7 @@ void test_##tuple_name(void** state) \
 }
 
 DEFINE_TUPLE_TEST(int_tuple, int)
-DEFINE_TUPLE_TEST(double_tuple, double)
+DEFINE_TUPLE_TEST(real_tuple, real)
 
 int main(int argc, char* argv[]) 
 {
@@ -101,7 +101,7 @@ int main(int argc, char* argv[])
   const UnitTest tests[] = 
   {
     unit_test(test_int_tuple),
-    unit_test(test_double_tuple)
+    unit_test(test_real_tuple)
   };
   return run_tests(tests);
 }

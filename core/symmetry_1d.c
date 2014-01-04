@@ -30,34 +30,34 @@
 // This helper function computes the logarithmic spacing for N points spanning
 // the interval [x1, x2] with the given log factor, placing those points into 
 // the array points.
-static void compute_log_spacing(double x1, double x2, double log_factor, int N, double* points)
+static void compute_log_spacing(real_t x1, real_t x2, real_t log_factor, int N, real_t* points)
 {
   // Figure out the innermost cell length.
-  double sum = 0.0;
+  real_t sum = 0.0;
   for (int i = 0; i < N; ++i)
     sum += pow(log_factor, 1.0*i);
-  double dx0 = (x2 - x1) / sum;
+  real_t dx0 = (x2 - x1) / sum;
 
   // Now compute the rest of the spacings.
-  double last_dx = dx0;
+  real_t last_dx = dx0;
   for (int i = 0; i < N-1; ++i)
   {
-    double dx = (i < N-1) ? pow(log_factor, 1.0*i) * dx0
+    real_t dx = (i < N-1) ? pow(log_factor, 1.0*i) * dx0
       : last_dx;
     points[i] = (i == 0) ? dx0 : points[i-1] + dx;
     last_dx = dx;
   }
 }
 
-mesh_t* create_uniform_cartesian_1d_mesh(MPI_Comm comm, double x1, double x2, int N)
+mesh_t* create_uniform_cartesian_1d_mesh(MPI_Comm comm, real_t x1, real_t x2, int N)
 {
   ASSERT(x2 > x1);
   ASSERT(N > 0);
 
   // This is really just a nonuniform Cartesian mesh with, um, uniform spacing.
-  double* xs = malloc(sizeof(double) * N);
+  real_t* xs = malloc(sizeof(real_t) * N);
   xs[0] = x1;
-  double dx = (x2 - x1) / N;
+  real_t dx = (x2 - x1) / N;
   for (int i = 1; i < N; ++i)
     xs[i] = xs[i-1] + dx;
   mesh_t* mesh = create_nonuniform_cartesian_1d_mesh(comm, xs, N);
@@ -66,10 +66,10 @@ mesh_t* create_uniform_cartesian_1d_mesh(MPI_Comm comm, double x1, double x2, in
   return mesh;
 }
 
-mesh_t* create_logarithmic_cartesian_1d_mesh(MPI_Comm comm, double x1, double x2, double log_factor, int N)
+mesh_t* create_logarithmic_cartesian_1d_mesh(MPI_Comm comm, real_t x1, real_t x2, real_t log_factor, int N)
 {
   // This is really just a nonuniform Cartesian mesh with logarithmic spacings.
-  double* xs = malloc(sizeof(double) * N);
+  real_t* xs = malloc(sizeof(real_t) * N);
   compute_log_spacing(x1, x2, log_factor, N, xs);
   mesh_t* mesh = create_nonuniform_cartesian_1d_mesh(comm, xs, N);
   free(xs);
@@ -77,11 +77,11 @@ mesh_t* create_logarithmic_cartesian_1d_mesh(MPI_Comm comm, double x1, double x2
   return mesh;
 }
 
-mesh_t* create_nonuniform_cartesian_1d_mesh(MPI_Comm comm, double* xs, int N)
+mesh_t* create_nonuniform_cartesian_1d_mesh(MPI_Comm comm, real_t* xs, int N)
 {
   // This is really just a 1D rectilinear mesh with the given spacings.
-  double ys[2] = {-0.5, 0.5};
-  double zs[2] = {-0.5, 0.5};
+  real_t ys[2] = {-0.5, 0.5};
+  real_t zs[2] = {-0.5, 0.5};
   mesh_t* mesh = create_rectilinear_mesh(comm, xs, N, ys, 2, zs, 2);
 
   // Tag the boundary faces.
@@ -95,28 +95,28 @@ mesh_t* create_nonuniform_cartesian_1d_mesh(MPI_Comm comm, double* xs, int N)
   return mesh;
 }
 
-mesh_t* create_uniform_cylindrical_1d_mesh(MPI_Comm comm, double r1, double r2, int N)
+mesh_t* create_uniform_cylindrical_1d_mesh(MPI_Comm comm, real_t r1, real_t r2, int N)
 {
   ASSERT(r1 > 0.0);
   ASSERT(r2 > r1);
   ASSERT(N > 0);
 
   // This is really just a nonuniform cylindrical mesh with, um, uniform spacing.
-  double* rs = malloc(sizeof(double) * N);
+  real_t* rs = malloc(sizeof(real_t) * N);
   mesh_t* mesh = create_nonuniform_cylindrical_1d_mesh(comm, rs, N);
   free(rs);
 
   return mesh;
 }
 
-mesh_t* create_logarithmic_cylindrical_1d_mesh(MPI_Comm comm, double r1, double r2, double log_factor, int N)
+mesh_t* create_logarithmic_cylindrical_1d_mesh(MPI_Comm comm, real_t r1, real_t r2, real_t log_factor, int N)
 {
   ASSERT(r1 > 0.0);
   ASSERT(r2 > r1);
   ASSERT(N > 0);
 
   // This is really just a nonuniform cylindrical mesh with logarithmic spacings.
-  double* rs = malloc(sizeof(double) * N);
+  real_t* rs = malloc(sizeof(real_t) * N);
   compute_log_spacing(r1, r2, log_factor, N, rs);
   mesh_t* mesh = create_nonuniform_cylindrical_1d_mesh(comm, rs, N);
   free(rs);
@@ -124,7 +124,7 @@ mesh_t* create_logarithmic_cylindrical_1d_mesh(MPI_Comm comm, double r1, double 
   return mesh;
 }
 
-mesh_t* create_nonuniform_cylindrical_1d_mesh(MPI_Comm comm, double* rs, int N)
+mesh_t* create_nonuniform_cylindrical_1d_mesh(MPI_Comm comm, real_t* rs, int N)
 {
   ASSERT(N > 0);
 
@@ -308,28 +308,28 @@ mesh_t* create_nonuniform_cylindrical_1d_mesh(MPI_Comm comm, double* rs, int N)
   return mesh;
 }
 
-mesh_t* create_uniform_spherical_1d_mesh(MPI_Comm comm, double r1, double r2, int N)
+mesh_t* create_uniform_spherical_1d_mesh(MPI_Comm comm, real_t r1, real_t r2, int N)
 {
   ASSERT(r1 > 0.0);
   ASSERT(r2 > r1);
   ASSERT(N > 0);
 
   // This is really just a nonuniform spherical mesh with, um, uniform spacing.
-  double* rs = malloc(sizeof(double) * N);
+  real_t* rs = malloc(sizeof(real_t) * N);
   mesh_t* mesh = create_nonuniform_spherical_1d_mesh(comm, rs, N);
   free(rs);
 
   return mesh;
 }
 
-mesh_t* create_logarithmic_spherical_1d_mesh(MPI_Comm comm, double r1, double r2, double log_factor, int N)
+mesh_t* create_logarithmic_spherical_1d_mesh(MPI_Comm comm, real_t r1, real_t r2, real_t log_factor, int N)
 {
   ASSERT(r1 > 0.0);
   ASSERT(r2 > r1);
   ASSERT(N > 0);
 
   // This is really just a nonuniform spherical mesh with logarithmic spacings.
-  double* rs = malloc(sizeof(double) * N);
+  real_t* rs = malloc(sizeof(real_t) * N);
   compute_log_spacing(r1, r2, log_factor, N, rs);
   mesh_t* mesh = create_nonuniform_spherical_1d_mesh(comm, rs, N);
   free(rs);
@@ -337,7 +337,7 @@ mesh_t* create_logarithmic_spherical_1d_mesh(MPI_Comm comm, double r1, double r2
   return mesh;
 }
 
-mesh_t* create_nonuniform_spherical_1d_mesh(MPI_Comm comm, double* rs, int N)
+mesh_t* create_nonuniform_spherical_1d_mesh(MPI_Comm comm, real_t* rs, int N)
 {
   mesh_t* mesh = NULL;
   // FIXME

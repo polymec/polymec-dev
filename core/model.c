@@ -167,7 +167,7 @@ model_t* model_new(const char* name, void* context, model_vtable vtable, options
   char* obs_times_str = options_value(options, "observation_times");
   if (obs_times_str != NULL)
   {
-    double* obs_times;
+    real_t* obs_times;
     int num_obs_times;
     obs_times = parse_observation_times(obs_times_str, &num_obs_times);
     if (obs_times != NULL)
@@ -539,7 +539,7 @@ void model_record_observations(model_t* model)
 
     // Is this one a point observation?
     point_obs_t** point_obs_data = (point_obs_t**)string_ptr_unordered_map_get(model->point_obs, obs_name);
-    double value;
+    real_t value;
     if (point_obs_data != NULL)
       value = (*point_obs_data)->func(model->context, &((*point_obs_data)->point), model->time);
     else

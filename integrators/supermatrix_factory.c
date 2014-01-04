@@ -32,7 +32,7 @@ struct supermatrix_factory_t
   adj_graph_t* graph;
   adj_graph_coloring_t* coloring;
   KINSysFn F;
-  void (*set_F_time)(void* context, double t);
+  void (*set_F_time)(void* context, real_t t);
   CVRhsFn rhs;
   void* context;
 
@@ -42,7 +42,7 @@ struct supermatrix_factory_t
 
 supermatrix_factory_t* supermatrix_factory_from_sys_func(adj_graph_t* graph,
                                                          KINSysFn F,
-                                                         void (*set_F_time)(void*, double),
+                                                         void (*set_F_time)(void*, real_t),
                                                          void* context)
 {
   supermatrix_factory_t* factory = malloc(sizeof(supermatrix_factory_t));
@@ -128,8 +128,8 @@ SuperMatrix* supermatrix_factory_matrix(supermatrix_factory_t* factory)
   ASSERT(offset == num_nz);
 
   // Create zeros for the matrix.
-  double* mat_zeros = doubleMalloc(num_nz);
-  memset(mat_zeros, 0, sizeof(double) * num_nz);
+  real_t* mat_zeros = SUPERLU_MALLOC(sizeof(real_t) * num_nz);
+  memset(mat_zeros, 0, sizeof(real_t) * num_nz);
 
   // Hand over these resources to create the Supermatrix.
   dCreate_CompRow_Matrix(A, num_rows, num_rows, num_nz, 
@@ -146,8 +146,8 @@ SuperMatrix* supermatrix_factory_vector(supermatrix_factory_t* factory,
   
   // Fetch numrows information from the graph.
   int num_rows = adj_graph_num_vertices(factory->graph);
-  double* b_mem;
-  if ( !(b_mem = doubleMalloc(num_rows * num_rhs)) ) {
+  real_t* b_mem;
+  if ( !(b_mem = SUPERLU_MALLOC(sizeof(real_t) * num_rows * num_rhs)) ) {
     ABORT("Malloc fails for SuperLU b/rhs vector.");
   }
   dCreate_Dense_Matrix(B, num_rows, num_rhs,
@@ -156,7 +156,7 @@ SuperMatrix* supermatrix_factory_vector(supermatrix_factory_t* factory,
   return B;
 }
 
-SuperMatrix* supermatrix_factory_jacobian(supermatrix_factory_t* factory, N_Vector x, double t)
+SuperMatrix* supermatrix_factory_jacobian(supermatrix_factory_t* factory, N_Vector x, real_t t)
 {
   SuperMatrix* J = supermatrix_factory_matrix(factory);
   supermatrix_factory_update_jacobian(factory, x, t, J);
@@ -167,7 +167,7 @@ SuperMatrix* supermatrix_factory_jacobian(supermatrix_factory_t* factory, N_Vect
 // product. 
 static void finite_diff_F_Jv(KINSysFn F, void* context, N_Vector x, N_Vector v, N_Vector* work, N_Vector Jv)
 {
-  double eps = sqrt(UNIT_ROUNDOFF);
+  real_t eps = sqrt(UNIT_ROUNDOFF);
 
   // work[0] == v
   // work[1] contains F(x).
@@ -193,7 +193,7 @@ static void insert_Jv_into_matrix(adj_graph_t* graph,
                                   SuperMatrix* J)
 {
   NRformat* Jdata = J->Store;
-  double* Jij = Jdata->nzval;
+  real_t* Jij = Jdata->nzval;
   int pos = 0, i;
   while (adj_graph_coloring_next_vertex(coloring, color, &pos, &i))
   {
@@ -233,7 +233,7 @@ static void compute_F_jacobian(KINSysFn F,
   for (int c = 0; c < num_colors; ++c)
   {
     // We construct d, the binary vector corresponding to this color, in work[0].
-    memset(NV_DATA(work[0]), 0, sizeof(double) * N);
+    memset(NV_DATA(work[0]), 0, sizeof(real_t) * N);
     int pos = 0, i;
     while (adj_graph_coloring_next_vertex(coloring, c, &pos, &i))
     {
@@ -244,7 +244,7 @@ static void compute_F_jacobian(KINSysFn F,
     F(x, work[1], context);
 
     // Now evaluate the matrix-vector product.
-    memset(NV_DATA(Jv), 0, sizeof(double) * N);
+    memset(NV_DATA(Jv), 0, sizeof(real_t) * N);
     finite_diff_F_Jv(F, context, x, work[0], work, Jv);
 
     // Copy the components of Jv into their proper locations.
@@ -255,9 +255,9 @@ static void compute_F_jacobian(KINSysFn F,
 
 // Here's our finite difference implementation of the RHS Jacobian 
 // matrix-vector product. 
-static void finite_diff_rhs_Jv(CVRhsFn rhs, void* context, N_Vector x, double t, N_Vector v, N_Vector* work, N_Vector Jv)
+static void finite_diff_rhs_Jv(CVRhsFn rhs, void* context, N_Vector x, real_t t, N_Vector v, N_Vector* work, N_Vector Jv)
 {
-  double eps = sqrt(UNIT_ROUNDOFF);
+  real_t eps = sqrt(UNIT_ROUNDOFF);
 
   // work[1] contains rhs(x, t).
 
@@ -276,7 +276,7 @@ static void finite_diff_rhs_Jv(CVRhsFn rhs, void* context, N_Vector x, double t,
 static void compute_rhs_jacobian(CVRhsFn rhs, 
                                  void* context, 
                                  N_Vector x, 
-                                 double t, 
+                                 real_t t, 
                                  adj_graph_t* graph, 
                                  adj_graph_coloring_t* coloring, 
                                  N_Vector* work,
@@ -290,7 +290,7 @@ static void compute_rhs_jacobian(CVRhsFn rhs,
   for (int c = 0; c < num_colors; ++c)
   {
     // We construct d, the binary vector corresponding to this color, in work[0].
-    memset(NV_DATA(work[0]), 0, sizeof(double) * N);
+    memset(NV_DATA(work[0]), 0, sizeof(real_t) * N);
     int pos = 0, i;
     while (adj_graph_coloring_next_vertex(coloring, c, &pos, &i))
       NV_Ith(work[0], i) = 1.0;
@@ -299,7 +299,7 @@ static void compute_rhs_jacobian(CVRhsFn rhs,
     rhs(t, x, work[1], context); 
 
     // Now evaluate the matrix-vector product.
-    memset(NV_DATA(Jv), 0, sizeof(double) * N);
+    memset(NV_DATA(Jv), 0, sizeof(real_t) * N);
     finite_diff_rhs_Jv(rhs, context, x, t, work[0], work, Jv);
 
     // Copy the components of Jv into their proper locations.
@@ -308,7 +308,7 @@ static void compute_rhs_jacobian(CVRhsFn rhs,
   N_VDestroy(Jv);
 }
 
-void supermatrix_factory_update_jacobian(supermatrix_factory_t* factory, N_Vector x, double t, SuperMatrix* J)
+void supermatrix_factory_update_jacobian(supermatrix_factory_t* factory, N_Vector x, real_t t, SuperMatrix* J)
 {
   if (factory->F != NULL)
   {

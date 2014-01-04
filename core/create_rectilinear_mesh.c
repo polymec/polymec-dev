@@ -28,9 +28,9 @@
 #include "core/cubic_lattice.h"
 
 mesh_t* create_rectilinear_mesh(MPI_Comm comm, 
-                                double* xs, int nxs, 
-                                double* ys, int nys, 
-                                double* zs, int nzs)
+                                real_t* xs, int nxs, 
+                                real_t* ys, int nys, 
+                                real_t* zs, int nzs)
 {
   ASSERT(nxs > 1);
   ASSERT(nys > 1);

@@ -30,40 +30,40 @@
 // These functions create meshes that can be used to run 1D problems.
 
 // Creates a uniform line of N Cartesian cells spanning a domain [x1, x2].
-mesh_t* create_uniform_cartesian_1d_mesh(MPI_Comm comm, double x1, double x2, int N);
+mesh_t* create_uniform_cartesian_1d_mesh(MPI_Comm comm, real_t x1, real_t x2, int N);
 
 // Creates a line of N Cartesian cells spanning [x1, x2], with cell lengths that 
 // grow according to the given logarithmic factor. The length of the (i+1)th 
 // cell will be log_factor times that of the ith cell.
-mesh_t* create_logarithmic_cartesian_1d_mesh(MPI_Comm comm, double x1, double x2, double log_factor, int N);
+mesh_t* create_logarithmic_cartesian_1d_mesh(MPI_Comm comm, real_t x1, real_t x2, real_t log_factor, int N);
 
 // Creates a nonuniform line of N Cartesian cells with the given nodal 
 // spacings xs. The array xs should be N+1 in length.
-mesh_t* create_nonuniform_cartesian_1d_mesh(MPI_Comm comm, double* xs, int N);
+mesh_t* create_nonuniform_cartesian_1d_mesh(MPI_Comm comm, real_t* xs, int N);
 
 // Creates a uniform line of N cylindrical cells spanning a domain [r1, r2].
-mesh_t* create_uniform_cylindrical_1d_mesh(MPI_Comm comm, double r1, double r2, int N);
+mesh_t* create_uniform_cylindrical_1d_mesh(MPI_Comm comm, real_t r1, real_t r2, int N);
 
 // Creates a line of N cylindrical cells spanning [r1, r2], with cell lengths 
 // that grow according to the given logarithmic factor. The length of the 
 // (i+1)th cell will be log_factor times that of the ith cell.
-mesh_t* create_logarithmic_cylindrical_1d_mesh(MPI_Comm comm, double r1, double r2, double log_factor, int N);
+mesh_t* create_logarithmic_cylindrical_1d_mesh(MPI_Comm comm, real_t r1, real_t r2, real_t log_factor, int N);
 
 // Creates a nonuniform line of N cylindrical cells with the given nodal 
 // spacings rs. The array rs should be N+1 in length.
-mesh_t* create_nonuniform_cylindrical_1d_mesh(MPI_Comm comm, double* rs, int N);
+mesh_t* create_nonuniform_cylindrical_1d_mesh(MPI_Comm comm, real_t* rs, int N);
 
 // Creates a uniform line of N spherical cells spanning a domain [r1, r2].
-mesh_t* create_uniform_spherical_1d_mesh(MPI_Comm comm, double r1, double r2, int N);
+mesh_t* create_uniform_spherical_1d_mesh(MPI_Comm comm, real_t r1, real_t r2, int N);
 
 // Creates a line of N spherical cells spanning [r1, r2] with cell lengths 
 // that grow according to the given logarithmic factor. The length of the 
 // (i+1)th cell will be log_factor times that of the ith cell.
-mesh_t* create_logarithmic_spherical_1d_mesh(MPI_Comm comm, double r1, double r2, double log_factor, int N);
+mesh_t* create_logarithmic_spherical_1d_mesh(MPI_Comm comm, real_t r1, real_t r2, real_t log_factor, int N);
 
 // Creates a nonuniform line of N spherical cells with the given nodal 
 // spacings rs. The array rs should be N+1 in length.
-mesh_t* create_nonuniform_spherical_1d_mesh(MPI_Comm comm, double* rs, int N);
+mesh_t* create_nonuniform_spherical_1d_mesh(MPI_Comm comm, real_t* rs, int N);
 
 #endif
 

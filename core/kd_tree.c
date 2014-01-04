@@ -36,14 +36,14 @@
 typedef struct kd_tree_node_t kd_tree_node_t;
 struct kd_tree_node_t
 {
-  double pos[3];  // Coordinates of point.
+  real_t pos[3];  // Coordinates of point.
   int dir;        // Direction of indexing (0, 1, or 2)
   int index;      // Identifying index of point.
 
   kd_tree_node_t *left, *right; // Children.
 };
 
-static kd_tree_node_t* node_new(double* pos, int index, int dir)
+static kd_tree_node_t* node_new(real_t* pos, int index, int dir)
 {
   ASSERT(dir >= 0);
   ASSERT(dir < 3);
@@ -63,10 +63,10 @@ static void node_free(kd_tree_node_t* node)
 // This defines a bounding 3-rectangle for points in the kd_tree.
 typedef struct 
 {
-  double min[3], max[3];
+  real_t min[3], max[3];
 } kd_tree_rect_t;
 
-static kd_tree_rect_t* rect_new(double* min, double* max)
+static kd_tree_rect_t* rect_new(real_t* min, real_t* max)
 {
   kd_tree_rect_t* rect = malloc(sizeof(kd_tree_rect_t));
   rect->min[0] = min[0]; rect->min[1] = min[1]; rect->min[2] = min[2];
@@ -79,9 +79,9 @@ static void rect_free(kd_tree_rect_t* rect)
   free(rect);
 }
 
-static double rect_square_dist(kd_tree_rect_t* rect, double* pos)
+static real_t rect_square_dist(kd_tree_rect_t* rect, real_t* pos)
 {
-  double r2 = 0.0;
+  real_t r2 = 0.0;
   for (int i = 0; i < 3; ++i)
   {
     if (pos[i] < rect->min[i])
@@ -92,7 +92,7 @@ static double rect_square_dist(kd_tree_rect_t* rect, double* pos)
   return r2;
 }
 
-static void rect_extend(kd_tree_rect_t* rect, double* pos)
+static void rect_extend(kd_tree_rect_t* rect, real_t* pos)
 {
   for (int i = 0; i < 3; ++i)
   {
@@ -110,7 +110,7 @@ struct kd_tree_t
   int size;               // Number of points.
 };
 
-static void node_insert(kd_tree_node_t** node_ptr, double* pos, int index, int dir)
+static void node_insert(kd_tree_node_t** node_ptr, real_t* pos, int index, int dir)
 {
   if (*node_ptr == NULL)
   {
@@ -127,7 +127,7 @@ static void node_insert(kd_tree_node_t** node_ptr, double* pos, int index, int d
 
 static void kd_tree_insert(kd_tree_t* tree, point_t* point, int index)
 {
-  double pos[3];
+  real_t pos[3];
   pos[0] = point->x, pos[1] = point->y, pos[2] = point->z;
   node_insert(&tree->root, pos, index, 0);
   ++(tree->size);
@@ -182,13 +182,13 @@ void kd_tree_free(kd_tree_t* tree)
   free(tree);
 }
 
-static void find_nearest(kd_tree_node_t* node, double* pos, kd_tree_node_t** result, double* r2, kd_tree_rect_t* rect)
+static void find_nearest(kd_tree_node_t* node, real_t* pos, kd_tree_node_t** result, real_t* r2, kd_tree_rect_t* rect)
 {
   // Go left or right?
   int dir = node->dir;
-  double which = pos[dir] - node->pos[dir];
+  real_t which = pos[dir] - node->pos[dir];
   kd_tree_node_t *near_subtree, *far_subtree;
-  double *near_coord, *far_coord;
+  real_t *near_coord, *far_coord;
   if (which <= 0.0)
   {
     near_subtree = node->left;
@@ -207,14 +207,14 @@ static void find_nearest(kd_tree_node_t* node, double* pos, kd_tree_node_t** res
   if (near_subtree != NULL)
   {
     // Bisect and recurse.
-    double coord = *near_coord;
+    real_t coord = *near_coord;
     *near_coord = node->pos[dir];
     find_nearest(near_subtree, pos, result, r2, rect);
     *near_coord = coord;
   }
 
   // Distance from point to current node.
-  double my_r2 = SQ_DIST(node->pos, pos);
+  real_t my_r2 = SQ_DIST(node->pos, pos);
   if (my_r2 < *r2)
   {
     *result = node;
@@ -224,7 +224,7 @@ static void find_nearest(kd_tree_node_t* node, double* pos, kd_tree_node_t** res
   if (far_subtree != NULL)
   {
     // Bisect and recurse (if needed).
-    double coord = *far_coord;
+    real_t coord = *far_coord;
     *far_coord = node->pos[dir];
     if (rect_square_dist(rect, pos) < *r2)
       find_nearest(far_subtree, pos, result, r2, rect);
@@ -239,9 +239,9 @@ int kd_tree_nearest(kd_tree_t* tree, point_t* point)
 
   // Start with the root.
   kd_tree_node_t* node = tree->root;
-  double pos[3];
+  real_t pos[3];
   pos[0] = point->x, pos[1] = point->y, pos[2] = point->z;
-  double r2 = SQ_DIST(pos, node->pos);
+  real_t r2 = SQ_DIST(pos, node->pos);
   kd_tree_rect_t rect;
   rect.min[0] = tree->rect->min[0]; rect.max[0] = tree->rect->max[0];
   rect.min[1] = tree->rect->min[1]; rect.max[1] = tree->rect->max[1];
@@ -253,17 +253,17 @@ int kd_tree_nearest(kd_tree_t* tree, point_t* point)
 }
 
 static void find_nearest_n(kd_tree_node_t* node, 
-                           double* pos, 
+                           real_t* pos, 
                            int n, 
                            int* neighbors, 
-                           double* square_distances, 
+                           real_t* square_distances, 
                            kd_tree_rect_t* rect)
 {
   // Go left or right?
   int dir = node->dir;
-  double which = pos[dir] - node->pos[dir];
+  real_t which = pos[dir] - node->pos[dir];
   kd_tree_node_t *near_subtree, *far_subtree;
-  double *near_coord, *far_coord;
+  real_t *near_coord, *far_coord;
   if (which <= 0.0)
   {
     near_subtree = node->left;
@@ -282,7 +282,7 @@ static void find_nearest_n(kd_tree_node_t* node,
   if (near_subtree != NULL)
   {
     // Bisect and recurse.
-    double coord = *near_coord;
+    real_t coord = *near_coord;
     *near_coord = node->pos[dir];
     find_nearest_n(near_subtree, pos, n, neighbors, square_distances, rect);
     *near_coord = coord;
@@ -291,7 +291,7 @@ static void find_nearest_n(kd_tree_node_t* node,
   // Get the square distance from point to the current node, and insert 
   // the current node into the list of n nearest neighbors if it's closer 
   // than any of the current nearest neighbors.
-  double my_r2 = SQ_DIST(node->pos, pos);
+  real_t my_r2 = SQ_DIST(node->pos, pos);
   if (my_r2 < square_distances[n-1])
   {
     int i = n-1;
@@ -310,7 +310,7 @@ static void find_nearest_n(kd_tree_node_t* node,
   if (far_subtree != NULL)
   {
     // Bisect and recurse (if needed).
-    double coord = *far_coord;
+    real_t coord = *far_coord;
     *far_coord = node->pos[dir];
     if (rect_square_dist(rect, pos) < square_distances[n-1])
       find_nearest_n(far_subtree, pos, n, neighbors, square_distances, rect);
@@ -328,12 +328,12 @@ void kd_tree_nearest_n(kd_tree_t* tree, point_t* point, int n, int* neighbors)
   if (tree->root == NULL)
     return;
 
-  double square_distances[n];
+  real_t square_distances[n];
   for (int i = 0; i < n; ++i)
     square_distances[i] = FLT_MAX;
 
   // Start with the root.
-  double pos[3];
+  real_t pos[3];
   pos[0] = point->x, pos[1] = point->y, pos[2] = point->z;
   kd_tree_rect_t rect;
   rect.min[0] = tree->rect->min[0]; rect.max[0] = tree->rect->max[0];
@@ -346,16 +346,16 @@ void kd_tree_nearest_n(kd_tree_t* tree, point_t* point, int n, int* neighbors)
 }
 
 static void find_within_radius(kd_tree_node_t* node, 
-                               double* pos, 
-                               double radius,
+                               real_t* pos, 
+                               real_t radius,
                                kd_tree_rect_t* rect,
                                int_slist_t* results)
 {
   // Go left or right?
   int dir = node->dir;
-  double which = pos[dir] - node->pos[dir];
+  real_t which = pos[dir] - node->pos[dir];
   kd_tree_node_t *near_subtree, *far_subtree;
-  double *near_coord, *far_coord;
+  real_t *near_coord, *far_coord;
   if (which <= 0.0)
   {
     near_subtree = node->left;
@@ -374,21 +374,21 @@ static void find_within_radius(kd_tree_node_t* node,
   if (near_subtree != NULL)
   {
     // Bisect and recurse.
-    double coord = *near_coord;
+    real_t coord = *near_coord;
     *near_coord = node->pos[dir];
     find_within_radius(near_subtree, pos, radius, rect, results);
     *near_coord = coord;
   }
 
   // Distance from point to current node.
-  double my_r2 = SQ_DIST(node->pos, pos);
+  real_t my_r2 = SQ_DIST(node->pos, pos);
   if (my_r2 < radius*radius)
     int_slist_append(results, node->index);
 
   if (far_subtree != NULL)
   {
     // Bisect and recurse (if needed).
-    double coord = *far_coord;
+    real_t coord = *far_coord;
     *far_coord = node->pos[dir];
     if (rect_square_dist(rect, pos) < radius*radius)
       find_within_radius(far_subtree, pos, radius, rect, results);
@@ -397,13 +397,13 @@ static void find_within_radius(kd_tree_node_t* node,
 }
 
 int_slist_t* kd_tree_within_radius(kd_tree_t* tree, 
-                                     point_t* point, 
-                                     double radius)
+                                   point_t* point, 
+                                   real_t radius)
 {
   if (tree->root == NULL)
     return NULL;
 
-  double pos[3];
+  real_t pos[3];
   pos[0] = point->x, pos[1] = point->y, pos[2] = point->z;
   kd_tree_rect_t rect;
   int_slist_t* results = int_slist_new();
@@ -422,7 +422,7 @@ kd_tree_pos_t kd_tree_start(kd_tree_t* tree)
   return pos; 
 }
 
-bool kd_tree_next(kd_tree_t* tree, kd_tree_pos_t* pos, int* index, double* coords)
+bool kd_tree_next(kd_tree_t* tree, kd_tree_pos_t* pos, int* index, real_t* coords)
 {
   ASSERT(pos != NULL);
   ASSERT(index != NULL);

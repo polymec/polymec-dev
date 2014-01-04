@@ -27,7 +27,7 @@
 
 point_t* witkin_heckbert_sampling(sp_func_t* surface, 
                                   sp_func_t* surface_density,
-                                  double surface_diameter,
+                                  real_t surface_diameter,
                                   int max_num_sample_points,
                                   point_t* initial_point,
                                   int* num_sample_points)
@@ -42,18 +42,18 @@ point_t* witkin_heckbert_sampling(sp_func_t* surface,
   ASSERT((max_num_sample_points < 0) || (max_num_sample_points > 3));
 
   // Algorithmic parameters (see Witkin and Heckbert (1994)).
-  static const double dt = 0.01;
-  static const double phi = 5.0;
-  static const double rho = 15.0;
-  static const double alpha = 6.0;
-  static const double beta = 10.0;
-  static const double gamma = 4.0;
-  static const double nu = 0.2;
-  static const double delta = 0.7;
-  double Ehat = 0.8 * alpha; // hexagonal close-packing energy
+  static const real_t dt = 0.01;
+  static const real_t phi = 5.0;
+  static const real_t rho = 15.0;
+  static const real_t alpha = 6.0;
+  static const real_t beta = 10.0;
+  static const real_t gamma = 4.0;
+  static const real_t nu = 0.2;
+  static const real_t delta = 0.7;
+  real_t Ehat = 0.8 * alpha; // hexagonal close-packing energy
 
-  double sigma_hat = 0.25 * surface_diameter;
-  double sigma_max = MAX(0.5 * surface_diameter, 1.5 * sigma_hat);
+  real_t sigma_hat = 0.25 * surface_diameter;
+  real_t sigma_max = MAX(0.5 * surface_diameter, 1.5 * sigma_hat);
 
   // Begin with a single "floater" positioned arbitrarily within the 
   // bounding box.
@@ -61,7 +61,7 @@ point_t* witkin_heckbert_sampling(sp_func_t* surface,
   int N = 1;
   point_t* sample_points = malloc(sizeof(point_t) * point_cap);
   sample_points[0] = *initial_point;
-  double* sigmas = malloc(sizeof(double) * point_cap);
+  real_t* sigmas = malloc(sizeof(real_t) * point_cap);
   sigmas[0] = 1.0; // Essentially random initial repulsion radius.
   // -1 -> died, 1 -> fissioned, 2 -> newly created, 0 -> no change
   int* statuses = malloc(sizeof(int) * point_cap); 
@@ -69,7 +69,7 @@ point_t* witkin_heckbert_sampling(sp_func_t* surface,
   sp_func_t* surf_density = surface_density;
   if (surf_density == NULL)
   {
-    double one = 1.0;
+    real_t one = 1.0;
     surf_density = constant_sp_func_new(1, &one);
   }
 
@@ -87,9 +87,9 @@ point_t* witkin_heckbert_sampling(sp_func_t* surface,
     kd_tree_t* tree = kd_tree_new(sample_points, N);
 
     // Loop over all the points and perform a step.
-    double max_vel = 0.0;
+    real_t max_vel = 0.0;
     point_t x_max_vel = {0.0, 0.0, 0.0};
-    double sigma_max_vel = 0.0;
+    real_t sigma_max_vel = 0.0;
 //char filename[128];
 //snprintf(filename, 128, "iter-%d", iter);
 //FILE* fd = fopen(filename, "w");
@@ -97,17 +97,17 @@ point_t* witkin_heckbert_sampling(sp_func_t* surface,
     for (int i = 0; i < N; ++i)
     {
       point_t* pi = &sample_points[i];
-      double sigmai = sigmas[i]; // Repulsion radius.
+      real_t sigmai = sigmas[i]; // Repulsion radius.
 
       // Compute the "desired" velocity P = (Px, Py, Pz) of this point due 
       // to a repulsive force, and its "repulsion inertia" Di.
       vector_t P = {.x = 0.0, .y = 0.0, .z = 0.0};
-      double Di = 0.0, Di_sigmai = 0.0;
+      real_t Di = 0.0, Di_sigmai = 0.0;
 
       // Newly-created particles received random desired velocites.
       if (statuses[i] == 2) // newly-created
       {
-        double frac = 1.0 * rand() / RAND_MAX;
+        real_t frac = 1.0 * rand() / RAND_MAX;
         vector_randomize(&P, rand, frac * sigmai);
         statuses[i] = 0; // No longer new.
       }
@@ -121,12 +121,12 @@ point_t* witkin_heckbert_sampling(sp_func_t* surface,
         if (j != i)
         {
           point_t* pj = &sample_points[j];
-          double sigmaj = sigmas[j];
+          real_t sigmaj = sigmas[j];
           vector_t rij;
           point_displacement(pj, pi, &rij);
-          double rij2 = vector_dot(&rij, &rij);
-          double Eij = alpha * exp(-rij2/(2.0 * sigmai*sigmai));
-          double Eji = alpha * exp(-rij2/(2.0 * sigmaj*sigmaj));
+          real_t rij2 = vector_dot(&rij, &rij);
+          real_t Eij = alpha * exp(-rij2/(2.0 * sigmai*sigmai));
+          real_t Eji = alpha * exp(-rij2/(2.0 * sigmaj*sigmaj));
           P.x += sigmai*sigmai * (rij.x/(sigmai*sigmai) * Eij - rij.x/(sigmaj*sigmaj) * Eji);
           P.y += sigmai*sigmai * (rij.y/(sigmai*sigmai) * Eij - rij.y/(sigmaj*sigmaj) * Eji);
           P.z += sigmai*sigmai * (rij.z/(sigmai*sigmai) * Eij - rij.z/(sigmaj*sigmaj) * Eji);
@@ -141,21 +141,21 @@ point_t* witkin_heckbert_sampling(sp_func_t* surface,
 
       // Compute the value and the gradient of the implicit function at 
       // this sample point.
-      double F, dF[3];
+      real_t F, dF[3];
       sp_func_eval(surface, pi, &F);
       sp_func_eval_deriv(surface, 1, pi, dF);
       vector_t grad_F = {.x = dF[0], .y = dF[1], .z = dF[2]};
 
       // Compute the evolution equations.
-      double Di_dot = -rho * (Di - Ehat);
-      double sigma_dot = Di_dot / (Di_sigmai + beta);
-      double grad_FoP = vector_dot(&grad_F, &P);
-      double grad_F2 = vector_dot(&grad_F, &grad_F) + 1e-14;
+      real_t Di_dot = -rho * (Di - Ehat);
+      real_t sigma_dot = Di_dot / (Di_sigmai + beta);
+      real_t grad_FoP = vector_dot(&grad_F, &P);
+      real_t grad_F2 = vector_dot(&grad_F, &grad_F) + 1e-14;
  //printf("x = (%g, %g, %g), F = %g, grad_F = (%g, %g, %g)\n", pi->x, pi->y, pi->z, F, grad_F.x, grad_F.y, grad_F.z);
       vector_t p_dot = {.x = P.x - (grad_FoP + phi*F) * grad_F.x / grad_F2,
                         .y = P.y - (grad_FoP + phi*F) * grad_F.y / grad_F2,
                         .z = P.z - (grad_FoP + phi*F) * grad_F.z / grad_F2};
-      double v_mag = vector_mag(&p_dot);
+      real_t v_mag = vector_mag(&p_dot);
       if (v_mag > gamma * sigmas[i])
         all_points_stopped = false;
 
@@ -178,9 +178,9 @@ point_t* witkin_heckbert_sampling(sp_func_t* surface,
       }
 
       // Compute the desired surface density at this point.
-      double density;
+      real_t density;
       sp_func_eval(surf_density, pi, &density);
-      double sigma_opt = 0.3 * sqrt(density / N);
+      real_t sigma_opt = 0.3 * sqrt(density / N);
       if (sigmai > sigma_opt)
         surface_density_achieved = false;
 
@@ -202,7 +202,7 @@ point_t* witkin_heckbert_sampling(sp_func_t* surface,
         else 
         {
           // Generate a random number R between 0 and 1.
-          double R = 1.0 * rand() / RAND_MAX;
+          real_t R = 1.0 * rand() / RAND_MAX;
 
           // Randomized shooting squad!
           if ((sigmai < delta * sigma_hat) &&
@@ -243,7 +243,7 @@ point_t* witkin_heckbert_sampling(sp_func_t* surface,
         while (new_N > point_cap)
           point_cap *= 2;
         sample_points = realloc(sample_points, sizeof(point_t) * point_cap);
-        sigmas = realloc(sigmas, sizeof(double) * point_cap);
+        sigmas = realloc(sigmas, sizeof(real_t) * point_cap);
         statuses = realloc(statuses, sizeof(int) * point_cap);
       }
 

@@ -42,11 +42,11 @@ typedef enum
 } sp_func_homogeneity_t;
 
 // A function pointer type for evaluating the function at a point.
-typedef void (*sp_eval_func)(void*, point_t*, double*);
+typedef void (*sp_eval_func)(void* context, point_t* x, real_t* F);
 
 // A function pointer type for evaluating the nth derivative of the 
 // function at a point.
-typedef void (*sp_eval_deriv_func)(void*, int, point_t*, double*);
+typedef void (*sp_eval_deriv_func)(void*, int, point_t*, real_t*);
 
 // A function pointer type for returning whether a function has a 
 // derivative. This must be supplied if eval_deriv is given.
@@ -91,7 +91,7 @@ int sp_func_num_comp(sp_func_t* func);
 void* sp_func_context(sp_func_t* func);
 
 // Evaluates the function at the given point, placing the result in result.
-void sp_func_eval(sp_func_t* func, point_t* x, double* result);
+void sp_func_eval(sp_func_t* func, point_t* x, real_t* result);
 
 // Registers another function as the nth derivative of this function.
 // NOTE: These are vector derivatives, so the first derivative is the 
@@ -104,11 +104,11 @@ void sp_func_register_deriv(sp_func_t* func, int n, sp_func_t* nth_deriv);
 bool sp_func_has_deriv(sp_func_t* func, int n);
 
 // Evaluates the nth derivative of this function, placing the result in result.
-void sp_func_eval_deriv(sp_func_t* func, int n, point_t* x, double* result);
+void sp_func_eval_deriv(sp_func_t* func, int n, point_t* x, real_t* result);
 
 // Creates a function that is constant everywhere in space, with the given 
 // components.
-sp_func_t* constant_sp_func_new(int num_comp, double comp[]);
+sp_func_t* constant_sp_func_new(int num_comp, real_t comp[]);
 
 #endif
 

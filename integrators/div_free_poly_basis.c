@@ -42,7 +42,7 @@ struct div_free_poly_basis_t
   int dim;
   div_free_polytope_t polytope;
   point_t x0;
-  double radius; // Radius of the sphere
+  real_t radius; // Radius of the sphere
   polynomial_vector_t* vectors;
 };
 
@@ -62,7 +62,7 @@ static int basis_dim[] = {3, 11, 26};
 // Coefficients and powers of x, y, z polynomials for degrees.
 
 // x polynomial coefficients and powers.
-static double x_poly_coeffs[3][26] = 
+static real_t x_poly_coeffs[3][26] = 
   {{1.0, 0.0, 0.0},
    {1.0, 0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0},
    {1.0, 0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0, 2.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0}};
@@ -80,7 +80,7 @@ static int x_poly_z_powers[3][26] =
    {0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 2, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0}};
 
 // y polynomial coefficients and powers.
-static double y_poly_coeffs[3][26] = 
+static real_t y_poly_coeffs[3][26] = 
   {{0.0, 1.0, 0.0},
    {0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0},
    {0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 2.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0}};
@@ -98,7 +98,7 @@ static int y_poly_z_powers[3][26] =
    {0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 2, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0}};
 
 // z polynomial coefficients and powers.
-static double z_poly_coeffs[3][26] = 
+static real_t z_poly_coeffs[3][26] = 
   {{0.0, 0.0, 1.0},
    {0.0, 0.0, 1.0, 0.0, 0.0, 0.0, -1.0, 1.0, -1.0, 0.0, 1.0},
    {0.0, 0.0, 1.0, 0.0, 0.0, 0.0, -1.0, 1.0, -1.0, 0.0, 1.0, 0.0, 0.0, 0.0, -1.0, 0.0, -2.0, 1.0, -1.0, 0.0, -1.0, -1.0, 1.0, -2.0, 0.0, 1.0}};
@@ -116,7 +116,7 @@ static int z_poly_z_powers[3][26] =
    {0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 2, 0, 1, 0, 2, 0, 1, 1, 0, 1, 0, 0}};
 
 // Compute <ui, uj>.
-static double inner_product(div_free_poly_basis_t* basis, 
+static real_t inner_product(div_free_poly_basis_t* basis, 
                             polynomial_vector_t* ui,
                             polynomial_vector_t* uj)
 {
@@ -130,7 +130,7 @@ static double inner_product(div_free_poly_basis_t* basis,
 
   // Now integrate this product over our polytope.
   ASSERT(basis->polytope == SPHERE);
-  double I = sphere_integrator_sphere(NULL, &basis->x0, basis->radius, prod);
+  real_t I = sphere_integrator_sphere(NULL, &basis->x0, basis->radius, prod);
 
   prod = NULL;
 
@@ -155,10 +155,10 @@ static void gram_schmidt(div_free_poly_basis_t* basis)
       polynomial_vector_t uj = basis->vectors[j];
 
       // Compute <vi, uj>.
-      double vi_o_uj = inner_product(basis, &v[i], &uj);
+      real_t vi_o_uj = inner_product(basis, &v[i], &uj);
 
       // Compute <uj, uj>.
-      double uj2 = inner_product(basis, &uj, &uj);
+      real_t uj2 = inner_product(basis, &uj, &uj);
       ASSERT(uj2 > 0.0);
 
       // Compute the projection of vi onto uj.
@@ -177,7 +177,7 @@ static void gram_schmidt(div_free_poly_basis_t* basis)
   }
 }
 
-div_free_poly_basis_t* spherical_div_free_poly_basis_new(int degree, point_t* x0, double radius)
+div_free_poly_basis_t* spherical_div_free_poly_basis_new(int degree, point_t* x0, real_t radius)
 {
   ASSERT(radius > 0.0);
   ASSERT(degree >= 0);

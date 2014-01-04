@@ -30,7 +30,7 @@
 #include "core/ordered_set.h"
 
 int int_values[] = {0, 1, 2, 3, 4, 5};
-double double_values[] = {0., 1., 2., 3., 4., 5.};
+real_t real_values[] = {0., 1., 2., 3., 4., 5.};
 
 #define DEFINE_ORDERED_SET_TEST(set_name, element) \
 void test_##set_name##_ctor(void** state) \
@@ -63,7 +63,7 @@ void test_##element##_ordered_set(void** state) \
 }
 
 DEFINE_ORDERED_SET_TEST(int_ordered_set, int)
-DEFINE_ORDERED_SET_TEST(double_ordered_set, double)
+DEFINE_ORDERED_SET_TEST(real_ordered_set, real)
 
 int main(int argc, char* argv[]) 
 {
@@ -71,7 +71,7 @@ int main(int argc, char* argv[])
   const UnitTest tests[] = 
   {
     unit_test(test_int_ordered_set),
-    unit_test(test_double_ordered_set)
+    unit_test(test_real_ordered_set)
   };
   return run_tests(tests);
 }

@@ -181,8 +181,8 @@ typedef struct {
   int *slu_etree;
   int *slu_perm_r;
   int *slu_perm_c;
-  double *slu_R;
-  double *slu_C;
+  real_t *slu_R;
+  real_t *slu_C;
 
 } *UserData;
 
@@ -406,7 +406,7 @@ static int PrecSetupBD(N_Vector cc, N_Vector cscale,
   UserData data;
   
   data = (UserData) user_data;
-  double current_time = 0.0;
+  real_t current_time = 0.0;
   supermatrix_factory_update_jacobian(data->supermatrix_factory,
                                       cc, current_time, data->slu_P);
 
@@ -425,8 +425,8 @@ static int PrecSolveBD(N_Vector cc, N_Vector cscale,
   int info;
   int lwork = 0;
   char equed[1] = {'N'};
-  double *work = NULL;
-  double rpg, rcond;
+  real_t *work = NULL;
+  real_t rpg, rcond;
   mem_usage_t mem_usage;
   
   UserData data = (UserData)user_data;
@@ -435,7 +435,7 @@ static int PrecSolveBD(N_Vector cc, N_Vector cscale,
   printf("B_nnz = %d    vv_length = %ld\n", B_data->nnz, NV_LENGTH_S(vv));
   assert(B_data->nnz == NV_LENGTH_S(vv));
   for (int i = 0; i < B_data->nnz; ++i) {
-    double* B_nzval = B_data->nzval; 
+    real_t* B_nzval = B_data->nzval; 
     B_nzval[i] = NV_Ith_S(vv, i);
   }
 
@@ -450,7 +450,7 @@ static int PrecSolveBD(N_Vector cc, N_Vector cscale,
   printf("X_nnz = %d    vv_length = %ld\n", X_data->nnz, NV_LENGTH_S(vv));
   assert(X_data->nnz == NV_LENGTH_S(vv));
   for (int i = 0; i < X_data->nnz; ++i) {
-    double* X_nzval = X_data->nzval; 
+    real_t* X_nzval = X_data->nzval; 
     NV_Ith_S(vv, i) = X_nzval[i];
   }
 
@@ -556,10 +556,10 @@ static UserData AllocUserData(void)
   if ( !(data->slu_perm_c = intMalloc(data->slu_P->ncol)) ) {
     ABORT("Malloc fails for perm_c[].");
   }
-  if ( !(data->slu_R = (double *) SUPERLU_MALLOC(data->slu_P->nrow * sizeof(double))) ) {
+  if ( !(data->slu_R = (real_t *) SUPERLU_MALLOC(data->slu_P->nrow * sizeof(real_t))) ) {
     ABORT("SUPERLU_MALLOC fails for R[].");
   }
-  if ( !(data->slu_C = (double *) SUPERLU_MALLOC(data->slu_P->ncol * sizeof(double))) ) {
+  if ( !(data->slu_C = (real_t *) SUPERLU_MALLOC(data->slu_P->ncol * sizeof(real_t))) ) {
     ABORT("SUPERLU_MALLOC fails for C[].");
   }
 

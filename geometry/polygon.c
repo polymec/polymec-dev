@@ -33,7 +33,7 @@ struct polygon_t
   point_t* vertices;
   int num_vertices;
   int* ordering;
-  double area;
+  real_t area;
   point_t x0;
   vector_t normal;
   sp_func_t* plane;
@@ -193,7 +193,7 @@ bool polygon_next_vertex(polygon_t* poly, int* pos, point_t** vertex)
   return true;
 }
 
-double polygon_area(polygon_t* poly)
+real_t polygon_area(polygon_t* poly)
 {
   return poly->area;
 }

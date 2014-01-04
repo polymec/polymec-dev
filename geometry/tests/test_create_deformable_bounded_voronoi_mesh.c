@@ -45,7 +45,7 @@ void plot_generators(point_t* generators, int num_generators, sp_func_t* boundar
   fprintf(fd, "# x y z D\n");
   for (int i = 0; i < num_generators; ++i)
   {
-    double D;
+    real_t D;
     sp_func_eval(boundary, &generators[i], &D);
     fprintf(fd, "%g %g %g %g\n", generators[i].x, generators[i].y, generators[i].z, D);
   }
@@ -59,7 +59,7 @@ static void plot_voronoi_mesh(mesh_t* mesh, const char* filename)
   io_open(plot, filename, ".", IO_WRITE);
   io_dataset_t* dataset = io_dataset_new("default");
   io_dataset_put_mesh(dataset, mesh);
-  double ones[mesh->num_cells];
+  real_t ones[mesh->num_cells];
   for (int c = 0; c < mesh->num_cells; ++c)
     ones[c] = 1.0*c;
   io_dataset_put_field(dataset, "solution", ones, 1, MESH_CELL, true);
@@ -94,11 +94,11 @@ void test_create_cylindrical_voronoi_mesh(void** state)
   // We generate an initial distribution randomly.
   int N = 5000;
   point_t generators[N];
-  double r_flab = 0.1, z_flab = 0.5;
+  real_t r_flab = 0.1, z_flab = 0.5;
   bbox_t bbox = {.x1 = -0.5-r_flab, .x2 = 0.5+r_flab, .y1 = -0.5-r_flab, .y2 = 0.5+r_flab, .z1 = -1.0-z_flab, .z2 = 1.0+z_flab};
   for (int i = 0; i < N; ++i)
   {
-    double F;
+    real_t F;
     do
     {
       point_randomize(&generators[i], random, &bbox);
@@ -109,9 +109,9 @@ void test_create_cylindrical_voronoi_mesh(void** state)
 
   // Probabilistic algorithm (iterates 100 times max).
   int num_sample_pts = 300;
-  double min_dist = 0.05;
+  real_t min_dist = 0.05;
   cvt_gen_dist_t* prob = prob_cvt_gen_dist_new(random, num_sample_pts, 0.5, 0.5, min_dist, 100);
-  double one = 1.0;
+  real_t one = 1.0;
   sp_func_t* density = constant_sp_func_new(1, &one); // Constant density.
   int Nb; // Number of boundary generators.
   cvt_gen_dist_iterate(prob, density, domain, &bbox, generators, N, &Nb);

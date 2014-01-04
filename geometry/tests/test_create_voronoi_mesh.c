@@ -34,21 +34,21 @@ void test_create_single_tetrahedron(void** state)
 {
   // Set up points that will yield a single tetrahedral Voronoi cell
   // with vertices (1, 1, 1), (1, -1, -1), (-1, 1, -1), (-1, -1, 1).
-  const double sqrt2 = sqrt(2.0);
-  const double sqrt3 = sqrt(3.0);
-  const double sqrt6 = sqrt(6.0);
-  const double cos60 = cos(M_PI/3.0);
-  const double cos30 = cos(M_PI/6.0);
-  const double cos120 = cos(2.0*M_PI/3.0);
+  const real_t sqrt2 = sqrt(2.0);
+  const real_t sqrt3 = sqrt(3.0);
+  const real_t sqrt6 = sqrt(6.0);
+  const real_t cos60 = cos(M_PI/3.0);
+  const real_t cos30 = cos(M_PI/6.0);
+  const real_t cos120 = cos(2.0*M_PI/3.0);
 
   // Geometric properties.
-  double side = sqrt2;
-  double height = sqrt2 * side / sqrt3;
-  double base_area = 0.25 * sqrt3 * side * side;
-  double volume = sqrt2 * pow(side, 3) / 12.0;
+  real_t side = sqrt2;
+  real_t height = sqrt2 * side / sqrt3;
+  real_t base_area = 0.25 * sqrt3 * side * side;
+  real_t volume = sqrt2 * pow(side, 3) / 12.0;
 
   // Vectors connecting the center to the various faces.
-  double d = 0.5 * side / sqrt6;
+  real_t d = 0.5 * side / sqrt6;
   vector_t v1 = {.x = 0.0, .y = 0.0,        .z = -d};        // bottom face
   vector_t v2 = {.x = 0.0, .y = -d * cos30, .z = d * cos60}; // -y face
   vector_t v3 = {.x = -d * cos30, .y = d * cos120, .z = d * cos60}; // "-x" face
@@ -118,7 +118,7 @@ void test_create_single_cube(void** state)
   // Verify the areas and centers of its faces.
   for (int f = 0; f < 4; ++f)
   {
-    double face_area = vector_mag(&mesh->faces[f].normal);
+    real_t face_area = vector_mag(&mesh->faces[f].normal);
     assert_true(fabs(1.0 - face_area) < 1e-12);
   }
 

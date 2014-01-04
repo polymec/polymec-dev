@@ -211,7 +211,7 @@ static inline void list_name##_clear(list_name##_t* list) \
 
 // Define some basic slist types.
 DEFINE_SLIST(int_slist, int)
-DEFINE_SLIST(double_slist, double)
+DEFINE_SLIST(real_slist, real_t)
 DEFINE_SLIST(string_slist, char*)
 DEFINE_SLIST(ptr_slist, void*)
 

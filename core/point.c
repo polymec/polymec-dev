@@ -25,21 +25,21 @@
 #include <gc/gc.h>
 #include "core/point.h"
 
-point_t* point_new(double x, double y, double z)
+point_t* point_new(real_t x, real_t y, real_t z)
 {
   point_t* p = GC_MALLOC(sizeof(point_t));
   p->x = x, p->y = y, p->z = z;
   return p;
 }
 
-vector_t* vector_new(double vx, double vy, double vz)
+vector_t* vector_new(real_t vx, real_t vy, real_t vz)
 {
   vector_t* v = GC_MALLOC(sizeof(vector_t));
   v->x = vx, v->y = vy, v->z = vz;
   return v;
 }
 
-bbox_t* bbox_new(double x1, double x2, double y1, double y2, double z1, double z2)
+bbox_t* bbox_new(real_t x1, real_t x2, real_t y1, real_t y2, real_t z1, real_t z2)
 {
   ASSERT(x1 < x2);
   ASSERT(y1 < y2);

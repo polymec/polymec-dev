@@ -80,7 +80,9 @@ static mpi_message_t* mpi_message_new(MPI_Datatype type, int stride, int tag)
   msg->type = type;
   msg->stride = stride;
   msg->tag = tag;
-  if (type == MPI_DOUBLE)
+  if (type == MPI_REAL)
+    msg->data_size = sizeof(real_t);
+  else if (type == MPI_DOUBLE)
     msg->data_size = sizeof(double);
   else if (type == MPI_FLOAT)
     msg->data_size = sizeof(float);
@@ -115,7 +117,15 @@ static void mpi_message_pack(mpi_message_t* msg, void* data,
   {
     msg->send_buffer_sizes[i] = c->num_indices;
     msg->send_buffers[i] = malloc(c->num_indices*msg->data_size*msg->stride);
-    if (msg->type == MPI_DOUBLE)
+    if (msg->type == MPI_REAL)
+    {
+      real_t* src = (real_t*)data;
+      real_t* dest = (real_t*)(msg->send_buffers[i]);
+      for (int j = 0; j < send_buffer_sizes[i]; ++j)
+        for (int s = 0; s < msg->stride; ++s)
+          dest[msg->stride*j+s] = src[send_idx[i][msg->stride*j+s]];
+    }
+    else if (msg->type == MPI_DOUBLE)
     {
       double* src = (double*)data;
       double* dest = (double*)(msg->send_buffers[i]);
@@ -181,7 +191,15 @@ static void mpi_message_unpack(mpi_message_t* msg, void* data,
 {
   for (int i = 0; i < msg->num_receives; ++i)
   {
-    if (msg->type == MPI_DOUBLE)
+    if (msg->type == MPI_REAL)
+    {
+      real_t* src = (real_t*)(msg->send_buffers[i]);
+      real_t* dest = (real_t*)data;
+      for (int j = 0; j < msg->receive_buffer_sizes[i]; ++j)
+        for (int s = 0; s < msg->stride; ++s)
+          dest[receive_idx[i][msg->stride*j+s]] = src[msg->stride*j+s];
+    }
+    else if (msg->type == MPI_DOUBLE)
     {
       double* src = (double*)(msg->send_buffers[i]);
       double* dest = (double*)data;
@@ -256,7 +274,9 @@ static void mpi_message_free(mpi_message_t* msg)
 static void mpi_message_fprintf(mpi_message_t* msg, FILE* stream)
 {
   char typeStr[1024];
-  if (msg->type == MPI_DOUBLE)
+  if (msg->type == MPI_REAL)
+    strcpy(typeStr, "real");
+  else if (msg->type == MPI_DOUBLE)
     strcpy(typeStr, "double");
   else if (msg->type == MPI_FLOAT)
     strcpy(typeStr, "float");
@@ -300,7 +320,7 @@ struct exchanger_t
   int** transfer_counts;
 
   // Deadlock detection.
-  double dl_thresh;
+  real_t dl_thresh;
   int dl_output_rank;
   FILE* dl_output_stream;
 };
@@ -405,7 +425,7 @@ int exchanger_max_receive(exchanger_t* ex)
 }
 
 void exchanger_enable_deadlock_detection(exchanger_t* ex, 
-                                         double threshold,
+                                         real_t threshold,
                                          int output_rank,
                                          FILE* stream)
 {
@@ -521,7 +541,7 @@ static int exchanger_waitall(exchanger_t* ex, mpi_message_t* msg)
     bool sent_data = (msg->num_sends > 0);
 
     // Start the deadlock clock.
-    double t1 = MPI_Wtime();
+    real_t t1 = (real_t)MPI_Wtime();
 
     // Now poll the transmissions till they complete.
     bool all_finished;
@@ -543,7 +563,7 @@ static int exchanger_waitall(exchanger_t* ex, mpi_message_t* msg)
       if (all_finished) break;
 
       // Take a look at the time. 
-      double t2 = MPI_Wtime();
+      real_t t2 = (real_t)MPI_Wtime();
 
       // If we've passed the deadlock threshold, set our error flag and 
       // and gather some diagnostic data. 
@@ -753,7 +773,19 @@ void exchanger_finish_transfer(exchanger_t* ex, int token)
   {
     // Move the sent elements to the back.
     int stride = msg->stride;
-    if (msg->type == MPI_DOUBLE)
+    if (msg->type == MPI_REAL)
+    {
+      real_t* array = (real_t*)orig_buffer;
+      for (int i = 0; i < ex->send_sizes[p]; ++i)
+      {
+        for (int s = 0; s < stride; ++s)
+        {
+          array[stride*ex->send_idx[p][i]+s] = array[*count-1-num_sent];
+          ++num_sent;
+        }
+      }
+    }
+    else if (msg->type == MPI_DOUBLE)
     {
       double* array = (double*)orig_buffer;
       for (int i = 0; i < ex->send_sizes[p]; ++i)
@@ -765,6 +797,7 @@ void exchanger_finish_transfer(exchanger_t* ex, int token)
         }
       }
     }
+    // FIXME: What about other data types???
   }
 
   // Convey the change in count of the transferred data.

@@ -62,7 +62,7 @@ int octree_nearest(octree_t* tree, point_t* point);
 // found within the given radius of the given point.
 int_slist_t* octree_within_radius(octree_t* tree, 
                                   point_t* point, 
-                                  double radius);
+                                  real_t radius);
 
 #endif
 

@@ -35,7 +35,7 @@ typedef struct cvt_gen_force_t cvt_gen_force_t;
 // given spring constant k and equilibrium displacement determined by the 
 // density function. Here, F = k * (l - l0) for l < l0 and zero otherwise, 
 // where l0 is the equilibrium length for a given region.
-cvt_gen_force_t* linear_spring_force_new(double k);
+cvt_gen_force_t* linear_spring_force_new(real_t k);
 
 // Creates a new force-balance-based CVT generator algorithm. The forces are 
 // applied to the Delaunay triangulation of the generators to simplify 
@@ -44,7 +44,7 @@ cvt_gen_force_t* linear_spring_force_new(double k);
 // tolerance - The threshold for the magnitude of the force at which the 
 //             algorithm will terminate.
 cvt_gen_dist_t* force_cvt_gen_dist_new(cvt_gen_force_t* force,
-                                       double tolerance);
+                                       real_t tolerance);
 
 #endif
 

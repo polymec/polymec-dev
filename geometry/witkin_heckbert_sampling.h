@@ -40,7 +40,7 @@
 // NOTE: if surface_density is NULL, a uniform density is assumed.
 point_t* witkin_heckbert_sampling(sp_func_t* surface, 
                                   sp_func_t* surface_density,
-                                  double surface_diameter,
+                                  real_t surface_diameter,
                                   int max_num_sample_points,
                                   point_t* initial_point,
                                   int* num_sample_points);

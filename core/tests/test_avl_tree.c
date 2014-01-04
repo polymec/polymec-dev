@@ -30,7 +30,7 @@
 #include "core/avl_tree.h"
 
 int int_values[] = {0, 1, 2, 3, 4, 5};
-double double_values[] = {0., 1., 2., 3., 4., 5.};
+real_t real_values[] = {0., 1., 2., 3., 4., 5.};
 
 #define DEFINE_AVL_TREE_TEST(tree_name, element) \
 void test_##tree_name##_ctor(void** state) \
@@ -62,7 +62,7 @@ void test_##element##_tree(void** state) \
 }
 
 DEFINE_AVL_TREE_TEST(int_avl_tree, int)
-DEFINE_AVL_TREE_TEST(double_avl_tree, double)
+DEFINE_AVL_TREE_TEST(real_avl_tree, real)
 
 int main(int argc, char* argv[]) 
 {
@@ -70,7 +70,7 @@ int main(int argc, char* argv[])
   const UnitTest tests[] = 
   {
     unit_test(test_int_tree),
-    unit_test(test_double_tree)
+    unit_test(test_real_tree)
   };
   return run_tests(tests);
 }

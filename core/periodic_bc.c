@@ -77,8 +77,8 @@ static int_int_unordered_map_t* generate_periodic_map(void* context, mesh_t* mes
   {
     vector_t D12;
     point_displacement(&xp1, &xp2, &D12);
-    double D12_mag = vector_mag(&D12);
-    double D12_n = vector_dot(&D12, &n1);
+    real_t D12_mag = vector_mag(&D12);
+    real_t D12_n = vector_dot(&D12, &n1);
     if (D12_n < 0.0)
       vector_scale(&D12, -D12_n/D12_mag);
     else

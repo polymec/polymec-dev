@@ -40,7 +40,7 @@ typedef struct mapping_t mapping_t;
 typedef void (*mapping_map_func)(void*, point_t*, point_t*);
 
 // A function pointer type for evaluating the Jacobian at a point.
-typedef void (*mapping_jacobian_func)(void*, point_t*, double*);
+typedef void (*mapping_jacobian_func)(void*, point_t*, real_t*);
 
 // A destructor for any given context object.
 typedef void (*mapping_dtor)(void*);
@@ -68,7 +68,7 @@ void mapping_map(mapping_t* mapping, point_t* x, point_t* y);
 
 // Computes the Jacobian at the point x, writing its components (in column-
 // major order) to the array J.
-void mapping_compute_jacobian(mapping_t* mapping, point_t* x, double* J);
+void mapping_compute_jacobian(mapping_t* mapping, point_t* x, real_t* J);
 
 #endif
 

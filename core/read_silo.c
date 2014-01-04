@@ -43,7 +43,7 @@ void read_silo_mesh(mesh_t** mesh,
                     const char* file_prefix,
                     const char* directory,
                     int cycle,
-                    double* time,
+                    real_t* time,
                     MPI_Comm comm,
                     int num_files,
                     int mpi_tag)
@@ -53,7 +53,7 @@ void read_silo_mesh(mesh_t** mesh,
   int *node_tag_sizes, *edge_tag_sizes, *face_tag_sizes, *cell_tag_sizes; 
   int **node_tags, **edge_tags, **face_tags, **cell_tags;
   char **field_names, **node_tag_names, **edge_tag_names, **face_tag_names, **cell_tag_names;
-  double** field_data;
+  real_t** field_data;
   polytope_tessellation_t* tess = polytope_tessellation_new(3);
   polytope_read_silo_with_tags(tess, &num_fields, &field_names, &field_data,
                                &num_node_tags, &node_tag_names, &node_tag_sizes, &node_tags,

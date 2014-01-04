@@ -31,7 +31,7 @@ struct polygon2_t
   point2_t* vertices;
   int num_vertices;
   int* ordering;
-  double area;
+  real_t area;
 };
 
 static void polygon2_free(void* ctx, void* dummy)
@@ -85,7 +85,7 @@ polygon2_t* polygon2_giftwrap(point2_t* points, int num_points)
   int indices[num_points], count = 0;
 
   // Find the "lowest" point in the set.
-  double ymin = FLT_MAX;
+  real_t ymin = FLT_MAX;
   int index0 = -1;
   for (int p = 0; p < num_points; ++p)
   {
@@ -97,23 +97,23 @@ polygon2_t* polygon2_giftwrap(point2_t* points, int num_points)
   }
 
   // We start with this point and a horizontal angle.
-  double theta_prev = 0.0;
+  real_t theta_prev = 0.0;
   indices[count++] = index0;
 
   // Now start gift wrapping.
   int i = index0;
   do 
   {
-    double dtheta_min = 2.0*M_PI;
+    real_t dtheta_min = 2.0*M_PI;
     int j_min = -1;
     for (int j = 0; j < num_points; ++j)
     {
       if (j != i)
       {
-        double dx = points[j].x - points[i].x,
+        real_t dx = points[j].x - points[i].x,
                dy = points[j].y - points[i].y;
-        double theta = atan2(dy, dx);
-        double dtheta = theta - theta_prev;
+        real_t theta = atan2(dy, dx);
+        real_t dtheta = theta - theta_prev;
         if (dtheta < 0.0)
           dtheta += 2.0*M_PI;
         if (dtheta_min > dtheta)
@@ -155,7 +155,7 @@ bool polygon2_next_vertex(polygon2_t* poly, int* pos, point2_t** vertex)
   return true;
 }
 
-double polygon2_area(polygon2_t* poly)
+real_t polygon2_area(polygon2_t* poly)
 {
   return poly->area;
 }
@@ -198,7 +198,7 @@ static char seg_set_int(point2_t* a, point2_t* b, point2_t* c,
 {
   char code;
 
-  double denom = a->x * (d->y - c->y) + 
+  real_t denom = a->x * (d->y - c->y) + 
                  b->x * (c->y - d->y) + 
                  d->x * (b->y - a->y) + 
                  c->x * (a->y - b->y);
@@ -207,19 +207,19 @@ static char seg_set_int(point2_t* a, point2_t* b, point2_t* c,
   if (denom == 0.0)
     return parallel_int(a, b, c, d, p);
 
-  double num = a->x * (d->y - c->y) + 
+  real_t num = a->x * (d->y - c->y) + 
                c->x * (a->y - d->y) + 
                d->x * (c->y - a->y);
   if ((num == 0.0) || (num == denom)) 
     code = 'v';
-  double s = num / denom;
+  real_t s = num / denom;
 
   num = -(a->x * (c->y - b->y) + 
           b->x * (a->y - c->y) + 
           c->x * (b->y - a->y));
   if ((num == 0.0) || (num == denom))
     code = 'v';
-  double t = num / denom;
+  real_t t = num / denom;
 
   if ((0.0 < s) && (s < 1.0) &&
       (0.0 < t) && (t < 1.0))
@@ -241,10 +241,10 @@ typedef enum
   QIN
 } polygon2_inout_t;
 
-static polygon2_inout_t in_out(point2_t* p, polygon2_inout_t inflag, int aHB, int bHA, double_slist_t* xlist, double_slist_t* ylist)
+static polygon2_inout_t in_out(point2_t* p, polygon2_inout_t inflag, int aHB, int bHA, real_slist_t* xlist, real_slist_t* ylist)
 {
-  double_slist_append(xlist, p->x);
-  double_slist_append(ylist, p->y);
+  real_slist_append(xlist, p->x);
+  real_slist_append(ylist, p->y);
   if (aHB > 0)
     return PIN;
   else if (bHA > 0)
@@ -253,12 +253,12 @@ static polygon2_inout_t in_out(point2_t* p, polygon2_inout_t inflag, int aHB, in
     return inflag;
 }
 
-static int advance(int a, int* aa, int n, bool inside, point2_t* v, double_slist_t* xlist, double_slist_t* ylist)
+static int advance(int a, int* aa, int n, bool inside, point2_t* v, real_slist_t* xlist, real_slist_t* ylist)
 {
   if (inside)
   {
-    double_slist_append(xlist, v->x);
-    double_slist_append(ylist, v->y);
+    real_slist_append(xlist, v->x);
+    real_slist_append(ylist, v->y);
   }
   (*aa)++;
   return (a+1) % n;
@@ -277,8 +277,8 @@ void polygon2_clip(polygon2_t* poly, polygon2_t* other)
 
   // We'll store the coordinates of the vertices of the 
   // clipped polygon here.
-  double_slist_t* xlist = double_slist_new();
-  double_slist_t* ylist = double_slist_new();
+  real_slist_t* xlist = real_slist_new();
+  real_slist_t* ylist = real_slist_new();
 
   do
   {
@@ -311,13 +311,13 @@ void polygon2_clip(polygon2_t* poly, polygon2_t* other)
     char code = seg_set_int(Pa1, Pa, Qb1, Qb, &p);
     if ((code == '1') || (code == 'v')) 
     {
-      if ((inflag == UNKNOWN) && (double_slist_empty(xlist)))
+      if ((inflag == UNKNOWN) && (real_slist_empty(xlist)))
       {
         aa = ba = 0;
         p0.x = p.x;
         p0.y = p.y;
-        double_slist_append(xlist, p0.x);
-        double_slist_append(ylist, p0.y);
+        real_slist_append(xlist, p0.x);
+        real_slist_append(ylist, p0.y);
       }
       inflag = in_out(&p, inflag, aHB, bHA, xlist, ylist);
     }
@@ -348,13 +348,13 @@ void polygon2_clip(polygon2_t* poly, polygon2_t* other)
   for (int i = 0; i < xlist->size; ++i)
   {
     // FIXME: Verify!
-    poly->vertices[i].x = double_slist_pop(xlist, NULL);
-    poly->vertices[i].y = double_slist_pop(ylist, NULL);
+    poly->vertices[i].x = real_slist_pop(xlist, NULL);
+    poly->vertices[i].y = real_slist_pop(ylist, NULL);
   }
   polygon2_compute_area(poly);
 
   // Clean up.
-  double_slist_free(xlist);
-  double_slist_free(ylist);
+  real_slist_free(xlist);
+  real_slist_free(ylist);
 }
 

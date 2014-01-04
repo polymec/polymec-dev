@@ -24,12 +24,12 @@
 
 #include "core/octree.h"
 
-static double square(double x) 
+static real_t square(real_t x) 
 {
   return x*x;
 }
 
-static double square_dist(double* x, double* y)
+static real_t square_dist(real_t* x, real_t* y)
 {
   return square(x[0]-y[0]) + square(x[1]-y[1]) + square(x[2]-y[2]);
 }
@@ -190,13 +190,13 @@ void octree_insert(octree_t* tree, point_t* point, int index)
   point_t center = {.x = 0.5 * (tree->bbox.x1 + tree->bbox.x2),
                     .y = 0.5 * (tree->bbox.y1 + tree->bbox.y2),
                     .z = 0.5 * (tree->bbox.z1 + tree->bbox.z2)};
-  double lx = tree->bbox.x2 - tree->bbox.x1;
-  double ly = tree->bbox.y2 - tree->bbox.y1;
-  double lz = tree->bbox.z2 - tree->bbox.z1;
+  real_t lx = tree->bbox.x2 - tree->bbox.x1;
+  real_t ly = tree->bbox.y2 - tree->bbox.y1;
+  real_t lz = tree->bbox.z2 - tree->bbox.z1;
   int slot = find_slot(&center, point);
-  static double xf[] = {-0.25, -0.25, -0.25, -0.25, +0.25, +0.25, +0.25, +0.25};
-  static double yf[] = {-0.25, -0.25, +0.25, +0.25, -0.25, -0.25, +0.25, +0.25};
-  static double zf[] = {-0.25, +0.25, -0.25, +0.25, -0.25, +0.25, -0.25, +0.25};
+  static real_t xf[] = {-0.25, -0.25, -0.25, -0.25, +0.25, +0.25, +0.25, +0.25};
+  static real_t yf[] = {-0.25, -0.25, +0.25, +0.25, -0.25, -0.25, +0.25, +0.25};
+  static real_t zf[] = {-0.25, +0.25, -0.25, +0.25, -0.25, +0.25, -0.25, +0.25};
   while ((node->branch_node.children[slot] != NULL) && 
          (node->branch_node.children[slot]->type == OCTREE_BRANCH_NODE))
   {
@@ -306,7 +306,7 @@ int octree_nearest(octree_t* tree, point_t* point)
 
 int_slist_t* octree_within_radius(octree_t* tree, 
                                   point_t* point, 
-                                  double radius)
+                                  real_t radius)
 {
   return NULL;
 #if 0
@@ -315,9 +315,9 @@ int_slist_t* octree_within_radius(octree_t* tree,
 
   // Start with the root.
   octree_node_t* node = tree->root;
-  double pos[3];
+  real_t pos[3];
   pos[0] = point->x, pos[1] = point->y, pos[2] = point->z;
-  double r2 = square_dist(pos, node->pos);
+  real_t r2 = square_dist(pos, node->pos);
   octree_rect_t rect;
   int_slist_t* results = int_slist_new();
   rect.min[0] = tree->rect->min[0]; rect.max[0] = tree->rect->max[0];

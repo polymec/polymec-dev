@@ -222,6 +222,6 @@ static inline table_name##_cell_pos_t table_name##_start(table_name##_t* table) 
 
 // Define some tables.
 DEFINE_TABLE(int_table, int)
-DEFINE_TABLE(double_table, double)
+DEFINE_TABLE(real_table, real_t)
 
 #endif

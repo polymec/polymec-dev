@@ -30,16 +30,16 @@
 typedef struct 
 {
   int num_samples; // Number of sample points.
-  double alpha1, beta1, alpha2, beta2; // Algorithm coefficients.
+  real_t alpha1, beta1, alpha2, beta2; // Algorithm coefficients.
   int (*rng)(); // Random number generator.
-  double min_dist; // Minimum distance of a point from the boundary.
+  real_t min_dist; // Minimum distance of a point from the boundary.
   int max_iters; // Maximum number of iterations.
 } prob_cvt_gen_dist_t;
 
 static void project_point_to_boundary(sp_func_t* boundary, point_t* x)
 {
   ASSERT(sp_func_has_deriv(boundary, 1));
-  double D, grad_D[3];
+  real_t D, grad_D[3];
   static int max_proj = 100;
   int i = 0;
   do 
@@ -60,8 +60,8 @@ static void project_point_to_boundary(sp_func_t* boundary, point_t* x)
     polymec_error("project_to_boundary: Given boundary is not a signed distance function.");
 }
 
-static void correct_generator(double alpha1, double beta1, 
-                              double alpha2, double beta2, 
+static void correct_generator(real_t alpha1, real_t beta1, 
+                              real_t alpha2, real_t beta2, 
                               ptr_slist_t* nearest,
                               point_t* zi, int* ji_ptr)
 {
@@ -111,10 +111,10 @@ void prob_cvt_gen_dist_iterate(void* context,
   for (int i = 0; i < num_points; ++i)
     ji[i] = 1;
 
-  double alpha1 = prob->alpha1;
-  double beta1 = prob->beta1;
-  double alpha2 = prob->alpha2;
-  double beta2 = prob->beta2;
+  real_t alpha1 = prob->alpha1;
+  real_t beta1 = prob->beta1;
+  real_t alpha2 = prob->alpha2;
+  real_t beta2 = prob->beta2;
 
   // Iterate until termination.
   point_t samples[prob->num_samples];
@@ -148,7 +148,7 @@ void prob_cvt_gen_dist_iterate(void* context,
       // project to the boundary.
       if (boundary != NULL)
       {
-        double D;
+        real_t D;
         sp_func_eval(boundary, &points[i], &D);
         if ((fabs(D) < prob->min_dist) || (D > 0.0))
         {
@@ -170,9 +170,9 @@ void prob_cvt_gen_dist_iterate(void* context,
 
 cvt_gen_dist_t* prob_cvt_gen_dist_new(int (*random_gen)(), 
                                       int num_samples, 
-                                      double alpha, 
-                                      double beta, 
-                                      double min_dist,
+                                      real_t alpha, 
+                                      real_t beta, 
+                                      real_t min_dist,
                                       int max_iters)
 {
   ASSERT(num_samples > 0);

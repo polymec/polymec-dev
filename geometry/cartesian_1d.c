@@ -46,8 +46,8 @@ int cartesian_1d_uniform(lua_State* lua)
   }
 
   // Get the arguments.
-  double x1 = lua_tonumber(lua, 1);
-  double x2 = lua_tonumber(lua, 2);
+  real_t x1 = (real_t)lua_tonumber(lua, 1);
+  real_t x2 = (real_t)lua_tonumber(lua, 2);
   if (x1 >= x2)
     return luaL_error(lua, "x1 must be less than x2.");
   int N = (int)lua_tonumber(lua, 3);
@@ -78,8 +78,8 @@ int cartesian_1d_logarithmic(lua_State* lua)
   }
 
   // Get the arguments.
-  double x1 = lua_tonumber(lua, 1);
-  double log_factor = lua_tonumber(lua, 2);
+  real_t x1 = (real_t)lua_tonumber(lua, 1);
+  real_t log_factor = (real_t)lua_tonumber(lua, 2);
   if (log_factor <= 0.0)
     return luaL_error(lua, "log factor must be positive.");
   int N = (int)lua_tonumber(lua, 3);
@@ -111,7 +111,7 @@ int cartesian_1d_irregular(lua_State* lua)
 
   // Get the arguments.
   int N;
-  double* xs = lua_tosequence(lua, 1, &N);
+  real_t* xs = lua_tosequence(lua, 1, &N);
   if (xs == NULL)
     return luaL_error(lua, "argument must be a list of coordinates.");
 

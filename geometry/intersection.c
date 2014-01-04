@@ -38,27 +38,27 @@ static void inter_free(void* ctx)
   free(inter);
 }
 
-static void inter_eval(void* ctx, point_t* x, double* result)
+static void inter_eval(void* ctx, point_t* x, real_t* result)
 {
   inter_t* inter = ctx;
-  double maxval = -FLT_MAX;
+  real_t maxval = -FLT_MAX;
   for (int i = 0; i < inter->num_funcs; ++i)
   {
-    double ival;
+    real_t ival;
     sp_func_eval(inter->funcs[i], x, &ival);
     maxval = MAX(maxval, ival);
   }
   result[0] = maxval;
 }
 
-static void inter_eval_gradient(void* ctx, point_t* x, double* result)
+static void inter_eval_gradient(void* ctx, point_t* x, real_t* result)
 {
   inter_t* inter = ctx;
-  double maxval = -FLT_MAX;
+  real_t maxval = -FLT_MAX;
   int index = -1;
   for (int i = 0; i < inter->num_funcs; ++i)
   {
-    double ival;
+    real_t ival;
     sp_func_eval(inter->funcs[i], x, &ival);
     if (ival > maxval)
     {

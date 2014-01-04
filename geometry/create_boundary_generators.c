@@ -43,7 +43,7 @@ void create_boundary_generators(ptr_array_t* surface_points,
   int num_surface_points = surface_points->size;
 
   // Compute the minimum distance from each surface point to its neighbors.
-  double* h_min = malloc(sizeof(double) * num_surface_points);
+  real_t* h_min = malloc(sizeof(real_t) * num_surface_points);
   {
     // Dump the surface points into a kd-tree.
     point_t* surf_points = malloc(sizeof(point_t) * num_surface_points);

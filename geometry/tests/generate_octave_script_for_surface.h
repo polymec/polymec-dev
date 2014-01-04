@@ -47,9 +47,9 @@ void generate_octave_script_for_surface(sp_func_t* surface,
   fprintf(fd, "%% Run with octave --persist %s\n\n", script_name);
 
   // Write out X, Y, and Z arrays.
-  double hx = (bounding_box->x2 - bounding_box->x1) / num_samples;
-  double hy = (bounding_box->y2 - bounding_box->y1) / num_samples;
-  double hz = (bounding_box->z2 - bounding_box->z1) / num_samples;
+  real_t hx = (bounding_box->x2 - bounding_box->x1) / num_samples;
+  real_t hy = (bounding_box->y2 - bounding_box->y1) / num_samples;
+  real_t hz = (bounding_box->z2 - bounding_box->z1) / num_samples;
   fprintf(fd, "X = [");
   for (int i = 0; i < num_samples; ++i)
     fprintf(fd, "%g ", bounding_box->x1 + (i+0.5)*hx);
@@ -77,7 +77,7 @@ void generate_octave_script_for_surface(sp_func_t* surface,
       for (int i = 0; i < num_samples; ++i)
       {
         x.x = -1.0 + (i+0.5)*hx;
-        double F;
+        real_t F;
         sp_func_eval(surface, &x, &F);
         fprintf(fd, "F(%d, %d, %d) = %g;\n", i+1, j+1, k+1, F);
       }

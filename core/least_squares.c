@@ -30,10 +30,10 @@
 #include "core/polynomial.h"
 #include "core/linear_algebra.h"
 
-void linear_regression(double* x, double* y, int N, double* A, double* B, double* sigma)
+void linear_regression(real_t* x, real_t* y, int N, real_t* A, real_t* B, real_t* sigma)
 {
   ASSERT(N > 2);
-  double sumXY = 0.0, sumX = 0.0, sumY = 0.0, sumX2 = 0.0, sumY2 = 0.0;
+  real_t sumXY = 0.0, sumX = 0.0, sumY = 0.0, sumX2 = 0.0, sumY2 = 0.0;
   for (int i = 0; i < N; ++i)
   {
     sumX += x[i];
@@ -44,21 +44,21 @@ void linear_regression(double* x, double* y, int N, double* A, double* B, double
   }
   *A = (N * sumXY - sumX*sumY) / (N * sumX2 - sumX*sumX);
   *B = (sumY - *A * sumX) / N;
-  double SSE = 0.0;
+  real_t SSE = 0.0;
   for (int i = 0; i < N; ++i)
   {
-    double e = (*A) * x[i] + (*B) - y[i];
+    real_t e = (*A) * x[i] + (*B) - y[i];
     SSE += e*e;
   }
   *sigma = SSE / (N - 2);
 }
 
-static void compute_poly_basis_vector(polynomial_t* p, point_t* X, double* basis_vector)
+static void compute_poly_basis_vector(polynomial_t* p, point_t* X, real_t* basis_vector)
 {
   point_t* x0 = polynomial_x0(p);
-  double x = X->x - x0->x, y = X->y - x0->y, z = X->z - x0->z;
+  real_t x = X->x - x0->x, y = X->y - x0->y, z = X->z - x0->z;
   int pos = 0, x_pow, y_pow, z_pow, offset = 0;
-  double coeff;
+  real_t coeff;
   while (polynomial_next(p, &pos, &coeff, &x_pow, &y_pow, &z_pow))
     basis_vector[offset++] = pow(x, x_pow) * pow(y, y_pow) * pow(z, z_pow);
 }
@@ -66,9 +66,9 @@ static void compute_poly_basis_vector(polynomial_t* p, point_t* X, double* basis
 static void compute_poly_basis_gradients(polynomial_t* p, point_t* X, vector_t* basis_gradients)
 {
   point_t* x0 = polynomial_x0(p);
-  double x = X->x - x0->x, y = X->y - x0->y, z = X->z - x0->z;
+  real_t x = X->x - x0->x, y = X->y - x0->y, z = X->z - x0->z;
   int pos = 0, x_pow, y_pow, z_pow, offset = 0;
-  double coeff;
+  real_t coeff;
   while (polynomial_next(p, &pos, &coeff, &x_pow, &y_pow, &z_pow))
   {
     basis_gradients[offset].x = 1.0*x_pow*pow(x, x_pow-1) * pow(y, y_pow) * pow(z, z_pow);
@@ -121,7 +121,7 @@ void ls_weight_func_set_domain(ls_weight_func_t* W, point_t* x0, point_t* points
     W->vtable.set_domain(W->context, x0, points, num_points);
 }
 
-void ls_weight_func_eval(ls_weight_func_t* W, point_t* x, double* value, vector_t* gradient)
+void ls_weight_func_eval(ls_weight_func_t* W, point_t* x, real_t* value, vector_t* gradient)
 {
   vector_t y;
   point_displacement(&W->x0, x, &y);
@@ -134,7 +134,7 @@ point_t* ls_weight_func_x0(ls_weight_func_t* W)
 }
 
 // The following machinery sets up a weight function that just returns 1.
-static void unweighted_eval(void* context, vector_t* y, double* W, vector_t* gradient)
+static void unweighted_eval(void* context, vector_t* y, real_t* W, vector_t* gradient)
 {
   *W = 1.0;
   gradient->x = gradient->y = gradient->z = 0.0;
@@ -147,8 +147,8 @@ static ls_weight_func_t* unweighted_func_new()
 }
 
 void compute_weighted_poly_ls_system(int p, ls_weight_func_t* W, point_t* x0, 
-                                     point_t* points, int num_points, double* data, 
-                                     double* moment_matrix, double* rhs)
+                                     point_t* points, int num_points, real_t* data, 
+                                     real_t* moment_matrix, real_t* rhs)
 {
   ASSERT(p >= 0);
   ASSERT(p <= 4);
@@ -159,22 +159,22 @@ void compute_weighted_poly_ls_system(int p, ls_weight_func_t* W, point_t* x0,
 
   ls_weight_func_t* wf = (W != NULL) ? W : unweighted_func_new();
 
-  memset(moment_matrix, 0, sizeof(double)*size*size);
-  memset(rhs, 0, sizeof(double)*size);
+  memset(moment_matrix, 0, sizeof(real_t)*size*size);
+  memset(rhs, 0, sizeof(real_t)*size);
  
   // Set up a polynomial basis, expanded about x0.
-  double coeffs[size];
+  real_t coeffs[size];
   for (int i = 0; i < size; ++i)
     coeffs[i] = 1.0;
   polynomial_t* poly = polynomial_new(p, coeffs, x0);
-  double basis[size];
+  real_t basis[size];
 
   ls_weight_func_set_domain(wf, x0, points, num_points);
   for (int n = 0; n < num_points; ++n)
   {
     compute_poly_basis_vector(poly, &points[n], basis);
 
-    double Wd;
+    real_t Wd;
     vector_t gradWd;
     ls_weight_func_eval(wf, &points[n], &Wd, &gradWd); 
     for (int i = 0; i < size; ++i)
@@ -189,7 +189,7 @@ void compute_weighted_poly_ls_system(int p, ls_weight_func_t* W, point_t* x0,
 }
 
 void compute_poly_ls_system(int p, point_t* x0, point_t* points, int num_points, 
-                            double* data, double* moment_matrix, double* rhs)
+                            real_t* data, real_t* moment_matrix, real_t* rhs)
 {
   ASSERT(p >= 0);
   ASSERT(p <= 4);
@@ -203,11 +203,11 @@ void compute_poly_ls_system(int p, point_t* x0, point_t* points, int num_points,
 }
 
 polynomial_t* ls_polynomial_new(int p, ls_weight_func_t* W, point_t* x0, 
-                                point_t* points, int num_points, double* data)
+                                point_t* points, int num_points, real_t* data)
 {
   // Compute the least-squares coefficients.
   int dim = polynomial_basis_dim(p);
-  double coeffs[dim], A[dim*dim];
+  real_t coeffs[dim], A[dim*dim];
   if (W != NULL)
     compute_weighted_poly_ls_system(p, W, x0, points, num_points, data, A, coeffs);
   else
@@ -228,7 +228,7 @@ struct poly_ls_shape_t
 {
   polynomial_t* poly; // Polynomial expanded about origin.
   bool compute_gradients; // Compute gradients, or no?
-  double *domain_basis; // Polynomial basis, calculated during set_domain().
+  real_t *domain_basis; // Polynomial basis, calculated during set_domain().
   int num_points; // Number of points in domain.
   point_t* points; // Points in domain.
   ls_weight_func_t* W; // Weighting function.
@@ -252,7 +252,7 @@ poly_ls_shape_t* poly_ls_shape_new(int p, ls_weight_func_t* W, bool compute_grad
   ASSERT(p <= 4);
   poly_ls_shape_t* N = GC_MALLOC(sizeof(poly_ls_shape_t));
   int dim = polynomial_basis_dim(p);
-  double coeffs[dim];
+  real_t coeffs[dim];
   for (int i = 0; i < dim; ++i)
     coeffs[i] = 1.0;
   N->poly = polynomial_new(p, coeffs, NULL);
@@ -277,7 +277,7 @@ void poly_ls_shape_set_domain(poly_ls_shape_t* N, point_t* x0, point_t* points, 
   {
     N->num_points = num_points;
     N->points = realloc(N->points, sizeof(point_t)*num_points);
-    N->domain_basis = realloc(N->domain_basis, sizeof(double)*dim*num_points);
+    N->domain_basis = realloc(N->domain_basis, sizeof(real_t)*dim*num_points);
   }
   *polynomial_x0(N->poly) = *x0;
   memcpy(N->points, points, sizeof(point_t)*num_points);
@@ -290,19 +290,19 @@ void poly_ls_shape_set_domain(poly_ls_shape_t* N, point_t* x0, point_t* points, 
   ls_weight_func_set_domain(N->W, x0, points, num_points);
 }
 
-void poly_ls_shape_compute(poly_ls_shape_t* N, point_t* x, double* values)
+void poly_ls_shape_compute(poly_ls_shape_t* N, point_t* x, real_t* values)
 {
   poly_ls_shape_compute_gradients(N, x, values, NULL);
 }
 
-void poly_ls_shape_compute_gradients(poly_ls_shape_t* N, point_t* x, double* values, vector_t* gradients)
+void poly_ls_shape_compute_gradients(poly_ls_shape_t* N, point_t* x, real_t* values, vector_t* gradients)
 {
   ASSERT((gradients == NULL) || N->compute_gradients);
   int dim = polynomial_num_terms(N->poly);
   int num_points = N->num_points;
 
   // Compute the weights and their gradients at x.
-  double W[num_points];
+  real_t W[num_points];
   vector_t grad_W[num_points];
   for (int n = 0; n < num_points; ++n)
   {
@@ -313,13 +313,13 @@ void poly_ls_shape_compute_gradients(poly_ls_shape_t* N, point_t* x, double* val
   }
 
   // Compute the moment matrix A.
-  double A[dim*dim], AinvB[dim*num_points];
+  real_t A[dim*dim], AinvB[dim*num_points];
 //printf("x0 = %g %g %g\n", N->x0.x, N->x0.y, N->x0.z);
 //printf("points = ");
 //for (int n = 0; n < N->num_points; ++n)
 //printf("%g %g %g  ", N->points[n].x, N->points[n].y, N->points[n].z);
 //printf("\n");
-  memset(A, 0, sizeof(double)*dim*dim);
+  memset(A, 0, sizeof(real_t)*dim*dim);
   for (int n = 0; n < num_points; ++n)
   {
     for (int i = 0; i < dim; ++i)
@@ -343,10 +343,10 @@ void poly_ls_shape_compute_gradients(poly_ls_shape_t* N, point_t* x, double* val
   ASSERT(info == 0);
 
   // values^T = basis^T * Ainv * B (or values = (Ainv * B)^T * basis.)
-  double alpha = 1.0, beta = 0.0;
+  real_t alpha = 1.0, beta = 0.0;
   int one = 1;
   char trans = 'T';
-  double basis[dim];
+  real_t basis[dim];
   compute_poly_basis_vector(N->poly, x, basis);
   //printf("y = %g %g %g, basis = ", y.x, y.y, y.z);
   //for (int i = 0; i < dim; ++i)
@@ -360,11 +360,11 @@ void poly_ls_shape_compute_gradients(poly_ls_shape_t* N, point_t* x, double* val
   {
     // Compute the derivative of A inverse. We'll need the derivatives of 
     // A and B first.
-    double dAdx[dim*dim], dAdy[dim*dim], dAdz[dim*dim],
+    real_t dAdx[dim*dim], dAdy[dim*dim], dAdz[dim*dim],
            dBdx[dim*num_points], dBdy[dim*num_points], dBdz[dim*num_points];
-    memset(dAdx, 0, sizeof(double)*dim*dim);
-    memset(dAdy, 0, sizeof(double)*dim*dim);
-    memset(dAdz, 0, sizeof(double)*dim*dim);
+    memset(dAdx, 0, sizeof(real_t)*dim*dim);
+    memset(dAdy, 0, sizeof(real_t)*dim*dim);
+    memset(dAdz, 0, sizeof(real_t)*dim*dim);
     for (int n = 0; n < num_points; ++n)
     {
       for (int i = 0; i < dim; ++i)
@@ -388,8 +388,8 @@ void poly_ls_shape_compute_gradients(poly_ls_shape_t* N, point_t* x, double* val
 
     // We left-multiply Ainv*B by the gradient of A, placing the results 
     // in dAinvBdx, dAinvBdy, and dAinvBdz.
-    double alpha = 1.0, beta = 0.0;
-    double dAinvBdx[dim*num_points], dAinvBdy[dim*num_points], dAinvBdz[dim*num_points];
+    real_t alpha = 1.0, beta = 0.0;
+    real_t dAinvBdx[dim*num_points], dAinvBdy[dim*num_points], dAinvBdz[dim*num_points];
     dgemm(&no_trans, &no_trans, &dim, &num_points, &dim, &alpha, 
         dAdx, &dim, AinvB, &dim, &beta, dAinvBdx, &dim);
     dgemm(&no_trans, &no_trans, &dim, &num_points, &dim, &alpha, 
@@ -419,20 +419,20 @@ void poly_ls_shape_compute_gradients(poly_ls_shape_t* N, point_t* x, double* val
     // 1st term: gradient of basis, dotted with Ainv * B.
     vector_t basis_grads[dim];
     compute_poly_basis_gradients(N->poly, x, basis_grads);
-    double dpdx[dim], dpdy[dim], dpdz[dim];
+    real_t dpdx[dim], dpdy[dim], dpdz[dim];
     for (int i = 0; i < dim; ++i)
     {
       dpdx[i] = basis_grads[i].x;
       dpdy[i] = basis_grads[i].y;
       dpdz[i] = basis_grads[i].z;
     }
-    double dpdx_AinvB[num_points], dpdy_AinvB[num_points], dpdz_AinvB[num_points];
+    real_t dpdx_AinvB[num_points], dpdy_AinvB[num_points], dpdz_AinvB[num_points];
     dgemv(&trans, &dim, &num_points, &alpha, AinvB, &dim, dpdx, &one, &beta, dpdx_AinvB, &one);
     dgemv(&trans, &dim, &num_points, &alpha, AinvB, &dim, dpdy, &one, &beta, dpdy_AinvB, &one);
     dgemv(&trans, &dim, &num_points, &alpha, AinvB, &dim, dpdz, &one, &beta, dpdz_AinvB, &one);
 
     // Second term: basis dotted with gradient of Ainv * B.
-    double p_dAinvBdx[num_points], p_dAinvBdy[num_points], p_dAinvBdz[num_points];
+    real_t p_dAinvBdx[num_points], p_dAinvBdy[num_points], p_dAinvBdz[num_points];
     dgemv(&trans, &dim, &num_points, &alpha, dAinvBdx, &dim, basis, &one, &beta, p_dAinvBdx, &one);
     dgemv(&trans, &dim, &num_points, &alpha, dAinvBdy, &dim, basis, &one, &beta, p_dAinvBdy, &one);
     dgemv(&trans, &dim, &num_points, &alpha, dAinvBdz, &dim, basis, &one, &beta, p_dAinvBdz, &one);
@@ -449,8 +449,8 @@ void poly_ls_shape_compute_gradients(poly_ls_shape_t* N, point_t* x, double* val
 
 void poly_ls_shape_compute_ghost_transform(poly_ls_shape_t* N, int* ghost_indices, int num_ghosts,
                                            point_t* constraint_points, 
-                                           double* a, double* b, double* c, double* d, double* e,
-                                           double* A, double* B)
+                                           real_t* a, real_t* b, real_t* c, real_t* d, real_t* e,
+                                           real_t* A, real_t* B)
 {
   ASSERT(polynomial_degree(N->poly) > 0); // Constraints cannot be applied to constants.
   ASSERT(N->compute_gradients);
@@ -466,11 +466,11 @@ void poly_ls_shape_compute_ghost_transform(poly_ls_shape_t* N, int* ghost_indice
   ASSERT(B != NULL);
 
   // Set up the constraint matrices.
-  double amat[num_ghosts*num_ghosts];
+  real_t amat[num_ghosts*num_ghosts];
   for (int i = 0; i < num_ghosts; ++i)
   {
     // Compute the shape functions at xi.
-    double N_vals[N->num_points];
+    real_t N_vals[N->num_points];
     vector_t N_grads[N->num_points];
     poly_ls_shape_compute_gradients(N, &constraint_points[i], N_vals, N_grads);
 //printf("points = ");
@@ -527,7 +527,7 @@ void poly_ls_shape_compute_ghost_transform(poly_ls_shape_t* N, int* ghost_indice
 
   // Compute B = amatinv * e.
   int one = 1;
-  memcpy(B, e, sizeof(double)*num_ghosts);
+  memcpy(B, e, sizeof(real_t)*num_ghosts);
   dgetrs(&no_trans, &num_ghosts, &one, amat, &num_ghosts, pivot, B, &num_ghosts, &info);
   ASSERT(info == 0);
 }

@@ -28,27 +28,27 @@
 #include "core/polymec.h"
 
 // Computes the L1 norm of the given vector.
-static inline double l1_norm(double* vec, int dim)
+static inline real_t l1_norm(real_t* vec, int dim)
 {
-  double sum = 0.0;
+  real_t sum = 0.0;
   for (int i = 0; i < dim; ++i)
     sum += fabs(vec[i]);
   return sum;
 }
 
 // Computes the L2 norm of the given vector.
-static inline double l2_norm(double* vec, int dim)
+static inline real_t l2_norm(real_t* vec, int dim)
 {
-  double sum = 0.0;
+  real_t sum = 0.0;
   for (int i = 0; i < dim; ++i)
     sum += vec[i]*vec[i];
   return sqrt(sum);
 }
 
 // Computes the L infinity norm of the given vector.
-static inline double linf_norm(double* vec, int dim)
+static inline real_t linf_norm(real_t* vec, int dim)
 {
-  double max = -FLT_MAX;
+  real_t max = -FLT_MAX;
   for (int i = 0; i < dim; ++i)
     max = MAX(max, fabs(vec[i]));
   return max;

@@ -34,7 +34,7 @@
 // and desired tolerance. F is a function that takes a user-defined context and 
 // a value x and returns F(x). This function returns the solution x which 
 // satisfies fabs(F(x)) = tolerance.
-double brent_solve(double (*F)(void*, double), void* context, double x1, double x2, double tolerance, int max_iters); 
+real_t brent_solve(real_t (*F)(void*, real_t), void* context, real_t x1, real_t x2, real_t tolerance, int max_iters); 
 
 // This class solves (dense) systems of nonlinear equations using 
 // Newton's method.
@@ -74,7 +74,7 @@ int newton_solver_dimension(newton_solver_t* solver);
 
 // Sets the tolerances for the function norm (norm_tolerance) and the Newton
 // step (step_tolerance).
-void newton_solver_set_tolerances(newton_solver_t* solver, double norm_tolerance, double step_tolerance);
+void newton_solver_set_tolerances(newton_solver_t* solver, real_t norm_tolerance, real_t step_tolerance);
 
 // Sets the maximum number of Newton iterations for the solver.
 void newton_solver_set_max_iterations(newton_solver_t* solver, int max_iterations);
@@ -82,7 +82,7 @@ void newton_solver_set_max_iterations(newton_solver_t* solver, int max_iteration
 // Given an initial guess, solve the system represented by the Newton solver.
 // Returns true if the solve succeeded, false if not. num_iterations will 
 // store the number of Newton iterations used to achieve the solution.
-bool newton_solver_solve(newton_solver_t* solver, double* X, int* num_iterations);
+bool newton_solver_solve(newton_solver_t* solver, real_t* X, int* num_iterations);
 
 // This variant of newton_solver_solve() lets one specify two vectors which can 
 // scale the solution and the function to accelerate convergence:
@@ -92,7 +92,7 @@ bool newton_solver_solve(newton_solver_t* solver, double* X, int* num_iterations
 //            of Df * F(x) all have roughly the same magnitude as F(x) approaches 0.
 // If either of these arguments is NULL, the components of the corresponding 
 // vector are assumed to be 1.
-bool newton_solver_solve_scaled(newton_solver_t* solver, double* X, double* x_scale, double* F_scale, int* num_iterations);
+bool newton_solver_solve_scaled(newton_solver_t* solver, real_t* X, real_t* x_scale, real_t* F_scale, int* num_iterations);
 
 #endif
 

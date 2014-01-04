@@ -28,7 +28,7 @@
 #include "core/linear_algebra.h"
 
 // Constructs points and weights for the azimuthal interval [0, 2*pi).
-static void get_azi_points_and_weights(int n, double* points, double* weights)
+static void get_azi_points_and_weights(int n, real_t* points, real_t* weights)
 {
   ASSERT(n >= 0);
   ASSERT(points != NULL);
@@ -46,11 +46,11 @@ struct sphere_integrator_t
 
   // Co-latitudinal (t = cos(theta)) integration nodes and weights.
   int num_colat_nodes;
-  double *colat_nodes, *colat_weights;
+  real_t *colat_nodes, *colat_weights;
 
   // Azimuthal integration nodes and weights.
   int num_azi_nodes;
-  double *azi_nodes, *azi_weights;
+  real_t *azi_nodes, *azi_weights;
 };
 
 sphere_integrator_t* sphere_integrator_new(int degree)
@@ -60,13 +60,13 @@ sphere_integrator_t* sphere_integrator_new(int degree)
   sphere_integrator_t* integ = malloc(sizeof(sphere_integrator_t));
   integ->degree = degree;
   integ->num_azi_nodes = degree + 1;
-  integ->azi_nodes = malloc(sizeof(double) * integ->num_azi_nodes);
-  integ->azi_weights = malloc(sizeof(double) * integ->num_azi_nodes);
+  integ->azi_nodes = malloc(sizeof(real_t) * integ->num_azi_nodes);
+  integ->azi_weights = malloc(sizeof(real_t) * integ->num_azi_nodes);
   get_azi_points_and_weights(degree, integ->azi_nodes, integ->azi_weights);
 
   integ->num_colat_nodes = degree/2 + 1;
-  integ->colat_nodes = malloc(sizeof(double) * integ->num_colat_nodes);
-  integ->colat_weights = malloc(sizeof(double) * integ->num_colat_nodes);
+  integ->colat_nodes = malloc(sizeof(real_t) * integ->num_colat_nodes);
+  integ->colat_weights = malloc(sizeof(real_t) * integ->num_colat_nodes);
   get_gauss_legendre_points(degree/2+1, integ->colat_nodes, integ->colat_weights);
 
   return integ;
@@ -91,24 +91,24 @@ static inline void construct_quad_point_and_weight(sphere_integrator_t* integ,
                                                    vector_t* e2, 
                                                    vector_t* e3, 
                                                    point_t* x0, 
-                                                   double R, 
-                                                   double gamma, 
+                                                   real_t R, 
+                                                   real_t gamma, 
                                                    int i, 
                                                    int j, 
                                                    point_t* xij,
-                                                   double* wij)
+                                                   real_t* wij)
 {
   // We use the notation of Hesse (2012), and transform the colatitudinal 
   // quadrature points from the interval [-1, 1] to [cos(gamma), 1] with 
   // an affine transformation.
-  double cos_gamma = cos(gamma);
-  double phi = integ->azi_nodes[i];
-  double s = cos(integ->colat_nodes[j]);
-  double tau = 0.5 * (1.0 - cos_gamma) * s + 0.5 * (1.0 + cos_gamma);
-  double sqrt_tau = sqrt(1.0-tau*tau);
-  double x1 = R * sqrt_tau * cos(phi);
-  double x2 = R * sqrt_tau * sin(phi);
-  double x3 = R * tau;
+  real_t cos_gamma = cos(gamma);
+  real_t phi = integ->azi_nodes[i];
+  real_t s = cos(integ->colat_nodes[j]);
+  real_t tau = 0.5 * (1.0 - cos_gamma) * s + 0.5 * (1.0 + cos_gamma);
+  real_t sqrt_tau = sqrt(1.0-tau*tau);
+  real_t x1 = R * sqrt_tau * cos(phi);
+  real_t x2 = R * sqrt_tau * sin(phi);
+  real_t x3 = R * tau;
 
   // Now we rotate into the coordinate frame in which e3 is the north pole.
   xij->x = x0->x + x1 * e1->x + x2 * e2->x + x3 * e3->x;
@@ -124,17 +124,17 @@ int sphere_integrator_num_cap_points(sphere_integrator_t* integ)
 
 void sphere_integrator_cap(sphere_integrator_t* integ, 
                            point_t* x0,
-                           double R, 
+                           real_t R, 
                            sp_func_t* F, 
                            vector_t* z,
-                           double gamma,
-                           double* integral)
+                           real_t gamma,
+                           real_t* integral)
 {
   ASSERT(gamma >= 0.0);
   ASSERT(gamma <= M_PI);
 
   int num_comp = sp_func_num_comp(F);
-  memset(integral, 0, sizeof(double) * num_comp);
+  memset(integral, 0, sizeof(real_t) * num_comp);
 
   vector_t e1, e2, e3 = {.x = 0.0, .y = 0.0, .z = 1.0};
   if (z != NULL)
@@ -147,11 +147,11 @@ void sphere_integrator_cap(sphere_integrator_t* integ,
     {
       // Construct the (i, j)th quadrature point and its weight.
       point_t xij;
-      double wij;
+      real_t wij;
       construct_quad_point_and_weight(integ, &e1, &e2, &e3, x0, R, gamma, i, j, &xij, &wij);
 
       // Evaluate the function at this point.
-      double contrib[num_comp];
+      real_t contrib[num_comp];
       sp_func_eval(F, &xij, contrib);
 
       // Add the contribution into the integral.
@@ -163,18 +163,18 @@ void sphere_integrator_cap(sphere_integrator_t* integ,
 
 void sphere_integrator_cap_at_time(sphere_integrator_t* integ, 
                                    point_t* x0,
-                                   double R, 
+                                   real_t R, 
                                    st_func_t* F,
                                    vector_t* z,
-                                   double gamma,
-                                   double t, 
-                                   double* integral)
+                                   real_t gamma,
+                                   real_t t, 
+                                   real_t* integral)
 {
   ASSERT(gamma >= 0.0);
   ASSERT(gamma <= M_PI);
 
   int num_comp = st_func_num_comp(F);
-  memset(integral, 0, sizeof(double) * num_comp);
+  memset(integral, 0, sizeof(real_t) * num_comp);
 
   vector_t e1, e2, e3 = *z;
   vector_normalize(&e3);
@@ -185,11 +185,11 @@ void sphere_integrator_cap_at_time(sphere_integrator_t* integ,
     {
       // Construct the (i, j)th quadrature point and its weight.
       point_t xij;
-      double wij;
+      real_t wij;
       construct_quad_point_and_weight(integ, &e1, &e2, &e3, x0, R, gamma, i, j, &xij, &wij);
 
       // Evaluate the function at this point.
-      double contrib[num_comp];
+      real_t contrib[num_comp];
       st_func_eval(F, &xij, t, contrib);
 
       // Add the contribution into the integral.
@@ -201,18 +201,18 @@ void sphere_integrator_cap_at_time(sphere_integrator_t* integ,
 
 void sphere_integrator_cap_using_weights(sphere_integrator_t* integ, 
                                          point_t* x0,
-                                         double R, 
+                                         real_t R, 
                                          sp_func_t* F, 
                                          vector_t* z,
-                                         double gamma,
-                                         double* weights,
-                                         double* integral)
+                                         real_t gamma,
+                                         real_t* weights,
+                                         real_t* integral)
 {
   ASSERT(gamma >= 0.0);
   ASSERT(gamma <= M_PI);
 
   int num_comp = sp_func_num_comp(F);
-  memset(integral, 0, sizeof(double) * num_comp);
+  memset(integral, 0, sizeof(real_t) * num_comp);
 
   vector_t e1, e2, e3 = *z;
   vector_normalize(&e3);
@@ -224,11 +224,11 @@ void sphere_integrator_cap_using_weights(sphere_integrator_t* integ,
     {
       // Construct the (i, j)th quadrature point and its weight.
       point_t xij;
-      double wij;
+      real_t wij;
       construct_quad_point_and_weight(integ, &e1, &e2, &e3, x0, R, gamma, i, j, &xij, &wij);
 
       // Evaluate the function at this point.
-      double contrib[num_comp];
+      real_t contrib[num_comp];
       sp_func_eval(F, &xij, contrib);
 
       // Add the contribution into the integral.
@@ -240,19 +240,19 @@ void sphere_integrator_cap_using_weights(sphere_integrator_t* integ,
 
 void sphere_integrator_cap_using_weights_at_time(sphere_integrator_t* integ, 
                                                  point_t* x0,
-                                                 double R, 
+                                                 real_t R, 
                                                  st_func_t* F,
                                                  vector_t* z,
-                                                 double gamma,
-                                                 double* weights,
-                                                 double t, 
-                                                 double* integral)
+                                                 real_t gamma,
+                                                 real_t* weights,
+                                                 real_t t, 
+                                                 real_t* integral)
 {
   ASSERT(gamma >= 0.0);
   ASSERT(gamma <= M_PI);
 
   int num_comp = st_func_num_comp(F);
-  memset(integral, 0, sizeof(double) * num_comp);
+  memset(integral, 0, sizeof(real_t) * num_comp);
 
   vector_t e1, e2, e3 = *z;
   vector_normalize(&e3);
@@ -264,11 +264,11 @@ void sphere_integrator_cap_using_weights_at_time(sphere_integrator_t* integ,
     {
       // Construct the (i, j)th quadrature point and its weight.
       point_t xij;
-      double wij;
+      real_t wij;
       construct_quad_point_and_weight(integ, &e1, &e2, &e3, x0, R, gamma, i, j, &xij, &wij);
 
       // Evaluate the function at this point.
-      double contrib[num_comp];
+      real_t contrib[num_comp];
       st_func_eval(F, &xij, t, contrib);
 
       // Add the contribution into the integral.
@@ -279,28 +279,28 @@ void sphere_integrator_cap_using_weights_at_time(sphere_integrator_t* integ,
 }
 
 // This uses the method described by Folland (2001).
-double sphere_integrator_ball(sphere_integrator_t* integ,
+real_t sphere_integrator_ball(sphere_integrator_t* integ,
                               point_t* x0,
-                              double R,
+                              real_t R,
                               polynomial_t* p)
 {
   // Recenter the polynomial.
   point_t old_x0 = *polynomial_x0(p);
   *polynomial_x0(p) = *x0;
 
-  double I = 0.0; // Integral value.
-  double coeff;
+  real_t I = 0.0; // Integral value.
+  real_t coeff;
   int pos = 0, x_pow, y_pow, z_pow;
   while (polynomial_next(p, &pos, &coeff, &x_pow, &y_pow, &z_pow))
   {
     if ((coeff != 0.0) && (x_pow % 2 == 0) && (y_pow % 2 == 0) && (z_pow % 2 == 0))
     {
-      double sum_alpha = 1.0 * (x_pow + y_pow + z_pow);
-      double beta1 = 0.5 * (x_pow+1);
-      double beta2 = 0.5 * (y_pow+1);
-      double beta3 = 0.5 * (z_pow+1);
-      double radial_term = pow(R, sum_alpha + 3.0) / (sum_alpha + 3.0);
-      double azi_term = 2.0 * tgamma(beta1) * tgamma(beta2) * tgamma(beta3) / tgamma(beta1 + beta2 + beta3);
+      real_t sum_alpha = 1.0 * (x_pow + y_pow + z_pow);
+      real_t beta1 = 0.5 * (x_pow+1);
+      real_t beta2 = 0.5 * (y_pow+1);
+      real_t beta3 = 0.5 * (z_pow+1);
+      real_t radial_term = pow(R, sum_alpha + 3.0) / (sum_alpha + 3.0);
+      real_t azi_term = 2.0 * tgamma(beta1) * tgamma(beta2) * tgamma(beta3) / tgamma(beta1 + beta2 + beta3);
       I += coeff * radial_term * azi_term;
     }
   }
@@ -312,26 +312,26 @@ double sphere_integrator_ball(sphere_integrator_t* integ,
 }
 
 // This also uses the method described by Folland (2001).
-double sphere_integrator_sphere(sphere_integrator_t* integ,
+real_t sphere_integrator_sphere(sphere_integrator_t* integ,
                                 point_t* x0,
-                                double R,
+                                real_t R,
                                 polynomial_t* p)
 {
   // Recenter the polynomial.
   point_t old_x0 = *polynomial_x0(p);
   *polynomial_x0(p) = *x0;
 
-  double I = 0.0; // Integral value.
-  double coeff;
+  real_t I = 0.0; // Integral value.
+  real_t coeff;
   int pos = 0, x_pow, y_pow, z_pow;
   while (polynomial_next(p, &pos, &coeff, &x_pow, &y_pow, &z_pow))
   {
     if ((coeff != 0.0) && (x_pow % 2 == 0) && (y_pow % 2 == 0) && (z_pow % 2 == 0))
     {
-      double beta1 = 0.5 * (x_pow+1);
-      double beta2 = 0.5 * (y_pow+1);
-      double beta3 = 0.5 * (z_pow+1);
-      double azi_term = 2.0 * tgamma(beta1) * tgamma(beta2) * tgamma(beta3) / tgamma(beta1 + beta2 + beta3);
+      real_t beta1 = 0.5 * (x_pow+1);
+      real_t beta2 = 0.5 * (y_pow+1);
+      real_t beta3 = 0.5 * (z_pow+1);
+      real_t azi_term = 2.0 * tgamma(beta1) * tgamma(beta2) * tgamma(beta3) / tgamma(beta1 + beta2 + beta3);
       I += coeff * R * R * azi_term;
     }
   }
@@ -351,7 +351,7 @@ typedef struct
   polynomial_t *Fx, *Fy, *Fz;
 } radial_F;
 
-static void eval_F_o_n(void* context, point_t* x, double* F_o_n)
+static void eval_F_o_n(void* context, point_t* x, real_t* F_o_n)
 {
   radial_F* Fr = context;
 
@@ -359,8 +359,8 @@ static void eval_F_o_n(void* context, point_t* x, double* F_o_n)
   point_t X = {.x = x->x - Fr->x0.x, 
                .y = x->y - Fr->x0.y,
                .z = x->z - Fr->x0.z};
-  double theta = atan2(X.z, sqrt(X.x*X.x + X.y*X.y));
-  double phi = atan2(X.y, X.x);
+  real_t theta = atan2(X.z, sqrt(X.x*X.x + X.y*X.y));
+  real_t phi = atan2(X.y, X.x);
   vector_t n = {.x = cos(phi) * sin(theta), 
                 .y = sin(phi) * sin(theta),
                 .z = cos(theta)};
@@ -378,9 +378,9 @@ static void eval_F_o_n(void* context, point_t* x, double* F_o_n)
 
 void sphere_integrator_compute_boundary_surface_weights(sphere_integrator_t* integ,
                                                         point_t* x0,
-                                                        double R,
+                                                        real_t R,
                                                         sp_func_t* boundary_func,
-                                                        double* weights)
+                                                        real_t* weights)
 {
   // How many weights will we be computing?
   int N = sphere_integrator_num_cap_points(integ);
@@ -413,7 +413,7 @@ printf("N = %d, M = %d\n", N, M);
 
   // Assemble the moment matrix and the right-hand side in equation (13) 
   // of Muller (2013). NOTE: A is stored in column-major order.
-  double A[M*N];
+  real_t A[M*N];
   int i = 0, pos = 0;
   polynomial_t *Fx, *Fy, *Fz;
   while (div_free_poly_basis_next(df_basis, &pos, &Fx, &Fy, &Fz))
@@ -432,7 +432,7 @@ printf("N = %d, M = %d\n", N, M);
     {
       // Get the jth quadrature point. Ignore the weight.
       point_t xj;
-      double wj;
+      real_t wj;
       int k = j / integ->num_colat_nodes;
       int l = j % integ->num_colat_nodes;
       construct_quad_point_and_weight(integ, &e1, &e2, &e3, x0, R, M_PI, k, l, &xj, &wj);
@@ -440,7 +440,7 @@ printf("N = %d, M = %d\n", N, M);
       // Compute the dot product of the ith basis vector with the normal vector.
 
       // Normal vector at jth quadrature point.
-      double n[3];
+      real_t n[3];
       sp_func_eval_deriv(boundary_func, 1, &xj, n);
 
       // Polynomial dot product.
@@ -461,8 +461,8 @@ polynomial_fprintf(F_o_n, stdout);
   // Solve the least-squares problem.
   int nrhs = 1, lda = M, ldb = MAX(M, N), rank,
       lwork = MAX(M*N+3*N+1, 2*M*N+1), jpvt[N], info;
-  double work[lwork];
-  double rcond = 1e-12; // Accuracy of integrands for estimating condition number of A.
+  real_t work[lwork];
+  real_t rcond = 1e-12; // Accuracy of integrands for estimating condition number of A.
   memset(jpvt, 0, sizeof(int) * N);
 printf("A = \n");
 matrix_fprintf(A, M, N, stdout);
@@ -476,9 +476,9 @@ vector_fprintf(weights, N, stdout);
 
 void sphere_integrator_compute_boundary_volume_weights(sphere_integrator_t* integ,
                                                        point_t* x0,
-                                                       double R,
+                                                       real_t R,
                                                        sp_func_t* boundary_func,
-                                                       double* weights)
+                                                       real_t* weights)
 {
 }
 

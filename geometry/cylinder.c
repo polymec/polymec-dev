@@ -28,25 +28,25 @@ typedef struct
 {
   vector_t d;
   point_t x;
-  double r;
+  real_t r;
   normal_orient_t orient;
 } cyl_t;
 
-static void cyl_eval(void* ctx, point_t* x, double* result)
+static void cyl_eval(void* ctx, point_t* x, real_t* result)
 {
   cyl_t* c = ctx;
-  double sign = (c->orient == OUTWARD_NORMAL) ? -1.0 : 1.0;
-  double r2 = (x->x - c->x.x)*(x->x - c->x.x) + 
+  real_t sign = (c->orient == OUTWARD_NORMAL) ? -1.0 : 1.0;
+  real_t r2 = (x->x - c->x.x)*(x->x - c->x.x) + 
               (x->y - c->x.y)*(x->y - c->x.y);
   result[0] = sign * (sqrt(r2) - c->r);
 }
 
-static void cyl_eval_gradient(void* ctx, point_t* x, double* result)
+static void cyl_eval_gradient(void* ctx, point_t* x, real_t* result)
 {
   cyl_t* c = ctx;
-  double r2 = (x->x - c->x.x)*(x->x - c->x.x) + 
+  real_t r2 = (x->x - c->x.x)*(x->x - c->x.x) + 
               (x->y - c->x.y)*(x->y - c->x.y);
-  double D = fabs(sqrt(r2) - c->r);
+  real_t D = fabs(sqrt(r2) - c->r);
   if (D == 0.0)
     result[0] = result[1] = result[2] = 0.0;
   else
@@ -57,7 +57,7 @@ static void cyl_eval_gradient(void* ctx, point_t* x, double* result)
   }
 }
 
-sp_func_t* cylinder_new(point_t* x, double r, normal_orient_t normal_orientation)
+sp_func_t* cylinder_new(point_t* x, real_t r, normal_orient_t normal_orientation)
 {
   // Set up a cylinder signed distance function.
   cyl_t* c = malloc(sizeof(cyl_t));

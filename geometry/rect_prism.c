@@ -33,13 +33,13 @@ typedef struct
 
 } rect_prism_t;
 
-static void prism_eval(void* ctx, point_t* x, double* result)
+static void prism_eval(void* ctx, point_t* x, real_t* result)
 {
   rect_prism_t* prism = ctx;
   sp_func_eval(prism->prism, x, result);
 }
 
-static void prism_eval_deriv(void* ctx, int n, point_t* x, double* result)
+static void prism_eval_deriv(void* ctx, int n, point_t* x, real_t* result)
 {
   rect_prism_t* prism = ctx;
   sp_func_eval_deriv(prism->prism, n, x, result);
@@ -58,8 +58,8 @@ static void prism_free(void* ctx)
 }
 
 sp_func_t* rect_prism_new(point_t* x0, 
-                          double L1, double L2, double L3,
-                          double alpha, double beta, double gamma)
+                          real_t L1, real_t L2, real_t L3,
+                          real_t alpha, real_t beta, real_t gamma)
 {
   ASSERT(L1 > 0.0);
   ASSERT(L2 > 0.0);
@@ -124,10 +124,10 @@ sp_func_t* rect_prism_new_from_bbox(bbox_t* bounding_box)
   point_t x0 = {.x = 0.5 * (bounding_box->x1 + bounding_box->x2),
                 .y = 0.5 * (bounding_box->y1 + bounding_box->y2),
                 .z = 0.5 * (bounding_box->z1 + bounding_box->z2)};
-  double L1 = bounding_box->x2 - bounding_box->x1,
+  real_t L1 = bounding_box->x2 - bounding_box->x1,
          L2 = bounding_box->y2 - bounding_box->y1,
          L3 = bounding_box->z2 - bounding_box->z1;
-  double alpha = 0.0, beta = 0.0, gamma = 0.0;
+  real_t alpha = 0.0, beta = 0.0, gamma = 0.0;
   return rect_prism_new(&x0, L1, L2, L3, alpha, beta, gamma);
 }
 

@@ -31,12 +31,12 @@
 // A point in the plane.
 typedef struct
 {
-  double x, y;
+  real_t x, y;
 } point2_t;
 
 // Creates a new point with the given coordinates in the plane. 
 // Not necessary if you are allocating a point on the stack.
-static inline point2_t* point2_new(double x, double y)
+static inline point2_t* point2_new(real_t x, real_t y)
 {
   point2_t* p = malloc(sizeof(point2_t));
   p->x = x, p->y = y;
@@ -50,13 +50,13 @@ static inline void point2_free(point2_t* p)
 }
 
 // Square distance between two points in the plane.
-static inline double point2_square_distance(point2_t* x, point2_t* y)
+static inline real_t point2_square_distance(point2_t* x, point2_t* y)
 {
   return (x->x-y->x)*(x->x-y->x) + (x->y-y->y)*(x->y-y->y);
 }
 
 // Distance between two points in the plane.
-static inline double point2_distance(point2_t* x, point2_t* y)
+static inline real_t point2_distance(point2_t* x, point2_t* y)
 {
   return sqrt(point2_square_distance(x, y));
 }
@@ -71,12 +71,12 @@ static inline void point2_copy(point2_t* dest, point2_t* source)
 // A vector in the plane.
 typedef struct
 {
-  double x, y;
+  real_t x, y;
 } vector2_t;
 
 // Creates a new vector with the given components in the plane. 
 // Not necessary if you are allocating a vector on the stack.
-static inline vector2_t* vector2_new(double vx, double vy)
+static inline vector2_t* vector2_new(real_t vx, real_t vy)
 {
   vector2_t* v = malloc(sizeof(vector2_t));
   v->x = vx, v->y = vy;
@@ -90,13 +90,13 @@ static inline void vector2_free(vector2_t* v)
 }
 
 // Vector dot product.
-static inline double vector2_dot(vector2_t* v1, vector2_t* v2)
+static inline real_t vector2_dot(vector2_t* v1, vector2_t* v2)
 {
   return v1->x*v2->x + v1->y*v2->y;
 }
 
 // Vector magnitude.
-static inline double vector2_mag(vector2_t* v)
+static inline real_t vector2_mag(vector2_t* v)
 {
   return sqrt(vector2_dot(v, v));
 }
@@ -104,7 +104,7 @@ static inline double vector2_mag(vector2_t* v)
 // Normalizes the given vector.
 static inline void vector2_normalize(vector2_t* v)
 {
-  double vmag = vector2_mag(v);
+  real_t vmag = vector2_mag(v);
   if (vmag != 0.0)
   {
     v->x /= vmag;
@@ -113,7 +113,7 @@ static inline void vector2_normalize(vector2_t* v)
 }
 
 // Vector cross product (magnitude).
-static inline double vector2_cross_mag(vector2_t* v1, vector2_t* v2)
+static inline real_t vector2_cross_mag(vector2_t* v1, vector2_t* v2)
 {
   return v1->x*v2->y - v1->y*v2->x;
 }
@@ -132,14 +132,14 @@ static inline void vector2_copy(vector2_t* dest, vector2_t* source)
   dest->y = source->y;
 }
 
-static inline void vector2_scale(vector2_t* v, double s)
+static inline void vector2_scale(vector2_t* v, real_t s)
 {
   v->x *= s;
   v->y *= s;
 }
 
 // Returns the area of the triangle with the three vertices in the plane.
-static inline double triangle_area(point2_t* x1, point2_t* x2, point2_t* x3)
+static inline real_t triangle_area(point2_t* x1, point2_t* x2, point2_t* x3)
 {
   return 0.5 * ((x2->x - x1->x) * (x3->y - x1->y) - (x3->x - x1->x) * (x2->y - x1->y));
 }

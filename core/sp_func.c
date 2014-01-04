@@ -108,7 +108,7 @@ void* sp_func_context(sp_func_t* func)
   return func->context;
 }
 
-void sp_func_eval(sp_func_t* func, point_t* x, double* result)
+void sp_func_eval(sp_func_t* func, point_t* x, real_t* result)
 {
   func->vtable.eval(func->context, x, result);
 }
@@ -133,7 +133,7 @@ bool sp_func_has_deriv(sp_func_t* func, int n)
 }
 
 // Evaluates the nth derivative of this function, placing the result in result.
-void sp_func_eval_deriv(sp_func_t* func, int n, point_t* x, double* result)
+void sp_func_eval_deriv(sp_func_t* func, int n, point_t* x, real_t* result)
 {
   if (func->vtable.eval_deriv != NULL)
     func->vtable.eval_deriv(func->context, n, x, result);
@@ -146,7 +146,7 @@ void sp_func_grad_centered_diff(sp_func_t* func, point_t* x0, vector_t* dx, vect
 {
   point_t x1 = {x0->x-dx->x, x0->y, x0->z}, 
           x2 = {x0->x+dx->x, x0->y, x0->z};
-  double f1, f2;
+  real_t f1, f2;
   sp_func_eval(func, &x1, &f1);
   sp_func_eval(func, &x2, &f2);
   gradient->x = (f2-f1) / dx->x;
@@ -175,7 +175,7 @@ void sp_func_grad_richardson(sp_func_t* func, point_t* x0, vector_t* dx, vector_
 
   // Form the Richardson extrapolation.
   static int N = 2;
-  double twoN = pow(2.0, N);
+  real_t twoN = pow(2.0, N);
   gradient->x = (twoN * Gh.x - Gl.x) / (twoN - 1.0);
   gradient->y = (twoN * Gh.y - Gl.y) / (twoN - 1.0);
   gradient->z = (twoN * Gh.z - Gl.z) / (twoN - 1.0);
@@ -187,10 +187,10 @@ void sp_func_grad_richardson(sp_func_t* func, point_t* x0, vector_t* dx, vector_
 typedef struct
 {
   int num_comp;
-  double *comp;
+  real_t *comp;
 } const_sp_func_t;
 
-static void constant_eval(void* ctx, point_t* x, double* res)
+static void constant_eval(void* ctx, point_t* x, real_t* res)
 {
   const_sp_func_t* f = ctx;
   for (int i = 0; i < f->num_comp; ++i)
@@ -204,27 +204,27 @@ static void constant_dtor(void* ctx)
   free(f);
 }
 
-static sp_func_t* create_constant_sp_func(int num_comp, double comp[])
+static sp_func_t* create_constant_sp_func(int num_comp, real_t comp[])
 {
   sp_vtable vtable = {.eval = constant_eval, .dtor = constant_dtor};
   char name[1024];
   snprintf(name, 1024, "constant spatial function"); // FIXME
   const_sp_func_t* f = malloc(sizeof(const_sp_func_t));
   f->num_comp = num_comp;
-  f->comp = malloc(num_comp*sizeof(double));
+  f->comp = malloc(num_comp*sizeof(real_t));
   for (int i = 0; i < num_comp; ++i)
     f->comp[i] = comp[i];
   return sp_func_new(name, (void*)f, vtable, SP_HOMOGENEOUS, num_comp);
 }
 
-sp_func_t* constant_sp_func_new(int num_comp, double comp[])
+sp_func_t* constant_sp_func_new(int num_comp, real_t comp[])
 {
   sp_func_t* func = create_constant_sp_func(num_comp, comp);
 
   // Just to be complete, we register the 3-component zero function as this 
   // function's gradient.
-  double zeros[3*num_comp];
-  memset(zeros, 0, 3*num_comp*sizeof(double));
+  real_t zeros[3*num_comp];
+  memset(zeros, 0, 3*num_comp*sizeof(real_t));
   sp_func_t* zero = create_constant_sp_func(3*num_comp, zeros);
   sp_func_register_deriv(func, 1, zero);
 

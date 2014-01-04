@@ -34,7 +34,7 @@
 // If weights is NULL, the points are assigned equal weights.
 // It creates and returns an exchanger object that can be used to migrate 
 // data from the old partition to the new.
-exchanger_t* repartition_points(MPI_Comm comm, point_t* points, double* weights, int num_points);
+exchanger_t* repartition_points(MPI_Comm comm, point_t* points, real_t* weights, int num_points);
 
 // This function repartitions the given mesh, alloting the cells to parallel 
 // domains to balance the load.

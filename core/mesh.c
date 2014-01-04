@@ -121,10 +121,10 @@ mesh_t* mesh_new_with_arena(ARENA* arena, MPI_Comm comm, int num_cells,
   memset(mesh->nodes, 0, sizeof(point_t)*num_nodes);
 
   // Allocate geometric data.
-  mesh->cell_volumes = ARENA_MALLOC(mesh->arena, sizeof(double)*(num_cells+num_ghost_cells), 0);
+  mesh->cell_volumes = ARENA_MALLOC(mesh->arena, sizeof(real_t)*(num_cells+num_ghost_cells), 0);
   mesh->cell_centers = ARENA_MALLOC(mesh->arena, sizeof(point_t)*(num_cells+num_ghost_cells), 0);
   mesh->face_centers = ARENA_MALLOC(mesh->arena, sizeof(point_t)*num_faces, 0);
-  mesh->face_areas = ARENA_MALLOC(mesh->arena, sizeof(double)*num_faces, 0);
+  mesh->face_areas = ARENA_MALLOC(mesh->arena, sizeof(real_t)*num_faces, 0);
   mesh->face_normals = ARENA_MALLOC(mesh->arena, sizeof(vector_t)*num_faces, 0);
 
   // Storage information.
@@ -355,7 +355,7 @@ void mesh_compute_geometry(mesh_t* mesh)
     pos = 0;
     while (mesh_next_cell_face(mesh, cell, &pos, &face))
     {
-      double face_area = 0.0;
+      real_t face_area = 0.0;
       vector_t face_normal = {0.0, 0.0, 0.0};
       int epos = 0, edge;
       while (mesh_next_face_edge(mesh, face, &epos, &edge))
@@ -370,13 +370,13 @@ void mesh_compute_geometry(mesh_t* mesh)
         point_displacement(&mesh->face_centers[face], &xn1, &v2);
         point_displacement(&mesh->face_centers[face], &xn2, &v3);
         vector_cross(&v2, &v3, &v2xv3);
-        double tet_volume = fabs(vector_dot(&v1, &v2xv3))/6.0;
+        real_t tet_volume = fabs(vector_dot(&v1, &v2xv3))/6.0;
         mesh->cell_volumes[cell] += tet_volume;
 
         // Now take the face of the tet whose vertices are the face center 
         // and the two nodes. The area of this tet contributes to the 
         // face's area.
-        double tri_area = 0.5*vector_mag(&v2xv3);
+        real_t tri_area = 0.5*vector_mag(&v2xv3);
         face_area += tri_area;
         face_normal = v2xv3;
       }

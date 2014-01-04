@@ -49,7 +49,7 @@ static polytope_tessellation_t* tessellation_from_mesh(mesh_t* mesh)
 
   // Nodes.
   tess->num_nodes = mesh->num_nodes;
-  tess->nodes = malloc(sizeof(double) * 3*mesh->num_nodes);
+  tess->nodes = malloc(sizeof(real_t) * 3*mesh->num_nodes);
   for (int i = 0; i < mesh->num_nodes; ++i)
   {
     tess->nodes[3*i] = mesh->nodes[i].x;
@@ -81,7 +81,7 @@ void write_silo_mesh(mesh_t* mesh,
                      const char* file_prefix,
                      const char* directory,
                      int cycle,
-                     double time,
+                     real_t time,
                      MPI_Comm comm,
                      int num_files,
                      int mpi_tag)
@@ -91,7 +91,7 @@ void write_silo_mesh(mesh_t* mesh,
   // Translate the fields into polytope lingo.
   int num_cell_fields = (fields != NULL) ? fields->size : 0;
   char* cell_field_names[num_cell_fields];
-  double* cell_field_data[num_cell_fields];
+  real_t* cell_field_data[num_cell_fields];
   int pos = 0, i = 0;
   void* ptr;
   if (fields != NULL)
@@ -239,11 +239,14 @@ void write_silo_points(point_t* points,
                        const char* file_prefix,
                        const char* directory,
                        int cycle,
-                       double time,
+                       real_t time,
                        MPI_Comm comm,
                        int num_files,
                        int mpi_tag)
 {
+  // Floating point data type.
+  int data_type = (sizeof(real_t) == sizeof(double)) ? DB_DOUBLE : DB_FLOAT;
+
   // Strip .silo off of the prefix if it's there.
   char* prefix = string_dup(file_prefix);
   char* suffix = strstr(prefix, ".silo");
@@ -347,22 +350,22 @@ void write_silo_points(point_t* points,
     DBAddOption(optlist, DBOPT_DTIME, &time);
 
   // Point coordinates.
-  double* x = malloc(sizeof(double) * num_points);
-  double* y = malloc(sizeof(double) * num_points);
-  double* z = malloc(sizeof(double) * num_points);
+  real_t* x = malloc(sizeof(real_t) * num_points);
+  real_t* y = malloc(sizeof(real_t) * num_points);
+  real_t* z = malloc(sizeof(real_t) * num_points);
   for (int i = 0; i < num_points; ++i)
   {
     x[i] = points[i].x;
     y[i] = points[i].y;
     z[i] = points[i].z;
   }
-  double* coords[3];
+  real_t* coords[3];
   coords[0] = &(x[0]);
   coords[1] = &(y[0]);
   coords[2] = &(z[0]);
 
   // Write out the point mesh.
-  DBPutPointmesh(file, (char*)"points", 3, coords, num_points, DB_DOUBLE, optlist); 
+  DBPutPointmesh(file, (char*)"points", 3, coords, num_points, data_type, optlist); 
   free(x);
   free(y);
   free(z);
@@ -370,11 +373,11 @@ void write_silo_points(point_t* points,
   // Write out the point field data.
   int pos = 0;
   char* field_name; 
-  double* field_data;
+  real_t* field_data;
   while (string_ptr_unordered_map_next(fields, &pos, &field_name, (void**)&field_data))
   {
-    double* vars[1] = {field_data}; 
-    DBPutPointvar(file, field_name, "points", 1, vars, num_points, DB_DOUBLE, optlist);
+    real_t* vars[1] = {field_data}; 
+    DBPutPointvar(file, field_name, "points", 1, vars, num_points, data_type, optlist);
   }
 
   // Clean up.
@@ -402,7 +405,7 @@ void write_silo_points(point_t* points,
       mesh_names[i] = strdup(mesh_name);
       int pos = 0, field_index = 0;
       char* field_name;
-      double* field_data;
+      real_t* field_data;
       while (string_ptr_unordered_map_next(fields, &pos, &field_name, &field_data))
       {
         char var_name[1024];
@@ -416,7 +419,10 @@ void write_silo_points(point_t* points,
     if (cycle >= 0)
       DBAddOption(optlist, DBOPT_CYCLE, &cycle);
     if (time != -FLT_MAX)
-      DBAddOption(optlist, DBOPT_DTIME, &time);
+    {
+      double dtime = time;
+      DBAddOption(optlist, DBOPT_DTIME, &dtime);
+    }
 
     // Write the point mesh and variable data.
     DBSetDir(file, "/");
@@ -424,7 +430,7 @@ void write_silo_points(point_t* points,
                    mesh_types, optlist);
     int pos = 0, field_index = 0;
     char* field_name;
-    double* field_data;
+    real_t* field_data;
     while (string_ptr_unordered_map_next(fields, &pos, &field_name, &field_data))
     {
       DBPutMultivar(file, field_name, num_chunks, var_names[field_index++], 
@@ -493,7 +499,7 @@ void write_silo_points(point_t* points,
         // Field names.
         int pos = 0, field_index = 0;
         char* field_name;
-        double* field_data;
+        real_t* field_data;
         while (string_ptr_unordered_map_next(fields, &pos, &field_name, &field_data))
         {
           char var_name[1024];
@@ -518,7 +524,7 @@ void write_silo_points(point_t* points,
                    &mesh_types[0], optlist);
     int pos = 0, field_index = 0;
     char* field_name;
-    double* field_data;
+    real_t* field_data;
     while (string_ptr_unordered_map_next(fields, &pos, &field_name, &field_data))
     {
       DBPutMultivar(file, field_name, num_chunks, var_names[field_index++], 

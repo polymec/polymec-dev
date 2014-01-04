@@ -52,7 +52,7 @@ void plane_reset(sp_func_t* plane, vector_t* n, point_t* x);
 void plane_project(sp_func_t* plane, point_t* x, point2_t* xi);
 
 // This version of plane_project is deprecated and should be removed.
-void plane_project2(sp_func_t* plane, point_t* x, double* eta, double* xi);
+void plane_project2(sp_func_t* plane, point_t* x, real_t* eta, real_t* xi);
 
 // The inverse of planar projection is embedding: mapping a point xi on the 
 // plane to x, its 3D equivalent in space.
@@ -62,7 +62,7 @@ void plane_embed(sp_func_t* plane, point2_t* xi, point_t* x);
 // find the intersection of x(s) with the plane represented by this 
 // planar_proj object. s is returned. If x(s) does not intersect the plane, 
 // -FLT_MAX is returned.
-double plane_intersect_with_line(sp_func_t* plane, point_t* x0, vector_t* t);
+real_t plane_intersect_with_line(sp_func_t* plane, point_t* x0, vector_t* t);
 
 #endif
 

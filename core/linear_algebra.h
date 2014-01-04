@@ -25,7 +25,7 @@
 #ifndef POLYMEC_LINEAR_ALGEBRA_H
 #define POLYMEC_LINEAR_ALGEBRA_H
 
-#include <stdio.h>
+#include "core/polymec.h"
 
 // Some LAPACK prototypes.
 
@@ -131,23 +131,23 @@ void dgelsy(int* m, int* n, int* nrhs, double* A, int* lda, double* B, int* ldb,
             int* info);
 
 // Print a (column-major-ordered) matrix to the given file stream.
-void matrix_fprintf(double* matrix, int nr, int nc, FILE* stream);
+void matrix_fprintf(real_t* matrix, int nr, int nc, FILE* stream);
 
 // Print a vector to the given file stream.
-void vector_fprintf(double* vec, int nr, FILE* stream);
+void vector_fprintf(real_t* vec, int nr, FILE* stream);
 
 // Computes the determinant of the given 2x2 matrix.
-double matrix2_det(double* matrix);
+real_t matrix2_det(real_t* matrix);
 
 // Computes the determinant of the given 3x3 matrix.
-double matrix3_det(double* matrix);
+real_t matrix3_det(real_t* matrix);
 
 // Solves a 2x2 linear system Ax = b. 
 // Note that b and x CAN point to the same vector.
-void solve_2x2(double* A, double* b, double* x);
+void solve_2x2(real_t* A, real_t* b, real_t* x);
 
 // Solves a 3x3 linear system Ax = b.
 // Note that b and x CAN point to the same vector.
-void solve_3x3(double* A, double* b, double* x);
+void solve_3x3(real_t* A, real_t* b, real_t* x);
 
 #endif

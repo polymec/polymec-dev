@@ -104,18 +104,18 @@ int point_factory_cubic_lattice(lua_State* lua)
   // Create the lattice of points.
   int num_points = (nx + 2*ng) * (ny + 2*ng) * (nz + 2*ng), offset = 0;
   point_t* points = malloc(sizeof(point_t) * num_points);
-  double dx = (bbox->x2 - bbox->x1) / nx;
-  double dy = (bbox->y2 - bbox->y1) / ny;
-  double dz = (bbox->z2 - bbox->z1) / nz;
+  real_t dx = (bbox->x2 - bbox->x1) / nx;
+  real_t dy = (bbox->y2 - bbox->y1) / ny;
+  real_t dz = (bbox->z2 - bbox->z1) / nz;
   for (int i = -ng; i < nx+ng; ++i)
   {
-    double xi = bbox->x1 + (i+0.5) * dx;
+    real_t xi = bbox->x1 + (i+0.5) * dx;
     for (int j = -ng; j < ny+ng; ++j)
     {
-      double yj = bbox->y1 + (j+0.5) * dy;
+      real_t yj = bbox->y1 + (j+0.5) * dy;
       for (int k = -ng; k < nz+ng; ++k, ++offset)
       {
-        double zk = bbox->z1 + (k+0.5) * dz;
+        real_t zk = bbox->z1 + (k+0.5) * dz;
         points[offset].x = xi;
         points[offset].y = yj;
         points[offset].z = zk;
@@ -140,8 +140,8 @@ int point_factory_cylinder(lua_State* lua)
 
   // Extract arguments.
   const char* entries[] = {"radius", "length", "center", "nr", "nz", "axis", "radial_spacing", "log_spacing_factor", "num_ghost"};
-  double radius = 0.0, length = 0.0;
-  double log_spacing_factor = 1.1;
+  real_t radius = 0.0, length = 0.0;
+  real_t log_spacing_factor = 1.1;
   point_t* x0 = NULL;
   vector_t* axis = NULL;
   int nr = 0, nz = 0, ng = 0;
@@ -251,8 +251,8 @@ int point_factory_cylinder(lua_State* lua)
   lua_pop(lua, lua_gettop(lua));
 
   // Determine the radial spacing.
-  double linear_dr = radius / (1.0*nr - 0.5);
-  double r[nr-1+ng], dr[nr-1+ng];
+  real_t linear_dr = radius / (1.0*nr - 0.5);
+  real_t r[nr-1+ng], dr[nr-1+ng];
   if ((radial_spacing == NULL) || (!strcasecmp(radial_spacing, "linear")))
   {
     for (int j = 0; j < nr-1+ng; ++j)
@@ -264,10 +264,10 @@ int point_factory_cylinder(lua_State* lua)
   else
   {
     // Figure out logarithmic spacing.
-    double sum = 0.0;
+    real_t sum = 0.0;
     for (int j = 0; j < nr; ++j)
       sum += pow(log_spacing_factor, 1.0*j);
-    double dr0 = radius / sum;
+    real_t dr0 = radius / sum;
     for (int j = 0; j < nr-1+ng; ++j)
     {
       if (j < nr-1)
@@ -284,14 +284,14 @@ int point_factory_cylinder(lua_State* lua)
   int num_points_in_disk = 1;
   for (int i = 0; i < nr-1+ng; ++i)
   {
-    double dtheta = dr[i]/ r[i];
+    real_t dtheta = dr[i]/ r[i];
     int ntheta = (int)(2.0 * M_PI / dtheta);
     num_points_in_disk += ntheta;
   }
   int num_disks = nz;
   int num_points = num_points_in_disk * (nz + 2*ng);
   point_t* points = malloc(sizeof(point_t) * num_points);
-  double dz = length / nz;
+  real_t dz = length / nz;
 
   // Set up an orthonormal basis for the given axis.
   vector_t e1, e2;
@@ -316,15 +316,15 @@ int point_factory_cylinder(lua_State* lua)
     // Construct the other points in the disk.
     for (int j = 0; j < nr-1+ng; ++j)
     {
-      double rj = r[j];
-      double dtheta = dr[j]/ rj;
+      real_t rj = r[j];
+      real_t dtheta = dr[j]/ rj;
       int ntheta = (int)(2.0 * M_PI / dtheta);
       dtheta = 2.0 * M_PI / ntheta; // Re-adjust.
       for (int k = 0; k < ntheta; ++k, ++offset)
       {
-        double thetak = k * dtheta;
-        double cos_thetak = cos(thetak);
-        double sin_thetak = sin(thetak);
+        real_t thetak = k * dtheta;
+        real_t cos_thetak = cos(thetak);
+        real_t sin_thetak = sin(thetak);
         points[offset].x = x_center.x + rj * (cos_thetak*e1.x + sin_thetak*e2.x);
         points[offset].y = x_center.y + rj * (cos_thetak*e1.y + sin_thetak*e2.y);
         points[offset].z = x_center.z + rj * (cos_thetak*e1.z + sin_thetak*e2.z);
@@ -680,7 +680,7 @@ int point_factory_random_points(lua_State* lua)
 
     bbox = lua_toboundingbox(lua, 2);
     ASSERT(bbox != NULL);
-    double one = 1.0;
+    real_t one = 1.0;
     density = constant_sp_func_new(1, &one);
   }
   else
@@ -728,27 +728,27 @@ int point_factory_ccp_points(lua_State* lua)
 
   // Create the point list.
   ptr_slist_t* point_list = ptr_slist_new();
-  double dx = (bbox->x2 - bbox->x1) / Nx,
+  real_t dx = (bbox->x2 - bbox->x1) / Nx,
          dy = (bbox->y2 - bbox->y1) / Ny,
          dz = (bbox->z2 - bbox->z1) / Nz;
   for (int i = 0; i < Nx; ++i)
   {
     bool x1face = (i > 0);
     bool x2face = (i < Nx-1);
-    double x1 = bbox->x1 + i * dx;
-    double x2 = x1 + dx;
+    real_t x1 = bbox->x1 + i * dx;
+    real_t x2 = x1 + dx;
     for (int j = 0; j < Ny; ++j)
     {
       bool y1face = (j > 0);
       bool y2face = (j < Ny-1);
-      double y1 = bbox->x1 + j * dy;
-      double y2 = y1 + dy;
+      real_t y1 = bbox->x1 + j * dy;
+      real_t y2 = y1 + dy;
       for (int k = 0; k < Nz; ++k)
       {
         bool z1face = (k > 0);
         bool z2face = (k < Ny-1);
-        double z1 = bbox->x1 + k * dz;
-        double z2 = z1 + dz;
+        real_t z1 = bbox->x1 + k * dz;
+        real_t z2 = z1 + dz;
 
         if (x1face)
         {

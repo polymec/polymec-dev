@@ -46,9 +46,9 @@ static int point(lua_State* lua)
     return luaL_error(lua, "Arguments must be x, y, z coordinates.");
   }
 
-  double x = lua_tonumber(lua, 1);
-  double y = lua_tonumber(lua, 2);
-  double z = lua_tonumber(lua, 3);
+  real_t x = (real_t)lua_tonumber(lua, 1);
+  real_t y = (real_t)lua_tonumber(lua, 2);
+  real_t z = (real_t)lua_tonumber(lua, 3);
   point_t* point = point_new(x, y, z);
   lua_pushpoint(lua, point);
   return 1;
@@ -65,9 +65,9 @@ static int vector(lua_State* lua)
     return luaL_error(lua, "Arguments must be x, y, z components.");
   }
 
-  double x = lua_tonumber(lua, 1);
-  double y = lua_tonumber(lua, 2);
-  double z = lua_tonumber(lua, 3);
+  real_t x = (real_t)lua_tonumber(lua, 1);
+  real_t y = (real_t)lua_tonumber(lua, 2);
+  real_t z = (real_t)lua_tonumber(lua, 3);
   vector_t* vec = vector_new(x, y, z);
   lua_pushvector(lua, vec);
   return 1;
@@ -98,17 +98,17 @@ static int bounding_box(lua_State* lua)
     }
     switch(i)
     {
-      case 0: bbox->x1 = lua_tonumber(lua, -1);
+      case 0: bbox->x1 = (real_t)lua_tonumber(lua, -1);
               break;
-      case 1: bbox->x2 = lua_tonumber(lua, -1);
+      case 1: bbox->x2 = (real_t)lua_tonumber(lua, -1);
               break;
-      case 2: bbox->y1 = lua_tonumber(lua, -1);
+      case 2: bbox->y1 = (real_t)lua_tonumber(lua, -1);
               break;
-      case 3: bbox->y2 = lua_tonumber(lua, -1);
+      case 3: bbox->y2 = (real_t)lua_tonumber(lua, -1);
               break;
-      case 4: bbox->z1 = lua_tonumber(lua, -1);
+      case 4: bbox->z1 = (real_t)lua_tonumber(lua, -1);
               break;
-      case 5: bbox->z2 = lua_tonumber(lua, -1);
+      case 5: bbox->z2 = (real_t)lua_tonumber(lua, -1);
               break;
       default: break;
     }
@@ -142,9 +142,9 @@ static int constant_function(lua_State* lua)
     return luaL_error(lua, "Argument must be a 1 or 3 numbers.");
 
   // Get the arguments.
-  double args[3];
+  real_t args[3];
   for (int i = 0; i < num_args; ++i)
-    args[i] = lua_tonumber(lua, i+1);
+    args[i] = (real_t)lua_tonumber(lua, i+1);
 
   // Push a constant function onto the stack.
   st_func_t* func = constant_st_func_new(num_args, args);
@@ -221,14 +221,14 @@ static int grad(lua_State* lua)
   if (!st_func_has_deriv(f, 1))
     return luaL_error(lua, "grad: Scalar function '%s' has no derivative.", st_func_name(f));
 
-  double t = 0.0;
+  real_t t = 0.0;
   if (num_args == 3)
-    t = lua_tonumber(lua, 3);
+    t = (real_t)lua_tonumber(lua, 3);
 
   if (lua_ispoint(lua, 2))
   {
     point_t* x = lua_topoint(lua, 2);
-    double val[3];
+    real_t val[3];
     st_func_eval_deriv(f, 1, x, t, val);
     vector_t* vec = vector_new(val[0], val[1], val[2]);
     lua_pushvector(lua, vec);
@@ -240,7 +240,7 @@ static int grad(lua_State* lua)
     vector_t* vecs = malloc(sizeof(vector_t) * num_points);
     for (int i = 0; i < num_points; ++i)
     {
-      double val[3];
+      real_t val[3];
       st_func_eval_deriv(f, 1, &x[i], t, val);
       vecs[i].x = val[0], vecs[i].y = val[1]; vecs[i].z = val[2];
     }
@@ -294,7 +294,7 @@ static int lua_write_silo_mesh(lua_State* lua)
       if (lua_issequence(lua, val_index))
       {
         int num_vals;
-        double* vals = lua_tosequence(lua, val_index, &num_vals);
+        real_t* vals = lua_tosequence(lua, val_index, &num_vals);
         if (num_vals != N)
         {
           lua_pop(lua, 2);
@@ -319,7 +319,7 @@ static int lua_write_silo_mesh(lua_State* lua)
 
   // Construct a set of fields.
   string_ptr_unordered_map_t* fields = string_ptr_unordered_map_new();
-  double* volume = malloc(sizeof(double) * N);
+  real_t* volume = malloc(sizeof(real_t) * N);
   for (int c = 0; c < N; ++c)
     volume[c] = mesh->cell_volumes[c];
   string_ptr_unordered_map_insert_with_v_dtor(fields, "volume", volume, DTOR(free));
@@ -336,7 +336,7 @@ static int lua_write_silo_mesh(lua_State* lua)
       if (lua_issequence(lua, val_index))
       {
         int num_vals;
-        double* field_data = lua_tosequence(lua, val_index, &num_vals);
+        real_t* field_data = lua_tosequence(lua, val_index, &num_vals);
         string_ptr_unordered_map_insert(fields, (char*)field_name, field_data);
       }
       else
@@ -344,9 +344,9 @@ static int lua_write_silo_mesh(lua_State* lua)
         ASSERT(lua_isvectorlist(lua, val_index));
         int num_vals;
         vector_t* vector_data = lua_tovectorlist(lua, val_index, &num_vals);
-        double* Fx = malloc(sizeof(double) * num_vals);
-        double* Fy = malloc(sizeof(double) * num_vals);
-        double* Fz = malloc(sizeof(double) * num_vals);
+        real_t* Fx = malloc(sizeof(real_t) * num_vals);
+        real_t* Fy = malloc(sizeof(real_t) * num_vals);
+        real_t* Fz = malloc(sizeof(real_t) * num_vals);
         for (int i = 0; i < num_vals; ++i)
         {
           Fx[i] = vector_data[i].x;
@@ -416,7 +416,7 @@ static int lua_write_silo_points(lua_State* lua)
       if (lua_issequence(lua, val_index))
       {
         int num_vals;
-        double* vals = lua_tosequence(lua, val_index, &num_vals);
+        real_t* vals = lua_tosequence(lua, val_index, &num_vals);
         if (num_vals != N)
         {
           lua_pop(lua, 2);
@@ -452,7 +452,7 @@ static int lua_write_silo_points(lua_State* lua)
       if (lua_issequence(lua, val_index))
       {
         int num_vals;
-        double* field_data = lua_tosequence(lua, val_index, &num_vals);
+        real_t* field_data = lua_tosequence(lua, val_index, &num_vals);
         string_ptr_unordered_map_insert(fields, (char*)field_name, field_data);
       }
       else
@@ -460,9 +460,9 @@ static int lua_write_silo_points(lua_State* lua)
         ASSERT(lua_isvectorlist(lua, val_index));
         int num_vals;
         vector_t* vector_data = lua_tovectorlist(lua, val_index, &num_vals);
-        double* Fx = malloc(sizeof(double) * num_vals);
-        double* Fy = malloc(sizeof(double) * num_vals);
-        double* Fz = malloc(sizeof(double) * num_vals);
+        real_t* Fx = malloc(sizeof(real_t) * num_vals);
+        real_t* Fy = malloc(sizeof(real_t) * num_vals);
+        real_t* Fz = malloc(sizeof(real_t) * num_vals);
         for (int i = 0; i < num_vals; ++i)
         {
           Fx[i] = vector_data[i].x;
@@ -557,9 +557,9 @@ static int cell_tag(lua_State* lua)
 
   int size;
   int* tag = mesh_tag(mesh->cell_tags, tag_name, &size);
-  double* seq = malloc(sizeof(double) * size);
+  real_t* seq = malloc(sizeof(real_t) * size);
   for (int i = 0; i < size; ++i)
-    seq[i] = (double)tag[i];
+    seq[i] = (real_t)tag[i];
 
   lua_pushsequence(lua, seq, size);
   return 1;
@@ -578,7 +578,7 @@ static int tag_cells(lua_State* lua)
   mesh_t* mesh = lua_tomesh(lua, 1);
   const char* tag_name = lua_tostring(lua, 2);
   int num_indices = 0;
-  double* indices = lua_tosequence(lua, 3, &num_indices);
+  real_t* indices = lua_tosequence(lua, 3, &num_indices);
 
   // Check the validity of the indices.
   for (int i = 0; i < num_indices; ++i)
@@ -641,9 +641,9 @@ static int face_tag(lua_State* lua)
 
   int size;
   int* tag = mesh_tag(mesh->face_tags, tag_name, &size);
-  double* seq = malloc(sizeof(double) * size);
+  real_t* seq = malloc(sizeof(real_t) * size);
   for (int i = 0; i < size; ++i)
-    seq[i] = (double)tag[i];
+    seq[i] = (real_t)tag[i];
 
   lua_pushsequence(lua, seq, size);
   return 1;
@@ -662,7 +662,7 @@ static int tag_faces(lua_State* lua)
   mesh_t* mesh = lua_tomesh(lua, 1);
   const char* tag_name = lua_tostring(lua, 2);
   int num_indices = 0;
-  double* indices = lua_tosequence(lua, 3, &num_indices);
+  real_t* indices = lua_tosequence(lua, 3, &num_indices);
 
   // Check the validity of the indices.
   for (int i = 0; i < num_indices; ++i)
@@ -725,9 +725,9 @@ static int edge_tag(lua_State* lua)
 
   int size;
   int* tag = mesh_tag(mesh->edge_tags, tag_name, &size);
-  double* seq = malloc(sizeof(double) * size);
+  real_t* seq = malloc(sizeof(real_t) * size);
   for (int i = 0; i < size; ++i)
-    seq[i] = (double)tag[i];
+    seq[i] = (real_t)tag[i];
 
   lua_pushsequence(lua, seq, size);
   return 1;
@@ -746,7 +746,7 @@ static int tag_edges(lua_State* lua)
   mesh_t* mesh = lua_tomesh(lua, 1);
   const char* tag_name = lua_tostring(lua, 2);
   int num_indices = 0;
-  double* indices = lua_tosequence(lua, 3, &num_indices);
+  real_t* indices = lua_tosequence(lua, 3, &num_indices);
 
   // Check the validity of the indices.
   for (int i = 0; i < num_indices; ++i)
@@ -828,9 +828,9 @@ static int node_tag(lua_State* lua)
 
   int size;
   int* tag = mesh_tag(mesh->node_tags, tag_name, &size);
-  double* seq = malloc(sizeof(double) * size);
+  real_t* seq = malloc(sizeof(real_t) * size);
   for (int i = 0; i < size; ++i)
-    seq[i] = (double)tag[i];
+    seq[i] = (real_t)tag[i];
 
   lua_pushsequence(lua, seq, size);
   return 1;
@@ -849,7 +849,7 @@ static int tag_nodes(lua_State* lua)
   mesh_t* mesh = lua_tomesh(lua, 1);
   const char* tag_name = lua_tostring(lua, 2);
   int num_indices = 0;
-  double* indices = lua_tosequence(lua, 3, &num_indices);
+  real_t* indices = lua_tosequence(lua, 3, &num_indices);
 
   // Check the validity of the indices.
   for (int i = 0; i < num_indices; ++i)

@@ -54,7 +54,7 @@ int* polygon_ordering(polygon_t* poly);
 bool polygon_next_vertex(polygon_t* poly, int* pos, point_t** vertex);
 
 // Returns the area of the polygon.
-double polygon_area(polygon_t* poly);
+real_t polygon_area(polygon_t* poly);
 
 // Clones the polygon, returning an exact copy.
 polygon_t* polygon_clone(polygon_t* poly);

@@ -38,15 +38,15 @@ mesh_t* create_uniform_mesh(MPI_Comm comm, int nx, int ny, int nz, bbox_t* bbox)
   ASSERT(bbox->z2 > bbox->z1);
 
   // Grid spacings.
-  double Lx = bbox->x2 - bbox->x1;
-  double Ly = bbox->y2 - bbox->y1;
-  double Lz = bbox->z2 - bbox->z1;
-  double dx = Lx/nx, dy = Ly/ny, dz = Lz/nz;
+  real_t Lx = bbox->x2 - bbox->x1;
+  real_t Ly = bbox->y2 - bbox->y1;
+  real_t Lz = bbox->z2 - bbox->z1;
+  real_t dx = Lx/nx, dy = Ly/ny, dz = Lz/nz;
 
   // Create a uniform rectilinear mesh!
-  double* xs = malloc(sizeof(double) * (nx+1));
-  double* ys = malloc(sizeof(double) * (ny+1));
-  double* zs = malloc(sizeof(double) * (nz+1));
+  real_t* xs = malloc(sizeof(real_t) * (nx+1));
+  real_t* ys = malloc(sizeof(real_t) * (ny+1));
+  real_t* zs = malloc(sizeof(real_t) * (nz+1));
   for (int i = 0; i <= nx; ++i)
     xs[i] = i*dx;
   for (int i = 0; i <= ny; ++i)

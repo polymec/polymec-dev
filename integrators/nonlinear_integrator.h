@@ -47,19 +47,19 @@ typedef struct
 
   // This (optional) function allows the state (context) to set the time at 
   // which the equations are to be integrated.
-  void (*set_time)(void* context, double t);
+  void (*set_time)(void* context, real_t t);
 
   // This (optional) function sets the "x-scaling vector," which contains the diagonal 
   // components of a matrix Dx such that the components of Dx * x all have 
   // roughly the same magnitude as F(x) approaches 0.
   // - F_scale: the diagonal components of a matrix Df such that the components 
   //            of Df * F(x) all have roughly the same magnitude as F(x) approaches 0.
-  void (*set_x_scale)(void* context, double* x_scale);
+  void (*set_x_scale)(void* context, real_t* x_scale);
 
   // This (optional) function sets the "F-scaling vector," which contains the diagonal 
   // components of a matrix Df such that the components of Df * F(x) all have 
   // roughly the same magnitude as F(x) approaches 0.
-  void (*set_F_scale)(void* context, double* F_scale);
+  void (*set_F_scale)(void* context, real_t* F_scale);
 
   // This (optional) function sets the contraints vector, which places algebraic 
   // constraints on the components of the solution vector x. If constraints[i] is:
@@ -67,7 +67,7 @@ typedef struct
   // 1.0  - x[i] must be non-negative.
   // -1.0 - x[i] must be non-positive.
   // 2.0  - x[i] must be positive.
-  void (*set_constraints)(void* context, double* constraints);
+  void (*set_constraints)(void* context, real_t* constraints);
 
   // This (optional) function destroys the state (context) when the nonlinear integrator 
   // is destroyed.
@@ -110,7 +110,7 @@ void* nonlinear_integrator_context(nonlinear_integrator_t* integrator);
 
 // Sets the tolerances for the function norm (norm_tolerance) and the Newton
 // step (step_tolerance) for the nonlinear integrator.
-void newton_solver_set_tolerances(nonlinear_integrator_t* integrator, double norm_tolerance, double step_tolerance);
+void newton_solver_set_tolerances(nonlinear_integrator_t* integrator, real_t norm_tolerance, real_t step_tolerance);
 
 // Sets the maximum number of Newton iterations for the integrator.
 void newton_solver_set_max_iterations(nonlinear_integrator_t* integrator, int max_iterations);
@@ -119,7 +119,7 @@ void newton_solver_set_max_iterations(nonlinear_integrator_t* integrator, int ma
 // using X as the initial guess. Returns true if the solution was obtained, 
 // false if not. The number of nonlinear iterations will be stored in 
 // num_iterations upon success.
-bool nonlinear_integrator_solve(nonlinear_integrator_t* integrator, double t, double* X, int* num_iterations);
+bool nonlinear_integrator_solve(nonlinear_integrator_t* integrator, real_t t, real_t* X, int* num_iterations);
 
 #endif
 
