@@ -29,13 +29,9 @@
 #include "core/mesh.h"
 #include "core/unordered_map.h"
 
-// Writes a silo mesh file, with the given named node-, edge-, face-, and 
-// cell-centered fields.
+// Writes a silo mesh file, with the given named cell-centered fields.
 void write_silo_mesh(mesh_t* mesh,
-                     string_ptr_unordered_map_t* node_fields,
-                     string_ptr_unordered_map_t* edge_fields,
-                     string_ptr_unordered_map_t* face_fields,
-                     string_ptr_unordered_map_t* cell_fields,
+                     string_ptr_unordered_map_t* fields,
                      const char* file_prefix,
                      const char* directory,
                      int cycle,
@@ -47,7 +43,7 @@ void write_silo_mesh(mesh_t* mesh,
 // Writes a silo point file, with the given fields defined on the points.
 void write_silo_points(point_t* points,
                        int num_points,
-                       string_ptr_unordered_map_t* point_fields,
+                       string_ptr_unordered_map_t* fields,
                        const char* file_prefix,
                        const char* directory,
                        int cycle,

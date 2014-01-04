@@ -214,10 +214,7 @@ static void poisson_plot(void* context, const char* prefix, const char* director
     string_ptr_unordered_map_insert_with_v_dtor(cell_fields, "error", error, DTOR(free));
   }
   if (p->mesh != NULL)
-  {
-    write_silo_mesh(p->mesh, NULL, NULL, NULL, cell_fields, 
-                    prefix, directory, 0, 0.0, MPI_COMM_SELF, 1, 0);
-  }
+    write_silo_mesh(p->mesh, cell_fields, prefix, directory, 0, 0.0, MPI_COMM_SELF, 1, 0);
   else
   {
     write_silo_points(p->point_cloud->point_coords, 
@@ -234,10 +231,7 @@ static void poisson_save(void* context, const char* prefix, const char* director
   string_ptr_unordered_map_t* cell_fields = string_ptr_unordered_map_new();
   string_ptr_unordered_map_insert(cell_fields, "phi", p->phi);
   if (p->mesh != NULL)
-  {
-    write_silo_mesh(p->mesh, NULL, NULL, NULL, cell_fields, 
-                    prefix, directory, 0, 0.0, MPI_COMM_SELF, 1, 0);
-  }
+    write_silo_mesh(p->mesh, cell_fields, prefix, directory, 0, 0.0, MPI_COMM_SELF, 1, 0);
   else
   {
     write_silo_points(p->point_cloud->point_coords, 

@@ -77,10 +77,7 @@ static polytope_tessellation_t* tessellation_from_mesh(mesh_t* mesh)
 }
 
 void write_silo_mesh(mesh_t* mesh,
-                     string_ptr_unordered_map_t* node_fields,
-                     string_ptr_unordered_map_t* edge_fields,
-                     string_ptr_unordered_map_t* face_fields,
-                     string_ptr_unordered_map_t* cell_fields,
+                     string_ptr_unordered_map_t* fields,
                      const char* file_prefix,
                      const char* directory,
                      int cycle,
@@ -92,49 +89,18 @@ void write_silo_mesh(mesh_t* mesh,
   polytope_tessellation_t* tess = tessellation_from_mesh(mesh);
 
   // Translate the fields into polytope lingo.
-  int num_node_fields = (node_fields != NULL) ? node_fields->size : 0;
-  char* node_field_names[num_node_fields];
-  double* node_field_data[num_node_fields];
-  int pos = 0, i = 0;
-  void* ptr;
-  if (node_fields != NULL)
-  {
-    while (string_ptr_unordered_map_next(node_fields, &pos, &node_field_names[i], &ptr))
-      node_field_data[i++] = ptr;
-  }
-
-  int num_edge_fields = (edge_fields != NULL) ? edge_fields->size : 0;
-  char* edge_field_names[num_edge_fields];
-  double* edge_field_data[num_edge_fields];
-  pos = 0, i = 0;
-  if (edge_fields != NULL)
-  {
-    while (string_ptr_unordered_map_next(edge_fields, &pos, &edge_field_names[i], &ptr))
-      edge_field_data[i++] = ptr;
-  }
-
-  int num_face_fields = (face_fields != NULL) ? face_fields->size : 0;
-  char* face_field_names[num_face_fields];
-  double* face_field_data[num_face_fields];
-  pos = 0, i = 0;
-  if (face_fields != NULL)
-  {
-    while (string_ptr_unordered_map_next(face_fields, &pos, &face_field_names[i], &ptr))
-      face_field_data[i++] = ptr;
-  }
-
-  int num_cell_fields = (cell_fields != NULL) ? cell_fields->size : 0;
+  int num_cell_fields = (fields != NULL) ? fields->size : 0;
   char* cell_field_names[num_cell_fields];
   double* cell_field_data[num_cell_fields];
-  pos = 0, i = 0;
-  if (cell_fields != NULL)
+  int pos = 0, i = 0;
+  void* ptr;
+  if (fields != NULL)
   {
-    while (string_ptr_unordered_map_next(cell_fields, &pos, &cell_field_names[i], &ptr))
+    while (string_ptr_unordered_map_next(fields, &pos, &cell_field_names[i], &ptr))
       cell_field_data[i++] = ptr;
   }
 
   // Now fetch tags from the mesh and translate them too.
-
   int num_node_tags = 0;
   char* tag_name;
   int *tag_indices, tag_size, offset;
@@ -198,11 +164,11 @@ void write_silo_mesh(mesh_t* mesh,
   }
 
   polytope_write_silo_with_tags(tess, 
-                                num_node_fields, node_field_names, node_field_data,
+                                0, NULL, NULL,
                                 num_node_tags, node_tag_names, node_tag_sizes, node_tag_indices,
-                                num_edge_fields, edge_field_names, edge_field_data,
+                                0, NULL, NULL,
                                 num_edge_tags, edge_tag_names, edge_tag_sizes, edge_tag_indices,
-                                num_face_fields, face_field_names, face_field_data,
+                                0, NULL, NULL,
                                 num_face_tags, face_tag_names, face_tag_sizes, face_tag_indices,
                                 num_cell_fields, cell_field_names, cell_field_data,
                                 num_cell_tags, cell_tag_names, cell_tag_sizes, cell_tag_indices,
@@ -269,7 +235,7 @@ pmpio_close_file(void* file,
 
 void write_silo_points(point_t* points,
                        int num_points,
-                       string_ptr_unordered_map_t* point_fields,
+                       string_ptr_unordered_map_t* fields,
                        const char* file_prefix,
                        const char* directory,
                        int cycle,
@@ -405,7 +371,7 @@ void write_silo_points(point_t* points,
   int pos = 0;
   char* field_name; 
   double* field_data;
-  while (string_ptr_unordered_map_next(point_fields, &pos, &field_name, (void**)&field_data))
+  while (string_ptr_unordered_map_next(fields, &pos, &field_name, (void**)&field_data))
   {
     double* vars[1] = {field_data}; 
     DBPutPointvar(file, field_name, "points", 1, vars, num_points, DB_DOUBLE, optlist);
@@ -417,7 +383,7 @@ void write_silo_points(point_t* points,
 #if HAVE_MPI
   // Write the multi-block objects to the file if needed.
   int num_chunks = nproc / num_files;
-  int num_fields = point_fields->size;
+  int num_fields = fields->size;
   if (rankInGroup == 0)
   {
     char** mesh_names = malloc(sizeof(char*) * num_chunks);
@@ -437,7 +403,7 @@ void write_silo_points(point_t* points,
       int pos = 0, field_index = 0;
       char* field_name;
       double* field_data;
-      while (string_ptr_unordered_map_next(point_fields, &pos, &field_name, &field_data))
+      while (string_ptr_unordered_map_next(fields, &pos, &field_name, &field_data))
       {
         char var_name[1024];
         snprintf(var_name, 1024, "domain_%d/%s", i, field_name);
@@ -459,7 +425,7 @@ void write_silo_points(point_t* points,
     int pos = 0, field_index = 0;
     char* field_name;
     double* field_data;
-    while (string_ptr_unordered_map_next(point_fields, &pos, &field_name, &field_data))
+    while (string_ptr_unordered_map_next(fields, &pos, &field_name, &field_data))
     {
       DBPutMultivar(file, field_name, num_chunks, var_names[field_index++], 
                     var_types, optlist);
@@ -528,7 +494,7 @@ void write_silo_points(point_t* points,
         int pos = 0, field_index = 0;
         char* field_name;
         double* field_data;
-        while (string_ptr_unordered_map_next(point_fields, &pos, &field_name, &field_data))
+        while (string_ptr_unordered_map_next(fields, &pos, &field_name, &field_data))
         {
           char var_name[1024];
           snprintf(var_name, 1024, "%d/domain_%d/%s", i, field_name);
@@ -553,7 +519,7 @@ void write_silo_points(point_t* points,
     int pos = 0, field_index = 0;
     char* field_name;
     double* field_data;
-    while (string_ptr_unordered_map_next(point_fields, &pos, &field_name, &field_data))
+    while (string_ptr_unordered_map_next(fields, &pos, &field_name, &field_data))
     {
       DBPutMultivar(file, field_name, num_chunks, var_names[field_index++], 
                     var_types, optlist);

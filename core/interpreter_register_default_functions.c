@@ -370,7 +370,7 @@ static int lua_write_silo_mesh(lua_State* lua)
 
   // Write the thing to a mesh file.
   log_info("Writing SILO mesh file with prefix '%s'...", filename);
-  write_silo_mesh(mesh, NULL, NULL, NULL, fields, filename, ".", 0, 0.0, 
+  write_silo_mesh(mesh, fields, filename, ".", 0, 0.0, 
                   MPI_COMM_SELF, 1, 0);
 
   // Clean up.
