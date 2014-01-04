@@ -137,44 +137,164 @@ mesh_t* create_nonuniform_cylindrical_1d_mesh(MPI_Comm comm, double* rs, int N)
   }
 #endif
 
-  // Now we make the mesh, starting from a uniform mesh and performing 
-  // any needed surgery. This is simply the easiest way to get the topology 
-  // correct.
-  bbox_t bbox = {.x1 = rs[0], .x2 = rs[N-1], 
-                 .y1 = -1.0, .y2 = 1.0, 
-                 .z1 = -1.0, .z2 = 1.0}; // Wrong, but it doesn't matter.
-  mesh_t* mesh = create_uniform_mesh(comm, N, 1, 1, &bbox);
-
-  // Retrieve the (topological) cubic lattice for the mesh.
-  cubic_lattice_t* lattice = mesh_property(mesh, "lattice");
-  ASSERT(lattice != NULL);
+  mesh_t* mesh = NULL;
 
   if (rs[0] == 0.0)
   {
-    // If the inner radius (rs[0]) is zero, the first cell will be a wedge 
-    // whose edge lies at the origin. We have to collapse the leftmost face to 
-    // an edge in this case.
+    // If the inner radius (rs[0]) is zero, the innermost cell will be a wedge 
+    // whose edge lies at the origin. We create a mesh of N-1 regular 
+    // (hexahedral) cells to begin with.
+    bbox_t bbox = {.x1 = rs[1], .x2 = rs[N-1], 
+                   .y1 = -1.0, .y2 = 1.0, 
+                   .z1 = -1.0, .z2 = 1.0}; // Wrong, but it doesn't matter.
+    create_uniform_mesh(comm, N-1, 1, 1, &bbox);
 
-    // Unhook the first face from the first cell. I happen to know that the 
-    // -x face in the first cell is the first face in the mesh, so we can 
-    // accomplish this unhooking by simply starting the list of faces for 
-    // the first cell at 1 instead of 0.
-    mesh->cell_face_offsets[0] = 1;
+    // Retrieve the (topological) cubic lattice for the mesh.
+    cubic_lattice_t* lattice = mesh_property(mesh, "lattice");
+    ASSERT(lattice != NULL);
 
-    // Now we effectively merge the vertical edges of that first face into 
-    // one by changing the index of the edge for the -y face. Since edges 
-    // are constructed in a "black box" fashion from pairs of nodes, we have 
-    // to be more careful about this.
-    // FIXME
+    // Now we add the inner most cell, which is a wedge with 5 faces. The 
+    // order of the faces is +r,-y,+y,-z,+z.
+    mesh->num_cells += 1;
+    mesh->cell_face_offsets = ARENA_REALLOC(mesh->arena, 
+                                            mesh->cell_face_offsets, 
+                                            sizeof(int)*(mesh->num_cells+1), 0);
+    mesh->cell_face_offsets[mesh->num_cells] = mesh->cell_face_offsets[mesh->num_cells-1] + 5;
+    int total_num_cell_faces = mesh->cell_face_offsets[mesh->num_cells];
+    mesh->cell_faces = ARENA_REALLOC(mesh->arena, 
+                                     mesh->cell_faces, 
+                                     sizeof(int)*total_num_cell_faces, 0);
+    mesh->cell_faces[total_num_cell_faces-5] = mesh->cell_faces[0]; // +r
+    mesh->cell_faces[total_num_cell_faces-4] = mesh->num_faces;     // -y
+    mesh->cell_faces[total_num_cell_faces-3] = mesh->num_faces + 1; // +y
+    mesh->cell_faces[total_num_cell_faces-2] = mesh->num_faces + 2; // -z
+    mesh->cell_faces[total_num_cell_faces-1] = mesh->num_faces + 3; // +z
+
+    // Now add the 4 new faces, which introduce 2 new nodes and 5 new edges.
+    // The -y/+y faces have 4 nodes/edges, and the -z/+z faces have 3.
+    mesh->num_faces += 4;
+    mesh->face_node_offsets = ARENA_REALLOC(mesh->arena, 
+                                            mesh->face_node_offsets, 
+                                            sizeof(int)*(mesh->num_faces+1), 0);
+    mesh->face_node_offsets[mesh->num_faces+1-3] = mesh->face_node_offsets[mesh->num_faces-4] + 4; // -y
+    mesh->face_node_offsets[mesh->num_faces+1-2] = mesh->face_node_offsets[mesh->num_faces-3] + 4; // +y
+    mesh->face_node_offsets[mesh->num_faces+1-1] = mesh->face_node_offsets[mesh->num_faces-2] + 3; // -z
+    mesh->face_node_offsets[mesh->num_faces+1  ] = mesh->face_node_offsets[mesh->num_faces-1] + 3; // +z
+    int total_num_face_nodes = mesh->face_node_offsets[mesh->num_faces];
+    mesh->face_nodes = ARENA_REALLOC(mesh->arena, 
+                                     mesh->face_nodes, 
+                                     sizeof(int)*total_num_face_nodes, 0);
+
+    // We define the node orderings on these new faces such that they produce
+    // outward normals when traversed according to the right hand rule.
+    mesh->face_nodes[total_num_face_nodes-14] = mesh->num_nodes;                      // -y face node 0 (bottom axial node -- new)
+    mesh->face_nodes[total_num_face_nodes-13] = cubic_lattice_node(lattice, 0, 0, 0); // -y face node 1
+    mesh->face_nodes[total_num_face_nodes-12] = cubic_lattice_node(lattice, 0, 0, 1); // -y face node 2
+    mesh->face_nodes[total_num_face_nodes-11] = mesh->num_nodes + 1;                  // -y face node 3 (top axial node -- new)
+
+    mesh->face_nodes[total_num_face_nodes-10] = cubic_lattice_node(lattice, 0, 1, 0); // +y face node 0
+    mesh->face_nodes[total_num_face_nodes- 9] = mesh->num_nodes;                      // +y face node 1 (bottom axial node -- new)
+    mesh->face_nodes[total_num_face_nodes- 8] = mesh->num_nodes + 1;                  // +y face node 1 (bottom axial node -- new)
+    mesh->face_nodes[total_num_face_nodes- 7] = cubic_lattice_node(lattice, 0, 1, 1); // -y face node 1
+
+    mesh->face_nodes[total_num_face_nodes- 6] = mesh->num_nodes;                      // -z face node 0 (bottom axial node -- new)
+    mesh->face_nodes[total_num_face_nodes- 5] = cubic_lattice_node(lattice, 0, 1, 0); // -z face node 1 
+    mesh->face_nodes[total_num_face_nodes- 4] = cubic_lattice_node(lattice, 0, 0, 0); // -z face node 2
+
+    mesh->face_nodes[total_num_face_nodes- 3] = mesh->num_nodes + 1;                  // +z face node 0 (top axial node -- new)
+    mesh->face_nodes[total_num_face_nodes- 2] = cubic_lattice_node(lattice, 0, 1, 1); // +z face node 1 
+    mesh->face_nodes[total_num_face_nodes- 1] = cubic_lattice_node(lattice, 0, 0, 1); // +z face node 2
+
+    // Now for the face->edge connectivity.
+    mesh->face_edge_offsets = ARENA_REALLOC(mesh->arena, 
+                                            mesh->face_edge_offsets, 
+                                            sizeof(int)*(mesh->num_faces+1), 0);
+    mesh->face_edge_offsets[mesh->num_faces+1-3] = mesh->face_edge_offsets[mesh->num_faces-4] + 4; // -y
+    mesh->face_edge_offsets[mesh->num_faces+1-2] = mesh->face_edge_offsets[mesh->num_faces-3] + 4; // +y
+    mesh->face_edge_offsets[mesh->num_faces+1-1] = mesh->face_edge_offsets[mesh->num_faces-2] + 3; // -z
+    mesh->face_edge_offsets[mesh->num_faces+1  ] = mesh->face_edge_offsets[mesh->num_faces-1] + 3; // +z
+    int total_num_face_edges = mesh->face_edge_offsets[mesh->num_faces];
+    mesh->face_edges = ARENA_REALLOC(mesh->arena, 
+                                     mesh->face_edges, 
+                                     sizeof(int)*total_num_face_edges, 0);
+
+    mesh->face_edges[total_num_face_edges-14] = mesh->num_edges;                        // -y face edge 0 (axial edge -- new)
+    mesh->face_edges[total_num_face_edges-13] = mesh->num_edges + 1;                    // -y face edge 1 (bottom -y new edge)
+    mesh->face_edges[total_num_face_edges-12] = cubic_lattice_z_edge(lattice, 0, 0, 0); // -y face edge 2 
+    mesh->face_edges[total_num_face_edges-11] = mesh->num_edges + 2;                    // -y face edge 3 (top -y new edge)
+
+    mesh->face_edges[total_num_face_edges-10] = cubic_lattice_z_edge(lattice, 0, 1, 0); // +y face edge 0 
+    mesh->face_edges[total_num_face_edges- 9] = mesh->num_edges + 3;                    // +y face edge 1 (bottom +y new edge)
+    mesh->face_edges[total_num_face_edges- 8] = mesh->num_edges;                        // +y face edge 2 (axial edge -- new)
+    mesh->face_edges[total_num_face_edges- 7] = mesh->num_edges + 4;                    // +y face edge 3 (top +y new edge)
+
+    mesh->face_edges[total_num_face_edges- 6] = mesh->num_edges + 3;                    // -z face edge 1 (bottom +y new edge)
+    mesh->face_edges[total_num_face_edges- 5] = cubic_lattice_y_edge(lattice, 0, 0, 0); // -z face edge 2
+    mesh->face_edges[total_num_face_edges- 4] = mesh->num_edges + 1;                    // -z face edge 3 (bottom -y new edge)
+
+    mesh->face_edges[total_num_face_edges- 3] = mesh->num_edges + 2;                    // +z face edge 1 (top -y new edge)
+    mesh->face_edges[total_num_face_edges- 2] = cubic_lattice_y_edge(lattice, 0, 0, 1); // +z face edge 2
+    mesh->face_edges[total_num_face_edges- 1] = mesh->num_edges + 4;                    // +z face edge 3 (top +y new edge)
+
+    // Face->cell connectivity.
+    mesh->face_cells = ARENA_REALLOC(mesh->arena, 
+                                     mesh->face_cells,
+                                     sizeof(int)*2*mesh->num_faces, 0);
+    mesh->face_cells[1]                   = mesh->num_cells-1; // +r face
+    mesh->face_cells[2*mesh->num_faces-4] = mesh->num_cells-1; // -y face
+    mesh->face_cells[2*mesh->num_faces-3] = mesh->num_cells-1; // +y face
+    mesh->face_cells[2*mesh->num_faces-2] = mesh->num_cells-1; // -z face
+    mesh->face_cells[2*mesh->num_faces-1] = mesh->num_cells-1; // +z face
+
+    // Add the two new nodes.
+    mesh->num_nodes += 2;
+    mesh->nodes = ARENA_REALLOC(mesh->arena, 
+                                mesh->nodes, 
+                                sizeof(point_t)*mesh->num_nodes, 0);
+    mesh->nodes[mesh->num_nodes-2].x = rs[0];
+    mesh->nodes[mesh->num_nodes-2].y = -0.5;
+    mesh->nodes[mesh->num_nodes-2].z = -0.5;
+    mesh->nodes[mesh->num_nodes-1].x = rs[0];
+    mesh->nodes[mesh->num_nodes-1].y = +0.5;
+    mesh->nodes[mesh->num_nodes-1].z = +0.5;
+
+    // Add the five new edges.
+    mesh->num_edges += 5;
+    mesh->edge_nodes = ARENA_REALLOC(mesh->arena, mesh->edge_nodes, 
+                                     sizeof(int)*2*(mesh->num_edges), 0);
+
+    // Axial edge.
+    mesh->edge_nodes[2*mesh->num_edges-10] = mesh->num_nodes - 2; 
+    mesh->edge_nodes[2*mesh->num_edges- 9] = mesh->num_nodes - 1; 
+
+    // Bottom -y new edge.
+    mesh->edge_nodes[2*mesh->num_edges- 8] = cubic_lattice_node(lattice, 0, 0, 0);
+    mesh->edge_nodes[2*mesh->num_edges- 7] = mesh->num_nodes - 2; 
+
+    // Top -y new edge.
+    mesh->edge_nodes[2*mesh->num_edges- 6] = cubic_lattice_node(lattice, 0, 0, 1);
+    mesh->edge_nodes[2*mesh->num_edges- 5] = mesh->num_nodes - 1; 
+
+    // Bottom +y new edge.
+    mesh->edge_nodes[2*mesh->num_edges- 4] = cubic_lattice_node(lattice, 0, 1, 0);
+    mesh->edge_nodes[2*mesh->num_edges- 3] = mesh->num_nodes - 2; 
+
+    // Top +y new edge.
+    mesh->edge_nodes[2*mesh->num_edges- 2] = cubic_lattice_node(lattice, 0, 1, 1);
+    mesh->edge_nodes[2*mesh->num_edges- 1] = mesh->num_nodes - 1; 
   }
   else
   {
     // Otherwise, the mesh will topologically be rectilinear and we only need 
     // to set the geometry.
-    // FIXME
+    bbox_t bbox = {.x1 = rs[0], .x2 = rs[N-1], 
+                   .y1 = -1.0, .y2 = 1.0, 
+                   .z1 = -1.0, .z2 = 1.0}; 
+    create_uniform_mesh(comm, N, 1, 1, &bbox);
   }
 
-  // Compute the geometry of the mesh.
+  // Adjust the geometry of the mesh and compute volumes/areas.
+  // FIXME
   mesh_compute_geometry(mesh);
 
   // Tag the boundary faces.
