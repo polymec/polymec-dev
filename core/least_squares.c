@@ -214,9 +214,9 @@ polynomial_t* ls_polynomial_new(int p, ls_weight_func_t* W, point_t* x0,
     compute_poly_ls_system(p, x0, points, num_points, data, A, coeffs);
   int lda = dim, ldb = dim, pivot[dim], info, one = 1;
   char trans = 'N';
-  dgetrf(&dim, &dim, A, &lda, pivot, &info);
+  rgetrf(&dim, &dim, A, &lda, pivot, &info);
   ASSERT(info == 0);
-  dgetrs(&trans, &dim, &one, A, &lda, pivot, coeffs, &ldb, &info);
+  rgetrs(&trans, &dim, &one, A, &lda, pivot, coeffs, &ldb, &info);
   ASSERT(info == 0);
 
   // Construct and return the polynomial.
@@ -334,12 +334,12 @@ void poly_ls_shape_compute_gradients(poly_ls_shape_t* N, point_t* x, real_t* val
 
   // Factor the moment matrix.
   int pivot[dim], info;
-  dgetrf(&dim, &dim, A, &dim, pivot, &info);
+  rgetrf(&dim, &dim, A, &dim, pivot, &info);
   ASSERT(info == 0);
 
   // Compute Ainv * B.
   char no_trans = 'N';
-  dgetrs(&no_trans, &dim, &num_points, A, &dim, pivot, AinvB, &dim, &info);
+  rgetrs(&no_trans, &dim, &num_points, A, &dim, pivot, AinvB, &dim, &info);
   ASSERT(info == 0);
 
   // values^T = basis^T * Ainv * B (or values = (Ainv * B)^T * basis.)
@@ -352,7 +352,7 @@ void poly_ls_shape_compute_gradients(poly_ls_shape_t* N, point_t* x, real_t* val
   //for (int i = 0; i < dim; ++i)
   //printf("%g ", basis[i]);
   //printf("\n");
-  dgemv(&trans, &dim, &num_points, &alpha, AinvB, &dim, basis, &one, &beta, values, &one);
+  rgemv(&trans, &dim, &num_points, &alpha, AinvB, &dim, basis, &one, &beta, values, &one);
 
   // If we are in the business of computing gradients, compute the 
   // partial derivatives of Ainv * B.
@@ -390,11 +390,11 @@ void poly_ls_shape_compute_gradients(poly_ls_shape_t* N, point_t* x, real_t* val
     // in dAinvBdx, dAinvBdy, and dAinvBdz.
     real_t alpha = 1.0, beta = 0.0;
     real_t dAinvBdx[dim*num_points], dAinvBdy[dim*num_points], dAinvBdz[dim*num_points];
-    dgemm(&no_trans, &no_trans, &dim, &num_points, &dim, &alpha, 
+    rgemm(&no_trans, &no_trans, &dim, &num_points, &dim, &alpha, 
         dAdx, &dim, AinvB, &dim, &beta, dAinvBdx, &dim);
-    dgemm(&no_trans, &no_trans, &dim, &num_points, &dim, &alpha, 
+    rgemm(&no_trans, &no_trans, &dim, &num_points, &dim, &alpha, 
         dAdy, &dim, AinvB, &dim, &beta, dAinvBdy, &dim);
-    dgemm(&no_trans, &no_trans, &dim, &num_points, &dim, &alpha, 
+    rgemm(&no_trans, &no_trans, &dim, &num_points, &dim, &alpha, 
         dAdz, &dim, AinvB, &dim, &beta, dAinvBdz, &dim);
 
     // Flip the sign of dA * Ainv * B, and add dB.
@@ -407,11 +407,11 @@ void poly_ls_shape_compute_gradients(poly_ls_shape_t* N, point_t* x, real_t* val
 
     // Now "left-multiply by Ainv" by solving the equation (e.g.)
     // A * (dAinvBdx) = (-dA * Ainv * B + dB).
-    dgetrs(&no_trans, &dim, &num_points, A, &dim, pivot, dAinvBdx, &dim, &info);
+    rgetrs(&no_trans, &dim, &num_points, A, &dim, pivot, dAinvBdx, &dim, &info);
     ASSERT(info == 0);
-    dgetrs(&no_trans, &dim, &num_points, A, &dim, pivot, dAinvBdy, &dim, &info);
+    rgetrs(&no_trans, &dim, &num_points, A, &dim, pivot, dAinvBdy, &dim, &info);
     ASSERT(info == 0);
-    dgetrs(&no_trans, &dim, &num_points, A, &dim, pivot, dAinvBdz, &dim, &info);
+    rgetrs(&no_trans, &dim, &num_points, A, &dim, pivot, dAinvBdz, &dim, &info);
     ASSERT(info == 0);
 
     // Now compute the gradients.
@@ -427,15 +427,15 @@ void poly_ls_shape_compute_gradients(poly_ls_shape_t* N, point_t* x, real_t* val
       dpdz[i] = basis_grads[i].z;
     }
     real_t dpdx_AinvB[num_points], dpdy_AinvB[num_points], dpdz_AinvB[num_points];
-    dgemv(&trans, &dim, &num_points, &alpha, AinvB, &dim, dpdx, &one, &beta, dpdx_AinvB, &one);
-    dgemv(&trans, &dim, &num_points, &alpha, AinvB, &dim, dpdy, &one, &beta, dpdy_AinvB, &one);
-    dgemv(&trans, &dim, &num_points, &alpha, AinvB, &dim, dpdz, &one, &beta, dpdz_AinvB, &one);
+    rgemv(&trans, &dim, &num_points, &alpha, AinvB, &dim, dpdx, &one, &beta, dpdx_AinvB, &one);
+    rgemv(&trans, &dim, &num_points, &alpha, AinvB, &dim, dpdy, &one, &beta, dpdy_AinvB, &one);
+    rgemv(&trans, &dim, &num_points, &alpha, AinvB, &dim, dpdz, &one, &beta, dpdz_AinvB, &one);
 
     // Second term: basis dotted with gradient of Ainv * B.
     real_t p_dAinvBdx[num_points], p_dAinvBdy[num_points], p_dAinvBdz[num_points];
-    dgemv(&trans, &dim, &num_points, &alpha, dAinvBdx, &dim, basis, &one, &beta, p_dAinvBdx, &one);
-    dgemv(&trans, &dim, &num_points, &alpha, dAinvBdy, &dim, basis, &one, &beta, p_dAinvBdy, &one);
-    dgemv(&trans, &dim, &num_points, &alpha, dAinvBdz, &dim, basis, &one, &beta, p_dAinvBdz, &one);
+    rgemv(&trans, &dim, &num_points, &alpha, dAinvBdx, &dim, basis, &one, &beta, p_dAinvBdx, &one);
+    rgemv(&trans, &dim, &num_points, &alpha, dAinvBdy, &dim, basis, &one, &beta, p_dAinvBdy, &one);
+    rgemv(&trans, &dim, &num_points, &alpha, dAinvBdz, &dim, basis, &one, &beta, p_dAinvBdz, &one);
 
     // Gradients are the sum of these terms.
     for (int i = 0; i < num_points; ++i)
@@ -519,16 +519,16 @@ void poly_ls_shape_compute_ghost_transform(poly_ls_shape_t* N, int* ghost_indice
 //  for (int i = 0; i < num_constraints*num_constraints; ++i)
 //    printf("%g ", amat[i]);
 //  printf("\n");
-  dgetrf(&num_ghosts, &num_ghosts, amat, &num_ghosts, pivot, &info);
+  rgetrf(&num_ghosts, &num_ghosts, amat, &num_ghosts, pivot, &info);
   ASSERT(info == 0);
   char no_trans = 'N';
-  dgetrs(&no_trans, &num_ghosts, &N->num_points, amat, &num_ghosts, pivot, A, &num_ghosts, &info);
+  rgetrs(&no_trans, &num_ghosts, &N->num_points, amat, &num_ghosts, pivot, A, &num_ghosts, &info);
   ASSERT(info == 0);
 
   // Compute B = amatinv * e.
   int one = 1;
   memcpy(B, e, sizeof(real_t)*num_ghosts);
-  dgetrs(&no_trans, &num_ghosts, &one, amat, &num_ghosts, pivot, B, &num_ghosts, &info);
+  rgetrs(&no_trans, &num_ghosts, &one, amat, &num_ghosts, pivot, B, &num_ghosts, &info);
   ASSERT(info == 0);
 }
 

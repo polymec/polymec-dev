@@ -40,28 +40,60 @@
 #define dormqr dormqr_
 #define dgesvd dgesvd_
 #define dgelsy dgelsy_
+#define sgemv sgemv_
+#define sgemm sgemm_
+#define sgesv sgesv_
+#define sgetrf sgetrf_
+#define sgetrs sgetrs_
+#define sgeqrf sgeqrf_
+#define sorgqr sorgqr_
+#define sormqr sormqr_
+#define sgesvd sgesvd_
+#define sgelsy sgelsy_
 #endif
 
 // Matrix-vector multiplication: y := alpha*A*x + beta*y.
 void dgemv(char* trans, int* m, int* n, double* alpha,
            void* a, int* lda, void* x, int* incx,
            double* beta, void* y, int* incy);
+void sgemv(char* trans, int* m, int* n, float* alpha,
+           void* a, int* lda, void* x, int* incx,
+           float* beta, void* y, int* incy);
+void rgemv(char* trans, int* m, int* n, real_t* alpha,
+           void* a, int* lda, void* x, int* incx,
+           real_t* beta, void* y, int* incy);
 
 // Matrix-matrix multiplication: C := alpha*op(A)*op(B) + beta*C.
 void dgemm(char* transa, char* transB, int* m, int* n, int* k, double* alpha,
            double* A, int* lda, double* B, int* ldb, double* beta, double* C, 
            int* ldc);
+void sgemm(char* transa, char* transB, int* m, int* n, int* k, float* alpha,
+           float* A, int* lda, float* B, int* ldb, float* beta, float* C, 
+           int* ldc);
+void rgemm(char* transa, char* transB, int* m, int* n, int* k, real_t* alpha,
+           real_t* A, int* lda, real_t* B, int* ldb, real_t* beta, real_t* C, 
+           int* ldc);
 
 // Solves a linear system using LU factorization (in one step).
 void dgesv(int* n, int* nrhs, double* A, int* lda, int* ipiv, 
            double* b, int* ldb, int* info);
+void sgesv(int* n, int* nrhs, float* A, int* lda, int* ipiv, 
+           float* b, int* ldb, int* info);
+void rgesv(int* n, int* nrhs, real_t* A, int* lda, int* ipiv, 
+           real_t* b, int* ldb, int* info);
 
 // Computes an LU factorization.
 void dgetrf(int* n, int* nrhs, double* A, int* lda, int* ipiv, int* info);
+void sgetrf(int* n, int* nrhs, float* A, int* lda, int* ipiv, int* info);
+void rgetrf(int* n, int* nrhs, real_t* A, int* lda, int* ipiv, int* info);
 
 // Solves a linear system using an existing LU factorization.
 void dgetrs(char* trans, int* n, int* nrhs, double* A, 
             int* lda, int* ipiv, double* b, int* ldb, int* info);
+void sgetrs(char* trans, int* n, int* nrhs, float* A, 
+            int* lda, int* ipiv, float* b, int* ldb, int* info);
+void rgetrs(char* trans, int* n, int* nrhs, real_t* A, 
+            int* lda, int* ipiv, real_t* b, int* ldb, int* info);
 
 // QR factorization.
 // The matrix Q is represented as a product of elementary reflectors
@@ -73,6 +105,10 @@ void dgetrs(char* trans, int* n, int* nrhs, double* A,
 //  and tau in tau(i).
 void dgeqrf(int* m, int* n, double* A, int* lda, double* tau, double* work,
             int* lwork, int* info);
+void sgeqrf(int* m, int* n, float* A, int* lda, float* tau, float* work,
+            int* lwork, int* info);
+void rgeqrf(int* m, int* n, real_t* A, int* lda, real_t* tau, real_t* work,
+            int* lwork, int* info);
 
 // Generates an m x n real matrix Q with orthogonal columns, which is defined
 // as the first N columns of a product of K elementary reflectors of order M
@@ -80,6 +116,10 @@ void dgeqrf(int* m, int* n, double* A, int* lda, double* tau, double* work,
 //  as returned by DGEQRF.
 void dorgqr(int* m, int* n, int* k, double* A, int* lda, double* tau,
             double* work, int* lwork, int* info);
+void sorgqr(int* m, int* n, int* k, float* A, int* lda, float* tau,
+            float* work, int* lwork, int* info);
+void rorgqr(int* m, int* n, int* k, real_t* A, int* lda, real_t* tau,
+            real_t* work, int* lwork, int* info);
 
 // Overwrites the general real m x n matrix C with
 //                  SIDE = 'L'     SIDE = 'R'
@@ -92,6 +132,12 @@ void dorgqr(int* m, int* n, int* k, double* A, int* lda, double* tau,
 // if side = 'R'.
 void dormqr(char* side, char* trans, int* m, int* n, int* k, double* A,
             int* lda, double* tau, double* C, int* ldc, double* work, 
+            int* lwork, int* info);
+void sormqr(char* side, char* trans, int* m, int* n, int* k, float* A,
+            int* lda, float* tau, float* C, int* ldc, float* work, 
+            int* lwork, int* info);
+void rormqr(char* side, char* trans, int* m, int* n, int* k, real_t* A,
+            int* lda, real_t* tau, real_t* C, int* ldc, real_t* work, 
             int* lwork, int* info);
 
 // Singular value decomposition: computes the SVD of an MxN matrix A:
@@ -117,9 +163,15 @@ void dormqr(char* side, char* trans, int* m, int* n, int* k, double* A,
 //        'N':  no columns of VT (no right singular vectors) are
 //              computed.
 // NOTE: jobU and jobVT cannot both be 'O'.
-int dgesvd(char* jobU, char* jobVT, int* m, int* n, 
-           double *A, int* lda, double* S, double* U, int* ldu, 
-           double* VT, int* ldvt, double *work, int* lwork, int* info);
+void dgesvd(char* jobU, char* jobVT, int* m, int* n, 
+            double *A, int* lda, double* S, double* U, int* ldu, 
+            double* VT, int* ldvt, double *work, int* lwork, int* info);
+void sgesvd(char* jobU, char* jobVT, int* m, int* n, 
+            float *A, int* lda, float* S, float* U, int* ldu, 
+            float* VT, int* ldvt, float *work, int* lwork, int* info);
+void rgesvd(char* jobU, char* jobVT, int* m, int* n, 
+            real_t *A, int* lda, real_t* S, real_t* U, int* ldu, 
+            real_t* VT, int* ldvt, real_t *work, int* lwork, int* info);
 
 // DGELSY computes the minimum-norm solution to a real linear least
 // squares problem:
@@ -128,6 +180,12 @@ int dgesvd(char* jobU, char* jobVT, int* m, int* n,
 // matrix which may be rank-deficient. See LAPACK documentation for details.
 void dgelsy(int* m, int* n, int* nrhs, double* A, int* lda, double* B, int* ldb, 
             int* jpvt, double* rcond, int* rank, double* work, int* lwork, 
+            int* info);
+void sgelsy(int* m, int* n, int* nrhs, float* A, int* lda, float* B, int* ldb, 
+            int* jpvt, float* rcond, int* rank, float* work, int* lwork, 
+            int* info);
+void rgelsy(int* m, int* n, int* nrhs, real_t* A, int* lda, real_t* B, int* ldb, 
+            int* jpvt, real_t* rcond, int* rank, real_t* work, int* lwork, 
             int* info);
 
 // Print a (column-major-ordered) matrix to the given file stream.

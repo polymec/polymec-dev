@@ -97,6 +97,9 @@ for (int i = start; i < start + num; ++i) \
 
 // Real number representation.
 typedef @POLYMEC_REAL_TYPE@ real_t;
+#define HAVE_SINGLE_PRECISION @HAVE_SINGLE_PRECISION@
+#define HAVE_DOUBLE_PRECISION @HAVE_DOUBLE_PRECISION@
+#define POLYMEC_PRECISION @POLYMEC_PRECISION@
 #define MPI_REAL @POLYMEC_MPI_REAL_TYPE@
 
 // This returns the minimum of a and b.
