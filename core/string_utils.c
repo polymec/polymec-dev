@@ -78,11 +78,14 @@ int string_num_tokens(const char* s, const char* delimiter)
   if (s != NULL) 
   {
     char* copy = string_dup(s);
-    char* tofree = copy;
-    char* token;
-    while ((token = strsep(&copy, delimiter)) != NULL) 
+    char* p = copy;
+    char *last, *token;
+    while ((token = strtok_r(p, delimiter, &last)) != NULL) 
+    {
+      p = last;
       ++num_tokens;
-    free(tofree);
+    }
+    free(copy);
   }
   return num_tokens;
 }
@@ -95,10 +98,14 @@ char** string_split(const char* s, const char* delimiter, int* num_substrings)
   char** strs = malloc(sizeof(char*) * (*num_substrings));
 
   char* copy = string_dup(s);
-  char* tofree = copy;
+  char* p = copy;
+  char *last;
   for (int i = 0; i < (*num_substrings); ++i)
-    strs[i] = string_dup(strsep(&copy, delimiter));
-  free(tofree);
+  {
+    strs[i] = string_dup(strtok_r(p, delimiter, &last));
+    p = last;
+  }
+  free(copy);
 
   return strs;
 }
