@@ -109,10 +109,15 @@ endforeach()
 install(FILES ${PROJECT_BINARY_DIR}/lib/libz.a DESTINATION lib)
 set(POLYMEC_TP_LIBS z;${POLYMEC_TP_LIBS})
 
-# Build the HDF5 parallel I/O library.
+# Build the HDF5 parallel I/O library. 
 if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libhdf5.a)
   set(HDF5_CONFIG_OPTS --enable-static --disable-shared --with-zlib=${PROJECT_BINARY_DIR})
   set(HDF5_CONFIG_OPTS ${HDF5_CONFIG_OPTS} --prefix=${PROJECT_BINARY_DIR})
+  if (${CMAKE_BUILD_TYPE} STREQUAL "Debug")
+    set(HDF5_CONFIG_OPTS ${HDF5_CONFIG_OPTS} --enable-debug)
+  else()
+    set(HDF5_CONFIG_OPTS ${HDF5_CONFIG_OPTS} --disable-debug --enable-production)
+  endif()
   if (${HAVE_MPI} EQUAL 1)
     set(HDF5_CONFIG_OPTS ${HDF5_CONFIG_OPTS} --enable-parallel)
   endif()
@@ -167,9 +172,10 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libsiloh5.a)
   set(SILO_CONFIG_OPTS ${SILO_CONFIG_OPTS} --with-hdf5=${PROJECT_BINARY_DIR}/include,${PROJECT_BINARY_DIR}/lib)
   set(SILO_CONFIG_OPTS ${SILO_CONFIG_OPTS} --disable-fortran --without-readline --disable-browser --disable-silex)
   set(SILO_ENV CC=${CC} CXX=${CXX})
-  if (${LINUX})
-    # Note: Linux seems to need -ldl when building Silo.
-    set(SILO_ENV ${SILO_ENV} LIBS=-ldl)
+  if (LINUX EQUAL 1)
+   # Note: Linux needs -ldl when building Silo because of HDF5's new 
+   # Note: dynamically-loaded filters.
+   set(SILO_ENV ${SILO_ENV} LIBS=-ldl)
   endif()
   execute_process(COMMAND env ${SILO_ENV} ./configure ${SILO_CONFIG_OPTS}
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/silo
@@ -241,14 +247,11 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libpolytope.a)
   if (${CMAKE_BUILD_TYPE} STREQUAL "Debug")
     set(POLYTOPE_CONFIG_OPTS ${POLYTOPE_CONFIG_OPTS} debug=1)
   endif()
-  if (${LINUX})
-    # On Linux, we don't build tests because they require the -ldl flag to 
-    # link against our static HDF5 libraries.
-    set(POLYTOPE_CONFIG_OPTS ${POLYTOPE_CONFIG_OPTS} build_tests=0)
-  endif()
   if (HAVE_MPI EQUAL 1)
     set(POLYTOPE_CONFIG_OPTS ${POLYTOPE_CONFIG_OPTS} MPI=1)
   endif()
+  # We disable the polytope tests for now to simplify the build.
+  set(POLYTOPE_CONFIG_OPTS ${POLYTOPE_CONFIG_OPTS} build_tests=0)
   execute_process(COMMAND make config ${POLYTOPE_CONFIG_OPTS}
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/polytope
                   OUTPUT_VARIABLE polytope_config_log ERROR_VARIABLE polytope_config_err
@@ -268,7 +271,7 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libpolytope.a)
   if (NOT stat EQUAL 0)
     # FIXME: Currently, on Linux, the build succeeds and then make flips out 
     # FIXME: with a message like "No rule to make target 'w'". Need to figure this out.
-    if (${LINUX})
+    if (LINUX EQUAL 1)
       string(FIND ${polytope_build_err} "No rule to make target 'w'" bogus_problem)
       if (${bogus_problem} EQUAL -1)
         message("Polytope build generated spurious make error: ignoring...")
@@ -430,12 +433,7 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/liblua.a)
   if (${APPLE})
     set(LUA_ARCH macosx)
   else() 
-     # Actually safer to use "ansi" for Linux(!)
-#    if (${LINUX})
-#      set(LUA_ARCH linux)
-#    else()
-      set(LUA_ARCH ansi)
-#    endif()
+    set(LUA_ARCH ansi)
   endif()
   message("Preparing lua...")
   execute_process(COMMAND cmake -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/lua ${CMAKE_CURRENT_BINARY_DIR}/lua
