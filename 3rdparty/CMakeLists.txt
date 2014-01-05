@@ -52,7 +52,7 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/include/arena)
     message(FATAL_ERROR "Copying library source failed.")
   endif()
 
-  message("Preparing libarena...")
+  message("Copying libarena headers into place...")
   file(GLOB arena_includes "${CMAKE_CURRENT_BINARY_DIR}/libarena/src/*.h")
   execute_process(COMMAND cmake -E make_directory ${PROJECT_BINARY_DIR}/include/arena)
   foreach(inc ${arena_includes})
