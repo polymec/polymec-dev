@@ -97,12 +97,16 @@ mesh_t* create_nonuniform_cartesian_1d_mesh(MPI_Comm comm, real_t* xs, int N)
 
 mesh_t* create_uniform_cylindrical_1d_mesh(MPI_Comm comm, real_t r1, real_t r2, int N)
 {
-  ASSERT(r1 > 0.0);
+  ASSERT(r1 >= 0.0);
   ASSERT(r2 > r1);
   ASSERT(N > 0);
 
   // This is really just a nonuniform cylindrical mesh with, um, uniform spacing.
   real_t* rs = malloc(sizeof(real_t) * N);
+  rs[0] = r1;
+  real_t dr = (r2 - r1) / N;
+  for (int i = 1; i < N; ++i)
+    rs[i] = rs[i-1] + dr;
   mesh_t* mesh = create_nonuniform_cylindrical_1d_mesh(comm, rs, N);
   free(rs);
 
@@ -111,7 +115,7 @@ mesh_t* create_uniform_cylindrical_1d_mesh(MPI_Comm comm, real_t r1, real_t r2, 
 
 mesh_t* create_logarithmic_cylindrical_1d_mesh(MPI_Comm comm, real_t r1, real_t r2, real_t log_factor, int N)
 {
-  ASSERT(r1 > 0.0);
+  ASSERT(r1 >= 0.0);
   ASSERT(r2 > r1);
   ASSERT(N > 0);
 
@@ -138,6 +142,7 @@ mesh_t* create_nonuniform_cylindrical_1d_mesh(MPI_Comm comm, real_t* rs, int N)
 #endif
 
   mesh_t* mesh = NULL;
+  cubic_lattice_t* lattice = NULL;
 
   if (rs[0] == 0.0)
   {
@@ -147,10 +152,10 @@ mesh_t* create_nonuniform_cylindrical_1d_mesh(MPI_Comm comm, real_t* rs, int N)
     bbox_t bbox = {.x1 = rs[1], .x2 = rs[N-1], 
                    .y1 = -1.0, .y2 = 1.0, 
                    .z1 = -1.0, .z2 = 1.0}; // Wrong, but it doesn't matter.
-    create_uniform_mesh(comm, N-1, 1, 1, &bbox);
+    mesh = create_uniform_mesh(comm, N-1, 1, 1, &bbox);
 
     // Retrieve the (topological) cubic lattice for the mesh.
-    cubic_lattice_t* lattice = mesh_property(mesh, "lattice");
+    lattice = mesh_property(mesh, "lattice");
     ASSERT(lattice != NULL);
 
     // Now we add the inner most cell, which is a wedge with 5 faces. The 
@@ -258,6 +263,15 @@ mesh_t* create_nonuniform_cylindrical_1d_mesh(MPI_Comm comm, real_t* rs, int N)
     mesh->nodes[mesh->num_nodes-1].y = +0.5;
     mesh->nodes[mesh->num_nodes-1].z = +0.5;
 
+    // Set their coordinates.
+    mesh->nodes[mesh->num_nodes-2].x = 0.0;
+    mesh->nodes[mesh->num_nodes-2].y = 0.0;
+    mesh->nodes[mesh->num_nodes-2].z = -0.5;
+
+    mesh->nodes[mesh->num_nodes-2].x = 0.0;
+    mesh->nodes[mesh->num_nodes-2].y = 0.0;
+    mesh->nodes[mesh->num_nodes-2].z = 0.5;
+
     // Add the five new edges.
     mesh->num_edges += 5;
     mesh->edge_nodes = ARENA_REALLOC(mesh->arena, mesh->edge_nodes, 
@@ -291,14 +305,47 @@ mesh_t* create_nonuniform_cylindrical_1d_mesh(MPI_Comm comm, real_t* rs, int N)
                    .y1 = -1.0, .y2 = 1.0, 
                    .z1 = -1.0, .z2 = 1.0}; 
     create_uniform_mesh(comm, N, 1, 1, &bbox);
+
+    // Retrieve the (topological) cubic lattice for the mesh.
+    lattice = mesh_property(mesh, "lattice");
+    ASSERT(lattice != NULL);
   }
 
   // Adjust the geometry of the mesh and compute volumes/areas.
-  // FIXME
-  mesh_compute_geometry(mesh);
+  // For each of the non-inner cells, the nodes should be set to their 
+  // respective cylindrical positions.
+  real_t phi1 = -0.5, phi2 = 0.5, z1 = -0.5, z2 = 0.5;
+  for (int i = 0; i < N-1; ++i)
+  {
+    // The x coordinate already contains the radius.
+    int n1 = cubic_lattice_node(lattice, i, 0, 0);
+    double r = mesh->nodes[n1].x;
+    int n2 = cubic_lattice_node(lattice, i, 1, 0);
+    ASSERT(mesh->nodes[n2].x == r);
+    int n3 = cubic_lattice_node(lattice, i, 0, 1);
+    ASSERT(mesh->nodes[n3].x == r);
+    int n4 = cubic_lattice_node(lattice, i, 1, 1);
+    ASSERT(mesh->nodes[n4].x == r);
 
-  // Tag the boundary faces.
-  tag_rectilinear_mesh_faces(mesh, N, 1, 1, "r1", "r2", "theta1", "theta2", "z1", "z2");
+    // Find the new coordinates along the cylinder.
+    mesh->nodes[n1].x = r * cos(phi1);
+    mesh->nodes[n1].y = r * sin(phi1);
+    mesh->nodes[n1].z = z1;
+
+    mesh->nodes[n2].x = r * cos(phi2);
+    mesh->nodes[n2].y = r * sin(phi2);
+    mesh->nodes[n2].z = z1;
+
+    mesh->nodes[n3].x = r * cos(phi1);
+    mesh->nodes[n3].y = r * sin(phi1);
+    mesh->nodes[n3].z = z2;
+
+    mesh->nodes[n4].x = r * cos(phi2);
+    mesh->nodes[n4].y = r * sin(phi2);
+    mesh->nodes[n4].z = z2;
+  }
+  
+  mesh_compute_geometry(mesh);
 
   // Add some symmetry-related features.
   mesh_add_feature(mesh, SYMMETRIC);
@@ -310,12 +357,16 @@ mesh_t* create_nonuniform_cylindrical_1d_mesh(MPI_Comm comm, real_t* rs, int N)
 
 mesh_t* create_uniform_spherical_1d_mesh(MPI_Comm comm, real_t r1, real_t r2, int N)
 {
-  ASSERT(r1 > 0.0);
+  ASSERT(r1 >= 0.0);
   ASSERT(r2 > r1);
   ASSERT(N > 0);
 
   // This is really just a nonuniform spherical mesh with, um, uniform spacing.
   real_t* rs = malloc(sizeof(real_t) * N);
+  rs[0] = r1;
+  real_t dr = (r2 - r1) / N;
+  for (int i = 1; i < N; ++i)
+    rs[i] = rs[i-1] + dr;
   mesh_t* mesh = create_nonuniform_spherical_1d_mesh(comm, rs, N);
   free(rs);
 
@@ -324,7 +375,7 @@ mesh_t* create_uniform_spherical_1d_mesh(MPI_Comm comm, real_t r1, real_t r2, in
 
 mesh_t* create_logarithmic_spherical_1d_mesh(MPI_Comm comm, real_t r1, real_t r2, real_t log_factor, int N)
 {
-  ASSERT(r1 > 0.0);
+  ASSERT(r1 >= 0.0);
   ASSERT(r2 > r1);
   ASSERT(N > 0);
 

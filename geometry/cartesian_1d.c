@@ -27,7 +27,7 @@
 
 #include <strings.h>
 #include "core/mesh.h"
-//#include "core/symmetry_1d.h"
+#include "core/symmetry_1d.h"
 #include "core/interpreter.h"
 
 // Lua stuff.
@@ -54,16 +54,12 @@ int cartesian_1d_uniform(lua_State* lua)
   if (N <= 0)
     return luaL_error(lua, "N must be positive.");
 
-#if 0
   // Create the mesh.
-  mesh_t* mesh = create_1d_cartesian_mesh(MPI_COMM_WORLD, nx, ny, nz, bbox);
-
-  // Tag its faces.
-  tag_rectilinear_mesh_faces(mesh, nx, ny, nz, "x1", "x2", "y1", "y2", "z1", "z2");
+  mesh_t* mesh = create_uniform_cartesian_1d_mesh(MPI_COMM_WORLD, x1, x2, N);
 
   // Push the mesh onto the stack.
   lua_pushmesh(lua, mesh);
-#endif
+
   return 1;
 }
 
@@ -71,42 +67,41 @@ int cartesian_1d_logarithmic(lua_State* lua)
 {
   // Check the arguments.
   int num_args = lua_gettop(lua);
-  if (num_args != 3)
+  if (num_args != 4)
   {
     return luaL_error(lua, "Invalid arguments. Usage:\n"
-                      "mesh = cartesian_1d.logarithmic(x1, log_factor, N)");
+                      "mesh = cartesian_1d.logarithmic(x1, x2, log_factor, N)");
   }
 
   // Get the arguments.
   real_t x1 = (real_t)lua_tonumber(lua, 1);
-  real_t log_factor = (real_t)lua_tonumber(lua, 2);
+  real_t x2 = (real_t)lua_tonumber(lua, 2);
+  if (x1 >= x2)
+    return luaL_error(lua, "x1 must be less than x2.");
+  real_t log_factor = (real_t)lua_tonumber(lua, 3);
   if (log_factor <= 0.0)
     return luaL_error(lua, "log factor must be positive.");
-  int N = (int)lua_tonumber(lua, 3);
+  int N = (int)lua_tonumber(lua, 4);
   if (N <= 0)
     return luaL_error(lua, "N must be positive.");
 
-#if 0
   // Create the mesh.
-  mesh_t* mesh = create_1d_cartesian_mesh(MPI_COMM_WORLD, nx, ny, nz, bbox);
-
-  // Tag its faces.
-  tag_rectilinear_mesh_faces(mesh, nx, ny, nz, "x1", "x2", "y1", "y2", "z1", "z2");
+  mesh_t* mesh = create_logarithmic_cartesian_1d_mesh(MPI_COMM_WORLD, x1, x2, log_factor, N);
 
   // Push the mesh onto the stack.
   lua_pushmesh(lua, mesh);
-#endif
+
   return 1;
 }
 
-int cartesian_1d_irregular(lua_State* lua)
+int cartesian_1d_nonuniform(lua_State* lua)
 {
   // Check the arguments.
   int num_args = lua_gettop(lua);
   if (num_args != 1)
   {
     return luaL_error(lua, "Invalid arguments. Usage:\n"
-                      "mesh = cartesian_1d.irregular({x1, x2, ..., xN})");
+                      "mesh = cartesian_1d.nonuniform({x1, x2, ..., xN})");
   }
 
   // Get the arguments.
@@ -115,16 +110,12 @@ int cartesian_1d_irregular(lua_State* lua)
   if (xs == NULL)
     return luaL_error(lua, "argument must be a list of coordinates.");
 
-#if 0
   // Create the mesh.
-  mesh_t* mesh = create_1d_cartesian_mesh(MPI_COMM_WORLD, nx, ny, nz, bbox);
-
-  // Tag its faces.
-  tag_rectilinear_mesh_faces(mesh, nx, ny, nz, "x1", "x2", "y1", "y2", "z1", "z2");
+  mesh_t* mesh = create_nonuniform_cartesian_1d_mesh(MPI_COMM_WORLD, xs, N);
 
   // Push the mesh onto the stack.
   lua_pushmesh(lua, mesh);
-#endif
+
   return 1;
 }
 

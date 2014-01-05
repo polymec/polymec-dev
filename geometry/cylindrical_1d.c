@@ -27,7 +27,7 @@
 
 #include <strings.h>
 #include "core/mesh.h"
-//#include "core/symmetry_1d.h"
+#include "core/symmetry_1d.h"
 #include "core/interpreter.h"
 
 // Lua stuff.
@@ -56,16 +56,12 @@ int cylindrical_1d_uniform(lua_State* lua)
   if (N <= 0)
     return luaL_error(lua, "N must be positive.");
 
-#if 0
   // Create the mesh.
-  mesh_t* mesh = create_1d_cylindrical_mesh(MPI_COMM_WORLD, nx, ny, nz, bbox);
-
-  // Tag its faces.
-  tag_rectilinear_mesh_faces(mesh, nx, ny, nz, "x1", "x2", "y1", "y2", "z1", "z2");
+  mesh_t* mesh = create_uniform_cylindrical_1d_mesh(MPI_COMM_WORLD, r1, r2, N);
 
   // Push the mesh onto the stack.
   lua_pushmesh(lua, mesh);
-#endif
+
   return 1;
 }
 
@@ -73,44 +69,43 @@ int cylindrical_1d_logarithmic(lua_State* lua)
 {
   // Check the arguments.
   int num_args = lua_gettop(lua);
-  if (num_args != 3)
+  if (num_args != 4)
   {
     return luaL_error(lua, "Invalid arguments. Usage:\n"
-                      "mesh = cylindrical_1d.logarithmic(r1, log_factor, N)");
+                      "mesh = cylindrical_1d.logarithmic(r1, r2, log_factor, N)");
   }
 
   // Get the arguments.
   real_t r1 = (real_t)lua_tonumber(lua, 1);
   if (r1 < 0.0)
     return luaL_error(lua, "r1 must be non-negative.");
-  real_t log_factor = (real_t)lua_tonumber(lua, 2);
+  real_t r2 = (real_t)lua_tonumber(lua, 2);
+  if (r1 >= r2)
+    return luaL_error(lua, "r1 must be less than r2.");
+  real_t log_factor = (real_t)lua_tonumber(lua, 3);
   if (log_factor <= 0.0)
     return luaL_error(lua, "log factor must be positive.");
   int N = (int)lua_tonumber(lua, 3);
   if (N <= 0)
     return luaL_error(lua, "N must be positive.");
 
-#if 0
   // Create the mesh.
-  mesh_t* mesh = create_1d_cylindrical_mesh(MPI_COMM_WORLD, nx, ny, nz, bbox);
-
-  // Tag its faces.
-  tag_rectilinear_mesh_faces(mesh, nx, ny, nz, "x1", "x2", "y1", "y2", "z1", "z2");
+  mesh_t* mesh = create_logarithmic_cylindrical_1d_mesh(MPI_COMM_WORLD, r1, r2, log_factor, N);
 
   // Push the mesh onto the stack.
   lua_pushmesh(lua, mesh);
-#endif
+
   return 1;
 }
 
-int cylindrical_1d_irregular(lua_State* lua)
+int cylindrical_1d_nonuniform(lua_State* lua)
 {
   // Check the arguments.
   int num_args = lua_gettop(lua);
   if (num_args != 1)
   {
     return luaL_error(lua, "Invalid arguments. Usage:\n"
-                      "mesh = cylindrical_1d.irregular({r1, r2, ..., rN})");
+                      "mesh = cylindrical_1d.nonuniform({r1, r2, ..., rN})");
   }
 
   // Get the arguments.
@@ -126,16 +121,12 @@ int cylindrical_1d_irregular(lua_State* lua)
       return luaL_error(lua, "coordinates must be monotonically increasing.");
   }
 
-#if 0
   // Create the mesh.
-  mesh_t* mesh = create_1d_cylindrical_mesh(MPI_COMM_WORLD, nx, ny, nz, bbox);
-
-  // Tag its faces.
-  tag_rectilinear_mesh_faces(mesh, nx, ny, nz, "x1", "x2", "y1", "y2", "z1", "z2");
+  mesh_t* mesh = create_nonuniform_cylindrical_1d_mesh(MPI_COMM_WORLD, rs, N);
 
   // Push the mesh onto the stack.
   lua_pushmesh(lua, mesh);
-#endif
+
   return 1;
 }
 
