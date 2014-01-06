@@ -55,10 +55,10 @@ mesh_t* create_uniform_cartesian_1d_mesh(MPI_Comm comm, real_t x1, real_t x2, in
   ASSERT(N > 0);
 
   // This is really just a nonuniform Cartesian mesh with, um, uniform spacing.
-  real_t* xs = malloc(sizeof(real_t) * N);
+  real_t* xs = malloc(sizeof(real_t) * (N+1));
   xs[0] = x1;
   real_t dx = (x2 - x1) / N;
-  for (int i = 1; i < N; ++i)
+  for (int i = 1; i < N+1; ++i)
     xs[i] = xs[i-1] + dx;
   mesh_t* mesh = create_nonuniform_cartesian_1d_mesh(comm, xs, N);
   free(xs);
@@ -69,8 +69,8 @@ mesh_t* create_uniform_cartesian_1d_mesh(MPI_Comm comm, real_t x1, real_t x2, in
 mesh_t* create_logarithmic_cartesian_1d_mesh(MPI_Comm comm, real_t x1, real_t x2, real_t log_factor, int N)
 {
   // This is really just a nonuniform Cartesian mesh with logarithmic spacings.
-  real_t* xs = malloc(sizeof(real_t) * N);
-  compute_log_spacing(x1, x2, log_factor, N, xs);
+  real_t* xs = malloc(sizeof(real_t) * (N+1));
+  compute_log_spacing(x1, x2, log_factor, N+1, xs);
   mesh_t* mesh = create_nonuniform_cartesian_1d_mesh(comm, xs, N);
   free(xs);
 
@@ -82,7 +82,7 @@ mesh_t* create_nonuniform_cartesian_1d_mesh(MPI_Comm comm, real_t* xs, int N)
   // This is really just a 1D rectilinear mesh with the given spacings.
   real_t ys[2] = {-0.5, 0.5};
   real_t zs[2] = {-0.5, 0.5};
-  mesh_t* mesh = create_rectilinear_mesh(comm, xs, N, ys, 2, zs, 2);
+  mesh_t* mesh = create_rectilinear_mesh(comm, xs, N+1, ys, 2, zs, 2);
 
   // Tag the boundary faces.
   tag_rectilinear_mesh_faces(mesh, N, 1, 1, "x1", "x2", "y1", "y2", "z1", "z2");
@@ -102,10 +102,10 @@ mesh_t* create_uniform_cylindrical_1d_mesh(MPI_Comm comm, real_t r1, real_t r2, 
   ASSERT(N > 0);
 
   // This is really just a nonuniform cylindrical mesh with, um, uniform spacing.
-  real_t* rs = malloc(sizeof(real_t) * N);
+  real_t* rs = malloc(sizeof(real_t) * (N+1));
   rs[0] = r1;
   real_t dr = (r2 - r1) / N;
-  for (int i = 1; i < N; ++i)
+  for (int i = 1; i < N+1; ++i)
     rs[i] = rs[i-1] + dr;
   mesh_t* mesh = create_nonuniform_cylindrical_1d_mesh(comm, rs, N);
   free(rs);
@@ -120,8 +120,8 @@ mesh_t* create_logarithmic_cylindrical_1d_mesh(MPI_Comm comm, real_t r1, real_t 
   ASSERT(N > 0);
 
   // This is really just a nonuniform cylindrical mesh with logarithmic spacings.
-  real_t* rs = malloc(sizeof(real_t) * N);
-  compute_log_spacing(r1, r2, log_factor, N, rs);
+  real_t* rs = malloc(sizeof(real_t) * (N+1));
+  compute_log_spacing(r1, r2, log_factor, N+1, rs);
   mesh_t* mesh = create_nonuniform_cylindrical_1d_mesh(comm, rs, N);
   free(rs);
 
@@ -135,7 +135,7 @@ mesh_t* create_nonuniform_cylindrical_1d_mesh(MPI_Comm comm, real_t* rs, int N)
 #ifndef NDEBUG
   // Make sure the radial spacings make sense.
   ASSERT(rs[0] >= 0.0);
-  for (int i = 1; i < N; ++i)
+  for (int i = 1; i < N+1; ++i)
   {
     ASSERT(rs[i] > rs[i-1]);
   }
@@ -145,10 +145,11 @@ mesh_t* create_nonuniform_cylindrical_1d_mesh(MPI_Comm comm, real_t* rs, int N)
   cubic_lattice_t* lattice = NULL;
 
   // Compute the average radial spacing and use that as the axial spacing.
-  double dz = 0.0;
-  for (int i = 1; i < N; ++i)
-    dz += rs[i] - rs[i-1];
-  dz /= N-1;
+  real_t avg_dr = 0.0;
+  for (int i = 1; i < N+1; ++i)
+    avg_dr += rs[i] - rs[i-1];
+  avg_dr /= N;
+  real_t dz = avg_dr;
 
   if (rs[0] == 0.0)
   {
@@ -308,7 +309,7 @@ mesh_t* create_nonuniform_cylindrical_1d_mesh(MPI_Comm comm, real_t* rs, int N)
     bbox_t bbox = {.x1 = rs[0], .x2 = rs[N-1], 
                    .y1 = -1.0, .y2 = 1.0, 
                    .z1 = -0.5*dz, .z2 = 0.5*dz}; 
-    create_uniform_mesh(comm, N, 1, 1, &bbox);
+    mesh = create_uniform_mesh(comm, N, 1, 1, &bbox);
 
     // Retrieve the (topological) cubic lattice for the mesh.
     lattice = mesh_property(mesh, "lattice");
@@ -318,19 +319,20 @@ mesh_t* create_nonuniform_cylindrical_1d_mesh(MPI_Comm comm, real_t* rs, int N)
   // Adjust the geometry of the mesh and compute volumes/areas.
   // For each of the non-inner cells, the x and y coordinates of 
   // each nodes should be set to its respective cylindrical position.
-#if 0
-  real_t phi1 = -0.5, phi2 = 0.5;
-  for (int i = 0; i < N-1; ++i)
+
+  // Choose the angle to make cells maximally isotropic. For isotropy,
+  // sin(phi/2) = avg_dr/r.
+  real_t dphi = 2.0*asin(avg_dr/rs[N-1]);
+  real_t phi1 = -0.5*dphi, phi2 = 0.5*dphi;
+  int i0 = (rs[0] == 0.0) ? 1 : 0;
+  for (int i = i0; i < N+1; ++i)
   {
     // The x coordinate already contains the radius.
     int n1 = cubic_lattice_node(lattice, i, 0, 0);
-    double r = mesh->nodes[n1].x;
+    real_t r = rs[i];
     int n2 = cubic_lattice_node(lattice, i, 1, 0);
-    ASSERT(mesh->nodes[n2].x == r);
     int n3 = cubic_lattice_node(lattice, i, 0, 1);
-    ASSERT(mesh->nodes[n3].x == r);
     int n4 = cubic_lattice_node(lattice, i, 1, 1);
-    ASSERT(mesh->nodes[n4].x == r);
 
     // Find the new x,y coordinates along the cylinder.
     mesh->nodes[n1].x = r * cos(phi1);
@@ -345,7 +347,6 @@ mesh_t* create_nonuniform_cylindrical_1d_mesh(MPI_Comm comm, real_t* rs, int N)
     mesh->nodes[n4].x = r * cos(phi2);
     mesh->nodes[n4].y = r * sin(phi2);
   }
-#endif
   
 //  mesh_compute_geometry(mesh); // Memory error!
 
@@ -364,10 +365,10 @@ mesh_t* create_uniform_spherical_1d_mesh(MPI_Comm comm, real_t r1, real_t r2, in
   ASSERT(N > 0);
 
   // This is really just a nonuniform spherical mesh with, um, uniform spacing.
-  real_t* rs = malloc(sizeof(real_t) * N);
+  real_t* rs = malloc(sizeof(real_t) * (N+1));
   rs[0] = r1;
   real_t dr = (r2 - r1) / N;
-  for (int i = 1; i < N; ++i)
+  for (int i = 1; i < N+1; ++i)
     rs[i] = rs[i-1] + dr;
   mesh_t* mesh = create_nonuniform_spherical_1d_mesh(comm, rs, N);
   free(rs);
@@ -382,8 +383,8 @@ mesh_t* create_logarithmic_spherical_1d_mesh(MPI_Comm comm, real_t r1, real_t r2
   ASSERT(N > 0);
 
   // This is really just a nonuniform spherical mesh with logarithmic spacings.
-  real_t* rs = malloc(sizeof(real_t) * N);
-  compute_log_spacing(r1, r2, log_factor, N, rs);
+  real_t* rs = malloc(sizeof(real_t) * (N+1));
+  compute_log_spacing(r1, r2, log_factor, N+1, rs);
   mesh_t* mesh = create_nonuniform_spherical_1d_mesh(comm, rs, N);
   free(rs);
 
