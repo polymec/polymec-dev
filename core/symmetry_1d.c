@@ -246,10 +246,14 @@ mesh_t* create_nonuniform_cylindrical_1d_mesh(MPI_Comm comm, real_t* rs, int N)
                                      mesh->face_cells,
                                      sizeof(int)*2*mesh->num_faces, 0);
     mesh->face_cells[1]                   = mesh->num_cells-1; // +r face
-    mesh->face_cells[2*mesh->num_faces-4] = mesh->num_cells-1; // -y face
-    mesh->face_cells[2*mesh->num_faces-3] = mesh->num_cells-1; // +y face
-    mesh->face_cells[2*mesh->num_faces-2] = mesh->num_cells-1; // -z face
-    mesh->face_cells[2*mesh->num_faces-1] = mesh->num_cells-1; // +z face
+    mesh->face_cells[2*mesh->num_faces-8] = mesh->num_cells-1; // -y face
+    mesh->face_cells[2*mesh->num_faces-7] = -1;
+    mesh->face_cells[2*mesh->num_faces-6] = mesh->num_cells-1; // +y face
+    mesh->face_cells[2*mesh->num_faces-5] = -1;
+    mesh->face_cells[2*mesh->num_faces-4] = mesh->num_cells-1; // -z face
+    mesh->face_cells[2*mesh->num_faces-3] = -1;
+    mesh->face_cells[2*mesh->num_faces-2] = mesh->num_cells-1; // +z face
+    mesh->face_cells[2*mesh->num_faces-1] = -1;
 
     // Add the two new nodes.
     mesh->num_nodes += 2;
@@ -345,7 +349,7 @@ mesh_t* create_nonuniform_cylindrical_1d_mesh(MPI_Comm comm, real_t* rs, int N)
     mesh->nodes[n4].z = z2;
   }
   
-  mesh_compute_geometry(mesh);
+  mesh_compute_geometry(mesh); // Memory error!
 
   // Add some symmetry-related features.
   mesh_add_feature(mesh, SYMMETRIC);
