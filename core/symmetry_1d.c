@@ -181,10 +181,10 @@ mesh_t* create_nonuniform_cylindrical_1d_mesh(MPI_Comm comm, real_t* rs, int N)
     mesh->face_node_offsets = ARENA_REALLOC(mesh->arena, 
                                             mesh->face_node_offsets, 
                                             sizeof(int)*(mesh->num_faces+1), 0);
-    mesh->face_node_offsets[mesh->num_faces+1-3] = mesh->face_node_offsets[mesh->num_faces-4] + 4; // -y
-    mesh->face_node_offsets[mesh->num_faces+1-2] = mesh->face_node_offsets[mesh->num_faces-3] + 4; // +y
-    mesh->face_node_offsets[mesh->num_faces+1-1] = mesh->face_node_offsets[mesh->num_faces-2] + 3; // -z
-    mesh->face_node_offsets[mesh->num_faces+1  ] = mesh->face_node_offsets[mesh->num_faces-1] + 3; // +z
+    mesh->face_node_offsets[mesh->num_faces-3] = mesh->face_node_offsets[mesh->num_faces-4] + 4; // -y
+    mesh->face_node_offsets[mesh->num_faces-2] = mesh->face_node_offsets[mesh->num_faces-3] + 4; // +y
+    mesh->face_node_offsets[mesh->num_faces-1] = mesh->face_node_offsets[mesh->num_faces-2] + 3; // -z
+    mesh->face_node_offsets[mesh->num_faces  ] = mesh->face_node_offsets[mesh->num_faces-1] + 3; // +z
     int total_num_face_nodes = mesh->face_node_offsets[mesh->num_faces];
     mesh->face_nodes = ARENA_REALLOC(mesh->arena, 
                                      mesh->face_nodes, 
