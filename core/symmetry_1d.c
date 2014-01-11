@@ -618,7 +618,6 @@ mesh_t* create_nonuniform_spherical_1d_mesh(MPI_Comm comm, real_t* rs, int N)
   real_t phi1 = -0.5*dphi, phi2 = 0.5*dphi;
   real_t theta = 2.0*asin(0.5*avg_dr/rs[N-1]);
   real_t theta1 = 0.5*M_PI - theta, theta2 = 0.5*M_PI + theta;
-  printf("t1 = %g, t2 = %g\n", theta1, theta2);
   int Nrad = (rs[0] == 0.0) ? N : N+1;
   for (int i = 0; i < Nrad; ++i)
   {
