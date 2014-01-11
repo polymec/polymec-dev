@@ -166,7 +166,7 @@ mesh_t* create_nonuniform_cylindrical_1d_mesh(MPI_Comm comm, real_t* rs, int N)
     ASSERT(lattice != NULL);
 
     // Now we add the inner most cell, which is a wedge with 5 faces. The 
-    // order of the faces is +r,-y,+y,-z,+z.
+    // order of the faces is +x,-y,+y,-z,+z.
     mesh->num_cells += 1;
     mesh->cell_face_offsets = ARENA_REALLOC(mesh->arena, 
                                             mesh->cell_face_offsets, 
@@ -176,7 +176,7 @@ mesh_t* create_nonuniform_cylindrical_1d_mesh(MPI_Comm comm, real_t* rs, int N)
     mesh->cell_faces = ARENA_REALLOC(mesh->arena, 
                                      mesh->cell_faces, 
                                      sizeof(int)*total_num_cell_faces, 0);
-    mesh->cell_faces[total_num_cell_faces-5] = mesh->cell_faces[0]; // +r
+    mesh->cell_faces[total_num_cell_faces-5] = mesh->cell_faces[0]; // +x
     mesh->cell_faces[total_num_cell_faces-4] = mesh->num_faces;     // -y
     mesh->cell_faces[total_num_cell_faces-3] = mesh->num_faces + 1; // +y
     mesh->cell_faces[total_num_cell_faces-2] = mesh->num_faces + 2; // -z
@@ -206,8 +206,8 @@ mesh_t* create_nonuniform_cylindrical_1d_mesh(MPI_Comm comm, real_t* rs, int N)
 
     mesh->face_nodes[total_num_face_nodes-10] = cubic_lattice_node(lattice, 0, 1, 0); // +y face node 0
     mesh->face_nodes[total_num_face_nodes- 9] = mesh->num_nodes;                      // +y face node 1 (bottom axial node -- new)
-    mesh->face_nodes[total_num_face_nodes- 8] = mesh->num_nodes + 1;                  // +y face node 1 (bottom axial node -- new)
-    mesh->face_nodes[total_num_face_nodes- 7] = cubic_lattice_node(lattice, 0, 1, 1); // -y face node 1
+    mesh->face_nodes[total_num_face_nodes- 8] = mesh->num_nodes + 1;                  // +y face node 2 (top axial node -- new)
+    mesh->face_nodes[total_num_face_nodes- 7] = cubic_lattice_node(lattice, 0, 1, 1); // +y face node 3
 
     mesh->face_nodes[total_num_face_nodes- 6] = mesh->num_nodes;                      // -z face node 0 (bottom axial node -- new)
     mesh->face_nodes[total_num_face_nodes- 5] = cubic_lattice_node(lattice, 0, 1, 0); // -z face node 1 
@@ -252,7 +252,7 @@ mesh_t* create_nonuniform_cylindrical_1d_mesh(MPI_Comm comm, real_t* rs, int N)
     mesh->face_cells = ARENA_REALLOC(mesh->arena, 
                                      mesh->face_cells,
                                      sizeof(int)*2*mesh->num_faces, 0);
-    mesh->face_cells[1]                   = mesh->num_cells-1; // +r face
+    mesh->face_cells[1]                   = mesh->num_cells-1; // +x face
     mesh->face_cells[2*mesh->num_faces-8] = mesh->num_cells-1; // -y face
     mesh->face_cells[2*mesh->num_faces-7] = -1;
     mesh->face_cells[2*mesh->num_faces-6] = mesh->num_cells-1; // +y face
@@ -324,8 +324,8 @@ mesh_t* create_nonuniform_cylindrical_1d_mesh(MPI_Comm comm, real_t* rs, int N)
   // sin(phi/2) = avg_dr/r.
   real_t dphi = 2.0*asin(avg_dr/rs[N-1]);
   real_t phi1 = -0.5*dphi, phi2 = 0.5*dphi;
-  int i0 = (rs[0] == 0.0) ? 1 : 0;
-  for (int i = i0; i < N+1; ++i)
+  int Nrad = (rs[0] == 0.0) ? N : N+1;
+  for (int i = 0; i < Nrad; ++i)
   {
     // The x coordinate already contains the radius.
     int n1 = cubic_lattice_node(lattice, i, 0, 0);

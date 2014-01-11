@@ -48,11 +48,11 @@ mesh_t* create_uniform_mesh(MPI_Comm comm, int nx, int ny, int nz, bbox_t* bbox)
   real_t* ys = malloc(sizeof(real_t) * (ny+1));
   real_t* zs = malloc(sizeof(real_t) * (nz+1));
   for (int i = 0; i <= nx; ++i)
-    xs[i] = i*dx;
+    xs[i] = bbox->x1 + i*dx;
   for (int i = 0; i <= ny; ++i)
-    ys[i] = i*dy;
+    ys[i] = bbox->y1 + i*dy;
   for (int i = 0; i <= nz; ++i)
-    zs[i] = i*dz;
+    zs[i] = bbox->z1 + i*dz;
 
   mesh_t* mesh = create_rectilinear_mesh(comm, xs, nx+1, ys, ny+1, zs, nz+1);
 
