@@ -319,12 +319,15 @@ void mesh_compute_geometry(mesh_t* mesh)
     int pos = 0, face;
     while (mesh_next_cell_face(mesh, cell, &pos, &face))
     {
+      ASSERT(face < mesh->num_faces);
       // NOTE: Only the primal cell of a face computes its center.
       if (cell == mesh->face_cells[2*face])
         mesh->face_centers[face].x = mesh->face_centers[face].y = mesh->face_centers[face].z = 0.0;
       int npos = 0, node;
       while (mesh_next_face_node(mesh, face, &npos, &node))
       {
+        ASSERT(node >= 0);
+        ASSERT(node < mesh->num_nodes);
         mesh->cell_centers[cell].x += mesh->nodes[node].x;
         mesh->cell_centers[cell].y += mesh->nodes[node].y;
         mesh->cell_centers[cell].z += mesh->nodes[node].z;
@@ -360,6 +363,8 @@ void mesh_compute_geometry(mesh_t* mesh)
       int epos = 0, edge;
       while (mesh_next_face_edge(mesh, face, &epos, &edge))
       {
+        ASSERT(edge >= 0);
+        ASSERT(edge < mesh->num_edges);
         // Construct a tetrahedron whose vertices are the cell center, 
         // the face center, and the two nodes of this edge. The volume 
         // of this tetrahedron contributes to the cell volume.

@@ -182,6 +182,14 @@ mesh_t* create_nonuniform_cylindrical_1d_mesh(MPI_Comm comm, real_t* rs, int N)
     mesh->cell_faces[total_num_cell_faces-2] = mesh->num_faces + 2; // -z
     mesh->cell_faces[total_num_cell_faces-1] = mesh->num_faces + 3; // +z
 
+    // Make sure we allocate the extra storage for cell volumes / centers.
+    mesh->cell_volumes = ARENA_REALLOC(mesh->arena, 
+                                       mesh->cell_volumes, 
+                                       sizeof(real_t)*mesh->num_cells, 0);
+    mesh->cell_centers = ARENA_REALLOC(mesh->arena, 
+                                       mesh->cell_centers, 
+                                       sizeof(point_t)*mesh->num_cells, 0);
+
     // Now add the 4 new faces, which introduce 2 new nodes and 5 new edges.
     // The -y/+y faces have 4 nodes/edges, and the -z/+z faces have 3.
     mesh->num_faces += 4;
@@ -261,6 +269,17 @@ mesh_t* create_nonuniform_cylindrical_1d_mesh(MPI_Comm comm, real_t* rs, int N)
     mesh->face_cells[2*mesh->num_faces-3] = -1;
     mesh->face_cells[2*mesh->num_faces-2] = mesh->num_cells-1; // +z face
     mesh->face_cells[2*mesh->num_faces-1] = -1;
+
+    // Make sure we allocate the extra storage for face centers/normals/areas.
+    mesh->face_centers = ARENA_REALLOC(mesh->arena, 
+                                       mesh->face_centers, 
+                                       sizeof(point_t)*mesh->num_faces, 0);
+    mesh->face_normals = ARENA_REALLOC(mesh->arena, 
+                                       mesh->face_normals, 
+                                       sizeof(vector_t)*mesh->num_faces, 0);
+    mesh->face_areas = ARENA_REALLOC(mesh->arena, 
+                                     mesh->face_areas, 
+                                     sizeof(real_t)*mesh->num_faces, 0);
 
     // Add the two new nodes.
     mesh->num_nodes += 2;
@@ -348,7 +367,7 @@ mesh_t* create_nonuniform_cylindrical_1d_mesh(MPI_Comm comm, real_t* rs, int N)
     mesh->nodes[n4].y = r * sin(phi2);
   }
   
-//  mesh_compute_geometry(mesh); // Memory error!
+  mesh_compute_geometry(mesh);
 
   // Add some symmetry-related features.
   mesh_add_feature(mesh, SYMMETRIC);
