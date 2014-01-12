@@ -31,6 +31,7 @@
 #include "core/write_silo.h"
 #include "geometry/interpreter_register_geometry_functions.h"
 #include "integrators/nonlinear_integrator.h"
+#include "integrators/polyhedron_integrator.h"
 #include "poisson/poisson_model.h"
 #include "poisson/poisson_bc.h"
 #include "poisson/interpreter_register_poisson_functions.h"
@@ -50,6 +51,15 @@ typedef struct
 
   string_ptr_unordered_map_t* bcs; // Boundary conditions.
   boundary_cell_map_t* boundary_cells; // Boundary cell info
+
+  // Here we store the fluxes between cells/points, and keep track of 
+  // which fluxes have already been computed.
+  double* fluxes;
+  bool* flux_computed;
+
+  // Quadrature rules -- regular and "special" (to accommodate symmetry).
+  polyhedron_integrator_t* poly_quad_rule;
+  int_ptr_unordered_map_t* special_quad_rules;
 
   // Nonlinear solver that integrates Poisson's equation.
   nonlinear_integrator_t* solver;
@@ -108,7 +118,73 @@ static void poisson_read_input(void* context, interpreter_t* interp, options_t* 
 
 static int fv_poisson_residual(N_Vector u, N_Vector F, void* context)
 {
-  // FIXME
+  poisson_t* p = context;
+
+  // We haven't computed any fluxes yet.
+  for (int face = 0; face < p->mesh->num_faces; ++face)
+    p->flux_computed[face] = false;
+
+  // Access the solution vector and the residual function.
+  real_t* udata = NV_DATA(u);
+  real_t* Fdata = NV_DATA(F);
+
+  // Loop over all the cells and compute the fluxes for each one.
+  for (int cell = 0; cell < p->mesh->num_cells; ++cell)
+  {
+    // Retrieve the quadrature rule for this cell.
+    polyhedron_integrator_t* quad_rule = p->poly_quad_rule;
+    polyhedron_integrator_t** special_rule = 
+      (polyhedron_integrator_t**)int_ptr_unordered_map_get(p->special_quad_rules, cell);
+    if (special_rule != NULL)
+      quad_rule = *special_rule;
+    else
+    {
+      // Set the integration domain for this polyhedron.
+      int num_faces = mesh_cell_num_faces(p->mesh, cell);
+      point_t* face_nodes[num_faces]; // FIXME
+      int num_face_nodes[num_faces]; // FIXME
+      polyhedron_integrator_set_domain(quad_rule, num_faces, 
+                                       face_nodes, num_face_nodes);
+    }
+
+    // Face fluxes.
+    int fpos = 0, face;
+    while (mesh_next_cell_face(p->mesh, cell, &fpos, &face))
+    {
+      // Skip fluxes that have already been computed.
+      if (p->flux_computed[face]) continue;
+
+      real_t face_flux = 0.0;
+
+      // Find a least-squares fit for the solution at this point.
+      // FIXME
+
+      // Go over the quadrature points in the face and compute the flux
+      // at each point, accumulating the integral in face_flux.
+      int qpos = 0;
+      point_t xq;
+      real_t wq;
+      while (polyhedron_integrator_next_surface_point(quad_rule, &qpos, &xq, &wq))
+      {
+        // FIXME       
+      }
+
+      p->fluxes[face] = face_flux;
+      p->flux_computed[face] = true;
+    }
+
+    // Source term (right hand side).
+    {
+      int qpos = 0;
+      point_t xq;
+      real_t wq;
+      while (polyhedron_integrator_next_volume_point(quad_rule, &qpos, &xq, &wq))
+      {
+        // FIXME
+      }
+    }
+  }
+
   return 0;
 }
 
@@ -170,6 +246,10 @@ static void poisson_init(void* context, real_t t)
                                           .dtor = NULL, 
                                           .graph = get_graph};
     p->solver = nonlinear_integrator_new("Poisson (FV)", p, MPI_COMM_WORLD, vtable, BICGSTAB, 5);
+
+    // Allocate storage for face fluxes.
+    p->fluxes = malloc(sizeof(real_t)*p->mesh->num_faces);
+    p->flux_computed = malloc(sizeof(bool)*p->mesh->num_faces);
   }
   else
   {

@@ -1,6 +1,6 @@
 add_library(polymec_integrators time_integrator.c nonlinear_integrator.c
-            gauss_rules.c sphere_integrator.c supermatrix_factory.c
-            div_free_poly_basis.c)
+            gauss_rules.c polyhedron_integrator.c sphere_integrator.c 
+            supermatrix_factory.c div_free_poly_basis.c)
 set(POLYMEC_LIBS polymec_integrators;${POLYMEC_LIBS} PARENT_SCOPE)
 set(POLYMEC_LIBS polymec_integrators;${POLYMEC_LIBS})
 
