@@ -128,6 +128,12 @@ static int fv_poisson_residual(N_Vector u, N_Vector F, void* context)
   real_t* udata = NV_DATA(u);
   real_t* Fdata = NV_DATA(F);
 
+  // Set up arrays for storing the nodes of faces attached to cells.
+  static const int max_num_faces_per_cell = 30;
+  static const int max_num_nodes_per_face = 30;
+  point_t face_nodes[max_num_faces_per_cell * max_num_nodes_per_face];
+  int face_node_offsets[max_num_faces_per_cell];
+
   // Loop over all the cells and compute the fluxes for each one.
   for (int cell = 0; cell < p->mesh->num_cells; ++cell)
   {
@@ -136,15 +142,30 @@ static int fv_poisson_residual(N_Vector u, N_Vector F, void* context)
     polyhedron_integrator_t** special_rule = 
       (polyhedron_integrator_t**)int_ptr_unordered_map_get(p->special_quad_rules, cell);
     if (special_rule != NULL)
+    {
+      // This cell is handled by a special quadrature (for symmetry or 
+      // special boundary conditions, for example).
       quad_rule = *special_rule;
+    }
     else
     {
-      // Set the integration domain for this polyhedron.
-      int num_faces = mesh_cell_num_faces(p->mesh, cell);
-      point_t* face_nodes[num_faces]; // FIXME
-      int num_face_nodes[num_faces]; // FIXME
-      polyhedron_integrator_set_domain(quad_rule, num_faces, 
-                                       face_nodes, num_face_nodes);
+      // Set the integration domain for this polyhedral cell.
+      int fpos = 0, face, num_faces = 0, fn_offset = 0;
+      while (mesh_next_cell_face(p->mesh, cell, &fpos, &face))
+      {
+        int npos = 0, node;
+        face_node_offsets[face] = fn_offset;
+        while (mesh_next_face_node(p->mesh, face, &npos, &node))
+        {
+          face_nodes[fn_offset] = p->mesh->nodes[node];
+          ++fn_offset;
+        }
+        ++num_faces;
+      }
+      face_node_offsets[num_faces] = fn_offset;
+
+      polyhedron_integrator_set_domain(quad_rule, face_nodes, 
+                                       face_node_offsets, num_faces);
     }
 
     // Face fluxes.
@@ -223,6 +244,17 @@ static void poisson_init(void* context, real_t t)
   {
     boundary_cell_map_free(p->boundary_cells);
     p->boundary_cells = NULL;
+  }
+
+  if (p->poly_quad_rule != NULL)
+  {
+    polyhedron_integrator_free(p->poly_quad_rule);
+    p->poly_quad_rule = NULL;
+  }
+
+  if (p->special_quad_rules != NULL)
+  {
+    int_ptr_unordered_map_free(p->special_quad_rules);
   }
 
   if (p->solver != NULL)

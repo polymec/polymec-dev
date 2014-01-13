@@ -26,21 +26,59 @@
 
 struct polyhedron_integrator_t 
 {
+  char* name;
+  void* context;
+  polyhedron_integrator_vtable vtable;
 };
 
-polyhedron_integrator_t* polyhedron_integrator_new()
+polyhedron_integrator_t* polyhedron_integrator_new(const char* name,
+                                                   void* context,
+                                                   polyhedron_integrator_vtable vtable)
+{
+  polyhedron_integrator_t* integ = malloc(sizeof(polyhedron_integrator_t));
+  integ->name = string_dup(name);
+  integ->context = context;
+  integ->vtable = vtable;
+  return integ;
+}
+
+polyhedron_integrator_t* faceted_polyhedron_integrator_new(int order)
+{
+  return NULL;
+}
+
+polyhedron_integrator_t* cyl_wedge_1d_polyhedron_integrator_new(int order)
+{
+  return NULL;
+}
+
+polyhedron_integrator_t* cyl_1d_polyhedron_integrator_new(int order)
+{
+  return NULL;
+}
+
+polyhedron_integrator_t* sph_spike_1d_polyhedron_integrator_new(int order)
+{
+  return NULL;
+}
+
+polyhedron_integrator_t* sph_1d_polyhedron_integrator_new(int order)
 {
   return NULL;
 }
 
 void polyhedron_integrator_free(polyhedron_integrator_t* integ)
 {
+  free(integ->name);
+  if ((integ->vtable.dtor != NULL) && (integ->context != NULL))
+    integ->vtable.dtor(integ->context);
+  free(integ);
 }
 
 void polyhedron_integrator_set_domain(polyhedron_integrator_t* integ,
-                                      int num_faces,
-                                      point_t** face_nodes,
-                                      int* num_face_nodes)
+                                      point_t* face_nodes,
+                                      int* face_node_offsets,
+                                      int num_faces)
 {
 }
 

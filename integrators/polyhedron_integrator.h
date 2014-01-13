@@ -32,18 +32,57 @@
 // volume integrals on a polyhedron.
 typedef struct polyhedron_integrator_t polyhedron_integrator_t;
 
-// Construct a new polyhedron integrator.
-polyhedron_integrator_t* polyhedron_integrator_new();
+// This virtual table allows the implementation of arbitrarily sophisticated 
+// quadrature rules for regions that are topologically polyhedrons.
+typedef struct
+{
+  // Computes points and weights when the nodes of faces are given.
+  void (*set_domain)(void* context, point_t* face_nodes, int* face_node_offsets, int num_faces);
+  
+  // Destroys the context pointer.
+  void (*dtor)(void* context);
+} polyhedron_integrator_vtable;
+
+// Constructs a generic polyhedron integrator that uses the provided 
+// functions to compute quadrature points and weights.
+polyhedron_integrator_t* polyhedron_integrator_new(const char* name,
+                                                   void* context,
+                                                   polyhedron_integrator_vtable vtable);
+
+// Constructs a new polyhedron integrator representing a faceted cell.
+// This will generate quadrature points and weights at the given 
+// polynomial order based on the assumption that faces are planar.
+polyhedron_integrator_t* faceted_polyhedron_integrator_new(int order);
+
+// Constructs a specialized quadrature rule for integrating over a wedge 
+// in the innermost cell of a 1D cylindrical mesh.
+polyhedron_integrator_t* cyl_wedge_1d_polyhedron_integrator_new(int order);
+
+// Constructs a specialized quadrature rule for integrating over a radial
+// cell in a 1D cylindrical mesh.
+polyhedron_integrator_t* cyl_1d_polyhedron_integrator_new(int order);
+
+// Constructs a specialized quadrature rule for integrating over a spike 
+// in the innermost cell of a 1D spherical mesh.
+polyhedron_integrator_t* sph_spike_1d_polyhedron_integrator_new(int order);
+
+// Constructs a specialized quadrature rule for integrating over a radial
+// cell in a 1D spherical mesh.
+polyhedron_integrator_t* sph_1d_polyhedron_integrator_new(int order);
 
 // Destroys the given polyhedron integrator.
 void polyhedron_integrator_free(polyhedron_integrator_t* integ);
 
 // Sets the polyhedral domain to be integrated in terms of a set of 
-// faces defined by nodes.
+// faces defined by nodes. The points representing the nodes of the 
+// faces are stored in compressed row storage (CRS) format, with the 
+// actual points in face_nodes and the index of the first point in face 
+// i in face_node_offsets_i. The face_node_offsets array is of length 
+// num_faces + 1.
 void polyhedron_integrator_set_domain(polyhedron_integrator_t* integ,
-                                      int num_faces,
-                                      point_t** face_nodes,
-                                      int* num_face_nodes);
+                                      point_t* face_nodes,
+                                      int* face_node_offsets,
+                                      int num_faces);
 
 // Traverses the quadrature points and weights of the rule for a 
 // volume integral.
