@@ -32,9 +32,9 @@ struct polynomial_fit_t
   void* context;
   polynomial_fit_vtable vtable;
   int num_comps;
-  int order;
   ls_weight_func_t* weight_func;
 
+  int degree;
   int point_index;
   int num_neighbors, max_num_neighbors;
   point_t* points;
@@ -44,24 +44,25 @@ struct polynomial_fit_t
   polynomial_t** polys;
 };
 
-polynomial_fit_t* polyhedron_integrator_new(const char* name,
-                                            void* context,
-                                            polynomial_fit_vtable vtable,
-                                            int num_comps,
-                                            int order,
-                                            ls_weight_func_t* weight_function)
+polynomial_fit_t* polynomial_fit_new(const char* name,
+                                     void* context,
+                                     polynomial_fit_vtable vtable,
+                                     int num_comps,
+                                     ls_weight_func_t* weight_function)
 {
   ASSERT(num_comps > 0);
-  ASSERT(order >= 0);
+  ASSERT(vtable.num_neighbors != NULL);
+  ASSERT(vtable.get_data != NULL);
+  ASSERT(vtable.targeted_degree != NULL);
 
   polynomial_fit_t* fit = malloc(sizeof(polynomial_fit_t));
   fit->name = string_dup(name);
   fit->context = context;
   fit->vtable = vtable;
   fit->num_comps = num_comps;
-  fit->order = order;
   fit->weight_func = weight_function;
 
+  fit->degree = -1;
   fit->point_index = -1;
   fit->num_neighbors = 0;
   fit->max_num_neighbors = 0;
@@ -128,6 +129,11 @@ void polynomial_fit_compute(polynomial_fit_t* fit, int point_index)
                        &point, point_values,
                        neighbor_points, neighbor_values);
 
+  // Determine the targeted degree for the number of neighbors.
+  fit->degree = fit->vtable.targeted_degree(fit->context, fit->num_neighbors);
+  int dim = polynomial_basis_dim(fit->degree);
+  ASSERT(dim >= fit->num_neighbors);
+
   // Organize the data.
   fit->points[0] = point;
   for (int c = 0; c < fit->num_comps; ++c)
@@ -140,20 +146,19 @@ void polynomial_fit_compute(polynomial_fit_t* fit, int point_index)
   }
 
   // Now perform the least-squares fit for each component.
-  int dim = polynomial_basis_dim(fit->order);
   real_t coeffs[dim], A[dim*dim];
   for (int c = 0; c < fit->num_comps; ++c)
   {
     // Construct the least-squares linear system.
     if (fit->weight_func != NULL)
     {
-      compute_weighted_poly_ls_system(fit->order, fit->weight_func, &fit->points[0],
+      compute_weighted_poly_ls_system(fit->degree, fit->weight_func, &fit->points[0],
                                       fit->points, fit->num_neighbors + 1, 
                                       fit->values[c], A, coeffs);
     }
     else
     {
-      compute_poly_ls_system(fit->order, &fit->points[0],
+      compute_poly_ls_system(fit->degree, &fit->points[0],
                              fit->points, fit->num_neighbors + 1, 
                              fit->values[c], A, coeffs);
     }
@@ -168,13 +173,18 @@ void polynomial_fit_compute(polynomial_fit_t* fit, int point_index)
 
     // Construct the polynomial for this component.
     if (fit->polys[c] == NULL)
-      fit->polys[c] = polynomial_new(fit->order, coeffs, &fit->points[0]);
+      fit->polys[c] = polynomial_new(fit->degree, coeffs, &fit->points[0]);
     else
     {
       memcpy(polynomial_coeffs(fit->polys[c]), coeffs, sizeof(real_t) * dim);
       *polynomial_x0(fit->polys[c]) = fit->points[0];
     }
   }
+}
+
+int polynomial_fit_degree(polynomial_fit_t* fit)
+{
+  return fit->degree;
 }
 
 void polynomial_fit_eval(polynomial_fit_t* fit, point_t* x, real_t* value)
@@ -192,5 +202,209 @@ void polynomial_fit_eval_deriv(polynomial_fit_t* fit,
 {
   for (int i = 0; i < fit->num_comps; ++i)
     deriv[i] = polynomial_deriv_value(fit->polys[i], x_deriv, y_deriv, z_deriv, x);
+}
+
+//------------------------------------------------------------------------
+//                Freebie polynomial fit constructors
+//------------------------------------------------------------------------
+
+// Cell-centered, fixed polynomial degree.
+typedef struct 
+{
+  mesh_t* mesh;
+  real_t* data;
+  int degree;
+} cc_fixed_degree_t;
+
+static int cc_fixed_degree_num_neighbors(void* context, int point_index)
+{
+  // FIXME
+  return 0;
+}
+
+static void cc_fixed_degree_get_data(void* context, int point_index,
+                                     point_t* point, real_t* point_value,
+                                     point_t* neighbor_points, real_t* neighbor_values)
+{
+  // FIXME
+}
+
+static int cc_fixed_degree_targeted_degree(void* context, int point_index)
+{
+  // FIXME
+  return 0;
+}
+
+polynomial_fit_t* cc_fixed_degree_polynomial_fit_new(int num_comps,
+                                                     ls_weight_func_t* weight_function,
+                                                     mesh_t* mesh,
+                                                     real_t* data,
+                                                     int degree)
+{
+  ASSERT(mesh != NULL);
+  ASSERT(data != NULL);
+  ASSERT(degree >= 0);
+
+  char name[1024];
+  snprintf(name, 1024, "cell-centered fixed degree (%d)", degree);
+  cc_fixed_degree_t* context = malloc(sizeof(cc_fixed_degree_t));
+  context->mesh = mesh;
+  context->data = data;
+  context->degree = degree;
+  polynomial_fit_vtable vtable = {.num_neighbors = cc_fixed_degree_num_neighbors,
+                                  .get_data = cc_fixed_degree_get_data,
+                                  .targeted_degree = cc_fixed_degree_targeted_degree};
+  return polynomial_fit_new(name, context, vtable, num_comps, weight_function);
+}
+
+// Cell-centered, variable polynomial degree.
+typedef struct 
+{
+  mesh_t* mesh;
+  real_t* data;
+  int depth;
+} cc_var_degree_t;
+
+static int cc_var_degree_num_neighbors(void* context, int point_index)
+{
+  // FIXME
+  return 0;
+}
+
+static void cc_var_degree_get_data(void* context, int point_index,
+                                   point_t* point, real_t* point_value,
+                                   point_t* neighbor_points, real_t* neighbor_values)
+{
+  // FIXME
+}
+
+static int cc_var_degree_targeted_degree(void* context, int point_index)
+{
+  // FIXME
+  return 0;
+}
+
+polynomial_fit_t* cc_variable_degree_polynomial_fit_new(int num_comps,
+                                                        ls_weight_func_t* weight_function,
+                                                        mesh_t* mesh,
+                                                        real_t* data,
+                                                        int neighbor_search_depth)
+{
+  ASSERT(mesh != NULL);
+  ASSERT(data != NULL);
+  ASSERT(neighbor_search_depth >= 1);
+
+  char name[1024];
+  snprintf(name, 1024, "cell-centered variable degree (depth %d)", neighbor_search_depth);
+  cc_var_degree_t* context = malloc(sizeof(cc_var_degree_t));
+  context->mesh = mesh;
+  context->data = data;
+  context->depth = neighbor_search_depth;
+  polynomial_fit_vtable vtable = {.num_neighbors = cc_var_degree_num_neighbors,
+                                  .get_data = cc_var_degree_get_data,
+                                  .targeted_degree = cc_var_degree_targeted_degree};
+  return polynomial_fit_new(name, context, vtable, num_comps, weight_function);
+}
+
+// Point cloud, fixed polynomial degree.
+typedef struct 
+{
+  point_cloud_t* points;
+  real_t* data;
+  int degree;
+} cloud_fixed_degree_t;
+
+static int cloud_fixed_degree_num_neighbors(void* context, int point_index)
+{
+  // FIXME
+  return 0;
+}
+
+static void cloud_fixed_degree_get_data(void* context, int point_index,
+                                        point_t* point, real_t* point_value,
+                                        point_t* neighbor_points, real_t* neighbor_values)
+{
+  // FIXME
+}
+
+static int cloud_fixed_degree_targeted_degree(void* context, int point_index)
+{
+  // FIXME
+  return 0;
+}
+
+polynomial_fit_t* point_cloud_fixed_degree_polynomial_fit_new(int num_comps,
+                                                              ls_weight_func_t* weight_function,
+                                                              point_cloud_t* points,
+                                                              point_cloud_neighbor_search_t* search,
+                                                              real_t* data,
+                                                              int degree)
+{
+  ASSERT(points != NULL);
+  ASSERT(search != NULL);
+  ASSERT(data != NULL);
+  ASSERT(degree >= 0);
+
+  char name[1024];
+  snprintf(name, 1024, "point cloud fixed degree (%d)", degree);
+  cloud_fixed_degree_t* context = malloc(sizeof(cloud_fixed_degree_t));
+  context->points = points;
+  context->data = data;
+  context->degree = degree;
+  polynomial_fit_vtable vtable = {.num_neighbors = cloud_fixed_degree_num_neighbors,
+                                  .get_data = cloud_fixed_degree_get_data,
+                                  .targeted_degree = cloud_fixed_degree_targeted_degree};
+  return polynomial_fit_new(name, context, vtable, num_comps, weight_function);
+}
+
+// Point cloud, variable polynomial degree.
+typedef struct 
+{
+  point_cloud_t* points;
+  real_t* data;
+  int depth;
+} cloud_var_degree_t;
+
+static int cloud_var_degree_num_neighbors(void* context, int point_index)
+{
+  // FIXME
+  return 0;
+}
+
+static void cloud_var_degree_get_data(void* context, int point_index,
+                                      point_t* point, real_t* point_value,
+                                      point_t* neighbor_points, real_t* neighbor_values)
+{
+  // FIXME
+}
+
+static int cloud_var_degree_targeted_degree(void* context, int point_index)
+{
+  // FIXME
+  return 0;
+}
+
+polynomial_fit_t* point_cloud_variable_degree_polynomial_fit_new(int num_comps,
+                                                                 ls_weight_func_t* weight_function,
+                                                                 point_cloud_t* points,
+                                                                 point_cloud_neighbor_search_t* search,
+                                                                 real_t* data,
+                                                                 int neighbor_search_depth)
+{
+  ASSERT(points != NULL);
+  ASSERT(search != NULL);
+  ASSERT(data != NULL);
+  ASSERT(neighbor_search_depth >= 1);
+
+  char name[1024];
+  snprintf(name, 1024, "point cloud variable degree (depth = %d)", neighbor_search_depth);
+  cloud_var_degree_t* context = malloc(sizeof(cloud_var_degree_t));
+  context->points = points;
+  context->data = data;
+  context->depth = neighbor_search_depth;
+  polynomial_fit_vtable vtable = {.num_neighbors = cloud_var_degree_num_neighbors,
+                                  .get_data = cloud_var_degree_get_data,
+                                  .targeted_degree = cloud_var_degree_targeted_degree};
+  return polynomial_fit_new(name, context, vtable, num_comps, weight_function);
 }
 

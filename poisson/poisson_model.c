@@ -32,6 +32,7 @@
 #include "integrators/nonlinear_integrator.h"
 #include "integrators/polyhedron_integrator.h"
 #include "model/boundary_cell_map.h"
+#include "model/polynomial_fit.h"
 #include "poisson/poisson_model.h"
 #include "poisson/poisson_bc.h"
 
@@ -60,6 +61,9 @@ typedef struct
   // which fluxes have already been computed.
   double* fluxes;
   bool* flux_computed;
+
+  // Polynomial fit.
+  polynomial_fit_t* poly_fit;
 
   // Quadrature rules -- regular and "special" (to accommodate symmetry).
   polyhedron_integrator_t* poly_quad_rule;
@@ -182,7 +186,7 @@ static int fv_poisson_residual(N_Vector u, N_Vector F, void* context)
       real_t face_flux = 0.0;
 
       // Find a least-squares fit for the solution at this point.
-      // FIXME
+      polynomial_fit_compute(p->poly_fit, cell);
 
       // Go over the quadrature points in the face and compute the flux
       // at each point, accumulating the integral in face_flux.
@@ -405,6 +409,8 @@ static void poisson_dtor(void* context)
     mesh_free(p->mesh);
   else if (p->point_cloud != NULL)
     point_cloud_free(p->point_cloud);
+  if (p->poly_fit != NULL)
+    polynomial_fit_free(p->poly_fit);
 
   if (p->phi != NULL)
     free(p->phi);

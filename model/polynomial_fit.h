@@ -28,6 +28,8 @@
 #include "core/polymec.h"
 #include "core/point.h"
 #include "core/least_squares.h"
+#include "core/mesh.h"
+#include "core/point_cloud.h"
 
 // This type represents a mechanism for generating least-squares polynomial 
 // fits for multi-component quantities on discrete domains.
@@ -49,18 +51,56 @@ typedef struct
                    point_t* point, real_t* point_value,
                    point_t* neighbor_points, real_t* neighbor_values); 
 
+  // Returns the targeted degree of accuracy for the polynomial fit, given 
+  // a number of neighbors. This method effectively determines how aggressively
+  // a polynomial fit will pursue higher-order approximations to the solution.
+  int (*targeted_degree)(void* context, int num_neighbors);
+
   // Destroys the context pointer.
   void (*dtor)(void* context);
 } polynomial_fit_vtable;
 
 // Constructs a generic polynomial fit that uses the provided functions to 
 // compute fits on discrete domains.
-polynomial_fit_t* polyhedron_integrator_new(const char* name,
-                                            void* context,
-                                            polynomial_fit_vtable vtable,
-                                            int num_comps,
-                                            int order,
-                                            ls_weight_func_t* weight_function);
+polynomial_fit_t* polynomial_fit_new(const char* name,
+                                     void* context,
+                                     polynomial_fit_vtable vtable,
+                                     int num_comps,
+                                     ls_weight_func_t* weight_function);
+
+// Creates a polynomial fit that fits cell-centered data on a mesh at the 
+// given degree.
+polynomial_fit_t* cc_fixed_degree_polynomial_fit_new(int num_comps,
+                                                     ls_weight_func_t* weight_function,
+                                                     mesh_t* mesh,
+                                                     real_t* data,
+                                                     int degree);
+
+// Creates a polynomial fit that fits cell-centered data on a mesh at a 
+// variable degree based on the number of neighbors it finds within a given 
+// "depth."
+polynomial_fit_t* cc_variable_degree_polynomial_fit_new(int num_comps,
+                                                        ls_weight_func_t* weight_function,
+                                                        mesh_t* mesh,
+                                                        real_t* data,
+                                                        int neighbor_search_depth);
+
+// Creates a polynomial fit that fits point cloud data at the given degree.
+polynomial_fit_t* point_cloud_fixed_degree_polynomial_fit_new(int num_comps,
+                                                              ls_weight_func_t* weight_function,
+                                                              point_cloud_t* points,
+                                                              point_cloud_neighbor_search_t* search,
+                                                              real_t* data,
+                                                              int degree);
+
+// Creates a polynomial fit that fits point cloud data at a variable degree 
+// based on the number of neighbors it finds within a given "depth."
+polynomial_fit_t* point_cloud_variable_degree_polynomial_fit_new(int num_comps,
+                                                                 ls_weight_func_t* weight_function,
+                                                                 point_cloud_t* points,
+                                                                 point_cloud_neighbor_search_t* search,
+                                                                 real_t* data,
+                                                                 int neighbor_search_depth);
 
 // Destroys the given polynomial fit.
 void polynomial_fit_free(polynomial_fit_t* fit);
@@ -74,6 +114,10 @@ int polynomial_fit_num_comps(polynomial_fit_t* fit);
 // abstract discrete domain, as long as neighbor relationships are defined 
 // for points.
 void polynomial_fit_compute(polynomial_fit_t* fit, int point_index);
+
+// Returns the degree of the present polynomial fit. Returns -1 if no fit 
+// has yet been computed.
+int polynomial_fit_degree(polynomial_fit_t* fit);
 
 // Evaluate the computed polynomial fit at the given point in space.
 void polynomial_fit_eval(polynomial_fit_t* fit, point_t* x, real_t* value);
