@@ -27,6 +27,7 @@
 
 #include "core/polymec.h"
 #include "core/point.h"
+#include "core/least_squares.h"
 
 // This type represents a mechanism for generating least-squares polynomial 
 // fits for multi-component quantities on discrete domains.
@@ -38,11 +39,15 @@ typedef struct
   // Gets the number of neighbors associated with the point at the given index.
   int (*num_neighbors)(void* context, int point_index);
 
-  // Retrieves the values of the polynomial components at points in the 
-  // vicinity of the point with the given index. The values at the neighbors
-  // are stored in the neighbor_values array in neighbor-major, component-minor order.
-  void (*retrieve_neighbor_values)(void* context, int point_index,
-                                   int* neighbor_indices, real_t* neighbor_values);                                                               
+  // Retrieves the indices and values of the polynomial components at points 
+  // in the vicinity of the point with the given index. The component values 
+  // at the desired point are placed into the array point_values. The indices 
+  // of the neighbors are stored in the array neighbor_indices, and the 
+  // values at the neighbors are stored in the neighbor_values array in 
+  // neighbor-major, component-minor order.
+  void (*get_data)(void* context, int point_index, 
+                   point_t* point, real_t* point_value,
+                   point_t* neighbor_points, real_t* neighbor_values); 
 
   // Destroys the context pointer.
   void (*dtor)(void* context);
@@ -53,7 +58,9 @@ typedef struct
 polynomial_fit_t* polyhedron_integrator_new(const char* name,
                                             void* context,
                                             polynomial_fit_vtable vtable,
-                                            int num_comps);
+                                            int num_comps,
+                                            int order,
+                                            ls_weight_func_t* weight_function);
 
 // Destroys the given polynomial fit.
 void polynomial_fit_free(polynomial_fit_t* fit);
