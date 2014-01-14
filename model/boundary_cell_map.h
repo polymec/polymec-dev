@@ -26,8 +26,8 @@
 #define POLYMEC_BOUNDARY_CELL_MAP_H
 
 #include "core/mesh.h"
-#include "core/periodic_bc.h"
 #include "core/unordered_map.h"
+#include "model/periodic_bc.h"
 
 // This data structure provides metadata for cells that touch the boundary 
 // of a domain.

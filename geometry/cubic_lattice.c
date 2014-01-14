@@ -23,7 +23,8 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "core/polymec.h"
-#include "core/cubic_lattice.h"
+#include "core/mesh.h"
+#include "geometry/cubic_lattice.h"
 #include <gc/gc.h>
 
 cubic_lattice_t* cubic_lattice_new(int nx, int ny, int nz)
@@ -101,6 +102,7 @@ static int_int_unordered_map_t* cubic_lattice_generate_z_periodic_map(void* cont
   return map;
 }
 
+#if 0
 periodic_bc_t* cubic_lattice_x_periodic_bc_new(const char* tag1, const char* tag2)
 {
   return periodic_bc_new_with_map_func(tag1, tag2, cubic_lattice_generate_x_periodic_map, NULL);
@@ -115,4 +117,5 @@ periodic_bc_t* cubic_lattice_z_periodic_bc_new(const char* tag1, const char* tag
 {
   return periodic_bc_new_with_map_func(tag1, tag2, cubic_lattice_generate_z_periodic_map, NULL);
 }
+#endif
 

@@ -31,7 +31,6 @@
 #include "core/polymec.h"
 #include "core/polymec_version.h"
 #include "core/options.h"
-#include "core/model.h"
 
 // C99 support for floating point environment.
 #include <fenv.h>

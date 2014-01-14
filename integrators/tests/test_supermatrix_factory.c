@@ -31,8 +31,8 @@
 
 #include "cmockery.h"
 #include "core/polymec.h"
-#include "core/create_uniform_mesh.h"
 #include "core/array_utils.h"
+#include "geometry/create_uniform_mesh.h"
 #include "integrators/supermatrix_factory.h"
 
 static adj_graph_t* graph_from_uniform_mesh()

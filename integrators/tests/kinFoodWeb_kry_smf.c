@@ -112,9 +112,9 @@
 #include <sundials/sundials_types.h>
 #include <sundials/sundials_math.h>
 
-#include "supermatrix_factory.h"
+#include "integrators/supermatrix_factory.h"
 #include "core/point.h"
-#include "core/create_uniform_mesh.h"
+#include "geometry/create_uniform_mesh.h"
 
 
 /* Problem Constants */

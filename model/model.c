@@ -23,11 +23,11 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "core/polymec.h"
-#include "core/model.h"
 #include "core/unordered_map.h"
 #include "core/options.h"
 #include "core/array.h"
 #include "core/array_utils.h"
+#include "model/model.h"
 
 // Benchmark metadatum.
 typedef struct

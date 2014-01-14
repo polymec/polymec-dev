@@ -24,7 +24,6 @@
 
 #include "core/interpreter.h"
 #include "core/unordered_set.h"
-#include "core/boundary_cell_map.h"
 
 // Lua stuff.
 #include "lua.h"

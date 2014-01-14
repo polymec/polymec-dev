@@ -22,7 +22,7 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "core/boundary_cell_map.h"
+#include "model/boundary_cell_map.h"
 
 // Constructor for the boundary cell.
 static boundary_cell_t* create_boundary_cell()

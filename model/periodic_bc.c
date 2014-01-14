@@ -23,9 +23,9 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <gc/gc.h>
-#include "core/periodic_bc.h"
 #include "core/point.h"
 #include "core/unordered_set.h"
+#include "model/periodic_bc.h"
 
 static const int periodic_bc_magic_number = 123652234;
 

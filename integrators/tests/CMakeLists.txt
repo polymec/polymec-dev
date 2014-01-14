@@ -8,3 +8,6 @@ add_polymec_test(test_supermatrix_factory test_supermatrix_factory.c)
 add_polymec_test(test_div_free_poly_basis test_div_free_poly_basis.c)
 add_polymec_test(test_sphere_integrator test_sphere_integrator.c)
 
+add_polymec_executable(kinsol-foodweb kinFoodWeb_kry.c)
+add_polymec_executable(kinsol-foodweb-smf kinFoodWeb_kry_smf.c)
+

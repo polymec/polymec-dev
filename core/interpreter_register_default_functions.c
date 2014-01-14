@@ -24,7 +24,6 @@
 
 #include "core/interpreter.h"
 #include "core/st_func.h"
-#include "core/periodic_bc.h"
 #include "core/write_silo.h"
 
 // Lua stuff.
@@ -173,27 +172,6 @@ static int vector_function(lua_State* lua)
   for (int i = 1; i <= 3; ++i)
     functions[i-1] = lua_toscalarfunction(lua, i);
   lua_pushvectorfunction(lua, multicomp_st_func_from_funcs("vector function", functions, 3));
-  return 1;
-}
-
-// Creates a periodic boundary condition from a pair of tags.
-static int periodic_bc(lua_State* lua)
-{
-  // Check the argument.
-  int num_args = lua_gettop(lua);
-  if (num_args != 2)
-    return luaL_error(lua, "Arguments must be 2 boundary mesh (face) tags.");
-
-  for (int i = 1; i <= 3; ++i)
-  {
-    if (!lua_isstring(lua, i))
-      return luaL_error(lua, "Argument %d must be a face tag.", i);
-  }
-
-  const char* tag1 = lua_tostring(lua, 1);
-  const char* tag2 = lua_tostring(lua, 2);
-  periodic_bc_t* bc = periodic_bc_new(tag1, tag2);
-  lua_pushuserdefined(lua, bc, NULL);
   return 1;
 }
 
@@ -876,7 +854,6 @@ void interpreter_register_default_functions(interpreter_t* interp)
   interpreter_register_function(interp, "bounding_box", bounding_box);
   interpreter_register_function(interp, "constant_function", constant_function);
   interpreter_register_function(interp, "vector_function", vector_function);
-  interpreter_register_function(interp, "periodic_bc", periodic_bc);
   interpreter_register_function(interp, "grad", grad);
   interpreter_register_function(interp, "write_silo_mesh", lua_write_silo_mesh);
   interpreter_register_function(interp, "write_silo_points", lua_write_silo_points);

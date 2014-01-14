@@ -7,10 +7,6 @@ set(POLYMEC_LIBS polymec_integrators;${POLYMEC_LIBS})
 # Executable.
 include(add_polymec_executable)
 
-add_polymec_executable(kinsol-foodweb kinFoodWeb_kry.c)
-
-add_polymec_executable(kinsol-foodweb-smf kinFoodWeb_kry_smf.c)
-
 add_subdirectory(tests)
 
 install(TARGETS polymec_integrators DESTINATION lib)

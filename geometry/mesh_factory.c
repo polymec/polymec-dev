@@ -33,9 +33,8 @@
 #include "core/interpreter.h"
 #include "core/unordered_map.h"
 #include "core/tuple.h"
-//#include "core/periodic_bc.h"
-#include "core/create_uniform_mesh.h"
-#include "core/create_rectilinear_mesh.h"
+#include "geometry/create_uniform_mesh.h"
+#include "geometry/create_rectilinear_mesh.h"
 #include "geometry/create_boundary_generators.h"
 #include "geometry/rect_prism.h"
 

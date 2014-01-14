@@ -28,7 +28,7 @@
 #include <string.h>
 #include "cmockery.h"
 #include "core/write_silo.h"
-#include "core/create_uniform_mesh.h"
+#include "geometry/create_uniform_mesh.h"
 #include "polytope_c.h"
 
 void test_create_uniform_mesh(void** state)

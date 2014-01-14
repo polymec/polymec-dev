@@ -26,7 +26,6 @@
 #define POLYMEC_CUBIC_LATTICE_H
 
 #include "core/unordered_map.h"
-#include "core/periodic_bc.h"
 
 // This class defines an indexing scheme for a cubic lattice.
 // Objects of this type are garbage-collected.
@@ -157,6 +156,7 @@ static inline int cubic_lattice_node(cubic_lattice_t* l, int i, int j, int k)
 // These functions can be used to generate mappings between faces on cubic 
 // lattice meshes with periodic boundary conditions. 
 
+#if 0
 // Creates a periodic boundary condition, identifying x-faces with the given tags.
 periodic_bc_t* cubic_lattice_x_periodic_bc_new(const char* tag1, const char* tag2);
 
@@ -165,6 +165,7 @@ periodic_bc_t* cubic_lattice_y_periodic_bc_new(const char* tag1, const char* tag
 
 // Creates a periodic boundary condition, identifying z-faces with the given tags.
 periodic_bc_t* cubic_lattice_z_periodic_bc_new(const char* tag1, const char* tag2);
+#endif
 
 #endif
 

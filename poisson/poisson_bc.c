@@ -23,9 +23,9 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <gc/gc.h>
-#include "poisson/poisson_bc.h"
 #include "core/st_func.h"
-#include "core/periodic_bc.h"
+#include "model/periodic_bc.h"
+#include "poisson/poisson_bc.h"
 
 static void poisson_bc_free(void* bc, void* dummy)
 {

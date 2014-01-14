@@ -25,8 +25,8 @@
 #ifndef POLYMEC_POISSON_H
 #define POLYMEC_POISSON_H
 
-#include "core/model.h"
 #include "core/point_cloud.h"
+#include "model/model.h"
 
 // Creates a Poisson model using the given options.
 model_t* poisson_model_new(options_t* options);

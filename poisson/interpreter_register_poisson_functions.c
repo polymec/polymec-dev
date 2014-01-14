@@ -22,7 +22,8 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "poisson/interpreter_register_poisson_functions.h"
+#include "core/interpreter.h"
+#include "poisson/poisson_bc.h"
 
 // Lua stuff.
 #include "lua.h"

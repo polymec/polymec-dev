@@ -22,9 +22,9 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "core/polynomial_fit.h"
 #include "core/polynomial.h"
 #include "core/linear_algebra.h"
+#include "model/polynomial_fit.h"
 
 struct polynomial_fit_t 
 {

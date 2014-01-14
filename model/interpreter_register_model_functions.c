@@ -22,45 +22,36 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "core/unordered_set.h"
-#include "core/create_uniform_mesh.h"
-#include "core/cubic_lattice.h"
+#include "core/interpreter.h"
+#include "model/periodic_bc.h"
 
-mesh_t* create_uniform_mesh(MPI_Comm comm, int nx, int ny, int nz, bbox_t* bbox)
+// Lua stuff.
+#include "lua.h"
+#include "lualib.h"
+#include "lauxlib.h"
+
+// Creates a periodic boundary condition from a pair of tags.
+static int periodic_bc(lua_State* lua)
 {
-  ASSERT(nx > 0);
-  ASSERT(ny > 0);
-  ASSERT(nz > 0);
-  ASSERT(bbox != NULL);
+  // Check the argument.
+  int num_args = lua_gettop(lua);
+  if (num_args != 2)
+    return luaL_error(lua, "Arguments must be 2 boundary mesh (face) tags.");
 
-  ASSERT(bbox->x2 > bbox->x1);
-  ASSERT(bbox->y2 > bbox->y1);
-  ASSERT(bbox->z2 > bbox->z1);
+  for (int i = 1; i <= 3; ++i)
+  {
+    if (!lua_isstring(lua, i))
+      return luaL_error(lua, "Argument %d must be a face tag.", i);
+  }
 
-  // Grid spacings.
-  real_t Lx = bbox->x2 - bbox->x1;
-  real_t Ly = bbox->y2 - bbox->y1;
-  real_t Lz = bbox->z2 - bbox->z1;
-  real_t dx = Lx/nx, dy = Ly/ny, dz = Lz/nz;
-
-  // Create a uniform rectilinear mesh!
-  real_t* xs = malloc(sizeof(real_t) * (nx+1));
-  real_t* ys = malloc(sizeof(real_t) * (ny+1));
-  real_t* zs = malloc(sizeof(real_t) * (nz+1));
-  for (int i = 0; i <= nx; ++i)
-    xs[i] = bbox->x1 + i*dx;
-  for (int i = 0; i <= ny; ++i)
-    ys[i] = bbox->y1 + i*dy;
-  for (int i = 0; i <= nz; ++i)
-    zs[i] = bbox->z1 + i*dz;
-
-  mesh_t* mesh = create_rectilinear_mesh(comm, xs, nx+1, ys, ny+1, zs, nz+1);
-
-  // Clean up.
-  free(zs);
-  free(ys);
-  free(xs);
-
-  return mesh;
+  const char* tag1 = lua_tostring(lua, 1);
+  const char* tag2 = lua_tostring(lua, 2);
+  periodic_bc_t* bc = periodic_bc_new(tag1, tag2);
+  lua_pushuserdefined(lua, bc, NULL);
+  return 1;
 }
 
+void interpreter_register_model_functions(interpreter_t* interp)
+{
+  interpreter_register_function(interp, "periodic_bc", periodic_bc);
+}

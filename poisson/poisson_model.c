@@ -27,15 +27,19 @@
 #include "core/point_cloud.h"
 #include "core/least_squares.h"
 #include "core/linear_algebra.h"
-#include "core/boundary_cell_map.h"
 #include "core/write_silo.h"
 #include "geometry/interpreter_register_geometry_functions.h"
 #include "integrators/nonlinear_integrator.h"
 #include "integrators/polyhedron_integrator.h"
+#include "model/boundary_cell_map.h"
 #include "poisson/poisson_model.h"
 #include "poisson/poisson_bc.h"
-#include "poisson/interpreter_register_poisson_functions.h"
-#include "poisson/register_poisson_benchmarks.h"
+
+// Equips the given interpreter with functions specific to the Poisson model.
+extern void interpreter_register_poisson_functions(interpreter_t* interpreter);
+
+// Registers the benchmarks for the Poisson model.
+extern void register_poisson_benchmarks(model_t* model);
 
 // Poisson model structure.
 typedef struct 

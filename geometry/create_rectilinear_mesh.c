@@ -24,8 +24,8 @@
 
 #include "core/unordered_set.h"
 #include "core/table.h"
-#include "core/create_rectilinear_mesh.h"
-#include "core/cubic_lattice.h"
+#include "geometry/create_rectilinear_mesh.h"
+#include "geometry/cubic_lattice.h"
 
 mesh_t* create_rectilinear_mesh(MPI_Comm comm, 
                                 real_t* xs, int nxs, 

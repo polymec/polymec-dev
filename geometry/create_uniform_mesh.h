@@ -22,12 +22,16 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef POLYMEC_REGISTER_POISSON_BENCHMARKS_H
-#define POLYMEC_REGISTER_POISSON_BENCHMARKS_H
+#ifndef POLYMEC_CREATE_UNIFORM_MESH_H
+#define POLYMEC_CREATE_UNIFORM_MESH_H
 
-#include "core/model.h"
+#include "core/point.h"
+#include "core/mesh.h"
+#include "geometry/create_rectilinear_mesh.h"
 
-// Registers all the poisson benchmarks with the model.
-void register_poisson_benchmarks(model_t* model);
+// This function creates and returns a uniform mesh of nx x ny x nz cells. 
+// The mesh spans the rectangular region of space defined by the bounding box.
+mesh_t* create_uniform_mesh(MPI_Comm comm, int nx, int ny, int nz, bbox_t* bbox);
 
 #endif
+

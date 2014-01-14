@@ -22,13 +22,46 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef POLYMEC_INTERPRETER_REGISTER_POISSON_FUNCTIONS_H
-#define POLYMEC_INTERPRETER_REGISTER_POISSON_FUNCTIONS_H
+#include "core/unordered_set.h"
+#include "geometry/create_uniform_mesh.h"
+#include "geometry/create_rectilinear_mesh.h"
+#include "geometry/cubic_lattice.h"
 
-#include "core/interpreter.h"
-#include "poisson/poisson_bc.h"
+mesh_t* create_uniform_mesh(MPI_Comm comm, int nx, int ny, int nz, bbox_t* bbox)
+{
+  ASSERT(nx > 0);
+  ASSERT(ny > 0);
+  ASSERT(nz > 0);
+  ASSERT(bbox != NULL);
 
-// Equips the given interpreter with functions specific to the Poisson model.
-void interpreter_register_poisson_functions(interpreter_t* interpreter);
+  ASSERT(bbox->x2 > bbox->x1);
+  ASSERT(bbox->y2 > bbox->y1);
+  ASSERT(bbox->z2 > bbox->z1);
 
-#endif
+  // Grid spacings.
+  real_t Lx = bbox->x2 - bbox->x1;
+  real_t Ly = bbox->y2 - bbox->y1;
+  real_t Lz = bbox->z2 - bbox->z1;
+  real_t dx = Lx/nx, dy = Ly/ny, dz = Lz/nz;
+
+  // Create a uniform rectilinear mesh!
+  real_t* xs = malloc(sizeof(real_t) * (nx+1));
+  real_t* ys = malloc(sizeof(real_t) * (ny+1));
+  real_t* zs = malloc(sizeof(real_t) * (nz+1));
+  for (int i = 0; i <= nx; ++i)
+    xs[i] = bbox->x1 + i*dx;
+  for (int i = 0; i <= ny; ++i)
+    ys[i] = bbox->y1 + i*dy;
+  for (int i = 0; i <= nz; ++i)
+    zs[i] = bbox->z1 + i*dz;
+
+  mesh_t* mesh = create_rectilinear_mesh(comm, xs, nx+1, ys, ny+1, zs, nz+1);
+
+  // Clean up.
+  free(zs);
+  free(ys);
+  free(xs);
+
+  return mesh;
+}
+

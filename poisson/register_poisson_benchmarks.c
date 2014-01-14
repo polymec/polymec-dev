@@ -25,12 +25,10 @@
 #include <string.h>
 #include <strings.h>
 #include "core/unordered_map.h"
-#include "core/create_uniform_mesh.h"
 #include "core/least_squares.h"
+#include "geometry/create_uniform_mesh.h"
 #include "poisson/poisson_model.h"
 #include "poisson/poisson_bc.h"
-#include "poisson/interpreter_register_poisson_functions.h"
-#include "poisson/register_poisson_benchmarks.h"
 
 typedef enum
 {

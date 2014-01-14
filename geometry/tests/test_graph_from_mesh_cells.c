@@ -27,7 +27,7 @@
 #include <setjmp.h>
 #include <string.h>
 #include "cmockery.h"
-#include "core/create_uniform_mesh.h"
+#include "geometry/create_uniform_mesh.h"
 
 static adj_graph_t* graph_from_uniform_mesh()
 {

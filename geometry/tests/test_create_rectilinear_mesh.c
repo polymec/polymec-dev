@@ -28,7 +28,7 @@
 #include <string.h>
 #include "cmockery.h"
 #include "core/write_silo.h"
-#include "core/create_rectilinear_mesh.h"
+#include "geometry/create_rectilinear_mesh.h"
 #include "polytope_c.h"
 
 void test_create_rectilinear_mesh(void** state)
