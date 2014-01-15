@@ -38,7 +38,7 @@
 #include "geometry/create_boundary_generators.h"
 #include "geometry/rect_prism.h"
 
-#ifdef POLYMEC_HAVE_TETGEN
+#if POLYMEC_HAVE_TETGEN
 #include "geometry/create_voronoi_mesh.h"
 //#include "geometry/create_cvt_with_lloyd_iteration.h"
 #endif
@@ -190,7 +190,7 @@ static void free_string(char* str)
   free(str);
 }
 
-#ifdef POLYMEC_HAVE_TETGEN
+#if POLYMEC_HAVE_TETGEN
 int mesh_factory_voronoi(lua_State* lua)
 {
   // Check the arguments.

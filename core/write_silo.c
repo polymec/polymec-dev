@@ -191,7 +191,7 @@ void write_silo_mesh(mesh_t* mesh,
   polytope_tessellation_free(tess);
 }
 
-#if HAVE_MPI
+#if POLYMEC_HAVE_MPI
 static void* pmpio_create_file(const char* filename,
                                const char* dir_name,
                                void* userData)
@@ -255,7 +255,7 @@ void write_silo_points(point_t* points,
 
   // Open a file in Silo/HDF5 format for writing.
   char filename[1024];
-#if HAVE_MPI
+#if POLYMEC_HAVE_MPI
   int nproc = 1, rank = 0;
   MPI_Comm_size(comm, &nproc);
   MPI_Comm_rank(comm, &rank);
@@ -383,7 +383,7 @@ void write_silo_points(point_t* points,
   // Clean up.
   DBFreeOptlist(optlist);
 
-#if HAVE_MPI
+#if POLYMEC_HAVE_MPI
   // Write the multi-block objects to the file if needed.
   int num_chunks = nproc / num_files;
   int num_fields = fields->size;

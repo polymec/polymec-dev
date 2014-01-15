@@ -57,7 +57,7 @@ extern int spherical_1d_uniform(lua_State* lua);
 extern int spherical_1d_logarithmic(lua_State* lua);
 extern int spherical_1d_nonuniform(lua_State* lua);
 
-#ifdef POLYMEC_HAVE_TETGEN
+#if POLYMEC_HAVE_TETGEN
 // Functions for the mesh factory, which generates meshes.
 extern int mesh_factory_voronoi(lua_State* lua);
 //extern int mesh_factory_cvt(lua_State* lua);
@@ -576,7 +576,7 @@ void interpreter_register_geometry_functions(interpreter_t* interp)
   interpreter_register_global_table(interp, "mesh_factory");
   interpreter_register_global_method(interp, "mesh_factory", "uniform", mesh_factory_uniform);
   interpreter_register_global_method(interp, "mesh_factory", "rectilinear", mesh_factory_rectilinear);
-#ifdef POLYMEC_HAVE_TETGEN
+#if POLYMEC_HAVE_TETGEN
   interpreter_register_global_method(interp, "mesh_factory", "voronoi", mesh_factory_voronoi);
 //  interpreter_register_global_method(interp, "mesh_factory", "cvt", mesh_factory_cvt);
 #endif

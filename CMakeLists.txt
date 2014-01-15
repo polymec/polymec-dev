@@ -145,10 +145,8 @@ install(FILES ${CMAKE_CURRENT_BINARY_DIR}/polymec.cmake DESTINATION share/polyme
 # Also copy add_polymec_executable.cmake into the shared directory.
 install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/cmake/Modules/add_polymec_executable.cmake DESTINATION share/polymec)
 
-# Mesher -- enabled if tetgen is present.
-if (${HAVE_TETGEN})
-  add_subdirectory(polymesher)
-endif()
+# Mesher.
+add_subdirectory(polymesher)
 
 # Models.
 

@@ -27,7 +27,7 @@
 
 #include "mpi.h"
 
-#if HAVE_MPI
+#if POLYMEC_HAVE_MPI
 #include "nvector/nvector_parallel.h"
 #else
 #include "nvector/nvector_serial.h"
@@ -36,7 +36,7 @@
 
 // These macros and functions help with creating and manipulating serial 
 // and parallel N_Vector objects.
-#if HAVE_MPI
+#if POLYMEC_HAVE_MPI
 #define NV_DATA(v) NV_DATA_P(v)
 #define NV_LOCLENGTH(v) NV_LOCLENGTH_P(v)
 #define NV_GLOBLENGTH(v) NV_GLOBLENGTH_P(v)
@@ -50,7 +50,7 @@
 
 static inline N_Vector N_VNew(MPI_Comm comm, int local_len)
 {
-#if HAVE_MPI
+#if POLYMEC_HAVE_MPI
   int global_len;
   MPI_Allreduce(&local_len, &global_len, 1, MPI_INT, MPI_SUM, comm);
   return N_VNew_Parallel(comm, local_len, global_len);
@@ -61,7 +61,7 @@ static inline N_Vector N_VNew(MPI_Comm comm, int local_len)
 
 static inline N_Vector N_VNewEmpty(MPI_Comm comm, int local_len)
 {
-#if HAVE_MPI
+#if POLYMEC_HAVE_MPI
   int global_len;
   MPI_Allreduce(&local_len, &global_len, 1, MPI_INT, MPI_SUM, comm);
   return N_VNewEmpty_Parallel(comm, local_len, global_len);
@@ -72,7 +72,7 @@ static inline N_Vector N_VNewEmpty(MPI_Comm comm, int local_len)
 
 static inline N_Vector N_VMake(MPI_Comm comm, int local_len, real_t* v_data)
 {
-#if HAVE_MPI
+#if POLYMEC_HAVE_MPI
   int global_len;
   MPI_Allreduce(&local_len, &global_len, 1, MPI_INT, MPI_SUM, comm);
   return N_VMake_Parallel(comm, local_len, global_len, v_data);
@@ -83,7 +83,7 @@ static inline N_Vector N_VMake(MPI_Comm comm, int local_len, real_t* v_data)
 
 static inline void N_VPrint(N_Vector v)
 {
-#if HAVE_MPI
+#if POLYMEC_HAVE_MPI
   N_VPrint_Parallel(v);
 #else
   N_VPrint_Serial(v);
