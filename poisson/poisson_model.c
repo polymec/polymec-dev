@@ -55,14 +55,17 @@ typedef struct
   real_t current_time;      // Current simulation time.
 
   string_ptr_unordered_map_t* bcs; // Boundary conditions.
-  boundary_cell_map_t* boundary_cells; // Boundary cell info
+  boundary_cell_map_t* boundary_cells; // Boundary cell -> BC mapping
 
   // Here we store the fluxes between cells/points, and keep track of 
   // which fluxes have already been computed. The fluxes for each face of 
   // each cell are computed and stored in compressed row storage (CRS) format,
   // with each face having a distinct value for each of its cells.
-  double* cell_face_fluxes;
+  real_t* cell_face_fluxes;
   int* cell_face_flux_offsets;
+
+  // Contributions from the source term (rhs).
+  real_t* cell_sources;
 
   // Polynomial fit.
   polynomial_fit_t* poly_fit;
@@ -174,23 +177,38 @@ static int fv_poisson_residual(N_Vector u, N_Vector F, void* context)
                                        face_node_offsets, num_faces);
     }
 
+    // Find a least-squares fit for the solution in the vicinity of this cell.
+    polynomial_fit_compute(p->poly_fit, cell);
+
     // Face fluxes.
     int fpos = 0, face, offset = p->cell_face_flux_offsets[cell];
     while (mesh_next_cell_face(p->mesh, cell, &fpos, &face))
     {
       real_t face_flux = 0.0;
 
-      // Find a least-squares fit for the solution at this point.
-      polynomial_fit_compute(p->poly_fit, cell);
-
       // Go over the quadrature points in the face and compute the flux
       // at each point, accumulating the integral in face_flux.
       int qpos = 0;
       point_t xq;
+      vector_t nq;
       real_t wq;
-      while (polyhedron_integrator_next_surface_point(quad_rule, &qpos, &xq, &wq))
+      while (polyhedron_integrator_next_surface_point(quad_rule, &qpos, &xq, &nq, &wq))
       {
-        // FIXME       
+        // Compute the gradient of the solution using the polynomial fit.
+        vector_t grad_phi;
+        polynomial_fit_eval_deriv(p->poly_fit, &xq, 1, 0, 0, &grad_phi.x);
+        polynomial_fit_eval_deriv(p->poly_fit, &xq, 0, 1, 0, &grad_phi.y);
+        polynomial_fit_eval_deriv(p->poly_fit, &xq, 0, 0, 1, &grad_phi.z);
+
+        // Dot it with the normal vector on the face to find the normal derivative.
+        real_t dphidn = wq * vector_dot(&grad_phi, &nq);
+
+        // Evaluate the conduction operator lambda.
+        real_t lambda;
+        st_func_eval(p->lambda, &xq, p->current_time, &lambda);
+
+        // Form the flux contribution.
+        face_flux += wq * lambda * dphidn;
       }
 
       p->cell_face_fluxes[offset] = face_flux;
@@ -202,10 +220,17 @@ static int fv_poisson_residual(N_Vector u, N_Vector F, void* context)
       int qpos = 0;
       point_t xq;
       real_t wq;
+      real_t source = 0;
       while (polyhedron_integrator_next_volume_point(quad_rule, &qpos, &xq, &wq))
       {
-        // FIXME
+        // Compute the right hand side.
+        real_t rhs;
+        st_func_eval(p->rhs, &xq, p->current_time, &rhs);
+
+        // Form the source contribution.
+        source += wq * rhs;
       }
+      p->cell_sources[cell] = source;
     }
   }
 
@@ -235,7 +260,22 @@ static void set_time(void* context, real_t t)
 // This helper clears all the data structures that are tied to a discrete domain.
 static void poisson_clear(poisson_t* p)
 {
-  // If the model has been previously initialized, clean everything out.
+  if (p->cell_face_fluxes != NULL)
+  {
+    free(p->cell_face_fluxes);
+    p->cell_face_fluxes = NULL;
+  }
+  if (p->cell_face_flux_offsets != NULL)
+  {
+    free(p->cell_face_flux_offsets);
+    p->cell_face_flux_offsets = NULL;
+  }
+  if (p->cell_sources != NULL)
+  {
+    free(p->cell_sources);
+    p->cell_sources = NULL;
+  }
+
   if (p->phi != NULL)
   {
     free(p->phi);
@@ -301,6 +341,10 @@ static void poisson_init(void* context, real_t t)
       p->cell_face_flux_offsets[c+1] = p->cell_face_flux_offsets[c] + mesh_cell_num_faces(p->mesh, c);
     p->cell_face_fluxes = malloc(sizeof(real_t)*p->cell_face_flux_offsets[p->mesh->num_cells]);
     memset(p->cell_face_fluxes, 0, sizeof(real_t)*p->cell_face_flux_offsets[p->mesh->num_cells]);
+
+    // Allocate storage for cell source contributions.
+    p->cell_sources = malloc(sizeof(real_t)*p->mesh->num_cells);
+    memset(p->cell_sources, 0, sizeof(real_t)*p->mesh->num_cells);
   }
   else
   {

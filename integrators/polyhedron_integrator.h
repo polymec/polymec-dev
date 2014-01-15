@@ -96,6 +96,7 @@ bool polyhedron_integrator_next_volume_point(polyhedron_integrator_t* integ,
 bool polyhedron_integrator_next_surface_point(polyhedron_integrator_t* integ,
                                               int* pos,
                                               point_t* point,
+                                              vector_t* normal_vector,
                                               real_t* weight);
 
 #endif
