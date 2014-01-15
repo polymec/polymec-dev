@@ -57,6 +57,14 @@
 // This flag tells us whether polymec is already initialized.
 static bool polymec_initialized = false;
 
+// Command line arguments (used for provenance information).
+int polymec_argc = 0;
+char** polymec_argv = NULL;
+
+// Invocation string and time.
+char* polymec_invoc_str = NULL;
+time_t polymec_invoc_time = 0;
+
 // Error handler.
 static polymec_error_handler_function error_handler = NULL;
 
@@ -67,6 +75,15 @@ static int _num_atexit_funcs = 0;
 
 static void shutdown()
 {
+  ASSERT(polymec_initialized);
+
+  // Kill command line arguments.
+  free(polymec_invoc_str);
+  for (int i = 0; i < polymec_argc; ++i)
+    free(polymec_argv[i]);
+  free(polymec_argv);
+
+  // Call shutdown functions.
   for (int i = 0; i < _num_atexit_funcs; ++i)
     _atexit_funcs[i]();
 
@@ -80,10 +97,35 @@ void polymec_init(int argc, char** argv)
 {
   if (!polymec_initialized)
   {
+    // Jot down the invocation time.
+    polymec_invoc_time = time(NULL);
+
     // By default, we enable floating point exceptions for debug builds.
 #ifndef NDEBUG
     polymec_enable_fpe_exceptions();
 #endif
+
+    // Jot down command line args.
+    polymec_argc = argc;
+    polymec_argv = malloc(sizeof(char*) * argc);
+    for (int i = 0; i < argc; ++i)
+      polymec_argv[i] = string_dup(argv[i]);
+
+    // Construct the invocation string.
+    int invoc_len = 2;
+    for (int i = 0; i < polymec_argc; ++i)
+      invoc_len += 1 + strlen(polymec_argv[i]);
+    polymec_invoc_str = malloc(sizeof(char) * invoc_len);
+    polymec_invoc_str[0] = '\0';
+    for (int i = 0; i < polymec_argc; ++i)
+    {
+      char arg[strlen(polymec_argv[i])+2];
+      if (i == polymec_argc-1)
+        sprintf(arg, "%s", polymec_argv[i]); 
+      else
+        sprintf(arg, "%s ", polymec_argv[i]);
+      strcat(polymec_invoc_str, arg);
+    }
 
     // Start up MPI.
     MPI_Init(&argc, &argv);
@@ -220,19 +262,16 @@ void polymec_version_fprintf(const char* exe_name, FILE* stream)
   fprintf(stream, "%s v%s\n", exe_name, POLYMEC_VERSION);
 }
 
-void polymec_provenance_fprintf(int argc, char** argv, FILE* stream)
+void polymec_provenance_fprintf(FILE* stream)
 {
+  ASSERT(polymec_initialized);
+
   fprintf(stream, "=======================================================================\n");
   fprintf(stream, "                                Provenance:\n");
   fprintf(stream, "=======================================================================\n");
   fprintf(stream, "Version: %s\n", POLYMEC_VERSION);
-  fprintf(stream, "Invoked with: ");
-  for (int i = 0; i < argc; ++i)
-    fprintf(stream, "%s ", argv[i]);
-  fprintf(stream, "\n");
-  time_t raw_time;
-  time(&raw_time);
-  fprintf(stream, "Invoked on: %s\n", ctime(&raw_time));
+  fprintf(stream, "Invoked with: %s\n", polymec_invoc_str);
+  fprintf(stream, "Invoked on: %s\n", ctime(&polymec_invoc_time));
 
   if (strlen(POLYMEC_GIT_DIFF) > 0)
   {
@@ -242,7 +281,7 @@ void polymec_provenance_fprintf(int argc, char** argv, FILE* stream)
   }
 
   // If we received an input script, write out its contents.
-  options_t* options = options_parse(argc, argv);
+  options_t* options = options_parse(polymec_argc, polymec_argv);
   char* input = options_input(options);
   if (input == NULL)
   {
@@ -293,6 +332,17 @@ void polymec_provenance_fprintf(int argc, char** argv, FILE* stream)
   options = NULL;
 
   fprintf(stream, "=======================================================================\n\n");
+}
+
+const char* polymec_invocation()
+{
+  ASSERT(polymec_initialized);
+  return (const char*)polymec_invoc_str;
+}
+
+time_t polymec_invocation_time()
+{
+  return polymec_invoc_time;
 }
 
 int polymec_num_cores()

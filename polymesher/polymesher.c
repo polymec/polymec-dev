@@ -104,7 +104,7 @@ int main(int argc, char** argv)
   {
     // If we're providing full provenance, do so here.
     if (provenance)
-      polymec_provenance_fprintf(argc, argv, stdout);
+      polymec_provenance_fprintf(stdout);
     else
       polymec_version_fprintf("polymesher", stdout);
   }

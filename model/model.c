@@ -510,24 +510,23 @@ void model_record_observations(model_t* model)
   if ((model->observations->size == 0) || (model->num_obs_times == 0))
     return;
 
-  // Open up the observation file.
+  // Open up the observation file, writing a header each time.
   char obs_fn[strlen(model->sim_name) + 5];
   snprintf(obs_fn, strlen(model->sim_name) + 4, "%s.obs", model->sim_name);
-  FILE* obs = fopen(obs_fn, "r");
-  bool first_time = (obs == NULL);
-  if (!first_time)
-    fclose(obs);
+  FILE* obs = fopen(obs_fn, "w+");
   obs = fopen(obs_fn, "w+");
 
-  // If we're writing the first entry, write a header
-  if (first_time)
-  {
-    fprintf(obs, "# Observations for %s\n", model->sim_name);
-    fprintf(obs, "# time ");
-    for (int i = 0; i < model->observations->size; ++i)
-      fprintf(obs, "%s ", model->observations->data[i]);
-    fprintf(obs, "\n");
-  }
+  // Provenance-related header.
+  fprintf(obs, "# %s\n", polymec_invocation());
+  time_t invoc_time = polymec_invocation_time();
+  fprintf(obs, "# Invoked on: %s\n", ctime(&invoc_time));
+
+  // Observation quantities.
+  fprintf(obs, "# Observations for %s\n", model->sim_name);
+  fprintf(obs, "# time ");
+  for (int i = 0; i < model->observations->size; ++i)
+    fprintf(obs, "%s ", model->observations->data[i]);
+  fprintf(obs, "\n");
 
   // Write the current simulation time.
   fprintf(obs, "%g ", model->time);

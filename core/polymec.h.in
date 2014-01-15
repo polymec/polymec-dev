@@ -34,6 +34,7 @@
 #include <limits.h>
 #include <stddef.h>
 #include <float.h>
+#include <time.h>
 
 #include <mpi.h>
 
@@ -173,7 +174,15 @@ void polymec_atexit(void (*func)());
 void polymec_version_fprintf(const char* exe_name, FILE* stream);
 
 // This function writes provenance information to the given file descriptor.
-void polymec_provenance_fprintf(int argc, char** argv, FILE* stream);
+void polymec_provenance_fprintf(FILE* stream);
+
+// Returns an internal string containing the command that invoked the 
+// present instance of a polymec application.
+const char* polymec_invocation();
+
+// Returns the time at which the present instance of a polymec application 
+// was invoked.
+time_t polymec_invocation_time();
 
 // This function returns the number of cores on the system, or 1 if it cannot
 // be determined.
