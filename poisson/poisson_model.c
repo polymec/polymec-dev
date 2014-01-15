@@ -58,9 +58,11 @@ typedef struct
   boundary_cell_map_t* boundary_cells; // Boundary cell info
 
   // Here we store the fluxes between cells/points, and keep track of 
-  // which fluxes have already been computed.
-  double* fluxes;
-  bool* flux_computed;
+  // which fluxes have already been computed. The fluxes for each face of 
+  // each cell are computed and stored in compressed row storage (CRS) format,
+  // with each face having a distinct value for each of its cells.
+  double* cell_face_fluxes;
+  int* cell_face_flux_offsets;
 
   // Polynomial fit.
   polynomial_fit_t* poly_fit;
@@ -128,10 +130,6 @@ static int fv_poisson_residual(N_Vector u, N_Vector F, void* context)
 {
   poisson_t* p = context;
 
-  // We haven't computed any fluxes yet.
-  for (int face = 0; face < p->mesh->num_faces; ++face)
-    p->flux_computed[face] = false;
-
   // Access the solution vector and the residual function.
   real_t* udata = NV_DATA(u);
   real_t* Fdata = NV_DATA(F);
@@ -177,12 +175,9 @@ static int fv_poisson_residual(N_Vector u, N_Vector F, void* context)
     }
 
     // Face fluxes.
-    int fpos = 0, face;
+    int fpos = 0, face, offset = p->cell_face_flux_offsets[cell];
     while (mesh_next_cell_face(p->mesh, cell, &fpos, &face))
     {
-      // Skip fluxes that have already been computed.
-      if (p->flux_computed[face]) continue;
-
       real_t face_flux = 0.0;
 
       // Find a least-squares fit for the solution at this point.
@@ -198,8 +193,8 @@ static int fv_poisson_residual(N_Vector u, N_Vector F, void* context)
         // FIXME       
       }
 
-      p->fluxes[face] = face_flux;
-      p->flux_computed[face] = true;
+      p->cell_face_fluxes[offset] = face_flux;
+      ++offset;
     }
 
     // Source term (right hand side).
@@ -237,10 +232,9 @@ static void set_time(void* context, real_t t)
   p->current_time = t;
 }
 
-static void poisson_init(void* context, real_t t)
+// This helper clears all the data structures that are tied to a discrete domain.
+static void poisson_clear(poisson_t* p)
 {
-  poisson_t* p = context;
-
   // If the model has been previously initialized, clean everything out.
   if (p->phi != NULL)
   {
@@ -259,6 +253,11 @@ static void poisson_init(void* context, real_t t)
     polyhedron_integrator_free(p->poly_quad_rule);
     p->poly_quad_rule = NULL;
   }
+  if (p->poly_fit != NULL)
+  {
+    polynomial_fit_free(p->poly_fit);
+    p->poly_fit = NULL;
+  }
 
   if (p->special_quad_rules != NULL)
   {
@@ -270,6 +269,14 @@ static void poisson_init(void* context, real_t t)
     nonlinear_integrator_free(p->solver);
     p->solver = NULL;
   }
+}
+
+static void poisson_init(void* context, real_t t)
+{
+  poisson_t* p = context;
+
+  // Clear temporal data structures.
+  poisson_clear(p);
 
   if (p->mesh != NULL)
   {
@@ -287,9 +294,13 @@ static void poisson_init(void* context, real_t t)
                                           .graph = get_graph};
     p->solver = nonlinear_integrator_new("Poisson (FV)", p, MPI_COMM_WORLD, vtable, BICGSTAB, 5);
 
-    // Allocate storage for face fluxes.
-    p->fluxes = malloc(sizeof(real_t)*p->mesh->num_faces);
-    p->flux_computed = malloc(sizeof(bool)*p->mesh->num_faces);
+    // Allocate storage for cell face fluxes.
+    p->cell_face_flux_offsets = malloc(sizeof(int)*(p->mesh->num_cells+1));
+    p->cell_face_flux_offsets[0] = 0;
+    for (int c = 0; c < p->mesh->num_cells; ++c)
+      p->cell_face_flux_offsets[c+1] = p->cell_face_flux_offsets[c] + mesh_cell_num_faces(p->mesh, c);
+    p->cell_face_fluxes = malloc(sizeof(real_t)*p->cell_face_flux_offsets[p->mesh->num_cells]);
+    memset(p->cell_face_fluxes, 0, sizeof(real_t)*p->cell_face_flux_offsets[p->mesh->num_cells]);
   }
   else
   {
@@ -401,6 +412,9 @@ static void poisson_compute_error_norms(void* context, st_func_t* solution, real
 static void poisson_dtor(void* context)
 {
   poisson_t* p = context;
+
+  // Clear temporal data structures.
+  poisson_clear(p);
 
   // Destroy BC table.
   string_ptr_unordered_map_free(p->bcs);
