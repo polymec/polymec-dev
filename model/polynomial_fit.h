@@ -65,24 +65,24 @@ typedef struct
   // boundary points in the vicinity of the point with the given index. The 
   // The coordinates of the points are stored in the array point_coords,
   // the normal vectors on the boundary at each of the points are stored in 
-  // the array boundary_normals, and the values of the component at each of 
-  // the points are stored in the point_values array.
+  // the array boundary_normals. Note that point values are not retrieved,
+  // as these are often determined by boundary conditions during the actual
+  // fitting process (as represented by fit_component() below).
   void (*get_boundary_data)(void* context, int component, int* point_indices, int num_points, 
-                            point_t* point_coords, vector_t* boundary_normals, 
-                            real_t* point_values); 
+                            point_t* point_coords, vector_t* boundary_normals);
 
   // Returns the targeted degree of accuracy for the polynomial fit, given 
   // a number of neighbors. This method effectively determines how aggressively
   // a polynomial fit will pursue higher-order approximations to the solution.
   int (*targeted_degree)(void* context, int num_neighbors);
 
-  // Fits component data to a polynomial of the given degree, given 
-  // interior and boundary data for points in the vicinity, storing the 
+  // Fits the data of a given component to a polynomial of the given degree, 
+  // given interior and boundary data for points in the vicinity, storing the 
   // coefficients of the polynomial in the poly_coeffs array (in the order 
   // used by the polynomial_t type).
-  void (*fit_component)(void* context, int degree,
+  void (*fit_component)(void* context, int component, int degree,
                         point_t* interior_points, real_t* interior_values, int num_interior_points,
-                        point_t* boundary_points, vector_t* boundary_normals, real_t* boundary_values, int num_boundary_points,
+                        point_t* boundary_points, vector_t* boundary_normals, int num_boundary_points,
                         real_t* poly_coeffs);
 
   // Destroys the context pointer.
@@ -103,7 +103,7 @@ polynomial_fit_t* cc_fixed_degree_polynomial_fit_new(int num_comps,
                                                      mesh_t* mesh,
                                                      real_t* data,
                                                      int degree,
-                                                     void (*fit_component)(void*, int, point_t*, real_t*, int, point_t*, vector_t*, real_t*, int, real_t*),
+                                                     void (*fit_component)(void*, int, int, point_t*, real_t*, int, point_t*, vector_t*, int, real_t*),
                                                      void* fit_component_context,
                                                      void (*dtor)(void*));
 
@@ -114,7 +114,7 @@ polynomial_fit_t* cc_variable_degree_polynomial_fit_new(int num_comps,
                                                         mesh_t* mesh,
                                                         real_t* data,
                                                         int neighbor_search_depth,
-                                                        void (*fit_component)(void*, int, point_t*, real_t*, int, point_t*, vector_t*, real_t*, int, real_t*),
+                                                        void (*fit_component)(void*, int, int, point_t*, real_t*, int, point_t*, vector_t*, int, real_t*),
                                                         void* fit_component_context,
                                                         void (*dtor)(void*));
 
@@ -125,7 +125,7 @@ polynomial_fit_t* point_cloud_fixed_degree_polynomial_fit_new(int num_comps,
                                                               point_cloud_neighbor_search_t* search,
                                                               real_t* data,
                                                               int degree,
-                                                              void (*fit_component)(void*, int, point_t*, real_t*, int, point_t*, vector_t*, real_t*, int, real_t*),
+                                                              void (*fit_component)(void*, int, int, point_t*, real_t*, int, point_t*, vector_t*, int, real_t*),
                                                               void* fit_component_context,
                                                               void (*dtor)(void*));
 
@@ -137,7 +137,7 @@ polynomial_fit_t* point_cloud_variable_degree_polynomial_fit_new(int num_comps,
                                                                  point_cloud_neighbor_search_t* search,
                                                                  real_t* data,
                                                                  int neighbor_search_depth,
-                                                                 void (*fit_component)(void*, int, point_t*, real_t*, int, point_t*, vector_t*, real_t*, int, real_t*),
+                                                                 void (*fit_component)(void*, int, int, point_t*, real_t*, int, point_t*, vector_t*, int, real_t*),
                                                                  void* fit_component_context,
                                                                  void (*dtor)(void*));
 
