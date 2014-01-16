@@ -101,7 +101,7 @@ void polynomial_fit_compute(polynomial_fit_t* fit, int point_index)
   // Determine the targeted degree for the number of point
   fit->degree = fit->vtable.targeted_degree(fit->context, fit->num_points);
   int dim = polynomial_basis_dim(fit->degree);
-  ASSERT(dim >= fit->num_neighbors);
+  ASSERT(dim >= fit->num_points);
 
   // Get the indices of all the points.
   int int_indices[num_int_points];
