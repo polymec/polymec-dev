@@ -72,9 +72,10 @@ typedef struct
                             point_t* point_coords, vector_t* boundary_normals);
 
   // Returns the targeted degree of accuracy for the polynomial fit, given 
-  // a number of neighbors. This method effectively determines how aggressively
-  // a polynomial fit will pursue higher-order approximations to the solution.
-  int (*targeted_degree)(void* context, int num_neighbors);
+  // a number of points in the fit "stencil". This method effectively 
+  // determines how aggressively a polynomial fit will pursue higher-order 
+  // approximations to the solution.
+  int (*targeted_degree)(void* context, int num_points);
 
   // Fits the data of a given component to a polynomial of the given degree, 
   // given interior and boundary data for points in the vicinity, storing the 

@@ -216,10 +216,10 @@ static void cc_fixed_degree_get_boundary_data(void* context, int component, int*
   // FIXME
 }
 
-static int cc_fixed_degree_targeted_degree(void* context, int point_index)
+static int cc_fixed_degree_targeted_degree(void* context, int num_points)
 {
-  // FIXME
-  return 0;
+  cc_fixed_degree_t* fit = context;
+  return fit->degree;
 }
 
 static void cc_fixed_degree_fit_component(void* context, int component, int degree,
@@ -319,9 +319,13 @@ static void cc_var_degree_get_boundary_data(void* context, int component, int* p
   // FIXME
 }
 
-static int cc_var_degree_targeted_degree(void* context, int point_index)
+static int cc_var_degree_targeted_degree(void* context, int num_points)
 {
-  // FIXME
+  for (int d = 0; d < 4; ++d)
+  {
+    if (num_points >= polynomial_basis_dim(d))
+      return d;
+  }
   return 0;
 }
 
@@ -422,11 +426,12 @@ static void cloud_fixed_degree_get_boundary_data(void* context, int component, i
   // FIXME
 }
 
-static int cloud_fixed_degree_targeted_degree(void* context, int point_index)
+static int cloud_fixed_degree_targeted_degree(void* context, int num_points)
 {
-  // FIXME
-  return 0;
+  cloud_fixed_degree_t* fit = context;
+  return fit->degree;
 }
+
 static void cloud_fixed_degree_fit_component(void* context, int component, int degree,
                                              point_t* interior_points, real_t* interior_values, int num_interior_points,
                                              point_t* boundary_points, vector_t* boundary_normals, int num_boundary_points,
@@ -526,9 +531,13 @@ static void cloud_var_degree_get_boundary_data(void* context, int component, int
   // FIXME
 }
 
-static int cloud_var_degree_targeted_degree(void* context, int point_index)
+static int cloud_var_degree_targeted_degree(void* context, int num_points)
 {
-  // FIXME
+  for (int d = 0; d < 4; ++d)
+  {
+    if (num_points >= polynomial_basis_dim(d))
+      return d;
+  }
   return 0;
 }
 
