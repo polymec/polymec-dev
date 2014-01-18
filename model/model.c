@@ -316,11 +316,11 @@ static void model_read_input(model_t* model, interpreter_t* interp, options_t* o
   }
 
   // If observation names are given, handle them here.
-  string_array_clear(model->observations);
-  int num_obs;
-  char** obs_names = interpreter_get_stringlist(interp, "observations", &num_obs);
-  if (obs_names != NULL)
+  if (interpreter_contains(interp, "observations", INTERPRETER_STRING_LIST))
   {
+    string_array_clear(model->observations);
+    int num_obs;
+    char** obs_names = interpreter_get_stringlist(interp, "observations", &num_obs);
     for (int i = 0; i < num_obs; ++i)
     {
       model_observe(model, (const char*)obs_names[i]);
@@ -329,7 +329,17 @@ static void model_read_input(model_t* model, interpreter_t* interp, options_t* o
     free(obs_names); 
   }
 
-  // Load the inputs into the model.
+  if (interpreter_contains(interp, "max_dt", INTERPRETER_NUMBER))
+  {
+    model->max_dt = interpreter_get_number(interp, "max_dt");
+    if (model->max_dt <= 0.0)
+      polymec_error("Invalid value for max_dt: %g", model->max_dt);
+  }
+
+  if (interpreter_contains(interp, "sim_name", INTERPRETER_STRING))
+    model_set_sim_name(model, interpreter_get_string(interp, "sim_name"));
+
+  // Read the model-specific inputs.
   model->vtable.read_input(model->context, interp, options);
 
   if (no_opts)
@@ -815,14 +825,6 @@ static void override_interpreted_values(model_t* model,
       polymec_error("Could not parse observation times string: %s\n", obs_times_str);
   }
 
-  char* max_dt = options_value(options, "max_dt");
-  if (max_dt != NULL)
-    model->max_dt = atof(max_dt);
-
-  char* sim_name = options_value(options, "sim_name");
-  if (sim_name != NULL)
-    model_set_sim_name(model, sim_name);
-
   // If observation names are given, handle them here.
   string_array_clear(model->observations);
   char* obs_names_str = options_value(options, "observations");
@@ -837,6 +839,18 @@ static void override_interpreted_values(model_t* model,
     }
     free(obs_names); 
   }
+
+  char* max_dt = options_value(options, "max_dt");
+  if (max_dt != NULL)
+  {
+    model->max_dt = atof(max_dt);
+    if (model->max_dt <= 0.0)
+      polymec_error("Invalid value for max_dt: %g", model->max_dt);
+  }
+
+  char* sim_name = options_value(options, "sim_name");
+  if (sim_name != NULL)
+    model_set_sim_name(model, sim_name);
 }
 
 int model_main(const char* model_name, model_ctor constructor, int argc, char* argv[])
