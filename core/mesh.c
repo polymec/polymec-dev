@@ -216,7 +216,7 @@ void mesh_verify(mesh_t* mesh)
   for (int c = 0; c < mesh->num_cells; ++c)
   {
     int pos = 0, f;
-    while (mesh_next_cell_face(mesh, c, &pos, &f))
+    while (mesh_cell_next_face(mesh, c, &pos, &f))
     {
       if ((mesh->face_cells[2*f] != c) && (mesh->face_cells[2*f+1] != c))
         polymec_error("cell %d has face %d but is not attached to it.", c, f);
@@ -317,7 +317,7 @@ void mesh_compute_geometry(mesh_t* mesh)
     mesh->cell_centers[cell].x = mesh->cell_centers[cell].y = mesh->cell_centers[cell].z = 0.0;
     int num_cell_nodes = 0, num_cell_faces = 0;
     int pos = 0, face;
-    while (mesh_next_cell_face(mesh, cell, &pos, &face))
+    while (mesh_cell_next_face(mesh, cell, &pos, &face))
     {
       ASSERT(face < mesh->num_faces);
       // NOTE: Only the primal cell of a face computes its center.
@@ -356,7 +356,7 @@ void mesh_compute_geometry(mesh_t* mesh)
     // cell's volume.
     mesh->cell_volumes[cell] = 0.0;
     pos = 0;
-    while (mesh_next_cell_face(mesh, cell, &pos, &face))
+    while (mesh_cell_next_face(mesh, cell, &pos, &face))
     {
       real_t face_area = 0.0;
       vector_t face_normal = {0.0, 0.0, 0.0};

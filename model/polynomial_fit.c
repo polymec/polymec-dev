@@ -88,8 +88,9 @@ int polynomial_fit_num_comps(polynomial_fit_t* fit)
   return fit->num_comps;
 }
 
-void polynomial_fit_compute(polynomial_fit_t* fit, int point_index)
+void polynomial_fit_compute(polynomial_fit_t* fit, real_t* data, int point_index)
 {
+  ASSERT(data != NULL);
   ASSERT(point_index >= 0);
   fit->point_index = point_index;
 
@@ -119,11 +120,11 @@ void polynomial_fit_compute(polynomial_fit_t* fit, int point_index)
   {
 
     // Fetch the interior points and values.
-    fit->vtable.get_interior_data(fit->context, c, int_indices, num_int_points,
+    fit->vtable.get_interior_data(fit->context, data, c, int_indices, num_int_points,
                                   int_points, int_values);
 
     // Fetch the boundary points, normal vectors, and values.
-    fit->vtable.get_boundary_data(fit->context, c, bnd_indices, num_bnd_points,
+    fit->vtable.get_boundary_data(fit->context, data, c, bnd_indices, num_bnd_points,
                                   bnd_points, bnd_normals);
 
     // Now fit the component data to a polynomial.
@@ -173,7 +174,6 @@ void polynomial_fit_eval_deriv(polynomial_fit_t* fit,
 typedef struct 
 {
   mesh_t* mesh;
-  real_t* data;
   int degree;
 
   // Machinery for fit_component().
@@ -204,13 +204,13 @@ static void cc_fixed_degree_get_boundary_neighbors(void* context, int point_inde
   // FIXME
 }
 
-static void cc_fixed_degree_get_interior_data(void* context, int component, int* point_indices, int num_points,
+static void cc_fixed_degree_get_interior_data(void* context, real_t* data, int component, int* point_indices, int num_points,
                                               point_t* point_coords, real_t* point_values)
 {
   // FIXME
 }
 
-static void cc_fixed_degree_get_boundary_data(void* context, int component, int* point_indices, int num_points,
+static void cc_fixed_degree_get_boundary_data(void* context, real_t* data, int component, int* point_indices, int num_points,
                                               point_t* point_coords, vector_t* boundary_normals)
 {
   // FIXME
@@ -241,7 +241,6 @@ static void cc_fixed_degree_dtor(void* context)
 
 polynomial_fit_t* cc_fixed_degree_polynomial_fit_new(int num_comps,
                                                      mesh_t* mesh,
-                                                     real_t* data,
                                                      int degree,
                                                      void (*fit_component)(void*, int, int, point_t*, real_t*, int, point_t*, vector_t*, int, real_t*),
                                                      void* fit_component_context,
@@ -255,7 +254,6 @@ polynomial_fit_t* cc_fixed_degree_polynomial_fit_new(int num_comps,
   snprintf(name, 1024, "cell-centered fixed degree (%d)", degree);
   cc_fixed_degree_t* context = malloc(sizeof(cc_fixed_degree_t));
   context->mesh = mesh;
-  context->data = data;
   context->degree = degree;
   context->fit_component = fit_component;
   context->fit_component_context = fit_component_context;
@@ -276,7 +274,6 @@ polynomial_fit_t* cc_fixed_degree_polynomial_fit_new(int num_comps,
 typedef struct 
 {
   mesh_t* mesh;
-  real_t* data;
   int depth;
 
   // Machinery for fit_component().
@@ -307,13 +304,13 @@ static void cc_var_degree_get_boundary_neighbors(void* context, int point_index,
   // FIXME
 }
 
-static void cc_var_degree_get_interior_data(void* context, int component, int* point_indices, int num_points,
+static void cc_var_degree_get_interior_data(void* context, real_t* data, int component, int* point_indices, int num_points,
                                               point_t* point_coords, real_t* point_values)
 {
   // FIXME
 }
 
-static void cc_var_degree_get_boundary_data(void* context, int component, int* point_indices, int num_points,
+static void cc_var_degree_get_boundary_data(void* context, real_t* data, int component, int* point_indices, int num_points,
                                             point_t* point_coords, vector_t* boundary_normals)
 {
   // FIXME
@@ -348,7 +345,6 @@ static void cc_var_degree_dtor(void* context)
 
 polynomial_fit_t* cc_variable_degree_polynomial_fit_new(int num_comps,
                                                         mesh_t* mesh,
-                                                        real_t* data,
                                                         int neighbor_search_depth,
                                                         void (*fit_component)(void*, int, int, point_t*, real_t*, int, point_t*, vector_t*, int, real_t*),
                                                         void* fit_component_context,
@@ -362,7 +358,6 @@ polynomial_fit_t* cc_variable_degree_polynomial_fit_new(int num_comps,
   snprintf(name, 1024, "cell-centered variable degree (depth %d)", neighbor_search_depth);
   cc_var_degree_t* context = malloc(sizeof(cc_var_degree_t));
   context->mesh = mesh;
-  context->data = data;
   context->depth = neighbor_search_depth;
   context->fit_component = fit_component;
   context->fit_component_context = fit_component_context;
@@ -383,7 +378,6 @@ polynomial_fit_t* cc_variable_degree_polynomial_fit_new(int num_comps,
 typedef struct 
 {
   point_cloud_t* points;
-  real_t* data;
   int degree;
 
   // Machinery for fit_component().
@@ -414,13 +408,13 @@ static void cloud_fixed_degree_get_boundary_neighbors(void* context, int point_i
   // FIXME
 }
 
-static void cloud_fixed_degree_get_interior_data(void* context, int component, int* point_indices, int num_points,
-                                              point_t* point_coords, real_t* point_values)
+static void cloud_fixed_degree_get_interior_data(void* context, real_t* data, int component, int* point_indices, int num_points,
+                                                 point_t* point_coords, real_t* point_values)
 {
   // FIXME
 }
 
-static void cloud_fixed_degree_get_boundary_data(void* context, int component, int* point_indices, int num_points,
+static void cloud_fixed_degree_get_boundary_data(void* context, real_t* data, int component, int* point_indices, int num_points,
                                                  point_t* point_coords, vector_t* boundary_normals)
 {
   // FIXME
@@ -452,7 +446,6 @@ static void cloud_fixed_degree_dtor(void* context)
 polynomial_fit_t* point_cloud_fixed_degree_polynomial_fit_new(int num_comps,
                                                               point_cloud_t* points,
                                                               point_cloud_neighbor_search_t* search,
-                                                              real_t* data,
                                                               int degree,
                                                               void (*fit_component)(void*, int, int, point_t*, real_t*, int, point_t*, vector_t*, int, real_t*),
                                                               void* fit_component_context,
@@ -460,14 +453,12 @@ polynomial_fit_t* point_cloud_fixed_degree_polynomial_fit_new(int num_comps,
 {
   ASSERT(points != NULL);
   ASSERT(search != NULL);
-  ASSERT(data != NULL);
   ASSERT(degree >= 0);
 
   char name[1024];
   snprintf(name, 1024, "point cloud fixed degree (%d)", degree);
   cloud_fixed_degree_t* context = malloc(sizeof(cloud_fixed_degree_t));
   context->points = points;
-  context->data = data;
   context->degree = degree;
   context->fit_component = fit_component;
   context->fit_component_context = fit_component_context;
@@ -488,7 +479,6 @@ polynomial_fit_t* point_cloud_fixed_degree_polynomial_fit_new(int num_comps,
 typedef struct 
 {
   point_cloud_t* points;
-  real_t* data;
   int depth;
 
   // Machinery for fit_component().
@@ -519,13 +509,13 @@ static void cloud_var_degree_get_boundary_neighbors(void* context, int point_ind
   // FIXME
 }
 
-static void cloud_var_degree_get_interior_data(void* context, int component, int* point_indices, int num_points,
-                                              point_t* point_coords, real_t* point_values)
+static void cloud_var_degree_get_interior_data(void* context, real_t* data, int component, int* point_indices, int num_points,
+                                               point_t* point_coords, real_t* point_values)
 {
   // FIXME
 }
 
-static void cloud_var_degree_get_boundary_data(void* context, int component, int* point_indices, int num_points,
+static void cloud_var_degree_get_boundary_data(void* context, real_t* data, int component, int* point_indices, int num_points,
                                                point_t* point_coords, vector_t* boundary_normals)
 {
   // FIXME
@@ -561,7 +551,6 @@ static void cloud_var_degree_dtor(void* context)
 polynomial_fit_t* point_cloud_variable_degree_polynomial_fit_new(int num_comps,
                                                                  point_cloud_t* points,
                                                                  point_cloud_neighbor_search_t* search,
-                                                                 real_t* data,
                                                                  int neighbor_search_depth,
                                                                  void (*fit_component)(void*, int, int, point_t*, real_t*, int, point_t*, vector_t*, int, real_t*),
                                                                  void* fit_component_context,
@@ -569,14 +558,12 @@ polynomial_fit_t* point_cloud_variable_degree_polynomial_fit_new(int num_comps,
 {
   ASSERT(points != NULL);
   ASSERT(search != NULL);
-  ASSERT(data != NULL);
   ASSERT(neighbor_search_depth >= 1);
 
   char name[1024];
   snprintf(name, 1024, "point cloud variable degree (depth = %d)", neighbor_search_depth);
   cloud_var_degree_t* context = malloc(sizeof(cloud_var_degree_t));
   context->points = points;
-  context->data = data;
   context->depth = neighbor_search_depth;
   context->fit_component = fit_component;
   context->fit_component_context = fit_component_context;

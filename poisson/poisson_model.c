@@ -160,7 +160,7 @@ static int fv_poisson_residual(N_Vector u, N_Vector F, void* context)
     {
       // Set the integration domain for this polyhedral cell.
       int fpos = 0, face, num_faces = 0, fn_offset = 0;
-      while (mesh_next_cell_face(p->mesh, cell, &fpos, &face))
+      while (mesh_cell_next_face(p->mesh, cell, &fpos, &face))
       {
         int npos = 0, node;
         face_node_offsets[face] = fn_offset;
@@ -178,11 +178,11 @@ static int fv_poisson_residual(N_Vector u, N_Vector F, void* context)
     }
 
     // Find a least-squares fit for the solution in the vicinity of this cell.
-    polynomial_fit_compute(p->poly_fit, cell);
+    polynomial_fit_compute(p->poly_fit, udata, cell);
 
     // Face fluxes.
     int fpos = 0, face, offset = p->cell_face_flux_offsets[cell];
-    while (mesh_next_cell_face(p->mesh, cell, &fpos, &face))
+    while (mesh_cell_next_face(p->mesh, cell, &fpos, &face))
     {
       real_t face_flux = 0.0;
 
@@ -212,6 +212,7 @@ static int fv_poisson_residual(N_Vector u, N_Vector F, void* context)
       }
 
       p->cell_face_fluxes[offset] = face_flux;
+      Fdata[cell] -= face_flux;
       ++offset;
     }
 
@@ -231,6 +232,36 @@ static int fv_poisson_residual(N_Vector u, N_Vector F, void* context)
         source += wq * rhs;
       }
       p->cell_sources[cell] = source;
+    }
+  }
+
+  // Loop over cells again, enforcing conservation and compute the residual.
+  for (int cell = 0; cell < p->mesh->num_cells; ++cell)
+  {
+    // Enforce conservation by averaging all the face fluxes between 
+    // neighboring cells.
+    int cpos = 0, other_cell, offset1 = p->cell_face_flux_offsets[cell];
+    while (mesh_cell_next_neighbor(p->mesh, cell, &cpos, &other_cell))
+    {
+      if ((other_cell != -1) && (cell < other_cell))
+      {
+        real_t flux1 = p->cell_face_fluxes[offset1];
+        int f = offset1 - p->cell_face_flux_offsets[cell];
+        int offset2 = p->cell_face_flux_offsets[other_cell] + f;
+        real_t flux2 = p->cell_face_fluxes[offset2];
+        real_t avg_flux = 0.5 * (flux1 + flux2);
+        p->cell_face_fluxes[offset1] = p->cell_face_fluxes[offset2] = avg_flux;
+        ++offset1;
+      }
+    }
+
+    // Now compute the residual in this cell.
+    Fdata[cell] = p->cell_sources[cell];
+    int fpos = 0, face, offset = p->cell_face_flux_offsets[cell];
+    while (mesh_cell_next_face(p->mesh, cell, &fpos, &face))
+    {
+      Fdata[cell] -= p->cell_face_fluxes[offset];
+      ++offset;
     }
   }
 

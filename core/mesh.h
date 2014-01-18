@@ -219,7 +219,7 @@ static inline int mesh_cell_num_faces(mesh_t* mesh, int cell)
 // Allows iteration over the faces attached to the given cell in the mesh.
 // Set *pos to 0 to reset the iteration. Returns true if faces remain in 
 // the cell, false otherwise.
-static inline bool mesh_next_cell_face(mesh_t* mesh, int cell, int* pos, int* face)
+static inline bool mesh_cell_next_face(mesh_t* mesh, int cell, int* pos, int* face)
 {
   *face = mesh->cell_faces[mesh->cell_face_offsets[cell] + *pos];
   // FIXME: We don't currently use the one's complement info that 
@@ -227,6 +227,19 @@ static inline bool mesh_next_cell_face(mesh_t* mesh, int cell, int* pos, int* fa
   if (*face < 0) *face = ~(*face);
   ++(*pos);
   return (*pos <= (mesh->cell_face_offsets[cell+1] - mesh->cell_face_offsets[cell]));
+}
+
+// Allows iteration over the neighboring cells attached to the given cell in 
+// the mesh, in the same order as that given by mesh_cell_next_face(). If the 
+// next neighbor for a cell is non-existant, *neighbor_cell will be set to -1.
+// Set *pos to 0 to reset the iteration. Returns true if the traversal over 
+// all faces of the cell is not complete, false otherwise.
+static inline bool mesh_cell_next_neighbor(mesh_t* mesh, int cell, int* pos, int* neighbor_cell)
+{
+  int face;
+  bool result = mesh_cell_next_face(mesh, cell, pos, &face);
+  *neighbor_cell = mesh->face_cells[2*face];
+  return result;
 }
 
 // Returns the number of nodes attached to the given face in the mesh.

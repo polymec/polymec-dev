@@ -50,7 +50,8 @@ typedef struct
   // The coordinates of the points are stored in the array point_coords,
   // and the values of the component at each of the points are stored in the 
   // point_values array.
-  void (*get_interior_data)(void* context, int component, int* point_indices, int num_points, 
+  void (*get_interior_data)(void* context, real_t* data, int component, 
+                            int* point_indices, int num_points, 
                             point_t* point_coords, real_t* point_values);
 
   // Gets the number of boundary neighbors associated with the point at the 
@@ -68,7 +69,8 @@ typedef struct
   // the array boundary_normals. Note that point values are not retrieved,
   // as these are often determined by boundary conditions during the actual
   // fitting process (as represented by fit_component() below).
-  void (*get_boundary_data)(void* context, int component, int* point_indices, int num_points, 
+  void (*get_boundary_data)(void* context, real_t* data, int component, 
+                            int* point_indices, int num_points, 
                             point_t* point_coords, vector_t* boundary_normals);
 
   // Returns the targeted degree of accuracy for the polynomial fit, given 
@@ -102,7 +104,6 @@ polynomial_fit_t* polynomial_fit_new(const char* name,
 // well as a context it will be invoked with (and an associated destructor).
 polynomial_fit_t* cc_fixed_degree_polynomial_fit_new(int num_comps,
                                                      mesh_t* mesh,
-                                                     real_t* data,
                                                      int degree,
                                                      void (*fit_component)(void*, int, int, point_t*, real_t*, int, point_t*, vector_t*, int, real_t*),
                                                      void* fit_component_context,
@@ -113,7 +114,6 @@ polynomial_fit_t* cc_fixed_degree_polynomial_fit_new(int num_comps,
 // "depth." A fit_component() function is required.
 polynomial_fit_t* cc_variable_degree_polynomial_fit_new(int num_comps,
                                                         mesh_t* mesh,
-                                                        real_t* data,
                                                         int neighbor_search_depth,
                                                         void (*fit_component)(void*, int, int, point_t*, real_t*, int, point_t*, vector_t*, int, real_t*),
                                                         void* fit_component_context,
@@ -124,7 +124,6 @@ polynomial_fit_t* cc_variable_degree_polynomial_fit_new(int num_comps,
 polynomial_fit_t* point_cloud_fixed_degree_polynomial_fit_new(int num_comps,
                                                               point_cloud_t* points,
                                                               point_cloud_neighbor_search_t* search,
-                                                              real_t* data,
                                                               int degree,
                                                               void (*fit_component)(void*, int, int, point_t*, real_t*, int, point_t*, vector_t*, int, real_t*),
                                                               void* fit_component_context,
@@ -136,7 +135,6 @@ polynomial_fit_t* point_cloud_fixed_degree_polynomial_fit_new(int num_comps,
 polynomial_fit_t* point_cloud_variable_degree_polynomial_fit_new(int num_comps,
                                                                  point_cloud_t* points,
                                                                  point_cloud_neighbor_search_t* search,
-                                                                 real_t* data,
                                                                  int neighbor_search_depth,
                                                                  void (*fit_component)(void*, int, int, point_t*, real_t*, int, point_t*, vector_t*, int, real_t*),
                                                                  void* fit_component_context,
@@ -153,7 +151,7 @@ int polynomial_fit_num_comps(polynomial_fit_t* fit);
 // domain. This discrete domain can be a mesh, a point_cloud, or another 
 // abstract discrete domain, as long as neighbor relationships are defined 
 // for points.
-void polynomial_fit_compute(polynomial_fit_t* fit, int point_index);
+void polynomial_fit_compute(polynomial_fit_t* fit, real_t* data, int point_index);
 
 // Returns the degree of the present polynomial fit. Returns -1 if no fit 
 // has yet been computed.
