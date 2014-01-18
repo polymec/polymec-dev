@@ -214,6 +214,12 @@ st_func_t* interpreter_get_tensor_function(interpreter_t* interp, const char* na
 // A tensor function returns components (Sxx, Sxy, Sxz, Syx, Syy, Syz, Szx, Szy, Szz).
 void interpreter_set_tensor_function(interpreter_t* interp, const char* name, st_func_t* value);
 
+// Fetches the given sequence of numbers from the interpreter, returning NULL 
+// if it is not found or if it is not a sequence. The size of the sequence is 
+// stored in *size. The caller assumes responsibility for destroying the 
+// sequence after this call.
+real_t* interpreter_get_sequence(interpreter_t* interp, const char* name, int* size);
+
 // Fetches the given table from the interpreter, returning NULL if it 
 // is not found or if it is not a table. The caller assumes responsibility
 // for destroying the table after this call.

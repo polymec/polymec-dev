@@ -1202,15 +1202,27 @@ string_ptr_unordered_map_t* interpreter_get_table(interpreter_t* interp, const c
   return (string_ptr_unordered_map_t*)((*storage)->datum);
 }
 
-void interpreter_set_sequence(interpreter_t* interp, const char* name, real_t* sequence, int len)
+real_t* interpreter_get_sequence(interpreter_t* interp, const char* name, int* size)
 {
-  interpreter_storage_t* storage = store_sequence(NULL, sequence, len);
-  interpreter_map_insert_with_kv_dtor(interp->store, string_dup(name), storage, destroy_variable);
+  interpreter_storage_t** storage = interpreter_map_get(interp->store, (char*)name);
+  if (storage == NULL)
+    return NULL;
+  if ((*storage)->type != INTERPRETER_SEQUENCE)
+    return NULL;
+  (*storage)->owner = POLYMEC;
+  *size = (*storage)->size;
+  return (real_t*)((*storage)->datum);
 }
 
 void interpreter_set_table(interpreter_t* interp, const char* name, string_ptr_unordered_map_t* value)
 {
   interpreter_storage_t* storage = store_table(NULL, value);
+  interpreter_map_insert_with_kv_dtor(interp->store, string_dup(name), storage, destroy_variable);
+}
+
+void interpreter_set_sequence(interpreter_t* interp, const char* name, real_t* sequence, int len)
+{
+  interpreter_storage_t* storage = store_sequence(NULL, sequence, len);
   interpreter_map_insert_with_kv_dtor(interp->store, string_dup(name), storage, destroy_variable);
 }
 

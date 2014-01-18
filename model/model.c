@@ -58,6 +58,8 @@ struct model_t
   int save_every; // Save frequency.
   int plot_every; // Plot frequency.
 
+  int load_step; // -1 if starting a new sim, >= 0 if loading from a file.
+
   // Observations.
   string_ptr_unordered_map_t* point_obs;
   string_ptr_unordered_map_t* global_obs;
@@ -114,6 +116,7 @@ model_t* model_new(const char* name, void* context, model_vtable vtable, options
   model->sim_name = NULL;
   model->save_every = -1;
   model->plot_every = -1;
+  model->load_step = -1;
   model->observe_every = -FLT_MAX;
   model->wall_time = 0.0;
   model->wall_time0 = 0.0;
@@ -271,6 +274,57 @@ void model_read_input_file(model_t* model, const char* file, options_t* options)
   {
     no_opts = true;
     options = options_new();
+  }
+
+  // We always read certain inputs.
+  if (interpreter_contains(interp, "load_step", INTERPRETER_NUMBER))
+  {
+    model->load_step = (int)interpreter_get_number(interp, "load_step");
+    if (model->load_step < 0)
+      polymec_error("Invalid load_step: %d (must be non-negative).", model->load_step);
+  }
+  if (interpreter_contains(interp, "logging", INTERPRETER_STRING))
+  {
+    char* logging = interpreter_get_string(interp, "logging");
+    if (!strcasecmp(logging, "debug"))
+      set_log_level(LOG_DEBUG);
+    else if (!strcasecmp(logging, "detail"))
+      set_log_level(LOG_DETAIL);
+    else if (!strcasecmp(logging, "info"))
+      set_log_level(LOG_INFO);
+    else if (!strcasecmp(logging, "urgent"))
+      set_log_level(LOG_URGENT);
+    else if (!strcasecmp(logging, "off"))
+      set_log_level(LOG_NONE);
+    else
+      polymec_error("Invalid logging: %s\nMust be one of: debug, detail, info, urgent, off", logging);
+  }
+  if (interpreter_contains(interp, "plot_every", INTERPRETER_NUMBER))
+  {
+    model->plot_every = (int)interpreter_get_number(interp, "plot_every");
+    if (model->plot_every < 1)
+      polymec_error("Invalid (non-positive) plot interval: %d\n", model->plot_every);
+  }
+  if (interpreter_contains(interp, "save_every", INTERPRETER_NUMBER))
+  {
+    model->save_every = (int)interpreter_get_number(interp, "save_every");
+    if (model->save_every < 1)
+      polymec_error("Invalid (non-positive) save interval: %d\n", model->save_every);
+  }
+  if (interpreter_contains(interp, "observe_every", INTERPRETER_NUMBER))
+  {
+    model->observe_every = (int)interpreter_get_number(interp, "observe_every");
+    if (model->observe_every <= 0.0)
+      polymec_error("Invalid (non-positive) observation interval: %g\n", model->observe_every);
+  }
+  if (interpreter_contains(interp, "observation_times", INTERPRETER_SEQUENCE))
+  {
+    if (model->observe_every > 0.0)
+      polymec_error("Only one of observe_every and observation_times may be specified.");
+    int num_obs_times;
+    real_t* obs_times = interpreter_get_sequence(interp, "observation_times", &num_obs_times);
+    model_set_observation_times(model, obs_times, num_obs_times);
+    free(obs_times);
   }
 
   // Load the inputs into the model.
@@ -472,6 +526,10 @@ void model_load(model_t* model, int step)
   log_detail("%s: Loading save file from directory %s...", model->name, model->sim_name);
   model->vtable.load(model->context, prefix, model->sim_name, &model->time, step);
   model->step = step;
+
+  // Reset the wall time(s).
+  model->wall_time0 = MPI_Wtime();
+  model->wall_time = MPI_Wtime();
 }
 
 void model_save(model_t* model)
@@ -671,6 +729,14 @@ static void override_interpreted_values(model_t* model,
   if (opt != NULL)
     *max_steps = atoi(opt);
 
+  opt = options_value(options, "load_step");
+  if (opt != NULL)
+  {
+    model->load_step = atoi(opt);
+    if (model->load_step < 0)
+      polymec_error("Invalid load step: %d\n", model->load_step);
+  }
+
   // Some generic options.
   char* logging = options_value(options, "logging");
   if (logging != NULL)
@@ -717,12 +783,13 @@ static void override_interpreted_values(model_t* model,
   char* obs_times_str = options_value(options, "observation_times");
   if (obs_times_str != NULL)
   {
+    if (model->observe_every > 0.0)
+      polymec_error("Only one of observe_every and observation_times may be specified.");
     real_t* obs_times;
     int num_obs_times;
     obs_times = parse_observation_times(obs_times_str, &num_obs_times);
     if (obs_times != NULL)
     {
-      model->observe_every = -FLT_MAX;
       model_set_observation_times(model, obs_times, num_obs_times);
       free(obs_times);
     }
