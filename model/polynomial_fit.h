@@ -50,7 +50,7 @@ typedef struct
   // The coordinates of the points are stored in the array point_coords,
   // and the values of the component at each of the points are stored in the 
   // point_values array.
-  void (*get_interior_data)(void* context, real_t* data, int component, 
+  void (*get_interior_data)(void* context, real_t* data, int component, int num_comps,
                             int* point_indices, int num_points, 
                             point_t* point_coords, real_t* point_values);
 
@@ -69,7 +69,7 @@ typedef struct
   // the array boundary_normals. Note that point values are not retrieved,
   // as these are often determined by boundary conditions during the actual
   // fitting process (as represented by fit_component() below).
-  void (*get_boundary_data)(void* context, real_t* data, int component, 
+  void (*get_boundary_data)(void* context, real_t* data, int component, int num_comps,
                             int* point_indices, int num_points, 
                             point_t* point_coords, vector_t* boundary_normals);
 

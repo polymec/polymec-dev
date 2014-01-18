@@ -120,11 +120,11 @@ void polynomial_fit_compute(polynomial_fit_t* fit, real_t* data, int point_index
   {
 
     // Fetch the interior points and values.
-    fit->vtable.get_interior_data(fit->context, data, c, int_indices, num_int_points,
+    fit->vtable.get_interior_data(fit->context, data, c, fit->num_comps, int_indices, num_int_points,
                                   int_points, int_values);
 
     // Fetch the boundary points, normal vectors, and values.
-    fit->vtable.get_boundary_data(fit->context, data, c, bnd_indices, num_bnd_points,
+    fit->vtable.get_boundary_data(fit->context, data, c, fit->num_comps, bnd_indices, num_bnd_points,
                                   bnd_points, bnd_normals);
 
     // Now fit the component data to a polynomial.
@@ -204,13 +204,24 @@ static void cc_fixed_degree_get_boundary_neighbors(void* context, int point_inde
   // FIXME
 }
 
-static void cc_fixed_degree_get_interior_data(void* context, real_t* data, int component, int* point_indices, int num_points,
+static void cc_fixed_degree_get_interior_data(void* context, real_t* data, int component, int num_comps,
+                                              int* point_indices, int num_points,
                                               point_t* point_coords, real_t* point_values)
 {
-  // FIXME
+  cc_fixed_degree_t* fit = context;
+
+  // We assume the data is in component-minor form in the array, 
+  // and that values are at cell centers.
+  for (int i = 0; i < num_points; ++i)
+  {
+    int j = point_indices[i];
+    point_coords[i] = fit->mesh->cell_centers[j];
+    point_values[i] = data[num_comps*j+component];
+  }
 }
 
-static void cc_fixed_degree_get_boundary_data(void* context, real_t* data, int component, int* point_indices, int num_points,
+static void cc_fixed_degree_get_boundary_data(void* context, real_t* data, int component, int num_comps,
+                                              int* point_indices, int num_points,
                                               point_t* point_coords, vector_t* boundary_normals)
 {
   // FIXME
@@ -304,13 +315,24 @@ static void cc_var_degree_get_boundary_neighbors(void* context, int point_index,
   // FIXME
 }
 
-static void cc_var_degree_get_interior_data(void* context, real_t* data, int component, int* point_indices, int num_points,
-                                              point_t* point_coords, real_t* point_values)
+static void cc_var_degree_get_interior_data(void* context, real_t* data, int component, int num_comps, 
+                                            int* point_indices, int num_points,
+                                            point_t* point_coords, real_t* point_values)
 {
-  // FIXME
+  cc_var_degree_t* fit = context;
+
+  // We assume the data is in component-minor form in the array, 
+  // and that values are at cell centers.
+  for (int i = 0; i < num_points; ++i)
+  {
+    int j = point_indices[i];
+    point_coords[i] = fit->mesh->cell_centers[j];
+    point_values[i] = data[num_comps*j+component];
+  }
 }
 
-static void cc_var_degree_get_boundary_data(void* context, real_t* data, int component, int* point_indices, int num_points,
+static void cc_var_degree_get_boundary_data(void* context, real_t* data, int component, int num_comps,
+                                            int* point_indices, int num_points,
                                             point_t* point_coords, vector_t* boundary_normals)
 {
   // FIXME
@@ -408,13 +430,24 @@ static void cloud_fixed_degree_get_boundary_neighbors(void* context, int point_i
   // FIXME
 }
 
-static void cloud_fixed_degree_get_interior_data(void* context, real_t* data, int component, int* point_indices, int num_points,
+static void cloud_fixed_degree_get_interior_data(void* context, real_t* data, int component, int num_comps,
+                                                 int* point_indices, int num_points,
                                                  point_t* point_coords, real_t* point_values)
 {
-  // FIXME
+  cloud_fixed_degree_t* fit = context;
+
+  // We assume the data is in component-minor form in the array, 
+  // and that values are at cell centers.
+  for (int i = 0; i < num_points; ++i)
+  {
+    int j = point_indices[i];
+    point_coords[i] = fit->points->point_coords[j];
+    point_values[i] = data[num_comps*j+component];
+  }
 }
 
-static void cloud_fixed_degree_get_boundary_data(void* context, real_t* data, int component, int* point_indices, int num_points,
+static void cloud_fixed_degree_get_boundary_data(void* context, real_t* data, int component, int num_comps,
+                                                 int* point_indices, int num_points,
                                                  point_t* point_coords, vector_t* boundary_normals)
 {
   // FIXME
@@ -509,13 +542,24 @@ static void cloud_var_degree_get_boundary_neighbors(void* context, int point_ind
   // FIXME
 }
 
-static void cloud_var_degree_get_interior_data(void* context, real_t* data, int component, int* point_indices, int num_points,
+static void cloud_var_degree_get_interior_data(void* context, real_t* data, int component, int num_comps,
+                                               int* point_indices, int num_points,
                                                point_t* point_coords, real_t* point_values)
 {
-  // FIXME
+  cloud_var_degree_t* fit = context;
+
+  // We assume the data is in component-minor form in the array, 
+  // and that values are at cell centers.
+  for (int i = 0; i < num_points; ++i)
+  {
+    int j = point_indices[i];
+    point_coords[i] = fit->points->point_coords[j];
+    point_values[i] = data[num_comps*j+component];
+  }
 }
 
-static void cloud_var_degree_get_boundary_data(void* context, real_t* data, int component, int* point_indices, int num_points,
+static void cloud_var_degree_get_boundary_data(void* context, real_t* data, int component, int num_comps,
+                                               int* point_indices, int num_points,
                                                point_t* point_coords, vector_t* boundary_normals)
 {
   // FIXME
