@@ -49,7 +49,7 @@ typedef struct
   point_cloud_t* point_cloud;
   adj_graph_t* graph;
   st_func_t* rhs;           // Right-hand side function.
-  st_func_t* lambda;        // "Conduction" operator. 
+  st_func_t* lambda;        // "Conduction" operator (symmetric tensor). 
   real_t* phi;              // Solution array.
   st_func_t* solution;      // Analytic solution (if non-NULL).
   real_t current_time;      // Current simulation time.
@@ -103,11 +103,11 @@ static void poisson_read_input(void* context, interpreter_t* interp, options_t* 
   p->rhs = interpreter_get_scalar_function(interp, "rhs");
   if (p->rhs == NULL)
     polymec_error("poisson: No right hand side (rhs) was specified.");
-  p->lambda = interpreter_get_scalar_function(interp, "lambda");
+  p->lambda = interpreter_get_sym_tensor_function(interp, "lambda");
   if (p->lambda == NULL)
   {
-    real_t one = 1.0;
-    p->lambda = constant_st_func_new(1, &one);
+    real_t ones[6] = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
+    p->lambda = constant_st_func_new(6, ones);
   }
   p->bcs = interpreter_get_table(interp, "bcs");
   if (p->bcs == NULL)
@@ -200,15 +200,15 @@ static int fv_poisson_residual(N_Vector u, N_Vector F, void* context)
         polynomial_fit_eval_deriv(p->poly_fit, &xq, 0, 1, 0, &grad_phi.y);
         polynomial_fit_eval_deriv(p->poly_fit, &xq, 0, 0, 1, &grad_phi.z);
 
-        // Dot it with the normal vector on the face to find the normal derivative.
-        real_t dphidn = wq * vector_dot(&grad_phi, &nq);
-
         // Evaluate the conduction operator lambda.
-        real_t lambda;
-        st_func_eval(p->lambda, &xq, p->current_time, &lambda);
+        real_t lambda[6];
+        st_func_eval(p->lambda, &xq, p->current_time, lambda);
 
         // Form the flux contribution.
-        face_flux += wq * lambda * dphidn;
+        vector_t n_o_lambda = {.x = nq.x * lambda[0] + nq.y * lambda[3] + nq.z * lambda[2],
+                               .y = nq.x * lambda[1] + nq.y * lambda[2] + nq.z * lambda[4],
+                               .z = nq.x * lambda[2] + nq.y * lambda[4] + nq.z * lambda[5]};
+        face_flux += wq * vector_dot(&n_o_lambda, &grad_phi);
       }
 
       p->cell_face_fluxes[offset] = face_flux;
@@ -505,7 +505,7 @@ model_t* poisson_model_new(options_t* options)
   // Set up an interpreter.
   interpreter_validation_t valid_inputs[] = {{"mesh", INTERPRETER_MESH},
                                              {"points", INTERPRETER_POINT_LIST},
-                                             {"lambda", INTERPRETER_SCALAR_FUNCTION},
+                                             {"lambda", INTERPRETER_SYM_TENSOR_FUNCTION},
                                              {"rhs", INTERPRETER_SCALAR_FUNCTION},
                                              {"bcs", INTERPRETER_TABLE},
                                              {"solution", INTERPRETER_SCALAR_FUNCTION},

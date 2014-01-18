@@ -345,8 +345,8 @@ st_func_t* lua_tovectorfunction(struct lua_State* lua, int index);
 // return value for a function).
 void lua_pushvectorfunction(struct lua_State* lua, st_func_t* func);
 
-// This helper returns true if the object at the given index is a 
-// symmetric-tensor-valued function, false if not.
+// This helper returns true if the object at the given index is or can be 
+// interpreted as a symmetric-tensor-valued function, false if not.
 bool lua_issymtensorfunction(struct lua_State* lua, int index);
 
 // This helper retrieves a symmetric-tensor-valued function from the given index on an 
@@ -357,8 +357,8 @@ st_func_t* lua_tosymtensorfunction(struct lua_State* lua, int index);
 // return value for a function).
 void lua_pushsymtensorfunction(struct lua_State* lua, st_func_t* func);
 
-// This helper returns true if the object at the given index is a 
-// tensor-valued function, false if not.
+// This helper returns true if the object at the given index is or can be 
+// interpreted as a tensor-valued function, false if not.
 bool lua_istensorfunction(struct lua_State* lua, int index);
 
 // This helper retrieves a tensor-valued function from the given index on an 

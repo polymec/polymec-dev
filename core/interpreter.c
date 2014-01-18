@@ -649,38 +649,44 @@ static void interpreter_store_chunk_contents(interpreter_t* interp)
       }
       else if (entry->type == INTERPRETER_SYM_TENSOR_FUNCTION)
       {
-        if (!lua_isuserdata(lua, val_index))
+        if (!lua_isnumber(lua, val_index))
         {
-          if (preexisting_var)
-            skip_this_var = true;
-          else
-            polymec_error("Type error: %s must be a symmetric-tensor-valued function.", key);
-        }
-        interpreter_storage_t* var = (void*)lua_topointer(lua, val_index);
-        if (var->type != INTERPRETER_SYM_TENSOR_FUNCTION)
-        {
-          if (preexisting_var)
-            skip_this_var = true;
-          else
-            polymec_error("Type error: %s must be a symmetric-tensor-valued function.", key);
+          if (!lua_isuserdata(lua, val_index))
+          {
+            if (preexisting_var)
+              skip_this_var = true;
+            else
+              polymec_error("Type error: %s must be a symmetric-tensor-valued function.", key);
+          }
+          interpreter_storage_t* var = (void*)lua_topointer(lua, val_index);
+          if (var->type != INTERPRETER_SYM_TENSOR_FUNCTION)
+          {
+            if (preexisting_var)
+              skip_this_var = true;
+            else
+              polymec_error("Type error: %s must be a symmetric-tensor-valued function.", key);
+          }
         }
       }
       else if (entry->type == INTERPRETER_TENSOR_FUNCTION)
       {
-        if (!lua_isuserdata(lua, val_index))
+        if (!lua_isnumber(lua, val_index))
         {
-          if (preexisting_var)
-            skip_this_var = true;
-          else
-            polymec_error("Type error: %s must be a tensor-valued function.", key);
-        }
-        interpreter_storage_t* var = (void*)lua_topointer(lua, val_index);
-        if (var->type != INTERPRETER_TENSOR_FUNCTION)
-        {
-          if (preexisting_var)
-            skip_this_var = true;
-          else
-            polymec_error("Type error: %s must be a tensor-valued function.", key);
+          if (!lua_isuserdata(lua, val_index))
+          {
+            if (preexisting_var)
+              skip_this_var = true;
+            else
+              polymec_error("Type error: %s must be a tensor-valued function.", key);
+          }
+          interpreter_storage_t* var = (void*)lua_topointer(lua, val_index);
+          if (var->type != INTERPRETER_TENSOR_FUNCTION)
+          {
+            if (preexisting_var)
+              skip_this_var = true;
+            else
+              polymec_error("Type error: %s must be a tensor-valued function.", key);
+          }
         }
       }
       else if ((entry->type == INTERPRETER_SEQUENCE) && !lua_issequence(lua, val_index))
@@ -1140,6 +1146,12 @@ st_func_t* interpreter_get_sym_tensor_function(interpreter_t* interp, const char
   interpreter_storage_t** storage = interpreter_map_get(interp->store, (char*)name);
   if (storage == NULL)
     return NULL;
+  if ((*storage)->type == INTERPRETER_NUMBER)
+  {
+    real_t F = *(real_t*)((*storage)->datum);
+    real_t v[6] = {F, 0.0, 0.0, F, 0.0, F};
+    return constant_st_func_new(6, v);
+  }
   if ((*storage)->type != INTERPRETER_SYM_TENSOR_FUNCTION)
     return NULL;
   st_func_t* func = (st_func_t*)((*storage)->datum);
@@ -1159,6 +1171,12 @@ st_func_t* interpreter_get_tensor_function(interpreter_t* interp, const char* na
   interpreter_storage_t** storage = interpreter_map_get(interp->store, (char*)name);
   if (storage == NULL)
     return NULL;
+  if ((*storage)->type == INTERPRETER_NUMBER)
+  {
+    real_t F = *(real_t*)((*storage)->datum);
+    real_t v[9] = {F, 0.0, 0.0, 0.0, F, 0.0, 0.0, 0.0, F};
+    return constant_st_func_new(9, v);
+  }
   if ((*storage)->type != INTERPRETER_TENSOR_FUNCTION)
     return NULL;
   st_func_t* func = (st_func_t*)((*storage)->datum);
@@ -1954,19 +1972,34 @@ void lua_pushvectorfunction(struct lua_State* lua, st_func_t* func)
 
 bool lua_issymtensorfunction(struct lua_State* lua, int index)
 {
+  if (lua_isnumber(lua, index)) 
+    return true; // Diagonal symmetric tensor.
   if (!lua_isuserdata(lua, index))
     return false;
   interpreter_storage_t* storage = (interpreter_storage_t*)lua_topointer(lua, index);
-  return (storage->type == INTERPRETER_SYM_TENSOR_FUNCTION);
+  return ((storage->type == INTERPRETER_SYM_TENSOR_FUNCTION) || 
+          (storage->type == INTERPRETER_NUMBER));
 }
 
 st_func_t* lua_tosymtensorfunction(struct lua_State* lua, int index)
 {
+  if (lua_isnumber(lua, index))
+  {
+    real_t F = (real_t)lua_tonumber(lua, index);
+    real_t v[6] = {F, 0.0, 0.0, F, 0.0, F};
+    return constant_st_func_new(6, v);
+  }
   if (!lua_isuserdata(lua, index))
     return NULL;
   interpreter_storage_t* storage = (interpreter_storage_t*)lua_topointer(lua, index);
   if (storage->type == INTERPRETER_SYM_TENSOR_FUNCTION)
     return (st_func_t*)storage->datum;
+  else if (storage->type == INTERPRETER_NUMBER)
+  {
+    real_t F = *(real_t*)storage->datum;
+    real_t v[6] = {F, 0.0, 0.0, F, 0.0, F};
+    return constant_st_func_new(6, v);
+  }
   else
     return NULL;
 }
@@ -2040,19 +2073,34 @@ void lua_pushsymtensorfunction(struct lua_State* lua, st_func_t* func)
 
 bool lua_istensorfunction(struct lua_State* lua, int index)
 {
+  if (!lua_isnumber(lua, index))
+    return true; // Diagonal symmetric tensor.
   if (!lua_isuserdata(lua, index))
     return false;
   interpreter_storage_t* storage = (interpreter_storage_t*)lua_topointer(lua, index);
-  return (storage->type == INTERPRETER_TENSOR_FUNCTION);
+  return ((storage->type == INTERPRETER_TENSOR_FUNCTION) || 
+          (storage->type == INTERPRETER_NUMBER));
 }
 
 st_func_t* lua_totensorfunction(struct lua_State* lua, int index)
 {
+  if (lua_isnumber(lua, index))
+  {
+    real_t F = (real_t)lua_tonumber(lua, index);
+    real_t v[6] = {F, 0.0, 0.0, F, 0.0, F};
+    return constant_st_func_new(6, v);
+  }
   if (!lua_isuserdata(lua, index))
     return NULL;
   interpreter_storage_t* storage = (interpreter_storage_t*)lua_topointer(lua, index);
   if (storage->type == INTERPRETER_TENSOR_FUNCTION)
     return (st_func_t*)storage->datum;
+  else if (storage->type == INTERPRETER_NUMBER)
+  {
+    real_t F = *(real_t*)storage->datum;
+    real_t v[9] = {F, 0.0, 0.0, 0.0, F, 0.0, 0.0, 0.0, F};
+    return constant_st_func_new(9, v);
+  }
   else
     return NULL;
 }
