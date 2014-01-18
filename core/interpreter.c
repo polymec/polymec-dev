@@ -252,6 +252,26 @@ static interpreter_storage_t* store_vector_function(lua_State* lua, st_func_t* v
   return storage;
 }
 
+static interpreter_storage_t* store_sym_tensor_function(lua_State* lua, st_func_t* var)
+{
+  ASSERT(st_func_num_comp(var) == 6);
+  interpreter_storage_t* storage = NEW_USER_DATA(lua);
+  storage->type = INTERPRETER_SYM_TENSOR_FUNCTION;
+  storage->datum = (void*)var;
+  storage->dtor = NULL;
+  return storage;
+}
+
+static interpreter_storage_t* store_tensor_function(lua_State* lua, st_func_t* var)
+{
+  ASSERT(st_func_num_comp(var) == 9);
+  interpreter_storage_t* storage = NEW_USER_DATA(lua);
+  storage->type = INTERPRETER_TENSOR_FUNCTION;
+  storage->datum = (void*)var;
+  storage->dtor = NULL;
+  return storage;
+}
+
 static void destroy_table(void* table)
 {
   string_ptr_unordered_map_free((string_ptr_unordered_map_t*)table);
@@ -625,6 +645,42 @@ static void interpreter_store_chunk_contents(interpreter_t* interp)
             skip_this_var = true;
           else
             polymec_error("Type error: %s must be a vector-valued function.", key);
+        }
+      }
+      else if (entry->type == INTERPRETER_SYM_TENSOR_FUNCTION)
+      {
+        if (!lua_isuserdata(lua, val_index))
+        {
+          if (preexisting_var)
+            skip_this_var = true;
+          else
+            polymec_error("Type error: %s must be a symmetric-tensor-valued function.", key);
+        }
+        interpreter_storage_t* var = (void*)lua_topointer(lua, val_index);
+        if (var->type != INTERPRETER_SYM_TENSOR_FUNCTION)
+        {
+          if (preexisting_var)
+            skip_this_var = true;
+          else
+            polymec_error("Type error: %s must be a symmetric-tensor-valued function.", key);
+        }
+      }
+      else if (entry->type == INTERPRETER_TENSOR_FUNCTION)
+      {
+        if (!lua_isuserdata(lua, val_index))
+        {
+          if (preexisting_var)
+            skip_this_var = true;
+          else
+            polymec_error("Type error: %s must be a tensor-valued function.", key);
+        }
+        interpreter_storage_t* var = (void*)lua_topointer(lua, val_index);
+        if (var->type != INTERPRETER_TENSOR_FUNCTION)
+        {
+          if (preexisting_var)
+            skip_this_var = true;
+          else
+            polymec_error("Type error: %s must be a tensor-valued function.", key);
         }
       }
       else if ((entry->type == INTERPRETER_SEQUENCE) && !lua_issequence(lua, val_index))
@@ -1076,6 +1132,44 @@ st_func_t* interpreter_get_vector_function(interpreter_t* interp, const char* na
 void interpreter_set_vector_function(interpreter_t* interp, const char* name, st_func_t* value)
 {
   interpreter_storage_t* storage = store_vector_function(NULL, value);
+  interpreter_map_insert_with_kv_dtor(interp->store, string_dup(name), storage, destroy_variable);
+}
+
+st_func_t* interpreter_get_sym_tensor_function(interpreter_t* interp, const char* name)
+{
+  interpreter_storage_t** storage = interpreter_map_get(interp->store, (char*)name);
+  if (storage == NULL)
+    return NULL;
+  if ((*storage)->type != INTERPRETER_SYM_TENSOR_FUNCTION)
+    return NULL;
+  st_func_t* func = (st_func_t*)((*storage)->datum);
+  ASSERT(st_func_num_comp(func) == 6);
+  (*storage)->owner = POLYMEC;
+  return func;
+}
+
+void interpreter_set_sym_tensor_function(interpreter_t* interp, const char* name, st_func_t* value)
+{
+  interpreter_storage_t* storage = store_sym_tensor_function(NULL, value);
+  interpreter_map_insert_with_kv_dtor(interp->store, string_dup(name), storage, destroy_variable);
+}
+
+st_func_t* interpreter_get_tensor_function(interpreter_t* interp, const char* name)
+{
+  interpreter_storage_t** storage = interpreter_map_get(interp->store, (char*)name);
+  if (storage == NULL)
+    return NULL;
+  if ((*storage)->type != INTERPRETER_TENSOR_FUNCTION)
+    return NULL;
+  st_func_t* func = (st_func_t*)((*storage)->datum);
+  ASSERT(st_func_num_comp(func) == 9);
+  (*storage)->owner = POLYMEC;
+  return func;
+}
+
+void interpreter_set_tensor_function(interpreter_t* interp, const char* name, st_func_t* value)
+{
+  interpreter_storage_t* storage = store_tensor_function(NULL, value);
   interpreter_map_insert_with_kv_dtor(interp->store, string_dup(name), storage, destroy_variable);
 }
 
@@ -1856,6 +1950,178 @@ void lua_pushvectorfunction(struct lua_State* lua, st_func_t* func)
      {"__call", vectorfunction_call},
      {NULL, NULL}};
   set_metatable(lua, "vectorfunction_metatable", metatable);
+}
+
+bool lua_issymtensorfunction(struct lua_State* lua, int index)
+{
+  if (!lua_isuserdata(lua, index))
+    return false;
+  interpreter_storage_t* storage = (interpreter_storage_t*)lua_topointer(lua, index);
+  return (storage->type == INTERPRETER_SYM_TENSOR_FUNCTION);
+}
+
+st_func_t* lua_tosymtensorfunction(struct lua_State* lua, int index)
+{
+  if (!lua_isuserdata(lua, index))
+    return NULL;
+  interpreter_storage_t* storage = (interpreter_storage_t*)lua_topointer(lua, index);
+  if (storage->type == INTERPRETER_SYM_TENSOR_FUNCTION)
+    return (st_func_t*)storage->datum;
+  else
+    return NULL;
+}
+
+static int symtensorfunction_tostring(lua_State* lua)
+{
+  interpreter_storage_t* var = (void*)lua_topointer(lua, -1);
+  ASSERT(var->type == INTERPRETER_SYM_TENSOR_FUNCTION);
+  st_func_t* data = var->datum;
+  char str[1024];
+  sprintf(str, "sym tensor function (%s)", st_func_name(data));
+  lua_pushstring(lua, str);
+  return 1;
+}
+
+static int symtensorfunction_call(lua_State* lua)
+{
+  interpreter_storage_t* var = (void*)lua_topointer(lua, -1);
+  ASSERT(var->type == INTERPRETER_SYM_TENSOR_FUNCTION);
+  st_func_t* f = var->datum;
+  ASSERT(st_func_num_comp(f) == 6);
+  int num_args = lua_gettop(lua);
+  if ((num_args != 2) && (num_args != 3))
+    return luaL_error(lua, "Invalid argument(s). A sym tensor function takes x, t as arguments.");
+
+  if (!lua_ispoint(lua, 2) && !lua_ispointlist(lua, 2))
+    return luaL_error(lua, "Argument 1 must be a point or a list of points.");
+
+  if ((num_args == 3) && !lua_isnumber(lua, 3))
+    return luaL_error(lua, "Argument 2, if given must be a time.");
+
+  if (lua_ispoint(lua, 2))
+  {
+    point_t* x = lua_topoint(lua, 2);
+    real_t t = (real_t)lua_tonumber(lua, 3);
+    real_t v[6];
+    st_func_eval(f, x, t, v);
+    lua_pushsequence(lua, v, 6);
+  }
+  else
+  {
+    int num_points;
+    point_t* x = lua_topointlist(lua, 2, &num_points);
+    real_t t = (real_t)lua_tonumber(lua, 3);
+    real_t* V = malloc(sizeof(real_t) * 6 * num_points);
+    for (int i = 0; i < num_points; ++i)
+    {
+      real_t v[6];
+      st_func_eval(f, x, t, v);
+      for (int j = 0; j < 6; ++j)
+        V[6*i+j] = v[j];
+    }
+    lua_pushsequence(lua, V, 6*num_points);
+  }
+
+  return 1;
+}
+
+void lua_pushsymtensorfunction(struct lua_State* lua, st_func_t* func)
+{
+  // Only 6-component functions are allowed.
+  ASSERT(st_func_num_comp(func) == 6); 
+  // Bundle it up and store it in the given variable.
+  store_sym_tensor_function(lua, func);
+  lua_meta_key_val_t metatable[] = 
+    {{"__tostring", symtensorfunction_tostring},
+     {"__call", symtensorfunction_call},
+     {NULL, NULL}};
+  set_metatable(lua, "symtensorfunction_metatable", metatable);
+}
+
+bool lua_istensorfunction(struct lua_State* lua, int index)
+{
+  if (!lua_isuserdata(lua, index))
+    return false;
+  interpreter_storage_t* storage = (interpreter_storage_t*)lua_topointer(lua, index);
+  return (storage->type == INTERPRETER_TENSOR_FUNCTION);
+}
+
+st_func_t* lua_totensorfunction(struct lua_State* lua, int index)
+{
+  if (!lua_isuserdata(lua, index))
+    return NULL;
+  interpreter_storage_t* storage = (interpreter_storage_t*)lua_topointer(lua, index);
+  if (storage->type == INTERPRETER_TENSOR_FUNCTION)
+    return (st_func_t*)storage->datum;
+  else
+    return NULL;
+}
+
+static int tensorfunction_tostring(lua_State* lua)
+{
+  interpreter_storage_t* var = (void*)lua_topointer(lua, -1);
+  ASSERT(var->type == INTERPRETER_TENSOR_FUNCTION);
+  st_func_t* data = var->datum;
+  char str[1024];
+  sprintf(str, "tensor function (%s)", st_func_name(data));
+  lua_pushstring(lua, str);
+  return 1;
+}
+
+static int tensorfunction_call(lua_State* lua)
+{
+  interpreter_storage_t* var = (void*)lua_topointer(lua, -1);
+  ASSERT(var->type == INTERPRETER_TENSOR_FUNCTION);
+  st_func_t* f = var->datum;
+  ASSERT(st_func_num_comp(f) == 9);
+  int num_args = lua_gettop(lua);
+  if ((num_args != 2) && (num_args != 3))
+    return luaL_error(lua, "Invalid argument(s). A tensor function takes x, t as arguments.");
+
+  if (!lua_ispoint(lua, 2) && !lua_ispointlist(lua, 2))
+    return luaL_error(lua, "Argument 1 must be a point or a list of points.");
+
+  if ((num_args == 3) && !lua_isnumber(lua, 3))
+    return luaL_error(lua, "Argument 2, if given must be a time.");
+
+  if (lua_ispoint(lua, 2))
+  {
+    point_t* x = lua_topoint(lua, 2);
+    real_t t = (real_t)lua_tonumber(lua, 3);
+    real_t v[9];
+    st_func_eval(f, x, t, v);
+    lua_pushsequence(lua, v, 9);
+  }
+  else
+  {
+    int num_points;
+    point_t* x = lua_topointlist(lua, 2, &num_points);
+    real_t t = (real_t)lua_tonumber(lua, 3);
+    real_t* V = malloc(sizeof(real_t) * 9 * num_points);
+    for (int i = 0; i < num_points; ++i)
+    {
+      real_t v[9];
+      st_func_eval(f, x, t, v);
+      for (int j = 0; j < 9; ++j)
+        V[9*i+j] = v[j];
+    }
+    lua_pushsequence(lua, V, 9*num_points);
+  }
+
+  return 1;
+}
+
+void lua_pushtensorfunction(struct lua_State* lua, st_func_t* func)
+{
+  // Only 6-component functions are allowed.
+  ASSERT(st_func_num_comp(func) == 6); 
+  // Bundle it up and store it in the given variable.
+  store_tensor_function(lua, func);
+  lua_meta_key_val_t metatable[] = 
+    {{"__tostring", tensorfunction_tostring},
+     {"__call", tensorfunction_call},
+     {NULL, NULL}};
+  set_metatable(lua, "tensorfunction_metatable", metatable);
 }
 
 bool lua_ismesh(struct lua_State* lua, int index)
