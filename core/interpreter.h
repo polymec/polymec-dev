@@ -43,6 +43,7 @@ typedef enum
   INTERPRETER_NUMBER,
   INTERPRETER_BOOLEAN,
   INTERPRETER_MESH,
+  INTERPRETER_STRING_LIST,
   INTERPRETER_POINT,
   INTERPRETER_POINT_LIST,
   INTERPRETER_VECTOR,
@@ -214,20 +215,30 @@ st_func_t* interpreter_get_tensor_function(interpreter_t* interp, const char* na
 // A tensor function returns components (Sxx, Sxy, Sxz, Syx, Syy, Syz, Szx, Szy, Szz).
 void interpreter_set_tensor_function(interpreter_t* interp, const char* name, st_func_t* value);
 
+// Fetches the given list of strings from the interpreter, returning NULL 
+// if it is not found or if it is not a list of strings. The size of the list is 
+// stored in *len. The caller assumes responsibility for destroying the 
+// list of strings after this call.
+char** interpreter_get_stringlist(interpreter_t* interp, const char* name, int* len);
+
+// Sets the given variable within the interpreter to the given list of
+// strings. Any existing value of this variable is overwritten.
+void interpreter_set_stringlist(interpreter_t* interp, const char* name, char** list, int len);
+
 // Fetches the given sequence of numbers from the interpreter, returning NULL 
 // if it is not found or if it is not a sequence. The size of the sequence is 
-// stored in *size. The caller assumes responsibility for destroying the 
+// stored in *len. The caller assumes responsibility for destroying the 
 // sequence after this call.
-real_t* interpreter_get_sequence(interpreter_t* interp, const char* name, int* size);
+real_t* interpreter_get_sequence(interpreter_t* interp, const char* name, int* len);
+
+// Sets the given variable within the interpreter to the given sequence of
+// numbers. Any existing value of this variable is overwritten.
+void interpreter_set_sequence(interpreter_t* interp, const char* name, real_t* sequence, int len);
 
 // Fetches the given table from the interpreter, returning NULL if it 
 // is not found or if it is not a table. The caller assumes responsibility
 // for destroying the table after this call.
 string_ptr_unordered_map_t* interpreter_get_table(interpreter_t* interp, const char* name);
-
-// Sets the given variable within the interpreter to the given sequence of
-// nubmers.. Any existing value of this variable is overwritten.
-void interpreter_set_sequence(interpreter_t* interp, const char* name, real_t* sequence, int len);
 
 // Sets the given variable within the interpreter to the given table of
 // objects. Any existing value of this variable is overwritten.
@@ -261,6 +272,18 @@ real_t* lua_tosequence(struct lua_State* lua, int index, int* len);
 // Pushes a sequence onto the interpreter's stack (as a return value for a 
 // function).
 void lua_pushsequence(struct lua_State* lua, real_t* sequence, int len);
+
+// This helper returns true if the object at the given index is a list of
+// strings, false if not.
+bool lua_isstringlist(struct lua_State* lua, int index);
+
+// This helper retrieves a list of strings from the given index on an active 
+// lua interpreter, or returns NULL if the index does not point to a string list.
+char** lua_tostringlist(struct lua_State* lua, int index, int* len);
+
+// Pushes a string list onto the interpreter's stack (as a return value for a 
+// function).
+void lua_pushstringlist(struct lua_State* lua, char** list, int len);
 
 // This helper returns true if the object at the given index is a point
 // in 3-dimensional space, false if not.

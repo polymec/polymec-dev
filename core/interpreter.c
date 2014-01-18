@@ -287,6 +287,34 @@ static interpreter_storage_t* store_sequence(lua_State* lua, real_t* sequence, i
   return storage;
 }
 
+typedef struct
+{
+  char** list;
+  int len;
+} stringlist_t;
+
+static void stringlist_dtor(void* list)
+{
+  stringlist_t* sl = list;
+  for (int i = 0; i < sl->len; ++i)
+    free(sl->list[i]);
+  free(sl->list);
+  free(sl);
+}
+
+static interpreter_storage_t* store_stringlist(lua_State* lua, char** list, int len)
+{
+  interpreter_storage_t* storage = NEW_USER_DATA(lua);
+  stringlist_t* sl = malloc(sizeof(stringlist_t));
+  sl->list = list;
+  sl->len = len;
+  storage->datum = sl;
+  storage->type = INTERPRETER_STRING_LIST;
+  storage->dtor = stringlist_dtor; 
+  storage->size = len;
+  return storage;
+}
+
 static interpreter_storage_t* store_table(lua_State* lua, string_ptr_unordered_map_t* table)
 {
   interpreter_storage_t* storage = NEW_USER_DATA(lua);
@@ -696,6 +724,13 @@ static void interpreter_store_chunk_contents(interpreter_t* interp)
         else
           polymec_error("Type error: %s must be a sequence of numbers.", key);
       }
+      else if ((entry->type == INTERPRETER_STRING_LIST) && !lua_isstringlist(lua, val_index))
+      {
+        if (preexisting_var)
+          skip_this_var = true;
+        else
+          polymec_error("Type error: %s must be a list of strings.", key);
+      }
       else if ((entry->type == INTERPRETER_TABLE) && !lua_istable(lua, val_index))
       {
         if (preexisting_var)
@@ -729,6 +764,12 @@ static void interpreter_store_chunk_contents(interpreter_t* interp)
       var = store_boolean(NULL, lua_toboolean(lua, val_index));
     else if (lua_isstring(lua, val_index))
       var = store_string(NULL, lua_tostring(lua, val_index));
+    else if (lua_isstringlist(lua, val_index))
+    {
+      int len;
+      char** list = lua_tostringlist(lua, val_index, &len);
+      var = store_stringlist(NULL, list, len);
+    }
     else if (lua_issequence(lua, val_index))
     {
       // Sequences can be interpreted in many ways. Are we asked to 
@@ -1202,7 +1243,13 @@ string_ptr_unordered_map_t* interpreter_get_table(interpreter_t* interp, const c
   return (string_ptr_unordered_map_t*)((*storage)->datum);
 }
 
-real_t* interpreter_get_sequence(interpreter_t* interp, const char* name, int* size)
+void interpreter_set_table(interpreter_t* interp, const char* name, string_ptr_unordered_map_t* value)
+{
+  interpreter_storage_t* storage = store_table(NULL, value);
+  interpreter_map_insert_with_kv_dtor(interp->store, string_dup(name), storage, destroy_variable);
+}
+
+real_t* interpreter_get_sequence(interpreter_t* interp, const char* name, int* len)
 {
   interpreter_storage_t** storage = interpreter_map_get(interp->store, (char*)name);
   if (storage == NULL)
@@ -1210,19 +1257,33 @@ real_t* interpreter_get_sequence(interpreter_t* interp, const char* name, int* s
   if ((*storage)->type != INTERPRETER_SEQUENCE)
     return NULL;
   (*storage)->owner = POLYMEC;
-  *size = (*storage)->size;
+  *len = (*storage)->size;
   return (real_t*)((*storage)->datum);
-}
-
-void interpreter_set_table(interpreter_t* interp, const char* name, string_ptr_unordered_map_t* value)
-{
-  interpreter_storage_t* storage = store_table(NULL, value);
-  interpreter_map_insert_with_kv_dtor(interp->store, string_dup(name), storage, destroy_variable);
 }
 
 void interpreter_set_sequence(interpreter_t* interp, const char* name, real_t* sequence, int len)
 {
   interpreter_storage_t* storage = store_sequence(NULL, sequence, len);
+  interpreter_map_insert_with_kv_dtor(interp->store, string_dup(name), storage, destroy_variable);
+}
+
+char** interpreter_get_stringlist(interpreter_t* interp, const char* name, int* len)
+{
+  interpreter_storage_t** storage = interpreter_map_get(interp->store, (char*)name);
+  if (storage == NULL)
+    return NULL;
+  if ((*storage)->type != INTERPRETER_STRING_LIST)
+    return NULL;
+  (*storage)->owner = POLYMEC;
+  stringlist_t* sl = (*storage)->datum;
+  ASSERT((*storage)->size == sl->len);
+  *len = sl->len;
+  return sl->list;
+}
+
+void interpreter_set_stringlist(interpreter_t* interp, const char* name, char** list, int len)
+{
+  interpreter_storage_t* storage = store_stringlist(NULL, list, len);
   interpreter_map_insert_with_kv_dtor(interp->store, string_dup(name), storage, destroy_variable);
 }
 
@@ -1361,6 +1422,130 @@ void lua_pushsequence(struct lua_State* lua, real_t* sequence, int len)
      {"__len", sequence_len},
      {NULL, NULL}};
   set_metatable(lua, "sequence_metatable", metatable);
+}
+
+bool lua_isstringlist(struct lua_State* lua, int index)
+{
+  index = lua_absindex(lua, index);
+  if (lua_istable(lua, index))
+  {
+    lua_pushnil(lua);
+    while (lua_next(lua, index))
+    {
+      // Key is at index -2, value is at -1.
+      static const int key_index = -2;
+      static const int val_index = -1;
+      bool key_is_number = lua_isnumber(lua, key_index);
+      bool val_is_string = lua_isstring(lua, val_index);
+      lua_pop(lua, 1);
+      if (!key_is_number || !val_is_string)
+      {
+        lua_pop(lua, 1);
+        return false;
+      }
+    }
+    return true;
+  }
+  if (!lua_isuserdata(lua, index))
+    return false;
+  interpreter_storage_t* storage = (interpreter_storage_t*)lua_topointer(lua, index);
+  return (storage->type == INTERPRETER_STRING_LIST);
+}
+
+char** lua_tostringlist(struct lua_State* lua, int index, int* len)
+{
+  if (!lua_isstringlist(lua, index))
+    return NULL;
+  index = lua_absindex(lua, index);
+  if (lua_istable(lua, index))
+  {
+    *len = lua_rawlen(lua, index);
+    char** list = malloc(sizeof(char*)*(*len));
+    for (int i = 1; i <= *len; ++i)
+    {
+      lua_pushinteger(lua, (lua_Integer)i);
+      lua_gettable(lua, index);
+      list[i-1] = string_dup(lua_tostring(lua, -1));
+      lua_pop(lua, 1);
+    }
+    return list;
+  }
+  interpreter_storage_t* storage = (interpreter_storage_t*)lua_topointer(lua, index);
+  if (storage->type == INTERPRETER_STRING_LIST)
+  {
+    stringlist_t* sl = storage->datum;
+    ASSERT(sl->len == *len);
+    *len = sl->len;
+    return sl->list;
+  }
+  else
+    return NULL;
+}
+
+static int stringlist_tostring(lua_State* lua)
+{
+  interpreter_storage_t* var = (void*)lua_topointer(lua, -1);
+  ASSERT(var->type == INTERPRETER_SEQUENCE);
+  stringlist_t* sl = var->datum;
+  char** data = sl->list;
+  int repr_len = 0;
+  for (int i = 0; i < sl->len; ++i)
+    repr_len += strlen(data[i]) + 10;
+  char* str = malloc(sizeof(char) * repr_len);
+  str[0] = '{';
+  int offset = 1;
+  for (int i = 0; i < var->size; ++i)
+  {
+    char stri[strlen(data[i])+10];
+    if (i < (var->size-1))
+      sprintf(stri, "\'%s\', ", data[i]);
+    else
+      sprintf(stri, "'%s'}", data[i]);
+    strcpy(&str[offset], stri);
+    offset += strlen(stri);
+  }
+  lua_pushstring(lua, str);
+  free(str);
+  return 1;
+}
+
+static int stringlist_concat(lua_State* lua)
+{
+  interpreter_storage_t* var1 = (void*)lua_topointer(lua, -1);
+  ASSERT(var1->type == INTERPRETER_STRING_LIST);
+  char** data1 = var1->datum;
+  interpreter_storage_t* var2 = (void*)lua_topointer(lua, -2);
+  ASSERT(var2->type == INTERPRETER_STRING_LIST);
+  char** data2 = var2->datum;
+
+  int len = var1->size + var2->size;
+  char** concat_data = malloc(sizeof(char*) * len);
+  for (int i = 0; i < var1->size; ++i)
+    concat_data[i] = string_dup(data1[i]);
+  for (int i = 0; i < var2->size; ++i)
+    concat_data[i+var1->size] = string_dup(data2[i]);
+  lua_pushstringlist(lua, concat_data, len);
+  return 1;
+}
+
+static int stringlist_len(lua_State* lua)
+{
+  interpreter_storage_t* var = (void*)lua_topointer(lua, -1);
+  ASSERT(var->type == INTERPRETER_STRING_LIST);
+  lua_pushinteger(lua, var->size);
+  return 1;
+}
+
+void lua_pushstringlist(struct lua_State* lua, char** list, int len)
+{
+  // Bundle it up and store it in the given variable.
+  store_stringlist(lua, list, len);
+  lua_meta_key_val_t metatable[] = 
+    {{"__tostring", stringlist_tostring},
+     {"__concat", stringlist_concat},
+     {"__len", stringlist_len},
+     {NULL, NULL}};
+  set_metatable(lua, "stringlist_metatable", metatable);
 }
 
 bool lua_ispoint(struct lua_State* lua, int index)

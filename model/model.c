@@ -316,14 +316,11 @@ static void model_read_input(model_t* model, interpreter_t* interp, options_t* o
   }
 
   // If observation names are given, handle them here.
-  // FIXME: We need a way to express lists of strings in the interpreter.
-#if 0
   string_array_clear(model->observations);
-  char* obs_names_str = options_value(options, "observations");
-  if (obs_names_str != NULL)
+  int num_obs;
+  char** obs_names = interpreter_get_stringlist(interp, "observations", &num_obs);
+  if (obs_names != NULL)
   {
-    int num_obs;
-    char** obs_names = string_split(obs_names_str, ",", &num_obs);
     for (int i = 0; i < num_obs; ++i)
     {
       model_observe(model, (const char*)obs_names[i]);
@@ -331,7 +328,6 @@ static void model_read_input(model_t* model, interpreter_t* interp, options_t* o
     }
     free(obs_names); 
   }
-#endif
 
   // Load the inputs into the model.
   model->vtable.read_input(model->context, interp, options);
