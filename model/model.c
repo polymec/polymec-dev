@@ -66,10 +66,14 @@ struct model_t
   int num_obs_times, obs_time_index;
 
   // Data related to a given simulation.
-  char* sim_name; // Simulation name.
-  real_t time;    // Current simulation time.
-  int step;       // Current simulation step.
-  real_t max_dt;  // Maximum time step.
+  char* sim_name;    // Simulation name.
+  real_t time;       // Current simulation time.
+  real_t wall_time0; // Wall time at simulation start.
+  real_t wall_time;  // Current wall time.
+  real_t sim_speed;  // Simulation "speed" (sim time / wall time per step).
+  int step;          // Current simulation step number.
+  real_t dt;         // Current simulation time step.
+  real_t max_dt;     // Maximum time step.
 
   // Interpreter for parsing input files.
   interpreter_t* interpreter;
@@ -111,6 +115,10 @@ model_t* model_new(const char* name, void* context, model_vtable vtable, options
   model->save_every = -1;
   model->plot_every = -1;
   model->observe_every = -FLT_MAX;
+  model->wall_time = 0.0;
+  model->wall_time0 = 0.0;
+  model->dt = 0.0;
+  model->step = 0;
   model->max_dt = FLT_MAX;
   model->interpreter = NULL;
 
@@ -376,7 +384,7 @@ static void key_dtor(char* key)
 void model_define_global_observation(model_t* model, 
                                      const char* name, 
                                      real_t (*compute_global_observation)(void* context,
-                                                                                  real_t t))
+                                                                          real_t t))
 {
   string_ptr_unordered_map_insert_with_k_dtor(model->global_obs, 
                                               string_dup(name), 
@@ -384,10 +392,34 @@ void model_define_global_observation(model_t* model,
                                               key_dtor);
 }
 
+// Support for built-in observations
+static bool is_built_in_observation(const char* observation)
+{
+  return (!strcmp("sim_speed", observation) || 
+          !strcmp("dt", observation) || 
+          !strcmp("wall_time", observation));
+}
+
+static real_t built_in_observation(model_t* model, char* observation)
+{
+  if (!strcmp("sim_speed", observation))
+    return model->sim_speed;
+  else if (!strcmp("dt", observation))
+    return model->dt;
+  else if (!strcmp("wall_time", observation))
+    return model->wall_time;
+  else
+  {
+    polymec_error("Invalid built-in observation: %s", observation);
+    return 0.0;
+  }
+}
+
 void model_observe(model_t* model, const char* observation)
 {
   // Make sure this is an observation in the model.
-  if (!string_ptr_unordered_map_contains(model->point_obs, (char*)observation) && 
+  if (!is_built_in_observation(observation) &&
+      !string_ptr_unordered_map_contains(model->point_obs, (char*)observation) && 
       !string_ptr_unordered_map_contains(model->global_obs, (char*)observation))
   {
     polymec_error("Observation '%s' is not defined for this model.", observation);
@@ -431,7 +463,10 @@ void model_init(model_t* model, real_t t)
   log_detail("%s: Initializing at time %g.", model->name, t);
   model->vtable.init(model->context, t);
   model->step = 0;
+  model->dt = 0.0;
   model->time = t;
+  model->wall_time0 = MPI_Wtime();
+  model->wall_time = MPI_Wtime();
   model->obs_time_index = 0;
 
   model_do_periodic_work(model);
@@ -443,24 +478,45 @@ real_t model_max_dt(model_t* model, char* reason)
 {
   real_t dt = FLT_MAX;
   strcpy(reason, "No time step constraints.");
+
+  // If we specified a maximum timestep, apply it here.
   if (model->max_dt < FLT_MAX)
   {
     dt = model->max_dt;
     strcpy(reason, "Max dt set in options.");
   }
+
+  // If we have an observation time coming up, perhaps the next one will 
+  // constrain the timestep.
+  int obs_time_index = real_lower_bound(model->obs_times, model->num_obs_times, model->time);
+  if (obs_time_index < model->num_obs_times)
+  {
+    real_t obs_time = model->obs_times[obs_time_index];
+    dt = obs_time - model->time;
+    sprintf(reason, "Requested observation time: %g", obs_time);
+  }
+
+  // Now let the model have at it.
   if (model->vtable.max_dt != NULL)
-    return model->vtable.max_dt(model->context, model->time, reason);
+    dt = model->vtable.max_dt(model->context, model->time, reason);
   return dt;
 }
 
 void model_advance(model_t* model, real_t dt)
 {
   log_info("%s: Step %d (t = %g, dt = %g)", model->name, model->step, model->time, dt);
+  real_t pre_wall_time = MPI_Wtime();
+  model->dt = dt;
   model->vtable.advance(model->context, model->time, dt);
   model->time += dt;
   model->step += 1;
 
+  // Perform any busywork.
   model_do_periodic_work(model);
+
+  real_t post_wall_time = MPI_Wtime();
+  model->sim_speed = dt / (post_wall_time - pre_wall_time); // Simulation "speed"
+  model->wall_time = post_wall_time;
 }
 
 void model_finalize(model_t* model)
@@ -510,23 +566,27 @@ void model_record_observations(model_t* model)
   if ((model->observations->size == 0) || (model->num_obs_times == 0))
     return;
 
-  // Open up the observation file, writing a header each time.
+  // Open up the observation file.
   char obs_fn[strlen(model->sim_name) + 5];
   snprintf(obs_fn, strlen(model->sim_name) + 4, "%s.obs", model->sim_name);
   FILE* obs = fopen(obs_fn, "w+");
   obs = fopen(obs_fn, "w+");
 
-  // Provenance-related header.
-  fprintf(obs, "# %s\n", polymec_invocation());
-  time_t invoc_time = polymec_invocation_time();
-  fprintf(obs, "# Invoked on: %s\n", ctime(&invoc_time));
+  // If we haven't recorded any observations yet, write a header.
+  if (model->time < model->obs_times[0])
+  {
+    // Provenance-related header.
+    fprintf(obs, "# %s\n", polymec_invocation());
+    time_t invoc_time = polymec_invocation_time();
+    fprintf(obs, "# Invoked on: %s\n", ctime(&invoc_time));
 
-  // Observation quantities.
-  fprintf(obs, "# Observations for %s\n", model->sim_name);
-  fprintf(obs, "# time ");
-  for (int i = 0; i < model->observations->size; ++i)
-    fprintf(obs, "%s ", model->observations->data[i]);
-  fprintf(obs, "\n");
+    // Observation quantities.
+    fprintf(obs, "# Observations for %s\n", model->sim_name);
+    fprintf(obs, "# time ");
+    for (int i = 0; i < model->observations->size; ++i)
+      fprintf(obs, "%s ", model->observations->data[i]);
+    fprintf(obs, "\n");
+  }
 
   // Write the current simulation time.
   fprintf(obs, "%g ", model->time);
@@ -536,18 +596,26 @@ void model_record_observations(model_t* model)
   {
     char* obs_name = model->observations->data[i];
 
-    // Is this one a point observation?
-    point_obs_t** point_obs_data = (point_obs_t**)string_ptr_unordered_map_get(model->point_obs, obs_name);
+    // Is this a built-in observation?
     real_t value;
-    if (point_obs_data != NULL)
-      value = (*point_obs_data)->func(model->context, &((*point_obs_data)->point), model->time);
+    if (is_built_in_observation(obs_name))
+    {
+      value = built_in_observation(model, obs_name);
+    }
     else
     {
-      // It must be a global observation.
-      typedef real_t (*global_observation_func)(void*, real_t);
-      global_observation_func* global_func = (global_observation_func*)string_ptr_unordered_map_get(model->global_obs, obs_name);
-      ASSERT(global_func != NULL);
-      value = (*global_func)(model->context, model->time);
+      // Is it a point observation?
+      point_obs_t** point_obs_data = (point_obs_t**)string_ptr_unordered_map_get(model->point_obs, obs_name);
+      if (point_obs_data != NULL)
+        value = (*point_obs_data)->func(model->context, &((*point_obs_data)->point), model->time);
+      else
+      {
+        // It must be a global observation.
+        typedef real_t (*global_observation_func)(void*, real_t);
+        global_observation_func* global_func = (global_observation_func*)string_ptr_unordered_map_get(model->global_obs, obs_name);
+        ASSERT(global_func != NULL);
+        value = (*global_func)(model->context, model->time);
+      }
     }
 
     // Write the observation to the file.

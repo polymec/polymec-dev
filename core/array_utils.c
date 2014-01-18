@@ -30,6 +30,30 @@ int* int_bsearch(int* array, int length, int element)
   return bsearch(&element, array, (size_t)length, sizeof(int), int_bsearch_comp);
 }
 
+// This is the generic implementation of lower_bound(). 
+static int lower_bound(void* array, int length, void* element, size_t elem_size, int (*comp)(const void*, const void*))
+{
+  int first = 0;
+  int count = length, step;
+  while (count > 0)
+  {
+    step = count/2;
+    if (comp(array + elem_size*(first+step), element) < 0)
+    {
+      first += (step+1);
+      count -= (step+1);
+    }
+    else
+      count = step;
+  }
+  return first;
+}
+
+int int_lower_bound(int* array, int length, int element)
+{
+  return lower_bound(array, length, &element, sizeof(int), int_bsearch_comp);
+}
+
 void int_qsort(int* array, int length)
 {
   qsort(array, (size_t)length, sizeof(int), int_bsearch_comp);
@@ -38,6 +62,11 @@ void int_qsort(int* array, int length)
 real_t* real_bsearch(real_t* array, int length, int element)
 {
   return bsearch(&element, array, (size_t)length, sizeof(real_t), real_bsearch_comp);
+}
+
+int real_lower_bound(real_t* array, int length, int element)
+{
+  return lower_bound(array, length, &element, sizeof(real_t), real_bsearch_comp);
 }
 
 void real_qsort(real_t* array, int length)

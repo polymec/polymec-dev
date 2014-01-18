@@ -49,12 +49,20 @@ static inline int real_bsearch_comp(const void* l, const void* r)
 // returning a pointer to the element if it's found and NULL if it's not.
 int* int_bsearch(int* array, int length, int element);
 
+// Returns the index of the (sorted) array at which the desired element 
+// appears (if it is present), or would appear (if it is not).
+int int_lower_bound(int* array, int length, int element);
+
 // Sorts (in-place) the elements in an array of integers. Uses qsort().
 void int_qsort(int* array, int length);
 
 // Executes a binary search for an element in a sorted array of real numbers, 
 // returning a pointer to the element if it's found and NULL if it's not.
 real_t* real_bsearch(real_t* array, int length, int element);
+
+// Returns the index of the (sorted) array at which the desired element 
+// appears (if it is present), or would appear (if it is not).
+int real_lower_bound(real_t* array, int length, int element);
 
 // Sorts (in-place) the elements in an array of reals. Uses qsort().
 void real_qsort(real_t* array, int length);
