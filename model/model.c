@@ -255,20 +255,8 @@ void model_run_benchmark(model_t* model, const char* benchmark, options_t* optio
   }
 }
 
-void model_read_input_string(model_t* model, const char* input, options_t* options)
+static void model_read_input(model_t* model, interpreter_t* interp, options_t* options)
 {
-  interpreter_t* interp = model_interpreter(model);
-  interpreter_parse_string(interp, (char*)input);
-
-  // Load the inputs into the model.
-  model->vtable.read_input(model->context, interp, options);
-}
-
-void model_read_input_file(model_t* model, const char* file, options_t* options)
-{
-  interpreter_t* interp = model_interpreter(model);
-  interpreter_parse_file(interp, (char*)file);
-
   bool no_opts = false;
   if (options == NULL)
   {
@@ -327,11 +315,45 @@ void model_read_input_file(model_t* model, const char* file, options_t* options)
     free(obs_times);
   }
 
+  // If observation names are given, handle them here.
+  // FIXME: We need a way to express lists of strings in the interpreter.
+#if 0
+  string_array_clear(model->observations);
+  char* obs_names_str = options_value(options, "observations");
+  if (obs_names_str != NULL)
+  {
+    int num_obs;
+    char** obs_names = string_split(obs_names_str, ",", &num_obs);
+    for (int i = 0; i < num_obs; ++i)
+    {
+      model_observe(model, (const char*)obs_names[i]);
+      free(obs_names[i]);
+    }
+    free(obs_names); 
+  }
+#endif
+
   // Load the inputs into the model.
   model->vtable.read_input(model->context, interp, options);
 
   if (no_opts)
     options = NULL; 
+}
+
+void model_read_input_string(model_t* model, const char* input, options_t* options)
+{
+  interpreter_t* interp = model_interpreter(model);
+  interpreter_parse_string(interp, (char*)input);
+
+  model_read_input(model, interp, options);
+}
+
+void model_read_input_file(model_t* model, const char* file, options_t* options)
+{
+  interpreter_t* interp = model_interpreter(model);
+  interpreter_parse_file(interp, (char*)file);
+
+  model_read_input(model, interp, options);
 }
 
 typedef struct 
