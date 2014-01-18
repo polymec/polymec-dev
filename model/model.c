@@ -63,7 +63,7 @@ struct model_t
   string_ptr_unordered_map_t* global_obs;
   string_array_t* observations;
   real_t* obs_times, observe_every;
-  int num_obs_times, obs_time_index;
+  int num_obs_times;
 
   // Data related to a given simulation.
   char* sim_name;    // Simulation name.
@@ -128,73 +128,6 @@ model_t* model_new(const char* name, void* context, model_vtable vtable, options
   model->observations = string_array_new();
   model->num_obs_times = 0;
   model->obs_times = NULL;
-  model->obs_time_index = 0;
-
-  // Some generic options.
-  char* logging = options_value(options, "logging");
-  if (logging != NULL)
-  {
-    if (!strcasecmp(logging, "debug"))
-      set_log_level(LOG_DEBUG);
-    else if (!strcasecmp(logging, "detail"))
-      set_log_level(LOG_DETAIL);
-    else if (!strcasecmp(logging, "info"))
-      set_log_level(LOG_INFO);
-    else if (!strcasecmp(logging, "urgent"))
-      set_log_level(LOG_URGENT);
-    else if (!strcasecmp(logging, "off"))
-      set_log_level(LOG_NONE);
-  }
-
-  char* plot_every = options_value(options, "plot_every");
-  if (plot_every != NULL)
-  {
-    model->plot_every = atoi(plot_every);
-    if (model->plot_every < 1)
-      polymec_error("Invalid (non-positive) plot interval: %d\n", model->plot_every);
-  }
-
-  char* save_every = options_value(options, "save_every");
-  if (save_every != NULL)
-  {
-    model->save_every = atoi(save_every);
-    if (model->save_every < 1)
-      polymec_error("Invalid (non-positive) save interval: %d\n", model->save_every);
-  }
-
-  // Handle observation times. Times can be specified with a regular interval
-  // or a comma-delimited list.
-  char* observe_every = options_value(options, "observe_every");
-  if (observe_every != NULL)
-  {
-    model->observe_every = (real_t)atof(observe_every);
-    if (model->observe_every <= 0.0)
-      polymec_error("Invalid (non-positive) observation interval: %g\n", model->observe_every);
-  }
-
-  char* obs_times_str = options_value(options, "observation_times");
-  if (obs_times_str != NULL)
-  {
-    real_t* obs_times;
-    int num_obs_times;
-    obs_times = parse_observation_times(obs_times_str, &num_obs_times);
-    if (obs_times != NULL)
-    {
-      model->observe_every = -FLT_MAX;
-      model_set_observation_times(model, obs_times, num_obs_times);
-      free(obs_times);
-    }
-    else
-      polymec_error("Could not parse observation times string: %s\n", obs_times_str);
-  }
-
-  char* max_dt = options_value(options, "max_dt");
-  if (max_dt != NULL)
-    model->max_dt = atof(max_dt);
-
-  char* sim_name = options_value(options, "sim_name");
-  if (sim_name != NULL)
-    model_set_sim_name(model, sim_name);
 
   return model;
 }
@@ -392,7 +325,7 @@ void model_define_global_observation(model_t* model,
                                               key_dtor);
 }
 
-// Support for built-in observations
+// Support for built-in observations.
 static bool is_built_in_observation(const char* observation)
 {
   return (!strcmp("sim_speed", observation) || 
@@ -449,12 +382,11 @@ static void model_do_periodic_work(model_t* model)
   if ((model->save_every > 0) && (model->step % model->save_every) == 0)
     model_save(model);
 
-  // Now record any observations we need to.
-  if (model->time >= model->obs_times[model->obs_time_index])
-  {
+  // Now record any observations we need to, given that the time step makes 
+  // allowances for observations.
+  int obs_time_index = real_lower_bound(model->obs_times, model->num_obs_times, model->time);
+  if (fabs(model->time - model->obs_times[obs_time_index]) < 1e-12) // FIXME: Good enough?
     model_record_observations(model);
-    ++model->obs_time_index;
-  }
 }
 
 // Initialize the model at the given time.
@@ -467,7 +399,6 @@ void model_init(model_t* model, real_t t)
   model->time = t;
   model->wall_time0 = MPI_Wtime();
   model->wall_time = MPI_Wtime();
-  model->obs_time_index = 0;
 
   model_do_periodic_work(model);
 }
@@ -492,8 +423,13 @@ real_t model_max_dt(model_t* model, char* reason)
   if (obs_time_index < model->num_obs_times)
   {
     real_t obs_time = model->obs_times[obs_time_index];
-    dt = obs_time - model->time;
-    sprintf(reason, "Requested observation time: %g", obs_time);
+    real_t obs_dt = obs_time - model->time;
+    ASSERT(obs_dt > 0.0);
+    if (obs_dt < model->max_dt)
+    {
+      dt = obs_dt;
+      sprintf(reason, "Requested observation time: %g", obs_time);
+    }
   }
 
   // Now let the model have at it.
@@ -575,6 +511,8 @@ void model_record_observations(model_t* model)
   // If we haven't recorded any observations yet, write a header.
   if (model->time < model->obs_times[0])
   {
+    log_detail("Writing observation file header...");
+
     // Provenance-related header.
     fprintf(obs, "# %s\n", polymec_invocation());
     time_t invoc_time = polymec_invocation_time();
@@ -587,6 +525,8 @@ void model_record_observations(model_t* model)
       fprintf(obs, "%s ", model->observations->data[i]);
     fprintf(obs, "\n");
   }
+
+  log_detail("Recording observations...");
 
   // Write the current simulation time.
   fprintf(obs, "%g ", model->time);
@@ -712,6 +652,108 @@ void model_set_sim_name(model_t* model, const char* sim_name)
   model->sim_name = string_dup(sim_name);
 }
 
+// This helper overrides interpreted parameters with options from the 
+// command line.
+static void override_interpreted_values(model_t* model, 
+                                        options_t* options,
+                                        real_t* t1, 
+                                        real_t* t2, 
+                                        int* max_steps)
+{
+  // Run parameters -- not intrinsically part of a model.
+  char* opt = options_value(options, "t1");
+  if (opt != NULL)
+    *t1 = atof(opt);
+  opt = options_value(options, "t2");
+  if (opt != NULL)
+    *t2 = atof(opt);
+  opt = options_value(options, "max_steps");
+  if (opt != NULL)
+    *max_steps = atoi(opt);
+
+  // Some generic options.
+  char* logging = options_value(options, "logging");
+  if (logging != NULL)
+  {
+    if (!strcasecmp(logging, "debug"))
+      set_log_level(LOG_DEBUG);
+    else if (!strcasecmp(logging, "detail"))
+      set_log_level(LOG_DETAIL);
+    else if (!strcasecmp(logging, "info"))
+      set_log_level(LOG_INFO);
+    else if (!strcasecmp(logging, "urgent"))
+      set_log_level(LOG_URGENT);
+    else if (!strcasecmp(logging, "off"))
+      set_log_level(LOG_NONE);
+  }
+  
+  // Plot interval.
+  char* plot_every = options_value(options, "plot_every");
+  if (plot_every != NULL)
+  {
+    model->plot_every = atoi(plot_every);
+    if (model->plot_every < 1)
+      polymec_error("Invalid (non-positive) plot interval: %d\n", model->plot_every);
+  }
+
+  // Save interval.
+  char* save_every = options_value(options, "save_every");
+  if (save_every != NULL)
+  {
+    model->save_every = atoi(save_every);
+    if (model->save_every < 1)
+      polymec_error("Invalid (non-positive) save interval: %d\n", model->save_every);
+  }
+
+  // Handle observation times. Times can be specified with a regular interval
+  // or a comma-delimited list.
+  char* observe_every = options_value(options, "observe_every");
+  if (observe_every != NULL)
+  {
+    model->observe_every = (real_t)atof(observe_every);
+    if (model->observe_every <= 0.0)
+      polymec_error("Invalid (non-positive) observation interval: %g\n", model->observe_every);
+  }
+  char* obs_times_str = options_value(options, "observation_times");
+  if (obs_times_str != NULL)
+  {
+    real_t* obs_times;
+    int num_obs_times;
+    obs_times = parse_observation_times(obs_times_str, &num_obs_times);
+    if (obs_times != NULL)
+    {
+      model->observe_every = -FLT_MAX;
+      model_set_observation_times(model, obs_times, num_obs_times);
+      free(obs_times);
+    }
+    else
+      polymec_error("Could not parse observation times string: %s\n", obs_times_str);
+  }
+
+  char* max_dt = options_value(options, "max_dt");
+  if (max_dt != NULL)
+    model->max_dt = atof(max_dt);
+
+  char* sim_name = options_value(options, "sim_name");
+  if (sim_name != NULL)
+    model_set_sim_name(model, sim_name);
+
+  // If observation names are given, handle them here.
+  string_array_clear(model->observations);
+  char* obs_names_str = options_value(options, "observations");
+  if (obs_names_str != NULL)
+  {
+    int num_obs;
+    char** obs_names = string_split(obs_names_str, ",", &num_obs);
+    for (int i = 0; i < num_obs; ++i)
+    {
+      model_observe(model, (const char*)obs_names[i]);
+      free(obs_names[i]);
+    }
+    free(obs_names); 
+  }
+}
+
 int model_main(const char* model_name, model_ctor constructor, int argc, char* argv[])
 {
   // Start everything up.
@@ -818,18 +860,8 @@ int model_main(const char* model_name, model_ctor constructor, int argc, char* a
   if (interpreter_contains(interp, "max_steps", INTERPRETER_NUMBER))
     max_steps = (int)interpreter_get_number(interp, "max_steps");
 
-  // If these are given as options, they are overridden by the command line.
-  {
-    char* opt = options_value(opts, "t1");
-    if (opt != NULL)
-      t1 = atof(opt);
-    opt = options_value(opts, "t2");
-    if (opt != NULL)
-      t2 = atof(opt);
-    opt = options_value(opts, "max_steps");
-    if (opt != NULL)
-      max_steps = atoi(opt);
-  }
+  // Override options given at the command line.
+  override_interpreted_values(model, opts, &t1, &t2, &max_steps);
 
   // Run the model.
   model_run(model, t1, t2, max_steps);
@@ -896,18 +928,8 @@ int model_minimal_main(const char* model_name, model_ctor constructor, int argc,
   if (interpreter_contains(interp, "max_steps", INTERPRETER_NUMBER))
     max_steps = (int)interpreter_get_number(interp, "max_steps");
 
-  // If these are given as options, they are overridden by the command line.
-  {
-    char* opt = options_value(opts, "t1");
-    if (opt != NULL)
-      t1 = atof(opt);
-    opt = options_value(opts, "t2");
-    if (opt != NULL)
-      t2 = atof(opt);
-    opt = options_value(opts, "max_steps");
-    if (opt != NULL)
-      max_steps = atoi(opt);
-  }
+  // Override options given at the command line.
+  override_interpreted_values(model, opts, &t1, &t2, &max_steps);
 
   // Run the model.
   model_run(model, t1, t2, max_steps);
