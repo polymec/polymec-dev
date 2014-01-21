@@ -258,7 +258,6 @@ polynomial_fit_t* cc_fixed_degree_polynomial_fit_new(int num_comps,
                                                      void (*dtor)(void*))
 {
   ASSERT(mesh != NULL);
-  ASSERT(data != NULL);
   ASSERT(degree >= 0);
 
   char name[1024];
@@ -373,7 +372,6 @@ polynomial_fit_t* cc_variable_degree_polynomial_fit_new(int num_comps,
                                                         void (*dtor)(void*))
 {
   ASSERT(mesh != NULL);
-  ASSERT(data != NULL);
   ASSERT(neighbor_search_depth >= 1);
 
   char name[1024];
