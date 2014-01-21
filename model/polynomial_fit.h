@@ -102,43 +102,22 @@ polynomial_fit_t* polynomial_fit_new(const char* name,
 // Creates a polynomial fit that fits cell-centered data on a mesh at the 
 // given degree. A fit_component() function implementation is required, as 
 // well as a context it will be invoked with (and an associated destructor).
-polynomial_fit_t* cc_fixed_degree_polynomial_fit_new(int num_comps,
-                                                     mesh_t* mesh,
-                                                     int degree,
-                                                     void (*fit_component)(void*, int, int, point_t*, real_t*, int, point_t*, vector_t*, int, real_t*),
-                                                     void* fit_component_context,
-                                                     void (*dtor)(void*));
-
-// Creates a polynomial fit that fits cell-centered data on a mesh at a 
-// variable degree based on the number of neighbors it finds within a given 
-// "depth." A fit_component() function is required.
-polynomial_fit_t* cc_variable_degree_polynomial_fit_new(int num_comps,
-                                                        mesh_t* mesh,
-                                                        int neighbor_search_depth,
-                                                        void (*fit_component)(void*, int, int, point_t*, real_t*, int, point_t*, vector_t*, int, real_t*),
-                                                        void* fit_component_context,
-                                                        void (*dtor)(void*));
+polynomial_fit_t* cc_polynomial_fit_new(int num_comps,
+                                        mesh_t* mesh,
+                                        int degree,
+                                        void (*fit_component)(void*, int, int, point_t*, real_t*, int, point_t*, vector_t*, int, real_t*),
+                                        void* fit_component_context,
+                                        void (*dtor)(void*));
 
 // Creates a polynomial fit that fits point cloud data at the given degree.
 // A fit_component() function is required.
-polynomial_fit_t* point_cloud_fixed_degree_polynomial_fit_new(int num_comps,
-                                                              point_cloud_t* points,
-                                                              point_cloud_neighbor_search_t* search,
-                                                              int degree,
-                                                              void (*fit_component)(void*, int, int, point_t*, real_t*, int, point_t*, vector_t*, int, real_t*),
-                                                              void* fit_component_context,
-                                                              void (*dtor)(void*));
-
-// Creates a polynomial fit that fits point cloud data at a variable degree 
-// based on the number of neighbors it finds within a given "depth." A 
-// fit_component() function is required.
-polynomial_fit_t* point_cloud_variable_degree_polynomial_fit_new(int num_comps,
-                                                                 point_cloud_t* points,
-                                                                 point_cloud_neighbor_search_t* search,
-                                                                 int neighbor_search_depth,
-                                                                 void (*fit_component)(void*, int, int, point_t*, real_t*, int, point_t*, vector_t*, int, real_t*),
-                                                                 void* fit_component_context,
-                                                                 void (*dtor)(void*));
+polynomial_fit_t* point_cloud_polynomial_fit_new(int num_comps,
+                                                 point_cloud_t* points,
+                                                 point_cloud_neighbor_search_t* search,
+                                                 int degree,
+                                                 void (*fit_component)(void*, int, int, point_t*, real_t*, int, point_t*, vector_t*, int, real_t*),
+                                                 void* fit_component_context,
+                                                 void (*dtor)(void*));
 
 // Destroys the given polynomial fit.
 void polynomial_fit_free(polynomial_fit_t* fit);

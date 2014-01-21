@@ -170,7 +170,7 @@ void polynomial_fit_eval_deriv(polynomial_fit_t* fit,
 //                Freebie polynomial fit constructors
 //------------------------------------------------------------------------
 
-// Cell-centered, fixed polynomial degree.
+// Cell-centered fit.
 typedef struct 
 {
   mesh_t* mesh;
@@ -180,35 +180,35 @@ typedef struct
   void (*fit_component)(void*, int, int, point_t*, real_t*, int, point_t*, vector_t*, int, real_t*);
   void* fit_component_context;
   void (*dtor)(void*);
-} cc_fixed_degree_t;
+} cc_fit_t;
 
-static int cc_fixed_degree_num_interior_neighbors(void* context, int point_index)
+static int cc_num_interior_neighbors(void* context, int point_index)
 {
   // FIXME
   return 0;
 }
 
-static void cc_fixed_degree_get_interior_neighbors(void* context, int point_index, int* neighbor_indices)
+static void cc_get_interior_neighbors(void* context, int point_index, int* neighbor_indices)
 {
   // FIXME
 }
 
-static int cc_fixed_degree_num_boundary_neighbors(void* context, int point_index)
+static int cc_num_boundary_neighbors(void* context, int point_index)
 {
   // FIXME
   return 0;
 }
 
-static void cc_fixed_degree_get_boundary_neighbors(void* context, int point_index, int* neighbor_indices)
+static void cc_get_boundary_neighbors(void* context, int point_index, int* neighbor_indices)
 {
   // FIXME
 }
 
-static void cc_fixed_degree_get_interior_data(void* context, real_t* data, int component, int num_comps,
-                                              int* point_indices, int num_points,
-                                              point_t* point_coords, real_t* point_values)
+static void cc_get_interior_data(void* context, real_t* data, int component, int num_comps,
+                                 int* point_indices, int num_points,
+                                 point_t* point_coords, real_t* point_values)
 {
-  cc_fixed_degree_t* fit = context;
+  cc_fit_t* fit = context;
 
   // We assume the data is in component-minor form in the array, 
   // and that values are at cell centers.
@@ -220,181 +220,67 @@ static void cc_fixed_degree_get_interior_data(void* context, real_t* data, int c
   }
 }
 
-static void cc_fixed_degree_get_boundary_data(void* context, real_t* data, int component, int num_comps,
-                                              int* point_indices, int num_points,
-                                              point_t* point_coords, vector_t* boundary_normals)
+static void cc_get_boundary_data(void* context, real_t* data, int component, int num_comps,
+                                 int* point_indices, int num_points,
+                                 point_t* point_coords, vector_t* boundary_normals)
 {
   // FIXME
 }
 
-static int cc_fixed_degree_targeted_degree(void* context, int num_points)
+static int cc_targeted_degree(void* context, int num_points)
 {
-  cc_fixed_degree_t* fit = context;
+  cc_fit_t* fit = context;
   return fit->degree;
 }
 
-static void cc_fixed_degree_fit_component(void* context, int component, int degree,
-                                          point_t* interior_points, real_t* interior_values, int num_interior_points,
-                                          point_t* boundary_points, vector_t* boundary_normals, int num_boundary_points,
-                                          real_t* poly_coeffs)
+static void cc_fit_component(void* context, int component, int degree,
+                             point_t* interior_points, real_t* interior_values, int num_interior_points,
+                             point_t* boundary_points, vector_t* boundary_normals, int num_boundary_points,
+                             real_t* poly_coeffs)
 {
-  cc_fixed_degree_t* fit = context;
+  cc_fit_t* fit = context;
   fit->fit_component(fit->fit_component_context, component, degree, interior_points, interior_values, num_interior_points,
                      boundary_points, boundary_normals, num_boundary_points, poly_coeffs);
 }
 
-static void cc_fixed_degree_dtor(void* context)
+static void cc_dtor(void* context)
 {
-  cc_fixed_degree_t* fit = context;
+  cc_fit_t* fit = context;
   if ((fit->fit_component_context != NULL) && (fit->dtor != NULL))
     fit->dtor(fit->fit_component_context);
 }
 
-polynomial_fit_t* cc_fixed_degree_polynomial_fit_new(int num_comps,
-                                                     mesh_t* mesh,
-                                                     int degree,
-                                                     void (*fit_component)(void*, int, int, point_t*, real_t*, int, point_t*, vector_t*, int, real_t*),
-                                                     void* fit_component_context,
-                                                     void (*dtor)(void*))
+polynomial_fit_t* cc_polynomial_fit_new(int num_comps,
+                                        mesh_t* mesh,
+                                        int degree,
+                                        void (*fit_component)(void*, int, int, point_t*, real_t*, int, point_t*, vector_t*, int, real_t*),
+                                        void* fit_component_context,
+                                        void (*dtor)(void*))
 {
   ASSERT(mesh != NULL);
   ASSERT(degree >= 0);
 
   char name[1024];
-  snprintf(name, 1024, "cell-centered fixed degree (%d)", degree);
-  cc_fixed_degree_t* context = malloc(sizeof(cc_fixed_degree_t));
+  snprintf(name, 1024, "cell-centered (degree %d)", degree);
+  cc_fit_t* context = malloc(sizeof(cc_fit_t));
   context->mesh = mesh;
   context->degree = degree;
   context->fit_component = fit_component;
   context->fit_component_context = fit_component_context;
   context->dtor = dtor;
-  polynomial_fit_vtable vtable = {.num_interior_neighbors = cc_fixed_degree_num_interior_neighbors,
-                                  .get_interior_neighbors = cc_fixed_degree_get_interior_neighbors,
-                                  .get_interior_data = cc_fixed_degree_get_interior_data,
-                                  .num_boundary_neighbors = cc_fixed_degree_num_boundary_neighbors,
-                                  .get_boundary_neighbors = cc_fixed_degree_get_boundary_neighbors,
-                                  .get_boundary_data = cc_fixed_degree_get_boundary_data,
-                                  .targeted_degree = cc_fixed_degree_targeted_degree,
-                                  .fit_component = cc_fixed_degree_fit_component,
-                                  .dtor = cc_fixed_degree_dtor};
+  polynomial_fit_vtable vtable = {.num_interior_neighbors = cc_num_interior_neighbors,
+                                  .get_interior_neighbors = cc_get_interior_neighbors,
+                                  .get_interior_data = cc_get_interior_data,
+                                  .num_boundary_neighbors = cc_num_boundary_neighbors,
+                                  .get_boundary_neighbors = cc_get_boundary_neighbors,
+                                  .get_boundary_data = cc_get_boundary_data,
+                                  .targeted_degree = cc_targeted_degree,
+                                  .fit_component = cc_fit_component,
+                                  .dtor = cc_dtor};
   return polynomial_fit_new(name, context, vtable, num_comps);
 }
 
-// Cell-centered, variable polynomial degree.
-typedef struct 
-{
-  mesh_t* mesh;
-  int depth;
-
-  // Machinery for fit_component().
-  void (*fit_component)(void*, int, int, point_t*, real_t*, int, point_t*, vector_t*, int, real_t*);
-  void* fit_component_context;
-  void (*dtor)(void*);
-} cc_var_degree_t;
-
-static int cc_var_degree_num_interior_neighbors(void* context, int point_index)
-{
-  // FIXME
-  return 0;
-}
-
-static void cc_var_degree_get_interior_neighbors(void* context, int point_index, int* neighbor_indices)
-{
-  // FIXME
-}
-
-static int cc_var_degree_num_boundary_neighbors(void* context, int point_index)
-{
-  // FIXME
-  return 0;
-}
-
-static void cc_var_degree_get_boundary_neighbors(void* context, int point_index, int* neighbor_indices)
-{
-  // FIXME
-}
-
-static void cc_var_degree_get_interior_data(void* context, real_t* data, int component, int num_comps, 
-                                            int* point_indices, int num_points,
-                                            point_t* point_coords, real_t* point_values)
-{
-  cc_var_degree_t* fit = context;
-
-  // We assume the data is in component-minor form in the array, 
-  // and that values are at cell centers.
-  for (int i = 0; i < num_points; ++i)
-  {
-    int j = point_indices[i];
-    point_coords[i] = fit->mesh->cell_centers[j];
-    point_values[i] = data[num_comps*j+component];
-  }
-}
-
-static void cc_var_degree_get_boundary_data(void* context, real_t* data, int component, int num_comps,
-                                            int* point_indices, int num_points,
-                                            point_t* point_coords, vector_t* boundary_normals)
-{
-  // FIXME
-}
-
-static int cc_var_degree_targeted_degree(void* context, int num_points)
-{
-  for (int d = 0; d < 4; ++d)
-  {
-    if (num_points >= polynomial_basis_dim(d))
-      return d;
-  }
-  return 0;
-}
-
-static void cc_var_degree_fit_component(void* context, int component, int degree,
-                                        point_t* interior_points, real_t* interior_values, int num_interior_points,
-                                        point_t* boundary_points, vector_t* boundary_normals, int num_boundary_points,
-                                        real_t* poly_coeffs)
-{
-  cc_var_degree_t* fit = context;
-  fit->fit_component(fit->fit_component_context, component, degree, interior_points, interior_values, num_interior_points,
-                     boundary_points, boundary_normals, num_boundary_points, poly_coeffs);
-}
-
-static void cc_var_degree_dtor(void* context)
-{
-  cc_var_degree_t* fit = context;
-  if ((fit->fit_component_context != NULL) && (fit->dtor != NULL))
-    fit->dtor(fit->fit_component_context);
-}
-
-polynomial_fit_t* cc_variable_degree_polynomial_fit_new(int num_comps,
-                                                        mesh_t* mesh,
-                                                        int neighbor_search_depth,
-                                                        void (*fit_component)(void*, int, int, point_t*, real_t*, int, point_t*, vector_t*, int, real_t*),
-                                                        void* fit_component_context,
-                                                        void (*dtor)(void*))
-{
-  ASSERT(mesh != NULL);
-  ASSERT(neighbor_search_depth >= 1);
-
-  char name[1024];
-  snprintf(name, 1024, "cell-centered variable degree (depth %d)", neighbor_search_depth);
-  cc_var_degree_t* context = malloc(sizeof(cc_var_degree_t));
-  context->mesh = mesh;
-  context->depth = neighbor_search_depth;
-  context->fit_component = fit_component;
-  context->fit_component_context = fit_component_context;
-  context->dtor = dtor;
-  polynomial_fit_vtable vtable = {.num_interior_neighbors = cc_var_degree_num_interior_neighbors,
-                                  .get_interior_neighbors = cc_var_degree_get_interior_neighbors,
-                                  .get_interior_data = cc_var_degree_get_interior_data,
-                                  .num_boundary_neighbors = cc_var_degree_num_boundary_neighbors,
-                                  .get_boundary_neighbors = cc_var_degree_get_boundary_neighbors,
-                                  .get_boundary_data = cc_var_degree_get_boundary_data,
-                                  .targeted_degree = cc_var_degree_targeted_degree,
-                                  .fit_component = cc_var_degree_fit_component,
-                                  .dtor = cc_var_degree_dtor};
-  return polynomial_fit_new(name, context, vtable, num_comps);
-}
-
-// Point cloud, fixed polynomial degree.
+// Point cloud fit.
 typedef struct 
 {
   point_cloud_t* points;
@@ -404,35 +290,35 @@ typedef struct
   void (*fit_component)(void*, int, int, point_t*, real_t*, int, point_t*, vector_t*, int, real_t*);
   void* fit_component_context;
   void (*dtor)(void*);
-} cloud_fixed_degree_t;
+} cloud_fit_t;
 
-static int cloud_fixed_degree_num_interior_neighbors(void* context, int point_index)
+static int cloud_num_interior_neighbors(void* context, int point_index)
 {
   // FIXME
   return 0;
 }
 
-static void cloud_fixed_degree_get_interior_neighbors(void* context, int point_index, int* neighbor_indices)
+static void cloud_get_interior_neighbors(void* context, int point_index, int* neighbor_indices)
 {
   // FIXME
 }
 
-static int cloud_fixed_degree_num_boundary_neighbors(void* context, int point_index)
+static int cloud_num_boundary_neighbors(void* context, int point_index)
 {
   // FIXME
   return 0;
 }
 
-static void cloud_fixed_degree_get_boundary_neighbors(void* context, int point_index, int* neighbor_indices)
+static void cloud_get_boundary_neighbors(void* context, int point_index, int* neighbor_indices)
 {
   // FIXME
 }
 
-static void cloud_fixed_degree_get_interior_data(void* context, real_t* data, int component, int num_comps,
+static void cloud_get_interior_data(void* context, real_t* data, int component, int num_comps,
                                                  int* point_indices, int num_points,
                                                  point_t* point_coords, real_t* point_values)
 {
-  cloud_fixed_degree_t* fit = context;
+  cloud_fit_t* fit = context;
 
   // We assume the data is in component-minor form in the array, 
   // and that values are at cell centers.
@@ -444,43 +330,43 @@ static void cloud_fixed_degree_get_interior_data(void* context, real_t* data, in
   }
 }
 
-static void cloud_fixed_degree_get_boundary_data(void* context, real_t* data, int component, int num_comps,
+static void cloud_get_boundary_data(void* context, real_t* data, int component, int num_comps,
                                                  int* point_indices, int num_points,
                                                  point_t* point_coords, vector_t* boundary_normals)
 {
   // FIXME
 }
 
-static int cloud_fixed_degree_targeted_degree(void* context, int num_points)
+static int cloud_fit_targeted_degree(void* context, int num_points)
 {
-  cloud_fixed_degree_t* fit = context;
+  cloud_fit_t* fit = context;
   return fit->degree;
 }
 
-static void cloud_fixed_degree_fit_component(void* context, int component, int degree,
+static void cloud_fit_component(void* context, int component, int degree,
                                              point_t* interior_points, real_t* interior_values, int num_interior_points,
                                              point_t* boundary_points, vector_t* boundary_normals, int num_boundary_points,
                                              real_t* poly_coeffs)
 {
-  cloud_fixed_degree_t* fit = context;
+  cloud_fit_t* fit = context;
   fit->fit_component(fit->fit_component_context, component, degree, interior_points, interior_values, num_interior_points,
                      boundary_points, boundary_normals, num_boundary_points, poly_coeffs);
 }
 
-static void cloud_fixed_degree_dtor(void* context)
+static void cloud_dtor(void* context)
 {
-  cloud_fixed_degree_t* fit = context;
+  cloud_fit_t* fit = context;
   if ((fit->fit_component_context != NULL) && (fit->dtor != NULL))
     fit->dtor(fit->fit_component_context);
 }
 
-polynomial_fit_t* point_cloud_fixed_degree_polynomial_fit_new(int num_comps,
-                                                              point_cloud_t* points,
-                                                              point_cloud_neighbor_search_t* search,
-                                                              int degree,
-                                                              void (*fit_component)(void*, int, int, point_t*, real_t*, int, point_t*, vector_t*, int, real_t*),
-                                                              void* fit_component_context,
-                                                              void (*dtor)(void*))
+polynomial_fit_t* point_cloud_polynomial_fit_new(int num_comps,
+                                                 point_cloud_t* points,
+                                                 point_cloud_neighbor_search_t* search,
+                                                 int degree,
+                                                 void (*fit_component)(void*, int, int, point_t*, real_t*, int, point_t*, vector_t*, int, real_t*),
+                                                 void* fit_component_context,
+                                                 void (*dtor)(void*))
 {
   ASSERT(points != NULL);
   ASSERT(search != NULL);
@@ -488,137 +374,21 @@ polynomial_fit_t* point_cloud_fixed_degree_polynomial_fit_new(int num_comps,
 
   char name[1024];
   snprintf(name, 1024, "point cloud fixed degree (%d)", degree);
-  cloud_fixed_degree_t* context = malloc(sizeof(cloud_fixed_degree_t));
+  cloud_fit_t* context = malloc(sizeof(cloud_fit_t));
   context->points = points;
   context->degree = degree;
   context->fit_component = fit_component;
   context->fit_component_context = fit_component_context;
   context->dtor = dtor;
-  polynomial_fit_vtable vtable = {.num_interior_neighbors = cloud_fixed_degree_num_interior_neighbors,
-                                  .get_interior_neighbors = cloud_fixed_degree_get_interior_neighbors,
-                                  .get_interior_data = cloud_fixed_degree_get_interior_data,
-                                  .num_boundary_neighbors = cloud_fixed_degree_num_boundary_neighbors,
-                                  .get_boundary_neighbors = cloud_fixed_degree_get_boundary_neighbors,
-                                  .get_boundary_data = cloud_fixed_degree_get_boundary_data,
-                                  .targeted_degree = cloud_fixed_degree_targeted_degree,
-                                  .fit_component = cloud_fixed_degree_fit_component,
-                                  .dtor = cloud_fixed_degree_dtor};
-  return polynomial_fit_new(name, context, vtable, num_comps);
-}
-
-// Point cloud, variable polynomial degree.
-typedef struct 
-{
-  point_cloud_t* points;
-  int depth;
-
-  // Machinery for fit_component().
-  void (*fit_component)(void*, int, int, point_t*, real_t*, int, point_t*, vector_t*, int, real_t*);
-  void* fit_component_context;
-  void (*dtor)(void*);
-} cloud_var_degree_t;
-
-static int cloud_var_degree_num_interior_neighbors(void* context, int point_index)
-{
-  // FIXME
-  return 0;
-}
-
-static void cloud_var_degree_get_interior_neighbors(void* context, int point_index, int* neighbor_indices)
-{
-  // FIXME
-}
-
-static int cloud_var_degree_num_boundary_neighbors(void* context, int point_index)
-{
-  // FIXME
-  return 0;
-}
-
-static void cloud_var_degree_get_boundary_neighbors(void* context, int point_index, int* neighbor_indices)
-{
-  // FIXME
-}
-
-static void cloud_var_degree_get_interior_data(void* context, real_t* data, int component, int num_comps,
-                                               int* point_indices, int num_points,
-                                               point_t* point_coords, real_t* point_values)
-{
-  cloud_var_degree_t* fit = context;
-
-  // We assume the data is in component-minor form in the array, 
-  // and that values are at cell centers.
-  for (int i = 0; i < num_points; ++i)
-  {
-    int j = point_indices[i];
-    point_coords[i] = fit->points->point_coords[j];
-    point_values[i] = data[num_comps*j+component];
-  }
-}
-
-static void cloud_var_degree_get_boundary_data(void* context, real_t* data, int component, int num_comps,
-                                               int* point_indices, int num_points,
-                                               point_t* point_coords, vector_t* boundary_normals)
-{
-  // FIXME
-}
-
-static int cloud_var_degree_targeted_degree(void* context, int num_points)
-{
-  for (int d = 0; d < 4; ++d)
-  {
-    if (num_points >= polynomial_basis_dim(d))
-      return d;
-  }
-  return 0;
-}
-
-static void cloud_var_degree_fit_component(void* context, int component, int degree,
-                                           point_t* interior_points, real_t* interior_values, int num_interior_points,
-                                           point_t* boundary_points, vector_t* boundary_normals, int num_boundary_points,
-                                           real_t* poly_coeffs)
-{
-  cloud_var_degree_t* fit = context;
-  fit->fit_component(fit->fit_component_context, component, degree, interior_points, interior_values, num_interior_points,
-                     boundary_points, boundary_normals, num_boundary_points, poly_coeffs);
-}
-
-static void cloud_var_degree_dtor(void* context)
-{
-  cloud_var_degree_t* fit = context;
-  if ((fit->fit_component_context != NULL) && (fit->dtor != NULL))
-    fit->dtor(fit->fit_component_context);
-}
-
-polynomial_fit_t* point_cloud_variable_degree_polynomial_fit_new(int num_comps,
-                                                                 point_cloud_t* points,
-                                                                 point_cloud_neighbor_search_t* search,
-                                                                 int neighbor_search_depth,
-                                                                 void (*fit_component)(void*, int, int, point_t*, real_t*, int, point_t*, vector_t*, int, real_t*),
-                                                                 void* fit_component_context,
-                                                                 void (*dtor)(void*))
-{
-  ASSERT(points != NULL);
-  ASSERT(search != NULL);
-  ASSERT(neighbor_search_depth >= 1);
-
-  char name[1024];
-  snprintf(name, 1024, "point cloud variable degree (depth = %d)", neighbor_search_depth);
-  cloud_var_degree_t* context = malloc(sizeof(cloud_var_degree_t));
-  context->points = points;
-  context->depth = neighbor_search_depth;
-  context->fit_component = fit_component;
-  context->fit_component_context = fit_component_context;
-  context->dtor = dtor;
-  polynomial_fit_vtable vtable = {.num_interior_neighbors = cloud_var_degree_num_interior_neighbors,
-                                  .get_interior_neighbors = cloud_var_degree_get_interior_neighbors,
-                                  .get_interior_data = cloud_var_degree_get_interior_data,
-                                  .num_boundary_neighbors = cloud_var_degree_num_boundary_neighbors,
-                                  .get_boundary_neighbors = cloud_var_degree_get_boundary_neighbors,
-                                  .get_boundary_data = cloud_var_degree_get_boundary_data,
-                                  .targeted_degree = cloud_var_degree_targeted_degree,
-                                  .fit_component = cloud_var_degree_fit_component,
-                                  .dtor = cloud_var_degree_dtor};
+  polynomial_fit_vtable vtable = {.num_interior_neighbors = cloud_num_interior_neighbors,
+                                  .get_interior_neighbors = cloud_get_interior_neighbors,
+                                  .get_interior_data = cloud_get_interior_data,
+                                  .num_boundary_neighbors = cloud_num_boundary_neighbors,
+                                  .get_boundary_neighbors = cloud_get_boundary_neighbors,
+                                  .get_boundary_data = cloud_get_boundary_data,
+                                  .targeted_degree = cloud_fit_targeted_degree,
+                                  .fit_component = cloud_fit_component,
+                                  .dtor = cloud_dtor};
   return polynomial_fit_new(name, context, vtable, num_comps);
 }
 
