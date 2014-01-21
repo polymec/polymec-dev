@@ -764,12 +764,6 @@ static void interpreter_store_chunk_contents(interpreter_t* interp)
       var = store_boolean(NULL, lua_toboolean(lua, val_index));
     else if (lua_isstring(lua, val_index))
       var = store_string(NULL, lua_tostring(lua, val_index));
-    else if (lua_isstringlist(lua, val_index))
-    {
-      int len;
-      char** list = lua_tostringlist(lua, val_index, &len);
-      var = store_stringlist(NULL, list, len);
-    }
     else if (lua_issequence(lua, val_index))
     {
       // Sequences can be interpreted in many ways. Are we asked to 
@@ -794,6 +788,12 @@ static void interpreter_store_chunk_contents(interpreter_t* interp)
       // Clean up if necessary.
       if ((entry != NULL) && (entry->type != INTERPRETER_SEQUENCE))
         free(seq);
+    }
+    else if (lua_isstringlist(lua, val_index))
+    {
+      int len;
+      char** list = lua_tostringlist(lua, val_index, &len);
+      var = store_stringlist(NULL, list, len);
     }
     else if (lua_isboundingbox(lua, val_index))
     {
