@@ -184,24 +184,68 @@ typedef struct
 
 static int cc_num_interior_neighbors(void* context, int point_index)
 {
-  // FIXME
-  return 0;
+  cc_fit_t* fit = context;
+  int cell = point_index;
+
+  // The number of neighbors is equal to the number of cells attached to 
+  // this one via faces.
+  int num_neighbors = 0, pos = 0, face;
+  while (mesh_cell_next_face(fit->mesh, cell, &pos, &face))
+  {
+    if (mesh_face_opp_cell(fit->mesh, face, cell) != -1)
+      ++num_neighbors;
+  }
+
+  return num_neighbors;
 }
 
 static void cc_get_interior_neighbors(void* context, int point_index, int* neighbor_indices)
 {
-  // FIXME
+  cc_fit_t* fit = context;
+  int cell = point_index;
+
+  int offset = 0, pos = 0, face;
+  while (mesh_cell_next_face(fit->mesh, cell, &pos, &face))
+  {
+    int opp_cell = mesh_face_opp_cell(fit->mesh, face, cell);
+    if (opp_cell != -1)
+    {
+      neighbor_indices[offset] = opp_cell;
+      ++offset;
+    }
+  }
 }
 
 static int cc_num_boundary_neighbors(void* context, int point_index)
 {
-  // FIXME
-  return 0;
+  cc_fit_t* fit = context;
+  int cell = point_index;
+
+  // The number of neighbors is equal to the number of faces without 
+  // opposite faces.
+  int num_neighbors = 0, pos = 0, face;
+  while (mesh_cell_next_face(fit->mesh, cell, &pos, &face))
+  {
+    if (mesh_face_opp_cell(fit->mesh, face, cell) == -1)
+      ++num_neighbors;
+  }
+  return num_neighbors;
 }
 
 static void cc_get_boundary_neighbors(void* context, int point_index, int* neighbor_indices)
 {
-  // FIXME
+  cc_fit_t* fit = context;
+  int cell = point_index;
+
+  int offset = 0, pos = 0, face;
+  while (mesh_cell_next_face(fit->mesh, cell, &pos, &face))
+  {
+    if (mesh_face_opp_cell(fit->mesh, face, cell) == -1)
+    {
+      neighbor_indices[offset] = face;
+      ++offset;
+    }
+  }
 }
 
 static void cc_get_interior_data(void* context, real_t* data, int component, int num_comps,
@@ -224,7 +268,16 @@ static void cc_get_boundary_data(void* context, real_t* data, int component, int
                                  int* point_indices, int num_points,
                                  point_t* point_coords, vector_t* boundary_normals)
 {
-  // FIXME
+  cc_fit_t* fit = context;
+
+  // We assume the data is in component-minor form in the array, 
+  // and that boundary values are at face centers.
+  for (int i = 0; i < num_points; ++i)
+  {
+    int j = point_indices[i];
+    point_coords[i] = fit->mesh->face_centers[j];
+    boundary_normals[i] = fit->mesh->face_normals[j];
+  }
 }
 
 static int cc_targeted_degree(void* context, int num_points)
