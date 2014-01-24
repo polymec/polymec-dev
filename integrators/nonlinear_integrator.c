@@ -155,7 +155,7 @@ nonlinear_integrator_t* nonlinear_integrator_new(const char* name,
   integrator->x_scale = N_VNew(comm, N);
   integrator->F_scale = N_VNew(comm, N);
   integrator->kinsol = KINCreate();
-  KINSetUserData(integrator->kinsol, integrator->context);
+  KINSetUserData(integrator->kinsol, integrator);
   KINInit(integrator->kinsol, evaluate_F, integrator->x);
 
   // Set the constraints (if any) for the solution.
