@@ -186,7 +186,7 @@ static void finite_diff_F_Jv(int (*F)(void* context, real_t* x, real_t* F),
     work[2][i] = x[i] + eps*v[i];
 
   // F(x + eps*v) -> work[3].
-  F(work[2], work[3], context);
+  F(context, work[2], work[3]);
 
   // (F(x + eps*v) - F(x)) / eps -> Jv
   for (int i = 0; i < num_rows; ++i)
