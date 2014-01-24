@@ -23,6 +23,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <float.h>
+#include "core/sundials_helpers.h"
 #include "integrators/nonlinear_integrator.h"
 #include "integrators/supermatrix_factory.h"
 
@@ -64,6 +65,15 @@ struct nonlinear_integrator_t
   real_t current_time;
 };
 
+// This function wraps around the user-supplied evaluation function.
+static int evaluate_F(N_Vector x, N_Vector F, void* context)
+{
+  nonlinear_integrator_t* integrator = context;
+  real_t* xx = NV_DATA(x);
+  real_t* FF = NV_DATA(F);
+  return integrator->vtable.eval(integrator->context, xx, FF);
+}
+
 // This function sets up the preconditioner data within the integrator.
 static int set_up_preconditioner(N_Vector x, N_Vector x_scale, 
                                  N_Vector F, N_Vector f_scale,
@@ -73,7 +83,7 @@ static int set_up_preconditioner(N_Vector x, N_Vector x_scale,
   nonlinear_integrator_t* integrator = context;
   real_t t = integrator->current_time;
   supermatrix_factory_update_jacobian(integrator->precond_factory, 
-                                      x, t, integrator->precond_mat);
+                                      NV_DATA(x), t, integrator->precond_mat);
   return 0;
 }
 
@@ -146,7 +156,7 @@ nonlinear_integrator_t* nonlinear_integrator_new(const char* name,
   integrator->F_scale = N_VNew(comm, N);
   integrator->kinsol = KINCreate();
   KINSetUserData(integrator->kinsol, integrator->context);
-  KINInit(integrator->kinsol, vtable.eval, integrator->x);
+  KINInit(integrator->kinsol, evaluate_F, integrator->x);
 
   // Set the constraints (if any) for the solution.
   if (integrator->vtable.set_constraints != NULL)

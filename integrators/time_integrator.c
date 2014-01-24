@@ -22,6 +22,7 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+#include "core/sundials_helpers.h"
 #include "integrators/time_integrator.h"
 #include "integrators/supermatrix_factory.h"
 
@@ -56,6 +57,15 @@ struct time_integrator_t
   SuperLUStat_t precond_stat;
 };
 
+// This function wraps around the user-supplied right hand side.
+static int evaluate_rhs(real_t t, N_Vector x, N_Vector x_dot, void* context)
+{
+  time_integrator_t* integ = context;
+  real_t* xx = NV_DATA(x);
+  real_t* xxd = NV_DATA(x_dot);
+  return integ->vtable.rhs(integ->context, t, xx, xxd);
+}
+
 // This function sets up the preconditioner data within the integrator.
 static int set_up_preconditioner(real_t t, N_Vector x, N_Vector F,
                                  int jacobian_is_current, int* jacobian_was_updated, 
@@ -66,7 +76,7 @@ static int set_up_preconditioner(real_t t, N_Vector x, N_Vector F,
   if (!jacobian_is_current)
   {
     supermatrix_factory_update_jacobian(integ->precond_factory, 
-                                        x, t, integ->precond_mat);
+                                        NV_DATA(x), t, integ->precond_mat);
     *jacobian_was_updated = 1;
     // FIXME: Incorporate gamma
   }
@@ -146,8 +156,8 @@ time_integrator_t* time_integrator_new(const char* name,
   // Set up KINSol and accessories.
   integ->x = N_VNew(comm, N);
   integ->cvode = CVodeCreate(CV_BDF, CV_NEWTON);
-  CVodeSetUserData(integ->cvode, integ->context);
-  CVodeInit(integ->cvode, vtable.rhs, integ->current_time, integ->x);
+  CVodeSetUserData(integ->cvode, integ);
+  CVodeInit(integ->cvode, evaluate_rhs, integ->current_time, integ->x);
 
   // Select the particular type of Krylov method for the underlying linear solves.
   if (solver_type == GMRES)

@@ -129,13 +129,9 @@ static void poisson_read_input(void* context, interpreter_t* interp, options_t* 
   }
 }
 
-static int fv_poisson_residual(N_Vector u, N_Vector F, void* context)
+static int fv_poisson_residual(void* context, real_t* u, real_t* F)
 {
   poisson_t* p = context;
-
-  // Access the solution vector and the residual function.
-  real_t* udata = NV_DATA(u);
-  real_t* Fdata = NV_DATA(F);
 
   // Set up arrays for storing the nodes of faces attached to cells.
   static const int max_num_faces_per_cell = 30;
@@ -178,7 +174,7 @@ static int fv_poisson_residual(N_Vector u, N_Vector F, void* context)
     }
 
     // Find a least-squares fit for the solution in the vicinity of this cell.
-    polynomial_fit_compute(p->poly_fit, udata, cell);
+    polynomial_fit_compute(p->poly_fit, u, cell);
 
     // Face fluxes.
     int fpos = 0, face, offset = p->cell_face_flux_offsets[cell];
@@ -212,7 +208,7 @@ static int fv_poisson_residual(N_Vector u, N_Vector F, void* context)
       }
 
       p->cell_face_fluxes[offset] = face_flux;
-      Fdata[cell] -= face_flux;
+      F[cell] -= face_flux;
       ++offset;
     }
 
@@ -256,11 +252,11 @@ static int fv_poisson_residual(N_Vector u, N_Vector F, void* context)
     }
 
     // Now compute the residual in this cell.
-    Fdata[cell] = p->cell_sources[cell];
+    F[cell] = p->cell_sources[cell];
     int fpos = 0, face, offset = p->cell_face_flux_offsets[cell];
     while (mesh_cell_next_face(p->mesh, cell, &fpos, &face))
     {
-      Fdata[cell] -= p->cell_face_fluxes[offset];
+      F[cell] -= p->cell_face_fluxes[offset];
       ++offset;
     }
   }
@@ -268,7 +264,7 @@ static int fv_poisson_residual(N_Vector u, N_Vector F, void* context)
   return 0;
 }
 
-static int fvpm_poisson_residual(N_Vector u, N_Vector F, void* context)
+static int fvpm_poisson_residual(void* context, real_t* u, real_t* F)
 {
   // FIXME
   return 0;

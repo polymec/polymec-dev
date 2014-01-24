@@ -28,7 +28,6 @@
 #include "core/polymec.h"
 #include "core/adj_graph.h"
 #include "cvode/cvode.h"
-#include "kinsol/kinsol.h"
 #include "slu_ddefs.h"
 #include "supermatrix.h"
 
@@ -40,7 +39,7 @@ typedef struct supermatrix_factory_t supermatrix_factory_t;
 // the given adjacency graph and system function F (and context). The 
 // factory does NOT assume ownership of the factory, graph, or context.
 supermatrix_factory_t* supermatrix_factory_from_sys_func(adj_graph_t* graph,
-                                                         KINSysFn F,
+                                                         int (*sys_func)(void* context, real_t* x, real_t* F), 
                                                          void (*set_F_time)(void* context, real_t t),
                                                          void* context);
 
@@ -48,7 +47,7 @@ supermatrix_factory_t* supermatrix_factory_from_sys_func(adj_graph_t* graph,
 // the given adjacency graph and RHS function (and context). The
 // factory does NOT assume ownership of the factory, graph, or context.
 supermatrix_factory_t* supermatrix_factory_from_rhs(adj_graph_t* graph,
-                                                    CVRhsFn rhs,
+                                                    int (*rhs)(void* context, real_t, real_t* x, real_t* x_dot),
                                                     void* context);
 
 // Frees the factory.
@@ -63,11 +62,11 @@ SuperMatrix* supermatrix_factory_vector(supermatrix_factory_t* factory,
 
 // Produces a Jacobian supermatrix from finite difference quotients applied 
 // to the given function F at the solution x and time t.
-SuperMatrix* supermatrix_factory_jacobian(supermatrix_factory_t* factory, N_Vector x, real_t t);
+SuperMatrix* supermatrix_factory_jacobian(supermatrix_factory_t* factory, real_t* x, real_t t);
 
 // Updates a Jacobian supermatrix from finite difference quotients applied 
 // to the given function F at the solution x and time t.
-void supermatrix_factory_update_jacobian(supermatrix_factory_t* factory, N_Vector x, real_t t, SuperMatrix* J);
+void supermatrix_factory_update_jacobian(supermatrix_factory_t* factory, real_t* x, real_t t, SuperMatrix* J);
 
 // Call this function to destroy supermatrices that have been created by this 
 // factory.

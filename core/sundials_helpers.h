@@ -25,7 +25,7 @@
 #ifndef POLYMEC_SUNDIALS_HELPERS_H
 #define POLYMEC_SUNDIALS_HELPERS_H
 
-#include "mpi.h"
+#include "core/polymec.h"
 
 #if POLYMEC_HAVE_MPI
 #include "nvector/nvector_parallel.h"

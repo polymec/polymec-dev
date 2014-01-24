@@ -27,8 +27,6 @@
 
 #include "core/polymec.h"
 #include "core/adj_graph.h"
-#include "core/sundials_helpers.h"
-#include "kinsol/kinsol.h"
 
 // The different algorithms for matrix-free solution of nonlinear equations.
 typedef enum
@@ -43,7 +41,7 @@ typedef struct
 {
   // This function evaluates the residual function for the nonlinear system
   // of equations using the solution vector x and placing the result in F.
-  int (*eval)(N_Vector x, N_Vector F, void* context);
+  int (*eval)(void* context, real_t* x, real_t* F);
 
   // This (optional) function allows the state (context) to set the time at 
   // which the equations are to be integrated.

@@ -27,8 +27,6 @@
 #include <setjmp.h>
 #include <string.h>
 
-#include <nvector/nvector_serial.h>
-
 #include "cmockery.h"
 #include "core/polymec.h"
 #include "core/array_utils.h"
@@ -44,7 +42,7 @@ static adj_graph_t* graph_from_uniform_mesh()
   return g;
 }
 
-static int sys_func(N_Vector u, N_Vector F, void* context)
+static int sys_func(void* context, real_t* x, real_t* F)
 {
   return 0;
 }
@@ -84,7 +82,7 @@ void test_time_dep_F_ctor(void** state)
   adj_graph_free(g);
 }
 
-static int rhs_func(real_t t, N_Vector u, N_Vector F, void* context)
+static int rhs_func(void* context, real_t t, real_t* x, real_t* x_dot)
 {
   return 0;
 }
@@ -157,15 +155,12 @@ typedef struct {
   int num_unknown;
 } context_t;
 
-static int dennis_schnabel_1(N_Vector X, N_Vector F, void* context) {
+static int dennis_schnabel_1(void* context, real_t* x, real_t* F) {
   // F(x) = [ x1 + x2 - 3.0,
   //        [ x1^2 + x2^2 - 9.0
-  real_t *x, *f;
-  x = NV_DATA_S(X);
-  f = NV_DATA_S(F);
 
-  f[0] = x[0] + x[1] - 3.0;
-  f[1] = x[0] * x[0] + x[1] * x[1] - 9.0;
+  F[0] = x[0] + x[1] - 3.0;
+  F[1] = x[0] * x[0] + x[1] * x[1] - 9.0;
   return 0;
 }
 
@@ -174,15 +169,17 @@ void test_numerical_jacobian_ds1(void **state) {
   adj_graph_t* bg = adj_graph_new_with_block_size(2, g);
   adj_graph_free(g);
   context_t context;
+  printf("bg = %p\n", bg);
   supermatrix_factory_t* factory = 
-    supermatrix_factory_from_sys_func(bg, &dennis_schnabel_1, NULL, &context);
+    supermatrix_factory_from_sys_func(bg, dennis_schnabel_1, NULL, &context);
+  printf("bg* = %p\n", bg);
 
   real_t time = 0.0;
-  N_Vector X = N_VNew_Serial(2);
-  real_t *x = NV_DATA_S(X);
+  real_t x[2];
   x[0] = 1.0;
   x[1] = 5.0;
-  SuperMatrix* J = supermatrix_factory_jacobian(factory, X, time);
+  SuperMatrix* J = supermatrix_factory_jacobian(factory, x, time);
+  printf("bg** = %p\n", bg);
 
   // expected jacobian:
   // J = [ 1  1  ]
@@ -190,7 +187,9 @@ void test_numerical_jacobian_ds1(void **state) {
 
   dPrint_CompCol_Matrix("jacobian", J);
 
+  printf("bg*** = %p\n", bg);
   supermatrix_free(J);
+  printf("bg**** = %p\n", bg);
   adj_graph_free(bg);
   supermatrix_factory_free(factory);
 }  // end test_numerical_jacobian

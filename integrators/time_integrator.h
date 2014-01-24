@@ -28,7 +28,6 @@
 #include "core/polymec.h"
 #include "core/adj_graph.h"
 #include "cvode/cvode.h"
-#include "core/sundials_helpers.h"
 
 typedef enum
 {
@@ -41,7 +40,7 @@ typedef struct
 {
   // This function evaluates the right hand side of a coupled system of 
   // nonlinear partial differential equations at time t with solution x.
-  int (*rhs)(real_t t, N_Vector x, N_Vector x_dot, void* context);
+  int (*rhs)(void* context, real_t t, real_t* x, real_t* x_dot);
 
   // This (optional) function destroys the state (context) when the time integrator 
   // is destroyed.
