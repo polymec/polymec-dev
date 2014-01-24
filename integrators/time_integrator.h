@@ -39,7 +39,9 @@ typedef enum
 typedef struct
 {
   // This function evaluates the right hand side of a coupled system of 
-  // nonlinear partial differential equations at time t with solution x.
+  // nonlinear ordinary different equations at time t with solution x, 
+  // storing it in x_dot. It should return 0 on success, 1 for a 
+  // recoverable error, -1 for a fatal error.
   int (*rhs)(void* context, real_t t, real_t* x, real_t* x_dot);
 
   // This (optional) function destroys the state (context) when the time integrator 

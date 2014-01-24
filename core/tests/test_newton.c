@@ -41,18 +41,18 @@ void test_brent(void** state)
   assert_true(fabs(cubic_poly(NULL, x)) < 1e-12);
 }
 
-static int cubic_poly_1(N_Vector x, N_Vector F, void* context)
+static int cubic_poly_1(void* context, real_t* x, real_t* F)
 {
-  double X = NV_Ith_S(x, 0);
-  NV_Ith_S(F, 0) = (X + 1.0) * (X - 2.0) * (X + 3.0);
+  double X = x[0];
+  F[0] = (X + 1.0) * (X - 2.0) * (X + 3.0);
   return 0;
 }
 
-static int cubic_poly_1_jac(long N, N_Vector x, N_Vector F, DlsMat J,
-                            void* context, N_Vector work1, N_Vector work2)
+static int cubic_poly_1_jac(void* context, int N, real_t* x, real_t* F, 
+                            real_t* work1, real_t* work2, real_t* J)
 {
-  double X = NV_Ith_S(x, 0);
-  DENSE_ELEM(J, 0, 0) = (X-2.0)*(X+3.0) + (X+1.0)*(X+3.0) + (X+1.0)*(X-2.0);
+  double X = x[0];
+  J[0] = (X-2.0)*(X+3.0) + (X+1.0)*(X+3.0) + (X+1.0)*(X-2.0);
   return 0;
 }
 
@@ -82,23 +82,23 @@ void test_newton_solve_system_1_with_jacobian(void** state)
   assert_true(fabs(F) < 1e-12);
 }
 
-static int circle_2(N_Vector x, N_Vector F, void* context)
+static int circle_2(void* context, real_t* x, real_t* F)
 {
   // This function is zero at (1, 1).
-  double X = NV_Ith_S(x, 0), Y = NV_Ith_S(x, 1);
-  NV_Ith_S(F, 0) = (X - 1.0)*(X - 1.0) + (Y - 1.0)*(Y - 1.0);
-  NV_Ith_S(F, 1) = X - Y;
+  double X = x[0], Y = x[1];
+  F[0] = (X - 1.0)*(X - 1.0) + (Y - 1.0)*(Y - 1.0);
+  F[1] = X - Y;
   return 0;
 }
 
-static int circle_2_jac(long N, N_Vector x, N_Vector F, DlsMat J, 
-                        void* context, N_Vector work1, N_Vector work2)
+static int circle_2_jac(void* context, int N, real_t* x, real_t* F,
+                        real_t* work1, real_t* work2, real_t* J)
 {
-  double X = NV_Ith_S(x, 0), Y = NV_Ith_S(x, 1);
-  DENSE_ELEM(J, 0, 0) = 2.0*(X-1.0);  // dFx/dx
-  DENSE_ELEM(J, 0, 1) = 2.0*(Y-1.0);  // dFx/dy
-  DENSE_ELEM(J, 1, 0) = 1.0;          // dFy/dx
-  DENSE_ELEM(J, 1, 1) = -1.0;         // dFy/dy
+  double X = x[0], Y = x[1];
+  J[0] = 2.0*(X-1.0);  // Jxx = dFx/dx 
+  J[1] = 1.0;          // Jyx = dFy/dx
+  J[2] = 2.0*(Y-1.0);  // Jxy = dFx/dy
+  J[3] = -1.0;         // Jyy = dFy/dy
   return 0;
 }
 
@@ -124,29 +124,29 @@ void test_newton_solve_system_2_with_jacobian(void** state)
   assert_true((x[0]-1.0)*(x[0]-1.0) + (x[1]-1.0)*(x[1]-1.0) < 1e-3);
 }
 
-static int sphere_3(N_Vector x, N_Vector F, void* context)
+static int sphere_3(void* context, real_t* x, real_t* F)
 {
   // The function is zero at (1, 1, 1)
-  double X = NV_Ith_S(x, 0), Y = NV_Ith_S(x, 1), Z = NV_Ith_S(x, 2);
-  NV_Ith_S(F, 0) = (X - 1.0)*(X - 1.0) + (Y - 1.0)*(Y - 1.0) + (Z - 1.0)*(Z - 1.0);
-  NV_Ith_S(F, 1) = X - Y;
-  NV_Ith_S(F, 2) = Y - Z;
+  double X = x[0], Y = x[1], Z = x[2];
+  F[0] = (X - 1.0)*(X - 1.0) + (Y - 1.0)*(Y - 1.0) + (Z - 1.0)*(Z - 1.0);
+  F[1] = X - Y;
+  F[2] = Y - Z;
   return 0;
 }
 
-static int sphere_3_jac(long N, N_Vector x, N_Vector F, DlsMat J,
-                        void* context, N_Vector work1, N_Vector work2)
+static int sphere_3_jac(void* context, int N, real_t* x, real_t* F,
+                        real_t* work1, real_t* work2, real_t* J)
 {
-  double X = NV_Ith_S(x, 0), Y = NV_Ith_S(x, 1), Z = NV_Ith_S(x, 2);
-  DENSE_ELEM(J, 0, 0) = 2.0*(X-1.0);
-  DENSE_ELEM(J, 0, 1) = 2.0*(Y-1.0);
-  DENSE_ELEM(J, 0, 2) = 2.0*(Z-1.0);
-  DENSE_ELEM(J, 1, 0) = 1.0;
-  DENSE_ELEM(J, 1, 1) = -1.0;
-  DENSE_ELEM(J, 1, 2) = 0.0;
-  DENSE_ELEM(J, 2, 0) = 0.0;
-  DENSE_ELEM(J, 2, 1) = 1.0;
-  DENSE_ELEM(J, 2, 2) = -1.0;
+  double X = x[0], Y = x[1], Z = x[2];
+  J[0] = 2.0*(X-1.0); // Jxx
+  J[1] = 1.0;         // Jyx
+  J[2] = 0.0;         // Jzx
+  J[3] = 2.0*(Y-1.0); // Jxy
+  J[4] = -1.0;        // Jyy
+  J[5] = 1.0;         // Jzy
+  J[6] = 2.0*(Z-1.0); // Jxz
+  J[7] = 0.0;         // Jyz
+  J[8] = -1.0;        // Jzz
   return 0;
 }
 

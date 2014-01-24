@@ -25,6 +25,8 @@
 #include "core/newton.h"
 #include "core/linear_algebra.h"
 #include "core/norms.h"
+#include "core/sundials_helpers.h"
+#include "sundials/sundials_direct.h"
 #include "kinsol/kinsol.h"
 #include "kinsol/kinsol_dense.h"
 
@@ -33,6 +35,9 @@ struct newton_solver_t
   // Nonlinear system information.
   int dim;
   void* context;
+  int (*sys_func)(void* context, real_t* x, real_t* F);
+  int (*sys_jac)(void* context, int N, real_t* x, real_t* F, 
+                 real_t* work1, real_t* work2, real_t* J);
   void (*dtor)(void*);
 
   // Nonlinear solver.
@@ -41,6 +46,22 @@ struct newton_solver_t
   // Work vectors.
   N_Vector x, x_scale, F_scale;
 };
+
+// Wrapper for system function.
+static int eval_system_func(N_Vector X, N_Vector F, void* context)
+{
+  newton_solver_t* solver = context;
+  return solver->sys_func(context, NV_DATA(X), NV_DATA(F));
+}
+
+// Wrapper for system Jacobian.
+static int eval_system_jac(long N, N_Vector X, N_Vector F, DlsMat J,
+                           void* context, N_Vector work1, N_Vector work2)
+{
+  newton_solver_t* solver = context;
+  return solver->sys_jac(context, (int)N, NV_DATA(X), NV_DATA(F), 
+                         NV_DATA(work1), NV_DATA(work2), J->data);
+}
 
 newton_solver_t* newton_solver_new(int dimension,
                                    void* context,
@@ -67,13 +88,15 @@ newton_solver_t* newton_solver_new_with_jacobian(int dimension,
   solver->x_scale = N_VNew_Serial(dimension);
   solver->F_scale = N_VNew_Serial(dimension);
   solver->kinsol = KINCreate();
-  KINSetUserData(solver->kinsol, solver->context);
-  KINInit(solver->kinsol, system_func, solver->x);
+  solver->sys_func = system_func;
+  solver->sys_jac = jacobian_func;
+  KINSetUserData(solver->kinsol, solver);
+  KINInit(solver->kinsol, eval_system_func, solver->x);
   KINDense(solver->kinsol, dimension);
 
   // Do we have a Jacobian function?
-  if (jacobian_func != NULL)
-    KINDlsSetDenseJacFn(solver->kinsol, jacobian_func);
+  if (solver->sys_jac != NULL)
+    KINDlsSetDenseJacFn(solver->kinsol, eval_system_jac);
 
   // Use exact Newton?
   // KINSetMaxSetupCalls(solver->kinsol, 1);

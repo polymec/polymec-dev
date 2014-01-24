@@ -26,8 +26,6 @@
 #define POLYMEC_NEWTON_H
 
 #include "core/polymec.h"
-#include "core/sundials_helpers.h"
-#include "sundials/sundials_direct.h"
 
 // Solves the (scalar) nonlinear equation F(x) = 0 using Brent's method on 
 // the interval [x1, x2] with the specified maximum number of iterations 
@@ -40,14 +38,20 @@ real_t brent_solve(real_t (*F)(void*, real_t), void* context, real_t x1, real_t 
 // Newton's method.
 typedef struct newton_solver_t newton_solver_t;
 
-// This function F(X) = 0 represents a nonlinear system of equations, and 
-// uses the KINSOL interface.
-typedef int (*newton_system_func)(N_Vector X, N_Vector F, void* context);
+// This function F(X) = 0 represents a nonlinear system of equations.
+// It should return 0 on success, 1 on a recoverable error, and -1 on a 
+// fatal error.
+typedef int (*newton_system_func)(void* context, real_t* X, real_t* F);
 
-// This function represents the Jacobian of a nonlinear system of equations, 
-// and uses the KINSOL interface.
-typedef int (*newton_jacobian_func)(long N, N_Vector X, N_Vector F, DlsMat J,
-                                    void* context, N_Vector work1, N_Vector work2);
+// This function represents the Jacobian of a nonlinear system of equations.
+// N is the dimension of the Jacobian.
+// X is the solution about which the system is linearized.
+// F contains the values of the system function at X.
+// work1 and work2 are work vectors (sized to match X and F).
+// J is a matrix stored in column-major order within an N*N array.
+// This function should return 0 on success, nonzero otherwise.
+typedef int (*newton_jacobian_func)(void* context, int N, real_t* X, real_t* F, 
+                                    real_t* work1, real_t* work2, real_t* J);
 
 // Creates a new Newton solver for the given system of equations represented
 // by the function F(X) = 0. The user-defined context is fed to the system 
