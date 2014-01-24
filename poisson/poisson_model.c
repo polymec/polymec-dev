@@ -241,12 +241,20 @@ static int fv_poisson_residual(void* context, real_t* u, real_t* F)
     {
       if ((other_cell != -1) && (cell < other_cell))
       {
+        // Retrieve the fluxes at face 1 and face 2.
         real_t flux1 = p->cell_face_fluxes[offset1];
         int f = offset1 - p->cell_face_flux_offsets[cell];
         int offset2 = p->cell_face_flux_offsets[other_cell] + f;
         real_t flux2 = p->cell_face_fluxes[offset2];
-        real_t avg_flux = 0.5 * (flux1 + flux2);
-        p->cell_face_fluxes[offset1] = p->cell_face_fluxes[offset2] = avg_flux;
+
+        // Either they are both zero, or they have opposite sign.
+        ASSERT((flux1 == flux2 == 0.0) || (SIGN(flux1) == -SIGN(flux2)));
+
+        // Now average their magnitudes and make sure that they agree so 
+        // that our fluxes are conservative.
+        real_t avg_flux = 0.5 * (fabs(flux1) + fabs(flux2));
+        p->cell_face_fluxes[offset1] = SIGN(flux1) * avg_flux;
+        p->cell_face_fluxes[offset2] = SIGN(flux2) * avg_flux;
         ++offset1;
       }
     }
