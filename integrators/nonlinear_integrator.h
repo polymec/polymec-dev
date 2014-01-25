@@ -28,13 +28,12 @@
 #include "core/polymec.h"
 #include "core/adj_graph.h"
 
-// The different algorithms for matrix-free solution of nonlinear equations.
+// The different global strategies for the Newton iteration.
 typedef enum
 {
-  GMRES,
-  BICGSTAB,
-  TFQMR
-} nonlinear_integrator_type_t;
+  LINE_SEARCH,
+  NONE
+} nonlinear_integrator_strategy_t;
 
 // This virtual table determines the behavior of the nonlinear integrator.
 typedef struct
@@ -82,18 +81,41 @@ typedef struct
 // Newton-Krylov methods provided by KINSol.
 typedef struct nonlinear_integrator_t nonlinear_integrator_t;
 
-// Creates an integrator with the given name, context, and virtual table for 
-// integrated a discretized system of partial differential equations
-// represented by a sparse nonlinear system of equations. The virtual table 
-// defines accessor methods for the residual function and the adjacency graph, 
-// and type indicates which type of Krylov method is used to solve the underlying 
-// linear systems (using a maximum subspace dimension of max_krylov_dim).
-nonlinear_integrator_t* nonlinear_integrator_new(const char* name,
-                                                 void* context,
-                                                 MPI_Comm comm,
-                                                 nonlinear_integrator_vtable vtable,
-                                                 nonlinear_integrator_type_t type,
-                                                 int max_krylov_dim);
+// The following functions each create a nonlinear integrator with the given 
+// name, context, and virtual table for integrated a discretized system of 
+// partial differential equations represented by a sparse nonlinear system of 
+// equations. The virtual table defines accessor methods for the residual 
+// function and the adjacency graph, and the globalization strategy can be 
+// NONE or LINE_SEARCH.
+
+// Create an integrator that uses a GMRES Krylov method with a given 
+// maximum subspace dimension of max_krylov_dim, and a maximum number of 
+// restarts given by max_restarts.
+nonlinear_integrator_t* gmres_nonlinear_integrator_new(const char* name,
+                                                       void* context,
+                                                       MPI_Comm comm,
+                                                       nonlinear_integrator_vtable vtable,
+                                                       nonlinear_integrator_strategy_t global_strategy,
+                                                       int max_krylov_dim,
+                                                       int max_restarts);
+
+// Create an integrator that uses a stabilized bi-conjugate gradient Krylov 
+// method with a given maximum subspace dimension of max_krylov_dim.
+nonlinear_integrator_t* bicgstab_nonlinear_integrator_new(const char* name,
+                                                          void* context,
+                                                          MPI_Comm comm,
+                                                          nonlinear_integrator_vtable vtable,
+                                                          nonlinear_integrator_strategy_t global_strategy,
+                                                          int max_krylov_dim);
+
+// Create an integrator that uses a transpose-free quasi-minimum residual 
+// Krylov method with a given maximum subspace dimension of max_krylov_dim.
+nonlinear_integrator_t* tfqmr_nonlinear_integrator_new(const char* name,
+                                                       void* context,
+                                                       MPI_Comm comm,
+                                                       nonlinear_integrator_vtable vtable,
+                                                       nonlinear_integrator_strategy_t global_strategy,
+                                                       int max_krylov_dim);
 
 // Frees a solver.
 void nonlinear_integrator_free(nonlinear_integrator_t* integrator);

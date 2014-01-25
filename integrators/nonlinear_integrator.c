@@ -45,13 +45,13 @@ struct nonlinear_integrator_t
   char* name;
   void* context;
   nonlinear_integrator_vtable vtable;
-  nonlinear_integrator_type_t type;
 
   // Adjacency graph -- keeps track of topological changes.
   adj_graph_t* graph;
 
   // KINSol data structures.
   void* kinsol;
+  int strategy; // Global strategy.
   N_Vector x, x_scale, F_scale; // Stores solution vector and scaling vectors.
 
   // Preconditioning stuff.
@@ -123,23 +123,34 @@ static int solve_preconditioner_system(N_Vector x, N_Vector x_scale,
   return 0;
 }
 
-nonlinear_integrator_t* nonlinear_integrator_new(const char* name, 
-                                                 void* context,
-                                                 MPI_Comm comm,
-                                                 nonlinear_integrator_vtable vtable,
-                                                 nonlinear_integrator_type_t type,
-                                                 int max_krylov_dim)
+// Types of linear solvers.
+typedef enum 
+{
+  GMRES,
+  BICGSTAB,
+  TFQMR
+} solver_type_t;
+
+// Generic constructor.
+static nonlinear_integrator_t* nonlinear_integrator_new(const char* name, 
+                                                        void* context,
+                                                        MPI_Comm comm,
+                                                        nonlinear_integrator_vtable vtable,
+                                                        nonlinear_integrator_strategy_t global_strategy,
+                                                        solver_type_t solver_type,
+                                                        int max_krylov_dim, int max_restarts)
 {
   ASSERT(vtable.eval != NULL);
   ASSERT(vtable.graph != NULL);
   ASSERT(max_krylov_dim >= 3);
+  ASSERT(max_restarts >= 0);
 
   nonlinear_integrator_t* integrator = malloc(sizeof(nonlinear_integrator_t));
   integrator->name = string_dup(name);
   integrator->context = context;
   integrator->comm = comm;
   integrator->vtable = vtable;
-  integrator->type = type;
+  integrator->strategy = (global_strategy == LINE_SEARCH) ? KIN_LINESEARCH : KIN_NONE;
   integrator->graph = NULL;
 
   // Get the adjacency graph that expresses the sparsity of the nonlinear system.
@@ -168,9 +179,12 @@ nonlinear_integrator_t* nonlinear_integrator_new(const char* name,
   }
 
   // Select the particular type of Krylov method for the underlying linear solves.
-  if (type == GMRES)
+  if (solver_type == GMRES)
+  {
     KINSpgmr(integrator->kinsol, max_krylov_dim); 
-  else if (type == BICGSTAB)
+    KINSpilsSetMaxRestarts(integrator->kinsol, max_restarts);
+  }
+  else if (solver_type == BICGSTAB)
     KINSpbcg(integrator->kinsol, max_krylov_dim);
   else
     KINSptfqmr(integrator->kinsol, max_krylov_dim);
@@ -186,6 +200,40 @@ nonlinear_integrator_t* nonlinear_integrator_new(const char* name,
   integrator->current_time = 0.0;
 
   return integrator;
+}
+
+nonlinear_integrator_t* gmres_nonlinear_integrator_new(const char* name,
+                                                       void* context,
+                                                       MPI_Comm comm,
+                                                       nonlinear_integrator_vtable vtable,
+                                                       nonlinear_integrator_strategy_t global_strategy,
+                                                       int max_krylov_dim,
+                                                       int max_restarts)
+{
+  return nonlinear_integrator_new(name, context, comm, vtable, global_strategy,
+                                  GMRES, max_krylov_dim, max_restarts);
+}
+
+nonlinear_integrator_t* bicgstab_nonlinear_integrator_new(const char* name,
+                                                          void* context,
+                                                          MPI_Comm comm,
+                                                          nonlinear_integrator_vtable vtable,
+                                                          nonlinear_integrator_strategy_t global_strategy,
+                                                          int max_krylov_dim)
+{
+  return nonlinear_integrator_new(name, context, comm, vtable, global_strategy,
+                                  BICGSTAB, max_krylov_dim, 0);
+}
+
+nonlinear_integrator_t* tfqmr_nonlinear_integrator_new(const char* name,
+                                                       void* context,
+                                                       MPI_Comm comm,
+                                                       nonlinear_integrator_vtable vtable,
+                                                       nonlinear_integrator_strategy_t global_strategy,
+                                                       int max_krylov_dim)
+{
+  return nonlinear_integrator_new(name, context, comm, vtable, global_strategy,
+                                  TFQMR, max_krylov_dim, 0);
 }
 
 void nonlinear_integrator_free(nonlinear_integrator_t* integrator)
@@ -302,7 +350,7 @@ bool nonlinear_integrator_solve(nonlinear_integrator_t* integrator,
   polymec_suspend_fpe_exceptions();
 
   // Solve.
-  int status = KINSol(integrator->kinsol, integrator->x, KIN_LINESEARCH, 
+  int status = KINSol(integrator->kinsol, integrator->x, integrator->strategy, 
                       integrator->x_scale, integrator->F_scale);
 
   // Reinstate the floating point exceptions.

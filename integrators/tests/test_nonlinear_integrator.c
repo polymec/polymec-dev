@@ -31,6 +31,9 @@
 #include "core/polymec.h"
 #include "integrators/nonlinear_integrator.h"
 
+// We use this for some of the underlying data structures.
+#include "sundials/sundials_direct.h"
+
 // This test solves a nonlinear system that arises from a system
 // of partial differential equations. The PDE system is a food web
 // population model, with predator-prey interaction and diffusion
@@ -99,28 +102,208 @@
 //    problem.)
 // -----------------------------------------------------------------
 
+/* Problem Constants */
+
+#define NUM_SPECIES     6  /* must equal 2*(number of prey or predators)
+                              number of prey = number of predators       */ 
+
+#define PI       RCONST(3.1415926535898)   /* pi */ 
+
+#define MX          8              // MX = number of x mesh points */
+#define MY          8              // MY = number of y mesh points */
+#define NSMX        (NUM_SPECIES * MX)
+#define NEQ         (NSMX * MY)    // number of equations in the system 
+#define AA          RCONST(1.0)    // value of coefficient AA in above eqns 
+#define EE          RCONST(10000.) // value of coefficient EE in above eqns 
+#define GG          RCONST(0.5e-6) // value of coefficient GG in above eqns 
+#define BB          RCONST(1.0)    // value of coefficient BB in above eqns 
+#define DPREY       RCONST(1.0)    // value of coefficient dprey above 
+#define DPRED       RCONST(0.5)    // value of coefficient dpred above 
+#define ALPHA       RCONST(1.0)    // value of coefficient alpha above 
+#define AX          RCONST(1.0)    // total range of x variable 
+#define AY          RCONST(1.0)    // total range of y variable 
+#define FTOL        RCONST(1.e-7)  // ftol tolerance 
+#define STOL        RCONST(1.e-13) // stol tolerance 
+#define THOUSAND    RCONST(1000.0) // one thousand 
+#define ZERO        RCONST(0.)     // 0. 
+#define ONE         RCONST(1.0)    // 1. 
+#define TWO         RCONST(2.0)    // 2. 
+#define PREYIN      RCONST(1.0)    // initial guess for prey concentrations. 
+#define PREDIN      RCONST(30000.0)// initial guess for predator concs.  
+
+// User-defined vector access macro: IJ_Vptr 
+
+// IJ_Vptr is defined in order to translate from the underlying 3D structure
+// of the dependent variable vector to the 1D storage scheme for an N-vector.
+// IJ_Vptr(vv,i,j) returns a pointer to the location in vv corresponding to 
+// indices is = 0, jx = i, jy = j.    
+
+#define IJ_Vptr(vv,i,j)   (&vv[i*NUM_SPECIES + j*NSMX])
+
 typedef struct 
 {
-  realtype **P[MX][MY];
-  int *pivot[MX][MY];
-  realtype **acoef, *bcoef;
-  N_Vector rates;
-  realtype *cox, *coy;
-  realtype ax, ay, dx, dy;
-  realtype uround, sqruround;
+  real_t **P[MX][MY];
+  long *pivot[MX][MY];
+  real_t **acoef, *bcoef;
+  real_t *rates;
+  real_t *cox, *coy;
+  real_t ax, ay, dx, dy;
+  real_t uround, sqruround;
   long int mx, my, ns, np;
 
-} user_data_t;
+  // Adjacency graph for preconditioner matrix.
+  adj_graph_t* graph;
+
+} foodweb_t;
+
+// Readability definitions used in other routines below.
+#define acoef  (data->acoef)
+#define bcoef  (data->bcoef)
+#define cox    (data->cox)
+#define coy    (data->coy)
+
+// Newly initialized food web data context.
+static foodweb_t* foodweb_new()
+{
+  long int i, j, np, jx, jy;
+  real_t *a1,*a2, *a3, *a4, dx2, dy2;
+
+  foodweb_t* data = malloc(sizeof(foodweb_t));
+  
+  for (jx=0; jx < MX; jx++) 
+  {
+    for (jy=0; jy < MY; jy++) 
+    {
+      (data->P)[jx][jy] = newDenseMat(NUM_SPECIES, NUM_SPECIES);
+      (data->pivot)[jx][jy] = newLintArray(NUM_SPECIES);
+    }
+  }
+  acoef = newDenseMat(NUM_SPECIES, NUM_SPECIES);
+  bcoef = (real_t *)malloc(NUM_SPECIES * sizeof(real_t));
+  cox   = (real_t *)malloc(NUM_SPECIES * sizeof(real_t));
+  coy   = (real_t *)malloc(NUM_SPECIES * sizeof(real_t));
+  
+  data->mx = MX;
+  data->my = MY;
+  data->ns = NUM_SPECIES;
+  data->np = NUM_SPECIES/2;
+  data->ax = AX;
+  data->ay = AY;
+  data->dx = (data->ax)/(MX-1);
+  data->dy = (data->ay)/(MY-1);
+  data->uround = UNIT_ROUNDOFF;
+  data->sqruround = sqrt(data->uround);
+
+  // Set up the coefficients a and b plus others found in the equations.
+  np = data->np;
+
+  dx2=(data->dx)*(data->dx); dy2=(data->dy)*(data->dy);
+
+  for (i = 0; i < np; i++) 
+  {
+    a1= &(acoef[i][np]);
+    a2= &(acoef[i+np][0]);
+    a3= &(acoef[i][0]);
+    a4= &(acoef[i+np][np]);
+
+    // Fill in the portion of acoef in the four quadrants, row by row...
+    for (j = 0; j < np; j++) 
+    {
+      *a1++ =  -GG;
+      *a2++ =   EE;
+      *a3++ = ZERO;
+      *a4++ = ZERO;
+    }
+
+    // ...and then change the diagonal elements of acoef to -AA.
+    acoef[i][i]=-AA;
+    acoef[i+np][i+np] = -AA;
+
+    bcoef[i] = BB;
+    bcoef[i+np] = -BB;
+
+    cox[i]=DPREY/dx2;
+    cox[i+np]=DPRED/dx2;
+
+    coy[i]=DPREY/dy2;
+    coy[i+np]=DPRED/dy2;
+  }  
+
+  // Now construct an adjacency graph for the problem.
+  adj_graph_t* graph = adj_graph_new(MPI_COMM_SELF, MX*MY);
+  // FIXME
+  data->graph = adj_graph_new_with_block_size(NUM_SPECIES, graph);
+  adj_graph_free(graph);
+
+  return data;
+}
+
+// Food web data context destructor.
+static void foodweb_dtor(void* context)
+{
+  foodweb_t* data = context;
+  int jx, jy;
+  
+  for (jx=0; jx < MX; jx++) {
+    for (jy=0; jy < MY; jy++) {
+      destroyMat((data->P)[jx][jy]);
+      destroyArray((data->pivot)[jx][jy]);
+    }
+  }
+  
+  destroyMat(acoef);
+  free(bcoef);
+  free(cox);
+  free(coy);
+  free(data->rates);
+  adj_graph_free(data->graph);
+  free(data);
+}
+
+// Initialize the food web problem.
+static void foodweb_initialize(real_t* cc)
+{
+  int i, jx, jy;
+  real_t *cloc;
+  real_t  ctemp[NUM_SPECIES];
+  
+  for (i = 0; i < NUM_SPECIES/2; i++)
+    ctemp[i] = PREYIN;
+  for (i = NUM_SPECIES/2; i < NUM_SPECIES; i++) 
+    ctemp[i] = PREDIN;
+
+  for (jy = 0; jy < MY; jy++) 
+  {
+    for (jx = 0; jx < MX; jx++) 
+    {
+      cloc = IJ_Vptr(cc,jx,jy);
+      for (i = 0; i < NUM_SPECIES; i++) 
+        cloc[i] = ctemp[i];
+    }
+  }
+}
+
+// Dot product routine for real_t arrays 
+static real_t dot_prod(long int size, real_t *x1, real_t *x2)
+{
+  long int i;
+  real_t *xx1, *xx2, temp = ZERO;
+  
+  xx1 = x1; xx2 = x2;
+  for (i = 0; i < size; i++) temp += (*xx1++) * (*xx2++);
+
+  return(temp);  
+}
 
 // Interaction rate function routine 
 static void web_rate(void* context, real_t xx, real_t yy, real_t *cxy, real_t *ratesxy)
 {
   long int i;
   real_t fac;
-  user_data_t* data = context;
+  foodweb_t* data = context;
   
   for (i = 0; i<NUM_SPECIES; i++)
-    ratesxy[i] = DotProd(NUM_SPECIES, cxy, acoef[i]);
+    ratesxy[i] = dot_prod(NUM_SPECIES, cxy, acoef[i]);
   
   fac = ONE + ALPHA * xx * yy;
   
@@ -132,7 +315,7 @@ static int foodweb_func(void* context, real_t t, real_t* cc, real_t* fval)
 {
   real_t xx, yy, delx, dely, *cxy, *rxy, *fxy, dcyli, dcyui, dcxli, dcxri;
   long int jx, jy, is, idyu, idyl, idxr, idxl;
-  user_data_t* data = context;
+  foodweb_t* data = context;
   
   delx = data->dx;
   dely = data->dy;
@@ -160,7 +343,7 @@ static int foodweb_func(void* context, real_t t, real_t* cc, real_t* fval)
       fxy = IJ_Vptr(fval,jx,jy);
 
       // Get species interaction rate array at (xx,yy) 
-      web_rate(user_data, xx, yy, cxy, rxy);
+      web_rate(data, xx, yy, cxy, rxy);
       
       for(is = 0; is < NUM_SPECIES; is++) {
         
@@ -182,20 +365,72 @@ static int foodweb_func(void* context, real_t t, real_t* cc, real_t* fval)
   return(0);
 }
 
+static void foodweb_set_x_scale(void* context, real_t* x_scale)
+{
+  int i, jx, jy;
+  real_t *sloc;
+  real_t stemp[NUM_SPECIES];
+  
+  // Initialize the stemp array used in the loading process.
+  for (i = 0; i < NUM_SPECIES/2; i++) 
+    stemp[i] = ONE;
+  for (i = NUM_SPECIES/2; i < NUM_SPECIES; i++)
+    stemp[i] = RCONST(0.00001);
+
+  for (jy = 0; jy < MY; jy++) 
+  {
+    for (jx = 0; jx < MX; jx++) 
+    {
+      sloc = IJ_Vptr(x_scale,jx,jy);
+      for (i = 0; i < NUM_SPECIES; i++) 
+        sloc[i] = stemp[i];
+    }
+  }
+}
+
+static void foodweb_set_F_scale(void* context, real_t* F_scale)
+{
+  // We scale F the same way we scale x.
+  foodweb_set_x_scale(context, F_scale);
+}
+
+static void foodweb_set_constraints(void* context, real_t* constraints)
+{
+  // Enforce positivity on all components.
+  for (int i = 0; i < NEQ; ++i)
+    constraints[i] = 2.0;
+}
+
+// This function expresses the sparsity graph for the food web problem.
+static adj_graph_t* foodweb_graph(void* context)
+{
+  foodweb_t* data = context;
+  return data->graph;
+}
+
 void test_foodweb_integrator(void** state)
 {
-  user_data_t* user_data = user_data_new();
-  nonlinear_integrator_vtable vtable; // FIXME
-  nonlinear_integrator_t* integ = nonlinear_integrator_new("Food web",
-                                                           user_data,
-                                                           MPI_COMM_SELF,
-                                                           vtable, GMRES, 5);
+  // Set up a nonlinear integrator using GMRES with no globalization 
+  // strategy.
+  foodweb_t* data = foodweb_new();
+  nonlinear_integrator_vtable vtable = {.eval = foodweb_func,
+                                        .set_x_scale = foodweb_set_x_scale,
+                                        .set_F_scale = foodweb_set_F_scale,
+                                        .set_constraints = foodweb_set_constraints,
+                                        .graph = foodweb_graph,
+                                        .dtor = foodweb_dtor};
+  nonlinear_integrator_t* integ = gmres_nonlinear_integrator_new("Food web",
+                                                                 data,
+                                                                 MPI_COMM_SELF,
+                                                                 vtable, 
+                                                                 NONE, 15, 2);
   assert_true(strcmp(nonlinear_integrator_name(integ), "Food web") == 0);
-  assert_true((user_data_t*)nonlinear_integrator_context(integ) == user_data);
+  assert_true((foodweb_t*)nonlinear_integrator_context(integ) == data);
 
-  real_t X[NUM_SPECIES];
+  real_t cc[NEQ];
+  foodweb_initialize(cc);
   int num_iters;
-  bool solved = nonlinear_integrator_solve(integ, 0.0, X, &num_iters);
+  bool solved = nonlinear_integrator_solve(integ, 0.0, cc, &num_iters);
   assert_true(solved);
   nonlinear_integrator_free(integ);
 }

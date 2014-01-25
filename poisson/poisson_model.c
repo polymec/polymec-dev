@@ -358,7 +358,7 @@ static void poisson_init(void* context, real_t t)
     nonlinear_integrator_vtable vtable = {.eval = fv_poisson_residual, 
                                           .dtor = NULL, 
                                           .graph = get_graph};
-    p->solver = nonlinear_integrator_new("Poisson (FV)", p, MPI_COMM_WORLD, vtable, BICGSTAB, 5);
+    p->solver = bicgstab_nonlinear_integrator_new("Poisson (FV)", p, MPI_COMM_WORLD, vtable, LINE_SEARCH, 15);
 
     // Allocate storage for cell face fluxes.
     p->cell_face_flux_offsets = malloc(sizeof(int)*(p->mesh->num_cells+1));
@@ -385,7 +385,7 @@ static void poisson_init(void* context, real_t t)
     nonlinear_integrator_vtable vtable = {.eval = fvpm_poisson_residual, 
                                           .dtor = NULL, 
                                           .graph = get_graph};
-    p->solver = nonlinear_integrator_new("Poisson (FVPM)", p, MPI_COMM_WORLD, vtable, BICGSTAB, 5);
+    p->solver = bicgstab_nonlinear_integrator_new("Poisson (FVPM)", p, MPI_COMM_WORLD, vtable, LINE_SEARCH, 15);
   }
 
   // Now we simply solve the problem for the initial time.
