@@ -197,6 +197,8 @@ static nonlinear_integrator_t* nonlinear_integrator_new(const char* name,
   integrator->precond_factory = NULL;
   integrator->precond_mat = NULL;
   integrator->precond_rhs = NULL;
+  integrator->precond_cperm = NULL;
+  integrator->precond_rperm = NULL;
   integrator->current_time = 0.0;
 
   return integrator;
@@ -239,14 +241,17 @@ nonlinear_integrator_t* tfqmr_nonlinear_integrator_new(const char* name,
 void nonlinear_integrator_free(nonlinear_integrator_t* integrator)
 {
   // Kill the preconditioner stuff.
-  Destroy_SuperNode_Matrix(&integrator->precond_L);
-  Destroy_CompCol_Matrix(&integrator->precond_U);
+  if (integrator->precond_mat != NULL)
+  {
+    supermatrix_free(integrator->precond_mat);
+    supermatrix_free(integrator->precond_rhs);
+    supermatrix_factory_free(integrator->precond_factory);
+    Destroy_SuperNode_Matrix(&integrator->precond_L);
+    Destroy_CompCol_Matrix(&integrator->precond_U);
+    SUPERLU_FREE(integrator->precond_cperm);
+    SUPERLU_FREE(integrator->precond_rperm);
+  }
   StatFree(&integrator->precond_stat);
-  SUPERLU_FREE(integrator->precond_cperm);
-  SUPERLU_FREE(integrator->precond_rperm);
-  supermatrix_factory_free(integrator->precond_factory);
-  supermatrix_free(integrator->precond_mat);
-  supermatrix_free(integrator->precond_rhs);
 
   // Kill the KINSol stuff.
   N_VDestroy(integrator->x);
@@ -307,11 +312,14 @@ bool nonlinear_integrator_solve(nonlinear_integrator_t* integrator,
   {
     // Update the graph and the preconditioner stuff.
     integrator->graph = graph;
-    supermatrix_factory_free(integrator->precond_factory);
-    supermatrix_free(integrator->precond_mat);
-    supermatrix_free(integrator->precond_rhs);
-    SUPERLU_FREE(integrator->precond_cperm);
-    SUPERLU_FREE(integrator->precond_rperm);
+    if (integrator->precond_factory != NULL)
+    {
+      supermatrix_factory_free(integrator->precond_factory);
+      supermatrix_free(integrator->precond_mat);
+      supermatrix_free(integrator->precond_rhs);
+      SUPERLU_FREE(integrator->precond_cperm);
+      SUPERLU_FREE(integrator->precond_rperm);
+    }
     integrator->precond_factory = supermatrix_factory_new(graph, integrator->vtable.eval, integrator->context);
     integrator->precond_mat = supermatrix_factory_matrix(integrator->precond_factory);
     integrator->precond_rhs = supermatrix_factory_vector(integrator->precond_factory, 1);

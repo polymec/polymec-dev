@@ -34,6 +34,9 @@
 // We use this for some of the underlying data structures.
 #include "sundials/sundials_direct.h"
 
+//------------------------------------------------------------------------
+//                          FOOD WEB PROBLEM
+//------------------------------------------------------------------------
 // This test solves a nonlinear system that arises from a system
 // of partial differential equations. The PDE system is a food web
 // population model, with predator-prey interaction and diffusion
@@ -179,9 +182,9 @@ static foodweb_t* foodweb_new()
     }
   }
   acoef = newDenseMat(NUM_SPECIES, NUM_SPECIES);
-  bcoef = (real_t *)malloc(NUM_SPECIES * sizeof(real_t));
-  cox   = (real_t *)malloc(NUM_SPECIES * sizeof(real_t));
-  coy   = (real_t *)malloc(NUM_SPECIES * sizeof(real_t));
+  bcoef = malloc(NUM_SPECIES * sizeof(real_t));
+  cox   = malloc(NUM_SPECIES * sizeof(real_t));
+  coy   = malloc(NUM_SPECIES * sizeof(real_t));
   
   data->mx = MX;
   data->my = MY;
@@ -244,8 +247,10 @@ static void foodweb_dtor(void* context)
   foodweb_t* data = context;
   int jx, jy;
   
-  for (jx=0; jx < MX; jx++) {
-    for (jy=0; jy < MY; jy++) {
+  for (jx=0; jx < MX; jx++) 
+  {
+    for (jy=0; jy < MY; jy++) 
+    {
       destroyMat((data->P)[jx][jy]);
       destroyArray((data->pivot)[jx][jy]);
     }
@@ -290,9 +295,10 @@ static real_t dot_prod(long int size, real_t *x1, real_t *x2)
   real_t *xx1, *xx2, temp = ZERO;
   
   xx1 = x1; xx2 = x2;
-  for (i = 0; i < size; i++) temp += (*xx1++) * (*xx2++);
+  for (i = 0; i < size; i++) 
+    temp += (*xx1++) * (*xx2++);
 
-  return(temp);  
+  return temp;
 }
 
 // Interaction rate function routine 
@@ -362,7 +368,7 @@ static int foodweb_func(void* context, real_t t, real_t* cc, real_t* fval)
     }
   } 
 
-  return(0);
+  return 0;
 }
 
 static void foodweb_set_x_scale(void* context, real_t* x_scale)
@@ -408,7 +414,8 @@ static adj_graph_t* foodweb_graph(void* context)
   return data->graph;
 }
 
-void test_foodweb_integrator(void** state)
+// Constructor for food web integrator.
+static nonlinear_integrator_t* foodweb_integrator_new()
 {
   // Set up a nonlinear integrator using GMRES with no globalization 
   // strategy.
@@ -424,8 +431,19 @@ void test_foodweb_integrator(void** state)
                                                                  MPI_COMM_SELF,
                                                                  vtable, 
                                                                  NONE, 15, 2);
+  return integ;
+}
+
+void test_foodweb_ctor(void** state)
+{
+  nonlinear_integrator_t* integ = foodweb_integrator_new();
   assert_true(strcmp(nonlinear_integrator_name(integ), "Food web") == 0);
-  assert_true((foodweb_t*)nonlinear_integrator_context(integ) == data);
+  nonlinear_integrator_free(integ);
+}
+
+void test_foodweb_solve(void** state)
+{
+  nonlinear_integrator_t* integ = foodweb_integrator_new();
 
   real_t cc[NEQ];
   foodweb_initialize(cc);
@@ -440,7 +458,8 @@ int main(int argc, char* argv[])
   polymec_init(argc, argv);
   const UnitTest tests[] = 
   {
-    unit_test(test_foodweb_integrator),
+    unit_test(test_foodweb_ctor),
+    unit_test(test_foodweb_solve),
   };
   return run_tests(tests);
 }
