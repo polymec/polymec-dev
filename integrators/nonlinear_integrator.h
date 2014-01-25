@@ -27,6 +27,7 @@
 
 #include "core/polymec.h"
 #include "core/adj_graph.h"
+#include "integrators/ilu.h"
 
 // The different global strategies for the Newton iteration.
 typedef enum
@@ -35,26 +36,42 @@ typedef enum
   NONE
 } nonlinear_integrator_strategy_t;
 
+// This is a pointer to a residual function used with a nonlinear integrator.
+// This function evaluates the residual function for the nonlinear system
+// of equations at the time t using the solution vector x and placing the 
+// result in F. It should return 0 on success, 1 for a recoverable error, 
+// -1 for a fatal error.
+typedef int (*nonlinear_integrator_residual_func)(void* context, real_t t, real_t* x, real_t* F);
+
+// Scaling function.
+typedef void (*nonlinear_integrator_scaling_func)(void* context, real_t* scale_factor);
+
+// Constraints function.
+typedef void (*nonlinear_integrator_constraints_func)(void* context, real_t* constraints);
+
+// Function expressing the sparsity pattern of preconditioner matrices as 
+// a (local) adjacency graph. Should return an internal pointer to a graph.
+typedef adj_graph_t* (*nonlinear_integrator_precond_sparsity_func)(void* context);
+
+// Context destructor.
+typedef void (*nonlinear_integrator_dtor)(void* context);
+
 // This virtual table determines the behavior of the nonlinear integrator.
 typedef struct
 {
-  // This function evaluates the residual function for the nonlinear system
-  // of equations at the time t using the solution vector x and placing the 
-  // result in F. It should return 0 on success, 1 for a recoverable error, 
-  // -1 for a fatal error.
-  int (*eval)(void* context, real_t t, real_t* x, real_t* F);
+  nonlinear_integrator_residual_func eval;
 
   // This (optional) function sets the "x-scaling vector," which contains the diagonal 
   // components of a matrix Dx such that the components of Dx * x all have 
   // roughly the same magnitude as F(x) approaches 0.
   // - F_scale: the diagonal components of a matrix Df such that the components 
   //            of Df * F(x) all have roughly the same magnitude as F(x) approaches 0.
-  void (*set_x_scale)(void* context, real_t* x_scale);
+  nonlinear_integrator_scaling_func set_x_scale;
 
   // This (optional) function sets the "F-scaling vector," which contains the diagonal 
   // components of a matrix Df such that the components of Df * F(x) all have 
   // roughly the same magnitude as F(x) approaches 0.
-  void (*set_F_scale)(void* context, real_t* F_scale);
+  nonlinear_integrator_scaling_func set_F_scale;
 
   // This (optional) function sets the contraints vector, which places algebraic 
   // constraints on the components of the solution vector x. If constraints[i] is:
@@ -62,16 +79,11 @@ typedef struct
   // 1.0  - x[i] must be non-negative.
   // -1.0 - x[i] must be non-positive.
   // 2.0  - x[i] must be positive.
-  void (*set_constraints)(void* context, real_t* constraints);
+  nonlinear_integrator_constraints_func set_constraints;
 
   // This (optional) function destroys the state (context) when the nonlinear integrator 
   // is destroyed.
-  void (*dtor)(void* context);
-
-  // This function returns the adjacency graph reflecting the sparsity of the 
-  // nonlinear system. It is *not* a block graph, so any nonzero blocks should 
-  // be reflected as groups of vertices in the graph.
-  adj_graph_t* (*graph)(void* context);
+  nonlinear_integrator_dtor dtor;
 
 } nonlinear_integrator_vtable;
 
@@ -128,10 +140,24 @@ void* nonlinear_integrator_context(nonlinear_integrator_t* integrator);
 
 // Sets the tolerances for the function norm (norm_tolerance) and the Newton
 // step (step_tolerance) for the nonlinear integrator.
-void newton_solver_set_tolerances(nonlinear_integrator_t* integrator, real_t norm_tolerance, real_t step_tolerance);
+void nonlinear_integrator_set_tolerances(nonlinear_integrator_t* integrator, real_t norm_tolerance, real_t step_tolerance);
 
 // Sets the maximum number of Newton iterations for the integrator.
-void newton_solver_set_max_iterations(nonlinear_integrator_t* integrator, int max_iterations);
+void nonlinear_integrator_set_max_iterations(nonlinear_integrator_t* integrator, int max_iterations);
+
+// Sets up a sparse LU preconditioner using the given residual function with 
+// the given sparsity pattern.
+void nonlinear_integrator_set_lu_preconditioner(nonlinear_integrator_t* integrator,
+                                                nonlinear_integrator_residual_func F,
+                                                nonlinear_integrator_precond_sparsity_func sparsity);
+
+// Sets up a sparse ILU (incomplete LU) preconditioner using the given 
+// residual function with the given sparsity pattern and the given parameters.
+// ILU parameters are defined in ilu.h (see also SuperLU's documentation).
+void nonlinear_integrator_set_ilu_preconditioner(nonlinear_integrator_t* integrator,
+                                                 nonlinear_integrator_residual_func F,
+                                                 nonlinear_integrator_precond_sparsity_func sparsity,
+                                                 ilu_params_t* ilu_params);
 
 // Integrates the nonlinear system of equations F(X, t) = 0 in place, 
 // using X as the initial guess. Returns true if the solution was obtained, 

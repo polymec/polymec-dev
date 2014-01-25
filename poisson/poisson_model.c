@@ -278,7 +278,7 @@ static int fvpm_poisson_residual(void* context, real_t t, real_t* u, real_t* F)
 }
 
 // Accesses the adjacency graph for the Poisson solver.
-static adj_graph_t* get_graph(void* context)
+static adj_graph_t* poisson_graph(void* context)
 {
   poisson_t* p = context;
   return p->graph;
@@ -356,9 +356,11 @@ static void poisson_init(void* context, real_t t)
 
     // Initialize the nonlinear solver.
     nonlinear_integrator_vtable vtable = {.eval = fv_poisson_residual, 
-                                          .dtor = NULL, 
-                                          .graph = get_graph};
+                                          .dtor = NULL};
     p->solver = bicgstab_nonlinear_integrator_new("Poisson (FV)", p, MPI_COMM_WORLD, vtable, LINE_SEARCH, 15);
+
+    // For now, Use LU preconditioning with the same residual function.
+    nonlinear_integrator_set_lu_preconditioner(p->solver, fv_poisson_residual, poisson_graph);
 
     // Allocate storage for cell face fluxes.
     p->cell_face_flux_offsets = malloc(sizeof(int)*(p->mesh->num_cells+1));
@@ -383,9 +385,11 @@ static void poisson_init(void* context, real_t t)
 
     // Initialize the nonlinear solver.
     nonlinear_integrator_vtable vtable = {.eval = fvpm_poisson_residual, 
-                                          .dtor = NULL, 
-                                          .graph = get_graph};
+                                          .dtor = NULL};
     p->solver = bicgstab_nonlinear_integrator_new("Poisson (FVPM)", p, MPI_COMM_WORLD, vtable, LINE_SEARCH, 15);
+
+    // For now, Use LU preconditioning with the same residual function.
+    nonlinear_integrator_set_lu_preconditioner(p->solver, fvpm_poisson_residual, poisson_graph);
   }
 
   // Now we simply solve the problem for the initial time.

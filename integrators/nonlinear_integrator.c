@@ -46,7 +46,11 @@ struct nonlinear_integrator_t
   void* context;
   nonlinear_integrator_vtable vtable;
 
-  // Adjacency graph -- keeps track of topological changes.
+  int N; // Number of degrees of freedom.
+
+  // Residual and sparsity information for preconditioner matrix.
+  nonlinear_integrator_residual_func precond_F;
+  nonlinear_integrator_precond_sparsity_func precond_sparsity;
   adj_graph_t* graph;
 
   // KINSol data structures.
@@ -55,6 +59,7 @@ struct nonlinear_integrator_t
   N_Vector x, x_scale, F_scale; // Stores solution vector and scaling vectors.
 
   // Preconditioning stuff.
+  ilu_params_t* ilu_params;
   supermatrix_factory_t* precond_factory;
   SuperMatrix *precond_mat, *precond_rhs, precond_L, precond_U;
   int *precond_rperm, *precond_cperm;
@@ -141,7 +146,6 @@ static nonlinear_integrator_t* nonlinear_integrator_new(const char* name,
                                                         int max_krylov_dim, int max_restarts)
 {
   ASSERT(vtable.eval != NULL);
-  ASSERT(vtable.graph != NULL);
   ASSERT(max_krylov_dim >= 3);
   ASSERT(max_restarts >= 0);
 
@@ -152,31 +156,12 @@ static nonlinear_integrator_t* nonlinear_integrator_new(const char* name,
   integrator->vtable = vtable;
   integrator->strategy = (global_strategy == LINE_SEARCH) ? KIN_LINESEARCH : KIN_NONE;
   integrator->graph = NULL;
-
-  // Get the adjacency graph that expresses the sparsity of the nonlinear system.
-  adj_graph_t* graph = vtable.graph(context);
-  ASSERT(graph != NULL);
-
-  // The dimension N of the system is the number of local vertices in the 
-  // adjacency graph.
-  int N = adj_graph_num_vertices(graph);
+  integrator->N = 0;
 
   // Set up KINSol and accessories.
-  integrator->x = N_VNew(comm, N);
-  integrator->x_scale = N_VNew(comm, N);
-  integrator->F_scale = N_VNew(comm, N);
   integrator->kinsol = KINCreate();
   KINSetUserData(integrator->kinsol, integrator);
   KINInit(integrator->kinsol, evaluate_F, integrator->x);
-
-  // Set the constraints (if any) for the solution.
-  if (integrator->vtable.set_constraints != NULL)
-  {
-    N_Vector constraints = N_VNew(comm, N);
-    integrator->vtable.set_constraints(integrator->context, NV_DATA(constraints));
-    KINSetConstraints(integrator->kinsol, constraints);
-    N_VDestroy(constraints);
-  }
 
   // Select the particular type of Krylov method for the underlying linear solves.
   if (solver_type == GMRES)
@@ -190,6 +175,9 @@ static nonlinear_integrator_t* nonlinear_integrator_new(const char* name,
     KINSptfqmr(integrator->kinsol, max_krylov_dim);
 
   // Set up preconditioner machinery.
+  integrator->precond_F = NULL;
+  integrator->precond_sparsity = NULL;
+  integrator->ilu_params = NULL;
   KINSpilsSetPreconditioner(integrator->kinsol, set_up_preconditioner,
                             solve_preconditioner_system);
   set_default_options(&integrator->precond_options);
@@ -241,6 +229,7 @@ nonlinear_integrator_t* tfqmr_nonlinear_integrator_new(const char* name,
 void nonlinear_integrator_free(nonlinear_integrator_t* integrator)
 {
   // Kill the preconditioner stuff.
+  integrator->ilu_params = NULL;
   if (integrator->precond_mat != NULL)
   {
     supermatrix_free(integrator->precond_mat);
@@ -290,6 +279,25 @@ void newton_solver_set_max_iterations(nonlinear_integrator_t* integrator, int ma
   KINSetNumMaxIters(integrator->kinsol, max_iterations);
 }
 
+void nonlinear_integrator_set_lu_preconditioner(nonlinear_integrator_t* integrator,
+                                                nonlinear_integrator_residual_func F,
+                                                nonlinear_integrator_precond_sparsity_func sparsity)
+{
+  integrator->precond_F = F;
+  integrator->precond_sparsity = sparsity;
+  integrator->ilu_params = NULL;
+}
+
+void nonlinear_integrator_set_ilu_preconditioner(nonlinear_integrator_t* integrator,
+                                                 nonlinear_integrator_residual_func F,
+                                                 nonlinear_integrator_precond_sparsity_func sparsity,
+                                                 ilu_params_t* ilu_params)
+{
+  integrator->precond_F = F;
+  integrator->precond_sparsity = sparsity;
+  integrator->ilu_params = ilu_params;
+}
+
 bool nonlinear_integrator_solve(nonlinear_integrator_t* integrator,
                                 real_t t,
                                 real_t* X,
@@ -298,12 +306,28 @@ bool nonlinear_integrator_solve(nonlinear_integrator_t* integrator,
   ASSERT(X != NULL);
 
   // Get the adjacency graph that expresses the sparsity of the nonlinear system.
-  adj_graph_t* graph = integrator->vtable.graph(integrator->context);
+  adj_graph_t* graph = integrator->precond_sparsity(integrator->context);
   ASSERT(graph != NULL);
 
   // The dimension N of the system is the number of local vertices in the 
   // adjacency graph.
   int N = adj_graph_num_vertices(graph);
+  if (integrator->N == 0)
+  {
+    integrator->N = N;
+    integrator->x = N_VNew(integrator->comm, N);
+    integrator->x_scale = N_VNew(integrator->comm, N);
+    integrator->F_scale = N_VNew(integrator->comm, N);
+
+    // Set the constraints (if any) for the solution.
+    if (integrator->vtable.set_constraints != NULL)
+    {
+      N_Vector constraints = N_VNew(integrator->comm, N);
+      integrator->vtable.set_constraints(integrator->context, NV_DATA(constraints));
+      KINSetConstraints(integrator->kinsol, constraints);
+      N_VDestroy(constraints);
+    }
+  }
   ASSERT(NV_LOCLENGTH(integrator->x) == N); // No adaptivity allowed yet!
 
   // Compare the graph with the one we've got to see whether the topology has 

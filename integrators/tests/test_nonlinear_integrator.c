@@ -424,13 +424,15 @@ static nonlinear_integrator_t* foodweb_integrator_new()
                                         .set_x_scale = foodweb_set_x_scale,
                                         .set_F_scale = foodweb_set_F_scale,
                                         .set_constraints = foodweb_set_constraints,
-                                        .graph = foodweb_graph,
                                         .dtor = foodweb_dtor};
   nonlinear_integrator_t* integ = gmres_nonlinear_integrator_new("Food web",
                                                                  data,
                                                                  MPI_COMM_SELF,
                                                                  vtable, 
                                                                  NONE, 15, 2);
+  // Use LU preconditioning with the same residual function.
+  nonlinear_integrator_set_lu_preconditioner(integ, foodweb_func, foodweb_graph);
+
   return integ;
 }
 
