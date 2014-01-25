@@ -264,7 +264,7 @@ bool nonlinear_integrator_solve(nonlinear_integrator_t* integrator,
     supermatrix_free(integrator->precond_rhs);
     SUPERLU_FREE(integrator->precond_cperm);
     SUPERLU_FREE(integrator->precond_rperm);
-    integrator->precond_factory = supermatrix_factory_from_sys_func(graph, integrator->vtable.eval, integrator->context);
+    integrator->precond_factory = supermatrix_factory_new(graph, integrator->vtable.eval, integrator->context);
     integrator->precond_mat = supermatrix_factory_matrix(integrator->precond_factory);
     integrator->precond_rhs = supermatrix_factory_vector(integrator->precond_factory, 1);
     integrator->precond_cperm = intMalloc(N);

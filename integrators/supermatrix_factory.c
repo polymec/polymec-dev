@@ -32,7 +32,6 @@ struct supermatrix_factory_t
   adj_graph_t* graph;
   adj_graph_coloring_t* coloring;
   int (*F)(void* context, real_t t, real_t* x, real_t* F);
-  int (*rhs)(void* context, real_t t, real_t* x, real_t* x_dot);
   void* context;
 
   int N; // Number of rows in matrix.
@@ -42,36 +41,14 @@ struct supermatrix_factory_t
   real_t** work;
 };
 
-supermatrix_factory_t* supermatrix_factory_from_sys_func(adj_graph_t* graph,
-                                                         int (*sys_func)(void* context, real_t t, real_t* x, real_t* F), 
-                                                         void* context)
+supermatrix_factory_t* supermatrix_factory_new(adj_graph_t* graph,
+                                               int (*sys_func)(void* context, real_t t, real_t* x, real_t* F), 
+                                               void* context)
 {
   supermatrix_factory_t* factory = malloc(sizeof(supermatrix_factory_t));
   factory->graph = graph;
   factory->coloring = adj_graph_coloring_new(graph, SMALLEST_LAST);
   factory->F = sys_func;
-  factory->rhs = NULL;
-  factory->context = context;
-
-  // Make work vectors.
-  MPI_Comm comm = adj_graph_comm(factory->graph);
-  factory->N = adj_graph_num_vertices(factory->graph);
-  factory->num_work_vectors = 4;
-  factory->work = malloc(sizeof(real_t*) * factory->num_work_vectors);
-  for (int i = 0; i < factory->num_work_vectors; ++i)
-    factory->work[i] = malloc(sizeof(real_t) * factory->N);
-  return factory;
-}
-
-supermatrix_factory_t* supermatrix_factory_from_rhs(adj_graph_t* graph,
-                                                    int (*rhs)(void* context, real_t t, real_t* x, real_t* x_dot),
-                                                    void* context)
-{
-  supermatrix_factory_t* factory = malloc(sizeof(supermatrix_factory_t));
-  factory->graph = graph;
-  factory->coloring = adj_graph_coloring_new(graph, SMALLEST_LAST);
-  factory->F = NULL;
-  factory->rhs = rhs;
   factory->context = context;
 
   // Make work vectors.
@@ -162,14 +139,14 @@ SuperMatrix* supermatrix_factory_jacobian(supermatrix_factory_t* factory, real_t
 
 // Here's our finite difference implementation of the Jacobian matrix-vector 
 // product. 
-static void finite_diff_F_Jv(int (*F)(void* context, real_t t, real_t* x, real_t* F), 
-                             void* context, 
-                             real_t* x, 
-                             real_t t, 
-                             int num_rows,
-                             real_t* v, 
-                             real_t** work, 
-                             real_t* Jv)
+static void finite_diff_Jv(int (*F)(void* context, real_t t, real_t* x, real_t* F), 
+                           void* context, 
+                           real_t* x, 
+                           real_t t, 
+                           int num_rows,
+                           real_t* v, 
+                           real_t** work, 
+                           real_t* Jv)
 {
   real_t eps = sqrt(UNIT_ROUNDOFF);
 
@@ -221,14 +198,14 @@ static void insert_Jv_into_matrix(adj_graph_t* graph,
   }
 }
 
-static void compute_F_jacobian(int (*F)(void* context, real_t t, real_t* x, real_t* F), 
-                               void* context, 
-                               real_t* x, 
-                               real_t t,
-                               adj_graph_t* graph, 
-                               adj_graph_coloring_t* coloring, 
-                               real_t** work,
-                               SuperMatrix* J)
+static void compute_jacobian(int (*F)(void* context, real_t t, real_t* x, real_t* F), 
+                             void* context, 
+                             real_t* x, 
+                             real_t t,
+                             adj_graph_t* graph, 
+                             adj_graph_coloring_t* coloring, 
+                             real_t** work,
+                             SuperMatrix* J)
 {
   // We compute the system Jacobian using the method described in 
   // Curtis, Powell, and Reed.
@@ -248,69 +225,7 @@ static void compute_F_jacobian(int (*F)(void* context, real_t t, real_t* x, real
 
     // Now evaluate the matrix-vector product.
     memset(Jv, 0, sizeof(real_t) * num_rows);
-    finite_diff_F_Jv(F, context, x, t, num_rows, work[0], work, Jv);
-
-    // Copy the components of Jv into their proper locations.
-    insert_Jv_into_matrix(graph, coloring, c, Jv, J);
-  }
-  free(Jv);
-}
-
-// Here's our finite difference implementation of the RHS Jacobian 
-// matrix-vector product. 
-static void finite_diff_rhs_Jv(int (*rhs)(void* context, real_t t, real_t* x, real_t* x_dot), 
-                               void* context, 
-                               real_t* x,
-                               int num_rows,
-                               real_t t, 
-                               real_t* v, 
-                               real_t** work, 
-                               real_t* Jv)
-{
-  real_t eps = sqrt(UNIT_ROUNDOFF);
-
-  // work[1] contains rhs(x, t).
-
-  // u + eps*v -> work[2].
-  for (int i = 0; i < num_rows; ++i)
-    work[2][i] = x[i] + eps*v[i];
-
-  // F(x + eps*v, t) -> work[3].
-  rhs(context, t, work[2], work[3]);
-
-  // (F(x + eps*v) - F(x)) / eps -> Jv
-  for (int i = 0; i < num_rows; ++i)
-    Jv[i] = (work[3][i] - work[1][i]) / eps;
-}
-
-static void compute_rhs_jacobian(int (*rhs)(void* context, real_t t, real_t* x, real_t* x_dot),
-                                 void* context, 
-                                 real_t* x, 
-                                 real_t t, 
-                                 adj_graph_t* graph, 
-                                 adj_graph_coloring_t* coloring, 
-                                 real_t** work,
-                                 SuperMatrix* J)
-{
-  // We compute the system Jacobian using the method described in 
-  // Curtis, Powell, and Reed.
-  int num_rows = adj_graph_num_vertices(graph);
-  real_t* Jv = malloc(sizeof(real_t) * num_rows);
-  int num_colors = adj_graph_coloring_num_colors(coloring);
-  for (int c = 0; c < num_colors; ++c)
-  {
-    // We construct d, the binary vector corresponding to this color, in work[0].
-    memset(work[0], 0, sizeof(real_t) * num_rows);
-    int pos = 0, i;
-    while (adj_graph_coloring_next_vertex(coloring, c, &pos, &i))
-      work[0][i] = 1.0;
-
-    // We evaluate rhs(x, t) and place it in work[1].
-    rhs(context, t, x, work[1]); 
-
-    // Now evaluate the matrix-vector product.
-    memset(Jv, 0, sizeof(real_t) * num_rows);
-    finite_diff_rhs_Jv(rhs, context, x, num_rows, t, work[0], work, Jv);
+    finite_diff_Jv(F, context, x, t, num_rows, work[0], work, Jv);
 
     // Copy the components of Jv into their proper locations.
     insert_Jv_into_matrix(graph, coloring, c, Jv, J);
@@ -320,13 +235,8 @@ static void compute_rhs_jacobian(int (*rhs)(void* context, real_t t, real_t* x, 
 
 void supermatrix_factory_update_jacobian(supermatrix_factory_t* factory, real_t* x, real_t t, SuperMatrix* J)
 {
-  if (factory->F != NULL)
-    compute_F_jacobian(factory->F, factory->context, x, t, factory->graph, factory->coloring, factory->work, J);
-  else
-  {
-    ASSERT(factory->rhs != NULL);
-    compute_rhs_jacobian(factory->rhs, factory->context, x, t, factory->graph, factory->coloring, factory->work, J);
-  }
+  ASSERT(factory->F != NULL);
+  compute_jacobian(factory->F, factory->context, x, t, factory->graph, factory->coloring, factory->work, J);
 }
 
 void supermatrix_free(SuperMatrix* matrix)
