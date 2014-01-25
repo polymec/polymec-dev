@@ -39,8 +39,7 @@ typedef struct supermatrix_factory_t supermatrix_factory_t;
 // the given adjacency graph and system function F (and context). The 
 // factory does NOT assume ownership of the factory, graph, or context.
 supermatrix_factory_t* supermatrix_factory_from_sys_func(adj_graph_t* graph,
-                                                         int (*sys_func)(void* context, real_t* x, real_t* F), 
-                                                         void (*set_F_time)(void* context, real_t t),
+                                                         int (*sys_func)(void* context, real_t t, real_t* x, real_t* F), 
                                                          void* context);
 
 // Creates a factory that produces SuperLU SuperMatrix objects using 

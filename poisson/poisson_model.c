@@ -52,7 +52,6 @@ typedef struct
   st_func_t* lambda;        // "Conduction" operator (symmetric tensor). 
   real_t* phi;              // Solution array.
   st_func_t* solution;      // Analytic solution (if non-NULL).
-  real_t current_time;      // Current simulation time.
 
   string_ptr_unordered_map_t* bcs; // Boundary conditions.
   boundary_cell_map_t* boundary_cells; // Boundary cell -> BC mapping
@@ -129,7 +128,7 @@ static void poisson_read_input(void* context, interpreter_t* interp, options_t* 
   }
 }
 
-static int fv_poisson_residual(void* context, real_t* u, real_t* F)
+static int fv_poisson_residual(void* context, real_t t, real_t* u, real_t* F)
 {
   poisson_t* p = context;
 
@@ -198,7 +197,7 @@ static int fv_poisson_residual(void* context, real_t* u, real_t* F)
 
         // Evaluate the conduction operator lambda.
         real_t lambda[6];
-        st_func_eval(p->lambda, &xq, p->current_time, lambda);
+        st_func_eval(p->lambda, &xq, t, lambda);
 
         // Form the flux contribution.
         vector_t n_o_lambda = {.x = nq.x * lambda[0] + nq.y * lambda[3] + nq.z * lambda[2],
@@ -222,7 +221,7 @@ static int fv_poisson_residual(void* context, real_t* u, real_t* F)
       {
         // Compute the right hand side.
         real_t rhs;
-        st_func_eval(p->rhs, &xq, p->current_time, &rhs);
+        st_func_eval(p->rhs, &xq, t, &rhs);
 
         // Form the source contribution.
         source += wq * rhs;
@@ -272,7 +271,7 @@ static int fv_poisson_residual(void* context, real_t* u, real_t* F)
   return 0;
 }
 
-static int fvpm_poisson_residual(void* context, real_t* u, real_t* F)
+static int fvpm_poisson_residual(void* context, real_t t, real_t* u, real_t* F)
 {
   // FIXME
   return 0;
@@ -283,13 +282,6 @@ static adj_graph_t* get_graph(void* context)
 {
   poisson_t* p = context;
   return p->graph;
-}
-
-// Sets the current simulation time for the Poisson solver.
-static void set_time(void* context, real_t t)
-{
-  poisson_t* p = context;
-  p->current_time = t;
 }
 
 // This helper clears all the data structures that are tied to a discrete domain.
@@ -364,7 +356,6 @@ static void poisson_init(void* context, real_t t)
 
     // Initialize the nonlinear solver.
     nonlinear_integrator_vtable vtable = {.eval = fv_poisson_residual, 
-                                          .set_time = set_time,
                                           .dtor = NULL, 
                                           .graph = get_graph};
     p->solver = nonlinear_integrator_new("Poisson (FV)", p, MPI_COMM_WORLD, vtable, BICGSTAB, 5);
@@ -392,7 +383,6 @@ static void poisson_init(void* context, real_t t)
 
     // Initialize the nonlinear solver.
     nonlinear_integrator_vtable vtable = {.eval = fvpm_poisson_residual, 
-                                          .set_time = set_time,
                                           .dtor = NULL, 
                                           .graph = get_graph};
     p->solver = nonlinear_integrator_new("Poisson (FVPM)", p, MPI_COMM_WORLD, vtable, BICGSTAB, 5);

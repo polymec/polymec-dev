@@ -71,7 +71,7 @@ static int evaluate_F(N_Vector x, N_Vector F, void* context)
   nonlinear_integrator_t* integrator = context;
   real_t* xx = NV_DATA(x);
   real_t* FF = NV_DATA(F);
-  return integrator->vtable.eval(integrator->context, xx, FF);
+  return integrator->vtable.eval(integrator->context, integrator->current_time, xx, FF);
 }
 
 // This function sets up the preconditioner data within the integrator.
@@ -264,10 +264,7 @@ bool nonlinear_integrator_solve(nonlinear_integrator_t* integrator,
     supermatrix_free(integrator->precond_rhs);
     SUPERLU_FREE(integrator->precond_cperm);
     SUPERLU_FREE(integrator->precond_rperm);
-    integrator->precond_factory = 
-      supermatrix_factory_from_sys_func(graph, integrator->vtable.eval,
-                                        integrator->vtable.set_time,
-                                        integrator->context);
+    integrator->precond_factory = supermatrix_factory_from_sys_func(graph, integrator->vtable.eval, integrator->context);
     integrator->precond_mat = supermatrix_factory_matrix(integrator->precond_factory);
     integrator->precond_rhs = supermatrix_factory_vector(integrator->precond_factory, 1);
     integrator->precond_cperm = intMalloc(N);
@@ -279,8 +276,6 @@ bool nonlinear_integrator_solve(nonlinear_integrator_t* integrator,
 
   // Set the current time in the state.
   integrator->current_time = t;
-  if (integrator->vtable.set_time != NULL)
-    integrator->vtable.set_time(integrator->context, t);
 
   // Set the x_scale and F_scale vectors. If we don't have methods for doing 
   // this, the scaling vectors are set to 1.

@@ -42,42 +42,15 @@ static adj_graph_t* graph_from_uniform_mesh()
   return g;
 }
 
-static int sys_func(void* context, real_t* x, real_t* F)
+static int sys_func(void* context, real_t t, real_t* x, real_t* F)
 {
   return 0;
-}
-
-typedef struct
-{
-  real_t time;
-} sys_func_t;
-
-static void set_sys_func_time(void* sys_func, real_t t)
-{
-  sys_func_t* F = sys_func;
-  F->time = t;
 }
 
 void test_F_ctor(void** state)
 {
   adj_graph_t* g = graph_from_uniform_mesh();
-
-  sys_func_t F = {.time = 0.0};
-  supermatrix_factory_t* factory = 
-    supermatrix_factory_from_sys_func(g, sys_func, NULL, &F);
-
-  supermatrix_factory_free(factory);
-  adj_graph_free(g);
-}
-
-void test_time_dep_F_ctor(void** state)
-{
-  adj_graph_t* g = graph_from_uniform_mesh();
-
-  sys_func_t F = {.time = 0.0};
-  supermatrix_factory_t* factory = 
-    supermatrix_factory_from_sys_func(g, sys_func, set_sys_func_time, &F);
-
+  supermatrix_factory_t* factory = supermatrix_factory_from_sys_func(g, sys_func, NULL);
   supermatrix_factory_free(factory);
   adj_graph_free(g);
 }
@@ -96,8 +69,7 @@ void test_rhs_ctor(void** state)
   adj_graph_t* g = graph_from_uniform_mesh();
 
   rhs_t rhs = {};
-  supermatrix_factory_t* factory = 
-    supermatrix_factory_from_rhs(g, rhs_func, &rhs);
+  supermatrix_factory_t* factory = supermatrix_factory_from_rhs(g, rhs_func, &rhs);
 
   supermatrix_factory_free(factory);
   adj_graph_free(g);
@@ -107,9 +79,7 @@ void test_supermatrix(void** state)
 {
   // Build a supermatrix A.
   adj_graph_t* g = graph_from_uniform_mesh();
-  sys_func_t F = {.time = 0.0};
-  supermatrix_factory_t* factory = 
-    supermatrix_factory_from_sys_func(g, sys_func, NULL, &F);
+  supermatrix_factory_t* factory = supermatrix_factory_from_sys_func(g, sys_func, NULL);
   SuperMatrix* A = supermatrix_factory_matrix(factory);
 
   // Check the non-zero structure of A.
@@ -155,7 +125,7 @@ typedef struct {
   int num_unknown;
 } context_t;
 
-static int dennis_schnabel_1(void* context, real_t* x, real_t* F) {
+static int dennis_schnabel_1(void* context, real_t t, real_t* x, real_t* F) {
   // F(x) = [ x1 + x2 - 3.0,
   //        [ x1^2 + x2^2 - 9.0
 
@@ -170,7 +140,7 @@ void test_numerical_jacobian_ds1(void **state) {
   adj_graph_free(g);
   context_t context;
   supermatrix_factory_t* factory = 
-    supermatrix_factory_from_sys_func(bg, dennis_schnabel_1, NULL, &context);
+    supermatrix_factory_from_sys_func(bg, dennis_schnabel_1, &context);
 
   real_t time = 0.0;
   real_t x[2];
@@ -195,7 +165,6 @@ int main(int argc, char* argv[])
   const UnitTest tests[] = 
   {
     unit_test(test_F_ctor),
-    unit_test(test_time_dep_F_ctor),
     unit_test(test_rhs_ctor),
     unit_test(test_supermatrix),
     unit_test(test_numerical_jacobian_ds1)

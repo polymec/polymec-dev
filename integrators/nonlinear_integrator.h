@@ -40,14 +40,10 @@ typedef enum
 typedef struct
 {
   // This function evaluates the residual function for the nonlinear system
-  // of equations using the solution vector x and placing the result in F.
-  // It should return 0 on success, 1 for a recoverable error, -1 for a 
-  // fatal error.
-  int (*eval)(void* context, real_t* x, real_t* F);
-
-  // This (optional) function allows the state (context) to set the time at 
-  // which the equations are to be integrated.
-  void (*set_time)(void* context, real_t t);
+  // of equations at the time t using the solution vector x and placing the 
+  // result in F. It should return 0 on success, 1 for a recoverable error, 
+  // -1 for a fatal error.
+  int (*eval)(void* context, real_t t, real_t* x, real_t* F);
 
   // This (optional) function sets the "x-scaling vector," which contains the diagonal 
   // components of a matrix Dx such that the components of Dx * x all have 
