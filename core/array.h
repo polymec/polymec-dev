@@ -43,12 +43,12 @@
 // x_array_t empty_x_array() - Creates a new, empty array on the stack.
 // void x_array_free(array_t* array) - Destroys the (heap-allocated) array.
 // x* x_array_find(x_array_t* array, x value, cmp_func comparator) - Performs a linear search within the array, returning the pointer to the found item or NULL if not found.
-// void x_sarray_append(x_array_t* array, x value) - Appends an x to the end of the array.
-// void x_sarray_append_with_dtor(x_array_t* array, x value, destructor dtor) - Appends an x to the end of the array, using dtor to destroy when finished.
-// bool x_sarray_empty(x_array_t* array) - Returns true if empty, false otherwise.
-// void x_sarray_clear(x_array_t* array) - Clears the given array, making it empty.
-// void x_sarray_resize(x_array_t* array, int new_size) - Resizes the array, keeping data intact if possible.
-// void x_sarray_reserve(x_array_t* array, int new_capacity) - Reserves storage for the given capacity within the array. No effect if the array already has sufficient storage.
+// void x_array_append(x_array_t* array, x value) - Appends an x to the end of the array.
+// void x_array_append_with_dtor(x_array_t* array, x value, destructor dtor) - Appends an x to the end of the array, using dtor to destroy when finished.
+// bool x_array_empty(x_array_t* array) - Returns true if empty, false otherwise.
+// void x_array_clear(x_array_t* array) - Clears the given array, making it empty.
+// void x_array_resize(x_array_t* array, int new_size) - Resizes the array, keeping data intact if possible.
+// void x_array_reserve(x_array_t* array, int new_capacity) - Reserves storage for the given capacity within the array. No effect if the array already has sufficient storage.
 // 
 // Member data for an array a:
 // 

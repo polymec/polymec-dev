@@ -27,7 +27,7 @@
 #include <setjmp.h>
 #include <string.h>
 #include "cmockery.h"
-#include "core/exchanger.h"
+#include "model/exchanger.h"
 
 void test_exchanger_new(void** state)
 {
