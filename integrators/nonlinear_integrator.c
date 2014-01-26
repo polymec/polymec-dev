@@ -36,6 +36,14 @@
 // We use a serial version of SuperLU to do preconditioning.
 #include "slu_util.h"
 
+// Types of linear solvers.
+typedef enum 
+{
+  GMRES,
+  BICGSTAB,
+  TFQMR
+} solver_type_t;
+
 struct nonlinear_integrator_t 
 {
   // Parallel stuff.
@@ -45,6 +53,8 @@ struct nonlinear_integrator_t
   char* name;
   void* context;
   nonlinear_integrator_vtable vtable;
+  solver_type_t solver_type;
+  int max_krylov_dim, max_restarts;
 
   int N; // Number of degrees of freedom.
 
@@ -128,14 +138,6 @@ static int solve_preconditioner_system(N_Vector x, N_Vector x_scale,
   return 0;
 }
 
-// Types of linear solvers.
-typedef enum 
-{
-  GMRES,
-  BICGSTAB,
-  TFQMR
-} solver_type_t;
-
 // Generic constructor.
 static nonlinear_integrator_t* nonlinear_integrator_new(const char* name, 
                                                         void* context,
@@ -143,7 +145,8 @@ static nonlinear_integrator_t* nonlinear_integrator_new(const char* name,
                                                         nonlinear_integrator_vtable vtable,
                                                         nonlinear_integrator_strategy_t global_strategy,
                                                         solver_type_t solver_type,
-                                                        int max_krylov_dim, int max_restarts)
+                                                        int max_krylov_dim, 
+                                                        int max_restarts)
 {
   ASSERT(vtable.eval != NULL);
   ASSERT(max_krylov_dim >= 3);
@@ -154,32 +157,21 @@ static nonlinear_integrator_t* nonlinear_integrator_new(const char* name,
   integrator->context = context;
   integrator->comm = comm;
   integrator->vtable = vtable;
+  integrator->solver_type = solver_type;
   integrator->strategy = (global_strategy == LINE_SEARCH) ? KIN_LINESEARCH : KIN_NONE;
   integrator->graph = NULL;
   integrator->N = 0;
+  integrator->max_krylov_dim = max_krylov_dim;
+  integrator->max_restarts = max_restarts;
 
   // Set up KINSol and accessories.
   integrator->kinsol = KINCreate();
   KINSetUserData(integrator->kinsol, integrator);
-  KINInit(integrator->kinsol, evaluate_F, integrator->x);
-
-  // Select the particular type of Krylov method for the underlying linear solves.
-  if (solver_type == GMRES)
-  {
-    KINSpgmr(integrator->kinsol, max_krylov_dim); 
-    KINSpilsSetMaxRestarts(integrator->kinsol, max_restarts);
-  }
-  else if (solver_type == BICGSTAB)
-    KINSpbcg(integrator->kinsol, max_krylov_dim);
-  else
-    KINSptfqmr(integrator->kinsol, max_krylov_dim);
 
   // Set up preconditioner machinery.
   integrator->precond_F = NULL;
   integrator->precond_sparsity = NULL;
   integrator->ilu_params = NULL;
-  KINSpilsSetPreconditioner(integrator->kinsol, set_up_preconditioner,
-                            solve_preconditioner_system);
   set_default_options(&integrator->precond_options);
   StatInit(&integrator->precond_stat);
   integrator->precond_factory = NULL;
@@ -318,6 +310,21 @@ bool nonlinear_integrator_solve(nonlinear_integrator_t* integrator,
     integrator->x = N_VNew(integrator->comm, N);
     integrator->x_scale = N_VNew(integrator->comm, N);
     integrator->F_scale = N_VNew(integrator->comm, N);
+
+    KINInit(integrator->kinsol, evaluate_F, integrator->x);
+    // Select the particular type of Krylov method for the underlying linear solves.
+    if (integrator->solver_type == GMRES)
+    {
+      KINSpgmr(integrator->kinsol, integrator->max_krylov_dim); 
+      KINSpilsSetMaxRestarts(integrator->kinsol, integrator->max_restarts);
+    }
+    else if (integrator->solver_type == BICGSTAB)
+      KINSpbcg(integrator->kinsol, integrator->max_krylov_dim);
+    else
+      KINSptfqmr(integrator->kinsol, integrator->max_krylov_dim);
+
+    KINSpilsSetPreconditioner(integrator->kinsol, set_up_preconditioner,
+                              solve_preconditioner_system);
 
     // Set the constraints (if any) for the solution.
     if (integrator->vtable.set_constraints != NULL)
