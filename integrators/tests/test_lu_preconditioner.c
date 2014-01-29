@@ -28,10 +28,11 @@
 #include <string.h>
 
 #include "cmockery.h"
+#include "slu_ddefs.h"
 #include "core/polymec.h"
 #include "core/array_utils.h"
 #include "geometry/create_uniform_mesh.h"
-#include "integrators/supermatrix_factory.h"
+#include "integrators/lu_preconditioners.h"
 
 static adj_graph_t* graph_from_uniform_mesh()
 {
@@ -50,19 +51,20 @@ static int sys_func(void* context, real_t t, real_t* x, real_t* F)
 void test_ctor(void** state)
 {
   adj_graph_t* g = graph_from_uniform_mesh();
-  supermatrix_factory_t* factory = supermatrix_factory_new(g, sys_func, NULL);
-  supermatrix_factory_free(factory);
+  preconditioner_t* precond = lu_preconditioner_new(NULL, sys_func, g);
+  preconditioner_free(precond);
   adj_graph_free(g);
 }
 
-void test_supermatrix(void** state)
+void test_matrix(void** state)
 {
-  // Build a supermatrix A.
+  // Build a matrix A.
   adj_graph_t* g = graph_from_uniform_mesh();
-  supermatrix_factory_t* factory = supermatrix_factory_new(g, sys_func, NULL);
-  SuperMatrix* A = supermatrix_factory_matrix(factory);
+  preconditioner_t* precond = lu_preconditioner_new(NULL, sys_func, g);
+  preconditioner_matrix_t* mat = preconditioner_matrix(precond);
 
   // Check the non-zero structure of A.
+  SuperMatrix* A = preconditioner_matrix_context(mat);
   int N = adj_graph_num_vertices(g);
   NRformat* Adata = A->Store;
   for (int i = 0; i < N; ++i)
@@ -90,8 +92,8 @@ void test_supermatrix(void** state)
   }
 
   // Clean up.
-  Destroy_CompRow_Matrix(A);
-  supermatrix_factory_free(factory);
+  preconditioner_matrix_free(mat);
+  preconditioner_free(precond);
   adj_graph_free(g);
 }
 
@@ -119,23 +121,26 @@ void test_numerical_jacobian_ds1(void **state) {
   adj_graph_t* bg = adj_graph_new_with_block_size(2, g);
   adj_graph_free(g);
   context_t context;
-  supermatrix_factory_t* factory = supermatrix_factory_new(bg, dennis_schnabel_1, &context);
+  preconditioner_t* precond = lu_preconditioner_new(&context, dennis_schnabel_1, bg);
 
   real_t time = 0.0;
   real_t x[2];
   x[0] = 1.0;
   x[1] = 5.0;
-  SuperMatrix* J = supermatrix_factory_jacobian(factory, x, time);
+  preconditioner_matrix_t* mat = preconditioner_matrix(precond);
+  preconditioner_compute_jacobian(precond, time, x, mat);
 
   // expected jacobian:
   // J = [ 1  1  ]
   //     [ 2  10 ]
 
-  dPrint_CompCol_Matrix("jacobian", J);
-
-  supermatrix_free(J);
+  assert_true(fabs(preconditioner_matrix_coeff(mat, 0, 0) - 1.0) < 1e-14);
+  assert_true(fabs(preconditioner_matrix_coeff(mat, 0, 1) - 1.0) < 1e-14);
+  assert_true(fabs(preconditioner_matrix_coeff(mat, 1, 0) - 2.0) < 1e-14);
+  assert_true(fabs(preconditioner_matrix_coeff(mat, 1, 1) - 10.0) < 1e-14);
+  preconditioner_matrix_free(mat);
   adj_graph_free(bg);
-  supermatrix_factory_free(factory);
+  preconditioner_free(precond);
 }  // end test_numerical_jacobian
 
 int main(int argc, char* argv[]) 
@@ -144,7 +149,7 @@ int main(int argc, char* argv[])
   const UnitTest tests[] = 
   {
     unit_test(test_ctor),
-    unit_test(test_supermatrix),
+    unit_test(test_matrix),
     unit_test(test_numerical_jacobian_ds1)
   };
   return run_tests(tests);

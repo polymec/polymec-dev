@@ -27,7 +27,7 @@
 
 #include "core/polymec.h"
 #include "core/adj_graph.h"
-#include "cvode/cvode.h"
+#include "integrators/preconditioner.h"
 
 typedef enum
 {
@@ -81,6 +81,10 @@ void* time_integrator_context(time_integrator_t* integrator);
 
 // Returns the order of the integration method.
 int time_integrator_order(time_integrator_t* integrator);
+
+// Sets the preconditioner to use to help solve the equations.
+void time_integrator_set_preconditioner(time_integrator_t* integrator,
+                                        preconditioner_t* precond);
 
 // Integrates the given solution X in place from time t1 to t2.
 void time_integrator_step(time_integrator_t* integrator, real_t t1, real_t t2, real_t* X);

@@ -380,13 +380,6 @@ static void foodweb_set_constraints(void* context, real_t* constraints)
     constraints[i] = 2.0;
 }
 
-// This function expresses the sparsity graph for the food web problem.
-static adj_graph_t* foodweb_graph(void* context)
-{
-  foodweb_t* data = context;
-  return data->graph;
-}
-
 // Constructor for food web integrator.
 nonlinear_integrator_t* foodweb_integrator_new()
 {
@@ -404,7 +397,7 @@ nonlinear_integrator_t* foodweb_integrator_new()
                                                                  vtable, 
                                                                  NONE, 15, 2);
   // Use LU preconditioning with the same residual function.
-  preconditioner_t* lu_precond = lu_preconditioner_new(data, foodweb_func, foodweb_graph);
+  preconditioner_t* lu_precond = lu_preconditioner_new(data, foodweb_func, data->graph);
   nonlinear_integrator_set_preconditioner(integ, lu_precond);
 
   return integ;

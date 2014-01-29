@@ -24,7 +24,6 @@
 
 #include "core/sundials_helpers.h"
 #include "integrators/time_integrator.h"
-#include "integrators/supermatrix_factory.h"
 
 #include "cvode/cvode.h"
 #include "cvode/cvode_spils.h"
@@ -50,11 +49,11 @@ struct time_integrator_t
   real_t current_time;
 
   // Preconditioning stuff.
-  supermatrix_factory_t* precond_factory;
-  SuperMatrix *precond_mat, *precond_rhs, precond_L, precond_U;
+  preconditioner_t* precond;
+  //SuperMatrix *precond_mat, *precond_rhs, precond_L, precond_U;
   int *precond_rperm, *precond_cperm;
-  superlu_options_t precond_options;
-  SuperLUStat_t precond_stat;
+//  superlu_options_t precond_options;
+//  SuperLUStat_t precond_stat;
 };
 
 // This function wraps around the user-supplied right hand side.
@@ -75,8 +74,8 @@ static int set_up_preconditioner(real_t t, N_Vector x, N_Vector F,
   time_integrator_t* integ = context;
   if (!jacobian_is_current)
   {
-    supermatrix_factory_update_jacobian(integ->precond_factory, 
-                                        NV_DATA(x), t, integ->precond_mat);
+//    supermatrix_factory_update_jacobian(integ->precond_factory, 
+//                                        NV_DATA(x), t, integ->precond_mat);
     *jacobian_was_updated = 1;
     // FIXME: Incorporate gamma
   }
@@ -99,24 +98,24 @@ static int solve_preconditioner_system(real_t t, N_Vector x, N_Vector F,
   
   // Copy the values from the vector r to the preconditioner right-hand side.
   {
-    real_t *rhs = (real_t*) ((DNformat*) integ->precond_rhs->Store)->nzval; 
-    memcpy(rhs, NV_DATA(x), sizeof(real_t) * N);
+//    real_t *rhs = (real_t*) ((DNformat*) integ->precond_rhs->Store)->nzval; 
+//    memcpy(rhs, NV_DATA(x), sizeof(real_t) * N);
   }
 
   // Solve the preconditioner system.
-  int info;
-  dgssv(&integ->precond_options, integ->precond_mat, integ->precond_cperm,
-        integ->precond_rperm, &integ->precond_L, 
-        &integ->precond_U, integ->precond_rhs,
-        &integ->precond_stat, &info);
+//  int info;
+//  dgssv(&integ->precond_options, integ->precond_mat, integ->precond_cperm,
+//        integ->precond_rperm, &integ->precond_L, 
+//        &integ->precond_U, integ->precond_rhs,
+//        &integ->precond_stat, &info);
 
   // Tell SuperLU to use the same nonzero pattern for the next factorization.
-  integ->precond_options.Fact = SamePattern;
+//  integ->precond_options.Fact = SamePattern;
 
   // Copy the values from the solution to the vector r.
   {
-    real_t *sol = (real_t*) ((DNformat*) integ->precond_rhs->Store)->nzval; 
-    memcpy(NV_DATA(x), sol, sizeof(real_t) * N);
+//    real_t *sol = (real_t*) ((DNformat*) integ->precond_rhs->Store)->nzval; 
+//    memcpy(NV_DATA(x), sol, sizeof(real_t) * N);
   }
 
   return 0;
@@ -170,11 +169,11 @@ time_integrator_t* time_integrator_new(const char* name,
   // Set up preconditioner machinery.
   CVSpilsSetPreconditioner(integ->cvode, set_up_preconditioner,
                            solve_preconditioner_system);
-  set_default_options(&integ->precond_options);
-  StatInit(&integ->precond_stat);
-  integ->precond_factory = NULL;
-  integ->precond_mat = NULL;
-  integ->precond_rhs = NULL;
+//  set_default_options(&integ->precond_options);
+//  StatInit(&integ->precond_stat);
+  integ->precond = NULL;
+//  integ->precond_mat = NULL;
+//  integ->precond_rhs = NULL;
 
   return integ;
 }
@@ -182,14 +181,14 @@ time_integrator_t* time_integrator_new(const char* name,
 void time_integrator_free(time_integrator_t* integ)
 {
   // Kill the preconditioner stuff.
-  Destroy_SuperNode_Matrix(&integ->precond_L);
-  Destroy_CompCol_Matrix(&integ->precond_U);
-  StatFree(&integ->precond_stat);
-  SUPERLU_FREE(integ->precond_cperm);
-  SUPERLU_FREE(integ->precond_rperm);
-  supermatrix_factory_free(integ->precond_factory);
-  supermatrix_free(integ->precond_mat);
-  supermatrix_free(integ->precond_rhs);
+//  Destroy_SuperNode_Matrix(&integ->precond_L);
+//  Destroy_CompCol_Matrix(&integ->precond_U);
+//  StatFree(&integ->precond_stat);
+//  SUPERLU_FREE(integ->precond_cperm);
+//  SUPERLU_FREE(integ->precond_rperm);
+  preconditioner_free(integ->precond);
+//  supermatrix_free(integ->precond_mat);
+//  supermatrix_free(integ->precond_rhs);
 
   // Kill the CVode stuff.
   N_VDestroy(integ->x);
@@ -215,6 +214,12 @@ void* time_integrator_context(time_integrator_t* integ)
 int time_integrator_order(time_integrator_t* integ)
 {
   return integ->order;
+}
+
+void time_integrator_set_preconditioner(time_integrator_t* integrator,
+                                        preconditioner_t* precond)
+{
+  integrator->precond = precond;
 }
 
 void time_integrator_step(time_integrator_t* integ, real_t t1, real_t t2, real_t* X)
