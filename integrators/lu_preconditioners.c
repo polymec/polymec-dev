@@ -42,6 +42,11 @@ typedef struct
   int num_work_vectors;
   real_t** work;
 
+  SuperMatrix *rhs, L, U;
+  int *rperm, *cperm;
+  superlu_options_t options;
+  SuperLUStat_t stat;
+
   // ILU parameters (if any).
   ilu_params_t* ilu_params;
 } lu_preconditioner_t;
@@ -233,12 +238,27 @@ static void lu_preconditioner_compute_jacobian(void* context, real_t t, real_t* 
 
 static void lu_preconditioner_solve(void* context, preconditioner_matrix_t* A, real_t* B)
 {
-  // FIXME
+  lu_preconditioner_t* precond = context;
+  SuperMatrix* mat = preconditioner_matrix_context(A);
+
+  // Do the solve.
+  int info;
+  dgssv(&precond->options, mat, precond->cperm, precond->rperm, 
+        &precond->L, &precond->U, precond->rhs, &precond->stat, &info);
+  precond->options.Fact = SamePattern;
 }
 
 static void lu_preconditioner_dtor(void* context)
 {
   lu_preconditioner_t* precond = context;
+  if (precond->cperm != NULL)
+  {
+    SUPERLU_FREE(precond->cperm);
+    SUPERLU_FREE(precond->rperm);
+    Destroy_SuperNode_Matrix(&precond->L);
+    Destroy_CompCol_Matrix(&precond->U);
+    Destroy_SuperMatrix_Store(&precond->rhs);
+  }
   for (int i = 0; i < precond->num_work_vectors; ++i)
     free(precond->work[i]);
   free(precond->work);
@@ -256,6 +276,16 @@ preconditioner_t* lu_preconditioner_new(void* context,
   precond->F = residual_func;
   precond->context = context;
   precond->ilu_params = NULL;
+
+  // Preconditioner data.
+  int N = adj_graph_num_vertices(sparsity);
+  real_t* rhs = malloc(sizeof(real_t) * N);
+  dCreate_Dense_Matrix(&precond->rhs, N, 1, rhs, N, SLU_DN, SLU_D, SLU_GE);
+  StatInit(&precond->stat);
+  precond->cperm = intMalloc(N);
+  precond->rperm = intMalloc(N);
+  set_default_options(&precond->options);
+  precond->options.Fact = DOFACT;
 
   // Make work vectors.
   precond->N = adj_graph_num_vertices(precond->sparsity);

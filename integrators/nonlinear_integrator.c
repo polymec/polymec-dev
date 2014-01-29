@@ -54,10 +54,6 @@ struct nonlinear_integrator_t
 
   int N; // Number of degrees of freedom.
 
-  // Residual and sparsity information for preconditioner matrix.
-  nonlinear_integrator_residual_func precond_F;
-  adj_graph_t* graph;
-
   // KINSol data structures.
   void* kinsol;
   int strategy; // Global strategy.
@@ -65,12 +61,9 @@ struct nonlinear_integrator_t
 
   // Preconditioning stuff.
   preconditioner_t* precond;
-//  SuperMatrix *precond_mat, *precond_rhs, precond_L, precond_U;
-  int *precond_rperm, *precond_cperm;
-//  superlu_options_t precond_options;
-//  SuperLUStat_t precond_stat;
+  preconditioner_matrix_t* precond_mat;
 
-  // Current time -- used for preconditioner.
+  // Current simulation time.
   real_t current_time;
 };
 
@@ -91,8 +84,7 @@ static int set_up_preconditioner(N_Vector x, N_Vector x_scale,
 {
   nonlinear_integrator_t* integrator = context;
   real_t t = integrator->current_time;
-//  supermatrix_factory_update_jacobian(integrator->precond_factory, 
-//                                      NV_DATA(x), t, integrator->precond_mat);
+  preconditioner_compute_jacobian(integrator->precond, t, NV_DATA(x), integrator->precond_mat);
   return 0;
 }
 
@@ -105,29 +97,10 @@ static int solve_preconditioner_system(N_Vector x, N_Vector x_scale,
                                        N_Vector work)
 {
   nonlinear_integrator_t* integrator = context;
-  int N = NV_LOCLENGTH(x); // Dimension of the matrix.
-  
-  // Copy the values from the vector r to the preconditioner right-hand side.
-  {
-//    real_t *rhs = (real_t*) ((DNformat*) integrator->precond_rhs->Store)->nzval; 
-//    memcpy(rhs, NV_DATA(x), sizeof(real_t) * N);
-  }
 
-  // Solve the preconditioner system.
-//  int info;
-//  dgssv(&integrator->precond_options, integrator->precond_mat, integrator->precond_cperm,
-//        integrator->precond_rperm, &integrator->precond_L, 
-//        &integrator->precond_U, integrator->precond_rhs,
-//        &integrator->precond_stat, &info);
+  // FIXME: Apply scaling if needed.
 
-  // Tell SuperLU to use the same nonzero pattern for the next factorization.
-//  integrator->precond_options.Fact = SamePattern;
-
-  // Copy the values from the solution to the vector r.
-  {
-//    real_t *sol = (real_t*) ((DNformat*) integrator->precond_rhs->Store)->nzval; 
-//    memcpy(NV_DATA(x), sol, sizeof(real_t) * N);
-  }
+  preconditioner_solve(integrator->precond, integrator->precond_mat, NV_DATA(r));
 
   return 0;
 }
@@ -153,7 +126,6 @@ static nonlinear_integrator_t* nonlinear_integrator_new(const char* name,
   integrator->vtable = vtable;
   integrator->solver_type = solver_type;
   integrator->strategy = (global_strategy == LINE_SEARCH) ? KIN_LINESEARCH : KIN_NONE;
-  integrator->graph = NULL;
   integrator->N = 0;
   integrator->max_krylov_dim = max_krylov_dim;
   integrator->max_restarts = max_restarts;
@@ -162,15 +134,8 @@ static nonlinear_integrator_t* nonlinear_integrator_new(const char* name,
   integrator->kinsol = KINCreate();
   KINSetUserData(integrator->kinsol, integrator);
 
-  // Set up preconditioner machinery.
   integrator->precond = NULL;
-//  integrator->precond_F = NULL;
-//  set_default_options(&integrator->precond_options);
-//  StatInit(&integrator->precond_stat);
-//  integrator->precond_mat = NULL;
-//  integrator->precond_rhs = NULL;
-//  integrator->precond_cperm = NULL;
-//  integrator->precond_rperm = NULL;
+  integrator->precond_mat = NULL;
   integrator->current_time = 0.0;
 
   return integrator;
@@ -214,16 +179,9 @@ void nonlinear_integrator_free(nonlinear_integrator_t* integrator)
 {
   // Kill the preconditioner stuff.
   if (integrator->precond != NULL)
-  {
-//    supermatrix_free(integrator->precond_mat);
-//    supermatrix_free(integrator->precond_rhs);
     preconditioner_free(integrator->precond);
-//    Destroy_SuperNode_Matrix(&integrator->precond_L);
-//    Destroy_CompCol_Matrix(&integrator->precond_U);
-//    SUPERLU_FREE(integrator->precond_cperm);
-//    SUPERLU_FREE(integrator->precond_rperm);
-  }
-//  StatFree(&integrator->precond_stat);
+  if (integrator->precond_mat != NULL)
+    preconditioner_matrix_free(integrator->precond_mat);
 
   // Kill the KINSol stuff.
   N_VDestroy(integrator->x);
@@ -266,6 +224,9 @@ void nonlinear_integrator_set_preconditioner(nonlinear_integrator_t* integrator,
                                              preconditioner_t* precond)
 {
   integrator->precond = precond;
+  if (integrator->precond_mat != NULL)
+    preconditioner_matrix_free(integrator->precond_mat);
+  integrator->precond_mat = preconditioner_matrix(precond);
 }
 
 bool nonlinear_integrator_solve(nonlinear_integrator_t* integrator,
@@ -313,30 +274,6 @@ bool nonlinear_integrator_solve(nonlinear_integrator_t* integrator,
     }
   }
   ASSERT(NV_LOCLENGTH(integrator->x) == N); // No adaptivity allowed yet!
-
-  // Compare the graph with the one we've got to see whether the topology has 
-  // changed.
-  if (graph != integrator->graph)
-  {
-    // Update the graph and the preconditioner stuff.
-    integrator->graph = graph;
-    if (integrator->precond != NULL)
-    {
-      preconditioner_free(integrator->precond);
-//      supermatrix_free(integrator->precond_mat);
-//      supermatrix_free(integrator->precond_rhs);
-//      SUPERLU_FREE(integrator->precond_cperm);
-//      SUPERLU_FREE(integrator->precond_rperm);
-    }
-//    integrator->precond = supermatrix_factory_new(graph, integrator->vtable.eval, integrator->context);
-//    integrator->precond_mat = supermatrix_factory_matrix(integrator->precond_factory);
-//    integrator->precond_rhs = supermatrix_factory_vector(integrator->precond_factory, 1);
-//    integrator->precond_cperm = intMalloc(N);
-//    integrator->precond_rperm = intMalloc(N);
-
-    // Tell SuperLU to do the LU factorization from scratch.
-//    integrator->precond_options.Fact = DOFACT;
-  }
 
   // Set the current time in the state.
   integrator->current_time = t;
