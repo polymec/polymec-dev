@@ -22,15 +22,21 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef POLYMEC_ILU_H
-#define POLYMEC_ILU_H
+#ifndef POLYMEC_LU_PRECONDITIONERS_H
+#define POLYMEC_LU_PRECONDITIONERS_H
 
-#include "core/polymec.h"
+#include "integrators/preconditioner.h"
 
-// These types give options to control ILU preconditioners for the 
+// Sparse (Supernode) LU preconditioner.
+preconditioner_t* lu_preconditioner_new(void* context,
+                                        int (*residual_func)(void* context, real_t t, real_t* x, real_t* F),
+                                        adj_graph_t* sparsity);
+                                        
+// The following types give options to control ILU preconditioners for the 
 // nonlinear and time integrators.
 
-// Specifies how ILU solvers should permute the rows of the matrix.
+// Specifies how Incomplete LU (ILU) solvers should permute the rows of the 
+// matrix.
 typedef enum
 {
   ILU_NO_ROW_PERM,      // no row permutations
@@ -70,6 +76,12 @@ typedef struct
 
 // Initializes a set of ILU parameters with reasonable defaults.
 ilu_params_t* ilu_params_new();
+
+// ILU preconditioner.
+preconditioner_t* ilu_preconditioner_new(void* context,
+                                         int (*residual_func)(void* context, real_t t, real_t* x, real_t* F),
+                                         adj_graph_t* sparsity, 
+                                         ilu_params_t* ilu_params);
 
 #endif
 

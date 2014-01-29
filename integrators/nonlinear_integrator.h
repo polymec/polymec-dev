@@ -27,7 +27,7 @@
 
 #include "core/polymec.h"
 #include "core/adj_graph.h"
-#include "integrators/ilu.h"
+#include "integrators/preconditioner.h"
 
 // The different global strategies for the Newton iteration.
 typedef enum
@@ -48,10 +48,6 @@ typedef void (*nonlinear_integrator_scaling_func)(void* context, real_t* scale_f
 
 // Constraints function.
 typedef void (*nonlinear_integrator_constraints_func)(void* context, real_t* constraints);
-
-// Function expressing the sparsity pattern of preconditioner matrices as 
-// a (local) adjacency graph. Should return an internal pointer to a graph.
-typedef adj_graph_t* (*nonlinear_integrator_precond_sparsity_func)(void* context);
 
 // Context destructor.
 typedef void (*nonlinear_integrator_dtor)(void* context);
@@ -145,19 +141,9 @@ void nonlinear_integrator_set_tolerances(nonlinear_integrator_t* integrator, rea
 // Sets the maximum number of Newton iterations for the integrator.
 void nonlinear_integrator_set_max_iterations(nonlinear_integrator_t* integrator, int max_iterations);
 
-// Sets up a sparse LU preconditioner using the given residual function with 
-// the given sparsity pattern.
-void nonlinear_integrator_set_lu_preconditioner(nonlinear_integrator_t* integrator,
-                                                nonlinear_integrator_residual_func F,
-                                                nonlinear_integrator_precond_sparsity_func sparsity);
-
-// Sets up a sparse ILU (incomplete LU) preconditioner using the given 
-// residual function with the given sparsity pattern and the given parameters.
-// ILU parameters are defined in ilu.h (see also SuperLU's documentation).
-void nonlinear_integrator_set_ilu_preconditioner(nonlinear_integrator_t* integrator,
-                                                 nonlinear_integrator_residual_func F,
-                                                 nonlinear_integrator_precond_sparsity_func sparsity,
-                                                 ilu_params_t* ilu_params);
+// Sets the preconditioner to use to help solve the nonlinear system.
+void nonlinear_integrator_set_preconditioner(nonlinear_integrator_t* integrator,
+                                             preconditioner_t* precond);
 
 // Integrates the nonlinear system of equations F(X, t) = 0 in place, 
 // using X as the initial guess. Returns true if the solution was obtained, 

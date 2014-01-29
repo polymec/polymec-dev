@@ -24,6 +24,7 @@
 
 #include "core/polymec.h"
 #include "integrators/nonlinear_integrator.h"
+#include "integrators/lu_preconditioners.h"
 
 // We use this for some of the underlying data structures.
 #include "sundials/sundials_direct.h"
@@ -403,7 +404,8 @@ nonlinear_integrator_t* foodweb_integrator_new()
                                                                  vtable, 
                                                                  NONE, 15, 2);
   // Use LU preconditioning with the same residual function.
-  nonlinear_integrator_set_lu_preconditioner(integ, foodweb_func, foodweb_graph);
+  preconditioner_t* lu_precond = lu_preconditioner_new(data, foodweb_func, foodweb_graph);
+  nonlinear_integrator_set_preconditioner(integ, lu_precond);
 
   return integ;
 }

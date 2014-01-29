@@ -30,6 +30,7 @@
 #include "core/write_silo.h"
 #include "geometry/interpreter_register_geometry_functions.h"
 #include "integrators/nonlinear_integrator.h"
+#include "integrators/lu_preconditioners.h"
 #include "integrators/polyhedron_integrator.h"
 #include "model/boundary_cell_map.h"
 #include "model/polynomial_fit.h"
@@ -277,13 +278,6 @@ static int fvpm_poisson_residual(void* context, real_t t, real_t* u, real_t* F)
   return 0;
 }
 
-// Accesses the adjacency graph for the Poisson solver.
-static adj_graph_t* poisson_graph(void* context)
-{
-  poisson_t* p = context;
-  return p->graph;
-}
-
 // This helper clears all the data structures that are tied to a discrete domain.
 static void poisson_clear(poisson_t* p)
 {
@@ -360,7 +354,9 @@ static void poisson_init(void* context, real_t t)
     p->solver = bicgstab_nonlinear_integrator_new("Poisson (FV)", p, MPI_COMM_WORLD, vtable, LINE_SEARCH, 15);
 
     // For now, Use LU preconditioning with the same residual function.
-    nonlinear_integrator_set_lu_preconditioner(p->solver, fv_poisson_residual, poisson_graph);
+    // Use LU preconditioning with the same residual function.
+    preconditioner_t* lu_precond = lu_preconditioner_new(p, fv_poisson_residual, p->graph);
+    nonlinear_integrator_set_preconditioner(p->solver, lu_precond);
 
     // Allocate storage for cell face fluxes.
     p->cell_face_flux_offsets = malloc(sizeof(int)*(p->mesh->num_cells+1));
@@ -389,7 +385,8 @@ static void poisson_init(void* context, real_t t)
     p->solver = bicgstab_nonlinear_integrator_new("Poisson (FVPM)", p, MPI_COMM_WORLD, vtable, LINE_SEARCH, 15);
 
     // For now, Use LU preconditioning with the same residual function.
-    nonlinear_integrator_set_lu_preconditioner(p->solver, fvpm_poisson_residual, poisson_graph);
+    preconditioner_t* lu_precond = lu_preconditioner_new(p, fvpm_poisson_residual, p->graph);
+    nonlinear_integrator_set_preconditioner(p->solver, lu_precond);
   }
 
   // Now we simply solve the problem for the initial time.

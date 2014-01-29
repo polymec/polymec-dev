@@ -60,7 +60,6 @@ struct nonlinear_integrator_t
 
   // Residual and sparsity information for preconditioner matrix.
   nonlinear_integrator_residual_func precond_F;
-  nonlinear_integrator_precond_sparsity_func precond_sparsity;
   adj_graph_t* graph;
 
   // KINSol data structures.
@@ -69,7 +68,7 @@ struct nonlinear_integrator_t
   N_Vector x, x_scale, F_scale; // Stores solution vector and scaling vectors.
 
   // Preconditioning stuff.
-  ilu_params_t* ilu_params;
+  preconditioner_t* precond;
   supermatrix_factory_t* precond_factory;
   SuperMatrix *precond_mat, *precond_rhs, precond_L, precond_U;
   int *precond_rperm, *precond_cperm;
@@ -169,9 +168,8 @@ static nonlinear_integrator_t* nonlinear_integrator_new(const char* name,
   KINSetUserData(integrator->kinsol, integrator);
 
   // Set up preconditioner machinery.
+  integrator->precond = NULL;
   integrator->precond_F = NULL;
-  integrator->precond_sparsity = NULL;
-  integrator->ilu_params = NULL;
   set_default_options(&integrator->precond_options);
   StatInit(&integrator->precond_stat);
   integrator->precond_factory = NULL;
@@ -221,7 +219,6 @@ nonlinear_integrator_t* tfqmr_nonlinear_integrator_new(const char* name,
 void nonlinear_integrator_free(nonlinear_integrator_t* integrator)
 {
   // Kill the preconditioner stuff.
-  integrator->ilu_params = NULL;
   if (integrator->precond_mat != NULL)
   {
     supermatrix_free(integrator->precond_mat);
@@ -271,23 +268,10 @@ void newton_solver_set_max_iterations(nonlinear_integrator_t* integrator, int ma
   KINSetNumMaxIters(integrator->kinsol, max_iterations);
 }
 
-void nonlinear_integrator_set_lu_preconditioner(nonlinear_integrator_t* integrator,
-                                                nonlinear_integrator_residual_func F,
-                                                nonlinear_integrator_precond_sparsity_func sparsity)
+void nonlinear_integrator_set_preconditioner(nonlinear_integrator_t* integrator,
+                                             preconditioner_t* precond)
 {
-  integrator->precond_F = F;
-  integrator->precond_sparsity = sparsity;
-  integrator->ilu_params = NULL;
-}
-
-void nonlinear_integrator_set_ilu_preconditioner(nonlinear_integrator_t* integrator,
-                                                 nonlinear_integrator_residual_func F,
-                                                 nonlinear_integrator_precond_sparsity_func sparsity,
-                                                 ilu_params_t* ilu_params)
-{
-  integrator->precond_F = F;
-  integrator->precond_sparsity = sparsity;
-  integrator->ilu_params = ilu_params;
+  integrator->precond = precond;
 }
 
 bool nonlinear_integrator_solve(nonlinear_integrator_t* integrator,
@@ -297,9 +281,8 @@ bool nonlinear_integrator_solve(nonlinear_integrator_t* integrator,
 {
   ASSERT(X != NULL);
 
-  // Get the adjacency graph that expresses the sparsity of the nonlinear system.
-  adj_graph_t* graph = integrator->precond_sparsity(integrator->context);
-  ASSERT(graph != NULL);
+// FIXME
+  adj_graph_t* graph;
 
   // The dimension N of the system is the number of local vertices in the 
   // adjacency graph.
