@@ -29,12 +29,6 @@
 #include "core/adj_graph.h"
 #include "integrators/preconditioner.h"
 
-typedef enum
-{
-  GMRES,
-  BICGSTAB
-} time_integrator_solver_type_t;
-
 // This virtual table determines the behavior of the time integrator.
 typedef struct
 {
@@ -58,17 +52,38 @@ typedef struct
 // nonlinear differential equations. 
 typedef struct time_integrator_t time_integrator_t;
 
-// Creates a time integrator with the given name, context, and virtual table.
-// Also given are some metadata, such as the order of the method, whether 
-// it is explicit, implicit, or hybrid. The integrator will integrate 
-// a system of N differential equations.
-time_integrator_t* time_integrator_new(const char* name, 
-                                       void* context,
-                                       MPI_Comm comm,
-                                       time_integrator_vtable vtable,
-                                       int order,
-                                       time_integrator_solver_type_t solver_type,
-                                       int max_krylov_dim);
+// Creates an integrator that uses a GMRES Krylov method with a given 
+// maximum subspace dimension of max_krylov_dim. No restarts are used.
+// N is the dimension of the system.
+time_integrator_t* gmres_time_integrator_new(const char* name, 
+                                             void* context,
+                                             MPI_Comm comm,
+                                             int N,
+                                             time_integrator_vtable vtable,
+                                             int order,
+                                             int max_krylov_dim);
+
+// Creates an integrator that uses a stabilized bi-conjugate gradient Krylov 
+// method with a given maximum subspace dimension of max_krylov_dim.
+// N is the dimension of the system.
+time_integrator_t* bicgs_time_integrator_new(const char* name, 
+                                             void* context,
+                                             MPI_Comm comm,
+                                             int N,
+                                             time_integrator_vtable vtable,
+                                             int order,
+                                             int max_krylov_dim);
+
+// Creates an integrator that uses a transpose-free quasi-minimum residual 
+// Krylov method with a given maximum subspace dimension of max_krylov_dim.
+// N is the dimension of the system.
+time_integrator_t* tfqmr_time_integrator_new(const char* name, 
+                                             void* context,
+                                             MPI_Comm comm,
+                                             int N,
+                                             time_integrator_vtable vtable,
+                                             int order,
+                                             int max_krylov_dim);
 
 // Frees a time integrator.
 void time_integrator_free(time_integrator_t* integrator);

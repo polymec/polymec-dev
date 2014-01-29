@@ -96,31 +96,36 @@ typedef struct nonlinear_integrator_t nonlinear_integrator_t;
 // function and the adjacency graph, and the globalization strategy can be 
 // NONE or LINE_SEARCH.
 
-// Create an integrator that uses a GMRES Krylov method with a given 
+// Creates an integrator that uses a GMRES Krylov method with a given 
 // maximum subspace dimension of max_krylov_dim, and a maximum number of 
-// restarts given by max_restarts.
+// restarts given by max_restarts. N is the dimension of the system.
 nonlinear_integrator_t* gmres_nonlinear_integrator_new(const char* name,
                                                        void* context,
                                                        MPI_Comm comm,
+                                                       int N,
                                                        nonlinear_integrator_vtable vtable,
                                                        nonlinear_integrator_strategy_t global_strategy,
                                                        int max_krylov_dim,
                                                        int max_restarts);
 
-// Create an integrator that uses a stabilized bi-conjugate gradient Krylov 
+// Creates an integrator that uses a stabilized bi-conjugate gradient Krylov 
 // method with a given maximum subspace dimension of max_krylov_dim.
+// N is the dimension of the system.
 nonlinear_integrator_t* bicgstab_nonlinear_integrator_new(const char* name,
                                                           void* context,
                                                           MPI_Comm comm,
+                                                          int N,
                                                           nonlinear_integrator_vtable vtable,
                                                           nonlinear_integrator_strategy_t global_strategy,
                                                           int max_krylov_dim);
 
-// Create an integrator that uses a transpose-free quasi-minimum residual 
+// Creates an integrator that uses a transpose-free quasi-minimum residual 
 // Krylov method with a given maximum subspace dimension of max_krylov_dim.
+// N is the dimension of the system.
 nonlinear_integrator_t* tfqmr_nonlinear_integrator_new(const char* name,
                                                        void* context,
                                                        MPI_Comm comm,
+                                                       int N,
                                                        nonlinear_integrator_vtable vtable,
                                                        nonlinear_integrator_strategy_t global_strategy,
                                                        int max_krylov_dim);

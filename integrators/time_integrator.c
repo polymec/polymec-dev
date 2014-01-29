@@ -31,6 +31,14 @@
 #include "cvode/cvode_spbcgs.h"
 #include "cvode/cvode_sptfqmr.h"
 
+// Types of linear solvers.
+typedef enum 
+{
+  GMRES,
+  BICGSTAB,
+  TFQMR
+} solver_type_t;
+
 struct time_integrator_t 
 {
   char* name;
@@ -38,15 +46,15 @@ struct time_integrator_t
   time_integrator_vtable vtable;
   int order;
   MPI_Comm comm;
-  time_integrator_solver_type_t solver_type;
+  solver_type_t solver_type;
 
-  // Adjacency graph -- keeps track of topological changes.
-  adj_graph_t* graph;
+  int N; // dimension of system.
 
   // CVODE data structures.
   void* cvode;
   N_Vector x; 
   real_t current_time;
+  int max_krylov_dim;
 
   // Preconditioning stuff.
   preconditioner_t* precond;
@@ -90,7 +98,6 @@ static int solve_preconditioner_system(real_t t, N_Vector x, N_Vector F,
                                        N_Vector work)
 {
   time_integrator_t* integ = context;
-  int N = NV_LOCLENGTH(x); // Dimension of the matrix.
   
   // FIXME: Apply scaling if needed.
 
@@ -99,17 +106,18 @@ static int solve_preconditioner_system(real_t t, N_Vector x, N_Vector F,
   return 0;
 }
 
-time_integrator_t* time_integrator_new(const char* name, 
-                                       void* context,
-                                       MPI_Comm comm,
-                                       time_integrator_vtable vtable,
-                                       int order,
-                                       time_integrator_solver_type_t solver_type,
-                                       int max_krylov_dim)
+static time_integrator_t* time_integrator_new(const char* name, 
+                                              void* context,
+                                              MPI_Comm comm,
+                                              int N,
+                                              time_integrator_vtable vtable,
+                                              int order,
+                                              solver_type_t solver_type,
+                                              int max_krylov_dim)
 {
+  ASSERT(N > 0);
   ASSERT(order > 0);
   ASSERT(vtable.rhs != NULL);
-  ASSERT(vtable.graph != NULL);
   ASSERT(max_krylov_dim >= 3);
 
   time_integrator_t* integ = malloc(sizeof(time_integrator_t));
@@ -119,16 +127,9 @@ time_integrator_t* time_integrator_new(const char* name,
   integ->vtable = vtable;
   integ->order = order;
   integ->solver_type = solver_type;
-  integ->graph = NULL;
   integ->current_time = 0.0;
-
-  // Get the adjacency graph that expresses the sparsity of the nonlinear system.
-  adj_graph_t* graph = vtable.graph(context);
-  ASSERT(graph != NULL);
-
-  // The dimension N of the system is the number of local vertices in the 
-  // adjacency graph.
-  int N = adj_graph_num_vertices(graph);
+  integ->N = N;
+  integ->max_krylov_dim = max_krylov_dim;
 
   // Set up KINSol and accessories.
   integ->x = N_VNew(comm, N);
@@ -144,10 +145,49 @@ time_integrator_t* time_integrator_new(const char* name,
   else
     CVSptfqmr(integ->cvode, PREC_LEFT, max_krylov_dim);
 
+  CVSpilsSetPreconditioner(integ->cvode, set_up_preconditioner,
+                           solve_preconditioner_system);
+
   integ->precond = NULL;
   integ->precond_mat = NULL;
 
   return integ;
+}
+
+time_integrator_t* gmres_time_integrator_new(const char* name,
+                                             void* context,
+                                             MPI_Comm comm,
+                                             int N,
+                                             time_integrator_vtable vtable,
+                                             int order,
+                                             int max_krylov_dim)
+{
+  return time_integrator_new(name, context, comm, N, vtable, order, GMRES, 
+                             max_krylov_dim);
+}
+
+time_integrator_t* bicgstab_time_integrator_new(const char* name,
+                                                void* context,
+                                                MPI_Comm comm,
+                                                int N,
+                                                time_integrator_vtable vtable,
+                                                int order,
+                                                int max_krylov_dim)
+{
+  return time_integrator_new(name, context, comm, N, vtable, order, BICGSTAB, 
+                             max_krylov_dim);
+}
+
+time_integrator_t* tfqmr_time_integrator_new(const char* name,
+                                             void* context,
+                                             MPI_Comm comm,
+                                             int N,
+                                             time_integrator_vtable vtable,
+                                             int order,
+                                             int max_krylov_dim)
+{
+  return time_integrator_new(name, context, comm, N, vtable, order, TFQMR, 
+                             max_krylov_dim);
 }
 
 void time_integrator_free(time_integrator_t* integ)
@@ -157,7 +197,6 @@ void time_integrator_free(time_integrator_t* integ)
     preconditioner_free(integ->precond);
   if (integ->precond_mat != NULL)
     preconditioner_matrix_free(integ->precond_mat);
-
 
   // Kill the CVode stuff.
   N_VDestroy(integ->x);

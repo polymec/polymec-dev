@@ -241,11 +241,18 @@ static void lu_preconditioner_solve(void* context, preconditioner_matrix_t* A, r
   lu_preconditioner_t* precond = context;
   SuperMatrix* mat = preconditioner_matrix_context(A);
 
+  // Copy B to the rhs vector.
+  DNformat* rhs = precond->rhs->Store;
+  memcpy(rhs->nzval, B, sizeof(real_t) * precond->N);
+
   // Do the solve.
   int info;
   dgssv(&precond->options, mat, precond->cperm, precond->rperm, 
         &precond->L, &precond->U, precond->rhs, &precond->stat, &info);
   precond->options.Fact = SamePattern;
+
+  // Copy the rhs vector to B.
+  memcpy(B, rhs->nzval, sizeof(real_t) * precond->N);
 }
 
 static void lu_preconditioner_dtor(void* context)
@@ -257,12 +264,13 @@ static void lu_preconditioner_dtor(void* context)
     SUPERLU_FREE(precond->rperm);
     Destroy_SuperNode_Matrix(&precond->L);
     Destroy_CompCol_Matrix(&precond->U);
-    Destroy_SuperMatrix_Store(&precond->rhs);
+    Destroy_SuperMatrix_Store(precond->rhs);
   }
   for (int i = 0; i < precond->num_work_vectors; ++i)
     free(precond->work[i]);
   free(precond->work);
   adj_graph_coloring_free(precond->coloring);
+  precond->ilu_params = NULL;
   free(precond);
 }
 

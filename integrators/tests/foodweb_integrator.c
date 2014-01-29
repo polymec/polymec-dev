@@ -394,6 +394,7 @@ nonlinear_integrator_t* foodweb_integrator_new()
   nonlinear_integrator_t* integ = gmres_nonlinear_integrator_new("Food web",
                                                                  data,
                                                                  MPI_COMM_SELF,
+                                                                 NEQ,
                                                                  vtable, 
                                                                  NONE, 15, 2);
   // Use LU preconditioning with the same residual function.

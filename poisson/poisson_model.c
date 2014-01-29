@@ -341,9 +341,11 @@ static void poisson_init(void* context, real_t t)
 
   if (p->mesh != NULL)
   {
+    int N = p->mesh->num_cells;
+
     // Initialize the solution vector.
-    p->phi = malloc(sizeof(real_t)*p->mesh->num_cells);
-    memset(p->phi, 0, sizeof(real_t)*p->mesh->num_cells);
+    p->phi = malloc(sizeof(real_t)*N);
+    memset(p->phi, 0, sizeof(real_t)*N);
 
     // Gather information about boundary cells.
     p->boundary_cells = boundary_cell_map_from_mesh_and_bcs(p->mesh, p->bcs);
@@ -351,7 +353,7 @@ static void poisson_init(void* context, real_t t)
     // Initialize the nonlinear solver.
     nonlinear_integrator_vtable vtable = {.eval = fv_poisson_residual, 
                                           .dtor = NULL};
-    p->solver = bicgstab_nonlinear_integrator_new("Poisson (FV)", p, MPI_COMM_WORLD, vtable, LINE_SEARCH, 15);
+    p->solver = bicgstab_nonlinear_integrator_new("Poisson (FV)", p, MPI_COMM_WORLD, N, vtable, LINE_SEARCH, 15);
 
     // For now, Use LU preconditioning with the same residual function.
     // Use LU preconditioning with the same residual function.
@@ -359,22 +361,24 @@ static void poisson_init(void* context, real_t t)
     nonlinear_integrator_set_preconditioner(p->solver, lu_precond);
 
     // Allocate storage for cell face fluxes.
-    p->cell_face_flux_offsets = malloc(sizeof(int)*(p->mesh->num_cells+1));
+    p->cell_face_flux_offsets = malloc(sizeof(int)*(N+1));
     p->cell_face_flux_offsets[0] = 0;
-    for (int c = 0; c < p->mesh->num_cells; ++c)
+    for (int c = 0; c < N; ++c)
       p->cell_face_flux_offsets[c+1] = p->cell_face_flux_offsets[c] + mesh_cell_num_faces(p->mesh, c);
-    p->cell_face_fluxes = malloc(sizeof(real_t)*p->cell_face_flux_offsets[p->mesh->num_cells]);
-    memset(p->cell_face_fluxes, 0, sizeof(real_t)*p->cell_face_flux_offsets[p->mesh->num_cells]);
+    p->cell_face_fluxes = malloc(sizeof(real_t)*p->cell_face_flux_offsets[N]);
+    memset(p->cell_face_fluxes, 0, sizeof(real_t)*p->cell_face_flux_offsets[N]);
 
     // Allocate storage for cell source contributions.
-    p->cell_sources = malloc(sizeof(real_t)*p->mesh->num_cells);
-    memset(p->cell_sources, 0, sizeof(real_t)*p->mesh->num_cells);
+    p->cell_sources = malloc(sizeof(real_t)*N);
+    memset(p->cell_sources, 0, sizeof(real_t)*N);
   }
   else
   {
+    int N = p->point_cloud->num_points;
+
     // Initialize the solution vector.
-    p->phi = malloc(sizeof(real_t)*p->point_cloud->num_points);
-    memset(p->phi, 0, sizeof(real_t)*p->point_cloud->num_points);
+    p->phi = malloc(sizeof(real_t)*N);
+    memset(p->phi, 0, sizeof(real_t)*N);
 
     // Gather information about boundary cells.
     //p->boundary_cells = boundary_cell_map_from_mesh_and_bcs(p->mesh, p->bcs);
@@ -382,7 +386,7 @@ static void poisson_init(void* context, real_t t)
     // Initialize the nonlinear solver.
     nonlinear_integrator_vtable vtable = {.eval = fvpm_poisson_residual, 
                                           .dtor = NULL};
-    p->solver = bicgstab_nonlinear_integrator_new("Poisson (FVPM)", p, MPI_COMM_WORLD, vtable, LINE_SEARCH, 15);
+    p->solver = bicgstab_nonlinear_integrator_new("Poisson (FVPM)", p, MPI_COMM_WORLD, N, vtable, LINE_SEARCH, 15);
 
     // For now, Use LU preconditioning with the same residual function.
     preconditioner_t* lu_precond = lu_preconditioner_new(p, fvpm_poisson_residual, p->graph);

@@ -109,12 +109,14 @@ static int solve_preconditioner_system(N_Vector x, N_Vector x_scale,
 static nonlinear_integrator_t* nonlinear_integrator_new(const char* name, 
                                                         void* context,
                                                         MPI_Comm comm,
+                                                        int N,
                                                         nonlinear_integrator_vtable vtable,
                                                         nonlinear_integrator_strategy_t global_strategy,
                                                         solver_type_t solver_type,
                                                         int max_krylov_dim, 
                                                         int max_restarts)
 {
+  ASSERT(N > 0);
   ASSERT(vtable.eval != NULL);
   ASSERT(max_krylov_dim >= 3);
   ASSERT(max_restarts >= 0);
@@ -126,13 +128,41 @@ static nonlinear_integrator_t* nonlinear_integrator_new(const char* name,
   integrator->vtable = vtable;
   integrator->solver_type = solver_type;
   integrator->strategy = (global_strategy == LINE_SEARCH) ? KIN_LINESEARCH : KIN_NONE;
-  integrator->N = 0;
+  integrator->N = N;
   integrator->max_krylov_dim = max_krylov_dim;
   integrator->max_restarts = max_restarts;
 
   // Set up KINSol and accessories.
   integrator->kinsol = KINCreate();
   KINSetUserData(integrator->kinsol, integrator);
+  integrator->x = N_VNew(integrator->comm, N);
+  integrator->x_scale = N_VNew(integrator->comm, N);
+  integrator->F_scale = N_VNew(integrator->comm, N);
+
+  KINInit(integrator->kinsol, evaluate_F, integrator->x);
+
+  // Select the particular type of Krylov method for the underlying linear solves.
+  if (integrator->solver_type == GMRES)
+  {
+    KINSpgmr(integrator->kinsol, integrator->max_krylov_dim); 
+    KINSpilsSetMaxRestarts(integrator->kinsol, integrator->max_restarts);
+  }
+  else if (integrator->solver_type == BICGSTAB)
+    KINSpbcg(integrator->kinsol, integrator->max_krylov_dim);
+  else
+    KINSptfqmr(integrator->kinsol, integrator->max_krylov_dim);
+
+  KINSpilsSetPreconditioner(integrator->kinsol, set_up_preconditioner,
+                            solve_preconditioner_system);
+
+  // Set the constraints (if any) for the solution.
+  if (integrator->vtable.set_constraints != NULL)
+  {
+    N_Vector constraints = N_VNew(integrator->comm, N);
+    integrator->vtable.set_constraints(integrator->context, NV_DATA(constraints));
+    KINSetConstraints(integrator->kinsol, constraints);
+    N_VDestroy(constraints);
+  }
 
   integrator->precond = NULL;
   integrator->precond_mat = NULL;
@@ -144,34 +174,37 @@ static nonlinear_integrator_t* nonlinear_integrator_new(const char* name,
 nonlinear_integrator_t* gmres_nonlinear_integrator_new(const char* name,
                                                        void* context,
                                                        MPI_Comm comm,
+                                                       int N,
                                                        nonlinear_integrator_vtable vtable,
                                                        nonlinear_integrator_strategy_t global_strategy,
                                                        int max_krylov_dim,
                                                        int max_restarts)
 {
-  return nonlinear_integrator_new(name, context, comm, vtable, global_strategy,
+  return nonlinear_integrator_new(name, context, comm, N, vtable, global_strategy,
                                   GMRES, max_krylov_dim, max_restarts);
 }
 
 nonlinear_integrator_t* bicgstab_nonlinear_integrator_new(const char* name,
                                                           void* context,
                                                           MPI_Comm comm,
+                                                          int N,
                                                           nonlinear_integrator_vtable vtable,
                                                           nonlinear_integrator_strategy_t global_strategy,
                                                           int max_krylov_dim)
 {
-  return nonlinear_integrator_new(name, context, comm, vtable, global_strategy,
+  return nonlinear_integrator_new(name, context, comm, N, vtable, global_strategy,
                                   BICGSTAB, max_krylov_dim, 0);
 }
 
 nonlinear_integrator_t* tfqmr_nonlinear_integrator_new(const char* name,
                                                        void* context,
                                                        MPI_Comm comm,
+                                                       int N,
                                                        nonlinear_integrator_vtable vtable,
                                                        nonlinear_integrator_strategy_t global_strategy,
                                                        int max_krylov_dim)
 {
-  return nonlinear_integrator_new(name, context, comm, vtable, global_strategy,
+  return nonlinear_integrator_new(name, context, comm, N, vtable, global_strategy,
                                   TFQMR, max_krylov_dim, 0);
 }
 
@@ -236,50 +269,12 @@ bool nonlinear_integrator_solve(nonlinear_integrator_t* integrator,
 {
   ASSERT(X != NULL);
 
-// FIXME
-  adj_graph_t* graph;
-
-  // The dimension N of the system is the number of local vertices in the 
-  // adjacency graph.
-  int N = adj_graph_num_vertices(graph);
-  if (integrator->N == 0)
-  {
-    integrator->N = N;
-    integrator->x = N_VNew(integrator->comm, N);
-    integrator->x_scale = N_VNew(integrator->comm, N);
-    integrator->F_scale = N_VNew(integrator->comm, N);
-
-    KINInit(integrator->kinsol, evaluate_F, integrator->x);
-    // Select the particular type of Krylov method for the underlying linear solves.
-    if (integrator->solver_type == GMRES)
-    {
-      KINSpgmr(integrator->kinsol, integrator->max_krylov_dim); 
-      KINSpilsSetMaxRestarts(integrator->kinsol, integrator->max_restarts);
-    }
-    else if (integrator->solver_type == BICGSTAB)
-      KINSpbcg(integrator->kinsol, integrator->max_krylov_dim);
-    else
-      KINSptfqmr(integrator->kinsol, integrator->max_krylov_dim);
-
-    KINSpilsSetPreconditioner(integrator->kinsol, set_up_preconditioner,
-                              solve_preconditioner_system);
-
-    // Set the constraints (if any) for the solution.
-    if (integrator->vtable.set_constraints != NULL)
-    {
-      N_Vector constraints = N_VNew(integrator->comm, N);
-      integrator->vtable.set_constraints(integrator->context, NV_DATA(constraints));
-      KINSetConstraints(integrator->kinsol, constraints);
-      N_VDestroy(constraints);
-    }
-  }
-  ASSERT(NV_LOCLENGTH(integrator->x) == N); // No adaptivity allowed yet!
-
   // Set the current time in the state.
   integrator->current_time = t;
 
   // Set the x_scale and F_scale vectors. If we don't have methods for doing 
   // this, the scaling vectors are set to 1.
+  int N = integrator->N;
   if (integrator->vtable.set_x_scale != NULL)
     integrator->vtable.set_x_scale(integrator->context, NV_DATA(integrator->x_scale));
   else
