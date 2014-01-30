@@ -77,7 +77,7 @@ void test_cap_area(void** state)
 // Radial functions.
 static void r(void* context, point_t* x, real_t* result)
 {
-  *result = sqrt(x->x*x->x + x->y*x->y + x->z*x->z);
+  *result = rsqrt(x->x*x->x + x->y*x->y + x->z*x->z);
 }
 
 static void r2(void* context, point_t* x, real_t* result)
@@ -206,7 +206,7 @@ static void test_cap_time_dep_radial_function(void** state,
 
 static void linear_growth(void* context, point_t* x, real_t t, real_t* result)
 {
-  *result = t * sqrt(x->x*x->x + x->y*x->y + x->z*x->z);
+  *result = t * rsqrt(x->x*x->x + x->y*x->y + x->z*x->z);
 }
 
 static void quadratic_growth(void* context, point_t* x, real_t t, real_t* result)

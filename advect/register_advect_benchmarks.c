@@ -264,8 +264,8 @@ static void square_diffusion_1d_soln(void* ctx, point_t* x, double t, double* ph
   {
     double wL = half_width * L;
     double nu = D/(wL*wL);
-    *phi = 0.5 * (erf((1.0 + fabs(y)/wL) / (2.0*sqrt(nu*t))) +  // left wave
-                  erf((1.0 - fabs(y)/wL) / (2.0*sqrt(nu*t))));   // right wave
+    *phi = 0.5 * (erf((1.0 + fabs(y)/wL) / (2.0*rsqrt(nu*t))) +  // left wave
+                  erf((1.0 - fabs(y)/wL) / (2.0*rsqrt(nu*t))));   // right wave
   }
 }
 
@@ -294,7 +294,7 @@ static void gaussian_diffusion_1d_soln(void* ctx, point_t* x, double t, double* 
   double t0 = 0.5; // Initial time.
   double Vx = 0.0; // x velocity.
   double y = x->x - Vx*t - 0.5; // Center of the wave.
-  *phi = sqrt(t0/t) * exp(-y*y/(4.0*D*t));
+  *phi = rsqrt(t0/t) * exp(-y*y/(4.0*D*t));
 }
 
 static void run_gaussian_diffusion_1d(options_t* options)

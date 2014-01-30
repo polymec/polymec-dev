@@ -34,9 +34,9 @@ void test_create_single_tetrahedron(void** state)
 {
   // Set up points that will yield a single tetrahedral Voronoi cell
   // with vertices (1, 1, 1), (1, -1, -1), (-1, 1, -1), (-1, -1, 1).
-  const real_t sqrt2 = sqrt(2.0);
-  const real_t sqrt3 = sqrt(3.0);
-  const real_t sqrt6 = sqrt(6.0);
+  const real_t sqrt2 = rsqrt(2.0);
+  const real_t sqrt3 = rsqrt(3.0);
+  const real_t sqrt6 = rsqrt(6.0);
   const real_t cos60 = cos(M_PI/3.0);
   const real_t cos30 = cos(M_PI/6.0);
   const real_t cos120 = cos(2.0*M_PI/3.0);

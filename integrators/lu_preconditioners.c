@@ -152,7 +152,7 @@ static void finite_diff_Jv(int (*F)(void* context, real_t t, real_t* x, real_t* 
                            real_t** work, 
                            real_t* Jv)
 {
-  real_t eps = sqrt(UNIT_ROUNDOFF);
+  real_t eps = rsqrt(UNIT_ROUNDOFF);
 
   // work[0] == v
   // work[1] contains F(x).

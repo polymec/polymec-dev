@@ -180,7 +180,7 @@ point_t* witkin_heckbert_sampling(sp_func_t* surface,
       // Compute the desired surface density at this point.
       real_t density;
       sp_func_eval(surf_density, pi, &density);
-      real_t sigma_opt = 0.3 * sqrt(density / N);
+      real_t sigma_opt = 0.3 * rsqrt(density / N);
       if (sigmai > sigma_opt)
         surface_density_achieved = false;
 
@@ -270,7 +270,7 @@ point_t* witkin_heckbert_sampling(sp_func_t* surface,
         if (statuses[i] == 1)
         {
           // Overwrite this point with its first child.
-          sigmas[i] /= sqrt(2.0);
+          sigmas[i] /= rsqrt(2.0);
           statuses[i] = 2; // New point
 
           // The second child goes into 'next'.

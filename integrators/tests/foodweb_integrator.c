@@ -190,7 +190,7 @@ static foodweb_t* foodweb_new()
   data->dx = (data->ax)/(MX-1);
   data->dy = (data->ay)/(MY-1);
   data->uround = UNIT_ROUNDOFF;
-  data->sqruround = sqrt(data->uround);
+  data->sqruround = rsqrt(data->uround);
   data->rates = malloc(sizeof(real_t) * NEQ);
 
   // Set up the coefficients a and b plus others found in the equations.

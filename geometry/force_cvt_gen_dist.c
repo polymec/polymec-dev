@@ -82,7 +82,7 @@ static void accumulate_forces_on_vertices(cvt_gen_force_t* force,
     vertices[i].y = t->vertices[3*i+1];
     vertices[i].z = t->vertices[3*i+2];
     sp_func_eval(density, &vertices[i], &Leq[i]);
-    Leq[i] = 1.0/sqrt(Leq[i]);
+    Leq[i] = 1.0/rsqrt(Leq[i]);
   }
 
   *max_force = 0.0;

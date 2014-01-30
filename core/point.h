@@ -47,7 +47,7 @@ static inline real_t point_square_distance(point_t* x, point_t* y)
 // Distance between two points in 3D space.
 static inline real_t point_distance(point_t* x, point_t* y)
 {
-  return sqrt(point_square_distance(x, y));
+  return rsqrt(point_square_distance(x, y));
 }
 
 // Copy the source point's components to those of the destination point.
@@ -78,7 +78,7 @@ static inline real_t vector_dot(vector_t* v1, vector_t* v2)
 // Vector magnitude.
 static inline real_t vector_mag(vector_t* v)
 {
-  return sqrt(vector_dot(v, v));
+  return rsqrt(vector_dot(v, v));
 }
 
 // Normalizes the given vector.

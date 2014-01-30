@@ -344,7 +344,7 @@ static double advect_max_dt(void* context, double t, char* reason)
     {
       double V[3];
       st_func_eval(a->velocity, &a->mesh->cells[c].center, t, V);
-      double Vmag = sqrt(V[0]*V[0] + V[1]*V[1] + V[2]*V[2]);
+      double Vmag = rsqrt(V[0]*V[0] + V[1]*V[1] + V[2]*V[2]);
       if ((a->CFL*L/Vmag) < dt)
       {
         dt = a->CFL * L / Vmag;
@@ -622,7 +622,7 @@ static void advect_compute_error_norms(void* context, st_func_t* solution, doubl
     L1 += err*V;
     L2 += err*err*V*V;
   }
-  L2 = sqrt(L2);
+  L2 = rsqrt(L2);
   lp_norms[0] = Linf;
   lp_norms[1] = L1;
   lp_norms[2] = L2;

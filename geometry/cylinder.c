@@ -38,7 +38,7 @@ static void cyl_eval(void* ctx, point_t* x, real_t* result)
   real_t sign = (c->orient == OUTWARD_NORMAL) ? -1.0 : 1.0;
   real_t r2 = (x->x - c->x.x)*(x->x - c->x.x) + 
               (x->y - c->x.y)*(x->y - c->x.y);
-  result[0] = sign * (sqrt(r2) - c->r);
+  result[0] = sign * (rsqrt(r2) - c->r);
 }
 
 static void cyl_eval_gradient(void* ctx, point_t* x, real_t* result)
@@ -46,7 +46,7 @@ static void cyl_eval_gradient(void* ctx, point_t* x, real_t* result)
   cyl_t* c = ctx;
   real_t r2 = (x->x - c->x.x)*(x->x - c->x.x) + 
               (x->y - c->x.y)*(x->y - c->x.y);
-  real_t D = fabs(sqrt(r2) - c->r);
+  real_t D = fabs(rsqrt(r2) - c->r);
   if (D == 0.0)
     result[0] = result[1] = result[2] = 0.0;
   else
