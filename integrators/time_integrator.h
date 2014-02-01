@@ -29,6 +29,10 @@
 #include "core/adj_graph.h"
 #include "integrators/preconditioner.h"
 
+// This function performs any parallel communication that is needed to 
+// put values in place for the evaluation of the residual function.
+typedef void (*time_integrator_communication_func)(void* context, real_t t, real_t* x);
+
 // This virtual table determines the behavior of the time integrator.
 typedef struct
 {
@@ -37,6 +41,9 @@ typedef struct
   // storing it in x_dot. It should return 0 on success, 1 for a 
   // recoverable error, -1 for a fatal error.
   int (*rhs)(void* context, real_t t, real_t* x, real_t* x_dot);
+
+  // Perform inter-process communication.
+  time_integrator_communication_func communicate;
 
   // This (optional) function destroys the state (context) when the time integrator 
   // is destroyed.

@@ -357,7 +357,7 @@ static void poisson_init(void* context, real_t t)
 
     // For now, Use LU preconditioning with the same residual function.
     // Use LU preconditioning with the same residual function.
-    preconditioner_t* lu_precond = lu_preconditioner_new(p, fv_poisson_residual, p->graph);
+    preconditioner_t* lu_precond = lu_preconditioner_new(p, fv_poisson_residual, NULL, p->graph);
     nonlinear_integrator_set_preconditioner(p->solver, lu_precond);
 
     // Allocate storage for cell face fluxes.
@@ -389,7 +389,7 @@ static void poisson_init(void* context, real_t t)
     p->solver = bicgstab_nonlinear_integrator_new("Poisson (FVPM)", p, MPI_COMM_WORLD, N, vtable, LINE_SEARCH, 15);
 
     // For now, Use LU preconditioning with the same residual function.
-    preconditioner_t* lu_precond = lu_preconditioner_new(p, fvpm_poisson_residual, p->graph);
+    preconditioner_t* lu_precond = lu_preconditioner_new(p, fvpm_poisson_residual, NULL, p->graph);
     nonlinear_integrator_set_preconditioner(p->solver, lu_precond);
   }
 

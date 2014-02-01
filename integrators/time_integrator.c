@@ -67,6 +67,12 @@ static int evaluate_rhs(real_t t, N_Vector x, N_Vector x_dot, void* context)
   time_integrator_t* integ = context;
   real_t* xx = NV_DATA(x);
   real_t* xxd = NV_DATA(x_dot);
+
+  // Do parallel communication.
+  if (integ->vtable.communicate != NULL)
+    integ->vtable.communicate(integ->context, t, xx);
+
+  // Evaluate the RHS.
   return integ->vtable.rhs(integ->context, t, xx, xxd);
 }
 

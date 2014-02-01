@@ -67,6 +67,12 @@ preconditioner_t* preconditioner_new(const char* name,
 // Destroys the given preconditioner.
 void preconditioner_free(preconditioner_t* precond);
 
+// Returns an internal pointer to the name of the preconditioner.
+char* preconditioner_name(preconditioner_t* precond);
+
+// Returns the data context for the preconditioner.
+void* preconditioner_context(preconditioner_t* precond);
+
 // Constructs a new preconditioner matrix for this preconditioner.
 preconditioner_matrix_t* preconditioner_matrix(preconditioner_t* precond);
 

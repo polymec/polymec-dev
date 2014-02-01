@@ -43,6 +43,10 @@ typedef enum
 // -1 for a fatal error.
 typedef int (*nonlinear_integrator_residual_func)(void* context, real_t t, real_t* x, real_t* F);
 
+// This function performs any parallel communication that is needed to 
+// put values in place for the evaluation of the residual function.
+typedef void (*nonlinear_integrator_communication_func)(void* context, real_t t, real_t* x);
+
 // Scaling function.
 typedef void (*nonlinear_integrator_scaling_func)(void* context, real_t* scale_factor);
 
@@ -56,6 +60,9 @@ typedef void (*nonlinear_integrator_dtor)(void* context);
 typedef struct
 {
   nonlinear_integrator_residual_func eval;
+
+  // Perform inter-process communication.
+  nonlinear_integrator_communication_func communicate;
 
   // This (optional) function sets the "x-scaling vector," which contains the diagonal 
   // components of a matrix Dx such that the components of Dx * x all have 

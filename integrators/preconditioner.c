@@ -58,6 +58,16 @@ void preconditioner_free(preconditioner_t* precond)
   free(precond);
 }
 
+char* preconditioner_name(preconditioner_t* precond)
+{
+  return precond->name;
+}
+
+void* preconditioner_context(preconditioner_t* precond)
+{
+  return precond->context;
+}
+
 preconditioner_matrix_t* preconditioner_matrix(preconditioner_t* precond)
 {
   return precond->vtable.matrix(precond->context);

@@ -34,6 +34,7 @@ typedef struct
   adj_graph_t* sparsity;
   adj_graph_coloring_t* coloring;
   int (*F)(void* context, real_t t, real_t* x, real_t* F);
+  void (*communicate)(void* context, real_t t, real_t* x);
   void* context;
 
   int N; // Number of rows in matrix.
@@ -144,6 +145,7 @@ static preconditioner_matrix_t* lu_preconditioner_matrix(void* context)
 // Here's our finite difference implementation of the Jacobian matrix-vector 
 // product. 
 static void finite_diff_Jv(int (*F)(void* context, real_t t, real_t* x, real_t* F), 
+                           void (*communicate)(void* context, real_t t, real_t* x),
                            void* context, 
                            real_t* x, 
                            real_t t, 
@@ -164,6 +166,8 @@ static void finite_diff_Jv(int (*F)(void* context, real_t t, real_t* x, real_t* 
     work[2][i] = x[i] + eps*v[i];
 
   // F(t, x + eps*v) -> work[3].
+  if (communicate != NULL)
+    communicate(context, t, work[2]);
   F(context, t, work[2], work[3]);
 
   // (F(x + eps*v) - F(x)) / eps -> Jv
@@ -223,11 +227,13 @@ static void lu_preconditioner_compute_jacobian(void* context, real_t t, real_t* 
       work[0][i] = 1.0;
 
     // We evaluate F(x) and place it into work[1].
+    if (precond->communicate != NULL)
+      precond->communicate(context, t, x);
     precond->F(context, t, x, work[1]);
 
     // Now evaluate the matrix-vector product.
     memset(Jv, 0, sizeof(real_t) * num_rows);
-    finite_diff_Jv(precond->F, context, x, t, num_rows, work[0], work, Jv);
+    finite_diff_Jv(precond->F, precond->communicate, context, x, t, num_rows, work[0], work, Jv);
 
     // Copy the components of Jv into their proper locations.
     SuperMatrix* J = preconditioner_matrix_context(mat);
@@ -276,19 +282,21 @@ static void lu_preconditioner_dtor(void* context)
 
 preconditioner_t* lu_preconditioner_new(void* context,
                                         int (*residual_func)(void* context, real_t t, real_t* x, real_t* F),
+                                        void (*communication_func)(void* context, real_t t, real_t* x),
                                         adj_graph_t* sparsity)
 {
   lu_preconditioner_t* precond = malloc(sizeof(lu_preconditioner_t));
   precond->sparsity = sparsity;
   precond->coloring = adj_graph_coloring_new(sparsity, SMALLEST_LAST);
   precond->F = residual_func;
+  precond->communicate = communication_func;
   precond->context = context;
   precond->ilu_params = NULL;
 
   // Preconditioner data.
   int N = adj_graph_num_vertices(sparsity);
   real_t* rhs = malloc(sizeof(real_t) * N);
-  dCreate_Dense_Matrix(&precond->rhs, N, 1, rhs, N, SLU_DN, SLU_D, SLU_GE);
+  dCreate_Dense_Matrix(precond->rhs, N, 1, rhs, N, SLU_DN, SLU_D, SLU_GE);
   StatInit(&precond->stat);
   precond->cperm = intMalloc(N);
   precond->rperm = intMalloc(N);
@@ -338,6 +346,7 @@ static void ilu_preconditioner_solve(void* context, preconditioner_matrix_t* A, 
 // ILU preconditioner.
 preconditioner_t* ilu_preconditioner_new(void* context,
                                          int (*residual_func)(void* context, real_t t, real_t* x, real_t* F),
+                                         void (*communication_func)(void* context, real_t t, real_t* x),
                                          adj_graph_t* sparsity, 
                                          ilu_params_t* ilu_params)
 {
@@ -345,6 +354,7 @@ preconditioner_t* ilu_preconditioner_new(void* context,
   precond->sparsity = sparsity;
   precond->coloring = adj_graph_coloring_new(sparsity, SMALLEST_LAST);
   precond->F = residual_func;
+  precond->communicate = communication_func;
   precond->context = context;
   precond->ilu_params = ilu_params;
 

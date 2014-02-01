@@ -73,6 +73,12 @@ static int evaluate_F(N_Vector x, N_Vector F, void* context)
   nonlinear_integrator_t* integrator = context;
   real_t* xx = NV_DATA(x);
   real_t* FF = NV_DATA(F);
+
+  // Do parallel communication.
+  if (integrator->vtable.communicate != NULL)
+    integrator->vtable.communicate(integrator->context, integrator->current_time, xx);
+
+  // Evaluate the residual.
   return integrator->vtable.eval(integrator->context, integrator->current_time, xx, FF);
 }
 

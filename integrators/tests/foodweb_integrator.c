@@ -398,7 +398,7 @@ nonlinear_integrator_t* foodweb_integrator_new()
                                                                  vtable, 
                                                                  NONE, 15, 2);
   // Use LU preconditioning with the same residual function.
-  preconditioner_t* lu_precond = lu_preconditioner_new(data, foodweb_func, data->graph);
+  preconditioner_t* lu_precond = lu_preconditioner_new(data, foodweb_func, NULL, data->graph);
   nonlinear_integrator_set_preconditioner(integ, lu_precond);
 
   return integ;
