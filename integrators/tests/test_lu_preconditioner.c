@@ -133,7 +133,6 @@ void test_numerical_jacobian_ds1(void **state) {
   // expected jacobian:
   // J = [ 1  1  ]
   //     [ 2  10 ]
-
   assert_true(fabs(preconditioner_matrix_coeff(mat, 0, 0) - 1.0) < 1e-14);
   assert_true(fabs(preconditioner_matrix_coeff(mat, 0, 1) - 1.0) < 1e-14);
   assert_true(fabs(preconditioner_matrix_coeff(mat, 1, 0) - 2.0) < 1e-14);

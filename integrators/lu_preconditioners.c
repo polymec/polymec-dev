@@ -43,7 +43,7 @@ typedef struct
   int num_work_vectors;
   real_t** work;
 
-  SuperMatrix *rhs, L, U;
+  SuperMatrix rhs, L, U;
   int *rperm, *cperm;
   superlu_options_t options;
   SuperLUStat_t stat;
@@ -56,21 +56,21 @@ typedef struct
 static real_t supermatrix_coeff(void* context, int i, int j)
 {
   SuperMatrix* mat = context;
-  NRformat* data = mat->Store;
+  NCformat* data = mat->Store;
   real_t* Aij = data->nzval;
   if (i == j)
-    return Aij[data->rowptr[i]];
+    return Aij[data->colptr[i]];
   else
   {
-    int row_index = data->rowptr[i];
-    size_t num_cols = data->rowptr[i+1] - row_index;
-    int* entry = int_bsearch(&data->colind[row_index+1], num_cols - 1, j);
+    int col_index = data->colptr[j];
+    size_t num_rows = data->colptr[j+1] - col_index;
+    int* entry = int_bsearch(&data->rowind[col_index+1], num_rows - 1, i);
     if (entry == NULL)
       return 0.0;
     else
     {
-      size_t offset = entry - &data->colind[row_index];
-      return Aij[data->rowptr[i] + offset];
+      size_t offset = entry - &data->rowind[col_index];
+      return Aij[data->colptr[j] + offset];
     }
   }
 }
@@ -133,9 +133,9 @@ static preconditioner_matrix_t* lu_preconditioner_matrix(void* context)
   memset(mat_zeros, 0, sizeof(real_t) * num_nz);
 
   // Hand over these resources to create the Supermatrix.
-  dCreate_CompRow_Matrix(A, num_rows, num_rows, num_nz, 
+  dCreate_CompCol_Matrix(A, num_rows, num_rows, num_nz, 
                          mat_zeros, col_indices, row_ptrs, 
-                         SLU_NR, SLU_D, SLU_GE);
+                         SLU_NC, SLU_D, SLU_GE);
 
   preconditioner_matrix_vtable vtable = {.coeff = supermatrix_coeff,
                                          .dtor = supermatrix_dtor};
@@ -181,7 +181,7 @@ static void insert_Jv_into_supermatrix(adj_graph_t* graph,
                                        real_t* Jv, 
                                        SuperMatrix* J)
 {
-  NRformat* data = J->Store;
+  NCformat* data = J->Store;
   real_t* Jij = data->nzval;
   int pos = 0, i;
   while (adj_graph_coloring_next_vertex(coloring, color, &pos, &i))
@@ -189,18 +189,18 @@ static void insert_Jv_into_supermatrix(adj_graph_t* graph,
     if (Jv[i] != 0.0)
     {
       // Fill in the diagonal element.
-      Jij[data->rowptr[i]] = Jv[i];
+      Jij[data->colptr[i]] = Jv[i];
 
       int pos = 0, j;
       while (adj_graph_next_edge(graph, i, &pos, &j))
       {
-        // Off-diagonal value.
-        int row_index = data->rowptr[i];
-        size_t num_cols = data->rowptr[i+1] - row_index;
-        int* entry = int_bsearch(&data->colind[row_index+1], num_cols - 1, j);
+        // Off-diagonal (row) value.
+        int col_index = data->colptr[i];
+        size_t num_rows = data->colptr[i+1] - col_index;
+        int* entry = int_bsearch(&data->rowind[col_index+1], num_rows - 1, j);
         ASSERT(entry != NULL);
-        size_t offset = entry - &data->colind[row_index];
-        Jij[data->rowptr[i] + offset] = Jv[j];
+        size_t offset = entry - &data->rowind[col_index];
+        Jij[data->colptr[i] + offset] = Jv[j];
       }
     }
   }
@@ -248,13 +248,19 @@ static void lu_preconditioner_solve(void* context, preconditioner_matrix_t* A, r
   SuperMatrix* mat = preconditioner_matrix_context(A);
 
   // Copy B to the rhs vector.
-  DNformat* rhs = precond->rhs->Store;
+  DNformat* rhs = precond->rhs.Store;
   memcpy(rhs->nzval, B, sizeof(real_t) * precond->N);
+
+  if (precond->cperm == NULL)
+  {
+    precond->cperm = intMalloc(precond->N);
+    precond->rperm = intMalloc(precond->N);
+  }
 
   // Do the solve.
   int info;
   dgssv(&precond->options, mat, precond->cperm, precond->rperm, 
-        &precond->L, &precond->U, precond->rhs, &precond->stat, &info);
+        &precond->L, &precond->U, &precond->rhs, &precond->stat, &info);
   precond->options.Fact = SamePattern;
 
   // Copy the rhs vector to B.
@@ -270,7 +276,7 @@ static void lu_preconditioner_dtor(void* context)
     SUPERLU_FREE(precond->rperm);
     Destroy_SuperNode_Matrix(&precond->L);
     Destroy_CompCol_Matrix(&precond->U);
-    Destroy_SuperMatrix_Store(precond->rhs);
+    Destroy_SuperMatrix_Store(&precond->rhs);
   }
   for (int i = 0; i < precond->num_work_vectors; ++i)
     free(precond->work[i]);
@@ -294,17 +300,16 @@ preconditioner_t* lu_preconditioner_new(void* context,
   precond->ilu_params = NULL;
 
   // Preconditioner data.
-  int N = adj_graph_num_vertices(sparsity);
-  real_t* rhs = malloc(sizeof(real_t) * N);
-  dCreate_Dense_Matrix(precond->rhs, N, 1, rhs, N, SLU_DN, SLU_D, SLU_GE);
+  precond->N = adj_graph_num_vertices(precond->sparsity);
+  real_t* rhs = malloc(sizeof(real_t) * precond->N);
+  dCreate_Dense_Matrix(&precond->rhs, precond->N, 1, rhs, precond->N, SLU_DN, SLU_D, SLU_GE);
   StatInit(&precond->stat);
-  precond->cperm = intMalloc(N);
-  precond->rperm = intMalloc(N);
+  precond->cperm = NULL;
+  precond->rperm = NULL;
   set_default_options(&precond->options);
   precond->options.Fact = DOFACT;
 
   // Make work vectors.
-  precond->N = adj_graph_num_vertices(precond->sparsity);
   precond->num_work_vectors = 4;
   precond->work = malloc(sizeof(real_t*) * precond->num_work_vectors);
   for (int i = 0; i < precond->num_work_vectors; ++i)
