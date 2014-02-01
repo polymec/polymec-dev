@@ -186,7 +186,6 @@ void adj_graph_set_num_edges(adj_graph_t* graph, int vertex, int num_edges)
     int num_edges_added = num_edges - old_num_edges;
     if (tot_num_edges + num_edges_added > graph->edge_cap)
     {
-      int old_edge_cap = graph->edge_cap;
       while (tot_num_edges + num_edges_added > graph->edge_cap)
         graph->edge_cap *= 2;
       graph->adjacency = realloc(graph->adjacency, sizeof(int) * graph->edge_cap);

@@ -134,7 +134,6 @@
 // indices is = 0, jx = i, jy = j.    
 
 #define IJ_Vptr(vv,i,j)   (&vv[i*NUM_SPECIES + j*NSMX])
-#define IJ_index(i,j)     (i*NUM_SPECIES + j*NSMX)
 
 typedef struct 
 {
@@ -225,21 +224,20 @@ static foodweb_t* foodweb_new()
     for (int jx = 0; jx < MX; jx++) 
     {
       // Set left/right index shifts, special at boundaries. 
-      int idxl = (jx !=  0  ) ?  NUM_SPECIES : -NUM_SPECIES;
-      int idxr = (jx != MX-1) ?  NUM_SPECIES : -NUM_SPECIES;
+      int idxl = (jx !=  0  ) ?  1 : -1;
+      int idxr = (jx != MX-1) ?  1 : -1;
 
-      int idx = IJ_index(jx, jy);
-      for(int is = 0; is < NUM_SPECIES; is++) 
-      {
-        adj_graph_set_num_edges(sparsity, idx + is, 4);
-        int* edges = adj_graph_edges(sparsity, is);
-        edges[0] = idx - idyl + is; // lower
-        edges[1] = idx + idyu + is; // upper
-        edges[2] = idx - idxl + is; // left
-        edges[3] = idx - idxr + is; // right
-      }
+      int idx = jx + MX*jy;
+      adj_graph_set_num_edges(sparsity, idx, 4);
+      int* edges = adj_graph_edges(sparsity, idx);
+      edges[0] = idx - idyl; // lower
+      edges[1] = idx + idyu; // upper
+      edges[2] = idx - idxl; // left
+      edges[3] = idx - idxr; // right
     }
   }
+
+  adj_graph_fprintf(sparsity, stdout);
 
   data->sparsity = adj_graph_new_with_block_size(NUM_SPECIES, sparsity);
   adj_graph_free(sparsity);
