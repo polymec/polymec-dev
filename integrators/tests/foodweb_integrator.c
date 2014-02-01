@@ -251,7 +251,6 @@ static foodweb_t* foodweb_new()
   data->sparsity = adj_graph_new_with_block_size(NUM_SPECIES, sparsity);
   adj_graph_free(sparsity);
 
-printf("data = %p\n", data);
   return data;
 }
 
@@ -303,7 +302,6 @@ static int foodweb_func(void* context, real_t t, real_t* cc, real_t* fval)
   real_t xx, yy, delx, dely, *cxy, *rxy, *fxy, dcyli, dcyui, dcxli, dcxri;
   long int jx, jy, is, idyu, idyl, idxr, idxl;
   foodweb_t* data = context;
-printf("*data = %p\n", data);
   
   delx = data->dx;
   dely = data->dy;

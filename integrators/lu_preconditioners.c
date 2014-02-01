@@ -228,12 +228,12 @@ static void lu_preconditioner_compute_jacobian(void* context, real_t t, real_t* 
 
     // We evaluate F(x) and place it into work[1].
     if (precond->communicate != NULL)
-      precond->communicate(context, t, x);
-    precond->F(context, t, x, work[1]);
+      precond->communicate(precond->context, t, x);
+    precond->F(precond->context, t, x, work[1]);
 
     // Now evaluate the matrix-vector product.
     memset(Jv, 0, sizeof(real_t) * num_rows);
-    finite_diff_Jv(precond->F, precond->communicate, context, x, t, num_rows, work[0], work, Jv);
+    finite_diff_Jv(precond->F, precond->communicate, precond->context, x, t, num_rows, work[0], work, Jv);
 
     // Copy the components of Jv into their proper locations.
     SuperMatrix* J = preconditioner_matrix_context(mat);
@@ -374,6 +374,6 @@ preconditioner_t* ilu_preconditioner_new(void* context,
                                   .compute_jacobian = lu_preconditioner_compute_jacobian,
                                   .solve = ilu_preconditioner_solve,
                                   .dtor = lu_preconditioner_dtor};
-  return preconditioner_new("LU preconditioner", precond, vtable);
+  return preconditioner_new("ILU preconditioner", precond, vtable);
 }
 
