@@ -24,16 +24,6 @@
 
 #include "core/octree.h"
 
-static real_t square(real_t x) 
-{
-  return x*x;
-}
-
-static real_t square_dist(real_t* x, real_t* y)
-{
-  return square(x[0]-y[0]) + square(x[1]-y[1]) + square(x[2]-y[2]);
-}
-
 // A bucket PR (point region) octree.
 
 typedef enum

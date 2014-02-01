@@ -72,21 +72,40 @@ char* string_dup(const char* s)
   return copy;
 }
 
+char* string_ndup(const char* s, int n)
+{
+  int len = MIN(n, strlen(s));
+  char* copy = malloc((len+1)*sizeof(char));
+  strncpy(copy, s, n);
+  copy[n] = '\0';
+  return copy;
+}
+
+bool string_next_token(const char* s, const char* delimiter, int* pos, char** token, int* length)
+{
+  if (*pos >= strlen(s))
+    return false;
+  char* delim = strstr((const char*)&(s[*pos]), delimiter);
+  *token = (char*)&(s[*pos]);
+  if (delim == NULL)
+  {
+    *length = strlen(s) - *pos;
+    *pos = strlen(s);
+  }
+  else
+  {
+    *length = (delim - s) - *pos;
+    *pos = (delim - s) + strlen(delimiter);
+  }
+  return true;
+}
+
 int string_num_tokens(const char* s, const char* delimiter)
 {
-  int num_tokens = 0;
-  if (s != NULL) 
-  {
-    char* copy = string_dup(s);
-    char* p = copy;
-    char *last, *token;
-    while ((token = strtok_r(p, delimiter, &last)) != NULL) 
-    {
-      p = last;
-      ++num_tokens;
-    }
-    free(copy);
-  }
+  int num_tokens = 0, pos = 0, length;
+  char* token;
+  while (string_next_token(s, delimiter, &pos, &token, &length))
+    ++num_tokens;
   return num_tokens;
 }
 
@@ -95,18 +114,12 @@ char** string_split(const char* s, const char* delimiter, int* num_substrings)
   *num_substrings = string_num_tokens(s, delimiter);
   if (*num_substrings == 0)
     return NULL;
+
+  int i = 0, pos = 0, length;
+  char* token;
   char** strs = malloc(sizeof(char*) * (*num_substrings));
-
-  char* copy = string_dup(s);
-  char* p = copy;
-  char *last;
-  for (int i = 0; i < (*num_substrings); ++i)
-  {
-    strs[i] = string_dup(strtok_r(p, delimiter, &last));
-    p = last;
-  }
-  free(copy);
-
+  while (string_next_token(s, delimiter, &pos, &token, &length))
+    strs[i++] = string_ndup(token, length);
   return strs;
 }
 

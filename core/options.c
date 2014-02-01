@@ -91,12 +91,22 @@ options_t* options_parse(int argc, char** argv)
   while (i < argc)
   {
     // Parse a key=value pair.
-    char arg[80];
-    strncpy(arg, argv[i], 80);
-    char *value = NULL;
-    char* key = strtok_r(arg, "=", &value);
-    if ((key != NULL) && (value != NULL))
-      options_set(o, key, value);
+    int pos = 0, length;
+    char* token;
+    if (string_next_token(argv[i], "=", &pos, &token, &length))
+    {
+      // We found a key with an '=' after it. What's the value?
+      char key[length+1];
+      strncpy(key, token, length);
+      key[length] = '\0';
+      if (string_next_token(argv[i], "=", &pos, &token, &length))
+      {
+        char value[length+1];
+        strncpy(value, token, length);
+        value[length] = '\0';
+        options_set(o, key, value);
+      }
+    }
 
     // Next!
     ++i;

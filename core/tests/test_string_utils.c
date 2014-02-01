@@ -55,24 +55,26 @@ void test_string_dup(void** state)
   free(s2);
 }
 
-void test_string_num_tokens(void** state)
+void test_string_next_token(void** state)
 {
   const char* whole_string = "this,that,and the other";
-  assert_int_equal(3, string_num_tokens(whole_string, ","));
-}
+  int pos = 0, len;
+  char* token, token_copy[128];
 
-void test_string_split(void** state)
-{
-  const char* whole_string = "this,that,and the other";
-  int num_substrings;
-  char** substrings = string_split(whole_string, ",", &num_substrings);
-  assert_int_equal(3, num_substrings);
-  assert_true(!strcmp(substrings[0], "this"));
-  assert_true(!strcmp(substrings[1], "that"));
-  assert_true(!strcmp(substrings[2], "and the other"));
-  for (int i = 0; i < 3; ++i)
-    free(substrings[i]);
-  free(substrings);
+  assert_true(string_next_token(whole_string, ",", &pos, &token, &len));
+  assert_int_equal(4, len);
+  strncpy(token_copy, token, len);
+  assert_true(strncmp("this", token_copy, 4) == 0);
+
+  assert_true(string_next_token(whole_string, ",", &pos, &token, &len));
+  assert_int_equal(4, len);
+  strncpy(token_copy, token, len);
+  assert_true(strncmp("that", token_copy, 4) == 0);
+
+  assert_true(string_next_token(whole_string, ",", &pos, &token, &len));
+  assert_int_equal(13, len);
+  strncpy(token_copy, token, len);
+  assert_true(strncmp("and the other", token_copy, 13) == 0);
 }
 
 void test_string_is_number(void** state)
@@ -109,8 +111,7 @@ int main(int argc, char* argv[])
     unit_test(test_parse_path),
     unit_test(test_join_paths),
     unit_test(test_string_dup),
-    unit_test(test_string_num_tokens),
-    unit_test(test_string_split),
+    unit_test(test_string_next_token),
     unit_test(test_string_is_number),
     unit_test(test_string_subst)
   };
