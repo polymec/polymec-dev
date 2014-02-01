@@ -168,6 +168,8 @@ int adj_graph_num_vertices(adj_graph_t* graph)
 
 void adj_graph_set_num_edges(adj_graph_t* graph, int vertex, int num_edges)
 {
+  ASSERT(vertex >= 0);
+  ASSERT(vertex < adj_graph_num_vertices(graph));
   int old_num_edges = graph->xadj[vertex+1] - graph->xadj[vertex];
   int num_vertices = graph->vtx_dist[graph->rank+1] - graph->vtx_dist[graph->rank];
   int tot_num_edges = graph->xadj[num_vertices];
@@ -184,9 +186,11 @@ void adj_graph_set_num_edges(adj_graph_t* graph, int vertex, int num_edges)
     int num_edges_added = num_edges - old_num_edges;
     if (tot_num_edges + num_edges_added > graph->edge_cap)
     {
+      int old_edge_cap = graph->edge_cap;
       while (tot_num_edges + num_edges_added > graph->edge_cap)
         graph->edge_cap *= 2;
       graph->adjacency = realloc(graph->adjacency, sizeof(int) * graph->edge_cap);
+      memset(&graph->adjacency[tot_num_edges], 0, sizeof(int) * (graph->edge_cap - tot_num_edges));
     }
     for (int i = graph->xadj[vertex]; i < tot_num_edges; ++i)
       graph->adjacency[i + num_edges_added] = graph->adjacency[i];

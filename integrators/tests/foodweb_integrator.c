@@ -163,7 +163,6 @@ static foodweb_t* foodweb_new()
 
   foodweb_t* data = malloc(sizeof(foodweb_t));
   acoef = newDenseMat(NUM_SPECIES, NUM_SPECIES);
-printf("acoef = %p\n", acoef);
   bcoef = malloc(NUM_SPECIES * sizeof(real_t));
   cox   = malloc(NUM_SPECIES * sizeof(real_t));
   coy   = malloc(NUM_SPECIES * sizeof(real_t));
@@ -232,7 +231,7 @@ printf("acoef = %p\n", acoef);
       int idx = IJ_index(jx, jy);
       for(int is = 0; is < NUM_SPECIES; is++) 
       {
-        adj_graph_set_num_edges(sparsity, is, 4);
+        adj_graph_set_num_edges(sparsity, idx + is, 4);
         int* edges = adj_graph_edges(sparsity, is);
         edges[0] = idx - idyl + is; // lower
         edges[1] = idx + idyu + is; // upper
@@ -296,7 +295,6 @@ static int foodweb_func(void* context, real_t t, real_t* cc, real_t* fval)
   real_t xx, yy, delx, dely, *cxy, *rxy, *fxy, dcyli, dcyui, dcxli, dcxri;
   long int jx, jy, is, idyu, idyl, idxr, idxl;
   foodweb_t* data = context;
-printf("*data = %p\n", data);
   
   delx = data->dx;
   dely = data->dy;
@@ -393,7 +391,6 @@ nonlinear_integrator_t* foodweb_integrator_new()
                                         .set_F_scale = foodweb_set_F_scale,
                                         .set_constraints = foodweb_set_constraints,
                                         .dtor = foodweb_dtor};
-printf("data = %p\n", data);
   nonlinear_integrator_t* integ = gmres_nonlinear_integrator_new("Food web",
                                                                  data,
                                                                  MPI_COMM_SELF,
