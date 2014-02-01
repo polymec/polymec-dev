@@ -218,8 +218,8 @@ static foodweb_t* foodweb_new()
   for (int jy = 0; jy < MY; jy++) 
   {
     // Set lower/upper index shifts, special at boundaries. 
-    int idyl = (jy != 0   ) ? NSMX : -NSMX;
-    int idyu = (jy != MY-1) ? NSMX : -NSMX;
+    int idyl = (jy != 0   ) ? MX : -MX;
+    int idyu = (jy != MY-1) ? MX : -MX;
     
     for (int jx = 0; jx < MX; jx++) 
     {
@@ -228,12 +228,18 @@ static foodweb_t* foodweb_new()
       int idxr = (jx != MX-1) ?  1 : -1;
 
       int idx = jx + MX*jy;
-      adj_graph_set_num_edges(sparsity, idx, 4);
-      int* edges = adj_graph_edges(sparsity, idx);
-      edges[0] = idx - idyl; // lower
-      edges[1] = idx + idyu; // upper
-      edges[2] = idx - idxl; // left
-      edges[3] = idx - idxr; // right
+      int num_edges = 0;
+      int edges[4];
+      if (jy > 0)
+        edges[num_edges++] = idx - idyl; // lower
+      if (jy < (MY-1))
+        edges[num_edges++] = idx + idyu; // upper
+      if (jx > 0)
+        edges[num_edges++] = idx - idxl; // left
+      if (jx < (MX-1))
+        edges[num_edges++] = idx + idxr; // right
+      adj_graph_set_num_edges(sparsity, idx, num_edges);
+      memcpy(adj_graph_edges(sparsity, idx), edges, sizeof(int) * num_edges);
     }
   }
 
