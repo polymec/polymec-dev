@@ -6,6 +6,7 @@ mpi        = not-set
 precision  = not-set
 verbose    = not-set
 prefix     = not-set
+sanitize   = not-set
 
 # This proxies everything to the builddir cmake.
 
@@ -70,6 +71,12 @@ else
   ifeq ($(systype), Linux)
     CONFIG_FLAGS += -DLINUX=1
   endif
+endif
+
+# Address sanitizer.
+ifeq ($(sanitize), 1)
+  BUILDDIR := ${BUILDDIR}-AddressSanitizer
+  CONFIG_FLAGS += -DADDRESS_SANITIZER=1
 endif
 
 define run-config
