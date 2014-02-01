@@ -79,9 +79,6 @@
 // The nonlinear system is solved by KINSOL using the method
 // specified in local variable globalstrat.
 //
-// The preconditioner matrix is a block-diagonal matrix based on
-// the partial derivatives of the interaction terms f only.
-//
 // Constraints are imposed to make all components of the solution
 // positive.
 // -----------------------------------------------------------------
@@ -137,11 +134,10 @@
 // indices is = 0, jx = i, jy = j.    
 
 #define IJ_Vptr(vv,i,j)   (&vv[i*NUM_SPECIES + j*NSMX])
+#define IJ_index(i,j)     (i*NUM_SPECIES + j*NSMX)
 
 typedef struct 
 {
-  real_t **P[MX][MY];
-  long *pivot[MX][MY];
   real_t **acoef, *bcoef;
   real_t *rates;
   real_t *cox, *coy;
@@ -149,8 +145,8 @@ typedef struct
   real_t uround, sqruround;
   long int mx, my, ns, np;
 
-  // Adjacency graph for preconditioner matrix.
-  adj_graph_t* graph;
+  // Sparsity graph for preconditioner matrix.
+  adj_graph_t* sparsity;
 
 } foodweb_t;
 
@@ -163,20 +159,11 @@ typedef struct
 // Newly initialized food web data context.
 static foodweb_t* foodweb_new()
 {
-  long int i, j, np, jx, jy;
-  real_t *a1,*a2, *a3, *a4, dx2, dy2;
+  real_t *a1,*a2, *a3, *a4;
 
   foodweb_t* data = malloc(sizeof(foodweb_t));
-  
-  for (jx=0; jx < MX; jx++) 
-  {
-    for (jy=0; jy < MY; jy++) 
-    {
-      (data->P)[jx][jy] = newDenseMat(NUM_SPECIES, NUM_SPECIES);
-      (data->pivot)[jx][jy] = newLintArray(NUM_SPECIES);
-    }
-  }
   acoef = newDenseMat(NUM_SPECIES, NUM_SPECIES);
+printf("acoef = %p\n", acoef);
   bcoef = malloc(NUM_SPECIES * sizeof(real_t));
   cox   = malloc(NUM_SPECIES * sizeof(real_t));
   coy   = malloc(NUM_SPECIES * sizeof(real_t));
@@ -194,11 +181,11 @@ static foodweb_t* foodweb_new()
   data->rates = malloc(sizeof(real_t) * NEQ);
 
   // Set up the coefficients a and b plus others found in the equations.
-  np = data->np;
+  long np = data->np;
 
-  dx2=(data->dx)*(data->dx); dy2=(data->dy)*(data->dy);
+  real_t dx2=(data->dx)*(data->dx), dy2=(data->dy)*(data->dy);
 
-  for (i = 0; i < np; i++) 
+  for (long i = 0; i < np; i++) 
   {
     a1= &(acoef[i][np]);
     a2= &(acoef[i+np][0]);
@@ -206,7 +193,7 @@ static foodweb_t* foodweb_new()
     a4= &(acoef[i+np][np]);
 
     // Fill in the portion of acoef in the four quadrants, row by row...
-    for (j = 0; j < np; j++) 
+    for (long j = 0; j < np; j++) 
     {
       *a1++ =  -GG;
       *a2++ =   EE;
@@ -228,11 +215,35 @@ static foodweb_t* foodweb_new()
     coy[i+np]=DPRED/dy2;
   }  
 
-  // Now construct an adjacency graph for the problem.
-  adj_graph_t* graph = adj_graph_new(MPI_COMM_SELF, MX*MY);
-  // FIXME
-  data->graph = adj_graph_new_with_block_size(NUM_SPECIES, graph);
-  adj_graph_free(graph);
+  // Construct a sparsity graph.
+  adj_graph_t* sparsity = adj_graph_new(MPI_COMM_SELF, MX*MY);
+  for (int jy = 0; jy < MY; jy++) 
+  {
+    // Set lower/upper index shifts, special at boundaries. 
+    int idyl = (jy != 0   ) ? NSMX : -NSMX;
+    int idyu = (jy != MY-1) ? NSMX : -NSMX;
+    
+    for (int jx = 0; jx < MX; jx++) 
+    {
+      // Set left/right index shifts, special at boundaries. 
+      int idxl = (jx !=  0  ) ?  NUM_SPECIES : -NUM_SPECIES;
+      int idxr = (jx != MX-1) ?  NUM_SPECIES : -NUM_SPECIES;
+
+      int idx = IJ_index(jx, jy);
+      for(int is = 0; is < NUM_SPECIES; is++) 
+      {
+        adj_graph_set_num_edges(sparsity, is, 4);
+        int* edges = adj_graph_edges(sparsity, is);
+        edges[0] = idx - idyl + is; // lower
+        edges[1] = idx + idyu + is; // upper
+        edges[2] = idx - idxl + is; // left
+        edges[3] = idx - idxr + is; // right
+      }
+    }
+  }
+
+  data->sparsity = adj_graph_new_with_block_size(NUM_SPECIES, sparsity);
+  adj_graph_free(sparsity);
 
   return data;
 }
@@ -241,23 +252,13 @@ static foodweb_t* foodweb_new()
 static void foodweb_dtor(void* context)
 {
   foodweb_t* data = context;
-  int jx, jy;
-  
-  for (jx=0; jx < MX; jx++) 
-  {
-    for (jy=0; jy < MY; jy++) 
-    {
-      destroyMat((data->P)[jx][jy]);
-      destroyArray((data->pivot)[jx][jy]);
-    }
-  }
   
   destroyMat(acoef);
   free(bcoef);
   free(cox);
   free(coy);
   free(data->rates);
-  adj_graph_free(data->graph);
+  adj_graph_free(data->sparsity);
   free(data);
 }
 
@@ -295,6 +296,7 @@ static int foodweb_func(void* context, real_t t, real_t* cc, real_t* fval)
   real_t xx, yy, delx, dely, *cxy, *rxy, *fxy, dcyli, dcyui, dcxli, dcxri;
   long int jx, jy, is, idyu, idyl, idxr, idxl;
   foodweb_t* data = context;
+printf("*data = %p\n", data);
   
   delx = data->dx;
   dely = data->dy;
@@ -333,13 +335,13 @@ static int foodweb_func(void* context, real_t t, real_t* cc, real_t* fval)
         // Differencing in y direction 
         dcxli = *(cxy+is) - *(cxy - idxl + is);
         dcxri = *(cxy + idxr +is) - *(cxy+is);
-        
+
         // Compute the total rate value at (xx,yy) 
         fxy[is] = (coy)[is] * (dcyui - dcyli) +
           (cox)[is] * (dcxri - dcxli) + rxy[is];
       }
     }
-  } 
+  }
 
   return 0;
 }
@@ -391,6 +393,7 @@ nonlinear_integrator_t* foodweb_integrator_new()
                                         .set_F_scale = foodweb_set_F_scale,
                                         .set_constraints = foodweb_set_constraints,
                                         .dtor = foodweb_dtor};
+printf("data = %p\n", data);
   nonlinear_integrator_t* integ = gmres_nonlinear_integrator_new("Food web",
                                                                  data,
                                                                  MPI_COMM_SELF,
@@ -398,7 +401,7 @@ nonlinear_integrator_t* foodweb_integrator_new()
                                                                  vtable, 
                                                                  NONE, 15, 2);
   // Use LU preconditioning with the same residual function.
-  preconditioner_t* lu_precond = lu_preconditioner_new(data, foodweb_func, NULL, data->graph);
+  preconditioner_t* lu_precond = lu_preconditioner_new(data, foodweb_func, NULL, data->sparsity);
   nonlinear_integrator_set_preconditioner(integ, lu_precond);
 
   return integ;
