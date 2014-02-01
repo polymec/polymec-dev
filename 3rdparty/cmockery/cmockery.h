@@ -277,6 +277,9 @@
     } \
   }
 
+// Prototype for strsignal().
+extern char* strsignal(int signo);
+
 // Function prototype for setup, test and teardown functions.
 typedef void (*UnitTestFunction)(void **state);
 
