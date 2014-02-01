@@ -227,6 +227,7 @@ static foodweb_t* foodweb_new()
       int idxl = (jx !=  0  ) ?  1 : -1;
       int idxr = (jx != MX-1) ?  1 : -1;
 
+      // Find the edges for the vertex corresponding to (jx, jy).
       int idx = jx + MX*jy;
       int num_edges = 0;
       int edges[4];
@@ -238,6 +239,8 @@ static foodweb_t* foodweb_new()
         edges[num_edges++] = idx - idxl; // left
       if (jx < (MX-1))
         edges[num_edges++] = idx + idxr; // right
+
+      // Set the edges within the sparsity graph.
       adj_graph_set_num_edges(sparsity, idx, num_edges);
       memcpy(adj_graph_edges(sparsity, idx), edges, sizeof(int) * num_edges);
     }
@@ -248,6 +251,7 @@ static foodweb_t* foodweb_new()
   data->sparsity = adj_graph_new_with_block_size(NUM_SPECIES, sparsity);
   adj_graph_free(sparsity);
 
+printf("data = %p\n", data);
   return data;
 }
 
@@ -299,6 +303,7 @@ static int foodweb_func(void* context, real_t t, real_t* cc, real_t* fval)
   real_t xx, yy, delx, dely, *cxy, *rxy, *fxy, dcyli, dcyui, dcxli, dcxri;
   long int jx, jy, is, idyu, idyl, idxr, idxl;
   foodweb_t* data = context;
+printf("*data = %p\n", data);
   
   delx = data->dx;
   dely = data->dy;
