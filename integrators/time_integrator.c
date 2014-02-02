@@ -86,8 +86,8 @@ static int set_up_preconditioner(real_t t, N_Vector x, N_Vector F,
   if (!jacobian_is_current)
   {
     preconditioner_compute_jacobian(integ->precond, t, NV_DATA(x), integ->precond_mat);
+    preconditioner_matrix_scale_and_shift(integ->precond_mat, -gamma);
     *jacobian_was_updated = 1;
-    // FIXME: Incorporate gamma
   }
   else
     *jacobian_was_updated = 0;
@@ -237,6 +237,11 @@ void time_integrator_set_preconditioner(time_integrator_t* integrator,
   if (integrator->precond_mat != NULL)
     preconditioner_matrix_free(integrator->precond_mat);
   integrator->precond_mat = preconditioner_matrix(precond);
+}
+
+void time_integrator_eval_rhs(time_integrator_t* integ, real_t t, real_t* X, real_t* rhs)
+{
+  integ->vtable.rhs(integ->context, t, X, rhs);
 }
 
 void time_integrator_step(time_integrator_t* integ, real_t t1, real_t t2, real_t* X)

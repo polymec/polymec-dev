@@ -108,6 +108,10 @@ int time_integrator_order(time_integrator_t* integrator);
 void time_integrator_set_preconditioner(time_integrator_t* integrator,
                                         preconditioner_t* precond);
 
+// Evaluates the right-hand side of the system at the given time and with the 
+// given solution X, placing the results in rhs.
+void time_integrator_eval_rhs(time_integrator_t* integ, real_t t, real_t* X, real_t* rhs);
+
 // Integrates the given solution X in place from time t1 to t2.
 void time_integrator_step(time_integrator_t* integrator, real_t t1, real_t t2, real_t* X);
 

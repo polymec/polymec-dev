@@ -90,6 +90,9 @@ void preconditioner_solve(preconditioner_t* precond,
                           preconditioner_matrix_t* mat,
                           real_t* rhs);
 
+// Transforms the given preconditioner matrix A to (I - gamma * A).
+typedef void (*preconditioner_matrix_scale_and_shift_func)(void* context, real_t gamma);
+
 // This function provides (read-only) access to the (i, j)th coefficient 
 // in a preconditioner matrix.
 typedef real_t (*preconditioner_matrix_coeff_func)(void* context, int i, int j);
@@ -101,8 +104,9 @@ typedef void (*preconditioner_matrix_dtor)(void* context);
 // representation.
 typedef struct
 {
-  preconditioner_matrix_coeff_func coeff;
-  preconditioner_matrix_dtor dtor;
+  preconditioner_matrix_scale_and_shift_func scale_and_shift;
+  preconditioner_matrix_coeff_func           coeff;
+  preconditioner_matrix_dtor                 dtor;
 } preconditioner_matrix_vtable;
 
 // Constructs a representation of a (square) preconditioner matrix with the 
@@ -118,6 +122,11 @@ void preconditioner_matrix_free(preconditioner_matrix_t* mat);
 
 // Returns the data context for the preconditioner matrix.
 void* preconditioner_matrix_context(preconditioner_matrix_t* mat);
+
+// Transforms the given preconditioner matrix A to (I - gamma * A), where 
+// I is the identity matrix. This is used for preconditioning time-dependent
+// problems.
+void preconditioner_matrix_scale_and_shift(preconditioner_matrix_t* mat, real_t gamma);
 
 // Returns the (i, j)th entry in the preconditioner matrix. This method of 
 // access is slow in general and should only be used for diagnostics.

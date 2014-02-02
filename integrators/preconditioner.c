@@ -93,6 +93,8 @@ preconditioner_matrix_t* preconditioner_matrix_new(const char* name,
                                                    preconditioner_matrix_vtable vtable,
                                                    int num_rows)
 {
+  ASSERT(vtable.scale_and_shift != NULL);
+  ASSERT(vtable.coeff != NULL);
   preconditioner_matrix_t* mat = malloc(sizeof(preconditioner_matrix_t));
   mat->name = string_dup(name);
   mat->context = context;
@@ -112,6 +114,11 @@ void preconditioner_matrix_free(preconditioner_matrix_t* mat)
 void* preconditioner_matrix_context(preconditioner_matrix_t* mat)
 {
   return mat->context;
+}
+
+void preconditioner_matrix_scale_and_shift(preconditioner_matrix_t* mat, real_t gamma)
+{
+  mat->vtable.scale_and_shift(mat->context, gamma);
 }
 
 real_t preconditioner_matrix_coeff(preconditioner_matrix_t* mat, int i, int j)

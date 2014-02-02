@@ -52,6 +52,27 @@ typedef struct
   ilu_params_t* ilu_params;
 } lu_preconditioner_t;
 
+// Transforms A to (I - gamma * A).
+static void supermatrix_scale_and_shift(void* context, real_t gamma)
+{
+  SuperMatrix* mat = context;
+  int num_cols = mat->ncol;
+  NCformat* data = mat->Store;
+  real_t* Aij = data->nzval;
+  for (int j = 0; j < num_cols; ++j)
+  {
+    int col_index = data->colptr[j];
+
+    // Scale and shift diagonal value.
+    Aij[col_index] = gamma * Aij[data->colptr[j]] + 1.0;
+
+    // Scale off-diagonal values.
+    size_t num_rows = data->colptr[j+1] - col_index;
+    for (int i = 1; i < num_rows; ++i)
+      Aij[col_index + i] *= gamma;
+  }
+}
+
 // Returns the (i, j)th entry in a SuperMatrix.
 static real_t supermatrix_coeff(void* context, int i, int j)
 {
@@ -137,7 +158,8 @@ static preconditioner_matrix_t* lu_preconditioner_matrix(void* context)
                          mat_zeros, col_indices, row_ptrs, 
                          SLU_NC, SLU_D, SLU_GE);
 
-  preconditioner_matrix_vtable vtable = {.coeff = supermatrix_coeff,
+  preconditioner_matrix_vtable vtable = {.scale_and_shift = supermatrix_scale_and_shift,
+                                         .coeff = supermatrix_coeff,
                                          .dtor = supermatrix_dtor};
   return preconditioner_matrix_new("SuperMatrix", A, vtable, num_rows);
 }
