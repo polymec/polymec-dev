@@ -46,12 +46,15 @@ void test_foodweb_solve(void** state)
 {
   // Set up the problem.
   nonlinear_integrator_t* integ = foodweb_integrator_new();
+  nonlinear_integrator_set_tolerances(integ, 1e-7, 1e-13);
   real_t* cc = foodweb_initial_conditions();
 
   // Solve it.
   int num_iters;
   bool solved = nonlinear_integrator_solve(integ, 0.0, cc, &num_iters);
   assert_true(solved);
+  log_debug("num iterations = %d\n", num_iters);
+  assert_true(num_iters < 10);
 
   // Evaluate the 2-norm of the residual.
   int num_eq = 6*8*8;
@@ -59,7 +62,7 @@ void test_foodweb_solve(void** state)
   nonlinear_integrator_eval_residual(integ, 0.0, cc, F);
   real_t L2 = l2_norm(F, num_eq);
   log_debug("||F||_L2 = %g\n", L2);
-  assert_true(L2 < 0.128);
+  assert_true(L2 < 6e-6);
 
   nonlinear_integrator_free(integ);
   free(cc);
