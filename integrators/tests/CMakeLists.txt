@@ -4,7 +4,6 @@ add_polymec_test(test_lu_preconditioner test_lu_preconditioner.c)
 add_polymec_test(test_div_free_poly_basis test_div_free_poly_basis.c)
 add_polymec_test(test_sphere_integrator test_sphere_integrator.c)
 add_polymec_test(test_nonlinear_integrator foodweb_integrator.c test_nonlinear_integrator.c)
+add_polymec_test(test_time_integrator diurnal_integrator.c test_time_integrator.c)
 
-add_polymec_executable(kinsol-foodweb kinFoodWeb_kry.c)
-#add_polymec_executable(kinsol-foodweb-smf kinFoodWeb_kry_smf.c)
 

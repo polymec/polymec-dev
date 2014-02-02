@@ -32,6 +32,8 @@
 //------------------------------------------------------------------------
 //                          FOOD WEB PROBLEM
 //------------------------------------------------------------------------
+// This was adapted from KINSol's food web example problem, programmed by 
+// Allan Taylor, Alan Hindmarsh, and Radu Serban @ LLNL.
 // This test solves a nonlinear system that arises from a system
 // of partial differential equations. The PDE system is a food web
 // population model, with predator-prey interaction and diffusion
@@ -401,7 +403,8 @@ nonlinear_integrator_t* foodweb_integrator_new()
                                                                  MPI_COMM_SELF,
                                                                  NEQ,
                                                                  vtable, 
-                                                                 NONE, 15, 2);
+                                                                 NO_GLOBAL_STRATEGY, 
+                                                                 15, 2);
   // Use LU preconditioning with the same residual function.
   preconditioner_t* lu_precond = lu_preconditioner_new(data, foodweb_func, NULL, data->sparsity);
   nonlinear_integrator_set_preconditioner(integ, lu_precond);

@@ -56,6 +56,9 @@ struct time_integrator_t
   real_t current_time;
   int max_krylov_dim;
 
+  // Error weight function.
+  time_integrator_error_weight_func compute_weights;
+
   // Preconditioning stuff.
   preconditioner_t* precond;
   preconditioner_matrix_t* precond_mat;
@@ -123,6 +126,7 @@ static time_integrator_t* time_integrator_new(const char* name,
 {
   ASSERT(N > 0);
   ASSERT(order > 0);
+  ASSERT(order <= 5);
   ASSERT(vtable.rhs != NULL);
   ASSERT(max_krylov_dim >= 3);
 
@@ -140,6 +144,7 @@ static time_integrator_t* time_integrator_new(const char* name,
   // Set up KINSol and accessories.
   integ->x = N_VNew(comm, N);
   integ->cvode = CVodeCreate(CV_BDF, CV_NEWTON);
+  CVodeSetMaxOrd(integ->cvode, integ->order);
   CVodeSetUserData(integ->cvode, integ);
   CVodeInit(integ->cvode, evaluate_rhs, integ->current_time, integ->x);
 
@@ -156,6 +161,11 @@ static time_integrator_t* time_integrator_new(const char* name,
 
   integ->precond = NULL;
   integ->precond_mat = NULL;
+
+  // Set some default tolerances:
+  // relative error of 1e-4 means errors are controlled to 0.01%.
+  // absolute error is set to 1 because it's completely problem dependent.
+  time_integrator_set_tolerances(integ, 1e-4, 1.0);
 
   return integ;
 }
@@ -239,6 +249,41 @@ void time_integrator_set_preconditioner(time_integrator_t* integrator,
   integrator->precond_mat = preconditioner_matrix(precond);
 }
 
+void time_integrator_set_stability_limit_detection(time_integrator_t* integrator,
+                                                   bool use_detection)
+{
+  CVodeSetStabLimDet(integrator->cvode, use_detection);
+}
+
+void time_integrator_set_tolerances(time_integrator_t* integrator,
+                                    real_t relative_tol, real_t absolute_tol)
+{
+  ASSERT(relative_tol > 0.0);
+  ASSERT(absolute_tol > 0.0);
+
+  // Clear any existing error weight function.
+  integrator->compute_weights = NULL;
+
+  // Set the tolerances.
+  CVodeSStolerances(integrator->cvode, relative_tol, absolute_tol);
+}
+
+// Error weight adaptor function.
+static int compute_error_weights(N_Vector y, N_Vector ewt, void* context)
+{
+  time_integrator_t* integ = context;
+  integ->compute_weights(integ->context, NV_DATA(y), NV_DATA(ewt));
+  return 0;
+}
+
+void time_integrator_set_error_weight_function(time_integrator_t* integrator,
+                                               time_integrator_error_weight_func compute_weights)
+{
+  ASSERT(compute_weights != NULL);
+  integrator->compute_weights = compute_weights;
+  CVodeWFtolerances(integrator->cvode, compute_error_weights);
+}
+
 void time_integrator_eval_rhs(time_integrator_t* integ, real_t t, real_t* X, real_t* rhs)
 {
   integ->vtable.rhs(integ->context, t, X, rhs);
@@ -247,7 +292,7 @@ void time_integrator_eval_rhs(time_integrator_t* integ, real_t t, real_t* X, rea
 void time_integrator_step(time_integrator_t* integ, real_t t1, real_t t2, real_t* X)
 {
   ASSERT(t2 > t1);
-  if (integ->current_time != t1)
+  if (fabs(integ->current_time - t1) > 1e-14)
   {
     CVodeReInit(integ->cvode, t1, integ->x);
     integ->current_time = t1;

@@ -29,9 +29,18 @@
 #include "core/adj_graph.h"
 #include "integrators/preconditioner.h"
 
+// This function evaluates the RHS of a system of ODEs.
+typedef int (*time_integrator_rhs_func)(void* context, real_t t, real_t* x, real_t* x_dot);
+
 // This function performs any parallel communication that is needed to 
 // put values in place for the evaluation of the residual function.
 typedef void (*time_integrator_communication_func)(void* context, real_t t, real_t* x);
+
+// This function destroys the state (context).
+typedef void (*time_integrator_dtor)(void* context);
+
+// This function evaluates error weights for use in the WRMS error norm.
+typedef void (*time_integrator_error_weight_func)(void* context, real_t* y, real_t* weights);
 
 // This virtual table determines the behavior of the time integrator.
 typedef struct
@@ -40,19 +49,15 @@ typedef struct
   // nonlinear ordinary different equations at time t with solution x, 
   // storing it in x_dot. It should return 0 on success, 1 for a 
   // recoverable error, -1 for a fatal error.
-  int (*rhs)(void* context, real_t t, real_t* x, real_t* x_dot);
+  time_integrator_rhs_func rhs;
 
   // Perform inter-process communication.
   time_integrator_communication_func communicate;
 
   // This (optional) function destroys the state (context) when the time integrator 
   // is destroyed.
-  void (*dtor)(void* context);
+  time_integrator_dtor dtor;
 
-  // This function returns the adjacency graph reflecting the sparsity of the 
-  // nonlinear system. It is *not* a block graph, so any nonzero blocks should 
-  // be reflected as groups of vertices in the graph.
-  adj_graph_t* (*graph)(void*);
 } time_integrator_vtable;
 
 // This class provides an abstract interface for integrating systems of 
@@ -107,6 +112,22 @@ int time_integrator_order(time_integrator_t* integrator);
 // Sets the preconditioner to use to help solve the equations.
 void time_integrator_set_preconditioner(time_integrator_t* integrator,
                                         preconditioner_t* precond);
+
+// Sets whether to use a stability limit detection algorithm to improve 
+// robustness on particularly stiff problems (2-10% overhead, depending 
+// on the problem).
+void time_integrator_set_stability_limit_detection(time_integrator_t* integrator,
+                                                   bool use_detection);
+
+// Sets the relative and absolute tolerances for integrated quantities.
+void time_integrator_set_tolerances(time_integrator_t* integrator,
+                                    real_t relative_tol, real_t absolute_tol);
+
+// Sets the error weight function for evaluating the WRMS norm that is used 
+// as a proxy for the quality of the solution. This may be used in lieu of 
+// relative and absolute tolerances.
+void time_integrator_set_error_weight_function(time_integrator_t* integrator,
+                                               time_integrator_error_weight_func compute_weights);                               
 
 // Evaluates the right-hand side of the system at the given time and with the 
 // given solution X, placing the results in rhs.

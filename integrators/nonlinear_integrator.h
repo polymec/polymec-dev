@@ -33,7 +33,7 @@
 typedef enum
 {
   LINE_SEARCH,
-  NONE
+  NO_GLOBAL_STRATEGY
 } nonlinear_integrator_strategy_t;
 
 // This is a pointer to a residual function used with a nonlinear integrator.
