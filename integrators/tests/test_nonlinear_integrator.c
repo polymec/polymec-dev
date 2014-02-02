@@ -29,6 +29,7 @@
 
 #include "cmockery.h"
 #include "core/polymec.h"
+#include "core/norms.h"
 #include "integrators/nonlinear_integrator.h"
 
 extern nonlinear_integrator_t* foodweb_integrator_new();
@@ -43,12 +44,23 @@ void test_foodweb_ctor(void** state)
 
 void test_foodweb_solve(void** state)
 {
+  // Set up the problem.
   nonlinear_integrator_t* integ = foodweb_integrator_new();
-
   real_t* cc = foodweb_initial_conditions();
+
+  // Solve it.
   int num_iters;
   bool solved = nonlinear_integrator_solve(integ, 0.0, cc, &num_iters);
   assert_true(solved);
+
+  // Evaluate the 2-norm of the residual.
+  int num_eq = 6*8*8;
+  real_t F[num_eq];
+  nonlinear_integrator_eval_residual(integ, 0.0, cc, F);
+  real_t L2 = l2_norm(F, num_eq);
+  log_debug("||F||_L2 = %g\n", L2);
+  assert_true(L2 < 0.128);
+
   nonlinear_integrator_free(integ);
   free(cc);
 }

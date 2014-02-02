@@ -157,6 +157,9 @@ void nonlinear_integrator_set_max_iterations(nonlinear_integrator_t* integrator,
 void nonlinear_integrator_set_preconditioner(nonlinear_integrator_t* integrator,
                                              preconditioner_t* precond);
 
+// Evaluates the residual vector, storing it in F.
+void nonlinear_integrator_eval_residual(nonlinear_integrator_t* integrator, real_t t, real_t* X, real_t* F);
+
 // Integrates the nonlinear system of equations F(X, t) = 0 in place, 
 // using X as the initial guess. Returns true if the solution was obtained, 
 // false if not. The number of nonlinear iterations will be stored in 

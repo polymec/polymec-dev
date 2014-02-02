@@ -268,6 +268,11 @@ void nonlinear_integrator_set_preconditioner(nonlinear_integrator_t* integrator,
   integrator->precond_mat = preconditioner_matrix(precond);
 }
 
+void nonlinear_integrator_eval_residual(nonlinear_integrator_t* integrator, real_t t, real_t* X, real_t* F)
+{
+  integrator->vtable.eval(integrator->context, t, X, F);
+}
+
 bool nonlinear_integrator_solve(nonlinear_integrator_t* integrator,
                                 real_t t,
                                 real_t* X,

@@ -246,8 +246,6 @@ static foodweb_t* foodweb_new()
     }
   }
 
-  adj_graph_fprintf(sparsity, stdout);
-
   data->sparsity = adj_graph_new_with_block_size(NUM_SPECIES, sparsity);
   adj_graph_free(sparsity);
 

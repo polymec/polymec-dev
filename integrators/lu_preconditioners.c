@@ -261,7 +261,9 @@ static void lu_preconditioner_solve(void* context, preconditioner_matrix_t* A, r
   int info;
   dgssv(&precond->options, mat, precond->cperm, precond->rperm, 
         &precond->L, &precond->U, &precond->rhs, &precond->stat, &info);
-  precond->options.Fact = SamePattern;
+  // SuperLU claims that it can re-use factorization info with the same 
+  // sparsity pattern, but this appears not to be the case at the moment.
+  // precond->options.Fact = SamePattern;
 
   // Copy the rhs vector to B.
   memcpy(B, rhs->nzval, sizeof(real_t) * precond->N);
@@ -307,6 +309,7 @@ preconditioner_t* lu_preconditioner_new(void* context,
   precond->cperm = NULL;
   precond->rperm = NULL;
   set_default_options(&precond->options);
+  precond->options.ColPerm = NATURAL;
   precond->options.Fact = DOFACT;
 
   // Make work vectors.
