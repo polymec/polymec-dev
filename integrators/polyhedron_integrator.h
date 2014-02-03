@@ -99,5 +99,9 @@ bool polyhedron_integrator_next_surface_point(polyhedron_integrator_t* integ,
                                               vector_t* normal_vector,
                                               real_t* weight);
 
+// This uses a low-order (2nd order at best) midpoint quadrature rule for
+// surface and volume integrals.
+polyhedron_integrator_t* midpoint_polyhedron_integrator_new();
+
 #endif
 

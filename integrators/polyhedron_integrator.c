@@ -99,3 +99,27 @@ bool polyhedron_integrator_next_surface_point(polyhedron_integrator_t* integ,
   return false;
 }
 
+typedef struct
+{
+  real_t cell_volume;
+  point_t cell_center;
+
+  int num_faces;
+  point_t* face_centers;
+  real_t* face_areas;
+} midpt_t;
+
+static void midpt_dtor(void* context)
+{
+  midpt_t* midpt = context;
+  free(midpt->face_centers);
+  free(midpt->face_areas);
+  free(midpt);
+}
+
+polyhedron_integrator_t* midpoint_polyhedron_integrator_new()
+{
+  midpt_t* midpt = malloc(sizeof(midpt_t));
+  polyhedron_integrator_vtable vtable = {.dtor = midpt_dtor};
+  return polyhedron_integrator_new("Midpoint", midpt, vtable);
+}
