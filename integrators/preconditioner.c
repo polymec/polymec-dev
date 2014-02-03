@@ -81,11 +81,11 @@ void preconditioner_compute_jacobian(preconditioner_t* precond,
   precond->vtable.compute_jacobian(precond->context, t, x, mat);
 }
 
-void preconditioner_solve(preconditioner_t* precond,
+bool preconditioner_solve(preconditioner_t* precond,
                           preconditioner_matrix_t* mat,
                           real_t* rhs)
 {
-  precond->vtable.solve(precond->context, mat, rhs);
+  return precond->vtable.solve(precond->context, mat, rhs);
 }
 
 preconditioner_matrix_t* preconditioner_matrix_new(const char* name,

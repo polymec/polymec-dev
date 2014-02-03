@@ -44,7 +44,7 @@ typedef void (*preconditioner_compute_jac_func)(void* context, real_t t, real_t*
 // This function solves the preconditioner system A*X = B, where A is the 
 // preconditioner matrix and B is the given right-hand side. The right-hand 
 // side is taken as input and is filled with the solution on output.
-typedef void (*preconditioner_solve_func)(void* context, preconditioner_matrix_t* A, real_t* B);
+typedef bool (*preconditioner_solve_func)(void* context, preconditioner_matrix_t* A, real_t* B);
 
 // This function destroys the data context for the preconditioner.
 typedef void (*preconditioner_dtor)(void* context);
@@ -85,8 +85,9 @@ void preconditioner_compute_jacobian(preconditioner_t* precond,
 
 // Solves the preconditioned linear system. On input, rhs contains the 
 // right-hand side of the system, and on output, it contains the solution 
-// to the preconditioned system.
-void preconditioner_solve(preconditioner_t* precond,
+// to the preconditioned system. Returns true if the system was successfully 
+// solved, false if not.
+bool preconditioner_solve(preconditioner_t* precond,
                           preconditioner_matrix_t* mat,
                           real_t* rhs);
 

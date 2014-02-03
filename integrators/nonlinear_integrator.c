@@ -106,9 +106,9 @@ static int solve_preconditioner_system(N_Vector x, N_Vector x_scale,
 
   // FIXME: Apply scaling if needed.
 
-  preconditioner_solve(integrator->precond, integrator->precond_mat, NV_DATA(r));
-
-  return 0;
+  if (preconditioner_solve(integrator->precond, integrator->precond_mat, NV_DATA(r)))
+    return 0;
+  else return 1; // recoverable error.
 }
 
 // Generic constructor.

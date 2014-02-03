@@ -141,22 +141,28 @@ bool time_integrator_step(time_integrator_t* integrator, real_t t1, real_t t2, r
 // Diagnostics for the time integrator.
 typedef struct
 {
+  char* status_message; // borrowed pointer from integrator: do not free.
   long int num_steps;
-  long int num_rhs_evals;
+  int order_of_last_step;
+  real_t last_step_size;
+  long int num_rhs_evaluations;
   long int num_linear_solve_setups;
+  long int num_linear_solve_iterations;
+  long int num_linear_solve_convergence_failures;
   long int num_error_test_failures;
   long int num_nonlinear_solve_iterations;
   long int num_nonlinear_solve_convergence_failures;
-  long int num_linear_solve_iterations;
   long int num_preconditioner_evaluations;
   long int num_preconditioner_solves;
-  long int num_linear_solve_convergence_failures;
 } time_integrator_diagnostics_t;
 
 // Retrieve diagnostics for the time integrator.
 void time_integrator_get_diagnostics(time_integrator_t* integrator, 
                                      time_integrator_diagnostics_t* diagnostics);
 
+// Writes time integrator diagnostics to the given file.
+void time_integrator_diagnostics_fprintf(time_integrator_diagnostics_t* diagnostics, 
+                                         FILE* stream);
 
 #endif
 

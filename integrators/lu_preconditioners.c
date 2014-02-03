@@ -52,7 +52,7 @@ typedef struct
   ilu_params_t* ilu_params;
 } lu_preconditioner_t;
 
-// Transforms A to (I - gamma * A).
+// Transforms A to (I + gamma * A).
 static void supermatrix_scale_and_shift(void* context, real_t gamma)
 {
   SuperMatrix* mat = context;
@@ -264,7 +264,7 @@ static void lu_preconditioner_compute_jacobian(void* context, real_t t, real_t* 
   free(Jv);
 }
 
-static void lu_preconditioner_solve(void* context, preconditioner_matrix_t* A, real_t* B)
+static bool lu_preconditioner_solve(void* context, preconditioner_matrix_t* A, real_t* B)
 {
   lu_preconditioner_t* precond = context;
   SuperMatrix* mat = preconditioner_matrix_context(A);
@@ -287,8 +287,12 @@ static void lu_preconditioner_solve(void* context, preconditioner_matrix_t* A, r
   // sparsity pattern, but this appears not to be the case at the moment.
   // precond->options.Fact = SamePattern;
 
+  bool success = (info == 0);
+
   // Copy the rhs vector to B.
   memcpy(B, rhs->nzval, sizeof(real_t) * precond->N);
+
+  return success;
 }
 
 static void lu_preconditioner_dtor(void* context)
@@ -368,9 +372,10 @@ ilu_params_t* ilu_params_new()
   return params;
 }
 
-static void ilu_preconditioner_solve(void* context, preconditioner_matrix_t* A, real_t* B)
+static bool ilu_preconditioner_solve(void* context, preconditioner_matrix_t* A, real_t* B)
 {
   // FIXME
+  return true;
 }
 
 // ILU preconditioner.

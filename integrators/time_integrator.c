@@ -47,6 +47,7 @@ struct time_integrator_t
   int order;
   MPI_Comm comm;
   solver_type_t solver_type;
+  bool initialized;
 
   int N; // dimension of system.
 
@@ -55,7 +56,7 @@ struct time_integrator_t
   N_Vector x; 
   real_t current_time;
   int max_krylov_dim;
-  bool initialized;
+  char* status_message; // status of most recent integration.
 
   // Error weight function.
   time_integrator_error_weight_func compute_weights;
@@ -111,9 +112,10 @@ static int solve_preconditioner_system(real_t t, N_Vector x, N_Vector F,
   
   // FIXME: Apply scaling if needed.
 
-  preconditioner_solve(integ->precond, integ->precond_mat, NV_DATA(r));
-
-  return 0;
+  if (preconditioner_solve(integ->precond, integ->precond_mat, NV_DATA(r)))
+    return 0;
+  else 
+    return 1; // recoverable error.
 }
 
 static time_integrator_t* time_integrator_new(const char* name, 
@@ -142,6 +144,7 @@ static time_integrator_t* time_integrator_new(const char* name,
   integ->N = N;
   integ->max_krylov_dim = max_krylov_dim;
   integ->initialized = false;
+  integ->status_message = NULL;
 
   // Set up KINSol and accessories.
   integ->x = N_VNew(comm, N);
@@ -171,6 +174,9 @@ static time_integrator_t* time_integrator_new(const char* name,
   // relative error of 1e-4 means errors are controlled to 0.01%.
   // absolute error is set to 1 because it's completely problem dependent.
   time_integrator_set_tolerances(integ, 1e-4, 1.0);
+
+  // Set up a maximum number of steps to take during the integration.
+  CVodeSetMaxNumSteps(integ->cvode, 500); // default is 500.
 
   return integ;
 }
@@ -224,6 +230,8 @@ void time_integrator_free(time_integrator_t* integ)
   CVodeFree(&integ->cvode);
 
   // Kill the rest.
+  if (integ->status_message != NULL)
+    free(integ->status_message);
   if ((integ->context != NULL) && (integ->vtable.dtor != NULL))
     integ->vtable.dtor(integ->context);
   free(integ->name);
@@ -317,6 +325,13 @@ bool time_integrator_step(time_integrator_t* integ, real_t t1, real_t t2, real_t
   // Integrate.
   int status = CVode(integ->cvode, t2, integ->x, &integ->current_time, CV_NORMAL);
   
+  // Clear the present status.
+  if (integ->status_message != NULL)
+  {
+    free(integ->status_message);
+    integ->status_message = NULL;
+  }
+
   // Did it work?
   if ((status == CV_SUCCESS) || (status == CV_TSTOP_RETURN))
   {
@@ -328,6 +343,36 @@ bool time_integrator_step(time_integrator_t* integ, real_t t1, real_t t2, real_t
   }
   else
   {
+    if (status == CV_TOO_CLOSE)
+      integ->status_message = string_dup("t1 and t2 are too close to each other.");
+    else if (status == CV_TOO_MUCH_WORK)
+    {
+      char err[1024];
+      snprintf(err, 1024, "Integrator stopped at t = %g after maximum number of steps.", integ->current_time);
+      integ->status_message = string_dup(err);
+    }
+    else if (status == CV_TOO_MUCH_ACC)
+      integ->status_message = string_dup("Integrator could not achieve desired level of accuracy.");
+    else if (status == CV_ERR_FAILURE)
+      integ->status_message = string_dup("Integrator encountered too many error test failures.");
+    else if (status == CV_CONV_FAILURE)
+      integ->status_message = string_dup("Integrator encountered too many convergence test failures.");
+    else if (status == CV_LINIT_FAIL)
+      integ->status_message = string_dup("Integrator's linear solver failed to initialize.");
+    else if (status == CV_LSETUP_FAIL)
+      integ->status_message = string_dup("Integrator's linear solver setup failed.");
+    else if (status == CV_LSOLVE_FAIL)
+      integ->status_message = string_dup("Integrator's linear solver failed.");
+    else if (status == CV_RHSFUNC_FAIL)
+      integ->status_message = string_dup("Integrator's RHS function failed unrecoverably.");
+    else if (status == CV_FIRST_RHSFUNC_ERR)
+      integ->status_message = string_dup("Integrator's first call to RHS function failed.");
+    else if (status == CV_REPTD_RHSFUNC_ERR)
+      integ->status_message = string_dup("Integrator encountered too many recoverable RHS failures.");
+    else if (status == CV_UNREC_RHSFUNC_ERR)
+      integ->status_message = string_dup("Integrator failed to recover from a recoverable RHS failure.");
+    else if (status == CV_RTFUNC_FAIL)
+      integ->status_message = string_dup("Integrator encountered a failure in the rootfinding function.");
     return false;
   }
 }
@@ -335,8 +380,11 @@ bool time_integrator_step(time_integrator_t* integ, real_t t1, real_t t2, real_t
 void time_integrator_get_diagnostics(time_integrator_t* integrator, 
                                      time_integrator_diagnostics_t* diagnostics)
 {
+  diagnostics->status_message = integrator->status_message; // borrowed!
   CVodeGetNumSteps(integrator->cvode, &diagnostics->num_steps);
-  CVodeGetNumRhsEvals(integrator->cvode, &diagnostics->num_rhs_evals);
+  CVodeGetLastOrder(integrator->cvode, &diagnostics->order_of_last_step);
+  CVodeGetLastStep(integrator->cvode, &diagnostics->last_step_size);
+  CVodeGetNumRhsEvals(integrator->cvode, &diagnostics->num_rhs_evaluations);
   CVodeGetNumLinSolvSetups(integrator->cvode, &diagnostics->num_linear_solve_setups);
   CVodeGetNumErrTestFails(integrator->cvode, &diagnostics->num_error_test_failures);
   CVodeGetNumNonlinSolvIters(integrator->cvode, &diagnostics->num_nonlinear_solve_iterations);
@@ -345,6 +393,25 @@ void time_integrator_get_diagnostics(time_integrator_t* integrator,
   CVSpilsGetNumPrecEvals(integrator->cvode, &diagnostics->num_preconditioner_evaluations);
   CVSpilsGetNumPrecSolves(integrator->cvode, &diagnostics->num_preconditioner_solves);
   CVSpilsGetNumConvFails(integrator->cvode, &diagnostics->num_linear_solve_convergence_failures);
+}
+
+void time_integrator_diagnostics_fprintf(time_integrator_diagnostics_t* diagnostics, 
+                                         FILE* stream)
+{
+  fprintf(stream, "Time integrator diagnostics:\n");
+  if (diagnostics->status_message != NULL)
+    fprintf(stream, "  Status: %s\n", diagnostics->status_message);
+  fprintf(stream, "  Num steps: %d\n", (int)diagnostics->num_steps);
+  fprintf(stream, "  Order of last step: %d\n", diagnostics->order_of_last_step);
+  fprintf(stream, "  Last step size: %g\n", diagnostics->last_step_size);
+  fprintf(stream, "  Num RHS evaluations: %d\n", (int)diagnostics->num_rhs_evaluations);
+  fprintf(stream, "  Num linear solve setups: %d\n", (int)diagnostics->num_linear_solve_setups);
+  fprintf(stream, "  Num linear solve convergence failures: %d\n", (int)diagnostics->num_linear_solve_convergence_failures);
+  fprintf(stream, "  Num error test failures: %d\n", (int)diagnostics->num_error_test_failures);
+  fprintf(stream, "  Num nonlinear solve iterations: %d\n", (int)diagnostics->num_nonlinear_solve_iterations);
+  fprintf(stream, "  Num nonlinear solve convergence failures: %d\n", (int)diagnostics->num_nonlinear_solve_convergence_failures);
+  fprintf(stream, "  Num preconditioner evaluations: %d\n", (int)diagnostics->num_preconditioner_evaluations);
+  fprintf(stream, "  Num preconditioner solves: %d\n", (int)diagnostics->num_preconditioner_solves);
 }
 
 

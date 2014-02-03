@@ -45,7 +45,7 @@ void test_diurnal_integration(void** state)
 {
   // Set up the problem.
   time_integrator_t* integ = diurnal_integrator_new();
-  time_integrator_set_tolerances(integ, 1e-4, 1e-13);
+  time_integrator_set_tolerances(integ, 1e-5, 1e-3);
   real_t* u = diurnal_initial_conditions(integ);
 
   // Integrate it out to two hours.
@@ -53,6 +53,7 @@ void test_diurnal_integration(void** state)
   bool integrated = time_integrator_step(integ, t1, t2, u);
   time_integrator_diagnostics_t diags;
   time_integrator_get_diagnostics(integ, &diags);
+  time_integrator_diagnostics_fprintf(&diags, stdout);
   assert_true(integrated);
 
   time_integrator_free(integ);
