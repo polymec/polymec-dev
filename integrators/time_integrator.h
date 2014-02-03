@@ -133,8 +133,30 @@ void time_integrator_set_error_weight_function(time_integrator_t* integrator,
 // given solution X, placing the results in rhs.
 void time_integrator_eval_rhs(time_integrator_t* integ, real_t t, real_t* X, real_t* rhs);
 
-// Integrates the given solution X in place from time t1 to t2.
-void time_integrator_step(time_integrator_t* integrator, real_t t1, real_t t2, real_t* X);
+// Integrates the given solution X in place from time t1 to t2. Returns 
+// true if the step succeeded, false if it failed for some reason. If a 
+// step fails, the solution remains the same as it was at time = t1.
+bool time_integrator_step(time_integrator_t* integrator, real_t t1, real_t t2, real_t* X);
+
+// Diagnostics for the time integrator.
+typedef struct
+{
+  long int num_steps;
+  long int num_rhs_evals;
+  long int num_linear_solve_setups;
+  long int num_error_test_failures;
+  long int num_nonlinear_solve_iterations;
+  long int num_nonlinear_solve_convergence_failures;
+  long int num_linear_solve_iterations;
+  long int num_preconditioner_evaluations;
+  long int num_preconditioner_solves;
+  long int num_linear_solve_convergence_failures;
+} time_integrator_diagnostics_t;
+
+// Retrieve diagnostics for the time integrator.
+void time_integrator_get_diagnostics(time_integrator_t* integrator, 
+                                     time_integrator_diagnostics_t* diagnostics);
+
 
 #endif
 

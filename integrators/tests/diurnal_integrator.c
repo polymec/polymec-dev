@@ -328,8 +328,8 @@ real_t* diurnal_initial_conditions(time_integrator_t* integ)
 // Constructor for diurnal integrator.
 time_integrator_t* diurnal_integrator_new()
 {
-  // Set up a time integrator using GMRES with no globalization 
-  // strategy.
+  // Set up a time integrator using GMRES with a maximum order of 2 and 
+  // a Krylov space of maximum dimension 5.
   diurnal_t* data = diurnal_new();
   time_integrator_vtable vtable = {.rhs = diurnal_rhs,
                                    .dtor = diurnal_dtor};
@@ -337,7 +337,7 @@ time_integrator_t* diurnal_integrator_new()
                                                        data,
                                                        MPI_COMM_SELF,
                                                        NEQ,
-                                                       vtable, 2, 15);
+                                                       vtable, 5, 5);
 
   // Use LU preconditioning with the same residual function.
   preconditioner_t* lu_precond = lu_preconditioner_new(data, diurnal_rhs, NULL, data->sparsity);

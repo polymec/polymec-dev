@@ -55,6 +55,7 @@ struct time_integrator_t
   N_Vector x; 
   real_t current_time;
   int max_krylov_dim;
+  bool initialized;
 
   // Error weight function.
   time_integrator_error_weight_func compute_weights;
@@ -140,6 +141,7 @@ static time_integrator_t* time_integrator_new(const char* name,
   integ->current_time = 0.0;
   integ->N = N;
   integ->max_krylov_dim = max_krylov_dim;
+  integ->initialized = false;
 
   // Set up KINSol and accessories.
   integ->x = N_VNew(comm, N);
@@ -155,6 +157,9 @@ static time_integrator_t* time_integrator_new(const char* name,
     CVSpbcg(integ->cvode, PREC_LEFT, max_krylov_dim);
   else
     CVSptfqmr(integ->cvode, PREC_LEFT, max_krylov_dim);
+
+  // We use modified Gram-Schmidt orthogonalization.
+  CVSpilsSetGSType(integ->cvode, MODIFIED_GS);
 
   CVSpilsSetPreconditioner(integ->cvode, set_up_preconditioner,
                            solve_preconditioner_system);
@@ -289,17 +294,57 @@ void time_integrator_eval_rhs(time_integrator_t* integ, real_t t, real_t* X, rea
   integ->vtable.rhs(integ->context, t, X, rhs);
 }
 
-void time_integrator_step(time_integrator_t* integ, real_t t1, real_t t2, real_t* X)
+bool time_integrator_step(time_integrator_t* integ, real_t t1, real_t t2, real_t* X)
 {
   ASSERT(t2 > t1);
-  if (fabs(integ->current_time - t1) > 1e-14)
+
+  // Copy in the solution.
+  memcpy(NV_DATA(integ->x), X, sizeof(real_t) * integ->N); 
+
+  if (!integ->initialized)
   {
-    CVodeReInit(integ->cvode, t1, integ->x);
     integ->current_time = t1;
+    CVodeReInit(integ->cvode, integ->current_time, integ->x);
+    integ->initialized = true;
   }
-  real_t t;
-  CVode(integ->cvode, t2, integ->x, &t, CV_NORMAL);
-  ASSERT(fabs(t - t2) < 1e-14);
-  integ->current_time = t;
+  else if (fabs(integ->current_time - t1) > 1e-14)
+  {
+    // Reset the integrator if t1 != current_time.
+    integ->current_time = t1;
+    CVodeReInit(integ->cvode, integ->current_time, integ->x);
+  }
+
+  // Integrate.
+  int status = CVode(integ->cvode, t2, integ->x, &integ->current_time, CV_NORMAL);
+  
+  // Did it work?
+  if ((status == CV_SUCCESS) || (status == CV_TSTOP_RETURN))
+  {
+    ASSERT(fabs(integ->current_time - t2) < 1e-14);
+
+    // Copy out the solution.
+    memcpy(X, NV_DATA(integ->x), sizeof(real_t) * integ->N); 
+    return true;
+  }
+  else
+  {
+    return false;
+  }
 }
+
+void time_integrator_get_diagnostics(time_integrator_t* integrator, 
+                                     time_integrator_diagnostics_t* diagnostics)
+{
+  CVodeGetNumSteps(integrator->cvode, &diagnostics->num_steps);
+  CVodeGetNumRhsEvals(integrator->cvode, &diagnostics->num_rhs_evals);
+  CVodeGetNumLinSolvSetups(integrator->cvode, &diagnostics->num_linear_solve_setups);
+  CVodeGetNumErrTestFails(integrator->cvode, &diagnostics->num_error_test_failures);
+  CVodeGetNumNonlinSolvIters(integrator->cvode, &diagnostics->num_nonlinear_solve_iterations);
+  CVodeGetNumNonlinSolvConvFails(integrator->cvode, &diagnostics->num_nonlinear_solve_convergence_failures);
+  CVSpilsGetNumLinIters(integrator->cvode, &diagnostics->num_linear_solve_iterations);
+  CVSpilsGetNumPrecEvals(integrator->cvode, &diagnostics->num_preconditioner_evaluations);
+  CVSpilsGetNumPrecSolves(integrator->cvode, &diagnostics->num_preconditioner_solves);
+  CVSpilsGetNumConvFails(integrator->cvode, &diagnostics->num_linear_solve_convergence_failures);
+}
+
 

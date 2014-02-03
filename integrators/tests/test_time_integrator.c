@@ -48,19 +48,12 @@ void test_diurnal_integration(void** state)
   time_integrator_set_tolerances(integ, 1e-4, 1e-13);
   real_t* u = diurnal_initial_conditions(integ);
 
-#if 0
-  // Integrate it.
-  bool solved = nonlinear_integrator_solve(integ, 0.0, cc, &num_iters);
-  assert_true(solved);
-
-  // Evaluate the 2-norm of the residual.
-  int num_eq = 6*8*8;
-  real_t F[num_eq];
-  nonlinear_integrator_eval_residual(integ, 0.0, cc, F);
-  real_t L2 = l2_norm(F, num_eq);
-  log_debug("||F||_L2 = %g\n", L2);
-  assert_true(L2 < 6e-6);
-#endif
+  // Integrate it out to two hours.
+  real_t t1 = 0.0, t2 = 7200.0;
+  bool integrated = time_integrator_step(integ, t1, t2, u);
+  time_integrator_diagnostics_t diags;
+  time_integrator_get_diagnostics(integ, &diags);
+  assert_true(integrated);
 
   time_integrator_free(integ);
   free(u);
