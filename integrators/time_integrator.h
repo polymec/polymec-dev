@@ -133,10 +133,14 @@ void time_integrator_set_error_weight_function(time_integrator_t* integrator,
 // given solution X, placing the results in rhs.
 void time_integrator_eval_rhs(time_integrator_t* integ, real_t t, real_t* X, real_t* rhs);
 
-// Integrates the given solution X in place from time t1 to t2. Returns 
-// true if the step succeeded, false if it failed for some reason. If a 
-// step fails, the solution remains the same as it was at time = t1.
-bool time_integrator_step(time_integrator_t* integrator, real_t t1, real_t t2, real_t* X);
+// Sets the maximum time step size for the next integration step.
+void time_integrator_set_max_dt(time_integrator_t* integ, real_t max_dt);
+
+// Integrates the given solution X in place, taking a single step starting at 
+// time *t and storing the new time in *t as well. Returns true if the step 
+// succeeded, false if it failed for some reason. If a step fails, both t 
+// and X remain unchanged.
+bool time_integrator_step(time_integrator_t* integrator, real_t* t, real_t* X);
 
 // Diagnostics for the time integrator.
 typedef struct

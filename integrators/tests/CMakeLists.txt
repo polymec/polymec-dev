@@ -6,4 +6,7 @@ add_polymec_test(test_sphere_integrator test_sphere_integrator.c)
 add_polymec_test(test_nonlinear_integrator foodweb_integrator.c test_nonlinear_integrator.c)
 add_polymec_test(test_time_integrator diurnal_integrator.c test_time_integrator.c)
 
+include(add_polymec_executable)
+add_polymec_executable(cvDiurnal_kry cvDiurnal_kry.c)
+
 

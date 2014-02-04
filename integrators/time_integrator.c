@@ -57,6 +57,7 @@ struct time_integrator_t
   real_t current_time;
   int max_krylov_dim;
   char* status_message; // status of most recent integration.
+  real_t max_dt;
 
   // Error weight function.
   time_integrator_error_weight_func compute_weights;
@@ -144,6 +145,7 @@ static time_integrator_t* time_integrator_new(const char* name,
   integ->N = N;
   integ->max_krylov_dim = max_krylov_dim;
   integ->initialized = false;
+  integ->max_dt = FLT_MAX;
   integ->status_message = NULL;
 
   // Set up KINSol and accessories.
@@ -176,7 +178,7 @@ static time_integrator_t* time_integrator_new(const char* name,
   time_integrator_set_tolerances(integ, 1e-4, 1.0);
 
   // Set up a maximum number of steps to take during the integration.
-  CVodeSetMaxNumSteps(integ->cvode, 500); // default is 500.
+//  CVodeSetMaxNumSteps(integ->cvode, 500); // default is 500.
 
   return integ;
 }
@@ -302,28 +304,34 @@ void time_integrator_eval_rhs(time_integrator_t* integ, real_t t, real_t* X, rea
   integ->vtable.rhs(integ->context, t, X, rhs);
 }
 
-bool time_integrator_step(time_integrator_t* integ, real_t t1, real_t t2, real_t* X)
+void time_integrator_set_max_dt(time_integrator_t* integ, real_t max_dt)
 {
-  ASSERT(t2 > t1);
+  ASSERT(max_dt > 0);
+  integ->max_dt = max_dt;
+  CVodeSetMaxStep(integ->cvode, max_dt);
+}
 
+bool time_integrator_step(time_integrator_t* integ, real_t* t, real_t* X)
+{
   // Copy in the solution.
   memcpy(NV_DATA(integ->x), X, sizeof(real_t) * integ->N); 
 
   if (!integ->initialized)
   {
-    integ->current_time = t1;
+    integ->current_time = *t;
     CVodeReInit(integ->cvode, integ->current_time, integ->x);
     integ->initialized = true;
   }
-  else if (fabs(integ->current_time - t1) > 1e-14)
+  else if (fabs(integ->current_time - *t) > 1e-14)
   {
     // Reset the integrator if t1 != current_time.
-    integ->current_time = t1;
+    integ->current_time = *t;
     CVodeReInit(integ->cvode, integ->current_time, integ->x);
   }
 
   // Integrate.
-  int status = CVode(integ->cvode, t2, integ->x, &integ->current_time, CV_NORMAL);
+  real_t t2 = *t + integ->max_dt;
+  int status = CVode(integ->cvode, t2, integ->x, &integ->current_time, CV_ONE_STEP);
   
   // Clear the present status.
   if (integ->status_message != NULL)
@@ -335,9 +343,8 @@ bool time_integrator_step(time_integrator_t* integ, real_t t1, real_t t2, real_t
   // Did it work?
   if ((status == CV_SUCCESS) || (status == CV_TSTOP_RETURN))
   {
-    ASSERT(fabs(integ->current_time - t2) < 1e-14);
-
     // Copy out the solution.
+    *t = integ->current_time;
     memcpy(X, NV_DATA(integ->x), sizeof(real_t) * integ->N); 
     return true;
   }

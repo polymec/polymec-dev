@@ -48,13 +48,22 @@ void test_diurnal_integration(void** state)
   time_integrator_set_tolerances(integ, 1e-5, 1e-3);
   real_t* u = diurnal_initial_conditions(integ);
 
-  // Integrate it out to two hours.
-  real_t t1 = 0.0, t2 = 7200.0;
-  bool integrated = time_integrator_step(integ, t1, t2, u);
+  // Integrate it.
+  real_t t = 0.0;
+  while (t < 7200.0)
+  {
+    time_integrator_set_max_dt(integ, 7200.0 - t);
+    bool integrated = time_integrator_step(integ, &t, u);
+    assert_true(integrated);
+    printf ("t = %g\n", t);
+  }
+printf("u = [");
+for (int i = 0; i < 200; ++i)
+printf("%g ", u[i]);
+printf("]\n");
   time_integrator_diagnostics_t diags;
   time_integrator_get_diagnostics(integ, &diags);
   time_integrator_diagnostics_fprintf(&diags, stdout);
-  assert_true(integrated);
 
   time_integrator_free(integ);
   free(u);

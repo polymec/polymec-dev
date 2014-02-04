@@ -128,8 +128,6 @@
 
 typedef struct 
 {
-  real_t **P[MX][MY], **Jbd[MX][MY];
-  long int *pivot[MX][MY];
   real_t q4, om, dx, dy, hdco, haco, vdco;
 
   // Sparsity graph.
@@ -139,16 +137,7 @@ typedef struct
 // Newly initialized data context.
 static diurnal_t* diurnal_new()
 {
-  int jx, jy;
   diurnal_t* data = malloc(sizeof(diurnal_t));
-
-  for (jx=0; jx < MX; jx++) {
-    for (jy=0; jy < MY; jy++) {
-      (data->P)[jx][jy] = newDenseMat(NUM_SPECIES, NUM_SPECIES);
-      (data->Jbd)[jx][jy] = newDenseMat(NUM_SPECIES, NUM_SPECIES);
-      (data->pivot)[jx][jy] = newLintArray(NUM_SPECIES);
-    }
-  }
 
   data->om = PI/HALFDAY;
   data->dx = (XMAX-XMIN)/(MX-1);
@@ -162,25 +151,25 @@ static diurnal_t* diurnal_new()
   for (int jy = 0; jy < MY; jy++) 
   {
     // Set lower/upper index shifts, special at boundaries. 
-    int idyl = (jy != 0   ) ? MX : -MX;
-    int idyu = (jy != MY-1) ? MX : -MX;
+    int idyd = (jy == 0   ) ?  MX : -MX;
+    int idyu = (jy == MY-1) ?  -MX : MX;
     
     for (int jx = 0; jx < MX; jx++) 
     {
       // Set left/right index shifts, special at boundaries. 
-      int idxl = (jx !=  0  ) ?  1 : -1;
-      int idxr = (jx != MX-1) ?  1 : -1;
+      int idxl = (jx ==  0  ) ?  1 : -1;
+      int idxr = (jx == MX-1) ?  -1 : 1;
 
       // Find the edges for the vertex corresponding to (jx, jy).
       int idx = jx + MX*jy;
       int num_edges = 0;
       int edges[4];
       if (jy > 0)
-        edges[num_edges++] = idx - idyl; // lower
+        edges[num_edges++] = idx + idyd; // lower
       if (jy < (MY-1))
         edges[num_edges++] = idx + idyu; // upper
       if (jx > 0)
-        edges[num_edges++] = idx - idxl; // left
+        edges[num_edges++] = idx + idxl; // left
       if (jx < (MX-1))
         edges[num_edges++] = idx + idxr; // right
 
@@ -284,17 +273,6 @@ static int diurnal_rhs(void* context, real_t t, real_t* u, real_t* udot)
 static void diurnal_dtor(void* context)
 {
   diurnal_t* data = context;
-
-  int jx, jy;
-
-  for (jx=0; jx < MX; jx++) {
-    for (jy=0; jy < MY; jy++) {
-      destroyMat((data->P)[jx][jy]);
-      destroyMat((data->Jbd)[jx][jy]);
-      destroyArray((data->pivot)[jx][jy]);
-    }
-  }
-
   adj_graph_free(data->sparsity);
   free(data);
 }
