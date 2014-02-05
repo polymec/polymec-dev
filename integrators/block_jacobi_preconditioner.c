@@ -130,13 +130,15 @@ static void insert_Jv_into_bd_mat(int num_rows,
                                   real_t* Jv, 
                                   bd_mat_t* J)
 {
-  for (int i = color; i < num_rows; i += J->block_size)
+  int bs = J->block_size;
+  for (int i = color; i < num_rows; i += bs)
   {
-    int block_row = i / J->block_size;
-    for (int j = block_row * J->block_size; j < (block_row+1)*J->block_size; ++j)
+    int block_row = i / bs;
+    for (int j = block_row*bs; j < (block_row+1)*bs; ++j)
     {
-      int c = j % J->block_size;
-      J->coeffs[block_row*J->block_size+c] = Jv[j];
+      int r = i % bs;
+      int c = j % bs;
+      J->coeffs[block_row*bs*bs + c*bs + r] = Jv[j];
     }
   }
 }
