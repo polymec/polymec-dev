@@ -22,6 +22,7 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+#include "core/linear_algebra.h"
 #include "integrators/block_jacobi_preconditioner.h"
 
 typedef struct 
@@ -35,21 +36,39 @@ typedef struct
 
 } block_jacobi_preconditioner_t;
 
-// Transforms A to (I + gamma * A).
+// Block-diagonal matrix.
+typedef struct
+{
+  int num_block_rows;
+  int block_size;
+  real_t* coeffs;
+} bd_mat_t;
+
 static void bd_scale_and_shift(void* context, real_t gamma)
 {
+  bd_mat_t* mat = context;
+  for (int i = 0; i < mat->num_block_rows*mat->block_size; ++i)
+    mat->coeffs[i] = 1.0 + gamma * mat->coeffs[i];
 }
 
-// Returns the (i, j)th entry in a block-diagonal.
 static real_t bd_coeff(void* context, int i, int j)
 {
-  // FIXME
-  return 0.0;
+  bd_mat_t* mat = context;
+  int bs = mat->block_size;
+  if (abs(j - i) >= bs)
+    return 0.0;
+  int block_row = i/bs;
+  int r = i % bs;
+  int c = j - block_row*bs;
+  real_t* A = &mat->coeffs[block_row * bs * bs];
+  return A[bs * r + c];
 }
 
 static void bd_dtor(void* context)
 {
-  // FIXME
+  bd_mat_t* mat = context;
+  free(mat->coeffs);
+  free(mat);
 }
 
 static preconditioner_matrix_t* block_jacobi_preconditioner_matrix(void* context)
@@ -58,19 +77,44 @@ static preconditioner_matrix_t* block_jacobi_preconditioner_matrix(void* context
   preconditioner_matrix_vtable vtable = {.scale_and_shift = bd_scale_and_shift,
                                          .coeff = bd_coeff,
                                          .dtor = bd_dtor};
-  int num_rows = precond->num_block_rows * precond->block_size;
-  return preconditioner_matrix_new("Block-diagonal", NULL, vtable, num_rows);
+  int bs = precond->block_size;
+  int num_rows = precond->num_block_rows * bs;
+  bd_mat_t* mat = malloc(sizeof(bd_mat_t));
+  mat->num_block_rows = precond->num_block_rows;
+  mat->block_size = bs;
+  mat->coeffs = malloc(sizeof(real_t) * mat->num_block_rows * bs * bs);
+  memset(mat->coeffs, 0, sizeof(real_t) * mat->num_block_rows * bs * bs);
+  return preconditioner_matrix_new("Block-diagonal", mat, vtable, num_rows);
 }
 
 static void block_jacobi_preconditioner_compute_jacobian(void* context, real_t t, real_t* x, preconditioner_matrix_t* mat)
 {
   block_jacobi_preconditioner_t* precond = context;
+  bd_mat_t* A = preconditioner_matrix_context(mat);
 }
 
 static bool block_jacobi_preconditioner_solve(void* context, preconditioner_matrix_t* A, real_t* B)
 {
   block_jacobi_preconditioner_t* precond = context;
-  // FIXME
+  int bs = precond->block_size;
+  bd_mat_t* mat = preconditioner_matrix_context(A);
+
+  for (int i = 0; i < precond->num_block_rows; ++i)
+  {
+    // Copy the block for this row into place.
+    real_t Aij[bs*bs], bi[bs];
+    memcpy(Aij, &mat->coeffs[i*bs*bs], sizeof(real_t)*bs*bs);
+    memcpy(bi, &B[i*bs], sizeof(real_t)*bs);
+
+    // Solve the linear system.
+    int one = 1, ipiv[bs], info;
+    dgesv(&bs, &one, Aij, &bs, ipiv, bi, &bs, &info);
+    ASSERT(info == 0);
+
+    // Copy the solution into place.
+    memcpy(&B[i*bs], bi, sizeof(real_t)*bs);
+  }
+
   return true;
 }
 

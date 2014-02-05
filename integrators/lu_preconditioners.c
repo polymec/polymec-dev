@@ -52,7 +52,6 @@ typedef struct
   ilu_params_t* ilu_params;
 } lu_preconditioner_t;
 
-// Transforms A to (I + gamma * A).
 static void supermatrix_scale_and_shift(void* context, real_t gamma)
 {
   SuperMatrix* mat = context;
@@ -73,7 +72,6 @@ static void supermatrix_scale_and_shift(void* context, real_t gamma)
   }
 }
 
-// Returns the (i, j)th entry in a SuperMatrix.
 static real_t supermatrix_coeff(void* context, int i, int j)
 {
   SuperMatrix* mat = context;
