@@ -58,6 +58,7 @@ struct nonlinear_integrator_t
   void* kinsol;
   int strategy; // Global strategy.
   N_Vector x, x_scale, F_scale; // Stores solution vector and scaling vectors.
+  char* status_message; // status of most recent integration.
 
   // Preconditioning stuff.
   preconditioner_t* precond;
@@ -144,6 +145,7 @@ static nonlinear_integrator_t* nonlinear_integrator_new(const char* name,
   integrator->x = N_VNew(integrator->comm, N);
   integrator->x_scale = N_VNew(integrator->comm, N);
   integrator->F_scale = N_VNew(integrator->comm, N);
+  integrator->status_message = NULL;
 
   KINInit(integrator->kinsol, evaluate_F, integrator->x);
 
@@ -231,6 +233,9 @@ void nonlinear_integrator_free(nonlinear_integrator_t* integrator)
   // Kill the rest.
   if ((integrator->vtable.dtor != NULL) && (integrator->context != NULL))
     integrator->vtable.dtor(integrator->context);
+  // Kill the rest.
+  if (integrator->status_message != NULL)
+    free(integrator->status_message);
   free(integrator->name);
   free(integrator);
 }
@@ -317,6 +322,14 @@ bool nonlinear_integrator_solve(nonlinear_integrator_t* integrator,
   int status = KINSol(integrator->kinsol, integrator->x, integrator->strategy, 
                       integrator->x_scale, integrator->F_scale);
 
+  // Clear the present status.
+  if (integrator->status_message != NULL)
+  {
+    free(integrator->status_message);
+    integrator->status_message = NULL;
+  }
+
+
   // Reinstate the floating point exceptions.
   polymec_restore_fpe_exceptions();
 
@@ -331,8 +344,73 @@ bool nonlinear_integrator_solve(nonlinear_integrator_t* integrator,
     memcpy(X, NV_DATA(integrator->x), sizeof(real_t) * N);
     return true;
   }
+  else
+  {
+    if (status == KIN_STEP_LT_STPTOL)
+      integrator->status_message = string_dup("Nonlinear solve stalled because scaled Newton step is too small.");
+    else if (status == KIN_LINESEARCH_NONCONV)
+      integrator->status_message = string_dup("Line search could not sufficiently decrease the error of the iterate.");
+    else if (status == KIN_MAXITER_REACHED)
+      integrator->status_message = string_dup("Maximum number of nonlinear iterations was reached.");
+    else if (status == KIN_MXNEWT_5X_EXCEEDED)
+      integrator->status_message = string_dup("Maximum Newton step size was exceeded 5 times.");
+    else if (status == KIN_LINESEARCH_BCFAIL)
+      integrator->status_message = string_dup("Line search could not satisfy beta condition.");
+    else if (status == KIN_LINSOLV_NO_RECOVERY)
+      integrator->status_message = string_dup("Preconditioner solve encountered a recoverable error after update.");
+    else if (status == KIN_LINIT_FAIL)
+      integrator->status_message = string_dup("Linear solve setup failed.");
+    else if (status == KIN_LSETUP_FAIL)
+      integrator->status_message = string_dup("Preconditioner setup failed unrecoverably.");
+    else if (status == KIN_LSOLVE_FAIL)
+      integrator->status_message = string_dup("Linear solve failed (or preconditioner solve failed unrecoverably).");
+    else if (status == KIN_SYSFUNC_FAIL)
+      integrator->status_message = string_dup("Nonlinear function evaluation failed unrecoverably.");
+    else if (status == KIN_FIRST_SYSFUNC_ERR)
+      integrator->status_message = string_dup("First nonlinear function evaluation failed recoverably.");
+    else if (status == KIN_REPTD_SYSFUNC_ERR)
+      integrator->status_message = string_dup("Nonlinear function evaluation repeatedly failed (no recovery possible).");
+  }
 
   // Failed!
   return false;
 }
                                   
+void nonlinear_integrator_get_diagnostics(nonlinear_integrator_t* integrator, 
+                                          nonlinear_integrator_diagnostics_t* diagnostics)
+{
+  diagnostics->status_message = integrator->status_message; // borrowed!
+  KINGetNumFuncEvals(integrator->kinsol, &diagnostics->num_function_evaluations);
+  KINGetNumBetaCondFails(integrator->kinsol, &diagnostics->num_beta_condition_failures);
+  KINGetNumNonlinSolvIters(integrator->kinsol, &diagnostics->num_nonlinear_iterations);
+  KINGetNumBacktrackOps(integrator->kinsol, &diagnostics->num_backtrack_operations);
+  KINGetFuncNorm(integrator->kinsol, &diagnostics->scaled_function_norm);
+  KINGetStepLength(integrator->kinsol, &diagnostics->scaled_newton_step_length);
+  KINSpilsGetNumLinIters(integrator->kinsol, &diagnostics->num_linear_solve_iterations);
+  KINSpilsGetNumConvFails(integrator->kinsol, &diagnostics->num_linear_solve_convergence_failures);
+  KINSpilsGetNumPrecEvals(integrator->kinsol, &diagnostics->num_preconditioner_evaluations);
+  KINSpilsGetNumPrecSolves(integrator->kinsol, &diagnostics->num_preconditioner_solves);
+  KINSpilsGetNumJtimesEvals(integrator->kinsol, &diagnostics->num_jacobian_vector_product_evaluations);
+  KINSpilsGetNumFuncEvals(integrator->kinsol, &diagnostics->num_difference_quotient_function_evaluations);
+}
+
+void nonlinear_integrator_diagnostics_fprintf(nonlinear_integrator_diagnostics_t* diagnostics, 
+                                              FILE* stream)
+{
+  fprintf(stream, "Nonlinear integrator diagnostics:\n");
+  if (diagnostics->status_message != NULL)
+    fprintf(stream, "  Status: %s\n", diagnostics->status_message);
+  fprintf(stream, "  Num function evaluations: %d\n", (int)diagnostics->num_function_evaluations);
+  fprintf(stream, "  Num beta condition failures: %d\n", (int)diagnostics->num_beta_condition_failures);
+  fprintf(stream, "  Num backtrack operations: %d\n", (int)diagnostics->num_backtrack_operations);
+  fprintf(stream, "  Num nonlinear iterations: %d\n", (int)diagnostics->num_nonlinear_iterations);
+  fprintf(stream, "  Scaled function norm: %g\n", (double)diagnostics->scaled_function_norm);
+  fprintf(stream, "  Scaled Newton step length: %g\n", (double)diagnostics->scaled_newton_step_length);
+  fprintf(stream, "  Num linear solve iterations: %d\n", (int)diagnostics->num_linear_solve_iterations);
+  fprintf(stream, "  Num linear solve convergence failures: %d\n", (int)diagnostics->num_linear_solve_convergence_failures);
+  fprintf(stream, "  Num preconditioner evaluations: %d\n", (int)diagnostics->num_preconditioner_evaluations);
+  fprintf(stream, "  Num preconditioner solves: %d\n", (int)diagnostics->num_preconditioner_solves);
+  fprintf(stream, "  Num Jacobian-vector product evaluations: %d\n", (int)diagnostics->num_jacobian_vector_product_evaluations);
+  fprintf(stream, "  Num difference quotient function evaluations: %d\n", (int)diagnostics->num_difference_quotient_function_evaluations);
+}
+

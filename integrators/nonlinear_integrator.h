@@ -169,5 +169,31 @@ void nonlinear_integrator_eval_residual(nonlinear_integrator_t* integrator, real
 // num_iterations upon success.
 bool nonlinear_integrator_solve(nonlinear_integrator_t* integrator, real_t t, real_t* X, int* num_iterations);
 
+// Diagnostics for the nonlinear integrator.
+typedef struct
+{
+  char* status_message; // borrowed pointer from integrator: do not free.
+  long int num_function_evaluations;
+  long int num_beta_condition_failures;
+  long int num_backtrack_operations;
+  long int num_nonlinear_iterations;
+  real_t scaled_function_norm;
+  real_t scaled_newton_step_length;
+  long int num_linear_solve_iterations;
+  long int num_linear_solve_convergence_failures;
+  long int num_preconditioner_evaluations;
+  long int num_preconditioner_solves;
+  long int num_jacobian_vector_product_evaluations;
+  long int num_difference_quotient_function_evaluations;
+} nonlinear_integrator_diagnostics_t;
+
+// Retrieve diagnostics for the nonlinear integrator.
+void nonlinear_integrator_get_diagnostics(nonlinear_integrator_t* integrator, 
+                                          nonlinear_integrator_diagnostics_t* diagnostics);
+
+// Writes nonlinear integrator diagnostics to the given file.
+void nonlinear_integrator_diagnostics_fprintf(nonlinear_integrator_diagnostics_t* diagnostics, 
+                                              FILE* stream);
+
 #endif
 

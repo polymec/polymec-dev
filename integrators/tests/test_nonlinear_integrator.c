@@ -67,6 +67,12 @@ void test_foodweb_solve(void** state, nonlinear_integrator_t* integ)
   // Solve it.
   int num_iters;
   bool solved = nonlinear_integrator_solve(integ, 0.0, cc, &num_iters);
+  if (!solved)
+  {
+    nonlinear_integrator_diagnostics_t diagnostics;
+    nonlinear_integrator_get_diagnostics(integ, &diagnostics);
+    nonlinear_integrator_diagnostics_fprintf(&diagnostics, stdout);
+  }
   assert_true(solved);
   log_debug("num iterations = %d\n", num_iters);
   assert_true(num_iters < 10);
