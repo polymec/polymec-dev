@@ -32,20 +32,35 @@
 #include "core/norms.h"
 #include "integrators/nonlinear_integrator.h"
 
-extern nonlinear_integrator_t* foodweb_integrator_new();
+extern nonlinear_integrator_t* block_jacobi_precond_foodweb_integrator_new();
+extern nonlinear_integrator_t* lu_precond_foodweb_integrator_new();
+extern nonlinear_integrator_t* ilu_precond_foodweb_integrator_new();
 extern real_t* foodweb_initial_conditions();
 
-void test_foodweb_ctor(void** state)
+void test_block_jacobi_precond_foodweb_ctor(void** state)
 {
-  nonlinear_integrator_t* integ = foodweb_integrator_new();
+  nonlinear_integrator_t* integ = block_jacobi_precond_foodweb_integrator_new();
   assert_true(strcmp(nonlinear_integrator_name(integ), "Food web") == 0);
   nonlinear_integrator_free(integ);
 }
 
-void test_foodweb_solve(void** state)
+void test_lu_precond_foodweb_ctor(void** state)
+{
+  nonlinear_integrator_t* integ = lu_precond_foodweb_integrator_new();
+  assert_true(strcmp(nonlinear_integrator_name(integ), "Food web") == 0);
+  nonlinear_integrator_free(integ);
+}
+
+void test_ilu_precond_foodweb_ctor(void** state)
+{
+  nonlinear_integrator_t* integ = ilu_precond_foodweb_integrator_new();
+  assert_true(strcmp(nonlinear_integrator_name(integ), "Food web") == 0);
+  nonlinear_integrator_free(integ);
+}
+
+void test_foodweb_solve(void** state, nonlinear_integrator_t* integ)
 {
   // Set up the problem.
-  nonlinear_integrator_t* integ = foodweb_integrator_new();
   nonlinear_integrator_set_tolerances(integ, 1e-7, 1e-13);
   real_t* cc = foodweb_initial_conditions();
 
@@ -68,13 +83,38 @@ void test_foodweb_solve(void** state)
   free(cc);
 }
 
+void test_block_jacobi_precond_foodweb_solve(void** state)
+{
+  // Set up the problem.
+  nonlinear_integrator_t* integ = block_jacobi_precond_foodweb_integrator_new();
+  test_foodweb_solve(state, integ);
+}
+
+void test_lu_precond_foodweb_solve(void** state)
+{
+  // Set up the problem.
+  nonlinear_integrator_t* integ = lu_precond_foodweb_integrator_new();
+  test_foodweb_solve(state, integ);
+}
+
+void test_ilu_precond_foodweb_solve(void** state)
+{
+  // Set up the problem.
+  nonlinear_integrator_t* integ = ilu_precond_foodweb_integrator_new();
+  test_foodweb_solve(state, integ);
+}
+
 int main(int argc, char* argv[]) 
 {
   polymec_init(argc, argv);
   const UnitTest tests[] = 
   {
-    unit_test(test_foodweb_ctor),
-    unit_test(test_foodweb_solve),
+    unit_test(test_block_jacobi_precond_foodweb_ctor),
+    unit_test(test_lu_precond_foodweb_ctor),
+    unit_test(test_ilu_precond_foodweb_ctor),
+    unit_test(test_block_jacobi_precond_foodweb_solve),
+    unit_test(test_lu_precond_foodweb_solve),
+    unit_test(test_ilu_precond_foodweb_solve),
   };
   return run_tests(tests);
 }

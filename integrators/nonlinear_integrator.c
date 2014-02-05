@@ -245,6 +245,11 @@ void* nonlinear_integrator_context(nonlinear_integrator_t* integrator)
   return integrator->context;
 }
 
+int nonlinear_integrator_num_equations(nonlinear_integrator_t* integrator)
+{
+  return integrator->N;
+}
+
 void nonlinear_integrator_set_tolerances(nonlinear_integrator_t* integrator, real_t norm_tolerance, real_t step_tolerance)
 {
   ASSERT(norm_tolerance > 0.0);

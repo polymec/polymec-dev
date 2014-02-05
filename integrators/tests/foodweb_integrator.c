@@ -24,6 +24,7 @@
 
 #include "core/polymec.h"
 #include "integrators/nonlinear_integrator.h"
+#include "integrators/block_jacobi_preconditioner.h"
 #include "integrators/lu_preconditioners.h"
 
 // We use this for some of the underlying data structures.
@@ -387,8 +388,8 @@ static void foodweb_set_constraints(void* context, real_t* constraints)
     constraints[i] = 2.0;
 }
 
-// Constructor for food web integrator.
-nonlinear_integrator_t* foodweb_integrator_new()
+// Constructor for food web integrator with no preconditioner.
+static nonlinear_integrator_t* foodweb_integrator_new()
 {
   // Set up a nonlinear integrator using GMRES with no globalization 
   // strategy.
@@ -405,10 +406,40 @@ nonlinear_integrator_t* foodweb_integrator_new()
                                                                  vtable, 
                                                                  NO_GLOBAL_STRATEGY, 
                                                                  15, 2);
-  // Use LU preconditioning with the same residual function.
-  preconditioner_t* lu_precond = lu_preconditioner_new(data, foodweb_func, NULL, data->sparsity);
-  nonlinear_integrator_set_preconditioner(integ, lu_precond);
+  return integ;
+}
 
+// Constructor for block-Jacobi-preconditioned food web integrator.
+nonlinear_integrator_t* block_jacobi_precond_foodweb_integrator_new()
+{
+  nonlinear_integrator_t* integ = foodweb_integrator_new();
+  void* data = nonlinear_integrator_context(integ);
+  int num_eq = nonlinear_integrator_num_equations(integ);
+  int block_size = NUM_SPECIES;
+  int num_block_rows = num_eq / NUM_SPECIES;
+  preconditioner_t* precond = block_jacobi_preconditioner_new(data, foodweb_func, NULL, num_block_rows, block_size);
+  nonlinear_integrator_set_preconditioner(integ, precond);
+  return integ;
+}
+
+// Constructor for LU-preconditioned food web integrator.
+nonlinear_integrator_t* lu_precond_foodweb_integrator_new()
+{
+  nonlinear_integrator_t* integ = foodweb_integrator_new();
+  foodweb_t* data = nonlinear_integrator_context(integ);
+  preconditioner_t* precond = lu_preconditioner_new(data, foodweb_func, NULL, data->sparsity);
+  nonlinear_integrator_set_preconditioner(integ, precond);
+  return integ;
+}
+
+// Constructor for ILU-preconditioned food web integrator.
+nonlinear_integrator_t* ilu_precond_foodweb_integrator_new()
+{
+  nonlinear_integrator_t* integ = foodweb_integrator_new();
+  foodweb_t* data = nonlinear_integrator_context(integ);
+  ilu_params_t* ilu_params = ilu_params_new();
+  preconditioner_t* precond = ilu_preconditioner_new(data, foodweb_func, NULL, data->sparsity, ilu_params);
+  nonlinear_integrator_set_preconditioner(integ, precond);
   return integ;
 }
 

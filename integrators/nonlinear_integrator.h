@@ -146,6 +146,9 @@ char* nonlinear_integrator_name(nonlinear_integrator_t* integrator);
 // Returns the context pointer for the solver.
 void* nonlinear_integrator_context(nonlinear_integrator_t* integrator);
 
+// Returns the number of (local) equations in the nonlinear system.
+int nonlinear_integrator_num_equations(nonlinear_integrator_t* integrator);
+
 // Sets the tolerances for the function norm (norm_tolerance) and the Newton
 // step (step_tolerance) for the nonlinear integrator.
 void nonlinear_integrator_set_tolerances(nonlinear_integrator_t* integrator, real_t norm_tolerance, real_t step_tolerance);
