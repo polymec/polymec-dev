@@ -23,6 +23,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "core/linear_algebra.h"
+#include "core/sundials_helpers.h"
 #include "integrators/block_jacobi_preconditioner.h"
 
 typedef struct 
@@ -33,6 +34,10 @@ typedef struct
 
   int num_block_rows;
   int block_size; 
+
+  // Work vectors.
+  int num_work_vectors;
+  real_t** work;
 
 } block_jacobi_preconditioner_t;
 
@@ -87,10 +92,86 @@ static preconditioner_matrix_t* block_jacobi_preconditioner_matrix(void* context
   return preconditioner_matrix_new("Block-diagonal", mat, vtable, num_rows);
 }
 
+// Here's our finite difference implementation of the Jacobian matrix-vector 
+// product. 
+static void finite_diff_Jv(int (*F)(void* context, real_t t, real_t* x, real_t* F), 
+                           void (*communicate)(void* context, real_t t, real_t* x),
+                           void* context, 
+                           real_t* x, 
+                           real_t t, 
+                           int num_rows,
+                           real_t* v, 
+                           real_t** work, 
+                           real_t* Jv)
+{
+  real_t eps = rsqrt(UNIT_ROUNDOFF);
+
+  // work[0] == v
+  // work[1] contains F(x).
+  // work[2] == u + eps*v
+  // work[3] == F(x + eps*v)
+
+  // u + eps*v -> work[2].
+  for (int i = 0; i < num_rows; ++i)
+    work[2][i] = x[i] + eps*v[i];
+
+  // F(t, x + eps*v) -> work[3].
+  if (communicate != NULL)
+    communicate(context, t, work[2]);
+  F(context, t, work[2], work[3]);
+
+  // (F(x + eps*v) - F(x)) / eps -> Jv
+  for (int i = 0; i < num_rows; ++i)
+    Jv[i] = (work[3][i] - work[1][i]) / eps;
+}
+
+static void insert_Jv_into_bd_mat(int num_rows, 
+                                  int color, 
+                                  real_t* Jv, 
+                                  bd_mat_t* J)
+{
+  for (int i = color; i < num_rows; i += J->block_size)
+  {
+    int block_row = i / J->block_size;
+    for (int j = block_row * J->block_size; j < (block_row+1)*J->block_size; ++j)
+    {
+      int c = j % J->block_size;
+      J->coeffs[block_row*J->block_size+c] = Jv[j];
+    }
+  }
+}
+
 static void block_jacobi_preconditioner_compute_jacobian(void* context, real_t t, real_t* x, preconditioner_matrix_t* mat)
 {
   block_jacobi_preconditioner_t* precond = context;
   bd_mat_t* A = preconditioner_matrix_context(mat);
+  real_t** work = precond->work;
+
+  // We compute the system Jacobian using the method described in 
+  // Curtis, Powell, and Reed.
+  int num_rows = A->num_block_rows * A->block_size;
+  real_t* Jv = malloc(sizeof(real_t) * num_rows);
+  int num_colors = A->block_size;
+  for (int c = 0; c < num_colors; ++c)
+  {
+    // We construct d, the binary vector corresponding to this color, in work[0].
+    memset(work[0], 0, sizeof(real_t) * num_rows);
+    for (int i = c; i < num_rows; i += A->block_size)
+      work[0][i] = 1.0;
+
+    // We evaluate F(x) and place it into work[1].
+    if (precond->communicate != NULL)
+      precond->communicate(precond->context, t, x);
+    precond->F(precond->context, t, x, work[1]);
+
+    // Now evaluate the matrix-vector product.
+    memset(Jv, 0, sizeof(real_t) * num_rows);
+    finite_diff_Jv(precond->F, precond->communicate, precond->context, x, t, num_rows, work[0], work, Jv);
+
+    // Copy the components of Jv into their proper locations.
+    insert_Jv_into_bd_mat(num_rows, c, Jv, A);
+  }
+  free(Jv);
 }
 
 static bool block_jacobi_preconditioner_solve(void* context, preconditioner_matrix_t* A, real_t* B)
@@ -121,6 +202,9 @@ static bool block_jacobi_preconditioner_solve(void* context, preconditioner_matr
 static void block_jacobi_preconditioner_dtor(void* context)
 {
   block_jacobi_preconditioner_t* precond = context;
+  for (int i = 0; i < precond->num_work_vectors; ++i)
+    free(precond->work[i]);
+  free(precond->work);
   free(precond);
 }
 
@@ -139,6 +223,12 @@ preconditioner_t* block_jacobi_preconditioner_new(void* context,
   precond->context = context;
   precond->num_block_rows = num_block_rows;
   precond->block_size = block_size;
+
+  // Make work vectors.
+  precond->num_work_vectors = 4;
+  precond->work = malloc(sizeof(real_t*) * precond->num_work_vectors);
+  for (int i = 0; i < precond->num_work_vectors; ++i)
+    precond->work[i] = malloc(sizeof(real_t) * precond->num_block_rows * precond->block_size);
 
   preconditioner_vtable vtable = {.matrix = block_jacobi_preconditioner_matrix,
                                   .compute_jacobian = block_jacobi_preconditioner_compute_jacobian,

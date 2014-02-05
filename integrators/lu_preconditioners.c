@@ -206,15 +206,15 @@ static void insert_Jv_into_supermatrix(adj_graph_t* graph,
   int pos = 0, i;
   while (adj_graph_coloring_next_vertex(coloring, color, &pos, &i))
   {
-    if (Jv[i] != 0.0)
+    if (Jv[i] != 0.0) // <--- FIXME: Is this correct??
     {
       // Fill in the diagonal element.
       Jij[data->colptr[i]] = Jv[i];
-
+      
+      // Fill in off-diagonal column values.
       int pos = 0, j;
       while (adj_graph_next_edge(graph, i, &pos, &j))
       {
-        // Off-diagonal (row) value.
         int col_index = data->colptr[i];
         size_t num_rows = data->colptr[i+1] - col_index;
         int* entry = int_bsearch(&data->rowind[col_index+1], num_rows - 1, j);
