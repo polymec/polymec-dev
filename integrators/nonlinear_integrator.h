@@ -160,6 +160,10 @@ void nonlinear_integrator_set_max_iterations(nonlinear_integrator_t* integrator,
 void nonlinear_integrator_set_preconditioner(nonlinear_integrator_t* integrator,
                                              preconditioner_t* precond);
 
+// Returns the current preconditioner matrix for the integrator, or 
+// NULL if there is no such matrix.
+preconditioner_matrix_t* nonlinear_integrator_preconditioner_matrix(nonlinear_integrator_t* integrator);
+
 // Evaluates the residual vector, storing it in F.
 void nonlinear_integrator_eval_residual(nonlinear_integrator_t* integrator, real_t t, real_t* X, real_t* F);
 

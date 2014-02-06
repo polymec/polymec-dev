@@ -98,6 +98,9 @@ typedef void (*preconditioner_matrix_scale_and_shift_func)(void* context, real_t
 // in a preconditioner matrix.
 typedef real_t (*preconditioner_matrix_coeff_func)(void* context, int i, int j);
 
+// This function writes a text representation of the matrix to the given file.
+typedef void (*preconditioner_matrix_fprintf_func)(void* context, FILE* stream);
+
 // This function destroys the data context for the preconditioner matrix.
 typedef void (*preconditioner_matrix_dtor)(void* context);
 
@@ -107,6 +110,7 @@ typedef struct
 {
   preconditioner_matrix_scale_and_shift_func scale_and_shift;
   preconditioner_matrix_coeff_func           coeff;
+  preconditioner_matrix_fprintf_func         fprintf;
   preconditioner_matrix_dtor                 dtor;
 } preconditioner_matrix_vtable;
 
@@ -132,6 +136,9 @@ void preconditioner_matrix_scale_and_shift(preconditioner_matrix_t* mat, real_t 
 // Returns the (i, j)th entry in the preconditioner matrix. This method of 
 // access is slow in general and should only be used for diagnostics.
 real_t preconditioner_matrix_coeff(preconditioner_matrix_t* mat, int i, int j);
+
+// Writes the given matrix to the given file.
+void preconditioner_matrix_fprintf(preconditioner_matrix_t* mat, FILE* stream);
 
 #endif
 

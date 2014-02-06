@@ -69,6 +69,20 @@ static real_t bd_coeff(void* context, int i, int j)
   return A[bs * r + c];
 }
 
+static void bd_fprintf(void* context, FILE* stream)
+{
+  bd_mat_t* mat = context;
+  int n = mat->num_block_rows;
+  int bs = mat->block_size;
+  fprintf(stream, "Block diagonal matrix: (%d rows):", n * bs);
+  for (int i = 0; i < n; ++i)
+  {
+    fprintf(stream, "\nRows %6d - %6d: ", i*bs, (i+1)*bs - 1);
+    matrix_fprintf(&mat->coeffs[i * bs * bs], bs, bs, stream);
+  }
+  fprintf(stream, "\n");
+}
+
 static void bd_dtor(void* context)
 {
   bd_mat_t* mat = context;
@@ -81,6 +95,7 @@ static preconditioner_matrix_t* block_jacobi_preconditioner_matrix(void* context
   block_jacobi_preconditioner_t* precond = context;
   preconditioner_matrix_vtable vtable = {.scale_and_shift = bd_scale_and_shift,
                                          .coeff = bd_coeff,
+                                         .fprintf = bd_fprintf,
                                          .dtor = bd_dtor};
   int bs = precond->block_size;
   int num_rows = precond->num_block_rows * bs;

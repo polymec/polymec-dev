@@ -94,6 +94,28 @@ static real_t supermatrix_coeff(void* context, int i, int j)
   }
 }
 
+static void supermatrix_fprintf(void* context, FILE* stream)
+{
+  SuperMatrix* A = context;
+  fprintf(stream, "\nCompCol matrix P:\n");
+  fprintf(stream, "Stype %d, Dtype %d, Mtype %d\n", A->Stype,A->Dtype,A->Mtype);
+  int n = A->ncol;
+  NCformat* Astore = (NCformat *) A->Store;
+  real_t* dp = Astore->nzval;
+  fprintf(stream, "nrow %d, ncol %d, nnz %d\n", A->nrow,A->ncol,Astore->nnz);
+  fprintf(stream, "nzval: ");
+  for (int i = 0; i < Astore->colptr[n]; ++i) 
+    fprintf(stream, "%f  ", (double)dp[i]);
+  fprintf(stream, "\nrowind: ");
+  for (int i = 0; i < Astore->colptr[n]; ++i) 
+    fprintf(stream, "%d  ", Astore->rowind[i]);
+  fprintf(stream, "\ncolptr: ");
+  for (int i = 0; i <= n; ++i) 
+    fprintf(stream, "%d  ", Astore->colptr[i]);
+  fprintf(stream, "\n");
+}
+
+
 static void supermatrix_dtor(void* context)
 {
   SuperMatrix* matrix = context;
@@ -158,6 +180,7 @@ static preconditioner_matrix_t* lu_preconditioner_matrix(void* context)
 
   preconditioner_matrix_vtable vtable = {.scale_and_shift = supermatrix_scale_and_shift,
                                          .coeff = supermatrix_coeff,
+                                         .fprintf = supermatrix_fprintf,
                                          .dtor = supermatrix_dtor};
   return preconditioner_matrix_new("SuperMatrix", A, vtable, num_rows);
 }

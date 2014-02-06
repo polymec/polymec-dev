@@ -126,3 +126,8 @@ real_t preconditioner_matrix_coeff(preconditioner_matrix_t* mat, int i, int j)
   return mat->vtable.coeff(mat->context, i, j);
 }
 
+void preconditioner_matrix_fprintf(preconditioner_matrix_t* mat, FILE* stream)
+{
+  mat->vtable.fprintf(mat->context, stream);
+}
+
