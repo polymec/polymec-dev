@@ -699,7 +699,6 @@ static int Precond(realtype tn, N_Vector u, N_Vector fu,
   realtype *udata, **a, **j;
   UserData data;
   
-printf("constructing P at t = %g\n", tn);
   /* Make local copies of pointers in user_data, and of pointer to u's data */
   
   data = (UserData) user_data;

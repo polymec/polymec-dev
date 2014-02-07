@@ -108,9 +108,9 @@ int main(int argc, char* argv[])
   {
     unit_test(test_block_jacobi_precond_diurnal_ctor),
     unit_test(test_lu_precond_diurnal_ctor),
-//    unit_test(test_ilu_precond_diurnal_ctor),
-    unit_test(test_block_jacobi_precond_diurnal_step),
-//    unit_test(test_lu_precond_diurnal_step),
+    unit_test(test_ilu_precond_diurnal_ctor),
+//    unit_test(test_block_jacobi_precond_diurnal_step),
+    unit_test(test_lu_precond_diurnal_step),
 //    unit_test(test_ilu_precond_diurnal_step),
   };
   return run_tests(tests);

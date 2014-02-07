@@ -88,7 +88,6 @@ static int set_up_preconditioner(real_t t, N_Vector x, N_Vector F,
                                  real_t gamma, void* context, 
                                  N_Vector work1, N_Vector work2, N_Vector work3)
 {
-printf("constructing P at t = %g\n", t);
   time_integrator_t* integ = context;
   if (!jacobian_is_current)
   {
