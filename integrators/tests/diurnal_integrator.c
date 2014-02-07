@@ -326,7 +326,7 @@ time_integrator_t* block_jacobi_precond_diurnal_integrator_new()
 {
   time_integrator_t* integ = diurnal_integrator_new();
   diurnal_t* data = time_integrator_context(integ);
-  preconditioner_t* precond = block_jacobi_preconditioner_new(data, diurnal_rhs, NULL, data->sparsity, NEQ, NUM_SPECIES);
+  preconditioner_t* precond = block_jacobi_preconditioner_new(data, diurnal_rhs, NULL, data->sparsity, NEQ/NUM_SPECIES, NUM_SPECIES);
   time_integrator_set_preconditioner(integ, precond);
   return integ;
 }

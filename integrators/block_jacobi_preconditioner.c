@@ -188,6 +188,7 @@ static void block_jacobi_preconditioner_compute_jacobian(void* context, real_t t
   // We compute the system Jacobian using the method described in 
   // Curtis, Powell, and Reed.
   int num_rows = adj_graph_num_vertices(graph);
+  ASSERT(num_rows == precond->block_size*precond->num_block_rows);
   real_t* Jv = malloc(sizeof(real_t) * num_rows);
   int num_colors = adj_graph_coloring_num_colors(coloring);
   for (int c = 0; c < num_colors; ++c)
@@ -247,6 +248,7 @@ static void block_jacobi_preconditioner_dtor(void* context)
     free(precond->work[i]);
   free(precond->work);
   adj_graph_coloring_free(precond->coloring);
+  adj_graph_free(precond->sparsity);
   free(precond);
 }
 
