@@ -42,8 +42,9 @@ typedef struct
   // Work vectors.
   int num_work_vectors;
   real_t** work;
+  int* etree;
 
-  SuperMatrix rhs, L, U;
+  SuperMatrix rhs, X, L, U;
   int *rperm, *cperm;
   superlu_options_t options;
   SuperLUStat_t stat;
@@ -326,10 +327,13 @@ static void lu_preconditioner_dtor(void* context)
     Destroy_SuperNode_Matrix(&precond->L);
     Destroy_CompCol_Matrix(&precond->U);
     Destroy_SuperMatrix_Store(&precond->rhs);
+    Destroy_SuperMatrix_Store(&precond->X);
   }
   for (int i = 0; i < precond->num_work_vectors; ++i)
     free(precond->work[i]);
   free(precond->work);
+  if (precond->etree != NULL)
+    free(precond->etree);
   adj_graph_coloring_free(precond->coloring);
   precond->ilu_params = NULL;
   free(precond);
@@ -352,12 +356,15 @@ preconditioner_t* lu_preconditioner_new(void* context,
   precond->N = adj_graph_num_vertices(precond->sparsity);
   real_t* rhs = malloc(sizeof(real_t) * precond->N);
   dCreate_Dense_Matrix(&precond->rhs, precond->N, 1, rhs, precond->N, SLU_DN, SLU_D, SLU_GE);
+  real_t* X = malloc(sizeof(real_t) * precond->N);
+  dCreate_Dense_Matrix(&precond->X, precond->N, 1, X, precond->N, SLU_DN, SLU_D, SLU_GE);
   StatInit(&precond->stat);
   precond->cperm = NULL;
   precond->rperm = NULL;
   set_default_options(&precond->options);
   precond->options.ColPerm = NATURAL;
   precond->options.Fact = DOFACT;
+  precond->etree = NULL;
 
   // Make work vectors.
   precond->num_work_vectors = 4;
@@ -388,15 +395,44 @@ ilu_params_t* ilu_params_new()
   params->drop_rule = ILU_DROP_BASIC | ILU_DROP_AREA;
   params->drop_tolerance = 1e-4;
   params->fill_factor = 10.0;
-  params->variant = ILU_SILU;
+  params->milu_variant = ILU_SILU;
   params->fill_tolerance = 0.01;
+  params->norm = ILU_LINF;
   return params;
 }
 
 static bool ilu_preconditioner_solve(void* context, preconditioner_matrix_t* A, real_t* B)
 {
-  // FIXME
-  return true;
+  lu_preconditioner_t* precond = context;
+  SuperMatrix* mat = preconditioner_matrix_context(A);
+
+  // Copy B to the rhs vector.
+  DNformat* rhs = precond->rhs.Store;
+  memcpy(rhs->nzval, B, sizeof(real_t) * precond->N);
+
+  if (precond->cperm == NULL)
+  {
+    precond->cperm = intMalloc(precond->N);
+    precond->rperm = intMalloc(precond->N);
+  }
+
+  // Do the (approximate) solve.
+  int info;
+  char equed;
+  int lwork = 0; // Indicates SuperLU internal memory allocation.
+  real_t R[precond->N], C[precond->N], recip_pivot_growth, cond_number;
+  mem_usage_t mem_usage;
+  dgsisx(&precond->options, mat, precond->cperm, precond->rperm, 
+         precond->etree, &equed, R, C, &precond->L, &precond->U, 
+         NULL, lwork, &precond->rhs, &precond->X, &recip_pivot_growth, &cond_number,
+         &mem_usage, &precond->stat, &info);
+
+  bool success = (info == 0);
+
+  // Copy the rhs vector to B.
+  memcpy(B, rhs->nzval, sizeof(real_t) * precond->N);
+
+  return success;
 }
 
 // ILU preconditioner.
@@ -412,10 +448,48 @@ preconditioner_t* ilu_preconditioner_new(void* context,
   precond->F = residual_func;
   precond->communicate = communication_func;
   precond->context = context;
+
+  // Copy options into place.
+  ilu_set_default_options(&precond->options);
   precond->ilu_params = ilu_params;
+  precond->options.ILU_DropRule = ilu_params->drop_rule;
+  precond->options.ILU_DropTol = ilu_params->drop_tolerance;
+  precond->options.ILU_FillFactor = ilu_params->fill_factor;
+  precond->options.ILU_FillTol = ilu_params->fill_tolerance;
+  if (ilu_params->norm == ILU_L1)
+    precond->options.ILU_Norm = ONE_NORM;
+  else if (ilu_params->norm == ILU_L2)
+    precond->options.ILU_Norm = TWO_NORM;
+  else
+    precond->options.ILU_Norm = INF_NORM;
+  if (ilu_params->milu_variant == ILU_SILU)
+    precond->options.ILU_MILU = SILU;
+  else if (ilu_params->milu_variant == ILU_MILU1)
+    precond->options.ILU_MILU = SMILU_1;
+  else if (ilu_params->milu_variant == ILU_MILU2)
+    precond->options.ILU_MILU = SMILU_2;
+  else 
+    precond->options.ILU_MILU = SMILU_3;
+  precond->options.ILU_MILU_Dim = 3;
+  if (ilu_params->row_perm == ILU_NO_ROW_PERM)
+    precond->options.RowPerm = NOROWPERM;
+  else
+    precond->options.RowPerm = LargeDiag;
+
+  // Preconditioner data.
+  precond->N = adj_graph_num_vertices(precond->sparsity);
+  real_t* rhs = malloc(sizeof(real_t) * precond->N);
+  dCreate_Dense_Matrix(&precond->rhs, precond->N, 1, rhs, precond->N, SLU_DN, SLU_D, SLU_GE);
+  real_t* X = malloc(sizeof(real_t) * precond->N);
+  dCreate_Dense_Matrix(&precond->X, precond->N, 1, X, precond->N, SLU_DN, SLU_D, SLU_GE);
+  StatInit(&precond->stat);
+  precond->cperm = NULL;
+  precond->rperm = NULL;
+  precond->options.ColPerm = NATURAL;
+  precond->options.Fact = DOFACT;
+  precond->etree = malloc(sizeof(int) * precond->N);
 
   // Make work vectors.
-  precond->N = adj_graph_num_vertices(precond->sparsity);
   precond->num_work_vectors = 4;
   precond->work = malloc(sizeof(real_t*) * precond->num_work_vectors);
   for (int i = 0; i < precond->num_work_vectors; ++i)

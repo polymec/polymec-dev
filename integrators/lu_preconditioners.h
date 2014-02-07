@@ -44,6 +44,14 @@ typedef enum
   ILU_LARGE_DIAG_PERM   // try to make the diagonal larger
 } ilu_row_perm_t;
 
+// Species the type of (L-) norm used to measure errors in ILU solves.
+typedef enum
+{
+  ILU_L1,  
+  ILU_L2,  
+  ILU_LINF
+} ilu_norm_t;
+
 // Rules for dropping coefficients in ILU. See SuperLU documentation.
 // These rules can be combined with bitwise OR.
 extern const int ILU_DROP_BASIC;
@@ -71,8 +79,9 @@ typedef struct
   int drop_rule;
   real_t drop_tolerance;
   real_t fill_factor;
-  ilu_variant_t variant;
+  ilu_variant_t milu_variant;
   real_t fill_tolerance;
+  ilu_norm_t norm;
 } ilu_params_t;
 
 // Initializes a set of ILU parameters with reasonable defaults.
