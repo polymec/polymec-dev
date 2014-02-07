@@ -69,6 +69,7 @@ void test_diurnal_step(void** state, time_integrator_t* integ)
   while (t < 7200.0)
   {
     bool integrated = time_integrator_step(integ, &t, u);
+//    preconditioner_matrix_fprintf(time_integrator_preconditioner_matrix(integ), stdout);
     assert_true(integrated);
   }
 printf("u = [");
@@ -109,7 +110,7 @@ int main(int argc, char* argv[])
     unit_test(test_block_jacobi_precond_diurnal_ctor),
     unit_test(test_lu_precond_diurnal_ctor),
     unit_test(test_ilu_precond_diurnal_ctor),
-//    unit_test(test_block_jacobi_precond_diurnal_step),
+    unit_test(test_block_jacobi_precond_diurnal_step),
     unit_test(test_lu_precond_diurnal_step),
 //    unit_test(test_ilu_precond_diurnal_step),
   };

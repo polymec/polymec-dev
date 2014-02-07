@@ -269,6 +269,11 @@ void time_integrator_set_preconditioner(time_integrator_t* integrator,
   integrator->precond_mat = preconditioner_matrix(precond);
 }
 
+preconditioner_matrix_t* time_integrator_preconditioner_matrix(time_integrator_t* integrator)
+{
+  return integrator->precond_mat;
+}
+
 void time_integrator_set_stability_limit_detection(time_integrator_t* integrator,
                                                    bool use_detection)
 {

@@ -54,8 +54,6 @@ typedef struct
 static void bd_scale_and_shift(void* context, real_t gamma)
 {
   bd_mat_t* mat = context;
-  for (int i = 0; i < mat->num_block_rows*mat->block_size; ++i)
-    mat->coeffs[i] = 1.0 + gamma * mat->coeffs[i];
   int n = mat->num_block_rows;
   int bs = mat->block_size;
   for (int i = 0; i < n; ++i)
@@ -168,12 +166,12 @@ static void insert_Jv_into_bd_mat(adj_graph_t* graph,
   int pos = 0, i;
   while (adj_graph_coloring_next_vertex(coloring, color, &pos, &i))
   {
-    int block_row = i / bs;
-    for (int j = block_row*bs; j < (block_row+1)*bs; ++j)
+    int block_col = i / bs;
+    int c = i % bs;
+    for (int j = block_col*bs; j < (block_col+1)*bs; ++j)
     {
-      int r = i % bs;
-      int c = j % bs;
-      J->coeffs[block_row*bs*bs + r*bs + c] = Jv[j];
+      int r = j % bs;
+      J->coeffs[block_col*bs*bs + c*bs + r] = Jv[j];
     }
   }
 }

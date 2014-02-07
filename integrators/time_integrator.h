@@ -113,6 +113,10 @@ int time_integrator_order(time_integrator_t* integrator);
 void time_integrator_set_preconditioner(time_integrator_t* integrator,
                                         preconditioner_t* precond);
 
+// Returns the current preconditioner matrix for the integrator, or 
+// NULL if there is no such matrix.
+preconditioner_matrix_t* time_integrator_preconditioner_matrix(time_integrator_t* integrator);
+
 // Sets whether to use a stability limit detection algorithm to improve 
 // robustness on particularly stiff problems (2-10% overhead, depending 
 // on the problem).
