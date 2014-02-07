@@ -53,6 +53,9 @@ adj_graph_t* adj_graph_new_with_dist(MPI_Comm comm,
 adj_graph_t* adj_graph_new_with_block_size(int block_size,
                                            adj_graph_t* graph);
 
+// Creates and returns a copy of the the given graph.
+adj_graph_t* adj_graph_clone(adj_graph_t* graph);
+
 // Frees the given adjacency graph.
 void adj_graph_free(adj_graph_t* graph);
 

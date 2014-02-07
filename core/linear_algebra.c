@@ -134,12 +134,13 @@ void rgelsy(int* m, int* n, int* nrhs, real_t* A, int* lda, real_t* B, int* ldb,
 
 void matrix_fprintf(real_t* matrix, int nr, int nc, FILE* stream)
 {
-  fprintf(stream, "[");
+  fprintf(stream, "[ ");
   for (int i = 0; i < nr; ++i)
   {
     for (int j = 0; j < nc; ++j)
       fprintf(stream, "%g ", matrix[nr*j+i]);
-    fprintf(stream, "; ");
+    if (i < (nr -1))
+      fprintf(stream, "; ");
   }
   fprintf(stream, "]");
 }

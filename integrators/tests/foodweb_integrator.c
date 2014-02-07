@@ -414,9 +414,8 @@ nonlinear_integrator_t* block_jacobi_precond_foodweb_integrator_new()
 {
   nonlinear_integrator_t* integ = foodweb_integrator_new();
   foodweb_t* data = nonlinear_integrator_context(integ);
-  int num_eq = nonlinear_integrator_num_equations(integ);
   int block_size = NUM_SPECIES;
-  preconditioner_t* precond = block_jacobi_preconditioner_new(data, foodweb_func, NULL, data->sparsity, block_size);
+  preconditioner_t* precond = block_jacobi_preconditioner_new(data, foodweb_func, NULL, data->sparsity, NEQ/block_size, block_size);
   nonlinear_integrator_set_preconditioner(integ, precond);
   return integ;
 }

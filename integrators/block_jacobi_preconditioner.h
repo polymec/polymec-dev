@@ -27,11 +27,15 @@
 
 #include "integrators/preconditioner.h"
 
-// Block Jacobi preconditioner with given number of block rows and block size.
+// Creates a block Jacobi preconditioner with the given sparsity graph, 
+// number of block rows, and block size. The nature of the sparsity graph 
+// (i.e. whether it is a block graph or not) is inferred from the number of 
+// block rows and the block size.
 preconditioner_t* block_jacobi_preconditioner_new(void* context,
                                                   int (*residual_func)(void* context, real_t t, real_t* x, real_t* F),
                                                   void (*communication_func)(void* context, real_t t, real_t* x),
                                                   adj_graph_t* sparsity,
+                                                  int num_block_rows,
                                                   int block_size);
                                         
 #endif

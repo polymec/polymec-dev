@@ -145,6 +145,23 @@ adj_graph_t* adj_graph_new_with_block_size(int block_size,
   return block_graph;
 }
 
+adj_graph_t* adj_graph_clone(adj_graph_t* graph)
+{
+  adj_graph_t* g = malloc(sizeof(adj_graph_t));
+  g->comm = g->comm;
+  g->nproc = graph->nproc;
+  g->rank = graph->rank;
+  g->vtx_dist = malloc(sizeof(int) * (g->nproc+1));
+  memcpy(g->vtx_dist, graph->vtx_dist, sizeof(int) * (g->nproc+1));
+  g->edge_cap = graph->edge_cap;
+  g->adjacency = malloc(sizeof(int) * g->edge_cap);
+  memcpy(g->adjacency, graph->adjacency, sizeof(int) * g->edge_cap);
+  int num_local_vertices = g->vtx_dist[g->rank+1] - g->vtx_dist[g->rank];
+  g->xadj = malloc(sizeof(int) * (num_local_vertices + 1));
+  memcpy(g->xadj, graph->xadj, sizeof(int) * (num_local_vertices + 1));
+  return g;
+}
+
 void adj_graph_free(adj_graph_t* graph)
 {
   if (graph->adjacency != NULL)

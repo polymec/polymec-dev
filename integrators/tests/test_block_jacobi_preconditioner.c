@@ -32,10 +32,10 @@
 #include "geometry/create_uniform_mesh.h"
 #include "integrators/block_jacobi_preconditioner.h"
 
-static adj_graph_t* graph_from_uniform_mesh()
+static adj_graph_t* graph_from_uniform_mesh(int N)
 {
   bbox_t box = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
-  mesh_t* m = create_uniform_mesh(MPI_COMM_WORLD, 10, 10, 10, &box);
+  mesh_t* m = create_uniform_mesh(MPI_COMM_WORLD, N, N, N, &box);
   adj_graph_t* g = graph_from_mesh_cells(m);
   mesh_free(m);
   return g;
@@ -49,9 +49,13 @@ static int sys_func(void* context, real_t t, real_t* x, real_t* F)
 void test_ctor(void** state)
 {
   int bs = 2;
-  adj_graph_t* g = graph_from_uniform_mesh();
-  preconditioner_t* precond = block_jacobi_preconditioner_new(NULL, sys_func, NULL, g, bs);
+  adj_graph_t* g = graph_from_uniform_mesh(10);
+  preconditioner_t* precond = block_jacobi_preconditioner_new(NULL, sys_func, NULL, g, 1000, bs);
   preconditioner_free(precond);
+  adj_graph_t* bg = adj_graph_new_with_block_size(bs, g);
+  precond = block_jacobi_preconditioner_new(NULL, sys_func, NULL, bg, 1000, bs);
+  preconditioner_free(precond);
+  adj_graph_free(bg);
   adj_graph_free(g);
 }
 
@@ -59,8 +63,8 @@ void test_matrix(void** state)
 {
   // Build a matrix A.
   int bs = 2;
-  adj_graph_t* g = graph_from_uniform_mesh();
-  preconditioner_t* precond = block_jacobi_preconditioner_new(NULL, sys_func, NULL, g, bs);
+  adj_graph_t* g = graph_from_uniform_mesh(10);
+  preconditioner_t* precond = block_jacobi_preconditioner_new(NULL, sys_func, NULL, g, 1000, bs);
   preconditioner_matrix_t* A = preconditioner_matrix(precond);
   int N = adj_graph_num_vertices(g);
 
@@ -81,7 +85,7 @@ void test_matrix(void** state)
   {
     for (int j = 0; j < N; ++j)
     {
-      if (abs(j - i) < bs)
+      if (i == j)
         assert_true(preconditioner_matrix_coeff(A, i, j) == 1.0);
       else
         assert_true(preconditioner_matrix_coeff(A, i, j) == 0.0);
@@ -100,9 +104,10 @@ void test_matrix(void** state)
 ** Unconstrained Optimization and Nonlinear Equations, pg 87
 **
 *******************************************************************************/
-static int dennis_schnabel_1(void* context, real_t t, real_t* x, real_t* F) {
-  // F(x) = [ x1 + x2 - 3.0,
-  //        [ x1^2 + x2^2 - 9.0
+static int dennis_schnabel_1(void* context, real_t t, real_t* x, real_t* F) 
+{
+  // F(x) = [ x1 + x2 - 3.0,    ]
+  //        [ x1^2 + x2^2 - 9.0 ]
 
   F[0] = x[0] + x[1] - 3.0;
   F[1] = x[0] * x[0] + x[1] * x[1] - 9.0;
@@ -113,9 +118,7 @@ void test_numerical_jacobian_ds1(void **state)
 {
   int bs = 2;
   adj_graph_t* g = adj_graph_new(MPI_COMM_WORLD, 1);
-  adj_graph_t* bg = adj_graph_new_with_block_size(2, g);
-  adj_graph_free(g);
-  preconditioner_t* precond = block_jacobi_preconditioner_new(NULL, dennis_schnabel_1, NULL, g, bs);
+  preconditioner_t* precond = block_jacobi_preconditioner_new(NULL, dennis_schnabel_1, NULL, g, 1, bs);
 
   real_t time = 0.0;
   real_t x[2];
@@ -132,8 +135,8 @@ void test_numerical_jacobian_ds1(void **state)
   assert_true(fabs(preconditioner_matrix_coeff(mat, 1, 0) - 2.0) < 1e-14);
   assert_true(fabs(preconditioner_matrix_coeff(mat, 1, 1) - 10.0) < 1e-14);
   preconditioner_matrix_free(mat);
-  adj_graph_free(bg);
   preconditioner_free(precond);
+  adj_graph_free(g);
 }  // end test_numerical_jacobian
 
 int main(int argc, char* argv[]) 

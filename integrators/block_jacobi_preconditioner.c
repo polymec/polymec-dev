@@ -81,8 +81,10 @@ static real_t bd_coeff(void* context, int i, int j)
   int block_row = i/bs;
   int r = i % bs;
   int c = j - block_row*bs;
+  if ((r < 0) || (r >= bs) || (c < 0) || (c >= bs))
+    return 0.0;
   real_t* A = &mat->coeffs[block_row * bs * bs];
-  return A[bs * r + c];
+  return A[bs * c + r];
 }
 
 static void bd_fprintf(void* context, FILE* stream)
@@ -252,17 +254,27 @@ preconditioner_t* block_jacobi_preconditioner_new(void* context,
                                                   int (*residual_func)(void* context, real_t t, real_t* x, real_t* F),
                                                   void (*communication_func)(void* context, real_t t, real_t* x),
                                                   adj_graph_t* sparsity,
+                                                  int num_block_rows,
                                                   int block_size)
 {
+  ASSERT(num_block_rows > 0);
   ASSERT(block_size > 0);
 
   block_jacobi_preconditioner_t* precond = malloc(sizeof(block_jacobi_preconditioner_t));
-  precond->sparsity = sparsity;
-  precond->coloring = adj_graph_coloring_new(sparsity, SMALLEST_LAST);
+
+  // Do we have a block graph?
+  int num_rows = adj_graph_num_vertices(sparsity);
+  ASSERT((num_rows == num_block_rows) || (num_rows = block_size*num_block_rows));
+  if (num_rows == num_block_rows)
+    precond->sparsity = adj_graph_new_with_block_size(block_size, sparsity);
+  else
+    precond->sparsity = adj_graph_clone(sparsity);
+
+  precond->coloring = adj_graph_coloring_new(precond->sparsity, SMALLEST_LAST);
   precond->F = residual_func;
   precond->communicate = communication_func;
   precond->context = context;
-  precond->num_block_rows = adj_graph_num_vertices(sparsity)/block_size;
+  precond->num_block_rows = num_block_rows;
   precond->block_size = block_size;
 
   // Make work vectors.
