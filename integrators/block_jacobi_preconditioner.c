@@ -28,6 +28,8 @@
 
 typedef struct 
 {
+  adj_graph_t* sparsity;
+  adj_graph_coloring_t* coloring;
   int (*F)(void* context, real_t t, real_t* x, real_t* F);
   void (*communicate)(void* context, real_t t, real_t* x);
   void* context;
@@ -54,6 +56,20 @@ static void bd_scale_and_shift(void* context, real_t gamma)
   bd_mat_t* mat = context;
   for (int i = 0; i < mat->num_block_rows*mat->block_size; ++i)
     mat->coeffs[i] = 1.0 + gamma * mat->coeffs[i];
+  int n = mat->num_block_rows;
+  int bs = mat->block_size;
+  for (int i = 0; i < n; ++i)
+  {
+    real_t* A = &mat->coeffs[i*bs*bs];
+
+    // Scale.
+    for (int j = 0; j < bs*bs; ++j)
+      A[j] *= gamma;
+
+    // Shift.
+    for (int j = 0; j < bs; ++j)
+      A[j*bs+j] += 1.0;
+  }
 }
 
 static real_t bd_coeff(void* context, int i, int j)
@@ -140,20 +156,22 @@ static void finite_diff_Jv(int (*F)(void* context, real_t t, real_t* x, real_t* 
     Jv[i] = (work[3][i] - work[1][i]) / eps;
 }
 
-static void insert_Jv_into_bd_mat(int num_rows, 
+static void insert_Jv_into_bd_mat(adj_graph_t* graph,
+                                  adj_graph_coloring_t* coloring, 
                                   int color, 
                                   real_t* Jv, 
                                   bd_mat_t* J)
 {
   int bs = J->block_size;
-  for (int i = color; i < num_rows; i += bs)
+  int pos = 0, i;
+  while (adj_graph_coloring_next_vertex(coloring, color, &pos, &i))
   {
     int block_row = i / bs;
     for (int j = block_row*bs; j < (block_row+1)*bs; ++j)
     {
       int r = i % bs;
       int c = j % bs;
-      J->coeffs[block_row*bs*bs + c*bs + r] = Jv[j];
+      J->coeffs[block_row*bs*bs + r*bs + c] = Jv[j];
     }
   }
 }
@@ -161,19 +179,21 @@ static void insert_Jv_into_bd_mat(int num_rows,
 static void block_jacobi_preconditioner_compute_jacobian(void* context, real_t t, real_t* x, preconditioner_matrix_t* mat)
 {
   block_jacobi_preconditioner_t* precond = context;
-  bd_mat_t* A = preconditioner_matrix_context(mat);
+  adj_graph_t* graph = precond->sparsity;
+  adj_graph_coloring_t* coloring = precond->coloring;
   real_t** work = precond->work;
 
   // We compute the system Jacobian using the method described in 
   // Curtis, Powell, and Reed.
-  int num_rows = A->num_block_rows * A->block_size;
+  int num_rows = adj_graph_num_vertices(graph);
   real_t* Jv = malloc(sizeof(real_t) * num_rows);
-  int num_colors = A->block_size;
+  int num_colors = adj_graph_coloring_num_colors(coloring);
   for (int c = 0; c < num_colors; ++c)
   {
     // We construct d, the binary vector corresponding to this color, in work[0].
     memset(work[0], 0, sizeof(real_t) * num_rows);
-    for (int i = c; i < num_rows; i += A->block_size)
+    int pos = 0, i;
+    while (adj_graph_coloring_next_vertex(coloring, c, &pos, &i))
       work[0][i] = 1.0;
 
     // We evaluate F(x) and place it into work[1].
@@ -186,10 +206,12 @@ static void block_jacobi_preconditioner_compute_jacobian(void* context, real_t t
     finite_diff_Jv(precond->F, precond->communicate, precond->context, x, t, num_rows, work[0], work, Jv);
 
     // Copy the components of Jv into their proper locations.
-    insert_Jv_into_bd_mat(num_rows, c, Jv, A);
+    bd_mat_t* J = preconditioner_matrix_context(mat);
+    insert_Jv_into_bd_mat(graph, coloring, c, Jv, J);
   }
   free(Jv);
 }
+
 
 static bool block_jacobi_preconditioner_solve(void* context, preconditioner_matrix_t* A, real_t* B)
 {
@@ -222,23 +244,25 @@ static void block_jacobi_preconditioner_dtor(void* context)
   for (int i = 0; i < precond->num_work_vectors; ++i)
     free(precond->work[i]);
   free(precond->work);
+  adj_graph_coloring_free(precond->coloring);
   free(precond);
 }
 
 preconditioner_t* block_jacobi_preconditioner_new(void* context,
                                                   int (*residual_func)(void* context, real_t t, real_t* x, real_t* F),
                                                   void (*communication_func)(void* context, real_t t, real_t* x),
-                                                  int num_block_rows,
+                                                  adj_graph_t* sparsity,
                                                   int block_size)
 {
-  ASSERT(num_block_rows > 0);
   ASSERT(block_size > 0);
 
   block_jacobi_preconditioner_t* precond = malloc(sizeof(block_jacobi_preconditioner_t));
+  precond->sparsity = sparsity;
+  precond->coloring = adj_graph_coloring_new(sparsity, SMALLEST_LAST);
   precond->F = residual_func;
   precond->communicate = communication_func;
   precond->context = context;
-  precond->num_block_rows = num_block_rows;
+  precond->num_block_rows = adj_graph_num_vertices(sparsity)/block_size;
   precond->block_size = block_size;
 
   // Make work vectors.

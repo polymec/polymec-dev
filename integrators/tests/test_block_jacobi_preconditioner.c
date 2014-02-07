@@ -29,7 +29,17 @@
 
 #include "cmockery.h"
 #include "core/polymec.h"
+#include "geometry/create_uniform_mesh.h"
 #include "integrators/block_jacobi_preconditioner.h"
+
+static adj_graph_t* graph_from_uniform_mesh()
+{
+  bbox_t box = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
+  mesh_t* m = create_uniform_mesh(MPI_COMM_WORLD, 10, 10, 10, &box);
+  adj_graph_t* g = graph_from_mesh_cells(m);
+  mesh_free(m);
+  return g;
+}
 
 static int sys_func(void* context, real_t t, real_t* x, real_t* F)
 {
@@ -38,17 +48,21 @@ static int sys_func(void* context, real_t t, real_t* x, real_t* F)
 
 void test_ctor(void** state)
 {
-  int N = 10, bs = 2;
-  preconditioner_t* precond = block_jacobi_preconditioner_new(NULL, sys_func, NULL, N, bs);
+  int bs = 2;
+  adj_graph_t* g = graph_from_uniform_mesh();
+  preconditioner_t* precond = block_jacobi_preconditioner_new(NULL, sys_func, NULL, g, bs);
   preconditioner_free(precond);
+  adj_graph_free(g);
 }
 
 void test_matrix(void** state)
 {
   // Build a matrix A.
-  int N = 10, bs = 2;
-  preconditioner_t* precond = block_jacobi_preconditioner_new(NULL, sys_func, NULL, N, bs);
+  int bs = 2;
+  adj_graph_t* g = graph_from_uniform_mesh();
+  preconditioner_t* precond = block_jacobi_preconditioner_new(NULL, sys_func, NULL, g, bs);
   preconditioner_matrix_t* A = preconditioner_matrix(precond);
+  int N = adj_graph_num_vertices(g);
 
   // Check the entries of A.
   for (int i = 0; i < N; ++i)
@@ -77,6 +91,7 @@ void test_matrix(void** state)
   // Clean up.
   preconditioner_matrix_free(A);
   preconditioner_free(precond);
+  adj_graph_free(g);
 }
 
 /*******************************************************************************
@@ -96,8 +111,11 @@ static int dennis_schnabel_1(void* context, real_t t, real_t* x, real_t* F) {
 
 void test_numerical_jacobian_ds1(void **state) 
 {
-  int N = 1, bs = 2;
-  preconditioner_t* precond = block_jacobi_preconditioner_new(NULL, dennis_schnabel_1, NULL, N, bs);
+  int bs = 2;
+  adj_graph_t* g = adj_graph_new(MPI_COMM_WORLD, 1);
+  adj_graph_t* bg = adj_graph_new_with_block_size(2, g);
+  adj_graph_free(g);
+  preconditioner_t* precond = block_jacobi_preconditioner_new(NULL, dennis_schnabel_1, NULL, g, bs);
 
   real_t time = 0.0;
   real_t x[2];
@@ -114,6 +132,7 @@ void test_numerical_jacobian_ds1(void **state)
   assert_true(fabs(preconditioner_matrix_coeff(mat, 1, 0) - 2.0) < 1e-14);
   assert_true(fabs(preconditioner_matrix_coeff(mat, 1, 1) - 10.0) < 1e-14);
   preconditioner_matrix_free(mat);
+  adj_graph_free(bg);
   preconditioner_free(precond);
 }  // end test_numerical_jacobian
 

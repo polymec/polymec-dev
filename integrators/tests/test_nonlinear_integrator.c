@@ -73,6 +73,7 @@ void test_foodweb_solve(void** state, nonlinear_integrator_t* integ)
     nonlinear_integrator_get_diagnostics(integ, &diagnostics);
     nonlinear_integrator_diagnostics_fprintf(&diagnostics, stdout);
   }
+  preconditioner_matrix_fprintf(nonlinear_integrator_preconditioner_matrix(integ), stdout);
   assert_true(solved);
   log_debug("num iterations = %d\n", num_iters);
   assert_true(num_iters < 10);
