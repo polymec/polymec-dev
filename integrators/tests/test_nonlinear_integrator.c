@@ -75,7 +75,7 @@ void test_foodweb_solve(void** state, nonlinear_integrator_t* integ)
     preconditioner_matrix_fprintf(nonlinear_integrator_preconditioner_matrix(integ), stdout);
   }
   assert_true(solved);
-  log_debug("num iterations = %d\n", num_iters);
+  log_info("num iterations = %d\n", num_iters);
   assert_true(num_iters < 10);
 
   // Evaluate the 2-norm of the residual.

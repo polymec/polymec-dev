@@ -31,20 +31,35 @@
 #include "core/polymec.h"
 #include "integrators/time_integrator.h"
 
-extern time_integrator_t* diurnal_integrator_new();
+extern time_integrator_t* block_jacobi_precond_diurnal_integrator_new();
+extern time_integrator_t* lu_precond_diurnal_integrator_new();
+extern time_integrator_t* ilu_precond_diurnal_integrator_new();
 extern real_t* diurnal_initial_conditions(time_integrator_t* integ);
 
-void test_diurnal_ctor(void** state)
+void test_block_jacobi_precond_diurnal_ctor(void** state)
 {
-  time_integrator_t* integ = diurnal_integrator_new();
+  time_integrator_t* integ = block_jacobi_precond_diurnal_integrator_new();
   assert_true(strcmp(time_integrator_name(integ), "Diurnal") == 0);
   time_integrator_free(integ);
 }
 
-void test_diurnal_integration(void** state)
+void test_lu_precond_diurnal_ctor(void** state)
+{
+  time_integrator_t* integ = lu_precond_diurnal_integrator_new();
+  assert_true(strcmp(time_integrator_name(integ), "Diurnal") == 0);
+  time_integrator_free(integ);
+}
+
+void test_ilu_precond_diurnal_ctor(void** state)
+{
+  time_integrator_t* integ = ilu_precond_diurnal_integrator_new();
+  assert_true(strcmp(time_integrator_name(integ), "Diurnal") == 0);
+  time_integrator_free(integ);
+}
+
+void test_diurnal_step(void** state, time_integrator_t* integ)
 {
   // Set up the problem.
-  time_integrator_t* integ = diurnal_integrator_new();
   time_integrator_set_tolerances(integ, 1e-5, 1e-3);
   real_t* u = diurnal_initial_conditions(integ);
 
@@ -69,13 +84,35 @@ printf("]\n");
   free(u);
 }
 
+void test_block_jacobi_precond_diurnal_step(void** state)
+{
+  time_integrator_t* integ = block_jacobi_precond_diurnal_integrator_new();
+  test_diurnal_step(state, integ);
+}
+
+void test_lu_precond_diurnal_step(void** state)
+{
+  time_integrator_t* integ = lu_precond_diurnal_integrator_new();
+  test_diurnal_step(state, integ);
+}
+
+void test_ilu_precond_diurnal_step(void** state)
+{
+  time_integrator_t* integ = ilu_precond_diurnal_integrator_new();
+  test_diurnal_step(state, integ);
+}
+
 int main(int argc, char* argv[]) 
 {
   polymec_init(argc, argv);
   const UnitTest tests[] = 
   {
-    unit_test(test_diurnal_ctor),
-    unit_test(test_diurnal_integration),
+    unit_test(test_block_jacobi_precond_diurnal_ctor),
+//    unit_test(test_lu_precond_diurnal_ctor),
+//    unit_test(test_ilu_precond_diurnal_ctor),
+    unit_test(test_block_jacobi_precond_diurnal_step),
+//    unit_test(test_lu_precond_diurnal_step),
+//    unit_test(test_ilu_precond_diurnal_step),
   };
   return run_tests(tests);
 }
