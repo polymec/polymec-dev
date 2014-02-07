@@ -65,12 +65,11 @@ void test_diurnal_step(void** state, time_integrator_t* integ)
 
   // Integrate it.
   real_t t = 0.0;
+  time_integrator_set_stop_time(integ, 7200.0);
   while (t < 7200.0)
   {
-    time_integrator_set_max_dt(integ, 7200.0 - t);
     bool integrated = time_integrator_step(integ, &t, u);
     assert_true(integrated);
-    printf ("t = %g\n", t);
   }
 printf("u = [");
 for (int i = 0; i < 200; ++i)
@@ -108,7 +107,7 @@ int main(int argc, char* argv[])
   const UnitTest tests[] = 
   {
     unit_test(test_block_jacobi_precond_diurnal_ctor),
-//    unit_test(test_lu_precond_diurnal_ctor),
+    unit_test(test_lu_precond_diurnal_ctor),
 //    unit_test(test_ilu_precond_diurnal_ctor),
     unit_test(test_block_jacobi_precond_diurnal_step),
 //    unit_test(test_lu_precond_diurnal_step),

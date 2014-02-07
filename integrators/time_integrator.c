@@ -57,7 +57,7 @@ struct time_integrator_t
   real_t current_time;
   int max_krylov_dim;
   char* status_message; // status of most recent integration.
-  real_t max_dt;
+  real_t max_dt, stop_time;
 
   // Error weight function.
   time_integrator_error_weight_func compute_weights;
@@ -88,6 +88,7 @@ static int set_up_preconditioner(real_t t, N_Vector x, N_Vector F,
                                  real_t gamma, void* context, 
                                  N_Vector work1, N_Vector work2, N_Vector work3)
 {
+printf("constructing P at t = %g\n", t);
   time_integrator_t* integ = context;
   if (!jacobian_is_current)
   {
@@ -109,11 +110,16 @@ static int solve_preconditioner_system(real_t t, N_Vector x, N_Vector F,
                                        int lr, void* context, 
                                        N_Vector work)
 {
+  ASSERT(lr == 1); // Left preconditioning only.
+
   time_integrator_t* integ = context;
   
   // FIXME: Apply scaling if needed.
+  // Copy the contents of the RHS to the output vector.
+  memcpy(NV_DATA(z), NV_DATA(r), sizeof(real_t) * integ->N);
 
-  if (preconditioner_solve(integ->precond, integ->precond_mat, NV_DATA(r)))
+  // Solve it.
+  if (preconditioner_solve(integ->precond, integ->precond_mat, NV_DATA(z)))
     return 0;
   else 
     return 1; // recoverable error.
@@ -311,6 +317,12 @@ void time_integrator_set_max_dt(time_integrator_t* integ, real_t max_dt)
   CVodeSetMaxStep(integ->cvode, max_dt);
 }
 
+void time_integrator_set_stop_time(time_integrator_t* integ, real_t stop_time)
+{
+  integ->stop_time = stop_time;
+  CVodeSetStopTime(integ->cvode, stop_time);
+}
+
 bool time_integrator_step(time_integrator_t* integ, real_t* t, real_t* X)
 {
   // Copy in the solution.
@@ -324,7 +336,7 @@ bool time_integrator_step(time_integrator_t* integ, real_t* t, real_t* X)
   }
   else if (fabs(integ->current_time - *t) > 1e-14)
   {
-    // Reset the integrator if t1 != current_time.
+    // Reset the integrator if t != current_time.
     integ->current_time = *t;
     CVodeReInit(integ->cvode, integ->current_time, integ->x);
   }

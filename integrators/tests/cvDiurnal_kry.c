@@ -216,17 +216,19 @@ int main()
   /* In loop over output points, call CVode, print results, test for error */
   printf(" \n2-species diurnal advection-diffusion problem\n\n");
   tout = 7200.0;
-flag = CVode(cvode_mem, tout, u, &t, CV_ONE_STEP);
-PrintOutput(cvode_mem, u, t);
-printf("u = [");
-for (int i = 0; i < 200; ++i)
-  printf("%g ", NV_DATA_S(u)[i]);
-printf("]\n");
-//  for (iout=1, tout = TWOHR; iout <= NOUT; iout++, tout += TWOHR) {
+//flag = CVode(cvode_mem, tout, u, &t, CV_ONE_STEP);
+//PrintOutput(cvode_mem, u, t);
+//printf("u = [");
+//for (int i = 0; i < 200; ++i)
+//  printf("%g ", NV_DATA_S(u)[i]);
+//printf("]\n");
+  for (iout=1, tout = TWOHR; iout <= NOUT; iout++, tout += TWOHR) {
+    while (t < tout)
+      flag = CVode(cvode_mem, tout, u, &t, CV_ONE_STEP);
 //    flag = CVode(cvode_mem, tout, u, &t, CV_NORMAL);
-//    PrintOutput(cvode_mem, u, t);
-//    if(check_flag(&flag, "CVode", 1)) break;
-//  }
+    PrintOutput(cvode_mem, u, t);
+    if(check_flag(&flag, "CVode", 1)) break;
+  }
 
   PrintFinalStats(cvode_mem);
 
@@ -697,6 +699,7 @@ static int Precond(realtype tn, N_Vector u, N_Vector fu,
   realtype *udata, **a, **j;
   UserData data;
   
+printf("constructing P at t = %g\n", tn);
   /* Make local copies of pointers in user_data, and of pointer to u's data */
   
   data = (UserData) user_data;

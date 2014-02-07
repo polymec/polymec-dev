@@ -136,6 +136,9 @@ void time_integrator_eval_rhs(time_integrator_t* integ, real_t t, real_t* X, rea
 // Sets the maximum time step size for the next integration step.
 void time_integrator_set_max_dt(time_integrator_t* integ, real_t max_dt);
 
+// Sets the time past which the integrator will not step.
+void time_integrator_set_stop_time(time_integrator_t* integ, real_t stop_time);
+
 // Integrates the given solution X in place, taking a single step starting at 
 // time *t and storing the new time in *t as well. Returns true if the step 
 // succeeded, false if it failed for some reason. If a step fails, both t 
