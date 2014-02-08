@@ -198,6 +198,16 @@ real_t polygon_area(polygon_t* poly)
   return poly->area;
 }
 
+void polygon_compute_centroid(polygon_t* poly, point_t* centroid)
+{
+  point_copy(centroid, &poly->x0);
+}
+
+void polygon_compute_normal(polygon_t* poly, vector_t* normal)
+{
+  vector_copy(normal, &poly->normal);
+}
+
 polygon_t* polygon_clone(polygon_t* poly)
 {
   return polygon_new(poly->vertices, poly->num_vertices);

@@ -38,6 +38,12 @@ typedef struct
 {
   // Computes points and weights when the nodes of faces are given.
   void (*set_domain)(void* context, point_t* face_nodes, int* face_node_offsets, int num_faces);
+
+  // Returns the next quadrature point/weight in the volume integral.
+  bool (*next_volume_point)(void* context, int* pos, point_t* point, real_t* weight);
+
+  // Returns the next quadrature point/weight/normal in the volume integral.
+  bool (*next_surface_point)(void* context, int* pos, point_t* point, vector_t* normal_vector, real_t* weight);
   
   // Destroys the context pointer.
   void (*dtor)(void* context);
@@ -99,8 +105,8 @@ bool polyhedron_integrator_next_surface_point(polyhedron_integrator_t* integ,
                                               vector_t* normal_vector,
                                               real_t* weight);
 
-// This uses a low-order (2nd order at best) midpoint quadrature rule for
-// surface and volume integrals.
+// Creates a (2nd order) midpoint quadrature rule for surface and volume 
+// integrals over polyhedra.
 polyhedron_integrator_t* midpoint_polyhedron_integrator_new();
 
 #endif

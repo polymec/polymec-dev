@@ -38,6 +38,14 @@ typedef struct
 // type are garbage-collected when allocated on the heap.
 point_t* point_new(real_t x, real_t y, real_t z);
 
+// Sets the components of the given point.
+static inline void point_set(point_t* p, real_t x, real_t y, real_t z)
+{
+  p->x = x;
+  p->y = y;
+  p->z = z;
+}
+
 // Square distance between two points in 3D space.
 static inline real_t point_square_distance(point_t* x, point_t* y)
 {
@@ -133,6 +141,7 @@ static inline void vector_copy(vector_t* dest, vector_t* source)
   dest->z = source->z;
 }
 
+// Scales a vector by the given factor s.
 static inline void vector_scale(vector_t* v, real_t s)
 {
   v->x *= s;
