@@ -248,7 +248,7 @@ static int fv_poisson_residual(void* context, real_t t, real_t* u, real_t* F)
         real_t flux2 = p->cell_face_fluxes[offset2];
 
         // Either they are both zero, or they have opposite sign.
-        ASSERT((flux1 == flux2 == 0.0) || (SIGN(flux1) == -SIGN(flux2)));
+        ASSERT(SIGN(flux1) == -SIGN(flux2));
 
         // Now average their magnitudes and make sure that they agree so 
         // that our fluxes are conservative.
