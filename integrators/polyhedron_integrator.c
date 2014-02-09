@@ -137,7 +137,7 @@ static void midpt_set_domain(void* context,
   {
     int first_face_node = face_node_offsets[f];
     int num_face_nodes = face_node_offsets[f+1] - face_node_offsets[f];
-    polygons[f] = polygon_giftwrap(&face_nodes[first_face_node], num_face_nodes);
+    polygons[f] = polygon_new(&face_nodes[first_face_node], num_face_nodes);
     polygon_compute_centroid(polygons[f], &midpt->face_centers[f]);
     polygon_compute_normal(polygons[f], &midpt->face_normals[f]);
     midpt->face_areas[f] = polygon_area(polygons[f]);
