@@ -27,6 +27,14 @@
 
 #include "core/mesh.h"
 
+// Symmetry-related mesh features.
+const char* SYMMETRIC;       // Has 1D or 2D symmetry
+const char* ONE_DIMENSIONAL; // Has 1D symmetry.
+const char* TWO_DIMENSIONAL; // Has 2D symmetry.
+const char* CARTESIAN;       // Has Cartesian geometry.
+const char* CYLINDRICAL;     // Has cylindrical symmetry.
+const char* SPHERICAL;       // Has spherical symmetry.
+
 // These functions create meshes that can be used to run 1D problems.
 
 // Creates a uniform line of N Cartesian cells spanning a domain [x1, x2].

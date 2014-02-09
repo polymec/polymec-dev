@@ -34,62 +34,72 @@
 // fits for multi-component quantities on discrete domains.
 typedef struct polynomial_fit_t polynomial_fit_t;
 
-// This virtual table defines the behavior of a polynomial fit.
+// This function gets the number of interior neighbors associated with the 
+// point at the given index.
+typedef int (*polynomial_fit_num_interior_neighbors_func)(void* context, int point_index);
+
+// This function retrieves the indices of the interior neighbors of the 
+// point with the given index.
+typedef void (*polynomial_fit_get_interior_neighbors_func)(void* context, int point_index, int* neighbor_indices);
+
+// This function retrieves the coordinates and values of the given component 
+// at interior points in the vicinity of the point with the given index. The 
+// The coordinates of the points are stored in the array point_coords,
+// and the values of the component at each of the points are stored in the 
+// point_values array.
+typedef void (*polynomial_fit_get_interior_data_func)(void* context, real_t* data, int component, int num_comps,
+                                                      int* point_indices, int num_points, 
+                                                      point_t* point_coords, real_t* point_values);
+
+// This function gets the number of boundary neighbors associated with the 
+// point at the given index.
+typedef int (*polynomial_fit_num_boundary_neighbors_func)(void* context, int point_index);
+
+// This function retrieves the indices of the boundary neighbors of the point 
+// with the given index.
+typedef void (*polynomial_fit_get_boundary_neighbors_func)(void* context, int point_index, int* neighbor_indices);
+
+// This function retrieves the coordinates and values of the given component at 
+// boundary points in the vicinity of the point with the given index. The 
+// The coordinates of the points are stored in the array point_coords,
+// the normal vectors on the boundary at each of the points are stored in 
+// the array boundary_normals. Note that point values are not retrieved,
+// as these are often determined by boundary conditions during the actual
+// fitting process (as represented by fit_component() below).
+typedef void (*polynomial_fit_get_boundary_data_func)(void* context, real_t* data, int component, int num_comps,
+                                                      int* point_indices, int num_points, 
+                                                      point_t* point_coords, vector_t* boundary_normals);
+
+// This function returns the targeted degree of accuracy for the polynomial
+// fit, given a number of points in the fit "stencil". It effectively 
+// determines how aggressively a polynomial fit will pursue higher-order 
+// approximations to the solution.
+typedef int (*polynomial_fit_targeted_degree_func)(void* context, int num_points);
+
+// This function fits the data of a given component to a polynomial of the given degree, 
+// given interior and boundary data for points in the vicinity, storing the 
+// coefficients of the polynomial in the poly_coeffs array (in the order 
+// used by the polynomial_t type).
+typedef void (*polynomial_fit_fit_component_func)(void* context, int component, int degree,
+                                                  point_t* interior_points, real_t* interior_values, int num_interior_points,
+                                                  point_t* boundary_points, vector_t* boundary_normals, int num_boundary_points,
+                                                  real_t* poly_coeffs);
+
+// This function destroys the context pointer for the polynomial fit.
+typedef void (*polynomial_fit_dtor)(void* context);
+
+// This virtual table defines the behavior of a polynomial fit. 
 typedef struct 
 {
-  // Gets the number of interior neighbors associated with the point at the 
-  // given index.
-  int (*num_interior_neighbors)(void* context, int point_index);
-
-  // Retrieves the indices of the interior neighbors of the point with the 
-  // given index.
-  void (*get_interior_neighbors)(void* context, int point_index, int* neighbor_indices);
-
-  // Retrieves the coordinates and values of the given component at 
-  // interior points in the vicinity of the point with the given index. The 
-  // The coordinates of the points are stored in the array point_coords,
-  // and the values of the component at each of the points are stored in the 
-  // point_values array.
-  void (*get_interior_data)(void* context, real_t* data, int component, int num_comps,
-                            int* point_indices, int num_points, 
-                            point_t* point_coords, real_t* point_values);
-
-  // Gets the number of boundary neighbors associated with the point at the 
-  // given index.
-  int (*num_boundary_neighbors)(void* context, int point_index);
-
-  // Retrieves the indices of the boundary neighbors of the point with the 
-  // given index.
-  void (*get_boundary_neighbors)(void* context, int point_index, int* neighbor_indices);
-
-  // Retrieves the coordinates and values of the given component at 
-  // boundary points in the vicinity of the point with the given index. The 
-  // The coordinates of the points are stored in the array point_coords,
-  // the normal vectors on the boundary at each of the points are stored in 
-  // the array boundary_normals. Note that point values are not retrieved,
-  // as these are often determined by boundary conditions during the actual
-  // fitting process (as represented by fit_component() below).
-  void (*get_boundary_data)(void* context, real_t* data, int component, int num_comps,
-                            int* point_indices, int num_points, 
-                            point_t* point_coords, vector_t* boundary_normals);
-
-  // Returns the targeted degree of accuracy for the polynomial fit, given 
-  // a number of points in the fit "stencil". This method effectively 
-  // determines how aggressively a polynomial fit will pursue higher-order 
-  // approximations to the solution.
-  int (*targeted_degree)(void* context, int num_points);
-
-  // Fits the data of a given component to a polynomial of the given degree, 
-  // given interior and boundary data for points in the vicinity, storing the 
-  // coefficients of the polynomial in the poly_coeffs array (in the order 
-  // used by the polynomial_t type).
-  void (*fit_component)(void* context, int component, int degree,
-                        point_t* interior_points, real_t* interior_values, int num_interior_points,
-                        point_t* boundary_points, vector_t* boundary_normals, int num_boundary_points,
-                        real_t* poly_coeffs);
-
-  // Destroys the context pointer.
-  void (*dtor)(void* context);
+  polynomial_fit_num_interior_neighbors_func num_interior_neighbors;
+  polynomial_fit_get_interior_neighbors_func get_interior_neighbors;
+  polynomial_fit_get_interior_data_func get_interior_data;
+  polynomial_fit_num_boundary_neighbors_func num_boundary_neighbors;
+  polynomial_fit_get_boundary_neighbors_func get_boundary_neighbors;
+  polynomial_fit_get_boundary_data_func get_boundary_data;
+  polynomial_fit_targeted_degree_func targeted_degree;
+  polynomial_fit_fit_component_func fit_component;
+  polynomial_fit_dtor dtor;
 } polynomial_fit_vtable;
 
 // Constructs a generic polynomial fit that uses the provided functions to 
@@ -105,9 +115,9 @@ polynomial_fit_t* polynomial_fit_new(const char* name,
 polynomial_fit_t* cc_polynomial_fit_new(int num_comps,
                                         mesh_t* mesh,
                                         int degree,
-                                        void (*fit_component)(void*, int, int, point_t*, real_t*, int, point_t*, vector_t*, int, real_t*),
+                                        polynomial_fit_fit_component_func fit_component,
                                         void* fit_component_context,
-                                        void (*dtor)(void*));
+                                        polynomial_fit_dtor dtor);
 
 // Creates a polynomial fit that fits point cloud data at the given degree.
 // A fit_component() function is required.
@@ -115,9 +125,9 @@ polynomial_fit_t* point_cloud_polynomial_fit_new(int num_comps,
                                                  point_cloud_t* points,
                                                  point_cloud_neighbor_search_t* search,
                                                  int degree,
-                                                 void (*fit_component)(void*, int, int, point_t*, real_t*, int, point_t*, vector_t*, int, real_t*),
+                                                 polynomial_fit_fit_component_func fit_component,
                                                  void* fit_component_context,
-                                                 void (*dtor)(void*));
+                                                 polynomial_fit_dtor dtor);
 
 // Destroys the given polynomial fit.
 void polynomial_fit_free(polynomial_fit_t* fit);

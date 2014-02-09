@@ -22,10 +22,17 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "geometry/symmetry_1d.h"
+#include "geometry/symmetry.h"
 #include "geometry/create_rectilinear_mesh.h"
 #include "geometry/create_uniform_mesh.h"
 #include "geometry/cubic_lattice.h"
+
+// Symmetry-related features.
+const char* SYMMETRIC = "symmetric";
+const char* ONE_DIMENSIONAL = "one dimensional";
+const char* TWO_DIMENSIONAL = "two dimensional";
+const char* CYLINDRICAL = "cylindrical";
+const char* SPHERICAL = "spherical";
 
 // This helper function computes the logarithmic spacing for N points spanning
 // the interval [x1, x2] with the given log factor, placing those points into 

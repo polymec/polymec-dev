@@ -28,7 +28,7 @@
 #include <strings.h>
 #include "core/mesh.h"
 #include "core/interpreter.h"
-#include "geometry/symmetry_1d.h"
+#include "geometry/symmetry.h"
 
 // Lua stuff.
 #include "lua.h"

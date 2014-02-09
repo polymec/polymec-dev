@@ -22,22 +22,18 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef POLYMEC_POISSON_BC_H
-#define POLYMEC_POISSON_BC_H
+#include "geometry/create_pebi_mesh.h"
 
-#include "core/st_func.h"
+const char* PEBI = "perpendicular bisector";
 
-// Boundary condition structure for Poisson's equation.
-// This represents a generic (Robin) boundary condition: 
-// alpha * phi + beta * dphi/dn = F(x, t).
-// Objects of this type are garbage collected.
-typedef struct
+mesh_t* create_pebi_mesh(MPI_Comm comm, 
+                         point_t* cell_centers, int num_cells,
+                         int* faces, int num_faces)
 {
-  real_t alpha, beta;
-  st_func_t* F;
-} poisson_bc_t;
+  mesh_t* mesh = mesh_new(comm, num_cells, 0, num_faces, 0, 0);
 
-// Constructor for a Poisson BC.
-poisson_bc_t* poisson_bc_new(real_t alpha, real_t beta, st_func_t* F);
+  // FIXME
 
-#endif
+  return mesh;
+}
+

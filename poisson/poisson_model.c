@@ -165,6 +165,8 @@ static int ifd_poisson_residual(void* context, real_t t, real_t* u, real_t* F)
       // Form the flux contribution. At the moment, only scalar lambdas are 
       // supported.
       real_t face_flux = wq * lambda[0] * dphi_dn;
+      // FIXME: Verify that this balances the opposite face flux.
+
       p->cell_face_fluxes[offset] = face_flux;
       F[cell] -= face_flux;
       ++offset;
@@ -180,36 +182,9 @@ static int ifd_poisson_residual(void* context, real_t t, real_t* u, real_t* F)
     }
   }
 
-  // Loop over cells again, enforcing conservation and compute the residual.
+  // Loop over cells again, computing the residual.
   for (int cell = 0; cell < p->mesh->num_cells; ++cell)
   {
-    // Enforce conservation by averaging all the face fluxes between 
-    // neighboring cells.
-    // FIXME: This shouldn't be necessary.
-    int cpos = 0, other_cell, offset1 = p->cell_face_flux_offsets[cell];
-    while (mesh_cell_next_neighbor(p->mesh, cell, &cpos, &other_cell))
-    {
-      if ((other_cell != -1) && (cell < other_cell))
-      {
-        // Retrieve the fluxes at face 1 and face 2.
-        real_t flux1 = p->cell_face_fluxes[offset1];
-        int f = offset1 - p->cell_face_flux_offsets[cell];
-        int offset2 = p->cell_face_flux_offsets[other_cell] + f;
-        real_t flux2 = p->cell_face_fluxes[offset2];
-
-        // Either they are both zero, or they have opposite sign.
-        ASSERT(SIGN(flux1) == -SIGN(flux2));
-
-        // Now average their magnitudes and make sure that they agree so 
-        // that our fluxes are conservative.
-        real_t avg_flux = 0.5 * (fabs(flux1) + fabs(flux2));
-        p->cell_face_fluxes[offset1] = SIGN(flux1) * avg_flux;
-        p->cell_face_fluxes[offset2] = SIGN(flux2) * avg_flux;
-        ++offset1;
-      }
-    }
-
-    // Now compute the residual in this cell.
     F[cell] = p->cell_sources[cell];
     int fpos = 0, face, offset = p->cell_face_flux_offsets[cell];
     while (mesh_cell_next_face(p->mesh, cell, &fpos, &face))

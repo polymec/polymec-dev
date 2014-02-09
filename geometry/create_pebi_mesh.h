@@ -22,22 +22,24 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef POLYMEC_POISSON_BC_H
-#define POLYMEC_POISSON_BC_H
+#ifndef POLYMEC_PEBI_H
+#define POLYMEC_PEBI_H
 
-#include "core/st_func.h"
+#include "core/mesh.h"
 
-// Boundary condition structure for Poisson's equation.
-// This represents a generic (Robin) boundary condition: 
-// alpha * phi + beta * dphi/dn = F(x, t).
-// Objects of this type are garbage collected.
-typedef struct
-{
-  real_t alpha, beta;
-  st_func_t* F;
-} poisson_bc_t;
+// Perpendicular-bisector mesh features.
+const char* PEBI;       // Is a PEBI mesh (has no edges or nodes)
 
-// Constructor for a Poisson BC.
-poisson_bc_t* poisson_bc_new(real_t alpha, real_t beta, st_func_t* F);
+// Creates a PEBI mesh given a set of cell centers and adjacency (face) 
+// information. The faces array contains 2*num_faces entries, where 
+// faces[2*i] and faces[2*i+1] contain the indices of the cells connected by 
+// face i. If a face is only connected to one cell, faces[2*i+1] == -1.
+// Meanwhile, face_areas contains num_faces entries, with face_areas[i] holding
+// the area of face i. No edge or node information is stored.
+mesh_t* create_pebi_mesh(MPI_Comm comm, 
+                         point_t* cell_centers, int num_cells,
+                         int* faces, real_t* face_areas, int num_faces);
+                                                  
 
 #endif
+
