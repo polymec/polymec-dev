@@ -48,6 +48,7 @@ const char* TWO_DIMENSIONAL; // Has 2D symmetry.
 const char* CARTESIAN;       // Has Cartesian geometry.
 const char* CYLINDRICAL;     // Has cylindrical symmetry.
 const char* SPHERICAL;       // Has spherical symmetry.
+const char* PEBI;            // Perpendicular Bisector Mesh (used with the Integral Finite Difference method)
 
 // A tagging mechanism for tagging mesh nodes/edges/faces/cells 
 // with attributes. 

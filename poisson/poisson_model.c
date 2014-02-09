@@ -129,6 +129,99 @@ static void poisson_read_input(void* context, interpreter_t* interp, options_t* 
   }
 }
 
+// Integral Finite Difference (IFD) discretization.
+static int ifd_poisson_residual(void* context, real_t t, real_t* u, real_t* F)
+{
+  poisson_t* p = context;
+
+  // Loop over all the cells and compute the fluxes for each one.
+  for (int cell = 0; cell < p->mesh->num_cells; ++cell)
+  {
+    // Face fluxes.
+    int fpos = 0, face, offset = p->cell_face_flux_offsets[cell];
+    while (mesh_cell_next_face(p->mesh, cell, &fpos, &face))
+    {
+      // Compute the flux at the face center using the area as a weight.
+      // Here we assume that the face center lies on the midpoint between 
+      // the two cells.
+      int opp_cell = mesh_face_opp_cell(p->mesh, face, cell);
+      point_t* xc1 = &p->mesh->cell_centers[cell];
+      point_t* xc2 = &p->mesh->cell_centers[opp_cell];
+      point_t xq = {.x = 0.5 * (xc1->x + xc2->x), 
+                    .y = 0.5 * (xc1->y + xc2->y),
+                    .z = 0.5 * (xc1->z + xc2->z)};
+      real_t wq = p->mesh->face_areas[face];
+
+      // Compute the normal gradient of the solution using a 
+      // centered difference.
+      real_t du = u[opp_cell] - u[cell];
+      real_t dx = point_distance(xc1, xc2);
+      real_t dphi_dn = du/dx;
+
+      // Evaluate the conduction operator lambda.
+      real_t lambda[6];
+      st_func_eval(p->lambda, &xq, t, lambda);
+
+      // Form the flux contribution. At the moment, only scalar lambdas are 
+      // supported.
+      real_t face_flux = wq * lambda[0] * dphi_dn;
+      p->cell_face_fluxes[offset] = face_flux;
+      F[cell] -= face_flux;
+      ++offset;
+    }
+
+    // Source term (right hand side).
+    {
+      point_t* xq = &p->mesh->cell_centers[cell];
+      real_t wq = p->mesh->cell_volumes[cell];
+      real_t source;
+      st_func_eval(p->rhs, xq, t, &source);
+      p->cell_sources[cell] = wq * source;
+    }
+  }
+
+  // Loop over cells again, enforcing conservation and compute the residual.
+  for (int cell = 0; cell < p->mesh->num_cells; ++cell)
+  {
+    // Enforce conservation by averaging all the face fluxes between 
+    // neighboring cells.
+    // FIXME: This shouldn't be necessary.
+    int cpos = 0, other_cell, offset1 = p->cell_face_flux_offsets[cell];
+    while (mesh_cell_next_neighbor(p->mesh, cell, &cpos, &other_cell))
+    {
+      if ((other_cell != -1) && (cell < other_cell))
+      {
+        // Retrieve the fluxes at face 1 and face 2.
+        real_t flux1 = p->cell_face_fluxes[offset1];
+        int f = offset1 - p->cell_face_flux_offsets[cell];
+        int offset2 = p->cell_face_flux_offsets[other_cell] + f;
+        real_t flux2 = p->cell_face_fluxes[offset2];
+
+        // Either they are both zero, or they have opposite sign.
+        ASSERT(SIGN(flux1) == -SIGN(flux2));
+
+        // Now average their magnitudes and make sure that they agree so 
+        // that our fluxes are conservative.
+        real_t avg_flux = 0.5 * (fabs(flux1) + fabs(flux2));
+        p->cell_face_fluxes[offset1] = SIGN(flux1) * avg_flux;
+        p->cell_face_fluxes[offset2] = SIGN(flux2) * avg_flux;
+        ++offset1;
+      }
+    }
+
+    // Now compute the residual in this cell.
+    F[cell] = p->cell_sources[cell];
+    int fpos = 0, face, offset = p->cell_face_flux_offsets[cell];
+    while (mesh_cell_next_face(p->mesh, cell, &fpos, &face))
+    {
+      F[cell] -= p->cell_face_fluxes[offset];
+      ++offset;
+    }
+  }
+
+  return 0;
+}
+
 static int fv_poisson_residual(void* context, real_t t, real_t* u, real_t* F)
 {
   poisson_t* p = context;
@@ -351,8 +444,14 @@ static void poisson_init(void* context, real_t t)
     p->boundary_cells = boundary_cell_map_from_mesh_and_bcs(p->mesh, p->bcs);
 
     // Initialize the nonlinear solver.
-    nonlinear_integrator_vtable vtable = {.eval = fv_poisson_residual, 
-                                          .dtor = NULL};
+    nonlinear_integrator_vtable vtable;
+    if (p->mesh->num_nodes == 0)
+    {
+      ASSERT(mesh_has_feature(p->mesh, PEBI));
+      vtable.eval = ifd_poisson_residual; // No nodes -- IFD method.
+    }
+    else
+      vtable.eval = fv_poisson_residual; // No nodes -- IFD method.
     p->solver = bicgstab_nonlinear_integrator_new("Poisson (FV)", p, MPI_COMM_WORLD, N, vtable, LINE_SEARCH, 15);
 
     // For now, Use LU preconditioning with the same residual function.

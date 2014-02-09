@@ -177,9 +177,11 @@ typedef struct
   int degree;
 
   // Machinery for fit_component().
-  void (*fit_component)(void*, int, int, point_t*, real_t*, int, point_t*, vector_t*, int, real_t*);
+  void (*fit_component)(void* context, int component, int degree, 
+                        point_t* interior_points, real_t* interior_values, int num_interior_points, 
+                        point_t* boundary_points, vector_t* boundary_normals, int num_boundary_points, real_t* poly_coeffs);
   void* fit_component_context;
-  void (*dtor)(void*);
+  void (*dtor)(void* context);
 } cc_fit_t;
 
 static int cc_num_interior_neighbors(void* context, int point_index)
@@ -272,6 +274,7 @@ static void cc_get_boundary_data(void* context, real_t* data, int component, int
 
   // We assume the data is in component-minor form in the array, 
   // and that boundary values are at face centers.
+  // FIXME: For higher-order quadrature, probably have to be more clever.
   for (int i = 0; i < num_points; ++i)
   {
     int j = point_indices[i];
@@ -340,9 +343,11 @@ typedef struct
   int degree;
 
   // Machinery for fit_component().
-  void (*fit_component)(void*, int, int, point_t*, real_t*, int, point_t*, vector_t*, int, real_t*);
+  void (*fit_component)(void* context, int component, int degree, 
+                        point_t* interior_points, real_t* interior_values, int num_interior_points, 
+                        point_t* boundary_points, vector_t* boundary_normals, int num_boundary_points, real_t* poly_coeffs);
   void* fit_component_context;
-  void (*dtor)(void*);
+  void (*dtor)(void* context);
 } cloud_fit_t;
 
 static int cloud_num_interior_neighbors(void* context, int point_index)

@@ -34,6 +34,7 @@ const char* ONE_DIMENSIONAL = "one dimensional";
 const char* TWO_DIMENSIONAL = "two dimensional";
 const char* CYLINDRICAL = "cylindrical";
 const char* SPHERICAL = "spherical";
+const char* PEBI = "perpendicular bisector";
 
 // Generic tagging functions -- defined in tagger.c.
 extern tagger_t* tagger_new(ARENA* arena);
