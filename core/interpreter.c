@@ -23,6 +23,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "core/interpreter.h"
+#include "core/tuple.h"
 #include "core/unordered_set.h"
 
 // Lua stuff.
@@ -77,6 +78,13 @@ static void destroy_table_entry(char* key, void* value)
 {
   free(key);
   free(value);
+}
+
+static void destroy_table_tuple(char* key, void* value)
+{
+  free(key);
+  real_t* tuple = value;
+  real_tuple_free(tuple);
 }
 
 // A key-value pair for a metatable.
@@ -816,7 +824,7 @@ static void interpreter_store_chunk_contents(interpreter_t* interp)
     {
       // Before we do anything, we validate the table.
       interpreter_var_type_t value_type = INTERPRETER_TERMINUS;
-      static const char* type_names[] = {"string", "number", "boolean", "mesh", "function"};
+      static const char* type_names[] = {"string", "number", "boolean", "sequence", "mesh", "function"};
       // Traverse this table and make sure its values are all of one type.
       lua_pushnil(lua);
       while (lua_next(lua, -2))
@@ -834,6 +842,7 @@ static void interpreter_store_chunk_contents(interpreter_t* interp)
         if (!lua_isnumber(lua, val_index) && 
             !lua_isboolean(lua, val_index) && 
             !lua_isstring(lua, val_index) && 
+            !lua_issequence(lua, val_index) && 
             !lua_isuserdata(lua, val_index))
         {
           if (preexisting_var)
@@ -910,6 +919,16 @@ static void interpreter_store_chunk_contents(interpreter_t* interp)
         {
           const char* var = lua_tostring(lua, val_index);
           string_ptr_unordered_map_insert_with_kv_dtor(table, tkey, string_dup(var), destroy_table_entry);
+        }
+        else if (lua_issequence(lua, val_index))
+        {
+          // We store sequences as tuples.
+          int len;
+          real_t* var = lua_tosequence(lua, val_index, &len);
+          real_t* tuple = real_tuple_new(len);
+          memcpy(tuple, var, sizeof(real_t) * len);
+          free(var);
+          string_ptr_unordered_map_insert_with_kv_dtor(table, tkey, tuple, destroy_table_tuple);
         }
         else if (lua_isuserdata(lua, val_index))
         {

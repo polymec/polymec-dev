@@ -12,7 +12,8 @@ add_library(polymec_geometry mapping.c plane.c cylinder.c sphere.c
             intersection.c union.c difference.c scaled.c rect_prism.c 
             giftwrap_hull.c polygon2.c polygon.c
             ${MESH_GENERATION_SOURCES} cubic_lattice.c
-            create_rectilinear_mesh.c create_uniform_mesh.c symmetry_1d.c
+            create_rectilinear_mesh.c create_uniform_mesh.c create_pebi_mesh.c
+            symmetry_1d.c
             interpreter_register_geometry_functions.c 
             interpreter_register_spfuncs.c)
 

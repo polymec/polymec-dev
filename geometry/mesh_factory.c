@@ -35,6 +35,7 @@
 #include "core/tuple.h"
 #include "geometry/create_uniform_mesh.h"
 #include "geometry/create_rectilinear_mesh.h"
+#include "geometry/create_pebi_mesh.h"
 #include "geometry/create_boundary_generators.h"
 #include "geometry/rect_prism.h"
 
@@ -606,4 +607,91 @@ return luaL_error(lua, "CURRENTLY NOT SUPPORTED.");
   return 1;
 }
 #endif
+
+int mesh_factory_pebi(lua_State* lua)
+{
+  // Check the arguments.
+  int num_args = lua_gettop(lua);
+  if (num_args != 4)
+  {
+    return luaL_error(lua, "Invalid arguments. Usage:\n"
+                      "mesh = mesh_factory.pebi(cell_centers, faces)");
+  }
+  if (!lua_ispointlist(lua, 1))
+    return luaL_error(lua, "cell_centers must be a list of points.");
+  if (!lua_istable(lua, 2))
+    return luaL_error(lua, "faces must be a table of 3-tuples containing (cell1, cell2, area).");
+
+  // Get the arguments.
+
+  // Cell center point list.
+  int num_cells;
+  point_t* cell_centers = lua_topointlist(lua, 1, &num_cells);
+  int num_faces = luaL_len(lua, 2);
+
+  // Mine the faces table for all its 3-tuples.
+  real_t** faces_table_entries = malloc(sizeof(real_t*)*num_faces);
+  lua_pushnil(lua);
+  int face = 0;
+  while (lua_next(lua, 2))
+  {
+    // Key is at index -2, value is at -1.
+    static const int key_index = -2;
+    static const int val_index = -1;
+    bool key_is_number = lua_isnumber(lua, key_index);
+    bool val_is_sequence = lua_issequence(lua, val_index);
+    if (!key_is_number || !val_is_sequence)
+    {
+      lua_pop(lua, 1);
+      polymec_error("Found non-numeric entries in faces table.");
+    }
+    int tuple_len;
+    faces_table_entries[face] = lua_tosequence(lua, val_index, &tuple_len);
+    if (tuple_len != 3)
+    {
+      lua_pop(lua, 1);
+      polymec_error("Tuple at index %d of faces table has %d values (should be 3).", key_index, tuple_len);
+    }
+    ++face;
+  }
+  ASSERT(face == num_faces);
+
+  // Check the faces data.
+  for (int f = 0; f < num_faces; ++f)
+  {
+    real_t* face_tuple = faces_table_entries[f];
+    if (face_tuple[0] < 0.0)
+      polymec_error("Invalid first cell for face %d: %d (must be non-negative).", f, (int)face_tuple[0]);
+    if ((face_tuple[1] < 0.0) && (face_tuple[1] != -1.0))
+      polymec_error("Invalid second cell for face %d: %d (must be non-negative or -1).", f, (int)face_tuple[1]);
+    if (face_tuple[2] < 0.0)
+      polymec_error("Invalid area for face %d: %g.", f, face_tuple[2]);
+  }
+
+  // Shuffle the faces data into canonical form.
+  int* faces = malloc(2 * sizeof(int) * num_faces);
+  real_t* face_areas = malloc(sizeof(real_t) * num_faces);
+  for (int f = 0; f < num_faces; ++f)
+  {
+    faces[2*f] = faces_table_entries[f][0];
+    faces[2*f+1] = faces_table_entries[f][1];
+    face_areas[f] = faces_table_entries[f][2];
+    free(faces_table_entries[f]);
+  }
+  free(faces_table_entries);
+
+  // Create the mesh.
+  mesh_t* mesh = create_pebi_mesh(MPI_COMM_WORLD, cell_centers, num_cells, 
+                                  faces, face_areas, num_faces);
+  free(face_areas);
+  free(faces);
+  free(cell_centers);
+
+  // Pop all the previous arguments off the stack.
+  lua_pop(lua, lua_gettop(lua));
+
+  // Push the mesh onto the stack.
+  lua_pushmesh(lua, mesh);
+  return 1;
+}
 
