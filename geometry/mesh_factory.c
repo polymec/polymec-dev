@@ -612,7 +612,7 @@ int mesh_factory_pebi(lua_State* lua)
 {
   // Check the arguments.
   int num_args = lua_gettop(lua);
-  if (num_args != 4)
+  if (num_args != 2)
   {
     return luaL_error(lua, "Invalid arguments. Usage:\n"
                       "mesh = mesh_factory.pebi(cell_centers, faces)");
@@ -653,6 +653,7 @@ int mesh_factory_pebi(lua_State* lua)
       polymec_error("Tuple at index %d of faces table has %d values (should be 3).", key_index, tuple_len);
     }
     ++face;
+    lua_pop(lua, 1);
   }
   ASSERT(face == num_faces);
 

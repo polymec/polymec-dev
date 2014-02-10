@@ -80,6 +80,7 @@ mesh_t* create_pebi_mesh(MPI_Comm comm,
     }
   }
 
+  mesh_add_feature(mesh, PEBI);
   return mesh;
 }
 
