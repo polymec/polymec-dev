@@ -12,7 +12,7 @@ function(add_polymec_test exe)
   endif()
   target_link_libraries(${exe} ${POLYMEC_LIBS})
   add_test(${exe} ${exe})
-endfunction(add_polymec_test)
+endfunction()
 
 # This function adds a parallel unit test executable to be built using gtest.
 # The procs argument is a list of numbers of processes to be run.
@@ -28,11 +28,18 @@ function(add_mpi_polymec_test exe procs)
   foreach (proc ${procs})
     add_test(${exe}_${proc}_proc ${MPIEXEC} ${MPIEXEC_NUMPROC_FLAG} ${proc} ${MPIEXEC_PREFLAGS} ${CMAKE_CURRENT_BINARY_DIR}/${exe} ${MPIEXEC_POSTFLAGS})
   endforeach()
-endfunction(add_mpi_polymec_test)
+endfunction()
 
 # This function adds a (serial) benchmark test run.
 function(add_polymec_benchmark_test exe benchmark)
   add_test(${exe}_${benchmark} ${exe} benchmark ${benchmark} ${ARGN})
   set_tests_properties(${exe}_${benchmark} PROPERTIES FAIL_REGULAR_EXPRESSION "FAIL")
-endfunction(add_polymec_benchmark_test)
+endfunction()
+
+# This function adds a (serial) simulation test run.
+function(add_polymec_test_run exe input)
+  file(GLOB_RECURSE sim_exe ${PROJECT_BINARY_DIR}/${exe})
+  add_test(${exe}_run_${input} ${sim_exe} run ${input} ${ARGN})
+  set_tests_properties(${exe}_run_${input} PROPERTIES FAIL_REGULAR_EXPRESSION "Fatal error:")
+endfunction()
 

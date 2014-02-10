@@ -748,9 +748,20 @@ static void interpreter_store_chunk_contents(interpreter_t* interp)
       }
 
       // Skip empty tables, as they cause problems.
-      else if (lua_istable(lua, val_index) && (lua_rawlen(lua, val_index) == 0))
+      else if (lua_istable(lua, val_index))
       {
-        skip_this_var = true;
+        // Count the entries. Neither lua_rawlen() nor luaL_len() 
+        // works for non-sequence tables.
+        int tab_index = lua_absindex(lua, val_index);
+        int num_entries = 0;
+        lua_pushnil(lua);
+        while (lua_next(lua, tab_index))
+        {
+          ++num_entries;
+          lua_pop(lua, 1);
+        }
+        if (num_entries == 0)
+          skip_this_var = true;
       }
     }
 
@@ -759,6 +770,7 @@ static void interpreter_store_chunk_contents(interpreter_t* interp)
       skip_this_var = true;
 
     // Skip this variable if we need to.
+printf("%s\n", key);
     if (skip_this_var)
     {
       lua_pop(lua, 1);

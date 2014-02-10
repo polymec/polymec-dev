@@ -119,7 +119,7 @@ static int bounding_box(lua_State* lua)
   return 1;
 }
 
-// Creates a constant function from a number or a 3-tuple.
+// Creates a constant function from a number or a tuple.
 static int constant_function(lua_State* lua)
 {
   // Check the argument.
@@ -137,11 +137,27 @@ static int constant_function(lua_State* lua)
         return luaL_error(lua, "Argument %d must be a number.", i);
     }
   }
+  else if (num_args == 6) // Symmetric-tensor-valued constant.
+  {
+    for (int i = 0; i < 6; ++i)
+    {
+      if (!lua_isnumber(lua, i+1))
+        return luaL_error(lua, "Argument %d must be a number.", i);
+    }
+  }
+  else if (num_args == 9) // Symmetric-tensor-valued constant.
+  {
+    for (int i = 0; i < 9; ++i)
+    {
+      if (!lua_isnumber(lua, i+1))
+        return luaL_error(lua, "Argument %d must be a number.", i);
+    }
+  }
   else
-    return luaL_error(lua, "Argument must be a 1 or 3 numbers.");
+    return luaL_error(lua, "Argument must be a 1, 3, 6, or 9 numbers.");
 
   // Get the arguments.
-  real_t args[3];
+  real_t args[9];
   for (int i = 0; i < num_args; ++i)
     args[i] = (real_t)lua_tonumber(lua, i+1);
 
@@ -149,8 +165,12 @@ static int constant_function(lua_State* lua)
   st_func_t* func = constant_st_func_new(num_args, args);
   if (num_args == 1)
     lua_pushscalarfunction(lua, func);
-  else
+  else if (num_args == 3)
     lua_pushvectorfunction(lua, func);
+  else if (num_args == 6)
+    lua_pushsymtensorfunction(lua, func);
+  else
+    lua_pushtensorfunction(lua, func);
   return 1;
 }
 

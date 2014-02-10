@@ -393,9 +393,9 @@ bool lua_istensorfunction(struct lua_State* lua, int index);
 // active lua interpreter, or returns NULL if the index does not point to an st_func.
 st_func_t* lua_totensorfunction(struct lua_State* lua, int index);
 
-// Pushes a symmetric-tensor-valued function onto the interpreter's stack (as a 
+// Pushes a tensor-valued function onto the interpreter's stack (as a 
 // return value for a function).
-void lua_pushsymtensorfunction(struct lua_State* lua, st_func_t* func);
+void lua_pushtensorfunction(struct lua_State* lua, st_func_t* func);
 
 // This helper returns true if the object at the given index is a mesh,
 // false if not.

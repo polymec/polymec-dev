@@ -102,7 +102,7 @@ static void poisson_read_input(void* context, interpreter_t* interp, options_t* 
   }
   p->rhs = interpreter_get_scalar_function(interp, "rhs");
   if (p->rhs == NULL)
-    polymec_error("poisson: No right hand side (rhs) was specified.");
+    polymec_error("poisson: No valid right hand side (rhs) was specified.");
   p->lambda = interpreter_get_sym_tensor_function(interp, "lambda");
   if (p->lambda == NULL)
   {

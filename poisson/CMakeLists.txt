@@ -11,3 +11,6 @@ add_polymec_benchmark_test(poisson laplace_1d)
 #add_polymec_benchmark_test(poisson laplace_1d_3)
 #add_polymec_benchmark_test(poisson paraboloid)
 #add_polymec_benchmark_test(poisson paraboloid_3)
+
+# Test scripts.
+add_polymec_test_run(poisson tests/laplace-3d)

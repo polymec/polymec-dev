@@ -1,0 +1,7 @@
+mesh = mesh_factory.pebi({{0,0,0}, {1,0,0}, {2,0,0}}, 
+                         {{0, 1, 1}, {1, 2, 1}, {2, 3, 1}})
+rhs = constant_function(0)
+bcs = {}
+bcs.left=1
+bcs.right=2
+print(bcs)
