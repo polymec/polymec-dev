@@ -770,7 +770,6 @@ static void interpreter_store_chunk_contents(interpreter_t* interp)
       skip_this_var = true;
 
     // Skip this variable if we need to.
-printf("%s\n", key);
     if (skip_this_var)
     {
       lua_pop(lua, 1);
