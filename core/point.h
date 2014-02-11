@@ -181,6 +181,15 @@ static inline bool bbox_contains(bbox_t* bbox, point_t* p)
           (p->z >= bbox->z1) && (p->z <= bbox->z2));
 }
 
+// Returns true if the first bounding box completely contains the 2nd box, 
+// false otherwise.
+static inline bool bbox_contains_bbox(bbox_t* bbox, bbox_t* box)
+{
+  return ((box->x1 >= bbox->x1) && (box->x2 <= bbox->x2) &&
+          (box->y1 >= bbox->y1) && (box->x2 <= bbox->y2) &&
+          (box->z1 >= bbox->z1) && (box->z2 <= bbox->z2));
+}
+
 // Grows the given bounding box to accommodate the given point.
 void bbox_grow(bbox_t* box, point_t* p);
 

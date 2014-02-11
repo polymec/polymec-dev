@@ -22,27 +22,42 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef POLYMEC_PEBI_H
-#define POLYMEC_PEBI_H
+#include <gc/gc.h>
+#include "geometry/create_nested_refinement_mesh.h"
 
-#include "core/mesh.h"
+static void nested_grid_free(void* ctx, void* dummy)
+{
+  nested_grid_t* grid = ctx;
+  ptr_slist_free(grid->subgrids);
+}
 
-// Perpendicular-bisector mesh features.
-const char* PEBI;       // Is a PEBI mesh (has no edges or nodes)
+nested_grid_t* nested_grid_new(bbox_t* domain, int nx, int ny, int nz)
+{
+  ASSERT(domain->x1 < domain->x2);
+  ASSERT(domain->y1 < domain->y2);
+  ASSERT(domain->z1 < domain->z2);
+  ASSERT(nx > 0);
+  ASSERT(ny > 0);
+  ASSERT(nz > 0);
+  nested_grid_t* grid = GC_MALLOC(sizeof(nested_grid_t));
+  grid->domain = *domain;
+  grid->nx = nx;
+  grid->ny = ny;
+  grid->nz = nz;
+  grid->subgrids = ptr_slist_new();
+  GC_register_finalizer(grid, nested_grid_free, grid, NULL, NULL);
+  return grid;
+}
 
-// Creates a PEBI mesh given a set of cell centers and adjacency (face) 
-// information. The faces array contains 2*num_faces entries, where 
-// faces[2*i] and faces[2*i+1] contain the indices of the cells connected by 
-// face i. If a face is only connected to one cell, faces[2*i+1] == -1.
-// Meanwhile, face_areas contains num_faces entries, with face_areas[i] holding
-// the area of face i. No edge or node information is stored.
-mesh_t* create_pebi_mesh(MPI_Comm comm, 
-                         point_t* cell_centers, int num_cells,
-                         int* faces, real_t* face_areas, int num_faces);
+void nested_grid_add_subgrid(nested_grid_t* grid, nested_grid_t* subgrid)
+{
+  ASSERT(bbox_contains_bbox(&grid->domain, &subgrid->domain));
+  ptr_slist_append(grid->subgrids, subgrid);
+}
+
+mesh_t* create_nested_refinement_mesh(MPI_Comm comm, 
+                                      nested_grid_t* coarse_grid)
+{
+  return NULL;
+}
  
-// Creates a PEBI mesh from the given unstructured mesh. Features are 
-// copied--tags are not.
-mesh_t* create_pebi_mesh_from_unstructured_mesh(mesh_t* mesh);
-
-#endif
-

@@ -84,3 +84,8 @@ mesh_t* create_pebi_mesh(MPI_Comm comm,
   return mesh;
 }
 
+mesh_t* create_pebi_mesh_from_unstructured_mesh(mesh_t* mesh)
+{
+  return create_pebi_mesh(mesh->comm, mesh->cell_centers, mesh->num_cells, 
+                          mesh->face_cells, mesh->face_areas, mesh->num_faces);
+}
