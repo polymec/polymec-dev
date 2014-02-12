@@ -71,6 +71,7 @@ typedef struct
   // Polynomial and polynomial fit.
   polynomial_t* poly;
   polynomial_fit_t* poly_fit;
+  real_t fit_time; // Time at which fit is performed.
 
   // Quadrature rules -- regular and "special" (to accommodate symmetry).
   polyhedron_integrator_t* poly_quad_rule;
@@ -134,11 +135,11 @@ static void poisson_read_input(void* context, interpreter_t* interp, options_t* 
 // This implements the high order polynomial fit.
 static void poly_fit(void* context, int component, int degree,
                      point_t* interior_points, real_t* interior_values, int num_interior_points,
-                     point_t* boundary_points, vector_t* boundary_normals, int num_boundary_points,
+                     point_t* boundary_points, vector_t* boundary_normals, void** boundary_conditions, int num_boundary_points,
                      real_t* poly_coeffs)
 {
   poisson_t* p = context;
-  real_t t; // FIXME
+  real_t t = p->fit_time;
   int dim = polynomial_basis_dim(degree);
 
   int N = num_interior_points + num_boundary_points;
@@ -166,10 +167,7 @@ static void poly_fit(void* context, int component, int degree,
     int x_power, y_power, z_power;
     point_t* x = &boundary_points[i];
     vector_t* n = &boundary_normals[i];
-
-    // Fetch parameters from the relevant boundary condition.
-    double alpha = 1.0, beta = 1.0; // FIXME
-    st_func_t* F; // FIXME
+    poisson_bc_t* bc = boundary_conditions[i];
 
     while (polynomial_next(p->poly, &pos, &coeff, &x_power, &y_power, &z_power))
     {
@@ -177,9 +175,9 @@ static void poly_fit(void* context, int component, int degree,
       real_t x_deriv = 1.0 * x_power * pow(x->x, x_power-1) * pow(x->y, y_power) * pow(x->z, z_power);
       real_t y_deriv = pow(x->x, x_power) * 1.0 * y_power * pow(x->y, y_power-1) * pow(x->z, z_power);
       real_t z_deriv = pow(x->x, x_power) * pow(x->y, y_power) * 1.0 * z_power * pow(x->z, z_power-1);
-      A[N*pos + i + num_interior_points] = alpha * value + beta * (n->x * x_deriv + n->y * y_deriv + n->z * z_deriv);
+      A[N*pos + i + num_interior_points] = bc->alpha * value + bc->beta * (n->x * x_deriv + n->y * y_deriv + n->z * z_deriv);
     }
-    st_func_eval(F, x, t, &poly_coeffs[i + num_interior_points]);
+    st_func_eval(bc->F, x, t, &poly_coeffs[i + num_interior_points]);
   }
 
   // Solve the least squares system.
@@ -302,6 +300,7 @@ static int fv_poisson_residual(void* context, real_t t, real_t* u, real_t* F)
     }
 
     // Find a least-squares fit for the solution in the vicinity of this cell.
+    p->fit_time = t;
     polynomial_fit_compute(p->poly_fit, u, cell);
 
     // Face fluxes.

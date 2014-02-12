@@ -29,6 +29,7 @@
 #include "core/point.h"
 #include "core/mesh.h"
 #include "core/point_cloud.h"
+#include "model/boundary_cell_map.h"
 
 // This type represents a mechanism for generating least-squares polynomial 
 // fits for multi-component quantities on discrete domains.
@@ -63,12 +64,13 @@ typedef void (*polynomial_fit_get_boundary_neighbors_func)(void* context, int po
 // boundary points in the vicinity of the point with the given index. The 
 // The coordinates of the points are stored in the array point_coords,
 // the normal vectors on the boundary at each of the points are stored in 
-// the array boundary_normals. Note that point values are not retrieved,
-// as these are often determined by boundary conditions during the actual
+// the array boundary_normals. Boundary conditions are stored in the array 
+// boundary_conditions. Note that point "values" are not retrieved,
+// as these are determined by the boundary conditions during the actual
 // fitting process (as represented by fit_component() below).
 typedef void (*polynomial_fit_get_boundary_data_func)(void* context, real_t* data, int component, int num_comps,
                                                       int* point_indices, int num_points, 
-                                                      point_t* point_coords, vector_t* boundary_normals);
+                                                      point_t* point_coords, vector_t* boundary_normals, void** boundary_conditions);
 
 // This function returns the targeted degree of accuracy for the polynomial
 // fit, given a number of points in the fit "stencil". It effectively 
@@ -82,7 +84,7 @@ typedef int (*polynomial_fit_targeted_degree_func)(void* context, int num_points
 // used by the polynomial_t type).
 typedef void (*polynomial_fit_fit_component_func)(void* context, int component, int degree,
                                                   point_t* interior_points, real_t* interior_values, int num_interior_points,
-                                                  point_t* boundary_points, vector_t* boundary_normals, int num_boundary_points,
+                                                  point_t* boundary_points, vector_t* boundary_normals, void** boundary_conditions, int num_boundary_points,
                                                   real_t* poly_coeffs);
 
 // This function destroys the context pointer for the polynomial fit.
@@ -115,6 +117,7 @@ polynomial_fit_t* polynomial_fit_new(const char* name,
 polynomial_fit_t* cc_polynomial_fit_new(int num_comps,
                                         mesh_t* mesh,
                                         int degree,
+                                        boundary_cell_map_t* boundary_cells,
                                         polynomial_fit_fit_component_func fit_component,
                                         void* fit_component_context,
                                         polynomial_fit_dtor dtor);
