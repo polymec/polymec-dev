@@ -27,6 +27,7 @@
 #include "core/point_cloud.h"
 #include "core/least_squares.h"
 #include "core/linear_algebra.h"
+#include "core/polynomial.h"
 #include "core/write_silo.h"
 #include "geometry/interpreter_register_geometry_functions.h"
 #include "integrators/nonlinear_integrator.h"
@@ -67,7 +68,8 @@ typedef struct
   // Contributions from the source term (rhs).
   real_t* cell_sources;
 
-  // Polynomial fit.
+  // Polynomial and polynomial fit.
+  polynomial_t* poly;
   polynomial_fit_t* poly_fit;
 
   // Quadrature rules -- regular and "special" (to accommodate symmetry).
@@ -127,6 +129,64 @@ static void poisson_read_input(void* context, interpreter_t* interp, options_t* 
         polymec_error("poisson: Face tag '%s' was not found in the mesh.", tag);
     }
   }
+}
+
+// This implements the high order polynomial fit.
+static void poly_fit(void* context, int component, int degree,
+                     point_t* interior_points, real_t* interior_values, int num_interior_points,
+                     point_t* boundary_points, vector_t* boundary_normals, int num_boundary_points,
+                     real_t* poly_coeffs)
+{
+  poisson_t* p = context;
+  real_t t; // FIXME
+  int dim = polynomial_basis_dim(degree);
+
+  int N = num_interior_points + num_boundary_points;
+
+  // Set up the least­squares system.
+  real_t A[N*dim];
+
+  // Interior point contributions.
+  for (int i = 0; i < num_interior_points; ++i)
+  {
+    int pos = 0;
+    real_t coeff;
+    int x_power, y_power, z_power;
+    point_t* x = &interior_points[i];
+    while (polynomial_next(p->poly, &pos, &coeff, &x_power, &y_power, &z_power))
+      A[N*pos + i] = pow(x->x, x_power) * pow(x->y, y_power) * pow(x->z, z_power);
+    poly_coeffs[i] = interior_values[i];
+  }
+
+  // Boundary point contributions.
+  for (int i = 0; i < num_boundary_points; ++i)
+  {
+    int pos = 0;
+    real_t coeff;
+    int x_power, y_power, z_power;
+    point_t* x = &boundary_points[i];
+    vector_t* n = &boundary_normals[i];
+
+    // Fetch parameters from the relevant boundary condition.
+    double alpha = 1.0, beta = 1.0; // FIXME
+    st_func_t* F; // FIXME
+
+    while (polynomial_next(p->poly, &pos, &coeff, &x_power, &y_power, &z_power))
+    {
+      real_t value = pow(x->x, x_power) * pow(x->y, y_power) * pow(x->z, z_power);
+      real_t x_deriv = 1.0 * x_power * pow(x->x, x_power-1) * pow(x->y, y_power) * pow(x->z, z_power);
+      real_t y_deriv = pow(x->x, x_power) * 1.0 * y_power * pow(x->y, y_power-1) * pow(x->z, z_power);
+      real_t z_deriv = pow(x->x, x_power) * pow(x->y, y_power) * 1.0 * z_power * pow(x->z, z_power-1);
+      A[N*pos + i + num_interior_points] = alpha * value + beta * (n->x * x_deriv + n->y * y_deriv + n->z * z_deriv);
+    }
+    st_func_eval(F, x, t, &poly_coeffs[i + num_interior_points]);
+  }
+
+  // Solve the least squares system.
+  int one = 1, jpivot[N], rank, lwork, info; // FIXME
+  real_t rcond = 0.1, work[lwork]; // FIXME
+  rgelsy(&N, &dim, &one, A, &N, poly_coeffs, &N, jpivot, &rcond, &rank, work, &lwork, &info);
+  ASSERT(info != 0);
 }
 
 // Integral Finite Difference (IFD) discretization.
