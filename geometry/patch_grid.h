@@ -22,31 +22,31 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef POLYMEC_CREATE_NESTED_REFINEMENT_MESH_H
-#define POLYMEC_CREATE_NESTED_REFINEMENT_MESH_H
+#ifndef POLYMEC_PATCH_GRID_H
+#define POLYMEC_GRID_H
 
 #include "core/mesh.h"
 #include "core/slist.h"
 
-// This type describes a nested uniform Cartesian grid of a given resolution
-// with a list of nested subgrids. Objects of this type are garbage-collected.
+// This type describes a uniform Cartesian grid of a given resolution
+// with a list of subgrids contained within it. Objects of this type are 
+// garbage-collected.
 typedef struct
 {
   bbox_t domain;          // The domain spanned by this grid.
   int nx, ny, nz;         // Resolution in x, y, z.
-  ptr_slist_t* subgrids;  // Nested subgrids.
-} nested_grid_t;
+  ptr_slist_t* subgrids;  // Grids within this one.
+} patch_grid_t;
 
-// Creates a new (garbage-collected) nested grid object.
-nested_grid_t* nested_grid_new(bbox_t* domain, int nx, int ny, int nz);
+// Creates a new (garbage-collected) patch grid object.
+patch_grid_t* patch_grid_new(bbox_t* domain, int nx, int ny, int nz);
 
-// Adds a subgrid to the given nested grid.
-void nested_grid_add_subgrid(nested_grid_t* grid, nested_grid_t* subgrid);
+// Adds a subgrid to the given patch grid.
+void patch_grid_add_subgrid(patch_grid_t* grid, patch_grid_t* subgrid);
 
-// Creates a nested refinement mesh, which is a mesh consisting of series of 
-// uniform Cartesian grids with finer Cartesian grids embedded within them.
-mesh_t* create_nested_refinement_mesh(MPI_Comm comm, 
-                                      nested_grid_t* coarse_grid);
- 
+// Returns true if the patch grid contains subgrids that are properly nested, 
+// false otherwise
+bool patch_grid_is_properly_nested(patch_grid_t* grid);
+
 #endif
 

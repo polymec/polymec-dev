@@ -22,42 +22,15 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include <gc/gc.h>
-#include "geometry/create_nested_refinement_mesh.h"
+#ifndef POLYMEC_CREATE_NESTED_PATCH_MESH_H
+#define POLYMEC_CREATE_NESTED_PATCH_MESH_H
 
-static void nested_grid_free(void* ctx, void* dummy)
-{
-  nested_grid_t* grid = ctx;
-  ptr_slist_free(grid->subgrids);
-}
+#include "geometry/patch_grid.h"
 
-nested_grid_t* nested_grid_new(bbox_t* domain, int nx, int ny, int nz)
-{
-  ASSERT(domain->x1 < domain->x2);
-  ASSERT(domain->y1 < domain->y2);
-  ASSERT(domain->z1 < domain->z2);
-  ASSERT(nx > 0);
-  ASSERT(ny > 0);
-  ASSERT(nz > 0);
-  nested_grid_t* grid = GC_MALLOC(sizeof(nested_grid_t));
-  grid->domain = *domain;
-  grid->nx = nx;
-  grid->ny = ny;
-  grid->nz = nz;
-  grid->subgrids = ptr_slist_new();
-  GC_register_finalizer(grid, nested_grid_free, grid, NULL, NULL);
-  return grid;
-}
-
-void nested_grid_add_subgrid(nested_grid_t* grid, nested_grid_t* subgrid)
-{
-  ASSERT(bbox_contains_bbox(&grid->domain, &subgrid->domain));
-  ptr_slist_append(grid->subgrids, subgrid);
-}
-
+// Creates a nested refinement mesh, which is a mesh consisting of series of 
+// uniform Cartesian grids with finer Cartesian grids embedded within them.
 mesh_t* create_nested_refinement_mesh(MPI_Comm comm, 
-                                      nested_grid_t* coarse_grid)
-{
-  return NULL;
-}
+                                      patch_grid_t* coarse_grid);
  
+#endif
+
