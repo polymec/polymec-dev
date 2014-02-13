@@ -520,21 +520,21 @@ real_t model_max_dt(model_t* model, char* reason)
   return dt;
 }
 
-void model_advance(model_t* model, real_t dt)
+real_t model_advance(model_t* model, real_t max_dt)
 {
-  log_info("%s: Step %d (t = %g, dt = %g)", model->name, model->step, model->time, dt);
   real_t pre_wall_time = MPI_Wtime();
-  model->dt = dt;
-  model->vtable.advance(model->context, model->time, dt);
-  model->time += dt;
+  model->dt = model->vtable.advance(model->context, max_dt, model->time);
+  model->time += model->dt;
+  log_info("%s: Step %d (t = %g, dt = %g)", model->name, model->step, model->time, model->dt);
   model->step += 1;
 
   // Perform any busywork.
   model_do_periodic_work(model);
 
   real_t post_wall_time = MPI_Wtime();
-  model->sim_speed = dt / (post_wall_time - pre_wall_time); // Simulation "speed"
+  model->sim_speed = model->dt / (post_wall_time - pre_wall_time); // Simulation "speed"
   model->wall_time = post_wall_time;
+  return model->dt;
 }
 
 void model_finalize(model_t* model)
@@ -696,14 +696,14 @@ void model_run(model_t* model, real_t t1, real_t t2, int max_steps)
     while ((model->time < t2) && (model->step < max_steps))
     {
       char reason[POLYMEC_MODEL_MAXDT_REASON_SIZE];
-      real_t dt = model_max_dt(model, reason);
-      if (dt > t2 - model->time)
+      real_t max_dt = model_max_dt(model, reason);
+      if (max_dt > t2 - model->time)
       {
-        dt = t2 - model->time;
+        max_dt = t2 - model->time;
         snprintf(reason, POLYMEC_MODEL_MAXDT_REASON_SIZE, "End of simulation");
       }
-      log_detail("%s: Selected time step dt = %g\n (Reason: %s).", model->name, dt, reason);
-      model_advance(model, dt);
+      log_detail("%s: Max time step max_dt = %g\n (Reason: %s).", model->name, max_dt, reason);
+      real_t dt = model_advance(model, max_dt);
     }
   }
 

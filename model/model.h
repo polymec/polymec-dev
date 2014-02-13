@@ -37,22 +37,23 @@
 typedef struct model_t model_t;
 
 // A model constructor function for creating an object context.
-typedef model_t* (*model_ctor)(options_t*);
+typedef model_t* (*model_ctor)(options_t* options);
 
 // A function for reading input from an interpreter into the model.
-typedef void (*model_read_input_func)(void*, interpreter_t*, options_t*);
+typedef void (*model_read_input_func)(void* context, interpreter_t* interpreter, options_t* options);
 
 // A function for initializing the model.
-typedef void (*model_init_func)(void*, real_t);
+typedef void (*model_init_func)(void* context, real_t t);
 
 // A function for calculating the maximum step size.
-typedef real_t (*model_max_dt_func)(void*, real_t, char*);
+typedef real_t (*model_max_dt_func)(void* context, real_t t, char* reason);
 
-// A function for advancing the model.
-typedef void (*model_advance_func)(void*, real_t, real_t);
+// A function for advancing the model from t by a step of maximum size max_dt.
+// Returns the actual size of the time step.
+typedef real_t (*model_advance_func)(void* context, real_t max_dt, real_t t);
 
 // A function for work to be performed after a run completes.
-typedef void (*model_finalize_func)(void*, int, real_t);
+typedef void (*model_finalize_func)(void* context, int step, real_t t);
 
 // A function for loading the model's state.
 typedef void (*model_load_func)(void* context, const char* filename, const char* directory, real_t* time, int step);
@@ -65,10 +66,10 @@ typedef void (*model_plot_func)(void* context, const char* filename, const char*
 
 // A function for computing error norms for the computed solution, compared 
 // with an analytic solution. The error norms can be specific to the model.
-typedef void (*model_compute_error_norms_func)(void*, st_func_t*, real_t, real_t*);
+typedef void (*model_compute_error_norms_func)(void* context, st_func_t* solution, real_t t, real_t* norms);
 
 // A destructor function for the context object (if any).
-typedef void (*model_dtor)(void*);
+typedef void (*model_dtor)(void* context);
 
 // This virtual table must be implemented by any model.
 typedef struct 
@@ -162,8 +163,9 @@ void model_init(model_t* model, real_t t);
 // starting at time t.
 real_t model_max_dt(model_t* model, char* reason);
 
-// Advances the model by a single time step of size dt.
-void model_advance(model_t* model, real_t dt);
+// Advances the model by a single time step of maximum size max_dt, returning 
+// the size of the actual time step.
+real_t model_advance(model_t* model, real_t max_dt);
 
 // Performs any post-simulation work for the model.
 void model_finalize(model_t* model);

@@ -84,10 +84,11 @@ typedef struct
   int num_iterations;
 } poisson_t;
 
-static void poisson_advance(void* context, real_t t, real_t dt)
+static real_t poisson_advance(void* context, real_t max_dt, real_t t)
 {
   poisson_t* p = context;
-  nonlinear_integrator_solve(p->solver, t+dt, p->phi, &p->num_iterations);
+  nonlinear_integrator_solve(p->solver, t+max_dt, p->phi, &p->num_iterations);
+  return max_dt;
 }
 
 static void poisson_read_input(void* context, interpreter_t* interp, options_t* options)
