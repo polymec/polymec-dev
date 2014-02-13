@@ -524,6 +524,11 @@ real_t model_advance(model_t* model, real_t max_dt)
 {
   real_t pre_wall_time = MPI_Wtime();
   model->dt = model->vtable.advance(model->context, max_dt, model->time);
+
+  // Check the time step.
+  ASSERT(model->dt > 0.0);
+  ASSERT(model->dt <= max_dt);
+
   model->time += model->dt;
   log_info("%s: Step %d (t = %g, dt = %g)", model->name, model->step, model->time, model->dt);
   model->step += 1;
@@ -531,9 +536,11 @@ real_t model_advance(model_t* model, real_t max_dt)
   // Perform any busywork.
   model_do_periodic_work(model);
 
+  // Record timings.
   real_t post_wall_time = MPI_Wtime();
   model->sim_speed = model->dt / (post_wall_time - pre_wall_time); // Simulation "speed"
   model->wall_time = post_wall_time;
+
   return model->dt;
 }
 
@@ -703,7 +710,7 @@ void model_run(model_t* model, real_t t1, real_t t2, int max_steps)
         snprintf(reason, POLYMEC_MODEL_MAXDT_REASON_SIZE, "End of simulation");
       }
       log_detail("%s: Max time step max_dt = %g\n (Reason: %s).", model->name, max_dt, reason);
-      real_t dt = model_advance(model, max_dt);
+      model_advance(model, max_dt);
     }
   }
 
