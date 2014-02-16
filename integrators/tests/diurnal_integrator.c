@@ -23,7 +23,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "core/polymec.h"
-#include "integrators/time_integrator.h"
+#include "integrators/ode_integrator.h"
 #include "integrators/block_jacobi_preconditioner.h"
 #include "integrators/lu_preconditioners.h"
 
@@ -279,9 +279,9 @@ static void diurnal_dtor(void* context)
 }
 
 // Returns initial conditions.
-real_t* diurnal_initial_conditions(time_integrator_t* integ)
+real_t* diurnal_initial_conditions(ode_integrator_t* integ)
 {
-  diurnal_t* data = time_integrator_context(integ);
+  diurnal_t* data = ode_integrator_context(integ);
   real_t dx = data->dx, dy = data->dy;
   int jx, jy;
   real_t x, y, cx, cy;
@@ -305,14 +305,14 @@ real_t* diurnal_initial_conditions(time_integrator_t* integ)
 }
 
 // Constructor for diurnal integrator with no preconditioner.
-static time_integrator_t* diurnal_integrator_new()
+static ode_integrator_t* diurnal_integrator_new()
 {
   // Set up a time integrator using GMRES with a maximum order of 2 and 
   // a Krylov space of maximum dimension 5.
   diurnal_t* data = diurnal_new();
-  time_integrator_vtable vtable = {.rhs = diurnal_rhs,
+  ode_integrator_vtable vtable = {.rhs = diurnal_rhs,
                                    .dtor = diurnal_dtor};
-  time_integrator_t* integ = gmres_time_integrator_new("Diurnal",
+  ode_integrator_t* integ = gmres_ode_integrator_new("Diurnal",
                                                        data,
                                                        MPI_COMM_SELF,
                                                        NEQ,
@@ -322,33 +322,33 @@ static time_integrator_t* diurnal_integrator_new()
 }
 
 // Constructor for block-Jacobi-preconditioned diurnal integrator.
-time_integrator_t* block_jacobi_precond_diurnal_integrator_new()
+ode_integrator_t* block_jacobi_precond_diurnal_integrator_new()
 {
-  time_integrator_t* integ = diurnal_integrator_new();
-  diurnal_t* data = time_integrator_context(integ);
+  ode_integrator_t* integ = diurnal_integrator_new();
+  diurnal_t* data = ode_integrator_context(integ);
   preconditioner_t* precond = block_jacobi_preconditioner_new(data, diurnal_rhs, NULL, data->sparsity, NEQ/NUM_SPECIES, NUM_SPECIES);
-  time_integrator_set_preconditioner(integ, precond);
+  ode_integrator_set_preconditioner(integ, precond);
   return integ;
 }
 
 // Constructor for LU-preconditioned diurnal integrator.
-time_integrator_t* lu_precond_diurnal_integrator_new()
+ode_integrator_t* lu_precond_diurnal_integrator_new()
 {
-  time_integrator_t* integ = diurnal_integrator_new();
-  diurnal_t* data = time_integrator_context(integ);
+  ode_integrator_t* integ = diurnal_integrator_new();
+  diurnal_t* data = ode_integrator_context(integ);
   preconditioner_t* precond = lu_preconditioner_new(data, diurnal_rhs, NULL, data->sparsity);
-  time_integrator_set_preconditioner(integ, precond);
+  ode_integrator_set_preconditioner(integ, precond);
   return integ;
 }
 
 // Constructor for ILU-preconditioned diurnal integrator.
-time_integrator_t* ilu_precond_diurnal_integrator_new()
+ode_integrator_t* ilu_precond_diurnal_integrator_new()
 {
-  time_integrator_t* integ = diurnal_integrator_new();
+  ode_integrator_t* integ = diurnal_integrator_new();
   ilu_params_t* ilu_params = ilu_params_new();
-  diurnal_t* data = time_integrator_context(integ);
+  diurnal_t* data = ode_integrator_context(integ);
   preconditioner_t* precond = ilu_preconditioner_new(data, diurnal_rhs, NULL, data->sparsity, ilu_params);
-  time_integrator_set_preconditioner(integ, precond);
+  ode_integrator_set_preconditioner(integ, precond);
   return integ;
 }
 

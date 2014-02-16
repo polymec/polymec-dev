@@ -23,7 +23,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "core/sundials_helpers.h"
-#include "integrators/time_integrator.h"
+#include "integrators/ode_integrator.h"
 
 #include "cvode/cvode.h"
 #include "cvode/cvode_spils.h"
@@ -39,11 +39,11 @@ typedef enum
   TFQMR
 } solver_type_t;
 
-struct time_integrator_t 
+struct ode_integrator_t 
 {
   char* name;
   void* context;
-  time_integrator_vtable vtable;
+  ode_integrator_vtable vtable;
   int order;
   MPI_Comm comm;
   solver_type_t solver_type;
@@ -60,7 +60,7 @@ struct time_integrator_t
   real_t max_dt, stop_time;
 
   // Error weight function.
-  time_integrator_error_weight_func compute_weights;
+  ode_integrator_error_weight_func compute_weights;
 
   // Preconditioning stuff.
   preconditioner_t* precond;
@@ -70,7 +70,7 @@ struct time_integrator_t
 // This function wraps around the user-supplied right hand side.
 static int evaluate_rhs(real_t t, N_Vector x, N_Vector x_dot, void* context)
 {
-  time_integrator_t* integ = context;
+  ode_integrator_t* integ = context;
   real_t* xx = NV_DATA(x);
   real_t* xxd = NV_DATA(x_dot);
 
@@ -88,7 +88,7 @@ static int set_up_preconditioner(real_t t, N_Vector x, N_Vector F,
                                  real_t gamma, void* context, 
                                  N_Vector work1, N_Vector work2, N_Vector work3)
 {
-  time_integrator_t* integ = context;
+  ode_integrator_t* integ = context;
   if (!jacobian_is_current)
   {
     preconditioner_compute_jacobian(integ->precond, t, NV_DATA(x), integ->precond_mat);
@@ -111,7 +111,7 @@ static int solve_preconditioner_system(real_t t, N_Vector x, N_Vector F,
 {
   ASSERT(lr == 1); // Left preconditioning only.
 
-  time_integrator_t* integ = context;
+  ode_integrator_t* integ = context;
   
   // FIXME: Apply scaling if needed.
   // Copy the contents of the RHS to the output vector.
@@ -124,14 +124,14 @@ static int solve_preconditioner_system(real_t t, N_Vector x, N_Vector F,
     return 1; // recoverable error.
 }
 
-static time_integrator_t* time_integrator_new(const char* name, 
-                                              void* context,
-                                              MPI_Comm comm,
-                                              int N,
-                                              time_integrator_vtable vtable,
-                                              int order,
-                                              solver_type_t solver_type,
-                                              int max_krylov_dim)
+static ode_integrator_t* ode_integrator_new(const char* name, 
+                                            void* context,
+                                            MPI_Comm comm,
+                                            int N,
+                                            ode_integrator_vtable vtable,
+                                            int order,
+                                            solver_type_t solver_type,
+                                            int max_krylov_dim)
 {
   ASSERT(N > 0);
   ASSERT(order > 0);
@@ -139,7 +139,7 @@ static time_integrator_t* time_integrator_new(const char* name,
   ASSERT(vtable.rhs != NULL);
   ASSERT(max_krylov_dim >= 3);
 
-  time_integrator_t* integ = malloc(sizeof(time_integrator_t));
+  ode_integrator_t* integ = malloc(sizeof(ode_integrator_t));
   integ->name = string_dup(name);
   integ->context = context;
   integ->comm = comm;
@@ -180,7 +180,7 @@ static time_integrator_t* time_integrator_new(const char* name,
   // Set some default tolerances:
   // relative error of 1e-4 means errors are controlled to 0.01%.
   // absolute error is set to 1 because it's completely problem dependent.
-  time_integrator_set_tolerances(integ, 1e-4, 1.0);
+  ode_integrator_set_tolerances(integ, 1e-4, 1.0);
 
   // Set up a maximum number of steps to take during the integration.
 //  CVodeSetMaxNumSteps(integ->cvode, 500); // default is 500.
@@ -188,43 +188,43 @@ static time_integrator_t* time_integrator_new(const char* name,
   return integ;
 }
 
-time_integrator_t* gmres_time_integrator_new(const char* name,
-                                             void* context,
-                                             MPI_Comm comm,
-                                             int N,
-                                             time_integrator_vtable vtable,
-                                             int order,
-                                             int max_krylov_dim)
+ode_integrator_t* gmres_ode_integrator_new(const char* name,
+                                           void* context,
+                                           MPI_Comm comm,
+                                           int N,
+                                           ode_integrator_vtable vtable,
+                                           int order,
+                                           int max_krylov_dim)
 {
-  return time_integrator_new(name, context, comm, N, vtable, order, GMRES, 
-                             max_krylov_dim);
+  return ode_integrator_new(name, context, comm, N, vtable, order, GMRES, 
+                            max_krylov_dim);
 }
 
-time_integrator_t* bicgstab_time_integrator_new(const char* name,
-                                                void* context,
-                                                MPI_Comm comm,
-                                                int N,
-                                                time_integrator_vtable vtable,
-                                                int order,
-                                                int max_krylov_dim)
+ode_integrator_t* bicgstab_ode_integrator_new(const char* name,
+                                              void* context,
+                                              MPI_Comm comm,
+                                              int N,
+                                              ode_integrator_vtable vtable,
+                                              int order,
+                                              int max_krylov_dim)
 {
-  return time_integrator_new(name, context, comm, N, vtable, order, BICGSTAB, 
-                             max_krylov_dim);
+  return ode_integrator_new(name, context, comm, N, vtable, order, BICGSTAB, 
+                            max_krylov_dim);
 }
 
-time_integrator_t* tfqmr_time_integrator_new(const char* name,
-                                             void* context,
-                                             MPI_Comm comm,
-                                             int N,
-                                             time_integrator_vtable vtable,
-                                             int order,
-                                             int max_krylov_dim)
+ode_integrator_t* tfqmr_ode_integrator_new(const char* name,
+                                           void* context,
+                                           MPI_Comm comm,
+                                           int N,
+                                           ode_integrator_vtable vtable,
+                                           int order,
+                                           int max_krylov_dim)
 {
-  return time_integrator_new(name, context, comm, N, vtable, order, TFQMR, 
-                             max_krylov_dim);
+  return ode_integrator_new(name, context, comm, N, vtable, order, TFQMR, 
+                            max_krylov_dim);
 }
 
-void time_integrator_free(time_integrator_t* integ)
+void ode_integrator_free(ode_integrator_t* integ)
 {
   // Kill the preconditioner stuff.
   if (integ->precond != NULL)
@@ -245,23 +245,23 @@ void time_integrator_free(time_integrator_t* integ)
   free(integ);
 }
 
-char* time_integrator_name(time_integrator_t* integ)
+char* ode_integrator_name(ode_integrator_t* integ)
 {
   return integ->name;
 }
 
-void* time_integrator_context(time_integrator_t* integ)
+void* ode_integrator_context(ode_integrator_t* integ)
 {
   return integ->context;
 }
 
-int time_integrator_order(time_integrator_t* integ)
+int ode_integrator_order(ode_integrator_t* integ)
 {
   return integ->order;
 }
 
-void time_integrator_set_preconditioner(time_integrator_t* integrator,
-                                        preconditioner_t* precond)
+void ode_integrator_set_preconditioner(ode_integrator_t* integrator,
+                                       preconditioner_t* precond)
 {
   integrator->precond = precond;
   if (integrator->precond_mat != NULL)
@@ -269,18 +269,18 @@ void time_integrator_set_preconditioner(time_integrator_t* integrator,
   integrator->precond_mat = preconditioner_matrix(precond);
 }
 
-preconditioner_matrix_t* time_integrator_preconditioner_matrix(time_integrator_t* integrator)
+preconditioner_matrix_t* ode_integrator_preconditioner_matrix(ode_integrator_t* integrator)
 {
   return integrator->precond_mat;
 }
 
-void time_integrator_set_stability_limit_detection(time_integrator_t* integrator,
+void ode_integrator_set_stability_limit_detection(ode_integrator_t* integrator,
                                                    bool use_detection)
 {
   CVodeSetStabLimDet(integrator->cvode, use_detection);
 }
 
-void time_integrator_set_tolerances(time_integrator_t* integrator,
+void ode_integrator_set_tolerances(ode_integrator_t* integrator,
                                     real_t relative_tol, real_t absolute_tol)
 {
   ASSERT(relative_tol > 0.0);
@@ -296,38 +296,38 @@ void time_integrator_set_tolerances(time_integrator_t* integrator,
 // Error weight adaptor function.
 static int compute_error_weights(N_Vector y, N_Vector ewt, void* context)
 {
-  time_integrator_t* integ = context;
+  ode_integrator_t* integ = context;
   integ->compute_weights(integ->context, NV_DATA(y), NV_DATA(ewt));
   return 0;
 }
 
-void time_integrator_set_error_weight_function(time_integrator_t* integrator,
-                                               time_integrator_error_weight_func compute_weights)
+void ode_integrator_set_error_weight_function(ode_integrator_t* integrator,
+                                               ode_integrator_error_weight_func compute_weights)
 {
   ASSERT(compute_weights != NULL);
   integrator->compute_weights = compute_weights;
   CVodeWFtolerances(integrator->cvode, compute_error_weights);
 }
 
-void time_integrator_eval_rhs(time_integrator_t* integ, real_t t, real_t* X, real_t* rhs)
+void ode_integrator_eval_rhs(ode_integrator_t* integ, real_t t, real_t* X, real_t* rhs)
 {
   integ->vtable.rhs(integ->context, t, X, rhs);
 }
 
-void time_integrator_set_max_dt(time_integrator_t* integ, real_t max_dt)
+void ode_integrator_set_max_dt(ode_integrator_t* integ, real_t max_dt)
 {
   ASSERT(max_dt > 0);
   integ->max_dt = max_dt;
   CVodeSetMaxStep(integ->cvode, max_dt);
 }
 
-void time_integrator_set_stop_time(time_integrator_t* integ, real_t stop_time)
+void ode_integrator_set_stop_time(ode_integrator_t* integ, real_t stop_time)
 {
   integ->stop_time = stop_time;
   CVodeSetStopTime(integ->cvode, stop_time);
 }
 
-bool time_integrator_step(time_integrator_t* integ, real_t* t, real_t* X)
+bool ode_integrator_step(ode_integrator_t* integ, real_t* t, real_t* X)
 {
   // Copy in the solution.
   memcpy(NV_DATA(integ->x), X, sizeof(real_t) * integ->N); 
@@ -400,8 +400,8 @@ bool time_integrator_step(time_integrator_t* integ, real_t* t, real_t* X)
   }
 }
 
-void time_integrator_get_diagnostics(time_integrator_t* integrator, 
-                                     time_integrator_diagnostics_t* diagnostics)
+void ode_integrator_get_diagnostics(ode_integrator_t* integrator, 
+                                    ode_integrator_diagnostics_t* diagnostics)
 {
   diagnostics->status_message = integrator->status_message; // borrowed!
   CVodeGetNumSteps(integrator->cvode, &diagnostics->num_steps);
@@ -418,10 +418,10 @@ void time_integrator_get_diagnostics(time_integrator_t* integrator,
   CVSpilsGetNumConvFails(integrator->cvode, &diagnostics->num_linear_solve_convergence_failures);
 }
 
-void time_integrator_diagnostics_fprintf(time_integrator_diagnostics_t* diagnostics, 
-                                         FILE* stream)
+void ode_integrator_diagnostics_fprintf(ode_integrator_diagnostics_t* diagnostics, 
+                                        FILE* stream)
 {
-  fprintf(stream, "Time integrator diagnostics:\n");
+  fprintf(stream, "ODE integrator diagnostics:\n");
   if (diagnostics->status_message != NULL)
     fprintf(stream, "  Status: %s\n", diagnostics->status_message);
   fprintf(stream, "  Num steps: %d\n", (int)diagnostics->num_steps);

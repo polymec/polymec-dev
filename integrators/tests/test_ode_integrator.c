@@ -29,76 +29,76 @@
 
 #include "cmockery.h"
 #include "core/polymec.h"
-#include "integrators/time_integrator.h"
+#include "integrators/ode_integrator.h"
 
-extern time_integrator_t* block_jacobi_precond_diurnal_integrator_new();
-extern time_integrator_t* lu_precond_diurnal_integrator_new();
-extern time_integrator_t* ilu_precond_diurnal_integrator_new();
-extern real_t* diurnal_initial_conditions(time_integrator_t* integ);
+extern ode_integrator_t* block_jacobi_precond_diurnal_integrator_new();
+extern ode_integrator_t* lu_precond_diurnal_integrator_new();
+extern ode_integrator_t* ilu_precond_diurnal_integrator_new();
+extern real_t* diurnal_initial_conditions(ode_integrator_t* integ);
 
 void test_block_jacobi_precond_diurnal_ctor(void** state)
 {
-  time_integrator_t* integ = block_jacobi_precond_diurnal_integrator_new();
-  assert_true(strcmp(time_integrator_name(integ), "Diurnal") == 0);
-  time_integrator_free(integ);
+  ode_integrator_t* integ = block_jacobi_precond_diurnal_integrator_new();
+  assert_true(strcmp(ode_integrator_name(integ), "Diurnal") == 0);
+  ode_integrator_free(integ);
 }
 
 void test_lu_precond_diurnal_ctor(void** state)
 {
-  time_integrator_t* integ = lu_precond_diurnal_integrator_new();
-  assert_true(strcmp(time_integrator_name(integ), "Diurnal") == 0);
-  time_integrator_free(integ);
+  ode_integrator_t* integ = lu_precond_diurnal_integrator_new();
+  assert_true(strcmp(ode_integrator_name(integ), "Diurnal") == 0);
+  ode_integrator_free(integ);
 }
 
 void test_ilu_precond_diurnal_ctor(void** state)
 {
-  time_integrator_t* integ = ilu_precond_diurnal_integrator_new();
-  assert_true(strcmp(time_integrator_name(integ), "Diurnal") == 0);
-  time_integrator_free(integ);
+  ode_integrator_t* integ = ilu_precond_diurnal_integrator_new();
+  assert_true(strcmp(ode_integrator_name(integ), "Diurnal") == 0);
+  ode_integrator_free(integ);
 }
 
-void test_diurnal_step(void** state, time_integrator_t* integ)
+void test_diurnal_step(void** state, ode_integrator_t* integ)
 {
   // Set up the problem.
-  time_integrator_set_tolerances(integ, 1e-5, 1e-3);
+  ode_integrator_set_tolerances(integ, 1e-5, 1e-3);
   real_t* u = diurnal_initial_conditions(integ);
 
   // Integrate it.
   real_t t = 0.0;
-  time_integrator_set_stop_time(integ, 7200.0);
+  ode_integrator_set_stop_time(integ, 7200.0);
   while (t < 7200.0)
   {
-    bool integrated = time_integrator_step(integ, &t, u);
-//    preconditioner_matrix_fprintf(time_integrator_preconditioner_matrix(integ), stdout);
+    bool integrated = ode_integrator_step(integ, &t, u);
+//    preconditioner_matrix_fprintf(ode_integrator_preconditioner_matrix(integ), stdout);
     assert_true(integrated);
   }
 printf("u = [");
 for (int i = 0; i < 200; ++i)
 printf("%g ", u[i]);
 printf("]\n");
-  time_integrator_diagnostics_t diags;
-  time_integrator_get_diagnostics(integ, &diags);
-  time_integrator_diagnostics_fprintf(&diags, stdout);
+  ode_integrator_diagnostics_t diags;
+  ode_integrator_get_diagnostics(integ, &diags);
+  ode_integrator_diagnostics_fprintf(&diags, stdout);
 
-  time_integrator_free(integ);
+  ode_integrator_free(integ);
   free(u);
 }
 
 void test_block_jacobi_precond_diurnal_step(void** state)
 {
-  time_integrator_t* integ = block_jacobi_precond_diurnal_integrator_new();
+  ode_integrator_t* integ = block_jacobi_precond_diurnal_integrator_new();
   test_diurnal_step(state, integ);
 }
 
 void test_lu_precond_diurnal_step(void** state)
 {
-  time_integrator_t* integ = lu_precond_diurnal_integrator_new();
+  ode_integrator_t* integ = lu_precond_diurnal_integrator_new();
   test_diurnal_step(state, integ);
 }
 
 void test_ilu_precond_diurnal_step(void** state)
 {
-  time_integrator_t* integ = ilu_precond_diurnal_integrator_new();
+  ode_integrator_t* integ = ilu_precond_diurnal_integrator_new();
   test_diurnal_step(state, integ);
 }
 
