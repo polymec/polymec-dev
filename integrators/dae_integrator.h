@@ -110,7 +110,9 @@ void* dae_integrator_context(dae_integrator_t* integrator);
 // Returns the order of the integration method.
 int dae_integrator_order(dae_integrator_t* integrator);
 
-// Sets the preconditioner to use to help solve the equations.
+// Sets the preconditioner to use to help solve the equations. Note that 
+// the preconditioner must be a DAE-enabled preconditioner, able to 
+// compute both dFdx and dFdxdot.
 void dae_integrator_set_preconditioner(dae_integrator_t* integrator,
                                        preconditioner_t* precond);
 

@@ -62,9 +62,10 @@ struct dae_integrator_t
   // Error weight function.
   dae_integrator_error_weight_func compute_weights;
 
-  // Preconditioning stuff.
+  // Preconditioning stuff. Note that we must store two preconditioner 
+  // matrices--one for dFdx and one for dFdxdot.
   preconditioner_t* precond;
-  preconditioner_matrix_t* precond_mat;
+  preconditioner_matrix_t *precond_J, *precond_dFdxdot;
 };
 
 // This function wraps around the user-supplied right hand side.
@@ -90,8 +91,13 @@ static int set_up_preconditioner(real_t t, N_Vector x, N_Vector x_dot, N_Vector 
                                  N_Vector work1, N_Vector work2, N_Vector work3)
 {
   dae_integrator_t* integ = context;
-  preconditioner_compute_jacobian(integ->precond, t, NV_DATA(x), integ->precond_mat);
-//  preconditioner_matrix_scale_and_shift(integ->precond_mat, -gamma);
+
+  // Compute dFdx and dFdxdot.
+  preconditioner_compute_dae_jacobians(integ->precond, t, NV_DATA(x), NV_DATA(x_dot), integ->precond_J, integ->precond_dFdxdot);
+
+  // Form the linear combination dFdx + cj * dFdxdot and store it in precond_J.
+  preconditioner_matrix_add(integ->precond_J, cj, integ->precond_dFdxdot);
+
   return 0;
 }
 
@@ -106,11 +112,11 @@ static int solve_preconditioner_system(real_t t, N_Vector x, N_Vector x_dot,
   dae_integrator_t* integ = context;
   
   // FIXME: Apply scaling if needed.
-  // Copy the contents of the RHS to the output vector.
+  // Copy the contents of the residual to the output vector.
   memcpy(NV_DATA(z), NV_DATA(r), sizeof(real_t) * integ->N);
 
   // Solve it.
-  if (preconditioner_solve(integ->precond, integ->precond_mat, NV_DATA(z)))
+  if (preconditioner_solve(integ->precond, integ->precond_J, NV_DATA(z)))
     return 0;
   else 
     return 1; // recoverable error.
@@ -168,7 +174,7 @@ static dae_integrator_t* dae_integrator_new(const char* name,
                            solve_preconditioner_system);
 
   integ->precond = NULL;
-  integ->precond_mat = NULL;
+  integ->precond_J = NULL;
 
   // Set some default tolerances:
   // relative error of 1e-4 means errors are controlled to 0.01%.
@@ -222,8 +228,8 @@ void dae_integrator_free(dae_integrator_t* integ)
   // Kill the preconditioner stuff.
   if (integ->precond != NULL)
     preconditioner_free(integ->precond);
-  if (integ->precond_mat != NULL)
-    preconditioner_matrix_free(integ->precond_mat);
+  if (integ->precond_J != NULL)
+    preconditioner_matrix_free(integ->precond_J);
 
   // Kill the IDA stuff.
   N_VDestroy(integ->x_dot);
@@ -258,18 +264,18 @@ void dae_integrator_set_preconditioner(dae_integrator_t* integrator,
                                        preconditioner_t* precond)
 {
   integrator->precond = precond;
-  if (integrator->precond_mat != NULL)
-    preconditioner_matrix_free(integrator->precond_mat);
-  integrator->precond_mat = preconditioner_matrix(precond);
+  if (integrator->precond_J != NULL)
+    preconditioner_matrix_free(integrator->precond_J);
+  integrator->precond_J = preconditioner_matrix(precond);
 }
 
 preconditioner_matrix_t* dae_integrator_preconditioner_matrix(dae_integrator_t* integrator)
 {
-  return integrator->precond_mat;
+  return integrator->precond_J;
 }
 
 void dae_integrator_set_tolerances(dae_integrator_t* integrator,
-                                    real_t relative_tol, real_t absolute_tol)
+                                   real_t relative_tol, real_t absolute_tol)
 {
   ASSERT(relative_tol > 0.0);
   ASSERT(absolute_tol > 0.0);
