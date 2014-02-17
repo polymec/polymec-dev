@@ -78,7 +78,19 @@ void preconditioner_compute_jacobian(preconditioner_t* precond,
                                      real_t* x,
                                      preconditioner_matrix_t* mat)
 {
+  ASSERT(precond->vtable.compute_jacobian != NULL);
   precond->vtable.compute_jacobian(precond->context, t, x, mat);
+}
+
+void preconditioner_compute_dae_jacobians(preconditioner_t* precond,
+                                          real_t t,
+                                          real_t* x,
+                                          real_t* x_dot,
+                                          preconditioner_matrix_t* dFdx,
+                                          preconditioner_matrix_t* dFdxdot)
+{
+  ASSERT(precond->vtable.compute_dae_jacobians != NULL);
+  precond->vtable.compute_dae_jacobians(precond->context, t, x, x_dot, dFdx, dFdxdot);
 }
 
 bool preconditioner_solve(preconditioner_t* precond,
@@ -94,6 +106,7 @@ preconditioner_matrix_t* preconditioner_matrix_new(const char* name,
                                                    int num_rows)
 {
   ASSERT(vtable.scale_and_shift != NULL);
+  ASSERT(vtable.add != NULL);
   ASSERT(vtable.coeff != NULL);
   preconditioner_matrix_t* mat = malloc(sizeof(preconditioner_matrix_t));
   mat->name = string_dup(name);
@@ -119,6 +132,11 @@ void* preconditioner_matrix_context(preconditioner_matrix_t* mat)
 void preconditioner_matrix_scale_and_shift(preconditioner_matrix_t* mat, real_t gamma)
 {
   mat->vtable.scale_and_shift(mat->context, gamma);
+}
+
+void preconditioner_matrix_add(preconditioner_matrix_t* mat, real_t alpha, preconditioner_matrix_t* B)
+{
+  mat->vtable.add(mat->context, alpha, B->context);
 }
 
 real_t preconditioner_matrix_coeff(preconditioner_matrix_t* mat, int i, int j)

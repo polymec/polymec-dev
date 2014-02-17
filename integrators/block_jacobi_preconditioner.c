@@ -70,6 +70,21 @@ static void bd_scale_and_shift(void* context, real_t gamma)
   }
 }
 
+static void bd_add(void* A_context, real_t alpha, void* B_context)
+{
+  bd_mat_t* A = A_context;
+  bd_mat_t* B = B_context;
+  ASSERT(A->num_block_rows == B->num_block_rows);
+  ASSERT(A->block_size == B->block_size);
+
+  int n = A->num_block_rows;
+  int bs = A->block_size;
+  real_t* Aij = A->coeffs;
+  real_t* Bij = B->coeffs;
+  for (int i = 0; i < n*bs; ++i)
+    Aij[i] += alpha * Bij[i];
+}
+
 static real_t bd_coeff(void* context, int i, int j)
 {
   bd_mat_t* mat = context;
@@ -110,6 +125,7 @@ static preconditioner_matrix_t* block_jacobi_preconditioner_matrix(void* context
 {
   block_jacobi_preconditioner_t* precond = context;
   preconditioner_matrix_vtable vtable = {.scale_and_shift = bd_scale_and_shift,
+                                         .add = bd_add,
                                          .coeff = bd_coeff,
                                          .fprintf = bd_fprintf,
                                          .dtor = bd_dtor};
@@ -289,3 +305,94 @@ preconditioner_t* block_jacobi_preconditioner_new(void* context,
                                   .dtor = block_jacobi_preconditioner_dtor};
   return preconditioner_new("Block Jacobi preconditioner", precond, vtable);
 }
+
+// DAE preconditioner type.
+typedef struct
+{
+  void* context; // Context.
+
+  int num_block_rows, block_size;
+
+  // Preconditioners and matrices for dF/dx and dF/d(x_dot).
+  preconditioner_t *dFdx_precond, *dFdxdot_precond;
+
+  // Virtual table.
+  int (*F)(void* context, real_t t, real_t* x, real_t* x_dot, real_t* F);
+  void (*communicate)(void* context, real_t t, real_t* x, real_t* x_dot);
+
+  // States (x and x_dot) about which derivatives are computed.
+  real_t *x0, *x_dot0;
+} block_jacobi_dae_preconditioner_t;
+
+// This adaptor function serves to compute the preconditioner matrix for dF/dx. 
+static int block_jacobi_dae_compute_res_for_x(void* context, real_t t, real_t* x, real_t* F)
+{
+  block_jacobi_dae_preconditioner_t* precond = context;
+  real_t* x_dot = precond->x_dot0;
+  return precond->F(precond->context, t, x, x_dot, F);
+}
+
+// This adaptor function serves to compute the preconditioner matrix for dF/d(x_dot). 
+static int block_jacobi_dae_compute_res_for_x_dot(void* context, real_t t, real_t* x_dot, real_t* F)
+{
+  block_jacobi_dae_preconditioner_t* precond = context;
+  real_t* x = precond->x0;
+  return precond->F(precond->context, t, x, x_dot, F);
+}
+
+static preconditioner_matrix_t* block_jacobi_dae_preconditioner_matrix(void* context)
+{
+  block_jacobi_dae_preconditioner_t* precond = context;
+  return preconditioner_matrix(precond->dFdx_precond);
+}
+
+static void block_jacobi_dae_preconditioner_compute_dae_jacobians(void* context, real_t t, real_t* x, real_t* x_dot, preconditioner_matrix_t* dFdx, preconditioner_matrix_t* dFdxdot)
+{
+  block_jacobi_dae_preconditioner_t* precond = context;
+  preconditioner_compute_jacobian(precond->dFdx_precond, t, x, dFdx);
+  preconditioner_compute_jacobian(precond->dFdxdot_precond, t, x, dFdxdot);
+}
+
+static bool block_jacobi_dae_preconditioner_solve(void* context, preconditioner_matrix_t* A, real_t* B)
+{
+  block_jacobi_dae_preconditioner_t* precond = context;
+  return preconditioner_solve(precond->dFdx_precond, A, B);
+}
+
+static void block_jacobi_dae_preconditioner_dtor(void* context)
+{
+  block_jacobi_dae_preconditioner_t* precond = context;
+  preconditioner_free(precond->dFdx_precond);
+  preconditioner_free(precond->dFdxdot_precond);
+  free(precond->x0);
+  free(precond->x_dot0);
+  free(precond);
+}
+
+preconditioner_t* block_jacobi_dae_preconditioner_new(void* context,
+                                                      int (*residual_func)(void* context, real_t t, real_t* x, real_t* x_dot, real_t* F),
+                                                      void (*communication_func)(void* context, real_t t, real_t* x, real_t* x_dot),
+                                                      adj_graph_t* sparsity,
+                                                      int num_block_rows,
+                                                      int block_size)
+{
+  block_jacobi_dae_preconditioner_t* precond = malloc(sizeof(block_jacobi_dae_preconditioner_t));
+  precond->dFdx_precond = block_jacobi_preconditioner_new(context, block_jacobi_dae_compute_res_for_x, NULL, sparsity, num_block_rows, block_size);
+  precond->dFdxdot_precond = block_jacobi_preconditioner_new(context, block_jacobi_dae_compute_res_for_x_dot, NULL, sparsity, num_block_rows, block_size);
+  precond->F = residual_func;
+  precond->communicate = communication_func;
+  precond->context = context;
+
+  // Preconditioner data.
+  precond->num_block_rows = num_block_rows;
+  precond->block_size = block_size;
+  precond->x0 = malloc(sizeof(real_t) * (num_block_rows*block_size));
+  precond->x_dot0 = malloc(sizeof(real_t) * (num_block_rows*block_size));
+
+  preconditioner_vtable vtable = {.matrix = block_jacobi_dae_preconditioner_matrix,
+                                  .compute_dae_jacobians = block_jacobi_dae_preconditioner_compute_dae_jacobians,
+                                  .solve = block_jacobi_dae_preconditioner_solve,
+                                  .dtor = block_jacobi_dae_preconditioner_dtor};
+  return preconditioner_new("Block Jacobi DAE preconditioner", precond, vtable);
+}
+

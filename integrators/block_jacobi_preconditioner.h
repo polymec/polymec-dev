@@ -38,5 +38,13 @@ preconditioner_t* block_jacobi_preconditioner_new(void* context,
                                                   int num_block_rows,
                                                   int block_size);
                                         
+// Creates a DAE-enabled block Jacobi preconditioner.
+preconditioner_t* block_jacobi_dae_preconditioner_new(void* context,
+                                                      int (*residual_func)(void* context, real_t t, real_t* x, real_t* x_dot, real_t* F),
+                                                      void (*communication_func)(void* context, real_t t, real_t* x, real_t* x_dot),
+                                                      adj_graph_t* sparsity,
+                                                      int num_block_rows,
+                                                      int block_size);
+                                        
 #endif
 

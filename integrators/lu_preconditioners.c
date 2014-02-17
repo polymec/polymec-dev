@@ -64,12 +64,40 @@ static void supermatrix_scale_and_shift(void* context, real_t gamma)
     int col_index = data->colptr[j];
 
     // Scale and shift diagonal value.
-    Aij[col_index] = gamma * Aij[data->colptr[j]] + 1.0;
+    Aij[col_index] = gamma * Aij[col_index] + 1.0;
 
     // Scale off-diagonal values.
     size_t num_rows = data->colptr[j+1] - col_index;
     for (int i = 1; i < num_rows; ++i)
       Aij[col_index + i] *= gamma;
+  }
+}
+
+static void supermatrix_add(void* A_context, real_t alpha, void* B_context)
+{
+  // For now, we assume that the adjacency graphs for the matrices A and 
+  // B are identical. I think this is the only forseeable use case.
+  SuperMatrix* A = A_context;
+  SuperMatrix* B = B_context;
+  ASSERT(A->ncol == B->ncol);
+  int num_cols = A->ncol;
+  NCformat* A_data = A->Store;
+  real_t* Aij = A_data->nzval;
+  NCformat* B_data = B->Store;
+  real_t* Bij = B_data->nzval;
+  for (int j = 0; j < num_cols; ++j)
+  {
+    int col_index = A_data->colptr[j];
+    ASSERT(col_index == B_data->colptr[j]);
+
+    // Add the scaled diagonal value.
+    Aij[col_index] += alpha * Bij[col_index];
+
+    // Add the scaled off-diagonal values.
+    size_t num_rows = A_data->colptr[j+1] - col_index;
+    ASSERT(num_rows == (B_data->colptr[j+1] - col_index));
+    for (int i = 1; i < num_rows; ++i)
+      Aij[col_index + i] += alpha * Bij[col_index + i];
   }
 }
 
@@ -180,6 +208,7 @@ static preconditioner_matrix_t* lu_preconditioner_matrix(void* context)
                          SLU_NC, SLU_D, SLU_GE);
 
   preconditioner_matrix_vtable vtable = {.scale_and_shift = supermatrix_scale_and_shift,
+                                         .add = supermatrix_add,
                                          .coeff = supermatrix_coeff,
                                          .fprintf = supermatrix_fprintf,
                                          .dtor = supermatrix_dtor};
@@ -375,7 +404,7 @@ preconditioner_t* lu_preconditioner_new(void* context,
                                   .dtor = lu_preconditioner_dtor};
   return preconditioner_new("LU preconditioner", precond, vtable);
 }
-                                        
+   
 // Globals borrowed from SuperLU.
 const int ILU_DROP_BASIC = DROP_BASIC;
 const int ILU_DROP_PROWS = DROP_PROWS;
@@ -499,3 +528,120 @@ preconditioner_t* ilu_preconditioner_new(void* context,
   return preconditioner_new("ILU preconditioner", precond, vtable);
 }
 
+//------------------------------------------------------------------------
+//          Differential-Algebraic Equation (DAE) preconditioners
+//------------------------------------------------------------------------
+// These preconditioners are designed to work with the dae_integrator.
+// They re-use as much logic as possible from their constituent components.
+//------------------------------------------------------------------------
+typedef struct
+{
+  void* context; // Context.
+
+  int N; // Number of rows in matrix.
+
+  // Preconditioners and matrices for dF/dx and dF/d(x_dot).
+  preconditioner_t *dFdx_precond, *dFdxdot_precond;
+
+  // Virtual table.
+  int (*F)(void* context, real_t t, real_t* x, real_t* x_dot, real_t* F);
+  void (*communicate)(void* context, real_t t, real_t* x, real_t* x_dot);
+
+  // States (x and x_dot) about which derivatives are computed.
+  real_t *x0, *x_dot0;
+} lu_dae_preconditioner_t;
+
+// This adaptor function serves to compute the preconditioner matrix for dF/dx. 
+static int lu_dae_compute_res_for_x(void* context, real_t t, real_t* x, real_t* F)
+{
+  lu_dae_preconditioner_t* precond = context;
+  real_t* x_dot = precond->x_dot0;
+  return precond->F(precond->context, t, x, x_dot, F);
+}
+
+// This adaptor function serves to compute the preconditioner matrix for dF/d(x_dot). 
+static int lu_dae_compute_res_for_x_dot(void* context, real_t t, real_t* x_dot, real_t* F)
+{
+  lu_dae_preconditioner_t* precond = context;
+  real_t* x = precond->x0;
+  return precond->F(precond->context, t, x, x_dot, F);
+}
+
+static preconditioner_matrix_t* lu_dae_preconditioner_matrix(void* context)
+{
+  lu_dae_preconditioner_t* precond = context;
+  return preconditioner_matrix(precond->dFdx_precond);
+}
+
+static void lu_dae_preconditioner_compute_dae_jacobians(void* context, real_t t, real_t* x, real_t* x_dot, preconditioner_matrix_t* dFdx, preconditioner_matrix_t* dFdxdot)
+{
+  lu_dae_preconditioner_t* precond = context;
+  preconditioner_compute_jacobian(precond->dFdx_precond, t, x, dFdx);
+  preconditioner_compute_jacobian(precond->dFdxdot_precond, t, x, dFdxdot);
+}
+
+static bool lu_dae_preconditioner_solve(void* context, preconditioner_matrix_t* A, real_t* B)
+{
+  lu_dae_preconditioner_t* precond = context;
+  return preconditioner_solve(precond->dFdx_precond, A, B);
+}
+
+static void lu_dae_preconditioner_dtor(void* context)
+{
+  lu_dae_preconditioner_t* precond = context;
+  preconditioner_free(precond->dFdx_precond);
+  preconditioner_free(precond->dFdxdot_precond);
+  free(precond->x0);
+  free(precond->x_dot0);
+  free(precond);
+}
+
+preconditioner_t* lu_dae_preconditioner_new(void* context,
+                                            int (*residual_func)(void* context, real_t t, real_t* x, real_t* x_dot, real_t* F),
+                                            void (*communication_func)(void* context, real_t t, real_t* x, real_t* x_dot),
+                                            adj_graph_t* sparsity)
+{
+  lu_dae_preconditioner_t* precond = malloc(sizeof(lu_dae_preconditioner_t));
+  precond->dFdx_precond = lu_preconditioner_new(context, lu_dae_compute_res_for_x, NULL, sparsity);
+  precond->dFdxdot_precond = lu_preconditioner_new(context, lu_dae_compute_res_for_x_dot, NULL, sparsity);
+  precond->F = residual_func;
+  precond->communicate = communication_func;
+  precond->context = context;
+
+  // Preconditioner data.
+  precond->N = adj_graph_num_vertices(sparsity);
+  precond->x0 = malloc(sizeof(real_t) * precond->N);
+  precond->x_dot0 = malloc(sizeof(real_t) * precond->N);
+
+  preconditioner_vtable vtable = {.matrix = lu_dae_preconditioner_matrix,
+                                  .compute_dae_jacobians = lu_dae_preconditioner_compute_dae_jacobians,
+                                  .solve = lu_dae_preconditioner_solve,
+                                  .dtor = lu_dae_preconditioner_dtor};
+  return preconditioner_new("LU DAE preconditioner", precond, vtable);
+}
+                                        
+preconditioner_t* ilu_dae_preconditioner_new(void* context,
+                                             int (*residual_func)(void* context, real_t t, real_t* x, real_t* x_dot, real_t* F),
+                                             void (*communication_func)(void* context, real_t t, real_t* x, real_t* x_dot),
+                                             adj_graph_t* sparsity,
+                                             ilu_params_t* ilu_params)
+{
+  lu_dae_preconditioner_t* precond = malloc(sizeof(lu_dae_preconditioner_t));
+  precond->dFdx_precond = ilu_preconditioner_new(context, lu_dae_compute_res_for_x, NULL, sparsity, ilu_params);
+  precond->dFdxdot_precond = ilu_preconditioner_new(context, lu_dae_compute_res_for_x_dot, NULL, sparsity, ilu_params);
+  precond->F = residual_func;
+  precond->communicate = communication_func;
+  precond->context = context;
+
+  // Preconditioner data.
+  precond->N = adj_graph_num_vertices(sparsity);
+  precond->x0 = malloc(sizeof(real_t) * precond->N);
+  precond->x_dot0 = malloc(sizeof(real_t) * precond->N);
+
+  preconditioner_vtable vtable = {.matrix = lu_dae_preconditioner_matrix,
+                                  .compute_dae_jacobians = lu_dae_preconditioner_compute_dae_jacobians,
+                                  .solve = lu_dae_preconditioner_solve,
+                                  .dtor = lu_dae_preconditioner_dtor};
+  return preconditioner_new("ILU DAE preconditioner", precond, vtable);
+}
+                                        

@@ -32,7 +32,13 @@ preconditioner_t* lu_preconditioner_new(void* context,
                                         int (*residual_func)(void* context, real_t t, real_t* x, real_t* F),
                                         void (*communication_func)(void* context, real_t t, real_t* x),
                                         adj_graph_t* sparsity);
-                                        
+ 
+// DAE-enabled LU preconditioner.
+preconditioner_t* lu_dae_preconditioner_new(void* context,
+                                            int (*residual_func)(void* context, real_t t, real_t* x, real_t* x_dot, real_t* F),
+                                            void (*communicate)(void* context, real_t t, real_t* x, real_t* x_dot),
+                                            adj_graph_t* sparsity);
+
 // The following types give options to control ILU preconditioners for the 
 // nonlinear and time integrators.
 
@@ -93,6 +99,13 @@ preconditioner_t* ilu_preconditioner_new(void* context,
                                          void (*communication_func)(void* context, real_t t, real_t* x),
                                          adj_graph_t* sparsity, 
                                          ilu_params_t* ilu_params);
+
+// DAE-enabled ILU preconditioner.
+preconditioner_t* ilu_dae_preconditioner_new(void* context,
+                                             int (*residual_func)(void* context, real_t t, real_t* x, real_t* x_dot, real_t* F),
+                                             void (*communicate)(void* context, real_t t, real_t* x, real_t* x_dot),
+                                             adj_graph_t* sparsity,
+                                             ilu_params_t* ilu_params);
 
 #endif
 

@@ -41,6 +41,9 @@ typedef preconditioner_matrix_t* (*preconditioner_matrix_func)(void* context);
 // This function computes the preconditioned Jacobian for the given preconditioner.
 typedef void (*preconditioner_compute_jac_func)(void* context, real_t t, real_t* x, preconditioner_matrix_t* mat);
 
+// This function computes the preconditioned Jacobians for the given DAE preconditioner.
+typedef void (*preconditioner_compute_dae_jac_func)(void* context, real_t t, real_t* x, real_t* x_dot, preconditioner_matrix_t* dFdx, preconditioner_matrix_t* dFdxdot);
+
 // This function solves the preconditioner system A*X = B, where A is the 
 // preconditioner matrix and B is the given right-hand side. The right-hand 
 // side is taken as input and is filled with the solution on output.
@@ -52,10 +55,11 @@ typedef void (*preconditioner_dtor)(void* context);
 // This virtual table determines the behavior of the preconditioner.
 typedef struct
 {
-  preconditioner_matrix_func matrix;
-  preconditioner_compute_jac_func compute_jacobian;
-  preconditioner_solve_func solve;
-  preconditioner_dtor dtor;
+  preconditioner_matrix_func          matrix;
+  preconditioner_compute_jac_func     compute_jacobian;
+  preconditioner_compute_dae_jac_func compute_dae_jacobians;
+  preconditioner_solve_func           solve;
+  preconditioner_dtor                 dtor;
 } preconditioner_vtable;
 
 // Constructs a preconditioner with the given name, data context, 
@@ -83,6 +87,16 @@ void preconditioner_compute_jacobian(preconditioner_t* precond,
                                      real_t* x,
                                      preconditioner_matrix_t* mat);
 
+// Calculates the coefficients of the preconditioner matrix corresponding to 
+// the Jacobian of the underlying differential algebraic equation (DAE) 
+// system, storing the result in mat.
+void preconditioner_compute_dae_jacobians(preconditioner_t* precond,
+                                          real_t t,
+                                          real_t* x,
+                                          real_t* x_dot,
+                                          preconditioner_matrix_t* dFdx,
+                                          preconditioner_matrix_t* dFdxdot);
+
 // Solves the preconditioned linear system. On input, rhs contains the 
 // right-hand side of the system, and on output, it contains the solution 
 // to the preconditioned system. Returns true if the system was successfully 
@@ -93,6 +107,9 @@ bool preconditioner_solve(preconditioner_t* precond,
 
 // Transforms the given preconditioner matrix A to (I - gamma * A).
 typedef void (*preconditioner_matrix_scale_and_shift_func)(void* context, real_t gamma);
+
+// Adds the scaled matrix alpha * B to the given matrix A in-place.
+typedef void (*preconditioner_matrix_add_func)(void* A_context, real_t alpha, void* B_context);
 
 // This function provides (read-only) access to the (i, j)th coefficient 
 // in a preconditioner matrix.
@@ -109,6 +126,7 @@ typedef void (*preconditioner_matrix_dtor)(void* context);
 typedef struct
 {
   preconditioner_matrix_scale_and_shift_func scale_and_shift;
+  preconditioner_matrix_add_func             add;
   preconditioner_matrix_coeff_func           coeff;
   preconditioner_matrix_fprintf_func         fprintf;
   preconditioner_matrix_dtor                 dtor;
@@ -132,6 +150,10 @@ void* preconditioner_matrix_context(preconditioner_matrix_t* mat);
 // I is the identity matrix. This is used for preconditioning time-dependent
 // problems.
 void preconditioner_matrix_scale_and_shift(preconditioner_matrix_t* mat, real_t gamma);
+
+// Adds the scaled matrix alpha*B to this matrix in-place. This is used for 
+// DAE preconditioning.
+void preconditioner_matrix_add(preconditioner_matrix_t* A, real_t alpha, preconditioner_matrix_t* B);
 
 // Returns the (i, j)th entry in the preconditioner matrix. This method of 
 // access is slow in general and should only be used for diagnostics.
