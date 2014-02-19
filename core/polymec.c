@@ -134,7 +134,7 @@ void polymec_init(int argc, char** argv)
     GC_INIT();
 
     // Register a shutdown function.
-    polymec_atexit(&shutdown);
+    atexit(&shutdown);
 
     // Okay! We're initialized.
     polymec_initialized = true;
