@@ -168,7 +168,6 @@ typedef struct
 {
   char* status_message; // borrowed pointer from integrator: do not free.
   long int num_steps;
-  long int num_order_reductions;
   int order_of_last_step;
   real_t initial_step_size;
   real_t last_step_size;

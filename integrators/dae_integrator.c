@@ -433,7 +433,6 @@ void dae_integrator_diagnostics_fprintf(dae_integrator_diagnostics_t* diagnostic
   if (diagnostics->status_message != NULL)
     fprintf(stream, "  Status: %s\n", diagnostics->status_message);
   fprintf(stream, "  Num steps: %d\n", (int)diagnostics->num_steps);
-  fprintf(stream, "  Num order reductions for stability: %d\n", (int)diagnostics->num_order_reductions);
   fprintf(stream, "  Order of last step: %d\n", diagnostics->order_of_last_step);
   fprintf(stream, "  Initial step size: %g\n", diagnostics->initial_step_size);
   fprintf(stream, "  Last step size: %g\n", diagnostics->last_step_size);
