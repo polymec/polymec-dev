@@ -65,9 +65,9 @@ void test_heat2d_step(void** state, dae_integrator_t* integ)
   heat2d_set_initial_conditions(integ, &u, &udot);
 
   // Integrate it.
-  real_t t = 0.0;
-  dae_integrator_set_stop_time(integ, 7200.0);
-  while (t < 7200.0)
+  real_t t = 0.0, tf = 10.24;
+  dae_integrator_set_stop_time(integ, tf);
+  while (t < tf)
   {
     bool integrated = dae_integrator_step(integ, &t, u, udot);
 //    preconditioner_matrix_fprintf(dae_integrator_preconditioner_matrix(integ), stdout);
