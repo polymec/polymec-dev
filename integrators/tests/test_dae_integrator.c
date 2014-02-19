@@ -74,7 +74,7 @@ void test_heat2d_step(void** state, dae_integrator_t* integ)
     assert_true(integrated);
   }
 printf("u = [");
-for (int i = 0; i < 200; ++i)
+for (int i = 0; i < 100; ++i)
 printf("%g ", u[i]);
 printf("]\n");
   dae_integrator_diagnostics_t diags;

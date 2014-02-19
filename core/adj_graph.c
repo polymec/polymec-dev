@@ -462,7 +462,7 @@ adj_graph_coloring_t* adj_graph_coloring_new(adj_graph_t* graph,
 
   // Finally, transplant the coloring into our coloring object.
   adj_graph_coloring_t* coloring = malloc(sizeof(adj_graph_coloring_t));
-  coloring->vertices = malloc(sizeof(int) * num_vertices);
+  coloring->vertices = vertices;
   coloring->offsets = malloc(sizeof(int) * (num_colors+1));
   memset(coloring->offsets, 0, sizeof(int) * (num_colors+1));
   coloring->num_colors = num_colors;

@@ -355,6 +355,7 @@ static void lu_preconditioner_dtor(void* context)
     Destroy_SuperMatrix_Store(&precond->rhs);
     Destroy_SuperMatrix_Store(&precond->X);
   }
+  StatFree(&precond->stat);
   for (int i = 0; i < precond->num_work_vectors; ++i)
     free(precond->work[i]);
   free(precond->work);
@@ -604,8 +605,8 @@ preconditioner_t* lu_dae_preconditioner_new(void* context,
                                             adj_graph_t* sparsity)
 {
   lu_dae_preconditioner_t* precond = malloc(sizeof(lu_dae_preconditioner_t));
-  precond->dFdx_precond = lu_preconditioner_new(context, lu_dae_compute_res_for_x, NULL, sparsity);
-  precond->dFdxdot_precond = lu_preconditioner_new(context, lu_dae_compute_res_for_x_dot, NULL, sparsity);
+  precond->dFdx_precond = lu_preconditioner_new(precond, lu_dae_compute_res_for_x, NULL, sparsity);
+  precond->dFdxdot_precond = lu_preconditioner_new(precond, lu_dae_compute_res_for_x_dot, NULL, sparsity);
   precond->F = residual_func;
   precond->communicate = communication_func;
   precond->context = context;
