@@ -349,8 +349,11 @@ static preconditioner_matrix_t* block_jacobi_dae_preconditioner_matrix(void* con
 static void block_jacobi_dae_preconditioner_compute_dae_jacobians(void* context, real_t t, real_t* x, real_t* x_dot, preconditioner_matrix_t* dFdx, preconditioner_matrix_t* dFdxdot)
 {
   block_jacobi_dae_preconditioner_t* precond = context;
+  int N = precond->num_block_rows * precond->block_size;
+  memcpy(precond->x0, x, sizeof(real_t) * N);
+  memcpy(precond->x_dot0, x_dot, sizeof(real_t) * N);
   preconditioner_compute_jacobian(precond->dFdx_precond, t, x, dFdx);
-  preconditioner_compute_jacobian(precond->dFdxdot_precond, t, x, dFdxdot);
+  preconditioner_compute_jacobian(precond->dFdxdot_precond, t, x_dot, dFdxdot);
 }
 
 static bool block_jacobi_dae_preconditioner_solve(void* context, preconditioner_matrix_t* A, real_t* B)
@@ -377,8 +380,8 @@ preconditioner_t* block_jacobi_dae_preconditioner_new(void* context,
                                                       int block_size)
 {
   block_jacobi_dae_preconditioner_t* precond = malloc(sizeof(block_jacobi_dae_preconditioner_t));
-  precond->dFdx_precond = block_jacobi_preconditioner_new(context, block_jacobi_dae_compute_res_for_x, NULL, sparsity, num_block_rows, block_size);
-  precond->dFdxdot_precond = block_jacobi_preconditioner_new(context, block_jacobi_dae_compute_res_for_x_dot, NULL, sparsity, num_block_rows, block_size);
+  precond->dFdx_precond = block_jacobi_preconditioner_new(precond, block_jacobi_dae_compute_res_for_x, NULL, sparsity, num_block_rows, block_size);
+  precond->dFdxdot_precond = block_jacobi_preconditioner_new(precond, block_jacobi_dae_compute_res_for_x_dot, NULL, sparsity, num_block_rows, block_size);
   precond->F = residual_func;
   precond->communicate = communication_func;
   precond->context = context;

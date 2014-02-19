@@ -302,7 +302,7 @@ static int compute_error_weights(N_Vector y, N_Vector ewt, void* context)
 }
 
 void ode_integrator_set_error_weight_function(ode_integrator_t* integrator,
-                                               ode_integrator_error_weight_func compute_weights)
+                                              ode_integrator_error_weight_func compute_weights)
 {
   ASSERT(compute_weights != NULL);
   integrator->compute_weights = compute_weights;

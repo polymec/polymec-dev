@@ -37,6 +37,9 @@ typedef int (*dae_integrator_residual_func)(void* context, real_t t, real_t* x, 
 // put values in place for the evaluation of the residual function.
 typedef void (*dae_integrator_communication_func)(void* context, real_t t, real_t* x, real_t* x_dot);
 
+// Constraints function.
+typedef void (*dae_integrator_constraints_func)(void* context, real_t* constraints);
+
 // This function destroys the state (context).
 typedef void (*dae_integrator_dtor)(void* context);
 
@@ -54,6 +57,14 @@ typedef struct
 
   // Perform inter-process communication.
   dae_integrator_communication_func communicate;
+
+  // This (optional) function sets the contraints vector, which places algebraic 
+  // constraints on the components of the solution vector x. If constraints[i] is:
+  // 0.0  - no constraint is placed on x[i].
+  // 1.0  - x[i] must be non-negative.
+  // -1.0 - x[i] must be non-positive.
+  // 2.0  - x[i] must be positive.
+  dae_integrator_constraints_func set_constraints;
 
   // This (optional) function destroys the state (context) when the time integrator 
   // is destroyed.
@@ -146,11 +157,11 @@ void dae_integrator_set_max_dt(dae_integrator_t* integ, real_t max_dt);
 // Sets the time past which the integrator will not step.
 void dae_integrator_set_stop_time(dae_integrator_t* integ, real_t stop_time);
 
-// Integrates the given solution X in place, taking a single step starting at 
-// time *t and storing the new time in *t as well. Returns true if the step 
-// succeeded, false if it failed for some reason. If a step fails, both t 
-// and X remain unchanged.
-bool dae_integrator_step(dae_integrator_t* integrator, real_t* t, real_t* X);
+// Integrates the given solution X in place (given its time derivative X_dot), 
+// taking a single step starting at time *t and storing the new time in *t as 
+// well. Also evolves X_dot. Returns true if the step succeeded, false if it 
+// failed for some reason. If a step fails, t, X, and X_dot remain unchanged.
+bool dae_integrator_step(dae_integrator_t* integrator, real_t* t, real_t* X, real_t* X_dot);
 
 // Diagnostics for the time integrator.
 typedef struct

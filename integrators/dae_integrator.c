@@ -170,11 +170,21 @@ static dae_integrator_t* dae_integrator_new(const char* name,
   // We use modified Gram-Schmidt orthogonalization.
   IDASpilsSetGSType(integ->ida, MODIFIED_GS);
 
+  // Set up preconditioner machinery.
   IDASpilsSetPreconditioner(integ->ida, set_up_preconditioner,
                            solve_preconditioner_system);
-
   integ->precond = NULL;
   integ->precond_J = NULL;
+  integ->precond_dFdxdot = NULL;
+
+  // Algebraic constraints.
+  if (integ->vtable.set_constraints != NULL)
+  {
+    N_Vector constraints = N_VNew(integ->comm, N);
+    integ->vtable.set_constraints(integ->context, NV_DATA(constraints));
+    IDASetConstraints(integ->ida, constraints);
+    N_VDestroy(constraints);
+  }
 
   // Set some default tolerances:
   // relative error of 1e-4 means errors are controlled to 0.01%.
@@ -230,6 +240,8 @@ void dae_integrator_free(dae_integrator_t* integ)
     preconditioner_free(integ->precond);
   if (integ->precond_J != NULL)
     preconditioner_matrix_free(integ->precond_J);
+  if (integ->precond_dFdxdot != NULL)
+    preconditioner_matrix_free(integ->precond_dFdxdot);
 
   // Kill the IDA stuff.
   N_VDestroy(integ->x_dot);
@@ -267,6 +279,9 @@ void dae_integrator_set_preconditioner(dae_integrator_t* integrator,
   if (integrator->precond_J != NULL)
     preconditioner_matrix_free(integrator->precond_J);
   integrator->precond_J = preconditioner_matrix(precond);
+  if (integrator->precond_dFdxdot != NULL)
+    preconditioner_matrix_free(integrator->precond_dFdxdot);
+  integrator->precond_dFdxdot = preconditioner_matrix(precond);
 }
 
 preconditioner_matrix_t* dae_integrator_preconditioner_matrix(dae_integrator_t* integrator)
@@ -296,7 +311,7 @@ static int compute_error_weights(N_Vector y, N_Vector ewt, void* context)
 }
 
 void dae_integrator_set_error_weight_function(dae_integrator_t* integrator,
-                                               dae_integrator_error_weight_func compute_weights)
+                                              dae_integrator_error_weight_func compute_weights)
 {
   ASSERT(compute_weights != NULL);
   integrator->compute_weights = compute_weights;
@@ -321,10 +336,11 @@ void dae_integrator_set_stop_time(dae_integrator_t* integ, real_t stop_time)
   IDASetStopTime(integ->ida, stop_time);
 }
 
-bool dae_integrator_step(dae_integrator_t* integ, real_t* t, real_t* X)
+bool dae_integrator_step(dae_integrator_t* integ, real_t* t, real_t* X, real_t* X_dot)
 {
-  // Copy in the solution.
+  // Copy in the solution and its time derivative.
   memcpy(NV_DATA(integ->x), X, sizeof(real_t) * integ->N); 
+  memcpy(NV_DATA(integ->x_dot), X_dot, sizeof(real_t) * integ->N); 
 
   if (!integ->initialized)
   {
@@ -356,6 +372,7 @@ bool dae_integrator_step(dae_integrator_t* integ, real_t* t, real_t* X)
     // Copy out the solution.
     *t = integ->current_time;
     memcpy(X, NV_DATA(integ->x), sizeof(real_t) * integ->N); 
+    memcpy(X_dot, NV_DATA(integ->x_dot), sizeof(real_t) * integ->N); 
     return true;
   }
   else

@@ -576,8 +576,10 @@ static preconditioner_matrix_t* lu_dae_preconditioner_matrix(void* context)
 static void lu_dae_preconditioner_compute_dae_jacobians(void* context, real_t t, real_t* x, real_t* x_dot, preconditioner_matrix_t* dFdx, preconditioner_matrix_t* dFdxdot)
 {
   lu_dae_preconditioner_t* precond = context;
+  memcpy(precond->x0, x, sizeof(real_t) * precond->N);
+  memcpy(precond->x_dot0, x_dot, sizeof(real_t) * precond->N);
   preconditioner_compute_jacobian(precond->dFdx_precond, t, x, dFdx);
-  preconditioner_compute_jacobian(precond->dFdxdot_precond, t, x, dFdxdot);
+  preconditioner_compute_jacobian(precond->dFdxdot_precond, t, x_dot, dFdxdot);
 }
 
 static bool lu_dae_preconditioner_solve(void* context, preconditioner_matrix_t* A, real_t* B)
@@ -627,8 +629,8 @@ preconditioner_t* ilu_dae_preconditioner_new(void* context,
                                              ilu_params_t* ilu_params)
 {
   lu_dae_preconditioner_t* precond = malloc(sizeof(lu_dae_preconditioner_t));
-  precond->dFdx_precond = ilu_preconditioner_new(context, lu_dae_compute_res_for_x, NULL, sparsity, ilu_params);
-  precond->dFdxdot_precond = ilu_preconditioner_new(context, lu_dae_compute_res_for_x_dot, NULL, sparsity, ilu_params);
+  precond->dFdx_precond = ilu_preconditioner_new(precond, lu_dae_compute_res_for_x, NULL, sparsity, ilu_params);
+  precond->dFdxdot_precond = ilu_preconditioner_new(precond, lu_dae_compute_res_for_x_dot, NULL, sparsity, ilu_params);
   precond->F = residual_func;
   precond->communicate = communication_func;
   precond->context = context;
