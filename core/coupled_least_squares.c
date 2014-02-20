@@ -24,8 +24,14 @@
 
 #include "core/coupled_least_squares.h"
 
+void reconstruct_cls_value(real_t* cell_averages, 
+                           int N, 
+                           real_t* w00)
+{
+}
+
 // This function constructs the J(k+1) "antiderivative" operator 
-// in Haider (2011).
+// in Haider (2011). This is a matrix.
 static void construct_Jk1(int k,
                           int N,
                           real_t* wkk,

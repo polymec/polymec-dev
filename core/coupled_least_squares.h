@@ -43,24 +43,35 @@
 //   cell, z(k) is a symmetric tensor of degree k.
 // - The linear map w(m|k), given a vector of N cell-averaged values of u on 
 //   a neighborhood W, produces the components of the mth derivative of the 
-//   degree-k polynomial representation of u within that neighborhood. These 
-//   derivatives form a symmetric tensor of rank m, and the tensor contains 
-//   6**m components in 3D. Thus, the map w(m|k) can be represented by a 
-//   6**m x N matrix. The product of this matrix with the N cell-averaged 
-//   values of u in the neighborhood W(i) about a cell i is a vector containing 
-//   the 6**m spatial derivatives of u's polynomial representation in i.
-//
+//   degree-k polynomial representation of u within that neighborhood, for 
+//   m <= k. These derivatives form a symmetric tensor of rank m. In 3D, such 
+//   a tensor has (3**m - 3)/2 coefficients for m > 1, 3 coefficients for m = 1, 
+//   and 1 coefficient for m = 0. Thus, the map w(m|k) can be represented by a 
+//   (3**m - 3)/2 x N matrix (for m > 1, anyway). The product of this matrix 
+//   with the N cell-averaged values of u in the neighborhood W(i) about a 
+//   cell i is a vector containing the (3**m ­ 3)/2 spatial derivatives of 
+//   u's polynomial representation in i.
+
+// Given a set of N cell averages in the neighborhood W(i), performs a least 
+// squares fit to reconstruct the value of the polynomial fit at the center of 
+// celli, storing it in w00.
+void reconstruct_cls_value(real_t* cell_averages, 
+                           int N, 
+                           real_t* w00);
+
 // Given the linear map w(k|k) for the neighborhood W(i) and the moments 
 // z(k+1) for each cell in that neighborhood, this function calculates the 
 // components of the linear map w(k+1|k+1). Arguments:
 // k - the degree of the derivatives used to construct the k+1 derivatives.
 // N - the number of cells in the neighborhood W(i).
 // wkk - the components of the linear map w(k|k) in column-major order.
-//       There are 6**m * N components in this array.
+//       There are (3**k - 3) * N / 2 components in this array. In particular, 
+//       w(0|0) contains N values that, when dotted with the cell averages in 
+//       W(i), yield the value of the polynomial at the cell center i.
 // zk1_moments - An array containing the N moment tensors z(k+1) for the cells 
 //               in the neighborhood W(i), stored in cell-major order. Each 
 //               tensor in the array is stored in column-major order.
-//               There are N * 3**(k+1) components in this array.
+//               There are N * (3**(k+1)-3)/2 components in this array.
 // wk1k1 - an array that will store the components of the linear map w(k+1|k+1)
 //         in column-major order.
 void reconstruct_cls_derivatives(int k, 
