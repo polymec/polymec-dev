@@ -37,7 +37,7 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libgc.a)
   endif()
 
 endif()
-file(GLOB_RECURSE headers ${PROJECT_BINARY_DIR}/include/gc)
+file(GLOB_RECURSE headers "${PROJECT_BINARY_DIR}/include/gc/*.h")
 install(FILES ${headers} DESTINATION include/polymec/gc)
 install(FILES ${PROJECT_BINARY_DIR}/lib/libgc.a DESTINATION lib)
 set(POLYMEC_TP_LIBS gc;${POLYMEC_TP_LIBS})
