@@ -31,7 +31,7 @@ void reconstruct_cls_value(real_t* cell_averages,
 }
 
 // This function constructs the J(k+1) "antiderivative" operator 
-// in Haider (2011). This is a matrix.
+// in Haider (2011). This is an N x (3**(k+1) - 3)/2 matrix.
 static void construct_Jk1(int k,
                           int N,
                           real_t* wkk,

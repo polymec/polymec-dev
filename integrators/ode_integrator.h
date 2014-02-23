@@ -78,13 +78,13 @@ ode_integrator_t* gmres_ode_integrator_new(const char* name,
 // Creates an integrator that uses a stabilized bi-conjugate gradient Krylov 
 // method with a given maximum subspace dimension of max_krylov_dim.
 // N is the dimension of the system.
-ode_integrator_t* bicgs_ode_integrator_new(const char* name, 
-                                           void* context,
-                                           MPI_Comm comm,
-                                           int N,
-                                           ode_integrator_vtable vtable,
-                                           int order,
-                                           int max_krylov_dim);
+ode_integrator_t* bicgstab_ode_integrator_new(const char* name, 
+                                              void* context,
+                                              MPI_Comm comm,
+                                              int N,
+                                              ode_integrator_vtable vtable,
+                                              int order,
+                                              int max_krylov_dim);
 
 // Creates an integrator that uses a transpose-free quasi-minimum residual 
 // Krylov method with a given maximum subspace dimension of max_krylov_dim.
