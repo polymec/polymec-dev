@@ -776,6 +776,7 @@ static void interpreter_store_chunk_contents(interpreter_t* interp)
       continue;
     }
 
+    // Now store the present lua variable in appropriate C storage.
     interpreter_storage_t* var = NULL;
     if (lua_isnumber(lua, val_index))
       var = store_number(NULL, (real_t)lua_tonumber(lua, val_index));
@@ -843,12 +844,12 @@ static void interpreter_store_chunk_contents(interpreter_t* interp)
         // Key is at index -2, value is at -1.
         static const int key_index = -2;
         static const int val_index = -1;
-        if (!lua_isstring(lua, key_index))
+        if (!lua_isstring(lua, key_index) && !lua_isnumber(lua, key_index))
         {
           if (preexisting_var)
             skip_this_var = true;
           else
-            polymec_error("Type error: %s must be a sequence or a table mapping strings to objects.", key);
+            polymec_error("Type error: %s must be a list of objects or a table mapping strings to objects.", key);
         }
         if (!lua_isnumber(lua, val_index) && 
             !lua_isboolean(lua, val_index) && 
@@ -859,7 +860,7 @@ static void interpreter_store_chunk_contents(interpreter_t* interp)
           if (preexisting_var)
             skip_this_var = true;
           else
-            polymec_error("Type error: %s must be a table mapping strings to objects.", key);
+            polymec_error("Type error: %s must be a list of objects or a table mapping strings to objects.", key);
         }
         if (skip_this_var)
         {
@@ -867,6 +868,8 @@ static void interpreter_store_chunk_contents(interpreter_t* interp)
           continue;
         }
 
+        // Convert our key to a string. If it's an integer, it will be 
+        // converted to its string representation.
         char* tkey = (char*)lua_tostring(lua, key_index);
         void* tval = lua_touserdata(lua, val_index);
         if (tval == NULL)
