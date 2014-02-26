@@ -36,9 +36,12 @@ const char* PEBI;       // Is a PEBI mesh (has no edges or nodes)
 // face i. If a face is only connected to one cell, faces[2*i+1] == -1.
 // Meanwhile, face_areas contains num_faces entries, with face_areas[i] holding
 // the area of face i. No edge or node information is stored.
+// NOTE: If face_centers is NULL, each face center is assumed to lie at the 
+// midpoint between its two cells. 
 mesh_t* create_pebi_mesh(MPI_Comm comm, 
-                         point_t* cell_centers, int num_cells,
-                         int* faces, real_t* face_areas, int num_faces);
+                         point_t* cell_centers, real_t* cell_volumes, int num_cells,
+                         int* faces, real_t* face_areas, point_t* face_centers,
+                         int num_faces);
  
 // Creates a PEBI mesh from the given unstructured mesh. Features are 
 // copied--tags are not.

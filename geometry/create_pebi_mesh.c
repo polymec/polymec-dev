@@ -27,11 +27,18 @@
 const char* PEBI = "perpendicular bisector";
 
 mesh_t* create_pebi_mesh(MPI_Comm comm, 
-                         point_t* cell_centers, int num_cells,
-                         int* faces, real_t* face_areas, int num_faces)
+                         point_t* cell_centers, real_t* cell_volumes, int num_cells,
+                         int* faces, real_t* face_areas, point_t* face_centers, 
+                         int num_faces)
 {
-#ifndef NDEBUG
   // Check input.
+  ASSERT(cell_centers != NULL);
+  ASSERT(cell_volumes != NULL);
+  ASSERT(num_cells > 0);
+  ASSERT(faces != NULL);
+  ASSERT(face_areas != NULL);
+  ASSERT(num_faces >= 0);
+#ifndef NDEBUG
   for (int f = 0; f < num_faces; ++f)
   {
     ASSERT(faces[2*f] >= 0);
@@ -80,12 +87,90 @@ mesh_t* create_pebi_mesh(MPI_Comm comm,
     }
   }
 
+  // Set the cell volumes.
+  memcpy(mesh->cell_volumes, cell_volumes, sizeof(real_t)*num_cells);
+
+  // Set or compute face centers.
+  // We compute information for interior faces first.
+  for (int f = 0; f < num_faces; ++f)
+  {
+    point_t* xf = &mesh->face_centers[f];
+    vector_t* nf = &mesh->face_normals[f];
+    int c1 = mesh->face_cells[2*f];
+    int c2 = mesh->face_cells[2*f];
+    if (c2 != -1) // Interior face
+    {
+      point_t* xc1 = &mesh->cell_centers[c1];
+      point_t* xc2 = &mesh->cell_centers[c2];
+      if (face_centers == NULL)
+      {
+        // Assume each face center lies at the midpoint between its cells.
+        xf->x = 0.5 * (xc1->x + xc2->x);
+        xf->y = 0.5 * (xc1->y + xc2->y);
+        xf->z = 0.5 * (xc1->z + xc2->z);
+      }
+      else
+      {
+        xf->x = face_centers[f].x;
+        xf->y = face_centers[f].y;
+        xf->z = face_centers[f].z;
+      }
+
+      // The face normal should connect xc1 and xc2.
+      point_displacement(xc1, xc2, nf);
+      vector_normalize(nf);
+    }
+
+    // Now use the existing information to compute information for 
+    // boundary faces.
+    for (int f = 0; f < num_faces; ++f)
+    {
+      int c1 = mesh->face_cells[2*f];
+      int c2 = mesh->face_cells[2*f];
+      if (c2 == -1)
+      {
+        // Estimate the cell-face distance by assuming an isotropic cell.
+        real_t V = mesh->cell_volumes[c1];
+        real_t d = pow(V, 1.0/3.0);
+
+        // Form the normal vector for the face by assuming that all face 
+        // normals sum to zero.
+        vector_t* nf = &mesh->face_normals[f];
+        nf->x = nf->y = nf->z = 0.0;
+        for (int ff = mesh->cell_face_offsets[c1]; ff < mesh->cell_face_offsets[c1+1]; ++ff)
+        {
+          vector_t* nff = &mesh->face_normals[ff];
+          nf->x -= nff->x;
+          nf->y -= nff->y;
+          nf->z -= nff->z;
+        }
+
+        // Compute the face center.
+        if (face_centers == NULL)
+        {
+          point_t* xc = &mesh->cell_centers[c1];
+          point_t* xf = &mesh->face_centers[f];
+          xf->x = xc->x + d*nf->x;
+          xf->y = xc->y + d*nf->y;
+          xf->z = xc->z + d*nf->z;
+        }
+        else 
+        {
+          xf->x = face_centers[f].x;
+          xf->y = face_centers[f].y;
+          xf->z = face_centers[f].z;
+        }
+      }
+    }
+  }
+
   mesh_add_feature(mesh, PEBI);
   return mesh;
 }
 
 mesh_t* create_pebi_mesh_from_unstructured_mesh(mesh_t* mesh)
 {
-  return create_pebi_mesh(mesh->comm, mesh->cell_centers, mesh->num_cells, 
-                          mesh->face_cells, mesh->face_areas, mesh->num_faces);
+  return create_pebi_mesh(mesh->comm, mesh->cell_centers, mesh->cell_volumes, 
+                          mesh->num_cells, mesh->face_cells, mesh->face_areas, 
+                          mesh->face_centers, mesh->num_faces);
 }

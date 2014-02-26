@@ -612,24 +612,35 @@ int mesh_factory_pebi(lua_State* lua)
 {
   // Check the arguments.
   int num_args = lua_gettop(lua);
-  if (num_args != 2)
+  if ((num_args != 3) && (num_args != 4))
   {
     return luaL_error(lua, "Invalid arguments. Usage:\n"
-                      "mesh = mesh_factory.pebi(cell_centers, faces)");
+                      "mesh = mesh_factory.pebi(cell_centers, cell_volumes, faces) OR\n"
+                      "mesh = mesh_factory.pebi(cell_centers, cell_volumes, faces, face_centers)");
   }
   if (!lua_ispointlist(lua, 1))
     return luaL_error(lua, "cell_centers must be a list of points.");
-  if (!lua_istable(lua, 2))
+  if (!lua_issequence(lua, 2))
+    return luaL_error(lua, "cell_volumes must be a sequence of cell volumes.");
+  if (!lua_istable(lua, 3))
     return luaL_error(lua, "faces must be a table of 3-tuples containing (cell1, cell2, area).");
+  if ((num_args == 4) && !lua_ispointlist(lua, 4))
+    return luaL_error(lua, "face_centers must be a list of points.");
 
   // Get the arguments.
 
   // Cell center point list.
   int num_cells;
   point_t* cell_centers = lua_topointlist(lua, 1, &num_cells);
-  int num_faces = luaL_len(lua, 2);
+
+  // Cell volume list.
+  int num_cell_volumes;
+  real_t* cell_volumes = lua_tosequence(lua, 1, &num_cell_volumes);
+  if (num_cell_volumes != num_cells)
+    return luaL_error(lua, "Number of cell volumes (%d) does not match number of cells (%d).", num_cell_volumes, num_cells);
 
   // Mine the faces table for all its 3-tuples.
+  int num_faces = luaL_len(lua, 3);
   real_t** faces_table_entries = malloc(sizeof(real_t*)*num_faces);
   lua_pushnil(lua);
   int face = 0;
@@ -643,14 +654,14 @@ int mesh_factory_pebi(lua_State* lua)
     if (!key_is_number || !val_is_sequence)
     {
       lua_pop(lua, 1);
-      polymec_error("Found non-numeric entries in faces table.");
+      return luaL_error(lua, "Found non-numeric entries in faces table.");
     }
     int tuple_len;
     faces_table_entries[face] = lua_tosequence(lua, val_index, &tuple_len);
     if (tuple_len != 3)
     {
       lua_pop(lua, 1);
-      polymec_error("Tuple at index %d of faces table has %d values (should be 3).", key_index, tuple_len);
+      return luaL_error(lua, "Tuple at index %d of faces table has %d values (should be 3).", key_index, tuple_len);
     }
     ++face;
     lua_pop(lua, 1);
@@ -662,11 +673,21 @@ int mesh_factory_pebi(lua_State* lua)
   {
     real_t* face_tuple = faces_table_entries[f];
     if (face_tuple[0] < 0.0)
-      polymec_error("Invalid first cell for face %d: %d (must be non-negative).", f, (int)face_tuple[0]);
+      return luaL_error(lua, "Invalid first cell for face %d: %d (must be non-negative).", f, (int)face_tuple[0]);
     if ((face_tuple[1] < 0.0) && (face_tuple[1] != -1.0))
-      polymec_error("Invalid second cell for face %d: %d (must be non-negative or -1).", f, (int)face_tuple[1]);
+      return luaL_error(lua, "Invalid second cell for face %d: %d (must be non-negative or -1).", f, (int)face_tuple[1]);
     if (face_tuple[2] < 0.0)
-      polymec_error("Invalid area for face %d: %g.", f, face_tuple[2]);
+      return luaL_error(lua, "Invalid area for face %d: %g.", f, face_tuple[2]);
+  }
+
+  // Face centers?
+  int num_face_centers = 0;
+  point_t* face_centers = NULL;
+  if (num_args == 4)
+  {
+    face_centers = lua_topointlist(lua, 1, &num_face_centers);
+    if (num_face_centers != num_faces)
+      return luaL_error(lua, "Number of face centers (%d) does not match number of faces (%d).", num_face_centers, num_faces);
   }
 
   // Shuffle the faces data into canonical form.
@@ -682,8 +703,8 @@ int mesh_factory_pebi(lua_State* lua)
   free(faces_table_entries);
 
   // Create the mesh.
-  mesh_t* mesh = create_pebi_mesh(MPI_COMM_WORLD, cell_centers, num_cells, 
-                                  faces, face_areas, num_faces);
+  mesh_t* mesh = create_pebi_mesh(MPI_COMM_WORLD, cell_centers, cell_volumes, num_cells, 
+                                  faces, face_areas, face_centers, num_faces);
   free(face_areas);
   free(faces);
   free(cell_centers);
