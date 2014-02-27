@@ -194,7 +194,7 @@ void write_silo_mesh(mesh_t* mesh,
 #if POLYMEC_HAVE_MPI
 static void* pmpio_create_file(const char* filename,
                                const char* dir_name,
-                               void* userData)
+                               void* user_data)
 {
   int driver = DB_HDF5;
   DBfile* file = DBCreate(filename, 0, DB_LOCAL, 0, driver);
@@ -203,11 +203,10 @@ static void* pmpio_create_file(const char* filename,
   return (void*)file;
 }
 
-void*
-pmpio_open_file(const char* filename, 
-                const char* dir_name,
-                PMPIO_iomode_t iomode, 
-                void* userData)
+static void* pmpio_open_file(const char* filename, 
+                             const char* dir_name,
+                             PMPIO_iomode_t iomode, 
+                             void* user_data)
 {
   int driver = DB_HDF5;
   DBfile* file;
@@ -225,9 +224,7 @@ pmpio_open_file(const char* filename,
   return (void*)file;
 }
 
-void
-pmpio_close_file(void* file,
-                void* userData)
+static void pmpio_close_file(void* file, void* user_data)
 {
   DBClose((DBfile*)file);
 }
