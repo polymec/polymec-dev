@@ -49,7 +49,7 @@ adj_graph_t* adj_graph_new(MPI_Comm comm, int num_local_vertices)
   int nprocs;
   MPI_Comm_size(comm, &nprocs);
   int num_verts[nprocs];
-#ifdef HAVE_MPI
+#ifdef POLYMEC_HAVE_MPI
   MPI_Allgather(&num_local_vertices, 1, MPI_INT, num_verts, 1, MPI_INT, comm);
 #else
   num_verts[0] = num_local_vertices;
