@@ -635,7 +635,7 @@ int mesh_factory_pebi(lua_State* lua)
 
   // Cell volume list.
   int num_cell_volumes;
-  real_t* cell_volumes = lua_tosequence(lua, 1, &num_cell_volumes);
+  real_t* cell_volumes = lua_tosequence(lua, 2, &num_cell_volumes);
   if (num_cell_volumes != num_cells)
     return luaL_error(lua, "Number of cell volumes (%d) does not match number of cells (%d).", num_cell_volumes, num_cells);
 
@@ -644,7 +644,7 @@ int mesh_factory_pebi(lua_State* lua)
   real_t** faces_table_entries = malloc(sizeof(real_t*)*num_faces);
   lua_pushnil(lua);
   int face = 0;
-  while (lua_next(lua, 2))
+  while (lua_next(lua, 3))
   {
     // Key is at index -2, value is at -1.
     static const int key_index = -2;
