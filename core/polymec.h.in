@@ -101,7 +101,9 @@ typedef @POLYMEC_REAL_TYPE@ real_t;
 #define HAVE_SINGLE_PRECISION @HAVE_SINGLE_PRECISION@
 #define HAVE_DOUBLE_PRECISION @HAVE_DOUBLE_PRECISION@
 #define POLYMEC_PRECISION @POLYMEC_PRECISION@
+#ifndef MPI_REAL
 #define MPI_REAL @POLYMEC_MPI_REAL_TYPE@
+#endif
 
 // This returns the minimum of a and b.
 #ifndef MIN
