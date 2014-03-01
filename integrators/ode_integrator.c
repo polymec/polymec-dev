@@ -400,6 +400,14 @@ bool ode_integrator_step(ode_integrator_t* integ, real_t* t, real_t* X)
   }
 }
 
+void ode_integrator_reset(ode_integrator_t* integ, real_t t, real_t* X)
+{
+  integ->current_time = t;
+  memcpy(NV_DATA(integ->x), X, sizeof(real_t) * integ->N); 
+  CVodeReInit(integ->cvode, integ->current_time, integ->x);
+  integ->initialized = true;
+}
+
 void ode_integrator_get_diagnostics(ode_integrator_t* integrator, 
                                     ode_integrator_diagnostics_t* diagnostics)
 {
