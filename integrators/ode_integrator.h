@@ -149,7 +149,7 @@ void ode_integrator_set_stop_time(ode_integrator_t* integ, real_t stop_time);
 // and X remain unchanged.
 bool ode_integrator_step(ode_integrator_t* integrator, real_t* t, real_t* X);
 
-// Resets the integrator to prepare it to take a step when X and/or t has 
+// Resets the integrator to prepare it to take a step when X and/or t have 
 // changed by some process outside of the integrator. This resets any 
 // history information stored within the integrator.
 void ode_integrator_reset(ode_integrator_t* integrator, real_t t, real_t* X);

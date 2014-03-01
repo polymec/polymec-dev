@@ -407,6 +407,15 @@ bool dae_integrator_step(dae_integrator_t* integ, real_t* t, real_t* X, real_t* 
   }
 }
 
+void dae_integrator_reset(dae_integrator_t* integ, real_t t, real_t* X, real_t* X_dot)
+{
+  integ->current_time = t;
+  memcpy(NV_DATA(integ->x), X, sizeof(real_t) * integ->N); 
+  memcpy(NV_DATA(integ->x_dot), X_dot, sizeof(real_t) * integ->N); 
+  IDAReInit(integ->ida, integ->current_time, integ->x, integ->x_dot);
+  integ->initialized = true;
+}
+
 void dae_integrator_get_diagnostics(dae_integrator_t* integrator, 
                                     dae_integrator_diagnostics_t* diagnostics)
 {
