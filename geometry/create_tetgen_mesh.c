@@ -276,7 +276,7 @@ mesh_t* create_tetgen_mesh(MPI_Comm comm,
   int nodes_per_face = (tets[0].num_nodes == 4) ? 3 : 6;
   tet_face_t* faces = read_faces(face_file, nodes_per_face, &num_faces);
 
-  // Compute the number of edges, which we aren't given by polytope.
+  // Compute the number of edges, which we aren't given.
   int num_edges = 0;
   int_table_t* edge_for_nodes = gather_edges(faces, num_faces, &num_edges);
 
@@ -297,13 +297,19 @@ mesh_t* create_tetgen_mesh(MPI_Comm comm,
     }
   }
 
-#if 0
   // Face <-> node connectivity.
-  memcpy(mesh->face_node_offsets, tess->face_offsets, sizeof(int) * (tess->num_faces+1));
-  mesh->face_nodes = ARENA_REALLOC(mesh->arena, mesh->face_nodes, sizeof(int) * tess->face_offsets[tess->num_faces], 0);
-  memcpy(mesh->face_nodes, tess->face_nodes, sizeof(int) * tess->face_offsets[tess->num_faces]);
-  mesh->storage->face_node_capacity = tess->cell_offsets[tess->num_cells];
+  mesh->face_node_offsets[0] = 0;
+  for (int f = 0; f < num_faces; ++f)
+    mesh->face_node_offsets[f+1] = (f+1)*nodes_per_face;
+  mesh->face_nodes = ARENA_REALLOC(mesh->arena, mesh->face_nodes, sizeof(int) * num_faces * nodes_per_face, 0);
+  for (int f = 0; f < num_faces; ++f)
+  {
+    for (int n = 0; n < nodes_per_face; ++n)
+      mesh->face_nodes[nodes_per_face*f+n] = faces->nodes[n];
+  }
+  mesh->storage->face_node_capacity = num_faces * nodes_per_face;
 
+#if 0
   // Face <-> edge connectivity.
   memset(mesh->face_edge_offsets, 0, sizeof(int) * (mesh->num_faces + 1));
   for (int f = 0; f < mesh->num_faces; ++f)
