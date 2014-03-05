@@ -22,32 +22,32 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef POLYMEC_FILE_BUFFER_H
-#define POLYMEC_FILE_BUFFER_H
+#ifndef POLYMEC_TEXT_FILE_BUFFER_H
+#define POLYMEC_TEXT_FILE_BUFFER_H
 
 #include <stdbool.h>
 
-// This is a line-by-line file buffer used for reading files.
-typedef struct file_buffer_t file_buffer_t;
+// This is a line-by-line file buffer used for reading text files.
+typedef struct text_file_buffer_t text_file_buffer_t;
 
 // Creates a read-only file buffer examining the given file, or 
 // returns NULL if the file cannot be opened.
-file_buffer_t* file_buffer_new(const char* filename);
+text_file_buffer_t* text_file_buffer_new(const char* filename);
 
 // Destroys the file buffer.
-void file_buffer_free(file_buffer_t* buffer);
+void text_file_buffer_free(text_file_buffer_t* buffer);
 
 // Returns the size (in bytes) of the buffer. Yes, this is a 
 // regular 32-bit integer. You shouldn't try to read files into memory
 // whose sizes don't fit into an int, dummy.
-int file_buffer_size(file_buffer_t* buffer);
+int text_file_buffer_size(text_file_buffer_t* buffer);
 
 // Returns the number of lines in the buffer.
-int file_buffer_num_lines(file_buffer_t* buffer);
+int text_file_buffer_num_lines(text_file_buffer_t* buffer);
 
 // Iterates over the file, returning the next line. Set pos to 0 
 // to reset the iteration. Since line is not NULL-terminated, you should 
 // use line_length to determine its length.
-bool file_buffer_next(file_buffer_t* buffer, int* pos, char** line, int* line_length);
+bool text_file_buffer_next(text_file_buffer_t* buffer, int* pos, char** line, int* line_length);
 
 #endif

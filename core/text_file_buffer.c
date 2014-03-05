@@ -23,23 +23,23 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <stdio.h>
-#include "core/file_buffer.h"
+#include "core/text_file_buffer.h"
 #include "core/slist.h"
 
-struct file_buffer_t 
+struct text_file_buffer_t 
 {
   int size, num_lines;
   int* line_offsets;
   char* data;
 };
 
-file_buffer_t* file_buffer_new(const char* filename)
+text_file_buffer_t* text_file_buffer_new(const char* filename)
 {
   FILE* fp = fopen(filename, "r");
   if (fp == NULL)
     return NULL;
 
-  file_buffer_t* buffer = malloc(sizeof(file_buffer_t));
+  text_file_buffer_t* buffer = malloc(sizeof(text_file_buffer_t));
 
   // Read the contents of the entire file into memory.
   long start = ftell(fp);
@@ -76,24 +76,24 @@ file_buffer_t* file_buffer_new(const char* filename)
   return buffer;
 }
 
-void file_buffer_free(file_buffer_t* buffer)
+void text_file_buffer_free(text_file_buffer_t* buffer)
 {
   free(buffer->data);
   free(buffer->line_offsets);
   free(buffer);
 }
 
-int file_buffer_size(file_buffer_t* buffer)
+int text_file_buffer_size(text_file_buffer_t* buffer)
 {
   return buffer->size;
 }
 
-int file_buffer_num_lines(file_buffer_t* buffer)
+int text_file_buffer_num_lines(text_file_buffer_t* buffer)
 {
   return buffer->num_lines;
 }
 
-bool file_buffer_next(file_buffer_t* buffer, int* pos, char** line, int* line_length)
+bool text_file_buffer_next(text_file_buffer_t* buffer, int* pos, char** line, int* line_length)
 {
   if (*pos >= buffer->num_lines) 
     return false;

@@ -7,7 +7,7 @@ configure_file(
 add_library(polymec_core polymec.c arch.c logging.c point.c tagger.c mesh.c 
             mesh_storage.c point_cloud.c kd_tree.c octree.c adj_graph.c 
             sp_func.c st_func.c polynomial.c least_squares.c coupled_least_squares.c
-            index_space.c newton.c options.c interpreter.c file_buffer.c
+            index_space.c newton.c options.c interpreter.c text_file_buffer.c
             interpreter_register_default_functions.c thread_pool.c
             string_utils.c array_utils.c linear_algebra.c read_silo.c write_silo.c)
 
