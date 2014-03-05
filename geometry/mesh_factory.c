@@ -36,6 +36,7 @@
 #include "geometry/create_uniform_mesh.h"
 #include "geometry/create_rectilinear_mesh.h"
 #include "geometry/create_pebi_mesh.h"
+#include "geometry/create_tetgen_mesh.h"
 #include "geometry/create_boundary_generators.h"
 #include "geometry/rect_prism.h"
 
@@ -113,6 +114,28 @@ int mesh_factory_rectilinear(lua_State* lua)
 
   // Tag its faces.
   tag_rectilinear_mesh_faces(mesh, nxs-1, nys-1, nzs-1, "x1", "x2", "y1", "y2", "z1", "z2");
+
+  // Push the mesh onto the stack.
+  lua_pushmesh(lua, mesh);
+  return 1;
+}
+
+int mesh_factory_tetgen(lua_State* lua)
+{
+  // Check the arguments.
+  int num_args = lua_gettop(lua);
+  if ((num_args != 4) || !lua_isstring(lua, 1) || !lua_isstring(lua, 2) || 
+      !lua_isstring(lua, 3) || !lua_isstring(lua, 4))
+  {
+    return luaL_error(lua, "Invalid argument(s). Usage:\n"
+                      "mesh = mesh_factory.tetgen(node_file, ele_file, face_file).");
+  }
+
+  // Get the files.
+  const char* node_file = lua_tostring(lua, 1);
+  const char* ele_file = lua_tostring(lua, 2);
+  const char* face_file = lua_tostring(lua, 3);
+  mesh_t* mesh = create_tetgen_mesh(MPI_COMM_WORLD, node_file, ele_file, face_file);
 
   // Push the mesh onto the stack.
   lua_pushmesh(lua, mesh);
