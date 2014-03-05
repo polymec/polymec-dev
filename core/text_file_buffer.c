@@ -28,8 +28,9 @@
 
 struct text_file_buffer_t 
 {
-  int size, num_lines;
-  int* line_offsets;
+  long size;
+  int num_lines;
+  long* line_offsets;
   char* data;
 };
 
@@ -46,32 +47,32 @@ text_file_buffer_t* text_file_buffer_new(const char* filename)
   fseek(fp, 0, SEEK_END);
   long end = ftell(fp);
   fseek(fp, 0, SEEK_SET);
-  buffer->size = (int)(end - start);
+  buffer->size = end - start;
   buffer->data = malloc(sizeof(char) * buffer->size);
-  fread(buffer->data, sizeof(char), end - start,fp);
+  fread(buffer->data, sizeof(char), buffer->size,fp);
 
   // We're through with the file now.
   fclose(fp);
 
   // Now find all the line breaks. Here's why you don't want to use 
   // this for enormous files!
-  int_slist_t* line_list = int_slist_new();
-  for (int i = 0; i < buffer->size; ++i)
+  long_slist_t* line_list = long_slist_new();
+  for (long i = 0; i < buffer->size; ++i)
   {
     if (buffer->data[i] == '\n')
-      int_slist_append(line_list, i+1);
+      long_slist_append(line_list, i+1);
   }
 
   buffer->num_lines = line_list->size;
-  buffer->line_offsets = malloc(sizeof(int) * (buffer->num_lines+1));
+  buffer->line_offsets = malloc(sizeof(long) * (buffer->num_lines+1));
   buffer->line_offsets[0] = 0;
   int i = 1;
-  for (int_slist_node_t* iter = line_list->front; iter != NULL; iter = iter->next)
+  for (long_slist_node_t* iter = line_list->front; iter != NULL; iter = iter->next)
   {
     buffer->line_offsets[i] = iter->value;
     ++i;
   }
-  int_slist_free(line_list);
+  long_slist_free(line_list);
 
   return buffer;
 }
@@ -83,7 +84,7 @@ void text_file_buffer_free(text_file_buffer_t* buffer)
   free(buffer);
 }
 
-int text_file_buffer_size(text_file_buffer_t* buffer)
+long text_file_buffer_size(text_file_buffer_t* buffer)
 {
   return buffer->size;
 }

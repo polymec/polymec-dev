@@ -37,10 +37,8 @@ text_file_buffer_t* text_file_buffer_new(const char* filename);
 // Destroys the file buffer.
 void text_file_buffer_free(text_file_buffer_t* buffer);
 
-// Returns the size (in bytes) of the buffer. Yes, this is a 
-// regular 32-bit integer. You shouldn't try to read files into memory
-// whose sizes don't fit into an int, dummy.
-int text_file_buffer_size(text_file_buffer_t* buffer);
+// Returns the size (in bytes) of the buffer. 
+long text_file_buffer_size(text_file_buffer_t* buffer);
 
 // Returns the number of lines in the buffer.
 int text_file_buffer_num_lines(text_file_buffer_t* buffer);
