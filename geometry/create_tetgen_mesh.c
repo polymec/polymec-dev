@@ -93,8 +93,15 @@ static point_t* read_nodes(FILE* node_file, int* num_nodes)
     int num_items = sscanf(line, "%d %lg %lg %lg%s\n", &node_id, 
                            &nodes[nodes_read].x, &nodes[nodes_read].y, 
                            &nodes[nodes_read].z, garbage);
+    if (node_id != nodes_read)
+      polymec_error("Bad node ID after %d nodes read: %d.\n", nodes_read, node_id);
     if (num_items < 4)
       polymec_error("Bad line in nodes file after %d nodes read.\n", nodes_read);
+    if (*num_nodes <= 0)
+    {
+      fclose(node_file);
+      polymec_error("Bad number of nodes in node file: %d.", *num_nodes);
+    }
 
     ++nodes_read;
     if (nodes_read == *num_nodes) break;
@@ -102,20 +109,154 @@ static point_t* read_nodes(FILE* node_file, int* num_nodes)
   if (nodes_read != *num_nodes)
   {
     fclose(node_file);
-    polymec_error("Node file claims to contains %d nodes, but %d were read.", *num_nodes, nodes_read);
+    polymec_error("Node file claims to contain %d nodes, but %d were read.", *num_nodes, nodes_read);
   }
   return nodes;
 }
 
 static tet_t* read_tets(FILE* tet_file, int* num_tets)
 {
-  tet_t* tets;
+  *num_tets = -1;
+  tet_t* tets = NULL;
+  char line[4096];
+  int tets_read = 0, nodes_per_tet = 4, region_attribute = 0;
+  while (fscanf(tet_file, "%s\n", line))
+  {
+    // Skip lines starting with #.
+    if (line[0] == '#') continue;
+
+    // Look for the header if we haven't already read it.
+    if (*num_tets == -1)
+    {
+      int num_items = sscanf(line, "%d %d %d\n", num_tets, 
+                             &nodes_per_tet, &region_attribute);
+      if (num_items != 3)
+      {
+        fclose(tet_file);
+        polymec_error("Element file has bad header.");
+      }
+      if (*num_tets <= 0)
+      {
+        fclose(tet_file);
+        polymec_error("Bad number of tets in element file: %d.", *num_tets);
+      }
+      if ((nodes_per_tet != 4) && (nodes_per_tet != 10))
+      {
+        fclose(tet_file);
+        polymec_error("Bad number of nodes per tet: %d (must be 4 or 10).", nodes_per_tet);
+      }
+      tets = malloc(sizeof(tet_t) * (*num_tets));
+      continue;
+    }
+
+    // Read the node indices of the next tet.
+    tet_t* tet = &tets[tets_read];
+    char attr_str[128];
+    int tet_id;
+    if (nodes_per_tet == 4)
+    {
+      tet->num_nodes = 4;
+      int num_items = sscanf(line, "%d %d %d %d %d%s\n", &tet_id, 
+                             &tet->nodes[0], &tet->nodes[1], 
+                             &tet->nodes[2], &tet->nodes[3],
+                             attr_str);
+      if (num_items < 5)
+        polymec_error("Bad line in element file after %d tets read.\n", tets_read);
+      if (num_items == 6)
+        tet->attribute = atoi(attr_str);
+    }
+    else
+    {
+      tet->num_nodes = 10;
+      int num_items = sscanf(line, "%d %d %d %d %d %d %d %d %d %d %d%s\n", 
+                             &tet_id, &tet->nodes[0], &tet->nodes[1], 
+                             &tet->nodes[2], &tet->nodes[3], &tet->nodes[4],
+                             &tet->nodes[5], &tet->nodes[6], &tet->nodes[7],
+                             &tet->nodes[8], &tet->nodes[9], attr_str);
+      if (num_items < 11)
+        polymec_error("Bad line in element file after %d tets read.\n", tets_read);
+      if (num_items == 12)
+        tet->attribute = atoi(attr_str);
+    }
+    if (tet_id != tets_read)
+      polymec_error("Bad tet ID after %d tets read: %d.\n", tets_read, tet_id);
+    ++tets_read;
+    if (tets_read == *num_tets) break;
+  }
+  if (tets_read != *num_tets)
+  {
+    fclose(tet_file);
+    polymec_error("Element file claims to contain %d tets, but %d were read.", *num_tets, tets_read);
+  }
   return tets;
 }
 
-static tet_face_t* read_faces(FILE* face_file, int* num_faces)
+static tet_face_t* read_faces(FILE* face_file, int nodes_per_face, int* num_faces)
 {
-  tet_face_t* faces;
+  *num_faces = -1;
+  tet_face_t* faces = NULL;
+  char line[4096];
+  int faces_read = 0, boundary_marker = 0;
+  while (fscanf(face_file, "%s\n", line))
+  {
+    // Skip lines starting with #.
+    if (line[0] == '#') continue;
+
+    // Look for the header if we haven't already read it.
+    if (*num_faces == -1)
+    {
+      int num_items = sscanf(line, "%d %d\n", num_faces, &boundary_marker);
+      if (num_items != 2)
+      {
+        fclose(face_file);
+        polymec_error("Face file has bad header.");
+      }
+      if (*num_faces <= 0)
+      {
+        fclose(face_file);
+        polymec_error("Bad number of faces in face file: %d.", *num_faces);
+      }
+      faces = malloc(sizeof(tet_face_t) * (*num_faces));
+      continue;
+    }
+
+    // Read the node indices of the next face.
+    tet_face_t* face = &faces[faces_read];
+    char marker_str[128];
+    int face_id;
+    if (nodes_per_face == 3)
+    {
+      face->num_nodes = 3;
+      int num_items = sscanf(line, "%d %d %d %d%s\n", &face_id, 
+                             &face->nodes[0], &face->nodes[1], 
+                             &face->nodes[2], marker_str);
+      if (num_items < 4)
+        polymec_error("Bad line in face file after %d faces read.\n", faces_read);
+      if (num_items == 5)
+        face->boundary_marker = atoi(marker_str);
+    }
+    else
+    {
+      face->num_nodes = 6;
+      int num_items = sscanf(line, "%d %d %d %d %d %d %d%s\n", 
+                             &face_id, &face->nodes[0], &face->nodes[1], 
+                             &face->nodes[2], &face->nodes[3], &face->nodes[4],
+                             &face->nodes[5], marker_str);
+      if (num_items < 7)
+        polymec_error("Bad line in face file after %d faces read.\n", faces_read);
+      if (num_items == 8)
+        face->boundary_marker = atoi(marker_str);
+    }
+    if (face_id != faces_read)
+      polymec_error("Bad face ID after %d faces read: %d.\n", faces_read, face_id);
+    ++faces_read;
+    if (faces_read == *num_faces) break;
+  }
+  if (faces_read != *num_faces)
+  {
+    fclose(face_file);
+    polymec_error("Face file claims to contain %d faces, but %d were read.", *num_faces, faces_read);
+  }
   return faces;
 }
 
@@ -162,7 +303,8 @@ mesh_t* create_tetgen_mesh(MPI_Comm comm,
   if (face_fp == NULL)
     polymec_error("TetGen face file '%s' not found.", face_file);
   int num_faces;
-  tet_face_t* faces = read_faces(face_fp, &num_faces);
+  int nodes_per_face = (tets[0].num_nodes == 4) ? 3 : 6;
+  tet_face_t* faces = read_faces(face_fp, nodes_per_face, &num_faces);
   fclose(face_fp);
 
   // Compute the number of edges, which we aren't given by polytope.
