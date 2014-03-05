@@ -174,6 +174,15 @@ static tet_t* read_tets(const char* tet_file, int* num_tets)
   text_file_buffer_free(buffer);
   if (tets_read != *num_tets)
     polymec_error("Element file claims to contain %d tets, but %d were read.", *num_tets, tets_read);
+
+  // TetGen's indices are 1-based, so correct them.
+  for (int t = 0; t < *num_tets; ++t)
+  {
+    tet_t* tet = &tets[t];
+    for (int n = 0; n < tet->num_nodes; ++n)
+      tet->nodes[n] -= 1;
+  }
+
   return tets;
 }
 
@@ -238,6 +247,15 @@ static tet_face_t* read_faces(const char* face_file, int nodes_per_face, int* nu
   text_file_buffer_free(buffer);
   if (faces_read != *num_faces)
     polymec_error("Face file claims to contain %d faces, but %d were read.", *num_faces, faces_read);
+
+  // TetGen's indices are 1-based, so correct them.
+  for (int f = 0; f < *num_faces; ++f)
+  {
+    tet_face_t* face = &faces[f];
+    for (int n = 0; n < face->num_nodes; ++n)
+      face->nodes[n] -= 1;
+  }
+
   return faces;
 }
 
@@ -309,32 +327,106 @@ mesh_t* create_tetgen_mesh(MPI_Comm comm,
   }
   mesh->storage->face_node_capacity = num_faces * nodes_per_face;
 
-#if 0
   // Face <-> edge connectivity.
   memset(mesh->face_edge_offsets, 0, sizeof(int) * (mesh->num_faces + 1));
   for (int f = 0; f < mesh->num_faces; ++f)
   {
-    int Ne = tess->face_offsets[f+1] - tess->face_offsets[f];
+    int Ne = mesh->face_node_offsets[f+1] - mesh->face_node_offsets[f];
     mesh->face_edge_offsets[f+1] = Ne;
     for (int e = 0; e < Ne; ++e)
     {
-      int offset = tess->face_offsets[f];
-      int n1 = (int)tess->face_nodes[offset+e];
-      int n2 = (int)tess->face_nodes[offset+(e+1)%Ne];
+      int offset = mesh->face_node_offsets[f];
+      int n1 = (int)mesh->face_nodes[offset+e];
+      int n2 = (int)mesh->face_nodes[offset+(e+1)%Ne];
       int edge_id = *int_table_get(edge_for_nodes, n1, n2);
       mesh->storage->face_edge_capacity = round_to_pow2(edge_id+1);
       mesh->face_edges = ARENA_REALLOC(mesh->arena, mesh->face_edges, sizeof(int) * mesh->storage->face_edge_capacity, 0);
-      mesh->face_edges[tess->face_offsets[f+1]+e] = edge_id;
+      mesh->face_edges[mesh->face_node_offsets[f+1]+e] = edge_id;
     }
   }
 
   // Cell <-> face connectivity.
-  memcpy(mesh->cell_face_offsets, tess->cell_offsets, sizeof(int) * (tess->num_cells+1));
-  mesh->cell_faces = ARENA_REALLOC(mesh->arena, mesh->cell_faces, sizeof(int) * tess->cell_offsets[tess->num_cells], 0);
-  memcpy(mesh->cell_faces, tess->cell_faces, sizeof(int) * tess->cell_offsets[tess->num_cells]);
-  memcpy(mesh->face_cells, tess->face_cells, sizeof(int) * 2 * tess->num_faces);
-  mesh->storage->cell_face_capacity = tess->cell_offsets[tess->num_cells];
-#endif
+  mesh->cell_face_offsets[0] = 0;
+  for (int c = 0; c < mesh->num_cells; ++c)
+  {
+    mesh->cell_face_offsets[c+1] = 4*(c+1);
+    for (int f = mesh->cell_face_offsets[c]; f < mesh->cell_face_offsets[c+1]; ++f)
+      mesh->cell_faces[f] = -1;
+  }
+  for (int f = 0; f < num_faces; ++f)
+  {
+    mesh->face_cells[2*f]   = -1;
+    mesh->face_cells[2*f+1] = -1;
+  }
+  mesh->cell_faces = ARENA_REALLOC(mesh->arena, mesh->cell_faces, sizeof(int) * 4 * mesh->num_cells, 0);
+  {
+    // Construct a mapping from nodes to sets of cells.
+    int_ptr_unordered_map_t* cells_for_node = int_ptr_unordered_map_new();
+    for (int c = 0; c < num_tets; ++c)
+    {
+      tet_t* tet = &tets[c];
+      for (int n = 0; n < tet->num_nodes; ++n)
+      {
+        int node = tet->nodes[n];
+        int_unordered_set_t** cells = (int_unordered_set_t**)int_ptr_unordered_map_get(cells_for_node, node);
+        if (cells == NULL)
+        {
+          int_unordered_set_t* cells_for_this_node = int_unordered_set_new();
+          int_unordered_set_insert(cells_for_this_node, c);
+          int_ptr_unordered_map_insert_with_v_dtor(cells_for_node, node, cells_for_this_node, DTOR(int_unordered_set_free));
+        }
+        else
+        {
+          int_unordered_set_t* cells_for_this_node = *cells;
+          int_unordered_set_insert(cells_for_this_node, c);
+        }
+      }
+    }
+
+    // Now go over faces and find those cells that possess all of the 
+    // nodes in each face. Those cells are the cells that share the face.
+    int_unordered_set_t* intersect01 = int_unordered_set_new();
+    int_unordered_set_t* intersect012 = int_unordered_set_new();
+    for (int f = 0; f < num_faces; ++f)
+    {
+      tet_face_t* face = &faces[f];
+      int_unordered_set_t** node_cells0 = (int_unordered_set_t**)int_ptr_unordered_map_get(cells_for_node, face->nodes[0]);
+      ASSERT(node_cells0 != NULL);
+      int_unordered_set_t* cells_for_0 = *node_cells0;
+      int_unordered_set_t** node_cells1 = (int_unordered_set_t**)int_ptr_unordered_map_get(cells_for_node, face->nodes[1]);
+      ASSERT(node_cells1 != NULL);
+      int_unordered_set_t* cells_for_1 = *node_cells1;
+      int_unordered_set_t** node_cells2 = (int_unordered_set_t**)int_ptr_unordered_map_get(cells_for_node, face->nodes[2]);
+      ASSERT(node_cells2 != NULL);
+      int_unordered_set_t* cells_for_2 = *node_cells2;
+      int_unordered_set_intersection(cells_for_0, cells_for_1, intersect01);
+      int_unordered_set_intersection(intersect01, cells_for_2, intersect012);
+      ASSERT((intersect012->size == 1) || (intersect012->size == 2));
+      int pos = 0, cell, i = 0;
+      while (int_unordered_set_next(intersect012, &pos, &cell))
+      {
+        // Hook the cell up to the face.
+        mesh->face_cells[2*f+i] = cell;
+        ++i;
+
+        // Hook the face up to the cell.
+        int j = mesh->cell_face_offsets[cell];
+        while (j < mesh->cell_face_offsets[cell+1])
+        {
+          if (mesh->cell_faces[j] == -1)
+          {
+            mesh->cell_faces[j] = f;
+            break;
+          }
+          ++j;
+        }
+      }
+    }
+    int_unordered_set_free(intersect01);
+    int_unordered_set_free(intersect012);
+    int_ptr_unordered_map_free(cells_for_node);
+  }
+  mesh->storage->cell_face_capacity = 4*mesh->num_cells;
 
   // Compute the mesh's geometry.
   mesh_compute_geometry(mesh);
