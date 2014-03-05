@@ -59,7 +59,7 @@ text_file_buffer_t* text_file_buffer_new(const char* filename)
   for (int i = 0; i < buffer->size; ++i)
   {
     if (buffer->data[i] == '\n')
-      int_slist_append(line_list, i);
+      int_slist_append(line_list, i+1);
   }
 
   buffer->num_lines = line_list->size;
