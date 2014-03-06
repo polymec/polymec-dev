@@ -372,6 +372,7 @@ static int lua_write_silo_mesh(lua_State* lua)
                   MPI_COMM_SELF, 1, 0);
 
   // Clean up.
+  free(filename);
   string_ptr_unordered_map_free(fields);
 
   return 1;
@@ -488,6 +489,7 @@ static int lua_write_silo_points(lua_State* lua)
                     MPI_COMM_SELF, 1, 0);
 
   // Clean up.
+  free(filename);
   string_ptr_unordered_map_free(fields);
 
   return 1;

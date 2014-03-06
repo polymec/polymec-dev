@@ -56,7 +56,7 @@ DEFINE_UNORDERED_MAP(interpreter_map, char*, interpreter_storage_t*, string_hash
 // This is the destructor for a given storage type within the interpreter.
 static int destroy_storage(lua_State* lua)
 {
-  interpreter_storage_t* storage = (void*)lua_topointer(lua, -1);
+  interpreter_storage_t* storage = (interpreter_storage_t*)lua_topointer(lua, -1);
   ASSERT(storage->creator == LUA);
   if ((storage->datum != NULL) && (storage->dtor != NULL) && (storage->owner == LUA))
     (*storage->dtor)(storage->datum);
@@ -64,6 +64,7 @@ static int destroy_storage(lua_State* lua)
   return 0;
 }
 
+// This destroys variables that have been parsed.
 static void destroy_variable(char* key, interpreter_storage_t* value)
 {
   free(key);
@@ -221,7 +222,7 @@ static interpreter_storage_t* store_boundingbox(lua_State* lua, bbox_t* var)
 {
   interpreter_storage_t* storage = NEW_USER_DATA(lua);
   storage->type = INTERPRETER_BOUNDING_BOX;
-  storage->datum = (void*)var;
+  storage->datum = var;
   storage->dtor = NULL;
   return storage;
 }
@@ -235,7 +236,7 @@ static interpreter_storage_t* store_mesh(lua_State* lua, mesh_t* var)
 {
   interpreter_storage_t* storage = NEW_USER_DATA(lua);
   storage->type = INTERPRETER_MESH;
-  storage->datum = (void*)var;
+  storage->datum = var;
   storage->dtor = destroy_mesh;
   return storage;
 }
@@ -245,7 +246,7 @@ static interpreter_storage_t* store_scalar_function(lua_State* lua, st_func_t* v
   ASSERT(st_func_num_comp(var) == 1);
   interpreter_storage_t* storage = NEW_USER_DATA(lua);
   storage->type = INTERPRETER_SCALAR_FUNCTION;
-  storage->datum = (void*)var;
+  storage->datum = var;
   storage->dtor = NULL;
   return storage;
 }
@@ -255,7 +256,7 @@ static interpreter_storage_t* store_vector_function(lua_State* lua, st_func_t* v
   ASSERT(st_func_num_comp(var) == 3);
   interpreter_storage_t* storage = NEW_USER_DATA(lua);
   storage->type = INTERPRETER_VECTOR_FUNCTION;
-  storage->datum = (void*)var;
+  storage->datum = var;
   storage->dtor = NULL;
   return storage;
 }
@@ -265,7 +266,7 @@ static interpreter_storage_t* store_sym_tensor_function(lua_State* lua, st_func_
   ASSERT(st_func_num_comp(var) == 6);
   interpreter_storage_t* storage = NEW_USER_DATA(lua);
   storage->type = INTERPRETER_SYM_TENSOR_FUNCTION;
-  storage->datum = (void*)var;
+  storage->datum = var;
   storage->dtor = NULL;
   return storage;
 }
@@ -275,7 +276,7 @@ static interpreter_storage_t* store_tensor_function(lua_State* lua, st_func_t* v
   ASSERT(st_func_num_comp(var) == 9);
   interpreter_storage_t* storage = NEW_USER_DATA(lua);
   storage->type = INTERPRETER_TENSOR_FUNCTION;
-  storage->datum = (void*)var;
+  storage->datum = var;
   storage->dtor = NULL;
   return storage;
 }
@@ -336,7 +337,7 @@ static interpreter_storage_t* store_user_defined(lua_State* lua, void* user_defi
 {
   interpreter_storage_t* storage = NEW_USER_DATA(lua);
   storage->type = INTERPRETER_USER_DEFINED;
-  storage->datum = (void*)user_defined;
+  storage->datum = user_defined;
   storage->dtor = dtor;
   return storage; 
 }
@@ -971,7 +972,7 @@ static void interpreter_store_chunk_contents(interpreter_t* interp)
       var = (void*)lua_topointer(lua, val_index);
     }
 
-    interpreter_map_insert_with_kv_dtor(interp->store, string_dup(key), var, destroy_variable);
+    interpreter_map_insert_with_k_dtor(interp->store, string_dup(key), var, free); 
 
     // Removes value from stack -- key is kept for next iteration.
     lua_pop(lua, 1);

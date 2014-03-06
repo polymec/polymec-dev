@@ -47,6 +47,9 @@ static void delete_loggers()
   {
     if (loggers[i] != NULL)
     {
+      if (loggers[i]->stream != NULL)
+        fclose(loggers[i]->stream);
+      free(loggers[i]->buffer);
       free(loggers[i]);
       loggers[i] = NULL;
     }
@@ -133,7 +136,11 @@ void set_log_stream(log_level_t log_type, FILE* stream)
 {
   logger_t* logger = get_logger(log_type);
   if (logger != NULL)
+  {
+    if (logger->stream != NULL)
+      fclose(logger->stream);
     logger->stream = stream;
+  }
 }
 
 void set_log_mpi_rank(log_level_t log_type, int mpi_rank)

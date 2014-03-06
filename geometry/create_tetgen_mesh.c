@@ -279,6 +279,27 @@ static int_table_t* gather_edges(tet_face_t* faces,
   return edge_for_nodes;
 }
 
+static bool even_permutation(int n1, int n2, int n3, int m1, int m2, int m3)
+{
+  return (((n1 == m1) && (n2 == m2) && (n3 == m3)) || 
+          ((n1 == m2) && (n2 == m3) && (n3 == m1)) ||
+          ((n1 == m3) && (n2 == m1) && (n3 == m2)));
+}
+
+static bool nodes_are_even_permutation_of_tet_face(int n1, int n2, int n3, tet_t* tet)
+{
+  // According to TetGen's indexing scheme, a tet has 4 faces with 
+  // the following locally-indexed nodes:
+  // 1. 0, 1, 3
+  // 2. 1, 2, 3
+  // 3. 0, 2, 1
+  // 4. 2, 0, 3
+  return (even_permutation(n1, n2, n3, tet->nodes[0], tet->nodes[1], tet->nodes[3]) ||
+          even_permutation(n1, n2, n3, tet->nodes[1], tet->nodes[2], tet->nodes[3]) ||
+          even_permutation(n1, n2, n3, tet->nodes[0], tet->nodes[2], tet->nodes[1]) ||
+          even_permutation(n1, n2, n3, tet->nodes[2], tet->nodes[0], tet->nodes[3]));
+}
+
 mesh_t* create_tetgen_mesh(MPI_Comm comm, 
                            const char* node_file,
                            const char* ele_file,
@@ -390,13 +411,16 @@ mesh_t* create_tetgen_mesh(MPI_Comm comm,
     for (int f = 0; f < num_faces; ++f)
     {
       tet_face_t* face = &faces[f];
-      int_unordered_set_t** node_cells0 = (int_unordered_set_t**)int_ptr_unordered_map_get(cells_for_node, face->nodes[0]);
+      int n0 = face->nodes[0];
+      int_unordered_set_t** node_cells0 = (int_unordered_set_t**)int_ptr_unordered_map_get(cells_for_node, n0);
       ASSERT(node_cells0 != NULL);
       int_unordered_set_t* cells_for_0 = *node_cells0;
-      int_unordered_set_t** node_cells1 = (int_unordered_set_t**)int_ptr_unordered_map_get(cells_for_node, face->nodes[1]);
+      int n1 = face->nodes[1];
+      int_unordered_set_t** node_cells1 = (int_unordered_set_t**)int_ptr_unordered_map_get(cells_for_node, n1);
       ASSERT(node_cells1 != NULL);
       int_unordered_set_t* cells_for_1 = *node_cells1;
-      int_unordered_set_t** node_cells2 = (int_unordered_set_t**)int_ptr_unordered_map_get(cells_for_node, face->nodes[2]);
+      int n2 = face->nodes[2];
+      int_unordered_set_t** node_cells2 = (int_unordered_set_t**)int_ptr_unordered_map_get(cells_for_node, n2);
       ASSERT(node_cells2 != NULL);
       int_unordered_set_t* cells_for_2 = *node_cells2;
       int_unordered_set_intersection(cells_for_0, cells_for_1, intersect01);
@@ -405,6 +429,8 @@ mesh_t* create_tetgen_mesh(MPI_Comm comm,
       int pos = 0, cell, i = 0;
       while (int_unordered_set_next(intersect012, &pos, &cell))
       {
+        tet_t* tet = &tets[cell];
+
         // Hook the cell up to the face.
         mesh->face_cells[2*f+i] = cell;
         ++i;
@@ -415,7 +441,15 @@ mesh_t* create_tetgen_mesh(MPI_Comm comm,
         {
           if (mesh->cell_faces[j] == -1)
           {
-            mesh->cell_faces[j] = f;
+            // We have to figure out whether this face will be stored as f 
+            // or ~f, based on whether its nodes produce a normal vector that 
+            // points outward (f) or inward (~f). If the nodes n0, n1, n2 are 
+            // equivalent to any even permutation of the nodes of the faces 
+            // of our tet, the face is stored as f. Otherwise, we use ~f.
+            if (nodes_are_even_permutation_of_tet_face(n0, n1, n2, tet))
+              mesh->cell_faces[j] = f;
+            else
+              mesh->cell_faces[j] = ~f;
             break;
           }
           ++j;
@@ -432,6 +466,9 @@ mesh_t* create_tetgen_mesh(MPI_Comm comm,
   mesh_compute_geometry(mesh);
 
   // Clean up.
+  free(nodes);
+  free(faces);
+  free(tets);
   int_table_free(edge_for_nodes);
 
   return mesh;
