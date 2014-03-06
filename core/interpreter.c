@@ -75,6 +75,11 @@ static void destroy_variable(char* key, interpreter_storage_t* value)
     free(value);
 }
 
+static void destroy_string(char* key)
+{
+  free(key);
+}
+
 static void destroy_table_entry(char* key, void* value)
 {
   free(key);
@@ -972,7 +977,7 @@ static void interpreter_store_chunk_contents(interpreter_t* interp)
       var = (void*)lua_topointer(lua, val_index);
     }
 
-    interpreter_map_insert_with_k_dtor(interp->store, string_dup(key), var, free); 
+    interpreter_map_insert_with_k_dtor(interp->store, string_dup(key), var, destroy_string); 
 
     // Removes value from stack -- key is kept for next iteration.
     lua_pop(lua, 1);

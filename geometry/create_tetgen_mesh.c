@@ -39,6 +39,7 @@ typedef struct
   int num_nodes; // 4 for order 1, 10 for order 2.
   int nodes[10];  
   int attribute; // 0 for none, positive for actual attribute.
+  int neighbors[4]; // Neighboring tetrahedra.
 } tet_t;
 
 typedef struct
@@ -259,6 +260,60 @@ static tet_face_t* read_faces(const char* face_file, int nodes_per_face, int* nu
   return faces;
 }
 
+static void read_neighbors(const char* neigh_file, tet_t* tets, int num_tets)
+{
+  text_file_buffer_t* buffer = text_file_buffer_new(neigh_file);
+  if (buffer == NULL)
+    polymec_error("TetGen neighbor file '%s' not found.", neigh_file);
+  int tets_read = 0, pos = 0, line_length, num_entries = -1;
+  char* line;
+  while (text_file_buffer_next(buffer, &pos, &line, &line_length))
+  {
+    // Skip lines starting with #.
+    if (line[0] == '#') continue;
+
+    // Look for the header if we haven't already read it.
+    if (num_entries == -1)
+    {
+      int four;
+      int num_items = sscanf(line, "%d %d\n", &num_entries, &four);
+      if (num_items != 2)
+        polymec_error("Face file has bad header.");
+      if (num_entries != num_tets)
+        polymec_error("Number of neighbor entries (%d) in neigh file does not match number of tets (%d).", num_entries, num_tets);
+      if (four != 4)
+        polymec_error("Second value in header must be 4.");
+      continue;
+    }
+
+    // Read the neighbor indices of the next tet.
+    tet_t* tet = &tets[tets_read];
+    int tet_id;
+    char junk_str[1024];
+    int num_items = sscanf(line, "%d %d %d %d %d%s\n", &tet_id, 
+                           &tet->neighbors[0], &tet->neighbors[1], 
+                           &tet->neighbors[2], &tet->neighbors[3], 
+                           junk_str);
+    if (num_items < 5)
+        polymec_error("Bad line in neighbors file after %d tets read.\n", tets_read);
+    if (tet_id != (tets_read+1))
+      polymec_error("Bad tet ID after %d tet read: %d.\n", tets_read, tet_id);
+    ++tets_read;
+    if (tets_read == num_tets) break;
+  }
+  text_file_buffer_free(buffer);
+  if (tets_read != num_tets)
+    polymec_error("Neighbor file has %d tets, but needs %d.", tets_read, num_tets);
+
+  // TetGen's indices are 1-based, so correct them.
+  for (int t = 0; t < num_tets; ++t)
+  {
+    tet_t* tet = &tets[t];
+    for (int n = 0; n < 4; ++n)
+      tet->neighbors[n] -= 1;
+  }
+}
+
 static int_table_t* gather_edges(tet_face_t* faces, 
                                  int num_faces,
                                  int* num_edges)
@@ -286,6 +341,13 @@ static bool even_permutation(int n1, int n2, int n3, int m1, int m2, int m3)
           ((n1 == m3) && (n2 == m1) && (n3 == m2)));
 }
 
+static bool odd_permutation(int n1, int n2, int n3, int m1, int m2, int m3)
+{
+  return (((n1 == m2) && (n2 == m1) && (n3 == m3)) || 
+          ((n1 == m1) && (n2 == m3) && (n3 == m2)) ||
+          ((n1 == m3) && (n2 == m2) && (n3 == m1)));
+}
+
 static bool nodes_are_even_permutation_of_tet_face(int n1, int n2, int n3, tet_t* tet)
 {
   // According to TetGen's indexing scheme, a tet has 4 faces with 
@@ -300,10 +362,23 @@ static bool nodes_are_even_permutation_of_tet_face(int n1, int n2, int n3, tet_t
           even_permutation(n1, n2, n3, tet->nodes[2], tet->nodes[0], tet->nodes[3]));
 }
 
+static int find_face_with_nodes(tet_face_t* faces, int num_faces, int n1, int n2, int n3)
+{
+  for (int f = 0; f < num_faces; ++f)
+  {
+    tet_face_t* face = &faces[f];
+    if (even_permutation(face->nodes[0], face->nodes[1], face->nodes[2], n1, n2, n3) ||
+        odd_permutation(face->nodes[0], face->nodes[1], face->nodes[2], n1, n2, n3))
+      return f;
+  }
+  return -1;
+}
+
 mesh_t* create_tetgen_mesh(MPI_Comm comm, 
                            const char* node_file,
                            const char* ele_file,
-                           const char* face_file)
+                           const char* face_file,
+                           const char* neigh_file)
 {
   int num_nodes;
   point_t* nodes = read_nodes(node_file, &num_nodes);
@@ -314,6 +389,8 @@ mesh_t* create_tetgen_mesh(MPI_Comm comm,
   int num_faces;
   int nodes_per_face = (tets[0].num_nodes == 4) ? 3 : 6;
   tet_face_t* faces = read_faces(face_file, nodes_per_face, &num_faces);
+
+  read_neighbors(neigh_file, tets, num_tets);
 
   // Compute the number of edges, which we aren't given.
   int num_edges = 0;
@@ -381,6 +458,75 @@ mesh_t* create_tetgen_mesh(MPI_Comm comm,
   }
   mesh->cell_faces = ARENA_REALLOC(mesh->arena, mesh->cell_faces, sizeof(int) * 4 * mesh->num_cells, 0);
   {
+    // Loop over cells and find the faces connecting them to their neighbors.
+    for (int c = 0; c < mesh->num_cells; ++c)
+    {
+      tet_t* t = &tets[c];
+
+      // Tet face-node table.
+      static int tet_face_nodes[4][3] = {{1, 2, 3},  // face 1 has nodes 2, 3, 4
+                                         {2, 0, 3},  // face 2 has nodes 3, 1, 4
+                                         {0, 1, 3},  // face 3 has nodes 1, 2, 4
+                                         {0, 1, 2}}; // face 4 has nodes 1, 2, 3
+
+      // Keep track of faces we've processed.
+      int_unordered_set_t* faces_processed = int_unordered_set_new();
+
+      // Figure out each of the connections by examining their common nodes.
+      // We use TetGen's indexing scheme (see TetGen documentation), which 
+      // states that neighbor n of a tet shares the face of that tet that 
+      // is opposite of node n in the tet.
+      for (int n = 0; n < 4; ++n)
+      {
+        // Nodes of cell c on this face.
+        int c_n1 = t->nodes[tet_face_nodes[n][0]];
+        int c_n2 = t->nodes[tet_face_nodes[n][1]];
+        int c_n3 = t->nodes[tet_face_nodes[n][2]];
+
+        // Get the neighbor tet.
+        int cn = t->neighbors[n];
+        if (cn == -1)
+        {
+          // This is a boundary face! Find the face and set it up.
+          int face = find_face_with_nodes(faces, num_faces, c_n1, c_n2, c_n3);
+          mesh->cell_faces[n] = face; // FIXME: or ~face?
+          mesh->face_cells[2*face] = c;
+          int_unordered_set_insert(faces_processed, face);
+        }
+        else if (cn > c)
+        {
+          tet_t* tn = &tets[cn];
+
+          // Find the neighbor index of c within cn.
+          int n1 = (tn->neighbors[0] == c) ? 0 :
+            (tn->neighbors[1] == c) ? 1 : 
+            (tn->neighbors[2] == c) ? 2 : 3;
+
+          // The nodes in these faces should match up.
+          ASSERT(t0->nodes[tet_face_nodes[n][0]] == tn->nodes[tet_face_nodes[n1][0]]);
+          ASSERT(t0->nodes[tet_face_nodes[n][1]] == tn->nodes[tet_face_nodes[n1][1]]);
+          ASSERT(t0->nodes[tet_face_nodes[n][2]] == tn->nodes[tet_face_nodes[n1][2]]);
+               
+          // Find the face that possesses these 3 nodes.
+          int face = find_face_with_nodes(faces, num_faces, c_n1, c_n2, c_n3);
+
+          // Associate the face with both of these cells.
+          mesh->cell_faces[n] = face; // FIXME: or ~face?
+          mesh->cell_faces[n1] = ~face; // FIXME: or face?
+
+          // Associate the cells with the face.
+          mesh->face_cells[2*face]   = c;
+          mesh->face_cells[2*face+1] = cn;
+
+          int_unordered_set_insert(faces_processed, face);
+        }
+      }
+
+      // Clean up.
+      int_unordered_set_free(faces_processed);
+    }
+
+#if 0
     // Construct a mapping from nodes to sets of cells.
     int_ptr_unordered_map_t* cells_for_node = int_ptr_unordered_map_new();
     for (int c = 0; c < num_tets; ++c)
@@ -450,6 +596,7 @@ mesh_t* create_tetgen_mesh(MPI_Comm comm,
               mesh->cell_faces[j] = f;
             else
               mesh->cell_faces[j] = ~f;
+printf("Cell %d face %d = %d\n", cell, j-mesh->cell_face_offsets[cell], mesh->cell_faces[j]);
             break;
           }
           ++j;
@@ -459,6 +606,7 @@ mesh_t* create_tetgen_mesh(MPI_Comm comm,
     int_unordered_set_free(intersect01);
     int_unordered_set_free(intersect012);
     int_ptr_unordered_map_free(cells_for_node);
+#endif
   }
   mesh->storage->cell_face_capacity = 4*mesh->num_cells;
 

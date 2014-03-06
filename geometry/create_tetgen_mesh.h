@@ -28,12 +28,13 @@
 #include "core/mesh.h"
 #include "core/point.h"
 
-// This function creates a mesh using .node, .ele, and .face files created 
-// by TetGen.
+// This function creates a mesh using .node, .ele, .face, and .neigh files 
+// created by TetGen.
 mesh_t* create_tetgen_mesh(MPI_Comm comm, 
                            const char* node_file,
                            const char* ele_file,
-                           const char* face_file);
+                           const char* face_file,
+                           const char* neigh_file);
 
 #endif
 
