@@ -32,6 +32,7 @@
 #include "core/unordered_map.h"
 #include "core/unordered_set.h"
 #include "core/text_file_buffer.h"
+#include "core/array_utils.h"
 #include "geometry/create_tetgen_mesh.h"
 
 typedef struct
@@ -334,46 +335,6 @@ static int_table_t* gather_edges(tet_face_t* faces,
   return edge_for_nodes;
 }
 
-static bool even_permutation(int n1, int n2, int n3, int m1, int m2, int m3)
-{
-  return (((n1 == m1) && (n2 == m2) && (n3 == m3)) || 
-          ((n1 == m2) && (n2 == m3) && (n3 == m1)) ||
-          ((n1 == m3) && (n2 == m1) && (n3 == m2)));
-}
-
-static bool odd_permutation(int n1, int n2, int n3, int m1, int m2, int m3)
-{
-  return (((n1 == m2) && (n2 == m1) && (n3 == m3)) || 
-          ((n1 == m1) && (n2 == m3) && (n3 == m2)) ||
-          ((n1 == m3) && (n2 == m2) && (n3 == m1)));
-}
-
-static bool nodes_are_even_permutation_of_tet_face(int n1, int n2, int n3, tet_t* tet)
-{
-  // According to TetGen's indexing scheme, a tet has 4 faces with 
-  // the following locally-indexed nodes:
-  // 1. 0, 1, 3
-  // 2. 1, 2, 3
-  // 3. 0, 2, 1
-  // 4. 2, 0, 3
-  return (even_permutation(n1, n2, n3, tet->nodes[0], tet->nodes[1], tet->nodes[3]) ||
-          even_permutation(n1, n2, n3, tet->nodes[1], tet->nodes[2], tet->nodes[3]) ||
-          even_permutation(n1, n2, n3, tet->nodes[0], tet->nodes[2], tet->nodes[1]) ||
-          even_permutation(n1, n2, n3, tet->nodes[2], tet->nodes[0], tet->nodes[3]));
-}
-
-static int find_face_with_nodes(tet_face_t* faces, int num_faces, int n1, int n2, int n3)
-{
-  for (int f = 0; f < num_faces; ++f)
-  {
-    tet_face_t* face = &faces[f];
-    if (even_permutation(face->nodes[0], face->nodes[1], face->nodes[2], n1, n2, n3) ||
-        odd_permutation(face->nodes[0], face->nodes[1], face->nodes[2], n1, n2, n3))
-      return f;
-  }
-  return -1;
-}
-
 mesh_t* create_tetgen_mesh(MPI_Comm comm, 
                            const char* node_file,
                            const char* ele_file,
@@ -414,14 +375,23 @@ mesh_t* create_tetgen_mesh(MPI_Comm comm,
   }
 
   // Face <-> node connectivity.
+  int_tuple_int_unordered_map_t* face_for_nodes = int_tuple_int_unordered_map_new();
   mesh->face_node_offsets[0] = 0;
   for (int f = 0; f < num_faces; ++f)
     mesh->face_node_offsets[f+1] = (f+1)*nodes_per_face;
   mesh->face_nodes = ARENA_REALLOC(mesh->arena, mesh->face_nodes, sizeof(int) * num_faces * nodes_per_face, 0);
   for (int f = 0; f < num_faces; ++f)
   {
+    tet_face_t* face = &faces[f];
     for (int n = 0; n < nodes_per_face; ++n)
-      mesh->face_nodes[nodes_per_face*f+n] = faces->nodes[n];
+      mesh->face_nodes[nodes_per_face*f+n] = face->nodes[n];
+
+    // Associate the 3 "primal" nodes to this face.
+    int* primal_nodes = int_tuple_new(3);
+    for (int i = 0; i < 3; ++i)
+      primal_nodes[i] = face->nodes[i];
+    int_qsort(primal_nodes, 3);
+    int_tuple_int_unordered_map_insert_with_k_dtor(face_for_nodes, primal_nodes, f, int_tuple_free);
   }
   mesh->storage->face_node_capacity = num_faces * nodes_per_face;
 
@@ -469,9 +439,6 @@ mesh_t* create_tetgen_mesh(MPI_Comm comm,
                                          {0, 1, 3},  // face 3 has nodes 1, 2, 4
                                          {0, 1, 2}}; // face 4 has nodes 1, 2, 3
 
-      // Keep track of faces we've processed.
-      int_unordered_set_t* faces_processed = int_unordered_set_new();
-
       // Figure out each of the connections by examining their common nodes.
       // We use TetGen's indexing scheme (see TetGen documentation), which 
       // states that neighbor n of a tet shares the face of that tet that 
@@ -479,19 +446,25 @@ mesh_t* create_tetgen_mesh(MPI_Comm comm,
       for (int n = 0; n < 4; ++n)
       {
         // Nodes of cell c on this face.
-        int c_n1 = t->nodes[tet_face_nodes[n][0]];
-        int c_n2 = t->nodes[tet_face_nodes[n][1]];
-        int c_n3 = t->nodes[tet_face_nodes[n][2]];
+        int nodes[3];
+        nodes[0] = t->nodes[tet_face_nodes[n][0]];
+        nodes[1] = t->nodes[tet_face_nodes[n][1]];
+        nodes[2] = t->nodes[tet_face_nodes[n][2]];
+        int_qsort(nodes, 3);
+
+        // Find the face with these nodes.
+        int* face_p = int_tuple_int_unordered_map_get(face_for_nodes, nodes);
+        if (face_p == NULL)
+          polymec_error("TetGen files are inconsistent (cell %d does not have a face %d)", c, n);
+        int face = *face_p;
 
         // Get the neighbor tet.
         int cn = t->neighbors[n];
         if (cn == -1)
         {
-          // This is a boundary face! Find the face and set it up.
-          int face = find_face_with_nodes(faces, num_faces, c_n1, c_n2, c_n3);
+          // Set up the face.
           mesh->cell_faces[n] = face; // FIXME: or ~face?
           mesh->face_cells[2*face] = c;
-          int_unordered_set_insert(faces_processed, face);
         }
         else if (cn > c)
         {
@@ -499,16 +472,8 @@ mesh_t* create_tetgen_mesh(MPI_Comm comm,
 
           // Find the neighbor index of c within cn.
           int n1 = (tn->neighbors[0] == c) ? 0 :
-            (tn->neighbors[1] == c) ? 1 : 
-            (tn->neighbors[2] == c) ? 2 : 3;
-
-          // The nodes in these faces should match up.
-          ASSERT(t0->nodes[tet_face_nodes[n][0]] == tn->nodes[tet_face_nodes[n1][0]]);
-          ASSERT(t0->nodes[tet_face_nodes[n][1]] == tn->nodes[tet_face_nodes[n1][1]]);
-          ASSERT(t0->nodes[tet_face_nodes[n][2]] == tn->nodes[tet_face_nodes[n1][2]]);
-               
-          // Find the face that possesses these 3 nodes.
-          int face = find_face_with_nodes(faces, num_faces, c_n1, c_n2, c_n3);
+                   (tn->neighbors[1] == c) ? 1 : 
+                   (tn->neighbors[2] == c) ? 2 : 3;
 
           // Associate the face with both of these cells.
           mesh->cell_faces[n] = face; // FIXME: or ~face?
@@ -517,96 +482,9 @@ mesh_t* create_tetgen_mesh(MPI_Comm comm,
           // Associate the cells with the face.
           mesh->face_cells[2*face]   = c;
           mesh->face_cells[2*face+1] = cn;
-
-          int_unordered_set_insert(faces_processed, face);
-        }
-      }
-
-      // Clean up.
-      int_unordered_set_free(faces_processed);
-    }
-
-#if 0
-    // Construct a mapping from nodes to sets of cells.
-    int_ptr_unordered_map_t* cells_for_node = int_ptr_unordered_map_new();
-    for (int c = 0; c < num_tets; ++c)
-    {
-      tet_t* tet = &tets[c];
-      for (int n = 0; n < tet->num_nodes; ++n)
-      {
-        int node = tet->nodes[n];
-        int_unordered_set_t** cells = (int_unordered_set_t**)int_ptr_unordered_map_get(cells_for_node, node);
-        if (cells == NULL)
-        {
-          int_unordered_set_t* cells_for_this_node = int_unordered_set_new();
-          int_unordered_set_insert(cells_for_this_node, c);
-          int_ptr_unordered_map_insert_with_v_dtor(cells_for_node, node, cells_for_this_node, DTOR(int_unordered_set_free));
-        }
-        else
-        {
-          int_unordered_set_t* cells_for_this_node = *cells;
-          int_unordered_set_insert(cells_for_this_node, c);
         }
       }
     }
-
-    // Now go over faces and find those cells that possess all of the 
-    // nodes in each face. Those cells are the cells that share the face.
-    int_unordered_set_t* intersect01 = int_unordered_set_new();
-    int_unordered_set_t* intersect012 = int_unordered_set_new();
-    for (int f = 0; f < num_faces; ++f)
-    {
-      tet_face_t* face = &faces[f];
-      int n0 = face->nodes[0];
-      int_unordered_set_t** node_cells0 = (int_unordered_set_t**)int_ptr_unordered_map_get(cells_for_node, n0);
-      ASSERT(node_cells0 != NULL);
-      int_unordered_set_t* cells_for_0 = *node_cells0;
-      int n1 = face->nodes[1];
-      int_unordered_set_t** node_cells1 = (int_unordered_set_t**)int_ptr_unordered_map_get(cells_for_node, n1);
-      ASSERT(node_cells1 != NULL);
-      int_unordered_set_t* cells_for_1 = *node_cells1;
-      int n2 = face->nodes[2];
-      int_unordered_set_t** node_cells2 = (int_unordered_set_t**)int_ptr_unordered_map_get(cells_for_node, n2);
-      ASSERT(node_cells2 != NULL);
-      int_unordered_set_t* cells_for_2 = *node_cells2;
-      int_unordered_set_intersection(cells_for_0, cells_for_1, intersect01);
-      int_unordered_set_intersection(intersect01, cells_for_2, intersect012);
-      ASSERT((intersect012->size == 1) || (intersect012->size == 2));
-      int pos = 0, cell, i = 0;
-      while (int_unordered_set_next(intersect012, &pos, &cell))
-      {
-        tet_t* tet = &tets[cell];
-
-        // Hook the cell up to the face.
-        mesh->face_cells[2*f+i] = cell;
-        ++i;
-
-        // Hook the face up to the cell.
-        int j = mesh->cell_face_offsets[cell];
-        while (j < mesh->cell_face_offsets[cell+1])
-        {
-          if (mesh->cell_faces[j] == -1)
-          {
-            // We have to figure out whether this face will be stored as f 
-            // or ~f, based on whether its nodes produce a normal vector that 
-            // points outward (f) or inward (~f). If the nodes n0, n1, n2 are 
-            // equivalent to any even permutation of the nodes of the faces 
-            // of our tet, the face is stored as f. Otherwise, we use ~f.
-            if (nodes_are_even_permutation_of_tet_face(n0, n1, n2, tet))
-              mesh->cell_faces[j] = f;
-            else
-              mesh->cell_faces[j] = ~f;
-printf("Cell %d face %d = %d\n", cell, j-mesh->cell_face_offsets[cell], mesh->cell_faces[j]);
-            break;
-          }
-          ++j;
-        }
-      }
-    }
-    int_unordered_set_free(intersect01);
-    int_unordered_set_free(intersect012);
-    int_ptr_unordered_map_free(cells_for_node);
-#endif
   }
   mesh->storage->cell_face_capacity = 4*mesh->num_cells;
 
@@ -617,6 +495,7 @@ printf("Cell %d face %d = %d\n", cell, j-mesh->cell_face_offsets[cell], mesh->ce
   free(nodes);
   free(faces);
   free(tets);
+  int_tuple_int_unordered_map_free(face_for_nodes);
   int_table_free(edge_for_nodes);
 
   return mesh;
