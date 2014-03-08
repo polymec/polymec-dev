@@ -94,9 +94,9 @@ static point_t* read_nodes(const char* node_file, int* num_nodes)
                            &nodes[nodes_read].x, &nodes[nodes_read].y, 
                            &nodes[nodes_read].z, garbage);
     if (node_id != (nodes_read+1))
-      polymec_error("Bad node ID after %d nodes read: %d.\n", nodes_read, node_id);
+      polymec_error("Bad node ID after %d nodes read: %d.", nodes_read, node_id);
     if (num_items < 4)
-      polymec_error("Bad line in nodes file after %d nodes read.\n", nodes_read);
+      polymec_error("Bad line in nodes file after %d nodes read.", nodes_read);
     if (*num_nodes <= 0)
       polymec_error("Bad number of nodes in node file: %d.", *num_nodes);
 
@@ -151,9 +151,12 @@ static tet_t* read_tets(const char* tet_file, int* num_tets)
                              &tet->nodes[2], &tet->nodes[3],
                              attr_str);
       if (num_items < 5)
-        polymec_error("Bad line in element file after %d tets read.\n", tets_read);
+        polymec_error("Bad line in element file after %d tets read.", tets_read);
       if (num_items == 6)
-        tet->attribute = atoi(attr_str);
+      {
+        if (string_is_number(attr_str))
+          tet->attribute = atoi(attr_str);
+      }
     }
     else
     {
@@ -164,12 +167,15 @@ static tet_t* read_tets(const char* tet_file, int* num_tets)
                              &tet->nodes[5], &tet->nodes[6], &tet->nodes[7],
                              &tet->nodes[8], &tet->nodes[9], attr_str);
       if (num_items < 11)
-        polymec_error("Bad line in element file after %d tets read.\n", tets_read);
+        polymec_error("Bad line in element file after %d tets read.", tets_read);
       if (num_items == 12)
-        tet->attribute = atoi(attr_str);
+      {
+        if (string_is_number(attr_str))
+          tet->attribute = atoi(attr_str);
+      }
     }
     if (tet_id != (tets_read+1))
-      polymec_error("Bad tet ID after %d tets read: %d.\n", tets_read, tet_id);
+      polymec_error("Bad tet ID after %d tets read: %d.", tets_read, tet_id);
     ++tets_read;
     if (tets_read == *num_tets) break;
   }
@@ -225,9 +231,12 @@ static tet_face_t* read_faces(const char* face_file, int nodes_per_face, int* nu
                              &face->nodes[0], &face->nodes[1], 
                              &face->nodes[2], marker_str);
       if (num_items < 4)
-        polymec_error("Bad line in face file after %d faces read.\n", faces_read);
+        polymec_error("Bad line in face file after %d faces read.", faces_read);
       if (num_items == 5)
-        face->boundary_marker = atoi(marker_str);
+      {
+        if (string_is_number(marker_str))
+          face->boundary_marker = atoi(marker_str);
+      }
     }
     else
     {
@@ -237,12 +246,15 @@ static tet_face_t* read_faces(const char* face_file, int nodes_per_face, int* nu
                              &face->nodes[2], &face->nodes[3], &face->nodes[4],
                              &face->nodes[5], marker_str);
       if (num_items < 7)
-        polymec_error("Bad line in face file after %d faces read.\n", faces_read);
+        polymec_error("Bad line in face file after %d faces read.", faces_read);
       if (num_items == 8)
-        face->boundary_marker = atoi(marker_str);
+      {
+        if (string_is_number(marker_str))
+          face->boundary_marker = atoi(marker_str);
+      }
     }
     if (face_id != (faces_read+1))
-      polymec_error("Bad face ID after %d faces read: %d.\n", faces_read, face_id);
+      polymec_error("Bad face ID after %d faces read: %d.", faces_read, face_id);
     ++faces_read;
     if (faces_read == *num_faces) break;
   }
@@ -296,9 +308,9 @@ static void read_neighbors(const char* neigh_file, tet_t* tets, int num_tets)
                            &tet->neighbors[2], &tet->neighbors[3], 
                            junk_str);
     if (num_items < 5)
-        polymec_error("Bad line in neighbors file after %d tets read.\n", tets_read);
+        polymec_error("Bad line in neighbors file after %d tets read.", tets_read);
     if (tet_id != (tets_read+1))
-      polymec_error("Bad tet ID after %d tet read: %d.\n", tets_read, tet_id);
+      polymec_error("Bad tet ID after %d tet read: %d.", tets_read, tet_id);
     ++tets_read;
     if (tets_read == num_tets) break;
   }
@@ -541,6 +553,65 @@ mesh_t* create_tetgen_mesh(MPI_Comm comm,
 
   // Compute the mesh's geometry.
   mesh_compute_geometry(mesh);
+
+  // Set up tags for faces and cells.
+  static const int max_num_attr = 1024;
+  int boundary_markers[max_num_attr], attributes[max_num_attr];
+  for (int i = 0; i < max_num_attr; ++i)
+    boundary_markers[i] = attributes[i] = 0;
+  for (int f = 0; f < num_faces; ++f)
+  {
+    ASSERT(faces[f].boundary_marker < max_num_attr);
+    if (faces[f].boundary_marker != -1)
+      boundary_markers[faces[f].boundary_marker]++;
+  }
+  int* face_tags[max_num_attr];
+  for (int i = 0; i < max_num_attr; ++i)
+  {
+    if (boundary_markers[i] > 0)
+    {
+      char tag_name[16];
+      snprintf(tag_name, 16, "%d", i);
+      face_tags[i] = mesh_create_tag(mesh->face_tags, tag_name, boundary_markers[i]);
+    }
+  }
+  memset(boundary_markers, 0, sizeof(int) * max_num_attr);
+  for (int f = 0; f < num_faces; ++f)
+  {
+    int m = faces[f].boundary_marker;
+    if (m != -1)
+    {
+      face_tags[m][boundary_markers[m]] = f;
+      boundary_markers[m]++;
+    }
+  }
+
+  for (int t = 0; t < num_tets; ++t)
+  {
+    ASSERT(tets[t].attribute < max_num_attr);
+    if (tets[t].attribute != -1)
+      attributes[tets[t].attribute]++;
+  }
+  int* cell_tags[max_num_attr];
+  for (int i = 0; i < max_num_attr; ++i)
+  {
+    if (attributes[i] > 0)
+    {
+      char tag_name[16];
+      snprintf(tag_name, 16, "%d", i);
+      cell_tags[i] = mesh_create_tag(mesh->cell_tags, tag_name, attributes[i]);
+    }
+  }
+  memset(attributes, 0, sizeof(int) * max_num_attr);
+  for (int t = 0; t < num_tets; ++t)
+  {
+    int a = tets[t].attribute;
+    if (a != -1)
+    {
+      cell_tags[a][attributes[a]] = t;
+      attributes[a]++;
+    }
+  }
 
   // Clean up.
   free(nodes);
