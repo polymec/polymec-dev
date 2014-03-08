@@ -311,7 +311,10 @@ static void read_neighbors(const char* neigh_file, tet_t* tets, int num_tets)
   {
     tet_t* tet = &tets[t];
     for (int n = 0; n < 4; ++n)
-      tet->neighbors[n] -= 1;
+    {
+      if (tet->neighbors[n] > 0)
+        tet->neighbors[n] -= 1;
+    }
   }
 }
 
@@ -333,6 +336,44 @@ static int_table_t* gather_edges(tet_face_t* faces,
     }
   }
   return edge_for_nodes;
+}
+
+static bool face_points_outward(tet_face_t* face,
+                                tet_t* tet,
+                                point_t* nodes)
+{
+  // Compute the face's center.
+  point_t* n1 = &nodes[face->nodes[0]];
+  point_t* n2 = &nodes[face->nodes[1]];
+  point_t* n3 = &nodes[face->nodes[2]];
+  point_t xf = {.x = (n1->x + n2->x + n3->x)/3.0,
+                .y = (n1->y + n2->y + n3->y)/3.0,
+                .z = (n1->z + n2->z + n3->z)/3.0};
+
+  // Compute the face's normal vector, assuming that its nodes are ordered 
+  // counterclockwise.
+  vector_t x12, x13, nf;
+  point_displacement(n1, n2, &x12);
+  point_displacement(n1, n3, &x13);
+  vector_cross(&x12, &x13, &nf);
+  ASSERT(vector_mag(&nf) != 0.0);
+
+  // Get the remaining tetrahedron node.
+  point_t* n4 = ((tet->nodes[0] != face->nodes[0]) &&
+                 (tet->nodes[0] != face->nodes[1]) && 
+                 (tet->nodes[0] != face->nodes[2])) ? &nodes[tet->nodes[0]] :
+                ((tet->nodes[1] != face->nodes[0]) &&
+                 (tet->nodes[1] != face->nodes[1]) && 
+                 (tet->nodes[1] != face->nodes[2])) ? &nodes[tet->nodes[1]] :
+                ((tet->nodes[2] != face->nodes[0]) &&
+                 (tet->nodes[2] != face->nodes[1]) && 
+                 (tet->nodes[2] != face->nodes[2])) ? &nodes[tet->nodes[2]] :
+                 &nodes[tet->nodes[3]];
+
+  // Determine whether nf points in the same direction as (xf - n4).
+  vector_t d;
+  point_displacement(n4, &xf, &d);
+  return (vector_dot(&d, &nf) > 0.0);
 }
 
 mesh_t* create_tetgen_mesh(MPI_Comm comm, 
@@ -386,7 +427,7 @@ mesh_t* create_tetgen_mesh(MPI_Comm comm,
     for (int n = 0; n < nodes_per_face; ++n)
       mesh->face_nodes[nodes_per_face*f+n] = face->nodes[n];
 
-    // Associate the 3 "primal" nodes to this face.
+    // Associate the 3 "primal" nodes with this face.
     int* primal_nodes = int_tuple_new(3);
     for (int i = 0; i < 3; ++i)
       primal_nodes[i] = face->nodes[i];
@@ -396,20 +437,20 @@ mesh_t* create_tetgen_mesh(MPI_Comm comm,
   mesh->storage->face_node_capacity = num_faces * nodes_per_face;
 
   // Face <-> edge connectivity.
-  memset(mesh->face_edge_offsets, 0, sizeof(int) * (mesh->num_faces + 1));
+  mesh->face_edge_offsets[0] = 0;
+  for (int f = 0; f < mesh->num_faces; ++f)
+    mesh->face_edge_offsets[f+1] = f*nodes_per_face;
+  mesh->storage->face_edge_capacity = mesh->num_faces * nodes_per_face;
+  mesh->face_edges = ARENA_REALLOC(mesh->arena, mesh->face_edges, sizeof(int) * mesh->storage->face_edge_capacity, 0);
   for (int f = 0; f < mesh->num_faces; ++f)
   {
-    int Ne = mesh->face_node_offsets[f+1] - mesh->face_node_offsets[f];
-    mesh->face_edge_offsets[f+1] = Ne;
-    for (int e = 0; e < Ne; ++e)
+    for (int e = 0; e < nodes_per_face; ++e)
     {
       int offset = mesh->face_node_offsets[f];
       int n1 = (int)mesh->face_nodes[offset+e];
-      int n2 = (int)mesh->face_nodes[offset+(e+1)%Ne];
+      int n2 = (int)mesh->face_nodes[offset+(e+1)%nodes_per_face];
       int edge_id = *int_table_get(edge_for_nodes, n1, n2);
-      mesh->storage->face_edge_capacity = round_to_pow2(edge_id+1);
-      mesh->face_edges = ARENA_REALLOC(mesh->arena, mesh->face_edges, sizeof(int) * mesh->storage->face_edge_capacity, 0);
-      mesh->face_edges[mesh->face_node_offsets[f+1]+e] = edge_id;
+      mesh->face_edges[mesh->face_node_offsets[f]+e] = edge_id;
     }
   }
 
@@ -428,6 +469,9 @@ mesh_t* create_tetgen_mesh(MPI_Comm comm,
   }
   mesh->cell_faces = ARENA_REALLOC(mesh->arena, mesh->cell_faces, sizeof(int) * 4 * mesh->num_cells, 0);
   {
+    // Use a triple for querying faces.
+    int* nodes = int_tuple_new(3);
+
     // Loop over cells and find the faces connecting them to their neighbors.
     for (int c = 0; c < mesh->num_cells; ++c)
     {
@@ -446,7 +490,6 @@ mesh_t* create_tetgen_mesh(MPI_Comm comm,
       for (int n = 0; n < 4; ++n)
       {
         // Nodes of cell c on this face.
-        int nodes[3];
         nodes[0] = t->nodes[tet_face_nodes[n][0]];
         nodes[1] = t->nodes[tet_face_nodes[n][1]];
         nodes[2] = t->nodes[tet_face_nodes[n][2]];
@@ -458,12 +501,17 @@ mesh_t* create_tetgen_mesh(MPI_Comm comm,
           polymec_error("TetGen files are inconsistent (cell %d does not have a face %d)", c, n);
         int face = *face_p;
 
+        // Determine whether the face has an outward or inward normal w.r.t. 
+        // the cell.
+        tet_face_t* tf = &faces[face];
+        bool outward_normal = face_points_outward(tf, t, mesh->nodes);
+
         // Get the neighbor tet.
         int cn = t->neighbors[n];
         if (cn == -1)
         {
           // Set up the face.
-          mesh->cell_faces[n] = face; // FIXME: or ~face?
+          mesh->cell_faces[mesh->cell_face_offsets[c]+n] = outward_normal ? face : ~face;
           mesh->face_cells[2*face] = c;
         }
         else if (cn > c)
@@ -476,8 +524,8 @@ mesh_t* create_tetgen_mesh(MPI_Comm comm,
                    (tn->neighbors[2] == c) ? 2 : 3;
 
           // Associate the face with both of these cells.
-          mesh->cell_faces[n] = face; // FIXME: or ~face?
-          mesh->cell_faces[n1] = ~face; // FIXME: or face?
+          mesh->cell_faces[mesh->cell_face_offsets[c]+n]  = outward_normal ? face : ~face;
+          mesh->cell_faces[mesh->cell_face_offsets[cn]+n1] = outward_normal ? ~face : face;
 
           // Associate the cells with the face.
           mesh->face_cells[2*face]   = c;
@@ -485,6 +533,9 @@ mesh_t* create_tetgen_mesh(MPI_Comm comm,
         }
       }
     }
+
+    // Clean up.
+    int_tuple_free(nodes);
   }
   mesh->storage->cell_face_capacity = 4*mesh->num_cells;
 
