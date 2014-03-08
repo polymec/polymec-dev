@@ -47,9 +47,10 @@ text_file_buffer_t* text_file_buffer_new(const char* filename)
   fseek(fp, 0, SEEK_END);
   long end = ftell(fp);
   fseek(fp, 0, SEEK_SET);
-  buffer->size = end - start;
+  buffer->size = end - start + 1;
   buffer->data = malloc(sizeof(char) * buffer->size);
   fread(buffer->data, sizeof(char), buffer->size,fp);
+  buffer->data[buffer->size-1] = '\0';
 
   // We're through with the file now.
   fclose(fp);
