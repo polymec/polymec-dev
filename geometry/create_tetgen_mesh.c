@@ -35,6 +35,8 @@
 #include "core/array_utils.h"
 #include "geometry/create_tetgen_mesh.h"
 
+const char* TETRAHEDRAL = "tetrahedral";
+
 typedef struct
 {
   int num_nodes; // 4 for order 1, 10 for order 2.
@@ -620,6 +622,7 @@ mesh_t* create_tetgen_mesh(MPI_Comm comm,
   int_tuple_int_unordered_map_free(face_for_nodes);
   int_table_free(edge_for_nodes);
 
+  mesh_add_feature(mesh, TETRAHEDRAL);
   return mesh;
 }
 

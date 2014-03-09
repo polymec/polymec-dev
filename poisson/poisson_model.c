@@ -30,6 +30,7 @@
 #include "core/polynomial.h"
 #include "core/write_silo.h"
 #include "geometry/interpreter_register_geometry_functions.h"
+#include "geometry/create_pebi_mesh.h"
 #include "integrators/nonlinear_integrator.h"
 #include "integrators/lu_preconditioners.h"
 #include "integrators/polyhedron_integrator.h"

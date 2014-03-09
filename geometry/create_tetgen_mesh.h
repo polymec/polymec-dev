@@ -28,6 +28,9 @@
 #include "core/mesh.h"
 #include "core/point.h"
 
+// This mesh feature indicates that a mesh is tetrahedral.
+const char* TETRAHEDRAL;
+
 // This function creates a mesh using .node, .ele, .face, and .neigh files 
 // created by TetGen.
 mesh_t* create_tetgen_mesh(MPI_Comm comm, 

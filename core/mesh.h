@@ -39,8 +39,6 @@ typedef enum
   MESH_CELL
 } mesh_centering_t;
 
-const char* PEBI;            // Perpendicular Bisector Mesh (used with the Integral Finite Difference method)
-
 // A tagging mechanism for tagging mesh nodes/edges/faces/cells 
 // with attributes. 
 #ifndef TAGGER_T
