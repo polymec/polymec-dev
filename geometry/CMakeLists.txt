@@ -13,8 +13,8 @@ add_library(polymec_geometry mapping.c plane.c cylinder.c sphere.c
             giftwrap_hull.c polygon2.c polygon.c
             ${MESH_GENERATION_SOURCES} cubic_lattice.c
             create_rectilinear_mesh.c create_uniform_mesh.c create_pebi_mesh.c
-            create_tetgen_mesh.c patch_grid.c create_nested_patch_mesh.c symmetry_1d.c
-            interpreter_register_geometry_functions.c 
+            create_tetgen_mesh.c create_dual_mesh.c patch_grid.c create_nested_patch_mesh.c
+            symmetry_1d.c interpreter_register_geometry_functions.c 
             interpreter_register_spfuncs.c)
 
 set(POLYMEC_LIBS polymec_geometry;${POLYMEC_LIBS} PARENT_SCOPE)

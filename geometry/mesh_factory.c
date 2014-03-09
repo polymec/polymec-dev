@@ -37,6 +37,7 @@
 #include "geometry/create_rectilinear_mesh.h"
 #include "geometry/create_pebi_mesh.h"
 #include "geometry/create_tetgen_mesh.h"
+#include "geometry/create_dual_mesh.h"
 #include "geometry/create_boundary_generators.h"
 #include "geometry/rect_prism.h"
 
@@ -139,6 +140,34 @@ int mesh_factory_tetgen(lua_State* lua)
   snprintf(neigh_file, 512, "%s.neigh", mesh_prefix);
   mesh_t* mesh = create_tetgen_mesh(MPI_COMM_WORLD, node_file, ele_file, 
                                     face_file, neigh_file);
+
+  // Push the mesh onto the stack.
+  lua_pushmesh(lua, mesh);
+  return 1;
+}
+
+int mesh_factory_dual(lua_State* lua)
+{
+  // Check the arguments.
+  int num_args = lua_gettop(lua);
+  if ((num_args != 2) || !lua_ismesh(lua, 1) || !lua_isstringlist(lua, 2))
+  {
+    return luaL_error(lua, "Invalid argument(s). Usage:\n"
+                      "mesh = mesh_factory.dual(original_mesh, boundary_face_tags).");
+  }
+
+  mesh_t* orig_mesh = lua_tomesh(lua, 1);
+  int num_tags;
+  char** boundary_face_tags = lua_tostringlist(lua, 2, &num_tags);
+
+  // Make sure the mesh contains the given boundary face tags.
+  for (int i = 0; i < num_tags; ++i)
+  {
+    if (!mesh_has_tag(orig_mesh->face_tags, boundary_face_tags[i]))
+      return luaL_error(lua, "mesh_factory.dual: Original mesh does not contain boundary tag '%s'.", boundary_face_tags[i]);
+  }
+
+  mesh_t* mesh = create_dual_mesh(MPI_COMM_WORLD, orig_mesh, boundary_face_tags, num_tags);
 
   // Push the mesh onto the stack.
   lua_pushmesh(lua, mesh);

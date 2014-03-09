@@ -46,6 +46,7 @@ extern int mesh_factory_uniform(lua_State* lua);
 extern int mesh_factory_rectilinear(lua_State* lua);
 extern int mesh_factory_pebi(lua_State* lua);
 extern int mesh_factory_tetgen(lua_State* lua);
+extern int mesh_factory_dual(lua_State* lua);
 
 extern int cartesian_1d_uniform(lua_State* lua);
 extern int cartesian_1d_logarithmic(lua_State* lua);
@@ -580,6 +581,7 @@ void interpreter_register_geometry_functions(interpreter_t* interp)
   interpreter_register_global_method(interp, "mesh_factory", "rectilinear", mesh_factory_rectilinear);
   interpreter_register_global_method(interp, "mesh_factory", "pebi", mesh_factory_pebi);
   interpreter_register_global_method(interp, "mesh_factory", "tetgen", mesh_factory_tetgen);
+  interpreter_register_global_method(interp, "mesh_factory", "dual", mesh_factory_dual);
 #if POLYMEC_HAVE_TETGEN
   interpreter_register_global_method(interp, "mesh_factory", "voronoi", mesh_factory_voronoi);
 //  interpreter_register_global_method(interp, "mesh_factory", "cvt", mesh_factory_cvt);
