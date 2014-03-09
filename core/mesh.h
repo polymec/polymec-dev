@@ -46,6 +46,9 @@ typedef enum
 typedef struct tagger_t tagger_t;
 #endif
 
+// This mesh feature indicates that a mesh is tetrahedral.
+const char* TETRAHEDRAL;
+
 typedef struct mesh_storage_t mesh_storage_t;
 
 // This data type represents an unstructured mesh, consisting of 

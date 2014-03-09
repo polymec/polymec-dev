@@ -28,6 +28,9 @@
 #include "core/unordered_set.h"
 #include "core/linear_algebra.h"
 
+// Mesh features.
+const char* TETRAHEDRAL = "tetrahedral";
+
 // Generic tagging functions -- defined in tagger.c.
 extern tagger_t* tagger_new(ARENA* arena);
 extern void tagger_free(tagger_t* tagger);

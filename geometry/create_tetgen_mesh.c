@@ -35,8 +35,6 @@
 #include "core/array_utils.h"
 #include "geometry/create_tetgen_mesh.h"
 
-const char* TETRAHEDRAL = "tetrahedral";
-
 typedef struct
 {
   int num_nodes; // 4 for order 1, 10 for order 2.

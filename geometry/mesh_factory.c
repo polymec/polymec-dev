@@ -167,6 +167,10 @@ int mesh_factory_dual(lua_State* lua)
       return luaL_error(lua, "mesh_factory.dual: Original mesh does not contain boundary tag '%s'.", boundary_face_tags[i]);
   }
 
+  // For now, we only support duals of tet meshes.
+  if (!mesh_has_feature(orig_mesh, TETRAHEDRAL))
+    return luaL_error(lua, "mesh_factory.dual: A dual mesh can only be created from a tetrahedral mesh.");
+
   mesh_t* mesh = create_dual_mesh(MPI_COMM_WORLD, orig_mesh, boundary_face_tags, num_tags);
 
   // Push the mesh onto the stack.
