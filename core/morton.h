@@ -22,19 +22,11 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef POLYMEC_DISTRIBUTE_SERIAL_MESH_H
-#define POLYMEC_DISTRIBUTE_SERIAL_MESH_H
+#ifndef POLYMEC_MORTON_H
+#define POLYMEC_MORTON_H
 
-#include "core/mesh.h"
-
-// Given a serial mesh contained entirely on rank 0 of the given communicator, 
-// this function returns a mesh on the same communicator that is evenly 
-// distributed across all processes. The partition vector, which contains the 
-// rank of each cell within the original mesh upon completion, is stored in 
-// partition, which should be of the length of the original serial mesh.
-// The partitioning is performed using a space-filling curve.
-mesh_t* distribute_serial_mesh(MPI_Comm comm, 
-                               mesh_t* serial_mesh, 
-                               int* partition);
+// Returns the morton code for the given triple (i, j, k), in which each 
+// index is a 16-bit number.
+unsigned long morton(int i, int j, int k);
 
 #endif

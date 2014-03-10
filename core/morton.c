@@ -22,19 +22,19 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef POLYMEC_DISTRIBUTE_SERIAL_MESH_H
-#define POLYMEC_DISTRIBUTE_SERIAL_MESH_H
+#include "core/polymec.h"
 
-#include "core/mesh.h"
+static inline int pack(int i)
+{
+  int x = (i | (i << 16)) & 0x030000FF;
+  x = (x | (x <<  8)) & 0x0300F00F;
+  x = (x | (x <<  4)) & 0x030C30C3;
+  x = (x | (x <<  2)) & 0x09249249;
+  return x;
+}
 
-// Given a serial mesh contained entirely on rank 0 of the given communicator, 
-// this function returns a mesh on the same communicator that is evenly 
-// distributed across all processes. The partition vector, which contains the 
-// rank of each cell within the original mesh upon completion, is stored in 
-// partition, which should be of the length of the original serial mesh.
-// The partitioning is performed using a space-filling curve.
-mesh_t* distribute_serial_mesh(MPI_Comm comm, 
-                               mesh_t* serial_mesh, 
-                               int* partition);
+unsigned long morton(int i, int j, int k)
+{
+  return pack(i) | (pack(j) << 1) | (pack(k) << 2);
+}
 
-#endif
