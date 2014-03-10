@@ -24,9 +24,10 @@
 
 #include "core/polymec.h"
 
-static inline int pack(int i)
+static inline unsigned long pack(int i)
 {
-  int x = (i | (i << 16)) & 0x030000FF;
+  ASSERT((i & 0x03000000) == 0);
+  unsigned long x = (i | (i << 16)) & 0x030000FF;
   x = (x | (x <<  8)) & 0x0300F00F;
   x = (x | (x <<  4)) & 0x030C30C3;
   x = (x | (x <<  2)) & 0x09249249;

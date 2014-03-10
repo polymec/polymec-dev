@@ -26,7 +26,7 @@
 #define POLYMEC_MORTON_H
 
 // Returns the morton code for the given triple (i, j, k), in which each 
-// index is a 16-bit number.
+// index is a 10-bit number.
 unsigned long morton(int i, int j, int k);
 
 #endif
