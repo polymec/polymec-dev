@@ -127,7 +127,7 @@ mesh_t* distribute_serial_mesh(MPI_Comm comm, mesh_t* serial_mesh, int* partitio
     for (int p = 0; p < nproc; ++p)
     {
       for (int i = p*cells_per_proc; i < MIN(serial_mesh->num_cells, (p+1)*cells_per_proc); ++i)
-        partition[i] = p;
+        partition[ordering[i].cell_index] = p;
     }
 
     // Local mesh.
