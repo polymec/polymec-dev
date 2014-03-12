@@ -188,6 +188,7 @@ static inline void array_name##_append(array_name##_t* array, element value) \
 } \
 
 // Define some basic sarray types.
+DEFINE_ARRAY(byte_array, unsigned char)
 DEFINE_ARRAY(int_array, int)
 DEFINE_ARRAY(real_array, real_t)
 DEFINE_ARRAY(string_array, char*)

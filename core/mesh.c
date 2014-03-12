@@ -392,6 +392,26 @@ void mesh_compute_geometry(mesh_t* mesh)
   }
 }
 
+static size_t mesh_byte_size(void* obj)
+{
+  mesh_t* mesh = obj;
+  return 0;
+}
+
+static void* mesh_byte_read(byte_array_t* bytes, size_t offset)
+{
+  return NULL;
+}
+
+static void mesh_byte_write(void* obj, byte_array_t* bytes, size_t offset)
+{
+}
+
+serializer_t* mesh_serializer()
+{
+  return serializer_new(mesh_byte_size, mesh_byte_read, mesh_byte_write);
+}
+
 adj_graph_t* graph_from_mesh_cells(mesh_t* mesh)
 {
   // Create a graph whose vertices are the mesh's cells.

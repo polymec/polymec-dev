@@ -28,6 +28,7 @@
 #include "core/polymec.h"
 #include "core/point.h"
 #include "core/adj_graph.h"
+#include "core/serializer.h"
 #include "arena/proto.h"
 
 // Mesh centerings.
@@ -274,6 +275,9 @@ static inline int mesh_face_opp_cell(mesh_t* mesh, int face, int cell)
   return (cell == mesh->face_cells[2*face]) ? mesh->face_cells[2*face+1] 
                                             : mesh->face_cells[2*face];
 }
+
+// Returns a serializer object that can read/write meshes from/to byte arrays.
+serializer_t* mesh_serializer();
 
 // This function constructs an adjacency graph expressing the connectivity of 
 // the cells of the given mesh.

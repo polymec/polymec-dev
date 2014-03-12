@@ -22,31 +22,42 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef POLYMEC_PATCH_GRID_H
-#define POLYMEC_PATCH_GRID_H
+#include <gc/gc.h>
+#include "core/serializer.h"
 
-#include "core/mesh.h"
-#include "core/slist.h"
-
-// This type describes a uniform Cartesian grid of a given resolution
-// with a list of subgrids contained within it. Objects of this type are 
-// garbage-collected.
-typedef struct
+struct serializer_t 
 {
-  bbox_t domain;          // The domain spanned by this grid.
-  int nx, ny, nz;         // Resolution in x, y, z.
-  ptr_slist_t* subgrids;  // Grids within this one.
-} patch_grid_t;
+  serializer_size_func  size;
+  serializer_read_func  read;
+  serializer_write_func write;
+};
 
-// Creates a new (garbage-collected) patch grid object.
-patch_grid_t* patch_grid_new(bbox_t* domain, int nx, int ny, int nz);
+serializer_t* serializer_new(serializer_size_func size_func,
+                             serializer_read_func read_func,
+                             serializer_write_func write_func)
+{
+  ASSERT(size_func != NULL);
+  ASSERT(read_func != NULL);
+  ASSERT(write_func != NULL);
+  serializer_t* s = GC_MALLOC(sizeof(serializer_t));
+  s->size = size_func;
+  s->read = read_func;
+  s->write = write_func;
+  return s;
+}
 
-// Adds a subgrid to the given patch grid.
-void patch_grid_add_subgrid(patch_grid_t* grid, patch_grid_t* subgrid);
+void serializer_write(serializer_t* s, void* object, byte_array_t* byte_stream, size_t* offset)
+{
+  size_t size = s->size(object);
+  s->write(object, byte_stream, *offset);
+  *offset += size;
+}
 
-// Returns true if the patch grid contains subgrids that are properly nested, 
-// false otherwise
-bool patch_grid_is_properly_nested(patch_grid_t* grid);
-
-#endif
+void* serializer_read(serializer_t* s, byte_array_t* byte_stream, size_t* offset)
+{
+  void* object = s->read(byte_stream, *offset);
+  size_t size = s->size(object);
+  *offset += size;
+  return object;
+}
 
