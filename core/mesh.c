@@ -395,15 +395,70 @@ void mesh_compute_geometry(mesh_t* mesh)
 static size_t mesh_byte_size(void* obj)
 {
   mesh_t* mesh = obj;
-  return 0;
+  
+  size_t basic_storage = 
+    // cell stuff
+    2*sizeof(int) + mesh->num_cells * sizeof(int) + 
+    (mesh->num_cells+1) + sizeof(int*) + 
+    mesh->cell_face_offsets[mesh->num_cells] * sizeof(int) + 
+    // face stuff
+    sizeof(int) + (mesh->num_faces+1) * sizeof(int) + 
+    mesh->face_node_offsets[mesh->num_faces] * sizeof(int) + 
+    (mesh->num_faces+1) * sizeof(int) + 
+    mesh->face_edge_offsets[mesh->num_edges] * sizeof(int) + 
+    // edge stuff
+    sizeof(int) + 2*(mesh->num_edges)*sizeof(int) + 
+    // node stuff
+    sizeof(int) + mesh->num_nodes*sizeof(point_t) + 
+    // geometry
+    mesh->num_cells*(sizeof(real_t) + sizeof(point_t)) + 
+    mesh->num_faces*(sizeof(point_t) + sizeof(real_t) + sizeof(vector_t));
+  
+  size_t tag_storage = 4 * sizeof(int); // Numbers of tags.
+  int pos = 0, *tag, tag_size;
+  char* tag_name;
+  while (mesh_next_tag(mesh->node_tags, &pos, &tag_name, &tag, &tag_size))
+  {
+    tag_storage += sizeof(int) + strlen(tag_name) * sizeof(char);
+    tag_storage += sizeof(int) + tag_size * sizeof(int);
+  }
+  while (mesh_next_tag(mesh->edge_tags, &pos, &tag_name, &tag, &tag_size))
+  {
+    tag_storage += sizeof(int) + strlen(tag_name) * sizeof(char);
+    tag_storage += sizeof(int) + tag_size * sizeof(int);
+  }
+  while (mesh_next_tag(mesh->face_tags, &pos, &tag_name, &tag, &tag_size))
+  {
+    tag_storage += sizeof(int) + strlen(tag_name) * sizeof(char);
+    tag_storage += sizeof(int) + tag_size * sizeof(int);
+  }
+  while (mesh_next_tag(mesh->cell_tags, &pos, &tag_name, &tag, &tag_size))
+  {
+    tag_storage += sizeof(int) + strlen(tag_name) * sizeof(char);
+    tag_storage += sizeof(int) + tag_size * sizeof(int);
+  }
+
+  return basic_storage + tag_storage;
 }
 
-static void* mesh_byte_read(byte_array_t* bytes, size_t offset)
+static void* mesh_byte_read(byte_array_t* bytes, size_t* offset)
 {
-  return NULL;
+  // Read the number of cells, faces, edges, nodes, and allocate a mesh
+  // accordingly.
+  int num_cells, num_ghost_cells, num_faces, num_edges, num_nodes;
+  byte_array_read_ints(bytes, 1, offset, &num_cells);
+  byte_array_read_ints(bytes, 1, offset, &num_ghost_cells);
+  byte_array_read_ints(bytes, 1, offset, &num_faces);
+  byte_array_read_ints(bytes, 1, offset, &num_edges);
+  byte_array_read_ints(bytes, 1, offset, &num_nodes);
+
+  mesh_t* mesh = mesh_new(MPI_COMM_WORLD, num_cells, num_ghost_cells,
+                          num_faces, num_edges, num_nodes);
+  // FIXME
+  return mesh;
 }
 
-static void mesh_byte_write(void* obj, byte_array_t* bytes, size_t offset)
+static void mesh_byte_write(void* obj, byte_array_t* bytes, size_t* offset)
 {
 }
 

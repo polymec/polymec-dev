@@ -61,3 +61,58 @@ void* serializer_read(serializer_t* s, byte_array_t* byte_stream, size_t* offset
   return object;
 }
 
+void byte_array_read_chars(byte_array_t* byte_stream, size_t n, size_t* offset, char* data)
+{
+  ASSERT(*offset < byte_stream->size + sizeof(char) * n);
+  for (size_t i = 0; i < n; ++i)
+  {
+    char* datum = (char*)&byte_stream->data[*offset];
+    data[i] = *datum;
+    *offset += sizeof(char);
+  }
+}
+
+void byte_array_read_ints(byte_array_t* byte_stream, size_t n, size_t* offset, int* data)
+{
+  ASSERT(*offset < byte_stream->size + sizeof(int) * n);
+  for (size_t i = 0; i < n; ++i)
+  {
+    int* datum = (int*)&byte_stream->data[*offset];
+    data[i] = *datum;
+    *offset += sizeof(int);
+  }
+}
+
+void byte_array_read_longs(byte_array_t* byte_stream, size_t n, size_t* offset, long* data)
+{
+  ASSERT(*offset < byte_stream->size + sizeof(long) * n);
+  for (size_t i = 0; i < n; ++i)
+  {
+    long* datum = (long*)&byte_stream->data[*offset];
+    data[i] = *datum;
+    *offset += sizeof(long);
+  }
+}
+
+void byte_array_read_long_longs(byte_array_t* byte_stream, size_t n, size_t* offset, long long* data)
+{
+  ASSERT(*offset < byte_stream->size + sizeof(long long) * n);
+  for (size_t i = 0; i < n; ++i)
+  {
+    long long* datum = (long long*)&byte_stream->data[*offset];
+    data[i] = *datum;
+    *offset += sizeof(long long);
+  }
+}
+
+void byte_array_read_reals(byte_array_t* byte_stream, size_t n, size_t* offset, real_t* data)
+{
+  ASSERT(*offset < byte_stream->size + sizeof(real_t) * n);
+  for (size_t i = 0; i < n; ++i)
+  {
+    double* datum = (double*)&byte_stream->data[*offset];
+    data[i] = *datum;
+    *offset += sizeof(real_t);
+  }
+}
+

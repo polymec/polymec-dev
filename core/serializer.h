@@ -56,4 +56,26 @@ void serializer_write(serializer_t* s, void* object, byte_array_t* byte_stream, 
 // the offset in place.
 void* serializer_read(serializer_t* s, byte_array_t* byte_stream, size_t* offset);
 
+// The following functions allow us to read/write primitives from/to byte arrays.
+
+// Reads n characters from the byte array at the given offset, 
+// placing it into the data array and updating the offset.
+void byte_array_read_chars(byte_array_t* byte_stream, size_t n, size_t* offset, char* data);
+
+// Reads n ints from the byte array at the given offset, 
+// placing it into the data array and updating the offset.
+void byte_array_read_ints(byte_array_t* byte_stream, size_t n, size_t* offset, int* data);
+
+// Reads n longs from the byte array at the given offset, 
+// placing it into the data array and updating the offset.
+void byte_array_read_longs(byte_array_t* byte_stream, size_t n, size_t* offset, long* data);
+
+// Reads n long longs from the byte array at the given offset, 
+// placing it into the data array and updating the offset.
+void byte_array_read_long_longs(byte_array_t* byte_stream, size_t n, size_t* offset, long long* data);
+
+// Reads n reals from the byte array at the given offset, 
+// placing it into the data array and updating the offset.
+void byte_array_read_reals(byte_array_t* byte_stream, size_t n, size_t* offset, real_t* data);
+
 #endif
