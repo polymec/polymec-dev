@@ -454,6 +454,16 @@ static void* mesh_byte_read(byte_array_t* bytes, size_t* offset)
 
   mesh_t* mesh = mesh_new(MPI_COMM_WORLD, num_cells, num_ghost_cells,
                           num_faces, num_edges, num_nodes);
+
+  // Read all the cell stuff.
+  byte_array_read_ints(bytes, num_cells+1, offset, mesh->cell_face_offsets);
+  int num_cell_faces = mesh->cell_face_offsets[mesh->num_cells];
+  if (mesh->storage->cell_face_capacity < num_cell_faces)
+  {
+    mesh->cell_faces = ARENA_REALLOC(mesh->arena, mesh->cell_faces, sizeof(int)*num_cell_faces, 0);
+    mesh->storage->cell_face_capacity = num_cell_faces;
+  }
+  byte_array_read_ints(bytes, num_cell_faces, offset, mesh->cell_faces);
   // FIXME
   return mesh;
 }

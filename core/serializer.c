@@ -48,16 +48,12 @@ serializer_t* serializer_new(serializer_size_func size_func,
 
 void serializer_write(serializer_t* s, void* object, byte_array_t* byte_stream, size_t* offset)
 {
-  size_t size = s->size(object);
-  s->write(object, byte_stream, *offset);
-  *offset += size;
+  s->write(object, byte_stream, offset);
 }
 
 void* serializer_read(serializer_t* s, byte_array_t* byte_stream, size_t* offset)
 {
-  void* object = s->read(byte_stream, *offset);
-  size_t size = s->size(object);
-  *offset += size;
+  void* object = s->read(byte_stream, offset);
   return object;
 }
 

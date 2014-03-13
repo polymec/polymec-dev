@@ -33,11 +33,11 @@ typedef size_t (*serializer_size_func)(void* context);
 
 // This prototype defines a function that reads an object from a byte array
 // at the given offset.
-typedef void* (*serializer_read_func)(byte_array_t* stream, size_t offset);
+typedef void* (*serializer_read_func)(byte_array_t* stream, size_t* offset);
 
 // This prototype defines a function that writes an object to a byte array 
 // at the given offset.
-typedef void (*serializer_write_func)(void* context, byte_array_t* stream, size_t offset);
+typedef void (*serializer_write_func)(void* context, byte_array_t* stream, size_t* offset);
 
 // This type represents an object that manipulates byte streams, reading 
 // and/or writing objects from them. Objects of this type are garbage-collected.
