@@ -60,55 +60,92 @@ void* serializer_read(serializer_t* s, byte_array_t* byte_stream, size_t* offset
 void byte_array_read_chars(byte_array_t* byte_stream, size_t n, size_t* offset, char* data)
 {
   ASSERT(*offset < byte_stream->size + sizeof(char) * n);
-  for (size_t i = 0; i < n; ++i)
-  {
-    char* datum = (char*)&byte_stream->data[*offset];
-    data[i] = *datum;
-    *offset += sizeof(char);
-  }
+  memcpy(data, &byte_stream->data[*offset], sizeof(char) * n);
+  *offset += n * sizeof(char);
+}
+
+void byte_array_write_chars(byte_array_t* byte_stream, size_t n, char* data, size_t* offset)
+{
+  byte_array_reserve(byte_stream, *offset + n * sizeof(char));
+  memcpy(&byte_stream->data[*offset], data, sizeof(char) * n);
 }
 
 void byte_array_read_ints(byte_array_t* byte_stream, size_t n, size_t* offset, int* data)
 {
   ASSERT(*offset < byte_stream->size + sizeof(int) * n);
-  for (size_t i = 0; i < n; ++i)
-  {
-    int* datum = (int*)&byte_stream->data[*offset];
-    data[i] = *datum;
-    *offset += sizeof(int);
-  }
+  memcpy(data, &byte_stream->data[*offset], sizeof(int) * n);
+  *offset += n * sizeof(int);
+}
+
+void byte_array_write_ints(byte_array_t* byte_stream, size_t n, int* data, size_t* offset)
+{
+  byte_array_reserve(byte_stream, *offset + n * sizeof(int));
+  memcpy(&byte_stream->data[*offset], data, sizeof(int) * n);
 }
 
 void byte_array_read_longs(byte_array_t* byte_stream, size_t n, size_t* offset, long* data)
 {
   ASSERT(*offset < byte_stream->size + sizeof(long) * n);
-  for (size_t i = 0; i < n; ++i)
-  {
-    long* datum = (long*)&byte_stream->data[*offset];
-    data[i] = *datum;
-    *offset += sizeof(long);
-  }
+  memcpy(data, &byte_stream->data[*offset], sizeof(long) * n);
+  *offset += n * sizeof(long);
+}
+
+void byte_array_write_longs(byte_array_t* byte_stream, size_t n, long* data, size_t* offset)
+{
+  byte_array_reserve(byte_stream, *offset + n * sizeof(long));
+  memcpy(&byte_stream->data[*offset], data, sizeof(long) * n);
 }
 
 void byte_array_read_long_longs(byte_array_t* byte_stream, size_t n, size_t* offset, long long* data)
 {
   ASSERT(*offset < byte_stream->size + sizeof(long long) * n);
-  for (size_t i = 0; i < n; ++i)
-  {
-    long long* datum = (long long*)&byte_stream->data[*offset];
-    data[i] = *datum;
-    *offset += sizeof(long long);
-  }
+  memcpy(data, &byte_stream->data[*offset], sizeof(long long) * n);
+  *offset += n * sizeof(long long);
+}
+
+void byte_array_write_long_longs(byte_array_t* byte_stream, size_t n, long long* data, size_t* offset)
+{
+  byte_array_reserve(byte_stream, *offset + n * sizeof(long long));
+  memcpy(&byte_stream->data[*offset], data, sizeof(long long) * n);
 }
 
 void byte_array_read_reals(byte_array_t* byte_stream, size_t n, size_t* offset, real_t* data)
 {
   ASSERT(*offset < byte_stream->size + sizeof(real_t) * n);
-  for (size_t i = 0; i < n; ++i)
-  {
-    double* datum = (double*)&byte_stream->data[*offset];
-    data[i] = *datum;
-    *offset += sizeof(real_t);
-  }
+  memcpy(data, &byte_stream->data[*offset], sizeof(real_t) * n);
+  *offset += n * sizeof(real_t);
+}
+
+void byte_array_write_reals(byte_array_t* byte_stream, size_t n, real_t* data, size_t* offset)
+{
+  byte_array_reserve(byte_stream, *offset + n * sizeof(real_t));
+  memcpy(&byte_stream->data[*offset], data, sizeof(real_t) * n);
+}
+
+
+void byte_array_read_points(byte_array_t* byte_stream, size_t n, size_t* offset, point_t* data)
+{
+  ASSERT(*offset < byte_stream->size + sizeof(point_t) * n);
+  memcpy(data, &byte_stream->data[*offset], sizeof(point_t) * n);
+  *offset += n * sizeof(point_t);
+}
+
+void byte_array_write_points(byte_array_t* byte_stream, size_t n, point_t* data, size_t* offset)
+{
+  byte_array_reserve(byte_stream, *offset + n * sizeof(point_t));
+  memcpy(&byte_stream->data[*offset], data, sizeof(point_t) * n);
+}
+
+void byte_array_read_vectors(byte_array_t* byte_stream, size_t n, size_t* offset, vector_t* data)
+{
+  ASSERT(*offset < byte_stream->size + sizeof(vector_t) * n);
+  memcpy(data, &byte_stream->data[*offset], sizeof(vector_t) * n);
+  *offset += n * sizeof(vector_t);
+}
+
+void byte_array_write_vectors(byte_array_t* byte_stream, size_t n, vector_t* data, size_t* offset)
+{
+  byte_array_reserve(byte_stream, *offset + n * sizeof(vector_t));
+  memcpy(&byte_stream->data[*offset], data, sizeof(vector_t) * n);
 }
 

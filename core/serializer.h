@@ -25,6 +25,7 @@
 #ifndef POLYMEC_SERIALIZER_H
 #define POLYMEC_SERIALIZER_H
 
+#include "core/point.h"
 #include "core/array.h"
 
 // This prototype defines a function that measures the size of an object 
@@ -62,20 +63,49 @@ void* serializer_read(serializer_t* s, byte_array_t* byte_stream, size_t* offset
 // placing it into the data array and updating the offset.
 void byte_array_read_chars(byte_array_t* byte_stream, size_t n, size_t* offset, char* data);
 
+// Writes n characters from the byte array at the given offset, updating the offset.
+void byte_array_write_chars(byte_array_t* byte_stream, size_t n, char* data, size_t* offset);
+
 // Reads n ints from the byte array at the given offset, 
 // placing it into the data array and updating the offset.
 void byte_array_read_ints(byte_array_t* byte_stream, size_t n, size_t* offset, int* data);
+
+// Writes n ints from the byte array at the given offset, updating the offset.
+void byte_array_write_ints(byte_array_t* byte_stream, size_t n, int* data, size_t* offset);
 
 // Reads n longs from the byte array at the given offset, 
 // placing it into the data array and updating the offset.
 void byte_array_read_longs(byte_array_t* byte_stream, size_t n, size_t* offset, long* data);
 
+// Writes n longs from the byte array at the given offset, updating the offset.
+void byte_array_write_longs(byte_array_t* byte_stream, size_t n, long* data, size_t* offset);
+
 // Reads n long longs from the byte array at the given offset, 
 // placing it into the data array and updating the offset.
 void byte_array_read_long_longs(byte_array_t* byte_stream, size_t n, size_t* offset, long long* data);
 
+// Writes n long longs from the byte array at the given offset, updating the offset.
+void byte_array_write_long_longs(byte_array_t* byte_stream, size_t n, long long* data, size_t* offset);
+
 // Reads n reals from the byte array at the given offset, 
 // placing it into the data array and updating the offset.
 void byte_array_read_reals(byte_array_t* byte_stream, size_t n, size_t* offset, real_t* data);
+
+// Writes n reals from the byte array at the given offset, updating the offset.
+void byte_array_write_reals(byte_array_t* byte_stream, size_t n, real_t* data, size_t* offset);
+
+// Reads n points from the byte array at the given offset, 
+// placing it into the data array and updating the offset.
+void byte_array_read_points(byte_array_t* byte_stream, size_t n, size_t* offset, point_t* data);
+
+// Writes n points from the byte array at the given offset, updating the offset.
+void byte_array_write_points(byte_array_t* byte_stream, size_t n, point_t* data, size_t* offset);
+
+// Reads n vectors from the byte array at the given offset, 
+// placing it into the data array and updating the offset.
+void byte_array_read_vectors(byte_array_t* byte_stream, size_t n, size_t* offset, vector_t* data);
+
+// Writes n vectors from the byte array at the given offset, updating the offset.
+void byte_array_write_vectors(byte_array_t* byte_stream, size_t n, vector_t* data, size_t* offset);
 
 #endif

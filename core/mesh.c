@@ -422,16 +422,19 @@ static size_t mesh_byte_size(void* obj)
     tag_storage += sizeof(int) + strlen(tag_name) * sizeof(char);
     tag_storage += sizeof(int) + tag_size * sizeof(int);
   }
+  pos = 0;
   while (mesh_next_tag(mesh->edge_tags, &pos, &tag_name, &tag, &tag_size))
   {
     tag_storage += sizeof(int) + strlen(tag_name) * sizeof(char);
     tag_storage += sizeof(int) + tag_size * sizeof(int);
   }
+  pos = 0;
   while (mesh_next_tag(mesh->face_tags, &pos, &tag_name, &tag, &tag_size))
   {
     tag_storage += sizeof(int) + strlen(tag_name) * sizeof(char);
     tag_storage += sizeof(int) + tag_size * sizeof(int);
   }
+  pos = 0;
   while (mesh_next_tag(mesh->cell_tags, &pos, &tag_name, &tag, &tag_size))
   {
     tag_storage += sizeof(int) + strlen(tag_name) * sizeof(char);
@@ -439,6 +442,24 @@ static size_t mesh_byte_size(void* obj)
   }
 
   return basic_storage + tag_storage;
+}
+
+static void byte_array_read_tags(byte_array_t* bytes, size_t* offset, tagger_t* tagger)
+{
+  int num_tags;
+  byte_array_read_ints(bytes, 1, offset, &num_tags);
+  for (int i = 0; i < num_tags; ++i)
+  {
+    int tag_name_len;
+    byte_array_read_ints(bytes, 1, offset, &tag_name_len);
+    char tag_name[tag_name_len+1];
+    byte_array_read_chars(bytes, tag_name_len, offset, tag_name);
+    tag_name[tag_name_len] = '\0';
+    int tag_size;
+    byte_array_read_ints(bytes, 1, offset, &tag_size);
+    int* tag = mesh_create_tag(tagger, tag_name, tag_size);
+    byte_array_read_ints(bytes, tag_size, offset, tag);
+  }
 }
 
 static void* mesh_byte_read(byte_array_t* bytes, size_t* offset)
@@ -464,12 +485,112 @@ static void* mesh_byte_read(byte_array_t* bytes, size_t* offset)
     mesh->storage->cell_face_capacity = num_cell_faces;
   }
   byte_array_read_ints(bytes, num_cell_faces, offset, mesh->cell_faces);
-  // FIXME
+
+  // Face stuff.
+  byte_array_read_ints(bytes, num_faces+1, offset, mesh->face_node_offsets);
+  int num_face_nodes = mesh->face_node_offsets[mesh->num_faces];
+  if (mesh->storage->face_node_capacity < num_face_nodes)
+  {
+    mesh->face_nodes = ARENA_REALLOC(mesh->arena, mesh->face_nodes, sizeof(int)*num_face_nodes, 0);
+    mesh->storage->face_node_capacity = num_face_nodes;
+  }
+  byte_array_read_ints(bytes, num_face_nodes, offset, mesh->face_nodes);
+
+  byte_array_read_ints(bytes, num_faces+1, offset, mesh->face_edge_offsets);
+  int num_face_edges = mesh->face_edge_offsets[mesh->num_faces];
+  if (mesh->storage->face_edge_capacity < num_face_edges)
+  {
+    mesh->face_edges = ARENA_REALLOC(mesh->arena, mesh->face_edges, sizeof(int)*num_face_nodes, 0);
+    mesh->storage->face_edge_capacity = num_face_edges;
+  }
+  byte_array_read_ints(bytes, num_face_edges, offset, mesh->face_edges);
+
+  byte_array_read_ints(bytes, 2*num_faces, offset, mesh->face_cells);
+
+  // Edge stuff.
+  byte_array_read_ints(bytes, 2*num_edges, offset, mesh->edge_nodes);
+
+  // Node stuff.
+  byte_array_read_points(bytes, num_nodes, offset, mesh->nodes);
+
+  // Geometry stuff.
+  byte_array_read_reals(bytes, num_cells, offset, mesh->cell_volumes);
+  byte_array_read_points(bytes, num_cells, offset, mesh->cell_centers);
+  byte_array_read_points(bytes, num_faces, offset, mesh->face_centers);
+  byte_array_read_reals(bytes, num_faces, offset, mesh->face_areas);
+  byte_array_read_vectors(bytes, num_faces, offset, mesh->face_normals);
+
+  // Tag stuff.
+  byte_array_read_tags(bytes, offset, mesh->cell_tags);
+  byte_array_read_tags(bytes, offset, mesh->face_tags);
+  byte_array_read_tags(bytes, offset, mesh->edge_tags);
+  byte_array_read_tags(bytes, offset, mesh->node_tags);
+
   return mesh;
+}
+
+static void byte_array_write_tags(byte_array_t* bytes, tagger_t* tagger, size_t* offset)
+{
+  // Count up the tags.
+  int pos = 0, *tag, tag_size, num_tags = 0;
+  char* tag_name;
+  while (mesh_next_tag(tagger, &pos, &tag_name, &tag, &tag_size))
+    ++num_tags;
+  byte_array_write_ints(bytes, 1, &num_tags, offset);
+
+  pos = 0;
+  while (mesh_next_tag(tagger, &pos, &tag_name, &tag, &tag_size))
+  {
+    int tag_name_len = strlen(tag_name);
+    byte_array_write_ints(bytes, 1, &tag_name_len, offset);
+    byte_array_write_chars(bytes, tag_name_len, tag_name, offset);
+    byte_array_write_ints(bytes, 1, &tag_size, offset);
+    byte_array_write_ints(bytes, tag_size, tag, offset);
+  }
 }
 
 static void mesh_byte_write(void* obj, byte_array_t* bytes, size_t* offset)
 {
+  mesh_t* mesh = obj;
+
+  // Write the number of cells, faces, edges, nodes.
+  byte_array_write_ints(bytes, 1, &mesh->num_cells, offset);
+  byte_array_write_ints(bytes, 1, &mesh->num_ghost_cells, offset);
+  byte_array_write_ints(bytes, 1, &mesh->num_faces, offset);
+  byte_array_write_ints(bytes, 1, &mesh->num_edges, offset);
+  byte_array_write_ints(bytes, 1, &mesh->num_nodes, offset);
+
+  // Write all the cell stuff.
+  byte_array_write_ints(bytes, mesh->num_cells+1, mesh->cell_face_offsets, offset);
+  byte_array_write_ints(bytes, mesh->cell_face_offsets[mesh->num_cells], mesh->cell_faces, offset);
+
+  // Face stuff.
+  byte_array_write_ints(bytes, mesh->num_faces+1, mesh->face_node_offsets, offset);
+  byte_array_write_ints(bytes, mesh->face_node_offsets[mesh->num_faces], mesh->face_nodes, offset);
+
+  byte_array_write_ints(bytes, mesh->num_faces+1, mesh->face_edge_offsets, offset);
+  byte_array_write_ints(bytes, mesh->face_edge_offsets[mesh->num_faces], mesh->face_edges, offset);
+
+  byte_array_write_ints(bytes, 2*mesh->num_faces, mesh->face_cells, offset);
+
+  // Edge stuff.
+  byte_array_write_ints(bytes, 2*mesh->num_edges, mesh->edge_nodes, offset);
+
+  // Node stuff.
+  byte_array_write_points(bytes, 2*mesh->num_nodes, mesh->nodes, offset);
+
+  // Geometry stuff.
+  byte_array_write_reals(bytes, mesh->num_cells, mesh->cell_volumes, offset);
+  byte_array_write_points(bytes, mesh->num_cells, mesh->cell_centers, offset);
+  byte_array_write_points(bytes, mesh->num_faces, mesh->face_centers, offset);
+  byte_array_write_reals(bytes, mesh->num_faces, mesh->face_areas, offset);
+  byte_array_write_vectors(bytes, mesh->num_faces, mesh->face_normals, offset);
+
+  // Tag stuff.
+  byte_array_write_tags(bytes, mesh->cell_tags, offset);
+  byte_array_write_tags(bytes, mesh->face_tags, offset);
+  byte_array_write_tags(bytes, mesh->edge_tags, offset);
+  byte_array_write_tags(bytes, mesh->node_tags, offset);
 }
 
 serializer_t* mesh_serializer()
