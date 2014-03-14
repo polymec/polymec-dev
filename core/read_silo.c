@@ -148,10 +148,15 @@ void read_silo_mesh(MPI_Comm comm,
   DBfile* file = (DBfile*)PMPIO_WaitForBaton(baton, filename, dir_name);
   DBSetDir(file, dir_name);
 #else
-  if (cycle >= 0)
-    snprintf(filename, 1024, "%s/%s-%d.silo", directory, prefix, cycle);
+  char dir_name[1024];
+  if (strlen(directory) == 0)
+    strcpy(dir_name, ".");
   else
-    snprintf(filename, 1024, "%s/%s.silo", directory, prefix);
+    strcpy(dir_name, directory);
+  if (cycle >= 0)
+    snprintf(filename, 1024, "%s/%s-%d.silo", dir_name, prefix, cycle);
+  else
+    snprintf(filename, 1024, "%s/%s.silo", dir_name, prefix);
 
   int driver = DB_HDF5;
   DBfile* file = DBOpen(filename, driver, DB_READ);

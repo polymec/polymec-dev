@@ -368,8 +368,7 @@ static int lua_write_silo_mesh(lua_State* lua)
 
   // Write the thing to a mesh file.
   log_info("Writing SILO mesh file with prefix '%s'...", filename);
-  write_silo_mesh(mesh, fields, filename, ".", 0, 0.0, 
-                  MPI_COMM_SELF, 1, 0);
+  write_silo_mesh(mesh->comm, filename, ".", 0, 1, 0, mesh, fields, 0.0);
 
   // Clean up.
   free(filename);
@@ -485,8 +484,7 @@ static int lua_write_silo_points(lua_State* lua)
 
   // Write the thing to a file.
   log_info("Writing SILO points file with prefix '%s'...", filename);
-  write_silo_points(points, N, fields, filename, ".", 0, 0.0, 
-                    MPI_COMM_SELF, 1, 0);
+  write_silo_points(MPI_COMM_SELF, filename, ".", 0, 1, 0, points, N, fields, 0.0);
 
   // Clean up.
   free(filename);
