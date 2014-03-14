@@ -41,12 +41,33 @@ void test_single_cell_mesh_no_topo(void** state)
   mesh_free(mesh);
 }
 
+void test_single_cell_mesh_serialization(void** state)
+{
+  // Create a single hexahedron without topology.
+  mesh_t* mesh1 = mesh_new(MPI_COMM_WORLD, 1, 0, 6, 12, 8);
+  serializer_t* s = mesh_serializer();
+  byte_array_t* buffer = byte_array_new();
+  size_t offset = 0;
+  serializer_write(s, mesh1, buffer, &offset);
+  offset = 0;
+  mesh_t* mesh2 = serializer_read(s, buffer, &offset);
+  byte_array_free(buffer);
+  assert_int_equal(1, mesh2->num_cells);
+  assert_int_equal(0, mesh2->num_ghost_cells);
+  assert_int_equal(6, mesh2->num_faces);
+  assert_int_equal(12, mesh2->num_edges);
+  assert_int_equal(8, mesh2->num_nodes);
+  mesh_free(mesh2);
+  mesh_free(mesh1);
+}
+
 int main(int argc, char* argv[]) 
 {
   polymec_init(argc, argv);
   const UnitTest tests[] = 
   {
     unit_test(test_single_cell_mesh_no_topo),
+    unit_test(test_single_cell_mesh_serialization),
   };
   return run_tests(tests);
 }
