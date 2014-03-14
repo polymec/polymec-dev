@@ -220,8 +220,8 @@ static inline int mesh_cell_num_faces(mesh_t* mesh, int cell)
 static inline bool mesh_cell_next_face(mesh_t* mesh, int cell, int* pos, int* face)
 {
   *face = mesh->cell_faces[mesh->cell_face_offsets[cell] + *pos];
-  // FIXME: We don't currently use the one's complement info that 
-  // FIXME: polytope provides -- we only transform indices back.
+  // FIXME: We don't currently use the one's complement info -- 
+  // FIXME: we only transform indices back.
   if (*face < 0) *face = ~(*face);
   ++(*pos);
   return (*pos <= (mesh->cell_face_offsets[cell+1] - mesh->cell_face_offsets[cell]));

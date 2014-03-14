@@ -10,12 +10,3 @@ add_polymec_test(test_create_rectilinear_mesh test_create_rectilinear_mesh.c)
 add_polymec_test(test_create_uniform_mesh test_create_uniform_mesh.c)
 add_polymec_test(test_graph_from_mesh_cells test_graph_from_mesh_cells.c)
 
-if (${HAVE_TETGEN})
-  #add_polymec_test(test_witkin_heckbert_sampling test_witkin_heckbert_sampling.c)
-  #add_polymec_test(test_mgw_sampling test_mgw_sampling.c)
-  add_polymec_test(test_prob_cvt_gen_dist test_prob_cvt_gen_dist.c)
-  #add_polymec_test(test_create_voronoi_mesh test_create_voronoi_mesh.c)
-  #add_polymec_test(test_create_unbounded_voronoi_mesh test_create_unbounded_voronoi_mesh.c)
-  #add_polymec_test(test_create_deformable_bounded_voronoi_mesh test_create_deformable_bounded_voronoi_mesh.c)
-endif()
-

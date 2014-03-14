@@ -260,7 +260,7 @@ void write_silo_mesh(MPI_Comm comm,
   }
 
   // Construct the silo cell-face info.  Silo uses the same 1's complement
-  // convention polytope does for indicating face orientation, so we can
+  // convention we use for indicating face orientation, so we can
   // simply copy our faces.
   int* cell_face_counts = malloc(sizeof(int) * (num_cells + num_ghost_cells));
   memset(cell_face_counts, 0, sizeof(int) * (num_cells + num_ghost_cells));

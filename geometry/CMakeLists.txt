@@ -1,19 +1,14 @@
 set(MESH_GENERATION_SOURCES create_boundary_generators.c 
     generate_random_points.c point_factory.c mesh_factory.c
-    cartesian_1d.c cylindrical_1d.c spherical_1d.c)
-#if (${HAVE_TETGEN})
-#  set(MESH_GENERATION_SOURCES ${MESH_GENERATION_SOURCES} 
-#      create_voronoi_mesh.c #create_cvt.c create_cvt_with_lloyd_iteration.c 
-#      cvt_gen_dist.c prob_cvt_gen_dist.c #force_cvt_gen_dist.c 
-#      witkin_heckbert_sampling.c mgw_sampling.c)
-#endif()
+    cartesian_1d.c cylindrical_1d.c spherical_1d.c
+    create_rectilinear_mesh.c create_uniform_mesh.c 
+    create_pebi_mesh.c create_tetgen_mesh.c create_dual_mesh.c
+    patch_grid.c create_nested_patch_mesh.c)
 
 add_library(polymec_geometry mapping.c plane.c cylinder.c sphere.c 
             intersection.c union.c difference.c scaled.c rect_prism.c 
             giftwrap_hull.c polygon2.c polygon.c
             ${MESH_GENERATION_SOURCES} cubic_lattice.c
-            create_rectilinear_mesh.c create_uniform_mesh.c create_pebi_mesh.c
-            create_tetgen_mesh.c create_dual_mesh.c patch_grid.c create_nested_patch_mesh.c
             symmetry_1d.c interpreter_register_geometry_functions.c 
             interpreter_register_spfuncs.c)
 
