@@ -60,7 +60,7 @@ void test_plot_rectilinear_mesh(void** state)
     ones[c] = 1.0*c;
   string_ptr_unordered_map_t* fields = string_ptr_unordered_map_new();
   string_ptr_unordered_map_insert(fields, "solution", ones);
-  write_silo_mesh(mesh, fields, "rectilinear_4x4x4", ".", 0, 0.0, MPI_COMM_SELF, 1, 0);
+  write_silo_mesh(MPI_COMM_SELF, "rectilinear_4x4x4", ".", 0, 1, 0, mesh, fields, 0.0);
 
   // Clean up.
   string_ptr_unordered_map_free(fields);
