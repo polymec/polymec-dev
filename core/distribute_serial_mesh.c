@@ -41,46 +41,6 @@ static inline int morton_comp(const void* l, const void* r)
          (mr->morton_index > mr->morton_index) ?  1 : 0;             
 }
 
-// This structure describes a chunk of mesh.
-typedef struct
-{
-} mesh_chunk_t;
-
-// This constructs a mesh chunk from a whole mesh and a partition vector.
-static mesh_chunk_t* mesh_chunk_new(mesh_t* whole_mesh, int* partition)
-{
-  return NULL;
-}
-
-// This destroys a mesh chunk.
-static void mesh_chunk_free(mesh_chunk_t* chunk)
-{
-}
-
-// Returns the size of the given mesh chunk in bytes.
-static int mesh_chunk_size(mesh_chunk_t* chunk)
-{
-  return 0;
-}
-
-// Converts the mesh chunk to a newly-allocated character buffer.
-static char* mesh_chunk_to_bytes(mesh_chunk_t* chunk)
-{
-  return NULL;
-}
-
-// Reconstructs a mesh chunk from a character buffer.
-static mesh_chunk_t* mesh_chunk_from_bytes(char* bytes, int size)
-{
-  return NULL;
-}
-
-// This constructs a local mesh on the given communicator from a chunk.
-static mesh_t* mesh_from_chunk(MPI_Comm comm, mesh_chunk_t* chunk)
-{
-  return NULL;
-}
-
 mesh_t* distribute_serial_mesh(MPI_Comm comm, mesh_t* serial_mesh, int* partition)
 {
   int rank, nproc;
@@ -89,7 +49,8 @@ mesh_t* distribute_serial_mesh(MPI_Comm comm, mesh_t* serial_mesh, int* partitio
 
 #if POLYMEC_HAVE_MPI
   // MPI tags.
-  int chunk_size_tag = 0, chunk_tag = 0;
+  int mesh_size_tag = 0, mesh_tag = 1;
+  serializer_t* serializer = mesh_serializer();
 #endif
 
   if (rank == 0)
@@ -131,63 +92,60 @@ mesh_t* distribute_serial_mesh(MPI_Comm comm, mesh_t* serial_mesh, int* partitio
     }
 
     // Local mesh.
-    mesh_chunk_t* chunk = mesh_chunk_new(serial_mesh, partition);
-    mesh_t* mesh = mesh_from_chunk(comm, chunk);
-    mesh_chunk_free(chunk);
+    mesh_t* local_mesh = NULL;
+    // FIXME
 
 #if POLYMEC_HAVE_MPI
-    // Transmit information to each destination process.
+    // Transmit local meshes to each destination process.
 
-    // Chunk sizes.
+    // Local mesh sizes.
     MPI_Request requests[nproc-1];
     MPI_Status statuses[nproc-1];
     int sizes[nproc-1];
-    char* byteses[nproc-1];
+    byte_array_t* byteses[nproc-1];
     for (int p = 1; p < nproc; ++p)
     {
-      mesh_chunk_t* chunk = mesh_chunk_new(serial_mesh, partition);
-      sizes[p-1] = mesh_chunk_size(chunk);
-      byteses[p-1] = mesh_chunk_to_bytes(chunk);
-      mesh_chunk_free(chunk);
-      MPI_Isend(&sizes[p-1], 1, MPI_INT, p, chunk_size_tag, comm, &requests[p-1]);
+      mesh_t* mesh_p = NULL;
+      byte_array_t* bytes = byte_array_new();
+      serializer_write(bytes, mesh, &offset);
+      unsigned long size = (unsigned long)bytes->size;
+      MPI_Isend(&size, 1, MPI_UNSIGNED_LONG, p, mesh_size_tag, comm, &requests[p-1]);
+      byteses[p-1] = bytes;
     }
     MPI_Waitall(comm, requests, statuses);
 
-    // Chunks.
+    // Local meshes.
     for (int p = 1; p < nproc; ++p)
     {
-      char* bytes = byteses[p-1];
-      int size = sizes[p-1];
-      MPI_Isend(bytes, size, MPI_CHAR, p, chunk_tag, comm, &requests[p]);
+      byte_array_t* bytes = byteses[p-1];
+      MPI_Isend(bytes->data, bytes->size, MPI_UNSIGNED_CHAR, p, mesh_tag, comm, &requests[p]);
     }
     MPI_Waitall(comm, requests, statuses);
 
     // Clean up.
     for (int p = 1; p < nproc; ++p)
-      free(byteses[p-1]);
+      byte_array_free(byteses[p-1]);
 #endif
-    return mesh;
+    return local_mesh;
   }
   else
   {
 #if POLYMEC_HAVE_MPI
-    // Get the chunk information.
+    // Get the local mesh information.
 
-    // Chunk size.
+    // Mesh size.
     MPI_Status status;
-    int chunk_size;
-    MPI_Recv(&chunk_size, 1, MPI_INT, 0, chunk_size_tag, comm, &status);
+    unsigned long mesh_size;
+    MPI_Recv(&mesh_size, 1, MPI_UNSIGNED_LONG, 0, mesh_size_tag, comm, &status);
 
-    // Chunk.
-    char* bytes = malloc(sizeof(char) * chunk_size);
-    MPI_Recv(&bytes, chunk_size, MPI_CHAR, 0, chunk_tag, comm, &status);
-    mesh_chunk_t* chunk = mesh_chunk_from_bytes(buffer, chunk_size);
-    free(bytes);
-
-    // Construct the local mesh.
-    mesh_t* mesh = mesh_from_chunk(comm, chunk);
-    mesh_chunk_free(chunk);
-    return mesh;
+    // Mesh.
+    byte_array_t* bytes = byte_array_new();
+    byte_array_resize(bytes, (size_t)mesh_size);
+    MPI_Recv(bytes->data, bytes->size, MPI_UNSIGNED_CHAR, 0, mesh_tag, comm, &status);
+    size_t offset = 0;
+    mesh_t* local_mesh = serializer_read(serializer, bytes, &offset);
+    byte_array_free(bytes);
+    return local_mesh;
 #else
     return NULL; // Never reached.
 #endif
