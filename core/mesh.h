@@ -204,6 +204,10 @@ bool mesh_next_tag(tagger_t* tagger, int* pos, char** tag_name, int** tag_indice
 // bounded).
 void mesh_compute_geometry(mesh_t* mesh);
 
+// This helper method constructs edge information from nodes, provided that 
+// no edge information exists already.
+void mesh_construct_edges(mesh_t* mesh);
+
 // Returns the number of faces attached to the given cell in the mesh.
 static inline int mesh_cell_num_faces(mesh_t* mesh, int cell)
 {

@@ -26,7 +26,8 @@
 #include "core/mesh.h"
 #include "core/mesh_storage.h"
 #include "core/unordered_set.h"
-#include "core/linear_algebra.h"
+#include "core/table.h"
+//#include "core/linear_algebra.h"
 
 // Mesh features.
 const char* TETRAHEDRAL = "tetrahedral";
@@ -390,6 +391,42 @@ void mesh_compute_geometry(mesh_t* mesh)
       }
     }
   }
+}
+
+void mesh_construct_edges(mesh_t* mesh)
+{
+  // Construct edge information.
+  int_table_t* edge_for_nodes = int_table_new();
+  {
+    int num_edges = 0;
+    for (int f = 0; f < mesh->num_faces; ++f)
+    {
+      int offset = 4*f;
+      mesh->face_edge_offsets[f] = offset;
+      for (int n = 0; n < 4; ++n)
+      {
+        int n1 = (int)mesh->face_nodes[offset+n];
+        int n2 = (int)mesh->face_nodes[offset+(n+1)%4];
+        if (!int_table_contains(edge_for_nodes, MIN(n1, n2), MAX(n1, n2)))
+        {
+          int_table_insert(edge_for_nodes, MIN(n1, n2), MAX(n1, n2), num_edges);
+          mesh->face_edges[offset+n] = num_edges;
+          ++num_edges;
+        }
+        else
+          mesh->face_edges[offset+n] = *int_table_get(edge_for_nodes, MIN(n1, n2), MAX(n1, n2));
+      }
+    }
+    ASSERT(num_edges == mesh->num_edges);
+    int_table_cell_pos_t pos = int_table_start(edge_for_nodes);
+    int n1, n2, e;
+    while (int_table_next_cell(edge_for_nodes, &pos, &n1, &n2, &e))
+    {
+      mesh->edge_nodes[2*e] = n1;
+      mesh->edge_nodes[2*e+1] = n2;
+    }
+  }
+  free(edge_for_nodes);
 }
 
 static size_t mesh_byte_size(void* obj)

@@ -29,16 +29,18 @@
 #include "core/mesh.h"
 #include "core/unordered_map.h"
 
-// Reads a silo mesh file, including the given fields (whose centerings are 
-// assumed to be known to the reader).
-void read_silo_mesh(mesh_t** mesh,
-                    string_ptr_unordered_map_t** fields,
+// Reads a silo mesh file, placing the mesh, cell-centered fields, and the 
+// simulation time into their respective variables, and also reading any 
+// stored mesh tags. Mesh is allocated by this function, whereas fields must 
+// be a pre-allocated unordered map.
+void read_silo_mesh(MPI_Comm comm,
                     const char* file_prefix,
                     const char* directory,
                     int cycle,
-                    double* time,
-                    MPI_Comm comm,
                     int num_files,
-                    int mpi_tag);
+                    int mpi_tag,
+                    mesh_t** mesh,
+                    string_ptr_unordered_map_t* fields,
+                    real_t* time);
 
 #endif
