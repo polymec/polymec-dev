@@ -25,7 +25,7 @@
 #include "core/newton.h"
 #include "core/linear_algebra.h"
 #include "core/norms.h"
-#include "core/sundials_helpers.h"
+#include "nvector/nvector_serial.h"
 #include "sundials/sundials_direct.h"
 #include "kinsol/kinsol.h"
 #include "kinsol/kinsol_dense.h"
@@ -51,7 +51,7 @@ struct newton_solver_t
 static int eval_system_func(N_Vector X, N_Vector F, void* context)
 {
   newton_solver_t* solver = context;
-  return solver->sys_func(context, NV_DATA(X), NV_DATA(F));
+  return solver->sys_func(context, NV_DATA_S(X), NV_DATA_S(F));
 }
 
 // Wrapper for system Jacobian.
@@ -59,8 +59,8 @@ static int eval_system_jac(long N, N_Vector X, N_Vector F, DlsMat J,
                            void* context, N_Vector work1, N_Vector work2)
 {
   newton_solver_t* solver = context;
-  return solver->sys_jac(context, (int)N, NV_DATA(X), NV_DATA(F), 
-                         NV_DATA(work1), NV_DATA(work2), J->data);
+  return solver->sys_jac(context, (int)N, NV_DATA_S(X), NV_DATA_S(F), 
+                         NV_DATA_S(work1), NV_DATA_S(work2), J->data);
 }
 
 newton_solver_t* newton_solver_new(int dimension,

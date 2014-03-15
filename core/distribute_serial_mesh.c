@@ -101,26 +101,26 @@ mesh_t* distribute_serial_mesh(MPI_Comm comm, mesh_t* serial_mesh, int* partitio
     // Local mesh sizes.
     MPI_Request requests[nproc-1];
     MPI_Status statuses[nproc-1];
-    int sizes[nproc-1];
     byte_array_t* byteses[nproc-1];
     for (int p = 1; p < nproc; ++p)
     {
       mesh_t* mesh_p = NULL;
       byte_array_t* bytes = byte_array_new();
-      serializer_write(bytes, mesh, &offset);
+      size_t offset = 0;
+      serializer_write(serializer, local_mesh, bytes, &offset);
       unsigned long size = (unsigned long)bytes->size;
       MPI_Isend(&size, 1, MPI_UNSIGNED_LONG, p, mesh_size_tag, comm, &requests[p-1]);
       byteses[p-1] = bytes;
     }
-    MPI_Waitall(comm, requests, statuses);
+    MPI_Waitall(nproc-1, requests, statuses);
 
     // Local meshes.
     for (int p = 1; p < nproc; ++p)
     {
       byte_array_t* bytes = byteses[p-1];
-      MPI_Isend(bytes->data, bytes->size, MPI_UNSIGNED_CHAR, p, mesh_tag, comm, &requests[p]);
+      MPI_Isend(bytes->data, bytes->size, MPI_BYTE, p, mesh_tag, comm, &requests[p]);
     }
-    MPI_Waitall(comm, requests, statuses);
+    MPI_Waitall(nproc-1, requests, statuses);
 
     // Clean up.
     for (int p = 1; p < nproc; ++p)
@@ -141,7 +141,7 @@ mesh_t* distribute_serial_mesh(MPI_Comm comm, mesh_t* serial_mesh, int* partitio
     // Mesh.
     byte_array_t* bytes = byte_array_new();
     byte_array_resize(bytes, (size_t)mesh_size);
-    MPI_Recv(bytes->data, bytes->size, MPI_UNSIGNED_CHAR, 0, mesh_tag, comm, &status);
+    MPI_Recv(bytes->data, bytes->size, MPI_BYTE, 0, mesh_tag, comm, &status);
     size_t offset = 0;
     mesh_t* local_mesh = serializer_read(serializer, bytes, &offset);
     byte_array_free(bytes);

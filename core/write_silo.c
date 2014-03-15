@@ -125,24 +125,22 @@ void write_silo_mesh(MPI_Comm comm,
   MPI_Comm_rank(comm, &rank);
   if (num_files == -1)
     num_files = nproc;
-  POLY_ASSERT(num_files <= nproc);
+  ASSERT(num_files <= nproc);
 
   // We put the entire data set into a directory named after the 
   // prefix, and every process gets its own subdirectory therein.
 
   // Create the master directory if we need to.
-  string master_dir_name = directory;
-  if (master_dir_name.empty())
-  {
-    char dir_name[1024];
-    snprintf(dir_name, 1024, "%s-%d", prefix, nproc);
-    master_dir_name = dir_name;
-  }
+  char master_dir_name[1024];
+  if (strlen(directory) == 0)
+    snprintf(master_dir_name, 1024, "%s-%d", prefix, nproc);
+  else
+    strncpy(master_dir_name, directory, 1024);
   if (rank == 0)
   {
-    DIR* master_dir = opendir(master_dir_name.c_str());
+    DIR* master_dir = opendir(master_dir_name);
     if (master_dir == 0)
-      mkdir((char*)master_dir_name.c_str(), S_IRWXU | S_IRWXG);
+      mkdir(master_dir_name, S_IRWXU | S_IRWXG);
     else
       closedir(master_dir);
     MPI_Barrier(comm);
@@ -153,24 +151,22 @@ void write_silo_mesh(MPI_Comm comm,
   }
 
   // Initialize poor man's I/O and figure out group ranks.
-  PMPIO_baton_t* baton = PMPIO_Init(num_files, PMPIO_WRITE, comm, mpiTag, 
-                                    &PMPIO_createFile, 
-                                    &PMPIO_openFile, 
-                                    &PMPIO_closeFile,
-                                    0);
-  int groupRank = PMPIO_GroupRank(baton, rank);
-  int rank_in_group = PMPIO_rank_in_group(baton, rank);
+  PMPIO_baton_t* baton = PMPIO_Init(num_files, PMPIO_WRITE, comm, mpi_tag, 
+                                    pmpio_create_file, pmpio_open_file, 
+                                    pmpio_close_file, 0);
+  int group_rank = PMPIO_GroupRank(baton, rank);
+  int rank_in_group = PMPIO_RankInGroup(baton, rank);
 
   // Create a subdirectory for each group.
-  char groupdir_name[1024];
-  snprintf(groupdir_name, 1024, "%s/%d", master_dir_name.c_str(), groupRank);
+  char group_dir_name[1024];
+  snprintf(group_dir_name, 1024, "%s/%d", master_dir_name, group_rank);
   if (rank_in_group == 0)
   {
-    DIR* groupDir = opendir(groupdir_name);
-    if (groupDir == 0)
-      mkdir((char*)groupdir_name, S_IRWXU | S_IRWXG);
+    DIR* group_dir = opendir(group_dir_name);
+    if (group_dir == 0)
+      mkdir((char*)group_dir_name, S_IRWXU | S_IRWXG);
     else
-      closedir(groupDir);
+      closedir(group_dir);
     MPI_Barrier(comm);
   }
   else
@@ -180,9 +176,9 @@ void write_silo_mesh(MPI_Comm comm,
 
   // Determine a file name.
   if (cycle >= 0)
-    snprintf(filename, 1024, "%s/%s-%d.silo", groupdir_name, prefix.c_str(), cycle);
+    snprintf(filename, 1024, "%s/%s-%d.silo", group_dir_name, prefix, cycle);
   else
-    snprintf(filename, 1024, "%s/%s.silo", groupdir_name, prefix.c_str());
+    snprintf(filename, 1024, "%s/%s.silo", group_dir_name, prefix);
 
   char dir_name[1024];
   snprintf(dir_name, 1024, "domain_%d", rank_in_group);
@@ -353,7 +349,7 @@ void write_silo_mesh(MPI_Comm comm,
     char* mesh_names[num_chunks];
     int mesh_types[num_chunks];
     int var_types[num_chunks];
-    char* var_names[fields->size];
+    char* var_names[num_chunks][fields->size];
     for (int i = 0; i < num_chunks; ++i)
     {
       // Mesh.
@@ -361,23 +357,23 @@ void write_silo_mesh(MPI_Comm comm,
       snprintf(mesh_name, 1024, "domain_%d/mesh", i);
       mesh_names[i] = string_dup(mesh_name);
       mesh_types[i] = DB_UCDMESH;
+      var_types[i] = DB_UCDVAR;
 
       // Field data.
-      int pos = 0;
+      int pos = 0, j = 0;
       char* field_name;
       void* item;
       while (string_ptr_unordered_map_next(fields, &pos, &field_name, &item))
       {
         char var_name[1024];
         snprintf(var_name, 1024, "domain_%d/%s", i, field_name);
-        var_names[i] = string_dup(var_name);
-        var_types[i] = DB_UCDVAR;
+        var_names[j++][i] = string_dup(var_name);
       }
     }
 
     // Stick cycle and time in there if needed.
     DBoptlist* optlist = DBMakeOptlist(10);
-    double dtime = static_cast<double>(time);
+    double dtime = (double)time;
     if (cycle >= 0)
       DBAddOption(optlist, DBOPT_CYCLE, &cycle);
     if (dtime != -FLT_MAX)
@@ -388,18 +384,18 @@ void write_silo_mesh(MPI_Comm comm,
     DBPutMultimesh(file, "mesh", num_chunks, &mesh_names[0], 
                    &mesh_types[0], optlist);
     {
-      int pos = 0;
+      int pos = 0, j = 0;
       char* field_name;
       void* item;
       while (string_ptr_unordered_map_next(fields, &pos, &field_name, &item))
-        DBPutMultivar(file, field_name, num_chunks, var_names, var_types, optlist);
+        DBPutMultivar(file, field_name, num_chunks, var_names[j++], var_types, optlist);
     }
 
     // Clean up.
     DBFreeOptlist(optlist);
     for (int i = 0; i < num_chunks; ++i)
       free(mesh_names[i]);
-    for (int f = 0; f < var_names.size(); ++f)
+    for (int f = 0; f < fields->size; ++f)
       for (int i = 0; i < num_chunks; ++i)
         free(var_names[f][i]);
   }
@@ -434,6 +430,7 @@ void write_silo_mesh(MPI_Comm comm,
         else
           snprintf(mesh_name, 1024, "%d/%s.silo:/domain_%d/mesh", i, prefix, c);
         mesh_names[i*num_chunks+c] = string_dup(mesh_name);
+        var_types[i*num_chunks+c] = DB_UCDVAR;
 
         // Field data.
         int pos = 0, j = 0;
@@ -443,17 +440,16 @@ void write_silo_mesh(MPI_Comm comm,
         {
           char var_name[1024];
           if (cycle >= 0)
-            snprintf(var_name, 1024, "%d/%s-%d.silo:/domain_%d/%s", ifile, prefix, cycle, ichunk, iter->first.c_str());
+            snprintf(var_name, 1024, "%d/%s-%d.silo:/domain_%d/%s", i, prefix, cycle, c, field_name);
           else
-            snprintf(var_name, 1024, "%d/%s.silo:/domain_%d/%s", ifile, prefix ichunk, iter->first.c_str());
-          var_names[i*num_chunks+c][j++] = string_dup(var_name);
-          var_types[i]*num_chunks+c = DB_UCDVAR;
+            snprintf(var_name, 1024, "%d/%s.silo:/domain_%d/%s", i, prefix, c, field_name);
+          var_names[j++][i*num_chunks+c] = string_dup(var_name);
         }
       }
     }
 
     DBoptlist* optlist = DBMakeOptlist(10);
-    double dtime = static_cast<double>(time);
+    double dtime = (double)time;
     if (cycle >= 0)
       DBAddOption(optlist, DBOPT_CYCLE, &cycle);
     if (dtime != -FLT_MAX)
@@ -463,18 +459,18 @@ void write_silo_mesh(MPI_Comm comm,
     DBPutMultimesh(file, "mesh", num_files*num_chunks, &mesh_names[0], 
                    &mesh_types[0], optlist);
     {
-      int pos = 0;
+      int pos = 0, j = 0;
       char* field_name;
       void* item;
       while (string_ptr_unordered_map_next(fields, &pos, &field_name, &item))
-        DBPutMultivar(file, field_name, num_files*num_chunks, var_names, var_types, optlist);
+        DBPutMultivar(file, field_name, num_files*num_chunks, var_names[j++], var_types, optlist);
     }
 
     // Clean up.
     DBFreeOptlist(optlist);
     for (int i = 0; i < num_files*num_chunks; ++i)
       free(mesh_names[i]);
-    for (int f = 0; f < var_names.size(); ++f)
+    for (int f = 0; f < fields->size; ++f)
       for (int i = 0; i < num_files*num_chunks; ++i)
         free(var_names[f][i]);
   }
@@ -548,8 +544,8 @@ void write_silo_points(MPI_Comm comm,
                                     &pmpio_open_file, 
                                     &pmpio_close_file,
                                     0);
-  int group_rank = PMPIO_group_rank(baton, rank);
-  int rank_in_group = PMPIO_rank_in_group(baton, rank);
+  int group_rank = PMPIO_GroupRank(baton, rank);
+  int rank_in_group = PMPIO_RankInGroup(baton, rank);
 
   // Create a subdirectory for each group.
   char group_dir_name[1024];
@@ -650,14 +646,14 @@ void write_silo_points(MPI_Comm comm,
     for (int i = 0; i < num_chunks; ++i)
     {
       mesh_types[i] = DB_POINTMESH;
-      var_types[i] = DB_UCDV;
+      var_types[i] = DB_UCDVAR;
       // Mesh.
       char mesh_name[1024];
       snprintf(mesh_name, 1024, "domain_%d/points", i);
       mesh_names[i] = strdup(mesh_name);
       int pos = 0, field_index = 0;
       char* field_name;
-      real_t* field_data;
+      void* field_data;
       while (string_ptr_unordered_map_next(fields, &pos, &field_name, &field_data))
       {
         char var_name[1024];
@@ -682,7 +678,7 @@ void write_silo_points(MPI_Comm comm,
                    mesh_types, optlist);
     int pos = 0, field_index = 0;
     char* field_name;
-    real_t* field_data;
+    void* field_data;
     while (string_ptr_unordered_map_next(fields, &pos, &field_name, &field_data))
     {
       DBPutMultivar(file, field_name, num_chunks, var_names[field_index++], 
@@ -695,7 +691,7 @@ void write_silo_points(MPI_Comm comm,
       free(mesh_names[i]);
     free(mesh_names);
     free(mesh_types);
-    for (int f = 0; f < var_names.size(); ++f)
+    for (int f = 0; f < num_fields; ++f)
     {
       for (int i = 0; i < num_chunks; ++i)
         free(var_names[f][i]);
@@ -720,13 +716,6 @@ void write_silo_points(MPI_Comm comm,
     int driver = DB_HDF5;
     DBfile* file = DBCreate(master_file_name, DB_CLOBBER, DB_LOCAL, "Master file", driver);
 
-    vector<char*> mesh_names(num_files*num_chunks);
-    vector<int> mesh_types(num_files*num_chunks, DB_UCDMESH);
-    vector<vector<char*> > var_names(nodeFields.size() +
-                                    edgeFields.size() +
-                                    faceFields.size() +
-                                    fields.size());
-    vector<int> var_types(num_files*num_chunks, DB_UCDVAR);
     char** mesh_names = malloc(sizeof(char*) * num_files*num_chunks);
     int* mesh_types = malloc(sizeof(int) * num_files*num_chunks);
     char*** var_names = malloc(sizeof(char**) * num_fields);
@@ -738,7 +727,7 @@ void write_silo_points(MPI_Comm comm,
       for (int c = 0; c < num_chunks; ++c)
       {
         mesh_types[num_chunks*i+c] = DB_POINTMESH;
-        var_types[num_chunks*i+c] = DB_UCDV;
+        var_types[num_chunks*i+c] = DB_UCDVAR;
 
         // Mesh.
         char mesh_name[1024];
@@ -751,11 +740,11 @@ void write_silo_points(MPI_Comm comm,
         // Field names.
         int pos = 0, field_index = 0;
         char* field_name;
-        real_t* field_data;
+        void* field_data;
         while (string_ptr_unordered_map_next(fields, &pos, &field_name, &field_data))
         {
           char var_name[1024];
-          snprintf(var_name, 1024, "%d/domain_%d/%s", i, field_name);
+          snprintf(var_name, 1024, "%d/domain_%d/%s", i, c, field_name);
           if (cycle >= 0)
             snprintf(var_name, 1024, "%d/%s-%d.silo:/domain_%d/%s", i, prefix, cycle, c, field_name);
           else
@@ -776,7 +765,7 @@ void write_silo_points(MPI_Comm comm,
                    &mesh_types[0], optlist);
     int pos = 0, field_index = 0;
     char* field_name;
-    real_t* field_data;
+    void* field_data;
     while (string_ptr_unordered_map_next(fields, &pos, &field_name, &field_data))
     {
       DBPutMultivar(file, field_name, num_chunks, var_names[field_index++], 

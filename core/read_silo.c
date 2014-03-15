@@ -127,8 +127,8 @@ void read_silo_mesh(MPI_Comm comm,
   PMPIO_baton_t* baton = PMPIO_Init(num_files, PMPIO_READ, comm, mpi_tag, 
                                     pmpio_create_file, pmpio_open_file, 
                                     pmpio_close_file, 0);
-  int group_rank = PMPIO_group_rank(baton, rank);
-  int rank_in_group = PMPIO_rank_in_group(baton, rank);
+  int group_rank = PMPIO_GroupRank(baton, rank);
+  int rank_in_group = PMPIO_RankInGroup(baton, rank);
 
   // Figure out the subdirectory for this group.
   char group_dir_name[1024];
