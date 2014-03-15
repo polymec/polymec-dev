@@ -65,10 +65,15 @@ mesh_t* create_rectilinear_mesh(MPI_Comm comm,
                           cubic_lattice_num_cells(lattice), 0,
                           cubic_lattice_num_faces(lattice),
                           cubic_lattice_num_nodes(lattice));
-  mesh->cell_faces = ARENA_REALLOC(mesh->arena, mesh->cell_faces, sizeof(int)*6*mesh->num_cells, 0);
-  mesh->face_nodes = ARENA_REALLOC(mesh->arena, mesh->face_nodes, sizeof(int)*4*mesh->num_faces, 0);
-  mesh->cell_face_offsets[mesh->num_cells] = 6*mesh->num_cells;
-  mesh->face_node_offsets[mesh->num_faces] = 4*mesh->num_faces;
+
+  // Connectivity metadata.
+  mesh->cell_face_offsets[0] = 0;
+  for (int c = 0; c < mesh->num_cells; ++c)
+    mesh->cell_face_offsets[c+1] = mesh->cell_face_offsets[c] + 6;
+  mesh->face_node_offsets[0] = 0;
+  for (int f = 0; f < mesh->num_faces; ++f)
+    mesh->face_node_offsets[f+1] = mesh->face_node_offsets[f] + 4;
+  mesh_reserve_connectivity_storage(mesh);
 
   int_unordered_set_t* processed_nodes = int_unordered_set_new();
   for (int k = 0; k < nz; ++k)
@@ -79,7 +84,6 @@ mesh_t* create_rectilinear_mesh(MPI_Comm comm,
       {
         // Hook up the cell and faces.
         int cell = cubic_lattice_cell(lattice, i, j, k);
-        mesh->cell_face_offsets[cell] = 6*cell;
 
         // Note that we define the nodes of the faces to be ordered such that 
         // the right-hand rule produces a normal vector that always points 
@@ -163,7 +167,6 @@ mesh_t* create_rectilinear_mesh(MPI_Comm comm,
           else if (mesh->face_cells[2*face+1] == -1)
             mesh->face_cells[2*face+1] = cell;
 
-          mesh->face_node_offsets[face] = 4*face;
           for (int n = 0; n < 4; ++n)
             mesh->face_nodes[4*face+n] = nodes[f][n];
         }

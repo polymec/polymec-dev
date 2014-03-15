@@ -171,6 +171,22 @@ mesh_t* mesh_new_with_arena(ARENA* arena, MPI_Comm comm, int num_cells,
   return mesh;
 }
 
+mesh_t* mesh_new_with_cell_type(MPI_Comm comm, int num_cells, 
+                                int num_ghost_cells, int num_faces, 
+                                int num_nodes, int num_faces_per_cell,
+                                int num_nodes_per_face)
+{
+  mesh_t* mesh = mesh_new(comm, num_cells, num_ghost_cells, num_faces, num_nodes);
+
+  // Set up connectivity metadata.
+  for (int c = 0; c < mesh->num_cells+1; ++c)
+    mesh->cell_face_offsets[c] = num_faces_per_cell*c;
+  for (int f = 0; f < mesh->num_faces+1; ++f)
+    mesh->face_node_offsets[f] = num_nodes_per_face*f;
+  mesh_reserve_connectivity_storage(mesh);
+  return mesh;
+}
+
 void mesh_free(mesh_t* mesh)
 {
   ASSERT(mesh != NULL);

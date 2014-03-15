@@ -125,6 +125,15 @@ mesh_t* mesh_new(MPI_Comm comm, int num_cells, int num_ghost_cells,
 mesh_t* mesh_new_with_arena(ARENA* arena, MPI_Comm comm, int num_cells, 
                             int num_ghost_cells, int num_faces, int num_nodes);
 
+// Construct a new mesh with a single type of polytope.
+// This function does not set up connectivity, but initializes its metadata 
+// according to the prescribed number of faces per cell and nodes per face.
+// No edge connectivity is set up.
+mesh_t* mesh_new_with_cell_type(MPI_Comm comm, int num_cells, 
+                                int num_ghost_cells, int num_faces, 
+                                int num_nodes, int num_faces_per_cell,
+                                int num_nodes_per_face);
+
 // Destroys the given mesh.
 void mesh_free(mesh_t* mesh);
 
