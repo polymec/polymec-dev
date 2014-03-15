@@ -27,9 +27,9 @@
 
 #include "core/polymec.h"
 #include "core/point.h"
+#include "core/tagger.h"
 #include "core/adj_graph.h"
 #include "core/serializer.h"
-#include "arena/proto.h"
 
 // Mesh centerings.
 typedef enum
@@ -40,10 +40,7 @@ typedef enum
   MESH_CELL
 } mesh_centering_t;
 
-// A tagging mechanism for tagging mesh nodes/edges/faces/cells 
-// with attributes. 
-#ifndef TAGGER_T
-#define TAGGER_T
+#ifndef POLYMEC_TAGGER_H
 typedef struct tagger_t tagger_t;
 #endif
 
@@ -133,6 +130,9 @@ void mesh_free(mesh_t* mesh);
 
 // Validates the mesh, throwing an error if it is topologically invalid.
 void mesh_verify(mesh_t* mesh);
+
+// Returns an exact copy of the given mesh.
+mesh_t* mesh_clone(mesh_t* mesh);
 
 // Associates a named piece of metadata (a "property") with the mesh itself.
 // This can be used to store information about (for example) how the mesh 
@@ -248,7 +248,7 @@ static inline int mesh_face_num_nodes(mesh_t* mesh, int face)
 // Allows iteration over the nodes attached to the given face in the mesh.
 // Set *pos to 0 to reset the iteration. Returns true if nodes remain in 
 // the face, false otherwise.
-static inline bool mesh_next_face_node(mesh_t* mesh, int face, int* pos, int* node)
+static inline bool mesh_face_next_node(mesh_t* mesh, int face, int* pos, int* node)
 {
   *node = mesh->face_nodes[mesh->face_node_offsets[face] + *pos];
   ++(*pos);
@@ -264,7 +264,7 @@ static inline int mesh_face_num_edges(mesh_t* mesh, int face)
 // Allows iteration over the edges attached to the given face in the mesh.
 // Set *pos to 0 to reset the iteration. Returns true if edges remain in 
 // the face, false otherwise.
-static inline bool mesh_next_face_edge(mesh_t* mesh, int face, int* pos, int* edge)
+static inline bool mesh_face_next_edge(mesh_t* mesh, int face, int* pos, int* edge)
 {
   *edge = mesh->face_edges[mesh->face_edge_offsets[face] + *pos];
   ++(*pos);

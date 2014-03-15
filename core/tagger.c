@@ -23,13 +23,9 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <stdlib.h>
+#include "core/tagger.h"
 #include "core/unordered_map.h"
 #include "arena/proto.h"
-
-// These functions are for manipulating tags that identify properties for 
-// sets of elements. There is no header file, so each of these has to be 
-// declared "extern" in a source file that uses them--this is because they 
-// have no "public" interface.
 
 typedef struct
 {
@@ -94,11 +90,11 @@ static void tagger_data_free(tagger_data_t* tags_data)
 
 DEFINE_UNORDERED_MAP(tagger_data_map, char*, tagger_data_t*, string_hash, string_equals)
 
-typedef struct 
+struct tagger_t
 {
   ARENA* arena;
   tagger_data_map_t* data;
-} tagger_t;
+};
 
 tagger_t* tagger_new(ARENA* arena)
 {
@@ -112,6 +108,21 @@ void tagger_free(tagger_t* tags)
 {
   tagger_data_map_free(tags->data);
   ARENA_FREE(tags->arena, tags);
+}
+
+void tagger_copy(tagger_t* dest, tagger_t* src)
+{
+  // We deep-copy all tags, but we don't touch properties (since we don't
+  // know their sizes).
+  int pos = 0, *tag, tag_size;
+  char* tag_name;
+  while (tagger_next_tag(src, &pos, &tag_name, &tag, &tag_size))
+  {
+    // Any tag with this name is overwritten.
+    tagger_delete_tag(dest, tag_name);
+    int* new_tag = tagger_create_tag(dest, tag_name, tag_size);
+    memcpy(new_tag, tag, sizeof(int) * tag_size);
+  }
 }
 
 // These destructors are used with maps for tag properties and tags.
@@ -221,3 +232,4 @@ bool tagger_next_tag(tagger_t* tagger, int* pos, char** tag_name, int** tag_indi
   }
   return result;
 }
+

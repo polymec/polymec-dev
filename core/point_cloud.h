@@ -27,13 +27,9 @@
 
 #include "core/polymec.h"
 #include "core/point.h"
+#include "core/tagger.h"
 #include "core/adj_graph.h"
 #include "arena/proto.h"
-
-#ifndef TAGGER_T
-#define TAGGER_T
-typedef struct tagger_t tagger_t;
-#endif
 
 // This strategy (base) class provides an interface to algorithms for 
 // connecting points in point clouds.

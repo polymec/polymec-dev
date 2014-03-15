@@ -23,6 +23,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "core/morton.h"
+#include "core/unordered_set.h"
 #include "core/distribute_serial_mesh.h"
 
 // This container holds a Morton index and the associated mesh cell index.
@@ -41,17 +42,65 @@ static inline int morton_comp(const void* l, const void* r)
          (mr->morton_index > mr->morton_index) ?  1 : 0;             
 }
 
+// Returns a local mesh representing the pth subdomain, given a global mesh 
+// and the partition vector.
+static mesh_t* local_subdomain(MPI_Comm comm, mesh_t* global_mesh, int* partition, int p)
+{
+  // Count up the cells, faces, nodes.
+  int num_cells = 0;
+  int_unordered_set_t* local_faces = int_unordered_set_new();
+  int_unordered_set_t* local_nodes = int_unordered_set_new();
+  int_unordered_set_t* ghost_cells = int_unordered_set_new();
+  for (int c = 0; c < global_mesh->num_cells; ++c)
+  {
+    if (partition[c] == p)
+    {
+      // This cell is ours.
+      ++num_cells;
+
+      // Loop over the faces of this cell and gather information.
+      int pos = 0, face;
+      while (mesh_cell_next_face(global_mesh, c, &pos, &face))
+      {
+        // This face and its nodes belong to the local mesh.
+        int_unordered_set_insert(local_faces, face);
+        int pos1 = 0, node;
+        while (mesh_face_next_node(global_mesh, face, &pos1, &node))
+          int_unordered_set_insert(local_nodes, node);
+
+        int c1 = mesh_face_opp_cell(global_mesh, face, c);
+        if (c1 != -1)
+        {
+          // Any adjoining cell that isn't ours is a ghost cell.
+          if (partition[c1] != p)
+            int_unordered_set_insert(ghost_cells, c1);
+        }
+      }
+    }
+  }
+  int num_faces = local_faces->size;
+  int num_nodes = local_nodes->size;
+  int num_ghost_cells = ghost_cells->size;
+
+  // Now create the mesh.
+  mesh_t* mesh = mesh_new(comm, num_cells, num_ghost_cells, num_faces, num_nodes);
+
+  int_unordered_set_free(local_faces);
+  int_unordered_set_free(local_nodes);
+  int_unordered_set_free(ghost_cells);
+  return mesh;
+}
+
 mesh_t* distribute_serial_mesh(MPI_Comm comm, mesh_t* serial_mesh, int* partition)
 {
+#if POLYMEC_HAVE_MPI
   int rank, nproc;
   MPI_Comm_size(comm, &nproc);
   MPI_Comm_rank(comm, &rank);
 
-#if POLYMEC_HAVE_MPI
   // MPI tags.
   int mesh_size_tag = 0, mesh_tag = 1;
   serializer_t* serializer = mesh_serializer();
-#endif
 
   if (rank == 0)
   {
@@ -91,11 +140,9 @@ mesh_t* distribute_serial_mesh(MPI_Comm comm, mesh_t* serial_mesh, int* partitio
         partition[ordering[i].cell_index] = p;
     }
 
-    // Local mesh.
-    mesh_t* local_mesh = NULL;
-    // FIXME
+    // Construct a local mesh from cells owned by process 0.
+    mesh_t* local_mesh = local_subdomain(comm, serial_mesh, partition, 0);
 
-#if POLYMEC_HAVE_MPI
     // Transmit local meshes to each destination process.
 
     // Local mesh sizes.
@@ -104,10 +151,12 @@ mesh_t* distribute_serial_mesh(MPI_Comm comm, mesh_t* serial_mesh, int* partitio
     byte_array_t* byteses[nproc-1];
     for (int p = 1; p < nproc; ++p)
     {
-      mesh_t* mesh_p = NULL;
+      mesh_t* mesh_p = local_subdomain(comm, serial_mesh, partition, p);
       byte_array_t* bytes = byte_array_new();
       size_t offset = 0;
-      serializer_write(serializer, local_mesh, bytes, &offset);
+      serializer_write(serializer, mesh_p, bytes, &offset);
+      mesh_free(mesh_p);
+
       unsigned long size = (unsigned long)bytes->size;
       MPI_Isend(&size, 1, MPI_UNSIGNED_LONG, p, mesh_size_tag, comm, &requests[p-1]);
       byteses[p-1] = bytes;
@@ -125,12 +174,10 @@ mesh_t* distribute_serial_mesh(MPI_Comm comm, mesh_t* serial_mesh, int* partitio
     // Clean up.
     for (int p = 1; p < nproc; ++p)
       byte_array_free(byteses[p-1]);
-#endif
     return local_mesh;
   }
   else
   {
-#if POLYMEC_HAVE_MPI
     // Get the local mesh information.
 
     // Mesh size.
@@ -146,9 +193,10 @@ mesh_t* distribute_serial_mesh(MPI_Comm comm, mesh_t* serial_mesh, int* partitio
     mesh_t* local_mesh = serializer_read(serializer, bytes, &offset);
     byte_array_free(bytes);
     return local_mesh;
-#else
-    return NULL; // Never reached.
-#endif
   }
+#else
+  // Just return a copy of the mesh.
+  return mesh_clone(serial_mesh);
+#endif
 }
 

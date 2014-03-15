@@ -288,7 +288,7 @@ static int fv_poisson_residual(void* context, real_t t, real_t* u, real_t* F)
       {
         int npos = 0, node;
         face_node_offsets[face] = fn_offset;
-        while (mesh_next_face_node(p->mesh, face, &npos, &node))
+        while (mesh_face_next_node(p->mesh, face, &npos, &node))
         {
           face_nodes[fn_offset] = p->mesh->nodes[node];
           ++fn_offset;

@@ -27,23 +27,9 @@
 #include "core/mesh_storage.h"
 #include "core/unordered_set.h"
 #include "core/table.h"
-//#include "core/linear_algebra.h"
 
 // Mesh features.
 const char* TETRAHEDRAL = "tetrahedral";
-
-// Generic tagging functions -- defined in tagger.c.
-extern tagger_t* tagger_new(ARENA* arena);
-extern void tagger_free(tagger_t* tagger);
-extern int* tagger_create_tag(tagger_t* tagger, const char* tag_name, int size);
-extern int* tagger_tag(tagger_t* tagger, const char* tag_name, int* size);
-extern bool tagger_has_tag(tagger_t* tagger, const char* tag_name);
-extern void tagger_delete_tag(tagger_t* tagger, const char* tag_name);
-extern bool tagger_set_property(tagger_t* tagger, const char* tag_name, const char* property_name, void* data, void (*dtor)(void*));
-extern void* tagger_property(tagger_t* tagger, const char* tag_name, const char* property_name);
-extern void tagger_delete_property(tagger_t* tagger, const char* tag_name, const char* property_name);
-extern void tagger_rename_tag(tagger_t* tagger, const char* old_tag_name, const char* new_tag_name);
-extern bool tagger_next_tag(tagger_t* tagger, int* pos, char** tag_name, int** tag_indices, int* tag_size);
 
 // This function rounds the given number up to the nearest power of 2.
 static int round_to_pow2(int x)
@@ -218,6 +204,54 @@ void mesh_verify(mesh_t* mesh)
   }
 }
 
+mesh_t* mesh_clone(mesh_t* mesh)
+{
+  mesh_t* clone = mesh_new(MPI_COMM_WORLD, mesh->num_cells, mesh->num_ghost_cells,
+                           mesh->num_faces, mesh->num_nodes);
+
+  // Cell stuff.
+  memcpy(clone->cell_face_offsets, mesh->cell_face_offsets, sizeof(int)*(mesh->num_cells+1));
+  int num_cell_faces = clone->cell_face_offsets[clone->num_cells];
+  if (clone->storage->cell_face_capacity < num_cell_faces)
+  {
+    clone->cell_faces = ARENA_REALLOC(clone->arena, clone->cell_faces, sizeof(int)*num_cell_faces, 0);
+    clone->storage->cell_face_capacity = num_cell_faces;
+  }
+  memcpy(clone->cell_faces, mesh->cell_faces, sizeof(int)*num_cell_faces);
+
+  // Face stuff.
+  memcpy(clone->face_node_offsets, mesh->face_node_offsets, sizeof(int)*(mesh->num_faces+1));
+  int num_face_nodes = clone->face_node_offsets[clone->num_faces];
+  if (clone->storage->face_node_capacity < num_face_nodes)
+  {
+    clone->face_nodes = ARENA_REALLOC(clone->arena, clone->face_nodes, sizeof(int)*num_face_nodes, 0);
+    clone->storage->face_node_capacity = num_face_nodes;
+  }
+  memcpy(clone->face_nodes, mesh->face_nodes, sizeof(int)*num_face_nodes);
+  memcpy(clone->face_cells, mesh->face_cells, sizeof(int)*2*clone->num_faces);
+
+  // Node stuff.
+  memcpy(clone->nodes, mesh->nodes, sizeof(point_t)*clone->num_nodes);
+
+  // Construct edges.
+  mesh_construct_edges(clone);
+
+  // Geometry stuff.
+  memcpy(clone->cell_volumes, mesh->cell_volumes, sizeof(real_t)*clone->num_cells);
+  memcpy(clone->cell_centers, mesh->cell_centers, sizeof(point_t)*clone->num_cells);
+  memcpy(clone->face_centers, mesh->face_centers, sizeof(point_t)*clone->num_faces);
+  memcpy(clone->face_areas, mesh->face_areas, sizeof(real_t)*clone->num_faces);
+  memcpy(clone->face_normals, mesh->face_normals, sizeof(vector_t)*clone->num_faces);
+
+  // Tags.
+  tagger_copy(clone->node_tags, mesh->node_tags);
+  tagger_copy(clone->edge_tags, mesh->edge_tags);
+  tagger_copy(clone->face_tags, mesh->face_tags);
+  tagger_copy(clone->cell_tags, mesh->cell_tags);
+
+  return clone;
+}
+
 void mesh_set_property(mesh_t* mesh, const char* property, void* data, void (*dtor)(void*))
 {
   // Use the bogus tag to store our junk.
@@ -318,7 +352,7 @@ void mesh_compute_geometry(mesh_t* mesh)
       if (cell == mesh->face_cells[2*face])
         mesh->face_centers[face].x = mesh->face_centers[face].y = mesh->face_centers[face].z = 0.0;
       int npos = 0, node;
-      while (mesh_next_face_node(mesh, face, &npos, &node))
+      while (mesh_face_next_node(mesh, face, &npos, &node))
       {
         ASSERT(node >= 0);
         ASSERT(node < mesh->num_nodes);
@@ -355,7 +389,7 @@ void mesh_compute_geometry(mesh_t* mesh)
       real_t face_area = 0.0;
       vector_t face_normal = {0.0, 0.0, 0.0};
       int epos = 0, edge;
-      while (mesh_next_face_edge(mesh, face, &epos, &edge))
+      while (mesh_face_next_edge(mesh, face, &epos, &edge))
       {
         ASSERT(edge >= 0);
         ASSERT(edge < mesh->num_edges);
