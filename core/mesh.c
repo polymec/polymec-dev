@@ -24,7 +24,6 @@
 
 #include <stdlib.h>
 #include "core/mesh.h"
-#include "core/mesh_storage.h"
 #include "core/unordered_set.h"
 #include "core/table.h"
 
@@ -37,6 +36,48 @@ static int round_to_pow2(int x)
   int y = 2;
   while (y < x) y *= 2;
   return y;
+}
+
+// Mesh storage stuff.
+struct mesh_storage_t
+{
+  ARENA* arena;
+  bool close_arena;
+
+  int cell_face_capacity;
+  int face_edge_capacity;
+  int face_node_capacity;
+};
+
+// Initializes a new storage mechanism for a mesh with the given ARENA.
+static mesh_storage_t* mesh_storage_new_with_arena(ARENA* arena)
+{
+  mesh_storage_t* storage = ARENA_MALLOC(arena, sizeof(mesh_storage_t), 0);
+  storage->arena = arena;
+  storage->cell_face_capacity = 0;
+  storage->face_edge_capacity = 0;
+  storage->face_node_capacity = 0;
+  storage->close_arena = false;
+  return storage;
+}
+
+// Initializes a new storage mechanism for a mesh.
+static mesh_storage_t* mesh_storage_new()
+{
+  ARENA* a = arena_open(&arena_defaults, ARENA_STDLIB);
+  mesh_storage_t* s = mesh_storage_new_with_arena(a);
+  s->close_arena = true;
+  return s;
+}
+
+// Frees the given storage mechanism.
+static void mesh_storage_free(mesh_storage_t* storage)
+{
+  ARENA* a = storage->arena;
+  bool close_arena = storage->close_arena;
+  ARENA_FREE(a, storage);
+  if (close_arena)
+    arena_close(a);
 }
 
 mesh_t* mesh_new(MPI_Comm comm, int num_cells, int num_ghost_cells, 
@@ -209,24 +250,15 @@ mesh_t* mesh_clone(mesh_t* mesh)
   mesh_t* clone = mesh_new(MPI_COMM_WORLD, mesh->num_cells, mesh->num_ghost_cells,
                            mesh->num_faces, mesh->num_nodes);
 
-  // Cell stuff.
+  // Connectivity metadata.
   memcpy(clone->cell_face_offsets, mesh->cell_face_offsets, sizeof(int)*(mesh->num_cells+1));
-  int num_cell_faces = clone->cell_face_offsets[clone->num_cells];
-  if (clone->storage->cell_face_capacity < num_cell_faces)
-  {
-    clone->cell_faces = ARENA_REALLOC(clone->arena, clone->cell_faces, sizeof(int)*num_cell_faces, 0);
-    clone->storage->cell_face_capacity = num_cell_faces;
-  }
-  memcpy(clone->cell_faces, mesh->cell_faces, sizeof(int)*num_cell_faces);
-
-  // Face stuff.
   memcpy(clone->face_node_offsets, mesh->face_node_offsets, sizeof(int)*(mesh->num_faces+1));
+  mesh_reserve_connectivity_storage(clone);
+
+  // Actual connectivity.
+  int num_cell_faces = clone->cell_face_offsets[clone->num_cells];
+  memcpy(clone->cell_faces, mesh->cell_faces, sizeof(int)*num_cell_faces);
   int num_face_nodes = clone->face_node_offsets[clone->num_faces];
-  if (clone->storage->face_node_capacity < num_face_nodes)
-  {
-    clone->face_nodes = ARENA_REALLOC(clone->arena, clone->face_nodes, sizeof(int)*num_face_nodes, 0);
-    clone->storage->face_node_capacity = num_face_nodes;
-  }
   memcpy(clone->face_nodes, mesh->face_nodes, sizeof(int)*num_face_nodes);
   memcpy(clone->face_cells, mesh->face_cells, sizeof(int)*2*clone->num_faces);
 
@@ -475,6 +507,28 @@ void mesh_construct_edges(mesh_t* mesh)
   int_table_free(edge_for_nodes);
 }
 
+void mesh_reserve_connectivity_storage(mesh_t* mesh)
+{
+  // Make sure metadata is in order.
+  int num_cell_faces = mesh->cell_face_offsets[mesh->num_cells];
+  ASSERT(num_cell_faces >= 4*mesh->num_cells); 
+  int num_face_nodes = mesh->face_node_offsets[mesh->num_faces];
+  ASSERT(num_face_nodes >= 3*mesh->num_faces); 
+
+  if (mesh->storage->cell_face_capacity <= num_cell_faces)
+  {
+    while (mesh->storage->cell_face_capacity <= num_cell_faces)
+      mesh->storage->cell_face_capacity *= 2;
+    mesh->cell_faces = ARENA_REALLOC(mesh->arena, mesh->cell_faces, sizeof(int) * mesh->storage->cell_face_capacity, 0);
+  }
+  if (mesh->storage->face_node_capacity <= num_face_nodes)
+  {
+    while (mesh->storage->face_node_capacity <= num_face_nodes)
+      mesh->storage->face_node_capacity *= 2;
+    mesh->face_nodes = ARENA_REALLOC(mesh->arena, mesh->face_nodes, sizeof(int) * mesh->storage->face_node_capacity, 0);
+  }
+}
+
 static size_t mesh_byte_size(void* obj)
 {
   mesh_t* mesh = obj;
@@ -555,24 +609,17 @@ static void* mesh_byte_read(byte_array_t* bytes, size_t* offset)
   mesh_t* mesh = mesh_new(MPI_COMM_WORLD, num_cells, num_ghost_cells,
                           num_faces, num_nodes);
 
-  // Read all the cell stuff.
+  // Read all the connectivity metadata.
   byte_array_read_ints(bytes, num_cells+1, offset, mesh->cell_face_offsets);
-  int num_cell_faces = mesh->cell_face_offsets[mesh->num_cells];
-  if (mesh->storage->cell_face_capacity < num_cell_faces)
-  {
-    mesh->cell_faces = ARENA_REALLOC(mesh->arena, mesh->cell_faces, sizeof(int)*num_cell_faces, 0);
-    mesh->storage->cell_face_capacity = num_cell_faces;
-  }
-  byte_array_read_ints(bytes, num_cell_faces, offset, mesh->cell_faces);
-
-  // Face stuff.
   byte_array_read_ints(bytes, num_faces+1, offset, mesh->face_node_offsets);
+
+  // Make sure that connectivity storage is sufficient.
+  mesh_reserve_connectivity_storage(mesh);
+
+  // Actual connectivity data.
+  int num_cell_faces = mesh->cell_face_offsets[mesh->num_cells];
+  byte_array_read_ints(bytes, num_cell_faces, offset, mesh->cell_faces);
   int num_face_nodes = mesh->face_node_offsets[mesh->num_faces];
-  if (mesh->storage->face_node_capacity < num_face_nodes)
-  {
-    mesh->face_nodes = ARENA_REALLOC(mesh->arena, mesh->face_nodes, sizeof(int)*num_face_nodes, 0);
-    mesh->storage->face_node_capacity = num_face_nodes;
-  }
   byte_array_read_ints(bytes, num_face_nodes, offset, mesh->face_nodes);
   byte_array_read_ints(bytes, 2*num_faces, offset, mesh->face_cells);
 
@@ -628,14 +675,13 @@ static void mesh_byte_write(void* obj, byte_array_t* bytes, size_t* offset)
   byte_array_write_ints(bytes, 1, &mesh->num_faces, offset);
   byte_array_write_ints(bytes, 1, &mesh->num_nodes, offset);
 
-  // Write all the cell stuff.
+  // Write all the connectivity metadata.
   byte_array_write_ints(bytes, mesh->num_cells+1, mesh->cell_face_offsets, offset);
-  byte_array_write_ints(bytes, mesh->cell_face_offsets[mesh->num_cells], mesh->cell_faces, offset);
-
-  // Face stuff.
   byte_array_write_ints(bytes, mesh->num_faces+1, mesh->face_node_offsets, offset);
-  byte_array_write_ints(bytes, mesh->face_node_offsets[mesh->num_faces], mesh->face_nodes, offset);
 
+  // Write all the actual connectivity data.
+  byte_array_write_ints(bytes, mesh->cell_face_offsets[mesh->num_cells], mesh->cell_faces, offset);
+  byte_array_write_ints(bytes, mesh->face_node_offsets[mesh->num_faces], mesh->face_nodes, offset);
   byte_array_write_ints(bytes, 2*mesh->num_faces, mesh->face_cells, offset);
 
   // Node stuff.

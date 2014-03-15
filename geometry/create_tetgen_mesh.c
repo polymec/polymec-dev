@@ -27,7 +27,6 @@
 // Please see the license file in the Tetgen tarball for license information 
 // on Tetgen.
 
-#include "core/mesh_storage.h"
 #include "core/unordered_map.h"
 #include "core/unordered_set.h"
 #include "core/text_file_buffer.h"
@@ -391,12 +390,18 @@ mesh_t* create_tetgen_mesh(MPI_Comm comm,
   // Copy node coordinates.
   memcpy(mesh->nodes, nodes, sizeof(point_t) * num_nodes);
 
-  // Face <-> node connectivity.
-  int_tuple_int_unordered_map_t* face_for_nodes = int_tuple_int_unordered_map_new();
+  // Connectivity metadata.
   mesh->face_node_offsets[0] = 0;
   for (int f = 0; f < num_faces; ++f)
     mesh->face_node_offsets[f+1] = (f+1)*nodes_per_face;
-  mesh->face_nodes = ARENA_REALLOC(mesh->arena, mesh->face_nodes, sizeof(int) * num_faces * nodes_per_face, 0);
+  mesh->cell_face_offsets[0] = 0;
+  for (int c = 0; c < mesh->num_cells; ++c)
+    mesh->cell_face_offsets[c+1] = 4*(c+1);
+
+  mesh_reserve_connectivity_storage(mesh);
+
+  // Actual connectivity.
+  int_tuple_int_unordered_map_t* face_for_nodes = int_tuple_int_unordered_map_new();
   for (int f = 0; f < num_faces; ++f)
   {
     tet_face_t* face = &faces[f];
@@ -410,13 +415,10 @@ mesh_t* create_tetgen_mesh(MPI_Comm comm,
     int_qsort(primal_nodes, 3);
     int_tuple_int_unordered_map_insert_with_k_dtor(face_for_nodes, primal_nodes, f, int_tuple_free);
   }
-  mesh->storage->face_node_capacity = num_faces * nodes_per_face;
 
   // Cell <-> face connectivity.
-  mesh->cell_face_offsets[0] = 0;
   for (int c = 0; c < mesh->num_cells; ++c)
   {
-    mesh->cell_face_offsets[c+1] = 4*(c+1);
     for (int f = mesh->cell_face_offsets[c]; f < mesh->cell_face_offsets[c+1]; ++f)
       mesh->cell_faces[f] = -1;
   }
@@ -425,7 +427,6 @@ mesh_t* create_tetgen_mesh(MPI_Comm comm,
     mesh->face_cells[2*f]   = -1;
     mesh->face_cells[2*f+1] = -1;
   }
-  mesh->cell_faces = ARENA_REALLOC(mesh->arena, mesh->cell_faces, sizeof(int) * 4 * mesh->num_cells, 0);
   {
     // Use a triple for querying faces.
     int* nodes = int_tuple_new(3);
@@ -495,7 +496,6 @@ mesh_t* create_tetgen_mesh(MPI_Comm comm,
     // Clean up.
     int_tuple_free(nodes);
   }
-  mesh->storage->cell_face_capacity = 4*mesh->num_cells;
 
   // Build edges.
   mesh_construct_edges(mesh);

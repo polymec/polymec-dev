@@ -47,7 +47,7 @@ static inline int morton_comp(const void* l, const void* r)
 static mesh_t* local_subdomain(MPI_Comm comm, mesh_t* global_mesh, int* partition, int p)
 {
   // Count up the cells, faces, nodes.
-  int num_cells = 0;
+  int_unordered_set_t* local_cells = int_unordered_set_new();
   int_unordered_set_t* local_faces = int_unordered_set_new();
   int_unordered_set_t* local_nodes = int_unordered_set_new();
   int_unordered_set_t* ghost_cells = int_unordered_set_new();
@@ -56,7 +56,7 @@ static mesh_t* local_subdomain(MPI_Comm comm, mesh_t* global_mesh, int* partitio
     if (partition[c] == p)
     {
       // This cell is ours.
-      ++num_cells;
+      int_unordered_set_insert(local_cells, c);
 
       // Loop over the faces of this cell and gather information.
       int pos = 0, face;
@@ -78,16 +78,47 @@ static mesh_t* local_subdomain(MPI_Comm comm, mesh_t* global_mesh, int* partitio
       }
     }
   }
+  int num_cells = local_cells->size;
+  int num_ghost_cells = ghost_cells->size;
   int num_faces = local_faces->size;
   int num_nodes = local_nodes->size;
-  int num_ghost_cells = ghost_cells->size;
 
   // Now create the mesh.
   mesh_t* mesh = mesh_new(comm, num_cells, num_ghost_cells, num_faces, num_nodes);
 
+  // Generate mappings from global -> local indices.
+  int* cell_indices = malloc(sizeof(int) * num_cells);
+  int* ghost_cell_indices = malloc(sizeof(int) * num_ghost_cells);
+  int* face_indices = malloc(sizeof(int) * num_faces);
+  int* node_indices = malloc(sizeof(int) * num_nodes);
+  {
+    int pos = 0, cell, c = 0, face, f, node, n;
+    while (int_unordered_set_next(local_cells, &pos, &cell))
+      cell_indices[c++] = cell;
+    pos = 0, c = 0;
+    while (int_unordered_set_next(ghost_cells, &pos, &cell))
+      ghost_cell_indices[c++] = cell;
+    pos = 0, f = 0;
+    while (int_unordered_set_next(local_faces, &pos, &face))
+      face_indices[f++] = face;
+    pos = 0, n = 0;
+    while (int_unordered_set_next(local_nodes, &pos, &node))
+      node_indices[n++] = node;
+  }
+  int_unordered_set_free(local_cells);
   int_unordered_set_free(local_faces);
   int_unordered_set_free(local_nodes);
   int_unordered_set_free(ghost_cells);
+
+  // Now fill everything in.
+  mesh->cell_face_offsets[0] = 0;
+  for (int c = 0; c < num_cells; ++c)
+  {
+    int cell = cell_indices[c];
+    int nf = mesh->cell_face_offsets[cell+1] - mesh->cell_face_offsets[cell];
+    mesh->cell_face_offsets[c+1] = mesh->cell_face_offsets[c] + nf;
+  }
+
   return mesh;
 }
 

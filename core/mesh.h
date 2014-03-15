@@ -203,8 +203,15 @@ bool mesh_next_tag(tagger_t* tagger, int* pos, char** tag_name, int** tag_indice
 // bounded).
 void mesh_compute_geometry(mesh_t* mesh);
 
-// This helper method constructs edge information from nodes, provided that 
-// no edge information exists already.
+// This helper method makes sure that sufficient storage is reserved for 
+// cell-face and face->node connectivity. This must be called after 
+// the mesh->cell_face_offsets and mesh->face_node_offsets arrays have been 
+// properly initialized. It does *NOT* allocate edge information -- use 
+// mesh_construct_edges() to build face->edge and edge->node connectivity.
+void mesh_reserve_connectivity_storage(mesh_t* mesh);
+
+// This helper method constructs face->edge and edge->node connectivity, 
+// provided that no edge information exists already.
 void mesh_construct_edges(mesh_t* mesh);
 
 // Returns the number of faces attached to the given cell in the mesh.
