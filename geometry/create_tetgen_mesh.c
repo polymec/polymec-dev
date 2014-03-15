@@ -384,21 +384,12 @@ mesh_t* create_tetgen_mesh(MPI_Comm comm,
 
   read_neighbors(neigh_file, tets, num_tets);
 
-  // Create the mesh.
-  mesh_t* mesh = mesh_new(comm, num_tets, 0, num_faces, num_nodes);
+  // Create a mesh full of tetrahedra (4 faces per cell, 3 nodes per face).
+  mesh_t* mesh = mesh_new_with_cell_type(comm, num_tets, 0, num_faces, 
+                                         num_nodes, 4, nodes_per_face);
   
   // Copy node coordinates.
   memcpy(mesh->nodes, nodes, sizeof(point_t) * num_nodes);
-
-  // Connectivity metadata.
-  mesh->face_node_offsets[0] = 0;
-  for (int f = 0; f < num_faces; ++f)
-    mesh->face_node_offsets[f+1] = (f+1)*nodes_per_face;
-  mesh->cell_face_offsets[0] = 0;
-  for (int c = 0; c < mesh->num_cells; ++c)
-    mesh->cell_face_offsets[c+1] = 4*(c+1);
-
-  mesh_reserve_connectivity_storage(mesh);
 
   // Actual connectivity.
   int_tuple_int_unordered_map_t* face_for_nodes = int_tuple_int_unordered_map_new();
