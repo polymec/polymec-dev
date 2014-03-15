@@ -23,7 +23,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "core/morton.h"
-#include "core/unordered_set.h"
+#include "core/unordered_map.h"
 #include "core/distribute_serial_mesh.h"
 
 // This container holds a Morton index and the associated mesh cell index.
@@ -46,78 +46,101 @@ static inline int morton_comp(const void* l, const void* r)
 // and the partition vector.
 static mesh_t* local_subdomain(MPI_Comm comm, mesh_t* global_mesh, int* partition, int p)
 {
-  // Count up the cells, faces, nodes.
-  int_unordered_set_t* local_cells = int_unordered_set_new();
-  int_unordered_set_t* local_faces = int_unordered_set_new();
-  int_unordered_set_t* local_nodes = int_unordered_set_new();
-  int_unordered_set_t* ghost_cells = int_unordered_set_new();
+  // Count up the cells, faces, nodes, and generate global->local mappings.
+  int_int_unordered_map_t* local_cells = int_int_unordered_map_new();
+  int_int_unordered_map_t* local_faces = int_int_unordered_map_new();
+  int_int_unordered_map_t* local_nodes = int_int_unordered_map_new();
+  int_int_unordered_map_t* ghost_cells = int_int_unordered_map_new();
+  int num_cells = 0, num_ghost_cells = 0, num_faces = 0, num_nodes = 0;
   for (int c = 0; c < global_mesh->num_cells; ++c)
   {
     if (partition[c] == p)
     {
       // This cell is ours.
-      int_unordered_set_insert(local_cells, c);
+      int_int_unordered_map_insert(local_cells, c, num_cells++);
 
       // Loop over the faces of this cell and gather information.
       int pos = 0, face;
       while (mesh_cell_next_face(global_mesh, c, &pos, &face))
       {
         // This face and its nodes belong to the local mesh.
-        int_unordered_set_insert(local_faces, face);
+        if (!int_int_unordered_map_contains(local_faces, face))
+          int_int_unordered_map_insert(local_faces, face, num_faces++);
         int pos1 = 0, node;
         while (mesh_face_next_node(global_mesh, face, &pos1, &node))
-          int_unordered_set_insert(local_nodes, node);
+        {
+          if (!int_int_unordered_map_contains(local_nodes, node))
+            int_int_unordered_map_insert(local_nodes, node, num_nodes++);
+        }
 
         int c1 = mesh_face_opp_cell(global_mesh, face, c);
         if (c1 != -1)
         {
           // Any adjoining cell that isn't ours is a ghost cell.
-          if (partition[c1] != p)
-            int_unordered_set_insert(ghost_cells, c1);
+          if ((partition[c1] != p) && !int_int_unordered_map_contains(ghost_cells, c1))
+            int_int_unordered_map_insert(ghost_cells, c1, num_ghost_cells++);
         }
       }
     }
   }
-  int num_cells = local_cells->size;
-  int num_ghost_cells = ghost_cells->size;
-  int num_faces = local_faces->size;
-  int num_nodes = local_nodes->size;
 
   // Now create the mesh.
   mesh_t* mesh = mesh_new(comm, num_cells, num_ghost_cells, num_faces, num_nodes);
 
-  // Generate mappings from global -> local indices.
-  int* cell_indices = malloc(sizeof(int) * num_cells);
-  int* ghost_cell_indices = malloc(sizeof(int) * num_ghost_cells);
-  int* face_indices = malloc(sizeof(int) * num_faces);
-  int* node_indices = malloc(sizeof(int) * num_nodes);
-  {
-    int pos = 0, cell, c = 0, face, f, node, n;
-    while (int_unordered_set_next(local_cells, &pos, &cell))
-      cell_indices[c++] = cell;
-    pos = 0, c = 0;
-    while (int_unordered_set_next(ghost_cells, &pos, &cell))
-      ghost_cell_indices[c++] = cell;
-    pos = 0, f = 0;
-    while (int_unordered_set_next(local_faces, &pos, &face))
-      face_indices[f++] = face;
-    pos = 0, n = 0;
-    while (int_unordered_set_next(local_nodes, &pos, &node))
-      node_indices[n++] = node;
-  }
-  int_unordered_set_free(local_cells);
-  int_unordered_set_free(local_faces);
-  int_unordered_set_free(local_nodes);
-  int_unordered_set_free(ghost_cells);
-
-  // Now fill everything in.
+  // Set up metadata for connectivity.
   mesh->cell_face_offsets[0] = 0;
-  for (int c = 0; c < num_cells; ++c)
+  int pos = 0, local_cell, global_cell;
+  while (int_int_unordered_map_next(local_cells, &pos, &global_cell, &local_cell))
   {
-    int cell = cell_indices[c];
-    int nf = mesh->cell_face_offsets[cell+1] - mesh->cell_face_offsets[cell];
-    mesh->cell_face_offsets[c+1] = mesh->cell_face_offsets[c] + nf;
+    int nf = global_mesh->cell_face_offsets[global_cell+1] - global_mesh->cell_face_offsets[global_cell];
+    mesh->cell_face_offsets[local_cell+1] = mesh->cell_face_offsets[local_cell] + nf;
   }
+  mesh->face_node_offsets[0] = 0;
+  int local_face, global_face;
+  pos = 0;
+  while (int_int_unordered_map_next(local_faces, &pos, &global_face, &local_face))
+  {
+    int nn = global_mesh->face_node_offsets[global_face+1] - global_mesh->face_node_offsets[global_face];
+    mesh->face_node_offsets[local_face+1] = mesh->face_node_offsets[local_face] + nn;
+  }
+  mesh_reserve_connectivity_storage(mesh);
+
+  // Fill everything in.
+  pos = 0;
+  while (int_int_unordered_map_next(local_cells, &pos, &global_cell, &local_cell))
+  {
+    int nf = mesh->cell_face_offsets[local_cell+1] - mesh->cell_face_offsets[local_cell];
+    for (int f = 0; f < nf; ++f)
+    {
+      int global_face = global_mesh->cell_face_offsets[global_cell+f];
+      mesh->cell_faces[mesh->cell_face_offsets[local_cell]+f] = *int_int_unordered_map_get(local_faces, global_face);
+    }
+  }
+  while (int_int_unordered_map_next(local_faces, &pos, &global_face, &local_face))
+  {
+    int nn = mesh->face_node_offsets[local_face+1] - mesh->face_node_offsets[local_face];
+    for (int n = 0; n < nn; ++n)
+    {
+      int global_node = global_mesh->face_node_offsets[global_face+n];
+      mesh->face_nodes[mesh->face_node_offsets[local_face]+n] = *int_int_unordered_map_get(local_nodes, global_node);
+    }
+    int global_cell1 = global_mesh->face_cells[2*global_face];
+    int global_cell2 = global_mesh->face_cells[2*global_face+1];
+    int local_cell1 = *int_int_unordered_map_get(local_cells, global_cell1);
+    int local_cell2 = (global_cell2 != -1) ? *int_int_unordered_map_get(local_cells, global_cell1) : -1;
+    mesh->face_cells[2*local_face] = local_cell1;
+    mesh->face_cells[2*local_face+1] = local_cell2;
+  }
+
+  // Clean up.
+  int_int_unordered_map_free(local_cells);
+  int_int_unordered_map_free(local_faces);
+  int_int_unordered_map_free(local_nodes);
+  int_int_unordered_map_free(ghost_cells);
+
+  // Finish up.
+  mesh_construct_edges(mesh);
+  mesh_compute_geometry(mesh);
 
   return mesh;
 }
