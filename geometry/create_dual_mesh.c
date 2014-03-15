@@ -79,9 +79,8 @@ static mesh_t* create_dual_mesh_from_tet_mesh(MPI_Comm comm,
   }
 
   // Now that we know the various populations, build the dual mesh.
-  int num_cells = 0, num_ghost_cells = 0, num_faces = 0, num_edges = 0;
-  mesh_t* mesh = mesh_new(comm, num_cells, num_ghost_cells, num_faces,
-                          num_edges, num_vertices);
+  int num_cells = 0, num_ghost_cells = 0, num_faces = 0;
+  mesh_t* mesh = mesh_new(comm, num_cells, num_ghost_cells, num_faces, num_vertices);
 
   // Clean up.
   int_unordered_set_free(boundary_tets);

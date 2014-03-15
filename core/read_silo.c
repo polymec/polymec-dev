@@ -174,10 +174,8 @@ void read_silo_mesh(MPI_Comm comm,
   int num_cells = dbmesh->zones->nzones;
   int num_ghost_cells = 0; // FIXME: dbmesh->zones->hi_offset - dbmesh->zones->lo_offset;
   int num_faces = dbmesh->faces->nfaces;
-  int num_edges = 0; // To be constructed.
   int num_nodes = dbmesh->nnodes;
-  mesh_t* mesh_obj = mesh_new(comm, num_cells, num_ghost_cells, num_faces, 
-                              num_edges, num_nodes);
+  mesh_t* mesh_obj = mesh_new(comm, num_cells, num_ghost_cells, num_faces, num_nodes);
 
   // Node coordinates.
   for (int i = 0; i < dbmesh->nnodes; ++i)

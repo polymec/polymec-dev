@@ -28,7 +28,6 @@
 // on Tetgen.
 
 #include "core/mesh_storage.h"
-#include "core/table.h"
 #include "core/unordered_map.h"
 #include "core/unordered_set.h"
 #include "core/text_file_buffer.h"
@@ -330,26 +329,6 @@ static void read_neighbors(const char* neigh_file, tet_t* tets, int num_tets)
   }
 }
 
-static int_table_t* gather_edges(tet_face_t* faces, 
-                                 int num_faces,
-                                 int* num_edges)
-{
-  int_table_t* edge_for_nodes = int_table_new();
-  *num_edges = 0;
-  for (int f = 0; f < num_faces; ++f)
-  {
-    tet_face_t* face = &faces[f];
-    for (int e = 0; e < face->num_nodes; ++e)
-    {
-      int n1 = face->nodes[e];
-      int n2 = face->nodes[(e+1)%face->num_nodes];
-      int_table_insert(edge_for_nodes, n1, n2, *num_edges);
-      *num_edges += 1;
-    }
-  }
-  return edge_for_nodes;
-}
-
 static bool face_points_outward(tet_face_t* face,
                                 tet_t* tet,
                                 point_t* nodes)
@@ -406,26 +385,11 @@ mesh_t* create_tetgen_mesh(MPI_Comm comm,
 
   read_neighbors(neigh_file, tets, num_tets);
 
-  // Compute the number of edges, which we aren't given.
-  int num_edges = 0;
-  int_table_t* edge_for_nodes = gather_edges(faces, num_faces, &num_edges);
-
   // Create the mesh.
-  mesh_t* mesh = mesh_new(comm, num_tets, 0, num_faces, num_edges, num_nodes);
+  mesh_t* mesh = mesh_new(comm, num_tets, 0, num_faces, num_nodes);
   
   // Copy node coordinates.
   memcpy(mesh->nodes, nodes, sizeof(point_t) * num_nodes);
-
-  // Edge <-> node connectivity.
-  {
-    int_table_cell_pos_t pos = int_table_start(edge_for_nodes);
-    int n1, n2, e;
-    while (int_table_next_cell(edge_for_nodes, &pos, &n1, &n2, &e))
-    {
-      mesh->edge_nodes[2*e] = n1;
-      mesh->edge_nodes[2*e+1] = n2;
-    }
-  }
 
   // Face <-> node connectivity.
   int_tuple_int_unordered_map_t* face_for_nodes = int_tuple_int_unordered_map_new();
@@ -447,24 +411,6 @@ mesh_t* create_tetgen_mesh(MPI_Comm comm,
     int_tuple_int_unordered_map_insert_with_k_dtor(face_for_nodes, primal_nodes, f, int_tuple_free);
   }
   mesh->storage->face_node_capacity = num_faces * nodes_per_face;
-
-  // Face <-> edge connectivity.
-  mesh->face_edge_offsets[0] = 0;
-  for (int f = 0; f < mesh->num_faces; ++f)
-    mesh->face_edge_offsets[f+1] = f*nodes_per_face;
-  mesh->storage->face_edge_capacity = mesh->num_faces * nodes_per_face;
-  mesh->face_edges = ARENA_REALLOC(mesh->arena, mesh->face_edges, sizeof(int) * mesh->storage->face_edge_capacity, 0);
-  for (int f = 0; f < mesh->num_faces; ++f)
-  {
-    for (int e = 0; e < nodes_per_face; ++e)
-    {
-      int offset = mesh->face_node_offsets[f];
-      int n1 = (int)mesh->face_nodes[offset+e];
-      int n2 = (int)mesh->face_nodes[offset+(e+1)%nodes_per_face];
-      int edge_id = *int_table_get(edge_for_nodes, n1, n2);
-      mesh->face_edges[mesh->face_node_offsets[f]+e] = edge_id;
-    }
-  }
 
   // Cell <-> face connectivity.
   mesh->cell_face_offsets[0] = 0;
@@ -551,6 +497,9 @@ mesh_t* create_tetgen_mesh(MPI_Comm comm,
   }
   mesh->storage->cell_face_capacity = 4*mesh->num_cells;
 
+  // Build edges.
+  mesh_construct_edges(mesh);
+
   // Compute the mesh's geometry.
   mesh_compute_geometry(mesh);
 
@@ -618,7 +567,6 @@ mesh_t* create_tetgen_mesh(MPI_Comm comm,
   free(faces);
   free(tets);
   int_tuple_int_unordered_map_free(face_for_nodes);
-  int_table_free(edge_for_nodes);
 
   mesh_add_feature(mesh, TETRAHEDRAL);
   return mesh;

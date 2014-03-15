@@ -46,7 +46,7 @@ mesh_t* create_pebi_mesh(MPI_Comm comm,
   }
 #endif
 
-  mesh_t* mesh = mesh_new(comm, num_cells, 0, num_faces, 0, 0);
+  mesh_t* mesh = mesh_new(comm, num_cells, 0, num_faces, 0);
 
   // Transcribe the mesh cell centers, which are the only connection to 
   // spatial geometry.

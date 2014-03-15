@@ -23,7 +23,6 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "core/unordered_set.h"
-#include "core/table.h"
 #include "geometry/create_rectilinear_mesh.h"
 #include "geometry/cubic_lattice.h"
 
@@ -65,14 +64,11 @@ mesh_t* create_rectilinear_mesh(MPI_Comm comm,
   mesh_t* mesh = mesh_new(comm, 
                           cubic_lattice_num_cells(lattice), 0,
                           cubic_lattice_num_faces(lattice),
-                          cubic_lattice_num_edges(lattice),
                           cubic_lattice_num_nodes(lattice));
   mesh->cell_faces = ARENA_REALLOC(mesh->arena, mesh->cell_faces, sizeof(int)*6*mesh->num_cells, 0);
   mesh->face_nodes = ARENA_REALLOC(mesh->arena, mesh->face_nodes, sizeof(int)*4*mesh->num_faces, 0);
-  mesh->face_edges = ARENA_REALLOC(mesh->arena, mesh->face_edges, sizeof(int)*4*mesh->num_faces, 0);
   mesh->cell_face_offsets[mesh->num_cells] = 6*mesh->num_cells;
   mesh->face_node_offsets[mesh->num_faces] = 4*mesh->num_faces;
-  mesh->face_edge_offsets[mesh->num_faces] = 4*mesh->num_faces;
 
   int_unordered_set_t* processed_nodes = int_unordered_set_new();
   for (int k = 0; k < nz; ++k)
@@ -191,39 +187,6 @@ mesh_t* create_rectilinear_mesh(MPI_Comm comm,
     }
   }
 
-  // Construct edge information.
-  int_table_t* edge_for_nodes = int_table_new();
-  {
-    int num_edges = 0;
-    for (int f = 0; f < mesh->num_faces; ++f)
-    {
-      int offset = 4*f;
-      mesh->face_edge_offsets[f] = offset;
-      for (int n = 0; n < 4; ++n)
-      {
-        int n1 = (int)mesh->face_nodes[offset+n];
-        int n2 = (int)mesh->face_nodes[offset+(n+1)%4];
-        if (!int_table_contains(edge_for_nodes, MIN(n1, n2), MAX(n1, n2)))
-        {
-          int_table_insert(edge_for_nodes, MIN(n1, n2), MAX(n1, n2), num_edges);
-          mesh->face_edges[offset+n] = num_edges;
-          ++num_edges;
-        }
-        else
-          mesh->face_edges[offset+n] = *int_table_get(edge_for_nodes, MIN(n1, n2), MAX(n1, n2));
-      }
-    }
-    ASSERT(num_edges == mesh->num_edges);
-
-    int_table_cell_pos_t pos = int_table_start(edge_for_nodes);
-    int n1, n2, e;
-    while (int_table_next_cell(edge_for_nodes, &pos, &n1, &n2, &e))
-    {
-      mesh->edge_nodes[2*e] = n1;
-      mesh->edge_nodes[2*e+1] = n2;
-    }
-  }
-  free(edge_for_nodes);
 
 #if 0
   // Set up ghost cells.
@@ -304,6 +267,9 @@ mesh_t* create_rectilinear_mesh(MPI_Comm comm,
   }
   ASSERT(gindex == (mesh->num_cells + mesh->num_ghost_cells));
 #endif
+
+  // Construct edge information.
+  mesh_construct_edges(mesh);
 
   // Compute mesh geometry.
   mesh_compute_geometry(mesh);

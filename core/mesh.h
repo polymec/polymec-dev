@@ -118,16 +118,15 @@ typedef struct
 } mesh_t;
 
 // Construct a new mesh with the given number of cells, ghost cells, 
-// faces, edges, and nodes. This function does not provide any description
+// faces, and nodes. This function does not provide any description
 // of the mesh's topology and is only useful in the construction of mesh 
-// generation algorithms.
+// generation algorithms. NOTE: edges are constructed with mesh_construct_edges().
 mesh_t* mesh_new(MPI_Comm comm, int num_cells, int num_ghost_cells, 
-                 int num_faces, int num_edges, int num_nodes);
+                 int num_faces, int num_nodes);
 
 // Construct a new mesh, using the given arena for memory allocations.
 mesh_t* mesh_new_with_arena(ARENA* arena, MPI_Comm comm, int num_cells, 
-                            int num_ghost_cells, int num_faces,
-                            int num_edges, int num_nodes);
+                            int num_ghost_cells, int num_faces, int num_nodes);
 
 // Destroys the given mesh.
 void mesh_free(mesh_t* mesh);

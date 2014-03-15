@@ -88,8 +88,11 @@ static void write_tags_to_file(tagger_t* tagger, const char* tag_list_name, DBfi
   }
 
   // Write the compound array.
-  DBPutCompoundarray(file, tag_list_name, elem_names->data, elem_lengths->data,
-                     elem_names->size, tag_data->data, tag_data->size, DB_INT, 0);
+  if (elem_names->size > 0)
+  {
+    DBPutCompoundarray(file, tag_list_name, elem_names->data, elem_lengths->data,
+                       elem_names->size, tag_data->data, tag_data->size, DB_INT, 0);
+  }
 
   // Clean up.
   int_array_free(elem_lengths);
@@ -108,7 +111,8 @@ void write_silo_mesh(MPI_Comm comm,
                      real_t time)
 {
   // Strip .silo off of the prefix if it's there.
-  char* prefix = string_dup(file_prefix);
+  char prefix[1024];
+  strncpy(prefix, file_prefix, 1024);
   char* suffix = strstr(prefix, ".silo");
   if (suffix != NULL)
     suffix[0] = '\0';
@@ -409,9 +413,9 @@ void write_silo_mesh(MPI_Comm comm,
   {
     char master_file_name[1024];
     if (cycle >= 0)
-      snprintf(master_file_name, 1024, "%s-%d/%s-%d.silo", prefix.c_str(), nproc, prefix.c_str(), cycle);
+      snprintf(master_file_name, 1024, "%s-%d/%s-%d.silo", prefix, nproc, prefix, cycle);
     else
-      snprintf(master_file_name, 1024, "%s-%d/%s.silo", prefix.c_str(), nproc, prefix.c_str());
+      snprintf(master_file_name, 1024, "%s-%d/%s.silo", prefix, nproc, prefix);
     int driver = DB_HDF5;
     DBfile* file = DBCreate(master_file_name, DB_CLOBBER, DB_LOCAL, "Master file", driver);
 
@@ -439,9 +443,9 @@ void write_silo_mesh(MPI_Comm comm,
         {
           char var_name[1024];
           if (cycle >= 0)
-            snprintf(var_name, 1024, "%d/%s-%d.silo:/domain_%d/%s", ifile, prefix.c_str(), cycle, ichunk, iter->first.c_str());
+            snprintf(var_name, 1024, "%d/%s-%d.silo:/domain_%d/%s", ifile, prefix, cycle, ichunk, iter->first.c_str());
           else
-            snprintf(var_name, 1024, "%d/%s.silo:/domain_%d/%s", ifile, prefix.c_str(), ichunk, iter->first.c_str());
+            snprintf(var_name, 1024, "%d/%s.silo:/domain_%d/%s", ifile, prefix ichunk, iter->first.c_str());
           var_names[i*num_chunks+c][j++] = string_dup(var_name);
           var_types[i]*num_chunks+c = DB_UCDVAR;
         }
@@ -495,7 +499,8 @@ void write_silo_points(MPI_Comm comm,
   int data_type = (sizeof(real_t) == sizeof(double)) ? DB_DOUBLE : DB_FLOAT;
 
   // Strip .silo off of the prefix if it's there.
-  char* prefix = string_dup(file_prefix);
+  char prefix[1024];
+  strncpy(prefix, file_prefix, 1024);
   char* suffix = strstr(prefix, ".silo");
   if (suffix != NULL)
     suffix[0] = '\0';

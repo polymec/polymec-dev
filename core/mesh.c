@@ -54,22 +54,20 @@ static int round_to_pow2(int x)
 }
 
 mesh_t* mesh_new(MPI_Comm comm, int num_cells, int num_ghost_cells, 
-                 int num_faces, int num_edges, int num_nodes)
+                 int num_faces, int num_nodes)
 {
   ARENA* a = arena_open(&arena_defaults, 0);
-  mesh_t* mesh = mesh_new_with_arena(a, comm, num_cells, num_ghost_cells, num_faces, num_edges, num_nodes);
+  mesh_t* mesh = mesh_new_with_arena(a, comm, num_cells, num_ghost_cells, num_faces, num_nodes);
   mesh->close_arena = true;
   return mesh;
 }
 
 mesh_t* mesh_new_with_arena(ARENA* arena, MPI_Comm comm, int num_cells, 
-                            int num_ghost_cells, int num_faces,
-                            int num_edges, int num_nodes)
+                            int num_ghost_cells, int num_faces, int num_nodes)
 {
   ASSERT(num_cells >= 0);
   ASSERT(num_ghost_cells >= 0);
   ASSERT(num_faces >= 0);
-  ASSERT(num_edges >= 0);
   ASSERT(num_nodes >= 0);
 
   mesh_t* mesh = ARENA_MALLOC(arena, sizeof(mesh_t), 0);
@@ -108,9 +106,8 @@ mesh_t* mesh_new_with_arena(ARENA* arena, MPI_Comm comm, int num_cells,
     mesh->face_cells[f] = -1;
 
   // Allocate edge information.
-  mesh->num_edges = num_edges;
-  mesh->edge_nodes = ARENA_MALLOC(mesh->arena, sizeof(int)*2*num_edges, 0);
-  memset(mesh->edge_nodes, 0, sizeof(int)*2*num_edges);
+  mesh->num_edges = 0;
+  mesh->edge_nodes = NULL;
 
   // Allocate node information.
   mesh->num_nodes = num_nodes;
@@ -395,6 +392,9 @@ void mesh_compute_geometry(mesh_t* mesh)
 
 void mesh_construct_edges(mesh_t* mesh)
 {
+  ASSERT(mesh->num_edges == 0);
+  ASSERT(mesh->edge_nodes == NULL);
+
   // Construct edge information.
   int_table_t* edge_for_nodes = int_table_new();
   {
@@ -405,6 +405,14 @@ void mesh_construct_edges(mesh_t* mesh)
       mesh->face_edge_offsets[f] = offset;
       for (int n = 0; n < 4; ++n)
       {
+        // Make room.
+        if (mesh->storage->face_edge_capacity <= offset+n)
+        {
+          while (mesh->storage->face_edge_capacity <= offset+n)
+            mesh->storage->face_edge_capacity *= 2;
+          mesh->face_edges = ARENA_REALLOC(mesh->arena, mesh->face_edges, sizeof(int) * mesh->storage->face_edge_capacity, 0);
+        }
+
         int n1 = (int)mesh->face_nodes[offset+n];
         int n2 = (int)mesh->face_nodes[offset+(n+1)%4];
         if (!int_table_contains(edge_for_nodes, MIN(n1, n2), MAX(n1, n2)))
@@ -417,16 +425,20 @@ void mesh_construct_edges(mesh_t* mesh)
           mesh->face_edges[offset+n] = *int_table_get(edge_for_nodes, MIN(n1, n2), MAX(n1, n2));
       }
     }
-    ASSERT(num_edges == mesh->num_edges);
-    int_table_cell_pos_t pos = int_table_start(edge_for_nodes);
-    int n1, n2, e;
-    while (int_table_next_cell(edge_for_nodes, &pos, &n1, &n2, &e))
+    if (num_edges > 0)
     {
-      mesh->edge_nodes[2*e] = n1;
-      mesh->edge_nodes[2*e+1] = n2;
+      mesh->num_edges = num_edges;
+      mesh->edge_nodes = ARENA_MALLOC(mesh->arena, 2 * sizeof(int) * mesh->num_edges, 0);
+      int_table_cell_pos_t pos = int_table_start(edge_for_nodes);
+      int n1, n2, e;
+      while (int_table_next_cell(edge_for_nodes, &pos, &n1, &n2, &e))
+      {
+        mesh->edge_nodes[2*e] = n1;
+        mesh->edge_nodes[2*e+1] = n2;
+      }
     }
   }
-  free(edge_for_nodes);
+  int_table_free(edge_for_nodes);
 }
 
 static size_t mesh_byte_size(void* obj)
@@ -435,16 +447,12 @@ static size_t mesh_byte_size(void* obj)
   
   size_t basic_storage = 
     // cell stuff
-    2*sizeof(int) + mesh->num_cells * sizeof(int) + 
-    (mesh->num_cells+1) + sizeof(int*) + 
+    2*sizeof(int) + (mesh->num_cells+1) * sizeof(int) + 
     mesh->cell_face_offsets[mesh->num_cells] * sizeof(int) + 
     // face stuff
     sizeof(int) + (mesh->num_faces+1) * sizeof(int) + 
     mesh->face_node_offsets[mesh->num_faces] * sizeof(int) + 
-    (mesh->num_faces+1) * sizeof(int) + 
-    mesh->face_edge_offsets[mesh->num_edges] * sizeof(int) + 
-    // edge stuff
-    sizeof(int) + 2*(mesh->num_edges)*sizeof(int) + 
+    2*mesh->num_faces * sizeof(int) + 
     // node stuff
     sizeof(int) + mesh->num_nodes*sizeof(point_t) + 
     // geometry
@@ -494,6 +502,7 @@ static void byte_array_read_tags(byte_array_t* bytes, size_t* offset, tagger_t* 
     tag_name[tag_name_len] = '\0';
     int tag_size;
     byte_array_read_ints(bytes, 1, offset, &tag_size);
+    mesh_delete_tag(tagger, tag_name);
     int* tag = mesh_create_tag(tagger, tag_name, tag_size);
     byte_array_read_ints(bytes, tag_size, offset, tag);
   }
@@ -501,17 +510,16 @@ static void byte_array_read_tags(byte_array_t* bytes, size_t* offset, tagger_t* 
 
 static void* mesh_byte_read(byte_array_t* bytes, size_t* offset)
 {
-  // Read the number of cells, faces, edges, nodes, and allocate a mesh
+  // Read the number of cells, faces, nodes, and allocate a mesh
   // accordingly.
-  int num_cells, num_ghost_cells, num_faces, num_edges, num_nodes;
+  int num_cells, num_ghost_cells, num_faces, num_nodes;
   byte_array_read_ints(bytes, 1, offset, &num_cells);
   byte_array_read_ints(bytes, 1, offset, &num_ghost_cells);
   byte_array_read_ints(bytes, 1, offset, &num_faces);
-  byte_array_read_ints(bytes, 1, offset, &num_edges);
   byte_array_read_ints(bytes, 1, offset, &num_nodes);
 
   mesh_t* mesh = mesh_new(MPI_COMM_WORLD, num_cells, num_ghost_cells,
-                          num_faces, num_edges, num_nodes);
+                          num_faces, num_nodes);
 
   // Read all the cell stuff.
   byte_array_read_ints(bytes, num_cells+1, offset, mesh->cell_face_offsets);
@@ -532,23 +540,13 @@ static void* mesh_byte_read(byte_array_t* bytes, size_t* offset)
     mesh->storage->face_node_capacity = num_face_nodes;
   }
   byte_array_read_ints(bytes, num_face_nodes, offset, mesh->face_nodes);
-
-  byte_array_read_ints(bytes, num_faces+1, offset, mesh->face_edge_offsets);
-  int num_face_edges = mesh->face_edge_offsets[mesh->num_faces];
-  if (mesh->storage->face_edge_capacity < num_face_edges)
-  {
-    mesh->face_edges = ARENA_REALLOC(mesh->arena, mesh->face_edges, sizeof(int)*num_face_nodes, 0);
-    mesh->storage->face_edge_capacity = num_face_edges;
-  }
-  byte_array_read_ints(bytes, num_face_edges, offset, mesh->face_edges);
-
   byte_array_read_ints(bytes, 2*num_faces, offset, mesh->face_cells);
-
-  // Edge stuff.
-  byte_array_read_ints(bytes, 2*num_edges, offset, mesh->edge_nodes);
 
   // Node stuff.
   byte_array_read_points(bytes, num_nodes, offset, mesh->nodes);
+
+  // Construct edges.
+  mesh_construct_edges(mesh);
 
   // Geometry stuff.
   byte_array_read_reals(bytes, num_cells, offset, mesh->cell_volumes);
@@ -590,11 +588,10 @@ static void mesh_byte_write(void* obj, byte_array_t* bytes, size_t* offset)
 {
   mesh_t* mesh = obj;
 
-  // Write the number of cells, faces, edges, nodes.
+  // Write the number of cells, faces, nodes.
   byte_array_write_ints(bytes, 1, &mesh->num_cells, offset);
   byte_array_write_ints(bytes, 1, &mesh->num_ghost_cells, offset);
   byte_array_write_ints(bytes, 1, &mesh->num_faces, offset);
-  byte_array_write_ints(bytes, 1, &mesh->num_edges, offset);
   byte_array_write_ints(bytes, 1, &mesh->num_nodes, offset);
 
   // Write all the cell stuff.
@@ -605,16 +602,10 @@ static void mesh_byte_write(void* obj, byte_array_t* bytes, size_t* offset)
   byte_array_write_ints(bytes, mesh->num_faces+1, mesh->face_node_offsets, offset);
   byte_array_write_ints(bytes, mesh->face_node_offsets[mesh->num_faces], mesh->face_nodes, offset);
 
-  byte_array_write_ints(bytes, mesh->num_faces+1, mesh->face_edge_offsets, offset);
-  byte_array_write_ints(bytes, mesh->face_edge_offsets[mesh->num_faces], mesh->face_edges, offset);
-
   byte_array_write_ints(bytes, 2*mesh->num_faces, mesh->face_cells, offset);
 
-  // Edge stuff.
-  byte_array_write_ints(bytes, 2*mesh->num_edges, mesh->edge_nodes, offset);
-
   // Node stuff.
-  byte_array_write_points(bytes, 2*mesh->num_nodes, mesh->nodes, offset);
+  byte_array_write_points(bytes, mesh->num_nodes, mesh->nodes, offset);
 
   // Geometry stuff.
   byte_array_write_reals(bytes, mesh->num_cells, mesh->cell_volumes, offset);
