@@ -22,12 +22,15 @@ def count_source_lines(source_files):
     for f in source_files:
         fp = open(f, 'r')
         lines = fp.readlines()
+        passed_license = False
         for line in lines:
             line = line.strip()
             if line != '':
-                num_lines += 1
+                if passed_license:
+                    num_lines += 1
                 if not line.startswith('//'):
                     num_lines_wo_comments += 1
+                    passed_license = True
         fp.close()
     return (num_lines, num_lines_wo_comments)
 

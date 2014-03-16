@@ -147,110 +147,113 @@ static mesh_t* local_subdomain(MPI_Comm comm, mesh_t* global_mesh, int* partitio
 
 mesh_t* distribute_serial_mesh(MPI_Comm comm, mesh_t* serial_mesh, int* partition)
 {
-#if POLYMEC_HAVE_MPI
   int rank, nproc;
   MPI_Comm_size(comm, &nproc);
   MPI_Comm_rank(comm, &rank);
 
-  // MPI tags.
-  int mesh_size_tag = 0, mesh_tag = 1;
-  serializer_t* serializer = mesh_serializer();
-
-  if (rank == 0)
+  if (nproc > 1)
   {
-    // Calculate the minimum bounding box for this mesh.
-    bbox_t bbox;
-    for (int c = 0; c < serial_mesh->num_cells; ++c)
-      bbox_grow(&bbox, &serial_mesh->cell_centers[c]);
+    // MPI tags.
+    int mesh_size_tag = 0, mesh_tag = 1;
+    serializer_t* serializer = mesh_serializer();
 
-    // Use this bounding box to determine a grid spacing for a 
-    // space-filling curve.
-    real_t dx = bbox.x2 - bbox.x1 / 0xFFFF;
-    real_t dy = bbox.y2 - bbox.y1 / 0xFFFF;
-    real_t dz = bbox.z2 - bbox.z1 / 0xFFFF;
-
-    morton_ordering_t* ordering = malloc(sizeof(morton_ordering_t) * serial_mesh->num_cells);
-    for (int c = 0; c < serial_mesh->num_cells; ++c)
+    if (rank == 0)
     {
-      // Take the cell center and convert it to an integer triple (i, j, k).
-      point_t* xc = &serial_mesh->cell_centers[c];
-      int i = xc->x / dx;
-      int j = xc->y / dy;
-      int k = xc->z / dz;
+      // Calculate the minimum bounding box for this mesh.
+      bbox_t bbox;
+      for (int c = 0; c < serial_mesh->num_cells; ++c)
+        bbox_grow(&bbox, &serial_mesh->cell_centers[c]);
 
-      // Compute the Morton index for this cell.
-      ordering[c].morton_index = morton(i, j, k);
-      ordering[c].cell_index = c;
+      // Use this bounding box to determine a grid spacing for a 
+      // space-filling curve.
+      real_t dx = bbox.x2 - bbox.x1 / 0xFFFF;
+      real_t dy = bbox.y2 - bbox.y1 / 0xFFFF;
+      real_t dz = bbox.z2 - bbox.z1 / 0xFFFF;
+
+      morton_ordering_t* ordering = malloc(sizeof(morton_ordering_t) * serial_mesh->num_cells);
+      for (int c = 0; c < serial_mesh->num_cells; ++c)
+      {
+        // Take the cell center and convert it to an integer triple (i, j, k).
+        point_t* xc = &serial_mesh->cell_centers[c];
+        int i = xc->x / dx;
+        int j = xc->y / dy;
+        int k = xc->z / dz;
+
+        // Compute the Morton index for this cell.
+        ordering[c].morton_index = morton(i, j, k);
+        ordering[c].cell_index = c;
+      }
+
+      // Sort our array by Morton index.
+      qsort(ordering, (size_t)serial_mesh->num_cells, sizeof(morton_ordering_t), morton_comp);
+
+      // Now partition the cells of the mesh as equally as possible.
+      int cells_per_proc = serial_mesh->num_cells / nproc;
+      for (int p = 0; p < nproc; ++p)
+      {
+        for (int i = p*cells_per_proc; i < MIN(serial_mesh->num_cells, (p+1)*cells_per_proc); ++i)
+          partition[ordering[i].cell_index] = p;
+      }
+
+      // Construct a local mesh from cells owned by process 0.
+      mesh_t* local_mesh = local_subdomain(comm, serial_mesh, partition, 0);
+
+      // Transmit local meshes to each destination process.
+
+      // Local mesh sizes.
+      MPI_Request requests[nproc-1];
+      MPI_Status statuses[nproc-1];
+      byte_array_t* byteses[nproc-1];
+      for (int p = 1; p < nproc; ++p)
+      {
+        mesh_t* mesh_p = local_subdomain(comm, serial_mesh, partition, p);
+        byte_array_t* bytes = byte_array_new();
+        size_t offset = 0;
+        serializer_write(serializer, mesh_p, bytes, &offset);
+        mesh_free(mesh_p);
+
+        unsigned long size = (unsigned long)bytes->size;
+        MPI_Isend(&size, 1, MPI_UNSIGNED_LONG, p, mesh_size_tag, comm, &requests[p-1]);
+        byteses[p-1] = bytes;
+      }
+      MPI_Waitall(nproc-1, requests, statuses);
+
+      // Local meshes.
+      for (int p = 1; p < nproc; ++p)
+      {
+        byte_array_t* bytes = byteses[p-1];
+        MPI_Isend(bytes->data, bytes->size, MPI_BYTE, p, mesh_tag, comm, &requests[p]);
+      }
+      MPI_Waitall(nproc-1, requests, statuses);
+
+      // Clean up.
+      for (int p = 1; p < nproc; ++p)
+        byte_array_free(byteses[p-1]);
+      return local_mesh;
     }
-
-    // Sort our array by Morton index.
-    qsort(ordering, (size_t)serial_mesh->num_cells, sizeof(morton_ordering_t), morton_comp);
-
-    // Now partition the cells of the mesh as equally as possible.
-    int cells_per_proc = serial_mesh->num_cells / nproc;
-    for (int p = 0; p < nproc; ++p)
+    else
     {
-      for (int i = p*cells_per_proc; i < MIN(serial_mesh->num_cells, (p+1)*cells_per_proc); ++i)
-        partition[ordering[i].cell_index] = p;
-    }
+      // Get the local mesh information.
 
-    // Construct a local mesh from cells owned by process 0.
-    mesh_t* local_mesh = local_subdomain(comm, serial_mesh, partition, 0);
+      // Mesh size.
+      MPI_Status status;
+      unsigned long mesh_size;
+      MPI_Recv(&mesh_size, 1, MPI_UNSIGNED_LONG, 0, mesh_size_tag, comm, &status);
 
-    // Transmit local meshes to each destination process.
-
-    // Local mesh sizes.
-    MPI_Request requests[nproc-1];
-    MPI_Status statuses[nproc-1];
-    byte_array_t* byteses[nproc-1];
-    for (int p = 1; p < nproc; ++p)
-    {
-      mesh_t* mesh_p = local_subdomain(comm, serial_mesh, partition, p);
+      // Mesh.
       byte_array_t* bytes = byte_array_new();
+      byte_array_resize(bytes, (size_t)mesh_size);
+      MPI_Recv(bytes->data, bytes->size, MPI_BYTE, 0, mesh_tag, comm, &status);
       size_t offset = 0;
-      serializer_write(serializer, mesh_p, bytes, &offset);
-      mesh_free(mesh_p);
-
-      unsigned long size = (unsigned long)bytes->size;
-      MPI_Isend(&size, 1, MPI_UNSIGNED_LONG, p, mesh_size_tag, comm, &requests[p-1]);
-      byteses[p-1] = bytes;
+      mesh_t* local_mesh = serializer_read(serializer, bytes, &offset);
+      byte_array_free(bytes);
+      return local_mesh;
     }
-    MPI_Waitall(nproc-1, requests, statuses);
-
-    // Local meshes.
-    for (int p = 1; p < nproc; ++p)
-    {
-      byte_array_t* bytes = byteses[p-1];
-      MPI_Isend(bytes->data, bytes->size, MPI_BYTE, p, mesh_tag, comm, &requests[p]);
-    }
-    MPI_Waitall(nproc-1, requests, statuses);
-
-    // Clean up.
-    for (int p = 1; p < nproc; ++p)
-      byte_array_free(byteses[p-1]);
-    return local_mesh;
   }
   else
   {
-    // Get the local mesh information.
-
-    // Mesh size.
-    MPI_Status status;
-    unsigned long mesh_size;
-    MPI_Recv(&mesh_size, 1, MPI_UNSIGNED_LONG, 0, mesh_size_tag, comm, &status);
-
-    // Mesh.
-    byte_array_t* bytes = byte_array_new();
-    byte_array_resize(bytes, (size_t)mesh_size);
-    MPI_Recv(bytes->data, bytes->size, MPI_BYTE, 0, mesh_tag, comm, &status);
-    size_t offset = 0;
-    mesh_t* local_mesh = serializer_read(serializer, bytes, &offset);
-    byte_array_free(bytes);
-    return local_mesh;
+    // Just return a copy of the mesh.
+    return mesh_clone(serial_mesh);
   }
-#else
-  // Just return a copy of the mesh.
-  return mesh_clone(serial_mesh);
-#endif
 }
 

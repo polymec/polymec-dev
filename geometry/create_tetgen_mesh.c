@@ -31,6 +31,7 @@
 #include "core/unordered_set.h"
 #include "core/text_file_buffer.h"
 #include "core/array_utils.h"
+#include "core/distribute_serial_mesh.h"
 #include "geometry/create_tetgen_mesh.h"
 
 typedef struct
@@ -372,192 +373,210 @@ mesh_t* create_tetgen_mesh(MPI_Comm comm,
                            const char* face_file,
                            const char* neigh_file)
 {
-  int num_nodes;
-  point_t* nodes = read_nodes(node_file, &num_nodes);
+  mesh_t* mesh = NULL;
 
-  int num_tets;
-  tet_t* tets = read_tets(ele_file, &num_tets);
-
-  int num_faces;
-  int nodes_per_face = (tets[0].num_nodes == 4) ? 3 : 6;
-  tet_face_t* faces = read_faces(face_file, nodes_per_face, &num_faces);
-
-  read_neighbors(neigh_file, tets, num_tets);
-
-  // Create a mesh full of tetrahedra (4 faces per cell, 3 nodes per face).
-  mesh_t* mesh = mesh_new_with_cell_type(comm, num_tets, 0, num_faces, 
-                                         num_nodes, 4, nodes_per_face);
-  
-  // Copy node coordinates.
-  memcpy(mesh->nodes, nodes, sizeof(point_t) * num_nodes);
-
-  // Actual connectivity.
-  int_tuple_int_unordered_map_t* face_for_nodes = int_tuple_int_unordered_map_new();
-  for (int f = 0; f < num_faces; ++f)
+  int rank;
+  MPI_Comm_rank(comm, &rank);
+  if (rank == 0)
   {
-    tet_face_t* face = &faces[f];
-    for (int n = 0; n < nodes_per_face; ++n)
-      mesh->face_nodes[nodes_per_face*f+n] = face->nodes[n];
+    int num_nodes;
+    point_t* nodes = read_nodes(node_file, &num_nodes);
 
-    // Associate the 3 "primal" nodes with this face.
-    int* primal_nodes = int_tuple_new(3);
-    for (int i = 0; i < 3; ++i)
-      primal_nodes[i] = face->nodes[i];
-    int_qsort(primal_nodes, 3);
-    int_tuple_int_unordered_map_insert_with_k_dtor(face_for_nodes, primal_nodes, f, int_tuple_free);
-  }
+    int num_tets;
+    tet_t* tets = read_tets(ele_file, &num_tets);
 
-  // Cell <-> face connectivity.
-  for (int c = 0; c < mesh->num_cells; ++c)
-  {
-    for (int f = mesh->cell_face_offsets[c]; f < mesh->cell_face_offsets[c+1]; ++f)
-      mesh->cell_faces[f] = -1;
-  }
-  for (int f = 0; f < num_faces; ++f)
-  {
-    mesh->face_cells[2*f]   = -1;
-    mesh->face_cells[2*f+1] = -1;
-  }
-  {
-    // Use a triple for querying faces.
-    int* nodes = int_tuple_new(3);
+    int num_faces;
+    int nodes_per_face = (tets[0].num_nodes == 4) ? 3 : 6;
+    tet_face_t* faces = read_faces(face_file, nodes_per_face, &num_faces);
 
-    // Loop over cells and find the faces connecting them to their neighbors.
+    read_neighbors(neigh_file, tets, num_tets);
+
+    // Create a mesh full of tetrahedra (4 faces per cell, 3 nodes per face).
+    mesh = mesh_new_with_cell_type(comm, num_tets, 0, num_faces, num_nodes, 4, nodes_per_face);
+
+    // Copy node coordinates.
+    memcpy(mesh->nodes, nodes, sizeof(point_t) * num_nodes);
+
+    // Actual connectivity.
+    int_tuple_int_unordered_map_t* face_for_nodes = int_tuple_int_unordered_map_new();
+    for (int f = 0; f < num_faces; ++f)
+    {
+      tet_face_t* face = &faces[f];
+      for (int n = 0; n < nodes_per_face; ++n)
+        mesh->face_nodes[nodes_per_face*f+n] = face->nodes[n];
+
+      // Associate the 3 "primal" nodes with this face.
+      int* primal_nodes = int_tuple_new(3);
+      for (int i = 0; i < 3; ++i)
+        primal_nodes[i] = face->nodes[i];
+      int_qsort(primal_nodes, 3);
+      int_tuple_int_unordered_map_insert_with_k_dtor(face_for_nodes, primal_nodes, f, int_tuple_free);
+    }
+
+    // Cell <-> face connectivity.
     for (int c = 0; c < mesh->num_cells; ++c)
     {
-      tet_t* t = &tets[c];
+      for (int f = mesh->cell_face_offsets[c]; f < mesh->cell_face_offsets[c+1]; ++f)
+        mesh->cell_faces[f] = -1;
+    }
+    for (int f = 0; f < num_faces; ++f)
+    {
+      mesh->face_cells[2*f]   = -1;
+      mesh->face_cells[2*f+1] = -1;
+    }
+    {
+      // Use a triple for querying faces.
+      int* nodes = int_tuple_new(3);
 
-      // Tet face-node table.
-      static int tet_face_nodes[4][3] = {{1, 2, 3},  // face 1 has nodes 2, 3, 4
-                                         {2, 0, 3},  // face 2 has nodes 3, 1, 4
-                                         {0, 1, 3},  // face 3 has nodes 1, 2, 4
-                                         {0, 1, 2}}; // face 4 has nodes 1, 2, 3
-
-      // Figure out each of the connections by examining their common nodes.
-      // We use TetGen's indexing scheme (see TetGen documentation), which 
-      // states that neighbor n of a tet shares the face of that tet that 
-      // is opposite of node n in the tet.
-      for (int n = 0; n < 4; ++n)
+      // Loop over cells and find the faces connecting them to their neighbors.
+      for (int c = 0; c < mesh->num_cells; ++c)
       {
-        // Nodes of cell c on this face.
-        nodes[0] = t->nodes[tet_face_nodes[n][0]];
-        nodes[1] = t->nodes[tet_face_nodes[n][1]];
-        nodes[2] = t->nodes[tet_face_nodes[n][2]];
-        int_qsort(nodes, 3);
+        tet_t* t = &tets[c];
 
-        // Find the face with these nodes.
-        int* face_p = int_tuple_int_unordered_map_get(face_for_nodes, nodes);
-        if (face_p == NULL)
-          polymec_error("TetGen files are inconsistent (cell %d does not have a face %d)", c, n);
-        int face = *face_p;
+        // Tet face-node table.
+        static int tet_face_nodes[4][3] = {{1, 2, 3},  // face 1 has nodes 2, 3, 4
+          {2, 0, 3},  // face 2 has nodes 3, 1, 4
+          {0, 1, 3},  // face 3 has nodes 1, 2, 4
+          {0, 1, 2}}; // face 4 has nodes 1, 2, 3
 
-        // Determine whether the face has an outward or inward normal w.r.t. 
-        // the cell.
-        tet_face_t* tf = &faces[face];
-        bool outward_normal = face_points_outward(tf, t, mesh->nodes);
-
-        // Get the neighbor tet.
-        int cn = t->neighbors[n];
-        if (cn == -1)
+        // Figure out each of the connections by examining their common nodes.
+        // We use TetGen's indexing scheme (see TetGen documentation), which 
+        // states that neighbor n of a tet shares the face of that tet that 
+        // is opposite of node n in the tet.
+        for (int n = 0; n < 4; ++n)
         {
-          // Set up the face.
-          mesh->cell_faces[mesh->cell_face_offsets[c]+n] = outward_normal ? face : ~face;
-          mesh->face_cells[2*face] = c;
+          // Nodes of cell c on this face.
+          nodes[0] = t->nodes[tet_face_nodes[n][0]];
+          nodes[1] = t->nodes[tet_face_nodes[n][1]];
+          nodes[2] = t->nodes[tet_face_nodes[n][2]];
+          int_qsort(nodes, 3);
+
+          // Find the face with these nodes.
+          int* face_p = int_tuple_int_unordered_map_get(face_for_nodes, nodes);
+          if (face_p == NULL)
+            polymec_error("TetGen files are inconsistent (cell %d does not have a face %d)", c, n);
+          int face = *face_p;
+
+          // Determine whether the face has an outward or inward normal w.r.t. 
+          // the cell.
+          tet_face_t* tf = &faces[face];
+          bool outward_normal = face_points_outward(tf, t, mesh->nodes);
+
+          // Get the neighbor tet.
+          int cn = t->neighbors[n];
+          if (cn == -1)
+          {
+            // Set up the face.
+            mesh->cell_faces[mesh->cell_face_offsets[c]+n] = outward_normal ? face : ~face;
+            mesh->face_cells[2*face] = c;
+          }
+          else if (cn > c)
+          {
+            tet_t* tn = &tets[cn];
+
+            // Find the neighbor index of c within cn.
+            int n1 = (tn->neighbors[0] == c) ? 0 :
+              (tn->neighbors[1] == c) ? 1 : 
+              (tn->neighbors[2] == c) ? 2 : 3;
+
+            // Associate the face with both of these cells.
+            mesh->cell_faces[mesh->cell_face_offsets[c]+n]  = outward_normal ? face : ~face;
+            mesh->cell_faces[mesh->cell_face_offsets[cn]+n1] = outward_normal ? ~face : face;
+
+            // Associate the cells with the face.
+            mesh->face_cells[2*face]   = c;
+            mesh->face_cells[2*face+1] = cn;
+          }
         }
-        else if (cn > c)
-        {
-          tet_t* tn = &tets[cn];
+      }
 
-          // Find the neighbor index of c within cn.
-          int n1 = (tn->neighbors[0] == c) ? 0 :
-                   (tn->neighbors[1] == c) ? 1 : 
-                   (tn->neighbors[2] == c) ? 2 : 3;
+      // Clean up.
+      int_tuple_free(nodes);
+    }
 
-          // Associate the face with both of these cells.
-          mesh->cell_faces[mesh->cell_face_offsets[c]+n]  = outward_normal ? face : ~face;
-          mesh->cell_faces[mesh->cell_face_offsets[cn]+n1] = outward_normal ? ~face : face;
+    // Build edges.
+    mesh_construct_edges(mesh);
 
-          // Associate the cells with the face.
-          mesh->face_cells[2*face]   = c;
-          mesh->face_cells[2*face+1] = cn;
-        }
+    // Compute the mesh's geometry.
+    mesh_compute_geometry(mesh);
+
+    // Set up tags for faces and cells.
+    static const int max_num_attr = 1024;
+    int boundary_markers[max_num_attr], attributes[max_num_attr];
+    for (int i = 0; i < max_num_attr; ++i)
+      boundary_markers[i] = attributes[i] = 0;
+    for (int f = 0; f < num_faces; ++f)
+    {
+      ASSERT(faces[f].boundary_marker < max_num_attr);
+      if (faces[f].boundary_marker != -1)
+        boundary_markers[faces[f].boundary_marker]++;
+    }
+    int* face_tags[max_num_attr];
+    for (int i = 0; i < max_num_attr; ++i)
+    {
+      if (boundary_markers[i] > 0)
+      {
+        char tag_name[16];
+        snprintf(tag_name, 16, "%d", i);
+        face_tags[i] = mesh_create_tag(mesh->face_tags, tag_name, boundary_markers[i]);
+      }
+    }
+    memset(boundary_markers, 0, sizeof(int) * max_num_attr);
+    for (int f = 0; f < num_faces; ++f)
+    {
+      int m = faces[f].boundary_marker;
+      if (m != -1)
+      {
+        face_tags[m][boundary_markers[m]] = f;
+        boundary_markers[m]++;
+      }
+    }
+
+    for (int t = 0; t < num_tets; ++t)
+    {
+      ASSERT(tets[t].attribute < max_num_attr);
+      if (tets[t].attribute != -1)
+        attributes[tets[t].attribute]++;
+    }
+    int* cell_tags[max_num_attr];
+    for (int i = 0; i < max_num_attr; ++i)
+    {
+      if (attributes[i] > 0)
+      {
+        char tag_name[16];
+        snprintf(tag_name, 16, "%d", i);
+        cell_tags[i] = mesh_create_tag(mesh->cell_tags, tag_name, attributes[i]);
+      }
+    }
+    memset(attributes, 0, sizeof(int) * max_num_attr);
+    for (int t = 0; t < num_tets; ++t)
+    {
+      int a = tets[t].attribute;
+      if (a != -1)
+      {
+        cell_tags[a][attributes[a]] = t;
+        attributes[a]++;
       }
     }
 
     // Clean up.
-    int_tuple_free(nodes);
+    free(nodes);
+    free(faces);
+    free(tets);
+    int_tuple_int_unordered_map_free(face_for_nodes);
   }
-
-  // Build edges.
-  mesh_construct_edges(mesh);
-
-  // Compute the mesh's geometry.
-  mesh_compute_geometry(mesh);
-
-  // Set up tags for faces and cells.
-  static const int max_num_attr = 1024;
-  int boundary_markers[max_num_attr], attributes[max_num_attr];
-  for (int i = 0; i < max_num_attr; ++i)
-    boundary_markers[i] = attributes[i] = 0;
-  for (int f = 0; f < num_faces; ++f)
+  
+  int nproc;
+  MPI_Comm_size(comm, &nproc);
+  if (nproc > 1)
   {
-    ASSERT(faces[f].boundary_marker < max_num_attr);
-    if (faces[f].boundary_marker != -1)
-      boundary_markers[faces[f].boundary_marker]++;
+    // Break the serial mesh up into pieces.
+    int* partition = malloc(sizeof(int) * mesh->num_cells);
+    mesh_t* local_mesh = distribute_serial_mesh(comm, mesh, partition);
+    free(partition);
+    mesh_free(mesh);
+    mesh = local_mesh;
   }
-  int* face_tags[max_num_attr];
-  for (int i = 0; i < max_num_attr; ++i)
-  {
-    if (boundary_markers[i] > 0)
-    {
-      char tag_name[16];
-      snprintf(tag_name, 16, "%d", i);
-      face_tags[i] = mesh_create_tag(mesh->face_tags, tag_name, boundary_markers[i]);
-    }
-  }
-  memset(boundary_markers, 0, sizeof(int) * max_num_attr);
-  for (int f = 0; f < num_faces; ++f)
-  {
-    int m = faces[f].boundary_marker;
-    if (m != -1)
-    {
-      face_tags[m][boundary_markers[m]] = f;
-      boundary_markers[m]++;
-    }
-  }
-
-  for (int t = 0; t < num_tets; ++t)
-  {
-    ASSERT(tets[t].attribute < max_num_attr);
-    if (tets[t].attribute != -1)
-      attributes[tets[t].attribute]++;
-  }
-  int* cell_tags[max_num_attr];
-  for (int i = 0; i < max_num_attr; ++i)
-  {
-    if (attributes[i] > 0)
-    {
-      char tag_name[16];
-      snprintf(tag_name, 16, "%d", i);
-      cell_tags[i] = mesh_create_tag(mesh->cell_tags, tag_name, attributes[i]);
-    }
-  }
-  memset(attributes, 0, sizeof(int) * max_num_attr);
-  for (int t = 0; t < num_tets; ++t)
-  {
-    int a = tets[t].attribute;
-    if (a != -1)
-    {
-      cell_tags[a][attributes[a]] = t;
-      attributes[a]++;
-    }
-  }
-
-  // Clean up.
-  free(nodes);
-  free(faces);
-  free(tets);
-  int_tuple_int_unordered_map_free(face_for_nodes);
 
   mesh_add_feature(mesh, TETRAHEDRAL);
   return mesh;

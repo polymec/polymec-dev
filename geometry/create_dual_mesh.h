@@ -29,7 +29,9 @@
 #include "core/point.h"
 
 // This function creates a mesh that is dual to the given original mesh, 
-// respecting its boundaries (as identified in tags).
+// respecting its boundaries (as identified in tags). boundary_face_tags 
+// is an array containing names of tags that denote interior or external 
+// boundaries.
 mesh_t* create_dual_mesh(MPI_Comm comm, 
                          mesh_t* original_mesh,
                          char** boundary_face_tags,

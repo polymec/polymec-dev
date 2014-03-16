@@ -46,7 +46,8 @@
 #define MPI_LONG_LONG_INT   2              
 #define MPI_CHAR            3             
 #define MPI_LONG            4             
-#define MPI_BYTE            5             
+#define MPI_UNSIGNED_LONG   5             
+#define MPI_BYTE            6             
 
 #define MPI_SUM             0              
 #define MPI_MIN             1              
