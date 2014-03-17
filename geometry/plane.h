@@ -51,9 +51,6 @@ void plane_reset(sp_func_t* plane, vector_t* n, point_t* x);
 // made by this object.
 void plane_project(sp_func_t* plane, point_t* x, point2_t* xi);
 
-// This version of plane_project is deprecated and should be removed.
-void plane_project2(sp_func_t* plane, point_t* x, real_t* eta, real_t* xi);
-
 // The inverse of planar projection is embedding: mapping a point xi on the 
 // plane to x, its 3D equivalent in space.
 void plane_embed(sp_func_t* plane, point2_t* xi, point_t* x);

@@ -24,6 +24,7 @@
 
 #include <gc/gc.h>
 #include "core/polymec.h"
+#include "geometry/plane.h"
 #include "geometry/tetrahedron.h"
 
 // Jonathan Shewchuk's geometric predicates, which are implemented in 
@@ -132,5 +133,58 @@ bool tetrahedron_contains_point(tetrahedron_t* t, point_t* x)
 
 void tetrahedron_compute_nearest_point(tetrahedron_t* t, point_t* x, point_t* y)
 {
+  // If x is inside t, set y to x.
+  if (tetrahedron_contains_point(t, x))
+    *y = *x;
+  else
+  {
+    // Find the planar face of the tetrahedron that is nearest to x.
+    real_t furthest_distance = -FLT_MAX;
+    int furthest_vertex = -1;
+    for (int i = 0; i < 4; ++i)
+    {
+      real_t Di = point_distance(&t->vertices[i], x);
+      if (Di > furthest_distance)
+      {
+        furthest_distance = Di;
+        furthest_vertex = i;
+      }
+    }
+    point_t *x1, *x2, *x3;
+    if (furthest_vertex == 0)
+    {
+      x1 = &t->vertices[1];
+      x2 = &t->vertices[2];
+      x3 = &t->vertices[3];
+    }
+    else if (furthest_vertex == 1)
+    {
+      x1 = &t->vertices[0];
+      x2 = &t->vertices[2];
+      x3 = &t->vertices[3];
+    }
+    else if (furthest_vertex == 2)
+    {
+      x1 = &t->vertices[0];
+      x2 = &t->vertices[1];
+      x3 = &t->vertices[3];
+    }
+    else 
+    {
+      x1 = &t->vertices[0];
+      x2 = &t->vertices[1];
+      x3 = &t->vertices[2];
+    }
+    sp_func_t* face = plane_new_from_points(x1, x2, x3);
+
+    // Project x to the face.
+    point2_t xi;
+    plane_project(face, x, &xi);
+
+    // y is just the embedding of the projection in 3D space.
+    plane_embed(face, &xi, y);
+
+    face = NULL;
+  }
 }
 
