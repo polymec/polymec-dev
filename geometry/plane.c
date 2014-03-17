@@ -168,16 +168,6 @@ void plane_project(sp_func_t* plane, point_t* x, point2_t* xi)
   xi->y = vector_dot(&v_perp, &p->e2);
 }
 
-void plane_project2(sp_func_t* plane, point_t* x, real_t* eta, real_t* xi)
-{
-  plane_t* p = sp_func_context(plane);
-  vector_t v = {.x = x->x - p->x.x, .y = x->y - p->x.y, .z = x->z - p->x.z};
-  real_t voe3 = vector_dot(&v, &p->e3);
-  vector_t v_perp = {.x = v.x - voe3 * p->e3.x, .y = v.y - voe3 * p->e3.y, .z = v.z - voe3 * p->e3.z};
-  *eta = vector_dot(&v_perp, &p->e1);
-  *xi = vector_dot(&v_perp, &p->e2);
-}
-
 void plane_embed(sp_func_t* plane, point2_t* xi, point_t* x)
 {
   plane_t* p = sp_func_context(plane);
