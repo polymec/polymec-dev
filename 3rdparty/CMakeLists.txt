@@ -359,6 +359,12 @@ endforeach()
 set(POLYMEC_TP_LIBS lua;${POLYMEC_TP_LIBS})
 #set(POLYMEC_TP_INCDIRS ${POLYMEC_TP_INCDIRS};${PROJECT_BINARY_DIR}/include)
 
+# Build jrs_predicates, Jonathan Richard Shewchuk's (public domain) library 
+# for arbitrary-precision geometric predicates.
+add_library(jrs_predicates jrs_predicates/predicates.c)
+install(TARGETS jrs_predicates DESTINATION lib)
+set(POLYMEC_TP_LIBS jrs_predicates;${POLYMEC_TP_LIBS})
+
 # Add all the libraries to the build system at large.
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${POLYMEC_TP_C_FLAGS}" PARENT_SCOPE)
 set(POLYMEC_LIBS ${POLYMEC_TP_LIBS};${POLYMEC_LIBS} PARENT_SCOPE)
