@@ -7,7 +7,7 @@ set(MESH_GENERATION_SOURCES create_boundary_generators.c
 
 add_library(polymec_geometry mapping.c plane.c cylinder.c sphere.c 
             intersection.c union.c difference.c scaled.c rect_prism.c 
-            giftwrap_hull.c polygon2.c polygon.c
+            giftwrap_hull.c polygon2.c polygon.c tetrahedron.c predicates.c
             ${MESH_GENERATION_SOURCES} cubic_lattice.c
             symmetry_1d.c interpreter_register_geometry_functions.c 
             interpreter_register_spfuncs.c)
