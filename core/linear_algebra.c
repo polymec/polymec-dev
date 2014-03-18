@@ -32,7 +32,7 @@ void rgemv(char* trans, int* m, int* n, real_t* alpha,
            void* a, int* lda, void* x, int* incx,
            real_t* beta, void* y, int* incy)
 {
-#if HAVE_DOUBLE_PRECISION
+#if POLYMEC_HAVE_DOUBLE_PRECISION
   dgemv(trans, m, n, alpha, a, lda, x, incx, beta, y, incy);
 #else
   sgemv(trans, m, n, alpha, a, lda, x, incx, beta, y, incy);
@@ -43,7 +43,7 @@ void rgemm(char* transa, char* transB, int* m, int* n, int* k, real_t* alpha,
            real_t* A, int* lda, real_t* B, int* ldb, real_t* beta, real_t* C, 
            int* ldc)
 {
-#if HAVE_DOUBLE_PRECISION
+#if POLYMEC_HAVE_DOUBLE_PRECISION
   dgemm(transa, transB, m, n, k, alpha, A, lda, B, ldb, beta, C, ldc);
 #else
   sgemm(transa, transB, m, n, k, alpha, A, lda, B, ldb, beta, C, ldc);
@@ -53,7 +53,7 @@ void rgemm(char* transa, char* transB, int* m, int* n, int* k, real_t* alpha,
 void rgesv(int* n, int* nrhs, real_t* A, int* lda, int* ipiv, 
            real_t* b, int* ldb, int* info)
 {
-#if HAVE_DOUBLE_PRECISION
+#if POLYMEC_HAVE_DOUBLE_PRECISION
   dgesv(n, nrhs, A, lda, ipiv, b, ldb, info);
 #else
   sgesv(n, nrhs, A, lda, ipiv, b, ldb, info);
@@ -62,7 +62,7 @@ void rgesv(int* n, int* nrhs, real_t* A, int* lda, int* ipiv,
 
 void rgetrf(int* n, int* nrhs, real_t* A, int* lda, int* ipiv, int* info)
 {
-#if HAVE_DOUBLE_PRECISION
+#if POLYMEC_HAVE_DOUBLE_PRECISION
   dgetrf(n, nrhs, A, lda, ipiv, info);
 #else
   sgetrf(n, nrhs, A, lda, ipiv, info);
@@ -72,7 +72,7 @@ void rgetrf(int* n, int* nrhs, real_t* A, int* lda, int* ipiv, int* info)
 void rgetrs(char* trans, int* n, int* nrhs, real_t* A, 
             int* lda, int* ipiv, real_t* b, int* ldb, int* info)
 {
-#if HAVE_DOUBLE_PRECISION
+#if POLYMEC_HAVE_DOUBLE_PRECISION
   dgetrs(trans, n, nrhs, A, lda, ipiv, b, ldb, info);
 #else
   sgetrs(trans, n, nrhs, A, lda, ipiv, b, ldb, info);
@@ -82,7 +82,7 @@ void rgetrs(char* trans, int* n, int* nrhs, real_t* A,
 void rgeqrf(int* m, int* n, real_t* A, int* lda, real_t* tau, real_t* work,
             int* lwork, int* info)
 {
-#if HAVE_DOUBLE_PRECISION
+#if POLYMEC_HAVE_DOUBLE_PRECISION
   dgeqrf(m, n, A, lda, tau, work, lwork, info);
 #else
   sgeqrf(m, n, A, lda, tau, work, lwork, info);
@@ -92,7 +92,7 @@ void rgeqrf(int* m, int* n, real_t* A, int* lda, real_t* tau, real_t* work,
 void rorgqr(int* m, int* n, int* k, real_t* A, int* lda, real_t* tau,
             real_t* work, int* lwork, int* info)
 {
-#if HAVE_DOUBLE_PRECISION
+#if POLYMEC_HAVE_DOUBLE_PRECISION
   dorgqr(m, n, k, A, lda, tau, work, lwork, info);
 #else
   sorgqr(m, n, k, A, lda, tau, work, lwork, info);
@@ -103,7 +103,7 @@ void rormqr(char* side, char* trans, int* m, int* n, int* k, real_t* A,
             int* lda, real_t* tau, real_t* C, int* ldc, real_t* work, 
             int* lwork, int* info)
 {
-#if HAVE_DOUBLE_PRECISION
+#if POLYMEC_HAVE_DOUBLE_PRECISION
   dormqr(side, trans, m, n, k, A, lda, tau, C, ldc, work, lwork, info);
 #else
   sormqr(side, trans, m, n, k, A, lda, tau, C, ldc, work, lwork, info);
@@ -114,7 +114,7 @@ void rgesvd(char* jobU, char* jobVT, int* m, int* n,
            real_t *A, int* lda, real_t* S, real_t* U, int* ldu, 
            real_t* VT, int* ldvt, real_t *work, int* lwork, int* info)
 {
-#if HAVE_DOUBLE_PRECISION
+#if POLYMEC_HAVE_DOUBLE_PRECISION
   dgesvd(jobU, jobVT, m, n, A, lda, S, U, ldu, VT, ldvt, work, lwork, info);
 #else
   sgesvd(jobU, jobVT, m, n, A, lda, S, U, ldu, VT, ldvt, work, lwork, info);
@@ -125,7 +125,7 @@ void rgelsy(int* m, int* n, int* nrhs, real_t* A, int* lda, real_t* B, int* ldb,
             int* jpvt, real_t* rcond, int* rank, real_t* work, int* lwork, 
             int* info)
 {
-#if HAVE_DOUBLE_PRECISION
+#if POLYMEC_HAVE_DOUBLE_PRECISION
   dgelsy(m, n, nrhs, A, lda, B, ldb, jpvt, rcond, rank, work, lwork, info);
 #else
   sgelsy(m, n, nrhs, A, lda, B, ldb, jpvt, rcond, rank, work, lwork, info);
