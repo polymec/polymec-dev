@@ -23,8 +23,9 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "core/unordered_set.h"
-#include "geometry/create_dual_mesh.h"
 #include "geometry/tetrahedron.h"
+#include "geometry/polygon.h"
+#include "geometry/create_dual_mesh.h"
 
 static mesh_t* create_dual_mesh_from_tet_mesh(MPI_Comm comm, 
                                               mesh_t* tet_mesh,
@@ -77,24 +78,30 @@ static mesh_t* create_dual_mesh_from_tet_mesh(MPI_Comm comm,
     }
   }
 
-  // Allocate storage for dual vertices.
-  int num_vertices = boundary_faces->size + tet_mesh->num_cells + 
-                     model_edges->size + model_vertices->size;
-  point_t* vertices = malloc(sizeof(point_t) * num_vertices);
+  // Count up the dual mesh entities.
+  int num_dual_nodes = boundary_faces->size + tet_mesh->num_cells + 
+                       model_edges->size + model_vertices->size;
+  int num_dual_faces = tet_mesh->num_edges - model_edges->size;
+  int num_dual_cells = 0, num_dual_ghost_cells = 0; 
+  // FIXME
+
+  // Now that we know the various populations, build the dual mesh.
+  mesh_t* dual_mesh = mesh_new(comm, num_dual_cells, num_dual_ghost_cells, 
+                               num_dual_faces, num_dual_nodes);
 
   // Generate dual vertices for each of the interior tetrahedra.
   tetrahedron_t* tet = tetrahedron_new();
-  for (int c = 0; c < tet_mesh->num_cells; ++c)
+  int dv_offset = 0;
+  for (int c = 0; c < tet_mesh->num_cells; ++c, ++dv_offset)
   {
     // The dual vertex is located at the circumcenter of the tetrahedral 
     // cell, or the point in the cell closest to it.
     point_t xc;
     tetrahedron_compute_circumcenter(tet, &xc);
-    tetrahedron_compute_nearest_point(tet, &xc, &vertices[c]);
+    tetrahedron_compute_nearest_point(tet, &xc, &dual_mesh->nodes[dv_offset]);
   }
 
   // Generate dual vertices for each of the boundary faces.
-  int dv_offset = tet_mesh->num_cells;
   for (int i = 0; i < num_boundary_face_tags; ++i)
   {
     int num_faces;
@@ -102,7 +109,7 @@ static mesh_t* create_dual_mesh_from_tet_mesh(MPI_Comm comm,
     for (int f = 0; f < num_faces; ++f, ++dv_offset)
     {
       int face = tag[f];
-      vertices[dv_offset] = tet_mesh->face_centers[face];
+      dual_mesh->nodes[dv_offset] = tet_mesh->face_centers[face];
     }
   }
 
@@ -116,9 +123,10 @@ static mesh_t* create_dual_mesh_from_tet_mesh(MPI_Comm comm,
       int edge = tag[e];
       point_t* x1 = &tet_mesh->nodes[tet_mesh->edge_nodes[2*edge]];
       point_t* x2 = &tet_mesh->nodes[tet_mesh->edge_nodes[2*edge+1]];
-      vertices[dv_offset].x = 0.5 * (x1->x + x2->x);
-      vertices[dv_offset].y = 0.5 * (x1->y + x2->y);
-      vertices[dv_offset].z = 0.5 * (x1->z + x2->z);
+      point_t* n = &dual_mesh->nodes[dv_offset];
+      n->x = 0.5 * (x1->x + x2->x);
+      n->y = 0.5 * (x1->y + x2->y);
+      n->z = 0.5 * (x1->z + x2->z);
     }
   }
 
@@ -130,21 +138,125 @@ static mesh_t* create_dual_mesh_from_tet_mesh(MPI_Comm comm,
     for (int v = 0; v < num_vertices; ++v, ++dv_offset)
     {
       int vertex = tag[v];
-      vertices[dv_offset] = tet_mesh->nodes[vertex];
+      dual_mesh->nodes[dv_offset] = tet_mesh->nodes[vertex];
     }
   }
 
-  // Now that we know the various populations, build the dual mesh.
-  int num_cells = 0, num_ghost_cells = 0, num_faces = 0;
-  mesh_t* mesh = mesh_new(comm, num_cells, num_ghost_cells, num_faces, num_vertices);
+  // Now generate dual faces corresponding to primal edges. Each primal edge 
+  // is surrounded by primal cells that correspond to dual vertices, so we 
+  // have to build the edge->cell connectivity and then make sure that the 
+  // cells around an edge are ordered in a well-defined manner.
+  int_unordered_set_t** primal_cells_for_edge = malloc(sizeof(int_unordered_set_t*) * tet_mesh->num_edges);
+  memset(primal_cells_for_edge, 0, sizeof(int_unordered_set_t*) * tet_mesh->num_edges);
+  for (int cell = 0; cell < tet_mesh->num_cells; ++cell)
+  {
+    // Loop over faces in the cell and associate this cell with each of the edges.
+    int pos = 0, face;
+    while (mesh_cell_next_face(tet_mesh, cell, &pos, &face))
+    {
+      int pos1 = 0, edge;
+      while (mesh_face_next_edge(tet_mesh, face, &pos1, &edge))
+      {
+        int_unordered_set_t* cells_for_edge = primal_cells_for_edge[edge];
+        if (cells_for_edge == NULL)
+        {
+          cells_for_edge = int_unordered_set_new();
+          primal_cells_for_edge[edge] = cells_for_edge;
+        }
+        int_unordered_set_insert(cells_for_edge, cell);
+      }
+    }
+  }
+
+  // Now step over the primal edges and create dual faces.
+  int df_offset = 0;
+  dual_mesh->face_node_offsets[0] = 0;
+  int_array_t** nodes_for_dual_face = malloc(sizeof(int_array_t*) * num_dual_faces);
+  memset(nodes_for_dual_face, 0, sizeof(int_array_t*) * num_dual_faces);
+  for (int edge = 0; edge < tet_mesh->num_edges; ++edge)
+  {
+    if (int_unordered_set_contains(model_edges, edge))
+    {
+      // This edge is a model edge, so it lies on the exterior of the 
+      // domain. We have to be careful.
+    }
+    else
+    {
+      int_unordered_set_t* cells_for_edge = primal_cells_for_edge[edge];
+      ASSERT(cells_for_edge != NULL);
+
+      // Dump the cell IDs into an array.
+      int num_cells = cells_for_edge->size;
+      int pos = 0, cell, c = 0, primal_cells[num_cells];
+      point_t dual_vertices[num_cells];
+      while (int_unordered_set_next(cells_for_edge, &pos, &cell))
+      {
+        dual_vertices[c] = tet_mesh->cell_centers[cell];
+        primal_cells[c] = cell;
+        ++c;
+      }
+
+      // Update the dual mesh's connectivity metadata.
+      dual_mesh->face_node_offsets[df_offset+1] = dual_mesh->face_node_offsets[df_offset] + num_cells;
+
+      // Since this is an interior edge, the dual vertices corresponding to 
+      // these cells form a convex polygon around the edge. We can arrange 
+      // the vertices into a convex polygon using the gift-wrapping algorithm.
+      polygon_t* dual_polygon = polygon_giftwrap(dual_vertices, num_cells);
+      int_array_t* face_nodes = int_array_new();
+      int_array_resize(face_nodes, num_cells);
+      memcpy(face_nodes->data, polygon_ordering(dual_polygon), sizeof(int)*num_cells);
+      nodes_for_dual_face[df_offset] = face_nodes;
+      ++df_offset;
+    }
+  }
+
+  // Create dual cells.
+  int dc_offset = 0;
+  int_array_t** faces_for_dual_cell = malloc(sizeof(int_array_t*) * num_dual_cells);
+  memset(faces_for_dual_cell, 0, sizeof(int_array_t*) * num_dual_cells);
+  // FIXME
+
+  // Allocate mesh connectivity storage and move all the data into place.
+  mesh_reserve_connectivity_storage(dual_mesh);
+  for (int c = 0; c < num_dual_cells; ++c)
+  {
+    int_array_t* cell_faces = faces_for_dual_cell[c];
+    memcpy(&dual_mesh->cell_faces[dual_mesh->cell_face_offsets[c]], cell_faces->data, sizeof(int)*cell_faces->size);
+    for (int f = 0; f < cell_faces->size; ++f)
+    {
+      int face = cell_faces->data[f];
+      if (dual_mesh->face_cells[2*face] == -1)
+        dual_mesh->face_cells[2*face] = c;
+      else
+        dual_mesh->face_cells[2*face+1] = c;
+    }
+  }
+  for (int f = 0; f < num_dual_faces; ++f)
+  {
+    int_array_t* face_nodes = nodes_for_dual_face[f];
+    memcpy(&dual_mesh->face_nodes[dual_mesh->face_node_offsets[f]], face_nodes->data, sizeof(int)*face_nodes->size);
+  }
 
   // Clean up.
+  for (int c = 0; c < num_dual_cells; ++c)
+    int_array_free(faces_for_dual_cell[c]);
+  free(faces_for_dual_cell);
+  for (int f = 0; f < num_dual_faces; ++f)
+    int_array_free(nodes_for_dual_face[f]);
+  free(nodes_for_dual_face);
+  for (int e = 0; e < tet_mesh->num_edges; ++e)
+    int_unordered_set_free(primal_cells_for_edge[e]);
+  free(primal_cells_for_edge);
   int_unordered_set_free(model_vertices);
   int_unordered_set_free(model_edges);
   int_unordered_set_free(boundary_tets);
   int_unordered_set_free(boundary_faces);
 
-  return mesh;
+  // Compute mesh geometry.
+  mesh_compute_geometry(dual_mesh);
+
+  return dual_mesh;
 }
 
 mesh_t* create_dual_mesh(MPI_Comm comm, 
