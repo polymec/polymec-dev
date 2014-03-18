@@ -174,6 +174,41 @@ polygon_t* polygon_giftwrap(point_t* points, int num_points)
   return poly;
 }
 
+polygon_t* polygon_star(point_t* x0, point_t* points, int num_points)
+{
+  ASSERT(num_points > 2);
+  // FIXME: Check that all points are coplanar.
+
+  // Find the plane of the polygon.
+  vector_t normal;
+  compute_normal(points, num_points, &normal);
+  point_t xp;
+  compute_centroid(points, num_points, &xp);
+  sp_func_t* plane = plane_new(&normal, &xp);
+
+  // Find the angles of the points within the plane, and sort the points 
+  // by this angle.
+  point2_t pts[num_points];
+  for (int i = 0; i < num_points; ++i)
+    plane_project(plane, &points[i], &pts[i]);
+  point2_t xc;
+  plane_project(plane, x0, &xc);
+  polygon2_t* poly2 = polygon2_star(&xc, pts, num_points);
+
+  // Read off the vertex ordering from the planar polygon. 
+  ASSERT(polygon2_num_vertices(poly2) == num_points);
+  int* ordering = polygon2_ordering(poly2);
+
+  // Create our polygon with the given ordering.
+  polygon_t* poly = polygon_new_with_ordering(points, ordering, num_points);
+
+  // Clean up.
+  poly2 = NULL;
+  plane = NULL;
+
+  return poly;
+}
+
 int polygon_num_vertices(polygon_t* poly)
 {
   return poly->num_vertices;

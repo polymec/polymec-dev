@@ -43,6 +43,11 @@ polygon2_t* polygon2_new_with_ordering(point2_t* points, int* ordering, int num_
 // convex hull algorithm to the set of points.
 polygon2_t* polygon2_giftwrap(point2_t* points, int num_points);
 
+// Creates a new nonconvex "star-shaped" polygon in the plane by ordering 
+// the given set of points according to their angles of displacement about 
+// a given center x0.
+polygon2_t* polygon2_star(point2_t* x0, point2_t* points, int num_points);
+
 // Returns the number of vertices in the polygon.
 int polygon2_num_vertices(polygon2_t* poly);
 

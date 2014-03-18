@@ -175,26 +175,49 @@ static mesh_t* create_dual_mesh_from_tet_mesh(MPI_Comm comm,
   memset(nodes_for_dual_face, 0, sizeof(int_array_t*) * num_dual_faces);
   for (int edge = 0; edge < tet_mesh->num_edges; ++edge)
   {
+    int_unordered_set_t* cells_for_edge = primal_cells_for_edge[edge];
+    ASSERT(cells_for_edge != NULL);
+
     if (int_unordered_set_contains(model_edges, edge))
     {
       // This edge is a model edge, so it lies on the exterior of the 
-      // domain. We have to be careful.
+      // domain. 
+      int num_nodes = 1 + cells_for_edge->size;
+      int pos = 0, cell, c = 0;
+      point_t dual_vertices[num_nodes];
+      while (int_unordered_set_next(cells_for_edge, &pos, &cell))
+        dual_vertices[c++] = tet_mesh->cell_centers[cell];
+
+      // The midpoint of the primal edge is also a node in this face. 
+      int dual_node_from_edge = -1; // FIXME
+      dual_vertices[num_nodes-1] = dual_mesh->nodes[dual_node_from_edge];
+      // This midpoint will be the "center" of the face for purposes of 
+      // constructing a non-convex polygon.
+      point_t x0 = dual_vertices[num_nodes-1];
+
+      // Update the dual mesh's connectivity metadata.
+      dual_mesh->face_node_offsets[df_offset+1] = dual_mesh->face_node_offsets[df_offset] + num_nodes;
+
+      // In general the nodes we have collected form a non-convex polygon.
+      // The structure of this polygon isn't arbitrarily complicated, however, 
+      // since the primal faces attached to the cell will fall into a star-
+      // shaped pattern.
+      polygon_t* dual_polygon = polygon_star(&x0, dual_vertices, num_nodes);
+      int_array_t* face_nodes = int_array_new();
+      int_array_resize(face_nodes, num_nodes);
+      memcpy(face_nodes->data, polygon_ordering(dual_polygon), sizeof(int)*num_nodes);
+      nodes_for_dual_face[df_offset] = face_nodes;
+      dual_polygon = NULL;
+      ++df_offset;
     }
     else
     {
-      int_unordered_set_t* cells_for_edge = primal_cells_for_edge[edge];
-      ASSERT(cells_for_edge != NULL);
-
       // Dump the cell IDs into an array.
       int num_cells = cells_for_edge->size;
-      int pos = 0, cell, c = 0, primal_cells[num_cells];
+      int pos = 0, cell, c = 0;
       point_t dual_vertices[num_cells];
       while (int_unordered_set_next(cells_for_edge, &pos, &cell))
-      {
-        dual_vertices[c] = tet_mesh->cell_centers[cell];
-        primal_cells[c] = cell;
-        ++c;
-      }
+        dual_vertices[c++] = tet_mesh->cell_centers[cell];
 
       // Update the dual mesh's connectivity metadata.
       dual_mesh->face_node_offsets[df_offset+1] = dual_mesh->face_node_offsets[df_offset] + num_cells;
@@ -207,6 +230,7 @@ static mesh_t* create_dual_mesh_from_tet_mesh(MPI_Comm comm,
       int_array_resize(face_nodes, num_cells);
       memcpy(face_nodes->data, polygon_ordering(dual_polygon), sizeof(int)*num_cells);
       nodes_for_dual_face[df_offset] = face_nodes;
+      dual_polygon = NULL;
       ++df_offset;
     }
   }

@@ -136,6 +136,12 @@ polygon2_t* polygon2_giftwrap(point2_t* points, int num_points)
   return polygon2_new_with_ordering(points, indices, count);
 }
 
+polygon2_t* polygon2_star(point2_t* x0, point2_t* points, int num_points)
+{
+  ASSERT(false);
+  return NULL;
+}
+
 int polygon2_num_vertices(polygon2_t* poly)
 {
   return poly->num_vertices;
