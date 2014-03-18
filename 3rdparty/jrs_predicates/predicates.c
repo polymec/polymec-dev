@@ -87,7 +87,7 @@
 /*    linear_expansion_sum_zeroelim(elen, e, flen, f, h)                     */
 /*    scale_expansion(elen, e, b, h)                                         */
 /*    scale_expansion_zeroelim(elen, e, b, h)                                */
-/*    compress(elen, e, h)                                                   */
+/*    compress_expansion(elen, e, h)                                                   */
 /*                                                                           */
 /*  All of these are described in the long version of the paper; some are    */
 /*    described in the short version.  All return an integer that is the     */
@@ -1334,7 +1334,7 @@ REAL *h;
 
 /*****************************************************************************/
 /*                                                                           */
-/*  compress()   Compress an expansion.                                      */
+/*  compress_expansion()   Compress an expansion.                            */
 /*                                                                           */
 /*  See the long version of my paper for details.                            */
 /*                                                                           */
@@ -1344,7 +1344,7 @@ REAL *h;
 /*                                                                           */
 /*****************************************************************************/
 
-int compress(elen, e, h)                         /* e and h may be the same. */
+int compress_expansion(elen, e, h) /* e and h may be the same. */
 int elen;
 REAL *e;
 REAL *h;

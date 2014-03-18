@@ -1,0 +1,4 @@
+This is predicates.c, released to the public domain by Jonathan Richard 
+Shewchuk (as explained in the source). The only modification made to this 
+file for inclusion in polymec was to rename compress() to compress_expansion()
+to avoid symbol interference with zlib.

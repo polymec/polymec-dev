@@ -24,57 +24,113 @@
 
 #include "core/unordered_set.h"
 #include "geometry/create_dual_mesh.h"
+#include "geometry/tetrahedron.h"
 
 static mesh_t* create_dual_mesh_from_tet_mesh(MPI_Comm comm, 
                                               mesh_t* tet_mesh,
                                               char** boundary_face_tags,
-                                              int num_boundary_face_tags)
+                                              int num_boundary_face_tags,
+                                              char** model_edge_tags,
+                                              int num_model_edge_tags,
+                                              char** model_vertex_tags,
+                                              int num_model_vertex_tags)
 {
-  // Build sets containing the indices of boundary tetrahedra and faces 
-  // (for ease of querying).
+  // Build sets containing the indices of mesh elements identifying 
+  // geometric structure (for ease of querying).
   int_unordered_set_t* boundary_tets = int_unordered_set_new();
   int_unordered_set_t* boundary_faces = int_unordered_set_new();
   for (int i = 0; i < num_boundary_face_tags; ++i)
   {
-    int num_bfaces;
-    int* btag = mesh_tag(tet_mesh->face_tags, boundary_face_tags[i], &num_bfaces);
-    for (int f = 0; f < num_bfaces; ++f)
+    int num_faces;
+    int* tag = mesh_tag(tet_mesh->face_tags, boundary_face_tags[i], &num_faces);
+    for (int f = 0; f < num_faces; ++f)
     {
-      int bface = btag[f];
-      int_unordered_set_insert(boundary_faces, bface);
-      int btet1 = tet_mesh->face_cells[2*bface];
+      int face = tag[f];
+      int_unordered_set_insert(boundary_faces, face);
+      int btet1 = tet_mesh->face_cells[2*face];
       int_unordered_set_insert(boundary_tets, btet1);
-      int btet2 = tet_mesh->face_cells[2*bface+1];
+      int btet2 = tet_mesh->face_cells[2*face+1];
       if (btet2 != -1)
         int_unordered_set_insert(boundary_tets, btet2);
     }
   }
-
-  // Allocate storage for dual vertices.
-  int num_vertices = boundary_faces->size + tet_mesh->num_cells;
-  point_t* vertices = malloc(sizeof(point_t) * num_vertices);
-
-  // Generate dual vertices for each of the interior tetrahedra.
-  for (int c = 0; c < tet_mesh->num_cells; ++c)
+  int_unordered_set_t* model_edges = int_unordered_set_new();
+  for (int i = 0; i < num_model_edge_tags; ++i)
   {
-    if (int_unordered_set_contains(boundary_tets, c))
+    int num_edges;
+    int* tag = mesh_tag(tet_mesh->edge_tags, model_edge_tags[i], &num_edges);
+    for (int e = 0; e < num_edges; ++e)
     {
-      // This tet is on the boundary and is probably not well-centered.
+      int edge = tag[e];
+      int_unordered_set_insert(model_edges, edge);
     }
-    else
+  }
+  int_unordered_set_t* model_vertices = int_unordered_set_new();
+  for (int i = 0; i < num_model_vertex_tags; ++i)
+  {
+    int num_vertices;
+    int* tag = mesh_tag(tet_mesh->node_tags, model_vertex_tags[i], &num_vertices);
+    for (int v = 0; v < num_vertices; ++v)
     {
-      // This is an interior tet and is well-centered.
+      int vertex = tag[v];
+      int_unordered_set_insert(model_vertices, vertex);
     }
   }
 
+  // Allocate storage for dual vertices.
+  int num_vertices = boundary_faces->size + tet_mesh->num_cells + 
+                     model_edges->size + model_vertices->size;
+  point_t* vertices = malloc(sizeof(point_t) * num_vertices);
+
+  // Generate dual vertices for each of the interior tetrahedra.
+  tetrahedron_t* tet = tetrahedron_new();
+  for (int c = 0; c < tet_mesh->num_cells; ++c)
+  {
+    // The dual vertex is located at the circumcenter of the tetrahedral 
+    // cell, or the point in the cell closest to it.
+    point_t xc;
+    tetrahedron_compute_circumcenter(tet, &xc);
+    tetrahedron_compute_nearest_point(tet, &xc, &vertices[c]);
+  }
+
   // Generate dual vertices for each of the boundary faces.
+  int dv_offset = tet_mesh->num_cells;
   for (int i = 0; i < num_boundary_face_tags; ++i)
   {
-    int num_bfaces;
-    int* btag = mesh_tag(tet_mesh->face_tags, boundary_face_tags[i], &num_bfaces);
-    for (int f = 0; f < num_bfaces; ++f)
+    int num_faces;
+    int* tag = mesh_tag(tet_mesh->face_tags, boundary_face_tags[i], &num_faces);
+    for (int f = 0; f < num_faces; ++f, ++dv_offset)
     {
-      int bface = btag[f];
+      int face = tag[f];
+      vertices[dv_offset] = tet_mesh->face_centers[face];
+    }
+  }
+
+  // Generate a dual vertex at the midpoint of each model edge.
+  for (int i = 0; i < num_model_edge_tags; ++i)
+  {
+    int num_edges;
+    int* tag = mesh_tag(tet_mesh->edge_tags, model_edge_tags[i], &num_edges);
+    for (int e = 0; e < num_edges; ++e, ++dv_offset)
+    {
+      int edge = tag[e];
+      point_t* x1 = &tet_mesh->nodes[tet_mesh->edge_nodes[2*edge]];
+      point_t* x2 = &tet_mesh->nodes[tet_mesh->edge_nodes[2*edge+1]];
+      vertices[dv_offset].x = 0.5 * (x1->x + x2->x);
+      vertices[dv_offset].y = 0.5 * (x1->y + x2->y);
+      vertices[dv_offset].z = 0.5 * (x1->z + x2->z);
+    }
+  }
+
+  // Generate a dual vertex for each model vertex.
+  for (int i = 0; i < num_model_vertex_tags; ++i)
+  {
+    int num_vertices;
+    int* tag = mesh_tag(tet_mesh->node_tags, model_vertex_tags[i], &num_vertices);
+    for (int v = 0; v < num_vertices; ++v, ++dv_offset)
+    {
+      int vertex = tag[v];
+      vertices[dv_offset] = tet_mesh->nodes[vertex];
     }
   }
 
@@ -83,6 +139,8 @@ static mesh_t* create_dual_mesh_from_tet_mesh(MPI_Comm comm,
   mesh_t* mesh = mesh_new(comm, num_cells, num_ghost_cells, num_faces, num_vertices);
 
   // Clean up.
+  int_unordered_set_free(model_vertices);
+  int_unordered_set_free(model_edges);
   int_unordered_set_free(boundary_tets);
   int_unordered_set_free(boundary_faces);
 
@@ -92,13 +150,20 @@ static mesh_t* create_dual_mesh_from_tet_mesh(MPI_Comm comm,
 mesh_t* create_dual_mesh(MPI_Comm comm, 
                          mesh_t* original_mesh,
                          char** boundary_face_tags,
-                         int num_boundary_face_tags)
+                         int num_boundary_face_tags,
+                         char** model_edge_tags,
+                         int num_model_edge_tags,
+                         char** model_vertex_tags,
+                         int num_model_vertex_tags)
 {
   ASSERT(num_boundary_face_tags > 0);
   ASSERT(num_boundary_face_tags > 0);
 
   // Currently, we only support duals of tet meshes.
   ASSERT(mesh_has_feature(original_mesh, TETRAHEDRAL));
-  return create_dual_mesh_from_tet_mesh(comm, original_mesh, boundary_face_tags, num_boundary_face_tags);
+  return create_dual_mesh_from_tet_mesh(comm, original_mesh, 
+                                        boundary_face_tags, num_boundary_face_tags,
+                                        model_edge_tags, num_model_edge_tags,
+                                        model_vertex_tags, num_model_vertex_tags);
 }
 

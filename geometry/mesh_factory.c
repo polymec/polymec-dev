@@ -145,28 +145,50 @@ int mesh_factory_dual(lua_State* lua)
 {
   // Check the arguments.
   int num_args = lua_gettop(lua);
-  if ((num_args != 2) || !lua_ismesh(lua, 1) || !lua_isstringlist(lua, 2))
+  if ((num_args < 2) || (num_args > 4) || 
+      !lua_ismesh(lua, 1) || !lua_isstringlist(lua, 2) || 
+      ((num_args >= 3) && !lua_isstringlist(lua, 3)) || 
+      ((num_args == 4) && !lua_isstringlist(lua, 4)))
   {
     return luaL_error(lua, "Invalid argument(s). Usage:\n"
-                      "mesh = mesh_factory.dual(original_mesh, boundary_face_tags).");
+                      "mesh = mesh_factory.dual(original_mesh, boundary_face_tags[, model_edge_tags, model_vertex_tags).");
   }
 
   mesh_t* orig_mesh = lua_tomesh(lua, 1);
-  int num_tags;
-  char** boundary_face_tags = lua_tostringlist(lua, 2, &num_tags);
+  int num_boundary_face_tags;
+  char** boundary_face_tags = lua_tostringlist(lua, 2, &num_boundary_face_tags);
+  int num_model_edge_tags = 0, num_model_vertex_tags = 0;
+  char** model_edge_tags = NULL, **model_vertex_tags = NULL;
+  if (num_args >= 3)
+    model_edge_tags = lua_tostringlist(lua, 3, &num_model_edge_tags);
+  if (num_args == 4)
+    model_vertex_tags = lua_tostringlist(lua, 4, &num_model_vertex_tags);
 
-  // Make sure the mesh contains the given boundary face tags.
-  for (int i = 0; i < num_tags; ++i)
+  // Make sure the mesh contains the given tags.
+  for (int i = 0; i < num_boundary_face_tags; ++i)
   {
     if (!mesh_has_tag(orig_mesh->face_tags, boundary_face_tags[i]))
-      return luaL_error(lua, "mesh_factory.dual: Original mesh does not contain boundary tag '%s'.", boundary_face_tags[i]);
+      return luaL_error(lua, "mesh_factory.dual: Original mesh does not contain face tag '%s'.", boundary_face_tags[i]);
+  }
+  for (int i = 0; i < num_model_edge_tags; ++i)
+  {
+    if (!mesh_has_tag(orig_mesh->edge_tags, model_edge_tags[i]))
+      return luaL_error(lua, "mesh_factory.dual: Original mesh does not contain edge tag '%s'.", model_edge_tags[i]);
+  }
+  for (int i = 0; i < num_model_vertex_tags; ++i)
+  {
+    if (!mesh_has_tag(orig_mesh->node_tags, model_vertex_tags[i]))
+      return luaL_error(lua, "mesh_factory.dual: Original mesh does not contain node tag '%s'.", model_vertex_tags[i]);
   }
 
   // For now, we only support duals of tet meshes.
   if (!mesh_has_feature(orig_mesh, TETRAHEDRAL))
     return luaL_error(lua, "mesh_factory.dual: A dual mesh can only be created from a tetrahedral mesh.");
 
-  mesh_t* mesh = create_dual_mesh(MPI_COMM_WORLD, orig_mesh, boundary_face_tags, num_tags);
+  mesh_t* mesh = create_dual_mesh(MPI_COMM_WORLD, orig_mesh, 
+                                  boundary_face_tags, num_boundary_face_tags,
+                                  model_edge_tags, num_model_edge_tags,
+                                  model_vertex_tags, num_model_vertex_tags);
 
   // Push the mesh onto the stack.
   lua_pushmesh(lua, mesh);
