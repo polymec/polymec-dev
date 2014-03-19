@@ -138,7 +138,13 @@ polygon2_t* polygon2_giftwrap(point2_t* points, int num_points)
 
 polygon2_t* polygon2_star(point2_t* x0, point2_t* points, int num_points)
 {
-  ASSERT(false);
+  // Make sure x0 is not one of the points.
+  for (int i = 0; i < num_points; ++i)
+  {
+    if (point_distance(x0, &points[i]) < 1e-14)
+      polymec_error("polygon2_star: Point %d coincides with x0.", i);
+  }
+
   return NULL;
 }
 

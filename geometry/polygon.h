@@ -45,6 +45,7 @@ polygon_t* polygon_giftwrap(point_t* points, int num_points);
 
 // Creates a new star-shaped non-convex polygon by ordering the angles of 
 // the points about the given center x0 (assuming the points are coplanar).
+// The points must all be distinct from x0.
 polygon_t* polygon_star(point_t* x0, point_t* points, int num_points);
 
 // Returns the number of vertices in the polygon.
