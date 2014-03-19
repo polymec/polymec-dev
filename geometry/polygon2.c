@@ -152,7 +152,6 @@ static inline int star_angle_cmp(const void* l, const void* r)
          (sl->angle > sr->angle) ?  1 : 0;             
 }
 
-
 polygon2_t* polygon2_star(point2_t* x0, point2_t* points, int num_points)
 {
   // Make sure x0 is not one of the points.

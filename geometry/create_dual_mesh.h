@@ -31,16 +31,21 @@
 // This function creates a mesh that is dual to the given original mesh, 
 // respecting the features of the underlying geometric model, as identified 
 // by the following tags: 
-// - boundary_face_tags is an array containing names of face tags that denote 
-//   interior or external boundaries within the model.
+// - external_model_face_tags is an array containing names of face tags that 
+//   denote external boundaries within the model.
+// - internal_model_face_tags is an array containing names of face tags that 
+//   denote internal boundaries (separating, say, different materials) 
+//   within the model.
 // - model_edge_tags is an array containing names of edge tags 
 //   denoting edges conforming to the model. 
 // - model_vertex_tags is an array containing names of node tags denoting 
 //   vertices conforming to the model.
 mesh_t* create_dual_mesh(MPI_Comm comm, 
                          mesh_t* original_mesh,
-                         char** boundary_face_tags,
-                         int num_boundary_face_tags,
+                         char** external_model_face_tags,
+                         int num_external_model_face_tags,
+                         char** internal_model_face_tags,
+                         int num_internal_model_face_tags,
                          char** model_edge_tags,
                          int num_model_edge_tags,
                          char** model_vertex_tags,

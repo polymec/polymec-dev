@@ -145,30 +145,45 @@ int mesh_factory_dual(lua_State* lua)
 {
   // Check the arguments.
   int num_args = lua_gettop(lua);
-  if ((num_args < 2) || (num_args > 4) || 
+  if ((num_args != 4 ) || (num_args != 5) || 
       !lua_ismesh(lua, 1) || !lua_isstringlist(lua, 2) || 
-      ((num_args >= 3) && !lua_isstringlist(lua, 3)) || 
-      ((num_args == 4) && !lua_isstringlist(lua, 4)))
+      !lua_isstringlist(lua, 3) || !lua_isstringlist(lua, 4) || 
+      ((num_args == 5) && !lua_isstringlist(lua, 5)))
   {
     return luaL_error(lua, "Invalid argument(s). Usage:\n"
-                      "mesh = mesh_factory.dual(original_mesh, boundary_face_tags[, model_edge_tags, model_vertex_tags).");
+                      "mesh = mesh_factory.dual(original_mesh, external_model_face_tags, model_edge_tags, model_vertex_tags) OR"
+                      "mesh = mesh_factory.dual(original_mesh, external_model_face_tags, internal_model_face_tags, model_edge_tags, model_vertex_tags) OR");
   }
 
   mesh_t* orig_mesh = lua_tomesh(lua, 1);
-  int num_boundary_face_tags;
-  char** boundary_face_tags = lua_tostringlist(lua, 2, &num_boundary_face_tags);
-  int num_model_edge_tags = 0, num_model_vertex_tags = 0;
-  char** model_edge_tags = NULL, **model_vertex_tags = NULL;
-  if (num_args >= 3)
-    model_edge_tags = lua_tostringlist(lua, 3, &num_model_edge_tags);
+  int num_external_model_face_tags, num_internal_model_face_tags = 0,
+      num_model_edge_tags, num_model_vertex_tags;
+  char** external_model_face_tags = lua_tostringlist(lua, 2, &num_external_model_face_tags);
+  char** internal_model_face_tags = NULL;
+  char** model_edge_tags; 
+  char** model_vertex_tags;
   if (num_args == 4)
+  {
+    model_edge_tags = lua_tostringlist(lua, 3, &num_model_edge_tags);
     model_vertex_tags = lua_tostringlist(lua, 4, &num_model_vertex_tags);
+  }
+  else
+  {
+    internal_model_face_tags = lua_tostringlist(lua, 3, &num_external_model_face_tags);
+    model_edge_tags = lua_tostringlist(lua, 4, &num_model_edge_tags);
+    model_vertex_tags = lua_tostringlist(lua, 5, &num_model_vertex_tags);
+  }
 
   // Make sure the mesh contains the given tags.
-  for (int i = 0; i < num_boundary_face_tags; ++i)
+  for (int i = 0; i < num_external_model_face_tags; ++i)
   {
-    if (!mesh_has_tag(orig_mesh->face_tags, boundary_face_tags[i]))
-      return luaL_error(lua, "mesh_factory.dual: Original mesh does not contain face tag '%s'.", boundary_face_tags[i]);
+    if (!mesh_has_tag(orig_mesh->face_tags, external_model_face_tags[i]))
+      return luaL_error(lua, "mesh_factory.dual: Original mesh does not contain face tag '%s'.", external_model_face_tags[i]);
+  }
+  for (int i = 0; i < num_internal_model_face_tags; ++i)
+  {
+    if (!mesh_has_tag(orig_mesh->face_tags, internal_model_face_tags[i]))
+      return luaL_error(lua, "mesh_factory.dual: Original mesh does not contain face tag '%s'.", internal_model_face_tags[i]);
   }
   for (int i = 0; i < num_model_edge_tags; ++i)
   {
@@ -186,7 +201,8 @@ int mesh_factory_dual(lua_State* lua)
     return luaL_error(lua, "mesh_factory.dual: A dual mesh can only be created from a tetrahedral mesh.");
 
   mesh_t* mesh = create_dual_mesh(MPI_COMM_WORLD, orig_mesh, 
-                                  boundary_face_tags, num_boundary_face_tags,
+                                  external_model_face_tags, num_external_model_face_tags,
+                                  internal_model_face_tags, num_internal_model_face_tags,
                                   model_edge_tags, num_model_edge_tags,
                                   model_vertex_tags, num_model_vertex_tags);
 
