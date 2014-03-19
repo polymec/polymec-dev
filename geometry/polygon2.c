@@ -136,16 +136,46 @@ polygon2_t* polygon2_giftwrap(point2_t* points, int num_points)
   return polygon2_new_with_ordering(points, indices, count);
 }
 
+// This container holds an angle and the associated node index.
+typedef struct
+{
+  double angle;
+  int index;
+} star_angle_t;
+
+// Here's a comparator used with qsort to perform the "star" ordering.
+static inline int star_angle_cmp(const void* l, const void* r)
+{
+  const star_angle_t* sl = l;
+  const star_angle_t* sr = r;
+  return (sl->angle < sr->angle) ? -1 :
+         (sl->angle > sr->angle) ?  1 : 0;             
+}
+
+
 polygon2_t* polygon2_star(point2_t* x0, point2_t* points, int num_points)
 {
   // Make sure x0 is not one of the points.
   for (int i = 0; i < num_points; ++i)
   {
-    if (point_distance(x0, &points[i]) < 1e-14)
+    if (point2_distance(x0, &points[i]) < 1e-14)
       polymec_error("polygon2_star: Point %d coincides with x0.", i);
   }
 
-  return NULL;
+  // Sort the points by angles.
+  star_angle_t angles[num_points];
+  for (int i = 0; i < num_points; ++i)
+  {
+    angles[i].angle = atan2(points[i].y - x0->y, points[i].x - x0->x);
+    angles[i].index = i;
+  }
+  qsort(angles, (size_t)num_points, sizeof(star_angle_t), star_angle_cmp);
+  
+  // Create a polygon from the new ordering.
+  int ordering[num_points];
+  for (int i = 0; i < num_points; ++i)
+    ordering[i] = angles[i].index;
+  return polygon2_new_with_ordering(points, ordering, num_points);
 }
 
 int polygon2_num_vertices(polygon2_t* poly)

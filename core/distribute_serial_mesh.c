@@ -39,7 +39,7 @@ static inline int morton_comp(const void* l, const void* r)
   const morton_ordering_t* ml = l;
   const morton_ordering_t* mr = r;
   return (ml->morton_index < mr->morton_index) ? -1 :
-         (mr->morton_index > mr->morton_index) ?  1 : 0;             
+         (ml->morton_index > mr->morton_index) ?  1 : 0;             
 }
 
 // Returns a local mesh representing the pth subdomain, given a global mesh 
