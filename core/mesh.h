@@ -251,20 +251,29 @@ static inline bool mesh_cell_next_neighbor(mesh_t* mesh, int cell, int* pos, int
 {
   int face;
   bool result = mesh_cell_next_face(mesh, cell, pos, &face);
-  *neighbor_cell = mesh->face_cells[2*face];
+  if (mesh->face_cells[2*face] == cell)
+    return *neighbor_cell = mesh->face_cells[2*face+1];
+  else
+    return *neighbor_cell = mesh->face_cells[2*face];
   return result;
 }
 
-// This returns true if the two cells cell1 and cell2 share a face, false otherwise.
+// This returns the index of the face shared by cell and neighbor_cell if the two 
+// cells share a face, -1 otherwise.
+static inline int mesh_cell_face_for_neighbor(mesh_t* mesh, int cell, int neighbor_cell)
+{
+  int pos = 0, face;
+  while (mesh_cell_next_face(mesh, cell, &pos, &face))
+  {
+    if ((mesh->face_cells[2*face] == neighbor_cell) || (mesh->face_cells[2*face+1] == neighbor_cell))
+      return face;
+  }
+  return -1;
+}
+
 static inline bool mesh_cells_are_neighbors(mesh_t* mesh, int cell1, int cell2)
 {
-  int pos = 0, cell;
-  while (mesh_cell_next_neighbor(mesh, cell1, &pos, &cell))
-  {
-    if (cell == cell2) 
-      return true;
-  }
-  return false;
+  return (mesh_cell_face_for_neighbor(mesh, cell1, cell2) != -1);
 }
 
 // Returns the number of nodes attached to the given face in the mesh.

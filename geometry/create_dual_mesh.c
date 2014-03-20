@@ -189,7 +189,7 @@ static mesh_t* create_dual_mesh_from_tet_mesh(MPI_Comm comm,
   int num_dual_nodes = external_model_faces->size + 
                        internal_model_faces->size + tet_mesh->num_cells + 
                        model_edges->size + model_vertices->size;
-  int num_dual_faces = tet_mesh->num_edges - model_edges->size;
+  int num_dual_faces = tet_mesh->num_edges + external_model_face_edges->size;
   int num_dual_cells = 0, num_dual_ghost_cells = 0; 
   // FIXME
 
@@ -389,19 +389,40 @@ static mesh_t* create_dual_mesh_from_tet_mesh(MPI_Comm comm,
         // using the "star" algorithm and then retrieve them (in order) from 
         // the polygon.
         polygon_t* dual_polygon = polygon_giftwrap(dual_nodes, num_cells);
-//        polygon_t* dual_polygon = polygon_star(dual_nodes, num_cells);
+//        polygon_t* dual_polygon = polygon_star(x0, dual_nodes, num_cells);
         int* ordering = polygon_ordering(dual_polygon);
 
         // Now we just need to apportion the right nodes to the right faces.
         int start_index1 = -1, start_index2 = -1, stop_index1 = -1, stop_index2 = -1;
         for (int i = 0; i < num_cells; ++i)
         {
+          // Follow the cells around the face.
           int this_cell = dual_node_indices[ordering[i]];
           int next_cell = dual_node_indices[ordering[(i+1)%num_cells]];
-          // If this_cell and next_cell share a face that is an internal 
-          // model face, they are on the opposite side of the interface.
-          if (int_unordered_set_contains(internal_boundary_tets, this_cell))
+          if (int_unordered_set_contains(internal_boundary_tets, this_cell) && 
+              int_unordered_set_contains(internal_boundary_tets, next_cell))
           {
+            // If this_cell and next_cell share a face that is an internal 
+            // model face, they are on the opposite side of the interface.
+            int shared_face = mesh_cell_face_for_neighbor(tet_mesh, this_cell, next_cell);
+            if ((shared_face != -1) && 
+                int_unordered_set_contains(internal_model_faces, shared_face))
+            {
+              if (start_index1 == -1)
+              {
+                // Face 1 starts on the "next cell," and face 2 ends on 
+                // "this cell."
+                start_index1 = next_cell;
+                stop_index2 = this_cell;
+              }
+              else
+              {
+                // Face 2 starts on the "next cell," and face 1 ends on 
+                // "this cell."
+                start_index2 = next_cell;
+                stop_index1 = this_cell;
+              }
+            }
           }
         }
 
