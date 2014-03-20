@@ -360,8 +360,13 @@ set(POLYMEC_TP_LIBS lua;${POLYMEC_TP_LIBS})
 #set(POLYMEC_TP_INCDIRS ${POLYMEC_TP_INCDIRS};${PROJECT_BINARY_DIR}/include)
 
 # Build jrs_predicates, Jonathan Richard Shewchuk's (public domain) library 
-# for arbitrary-precision geometric predicates.
+# for arbitrary-precision geometric predicates. 
+# Since random() is not part of the C standard, we can't lean on it in general.
 add_library(jrs_predicates jrs_predicates/predicates.c)
+if (LINUX EQUAL 1)
+  # On Linux, rand() and random() are the same.
+  set_target_properties(jrs_predicates PROPERTIES COMPILE_FLAGS "-Drandom=rand")
+endif()
 install(TARGETS jrs_predicates DESTINATION lib)
 set(POLYMEC_TP_LIBS jrs_predicates;${POLYMEC_TP_LIBS})
 
