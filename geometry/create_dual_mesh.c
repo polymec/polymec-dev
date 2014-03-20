@@ -54,13 +54,19 @@ static void order_nodes_of_dual_face(sp_func_t* plane,
                                      int num_nodes, 
                                      int* dual_node_indices)
 {
-  ASSERT(num_nodes >= 3);
+  ASSERT(num_nodes >= 2);
   ASSERT(endpoint_indices[0] != -1);
   ASSERT(endpoint_indices[1] != -1);
 
-  // If there are only three nodes, there's only one in between them.
-  if (num_nodes == 3)
+  if (num_nodes == 2)
   {
+    // If there are only two nodes, we're done.
+    dual_node_indices[0] = endpoint_indices[0];
+    dual_node_indices[1] = endpoint_indices[1];
+  }
+  else if (num_nodes == 3)
+  {
+    // If there are only three nodes, there's only one in between them.
     dual_node_indices[0] = endpoint_indices[0];
     dual_node_indices[2] = endpoint_indices[1];
     for (int i = 0; i < 3; ++i)
@@ -297,14 +303,11 @@ static mesh_t* create_dual_mesh_from_tet_mesh(MPI_Comm comm,
     bool is_internal_face_edge = int_unordered_set_contains(internal_model_face_edges, edge);
     bool is_model_edge = int_unordered_set_contains(model_edges, edge);
 
-    if (is_external_face_edge || is_internal_face_edge || is_model_edge)
+    if (is_external_face_edge || is_internal_face_edge)
     {
-      if (is_internal_face_edge)
+      if (is_external_face_edge)
       {
-      }
-      else
-      {
-        // This primal edge belongs to an external model face or a model edge, 
+        // This primal edge belongs to an external model face,
         // so it lies on the outside of the domain. The corresponding dual 
         // face is bounded by dual nodes created from the primal cells 
         // bounding the edge. We want to order these dual nodes starting at 
@@ -358,26 +361,108 @@ static mesh_t* create_dual_mesh_from_tet_mesh(MPI_Comm comm,
           int dual_node_from_edge = *dual_node_from_edge_p;
           face_nodes->data[num_nodes] = dual_node_from_edge;
         }
+        ++df_offset;
       }
+      else
+      {
+        // This primal edge belongs to an internal model face,
+        // so it lies on an interface between two regions within the domain. 
+        // We create two dual faces for this edge (one for each region), 
+        // using a procedure very similar to the one we used for external 
+        // edges above.
 
-      ++df_offset;
+        // Dump the IDs of the cells attached to the edge into a single array.
+        int num_cells = cells_for_edge->size;
+        int pos = 0, cell, c = 0;
+        point_t dual_nodes[num_cells];
+        int dual_node_indices[num_cells];
+        while (int_unordered_set_next(cells_for_edge, &pos, &cell))
+        {
+          dual_nodes[c] = tet_mesh->cell_centers[cell];
+          dual_node_indices[c] = cell;
+          ++c;
+        }
+
+        // Since this is an internal interface edge, the dual nodes 
+        // corresponding to these cells form a polygon around the edge. We can 
+        // arrange the nodes for the two faces (stuck together) into a polygon 
+        // using the "star" algorithm and then retrieve them (in order) from 
+        // the polygon.
+        polygon_t* dual_polygon = polygon_giftwrap(dual_nodes, num_cells);
+//        polygon_t* dual_polygon = polygon_star(dual_nodes, num_cells);
+        int* ordering = polygon_ordering(dual_polygon);
+
+        // Now we just need to apportion the right nodes to the right faces.
+        int start_index1 = -1, start_index2 = -1, stop_index1 = -1, stop_index2 = -1;
+        for (int i = 0; i < num_cells; ++i)
+        {
+          int this_cell = dual_node_indices[ordering[i]];
+          int next_cell = dual_node_indices[ordering[(i+1)%num_cells]];
+          // If this_cell and next_cell share a face that is an internal 
+          // model face, they are on the opposite side of the interface.
+          if (int_unordered_set_contains(internal_boundary_tets, this_cell))
+          {
+          }
+        }
+
+        // Update the dual mesh's face->node connectivity metadata for 
+        // both faces.
+        int num_nodes1 = stop_index1 - start_index1 + 1;
+        int num_face1_nodes = (is_model_edge) ? num_nodes1 + 1 : num_nodes1;
+        dual_mesh->face_node_offsets[df_offset+1] = dual_mesh->face_node_offsets[df_offset] + num_face1_nodes;
+        int_array_t* face1_nodes = int_array_new();
+        nodes_for_dual_face[df_offset] = face1_nodes;
+        int_array_resize(face1_nodes, num_nodes1);
+        for (int i = start_index1; i <= stop_index1; ++i)
+        {
+          int j = (start_index1 + i) % num_cells;
+          face1_nodes->data[i] = dual_node_indices[ordering[j]];
+        }
+
+        int num_nodes2 = stop_index2 - start_index2 + 1;
+        int num_face2_nodes = (is_model_edge) ? num_nodes2 + 1 : num_nodes2;
+        dual_mesh->face_node_offsets[df_offset+2] = dual_mesh->face_node_offsets[df_offset+1] + num_face2_nodes;
+        int_array_t* face2_nodes = int_array_new();
+        nodes_for_dual_face[df_offset+1] = face2_nodes;
+        int_array_resize(face2_nodes, num_nodes2);
+        for (int i = 0; i <= num_nodes2; ++i)
+        {
+          int j = (start_index2 + i) % num_cells;
+          face1_nodes->data[i] = dual_node_indices[ordering[j]];
+        }
+
+        // If the edge is a model edge, stick the primal edge's node at the end 
+        // of each of the lists of dual face nodes.
+        if (is_model_edge)
+        {
+          int* dual_node_from_edge_p = int_int_unordered_map_get(dual_node_for_edge, edge);
+          ASSERT(dual_node_from_edge_p != NULL);
+          int dual_node_from_edge = *dual_node_from_edge_p;
+          face1_nodes->data[num_nodes1] = dual_node_from_edge;
+          face2_nodes->data[num_nodes2] = dual_node_from_edge;
+        }
+        df_offset += 2;
+      }
     }
     else
     {
-      // Dump the cell IDs into an array.
+      // This edge is on the interior of the domain, so it is only bounded 
+      // by cells.
+
+      // Dump the cell centers into an array.
       int num_cells = cells_for_edge->size;
       int pos = 0, cell, c = 0;
-      point_t dual_vertices[num_cells];
+      point_t dual_nodes[num_cells];
       while (int_unordered_set_next(cells_for_edge, &pos, &cell))
-        dual_vertices[c++] = tet_mesh->cell_centers[cell];
+        dual_nodes[c++] = tet_mesh->cell_centers[cell];
 
       // Update the dual mesh's connectivity metadata.
       dual_mesh->face_node_offsets[df_offset+1] = dual_mesh->face_node_offsets[df_offset] + num_cells;
 
-      // Since this is an interior edge, the dual vertices corresponding to 
+      // Since this is an interior edge, the dual nodes corresponding to 
       // these cells form a convex polygon around the edge. We can arrange 
-      // the vertices into a convex polygon using the gift-wrapping algorithm.
-      polygon_t* dual_polygon = polygon_giftwrap(dual_vertices, num_cells);
+      // the nodes into a convex polygon using the gift-wrapping algorithm.
+      polygon_t* dual_polygon = polygon_giftwrap(dual_nodes, num_cells);
       int_array_t* face_nodes = int_array_new();
       int_array_resize(face_nodes, num_cells);
       memcpy(face_nodes->data, polygon_ordering(dual_polygon), sizeof(int)*num_cells);

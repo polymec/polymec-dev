@@ -255,6 +255,18 @@ static inline bool mesh_cell_next_neighbor(mesh_t* mesh, int cell, int* pos, int
   return result;
 }
 
+// This returns true if the two cells cell1 and cell2 share a face, false otherwise.
+static inline bool mesh_cells_are_neighbors(mesh_t* mesh, int cell1, int cell2)
+{
+  int pos = 0, cell;
+  while (mesh_cell_next_neighbor(mesh, cell1, &pos, &cell))
+  {
+    if (cell == cell2) 
+      return true;
+  }
+  return false;
+}
+
 // Returns the number of nodes attached to the given face in the mesh.
 static inline int mesh_face_num_nodes(mesh_t* mesh, int face)
 {
