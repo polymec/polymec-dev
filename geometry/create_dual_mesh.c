@@ -44,7 +44,6 @@ static inline int dual_face_node_cmp(const void* l, const void* r)
          (fl->angle > fr->angle) ?  1 : 0;             
 }
 
-
 // Given a set of nodes in a plane (with two identified as "endpoints", 
 // order them from the first endpoint to the second, placing their indices 
 // (corresponding to their locations in dual_nodes) in dual_node_indices.
@@ -57,6 +56,7 @@ static void order_nodes_of_dual_face(sp_func_t* plane,
   ASSERT(num_nodes >= 2);
   ASSERT(endpoint_indices[0] != -1);
   ASSERT(endpoint_indices[1] != -1);
+  ASSERT(endpoint_indices[0] != endpoint_indices[1]);
 
   if (num_nodes == 2)
   {
@@ -115,6 +115,8 @@ static mesh_t* create_dual_mesh_from_tet_mesh(MPI_Comm comm,
 {
   // Build sets containing the indices of mesh elements identifying 
   // geometric structure (for ease of querying).
+
+  // External model faces, their edges, and attached tetrahedra.
   int_unordered_set_t* external_boundary_tets = int_unordered_set_new();
   int_unordered_set_t* external_model_faces = int_unordered_set_new();
   int_unordered_set_t* external_model_face_edges = int_unordered_set_new();
@@ -142,6 +144,8 @@ static mesh_t* create_dual_mesh_from_tet_mesh(MPI_Comm comm,
         int_unordered_set_insert(model_face_nodes, node);
     }
   }
+
+  // Internal model faces, their edges, and attached tetrahedra.
   int_unordered_set_t* internal_boundary_tets = int_unordered_set_new();
   int_unordered_set_t* internal_model_faces = int_unordered_set_new();
   int_unordered_set_t* internal_model_face_edges = int_unordered_set_new();
@@ -169,6 +173,7 @@ static mesh_t* create_dual_mesh_from_tet_mesh(MPI_Comm comm,
     }
   }
 
+  // Model edges and nodes belonging to them.
   int_unordered_set_t* model_edges = int_unordered_set_new();
   int_unordered_set_t* model_edge_nodes = int_unordered_set_new();
   for (int i = 0; i < num_model_edge_tags; ++i)
@@ -194,9 +199,9 @@ static mesh_t* create_dual_mesh_from_tet_mesh(MPI_Comm comm,
       int_unordered_set_insert(model_vertices, vertex);
 
       // A model vertex should not obey the same rules as a vertex that is 
-      // attached to a model edge, so remove this vertex from the model 
-      // edge node set.
+      // attached to a model edge/face, so remove this vertex from those sets.
       int_unordered_set_delete(model_edge_nodes, vertex);
+      int_unordered_set_delete(model_face_nodes, vertex);
     }
   }
 
@@ -295,7 +300,8 @@ static mesh_t* create_dual_mesh_from_tet_mesh(MPI_Comm comm,
   }
   int num_dual_faces = tet_mesh->num_edges + external_model_face_edges->size +
                        num_dual_faces_from_boundary_vertices;
-  int num_dual_cells = tet_mesh->num_nodes, num_dual_ghost_cells = 0; 
+  int num_dual_cells = tet_mesh->num_nodes;
+  int num_dual_ghost_cells = 0; 
   // FIXME: Figuring out ghost dual cells probably requires parallel communication.
 
   // Now that we know the various populations, build the dual mesh.
@@ -584,37 +590,68 @@ static mesh_t* create_dual_mesh_from_tet_mesh(MPI_Comm comm,
     int pos = 0, node;
     while (int_unordered_set_next(model_face_nodes, &pos, &node))
     {
-      // Traverse the model faces attached to this node and hook up their 
-      // corresponding dual vertices to a new dual face.
-      int_unordered_set_t* boundary_faces_for_node = primal_boundary_faces_for_node[node];
-      ASSERT(boundary_faces_for_node != NULL);
-      int num_dual_nodes = boundary_faces_for_node->size;
-      point_t dual_nodes[num_dual_nodes];
-      int pos1 = 0, bface, i = 0;
-      while (int_unordered_set_next(boundary_faces_for_node, &pos1, &bface))
+      // This rule does not apply to nodes on model edges.
+      if (!int_unordered_set_contains(model_edge_nodes, node))
       {
-        // Retrieve the dual node index for this boundary face.
-        int* dual_node_p = int_int_unordered_map_get(dual_node_for_model_face, bface);
-        ASSERT(dual_node_p != NULL);
-        dual_nodes[i] = dual_mesh->nodes[*dual_node_p];
-        ++i;
-      }
+        // Traverse the model faces attached to this node and hook up their 
+        // corresponding dual vertices to a new dual face.
+        int_unordered_set_t* boundary_faces_for_node = primal_boundary_faces_for_node[node];
+        ASSERT(boundary_faces_for_node != NULL);
+        int num_dual_nodes = boundary_faces_for_node->size;
+        point_t dual_nodes[num_dual_nodes];
+        int pos1 = 0, bface, i = 0;
+        while (int_unordered_set_next(boundary_faces_for_node, &pos1, &bface))
+        {
+          // Retrieve the dual node index for this boundary face.
+          int* dual_node_p = int_int_unordered_map_get(dual_node_for_model_face, bface);
+          ASSERT(dual_node_p != NULL);
+          dual_nodes[i] = dual_mesh->nodes[*dual_node_p];
+          ++i;
+        }
 
-      // Order the dual nodes by constructing a polygonal face.
-      polygon_t* dual_polygon = polygon_giftwrap(dual_nodes, num_dual_nodes);
-      int_array_t* face_nodes = int_array_new();
-      int_array_resize(face_nodes, num_dual_nodes);
-      memcpy(face_nodes->data, polygon_ordering(dual_polygon), sizeof(int)*num_dual_nodes);
-      nodes_for_dual_face[df_offset] = face_nodes;
-      dual_polygon = NULL;
-      ++df_offset;
+        // Order the dual nodes by constructing a polygonal face.
+        polygon_t* dual_polygon = polygon_giftwrap(dual_nodes, num_dual_nodes);
+        int_array_t* face_nodes = int_array_new();
+        int_array_resize(face_nodes, num_dual_nodes);
+        memcpy(face_nodes->data, polygon_ordering(dual_polygon), sizeof(int)*num_dual_nodes);
+        nodes_for_dual_face[df_offset] = face_nodes;
+        dual_polygon = NULL;
+        ++df_offset;
+      }
     }
 
     // Add dual faces for primal nodes attached to model edges.
-    // FIXME: This can be gross, since some edges may be non-manifold.
+    // This can be gross, since some edges may be non-manifold.
+    int edge;
+    pos = 0;
+    while (int_unordered_set_next(model_edges, &pos, &edge))
+    { 
+      // Traverse the boundary faces attached to this edge.
+      int_unordered_set_t* faces_for_edge = primal_faces_for_edge[edge];
+      int pos1 = 0, face;
+      while (int_unordered_set_next(faces_for_edge, &pos1, &face))
+      {
+        if (int_unordered_set_contains(external_model_faces, face) || 
+            int_unordered_set_contains(internal_model_faces, face))
+        {
+          // FIXME
+        }
+      }
+    }
 
     // Add dual faces for primal nodes which are model vertices.
-    // FIXME
+    int node;
+    pos = 0;
+    while (int_unordered_set_next(model_vertices, &pos, &node))
+    { 
+      // Traverse the boundary faces attached to this edge.
+      int_unordered_set_t* boundary_faces_for_node = primal_boundary_faces_for_node[node];
+      int pos1 = 0, face;
+      while (int_unordered_set_next(faces_for_edge, &pos1, &face))
+      {
+        // FIXME
+      }
+    }
   }
 
   // Create dual cells.
