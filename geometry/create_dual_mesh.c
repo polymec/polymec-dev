@@ -261,6 +261,7 @@ static mesh_t* create_dual_mesh_from_tet_mesh(MPI_Comm comm,
                        internal_model_faces->size + tet_mesh->num_cells + 
                        model_edges->size + model_vertices->size;
   int num_dual_faces_from_boundary_vertices = 0;
+  // Dual faces for boundary faces attached to primal nodes.
   for (int n = 0; n < tet_mesh->num_nodes; ++n)
   {
     int_unordered_set_t* boundary_faces_for_node = primal_boundary_faces_for_node[n];
@@ -268,6 +269,7 @@ static mesh_t* create_dual_mesh_from_tet_mesh(MPI_Comm comm,
       num_dual_faces_from_boundary_vertices += boundary_faces_for_node->size;
   }
   {
+    // Dual faces for model edges attached to primal nodes.
     int pos = 0, edge;
     while (int_unordered_set_next(model_edges, &pos, &edge))
     {
@@ -279,6 +281,16 @@ static mesh_t* create_dual_mesh_from_tet_mesh(MPI_Comm comm,
             int_unordered_set_contains(internal_model_faces, face))
           ++num_dual_faces_from_boundary_vertices;
       }
+    }
+
+    // Dual faces for primal nodes that are model vertices.
+    int node;
+    pos = 0;
+    while (int_unordered_set_next(model_vertices, &pos, &node))
+    {
+      int_unordered_set_t* boundary_faces_for_node = primal_boundary_faces_for_node[node];
+      ASSERT(boundary_faces_for_node != NULL);
+      num_dual_faces_from_boundary_vertices += boundary_faces_for_node->size;
     }
   }
   int num_dual_faces = tet_mesh->num_edges + external_model_face_edges->size +
@@ -358,6 +370,7 @@ static mesh_t* create_dual_mesh_from_tet_mesh(MPI_Comm comm,
       dual_mesh->nodes[dv_offset] = tet_mesh->nodes[vertex];
     }
   }
+  ASSERT(dv_offset == num_dual_nodes);
 
   // Now generate dual faces corresponding to primal edges. 
   int df_offset = 0;
@@ -563,6 +576,7 @@ static mesh_t* create_dual_mesh_from_tet_mesh(MPI_Comm comm,
       ++df_offset;
     }
   }
+  ASSERT(df_offset == num_dual_faces);
 
   // Create dual faces corresponding to model vertices.
   {
@@ -608,6 +622,7 @@ static mesh_t* create_dual_mesh_from_tet_mesh(MPI_Comm comm,
   int_array_t** faces_for_dual_cell = malloc(sizeof(int_array_t*) * num_dual_cells);
   memset(faces_for_dual_cell, 0, sizeof(int_array_t*) * num_dual_cells);
   // FIXME
+  ASSERT(dc_offset == num_dual_cells);
 
   // Allocate mesh connectivity storage and move all the data into place.
   mesh_reserve_connectivity_storage(dual_mesh);
