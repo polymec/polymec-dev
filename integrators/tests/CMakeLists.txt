@@ -9,7 +9,3 @@ add_polymec_test(test_nonlinear_integrator foodweb_integrator.c test_nonlinear_i
 add_polymec_test(test_ode_integrator diurnal_integrator.c test_ode_integrator.c)
 add_polymec_test(test_dae_integrator heat2d_integrator.c test_dae_integrator.c)
 
-include(add_polymec_executable)
-add_polymec_executable(cvDiurnal_kry cvDiurnal_kry.c)
-add_polymec_executable(idaHeat2D_kry idaHeat2D_kry.c)
-
