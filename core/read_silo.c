@@ -238,7 +238,7 @@ void read_silo_mesh(MPI_Comm comm,
     for (int i = 0; i < tags->nelems; ++i)
     {
       int* tag = mesh_create_tag(mesh_obj->node_tags, tags->elemnames[i], tags->elemlengths[i]);
-      memcpy(tag, &tags->values[offset], sizeof(int) * tags->elemlengths[i]);
+      memcpy(tag, &((int*)tags->values)[offset], sizeof(int) * tags->elemlengths[i]);
       offset += tags->elemlengths[i];
     }
     DBFreeCompoundarray(tags);
@@ -250,7 +250,7 @@ void read_silo_mesh(MPI_Comm comm,
     for (int i = 0; i < tags->nelems; ++i)
     {
       int* tag = mesh_create_tag(mesh_obj->edge_tags, tags->elemnames[i], tags->elemlengths[i]);
-      memcpy(tag, &tags->values[offset], sizeof(int) * tags->elemlengths[i]);
+      memcpy(tag, &((int*)tags->values)[offset], sizeof(int) * tags->elemlengths[i]);
       offset += tags->elemlengths[i];
     }
     DBFreeCompoundarray(tags);
@@ -262,7 +262,7 @@ void read_silo_mesh(MPI_Comm comm,
     for (int i = 0; i < tags->nelems; ++i)
     {
       int* tag = mesh_create_tag(mesh_obj->face_tags, tags->elemnames[i], tags->elemlengths[i]);
-      memcpy(tag, &tags->values[offset], sizeof(int) * tags->elemlengths[i]);
+      memcpy(tag, &((int*)tags->values)[offset], sizeof(int) * tags->elemlengths[i]);
       offset += tags->elemlengths[i];
     }
     DBFreeCompoundarray(tags);
@@ -274,7 +274,7 @@ void read_silo_mesh(MPI_Comm comm,
     for (int i = 0; i < tags->nelems; ++i)
     {
       int* tag = mesh_create_tag(mesh_obj->cell_tags, tags->elemnames[i], tags->elemlengths[i]);
-      memcpy(tag, &tags->values[offset], sizeof(int) * tags->elemlengths[i]);
+      memcpy(tag, &((int*)tags->values)[offset], sizeof(int) * tags->elemlengths[i]);
       offset += tags->elemlengths[i];
     }
     DBFreeCompoundarray(tags);
