@@ -137,11 +137,14 @@ static real_t cube_surface_integral(polyhedron_integrator_t* I,
   point_t xq;
   vector_t nq;
   real_t wq;
-  while (polyhedron_integrator_next_surface_point(I, &pos, &xq, &nq, &wq))
+  for (int face = 0; face < 6; ++face)
   {
-    vector_t v;
-    f(&xq, &v);
-    integral += vector_dot(&v, &nq);
+    while (polyhedron_integrator_next_surface_point(I, face, &pos, &xq, &nq, &wq))
+    {
+      vector_t v;
+      f(&xq, &v);
+      integral += vector_dot(&v, &nq);
+    }
   }
   return integral;
 }

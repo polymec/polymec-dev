@@ -42,8 +42,9 @@ typedef struct
   // Returns the next quadrature point/weight in the volume integral.
   bool (*next_volume_point)(void* context, int* pos, point_t* point, real_t* weight);
 
-  // Returns the next quadrature point/weight/normal in the volume integral.
-  bool (*next_surface_point)(void* context, int* pos, point_t* point, vector_t* normal_vector, real_t* weight);
+  // Returns the next quadrature point/weight/normal in the surface integral 
+  // over the given face.
+  bool (*next_surface_point)(void* context, int face, int* pos, point_t* point, vector_t* normal_vector, real_t* weight);
   
   // Destroys the context pointer.
   void (*dtor)(void* context);
@@ -97,13 +98,21 @@ bool polyhedron_integrator_next_volume_point(polyhedron_integrator_t* integ,
                                              point_t* point,
                                              real_t* weight);
 
+// Returns the number of volume quadrature points.
+int polyhedron_integrator_num_volume_points(polyhedron_integrator_t* integ);
+
 // Traverses the quadrature points and weights of the rule for a 
-// surface integral.
+// surface integral on the given face of the polyhedron.
 bool polyhedron_integrator_next_surface_point(polyhedron_integrator_t* integ,
+                                              int face,
                                               int* pos,
                                               point_t* point,
                                               vector_t* normal_vector,
                                               real_t* weight);
+
+// Returns the number of surface quadrature points for the given face.
+int polyhedron_integrator_num_surface_points(polyhedron_integrator_t* integ,
+                                             int face);
 
 // Creates a (2nd order) midpoint quadrature rule for surface and volume 
 // integrals over polyhedra.

@@ -24,6 +24,8 @@
 
 #include "core/polynomial.h"
 #include "core/linear_algebra.h"
+#include "core/array_utils.h"
+#include "integrators/polyhedron_integrator.h"
 #include "model/polynomial_fit.h"
 
 struct polynomial_fit_t 
@@ -189,6 +191,9 @@ typedef struct
   // Mapping of face indices to boundary conditions.
   int_ptr_unordered_map_t* face_bc_map;
 
+  // Quadrature rule.
+  polyhedron_integrator_t* poly_rule;
+
   // Machinery for fit_data().
   polynomial_fit_fit_data_func fit_data;
   void* fit_data_context;
@@ -234,19 +239,20 @@ static int cc_num_boundary_neighbors(void* context, int point_index)
   cc_fit_t* fit = context;
   int cell = point_index;
 
-  // The number of neighbors is equal to the number of faces without 
-  // opposite faces.
+  // The number of neighbors is equal to the number of quadrature points over 
+  // all the faces without opposite faces.
   int num_neighbors = 0, pos = 0, face;
   while (mesh_cell_next_face(fit->mesh, cell, &pos, &face))
   {
     if (mesh_face_opp_cell(fit->mesh, face, cell) == -1)
-      ++num_neighbors;
+      num_neighbors += polyhedron_integrator_num_surface_points(fit->poly_rule, pos);
   }
   return num_neighbors;
 }
 
 static void cc_get_boundary_neighbors(void* context, int point_index, int* neighbor_indices)
 {
+  // FIXME FIXME FIXME: Need to figure out what we mean by "boundary neighbors."
   cc_fit_t* fit = context;
   int cell = point_index;
 
@@ -284,9 +290,7 @@ static void cc_get_boundary_data(void* context, real_t* data, int num_comps,
 {
   cc_fit_t* fit = context;
 
-  // We assume the data is in component-minor form in the array, 
-  // and that boundary values are at face centers.
-  // FIXME: For higher-order quadrature, probably have to be more clever.
+  // We assume the data is in component-minor form in the array.
   for (int i = 0; i < num_points; ++i)
   {
     int j = point_indices[i];
@@ -318,6 +322,7 @@ static void cc_fit_data(void* context, int degree,
 static void cc_dtor(void* context)
 {
   cc_fit_t* fit = context;
+  polyhedron_integrator_free(fit->poly_rule);
   if ((fit->fit_data_context != NULL) && (fit->dtor != NULL))
     fit->dtor(fit->fit_data_context);
   int_ptr_unordered_map_free(fit->face_bc_map);
@@ -326,6 +331,7 @@ static void cc_dtor(void* context)
 polynomial_fit_t* cc_polynomial_fit_new(int num_comps,
                                         mesh_t* mesh,
                                         int degree,
+                                        polyhedron_integrator_t* poly_quad_rule,
                                         boundary_cell_map_t* boundary_cells,
                                         polynomial_fit_fit_data_func fit_data,
                                         void* fit_data_context,
@@ -339,6 +345,7 @@ polynomial_fit_t* cc_polynomial_fit_new(int num_comps,
   cc_fit_t* context = malloc(sizeof(cc_fit_t));
   context->mesh = mesh;
   context->degree = degree;
+  context->poly_rule = poly_quad_rule;
 
   // Create a mapping from face indices to boundary conditions.
   context->face_bc_map = int_ptr_unordered_map_new();

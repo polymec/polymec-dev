@@ -45,6 +45,10 @@ static inline int real_bsearch_comp(const void* l, const void* r)
                                : 0;
 }
 
+// Executes a linear search for an element in an unsorted array of integers, 
+// returning a pointer to the element if it's found and NULL if it's not.
+int* int_lsearch(int* array, int length, int element);
+
 // Executes a binary search for an element in a sorted array of integers, 
 // returning a pointer to the element if it's found and NULL if it's not.
 int* int_bsearch(int* array, int length, int element);
@@ -55,6 +59,10 @@ int int_lower_bound(int* array, int length, int element);
 
 // Sorts (in-place) the elements in an array of integers. Uses qsort().
 void int_qsort(int* array, int length);
+
+// Executes a linear search for an element in an unsorted array of real numbers, 
+// returning a pointer to the element if it's found and NULL if it's not.
+real_t* real_lsearch(real_t* array, int length, int element);
 
 // Executes a binary search for an element in a sorted array of real numbers, 
 // returning a pointer to the element if it's found and NULL if it's not.

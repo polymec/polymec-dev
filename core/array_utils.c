@@ -25,6 +25,16 @@
 #include <stdlib.h>
 #include "core/array_utils.h"
 
+int* int_lsearch(int* array, int length, int element)
+{
+  for (int i = 0; i < length; ++i)
+  {
+    if (array[i] == element)
+      return &array[i];
+  }
+  return NULL;
+}
+
 int* int_bsearch(int* array, int length, int element)
 {
   return bsearch(&element, array, (size_t)length, sizeof(int), int_bsearch_comp);
@@ -57,6 +67,16 @@ int int_lower_bound(int* array, int length, int element)
 void int_qsort(int* array, int length)
 {
   qsort(array, (size_t)length, sizeof(int), int_bsearch_comp);
+}
+
+real_t* real_lsearch(real_t* array, int length, int element)
+{
+  for (int i = 0; i < length; ++i)
+  {
+    if (array[i] == element)
+      return &array[i];
+  }
+  return NULL;
 }
 
 real_t* real_bsearch(real_t* array, int length, int element)

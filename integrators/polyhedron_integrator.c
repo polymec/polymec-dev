@@ -95,13 +95,36 @@ bool polyhedron_integrator_next_volume_point(polyhedron_integrator_t* integ,
   return integ->vtable.next_volume_point(integ->context, pos, point, weight);
 }
 
+int polyhedron_integrator_num_volume_points(polyhedron_integrator_t* integ)
+{
+  int pos = 0, num_points = 0;
+  point_t x;
+  real_t w;
+  while (polyhedron_integrator_next_volume_point(integ, &pos, &x, &w))
+    ++num_points;
+  return num_points;
+}
+
 bool polyhedron_integrator_next_surface_point(polyhedron_integrator_t* integ,
+                                              int face,
                                               int* pos,
                                               point_t* point,
                                               vector_t* normal_vector,
                                               real_t* weight)
 {
-  return integ->vtable.next_surface_point(integ->context, pos, point, normal_vector, weight);
+  return integ->vtable.next_surface_point(integ->context, face, pos, point, normal_vector, weight);
+}
+
+int polyhedron_integrator_num_surface_points(polyhedron_integrator_t* integ,
+                                             int face)
+{
+  int pos = 0, num_points = 0;
+  point_t x;
+  vector_t n;
+  real_t w;
+  while (polyhedron_integrator_next_surface_point(integ, face, &pos, &x, &n, &w))
+    ++num_points;
+  return num_points;
 }
 
 typedef struct
@@ -180,6 +203,7 @@ static bool midpt_next_volume_point(void* context,
 }
 
 static bool midpt_next_surface_point(void* context,
+                                     int face,
                                      int* pos,
                                      point_t* point,
                                      vector_t* normal_vector,

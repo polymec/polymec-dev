@@ -317,7 +317,7 @@ static int fv_poisson_residual(void* context, real_t t, real_t* u, real_t* F)
       point_t xq;
       vector_t nq;
       real_t wq;
-      while (polyhedron_integrator_next_surface_point(quad_rule, &qpos, &xq, &nq, &wq))
+      while (polyhedron_integrator_next_surface_point(quad_rule, fpos, &qpos, &xq, &nq, &wq))
       {
         // Compute the gradient of the solution using the polynomial fit.
         vector_t grad_phi;
