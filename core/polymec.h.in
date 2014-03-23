@@ -25,9 +25,9 @@
 #ifndef POLYMEC_H
 #define POLYMEC_H
 
-// We only use standard C99 (or better) around here.
-#if !defined __STDC_VERSION__ || __STDC_VERSION__ < 199901L
-#error "Polymec requires a C99-compliant compiler."
+// We only use standard C11 (or better) around here.
+#if !defined __STDC_VERSION__ || __STDC_VERSION__ < 201112L
+#error "Polymec requires a C11-compliant compiler."
 #endif
 
 #include <strings.h>
