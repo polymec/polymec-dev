@@ -187,7 +187,7 @@ static inline void array_name##_append(array_name##_t* array, element value) \
   array_name##_append_with_dtor(array, value, NULL); \
 } \
 
-// Define some basic sarray types.
+// Define some basic array types.
 DEFINE_ARRAY(byte_array, unsigned char)
 DEFINE_ARRAY(int_array, int)
 DEFINE_ARRAY(real_array, real_t)

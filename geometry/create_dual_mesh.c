@@ -640,14 +640,13 @@ static mesh_t* create_dual_mesh_from_tet_mesh(MPI_Comm comm,
     }
 
     // Add dual faces for primal nodes which are model vertices.
-    int node;
     pos = 0;
     while (int_unordered_set_next(model_vertices, &pos, &node))
     { 
-      // Traverse the boundary faces attached to this edge.
+      // Traverse the boundary faces attached to this node.
       int_unordered_set_t* boundary_faces_for_node = primal_boundary_faces_for_node[node];
       int pos1 = 0, face;
-      while (int_unordered_set_next(faces_for_edge, &pos1, &face))
+      while (int_unordered_set_next(boundary_faces_for_node, &pos1, &face))
       {
         // FIXME
       }
