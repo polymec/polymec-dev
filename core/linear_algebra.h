@@ -40,6 +40,7 @@
 #define dormqr dormqr_
 #define dgesvd dgesvd_
 #define dgelsy dgelsy_
+#define dgelsd dgelsd_
 #define sgemv sgemv_
 #define sgemm sgemm_
 #define sgesv sgesv_

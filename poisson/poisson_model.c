@@ -135,10 +135,11 @@ static void poisson_read_input(void* context, interpreter_t* interp, options_t* 
 }
 
 // This implements the high order polynomial fit.
-static void poly_fit(void* context, int component, int degree,
-                     point_t* interior_points, real_t* interior_values, int num_interior_points,
-                     point_t* boundary_points, vector_t* boundary_normals, void** boundary_conditions, int num_boundary_points,
-                     real_t* poly_coeffs)
+static void poly_fit(void* context, int degree,
+                     point_t* interior_points, real_t** interior_values, int num_interior_points,
+                     point_t* boundary_points, real_t* boundary_weights, vector_t* boundary_normals, 
+                     void** boundary_conditions, int num_boundary_points,
+                     real_t** poly_coeffs)
 {
   poisson_t* p = context;
   real_t t = p->fit_time;
@@ -147,7 +148,7 @@ static void poly_fit(void* context, int component, int degree,
   int N = num_interior_points + num_boundary_points;
 
   // Set up the least­squares system.
-  real_t A[N*dim];
+  real_t A[N*dim], X[dim];
 
   // Interior point contributions.
   for (int i = 0; i < num_interior_points; ++i)
@@ -158,7 +159,7 @@ static void poly_fit(void* context, int component, int degree,
     point_t* x = &interior_points[i];
     while (polynomial_next(p->poly, &pos, &coeff, &x_power, &y_power, &z_power))
       A[N*pos + i] = pow(x->x, x_power) * pow(x->y, y_power) * pow(x->z, z_power);
-    poly_coeffs[i] = interior_values[i];
+    X[i] = interior_values[i][0];
   }
 
   // Boundary point contributions.
@@ -179,82 +180,19 @@ static void poly_fit(void* context, int component, int degree,
       real_t z_deriv = pow(x->x, x_power) * pow(x->y, y_power) * 1.0 * z_power * pow(x->z, z_power-1);
       A[N*pos + i + num_interior_points] = bc->alpha * value + bc->beta * (n->x * x_deriv + n->y * y_deriv + n->z * z_deriv);
     }
-    st_func_eval(bc->F, x, t, &poly_coeffs[i + num_interior_points]);
+    st_func_eval(bc->F, x, t, &X[i + num_interior_points]); // FIXME: Not right.
   }
 
   // Solve the least squares system.
-  int one = 1, jpivot[N], rank, lwork, info; // FIXME
-  real_t rcond = 0.1, work[lwork]; // FIXME
-  rgelsy(&N, &dim, &one, A, &N, poly_coeffs, &N, jpivot, &rcond, &rank, work, &lwork, &info);
+  int one = 1, jpivot[N], rank, info;
+  int lwork = MAX(N*dim+3*N+1, 2*N*dim+1); // unblocked strategy
+  real_t rcond = 0.01, work[lwork];
+  rgelsy(&N, &dim, &one, A, &N, X, &N, jpivot, &rcond, &rank, work, &lwork, &info);
   ASSERT(info != 0);
-}
 
-// Integral Finite Difference (IFD) discretization.
-static int ifd_poisson_residual(void* context, real_t t, real_t* u, real_t* F)
-{
-  poisson_t* p = context;
-
-  // Loop over all the cells and compute the fluxes for each one.
-  for (int cell = 0; cell < p->mesh->num_cells; ++cell)
-  {
-    // Face fluxes.
-    int fpos = 0, face, offset = p->cell_face_flux_offsets[cell];
-    while (mesh_cell_next_face(p->mesh, cell, &fpos, &face))
-    {
-      // Compute the flux at the face center using the area as a weight.
-      // Here we assume that the face center lies on the midpoint between 
-      // the two cells.
-      int opp_cell = mesh_face_opp_cell(p->mesh, face, cell);
-      point_t* xc1 = &p->mesh->cell_centers[cell];
-      point_t* xc2 = &p->mesh->cell_centers[opp_cell];
-      point_t xq = {.x = 0.5 * (xc1->x + xc2->x), 
-                    .y = 0.5 * (xc1->y + xc2->y),
-                    .z = 0.5 * (xc1->z + xc2->z)};
-      real_t wq = p->mesh->face_areas[face];
-
-      // Compute the normal gradient of the solution using a 
-      // centered difference.
-      real_t du = u[opp_cell] - u[cell];
-      real_t dx = point_distance(xc1, xc2);
-      real_t dphi_dn = du/dx;
-
-      // Evaluate the conduction operator lambda.
-      real_t lambda[6];
-      st_func_eval(p->lambda, &xq, t, lambda);
-
-      // Form the flux contribution. At the moment, only scalar lambdas are 
-      // supported.
-      real_t face_flux = wq * lambda[0] * dphi_dn;
-      // FIXME: Verify that this balances the opposite face flux.
-
-      p->cell_face_fluxes[offset] = face_flux;
-      F[cell] -= face_flux;
-      ++offset;
-    }
-
-    // Source term (right hand side).
-    {
-      point_t* xq = &p->mesh->cell_centers[cell];
-      real_t wq = p->mesh->cell_volumes[cell];
-      real_t source;
-      st_func_eval(p->rhs, xq, t, &source);
-      p->cell_sources[cell] = wq * source;
-    }
-  }
-
-  // Loop over cells again, computing the residual.
-  for (int cell = 0; cell < p->mesh->num_cells; ++cell)
-  {
-    F[cell] = p->cell_sources[cell];
-    int fpos = 0, face, offset = p->cell_face_flux_offsets[cell];
-    while (mesh_cell_next_face(p->mesh, cell, &fpos, &face))
-    {
-      F[cell] -= p->cell_face_fluxes[offset];
-      ++offset;
-    }
-  }
-
-  return 0;
+  // Extract the polynomial fit coefficients.
+  for (int i = 0; i < dim; ++i)
+    poly_coeffs[i][0] = X[i];
 }
 
 static int fv_poisson_residual(void* context, real_t t, real_t* u, real_t* F)
@@ -403,7 +341,7 @@ static int fv_poisson_residual(void* context, real_t t, real_t* u, real_t* F)
 
 static int fvpm_poisson_residual(void* context, real_t t, real_t* u, real_t* F)
 {
-  // FIXME
+  polymec_not_implemented("fvpm_poisson_residual");
   return 0;
 }
 
@@ -480,15 +418,12 @@ static void poisson_init(void* context, real_t t)
     p->boundary_cells = boundary_cell_map_from_mesh_and_bcs(p->mesh, p->bcs);
 
     // Initialize the nonlinear solver.
-    nonlinear_integrator_vtable vtable;
-    if (p->mesh->num_nodes == 0)
-    {
-      ASSERT(mesh_has_feature(p->mesh, PEBI));
-      vtable.eval = ifd_poisson_residual; // No nodes -- IFD method.
-    }
-    else
-      vtable.eval = fv_poisson_residual; // No nodes -- IFD method.
+    nonlinear_integrator_vtable vtable = {.eval = fv_poisson_residual};
     p->solver = bicgstab_nonlinear_integrator_new("Poisson (FV)", p, MPI_COMM_WORLD, N, vtable, LINE_SEARCH, 15);
+
+    // Polynomial fit. FIXME: Degree 2 for now.
+    p->poly_fit = cc_polynomial_fit_new(1, p->mesh, 2, p->poly_quad_rule, 
+                                        p->boundary_cells, poly_fit, p, NULL);
 
     // For now, Use LU preconditioning with the same residual function.
     // Use LU preconditioning with the same residual function.
