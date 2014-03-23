@@ -52,13 +52,9 @@ typedef void (*polynomial_fit_get_interior_data_func)(void* context, real_t* dat
                                                       int* point_indices, int num_points, 
                                                       point_t* point_coords, real_t** point_values);
 
-// This function gets the number of boundary neighbors associated with the 
-// point at the given index.
-typedef int (*polynomial_fit_num_boundary_neighbors_func)(void* context, int point_index);
-
-// This function retrieves the indices of the boundary neighbors of the point 
-// with the given index.
-typedef void (*polynomial_fit_get_boundary_neighbors_func)(void* context, int point_index, int* neighbor_indices);
+// This function gets the number of boundary points associated with the 
+// center point of the fit, at the given index.
+typedef int (*polynomial_fit_num_boundary_points_func)(void* context, int point_index);
 
 // This function retrieves the coordinates and values of the solution at 
 // boundary points in the vicinity of the point with the given index. The 
@@ -68,9 +64,8 @@ typedef void (*polynomial_fit_get_boundary_neighbors_func)(void* context, int po
 // boundary_conditions. Note that point "values" are not retrieved,
 // as these are determined by the boundary conditions during the actual
 // fitting process (as represented by fit_data() below).
-typedef void (*polynomial_fit_get_boundary_data_func)(void* context, real_t* data, int num_comps,
-                                                      int* point_indices, int num_points, 
-                                                      point_t* point_coords, vector_t* boundary_normals, void** boundary_conditions);
+typedef void (*polynomial_fit_get_boundary_data_func)(void* context, int point_index, real_t* data, int num_comps, int num_bpoints,
+                                                      point_t* bpoint_coords, real_t* bpoint_weights, vector_t* bpoint_normals, void** boundary_conditions);
 
 // This function returns the targeted degree of accuracy for the polynomial
 // fit, given a number of points in the fit "stencil". It effectively 
@@ -84,7 +79,7 @@ typedef int (*polynomial_fit_targeted_degree_func)(void* context, int num_points
 // used by the polynomial_t type).
 typedef void (*polynomial_fit_fit_data_func)(void* context, int degree, 
                                              point_t* interior_points, real_t** interior_values, int num_interior_points,
-                                             point_t* boundary_points, vector_t* boundary_normals, void** boundary_conditions, int num_boundary_points,
+                                             point_t* boundary_points, real_t* boundary_weights, vector_t* boundary_normals, void** boundary_conditions, int num_boundary_points,
                                              real_t** poly_coeffs);
 
 // This function destroys the context pointer for the polynomial fit.
@@ -96,8 +91,7 @@ typedef struct
   polynomial_fit_num_interior_neighbors_func num_interior_neighbors;
   polynomial_fit_get_interior_neighbors_func get_interior_neighbors;
   polynomial_fit_get_interior_data_func get_interior_data;
-  polynomial_fit_num_boundary_neighbors_func num_boundary_neighbors;
-  polynomial_fit_get_boundary_neighbors_func get_boundary_neighbors;
+  polynomial_fit_num_boundary_points_func num_boundary_points;
   polynomial_fit_get_boundary_data_func get_boundary_data;
   polynomial_fit_targeted_degree_func targeted_degree;
   polynomial_fit_fit_data_func fit_data;
