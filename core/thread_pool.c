@@ -22,7 +22,19 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// At the moment, we're between POSIX threads and C11 threads.
+#if !defined(__STDC_NO_THREADS__) || __STDC_NO_THREADS__
+#define USE_PTHREADS 1
+#else
+#define USE_PTHREADS 0
+#endif
+
+#if USE_PTHREADS
 #include <pthread.h>
+#else
+#include <threads.h>
+#endif
+
 #include "core/thread_pool.h"
 #include "core/slist.h"
 
@@ -49,6 +61,7 @@ struct thread_pool_t
   ptr_slist_t* queue;
   int work_remaining;
 
+#if USE_PTHREADS
   // Mutexes for controlling access to the queue and the information 
   // about finished jobs.
   pthread_mutex_t queue_lock, finished_lock;
@@ -62,6 +75,18 @@ struct thread_pool_t
 
   // Threads!
   pthread_t* threads;
+#else
+  // Mutexes for controlling access to the queue and the information 
+  // about finished jobs.
+  mtx_t queue_lock, finished_lock;
+
+  // Condition variables that are used for signaling other threads 
+  // regarding ready and finished work.
+  cnd_t queue_cond, finished_cond;
+
+  // Threads!
+  thrd_t* threads;
+#endif
 
   // An array used only to indicate when threads have started.
   bool* thread_started;
@@ -69,7 +94,11 @@ struct thread_pool_t
 
 // It's a thread's life! This function represents the entire lifetime of 
 // a worker thread.
+#if USE_PTHREADS
 static void* thread_life(void* context)
+#else
+static int thread_life(void* context)
+#endif
 {
   thread_context_t* thread = context;
   thread_pool_t* pool = thread->pool;
@@ -78,17 +107,31 @@ static void* thread_life(void* context)
   while (true)
   {
     // Acquire the queue lock.
+#if USE_PTHREADS
     pthread_mutex_lock(&pool->queue_lock);
+#else
+    mtx_lock(&pool->queue_lock);
+#endif
 
     // Wait on the condition variable for work to show up in the queue.
+#if USE_PTHREADS
     while (!pool->shutting_down && (pool->work_remaining == 0))
       pthread_cond_wait(&pool->queue_cond, &pool->queue_lock);
+#else
+    while (!pool->shutting_down && (pool->work_remaining == 0))
+      cnd_wait(&pool->queue_cond, &pool->queue_lock);
+#endif
 
     if (pool->shutting_down)
       break;
 
+#if USE_PTHREADS
     if (pool->work_remaining == 0)
       pthread_mutex_unlock(&pool->queue_lock);
+#else
+    if (pool->work_remaining == 0)
+      mtx_unlock(&pool->queue_lock);
+#endif
     else
     {
       // Grab the next item in the queue and process it.
@@ -99,7 +142,11 @@ static void* thread_life(void* context)
       --pool->work_remaining;
 
       // Surrender the queue lock.
+#if USE_PTHREADS
       pthread_mutex_unlock(&pool->queue_lock);
+#else
+      mtx_unlock(&pool->queue_lock);
+#endif
 
       // Do the work.
       work->do_work(work->context);
@@ -108,19 +155,36 @@ static void* thread_life(void* context)
       dtor(work);
 
       // Mark the job as completed.
+#if USE_PTHREADS
       pthread_mutex_lock(&pool->finished_lock);
+#else
+      mtx_lock(&pool->finished_lock);
+#endif
 
       // If there's no more work, tell the host thread that we're finished.
+#if USE_PTHREADS
       if (pool->work_remaining == 0)
         pthread_cond_signal(&pool->finished_cond);
       pthread_mutex_unlock(&pool->finished_lock);
+#else
+      if (pool->work_remaining == 0)
+        cnd_signal(&pool->finished_cond);
+      mtx_unlock(&pool->finished_lock);
+#endif
     }
   }
 
+#if USE_PTHREADS
   pthread_mutex_unlock(&pool->queue_lock);
   free(thread); // Kill the thread's context.
   pthread_exit(NULL);
   return NULL;
+#else
+  mtx_unlock(&pool->queue_lock);
+  free(thread); // Kill the thread's context.
+  thrd_exit(0);
+  return 0;
+#endif
 }
 
 thread_pool_t* thread_pool_new()
@@ -139,6 +203,7 @@ thread_pool_t* thread_pool_with_threads(int num_threads)
   pool->shutting_down = false;
   pool->work_remaining = 0;
 
+#if USE_PTHREADS
   // Thread creation attribute(s).
   pthread_attr_init(&pool->thread_attr);
   pthread_attr_setdetachstate(&pool->thread_attr, PTHREAD_CREATE_JOINABLE);
@@ -157,6 +222,22 @@ thread_pool_t* thread_pool_with_threads(int num_threads)
   // Prevent newly-created threads from doing anything silly by acquiring
   // a lock on our queue.
   pthread_mutex_lock(&pool->queue_lock);
+#else
+  // Ready the locks.
+  mtx_init(&pool->queue_lock, mtx_plain);
+  mtx_init(&pool->finished_lock, mtx_plain);
+
+  // Ready the condition variable to signal the threads that there is 
+  // work available (or that it's time to leave).
+  cnd_init(&pool->queue_cond);
+
+  // Now for the condition variable that signals when thread work is finished.
+  cnd_init(&pool->finished_cond);
+
+  // Prevent newly-created threads from doing anything silly by acquiring
+  // a lock on our queue.
+  mtx_lock(&pool->queue_lock);
+#endif
 
   // Gentlemen, start your engines!
   pool->thread_started = malloc(sizeof(bool) * num_threads);
@@ -166,13 +247,21 @@ thread_pool_t* thread_pool_with_threads(int num_threads)
     thread_context_t* thread = malloc(sizeof(thread_context_t));
     thread->id = i;
     thread->pool = pool;
+#if USE_PTHREADS
     int stat = pthread_create(&pool->threads[i], &pool->thread_attr, thread_life, thread);
+#else
+    int stat = thrd_create(&pool->threads[i], thread_life, thread);
+#endif
     if (stat != 0)
       polymec_error("thread_pool: could not create thread %d.", i);
   }
 
   // Unlock the queue and wait for the threads to start up.
+#if USE_PTHREADS
   pthread_mutex_unlock(&pool->queue_lock);
+#else
+  mtx_unlock(&pool->queue_lock);
+#endif
   int num_started;
   do 
   {
@@ -191,6 +280,7 @@ void thread_pool_free(thread_pool_t* pool)
   if (pool->work_remaining != 0)
     polymec_error("thread_pool_free() called within thread_pool_execute().");
 
+#if USE_PTHREADS
   // Tell the threads we're shutting down.
   pthread_mutex_lock(&pool->queue_lock);
   pool->shutting_down = true;
@@ -206,6 +296,22 @@ void thread_pool_free(thread_pool_t* pool)
   pthread_mutex_destroy(&pool->finished_lock);
   pthread_mutex_destroy(&pool->queue_lock);
   pthread_attr_destroy(&pool->thread_attr);
+#else
+  // Tell the threads we're shutting down.
+  mtx_lock(&pool->queue_lock);
+  pool->shutting_down = true;
+  cnd_broadcast(&pool->queue_cond);
+  mtx_unlock(&pool->queue_lock);
+
+  // Wait for all the threads to join.
+  for (int i = 0; i < pool->num_threads; ++i)
+    thrd_join(pool->threads[i], 0);
+
+  cnd_destroy(&pool->finished_cond);
+  cnd_destroy(&pool->queue_cond);
+  mtx_destroy(&pool->finished_lock);
+  mtx_destroy(&pool->queue_lock);
+#endif
   free(pool->threads);
   ptr_slist_free(pool->queue);
   free(pool);
@@ -226,13 +332,20 @@ void thread_pool_schedule(thread_pool_t* pool,
   thread_work_t* work = malloc(sizeof(thread_work_t));
   work->context = context;
   work->do_work = do_work;
+#if USE_PTHREADS
   pthread_mutex_lock(&pool->queue_lock);
   ptr_slist_append_with_dtor(pool->queue, work, free);
   pthread_mutex_unlock(&pool->queue_lock);
+#else
+  mtx_lock(&pool->queue_lock);
+  ptr_slist_append_with_dtor(pool->queue, work, free);
+  mtx_unlock(&pool->queue_lock);
+#endif
 }
 
 void thread_pool_execute(thread_pool_t* pool)
 {
+#if USE_PTHREADS
   pthread_mutex_lock(&pool->finished_lock);
 
   // Signal the threads that there's work in the pool.
@@ -244,5 +357,18 @@ void thread_pool_execute(thread_pool_t* pool)
   // Now wait for the threads to finish.
   pthread_cond_wait(&pool->finished_cond, &pool->finished_lock);
   pthread_mutex_unlock(&pool->finished_lock);
+#else
+  mtx_lock(&pool->finished_lock);
+
+  // Signal the threads that there's work in the pool.
+  mtx_lock(&pool->queue_lock);
+  pool->work_remaining = pool->queue->size;
+  cnd_broadcast(&pool->queue_cond);
+  mtx_unlock(&pool->queue_lock);
+
+  // Now wait for the threads to finish.
+  cnd_wait(&pool->finished_cond, &pool->finished_lock);
+  mtx_unlock(&pool->finished_lock);
+#endif
 }
 
