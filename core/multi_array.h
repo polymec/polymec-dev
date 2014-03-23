@@ -34,9 +34,9 @@
 // using multi-dimensional arrays over large index spaces.
 // One defines allocation/deallocation functions for a multi-dimensional 
 // array using
-// DEFINE_MULTI_ARRAY(element)
+// DEFINE_MULTI_ARRAY(prefix, element)
 //
-// The functions for a multi-dimensional array with type x are:
+// The functions for a multi-dimensional array with prefix x and type x are:
 // 
 // x** x_array2_new(int dim1, int dim2) - Creates a new 2D array on the heap with the given dimensions.
 // void x_array2_free(x** array, int dim1, int dim2) - Frees a 2D array.
@@ -48,8 +48,8 @@
 // Note that dimension information for the array is not stored with the array 
 // itself, and must be tracked separately.
 
-#define DEFINE_MULTI_ARRAY(element) \
-static inline element** element##_array2_new(int dim1, int dim2) \
+#define DEFINE_MULTI_ARRAY(prefix, element) \
+static inline element** prefix##_array2_new(int dim1, int dim2) \
 { \
   ASSERT(dim1 > 0); \
   ASSERT(dim2 > 0); \
@@ -60,14 +60,14 @@ static inline element** element##_array2_new(int dim1, int dim2) \
   return array; \
 } \
 \
-static inline void element##_array2_free(element** array, int dim1, int dim2) \
+static inline void prefix##_array2_free(element** array, int dim1, int dim2) \
 { \
   ASSERT(array != NULL); \
   free(array[0]); \
   free(array); \
 } \
 \
-static inline element*** element##_array3_new(int dim1, int dim2, int dim3) \
+static inline element*** prefix##_array3_new(int dim1, int dim2, int dim3) \
 { \
   ASSERT(dim1 > 0); \
   ASSERT(dim2 > 0); \
@@ -87,7 +87,7 @@ static inline element*** element##_array3_new(int dim1, int dim2, int dim3) \
   return array; \
 } \
 \
-static inline void element##_array3_free(element*** array, int dim1, int dim2, int dim3) \
+static inline void prefix##_array3_free(element*** array, int dim1, int dim2, int dim3) \
 { \
   ASSERT(array != NULL); \
   for (int i = 0; i < dim1; ++i) \
@@ -99,7 +99,7 @@ static inline void element##_array3_free(element*** array, int dim1, int dim2, i
   free(array); \
 } \
 \
-static inline element**** element##_array4_new(int dim1, int dim2, int dim3, int dim4) \
+static inline element**** prefix##_array4_new(int dim1, int dim2, int dim3, int dim4) \
 { \
   ASSERT(dim1 > 0); \
   ASSERT(dim2 > 0); \
@@ -124,7 +124,7 @@ static inline element**** element##_array4_new(int dim1, int dim2, int dim3, int
   return array; \
 } \
 \
-static inline void element##_array4_free(element**** array, int dim1, int dim2, int dim3, int dim4) \
+static inline void prefix##_array4_free(element**** array, int dim1, int dim2, int dim3, int dim4) \
 { \
   ASSERT(array != NULL); \
   for (int i = 0; i < dim1; ++i) \
@@ -141,10 +141,7 @@ static inline void element##_array4_free(element**** array, int dim1, int dim2, 
 }
 
 // Define some basic array types.
-DEFINE_MULTI_ARRAY(int)
-DEFINE_MULTI_ARRAY(real_t)
-#define real_t_array2 real_array2
-#define real_t_array3 real_array3
-#define real_t_array4 real_array4
+DEFINE_MULTI_ARRAY(int, int)
+DEFINE_MULTI_ARRAY(real, real_t)
 
 #endif
