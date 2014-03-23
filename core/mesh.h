@@ -253,9 +253,9 @@ static inline bool mesh_cell_next_neighbor(mesh_t* mesh, int cell, int* pos, int
   int face;
   bool result = mesh_cell_next_face(mesh, cell, pos, &face);
   if (mesh->face_cells[2*face] == cell)
-    return *neighbor_cell = mesh->face_cells[2*face+1];
+    *neighbor_cell = mesh->face_cells[2*face+1];
   else
-    return *neighbor_cell = mesh->face_cells[2*face];
+    *neighbor_cell = mesh->face_cells[2*face];
   return result;
 }
 
