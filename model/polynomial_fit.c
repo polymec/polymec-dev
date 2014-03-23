@@ -113,24 +113,30 @@ void polynomial_fit_compute(polynomial_fit_t* fit, real_t* data, int point_index
 
   // Now fit each component.
   point_t int_points[num_int_points], bnd_points[num_bnd_points];
-  real_t int_values[num_int_points][fit->num_comps];
   vector_t bnd_normals[num_bnd_points];
   void* bnd_conditions[num_bnd_points];
-  real_t poly_coeffs[dim][fit->num_comps];
 
   // Fetch the interior points and values.
+  real_t int_values[num_int_points][fit->num_comps];
+  real_t* int_value_ptrs[num_int_points];
+  for (int i = 0; i < num_int_points; ++i)
+    int_value_ptrs[i] = &int_values[i][0];
   fit->vtable.get_interior_data(fit->context, data, fit->num_comps, int_indices, num_int_points,
-                                int_points, (real_t**)int_values);
+                                int_points, int_value_ptrs);
 
   // Fetch the boundary points, normal vectors, and values.
   fit->vtable.get_boundary_data(fit->context, data, fit->num_comps, bnd_indices, num_bnd_points,
                                 bnd_points, bnd_normals, bnd_conditions);
 
   // Now fit the component data to a polynomial.
+  real_t poly_coeffs[dim][fit->num_comps];
+  real_t* poly_coeff_ptrs[dim];
+  for (int i = 0; i < dim; ++i)
+    poly_coeff_ptrs[i] = &poly_coeffs[i][0];
   fit->vtable.fit_data(fit->context, fit->degree, 
-                       int_points, (real_t**)int_values, num_int_points,
+                       int_points, int_value_ptrs, num_int_points,
                        bnd_points, bnd_normals, bnd_conditions, num_bnd_points,
-                       (real_t**)poly_coeffs);
+                       poly_coeff_ptrs);
 
   for (int c = 0; c < fit->num_comps; ++c)
   {
