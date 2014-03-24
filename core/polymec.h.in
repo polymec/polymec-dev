@@ -30,6 +30,12 @@
 #error "Polymec requires a C11-compliant compiler."
 #endif
 
+// We require the availability of variable-length arrays, which where 
+// mandatory in C99 but are optional in C11.
+#if defined __STDC_NO_VLA__ && __STDC_NO_VLA == 1
+#error "Polymec requires the availability of variable-length arrays (VLA), which this compiler does not support."
+#endif
+
 #include <strings.h>
 #include <stdio.h>
 #include <stdlib.h>
