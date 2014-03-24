@@ -27,7 +27,6 @@
 
 #include "core/polymec.h"
 #include "core/point.h"
-#include "core/polynomial.h"
 
 // These functions and types are intended to help with the construction of 
 // least-squares fits to scattered data.
