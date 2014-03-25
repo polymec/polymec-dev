@@ -7,11 +7,10 @@ configure_file(
 add_library(polymec_core polymec.c arch.c logging.c point.c tagger.c mesh.c 
             distribute_serial_mesh.c point_cloud.c kd_tree.c octree.c 
             morton.c adj_graph.c sp_func.c st_func.c polynomial.c 
-            least_squares.c coupled_least_squares.c index_space.c newton.c 
-            options.c interpreter.c text_file_buffer.c serializer.c
-            interpreter_register_default_functions.c thread_pool.c
-            string_utils.c array_utils.c linear_algebra.c read_silo.c 
-            write_silo.c)
+            least_squares.c index_space.c newton.c options.c interpreter.c 
+            text_file_buffer.c serializer.c interpreter_register_default_functions.c 
+            thread_pool.c string_utils.c array_utils.c linear_algebra.c 
+            read_silo.c write_silo.c)
 
 # polymec.c depends on the creation of polymec_version.h.
 add_dependencies(polymec_core update_polymec_version_h)

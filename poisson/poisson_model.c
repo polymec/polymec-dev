@@ -35,6 +35,7 @@
 #include "integrators/lu_preconditioners.h"
 #include "integrators/polyhedron_integrator.h"
 #include "model/boundary_cell_map.h"
+#include "model/poly_ls_system.h"
 #include "model/polynomial_fit.h"
 #include "poisson/poisson_model.h"
 #include "poisson/poisson_bc.h"
@@ -70,7 +71,7 @@ typedef struct
   real_t* cell_sources;
 
   // Polynomial and polynomial fit.
-  polynomial_t* poly;
+  poly_ls_system_t* ls_sys;
   polynomial_fit_t* poly_fit;
   real_t fit_time; // Time at which fit is performed.
 
@@ -145,8 +146,6 @@ static void poly_fit(void* context, int degree,
   real_t t = p->fit_time;
   int dim = polynomial_basis_dim(degree);
 
-  int N = num_interior_points + num_boundary_points;
-
   // Set up the least­squares system.
   poly_ls_system_clear(p->ls_sys);
 
@@ -161,7 +160,6 @@ static void poly_fit(void* context, int degree,
   // Boundary point contributions.
   for (int i = 0; i < num_boundary_points; ++i)
   {
-    int pos = 0;
     point_t* x = &boundary_points[i];
     vector_t* n = &boundary_normals[i];
     poisson_bc_t* bc = boundary_conditions[i];
