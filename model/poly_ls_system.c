@@ -32,6 +32,7 @@ struct poly_ls_system_t
 {
   polynomial_t* poly;
   ptr_array_t* equations;
+  ptr_array_t* points;
 };
 
 poly_ls_system_t* poly_ls_system_new(int p, point_t* x0)
@@ -44,6 +45,7 @@ poly_ls_system_t* poly_ls_system_new(int p, point_t* x0)
     coeffs[i] = 1.0;
   sys->poly = polynomial_new(p, coeffs, x0);
   sys->equations = ptr_array_new();
+  sys->points = ptr_array_new();
   return sys;
 }
 
@@ -51,23 +53,25 @@ void poly_ls_system_free(poly_ls_system_t* sys)
 {
   sys->poly = NULL;
   ptr_array_free(sys->equations);
+  ptr_array_free(sys->points);
   free(sys);
 }
 
 // This constructs an array of coefficients representing an equation, 
 // returning the allocated memory. There are dim+1 coefficients: dim for the 
 // polynomial basis, and 1 for the RHS.
-static real_t* append_equation(poly_ls_system_t* sys)
+static real_t* append_equation(poly_ls_system_t* sys, point_t* x)
 {
   int dim = polynomial_basis_dim(polynomial_degree(sys->poly));
   real_t* eq = malloc(sizeof(real_t) * (dim + 1));
   ptr_array_append_with_dtor(sys->equations, eq, DTOR(free));
+  ptr_array_append(sys->points, x);
   return eq;
 }
 
 void poly_ls_system_add_interpolated_datum(poly_ls_system_t* sys, real_t u, point_t* x)
 {
-  real_t* eq = append_equation(sys);
+  real_t* eq = append_equation(sys, x);
   point_t* x0 = polynomial_x0(sys->poly);
 
   // Left hand side -- powers of (x - x0) in the polynomial.
@@ -87,7 +91,7 @@ void poly_ls_system_add_interpolated_datum(poly_ls_system_t* sys, real_t u, poin
 
 void poly_ls_system_add_robin_bc(poly_ls_system_t* sys, real_t alpha, real_t beta, vector_t* n, real_t gamma, point_t* x)
 {
-  real_t* eq = append_equation(sys);
+  real_t* eq = append_equation(sys, x);
   point_t* x0 = polynomial_x0(sys->poly);
 
   // Left hand side -- powers of (x - x0) in the polynomial expression.
@@ -197,6 +201,9 @@ static void construct_Jk1(int k, int N, real_t* wkk, real_t* zk1_moments, real_t
 void reconstruct_cls_derivatives(int k, int N, real_t* wkk, 
                                  real_t* zk1_moments, real_t* wk1k1)
 {
+  // Compute a 1-exact derivative directly on our stencil.
+
+  // For m = 1 to m = p - 1:
 }
 
 static void solve_coupled_least_squares(int p, ptr_array_t* equations, real_t* x)
