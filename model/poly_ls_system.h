@@ -64,8 +64,8 @@ void poly_ls_system_clear(poly_ls_system_t* sys);
 int poly_ls_system_num_equations(poly_ls_system_t* sys);
 
 // Solves the least squares system using singular value decomposition (SVD),
-// placing the solution (the coefficients of the fitting polynomial) into 
-// the array x.
+// placing the solution (the coefficients of the fitting polynomials for the 
+// components, stored in component-minor form) into the array x.
 void poly_ls_system_solve(poly_ls_system_t* sys, real_t* x);
 
 #endif
