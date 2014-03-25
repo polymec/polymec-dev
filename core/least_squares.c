@@ -146,53 +146,6 @@ static ls_weight_func_t* unweighted_func_new()
   return ls_weight_func_new("Unweighted", NULL, vtable);
 }
 
-struct poly_ls_equation_t 
-{
-  int p;
-  point_t x0;
-};
-
-poly_ls_equation_t* poly_ls_equation_new(int p, point_t* x0)
-{
-  ASSERT(p >= 0);
-  poly_ls_equation_t* eq = GC_MALLOC(sizeof(poly_ls_equation_t));
-  eq->p = p;
-  eq->x0 = *x0;
-  return eq;
-}
-
-struct poly_ls_system_t 
-{
-};
-
-poly_ls_system_t* poly_ls_system_new()
-{
-  poly_ls_system_t* sys = malloc(sizeof(poly_ls_system_t));
-  return sys;
-}
-
-void poly_ls_system_free(poly_ls_system_t* sys)
-{
-  free(sys);
-}
-
-void poly_ls_system_add_equation(poly_ls_system_t* sys, poly_ls_equation_t* eq)
-{
-}
-
-void poly_ls_system_clear(poly_ls_system_t* sys)
-{
-}
-
-int poly_ls_system_num_equations(poly_ls_system_t* sys)
-{
-  return 0;
-}
-
-void poly_ls_system_solve(poly_ls_system_t* sys, real_t* x)
-{
-}
-
 void compute_weighted_poly_ls_system(int p, ls_weight_func_t* W, point_t* x0, 
                                      point_t* points, int num_points, real_t* data, 
                                      real_t* moment_matrix, real_t* rhs)

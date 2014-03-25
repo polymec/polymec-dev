@@ -148,47 +148,31 @@ static void poly_fit(void* context, int degree,
   int N = num_interior_points + num_boundary_points;
 
   // Set up the least­squares system.
-  real_t A[N*dim], X[dim];
+  poly_ls_system_clear(p->ls_sys);
 
   // Interior point contributions.
   for (int i = 0; i < num_interior_points; ++i)
   {
-    int pos = 0;
-    real_t coeff;
-    int x_power, y_power, z_power;
     point_t* x = &interior_points[i];
-    while (polynomial_next(p->poly, &pos, &coeff, &x_power, &y_power, &z_power))
-      A[N*pos + i] = pow(x->x, x_power) * pow(x->y, y_power) * pow(x->z, z_power);
-    X[i] = interior_values[i][0];
+    real_t u = interior_values[i][0];
+    poly_ls_system_add_interpolated_datum(p->ls_sys, u, x);
   }
 
   // Boundary point contributions.
   for (int i = 0; i < num_boundary_points; ++i)
   {
     int pos = 0;
-    real_t coeff;
-    int x_power, y_power, z_power;
     point_t* x = &boundary_points[i];
     vector_t* n = &boundary_normals[i];
     poisson_bc_t* bc = boundary_conditions[i];
-
-    while (polynomial_next(p->poly, &pos, &coeff, &x_power, &y_power, &z_power))
-    {
-      real_t value = pow(x->x, x_power) * pow(x->y, y_power) * pow(x->z, z_power);
-      real_t x_deriv = 1.0 * x_power * pow(x->x, x_power-1) * pow(x->y, y_power) * pow(x->z, z_power);
-      real_t y_deriv = pow(x->x, x_power) * 1.0 * y_power * pow(x->y, y_power-1) * pow(x->z, z_power);
-      real_t z_deriv = pow(x->x, x_power) * pow(x->y, y_power) * 1.0 * z_power * pow(x->z, z_power-1);
-      A[N*pos + i + num_interior_points] = bc->alpha * value + bc->beta * (n->x * x_deriv + n->y * y_deriv + n->z * z_deriv);
-    }
-    st_func_eval(bc->F, x, t, &X[i + num_interior_points]); // FIXME: Not right.
+    real_t alpha = bc->alpha, beta = bc->beta, gamma;
+    st_func_eval(bc->F, x, t, &gamma);
+    poly_ls_system_add_robin_bc(p->ls_sys, alpha, beta, n, gamma, x);
   }
 
   // Solve the least squares system.
-  int one = 1, jpivot[N], rank, info;
-  int lwork = MAX(N*dim+3*N+1, 2*N*dim+1); // unblocked strategy
-  real_t rcond = 0.01, work[lwork];
-  rgelsy(&N, &dim, &one, A, &N, X, &N, jpivot, &rcond, &rank, work, &lwork, &info);
-  ASSERT(info != 0);
+  real_t X[dim];
+  poly_ls_system_solve(p->ls_sys, X);
 
   // Extract the polynomial fit coefficients.
   for (int i = 0; i < dim; ++i)

@@ -1,5 +1,5 @@
 add_library(polymec_model model.c boundary_cell_map.c 
-            periodic_bc.c polynomial_fit.c repartition.c
+            periodic_bc.c poly_ls_system.c polynomial_fit.c repartition.c
             exchanger.c load_balancer.c
             interpreter_register_model_functions.c)
 
