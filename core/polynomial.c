@@ -383,6 +383,19 @@ polynomial_t* polynomial_derivative(polynomial_t* p, int x_deriv, int y_deriv, i
                                    &p->x0);
 }
 
+int polynomial_index(polynomial_t* p, int x_power, int y_power, int z_power)
+{
+  // We just do a basic linear search for now.
+  real_t coeff;
+  int pos = 0, x_pow, y_pow, z_pow;
+  while (polynomial_next(p, &pos, &coeff, &x_pow, &y_pow, &z_pow))
+  {
+    if ((x_pow == x_power) && (y_pow == y_power) && (z_pow == z_power))
+      return pos-1;
+  }
+  return -1;
+}
+
 static void wrap_eval(void* context, point_t* x, real_t* result)
 {
   polynomial_t* p = context;

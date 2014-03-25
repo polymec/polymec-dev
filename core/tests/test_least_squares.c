@@ -31,6 +31,7 @@
 #include "cmockery.h"
 #include "core/least_squares.h"
 #include "core/linear_algebra.h"
+#include "core/polynomial.h"
 
 static void generate_random_points(int num_points, point_t* points)
 {

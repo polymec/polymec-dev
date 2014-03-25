@@ -94,6 +94,11 @@ polynomial_t* polynomial_product(polynomial_t* p, polynomial_t* q);
 // the given polynomial with the given degrees in x, y, and z.
 polynomial_t* polynomial_derivative(polynomial_t* p, int x_deriv, int y_deriv, int z_deriv);
 
+// Returns the index of the coefficient within the polynomial whose powers 
+// match the given x_power, y_power, and z_power. If such a term is not 
+// found in the polynomial, returns -1.
+int polynomial_index(polynomial_t* p, int x_power, int y_power, int z_power);
+
 // Returns an sp_func corresponding to the given polynomial.
 sp_func_t* polynomial_sp_func(polynomial_t* p);
 

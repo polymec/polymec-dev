@@ -79,6 +79,38 @@ void ls_weight_func_eval(ls_weight_func_t* W, point_t* x, real_t* value, vector_
 // Returns the current center point x0 of the weight function. 
 point_t* ls_weight_func_x0(ls_weight_func_t* W);
 
+// An object of this type represents an equation in an overdetermined system.
+// Objects of this type are garbage-collected.
+typedef struct poly_ls_equation_t poly_ls_equation_t;
+
+// Creates a new empty equation for a least squares system, appropriate for 
+// fitting data to an order p polynomial centered about the point x0.
+poly_ls_equation_t* poly_ls_equation_new(int p, point_t* x0);
+
+// An object of this type represents an overdetermined system of equations 
+// that can be solved by fitting data to polynomials using least squares methods.
+typedef struct poly_ls_system_t poly_ls_system_t;
+
+// Creates a new empty least squares system.
+poly_ls_system_t* poly_ls_system_new();
+
+// Frees the least squares system.
+void poly_ls_system_free(poly_ls_system_t* sys);
+
+// Adds an equation to the least squares system.
+void poly_ls_system_add_equation(poly_ls_system_t* sys, poly_ls_equation_t* eq);
+
+// Clears the least squares system, removing all its equations.
+void poly_ls_system_clear(poly_ls_system_t* sys);
+
+// Returns the number of equations in the least squares system.
+int poly_ls_system_num_equations(poly_ls_system_t* sys);
+
+// Solves the least squares system using singular value decomposition (SVD),
+// placing the solution (the coefficients of the fitting polynomial) into 
+// the array x.
+void poly_ls_system_solve(poly_ls_system_t* sys, real_t* x);
+
 // Computes the least squares system for a pth-order polynomial fit to a set 
 // of scattered point data, centered about the point x0. This computes the 
 // moment matrix and the right-hand side vector for a polynomial fit to the 
