@@ -30,54 +30,84 @@
 
 struct poly_ls_system_t 
 {
-  polynomial_t* poly;
-  ptr_array_t* equations;
-  ptr_array_t* points;
+  int num_components;
+  polynomial_t** poly;
+  ptr_array_t** equations;
+  ptr_array_t** points;
 };
 
-poly_ls_system_t* poly_ls_system_new(int p, point_t* x0)
+poly_ls_system_t* poly_ls_system_new(int num_components, int p)
 {
+  ASSERT(num_components >= 1);
   ASSERT(p >= 0);
+
   poly_ls_system_t* sys = malloc(sizeof(poly_ls_system_t));
   int dim = polynomial_basis_dim(p);
   real_t coeffs[dim];
   for (int i = 0; i < dim; ++i)
     coeffs[i] = 1.0;
-  sys->poly = polynomial_new(p, coeffs, x0);
-  sys->equations = ptr_array_new();
-  sys->points = ptr_array_new();
+
+  sys->num_components = num_components;
+  sys->poly = malloc(sizeof(polynomial_t*) * num_components);
+  sys->equations = malloc(sizeof(ptr_array_t*) * num_components);
+  sys->points = malloc(sizeof(ptr_array_t*) * num_components);
+  for (int c = 0; c < num_components; ++c)
+  {
+    point_t O = {.x = 0.0, .y = 0.0, .z = 0.0};
+    sys->poly[c] = polynomial_new(p, coeffs, &O);
+    sys->equations[c] = ptr_array_new();
+    sys->points[c] = ptr_array_new();
+  }
   return sys;
 }
 
 void poly_ls_system_free(poly_ls_system_t* sys)
 {
-  sys->poly = NULL;
-  ptr_array_free(sys->equations);
-  ptr_array_free(sys->points);
+  for (int c = 0; c < sys->num_components; ++c)
+  {
+    sys->poly[c] = NULL;
+    ptr_array_free(sys->equations[c]);
+    ptr_array_free(sys->points[c]);
+  }
+  free(sys->poly);
+  free(sys->equations);
+  free(sys->points);
   free(sys);
 }
 
-// This constructs an array of coefficients representing an equation, 
-// returning the allocated memory. There are dim+1 coefficients: dim for the 
-// polynomial basis, and 1 for the RHS.
-static real_t* append_equation(poly_ls_system_t* sys, point_t* x)
+void poly_ls_system_set_x0(poly_ls_system_t* sys, point_t* x0)
 {
-  int dim = polynomial_basis_dim(polynomial_degree(sys->poly));
+  for (int c = 0; c < sys->num_components; ++c)
+    *polynomial_x0(sys->poly[c]) = *x0;
+}
+
+// This constructs an array of coefficients representing an equation for the 
+// given component, returning the allocated memory. There are dim+1 
+// coefficients: dim for the polynomial basis, and 1 for the RHS.
+static real_t* append_equation(poly_ls_system_t* sys, int component, point_t* x)
+{
+  ASSERT(component >= 0);
+  ASSERT(component < sys->num_components);
+
+  int dim = polynomial_basis_dim(polynomial_degree(sys->poly[component]));
   real_t* eq = malloc(sizeof(real_t) * (dim + 1));
-  ptr_array_append_with_dtor(sys->equations, eq, DTOR(free));
-  ptr_array_append(sys->points, x);
+  ptr_array_append_with_dtor(sys->equations[component], eq, DTOR(free));
+  ptr_array_append(sys->points[component], x);
   return eq;
 }
 
-void poly_ls_system_add_interpolated_datum(poly_ls_system_t* sys, real_t u, point_t* x)
+void poly_ls_system_add_interpolated_datum(poly_ls_system_t* sys, 
+                                           int component,
+                                           real_t u, 
+                                           point_t* x)
 {
-  real_t* eq = append_equation(sys, x);
-  point_t* x0 = polynomial_x0(sys->poly);
+  real_t* eq = append_equation(sys, component, x);
+  point_t* x0 = polynomial_x0(sys->poly[component]);
 
   // Left hand side -- powers of (x - x0) in the polynomial.
   real_t coeff;
   int pos = 0, x_pow, y_pow, z_pow, i = 0;
-  while (polynomial_next(sys->poly, &pos, &coeff, &x_pow, &y_pow, &z_pow))
+  while (polynomial_next(sys->poly[component], &pos, &coeff, &x_pow, &y_pow, &z_pow))
   {
     real_t X = x->x - x0->x;
     real_t Y = x->y - x0->y;
@@ -89,15 +119,21 @@ void poly_ls_system_add_interpolated_datum(poly_ls_system_t* sys, real_t u, poin
   eq[i] = u;
 }
 
-void poly_ls_system_add_robin_bc(poly_ls_system_t* sys, real_t alpha, real_t beta, vector_t* n, real_t gamma, point_t* x)
+void poly_ls_system_add_robin_bc(poly_ls_system_t* sys, 
+                                 int component, 
+                                 real_t alpha, 
+                                 real_t beta, 
+                                 vector_t* n, 
+                                 real_t gamma, 
+                                 point_t* x)
 {
-  real_t* eq = append_equation(sys, x);
-  point_t* x0 = polynomial_x0(sys->poly);
+  real_t* eq = append_equation(sys, component, x);
+  point_t* x0 = polynomial_x0(sys->poly[component]);
 
   // Left hand side -- powers of (x - x0) in the polynomial expression.
   real_t coeff;
   int pos = 0, x_pow, y_pow, z_pow, i = 0;
-  while (polynomial_next(sys->poly, &pos, &coeff, &x_pow, &y_pow, &z_pow))
+  while (polynomial_next(sys->poly[component], &pos, &coeff, &x_pow, &y_pow, &z_pow))
   {
     real_t X = x->x - x0->x;
     real_t Y = x->y - x0->y;
@@ -116,26 +152,39 @@ void poly_ls_system_add_robin_bc(poly_ls_system_t* sys, real_t alpha, real_t bet
 
 void poly_ls_system_clear(poly_ls_system_t* sys)
 {
-  ptr_array_clear(sys->equations);
+  for (int c = 0; c < sys->num_components; ++c)
+  {
+    ptr_array_clear(sys->equations[c]);
+    ptr_array_clear(sys->points[c]);
+  }
 }
 
 int poly_ls_system_num_equations(poly_ls_system_t* sys)
 {
-  return sys->equations->size;
+  int num_eq = 0;
+  for (int c = 0; c < sys->num_components; ++c)
+    num_eq += sys->equations[c]->size;
+  return num_eq;
 }
 
-static void solve_direct_least_squares(int p, ptr_array_t* equations, real_t* x)
+static void solve_direct_least_squares(int p, int num_components, ptr_array_t** equations, real_t* x)
 {
-  int N = equations->size;
+  int N = 0;
+  for (int c = 0; c < num_components; ++c)
+    N += equations[c]->size;
   int dim = polynomial_basis_dim(p);
 
   real_t A[N*dim], b[N];
+  int j = 0;
   for (int i = 0; i < N; ++i)
   {
-    real_t* eq = equations->data[i];
-    for (int j = 0; j < dim; ++j)
-      A[N*j+i] = eq[j];
-    b[i] = eq[dim];
+    for (int c = 0; c < num_components; ++c, ++j)
+    {
+      real_t* eq = equations[c]->data[i];
+      for (int k = 0; k < dim; ++k)
+        A[N*k+j] = eq[k];
+      b[j] = eq[dim];
+    }
   }
   int one = 1, jpivot[N], rank, info;
   int lwork = MAX(N*dim+3*N+1, 2*N*dim+1); // unblocked strategy
@@ -144,7 +193,7 @@ static void solve_direct_least_squares(int p, ptr_array_t* equations, real_t* x)
   ASSERT(info != 0);
 
   // Copy the answer from b to x.
-  memcpy(x, b, sizeof(real_t) * dim);
+  memcpy(x, b, sizeof(real_t) * num_components*dim);
 }
 
 // The following functions contain logic that implements the Coupled Least 
@@ -206,20 +255,29 @@ void reconstruct_cls_derivatives(int k, int N, real_t* wkk,
   // For m = 1 to m = p - 1:
 }
 
-static void solve_coupled_least_squares(int p, ptr_array_t* equations, real_t* x)
+static void solve_coupled_least_squares(int p, int num_components, ptr_array_t** equations, real_t* x)
 {
 }
 
 void poly_ls_system_solve(poly_ls_system_t* sys, real_t* x)
 {
+#ifndef NDEBUG
+  // Make sure we have the same number of equations for each component.
+  int num_eq = sys->equations[0]->size;
+  for (int c = 1; c < sys->num_components; ++c)
+  {
+    ASSERT(sys->equations[c]->size == num_eq);
+  }
+#endif
+
   // Solve the least squares system of N equations.
-  int p = polynomial_degree(sys->poly);
-  int N = sys->equations->size;
+  int p = polynomial_degree(sys->poly[0]);
+  int N_per_comp = sys->equations[0]->size;
   int dim = polynomial_basis_dim(p);
 
-  if (N > dim)
-    solve_direct_least_squares(p, sys->equations, x);
+  if (N_per_comp > dim)
+    solve_direct_least_squares(p, sys->num_components, sys->equations, x);
   else
-    solve_coupled_least_squares(p, sys->equations, x);
+    solve_coupled_least_squares(p, sys->num_components, sys->equations, x);
 }
 

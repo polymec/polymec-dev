@@ -32,23 +32,30 @@
 // that can be solved by fitting data to polynomials using least squares methods.
 typedef struct poly_ls_system_t poly_ls_system_t;
 
-// Creates a new empty least squares system for fitting scatter data to 
-// a degree p polynomial centered around the point x0.
-poly_ls_system_t* poly_ls_system_new(int p, point_t* x0);
+// Creates a new empty least squares system for fitting multi-component 
+// scatter data to a set of degree p polynomials.
+poly_ls_system_t* poly_ls_system_new(int num_components, int p);
 
 // Frees the least squares system.
 void poly_ls_system_free(poly_ls_system_t* sys);
 
+// Sets the center point x0 about which the underlying polynomials are centered.
+// By default, these polynomials are centered at the origin.
+void poly_ls_system_set_x0(poly_ls_system_t* sys, point_t* x0);
+
 // Adds an equation to the least squares system that interpolates the datum 
-// u at the point x.
-void poly_ls_system_add_interpolated_datum(poly_ls_system_t* sys, real_t u, point_t* x);
+// u for the given component at the point x.
+void poly_ls_system_add_interpolated_datum(poly_ls_system_t* sys, int component, 
+                                           real_t u, point_t* x);
 
 // Adds an equation to the least squares system that satisfies the 
-// relationship alpha * u + beta * n o grad u = gamma at the point x, where 
-// alpha, beta, and gamma are real-valued quantities, n is a vector, and u 
-// is the quantity being fitted to the polynomial. This constraint is often 
-// referred to as a Robin boundary condition.
-void poly_ls_system_add_robin_bc(poly_ls_system_t* sys, real_t alpha, real_t beta, vector_t* n, real_t gamma, point_t* x);
+// relationship alpha * u + beta * n o grad u = gamma for the given component 
+// at the point x, where alpha, beta, and gamma are real-valued quantities, 
+// n is a vector, and u is the quantity being fitted to the polynomial. This 
+// constraint is often referred to as a Robin boundary condition.
+void poly_ls_system_add_robin_bc(poly_ls_system_t* sys, int component, 
+                                 real_t alpha, real_t beta, vector_t* n, real_t gamma, 
+                                 point_t* x);
 
 // Clears the least squares system, removing all its equations.
 void poly_ls_system_clear(poly_ls_system_t* sys);
