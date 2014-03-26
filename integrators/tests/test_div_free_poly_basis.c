@@ -58,6 +58,7 @@ void test_compute(void** state)
       div_free_poly_basis_compute(basis, &x, vectors);
     }
     basis = NULL;
+    free(vectors);
   }
 }
 
