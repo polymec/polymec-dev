@@ -22,146 +22,284 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+#include "core/polymec.h"
+#include "core/array.h"
 #include "core/polynomial.h"
 #include "core/linear_algebra.h"
-#include "core/array_utils.h"
-#include "integrators/polyhedron_integrator.h"
 #include "model/polynomial_fit.h"
 
 struct polynomial_fit_t 
 {
-  char* name;
-  void* context;
-  polynomial_fit_vtable vtable;
-  int num_comps;
-
-  int degree;
-  int point_index;
-  int num_points;
-
-  // Polynomials for fit.
-  polynomial_t** polys;
+  int num_components, p;
+  polynomial_t** poly;
+  ptr_array_t** equations;
+  ptr_array_t** points;
 };
 
-polynomial_fit_t* polynomial_fit_new(const char* name,
-                                     void* context,
-                                     polynomial_fit_vtable vtable,
-                                     int num_comps)
+polynomial_fit_t* polynomial_fit_new(int num_components, int p)
 {
-  ASSERT(num_comps > 0);
-  ASSERT(vtable.num_interior_neighbors != NULL);
-  ASSERT(vtable.get_interior_neighbors != NULL);
-  ASSERT(vtable.get_interior_data != NULL);
-  ASSERT(vtable.num_boundary_points != NULL);
-  ASSERT(vtable.get_boundary_data != NULL);
-  ASSERT(vtable.targeted_degree != NULL);
+  ASSERT(num_components >= 1);
+  ASSERT(p >= 0);
 
   polynomial_fit_t* fit = malloc(sizeof(polynomial_fit_t));
-  fit->name = string_dup(name);
-  fit->context = context;
-  fit->vtable = vtable;
-  fit->num_comps = num_comps;
+  int dim = polynomial_basis_dim(p);
+  real_t coeffs[dim];
+  for (int i = 0; i < dim; ++i)
+    coeffs[i] = 1.0;
 
-  fit->degree = -1;
-  fit->point_index = -1;
-  fit->num_points = 0;
-  fit->polys = NULL;
-
+  fit->num_components = num_components;
+  fit->p = p;
+  fit->poly = malloc(sizeof(polynomial_t*) * num_components);
+  fit->equations = malloc(sizeof(ptr_array_t*) * num_components);
+  fit->points = malloc(sizeof(ptr_array_t*) * num_components);
+  for (int c = 0; c < num_components; ++c)
+  {
+    point_t O = {.x = 0.0, .y = 0.0, .z = 0.0};
+    fit->poly[c] = polynomial_new(p, coeffs, &O);
+    fit->equations[c] = ptr_array_new();
+    fit->points[c] = ptr_array_new();
+  }
   return fit;
 }
 
 void polynomial_fit_free(polynomial_fit_t* fit)
 {
-  if (fit->polys != NULL)
+  for (int c = 0; c < fit->num_components; ++c)
   {
-    for (int i = 0; i < fit->num_comps; ++i)
-      fit->polys[i] = NULL;
+    fit->poly[c] = NULL;
+    ptr_array_free(fit->equations[c]);
+    ptr_array_free(fit->points[c]);
   }
-  if ((fit->context != NULL) && (fit->vtable.dtor != NULL))
-    fit->vtable.dtor(fit->context);
-  if (fit->name != NULL)
-    free(fit->name);
+  free(fit->poly);
+  free(fit->equations);
+  free(fit->points);
   free(fit);
 }
 
-int polynomial_fit_num_comps(polynomial_fit_t* fit)
+// This constructs an array of coefficients representing an equation for the 
+// given component, returning the allocated memory. There are dim+1 
+// coefficients: dim for the polynomial basis, and 1 for the RHS.
+static real_t* append_equation(polynomial_fit_t* fit, int component, point_t* x)
 {
-  return fit->num_comps;
+  ASSERT(component >= 0);
+  ASSERT(component < fit->num_components);
+
+  int dim = polynomial_basis_dim(polynomial_degree(fit->poly[component]));
+  real_t* eq = malloc(sizeof(real_t) * (dim + 1));
+  ptr_array_append_with_dtor(fit->equations[component], eq, DTOR(free));
+  ptr_array_append(fit->points[component], x);
+  return eq;
 }
 
-void polynomial_fit_compute(polynomial_fit_t* fit, real_t* data, int point_index)
+void polynomial_fit_add_interpolated_datum(polynomial_fit_t* fit, 
+                                           int component,
+                                           real_t u, 
+                                           point_t* x)
 {
-  ASSERT(data != NULL);
-  ASSERT(point_index >= 0);
-  fit->point_index = point_index;
+  real_t* eq = append_equation(fit, component, x);
+  point_t* x0 = polynomial_x0(fit->poly[component]);
 
-  // Find the number of interior and boundary points near the given point.
-  int num_int_points = 1 + fit->vtable.num_interior_neighbors(fit->context, fit->point_index);
-  int num_bnd_points = fit->vtable.num_boundary_points(fit->context, fit->point_index);
-  fit->num_points = num_int_points + num_bnd_points;
-
-  // Determine the targeted degree for the number of point
-  fit->degree = fit->vtable.targeted_degree(fit->context, fit->num_points);
-  int dim = polynomial_basis_dim(fit->degree);
-  ASSERT(dim >= fit->num_points);
-
-  // Get the indices of the interior points.
-  int int_indices[num_int_points];
-  int_indices[0] = fit->point_index;
-  fit->vtable.get_interior_neighbors(fit->context, fit->point_index, &int_indices[1]);
-
-  // Fetch the interior points and values.
-  point_t int_points[num_int_points];
-  real_t int_values[num_int_points][fit->num_comps];
-  real_t* int_value_ptrs[num_int_points];
-  for (int i = 0; i < num_int_points; ++i)
-    int_value_ptrs[i] = &int_values[i][0];
-  fit->vtable.get_interior_data(fit->context, data, fit->num_comps, int_indices, num_int_points,
-                                int_points, int_value_ptrs);
-
-  // Fetch the boundary points, (quadrature) weights, normal vectors, and values.
-  point_t bnd_points[num_bnd_points];
-  real_t bnd_weights[num_bnd_points];
-  vector_t bnd_normals[num_bnd_points];
-  void* bnd_conditions[num_bnd_points];
-  fit->vtable.get_boundary_data(fit->context, point_index, data, fit->num_comps, num_bnd_points,
-                                bnd_points, bnd_weights, bnd_normals, bnd_conditions);
-
-  // Now fit the component data to a polynomial.
-  real_t poly_coeffs[dim][fit->num_comps];
-  real_t* poly_coeff_ptrs[dim];
-  for (int i = 0; i < dim; ++i)
-    poly_coeff_ptrs[i] = &poly_coeffs[i][0];
-  fit->vtable.fit_data(fit->context, fit->degree, 
-                       int_points, int_value_ptrs, num_int_points,
-                       bnd_points, bnd_weights, bnd_normals, bnd_conditions, num_bnd_points,
-                       poly_coeff_ptrs);
-
-  for (int c = 0; c < fit->num_comps; ++c)
+  // Left hand side -- powers of (x - x0) in the polynomial.
+  real_t coeff;
+  int pos = 0, x_pow, y_pow, z_pow, i = 0;
+  while (polynomial_next(fit->poly[component], &pos, &coeff, &x_pow, &y_pow, &z_pow))
   {
-    // Construct the polynomial for this component.
-    real_t coeffs[dim];
-    for (int i = 0; i < dim; ++i)
-      coeffs[i] = poly_coeffs[i][c];
-    if (fit->polys[c] == NULL)
-      fit->polys[c] = polynomial_new(fit->degree, coeffs, &int_points[0]);
-    else
-    {
-      memcpy(polynomial_coeffs(fit->polys[c]), coeffs, sizeof(real_t) * dim);
-      *polynomial_x0(fit->polys[c]) = int_points[0];
-    }
+    real_t X = x->x - x0->x;
+    real_t Y = x->y - x0->y;
+    real_t Z = x->z - x0->z;
+    eq[i++] = pow(X, x_pow) * pow(Y, y_pow) * pow(Z, z_pow);
+  }
+
+  // Right hand side -- u.
+  eq[i] = u;
+}
+
+void polynomial_fit_add_robin_bc(polynomial_fit_t* fit, 
+                                 int component, 
+                                 real_t alpha, 
+                                 real_t beta, 
+                                 vector_t* n, 
+                                 real_t gamma, 
+                                 point_t* x)
+{
+  real_t* eq = append_equation(fit, component, x);
+  point_t* x0 = polynomial_x0(fit->poly[component]);
+
+  // Left hand side -- powers of (x - x0) in the polynomial expression.
+  real_t coeff;
+  int pos = 0, x_pow, y_pow, z_pow, i = 0;
+  while (polynomial_next(fit->poly[component], &pos, &coeff, &x_pow, &y_pow, &z_pow))
+  {
+    real_t X = x->x - x0->x;
+    real_t Y = x->y - x0->y;
+    real_t Z = x->z - x0->z;
+    real_t u_term = alpha * pow(X, x_pow) * pow(Y, y_pow) * pow(Z, z_pow);
+    real_t dudx_term = x_pow * pow(X, x_pow-1) * pow(Y, y_pow) * pow(Z, z_pow);
+    real_t dudy_term = y_pow * pow(X, x_pow) * pow(Y, y_pow-1) * pow(Z, z_pow);
+    real_t dudz_term = z_pow * pow(X, x_pow) * pow(Y, y_pow) * pow(Z, z_pow-1);
+    real_t n_o_grad_u_term = n->x * dudx_term + n->y * dudy_term + n->z * dudz_term;
+    eq[i++] = alpha * u_term + beta * n_o_grad_u_term;
+  }
+
+  // Right hand side -- gamma.
+  eq[i] = gamma;
+}
+
+void polynomial_fit_reset(polynomial_fit_t* fit, point_t* x0)
+{
+  int dim = polynomial_basis_dim(fit->p);
+  real_t coeffs[dim];
+  for (int i = 0; i < dim; ++i)
+    coeffs[i] = 1.0;
+  for (int c = 0; c < fit->num_components; ++c)
+  {
+    *polynomial_x0(fit->poly[c]) = *x0;
+    memcpy(polynomial_coeffs(fit->poly[c]), coeffs, sizeof(real_t)*dim);
+    ptr_array_clear(fit->equations[c]);
+    ptr_array_clear(fit->points[c]);
   }
 }
 
 int polynomial_fit_degree(polynomial_fit_t* fit)
 {
-  return fit->degree;
+  return fit->p;
+}
+
+int polynomial_fit_num_equations(polynomial_fit_t* fit)
+{
+  int num_eq = 0;
+  for (int c = 0; c < fit->num_components; ++c)
+    num_eq += fit->equations[c]->size;
+  return num_eq;
+}
+
+static void solve_direct_least_squares(polynomial_fit_t* fit)
+{
+  int p = fit->p;
+  int num_components = fit->num_components;
+  ptr_array_t** equations = fit->equations;
+
+  int N = 0;
+  for (int c = 0; c < num_components; ++c)
+    N += equations[c]->size;
+  int dim = polynomial_basis_dim(p);
+
+  real_t A[N*dim], X[N];
+  int j = 0;
+  for (int i = 0; i < N; ++i)
+  {
+    for (int c = 0; c < num_components; ++c, ++j)
+    {
+      real_t* eq = equations[c]->data[i];
+      for (int k = 0; k < dim; ++k)
+        A[N*k+j] = eq[k];
+      X[j] = eq[dim];
+    }
+  }
+  int one = 1, jpivot[N], rank, info;
+  int lwork = MAX(N*dim+3*N+1, 2*N*dim+1); // unblocked strategy
+  real_t rcond = 0.01, work[lwork];
+  rgelsy(&N, &dim, &one, A, &N, X, &N, jpivot, &rcond, &rank, work, &lwork, &info);
+  ASSERT(info != 0);
+
+  // Copy the coefficients into place.
+  for (int c = 0; c < num_components; ++c)
+  {
+    real_t* coeffs = polynomial_coeffs(fit->poly[c]);
+    for (int i = 0; i < dim; ++i)
+      coeffs[i] = X[num_components*i+c];
+  }
+}
+
+// The following functions contain logic that implements the Coupled Least 
+// Squares algorithm for the construction of compact-stencil high-order 
+// polynomial fits, as discussed by Haider (2011).
+//
+// The following concepts are used in this algorithm:
+// - A neighborhood of cells W(i) is a set of cells on which a least squares 
+//   fit is performed for a quantity u in the vicinity of a cell i. The 
+//   neighborhood V(i) refers to the set of cells adjacent to and including i.
+// - The moments z(k), associated with a neighborhood W, are volume integrals 
+//   involving the kth-order tensor products of differences between the 
+//   integration coordinates and the cell center coordinates. Within a given 
+//   cell, z(k) is a symmetric tensor of degree k.
+// - The linear map w(m|k), given a vector of N cell-averaged values of u on 
+//   a neighborhood W, produces the components of the mth derivative of the 
+//   degree-k polynomial representation of u within that neighborhood, for 
+//   m <= k. These derivatives form a symmetric tensor of rank m. In 3D, such 
+//   a tensor has (3**m - 3)/2 coefficients for m > 1, 3 coefficients for m = 1, 
+//   and 1 coefficient for m = 0. Thus, the map w(m|k) can be represented by a 
+//   (3**m - 3)/2 x N matrix (for m > 1, anyway). The product of this matrix 
+//   with the N cell-averaged values of u in the neighborhood W(i) about a 
+//   cell i is a vector containing the (3**m ­ 3)/2 spatial derivatives of 
+//   u's polynomial representation in i.
+
+// Given a set of N cell averages in the neighborhood W(i), performs a least 
+// squares fit to reconstruct the value of the polynomial fit at the center of 
+// celli, storing it in w00.
+static void reconstruct_cls_value(real_t* cell_averages, int N, real_t* w00)
+{
+}
+
+// This function constructs the J(k+1) "antiderivative" operator 
+// in Haider (2011). This is an N x (3**(k+1) - 3)/2 matrix.
+static void construct_Jk1(int k, int N, real_t* wkk, real_t* zk1_moments, real_t* J)
+{
+}
+
+// Given the linear map w(k|k) for the neighborhood W(i) and the moments 
+// z(k+1) for each cell in that neighborhood, this function calculates the 
+// components of the linear map w(k+1|k+1). Arguments:
+// k - the degree of the derivatives used to construct the k+1 derivatives.
+// N - the number of cells in the neighborhood W(i).
+// wkk - the components of the linear map w(k|k) in column-major order.
+//       There are (3**k - 3) * N / 2 components in this array. In particular, 
+//       w(0|0) contains N values that, when dotted with the cell averages in 
+//       W(i), yield the value of the polynomial at the cell center i.
+// zk1_moments - An array containing the N moment tensors z(k+1) for the cells 
+//               in the neighborhood W(i), stored in cell-major order. Each 
+//               tensor in the array is stored in column-major order.
+//               There are N * (3**(k+1)-3)/2 components in this array.
+// wk1k1 - an array that will store the components of the linear map w(k+1|k+1)
+//         in column-major order.
+void reconstruct_cls_derivatives(int k, int N, real_t* wkk, 
+                                 real_t* zk1_moments, real_t* wk1k1)
+{
+}
+
+static void solve_coupled_least_squares(polynomial_fit_t* fit)
+{
+  // Compute a 1-exact derivative directly on our stencil.
+
+  // For m = 1 to m = p - 1:
+}
+
+void polynomial_fit_compute(polynomial_fit_t* fit)
+{
+#ifndef NDEBUG
+  // Make sure we have the same number of equations for each component.
+  int num_eq = fit->equations[0]->size;
+  for (int c = 1; c < fit->num_components; ++c)
+  {
+    ASSERT(fit->equations[c]->size == num_eq);
+  }
+#endif
+
+  // Solve the least squares fit of N equations.
+  int p = fit->p;
+  int N_per_comp = fit->equations[0]->size;
+  int dim = polynomial_basis_dim(p);
+
+  if (N_per_comp > dim)
+    solve_direct_least_squares(fit);
+  else
+    solve_coupled_least_squares(fit);
 }
 
 void polynomial_fit_eval(polynomial_fit_t* fit, point_t* x, real_t* value)
 {
-  for (int i = 0; i < fit->num_comps; ++i)
-    value[i] = polynomial_value(fit->polys[i], x);
+  for (int c = 0; c < fit->num_components; ++c)
+    value[c] = polynomial_value(fit->poly[c], x);
 }
 
 void polynomial_fit_eval_deriv(polynomial_fit_t* fit, 
@@ -171,310 +309,7 @@ void polynomial_fit_eval_deriv(polynomial_fit_t* fit,
                                int z_deriv,
                                real_t* deriv)
 {
-  for (int i = 0; i < fit->num_comps; ++i)
-    deriv[i] = polynomial_deriv_value(fit->polys[i], x_deriv, y_deriv, z_deriv, x);
-}
-
-//------------------------------------------------------------------------
-//                Freebie polynomial fit constructors
-//------------------------------------------------------------------------
-
-// Cell-centered fit.
-typedef struct 
-{
-  mesh_t* mesh;
-  int degree;
-
-  // Mapping of face indices to boundary conditions.
-  int_ptr_unordered_map_t* face_bc_map;
-
-  // Quadrature rule.
-  polyhedron_integrator_t* poly_rule;
-
-  // Machinery for fit_data().
-  polynomial_fit_fit_data_func fit_data;
-  void* fit_data_context;
-  polynomial_fit_dtor dtor;
-} cc_fit_t;
-
-static int cc_num_interior_neighbors(void* context, int point_index)
-{
-  cc_fit_t* fit = context;
-  int cell = point_index;
-
-  // The number of neighbors is equal to the number of cells attached to 
-  // this one via faces.
-  int num_neighbors = 0, pos = 0, face;
-  while (mesh_cell_next_face(fit->mesh, cell, &pos, &face))
-  {
-    if (mesh_face_opp_cell(fit->mesh, face, cell) != -1)
-      ++num_neighbors;
-  }
-
-  return num_neighbors;
-}
-
-static void cc_get_interior_neighbors(void* context, int point_index, int* neighbor_indices)
-{
-  cc_fit_t* fit = context;
-  int cell = point_index;
-
-  int offset = 0, pos = 0, face;
-  while (mesh_cell_next_face(fit->mesh, cell, &pos, &face))
-  {
-    int opp_cell = mesh_face_opp_cell(fit->mesh, face, cell);
-    if (opp_cell != -1)
-    {
-      neighbor_indices[offset] = opp_cell;
-      ++offset;
-    }
-  }
-}
-
-static int cc_num_boundary_points(void* context, int point_index)
-{
-  cc_fit_t* fit = context;
-  int cell = point_index;
-
-  // The number of boundary points is equal to the number of quadrature 
-  // points over all the faces without opposite faces.
-  int num_points = 0, pos = 0, face;
-  while (mesh_cell_next_face(fit->mesh, cell, &pos, &face))
-  {
-    if (mesh_face_opp_cell(fit->mesh, face, cell) == -1)
-      num_points += polyhedron_integrator_num_surface_points(fit->poly_rule, pos);
-  }
-  return num_points;
-}
-
-static void cc_get_interior_data(void* context, real_t* data, int num_comps,
-                                 int* point_indices, int num_points,
-                                 point_t* point_coords, real_t** point_values)
-{
-  cc_fit_t* fit = context;
-
-  // We assume the data is in component-minor form in the array, 
-  // and that values are at cell centers.
-  for (int i = 0; i < num_points; ++i)
-  {
-    int j = point_indices[i];
-    point_coords[i] = fit->mesh->cell_centers[j];
-    for (int c = 0; c < num_comps; ++c)
-      point_values[i][c] = data[num_comps*j+c];
-  }
-}
-
-static void cc_get_boundary_data(void* context, int point_index, real_t* data, int num_comps, int num_bpoints,
-                                 point_t* bpoint_coords, real_t* bpoint_weights, vector_t* bpoint_normals, void** boundary_conditions)
-{
-  cc_fit_t* fit = context;
-  int cell = point_index;
-
-  // Loop over the quadrature points and set the data.
-  int pos = 0, face;
-  while (mesh_cell_next_face(fit->mesh, cell, &pos, &face))
-  {
-    if (mesh_face_opp_cell(fit->mesh, face, cell) == -1)
-    {
-      // Gather all the quadrature points at this face.
-      int pos1 = 0, i = 0;
-      while (polyhedron_integrator_next_surface_point(fit->poly_rule, 
-                                                      pos, // local face index
-                                                      &pos1, 
-                                                      &bpoint_coords[i],
-                                                      &bpoint_normals[i],
-                                                      &bpoint_weights[i]))
-      {
-        // Also grab boundary condition information.
-        void** bc_ptr = int_ptr_unordered_map_get(fit->face_bc_map, face);
-        ASSERT(bc_ptr != NULL);
-        boundary_conditions[i] = *bc_ptr;
-        ++i;
-      }
-    }
-  }
-}
-
-static int cc_targeted_degree(void* context, int num_points)
-{
-  cc_fit_t* fit = context;
-  return fit->degree;
-}
-
-static void cc_fit_data(void* context, int degree,
-                        point_t* interior_points, real_t** interior_values, int num_interior_points,
-                        point_t* boundary_points, real_t* boundary_weights, vector_t* boundary_normals, void** boundary_conditions, int num_boundary_points,
-                        real_t** poly_coeffs)
-{
-  cc_fit_t* fit = context;
-  fit->fit_data(fit->fit_data_context, degree, interior_points, interior_values, num_interior_points,
-                boundary_points, boundary_weights, boundary_normals, boundary_conditions, num_boundary_points, poly_coeffs);
-}
-
-static void cc_dtor(void* context)
-{
-  cc_fit_t* fit = context;
-  polyhedron_integrator_free(fit->poly_rule);
-  if ((fit->fit_data_context != NULL) && (fit->dtor != NULL))
-    fit->dtor(fit->fit_data_context);
-  int_ptr_unordered_map_free(fit->face_bc_map);
-}
-
-polynomial_fit_t* cc_polynomial_fit_new(int num_comps,
-                                        mesh_t* mesh,
-                                        int degree,
-                                        polyhedron_integrator_t* poly_quad_rule,
-                                        boundary_cell_map_t* boundary_cells,
-                                        polynomial_fit_fit_data_func fit_data,
-                                        void* fit_data_context,
-                                        polynomial_fit_dtor dtor)
-{
-  ASSERT(mesh != NULL);
-  ASSERT(degree >= 0);
-
-  char name[1024];
-  snprintf(name, 1024, "cell-centered (degree %d)", degree);
-  cc_fit_t* context = malloc(sizeof(cc_fit_t));
-  context->mesh = mesh;
-  context->degree = degree;
-  context->poly_rule = poly_quad_rule;
-
-  // Create a mapping from face indices to boundary conditions.
-  context->face_bc_map = int_ptr_unordered_map_new();
-  {
-    int pos = 0, cell;
-    boundary_cell_t* bcell;
-    while (boundary_cell_map_next(boundary_cells, &pos, &cell, &bcell))
-    {
-      for (int i = 0; i < bcell->num_boundary_faces; ++i)
-      {
-        int f = bcell->boundary_faces[i];
-        void* bc = bcell->bc_for_face[i];
-        int_ptr_unordered_map_insert(context->face_bc_map, f, bc);
-      }
-    }
-  }
-
-  context->fit_data = fit_data;
-  context->fit_data_context = fit_data_context;
-  context->dtor = dtor;
-  polynomial_fit_vtable vtable = {.num_interior_neighbors = cc_num_interior_neighbors,
-                                  .get_interior_neighbors = cc_get_interior_neighbors,
-                                  .get_interior_data = cc_get_interior_data,
-                                  .num_boundary_points = cc_num_boundary_points,
-                                  .get_boundary_data = cc_get_boundary_data,
-                                  .targeted_degree = cc_targeted_degree,
-                                  .fit_data = cc_fit_data,
-                                  .dtor = cc_dtor};
-  return polynomial_fit_new(name, context, vtable, num_comps);
-}
-
-// Point cloud fit.
-typedef struct 
-{
-  point_cloud_t* points;
-  int degree;
-
-  // Mapping of boundary points to boundary conditions.
-  int_ptr_unordered_map_t* bc_for_point;
-
-  // Machinery for fit_data().
-  polynomial_fit_fit_data_func fit_data;
-  void* fit_data_context;
-  polynomial_fit_dtor dtor;
-} cloud_fit_t;
-
-static int cloud_num_interior_neighbors(void* context, int point_index)
-{
-  // FIXME
-  return 0;
-}
-
-static void cloud_get_interior_neighbors(void* context, int point_index, int* neighbor_indices)
-{
-  // FIXME
-}
-
-static int cloud_num_boundary_points(void* context, int point_index)
-{
-  // FIXME
-  return 0;
-}
-
-static void cloud_get_interior_data(void* context, real_t* data, int num_comps,
-                                    int* point_indices, int num_points,
-                                    point_t* point_coords, real_t** point_values)
-{
-  cloud_fit_t* fit = context;
-
-  // We assume the data is in component-minor form in the array, 
-  // and that values are at cell centers.
-  for (int i = 0; i < num_points; ++i)
-  {
-    int j = point_indices[i];
-    point_coords[i] = fit->points->point_coords[j];
-    for (int c = 0; c < num_comps; ++c)
-      point_values[i][c] = data[num_comps*j+c];
-  }
-}
-
-static void cloud_get_boundary_data(void* context, int point_index, real_t* data, int num_comps, int num_bpoints,
-                                    point_t* bpoint_coords, real_t* bpoint_weights, vector_t* bpoint_normals, void** boundary_conditions)
-{
-  // FIXME
-}
-
-static int cloud_fit_targeted_degree(void* context, int num_points)
-{
-  cloud_fit_t* fit = context;
-  return fit->degree;
-}
-
-static void cloud_fit_data(void* context, int degree,
-                           point_t* interior_points, real_t** interior_values, int num_interior_points,
-                           point_t* boundary_points, real_t* boundary_weights, vector_t* boundary_normals, void** boundary_conditions, int num_boundary_points,
-                           real_t** poly_coeffs)
-{
-  cloud_fit_t* fit = context;
-  fit->fit_data(fit->fit_data_context, degree, interior_points, interior_values, num_interior_points,
-                boundary_points, boundary_weights, boundary_normals, boundary_conditions, num_boundary_points, poly_coeffs);
-}
-
-static void cloud_dtor(void* context)
-{
-  cloud_fit_t* fit = context;
-  if ((fit->fit_data_context != NULL) && (fit->dtor != NULL))
-    fit->dtor(fit->fit_data_context);
-}
-
-polynomial_fit_t* point_cloud_polynomial_fit_new(int num_comps,
-                                                 point_cloud_t* points,
-                                                 point_cloud_neighbor_search_t* search,
-                                                 int degree,
-                                                 polynomial_fit_fit_data_func fit_data,
-                                                 void* fit_data_context,
-                                                 polynomial_fit_dtor dtor)
-{
-  ASSERT(points != NULL);
-  ASSERT(search != NULL);
-  ASSERT(degree >= 0);
-
-  char name[1024];
-  snprintf(name, 1024, "point cloud fixed degree (%d)", degree);
-  cloud_fit_t* context = malloc(sizeof(cloud_fit_t));
-  context->points = points;
-  context->degree = degree;
-  context->fit_data = fit_data;
-  context->fit_data_context = fit_data_context;
-  context->dtor = dtor;
-  polynomial_fit_vtable vtable = {.num_interior_neighbors = cloud_num_interior_neighbors,
-                                  .get_interior_neighbors = cloud_get_interior_neighbors,
-                                  .get_interior_data = cloud_get_interior_data,
-                                  .num_boundary_points = cloud_num_boundary_points,
-                                  .get_boundary_data = cloud_get_boundary_data,
-                                  .targeted_degree = cloud_fit_targeted_degree,
-                                  .fit_data = cloud_fit_data,
-                                  .dtor = cloud_dtor};
-  return polynomial_fit_new(name, context, vtable, num_comps);
+  for (int c = 0; c < fit->num_components; ++c)
+    deriv[c] = polynomial_deriv_value(fit->poly[c], x_deriv, y_deriv, z_deriv, x);
 }
 

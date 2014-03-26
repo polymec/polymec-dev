@@ -35,7 +35,6 @@
 #include "integrators/lu_preconditioners.h"
 #include "integrators/polyhedron_integrator.h"
 #include "model/boundary_cell_map.h"
-#include "model/poly_ls_system.h"
 #include "model/polynomial_fit.h"
 #include "poisson/poisson_model.h"
 #include "poisson/poisson_bc.h"
@@ -71,9 +70,7 @@ typedef struct
   real_t* cell_sources;
 
   // Polynomial and polynomial fit.
-  poly_ls_system_t* ls_sys;
   polynomial_fit_t* poly_fit;
-  real_t fit_time; // Time at which fit is performed.
 
   // Quadrature rules -- regular and "special" (to accommodate symmetry).
   polyhedron_integrator_t* poly_quad_rule;
@@ -135,49 +132,6 @@ static void poisson_read_input(void* context, interpreter_t* interp, options_t* 
   }
 }
 
-// This implements the high order polynomial fit.
-static void poly_fit(void* context, int degree,
-                     point_t* interior_points, real_t** interior_values, int num_interior_points,
-                     point_t* boundary_points, real_t* boundary_weights, vector_t* boundary_normals, 
-                     void** boundary_conditions, int num_boundary_points,
-                     real_t** poly_coeffs)
-{
-  poisson_t* p = context;
-  real_t t = p->fit_time;
-  int dim = polynomial_basis_dim(degree);
-
-  // Set up the least­squares system.
-  poly_ls_system_clear(p->ls_sys);
-  poly_ls_system_set_x0(p->ls_sys, &interior_points[0]);
-
-  // Interior point contributions.
-  for (int i = 0; i < num_interior_points; ++i)
-  {
-    point_t* x = &interior_points[i];
-    real_t u = interior_values[i][0];
-    poly_ls_system_add_interpolated_datum(p->ls_sys, 0, u, x);
-  }
-
-  // Boundary point contributions.
-  for (int i = 0; i < num_boundary_points; ++i)
-  {
-    point_t* x = &boundary_points[i];
-    vector_t* n = &boundary_normals[i];
-    poisson_bc_t* bc = boundary_conditions[i];
-    real_t alpha = bc->alpha, beta = bc->beta, gamma;
-    st_func_eval(bc->F, x, t, &gamma);
-    poly_ls_system_add_robin_bc(p->ls_sys, 0, alpha, beta, n, gamma, x);
-  }
-
-  // Solve the least squares system.
-  real_t X[dim];
-  poly_ls_system_solve(p->ls_sys, X);
-
-  // Extract the polynomial fit coefficients.
-  for (int i = 0; i < dim; ++i)
-    poly_coeffs[i][0] = X[i];
-}
-
 static int fv_poisson_residual(void* context, real_t t, real_t* u, real_t* F)
 {
   poisson_t* p = context;
@@ -223,8 +177,56 @@ static int fv_poisson_residual(void* context, real_t t, real_t* u, real_t* F)
     }
 
     // Find a least-squares fit for the solution in the vicinity of this cell.
-    p->fit_time = t;
-    polynomial_fit_compute(p->poly_fit, u, cell);
+    {
+      point_t* x0 = &p->mesh->cell_centers[cell];
+      polynomial_fit_reset(p->poly_fit, x0);
+
+      // Self contribution.
+      {
+        real_t phi = u[cell];
+        polynomial_fit_add_interpolated_datum(p->poly_fit, 0, phi, x0);
+      }
+
+      int pos = 0, face;
+      boundary_cell_t* bcell = NULL;
+      while (mesh_cell_next_face(p->mesh, cell, &pos, &face))
+      {
+        int neighbor = mesh_face_opp_cell(p->mesh, face, cell);
+        if (neighbor != -1)
+        {
+          // Contributions from neighboring cell.
+          point_t* x = &p->mesh->cell_centers[neighbor];
+          real_t phi = u[neighbor];
+          polynomial_fit_add_interpolated_datum(p->poly_fit, 0, phi, x);
+        }
+        else
+        {
+          // Get boundary condition information.
+          if (bcell == NULL)
+            bcell = *boundary_cell_map_get(p->boundary_cells, cell);
+          poisson_bc_t* bc = bcell->bc_for_face[pos];
+
+          // Boundary quadrature contributions.
+          int pos1 = 0;
+          point_t xb;
+          vector_t nb;
+          real_t wb;
+          while (polyhedron_integrator_next_surface_point(quad_rule,
+                                                          pos, // local face index
+                                                          &pos1, 
+                                                          &xb, &nb, &wb))
+          {
+            real_t alpha = bc->alpha, beta = bc->beta, gamma;
+            st_func_eval(bc->F, &xb, t, &gamma);
+            polynomial_fit_add_robin_bc(p->poly_fit, 0, alpha, beta, &nb, gamma, &xb);
+            // FIXME: Where does the quad weight go?
+          }
+        }
+      }
+
+      // Solve the least squares system.
+      polynomial_fit_compute(p->poly_fit);
+    }
 
     // Face fluxes.
     int fpos = 0, face, offset = p->cell_face_flux_offsets[cell];
@@ -406,9 +408,7 @@ static void poisson_init(void* context, real_t t)
 
     // Polynomial fit. Degree 1 for now.
     int poly_degree = 1;
-    p->ls_sys = poly_ls_system_new(1, poly_degree);
-    p->poly_fit = cc_polynomial_fit_new(1, p->mesh, poly_degree, p->poly_quad_rule, 
-                                        p->boundary_cells, poly_fit, p, NULL);
+    p->poly_fit = polynomial_fit_new(1, poly_degree);
 
     // For now, Use LU preconditioning with the same residual function.
     // Use LU preconditioning with the same residual function.
