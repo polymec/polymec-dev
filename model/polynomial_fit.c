@@ -34,6 +34,7 @@ struct polynomial_fit_t
   polynomial_t** poly;
   ptr_array_t** equations;
   ptr_array_t** points;
+  int* num_equations;
 };
 
 polynomial_fit_t* polynomial_fit_new(int num_components, int p)
@@ -52,12 +53,14 @@ polynomial_fit_t* polynomial_fit_new(int num_components, int p)
   fit->poly = malloc(sizeof(polynomial_t*) * num_components);
   fit->equations = malloc(sizeof(ptr_array_t*) * num_components);
   fit->points = malloc(sizeof(ptr_array_t*) * num_components);
+  fit->num_equations = malloc(sizeof(int) * num_components);
   for (int c = 0; c < num_components; ++c)
   {
     point_t O = {.x = 0.0, .y = 0.0, .z = 0.0};
     fit->poly[c] = polynomial_new(p, coeffs, &O);
     fit->equations[c] = ptr_array_new();
     fit->points[c] = ptr_array_new();
+    fit->num_equations[c] = 0;
   }
   return fit;
 }
@@ -73,6 +76,7 @@ void polynomial_fit_free(polynomial_fit_t* fit)
   free(fit->poly);
   free(fit->equations);
   free(fit->points);
+  free(fit->num_equations);
   free(fit);
 }
 
@@ -85,9 +89,25 @@ static real_t* append_equation(polynomial_fit_t* fit, int component, point_t* x)
   ASSERT(component < fit->num_components);
 
   int dim = polynomial_basis_dim(polynomial_degree(fit->poly[component]));
-  real_t* eq = malloc(sizeof(real_t) * (dim + 1));
-  ptr_array_append_with_dtor(fit->equations[component], eq, DTOR(free));
-  ptr_array_append(fit->points[component], x);
+  int new_num_eq = fit->num_equations[component] + 1;
+  fit->num_equations[component] = new_num_eq;
+  real_t* eq;
+  if (fit->equations[component]->size < new_num_eq)
+  {
+    eq = malloc(sizeof(real_t) * (fit->num_components*dim + 1));
+    ptr_array_append_with_dtor(fit->equations[component], eq, DTOR(free));
+    ptr_array_append(fit->points[component], x);
+  }
+  else
+  {
+    // Reuse old storage.
+    eq = fit->equations[component]->data[new_num_eq-1];
+    fit->points[component]->data[new_num_eq-1] = x;
+  }
+
+  // Zero the equation.
+  memset(eq, 0, sizeof(real_t) * (fit->num_components*dim+1));
+
   return eq;
 }
 
@@ -98,10 +118,11 @@ void polynomial_fit_add_interpolated_datum(polynomial_fit_t* fit,
 {
   real_t* eq = append_equation(fit, component, x);
   point_t* x0 = polynomial_x0(fit->poly[component]);
+  int dim = polynomial_basis_dim(polynomial_degree(fit->poly[component]));
 
   // Left hand side -- powers of (x - x0) in the polynomial.
   real_t coeff;
-  int pos = 0, x_pow, y_pow, z_pow, i = 0;
+  int pos = 0, x_pow, y_pow, z_pow, i = component*dim;
   while (polynomial_next(fit->poly[component], &pos, &coeff, &x_pow, &y_pow, &z_pow))
   {
     real_t X = x->x - x0->x;
@@ -124,10 +145,11 @@ void polynomial_fit_add_robin_bc(polynomial_fit_t* fit,
 {
   real_t* eq = append_equation(fit, component, x);
   point_t* x0 = polynomial_x0(fit->poly[component]);
+  int dim = polynomial_basis_dim(polynomial_degree(fit->poly[component]));
 
   // Left hand side -- powers of (x - x0) in the polynomial expression.
   real_t coeff;
-  int pos = 0, x_pow, y_pow, z_pow, i = 0;
+  int pos = 0, x_pow, y_pow, z_pow, i = component*dim;
   while (polynomial_next(fit->poly[component], &pos, &coeff, &x_pow, &y_pow, &z_pow))
   {
     real_t X = x->x - x0->x;
@@ -153,10 +175,12 @@ void polynomial_fit_reset(polynomial_fit_t* fit, point_t* x0)
     coeffs[i] = 1.0;
   for (int c = 0; c < fit->num_components; ++c)
   {
+    // Reset x0 and the polynomial coefficients.
     *polynomial_x0(fit->poly[c]) = *x0;
     memcpy(polynomial_coeffs(fit->poly[c]), coeffs, sizeof(real_t)*dim);
-    ptr_array_clear(fit->equations[c]);
-    ptr_array_clear(fit->points[c]);
+
+    // Reset the equation counter to 0.
+    fit->num_equations[c] = 0;
   }
 }
 
@@ -165,11 +189,16 @@ int polynomial_fit_degree(polynomial_fit_t* fit)
   return fit->p;
 }
 
+int polynomial_fit_num_components(polynomial_fit_t* fit)
+{
+  return fit->num_components;
+}
+
 int polynomial_fit_num_equations(polynomial_fit_t* fit)
 {
   int num_eq = 0;
   for (int c = 0; c < fit->num_components; ++c)
-    num_eq += fit->equations[c]->size;
+    num_eq += fit->num_equations[c];
   return num_eq;
 }
 
@@ -184,7 +213,7 @@ static void solve_direct_least_squares(polynomial_fit_t* fit)
     N += equations[c]->size;
   int dim = polynomial_basis_dim(p);
 
-  real_t A[N*dim], X[N];
+  real_t A[N*num_components*dim], X[N];
   int j = 0;
   for (int i = 0; i < N; ++i)
   {
@@ -192,8 +221,8 @@ static void solve_direct_least_squares(polynomial_fit_t* fit)
     {
       real_t* eq = equations[c]->data[i];
       for (int k = 0; k < dim; ++k)
-        A[N*k+j] = eq[k];
-      X[j] = eq[dim];
+        A[N*k+j] = eq[j];
+      X[i] = eq[dim];
     }
   }
   int one = 1, jpivot[N], rank, info;

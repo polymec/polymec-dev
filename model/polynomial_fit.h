@@ -43,6 +43,9 @@ void polynomial_fit_free(polynomial_fit_t* fit);
 // Returns the degree of the polynomial fit.
 int polynomial_fit_degree(polynomial_fit_t* fit);
 
+// Returns the number of components in the polynomial fit.
+int polynomial_fit_num_components(polynomial_fit_t* fit);
+
 // Adds an equation to the least squares fit that interpolates the datum 
 // u for the given component at the point x.
 void polynomial_fit_add_interpolated_datum(polynomial_fit_t* fit, int component, 
