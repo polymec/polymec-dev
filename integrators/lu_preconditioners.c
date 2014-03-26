@@ -45,6 +45,7 @@ typedef struct
   int* etree;
 
   SuperMatrix rhs, X, L, U;
+  real_t *rhs_data, *X_data;
   int *rperm, *cperm;
   superlu_options_t options;
   SuperLUStat_t stat;
@@ -326,6 +327,12 @@ static bool lu_preconditioner_solve(void* context, preconditioner_matrix_t* A, r
     precond->cperm = intMalloc(precond->N);
     precond->rperm = intMalloc(precond->N);
   }
+  else if (precond->options.Fact != SamePattern)
+  {
+    // Jettison the existing factorization.
+    Destroy_SuperNode_Matrix(&precond->L);
+    Destroy_CompCol_Matrix(&precond->U);
+  }
 
   // Do the solve.
   int info;
@@ -352,9 +359,11 @@ static void lu_preconditioner_dtor(void* context)
     SUPERLU_FREE(precond->rperm);
     Destroy_SuperNode_Matrix(&precond->L);
     Destroy_CompCol_Matrix(&precond->U);
-    Destroy_SuperMatrix_Store(&precond->rhs);
-    Destroy_SuperMatrix_Store(&precond->X);
   }
+  Destroy_SuperMatrix_Store(&precond->rhs);
+  free(precond->rhs_data);
+  Destroy_SuperMatrix_Store(&precond->X);
+  free(precond->X_data);
   StatFree(&precond->stat);
   for (int i = 0; i < precond->num_work_vectors; ++i)
     free(precond->work[i]);
@@ -381,10 +390,10 @@ preconditioner_t* lu_preconditioner_new(void* context,
 
   // Preconditioner data.
   precond->N = adj_graph_num_vertices(precond->sparsity);
-  real_t* rhs = malloc(sizeof(real_t) * precond->N);
-  dCreate_Dense_Matrix(&precond->rhs, precond->N, 1, rhs, precond->N, SLU_DN, SLU_D, SLU_GE);
-  real_t* X = malloc(sizeof(real_t) * precond->N);
-  dCreate_Dense_Matrix(&precond->X, precond->N, 1, X, precond->N, SLU_DN, SLU_D, SLU_GE);
+  precond->rhs_data = malloc(sizeof(real_t) * precond->N);
+  dCreate_Dense_Matrix(&precond->rhs, precond->N, 1, precond->rhs_data, precond->N, SLU_DN, SLU_D, SLU_GE);
+  precond->X_data = malloc(sizeof(real_t) * precond->N);
+  dCreate_Dense_Matrix(&precond->X, precond->N, 1, precond->X_data, precond->N, SLU_DN, SLU_D, SLU_GE);
   StatInit(&precond->stat);
   precond->cperm = NULL;
   precond->rperm = NULL;
@@ -442,6 +451,13 @@ static bool ilu_preconditioner_solve(void* context, preconditioner_matrix_t* A, 
     precond->cperm = intMalloc(precond->N);
     precond->rperm = intMalloc(precond->N);
   }
+  else if (precond->options.Fact != SamePattern)
+  {
+    // Jettison the existing factorization.
+    Destroy_SuperNode_Matrix(&precond->L);
+    Destroy_CompCol_Matrix(&precond->U);
+  }
+
 
   // Do the (approximate) solve.
   int info;
@@ -505,10 +521,10 @@ preconditioner_t* ilu_preconditioner_new(void* context,
 
   // Preconditioner data.
   precond->N = adj_graph_num_vertices(precond->sparsity);
-  real_t* rhs = malloc(sizeof(real_t) * precond->N);
-  dCreate_Dense_Matrix(&precond->rhs, precond->N, 1, rhs, precond->N, SLU_DN, SLU_D, SLU_GE);
-  real_t* X = malloc(sizeof(real_t) * precond->N);
-  dCreate_Dense_Matrix(&precond->X, precond->N, 1, X, precond->N, SLU_DN, SLU_D, SLU_GE);
+  precond->rhs_data = malloc(sizeof(real_t) * precond->N);
+  dCreate_Dense_Matrix(&precond->rhs, precond->N, 1, precond->rhs_data, precond->N, SLU_DN, SLU_D, SLU_GE);
+  precond->X_data = malloc(sizeof(real_t) * precond->N);
+  dCreate_Dense_Matrix(&precond->X, precond->N, 1, precond->X_data, precond->N, SLU_DN, SLU_D, SLU_GE);
   StatInit(&precond->stat);
   precond->cperm = NULL;
   precond->rperm = NULL;
