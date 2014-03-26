@@ -148,13 +148,14 @@ static void poly_fit(void* context, int degree,
 
   // Set up the least­squares system.
   poly_ls_system_clear(p->ls_sys);
+  poly_ls_system_set_x0(p->ls_sys, &interior_points[0]);
 
   // Interior point contributions.
   for (int i = 0; i < num_interior_points; ++i)
   {
     point_t* x = &interior_points[i];
     real_t u = interior_values[i][0];
-    poly_ls_system_add_interpolated_datum(p->ls_sys, u, x);
+    poly_ls_system_add_interpolated_datum(p->ls_sys, 0, u, x);
   }
 
   // Boundary point contributions.
@@ -165,7 +166,7 @@ static void poly_fit(void* context, int degree,
     poisson_bc_t* bc = boundary_conditions[i];
     real_t alpha = bc->alpha, beta = bc->beta, gamma;
     st_func_eval(bc->F, x, t, &gamma);
-    poly_ls_system_add_robin_bc(p->ls_sys, alpha, beta, n, gamma, x);
+    poly_ls_system_add_robin_bc(p->ls_sys, 0, alpha, beta, n, gamma, x);
   }
 
   // Solve the least squares system.
@@ -403,8 +404,10 @@ static void poisson_init(void* context, real_t t)
     nonlinear_integrator_vtable vtable = {.eval = fv_poisson_residual};
     p->solver = bicgstab_nonlinear_integrator_new("Poisson (FV)", p, MPI_COMM_WORLD, N, vtable, LINE_SEARCH, 15);
 
-    // Polynomial fit. FIXME: Degree 2 for now.
-    p->poly_fit = cc_polynomial_fit_new(1, p->mesh, 2, p->poly_quad_rule, 
+    // Polynomial fit. Degree 1 for now.
+    int poly_degree = 1;
+    p->ls_sys = poly_ls_system_new(1, poly_degree);
+    p->poly_fit = cc_polynomial_fit_new(1, p->mesh, poly_degree, p->poly_quad_rule, 
                                         p->boundary_cells, poly_fit, p, NULL);
 
     // For now, Use LU preconditioning with the same residual function.
