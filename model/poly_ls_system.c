@@ -201,13 +201,13 @@ static void construct_Jk1(int k, int N, real_t* wkk, real_t* zk1_moments, real_t
 void reconstruct_cls_derivatives(int k, int N, real_t* wkk, 
                                  real_t* zk1_moments, real_t* wk1k1)
 {
-  // Compute a 1-exact derivative directly on our stencil.
-
-  // For m = 1 to m = p - 1:
 }
 
 static void solve_coupled_least_squares(int p, ptr_array_t* equations, real_t* x)
 {
+  // Compute a 1-exact derivative directly on our stencil.
+
+  // For m = 1 to m = p - 1:
 }
 
 void poly_ls_system_solve(poly_ls_system_t* sys, real_t* x)
