@@ -332,10 +332,10 @@ void polynomial_fit_eval(polynomial_fit_t* fit, point_t* x, real_t* value)
 }
 
 void polynomial_fit_eval_deriv(polynomial_fit_t* fit, 
-                               point_t* x, 
                                int x_deriv,
                                int y_deriv,
                                int z_deriv,
+                               point_t* x, 
                                real_t* deriv)
 {
   for (int c = 0; c < fit->num_components; ++c)

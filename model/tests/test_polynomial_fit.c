@@ -27,6 +27,7 @@
 #include <setjmp.h>
 #include <string.h>
 #include "cmockery.h"
+#include "core/polynomial.h"
 #include "model/polynomial_fit.h"
 
 void test_polynomial_fit_ctor(void** state, int num_components, int p)
@@ -47,12 +48,101 @@ void test_polynomial_fit_new(void** state)
   }
 }
 
+void test_fit_consistency(void** state, polynomial_fit_t* fit, int component,
+                          polynomial_t* p, int num_points, bbox_t* bbox)
+{
+  int num_comp = polynomial_fit_num_components(fit);
+
+  for (int i = 0; i < num_points; ++i)
+  {
+    point_t xrand;
+    point_randomize(rand, bbox, &xrand);
+
+    // Polynomial values.
+    real_t q = polynomial_value(p, &xrand);
+    real_t dqdx = polynomial_deriv_value(p, 1, 0, 0, &xrand);
+    real_t dqdy = polynomial_deriv_value(p, 0, 1, 0, &xrand);
+    real_t dqdz = polynomial_deriv_value(p, 0, 0, 1, &xrand);
+
+    // Polynomial fit values.
+    real_t u[num_comp], dudx[num_comp], dudy[num_comp], dudz[num_comp];
+    polynomial_fit_eval(fit, &xrand, u);
+    assert_true(fabs(u[component] - q) < 1e-14);
+    polynomial_fit_eval_deriv(fit, 1, 0, 0, &xrand, dudx);
+    assert_true(fabs(dudx[component] - dqdx) < 1e-14);
+    polynomial_fit_eval_deriv(fit, 0, 1, 0, &xrand, dudy);
+    assert_true(fabs(dudy[component] - dqdy) < 1e-14);
+    polynomial_fit_eval_deriv(fit, 0, 0, 1, &xrand, dudz);
+    assert_true(fabs(dudz[component] - dqdz) < 1e-14);
+  }
+}
+
+void test_polynomial_fit(void** state, polynomial_t** polynomials, 
+                         int num_components)
+{
+  int p = polynomial_degree(polynomials[0]);
+
+  polynomial_fit_t* fit = polynomial_fit_new(num_components, p);
+  point_t x[] = {{.x =  0.0, .y =  0.0, .z =  0.0},
+                 {.x =  0.0, .y =  0.0, .z = -0.5},
+                 {.x =  0.0, .y = -0.5, .z =  0.0},
+                 {.x = -0.5, .y =  0.0, .z =  0.0},
+                 {.x =  0.0, .y =  0.0, .z =  0.5},
+                 {.x =  0.0, .y =  0.5, .z =  0.0},
+                 {.x =  0.5, .y =  0.0, .z =  0.0}};
+
+  // Fit centered at x0 = {0, 0, 0}.
+  for (int i = 0; i < 7; ++i)
+  {
+    for (int c = 0; c < num_components; ++c)
+      polynomial_fit_add_interpolated_datum(fit, c, polynomial_value(polynomials[c], &x[i]), &x[i]);
+  }
+  assert_int_equal(7*num_components, polynomial_fit_num_equations(fit));
+  polynomial_fit_compute(fit);
+  bbox_t bbox = {.x1 = -0.5, .y1 = -0.5, .z1 = -0.5, .x2 = 0.5, .y2 = 0.5, .z2 = 0.5};
+  for (int c = 0; c < num_components; ++c)
+    test_fit_consistency(state, fit, c, polynomials[c], 7, &bbox);
+
+  // Fit centered at a random point.
+  point_t x0;
+  point_randomize(rand, &bbox, &x0);
+  polynomial_fit_reset(fit, &x0);
+  assert_int_equal(0, polynomial_fit_num_equations(fit));
+  for (int i = 0; i < 7; ++i)
+  {
+    for (int c = 0; c < num_components; ++c)
+      polynomial_fit_add_interpolated_datum(fit, c, polynomial_value(polynomials[c], &x[i]), &x[i]);
+  }
+  for (int c = 0; c < num_components; ++c)
+    test_fit_consistency(state, fit, c, polynomials[c], 7, &bbox);
+
+  polynomial_fit_free(fit);
+}
+
+void test_polynomial_fit_constant_scalar(void** state)
+{
+  real_t coeffs[] = {3.0};
+  point_t x0 = {.x = 0.0, .y = 0.0, .z = 0.0};
+  polynomial_t* p0 = polynomial_new(0, coeffs, &x0); 
+  test_polynomial_fit(state, &p0, 1);
+}
+
+void test_polynomial_fit_linear_scalar(void** state)
+{
+  real_t coeffs[] = {1.0, 2.0, 3.0, 4.0};
+  point_t x0 = {.x = 0.0, .y = 0.0, .z = 0.0};
+  polynomial_t* p1 = polynomial_new(1, coeffs, &x0); 
+  test_polynomial_fit(state, &p1, 1);
+}
+
 int main(int argc, char* argv[]) 
 {
   polymec_init(argc, argv);
   const UnitTest tests[] = 
   {
-    unit_test(test_polynomial_fit_new)
+    unit_test(test_polynomial_fit_new),
+    unit_test(test_polynomial_fit_constant_scalar),
+    unit_test(test_polynomial_fit_linear_scalar)
   };
   return run_tests(tests);
 }

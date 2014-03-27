@@ -244,9 +244,9 @@ static int fv_poisson_residual(void* context, real_t t, real_t* u, real_t* F)
       {
         // Compute the gradient of the solution using the polynomial fit.
         vector_t grad_phi;
-        polynomial_fit_eval_deriv(p->poly_fit, &xq, 1, 0, 0, &grad_phi.x);
-        polynomial_fit_eval_deriv(p->poly_fit, &xq, 0, 1, 0, &grad_phi.y);
-        polynomial_fit_eval_deriv(p->poly_fit, &xq, 0, 0, 1, &grad_phi.z);
+        polynomial_fit_eval_deriv(p->poly_fit, 1, 0, 0, &xq, &grad_phi.x);
+        polynomial_fit_eval_deriv(p->poly_fit, 0, 1, 0, &xq, &grad_phi.y);
+        polynomial_fit_eval_deriv(p->poly_fit, 0, 0, 1, &xq, &grad_phi.z);
 
         // Evaluate the conduction operator lambda.
         real_t lambda[6];

@@ -78,10 +78,10 @@ void polynomial_fit_eval(polynomial_fit_t* fit, point_t* x, real_t* value);
 // Evaluates the given partial derivative of the computed polynomial fit at 
 // the given point in space.
 void polynomial_fit_eval_deriv(polynomial_fit_t* fit, 
-                               point_t* x, 
                                int x_deriv,
                                int y_deriv,
                                int z_deriv,
+                               point_t* x, 
                                real_t* deriv);
 
 #endif

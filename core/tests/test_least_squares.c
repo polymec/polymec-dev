@@ -38,7 +38,7 @@ static void generate_random_points(int num_points, point_t* points)
   static bbox_t bbox = {.x1 = -1.0, .x2 = 1.0, .y1 = -1.0, .y2 = 1.0, .z1 = -1.0, .z2 = 1.0};
 
   for (int i = 0; i < num_points; ++i)
-    point_randomize(&points[i], rand, &bbox);
+    point_randomize(rand, &bbox, &points[i]);
 }
 
 static void average_points(point_t* points, int num_points, point_t* average)

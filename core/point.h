@@ -196,7 +196,7 @@ void bbox_grow(bbox_t* box, point_t* p);
 // Given a random number generator and a bounding box, generate random 
 // coordinates for the given point within the bounding box. The random 
 // number generator must generate an integer between 0 and RAND_MAX.
-static inline void point_randomize(point_t* point, int (*rand_gen)(), bbox_t* bounding_box)
+static inline void point_randomize(int (*rand_gen)(), bbox_t* bounding_box, point_t* point)
 {
   point->x = (1.0*rand_gen()/RAND_MAX) * (bounding_box->x2 - bounding_box->x1) + bounding_box->x1;
   point->y = (1.0*rand_gen()/RAND_MAX) * (bounding_box->y2 - bounding_box->y1) + bounding_box->y1;
