@@ -40,6 +40,7 @@
 #define dormqr dormqr_
 #define dgesvd dgesvd_
 #define dgelsy dgelsy_
+#define dgelss dgelss_
 #define dgelsd dgelsd_
 #define sgemv sgemv_
 #define sgemm sgemm_
@@ -187,6 +188,21 @@ void sgelsy(int* m, int* n, int* nrhs, float* A, int* lda, float* B, int* ldb,
             int* info);
 void rgelsy(int* m, int* n, int* nrhs, real_t* A, int* lda, real_t* B, int* ldb, 
             int* jpvt, real_t* rcond, int* rank, real_t* work, int* lwork, 
+            int* info);
+
+// DGELSS computes the minimum-norm solution to a real linear least
+// squares problem:
+//       minimize || A * X - B ||
+// using the singular value decomposition of A. A is an M-by-N
+// matrix which may be rank-deficient. See LAPACK documentation for details.
+void dgelss(int* m, int* n, int* nrhs, double* A, int* lda, double* B, int* ldb, 
+            double* S, double* rcond, int* rank, double* work, int* lwork, 
+            int* info);
+void sgelss(int* m, int* n, int* nrhs, float* A, int* lda, float* B, int* ldb, 
+            float* S, float* rcond, int* rank, float* work, int* lwork, 
+            int* info);
+void rgelss(int* m, int* n, int* nrhs, real_t* A, int* lda, real_t* B, int* ldb, 
+            real_t* S, real_t* rcond, int* rank, real_t* work, int* lwork, 
             int* info);
 
 // Print a (column-major-ordered) matrix to the given file stream.

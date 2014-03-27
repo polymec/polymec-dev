@@ -111,28 +111,27 @@ static real_t* append_equation(polynomial_fit_t* fit, int component, point_t* x)
   return eq;
 }
 
-void polynomial_fit_add_interpolated_datum(polynomial_fit_t* fit, 
-                                           int component,
-                                           real_t u, 
-                                           point_t* x)
+void polynomial_fit_add_scatter_datum(polynomial_fit_t* fit, 
+                                      int component,
+                                      real_t u, 
+                                      point_t* x)
 {
   real_t* eq = append_equation(fit, component, x);
   point_t* x0 = polynomial_x0(fit->poly[component]);
   int dim = polynomial_basis_dim(polynomial_degree(fit->poly[component]));
 
+  real_t X = x->x - x0->x;
+  real_t Y = x->y - x0->y;
+  real_t Z = x->z - x0->z;
+
   // Left hand side -- powers of (x - x0) in the polynomial.
   real_t coeff;
   int pos = 0, x_pow, y_pow, z_pow, i = component*dim;
   while (polynomial_next(fit->poly[component], &pos, &coeff, &x_pow, &y_pow, &z_pow))
-  {
-    real_t X = x->x - x0->x;
-    real_t Y = x->y - x0->y;
-    real_t Z = x->z - x0->z;
     eq[i++] = pow(X, x_pow) * pow(Y, y_pow) * pow(Z, z_pow);
-  }
 
   // Right hand side -- u.
-  eq[i] = u;
+  eq[fit->num_components * dim] = u;
 }
 
 void polynomial_fit_add_robin_bc(polynomial_fit_t* fit, 
@@ -147,14 +146,15 @@ void polynomial_fit_add_robin_bc(polynomial_fit_t* fit,
   point_t* x0 = polynomial_x0(fit->poly[component]);
   int dim = polynomial_basis_dim(polynomial_degree(fit->poly[component]));
 
+  real_t X = x->x - x0->x;
+  real_t Y = x->y - x0->y;
+  real_t Z = x->z - x0->z;
+
   // Left hand side -- powers of (x - x0) in the polynomial expression.
   real_t coeff;
   int pos = 0, x_pow, y_pow, z_pow, i = component*dim;
   while (polynomial_next(fit->poly[component], &pos, &coeff, &x_pow, &y_pow, &z_pow))
   {
-    real_t X = x->x - x0->x;
-    real_t Y = x->y - x0->y;
-    real_t Z = x->z - x0->z;
     real_t u_term = alpha * pow(X, x_pow) * pow(Y, y_pow) * pow(Z, z_pow);
     real_t dudx_term = x_pow * pow(X, x_pow-1) * pow(Y, y_pow) * pow(Z, z_pow);
     real_t dudy_term = y_pow * pow(X, x_pow) * pow(Y, y_pow-1) * pow(Z, z_pow);
@@ -208,35 +208,38 @@ static void solve_direct_least_squares(polynomial_fit_t* fit)
   int num_components = fit->num_components;
   ptr_array_t** equations = fit->equations;
 
-  int N = 0;
-  for (int c = 0; c < num_components; ++c)
-    N += equations[c]->size;
+  int num_rows = equations[0]->size * num_components;
   int dim = polynomial_basis_dim(p);
+  int num_cols = dim * num_components;
 
-  real_t A[N*num_components*dim], X[N];
+  real_t A[num_rows*num_cols], X[num_rows];
   int j = 0;
-  for (int i = 0; i < N; ++i)
+  for (int r = 0; r < num_rows; ++r)
   {
-    for (int c = 0; c < num_components; ++c, ++j)
-    {
-      real_t* eq = equations[c]->data[i];
-      for (int k = 0; k < dim; ++k)
-        A[N*k+j] = eq[j];
-      X[i] = eq[dim];
-    }
+    real_t* eq = equations[r%num_components]->data[r/num_components];
+    for (int c = 0; c < num_cols; ++c, ++j)
+      A[num_rows*c+r] = eq[c];
+    X[r] = eq[num_cols];
   }
-  int one = 1, jpivot[N], rank, info;
-  int lwork = MAX(N*dim+3*N+1, 2*N*dim+1); // unblocked strategy
+//matrix_fprintf(A, num_rows, num_cols, stdout);
+//vector_fprintf(X, num_rows, stdout);
+  int one = 1, rank, info;
+  int lwork = MAX(num_rows*num_cols+3*num_rows+1, 2*num_rows*num_cols+1); // unblocked strategy
   real_t rcond = 0.01, work[lwork];
-  rgelsy(&N, &dim, &one, A, &N, X, &N, jpivot, &rcond, &rank, work, &lwork, &info);
-  ASSERT(info != 0);
+  int jpivot[num_rows];
+  rgelsy(&num_rows, &num_cols, &one, A, &num_rows, X, &num_rows, jpivot, &rcond, &rank, work, &lwork, &info);
+//  real_t S[MIN(N, num_components*dim)];
+//  rgelss(&N, &dim, &one, A, &N, X, &N, S, &rcond, &rank, work, &lwork, &info);
+  if (info != 0)
+    polymec_error("polynomial_fit: failed to solve least-squares system.");
+//vector_fprintf(X, num_cols, stdout);
 
   // Copy the coefficients into place.
   for (int c = 0; c < num_components; ++c)
   {
     real_t* coeffs = polynomial_coeffs(fit->poly[c]);
     for (int i = 0; i < dim; ++i)
-      coeffs[i] = X[num_components*i+c];
+      coeffs[i] = X[dim*c+i];
   }
 }
 

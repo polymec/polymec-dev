@@ -184,7 +184,7 @@ static int fv_poisson_residual(void* context, real_t t, real_t* u, real_t* F)
       // Self contribution.
       {
         real_t phi = u[cell];
-        polynomial_fit_add_interpolated_datum(p->poly_fit, 0, phi, x0);
+        polynomial_fit_add_scatter_datum(p->poly_fit, 0, phi, x0);
       }
 
       int pos = 0, face;
@@ -197,7 +197,7 @@ static int fv_poisson_residual(void* context, real_t t, real_t* u, real_t* F)
           // Contributions from neighboring cell.
           point_t* x = &p->mesh->cell_centers[neighbor];
           real_t phi = u[neighbor];
-          polynomial_fit_add_interpolated_datum(p->poly_fit, 0, phi, x);
+          polynomial_fit_add_scatter_datum(p->poly_fit, 0, phi, x);
         }
         else
         {

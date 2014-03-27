@@ -46,10 +46,10 @@ int polynomial_fit_degree(polynomial_fit_t* fit);
 // Returns the number of components in the polynomial fit.
 int polynomial_fit_num_components(polynomial_fit_t* fit);
 
-// Adds an equation to the least squares fit that interpolates the datum 
-// u for the given component at the point x.
-void polynomial_fit_add_interpolated_datum(polynomial_fit_t* fit, int component, 
-                                           real_t u, point_t* x);
+// Adds an equation to the least squares fit that attempts to interpolate 
+// the scatter datum u for the given component at the point x.
+void polynomial_fit_add_scatter_datum(polynomial_fit_t* fit, int component, 
+                                      real_t u, point_t* x);
 
 // Adds an equation to the least squares system that satisfies the 
 // relationship alpha * u + beta * n o grad u = gamma for the given component 
