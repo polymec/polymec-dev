@@ -33,21 +33,12 @@ model_t* poisson_model_new(options_t* options);
 
 // This factory method creates a new Finite-Volume Poisson model that is ready 
 // to run a problem defined by the given parameters.
-model_t* create_fv_poisson(mesh_t* mesh,
-                           st_func_t* lambda,
-                           st_func_t* rhs,
-                           string_ptr_unordered_map_t* bcs, 
-                           st_func_t* solution,
-                           options_t* options);
-
-// This factory method creates a new Finite-Volume Particle Method Poisson 
-// model that is ready to run a problem defined by the given parameters.
-model_t* create_fvpm_poisson(point_cloud_t* point_cloud,
-                             st_func_t* lambda,
-                             st_func_t* rhs,
-                             string_ptr_unordered_map_t* bcs, 
-                             st_func_t* solution,
-                             options_t* options);
+model_t* create_poisson(mesh_t* mesh,
+                        st_func_t* lambda,
+                        st_func_t* rhs,
+                        string_ptr_unordered_map_t* bcs, 
+                        st_func_t* solution,
+                        options_t* options);
 
 #endif
 

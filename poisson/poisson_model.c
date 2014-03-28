@@ -24,13 +24,11 @@
 
 #include "core/polymec.h"
 #include "core/unordered_map.h"
-#include "core/point_cloud.h"
 #include "core/least_squares.h"
 #include "core/linear_algebra.h"
 #include "core/polynomial.h"
 #include "core/write_silo.h"
 #include "geometry/interpreter_register_geometry_functions.h"
-#include "geometry/create_pebi_mesh.h"
 #include "integrators/nonlinear_integrator.h"
 #include "integrators/lu_preconditioners.h"
 #include "integrators/polyhedron_integrator.h"
@@ -49,7 +47,6 @@ extern void register_poisson_benchmarks(model_t* model);
 typedef struct 
 {
   mesh_t* mesh;             
-  point_cloud_t* point_cloud;
   adj_graph_t* graph;
   st_func_t* rhs;           // Right-hand side function.
   st_func_t* lambda;        // "Conduction" operator (symmetric tensor). 
@@ -95,14 +92,7 @@ static void poisson_read_input(void* context, interpreter_t* interp, options_t* 
   poisson_t* p = context;
   p->mesh = interpreter_get_mesh(interp, "mesh");
   if (p->mesh == NULL)
-  {
-    int N;
-    point_t* points = interpreter_get_pointlist(interp, "points", &N);
-    if (points == NULL)
-      polymec_error("poisson: Neither points nor mesh were specified.");
-    else
-      p->point_cloud = point_cloud_new(MPI_COMM_WORLD, points, N);
-  }
+    polymec_error("poisson: mesh is not specified.");
   p->rhs = interpreter_get_scalar_function(interp, "rhs");
   if (p->rhs == NULL)
     polymec_error("poisson: No valid right hand side (rhs) was specified.");
@@ -116,23 +106,20 @@ static void poisson_read_input(void* context, interpreter_t* interp, options_t* 
   if (p->bcs == NULL)
     polymec_error("poisson: No table of boundary conditions (bcs) was specified.");
 
-  if (p->mesh != NULL)
+  // Check the mesh to make sure it has all the tags mentioned in the 
+  // bcs table.
+  int pos = 0;
+  char* tag;
+  poisson_bc_t* bc;
+  while (string_ptr_unordered_map_next(p->bcs, &pos, &tag, (void**)&bc))
   {
-    // Check the mesh to make sure it has all the tags mentioned in the 
-    // bcs table.
-    int pos = 0;
-    char* tag;
-    poisson_bc_t* bc;
-    while (string_ptr_unordered_map_next(p->bcs, &pos, &tag, (void**)&bc))
-    {
-      // Retrieve the tag for this boundary condition.
-      if (!mesh_has_tag(p->mesh->face_tags, tag))
-        polymec_error("poisson: Face tag '%s' was not found in the mesh.", tag);
-    }
+    // Retrieve the tag for this boundary condition.
+    if (!mesh_has_tag(p->mesh->face_tags, tag))
+      polymec_error("poisson: Face tag '%s' was not found in the mesh.", tag);
   }
 }
 
-static int fv_poisson_residual(void* context, real_t t, real_t* u, real_t* F)
+static int poisson_residual(void* context, real_t t, real_t* u, real_t* F)
 {
   poisson_t* p = context;
 
@@ -324,15 +311,12 @@ static int fv_poisson_residual(void* context, real_t t, real_t* u, real_t* F)
   return 0;
 }
 
-static int fvpm_poisson_residual(void* context, real_t t, real_t* u, real_t* F)
-{
-  polymec_not_implemented("fvpm_poisson_residual");
-  return 0;
-}
-
 // This helper clears all the data structures that are tied to a discrete domain.
 static void poisson_clear(poisson_t* p)
 {
+  if (p->graph != NULL)
+    adj_graph_free(p->graph);
+
   if (p->cell_face_fluxes != NULL)
   {
     free(p->cell_face_fluxes);
@@ -372,11 +356,6 @@ static void poisson_clear(poisson_t* p)
     p->poly_fit = NULL;
   }
 
-  if (p->special_quad_rules != NULL)
-  {
-    int_ptr_unordered_map_free(p->special_quad_rules);
-  }
-
   if (p->solver != NULL)
   {
     nonlinear_integrator_free(p->solver);
@@ -391,62 +370,41 @@ static void poisson_init(void* context, real_t t)
   // Clear temporal data structures.
   poisson_clear(p);
 
-  if (p->mesh != NULL)
-  {
-    int N = p->mesh->num_cells;
+  int N = p->mesh->num_cells;
+  p->graph = graph_from_mesh_cells(p->mesh);
+  p->poly_quad_rule = midpoint_polyhedron_integrator_new();
 
-    // Initialize the solution vector.
-    p->phi = malloc(sizeof(real_t)*N);
-    memset(p->phi, 0, sizeof(real_t)*N);
+  // Initialize the solution vector.
+  p->phi = malloc(sizeof(real_t)*N);
+  memset(p->phi, 0, sizeof(real_t)*N);
 
-    // Gather information about boundary cells.
-    p->boundary_cells = boundary_cell_map_from_mesh_and_bcs(p->mesh, p->bcs);
+  // Gather information about boundary cells.
+  p->boundary_cells = boundary_cell_map_from_mesh_and_bcs(p->mesh, p->bcs);
 
-    // Initialize the nonlinear solver.
-    nonlinear_integrator_vtable vtable = {.eval = fv_poisson_residual};
-    p->solver = bicgstab_nonlinear_integrator_new("Poisson (FV)", p, MPI_COMM_WORLD, N, vtable, LINE_SEARCH, 15);
+  // Initialize the nonlinear solver.
+  nonlinear_integrator_vtable vtable = {.eval = poisson_residual};
+  p->solver = bicgstab_nonlinear_integrator_new("Poisson", p, MPI_COMM_WORLD, N, vtable, LINE_SEARCH, 15);
 
-    // Polynomial fit. Degree 1 for now.
-    int poly_degree = 1;
-    p->poly_fit = polynomial_fit_new(1, poly_degree);
+  // Polynomial fit. Degree 1 for now.
+  int poly_degree = 1;
+  p->poly_fit = polynomial_fit_new(1, poly_degree);
 
-    // For now, Use LU preconditioning with the same residual function.
-    // Use LU preconditioning with the same residual function.
-    preconditioner_t* lu_precond = lu_preconditioner_new(p, fv_poisson_residual, NULL, p->graph);
-    nonlinear_integrator_set_preconditioner(p->solver, lu_precond);
+  // For now, Use LU preconditioning with the same residual function.
+  // Use LU preconditioning with the same residual function.
+  preconditioner_t* lu_precond = lu_preconditioner_new(p, poisson_residual, NULL, p->graph);
+  nonlinear_integrator_set_preconditioner(p->solver, lu_precond);
 
-    // Allocate storage for cell face fluxes.
-    p->cell_face_flux_offsets = malloc(sizeof(int)*(N+1));
-    p->cell_face_flux_offsets[0] = 0;
-    for (int c = 0; c < N; ++c)
-      p->cell_face_flux_offsets[c+1] = p->cell_face_flux_offsets[c] + mesh_cell_num_faces(p->mesh, c);
-    p->cell_face_fluxes = malloc(sizeof(real_t)*p->cell_face_flux_offsets[N]);
-    memset(p->cell_face_fluxes, 0, sizeof(real_t)*p->cell_face_flux_offsets[N]);
+  // Allocate storage for cell face fluxes.
+  p->cell_face_flux_offsets = malloc(sizeof(int)*(N+1));
+  p->cell_face_flux_offsets[0] = 0;
+  for (int c = 0; c < N; ++c)
+    p->cell_face_flux_offsets[c+1] = p->cell_face_flux_offsets[c] + mesh_cell_num_faces(p->mesh, c);
+  p->cell_face_fluxes = malloc(sizeof(real_t)*p->cell_face_flux_offsets[N]);
+  memset(p->cell_face_fluxes, 0, sizeof(real_t)*p->cell_face_flux_offsets[N]);
 
-    // Allocate storage for cell source contributions.
-    p->cell_sources = malloc(sizeof(real_t)*N);
-    memset(p->cell_sources, 0, sizeof(real_t)*N);
-  }
-  else
-  {
-    int N = p->point_cloud->num_points;
-
-    // Initialize the solution vector.
-    p->phi = malloc(sizeof(real_t)*N);
-    memset(p->phi, 0, sizeof(real_t)*N);
-
-    // Gather information about boundary cells.
-    //p->boundary_cells = boundary_cell_map_from_mesh_and_bcs(p->mesh, p->bcs);
-
-    // Initialize the nonlinear solver.
-    nonlinear_integrator_vtable vtable = {.eval = fvpm_poisson_residual, 
-                                          .dtor = NULL};
-    p->solver = bicgstab_nonlinear_integrator_new("Poisson (FVPM)", p, MPI_COMM_WORLD, N, vtable, LINE_SEARCH, 15);
-
-    // For now, Use LU preconditioning with the same residual function.
-    preconditioner_t* lu_precond = lu_preconditioner_new(p, fvpm_poisson_residual, NULL, p->graph);
-    nonlinear_integrator_set_preconditioner(p->solver, lu_precond);
-  }
+  // Allocate storage for cell source contributions.
+  p->cell_sources = malloc(sizeof(real_t)*N);
+  memset(p->cell_sources, 0, sizeof(real_t)*N);
 
   // Now we simply solve the problem for the initial time.
   nonlinear_integrator_solve(p->solver, t, p->phi, &p->num_iterations);
@@ -473,10 +431,7 @@ static void poisson_plot(void* context, const char* prefix, const char* director
     string_ptr_unordered_map_insert_with_v_dtor(cell_fields, "solution", soln, DTOR(free));
     string_ptr_unordered_map_insert_with_v_dtor(cell_fields, "error", error, DTOR(free));
   }
-  if (p->mesh != NULL)
-    write_silo_mesh(MPI_COMM_SELF, prefix, directory, 0, 1, 0, p->mesh, cell_fields, 0.0);
-  else
-    write_silo_points(MPI_COMM_SELF, prefix, directory, 0, 1, 0, p->point_cloud->point_coords, p->point_cloud->num_points, cell_fields, 0.0);
+  write_silo_mesh(MPI_COMM_SELF, prefix, directory, 0, 1, 0, p->mesh, cell_fields, 0.0);
 }
 
 static void poisson_save(void* context, const char* prefix, const char* directory, real_t t, int step)
@@ -486,42 +441,23 @@ static void poisson_save(void* context, const char* prefix, const char* director
 
   string_ptr_unordered_map_t* cell_fields = string_ptr_unordered_map_new();
   string_ptr_unordered_map_insert(cell_fields, "phi", p->phi);
-  if (p->mesh != NULL)
-    write_silo_mesh(MPI_COMM_SELF, prefix, directory, 0, 1, 0, p->mesh, cell_fields, 0.0);
-  else
-    write_silo_points(MPI_COMM_SELF, prefix, directory, 0, 1, 0, p->point_cloud->point_coords, p->point_cloud->num_points, cell_fields, 0.0);
+  write_silo_mesh(MPI_COMM_SELF, prefix, directory, 0, 1, 0, p->mesh, cell_fields, 0.0);
 }
 
 static void poisson_compute_error_norms(void* context, st_func_t* solution, real_t t, real_t* lp_norms)
 {
   poisson_t* p = context;
   real_t Linf = 0.0, L1 = 0.0, L2 = 0.0;
-  if (p->mesh != NULL)
+  for (int c = 0; c < p->mesh->num_cells; ++c)
   {
-    for (int c = 0; c < p->mesh->num_cells; ++c)
-    {
-      real_t phi_sol;
-      st_func_eval(solution, &p->mesh->cell_centers[c], t, &phi_sol);
-      real_t V = p->mesh->cell_volumes[c];
-      real_t err = fabs(p->phi[c] - phi_sol);
-      //printf("i = %d, phi = %g, phi_s = %g, err = %g\n", c, a->phi[c], phi_sol, err);
-      Linf = (Linf < err) ? err : Linf;
-      L1 += err*V;
-      L2 += err*err*V*V;
-    }
-  }
-  else
-  {
-    for (int i = 0; i < p->point_cloud->num_points; ++i)
-    {
-      real_t phi_sol;
-      st_func_eval(solution, &p->point_cloud->point_coords[i], t, &phi_sol);
-      real_t V = 1.0; // FIXME: What's the volume factor?
-      real_t err = fabs(p->phi[i] - phi_sol);
-      Linf = (Linf < err) ? err : Linf;
-      L1 += err*V;
-      L2 += err*err*V*V;
-    }
+    real_t phi_sol;
+    st_func_eval(solution, &p->mesh->cell_centers[c], t, &phi_sol);
+    real_t V = p->mesh->cell_volumes[c];
+    real_t err = fabs(p->phi[c] - phi_sol);
+    //printf("i = %d, phi = %g, phi_s = %g, err = %g\n", c, a->phi[c], phi_sol, err);
+    Linf = (Linf < err) ? err : Linf;
+    L1 += err*V;
+    L2 += err*err*V*V;
   }
 
   L2 = rsqrt(L2);
@@ -542,10 +478,10 @@ static void poisson_dtor(void* context)
 
   if (p->mesh != NULL)
     mesh_free(p->mesh);
-  else if (p->point_cloud != NULL)
-    point_cloud_free(p->point_cloud);
   if (p->poly_fit != NULL)
     polynomial_fit_free(p->poly_fit);
+
+  int_ptr_unordered_map_free(p->special_quad_rules);
 
   if (p->phi != NULL)
     free(p->phi);
@@ -570,13 +506,21 @@ model_t* poisson_model_new(options_t* options)
                           .dtor = poisson_dtor};
   poisson_t* p = malloc(sizeof(poisson_t));
   p->mesh = NULL;
+  p->graph = NULL;
   p->rhs = NULL;
+  p->lambda = NULL;
   p->phi = NULL;
-  p->solver = NULL;
-  p->bcs = string_ptr_unordered_map_new();
   p->solution = NULL;
-
+  p->bcs = string_ptr_unordered_map_new();
   p->boundary_cells = boundary_cell_map_new();
+  p->cell_face_fluxes = NULL;
+  p->cell_face_flux_offsets = NULL;
+  p->cell_sources = NULL;
+  p->poly_fit = NULL;
+  p->poly_quad_rule = NULL;
+  p->special_quad_rules = int_ptr_unordered_map_new();
+  p->solver = NULL;
+
   model_t* model = model_new("poisson", p, vtable, options);
 
   // Set up an interpreter.
@@ -597,42 +541,22 @@ model_t* poisson_model_new(options_t* options)
   return model;
 }
 
-model_t* create_fv_poisson(mesh_t* mesh,
-                           st_func_t* lambda,
-                           st_func_t* rhs,
-                           string_ptr_unordered_map_t* bcs, 
-                           st_func_t* solution,
-                           options_t* options)
+model_t* create_poisson(mesh_t* mesh,
+                        st_func_t* lambda,
+                        st_func_t* rhs,
+                        string_ptr_unordered_map_t* bcs, 
+                        st_func_t* solution,
+                        options_t* options)
 {
   model_t* model = poisson_model_new(options);
-  poisson_t* pm = model_context(model);
-  pm->mesh = mesh;
-  pm->lambda = lambda;
-  pm->rhs = rhs;
-  if (pm->bcs != NULL)
-    string_ptr_unordered_map_free(pm->bcs);
-  pm->bcs = bcs;
-  pm->solution = solution;
-
-  return model;
-}
-
-model_t* create_fvpm_poisson(point_cloud_t* point_cloud,
-                             st_func_t* lambda,
-                             st_func_t* rhs,
-                             string_ptr_unordered_map_t* bcs, 
-                             st_func_t* solution,
-                             options_t* options)
-{
-  model_t* model = poisson_model_new(options);
-  poisson_t* pm = model_context(model);
-  pm->point_cloud = point_cloud;
-  pm->lambda = lambda;
-  pm->rhs = rhs;
-  if (pm->bcs != NULL)
-    string_ptr_unordered_map_free(pm->bcs);
-  pm->bcs = bcs;
-  pm->solution = solution;
+  poisson_t* p = model_context(model);
+  p->mesh = mesh;
+  p->lambda = lambda;
+  p->rhs = rhs;
+  if (p->bcs != NULL)
+    string_ptr_unordered_map_free(p->bcs);
+  p->bcs = bcs;
+  p->solution = solution;
 
   return model;
 }
