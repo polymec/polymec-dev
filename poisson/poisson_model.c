@@ -127,7 +127,7 @@ static int poisson_residual(void* context, real_t t, real_t* u, real_t* F)
   static const int max_num_faces_per_cell = 30;
   static const int max_num_nodes_per_face = 30;
   point_t face_nodes[max_num_faces_per_cell * max_num_nodes_per_face];
-  int face_node_offsets[max_num_faces_per_cell];
+  int face_node_offsets[max_num_faces_per_cell+1];
 
   // Loop over all the cells and compute the fluxes for each one.
   for (int cell = 0; cell < p->mesh->num_cells; ++cell)
@@ -149,7 +149,7 @@ static int poisson_residual(void* context, real_t t, real_t* u, real_t* F)
       while (mesh_cell_next_face(p->mesh, cell, &fpos, &face))
       {
         int npos = 0, node;
-        face_node_offsets[face] = fn_offset;
+        face_node_offsets[fpos-1] = fn_offset;
         while (mesh_face_next_node(p->mesh, face, &npos, &node))
         {
           face_nodes[fn_offset] = p->mesh->nodes[node];
@@ -178,6 +178,7 @@ static int poisson_residual(void* context, real_t t, real_t* u, real_t* F)
       boundary_cell_t* bcell = NULL;
       while (mesh_cell_next_face(p->mesh, cell, &pos, &face))
       {
+        int local_face_index = pos - 1;
         int neighbor = mesh_face_opp_cell(p->mesh, face, cell);
         if (neighbor != -1)
         {
@@ -191,7 +192,7 @@ static int poisson_residual(void* context, real_t t, real_t* u, real_t* F)
           // Get boundary condition information.
           if (bcell == NULL)
             bcell = *boundary_cell_map_get(p->boundary_cells, cell);
-          poisson_bc_t* bc = bcell->bc_for_face[pos];
+          poisson_bc_t* bc = bcell->bc_for_face[local_face_index];
 
           // Boundary quadrature contributions.
           int pos1 = 0;
@@ -199,7 +200,7 @@ static int poisson_residual(void* context, real_t t, real_t* u, real_t* F)
           vector_t nb;
           real_t wb;
           while (polyhedron_integrator_next_surface_point(quad_rule,
-                                                          pos, // local face index
+                                                          local_face_index,
                                                           &pos1, 
                                                           &xb, &nb, &wb))
           {
