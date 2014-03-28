@@ -50,7 +50,7 @@ struct mesh_storage_t
 };
 
 // Initializes a new storage mechanism for a mesh with the given ARENA.
-static mesh_storage_t* mesh_storage_new_with_arena(ARENA* arena)
+static mesh_storage_t* mesh_storage_new(ARENA* arena)
 {
   mesh_storage_t* storage = ARENA_MALLOC(arena, sizeof(mesh_storage_t), 0);
   storage->arena = arena;
@@ -59,15 +59,6 @@ static mesh_storage_t* mesh_storage_new_with_arena(ARENA* arena)
   storage->face_node_capacity = 0;
   storage->close_arena = false;
   return storage;
-}
-
-// Initializes a new storage mechanism for a mesh.
-static mesh_storage_t* mesh_storage_new()
-{
-  ARENA* a = arena_open(&arena_defaults, ARENA_STDLIB);
-  mesh_storage_t* s = mesh_storage_new_with_arena(a);
-  s->close_arena = true;
-  return s;
 }
 
 // Frees the given storage mechanism.
@@ -149,7 +140,7 @@ mesh_t* mesh_new_with_arena(ARENA* arena, MPI_Comm comm, int num_cells,
   mesh->face_normals = ARENA_MALLOC(mesh->arena, sizeof(vector_t)*num_faces, 0);
 
   // Storage information.
-  mesh->storage = mesh_storage_new_with_arena(arena);
+  mesh->storage = mesh_storage_new(arena);
   mesh->storage->cell_face_capacity = cell_face_cap;
   mesh->storage->face_node_capacity = face_node_cap;
   mesh->storage->face_edge_capacity = face_edge_cap;
