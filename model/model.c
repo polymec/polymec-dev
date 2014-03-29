@@ -466,9 +466,12 @@ static void model_do_periodic_work(model_t* model)
 
   // Now record any observations we need to, given that the time step makes 
   // allowances for observations.
-  int obs_time_index = real_lower_bound(model->obs_times, model->num_obs_times, model->time);
-  if (fabs(model->time - model->obs_times[obs_time_index]) < 1e-12) // FIXME: Good enough?
-    model_record_observations(model);
+  if (model->num_obs_times > 0)
+  {
+    int obs_time_index = real_lower_bound(model->obs_times, model->num_obs_times, model->time);
+    if (fabs(model->time - model->obs_times[obs_time_index]) < 1e-12) // FIXME: Good enough?
+      model_record_observations(model);
+  }
 }
 
 // Initialize the model at the given time.

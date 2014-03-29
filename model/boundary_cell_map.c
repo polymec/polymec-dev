@@ -33,9 +33,10 @@ static boundary_cell_t* create_boundary_cell(mesh_t* mesh, int cell)
   bcell->boundary_faces = malloc(sizeof(int)*num_cell_faces);
   bcell->bc_for_face = malloc(sizeof(void*)*num_cell_faces);
   bcell->opp_faces = malloc(sizeof(int)*num_cell_faces);
-  for (int f = 0; f < num_cell_faces; ++f)
+  int pos = 0, face;
+  while (mesh_cell_next_face(mesh, cell, &pos, &face))
   {
-    int face = mesh->cell_faces[mesh->cell_face_offsets[cell]+f];
+    int f = pos - 1;
     bcell->neighbor_cells[f] = mesh_face_opp_cell(mesh, face, cell);
     bcell->boundary_faces[f] = (bcell->neighbor_cells[f] == -1) ? face : -1;
     bcell->bc_for_face[f] = NULL;
