@@ -38,7 +38,7 @@ void test_construct(void** state)
   bbox_t bounding_box = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
   point_t points[N];
   for (int i = 0; i < N; ++i)
-    point_randomize(rand, &bounding_box, &points[i]);
+    point_randomize(&points[i], rand, &bounding_box);
   kd_tree_t* tree = kd_tree_new(points, N);
 
   assert_int_equal(100, kd_tree_size(tree));
@@ -53,7 +53,7 @@ void test_find_nearest(void** state)
   bbox_t bounding_box = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
   point_t points[N];
   for (int i = 0; i < N; ++i)
-    point_randomize(rand, &bounding_box, &points[i]);
+    point_randomize(&points[i], rand, &bounding_box);
   kd_tree_t* tree = kd_tree_new(points, N);
 
   // Now do some nearest point queries and check the answers.
@@ -61,7 +61,7 @@ void test_find_nearest(void** state)
   {
     // Pick a random point p.
     point_t p;
-    point_randomize(rand, &bounding_box, &p);
+    point_randomize(&p, rand, &bounding_box);
 
     // Which point in the set is p closest to?
     int j = kd_tree_nearest(tree, &p); // Point set says: "j."

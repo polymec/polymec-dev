@@ -56,7 +56,7 @@ void test_fit_consistency(void** state, polynomial_fit_t* fit, int component,
   for (int i = 0; i < num_points; ++i)
   {
     point_t xrand;
-    point_randomize(rand, bbox, &xrand);
+    point_randomize(&xrand, rand, bbox);
 
     // Polynomial values.
     real_t q = polynomial_value(p, &xrand);
@@ -113,7 +113,7 @@ void test_polynomial_fit(void** state, polynomial_t** polynomials,
     test_fit_consistency(state, fit, c, polynomials[c], 7, &bbox);
 
   // Fit centered at a random point.
-  point_randomize(rand, &bbox, &x0);
+  point_randomize(&x0, rand, &bbox);
   for (int c = 0; c < num_components; ++c)
     *polynomial_x0(polynomials[c]) = x0;
   polynomial_fit_reset(fit, &x0);
