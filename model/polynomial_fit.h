@@ -84,4 +84,7 @@ void polynomial_fit_eval_deriv(polynomial_fit_t* fit,
                                point_t* x, 
                                real_t* deriv);
 
+// Writes a text representation of the polynomial fit to the given stream.
+void polynomial_fit_fprintf(polynomial_fit_t* fit, FILE* stream);
+
 #endif

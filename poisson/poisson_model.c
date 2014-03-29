@@ -84,6 +84,10 @@ static real_t poisson_advance(void* context, real_t max_dt, real_t t)
 {
   poisson_t* p = context;
   nonlinear_integrator_solve(p->solver, t+max_dt, p->phi, &p->num_iterations);
+printf("phi = [");
+for (int i = 0; i < p->mesh->num_cells; ++i)
+  printf("%g ", p->phi[i]);
+printf("]\n");
   return max_dt;
 }
 
@@ -212,14 +216,15 @@ static int poisson_residual(void* context, real_t t, real_t* u, real_t* F)
           {
             real_t alpha = bc->alpha, beta = bc->beta, gamma;
             st_func_eval(bc->F, &xb, t, &gamma);
+printf("at x = (%g, %g, %g): alpha = %g, beta = %g, gamma = %g\n", xb.x, xb.y, xb.z, alpha, beta, gamma);
             polynomial_fit_add_robin_bc(p->poly_fit, 0, alpha, beta, &nb, gamma, &xb);
-            // FIXME: Where does the quad weight go?
           }
         }
       }
 
       // Solve the least squares system.
       polynomial_fit_compute(p->poly_fit);
+polynomial_fit_fprintf(p->poly_fit, stdout);
     }
 
     // Face fluxes.
@@ -414,7 +419,7 @@ static void poisson_init(void* context, real_t t)
   memset(p->cell_sources, 0, sizeof(real_t)*N);
 
   // Now we simply solve the problem for the initial time.
-  nonlinear_integrator_solve(p->solver, t, p->phi, &p->num_iterations);
+  poisson_advance(p, FLT_MAX, t);
 }
 
 static void poisson_plot(void* context, const char* prefix, const char* directory, real_t t, int step)

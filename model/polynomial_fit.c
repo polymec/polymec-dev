@@ -35,6 +35,7 @@ struct polynomial_fit_t
   ptr_array_t** equations;
   ptr_array_t** points;
   int* num_equations;
+  bool computed;
 };
 
 polynomial_fit_t* polynomial_fit_new(int num_components, int p)
@@ -54,6 +55,7 @@ polynomial_fit_t* polynomial_fit_new(int num_components, int p)
   fit->equations = malloc(sizeof(ptr_array_t*) * num_components);
   fit->points = malloc(sizeof(ptr_array_t*) * num_components);
   fit->num_equations = malloc(sizeof(int) * num_components);
+  fit->computed = false;
   for (int c = 0; c < num_components; ++c)
   {
     point_t O = {.x = 0.0, .y = 0.0, .z = 0.0};
@@ -182,6 +184,7 @@ void polynomial_fit_reset(polynomial_fit_t* fit, point_t* x0)
     // Reset the equation counter to 0.
     fit->num_equations[c] = 0;
   }
+  fit->computed = false;
 }
 
 int polynomial_fit_degree(polynomial_fit_t* fit)
@@ -326,6 +329,7 @@ void polynomial_fit_compute(polynomial_fit_t* fit)
     solve_direct_least_squares(fit);
   else
     solve_coupled_least_squares(fit);
+  fit->computed = true;
 }
 
 void polynomial_fit_eval(polynomial_fit_t* fit, point_t* x, real_t* value)
@@ -343,5 +347,22 @@ void polynomial_fit_eval_deriv(polynomial_fit_t* fit,
 {
   for (int c = 0; c < fit->num_components; ++c)
     deriv[c] = polynomial_deriv_value(fit->poly[c], x_deriv, y_deriv, z_deriv, x);
+}
+
+void polynomial_fit_fprintf(polynomial_fit_t* fit, FILE* stream)
+{
+  fprintf(stream, "Polynomial fit (%d components, degree %d):\n", fit->num_components, fit->p);
+  if (fit->computed)
+  {
+    for (int c = 0; c < fit->num_components; ++c)
+    {
+      fprintf(stream, "  component %d: ", c);
+      polynomial_fprintf(fit->poly[c], stream);
+    }
+  }
+  else
+  {
+    // FIXME: Print info about the least squares system.
+  }
 }
 
