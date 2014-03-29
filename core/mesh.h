@@ -231,8 +231,8 @@ static inline int mesh_cell_num_faces(mesh_t* mesh, int cell)
 
 // Allows iteration over the faces attached to the given cell in the mesh.
 // Set *pos to 0 to reset the iteration. Returns true if faces remain in 
-// the cell, false otherwise. In the present implementation, pos denotes 
-// the local face index in the cell when the function returns true.
+// the cell, false otherwise. NOTE: the local index of the face within the 
+// cell is *pos - 1 after the call.
 static inline bool mesh_cell_next_face(mesh_t* mesh, int cell, int* pos, int* face)
 {
   *face = mesh->cell_faces[mesh->cell_face_offsets[cell] + *pos];
@@ -247,7 +247,8 @@ static inline bool mesh_cell_next_face(mesh_t* mesh, int cell, int* pos, int* fa
 // the mesh, in the same order as that given by mesh_cell_next_face(). If the 
 // next neighbor for a cell is non-existant, *neighbor_cell will be set to -1.
 // Set *pos to 0 to reset the iteration. Returns true if the traversal over 
-// all faces of the cell is not complete, false otherwise.
+// all faces of the cell is not complete, false otherwise. NOTE: the local 
+// index of the face separating the cells is *pos - 1 after the call.
 static inline bool mesh_cell_next_neighbor(mesh_t* mesh, int cell, int* pos, int* neighbor_cell)
 {
   int face;
@@ -285,7 +286,8 @@ static inline int mesh_face_num_nodes(mesh_t* mesh, int face)
 
 // Allows iteration over the nodes attached to the given face in the mesh.
 // Set *pos to 0 to reset the iteration. Returns true if nodes remain in 
-// the face, false otherwise.
+// the face, false otherwise. NOTE: the local index of the node within the 
+// face is *pos - 1 after the call.
 static inline bool mesh_face_next_node(mesh_t* mesh, int face, int* pos, int* node)
 {
   *node = mesh->face_nodes[mesh->face_node_offsets[face] + *pos];
@@ -301,7 +303,8 @@ static inline int mesh_face_num_edges(mesh_t* mesh, int face)
 
 // Allows iteration over the edges attached to the given face in the mesh.
 // Set *pos to 0 to reset the iteration. Returns true if edges remain in 
-// the face, false otherwise.
+// the face, false otherwise. NOTE: the local index of the edge within the 
+// face is *pos - 1 after the call.
 static inline bool mesh_face_next_edge(mesh_t* mesh, int face, int* pos, int* edge)
 {
   *edge = mesh->face_edges[mesh->face_edge_offsets[face] + *pos];

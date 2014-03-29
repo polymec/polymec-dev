@@ -163,6 +163,14 @@ static int poisson_residual(void* context, real_t t, real_t* u, real_t* F)
                                        face_node_offsets, num_faces);
     }
 
+    // Retrieve any boundary information for this cell.
+    boundary_cell_t* bcell = NULL;
+    {
+      boundary_cell_t** bcell_ptr = (boundary_cell_t**)boundary_cell_map_get(p->boundary_cells, cell);
+      if (bcell_ptr != NULL)
+        bcell = *bcell_ptr;
+    }
+
     // Find a least-squares fit for the solution in the vicinity of this cell.
     {
       point_t* x0 = &p->mesh->cell_centers[cell];
@@ -175,7 +183,6 @@ static int poisson_residual(void* context, real_t t, real_t* u, real_t* F)
       }
 
       int pos = 0, face;
-      boundary_cell_t* bcell = NULL;
       while (mesh_cell_next_face(p->mesh, cell, &pos, &face))
       {
         int local_face_index = pos - 1;
@@ -190,8 +197,7 @@ static int poisson_residual(void* context, real_t t, real_t* u, real_t* F)
         else
         {
           // Get boundary condition information.
-          if (bcell == NULL)
-            bcell = *boundary_cell_map_get(p->boundary_cells, cell);
+          ASSERT(bcell != NULL);
           poisson_bc_t* bc = bcell->bc_for_face[local_face_index];
 
           // Boundary quadrature contributions.

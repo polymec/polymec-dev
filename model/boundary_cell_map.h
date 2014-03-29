@@ -33,18 +33,21 @@
 // of a domain.
 typedef struct
 {
-  // Cells neighboring this boundary cell.
-  int num_neighbor_cells;
+  // Cells neighboring this boundary cell. This array is equal in length to /
+  // the number of faces for the cell, and neighbor_cells[i] is equal to 
+  // the index of the neighboring cell, or -1 if no such cell exists. This 
+  // array will be different from the mesh's connectivity data in the case 
+  // of periodic boundary conditions.
   int* neighbor_cells;
 
-  // Boundary faces attached to this cell.
-  int num_boundary_faces;
+  // Boundary faces attached to this cell. boundary_faces[i] contains the 
+  // index of the ith boundary face within the cell, or -1 if the face is 
+  // an interior face.
   int* boundary_faces;
 
   // bc_for_face[i] stores a pointer to the boundary condition for the 
-  // ith boundary face (boundary_faces[i]) of this cell.
-  // NOTE: If the ith boundary face has a periodic boundary condition,
-  // NOTE: boundary_faces[i] will be NULL.
+  // ith face of this cell, or NULL if the ith face is not a boundary face, 
+  // OR if the ith face has a periodic boundary condition.
   void** bc_for_face;
 
   // For faces with periodic boundary conditions, this array has non-negative
