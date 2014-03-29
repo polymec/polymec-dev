@@ -136,6 +136,15 @@ void polynomial_fit_add_scatter_datum(polynomial_fit_t* fit,
   eq[fit->num_components * dim] = u;
 }
 
+// This version of pow() zeros out terms that would have negative powers.
+static real_t poly_pow(real_t x, int y)
+{
+  if (y >= 0)
+    return pow(x, y);
+  else
+    return 0.0;
+}
+
 void polynomial_fit_add_robin_bc(polynomial_fit_t* fit, 
                                  int component, 
                                  real_t alpha, 
@@ -158,9 +167,9 @@ void polynomial_fit_add_robin_bc(polynomial_fit_t* fit,
   while (polynomial_next(fit->poly[component], &pos, &coeff, &x_pow, &y_pow, &z_pow))
   {
     real_t u_term = alpha * pow(X, x_pow) * pow(Y, y_pow) * pow(Z, z_pow);
-    real_t dudx_term = x_pow * pow(X, MAX(0, x_pow-1)) * pow(Y, y_pow) * pow(Z, z_pow);
-    real_t dudy_term = y_pow * pow(X, x_pow) * pow(Y, MAX(0, y_pow-1)) * pow(Z, z_pow);
-    real_t dudz_term = z_pow * pow(X, x_pow) * pow(Y, y_pow) * pow(Z, MAX(0, z_pow-1));
+    real_t dudx_term = x_pow * poly_pow(X, x_pow-1) * pow(Y, y_pow) * pow(Z, z_pow);
+    real_t dudy_term = y_pow * pow(X, x_pow) * poly_pow(Y, y_pow-1) * pow(Z, z_pow);
+    real_t dudz_term = z_pow * pow(X, x_pow) * pow(Y, y_pow) * poly_pow(Z, z_pow-1);
     real_t n_o_grad_u_term = n->x * dudx_term + n->y * dudy_term + n->z * dudz_term;
     eq[i++] = alpha * u_term + beta * n_o_grad_u_term;
   }

@@ -232,13 +232,26 @@ static inline int mesh_cell_num_faces(mesh_t* mesh, int cell)
 // Allows iteration over the faces attached to the given cell in the mesh.
 // Set *pos to 0 to reset the iteration. Returns true if faces remain in 
 // the cell, false otherwise. NOTE: the local index of the face within the 
-// cell is *pos - 1 after the call.
+// cell is *pos - 1 after the call. This method always returns a non-negative 
+// face index.
 static inline bool mesh_cell_next_face(mesh_t* mesh, int cell, int* pos, int* face)
 {
   *face = mesh->cell_faces[mesh->cell_face_offsets[cell] + *pos];
-  // FIXME: We don't currently use the one's complement info -- 
-  // FIXME: we only transform indices back.
   if (*face < 0) *face = ~(*face);
+  ++(*pos);
+  return (*pos <= (mesh->cell_face_offsets[cell+1] - mesh->cell_face_offsets[cell]));
+}
+
+// Allows iteration over the oriented faces attached to the given cell in the 
+// mesh. Set *pos to 0 to reset the iteration. Returns true if faces remain in 
+// the cell, false otherwise. NOTE: the local index of the face within the 
+// cell is *pos - 1 after the call. This method returns a non-negative face index 
+// if the nodes in the face are to be traversed in order, or the (negative)
+// two's complement to the actual face index if its nodes are to be traversed 
+// in reverse order.
+static inline bool mesh_cell_next_oriented_face(mesh_t* mesh, int cell, int* pos, int* face)
+{
+  *face = mesh->cell_faces[mesh->cell_face_offsets[cell] + *pos];
   ++(*pos);
   return (*pos <= (mesh->cell_face_offsets[cell+1] - mesh->cell_face_offsets[cell]));
 }
@@ -273,6 +286,8 @@ static inline int mesh_cell_face_for_neighbor(mesh_t* mesh, int cell, int neighb
   return -1;
 }
 
+// Returns true if cell1 and cell2 are neighbors that share a face, 
+// false otherwise.
 static inline bool mesh_cells_are_neighbors(mesh_t* mesh, int cell1, int cell2)
 {
   return (mesh_cell_face_for_neighbor(mesh, cell1, cell2) != -1);
@@ -287,12 +302,24 @@ static inline int mesh_face_num_nodes(mesh_t* mesh, int face)
 // Allows iteration over the nodes attached to the given face in the mesh.
 // Set *pos to 0 to reset the iteration. Returns true if nodes remain in 
 // the face, false otherwise. NOTE: the local index of the node within the 
-// face is *pos - 1 after the call.
+// face is *pos - 1 after the call. If face is the (negative) two's complement 
+// of the actual face index, the nodes of the face will be traversed in reverse
+// order.
 static inline bool mesh_face_next_node(mesh_t* mesh, int face, int* pos, int* node)
 {
-  *node = mesh->face_nodes[mesh->face_node_offsets[face] + *pos];
+  int actual_face;
+  if (face >= 0)
+  {
+    actual_face = face;
+    *node = mesh->face_nodes[mesh->face_node_offsets[actual_face] + *pos];
+  }
+  else
+  {
+    actual_face = ~face;
+    *node = mesh->face_nodes[mesh->face_node_offsets[actual_face+1] - *pos - 1];
+  }
   ++(*pos);
-  return (*pos <= (mesh->face_node_offsets[face+1] - mesh->face_node_offsets[face]));
+  return (*pos <= (mesh->face_node_offsets[actual_face+1] - mesh->face_node_offsets[actual_face]));
 }
 
 // Returns the number of edges attached to the given face in the mesh.

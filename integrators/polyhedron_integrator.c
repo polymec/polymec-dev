@@ -210,12 +210,11 @@ static bool midpt_next_surface_point(void* context,
                                      real_t* weight)
 {
   midpt_t* midpt = context;
-  if (*pos < midpt->num_faces)
+  if (*pos == 0)
   {
-    int f = *pos;
-    point_copy(point, &midpt->face_centers[f]);
-    vector_copy(normal_vector, &midpt->face_normals[f]);
-    *weight = midpt->face_areas[f];
+    point_copy(point, &midpt->face_centers[face]);
+    vector_copy(normal_vector, &midpt->face_normals[face]);
+    *weight = midpt->face_areas[face];
     ++(*pos);
     return true;
   }
