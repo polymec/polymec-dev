@@ -216,15 +216,16 @@ static int poisson_residual(void* context, real_t t, real_t* u, real_t* F)
           {
             real_t alpha = bc->alpha, beta = bc->beta, gamma;
             st_func_eval(bc->F, &xb, t, &gamma);
-printf("at x = (%g, %g, %g): alpha = %g, beta = %g, gamma = %g\n", xb.x, xb.y, xb.z, alpha, beta, gamma);
+//printf("at x = (%g, %g, %g): alpha = %g, beta = %g, gamma = %g\n", xb.x, xb.y, xb.z, alpha, beta, gamma);
             polynomial_fit_add_robin_bc(p->poly_fit, 0, alpha, beta, &nb, gamma, &xb);
           }
         }
       }
 
       // Solve the least squares system.
+//polynomial_fit_fprintf(p->poly_fit, stdout);
       polynomial_fit_compute(p->poly_fit);
-polynomial_fit_fprintf(p->poly_fit, stdout);
+//polynomial_fit_fprintf(p->poly_fit, stdout);
     }
 
     // Face fluxes.

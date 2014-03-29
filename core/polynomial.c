@@ -467,12 +467,18 @@ void polynomial_fprintf(polynomial_t* p, FILE* stream)
     }
     else if ((x_pow + y_pow + z_pow) == 0)
       fprintf(stream, "1");
-    if (x_pow > 0)
+    if (x_pow > 1)
       fprintf(stream, "x**%d ", x_pow);
-    if (y_pow > 0)
+    else if (x_pow == 1)
+      fprintf(stream, "x ");
+    if (y_pow > 1)
       fprintf(stream, "y**%d ", y_pow);
-    if (z_pow > 0)
+    else if (y_pow == 1)
+      fprintf(stream, "y ");
+    if (z_pow > 1)
       fprintf(stream, "z**%d ", z_pow);
+    else if (z_pow == 1)
+      fprintf(stream, "z ");
   }
   fprintf(stream, "\n");
 }

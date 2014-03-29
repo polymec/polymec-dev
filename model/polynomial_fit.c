@@ -158,9 +158,9 @@ void polynomial_fit_add_robin_bc(polynomial_fit_t* fit,
   while (polynomial_next(fit->poly[component], &pos, &coeff, &x_pow, &y_pow, &z_pow))
   {
     real_t u_term = alpha * pow(X, x_pow) * pow(Y, y_pow) * pow(Z, z_pow);
-    real_t dudx_term = x_pow * pow(X, x_pow-1) * pow(Y, y_pow) * pow(Z, z_pow);
-    real_t dudy_term = y_pow * pow(X, x_pow) * pow(Y, y_pow-1) * pow(Z, z_pow);
-    real_t dudz_term = z_pow * pow(X, x_pow) * pow(Y, y_pow) * pow(Z, z_pow-1);
+    real_t dudx_term = x_pow * pow(X, MAX(0, x_pow-1)) * pow(Y, y_pow) * pow(Z, z_pow);
+    real_t dudy_term = y_pow * pow(X, x_pow) * pow(Y, MAX(0, y_pow-1)) * pow(Z, z_pow);
+    real_t dudz_term = z_pow * pow(X, x_pow) * pow(Y, y_pow) * pow(Z, MAX(0, z_pow-1));
     real_t n_o_grad_u_term = n->x * dudx_term + n->y * dudy_term + n->z * dudz_term;
     eq[i++] = alpha * u_term + beta * n_o_grad_u_term;
   }
@@ -224,8 +224,6 @@ static void solve_direct_least_squares(polynomial_fit_t* fit)
       A[num_rows*c+r] = eq[c];
     X[r] = eq[num_cols];
   }
-//matrix_fprintf(A, num_rows, num_cols, stdout);
-//vector_fprintf(X, num_rows, stdout);
   int one = 1, rank, info;
   int lwork = MAX(num_rows*num_cols+3*num_rows+1, 2*num_rows*num_cols+1); // unblocked strategy
   real_t rcond = 0.01, work[lwork];
@@ -235,7 +233,6 @@ static void solve_direct_least_squares(polynomial_fit_t* fit)
 //  rgelss(&N, &dim, &one, A, &N, X, &N, S, &rcond, &rank, work, &lwork, &info);
   if (info != 0)
     polymec_error("polynomial_fit: failed to solve least-squares system.");
-//vector_fprintf(X, num_cols, stdout);
 
   // Copy the coefficients into place.
   for (int c = 0; c < num_components; ++c)
@@ -351,7 +348,10 @@ void polynomial_fit_eval_deriv(polynomial_fit_t* fit,
 
 void polynomial_fit_fprintf(polynomial_fit_t* fit, FILE* stream)
 {
-  fprintf(stream, "Polynomial fit (%d components, degree %d):\n", fit->num_components, fit->p);
+  if (fit->num_components == 1)
+    fprintf(stream, "Polynomial fit (%d component, degree %d):\n", fit->num_components, fit->p);
+  else
+    fprintf(stream, "Polynomial fit (%d components, degree %d):\n", fit->num_components, fit->p);
   if (fit->computed)
   {
     for (int c = 0; c < fit->num_components; ++c)
@@ -362,7 +362,24 @@ void polynomial_fit_fprintf(polynomial_fit_t* fit, FILE* stream)
   }
   else
   {
-    // FIXME: Print info about the least squares system.
+    int num_rows = fit->equations[0]->size * fit->num_components;
+    int dim = polynomial_basis_dim(fit->p);
+    int num_cols = dim * fit->num_components;
+
+    real_t A[num_rows*num_cols], X[num_rows];
+    int j = 0;
+    for (int r = 0; r < num_rows; ++r)
+    {
+      real_t* eq = fit->equations[r%fit->num_components]->data[r/fit->num_components];
+      for (int c = 0; c < num_cols; ++c, ++j)
+        A[num_rows*c+r] = eq[c];
+      X[r] = eq[num_cols];
+    }
+    fprintf(stream, "A = ");
+    matrix_fprintf(A, num_rows, num_cols, stdout);
+    fprintf(stream, "\nB = ");
+    vector_fprintf(X, num_rows, stdout);
+    fprintf(stream, "\n");
   }
 }
 
