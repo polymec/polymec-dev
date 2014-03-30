@@ -127,12 +127,6 @@ static int poisson_residual(void* context, real_t t, real_t* u, real_t* F)
 {
   poisson_t* p = context;
 
-  // Set up arrays for storing the nodes of faces attached to cells.
-  static const int max_num_faces_per_cell = 30;
-  static const int max_num_nodes_per_face = 30;
-  point_t face_nodes[max_num_faces_per_cell * max_num_nodes_per_face];
-  int face_node_offsets[max_num_faces_per_cell+1];
-
   // Loop over all the cells and compute the fluxes for each one.
   for (int cell = 0; cell < p->mesh->num_cells; ++cell)
   {
@@ -149,25 +143,7 @@ static int poisson_residual(void* context, real_t t, real_t* u, real_t* F)
       quad_rule = *special_rule;
     }
     else
-    {
-      // Set the integration domain for this polyhedral cell.
-      int fpos = 0, face, num_faces = 0, fn_offset = 0;
-      while (mesh_cell_next_oriented_face(p->mesh, cell, &fpos, &face))
-      {
-        int npos = 0, node;
-        face_node_offsets[fpos-1] = fn_offset;
-        while (mesh_face_next_node(p->mesh, face, &npos, &node))
-        {
-          face_nodes[fn_offset] = p->mesh->nodes[node];
-          ++fn_offset;
-        }
-        ++num_faces;
-      }
-      face_node_offsets[num_faces] = fn_offset;
-
-      polyhedron_integrator_set_domain(quad_rule, face_nodes, 
-                                       face_node_offsets, num_faces);
-    }
+      polyhedron_integrator_set_domain(quad_rule, p->mesh, cell);
 
     // Retrieve any boundary information for this cell.
     boundary_cell_t* bcell = NULL;

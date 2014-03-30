@@ -28,6 +28,7 @@
 #include <string.h>
 #include "cmockery.h"
 #include "core/polymec.h"
+#include "geometry/create_uniform_mesh.h"
 #include "integrators/polyhedron_integrator.h"
 
 void test_ctor(void** state)
@@ -67,55 +68,14 @@ static void g2(point_t* x, vector_t* v)
   v->z = 0.0;
 }
 
-static void set_cubic_domain(polyhedron_integrator_t* I, real_t s)
-{
-  // We define a cube as the volume bounded by 6 faces, each defined 
-  // by nodes traversed in counterclockwise order.
-  point_t nodes[24] = {// -x
-                       {.x = 0.0, .y = 0.0, .z = 0.0},
-                       {.x = 0.0, .y = 0.0, .z = s  },
-                       {.x = 0.0, .y = s,   .z = s  },
-                       {.x = 0.0, .y = s,   .z = 0.0},
-
-                       // +x
-                       {.x = s,   .y = s,   .z = 0.0},
-                       {.x = s,   .y = s,   .z = s  },
-                       {.x = s,   .y = 0.0, .z = s  },
-                       {.x = s,   .y = 0.0, .z = 0.0},
-
-                       // -y
-                       {.x = 0.0, .y = 0.0, .z = 0.0},
-                       {.x = s,   .y = 0.0, .z = 0.0},
-                       {.x = s,   .y = 0.0, .z = s  },
-                       {.x = 0.0, .y = 0.0, .z = s  },
-
-                       // +y
-                       {.x = s,   .y = s,   .z = 0.0},
-                       {.x = 0.0, .y = s,   .z = 0.0},
-                       {.x = 0.0, .y = s,   .z = s  },
-                       {.x = s,   .y = s,   .z = s  },
-
-                       // -z
-                       {.x = 0.0, .y = 0.0, .z = 0.0},
-                       {.x = 0.0, .y = s,   .z = 0.0},
-                       {.x = s,   .y = s,   .z = 0.0},
-                       {.x = s,   .y = 0.0, .z = 0.0},
-                       
-                       // +z
-                       {.x = 0.0, .y = s,   .z = s},
-                       {.x = 0.0, .y = 0.0, .z = s},
-                       {.x = s,   .y = 0.0, .z = s},
-                       {.x = s,   .y = s,   .z = s}};
-                       
-  int node_offsets[7] = {0, 4, 8, 12, 16, 20, 24};
-  polyhedron_integrator_set_domain(I, nodes, node_offsets, 6);
-}
-
 static real_t cube_volume_integral(polyhedron_integrator_t* I, 
                                    real_t s, 
                                    scalar_integrand_func f)
 {
-  set_cubic_domain(I, s);
+  bbox_t bbox = {.x1 = 0.0, .x2 = s, .y1 = 0.0, .y2 = s, .z1 = 0.0, .z2 = s};
+  mesh_t* mesh = create_uniform_mesh(MPI_COMM_SELF, 1, 1, 1, &bbox);
+  polyhedron_integrator_set_domain(I, mesh, 0);
+  mesh_free(mesh);
 
   real_t integral = 0.0;
   int pos = 0;
@@ -130,20 +90,24 @@ static real_t cube_surface_integral(polyhedron_integrator_t* I,
                                     real_t s, 
                                     vector_integrand_func f)
 {
-  set_cubic_domain(I, s);
+  bbox_t bbox = {.x1 = 0.0, .x2 = s, .y1 = 0.0, .y2 = s, .z1 = 0.0, .z2 = s};
+  mesh_t* mesh = create_uniform_mesh(MPI_COMM_SELF, 1, 1, 1, &bbox);
+  polyhedron_integrator_set_domain(I, mesh, 0);
+  mesh_free(mesh);
 
   real_t integral = 0.0;
-  int pos = 0;
+  int pos;
   point_t xq;
   vector_t nq;
   real_t wq;
   for (int face = 0; face < 6; ++face)
   {
+    pos = 0;
     while (polyhedron_integrator_next_surface_point(I, face, &pos, &xq, &nq, &wq))
     {
       vector_t v;
       f(&xq, &v);
-      integral += vector_dot(&v, &nq);
+      integral += wq * vector_dot(&v, &nq);
     }
   }
   return integral;
@@ -155,11 +119,11 @@ void test_cube_volume_integrals(void** state)
   real_t I1_1 = cube_volume_integral(I, 1.0, f1);
   assert_true(fabs(I1_1 - 0.5) < 1e-14);
   real_t I1_2 = cube_volume_integral(I, 0.5, f1);
-  assert_true(fabs(I1_2 - 0.125) < 1e-14);
+  assert_true(fabs(I1_2 - 0.03125) < 1e-14);
   real_t I2_1 = cube_volume_integral(I, 1.0, f2);
   assert_true(fabs(I2_1 - 0.75) < 1e-14);
   real_t I2_2 = cube_volume_integral(I, 0.5, f2);
-  assert_true(fabs(I2_2 - 0.15625) < 1e-14);
+  assert_true(fabs(I2_2 - 0.0390625) < 1e-14);
   polyhedron_integrator_free(I);
 }
 
@@ -169,11 +133,11 @@ void test_cube_surface_integrals(void** state)
   real_t I1_1 = cube_surface_integral(I, 1.0, g1);
   assert_true(fabs(I1_1 - 1.0) < 1e-14);
   real_t I1_2 = cube_surface_integral(I, 0.5, g1);
-  assert_true(fabs(I1_2 - 0.5) < 1e-14);
+  assert_true(fabs(I1_2 - 0.125) < 1e-14);
   real_t I2_1 = cube_surface_integral(I, 1.0, g2);
   assert_true(fabs(I2_1 - 2.0) < 1e-14);
   real_t I2_2 = cube_surface_integral(I, 0.5, g2);
-  assert_true(fabs(I2_2 - 0.75) < 1e-14);
+  assert_true(fabs(I2_2 - 0.1875) < 1e-14);
   polyhedron_integrator_free(I);
 }
 

@@ -381,50 +381,54 @@ void mesh_compute_geometry(mesh_t* mesh)
 
     // Compute cell centers and face centers for the cell, 
     // knowing that it's convex.
-    mesh->cell_centers[cell].x = mesh->cell_centers[cell].y = mesh->cell_centers[cell].z = 0.0;
+    point_t xc = {.x = 0.0, .y = 0.0, .z = 0.0};
     int num_cell_nodes = 0, num_cell_faces = 0;
     int pos = 0, face;
-    while (mesh_cell_next_face(mesh, cell, &pos, &face))
+    while (mesh_cell_next_oriented_face(mesh, cell, &pos, &face))
     {
-      ASSERT(face < mesh->num_faces);
-      // NOTE: Only the primal cell of a face computes its center.
-      if (cell == mesh->face_cells[2*face])
-        mesh->face_centers[face].x = mesh->face_centers[face].y = mesh->face_centers[face].z = 0.0;
+      int actual_face = (face >= 0) ? face : ~face;
+      ASSERT(actual_face < mesh->num_faces);
+      point_t xf = {.x = 0.0, .y = 0.0, .z = 0.0};
       int npos = 0, node;
-      while (mesh_face_next_node(mesh, face, &npos, &node))
+      while (mesh_face_next_node(mesh, actual_face, &npos, &node))
       {
         ASSERT(node >= 0);
         ASSERT(node < mesh->num_nodes);
-        mesh->cell_centers[cell].x += mesh->nodes[node].x;
-        mesh->cell_centers[cell].y += mesh->nodes[node].y;
-        mesh->cell_centers[cell].z += mesh->nodes[node].z;
-        if (cell == mesh->face_cells[2*face])
+        point_t* xn = &mesh->nodes[node];
+        xc.x += xn->x;
+        xc.y += xn->y;
+        xc.z += xn->z;
+        // NOTE: Only the primal cell of a face computes its center.
+        if (cell == mesh->face_cells[2*actual_face])
         {
-          mesh->face_centers[face].x += mesh->nodes[node].x;
-          mesh->face_centers[face].y += mesh->nodes[node].y;
-          mesh->face_centers[face].z += mesh->nodes[node].z;
+          xf.x += xn->x;
+          xf.y += xn->y;
+          xf.z += xn->z;
         }
       }
-      if (cell == mesh->face_cells[2*face])
+      if (cell == mesh->face_cells[2*actual_face])
       {
-        int nn = mesh_face_num_nodes(mesh, face);
-        mesh->face_centers[face].x /= nn;
-        mesh->face_centers[face].y /= nn;
-        mesh->face_centers[face].z /= nn;
+        int nn = mesh_face_num_nodes(mesh, actual_face);
+        xf.x /= nn;
+        xf.y /= nn;
+        xf.z /= nn;
+        mesh->face_centers[actual_face] = xf;
       }
-      num_cell_nodes += mesh_face_num_nodes(mesh, face);
+      num_cell_nodes += mesh_face_num_nodes(mesh, actual_face);
       ++num_cell_faces;
     }
-    mesh->cell_centers[cell].x /= num_cell_nodes;
-    mesh->cell_centers[cell].y /= num_cell_nodes;
-    mesh->cell_centers[cell].z /= num_cell_nodes;
+    xc.x /= num_cell_nodes;
+    xc.y /= num_cell_nodes;
+    xc.z /= num_cell_nodes;
+    mesh->cell_centers[cell] = xc;
 
     // Use the preceding geometry to compute face areas and the 
     // cell's volume.
     mesh->cell_volumes[cell] = 0.0;
     pos = 0;
-    while (mesh_cell_next_face(mesh, cell, &pos, &face))
+    while (mesh_cell_next_oriented_face(mesh, cell, &pos, &face))
     {
+      int actual_face = (face >= 0) ? face : ~face;
       real_t face_area = 0.0;
       vector_t face_normal = {0.0, 0.0, 0.0};
       int epos = 0, edge;
@@ -436,11 +440,12 @@ void mesh_compute_geometry(mesh_t* mesh)
         // the face center, and the two nodes of this edge. The volume 
         // of this tetrahedron contributes to the cell volume.
         vector_t v1, v2, v3, v2xv3;
-        point_displacement(&mesh->face_centers[face], &mesh->cell_centers[cell], &v1);
+        point_t* xf = &mesh->face_centers[actual_face];
+        point_displacement(xf, &mesh->cell_centers[cell], &v1);
         point_t xn1 = mesh->nodes[mesh->edge_nodes[2*edge]];
         point_t xn2 = mesh->nodes[mesh->edge_nodes[2*edge+1]];
-        point_displacement(&mesh->face_centers[face], &xn1, &v2);
-        point_displacement(&mesh->face_centers[face], &xn2, &v3);
+        point_displacement(xf, &xn1, &v2);
+        point_displacement(xf, &xn2, &v3);
         vector_cross(&v2, &v3, &v2xv3);
         real_t tet_volume = fabs(vector_dot(&v1, &v2xv3))/6.0;
         mesh->cell_volumes[cell] += tet_volume;
@@ -452,12 +457,31 @@ void mesh_compute_geometry(mesh_t* mesh)
         face_area += tri_area;
         face_normal = v2xv3;
       }
-      // Only the primal cell of a face computes its area/normal.
-      if (cell == mesh->face_cells[2*face])
+
+      // The cell that stores the face gets 
+      // to take responsibility for the face normals/areas.
+      if (cell == mesh->face_cells[2*actual_face])
       {
+        mesh->face_areas[actual_face] = face_area;
         vector_normalize(&face_normal);
-        mesh->face_normals[face] = face_normal;
-        mesh->face_areas[face] = face_area;
+
+        // Flip the normal vector if we need to.
+        // FIXME: We should revisit the above code so this isn't needed.
+        vector_t outward;
+        point_t* xf = &mesh->face_centers[actual_face];
+        point_displacement(&mesh->cell_centers[cell], xf, &outward);
+        real_t n_o_cf = vector_dot(&face_normal, &outward);
+        if (n_o_cf < 0.0) 
+        {
+          if (face == actual_face)
+            vector_scale(&face_normal, -1.0);
+        }
+        else if (n_o_cf > 0.0)
+        {
+          if (face != actual_face)
+            vector_scale(&face_normal, -1.0);
+        }
+        mesh->face_normals[actual_face] = face_normal;
       }
     }
   }
@@ -470,13 +494,14 @@ void mesh_construct_edges(mesh_t* mesh)
 
   // Construct edge information.
   int_table_t* edge_for_nodes = int_table_new();
+  memcpy(mesh->face_edge_offsets, mesh->face_node_offsets, sizeof(int) * (mesh->num_faces + 1));
   {
     int num_edges = 0;
     for (int f = 0; f < mesh->num_faces; ++f)
     {
-      int offset = 4*f;
-      mesh->face_edge_offsets[f] = offset;
-      for (int n = 0; n < 4; ++n)
+      int offset = mesh->face_edge_offsets[f];
+      int num_face_edges = mesh->face_edge_offsets[f+1] - offset;
+      for (int n = 0; n < num_face_edges; ++n)
       {
         // Make room.
         if (mesh->storage->face_edge_capacity <= offset+n)
@@ -487,7 +512,7 @@ void mesh_construct_edges(mesh_t* mesh)
         }
 
         int n1 = (int)mesh->face_nodes[offset+n];
-        int n2 = (int)mesh->face_nodes[offset+(n+1)%4];
+        int n2 = (int)mesh->face_nodes[offset+(n+1)%num_face_edges];
         if (!int_table_contains(edge_for_nodes, MIN(n1, n2), MAX(n1, n2)))
         {
           int_table_insert(edge_for_nodes, MIN(n1, n2), MAX(n1, n2), num_edges);

@@ -331,12 +331,24 @@ static inline int mesh_face_num_edges(mesh_t* mesh, int face)
 // Allows iteration over the edges attached to the given face in the mesh.
 // Set *pos to 0 to reset the iteration. Returns true if edges remain in 
 // the face, false otherwise. NOTE: the local index of the edge within the 
-// face is *pos - 1 after the call.
+// face is *pos - 1 after the call. If face is the (negative) two's complement 
+// of the actual face index, the edges of the face will be traversed in reverse
+// order.
 static inline bool mesh_face_next_edge(mesh_t* mesh, int face, int* pos, int* edge)
 {
-  *edge = mesh->face_edges[mesh->face_edge_offsets[face] + *pos];
+  int actual_face;
+  if (face >= 0)
+  {
+    actual_face = face;
+    *edge = mesh->face_edges[mesh->face_edge_offsets[actual_face] + *pos];
+  }
+  else
+  {
+    actual_face = ~face;
+    *edge = mesh->face_edges[mesh->face_edge_offsets[actual_face+1] - *pos - 1];
+  }
   ++(*pos);
-  return (*pos <= (mesh->face_edge_offsets[face+1] - mesh->face_edge_offsets[face]));
+  return (*pos <= (mesh->face_edge_offsets[actual_face+1] - mesh->face_edge_offsets[actual_face]));
 }
 
 // Given a face within the mesh and one of its cells, returns the cell on 

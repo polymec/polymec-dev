@@ -26,7 +26,7 @@
 #define POLYMEC_POLYHEDRON_INTEGRATOR_H
 
 #include "core/polymec.h"
-#include "core/point.h"
+#include "core/mesh.h"
 
 // This class represents a quadrature rule for computing surface and 
 // volume integrals on a polyhedron.
@@ -37,7 +37,7 @@ typedef struct polyhedron_integrator_t polyhedron_integrator_t;
 typedef struct
 {
   // Computes points and weights when the nodes of faces are given.
-  void (*set_domain)(void* context, point_t* face_nodes, int* face_node_offsets, int num_faces);
+  void (*set_domain)(void* context, mesh_t* mesh, int cell);
 
   // Returns the next quadrature point/weight in the volume integral.
   bool (*next_volume_point)(void* context, int* pos, point_t* point, real_t* weight);
@@ -51,7 +51,8 @@ typedef struct
 } polyhedron_integrator_vtable;
 
 // Constructs a generic polyhedron integrator that uses the provided 
-// functions to compute quadrature points and weights.
+// functions to compute quadrature points and weights for integrals 
+// over polyhedral cells on a mesh.
 polyhedron_integrator_t* polyhedron_integrator_new(const char* name,
                                                    void* context,
                                                    polyhedron_integrator_vtable vtable);
@@ -80,16 +81,11 @@ polyhedron_integrator_t* sph_1d_polyhedron_integrator_new(int order);
 // Destroys the given polyhedron integrator.
 void polyhedron_integrator_free(polyhedron_integrator_t* integ);
 
-// Sets the polyhedral domain to be integrated in terms of a set of 
-// faces defined by nodes. The points representing the nodes of the 
-// faces are stored in compressed row storage (CRS) format, with the 
-// actual points in face_nodes and the index of the first point in face 
-// i in face_node_offsets_i. The face_node_offsets array is of length 
-// num_faces + 1.
-void polyhedron_integrator_set_domain(polyhedron_integrator_t* integ,
-                                      point_t* face_nodes,
-                                      int* face_node_offsets,
-                                      int num_faces);
+// Sets the polyhedral domain to be integrated in terms of a cell within 
+// the given underlying mesh.
+void polyhedron_integrator_set_domain(polyhedron_integrator_t* integ, 
+                                      mesh_t* mesh, 
+                                      int cell);
 
 // Traverses the quadrature points and weights of the rule for a 
 // volume integral.
@@ -110,9 +106,8 @@ bool polyhedron_integrator_next_surface_point(polyhedron_integrator_t* integ,
                                               vector_t* normal_vector,
                                               real_t* weight);
 
-// Returns the number of surface quadrature points for the given face.
-int polyhedron_integrator_num_surface_points(polyhedron_integrator_t* integ,
-                                             int face);
+// Returns the number of surface quadrature points for the given (cell) face.
+int polyhedron_integrator_num_surface_points(polyhedron_integrator_t* integ, int face);
 
 // Creates a (2nd order) midpoint quadrature rule for surface and volume 
 // integrals over polyhedra.
