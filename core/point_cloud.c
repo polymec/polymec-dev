@@ -197,17 +197,17 @@ void* point_cloud_tag_property(point_cloud_t* cloud, const char* tag, const char
 
 void point_cloud_tag_delete_property(point_cloud_t* cloud, const char* tag, const char* property)
 {
-  return tagger_delete_property(cloud->tags, tag, property);
+  tagger_delete_property(cloud->tags, tag, property);
 }
 
 void point_cloud_rename_tag(point_cloud_t* cloud, const char* old_tag, const char* new_tag)
 {
-  return tagger_rename_tag(cloud->tags, old_tag, new_tag);
+  tagger_rename_tag(cloud->tags, old_tag, new_tag);
 }
 
 void point_cloud_delete_tag(point_cloud_t* cloud, const char* tag)
 {
-  return tagger_delete_tag(cloud->tags, tag);
+  tagger_delete_tag(cloud->tags, tag);
 }
 
 adj_graph_t* graph_from_point_cloud(point_cloud_t* cloud)

@@ -71,7 +71,7 @@
 #define POLYMEC_C_COMPILER "@CMAKE_C_COMPILER@"
 #define POLYMEC_INCLUDE_DIR "@PROJECT_BINARY_DIR@/include"
 
-// The C99 standard no longer defines M_PI(!!!!). 
+// The C standard no longer defines M_PI(!!!!). 
 // So we have to provide it ourselves.
 #ifndef M_PI
 #include <float.h>
@@ -100,14 +100,6 @@
 #endif
 #else
 #define ASSERT(x) 
-#endif
-
-// This macro allows us to explicate that a function argument is not used
-// in a C-friendly way. Some people point out that using this macro with 
-// a "volatile" variable changes the structure of memory barriers. Perhaps 
-// now you understand why polymec isn't intended to be thread-safe.
-#ifndef UNUSED_ARG
-#define UNUSED_ARG(x) (void)(x)
 #endif
 
 // This converts a destructor function for a specific type to a generic

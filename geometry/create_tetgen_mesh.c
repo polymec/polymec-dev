@@ -49,14 +49,6 @@ typedef struct
   int boundary_marker; // 0 for none, positive for actual attribute.
 } tet_face_t;
 
-// This function rounds the given number up to the nearest power of 2.
-static int round_to_pow2(int x)
-{
-  int y = 2;
-  while (y < x) y *= 2;
-  return y;
-}
-
 static point_t* read_nodes(const char* node_file, int* num_nodes)
 {
   *num_nodes = -1;

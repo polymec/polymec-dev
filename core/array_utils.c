@@ -48,7 +48,8 @@ static int lower_bound(void* array, int length, void* element, size_t elem_size,
   while (count > 0)
   {
     step = count/2;
-    if (comp(array + elem_size*(first+step), element) < 0)
+    char* bytes = (char*)array;
+    if (comp((void*)&bytes[elem_size*(first+step)], element) < 0)
     {
       first += (step+1);
       count -= (step+1);

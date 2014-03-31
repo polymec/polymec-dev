@@ -278,11 +278,6 @@ int mesh_factory_cubic_lattice_periodic_bc(lua_State* lua)
 }
 #endif
 
-static void free_string(char* str)
-{
-  free(str);
-}
-
 int mesh_factory_pebi(lua_State* lua)
 {
   // Check the arguments.

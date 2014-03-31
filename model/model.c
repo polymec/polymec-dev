@@ -410,7 +410,7 @@ void model_define_global_observation(model_t* model,
 {
   string_ptr_unordered_map_insert_with_k_dtor(model->global_obs, 
                                               string_dup(name), 
-                                              compute_global_observation, 
+                                              (void*)&compute_global_observation, 
                                               key_dtor);
 }
 
