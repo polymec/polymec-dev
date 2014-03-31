@@ -16,5 +16,3 @@ docs/*.idx
 docs/*.log
 docs/*.pdf
 
-# Tetgen tarball.
-3rdparty/tetgen*.tar.gz
