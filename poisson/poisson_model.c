@@ -53,6 +53,7 @@ typedef struct
   st_func_t* lambda;        // "Conduction" operator (symmetric tensor). 
   real_t* phi;              // Solution array.
   st_func_t* solution;      // Analytic solution (if non-NULL).
+  st_func_t* initial_guess; // Initial guess (if non-NULL).
 
   string_ptr_unordered_map_t* bcs; // Boundary conditions.
   boundary_cell_map_t* boundary_cells; // Boundary cell -> BC mapping
@@ -392,9 +393,16 @@ static void poisson_init(void* context, real_t t)
   p->graph = graph_from_mesh_cells(p->mesh);
   p->poly_quad_rule = midpoint_polyhedron_integrator_new();
 
-  // Initialize the solution vector.
+  // Initialize the solution vector with the initial guess (or zero).
   p->phi = malloc(sizeof(real_t)*N);
-  memset(p->phi, 0, sizeof(real_t)*N);
+  if (p->initial_guess != NULL)
+  {
+    // FIXME: Only 2nd-order accurate at the moment.
+    for (int c = 0; c < N; ++c)
+      st_func_eval(p->initial_guess, &p->mesh->cell_centers[c], t, &p->phi[c]);
+  }
+  else
+    memset(p->phi, 0, sizeof(real_t)*N);
 
   // Gather information about boundary cells.
   p->boundary_cells = boundary_cell_map_from_mesh_and_bcs(p->mesh, p->bcs);
@@ -422,7 +430,11 @@ static void poisson_init(void* context, real_t t)
   memset(p->cell_sources, 0, sizeof(real_t)*N);
 
   // Now we simply solve the problem for the initial time.
-  poisson_advance(p, FLT_MAX, t);
+  nonlinear_integrator_solve(p->solver, t, p->phi, &p->num_iterations);
+printf("phi = [");
+for (int i = 0; i < p->mesh->num_cells; ++i)
+  printf("%g ", p->phi[i]);
+printf("]\n");
 }
 
 static void poisson_plot(void* context, const char* prefix, const char* directory, real_t t, int step)
@@ -434,6 +446,7 @@ static void poisson_plot(void* context, const char* prefix, const char* director
   string_ptr_unordered_map_insert(cell_fields, "phi", p->phi);
 
   // If we are given an analytic solution, write it and the solution error.
+  // FIXME: Only 2nd-order accurate at the moment.
   if (p->solution != NULL)
   {
     real_t *soln = malloc(sizeof(real_t) * p->mesh->num_cells), 
@@ -526,6 +539,7 @@ model_t* poisson_model_new(options_t* options)
   p->lambda = NULL;
   p->phi = NULL;
   p->solution = NULL;
+  p->initial_guess = NULL;
   p->bcs = string_ptr_unordered_map_new();
   p->boundary_cells = boundary_cell_map_new();
   p->cell_face_fluxes = NULL;
@@ -553,6 +567,14 @@ model_t* poisson_model_new(options_t* options)
   register_poisson_benchmarks(model);
 
   return model;
+}
+
+void poisson_model_set_initial_guess(model_t* model,
+                                     st_func_t* guess)
+{
+  poisson_t* p = model_context(model);
+  ASSERT(st_func_num_comp(guess) == 1);
+  p->initial_guess = guess;
 }
 
 model_t* create_poisson(mesh_t* mesh,
