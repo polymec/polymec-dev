@@ -206,8 +206,15 @@ void model_run_benchmark(model_t* model, const char* benchmark, options_t* optio
   {
     // By default (unless overridden), benchmarks communicate only with 
     // "urgent" log messages--others are suppressed.
-    if (options_value(options, "logging") == NULL)
+    const char* logging = options_value(options, "logging");
+    if (logging == NULL)
       set_log_level(LOG_URGENT);
+    else if (!strcmp(logging, "debug"))
+      set_log_level(LOG_DEBUG);
+    else if (!strcmp(logging, "detail"))
+      set_log_level(LOG_DETAIL);
+    else if (!strcmp(logging, "info"))
+      set_log_level(LOG_INFO);
 
     log_info("%s: Running benchmark '%s'.", model->name, benchmark);
     options_set(options, "sim_name", benchmark);

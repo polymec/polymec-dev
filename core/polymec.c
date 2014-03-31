@@ -31,7 +31,7 @@
 #include "core/polymec_version.h"
 #include "core/options.h"
 
-// C99 support for floating point environment.
+// Standard C support for floating point environment.
 #include <fenv.h>
 //#pragma STDC FENV_ACCESS ON
 

@@ -36,6 +36,12 @@
 #error "Polymec requires the availability of variable-length arrays (VLA), which this compiler does not support."
 #endif
 
+// In a perfect world, we'd have full support for IEEE 754 floating point 
+// arithmetic. The world in which we live is not presently perfect.
+//#if !defined __STDC_IEC_559__ || __STDC_IEC_559__ == 0
+//#error "Polymec requires IEC 60559 (IEEE 754) floating point arithmetic support."
+//#endif
+
 // The Annex K bounds-checking interfaces would be really nice to have, and 
 // someday we shall have them, but not today.
 //#if !defined __STDC_LIB_EXT1__ || __STDC_LIB_EXT1__ == 0

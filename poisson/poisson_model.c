@@ -28,6 +28,7 @@
 #include "core/linear_algebra.h"
 #include "core/polynomial.h"
 #include "core/write_silo.h"
+#include "core/norms.h"
 #include "geometry/interpreter_register_geometry_functions.h"
 #include "integrators/nonlinear_integrator.h"
 #include "integrators/lu_preconditioners.h"
@@ -324,6 +325,7 @@ static int poisson_residual(void* context, real_t t, real_t* u, real_t* F)
       ++offset;
     }
   }
+  log_debug("L2[F] = %g", l2_norm(F, p->mesh->num_cells));
 //printf("F = [");
 //for (int i = 0; i < p->mesh->num_cells; ++i)
 //printf("%g ", F[i]);
