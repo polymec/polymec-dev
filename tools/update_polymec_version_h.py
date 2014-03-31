@@ -19,17 +19,17 @@ def escape(string, special_chars):
 try:
     git_revision = ' (git revision %s'%subprocess.check_output(['git', 'log', '-1', '--format=format:%h']).strip()
     git_diff = subprocess.check_output(['git', 'diff']).strip()
-    git_diffs = git_diff.split('\n')
-    git_diff = ''
-    for i in xrange(len(git_diffs)):
-        this_diff = git_diffs[i].replace('"', 'XXXDOUBLE_QUOTESXXX')
-        git_diff += '  \"%s\\n\"'%this_diff
-        if i < len(git_diffs)-1:
-            git_diff += ',\n'
-        git_diff = git_diff.replace('XXXDOUBLE_QUOTESXXX', '\\"')
-    if git_diff == '':
+    if (git_diff == ''):
         git_diff = '""'
     else:
+        git_diffs = git_diff.split('\n')
+        git_diff = ''
+        for i in xrange(len(git_diffs)):
+            this_diff = git_diffs[i].replace('"', 'XXXDOUBLE_QUOTESXXX')
+            git_diff += '  \"%s\\n\"'%this_diff
+            if i < len(git_diffs)-1:
+                git_diff += ',\n'
+            git_diff = git_diff.replace('XXXDOUBLE_QUOTESXXX', '\\"')
         git_revision += ', modified'
     git_revision += ')'
 except:
