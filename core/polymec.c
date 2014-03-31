@@ -99,8 +99,8 @@ void polymec_init(int argc, char** argv)
     // Jot down the invocation time.
     polymec_invoc_time = time(NULL);
 
-    // By default, we enable floating point exceptions for debug builds.
 #ifndef NDEBUG
+    // By default, we enable floating point exceptions for debug builds.
     polymec_enable_fpe_exceptions();
 #endif
 
