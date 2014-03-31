@@ -33,7 +33,6 @@
 
 // Standard C support for floating point environment.
 #include <fenv.h>
-//#pragma STDC FENV_ACCESS ON
 
 #ifdef Linux
 // FE_INEXACT    inexact result
@@ -266,11 +265,13 @@ void polymec_provenance_fprintf(FILE* stream)
   fprintf(stream, "Invoked with: %s\n", polymec_invoc_str);
   fprintf(stream, "Invoked on: %s\n", ctime(&polymec_invoc_time));
 
-  if (strlen(POLYMEC_GIT_DIFF) > 0)
+  if (POLYMEC_NUM_GIT_DIFFS > 0)
   {
     fprintf(stream, "=======================================================================\n");
     fprintf(stream, "Modifications to revision:\n");
-    fprintf(stream, "%s\n\n", POLYMEC_GIT_DIFF);
+    for (int i = 0; i < POLYMEC_NUM_GIT_DIFFS; ++i)
+      fprintf(stream, "%s", POLYMEC_GIT_DIFFS[i]);
+    fprintf(stream, "\n\n");
   }
 
   // If we received an input script, write out its contents.

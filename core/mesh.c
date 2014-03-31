@@ -305,7 +305,7 @@ void* mesh_property(mesh_t* mesh, const char* property)
 
 void mesh_delete_property(mesh_t* mesh, const char* property)
 {
-  return tagger_delete_property(mesh->cell_tags, "properties", property);
+  tagger_delete_property(mesh->cell_tags, "properties", property);
 }
 
 void mesh_add_feature(mesh_t* mesh, const char* feature)
@@ -324,7 +324,7 @@ bool mesh_has_feature(mesh_t* mesh, const char* feature)
 
 void mesh_delete_feature(mesh_t* mesh, const char* feature)
 {
-  return tagger_delete_property(mesh->cell_tags, "features", feature);
+  tagger_delete_property(mesh->cell_tags, "features", feature);
 }
 
 int* mesh_create_tag(tagger_t* tagger, const char* tag, int num_indices)

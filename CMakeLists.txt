@@ -58,7 +58,7 @@ endif ()
 
 # General compiler flags.
 if (CMAKE_C_COMPILER_ID STREQUAL "GNU")
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c11 -Wall -Wextra -Werror-implicit-function-declaration")
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c11 -Wall -pedantic-errors -Wextra -Werror-implicit-function-declaration")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Werror-implicit-function-declaration")
 
   # Warning suppressants.

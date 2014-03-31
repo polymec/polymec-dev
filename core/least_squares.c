@@ -63,21 +63,6 @@ static void compute_poly_basis_vector(polynomial_t* p, point_t* X, real_t* basis
     basis_vector[offset++] = pow(x, x_pow) * pow(y, y_pow) * pow(z, z_pow);
 }
 
-static void compute_poly_basis_gradients(polynomial_t* p, point_t* X, vector_t* basis_gradients)
-{
-  point_t* x0 = polynomial_x0(p);
-  real_t x = X->x - x0->x, y = X->y - x0->y, z = X->z - x0->z;
-  int pos = 0, x_pow, y_pow, z_pow, offset = 0;
-  real_t coeff;
-  while (polynomial_next(p, &pos, &coeff, &x_pow, &y_pow, &z_pow))
-  {
-    basis_gradients[offset].x = 1.0*x_pow*pow(x, x_pow-1) * pow(y, y_pow) * pow(z, z_pow);
-    basis_gradients[offset].y = pow(x, x_pow-1) * 1.0*y_pow*pow(y, y_pow-1) * pow(z, z_pow);
-    basis_gradients[offset].z = pow(x, x_pow-1) * pow(y, y_pow) * 1.0*z_pow*pow(z, z_pow-1);
-    ++offset;
-  }
-}
-
 // Least-squares weight function implementation.
 struct ls_weight_func_t
 {

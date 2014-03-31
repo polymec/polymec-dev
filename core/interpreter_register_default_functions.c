@@ -293,6 +293,7 @@ static int lua_write_silo_mesh(lua_State* lua)
       {
         int num_vals;
         real_t* vals = lua_tosequence(lua, val_index, &num_vals);
+        UNUSED(vals);
         if (num_vals != N)
         {
           lua_pop(lua, 2);

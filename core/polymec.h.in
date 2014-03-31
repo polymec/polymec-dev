@@ -71,7 +71,7 @@
 #define POLYMEC_C_COMPILER "@CMAKE_C_COMPILER@"
 #define POLYMEC_INCLUDE_DIR "@PROJECT_BINARY_DIR@/include"
 
-// The C99 standard no longer defines M_PI(!!!!). 
+// The C standard no longer defines M_PI(!!!!). 
 // So we have to provide it ourselves.
 #ifndef M_PI
 #include <float.h>

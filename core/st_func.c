@@ -102,7 +102,7 @@ typedef struct
 static void st_func_sp_deriv_eval(void* context, point_t* x, real_t t, real_t* result)
 {
   st_func_sp_deriv_t* F = context;
-  return sp_func_eval_deriv(F->func, F->deriv, x, result);
+  sp_func_eval_deriv(F->func, F->deriv, x, result);
 }
 
 static void st_func_sp_deriv_free(void* context)
