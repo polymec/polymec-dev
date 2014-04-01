@@ -287,6 +287,8 @@ preconditioner_t* block_jacobi_preconditioner_new(void* context,
     precond->sparsity = adj_graph_clone(sparsity);
 
   precond->coloring = adj_graph_coloring_new(precond->sparsity, SMALLEST_LAST);
+  log_debug("Block Jacobi preconditioner: graph coloring produced %d colors.", 
+            adj_graph_coloring_num_colors(precond->coloring));
   precond->F = residual_func;
   precond->communicate = communication_func;
   precond->context = context;

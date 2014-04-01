@@ -383,6 +383,8 @@ preconditioner_t* lu_preconditioner_new(void* context,
   lu_preconditioner_t* precond = malloc(sizeof(lu_preconditioner_t));
   precond->sparsity = sparsity;
   precond->coloring = adj_graph_coloring_new(sparsity, SMALLEST_LAST);
+  log_debug("LU preconditioner: graph coloring produced %d colors.", 
+            adj_graph_coloring_num_colors(precond->coloring));
   precond->F = residual_func;
   precond->communicate = communication_func;
   precond->context = context;
@@ -488,6 +490,8 @@ preconditioner_t* ilu_preconditioner_new(void* context,
   lu_preconditioner_t* precond = malloc(sizeof(lu_preconditioner_t));
   precond->sparsity = sparsity;
   precond->coloring = adj_graph_coloring_new(sparsity, SMALLEST_LAST);
+  log_debug("ILU preconditioner: graph coloring produced %d colors.", 
+            adj_graph_coloring_num_colors(precond->coloring));
   precond->F = residual_func;
   precond->communicate = communication_func;
   precond->context = context;
