@@ -59,11 +59,9 @@ typedef struct
   boundary_cell_map_t* boundary_cells; // Boundary cell -> BC mapping
 
   // Here we store the fluxes between cells/points, and keep track of 
-  // which fluxes have already been computed. The fluxes for each face of 
-  // each cell are computed and stored in compressed row storage (CRS) format,
-  // with each face having a distinct value for each of its cells. The offsets 
-  // of the fluxes for each face are read from mesh->cell_face_offsets.
-  real_t* cell_face_fluxes;
+  // which fluxes have already been computed. There are two fluxes for each 
+  // face.
+  real_t* face_fluxes;
 
   // Contributions from the source term (rhs).
   real_t* cell_sources;
@@ -128,8 +126,6 @@ static int poisson_residual(void* context, real_t t, real_t* u, real_t* F)
   // Loop over all the cells and compute the fluxes for each one.
   for (int cell = 0; cell < p->mesh->num_cells; ++cell)
   {
-    int* flux_offsets = p->mesh->cell_face_offsets;
-
     // Retrieve the quadrature rule for this cell.
     polyhedron_integrator_t* quad_rule = p->poly_quad_rule;
     polyhedron_integrator_t** special_rule = 
@@ -199,21 +195,25 @@ static int poisson_residual(void* context, real_t t, real_t* u, real_t* F)
       }
 
       // Solve the least squares system.
+//if ((cell == 0) || (cell == p->mesh->num_cells - 1))
+//{
+//printf("%d: ", cell);
 //polynomial_fit_fprintf(p->poly_fit, stdout);
+//}
       polynomial_fit_compute(p->poly_fit);
-if ((cell == 0) || (cell == p->mesh->num_cells - 1))
-{
-printf("%d: ", cell);
-polynomial_fit_fprintf(p->poly_fit, stdout);
-}
+//if ((cell == 0) || (cell == p->mesh->num_cells - 1))
+//{
+//polynomial_fit_fprintf(p->poly_fit, stdout);
+//}
     }
 
     // Face fluxes.
-    int fpos = 0, face, offset = flux_offsets[cell];
+    int fpos = 0, face;
     while (mesh_cell_next_face(p->mesh, cell, &fpos, &face))
     {
       real_t face_flux = 0.0;
       int local_face_index = fpos - 1;
+      int which_cell = (cell == p->mesh->face_cells[2*face]) ? 0 : 1;
 
       // Go over the quadrature points in the face and compute the flux
       // at each point, accumulating the integral in face_flux.
@@ -250,9 +250,8 @@ polynomial_fit_fprintf(p->poly_fit, stdout);
         face_flux += wq * vector_dot(&n_o_lambda, &grad_phi);
       }
 
-      p->cell_face_fluxes[offset] = face_flux;
+      p->face_fluxes[2*face + which_cell] = face_flux;
 //printf("flux(%d, %d) = %g\n", cell, local_face_index, face_flux);
-      ++offset;
     }
 
     // Source term (right hand side).
@@ -279,54 +278,38 @@ polynomial_fit_fprintf(p->poly_fit, stdout);
   {
     // Enforce conservation by averaging all the face fluxes between 
     // neighboring cells.
-    int* flux_offsets = p->mesh->cell_face_offsets;
     int fpos = 0, face;
     while (mesh_cell_next_face(p->mesh, cell, &fpos, &face))
     {
-      int local_index1 = fpos - 1;
+      int flux1_index = (cell == p->mesh->face_cells[2*face]) ? 2*face : 2*face+1;
+      int flux2_index = (flux1_index == 2*face) ? 2*face+1 : 2*face;
       int other_cell = mesh_face_opp_cell(p->mesh, face, cell);
       if ((other_cell != -1) && (cell < other_cell))
       {
         // Retrieve the fluxes at face 1 and face 2.
-        int offset1 = p->mesh->cell_face_offsets[cell] + local_index1;
-        real_t flux1 = p->cell_face_fluxes[offset1];
-        int local_index2;
-        for (local_index2 = 0; local_index2 < mesh_cell_num_faces(p->mesh, other_cell); ++local_index2)
-        {
-          int face2 = p->mesh->cell_faces[p->mesh->cell_face_offsets[other_cell] + local_index2];
-          if (face2 < 0)
-            face2 = ~face2;
-          if (face2 == face)
-            break;
-        }
-        ASSERT(local_index2 < mesh_cell_num_faces(p->mesh, other_cell));
-        int offset2 = p->mesh->cell_face_offsets[other_cell] + local_index2;
-        real_t flux2 = p->cell_face_fluxes[offset2];
-
-//        // Either they are both zero, or they have opposite sign.
-//        ASSERT(SIGN(flux1) == -SIGN(flux2));
+        real_t flux1 = p->face_fluxes[flux1_index];
+        real_t flux2 = p->face_fluxes[flux2_index];
 
         // Now average their magnitudes and make sure that they agree so 
         // that our fluxes are conservative.
         real_t avg_flux = 0.5 * (fabs(flux1) + fabs(flux2));
         int sign = (flux1 != 0.0) ? SIGN(flux1) : SIGN(flux2);
-        p->cell_face_fluxes[offset1] = sign * avg_flux;
-        p->cell_face_fluxes[offset2] = sign * avg_flux;
+        p->face_fluxes[flux1_index] = sign * avg_flux;
+        p->face_fluxes[flux2_index] = sign * avg_flux;
 //printf("avg_flux(%d, %d) = %g\n", offset1, offset2, avg_flux);
       }
     }
 
     // Now compute the residual in this cell.
     F[cell] = p->cell_sources[cell];
-    int offset = flux_offsets[cell];
     fpos = 0;
     while (mesh_cell_next_face(p->mesh, cell, &fpos, &face))
     {
-      F[cell] -= p->cell_face_fluxes[offset];
-      ++offset;
+      int which_cell = (cell == p->mesh->face_cells[2*face]) ? 0 : 1;
+      F[cell] -= p->face_fluxes[2*face + which_cell];
     }
   }
-  log_debug("L2[F] = %g", l2_norm(F, p->mesh->num_cells));
+//  log_debug("L2[F] = %g", l2_norm(F, p->mesh->num_cells));
 //printf("F = [");
 //for (int i = 0; i < p->mesh->num_cells; ++i)
 //printf("%g ", F[i]);
@@ -341,10 +324,10 @@ static void poisson_clear(poisson_t* p)
   if (p->graph != NULL)
     adj_graph_free(p->graph);
 
-  if (p->cell_face_fluxes != NULL)
+  if (p->face_fluxes != NULL)
   {
-    free(p->cell_face_fluxes);
-    p->cell_face_fluxes = NULL;
+    free(p->face_fluxes);
+    p->face_fluxes = NULL;
   }
   if (p->cell_sources != NULL)
   {
@@ -416,21 +399,26 @@ static void poisson_init(void* context, real_t t)
   p->poly_fit = polynomial_fit_new(1, poly_degree);
 
   // For now, Use LU preconditioning with the same residual function.
-  // Use LU preconditioning with the same residual function.
   preconditioner_t* lu_precond = lu_preconditioner_new(p, poisson_residual, NULL, p->graph);
   nonlinear_integrator_set_preconditioner(p->solver, lu_precond);
 
   // Allocate storage for cell face fluxes.
-  int num_face_fluxes = p->mesh->cell_face_offsets[N];
-  p->cell_face_fluxes = malloc(sizeof(real_t)*num_face_fluxes);
-  memset(p->cell_face_fluxes, 0, sizeof(real_t)*num_face_fluxes);
+  p->face_fluxes = malloc(sizeof(real_t)*2*p->mesh->num_faces);
+  memset(p->face_fluxes, 0, sizeof(real_t)*2*p->mesh->num_faces);
 
   // Allocate storage for cell source contributions.
   p->cell_sources = malloc(sizeof(real_t)*N);
   memset(p->cell_sources, 0, sizeof(real_t)*N);
 
   // Now we simply solve the problem for the initial time.
-  nonlinear_integrator_solve(p->solver, t, p->phi, &p->num_iterations);
+  bool success = nonlinear_integrator_solve(p->solver, t, p->phi, &p->num_iterations);
+  if (!success)
+  {
+    nonlinear_integrator_diagnostics_t diags;
+    nonlinear_integrator_get_diagnostics(p->solver, &diags);
+    nonlinear_integrator_diagnostics_fprintf(&diags, stdout);
+    polymec_error("poisson: nonlinear solve failed.");
+  }
 printf("phi = [");
 for (int i = 0; i < p->mesh->num_cells; ++i)
   printf("%g ", p->phi[i]);
@@ -542,7 +530,7 @@ model_t* poisson_model_new(options_t* options)
   p->initial_guess = NULL;
   p->bcs = string_ptr_unordered_map_new();
   p->boundary_cells = boundary_cell_map_new();
-  p->cell_face_fluxes = NULL;
+  p->face_fluxes = NULL;
   p->cell_sources = NULL;
   p->poly_fit = NULL;
   p->poly_quad_rule = NULL;

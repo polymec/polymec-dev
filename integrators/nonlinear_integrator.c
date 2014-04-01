@@ -344,6 +344,7 @@ bool nonlinear_integrator_solve(nonlinear_integrator_t* integrator,
     long num_iters;
     KINGetNumNonlinSolvIters(integrator->kinsol, &num_iters);
     *num_iterations = (int)num_iters;
+    log_debug("nonlinear_integrator: solved after %d iterations.", *num_iterations);
 
     // Copy the data back into X.
     memcpy(X, NV_DATA(integrator->x), sizeof(real_t) * N);

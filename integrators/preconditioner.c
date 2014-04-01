@@ -79,7 +79,7 @@ void preconditioner_compute_jacobian(preconditioner_t* precond,
                                      preconditioner_matrix_t* mat)
 {
   ASSERT(precond->vtable.compute_jacobian != NULL);
-  log_debug("Computing Jacobian matrix...");
+  log_debug("preconditioner: Computing Jacobian matrix...");
   precond->vtable.compute_jacobian(precond->context, t, x, mat);
 }
 
@@ -91,7 +91,7 @@ void preconditioner_compute_dae_jacobians(preconditioner_t* precond,
                                           preconditioner_matrix_t* dFdxdot)
 {
   ASSERT(precond->vtable.compute_dae_jacobians != NULL);
-  log_debug("Computing DAE Jacobians...");
+  log_debug("preconditioner: Computing DAE Jacobians...");
   precond->vtable.compute_dae_jacobians(precond->context, t, x, x_dot, dFdx, dFdxdot);
 }
 

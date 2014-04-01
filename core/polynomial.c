@@ -441,6 +441,20 @@ sp_func_t* polynomial_sp_func(polynomial_t* p)
 
 void polynomial_fprintf(polynomial_t* p, FILE* stream)
 {
+  char x_term[32], y_term[32], z_term[32];
+  if (p->x0.x != 0.0)
+    snprintf(x_term, 32, "(x - %g)", p->x0.x);
+  else
+    snprintf(x_term, 32, "x");
+  if (p->x0.y != 0.0)
+    snprintf(y_term, 32, "(y - %g)", p->x0.y);
+  else
+    snprintf(y_term, 32, "y");
+  if (p->x0.z != 0.0)
+    snprintf(z_term, 32, "(z - %g)", p->x0.z);
+  else
+    snprintf(z_term, 32, "z");
+
   fprintf(stream, "polynomial (degree %d): ", p->degree);
   real_t coeff;
   int pos = 0, x_pow, y_pow, z_pow;
@@ -450,7 +464,7 @@ void polynomial_fprintf(polynomial_t* p, FILE* stream)
     {
       if (coeff < 0.0)
         fprintf(stream, "- ");
-      else
+      else if (coeff > 0.0)
         fprintf(stream, "+ ");
     }
     if ((coeff == 0.0) && (p->degree == 0))
@@ -458,7 +472,7 @@ void polynomial_fprintf(polynomial_t* p, FILE* stream)
       fprintf(stream, "0");
       continue;
     }
-    else if (coeff != 1.0)
+    else if ((coeff != 1.0) && (coeff != 0.0))
     {
       if (pos > 1)
         fprintf(stream, "%g ", fabs(coeff));
@@ -467,18 +481,21 @@ void polynomial_fprintf(polynomial_t* p, FILE* stream)
     }
     else if ((x_pow + y_pow + z_pow) == 0)
       fprintf(stream, "1");
-    if (x_pow > 1)
-      fprintf(stream, "x**%d ", x_pow);
-    else if (x_pow == 1)
-      fprintf(stream, "x ");
-    if (y_pow > 1)
-      fprintf(stream, "y**%d ", y_pow);
-    else if (y_pow == 1)
-      fprintf(stream, "y ");
-    if (z_pow > 1)
-      fprintf(stream, "z**%d ", z_pow);
-    else if (z_pow == 1)
-      fprintf(stream, "z ");
+    if (coeff != 0.0)
+    {
+      if (x_pow > 1)
+        fprintf(stream, "%s**%d ", x_term, x_pow);
+      else if (x_pow == 1)
+        fprintf(stream, "%s ", x_term);
+      if (y_pow > 1)
+        fprintf(stream, "%s**%d ", y_term, y_pow);
+      else if (y_pow == 1)
+        fprintf(stream, "%s ", y_term);
+      if (z_pow > 1)
+        fprintf(stream, "%s**%d ", z_term, z_pow);
+      else if (z_pow == 1)
+        fprintf(stream, "%s ", z_term);
+    }
   }
   fprintf(stream, "\n");
 }
