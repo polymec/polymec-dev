@@ -86,11 +86,12 @@ static void set_up_1d(options_t* options,
   {
     string_ptr_unordered_map_insert(*bcs, "-x", poisson_bc_new(1.0, 0.0, *solution));
     string_ptr_unordered_map_insert(*bcs, "+x", poisson_bc_new(1.0, 0.0, *solution));
+//    string_ptr_unordered_map_insert(*bcs, "+x", poisson_bc_new(0.0, 1.0, sol_grad));
   }
   else
   {
+    string_ptr_unordered_map_insert(*bcs, "-x", poisson_bc_new(1.0, 0.0, *solution));
     string_ptr_unordered_map_insert(*bcs, "-x", poisson_bc_new(0.0, 1.0, sol_grad));
-    string_ptr_unordered_map_insert(*bcs, "+x", poisson_bc_new(0.0, 1.0, sol_grad));
   }
 
   // Transverse faces.

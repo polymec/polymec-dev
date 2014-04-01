@@ -86,10 +86,6 @@ static real_t poisson_advance(void* context, real_t max_dt, real_t t)
 {
   poisson_t* p = context;
   nonlinear_integrator_solve(p->solver, t+max_dt, p->phi, &p->num_iterations);
-printf("phi = [");
-for (int i = 0; i < p->mesh->num_cells; ++i)
-  printf("%g ", p->phi[i]);
-printf("]\n");
   return max_dt;
 }
 
@@ -205,7 +201,11 @@ static int poisson_residual(void* context, real_t t, real_t* u, real_t* F)
       // Solve the least squares system.
 //polynomial_fit_fprintf(p->poly_fit, stdout);
       polynomial_fit_compute(p->poly_fit);
-//polynomial_fit_fprintf(p->poly_fit, stdout);
+if ((cell == 0) || (cell == p->mesh->num_cells - 1))
+{
+printf("%d: ", cell);
+polynomial_fit_fprintf(p->poly_fit, stdout);
+}
     }
 
     // Face fluxes.
