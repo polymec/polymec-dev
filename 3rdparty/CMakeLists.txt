@@ -257,7 +257,7 @@ set(POLYMEC_TP_LIBS superlu;${POLYMEC_TP_LIBS})
 # differential-algebraic equations.
 if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libsundials_cvode.a)
   set(SUNDIALS_CONFIG_OPTS --prefix=${PROJECT_BINARY_DIR} --with-precision=${POLYMEC_PRECISION} --enable-static --disable-shared --disable-fcmix)
-  set(SUNDIALS_CONFIG_OPTS ${SUNDIALS_CONFIG_OPTS} --with-cppflags=-DNO_FPRINTF_OUTPUT)
+  set(SUNDIALS_CONFIG_OPTS ${SUNDIALS_CONFIG_OPTS})
   if (HAVE_MPI EQUAL 0)
     set(SUNDIALS_CONFIG_OPTS ${SUNDIALS_CONFIG_OPTS} --disable-mpi)
   endif()

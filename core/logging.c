@@ -153,6 +153,20 @@ void set_log_mpi_rank(log_level_t log_type, int mpi_rank)
     logger->mpi_rank = mpi_rank;
 }
 
+FILE* log_stream(log_level_t log_type)
+{
+  if (logging_level < log_type) 
+    return NULL;
+  else
+  {
+    logger_t* logger = get_logger(log_type);
+    if (logger != NULL)
+      return logger->stream;
+    else
+      return NULL;
+  }
+}
+
 void log_debug(const char* message, ...)
 {
   logger_t* logger = get_logger(LOG_DEBUG);

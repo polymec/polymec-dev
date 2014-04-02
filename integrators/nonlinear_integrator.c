@@ -160,8 +160,22 @@ static nonlinear_integrator_t* nonlinear_integrator_new(const char* name,
   else
     KINSptfqmr(integrator->kinsol, integrator->max_krylov_dim);
 
+  // Set up the preconditioner.
   KINSpilsSetPreconditioner(integrator->kinsol, set_up_preconditioner,
                             solve_preconditioner_system);
+
+  // Enable debugging diagnostics if logging permits.
+  FILE* info_stream = log_stream(LOG_DEBUG);
+  if (info_stream != NULL)
+  {
+    KINSetPrintLevel(integrator->kinsol, 3);
+    KINSetInfoFile(integrator->kinsol, info_stream);
+  }
+  else
+  {
+    KINSetPrintLevel(integrator->kinsol, 0);
+    KINSetInfoFile(integrator->kinsol, NULL);
+  }
 
   // Set the constraints (if any) for the solution.
   if (integrator->vtable.set_constraints != NULL)

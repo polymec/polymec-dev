@@ -376,7 +376,7 @@ static void poisson_init(void* context, real_t t)
   p->graph = graph_from_mesh_cells(p->mesh);
   p->poly_quad_rule = midpoint_polyhedron_integrator_new();
 
-  // Initialize the solution vector with the initial guess (or zero).
+  // Initialize the solution vector with the initial guess (or ones).
   p->phi = malloc(sizeof(real_t)*N);
   if (p->initial_guess != NULL)
   {
@@ -385,7 +385,10 @@ static void poisson_init(void* context, real_t t)
       st_func_eval(p->initial_guess, &p->mesh->cell_centers[c], t, &p->phi[c]);
   }
   else
-    memset(p->phi, 0, sizeof(real_t)*N);
+  {
+    for (int c = 0; c < N; ++c)
+      p->phi[c] = 1.0;
+  }
 
   // Gather information about boundary cells.
   p->boundary_cells = boundary_cell_map_from_mesh_and_bcs(p->mesh, p->bcs);

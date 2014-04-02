@@ -56,6 +56,10 @@ void set_log_stream(log_level_t log_type, FILE* stream);
 // be reported on this rank.
 void set_log_mpi_rank(log_level_t log_type, int mpi_rank);
 
+// Returns the output stream for the given type of log message if the 
+// type is enabled, NULL if it is not.
+FILE* log_stream(log_level_t log_type);
+
 // Issues a debug message.
 void log_debug(const char* message, ...);
 
