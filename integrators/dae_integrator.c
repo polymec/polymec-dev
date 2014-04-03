@@ -77,10 +77,6 @@ static int evaluate_residual(real_t t, N_Vector x, N_Vector x_dot,
   real_t* xxd = NV_DATA(x_dot);
   real_t* Fx = NV_DATA(F);
 
-  // Do parallel communication.
-  if (integ->vtable.communicate != NULL)
-    integ->vtable.communicate(integ->context, t, xx, xxd);
-
   // Evaluate the residual.
   return integ->vtable.residual(integ->context, t, xx, xxd, Fx);
 }

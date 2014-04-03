@@ -32,10 +32,6 @@
 // This function evaluates the RHS of a system of ODEs.
 typedef int (*ode_integrator_rhs_func)(void* context, real_t t, real_t* x, real_t* x_dot);
 
-// This function performs any parallel communication that is needed to 
-// put values in place for the evaluation of the residual function.
-typedef void (*ode_integrator_communication_func)(void* context, real_t t, real_t* x);
-
 // This function destroys the state (context).
 typedef void (*ode_integrator_dtor)(void* context);
 
@@ -50,9 +46,6 @@ typedef struct
   // storing it in x_dot. It should return 0 on success, 1 for a 
   // recoverable error, -1 for a fatal error.
   ode_integrator_rhs_func rhs;
-
-  // Perform inter-process communication.
-  ode_integrator_communication_func communicate;
 
   // This (optional) function destroys the state (context) when the time integrator 
   // is destroyed.

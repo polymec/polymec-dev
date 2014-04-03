@@ -33,10 +33,6 @@
 // equations (DAEs).
 typedef int (*dae_integrator_residual_func)(void* context, real_t t, real_t* x, real_t* x_dot, real_t* F);
 
-// This function performs any parallel communication that is needed to 
-// put values in place for the evaluation of the residual function.
-typedef void (*dae_integrator_communication_func)(void* context, real_t t, real_t* x, real_t* x_dot);
-
 // Constraints function.
 typedef void (*dae_integrator_constraints_func)(void* context, real_t* constraints);
 
@@ -54,9 +50,6 @@ typedef struct
   // in F. It should return 0 on success, 1 for a recoverable error, -1 
   // for a fatal error.
   dae_integrator_residual_func residual;
-
-  // Perform inter-process communication.
-  dae_integrator_communication_func communicate;
 
   // This (optional) function sets the contraints vector, which places algebraic 
   // constraints on the components of the solution vector x. If constraints[i] is:
