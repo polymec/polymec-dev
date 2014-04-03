@@ -4,10 +4,6 @@ link_directories(${PROJECT_BINARY_DIR}/lib)
 # This function adds a (serial) unit test executable to be built using cmockery.
 function(add_polymec_test exe)
   add_executable(${exe} ${ARGN})
-  # cmockery has some irritating compile warnings that we disable.
-#  if (CMAKE_C_COMPILER_ID STREQUAL "GNU")
-#    set_target_properties(${exe} PROPERTIES COMPILE_FLAGS "-Wno-int-to-pointer-cast -Wno-pointer-to-int-cast -Wno-unused-parameter")
-#  endif()
   target_link_libraries(${exe} cmockery ${POLYMEC_LIBS})
   add_test(${exe} ${exe})
 endfunction()
@@ -17,10 +13,6 @@ endfunction()
 # 1 test run will be generated for each processor number value.
 function(add_mpi_polymec_test exe procs)
   add_executable(${exe} ${ARGN})
-  # cmockery has some irritating compile warnings that we disable.
-#  if (CMAKE_C_COMPILER_ID STREQUAL "GNU")
-#    set_target_properties(${exe} PROPERTIES COMPILE_FLAGS "-Wno-int-to-pointer-cast -Wno-pointer-to-int-cast -Wno-unused-parameter")
-#  endif()
   target_link_libraries(${exe} ${POLYMEC_LIBS})
   foreach (proc ${procs})
     add_test(${exe}_${proc}_proc ${MPIEXEC} ${MPIEXEC_NUMPROC_FLAG} ${proc} ${MPIEXEC_PREFLAGS} ${CMAKE_CURRENT_BINARY_DIR}/${exe} ${MPIEXEC_POSTFLAGS})
