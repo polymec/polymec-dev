@@ -32,6 +32,7 @@
 #include "geometry/interpreter_register_geometry_functions.h"
 #include "integrators/nonlinear_integrator.h"
 #include "integrators/lu_preconditioners.h"
+#include "integrators/block_jacobi_preconditioner.h"
 #include "integrators/polyhedron_integrator.h"
 #include "model/boundary_cell_map.h"
 #include "model/polynomial_fit.h"
@@ -123,6 +124,10 @@ static int poisson_residual(void* context, real_t t, real_t* u, real_t* F)
 {
   poisson_t* p = context;
 
+printf("phi = [");
+for (int i = 0; i < p->mesh->num_cells; ++i)
+printf("%g ", p->phi[i]);
+printf("]\n");
   // Loop over all the cells and compute the fluxes for each one.
   for (int cell = 0; cell < p->mesh->num_cells; ++cell)
   {
@@ -235,6 +240,7 @@ static int poisson_residual(void* context, real_t t, real_t* u, real_t* F)
 
         // Form the flux contribution.
         vector_t n_o_lambda;
+//printf("cell %d, face %d: n = (%g, %g, %g)\n", cell, local_face_index, nq.x, nq.y, nq.z);
         if (st_func_num_comp(p->lambda) == 1)
         {
           n_o_lambda.x = lambda[0]*nq.x;
@@ -293,9 +299,9 @@ static int poisson_residual(void* context, real_t t, real_t* u, real_t* F)
         // Now average their magnitudes and make sure that they agree so 
         // that our fluxes are conservative.
         real_t avg_flux = 0.5 * (fabs(flux1) + fabs(flux2));
-        int sign = (flux1 != 0.0) ? SIGN(flux1) : SIGN(flux2);
+        int sign = SIGN(flux1);
         p->face_fluxes[flux1_index] = sign * avg_flux;
-        p->face_fluxes[flux2_index] = sign * avg_flux;
+        p->face_fluxes[flux2_index] = -sign * avg_flux;
 //printf("avg_flux(%d, %d) = %g\n", offset1, offset2, avg_flux);
       }
     }
@@ -307,9 +313,10 @@ static int poisson_residual(void* context, real_t t, real_t* u, real_t* F)
     {
       int which_cell = (cell == p->mesh->face_cells[2*face]) ? 0 : 1;
       F[cell] -= p->face_fluxes[2*face + which_cell];
+//printf("F[%d] -= %g -> %g\n", cell, p->face_fluxes[2*face + which_cell], F[cell]);
     }
   }
-//  log_debug("L2[F] = %g", l2_norm(F, p->mesh->num_cells));
+  log_debug("L2[F] = %g", l2_norm(F, p->mesh->num_cells));
 //printf("F = [");
 //for (int i = 0; i < p->mesh->num_cells; ++i)
 //printf("%g ", F[i]);
@@ -387,7 +394,7 @@ static void poisson_init(void* context, real_t t)
   else
   {
     for (int c = 0; c < N; ++c)
-      p->phi[c] = 1.0;
+      p->phi[c] = 0.0;
   }
 
   // Gather information about boundary cells.
@@ -402,8 +409,9 @@ static void poisson_init(void* context, real_t t)
   p->poly_fit = polynomial_fit_new(1, poly_degree);
 
   // For now, Use LU preconditioning with the same residual function.
-  preconditioner_t* lu_precond = lu_preconditioner_new(p, poisson_residual, NULL, p->graph);
-  nonlinear_integrator_set_preconditioner(p->solver, lu_precond);
+  preconditioner_t* precond = lu_preconditioner_new(p, poisson_residual, p->graph);
+//  preconditioner_t* precond = block_jacobi_preconditioner_new(p, poisson_residual, p->graph, p->mesh->num_cells, 1);
+  nonlinear_integrator_set_preconditioner(p->solver, precond);
 
   // Allocate storage for cell face fluxes.
   p->face_fluxes = malloc(sizeof(real_t)*2*p->mesh->num_faces);
@@ -415,6 +423,7 @@ static void poisson_init(void* context, real_t t)
 
   // Now we simply solve the problem for the initial time.
   bool success = nonlinear_integrator_solve(p->solver, t, p->phi, &p->num_iterations);
+preconditioner_matrix_fprintf(nonlinear_integrator_preconditioner_matrix(p->solver), stdout);
   if (!success)
   {
     nonlinear_integrator_diagnostics_t diags;
@@ -422,10 +431,10 @@ static void poisson_init(void* context, real_t t)
     nonlinear_integrator_diagnostics_fprintf(&diags, stdout);
     polymec_error("poisson: nonlinear solve failed.");
   }
-printf("phi = [");
-for (int i = 0; i < p->mesh->num_cells; ++i)
-  printf("%g ", p->phi[i]);
-printf("]\n");
+//printf("phi = [");
+//for (int i = 0; i < p->mesh->num_cells; ++i)
+//  printf("%g ", p->phi[i]);
+//printf("]\n");
 }
 
 static void poisson_plot(void* context, const char* prefix, const char* directory, real_t t, int step)

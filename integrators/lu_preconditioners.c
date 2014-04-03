@@ -34,7 +34,6 @@ typedef struct
   adj_graph_t* sparsity;
   adj_graph_coloring_t* coloring;
   int (*F)(void* context, real_t t, real_t* x, real_t* F);
-  void (*communicate)(void* context, real_t t, real_t* x);
   void* context;
 
   int N; // Number of rows in matrix.
@@ -219,7 +218,6 @@ static preconditioner_matrix_t* lu_preconditioner_matrix(void* context)
 // Here's our finite difference implementation of the Jacobian matrix-vector 
 // product. 
 static void finite_diff_Jv(int (*F)(void* context, real_t t, real_t* x, real_t* F), 
-                           void (*communicate)(void* context, real_t t, real_t* x),
                            void* context, 
                            real_t* x, 
                            real_t t, 
@@ -240,8 +238,6 @@ static void finite_diff_Jv(int (*F)(void* context, real_t t, real_t* x, real_t* 
     work[2][i] = x[i] + eps*v[i];
 
   // F(t, x + eps*v) -> work[3].
-  if (communicate != NULL)
-    communicate(context, t, work[2]);
   F(context, t, work[2], work[3]);
 
   // (F(x + eps*v) - F(x)) / eps -> Jv
@@ -298,13 +294,11 @@ static void lu_preconditioner_compute_jacobian(void* context, real_t t, real_t* 
       work[0][i] = 1.0;
 
     // We evaluate F(x) and place it into work[1].
-    if (precond->communicate != NULL)
-      precond->communicate(precond->context, t, x);
     precond->F(precond->context, t, x, work[1]);
 
     // Now evaluate the matrix-vector product.
     memset(Jv, 0, sizeof(real_t) * num_rows);
-    finite_diff_Jv(precond->F, precond->communicate, precond->context, x, t, num_rows, work[0], work, Jv);
+    finite_diff_Jv(precond->F, precond->context, x, t, num_rows, work[0], work, Jv);
 
     // Copy the components of Jv into their proper locations.
     SuperMatrix* J = preconditioner_matrix_context(mat);
@@ -377,7 +371,6 @@ static void lu_preconditioner_dtor(void* context)
 
 preconditioner_t* lu_preconditioner_new(void* context,
                                         int (*residual_func)(void* context, real_t t, real_t* x, real_t* F),
-                                        void (*communication_func)(void* context, real_t t, real_t* x),
                                         adj_graph_t* sparsity)
 {
   lu_preconditioner_t* precond = malloc(sizeof(lu_preconditioner_t));
@@ -386,7 +379,6 @@ preconditioner_t* lu_preconditioner_new(void* context,
   log_debug("LU preconditioner: graph coloring produced %d colors.", 
             adj_graph_coloring_num_colors(precond->coloring));
   precond->F = residual_func;
-  precond->communicate = communication_func;
   precond->context = context;
   precond->ilu_params = NULL;
 
@@ -483,7 +475,6 @@ static bool ilu_preconditioner_solve(void* context, preconditioner_matrix_t* A, 
 // ILU preconditioner.
 preconditioner_t* ilu_preconditioner_new(void* context,
                                          int (*residual_func)(void* context, real_t t, real_t* x, real_t* F),
-                                         void (*communication_func)(void* context, real_t t, real_t* x),
                                          adj_graph_t* sparsity, 
                                          ilu_params_t* ilu_params)
 {
@@ -493,7 +484,6 @@ preconditioner_t* ilu_preconditioner_new(void* context,
   log_debug("ILU preconditioner: graph coloring produced %d colors.", 
             adj_graph_coloring_num_colors(precond->coloring));
   precond->F = residual_func;
-  precond->communicate = communication_func;
   precond->context = context;
 
   // Copy options into place.
@@ -566,7 +556,6 @@ typedef struct
 
   // Virtual table.
   int (*F)(void* context, real_t t, real_t* x, real_t* x_dot, real_t* F);
-  void (*communicate)(void* context, real_t t, real_t* x, real_t* x_dot);
 
   // States (x and x_dot) about which derivatives are computed.
   real_t *x0, *x_dot0;
@@ -621,14 +610,12 @@ static void lu_dae_preconditioner_dtor(void* context)
 
 preconditioner_t* lu_dae_preconditioner_new(void* context,
                                             int (*residual_func)(void* context, real_t t, real_t* x, real_t* x_dot, real_t* F),
-                                            void (*communication_func)(void* context, real_t t, real_t* x, real_t* x_dot),
                                             adj_graph_t* sparsity)
 {
   lu_dae_preconditioner_t* precond = malloc(sizeof(lu_dae_preconditioner_t));
-  precond->dFdx_precond = lu_preconditioner_new(precond, lu_dae_compute_res_for_x, NULL, sparsity);
-  precond->dFdxdot_precond = lu_preconditioner_new(precond, lu_dae_compute_res_for_x_dot, NULL, sparsity);
+  precond->dFdx_precond = lu_preconditioner_new(precond, lu_dae_compute_res_for_x, sparsity);
+  precond->dFdxdot_precond = lu_preconditioner_new(precond, lu_dae_compute_res_for_x_dot, sparsity);
   precond->F = residual_func;
-  precond->communicate = communication_func;
   precond->context = context;
 
   // Preconditioner data.
@@ -645,15 +632,13 @@ preconditioner_t* lu_dae_preconditioner_new(void* context,
                                         
 preconditioner_t* ilu_dae_preconditioner_new(void* context,
                                              int (*residual_func)(void* context, real_t t, real_t* x, real_t* x_dot, real_t* F),
-                                             void (*communication_func)(void* context, real_t t, real_t* x, real_t* x_dot),
                                              adj_graph_t* sparsity,
                                              ilu_params_t* ilu_params)
 {
   lu_dae_preconditioner_t* precond = malloc(sizeof(lu_dae_preconditioner_t));
-  precond->dFdx_precond = ilu_preconditioner_new(precond, lu_dae_compute_res_for_x, NULL, sparsity, ilu_params);
-  precond->dFdxdot_precond = ilu_preconditioner_new(precond, lu_dae_compute_res_for_x_dot, NULL, sparsity, ilu_params);
+  precond->dFdx_precond = ilu_preconditioner_new(precond, lu_dae_compute_res_for_x, sparsity, ilu_params);
+  precond->dFdxdot_precond = ilu_preconditioner_new(precond, lu_dae_compute_res_for_x_dot, sparsity, ilu_params);
   precond->F = residual_func;
-  precond->communicate = communication_func;
   precond->context = context;
 
   // Preconditioner data.

@@ -50,10 +50,10 @@ void test_ctor(void** state)
 {
   int bs = 2;
   adj_graph_t* g = graph_from_uniform_mesh(10);
-  preconditioner_t* precond = block_jacobi_preconditioner_new(NULL, sys_func, NULL, g, 1000, bs);
+  preconditioner_t* precond = block_jacobi_preconditioner_new(NULL, sys_func, g, 1000, bs);
   preconditioner_free(precond);
   adj_graph_t* bg = adj_graph_new_with_block_size(bs, g);
-  precond = block_jacobi_preconditioner_new(NULL, sys_func, NULL, bg, 1000, bs);
+  precond = block_jacobi_preconditioner_new(NULL, sys_func, bg, 1000, bs);
   preconditioner_free(precond);
   adj_graph_free(bg);
   adj_graph_free(g);
@@ -64,7 +64,7 @@ void test_matrix(void** state)
   // Build a matrix A.
   int bs = 2;
   adj_graph_t* g = graph_from_uniform_mesh(10);
-  preconditioner_t* precond = block_jacobi_preconditioner_new(NULL, sys_func, NULL, g, 1000, bs);
+  preconditioner_t* precond = block_jacobi_preconditioner_new(NULL, sys_func, g, 1000, bs);
   preconditioner_matrix_t* A = preconditioner_matrix(precond);
   int N = adj_graph_num_vertices(g);
 
@@ -118,7 +118,7 @@ void test_numerical_jacobian_ds1(void **state)
 {
   int bs = 2;
   adj_graph_t* g = adj_graph_new(MPI_COMM_WORLD, 1);
-  preconditioner_t* precond = block_jacobi_preconditioner_new(NULL, dennis_schnabel_1, NULL, g, 1, bs);
+  preconditioner_t* precond = block_jacobi_preconditioner_new(NULL, dennis_schnabel_1, g, 1, bs);
 
   real_t time = 0.0;
   real_t x[2];

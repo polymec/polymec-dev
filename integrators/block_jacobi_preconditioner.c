@@ -31,7 +31,6 @@ typedef struct
   adj_graph_t* sparsity;
   adj_graph_coloring_t* coloring;
   int (*F)(void* context, real_t t, real_t* x, real_t* F);
-  void (*communicate)(void* context, real_t t, real_t* x);
   void* context;
 
   int num_block_rows;
@@ -142,7 +141,6 @@ static preconditioner_matrix_t* block_jacobi_preconditioner_matrix(void* context
 // Here's our finite difference implementation of the Jacobian matrix-vector 
 // product. 
 static void finite_diff_Jv(int (*F)(void* context, real_t t, real_t* x, real_t* F), 
-                           void (*communicate)(void* context, real_t t, real_t* x),
                            void* context, 
                            real_t* x, 
                            real_t t, 
@@ -163,8 +161,6 @@ static void finite_diff_Jv(int (*F)(void* context, real_t t, real_t* x, real_t* 
     work[2][i] = x[i] + eps*v[i];
 
   // F(t, x + eps*v) -> work[3].
-  if (communicate != NULL)
-    communicate(context, t, work[2]);
   F(context, t, work[2], work[3]);
 
   // (F(x + eps*v) - F(x)) / eps -> Jv
@@ -214,13 +210,11 @@ static void block_jacobi_preconditioner_compute_jacobian(void* context, real_t t
       work[0][i] = 1.0;
 
     // We evaluate F(x) and place it into work[1].
-    if (precond->communicate != NULL)
-      precond->communicate(precond->context, t, x);
     precond->F(precond->context, t, x, work[1]);
 
     // Now evaluate the matrix-vector product.
     memset(Jv, 0, sizeof(real_t) * num_rows);
-    finite_diff_Jv(precond->F, precond->communicate, precond->context, x, t, num_rows, work[0], work, Jv);
+    finite_diff_Jv(precond->F, precond->context, x, t, num_rows, work[0], work, Jv);
 
     // Copy the components of Jv into their proper locations.
     bd_mat_t* J = preconditioner_matrix_context(mat);
@@ -268,7 +262,6 @@ static void block_jacobi_preconditioner_dtor(void* context)
 
 preconditioner_t* block_jacobi_preconditioner_new(void* context,
                                                   int (*residual_func)(void* context, real_t t, real_t* x, real_t* F),
-                                                  void (*communication_func)(void* context, real_t t, real_t* x),
                                                   adj_graph_t* sparsity,
                                                   int num_block_rows,
                                                   int block_size)
@@ -290,7 +283,6 @@ preconditioner_t* block_jacobi_preconditioner_new(void* context,
   log_debug("Block Jacobi preconditioner: graph coloring produced %d colors.", 
             adj_graph_coloring_num_colors(precond->coloring));
   precond->F = residual_func;
-  precond->communicate = communication_func;
   precond->context = context;
   precond->num_block_rows = num_block_rows;
   precond->block_size = block_size;
@@ -320,7 +312,6 @@ typedef struct
 
   // Virtual table.
   int (*F)(void* context, real_t t, real_t* x, real_t* x_dot, real_t* F);
-  void (*communicate)(void* context, real_t t, real_t* x, real_t* x_dot);
 
   // States (x and x_dot) about which derivatives are computed.
   real_t *x0, *x_dot0;
@@ -376,16 +367,14 @@ static void block_jacobi_dae_preconditioner_dtor(void* context)
 
 preconditioner_t* block_jacobi_dae_preconditioner_new(void* context,
                                                       int (*residual_func)(void* context, real_t t, real_t* x, real_t* x_dot, real_t* F),
-                                                      void (*communication_func)(void* context, real_t t, real_t* x, real_t* x_dot),
                                                       adj_graph_t* sparsity,
                                                       int num_block_rows,
                                                       int block_size)
 {
   block_jacobi_dae_preconditioner_t* precond = malloc(sizeof(block_jacobi_dae_preconditioner_t));
-  precond->dFdx_precond = block_jacobi_preconditioner_new(precond, block_jacobi_dae_compute_res_for_x, NULL, sparsity, num_block_rows, block_size);
-  precond->dFdxdot_precond = block_jacobi_preconditioner_new(precond, block_jacobi_dae_compute_res_for_x_dot, NULL, sparsity, num_block_rows, block_size);
+  precond->dFdx_precond = block_jacobi_preconditioner_new(precond, block_jacobi_dae_compute_res_for_x, sparsity, num_block_rows, block_size);
+  precond->dFdxdot_precond = block_jacobi_preconditioner_new(precond, block_jacobi_dae_compute_res_for_x_dot, sparsity, num_block_rows, block_size);
   precond->F = residual_func;
-  precond->communicate = communication_func;
   precond->context = context;
 
   // Preconditioner data.

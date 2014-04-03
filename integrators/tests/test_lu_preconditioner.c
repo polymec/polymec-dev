@@ -51,7 +51,7 @@ static int sys_func(void* context, real_t t, real_t* x, real_t* F)
 void test_ctor(void** state)
 {
   adj_graph_t* g = graph_from_uniform_mesh();
-  preconditioner_t* precond = lu_preconditioner_new(NULL, sys_func, NULL, g);
+  preconditioner_t* precond = lu_preconditioner_new(NULL, sys_func, g);
   preconditioner_free(precond);
   adj_graph_free(g);
 }
@@ -60,7 +60,7 @@ void test_matrix(void** state)
 {
   // Build a matrix A.
   adj_graph_t* g = graph_from_uniform_mesh();
-  preconditioner_t* precond = lu_preconditioner_new(NULL, sys_func, NULL, g);
+  preconditioner_t* precond = lu_preconditioner_new(NULL, sys_func, g);
   preconditioner_matrix_t* mat = preconditioner_matrix(precond);
 
   // Check the non-zero structure of A.
@@ -121,7 +121,7 @@ void test_numerical_jacobian_ds1(void **state) {
   adj_graph_t* bg = adj_graph_new_with_block_size(2, g);
   adj_graph_free(g);
   context_t context;
-  preconditioner_t* precond = lu_preconditioner_new(&context, dennis_schnabel_1, NULL, bg);
+  preconditioner_t* precond = lu_preconditioner_new(&context, dennis_schnabel_1, bg);
 
   real_t time = 0.0;
   real_t x[2];
