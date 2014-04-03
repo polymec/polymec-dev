@@ -105,7 +105,12 @@ static int solve_preconditioner_system(N_Vector x, N_Vector x_scale,
 
   if (preconditioner_solve(integrator->precond, integrator->precond_mat, NV_DATA(r)))
     return 0;
-  else return 1; // recoverable error.
+  else 
+  {
+    // Recoverable error.
+    log_debug("nonlinear_integrator: preconditioner solve failed.");
+    return 1; 
+  }
 }
 
 // Generic constructor.

@@ -124,10 +124,10 @@ static int poisson_residual(void* context, real_t t, real_t* u, real_t* F)
 {
   poisson_t* p = context;
 
-printf("phi = [");
-for (int i = 0; i < p->mesh->num_cells; ++i)
-printf("%g ", p->phi[i]);
-printf("]\n");
+//printf("phi = [");
+//for (int i = 0; i < p->mesh->num_cells; ++i)
+//printf("%g ", p->phi[i]);
+//printf("]\n");
   // Loop over all the cells and compute the fluxes for each one.
   for (int cell = 0; cell < p->mesh->num_cells; ++cell)
   {
@@ -409,8 +409,8 @@ static void poisson_init(void* context, real_t t)
   p->poly_fit = polynomial_fit_new(1, poly_degree);
 
   // For now, Use LU preconditioning with the same residual function.
-//  preconditioner_t* precond = lu_preconditioner_new(p, poisson_residual, p->graph);
-  preconditioner_t* precond = block_jacobi_preconditioner_new(p, poisson_residual, p->graph, p->mesh->num_cells, 1);
+  preconditioner_t* precond = lu_preconditioner_new(p, poisson_residual, p->graph);
+//  preconditioner_t* precond = block_jacobi_preconditioner_new(p, poisson_residual, p->graph, p->mesh->num_cells, 1);
   nonlinear_integrator_set_preconditioner(p->solver, precond);
 
   // Allocate storage for cell face fluxes.
