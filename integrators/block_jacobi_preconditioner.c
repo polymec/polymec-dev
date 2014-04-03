@@ -230,6 +230,7 @@ static bool block_jacobi_preconditioner_solve(void* context, preconditioner_matr
   int bs = precond->block_size;
   bd_mat_t* mat = preconditioner_matrix_context(A);
 
+  bool success;
   for (int i = 0; i < precond->num_block_rows; ++i)
   {
     // Copy the block for this row into place.
@@ -240,13 +241,18 @@ static bool block_jacobi_preconditioner_solve(void* context, preconditioner_matr
     // Solve the linear system.
     int one = 1, ipiv[bs], info;
     dgesv(&bs, &one, Aij, &bs, ipiv, bi, &bs, &info);
-    ASSERT(info == 0);
+    success = (info == 0);
 
-    // Copy the solution into place.
-    memcpy(&B[i*bs], bi, sizeof(real_t)*bs);
+    if (success)
+    {
+      // Copy the solution into place.
+      memcpy(&B[i*bs], bi, sizeof(real_t)*bs);
+    }
+    else
+      break;
   }
 
-  return true;
+  return success;
 }
 
 static void block_jacobi_preconditioner_dtor(void* context)

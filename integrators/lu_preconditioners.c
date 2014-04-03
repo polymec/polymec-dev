@@ -338,8 +338,11 @@ static bool lu_preconditioner_solve(void* context, preconditioner_matrix_t* A, r
 
   bool success = (info == 0);
 
-  // Copy the rhs vector to B.
-  memcpy(B, rhs->nzval, sizeof(real_t) * precond->N);
+  if (success)
+  {
+    // Copy the rhs vector to B.
+    memcpy(B, rhs->nzval, sizeof(real_t) * precond->N);
+  }
 
   return success;
 }

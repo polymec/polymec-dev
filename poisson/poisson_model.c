@@ -409,8 +409,8 @@ static void poisson_init(void* context, real_t t)
   p->poly_fit = polynomial_fit_new(1, poly_degree);
 
   // For now, Use LU preconditioning with the same residual function.
-  preconditioner_t* precond = lu_preconditioner_new(p, poisson_residual, p->graph);
-//  preconditioner_t* precond = block_jacobi_preconditioner_new(p, poisson_residual, p->graph, p->mesh->num_cells, 1);
+//  preconditioner_t* precond = lu_preconditioner_new(p, poisson_residual, p->graph);
+  preconditioner_t* precond = block_jacobi_preconditioner_new(p, poisson_residual, p->graph, p->mesh->num_cells, 1);
   nonlinear_integrator_set_preconditioner(p->solver, precond);
 
   // Allocate storage for cell face fluxes.
@@ -423,7 +423,6 @@ static void poisson_init(void* context, real_t t)
 
   // Now we simply solve the problem for the initial time.
   bool success = nonlinear_integrator_solve(p->solver, t, p->phi, &p->num_iterations);
-preconditioner_matrix_fprintf(nonlinear_integrator_preconditioner_matrix(p->solver), stdout);
   if (!success)
   {
     nonlinear_integrator_diagnostics_t diags;
