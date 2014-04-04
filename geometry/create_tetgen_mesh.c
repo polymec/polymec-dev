@@ -446,7 +446,7 @@ mesh_t* create_tetgen_mesh(MPI_Comm comm,
           // Find the face with these nodes.
           int* face_p = int_tuple_int_unordered_map_get(face_for_nodes, nodes);
           if (face_p == NULL)
-            polymec_error("TetGen files are inconsistent (cell %d does not have a face %d)", c, n);
+            polymec_error("TetGen files are inconsistent (cell %d does not have a face with nodes %d, %d, %d)", c+1, nodes[0]+1, nodes[1]+1, nodes[2]+1);
           int face = *face_p;
 
           // Determine whether the face has an outward or inward normal w.r.t. 
