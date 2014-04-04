@@ -526,9 +526,10 @@ mesh_t* create_tetgen_mesh(MPI_Comm comm,
 
     for (int t = 0; t < num_tets; ++t)
     {
-      ASSERT(tets[t].attribute < max_num_attr);
-      if (tets[t].attribute != -1)
+      // If this is a "normal" attribute, we assign it to a tag.
+      if ((tets[t].attribute < max_num_attr) && (tets[t].attribute != -1))
         attributes[tets[t].attribute]++;
+      // Otherwise it's probably something to do with adaptive resolution.
     }
     int* cell_tags[max_num_attr];
     for (int i = 0; i < max_num_attr; ++i)
@@ -544,7 +545,7 @@ mesh_t* create_tetgen_mesh(MPI_Comm comm,
     for (int t = 0; t < num_tets; ++t)
     {
       int a = tets[t].attribute;
-      if (a != -1)
+      if ((a < max_num_attr) && (a != -1))
       {
         cell_tags[a][attributes[a]] = t;
         attributes[a]++;
