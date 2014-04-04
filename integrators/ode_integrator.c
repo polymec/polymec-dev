@@ -158,14 +158,15 @@ static ode_integrator_t* ode_integrator_new(const char* name,
 
   // Select the particular type of Krylov method for the underlying linear solves.
   if (solver_type == GMRES)
+  {
     CVSpgmr(integ->cvode, PREC_LEFT, max_krylov_dim); 
+    // We use modified Gram-Schmidt orthogonalization.
+    CVSpilsSetGSType(integ->cvode, MODIFIED_GS);
+  }
   else if (solver_type == BICGSTAB)
     CVSpbcg(integ->cvode, PREC_LEFT, max_krylov_dim);
   else
     CVSptfqmr(integ->cvode, PREC_LEFT, max_krylov_dim);
-
-  // We use modified Gram-Schmidt orthogonalization.
-  CVSpilsSetGSType(integ->cvode, MODIFIED_GS);
 
   CVSpilsSetPreconditioner(integ->cvode, set_up_preconditioner,
                            solve_preconditioner_system);

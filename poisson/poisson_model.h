@@ -34,6 +34,12 @@ model_t* poisson_model_new(options_t* options);
 // Uses the given function as the initial guess for the Poisson problem.
 void poisson_model_set_initial_guess(model_t* model, st_func_t* guess);
 
+// Enables "pseudo" time-stepping as a method for improving the initial (zero) 
+// guess for the simulation.
+void poisson_model_set_pseudo_time_stepping(model_t* model,
+                                            real_t max_pseudo_time,
+                                            int max_num_pseudo_steps);
+
 // This factory method creates a new Finite-Volume Poisson model that is ready 
 // to run a problem defined by the given parameters. All arguments are consumed.
 model_t* create_poisson(mesh_t* mesh,

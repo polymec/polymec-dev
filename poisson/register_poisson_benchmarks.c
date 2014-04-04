@@ -167,6 +167,7 @@ static void poisson_run_laplace_1d(options_t* options,
     tag_rectilinear_mesh_faces(mesh, Nx, Ny, Nz, "-x", "+x", "-y", "+y", "-z", "+z");
     string_ptr_unordered_map_t* bcs_copy = string_ptr_unordered_map_copy(bcs);
     model_t* model = create_poisson(mesh, lambda, rhs, bcs_copy, solution, options);
+//    poisson_model_set_pseudo_time_stepping(model, 1000.0, 100);
     model_run(model, t, t, INT_MAX);
     model_compute_error_norms(model, solution, lp_norms[iter]);
     model_free(model);

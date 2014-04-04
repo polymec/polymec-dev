@@ -31,6 +31,7 @@
 #include "core/norms.h"
 #include "geometry/interpreter_register_geometry_functions.h"
 #include "integrators/nonlinear_integrator.h"
+#include "integrators/ode_integrator.h"
 #include "integrators/lu_preconditioners.h"
 #include "integrators/block_jacobi_preconditioner.h"
 #include "integrators/polyhedron_integrator.h"
@@ -55,6 +56,10 @@ typedef struct
   real_t* phi;              // Solution array.
   st_func_t* solution;      // Analytic solution (if non-NULL).
   st_func_t* initial_guess; // Initial guess (if non-NULL).
+
+  // Pseudo time stepping.
+  real_t max_pseudo_time;
+  int max_num_pseudo_steps;
 
   string_ptr_unordered_map_t* bcs; // Boundary conditions.
   boundary_cell_map_t* boundary_cells; // Boundary cell -> BC mapping
@@ -253,7 +258,7 @@ static int poisson_residual(void* context, real_t t, real_t* u, real_t* F)
           n_o_lambda.y = nq.x * lambda[1] + nq.y * lambda[2] + nq.z * lambda[4];
           n_o_lambda.z = nq.x * lambda[2] + nq.y * lambda[4] + nq.z * lambda[5];
         }
-        face_flux += wq * vector_dot(&n_o_lambda, &grad_phi);
+        face_flux -= wq * vector_dot(&n_o_lambda, &grad_phi);
       }
 
       p->face_fluxes[2*face + which_cell] = face_flux;
@@ -307,7 +312,7 @@ static int poisson_residual(void* context, real_t t, real_t* u, real_t* F)
     }
 
     // Now compute the residual in this cell.
-    F[cell] = p->cell_sources[cell];
+    F[cell] = -p->cell_sources[cell];
     fpos = 0;
     while (mesh_cell_next_face(p->mesh, cell, &fpos, &face))
     {
@@ -316,7 +321,7 @@ static int poisson_residual(void* context, real_t t, real_t* u, real_t* F)
 //printf("F[%d] -= %g -> %g\n", cell, p->face_fluxes[2*face + which_cell], F[cell]);
     }
   }
-  log_debug("L2[F] = %g", l2_norm(F, p->mesh->num_cells));
+//  log_debug("L2[F] = %g", l2_norm(F, p->mesh->num_cells));
 //printf("F = [");
 //for (int i = 0; i < p->mesh->num_cells; ++i)
 //printf("%g ", F[i]);
@@ -420,6 +425,32 @@ static void poisson_init(void* context, real_t t)
   // Allocate storage for cell source contributions.
   p->cell_sources = malloc(sizeof(real_t)*N);
   memset(p->cell_sources, 0, sizeof(real_t)*N);
+
+  // If "pseudo" time stepping is enabled, improved our initial guess.
+  if ((p->max_pseudo_time > t) || (p->max_num_pseudo_steps > 0))
+  {
+    ode_integrator_vtable vtable = {.rhs = poisson_residual};
+    ode_integrator_t* pseudo = bicgstab_ode_integrator_new("Pseudo time", p, MPI_COMM_WORLD, N, vtable, 2, 15);
+    ode_integrator_set_stop_time(pseudo, p->max_pseudo_time);
+
+    preconditioner_t* precond = lu_preconditioner_new(p, poisson_residual, p->graph);
+    ode_integrator_set_preconditioner(pseudo, precond);
+
+    real_t pseudo_t = t;
+    int num_steps = 0;
+    while ((pseudo_t < p->max_pseudo_time) && (num_steps < p->max_num_pseudo_steps))
+    {
+      if (!ode_integrator_step(pseudo, &pseudo_t, p->phi))
+        polymec_error("Error in pseudo time stepper at step %d\n", num_steps);
+      ++num_steps;
+      log_detail("poisson: stepped to pseudo time %g (%d steps).", pseudo_t, num_steps);
+    }
+    ode_integrator_free(pseudo);
+//printf("phi = [");
+//for (int i = 0; i < p->mesh->num_cells; ++i)
+//printf("%g ", p->phi[i]);
+//printf("]\n");
+  }
 
   // Now we simply solve the problem for the initial time.
   bool success = nonlinear_integrator_solve(p->solver, t, p->phi, &p->num_iterations);
@@ -547,6 +578,8 @@ model_t* poisson_model_new(options_t* options)
   p->poly_quad_rule = NULL;
   p->special_quad_rules = int_ptr_unordered_map_new();
   p->solver = NULL;
+  p->max_pseudo_time = -FLT_MAX;
+  p->max_num_pseudo_steps = -1;
 
   model_t* model = model_new("poisson", p, vtable, options);
 
@@ -574,6 +607,17 @@ void poisson_model_set_initial_guess(model_t* model,
   poisson_t* p = model_context(model);
   ASSERT(st_func_num_comp(guess) == 1);
   p->initial_guess = guess;
+}
+
+void poisson_model_set_pseudo_time_stepping(model_t* model,
+                                            real_t max_pseudo_time,
+                                            int max_num_pseudo_steps)
+{
+  poisson_t* p = model_context(model);
+  ASSERT(max_num_pseudo_steps > 0);
+  log_detail("poisson: enabling pseudo time stepping to pseudo time %g (max %d steps).", max_pseudo_time, max_num_pseudo_steps);
+  p->max_pseudo_time = max_pseudo_time;
+  p->max_num_pseudo_steps = max_num_pseudo_steps;
 }
 
 model_t* create_poisson(mesh_t* mesh,
