@@ -251,12 +251,14 @@ void polymec_atexit(void (*func)())
 
 void polymec_version_fprintf(const char* exe_name, FILE* stream)
 {
+  if (stream == NULL) return;
   fprintf(stream, "%s v%s\n", exe_name, POLYMEC_VERSION);
 }
 
 void polymec_provenance_fprintf(FILE* stream)
 {
   ASSERT(polymec_initialized);
+  if (stream == NULL) return;
 
   fprintf(stream, "=======================================================================\n");
   fprintf(stream, "                                Provenance:\n");

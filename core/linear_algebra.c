@@ -145,6 +145,7 @@ void rgelss(int* m, int* n, int* nrhs, real_t* A, int* lda, real_t* B, int* ldb,
 
 void matrix_fprintf(real_t* matrix, int nr, int nc, FILE* stream)
 {
+  if (stream == NULL) return;
   fprintf(stream, "[ ");
   for (int i = 0; i < nr; ++i)
   {
@@ -158,6 +159,7 @@ void matrix_fprintf(real_t* matrix, int nr, int nc, FILE* stream)
 
 void vector_fprintf(real_t* vec, int nr, FILE* stream)
 {
+  if (stream == NULL) return;
   fprintf(stream, "[");
   for (int i = 0; i < nr; ++i)
     fprintf(stream, "%g ", vec[i]);

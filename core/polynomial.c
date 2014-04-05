@@ -441,6 +441,7 @@ sp_func_t* polynomial_sp_func(polynomial_t* p)
 
 void polynomial_fprintf(polynomial_t* p, FILE* stream)
 {
+  if (stream == NULL) return;
   char x_term[32], y_term[32], z_term[32];
   if (p->x0.x != 0.0)
     snprintf(x_term, 32, "(x - %g)", p->x0.x);

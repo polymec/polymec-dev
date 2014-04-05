@@ -273,6 +273,7 @@ static void mpi_message_free(mpi_message_t* msg)
 
 static void mpi_message_fprintf(mpi_message_t* msg, FILE* stream)
 {
+  if (stream == NULL) return;
   char typeStr[1024];
   if (msg->type == MPI_REAL)
     strcpy(typeStr, "real");

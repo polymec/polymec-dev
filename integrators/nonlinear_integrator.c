@@ -418,6 +418,7 @@ void nonlinear_integrator_get_diagnostics(nonlinear_integrator_t* integrator,
 void nonlinear_integrator_diagnostics_fprintf(nonlinear_integrator_diagnostics_t* diagnostics, 
                                               FILE* stream)
 {
+  if (stream == NULL) return;
   fprintf(stream, "Nonlinear integrator diagnostics:\n");
   if (diagnostics->status_message != NULL)
     fprintf(stream, "  Status: %s\n", diagnostics->status_message);

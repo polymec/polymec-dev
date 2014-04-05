@@ -81,21 +81,23 @@ int main(int argc, char** argv)
   fclose(fp);
 
   // Set the log level.
-  set_log_level(LOG_DETAIL);
+  log_level_t log_lev = LOG_DETAIL;
   char* logging = options_value(opts, "logging");
   if (logging != NULL)
   {
     if (!strcasecmp(logging, "debug"))
-      set_log_level(LOG_DEBUG);
+      log_lev = LOG_DEBUG;
     else if (!strcasecmp(logging, "detail"))
-      set_log_level(LOG_DETAIL);
+      log_lev = LOG_DETAIL;
     else if (!strcasecmp(logging, "info"))
-      set_log_level(LOG_INFO);
+      log_lev = LOG_INFO;
     else if (!strcasecmp(logging, "urgent"))
-      set_log_level(LOG_URGENT);
+      log_lev = LOG_URGENT;
     else if (!strcasecmp(logging, "off"))
-      set_log_level(LOG_NONE);
+      log_lev = LOG_NONE;
   }
+  set_log_level(log_lev);
+  FILE* log_str = log_stream(log_lev);
 
   // Print a version identifier.
   int rank;
@@ -104,9 +106,9 @@ int main(int argc, char** argv)
   {
     // If we're providing full provenance, do so here.
     if (provenance)
-      polymec_provenance_fprintf(stdout);
+      polymec_provenance_fprintf(log_str);
     else
-      polymec_version_fprintf("polymesher", stdout);
+      polymec_version_fprintf("polymesher", log_str);
   }
 
   // Set up an interpreter for parsing the input file.

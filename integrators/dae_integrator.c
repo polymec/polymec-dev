@@ -434,6 +434,7 @@ void dae_integrator_get_diagnostics(dae_integrator_t* integrator,
 void dae_integrator_diagnostics_fprintf(dae_integrator_diagnostics_t* diagnostics, 
                                         FILE* stream)
 {
+  if (stream == NULL) return;
   fprintf(stream, "dae integrator diagnostics:\n");
   if (diagnostics->status_message != NULL)
     fprintf(stream, "  Status: %s\n", diagnostics->status_message);

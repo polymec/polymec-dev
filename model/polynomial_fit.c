@@ -357,6 +357,7 @@ void polynomial_fit_eval_deriv(polynomial_fit_t* fit,
 
 void polynomial_fit_fprintf(polynomial_fit_t* fit, FILE* stream)
 {
+  if (stream == NULL) return;
   if (fit->num_components == 1)
     fprintf(stream, "Polynomial fit (%d component, degree %d):\n", fit->num_components, fit->p);
   else

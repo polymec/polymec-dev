@@ -426,6 +426,7 @@ void ode_integrator_get_diagnostics(ode_integrator_t* integrator,
 void ode_integrator_diagnostics_fprintf(ode_integrator_diagnostics_t* diagnostics, 
                                         FILE* stream)
 {
+  if (stream == NULL) return;
   fprintf(stream, "ODE integrator diagnostics:\n");
   if (diagnostics->status_message != NULL)
     fprintf(stream, "  Status: %s\n", diagnostics->status_message);
