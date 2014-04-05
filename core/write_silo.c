@@ -319,6 +319,7 @@ void write_silo_mesh(MPI_Comm comm,
   write_tags_to_file(mesh->cell_tags, "cell_tags", file);
 
   // Write out the cell-centered field data.
+  if (fields != NULL)
   {
     int pos = 0;
     char* field_name;
@@ -619,13 +620,16 @@ void write_silo_points(MPI_Comm comm,
   free(z);
 
   // Write out the point field data.
-  int pos = 0;
-  char* field_name; 
-  real_t* field_data;
-  while (string_ptr_unordered_map_next(fields, &pos, &field_name, (void**)&field_data))
+  if (fields != NULL)
   {
-    real_t* vars[1] = {field_data}; 
-    DBPutPointvar(file, field_name, "points", 1, vars, num_points, data_type, optlist);
+    int pos = 0;
+    char* field_name; 
+    real_t* field_data;
+    while (string_ptr_unordered_map_next(fields, &pos, &field_name, (void**)&field_data))
+    {
+      real_t* vars[1] = {field_data}; 
+      DBPutPointvar(file, field_name, "points", 1, vars, num_points, data_type, optlist);
+    }
   }
 
   // Clean up.

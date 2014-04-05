@@ -72,6 +72,8 @@ static point_t* read_nodes(const char* node_file, int* num_nodes)
                              &num_attributes, &num_boundary_markers);
       if (num_items != 4)
         polymec_error("Node file has bad header.");
+      if (*num_nodes <= 0)
+        polymec_error("Node file has bad number of nodes: %d.", *num_nodes);
       if (dim != 3)
         polymec_error("Node file is not 3-dimensional.");
       nodes = malloc(sizeof(point_t) * (*num_nodes));

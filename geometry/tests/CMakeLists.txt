@@ -10,3 +10,9 @@ add_polymec_test(test_create_rectilinear_mesh test_create_rectilinear_mesh.c)
 add_polymec_test(test_create_uniform_mesh test_create_uniform_mesh.c)
 add_polymec_test(test_graph_from_mesh_cells test_graph_from_mesh_cells.c)
 
+# TetGen mesh. Move tetgen_example* files into place.
+foreach (suffix node;ele;face;neigh)
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/tetgen_example.1.${suffix} DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+endforeach()
+add_polymec_test(test_create_tetgen_mesh test_create_tetgen_mesh.c)
+

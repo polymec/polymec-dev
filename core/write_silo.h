@@ -30,6 +30,7 @@
 #include "core/unordered_map.h"
 
 // Writes a silo mesh file, with the given named cell-centered fields.
+// If fields is NULL, no fields are written.
 void write_silo_mesh(MPI_Comm comm,
                      const char* file_prefix,
                      const char* directory,
@@ -41,6 +42,7 @@ void write_silo_mesh(MPI_Comm comm,
                      real_t time);
 
 // Writes a silo point file, with the given fields defined on the points.
+// If fields is NULL, no fields are written.
 void write_silo_points(MPI_Comm comm,
                        const char* file_prefix,
                        const char* directory,
