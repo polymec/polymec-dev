@@ -499,6 +499,76 @@ void interpreter_register_global_method(interpreter_t* interp, const char* table
   }
 }
 
+void interpreter_help(interpreter_t* interp, const char* entity, FILE* stream)
+{
+  ASSERT(entity != NULL);
+
+  // If we were asked to list the available functions, do so.
+  if (!strcmp(entity, "list"))
+  {
+    fprintf(stream, "The following functions are available:\n");
+    for (int i = 0; i < interp->num_functions; ++i)
+      fprintf(stream, "  %s\n", interp->function_names[i]);
+    fprintf(stream, "\nThe following global symbols are available:\n");
+    for (int i = 0; i < interp->num_globals; ++i)
+      fprintf(stream, "  %s\n", interp->global_names[i]);
+    return;
+  }
+
+  // Search through registered functions.
+  for (int i = 0; i < interp->num_functions; ++i)
+  {
+    if (!strcmp(entity, interp->function_names[i]))
+    {
+      // Write the documentation for this function if it exists.
+      if (interp->function_docs[i] != NULL)
+      {
+        for (int j = 0; j < interp->function_docs[i]->size; ++j)
+          fprintf(stream, "%s\n", interp->function_docs[i]->data[j]);
+      }
+      else 
+        fprintf(stream, "The function '%s' is currently undocumented.\n", entity);
+      return;
+    }
+  }
+
+  // Search through the global tables/symbols.
+  for (int i = 0; i < interp->num_globals; ++i)
+  {
+    if (!strcmp(entity, interp->global_names[i]))
+    {
+      // Write the documentation for this global if it exists.
+      if (interp->global_docs[i] != NULL)
+      {
+        for (int j = 0; j < interp->global_docs[i]->size; ++j)
+          fprintf(stream, "%s\n", interp->global_docs[i]->data[j]);
+      }
+      else 
+      {
+        fprintf(stream, "The global symbol '%s' is currently undocumented.\n", entity);
+      }
+
+      // If there are documented symbols are present, write them out.
+      for (int j = 0; j < interp->num_global_methods[i]; ++j)
+      {
+        if (j == 0)
+          fprintf(stream, "'%s' contains the following methods:\n", entity);
+        if (interp->global_method_docs[i][j] != NULL)
+        {
+          for (int k = 0; k < interp->global_method_docs[i][j]->size; ++k)
+            fprintf(stream, "  %s\n", interp->global_method_docs[i][j]->data[k]);
+        }
+        else
+          fprintf(stream, "  %s (undocumented)\n", interp->global_method_names[i][j]);
+      }
+      return;
+    }
+  }
+
+  // We didn't find the symbol that was requested.
+  fprintf(stream, "No function named '%s' exists.\n", entity);
+}
+
 static interpreter_validation_t* interpreter_validation_entry(interpreter_t* interp, const char* key)
 {
   for (int i = 0; i < interp->num_valid_inputs; ++i)

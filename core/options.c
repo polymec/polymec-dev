@@ -74,13 +74,16 @@ options_t* options_parse(int argc, char** argv)
   GC_register_finalizer(o, &options_free, o, NULL, NULL);
 
   // Parse the basic options.
-  if ((argc == 1) || !strcmp(argv[1], "help") || !strcmp(argv[1], "--help"))
+  if (argc == 1)
+    o->command = NULL;
+  else if (!strcmp(argv[1], "help") || !strcmp(argv[1], "--help"))
     o->command = string_dup("help");
   else 
     o->command = string_dup(argv[1]);
   bool has_input = false;
   if ((argc >= 3) && (!strcmp(o->command, "run") || 
-                      !strcmp(o->command, "benchmark")))
+                      !strcmp(o->command, "benchmark") ||
+                      !strcmp(o->command, "help")))
   {
     has_input = true;
     o->input = string_dup(argv[2]);

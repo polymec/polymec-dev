@@ -751,6 +751,31 @@ static void driver_usage(const char* model_name, FILE* stream)
   exit(-1);
 }
 
+// Prints model-specific help.
+static void model_help(model_t* model, const char* arg, FILE* stream)
+{
+  // If no argument was given, just print the model's basic documentation.
+  if (arg == NULL)
+  {
+    if (model->doc != NULL)
+    {
+      for (int i = 0; i < model->doc->size; ++i)
+        fprintf(stream, "%s\n", model->doc->data[i]);
+    }
+    else
+    {
+      fprintf(stream, "No documentation is available for the %s model.\n", model_name(model));
+      fprintf(stream, "Use '%s help list' to list available functions.\n", model_name(model));
+    }
+  }
+  else
+  {
+    // Attempt to dig up the documentation for the given registered function.
+    interpreter_t* interp = model_interpreter(model);
+    interpreter_help(interp, arg, stream);
+  }
+}
+
 void model_set_sim_name(model_t* model, const char* sim_name)
 {
   ASSERT(sim_name != NULL);
@@ -887,28 +912,38 @@ int model_main(const char* model_name, model_ctor constructor, int argc, char* a
   // Extract the command and arguments.
   char* command = options_command(opts);
   char* input = options_input(opts);
-  if (!strcmp(command, "help"))
-    driver_usage(model_name, stderr);
 
   // Validate our inputs.
-  ASSERT(command != NULL);
-  int c = 0;
-  static const char* valid_commands[] = {"run", "benchmark", "list-benchmarks", "help", NULL};
-  while (valid_commands[c] != NULL)
+  if (command != NULL)
   {
-    if (!strcmp(command, valid_commands[c]))
-      break;
-    ++c;
+    int c = 0;
+    static const char* valid_commands[] = {"run", "benchmark", "list-benchmarks", "help", NULL};
+    while (valid_commands[c] != NULL)
+    {
+      if (!strcmp(command, valid_commands[c]))
+        break;
+      ++c;
+    }
+    if (valid_commands[c] == NULL)
+    {
+      fprintf(stderr, "%s: invalid command: '%s'\n", model_name, command);
+      return -1;
+    }
   }
-  if (valid_commands[c] == NULL)
-  {
-    fprintf(stderr, "%s: invalid command: '%s'\n", model_name, command);
-    return -1;
-  }
+  else
+    driver_usage(model_name, stderr);
 
   // Attempt to construct the model.
   model_t* model = (*constructor)(opts);
   ASSERT(model != NULL);
+
+  // Have we been asked for help?
+  if (!strcmp(command, "help"))
+  {
+    model_help(model, input, stderr);
+    model_free(model);
+    return 0;
+  }
 
   // Have we been asked to run a benchmark?
   if (!strcmp(command, "benchmark"))

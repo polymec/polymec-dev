@@ -35,7 +35,25 @@ static void mesher_usage(FILE* stream)
   fprintf(stream, "Here, [file] is a file specifying instructions for generating a mesh.\n");
   fprintf(stream, "Options are:\n");
   fprintf(stream, "  provenance={*0*,1} - provides full provenance information (w/ diffs)\n");
+  fprintf(stream, "\nType 'polymesher help' for documentation.\n");
   exit(-1);
+}
+
+static void mesher_help(interpreter_t* interp, const char* topic, FILE* stream)
+{
+  // If no argument was given, just print the polymesher's basic 
+  // documentation.
+  if (topic == NULL)
+  {
+    fprintf(stream, "No documentation is available for polymesher at this time.\n");
+    fprintf(stream, "Use 'polymesher help list' to list available functions.\n");
+  }
+  else
+  {
+    // Attempt to dig up the documentation for the given registered function.
+    interpreter_help(interp, topic, stream);
+  }
+  exit(0);
 }
 
 // Lua stuff.
@@ -64,21 +82,24 @@ int main(int argc, char** argv)
   // Extract the input file and arguments. Note that we use "command" here 
   // to get the input file, since it comes first.
   char* input = options_command(opts);
-  if (!strcmp(input, "help") || (input == NULL))
+  if (input == NULL)
     mesher_usage(stderr);
 
   // Full provenance, or no?
   char* provenance_str = options_value(opts, "provenance");
   bool provenance = ((provenance_str != NULL) && !strcmp(provenance_str, "1"));
 
-  // Check to see whether the given file exists.
-  FILE* fp = fopen(input, "r");
-  if (fp == NULL)
+  if (strcmp(input, "help") != 0)
   {
-    fprintf(stderr, "polymesher: Input file not found: %s\n", input);
-    return -1;
+    // Check to see whether the given file exists.
+    FILE* fp = fopen(input, "r");
+    if (fp == NULL)
+    {
+      fprintf(stderr, "polymesher: Input file not found: %s\n", input);
+      return -1;
+    }
+    fclose(fp);
   }
-  fclose(fp);
 
   // Set the log level.
   log_level_t log_lev = LOG_DETAIL;
@@ -115,6 +136,13 @@ int main(int argc, char** argv)
   interpreter_t* interp = interpreter_new(NULL);
   interpreter_register_geometry_functions(interp);
   interpreter_register_mesher_functions(interp);
+
+  // If we were asked for help, service the request here.
+  if (!strcmp(input, "help"))
+  {
+    char* topic = options_input(opts);
+    mesher_help(interp, topic, stderr);
+  }
 
   // Parse it!
   interpreter_parse_file(interp, input);

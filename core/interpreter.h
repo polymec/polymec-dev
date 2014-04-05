@@ -94,6 +94,11 @@ void interpreter_register_global_table(interpreter_t* interp, const char* table_
 // An array of documentation strings may be associated with the method.
 void interpreter_register_global_method(interpreter_t* interp, const char* table_name, const char* method_name, int (*method)(struct lua_State*), string_array_t* doc);
 
+// This function writes documentation for the given registered entity 
+// (a function or global symbol) within the interpreter to the given stream, 
+// or a generic "not found" string if no such entity exists.
+void interpreter_help(interpreter_t* interp, const char* entity, FILE* stream);
+
 // Parses the input file, storing the values in the interpreter.
 void interpreter_parse_file(interpreter_t* interp, char* input_file);
 
