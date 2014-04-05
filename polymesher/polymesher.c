@@ -48,7 +48,7 @@ extern int write_gnuplot_points(lua_State* lua);
 
 static void interpreter_register_mesher_functions(interpreter_t* interpreter)
 {
-  interpreter_register_function(interpreter, "write_gnuplot_points", write_gnuplot_points);
+  interpreter_register_function(interpreter, "write_gnuplot_points", write_gnuplot_points, NULL);
 }
 
 int main(int argc, char** argv)

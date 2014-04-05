@@ -28,6 +28,7 @@
 #include "core/polymec.h"
 #include "core/mesh.h"
 #include "core/st_func.h"
+#include "core/array.h"
 #include "core/unordered_map.h"
 
 // Forward declaration for Lua innards.
@@ -82,13 +83,16 @@ interpreter_t* interpreter_new(interpreter_validation_t* valid_inputs);
 void interpreter_free(interpreter_t* interp);
 
 // Register a user-defined function with the interpreter.
-void interpreter_register_function(interpreter_t* interp, const char* function_name, int (*function)(struct lua_State*));
+// An array of documentation strings may be associated with the function.
+void interpreter_register_function(interpreter_t* interp, const char* function_name, int (*function)(struct lua_State*), string_array_t* doc);
 
 // Register an empty user-defined global table with the interpreter.
-void interpreter_register_global_table(interpreter_t* interp, const char* table_name);
+// An array of documentation strings may be associated with the table.
+void interpreter_register_global_table(interpreter_t* interp, const char* table_name, string_array_t* doc);
 
 // Registers a method within the given global table in the interpreter.
-void interpreter_register_global_method(interpreter_t* interp, const char* table_name, const char* method_name, int (*method)(struct lua_State*));
+// An array of documentation strings may be associated with the method.
+void interpreter_register_global_method(interpreter_t* interp, const char* table_name, const char* method_name, int (*method)(struct lua_State*), string_array_t* doc);
 
 // Parses the input file, storing the values in the interpreter.
 void interpreter_parse_file(interpreter_t* interp, char* input_file);

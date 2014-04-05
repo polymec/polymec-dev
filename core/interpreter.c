@@ -354,12 +354,15 @@ struct interpreter_t
   int num_functions;
   char* function_names[1024];
   lua_CFunction functions[1024];
+  string_array_t* function_docs[1024];
 
   // A registry of global tables to support OO concepts.
   int num_globals;
   char* global_names[1024];
+  string_array_t* global_docs[1024];
   int num_global_methods[1024];
   char* global_method_names[1024][128];
+  string_array_t* global_method_docs[1024][128];
   lua_CFunction global_methods[1024][128];
 
   // The interpreter instance.
@@ -433,11 +436,21 @@ void interpreter_free(interpreter_t* interp)
   for (int i = 0; i < interp->num_globals; ++i)
   {
     for (int j = 0; j < interp->num_global_methods[i]; ++j)
+    {
       free(interp->global_method_names[i][j]);
+      if (interp->global_method_docs[i][j] != NULL)
+        string_array_free(interp->global_method_docs[i][j]);
+    }
     free(interp->global_names[i]);
+    if (interp->global_docs[i] != NULL)
+      string_array_free(interp->global_docs[i]);
   }
   for (int i = 0; i < interp->num_functions; ++i)
+  {
     free(interp->function_names[i]);
+    if (interp->function_docs[i] != NULL)
+      string_array_free(interp->function_docs[i]);
+  }
   for (int i = 0; i < interp->num_valid_inputs; ++i)
     free(interp->valid_inputs[i].variable);
   free(interp->valid_inputs);
@@ -450,23 +463,25 @@ void interpreter_free(interpreter_t* interp)
   free(interp);
 }
 
-void interpreter_register_function(interpreter_t* interp, const char* function_name, int (*function)(lua_State*))
+void interpreter_register_function(interpreter_t* interp, const char* function_name, int (*function)(lua_State*), string_array_t* doc)
 {
   ASSERT(interp->num_functions < 1024);
   interp->function_names[interp->num_functions] = string_dup(function_name);
   interp->functions[interp->num_functions] = function;
+  interp->function_docs[interp->num_functions] = doc;
   interp->num_functions++;
 }
 
-void interpreter_register_global_table(interpreter_t* interp, const char* table_name)
+void interpreter_register_global_table(interpreter_t* interp, const char* table_name, string_array_t* doc)
 {
   ASSERT(interp->num_globals < 1024);
   interp->global_names[interp->num_globals] = string_dup(table_name);
+  interp->global_docs[interp->num_globals] = doc;
   interp->num_global_methods[interp->num_globals] = 0;
   interp->num_globals++;
 }
 
-void interpreter_register_global_method(interpreter_t* interp, const char* table_name, const char* method_name, int (*method)(struct lua_State*))
+void interpreter_register_global_method(interpreter_t* interp, const char* table_name, const char* method_name, int (*method)(struct lua_State*), string_array_t* doc)
 {
   int global_index = 0;
   while (global_index < interp->num_globals)
@@ -479,6 +494,7 @@ void interpreter_register_global_method(interpreter_t* interp, const char* table
   {
     interp->global_method_names[global_index][interp->num_global_methods[global_index]] = string_dup(method_name);
     interp->global_methods[global_index][interp->num_global_methods[global_index]] = method;
+    interp->global_method_docs[global_index][interp->num_global_methods[global_index]] = doc;
     interp->num_global_methods[global_index]++;
   }
 }

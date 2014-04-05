@@ -869,29 +869,29 @@ static int tag_nodes(lua_State* lua)
 
 void interpreter_register_default_functions(interpreter_t* interp)
 {
-  interpreter_register_function(interp, "point", point);
-  interpreter_register_function(interp, "vector", vector);
-  interpreter_register_function(interp, "bounding_box", bounding_box);
-  interpreter_register_function(interp, "constant_function", constant_function);
-  interpreter_register_function(interp, "vector_function", vector_function);
-  interpreter_register_function(interp, "grad", grad);
-  interpreter_register_function(interp, "write_silo_mesh", lua_write_silo_mesh);
-  interpreter_register_function(interp, "write_silo_points", lua_write_silo_points);
+  interpreter_register_function(interp, "point", point, NULL);
+  interpreter_register_function(interp, "vector", vector, NULL);
+  interpreter_register_function(interp, "bounding_box", bounding_box, NULL);
+  interpreter_register_function(interp, "constant_function", constant_function, NULL);
+  interpreter_register_function(interp, "vector_function", vector_function, NULL);
+  interpreter_register_function(interp, "grad", grad, NULL);
+  interpreter_register_function(interp, "write_silo_mesh", lua_write_silo_mesh, NULL);
+  interpreter_register_function(interp, "write_silo_points", lua_write_silo_points, NULL);
 
   // Mesh query functions.
-  interpreter_register_function(interp, "cell_centers", cell_centers);
-  interpreter_register_function(interp, "cell_tags", cell_tags);
-  interpreter_register_function(interp, "cell_tag", cell_tag);
-  interpreter_register_function(interp, "tag_cells", tag_cells);
-  interpreter_register_function(interp, "face_tags", face_tags);
-  interpreter_register_function(interp, "face_tag", face_tag);
-  interpreter_register_function(interp, "tag_faces", tag_faces);
-  interpreter_register_function(interp, "edge_tags", edge_tags);
-  interpreter_register_function(interp, "edge_tag", edge_tag);
-  interpreter_register_function(interp, "tag_edges", tag_edges);
-  interpreter_register_function(interp, "node_positions", node_positions);
-  interpreter_register_function(interp, "node_tags", node_tags);
-  interpreter_register_function(interp, "node_tag", node_tag);
-  interpreter_register_function(interp, "tag_nodes", tag_nodes);
+  interpreter_register_function(interp, "cell_centers", cell_centers, NULL);
+  interpreter_register_function(interp, "cell_tags", cell_tags, NULL);
+  interpreter_register_function(interp, "cell_tag", cell_tag, NULL);
+  interpreter_register_function(interp, "tag_cells", tag_cells, NULL);
+  interpreter_register_function(interp, "face_tags", face_tags, NULL);
+  interpreter_register_function(interp, "face_tag", face_tag, NULL);
+  interpreter_register_function(interp, "tag_faces", tag_faces, NULL);
+  interpreter_register_function(interp, "edge_tags", edge_tags, NULL);
+  interpreter_register_function(interp, "edge_tag", edge_tag, NULL);
+  interpreter_register_function(interp, "tag_edges", tag_edges, NULL);
+  interpreter_register_function(interp, "node_positions", node_positions, NULL);
+  interpreter_register_function(interp, "node_tags", node_tags, NULL);
+  interpreter_register_function(interp, "node_tag", node_tag, NULL);
+  interpreter_register_function(interp, "tag_nodes", tag_nodes, NULL);
 }
 

@@ -581,7 +581,7 @@ model_t* poisson_model_new(options_t* options)
   p->max_pseudo_time = -FLT_MAX;
   p->max_num_pseudo_steps = -1;
 
-  model_t* model = model_new("poisson", p, vtable, options);
+  model_t* model = model_new("poisson", p, vtable, NULL, options);
 
   // Set up an interpreter.
   interpreter_validation_t valid_inputs[] = {{"mesh", INTERPRETER_MESH},

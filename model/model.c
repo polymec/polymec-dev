@@ -53,6 +53,7 @@ struct model_t
   void* context;
   char* name;
   model_vtable vtable;
+  string_array_t* doc; // Documentation strings.
   model_benchmark_map_t* benchmarks;
 
   int save_every; // Save frequency.
@@ -104,7 +105,7 @@ static real_t* parse_observation_times(char* observation_time_str, int* num_time
   return times;
 }
 
-model_t* model_new(const char* name, void* context, model_vtable vtable, options_t* options)
+model_t* model_new(const char* name, void* context, model_vtable vtable, string_array_t* doc, options_t* options)
 {
   ASSERT(options != NULL);
 
@@ -112,6 +113,7 @@ model_t* model_new(const char* name, void* context, model_vtable vtable, options
   model->vtable = vtable;
   model->context = context;
   model->name = string_dup(name);
+  model->doc = doc;
   model->benchmarks = model_benchmark_map_new();
   model->sim_name = NULL;
   model->save_every = -1;
@@ -140,6 +142,8 @@ void model_free(model_t* model)
   if ((model->context != NULL) && (model->vtable.dtor != NULL))
     model->vtable.dtor(model->context);
   free(model->name);
+  if (model->doc != NULL)
+    string_array_free(model->doc);
 
   // Clear benchmarks.
   model_benchmark_map_free(model->benchmarks);

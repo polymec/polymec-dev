@@ -88,7 +88,7 @@ typedef struct
 
 // Creates an instance of a model with the given name and characteristics, 
 // along with any relevant options.
-model_t* model_new(const char* name, void* context, model_vtable vtable, options_t* options);
+model_t* model_new(const char* name, void* context, model_vtable vtable, string_array_t* doc, options_t* options);
 
 // Destroys the model.
 void model_free(model_t* model);

@@ -563,46 +563,46 @@ static int remove_points(lua_State* lua)
 void interpreter_register_geometry_functions(interpreter_t* interp)
 {
   // Set up a point factory for generating points in 3D.
-  interpreter_register_global_table(interp, "point_factory");
-  interpreter_register_global_method(interp, "point_factory", "random_points", point_factory_random_points);
-  interpreter_register_global_method(interp, "point_factory", "cubic_lattice", point_factory_cubic_lattice);
-  interpreter_register_global_method(interp, "point_factory", "cylinder", point_factory_cylinder);
-  interpreter_register_global_method(interp, "point_factory", "import_from_cad", point_factory_import_from_cad);
+  interpreter_register_global_table(interp, "point_factory", NULL);
+  interpreter_register_global_method(interp, "point_factory", "random_points", point_factory_random_points, NULL);
+  interpreter_register_global_method(interp, "point_factory", "cubic_lattice", point_factory_cubic_lattice, NULL);
+  interpreter_register_global_method(interp, "point_factory", "cylinder", point_factory_cylinder, NULL);
+  interpreter_register_global_method(interp, "point_factory", "import_from_cad", point_factory_import_from_cad, NULL);
 
   // Set up a mesh factory for generating 3D meshes.
-  interpreter_register_global_table(interp, "mesh_factory");
-  interpreter_register_global_method(interp, "mesh_factory", "uniform", mesh_factory_uniform);
-  interpreter_register_global_method(interp, "mesh_factory", "rectilinear", mesh_factory_rectilinear);
-  interpreter_register_global_method(interp, "mesh_factory", "pebi", mesh_factory_pebi);
-  interpreter_register_global_method(interp, "mesh_factory", "tetgen", mesh_factory_tetgen);
-  interpreter_register_global_method(interp, "mesh_factory", "dual", mesh_factory_dual);
+  interpreter_register_global_table(interp, "mesh_factory", NULL);
+  interpreter_register_global_method(interp, "mesh_factory", "uniform", mesh_factory_uniform, NULL);
+  interpreter_register_global_method(interp, "mesh_factory", "rectilinear", mesh_factory_rectilinear, NULL);
+  interpreter_register_global_method(interp, "mesh_factory", "pebi", mesh_factory_pebi, NULL);
+  interpreter_register_global_method(interp, "mesh_factory", "tetgen", mesh_factory_tetgen, NULL);
+  interpreter_register_global_method(interp, "mesh_factory", "dual", mesh_factory_dual, NULL);
 
   // Set up a factory for generating 1D Cartesian meshes
-  interpreter_register_global_table(interp, "cartesian_1d");
-  interpreter_register_global_method(interp, "cartesian_1d", "uniform", cartesian_1d_uniform);
-  interpreter_register_global_method(interp, "cartesian_1d", "logarithmic", cartesian_1d_logarithmic);
-  interpreter_register_global_method(interp, "cartesian_1d", "nonuniform", cartesian_1d_nonuniform);
+  interpreter_register_global_table(interp, "cartesian_1d", NULL);
+  interpreter_register_global_method(interp, "cartesian_1d", "uniform", cartesian_1d_uniform, NULL);
+  interpreter_register_global_method(interp, "cartesian_1d", "logarithmic", cartesian_1d_logarithmic, NULL);
+  interpreter_register_global_method(interp, "cartesian_1d", "nonuniform", cartesian_1d_nonuniform, NULL);
 
   // Set up a factory for generating 1D cylindrical meshes
-  interpreter_register_global_table(interp, "cylindrical_1d");
-  interpreter_register_global_method(interp, "cylindrical_1d", "uniform", cylindrical_1d_uniform);
-  interpreter_register_global_method(interp, "cylindrical_1d", "logarithmic", cylindrical_1d_logarithmic);
-  interpreter_register_global_method(interp, "cylindrical_1d", "nonuniform", cylindrical_1d_nonuniform);
+  interpreter_register_global_table(interp, "cylindrical_1d", NULL);
+  interpreter_register_global_method(interp, "cylindrical_1d", "uniform", cylindrical_1d_uniform, NULL);
+  interpreter_register_global_method(interp, "cylindrical_1d", "logarithmic", cylindrical_1d_logarithmic, NULL);
+  interpreter_register_global_method(interp, "cylindrical_1d", "nonuniform", cylindrical_1d_nonuniform, NULL);
 
   // Set up a factory for generating 1D spherical meshes
-  interpreter_register_global_table(interp, "spherical_1d");
-  interpreter_register_global_method(interp, "spherical_1d", "uniform", spherical_1d_uniform);
-  interpreter_register_global_method(interp, "spherical_1d", "logarithmic", spherical_1d_logarithmic);
-  interpreter_register_global_method(interp, "spherical_1d", "nonuniform", spherical_1d_nonuniform);
+  interpreter_register_global_table(interp, "spherical_1d", NULL);
+  interpreter_register_global_method(interp, "spherical_1d", "uniform", spherical_1d_uniform, NULL);
+  interpreter_register_global_method(interp, "spherical_1d", "logarithmic", spherical_1d_logarithmic, NULL);
+  interpreter_register_global_method(interp, "spherical_1d", "nonuniform", spherical_1d_nonuniform, NULL);
 
-  interpreter_register_function(interp, "scaled_bounding_box", scaled_bounding_box);
-  interpreter_register_function(interp, "sample_bounding_box", sample_bbox);
-  interpreter_register_function(interp, "sample_cyl_shell", sample_cyl_shell);
-  interpreter_register_function(interp, "translate_points", translate_points);
-  interpreter_register_function(interp, "rotate_points", rotate_points);
-  interpreter_register_function(interp, "copy_points", copy_points);
-  interpreter_register_function(interp, "select_points", select_points);
-  interpreter_register_function(interp, "remove_points", remove_points);
+  interpreter_register_function(interp, "scaled_bounding_box", scaled_bounding_box, NULL);
+  interpreter_register_function(interp, "sample_bounding_box", sample_bbox, NULL);
+  interpreter_register_function(interp, "sample_cyl_shell", sample_cyl_shell, NULL);
+  interpreter_register_function(interp, "translate_points", translate_points, NULL);
+  interpreter_register_function(interp, "rotate_points", rotate_points, NULL);
+  interpreter_register_function(interp, "copy_points", copy_points, NULL);
+  interpreter_register_function(interp, "select_points", select_points, NULL);
+  interpreter_register_function(interp, "remove_points", remove_points, NULL);
   interpreter_register_spfuncs(interp);
 }
 

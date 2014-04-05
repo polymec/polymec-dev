@@ -114,8 +114,8 @@ static int robin_bc(lua_State* lua)
 
 void interpreter_register_poisson_functions(interpreter_t* interpreter)
 {
-  interpreter_register_function(interpreter, "dirichlet_bc", dirichlet_bc);
-  interpreter_register_function(interpreter, "neumann_bc", neumann_bc);
-  interpreter_register_function(interpreter, "robin_bc", robin_bc);
+  interpreter_register_function(interpreter, "dirichlet_bc", dirichlet_bc, NULL);
+  interpreter_register_function(interpreter, "neumann_bc", neumann_bc, NULL);
+  interpreter_register_function(interpreter, "robin_bc", robin_bc, NULL);
 }
 

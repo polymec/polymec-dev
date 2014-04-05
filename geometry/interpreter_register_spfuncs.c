@@ -72,7 +72,7 @@ static int rect_prism(lua_State* lua)
 
 void interpreter_register_spfuncs(interpreter_t* interp)
 {
-  interpreter_register_function(interp, "sphere", sphere);
-  interpreter_register_function(interp, "rect_prism", rect_prism);
+  interpreter_register_function(interp, "sphere", sphere, NULL);
+  interpreter_register_function(interp, "rect_prism", rect_prism, NULL);
 }
 

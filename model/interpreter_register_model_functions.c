@@ -53,5 +53,5 @@ static int periodic_bc(lua_State* lua)
 
 void interpreter_register_model_functions(interpreter_t* interp)
 {
-  interpreter_register_function(interp, "periodic_bc", periodic_bc);
+  interpreter_register_function(interp, "periodic_bc", periodic_bc, NULL);
 }
