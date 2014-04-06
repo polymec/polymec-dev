@@ -34,10 +34,10 @@ void test_create_tetgen_mesh(void** state)
 {
   // Create a TetGen mesh from the tetgen_example.* files.
   mesh_t* mesh = create_tetgen_mesh(MPI_COMM_WORLD, 
-                                    "tetgen_example.1.node", 
-                                    "tetgen_example.1.ele", 
-                                    "tetgen_example.1.face", 
-                                    "tetgen_example.1.neigh");
+                                    CMAKE_CURRENT_SOURCE_DIR "/tetgen_example.1.node", 
+                                    CMAKE_CURRENT_SOURCE_DIR "/tetgen_example.1.ele", 
+                                    CMAKE_CURRENT_SOURCE_DIR "/tetgen_example.1.face", 
+                                    CMAKE_CURRENT_SOURCE_DIR "/tetgen_example.1.neigh");
   mesh_verify(mesh);
   assert_int_equal(1020, mesh->num_cells);
   assert_int_equal(0, mesh->num_ghost_cells);
@@ -51,10 +51,10 @@ void test_plot_tetgen_mesh(void** state)
 {
   // Create a TetGen mesh from the tetgen_example.* files.
   mesh_t* mesh = create_tetgen_mesh(MPI_COMM_WORLD, 
-                                    "tetgen_example.1.node", 
-                                    "tetgen_example.1.ele", 
-                                    "tetgen_example.1.face", 
-                                    "tetgen_example.1.neigh");
+                                    CMAKE_CURRENT_SOURCE_DIR "/tetgen_example.1.node", 
+                                    CMAKE_CURRENT_SOURCE_DIR "/tetgen_example.1.ele", 
+                                    CMAKE_CURRENT_SOURCE_DIR "/tetgen_example.1.face", 
+                                    CMAKE_CURRENT_SOURCE_DIR "/tetgen_example.1.neigh");
   // Plot it.
   write_silo_mesh(MPI_COMM_SELF, "tetgen_example", ".", 0, 1, 0, mesh, NULL, 0.0);
 

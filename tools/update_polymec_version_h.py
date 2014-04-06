@@ -20,13 +20,23 @@ try:
     git_revision = ' (git revision %s'%subprocess.check_output(['git', 'log', '-1', '--format=format:%h']).strip()
     git_diff = subprocess.check_output(['git', 'diff']).strip()
     num_diffs = 0
+    skip_dirs = ['cmake/Modules', 'tools'] # We skip diffs in these directories.
     if (git_diff == ''):
         git_diff = '""'
     else:
         git_diffs = git_diff.split('\n')
         num_diffs = len(git_diffs)
         git_diff = ''
+        skip = False
         for i in xrange(num_diffs):
+            if git_diffs[i][:4] == 'diff':
+                skip = False
+                for symbol in skip_dirs:
+                    if symbol in git_diffs[i]:
+                        skip = True
+                        break
+            if skip:
+                continue
             this_diff = git_diffs[i].replace('"', 'XXXDOUBLE_QUOTESXXX')
             git_diff += '  \"%s\\n\"'%this_diff
             if i < len(git_diffs)-1:

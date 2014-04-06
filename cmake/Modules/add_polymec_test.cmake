@@ -5,6 +5,7 @@ link_directories(${PROJECT_BINARY_DIR}/lib)
 function(add_polymec_test exe)
   add_executable(${exe} ${ARGN})
   target_link_libraries(${exe} cmockery ${POLYMEC_LIBS})
+  set_target_properties(${exe} PROPERTIES COMPILE_FLAGS "-DCMAKE_CURRENT_SOURCE_DIR=\\\"${CMAKE_CURRENT_SOURCE_DIR}\\\"")
   add_test(${exe} ${exe})
 endfunction()
 
