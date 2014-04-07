@@ -83,7 +83,8 @@ interpreter_t* interpreter_new(interpreter_validation_t* valid_inputs);
 void interpreter_free(interpreter_t* interp);
 
 // Register a user-defined function with the interpreter.
-// An array of documentation strings may be associated with the function.
+// An array of documentation strings may be associated with the function, and 
+// is consumed if given.
 void interpreter_register_function(interpreter_t* interp, const char* function_name, int (*function)(struct lua_State*), string_array_t* doc);
 
 // Register an empty user-defined global table with the interpreter.

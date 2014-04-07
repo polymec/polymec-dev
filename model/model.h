@@ -114,8 +114,11 @@ void model_usage(model_t* model, FILE* stream);
 typedef void (*model_benchmark_function_t)(options_t*);
 
 // Registers the given benchmark name, function, and description with 
-// this model.
-void model_register_benchmark(model_t* model, const char* benchmark, model_benchmark_function_t function, const char* description);
+// this model. The description is consumed if given.
+void model_register_benchmark(model_t* model, const char* benchmark, model_benchmark_function_t function, string_array_t* description);
+
+// Writes a description of the given benchmark to the given file stream.
+void model_describe_benchmark(model_t* model, const char* benchmark, FILE* stream);
 
 // Runs the given benchmark problem for the model.
 void model_run_benchmark(model_t* model, const char* benchmark, options_t* options);

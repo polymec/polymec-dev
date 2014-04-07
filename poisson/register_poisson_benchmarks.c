@@ -436,11 +436,11 @@ static void run_paraboloid_3(options_t* options)
 
 void register_poisson_benchmarks(model_t* model)
 {
-  model_register_benchmark(model, "laplace_1d", run_laplace_1d, "Laplace's equation in 1D Cartesian coordinates.");
-  model_register_benchmark(model, "laplace_1d_preserve", run_laplace_1d_preserve, "Laplace's equation in 1D Cartesian coordinates with correct solution as initial guess.");
-  model_register_benchmark(model, "laplace_1d_2", run_laplace_1d_2, "Laplace's equation in 1D Cartesian coordinates (run in 2D).");
-  model_register_benchmark(model, "laplace_1d_3", run_laplace_1d_3, "Laplace's equation in 1D Cartesian coordinates (run in 3D).");
-  model_register_benchmark(model, "paraboloid", run_paraboloid, "A paraboloid solution to Poisson's equation (2D).");
-  model_register_benchmark(model, "paraboloid_3", run_paraboloid_3, "A paraboloid solution to Poisson's equation (3D).");
+  model_register_benchmark(model, "laplace_1d", run_laplace_1d, NULL); // "Laplace's equation in 1D Cartesian coordinates.");
+  model_register_benchmark(model, "laplace_1d_preserve", run_laplace_1d_preserve, NULL); //"Laplace's equation in 1D Cartesian coordinates with correct solution as initial guess.");
+  model_register_benchmark(model, "laplace_1d_2", run_laplace_1d_2, NULL); //"Laplace's equation in 1D Cartesian coordinates (run in 2D).");
+  model_register_benchmark(model, "laplace_1d_3", run_laplace_1d_3, NULL); //"Laplace's equation in 1D Cartesian coordinates (run in 3D).");
+  model_register_benchmark(model, "paraboloid", run_paraboloid, NULL); //"A paraboloid solution to Poisson's equation (2D).");
+  model_register_benchmark(model, "paraboloid_3", run_paraboloid_3, NULL); //"A paraboloid solution to Poisson's equation (3D).");
 }
 

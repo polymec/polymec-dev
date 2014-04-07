@@ -33,14 +33,15 @@
 typedef struct
 {
   model_benchmark_function_t function;
-  char* description;
+  string_array_t* description;
 } model_benchmark_t;
 
 // Destructor for benchmark key/value pairs.
 static void free_benchmark_kv(char* key, model_benchmark_t* value)
 {
   free(key);
-  free(value->description);
+  if (value->description != NULL)
+    string_array_free(value->description);
   free(value);
 }
 
@@ -183,14 +184,38 @@ void model_enable_interpreter(model_t* model, interpreter_validation_t* valid_in
   model->interpreter = interpreter_new(valid_inputs);
 }
 
-void model_register_benchmark(model_t* model, const char* benchmark, model_benchmark_function_t function, const char* description)
+void model_register_benchmark(model_t* model, const char* benchmark, model_benchmark_function_t function, string_array_t* description)
 {
   ASSERT(benchmark != NULL);
   ASSERT(function != NULL);
   model_benchmark_t* metadata = malloc(sizeof(model_benchmark_t));
   metadata->function = function;
-  metadata->description = string_dup(description);
+  metadata->description = description;
   model_benchmark_map_insert_with_kv_dtor(model->benchmarks, string_dup(benchmark), metadata, free_benchmark_kv);
+}
+
+void model_describe_benchmark(model_t* model, const char* benchmark, FILE* stream)
+{
+  model_benchmark_t** metadata_p = (model_benchmark_t**)model_benchmark_map_get(model->benchmarks, (char*)benchmark);
+  if (metadata_p != NULL)
+  {
+    if ((*metadata_p)->description != NULL)
+    {
+      fprintf(stream, "%s benchmark '%s':\n", model->name, benchmark);
+      for (int i = 0; i < (*metadata_p)->description->size; ++i)
+        fprintf(stream, "%s\n", (*metadata_p)->description->data[i]);
+    }
+    else
+    {
+      fprintf(stream, "The benchmark '%s' for the %s model has no description.\n",
+              benchmark, model->name);
+    }
+  }
+  else
+  {
+    fprintf(stream, "No benchmark '%s' was registered for the %s model.\n",
+            benchmark, model->name);
+  }
 }
 
 void model_run_all_benchmarks(model_t* model, options_t* options)
@@ -744,10 +769,18 @@ static void driver_usage(const char* model_name, FILE* stream)
   fprintf(stream, "%s: usage:\n", model_name);
   fprintf(stream, "%s [command] [args]\n\n", model_name);
   fprintf(stream, "Here, [command] is one of the following:\n\n");
-  fprintf(stream, "  run [file]           -- Runs a simulation with input from the given file.\n");
-  fprintf(stream, "  benchmark [name]     -- Runs the given benchmark problem ('all' for all).\n");
-  fprintf(stream, "  list-benchmarks      -- Lists all benchmark problems.\n");
-  fprintf(stream, "  help                 -- Prints information about the given model.\n\n");
+  fprintf(stream, "  run [file]                -- Runs a simulation with input from the given file.\n");
+  fprintf(stream, "  benchmark [name]          -- Runs or queries a benchmark problem.\n");
+  fprintf(stream, "  help                      -- Prints information about the given model.\n\n");
+  fprintf(stream, "Benchmark commands:\n");
+  fprintf(stream, "  benchmark list            -- Lists all available benchmark problems.\n");
+  fprintf(stream, "  benchmark describe [name] -- Describes the given benchmark problems.\n");
+  fprintf(stream, "  benchmark all             -- Runs all available benchmark problems.\n");
+  fprintf(stream, "  benchmark [name]          -- Runs the given benchmark problem.\n");
+  fprintf(stream, "Help commands:\n");
+  fprintf(stream, "  help                      -- Prints model-specific help information.\n");
+  fprintf(stream, "  help list                 -- Prints a list of available functions.\n");
+  fprintf(stream, "  help [function/symbol]    -- Prints documentation for a function/symbol.\n");
   exit(-1);
 }
 
@@ -918,7 +951,7 @@ int model_main(const char* model_name, model_ctor constructor, int argc, char* a
   if (command != NULL)
   {
     int c = 0;
-    static const char* valid_commands[] = {"run", "benchmark", "list-benchmarks", "help", NULL};
+    static const char* valid_commands[] = {"run", "benchmark", "help", NULL};
     while (valid_commands[c] != NULL)
     {
       if (!strcmp(command, valid_commands[c]))
@@ -946,36 +979,48 @@ int model_main(const char* model_name, model_ctor constructor, int argc, char* a
     return 0;
   }
 
-  // Have we been asked to run a benchmark?
+  // Have we been asked to do something related to a benchmark?
   if (!strcmp(command, "benchmark"))
   {
     if (input == NULL)
     {
       fprintf(stderr, "%s: No benchmark problem given! Usage:\n", model_name);
-      fprintf(stderr, "%s benchmark [problem]\n", model_name);
+      fprintf(stderr, "%s benchmark [problem] OR \n", model_name);
+      fprintf(stderr, "%s benchmark all OR \n", model_name);
+      fprintf(stderr, "%s benchmark list OR \n", model_name);
+      fprintf(stderr, "%s benchmark describe [problem] OR \n", model_name);
       return -1;
     }
 
-    // Have we been asked to run all benchmarks?
-    if (!strcmp(input, "all"))
+    if (!strcmp(input, "all")) // Run all benchmarks?
       model_run_all_benchmarks(model, opts);
+    else if (!strcmp(input, "list")) // List benchmarks?
+    {
+      fprintf(stderr, "Benchmarks for %s model:\n", model_name);
+      int pos = 0;
+      char *benchmark;
+      model_benchmark_t* metadata;
+      while (model_benchmark_map_next(model->benchmarks, &pos, &benchmark, &metadata))
+      {
+        if ((metadata->description != NULL) && (metadata->description->size >= 1))
+          fprintf(stderr, "  %s (%s)\n", benchmark, metadata->description->data[0]);
+        else
+          fprintf(stderr, "  %s\n", benchmark);
+      }
+      fprintf(stderr, "\n");
+    }
+    else if (!strcmp(input, "describe")) // Describe a benchmark?
+    {
+      // We need to reach into argv for the benchmark name.
+      if (argc < 4)
+        fprintf(stderr, "%s: No benchmark specified for description.", model_name);
+      const char* benchmark = argv[3];
+      model_describe_benchmark(model, benchmark, stderr);
+    }
     else
       model_run_benchmark(model, input, opts);
 
     model_free(model);
-    return 0;
-  }
-
-  // Have we been asked to list all available benchmarks?
-  if (!strcmp(command, "list-benchmarks"))
-  {
-    fprintf(stderr, "Benchmarks for %s model:\n", model_name);
-    int pos = 0;
-    char *benchmark;
-    model_benchmark_t* metadata;
-    while (model_benchmark_map_next(model->benchmarks, &pos, &benchmark, &metadata))
-      fprintf(stderr, "  %s (%s)\n", benchmark, metadata->description);
-    fprintf(stderr, "\n");
     return 0;
   }
 
