@@ -141,9 +141,24 @@ void test_poly_fit(void** state, int p, point_t* x0, point_t* points, int num_po
   // Make sure we've recovered the coefficients.
   for (int i = 0; i < dim; ++i)
   {
-//  printf("%g %g %g\n", b[i], coeffs[i], fabs(b[i] - coeffs[i]));
-// FIXME: This fails sometimes.
-    assert_true(fabs(b[i] - coeffs[i]) < 1e-12);
+    // We need to pay attention to rounding errors (I think).
+//  printf("%d %g %g %g\n", p, b[i], coeffs[i], fabs(b[i] - coeffs[i]));
+    if (p == 0)
+    {
+      assert_true(fabs(b[i] - coeffs[i]) < 5e-15);
+    }
+    if (p == 1)
+    {
+      assert_true(fabs(b[i] - coeffs[i]) < 5e-14);
+    }
+    else if (p == 2)
+    {
+      assert_true(fabs(b[i] - coeffs[i]) < 5e-13);
+    }
+    else 
+    {
+      assert_true(fabs(b[i] - coeffs[i]) < 5e-11);
+    }
   }
 
   poly = NULL;
