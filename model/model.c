@@ -776,7 +776,7 @@ static void driver_usage(const char* model_name, FILE* stream)
   fprintf(stream, "  benchmark list            -- Lists all available benchmark problems.\n");
   fprintf(stream, "  benchmark describe [name] -- Describes the given benchmark problems.\n");
   fprintf(stream, "  benchmark all             -- Runs all available benchmark problems.\n");
-  fprintf(stream, "  benchmark [name]          -- Runs the given benchmark problem.\n");
+  fprintf(stream, "  benchmark [name]          -- Runs the given benchmark problem.\n\n");
   fprintf(stream, "Help commands:\n");
   fprintf(stream, "  help                      -- Prints model-specific help information.\n");
   fprintf(stream, "  help list                 -- Prints a list of available functions.\n");
