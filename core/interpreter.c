@@ -555,8 +555,9 @@ void interpreter_help(interpreter_t* interp, const char* entity, FILE* stream)
           fprintf(stream, "'%s' contains the following methods:\n", entity);
         if (interp->global_method_docs[i][j] != NULL)
         {
+          fprintf(stream, "  %s:\n", interp->global_method_names[i][j]);
           for (int k = 0; k < interp->global_method_docs[i][j]->size; ++k)
-            fprintf(stream, "  %s\n", interp->global_method_docs[i][j]->data[k]);
+            fprintf(stream, "    %s\n", interp->global_method_docs[i][j]->data[k]);
         }
         else
           fprintf(stream, "  %s (undocumented)\n", interp->global_method_names[i][j]);

@@ -45,8 +45,11 @@ static void mesher_help(interpreter_t* interp, const char* topic, FILE* stream)
   // documentation.
   if (topic == NULL)
   {
-    fprintf(stream, "No documentation is available for polymesher at this time.\n");
-    fprintf(stream, "Use 'polymesher help list' to list available functions.\n");
+    fprintf(stream, "polymesher: A polyhedral mesh generator.\n\n");
+    fprintf(stream, "polymesher executes Lua scripts that create and manipulate polyhedral meshes\n");
+    fprintf(stream, "using a variety of functions and objects.\n");
+    fprintf(stream, "\nUse 'polymesher help list' to list available functions, and\n");
+    fprintf(stream, "'polymesher help list <function>' for documentation on a given function.\n");
   }
   else
   {

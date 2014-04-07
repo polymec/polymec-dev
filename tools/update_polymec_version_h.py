@@ -20,7 +20,7 @@ try:
     git_revision = ' (git revision %s'%subprocess.check_output(['git', 'log', '-1', '--format=format:%h']).strip()
     git_diff = subprocess.check_output(['git', 'diff']).strip()
     num_diffs = 0
-    skip_dirs = ['cmake/Modules', 'tools'] # We skip diffs in these directories.
+    skip_dirs = ['cmake/Modules', 'tools/'] # We skip diffs in these directories.
     if (git_diff == ''):
         git_diff = '""'
     else:
