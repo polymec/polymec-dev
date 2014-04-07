@@ -769,7 +769,7 @@ static void driver_usage(const char* model_name, FILE* stream)
   fprintf(stream, "%s: usage:\n", model_name);
   fprintf(stream, "%s [command] [args]\n\n", model_name);
   fprintf(stream, "Here, [command] is one of the following:\n\n");
-  fprintf(stream, "  run [file]                -- Runs a simulation with input from the given file.\n");
+  fprintf(stream, "  run [file]                -- Runs a simulation with the given input file.\n");
   fprintf(stream, "  benchmark [name]          -- Runs or queries a benchmark problem.\n");
   fprintf(stream, "  help                      -- Prints information about the given model.\n\n");
   fprintf(stream, "Benchmark commands:\n");
