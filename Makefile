@@ -88,7 +88,7 @@ all test clean install:
 	@if [ ! -f $(BUILDDIR)/Makefile ]; then \
 		more INSTALL; \
 	else \
-		make -C $(BUILDDIR) $@ $(MAKEFLAGS); \
+		make -C $(BUILDDIR) $@ --no-print-directory $(MAKEFLAGS); \
 	fi
 
 config: distclean
