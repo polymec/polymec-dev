@@ -330,6 +330,20 @@ static int poisson_residual(void* context, real_t t, real_t* u, real_t* F)
   return 0;
 }
 
+// This serves as the right-hand side for the pseudo time stepping algorithm.
+// du/dt = (residual) + 2 * source
+static int poisson_pseudo_rhs(void* context, real_t t, real_t* u, real_t* rhs)
+{
+  int status = poisson_residual(context, t, u, rhs);
+  if (status == 0)
+  {
+    poisson_t* p = context;
+    for (int cell = 0; cell < p->mesh->num_cells; ++cell)
+      rhs[cell] += 2.0 * p->cell_sources[cell];
+  }
+  return status;
+}
+
 // This helper clears all the data structures that are tied to a discrete domain.
 static void poisson_clear(poisson_t* p)
 {
@@ -429,22 +443,26 @@ static void poisson_init(void* context, real_t t)
   // If "pseudo" time stepping is enabled, improved our initial guess.
   if ((p->max_pseudo_time > t) || (p->max_num_pseudo_steps > 0))
   {
-    ode_integrator_vtable vtable = {.rhs = poisson_residual};
+    ode_integrator_vtable vtable = {.rhs = poisson_pseudo_rhs};
     ode_integrator_t* pseudo = bicgstab_ode_integrator_new("Pseudo time", p, MPI_COMM_WORLD, N, vtable, 2, 15);
     ode_integrator_set_stop_time(pseudo, p->max_pseudo_time);
 
-    preconditioner_t* precond = lu_preconditioner_new(p, poisson_residual, p->graph);
+    preconditioner_t* precond = lu_preconditioner_new(p, poisson_pseudo_rhs, p->graph);
     ode_integrator_set_preconditioner(pseudo, precond);
 
     real_t pseudo_t = t;
     int num_steps = 0;
+    real_t* dphidt = malloc(sizeof(real_t) * N);
     while ((pseudo_t < p->max_pseudo_time) && (num_steps < p->max_num_pseudo_steps))
     {
       if (!ode_integrator_step(pseudo, &pseudo_t, p->phi))
         polymec_error("Error in pseudo time stepper at step %d\n", num_steps);
       ++num_steps;
-      log_detail("poisson: stepped to pseudo time %g (%d steps).", pseudo_t, num_steps);
+      poisson_pseudo_rhs(p, pseudo_t, p->phi, dphidt);
+      real_t L2 = l2_norm(dphidt, N);
+      log_detail("poisson: stepped to pseudo time %g. L2(dphi/dt) = %g", pseudo_t, L2);
     }
+    free(dphidt);
     ode_integrator_free(pseudo);
 //printf("phi = [");
 //for (int i = 0; i < p->mesh->num_cells; ++i)
