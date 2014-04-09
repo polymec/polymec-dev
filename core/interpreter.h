@@ -28,7 +28,6 @@
 #include "core/polymec.h"
 #include "core/mesh.h"
 #include "core/st_func.h"
-#include "core/array.h"
 #include "core/unordered_map.h"
 
 // Forward declaration for Lua innards.
@@ -75,6 +74,25 @@ typedef struct
 // This validation object is used to terminate lists of valid inputs.
 static const interpreter_validation_t END_OF_VALID_INPUTS = {.variable = "TERMINUS", .type = INTERPRETER_TERMINUS};
 
+// The docstring type holds lines of documentation for interpreter functions.
+// Docstrings are stored in a static database and destroyed upon exit, so they 
+// do not have callable destructors.
+typedef struct docstring_t docstring_t;
+
+// Creates a new, empty docstring.
+docstring_t* docstring_new();
+
+// Appends a line of text to the given docstring.
+void docstring_append(docstring_t* docs, const char* line);
+
+// Allows the retrieval of lines of text from a docstring, returning true if 
+// a line was retrieved and false if not. Set pos to 0 to reset the traversal.
+bool docstring_next(docstring_t* docs, int* pos, char** line);
+
+// Returns an internal pointer to the first line of the docstring. This is 
+// the empty string if the docstring is empty.
+char* docstring_first_line(docstring_t* docs);
+
 // Creates a new interpreter for use with a model. The interpreter uses the 
 // given set of types to validate variables in input files.
 interpreter_t* interpreter_new(interpreter_validation_t* valid_inputs);
@@ -83,17 +101,16 @@ interpreter_t* interpreter_new(interpreter_validation_t* valid_inputs);
 void interpreter_free(interpreter_t* interp);
 
 // Register a user-defined function with the interpreter.
-// An array of documentation strings may be associated with the function, and 
-// is consumed if given.
-void interpreter_register_function(interpreter_t* interp, const char* function_name, int (*function)(struct lua_State*), string_array_t* doc);
+// A docstring may be associated with the function, and is consumed if given.
+void interpreter_register_function(interpreter_t* interp, const char* function_name, int (*function)(struct lua_State*), docstring_t* doc);
 
 // Register an empty user-defined global table with the interpreter.
-// An array of documentation strings may be associated with the table.
-void interpreter_register_global_table(interpreter_t* interp, const char* table_name, string_array_t* doc);
+// A docstring may be associated with the function, and is consumed if given.
+void interpreter_register_global_table(interpreter_t* interp, const char* table_name, docstring_t* doc);
 
 // Registers a method within the given global table in the interpreter.
-// An array of documentation strings may be associated with the method.
-void interpreter_register_global_method(interpreter_t* interp, const char* table_name, const char* method_name, int (*method)(struct lua_State*), string_array_t* doc);
+// A docstring may be associated with the function, and is consumed if given.
+void interpreter_register_global_method(interpreter_t* interp, const char* table_name, const char* method_name, int (*method)(struct lua_State*), docstring_t* doc);
 
 // This function writes documentation for the given registered entity 
 // (a function or global symbol) within the interpreter to the given stream, 

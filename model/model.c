@@ -33,15 +33,13 @@
 typedef struct
 {
   model_benchmark_function_t function;
-  string_array_t* description;
+  docstring_t* description;
 } model_benchmark_t;
 
 // Destructor for benchmark key/value pairs.
 static void free_benchmark_kv(char* key, model_benchmark_t* value)
 {
   free(key);
-  if (value->description != NULL)
-    string_array_free(value->description);
   free(value);
 }
 
@@ -54,7 +52,7 @@ struct model_t
   void* context;
   char* name;
   model_vtable vtable;
-  string_array_t* doc; // Documentation strings.
+  docstring_t* doc; // Documentation string.
   model_benchmark_map_t* benchmarks;
 
   int save_every; // Save frequency.
@@ -106,7 +104,7 @@ static real_t* parse_observation_times(char* observation_time_str, int* num_time
   return times;
 }
 
-model_t* model_new(const char* name, void* context, model_vtable vtable, string_array_t* doc, options_t* options)
+model_t* model_new(const char* name, void* context, model_vtable vtable, docstring_t* doc, options_t* options)
 {
   ASSERT(options != NULL);
 
@@ -143,8 +141,6 @@ void model_free(model_t* model)
   if ((model->context != NULL) && (model->vtable.dtor != NULL))
     model->vtable.dtor(model->context);
   free(model->name);
-  if (model->doc != NULL)
-    string_array_free(model->doc);
 
   // Clear benchmarks.
   model_benchmark_map_free(model->benchmarks);
@@ -184,7 +180,7 @@ void model_enable_interpreter(model_t* model, interpreter_validation_t* valid_in
   model->interpreter = interpreter_new(valid_inputs);
 }
 
-void model_register_benchmark(model_t* model, const char* benchmark, model_benchmark_function_t function, string_array_t* description)
+void model_register_benchmark(model_t* model, const char* benchmark, model_benchmark_function_t function, docstring_t* description)
 {
   ASSERT(benchmark != NULL);
   ASSERT(function != NULL);
@@ -202,8 +198,10 @@ void model_describe_benchmark(model_t* model, const char* benchmark, FILE* strea
     if ((*metadata_p)->description != NULL)
     {
       fprintf(stream, "%s benchmark '%s':\n", model->name, benchmark);
-      for (int i = 0; i < (*metadata_p)->description->size; ++i)
-        fprintf(stream, "%s\n", (*metadata_p)->description->data[i]);
+      int pos = 0;
+      char* line;
+      while (docstring_next((*metadata_p)->description, &pos, &line))
+        fprintf(stream, "%s\n", line);
     }
     else
     {
@@ -792,8 +790,10 @@ static void model_help(model_t* model, const char* arg, FILE* stream)
   {
     if (model->doc != NULL)
     {
-      for (int i = 0; i < model->doc->size; ++i)
-        fprintf(stream, "%s\n", model->doc->data[i]);
+      int pos = 0;
+      char* line;
+      while (docstring_next(model->doc, &pos, &line))
+        fprintf(stream, "%s\n", line);
     }
     else
     {
@@ -1002,8 +1002,8 @@ int model_main(const char* model_name, model_ctor constructor, int argc, char* a
       model_benchmark_t* metadata;
       while (model_benchmark_map_next(model->benchmarks, &pos, &benchmark, &metadata))
       {
-        if ((metadata->description != NULL) && (metadata->description->size >= 1))
-          fprintf(stderr, "  %s (%s)\n", benchmark, metadata->description->data[0]);
+        if (metadata->description != NULL)
+          fprintf(stderr, "  %s (%s)\n", benchmark, docstring_first_line(metadata->description));
         else
           fprintf(stderr, "  %s\n", benchmark);
       }

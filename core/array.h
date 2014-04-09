@@ -123,10 +123,13 @@ static inline void array_name##_resize(array_name##_t* array, size_t new_size) \
   { \
     if (array->dtors != NULL) \
     { \
-      for (int i = 0; i < array->size; ++i) \
+      for (int i = new_size; i < array->size; ++i) \
       { \
         if (array->dtors[i] != NULL) \
+        { \
           array->dtors[i](array->data[i]); \
+          array->dtors[i] = NULL; \
+        } \
       } \
     } \
   } \

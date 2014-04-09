@@ -53,6 +53,13 @@ static int point(lua_State* lua)
   return 1;
 }
 
+static docstring_t* point_doc()
+{
+  docstring_t* docs = docstring_new();
+  docstring_append(docs, "point(x, y, z) - creates a point in 3D space.");
+  return docs;
+}
+
 // Creates a vector from a set of components.
 static int vector(lua_State* lua)
 {
@@ -869,7 +876,7 @@ static int tag_nodes(lua_State* lua)
 
 void interpreter_register_default_functions(interpreter_t* interp)
 {
-  interpreter_register_function(interp, "point", point, NULL);
+  interpreter_register_function(interp, "point", point, point_doc());
   interpreter_register_function(interp, "vector", vector, NULL);
   interpreter_register_function(interp, "bounding_box", bounding_box, NULL);
   interpreter_register_function(interp, "constant_function", constant_function, NULL);

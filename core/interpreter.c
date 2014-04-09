@@ -22,6 +22,7 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+#include "core/array.h"
 #include "core/interpreter.h"
 #include "core/tuple.h"
 #include "core/unordered_set.h"
@@ -30,6 +31,79 @@
 #include "lua.h"
 #include "lualib.h"
 #include "lauxlib.h"
+
+// Docstring database.
+static ptr_array_t* all_docstrings = NULL;
+
+static void destroy_docstrings()
+{
+  if (all_docstrings != NULL)
+    ptr_array_free(all_docstrings);
+  all_docstrings = NULL;
+}
+
+struct docstring_t
+{
+  // A docstring is really just an array of strings.
+  string_array_t* strings;
+  bool empty; // True if the docstring is empty, false if not.
+};
+
+static void docstring_dtor(void* docs)
+{
+  docstring_t* d = docs;
+  string_array_free(d->strings);
+  free(d);
+}
+
+static void string_dtor(char* str)
+{
+  free(str);
+}
+
+docstring_t* docstring_new()
+{
+  // Create the database if needed.
+  if (all_docstrings == NULL)
+  {
+    all_docstrings = ptr_array_new();
+    polymec_atexit(destroy_docstrings);
+  }
+  docstring_t* docs = malloc(sizeof(docstring_t));
+  docs->strings = string_array_new();
+  string_array_append_with_dtor(docs->strings, string_dup(""), string_dtor);
+  docs->empty = true;
+  ptr_array_append_with_dtor(all_docstrings, docs, docstring_dtor);
+  return docs;
+}
+
+void docstring_append(docstring_t* docs, const char* string)
+{
+  if (docs->empty)
+  {
+    string_array_clear(docs->strings);
+    docs->empty = false;
+  }
+  string_array_append(docs->strings, (char*)string);
+}
+
+bool docstring_next(docstring_t* docs, int* pos, char** line)
+{
+  if (*pos < docs->strings->size)
+  {
+    *line = docs->strings->data[*pos];
+    (*pos)++;
+    return true;
+  }
+  else
+    return false;
+}
+
+char* docstring_first_line(docstring_t* docs)
+{
+  ASSERT(docs->strings->size >= 1);
+  return docs->strings->data[0];
+}
 
 // This indicates whether the creater/owner of a datum is the Lua interpreter
 // or polymec itself.
@@ -354,15 +428,15 @@ struct interpreter_t
   int num_functions;
   char* function_names[1024];
   lua_CFunction functions[1024];
-  string_array_t* function_docs[1024];
+  docstring_t* function_docs[1024];
 
   // A registry of global tables to support OO concepts.
   int num_globals;
   char* global_names[1024];
-  string_array_t* global_docs[1024];
+  docstring_t* global_docs[1024];
   int num_global_methods[1024];
   char* global_method_names[1024][128];
-  string_array_t* global_method_docs[1024][128];
+  docstring_t* global_method_docs[1024][128];
   lua_CFunction global_methods[1024][128];
 
   // The interpreter instance.
@@ -436,20 +510,12 @@ void interpreter_free(interpreter_t* interp)
   for (int i = 0; i < interp->num_globals; ++i)
   {
     for (int j = 0; j < interp->num_global_methods[i]; ++j)
-    {
       free(interp->global_method_names[i][j]);
-      if (interp->global_method_docs[i][j] != NULL)
-        string_array_free(interp->global_method_docs[i][j]);
-    }
     free(interp->global_names[i]);
-    if (interp->global_docs[i] != NULL)
-      string_array_free(interp->global_docs[i]);
   }
   for (int i = 0; i < interp->num_functions; ++i)
   {
     free(interp->function_names[i]);
-    if (interp->function_docs[i] != NULL)
-      string_array_free(interp->function_docs[i]);
   }
   for (int i = 0; i < interp->num_valid_inputs; ++i)
     free(interp->valid_inputs[i].variable);
@@ -463,7 +529,7 @@ void interpreter_free(interpreter_t* interp)
   free(interp);
 }
 
-void interpreter_register_function(interpreter_t* interp, const char* function_name, int (*function)(lua_State*), string_array_t* doc)
+void interpreter_register_function(interpreter_t* interp, const char* function_name, int (*function)(lua_State*), docstring_t* doc)
 {
   ASSERT(interp->num_functions < 1024);
   interp->function_names[interp->num_functions] = string_dup(function_name);
@@ -472,7 +538,7 @@ void interpreter_register_function(interpreter_t* interp, const char* function_n
   interp->num_functions++;
 }
 
-void interpreter_register_global_table(interpreter_t* interp, const char* table_name, string_array_t* doc)
+void interpreter_register_global_table(interpreter_t* interp, const char* table_name, docstring_t* doc)
 {
   ASSERT(interp->num_globals < 1024);
   interp->global_names[interp->num_globals] = string_dup(table_name);
@@ -481,7 +547,7 @@ void interpreter_register_global_table(interpreter_t* interp, const char* table_
   interp->num_globals++;
 }
 
-void interpreter_register_global_method(interpreter_t* interp, const char* table_name, const char* method_name, int (*method)(struct lua_State*), string_array_t* doc)
+void interpreter_register_global_method(interpreter_t* interp, const char* table_name, const char* method_name, int (*method)(struct lua_State*), docstring_t* doc)
 {
   int global_index = 0;
   while (global_index < interp->num_globals)
@@ -523,8 +589,10 @@ void interpreter_help(interpreter_t* interp, const char* entity, FILE* stream)
       // Write the documentation for this function if it exists.
       if (interp->function_docs[i] != NULL)
       {
-        for (int j = 0; j < interp->function_docs[i]->size; ++j)
-          fprintf(stream, "%s\n", interp->function_docs[i]->data[j]);
+        int pos = 0;
+        char* line;
+        while (docstring_next(interp->function_docs[i], &pos, &line))
+          fprintf(stream, "%s\n", line);
       }
       else 
         fprintf(stream, "The function '%s' is currently undocumented.\n", entity);
@@ -540,8 +608,10 @@ void interpreter_help(interpreter_t* interp, const char* entity, FILE* stream)
       // Write the documentation for this global if it exists.
       if (interp->global_docs[i] != NULL)
       {
-        for (int j = 0; j < interp->global_docs[i]->size; ++j)
-          fprintf(stream, "%s\n", interp->global_docs[i]->data[j]);
+        int pos = 0;
+        char* line;
+        while (docstring_next(interp->global_docs[i], &pos, &line))
+          fprintf(stream, "%s\n", line);
       }
       else 
       {
@@ -556,8 +626,10 @@ void interpreter_help(interpreter_t* interp, const char* entity, FILE* stream)
         if (interp->global_method_docs[i][j] != NULL)
         {
           fprintf(stream, "  %s:\n", interp->global_method_names[i][j]);
-          for (int k = 0; k < interp->global_method_docs[i][j]->size; ++k)
-            fprintf(stream, "    %s\n", interp->global_method_docs[i][j]->data[k]);
+          int pos = 0;
+          char* line;
+          while (docstring_next(interp->global_method_docs[i][j], &pos, &line))
+            fprintf(stream, "    %s\n", line);
         }
         else
           fprintf(stream, "  %s (undocumented)\n", interp->global_method_names[i][j]);

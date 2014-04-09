@@ -88,7 +88,7 @@ typedef struct
 
 // Creates an instance of a model with the given name and characteristics, 
 // along with any relevant options.
-model_t* model_new(const char* name, void* context, model_vtable vtable, string_array_t* doc, options_t* options);
+model_t* model_new(const char* name, void* context, model_vtable vtable, docstring_t* doc, options_t* options);
 
 // Destroys the model.
 void model_free(model_t* model);
@@ -115,7 +115,7 @@ typedef void (*model_benchmark_function_t)(options_t*);
 
 // Registers the given benchmark name, function, and description with 
 // this model. The description is consumed if given.
-void model_register_benchmark(model_t* model, const char* benchmark, model_benchmark_function_t function, string_array_t* description);
+void model_register_benchmark(model_t* model, const char* benchmark, model_benchmark_function_t function, docstring_t* description);
 
 // Writes a description of the given benchmark to the given file stream.
 void model_describe_benchmark(model_t* model, const char* benchmark, FILE* stream);
