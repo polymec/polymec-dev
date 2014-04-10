@@ -298,18 +298,15 @@ static int poisson_residual(void* context, real_t t, real_t* u, real_t* F)
       int other_cell = mesh_face_opp_cell(p->mesh, face, cell);
       if ((other_cell != -1) && (cell < other_cell))
       {
-        // Retrieve the fluxes at face 1 and face 2.
+        // Retrieve the fluxes from cell and other_cell.
         real_t flux1 = p->face_fluxes[flux1_index];
-        real_t flux2 = p->face_fluxes[flux2_index];
+        real_t flux2 = -p->face_fluxes[flux2_index];
 
-        // Now average their magnitudes and make sure that they agree so 
+        // Now average them and make sure that they agree so 
         // that our fluxes are conservative.
-        real_t avg_flux = 0.5 * (fabs(flux1) + fabs(flux2));
-        int sign = (flux1 == 0.0) ? -SIGN(flux2) : SIGN(flux1);
-        p->face_fluxes[flux1_index] = sign * avg_flux;
-        p->face_fluxes[flux2_index] = -sign * avg_flux;
-//if ((cell == 0) || (cell >= p->mesh->num_cells - 2))
-//printf("cell %d: flux = %g\n", cell, sign * avg_flux);
+        real_t avg_flux = 0.5 * (flux1 + flux2);
+        p->face_fluxes[flux1_index] = avg_flux;
+        p->face_fluxes[flux2_index] = -avg_flux;
       }
     }
 
