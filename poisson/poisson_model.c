@@ -58,7 +58,7 @@ typedef struct
   st_func_t* initial_guess; // Initial guess (if non-NULL).
 
   // Pseudo time stepping.
-  real_t max_pseudo_L2; // Desired L2 norm of d(phi)/dt for pseudo-stepping.
+  real_t max_pseudo_L2; // Desired max L2 norm of d(phi)/dt for pseudo-stepping.
   int max_num_pseudo_steps;
 
   string_ptr_unordered_map_t* bcs; // Boundary conditions.
@@ -89,7 +89,14 @@ typedef struct
 static real_t poisson_advance(void* context, real_t max_dt, real_t t)
 {
   poisson_t* p = context;
-  nonlinear_integrator_solve(p->solver, t+max_dt, p->phi, &p->num_iterations);
+  bool success = nonlinear_integrator_solve(p->solver, t+max_dt, p->phi, &p->num_iterations);
+  if (!success)
+  {
+    nonlinear_integrator_diagnostics_t diags;
+    nonlinear_integrator_get_diagnostics(p->solver, &diags);
+    nonlinear_integrator_diagnostics_fprintf(&diags, stdout);
+    polymec_error("poisson: nonlinear solve failed.");
+  }
   return max_dt;
 }
 
@@ -314,6 +321,7 @@ static int poisson_residual(void* context, real_t t, real_t* u, real_t* F)
       int which_cell = (cell == p->mesh->face_cells[2*face]) ? 0 : 1;
       F[cell] -= p->face_fluxes[2*face + which_cell];
     }
+    F[cell] /= p->mesh->cell_volumes[cell];
   }
 
   return 0;
@@ -328,7 +336,7 @@ static int poisson_pseudo_rhs(void* context, real_t t, real_t* u, real_t* rhs)
   {
     poisson_t* p = context;
     for (int cell = 0; cell < p->mesh->num_cells; ++cell)
-      rhs[cell] = (rhs[cell] + 2.0 * p->cell_sources[cell]) / p->mesh->cell_volumes[cell];
+      rhs[cell] += 2.0 * p->cell_sources[cell] / p->mesh->cell_volumes[cell];
   }
   return status;
 }
@@ -380,6 +388,7 @@ static void poisson_clear(poisson_t* p)
   }
 }
 
+static void poisson_plot(void* context, const char* prefix, const char* directory, real_t t, int step);
 static void poisson_init(void* context, real_t t)
 {
   poisson_t* p = context;
@@ -453,7 +462,7 @@ static void poisson_init(void* context, real_t t)
       }
       ++num_steps;
       poisson_pseudo_rhs(p, pseudo_t, p->phi, dphidt);
-      for (int c = 0; c < p->mesh->num_cells; ++c)
+      for (int c = 0; c < N; ++c)
         dphidt[c] *= p->mesh->cell_volumes[c];
       L2 = l2_norm(dphidt, N);
       log_debug("poisson: stepped to pseudo time %g. L2[dphi/dt] = %g", pseudo_t, L2);
@@ -465,6 +474,7 @@ static void poisson_init(void* context, real_t t)
       log_detail("poisson: pseudo stepping produced sufficiently small L2[dphi/dt] in %d steps.", num_steps);
     else
       log_detail("poisson: pseudo stepping failed to sufficiently reduce L2[dphi/dt] after %d steps.", num_steps);
+    poisson_plot(p, "poisson", ".", t, 0);
   }
 
   // Now we simply solve the problem for the initial time.
