@@ -35,9 +35,11 @@ model_t* poisson_model_new(options_t* options);
 void poisson_model_set_initial_guess(model_t* model, st_func_t* guess);
 
 // Enables "pseudo" time-stepping as a method for improving the initial (zero) 
-// guess for the simulation.
+// guess for the simulation. max_pseudo_L2 is the value of the L2 norm for the 
+// pseudo-time derivative of the solution below which the time-stepping is 
+// terminated. 
 void poisson_model_set_pseudo_time_stepping(model_t* model,
-                                            real_t max_pseudo_time,
+                                            real_t max_pseudo_L2,
                                             int max_num_pseudo_steps);
 
 // This factory method creates a new Finite-Volume Poisson model that is ready 

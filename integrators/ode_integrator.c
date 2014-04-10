@@ -147,6 +147,7 @@ static ode_integrator_t* ode_integrator_new(const char* name,
   integ->max_krylov_dim = max_krylov_dim;
   integ->initialized = false;
   integ->max_dt = FLT_MAX;
+  integ->stop_time = FLT_MAX;
   integ->status_message = NULL;
 
   // Set up KINSol and accessories.
