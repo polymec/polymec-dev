@@ -134,7 +134,7 @@ static void poisson_run_laplace_1d(options_t* options,
   {
     case 1: 
       N0 = 32;
-      num_runs = 1;
+      num_runs = 4;
       break;
     case 2:
       N0 = 16;

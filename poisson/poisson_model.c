@@ -129,10 +129,6 @@ static int poisson_residual(void* context, real_t t, real_t* u, real_t* F)
 {
   poisson_t* p = context;
 
-//printf("phi = [");
-//for (int i = 0; i < p->mesh->num_cells; ++i)
-//printf("%g ", p->phi[i]);
-//printf("]\n");
   // Loop over all the cells and compute the fluxes for each one.
   for (int cell = 0; cell < p->mesh->num_cells; ++cell)
   {
@@ -317,15 +313,8 @@ static int poisson_residual(void* context, real_t t, real_t* u, real_t* F)
     {
       int which_cell = (cell == p->mesh->face_cells[2*face]) ? 0 : 1;
       F[cell] -= p->face_fluxes[2*face + which_cell];
-//if ((cell == 0) || (cell >= p->mesh->num_cells - 2))
-//printf("F[%d] -= %g -> %g\n", cell, p->face_fluxes[2*face + which_cell], F[cell]);
     }
   }
-//  log_debug("L2[F] = %g", l2_norm(F, p->mesh->num_cells));
-//printf("F = [");
-//for (int i = 0; i < p->mesh->num_cells; ++i)
-//printf("%g ", F[i]);
-//printf("]\n");
 
   return 0;
 }
@@ -391,7 +380,6 @@ static void poisson_clear(poisson_t* p)
   }
 }
 
-static void poisson_plot(void* context, const char* prefix, const char* directory, real_t t, int step);
 static void poisson_init(void* context, real_t t)
 {
   poisson_t* p = context;
@@ -477,11 +465,6 @@ static void poisson_init(void* context, real_t t)
       log_detail("poisson: pseudo stepping produced sufficiently small L2[dphi/dt] in %d steps.", num_steps);
     else
       log_detail("poisson: pseudo stepping failed to sufficiently reduce L2[dphi/dt] after %d steps.", num_steps);
-//printf("phi = [");
-//for (int i = 0; i < p->mesh->num_cells; ++i)
-//printf("%g ", p->phi[i]);
-//printf("]\n");
-    poisson_plot(p, "poisson", ".", pseudo_t, num_steps);
   }
 
   // Now we simply solve the problem for the initial time.
@@ -493,10 +476,6 @@ static void poisson_init(void* context, real_t t)
     nonlinear_integrator_diagnostics_fprintf(&diags, stdout);
     polymec_error("poisson: nonlinear solve failed.");
   }
-//printf("phi = [");
-//for (int i = 0; i < p->mesh->num_cells; ++i)
-//  printf("%g ", p->phi[i]);
-//printf("]\n");
 }
 
 static void poisson_plot(void* context, const char* prefix, const char* directory, real_t t, int step)
