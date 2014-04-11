@@ -314,6 +314,7 @@ static int poisson_residual(void* context, real_t t, real_t* u, real_t* F)
     }
 
     // Now compute the residual in this cell.
+    // Residual = [ Div (lamdba * grad[phi]) - sources ] / V
     F[cell] = -p->cell_sources[cell];
     fpos = 0;
     while (mesh_cell_next_face(p->mesh, cell, &fpos, &face))
@@ -328,7 +329,7 @@ static int poisson_residual(void* context, real_t t, real_t* u, real_t* F)
 }
 
 // This serves as the right-hand side for the pseudo time stepping algorithm.
-// du/dt = 1/V * [(residual) + 2 * source]
+// du/dt = (residual) + 2 * sources / V
 static int poisson_pseudo_rhs(void* context, real_t t, real_t* u, real_t* rhs)
 {
   int status = poisson_residual(context, t, u, rhs);
@@ -388,7 +389,73 @@ static void poisson_clear(poisson_t* p)
   }
 }
 
-static void poisson_plot(void* context, const char* prefix, const char* directory, real_t t, int step);
+static void poisson_plot(void* context, const char* prefix, const char* directory, real_t t, int step)
+{
+  ASSERT(context != NULL);
+  poisson_t* p = context;
+
+  string_ptr_unordered_map_t* cell_fields = string_ptr_unordered_map_new();
+  string_ptr_unordered_map_insert(cell_fields, "phi", p->phi);
+
+  // If we are given an analytic solution, write it and the solution error.
+  // FIXME: Only 2nd-order accurate at the moment.
+  if (p->solution != NULL)
+  {
+    real_t *soln = malloc(sizeof(real_t) * p->mesh->num_cells), 
+           *error = malloc(sizeof(real_t) * p->mesh->num_cells);
+    for (int c = 0; c < p->mesh->num_cells; ++c)
+    {
+      st_func_eval(p->solution, &p->mesh->cell_centers[c], t, &soln[c]);
+      error[c] = p->phi[c] - soln[c];
+    }
+    string_ptr_unordered_map_insert_with_v_dtor(cell_fields, "solution", soln, DTOR(free));
+    string_ptr_unordered_map_insert_with_v_dtor(cell_fields, "error", error, DTOR(free));
+  }
+  write_silo_mesh(MPI_COMM_SELF, prefix, directory, 0, 1, 0, p->mesh, cell_fields, 0.0);
+  string_ptr_unordered_map_free(cell_fields);
+}
+
+// This function performs pseudo time-stepping to improve our initial guess.
+static void poisson_pseudo_time_step(poisson_t* p, real_t t)
+{
+  int N = p->mesh->num_cells;
+
+  ode_integrator_vtable vtable = {.rhs = poisson_pseudo_rhs};
+  ode_integrator_t* pseudo = bicgstab_ode_integrator_new("Pseudo time", p, MPI_COMM_WORLD, N, vtable, 2, 15);
+
+  preconditioner_t* precond = lu_preconditioner_new(p, poisson_pseudo_rhs, p->graph);
+  ode_integrator_set_preconditioner(pseudo, precond);
+  ode_integrator_set_stop_time(pseudo, 1000000.0);
+
+  real_t pseudo_t = t, L2;
+  int num_steps = 0;
+  real_t* dphidt = malloc(sizeof(real_t) * N);
+  do 
+  {
+    if (!ode_integrator_step(pseudo, &pseudo_t, p->phi))
+    {
+      ode_integrator_diagnostics_t diags;
+      ode_integrator_get_diagnostics(pseudo, &diags);
+      ode_integrator_diagnostics_fprintf(&diags, stdout);
+      polymec_error("poisson: error in pseudo time stepper at step %d\n", num_steps);
+    }
+    ++num_steps;
+    poisson_pseudo_rhs(p, t, p->phi, dphidt);
+    for (int c = 0; c < N; ++c)
+      dphidt[c] *= p->mesh->cell_volumes[c];
+    L2 = l2_norm(dphidt, N);
+    log_debug("poisson: stepped to pseudo time %g. L2[dphi/dt] = %g", pseudo_t, L2);
+  }
+  while ((L2 > p->max_pseudo_L2) && (num_steps < p->max_num_pseudo_steps));
+  free(dphidt);
+  ode_integrator_free(pseudo);
+  if (L2 < p->max_pseudo_L2)
+    log_detail("poisson: pseudo stepping produced sufficiently small L2[dphi/dt] in %d steps.", num_steps);
+  else
+    log_detail("poisson: pseudo stepping failed to sufficiently reduce L2[dphi/dt] after %d steps.", num_steps);
+  poisson_plot(p, "poisson", ".", t, 0);
+}
+
 static void poisson_init(void* context, real_t t)
 {
   poisson_t* p = context;
@@ -440,42 +507,7 @@ static void poisson_init(void* context, real_t t)
 
   // If "pseudo" time stepping is enabled, improve our initial guess.
   if ((p->max_pseudo_L2 > 0.0) || (p->max_num_pseudo_steps > 0))
-  {
-    ode_integrator_vtable vtable = {.rhs = poisson_pseudo_rhs};
-    ode_integrator_t* pseudo = bicgstab_ode_integrator_new("Pseudo time", p, MPI_COMM_WORLD, N, vtable, 2, 15);
-
-    preconditioner_t* precond = lu_preconditioner_new(p, poisson_pseudo_rhs, p->graph);
-    ode_integrator_set_preconditioner(pseudo, precond);
-    ode_integrator_set_stop_time(pseudo, 1000000.0);
-
-    real_t pseudo_t = t, L2;
-    int num_steps = 0;
-    real_t* dphidt = malloc(sizeof(real_t) * N);
-    do 
-    {
-      if (!ode_integrator_step(pseudo, &pseudo_t, p->phi))
-      {
-        ode_integrator_diagnostics_t diags;
-        ode_integrator_get_diagnostics(pseudo, &diags);
-        ode_integrator_diagnostics_fprintf(&diags, stdout);
-        polymec_error("poisson: error in pseudo time stepper at step %d\n", num_steps);
-      }
-      ++num_steps;
-      poisson_pseudo_rhs(p, pseudo_t, p->phi, dphidt);
-      for (int c = 0; c < N; ++c)
-        dphidt[c] *= p->mesh->cell_volumes[c];
-      L2 = l2_norm(dphidt, N);
-      log_debug("poisson: stepped to pseudo time %g. L2[dphi/dt] = %g", pseudo_t, L2);
-    }
-    while ((L2 > p->max_pseudo_L2) && (num_steps < p->max_num_pseudo_steps));
-    free(dphidt);
-    ode_integrator_free(pseudo);
-    if (L2 < p->max_pseudo_L2)
-      log_detail("poisson: pseudo stepping produced sufficiently small L2[dphi/dt] in %d steps.", num_steps);
-    else
-      log_detail("poisson: pseudo stepping failed to sufficiently reduce L2[dphi/dt] after %d steps.", num_steps);
-    poisson_plot(p, "poisson", ".", t, 0);
-  }
+    poisson_pseudo_time_step(p, t);
 
   // Now we simply solve the problem for the initial time.
   bool success = nonlinear_integrator_solve(p->solver, t, p->phi, &p->num_iterations);
@@ -488,31 +520,6 @@ static void poisson_init(void* context, real_t t)
   }
 }
 
-static void poisson_plot(void* context, const char* prefix, const char* directory, real_t t, int step)
-{
-  ASSERT(context != NULL);
-  poisson_t* p = context;
-
-  string_ptr_unordered_map_t* cell_fields = string_ptr_unordered_map_new();
-  string_ptr_unordered_map_insert(cell_fields, "phi", p->phi);
-
-  // If we are given an analytic solution, write it and the solution error.
-  // FIXME: Only 2nd-order accurate at the moment.
-  if (p->solution != NULL)
-  {
-    real_t *soln = malloc(sizeof(real_t) * p->mesh->num_cells), 
-           *error = malloc(sizeof(real_t) * p->mesh->num_cells);
-    for (int c = 0; c < p->mesh->num_cells; ++c)
-    {
-      st_func_eval(p->solution, &p->mesh->cell_centers[c], t, &soln[c]);
-      error[c] = p->phi[c] - soln[c];
-    }
-    string_ptr_unordered_map_insert_with_v_dtor(cell_fields, "solution", soln, DTOR(free));
-    string_ptr_unordered_map_insert_with_v_dtor(cell_fields, "error", error, DTOR(free));
-  }
-  write_silo_mesh(MPI_COMM_SELF, prefix, directory, 0, 1, 0, p->mesh, cell_fields, 0.0);
-}
-
 static void poisson_save(void* context, const char* prefix, const char* directory, real_t t, int step)
 {
   ASSERT(context != NULL);
@@ -521,6 +528,7 @@ static void poisson_save(void* context, const char* prefix, const char* director
   string_ptr_unordered_map_t* cell_fields = string_ptr_unordered_map_new();
   string_ptr_unordered_map_insert(cell_fields, "phi", p->phi);
   write_silo_mesh(MPI_COMM_SELF, prefix, directory, 0, 1, 0, p->mesh, cell_fields, 0.0);
+  string_ptr_unordered_map_free(cell_fields);
 }
 
 static void poisson_compute_error_norms(void* context, st_func_t* solution, real_t t, real_t* lp_norms)

@@ -116,8 +116,7 @@ static void set_up_1d(options_t* options,
   *time = 0.0;
 }
 
-static void poisson_run_laplace_1d(options_t* options, 
-                                   int dim)
+static void poisson_run_laplace_1d(options_t* options, int dim)
 {
   // Set up the problem.
   real_t t;
@@ -153,36 +152,21 @@ static void poisson_run_laplace_1d(options_t* options,
     int Nx = N0 * pow(2, iter), Ny = 1, Nz = 1;
     real_t dx = 1.0/Nx;
     bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
-    if (dim == 1)
-      bbox.y2 = bbox.z2 = dx;
+    real_t pseudo_L2 = 0.01;
     if (dim == 2)
-    {
       Ny = Nx;
-      bbox.z2 = dx;
-    }
     if (dim == 3)
-      Nz = Nx;
+      Nz = Ny = Nx;
 
     mesh_t* mesh = create_uniform_mesh(MPI_COMM_WORLD, Nx, Ny, Nz, &bbox);
     tag_rectilinear_mesh_faces(mesh, Nx, Ny, Nz, "-x", "+x", "-y", "+y", "-z", "+z");
     string_ptr_unordered_map_t* bcs_copy = string_ptr_unordered_map_copy(bcs);
     model_t* model = create_poisson(mesh, lambda, rhs, bcs_copy, solution, options);
-    poisson_model_set_pseudo_time_stepping(model, 0.01, 1000);
+    poisson_model_set_pseudo_time_stepping(model, pseudo_L2, 1000);
     model_run(model, t, t, INT_MAX);
     model_compute_error_norms(model, solution, lp_norms[iter]);
     model_free(model);
 
-    // If we run in 1D or 2D, we need to adjust the norms.
-    if (dim == 1)
-    {
-      lp_norms[iter][1] *= Nx*Nx;
-      lp_norms[iter][2] *= Nx*Nx;
-    }
-    else if (dim == 2)
-    {
-      lp_norms[iter][1] *= Nx;
-      lp_norms[iter][2] *= Nx;
-    }
     log_urgent("iteration %d (Nx = %d): L1 = %g, L2 = %g, Linf = %g", iter, Nx, lp_norms[iter][1], lp_norms[iter][2], lp_norms[iter][0]);
   }
 
