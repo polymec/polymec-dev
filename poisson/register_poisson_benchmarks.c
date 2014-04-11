@@ -189,8 +189,7 @@ static void poisson_run_laplace_1d(options_t* options, int dim)
   string_ptr_unordered_map_free(bcs);
 }
 
-static void poisson_run_laplace_1d_preserve(options_t* options, 
-                                            int dim)
+static void poisson_run_laplace_1d_preserve(options_t* options, int dim)
 {
   // Set up the problem.
   real_t t;
@@ -376,6 +375,7 @@ static void poisson_run_paraboloid(options_t* options, int dim)
     tag_rectilinear_mesh_faces(mesh, Nx, Ny, Nz, "-x", "+x", "-y", "+y", "-z", "+z");
     string_ptr_unordered_map_t* bcs_copy = string_ptr_unordered_map_copy(bcs);
     model_t* model = create_poisson(mesh, one, rhs, bcs_copy, sol, options);
+    poisson_model_set_pseudo_time_stepping(model, 0.01, 1000);
     model_run(model, t, t, INT_MAX);
     model_compute_error_norms(model, sol, lp_norms[iter]);
     model_free(model);
