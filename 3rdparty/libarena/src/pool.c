@@ -278,6 +278,32 @@ static struct pool_bucket *pool_bucket_add(struct pool *P, const struct pool_buc
 } /* pool_bucket_add() */
 
 
+static inline size_t pool_power2(size_t i) {
+#if defined SIZE_MAX
+	i--;
+	i |= i >> 1;
+	i |= i >> 2;
+	i |= i >> 4;
+	i |= i >> 8;
+	i |= i >> 16;
+#if SIZE_MAX != 0xffffffffu
+	i |= i >> 32;
+#endif
+	return ++i;
+#else
+#error No SIZE_MAX defined
+#endif
+} /* pool_power2() */
+
+
+static inline size_t pool_roundup(size_t i) {
+	if (i > ~(((size_t)-1) >> 1u))
+		return (size_t)-1;
+        else
+		return pool_power2(i);
+} /* pool_roundup() */
+
+
 /*
  * For a given size find the lowest bucket which can fulfill an allocation
  * of that size. If no bucket is found, try to add a new one.
@@ -297,7 +323,7 @@ static struct pool_bucket *pool_bucket_find(struct pool *P, size_t len, int tryh
 	if (!tryhard)
 		return 0;
 
-	opts.bucketlen	= len;	
+	opts.bucketlen	= pool_roundup(len);
 	opts.nperblock	= 1;
 
 	return pool_bucket_add(P,&opts);
@@ -356,7 +382,7 @@ void *pool_get(struct pool *P, size_t len, size_t align) {
 	else if (align > P->alignment)
 		bucketlen	+= align - P->alignment;
 
-	if (!(b = pool_bucket_find(P,len,1)))
+	if (!(b = pool_bucket_find(P,bucketlen,1)))
 		return 0;
 
 	if (!(c = SLIST_FIRST(&b->chunks))
@@ -409,7 +435,7 @@ void *pool_realloc(struct pool *P, void *q, size_t dstlen, size_t align) {
 		if (!(q = pool_get(P,dstlen,align)))
 			return 0;
 
-		(void)memcpy(q, p + srcoff, MIN(dstlen, (size_t)(&c->bytes[b->chunk_size - offsetof(struct pool_chunk, bytes)] - p)));
+		(void)memcpy(q, p + srcoff, MIN(dstlen, (size_t)(&c->bytes[b->chunk_size - offsetof(struct pool_chunk, bytes)] - (p + srcoff))));
 
 		SLIST_INSERT_HEAD(&b->chunks,c,sle);
 	} else {
@@ -432,14 +458,13 @@ void *pool_realloc(struct pool *P, void *q, size_t dstlen, size_t align) {
 
 
 void pool_put(struct pool *P, void *q) {
-	unsigned char *p;
 	struct pool_chunk *c;
 	struct pool_bucket *b;
 
 	if (q == 0)
 		return /* void */;
 
-	p	= pool_recover(P,&b,&c,q);
+	(void)pool_recover(P,&b,&c,q);
 
 	SLIST_INSERT_HEAD(&b->chunks,c,sle);
 

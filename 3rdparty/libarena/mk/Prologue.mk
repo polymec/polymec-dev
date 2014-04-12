@@ -9,5 +9,3 @@ d		:= $(dir)
 
 # Our parent directory
 $(d)/..		?= $(shell dirname "$(d)")
-$(d)/..		!= dirname "$(d)"
-

@@ -4,4 +4,4 @@
 #
 LIBTOOL	= glibtool --tag=CC
 
-include Makefile
+include GNUmakefile

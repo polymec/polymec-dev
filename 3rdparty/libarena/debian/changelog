@@ -1,3 +1,35 @@
+libarena (0.3.7) unstable; urgency=low
+
+  * Round up to power-of-2 when dynamically adding new buckets.
+  * Fix off-by-one when copying over data to new buffer.
+  * When alignment changes on a realloc request use the correct computed bucket size.
+
+ -- William Ahern <william@25thandClement.com>  Mon, 20 Jan 2014 20:29:43 -0800
+
+libarena (0.3.6) unstable; urgency=low
+
+  * Don't do a hyphen release, just update the patch number.
+
+ -- William Ahern <william@25thandClement.com>  Thu, 13 Jun 2013 21:18:01 -0700
+
+libarena (0.3.5-1) unstable; urgency=low
+
+  * Synchronize release and debian changelog versions.
+
+ -- William Ahern <william@25thandClement.com>  Thu, 13 Jun 2013 21:01:01 -0700
+
+libarena (0.3.4-2) unstable; urgency=low
+
+  * Fix deb package template which excluded libarena.so.
+
+ -- William Ahern <william@25thandClement.com>  Thu, 13 Jun 2013 20:35:36 -0700
+
+libarena (0.3.4-1) unstable; urgency=low
+
+  * Update debian build.
+
+ -- William Ahern <william@25thandClement.com>  Wed, 13 Mar 2013 22:00:57 +0000
+
 libarena (0.3.3-1) unstable; urgency=low
 
   * Initial release

@@ -10,4 +10,4 @@ CPPFLAGS += -I/cygdrive/c/mingw/include
 LDFLAGS  += -mno-cygwin
 LIBTOOL  ?= libtool --tag=CC
 
-include Makefile
+include GNUmakefile

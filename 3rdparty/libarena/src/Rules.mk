@@ -39,7 +39,7 @@ all: $(d)/libarena.a
 #
 # PIC Compilation Targets
 #
-BuildPIC_$(d)	= $(LIBTOOL) --mode=compile $(CC) -c $(CPPFLAGS_$(@D)) $(CFLAGS_$(@D)) -o $@ $(@:.lo=.c)
+BuildPIC_$(d)	= $(LIBTOOL) --mode=compile --tag=CC $(CC) -c $(CPPFLAGS_$(@D)) $(CFLAGS_$(@D)) -o $@ $(@:.lo=.c)
 
 $(d)/arena.lo: $(d)/arena.c
 	$(BuildPIC_$(@D))
@@ -54,7 +54,7 @@ $(d)/util.lo: $(d)/util.c
 	$(BuildPIC_$(@D))
 
 $(d)/libarena.la: $(OBJS_$(d):.o=.lo)
-	$(LIBTOOL) --mode=link $(CC) -rpath $(libdir) -version-info $$(echo $(VERSION_$(@D)) | tr '.' ':') -o $@ $^ $>
+	$(LIBTOOL) --mode=link --tag=CC $(CC) -rpath $(libdir) -version-info $$(echo $(VERSION_$(@D)) | tr '.' ':') -o $@ $^ $>
 
 pic: $(d)/libarena.la
 

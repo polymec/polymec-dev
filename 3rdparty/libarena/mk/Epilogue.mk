@@ -5,5 +5,3 @@
 d	:= $(dirstack_$(sp))
 
 sp	?= $(shell basename "$(sp)")
-sp	!= basename "$(sp)"
-

@@ -162,7 +162,18 @@ int main(int argc, char *argv[]) {
 
 		if (d->checksum != crc32(0,d->bytes,d->nbytes))
 			errx(EXIT_FAILURE,"bad crc32");
+
+		d->ap->free(d->ap,d);
 	}
+
+	arena_close(a2);
+	pool_close(p2);
+
+	arena_close(a1);
+	pool_close(p1);
+
+	arena_close(a0);
+	pool_close(p0);
 
 	return 0;
 }
