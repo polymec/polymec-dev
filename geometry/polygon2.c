@@ -382,6 +382,7 @@ void polygon2_clip(polygon2_t* poly, polygon2_t* other)
   while (((aa < n) || (ba < m)) && (aa < 2*n) && (ba < 2*m));
 
   // Replace this polygon with its clipped version.
+  ASSERT(xlist->size > 0);
   ASSERT(xlist->size == ylist->size);
   if (xlist->size > poly->num_vertices)
     poly->vertices = realloc(poly->vertices, sizeof(point2_t)*xlist->size);

@@ -79,27 +79,30 @@ static void order_nodes_of_dual_face(sp_func_t* plane,
     }
   }
 
-  // Otherwise, we have to sort the remaining nodes.
-  dual_face_node_ordering_t tweener_nodes[num_nodes-2];
-  int j = 0;
-  for (int i = 0; i < num_nodes; ++i)
+  else
   {
-    if ((i != dual_node_indices[0]) && (i != dual_node_indices[2]))
+    // Otherwise, we have to sort the remaining nodes.
+    dual_face_node_ordering_t tweener_nodes[num_nodes-2];
+    int j = 0;
+    for (int i = 0; i < num_nodes; ++i)
     {
-      // Project these nodes to our plane.
-      point2_t xi;
-      plane_project(plane, &dual_nodes[i], &xi);
-      tweener_nodes[j].angle = atan2(xi.y, xi.x);
-      tweener_nodes[j].index = i;
+      if ((i != dual_node_indices[0]) && (i != dual_node_indices[2]))
+      {
+        // Project these nodes to our plane.
+        point2_t xi;
+        plane_project(plane, &dual_nodes[i], &xi);
+        tweener_nodes[j].angle = atan2(xi.y, xi.x);
+        tweener_nodes[j].index = i;
+      }
     }
-  }
-  qsort(tweener_nodes, (size_t)(num_nodes-2), sizeof(dual_face_node_ordering_t), dual_face_node_cmp);
+    qsort(tweener_nodes, (size_t)(num_nodes-2), sizeof(dual_face_node_ordering_t), dual_face_node_cmp);
 
-  // Put everything back into place.
-  dual_node_indices[0] = endpoint_indices[0];
-  for (int i = 0; i < num_nodes-2; ++i)
-    dual_node_indices[i+1] = tweener_nodes[i].index;
-  dual_node_indices[num_nodes-1] = endpoint_indices[0];
+    // Put everything back into place.
+    dual_node_indices[0] = endpoint_indices[0];
+    for (int i = 0; i < num_nodes-2; ++i)
+      dual_node_indices[i+1] = tweener_nodes[i].index;
+    dual_node_indices[num_nodes-1] = endpoint_indices[0];
+  }
 }
 
 static mesh_t* create_dual_mesh_from_tet_mesh(MPI_Comm comm, 

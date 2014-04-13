@@ -318,5 +318,9 @@ void read_silo_mesh(MPI_Comm comm,
     string_ptr_unordered_map_insert_with_kv_dtor(fields, string_dup(name_iter->value), 
                                                  data_iter->value, field_map_kv_dtor);
   }
+
+  // Clean up.
+  string_slist_free(field_names);
+  ptr_slist_free(new_field_data);
 }
 

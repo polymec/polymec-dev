@@ -325,6 +325,7 @@ int mesh_factory_pebi(lua_State* lua)
     if (!key_is_number || !val_is_sequence)
     {
       lua_pop(lua, 1);
+      free(faces_table_entries);
       return luaL_error(lua, "Found non-numeric entries in faces table.");
     }
     int tuple_len;
@@ -332,6 +333,7 @@ int mesh_factory_pebi(lua_State* lua)
     if (tuple_len != 3)
     {
       lua_pop(lua, 1);
+      free(faces_table_entries);
       return luaL_error(lua, "Tuple at index %d of faces table has %d values (should be 3).", key_index, tuple_len);
     }
     ++face;

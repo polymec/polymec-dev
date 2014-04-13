@@ -555,6 +555,7 @@ static void import_points_from_stl(const char* stl_file_name, int* num_points, p
     }
     else
     {
+      ASSERT(coincident_points->size > 0);
       int_slist_node_t* iter = coincident_points->front;
       int min_index = INT_MAX;
       vector_t* n_avg = malloc(sizeof(vector_t)); 
@@ -575,6 +576,8 @@ static void import_points_from_stl(const char* stl_file_name, int* num_points, p
         n_avg->z /= coincident_points->size;
         ptr_array_append_with_dtor(averaged_normals, n_avg, DTOR(free));
       }
+      else
+        free(n_avg);
       int_slist_free(coincident_points);
     }
   }
@@ -824,6 +827,7 @@ int point_factory_ccp_points(lua_State* lua)
 
   // Pack it up and return it.
   int num_points = point_list->size;
+  ASSERT(num_points > 0);
   point_t* points = malloc(sizeof(point_t) * num_points);
   for (int i = 0; i < num_points; ++i)
     point_copy(&points[i], ptr_slist_pop(point_list, NULL));

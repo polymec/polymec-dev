@@ -300,6 +300,7 @@ static int lua_write_silo_mesh(lua_State* lua)
       {
         int num_vals;
         real_t* vals = lua_tosequence(lua, val_index, &num_vals);
+        ASSERT(vals != NULL);
         if (num_vals != N)
         {
           lua_pop(lua, 2);
@@ -311,6 +312,7 @@ static int lua_write_silo_mesh(lua_State* lua)
       {
         int num_vals;
         vector_t* vals = lua_tovectorlist(lua, val_index, &num_vals);
+        ASSERT(vals != NULL);
         if (num_vals != N)
         {
           lua_pop(lua, 2);

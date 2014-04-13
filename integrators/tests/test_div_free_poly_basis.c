@@ -37,6 +37,7 @@ void test_ctor(void** state)
   for (int degree = 0; degree <= 2; ++degree)
   {
     div_free_poly_basis_t* basis = spherical_div_free_poly_basis_new(degree, &x0, R);
+    assert_true(div_free_poly_basis_dim(basis) > 0);
     basis = NULL;
   }
 }

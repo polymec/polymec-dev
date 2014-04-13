@@ -186,9 +186,18 @@ char* string_subst(const char* string, string_subst_t substitutions[])
       }
     }
   }
+  int num_occ = token_occ->size;
+
+  // If there are no occurrences of the tokens, we simply copy 
+  // the original string.
+  if (num_occ == 0)
+  {
+    int_slist_free(token_occ);
+    int_slist_free(token_which);
+    return string_dup(string);
+  }
 
   // Copy this information into an array and sort it.
-  int num_occ = token_occ->size;
   string_subst_data_t subst_data[num_occ];
   {
     int_slist_node_t* occ = token_occ->front;

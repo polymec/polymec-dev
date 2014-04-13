@@ -485,8 +485,11 @@ interpreter_t* interpreter_new(interpreter_validation_t* valid_inputs)
     int num_valid_inputs = 0;
     while (valid_inputs[num_valid_inputs].type != INTERPRETER_TERMINUS)
       num_valid_inputs++;
-    interp->valid_inputs = malloc(num_valid_inputs*sizeof(interpreter_validation_t));
-    interp->num_valid_inputs = num_valid_inputs;
+    if (num_valid_inputs > 0)
+    {
+      interp->valid_inputs = malloc(num_valid_inputs*sizeof(interpreter_validation_t));
+      interp->num_valid_inputs = num_valid_inputs;
+    }
   }
   else
   {
@@ -1614,7 +1617,7 @@ void lua_pushsequence(struct lua_State* lua, real_t* sequence, int len)
 {
   // Bundle it up and store it in the given variable.
   store_sequence(lua, sequence, len);
-  lua_meta_key_val_t metatable[] = 
+  static lua_meta_key_val_t metatable[] = 
     {{"__tostring", sequence_tostring},
      {"__concat", sequence_concat},
      {"__len", sequence_len},
@@ -1686,7 +1689,7 @@ static int stringlist_tostring(lua_State* lua)
   ASSERT(var->type == INTERPRETER_SEQUENCE);
   stringlist_t* sl = var->datum;
   char** data = sl->list;
-  int repr_len = 0;
+  int repr_len = 3; // '{}\0'
   for (int i = 0; i < sl->len; ++i)
     repr_len += strlen(data[i]) + 10;
   char* str = malloc(sizeof(char) * repr_len);
@@ -1738,7 +1741,7 @@ void lua_pushstringlist(struct lua_State* lua, char** list, int len)
 {
   // Bundle it up and store it in the given variable.
   store_stringlist(lua, list, len);
-  lua_meta_key_val_t metatable[] = 
+  static lua_meta_key_val_t metatable[] = 
     {{"__tostring", stringlist_tostring},
      {"__concat", stringlist_concat},
      {"__len", stringlist_len},
@@ -1765,6 +1768,7 @@ point_t* lua_topoint(struct lua_State* lua, int index)
   {
     int len;
     real_t* seq = lua_tosequence(lua, index, &len);
+    ASSERT(len == 3);
     point_t* p = point_new(seq[0], seq[1], seq[2]);
     free(seq);
     return p;
@@ -1835,7 +1839,7 @@ void lua_pushpoint(struct lua_State* lua, point_t* point)
 {
   // Bundle it up and store it in the given variable.
   store_point(lua, point);
-  lua_meta_key_val_t metatable[] = 
+  static lua_meta_key_val_t metatable[] = 
     {{"__tostring", point_tostring},
      {"__index", point_index},
      {"__mul", point_mul},
@@ -1965,7 +1969,7 @@ void lua_pushpointlist(struct lua_State* lua, point_t* points, int size)
 {
   // Bundle it up and store it in the given variable.
   store_pointlist(lua, points, size);
-  lua_meta_key_val_t metatable[] = 
+  static lua_meta_key_val_t metatable[] = 
     {{"__tostring", pointlist_tostring},
      {"__concat", pointlist_concat},
      {"__len", pointlist_len},
@@ -2065,7 +2069,7 @@ void lua_pushvector(struct lua_State* lua, vector_t* vec)
 {
   // Bundle it up and store it in the given variable.
   store_vector(lua, vec);
-  lua_meta_key_val_t metatable[] = 
+  static lua_meta_key_val_t metatable[] = 
     {{"__tostring", vector_tostring},
      {"__index", vector_index},
      {"__mul", vector_mul},
@@ -2148,7 +2152,7 @@ void lua_pushvectorlist(struct lua_State* lua, vector_t* vectors, int size)
   store_vectorlist(lua, vectors, size);
   // Since point lists and vector lists are stored in an identical fashion, 
   // we can simply piggyback on the point list's metatable.
-  lua_meta_key_val_t metatable[] = 
+  static lua_meta_key_val_t metatable[] = 
     {{"__tostring", pointlist_tostring},
      {"__concat", pointlist_concat},
      {"__len", pointlist_len},
@@ -2192,7 +2196,7 @@ void lua_pushboundingbox(struct lua_State* lua, bbox_t* bbox)
 {
   // Bundle it up and store it in the given variable.
   store_boundingbox(lua, bbox);
-  lua_meta_key_val_t metatable[] = 
+  static lua_meta_key_val_t metatable[] = 
     {{"__tostring", boundingbox_tostring},
      {NULL, NULL}};
   set_metatable(lua, "boundingbox_metatable", metatable);
@@ -2272,7 +2276,7 @@ void lua_pushscalarfunction(struct lua_State* lua, st_func_t* func)
   ASSERT(st_func_num_comp(func) == 1); 
   // Bundle it up and store it in the given variable.
   store_scalar_function(lua, func);
-  lua_meta_key_val_t metatable[] = 
+  static lua_meta_key_val_t metatable[] = 
     {{"__tostring", scalarfunction_tostring},
      {"__call", scalarfunction_call},
      {NULL, NULL}};
@@ -2358,7 +2362,7 @@ void lua_pushvectorfunction(struct lua_State* lua, st_func_t* func)
   ASSERT(st_func_num_comp(func) == 3); 
   // Bundle it up and store it in the given variable.
   store_vector_function(lua, func);
-  lua_meta_key_val_t metatable[] = 
+  static lua_meta_key_val_t metatable[] = 
     {{"__tostring", vectorfunction_tostring},
      {"__call", vectorfunction_call},
      {NULL, NULL}};
@@ -2459,7 +2463,7 @@ void lua_pushsymtensorfunction(struct lua_State* lua, st_func_t* func)
   ASSERT(st_func_num_comp(func) == 6); 
   // Bundle it up and store it in the given variable.
   store_sym_tensor_function(lua, func);
-  lua_meta_key_val_t metatable[] = 
+  static lua_meta_key_val_t metatable[] = 
     {{"__tostring", symtensorfunction_tostring},
      {"__call", symtensorfunction_call},
      {NULL, NULL}};
@@ -2537,7 +2541,7 @@ static int tensorfunction_call(lua_State* lua)
   }
   else
   {
-    int num_points;
+    int num_points = 0;
     point_t* x = lua_topointlist(lua, 2, &num_points);
     ASSERT(num_points > 0);
     real_t t = (real_t)lua_tonumber(lua, 3);
@@ -2561,7 +2565,7 @@ void lua_pushtensorfunction(struct lua_State* lua, st_func_t* func)
   ASSERT(st_func_num_comp(func) == 6); 
   // Bundle it up and store it in the given variable.
   store_tensor_function(lua, func);
-  lua_meta_key_val_t metatable[] = 
+  static lua_meta_key_val_t metatable[] = 
     {{"__tostring", tensorfunction_tostring},
      {"__call", tensorfunction_call},
      {NULL, NULL}};
@@ -2603,7 +2607,7 @@ void lua_pushmesh(struct lua_State* lua, mesh_t* mesh)
 {
   // Bundle it up and store it in the given variable.
   store_mesh(lua, mesh);
-  lua_meta_key_val_t metatable[] = 
+  static lua_meta_key_val_t metatable[] = 
     {{"__tostring", mesh_tostring},
      {NULL, NULL}};
   set_metatable(lua, "mesh_metatable", metatable);
