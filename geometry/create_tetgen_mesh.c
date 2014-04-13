@@ -561,17 +561,23 @@ mesh_t* create_tetgen_mesh(MPI_Comm comm,
     int_tuple_int_unordered_map_free(face_for_nodes);
   }
   
+#if USE_MPI
   int nproc;
   MPI_Comm_size(comm, &nproc);
   if (nproc > 1)
   {
     // Break the serial mesh up into pieces.
-    int* partition = malloc(sizeof(int) * mesh->num_cells);
+    int num_cells
+    if (rank == 0)
+      num_cells = mesh->num_cells;
+    MPI_Scatter(&num_cells, 1, MPI_INT, &num_cells, 1, MPI_INT, 0, comm);
+    int* partition = malloc(sizeof(int) * num_cells);
     mesh_t* local_mesh = distribute_serial_mesh(comm, mesh, partition);
     free(partition);
     mesh_free(mesh);
     mesh = local_mesh;
   }
+#endif
 
   mesh_add_feature(mesh, TETRAHEDRAL);
   return mesh;

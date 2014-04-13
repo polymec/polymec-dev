@@ -160,15 +160,16 @@ mesh_t* distribute_serial_mesh(MPI_Comm comm, mesh_t* serial_mesh, int* partitio
     if (rank == 0)
     {
       // Calculate the minimum bounding box for this mesh.
-      bbox_t bbox;
+      bbox_t bbox = {.x1 = FLT_MAX, .x2 = -FLT_MAX, .y1 = FLT_MAX,
+                     .y2 = -FLT_MAX, .z1 = FLT_MAX, .z2 = -FLT_MAX};
       for (int c = 0; c < serial_mesh->num_cells; ++c)
         bbox_grow(&bbox, &serial_mesh->cell_centers[c]);
 
       // Use this bounding box to determine a grid spacing for a 
       // space-filling curve.
-      real_t dx = bbox.x2 - bbox.x1 / 0xFFFF;
-      real_t dy = bbox.y2 - bbox.y1 / 0xFFFF;
-      real_t dz = bbox.z2 - bbox.z1 / 0xFFFF;
+      real_t dx = (bbox.x2 - bbox.x1) / 0xFFFF;
+      real_t dy = (bbox.y2 - bbox.y1) / 0xFFFF;
+      real_t dz = (bbox.z2 - bbox.z1) / 0xFFFF;
 
       morton_ordering_t* ordering = malloc(sizeof(morton_ordering_t) * serial_mesh->num_cells);
       for (int c = 0; c < serial_mesh->num_cells; ++c)

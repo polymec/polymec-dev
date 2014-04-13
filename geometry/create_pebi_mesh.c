@@ -77,15 +77,16 @@ mesh_t* create_pebi_mesh(MPI_Comm comm,
   for (int f = 0; f < num_faces; ++f)
   {
     int c1 = faces[2*f];
-    mesh->cell_faces[c1] = f;
+    mesh->cell_faces[mesh->cell_face_offsets[c1] + cell_face_count[c1]] = f;
     ++cell_face_count[c1];
     int c2 = faces[2*f+1];
     if (c2 != -1)
     {
-      mesh->cell_faces[c2] = f;
+      mesh->cell_faces[mesh->cell_face_offsets[c2] + cell_face_count[c2]] = f;
       ++cell_face_count[c2];
     }
   }
+  free(cell_face_count);
 
   // Set the cell volumes.
   memcpy(mesh->cell_volumes, cell_volumes, sizeof(real_t)*num_cells);

@@ -84,21 +84,9 @@
 
 // Some macros.
 #ifndef NDEBUG
-#if USE_MPI
 #define ASSERT(x) \
   if (!(x)) \
-  { \
-    printf("Assertion %s failed\nat %s: %d\n", #x, __FILE__, __LINE__); \
-    MPI_Abort(MPI_COMM_WORLD, -1); \
-  }
-#else
-#define ASSERT(x) \
-  if (!(x)) \
-  { \
-    printf("Assertion %s failed\nat %s: %d\n", #x, __FILE__, __LINE__); \
-    abort(); \
-  }
-#endif
+    polymec_abort("Assertion %s failed\nat %s: %d\n", #x, __FILE__, __LINE__);
 #else
 #define ASSERT(x) 
 #endif
@@ -162,6 +150,10 @@ typedef void (*polymec_error_handler_function)(const char*);
 // Issues an error with the given message. By default, an error issues a 
 // message to stdout and exits the program with status -1.
 noreturn void polymec_error(const char* message, ...);
+
+// Aborts execution in a proper manner that respects MPI if needed, 
+// writing the given message to stderr.
+noreturn void polymec_abort(const char* message, ...);
 
 // Sets the error handler for the polymec library.
 void polymec_set_error_handler(polymec_error_handler_function handler);

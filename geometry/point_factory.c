@@ -578,6 +578,7 @@ static void import_points_from_stl(const char* stl_file_name, int* num_points, p
       int_slist_free(coincident_points);
     }
   }
+  ASSERT(unique_point_indices->size > 0);
   ASSERT(unique_point_indices->size == averaged_normals->size);
 
   // Now build our list of points and normals.

@@ -237,7 +237,7 @@ static char parallel_int(point2_t* a, point2_t* b, point2_t* c,
 static char seg_set_int(point2_t* a, point2_t* b, point2_t* c, 
                         point2_t* d, point2_t* p)
 {
-  char code;
+  char code = 'O';
 
   real_t denom = a->x * (d->y - c->y) + 
                  b->x * (c->y - d->y) + 

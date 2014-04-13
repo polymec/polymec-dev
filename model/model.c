@@ -636,7 +636,6 @@ void model_record_observations(model_t* model)
   char obs_fn[strlen(model->sim_name) + 5];
   snprintf(obs_fn, strlen(model->sim_name) + 4, "%s.obs", model->sim_name);
   FILE* obs = fopen(obs_fn, "w+");
-  obs = fopen(obs_fn, "w+");
 
   // If we haven't recorded any observations yet, write a header.
   if (model->time < model->obs_times[0])

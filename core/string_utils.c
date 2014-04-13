@@ -250,7 +250,7 @@ char* string_subst(const char* string, string_subst_t substitutions[])
   {
     memcpy(&new_string[write_index], &string[read_index], (old_len-read_index)*sizeof(char));
     write_index += old_len - read_index;
-    read_index = old_len;
+//    read_index = old_len;
   }
 
   // Add the newline.

@@ -2539,6 +2539,7 @@ static int tensorfunction_call(lua_State* lua)
   {
     int num_points;
     point_t* x = lua_topointlist(lua, 2, &num_points);
+    ASSERT(num_points > 0);
     real_t t = (real_t)lua_tonumber(lua, 3);
     real_t* V = malloc(sizeof(real_t) * 9 * num_points);
     for (int i = 0; i < num_points; ++i)

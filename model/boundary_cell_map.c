@@ -28,7 +28,7 @@
 static boundary_cell_t* create_boundary_cell(mesh_t* mesh, int cell)
 {
   boundary_cell_t* bcell = malloc(sizeof(boundary_cell_t));
-  int num_cell_faces = mesh->cell_face_offsets[cell+1] - mesh->cell_face_offsets[cell];
+  int num_cell_faces = mesh_cell_num_faces(mesh, cell); 
   bcell->neighbor_cells = malloc(sizeof(int)*num_cell_faces);
   bcell->boundary_faces = malloc(sizeof(int)*num_cell_faces);
   bcell->bc_for_face = malloc(sizeof(void*)*num_cell_faces);

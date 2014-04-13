@@ -461,6 +461,7 @@ adj_graph_coloring_t* adj_graph_coloring_new(adj_graph_t* graph,
   int* colors = malloc(sizeof(int) * num_vertices);
   int num_colors;
   color_sequentially(graph, vertices, colors, &num_colors);
+  ASSERT(num_colors > 0);
 
   // Finally, transplant the coloring into our coloring object.
   adj_graph_coloring_t* coloring = malloc(sizeof(adj_graph_coloring_t));

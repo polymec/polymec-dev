@@ -151,6 +151,24 @@ static noreturn void default_error_handler(const char* message)
   exit(-1);
 }
 
+void polymec_abort(const char* message, ...)
+{
+  // Extract the variadic arguments and splat them into a string.
+  char err[1024];
+  va_list argp;
+  va_start(argp, message);
+  vsnprintf(err, 1024, message, argp);
+  va_end(argp);
+
+  // Abort.
+  fprintf(stderr, "%s\n", err);
+#if USE_MPI
+  MPI_Abort(MPI_COMM_WORLD, -1); 
+#else
+  abort(); 
+#endif
+}
+
 void polymec_error(const char* message, ...)
 {
   // Set the default error handler if no handler is set.
@@ -166,6 +184,9 @@ void polymec_error(const char* message, ...)
 
   // Call the handler.
   error_handler(err);
+
+  // Make sure we don't return.
+  exit(-1);
 }
 
 void polymec_set_error_handler(polymec_error_handler_function handler)

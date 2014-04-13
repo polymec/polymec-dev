@@ -311,6 +311,7 @@ int mesh_factory_pebi(lua_State* lua)
 
   // Mine the faces table for all its 3-tuples.
   int num_faces = luaL_len(lua, 3);
+  ASSERT(num_faces >= 4);
   real_t** faces_table_entries = malloc(sizeof(real_t*)*num_faces);
   lua_pushnil(lua);
   int face = 0;

@@ -503,6 +503,7 @@ static int select_points(lua_State* lua)
         int_slist_append(selected_points, i);
     }
   }
+  ASSERT(selected_points->size > 0);
 
   // Construct a sequence consisting of the point indices.
   // NOTE: we use real_t because that's how lua represents numbers.

@@ -24,11 +24,16 @@
 
 #include "core/kd_tree.h"
 
-#ifdef SQ
-#undef SQ
-#endif
-#define SQ(x) ((x)*(x))
-#define SQ_DIST(x, y) (SQ(x[0]-y[0]) + SQ(x[1]-y[1]) + SQ(x[2]-y[2]))
+// Convenience functions.
+static inline real_t square(real_t x)
+{
+  return x * x;
+}
+
+static inline real_t square_dist(real_t* x, real_t* y)
+{
+  return square(x[0]-y[0]) + square(x[1]-y[1]) + square(x[2]-y[2]);
+}
 
 // A kd-tree with k = 3.
 
@@ -85,9 +90,9 @@ static real_t rect_square_dist(kd_tree_rect_t* rect, real_t* pos)
   for (int i = 0; i < 3; ++i)
   {
     if (pos[i] < rect->min[i])
-      r2 += SQ(rect->min[i] - pos[i]);
+      r2 += square(rect->min[i] - pos[i]);
     else if (pos[i] > rect->max[i])
-      r2 += SQ(rect->max[i] - pos[i]);
+      r2 += square(rect->max[i] - pos[i]);
   }
   return r2;
 }
@@ -214,7 +219,7 @@ static void find_nearest(kd_tree_node_t* node, real_t* pos, kd_tree_node_t** res
   }
 
   // Distance from point to current node.
-  real_t my_r2 = SQ_DIST(node->pos, pos);
+  real_t my_r2 = square_dist(node->pos, pos);
   if (my_r2 < *r2)
   {
     *result = node;
@@ -241,7 +246,7 @@ int kd_tree_nearest(kd_tree_t* tree, point_t* point)
   kd_tree_node_t* node = tree->root;
   real_t pos[3];
   pos[0] = point->x, pos[1] = point->y, pos[2] = point->z;
-  real_t r2 = SQ_DIST(pos, node->pos);
+  real_t r2 = square_dist(pos, node->pos);
   kd_tree_rect_t rect;
   rect.min[0] = tree->rect->min[0]; rect.max[0] = tree->rect->max[0];
   rect.min[1] = tree->rect->min[1]; rect.max[1] = tree->rect->max[1];
@@ -291,7 +296,7 @@ static void find_nearest_n(kd_tree_node_t* node,
   // Get the square distance from point to the current node, and insert 
   // the current node into the list of n nearest neighbors if it's closer 
   // than any of the current nearest neighbors.
-  real_t my_r2 = SQ_DIST(node->pos, pos);
+  real_t my_r2 = square_dist(node->pos, pos);
   if (my_r2 < square_distances[n-1])
   {
     int i = n-1;
@@ -381,7 +386,7 @@ static void find_within_radius(kd_tree_node_t* node,
   }
 
   // Distance from point to current node.
-  real_t my_r2 = SQ_DIST(node->pos, pos);
+  real_t my_r2 = square_dist(node->pos, pos);
   if (my_r2 < radius*radius)
     int_slist_append(results, node->index);
 
