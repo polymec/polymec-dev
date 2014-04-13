@@ -417,7 +417,9 @@ static int read_ascii_stl_file(FILE* stl_file,
 
 exit_on_error:
   free(n);
-  free(n);
+  free(v1);
+  free(v2);
+  free(v3);
   return -1;
 }
 

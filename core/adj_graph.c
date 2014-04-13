@@ -49,6 +49,7 @@ adj_graph_t* adj_graph_new(MPI_Comm comm, int num_local_vertices)
   int nprocs;
   MPI_Comm_size(comm, &nprocs);
   int num_verts[nprocs];
+  memset(num_verts, 0, sizeof(int) * nprocs);
 #if POLYMEC_HAVE_MPI
   MPI_Allgather(&num_local_vertices, 1, MPI_INT, num_verts, 1, MPI_INT, comm);
 #else
@@ -148,7 +149,7 @@ adj_graph_t* adj_graph_new_with_block_size(int block_size,
 adj_graph_t* adj_graph_clone(adj_graph_t* graph)
 {
   adj_graph_t* g = malloc(sizeof(adj_graph_t));
-  g->comm = g->comm;
+  g->comm = graph->comm;
   g->nproc = graph->nproc;
   g->rank = graph->rank;
   g->vtx_dist = malloc(sizeof(int) * (g->nproc+1));

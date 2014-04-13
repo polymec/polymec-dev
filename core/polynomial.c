@@ -373,9 +373,9 @@ polynomial_t* polynomial_derivative(polynomial_t* p, int x_deriv, int y_deriv, i
     coeffs[i] = p->coeffs[i] * fact(p->x_pow[i])/fact(x_deriv) 
                              * fact(p->y_pow[i])/fact(y_deriv)
                              * fact(p->z_pow[i])/fact(z_deriv);
-    x_pow[i] -= x_deriv;
-    y_pow[i] -= y_deriv;
-    z_pow[i] -= z_deriv;
+    x_pow[i] = p->x_pow[i] - x_deriv;
+    y_pow[i] = p->y_pow[i] - y_deriv;
+    z_pow[i] = p->z_pow[i] - z_deriv;
   }
 
   return polynomial_from_monomials(p->degree - (x_deriv + y_deriv + z_deriv), 

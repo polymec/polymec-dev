@@ -140,7 +140,7 @@ void polymec_init(int argc, char** argv)
 }
 
 // Default error handler.
-static int default_error_handler(const char* message)
+static noreturn void default_error_handler(const char* message)
 {
   printf("Fatal error: %s\n", message);
 //#if USE_MPI
@@ -149,11 +149,9 @@ static int default_error_handler(const char* message)
 //  abort();
 //#endif
   exit(-1);
-  return -1; // Not reached.
 }
 
-int 
-polymec_error(const char* message, ...)
+void polymec_error(const char* message, ...)
 {
   // Set the default error handler if no handler is set.
   if (error_handler == NULL)
@@ -167,17 +165,15 @@ polymec_error(const char* message, ...)
   va_end(argp);
 
   // Call the handler.
-  return error_handler(err);
+  error_handler(err);
 }
 
-void 
-polymec_set_error_handler(polymec_error_handler_function handler)
+void polymec_set_error_handler(polymec_error_handler_function handler)
 {
   error_handler = handler;
 }
 
-void 
-polymec_warn(const char* message, ...)
+void polymec_warn(const char* message, ...)
 {
   // Extract the variadic arguments and splat them into a string.
   va_list argp;

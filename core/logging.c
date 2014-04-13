@@ -65,7 +65,7 @@ static void logger_set_buffering(logger_t* logger, int size_limit, int flush_eve
   // In with the new.
   logger->flush_every = flush_every;
   logger->message_size_limit = size_limit;
-  logger->buffer = realloc(logger->buffer, sizeof(char*)*(logger->flush_every*(logger->message_size_limit+1)));
+  logger->buffer = realloc(logger->buffer, sizeof(char)*(logger->flush_every*(logger->message_size_limit+1)));
   logger->message_counter = 0;
 }
 

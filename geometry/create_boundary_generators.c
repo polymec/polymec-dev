@@ -153,7 +153,7 @@ void create_boundary_generators(ptr_array_t* surface_points,
 
   // Transcribe the tags.
   *tag_names = malloc(sizeof(char*) * tag_indices->size);
-  *tags = malloc(sizeof(int_array_t**) * tag_indices->size);
+  *tags = malloc(sizeof(int_array_t*) * tag_indices->size);
   *num_tags = tag_indices->size;
   char* tag_name;
   int pos = 0, tag_index;
