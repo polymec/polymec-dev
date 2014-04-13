@@ -62,8 +62,6 @@ static void logger_set_buffering(logger_t* logger, int size_limit, int flush_eve
   ASSERT(size_limit > 0);
   ASSERT(flush_every > 0);
 
-  // Flush what we've got.
-
   // In with the new.
   logger->flush_every = flush_every;
   logger->message_size_limit = size_limit;

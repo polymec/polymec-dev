@@ -230,7 +230,7 @@ static bool block_jacobi_preconditioner_solve(void* context, preconditioner_matr
   int bs = precond->block_size;
   bd_mat_t* mat = preconditioner_matrix_context(A);
 
-  bool success;
+  bool success = false;
   for (int i = 0; i < precond->num_block_rows; ++i)
   {
     // Copy the block for this row into place.
