@@ -229,7 +229,8 @@ static inline void map_name##_delete(map_name##_t* map, key_type key) \
       free(current); \
       map->size--; \
     }\
-    p = &current->next; \
+    else \
+      p = &current->next; \
   } \
 } \
 \

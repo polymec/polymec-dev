@@ -292,7 +292,8 @@ static inline key_type map_name##_change_key(map_name##_t* map, key_type old_key
       map->size--; \
       found = true; \
     }\
-    p = &current->next; \
+    else \
+      p = &current->next; \
   } \
   if (found) \
     map_name##_insert_with_dtors(map, new_key, value, kv_dtor, k_dtor, v_dtor); \
@@ -319,7 +320,8 @@ static inline void map_name##_delete(map_name##_t* map, key_type key) \
       free(current); \
       map->size--; \
     }\
-    p = &current->next; \
+    else \
+      p = &current->next; \
   } \
 } \
 \
