@@ -314,7 +314,7 @@ void polymec_provenance_fprintf(FILE* stream)
       fprintf(stream, "Invalid input specified.");
     else
     {
-      char buff[sizeof(char)*1024];
+      char buff[1024];
       fseek(fp, 0L, SEEK_END);
       int end = ftell(fp);
       rewind(fp);

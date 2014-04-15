@@ -59,9 +59,9 @@ void join_paths(const char *dirname, const char *filename, char *path)
 {
   // If the directory includes a separator at the end, we don't add another one. 
   if (dirname[strlen(dirname)-1] == SEPARATOR)
-    snprintf(path, 1024, "%s%s", dirname, filename);
+    snprintf(path, FILENAME_MAX, "%s%s", dirname, filename);
   else
-    snprintf(path, 1024, "%s%c%s", dirname, SEPARATOR, filename);
+    snprintf(path, FILENAME_MAX, "%s%c%s", dirname, SEPARATOR, filename);
 }
 
 char* string_dup(const char* s)

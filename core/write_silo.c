@@ -111,14 +111,14 @@ void write_silo_mesh(MPI_Comm comm,
                      real_t time)
 {
   // Strip .silo off of the prefix if it's there.
-  char prefix[1024];
-  strncpy(prefix, file_prefix, 1024);
+  char prefix[FILENAME_MAX];
+  strncpy(prefix, file_prefix, FILENAME_MAX);
   char* suffix = strstr(prefix, ".silo");
   if (suffix != NULL)
     suffix[0] = '\0';
 
   // Open a file in Silo/HDF5 format for writing.
-  char filename[1024];
+  char filename[FILENAME_MAX];
 #if POLYMEC_HAVE_MPI
   int nproc = 1, rank = 0;
   MPI_Comm_size(comm, &nproc);
@@ -131,11 +131,11 @@ void write_silo_mesh(MPI_Comm comm,
   // prefix, and every process gets its own subdirectory therein.
 
   // Create the master directory if we need to.
-  char master_dir_name[1024];
+  char master_dir_name[FILENAME_MAX];
   if (strlen(directory) == 0)
-    snprintf(master_dir_name, 1024, "%s-%d", prefix, nproc);
+    snprintf(master_dir_name, FILENAME_MAX, "%s-%d", prefix, nproc);
   else
-    strncpy(master_dir_name, directory, 1024);
+    strncpy(master_dir_name, directory, FILENAME_MAX);
   if (rank == 0)
   {
     DIR* master_dir = opendir(master_dir_name);
@@ -158,8 +158,8 @@ void write_silo_mesh(MPI_Comm comm,
   int rank_in_group = PMPIO_RankInGroup(baton, rank);
 
   // Create a subdirectory for each group.
-  char group_dir_name[1024];
-  snprintf(group_dir_name, 1024, "%s/%d", master_dir_name, group_rank);
+  char group_dir_name[FILENAME_MAX];
+  snprintf(group_dir_name, FILENAME_MAX, "%s/%d", master_dir_name, group_rank);
   if (rank_in_group == 0)
   {
     DIR* group_dir = opendir(group_dir_name);
@@ -176,24 +176,24 @@ void write_silo_mesh(MPI_Comm comm,
 
   // Determine a file name.
   if (cycle >= 0)
-    snprintf(filename, 1024, "%s/%s-%d.silo", group_dir_name, prefix, cycle);
+    snprintf(filename, FILENAME_MAX, "%s/%s-%d.silo", group_dir_name, prefix, cycle);
   else
-    snprintf(filename, 1024, "%s/%s.silo", group_dir_name, prefix);
+    snprintf(filename, FILENAME_MAX, "%s/%s.silo", group_dir_name, prefix);
 
-  char dir_name[1024];
-  snprintf(dir_name, 1024, "domain_%d", rank_in_group);
+  char dir_name[FILENAME_MAX];
+  snprintf(dir_name, FILENAME_MAX, "domain_%d", rank_in_group);
   DBfile* file = (DBfile*)PMPIO_WaitForBaton(baton, filename, dir_name);
 #else
-  char dir_name[1024];
+  char dir_name[FILENAME_MAX];
   if (strlen(directory) == 0)
     strcpy(dir_name, ".");
   else
     strcpy(dir_name, directory);
 
   if (cycle >= 0)
-    snprintf(filename, 1024, "%s/%s-%d.silo", dir_name, prefix, cycle);
+    snprintf(filename, FILENAME_MAX, "%s/%s-%d.silo", dir_name, prefix, cycle);
   else
-    snprintf(filename, 1024, "%s/%s.silo", dir_name, prefix);
+    snprintf(filename, FILENAME_MAX, "%s/%s.silo", dir_name, prefix);
 
   int driver = DB_HDF5;
   DBfile* file = DBCreate(filename, 0, DB_LOCAL, 0, driver);
@@ -408,11 +408,11 @@ void write_silo_mesh(MPI_Comm comm,
   // Finally, write the uber-master file.
   if (rank == 0)
   {
-    char master_file_name[1024];
+    char master_file_name[FILENAME_MAX];
     if (cycle >= 0)
-      snprintf(master_file_name, 1024, "%s-%d/%s-%d.silo", prefix, nproc, prefix, cycle);
+      snprintf(master_file_name, FILENAME_MAX, "%s-%d/%s-%d.silo", prefix, nproc, prefix, cycle);
     else
-      snprintf(master_file_name, 1024, "%s-%d/%s.silo", prefix, nproc, prefix);
+      snprintf(master_file_name, FILENAME_MAX, "%s-%d/%s.silo", prefix, nproc, prefix);
     int driver = DB_HDF5;
     DBfile* file = DBCreate(master_file_name, DB_CLOBBER, DB_LOCAL, "Master file", driver);
 
@@ -496,14 +496,14 @@ void write_silo_points(MPI_Comm comm,
   int data_type = (sizeof(real_t) == sizeof(double)) ? DB_DOUBLE : DB_FLOAT;
 
   // Strip .silo off of the prefix if it's there.
-  char prefix[1024];
-  strncpy(prefix, file_prefix, 1024);
+  char prefix[FILENAME_MAX];
+  strncpy(prefix, file_prefix, FILENAME_MAX);
   char* suffix = strstr(prefix, ".silo");
   if (suffix != NULL)
     suffix[0] = '\0';
 
   // Open a file in Silo/HDF5 format for writing.
-  char filename[1024];
+  char filename[FILENAME_MAX];
 #if POLYMEC_HAVE_MPI
   int nproc = 1, rank = 0;
   MPI_Comm_size(comm, &nproc);
@@ -516,11 +516,11 @@ void write_silo_points(MPI_Comm comm,
   // prefix, and every process gets its own subdirectory therein.
 
   // Create the master directory if we need to.
-  char master_dir_name[1024];
+  char master_dir_name[FILENAME_MAX];
   if (strlen(directory) == 0)
   {
-    char dir_name[1024];
-    snprintf(dir_name, 1024, "%s-%d", prefix, nproc);
+    char dir_name[FILENAME_MAX];
+    snprintf(dir_name, FILENAME_MAX, "%s-%d", prefix, nproc);
     strcpy(master_dir_name, dir_name);
   }
   else
@@ -549,8 +549,8 @@ void write_silo_points(MPI_Comm comm,
   int rank_in_group = PMPIO_RankInGroup(baton, rank);
 
   // Create a subdirectory for each group.
-  char group_dir_name[1024];
-  snprintf(group_dir_name, 1024, "%s/%d", master_dir_name, group_rank);
+  char group_dir_name[FILENAME_MAX];
+  snprintf(group_dir_name, FILENAME_MAX, "%s/%d", master_dir_name, group_rank);
   if (rank_in_group == 0)
   {
     DIR* group_dir = opendir(group_dir_name);
@@ -567,24 +567,24 @@ void write_silo_points(MPI_Comm comm,
 
   // Determine a file name.
   if (cycle >= 0)
-    snprintf(filename, 1024, "%s/%s-%d.silo", group_dir_name, prefix, cycle);
+    snprintf(filename, FILENAME_MAX, "%s/%s-%d.silo", group_dir_name, prefix, cycle);
   else
-    snprintf(filename, 1024, "%s/%s.silo", group_dir_name, prefix);
+    snprintf(filename, FILENAME_MAX, "%s/%s.silo", group_dir_name, prefix);
 
-  char dir_name[1024];
-  snprintf(dir_name, 1024, "domain_%d", rank_in_group);
+  char dir_name[FILENAME_MAX];
+  snprintf(dir_name, FILENAME_MAX, "domain_%d", rank_in_group);
   DBfile* file = (DBfile*)PMPIO_WaitForBaton(baton, filename, dir_name);
 #else
-  char dir_name[1024];
+  char dir_name[FILENAME_MAX];
   if (strlen(directory) == 0)
     strcpy(dir_name, ".");
   else
     strcpy(dir_name, directory);
 
   if (cycle >= 0)
-    snprintf(filename, 1024, "%s/%s-%d.silo", dir_name, prefix, cycle);
+    snprintf(filename, FILENAME_MAX, "%s/%s-%d.silo", dir_name, prefix, cycle);
   else
-    snprintf(filename, 1024, "%s/%s.silo", dir_name, prefix);
+    snprintf(filename, FILENAME_MAX, "%s/%s.silo", dir_name, prefix);
 
   int driver = DB_HDF5;
   DBfile* file = DBCreate(filename, 0, DB_LOCAL, 0, driver);
@@ -712,11 +712,11 @@ void write_silo_points(MPI_Comm comm,
   // Finally, write the uber-master file.
   if (rank == 0)
   {
-    char master_file_name[1024];
+    char master_file_name[FILENAME_MAX];
     if (cycle >= 0)
-      snprintf(master_file_name, 1024, "%s-%d/%s-%d.silo", prefix, nproc, prefix, cycle);
+      snprintf(master_file_name, FILENAME_MAX, "%s-%d/%s-%d.silo", prefix, nproc, prefix, cycle);
     else
-      snprintf(master_file_name, 1024, "%s-%d/%s.silo", prefix, nproc, prefix);
+      snprintf(master_file_name, FILENAME_MAX, "%s-%d/%s.silo", prefix, nproc, prefix);
     int driver = DB_HDF5;
     DBfile* file = DBCreate(master_file_name, DB_CLOBBER, DB_LOCAL, "Master file", driver);
 

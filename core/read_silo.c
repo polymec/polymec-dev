@@ -98,7 +98,7 @@ void read_silo_mesh(MPI_Comm comm,
     strcpy(prefix, file_prefix);
 
   // Open a file in Silo/HDF5 format for reading.
-  char filename[1024];
+  char filename[FILENAME_MAX];
 #if HAVE_MPI
   int nproc = 1, rank = 0;
   MPI_Comm_size(comm, &nproc);
@@ -115,8 +115,8 @@ void read_silo_mesh(MPI_Comm comm,
   strcpy(master_dir_name, directory);
   if (strlen(master_dir_name) == 0)
   {
-    char dir_name[1024];
-    snprintf(dir_name, 1024, "%s-%d", prefix, nproc);
+    char dir_name[FILENAME_MAX];
+    snprintf(dir_name, FILENAME_MAX, "%s-%d", prefix, nproc);
     strcpy(master_dir_name, dir_name);
   }
   DIR* master_dir = opendir(master_dir_name);
@@ -131,32 +131,32 @@ void read_silo_mesh(MPI_Comm comm,
   int rank_in_group = PMPIO_RankInGroup(baton, rank);
 
   // Figure out the subdirectory for this group.
-  char group_dir_name[1024];
-  snprintf(group_dir_name, 1024, "%s/%d", master_dir_name, group_rank);
+  char group_dir_name[FILENAME_MAX];
+  snprintf(group_dir_name, FILENAME_MAX, "%s/%d", master_dir_name, group_rank);
   DIR* group_dir = opendir(group_dir_name);
   if (group_dir == 0)
     polymec_error("Could not find the directory %s", group_dir_name);
 
   // Determine the file name.
   if (cycle >= 0)
-    snprintf(filename, 1024, "%s/%s-%d.silo", group_dir_name, prefix, cycle);
+    snprintf(filename, FILENAME_MAX, "%s/%s-%d.silo", group_dir_name, prefix, cycle);
   else
-    snprintf(filename, 1024, "%s/%s.silo", group_dir_name, prefix);
+    snprintf(filename, FILENAME_MAX, "%s/%s.silo", group_dir_name, prefix);
 
-  char dir_name[1024];
-  snprintf(dir_name, 1024, "domain_%d", rank_in_group);
+  char dir_name[FILENAME_MAX];
+  snprintf(dir_name, FILENAME_MAX, "domain_%d", rank_in_group);
   DBfile* file = (DBfile*)PMPIO_WaitForBaton(baton, filename, dir_name);
   DBSetDir(file, dir_name);
 #else
-  char dir_name[1024];
+  char dir_name[FILENAME_MAX];
   if (strlen(directory) == 0)
     strcpy(dir_name, ".");
   else
     strcpy(dir_name, directory);
   if (cycle >= 0)
-    snprintf(filename, 1024, "%s/%s-%d.silo", dir_name, prefix, cycle);
+    snprintf(filename, FILENAME_MAX, "%s/%s-%d.silo", dir_name, prefix, cycle);
   else
-    snprintf(filename, 1024, "%s/%s.silo", dir_name, prefix);
+    snprintf(filename, FILENAME_MAX, "%s/%s.silo", dir_name, prefix);
 
   int driver = DB_HDF5;
   DBfile* file = DBOpen(filename, driver, DB_READ);

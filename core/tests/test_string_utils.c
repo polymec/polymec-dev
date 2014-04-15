@@ -32,7 +32,7 @@
 void test_parse_path(void** state)
 {
   const char* path = "/this/is/the/whole/path";
-  char dir[1024], file[1024];
+  char dir[FILENAME_MAX], file[FILENAME_MAX];
   parse_path(path, dir, file);
   assert_true(!strcmp(dir, "/this/is/the/whole"));
   assert_true(!strcmp(file, "path"));
@@ -42,7 +42,7 @@ void test_join_paths(void** state)
 {
   const char* dir = "/this/is/the/whole/";
   const char* file = "path";
-  char path[1024];
+  char path[FILENAME_MAX];
   join_paths(dir, file, path);
   assert_true(!strcmp(path, "/this/is/the/whole/path"));
 }

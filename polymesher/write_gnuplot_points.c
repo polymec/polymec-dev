@@ -61,8 +61,8 @@ int write_gnuplot_points(lua_State* lua)
   log_info("Writing GNUPlot scatter plot with prefix '%s'...", prefix);
 
   // Write the data.
-  char filename[1024];
-  snprintf(filename, 1024, "%s.gnuplot", prefix);
+  char filename[FILENAME_MAX];
+  snprintf(filename, FILENAME_MAX, "%s.gnuplot", prefix);
   FILE* fd = fopen(filename, "w");
   fprintf(fd, "# x y z\n");
   for (int i = 0; i < num_points; ++i)
