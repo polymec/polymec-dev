@@ -68,9 +68,12 @@ text_file_buffer_t* text_file_buffer_new(const char* filename)
   buffer->line_offsets = malloc(sizeof(long) * (buffer->num_lines+1));
   buffer->line_offsets[0] = 0;
   int i = 1;
-  for (long_slist_node_t* iter = line_list->front; iter != NULL; iter = iter->next)
+  long line_no;
+  long_slist_node_t* iter = NULL;
+  while (long_slist_next(line_list, &iter, &line_no))
+//  for (long_slist_node_t* iter = line_list->front; iter != NULL; iter = iter->next)
   {
-    buffer->line_offsets[i] = iter->value;
+    buffer->line_offsets[i] = line_no; //iter->value;
     ++i;
   }
   long_slist_free(line_list);

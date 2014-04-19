@@ -45,6 +45,7 @@
 // void x_slist_append_with_dtor(x_slist_t* list, x value, destructor dtor) - Appends an x to the end of the list, using dtor to destroy when finished.
 // x x_slist_pop(x_slist_t* list, x_slist_dtor* dtor) - Removes an x from the front of the list, returning it and its destructor (if dtor != NULL).
 // void x_slist_remove(x_slist_t* list, x_slist_node_t* node) - Removes a node from the list.
+// bool x_slist_next(x_slist_t* list, x_slist_node_t** pos, x* value) - Allows the traversal of the linked list.
 // bool x_slist_empty(x_slist_t* list) - Returns true if empty, false otherwise.
 // void x_slist_clear(x_slist_t* list) - Clears the given list, making it empty.
 
@@ -196,6 +197,16 @@ static inline void list_name##_remove(list_name##_t* list, list_name##_node_t* n
     free(node); \
     list->size -= 1; \
   } \
+} \
+static inline bool list_name##_next(list_name##_t* list, list_name##_node_t** node, element* value) \
+{ \
+  if (*node == NULL) \
+    *node = list->front; \
+  else \
+    *node = (*node)->next; \
+  if (*node != NULL) \
+    *value = (*node)->value; \
+  return (*node != NULL); \
 } \
 \
 static inline bool list_name##_empty(list_name##_t* list) \
