@@ -39,10 +39,12 @@
 // x_slist_t* x_slist_new() - Creates a new, empty slist.
 // void x_slist_free(slist_t* list) - Destroys the list.
 // x_slist_node_t* x_slist_find(x_slist_t* list, x value, x_slist_cmp comparator) - Returns the node at which a value appears in the list.
-// void x_slist_insert(x_slist_t* list, x value, x_slist_node_t* node) - Inserts an x into the list.
+// void x_slist_insert(x_slist_t* list, x value, x_slist_node_t* node) - Inserts an x into the list in front of the given node.
 // void x_slist_insert_with_dtor(x_slist_t* list, x value, x_slist_node_t* node, destructor dtor) - Inserts an x into the list, using dtor to destroy it when finished.
 // void x_slist_append(x_slist_t* list, x value) - Appends an x to the end of the list.
 // void x_slist_append_with_dtor(x_slist_t* list, x value, destructor dtor) - Appends an x to the end of the list, using dtor to destroy when finished.
+// void x_slist_push(x_slist_t* list, x value) - Inserts an x at the front of the list.
+// void x_slist_push_with_dtor(x_slist_t* list, x value, x_slist_dtor dtor) - Inserts an x at the front of the list with a destructor.
 // x x_slist_pop(x_slist_t* list, x_slist_dtor* dtor) - Removes an x from the front of the list, returning it and its destructor (if dtor != NULL).
 // void x_slist_remove(x_slist_t* list, x_slist_node_t* node) - Removes a node from the list.
 // bool x_slist_next(x_slist_t* list, x_slist_node_t** pos, x* value) - Allows the traversal of the linked list.
@@ -108,6 +110,7 @@ static inline void list_name##_insert_with_dtor(list_name##_t* list, element val
   n->next = NULL; \
   if (list->front == NULL) \
   { \
+    ASSERT(node == NULL); \
     list->front = n; \
     list->back = n; \
     list->size = 1; \
@@ -160,6 +163,16 @@ static inline void list_name##_append_with_dtor(list_name##_t* list, element val
 static inline void list_name##_append(list_name##_t* list, element value) \
 { \
   list_name##_append_with_dtor(list, value, NULL); \
+} \
+\
+static inline void list_name##_push_with_dtor(list_name##_t* list, element value, list_name##_dtor dtor) \
+{ \
+  list_name##_insert_with_dtor(list, value, dtor, list->front); \
+} \
+\
+static inline void list_name##_push(list_name##_t* list, element value) \
+{ \
+  list_name##_push_with_dtor(list, value, NULL); \
 } \
 \
 static inline element list_name##_pop(list_name##_t* list, list_name##_dtor* dtor) \
