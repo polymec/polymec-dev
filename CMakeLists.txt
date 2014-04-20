@@ -158,8 +158,8 @@ configure_file(
   "${CMAKE_CURRENT_BINARY_DIR}/polymec.cmake"
 )
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/polymec.cmake DESTINATION share/polymec)
-# Also copy add_polymec_executable.cmake into the shared directory.
 install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/cmake/Modules/add_polymec_executable.cmake DESTINATION share/polymec)
+install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/cmake/Modules/add_polymec_test.cmake DESTINATION share/polymec)
 
 # Mesher.
 add_subdirectory(polymesher)
