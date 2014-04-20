@@ -49,6 +49,7 @@
 // void x_array_clear(x_array_t* array) - Clears the given array, making it empty.
 // void x_array_resize(x_array_t* array, int new_size) - Resizes the array, keeping data intact if possible.
 // void x_array_reserve(x_array_t* array, int new_capacity) - Reserves storage for the given capacity within the array. No effect if the array already has sufficient storage.
+// bool x_array_next(x_array_t* array, int* pos, x* element) - Allows traversal over the items in the array.
 // 
 // Member data for an array a:
 // 
@@ -188,6 +189,18 @@ static inline void array_name##_append_with_dtor(array_name##_t* array, element 
 static inline void array_name##_append(array_name##_t* array, element value) \
 { \
   array_name##_append_with_dtor(array, value, NULL); \
+} \
+\
+static inline bool array_name##_next(array_name##_t* array, int* pos, element* value) \
+{ \
+  if (*pos < array->size) \
+  { \
+    *value = array->data[*pos]; \
+    ++(*pos); \
+    return true; \
+  } \
+  else \
+    return false; \
 } \
 
 // Define some basic array types.
