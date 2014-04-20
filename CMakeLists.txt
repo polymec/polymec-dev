@@ -164,11 +164,3 @@ install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/cmake/Modules/add_polymec_test.cmake D
 # Mesher.
 add_subdirectory(polymesher)
 
-# Models.
-
-# Poisson's equation.
-add_subdirectory(poisson)
-
-# Advection/diffusion/reaction solver.
-#add_subdirectory(advect)
-
