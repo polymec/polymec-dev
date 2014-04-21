@@ -177,7 +177,7 @@ void polymec_restore_fpe_exceptions();
 
 // Call this function to indicate that something is not implemented
 // with a fatal exit.
-void polymec_not_implemented(const char* component);
+noreturn void polymec_not_implemented(const char* component);
 
 // Initialize polymec's services. If polymec has already been initialized, 
 // this does nothing.
