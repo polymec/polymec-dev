@@ -61,5 +61,11 @@ bool tetrahedron_contains_point(tetrahedron_t* t, point_t* x);
 // tetrahedron, y is set to x.
 void tetrahedron_compute_nearest_point(tetrahedron_t* t, point_t* x, point_t* y);
 
+// Traverses the faces of the tetrahedron, returning true if a face remains
+// in the traversal and false if not. A face is retrieved in the sense that the 
+// positions of its vertices are stored in v1, v2, and v3. Set *pos to 0 to 
+// reset the traversal.
+bool tetrahedron_next_face(tetrahedron_t* t, int* pos, point_t* v1, point_t* v2, point_t* v3);
+
 #endif
 

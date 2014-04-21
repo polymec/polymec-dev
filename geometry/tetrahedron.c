@@ -188,3 +188,34 @@ void tetrahedron_compute_nearest_point(tetrahedron_t* t, point_t* x, point_t* y)
   }
 }
 
+bool tetrahedron_next_face(tetrahedron_t* t, int* pos, point_t* v1, point_t* v2, point_t* v3)
+{
+  switch(*pos)
+  {
+    case 0: 
+      *v1 = t->vertices[1];
+      *v2 = t->vertices[2];
+      *v3 = t->vertices[3];
+      break;
+    case 1: 
+      *v1 = t->vertices[0];
+      *v2 = t->vertices[2];
+      *v3 = t->vertices[3];
+      break;
+    case 2: 
+      *v1 = t->vertices[0];
+      *v2 = t->vertices[1];
+      *v3 = t->vertices[3];
+      break;
+    case 3: 
+      *v1 = t->vertices[0];
+      *v2 = t->vertices[1];
+      *v3 = t->vertices[2];
+      break;
+    default:
+      return false;
+  }
+
+  return true;
+}
+

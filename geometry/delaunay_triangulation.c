@@ -115,10 +115,30 @@ static void find_adjacent_tet(delaunay_triangulation_t* t,
 {
 }
 
-// This helper performs a bistellar flip of two tetrahedra tau1 and tau2 within 
+// This helper performs a bistellar flip of two tetrahedra tau and tau_a within 
 // the triangulation t.
-static void flip(delaunay_triangulation_t* t, int tau1, int tau2)
+static void flip(delaunay_triangulation_t* t, 
+                 int tau, int* tau_vertices,
+                 int tau_a, int* tau_a_vertices,
+                 int_slist_t* stack)
 {
+  // Figure out how many facets of the tetrahedron tau_a are visible to 
+  // point p within tetrahedron tau.
+  point_t* p = &t->vertices[tau_vertices[0]];
+  static const int tau_a_facets[4][3] = {{1, 2, 3}, {0, 2, 3}, {0, 1, 3}, {0, 1, 2}};
+  int num_visible_facets = 0;
+  for (int f = 0; f < 4; ++f)
+  {
+    point_t* v1 = &t->vertices[tau_a_vertices[tau_a_facets[f][0]]];
+    point_t* v2 = &t->vertices[tau_a_vertices[tau_a_facets[f][1]]];
+    point_t* v3 = &t->vertices[tau_a_vertices[tau_a_facets[f][2]]];
+  }
+
+  if (num_visible_facets == 1) // case 1
+  {
+//    flip23(t, tau, tau_a);
+//    int_slist_push(stack, ...);
+  }
 }
 
 void delaunay_triangulation_insert_vertex(delaunay_triangulation_t* t, 
@@ -180,7 +200,7 @@ void delaunay_triangulation_insert_vertex(delaunay_triangulation_t* t,
     // flip tau and tau_a.
     point_t d = t->vertices[tau_a_vertices[3]];
     if (point_distance(&tau_xc, &d) < tau_r)
-      flip(t, tau, tau_a);
+      flip(t, tau, tau_vertices, tau_a, tau_a_vertices, stack);
   }
 }
 
