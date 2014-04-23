@@ -26,6 +26,10 @@
 #include "geometry/tetrahedron.h"
 #include "geometry/delaunay_triangulation.h"
 
+// We use some of Shewchuk's robust geometric predicates.
+extern real_t orient3d(real_t* pa, real_t* pb, real_t* pc, real_t* pd);
+extern real_t insphere(real_t* pa, real_t* pb, real_t* pc, real_t* pd, real_t* pe);
+
 struct delaunay_triangulation_t 
 {
   point_t* vertices;
@@ -53,7 +57,7 @@ delaunay_triangulation_t* delaunay_triangulation_new(point_t* v1, point_t* v2, p
   t->tet_vertices[2] = 2;
   t->tet_vertices[3] = 3;
 
-  // Set up the Big Tet.
+  // Set up the Big Tet that contains the entire domain.
   t->big_tet = tetrahedron_new();
   tetrahedron_set_vertices(t->big_tet, v1, v2, v3, v4);
 
@@ -122,22 +126,69 @@ static void flip(delaunay_triangulation_t* t,
                  int_slist_t* stack)
 {
   // Figure out how many facets of the tetrahedron tau_a are visible to 
-  // point p within tetrahedron tau.
+  // point p within tetrahedron tau, and identify any degeneracies.
   point_t* p = &t->vertices[v];
   int tau_a_vertices[] = {a, b, c, d};
   static const int tau_a_facets[4][3] = {{1, 2, 3}, {0, 2, 3}, {0, 1, 3}, {0, 1, 2}};
   int num_visible_facets = 0;
+  bool abdp_coplanar = false, p_lies_on_abc = false;
   for (int f = 0; f < 4; ++f)
   {
     point_t* v1 = &t->vertices[tau_a_vertices[tau_a_facets[f][0]]];
     point_t* v2 = &t->vertices[tau_a_vertices[tau_a_facets[f][1]]];
     point_t* v3 = &t->vertices[tau_a_vertices[tau_a_facets[f][2]]];
+    // We use Shewchuk's ORIENT3D predicate to determine whether p lies above 
+    // the face (v1, v2, v3).
+    real_t pa[3] = {v1->x, v1->y, v1->z}, 
+           pb[3] = {v2->x, v2->y, v2->z}, 
+           pc[3] = {v3->x, v3->y, v3->z}, 
+           pd[3] = {p->x, p->y, p->z};
+    real_t orientation = orient3d(pa, pb, pc, pd);
+    if (orientation < 0.0)
+      ++num_visible_facets; // p is above (v1, v2, v3).
+    else if (orientation == 0.0)
+    {
+    }
   }
 
+  // Now flip tets according to the various cases in Ledoux's paper.
   if (num_visible_facets == 1) // case 1
   {
+    // The union of tau and tau_a is convex, so a flip23 is performed.
+    // FIXME
 //    flip23(t, tau, tau_a);
 //    int_slist_push(stack, ...);
+  }
+  else if (num_visible_facets == 2) // case 2
+  {
+    // The union of tau and tau_a is non-convex. Attempt to construct a 
+    // tetrahedron tau_b = (a, b, p, d) such that the edge (a, b) is shared 
+    // by tau, tau_a, and tau_b. If tau_b can be constructed, perform a flip32.
+    bool abpd_exists = false;
+    // FIXME
+    if (abpd_exists)
+    {
+    }
+    
+    // If not, then no flip is performed, and this non-convex case will be 
+    // rectified by another flip elsewhere.
+  }
+  else if (abdp_coplanar) // case 3
+  {
+    // a, b, d, and p are coplanar, so the creation of a tetrahedron (a, b, d, p) 
+    // requires the tetrahedra tau and tau_a to be in the "config44" state.
+    bool config44 = false;
+    // FIXME
+    if (config44)
+    {
+    }
+  }
+  else if (p_lies_on_abc) // case 4
+  {
+    // p lies on an edge of the face (a, b, c). So it is coplanar with both 
+    // (a, b, c) and one other face. We perform a flip23 on tau and tau_a 
+    // for reasons explained by Ledoux.
+    // FIXME
   }
 }
 
