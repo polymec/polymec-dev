@@ -107,24 +107,24 @@ static void flip14(delaunay_triangulation_t* t, int old_tet_index, int* new_tet_
 }
 
 // Given a tetrahedron tau1 = (v, a, b, c), this helper retrieves the index 
-// tau2 and the indices of the vertices (a, b, c, d) of the tetrahedron
-// adjacent to tau1 that shares the vertices (a, b, c) with it.
+// and the vertex d of the tetrahedron tau2 = (a, b, c, d) adjacent to tau1 
+// that shares the vertices (a, b, c).
 static void find_adjacent_tet(delaunay_triangulation_t* t, 
-                              int tau1, int* tau1_vertices, 
-                              int* tau2, int* tau2_vertices)
+                              int tau1, int v, int a, int b, int c,
+                              int* tau2, int* d)
 {
 }
 
 // This helper performs a bistellar flip of two tetrahedra tau and tau_a within 
 // the triangulation t.
 static void flip(delaunay_triangulation_t* t, 
-                 int tau, int* tau_vertices,
-                 int tau_a, int* tau_a_vertices,
+                 int tau, int tau_a, int v, int a, int b, int c, int d,
                  int_slist_t* stack)
 {
   // Figure out how many facets of the tetrahedron tau_a are visible to 
   // point p within tetrahedron tau.
-  point_t* p = &t->vertices[tau_vertices[0]];
+  point_t* p = &t->vertices[v];
+  int tau_a_vertices[] = {a, b, c, d};
   static const int tau_a_facets[4][3] = {{1, 2, 3}, {0, 2, 3}, {0, 1, 3}, {0, 1, 2}};
   int num_visible_facets = 0;
   for (int f = 0; f < 4; ++f)
@@ -171,25 +171,30 @@ void delaunay_triangulation_insert_vertex(delaunay_triangulation_t* t,
     // Pull the tet tau off the stack and retrieve its vertex indices
     // (v, a, b, c), where v is the vertex we just inserted.
     int tau = int_slist_pop(stack, NULL);
-    int tau_vertices[4], j = 1;
+    int v = -1, a = -1, b = -1, c = -1;
     for (int i = 0; i < 4; ++i)
     {
       if (t->tet_vertices[i] == v_index)
-        tau_vertices[0] = t->tet_vertices[i];
+        v = t->tet_vertices[i];
       else
       {
-        tau_vertices[j] = t->tet_vertices[i];
-        ++j;
+        if (a == -1) 
+          a = t->tet_vertices[i];
+        else if (b == -1)
+          b = t->tet_vertices[i];
+        else if (c == -1)
+          c = t->tet_vertices[i];
       }
     }
 
     // Find the tetrahedron (a, b, c, d) adjacent to tau = (v, a, b, c) 
     // that shares the vertices (a, b, c).
-    int tau_a, tau_a_vertices[4];
-    find_adjacent_tet(t, tau, tau_vertices, &tau_a, tau_a_vertices);
+    int tau_a, d;
+    find_adjacent_tet(t, tau, v, a, b, c, &tau_a, &d);
 
-    // Comute the radius of the circumsphere of the tet tau.
+    // Compute the radius of the circumsphere of the tet tau.
     point_t tau_nodes[4], tau_xc;
+    int tau_vertices[] = {v, a, b, c};
     delaunay_triangulation_get_vertices(t, tau_vertices, 4, tau_nodes);
     tetrahedron_t* tau_tet = tetrahedron_new();
     tetrahedron_set_vertices(tau_tet, &tau_nodes[0], &tau_nodes[1], &tau_nodes[2], &tau_nodes[3]);
@@ -198,9 +203,9 @@ void delaunay_triangulation_insert_vertex(delaunay_triangulation_t* t,
 
     // If the fourth vertex of tau_a is inside the circumsphere of tau, 
     // flip tau and tau_a.
-    point_t d = t->vertices[tau_a_vertices[3]];
-    if (point_distance(&tau_xc, &d) < tau_r)
-      flip(t, tau, tau_vertices, tau_a, tau_a_vertices, stack);
+    point_t xd = t->vertices[d];
+    if (point_distance(&tau_xc, &xd) < tau_r)
+      flip(t, tau, tau_a, v, a, b, c, d, stack);
   }
 }
 

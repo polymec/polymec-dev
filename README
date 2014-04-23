@@ -1,12 +1,12 @@
 Jeffrey N. Johnson
-December 19, 2013
+April 22, 2014
 
-Polymec (pronounced "polimec") is a set of libraries that can be used to
-construct models for physical systems. Specifically, Polymec is designed with 
-the goal of solving nonlinear partial differential equations on arbitrary 
-polyhedral grids such as 3D Voronoi tessellations, or using mesh-free methods.
-The framework is designed to make for low-maintenance science applications 
-with robust capabilities. Areas of emphasis are:
+Polymec is a set of libraries that can be used to construct models for 
+physical systems. Specifically, Polymec is designed with the goal of solving 
+nonlinear partial differential equations on arbitrary polyhedral grids such 
+as 3D Voronoi tessellations, or using mesh-free methods. The framework is 
+designed to make for low-maintenance science applications with robust 
+capabilities. Areas of emphasis are:
 
 - High-quality, robust geometry generation and representation.
 - Stiffly-accurate, A-stable implicit time integrators that use matrix-free 

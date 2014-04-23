@@ -2,7 +2,7 @@ include(add_polymec_test)
 
 add_polymec_test(test_midpoint_polyhedron_integrator test_midpoint_polyhedron_integrator.c)
 add_polymec_test(test_div_free_poly_basis test_div_free_poly_basis.c)
-add_polymec_test(test_sphere_integrator test_sphere_integrator.c)
+#add_polymec_test(test_sphere_integrator test_sphere_integrator.c)
 add_polymec_test(test_block_jacobi_preconditioner test_block_jacobi_preconditioner.c)
 add_polymec_test(test_lu_preconditioner test_lu_preconditioner.c)
 add_polymec_test(test_nonlinear_integrator foodweb_integrator.c test_nonlinear_integrator.c)
