@@ -43,7 +43,7 @@
 // x*** x_array3_new(int dim1, int dim2, int dim3) - Creates a new 3D array on the heap with the given dimensions.
 // void x_array3_free(x*** array, int dim1, int dim2, int dim3) - Frees a 3D array.
 // x**** x_array4_new(int dim1, int dim2, int dim3, dim4) - Creates a new 4D array on the heap with the given dimensions.
-// void x_array4_free(x**** array, int dim1, int dim2, int dim3) - Frees a 4D array.
+// void x_array4_free(x**** array, int dim1, int dim2, int dim3, int dim4) - Frees a 4D array.
 // 
 // Note that dimension information for the array is not stored with the array 
 // itself, and must be tracked separately.
