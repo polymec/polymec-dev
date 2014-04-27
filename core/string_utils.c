@@ -27,43 +27,6 @@
 #include "core/string_utils.h"
 #include "core/slist.h"
 
-#define SEPARATOR '/'
-
-void parse_path(const char *path, char *dirname, char *filename)
-{
-  int len = strlen(path);
-  char* last_sep = strrchr(path, SEPARATOR);
-  // Now last_sep points to the last separator in path.
-
-  if (last_sep == NULL) // No separator found!
-  {
-    // dirname is '.'
-    dirname[0] = '.';
-    dirname[1] = '\0';
-
-    // filename is path.
-    strcpy(filename, path);
-  }
-  else
-  {
-    int index = last_sep - path;
-    strncpy(dirname, path, index);
-    dirname[index] = '\0';
-
-    strncpy(filename, path + index + 1, len - index - 1);
-    filename[len - index - 1] = '\0';
-  }
-} 
-
-void join_paths(const char *dirname, const char *filename, char *path)
-{
-  // If the directory includes a separator at the end, we don't add another one. 
-  if (dirname[strlen(dirname)-1] == SEPARATOR)
-    snprintf(path, FILENAME_MAX, "%s%s", dirname, filename);
-  else
-    snprintf(path, FILENAME_MAX, "%s%c%s", dirname, SEPARATOR, filename);
-}
-
 char* string_dup(const char* s)
 {
   int len = strlen(s);

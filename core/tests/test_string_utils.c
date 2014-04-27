@@ -29,24 +29,6 @@
 #include "cmockery.h"
 #include "core/polymec.h"
 
-void test_parse_path(void** state)
-{
-  const char* path = "/this/is/the/whole/path";
-  char dir[FILENAME_MAX], file[FILENAME_MAX];
-  parse_path(path, dir, file);
-  assert_true(!strcmp(dir, "/this/is/the/whole"));
-  assert_true(!strcmp(file, "path"));
-}
-
-void test_join_paths(void** state)
-{
-  const char* dir = "/this/is/the/whole/";
-  const char* file = "path";
-  char path[FILENAME_MAX];
-  join_paths(dir, file, path);
-  assert_true(!strcmp(path, "/this/is/the/whole/path"));
-}
-
 void test_string_dup(void** state)
 {
   const char* s1 = "dupe me, baby!";
@@ -108,8 +90,6 @@ int main(int argc, char* argv[])
   polymec_init(argc, argv);
   const UnitTest tests[] = 
   {
-    unit_test(test_parse_path),
-    unit_test(test_join_paths),
     unit_test(test_string_dup),
     unit_test(test_string_next_token),
     unit_test(test_string_is_number),

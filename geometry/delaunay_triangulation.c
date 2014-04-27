@@ -119,16 +119,17 @@ static void find_adjacent_tet(delaunay_triangulation_t* t,
 {
 }
 
-// This helper performs a bistellar flip of two tetrahedra tau and tau_a within 
-// the triangulation t.
+// This helper performs a bistellar flip of two tetrahedra tau = (a, b, c, d) 
+// and tau_a = (b, c, d, e) within the triangulation t. Notice that the 
+// face common to tau and tau_a is (b, c, d).
 static void flip(delaunay_triangulation_t* t, 
-                 int tau, int tau_a, int v, int a, int b, int c, int d,
+                 int tau, int tau_a, int a, int b, int c, int d, int e,
                  int_slist_t* stack)
 {
   // Figure out how many facets of the tetrahedron tau_a are visible to 
   // point p within tetrahedron tau, and identify any degeneracies.
-  point_t* p = &t->vertices[v];
-  int tau_a_vertices[] = {a, b, c, d};
+  point_t* p = &t->vertices[a];
+  int tau_a_vertices[] = {b, c, d, e};
   static const int tau_a_facets[4][3] = {{1, 2, 3}, {0, 2, 3}, {0, 1, 3}, {0, 1, 2}};
   int num_visible_facets = 0;
   bool abdp_coplanar = false, p_lies_on_abc = false;
@@ -146,9 +147,6 @@ static void flip(delaunay_triangulation_t* t,
     real_t orientation = orient3d(pa, pb, pc, pd);
     if (orientation < 0.0)
       ++num_visible_facets; // p is above (v1, v2, v3).
-    else if (orientation == 0.0)
-    {
-    }
   }
 
   // Now flip tets according to the various cases in Ledoux's paper.
@@ -243,21 +241,19 @@ void delaunay_triangulation_insert_vertex(delaunay_triangulation_t* t,
     int tau_a, d;
     find_adjacent_tet(t, tau, v, a, b, c, &tau_a, &d);
 
-    // Compute the radius of the circumsphere of the tet tau.
-    point_t tau_nodes[4], tau_xc;
-    int tau_vertices[] = {v, a, b, c};
-    delaunay_triangulation_get_vertices(t, tau_vertices, 4, tau_nodes);
-    tetrahedron_t* tau_tet = tetrahedron_new();
-    tetrahedron_set_vertices(tau_tet, &tau_nodes[0], &tau_nodes[1], &tau_nodes[2], &tau_nodes[3]);
-    tetrahedron_compute_circumcenter(tau_tet, &tau_xc);
-    real_t tau_r = point_distance(&tau_xc, &tau_nodes[0]); // radius of circumsphere.
-
-    // If the fourth vertex of tau_a is inside the circumsphere of tau, 
-    // flip tau and tau_a.
-    point_t xd = t->vertices[d];
-    if (point_distance(&tau_xc, &xd) < tau_r)
+    // If the fourth vertex d of tau_a is inside the circumsphere of tau, 
+    // flip tau and tau_a. Use Shewchuk's INSPHERE predicate for this.
+    real_t pv[3] = {t->vertices[v].x, t->vertices[v].y, t->vertices[v].z};
+    real_t pa[3] = {t->vertices[a].x, t->vertices[a].y, t->vertices[a].z};
+    real_t pb[3] = {t->vertices[b].x, t->vertices[b].y, t->vertices[b].z};
+    real_t pc[3] = {t->vertices[c].x, t->vertices[c].y, t->vertices[c].z};
+    real_t pd[3] = {t->vertices[d].x, t->vertices[d].y, t->vertices[d].z};
+    if (insphere(pv, pa, pb, pc, pd) > 0.0)
       flip(t, tau, tau_a, v, a, b, c, d, stack);
   }
+
+  // Clean up.
+  int_slist_free(stack);
 }
 
 int delaunay_triangulation_num_vertices(delaunay_triangulation_t* t)

@@ -22,23 +22,30 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "geometry/create_voronoi_mesh.h"
+#ifndef POLYMEC_FILE_UTILS_H
+#define POLYMEC_FILE_UTILS_H
 
-mesh_t* create_voronoi_mesh(MPI_Comm comm, point_t* generators, 
-                            int num_generators, bbox_t* bounding_box)
-{
-  // Check to see whether tetgen is installed.
-  int status = system("tetgen");
-  if (status != 0)
-    polymec_error("create_voronoi_mesh: tetgen must be installed in your PATH.");
+// Given a full pathname, parse it into directory and file portions.
+// Memory must be allocated for dirname and for filename that is sufficient 
+// to store any portion of path.
+void parse_path(const char *path, char *dirname, char *filename);
 
-  // Generate a temporary input file containing the generators for a Voronoi mesh.
-  char template[FILENAME_MAX];
-  sprintf(template, "voronoi-XXXXXX");
-  FILE* input_file = make_temp_file_with_suffix(template, ".node");
-  if (input_file == NULL)
-    polymec_error("create_voronoi_mesh: Could not open temporary file for writing input.");
+// Given a path and a filename, join them using the OS-specific separator, 
+// storing the result in path.
+void join_paths(const char *dirname, const char* filename, char* path);
 
-  polymec_not_implemented("create_voronoi_mesh");
-}
+// Create a temporary file using the given template. This function replaces 
+// all X characters in the filename template with a set of characters that 
+// renders the filename unique (in the spirit of mkstemp). The template should
+// have the form path/to/fileXXXXXX, with the X's all at the end. This 
+// function returns a file descriptor that is open for writing ("w") on 
+// success, or NULL on failure.
+FILE* make_temp_file(char* filename);
 
+// This version of make_temp_file creates a temporary file that is constructed 
+// from the given template (filename), appending the given suffix to the end.
+// It returns a file descriptor that is open for writing ("w") on success, or 
+// NULL on failure.
+FILE* make_temp_file_with_suffix(char* filename, const char* suffix);
+
+#endif

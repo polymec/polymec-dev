@@ -22,23 +22,38 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "geometry/create_voronoi_mesh.h"
+#include <stdarg.h>
+#include <stddef.h>
+#include <setjmp.h>
+#include <string.h>
+#include "cmockery.h"
+#include "core/polymec.h"
 
-mesh_t* create_voronoi_mesh(MPI_Comm comm, point_t* generators, 
-                            int num_generators, bbox_t* bounding_box)
+void test_parse_path(void** state)
 {
-  // Check to see whether tetgen is installed.
-  int status = system("tetgen");
-  if (status != 0)
-    polymec_error("create_voronoi_mesh: tetgen must be installed in your PATH.");
-
-  // Generate a temporary input file containing the generators for a Voronoi mesh.
-  char template[FILENAME_MAX];
-  sprintf(template, "voronoi-XXXXXX");
-  FILE* input_file = make_temp_file_with_suffix(template, ".node");
-  if (input_file == NULL)
-    polymec_error("create_voronoi_mesh: Could not open temporary file for writing input.");
-
-  polymec_not_implemented("create_voronoi_mesh");
+  const char* path = "/this/is/the/whole/path";
+  char dir[FILENAME_MAX], file[FILENAME_MAX];
+  parse_path(path, dir, file);
+  assert_true(!strcmp(dir, "/this/is/the/whole"));
+  assert_true(!strcmp(file, "path"));
 }
 
+void test_join_paths(void** state)
+{
+  const char* dir = "/this/is/the/whole/";
+  const char* file = "path";
+  char path[FILENAME_MAX];
+  join_paths(dir, file, path);
+  assert_true(!strcmp(path, "/this/is/the/whole/path"));
+}
+
+int main(int argc, char* argv[]) 
+{
+  polymec_init(argc, argv);
+  const UnitTest tests[] = 
+  {
+    unit_test(test_parse_path),
+    unit_test(test_join_paths)
+  };
+  return run_tests(tests);
+}
