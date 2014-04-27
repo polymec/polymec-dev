@@ -47,13 +47,53 @@ void test_join_paths(void** state)
   assert_true(!strcmp(path, "/this/is/the/whole/path"));
 }
 
+void test_make_temp_file(void** state)
+{
+  const char* template = "temporary-file-XXXXXX";
+  char actual_file[FILENAME_MAX];
+
+  // Check to see whether we get the file descriptor.
+  FILE* temp_file = make_temp_file(template, actual_file);
+  assert_true(temp_file != NULL);
+  fclose(temp_file);
+
+  // Now check to see whether the file is where it should be.
+  temp_file = fopen(actual_file, "r");
+  assert_true(temp_file != NULL);
+  fclose(temp_file);
+}
+
+void test_make_temp_dir(void** state)
+{
+  const char* template = "temporary-dir-XXXXXX";
+  char actual_dir[FILENAME_MAX];
+
+  // Check to see whether we made the directory.
+  bool result = make_temp_dir(template, actual_dir);
+  assert_true(result == true);
+
+  // Now try to put something in it.
+  char file_path[FILENAME_MAX];
+  join_paths(actual_dir, "new_file", file_path);
+  FILE* new_file = fopen(file_path, "w");
+  assert_true(new_file != NULL);
+  fclose(new_file);
+
+  // Read the (empty) new file.
+  new_file = fopen(file_path, "r");
+  assert_true(new_file != NULL);
+  fclose(new_file);
+}
+
 int main(int argc, char* argv[]) 
 {
   polymec_init(argc, argv);
   const UnitTest tests[] = 
   {
     unit_test(test_parse_path),
-    unit_test(test_join_paths)
+    unit_test(test_join_paths),
+    unit_test(test_make_temp_file),
+    unit_test(test_make_temp_dir)
   };
   return run_tests(tests);
 }

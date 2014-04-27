@@ -32,12 +32,16 @@ mesh_t* create_voronoi_mesh(MPI_Comm comm, point_t* generators,
   if (status != 0)
     polymec_error("create_voronoi_mesh: tetgen must be installed in your PATH.");
 
-  // Generate a temporary input file containing the generators for a Voronoi mesh.
-  char template[FILENAME_MAX];
+  // Generate a temporary directory for working with tetgen.
+  char template[FILENAME_MAX], dir_path[FILENAME_MAX];
   sprintf(template, "voronoi-XXXXXX");
-  FILE* input_file = make_temp_file_with_suffix(template, ".node");
-  if (input_file == NULL)
-    polymec_error("create_voronoi_mesh: Could not open temporary file for writing input.");
+  bool made_dir = make_temp_dir(template, dir_path);
+  if (!made_dir)
+    polymec_error("create_voronoi_mesh: Could not open temporary directory.");
+
+  // Make the input .node file containing the generators.
+  char input_file[FILENAME_MAX];
+  join_paths(dir_path, "voronoi.nodes", input_file);
 
   polymec_not_implemented("create_voronoi_mesh");
 }

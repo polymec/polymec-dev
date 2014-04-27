@@ -22,8 +22,9 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+#include <dirent.h>
+#include <sys/stat.h>
 #include "core/polymec.h"
-#include <unistd.h>
 #include "file_utils.h"
 
 #define SEPARATOR '/'
@@ -63,21 +64,119 @@ void join_paths(const char *dirname, const char *filename, char *path)
     snprintf(path, FILENAME_MAX, "%s%c%s", dirname, SEPARATOR, filename);
 }
 
-FILE* make_temp_file(char* filename)
+// Global temporary directory for the present process.
+static char* polymec_temp_dir = NULL;
+
+// This helper removes the present process's temporary directory on exit.
+static void remove_polymec_temp_dir()
 {
-  int fd = mkstemp(filename);
+  ASSERT(polymec_temp_dir != NULL);
+
+  log_debug("Deleting temporary directory '%s'.", polymec_temp_dir);
+  remove_dir(polymec_temp_dir);
+  free(polymec_temp_dir);
+}
+
+// This helper creates the temporary directory for the present polymec 
+// process and then fills temp_dir with the name.
+static void make_polymec_temp_dir(char* temp_dir)
+{
+  if (polymec_temp_dir == NULL)
+  {
+    char* tmpdir = getenv("TMPDIR");
+    int pid = getpid();
+    if (tmpdir != NULL)
+      snprintf(temp_dir, FILENAME_MAX, "%s/polymec-%d", tmpdir, pid);
+    else
+      snprintf(temp_dir, FILENAME_MAX, "/tmp/polymec-%d", pid);
+    polymec_temp_dir = string_dup(temp_dir);
+    mkdir(temp_dir, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+    polymec_atexit(remove_polymec_temp_dir);
+  }
+  else
+    strncpy(temp_dir, polymec_temp_dir, FILENAME_MAX);
+}
+
+FILE* make_temp_file(const char* file_template, char* filename)
+{
+  // Construct polymec's temporary directory/name.
+  char temp_dir[FILENAME_MAX];
+  make_polymec_temp_dir(temp_dir);
+
+  // Construct the full temporary file path.
+  char full_template[FILENAME_MAX];
+  snprintf(full_template, FILENAME_MAX, "%s/%s", temp_dir, file_template);
+
+  // Make the thing.
+  int fd = mkstemp(full_template);
   if (fd == -1)
-    polymec_error("make_temp_file: No file could be created.");
+    return NULL;
+  else
+    strncpy(filename, full_template, FILENAME_MAX);
   return fdopen(fd, "w");
 }
 
-FILE* make_temp_file_with_suffix(char* filename, const char* suffix)
+bool make_temp_dir(const char* dir_template, char* dirname)
 {
-  char template[FILENAME_MAX];
-  snprintf(template, FILENAME_MAX, "%s%s", filename, suffix);
-  int fd = mkstemps(template, strlen(suffix));
-  if (fd == -1)
-    polymec_error("make_temp_file_with_suffix: No file could be created.");
-  return fdopen(fd, "w");
+  // Construct polymec's temporary directory/name.
+  char temp_dir[FILENAME_MAX];
+  make_polymec_temp_dir(temp_dir);
+
+  // Construct the full temporary directory path.
+  char full_template[FILENAME_MAX];
+  snprintf(full_template, FILENAME_MAX, "%s/%s", temp_dir, dir_template);
+
+  // Make the thing.
+  char* dir = mkdtemp(full_template);
+  if (dir == NULL)
+    polymec_error("make_temp_dir: No directory could be created.");
+  else
+    strncpy(dirname, full_template, FILENAME_MAX);
+  return (dir != NULL);
+}
+
+int remove_dir(const char* path)
+{
+  DIR* d = opendir(path);
+  int path_len = strlen(path);
+  int r = -1;
+
+  if (d != NULL)
+  {
+    struct dirent *p;
+
+    r = 0;
+    while (!r && (p = readdir(d)))
+    {
+      // Skip . and .. entries.
+      if (!strcmp(p->d_name, ".") || !strcmp(p->d_name, ".."))
+        continue;
+
+      int len = path_len + strlen(p->d_name) + 2; 
+      char buf[FILENAME_MAX];
+      struct stat statbuf;
+
+      snprintf(buf, len, "%s/%s", path, p->d_name);
+
+      int r2 = -1;
+      if (!stat(buf, &statbuf))
+      {
+        if (S_ISDIR(statbuf.st_mode))
+          r2 = remove_dir(buf);
+        else
+          r2 = remove(buf);
+      }
+
+      r = r2;
+    }
+
+    closedir(d);
+  }
+
+  // Don't forget to remove the directory itself.
+  if (!r)
+   r = rmdir(path);
+
+  return r;
 }
 

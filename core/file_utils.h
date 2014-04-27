@@ -25,6 +25,8 @@
 #ifndef POLYMEC_FILE_UTILS_H
 #define POLYMEC_FILE_UTILS_H
 
+#include <unistd.h> // for rmdir().
+
 // Given a full pathname, parse it into directory and file portions.
 // Memory must be allocated for dirname and for filename that is sufficient 
 // to store any portion of path.
@@ -35,17 +37,24 @@ void parse_path(const char *path, char *dirname, char *filename);
 void join_paths(const char *dirname, const char* filename, char* path);
 
 // Create a temporary file using the given template. This function replaces 
-// all X characters in the filename template with a set of characters that 
-// renders the filename unique (in the spirit of mkstemp). The template should
-// have the form path/to/fileXXXXXX, with the X's all at the end. This 
-// function returns a file descriptor that is open for writing ("w") on 
-// success, or NULL on failure.
-FILE* make_temp_file(char* filename);
+// up to 6 X characters in the filename template with a set of characters that 
+// renders it unique (in the spirit of mkstemp), storing the result in filename. 
+// The template should have the form path/to/fileXXXXXX, with the X's all at 
+// the end. This function returns a file descriptor that is open for writing 
+// ("w") on success, or NULL on failure. All temporary files are deleted 
+// when a polymec application exits.
+FILE* make_temp_file(const char* file_template, char* filename);
 
-// This version of make_temp_file creates a temporary file that is constructed 
-// from the given template (filename), appending the given suffix to the end.
-// It returns a file descriptor that is open for writing ("w") on success, or 
-// NULL on failure.
-FILE* make_temp_file_with_suffix(char* filename, const char* suffix);
+// Create a temporary directory using the given template. This function replaces 
+// up to 6 X characters in the dirname template with a set of characters that 
+// renders it unique (in the spirit of mkdtemp). The template should have the 
+// form path/to/fileXXXXXX, with the X's all at the end. This function returns 
+// true if the directory was created, false if not. All temporary files are 
+// deleted when a polymec application exits.
+bool make_temp_dir(const char* dir_template, char* dirname);
+
+// Remove a directory and any of its contents. Returns 0 on success, -1 on 
+// failure (as does the standard rmdir).
+int remove_dir(const char* path);
 
 #endif
