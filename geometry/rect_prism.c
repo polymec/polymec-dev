@@ -119,7 +119,7 @@ sp_func_t* rect_prism_new(point_t* x0,
   return sp_func_new(str, p, vtable, SP_INHOMOGENEOUS, 1);
 }
 
-sp_func_t* rect_prism_new_from_bbox(bbox_t* bounding_box)
+sp_func_t* rect_prism_from_bbox(bbox_t* bounding_box)
 {
   point_t x0 = {.x = 0.5 * (bounding_box->x1 + bounding_box->x2),
                 .y = 0.5 * (bounding_box->y1 + bounding_box->y2),

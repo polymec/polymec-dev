@@ -55,7 +55,7 @@ sp_func_t* plane_new(vector_t* n, point_t* x)
   return plane;
 }
 
-sp_func_t* plane_new_from_points(point_t* p1, point_t* p2, point_t* p3)
+sp_func_t* plane_from_points(point_t* p1, point_t* p2, point_t* p3)
 {
   ASSERT(!points_are_colinear(p1, p2, p3));
 
@@ -75,7 +75,7 @@ sp_func_t* plane_new_best_fit(point_t* points, int num_points)
   {
     // If exactly 3 points are given, we can exactly solve the equation of 
     // the plane.
-    return plane_new_from_points(&points[0], &points[1], &points[2]);
+    return plane_from_points(&points[0], &points[1], &points[2]);
   }
   else
   {

@@ -64,7 +64,7 @@ static int rect_prism(lua_State* lua)
 
   // Get the arguments.
   bbox_t* bbox = lua_toboundingbox(lua, 1);
-  sp_func_t* prism = rect_prism_new_from_bbox(bbox);
+  sp_func_t* prism = rect_prism_from_bbox(bbox);
   lua_pushscalarfunction(lua, st_func_from_sp_func(prism));
   prism = NULL;
   return 1;

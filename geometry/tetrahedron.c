@@ -175,7 +175,7 @@ void tetrahedron_compute_nearest_point(tetrahedron_t* t, point_t* x, point_t* y)
       x2 = &t->vertices[1];
       x3 = &t->vertices[2];
     }
-    sp_func_t* face = plane_new_from_points(x1, x2, x3);
+    sp_func_t* face = plane_from_points(x1, x2, x3);
 
     // Project x to the face.
     point2_t xi;

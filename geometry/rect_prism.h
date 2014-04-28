@@ -43,7 +43,7 @@ sp_func_t* rect_prism_new(point_t* x0,
                           real_t alpha, real_t beta, real_t gamma);
 
 // Creates a rectangular prism identical to the given bounding box.
-sp_func_t* rect_prism_new_from_bbox(bbox_t* bounding_box);
+sp_func_t* rect_prism_from_bbox(bbox_t* bounding_box);
 
 #endif
 

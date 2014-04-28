@@ -34,7 +34,7 @@ sp_func_t* plane_new(vector_t* n, point_t* x);
 
 // Construct a plane that contains the three points p1, p2, and p3, 
 // assuming that these points are not co-linear.
-sp_func_t* plane_new_from_points(point_t* p1, point_t* p2, point_t* p3);
+sp_func_t* plane_from_points(point_t* p1, point_t* p2, point_t* p3);
 
 // Constructs a plane that minimizes the normal distances of the given 
 // points. num_points must be at least 3. If 3 points are given, the resulting 
