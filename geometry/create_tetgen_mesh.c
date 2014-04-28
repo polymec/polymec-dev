@@ -29,7 +29,7 @@
 
 #include "core/unordered_map.h"
 #include "core/unordered_set.h"
-#include "core/text_file_buffer.h"
+#include "core/text_buffer.h"
 #include "core/array_utils.h"
 #include "core/distribute_serial_mesh.h"
 #include "geometry/create_tetgen_mesh.h"
@@ -54,12 +54,12 @@ static point_t* read_nodes(const char* node_file, int* num_nodes)
   *num_nodes = -1;
   point_t* nodes = NULL;
 
-  text_file_buffer_t* buffer = text_file_buffer_new(node_file);
+  text_buffer_t* buffer = text_buffer_from_file(node_file);
   if (buffer == NULL)
     polymec_error("TetGen node file '%s' not found.", node_file);
   int nodes_read = 0, pos = 0, line_length;
   char* line;
-  while (text_file_buffer_next(buffer, &pos, &line, &line_length))
+  while (text_buffer_next(buffer, &pos, &line, &line_length))
   {
     // Skip lines starting with #.
     if (line[0] == '#') continue;
@@ -96,7 +96,7 @@ static point_t* read_nodes(const char* node_file, int* num_nodes)
     ++nodes_read;
     if (nodes_read == *num_nodes) break;
   }
-  text_file_buffer_free(buffer);
+  text_buffer_free(buffer);
 
   if (nodes_read != *num_nodes)
     polymec_error("Node file claims to contain %d nodes, but %d were read.", *num_nodes, nodes_read);
@@ -107,12 +107,12 @@ static tet_t* read_tets(const char* tet_file, int* num_tets)
 {
   *num_tets = -1;
   tet_t* tets = NULL;
-  text_file_buffer_t* buffer = text_file_buffer_new(tet_file);
+  text_buffer_t* buffer = text_buffer_from_file(tet_file);
   if (buffer == NULL)
     polymec_error("TetGen element file '%s' not found.", tet_file);
   int tets_read = 0, nodes_per_tet = 4, region_attribute = 0, pos = 0, line_length;
   char* line;
-  while (text_file_buffer_next(buffer, &pos, &line, &line_length))
+  while (text_buffer_next(buffer, &pos, &line, &line_length))
   {
     // Skip lines starting with #.
     if (line[0] == '#') continue;
@@ -172,7 +172,7 @@ static tet_t* read_tets(const char* tet_file, int* num_tets)
     ++tets_read;
     if (tets_read == *num_tets) break;
   }
-  text_file_buffer_free(buffer);
+  text_buffer_free(buffer);
   if (tets_read != *num_tets)
     polymec_error("Element file claims to contain %d tets, but %d were read.", *num_tets, tets_read);
 
@@ -191,12 +191,12 @@ static tet_face_t* read_faces(const char* face_file, int nodes_per_face, int* nu
 {
   *num_faces = -1;
   tet_face_t* faces = NULL;
-  text_file_buffer_t* buffer = text_file_buffer_new(face_file);
+  text_buffer_t* buffer = text_buffer_from_file(face_file);
   if (buffer == NULL)
     polymec_error("TetGen face file '%s' not found.", face_file);
   int faces_read = 0, boundary_marker = 0, pos = 0, line_length;
   char* line;
-  while (text_file_buffer_next(buffer, &pos, &line, &line_length))
+  while (text_buffer_next(buffer, &pos, &line, &line_length))
   {
     // Skip lines starting with #.
     if (line[0] == '#') continue;
@@ -251,7 +251,7 @@ static tet_face_t* read_faces(const char* face_file, int nodes_per_face, int* nu
     ++faces_read;
     if (faces_read == *num_faces) break;
   }
-  text_file_buffer_free(buffer);
+  text_buffer_free(buffer);
   if (faces_read != *num_faces)
     polymec_error("Face file claims to contain %d faces, but %d were read.", *num_faces, faces_read);
 
@@ -268,12 +268,12 @@ static tet_face_t* read_faces(const char* face_file, int nodes_per_face, int* nu
 
 static void read_neighbors(const char* neigh_file, tet_t* tets, int num_tets)
 {
-  text_file_buffer_t* buffer = text_file_buffer_new(neigh_file);
+  text_buffer_t* buffer = text_buffer_from_file(neigh_file);
   if (buffer == NULL)
     polymec_error("TetGen neighbor file '%s' not found.", neigh_file);
   int tets_read = 0, pos = 0, line_length, num_entries = -1;
   char* line;
-  while (text_file_buffer_next(buffer, &pos, &line, &line_length))
+  while (text_buffer_next(buffer, &pos, &line, &line_length))
   {
     // Skip lines starting with #.
     if (line[0] == '#') continue;
@@ -307,7 +307,7 @@ static void read_neighbors(const char* neigh_file, tet_t* tets, int num_tets)
     ++tets_read;
     if (tets_read == num_tets) break;
   }
-  text_file_buffer_free(buffer);
+  text_buffer_free(buffer);
   if (tets_read != num_tets)
     polymec_error("Neighbor file has %d tets, but needs %d.", tets_read, num_tets);
 
