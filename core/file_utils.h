@@ -36,13 +36,18 @@ void parse_path(const char *path, char *dirname, char *filename);
 // storing the result in path.
 void join_paths(const char *dirname, const char* filename, char* path);
 
+// Remove a directory and any of its contents. Returns 0 on success, -1 on 
+// failure (as does the standard rmdir).
+int remove_dir(const char* path);
+
 // Create a temporary file using the given template. This function replaces 
 // up to 6 X characters in the filename template with a set of characters that 
 // renders it unique (in the spirit of mkstemp), storing the result in filename. 
 // The template should have the form path/to/fileXXXXXX, with the X's all at 
 // the end. This function returns a file descriptor that is open for writing 
 // ("w") on success, or NULL on failure. All temporary files are deleted 
-// when a polymec application exits.
+// when a polymec application exits. Note that the temporary file 
+// is created within a unique polymec-specific temporary directory.
 FILE* make_temp_file(const char* file_template, char* filename);
 
 // Create a temporary directory using the given template. This function replaces 
@@ -50,11 +55,8 @@ FILE* make_temp_file(const char* file_template, char* filename);
 // renders it unique (in the spirit of mkdtemp). The template should have the 
 // form path/to/fileXXXXXX, with the X's all at the end. This function returns 
 // true if the directory was created, false if not. All temporary files are 
-// deleted when a polymec application exits.
+// deleted when a polymec application exits. Note that the temporary directory 
+// is created within a unique polymec-specific temporary directory.
 bool make_temp_dir(const char* dir_template, char* dirname);
-
-// Remove a directory and any of its contents. Returns 0 on success, -1 on 
-// failure (as does the standard rmdir).
-int remove_dir(const char* path);
 
 #endif
