@@ -374,6 +374,7 @@ set(POLYMEC_TP_LIBS jrs_predicates;${POLYMEC_TP_LIBS})
 add_library(cmockery cmockery/cmockery.c)
 set_target_properties(cmockery PROPERTIES COMPILE_FLAGS "-Wno-int-to-pointer-cast -Wno-pointer-to-int-cast")
 file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/cmockery/cmockery.h DESTINATION ${PROJECT_BINARY_DIR}/include)
+install(FILES cmockery/cmockery.h DESTINATION include/polymec)
 install(TARGETS cmockery DESTINATION lib)
 
 # Add all the libraries to the build system at large.
