@@ -55,9 +55,9 @@ contents = """
 #ifndef POLYMEC_VERSION_H
 #define POLYMEC_VERSION_H
 
-static const int POLYMEC_MAJOR_VERSION = %i;
-static const int POLYMEC_MINOR_VERSION = %i;
-static const int POLYMEC_PATCH_VERSION = %i;
+#define POLYMEC_MAJOR_VERSION %i
+#define POLYMEC_MINOR_VERSION %i
+#define POLYMEC_PATCH_VERSION %i
 static const char* POLYMEC_VERSION = "%s%s";
 static const char* POLYMEC_GIT_DIFFS[] = {\n%s};
 static const int POLYMEC_NUM_GIT_DIFFS = %d;
