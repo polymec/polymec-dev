@@ -62,13 +62,22 @@ typedef enum
 // and points are stored, so this is provided as a convenience.
 #define INTERPRETER_VECTOR_LIST INTERPRETER_POINT_LIST
 
+typedef enum
+{
+  REQUIRED,
+  OPTIONAL
+} interpreter_required_t;
+
 // This is used to validate variables found within input files. It is a 
-// variable/type pair that associates variables names with their intended
-// types.
+// variable/type/required triple that associates variables names with their 
+// intended types. A third field indicates whether the variable is 
+// REQUIRED or OPTIONAL in the input. By default, it is REQUIRED. Parsing of 
+// the input will not succeed if a REQUIRED variable is not found.
 typedef struct 
 {
-  char* variable;               // Name of the variable.
-  interpreter_var_type_t type;  // Type of the variable.
+  char* variable;                       // Name of the variable.
+  interpreter_var_type_t type;          // Type of the variable.
+  interpreter_required_t required;      // REQUIRED or OPTIONAL (default: REQUIRED)
 } interpreter_validation_t;
 
 // This validation object is used to terminate lists of valid inputs.

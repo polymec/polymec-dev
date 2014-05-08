@@ -513,6 +513,7 @@ interpreter_t* interpreter_new(interpreter_validation_t* valid_inputs)
   {
     interp->valid_inputs[i].variable = string_dup(valid_inputs[i].variable);
     interp->valid_inputs[i].type = valid_inputs[i].type;
+    interp->valid_inputs[i].required = valid_inputs[i].required;
   }
 
   interp->preexisting_vars = NULL;
@@ -727,7 +728,8 @@ static void interpreter_store_chunk_contents(interpreter_t* interp)
 //  lua_rawgeti(lua, LUA_REGISTRYINDEX, LUA_RIDX_GLOBALS);
   ASSERT(lua_istable(lua, -1));
 
-  // Traverse the table.
+  // Traverse the table and make a list of the variables.
+  string_unordered_set_t* variables_present = string_unordered_set_new();
   lua_pushnil(lua); 
   while (lua_next(lua, -2)) // Traverse globals table.
   {
@@ -957,6 +959,9 @@ static void interpreter_store_chunk_contents(interpreter_t* interp)
       continue;
     }
 
+    // Jot down the variable.
+    string_unordered_set_insert(variables_present, (char*)key);
+
     // Now store the present lua variable in appropriate C storage.
     interpreter_storage_t* var = NULL;
     if (lua_isnumber(lua, val_index))
@@ -1158,6 +1163,19 @@ static void interpreter_store_chunk_contents(interpreter_t* interp)
     lua_pop(lua, 1);
   }
   lua_pop(lua, 1); // Pops the globals table.
+
+  // Did we miss any required variables?
+  for (int i = 0; i < interp->num_valid_inputs; ++i)
+  {
+    if ((interp->valid_inputs[i].required = REQUIRED) && 
+        !string_unordered_set_contains(variables_present, interp->valid_inputs[i].variable))
+    {
+      string_unordered_set_free(variables_present);
+      polymec_error("The required variable '%s' was not found in the input.", interp->valid_inputs[i].variable);
+    }
+    ++i;
+  }
+  string_unordered_set_free(variables_present);
 }
 
 void interpreter_parse_string(interpreter_t* interp, char* input_string)
