@@ -82,6 +82,10 @@ typedef struct docstring_t docstring_t;
 // Creates a new, empty docstring.
 docstring_t* docstring_new();
 
+// Creates a new docstring from the given string s, breaking it into lines 
+// at each newline.
+docstring_t* docstring_from_string(const char* s);
+
 // Appends a line of text to the given docstring.
 void docstring_append(docstring_t* docs, const char* line);
 

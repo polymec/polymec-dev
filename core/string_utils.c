@@ -44,6 +44,11 @@ char* string_ndup(const char* s, int n)
   return copy;
 }
 
+void string_free(char* s)
+{
+  free(s);
+}
+
 bool string_next_token(const char* s, const char* delimiter, int* pos, char** token, int* length)
 {
   if (*pos >= strlen(s))

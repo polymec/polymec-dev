@@ -77,6 +77,19 @@ docstring_t* docstring_new()
   return docs;
 }
 
+docstring_t* docstring_from_string(const char* s)
+{
+  docstring_t* docs = docstring_new();
+  string_array_clear(docs->strings);
+  docs->empty = false;
+
+  int pos = 0, length;
+  char *line;
+  while (string_next_token(s, "\n", &pos, &line, &length))
+    string_array_append_with_dtor(docs->strings, string_ndup(line, length), string_free);
+  return docs;
+}
+
 void docstring_append(docstring_t* docs, const char* string)
 {
   if (docs->empty)

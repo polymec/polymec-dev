@@ -57,10 +57,4 @@ static inline bool pointer_equals(void* x, void* y)
   return (x == y);
 }
 
-// Not the right place for this guy, but it doesn't matter.
-static inline void string_free(char* str)
-{
-  free(str);
-}
-
 #endif
