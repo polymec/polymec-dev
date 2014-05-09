@@ -110,6 +110,9 @@ stats:
 prepend-license: 
 	@python tools/prepend_license.py
 
+ctags-emacs :
+	@ctags -e -f ETAGS -R --exclude=.git --exclude=build 
+
 #dist:
 #	utils/mkdist.sh $(PKGNAME)
 
