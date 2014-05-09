@@ -1167,7 +1167,7 @@ static void interpreter_store_chunk_contents(interpreter_t* interp)
   // Did we miss any required variables?
   for (int i = 0; i < interp->num_valid_inputs; ++i)
   {
-    if ((interp->valid_inputs[i].required = REQUIRED) && 
+    if ((interp->valid_inputs[i].required == REQUIRED) &&
         !string_unordered_set_contains(variables_present, interp->valid_inputs[i].variable))
     {
       string_unordered_set_free(variables_present);
