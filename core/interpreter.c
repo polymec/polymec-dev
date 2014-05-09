@@ -1173,7 +1173,6 @@ static void interpreter_store_chunk_contents(interpreter_t* interp)
       string_unordered_set_free(variables_present);
       polymec_error("The required variable '%s' was not found in the input.", interp->valid_inputs[i].variable);
     }
-    ++i;
   }
   string_unordered_set_free(variables_present);
 }
