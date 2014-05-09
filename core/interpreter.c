@@ -56,11 +56,6 @@ static void docstring_dtor(void* docs)
   free(d);
 }
 
-static void string_dtor(char* str)
-{
-  free(str);
-}
-
 docstring_t* docstring_new()
 {
   // Create the database if needed.
@@ -71,7 +66,7 @@ docstring_t* docstring_new()
   }
   docstring_t* docs = malloc(sizeof(docstring_t));
   docs->strings = string_array_new();
-  string_array_append_with_dtor(docs->strings, string_dup(""), string_dtor);
+  string_array_append_with_dtor(docs->strings, string_dup(""), string_free);
   docs->empty = true;
   ptr_array_append_with_dtor(all_docstrings, docs, docstring_dtor);
   return docs;
