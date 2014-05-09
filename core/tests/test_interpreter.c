@@ -39,12 +39,12 @@ void test_interpreter_with_long_string(void** state)
     "h = 3.0\n"
     "i = 'string cheese'\n";
 
-  interpreter_validation_t valid_inputs[] = {{"f", INTERPRETER_SCALAR_FUNCTION},
-                                             {"F", INTERPRETER_VECTOR_FUNCTION},
-                                             {"V", INTERPRETER_VECTOR_FUNCTION},
-                                             {"g", INTERPRETER_NUMBER},
-                                             {"h", INTERPRETER_NUMBER},
-                                             {"i", INTERPRETER_STRING},
+  interpreter_validation_t valid_inputs[] = {{"f", INTERPRETER_SCALAR_FUNCTION, REQUIRED},
+                                             {"F", INTERPRETER_VECTOR_FUNCTION, REQUIRED},
+                                             {"V", INTERPRETER_VECTOR_FUNCTION, REQUIRED},
+                                             {"g", INTERPRETER_NUMBER, REQUIRED},
+                                             {"h", INTERPRETER_NUMBER, REQUIRED},
+                                             {"i", INTERPRETER_STRING, REQUIRED},
                                              END_OF_VALID_INPUTS};
   interpreter_t* interp = interpreter_new(valid_inputs);
   interpreter_parse_string(interp, (char*)test_string);
@@ -109,7 +109,7 @@ void test_interpreter_with_long_string(void** state)
 void test_point_parsing(void** state)
 {
   static const char* test_string = "p = {1.0, 2.0, 3.0}";
-  interpreter_validation_t valid_inputs[] = {{"p", INTERPRETER_POINT},
+  interpreter_validation_t valid_inputs[] = {{"p", INTERPRETER_POINT, REQUIRED},
                                              END_OF_VALID_INPUTS};
   interpreter_t* interp = interpreter_new(valid_inputs);
   interpreter_parse_string(interp, (char*)test_string);
@@ -128,7 +128,7 @@ void test_point_parsing(void** state)
 void test_vector_parsing(void** state)
 {
   static const char* test_string = "v = {1.0, 2.0, 3.0}";
-  interpreter_validation_t valid_inputs[] = {{"v", INTERPRETER_VECTOR},
+  interpreter_validation_t valid_inputs[] = {{"v", INTERPRETER_VECTOR, REQUIRED},
                                              END_OF_VALID_INPUTS};
   interpreter_t* interp = interpreter_new(valid_inputs);
   interpreter_parse_string(interp, (char*)test_string);
@@ -147,7 +147,7 @@ void test_vector_parsing(void** state)
 void test_boundingbox_parsing(void** state)
 {
   static const char* test_string = "b = bounding_box{x1 = 0.0, x2 = 1.0, y1 = 0.0, y2 = 1.0, z1 = 0.0, z2 = 1.0}";
-  interpreter_validation_t valid_inputs[] = {{"b", INTERPRETER_BOUNDING_BOX},
+  interpreter_validation_t valid_inputs[] = {{"b", INTERPRETER_BOUNDING_BOX, REQUIRED},
                                              END_OF_VALID_INPUTS};
   interpreter_t* interp = interpreter_new(valid_inputs);
   interpreter_parse_string(interp, (char*)test_string);
@@ -171,7 +171,7 @@ void test_pointlist_parsing(void** state)
   static const char* test_string = 
     "pts = {{0, 0, 0}, {1, 0, 0}, {0, 1, 0}, {1, 1, 0}, "
            "{0, 0, 1}, {1, 0, 1}, {0, 1, 1}, {1, 1, 1}}";
-  interpreter_validation_t valid_inputs[] = {{"pts", INTERPRETER_POINT_LIST},
+  interpreter_validation_t valid_inputs[] = {{"pts", INTERPRETER_POINT_LIST, REQUIRED},
                                              END_OF_VALID_INPUTS};
   interpreter_t* interp = interpreter_new(valid_inputs);
   interpreter_parse_string(interp, (char*)test_string);
@@ -203,7 +203,7 @@ void test_vectorlist_parsing(void** state)
   static const char* test_string = 
     "vecs = {{0, 0, 0}, {1, 0, 0}, {0, 1, 0}, {1, 1, 0}, "
             "{0, 0, 1}, {1, 0, 1}, {0, 1, 1}, {1, 1, 1}}";
-  interpreter_validation_t valid_inputs[] = {{"vecs", INTERPRETER_VECTOR_LIST},
+  interpreter_validation_t valid_inputs[] = {{"vecs", INTERPRETER_VECTOR_LIST, REQUIRED},
                                              END_OF_VALID_INPUTS};
   interpreter_t* interp = interpreter_new(valid_inputs);
   interpreter_parse_string(interp, (char*)test_string);

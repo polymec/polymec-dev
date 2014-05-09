@@ -71,17 +71,17 @@ typedef enum
 // This is used to validate variables found within input files. It is a 
 // variable/type/required triple that associates variables names with their 
 // intended types. A third field indicates whether the variable is 
-// REQUIRED or OPTIONAL in the input. By default, it is REQUIRED. Parsing of 
-// the input will not succeed if a REQUIRED variable is not found.
+// REQUIRED or OPTIONAL in the input. Parsing of the input will not succeed 
+// if a REQUIRED variable is not found.
 typedef struct 
 {
   char* variable;                       // Name of the variable.
   interpreter_var_type_t type;          // Type of the variable.
-  interpreter_required_t required;      // REQUIRED or OPTIONAL (default: REQUIRED)
+  interpreter_required_t required;      // REQUIRED or OPTIONAL.
 } interpreter_validation_t;
 
 // This validation object is used to terminate lists of valid inputs.
-static const interpreter_validation_t END_OF_VALID_INPUTS = {.variable = "TERMINUS", .type = INTERPRETER_TERMINUS};
+static const interpreter_validation_t END_OF_VALID_INPUTS = {.variable = "TERMINUS", .type = INTERPRETER_TERMINUS, .required = REQUIRED};
 
 // The docstring type holds lines of documentation for interpreter functions.
 // Docstrings are stored in a static database and destroyed upon exit, so they 
