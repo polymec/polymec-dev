@@ -26,51 +26,26 @@
 #include "geometry/tetrahedron.h"
 #include "geometry/delaunay_triangulation.h"
 
+// Algorithms for constructing Delaunay triangulations.
+typedef enum
+{
+  BOWYER_WATSON,
+  INCREMENTAL_FLIP,
+  DIVIDE_AND_CONQUER,
+  DEWALL
+} delaunay_triangulation_algorithm_t;
+
 // We use some of Shewchuk's robust geometric predicates.
 extern real_t orient3d(real_t* pa, real_t* pb, real_t* pc, real_t* pd);
 extern real_t insphere(real_t* pa, real_t* pb, real_t* pc, real_t* pd, real_t* pe);
 
 struct delaunay_triangulation_t 
 {
+  delaunay_triangulation_algorithm_t algorithm;
   point_t* vertices;
   int num_vertices, vertex_cap, num_tets, tet_cap;
   int* tet_vertices;
-  tetrahedron_t* big_tet;
 };
-
-delaunay_triangulation_t* delaunay_triangulation_new(point_t* v1, point_t* v2, point_t* v3, point_t* v4)
-{
-  delaunay_triangulation_t* t = malloc(sizeof(delaunay_triangulation_t));
-  t->num_vertices = 4;
-  t->vertex_cap = 32;
-  t->vertices = malloc(sizeof(point_t) * t->vertex_cap);
-  t->vertices[0] = *v1;
-  t->vertices[1] = *v2;
-  t->vertices[2] = *v3;
-  t->vertices[3] = *v4;
-
-  t->num_tets = 1;
-  t->tet_cap = 32;
-  t->tet_vertices = malloc(sizeof(int) * 4 * t->tet_cap);
-  t->tet_vertices[0] = 0;
-  t->tet_vertices[1] = 1;
-  t->tet_vertices[2] = 2;
-  t->tet_vertices[3] = 3;
-
-  // Set up the Big Tet that contains the entire domain.
-  t->big_tet = tetrahedron_new();
-  tetrahedron_set_vertices(t->big_tet, v1, v2, v3, v4);
-
-  return t;
-}
-
-void delaunay_triangulation_free(delaunay_triangulation_t* t)
-{
-  t->big_tet = NULL;
-  free(t->vertices);
-  free(t->tet_vertices);
-  free(t);
-}
 
 // This helper allocates storage for a new vertex.
 static void allocate_new_vertex(delaunay_triangulation_t* t)
@@ -190,70 +165,122 @@ static void flip(delaunay_triangulation_t* t,
   }
 }
 
-void delaunay_triangulation_insert_vertex(delaunay_triangulation_t* t, 
-                                          point_t* v)
+static void incremental_flip(delaunay_triangulation_t* t, point_t* points, int num_points)
 {
-  ASSERT(tetrahedron_contains_point(t->big_tet, v));
-
-  // Insert the new vertex.
-  allocate_new_vertex(t);
-  int v_index = t->num_vertices;
-  t->vertices[v_index] = *v;
-  t->num_vertices++;
-
-  // Figure out which tet (tau) the point v lies in.
-  int tau = tet_containing_point(t, v);
-
-  // Insert a vertex into that tet and split it into 4 parts ("flip14" in 
-  // Ledoux's paper).
-  int new_tets[4];
-  flip14(t, tau, new_tets);
-
-  // Push the 4 new tetrahedra onto a working stack.
-  int_slist_t* stack = int_slist_new();
-  for (int i = 0; i < 4; ++i)
-    int_slist_push(stack, new_tets[i]);
-
-  // Perform all necessary flips to rectify the new vertex.
-  while (!int_slist_empty(stack))
+  for (int i = 0; i < num_points; ++i)
   {
-    // Pull the tet tau off the stack and retrieve its vertex indices
-    // (v, a, b, c), where v is the vertex we just inserted.
-    int tau = int_slist_pop(stack, NULL);
-    int v = -1, a = -1, b = -1, c = -1;
-    for (int i = 0; i < 4; ++i)
+    // Insert the new vertex.
+    allocate_new_vertex(t);
+    int v_index = t->num_vertices;
+    t->vertices[v_index] = points[i];
+    t->num_vertices++;
+
+    // Figure out which tet (tau) the point v lies in.
+    int tau = tet_containing_point(t, &points[i]);
+
+    // Insert a vertex into that tet and split it into 4 parts ("flip14" in 
+    // Ledoux's paper).
+    int new_tets[4];
+    flip14(t, tau, new_tets);
+
+    // Push the 4 new tetrahedra onto a working stack.
+    int_slist_t* stack = int_slist_new();
+    for (int j = 0; j < 4; ++j)
+      int_slist_push(stack, new_tets[j]);
+
+    // Perform all necessary flips to rectify the new vertex.
+    while (!int_slist_empty(stack))
     {
-      if (t->tet_vertices[i] == v_index)
-        v = t->tet_vertices[i];
-      else
+      // Pull the tet tau off the stack and retrieve its vertex indices
+      // (v, a, b, c), where v is the vertex we just inserted.
+      int tau = int_slist_pop(stack, NULL);
+      int v = -1, a = -1, b = -1, c = -1;
+      for (int j = 0; j < 4; ++j)
       {
-        if (a == -1) 
-          a = t->tet_vertices[i];
-        else if (b == -1)
-          b = t->tet_vertices[i];
-        else if (c == -1)
-          c = t->tet_vertices[i];
+        if (t->tet_vertices[j] == v_index)
+          v = t->tet_vertices[j];
+        else
+        {
+          if (a == -1) 
+            a = t->tet_vertices[j];
+          else if (b == -1)
+            b = t->tet_vertices[j];
+          else if (c == -1)
+            c = t->tet_vertices[j];
+        }
       }
+
+      // Find the tetrahedron (a, b, c, d) adjacent to tau = (v, a, b, c) 
+      // that shares the vertices (a, b, c).
+      int tau_a, d;
+      find_adjacent_tet(t, tau, v, a, b, c, &tau_a, &d);
+
+      // If the fourth vertex d of tau_a is inside the circumsphere of tau, 
+      // flip tau and tau_a. Use Shewchuk's INSPHERE predicate for this.
+      real_t pv[3] = {t->vertices[v].x, t->vertices[v].y, t->vertices[v].z};
+      real_t pa[3] = {t->vertices[a].x, t->vertices[a].y, t->vertices[a].z};
+      real_t pb[3] = {t->vertices[b].x, t->vertices[b].y, t->vertices[b].z};
+      real_t pc[3] = {t->vertices[c].x, t->vertices[c].y, t->vertices[c].z};
+      real_t pd[3] = {t->vertices[d].x, t->vertices[d].y, t->vertices[d].z};
+      if (insphere(pv, pa, pb, pc, pd) > 0.0)
+        flip(t, tau, tau_a, v, a, b, c, d, stack);
     }
 
-    // Find the tetrahedron (a, b, c, d) adjacent to tau = (v, a, b, c) 
-    // that shares the vertices (a, b, c).
-    int tau_a, d;
-    find_adjacent_tet(t, tau, v, a, b, c, &tau_a, &d);
+    // Clean up.
+    int_slist_free(stack);
+  }
+}
 
-    // If the fourth vertex d of tau_a is inside the circumsphere of tau, 
-    // flip tau and tau_a. Use Shewchuk's INSPHERE predicate for this.
-    real_t pv[3] = {t->vertices[v].x, t->vertices[v].y, t->vertices[v].z};
-    real_t pa[3] = {t->vertices[a].x, t->vertices[a].y, t->vertices[a].z};
-    real_t pb[3] = {t->vertices[b].x, t->vertices[b].y, t->vertices[b].z};
-    real_t pc[3] = {t->vertices[c].x, t->vertices[c].y, t->vertices[c].z};
-    real_t pd[3] = {t->vertices[d].x, t->vertices[d].y, t->vertices[d].z};
-    if (insphere(pv, pa, pb, pc, pd) > 0.0)
-      flip(t, tau, tau_a, v, a, b, c, d, stack);
+static void bowyer_watson(delaunay_triangulation_t* t, point_t* points, int num_points)
+{
+  for (int i = 0; i < num_points; ++i)
+  {
+  }
+}
+
+static void divide_and_conquer(delaunay_triangulation_t* t, point_t* points, int num_points)
+{
+}
+
+static void dewall(delaunay_triangulation_t* t, point_t* points, int num_points)
+{
+}
+
+delaunay_triangulation_t* delaunay_triangulation_new(point_t* points, int num_points)
+{
+  delaunay_triangulation_t* t = malloc(sizeof(delaunay_triangulation_t));
+  t->algorithm = BOWYER_WATSON;
+  t->num_vertices = 0;
+  t->vertex_cap = 32;
+  t->vertices = malloc(sizeof(point_t) * t->vertex_cap);
+
+  t->num_tets = 0;
+  t->tet_cap = 32;
+  t->tet_vertices = malloc(sizeof(int) * 4 * t->tet_cap);
+
+  switch(t->algorithm)
+  {
+    case BOWYER_WATSON:
+      bowyer_watson(t, points, num_points);
+      break;
+    case INCREMENTAL_FLIP:
+      incremental_flip(t, points, num_points);
+      break;
+    case DIVIDE_AND_CONQUER:
+      divide_and_conquer(t, points, num_points);
+      break;
+    case DEWALL:
+      dewall(t, points, num_points);
   }
 
-  // Clean up.
-  int_slist_free(stack);
+  return t;
+}
+
+void delaunay_triangulation_free(delaunay_triangulation_t* t)
+{
+  free(t->vertices);
+  free(t->tet_vertices);
+  free(t);
 }
 
 int delaunay_triangulation_num_vertices(delaunay_triangulation_t* t)

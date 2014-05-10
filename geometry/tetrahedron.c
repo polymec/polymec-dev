@@ -30,6 +30,7 @@
 // Jonathan Shewchuk's geometric predicates, which are implemented in 
 // double-precision arithmetic.
 extern double orient3d(double* pa, double* pb, double* pc, double* pd);
+extern real_t insphere(real_t* pa, real_t* pb, real_t* pc, real_t* pd, real_t* pe);
 
 struct tetrahedron_t 
 {
@@ -71,7 +72,23 @@ static inline real_t tet_orient3d(point_t* a, point_t* b, point_t* c, point_t* d
   db[0] = (double)b->x; db[1] = (double)b->y; db[2] = (double)b->z;
   dc[0] = (double)c->x; dc[1] = (double)c->y; dc[2] = (double)c->z;
   dd[0] = (double)d->x; dd[1] = (double)d->y; dd[2] = (double)d->z;
-  return (real_t)orient3d(da, db, dc, dd)/6.0;
+  return (real_t)orient3d(da, db, dc, dd);
+#endif
+}
+
+// This adapts Shewchuk's insphere to the vertices (a, b, c, d) of a tetrahedron.
+static inline real_t tet_insphere(point_t* a, point_t* b, point_t* c, point_t* d, point_t* e)
+{
+#if POLYMEC_HAVE_DOUBLE_PRECISION
+  return insphere((double*)a, (double*)b, (double*)c, (double*)d, (double*)e);
+#else
+  double da[3], db[3], dc[3], dd[3], de[3];
+  da[0] = (double)a->x; da[1] = (double)a->y; da[2] = (double)a->z;
+  db[0] = (double)b->x; db[1] = (double)b->y; db[2] = (double)b->z;
+  dc[0] = (double)c->x; dc[1] = (double)c->y; dc[2] = (double)c->z;
+  dd[0] = (double)d->x; dd[1] = (double)d->y; dd[2] = (double)d->z;
+  de[0] = (double)e->x; de[1] = (double)e->y; de[2] = (double)e->z;
+  return (real_t)insphere(da, db, dc, dd, de);
 #endif
 }
 
@@ -129,6 +146,12 @@ bool tetrahedron_contains_point(tetrahedron_t* t, point_t* x)
   int sign5 = SIGN(tet_orient3d(&t->vertices[0], &t->vertices[1], &t->vertices[2], x));
   if ((sign5 == 0) || (sign1*sign4 < 0)) return false;
   return true;
+}
+
+bool tetrahedron_circumsphere_contains_point(tetrahedron_t* t, point_t* x)
+{
+  return (tet_insphere(&t->vertices[0], &t->vertices[1], &t->vertices[2], 
+                       &t->vertices[3], x) > 0.0);
 }
 
 void tetrahedron_compute_nearest_point(tetrahedron_t* t, point_t* x, point_t* y)

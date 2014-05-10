@@ -30,18 +30,11 @@
 // This class represents a Delaunay triangulation in 3D.
 typedef struct delaunay_triangulation_t delaunay_triangulation_t;
 
-// Creates a new Delaunay triangulation consisting of a large tetrahedron
-// representing "all of space," whose vertices are v1, v2, v3, and v4.
-delaunay_triangulation_t* delaunay_triangulation_new(point_t* v1, point_t* v2, point_t* v3, point_t* v4);
+// Creates a new Delaunay triangulation from the given set of points.
+delaunay_triangulation_t* delaunay_triangulation_new(point_t* points, int num_points);
 
 // Frees the given triangulation.
 void delaunay_triangulation_free(delaunay_triangulation_t* t);
-
-// Inserts a single vertex v into the triangulation. This implements Hugo 
-// Ledoux's incremental insertion algorithm, described in 
-// "Computing the 3D Voronoi Diagram Robustly: An Easy Explanation" (2007).
-void delaunay_triangulation_insert_vertex(delaunay_triangulation_t* t, 
-                                          point_t* v);
 
 // Returns the number of vertices in the triangulation.
 int delaunay_triangulation_num_vertices(delaunay_triangulation_t* t);
