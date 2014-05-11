@@ -56,8 +56,11 @@ void tetrahedron_compute_circumcenter(tetrahedron_t* t, point_t* circumcenter);
 // Returns true if the given point x falls within the tetrahedron.
 bool tetrahedron_contains_point(tetrahedron_t* t, point_t* x);
 
-// Returns true if the given point x falls within the circumsphere of the tetrahedron.
+// Returns true if the given point x falls inside the circumsphere of the tetrahedron.
 bool tetrahedron_circumsphere_contains_point(tetrahedron_t* t, point_t* x);
+
+// Returns true if the given point x falls on the surface of the circumsphere of the tetrahedron.
+bool tetrahedron_circumsphere_intersects_point(tetrahedron_t* t, point_t* x);
 
 // Computes the point y within or on the surface of the tetrahedron that is 
 // closest to the given point x. If the point x is contained within the 

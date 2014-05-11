@@ -154,6 +154,12 @@ bool tetrahedron_circumsphere_contains_point(tetrahedron_t* t, point_t* x)
                        &t->vertices[3], x) > 0.0);
 }
 
+bool tetrahedron_circumsphere_intersects_point(tetrahedron_t* t, point_t* x)
+{
+  return (tet_insphere(&t->vertices[0], &t->vertices[1], &t->vertices[2], 
+                       &t->vertices[3], x) == 0.0);
+}
+
 void tetrahedron_compute_nearest_point(tetrahedron_t* t, point_t* x, point_t* y)
 {
   // If x is inside t, set y to x.

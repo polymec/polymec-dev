@@ -22,42 +22,43 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef POLYMEC_SLIST_H
-#define POLYMEC_SLIST_H
+#ifndef POLYMEC_DLIST_H
+#define POLYMEC_DLIST_H
 
 #include "core/polymec.h"
 #include "arena/proto.h"
 #include "core/comparators.h"
 
-// An slist is a singly-linked list that stores homogeneous types.
-// One defines an slist using
-// DEFINE_SLIST(list_name, element)
+// An dlist is a doubly-linked list that stores homogeneous types.
+// One defines an dlist using
+// DEFINE_DLIST(list_name, element)
 //
-// Interface for a type x_slist_t (with datum x) defined with 
-// DEFINE_SLIST(x_slist, x):
+// Interface for a type x_dlist_t (with datum x) defined with 
+// DEFINE_DLIST(x_dlist, x):
 //
-// x_slist_t* x_slist_new() - Creates a new, empty slist.
-// void x_slist_free(slist_t* list) - Destroys the list.
-// x_slist_node_t* x_slist_find(x_slist_t* list, x value, x_slist_cmp comparator) - Returns the node at which a value appears in the list.
-// void x_slist_insert(x_slist_t* list, x value, x_slist_node_t* node) - Inserts an x into the list in front of the given node.
-// void x_slist_insert_with_dtor(x_slist_t* list, x value, x_slist_node_t* node, destructor dtor) - Inserts an x into the list, using dtor to destroy it when finished.
-// void x_slist_append(x_slist_t* list, x value) - Appends an x to the end of the list.
-// void x_slist_append_with_dtor(x_slist_t* list, x value, destructor dtor) - Appends an x to the end of the list, using dtor to destroy when finished.
-// void x_slist_push(x_slist_t* list, x value) - Inserts an x at the front of the list.
-// void x_slist_push_with_dtor(x_slist_t* list, x value, x_slist_dtor dtor) - Inserts an x at the front of the list with a destructor.
-// x x_slist_pop(x_slist_t* list, x_slist_dtor* dtor) - Removes an x from the front of the list, returning it and its destructor (if dtor != NULL).
-// void x_slist_remove(x_slist_t* list, x_slist_node_t* node) - Removes a node from the list.
-// bool x_slist_next(x_slist_t* list, x_slist_node_t** pos, x* value) - Allows the traversal of the linked list.
-// bool x_slist_empty(x_slist_t* list) - Returns true if empty, false otherwise.
-// void x_slist_clear(x_slist_t* list) - Clears the given list, making it empty.
+// x_dlist_t* x_dlist_new() - Creates a new, empty dlist.
+// void x_dlist_free(dlist_t* list) - Destroys the list.
+// x_dlist_node_t* x_dlist_find(x_dlist_t* list, x value, x_dlist_cmp comparator) - Returns the node at which a value appears in the list.
+// void x_dlist_insert(x_dlist_t* list, x value, x_dlist_node_t* node) - Inserts an x into the list in front of the given node.
+// void x_dlist_insert_with_dtor(x_dlist_t* list, x value, x_dlist_node_t* node, destructor dtor) - Inserts an x into the list, using dtor to destroy it when finished.
+// void x_dlist_append(x_dlist_t* list, x value) - Appends an x to the end of the list.
+// void x_dlist_append_with_dtor(x_dlist_t* list, x value, destructor dtor) - Appends an x to the end of the list, using dtor to destroy when finished.
+// void x_dlist_push(x_dlist_t* list, x value) - Inserts an x at the front of the list.
+// void x_dlist_push_with_dtor(x_dlist_t* list, x value, x_dlist_dtor dtor) - Inserts an x at the front of the list with a destructor.
+// x x_dlist_pop(x_dlist_t* list, x_dlist_dtor* dtor) - Removes an x from the front of the list, returning it and its destructor (if dtor != NULL).
+// void x_dlist_remove(x_dlist_t* list, x_dlist_node_t* node) - Removes a node from the list.
+// bool x_dlist_next(x_dlist_t* list, x_dlist_node_t** pos, x* value) - Allows the traversal of the linked list.
+// bool x_dlist_empty(x_dlist_t* list) - Returns true if empty, false otherwise.
+// void x_dlist_clear(x_dlist_t* list) - Clears the given list, making it empty.
 
-#define DEFINE_SLIST(list_name, element) \
+#define DEFINE_dlist(list_name, element) \
 typedef struct list_name##_node_t list_name##_node_t; \
 typedef void (*list_name##_dtor)(element); \
 struct list_name##_node_t \
 { \
   element value; \
   list_name##_dtor dtor; \
+  list_name##_node_t* prev; \
   list_name##_node_t* next; \
 }; \
 \
@@ -108,6 +109,7 @@ static inline void list_name##_insert_with_dtor(list_name##_t* list, element val
   list_name##_node_t* n = (list_name##_node_t*)malloc(sizeof(list_name##_node_t)); \
   n->value = value; \
   n->next = NULL; \
+  n->prev = NULL; \
   if (list->front == NULL) \
   { \
     ASSERT(node == NULL); \
@@ -119,6 +121,7 @@ static inline void list_name##_insert_with_dtor(list_name##_t* list, element val
   { \
     ASSERT(node == list->front); \
     n->next = list->front; \
+    n->prev = NULL; \
     list->front = n; \
     list->back = n->next; \
     list->size = 2; \
@@ -126,13 +129,16 @@ static inline void list_name##_insert_with_dtor(list_name##_t* list, element val
   else \
   { \
     list_name##_node_t* p = list->front; \
+    list_name##_node_t* p_prev = NULL; \
     while (p->next != node) \
     { \
       ASSERT(p != NULL); \
+      p_prev = p; \
       p = p->next; \
     } \
     n->next = p->next; \
     p->next = n; \
+    p->prev = p_prev; \
     list->size += 1; \
   } \
 } \
@@ -150,12 +156,14 @@ static inline void list_name##_append_with_dtor(list_name##_t* list, element val
   if (list->back == NULL) \
   { \
     ASSERT(list->front == NULL); \
+    n->prev = NULL; \
     list->front = n; \
     list->back = n; \
   } \
   else \
   { \
     list->back->next = n; \
+    n->prev = list->back; \
     list->back = n; \
   } \
   list->size += 1; \
@@ -192,6 +200,8 @@ static inline element list_name##_pop(list_name##_t* list, list_name##_dtor* dto
 \
 static inline void list_name##_remove(list_name##_t* list, list_name##_node_t* node) \
 { \
+  if (list->size == 0) \
+    return; \
   if (list->front == node) \
   { \
     list_name##_dtor dtor; \
@@ -200,24 +210,32 @@ static inline void list_name##_remove(list_name##_t* list, list_name##_node_t* n
       dtor(e); \
     return; \
   } \
-  list_name##_node_t* p = list->front; \
-  while ((p->next != node) && (p != NULL)) \
-    p = p->next; \
-  if (p != NULL) \
-  { \
-    p->next = node->next; \
-    if (node->dtor != NULL) \
-      (node->dtor)(node->value); \
-    free(node); \
-    list->size -= 1; \
-  } \
+  node->prev->next = node->next; \
+  if (node->next != NULL) \
+    node->next->prev = node->prev; \
+  if (node->dtor != NULL) \
+    (node->dtor)(node->value); \
+  free(node); \
+  list->size -= 1; \
 } \
+\
 static inline bool list_name##_next(list_name##_t* list, list_name##_node_t** node, element* value) \
 { \
   if (*node == NULL) \
     *node = list->front; \
   else \
     *node = (*node)->next; \
+  if (*node != NULL) \
+    *value = (*node)->value; \
+  return (*node != NULL); \
+} \
+\
+static inline bool list_name##_prev(list_name##_t* list, list_name##_node_t** node, element* value) \
+{ \
+  if (*node == NULL) \
+    *node = list->back; \
+  else \
+    *node = (*node)->prev; \
   if (*node != NULL) \
     *value = (*node)->value; \
   return (*node != NULL); \
@@ -234,11 +252,11 @@ static inline void list_name##_clear(list_name##_t* list) \
     list_name##_pop(list, NULL); \
 } \
 
-// Define some basic slist types.
-DEFINE_SLIST(int_slist, int)
-DEFINE_SLIST(long_slist, long)
-DEFINE_SLIST(real_slist, real_t)
-DEFINE_SLIST(string_slist, char*)
-DEFINE_SLIST(ptr_slist, void*)
+// Define some basic dlist types.
+DEFINE_dlist(int_dlist, int)
+DEFINE_dlist(long_dlist, long)
+DEFINE_dlist(real_dlist, real_t)
+DEFINE_dlist(string_dlist, char*)
+DEFINE_dlist(ptr_dlist, void*)
 
 #endif

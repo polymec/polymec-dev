@@ -23,6 +23,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "core/slist.h"
+#include "core/unordered_set.h"
 #include "geometry/tetrahedron.h"
 #include "geometry/delaunay_triangulation.h"
 
@@ -165,8 +166,21 @@ static void flip(delaunay_triangulation_t* t,
   }
 }
 
+// This helper creates an initial set of tets within the triangulation so that 
+// the convex hull covers the entire domain.
+static void initial_aggregation(delaunay_triangulation_t* t, 
+                                point_t* points, 
+                                int num_points, 
+                                int_unordered_set_t* points_in_t)
+{
+  // Find the points in the convex hull.
+  // FIXME.
+}
+
+
 static void incremental_flip(delaunay_triangulation_t* t, point_t* points, int num_points)
 {
+  polymec_not_implemented("incremental_flip()");
   for (int i = 0; i < num_points; ++i)
   {
     // Insert the new vertex.
@@ -233,21 +247,64 @@ static void incremental_flip(delaunay_triangulation_t* t, point_t* points, int n
 
 static void bowyer_watson(delaunay_triangulation_t* t, point_t* points, int num_points)
 {
+  // Initialize an aggregate of tets whose convex hull spans the entire domain.
+  int_unordered_set_t* points_in_t = int_unordered_set_new();
+  initial_aggregation(t, points, num_points, points_in_t);
+
+  // Now add the rest of the points.
+  tetrahedron_t* tet = tetrahedron_new();
+  int_unordered_set_t* intersected_tets = int_unordered_set_new();
+  int_unordered_set_t* intersected_faces = int_unordered_set_new();
+  int_slist_t* face_list = int_slist_new();
   for (int i = 0; i < num_points; ++i)
   {
+    // Skip vertices in the initial aggregation.
+    if (int_unordered_set_contains(points_in_t, i))
+      continue;
+
+    point_t* x = &points[i];
+
+    // Find all the tets whose circumcenters contain this point and 
+    // mark them as intersected.
+    for (int j = 0; j < t->num_tets; ++j)
+    {
+      point_t *xa = &points[t->tet_vertices[4*j]],
+              *xb = &points[t->tet_vertices[4*j+1]],
+              *xc = &points[t->tet_vertices[4*j+2]],
+              *xd = &points[t->tet_vertices[4*j+3]];
+      tetrahedron_set_vertices(tet, xa, xb, xc, xd);
+
+      if (tetrahedron_contains_point(tet, x))
+        int_unordered_set_insert(intersected_tets, j);
+    }
+
+    // Now make a list of the faces of these intersected tets. If a face 
+    // occurs twice in this list, it is removed.
+    int pos = 0, tet_index;
+    while (int_unordered_set_next(intersected_tets, &pos, &tet_index))
+    {
+    }
   }
+
+  // Clean up.
+  int_unordered_set_free(intersected_tets);
+  int_unordered_set_free(points_in_t);
 }
 
 static void divide_and_conquer(delaunay_triangulation_t* t, point_t* points, int num_points)
 {
+  polymec_not_implemented("divide_and_conquer()");
 }
 
 static void dewall(delaunay_triangulation_t* t, point_t* points, int num_points)
 {
+  polymec_not_implemented("dewall()");
 }
 
 delaunay_triangulation_t* delaunay_triangulation_new(point_t* points, int num_points)
 {
+  ASSERT(num_points >= 4);
+
   delaunay_triangulation_t* t = malloc(sizeof(delaunay_triangulation_t));
   t->algorithm = BOWYER_WATSON;
   t->num_vertices = 0;
