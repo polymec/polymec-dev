@@ -149,7 +149,8 @@ static inline void vector_scale(vector_t* v, real_t s)
   v->z *= s;
 }
 
-// Returns true if points p1, p2, and p3 are colinear, false otherwise.
+// Returns true if points p1, p2, and p3 are (approximately) colinear, false 
+// otherwise.
 static inline bool points_are_colinear(point_t* p1, point_t* p2, point_t* p3)
 {
   // 3 points are colinear if the cross product of displacement vectors
@@ -160,6 +161,10 @@ static inline bool points_are_colinear(point_t* p1, point_t* p2, point_t* p3)
   vector_cross(&v12, &v13, &v3);
   return (vector_dot(&v3, &v3) < 1e-14);
 }
+
+// Returns true if points p1, p2, p3, and p4 are exactly coplanar, false 
+// otherwise.
+bool points_are_coplanar(point_t* p1, point_t* p2, point_t* p3, point_t* p4);
 
 // A bounding box.
 typedef struct

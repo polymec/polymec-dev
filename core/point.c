@@ -98,3 +98,18 @@ void bbox_grow(bbox_t* box, point_t* p)
     box->z2 = p->z;
 }
 
+extern double orient3d(double* pa, double* pb, double* pc, double* pd);
+bool points_are_coplanar(point_t* p1, point_t* p2, point_t* p3, point_t* p4)
+{
+#if POLYMEC_HAVE_DOUBLE_PRECISION
+  return (orient3d((double*)p1, (double*)p2, (double*)p3, (double*)p4) == 0.0);
+#else
+  double da[3], db[3], dc[3], dd[3];
+  da[0] = (double)p1->x; da[1] = (double)p1->y; da[2] = (double)p1->z;
+  db[0] = (double)p2->x; db[1] = (double)p2->y; db[2] = (double)p2->z;
+  dc[0] = (double)p3->x; dc[1] = (double)p3->y; dc[2] = (double)p3->z;
+  dd[0] = (double)p4->x; dd[1] = (double)p4->y; dd[2] = (double)p4->z;
+  return (orient3d(da, db, dc, dd) == 0.0);
+#endif
+}
+

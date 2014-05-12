@@ -55,6 +55,10 @@
 // This flag tells us whether polymec is already initialized.
 static bool polymec_initialized = false;
 
+// This function must be called to take advantage of Jonathan Shewchuk's 
+// exact geometric predicates.
+extern void exactinit();
+
 // Command line arguments (used for provenance information).
 int polymec_argc = 0;
 char** polymec_argv = NULL;
@@ -130,6 +134,9 @@ void polymec_init(int argc, char** argv)
 
     // Start up the garbage collector.
     GC_INIT();
+
+    // Initialize variables for exact arithmetic.
+    exactinit();
 
     // Register a shutdown function.
     atexit(&shutdown);

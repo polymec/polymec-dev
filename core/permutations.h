@@ -22,14 +22,11 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "core/permute.h"
+#ifndef POLYMEC_PERMUTE_H
+#define POLYMEC_PERMUTE_H
 
-void permute(int N, int (*rand_gen)(), int* permutation)
-{
-  for (int i = 0; i < N; ++i)
-  {
-    int j = rand_gen() % (N+1); // FIXME: biased generation!
-    permutation[j] = i;
-  }
-}
+// Generates a random permutation of N elements using Knuth shuffles and the 
+// given random number generator.
+void random_permutation(int N, int (*rand_gen)(), int* permutation);
 
+#endif

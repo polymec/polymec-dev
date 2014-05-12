@@ -48,6 +48,7 @@
 // x x_dlist_pop(x_dlist_t* list, x_dlist_dtor* dtor) - Removes an x from the front of the list, returning it and its destructor (if dtor != NULL).
 // void x_dlist_remove(x_dlist_t* list, x_dlist_node_t* node) - Removes a node from the list.
 // bool x_dlist_next(x_dlist_t* list, x_dlist_node_t** pos, x* value) - Allows the traversal of the linked list.
+// bool x_dlist_prev(x_dlist_t* list, x_dlist_node_t** pos, x* value) - Allows a reversed traversal of the linked list.
 // bool x_dlist_empty(x_dlist_t* list) - Returns true if empty, false otherwise.
 // void x_dlist_clear(x_dlist_t* list) - Clears the given list, making it empty.
 
