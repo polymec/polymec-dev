@@ -105,6 +105,12 @@ static multiobject_t* multiobject_new(const char* mesh_name,
   return obj;
 }
 
+static void multiobject_free(multiobject_t* obj)
+{
+  free(obj->fields);
+  free(obj);
+}
+
 #endif
 
 struct silo_file_t 
@@ -246,36 +252,6 @@ static void write_master_file(silo_file_t* file)
 }
 #endif
 
-static void write_tags_to_file(tagger_t* tagger, const char* tag_list_name, DBfile* file)
-{
-  // Pack the tags into a compound array.
-  int_array_t* elem_lengths = int_array_new();
-  string_array_t* elem_names = string_array_new();
-  int_array_t* tag_data = int_array_new();
-
-  int pos = 0, *tag, tag_size;
-  char* tag_name;
-  while (mesh_next_tag(tagger, &pos, &tag_name, &tag, &tag_size))
-  {
-    int_array_append(elem_lengths, tag_size);
-    string_array_append(elem_names, tag_name);
-    for (int i = 0; i < tag_size; ++i)
-      int_array_append(tag_data, tag[i]);
-  }
-
-  // Write the compound array.
-  if (elem_names->size > 0)
-  {
-    DBPutCompoundarray(file, tag_list_name, elem_names->data, elem_lengths->data,
-                       elem_names->size, tag_data->data, tag_data->size, DB_INT, 0);
-  }
-
-  // Clean up.
-  int_array_free(elem_lengths);
-  string_array_free(elem_names);
-  int_array_free(tag_data);
-}
-
 silo_file_t* silo_file_open(MPI_Comm comm,
                             const char* file_prefix,
                             const char* directory,
@@ -377,11 +353,59 @@ void silo_file_close(silo_file_t* file)
   PMPIO_HandOffBaton(file->baton, (void*)file->dbfile);
   PMPIO_Finish(file->baton);
 
+  // Write multi-block objects to the file if needed.
+  write_multivars_to_file(file);
+
   // Write the uber-master file containing any multiobjects if need be.
   write_master_file(file);
+
+  // Clean up.
+  string_ptr_unordered_map_free(file->multiobjects);
 #else
   // Write the file.
   DBClose(file->dbfile);
+#endif
+}
+
+void silo_file_write_tags(silo_file_t* file, tagger_t* tagger, const char* tag_list_name)
+{
+  // Pack the tags into a compound array.
+  int_array_t* elem_lengths = int_array_new();
+  string_array_t* elem_names = string_array_new();
+  int_array_t* tag_data = int_array_new();
+
+  int pos = 0, *tag, tag_size;
+  char* tag_name;
+  while (mesh_next_tag(tagger, &pos, &tag_name, &tag, &tag_size))
+  {
+    int_array_append(elem_lengths, tag_size);
+    string_array_append(elem_names, tag_name);
+    for (int i = 0; i < tag_size; ++i)
+      int_array_append(tag_data, tag[i]);
+  }
+
+  // Write the compound array.
+  if (elem_names->size > 0)
+  {
+    DBPutCompoundarray(file->dbfile, tag_list_name, elem_names->data, elem_lengths->data,
+                       elem_names->size, tag_data->data, tag_data->size, DB_INT, 0);
+  }
+
+  // Clean up.
+  int_array_free(elem_lengths);
+  string_array_free(elem_names);
+  int_array_free(tag_data);
+}
+
+void silo_file_add_multimesh(silo_file_t* file,
+                             const char* mesh_name, 
+                             int silo_mesh_type, 
+                             int silo_var_type, 
+                             string_ptr_unordered_map_t* fields)
+{
+#if POLYMEC_HAVE_MPI
+  multiobject_t* obj = multiobject_new(point_mesh_name, DB_POINTMESH, DB_UCDVAR, fields);
+  string_ptr_unordered_map_insert(file->multiobjects, point_mesh_name, obj);
 #endif
 }
 
@@ -521,10 +545,17 @@ void silo_file_add_mesh(silo_file_t* file,
 #endif
 
   // Write out tag information.
-  write_tags_to_file(mesh->node_tags, "node_tags", file->dbfile);
-  write_tags_to_file(mesh->edge_tags, "edge_tags", file->dbfile);
-  write_tags_to_file(mesh->face_tags, "face_tags", file->dbfile);
-  write_tags_to_file(mesh->cell_tags, "cell_tags", file->dbfile);
+  {
+    char tag_name[FILENAME_MAX];
+    snprintf(tag_name, FILENAME_MAX, "%s_node_tags", mesh_name);
+    silo_file_write_tags(file, mesh->node_tags, tag_name);
+    snprintf(tag_name, FILENAME_MAX, "%s_edge_tags", mesh_name);
+    silo_file_write_tags(file, mesh->edge_tags, tag_name);
+    snprintf(tag_name, FILENAME_MAX, "%s_face_tags", mesh_name);
+    silo_file_write_tags(file, mesh->face_tags, tag_name);
+    snprintf(tag_name, FILENAME_MAX, "%s_cell_tags", mesh_name);
+    silo_file_write_tags(file, mesh->cell_tags, tag_name);
+  }
 
   // Write out the cell-centered field data.
   if (fields != NULL)
@@ -550,9 +581,10 @@ void silo_file_add_mesh(silo_file_t* file,
   // Clean up.
   DBFreeOptlist(optlist);
 
+  // Add a multi-object entry.
+  silo_file_add_multimesh(file, mesh_name, DB_UCDMESH, DB_UCDVAR, fields);
+
 #if POLYMEC_HAVE_MPI
-  // Write multi-block objects to the file if needed.
-  write_multivars_to_file(file);
   PMPIO_HandOffBaton(file->baton, (void*)file->dbfile);
 #endif
 }
@@ -569,11 +601,11 @@ void silo_file_add_point_mesh(silo_file_t* file,
 
   // Add cycle/time metadata if needed.
   DBoptlist* optlist = DBMakeOptlist(10);
+  double dtime = (double)file->time;
   if (file->cycle >= 0)
     DBAddOption(optlist, DBOPT_CYCLE, &file->cycle);
-  double t = file->time;
-  if (t != -FLT_MAX)
-    DBAddOption(optlist, DBOPT_DTIME, &t);
+  if (dtime != -FLT_MAX)
+    DBAddOption(optlist, DBOPT_DTIME, &dtime);
 
   // Point coordinates.
   real_t* x = malloc(sizeof(real_t) * num_points);
@@ -612,9 +644,10 @@ void silo_file_add_point_mesh(silo_file_t* file,
   // Clean up.
   DBFreeOptlist(optlist);
 
+  // Add a multi-object entry.
+  silo_file_add_multimesh(file, point_mesh_name, DB_POINTMESH, DB_UCDVAR, fields);
+
 #if POLYMEC_HAVE_MPI
-  // Write multi-block objects to the file if needed.
-  write_multivars_to_file(file);
   PMPIO_HandOffBaton(file->baton, (void*)file->dbfile);
 #endif
 }
