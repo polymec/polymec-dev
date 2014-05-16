@@ -24,7 +24,7 @@
 
 #include "core/interpreter.h"
 #include "core/st_func.h"
-#include "core/write_silo.h"
+//#include "core/write_silo.h"
 #include "core/silo_file.h"
 
 // Lua stuff.
