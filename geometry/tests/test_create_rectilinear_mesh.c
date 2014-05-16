@@ -27,7 +27,7 @@
 #include <setjmp.h>
 #include <string.h>
 #include "cmockery.h"
-#include "core/write_silo.h"
+#include "core/silo_file.h"
 #include "geometry/create_rectilinear_mesh.h"
 
 void test_create_rectilinear_mesh(void** state)
@@ -60,7 +60,10 @@ void test_plot_rectilinear_mesh(void** state)
     ones[c] = 1.0*c;
   string_ptr_unordered_map_t* fields = string_ptr_unordered_map_new();
   string_ptr_unordered_map_insert(fields, "solution", ones);
-  write_silo_mesh(MPI_COMM_SELF, "rectilinear_4x4x4", ".", 0, 1, 0, mesh, fields, 0.0);
+//  write_silo_mesh(MPI_COMM_SELF, "rectilinear_4x4x4", ".", 0, 1, 0, mesh, fields, 0.0);
+  silo_file_t* silo = silo_file_open(MPI_COMM_SELF, "rectilinear_4x4x4", ".", 1, 0);
+  silo_file_add_mesh(silo, "mesh", mesh, fields);
+  silo_file_close(silo);
 
   // Clean up.
   string_ptr_unordered_map_free(fields);
