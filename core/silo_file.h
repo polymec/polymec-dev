@@ -25,9 +25,16 @@
 #ifndef POLYMEC_SILO_FILE_H
 #define POLYMEC_SILO_FILE_H
 
+#include "silo.h"
 #include "core/polymec.h"
 #include "core/mesh.h"
 #include "core/unordered_map.h"
+
+#if POLYMEC_HAVE_DOUBLE_PRECISION
+#define SILO_FLOAT_TYPE DB_DOUBLE
+#else
+#define SILO_FLOAT_TYPE DB_FLOAT
+#endif
 
 // A Silo file can store various geometries (meshes) and data, using 
 // "Poor Man's Parallel I/O" (PMPIO) to achieve scalable throughput.
