@@ -111,7 +111,7 @@ static multivar_t* multivar_new(const char* mesh_name,
 {
   multivar_t* var = malloc(sizeof(multivar_t));
   var->mesh_name = string_dup(mesh_name);
-  var->name = string_dup(var_type);
+  var->name = string_dup(var_name);
   var->type = var_type;
   return var;
 }
@@ -140,7 +140,8 @@ struct silo_file_t
   // Stuff for poor man's parallel I/O.
   PMPIO_baton_t* baton;
   int num_files, mpi_tag, nproc, rank, group_rank, rank_in_group;
-  ptr_array_t* multiobjects;
+  ptr_array_t* multimeshes;
+  ptr_array_t* multivars;
 #endif
 };
 
@@ -154,9 +155,9 @@ static void write_multivars_to_file(silo_file_t* file)
   int num_chunks = file->nproc / file->num_files;
 
   // Write out multi meshes.
-  for (int i = 0; i < file->multimesh->size; ++i)
+  for (int i = 0; i < file->multimeshes->size; ++i)
   {
-    multimesh_t* mesh = file->multivars->data[i];
+    multimesh_t* mesh = file->multimeshes->data[i];
 
     char* mesh_names[num_chunks];
     int mesh_types[num_chunks];
@@ -203,7 +204,6 @@ static void write_multivars_to_file(silo_file_t* file)
 
     // Write the variable data.
     DBSetDir(file->dbfile, "/");
-    int field_index = 0;
     DBPutMultivar(file->dbfile, var->name, num_chunks, var_names, var_types, NULL);
 
     // Clean up.
@@ -241,53 +241,72 @@ static void write_master_file(silo_file_t* file)
 
   int num_files = file->num_files;
   int num_chunks = file->nproc / num_files;
-  for (int i = 0; i < file->multiobjects->size; ++i)
+
+  // Meshes.
+  for (int i = 0; i < file->multimeshes->size; ++i)
   {
-    multiobject_t* obj = file->multiobjects->data[i];
+    multimesh_t* mesh = file->multimeshes->data[i];
 
     // Mesh and fields.
     char* mesh_names[file->num_files*num_chunks];
     int mesh_types[file->num_files*num_chunks];
-    char* var_names[obj->num_fields][file->num_files*num_chunks];
+    for (int j = 0; j < file->num_files; ++j)
+    {
+      for (int c = 0; c < num_chunks; ++c)
+      {
+        char mesh_name[FILENAME_MAX];
+        mesh_types[num_chunks*j+c] = mesh->type;
+        snprintf(mesh_names[num_chunks*j+c], FILENAME_MAX, "%d/%s.silo:/domain_%d/%s", j, file->prefix, c, mesh->name);
+        mesh_names[num_chunks*j+c] = string_dup(mesh_name);
+      }
+    }
+
+    // Write the multimesh.
+    DBPutMultimesh(master, mesh->name, file->num_files*num_chunks, &mesh_names[0], 
+                   &mesh_types[0], optlist);
+    // Clean up.
+    for (int i = 0; i < num_files*num_chunks; ++i)
+      free(mesh_names[i]);
+  }
+
+  // Variables.
+  for (int i = 0; i < file->multivars->size; ++i)
+  {
+    multivar_t* var = file->multivars->data[i];
+
+    // Mesh and fields.
+    char* mesh_names[file->num_files*num_chunks];
+    char* var_names[file->num_files*num_chunks];
     int var_types[num_files*num_chunks];
     for (int j = 0; j < file->num_files; ++j)
     {
       for (int c = 0; c < num_chunks; ++c)
       {
-        mesh_types[num_chunks*j+c] = obj->mesh_type;
-        var_types[num_chunks*j+c] = obj->var_type;
-
-        // Mesh.
         char mesh_name[FILENAME_MAX];
-        snprintf(mesh_names[num_chunks*j+c], FILENAME_MAX, "%d/%s.silo:/domain_%d/%s", j, file->prefix, c, obj->mesh_name);
+        if (file->cycle == -1)
+          snprintf(mesh_names[num_chunks*j+c], FILENAME_MAX, "%d/%s.silo:/domain_%d/%s", j, file->prefix, c, var->mesh_name);
+        else
+          snprintf(mesh_names[num_chunks*j+c], FILENAME_MAX, "%d/%s-%d.silo:/domain_%d/%s", j, file->prefix, file->cycle, c, var->mesh_name);
         mesh_names[num_chunks*j+c] = string_dup(mesh_name);
-
-        // Field names.
-        for (int k = 0; k < obj->num_fields; ++k)
-        {
-          char var_name[FILENAME_MAX];
-          snprintf(var_name, FILENAME_MAX, "%d/%s.silo:/domain_%d/%s_%s", j, file->prefix, c, obj->mesh_name, obj->field_names[k]);
-          var_names[k][num_chunks*j+c] = string_dup(var_name);
-        }
+        char var_name[FILENAME_MAX];
+        if (file->cycle == -1)
+          snprintf(var_name, FILENAME_MAX, "%d/%s.silo:/domain_%d/%s_%s", j, file->prefix, c, var->mesh_name, var->name);
+        else
+          snprintf(var_name, FILENAME_MAX, "%d/%s-%d.silo:/domain_%d/%s_%s", j, file->prefix, file->cycle, c, var->mesh_name, var->name);
+        var_names[num_chunks*j+c] = string_dup(var_name);
+        var_types[num_chunks*j+c] = var->type;
       }
     }
 
-    // Write the multimesh and variable data.
-    DBPutMultimesh(master, "mesh", file->num_files*num_chunks, &mesh_names[0], 
-                   &mesh_types[0], optlist);
-    int field_index = 0;
-    for (int j = 0; j < obj->num_fields; ++j, ++field_index)
-    {
-      DBPutMultivar(master, obj->field_names[j], num_files*num_chunks, var_names[field_index++], 
-                    var_types, optlist);
-    }
+    // Write the multivariable data.
+    DBPutMultivar(master, var->name, num_files*num_chunks, var_names, 
+                  var_types, optlist);
 
     // Clean up.
     for (int i = 0; i < num_files*num_chunks; ++i)
     {
       free(mesh_names[i]);
-      for (int j = 0; j < obj->num_fields; ++j)
-        free(var_names[j][i]);
+      free(var_names[i]);
     }
   }
 
@@ -376,7 +395,8 @@ silo_file_t* silo_file_new(MPI_Comm comm,
   snprintf(file->dir_name, FILENAME_MAX, "domain_%d", file->rank_in_group);
   file->dbfile = (DBfile*)PMPIO_WaitForBaton(file->baton, file->filename, file->dir_name);
 
-  file->multiobjects = ptr_array_new();
+  file->multimeshes = ptr_array_new();
+  file->multivars = ptr_array_new();
 #else
   if (strlen(directory) == 0)
     strncpy(file->dir_name, ".", FILENAME_MAX);
@@ -455,8 +475,7 @@ silo_file_t* silo_file_open(MPI_Comm comm,
     MPI_Barrier(comm);
 
   // Initialize poor man's I/O and figure out group ranks.
-  int pmpio_mode = (read_or_append == SILO_READ) ? PMPIO_READ : PMPIO_WRITE;
-  file->baton = PMPIO_Init(file->num_files, pmpio_mode, comm, file->mpi_tag, 
+  file->baton = PMPIO_Init(file->num_files, PMPIO_READ, comm, file->mpi_tag, 
                            pmpio_create_file, pmpio_open_file, 
                            pmpio_close_file, 0);
   file->group_rank = PMPIO_GroupRank(file->baton, file->rank);
@@ -487,7 +506,8 @@ silo_file_t* silo_file_open(MPI_Comm comm,
     snprintf(file->filename, FILENAME_MAX, "%s/%s-%d.silo", group_dir_name, file->prefix, cycle);
   snprintf(file->dir_name, FILENAME_MAX, "domain_%d", file->rank_in_group);
   file->dbfile = (DBfile*)PMPIO_WaitForBaton(file->baton, file->filename, file->dir_name);
-  file->multiobjects = ptr_array_new();
+  file->multimeshes = ptr_array_new();
+  file->multivars = ptr_array_new();
 #else
   if (strlen(directory) == 0)
     strncpy(file->dir_name, ".", FILENAME_MAX);
@@ -551,7 +571,8 @@ void silo_file_close(silo_file_t* file)
       write_master_file(file);
     }
 
-    ptr_array_free(file->multiobjects);
+    ptr_array_free(file->multimeshes);
+    ptr_array_free(file->multivars);
   }
 #else
   // Write the file.
