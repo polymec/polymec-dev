@@ -25,51 +25,79 @@
 #ifndef POLYMEC_SILO_FILE_H
 #define POLYMEC_SILO_FILE_H
 
-#include "silo.h"
 #include "core/polymec.h"
 #include "core/mesh.h"
 #include "core/unordered_map.h"
-
-#if POLYMEC_HAVE_DOUBLE_PRECISION
-#define SILO_FLOAT_TYPE DB_DOUBLE
-#else
-#define SILO_FLOAT_TYPE DB_FLOAT
-#endif
 
 // A Silo file can store various geometries (meshes) and data, using 
 // "Poor Man's Parallel I/O" (PMPIO) to achieve scalable throughput.
 typedef struct silo_file_t silo_file_t;
 
-// Creates and opens a new Silo file for writing simulation data, returning 
-// the Silo file object.
+// Creates and opens a new Silo file for writing simulation data, 
+// returning the Silo file object. If cycle is non-negative, the file associates 
+// itself with the given simulation cycle number, which is incorporated into 
+// its filename. 
+silo_file_t* silo_file_new(MPI_Comm comm,
+                           const char* file_prefix,
+                           const char* directory,
+                           int num_files,
+                           int mpi_tag,
+                           int cycle,
+                           real_t time);
+
+// Opens an existing Silo file for reading simulation data, 
+// returning the Silo file object.
 silo_file_t* silo_file_open(MPI_Comm comm,
                             const char* file_prefix,
                             const char* directory,
                             int num_files,
-                            int mpi_tag);
+                            int mpi_tag,
+                            int cycle);
 
 // Closes and destroys the given Silo file, writing all its data to disk.
 void silo_file_close(silo_file_t* file);
 
-// Sets the cycle number for the given Silo file.
-void silo_file_set_cycle(silo_file_t* file, int cycle);
+// Writes a named arbitrary polyhedral mesh to the given Silo file.
+void silo_file_write_mesh(silo_file_t* file,
+                          const char* mesh_name,
+                          mesh_t* mesh);
 
-// Sets the simulation time for the given Silo file.
-void silo_file_set_time(silo_file_t* file, real_t time);
+// Writes a named scalar cell-centered field, understood to exist on 
+// the mesh with the given name, to the given Silo file.
+void silo_file_write_scalar_cell_field(silo_file_t* file,
+                                       const char* field_name,
+                                       const char* mesh_name,
+                                       real_t* field_data);
 
-// Adds a named arbitrary polyhedral mesh to the given Silo file, with the 
-// given fields defined on its cells. If fields is NULL, no fields are written.
-void silo_file_add_mesh(silo_file_t* file,
-                        const char* mesh_name,
-                        mesh_t* mesh,
-                        string_ptr_unordered_map_t* fields);
+// Writes a named multicomponent cell-centered field, understood to exist on 
+// the mesh with the given name, to the given Silo file. The field data is 
+// interpreted to be in component-minor order.
+void silo_file_write_cell_field(silo_file_t* file,
+                                const char** field_component_names,
+                                const char* mesh_name,
+                                real_t* field_data,
+                                int num_components);
 
-// Adds an arbitrary point mesh to the given Silo file, with the given 
-// fields defined on the points. If fields is NULL, no fields are written.
-void silo_file_add_point_mesh(silo_file_t* file,
-                              const char* point_mesh_name,
-                              point_t* points,
-                              int num_points,
-                              string_ptr_unordered_map_t* fields);
+// Adds a point mesh to the given Silo file.
+void silo_file_write_point_mesh(silo_file_t* file,
+                                const char* point_mesh_name,
+                                point_t* points,
+                                int num_points);
+
+// Writes a named scalar point field to the given Silo file, associated with 
+// the given point mesh.
+void silo_file_write_scalar_point_field(silo_file_t* file,
+                                        const char* field_name,
+                                        const char* point_mesh_name,
+                                        real_t* field_data);
+
+// Writes a named multicomponent point field to the given Silo file, 
+// associated with the given point mesh. The field data is interpreted to 
+// be in component-minor order.
+void silo_file_write_point_field(silo_file_t* file,
+                                 const char** field_component_names,
+                                 const char* point_mesh_name,
+                                 real_t* field_data,
+                                 int num_components);
 
 #endif

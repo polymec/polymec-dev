@@ -54,14 +54,12 @@ void test_plot_uniform_mesh(void** state)
   double ones[4*4*4];
   for (int c = 0; c < 4*4*4; ++c)
     ones[c] = 1.0*c;
-  string_ptr_unordered_map_t* fields = string_ptr_unordered_map_new();
-  string_ptr_unordered_map_insert(fields, "solution", ones);
-  silo_file_t* silo = silo_file_open(mesh->comm, "uniform_mesh_4x4x4", ".", 1, 0);
-  silo_file_add_mesh(silo, "mesh", mesh, fields);
+  silo_file_t* silo = silo_file_new(mesh->comm, "uniform_mesh_4x4x4", ".", 1, 0, 0, 0.0);
+  silo_file_write_mesh(silo, "mesh", mesh);
+  silo_file_write_scalar_cell_field(silo, "solution", "mesh", ones);
   silo_file_close(silo);
 
   // Clean up.
-  string_ptr_unordered_map_free(fields);
   mesh_free(mesh);
 }
 

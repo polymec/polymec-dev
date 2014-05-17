@@ -56,8 +56,8 @@ void test_plot_tetgen_mesh(void** state)
                                     CMAKE_CURRENT_SOURCE_DIR "/tetgen_example.1.face", 
                                     CMAKE_CURRENT_SOURCE_DIR "/tetgen_example.1.neigh");
   // Plot it.
-  silo_file_t* silo = silo_file_open(mesh->comm, "tetgen_example", ".", 1, 0);
-  silo_file_add_mesh(silo, "mesh", mesh, NULL);
+  silo_file_t* silo = silo_file_new(mesh->comm, "tetgen_example", ".", 1, 0, 0, 0.0);
+  silo_file_write_mesh(silo, "mesh", mesh);
   silo_file_close(silo);
 
   // Clean up.

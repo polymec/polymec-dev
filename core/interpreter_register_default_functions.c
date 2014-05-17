@@ -24,7 +24,6 @@
 
 #include "core/interpreter.h"
 #include "core/st_func.h"
-//#include "core/write_silo.h"
 #include "core/silo_file.h"
 
 // Lua stuff.
@@ -371,9 +370,13 @@ static int lua_write_silo_mesh(lua_State* lua)
 
   // Write the thing to a mesh file.
   log_info("Writing SILO mesh file with prefix '%s'...", filename);
-//  write_silo_mesh(mesh->comm, filename, ".", 0, 1, 0, mesh, fields, 0.0);
-  silo_file_t* silo = silo_file_open(mesh->comm, filename, ".", 1, 0);
-  silo_file_add_mesh(silo, "mesh", mesh, fields);
+  silo_file_t* silo = silo_file_new(mesh->comm, filename, ".", 1, 0, 0, 0.0);
+  silo_file_write_mesh(silo, "mesh", mesh);
+  int pos = 0;
+  char* field_name;
+  void* field;
+  while (string_ptr_unordered_map_next(fields, &pos, &field_name, &field))
+    silo_file_write_scalar_cell_field(silo, field_name, "mesh", field);
   silo_file_close(silo);
 
   // Clean up.
@@ -490,10 +493,14 @@ static int lua_write_silo_points(lua_State* lua)
 
   // Write the thing to a file.
   log_info("Writing SILO points file with prefix '%s'...", filename);
-  silo_file_t* silo = silo_file_open(MPI_COMM_SELF, filename, ".", 1, 0);
-  silo_file_add_point_mesh(silo, "points", points, N, fields);
+  silo_file_t* silo = silo_file_new(MPI_COMM_WORLD, filename, ".", 1, 0, 0, 0.0);
+  silo_file_write_point_mesh(silo, "points", points, N);
+  int pos = 0;
+  char* field_name;
+  void* field;
+  while (string_ptr_unordered_map_next(fields, &pos, &field_name, &field))
+    silo_file_write_scalar_point_field(silo, field_name, "points", field);
   silo_file_close(silo);
-//  write_silo_points(MPI_COMM_SELF, filename, ".", 0, 1, 0, points, N, fields, 0.0);
 
   // Clean up.
   free(filename);
