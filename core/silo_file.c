@@ -88,19 +88,28 @@ static multiobject_t* multiobject_new(const char* mesh_name,
   obj->mesh_name = string_dup(mesh_name);
   obj->mesh_type = mesh_type;
   obj->var_type = var_type;
-  obj->num_fields = fields->size;
-  obj->field_names = malloc(sizeof(char*) * obj->num_fields);
-  int pos = 0, i = 0;
-  char* field_name;
-  void* field;
-  while (string_ptr_unordered_map_next(fields, &pos, &field_name, &field))
-    obj->field_names[i++] = string_dup(field_name);
+  if (fields != NULL)
+  {
+    obj->num_fields = fields->size;
+    obj->field_names = malloc(sizeof(char*) * obj->num_fields);
+    int pos = 0, i = 0;
+    char* field_name;
+    void* field;
+    while (string_ptr_unordered_map_next(fields, &pos, &field_name, &field))
+      obj->field_names[i++] = string_dup(field_name);
+  }
+  else
+  {
+    obj->num_fields = 0;
+    obj->field_names = NULL;
+  }
   return obj;
 }
 
 static void multiobject_free(multiobject_t* obj)
 {
-  free(obj->field_names);
+  if (obj->field_names != NULL)
+    free(obj->field_names);
   free(obj);
 }
 
