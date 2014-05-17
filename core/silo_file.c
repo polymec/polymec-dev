@@ -395,7 +395,7 @@ void silo_file_close(silo_file_t* file)
 #endif
 }
 
-void silo_file_write_tags(silo_file_t* file, tagger_t* tagger, const char* tag_list_name)
+static void silo_file_write_tags(silo_file_t* file, tagger_t* tagger, const char* tag_list_name)
 {
   // Pack the tags into a compound array.
   int_array_t* elem_lengths = int_array_new();
@@ -425,11 +425,11 @@ void silo_file_write_tags(silo_file_t* file, tagger_t* tagger, const char* tag_l
   int_array_free(tag_data);
 }
 
-void silo_file_add_multimesh(silo_file_t* file,
-                             const char* mesh_name, 
-                             int silo_mesh_type, 
-                             int silo_var_type, 
-                             string_ptr_unordered_map_t* fields)
+static void silo_file_add_multimesh(silo_file_t* file,
+                                    const char* mesh_name, 
+                                    int silo_mesh_type, 
+                                    int silo_var_type, 
+                                    string_ptr_unordered_map_t* fields)
 {
 #if POLYMEC_HAVE_MPI
   multiobject_t* obj = multiobject_new(mesh_name, DB_POINTMESH, DB_UCDVAR, fields);

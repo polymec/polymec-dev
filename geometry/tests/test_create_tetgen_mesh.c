@@ -27,7 +27,6 @@
 #include <setjmp.h>
 #include <string.h>
 #include "cmockery.h"
-//#include "core/write_silo.h"
 #include "core/silo_file.h"
 #include "geometry/create_tetgen_mesh.h"
 
@@ -57,7 +56,6 @@ void test_plot_tetgen_mesh(void** state)
                                     CMAKE_CURRENT_SOURCE_DIR "/tetgen_example.1.face", 
                                     CMAKE_CURRENT_SOURCE_DIR "/tetgen_example.1.neigh");
   // Plot it.
-//  write_silo_mesh(MPI_COMM_SELF, "tetgen_example", ".", 0, 1, 0, mesh, NULL, 0.0);
   silo_file_t* silo = silo_file_open(mesh->comm, "tetgen_example", ".", 1, 0);
   silo_file_add_mesh(silo, "mesh", mesh, NULL);
   silo_file_close(silo);
