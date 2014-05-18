@@ -42,8 +42,8 @@ endif()
 message("-- Real number representation is ${POLYMEC_REAL_TYPE}")
 
 # Add a custom target (always out of date) that generates polymec_version.h.
-add_custom_target(update_polymec_version_h ALL
-                  python ${PROJECT_SOURCE_DIR}/tools/update_polymec_version_h.py ${POLYMEC_VERSION} ${PROJECT_BINARY_DIR}/core/polymec_version.h)
+add_custom_target(update_version_h ALL
+                  python ${PROJECT_SOURCE_DIR}/tools/update_version_h.py polymec ${POLYMEC_VERSION} ${PROJECT_BINARY_DIR}/core/polymec_version.h)
                   
 # Figure out the system type.
 if (APPLE EQUAL 1)
@@ -157,6 +157,7 @@ configure_file(
   "${CMAKE_CURRENT_SOURCE_DIR}/cmake/Templates/polymec.cmake.in"
   "${CMAKE_CURRENT_BINARY_DIR}/polymec.cmake"
 )
+install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/tools/update_version_h.py DESTINATION share/polymec)
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/polymec.cmake DESTINATION share/polymec)
 install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/cmake/Modules/add_polymec_executable.cmake DESTINATION share/polymec)
 install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/cmake/Modules/add_polymec_test.cmake DESTINATION share/polymec)

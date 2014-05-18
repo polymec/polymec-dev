@@ -13,7 +13,7 @@ add_library(polymec_core polymec.c arch.c logging.c point.c tagger.c mesh.c
             linear_algebra.c silo_file.c read_silo.c)
 
 # polymec.c depends on the creation of polymec_version.h.
-add_dependencies(polymec_core update_polymec_version_h)
+add_dependencies(polymec_core update_version_h)
 
 set(POLYMEC_LIBS polymec_core;${POLYMEC_LIBS} PARENT_SCOPE)
 set(POLYMEC_LIBS polymec_core;${POLYMEC_LIBS})
