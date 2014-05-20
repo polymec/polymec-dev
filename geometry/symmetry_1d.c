@@ -31,8 +31,11 @@
 const char* SYMMETRIC = "symmetric";
 const char* ONE_DIMENSIONAL = "one dimensional";
 const char* TWO_DIMENSIONAL = "two dimensional";
-const char* CYLINDRICAL = "cylindrical";
-const char* SPHERICAL = "spherical";
+const char* CARTESIAN_1D = "Cartesian 1D";
+const char* CARTESIAN_2D = "Cartesian 2D";
+const char* CYLINDRICAL_1D = "cylindrical 1D";
+const char* CYLINDRICAL_RZ = "cylindrical r-z";
+const char* SPHERICAL_1D = "spherical 1D";
 
 // This helper function computes the logarithmic spacing for N points spanning
 // the interval [x1, x2] with the given log factor, placing those points into 
@@ -97,7 +100,7 @@ mesh_t* create_nonuniform_cartesian_1d_mesh(MPI_Comm comm, real_t* xs, int N)
   // Add some symmetry-related features.
   mesh_add_feature(mesh, SYMMETRIC);
   mesh_add_feature(mesh, ONE_DIMENSIONAL);
-  mesh_add_feature(mesh, CARTESIAN);
+  mesh_add_feature(mesh, CARTESIAN_1D);
 
   return mesh;
 }
@@ -379,7 +382,7 @@ mesh_t* create_nonuniform_cylindrical_1d_mesh(MPI_Comm comm, real_t* rs, int N)
   // Add some symmetry-related features.
   mesh_add_feature(mesh, SYMMETRIC);
   mesh_add_feature(mesh, ONE_DIMENSIONAL);
-  mesh_add_feature(mesh, CYLINDRICAL);
+  mesh_add_feature(mesh, CYLINDRICAL_1D);
 
   return mesh;
 }
@@ -658,7 +661,7 @@ mesh_t* create_nonuniform_spherical_1d_mesh(MPI_Comm comm, real_t* rs, int N)
   // Add some symmetry-related features.
   mesh_add_feature(mesh, SYMMETRIC);
   mesh_add_feature(mesh, ONE_DIMENSIONAL);
-  mesh_add_feature(mesh, SPHERICAL);
+  mesh_add_feature(mesh, SPHERICAL_1D);
 
   return mesh;
 }

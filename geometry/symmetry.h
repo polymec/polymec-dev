@@ -22,18 +22,20 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef POLYMEC_SYMMETRY_1D_H
-#define POLYMEC_SYMMETRY_1D_H
+#ifndef POLYMEC_SYMMETRY_H
+#define POLYMEC_SYMMETRY_H
 
 #include "core/mesh.h"
 
 // Symmetry-related mesh features.
-const char* SYMMETRIC;       // Has 1D or 2D symmetry
+const char* SYMMETRIC;       // Has 1D or 2D symmetry.
 const char* ONE_DIMENSIONAL; // Has 1D symmetry.
 const char* TWO_DIMENSIONAL; // Has 2D symmetry.
-const char* CARTESIAN;       // Has Cartesian geometry.
-const char* CYLINDRICAL;     // Has cylindrical symmetry.
-const char* SPHERICAL;       // Has spherical symmetry.
+const char* CARTESIAN_1D;    // Has 1D linear Cartesian geometry.
+const char* CARTESIAN_2D;    // Has 2D planar Cartesian geometry.
+const char* CYLINDRICAL_1D;  // Has 1D radial cylindrical symmetry.
+const char* CYLINDRICAL_RZ;  // Has 2D r-z cylindrical symmetry.
+const char* SPHERICAL_1D;    // Has 1D radial spherical symmetry.
 
 // These functions create meshes that can be used to run 1D problems.
 
