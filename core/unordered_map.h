@@ -54,6 +54,7 @@
 // key_type x_map_change_key(x_map_t* map, x_map_key_t old_key, x_map_key_t new_key) - Renames old_key to new_key, overwriting new_key if it exists. Returns old key.
 // void x_map_delete(x_map_t* map, x_map_key_t key) - Deletes the value for the given key.
 // bool x_map_next(x_map_t* map, int* pos, x_map_key_t* key, x_map_value_t* value) - Allows the traversal of the maps keys and values.
+// bool x_map_empty(x_map_t* map) - Returns true if empty, false otherwise.
 
 #define DEFINE_UNORDERED_MAP(map_name, key_type, value_type, hash_func, equals_func) \
 typedef key_type map_name##_key_t; \
@@ -355,6 +356,12 @@ static inline map_name##_t* map_name##_copy(map_name##_t* map) \
     map_name##_insert(copy, key, value); \
   return copy; \
 } \
+\
+static inline bool map_name##_empty(map_name##_t* map) \
+{ \
+  return (map->size == 0); \
+} \
+\
 
 // Define some unordered maps.
 DEFINE_UNORDERED_MAP(int_int_unordered_map, int, int, int_hash, int_equals)

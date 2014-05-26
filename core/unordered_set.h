@@ -46,6 +46,7 @@
 // void x_set_delete(x_set_t* set, x datum) - Deletes the datum from the set.
 // bool x_set_next(x_set_t* set, int* pos, x* datum) - Allows traversal of the set.
 // void x_set_intersection(x_set_t* set, x_set_t* other_set, x_set_t* intersection) - Intersects this set with the other set, storing the result in intersection.
+// bool x_set_empty(x_set_t* set) - Returns true if empty, false otherwise.
 
 #define DEFINE_UNORDERED_SET(set_name, element, hash_func, equals_func) \
 DEFINE_UNORDERED_MAP(set_name##_unordered_map, element, bool, hash_func, equals_func) \
@@ -106,6 +107,7 @@ static inline bool set_name##_next(set_name##_t* set, int* pos, set_name##_eleme
   bool val; \
   return set_name##_unordered_map_next(set->map, pos, datum, &val); \
 } \
+\
 static inline void set_name##_intersection(set_name##_t* set, set_name##_t* other_set, set_name##_t* intersection) \
 { \
   set_name##_clear(intersection); \
@@ -116,6 +118,11 @@ static inline void set_name##_intersection(set_name##_t* set, set_name##_t* othe
     if (set_name##_contains(other_set, e)) \
       set_name##_insert(intersection, e); \
   } \
+} \
+\
+static inline bool set_name##_empty(set_name##_t* set) \
+{ \
+  return (set->size == 0); \
 } \
 \
 

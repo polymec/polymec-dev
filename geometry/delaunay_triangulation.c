@@ -22,6 +22,8 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+#include "core/array_utils.h"
+#include "core/tuple.h"
 #include "core/slist.h"
 #include "core/unordered_set.h"
 #include "geometry/tetrahedron.h"
@@ -254,8 +256,7 @@ static void bowyer_watson(delaunay_triangulation_t* t, point_t* points, int num_
   // Now add the rest of the points.
   tetrahedron_t* tet = tetrahedron_new();
   int_unordered_set_t* intersected_tets = int_unordered_set_new();
-  int_unordered_set_t* intersected_faces = int_unordered_set_new();
-  int_slist_t* face_list = int_slist_new();
+  int_tuple_unordered_set_t* intersected_faces = int_tuple_unordered_set_new();
   for (int i = 0; i < num_points; ++i)
   {
     // Skip vertices in the initial aggregation.
@@ -283,11 +284,47 @@ static void bowyer_watson(delaunay_triangulation_t* t, point_t* points, int num_
     int pos = 0, tet_index;
     while (int_unordered_set_next(intersected_tets, &pos, &tet_index))
     {
+      // A face of a tet is stored as an ordered triple of its point indices.
+
+      // This array allow us to express the 4 faces of this tet in terms 
+      // of offsets from the first vertex of the tet.
+      int offsets[4][3] = {{0, 1, 2}, {0, 1, 3}, {0, 2, 3}, {1, 2, 3}};
+
+      // Add each of these tet faces to our list. If it's already in there, 
+      // take it out instead.
+      for (int j = 0; j < 4; ++j)
+      {
+        int* f = int_tuple_new(3);
+        f[0] = t->tet_vertices[4*tet_index+offsets[j][0]];
+        f[1] = t->tet_vertices[4*tet_index+offsets[j][1]];
+        f[2] = t->tet_vertices[4*tet_index+offsets[j][2]];
+        int_qsort(f, 3);
+
+        if (int_tuple_unordered_set_contains(intersected_faces, f))
+          int_tuple_unordered_set_delete(intersected_faces, f);
+        else
+          int_tuple_unordered_set_insert(intersected_faces, f);
+      }
+    }
+
+    // Now we assemble new tets consisting of the above faces.
+
+    // First, overwrite any of the tets that were intersected.
+    pos = 0;
+    while (int_unordered_set_next(intersected_tets, &pos, &tet_index))
+    {
+
+    }
+
+    // Now add new tets until we exhaust the rest of the intersected faces.
+    while (!int_tuple_unordered_set_empty(intersected_faces))
+    {
     }
   }
 
   // Clean up.
   int_unordered_set_free(intersected_tets);
+  int_tuple_unordered_set_free(intersected_faces);
   int_unordered_set_free(points_in_t);
 }
 
