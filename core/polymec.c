@@ -27,6 +27,8 @@
 #include <time.h>
 #include <stdarg.h>
 #include <gc/gc.h>
+#include "arena/proto.h"
+#include "arena/pool.h"
 #include "core/polymec.h"
 #include "core/polymec_version.h"
 #include "core/options.h"
@@ -375,20 +377,57 @@ int polymec_num_cores()
 #endif
 }
 
-// Arena stack.
-static ptr_slist_t* arena_stack = NULL;
+struct polymec_allocator_t 
+{
+  ARENA* arena;
+  POOL* pool;
+};
+
+polymec_allocator_t* arena_allocator_new()
+{
+  polymec_allocator_t* alloc = malloc(sizeof(polymec_allocator_t)); // Oh, the irony...
+  alloc->arena = arena_open(&arena_defaults, NULL);
+  alloc->pool = NULL;
+  return alloc;
+}
+
+polymec_allocator_t* pool_allocator_new()
+{
+  polymec_allocator_t* alloc = malloc(sizeof(polymec_allocator_t)); // Oh, the irony...
+  alloc->arena = NULL;
+  alloc->pool = pool_open(&pool_defaults, NULL);
+  return alloc;
+}
+
+void polymec_allocator_free(polymec_allocator_t* alloc)
+{
+  if (alloc->arena != NULL)
+    arena_close(alloc->arena);
+  else
+    pool_close(alloc->pool);
+  free(alloc);
+}
+
+// Allocator stack.
+static ptr_slist_t* alloc_stack = NULL;
 
 void* poly_malloc(size_t size)
 {
-  if ((arena_stack == NULL) || (arena_stack->size == 0))
+  if ((alloc_stack == NULL) || (alloc_stack->size == 0))
     return malloc(size);
   else
-    return arena_malloc(arena_stack->front->value, size, 0);
+  {
+    polymec_allocator_t* alloc = alloc_stack->front->value;
+    if (alloc->arena != NULL)
+      return arena_malloc(alloc->arena, size, 0);
+    else
+      return pool_get(alloc->pool, size, 0);
+  }
 }
 
 void* poly_aligned_alloc(size_t alignment, size_t size)
 {
-  if ((arena_stack == NULL) || (arena_stack->size == 0))
+  if ((alloc_stack == NULL) || (alloc_stack->size == 0))
 #ifdef APPLE
   {
     // Mac OS X doesn't have this yet!
@@ -398,20 +437,32 @@ void* poly_aligned_alloc(size_t alignment, size_t size)
     return aligned_alloc(alignment, size);
 #endif
   else
-    return arena_malloc(arena_stack->front->value, size, alignment);
+  {
+    polymec_allocator_t* alloc = alloc_stack->front->value;
+    if (alloc->arena != NULL)
+      return arena_malloc(alloc->arena, size, alignment);
+    else
+      return pool_get(alloc->pool, size, alignment);
+  }
 }
 
 void* poly_realloc(void* memory, size_t size)
 {
-  if ((arena_stack == NULL) || (arena_stack->size == 0))
+  if ((alloc_stack == NULL) || (alloc_stack->size == 0))
     return realloc(memory, size);
   else
-    return arena_realloc(arena_stack->front->value, memory, size, 0);
+  {
+    polymec_allocator_t* alloc = alloc_stack->front->value;
+    if (alloc->arena != NULL)
+      return arena_realloc(alloc->arena, memory, size, 0);
+    else
+      return pool_realloc(alloc->pool, memory, size, 0);
+  }
 }
 
 void* poly_aligned_realloc(void* memory, size_t alignment, size_t size)
 {
-  if ((arena_stack == NULL) || (arena_stack->size == 0))
+  if ((alloc_stack == NULL) || (alloc_stack->size == 0))
   {
 #ifdef APPLE
     // Mac OS X doesn't have this yet!
@@ -424,36 +475,48 @@ void* poly_aligned_realloc(void* memory, size_t alignment, size_t size)
 #endif
   }
   else
-    return arena_realloc(arena_stack->front->value, memory, size, alignment);
+  {
+    polymec_allocator_t* alloc = alloc_stack->front->value;
+    if (alloc->arena != NULL)
+      return arena_realloc(alloc->arena, memory, size, alignment);
+    else
+      return pool_realloc(alloc->pool, memory, size, alignment);
+  }
 }
 
 void poly_free(void* memory)
 {
-  if ((arena_stack == NULL) || (arena_stack->size == 0))
+  if ((alloc_stack == NULL) || (alloc_stack->size == 0))
     free(memory);
-  else
-    arena_free(arena_stack->front->value, memory);
-}
-
-static void free_arena_stack()
-{
-  ASSERT(arena_stack != NULL);
-  ptr_slist_free(arena_stack);
-}
-
-void push_arena(ARENA* arena)
-{
-  if (arena_stack == NULL)
+  else 
   {
-    arena_stack = ptr_slist_new();
-    polymec_atexit(free_arena_stack);
+    polymec_allocator_t* alloc = alloc_stack->front->value;
+    if (alloc->arena != NULL)
+      arena_free(alloc->arena, memory);
+    else 
+      pool_put(alloc->pool, memory);
   }
-  ptr_slist_push_with_dtor(arena_stack, arena, DTOR(arena_close));
 }
 
-ARENA* pop_arena()
+static void free_alloc_stack()
 {
-  ASSERT(arena_stack != NULL);
-  return ptr_slist_pop(arena_stack, NULL);
+  ASSERT(alloc_stack != NULL);
+  ptr_slist_free(alloc_stack);
+}
+
+void push_allocator(polymec_allocator_t* alloc)
+{
+  if (alloc_stack == NULL)
+  {
+    alloc_stack = ptr_slist_new();
+    polymec_atexit(free_alloc_stack);
+  }
+  ptr_slist_push_with_dtor(alloc_stack, alloc, DTOR(polymec_allocator_free));
+}
+
+polymec_allocator_t* pop_allocator()
+{
+  ASSERT(alloc_stack != NULL);
+  return ptr_slist_pop(alloc_stack, NULL);
 }
 

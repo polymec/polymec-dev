@@ -131,38 +131,52 @@ static inline real_t rsqrt(real_t x)
   return (real_t)sqrt((double)x);
 }
 
+// This type represents a memory allocator which services memory allocations 
+// and deallocations. There are two kinds of allocators: an "arena," which 
+// represents a contiguous block of memory in the heap which grows as needed, 
+// and a "pool," which allocates pools of memory of fixed sizes.
+typedef struct polymec_allocator_t polymec_allocator_t;
+
+// Returns an arena allocator.
+polymec_allocator_t* arena_allocator_new();
+
+// Returns a pool allocator.
+polymec_allocator_t* pool_allocator_new();
+
+// Destroys the given allocator.
+void polymec_allocator_free(polymec_allocator_t* alloc);
+
 // This function allocates memory in the same fashion as malloc(), using the 
-// arena on the top of polymec's arena stack. If the arena is empty, calls to 
-// poly_malloc() simply use malloc().
+// allocator on the top of polymec's allocator stack. If the stack is empty, 
+// calls to poly_malloc() simply use malloc().
 void* poly_malloc(size_t size);
 
 // This version of poly_malloc() returns memory with the given alignment 
-// using the arena on the top of the arena stack, or calls aligned_alloc() 
-// if the stack is empty.
+// using the allocator on the top of the allocator stack, or calls 
+// aligned_alloc() if the stack is empty.
 void* poly_aligned_alloc(size_t alignment, size_t size);
 
-// This reallocates existing memory using the arena on top of the arena 
+// This reallocates existing memory using the allocator on top of the allocator 
 // stack, or calls realloc() if the stack is empty.
 void* poly_realloc(void* memory, size_t size);
 
 // This version of poly_realloc guarantees the given alignment of the 
-// reallocated memory, and using the arena on top of the arena stack. If the 
-// stack is empty, it calls aligned_alloc(), performs a memcpy() from the old 
-// to new memory, and frees the old memory with free().
+// reallocated memory, and using the allocator on top of the allocator stack. 
+// If the stack is empty, it calls aligned_alloc(), performs a memcpy() from 
+// the old to new memory, and frees the old memory with free().
 void* poly_aligned_realloc(void* memory, size_t alignment, size_t size);
 
-// Pushes a new memory arena to the arena stack, using this arena to allocate 
-// all memory with poly_malloc() until it is popped.
-void push_arena(ARENA* arena);
-
-// Frees memory, returning it to the arena on top of the arena stack (or 
-// calling free() if the stack is empty).
+// Frees memory, returning it to the allocator on top of the allocator stack 
+// (or calling free() if the stack is empty).
 void poly_free(void* memory);
 
-// Pops an arena off of the stack, returning it and using the next one to 
-// allocate all memory with poly_malloc(). If no arenas remain on the stack, 
-// this function throws a fatal error. 
-ARENA* pop_arena();
+// Pushes a new memory allocator to the allocator stack, using this allocator 
+// to allocate all memory with poly_malloc() until it is popped.
+void push_allocator(polymec_allocator_t* allocator);
+
+// Pops an allocator off of the stack, returning it and using the next one to 
+// allocate all memory with poly_malloc(). 
+polymec_allocator_t* pop_allocator();
 
 typedef void (*polymec_error_handler_function)(const char*);
 
