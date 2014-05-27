@@ -34,9 +34,6 @@ struct polymec_allocator_t
   polymec_allocator_vtable vtable;
 };
 
-  ARENA* arena;
-  POOL* pool;
-
 polymec_allocator_t* polymec_allocator_new(const char* name,
                                            void* context,
                                            polymec_allocator_vtable vtable)
