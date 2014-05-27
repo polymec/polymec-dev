@@ -133,7 +133,7 @@ static dae_integrator_t* dae_integrator_new(const char* name,
   ASSERT(vtable.residual != NULL);
   ASSERT(max_krylov_dim >= 3);
 
-  dae_integrator_t* integ = malloc(sizeof(dae_integrator_t));
+  dae_integrator_t* integ = polymec_malloc(sizeof(dae_integrator_t));
   integ->name = string_dup(name);
   integ->context = context;
   integ->comm = comm;
@@ -246,11 +246,11 @@ void dae_integrator_free(dae_integrator_t* integ)
 
   // Kill the rest.
   if (integ->status_message != NULL)
-    free(integ->status_message);
+    polymec_free(integ->status_message);
   if ((integ->context != NULL) && (integ->vtable.dtor != NULL))
     integ->vtable.dtor(integ->context);
-  free(integ->name);
-  free(integ);
+  polymec_free(integ->name);
+  polymec_free(integ);
 }
 
 char* dae_integrator_name(dae_integrator_t* integ)
@@ -358,7 +358,7 @@ bool dae_integrator_step(dae_integrator_t* integ, real_t* t, real_t* X, real_t* 
   // Clear the present status.
   if (integ->status_message != NULL)
   {
-    free(integ->status_message);
+    polymec_free(integ->status_message);
     integ->status_message = NULL;
   }
 

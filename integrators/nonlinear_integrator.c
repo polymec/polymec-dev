@@ -129,7 +129,7 @@ static nonlinear_integrator_t* nonlinear_integrator_new(const char* name,
   ASSERT(max_krylov_dim >= 3);
   ASSERT(max_restarts >= 0);
 
-  nonlinear_integrator_t* integrator = malloc(sizeof(nonlinear_integrator_t));
+  nonlinear_integrator_t* integrator = polymec_malloc(sizeof(nonlinear_integrator_t));
   integrator->name = string_dup(name);
   integrator->context = context;
   integrator->comm = comm;
@@ -250,9 +250,9 @@ void nonlinear_integrator_free(nonlinear_integrator_t* integrator)
     integrator->vtable.dtor(integrator->context);
   // Kill the rest.
   if (integrator->status_message != NULL)
-    free(integrator->status_message);
-  free(integrator->name);
-  free(integrator);
+    polymec_free(integrator->status_message);
+  polymec_free(integrator->name);
+  polymec_free(integrator);
 }
 
 char* nonlinear_integrator_name(nonlinear_integrator_t* integrator)
@@ -345,7 +345,7 @@ bool nonlinear_integrator_solve(nonlinear_integrator_t* integrator,
   // Clear the present status.
   if (integrator->status_message != NULL)
   {
-    free(integrator->status_message);
+    polymec_free(integrator->status_message);
     integrator->status_message = NULL;
   }
 

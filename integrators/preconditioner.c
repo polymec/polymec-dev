@@ -42,7 +42,7 @@ preconditioner_t* preconditioner_new(const char* name,
                                      void* context,
                                      preconditioner_vtable vtable)
 {
-  preconditioner_t* precond = malloc(sizeof(preconditioner_t));
+  preconditioner_t* precond = polymec_malloc(sizeof(preconditioner_t));
   precond->name = string_dup(name);
   precond->context = context;
   precond->vtable = vtable;
@@ -54,8 +54,8 @@ void preconditioner_free(preconditioner_t* precond)
 {
   if ((precond->vtable.dtor != NULL) && (precond->context != NULL))
     precond->vtable.dtor(precond->context);
-  free(precond->name);
-  free(precond);
+  polymec_free(precond->name);
+  polymec_free(precond);
 }
 
 char* preconditioner_name(preconditioner_t* precond)
@@ -110,7 +110,7 @@ preconditioner_matrix_t* preconditioner_matrix_new(const char* name,
   ASSERT(vtable.scale_and_shift != NULL);
   ASSERT(vtable.add != NULL);
   ASSERT(vtable.coeff != NULL);
-  preconditioner_matrix_t* mat = malloc(sizeof(preconditioner_matrix_t));
+  preconditioner_matrix_t* mat = polymec_malloc(sizeof(preconditioner_matrix_t));
   mat->name = string_dup(name);
   mat->context = context;
   mat->vtable = vtable;
@@ -122,8 +122,8 @@ void preconditioner_matrix_free(preconditioner_matrix_t* mat)
 {
   if ((mat->vtable.dtor != NULL) && (mat->context != NULL))
     mat->vtable.dtor(mat->context);
-  free(mat->name);
-  free(mat);
+  polymec_free(mat->name);
+  polymec_free(mat);
 }
 
 void* preconditioner_matrix_context(preconditioner_matrix_t* mat)

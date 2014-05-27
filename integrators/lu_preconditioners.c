@@ -162,14 +162,14 @@ static void supermatrix_dtor(void* context)
     printf("ERROR: unknown matrix type passed to supermatrix_free!");
     break;
   }
-  free(matrix);
+  polymec_free(matrix);
 }
 
 static preconditioner_matrix_t* lu_preconditioner_matrix(void* context)
 {
   lu_preconditioner_t* precond = context;
 
-  SuperMatrix* A = malloc(sizeof(SuperMatrix));
+  SuperMatrix* A = polymec_malloc(sizeof(SuperMatrix));
   
   // Fetch sparsity information from the graph.
   adj_graph_t* graph = precond->sparsity;
@@ -283,7 +283,7 @@ static void lu_preconditioner_compute_jacobian(void* context, real_t t, real_t* 
   // We compute the system Jacobian using the method described in 
   // Curtis, Powell, and Reed.
   int num_rows = adj_graph_num_vertices(graph);
-  real_t* Jv = malloc(sizeof(real_t) * num_rows);
+  real_t* Jv = polymec_malloc(sizeof(real_t) * num_rows);
   int num_colors = adj_graph_coloring_num_colors(coloring);
   for (int c = 0; c < num_colors; ++c)
   {
@@ -304,7 +304,7 @@ static void lu_preconditioner_compute_jacobian(void* context, real_t t, real_t* 
     SuperMatrix* J = preconditioner_matrix_context(mat);
     insert_Jv_into_supermatrix(graph, coloring, c, Jv, J);
   }
-  free(Jv);
+  polymec_free(Jv);
 }
 
 static bool lu_preconditioner_solve(void* context, preconditioner_matrix_t* A, real_t* B)
@@ -358,25 +358,25 @@ static void lu_preconditioner_dtor(void* context)
     Destroy_CompCol_Matrix(&precond->U);
   }
   Destroy_SuperMatrix_Store(&precond->rhs);
-  free(precond->rhs_data);
+  polymec_free(precond->rhs_data);
   Destroy_SuperMatrix_Store(&precond->X);
-  free(precond->X_data);
+  polymec_free(precond->X_data);
   StatFree(&precond->stat);
   for (int i = 0; i < precond->num_work_vectors; ++i)
-    free(precond->work[i]);
-  free(precond->work);
+    polymec_free(precond->work[i]);
+  polymec_free(precond->work);
   if (precond->etree != NULL)
-    free(precond->etree);
+    polymec_free(precond->etree);
   adj_graph_coloring_free(precond->coloring);
   precond->ilu_params = NULL;
-  free(precond);
+  polymec_free(precond);
 }
 
 preconditioner_t* lu_preconditioner_new(void* context,
                                         int (*residual_func)(void* context, real_t t, real_t* x, real_t* F),
                                         adj_graph_t* sparsity)
 {
-  lu_preconditioner_t* precond = malloc(sizeof(lu_preconditioner_t));
+  lu_preconditioner_t* precond = polymec_malloc(sizeof(lu_preconditioner_t));
   precond->sparsity = sparsity;
   precond->coloring = adj_graph_coloring_new(sparsity, SMALLEST_LAST);
   log_debug("LU preconditioner: graph coloring produced %d colors.", 
@@ -387,9 +387,9 @@ preconditioner_t* lu_preconditioner_new(void* context,
 
   // Preconditioner data.
   precond->N = adj_graph_num_vertices(precond->sparsity);
-  precond->rhs_data = malloc(sizeof(real_t) * precond->N);
+  precond->rhs_data = polymec_malloc(sizeof(real_t) * precond->N);
   dCreate_Dense_Matrix(&precond->rhs, precond->N, 1, precond->rhs_data, precond->N, SLU_DN, SLU_D, SLU_GE);
-  precond->X_data = malloc(sizeof(real_t) * precond->N);
+  precond->X_data = polymec_malloc(sizeof(real_t) * precond->N);
   dCreate_Dense_Matrix(&precond->X, precond->N, 1, precond->X_data, precond->N, SLU_DN, SLU_D, SLU_GE);
   StatInit(&precond->stat);
   precond->cperm = NULL;
@@ -401,9 +401,9 @@ preconditioner_t* lu_preconditioner_new(void* context,
 
   // Make work vectors.
   precond->num_work_vectors = 4;
-  precond->work = malloc(sizeof(real_t*) * precond->num_work_vectors);
+  precond->work = polymec_malloc(sizeof(real_t*) * precond->num_work_vectors);
   for (int i = 0; i < precond->num_work_vectors; ++i)
-    precond->work[i] = malloc(sizeof(real_t) * precond->N);
+    precond->work[i] = polymec_malloc(sizeof(real_t) * precond->N);
 
   preconditioner_vtable vtable = {.matrix = lu_preconditioner_matrix,
                                   .compute_jacobian = lu_preconditioner_compute_jacobian,
@@ -481,7 +481,7 @@ preconditioner_t* ilu_preconditioner_new(void* context,
                                          adj_graph_t* sparsity, 
                                          ilu_params_t* ilu_params)
 {
-  lu_preconditioner_t* precond = malloc(sizeof(lu_preconditioner_t));
+  lu_preconditioner_t* precond = polymec_malloc(sizeof(lu_preconditioner_t));
   precond->sparsity = sparsity;
   precond->coloring = adj_graph_coloring_new(sparsity, SMALLEST_LAST);
   log_debug("ILU preconditioner: graph coloring produced %d colors.", 
@@ -518,22 +518,22 @@ preconditioner_t* ilu_preconditioner_new(void* context,
 
   // Preconditioner data.
   precond->N = adj_graph_num_vertices(precond->sparsity);
-  precond->rhs_data = malloc(sizeof(real_t) * precond->N);
+  precond->rhs_data = polymec_malloc(sizeof(real_t) * precond->N);
   dCreate_Dense_Matrix(&precond->rhs, precond->N, 1, precond->rhs_data, precond->N, SLU_DN, SLU_D, SLU_GE);
-  precond->X_data = malloc(sizeof(real_t) * precond->N);
+  precond->X_data = polymec_malloc(sizeof(real_t) * precond->N);
   dCreate_Dense_Matrix(&precond->X, precond->N, 1, precond->X_data, precond->N, SLU_DN, SLU_D, SLU_GE);
   StatInit(&precond->stat);
   precond->cperm = NULL;
   precond->rperm = NULL;
   precond->options.ColPerm = NATURAL;
   precond->options.Fact = DOFACT;
-  precond->etree = malloc(sizeof(int) * precond->N);
+  precond->etree = polymec_malloc(sizeof(int) * precond->N);
 
   // Make work vectors.
   precond->num_work_vectors = 4;
-  precond->work = malloc(sizeof(real_t*) * precond->num_work_vectors);
+  precond->work = polymec_malloc(sizeof(real_t*) * precond->num_work_vectors);
   for (int i = 0; i < precond->num_work_vectors; ++i)
-    precond->work[i] = malloc(sizeof(real_t) * precond->N);
+    precond->work[i] = polymec_malloc(sizeof(real_t) * precond->N);
 
   preconditioner_vtable vtable = {.matrix = lu_preconditioner_matrix,
                                   .compute_jacobian = lu_preconditioner_compute_jacobian,
@@ -606,16 +606,16 @@ static void lu_dae_preconditioner_dtor(void* context)
   lu_dae_preconditioner_t* precond = context;
   preconditioner_free(precond->dFdx_precond);
   preconditioner_free(precond->dFdxdot_precond);
-  free(precond->x0);
-  free(precond->x_dot0);
-  free(precond);
+  polymec_free(precond->x0);
+  polymec_free(precond->x_dot0);
+  polymec_free(precond);
 }
 
 preconditioner_t* lu_dae_preconditioner_new(void* context,
                                             int (*residual_func)(void* context, real_t t, real_t* x, real_t* x_dot, real_t* F),
                                             adj_graph_t* sparsity)
 {
-  lu_dae_preconditioner_t* precond = malloc(sizeof(lu_dae_preconditioner_t));
+  lu_dae_preconditioner_t* precond = polymec_malloc(sizeof(lu_dae_preconditioner_t));
   precond->dFdx_precond = lu_preconditioner_new(precond, lu_dae_compute_res_for_x, sparsity);
   precond->dFdxdot_precond = lu_preconditioner_new(precond, lu_dae_compute_res_for_x_dot, sparsity);
   precond->F = residual_func;
@@ -623,8 +623,8 @@ preconditioner_t* lu_dae_preconditioner_new(void* context,
 
   // Preconditioner data.
   precond->N = adj_graph_num_vertices(sparsity);
-  precond->x0 = malloc(sizeof(real_t) * precond->N);
-  precond->x_dot0 = malloc(sizeof(real_t) * precond->N);
+  precond->x0 = polymec_malloc(sizeof(real_t) * precond->N);
+  precond->x_dot0 = polymec_malloc(sizeof(real_t) * precond->N);
 
   preconditioner_vtable vtable = {.matrix = lu_dae_preconditioner_matrix,
                                   .compute_dae_jacobians = lu_dae_preconditioner_compute_dae_jacobians,
@@ -638,7 +638,7 @@ preconditioner_t* ilu_dae_preconditioner_new(void* context,
                                              adj_graph_t* sparsity,
                                              ilu_params_t* ilu_params)
 {
-  lu_dae_preconditioner_t* precond = malloc(sizeof(lu_dae_preconditioner_t));
+  lu_dae_preconditioner_t* precond = polymec_malloc(sizeof(lu_dae_preconditioner_t));
   precond->dFdx_precond = ilu_preconditioner_new(precond, lu_dae_compute_res_for_x, sparsity, ilu_params);
   precond->dFdxdot_precond = ilu_preconditioner_new(precond, lu_dae_compute_res_for_x_dot, sparsity, ilu_params);
   precond->F = residual_func;
@@ -646,8 +646,8 @@ preconditioner_t* ilu_dae_preconditioner_new(void* context,
 
   // Preconditioner data.
   precond->N = adj_graph_num_vertices(sparsity);
-  precond->x0 = malloc(sizeof(real_t) * precond->N);
-  precond->x_dot0 = malloc(sizeof(real_t) * precond->N);
+  precond->x0 = polymec_malloc(sizeof(real_t) * precond->N);
+  precond->x_dot0 = polymec_malloc(sizeof(real_t) * precond->N);
 
   preconditioner_vtable vtable = {.matrix = lu_dae_preconditioner_matrix,
                                   .compute_dae_jacobians = lu_dae_preconditioner_compute_dae_jacobians,

@@ -116,8 +116,8 @@ static void bd_fprintf(void* context, FILE* stream)
 static void bd_dtor(void* context)
 {
   bd_mat_t* mat = context;
-  free(mat->coeffs);
-  free(mat);
+  polymec_free(mat->coeffs);
+  polymec_free(mat);
 }
 
 static preconditioner_matrix_t* block_jacobi_preconditioner_matrix(void* context)
@@ -130,10 +130,10 @@ static preconditioner_matrix_t* block_jacobi_preconditioner_matrix(void* context
                                          .dtor = bd_dtor};
   int bs = precond->block_size;
   int num_rows = precond->num_block_rows * bs;
-  bd_mat_t* mat = malloc(sizeof(bd_mat_t));
+  bd_mat_t* mat = polymec_malloc(sizeof(bd_mat_t));
   mat->num_block_rows = precond->num_block_rows;
   mat->block_size = bs;
-  mat->coeffs = malloc(sizeof(real_t) * mat->num_block_rows * bs * bs);
+  mat->coeffs = polymec_malloc(sizeof(real_t) * mat->num_block_rows * bs * bs);
   memset(mat->coeffs, 0, sizeof(real_t) * mat->num_block_rows * bs * bs);
   return preconditioner_matrix_new("Block-diagonal", mat, vtable, num_rows);
 }
@@ -199,7 +199,7 @@ static void block_jacobi_preconditioner_compute_jacobian(void* context, real_t t
   // Curtis, Powell, and Reed.
   int num_rows = adj_graph_num_vertices(graph);
   ASSERT(num_rows == precond->block_size*precond->num_block_rows);
-  real_t* Jv = malloc(sizeof(real_t) * num_rows);
+  real_t* Jv = polymec_malloc(sizeof(real_t) * num_rows);
   int num_colors = adj_graph_coloring_num_colors(coloring);
   for (int c = 0; c < num_colors; ++c)
   {
@@ -220,7 +220,7 @@ static void block_jacobi_preconditioner_compute_jacobian(void* context, real_t t
     bd_mat_t* J = preconditioner_matrix_context(mat);
     insert_Jv_into_bd_mat(graph, coloring, c, Jv, J);
   }
-  free(Jv);
+  polymec_free(Jv);
 }
 
 
@@ -259,11 +259,11 @@ static void block_jacobi_preconditioner_dtor(void* context)
 {
   block_jacobi_preconditioner_t* precond = context;
   for (int i = 0; i < precond->num_work_vectors; ++i)
-    free(precond->work[i]);
-  free(precond->work);
+    polymec_free(precond->work[i]);
+  polymec_free(precond->work);
   adj_graph_coloring_free(precond->coloring);
   adj_graph_free(precond->sparsity);
-  free(precond);
+  polymec_free(precond);
 }
 
 preconditioner_t* block_jacobi_preconditioner_new(void* context,
@@ -275,7 +275,7 @@ preconditioner_t* block_jacobi_preconditioner_new(void* context,
   ASSERT(num_block_rows > 0);
   ASSERT(block_size > 0);
 
-  block_jacobi_preconditioner_t* precond = malloc(sizeof(block_jacobi_preconditioner_t));
+  block_jacobi_preconditioner_t* precond = polymec_malloc(sizeof(block_jacobi_preconditioner_t));
 
   // Do we have a block graph?
   int num_rows = adj_graph_num_vertices(sparsity);
@@ -295,9 +295,9 @@ preconditioner_t* block_jacobi_preconditioner_new(void* context,
 
   // Make work vectors.
   precond->num_work_vectors = 4;
-  precond->work = malloc(sizeof(real_t*) * precond->num_work_vectors);
+  precond->work = polymec_malloc(sizeof(real_t*) * precond->num_work_vectors);
   for (int i = 0; i < precond->num_work_vectors; ++i)
-    precond->work[i] = malloc(sizeof(real_t) * precond->num_block_rows * precond->block_size);
+    precond->work[i] = polymec_malloc(sizeof(real_t) * precond->num_block_rows * precond->block_size);
 
   preconditioner_vtable vtable = {.matrix = block_jacobi_preconditioner_matrix,
                                   .compute_jacobian = block_jacobi_preconditioner_compute_jacobian,
@@ -366,9 +366,9 @@ static void block_jacobi_dae_preconditioner_dtor(void* context)
   block_jacobi_dae_preconditioner_t* precond = context;
   preconditioner_free(precond->dFdx_precond);
   preconditioner_free(precond->dFdxdot_precond);
-  free(precond->x0);
-  free(precond->x_dot0);
-  free(precond);
+  polymec_free(precond->x0);
+  polymec_free(precond->x_dot0);
+  polymec_free(precond);
 }
 
 preconditioner_t* block_jacobi_dae_preconditioner_new(void* context,
@@ -377,7 +377,7 @@ preconditioner_t* block_jacobi_dae_preconditioner_new(void* context,
                                                       int num_block_rows,
                                                       int block_size)
 {
-  block_jacobi_dae_preconditioner_t* precond = malloc(sizeof(block_jacobi_dae_preconditioner_t));
+  block_jacobi_dae_preconditioner_t* precond = polymec_malloc(sizeof(block_jacobi_dae_preconditioner_t));
   precond->dFdx_precond = block_jacobi_preconditioner_new(precond, block_jacobi_dae_compute_res_for_x, sparsity, num_block_rows, block_size);
   precond->dFdxdot_precond = block_jacobi_preconditioner_new(precond, block_jacobi_dae_compute_res_for_x_dot, sparsity, num_block_rows, block_size);
   precond->F = residual_func;
@@ -386,8 +386,8 @@ preconditioner_t* block_jacobi_dae_preconditioner_new(void* context,
   // Preconditioner data.
   precond->num_block_rows = num_block_rows;
   precond->block_size = block_size;
-  precond->x0 = malloc(sizeof(real_t) * (num_block_rows*block_size));
-  precond->x_dot0 = malloc(sizeof(real_t) * (num_block_rows*block_size));
+  precond->x0 = polymec_malloc(sizeof(real_t) * (num_block_rows*block_size));
+  precond->x_dot0 = polymec_malloc(sizeof(real_t) * (num_block_rows*block_size));
 
   preconditioner_vtable vtable = {.matrix = block_jacobi_dae_preconditioner_matrix,
                                   .compute_dae_jacobians = block_jacobi_dae_preconditioner_compute_dae_jacobians,

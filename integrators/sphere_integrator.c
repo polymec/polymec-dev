@@ -57,16 +57,16 @@ sphere_integrator_t* sphere_integrator_new(int degree)
 {
   ASSERT(degree >= 0);
 
-  sphere_integrator_t* integ = malloc(sizeof(sphere_integrator_t));
+  sphere_integrator_t* integ = polymec_malloc(sizeof(sphere_integrator_t));
   integ->degree = degree;
   integ->num_azi_nodes = degree + 1;
-  integ->azi_nodes = malloc(sizeof(real_t) * integ->num_azi_nodes);
-  integ->azi_weights = malloc(sizeof(real_t) * integ->num_azi_nodes);
+  integ->azi_nodes = polymec_malloc(sizeof(real_t) * integ->num_azi_nodes);
+  integ->azi_weights = polymec_malloc(sizeof(real_t) * integ->num_azi_nodes);
   get_azi_points_and_weights(degree, integ->azi_nodes, integ->azi_weights);
 
   integ->num_colat_nodes = degree/2 + 1;
-  integ->colat_nodes = malloc(sizeof(real_t) * integ->num_colat_nodes);
-  integ->colat_weights = malloc(sizeof(real_t) * integ->num_colat_nodes);
+  integ->colat_nodes = polymec_malloc(sizeof(real_t) * integ->num_colat_nodes);
+  integ->colat_weights = polymec_malloc(sizeof(real_t) * integ->num_colat_nodes);
   get_gauss_legendre_points(degree/2+1, integ->colat_nodes, integ->colat_weights);
 
   return integ;
@@ -74,11 +74,11 @@ sphere_integrator_t* sphere_integrator_new(int degree)
 
 void sphere_integrator_free(sphere_integrator_t* integ)
 {
-  free(integ->colat_weights);
-  free(integ->colat_nodes);
-  free(integ->azi_weights);
-  free(integ->azi_nodes);
-  free(integ);
+  polymec_free(integ->colat_weights);
+  polymec_free(integ->colat_nodes);
+  polymec_free(integ->azi_weights);
+  polymec_free(integ->azi_nodes);
+  polymec_free(integ);
 }
 
 int sphere_integrator_degree(sphere_integrator_t* integ)

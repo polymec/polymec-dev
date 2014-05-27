@@ -38,7 +38,7 @@ polyhedron_integrator_t* polyhedron_integrator_new(const char* name,
   ASSERT(vtable.set_domain != NULL);
   ASSERT(vtable.next_volume_point != NULL);
   ASSERT(vtable.next_surface_point != NULL);
-  polyhedron_integrator_t* integ = malloc(sizeof(polyhedron_integrator_t));
+  polyhedron_integrator_t* integ = polymec_malloc(sizeof(polyhedron_integrator_t));
   integ->name = string_dup(name);
   integ->context = context;
   integ->vtable = vtable;
@@ -72,10 +72,10 @@ polyhedron_integrator_t* sph_1d_polyhedron_integrator_new(int order)
 
 void polyhedron_integrator_free(polyhedron_integrator_t* integ)
 {
-  free(integ->name);
+  polymec_free(integ->name);
   if ((integ->vtable.dtor != NULL) && (integ->context != NULL))
     integ->vtable.dtor(integ->context);
-  free(integ);
+  polymec_free(integ);
 }
 
 void polyhedron_integrator_set_domain(polyhedron_integrator_t* integ,
@@ -208,12 +208,12 @@ static bool midpt_next_surface_point(void* context,
 static void midpt_dtor(void* context)
 {
   midpt_t* midpt = context;
-  free(midpt);
+  polymec_free(midpt);
 }
 
 polyhedron_integrator_t* midpoint_polyhedron_integrator_new()
 {
-  midpt_t* midpt = malloc(sizeof(midpt_t));
+  midpt_t* midpt = polymec_malloc(sizeof(midpt_t));
   midpt->cell_volume = 0.0;
   point_set(&midpt->cell_center, 0.0, 0.0, 0.0);
 

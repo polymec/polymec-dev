@@ -135,7 +135,7 @@ static ode_integrator_t* ode_integrator_new(const char* name,
   ASSERT(vtable.rhs != NULL);
   ASSERT(max_krylov_dim >= 3);
 
-  ode_integrator_t* integ = malloc(sizeof(ode_integrator_t));
+  ode_integrator_t* integ = polymec_malloc(sizeof(ode_integrator_t));
   integ->name = string_dup(name);
   integ->context = context;
   integ->comm = comm;
@@ -236,11 +236,11 @@ void ode_integrator_free(ode_integrator_t* integ)
 
   // Kill the rest.
   if (integ->status_message != NULL)
-    free(integ->status_message);
+    polymec_free(integ->status_message);
   if ((integ->context != NULL) && (integ->vtable.dtor != NULL))
     integ->vtable.dtor(integ->context);
-  free(integ->name);
-  free(integ);
+  polymec_free(integ->name);
+  polymec_free(integ);
 }
 
 char* ode_integrator_name(ode_integrator_t* integ)
@@ -350,7 +350,7 @@ bool ode_integrator_step(ode_integrator_t* integ, real_t* t, real_t* X)
   // Clear the present status.
   if (integ->status_message != NULL)
   {
-    free(integ->status_message);
+    polymec_free(integ->status_message);
     integ->status_message = NULL;
   }
 

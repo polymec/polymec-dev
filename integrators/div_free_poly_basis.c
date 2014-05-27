@@ -52,7 +52,7 @@ static void div_free_poly_basis_free(void* ctx, void* dummy)
   div_free_poly_basis_t* basis = ctx;
   for (int i = 0; i < basis->dim; ++i)
     basis->vectors[i].x = basis->vectors[i].y = basis->vectors[i].z = NULL;
-  free(basis->vectors);
+  polymec_free(basis->vectors);
 }
 
 // Basis dimension for given degree.
@@ -187,7 +187,7 @@ div_free_poly_basis_t* spherical_div_free_poly_basis_new(int degree, point_t* x0
   basis->x0 = *x0;
   basis->radius = radius;
   basis->dim = basis_dim[degree];
-  basis->vectors = malloc(sizeof(polynomial_vector_t) * basis->dim);
+  basis->vectors = polymec_malloc(sizeof(polynomial_vector_t) * basis->dim);
   GC_register_finalizer(basis, div_free_poly_basis_free, basis, NULL, NULL);
 
   // Construct the naive monomial basis.
