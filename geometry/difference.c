@@ -68,13 +68,13 @@ sp_func_t* difference_new(sp_func_t* surface1, sp_func_t* surface2)
   ASSERT(surface2 != NULL);
   ASSERT(sp_func_num_comp(surface2) == 1);
 
-  diff_t* diff = malloc(sizeof(diff_t));
+  diff_t* diff = polymec_malloc(sizeof(diff_t));
   diff->s1 = surface1;
   diff->s2 = surface2;
 
   char diff_str[1024];
   sprintf(diff_str, "Difference"); // FIXME: Not very helpful.
-  sp_vtable vtable = {.eval = diff_eval, .dtor = free};
+  sp_vtable vtable = {.eval = diff_eval, .dtor = polymec_free};
   sp_func_t* difference = sp_func_new(diff_str, diff, vtable, SP_INHOMOGENEOUS, 1);
 
   // Register the gradient function if we have it.

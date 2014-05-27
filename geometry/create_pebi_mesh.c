@@ -71,7 +71,7 @@ mesh_t* create_pebi_mesh(MPI_Comm comm,
     mesh->cell_face_offsets[c] += mesh->cell_face_offsets[c-1];
 
   // Now fill the mesh's cell_faces array.
-  int* cell_face_count = malloc(sizeof(int) * num_cells);
+  int* cell_face_count = polymec_malloc(sizeof(int) * num_cells);
   memset(cell_face_count, 0, sizeof(int) * num_cells);
   mesh->cell_faces = polymec_realloc(mesh->cell_faces, sizeof(int) * mesh->cell_face_offsets[num_cells]);
   for (int f = 0; f < num_faces; ++f)
@@ -86,7 +86,7 @@ mesh_t* create_pebi_mesh(MPI_Comm comm,
       ++cell_face_count[c2];
     }
   }
-  free(cell_face_count);
+  polymec_free(cell_face_count);
 
   // Set the cell volumes.
   memcpy(mesh->cell_volumes, cell_volumes, sizeof(real_t)*num_cells);

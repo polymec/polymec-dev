@@ -43,10 +43,10 @@ void create_boundary_generators(ptr_array_t* surface_points,
   int num_surface_points = surface_points->size;
 
   // Compute the minimum distance from each surface point to its neighbors.
-  real_t* h_min = malloc(sizeof(real_t) * num_surface_points);
+  real_t* h_min = polymec_malloc(sizeof(real_t) * num_surface_points);
   {
     // Dump the surface points into a kd-tree.
-    point_t* surf_points = malloc(sizeof(point_t) * num_surface_points);
+    point_t* surf_points = polymec_malloc(sizeof(point_t) * num_surface_points);
     for (int i = 0; i < num_surface_points; ++i)
       surf_points[i] = *((point_t*)surface_points->data[i]);
     kd_tree_t* tree = kd_tree_new(surf_points, num_surface_points);
@@ -70,7 +70,7 @@ void create_boundary_generators(ptr_array_t* surface_points,
 
     // Clean up.
     kd_tree_free(tree);
-    free(surf_points);
+    polymec_free(surf_points);
   }
 
   // Generate boundary points for each surface point based on how many 
@@ -108,17 +108,17 @@ void create_boundary_generators(ptr_array_t* surface_points,
     {
       // This point only belongs to one surface, so we create boundary points 
       // on either side of it.
-      point_t* x_out = malloc(sizeof(point_t));
+      point_t* x_out = polymec_malloc(sizeof(point_t));
       x_out->x = x_surf->x + h_min[i]*normals[0].x;
       x_out->y = x_surf->y + h_min[i]*normals[0].y;
       x_out->z = x_surf->z + h_min[i]*normals[0].z;
-      ptr_array_append_with_dtor(boundary_points, x_out, DTOR(free));
+      ptr_array_append_with_dtor(boundary_points, x_out, polymec_free);
 
-      point_t* x_in = malloc(sizeof(point_t));
+      point_t* x_in = polymec_malloc(sizeof(point_t));
       x_in->x = x_surf->x - h_min[i]*normals[0].x;
       x_in->y = x_surf->y - h_min[i]*normals[0].y;
       x_in->z = x_surf->z - h_min[i]*normals[0].z;
-      ptr_array_append_with_dtor(boundary_points, x_in, DTOR(free));
+      ptr_array_append_with_dtor(boundary_points, x_in, polymec_free);
     }
     else if (num_normals == 2)
     {
@@ -126,17 +126,17 @@ void create_boundary_generators(ptr_array_t* surface_points,
       // (Or so it seems.)
       ASSERT(vector_dot(&normals[0], &normals[1]) < 0.0);
 
-      point_t* x1 = malloc(sizeof(point_t));
+      point_t* x1 = polymec_malloc(sizeof(point_t));
       x1->x = x_surf->x + h_min[i]*normals[0].x;
       x1->y = x_surf->y + h_min[i]*normals[0].y;
       x1->z = x_surf->z + h_min[i]*normals[0].z;
-      ptr_array_append_with_dtor(boundary_points, x1, DTOR(free));
+      ptr_array_append_with_dtor(boundary_points, x1, polymec_free);
 
-      point_t* x2 = malloc(sizeof(point_t));
+      point_t* x2 = polymec_malloc(sizeof(point_t));
       x2->x = x_surf->x - h_min[i]*normals[1].x;
       x2->y = x_surf->y - h_min[i]*normals[1].y;
       x2->z = x_surf->z - h_min[i]*normals[1].z;
-      ptr_array_append_with_dtor(boundary_points, x2, DTOR(free));
+      ptr_array_append_with_dtor(boundary_points, x2, polymec_free);
     }
 
     // Tag the boundary point appropriately.
@@ -144,7 +144,7 @@ void create_boundary_generators(ptr_array_t* surface_points,
   }
 
   // Move the surface points into a contiguous array.
-  *boundary_generators = malloc(sizeof(point_t) * boundary_points->size);
+  *boundary_generators = polymec_malloc(sizeof(point_t) * boundary_points->size);
   *num_boundary_generators = boundary_points->size;
   for (int i = 0; i < boundary_points->size; ++i)
   {
@@ -152,8 +152,8 @@ void create_boundary_generators(ptr_array_t* surface_points,
   }
 
   // Transcribe the tags.
-  *tag_names = malloc(sizeof(char*) * tag_indices->size);
-  *tags = malloc(sizeof(int_array_t*) * tag_indices->size);
+  *tag_names = polymec_malloc(sizeof(char*) * tag_indices->size);
+  *tags = polymec_malloc(sizeof(int_array_t*) * tag_indices->size);
   *num_tags = tag_indices->size;
   char* tag_name;
   int pos = 0, tag_index;
@@ -167,7 +167,7 @@ void create_boundary_generators(ptr_array_t* surface_points,
 
   // Clean up.
   string_int_unordered_map_free(tag_indices);
-  free(h_min);
+  polymec_free(h_min);
 }
 
 

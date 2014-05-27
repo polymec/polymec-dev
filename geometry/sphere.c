@@ -51,7 +51,7 @@ static void sphere_eval_gradient(void* ctx, point_t* x, real_t* result)
 sp_func_t* sphere_new(point_t* x, real_t r, normal_orient_t normal_orientation)
 {
   // Set up a sphere signed distance function.
-  sphere_t* s = malloc(sizeof(sphere_t));
+  sphere_t* s = polymec_malloc(sizeof(sphere_t));
   point_copy(&s->x, x);
   s->r = r;
   s->orient = normal_orientation;
@@ -59,7 +59,7 @@ sp_func_t* sphere_new(point_t* x, real_t r, normal_orient_t normal_orientation)
   char sphere_str[1024];
   sprintf(sphere_str, "Sphere (x = (%g %g %g), r = %g)", 
           x->x, x->y, x->z, r);
-  sp_vtable vtable = {.eval = sphere_eval, .dtor = free};
+  sp_vtable vtable = {.eval = sphere_eval, .dtor = polymec_free};
   sp_func_t* sphere = sp_func_new(sphere_str, s, vtable, SP_INHOMOGENEOUS, 1);
 
   // Register the gradient function.

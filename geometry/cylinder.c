@@ -60,7 +60,7 @@ static void cyl_eval_gradient(void* ctx, point_t* x, real_t* result)
 sp_func_t* cylinder_new(point_t* x, real_t r, normal_orient_t normal_orientation)
 {
   // Set up a cylinder signed distance function.
-  cyl_t* c = malloc(sizeof(cyl_t));
+  cyl_t* c = polymec_malloc(sizeof(cyl_t));
   point_copy(&c->x, x);
   c->r = r;
   c->orient = normal_orientation;
@@ -68,7 +68,7 @@ sp_func_t* cylinder_new(point_t* x, real_t r, normal_orient_t normal_orientation
   char cyl_str[1024];
   sprintf(cyl_str, "Cylinder (x = (%g %g %g), r = %g)", 
           x->x, x->y, x->z, r);
-  sp_vtable vtable = {.eval = cyl_eval, .dtor = free};
+  sp_vtable vtable = {.eval = cyl_eval, .dtor = polymec_free};
   sp_func_t* cyl = sp_func_new(cyl_str, c, vtable, SP_INHOMOGENEOUS, 1);
 
   // Register the gradient function.

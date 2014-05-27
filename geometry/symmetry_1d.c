@@ -65,13 +65,13 @@ mesh_t* create_uniform_cartesian_1d_mesh(MPI_Comm comm, real_t x1, real_t x2, in
   ASSERT(N > 0);
 
   // This is really just a nonuniform Cartesian mesh with, um, uniform spacing.
-  real_t* xs = malloc(sizeof(real_t) * (N+1));
+  real_t* xs = polymec_malloc(sizeof(real_t) * (N+1));
   xs[0] = x1;
   real_t dx = (x2 - x1) / N;
   for (int i = 1; i < N+1; ++i)
     xs[i] = xs[i-1] + dx;
   mesh_t* mesh = create_nonuniform_cartesian_1d_mesh(comm, xs, N);
-  free(xs);
+  polymec_free(xs);
 
   return mesh;
 }
@@ -79,10 +79,10 @@ mesh_t* create_uniform_cartesian_1d_mesh(MPI_Comm comm, real_t x1, real_t x2, in
 mesh_t* create_logarithmic_cartesian_1d_mesh(MPI_Comm comm, real_t x1, real_t x2, real_t log_factor, int N)
 {
   // This is really just a nonuniform Cartesian mesh with logarithmic spacings.
-  real_t* xs = malloc(sizeof(real_t) * (N+1));
+  real_t* xs = polymec_malloc(sizeof(real_t) * (N+1));
   compute_log_spacing(x1, x2, log_factor, N+1, xs);
   mesh_t* mesh = create_nonuniform_cartesian_1d_mesh(comm, xs, N);
-  free(xs);
+  polymec_free(xs);
 
   return mesh;
 }
@@ -112,13 +112,13 @@ mesh_t* create_uniform_cylindrical_1d_mesh(MPI_Comm comm, real_t r1, real_t r2, 
   ASSERT(N > 0);
 
   // This is really just a nonuniform cylindrical mesh with, um, uniform spacing.
-  real_t* rs = malloc(sizeof(real_t) * (N+1));
+  real_t* rs = polymec_malloc(sizeof(real_t) * (N+1));
   rs[0] = r1;
   real_t dr = (r2 - r1) / N;
   for (int i = 1; i < N+1; ++i)
     rs[i] = rs[i-1] + dr;
   mesh_t* mesh = create_nonuniform_cylindrical_1d_mesh(comm, rs, N);
-  free(rs);
+  polymec_free(rs);
 
   return mesh;
 }
@@ -130,10 +130,10 @@ mesh_t* create_logarithmic_cylindrical_1d_mesh(MPI_Comm comm, real_t r1, real_t 
   ASSERT(N > 0);
 
   // This is really just a nonuniform cylindrical mesh with logarithmic spacings.
-  real_t* rs = malloc(sizeof(real_t) * (N+1));
+  real_t* rs = polymec_malloc(sizeof(real_t) * (N+1));
   compute_log_spacing(r1, r2, log_factor, N+1, rs);
   mesh_t* mesh = create_nonuniform_cylindrical_1d_mesh(comm, rs, N);
-  free(rs);
+  polymec_free(rs);
 
   return mesh;
 }
@@ -381,13 +381,13 @@ mesh_t* create_uniform_spherical_1d_mesh(MPI_Comm comm, real_t r1, real_t r2, in
   ASSERT(N > 0);
 
   // This is really just a nonuniform spherical mesh with, um, uniform spacing.
-  real_t* rs = malloc(sizeof(real_t) * (N+1));
+  real_t* rs = polymec_malloc(sizeof(real_t) * (N+1));
   rs[0] = r1;
   real_t dr = (r2 - r1) / N;
   for (int i = 1; i < N+1; ++i)
     rs[i] = rs[i-1] + dr;
   mesh_t* mesh = create_nonuniform_spherical_1d_mesh(comm, rs, N);
-  free(rs);
+  polymec_free(rs);
 
   return mesh;
 }
@@ -399,10 +399,10 @@ mesh_t* create_logarithmic_spherical_1d_mesh(MPI_Comm comm, real_t r1, real_t r2
   ASSERT(N > 0);
 
   // This is really just a nonuniform spherical mesh with logarithmic spacings.
-  real_t* rs = malloc(sizeof(real_t) * (N+1));
+  real_t* rs = polymec_malloc(sizeof(real_t) * (N+1));
   compute_log_spacing(r1, r2, log_factor, N+1, rs);
   mesh_t* mesh = create_nonuniform_spherical_1d_mesh(comm, rs, N);
-  free(rs);
+  polymec_free(rs);
 
   return mesh;
 }

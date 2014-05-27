@@ -62,7 +62,7 @@ point_t* create_convex_hull(point_t* points, int num_points, int* hull_size)
     perm[i] += 4;
 
   // Create the array of points from our linked list.
-  point_t* hull_points = malloc(sizeof(point_t) * hull->size);
+  point_t* hull_points = polymec_malloc(sizeof(point_t) * hull->size);
   int_dlist_node_t* node = NULL;
   int index, i = 0;
   while (int_dlist_next(hull, &node, &index))

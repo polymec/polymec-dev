@@ -56,12 +56,12 @@ sp_func_t* scaled_new(sp_func_t* func, real_t scale_factor)
   ASSERT(sp_func_num_comp(func) == 1);
   ASSERT(scale_factor > 0.0);
 
-  sc_t* sc = malloc(sizeof(sc_t));
+  sc_t* sc = polymec_malloc(sizeof(sc_t));
   sc->func = func;
   sc->scale_factor = scale_factor;
   char sc_str[1024];
   sprintf(sc_str, "scaled"); // FIXME: Not very helpful.
-  sp_vtable vtable = {.eval = sc_eval};
+  sp_vtable vtable = {.eval = sc_eval, .dtor = polymec_free};
   sp_func_t* sc_func = sp_func_new(sc_str, sc, vtable, SP_INHOMOGENEOUS, 1);
 
   // Register the gradient function if we have it.

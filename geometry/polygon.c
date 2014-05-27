@@ -42,8 +42,8 @@ struct polygon_t
 static void polygon_free(void* ctx, void* dummy)
 {
   polygon_t* poly = ctx;
-  free(poly->vertices);
-  free(poly->ordering);
+  polymec_free(poly->vertices);
+  polymec_free(poly->ordering);
   poly->plane = NULL;
 }
 
@@ -111,10 +111,10 @@ polygon_t* polygon_new_with_ordering(point_t* points, int* ordering, int num_poi
   ASSERT(num_points >= 3);
   // FIXME: Check that all points are coplanar.
   polygon_t* poly = GC_MALLOC(sizeof(polygon_t));
-  poly->vertices = malloc(sizeof(point_t)*num_points);
+  poly->vertices = polymec_malloc(sizeof(point_t)*num_points);
   memcpy(poly->vertices, points, sizeof(point_t)*num_points);
   poly->num_vertices = num_points;
-  poly->ordering = malloc(sizeof(int)*num_points);
+  poly->ordering = polymec_malloc(sizeof(int)*num_points);
   memcpy(poly->ordering, ordering, sizeof(int)*num_points);
   polygon_compute_area(poly);
   polygon_compute_plane(poly);
@@ -272,7 +272,7 @@ void polygon_clip(polygon_t* poly, polygon_t* other)
   // Now re-embed the vertices.
   int num_vertices = polygon2_num_vertices(poly2);
   if (poly->num_vertices < num_vertices)
-    poly->vertices = realloc(poly->vertices, sizeof(point_t)*num_vertices);
+    poly->vertices = polymec_realloc(poly->vertices, sizeof(point_t)*num_vertices);
   poly->num_vertices = num_vertices;
   int pos = 0, offset = 0;
   point2_t* vtx;

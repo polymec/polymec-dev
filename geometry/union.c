@@ -34,8 +34,8 @@ typedef struct
 static void un_free(void* ctx)
 {
   un_t* un = ctx;
-  free(un->funcs);
-  free(un);
+  polymec_free(un->funcs);
+  polymec_free(un);
 }
 
 static void un_eval(void* ctx, point_t* x, real_t* result)
@@ -74,8 +74,8 @@ sp_func_t* union_new(sp_func_t** surfaces, int num_surfaces)
   ASSERT(surfaces != NULL);
   ASSERT(num_surfaces > 1);
 
-  un_t* un = malloc(sizeof(un_t));
-  un->funcs = malloc(sizeof(sp_func_t*) * num_surfaces);
+  un_t* un = polymec_malloc(sizeof(un_t));
+  un->funcs = polymec_malloc(sizeof(sp_func_t*) * num_surfaces);
   un->num_funcs = num_surfaces;
   bool has_grad = true;
   for (int i = 0; i < num_surfaces; ++i)

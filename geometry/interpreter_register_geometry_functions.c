@@ -90,7 +90,7 @@ static int sample_bbox(lua_State* lua)
   real_t dx = (bbox->x2 - bbox->x1) / nx;
   real_t dy = (bbox->y2 - bbox->y1) / ny;
   real_t dz = (bbox->z2 - bbox->z1) / nz;
-  point_t* points = malloc(sizeof(point_t) * num_points);
+  point_t* points = polymec_malloc(sizeof(point_t) * num_points);
   int offset = 0;
 
   // -x face.
@@ -237,7 +237,7 @@ static int sample_cyl_shell(lua_State* lua)
   real_t dr = (r2 - r1) / nr;
   real_t dphi = 2.0 * M_PI / nphi;
   real_t dz = (z2 - z1) / nz;
-  point_t* points = malloc(sizeof(point_t) * num_points);
+  point_t* points = polymec_malloc(sizeof(point_t) * num_points);
   int offset = 0;
 
   for (int i = 0; i < nr; ++i)
@@ -388,7 +388,7 @@ static int copy_points(lua_State* lua)
 
   int num_points;
   point_t* old_points = lua_topointlist(lua, 1, &num_points);
-  point_t* new_points = malloc(sizeof(point_t) * num_points);
+  point_t* new_points = polymec_malloc(sizeof(point_t) * num_points);
   memcpy(new_points, old_points, sizeof(point_t) * num_points);
   lua_pushpointlist(lua, new_points, num_points);
 
@@ -507,7 +507,7 @@ static int select_points(lua_State* lua)
 
   // Construct a sequence consisting of the point indices.
   // NOTE: we use real_t because that's how lua represents numbers.
-  real_t* s_points = malloc(sizeof(real_t) * selected_points->size);
+  real_t* s_points = polymec_malloc(sizeof(real_t) * selected_points->size);
 
   int i = 0;
   for (int_slist_node_t* node = selected_points->front; node != NULL; node = node->next, ++i)
@@ -546,7 +546,7 @@ static int remove_points(lua_State* lua)
     int_unordered_set_insert(removed_points, (int)selected_points[i]);
 
   // Construct a copy of the list of points, with the removed points absent.
-  point_t* trimmed_points = malloc(sizeof(point_t) * num_points - num_selected_points);
+  point_t* trimmed_points = polymec_malloc(sizeof(point_t) * num_points - num_selected_points);
   int j = 0;
   for (int i = 0; i < num_points; ++i)
   {

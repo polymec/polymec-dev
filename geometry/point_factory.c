@@ -103,7 +103,7 @@ int point_factory_cubic_lattice(lua_State* lua)
 
   // Create the lattice of points.
   int num_points = (nx + 2*ng) * (ny + 2*ng) * (nz + 2*ng), offset = 0;
-  point_t* points = malloc(sizeof(point_t) * num_points);
+  point_t* points = polymec_malloc(sizeof(point_t) * num_points);
   real_t dx = (bbox->x2 - bbox->x1) / nx;
   real_t dy = (bbox->y2 - bbox->y1) / ny;
   real_t dz = (bbox->z2 - bbox->z1) / nz;
@@ -290,7 +290,7 @@ int point_factory_cylinder(lua_State* lua)
   }
   int num_disks = nz;
   int num_points = num_points_in_disk * (nz + 2*ng);
-  point_t* points = malloc(sizeof(point_t) * num_points);
+  point_t* points = polymec_malloc(sizeof(point_t) * num_points);
   real_t dz = length / nz;
 
   // Set up an orthonormal basis for the given axis.
@@ -348,10 +348,10 @@ static int read_ascii_stl_file(FILE* stl_file,
   point_t *v1, *v2, *v3;
   do
   {
-    n = malloc(sizeof(vector_t));
-    v1 = malloc(sizeof(point_t));
-    v2 = malloc(sizeof(point_t));
-    v3 = malloc(sizeof(point_t));
+    n = polymec_malloc(sizeof(vector_t));
+    v1 = polymec_malloc(sizeof(point_t));
+    v2 = polymec_malloc(sizeof(point_t));
+    v3 = polymec_malloc(sizeof(point_t));
     status = fscanf(stl_file, "facet normal %le %le %le\n", &n->x, &n->y, &n->z);
     if (status != 3)
     {
@@ -416,10 +416,10 @@ static int read_ascii_stl_file(FILE* stl_file,
   return 0;
 
 exit_on_error:
-  free(n);
-  free(v1);
-  free(v2);
-  free(v3);
+  polymec_free(n);
+  polymec_free(v1);
+  polymec_free(v2);
+  polymec_free(v3);
   return -1;
 }
 
@@ -463,13 +463,13 @@ static int read_binary_stl_file(FILE* stl_file,
       return -1;
     }
 
-    vector_t* n = malloc(sizeof(vector_t));
+    vector_t* n = polymec_malloc(sizeof(vector_t));
     n->x = floats[0], n->y = floats[1], n->z = floats[2];
-    vector_t* v1 = malloc(sizeof(vector_t));
+    vector_t* v1 = polymec_malloc(sizeof(vector_t));
     v1->x = floats[3], v1->y = floats[4], v1->z = floats[5];
-    vector_t* v2 = malloc(sizeof(vector_t));
+    vector_t* v2 = polymec_malloc(sizeof(vector_t));
     v2->x = floats[6], v2->y = floats[7], v2->z = floats[8];
-    vector_t* v3 = malloc(sizeof(vector_t));
+    vector_t* v3 = polymec_malloc(sizeof(vector_t));
     v3->x = floats[9], v3->y = floats[10], v3->z = floats[11];
 
     // Add the entries.
@@ -523,14 +523,14 @@ static void import_points_from_stl(const char* stl_file_name, int* num_points, p
   // Dump the points into a kd-tree so that we can see which ones coincide.
   kd_tree_t* point_tree;
   {
-    point_t* points_with_duplicates = malloc(sizeof(point_t) * all_vertices->size);
+    point_t* points_with_duplicates = polymec_malloc(sizeof(point_t) * all_vertices->size);
     for (int i = 0; i < all_vertices->size; ++i)
     {
       point_t* v = all_vertices->data[i];
       points_with_duplicates[i] = *v;
     }
     point_tree = kd_tree_new(points_with_duplicates, all_vertices->size);
-    free(points_with_duplicates);
+    polymec_free(points_with_duplicates);
   }
 
   // Now make a list of unique point indices (the indices of those points 
@@ -550,7 +550,7 @@ static void import_points_from_stl(const char* stl_file_name, int* num_points, p
     {
       // I think this can only happen in open surfaces.
       int_array_append(unique_point_indices, i);
-      vector_t* n_avg = malloc(sizeof(vector_t));
+      vector_t* n_avg = polymec_malloc(sizeof(vector_t));
       ptr_array_append_with_dtor(averaged_normals, n_avg, DTOR(free));
     }
     else
@@ -558,7 +558,7 @@ static void import_points_from_stl(const char* stl_file_name, int* num_points, p
       ASSERT(coincident_points->size > 0);
       int_slist_node_t* iter = coincident_points->front;
       int min_index = INT_MAX;
-      vector_t* n_avg = malloc(sizeof(vector_t)); 
+      vector_t* n_avg = polymec_malloc(sizeof(vector_t)); 
       while (iter != NULL)
       {
         min_index = MIN(iter->value, min_index);
@@ -577,7 +577,7 @@ static void import_points_from_stl(const char* stl_file_name, int* num_points, p
         ptr_array_append_with_dtor(averaged_normals, n_avg, DTOR(free));
       }
       else
-        free(n_avg);
+        polymec_free(n_avg);
       int_slist_free(coincident_points);
     }
   }
@@ -586,8 +586,8 @@ static void import_points_from_stl(const char* stl_file_name, int* num_points, p
 
   // Now build our list of points and normals.
   *num_points = unique_point_indices->size;
-  *points = malloc(sizeof(point_t) * unique_point_indices->size);
-  *normals = malloc(sizeof(vector_t) * unique_point_indices->size);
+  *points = polymec_malloc(sizeof(point_t) * unique_point_indices->size);
+  *normals = polymec_malloc(sizeof(vector_t) * unique_point_indices->size);
   for (int i = 0; i < unique_point_indices->size; ++i)
   {
     point_t* p = all_vertices->data[unique_point_indices->data[i]];
@@ -702,7 +702,7 @@ int point_factory_random_points(lua_State* lua)
     bbox = lua_toboundingbox(lua, 3);
   }
 
-  point_t* points = malloc(sizeof(point_t) * N);
+  point_t* points = polymec_malloc(sizeof(point_t) * N);
   generate_random_points(rand, density, bbox, N, points);
 
   // Return the point list.
@@ -828,7 +828,7 @@ int point_factory_ccp_points(lua_State* lua)
   // Pack it up and return it.
   int num_points = point_list->size;
   ASSERT(num_points > 0);
-  point_t* points = malloc(sizeof(point_t) * num_points);
+  point_t* points = polymec_malloc(sizeof(point_t) * num_points);
   for (int i = 0; i < num_points; ++i)
     point_copy(&points[i], ptr_slist_pop(point_list, NULL));
   ptr_slist_free(point_list);

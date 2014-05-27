@@ -54,7 +54,7 @@ static void prism_free(void* ctx)
 {
   rect_prism_t* prism = ctx;
   prism->prism = NULL;
-  free(prism);
+  polymec_free(prism);
 }
 
 sp_func_t* rect_prism_new(point_t* x0, 
@@ -104,7 +104,7 @@ sp_func_t* rect_prism_new(point_t* x0,
   x.x = x0->x, x.y = x0->y, x.z = x0->z + 0.5*L3;
   planes[5] = plane_new(&n, &x);
 
-  rect_prism_t* p = malloc(sizeof(rect_prism_t));
+  rect_prism_t* p = polymec_malloc(sizeof(rect_prism_t));
   p->prism = intersection_new(planes, 6);
 
   // Set up the spatial function.

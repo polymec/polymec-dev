@@ -37,8 +37,8 @@ struct polygon2_t
 static void polygon2_free(void* ctx, void* dummy)
 {
   polygon2_t* poly = ctx;
-  free(poly->vertices);
-  free(poly->ordering);
+  polymec_free(poly->vertices);
+  polymec_free(poly->ordering);
 }
 
 static void polygon2_compute_area(polygon2_t* poly)
@@ -68,10 +68,10 @@ polygon2_t* polygon2_new_with_ordering(point2_t* points, int* ordering, int num_
   ASSERT(points != NULL);
   ASSERT(num_points >= 3);
   polygon2_t* poly = GC_MALLOC(sizeof(polygon2_t));
-  poly->vertices = malloc(sizeof(point2_t)*num_points);
+  poly->vertices = polymec_malloc(sizeof(point2_t)*num_points);
   memcpy(poly->vertices, points, sizeof(point2_t)*num_points);
   poly->num_vertices = num_points;
-  poly->ordering = malloc(sizeof(int)*num_points);
+  poly->ordering = polymec_malloc(sizeof(int)*num_points);
   memcpy(poly->ordering, ordering, sizeof(int)*num_points);
   polygon2_compute_area(poly);
   GC_register_finalizer(poly, polygon2_free, poly, NULL, NULL);
@@ -385,7 +385,7 @@ void polygon2_clip(polygon2_t* poly, polygon2_t* other)
   ASSERT(xlist->size > 0);
   ASSERT(xlist->size == ylist->size);
   if (xlist->size > poly->num_vertices)
-    poly->vertices = realloc(poly->vertices, sizeof(point2_t)*xlist->size);
+    poly->vertices = polymec_realloc(poly->vertices, sizeof(point2_t)*xlist->size);
   poly->num_vertices = xlist->size;
   for (int i = 0; i < xlist->size; ++i)
   {

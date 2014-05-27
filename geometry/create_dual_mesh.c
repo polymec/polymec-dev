@@ -211,9 +211,9 @@ static mesh_t* create_dual_mesh_from_tet_mesh(MPI_Comm comm,
   // Each primal edge is surrounded by primal cells and faces, 
   // so we build lists of these cells/faces with which the edges are 
   // associated.
-  int_unordered_set_t** primal_cells_for_edge = malloc(sizeof(int_unordered_set_t*) * tet_mesh->num_edges);
-  int_unordered_set_t** primal_faces_for_edge = malloc(sizeof(int_unordered_set_t*) * tet_mesh->num_edges);
-  int_unordered_set_t** primal_boundary_faces_for_node = malloc(sizeof(int_unordered_set_t*) * tet_mesh->num_nodes);
+  int_unordered_set_t** primal_cells_for_edge = polymec_malloc(sizeof(int_unordered_set_t*) * tet_mesh->num_edges);
+  int_unordered_set_t** primal_faces_for_edge = polymec_malloc(sizeof(int_unordered_set_t*) * tet_mesh->num_edges);
+  int_unordered_set_t** primal_boundary_faces_for_node = polymec_malloc(sizeof(int_unordered_set_t*) * tet_mesh->num_nodes);
   memset(primal_cells_for_edge, 0, sizeof(int_unordered_set_t*) * tet_mesh->num_edges);
   memset(primal_faces_for_edge, 0, sizeof(int_unordered_set_t*) * tet_mesh->num_edges);
   memset(primal_boundary_faces_for_node, 0, sizeof(int_unordered_set_t*) * tet_mesh->num_nodes);
@@ -384,7 +384,7 @@ static mesh_t* create_dual_mesh_from_tet_mesh(MPI_Comm comm,
   // Now generate dual faces corresponding to primal edges. 
   int df_offset = 0;
   dual_mesh->face_node_offsets[0] = 0;
-  int_array_t** nodes_for_dual_face = malloc(sizeof(int_array_t*) * num_dual_faces);
+  int_array_t** nodes_for_dual_face = polymec_malloc(sizeof(int_array_t*) * num_dual_faces);
   memset(nodes_for_dual_face, 0, sizeof(int_array_t*) * num_dual_faces);
   for (int edge = 0; edge < tet_mesh->num_edges; ++edge)
   {
@@ -658,7 +658,7 @@ static mesh_t* create_dual_mesh_from_tet_mesh(MPI_Comm comm,
 
   // Create dual cells.
   int dc_offset = 0;
-  int_array_t** faces_for_dual_cell = malloc(sizeof(int_array_t*) * num_dual_cells);
+  int_array_t** faces_for_dual_cell = polymec_malloc(sizeof(int_array_t*) * num_dual_cells);
   memset(faces_for_dual_cell, 0, sizeof(int_array_t*) * num_dual_cells);
   // FIXME
   ASSERT(dc_offset == num_dual_cells);
@@ -687,23 +687,23 @@ static mesh_t* create_dual_mesh_from_tet_mesh(MPI_Comm comm,
   // Clean up.
   for (int c = 0; c < num_dual_cells; ++c)
     int_array_free(faces_for_dual_cell[c]);
-  free(faces_for_dual_cell);
+  polymec_free(faces_for_dual_cell);
   for (int f = 0; f < num_dual_faces; ++f)
     int_array_free(nodes_for_dual_face[f]);
-  free(nodes_for_dual_face);
+  polymec_free(nodes_for_dual_face);
   for (int e = 0; e < tet_mesh->num_edges; ++e)
   {
     int_unordered_set_free(primal_cells_for_edge[e]);
     int_unordered_set_free(primal_faces_for_edge[e]);
   }
-  free(primal_cells_for_edge);
-  free(primal_faces_for_edge);
+  polymec_free(primal_cells_for_edge);
+  polymec_free(primal_faces_for_edge);
   for (int n = 0; n < tet_mesh->num_nodes; ++n)
   {
     if (primal_boundary_faces_for_node[n] != NULL)
       int_unordered_set_free(primal_boundary_faces_for_node[n]);
   }
-  free(primal_boundary_faces_for_node);
+  polymec_free(primal_boundary_faces_for_node);
   int_int_unordered_map_free(dual_node_for_edge);
   int_int_unordered_map_free(dual_node_for_model_face);
   int_unordered_set_free(model_vertices);

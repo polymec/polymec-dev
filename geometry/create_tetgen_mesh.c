@@ -76,7 +76,7 @@ static point_t* read_nodes(const char* node_file, int* num_nodes)
         polymec_error("Node file has bad number of nodes: %d.", *num_nodes);
       if (dim != 3)
         polymec_error("Node file is not 3-dimensional.");
-      nodes = malloc(sizeof(point_t) * (*num_nodes));
+      nodes = polymec_malloc(sizeof(point_t) * (*num_nodes));
       continue;
     }
 
@@ -128,7 +128,7 @@ static tet_t* read_tets(const char* tet_file, int* num_tets)
         polymec_error("Bad number of tets in element file: %d.", *num_tets);
       if ((nodes_per_tet != 4) && (nodes_per_tet != 10))
         polymec_error("Bad number of nodes per tet: %d (must be 4 or 10).", nodes_per_tet);
-      tets = malloc(sizeof(tet_t) * (*num_tets));
+      tets = polymec_malloc(sizeof(tet_t) * (*num_tets));
       continue;
     }
 
@@ -209,7 +209,7 @@ static tet_face_t* read_faces(const char* face_file, int nodes_per_face, int* nu
         polymec_error("Face file has bad header.");
       if (*num_faces <= 0)
         polymec_error("Bad number of faces in face file: %d.", *num_faces);
-      faces = malloc(sizeof(tet_face_t) * (*num_faces));
+      faces = polymec_malloc(sizeof(tet_face_t) * (*num_faces));
       continue;
     }
 
@@ -555,9 +555,9 @@ mesh_t* create_tetgen_mesh(MPI_Comm comm,
     }
 
     // Clean up.
-    free(nodes);
-    free(faces);
-    free(tets);
+    polymec_free(nodes);
+    polymec_free(faces);
+    polymec_free(tets);
     int_tuple_int_unordered_map_free(face_for_nodes);
   }
   
@@ -571,9 +571,9 @@ mesh_t* create_tetgen_mesh(MPI_Comm comm,
     if (rank == 0)
       num_cells = mesh->num_cells;
     MPI_Scatter(&num_cells, 1, MPI_INT, &num_cells, 1, MPI_INT, 0, comm);
-    int* partition = malloc(sizeof(int) * num_cells);
+    int* partition = polymec_malloc(sizeof(int) * num_cells);
     mesh_t* local_mesh = distribute_serial_mesh(comm, mesh, partition);
-    free(partition);
+    polymec_free(partition);
     mesh_free(mesh);
     mesh = local_mesh;
   }

@@ -312,7 +312,7 @@ int mesh_factory_pebi(lua_State* lua)
   // Mine the faces table for all its 3-tuples.
   int num_faces = luaL_len(lua, 3);
   ASSERT(num_faces >= 4);
-  real_t** faces_table_entries = malloc(sizeof(real_t*)*num_faces);
+  real_t** faces_table_entries = polymec_malloc(sizeof(real_t*)*num_faces);
   lua_pushnil(lua);
   int face = 0;
   while (lua_next(lua, 3))
@@ -325,7 +325,7 @@ int mesh_factory_pebi(lua_State* lua)
     if (!key_is_number || !val_is_sequence)
     {
       lua_pop(lua, 1);
-      free(faces_table_entries);
+      polymec_free(faces_table_entries);
       return luaL_error(lua, "Found non-numeric entries in faces table.");
     }
     int tuple_len;
@@ -333,7 +333,7 @@ int mesh_factory_pebi(lua_State* lua)
     if (tuple_len != 3)
     {
       lua_pop(lua, 1);
-      free(faces_table_entries);
+      polymec_free(faces_table_entries);
       return luaL_error(lua, "Tuple at index %d of faces table has %d values (should be 3).", key_index, tuple_len);
     }
     ++face;
@@ -364,23 +364,23 @@ int mesh_factory_pebi(lua_State* lua)
   }
 
   // Shuffle the faces data into canonical form.
-  int* faces = malloc(2 * sizeof(int) * num_faces);
-  real_t* face_areas = malloc(sizeof(real_t) * num_faces);
+  int* faces = polymec_malloc(2 * sizeof(int) * num_faces);
+  real_t* face_areas = polymec_malloc(sizeof(real_t) * num_faces);
   for (int f = 0; f < num_faces; ++f)
   {
     faces[2*f] = faces_table_entries[f][0];
     faces[2*f+1] = faces_table_entries[f][1];
     face_areas[f] = faces_table_entries[f][2];
-    free(faces_table_entries[f]);
+    polymec_free(faces_table_entries[f]);
   }
-  free(faces_table_entries);
+  polymec_free(faces_table_entries);
 
   // Create the mesh.
   mesh_t* mesh = create_pebi_mesh(MPI_COMM_WORLD, cell_centers, cell_volumes, num_cells, 
                                   faces, face_areas, face_centers, num_faces);
-  free(face_areas);
-  free(faces);
-  free(cell_centers);
+  polymec_free(face_areas);
+  polymec_free(faces);
+  polymec_free(cell_centers);
 
   // Pop all the previous arguments off the stack.
   lua_pop(lua, lua_gettop(lua));

@@ -34,8 +34,8 @@ typedef struct
 static void inter_free(void* ctx)
 {
   inter_t* inter = ctx;
-  free(inter->funcs);
-  free(inter);
+  polymec_free(inter->funcs);
+  polymec_free(inter);
 }
 
 static void inter_eval(void* ctx, point_t* x, real_t* result)
@@ -75,8 +75,8 @@ sp_func_t* intersection_new(sp_func_t** surfaces, int num_surfaces)
   ASSERT(surfaces != NULL);
   ASSERT(num_surfaces > 1);
 
-  inter_t* inter = malloc(sizeof(inter_t));
-  inter->funcs = malloc(sizeof(sp_func_t*) * num_surfaces);
+  inter_t* inter = polymec_malloc(sizeof(inter_t));
+  inter->funcs = polymec_malloc(sizeof(sp_func_t*) * num_surfaces);
   inter->num_funcs = num_surfaces;
   bool has_grad = true;
   for (int i = 0; i < num_surfaces; ++i)

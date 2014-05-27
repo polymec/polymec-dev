@@ -57,7 +57,7 @@ static void allocate_new_vertex(delaunay_triangulation_t* t)
   {
     while (t->vertex_cap < (t->num_vertices+1))
       t->vertex_cap *= 2;
-    t->vertices = realloc(t->vertices, sizeof(point_t)*t->vertex_cap);
+    t->vertices = polymec_realloc(t->vertices, sizeof(point_t)*t->vertex_cap);
   }
 }
 
@@ -70,7 +70,7 @@ static void allocate_new_tets(delaunay_triangulation_t* t, int num_new_tets)
   {
     while (t->tet_cap < (t->num_tets+num_new_tets))
       t->tet_cap *= 2;
-    t->tet_vertices = realloc(t->tet_vertices, 4*sizeof(int)*t->tet_cap);
+    t->tet_vertices = polymec_realloc(t->tet_vertices, 4*sizeof(int)*t->tet_cap);
   }
 }
 
@@ -342,15 +342,15 @@ delaunay_triangulation_t* delaunay_triangulation_new(point_t* points, int num_po
 {
   ASSERT(num_points >= 4);
 
-  delaunay_triangulation_t* t = malloc(sizeof(delaunay_triangulation_t));
+  delaunay_triangulation_t* t = polymec_malloc(sizeof(delaunay_triangulation_t));
   t->algorithm = BOWYER_WATSON;
   t->num_vertices = 0;
   t->vertex_cap = 32;
-  t->vertices = malloc(sizeof(point_t) * t->vertex_cap);
+  t->vertices = polymec_malloc(sizeof(point_t) * t->vertex_cap);
 
   t->num_tets = 0;
   t->tet_cap = 32;
-  t->tet_vertices = malloc(sizeof(int) * 4 * t->tet_cap);
+  t->tet_vertices = polymec_malloc(sizeof(int) * 4 * t->tet_cap);
 
   switch(t->algorithm)
   {
@@ -372,9 +372,9 @@ delaunay_triangulation_t* delaunay_triangulation_new(point_t* points, int num_po
 
 void delaunay_triangulation_free(delaunay_triangulation_t* t)
 {
-  free(t->vertices);
-  free(t->tet_vertices);
-  free(t);
+  polymec_free(t->vertices);
+  polymec_free(t->tet_vertices);
+  polymec_free(t);
 }
 
 int delaunay_triangulation_num_vertices(delaunay_triangulation_t* t)
