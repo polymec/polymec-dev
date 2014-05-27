@@ -49,7 +49,7 @@ struct mesh_storage_t
 // Initializes a new storage mechanism for a mesh.
 static mesh_storage_t* mesh_storage_new()
 {
-  mesh_storage_t* storage = poly_malloc(sizeof(mesh_storage_t));
+  mesh_storage_t* storage = polymec_malloc(sizeof(mesh_storage_t));
   storage->cell_face_capacity = 0;
   storage->face_edge_capacity = 0;
   storage->face_node_capacity = 0;
@@ -59,7 +59,7 @@ static mesh_storage_t* mesh_storage_new()
 // Frees the given storage mechanism.
 static void mesh_storage_free(mesh_storage_t* storage)
 {
-  poly_free(storage);
+  polymec_free(storage);
 }
 
 mesh_t* mesh_new(MPI_Comm comm, int num_cells, int num_ghost_cells, 
@@ -70,7 +70,7 @@ mesh_t* mesh_new(MPI_Comm comm, int num_cells, int num_ghost_cells,
   ASSERT(num_faces >= 0);
   ASSERT(num_nodes >= 0);
 
-  mesh_t* mesh = poly_malloc(sizeof(mesh_t));
+  mesh_t* mesh = polymec_malloc(sizeof(mesh_t));
   mesh->comm = comm;
 
   // NOTE: We round stored elements up to the nearest power of 2.
@@ -78,28 +78,28 @@ mesh_t* mesh_new(MPI_Comm comm, int num_cells, int num_ghost_cells,
   // Allocate cell information.
   mesh->num_cells = num_cells;
   mesh->num_ghost_cells = num_ghost_cells;
-  mesh->cell_face_offsets = poly_malloc(sizeof(int)*(num_cells+num_ghost_cells+1));
+  mesh->cell_face_offsets = polymec_malloc(sizeof(int)*(num_cells+num_ghost_cells+1));
   memset(mesh->cell_face_offsets, 0, sizeof(int)*(num_cells+num_ghost_cells+1));
   int cell_face_cap = round_to_pow2(12 * (num_cells + num_ghost_cells));
-  mesh->cell_faces = poly_malloc(sizeof(int)*(cell_face_cap));
+  mesh->cell_faces = polymec_malloc(sizeof(int)*(cell_face_cap));
   memset(mesh->cell_faces, 0, sizeof(int)*cell_face_cap);
 
   // Allocate face information.
   mesh->num_faces = num_faces;
 
-  mesh->face_node_offsets = poly_malloc(sizeof(int)*(num_faces+1));
+  mesh->face_node_offsets = polymec_malloc(sizeof(int)*(num_faces+1));
   memset(mesh->face_node_offsets, 0, sizeof(int)*(num_faces+1));
   int face_node_cap = round_to_pow2(6 * num_faces);
-  mesh->face_nodes = poly_malloc(sizeof(int)*(face_node_cap));
+  mesh->face_nodes = polymec_malloc(sizeof(int)*(face_node_cap));
   memset(mesh->face_nodes, 0, sizeof(int)*face_node_cap);
 
-  mesh->face_edge_offsets = poly_malloc(sizeof(int)*(num_faces+1));
+  mesh->face_edge_offsets = polymec_malloc(sizeof(int)*(num_faces+1));
   memset(mesh->face_edge_offsets, 0, sizeof(int)*(num_faces+1));
   int face_edge_cap = round_to_pow2(4 * num_faces);
-  mesh->face_edges = poly_malloc(sizeof(int)*(face_edge_cap));
+  mesh->face_edges = polymec_malloc(sizeof(int)*(face_edge_cap));
   memset(mesh->face_edges, 0, sizeof(int)*face_edge_cap);
 
-  mesh->face_cells = poly_malloc(sizeof(int)*2*num_faces);
+  mesh->face_cells = polymec_malloc(sizeof(int)*2*num_faces);
   for (int f = 0; f < 2*mesh->num_faces; ++f)
     mesh->face_cells[f] = -1;
 
@@ -109,15 +109,15 @@ mesh_t* mesh_new(MPI_Comm comm, int num_cells, int num_ghost_cells,
 
   // Allocate node information.
   mesh->num_nodes = num_nodes;
-  mesh->nodes = poly_malloc(sizeof(point_t)*num_nodes);
+  mesh->nodes = polymec_malloc(sizeof(point_t)*num_nodes);
   memset(mesh->nodes, 0, sizeof(point_t)*num_nodes);
 
   // Allocate geometric data.
-  mesh->cell_volumes = poly_malloc(sizeof(real_t)*(num_cells+num_ghost_cells));
-  mesh->cell_centers = poly_malloc(sizeof(point_t)*(num_cells+num_ghost_cells));
-  mesh->face_centers = poly_malloc(sizeof(point_t)*num_faces);
-  mesh->face_areas = poly_malloc(sizeof(real_t)*num_faces);
-  mesh->face_normals = poly_malloc(sizeof(vector_t)*num_faces);
+  mesh->cell_volumes = polymec_malloc(sizeof(real_t)*(num_cells+num_ghost_cells));
+  mesh->cell_centers = polymec_malloc(sizeof(point_t)*(num_cells+num_ghost_cells));
+  mesh->face_centers = polymec_malloc(sizeof(point_t)*num_faces);
+  mesh->face_areas = polymec_malloc(sizeof(real_t)*num_faces);
+  mesh->face_normals = polymec_malloc(sizeof(vector_t)*num_faces);
 
   // Storage information.
   mesh->storage = mesh_storage_new();
@@ -172,26 +172,26 @@ void mesh_free(mesh_t* mesh)
   mesh_storage_free(mesh->storage);
 
   // Destroy geometric information.
-  poly_free(mesh->face_normals);
-  poly_free(mesh->face_areas);
-  poly_free(mesh->face_centers);
-  poly_free(mesh->cell_centers);
-  poly_free(mesh->cell_volumes);
+  polymec_free(mesh->face_normals);
+  polymec_free(mesh->face_areas);
+  polymec_free(mesh->face_centers);
+  polymec_free(mesh->cell_centers);
+  polymec_free(mesh->cell_volumes);
 
   // Destroy nodes.
-  poly_free(mesh->nodes);
+  polymec_free(mesh->nodes);
 
   // Destroy connectivity.
-  poly_free(mesh->edge_nodes);
-  poly_free(mesh->face_cells);
-  poly_free(mesh->face_edges);
-  poly_free(mesh->face_edge_offsets);
-  poly_free(mesh->face_nodes);
-  poly_free(mesh->face_node_offsets);
-  poly_free(mesh->cell_faces);
+  polymec_free(mesh->edge_nodes);
+  polymec_free(mesh->face_cells);
+  polymec_free(mesh->face_edges);
+  polymec_free(mesh->face_edge_offsets);
+  polymec_free(mesh->face_nodes);
+  polymec_free(mesh->face_node_offsets);
+  polymec_free(mesh->cell_faces);
 
   // Destroy the mesh itself.
-  poly_free(mesh);
+  polymec_free(mesh);
 }
 
 void mesh_verify(mesh_t* mesh)
@@ -484,7 +484,7 @@ void mesh_construct_edges(mesh_t* mesh)
         {
           while (mesh->storage->face_edge_capacity <= offset+n)
             mesh->storage->face_edge_capacity *= 2;
-          mesh->face_edges = poly_realloc(mesh->face_edges, sizeof(int) * mesh->storage->face_edge_capacity);
+          mesh->face_edges = polymec_realloc(mesh->face_edges, sizeof(int) * mesh->storage->face_edge_capacity);
         }
 
         int n1 = (int)mesh->face_nodes[offset+n];
@@ -502,7 +502,7 @@ void mesh_construct_edges(mesh_t* mesh)
     if (num_edges > 0)
     {
       mesh->num_edges = num_edges;
-      mesh->edge_nodes = poly_malloc(2 * sizeof(int) * mesh->num_edges);
+      mesh->edge_nodes = polymec_malloc(2 * sizeof(int) * mesh->num_edges);
       int_table_cell_pos_t pos = int_table_start(edge_for_nodes);
       int n1, n2, e;
       while (int_table_next_cell(edge_for_nodes, &pos, &n1, &n2, &e))
@@ -527,13 +527,13 @@ void mesh_reserve_connectivity_storage(mesh_t* mesh)
   {
     while (mesh->storage->cell_face_capacity <= num_cell_faces)
       mesh->storage->cell_face_capacity *= 2;
-    mesh->cell_faces = poly_realloc(mesh->cell_faces, sizeof(int) * mesh->storage->cell_face_capacity);
+    mesh->cell_faces = polymec_realloc(mesh->cell_faces, sizeof(int) * mesh->storage->cell_face_capacity);
   }
   if (mesh->storage->face_node_capacity <= num_face_nodes)
   {
     while (mesh->storage->face_node_capacity <= num_face_nodes)
       mesh->storage->face_node_capacity *= 2;
-    mesh->face_nodes = poly_realloc(mesh->face_nodes, sizeof(int) * mesh->storage->face_node_capacity);
+    mesh->face_nodes = polymec_realloc(mesh->face_nodes, sizeof(int) * mesh->storage->face_node_capacity);
   }
 }
 

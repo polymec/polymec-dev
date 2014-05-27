@@ -61,7 +61,7 @@ typedef struct \
 \
 static inline set_name##_t* set_name##_new() \
 { \
-  set_name##_t* set = malloc(sizeof(set_name##_t)); \
+  set_name##_t* set = polymec_malloc(sizeof(set_name##_t)); \
   set->map = set_name##_unordered_map_new(); \
   set->size = 0; \
   return set; \
@@ -76,7 +76,7 @@ static inline void set_name##_clear(set_name##_t* set) \
 static inline void set_name##_free(set_name##_t* set) \
 { \
   set_name##_unordered_map_free(set->map); \
-  free(set); \
+  polymec_free(set); \
 } \
 \
 static inline bool set_name##_contains(set_name##_t* set, set_name##_element_t datum) \

@@ -74,7 +74,7 @@ static void remove_polymec_temp_dir()
 
   log_debug("Deleting temporary directory '%s'.", polymec_temp_dir);
   remove_dir(polymec_temp_dir);
-  free(polymec_temp_dir);
+  polymec_free(polymec_temp_dir);
 }
 
 // This helper creates the temporary directory for the present polymec 

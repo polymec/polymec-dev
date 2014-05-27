@@ -52,7 +52,7 @@ static kd_tree_node_t* node_new(real_t* pos, int index, int dir)
 {
   ASSERT(dir >= 0);
   ASSERT(dir < 3);
-  kd_tree_node_t* node = malloc(sizeof(kd_tree_node_t));
+  kd_tree_node_t* node = polymec_malloc(sizeof(kd_tree_node_t));
   node->pos[0] = pos[0]; node->pos[1] = pos[1]; node->pos[2] = pos[2];
   node->index = index;
   node->dir = dir;
@@ -62,7 +62,7 @@ static kd_tree_node_t* node_new(real_t* pos, int index, int dir)
 
 static void node_free(kd_tree_node_t* node)
 {
-  free(node);
+  polymec_free(node);
 }
 
 // This defines a bounding 3-rectangle for points in the kd_tree.
@@ -73,7 +73,7 @@ typedef struct
 
 static kd_tree_rect_t* rect_new(real_t* min, real_t* max)
 {
-  kd_tree_rect_t* rect = malloc(sizeof(kd_tree_rect_t));
+  kd_tree_rect_t* rect = polymec_malloc(sizeof(kd_tree_rect_t));
   rect->min[0] = min[0]; rect->min[1] = min[1]; rect->min[2] = min[2];
   rect->max[0] = max[0]; rect->max[1] = max[1]; rect->max[2] = max[2];
   return rect;
@@ -81,7 +81,7 @@ static kd_tree_rect_t* rect_new(real_t* min, real_t* max)
 
 static void rect_free(kd_tree_rect_t* rect)
 {
-  free(rect);
+  polymec_free(rect);
 }
 
 static real_t rect_square_dist(kd_tree_rect_t* rect, real_t* pos)
@@ -144,7 +144,7 @@ static void kd_tree_insert(kd_tree_t* tree, point_t* point, int index)
 
 kd_tree_t* kd_tree_new(point_t* points, int num_points)
 {
-  kd_tree_t* tree = malloc(sizeof(kd_tree_t));
+  kd_tree_t* tree = polymec_malloc(sizeof(kd_tree_t));
   tree->root = NULL;
   tree->rect = NULL;
   tree->size = 0;
@@ -184,7 +184,7 @@ static void kd_tree_clear(kd_tree_t* tree)
 void kd_tree_free(kd_tree_t* tree)
 {
   kd_tree_clear(tree);
-  free(tree);
+  polymec_free(tree);
 }
 
 static void find_nearest(kd_tree_node_t* node, real_t* pos, kd_tree_node_t** result, real_t* r2, kd_tree_rect_t* rect)

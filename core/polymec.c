@@ -411,7 +411,7 @@ void polymec_allocator_free(polymec_allocator_t* alloc)
 // Allocator stack.
 static ptr_slist_t* alloc_stack = NULL;
 
-void* poly_malloc(size_t size)
+void* polymec_malloc(size_t size)
 {
   if ((alloc_stack == NULL) || (alloc_stack->size == 0))
     return malloc(size);
@@ -425,7 +425,7 @@ void* poly_malloc(size_t size)
   }
 }
 
-void* poly_aligned_alloc(size_t alignment, size_t size)
+void* polymec_aligned_alloc(size_t alignment, size_t size)
 {
   if ((alloc_stack == NULL) || (alloc_stack->size == 0))
 #ifdef APPLE
@@ -446,7 +446,7 @@ void* poly_aligned_alloc(size_t alignment, size_t size)
   }
 }
 
-void* poly_realloc(void* memory, size_t size)
+void* polymec_realloc(void* memory, size_t size)
 {
   if ((alloc_stack == NULL) || (alloc_stack->size == 0))
     return realloc(memory, size);
@@ -460,7 +460,7 @@ void* poly_realloc(void* memory, size_t size)
   }
 }
 
-void* poly_aligned_realloc(void* memory, size_t alignment, size_t size)
+void* polymec_aligned_realloc(void* memory, size_t alignment, size_t size)
 {
   if ((alloc_stack == NULL) || (alloc_stack->size == 0))
   {
@@ -477,7 +477,7 @@ void* poly_aligned_realloc(void* memory, size_t alignment, size_t size)
   }
 }
 
-void poly_free(void* memory)
+void polymec_free(void* memory)
 {
   if ((alloc_stack == NULL) || (alloc_stack->size == 0))
     free(memory);

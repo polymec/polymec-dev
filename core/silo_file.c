@@ -84,7 +84,7 @@ typedef struct
 
 static multimesh_t* multimesh_new(const char* mesh_name, int mesh_type)
 {
-  multimesh_t* mesh = malloc(sizeof(multimesh_t));
+  multimesh_t* mesh = polymec_malloc(sizeof(multimesh_t));
   mesh->name = string_dup(mesh_name);
   mesh->type = mesh_type;
   return mesh;
@@ -92,8 +92,8 @@ static multimesh_t* multimesh_new(const char* mesh_name, int mesh_type)
 
 static void multimesh_free(multimesh_t* mesh)
 {
-  free(mesh->name);
-  free(mesh);
+  polymec_free(mesh->name);
+  polymec_free(mesh);
 }
 
 // Object representing data in a multi-mesh.
@@ -109,7 +109,7 @@ static multivar_t* multivar_new(const char* mesh_name,
                                 const char* var_name,
                                 int var_type)
 {
-  multivar_t* var = malloc(sizeof(multivar_t));
+  multivar_t* var = polymec_malloc(sizeof(multivar_t));
   var->mesh_name = string_dup(mesh_name);
   var->name = string_dup(var_name);
   var->type = var_type;
@@ -118,9 +118,9 @@ static multivar_t* multivar_new(const char* mesh_name,
 
 static void multivar_free(multivar_t* var)
 {
-  free(var->mesh_name);
-  free(var->name);
-  free(var);
+  polymec_free(var->mesh_name);
+  polymec_free(var->name);
+  polymec_free(var);
 }
 
 #endif
@@ -176,7 +176,7 @@ static void write_multivars_to_file(silo_file_t* file)
 
     // Clean up.
     for (int j = 0; j < num_chunks; ++j)
-      free(mesh_names[j]);
+      polymec_free(mesh_names[j]);
   }
 
   // Multi variables.
@@ -209,8 +209,8 @@ static void write_multivars_to_file(silo_file_t* file)
     // Clean up.
     for (int j = 0; j < num_chunks; ++j)
     {
-      free(mesh_names[j]);
-      free(var_names[j]);
+      polymec_free(mesh_names[j]);
+      polymec_free(var_names[j]);
     }
   }
 }
@@ -266,7 +266,7 @@ static void write_master_file(silo_file_t* file)
                    &mesh_types[0], optlist);
     // Clean up.
     for (int i = 0; i < num_files*num_chunks; ++i)
-      free(mesh_names[i]);
+      polymec_free(mesh_names[i]);
   }
 
   // Variables.
@@ -305,8 +305,8 @@ static void write_master_file(silo_file_t* file)
     // Clean up.
     for (int i = 0; i < num_files*num_chunks; ++i)
     {
-      free(mesh_names[i]);
-      free(var_names[i]);
+      polymec_free(mesh_names[i]);
+      polymec_free(var_names[i]);
     }
   }
 
@@ -323,7 +323,7 @@ silo_file_t* silo_file_new(MPI_Comm comm,
                            int cycle,
                            real_t time)
 {
-  silo_file_t* file = malloc(sizeof(silo_file_t));
+  silo_file_t* file = polymec_malloc(sizeof(silo_file_t));
 
   // Strip .silo off of the prefix if it's there.
   {
@@ -426,7 +426,7 @@ silo_file_t* silo_file_open(MPI_Comm comm,
                             int mpi_tag,
                             int cycle)
 {
-  silo_file_t* file = malloc(sizeof(silo_file_t));
+  silo_file_t* file = polymec_malloc(sizeof(silo_file_t));
   file->mode = DB_READ;
   file->cycle = -1;
   file->time = -FLT_MAX;
@@ -580,7 +580,7 @@ void silo_file_close(silo_file_t* file)
 #endif
 
   // Clean up.
-  free(file);
+  polymec_free(file);
 }
 
 static void silo_file_write_tags(silo_file_t* file, tagger_t* tagger, const char* tag_list_name)
@@ -654,9 +654,9 @@ void silo_file_write_mesh(silo_file_t* file,
 
   // Node coordinates.
   int num_nodes = mesh->num_nodes;
-  double* x = malloc(sizeof(double) * num_nodes);
-  double* y = malloc(sizeof(double) * num_nodes);
-  double* z = malloc(sizeof(double) * num_nodes);
+  double* x = polymec_malloc(sizeof(double) * num_nodes);
+  double* y = polymec_malloc(sizeof(double) * num_nodes);
+  double* z = polymec_malloc(sizeof(double) * num_nodes);
   for (int i = 0; i < num_nodes; ++i)
   {
     x[i] = (double)mesh->nodes[i].x;
@@ -682,15 +682,15 @@ void silo_file_write_mesh(silo_file_t* file,
                SILO_FLOAT_TYPE, optlist);
 
   // Partial cleanup.
-  free(x);
-  free(y);
-  free(z);
+  polymec_free(x);
+  polymec_free(y);
+  polymec_free(z);
 
   // Construct the silo face-node info.  We rely on the mesh having
   // the faces nodes arranged counter-clockwise around the face.
   int num_faces = mesh->num_faces;
-  int* face_node_counts = malloc(sizeof(int) * num_faces);
-  char* ext_faces = malloc(sizeof(char) * num_faces);
+  int* face_node_counts = polymec_malloc(sizeof(int) * num_faces);
+  char* ext_faces = polymec_malloc(sizeof(char) * num_faces);
   for (int i = 0; i < num_faces; ++i)
   {
     face_node_counts[i] = mesh->face_node_offsets[i+1] - mesh->face_node_offsets[i];
@@ -703,7 +703,7 @@ void silo_file_write_mesh(silo_file_t* file,
   // Construct the silo cell-face info.  Silo uses the same 1's complement
   // convention we use for indicating face orientation, so we can
   // simply copy our faces.
-  int* cell_face_counts = malloc(sizeof(int) * (num_cells + num_ghost_cells));
+  int* cell_face_counts = polymec_malloc(sizeof(int) * (num_cells + num_ghost_cells));
   memset(cell_face_counts, 0, sizeof(int) * (num_cells + num_ghost_cells));
   for (int i = 0; i < num_cells; ++i)
     cell_face_counts[i] = mesh->cell_face_offsets[i+1] - mesh->cell_face_offsets[i];
@@ -717,13 +717,13 @@ void silo_file_write_mesh(silo_file_t* file,
                   0, 0, num_cells-1, optlist);
 
   // Partial cleanup.
-  free(face_node_counts);
-  free(ext_faces);
-  free(cell_face_counts);
+  polymec_free(face_node_counts);
+  polymec_free(ext_faces);
+  polymec_free(cell_face_counts);
 
 #if 0
   // Write out the cell-face connectivity data.
-  int* conn = malloc(sizeof(int) * num_cells);
+  int* conn = polymec_malloc(sizeof(int) * num_cells);
   int elem_lengths[3];
   char* elem_names[3];
   for (int c = 0; c < num_cells; ++c)
@@ -748,9 +748,9 @@ void silo_file_write_mesh(silo_file_t* file,
   elem_lengths[1] = conn.size() - elem_lengths[2] - elem_lengths[0];
   DBPutCompoundarray(file, "conn", elem_names, elem_lengths, 3, 
                      (void*)&conn[0], conn.size(), DB_INT, 0);
-  free(elem_names[0]);
-  free(elem_names[1]);
-  free(elem_names[2]);
+  polymec_free(elem_names[0]);
+  polymec_free(elem_names[1]);
+  polymec_free(elem_names[2]);
 #endif
 
   // Write out tag information.
@@ -821,9 +821,9 @@ void silo_file_write_point_mesh(silo_file_t* file,
   ASSERT(file->mode == DB_CLOBBER);
 
   // Point coordinates.
-  real_t* x = malloc(sizeof(real_t) * num_points);
-  real_t* y = malloc(sizeof(real_t) * num_points);
-  real_t* z = malloc(sizeof(real_t) * num_points);
+  real_t* x = polymec_malloc(sizeof(real_t) * num_points);
+  real_t* y = polymec_malloc(sizeof(real_t) * num_points);
+  real_t* z = polymec_malloc(sizeof(real_t) * num_points);
   for (int i = 0; i < num_points; ++i)
   {
     x[i] = points[i].x;
@@ -837,9 +837,9 @@ void silo_file_write_point_mesh(silo_file_t* file,
 
   // Write out the point mesh.
   DBPutPointmesh(file->dbfile, (char*)point_mesh_name, 3, coords, num_points, SILO_FLOAT_TYPE, NULL); 
-  free(x);
-  free(y);
-  free(z);
+  polymec_free(x);
+  polymec_free(y);
+  polymec_free(z);
 
   // Write out the number of points to a special variable.
   char num_points_var[FILENAME_MAX];

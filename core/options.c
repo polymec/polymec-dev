@@ -39,24 +39,24 @@ static void options_free(void* ctx, void* dummy)
   options_t* opts = (options_t*)ctx;
 
   if (opts->command != NULL)
-    free(opts->command);
+    polymec_free(opts->command);
   if (opts->input != NULL)
-    free(opts->input);
+    polymec_free(opts->input);
 
   // Delete all parameter data.
   int pos = 0;
   char *key, *value;
   while (string_string_unordered_map_next(opts->params, &pos, &key, &value))
   {
-    free(key);
-    free(value);
+    polymec_free(key);
+    polymec_free(value);
   }
 }
 
 static void destroy_kv(char* key, char* value)
 {
-  free(key);
-  free(value);
+  polymec_free(key);
+  polymec_free(value);
 }
 
 options_t* options_new()

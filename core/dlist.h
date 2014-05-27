@@ -74,7 +74,7 @@ typedef int (*list_name##_comparator)(element, element); \
 \
 static inline list_name##_t* list_name##_new() \
 { \
-  list_name##_t* list = (list_name##_t*)malloc(sizeof(list_name##_t)); \
+  list_name##_t* list = polymec_malloc(sizeof(list_name##_t)); \
   list->front = list->back = NULL; \
   list->size = 0; \
   return list; \
@@ -89,9 +89,9 @@ static inline void list_name##_free(list_name##_t* list) \
     list->front = n->next; \
     if (n->dtor != NULL) \
       (n->dtor)(n->value); \
-    free(n); \
+    polymec_free(n); \
   } \
-  free(list); \
+  polymec_free(list); \
 } \
 \
 static inline list_name##_node_t* list_name##_find(list_name##_t* list, element value, list_name##_comparator comparator) \
@@ -104,7 +104,7 @@ static inline list_name##_node_t* list_name##_find(list_name##_t* list, element 
 static inline void list_name##_insert_with_dtor(list_name##_t* list, element value, list_name##_dtor dtor, list_name##_node_t* node) \
 { \
   ASSERT(node != NULL); \
-  list_name##_node_t* n = (list_name##_node_t*)malloc(sizeof(list_name##_node_t)); \
+  list_name##_node_t* n = polymec_malloc(sizeof(list_name##_node_t)); \
   n->value = value; \
   n->next = NULL; \
   n->prev = NULL; \
@@ -147,7 +147,7 @@ static inline void list_name##_insert(list_name##_t* list, element value, list_n
 } \
 static inline void list_name##_append_with_dtor(list_name##_t* list, element value, list_name##_dtor dtor) \
 { \
-  list_name##_node_t* n = (list_name##_node_t*)malloc(sizeof(list_name##_node_t)); \
+  list_name##_node_t* n = polymec_malloc(sizeof(list_name##_node_t)); \
   n->value = value; \
   n->dtor = dtor; \
   n->next = NULL; \
@@ -192,7 +192,7 @@ static inline element list_name##_pop(list_name##_t* list, list_name##_dtor* dto
   element val = node->value; \
   if (dtor != NULL) \
     *dtor = node->dtor; \
-  free(node); \
+  polymec_free(node); \
   return val; \
 } \
 \
@@ -213,7 +213,7 @@ static inline void list_name##_remove(list_name##_t* list, list_name##_node_t* n
     node->next->prev = node->prev; \
   if (node->dtor != NULL) \
     (node->dtor)(node->value); \
-  free(node); \
+  polymec_free(node); \
   list->size -= 1; \
 } \
 \

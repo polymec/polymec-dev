@@ -171,7 +171,7 @@ mesh_t* distribute_serial_mesh(MPI_Comm comm, mesh_t* serial_mesh, int* partitio
       real_t dy = (bbox.y2 - bbox.y1) / 0xFFFF;
       real_t dz = (bbox.z2 - bbox.z1) / 0xFFFF;
 
-      morton_ordering_t* ordering = malloc(sizeof(morton_ordering_t) * serial_mesh->num_cells);
+      morton_ordering_t* ordering = polymec_malloc(sizeof(morton_ordering_t) * serial_mesh->num_cells);
       for (int c = 0; c < serial_mesh->num_cells; ++c)
       {
         // Take the cell center and convert it to an integer triple (i, j, k).
@@ -195,6 +195,7 @@ mesh_t* distribute_serial_mesh(MPI_Comm comm, mesh_t* serial_mesh, int* partitio
         for (int i = p*cells_per_proc; i < MIN(serial_mesh->num_cells, (p+1)*cells_per_proc); ++i)
           partition[ordering[i].cell_index] = p;
       }
+      polymec_free(ordering);
 
       // Construct a local mesh from cells owned by process 0.
       mesh_t* local_mesh = local_subdomain(comm, serial_mesh, partition, 0);

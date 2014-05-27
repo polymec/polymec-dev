@@ -37,10 +37,10 @@ struct polynomial_t
 static void polynomial_free(void* ctx, void* dummy)
 {
   polynomial_t* p = ctx;
-  free(p->coeffs);
-  free(p->x_pow);
-  free(p->y_pow);
-  free(p->z_pow);
+  polymec_free(p->coeffs);
+  polymec_free(p->x_pow);
+  polymec_free(p->y_pow);
+  polymec_free(p->z_pow);
 }
 
 static const int N_coeffs[5] = {1, 4, 10, 20, 35};
@@ -96,13 +96,13 @@ polynomial_t* polynomial_new(int degree, real_t* coeffs, point_t* x0)
   ASSERT(degree <= 4);
   polynomial_t* p = GC_MALLOC(sizeof(polynomial_t));
   p->degree = degree;
-  p->coeffs = malloc(sizeof(real_t) * N_coeffs[degree]);
+  p->coeffs = polymec_malloc(sizeof(real_t) * N_coeffs[degree]);
   memcpy(p->coeffs, coeffs, sizeof(real_t) * N_coeffs[degree]);
-  p->x_pow = malloc(sizeof(int) * N_coeffs[degree]);
+  p->x_pow = polymec_malloc(sizeof(int) * N_coeffs[degree]);
   memcpy(p->x_pow, std_x_pow, sizeof(int) * N_coeffs[degree]);
-  p->y_pow = malloc(sizeof(int) * N_coeffs[degree]);
+  p->y_pow = polymec_malloc(sizeof(int) * N_coeffs[degree]);
   memcpy(p->y_pow, std_y_pow, sizeof(int) * N_coeffs[degree]);
-  p->z_pow = malloc(sizeof(int) * N_coeffs[degree]);
+  p->z_pow = polymec_malloc(sizeof(int) * N_coeffs[degree]);
   memcpy(p->z_pow, std_z_pow, sizeof(int) * N_coeffs[degree]);
   p->num_terms = N_coeffs[degree];
   if (x0 != NULL)
@@ -123,13 +123,13 @@ polynomial_t* polynomial_from_monomials(int degree, int num_monomials, real_t* c
   ASSERT(num_monomials > 0);
   polynomial_t* p = GC_MALLOC(sizeof(polynomial_t));
   p->degree = degree;
-  p->coeffs = malloc(sizeof(real_t) * num_monomials);
+  p->coeffs = polymec_malloc(sizeof(real_t) * num_monomials);
   memcpy(p->coeffs, coeffs, sizeof(real_t) * num_monomials);
-  p->x_pow = malloc(sizeof(int) * num_monomials);
+  p->x_pow = polymec_malloc(sizeof(int) * num_monomials);
   memcpy(p->x_pow, x_powers, sizeof(int) * num_monomials);
-  p->y_pow = malloc(sizeof(int) * num_monomials);
+  p->y_pow = polymec_malloc(sizeof(int) * num_monomials);
   memcpy(p->y_pow, y_powers, sizeof(int) * num_monomials);
-  p->z_pow = malloc(sizeof(int) * num_monomials);
+  p->z_pow = polymec_malloc(sizeof(int) * num_monomials);
   memcpy(p->z_pow, z_powers, sizeof(int) * num_monomials);
   if (x0 != NULL)
     p->x0 = *x0;
@@ -156,7 +156,7 @@ polynomial_t* scaled_polynomial_new(polynomial_t* p, real_t factor)
   polynomial_t* q = GC_MALLOC(sizeof(polynomial_t));
   q->degree = p->degree;
   q->num_terms = p->num_terms;
-  q->coeffs = malloc(sizeof(real_t) * q->num_terms);
+  q->coeffs = polymec_malloc(sizeof(real_t) * q->num_terms);
   for (int i = 0; i < q->num_terms; ++i)
   {
     if (factor == 1.0)
@@ -164,11 +164,11 @@ polynomial_t* scaled_polynomial_new(polynomial_t* p, real_t factor)
     else
       q->coeffs[i] = factor * p->coeffs[i];
   }
-  q->x_pow = malloc(sizeof(int) * q->num_terms);
+  q->x_pow = polymec_malloc(sizeof(int) * q->num_terms);
   memcpy(q->x_pow, p->x_pow, sizeof(int) * q->num_terms);
-  q->y_pow = malloc(sizeof(int) * q->num_terms);
+  q->y_pow = polymec_malloc(sizeof(int) * q->num_terms);
   memcpy(q->y_pow, p->y_pow, sizeof(int) * q->num_terms);
-  q->z_pow = malloc(sizeof(int) * q->num_terms);
+  q->z_pow = polymec_malloc(sizeof(int) * q->num_terms);
   memcpy(q->z_pow, p->z_pow, sizeof(int) * q->num_terms);
   q->x0 = p->x0;
   GC_register_finalizer(q, polynomial_free, q, NULL, NULL);

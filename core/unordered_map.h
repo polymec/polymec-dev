@@ -25,7 +25,6 @@
 #ifndef POLYMEC_UNORDERED_MAP_H
 #define POLYMEC_UNORDERED_MAP_H
 
-#include <stdlib.h>
 #include "core/polymec.h"
 #include "core/hash_functions.h"
 #include "core/comparators.h"
@@ -89,12 +88,13 @@ typedef struct \
 \
 static inline map_name##_t* map_name##_new_with_capacity(int N) \
 { \
-  map_name##_t* map = malloc(sizeof(map_name##_t)); \
+  map_name##_t* map = polymec_malloc(sizeof(map_name##_t)); \
   int minimum_bucket_count = N * 4 / 3; \
   map->bucket_count = 1; \
   while (map->bucket_count <= minimum_bucket_count) \
     map->bucket_count <<= 1; \
-  map->buckets = calloc(map->bucket_count, sizeof(map_name##_entry_t*)); \
+  map->buckets = polymec_malloc(map->bucket_count * sizeof(map_name##_entry_t*)); \
+  memset(map->buckets, 0, map->bucket_count * sizeof(map_name##_entry_t*)); \
   ASSERT(map->buckets != NULL); \
   map->size = 0; \
   map->hash = hash_func; \
@@ -122,7 +122,7 @@ static inline void map_name##_clear(map_name##_t* map) \
         (*entry->k_dtor)(entry->key); \
       else if (entry->v_dtor != NULL) \
         (*entry->v_dtor)(entry->value); \
-      free(entry); \
+      polymec_free(entry); \
       entry = next; \
     } \
     map->buckets[i] = NULL; \
@@ -134,8 +134,8 @@ static inline void map_name##_clear(map_name##_t* map) \
 static inline void map_name##_free(map_name##_t* map) \
 { \
   map_name##_clear(map); \
-  free(map->buckets); \
-  free(map); \
+  polymec_free(map->buckets); \
+  polymec_free(map); \
 } \
 \
 static inline int map_name##_hash(map_name##_t* map, key_type key) \
@@ -191,7 +191,8 @@ static inline void map_name##_expand(map_name##_t* map) \
   if (map->size > (map->bucket_count * 3/4)) \
   { \
     int new_count = map->bucket_count * 2; \
-    map_name##_entry_t** new_buckets = calloc(new_count, sizeof(map_name##_entry_t*)); \
+    map_name##_entry_t** new_buckets = polymec_malloc(new_count * sizeof(map_name##_entry_t*)); \
+    memset(new_buckets, 0, new_count * sizeof(map_name##_entry_t*)); \
     if (new_buckets == NULL) \
       return; \
     for (int i = 0; i < map->bucket_count; ++i) \
@@ -206,7 +207,7 @@ static inline void map_name##_expand(map_name##_t* map) \
         entry = next; \
       } \
     } \
-    free(map->buckets); \
+    polymec_free(map->buckets); \
     map->buckets = new_buckets; \
     map->bucket_count = new_count; \
   } \
@@ -224,7 +225,7 @@ static inline void map_name##_insert_with_dtors(map_name##_t* map, key_type key,
     map_name##_entry_t* current = *p; \
     if (current == NULL) \
     { \
-      *p = malloc(sizeof(map_name##_entry_t)); \
+      *p = polymec_malloc(sizeof(map_name##_entry_t)); \
       (*p)->key = key; \
       (*p)->hash = h; \
       (*p)->value = value; \
@@ -289,7 +290,7 @@ static inline key_type map_name##_change_key(map_name##_t* map, key_type old_key
       kv_dtor = current->kv_dtor; \
       k_dtor = current->k_dtor; \
       v_dtor = current->v_dtor; \
-      free(current); \
+      polymec_free(current); \
       map->size--; \
       found = true; \
     }\
@@ -318,7 +319,7 @@ static inline void map_name##_delete(map_name##_t* map, key_type key) \
         (*current->k_dtor)(current->key); \
       else if (current->v_dtor != NULL) \
         (*current->v_dtor)(current->value); \
-      free(current); \
+      polymec_free(current); \
       map->size--; \
     }\
     else \

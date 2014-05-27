@@ -35,7 +35,7 @@ typedef struct
 static tagger_data_property_t* tagger_data_property_new(const char* key, void* data, void (*dtor)(void*))
 {
   ASSERT(data != NULL);
-  tagger_data_property_t* prop = poly_malloc(sizeof(tagger_data_property_t));
+  tagger_data_property_t* prop = polymec_malloc(sizeof(tagger_data_property_t));
   prop->data = data;
   prop->dtor = dtor;
   return prop;
@@ -45,7 +45,7 @@ static void tagger_data_property_free(tagger_data_property_t* prop)
 {
   if (prop->dtor != NULL)
     (*prop->dtor)(prop->data);
-  poly_free(prop);
+  polymec_free(prop);
 }
 
 DEFINE_UNORDERED_MAP(tagger_data_property_map, char*, tagger_data_property_t*, string_hash, string_equals)
@@ -62,7 +62,7 @@ static tagger_data_t* tagger_data_new(const char* key, int* indices, int num_ind
 {
   ASSERT(indices != NULL);
   ASSERT(num_indices >= 0);
-  tagger_data_t* data = poly_malloc(sizeof(tagger_data_t));
+  tagger_data_t* data = polymec_malloc(sizeof(tagger_data_t));
   data->indices = indices; // YOINK!
   data->num_indices = num_indices;
   data->properties = tagger_data_property_map_new();
@@ -75,10 +75,10 @@ static void tagger_data_free(tagger_data_t* tags_data)
   tagger_data_property_map_free(tags_data->properties);
 
   // Delete indices.
-  poly_free(tags_data->indices);
+  polymec_free(tags_data->indices);
 
   // Delete self.
-  poly_free(tags_data);
+  polymec_free(tags_data);
 }
 
 DEFINE_UNORDERED_MAP(tagger_data_map, char*, tagger_data_t*, string_hash, string_equals)
@@ -90,7 +90,7 @@ struct tagger_t
 
 tagger_t* tagger_new()
 {
-  tagger_t* tags = poly_malloc(sizeof(tagger_t));
+  tagger_t* tags = polymec_malloc(sizeof(tagger_t));
   tags->data = tagger_data_map_new();
   return tags;
 }
@@ -98,7 +98,7 @@ tagger_t* tagger_new()
 void tagger_free(tagger_t* tags)
 {
   tagger_data_map_free(tags->data);
-  poly_free(tags);
+  polymec_free(tags);
 }
 
 void tagger_copy(tagger_t* dest, tagger_t* src)
@@ -119,13 +119,13 @@ void tagger_copy(tagger_t* dest, tagger_t* src)
 // These destructors are used with maps for tag properties and tags.
 static void destroy_tag_property_key_and_value(char* key, tagger_data_property_t* value)
 {
-  poly_free(key);
+  polymec_free(key);
   tagger_data_property_free(value);
 }
 
 static void destroy_tag_key_and_value(char* key, tagger_data_t* value)
 {
-  poly_free(key);
+  polymec_free(key);
   tagger_data_free(value);
 }
 
@@ -138,8 +138,8 @@ int* tagger_create_tag(tagger_t* tagger, const char* tag, int num_indices)
     return NULL;
 
   // Otherwise, we create it.
-  int* indices = poly_malloc(num_indices*sizeof(int));
-  char* tag_name = poly_malloc(sizeof(char)*(strlen(tag)+1));
+  int* indices = polymec_malloc(num_indices*sizeof(int));
+  char* tag_name = polymec_malloc(sizeof(char)*(strlen(tag)+1));
   strcpy(tag_name, tag);
   tagger_data_t* data = tagger_data_new(tag, indices, num_indices);
   tagger_data_map_insert_with_kv_dtor(tagger->data, tag_name, data, destroy_tag_key_and_value);
@@ -172,7 +172,7 @@ bool tagger_set_property(tagger_t* tagger, const char* tag, const char* property
   if (data_p == NULL) return false;
 
   // Insert the new property.
-  char* prop_name = poly_malloc(sizeof(char)*(strlen(property)+1));
+  char* prop_name = polymec_malloc(sizeof(char)*(strlen(property)+1));
   strcpy(prop_name, property);
   tagger_data_property_t* prop = tagger_data_property_new(property, data, destructor);
   tagger_data_property_map_insert_with_kv_dtor((*data_p)->properties, prop_name, prop, destroy_tag_property_key_and_value);

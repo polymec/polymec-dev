@@ -235,7 +235,7 @@ static int grad(lua_State* lua)
   {
     int num_points;
     point_t* x = lua_topointlist(lua, 2, &num_points);
-    vector_t* vecs = malloc(sizeof(vector_t) * num_points);
+    vector_t* vecs = polymec_malloc(sizeof(vector_t) * num_points);
     for (int i = 0; i < num_points; ++i)
     {
       real_t val[3];
@@ -319,7 +319,7 @@ static int lua_write_silo_mesh(lua_State* lua)
 
   // Construct a set of fields.
   string_ptr_unordered_map_t* fields = string_ptr_unordered_map_new();
-  real_t* volume = malloc(sizeof(real_t) * N);
+  real_t* volume = polymec_malloc(sizeof(real_t) * N);
   for (int c = 0; c < N; ++c)
     volume[c] = mesh->cell_volumes[c];
   string_ptr_unordered_map_insert_with_v_dtor(fields, "volume", volume, DTOR(free));
@@ -344,9 +344,9 @@ static int lua_write_silo_mesh(lua_State* lua)
         ASSERT(lua_isvectorlist(lua, val_index));
         int num_vals;
         vector_t* vector_data = lua_tovectorlist(lua, val_index, &num_vals);
-        real_t* Fx = malloc(sizeof(real_t) * num_vals);
-        real_t* Fy = malloc(sizeof(real_t) * num_vals);
-        real_t* Fz = malloc(sizeof(real_t) * num_vals);
+        real_t* Fx = polymec_malloc(sizeof(real_t) * num_vals);
+        real_t* Fy = polymec_malloc(sizeof(real_t) * num_vals);
+        real_t* Fz = polymec_malloc(sizeof(real_t) * num_vals);
         for (int i = 0; i < num_vals; ++i)
         {
           Fx[i] = vector_data[i].x;
@@ -360,9 +360,9 @@ static int lua_write_silo_mesh(lua_State* lua)
         string_ptr_unordered_map_insert(fields, Fx_name, Fx);
         string_ptr_unordered_map_insert(fields, Fy_name, Fy);
         string_ptr_unordered_map_insert(fields, Fz_name, Fz);
-        free(Fx);
-        free(Fy);
-        free(Fz);
+        polymec_free(Fx);
+        polymec_free(Fy);
+        polymec_free(Fz);
       }
       lua_pop(lua, 1);
     }
@@ -380,7 +380,7 @@ static int lua_write_silo_mesh(lua_State* lua)
   silo_file_close(silo);
 
   // Clean up.
-  free(filename);
+  polymec_free(filename);
   string_ptr_unordered_map_free(fields);
 
   return 1;
@@ -467,9 +467,9 @@ static int lua_write_silo_points(lua_State* lua)
         ASSERT(lua_isvectorlist(lua, val_index));
         int num_vals;
         vector_t* vector_data = lua_tovectorlist(lua, val_index, &num_vals);
-        real_t* Fx = malloc(sizeof(real_t) * num_vals);
-        real_t* Fy = malloc(sizeof(real_t) * num_vals);
-        real_t* Fz = malloc(sizeof(real_t) * num_vals);
+        real_t* Fx = polymec_malloc(sizeof(real_t) * num_vals);
+        real_t* Fy = polymec_malloc(sizeof(real_t) * num_vals);
+        real_t* Fz = polymec_malloc(sizeof(real_t) * num_vals);
         for (int i = 0; i < num_vals; ++i)
         {
           Fx[i] = vector_data[i].x;
@@ -483,9 +483,9 @@ static int lua_write_silo_points(lua_State* lua)
         string_ptr_unordered_map_insert(fields, Fx_name, Fx);
         string_ptr_unordered_map_insert(fields, Fy_name, Fy);
         string_ptr_unordered_map_insert(fields, Fz_name, Fz);
-        free(Fx);
-        free(Fy);
-        free(Fz);
+        polymec_free(Fx);
+        polymec_free(Fy);
+        polymec_free(Fz);
       }
       lua_pop(lua, 1);
     }
@@ -503,7 +503,7 @@ static int lua_write_silo_points(lua_State* lua)
   silo_file_close(silo);
 
   // Clean up.
-  free(filename);
+  polymec_free(filename);
   string_ptr_unordered_map_free(fields);
 
   return 1;
@@ -522,7 +522,7 @@ static int cell_centers(lua_State* lua)
   mesh_t* mesh = lua_tomesh(lua, 1);
 
   // Copy the cell centers to a pointlist and push this list into the interpreter.
-  point_t* cc = malloc(sizeof(point_t) * mesh->num_cells);
+  point_t* cc = polymec_malloc(sizeof(point_t) * mesh->num_cells);
   memcpy(cc, mesh->cell_centers, sizeof(point_t) * mesh->num_cells);
   lua_pushpointlist(lua, cc, mesh->num_cells);
   return 1;
@@ -571,7 +571,7 @@ static int cell_tag(lua_State* lua)
 
   int size;
   int* tag = mesh_tag(mesh->cell_tags, tag_name, &size);
-  real_t* seq = malloc(sizeof(real_t) * size);
+  real_t* seq = polymec_malloc(sizeof(real_t) * size);
   for (int i = 0; i < size; ++i)
     seq[i] = (real_t)tag[i];
 
@@ -655,7 +655,7 @@ static int face_tag(lua_State* lua)
 
   int size;
   int* tag = mesh_tag(mesh->face_tags, tag_name, &size);
-  real_t* seq = malloc(sizeof(real_t) * size);
+  real_t* seq = polymec_malloc(sizeof(real_t) * size);
   for (int i = 0; i < size; ++i)
     seq[i] = (real_t)tag[i];
 
@@ -739,7 +739,7 @@ static int edge_tag(lua_State* lua)
 
   int size;
   int* tag = mesh_tag(mesh->edge_tags, tag_name, &size);
-  real_t* seq = malloc(sizeof(real_t) * size);
+  real_t* seq = polymec_malloc(sizeof(real_t) * size);
   for (int i = 0; i < size; ++i)
     seq[i] = (real_t)tag[i];
 
@@ -793,7 +793,7 @@ static int node_positions(lua_State* lua)
   mesh_t* mesh = lua_tomesh(lua, 1);
 
   // Copy the node positions to a pointlist and push this list into the interpreter.
-  point_t* np = malloc(sizeof(point_t) * mesh->num_nodes);
+  point_t* np = polymec_malloc(sizeof(point_t) * mesh->num_nodes);
   memcpy(np, mesh->nodes, sizeof(point_t) * mesh->num_nodes);
   lua_pushpointlist(lua, np, mesh->num_nodes);
   return 1;
@@ -842,7 +842,7 @@ static int node_tag(lua_State* lua)
 
   int size;
   int* tag = mesh_tag(mesh->node_tags, tag_name, &size);
-  real_t* seq = malloc(sizeof(real_t) * size);
+  real_t* seq = polymec_malloc(sizeof(real_t) * size);
   for (int i = 0; i < size; ++i)
     seq[i] = (real_t)tag[i];
 

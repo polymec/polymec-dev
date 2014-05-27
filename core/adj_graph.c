@@ -71,19 +71,19 @@ adj_graph_t* adj_graph_new_with_dist(MPI_Comm comm,
 {
   ASSERT(num_global_vertices >= 0);
 
-  adj_graph_t* graph = malloc(sizeof(adj_graph_t));
+  adj_graph_t* graph = polymec_malloc(sizeof(adj_graph_t));
   MPI_Comm_size(comm, &graph->nproc);
   MPI_Comm_rank(comm, &graph->rank);
 
   graph->comm = comm;
-  graph->vtx_dist = malloc(sizeof(int) * (graph->nproc+1));
+  graph->vtx_dist = polymec_malloc(sizeof(int) * (graph->nproc+1));
   memcpy(graph->vtx_dist, vertex_dist, sizeof(int) * (graph->nproc+1));
 
   int num_local_vertices = vertex_dist[graph->rank+1] - vertex_dist[graph->rank];
   graph->edge_cap = 4 * num_local_vertices;
-  graph->adjacency = malloc(sizeof(int) * graph->edge_cap);
+  graph->adjacency = polymec_malloc(sizeof(int) * graph->edge_cap);
   memset(graph->adjacency, 0, sizeof(int) * graph->edge_cap);
-  graph->xadj = malloc(sizeof(int) * (num_local_vertices + 1));
+  graph->xadj = polymec_malloc(sizeof(int) * (num_local_vertices + 1));
   memset(graph->xadj, 0, sizeof(int) * (num_local_vertices + 1));
 
   return graph;
@@ -148,17 +148,17 @@ adj_graph_t* adj_graph_new_with_block_size(int block_size,
 
 adj_graph_t* adj_graph_clone(adj_graph_t* graph)
 {
-  adj_graph_t* g = malloc(sizeof(adj_graph_t));
+  adj_graph_t* g = polymec_malloc(sizeof(adj_graph_t));
   g->comm = graph->comm;
   g->nproc = graph->nproc;
   g->rank = graph->rank;
-  g->vtx_dist = malloc(sizeof(int) * (g->nproc+1));
+  g->vtx_dist = polymec_malloc(sizeof(int) * (g->nproc+1));
   memcpy(g->vtx_dist, graph->vtx_dist, sizeof(int) * (g->nproc+1));
   g->edge_cap = graph->edge_cap;
-  g->adjacency = malloc(sizeof(int) * g->edge_cap);
+  g->adjacency = polymec_malloc(sizeof(int) * g->edge_cap);
   memcpy(g->adjacency, graph->adjacency, sizeof(int) * g->edge_cap);
   int num_local_vertices = g->vtx_dist[g->rank+1] - g->vtx_dist[g->rank];
-  g->xadj = malloc(sizeof(int) * (num_local_vertices + 1));
+  g->xadj = polymec_malloc(sizeof(int) * (num_local_vertices + 1));
   memcpy(g->xadj, graph->xadj, sizeof(int) * (num_local_vertices + 1));
   return g;
 }
@@ -166,12 +166,12 @@ adj_graph_t* adj_graph_clone(adj_graph_t* graph)
 void adj_graph_free(adj_graph_t* graph)
 {
   if (graph->adjacency != NULL)
-    free(graph->adjacency);
+    polymec_free(graph->adjacency);
   if (graph->xadj != NULL)
-    free(graph->xadj);
+    polymec_free(graph->xadj);
   if (graph->vtx_dist != NULL)
-    free(graph->vtx_dist);
-  free(graph);
+    polymec_free(graph->vtx_dist);
+  polymec_free(graph);
 }
 
 MPI_Comm adj_graph_comm(adj_graph_t* graph)
@@ -333,7 +333,7 @@ static void compute_largest_first_ordering(adj_graph_t* graph, int* vertices)
 
   // Compute the degree of each vertex. We compute the negative of the 
   // degree so that we can sort the vertices in "ascending" order.
-  int* v_degrees = malloc(sizeof(int) * 2 * num_vertices);
+  int* v_degrees = polymec_malloc(sizeof(int) * 2 * num_vertices);
   for (int v = 0; v < num_vertices; ++v)
   {
     v_degrees[2*v] = v;
@@ -342,7 +342,7 @@ static void compute_largest_first_ordering(adj_graph_t* graph, int* vertices)
 
   // Now sort the vertices on their degree.
   sort_vertices_by_degree(v_degrees, num_vertices);
-  free(v_degrees);
+  polymec_free(v_degrees);
 }
 
 static void compute_smallest_last_ordering(adj_graph_t* graph, int* vertices)
@@ -353,7 +353,7 @@ static void compute_smallest_last_ordering(adj_graph_t* graph, int* vertices)
   // the calculation of the degree of a vertex excludes all vertices that 
   // appear later in the list. We compute the negative of the degree so 
   // that we can sort the vertices in "ascending" order.
-  int* v_degrees = malloc(sizeof(int) * 2 * num_vertices);
+  int* v_degrees = polymec_malloc(sizeof(int) * 2 * num_vertices);
   for (int v = num_vertices-1; v > 0; --v)
   for (int v = 0; v < num_vertices; ++v)
   {
@@ -371,7 +371,7 @@ static void compute_smallest_last_ordering(adj_graph_t* graph, int* vertices)
 
   // Now sort the vertices on their degree.
   sort_vertices_by_degree(v_degrees, num_vertices);
-  free(v_degrees);
+  polymec_free(v_degrees);
 }
 
 static void compute_incidence_degree_ordering(adj_graph_t* graph, int* vertices)
@@ -393,7 +393,7 @@ static void color_sequentially(adj_graph_t* graph, int* vertices,
 {
   *num_colors = 0;
   int num_vertices = adj_graph_num_vertices(graph);
-  int* forbidden_colors = malloc(sizeof(int) * 2 * num_vertices);
+  int* forbidden_colors = polymec_malloc(sizeof(int) * 2 * num_vertices);
   for (int v = 0; v < num_vertices; ++v)
   {
     forbidden_colors[v] = -1;
@@ -438,7 +438,7 @@ static void color_sequentially(adj_graph_t* graph, int* vertices,
       ++(*num_colors);
     }
   }
-  free(forbidden_colors);
+  polymec_free(forbidden_colors);
 }
 
 adj_graph_coloring_t* adj_graph_coloring_new(adj_graph_t* graph,
@@ -446,7 +446,7 @@ adj_graph_coloring_t* adj_graph_coloring_new(adj_graph_t* graph,
 {
   // Generate an ordered list of vertices.
   int num_vertices = adj_graph_num_vertices(graph);
-  int* vertices = malloc(sizeof(int) * num_vertices);
+  int* vertices = polymec_malloc(sizeof(int) * num_vertices);
   if (ordering == LARGEST_FIRST)
     compute_largest_first_ordering(graph, vertices);
   else if (ordering == SMALLEST_LAST)
@@ -458,15 +458,15 @@ adj_graph_coloring_t* adj_graph_coloring_new(adj_graph_t* graph,
   }
 
   // Now color the graph using a (greedy) sequential algoritm. 
-  int* colors = malloc(sizeof(int) * num_vertices);
+  int* colors = polymec_malloc(sizeof(int) * num_vertices);
   int num_colors;
   color_sequentially(graph, vertices, colors, &num_colors);
   ASSERT(num_colors > 0);
 
   // Finally, transplant the coloring into our coloring object.
-  adj_graph_coloring_t* coloring = malloc(sizeof(adj_graph_coloring_t));
+  adj_graph_coloring_t* coloring = polymec_malloc(sizeof(adj_graph_coloring_t));
   coloring->vertices = vertices;
-  coloring->offsets = malloc(sizeof(int) * (num_colors+1));
+  coloring->offsets = polymec_malloc(sizeof(int) * (num_colors+1));
   memset(coloring->offsets, 0, sizeof(int) * (num_colors+1));
   coloring->num_colors = num_colors;
   for (int v = 0; v < num_vertices; ++v)
@@ -486,16 +486,16 @@ adj_graph_coloring_t* adj_graph_coloring_new(adj_graph_t* graph,
     coloring->vertices[coloring->offsets[color] + tallies[color]] = v;
     ++tallies[color];
   }
-  free(colors);
+  polymec_free(colors);
 
   return coloring;
 }
 
 void adj_graph_coloring_free(adj_graph_coloring_t* coloring)
 {
-  free(coloring->vertices);
-  free(coloring->offsets);
-  free(coloring);
+  polymec_free(coloring->vertices);
+  polymec_free(coloring->offsets);
+  polymec_free(coloring);
 }
 
 int adj_graph_coloring_num_colors(adj_graph_coloring_t* coloring)

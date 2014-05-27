@@ -71,14 +71,14 @@ static inline void array_name##_reserve(array_name##_t* array, size_t new_capaci
 { \
   if (new_capacity > array->capacity) \
   { \
-    array->data = poly_realloc(array->data, sizeof(element) * new_capacity); \
+    array->data = polymec_realloc(array->data, sizeof(element) * new_capacity); \
     array->capacity = new_capacity; \
   } \
 } \
 \
 static inline array_name##_t* array_name##_new_with_capacity(size_t capacity) \
 { \
-  array_name##_t* array = poly_malloc(sizeof(array_name##_t)); \
+  array_name##_t* array = polymec_malloc(sizeof(array_name##_t)); \
   array->data = NULL; \
   array->dtors = NULL; \
   array->size = 0; \
@@ -159,12 +159,12 @@ static inline void array_name##_append_with_dtor(array_name##_t* array, element 
   { \
     if (array->dtors == NULL) \
     { \
-      array->dtors = poly_malloc(sizeof(array_name##_dtor) * array->capacity); \
+      array->dtors = polymec_malloc(sizeof(array_name##_dtor) * array->capacity); \
       memset(array->dtors, 0, sizeof(array_name##_dtor) * array->capacity); \
     } \
     else \
     { \
-      array->dtors = poly_realloc(array->dtors, sizeof(array_name##_dtor) * array->capacity); \
+      array->dtors = polymec_realloc(array->dtors, sizeof(array_name##_dtor) * array->capacity); \
       memset(&array->dtors[array->size], 0, sizeof(array_name##_dtor) * (array->capacity - array->size)); \
     } \
     array->dtors[array->size-1] = dtor; \

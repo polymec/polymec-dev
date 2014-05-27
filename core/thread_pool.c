@@ -176,12 +176,12 @@ static int thread_life(void* context)
 
 #if USE_PTHREADS
   pthread_mutex_unlock(&pool->queue_lock);
-  free(thread); // Kill the thread's context.
+  polymec_free(thread); // Kill the thread's context.
   pthread_exit(NULL);
   return NULL;
 #else
   mtx_unlock(&pool->queue_lock);
-  free(thread); // Kill the thread's context.
+  polymec_free(thread); // Kill the thread's context.
   thrd_exit(0);
   return 0;
 #endif
@@ -196,9 +196,9 @@ thread_pool_t* thread_pool_with_threads(int num_threads)
 {
   ASSERT(num_threads > 0);
 
-  thread_pool_t* pool = malloc(sizeof(thread_pool_t));
+  thread_pool_t* pool = polymec_malloc(sizeof(thread_pool_t));
   pool->num_threads = num_threads;
-  pool->threads = malloc(sizeof(pthread_t) * num_threads);
+  pool->threads = polymec_malloc(sizeof(pthread_t) * num_threads);
   pool->queue = ptr_slist_new();
   pool->shutting_down = false;
   pool->work_remaining = 0;
@@ -240,11 +240,11 @@ thread_pool_t* thread_pool_with_threads(int num_threads)
 #endif
 
   // Gentlemen, start your engines!
-  pool->thread_started = malloc(sizeof(bool) * num_threads);
+  pool->thread_started = polymec_malloc(sizeof(bool) * num_threads);
   memset(pool->thread_started, 0, sizeof(bool) * num_threads);
   for (int i = 0; i < num_threads; ++i)
   {
-    thread_context_t* thread = malloc(sizeof(thread_context_t));
+    thread_context_t* thread = polymec_malloc(sizeof(thread_context_t));
     thread->id = i;
     thread->pool = pool;
 #if USE_PTHREADS
@@ -270,7 +270,7 @@ thread_pool_t* thread_pool_with_threads(int num_threads)
       num_started += (pool->thread_started[i]) ? 1 : 0;
   }
   while (num_started < num_threads);
-  free(pool->thread_started); // <-- no longer needed.
+  polymec_free(pool->thread_started); // <-- no longer needed.
 
   return pool;
 }
@@ -312,9 +312,9 @@ void thread_pool_free(thread_pool_t* pool)
   mtx_destroy(&pool->finished_lock);
   mtx_destroy(&pool->queue_lock);
 #endif
-  free(pool->threads);
+  polymec_free(pool->threads);
   ptr_slist_free(pool->queue);
-  free(pool);
+  polymec_free(pool);
 }
 
 int thread_pool_num_threads(thread_pool_t* pool)
@@ -329,7 +329,7 @@ void thread_pool_schedule(thread_pool_t* pool,
   if (pool->work_remaining != 0)
     polymec_error("thread_pool_schedule() called within thread_pool_execute().");
 
-  thread_work_t* work = malloc(sizeof(thread_work_t));
+  thread_work_t* work = polymec_malloc(sizeof(thread_work_t));
   work->context = context;
   work->do_work = do_work;
 #if USE_PTHREADS

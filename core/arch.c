@@ -22,11 +22,10 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "core/arch.h"
 #include <sys/mman.h>
 #include <errno.h>
-#include <string.h>
-#include <stdlib.h>
+#include "core/arch.h"
+#include "core/polymec.h"
 
 #ifdef APPLE
 
@@ -88,13 +87,13 @@ static fpos_t fmem_seek(void* context, fpos_t offset, int whence)
 static int fmem_close(void *context) 
 {
   fmem_t* fmem = context;
-  free(fmem);
+  polymec_free(fmem);
   return 0;
 }
 
 FILE *fmemopen(void *buf, size_t size, const char *mode) 
 {
-  fmem_t* fmem = malloc(sizeof(fmem_t)); // Context pointer.
+  fmem_t* fmem = polymec_malloc(sizeof(fmem_t)); // Context pointer.
   fmem->pos = 0;
   fmem->size = size;
   fmem->buffer = buf;
@@ -200,7 +199,7 @@ static int memstream_close(void *c)
   buf = realloc(*stream->buf, *stream->len + 1);
   if (buf != NULL)
     *stream->buf = buf;
-  free(stream);
+  polymec_free(stream);
   return 0;
 }
 
@@ -214,8 +213,8 @@ FILE* open_memstream(char **buf, size_t *len)
     errno = EINVAL;
     return NULL;
   }
-  stream = malloc(sizeof(memstream_t));
-  *buf = malloc(32 * sizeof(char));
+  stream = polymec_malloc(sizeof(memstream_t));
+  *buf = polymec_malloc(32 * sizeof(char));
   **buf = '\0';
   *len = 0;
 
@@ -223,7 +222,7 @@ FILE* open_memstream(char **buf, size_t *len)
   if (f == NULL)
   {
     int saved_errno = errno;
-    free(stream);
+    polymec_free(stream);
     errno = saved_errno;
   }
   else

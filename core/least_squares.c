@@ -77,7 +77,7 @@ static void ls_weight_func_free(void* context, void* dummy)
   ls_weight_func_t* W = context;
   if ((W->context != NULL) && (W->vtable.dtor != NULL))
     W->vtable.dtor(W->context);
-  free(W->name);
+  polymec_free(W->name);
 }
 
 ls_weight_func_t* ls_weight_func_new(const char* name,

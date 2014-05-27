@@ -45,7 +45,7 @@ static void find_line_breaks(text_buffer_t* buffer)
   }
 
   buffer->num_lines = line_list->size;
-  buffer->line_offsets = malloc(sizeof(long) * (buffer->num_lines+1));
+  buffer->line_offsets = polymec_malloc(sizeof(long) * (buffer->num_lines+1));
   buffer->line_offsets[0] = 0;
   int i = 1;
   long line_no;
@@ -64,7 +64,7 @@ text_buffer_t* text_buffer_from_file(const char* filename)
   if (fp == NULL)
     return NULL;
 
-  text_buffer_t* buffer = malloc(sizeof(text_buffer_t));
+  text_buffer_t* buffer = polymec_malloc(sizeof(text_buffer_t));
 
   // Read the contents of the entire file into memory.
   long start = ftell(fp);
@@ -72,7 +72,7 @@ text_buffer_t* text_buffer_from_file(const char* filename)
   long end = ftell(fp);
   fseek(fp, 0, SEEK_SET);
   buffer->size = end - start + 1;
-  buffer->data = malloc(sizeof(char) * buffer->size);
+  buffer->data = polymec_malloc(sizeof(char) * buffer->size);
   fread(buffer->data, sizeof(char), buffer->size,fp);
   buffer->data[buffer->size-1] = '\0';
 
@@ -87,11 +87,11 @@ text_buffer_t* text_buffer_from_file(const char* filename)
 
 text_buffer_t* text_buffer_from_string(const char* string)
 {
-  text_buffer_t* buffer = malloc(sizeof(text_buffer_t));
+  text_buffer_t* buffer = polymec_malloc(sizeof(text_buffer_t));
 
   // Copy the string.
   buffer->size = strlen(string) + 1;
-  buffer->data = malloc(sizeof(char) * buffer->size);
+  buffer->data = polymec_malloc(sizeof(char) * buffer->size);
   memcpy(buffer->data, string, sizeof(char) * buffer->size);
 
   // Now find all the line breaks.
@@ -102,9 +102,9 @@ text_buffer_t* text_buffer_from_string(const char* string)
 
 void text_buffer_free(text_buffer_t* buffer)
 {
-  free(buffer->data);
-  free(buffer->line_offsets);
-  free(buffer);
+  polymec_free(buffer->data);
+  polymec_free(buffer->line_offsets);
+  polymec_free(buffer);
 }
 
 long text_buffer_size(text_buffer_t* buffer)

@@ -25,7 +25,6 @@
 #ifndef POLYMEC_AVL_TREE_H
 #define POLYMEC_AVL_TREE_H
 
-#include <stdlib.h>
 #include "core/polymec.h"
 #include "core/comparators.h"
 
@@ -71,7 +70,7 @@ struct tree_name##_t \
 \
 static inline tree_name##_t* tree_name##_new() \
 { \
-  tree_name##_t* tree = malloc(sizeof(tree_name##_t)); \
+  tree_name##_t* tree = polymec_malloc(sizeof(tree_name##_t)); \
   tree->root = NULL; \
   return tree; \
 } \
@@ -82,7 +81,7 @@ static inline void tree_name##_clear_node(tree_name##_node_t* node) \
   { \
     tree_name##_clear_node(node->left); \
     tree_name##_clear_node(node->right); \
-    free(node); \
+    polymec_free(node); \
   } \
 } \
 \
@@ -95,7 +94,7 @@ static inline void tree_name##_clear(tree_name##_t* tree) \
 static inline void tree_name##_free(tree_name##_t* tree) \
 { \
   tree_name##_clear(tree); \
-  free(tree); \
+  polymec_free(tree); \
 } \
 \
 static inline tree_name##_node_t* tree_name##_find_node(tree_name##_node_t* node, element datum) \
@@ -161,7 +160,7 @@ static inline tree_name##_node_t* tree_name##_insert_node(tree_name##_node_t* no
 { \
   if (node == NULL) \
   { \
-    node = malloc(sizeof(tree_name##_node_t)); \
+    node = polymec_malloc(sizeof(tree_name##_node_t)); \
     node->left = NULL; \
     node->right = NULL; \
     node->value = datum; \
@@ -293,7 +292,7 @@ static inline void tree_name##_delete(tree_name##_t* tree, tree_name##_node_t* n
     } \
     parent->left = replacement; \
   } \
-  free(node); \
+  polymec_free(node); \
 } \
 \
 static inline void tree_name##_node_visit(tree_name##_node_t* node, tree_name##_node_visitor visit, void* arg) \

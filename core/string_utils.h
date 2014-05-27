@@ -34,8 +34,8 @@ char* string_dup(const char* s);
 // tacking an '\0' to the end.
 char* string_ndup(const char* s, int n);
 
-// This just calls free() to free a string, but can be used as a convenience
-// function for assigning destructors to strings in containers.
+// This just calls polymec_free() to free a string, but can be used as a 
+// convenience function for assigning destructors to strings in containers.
 void string_free(char* s);
 
 // This function allows one to traverse a string containing a number of 

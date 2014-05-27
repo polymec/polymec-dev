@@ -63,7 +63,7 @@ struct octree_node_t
 
 static octree_node_t* branch_new()
 {
-  octree_node_t* node = malloc(sizeof(octree_node_t));
+  octree_node_t* node = polymec_malloc(sizeof(octree_node_t));
   node->type = OCTREE_BRANCH_NODE;
   memset(node->branch_node.children, 0, 8*sizeof(octree_node_t*));
   return node;
@@ -72,7 +72,7 @@ static octree_node_t* branch_new()
 // This creates a new leaf node with a single occupant.
 static octree_node_t* leaf_new(point_t* point, int index)
 {
-  octree_node_t* node = malloc(sizeof(octree_node_t));
+  octree_node_t* node = polymec_malloc(sizeof(octree_node_t));
   node->type = OCTREE_LEAF_NODE;
   node->leaf_node.index = index;
   node->leaf_node.point = *point;
@@ -132,7 +132,7 @@ octree_t* octree_new(bbox_t* bounding_box)
   ASSERT(bounding_box->y1 < bounding_box->y2);
   ASSERT(bounding_box->z1 < bounding_box->z2);
 
-  octree_t* tree = malloc(sizeof(octree_t));
+  octree_t* tree = polymec_malloc(sizeof(octree_t));
   tree->root = NULL;
   tree->bbox = *bounding_box;
   tree->num_points = 0;
@@ -142,7 +142,7 @@ octree_t* octree_new(bbox_t* bounding_box)
 void octree_free(octree_t* tree)
 {
   octree_clear(tree);
-  free(tree);
+  polymec_free(tree);
 }
 
 void octree_insert(octree_t* tree, point_t* point, int index)
@@ -256,7 +256,7 @@ static void node_clear(octree_node_t* node)
   }
   else if (node->type == OCTREE_LEAF_NODE)
   {
-    free(node);
+    polymec_free(node);
   }
   else 
   {

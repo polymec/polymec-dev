@@ -53,7 +53,7 @@ static void docstring_dtor(void* docs)
 {
   docstring_t* d = docs;
   string_array_free(d->strings);
-  free(d);
+  polymec_free(d);
 }
 
 docstring_t* docstring_new()
@@ -64,7 +64,7 @@ docstring_t* docstring_new()
     all_docstrings = ptr_array_new();
     polymec_atexit(destroy_docstrings);
   }
-  docstring_t* docs = malloc(sizeof(docstring_t));
+  docstring_t* docs = polymec_malloc(sizeof(docstring_t));
   docs->strings = string_array_new();
   string_array_append_with_dtor(docs->strings, string_dup(""), string_free);
   docs->empty = true;
@@ -149,28 +149,28 @@ static int destroy_storage(lua_State* lua)
 // This destroys variables that have been parsed.
 static void destroy_variable(char* key, interpreter_storage_t* value)
 {
-  free(key);
+  polymec_free(key);
   if ((value->dtor != NULL) && (value->owner == POLYMEC))
     (*value->dtor)(value->datum);
   value->datum = NULL;
   if (value->creator == POLYMEC)
-    free(value);
+    polymec_free(value);
 }
 
 static void destroy_string(char* key)
 {
-  free(key);
+  polymec_free(key);
 }
 
 static void destroy_table_entry(char* key, void* value)
 {
-  free(key);
-  free(value);
+  polymec_free(key);
+  polymec_free(value);
 }
 
 static void destroy_table_tuple(char* key, void* value)
 {
-  free(key);
+  polymec_free(key);
   real_t* tuple = value;
   real_tuple_free(tuple);
 }
@@ -219,7 +219,7 @@ static interpreter_storage_t* NEW_USER_DATA(lua_State* lua)
   interpreter_storage_t* storage;
   if (lua == NULL)
   {
-    storage = malloc(sizeof(interpreter_storage_t));
+    storage = polymec_malloc(sizeof(interpreter_storage_t));
     storage->creator = POLYMEC;
     storage->owner = POLYMEC;
   }
@@ -248,7 +248,7 @@ static interpreter_storage_t* store_string(lua_State* lua, const char* var)
 static interpreter_storage_t* store_number(lua_State* lua, real_t var)
 {
   interpreter_storage_t* storage = NEW_USER_DATA(lua);
-  real_t* dvar = malloc(sizeof(real_t));
+  real_t* dvar = polymec_malloc(sizeof(real_t));
   *dvar = var;
   storage->datum = dvar;
   storage->type = INTERPRETER_NUMBER;
@@ -259,7 +259,7 @@ static interpreter_storage_t* store_number(lua_State* lua, real_t var)
 static interpreter_storage_t* store_boolean(lua_State* lua, bool var)
 {
   interpreter_storage_t* storage = NEW_USER_DATA(lua);
-  bool* bvar = malloc(sizeof(bool));
+  bool* bvar = polymec_malloc(sizeof(bool));
   *bvar = var;
   storage->datum = bvar;
   storage->type = INTERPRETER_BOOLEAN;
@@ -393,15 +393,15 @@ static void stringlist_dtor(void* list)
 {
   stringlist_t* sl = list;
   for (int i = 0; i < sl->len; ++i)
-    free(sl->list[i]);
-  free(sl->list);
-  free(sl);
+    polymec_free(sl->list[i]);
+  polymec_free(sl->list);
+  polymec_free(sl);
 }
 
 static interpreter_storage_t* store_stringlist(lua_State* lua, char** list, int len)
 {
   interpreter_storage_t* storage = NEW_USER_DATA(lua);
-  stringlist_t* sl = malloc(sizeof(stringlist_t));
+  stringlist_t* sl = polymec_malloc(sizeof(stringlist_t));
   sl->list = list;
   sl->len = len;
   storage->datum = sl;
@@ -476,7 +476,7 @@ static void interpreter_close_lua(interpreter_t* interp)
 
 interpreter_t* interpreter_new(interpreter_validation_t* valid_inputs)
 {
-  interpreter_t* interp = malloc(sizeof(interpreter_t));
+  interpreter_t* interp = polymec_malloc(sizeof(interpreter_t));
   interp->num_functions = 0;
   interp->num_globals = 0;
   interp->lua = NULL;
@@ -495,7 +495,7 @@ interpreter_t* interpreter_new(interpreter_validation_t* valid_inputs)
       num_valid_inputs++;
     if (num_valid_inputs > 0)
     {
-      interp->valid_inputs = malloc(num_valid_inputs*sizeof(interpreter_validation_t));
+      interp->valid_inputs = polymec_malloc(num_valid_inputs*sizeof(interpreter_validation_t));
       interp->num_valid_inputs = num_valid_inputs;
     }
   }
@@ -522,23 +522,23 @@ void interpreter_free(interpreter_t* interp)
   for (int i = 0; i < interp->num_globals; ++i)
   {
     for (int j = 0; j < interp->num_global_methods[i]; ++j)
-      free(interp->global_method_names[i][j]);
-    free(interp->global_names[i]);
+      polymec_free(interp->global_method_names[i][j]);
+    polymec_free(interp->global_names[i]);
   }
   for (int i = 0; i < interp->num_functions; ++i)
   {
-    free(interp->function_names[i]);
+    polymec_free(interp->function_names[i]);
   }
   for (int i = 0; i < interp->num_valid_inputs; ++i)
-    free(interp->valid_inputs[i].variable);
-  free(interp->valid_inputs);
+    polymec_free(interp->valid_inputs[i].variable);
+  polymec_free(interp->valid_inputs);
 
   // Make sure we delete our store before closing Lua, since Lua sweeps 
   // all of its variables on exit, so we won't even be able to query the 
   // store to see whether we should be deleting anything.
   interpreter_map_free(interp->store);
   interpreter_close_lua(interp);
-  free(interp);
+  polymec_free(interp);
 }
 
 void interpreter_register_function(interpreter_t* interp, const char* function_name, int (*function)(lua_State*), docstring_t* doc)
@@ -988,7 +988,7 @@ static void interpreter_store_chunk_contents(interpreter_t* interp)
 
       // Clean up if necessary.
       if ((entry != NULL) && (entry->type != INTERPRETER_SEQUENCE))
-        free(seq);
+        polymec_free(seq);
     }
     else if (lua_isstringlist(lua, val_index))
     {
@@ -1100,13 +1100,13 @@ static void interpreter_store_chunk_contents(interpreter_t* interp)
         char* tkey = (char*)lua_tostring(lua, key_index);
         if (lua_isnumber(lua, val_index))
         {
-          real_t* var = malloc(sizeof(real_t));
+          real_t* var = polymec_malloc(sizeof(real_t));
           *var = (real_t)lua_tonumber(lua, val_index);
           string_ptr_unordered_map_insert_with_kv_dtor(table, tkey, var, destroy_table_entry);
         }
         else if (lua_isboolean(lua, val_index))
         {
-          bool* var = malloc(sizeof(bool));
+          bool* var = polymec_malloc(sizeof(bool));
           *var = lua_toboolean(lua, val_index);
           string_ptr_unordered_map_insert_with_kv_dtor(table, tkey, var, destroy_table_entry);
         }
@@ -1122,7 +1122,7 @@ static void interpreter_store_chunk_contents(interpreter_t* interp)
           real_t* var = lua_tosequence(lua, val_index, &len);
           real_t* tuple = real_tuple_new(len);
           memcpy(tuple, var, sizeof(real_t) * len);
-          free(var);
+          polymec_free(var);
           string_ptr_unordered_map_insert_with_kv_dtor(table, tkey, tuple, destroy_table_tuple);
         }
         else if (lua_isuserdata(lua, val_index))
@@ -1570,7 +1570,7 @@ real_t* lua_tosequence(struct lua_State* lua, int index, int* len)
   if (lua_istable(lua, index))
   {
     *len = lua_rawlen(lua, index);
-    real_t* seq = malloc(sizeof(real_t)*(*len));
+    real_t* seq = polymec_malloc(sizeof(real_t)*(*len));
     for (int i = 1; i <= *len; ++i)
     {
       lua_pushinteger(lua, (lua_Integer)i);
@@ -1595,7 +1595,7 @@ static int sequence_tostring(lua_State* lua)
   interpreter_storage_t* var = (void*)lua_topointer(lua, -1);
   ASSERT(var->type == INTERPRETER_SEQUENCE);
   real_t* data = var->datum;
-  char* str = malloc(sizeof(char) * 18 * var->size);
+  char* str = polymec_malloc(sizeof(char) * 18 * var->size);
   str[0] = '{';
   int offset = 1;
   for (int i = 0; i < var->size; ++i)
@@ -1609,7 +1609,7 @@ static int sequence_tostring(lua_State* lua)
     offset += strlen(stri);
   }
   lua_pushstring(lua, str);
-  free(str);
+  polymec_free(str);
   return 1;
 }
 
@@ -1623,7 +1623,7 @@ static int sequence_concat(lua_State* lua)
   real_t* data2 = var2->datum;
 
   int len = var1->size + var2->size;
-  real_t* concat_data = malloc(sizeof(real_t) * len);
+  real_t* concat_data = polymec_malloc(sizeof(real_t) * len);
   memcpy(concat_data, data1, sizeof(real_t) * var1->size);
   memcpy(&concat_data[var1->size], data2, sizeof(real_t) * var2->size);
   lua_pushsequence(lua, concat_data, len);
@@ -1686,7 +1686,7 @@ char** lua_tostringlist(struct lua_State* lua, int index, int* len)
   if (lua_istable(lua, index))
   {
     *len = lua_rawlen(lua, index);
-    char** list = malloc(sizeof(char*)*(*len));
+    char** list = polymec_malloc(sizeof(char*)*(*len));
     for (int i = 1; i <= *len; ++i)
     {
       lua_pushinteger(lua, (lua_Integer)i);
@@ -1717,7 +1717,7 @@ static int stringlist_tostring(lua_State* lua)
   int repr_len = 3; // '{}\0'
   for (int i = 0; i < sl->len; ++i)
     repr_len += strlen(data[i]) + 10;
-  char* str = malloc(sizeof(char) * repr_len);
+  char* str = polymec_malloc(sizeof(char) * repr_len);
   str[0] = '{';
   int offset = 1;
   for (int i = 0; i < var->size; ++i)
@@ -1731,7 +1731,7 @@ static int stringlist_tostring(lua_State* lua)
     offset += strlen(stri);
   }
   lua_pushstring(lua, str);
-  free(str);
+  polymec_free(str);
   return 1;
 }
 
@@ -1745,7 +1745,7 @@ static int stringlist_concat(lua_State* lua)
   char** data2 = var2->datum;
 
   int len = var1->size + var2->size;
-  char** concat_data = malloc(sizeof(char*) * len);
+  char** concat_data = polymec_malloc(sizeof(char*) * len);
   for (int i = 0; i < var1->size; ++i)
     concat_data[i] = string_dup(data1[i]);
   for (int i = 0; i < var2->size; ++i)
@@ -1795,7 +1795,7 @@ point_t* lua_topoint(struct lua_State* lua, int index)
     real_t* seq = lua_tosequence(lua, index, &len);
     ASSERT(len == 3);
     point_t* p = point_new(seq[0], seq[1], seq[2]);
-    free(seq);
+    polymec_free(seq);
     return p;
   }
   interpreter_storage_t* storage = (interpreter_storage_t*)lua_topointer(lua, index);
@@ -1853,7 +1853,7 @@ static int point_mul(lua_State* lua)
   ASSERT(var->type == INTERPRETER_POINT);
 
   point_t* data = var->datum;
-  point_t* ptlist = malloc(sizeof(point_t) * factor);
+  point_t* ptlist = polymec_malloc(sizeof(point_t) * factor);
   for (int i = 0; i < factor; ++i)
     ptlist[i] = *data;
   lua_pushpointlist(lua, ptlist, factor);
@@ -1905,7 +1905,7 @@ point_t* lua_topointlist(struct lua_State* lua, int index, int* size)
   if (lua_istable(lua, index))
   {
     *size = (int)lua_rawlen(lua, index);
-    point_t* points = malloc(sizeof(point_t) * (*size));
+    point_t* points = polymec_malloc(sizeof(point_t) * (*size));
     for (int i = 0; i < *size; ++i)
     {
       lua_pushinteger(lua, (lua_Integer)(i+1));
@@ -1931,7 +1931,7 @@ static int pointlist_tostring(lua_State* lua)
   interpreter_storage_t* var = (void*)lua_topointer(lua, -1);
   ASSERT(var->type == INTERPRETER_POINT_LIST);
   point_t* data = var->datum;
-  char* str = malloc(sizeof(char) * 80 * var->size);
+  char* str = polymec_malloc(sizeof(char) * 80 * var->size);
   str[0] = '{';
   int offset = 1;
   for (int i = 0; i < var->size; ++i)
@@ -1945,7 +1945,7 @@ static int pointlist_tostring(lua_State* lua)
     offset += strlen(stri);
   }
   lua_pushstring(lua, str);
-  free(str);
+  polymec_free(str);
   return 1;
 }
 
@@ -1960,7 +1960,7 @@ static int pointlist_concat(lua_State* lua)
   point_t* points = lua_topointlist(lua, -2, &num_points);
 
   int len = var1->size + num_points;
-  point_t* concat_data = malloc(sizeof(point_t) * len);
+  point_t* concat_data = polymec_malloc(sizeof(point_t) * len);
   memcpy(concat_data, data1, sizeof(point_t) * var1->size);
   memcpy(&concat_data[var1->size], points, sizeof(point_t) * num_points);
   lua_pushpointlist(lua, concat_data, len);
@@ -2023,7 +2023,7 @@ vector_t* lua_tovector(struct lua_State* lua, int index)
     int len;
     real_t* seq = lua_tosequence(lua, index, &len);
     vector_t* v = vector_new(seq[0], seq[1], seq[2]);
-    free(seq);
+    polymec_free(seq);
     return v;
   }
   interpreter_storage_t* storage = (interpreter_storage_t*)lua_topointer(lua, index);
@@ -2083,7 +2083,7 @@ static int vector_mul(lua_State* lua)
   ASSERT(var->type == INTERPRETER_VECTOR);
 
   vector_t* data = var->datum;
-  vector_t* veclist = malloc(sizeof(vector_t) * factor);
+  vector_t* veclist = polymec_malloc(sizeof(vector_t) * factor);
   for (int i = 0; i < factor; ++i)
     veclist[i] = *data;
   lua_pushvectorlist(lua, veclist, factor);
@@ -2135,7 +2135,7 @@ vector_t* lua_tovectorlist(struct lua_State* lua, int index, int* size)
   if (lua_istable(lua, index))
   {
     *size = (int)lua_rawlen(lua, index);
-    vector_t* vectors = malloc(sizeof(vector_t) * (*size));
+    vector_t* vectors = polymec_malloc(sizeof(vector_t) * (*size));
     for (int i = 0; i < *size; ++i)
     {
       lua_pushinteger(lua, (lua_Integer)(i+1));
@@ -2286,7 +2286,7 @@ static int scalarfunction_call(lua_State* lua)
     int num_points;
     point_t* x = lua_topointlist(lua, 2, &num_points);
     real_t t = (real_t)lua_tonumber(lua, 3);
-    real_t* v = malloc(sizeof(real_t) * num_points);
+    real_t* v = polymec_malloc(sizeof(real_t) * num_points);
     for (int i = 0; i < num_points; ++i)
       st_func_eval(f, &x[i], t, &v[i]);
     lua_pushsequence(lua, v, num_points);
@@ -2368,7 +2368,7 @@ static int vectorfunction_call(lua_State* lua)
     int num_points;
     point_t* x = lua_topointlist(lua, 2, &num_points);
     real_t t = (real_t)lua_tonumber(lua, 3);
-    vector_t* V = malloc(sizeof(vector_t) * num_points);
+    vector_t* V = polymec_malloc(sizeof(vector_t) * num_points);
     for (int i = 0; i < num_points; ++i)
     {
       real_t v[3];
@@ -2468,7 +2468,7 @@ static int symtensorfunction_call(lua_State* lua)
     int num_points;
     point_t* x = lua_topointlist(lua, 2, &num_points);
     real_t t = (real_t)lua_tonumber(lua, 3);
-    real_t* V = malloc(sizeof(real_t) * 6 * num_points);
+    real_t* V = polymec_malloc(sizeof(real_t) * 6 * num_points);
     for (int i = 0; i < num_points; ++i)
     {
       real_t v[6];
@@ -2570,7 +2570,7 @@ static int tensorfunction_call(lua_State* lua)
     point_t* x = lua_topointlist(lua, 2, &num_points);
     ASSERT(num_points > 0);
     real_t t = (real_t)lua_tonumber(lua, 3);
-    real_t* V = malloc(sizeof(real_t) * 9 * num_points);
+    real_t* V = polymec_malloc(sizeof(real_t) * 9 * num_points);
     for (int i = 0; i < num_points; ++i)
     {
       real_t v[9];

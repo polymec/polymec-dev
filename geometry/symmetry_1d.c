@@ -178,12 +178,12 @@ mesh_t* create_nonuniform_cylindrical_1d_mesh(MPI_Comm comm, real_t* rs, int N)
     // Now we add the inner most cell, which is a wedge with 5 faces. The 
     // order of the faces is +x,-y,+y,-z,+z.
     mesh->num_cells += 1;
-    mesh->cell_face_offsets = poly_realloc(mesh->cell_face_offsets, 
-                                           sizeof(int)*(mesh->num_cells+1));
+    mesh->cell_face_offsets = polymec_realloc(mesh->cell_face_offsets, 
+                                              sizeof(int)*(mesh->num_cells+1));
     mesh->cell_face_offsets[mesh->num_cells] = mesh->cell_face_offsets[mesh->num_cells-1] + 5;
     int total_num_cell_faces = mesh->cell_face_offsets[mesh->num_cells];
-    mesh->cell_faces = poly_realloc(mesh->cell_faces, 
-                                    sizeof(int)*total_num_cell_faces);
+    mesh->cell_faces = polymec_realloc(mesh->cell_faces, 
+                                       sizeof(int)*total_num_cell_faces);
     mesh->cell_faces[total_num_cell_faces-5] = mesh->cell_faces[0]; // +x
     mesh->cell_faces[total_num_cell_faces-4] = mesh->num_faces;     // -y
     mesh->cell_faces[total_num_cell_faces-3] = mesh->num_faces + 1; // +y
@@ -191,23 +191,23 @@ mesh_t* create_nonuniform_cylindrical_1d_mesh(MPI_Comm comm, real_t* rs, int N)
     mesh->cell_faces[total_num_cell_faces-1] = mesh->num_faces + 3; // +z
 
     // Make sure we allocate the extra storage for cell volumes / centers.
-    mesh->cell_volumes = poly_realloc(mesh->cell_volumes, 
-                                      sizeof(real_t)*mesh->num_cells);
-    mesh->cell_centers = poly_realloc(mesh->cell_centers, 
-                                      sizeof(point_t)*mesh->num_cells);
+    mesh->cell_volumes = polymec_realloc(mesh->cell_volumes, 
+                                         sizeof(real_t)*mesh->num_cells);
+    mesh->cell_centers = polymec_realloc(mesh->cell_centers, 
+                                         sizeof(point_t)*mesh->num_cells);
 
     // Now add the 4 new faces, which introduce 2 new nodes and 5 new edges.
     // The -y/+y faces have 4 nodes/edges, and the -z/+z faces have 3.
     mesh->num_faces += 4;
-    mesh->face_node_offsets = poly_realloc(mesh->face_node_offsets, 
-                                           sizeof(int)*(mesh->num_faces+1));
+    mesh->face_node_offsets = polymec_realloc(mesh->face_node_offsets, 
+                                              sizeof(int)*(mesh->num_faces+1));
     mesh->face_node_offsets[mesh->num_faces-3] = mesh->face_node_offsets[mesh->num_faces-4] + 4; // -y
     mesh->face_node_offsets[mesh->num_faces-2] = mesh->face_node_offsets[mesh->num_faces-3] + 4; // +y
     mesh->face_node_offsets[mesh->num_faces-1] = mesh->face_node_offsets[mesh->num_faces-2] + 3; // -z
     mesh->face_node_offsets[mesh->num_faces  ] = mesh->face_node_offsets[mesh->num_faces-1] + 3; // +z
     int total_num_face_nodes = mesh->face_node_offsets[mesh->num_faces];
-    mesh->face_nodes = poly_realloc(mesh->face_nodes, 
-                                    sizeof(int)*total_num_face_nodes);
+    mesh->face_nodes = polymec_realloc(mesh->face_nodes, 
+                                       sizeof(int)*total_num_face_nodes);
 
     // We define the node orderings on these new faces such that they produce
     // outward normals when traversed according to the right hand rule.
@@ -230,15 +230,15 @@ mesh_t* create_nonuniform_cylindrical_1d_mesh(MPI_Comm comm, real_t* rs, int N)
     mesh->face_nodes[total_num_face_nodes- 1] = cubic_lattice_node(lattice, 0, 0, 1); // +z face node 2
 
     // Now for the face->edge connectivity.
-    mesh->face_edge_offsets = poly_realloc(mesh->face_edge_offsets, 
-                                           sizeof(int)*(mesh->num_faces+1));
+    mesh->face_edge_offsets = polymec_realloc(mesh->face_edge_offsets, 
+                                              sizeof(int)*(mesh->num_faces+1));
     mesh->face_edge_offsets[mesh->num_faces-3] = mesh->face_edge_offsets[mesh->num_faces-4] + 4; // -y
     mesh->face_edge_offsets[mesh->num_faces-2] = mesh->face_edge_offsets[mesh->num_faces-3] + 4; // +y
     mesh->face_edge_offsets[mesh->num_faces-1] = mesh->face_edge_offsets[mesh->num_faces-2] + 3; // -z
     mesh->face_edge_offsets[mesh->num_faces  ] = mesh->face_edge_offsets[mesh->num_faces-1] + 3; // +z
     int total_num_face_edges = mesh->face_edge_offsets[mesh->num_faces];
-    mesh->face_edges = poly_realloc(mesh->face_edges, 
-                                    sizeof(int)*total_num_face_edges);
+    mesh->face_edges = polymec_realloc(mesh->face_edges, 
+                                       sizeof(int)*total_num_face_edges);
 
     mesh->face_edges[total_num_face_edges-14] = mesh->num_edges;                        // -y face edge 0 (axial edge -- new)
     mesh->face_edges[total_num_face_edges-13] = mesh->num_edges + 1;                    // -y face edge 1 (bottom -y new edge)
@@ -259,8 +259,8 @@ mesh_t* create_nonuniform_cylindrical_1d_mesh(MPI_Comm comm, real_t* rs, int N)
     mesh->face_edges[total_num_face_edges- 1] = mesh->num_edges + 4;                    // +z face edge 3 (top +y new edge)
 
     // Face->cell connectivity.
-    mesh->face_cells = poly_realloc(mesh->face_cells,
-                                    sizeof(int)*2*mesh->num_faces);
+    mesh->face_cells = polymec_realloc(mesh->face_cells,
+                                          sizeof(int)*2*mesh->num_faces);
     mesh->face_cells[1]                   = mesh->num_cells-1; // +x face
     mesh->face_cells[2*mesh->num_faces-8] = mesh->num_cells-1; // -y face
     mesh->face_cells[2*mesh->num_faces-7] = -1;
@@ -272,17 +272,17 @@ mesh_t* create_nonuniform_cylindrical_1d_mesh(MPI_Comm comm, real_t* rs, int N)
     mesh->face_cells[2*mesh->num_faces-1] = -1;
 
     // Make sure we allocate the extra storage for face centers/normals/areas.
-    mesh->face_centers = poly_realloc(mesh->face_centers, 
-                                      sizeof(point_t)*mesh->num_faces);
-    mesh->face_normals = poly_realloc(mesh->face_normals, 
-                                      sizeof(vector_t)*mesh->num_faces);
-    mesh->face_areas = poly_realloc(mesh->face_areas, 
-                                    sizeof(real_t)*mesh->num_faces);
+    mesh->face_centers = polymec_realloc(mesh->face_centers, 
+                                         sizeof(point_t)*mesh->num_faces);
+    mesh->face_normals = polymec_realloc(mesh->face_normals, 
+                                         sizeof(vector_t)*mesh->num_faces);
+    mesh->face_areas = polymec_realloc(mesh->face_areas, 
+                                       sizeof(real_t)*mesh->num_faces);
 
     // Add the two new nodes.
     mesh->num_nodes += 2;
-    mesh->nodes = poly_realloc(mesh->nodes, 
-                               sizeof(point_t)*mesh->num_nodes);
+    mesh->nodes = polymec_realloc(mesh->nodes, 
+                                  sizeof(point_t)*mesh->num_nodes);
 
     // Set their coordinates.
     mesh->nodes[mesh->num_nodes-2].x = 0.0;
@@ -295,8 +295,8 @@ mesh_t* create_nonuniform_cylindrical_1d_mesh(MPI_Comm comm, real_t* rs, int N)
 
     // Add the five new edges.
     mesh->num_edges += 5;
-    mesh->edge_nodes = poly_realloc(mesh->edge_nodes, 
-                                    sizeof(int)*2*(mesh->num_edges));
+    mesh->edge_nodes = polymec_realloc(mesh->edge_nodes, 
+                                       sizeof(int)*2*(mesh->num_edges));
 
     // Axial edge.
     mesh->edge_nodes[2*mesh->num_edges-10] = mesh->num_nodes - 2; 
@@ -447,12 +447,12 @@ mesh_t* create_nonuniform_spherical_1d_mesh(MPI_Comm comm, real_t* rs, int N)
     // Now we add the inner most cell, which is a pyramid with 5 faces. The 
     // order of the faces is +x,-y,+y,-z,+z.
     mesh->num_cells += 1;
-    mesh->cell_face_offsets = poly_realloc(mesh->cell_face_offsets, 
-                                           sizeof(int)*(mesh->num_cells+1));
+    mesh->cell_face_offsets = polymec_realloc(mesh->cell_face_offsets, 
+                                              sizeof(int)*(mesh->num_cells+1));
     mesh->cell_face_offsets[mesh->num_cells] = mesh->cell_face_offsets[mesh->num_cells-1] + 5;
     int total_num_cell_faces = mesh->cell_face_offsets[mesh->num_cells];
-    mesh->cell_faces = poly_realloc(mesh->cell_faces, 
-                                    sizeof(int)*total_num_cell_faces);
+    mesh->cell_faces = polymec_realloc(mesh->cell_faces, 
+                                       sizeof(int)*total_num_cell_faces);
     mesh->cell_faces[total_num_cell_faces-5] = mesh->cell_faces[0]; // +x
     mesh->cell_faces[total_num_cell_faces-4] = mesh->num_faces;     // -y
     mesh->cell_faces[total_num_cell_faces-3] = mesh->num_faces + 1; // +y
@@ -460,23 +460,23 @@ mesh_t* create_nonuniform_spherical_1d_mesh(MPI_Comm comm, real_t* rs, int N)
     mesh->cell_faces[total_num_cell_faces-1] = mesh->num_faces + 3; // +z
 
     // Make sure we allocate the extra storage for cell volumes / centers.
-    mesh->cell_volumes = poly_realloc(mesh->cell_volumes, 
-                                      sizeof(real_t)*mesh->num_cells);
-    mesh->cell_centers = poly_realloc(mesh->cell_centers, 
-                                      sizeof(point_t)*mesh->num_cells);
+    mesh->cell_volumes = polymec_realloc(mesh->cell_volumes, 
+                                         sizeof(real_t)*mesh->num_cells);
+    mesh->cell_centers = polymec_realloc(mesh->cell_centers, 
+                                         sizeof(point_t)*mesh->num_cells);
 
     // Now add the 4 new faces, which introduce 1 new node and 4 new edges.
     // The new faces all have 3 nodes/edges.
     mesh->num_faces += 4;
-    mesh->face_node_offsets = poly_realloc(mesh->face_node_offsets, 
-                                           sizeof(int)*(mesh->num_faces+1));
+    mesh->face_node_offsets = polymec_realloc(mesh->face_node_offsets, 
+                                              sizeof(int)*(mesh->num_faces+1));
     mesh->face_node_offsets[mesh->num_faces-3] = mesh->face_node_offsets[mesh->num_faces-4] + 3; // -y
     mesh->face_node_offsets[mesh->num_faces-2] = mesh->face_node_offsets[mesh->num_faces-3] + 3; // +y
     mesh->face_node_offsets[mesh->num_faces-1] = mesh->face_node_offsets[mesh->num_faces-2] + 3; // -z
     mesh->face_node_offsets[mesh->num_faces  ] = mesh->face_node_offsets[mesh->num_faces-1] + 3; // +z
     int total_num_face_nodes = mesh->face_node_offsets[mesh->num_faces];
-    mesh->face_nodes = poly_realloc(mesh->face_nodes, 
-                                    sizeof(int)*total_num_face_nodes);
+    mesh->face_nodes = polymec_realloc(mesh->face_nodes, 
+                                       sizeof(int)*total_num_face_nodes);
 
     // We define the node orderings on these new faces such that they produce
     // outward normals when traversed according to the right hand rule.
@@ -497,15 +497,15 @@ mesh_t* create_nonuniform_spherical_1d_mesh(MPI_Comm comm, real_t* rs, int N)
     mesh->face_nodes[total_num_face_nodes- 1] = cubic_lattice_node(lattice, 0, 0, 1); // +z face node 2
 
     // Now for the face->edge connectivity.
-    mesh->face_edge_offsets = poly_realloc(mesh->face_edge_offsets, 
-                                           sizeof(int)*(mesh->num_faces+1));
+    mesh->face_edge_offsets = polymec_realloc(mesh->face_edge_offsets, 
+                                              sizeof(int)*(mesh->num_faces+1));
     mesh->face_edge_offsets[mesh->num_faces-3] = mesh->face_edge_offsets[mesh->num_faces-4] + 3; // -y
     mesh->face_edge_offsets[mesh->num_faces-2] = mesh->face_edge_offsets[mesh->num_faces-3] + 3; // +y
     mesh->face_edge_offsets[mesh->num_faces-1] = mesh->face_edge_offsets[mesh->num_faces-2] + 3; // -z
     mesh->face_edge_offsets[mesh->num_faces  ] = mesh->face_edge_offsets[mesh->num_faces-1] + 3; // +z
     int total_num_face_edges = mesh->face_edge_offsets[mesh->num_faces];
-    mesh->face_edges = poly_realloc(mesh->face_edges, 
-                                    sizeof(int)*total_num_face_edges);
+    mesh->face_edges = polymec_realloc(mesh->face_edges, 
+                                       sizeof(int)*total_num_face_edges);
 
     mesh->face_edges[total_num_face_edges-12] = mesh->num_edges;                        // -y face edge 1 (bottom -y new edge)
     mesh->face_edges[total_num_face_edges-11] = cubic_lattice_z_edge(lattice, 0, 0, 0); // -y face edge 2 
@@ -524,8 +524,8 @@ mesh_t* create_nonuniform_spherical_1d_mesh(MPI_Comm comm, real_t* rs, int N)
     mesh->face_edges[total_num_face_edges- 1] = mesh->num_edges + 3;                    // +z face edge 3 (top +y new edge)
 
     // Face->cell connectivity.
-    mesh->face_cells = poly_realloc(mesh->face_cells,
-                                    sizeof(int)*2*mesh->num_faces);
+    mesh->face_cells = polymec_realloc(mesh->face_cells,
+                                       sizeof(int)*2*mesh->num_faces);
     mesh->face_cells[1]                   = mesh->num_cells-1; // +x face
     mesh->face_cells[2*mesh->num_faces-8] = mesh->num_cells-1; // -y face
     mesh->face_cells[2*mesh->num_faces-7] = -1;
@@ -537,17 +537,16 @@ mesh_t* create_nonuniform_spherical_1d_mesh(MPI_Comm comm, real_t* rs, int N)
     mesh->face_cells[2*mesh->num_faces-1] = -1;
 
     // Make sure we allocate the extra storage for face centers/normals/areas.
-    mesh->face_centers = poly_realloc(mesh->face_centers, 
-                                      sizeof(point_t)*mesh->num_faces);
-    mesh->face_normals = poly_realloc(mesh->face_normals, 
-                                      sizeof(vector_t)*mesh->num_faces);
-    mesh->face_areas = poly_realloc(mesh->face_areas, 
-                                    sizeof(real_t)*mesh->num_faces);
+    mesh->face_centers = polymec_realloc(mesh->face_centers, 
+                                         sizeof(point_t)*mesh->num_faces);
+    mesh->face_normals = polymec_realloc(mesh->face_normals, 
+                                         sizeof(vector_t)*mesh->num_faces);
+    mesh->face_areas = polymec_realloc(mesh->face_areas, 
+                                       sizeof(real_t)*mesh->num_faces);
 
     // Add the new node at the origin.
     mesh->num_nodes += 1;
-    mesh->nodes = poly_realloc(mesh->nodes, 
-                               sizeof(point_t)*mesh->num_nodes);
+    mesh->nodes = polymec_realloc(mesh->nodes, sizeof(point_t)*mesh->num_nodes);
 
     mesh->nodes[mesh->num_nodes-2].x = 0.0;
     mesh->nodes[mesh->num_nodes-2].y = 0.0;
@@ -555,8 +554,7 @@ mesh_t* create_nonuniform_spherical_1d_mesh(MPI_Comm comm, real_t* rs, int N)
 
     // Add the four new edges.
     mesh->num_edges += 4;
-    mesh->edge_nodes = poly_realloc(mesh->edge_nodes, 
-                                    sizeof(int)*2*(mesh->num_edges));
+    mesh->edge_nodes = polymec_realloc(mesh->edge_nodes, sizeof(int)*2*(mesh->num_edges));
 
     // Bottom -y new edge.
     mesh->edge_nodes[2*mesh->num_edges- 8] = cubic_lattice_node(lattice, 0, 0, 0);

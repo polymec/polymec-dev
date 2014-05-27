@@ -49,8 +49,8 @@ static void delete_loggers()
     {
       if (loggers[i]->stream != NULL)
         fclose(loggers[i]->stream);
-      free(loggers[i]->buffer);
-      free(loggers[i]);
+      polymec_free(loggers[i]->buffer);
+      polymec_free(loggers[i]);
       loggers[i] = NULL;
     }
   }
@@ -92,7 +92,7 @@ static void logger_log(logger_t* logger, char* message)
 
 static logger_t* create_logger()
 {
-  logger_t* logger = malloc(sizeof(logger_t));
+  logger_t* logger = polymec_malloc(sizeof(logger_t));
   logger->buffer = NULL;
   logger->stream = stdout;
   logger->mpi_rank = 0;

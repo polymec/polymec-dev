@@ -30,7 +30,7 @@
 char* string_dup(const char* s)
 {
   int len = strlen(s);
-  char* copy = malloc((len+1)*sizeof(char));
+  char* copy = polymec_malloc((len+1)*sizeof(char));
   strcpy(copy, s);
   return copy;
 }
@@ -38,7 +38,7 @@ char* string_dup(const char* s)
 char* string_ndup(const char* s, int n)
 {
   int len = MIN(n, strlen(s));
-  char* copy = malloc((len+1)*sizeof(char));
+  char* copy = polymec_malloc((len+1)*sizeof(char));
   strncpy(copy, s, n);
   copy[n] = '\0';
   return copy;
@@ -46,7 +46,7 @@ char* string_ndup(const char* s, int n)
 
 void string_free(char* s)
 {
-  free(s);
+  polymec_free(s);
 }
 
 bool string_next_token(const char* s, const char* delimiter, int* pos, char** token, int* length)
@@ -85,7 +85,7 @@ char** string_split(const char* s, const char* delimiter, int* num_substrings)
 
   int i = 0, pos = 0, length;
   char* token;
-  char** strs = malloc(sizeof(char*) * (*num_substrings));
+  char** strs = polymec_malloc(sizeof(char*) * (*num_substrings));
   while (string_next_token(s, delimiter, &pos, &token, &length))
     strs[i++] = string_ndup(token, length);
   return strs;
@@ -195,7 +195,7 @@ char* string_subst(const char* string, string_subst_t substitutions[])
   new_len += 1; // '\0'
 
   // Now create the new string.
-  char* new_string = malloc(sizeof(char)*new_len);
+  char* new_string = polymec_malloc(sizeof(char)*new_len);
   int read_index = 0, write_index = 0;
   for (int i = 0; i < num_occ; ++i)
   {
