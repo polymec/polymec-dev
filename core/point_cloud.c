@@ -69,36 +69,26 @@ void point_cloud_neighbor_search_free(point_cloud_neighbor_search_t* search)
 
 point_cloud_t* point_cloud_new(MPI_Comm comm, point_t* points, int num_points)
 {
-  ARENA* a = arena_open(&arena_defaults, 0);
-  point_cloud_t* cloud = point_cloud_new_with_arena(a, comm, points, num_points);
-  cloud->close_arena = true;
-  return cloud;
-}
-
-point_cloud_t* point_cloud_new_with_arena(ARENA* arena, MPI_Comm comm, point_t* points, int num_points)
-{
   ASSERT(num_points >= 0);
 
-  point_cloud_t* cloud = ARENA_MALLOC(arena, sizeof(point_cloud_t), 0);
-  cloud->arena = arena;
+  point_cloud_t* cloud = poly_malloc(sizeof(point_cloud_t));
   cloud->comm = comm;
-  cloud->close_arena = false;
 
   // Allocate point information.
   cloud->num_points = num_points;
   cloud->num_ghost_points = 0;
-  cloud->point_coords = ARENA_MALLOC(cloud->arena, sizeof(point_t)*num_points, 0);
+  cloud->point_coords = poly_malloc(sizeof(point_t)*num_points);
   memcpy(cloud->point_coords, points, sizeof(point_t)*num_points);
 
   // Allocate some preliminary neighbor information.
-  cloud->neighbor_offsets = ARENA_MALLOC(cloud->arena, sizeof(int)*(num_points+1), 0);
+  cloud->neighbor_offsets = poly_malloc(sizeof(int)*(num_points+1));
   memset(cloud->neighbor_offsets, 0, sizeof(int)*(num_points+1));
   cloud->num_neighbors = 0;
   cloud->neighbor_cap = 32 * num_points;
-  cloud->neighbors = ARENA_MALLOC(cloud->arena, sizeof(int)*cloud->neighbor_cap, 0);
+  cloud->neighbors = poly_malloc(sizeof(int)*cloud->neighbor_cap);
 
   // Allocate tagging mechanisms.
-  cloud->tags = tagger_new(cloud->arena);
+  cloud->tags = tagger_new();
 
   // Now we create a bogus tag that we can use to store cloud properties.
   int* prop_tag = tagger_create_tag(cloud->tags, "properties", 1);
@@ -113,9 +103,9 @@ void point_cloud_free(point_cloud_t* cloud)
 
   tagger_free(cloud->tags);
 
-  ARENA_FREE(cloud->arena, cloud->neighbors);
-  ARENA_FREE(cloud->arena, cloud->neighbor_offsets);
-  ARENA_FREE(cloud->arena, cloud->point_coords);
+  poly_free(cloud->neighbors);
+  poly_free(cloud->neighbor_offsets);
+  poly_free(cloud->point_coords);
 }
 
 void point_cloud_find_neighbors(point_cloud_t* cloud, point_cloud_neighbor_search_t* search)
@@ -125,7 +115,7 @@ void point_cloud_find_neighbors(point_cloud_t* cloud, point_cloud_neighbor_searc
 
   // Do it.
   int max_num_neighbors = 32;
-  int* neighbors = ARENA_MALLOC(cloud->arena, sizeof(int) * max_num_neighbors, 0);
+  int* neighbors = poly_malloc(sizeof(int) * max_num_neighbors);
   for (int i = 0; i < cloud->num_points; ++i)
   {
     // Find the neighbors of point i.
@@ -134,7 +124,7 @@ void point_cloud_find_neighbors(point_cloud_t* cloud, point_cloud_neighbor_searc
     while (found_too_many_neighbors)
     {
       max_num_neighbors *= 2;
-      neighbors = ARENA_REALLOC(cloud->arena, neighbors, sizeof(int) * max_num_neighbors, 0);
+      neighbors = poly_realloc(neighbors, sizeof(int) * max_num_neighbors);
       found_too_many_neighbors = search->vtable.find_neighbors(search->context, i, max_num_neighbors, neighbors, &num_neighbors);
     }
 
@@ -142,14 +132,14 @@ void point_cloud_find_neighbors(point_cloud_t* cloud, point_cloud_neighbor_searc
     if (cloud->num_neighbors + num_neighbors > cloud->neighbor_cap)
     {
       cloud->neighbor_cap = round_to_pow2(cloud->num_neighbors + num_neighbors);
-      cloud->neighbors = ARENA_REALLOC(cloud->arena, cloud->neighbors, sizeof(int) * cloud->neighbor_cap, 0);
+      cloud->neighbors = poly_realloc(cloud->neighbors, sizeof(int) * cloud->neighbor_cap);
     }
 
     // Place the new neighbors into the neighbors array.
     memcpy(&cloud->neighbors[cloud->num_neighbors], neighbors, sizeof(int) * num_neighbors);
     cloud->num_neighbors += num_neighbors;
   }
-  ARENA_FREE(cloud->arena, neighbors);
+  poly_free(neighbors);
 }
 
 void point_cloud_set_property(point_cloud_t* cloud, const char* property, void* data, void (*dtor)(void*))

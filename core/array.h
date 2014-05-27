@@ -26,7 +26,6 @@
 #define POLYMEC_ARRAY_H
 
 #include "core/polymec.h"
-#include "arena/proto.h"
 
 // An array is a dynamically-resizable chunk of contiguous memory that 
 // stores a particular data type. It serves the same purpose as a C++ vector.
@@ -38,8 +37,6 @@
 //
 // x_array_t* x_array_new() - Creates a new, empty array on the heap.
 // x_array_t* x_array_new_with_capacity(int capacity) - Creates a new, empty array on the heap with the given capacity.
-// x_array_t* x_array_new_with_arena(ARENA* arena) - Creates a new, empty array using the given arena.
-// x_array_t* x_array_new_with_arena_and_capacity(ARENA* arena, int capacity) - Creates a new, empty array using the given arena with the given capacity.
 // x_array_t empty_x_array() - Creates a new, empty array on the stack.
 // void x_array_free(array_t* array) - Destroys the (heap-allocated) array.
 // x* x_array_find(x_array_t* array, x value, cmp_func comparator) - Performs a linear search within the array, returning the pointer to the found item or NULL if not found.
@@ -66,7 +63,6 @@ typedef struct \
   array_name##_dtor* dtors; \
   size_t size; \
   size_t capacity; \
-  ARENA* arena; \
 } array_name##_t; \
 \
 typedef int (*array_name##_comparator)(element, element); \
@@ -75,31 +71,20 @@ static inline void array_name##_reserve(array_name##_t* array, size_t new_capaci
 { \
   if (new_capacity > array->capacity) \
   { \
-    array->data = ARENA_REALLOC(array->arena, array->data, sizeof(element) * new_capacity, 0); \
+    array->data = poly_realloc(array->data, sizeof(element) * new_capacity); \
     array->capacity = new_capacity; \
   } \
 } \
 \
-static inline array_name##_t* array_name##_new_with_arena_and_capacity(ARENA* arena, size_t capacity) \
+static inline array_name##_t* array_name##_new_with_capacity(size_t capacity) \
 { \
-  array_name##_t* array = ARENA_MALLOC(arena, sizeof(array_name##_t), 0); \
+  array_name##_t* array = poly_malloc(sizeof(array_name##_t)); \
   array->data = NULL; \
   array->dtors = NULL; \
   array->size = 0; \
   array->capacity = 0; \
-  array->arena = arena; \
   array_name##_reserve(array, capacity); \
   return array; \
-} \
-\
-static inline array_name##_t* array_name##_new_with_arena(ARENA* arena) \
-{ \
-  return array_name##_new_with_arena_and_capacity(arena, 16); \
-} \
-\
-static inline array_name##_t* array_name##_new_with_capacity(size_t capacity) \
-{ \
-  return array_name##_new_with_arena_and_capacity(NULL, capacity); \
 } \
 \
 static inline array_name##_t* array_name##_new() \
@@ -109,7 +94,7 @@ static inline array_name##_t* array_name##_new() \
 \
 static inline array_name##_t empty_##array_name() \
 { \
-  static array_name##_t empty = {.data = NULL, .size = 0, .capacity = 0, .dtors = NULL, .arena = NULL}; \
+  static array_name##_t empty = {.data = NULL, .size = 0, .capacity = 0, .dtors = NULL}; \
   return empty; \
 } \
 \
@@ -174,12 +159,12 @@ static inline void array_name##_append_with_dtor(array_name##_t* array, element 
   { \
     if (array->dtors == NULL) \
     { \
-      array->dtors = ARENA_MALLOC(array->arena, sizeof(array_name##_dtor) * array->capacity, 0); \
+      array->dtors = poly_malloc(sizeof(array_name##_dtor) * array->capacity); \
       memset(array->dtors, 0, sizeof(array_name##_dtor) * array->capacity); \
     } \
     else \
     { \
-      array->dtors = ARENA_REALLOC(array->arena, array->dtors, sizeof(array_name##_dtor) * array->capacity, 0); \
+      array->dtors = poly_realloc(array->dtors, sizeof(array_name##_dtor) * array->capacity); \
       memset(&array->dtors[array->size], 0, sizeof(array_name##_dtor) * (array->capacity - array->size)); \
     } \
     array->dtors[array->size-1] = dtor; \

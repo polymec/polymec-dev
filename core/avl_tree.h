@@ -28,7 +28,6 @@
 #include <stdlib.h>
 #include "core/polymec.h"
 #include "core/comparators.h"
-#include "arena/proto.h"
 
 // An AVL tree is a balanced binary tree that can be used to implement other data structures.
 // One defines tree and node types using
@@ -68,13 +67,11 @@ typedef struct tree_name##_t tree_name##_t; \
 struct tree_name##_t \
 { \
   tree_name##_node_t* root; \
-  ARENA* arena; \
 }; \
 \
 static inline tree_name##_t* tree_name##_new() \
 { \
   tree_name##_t* tree = malloc(sizeof(tree_name##_t)); \
-  tree->arena = NULL; \
   tree->root = NULL; \
   return tree; \
 } \

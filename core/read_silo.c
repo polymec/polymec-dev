@@ -189,7 +189,7 @@ void read_silo_mesh(MPI_Comm comm,
   mesh_obj->face_node_offsets[0] = 0;
   for (int f = 0; f < mesh_obj->num_faces; ++f)
     mesh_obj->face_node_offsets[f+1] = mesh_obj->face_node_offsets[f] + dbmesh->faces->shapesize[f];
-  mesh_obj->face_nodes = ARENA_REALLOC(mesh_obj->arena, mesh_obj->face_nodes, sizeof(int)*mesh_obj->face_node_offsets[mesh_obj->num_faces], 0);
+  mesh_obj->face_nodes = poly_realloc(mesh_obj->face_nodes, sizeof(int)*mesh_obj->face_node_offsets[mesh_obj->num_faces]);
   memcpy(mesh_obj->face_nodes, dbmesh->faces->nodelist, sizeof(int)*mesh_obj->face_node_offsets[mesh_obj->num_faces]);
 
   // Reconstruct the cell-face connectivity.
@@ -216,7 +216,7 @@ void read_silo_mesh(MPI_Comm comm,
   for (int c = 0; c < dbmesh->zones->nzones; ++c)
     mesh_obj->cell_face_offsets[c+1] = mesh_obj->cell_face_offsets[c] + conn_data[c];
   int foffset = dbmesh->zones->nzones;
-  mesh_obj->cell_faces = ARENA_REALLOC(mesh_obj->arena, mesh_obj->cell_faces, sizeof(int)*mesh_obj->cell_face_offsets[mesh_obj->num_cells], 0);
+  mesh_obj->cell_faces = poly_realloc(mesh_obj->cell_faces, sizeof(int)*mesh_obj->cell_face_offsets[mesh_obj->num_cells]);
   memcpy(mesh_obj->cell_faces, &conn_data[foffset], sizeof(int) * mesh_obj->cell_face_offsets[mesh_obj->num_cells]);
   foffset += mesh_obj->cell_face_offsets[mesh_obj->num_cells];
 

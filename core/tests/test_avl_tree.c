@@ -38,7 +38,6 @@ void test_##tree_name##_ctor(void** state) \
   tree_name##_t* t = tree_name##_new(); \
   assert_int_equal(0, tree_name##_size(t)); \
   assert_true(t->root == NULL); \
-  assert_true(t->arena == NULL); \
   tree_name##_free(t); \
 } \
 \

@@ -105,8 +105,6 @@ typedef struct
   tagger_t* node_tags;
 
   // Mesh storage information -- used internally.
-  ARENA* arena;
-  bool close_arena;
   mesh_storage_t* storage;
 } mesh_t;
 
@@ -116,10 +114,6 @@ typedef struct
 // generation algorithms. NOTE: edges are constructed with mesh_construct_edges().
 mesh_t* mesh_new(MPI_Comm comm, int num_cells, int num_ghost_cells, 
                  int num_faces, int num_nodes);
-
-// Construct a new mesh, using the given arena for memory allocations.
-mesh_t* mesh_new_with_arena(ARENA* arena, MPI_Comm comm, int num_cells, 
-                            int num_ghost_cells, int num_faces, int num_nodes);
 
 // Construct a new mesh with a single type of polytope.
 // This function does not set up connectivity, but initializes its metadata 
