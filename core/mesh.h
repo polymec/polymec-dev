@@ -40,10 +40,6 @@ typedef enum
   MESH_CELL
 } mesh_centering_t;
 
-#ifndef POLYMEC_TAGGER_H
-typedef struct tagger_t tagger_t;
-#endif
-
 // This mesh feature indicates that a mesh is tetrahedral.
 const char* TETRAHEDRAL;
 

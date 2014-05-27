@@ -27,15 +27,14 @@
 
 #include <stdlib.h>
 #include <stdbool.h>
-#include "arena/proto.h"
 
 // A tagger is an object that stores tag and property information. A tag is 
 // a set of integer indices associated with a name. It can be used to store 
 // material or geometry information in the context of a spatial discretization.
 typedef struct tagger_t tagger_t;
 
-// Creates a new tagger that stores information using the given arena.
-tagger_t* tagger_new(ARENA* arena);
+// Creates a new tagger that stores information.
+tagger_t* tagger_new();
 
 // Destroys the given tagger.
 void tagger_free(tagger_t* tags);

@@ -30,6 +30,7 @@
 #include "core/polymec.h"
 #include "core/polymec_version.h"
 #include "core/options.h"
+#include "core/slist.h"
 
 // Standard C support for floating point environment.
 #include <fenv.h>
@@ -373,3 +374,86 @@ int polymec_num_cores()
   return sysconf(_SC_NPROCESSORS_ONLN);
 #endif
 }
+
+// Arena stack.
+static ptr_slist_t* arena_stack = NULL;
+
+void* poly_malloc(size_t size)
+{
+  if ((arena_stack == NULL) || (arena_stack->size == 0))
+    return malloc(size);
+  else
+    return arena_malloc(arena_stack->front->value, size, 0);
+}
+
+void* poly_aligned_alloc(size_t alignment, size_t size)
+{
+  if ((arena_stack == NULL) || (arena_stack->size == 0))
+#ifdef APPLE
+  {
+    // Mac OS X doesn't have this yet!
+    return malloc(size);
+  }
+#else
+    return aligned_alloc(alignment, size);
+#endif
+  else
+    return arena_malloc(arena_stack->front->value, size, alignment);
+}
+
+void* poly_realloc(void* memory, size_t size)
+{
+  if ((arena_stack == NULL) || (arena_stack->size == 0))
+    return realloc(memory, size);
+  else
+    return arena_realloc(arena_stack->front->value, memory, size, 0);
+}
+
+void* poly_aligned_realloc(void* memory, size_t alignment, size_t size)
+{
+  if ((arena_stack == NULL) || (arena_stack->size == 0))
+  {
+#ifdef APPLE
+    // Mac OS X doesn't have this yet!
+    return realloc(memory, size);
+#else
+    void* new_mem = aligned_alloc(alignment, size);
+    memcpy(new_mem, memory, sizeof(memory));
+    free(memory);
+    return new_mem;
+#endif
+  }
+  else
+    return arena_realloc(arena_stack->front->value, memory, size, alignment);
+}
+
+void poly_free(void* memory)
+{
+  if ((arena_stack == NULL) || (arena_stack->size == 0))
+    free(memory);
+  else
+    arena_free(arena_stack->front->value, memory);
+}
+
+static void free_arena_stack()
+{
+  ASSERT(arena_stack != NULL);
+  ptr_slist_free(arena_stack);
+}
+
+void push_arena(ARENA* arena)
+{
+  if (arena_stack == NULL)
+  {
+    arena_stack = ptr_slist_new();
+    polymec_atexit(free_arena_stack);
+  }
+  ptr_slist_push_with_dtor(arena_stack, arena, DTOR(arena_close));
+}
+
+ARENA* pop_arena()
+{
+  ASSERT(arena_stack != NULL);
+  return ptr_slist_pop(arena_stack, NULL);
+}
+

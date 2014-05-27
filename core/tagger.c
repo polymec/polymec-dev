@@ -22,25 +22,22 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include <stdlib.h>
 #include "core/tagger.h"
+#include "core/polymec.h"
 #include "core/unordered_map.h"
-#include "arena/proto.h"
 
 typedef struct
 {
   void* data;
   void (*dtor)(void*);
-  ARENA* arena;
 } tagger_data_property_t;
 
-static tagger_data_property_t* tagger_data_property_new(ARENA* arena, const char* key, void* data, void (*dtor)(void*))
+static tagger_data_property_t* tagger_data_property_new(const char* key, void* data, void (*dtor)(void*))
 {
   ASSERT(data != NULL);
-  tagger_data_property_t* prop = ARENA_MALLOC(arena, sizeof(tagger_data_property_t), 0);
+  tagger_data_property_t* prop = poly_malloc(sizeof(tagger_data_property_t));
   prop->data = data;
   prop->dtor = dtor;
-  prop->arena = arena;
   return prop;
 }
 
@@ -48,8 +45,7 @@ static void tagger_data_property_free(tagger_data_property_t* prop)
 {
   if (prop->dtor != NULL)
     (*prop->dtor)(prop->data);
-  ARENA* arena = prop->arena;
-  ARENA_FREE(arena, prop);
+  poly_free(prop);
 }
 
 DEFINE_UNORDERED_MAP(tagger_data_property_map, char*, tagger_data_property_t*, string_hash, string_equals)
@@ -60,18 +56,16 @@ typedef struct
   int* indices;
   int  num_indices;
   tagger_data_property_map_t* properties;
-  ARENA* arena;
 } tagger_data_t;
 
-static tagger_data_t* tagger_data_new(ARENA* arena, const char* key, int* indices, int num_indices)
+static tagger_data_t* tagger_data_new(const char* key, int* indices, int num_indices)
 {
   ASSERT(indices != NULL);
   ASSERT(num_indices >= 0);
-  tagger_data_t* data = ARENA_MALLOC(arena, sizeof(tagger_data_t), 0);
+  tagger_data_t* data = poly_malloc(sizeof(tagger_data_t));
   data->indices = indices; // YOINK!
   data->num_indices = num_indices;
   data->properties = tagger_data_property_map_new();
-  data->arena = arena;
   return data;
 }
 
@@ -81,25 +75,22 @@ static void tagger_data_free(tagger_data_t* tags_data)
   tagger_data_property_map_free(tags_data->properties);
 
   // Delete indices.
-  ARENA_FREE(tags_data->arena, tags_data->indices);
+  poly_free(tags_data->indices);
 
   // Delete self.
-  ARENA* arena = tags_data->arena;
-  ARENA_FREE(arena, tags_data);
+  poly_free(tags_data);
 }
 
 DEFINE_UNORDERED_MAP(tagger_data_map, char*, tagger_data_t*, string_hash, string_equals)
 
 struct tagger_t
 {
-  ARENA* arena;
   tagger_data_map_t* data;
 };
 
-tagger_t* tagger_new(ARENA* arena)
+tagger_t* tagger_new()
 {
-  tagger_t* tags = ARENA_MALLOC(arena, sizeof(tagger_t), 0);
-  tags->arena = arena;
+  tagger_t* tags = poly_malloc(sizeof(tagger_t));
   tags->data = tagger_data_map_new();
   return tags;
 }
@@ -107,7 +98,7 @@ tagger_t* tagger_new(ARENA* arena)
 void tagger_free(tagger_t* tags)
 {
   tagger_data_map_free(tags->data);
-  ARENA_FREE(tags->arena, tags);
+  poly_free(tags);
 }
 
 void tagger_copy(tagger_t* dest, tagger_t* src)
@@ -128,13 +119,13 @@ void tagger_copy(tagger_t* dest, tagger_t* src)
 // These destructors are used with maps for tag properties and tags.
 static void destroy_tag_property_key_and_value(char* key, tagger_data_property_t* value)
 {
-  ARENA_FREE(value->arena, key);
+  poly_free(key);
   tagger_data_property_free(value);
 }
 
 static void destroy_tag_key_and_value(char* key, tagger_data_t* value)
 {
-  ARENA_FREE(value->arena, key);
+  poly_free(key);
   tagger_data_free(value);
 }
 
@@ -147,10 +138,10 @@ int* tagger_create_tag(tagger_t* tagger, const char* tag, int num_indices)
     return NULL;
 
   // Otherwise, we create it.
-  int* indices = ARENA_MALLOC(tagger->arena, num_indices*sizeof(int), 0);
-  char* tag_name = ARENA_MALLOC(tagger->arena, sizeof(char)*(strlen(tag)+1), 0);
+  int* indices = poly_malloc(num_indices*sizeof(int));
+  char* tag_name = poly_malloc(sizeof(char)*(strlen(tag)+1));
   strcpy(tag_name, tag);
-  tagger_data_t* data = tagger_data_new(tagger->arena, tag, indices, num_indices);
+  tagger_data_t* data = tagger_data_new(tag, indices, num_indices);
   tagger_data_map_insert_with_kv_dtor(tagger->data, tag_name, data, destroy_tag_key_and_value);
   return indices;
 }
@@ -181,9 +172,9 @@ bool tagger_set_property(tagger_t* tagger, const char* tag, const char* property
   if (data_p == NULL) return false;
 
   // Insert the new property.
-  char* prop_name = ARENA_MALLOC(tagger->arena, sizeof(char)*(strlen(property)+1), 0);
+  char* prop_name = poly_malloc(sizeof(char)*(strlen(property)+1));
   strcpy(prop_name, property);
-  tagger_data_property_t* prop = tagger_data_property_new(tagger->arena, property, data, destructor);
+  tagger_data_property_t* prop = tagger_data_property_new(property, data, destructor);
   tagger_data_property_map_insert_with_kv_dtor((*data_p)->properties, prop_name, prop, destroy_tag_property_key_and_value);
   return true;
 }
