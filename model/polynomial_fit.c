@@ -43,7 +43,7 @@ polynomial_fit_t* polynomial_fit_new(int num_components, int p)
   ASSERT(num_components >= 1);
   ASSERT(p >= 0);
 
-  polynomial_fit_t* fit = malloc(sizeof(polynomial_fit_t));
+  polynomial_fit_t* fit = polymec_malloc(sizeof(polynomial_fit_t));
   int dim = polynomial_basis_dim(p);
   real_t coeffs[dim];
   for (int i = 0; i < dim; ++i)
@@ -51,10 +51,10 @@ polynomial_fit_t* polynomial_fit_new(int num_components, int p)
 
   fit->num_components = num_components;
   fit->p = p;
-  fit->poly = malloc(sizeof(polynomial_t*) * num_components);
-  fit->equations = malloc(sizeof(ptr_array_t*) * num_components);
-  fit->points = malloc(sizeof(ptr_array_t*) * num_components);
-  fit->num_equations = malloc(sizeof(int) * num_components);
+  fit->poly = polymec_malloc(sizeof(polynomial_t*) * num_components);
+  fit->equations = polymec_malloc(sizeof(ptr_array_t*) * num_components);
+  fit->points = polymec_malloc(sizeof(ptr_array_t*) * num_components);
+  fit->num_equations = polymec_malloc(sizeof(int) * num_components);
   fit->computed = false;
   for (int c = 0; c < num_components; ++c)
   {
@@ -75,11 +75,11 @@ void polynomial_fit_free(polynomial_fit_t* fit)
     ptr_array_free(fit->equations[c]);
     ptr_array_free(fit->points[c]);
   }
-  free(fit->poly);
-  free(fit->equations);
-  free(fit->points);
-  free(fit->num_equations);
-  free(fit);
+  polymec_free(fit->poly);
+  polymec_free(fit->equations);
+  polymec_free(fit->points);
+  polymec_free(fit->num_equations);
+  polymec_free(fit);
 }
 
 // This constructs an array of coefficients representing an equation for the 
@@ -96,7 +96,7 @@ static real_t* append_equation(polynomial_fit_t* fit, int component, point_t* x)
   real_t* eq;
   if (fit->equations[component]->size < new_num_eq)
   {
-    eq = malloc(sizeof(real_t) * (fit->num_components*dim + 1));
+    eq = polymec_malloc(sizeof(real_t) * (fit->num_components*dim + 1));
     ptr_array_append_with_dtor(fit->equations[component], eq, DTOR(free));
     ptr_array_append(fit->points[component], x);
   }

@@ -37,11 +37,11 @@ static exchanger_channel_t* exchanger_channel_new(int num_indices, int* indices,
 {
   ASSERT(num_indices > 0);
   ASSERT(indices != NULL);
-  exchanger_channel_t* c = malloc(sizeof(exchanger_channel_t));
+  exchanger_channel_t* c = polymec_malloc(sizeof(exchanger_channel_t));
   c->num_indices = num_indices;
   if (copy_indices)
   {
-    c->indices = malloc(sizeof(int)*num_indices);
+    c->indices = polymec_malloc(sizeof(int)*num_indices);
     memcpy(c->indices, indices, sizeof(int)*num_indices);
   }
   else
@@ -51,8 +51,8 @@ static exchanger_channel_t* exchanger_channel_new(int num_indices, int* indices,
 
 static void exchanger_channel_free(exchanger_channel_t* c)
 {
-  free(c->indices);
-  free(c);
+  polymec_free(c->indices);
+  polymec_free(c);
 }
 
 DEFINE_UNORDERED_MAP(exchanger_map, int, exchanger_channel_t*, int_hash, int_equals)
@@ -76,7 +76,7 @@ typedef struct
 static mpi_message_t* mpi_message_new(MPI_Datatype type, int stride, int tag)
 {
   ASSERT(stride > 0);
-  mpi_message_t* msg = malloc(sizeof(mpi_message_t));
+  mpi_message_t* msg = polymec_malloc(sizeof(mpi_message_t));
   msg->type = type;
   msg->stride = stride;
   msg->tag = tag;
@@ -105,18 +105,18 @@ static void mpi_message_pack(mpi_message_t* msg, void* data,
   int num_sends = send_map->size;
   int num_receives = receive_map->size;
   msg->num_sends = num_sends;
-  msg->send_buffer_sizes = malloc(sizeof(int)*msg->num_sends);
-  msg->send_buffers = malloc(sizeof(void*)*msg->num_sends);
+  msg->send_buffer_sizes = polymec_malloc(sizeof(int)*msg->num_sends);
+  msg->send_buffers = polymec_malloc(sizeof(void*)*msg->num_sends);
   msg->num_receives = num_receives;
-  msg->receive_buffer_sizes = malloc(sizeof(int)*msg->num_receives);
-  msg->receive_buffers = malloc(sizeof(void*)*msg->num_receives);
+  msg->receive_buffer_sizes = polymec_malloc(sizeof(int)*msg->num_receives);
+  msg->receive_buffers = polymec_malloc(sizeof(void*)*msg->num_receives);
 
   int pos = 0, proc, i = 0;
   exchange_channel_t* c;
   while (exchanger_map_next(send_map, &pos, &proc, &c))
   {
     msg->send_buffer_sizes[i] = c->num_indices;
-    msg->send_buffers[i] = malloc(c->num_indices*msg->data_size*msg->stride);
+    msg->send_buffers[i] = polymec_malloc(c->num_indices*msg->data_size*msg->stride);
     if (msg->type == MPI_REAL)
     {
       real_t* src = (real_t*)data;
@@ -180,8 +180,8 @@ static void mpi_message_pack(mpi_message_t* msg, void* data,
   while (exchanger_map_next(receive_map, &pos, &proc, &c))
   {
     msg->receive_buffer_sizes[i] = c->num_indices;
-    msg->receive_buffers[i] = malloc(c->num_indices*msg->data_size*msg->stride);
-    msg->requests = malloc((num_sends+num_receives)*sizeof(MPI_Request));
+    msg->receive_buffers[i] = polymec_malloc(c->num_indices*msg->data_size*msg->stride);
+    msg->requests = polymec_malloc((num_sends+num_receives)*sizeof(MPI_Request));
     ++i;
   }
 }
@@ -255,20 +255,20 @@ static void mpi_message_free(mpi_message_t* msg)
   for (int i = 0; i < msg->num_sends; ++i)
   {
     if (msg->send_buffers[i] != NULL)
-      free(msg->send_buffers[i]);
+      polymec_free(msg->send_buffers[i]);
   }
-  free(msg->send_buffers);
-  free(msg->send_buffer_sizes);
+  polymec_free(msg->send_buffers);
+  polymec_free(msg->send_buffer_sizes);
   for (int i = 0; i < msg->num_receives; ++i)
   {
     if (msg->receive_buffers[i] != NULL)
-      free(msg->receive_buffers[i]);
+      polymec_free(msg->receive_buffers[i]);
   }
-  free(msg->receive_buffers);
-  free(msg->receive_buffer_sizes);
+  polymec_free(msg->receive_buffers);
+  polymec_free(msg->receive_buffer_sizes);
   if (msg->requests != NULL)
-    free(msg->requests);
-  free(msg);
+    polymec_free(msg->requests);
+  polymec_free(msg);
 }
 
 static void mpi_message_fprintf(mpi_message_t* msg, FILE* stream)
@@ -328,7 +328,7 @@ struct exchanger_t
 
 exchanger_t* exchanger_new(MPI_Comm comm)
 {
-  exchanger_t* ex = malloc(sizeof(exchanger_t));
+  exchanger_t* ex = polymec_malloc(sizeof(exchanger_t));
   ex->comm = comm;
   MPI_Comm_rank(comm, &(ex->rank));
   ex->dl_thresh = -1.0;
@@ -337,9 +337,12 @@ exchanger_t* exchanger_new(MPI_Comm comm)
   ex->send_map = exchanger_map_new();
   ex->receive_map = exchanger_map_new();
   ex->pending_msg_cap = 32;
-  ex->pending_msgs = calloc(ex->pending_msg_cap, sizeof(mpi_message_t*));
-  ex->orig_buffers = calloc(ex->pending_msg_cap, sizeof(void*));
-  ex->transfer_counts = calloc(ex->pending_msg_cap, sizeof(int*));
+  ex->pending_msgs = polymec_malloc(ex->pending_msg_cap * sizeof(mpi_message_t*));
+  memset(ex->pending_msgs, 0, ex->pending_msg_cap * sizeof(mpi_message_t*));
+  ex->orig_buffers = polymec_malloc(ex->pending_msg_cap * sizeof(void*));
+  memset(ex->orig_buffers, 0, ex->pending_msg_cap * sizeof(void*));
+  ex->transfer_counts = polymec_malloc(ex->pending_msg_cap * sizeof(int*));
+  memset(ex->transfer_counts, 0, ex->pending_msg_cap * sizeof(int*));
 
   return ex;
 }
@@ -349,9 +352,9 @@ static void exchanger_clear(exchanger_t* ex)
   exchanger_map_clear(ex->send_map);
   exchanger_map_clear(ex->receive_map);
 
-  free(ex->pending_msgs);
-  free(ex->orig_buffers);
-  free(ex->transfer_counts);
+  polymec_free(ex->pending_msgs);
+  polymec_free(ex->orig_buffers);
+  polymec_free(ex->transfer_counts);
 }
 
 void exchanger_free(exchanger_t* ex)
@@ -359,7 +362,7 @@ void exchanger_free(exchanger_t* ex)
   exchanger_clear(ex);
   exchanger_map_free(ex->send_map);
   exchanger_map_free(ex->receive_map);
-  free(ex);
+  polymec_free(ex);
 }
 
 static void delete_map_entry(int key, exchanger_channel_t* value)
@@ -508,9 +511,9 @@ int exchanger_start_exchange(exchanger_t* ex, void* data, int stride, int tag, M
   if (ex->num_pending_msgs == ex->pending_msg_cap)
   {
     ex->pending_msg_cap *= 2;
-    ex->pending_msgs = realloc(ex->pending_msgs, ex->pending_msg_cap*sizeof(mpi_message_t));
-    ex->orig_buffers = realloc(ex->orig_buffers, ex->pending_msg_cap*sizeof(void*));
-    ex->transfer_counts = realloc(ex->transfer_counts, ex->pending_msg_cap*sizeof(int*));
+    ex->pending_msgs = polymec_realloc(ex->pending_msgs, ex->pending_msg_cap*sizeof(mpi_message_t));
+    ex->orig_buffers = polymec_realloc(ex->orig_buffers, ex->pending_msg_cap*sizeof(void*));
+    ex->transfer_counts = polymec_realloc(ex->transfer_counts, ex->pending_msg_cap*sizeof(int*));
   }
   ex->pending_msgs[token] = msg;
   ex->orig_buffers[token] = data;

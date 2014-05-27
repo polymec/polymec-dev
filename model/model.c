@@ -39,8 +39,8 @@ typedef struct
 // Destructor for benchmark key/value pairs.
 static void free_benchmark_kv(char* key, model_benchmark_t* value)
 {
-  free(key);
-  free(value);
+  polymec_free(key);
+  polymec_free(value);
 }
 
 // Mapping from benchmark names to metadata.
@@ -93,13 +93,13 @@ static real_t* parse_observation_times(char* observation_time_str, int* num_time
     if (!string_is_number(time_strings[i]))
       polymec_error("Invalid observation time at index %d: %s\n", i, time_strings[i]);
   }
-  real_t* times = malloc(sizeof(real_t) * (*num_times));
+  real_t* times = polymec_malloc(sizeof(real_t) * (*num_times));
   for (int i = 0; i < *num_times; ++i)
   {
     times[i] = (real_t)atof(time_strings[i]);
-    free(time_strings[i]);
+    polymec_free(time_strings[i]);
   }
-  free(time_strings);
+  polymec_free(time_strings);
 
   return times;
 }
@@ -108,7 +108,7 @@ model_t* model_new(const char* name, void* context, model_vtable vtable, docstri
 {
   ASSERT(options != NULL);
 
-  model_t* model = malloc(sizeof(model_t));
+  model_t* model = polymec_malloc(sizeof(model_t));
   model->vtable = vtable;
   model->context = context;
   model->name = string_dup(name);
@@ -140,24 +140,24 @@ void model_free(model_t* model)
 {
   if ((model->context != NULL) && (model->vtable.dtor != NULL))
     model->vtable.dtor(model->context);
-  free(model->name);
+  polymec_free(model->name);
 
   // Clear benchmarks.
   model_benchmark_map_free(model->benchmarks);
 
   if (model->sim_name != NULL)
-    free(model->sim_name);
+    polymec_free(model->sim_name);
 
   if (model->interpreter != NULL)
     interpreter_free(model->interpreter);
 
   // Clear observations.
-  free(model->obs_times);
+  polymec_free(model->obs_times);
   string_array_free(model->observations);
   string_ptr_unordered_map_free(model->global_obs);
   string_ptr_unordered_map_free(model->point_obs);
 
-  free(model);
+  polymec_free(model);
 }
 
 char* model_name(model_t* model)
@@ -184,7 +184,7 @@ void model_register_benchmark(model_t* model, const char* benchmark, model_bench
 {
   ASSERT(benchmark != NULL);
   ASSERT(function != NULL);
-  model_benchmark_t* metadata = malloc(sizeof(model_benchmark_t));
+  model_benchmark_t* metadata = polymec_malloc(sizeof(model_benchmark_t));
   metadata->function = function;
   metadata->description = description;
   model_benchmark_map_insert_with_kv_dtor(model->benchmarks, string_dup(benchmark), metadata, free_benchmark_kv);
@@ -346,7 +346,7 @@ static void model_read_input(model_t* model, interpreter_t* interp, options_t* o
     int num_obs_times;
     real_t* obs_times = interpreter_get_sequence(interp, "observation_times", &num_obs_times);
     model_set_observation_times(model, obs_times, num_obs_times);
-    free(obs_times);
+    polymec_free(obs_times);
   }
 
   // If observation names are given, handle them here.
@@ -358,9 +358,9 @@ static void model_read_input(model_t* model, interpreter_t* interp, options_t* o
     for (int i = 0; i < num_obs; ++i)
     {
       model_observe(model, (const char*)obs_names[i]);
-      free(obs_names[i]);
+      polymec_free(obs_names[i]);
     }
-    free(obs_names); 
+    polymec_free(obs_names); 
   }
 
   if (interpreter_contains(interp, "max_dt", INTERPRETER_NUMBER))
@@ -404,9 +404,9 @@ typedef struct
 
 static void point_obs_dtor(char* key, void* val)
 {
-  free(key);
+  polymec_free(key);
   point_obs_t* data = val;
-  free(data);
+  polymec_free(data);
 }
 
 void model_define_point_observation(model_t* model, 
@@ -417,7 +417,7 @@ void model_define_point_observation(model_t* model,
                                     point_t* point)
 
 {
-  point_obs_t* data = malloc(sizeof(point_obs_t));
+  point_obs_t* data = polymec_malloc(sizeof(point_obs_t));
   data->func = compute_point_observation;
   data->point = *point;
   string_ptr_unordered_map_insert_with_kv_dtor(model->point_obs, 
@@ -427,7 +427,7 @@ void model_define_point_observation(model_t* model,
 
 static void key_dtor(char* key)
 {
-  free(key);
+  polymec_free(key);
 }
 
 void model_define_global_observation(model_t* model, 
@@ -481,9 +481,9 @@ void model_set_observation_times(model_t* model, real_t* times, int num_times)
   ASSERT(num_times > 0);
 
   if (model->obs_times != NULL)
-    free(model->obs_times);
+    polymec_free(model->obs_times);
   model->num_obs_times = num_times;
-  model->obs_times = malloc(sizeof(real_t) * num_times);
+  model->obs_times = polymec_malloc(sizeof(real_t) * num_times);
   memcpy(model->obs_times, times, sizeof(real_t) * num_times);
 
   // Sort the observation times.
@@ -728,11 +728,11 @@ void model_run(model_t* model, real_t t1, real_t t2, int max_steps)
     if (model->observe_every > 0.0)
     {
       int num_obs_times = (t2 - t1) / model->observe_every;
-      real_t* obs_times = malloc(sizeof(real_t) * num_obs_times);
+      real_t* obs_times = polymec_malloc(sizeof(real_t) * num_obs_times);
       for (int i = 0; i < num_obs_times; ++i)
         obs_times[i] = i * model->observe_every;
       model_set_observation_times(model, obs_times, num_obs_times);
-      free(obs_times);
+      polymec_free(obs_times);
     }
 
     // Now run the calculation.
@@ -813,7 +813,7 @@ void model_set_sim_name(model_t* model, const char* sim_name)
 {
   ASSERT(sim_name != NULL);
   if (model->sim_name != NULL)
-    free(model->sim_name);
+    polymec_free(model->sim_name);
   model->sim_name = string_dup(sim_name);
 }
 
@@ -898,7 +898,7 @@ static void override_interpreted_values(model_t* model,
     if (obs_times != NULL)
     {
       model_set_observation_times(model, obs_times, num_obs_times);
-      free(obs_times);
+      polymec_free(obs_times);
     }
     else
       polymec_error("Could not parse observation times string: %s\n", obs_times_str);
@@ -914,9 +914,9 @@ static void override_interpreted_values(model_t* model,
     for (int i = 0; i < num_obs; ++i)
     {
       model_observe(model, (const char*)obs_names[i]);
-      free(obs_names[i]);
+      polymec_free(obs_names[i]);
     }
-    free(obs_names); 
+    polymec_free(obs_names); 
   }
 
   char* max_dt = options_value(options, "max_dt");

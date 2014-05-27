@@ -89,12 +89,12 @@ static exchanger_t* repartition_points_with_parmetis(MPI_Comm comm, point_t* poi
     if ((npts_for_proc_to_send[i] > 0) and (i != rank))
       ++num_sends;
   }
-  int *sends = malloc(num_sends*sizeof(int)), 
-      *send_sizes = malloc(num_sends*sizeof(int)), 
-      **send_idx = malloc(num_sends*sizeof(int*)),
-      *receives = malloc(num_receives*sizeof(int)), 
-      *receive_sizes = malloc(num_receives*sizeof(int)), 
-      **receive_idx = malloc(num_receives*sizeof(int*));
+  int *sends = polymec_malloc(num_sends*sizeof(int)), 
+      *send_sizes = polymec_malloc(num_sends*sizeof(int)), 
+      **send_idx = polymec_malloc(num_sends*sizeof(int*)),
+      *receives = polymec_malloc(num_receives*sizeof(int)), 
+      *receive_sizes = polymec_malloc(num_receives*sizeof(int)), 
+      **receive_idx = polymec_malloc(num_receives*sizeof(int*));
 
   // Post receives for processes from which we expect point data.
   int tag = 0, npts_for_proc_received = 0;
@@ -106,7 +106,7 @@ static exchanger_t* repartition_points_with_parmetis(MPI_Comm comm, point_t* poi
     {
       receives[offset] = i;
       receive_sizes[offset] = npts_for_proc_to_receive[i];
-      receive_idx[offset] = malloc(receive_sizes[offset]*sizeof(int));
+      receive_idx[offset] = polymec_malloc(receive_sizes[offset]*sizeof(int));
       err = MPI_Irecv(receive_idx[offset], npts_for_proc_to_receive[i], 
                       MPI_INTEGER, i, tag, comm, &requests[num_requests]);
       ++offset;
@@ -124,7 +124,7 @@ static exchanger_t* repartition_points_with_parmetis(MPI_Comm comm, point_t* poi
     {
       sends[offset] = i;
       send_sizes[offset] = npts_for_proc_to_send[i];
-      send_idx[offset] = malloc(send_sizes[offset]*sizeof(int));
+      send_idx[offset] = polymec_malloc(send_sizes[offset]*sizeof(int));
       int j = 0, num_sent = 0;
       while (num_sent < npts_for_proc_to_send[i])
       {

@@ -39,7 +39,7 @@ load_balancer_t* load_balancer_new(void* context,
 {
   ASSERT(workload_stride > 0);
 
-  load_balancer_t* balancer = malloc(sizeof(load_balancer_t));
+  load_balancer_t* balancer = polymec_malloc(sizeof(load_balancer_t));
   balancer->context = context;
   balancer->vtable = vtable;
   balancer->imbalance_history = real_array_new();
@@ -52,7 +52,7 @@ void load_balancer_free(load_balancer_t* balancer)
   if ((balancer->vtable.dtor != NULL) && (balancer->context != NULL))
     balancer->vtable.dtor(balancer->context);
   real_array_free(balancer->imbalance_history);
-  free(balancer);
+  polymec_free(balancer);
 }
 
 void* load_balancer_context(load_balancer_t* balancer)
