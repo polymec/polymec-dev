@@ -26,7 +26,6 @@
 #define POLYMEC_DLIST_H
 
 #include "core/polymec.h"
-#include "arena/proto.h"
 #include "core/comparators.h"
 
 // An dlist is a doubly-linked list that stores homogeneous types.
@@ -69,7 +68,6 @@ struct list_name##_t \
   list_name##_node_t* front; \
   list_name##_node_t* back; \
   int size; \
-  ARENA* arena; \
 }; \
 \
 typedef int (*list_name##_comparator)(element, element); \
@@ -79,7 +77,6 @@ static inline list_name##_t* list_name##_new() \
   list_name##_t* list = (list_name##_t*)malloc(sizeof(list_name##_t)); \
   list->front = list->back = NULL; \
   list->size = 0; \
-  list->arena = NULL; \
   return list; \
 } \
 \
