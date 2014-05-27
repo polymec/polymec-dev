@@ -75,8 +75,8 @@ static void pmpio_close_file(void* file, void* userData)
 
 static void field_map_kv_dtor(char* key, void* value)
 {
-  free(key);
-  free(value);
+  polymec_free(key);
+  polymec_free(value);
 }
 
 void read_silo_mesh(MPI_Comm comm,
@@ -295,7 +295,7 @@ void read_silo_mesh(MPI_Comm comm,
       DBClose(file);
       polymec_error("Could not find field %s in file %s.", field_name, filename);
     }
-    real_t* new_data = malloc(sizeof(real_t) * dbvar->nels);
+    real_t* new_data = polymec_malloc(sizeof(real_t) * dbvar->nels);
     memcpy(new_data, dbvar->vals, sizeof(real_t) * dbvar->nels);
     string_slist_append(field_names, field_name);
     ptr_slist_append(new_field_data, new_data);

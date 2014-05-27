@@ -287,7 +287,7 @@ void mesh_delete_property(mesh_t* mesh, const char* property)
 void mesh_add_feature(mesh_t* mesh, const char* feature)
 {
   // Use the bogus tag to store our junk.
-  bool* data = malloc(sizeof(bool));
+  bool* data = polymec_malloc(sizeof(bool));
   *data = true;
   tagger_set_property(mesh->cell_tags, "features", feature, data, free);
 }

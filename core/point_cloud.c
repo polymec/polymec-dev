@@ -46,7 +46,7 @@ point_cloud_neighbor_search_new(const char* name,
                                 point_cloud_neighbor_search_vtable vtable,
                                 bool neighbor_relations_are_symmetric)
 {
-  point_cloud_neighbor_search_t* conn = malloc(sizeof(point_cloud_neighbor_search_t));
+  point_cloud_neighbor_search_t* conn = polymec_malloc(sizeof(point_cloud_neighbor_search_t));
   conn->name = string_dup(name);
   conn->context = context;
   conn->vtable = vtable;
@@ -63,8 +63,8 @@ void point_cloud_neighbor_search_free(point_cloud_neighbor_search_t* search)
 {
   if ((search->vtable.dtor != NULL) && (search->context != NULL))
     search->vtable.dtor(search->context);
-  free(search->name);
-  free(search);
+  polymec_free(search->name);
+  polymec_free(search);
 }
 
 point_cloud_t* point_cloud_new(MPI_Comm comm, point_t* points, int num_points)

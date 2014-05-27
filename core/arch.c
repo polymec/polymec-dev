@@ -128,7 +128,7 @@ static int memstream_write(void* context, const char *buf, int n)
     size_t newsize = stream->allocated * 3 / 2;
     if (newsize < stream->pos + n + 1)
       newsize = stream->pos + n + 1;
-    cbuf = realloc(cbuf, newsize);
+    cbuf = polymec_realloc(cbuf, newsize);
     if (!cbuf)
       return EOF;
     *stream->buf = cbuf;
@@ -196,7 +196,7 @@ static int memstream_close(void *c)
   memstream_t *stream = c;
   char *buf;
 
-  buf = realloc(*stream->buf, *stream->len + 1);
+  buf = polymec_realloc(*stream->buf, *stream->len + 1);
   if (buf != NULL)
     *stream->buf = buf;
   polymec_free(stream);

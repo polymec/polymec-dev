@@ -241,7 +241,7 @@ static interpreter_storage_t* store_string(lua_State* lua, const char* var)
   interpreter_storage_t* storage = NEW_USER_DATA(lua);
   storage->datum = string_dup(var);
   storage->type = INTERPRETER_STRING;
-  storage->dtor = free;
+  storage->dtor = polymec_free;
   return storage;
 }
 
@@ -252,7 +252,7 @@ static interpreter_storage_t* store_number(lua_State* lua, real_t var)
   *dvar = var;
   storage->datum = dvar;
   storage->type = INTERPRETER_NUMBER;
-  storage->dtor = free;
+  storage->dtor = polymec_free;
   return storage;
 }
 
@@ -263,7 +263,7 @@ static interpreter_storage_t* store_boolean(lua_State* lua, bool var)
   *bvar = var;
   storage->datum = bvar;
   storage->type = INTERPRETER_BOOLEAN;
-  storage->dtor = free;
+  storage->dtor = polymec_free;
   return storage;
 }
 
@@ -282,7 +282,7 @@ static interpreter_storage_t* store_pointlist(lua_State* lua, point_t* points, i
   storage->datum = points;
   storage->size = size;
   storage->type = INTERPRETER_POINT_LIST;
-  storage->dtor = free;
+  storage->dtor = polymec_free;
   return storage;
 }
 
@@ -301,7 +301,7 @@ static interpreter_storage_t* store_vectorlist(lua_State* lua, vector_t* vectors
   storage->datum = vectors;
   storage->size = size;
   storage->type = INTERPRETER_VECTOR_LIST;
-  storage->dtor = free;
+  storage->dtor = polymec_free;
   return storage;
 }
 
@@ -378,7 +378,7 @@ static interpreter_storage_t* store_sequence(lua_State* lua, real_t* sequence, i
   interpreter_storage_t* storage = NEW_USER_DATA(lua);
   storage->datum = sequence;
   storage->type = INTERPRETER_SEQUENCE;
-//  storage->dtor = free; // FIXME: Handled by __gc? Why isn't this true for vector/point lists?
+//  storage->dtor = polymec_free; // FIXME: Handled by __gc? Why isn't this true for vector/point lists?
   storage->size = len;
   return storage;
 }

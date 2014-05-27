@@ -131,10 +131,10 @@ static inline void array_name##_free(array_name##_t* array) \
 { \
   array_name##_clear(array); \
   if (array->dtors != NULL) \
-    free(array->dtors); \
+    polymec_free(array->dtors); \
   if (array->data != NULL) \
-    free(array->data); \
-  free(array); \
+    polymec_free(array->data); \
+  polymec_free(array); \
 } \
 \
 static inline bool array_name##_empty(array_name##_t* array) \

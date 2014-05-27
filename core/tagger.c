@@ -203,7 +203,7 @@ void tagger_rename_tag(tagger_t* tagger, const char* old_tag, const char* new_ta
   if (tagger_data_map_contains(tagger->data, (char*)old_tag))
   {
     char* old_key = tagger_data_map_change_key(tagger->data, (char*)old_tag, (char*)new_tag);
-    free(old_key);
+    polymec_free(old_key);
   }
 }
 

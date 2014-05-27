@@ -110,7 +110,7 @@ void polymec_init(int argc, char** argv)
     polymec_enable_fpe_exceptions();
 #endif
 
-    // Jot down command line args.
+    // Jot down command line args (use regular malloc).
     polymec_argc = argc;
     polymec_argv = malloc(sizeof(char*) * argc);
     for (int i = 0; i < argc; ++i)
@@ -411,6 +411,28 @@ void polymec_allocator_free(polymec_allocator_t* alloc)
 // Allocator stack.
 static ptr_slist_t* alloc_stack = NULL;
 
+static void free_alloc_stack()
+{
+  ASSERT(alloc_stack != NULL);
+  ptr_slist_free(alloc_stack);
+}
+
+void push_allocator(polymec_allocator_t* alloc)
+{
+  if (alloc_stack == NULL)
+  {
+    alloc_stack = ptr_slist_new();
+    polymec_atexit(free_alloc_stack);
+  }
+  ptr_slist_push_with_dtor(alloc_stack, alloc, DTOR(polymec_allocator_free));
+}
+
+polymec_allocator_t* pop_allocator()
+{
+  ASSERT(alloc_stack != NULL);
+  return ptr_slist_pop(alloc_stack, NULL);
+}
+
 void* polymec_malloc(size_t size)
 {
   if ((alloc_stack == NULL) || (alloc_stack->size == 0))
@@ -489,27 +511,5 @@ void polymec_free(void* memory)
     else 
       pool_put(alloc->pool, memory);
   }
-}
-
-static void free_alloc_stack()
-{
-  ASSERT(alloc_stack != NULL);
-  ptr_slist_free(alloc_stack);
-}
-
-void push_allocator(polymec_allocator_t* alloc)
-{
-  if (alloc_stack == NULL)
-  {
-    alloc_stack = ptr_slist_new();
-    polymec_atexit(free_alloc_stack);
-  }
-  ptr_slist_push_with_dtor(alloc_stack, alloc, DTOR(polymec_allocator_free));
-}
-
-polymec_allocator_t* pop_allocator()
-{
-  ASSERT(alloc_stack != NULL);
-  return ptr_slist_pop(alloc_stack, NULL);
 }
 

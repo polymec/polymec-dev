@@ -53,8 +53,8 @@ static inline element** prefix##_array2_new(int dim1, int dim2) \
 { \
   ASSERT(dim1 > 0); \
   ASSERT(dim2 > 0); \
-  element** array = malloc(sizeof(element*) * dim1); \
-  array[0] = malloc(sizeof(element) * dim1 * dim2); \
+  element** array = polymec_malloc(sizeof(element*) * dim1); \
+  array[0] = polymec_malloc(sizeof(element) * dim1 * dim2); \
   for (int i = 1; i < dim1; ++i) \
     array[i] = &array[0][i*dim2]; \
   return array; \
@@ -63,8 +63,8 @@ static inline element** prefix##_array2_new(int dim1, int dim2) \
 static inline void prefix##_array2_free(element** array, int dim1, int dim2) \
 { \
   ASSERT(array != NULL); \
-  free(array[0]); \
-  free(array); \
+  polymec_free(array[0]); \
+  polymec_free(array); \
 } \
 \
 static inline element*** prefix##_array3_new(int dim1, int dim2, int dim3) \
@@ -72,14 +72,14 @@ static inline element*** prefix##_array3_new(int dim1, int dim2, int dim3) \
   ASSERT(dim1 > 0); \
   ASSERT(dim2 > 0); \
   ASSERT(dim3 > 0); \
-  element*** array = malloc(sizeof(element**) * dim1); \
+  element*** array = polymec_malloc(sizeof(element**) * dim1); \
   for (int i = 0; i < dim1; ++i) \
   { \
-    array[i] = malloc(sizeof(element*) * dim2); \
+    array[i] = polymec_malloc(sizeof(element*) * dim2); \
     for (int j = 0; j < dim2; ++j) \
     { \
       if ((i == 0) && (j == 0)) \
-        array[0][0] = malloc(sizeof(element) * dim1 * dim2 * dim3); \
+        array[0][0] = polymec_malloc(sizeof(element) * dim1 * dim2 * dim3); \
       else \
         array[i][j] = &array[0][0][i*dim2*dim3 + j*dim3]; \
     } \
@@ -93,10 +93,10 @@ static inline void prefix##_array3_free(element*** array, int dim1, int dim2, in
   for (int i = 0; i < dim1; ++i) \
   { \
     if (i == 0) \
-      free(array[0][0]); \
-    free(array[i]); \
+      polymec_free(array[0][0]); \
+    polymec_free(array[i]); \
   } \
-  free(array); \
+  polymec_free(array); \
 } \
 \
 static inline element**** prefix##_array4_new(int dim1, int dim2, int dim3, int dim4) \
@@ -105,17 +105,17 @@ static inline element**** prefix##_array4_new(int dim1, int dim2, int dim3, int 
   ASSERT(dim2 > 0); \
   ASSERT(dim3 > 0); \
   ASSERT(dim4 > 0); \
-  element**** array = malloc(sizeof(element***) * dim1); \
+  element**** array = polymec_malloc(sizeof(element***) * dim1); \
   for (int i = 0; i < dim1; ++i) \
   { \
-    array[i] = malloc(sizeof(element**) * dim2); \
+    array[i] = polymec_malloc(sizeof(element**) * dim2); \
     for (int j = 0; j < dim2; ++j) \
     { \
-      array[i][j] = malloc(sizeof(element*) * dim3); \
+      array[i][j] = polymec_malloc(sizeof(element*) * dim3); \
       for (int k = 0; k < dim3; ++k) \
       { \
         if ((i == 0) && (j == 0) && (k == 0)) \
-          array[0][0][0] = malloc(sizeof(element) * dim1 * dim2 * dim3 * dim4); \
+          array[0][0][0] = polymec_malloc(sizeof(element) * dim1 * dim2 * dim3 * dim4); \
         else \
           array[i][j][k] = &array[0][0][0][i*dim2*dim3*dim4 + j*dim3*dim4 + k*dim4]; \
       } \
@@ -132,12 +132,12 @@ static inline void prefix##_array4_free(element**** array, int dim1, int dim2, i
     for (int j = 0; j < dim2; ++j) \
     { \
       if ((i == 0) && (j == 0)) \
-        free(array[0][0][0]); \
-      free(array[i][j]); \
+        polymec_free(array[0][0][0]); \
+      polymec_free(array[i][j]); \
     } \
-    free(array[i]); \
+    polymec_free(array[i]); \
   } \
-  free(array); \
+  polymec_free(array); \
 }
 
 // Define some basic array types.

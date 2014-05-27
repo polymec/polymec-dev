@@ -80,7 +80,7 @@ newton_solver_t* newton_solver_new_with_jacobian(int dimension,
 {
   ASSERT(dimension > 0);
   ASSERT(system_func != NULL);
-  newton_solver_t* solver = malloc(sizeof(newton_solver_t));
+  newton_solver_t* solver = polymec_malloc(sizeof(newton_solver_t));
   solver->dim = dimension;
   solver->context = context;
   solver->dtor = context_dtor;
@@ -112,7 +112,7 @@ void newton_solver_free(newton_solver_t* solver)
   KINFree(&(solver->kinsol));
   if ((solver->context != NULL) && (solver->dtor != NULL))
     solver->dtor(solver->context);
-  free(solver);
+  polymec_free(solver);
 }
 
 int newton_solver_dimension(newton_solver_t* solver)

@@ -60,7 +60,7 @@ struct set_name##_t \
 \
 static inline set_name##_t* set_name##_new() \
 { \
-  set_name##_t* set = malloc(sizeof(set_name##_t)); \
+  set_name##_t* set = polymec_malloc(sizeof(set_name##_t)); \
   set->tree = tree_name##_new(); \
   set->size = 0; \
   return set; \
@@ -75,7 +75,7 @@ static inline void set_name##_clear(set_name##_t* set) \
 static inline void set_name##_free(set_name##_t* set) \
 { \
   tree_name##_free(set->tree); \
-  free(set); \
+  polymec_free(set); \
 } \
 \
 static inline set_name##_node_t* set_name##_find(set_name##_t* set, set_name##_element_t datum) \

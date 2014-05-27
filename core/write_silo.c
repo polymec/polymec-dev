@@ -216,9 +216,9 @@ void write_silo_mesh(MPI_Comm comm,
 
   // Node coordinates.
   int num_nodes = mesh->num_nodes;
-  double* x = malloc(sizeof(double) * num_nodes);
-  double* y = malloc(sizeof(double) * num_nodes);
-  double* z = malloc(sizeof(double) * num_nodes);
+  double* x = polymec_malloc(sizeof(double) * num_nodes);
+  double* y = polymec_malloc(sizeof(double) * num_nodes);
+  double* z = polymec_malloc(sizeof(double) * num_nodes);
   for (int i = 0; i < num_nodes; ++i)
   {
     x[i] = (double)mesh->nodes[i].x;
@@ -241,15 +241,15 @@ void write_silo_mesh(MPI_Comm comm,
                DB_DOUBLE, optlist);
 
   // Partial cleanup.
-  free(x);
-  free(y);
-  free(z);
+  polymec_free(x);
+  polymec_free(y);
+  polymec_free(z);
 
   // Construct the silo face-node info.  We rely on the mesh having
   // the faces nodes arranged counter-clockwise around the face.
   int num_faces = mesh->num_faces;
-  int* face_node_counts = malloc(sizeof(int) * num_faces);
-  char* ext_faces = malloc(sizeof(char) * num_faces);
+  int* face_node_counts = polymec_malloc(sizeof(int) * num_faces);
+  char* ext_faces = polymec_malloc(sizeof(char) * num_faces);
   for (int i = 0; i < num_faces; ++i)
   {
     face_node_counts[i] = mesh->face_node_offsets[i+1] - mesh->face_node_offsets[i];
@@ -262,7 +262,7 @@ void write_silo_mesh(MPI_Comm comm,
   // Construct the silo cell-face info.  Silo uses the same 1's complement
   // convention we use for indicating face orientation, so we can
   // simply copy our faces.
-  int* cell_face_counts = malloc(sizeof(int) * (num_cells + num_ghost_cells));
+  int* cell_face_counts = polymec_malloc(sizeof(int) * (num_cells + num_ghost_cells));
   memset(cell_face_counts, 0, sizeof(int) * (num_cells + num_ghost_cells));
   for (int i = 0; i < num_cells; ++i)
     cell_face_counts[i] = mesh->cell_face_offsets[i+1] - mesh->cell_face_offsets[i];
@@ -276,13 +276,13 @@ void write_silo_mesh(MPI_Comm comm,
                   0, 0, num_cells-1, optlist);
 
   // Partial cleanup.
-  free(face_node_counts);
-  free(ext_faces);
-  free(cell_face_counts);
+  polymec_free(face_node_counts);
+  polymec_free(ext_faces);
+  polymec_free(cell_face_counts);
 
 #if 0
   // Write out the cell-face connectivity data.
-  int* conn = malloc(sizeof(int) * num_cells);
+  int* conn = polymec_malloc(sizeof(int) * num_cells);
   int elem_lengths[3];
   char* elem_names[3];
   for (int c = 0; c < num_cells; ++c)
@@ -307,9 +307,9 @@ void write_silo_mesh(MPI_Comm comm,
   elem_lengths[1] = conn.size() - elem_lengths[2] - elem_lengths[0];
   DBPutCompoundarray(file, "conn", elem_names, elem_lengths, 3, 
                      (void*)&conn[0], conn.size(), DB_INT, 0);
-  free(elem_names[0]);
-  free(elem_names[1]);
-  free(elem_names[2]);
+  polymec_free(elem_names[0]);
+  polymec_free(elem_names[1]);
+  polymec_free(elem_names[2]);
 #endif
 
   // Write out tag information.
@@ -395,10 +395,10 @@ void write_silo_mesh(MPI_Comm comm,
     // Clean up.
     DBFreeOptlist(optlist);
     for (int i = 0; i < num_chunks; ++i)
-      free(mesh_names[i]);
+      polymec_free(mesh_names[i]);
     for (int f = 0; f < fields->size; ++f)
       for (int i = 0; i < num_chunks; ++i)
-        free(var_names[f][i]);
+        polymec_free(var_names[f][i]);
   }
 
   // Write the file.
@@ -470,10 +470,10 @@ void write_silo_mesh(MPI_Comm comm,
     // Clean up.
     DBFreeOptlist(optlist);
     for (int i = 0; i < num_files*num_chunks; ++i)
-      free(mesh_names[i]);
+      polymec_free(mesh_names[i]);
     for (int f = 0; f < fields->size; ++f)
       for (int i = 0; i < num_files*num_chunks; ++i)
-        free(var_names[f][i]);
+        polymec_free(var_names[f][i]);
   }
 #else
   // Write the file.
@@ -599,9 +599,9 @@ void write_silo_points(MPI_Comm comm,
     DBAddOption(optlist, DBOPT_DTIME, &time);
 
   // Point coordinates.
-  real_t* x = malloc(sizeof(real_t) * num_points);
-  real_t* y = malloc(sizeof(real_t) * num_points);
-  real_t* z = malloc(sizeof(real_t) * num_points);
+  real_t* x = polymec_malloc(sizeof(real_t) * num_points);
+  real_t* y = polymec_malloc(sizeof(real_t) * num_points);
+  real_t* z = polymec_malloc(sizeof(real_t) * num_points);
   for (int i = 0; i < num_points; ++i)
   {
     x[i] = points[i].x;
@@ -615,9 +615,9 @@ void write_silo_points(MPI_Comm comm,
 
   // Write out the point mesh.
   DBPutPointmesh(file, (char*)"points", 3, coords, num_points, data_type, optlist); 
-  free(x);
-  free(y);
-  free(z);
+  polymec_free(x);
+  polymec_free(y);
+  polymec_free(z);
 
   // Write out the point field data.
   if (fields != NULL)
@@ -641,12 +641,12 @@ void write_silo_points(MPI_Comm comm,
   int num_fields = fields->size;
   if (rank_in_group == 0)
   {
-    char** mesh_names = malloc(sizeof(char*) * num_chunks);
-    int* mesh_types = malloc(sizeof(int) * num_chunks);
-    char*** var_names = malloc(sizeof(char**) * num_fields);
+    char** mesh_names = polymec_malloc(sizeof(char*) * num_chunks);
+    int* mesh_types = polymec_malloc(sizeof(int) * num_chunks);
+    char*** var_names = polymec_malloc(sizeof(char**) * num_fields);
     for (int f = 0; f < num_fields; ++f)
-      var_names[f] = malloc(sizeof(char*) * num_chunks);
-    int* var_types = malloc(sizeof(int) * num_chunks);
+      var_names[f] = polymec_malloc(sizeof(char*) * num_chunks);
+    int* var_types = polymec_malloc(sizeof(int) * num_chunks);
     for (int i = 0; i < num_chunks; ++i)
     {
       mesh_types[i] = DB_POINTMESH;
@@ -692,17 +692,17 @@ void write_silo_points(MPI_Comm comm,
     // Clean up.
     DBFreeOptlist(optlist);
     for (int i = 0; i < num_chunks; ++i)
-      free(mesh_names[i]);
-    free(mesh_names);
-    free(mesh_types);
+      polymec_free(mesh_names[i]);
+    polymec_free(mesh_names);
+    polymec_free(mesh_types);
     for (int f = 0; f < num_fields; ++f)
     {
       for (int i = 0; i < num_chunks; ++i)
-        free(var_names[f][i]);
-      free(var_names[f]);
+        polymec_free(var_names[f][i]);
+      polymec_free(var_names[f]);
     }
-    free(var_names);
-    free(var_types);
+    polymec_free(var_names);
+    polymec_free(var_types);
   }
 
   // Write the file.
@@ -720,12 +720,12 @@ void write_silo_points(MPI_Comm comm,
     int driver = DB_HDF5;
     DBfile* file = DBCreate(master_file_name, DB_CLOBBER, DB_LOCAL, "Master file", driver);
 
-    char** mesh_names = malloc(sizeof(char*) * num_files*num_chunks);
-    int* mesh_types = malloc(sizeof(int) * num_files*num_chunks);
-    char*** var_names = malloc(sizeof(char**) * num_fields);
+    char** mesh_names = polymec_malloc(sizeof(char*) * num_files*num_chunks);
+    int* mesh_types = polymec_malloc(sizeof(int) * num_files*num_chunks);
+    char*** var_names = polymec_malloc(sizeof(char**) * num_fields);
     for (int f = 0; f < num_fields; ++f)
-      var_names[f] = malloc(sizeof(char*) * num_files*num_chunks);
-    int* var_types = malloc(sizeof(int) * num_files*num_chunks);
+      var_names[f] = polymec_malloc(sizeof(char*) * num_files*num_chunks);
+    int* var_types = polymec_malloc(sizeof(int) * num_files*num_chunks);
     for (int i = 0; i < num_files; ++i)
     {
       for (int c = 0; c < num_chunks; ++c)
@@ -780,17 +780,17 @@ void write_silo_points(MPI_Comm comm,
     // Clean up.
     DBFreeOptlist(optlist);
     for (int i = 0; i < num_chunks; ++i)
-      free(mesh_names[i]);
-    free(mesh_names);
-    free(mesh_types);
+      polymec_free(mesh_names[i]);
+    polymec_free(mesh_names);
+    polymec_free(mesh_types);
     for (int f = 0; f < num_fields; ++f)
     {
       for (int i = 0; i < num_files*num_chunks; ++i)
-        free(var_names[f][i]);
-      free(var_names[f]);
+        polymec_free(var_names[f][i]);
+      polymec_free(var_names[f]);
     }
-    free(var_names);
-    free(var_types);
+    polymec_free(var_names);
+    polymec_free(var_types);
   }
 #else
   // Write the file.

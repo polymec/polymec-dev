@@ -44,7 +44,7 @@ static void st_func_free(void* ctx, void* dummy)
   if (func->vtable.dtor)
     func->vtable.dtor(func->context);
   func->context = NULL;
-  free(func->name);
+  polymec_free(func->name);
 }
 
 st_func_t* st_func_new(const char* name, void* context, st_vtable vtable,
@@ -109,14 +109,14 @@ static void st_func_sp_deriv_free(void* context)
 {
   st_func_sp_deriv_t* F = context;
   F->func = NULL;
-  free(F);
+  polymec_free(F);
 }
 
 static st_func_t* sp_func_deriv(sp_func_t* func, int d)
 {
   ASSERT(d > 0);
   ASSERT(sp_func_has_deriv(func, d));
-  st_func_sp_deriv_t* F = malloc(sizeof(st_func_sp_deriv_t));
+  st_func_sp_deriv_t* F = polymec_malloc(sizeof(st_func_sp_deriv_t));
   F->func = func;
   F->deriv = d;
   st_vtable vtable = {.eval = st_func_sp_deriv_eval, .dtor = st_func_sp_deriv_free};
@@ -153,7 +153,7 @@ const char* st_func_name(st_func_t* func)
 
 void st_func_rename(st_func_t* func, const char* new_name)
 {
-  free(func->name);
+  polymec_free(func->name);
   func->name = string_dup(new_name);
 }
 
@@ -219,7 +219,7 @@ static void st_frozen_eval(void* ctx, point_t* x, real_t* result)
 static void st_frozen_dtor(void* ctx)
 {
   st_frozen_ctx* c = (st_frozen_ctx*)ctx;
-  free(c);
+  polymec_free(c);
 }
 
 sp_func_t* st_func_freeze(st_func_t* func, real_t t)
@@ -227,7 +227,7 @@ sp_func_t* st_func_freeze(st_func_t* func, real_t t)
   sp_vtable vtable = {.eval = &st_frozen_eval, .dtor = &st_frozen_dtor };
   char name[1024];
   snprintf(name, 1024, "%s (frozen at %g)", st_func_name(func), t);
-  st_frozen_ctx* c = malloc(sizeof(st_frozen_ctx));
+  st_frozen_ctx* c = polymec_malloc(sizeof(st_frozen_ctx));
   c->f = func;
   c->t = t;
   sp_func_homogeneity_t homog = (st_func_is_homogeneous(func)) ? SP_HOMOGENEOUS : SP_INHOMOGENEOUS;
@@ -255,8 +255,8 @@ static void multicomp_eval(void* context, point_t* x, real_t t, real_t* result)
 static void multicomp_dtor(void* context)
 {
   multicomp_st_func_t* mc = (multicomp_st_func_t*)context;
-  free(mc->functions);
-  free(mc);
+  polymec_free(mc->functions);
+  polymec_free(mc);
 }
 
 st_func_t* multicomp_st_func_from_funcs(const char* name, 
@@ -268,10 +268,10 @@ st_func_t* multicomp_st_func_from_funcs(const char* name,
   st_func_homogeneity_t homogeneity = ST_HOMOGENEOUS;
   st_func_constancy_t constancy = ST_CONSTANT;
   // The functions determine the constancy and homogeneity.
-  multicomp_st_func_t* mc = malloc(sizeof(multicomp_st_func_t));
+  multicomp_st_func_t* mc = polymec_malloc(sizeof(multicomp_st_func_t));
   mc->magic_number = multicomp_st_func_magic_number;
   mc->num_comp = num_comp;
-  mc->functions = malloc(sizeof(st_func_t*)*num_comp);
+  mc->functions = polymec_malloc(sizeof(st_func_t*)*num_comp);
   for (int i = 0; i < num_comp; ++i)
   {
     ASSERT(functions[i] != NULL);
@@ -304,7 +304,7 @@ static void extractedcomp_eval(void* context, point_t* x, real_t t, real_t* resu
 static void extractedcomp_dtor(void* context)
 {
   extractedcomp_st_func_t* ec = (extractedcomp_st_func_t*)context;
-  free(ec);
+  polymec_free(ec);
 }
 
 st_func_t* st_func_from_component(st_func_t* multicomp_func,
@@ -329,7 +329,7 @@ st_func_t* st_func_from_component(st_func_t* multicomp_func,
     st_func_homogeneity_t homogeneity = st_func_is_homogeneous(multicomp_func) ? ST_HOMOGENEOUS : ST_INHOMOGENEOUS;
     st_func_constancy_t constancy = st_func_is_constant(multicomp_func) ? ST_CONSTANT : ST_NONCONSTANT;
     snprintf(name, name_len, "%s[%d]", st_func_name(multicomp_func), component);
-    extractedcomp_st_func_t* ec = malloc(sizeof(extractedcomp_st_func_t));
+    extractedcomp_st_func_t* ec = polymec_malloc(sizeof(extractedcomp_st_func_t));
     ec->func = multicomp_func;
     ec->num_comp = st_func_num_comp(multicomp_func);
     ec->comp = component;
@@ -356,8 +356,8 @@ static void constant_eval(void* ctx, point_t* x, real_t t, real_t* res)
 static void constant_dtor(void* ctx)
 {
   const_st_func_t* f = (const_st_func_t*)ctx;
-  free(f->comp);
-  free(f);
+  polymec_free(f->comp);
+  polymec_free(f);
 }
 
 static st_func_t* create_constant_st_func(int num_comp, real_t comp[])
@@ -365,9 +365,9 @@ static st_func_t* create_constant_st_func(int num_comp, real_t comp[])
   st_vtable vtable = {.eval = constant_eval, .dtor = constant_dtor};
   char name[1024];
   snprintf(name, 1024, "constant space-time function"); // FIXME
-  const_st_func_t* f = malloc(sizeof(const_st_func_t));
+  const_st_func_t* f = polymec_malloc(sizeof(const_st_func_t));
   f->num_comp = num_comp;
-  f->comp = malloc(num_comp*sizeof(real_t));
+  f->comp = polymec_malloc(num_comp*sizeof(real_t));
   for (int i = 0; i < num_comp; ++i)
     f->comp[i] = comp[i];
   return st_func_new(name, (void*)f, vtable, ST_HOMOGENEOUS, ST_CONSTANT, num_comp);

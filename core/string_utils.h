@@ -61,7 +61,7 @@ bool string_is_number(const char* s);
 // Given a string and a NULL-terminated list of token-value pairs, 
 // returns a newly-allocated string containing the original string with 
 // all instances of tokens replaced with their substitution values. This 
-// string must be freed with free().
+// string must be freed with polymec_free() or string_free().
 typedef struct { char* token; char* value; } string_subst_t;
 static const string_subst_t END_OF_SUBST = {(char*)"END_TOKEN", (char*)"END_VALUE"};
 char* string_subst(const char* string, string_subst_t substitutions[]);

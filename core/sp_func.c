@@ -41,9 +41,9 @@ static void sp_func_free(void* ctx, void* dummy)
 {
   sp_func_t* func = ctx;
   if (func->vtable.dtor)
-    free(func->context);
+    polymec_free(func->context);
   func->context = NULL;
-  free(func->name);
+  polymec_free(func->name);
 }
 
 sp_func_t* sp_func_new(const char* name, void* context, sp_vtable vtable,
@@ -89,7 +89,7 @@ const char* sp_func_name(sp_func_t* func)
 
 void sp_func_rename(sp_func_t* func, const char* new_name)
 {
-  free(func->name);
+  polymec_free(func->name);
   func->name = string_dup(new_name);
 }
 
@@ -200,8 +200,8 @@ static void constant_eval(void* ctx, point_t* x, real_t* res)
 static void constant_dtor(void* ctx)
 {
   const_sp_func_t* f = ctx;
-  free(f->comp);
-  free(f);
+  polymec_free(f->comp);
+  polymec_free(f);
 }
 
 static sp_func_t* create_constant_sp_func(int num_comp, real_t comp[])
@@ -209,9 +209,9 @@ static sp_func_t* create_constant_sp_func(int num_comp, real_t comp[])
   sp_vtable vtable = {.eval = constant_eval, .dtor = constant_dtor};
   char name[1024];
   snprintf(name, 1024, "constant spatial function"); // FIXME
-  const_sp_func_t* f = malloc(sizeof(const_sp_func_t));
+  const_sp_func_t* f = polymec_malloc(sizeof(const_sp_func_t));
   f->num_comp = num_comp;
-  f->comp = malloc(num_comp*sizeof(real_t));
+  f->comp = polymec_malloc(num_comp*sizeof(real_t));
   for (int i = 0; i < num_comp; ++i)
     f->comp[i] = comp[i];
   return sp_func_new(name, (void*)f, vtable, SP_HOMOGENEOUS, num_comp);

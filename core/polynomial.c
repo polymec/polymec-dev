@@ -282,10 +282,10 @@ void polynomial_add(polynomial_t* p, real_t factor, polynomial_t* q)
   {
     int old_size = p->num_terms;
     p->num_terms = old_size + terms_to_append->size;
-    p->coeffs = realloc(p->coeffs, sizeof(real_t) * p->num_terms);
-    p->x_pow = realloc(p->x_pow, sizeof(int) * p->num_terms);
-    p->y_pow = realloc(p->y_pow, sizeof(int) * p->num_terms);
-    p->z_pow = realloc(p->z_pow, sizeof(int) * p->num_terms);
+    p->coeffs = polymec_realloc(p->coeffs, sizeof(real_t) * p->num_terms);
+    p->x_pow = polymec_realloc(p->x_pow, sizeof(int) * p->num_terms);
+    p->y_pow = polymec_realloc(p->y_pow, sizeof(int) * p->num_terms);
+    p->z_pow = polymec_realloc(p->z_pow, sizeof(int) * p->num_terms);
 
     for (int i = old_size; i < p->num_terms; ++i)
     {
