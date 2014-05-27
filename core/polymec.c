@@ -464,15 +464,8 @@ void* poly_aligned_realloc(void* memory, size_t alignment, size_t size)
 {
   if ((alloc_stack == NULL) || (alloc_stack->size == 0))
   {
-#ifdef APPLE
-    // Mac OS X doesn't have this yet!
-    return realloc(memory, size);
-#else
-    void* new_mem = aligned_alloc(alignment, size);
-    memcpy(new_mem, memory, sizeof(memory));
-    free(memory);
-    return new_mem;
-#endif
+    // Not possible in general, since we can't get the old memory size.
+    polymec_error("No allocator is available, so aligned realloc() is not possible.");
   }
   else
   {
