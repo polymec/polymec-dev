@@ -22,7 +22,6 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include <stdlib.h>
 #include <unistd.h>
 #include <time.h>
 #include <stdarg.h>
@@ -32,7 +31,6 @@
 #include "core/polymec.h"
 #include "core/polymec_version.h"
 #include "core/options.h"
-#include "core/slist.h"
 
 // Standard C support for floating point environment.
 #include <fenv.h>
@@ -375,141 +373,5 @@ int polymec_num_cores()
 #elif defined APPLE
   return sysconf(_SC_NPROCESSORS_ONLN);
 #endif
-}
-
-struct polymec_allocator_t 
-{
-  ARENA* arena;
-  POOL* pool;
-};
-
-polymec_allocator_t* arena_allocator_new()
-{
-  polymec_allocator_t* alloc = malloc(sizeof(polymec_allocator_t)); // Oh, the irony...
-  alloc->arena = arena_open(&arena_defaults, NULL);
-  alloc->pool = NULL;
-  return alloc;
-}
-
-polymec_allocator_t* pool_allocator_new()
-{
-  polymec_allocator_t* alloc = malloc(sizeof(polymec_allocator_t)); // Oh, the irony...
-  alloc->arena = NULL;
-  alloc->pool = pool_open(&pool_defaults, NULL);
-  return alloc;
-}
-
-void polymec_allocator_free(polymec_allocator_t* alloc)
-{
-  if (alloc->arena != NULL)
-    arena_close(alloc->arena);
-  else
-    pool_close(alloc->pool);
-  free(alloc);
-}
-
-// Allocator stack.
-static ptr_slist_t* alloc_stack = NULL;
-
-static void free_alloc_stack()
-{
-  ASSERT(alloc_stack != NULL);
-  ptr_slist_free(alloc_stack);
-}
-
-void push_allocator(polymec_allocator_t* alloc)
-{
-  if (alloc_stack == NULL)
-  {
-    alloc_stack = ptr_slist_new();
-    polymec_atexit(free_alloc_stack);
-  }
-  ptr_slist_push_with_dtor(alloc_stack, alloc, DTOR(polymec_allocator_free));
-}
-
-polymec_allocator_t* pop_allocator()
-{
-  ASSERT(alloc_stack != NULL);
-  return ptr_slist_pop(alloc_stack, NULL);
-}
-
-void* polymec_malloc(size_t size)
-{
-  if ((alloc_stack == NULL) || (alloc_stack->size == 0))
-    return malloc(size);
-  else
-  {
-    polymec_allocator_t* alloc = alloc_stack->front->value;
-    if (alloc->arena != NULL)
-      return arena_malloc(alloc->arena, size, 0);
-    else
-      return pool_get(alloc->pool, size, 0);
-  }
-}
-
-void* polymec_aligned_alloc(size_t alignment, size_t size)
-{
-  if ((alloc_stack == NULL) || (alloc_stack->size == 0))
-#ifdef APPLE
-  {
-    // Mac OS X doesn't have this yet!
-    return malloc(size);
-  }
-#else
-    return aligned_alloc(alignment, size);
-#endif
-  else
-  {
-    polymec_allocator_t* alloc = alloc_stack->front->value;
-    if (alloc->arena != NULL)
-      return arena_malloc(alloc->arena, size, alignment);
-    else
-      return pool_get(alloc->pool, size, alignment);
-  }
-}
-
-void* polymec_realloc(void* memory, size_t size)
-{
-  if ((alloc_stack == NULL) || (alloc_stack->size == 0))
-    return realloc(memory, size);
-  else
-  {
-    polymec_allocator_t* alloc = alloc_stack->front->value;
-    if (alloc->arena != NULL)
-      return arena_realloc(alloc->arena, memory, size, 0);
-    else
-      return pool_realloc(alloc->pool, memory, size, 0);
-  }
-}
-
-void* polymec_aligned_realloc(void* memory, size_t alignment, size_t size)
-{
-  if ((alloc_stack == NULL) || (alloc_stack->size == 0))
-  {
-    // Not possible in general, since we can't get the old memory size.
-    polymec_error("No allocator is available, so aligned realloc() is not possible.");
-  }
-  else
-  {
-    polymec_allocator_t* alloc = alloc_stack->front->value;
-    if (alloc->arena != NULL)
-      return arena_realloc(alloc->arena, memory, size, alignment);
-    else
-      return pool_realloc(alloc->pool, memory, size, alignment);
-  }
-}
-
-void polymec_free(void* memory)
-{
-  if ((alloc_stack == NULL) || (alloc_stack->size == 0))
-    free(memory);
-  else 
-  {
-    polymec_allocator_t* alloc = alloc_stack->front->value;
-    if (alloc->arena != NULL)
-      arena_free(alloc->arena, memory);
-    else 
-      pool_put(alloc->pool, memory);
-  }
 }
 

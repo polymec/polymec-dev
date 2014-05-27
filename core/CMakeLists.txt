@@ -4,7 +4,7 @@ configure_file(
   "${CMAKE_CURRENT_BINARY_DIR}/polymec.h"
 )
 
-add_library(polymec_core polymec.c arch.c logging.c point.c tagger.c mesh.c 
+add_library(polymec_core polymec.c arch.c allocators.c logging.c point.c tagger.c mesh.c 
             distribute_serial_mesh.c point_cloud.c kd_tree.c octree.c 
             permutations.c morton.c adj_graph.c sp_func.c st_func.c polynomial.c 
             least_squares.c index_space.c newton.c options.c interpreter.c 
