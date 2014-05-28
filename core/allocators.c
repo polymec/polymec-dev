@@ -63,6 +63,12 @@ static ptr_slist_t* alloc_stack = NULL;
 static void free_alloc_stack()
 {
   ASSERT(alloc_stack != NULL);
+
+  // Before we free the allocator stack, we have to empty it. This prevents
+  // ptr_slist_free() from using any allocator to free itself.
+  ptr_slist_clear(alloc_stack);
+
+  // Now do the deed.
   ptr_slist_free(alloc_stack);
 }
 
