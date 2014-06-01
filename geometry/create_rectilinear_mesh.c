@@ -22,9 +22,18 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+#include "core/array.h"
 #include "core/unordered_set.h"
 #include "geometry/create_rectilinear_mesh.h"
 #include "geometry/cubic_lattice.h"
+
+// This helper assembles the list of (i, j, k) triples that represent 
+// internal cells on the local domain.
+static ptr_array_t* local_cells(MPI_Comm comm,
+                                cubic_lattice_t* lattice)
+{
+  return NULL;
+}
 
 mesh_t* create_rectilinear_mesh(MPI_Comm comm, 
                                 real_t* xs, int nxs, 
@@ -55,9 +64,6 @@ mesh_t* create_rectilinear_mesh(MPI_Comm comm,
 
   // Create a cubic lattice object for indexing.
   cubic_lattice_t* lattice = cubic_lattice_new(nx, ny, nz);
-
-//  // Compute the number of ghost cells.
-//  int num_ghost_cells = 2*num_ghost*(ny*nz + nz*nx + nx*ny);
 
   // Create the mesh.
   // FIXME: Not parallel safe.
@@ -190,87 +196,6 @@ mesh_t* create_rectilinear_mesh(MPI_Comm comm,
     }
   }
 
-
-#if 0
-  // Set up ghost cells.
-  int gindex = mesh->num_cells;
-  if (num_ghost > 0)
-  {
-    // x faces.
-    for (int j = 0; j < ny; ++j)
-    {
-      for (int k = 0; k < nz; ++k)
-      {
-        // Hook up the ghost cells.
-        int low_cell = cubic_lattice_cell(lattice, 0, j, k);
-        cell_t* low_ghost_cell = &mesh->cells[gindex++];
-        face_t* low_face = mesh->cells[low_cell].faces[0];
-        ASSERT(low_face->cell2 == NULL); 
-        low_face->cell2 = low_ghost_cell;
-        mesh_attach_face_to_cell(mesh, low_face, low_ghost_cell);
-
-        int high_cell = cubic_lattice_cell(lattice, nx-1, j, k);
-        cell_t* high_ghost_cell = &mesh->cells[gindex++];
-        face_t* high_face = mesh->cells[high_cell].faces[1];
-        ASSERT(high_face->cell2 == NULL); 
-        high_face->cell2 = high_ghost_cell;
-        mesh_attach_face_to_cell(mesh, high_face, high_ghost_cell);
-
-        // FIXME: Do ghost cells need node/edge connectivity?
-      }
-    }
-
-    // y faces.
-    for (int k = 0; k < nz; ++k)
-    {
-      for (int i = 0; i < nx; ++i)
-      {
-        // Hook up the ghost cells.
-        int low_cell = cubic_lattice_cell(lattice, i, 0, k);
-        cell_t* low_ghost_cell = &mesh->cells[gindex++];
-        face_t* low_face = mesh->cells[low_cell].faces[2];
-        ASSERT(low_face->cell2 == NULL); 
-        low_face->cell2 = low_ghost_cell;
-        mesh_attach_face_to_cell(mesh, low_face, low_ghost_cell);
-
-        int high_cell = cubic_lattice_cell(lattice, i, ny-1, k);
-        cell_t* high_ghost_cell = &mesh->cells[gindex++];
-        face_t* high_face = mesh->cells[high_cell].faces[3];
-        ASSERT(high_face->cell2 == NULL); 
-        high_face->cell2 = high_ghost_cell;
-        mesh_attach_face_to_cell(mesh, high_face, high_ghost_cell);
-
-        // FIXME: Do ghost cells need node/edge connectivity?
-      }
-    }
-
-    // z faces.
-    for (int i = 0; i < nx; ++i)
-    {
-      for (int j = 0; j < ny; ++j)
-      {
-        // Hook up the ghost cells.
-        int low_cell = cubic_lattice_cell(lattice, i, j, 0);
-        cell_t* low_ghost_cell = &mesh->cells[gindex++];
-        face_t* low_face = mesh->cells[low_cell].faces[4];
-        ASSERT(low_face->cell2 == NULL); 
-        low_face->cell2 = low_ghost_cell;
-        mesh_attach_face_to_cell(mesh, low_face, low_ghost_cell);
-
-        int high_cell = cubic_lattice_cell(lattice, i, j, nz-1);
-        cell_t* high_ghost_cell = &mesh->cells[gindex++];
-        face_t* high_face = mesh->cells[high_cell].faces[5];
-        ASSERT(high_face->cell2 == NULL); 
-        high_face->cell2 = high_ghost_cell;
-        mesh_attach_face_to_cell(mesh, high_face, high_ghost_cell);
-
-        // FIXME: Do ghost cells need node/edge connectivity?
-      }
-    }
-  }
-  ASSERT(gindex == (mesh->num_cells + mesh->num_ghost_cells));
-#endif
-
   // Construct edge information.
   mesh_construct_edges(mesh);
 
@@ -287,13 +212,13 @@ mesh_t* create_rectilinear_mesh(MPI_Comm comm,
 }
 
 void tag_rectilinear_mesh_faces(mesh_t* mesh, 
-                                  int nx, int ny, int nz,
-                                  const char* x1_tag, 
-                                  const char* x2_tag, 
-                                  const char* y1_tag,
-                                  const char* y2_tag,
-                                  const char* z1_tag,
-                                  const char* z2_tag)
+                                int nx, int ny, int nz,
+                                const char* x1_tag, 
+                                const char* x2_tag, 
+                                const char* y1_tag,
+                                const char* y2_tag,
+                                const char* z1_tag,
+                                const char* z2_tag)
 {
   // Tag the boundaries of the mesh.
   cubic_lattice_t* lattice = mesh_property(mesh, "lattice");

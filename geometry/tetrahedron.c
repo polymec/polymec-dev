@@ -41,11 +41,11 @@ tetrahedron_t* tetrahedron_new()
 {
   tetrahedron_t* t = GC_MALLOC(sizeof(tetrahedron_t));
   real_t L = 1.0;
-  real_t sqrt3 = rsqrt(3.0);
+  real_t sqrt3 = sqrt(3.0);
   point_set(&t->vertices[0], 0.0, 0.0, 0.0);
   point_set(&t->vertices[1], L, 0.0, 0.0);
   point_set(&t->vertices[2], 0.5*L, 0.5*sqrt3*L, 0.0);
-  point_set(&t->vertices[3], 0.5*L, 0.5*L/sqrt3, rsqrt(2.0/3.0)*L);
+  point_set(&t->vertices[3], 0.5*L, 0.5*L/sqrt3, sqrt(2.0/3.0)*L);
   return t;
 }
 

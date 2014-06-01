@@ -27,7 +27,7 @@
 #include "geometry/cubic_lattice.h"
 #include <gc/gc.h>
 
-cubic_lattice_t* cubic_lattice_new(int nx, int ny, int nz)
+cubic_lattice_t* cubic_lattice_new(uint64_t nx, uint64_t ny, uint64_t nz)
 {
   ASSERT(nx > 0);
   ASSERT(ny > 0);

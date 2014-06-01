@@ -42,7 +42,7 @@ static inline real_t l2_norm(real_t* vec, int dim)
   real_t sum = 0.0;
   for (int i = 0; i < dim; ++i)
     sum += vec[i]*vec[i];
-  return rsqrt(sum);
+  return sqrt(sum);
 }
 
 // Computes the L infinity norm of the given vector.

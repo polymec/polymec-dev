@@ -105,7 +105,7 @@ static inline void construct_quad_point_and_weight(sphere_integrator_t* integ,
   real_t phi = integ->azi_nodes[i];
   real_t s = cos(integ->colat_nodes[j]);
   real_t tau = 0.5 * (1.0 - cos_gamma) * s + 0.5 * (1.0 + cos_gamma);
-  real_t sqrt_tau = rsqrt(1.0-tau*tau);
+  real_t sqrt_tau = sqrt(1.0-tau*tau);
   real_t x1 = R * sqrt_tau * cos(phi);
   real_t x2 = R * sqrt_tau * sin(phi);
   real_t x3 = R * tau;
@@ -359,7 +359,7 @@ static void eval_F_o_n(void* context, point_t* x, real_t* F_o_n)
   point_t X = {.x = x->x - Fr->x0.x, 
                .y = x->y - Fr->x0.y,
                .z = x->z - Fr->x0.z};
-  real_t theta = atan2(X.z, rsqrt(X.x*X.x + X.y*X.y));
+  real_t theta = atan2(X.z, sqrt(X.x*X.x + X.y*X.y));
   real_t phi = atan2(X.y, X.x);
   vector_t n = {.x = cos(phi) * sin(theta), 
                 .y = sin(phi) * sin(theta),
