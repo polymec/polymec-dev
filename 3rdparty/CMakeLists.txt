@@ -346,14 +346,16 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/liblua.a)
     message(FATAL_ERROR "Build of lua library failed.")
   endif()
 
+endif()
+file(GLOB lua_includes "${CMAKE_CURRENT_BINARY_DIR}/lua/src/*.h")
+if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/liblua.a)
   file(COPY ${CMAKE_CURRENT_BINARY_DIR}/lua/src/liblua.a DESTINATION ${PROJECT_BINARY_DIR}/lib)
-  file(GLOB includes "${CMAKE_CURRENT_BINARY_DIR}/lua/src/*.h")
-  foreach(inc ${includes})
+  foreach(inc ${lua_includes})
     execute_process(COMMAND cmake -E copy ${inc} ${PROJECT_BINARY_DIR}/include)
   endforeach()
 endif()
 install(FILES ${PROJECT_BINARY_DIR}/lib/liblua.a DESTINATION lib)
-foreach(inc ${includes})
+foreach(inc ${lua_includes})
   install(FILES ${inc} DESTINATION include/polymec)
 endforeach()
 set(POLYMEC_TP_LIBS lua;${POLYMEC_TP_LIBS})
@@ -376,6 +378,37 @@ set_target_properties(cmockery PROPERTIES COMPILE_FLAGS "-Wno-int-to-pointer-cas
 file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/cmockery/cmockery.h DESTINATION ${PROJECT_BINARY_DIR}/include)
 install(FILES cmockery/cmockery.h DESTINATION include/polymec)
 install(TARGETS cmockery DESTINATION lib)
+
+# If we're building a parallel code, build INRIA's Scotch library.
+if (HAVE_MPI EQUAL 1)
+  if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libscotch.a)
+    find_program(FLEX flex)
+    find_program(BISON bison)
+
+    message("Preparing scotch...")
+    execute_process(COMMAND cmake -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/scotch ${CMAKE_CURRENT_BINARY_DIR}/scotch
+                    RESULT_VARIABLE stat)
+    if (NOT stat EQUAL 0)
+      message(FATAL_ERROR "Copying library source failed.")
+    endif()
+    configure_file(
+      "scotch.Makefile.inc.in"
+      "${CMAKE_CURRENT_BINARY_DIR}/scotch/Makefile.inc"
+    )
+
+    message("Building scotch...")
+    execute_process(COMMAND make ptscotch RESULT_VARIABLE stat)
+    if (NOT stat EQUAL 0)
+      message(FATAL_ERROR "Building scotch library failed.")
+    endif()
+  endif()
+#  file(GLOB scotch_includes "${CMAKE_CURRENT_BINARY_DIR}/scotch/src/libscotch/*.h")
+  file(COPY ${CMAKE_CURRENT_BINARY_DIR}/lua/src/libscotch/ptscotch.h DESTINATION ${PROJECT_BINARY_DIR}/include)
+  file(COPY ${CMAKE_CURRENT_BINARY_DIR}/lua/src/libscotch/libscotch.a DESTINATION ${PROJECT_BINARY_DIR}/lib)
+  file(COPY ${CMAKE_CURRENT_BINARY_DIR}/lua/src/libscotch/libptscotch.a DESTINATION ${PROJECT_BINARY_DIR}/lib)
+  install(TARGETS ptscotch scotch DESTINATION lib)
+  set(POLYMEC_TP_LIBS ptscotch;scotch;${POLYMEC_TP_LIBS})
+endif()
 
 # Add all the libraries to the build system at large.
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${POLYMEC_TP_C_FLAGS}" PARENT_SCOPE)
