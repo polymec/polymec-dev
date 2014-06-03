@@ -385,6 +385,20 @@ if (HAVE_MPI EQUAL 1)
     find_program(FLEX flex)
     find_program(BISON bison)
 
+    # Scotch is a little funky -- it has empty structs when built without 
+    # threading support (and uses non-standard threading mechanisms like 
+    # pthread barriers when built with threading support!). So we have 
+    # to be a little more accommodating, use the gnu99 standard instead 
+    # of c11, and turn off some error checking. I'm not wild about this, 
+    # but if Scotch does its job, it doesn't much matter.
+    string(REPLACE "c11" "gnu99" SCOTCH_C_FLAGS ${CMAKE_C_FLAGS})
+    string(REPLACE "-pedantic-errors" "" SCOTCH_C_FLAGS ${SCOTCH_C_FLAGS})
+    string(REPLACE "-Werror-implicit-function-declaration" "" SCOTCH_C_FLAGS ${SCOTCH_C_FLAGS})
+    if (${APPLE})
+      # The "new" timing mechanism for Scotch only works on Linux?
+      set(SCOTCH_C_FLAGS "${SCOTCH_C_FLAGS} -DCOMMON_TIMING_OLD")
+    endif()
+
     message("Preparing scotch...")
     execute_process(COMMAND cmake -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/scotch ${CMAKE_CURRENT_BINARY_DIR}/scotch
                     RESULT_VARIABLE stat)
@@ -393,20 +407,23 @@ if (HAVE_MPI EQUAL 1)
     endif()
     configure_file(
       "scotch.Makefile.inc.in"
-      "${CMAKE_CURRENT_BINARY_DIR}/scotch/Makefile.inc"
+      "${CMAKE_CURRENT_BINARY_DIR}/scotch/src/Makefile.inc"
     )
 
     message("Building scotch...")
-    execute_process(COMMAND make ptscotch RESULT_VARIABLE stat)
+    execute_process(COMMAND make ptscotch RESULT_VARIABLE stat
+                    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/scotch/src
+                    OUTPUT_VARIABLE scotch_build_log ERROR_VARIABLE scotch_build_errors)
     if (NOT stat EQUAL 0)
-      message(FATAL_ERROR "Building scotch library failed.")
+      message(FATAL_ERROR "Building scotch library failed:\n${scotch_build_errors}")
     endif()
   endif()
-#  file(GLOB scotch_includes "${CMAKE_CURRENT_BINARY_DIR}/scotch/src/libscotch/*.h")
-  file(COPY ${CMAKE_CURRENT_BINARY_DIR}/lua/src/libscotch/ptscotch.h DESTINATION ${PROJECT_BINARY_DIR}/include)
-  file(COPY ${CMAKE_CURRENT_BINARY_DIR}/lua/src/libscotch/libscotch.a DESTINATION ${PROJECT_BINARY_DIR}/lib)
-  file(COPY ${CMAKE_CURRENT_BINARY_DIR}/lua/src/libscotch/libptscotch.a DESTINATION ${PROJECT_BINARY_DIR}/lib)
-  install(TARGETS ptscotch scotch DESTINATION lib)
+  file(COPY ${CMAKE_CURRENT_BINARY_DIR}/scotch/include/scotch.h DESTINATION ${PROJECT_BINARY_DIR}/include)
+  file(COPY ${CMAKE_CURRENT_BINARY_DIR}/scotch/include/ptscotch.h DESTINATION ${PROJECT_BINARY_DIR}/include)
+  file(COPY ${CMAKE_CURRENT_BINARY_DIR}/scotch/lib/libscotch.a DESTINATION ${PROJECT_BINARY_DIR}/lib)
+  file(COPY ${CMAKE_CURRENT_BINARY_DIR}/scotch/lib/libptscotch.a DESTINATION ${PROJECT_BINARY_DIR}/lib)
+  install(FILES ${PROJECT_BINARY_DIR}/lib/libscotch.a ${PROJECT_BINARY_DIR}/lib/libptscotch.a DESTINATION lib)
+  install(FILES ${PROJECT_BINARY_DIR}/include/scotch.h ${PROJECT_BINARY_DIR}/include/ptscotch.h DESTINATION include)
   set(POLYMEC_TP_LIBS ptscotch;scotch;${POLYMEC_TP_LIBS})
 endif()
 
