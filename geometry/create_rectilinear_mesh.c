@@ -58,6 +58,7 @@ mesh_t* create_rectilinear_mesh(MPI_Comm comm,
   // Create a cubic lattice object for indexing.
   cubic_lattice_t* lattice = cubic_lattice_new(nx, ny, nz);
 
+#define USE_THE_NEW_WAY
 #ifdef USE_THE_NEW_WAY
   // We start out with the naive partitioning in index space, and count 
   // mesh entities.
@@ -68,43 +69,41 @@ mesh_t* create_rectilinear_mesh(MPI_Comm comm,
   uint64_t cells_per_proc = total_num_cells / nproc;
   int_int_unordered_map_t* local_faces = int_int_unordered_map_new();
   int_int_unordered_map_t* local_nodes = int_int_unordered_map_new();
-  int num_cells = cells_per_proc, num_ghost_cells = 0, num_faces = 0, num_nodes = 0;
-  for (int c = 0; c < cells_per_proc; ++c)
+  int num_cells = (rank == nproc-1) ? total_num_cells - cells_per_proc*rank
+                                    : cells_per_proc;
+  int num_ghost_cells = 0, num_faces = 0, num_nodes = 0;
+  for (int c = 0; c < num_cells; ++c)
   {
     // Figure out (i, j, k) indices for this cell.
     uint64_t global_cell_index = rank*cells_per_proc + c, i, j, k;
     cubic_lattice_get_cell_triple(lattice, global_cell_index, &i, &j, &k);
 
     // Count up faces and nodes and generate global-to-local mappings.
-    int_int_unordered_map_insert(local_faces, cubic_lattice_x_face(lattice, i, j, k), num_faces);
-    num_faces = local_faces->size;
-    int_int_unordered_map_insert(local_faces, cubic_lattice_x_face(lattice, i+1, j, k), num_faces);
-    num_faces = local_faces->size;
-    int_int_unordered_map_insert(local_faces, cubic_lattice_y_face(lattice, i, j, k), num_faces);
-    num_faces = local_faces->size;
-    int_int_unordered_map_insert(local_faces, cubic_lattice_y_face(lattice, i, j+1, k), num_faces);
-    num_faces = local_faces->size;
-    int_int_unordered_map_insert(local_faces, cubic_lattice_z_face(lattice, i, j, k), num_faces);
-    num_faces = local_faces->size;
-    int_int_unordered_map_insert(local_faces, cubic_lattice_z_face(lattice, i, j, k+1), num_faces);
-    num_faces = local_faces->size;
+    uint64_t faces[6] = {cubic_lattice_x_face(lattice, i, j, k),
+                         cubic_lattice_x_face(lattice, i+1, j, k),
+                         cubic_lattice_y_face(lattice, i, j, k),
+                         cubic_lattice_y_face(lattice, i, j+1, k),
+                         cubic_lattice_z_face(lattice, i, j, k),
+                         cubic_lattice_z_face(lattice, i, j, k+1)};
+    for (int f = 0; f < 8; ++f)
+    {
+      if (int_int_unordered_map_get(local_faces, faces[f]) == NULL)
+        int_int_unordered_map_insert(local_faces, faces[f], num_faces++);
+    }
 
-    int_int_unordered_map_insert(local_nodes, cubic_lattice_node(lattice, i, j, k), num_nodes);
-    num_nodes = local_nodes->size;
-    int_int_unordered_map_insert(local_nodes, cubic_lattice_node(lattice, i, j, k+1), num_nodes);
-    num_nodes = local_nodes->size;
-    int_int_unordered_map_insert(local_nodes, cubic_lattice_node(lattice, i, j+1, k), num_nodes);
-    num_nodes = local_nodes->size;
-    int_int_unordered_map_insert(local_nodes, cubic_lattice_node(lattice, i, j+1, k+1), num_nodes);
-    num_nodes = local_nodes->size;
-    int_int_unordered_map_insert(local_nodes, cubic_lattice_node(lattice, i+1, j, k), num_nodes);
-    num_nodes = local_nodes->size;
-    int_int_unordered_map_insert(local_nodes, cubic_lattice_node(lattice, i+1, j, k+1), num_nodes);
-    num_nodes = local_nodes->size;
-    int_int_unordered_map_insert(local_nodes, cubic_lattice_node(lattice, i+1, j+1, k), num_nodes);
-    num_nodes = local_nodes->size;
-    int_int_unordered_map_insert(local_nodes, cubic_lattice_node(lattice, i+1, j+1, k+1), num_nodes);
-    num_nodes = local_nodes->size;
+    uint64_t nodes[8] = {cubic_lattice_node(lattice, i, j, k),
+                         cubic_lattice_node(lattice, i, j, k+1),
+                         cubic_lattice_node(lattice, i, j+1, k),
+                         cubic_lattice_node(lattice, i, j+1, k+1),
+                         cubic_lattice_node(lattice, i+1, j, k),
+                         cubic_lattice_node(lattice, i+1, j, k+1),
+                         cubic_lattice_node(lattice, i+1, j+1, k),
+                         cubic_lattice_node(lattice, i+1, j+1, k+1)};
+    for (int n = 0; n < 8; ++n)
+    {
+      if (int_int_unordered_map_get(local_nodes, nodes[n]) == NULL)
+        int_int_unordered_map_insert(local_nodes, nodes[n], num_nodes++);
+    }
 
     // Ghost cells.
     uint64_t neighboring_cells[6];
