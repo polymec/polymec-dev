@@ -17,6 +17,8 @@ capabilities. Areas of emphasis are:
 
 Polymec is licensed under the 2-clause modified BSD License, which is 
 described in the LICENSE file. The 3rd-party libraries used by Polymec have 
-their own licenses which are described within the source archives in the 
-3rdparty directory. No source files have been modified within these archives, 
-and instructions for obtaining the distributions are given within.
+their own licenses which are described within the various source trees in the 
+3rdparty directory. No source files have been modified within these trees--
+they contain files extracted directly from distribution tarballs--and 
+instructions for obtaining the distributions are given within.
+

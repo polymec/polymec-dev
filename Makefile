@@ -91,7 +91,7 @@ all test clean install:
 		make -C $(BUILDDIR) $@ --no-print-directory $(MAKEFLAGS); \
 	fi
 
-config: 
+config: distclean
 	$(run-config)
 
 distclean:
