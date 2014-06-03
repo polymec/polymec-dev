@@ -44,6 +44,7 @@ struct mesh_storage_t
   int cell_face_capacity;
   int face_edge_capacity;
   int face_node_capacity;
+  int stencil_size;
 };
 
 // Initializes a new storage mechanism for a mesh.
@@ -53,6 +54,7 @@ static mesh_storage_t* mesh_storage_new()
   storage->cell_face_capacity = 0;
   storage->face_edge_capacity = 0;
   storage->face_node_capacity = 0;
+  storage->stencil_size = 1;
   return storage;
 }
 
@@ -282,6 +284,17 @@ void* mesh_property(mesh_t* mesh, const char* property)
 void mesh_delete_property(mesh_t* mesh, const char* property)
 {
   tagger_delete_property(mesh->cell_tags, "properties", property);
+}
+
+int mesh_stencil_size(mesh_t* mesh)
+{
+  return mesh->storage->stencil_size;
+}
+
+void mesh_set_stencil_size(mesh_t* mesh, int new_size)
+{
+  ASSERT(new_size >= 1);
+  mesh->storage->stencil_size = new_size;
 }
 
 void mesh_add_feature(mesh_t* mesh, const char* feature)
