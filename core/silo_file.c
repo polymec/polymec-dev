@@ -676,9 +676,8 @@ void silo_file_write_mesh(silo_file_t* file,
 
   // Write out the 3D polyhedral mesh.
   int num_cells = mesh->num_cells;
-  int num_ghost_cells = mesh->num_ghost_cells;
   DBPutUcdmesh(file->dbfile, (char*)mesh_name, 3, coordnames, coords,
-               num_nodes, num_cells + num_ghost_cells, 0, 0,
+               num_nodes, num_cells, 0, 0,
                SILO_FLOAT_TYPE, optlist);
 
   // Partial cleanup.
@@ -703,8 +702,8 @@ void silo_file_write_mesh(silo_file_t* file,
   // Construct the silo cell-face info.  Silo uses the same 1's complement
   // convention we use for indicating face orientation, so we can
   // simply copy our faces.
-  int* cell_face_counts = polymec_malloc(sizeof(int) * (num_cells + num_ghost_cells));
-  memset(cell_face_counts, 0, sizeof(int) * (num_cells + num_ghost_cells));
+  int* cell_face_counts = polymec_malloc(sizeof(int) * num_cells);
+  memset(cell_face_counts, 0, sizeof(int) * num_cells);
   for (int i = 0; i < num_cells; ++i)
     cell_face_counts[i] = mesh->cell_face_offsets[i+1] - mesh->cell_face_offsets[i];
 
@@ -712,7 +711,7 @@ void silo_file_write_mesh(silo_file_t* file,
   DBPutPHZonelist(file->dbfile, zonelist_name, 
                   num_faces, face_node_counts,
                   mesh->face_node_offsets[num_faces], mesh->face_nodes,
-                  ext_faces, num_cells + num_ghost_cells, cell_face_counts,
+                  ext_faces, num_cells, cell_face_counts,
                   mesh->cell_face_offsets[num_cells], mesh->cell_faces,
                   0, 0, num_cells-1, optlist);
 

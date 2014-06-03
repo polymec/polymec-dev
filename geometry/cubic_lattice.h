@@ -107,6 +107,14 @@ static inline uint64_t cubic_lattice_cell(cubic_lattice_t* l, uint64_t i, uint64
   return l->nx*l->ny*k + l->nx*j + i;
 }
 
+// Computes the triple (i, j, k) corresponding to the cell with the given index.
+static inline void cubic_lattice_get_cell_triple(cubic_lattice_t* l, uint64_t index, uint64_t* i, uint64_t* j, uint64_t* k)
+{
+  *k = index/(l->nx*l->ny);
+  *j = (index - l->nx*l->ny*(*k))/l->nx;
+  *i = index - l->nx*l->ny*(*k) - l->nx*(*j);
+}
+
 // Returns the index of the x-face corresponding to (i-1/2, j, k).
 static inline uint64_t cubic_lattice_x_face(cubic_lattice_t* l, uint64_t i, uint64_t j, uint64_t k)
 {

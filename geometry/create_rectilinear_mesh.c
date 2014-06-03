@@ -24,16 +24,9 @@
 
 #include "core/array.h"
 #include "core/unordered_set.h"
+#include "core/unordered_map.h"
 #include "geometry/create_rectilinear_mesh.h"
 #include "geometry/cubic_lattice.h"
-
-// This helper assembles the list of (i, j, k) triples that represent 
-// internal cells on the local domain.
-static ptr_array_t* local_cells(MPI_Comm comm,
-                                cubic_lattice_t* lattice)
-{
-  return NULL;
-}
 
 mesh_t* create_rectilinear_mesh(MPI_Comm comm, 
                                 real_t* xs, int nxs, 
@@ -65,6 +58,226 @@ mesh_t* create_rectilinear_mesh(MPI_Comm comm,
   // Create a cubic lattice object for indexing.
   cubic_lattice_t* lattice = cubic_lattice_new(nx, ny, nz);
 
+#ifdef USE_THE_NEW_WAY
+  // We start out with the naive partitioning in index space, and count 
+  // mesh entities.
+  int nproc, rank;
+  MPI_Comm_size(comm, &nproc);
+  MPI_Comm_rank(comm, &rank);
+  uint64_t total_num_cells = nx * ny * nz;
+  uint64_t cells_per_proc = total_num_cells / nproc;
+  int_int_unordered_map_t* local_faces = int_int_unordered_map_new();
+  int_int_unordered_map_t* local_nodes = int_int_unordered_map_new();
+  int num_cells = cells_per_proc, num_ghost_cells = 0, num_faces = 0, num_nodes = 0;
+  for (int c = 0; c < cells_per_proc; ++c)
+  {
+    // Figure out (i, j, k) indices for this cell.
+    uint64_t global_cell_index = rank*cells_per_proc + c, i, j, k;
+    cubic_lattice_get_cell_triple(lattice, global_cell_index, &i, &j, &k);
+
+    // Count up faces and nodes and generate global-to-local mappings.
+    int_int_unordered_map_insert(local_faces, cubic_lattice_x_face(lattice, i, j, k), num_faces);
+    num_faces = local_faces->size;
+    int_int_unordered_map_insert(local_faces, cubic_lattice_x_face(lattice, i+1, j, k), num_faces);
+    num_faces = local_faces->size;
+    int_int_unordered_map_insert(local_faces, cubic_lattice_y_face(lattice, i, j, k), num_faces);
+    num_faces = local_faces->size;
+    int_int_unordered_map_insert(local_faces, cubic_lattice_y_face(lattice, i, j+1, k), num_faces);
+    num_faces = local_faces->size;
+    int_int_unordered_map_insert(local_faces, cubic_lattice_z_face(lattice, i, j, k), num_faces);
+    num_faces = local_faces->size;
+    int_int_unordered_map_insert(local_faces, cubic_lattice_z_face(lattice, i, j, k+1), num_faces);
+    num_faces = local_faces->size;
+
+    int_int_unordered_map_insert(local_nodes, cubic_lattice_node(lattice, i, j, k), num_nodes);
+    num_nodes = local_nodes->size;
+    int_int_unordered_map_insert(local_nodes, cubic_lattice_node(lattice, i, j, k+1), num_nodes);
+    num_nodes = local_nodes->size;
+    int_int_unordered_map_insert(local_nodes, cubic_lattice_node(lattice, i, j+1, k), num_nodes);
+    num_nodes = local_nodes->size;
+    int_int_unordered_map_insert(local_nodes, cubic_lattice_node(lattice, i, j+1, k+1), num_nodes);
+    num_nodes = local_nodes->size;
+    int_int_unordered_map_insert(local_nodes, cubic_lattice_node(lattice, i+1, j, k), num_nodes);
+    num_nodes = local_nodes->size;
+    int_int_unordered_map_insert(local_nodes, cubic_lattice_node(lattice, i+1, j, k+1), num_nodes);
+    num_nodes = local_nodes->size;
+    int_int_unordered_map_insert(local_nodes, cubic_lattice_node(lattice, i+1, j+1, k), num_nodes);
+    num_nodes = local_nodes->size;
+    int_int_unordered_map_insert(local_nodes, cubic_lattice_node(lattice, i+1, j+1, k+1), num_nodes);
+    num_nodes = local_nodes->size;
+
+    // Ghost cells.
+    uint64_t neighboring_cells[6];
+    neighboring_cells[0] = (i == 0) ? -1 : cubic_lattice_cell(lattice, i-1, j, k);
+    neighboring_cells[1] = (i == nx-1) ? -1 : cubic_lattice_cell(lattice, i+1, j, k);
+    neighboring_cells[2] = (j == 0) ? -1 : cubic_lattice_cell(lattice, i, j-1, k);
+    neighboring_cells[3] = (j == ny-1) ? -1 : cubic_lattice_cell(lattice, i, j+1, k);
+    neighboring_cells[4] = (k == 0) ? -1 : cubic_lattice_cell(lattice, i, j, k-1);
+    neighboring_cells[5] = (k == nz-1) ? -1 : cubic_lattice_cell(lattice, i, j, k+1);
+    for (int ii = 0; ii < 6; ++ii)
+    {
+      if ((neighboring_cells[ii] != -1) && 
+          ((neighboring_cells[ii] < cells_per_proc*rank) || 
+          (neighboring_cells[ii] > cells_per_proc*(rank+1))))
+      {
+        ++num_ghost_cells;
+      }
+    }
+  }
+
+  // Create the mesh.
+  mesh_t* mesh = mesh_new(comm, num_cells, num_ghost_cells, num_faces, num_nodes);
+
+  // Connectivity metadata.
+  mesh->cell_face_offsets[0] = 0;
+  for (int c = 0; c < mesh->num_cells; ++c)
+    mesh->cell_face_offsets[c+1] = mesh->cell_face_offsets[c] + 6;
+  mesh->face_node_offsets[0] = 0;
+  for (int f = 0; f < mesh->num_faces; ++f)
+    mesh->face_node_offsets[f+1] = mesh->face_node_offsets[f] + 4;
+  mesh_reserve_connectivity_storage(mesh);
+
+  int_unordered_set_t* processed_nodes = int_unordered_set_new();
+
+  int ghost_cell_index = num_cells;
+  for (int cell = 0; cell < cells_per_proc; ++cell)
+  {
+    // Figure out (i, j, k) indices for this cell.
+    uint64_t global_cell_index = rank*cells_per_proc + cell, i, j, k;
+    cubic_lattice_get_cell_triple(lattice, global_cell_index, &i, &j, &k);
+
+    // Hook up the cell and faces.
+
+    // Note that we define the nodes of the faces to be ordered such that 
+    // the right-hand rule produces a normal vector that always points 
+    // in the positive x, y, or z direction. Thus, the faces whose normal 
+    // vectors point in the opposite directions get their ones complement.
+    mesh->cell_faces[6*cell+0] = ~(*int_int_unordered_map_get(local_faces, cubic_lattice_x_face(lattice, i, j, k)));
+    mesh->cell_faces[6*cell+1] = *int_int_unordered_map_get(local_faces, cubic_lattice_x_face(lattice, i+1, j, k));
+    mesh->cell_faces[6*cell+2] = ~(*int_int_unordered_map_get(local_faces, cubic_lattice_y_face(lattice, i, j, k)));
+    mesh->cell_faces[6*cell+3] = *int_int_unordered_map_get(local_faces, cubic_lattice_y_face(lattice, i, j+1, k));
+    mesh->cell_faces[6*cell+4] = ~(*int_int_unordered_map_get(local_faces, cubic_lattice_z_face(lattice, i, j, k)));
+    mesh->cell_faces[6*cell+5] = *int_int_unordered_map_get(local_faces, cubic_lattice_z_face(lattice, i, j, k+1));
+
+    // Hook up each face to its nodes.
+    int nodes[6][4];
+
+    // We use the reference cell below, which is typical of 3D
+    // finite element schemes:
+    //             
+    //     7o----6o      z^  y
+    //     /|    /|       | /
+    //   4o----5o |       |/   x
+    //    |3o---|2o       +---->
+    //    |/    |/       
+    //   0o----1o      
+    //
+    // The faces are numbered 0-5, with 0-1 being the (-/+) x faces,
+    // 2-3 the (-/+) y faces, and 4-5 the (-/+) z faces.
+    int node_indices[8];
+    node_indices[0] = *int_int_unordered_map_get(local_nodes, cubic_lattice_node(lattice, i, j, k));
+    node_indices[1] = *int_int_unordered_map_get(local_nodes, cubic_lattice_node(lattice, i+1, j, k));
+    node_indices[2] = *int_int_unordered_map_get(local_nodes, cubic_lattice_node(lattice, i+1, j+1, k));
+    node_indices[3] = *int_int_unordered_map_get(local_nodes, cubic_lattice_node(lattice, i, j+1, k));
+    node_indices[4] = *int_int_unordered_map_get(local_nodes, cubic_lattice_node(lattice, i, j, k+1));
+    node_indices[5] = *int_int_unordered_map_get(local_nodes, cubic_lattice_node(lattice, i+1, j, k+1));
+    node_indices[6] = *int_int_unordered_map_get(local_nodes, cubic_lattice_node(lattice, i+1, j+1, k+1));
+    node_indices[7] = *int_int_unordered_map_get(local_nodes, cubic_lattice_node(lattice, i, j+1, k+1));
+
+    // Face 0 (-x) -- backward traversal
+    nodes[0][0] = node_indices[7];
+    nodes[0][1] = node_indices[4];
+    nodes[0][2] = node_indices[0];
+    nodes[0][3] = node_indices[3];
+
+    // Face 1 (+x) -- forward traversal
+    nodes[1][0] = node_indices[1];
+    nodes[1][1] = node_indices[2];
+    nodes[1][2] = node_indices[6];
+    nodes[1][3] = node_indices[5];
+
+    // Face 2 (-y) -- backward traversal
+    nodes[2][0] = node_indices[4];
+    nodes[2][1] = node_indices[5];
+    nodes[2][2] = node_indices[1];
+    nodes[2][3] = node_indices[0];
+
+    // Face 3 (+y) -- forward traversal
+    nodes[3][0] = node_indices[2];
+    nodes[3][1] = node_indices[3];
+    nodes[3][2] = node_indices[7];
+    nodes[3][3] = node_indices[6];
+
+    // Face 4 (-z) -- backward traversal
+    nodes[4][0] = node_indices[0];
+    nodes[4][1] = node_indices[1];
+    nodes[4][2] = node_indices[2];
+    nodes[4][3] = node_indices[3];
+
+    // Face 5 (+z) -- forward traversal
+    nodes[5][0] = node_indices[4];
+    nodes[5][1] = node_indices[5];
+    nodes[5][2] = node_indices[6];
+    nodes[5][3] = node_indices[7];
+
+    // Hook everything up.
+    for (int f = 0; f < 6; ++f)
+    {
+      int face = mesh->cell_faces[6*cell+f];
+      if (face < 0) face = ~face;
+      if (mesh->face_cells[2*face] == -1)
+        mesh->face_cells[2*face] = cell;
+      else if (mesh->face_cells[2*face+1] == -1)
+        mesh->face_cells[2*face+1] = cell;
+
+      for (int n = 0; n < 4; ++n)
+        mesh->face_nodes[4*face+n] = nodes[f][n];
+    }
+
+    // Assign the node positions for the cell.
+    static const int i_offsets[] = {0, 1, 1, 0, 0, 1, 1, 0};
+    static const int j_offsets[] = {0, 0, 1, 1, 0, 0, 1, 1};
+    static const int k_offsets[] = {0, 0, 0, 0, 1, 1, 1, 1};
+    for (int n = 0; n < 8; ++n)
+    {
+      if (!int_unordered_set_contains(processed_nodes, node_indices[n]))
+      {
+        point_t* node = &mesh->nodes[node_indices[n]];
+        node->x = xs[i + i_offsets[n]];
+        node->y = ys[j + j_offsets[n]];
+        node->z = zs[k + k_offsets[n]];
+        int_unordered_set_insert(processed_nodes, node_indices[n]);
+      }
+    }
+
+    // Hook up ghost cells.
+    uint64_t neighboring_cells[6];
+    neighboring_cells[0] = (i == 0) ? -1 : cubic_lattice_cell(lattice, i-1, j, k);
+    neighboring_cells[1] = (i == nx-1) ? -1 : cubic_lattice_cell(lattice, i+1, j, k);
+    neighboring_cells[2] = (j == 0) ? -1 : cubic_lattice_cell(lattice, i, j-1, k);
+    neighboring_cells[3] = (j == ny-1) ? -1 : cubic_lattice_cell(lattice, i, j+1, k);
+    neighboring_cells[4] = (k == 0) ? -1 : cubic_lattice_cell(lattice, i, j, k-1);
+    neighboring_cells[5] = (k == nz-1) ? -1 : cubic_lattice_cell(lattice, i, j, k+1);
+    for (int ii = 0; ii < 6; ++ii)
+    {
+      if ((neighboring_cells[ii] != -1) && 
+          ((neighboring_cells[ii] < cells_per_proc*rank) || 
+           (neighboring_cells[ii] > cells_per_proc*(rank+1))))
+      {
+        int face = mesh->cell_faces[6*cell+ii];
+        ASSERT(mesh->face_cells[2*face] != -1);
+        mesh->face_cells[2*face+1] = ghost_cell_index;
+        ++ghost_cell_index;
+      }
+    }
+  }
+  ASSERT(ghost_cell_index == num_cells + num_ghost_cells);
+
+  // Clean up.
+  int_int_unordered_map_free(local_faces);
+  int_int_unordered_map_free(local_nodes);
+
+#else
   // Create the mesh.
   // FIXME: Not parallel safe.
   mesh_t* mesh = mesh_new(comm, 
@@ -195,6 +408,7 @@ mesh_t* create_rectilinear_mesh(MPI_Comm comm,
       }
     }
   }
+#endif
 
   // Construct edge information.
   mesh_construct_edges(mesh);
