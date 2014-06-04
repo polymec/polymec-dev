@@ -77,6 +77,9 @@ int main(int argc, char** argv)
   // Start everything up.
   polymec_init(argc, argv);
 
+  int rank;
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+
   // Parse options on the command line.
   options_t* opts = options_parse(argc, argv);
   if (opts == NULL)
@@ -92,7 +95,7 @@ int main(int argc, char** argv)
   char* provenance_str = options_value(opts, "provenance");
   bool provenance = ((provenance_str != NULL) && !strcmp(provenance_str, "1"));
 
-  if (strcmp(input, "help") != 0)
+  if ((strcmp(input, "help") != 0) && (rank == 0))
   {
     // Check to see whether the given file exists.
     FILE* fp = fopen(input, "r");
@@ -124,8 +127,6 @@ int main(int argc, char** argv)
   FILE* log_str = log_stream(log_lev);
 
   // Print a version identifier.
-  int rank;
-  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   if (rank == 0)
   {
     // If we're providing full provenance, do so here.

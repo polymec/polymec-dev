@@ -256,7 +256,7 @@ static void write_master_file(silo_file_t* file)
       {
         char mesh_name[FILENAME_MAX];
         mesh_types[num_chunks*j+c] = mesh->type;
-        snprintf(mesh_names[num_chunks*j+c], FILENAME_MAX, "%d/%s.silo:/domain_%d/%s", j, file->prefix, c, mesh->name);
+        snprintf(mesh_name, FILENAME_MAX, "%d/%s.silo:/domain_%d/%s", j, file->prefix, c, mesh->name);
         mesh_names[num_chunks*j+c] = string_dup(mesh_name);
       }
     }
@@ -284,9 +284,9 @@ static void write_master_file(silo_file_t* file)
       {
         char mesh_name[FILENAME_MAX];
         if (file->cycle == -1)
-          snprintf(mesh_names[num_chunks*j+c], FILENAME_MAX, "%d/%s.silo:/domain_%d/%s", j, file->prefix, c, var->mesh_name);
+          snprintf(mesh_name, FILENAME_MAX, "%d/%s.silo:/domain_%d/%s", j, file->prefix, c, var->mesh_name);
         else
-          snprintf(mesh_names[num_chunks*j+c], FILENAME_MAX, "%d/%s-%d.silo:/domain_%d/%s", j, file->prefix, file->cycle, c, var->mesh_name);
+          snprintf(mesh_name, FILENAME_MAX, "%d/%s-%d.silo:/domain_%d/%s", j, file->prefix, file->cycle, c, var->mesh_name);
         mesh_names[num_chunks*j+c] = string_dup(mesh_name);
         char var_name[FILENAME_MAX];
         if (file->cycle == -1)
@@ -311,7 +311,7 @@ static void write_master_file(silo_file_t* file)
   }
 
   DBFreeOptlist(optlist);
-  DBClose(file->dbfile);
+  DBClose(master);
 }
 #endif
 
@@ -338,7 +338,7 @@ silo_file_t* silo_file_new(MPI_Comm comm,
 #if POLYMEC_HAVE_MPI
   MPI_Comm_size(comm, &file->nproc);
   MPI_Comm_rank(comm, &file->rank);
-  if (file->num_files == -1)
+  if (num_files == -1)
     file->num_files = file->nproc;
   else
     file->num_files = num_files;
@@ -355,11 +355,7 @@ silo_file_t* silo_file_new(MPI_Comm comm,
     strncpy(master_dir_name, directory, FILENAME_MAX);
   if (file->rank == 0)
   {
-    DIR* master_dir = opendir(master_dir_name);
-    if (master_dir == NULL)
-      mkdir(master_dir_name, S_IRWXU | S_IRWXG);
-    else
-      closedir(master_dir);
+    create_directory(master_dir_name, S_IRWXU | S_IRWXG);
     MPI_Barrier(comm);
   }
   else
@@ -377,11 +373,7 @@ silo_file_t* silo_file_new(MPI_Comm comm,
   snprintf(group_dir_name, FILENAME_MAX, "%s/%d", master_dir_name, file->group_rank);
   if (file->rank_in_group == 0)
   {
-    DIR* group_dir = opendir(group_dir_name);
-    if (group_dir == NULL)
-      mkdir(group_dir_name, S_IRWXU | S_IRWXG);
-    else
-      closedir(group_dir);
+    create_directory(group_dir_name, S_IRWXU | S_IRWXG);
     MPI_Barrier(comm);
   }
   else
@@ -398,17 +390,19 @@ silo_file_t* silo_file_new(MPI_Comm comm,
   file->multimeshes = ptr_array_new();
   file->multivars = ptr_array_new();
 #else
+  char dir_name[FILENAME_MAX];
   if (strlen(directory) == 0)
-    strncpy(file->dir_name, ".", FILENAME_MAX);
+    strncpy(dir_name, ".", FILENAME_MAX);
   else
-    strncpy(file->dir_name, directory, FILENAME_MAX);
+    strncpy(dir_name, directory, FILENAME_MAX);
 
   if (cycle == -1)
-    snprintf(file->filename, FILENAME_MAX, "%s/%s.silo", file->dir_name, file->prefix);
+    snprintf(file->filename, FILENAME_MAX, "%s/%s.silo", dir_name, file->prefix);
   else
-    snprintf(file->filename, FILENAME_MAX, "%s/%s-%d.silo", file->dir_name, file->prefix, cycle);
+    snprintf(file->filename, FILENAME_MAX, "%s/%s-%d.silo", dir_name, file->prefix, cycle);
 
   int driver = DB_HDF5;
+  create_directory(dir_name, S_IRWXU | S_IRWXG);
   file->dbfile = DBCreate(file->filename, DB_CLOBBER, DB_LOCAL, NULL, driver);
   DBSetDir(file->dbfile, "/");
 #endif
@@ -444,7 +438,7 @@ silo_file_t* silo_file_open(MPI_Comm comm,
 #if POLYMEC_HAVE_MPI
   MPI_Comm_size(comm, &file->nproc);
   MPI_Comm_rank(comm, &file->rank);
-  if (file->num_files == -1)
+  if (num_files == -1)
     file->num_files = file->nproc;
   else
     file->num_files = num_files;

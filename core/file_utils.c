@@ -26,6 +26,7 @@
 #include <sys/stat.h>
 #include "core/polymec.h"
 #include "file_utils.h"
+#include "string_utils.h"
 
 #define SEPARATOR '/'
 
@@ -62,6 +63,27 @@ void join_paths(const char *dirname, const char *filename, char *path)
     snprintf(path, FILENAME_MAX, "%s%s", dirname, filename);
   else
     snprintf(path, FILENAME_MAX, "%s%c%s", dirname, SEPARATOR, filename);
+}
+
+bool create_directory(const char* dirname, mode_t mode)
+{
+  // Create every directory in the given path.
+  int pos = 0;
+  char path[FILENAME_MAX];
+  char* delim = strstr((const char*)&(dirname[pos]), "/");
+  while (delim != NULL)
+  {
+    pos = delim - dirname + 1; // Include '/'
+    snprintf(path, pos, "%s", dirname);
+    DIR* dir = opendir(path);
+    if (dir == NULL)
+      mkdir(path, mode);
+    else
+      closedir(dir);
+    delim = strstr((const char*)&(dirname[pos]), "/");
+  }
+  snprintf(path, FILENAME_MAX, "%s", dirname);
+  return (mkdir(path, mode) == 0);
 }
 
 // Global temporary directory for the present process.

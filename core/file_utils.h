@@ -30,11 +30,16 @@
 // Given a full pathname, parse it into directory and file portions.
 // Memory must be allocated for dirname and for filename that is sufficient 
 // to store any portion of path.
-void parse_path(const char *path, char *dirname, char *filename);
+void parse_path(const char* path, char* dirname, char* filename);
 
 // Given a path and a filename, join them using the OS-specific separator, 
 // storing the result in path.
-void join_paths(const char *dirname, const char* filename, char* path);
+void join_paths(const char* dirname, const char* filename, char* path);
+
+// Creates the given directory if it doesn't exist and if it's capable. 
+// If it does exist, this function has no effect. Returns true if the 
+// directory exists at the end of the call, false otherwise.
+bool create_directory(const char* dirname, mode_t mode);
 
 // Remove a directory and any of its contents. Returns 0 on success, -1 on 
 // failure (as does the standard rmdir).
