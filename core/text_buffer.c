@@ -128,3 +128,8 @@ bool text_buffer_next(text_buffer_t* buffer, int* pos, char** line, int* line_le
   return true;
 }
 
+char* text_buffer_to_string(text_buffer_t* buffer)
+{
+  return string_dup(buffer->data);
+}
+

@@ -26,6 +26,7 @@
 #include "core/interpreter.h"
 #include "core/tuple.h"
 #include "core/unordered_set.h"
+#include "core/text_buffer.h"
 
 // Lua stuff.
 #include "lua.h"
@@ -1191,21 +1192,39 @@ void interpreter_parse_string(interpreter_t* interp, char* input_string)
 
 void interpreter_parse_file(interpreter_t* interp, char* input_file)
 {
-  log_detail("interpreter: Looking for input in file '%s'...", input_file);
+  log_detail("interpreter: Reading input from file '%s'...", input_file);
 
-  // Clear the current data store.
-  interpreter_map_clear(interp->store);
+  int rank, nproc;
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  MPI_Comm_size(MPI_COMM_WORLD, &nproc);
 
-  // (Re-)initialize the Lua interpreter.
-  interpreter_open_lua(interp);
+  // Read the contents of the file into a string on rank 0 and broadcast it 
+  // to the other processes on MPI_COMM_WORLD.
+  char* input_str = NULL;
+  if (rank == 0)
+  {
+    text_buffer_t* buffer = text_buffer_from_file(input_file);
+    input_str = text_buffer_to_string(buffer);
+    text_buffer_free(buffer);
+  }
 
-  // Load the file and execute it.
-  int errors = luaL_dofile(interp->lua, input_file);
-  if (errors != 0)
-    polymec_error(lua_tostring(interp->lua, -1));
+  if (nproc > 1)
+  {
+    // Broadcast the length of the input.
+    int input_len = (rank == 0) ? strlen(input_str) : 0;
+    MPI_Bcast(&input_len, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
-  // Move the data from the chunk to the data store.
-  interpreter_store_chunk_contents(interp);
+    // Allocate storage for the input string on rank > 0 processes.
+    if (rank > 0)
+      input_str = polymec_malloc(sizeof(char) * input_len);
+
+    // Broadcast the input.
+    MPI_Bcast(input_str, input_len, MPI_CHAR, 0, MPI_COMM_WORLD);
+  }
+
+  // Parse the string locally.
+  interpreter_parse_string(interp, input_str);
+  polymec_free(input_str);
 }
 
 bool interpreter_contains(interpreter_t* interp, const char* variable, interpreter_var_type_t type)
