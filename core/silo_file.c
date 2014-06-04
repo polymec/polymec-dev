@@ -131,7 +131,7 @@ struct silo_file_t
   DBfile* dbfile;
 
   // Metadata.
-  char prefix[FILENAME_MAX], dir_name[FILENAME_MAX], filename[FILENAME_MAX];
+  char prefix[FILENAME_MAX], directory[FILENAME_MAX], filename[FILENAME_MAX];
   int cycle;
   real_t time;
   int mode; // Open for reading (DB_READ) or writing (DB_CLOBBER)? 
@@ -219,13 +219,16 @@ static void write_master_file(silo_file_t* file)
 {
   ASSERT(file->mode == DB_CLOBBER);
 
+  // FIXME: Should change this to use Silo's name schemes for multi-block 
+  // FIXME: objects when we start to Get Real Parallel.
+
   if (file->rank != 0) return;
 
   char master_file_name[FILENAME_MAX];
   if (file->cycle == -1)
-    snprintf(master_file_name, FILENAME_MAX, "%s-%d/%s.silo", file->prefix, file->nproc, file->prefix);
+    snprintf(master_file_name, FILENAME_MAX, "%s/%s.silo", file->directory, file->prefix);
   else
-    snprintf(master_file_name, FILENAME_MAX, "%s-%d/%s-%d.silo", file->prefix, file->nproc, file->prefix, file->cycle);
+    snprintf(master_file_name, FILENAME_MAX, "%s/%s-%d.silo", file->directory, file->prefix, file->cycle);
   int driver = DB_HDF5;
   DBfile* master = DBCreate(master_file_name, DB_CLOBBER, DB_LOCAL, "Master file", driver);
 
@@ -256,13 +259,16 @@ static void write_master_file(silo_file_t* file)
       {
         char mesh_name[FILENAME_MAX];
         mesh_types[num_chunks*j+c] = mesh->type;
-        snprintf(mesh_name, FILENAME_MAX, "%d/%s.silo:/domain_%d/%s", j, file->prefix, c, mesh->name);
+        if (file->cycle == -1)
+          snprintf(mesh_name, FILENAME_MAX, "%s/%d/%s.silo:/domain_%d/%s", file->directory, j, file->prefix, c, mesh->name);
+        else
+          snprintf(mesh_name, FILENAME_MAX, "%s/%d/%s-%d.silo:/domain_%d/%s", file->directory, j, file->prefix, file->cycle, c, mesh->name);
         mesh_names[num_chunks*j+c] = string_dup(mesh_name);
       }
     }
 
     // Write the multimesh.
-    DBPutMultimesh(master, mesh->name, file->num_files*num_chunks, &mesh_names[0], 
+    DBPutMultimesh(master, mesh->name, file->num_files*num_chunks, mesh_names, 
                    &mesh_types[0], optlist);
     // Clean up.
     for (int i = 0; i < num_files*num_chunks; ++i)
@@ -284,15 +290,15 @@ static void write_master_file(silo_file_t* file)
       {
         char mesh_name[FILENAME_MAX];
         if (file->cycle == -1)
-          snprintf(mesh_name, FILENAME_MAX, "%d/%s.silo:/domain_%d/%s", j, file->prefix, c, var->mesh_name);
+          snprintf(mesh_name, FILENAME_MAX, "%s/%d/%s.silo:/domain_%d/%s", file->directory, j, file->prefix, c, var->mesh_name);
         else
-          snprintf(mesh_name, FILENAME_MAX, "%d/%s-%d.silo:/domain_%d/%s", j, file->prefix, file->cycle, c, var->mesh_name);
+          snprintf(mesh_name, FILENAME_MAX, "%s/%d/%s-%d.silo:/domain_%d/%s", file->directory, j, file->prefix, file->cycle, c, var->mesh_name);
         mesh_names[num_chunks*j+c] = string_dup(mesh_name);
         char var_name[FILENAME_MAX];
         if (file->cycle == -1)
-          snprintf(var_name, FILENAME_MAX, "%d/%s.silo:/domain_%d/%s_%s", j, file->prefix, c, var->mesh_name, var->name);
+          snprintf(var_name, FILENAME_MAX, "%s/%d/%s.silo:/domain_%d/%s_%s", file->directory, j, file->prefix, c, var->mesh_name, var->name);
         else
-          snprintf(var_name, FILENAME_MAX, "%d/%s-%d.silo:/domain_%d/%s_%s", j, file->prefix, file->cycle, c, var->mesh_name, var->name);
+          snprintf(var_name, FILENAME_MAX, "%s/%d/%s-%d.silo:/domain_%d/%s_%s", file->directory, j, file->prefix, file->cycle, c, var->mesh_name, var->name);
         var_names[num_chunks*j+c] = string_dup(var_name);
         var_types[num_chunks*j+c] = var->type;
       }
@@ -348,14 +354,13 @@ silo_file_t* silo_file_new(MPI_Comm comm,
   // prefix, and every process gets its own subdirectory therein.
 
   // Create the master directory if we need to.
-  char master_dir_name[FILENAME_MAX];
   if (strlen(directory) == 0)
-    snprintf(master_dir_name, FILENAME_MAX, "%s-%d", file->prefix, file->nproc);
+    snprintf(file->directory, FILENAME_MAX, "%s-%d", file->prefix, file->nproc);
   else
-    strncpy(master_dir_name, directory, FILENAME_MAX);
+    strncpy(file->directory, directory, FILENAME_MAX);
   if (file->rank == 0)
   {
-    create_directory(master_dir_name, S_IRWXU | S_IRWXG);
+    create_directory(file->directory, S_IRWXU | S_IRWXG);
     MPI_Barrier(comm);
   }
   else
@@ -370,7 +375,7 @@ silo_file_t* silo_file_new(MPI_Comm comm,
 
   // Create a subdirectory for each group.
   char group_dir_name[FILENAME_MAX];
-  snprintf(group_dir_name, FILENAME_MAX, "%s/%d", master_dir_name, file->group_rank);
+  snprintf(group_dir_name, FILENAME_MAX, "%s/%d", file->directory, file->group_rank);
   if (file->rank_in_group == 0)
   {
     create_directory(group_dir_name, S_IRWXU | S_IRWXG);
@@ -384,25 +389,25 @@ silo_file_t* silo_file_new(MPI_Comm comm,
     snprintf(file->filename, FILENAME_MAX, "%s/%s.silo", group_dir_name, file->prefix);
   else
     snprintf(file->filename, FILENAME_MAX, "%s/%s-%d.silo", group_dir_name, file->prefix, cycle);
-  snprintf(file->dir_name, FILENAME_MAX, "domain_%d", file->rank_in_group);
-  file->dbfile = (DBfile*)PMPIO_WaitForBaton(file->baton, file->filename, file->dir_name);
+  char silo_dir_name[FILENAME_MAX];
+  snprintf(silo_dir_name, FILENAME_MAX, "domain_%d", file->rank_in_group);
+  file->dbfile = (DBfile*)PMPIO_WaitForBaton(file->baton, file->filename, silo_dir_name);
 
   file->multimeshes = ptr_array_new();
   file->multivars = ptr_array_new();
 #else
-  char dir_name[FILENAME_MAX];
   if (strlen(directory) == 0)
-    strncpy(dir_name, ".", FILENAME_MAX);
+    strncpy(file->directory, ".", FILENAME_MAX);
   else
-    strncpy(dir_name, directory, FILENAME_MAX);
+    strncpy(file->directory, directory, FILENAME_MAX);
 
   if (cycle == -1)
-    snprintf(file->filename, FILENAME_MAX, "%s/%s.silo", dir_name, file->prefix);
+    snprintf(file->filename, FILENAME_MAX, "%s/%s.silo", file->directory, file->prefix);
   else
-    snprintf(file->filename, FILENAME_MAX, "%s/%s-%d.silo", dir_name, file->prefix, cycle);
+    snprintf(file->filename, FILENAME_MAX, "%s/%s-%d.silo", file->directory, file->prefix, cycle);
 
   int driver = DB_HDF5;
-  create_directory(dir_name, S_IRWXU | S_IRWXG);
+  create_directory(file->directory, S_IRWXU | S_IRWXG);
   file->dbfile = DBCreate(file->filename, DB_CLOBBER, DB_LOCAL, NULL, driver);
   DBSetDir(file->dbfile, "/");
 #endif
@@ -448,18 +453,17 @@ silo_file_t* silo_file_open(MPI_Comm comm,
   // prefix, and every process gets its own subdirectory therein.
 
   // Create the master directory if we need to.
-  char master_dir_name[FILENAME_MAX];
   if (strlen(directory) == 0)
-    snprintf(master_dir_name, FILENAME_MAX, "%s-%d", file->prefix, file->nproc);
+    snprintf(file->directory, FILENAME_MAX, "%s-%d", file->prefix, file->nproc);
   else
-    strncpy(master_dir_name, directory, FILENAME_MAX);
+    strncpy(file->directory, directory, FILENAME_MAX);
   if (file->rank == 0)
   {
-    DIR* master_dir = opendir(master_dir_name);
+    DIR* master_dir = opendir(file->directory);
     if (master_dir == NULL)
     {
       polymec_error("silo_file_open: Master directory %s does not exist for file prefix %s.",
-                    master_dir_name, file->prefix);
+                    file->directory, file->prefix);
     }
     else
       closedir(master_dir);
@@ -477,7 +481,7 @@ silo_file_t* silo_file_open(MPI_Comm comm,
 
   // Make sure a subdirectory exists for each group.
   char group_dir_name[FILENAME_MAX];
-  snprintf(group_dir_name, FILENAME_MAX, "%s/%d", master_dir_name, file->group_rank);
+  snprintf(group_dir_name, FILENAME_MAX, "%s/%d", file->directory, file->group_rank);
   if (file->rank_in_group == 0)
   {
     DIR* group_dir = opendir(group_dir_name);
@@ -498,20 +502,21 @@ silo_file_t* silo_file_open(MPI_Comm comm,
     snprintf(file->filename, FILENAME_MAX, "%s/%s.silo", group_dir_name, file->prefix);
   else
     snprintf(file->filename, FILENAME_MAX, "%s/%s-%d.silo", group_dir_name, file->prefix, cycle);
-  snprintf(file->dir_name, FILENAME_MAX, "domain_%d", file->rank_in_group);
-  file->dbfile = (DBfile*)PMPIO_WaitForBaton(file->baton, file->filename, file->dir_name);
+  char silo_dir_name[FILENAME_MAX];
+  snprintf(silo_dir_name, FILENAME_MAX, "domain_%d", file->rank_in_group);
+  file->dbfile = (DBfile*)PMPIO_WaitForBaton(file->baton, file->filename, silo_dir_name);
   file->multimeshes = ptr_array_new();
   file->multivars = ptr_array_new();
 #else
   if (strlen(directory) == 0)
-    strncpy(file->dir_name, ".", FILENAME_MAX);
+    strncpy(file->directory, ".", FILENAME_MAX);
   else
-    strncpy(file->dir_name, directory, FILENAME_MAX);
+    strncpy(file->directory, directory, FILENAME_MAX);
 
   if (cycle == -1)
-    snprintf(file->filename, FILENAME_MAX, "%s/%s.silo", file->dir_name, file->prefix);
+    snprintf(file->filename, FILENAME_MAX, "%s/%s.silo", file->directory, file->prefix);
   else
-    snprintf(file->filename, FILENAME_MAX, "%s/%s-%d.silo", file->dir_name, file->prefix, cycle);
+    snprintf(file->filename, FILENAME_MAX, "%s/%s-%d.silo", file->directory, file->prefix, cycle);
 
   int driver = DB_HDF5;
   file->dbfile = DBOpen(file->filename, driver, file->mode);
