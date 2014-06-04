@@ -22,15 +22,13 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "repartition.h"
+#include "geometry/repartition.h"
 
-#ifdef HAVE_PARMETIS
-#include "parmetis.h"
-#endif
-
-#ifdef HAVE_PARMETIS
-static exchanger_t* repartition_points_with_parmetis(MPI_Comm comm, point_t* points, real_t* weights, int num_points)
+exchanger_t* repartition_point_cloud(point_cloud_t* cloud, real_t* weights)
 {
+  exchanger_t* ex = exchanger_new(cloud->comm);
+#if POLYMEC_HAVE_MPI
+#if 0
   int nprocs, rank;
   MPI_Comm_size(comm, &nprocs);
   MPI_Comm_rank(comm, &rank);
@@ -160,25 +158,20 @@ static exchanger_t* repartition_points_with_parmetis(MPI_Comm comm, point_t* poi
     points[i].y = coords[3*i+1];
     points[i].z = coords[3*i+2];
   }
+#endif
+  polymec_not_implemented("repartition_mesh");
+#endif
 
   // Return the exchanger.
   return ex;
 }
-#endif
 
-exchanger_t* repartition_points(MPI_Comm comm, point_t* points, real_t* weights, int num_points)
+exchanger_t* repartition_mesh(mesh_t* mesh, real_t* weights)
 {
-#ifdef HAVE_PARMETIS
-  return repartition_points_with_parmetis(comm, points, weights, num_points);
-#else
-  polymec_not_implemented("repartition_points (non-parmetis version)");
-  return NULL;
-#endif
-}
-
-exchanger_t* repartition_mesh(MPI_Comm comm, mesh_t* mesh)
-{
+  exchanger_t* ex = exchanger_new(mesh->comm);
+#if POLYMEC_HAVE_MPI
   polymec_not_implemented("repartition_mesh");
-  return NULL;
+#endif
+  return ex;
 }
 

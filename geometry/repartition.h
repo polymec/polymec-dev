@@ -25,22 +25,21 @@
 #ifndef POLYMEC_REPARTITION_H
 #define POLYMEC_REPARTITION_H
 
-#include "core/point.h"
+#include "core/point_cloud.h"
 #include "core/mesh.h"
-#include "core/exchanger.h"
 
-// This function repartitions the given set of points with the given 
+// This function repartitions the given point cloud with the given load
 // weights, alloting them to parallel domains to balance their load.
 // If weights is NULL, the points are assigned equal weights.
 // It creates and returns an exchanger object that can be used to migrate 
 // data from the old partition to the new.
-exchanger_t* repartition_points(MPI_Comm comm, point_t* points, real_t* weights, int num_points);
+exchanger_t* repartition_point_cloud(point_cloud_t* cloud, real_t* weights);
 
-// This function repartitions the given mesh, alloting the cells to parallel 
-// domains to balance the load.
+// This function repartitions the given mesh with the given load weights, 
+// alloting the cells to parallel domains to balance the load.
 // It creates and returns an exchanger object that can be used to migrate 
 // data from the old partition to the new.
-exchanger_t* repartition_mesh(MPI_Comm comm, mesh_t* mesh);
+exchanger_t* repartition_mesh(mesh_t* mesh, real_t* weights);
 
 #endif
 
