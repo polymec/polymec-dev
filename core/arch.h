@@ -32,11 +32,34 @@
 
 #ifdef APPLE
 
+#include <pthread.h>
+
 // This is a port of the fmemopen function (available on Linux).
 FILE* fmemopen(void *buf, size_t size, const char *mode);
 
 // This is a port of open_memstream (available on Linux).
 FILE* open_memstream(char **buf, size_t *len);
 
-#endif 
+//------------------------------------------------------------------------
+// Below is an implementation of the non-standard PThreads barrier type.
+//------------------------------------------------------------------------
+
+// Descriptor for PThreads barrier attributes -- not used in this implementation.
+typedef int pthread_barrierattr_t;
+
+// Barrier type.
+typedef struct pthread_barrier_t pthread_barrier_t;
+
+// Initializes a barrier that blocks the given number of threads.
+int pthread_barrier_init(pthread_barrier_t *barrier, 
+                         const pthread_barrierattr_t *attr, 
+                         unsigned int count);
+
+// Destroys a barrier created with pthread_barrier_init().
+int pthread_barrier_destroy(pthread_barrier_t *barrier);
+
+// Causes the barrier to block until all of its threads finish their tasks.
+int pthread_barrier_wait(pthread_barrier_t *barrier);
+
+#endif
 #endif
