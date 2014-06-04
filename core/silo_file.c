@@ -154,6 +154,16 @@ static void write_multivars_to_file(silo_file_t* file)
 
   int num_chunks = file->nproc / file->num_files;
 
+  // Stick in cycle/time information if needed.
+  DBoptlist* optlist = DBMakeOptlist(2);
+  if (file->cycle >= 0)
+    DBAddOption(optlist, DBOPT_CYCLE, &file->cycle);
+  if (file->time != -FLT_MAX)
+  {
+    double t = (double)file->time;
+    DBAddOption(optlist, DBOPT_DTIME, &t);
+  }
+
   // Write out multi meshes.
   for (int i = 0; i < file->multimeshes->size; ++i)
   {
@@ -172,7 +182,7 @@ static void write_multivars_to_file(silo_file_t* file)
     // Write the point mesh and variable data.
     DBSetDir(file->dbfile, "/");
     DBPutMultimesh(file->dbfile, mesh->name, num_chunks, &mesh_names[0], 
-                   mesh_types, NULL);
+                   mesh_types, optlist);
 
     // Clean up.
     for (int j = 0; j < num_chunks; ++j)
@@ -191,19 +201,20 @@ static void write_multivars_to_file(silo_file_t* file)
     {
       // Field name.
       char var_name[FILENAME_MAX];
-      snprintf(var_name, FILENAME_MAX, "domain_%d/%s_%s", j, var->mesh_name, var->name);
+      snprintf(var_name, FILENAME_MAX, "domain_%d/%s", j, var->name);
       var_names[j] = string_dup(var_name);
       var_types[j] = var->type;
     }
 
     // Write the variable data.
     DBSetDir(file->dbfile, "/");
-    DBPutMultivar(file->dbfile, var->name, num_chunks, var_names, var_types, NULL);
+    DBPutMultivar(file->dbfile, var->name, num_chunks, var_names, var_types, optlist);
 
     // Clean up.
     for (int j = 0; j < num_chunks; ++j)
       polymec_free(var_names[j]);
   }
+  DBFreeOptlist(optlist);
 }
 
 static void write_master_file(silo_file_t* file)
@@ -251,9 +262,9 @@ static void write_master_file(silo_file_t* file)
         char mesh_name[FILENAME_MAX];
         mesh_types[num_chunks*j+c] = mesh->type;
         if (file->cycle == -1)
-          snprintf(mesh_name, FILENAME_MAX, "%s/%d/%s.silo:/domain_%d/%s", file->directory, j, file->prefix, c, mesh->name);
+          snprintf(mesh_name, FILENAME_MAX, "%d/%s.silo:/domain_%d/%s", j, file->prefix, c, mesh->name);
         else
-          snprintf(mesh_name, FILENAME_MAX, "%s/%d/%s-%d.silo:/domain_%d/%s", file->directory, j, file->prefix, file->cycle, c, mesh->name);
+          snprintf(mesh_name, FILENAME_MAX, "%d/%s-%d.silo:/domain_%d/%s", j, file->prefix, file->cycle, c, mesh->name);
         mesh_names[num_chunks*j+c] = string_dup(mesh_name);
       }
     }
@@ -283,17 +294,16 @@ static void write_master_file(silo_file_t* file)
       {
         char var_name[FILENAME_MAX];
         if (file->cycle == -1)
-          snprintf(var_name, FILENAME_MAX, "%s/%d/%s.silo:/domain_%d/%s_%s", file->directory, j, file->prefix, c, var->mesh_name, var->name);
+          snprintf(var_name, FILENAME_MAX, "%d/%s.silo:/domain_%d/%s", j, file->prefix, c, var->name);
         else
-          snprintf(var_name, FILENAME_MAX, "%s/%d/%s-%d.silo:/domain_%d/%s_%s", file->directory, j, file->prefix, file->cycle, c, var->mesh_name, var->name);
+          snprintf(var_name, FILENAME_MAX, "%d/%s-%d.silo:/domain_%d/%s", j, file->prefix, file->cycle, c, var->name);
         var_names[num_chunks*j+c] = string_dup(var_name);
         var_types[num_chunks*j+c] = var->type;
       }
     }
 
     // Write the multivariable data.
-    DBPutMultivar(master, var->name, num_files*num_chunks, var_names, 
-                  var_types, optlist);
+    DBPutMultivar(master, var->name, num_files*num_chunks, var_names, var_types, optlist);
 
     // Clean up.
     for (int j = 0; j < num_files*num_chunks; ++j)
