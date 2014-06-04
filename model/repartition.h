@@ -27,7 +27,7 @@
 
 #include "core/point.h"
 #include "core/mesh.h"
-#include "model/exchanger.h"
+#include "core/exchanger.h"
 
 // This function repartitions the given set of points with the given 
 // weights, alloting them to parallel domains to balance their load.
