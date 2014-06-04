@@ -150,12 +150,10 @@ void polymec_init(int argc, char** argv)
 // Default error handler.
 static noreturn void default_error_handler(const char* message)
 {
-  printf("Fatal error: %s\n", message);
-//#if USE_MPI
-//  MPI_Abort(MPI_COMM_WORLD, -1);
-//#else
-//  abort();
-//#endif
+  int rank;
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  if (rank == 0)
+    printf("Fatal error: %s\n", message);
   exit(-1);
 }
 
@@ -282,9 +280,11 @@ void polymec_restore_fpe_exceptions()
 
 void polymec_not_implemented(const char* component)
 {
-  char err[1024];
-  snprintf(err, 1024, "polymec: not implemented: %s\n", component);
-  default_error_handler(err);
+  int rank;
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  if (rank == 0)
+    fprintf(stderr, "polymec: not implemented: %s\n", component);
+  exit(-1);
 }
 
 void polymec_atexit(void (*func)()) 
