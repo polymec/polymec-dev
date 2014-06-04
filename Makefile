@@ -27,6 +27,7 @@ endif
 ifeq ($(mpi), 1)
   BUILDDIR := ${BUILDDIR}-mpi
   CC = mpicc
+  CXX = mpicxx
   CONFIG_FLAGS += -DHAVE_MPI=1
 else
   ifeq ($(CC), )

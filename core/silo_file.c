@@ -185,16 +185,10 @@ static void write_multivars_to_file(silo_file_t* file)
     multivar_t* var = file->multivars->data[i];
 
     // Fields and associated meshes.
-    char* mesh_names[num_chunks];
     char* var_names[num_chunks];
     int var_types[num_chunks];
     for (int j = 0; j < num_chunks; ++j)
     {
-      // Mesh.
-      char mesh_name[FILENAME_MAX];
-      snprintf(mesh_name, FILENAME_MAX, "domain_%d/%s", j, var->mesh_name);
-      mesh_names[j] = string_dup(mesh_name);
-
       // Field name.
       char var_name[FILENAME_MAX];
       snprintf(var_name, FILENAME_MAX, "domain_%d/%s_%s", j, var->mesh_name, var->name);
@@ -208,10 +202,7 @@ static void write_multivars_to_file(silo_file_t* file)
 
     // Clean up.
     for (int j = 0; j < num_chunks; ++j)
-    {
-      polymec_free(mesh_names[j]);
       polymec_free(var_names[j]);
-    }
   }
 }
 
@@ -250,7 +241,7 @@ static void write_master_file(silo_file_t* file)
   {
     multimesh_t* mesh = file->multimeshes->data[i];
 
-    // Mesh and fields.
+    // Mesh.
     char* mesh_names[file->num_files*num_chunks];
     int mesh_types[file->num_files*num_chunks];
     for (int j = 0; j < file->num_files; ++j)
@@ -274,8 +265,8 @@ static void write_master_file(silo_file_t* file)
       polymec_error("Error writing multi-mesh to Silo master file %s.", master_file_name);
 
     // Clean up.
-    for (int i = 0; i < num_files*num_chunks; ++i)
-      polymec_free(mesh_names[i]);
+    for (int j = 0; j < num_files*num_chunks; ++j)
+      polymec_free(mesh_names[j]);
   }
 
   // Variables.
@@ -283,20 +274,13 @@ static void write_master_file(silo_file_t* file)
   {
     multivar_t* var = file->multivars->data[i];
 
-    // Mesh and fields.
-    char* mesh_names[file->num_files*num_chunks];
+    // Fields.
     char* var_names[file->num_files*num_chunks];
     int var_types[num_files*num_chunks];
     for (int j = 0; j < file->num_files; ++j)
     {
       for (int c = 0; c < num_chunks; ++c)
       {
-        char mesh_name[FILENAME_MAX];
-        if (file->cycle == -1)
-          snprintf(mesh_name, FILENAME_MAX, "%s/%d/%s.silo:/domain_%d/%s", file->directory, j, file->prefix, c, var->mesh_name);
-        else
-          snprintf(mesh_name, FILENAME_MAX, "%s/%d/%s-%d.silo:/domain_%d/%s", file->directory, j, file->prefix, file->cycle, c, var->mesh_name);
-        mesh_names[num_chunks*j+c] = string_dup(mesh_name);
         char var_name[FILENAME_MAX];
         if (file->cycle == -1)
           snprintf(var_name, FILENAME_MAX, "%s/%d/%s.silo:/domain_%d/%s_%s", file->directory, j, file->prefix, c, var->mesh_name, var->name);
@@ -312,11 +296,8 @@ static void write_master_file(silo_file_t* file)
                   var_types, optlist);
 
     // Clean up.
-    for (int i = 0; i < num_files*num_chunks; ++i)
-    {
-      polymec_free(mesh_names[i]);
-      polymec_free(var_names[i]);
-    }
+    for (int j = 0; j < num_files*num_chunks; ++j)
+      polymec_free(var_names[j]);
   }
 
   DBFreeOptlist(optlist);
@@ -541,19 +522,6 @@ silo_file_t* silo_file_open(MPI_Comm comm,
 
 void silo_file_close(silo_file_t* file)
 {
-  if (file->mode == DB_CLOBBER)
-  {
-    // Stick in cycle/time information if needed.
-    DBoptlist* optlist = DBMakeOptlist(2);
-    if (file->cycle >= 0)
-      DBAddOption(optlist, DBOPT_CYCLE, &file->cycle);
-    if (file->time != -FLT_MAX)
-    {
-      double t = (double)file->time;
-      DBAddOption(optlist, DBOPT_DTIME, &t);
-    }
-  }
-
 #if POLYMEC_HAVE_MPI
   // Finish working on this process.
   if ((file->mode == DB_CLOBBER) && (file->nproc > 1))
