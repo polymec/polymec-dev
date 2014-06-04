@@ -268,8 +268,11 @@ static void write_master_file(silo_file_t* file)
     }
 
     // Write the multimesh.
-    DBPutMultimesh(master, mesh->name, file->num_files*num_chunks, mesh_names, 
-                   &mesh_types[0], optlist);
+    int stat = DBPutMultimesh(master, mesh->name, file->num_files*num_chunks, 
+                              mesh_names, mesh_types, optlist);
+    if (stat == -1)
+      polymec_error("Error writing multi-mesh to Silo master file %s.", master_file_name);
+
     // Clean up.
     for (int i = 0; i < num_files*num_chunks; ++i)
       polymec_free(mesh_names[i]);

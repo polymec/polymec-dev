@@ -36,7 +36,6 @@ static void mesher_usage(FILE* stream)
   fprintf(stream, "Options are:\n");
   fprintf(stream, "  provenance={*0*,1} - provides full provenance information (w/ diffs)\n");
   fprintf(stream, "\nType 'polymesher help' for documentation.\n");
-  exit(-1);
 }
 
 static void mesher_help(interpreter_t* interp, const char* topic, FILE* stream)
@@ -56,7 +55,6 @@ static void mesher_help(interpreter_t* interp, const char* topic, FILE* stream)
     // Attempt to dig up the documentation for the given registered function.
     interpreter_help(interp, topic, stream);
   }
-  exit(0);
 }
 
 // Lua stuff.
@@ -80,73 +78,108 @@ int main(int argc, char** argv)
   int rank;
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
-  // Parse options on the command line.
-  options_t* opts = options_parse(argc, argv);
-  if (opts == NULL)
-    mesher_usage(stderr);
-
-  // Extract the input file and arguments. Note that we use "command" here 
-  // to get the input file, since it comes first.
-  char* input = options_command(opts);
-  if (input == NULL)
-    mesher_usage(stderr);
-
-  // Full provenance, or no?
-  char* provenance_str = options_value(opts, "provenance");
-  bool provenance = ((provenance_str != NULL) && !strcmp(provenance_str, "1"));
-
-  if ((strcmp(input, "help") != 0) && (rank == 0))
-  {
-    // Check to see whether the given file exists.
-    FILE* fp = fopen(input, "r");
-    if (fp == NULL)
-    {
-      fprintf(stderr, "polymesher: Input file not found: %s\n", input);
-      return -1;
-    }
-    fclose(fp);
-  }
-
-  // Set the log level.
-  log_level_t log_lev = LOG_DETAIL;
-  char* logging = options_value(opts, "logging");
-  if (logging != NULL)
-  {
-    if (!strcasecmp(logging, "debug"))
-      log_lev = LOG_DEBUG;
-    else if (!strcasecmp(logging, "detail"))
-      log_lev = LOG_DETAIL;
-    else if (!strcasecmp(logging, "info"))
-      log_lev = LOG_INFO;
-    else if (!strcasecmp(logging, "urgent"))
-      log_lev = LOG_URGENT;
-    else if (!strcasecmp(logging, "off"))
-      log_lev = LOG_NONE;
-  }
-  set_log_level(log_lev);
-  FILE* log_str = log_stream(log_lev);
-
-  // Print a version identifier.
+  options_t* opts = NULL;
+  char* input = NULL;
+  interpreter_t* interp = NULL;
+  int leave = 0;
   if (rank == 0)
   {
+    // Parse options on the command line.
+    opts = options_parse(argc, argv);
+    if (opts == NULL)
+    {
+      mesher_usage(stderr);
+      leave = 1;
+      goto leaving;
+    }
+
+    // Extract the input file and arguments. Note that we use "command" here 
+    // to get the input file, since it comes first.
+    input = options_command(opts);
+    if (input == NULL)
+    {
+      mesher_usage(stderr);
+      leave = 1;
+      goto leaving;
+    }
+
+    // Full provenance, or no?
+    char* provenance_str = options_value(opts, "provenance");
+    bool provenance = ((provenance_str != NULL) && !strcmp(provenance_str, "1"));
+
+    if ((strcmp(input, "help") != 0) && (rank == 0))
+    {
+      // Check to see whether the given file exists.
+      FILE* fp = fopen(input, "r");
+      if (fp == NULL)
+      {
+        fprintf(stderr, "polymesher: Input file not found: %s\n", input);
+        leave = 1;
+        goto leaving;
+      }
+      else
+        fclose(fp);
+    }
+
+    // Set the log level.
+    log_level_t log_lev = LOG_DETAIL;
+    char* logging = options_value(opts, "logging");
+    if (logging != NULL)
+    {
+      if (!strcasecmp(logging, "debug"))
+        log_lev = LOG_DEBUG;
+      else if (!strcasecmp(logging, "detail"))
+        log_lev = LOG_DETAIL;
+      else if (!strcasecmp(logging, "info"))
+        log_lev = LOG_INFO;
+      else if (!strcasecmp(logging, "urgent"))
+        log_lev = LOG_URGENT;
+      else if (!strcasecmp(logging, "off"))
+        log_lev = LOG_NONE;
+    }
+    set_log_level(log_lev);
+    FILE* log_str = log_stream(log_lev);
+
+    // Print a version identifier.
+
     // If we're providing full provenance, do so here.
     if (provenance)
       polymec_provenance_fprintf(log_str);
     else
       polymec_version_fprintf("polymesher", log_str);
+
+    // Set up an interpreter for parsing the input file.
+    interp = interpreter_new(NULL);
+    interpreter_register_geometry_functions(interp);
+    interpreter_register_mesher_functions(interp);
+
+    // If we were asked for help, service the request here.
+    if (!strcmp(input, "help"))
+    {
+      char* topic = options_input(opts);
+      mesher_help(interp, topic, stderr);
+      leave = 1;
+      goto leaving;
+    }
   }
-
-  // Set up an interpreter for parsing the input file.
-  interpreter_t* interp = interpreter_new(NULL);
-  interpreter_register_geometry_functions(interp);
-  interpreter_register_mesher_functions(interp);
-
-  // If we were asked for help, service the request here.
-  if (!strcmp(input, "help"))
+  else
   {
-    char* topic = options_input(opts);
-    mesher_help(interp, topic, stderr);
+    opts = options_parse(argc, argv);
+    if (opts != NULL)
+      input = options_command(opts);
+    if (input != NULL)
+    {
+      interp = interpreter_new(NULL);
+      interpreter_register_geometry_functions(interp);
+      interpreter_register_mesher_functions(interp);
+    }
   }
+
+leaving:
+  // Did something go wrong?
+  MPI_Bcast(&leave, 1, MPI_INT, 0, MPI_COMM_WORLD);
+  if (leave)
+    exit(0);
 
   // Parse it!
   interpreter_parse_file(interp, input);
