@@ -26,6 +26,7 @@
 #define POLYMEC_EXCHANGER_H
 
 #include "core/polymec.h"
+#include "core/unordered_map.h"
 
 // This opaque type implements an MPI transmitter/receiver for exchanging 
 // data between processes in a point-to-point fashion.
@@ -39,7 +40,13 @@ void exchanger_free(exchanger_t* ex);
 
 // Establishes a communication pattern in which this exchanger sends data at 
 // the given indices of an array to the given remote process.
-void exchanger_set_send(exchanger_t* ex, int remote_process, int num_indices, int* indices, bool copy_indices);
+void exchanger_set_send(exchanger_t* ex, int remote_process, int* indices, int num_indices, bool copy_indices);
+
+// Establishes communications patterns in which this exchanger sends data at 
+// the given indices of an array to various remote processes. Here, send_map 
+// maps remote process ranks to int_arrays containing local indices identifying
+// data that will be sent.
+void exchanger_set_sends(exchanger_t* ex, int_ptr_unordered_map_t* send_map);
 
 // Removes the given remote process from the set of processes to which this 
 // exchanger sends data.
@@ -47,7 +54,13 @@ void exchanger_delete_send(exchanger_t* ex, int remote_process);
 
 // Establishes a communication pattern in which this exchanger receives data at 
 // the given indices of an array from the given remote process.
-void exchanger_set_receive(exchanger_t* ex, int remote_process, int num_indices, int* indices, bool copy_indices);
+void exchanger_set_receive(exchanger_t* ex, int remote_process, int* indices, int num_indices, bool copy_indices);
+
+// Establishes communications patterns in which this exchanger receives data at 
+// the given indices of an array from various remote processes. Here, recv_map 
+// maps remote process ranks to int_arrays containing local indices identifying
+// locations where received data will be stored.
+void exchanger_set_receives(exchanger_t* ex, int_ptr_unordered_map_t* recv_map);
 
 // Removes the given remote process from the set of processes from which this 
 // exchanger receives data.

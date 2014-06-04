@@ -45,22 +45,25 @@ struct mesh_storage_t
   int face_edge_capacity;
   int face_node_capacity;
   int stencil_size;
+  exchanger_t* exchanger;
 };
 
 // Initializes a new storage mechanism for a mesh.
-static mesh_storage_t* mesh_storage_new()
+static mesh_storage_t* mesh_storage_new(MPI_Comm comm)
 {
   mesh_storage_t* storage = polymec_malloc(sizeof(mesh_storage_t));
   storage->cell_face_capacity = 0;
   storage->face_edge_capacity = 0;
   storage->face_node_capacity = 0;
   storage->stencil_size = 1;
+  storage->exchanger = exchanger_new(comm);
   return storage;
 }
 
 // Frees the given storage mechanism.
 static void mesh_storage_free(mesh_storage_t* storage)
 {
+  exchanger_free(storage->exchanger);
   polymec_free(storage);
 }
 
@@ -122,7 +125,7 @@ mesh_t* mesh_new(MPI_Comm comm, int num_cells, int num_ghost_cells,
   mesh->face_normals = polymec_malloc(sizeof(vector_t)*num_faces);
 
   // Storage information.
-  mesh->storage = mesh_storage_new();
+  mesh->storage = mesh_storage_new(mesh->comm);
   mesh->storage->cell_face_capacity = cell_face_cap;
   mesh->storage->face_node_capacity = face_node_cap;
   mesh->storage->face_edge_capacity = face_edge_cap;
@@ -295,6 +298,11 @@ void mesh_set_stencil_size(mesh_t* mesh, int new_size)
 {
   ASSERT(new_size >= 1);
   mesh->storage->stencil_size = new_size;
+}
+
+exchanger_t* mesh_exchanger(mesh_t* mesh)
+{
+  return mesh->storage->exchanger;
 }
 
 void mesh_add_feature(mesh_t* mesh, const char* feature)

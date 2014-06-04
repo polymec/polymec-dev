@@ -28,6 +28,7 @@
 #include "core/polymec.h"
 #include "core/point.h"
 #include "core/tagger.h"
+#include "core/exchanger.h"
 #include "core/adj_graph.h"
 #include "core/serializer.h"
 
@@ -160,6 +161,11 @@ int mesh_stencil_size(mesh_t* mesh);
 // does not add new ghost cells, but subsequent operations for determining 
 // ghost cells will accommodate this new stencil size.
 void mesh_set_stencil_size(mesh_t* mesh, int new_size);
+
+// Returns an exchanger object that can be used to perform parallel exchanges
+// on cell-centered mesh data. In serial configurations, this exchanger holds 
+// no data and exchanges have no effect.
+exchanger_t* mesh_exchanger(mesh_t* mesh);
 
 // Adds a named "feature" to the mesh. A mesh either has a feature or it doesn't.
 // Features can be used to make algorithmic decisions about how to perform 

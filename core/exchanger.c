@@ -24,6 +24,7 @@
 
 #include "exchanger.h"
 #include "core/unordered_map.h"
+#include "core/array.h"
 
 // This is a record of a single communications channel for an exchanger 
 // to send or receive data to or from a remote process.
@@ -370,13 +371,21 @@ static void delete_map_entry(int key, exchanger_channel_t* value)
   exchanger_channel_free(value);
 }
 
-void exchanger_set_send(exchanger_t* ex, int remote_process, int num_indices, int* indices, bool copy_indices)
+void exchanger_set_send(exchanger_t* ex, int remote_process, int* indices, int num_indices, bool copy_indices)
 {
   exchanger_channel_t* c = exchanger_channel_new(num_indices, indices, copy_indices);
   exchanger_map_insert_with_kv_dtor(ex->send_map, remote_process, c, delete_map_entry);
 
   if (remote_process > ex->max_send)
     ex->max_send = remote_process;
+}
+
+void exchanger_set_sends(exchanger_t* ex, int_ptr_unordered_map_t* send_map)
+{
+  int pos = 0, send_proc;
+  int_array_t* send_indices;
+  while (int_ptr_unordered_map_next(send_map, &pos, &send_proc, (void**)&send_indices))
+    exchanger_set_send(ex, send_proc, send_indices->data, send_indices->size, true);   
 }
 
 void exchanger_delete_send(exchanger_t* ex, int remote_process)
@@ -391,13 +400,21 @@ void exchanger_delete_send(exchanger_t* ex, int remote_process)
     ex->max_send = (proc > ex->max_send) ? proc : ex->max_send;
 }
 
-void exchanger_set_receive(exchanger_t* ex, int remote_process, int num_indices, int* indices, bool copy_indices)
+void exchanger_set_receive(exchanger_t* ex, int remote_process, int* indices, int num_indices, bool copy_indices)
 {
   exchanger_channel_t* c = exchanger_channel_new(num_indices, indices, copy_indices);
   exchanger_map_insert_with_kv_dtor(ex->receive_map, remote_process, c, delete_map_entry);
 
   if (remote_process > ex->max_receive)
     ex->max_receive = remote_process;
+}
+
+void exchanger_set_receives(exchanger_t* ex, int_ptr_unordered_map_t* recv_map)
+{
+  int pos = 0, recv_proc;
+  int_array_t* recv_indices;
+  while (int_ptr_unordered_map_next(recv_map, &pos, &recv_proc, (void**)&recv_indices))
+    exchanger_set_receive(ex, recv_proc, recv_indices->data, recv_indices->size, true);   
 }
 
 void exchanger_delete_receive(exchanger_t* ex, int remote_process)

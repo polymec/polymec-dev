@@ -39,9 +39,9 @@ void test_exchanger_construct(void** state)
 {
   exchanger_t* exchanger = exchanger_new(MPI_COMM_WORLD);
   int send_indices[5] = {0, 1, 2, 3, 4};
-  exchanger_set_send(exchanger, 1, 5, send_indices, true);
+  exchanger_set_send(exchanger, 1, send_indices, 5, true);
   int receive_indices[5] = {5, 6, 7, 8, 9};
-  exchanger_set_receive(exchanger, 1, 5, receive_indices, true);
+  exchanger_set_receive(exchanger, 1, receive_indices, 5, true);
   exchanger_free(exchanger);
 }
 
@@ -49,9 +49,9 @@ void test_exchanger_construct_and_delete(void** state)
 {
   exchanger_t* exchanger = exchanger_new(MPI_COMM_WORLD);
   int send_indices[5] = {0, 1, 2, 3, 4};
-  exchanger_set_send(exchanger, 1, 5, send_indices, true);
+  exchanger_set_send(exchanger, 1, send_indices, 5, true);
   int receive_indices[5] = {5, 6, 7, 8, 9};
-  exchanger_set_receive(exchanger, 1, 5, receive_indices, true);
+  exchanger_set_receive(exchanger, 1, receive_indices, 5, true);
 
   exchanger_delete_send(exchanger, 1);
   exchanger_delete_receive(exchanger, 1);
