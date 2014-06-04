@@ -159,7 +159,7 @@ static noreturn void default_error_handler(const char* message)
   exit(-1);
 }
 
-#ifdef POLYMEC_HAVE_MPI
+#if POLYMEC_HAVE_MPI
 // Here are the error handlers for the Scotch partitioning library.
 void SCOTCH_errorPrint(const char* const errstr, ...)
 {

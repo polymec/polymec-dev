@@ -2640,9 +2640,14 @@ static int mesh_tostring(lua_State* lua)
   interpreter_storage_t* var = (void*)lua_topointer(lua, -1);
   ASSERT(var->type == INTERPRETER_MESH);
   mesh_t* data = var->datum;
-  char str[256];
+  char str[1024];
+#if POLYMEC_HAVE_MPI
+  sprintf(str, "mesh (%d interior cells, %d ghost cells, %d faces, %d edges, %d nodes)", 
+    data->num_cells, data->num_ghost_cells, data->num_faces, data->num_edges, data->num_nodes);
+#else
   sprintf(str, "mesh (%d cells, %d faces, %d edges, %d nodes)", 
     data->num_cells, data->num_faces, data->num_edges, data->num_nodes);
+#endif
   lua_pushstring(lua, str);
   return 1;
 }
