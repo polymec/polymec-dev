@@ -25,7 +25,7 @@
 #ifndef POLYMEC_FILE_UTILS_H
 #define POLYMEC_FILE_UTILS_H
 
-#include <unistd.h> // for rmdir().
+#include <sys/stat.h> // for mkdir().
 
 // Given a full pathname, parse it into directory and file portions.
 // Memory must be allocated for dirname and for filename that is sufficient 

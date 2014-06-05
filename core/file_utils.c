@@ -23,7 +23,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <dirent.h>
-#include <sys/stat.h>
+#include <unistd.h> // for rmdir().
 #include "core/polymec.h"
 #include "file_utils.h"
 #include "string_utils.h"

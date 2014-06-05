@@ -210,12 +210,6 @@ static void* my_arena_realloc(void* context, void* memory, size_t size)
   return arena_realloc(arena, memory, size, 0);
 }
 
-static void* my_arena_aligned_realloc(void* context, void* memory, size_t alignment, size_t size)
-{
-  ARENA* arena = context;
-  return arena_realloc(arena, memory, size, alignment);
-}
-
 static void my_arena_free(void* context, void* memory)
 {
   ARENA* arena = context;
@@ -255,12 +249,6 @@ static void* my_pool_realloc(void* context, void* memory, size_t size)
 {
   POOL* pool = context;
   return pool_realloc(pool, memory, size, 0);
-}
-
-static void* my_pool_aligned_realloc(void* context, void* memory, size_t alignment, size_t size)
-{
-  POOL* pool = context;
-  return pool_realloc(pool, memory, size, alignment);
 }
 
 static void my_pool_free(void* context, void* memory)
