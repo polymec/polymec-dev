@@ -259,12 +259,16 @@ static int lua_write_silo_mesh(lua_State* lua)
   // Check the arguments.
   int num_args = lua_gettop(lua);
   if (((num_args == 2) && (!lua_ismesh(lua, 1) || !lua_isstring(lua, 2))) || 
+      ((num_args == 3) && (!lua_ismesh(lua, 1) || !lua_isstring(lua, 2) || !lua_isnumber(lua, 3))) || 
       ((num_args == 3) && (!lua_ismesh(lua, 1) || !lua_istable(lua, 2) || !lua_isstring(lua, 3))) || 
-      ((num_args != 2) && (num_args != 3)))
+      ((num_args == 4) && (!lua_ismesh(lua, 1) || !lua_istable(lua, 2) || !lua_isstring(lua, 3) || !lua_isnumber(lua, 4))) || 
+      ((num_args != 2) && (num_args != 3) && (num_args != 4)))
   {
     return luaL_error(lua, "write_silo_mesh: invalid arguments. Usage:\n"
                       "write_silo_mesh(mesh, filename) OR\n"
-                      "write_silo_mesh(mesh, fields, filename)");
+                      "write_silo_mesh(mesh, file_prefix, num_files) OR\n"
+                      "write_silo_mesh(mesh, fields, filename) OR\n"
+                      "write_silo_mesh(mesh, fields, file_prefix, num_files)");
   }
 
   // Get the argument(s).
@@ -272,7 +276,9 @@ static int lua_write_silo_mesh(lua_State* lua)
   ASSERT(mesh != NULL);
   int N = mesh->num_cells;
   bool has_fields = (num_args == 3) ? lua_istable(lua, 2) : false;
-  char* filename = (num_args == 3) ? string_dup(lua_tostring(lua, 3)) : string_dup(lua_tostring(lua, 2));
+  char* filename = (((num_args == 3) || (num_args == 4)) && lua_isstring(lua, 3)) ? 
+                     string_dup(lua_tostring(lua, 3)) : string_dup(lua_tostring(lua, 2));
+  int num_files = (lua_isnumber(lua, num_args)) ? (int)lua_tonumber(lua, num_args) : -1;
 
   // Check the table of fields if it's there.
   if (has_fields)
@@ -370,7 +376,7 @@ static int lua_write_silo_mesh(lua_State* lua)
 
   // Write the thing to a mesh file.
   log_info("Writing SILO mesh file with prefix '%s'...", filename);
-  silo_file_t* silo = silo_file_new(mesh->comm, filename, "", -1, 0, 0, 0.0);
+  silo_file_t* silo = silo_file_new(mesh->comm, filename, "", num_files, 0, -1, 0.0);
   silo_file_write_mesh(silo, "mesh", mesh);
   int pos = 0;
   char* field_name;

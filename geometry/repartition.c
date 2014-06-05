@@ -159,7 +159,12 @@ exchanger_t* repartition_point_cloud(point_cloud_t* cloud, real_t* weights)
     points[i].z = coords[3*i+2];
   }
 #endif
-  polymec_not_implemented("repartition_mesh");
+  int nproc;
+  MPI_Comm_size(cloud->comm, &nproc);
+  if (nproc > 1)
+  {
+    polymec_not_implemented("repartition_mesh");
+  }
 #endif
 
   // Return the exchanger.
@@ -170,7 +175,12 @@ exchanger_t* repartition_mesh(mesh_t* mesh, real_t* weights)
 {
   exchanger_t* ex = exchanger_new(mesh->comm);
 #if POLYMEC_HAVE_MPI
-  polymec_not_implemented("repartition_mesh");
+  int nproc;
+  MPI_Comm_size(mesh->comm, &nproc);
+  if (nproc > 1)
+  {
+    polymec_not_implemented("repartition_mesh");
+  }
 #endif
   return ex;
 }
