@@ -128,9 +128,15 @@ int mesh_factory_tetgen(lua_State* lua)
                       "mesh = mesh_factory.tetgen(mesh_prefix, num_reader_groups).");
   }
 
+  // Make sure the number of reader groups makes sense.
+  int num_reader_groups = (num_args == 1) ? -1 : (int)lua_tonumber(lua, 2);
+  int nproc;
+  MPI_Comm_size(MPI_COMM_WORLD, &nproc);
+  if (num_reader_groups > nproc)
+    return luaL_error(lua, "Invalid number of reader groups given: %d", num_reader_groups);
+
   // Use the mesh prefix to generate filenames.
   const char* mesh_prefix = lua_tostring(lua, 1);
-  int num_reader_groups = (num_args == 1) ? -1 : (int)lua_tonumber(lua, 2);
   char node_file[512], ele_file[512], face_file[512], neigh_file[512];
   snprintf(node_file, 512, "%s.node", mesh_prefix);
   snprintf(ele_file, 512, "%s.ele", mesh_prefix);
