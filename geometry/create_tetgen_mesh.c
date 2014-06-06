@@ -284,7 +284,7 @@ static void read_neighbors(const char* neigh_file, tet_t* tets, int num_tets)
       int four;
       int num_items = sscanf(line, "%d %d\n", &num_entries, &four);
       if (num_items != 2)
-        polymec_error("Face file has bad header.");
+        polymec_error("Neighbor file has bad header.");
       if (num_entries != num_tets)
         polymec_error("Number of neighbor entries (%d) in neigh file does not match number of tets (%d).", num_entries, num_tets);
       if (four != 4)
@@ -365,14 +365,25 @@ mesh_t* create_tetgen_mesh(MPI_Comm comm,
                            const char* node_file,
                            const char* ele_file,
                            const char* face_file,
-                           const char* neigh_file)
+                           const char* neigh_file,
+                           int num_reader_groups)
 {
+  ASSERT((num_reader_groups > 0) || (num_reader_groups == -1));
+
   mesh_t* mesh = NULL;
 
-  int rank;
+  int rank, nproc;
   MPI_Comm_rank(comm, &rank);
-  if (rank == 0)
+  MPI_Comm_size(comm, &nproc);
+  if (num_reader_groups == -1)
+    num_reader_groups = nproc;
+
+  int read_group_size = nproc / num_reader_groups;
+  int read_process = rank / read_group_size;
+  int tet_tag = 1;
+  if (rank == read_process)
   {
+    // Read the information in the file.
     int num_nodes;
     point_t* nodes = read_nodes(node_file, &num_nodes);
 
@@ -385,6 +396,47 @@ mesh_t* create_tetgen_mesh(MPI_Comm comm,
 
     read_neighbors(neigh_file, tets, num_tets);
 
+#ifdef NEW_STUFF
+    if (nproc > 1)
+    {
+    }
+  }
+  else
+  {
+    // Receive the sizes of the compressed row storage arrays for the tets.
+    int tet_data_sizes[2];
+    MPI_Status status;
+    MPI_Recv(tet_data_sizes, 2, MPI_INT, read_process, tet_tag, comm, &status);
+    int tet_offsets_size = tet_data_sizes[1] - 1;
+    int tets_size = tet_data_sizes[2];
+
+    // Now receive the two arrays as one blob.
+    index_t* tet_data = polymec_malloc(sizeof(index_t) * (tet_offsets_size + tets_size));
+    MPI_Recv(tet_data, tet_offsets_size + tets_size, MPI_INDEX, read_process, tet_tag, comm, &status);
+    index_t* tet_offsets = tet_data;
+    index_t* tets = &tet_data[tet_offsets_size];
+
+    // Make a list of unique (global) node indices and map them to local indices.
+    index_int_unordered_map_t* node_map = index_unordered_set_new();
+    int next_local_index = 0;
+    index_t* node_indices = polymec_malloc(sizeof(index_t) * node_map->size);
+    for (int i = 0; i < tet_offsets[num_tets]; ++i)
+    {
+      if (!index_int_unordered_map_contains(node_map, tet_data[n]))
+      {
+        index_int_unordered_map_insert(node_map, tet_data[n], next_local_index);
+        node_indices[next_local_index++] = tet_data[n];
+      }
+    }
+
+    // Request the positions for these nodes.
+    MPI_Request request;
+    real_t* node_positions = polymec_malloc(sizeof(real_t) * 3 * node_map->size);
+    MPI_Irecv(node_positions, 3 * node_map->size, MPI_REAL, read_process, tet_tag, comm, &request);
+    MPI_Send(node_indices, node_map->size, MPI_INDEX, read_process, tet_tag, comm, &status);
+  }
+
+#else
     // Create a mesh full of tetrahedra (4 faces per cell, 3 nodes per face).
     mesh = mesh_new_with_cell_type(comm, num_tets, 0, num_faces, num_nodes, 4, nodes_per_face);
 
@@ -577,6 +629,7 @@ mesh_t* create_tetgen_mesh(MPI_Comm comm,
     mesh_free(mesh);
     mesh = local_mesh;
   }
+#endif
 #endif
 
   mesh_add_feature(mesh, TETRAHEDRAL);

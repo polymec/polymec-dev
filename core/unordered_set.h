@@ -128,6 +128,7 @@ static inline bool set_name##_empty(set_name##_t* set) \
 
 // Define some ordered_sets.
 DEFINE_UNORDERED_SET(int_unordered_set, int, int_hash, int_equals)
+DEFINE_UNORDERED_SET(index_unordered_set, index_t, index_hash, index_equals)
 DEFINE_UNORDERED_SET(string_unordered_set, char*, string_hash, string_equals)
 DEFINE_UNORDERED_SET(int_tuple_unordered_set, int*, int_tuple_hash, int_tuple_equals)
 

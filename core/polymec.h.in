@@ -127,6 +127,9 @@ typedef @POLYMEC_REAL_TYPE@ real_t;
 
 // Global indices are unsigned 64-bit integers.
 typedef uint64_t index_t;
+#ifndef MPI_INDEX
+#define MPI_INDEX MPI_INT64_T
+#endif
 
 typedef void (*polymec_error_handler_function)(const char*);
 

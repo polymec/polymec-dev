@@ -42,6 +42,11 @@ static inline bool int_equals(int x, int y)
   return (x == y);
 }
 
+static inline bool index_equals(index_t x, index_t y)
+{
+  return (x == y);
+}
+
 static inline bool int_pair_equals(int* x, int* y)
 {
   return ((x[0] == y[0]) && (x[1] == y[1]));

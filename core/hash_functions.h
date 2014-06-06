@@ -60,6 +60,11 @@ static inline int int_hash(int i)
   return djb2_xor_hash((unsigned char*)&i, sizeof(int));
 }
 
+static inline int index_hash(index_t i)
+{
+  return djb2_xor_hash((unsigned char*)&i, sizeof(index_t));
+}
+
 static inline int int_pair_hash(int* i)
 {
   return djb2_xor_hash((unsigned char*)i, 2*sizeof(int));

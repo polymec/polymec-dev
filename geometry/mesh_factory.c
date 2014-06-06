@@ -120,21 +120,24 @@ int mesh_factory_tetgen(lua_State* lua)
 {
   // Check the arguments.
   int num_args = lua_gettop(lua);
-  if ((num_args != 1) || !lua_isstring(lua, 1))
+  if (((num_args != 1) && !lua_isstring(lua, 1)) || 
+      ((num_args != 2) && !lua_isstring(lua, 1) && !lua_isnumber(lua, 2)))
   {
     return luaL_error(lua, "Invalid argument(s). Usage:\n"
-                      "mesh = mesh_factory.tetgen(mesh_prefix).");
+                      "mesh = mesh_factory.tetgen(mesh_prefix) OR\n"
+                      "mesh = mesh_factory.tetgen(mesh_prefix, num_reader_groups).");
   }
 
   // Use the mesh prefix to generate filenames.
   const char* mesh_prefix = lua_tostring(lua, 1);
+  int num_reader_groups = (num_args == 1) ? -1 : (int)lua_tonumber(lua, 2);
   char node_file[512], ele_file[512], face_file[512], neigh_file[512];
   snprintf(node_file, 512, "%s.node", mesh_prefix);
   snprintf(ele_file, 512, "%s.ele", mesh_prefix);
   snprintf(face_file, 512, "%s.face", mesh_prefix);
   snprintf(neigh_file, 512, "%s.neigh", mesh_prefix);
   mesh_t* mesh = create_tetgen_mesh(MPI_COMM_WORLD, node_file, ele_file, 
-                                    face_file, neigh_file);
+                                    face_file, neigh_file, num_reader_groups);
 
   // Push the mesh onto the stack.
   lua_pushmesh(lua, mesh);
