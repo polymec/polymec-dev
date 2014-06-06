@@ -87,16 +87,25 @@ sp_func_t* intersection_new(sp_func_t** surfaces, int num_surfaces)
       has_grad = false;
   }
 
-  char inter_str[1024];
-  sprintf(inter_str, "Intersection"); // FIXME: Not very helpful.
+  char inter_str[num_surfaces*1024+1];
+  sprintf(inter_str, "union (");
+  for (int i = 0; i < num_surfaces; ++i)
+  {
+    char surf_str[1024];
+    if (i == (num_surfaces - 1))
+      snprintf(surf_str, 1024, "%s)", sp_func_name(surfaces[i]));
+    else
+      snprintf(surf_str, 1024, "%s, ", sp_func_name(surfaces[i]));
+    strncat(inter_str, surf_str, num_surfaces*1024);
+  }
   sp_vtable vtable = {.eval = inter_eval, .dtor = inter_free};
   sp_func_t* intersection = sp_func_new(inter_str, inter, vtable, SP_INHOMOGENEOUS, 1);
 
   // Register the gradient function if we have it.
   if (has_grad)
   {
-    char inter_grad_str[1024];
-    sprintf(inter_grad_str, "Intersection gradient"); // FIXME: Yadda
+    char inter_grad_str[num_surfaces*1024];
+    snprintf(inter_grad_str, num_surfaces*1024, "grad %s", inter_str);
     sp_vtable vtable_g = {.eval = inter_eval_gradient}; // Notice no dtor.
     sp_func_t* inter_grad = sp_func_new(inter_grad_str, inter, vtable_g, SP_INHOMOGENEOUS, 3);
     sp_func_register_deriv(intersection, 1, inter_grad);
