@@ -166,6 +166,10 @@ static inline bool points_are_colinear(point_t* p1, point_t* p2, point_t* p3)
 // otherwise.
 bool points_are_coplanar(point_t* p1, point_t* p2, point_t* p3, point_t* p4);
 
+// Returns true if all the given points are exactly coplanar, false 
+// otherwise.
+bool all_points_are_coplanar(point_t* points, int num_points);
+
 // A bounding box.
 typedef struct
 {

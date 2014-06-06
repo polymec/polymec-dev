@@ -109,7 +109,7 @@ polygon_t* polygon_new_with_ordering(point_t* points, int* ordering, int num_poi
   ASSERT(points != NULL);
   ASSERT(ordering != NULL);
   ASSERT(num_points >= 3);
-  // FIXME: Check that all points are coplanar.
+  ASSERT(all_points_are_coplanar(points, num_points));
   polygon_t* poly = GC_MALLOC(sizeof(polygon_t));
   poly->vertices = polymec_malloc(sizeof(point_t)*num_points);
   memcpy(poly->vertices, points, sizeof(point_t)*num_points);
@@ -125,7 +125,7 @@ polygon_t* polygon_new_with_ordering(point_t* points, int* ordering, int num_poi
 polygon_t* polygon_giftwrap(point_t* points, int num_points)
 {
   ASSERT(num_points > 2);
-  // FIXME: Check that all points are coplanar.
+  ASSERT(all_points_are_coplanar(points, num_points));
 
   // Find the plane of the polygon.
   vector_t normal;
@@ -177,7 +177,7 @@ polygon_t* polygon_giftwrap(point_t* points, int num_points)
 polygon_t* polygon_star(point_t* x0, point_t* points, int num_points)
 {
   ASSERT(num_points > 2);
-  // FIXME: Check that all points are coplanar.
+  ASSERT(all_points_are_coplanar(points, num_points));
 
   // Find the plane of the polygon.
   vector_t normal;

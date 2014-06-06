@@ -113,3 +113,19 @@ bool points_are_coplanar(point_t* p1, point_t* p2, point_t* p3, point_t* p4)
 #endif
 }
 
+bool all_points_are_coplanar(point_t* points, int num_points)
+{
+  ASSERT(num_points >= 3);
+  if (num_points == 3)
+    return true;
+  else
+  {
+    for (int i = 3; i < num_points; ++i)
+    {
+      if (!points_are_coplanar(&points[0], &points[1], &points[2], &points[i]))
+        return false;
+    }
+    return true;
+  }
+}
+
