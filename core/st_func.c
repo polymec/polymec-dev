@@ -364,7 +364,16 @@ static st_func_t* create_constant_st_func(int num_comp, real_t comp[])
 {
   st_vtable vtable = {.eval = constant_eval, .dtor = constant_dtor};
   char name[1024];
-  snprintf(name, 1024, "constant space-time function"); // FIXME
+  snprintf(name, 1024, "constant space-time function (");
+  for (int i = 0; i < num_comp; ++i)
+  {
+    char comp_str[22];
+    if (i == (num_comp-1))
+      snprintf(comp_str, 20, "%g)", comp[i]);
+    else
+      snprintf(comp_str, 20, "%g, ", comp[i]);
+    strncat(name, comp_str, 1024);
+  }
   const_st_func_t* f = polymec_malloc(sizeof(const_st_func_t));
   f->num_comp = num_comp;
   f->comp = polymec_malloc(num_comp*sizeof(real_t));
