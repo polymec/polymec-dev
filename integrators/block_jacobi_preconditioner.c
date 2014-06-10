@@ -251,7 +251,10 @@ static bool block_jacobi_preconditioner_solve(void* context, preconditioner_matr
     else
     {
       ASSERT(info > 0);
-      log_debug("block_jacobi_preconditioner_solve: call to dgesv failed (U is singular).");
+      log_debug("block_jacobi_preconditioner_solve: call to dgesv failed for block row %d.", i);
+      log_debug("(U is singular).", i);
+      if (log_level() == LOG_DEBUG)
+        bd_fprintf(mat, log_stream(LOG_DEBUG));
       break;
     }
   }
