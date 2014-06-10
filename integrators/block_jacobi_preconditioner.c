@@ -249,7 +249,11 @@ static bool block_jacobi_preconditioner_solve(void* context, preconditioner_matr
       memcpy(&B[i*bs], bi, sizeof(real_t)*bs);
     }
     else
+    {
+      ASSERT(info > 0);
+      log_debug("block_jacobi_preconditioner_solve: call to dgesv failed (U is singular).");
       break;
+    }
   }
 
   return success;

@@ -398,8 +398,17 @@ bool nonlinear_integrator_solve(nonlinear_integrator_t* integrator,
   // Copy the values in X to the internal solution vector.
   memcpy(NV_DATA(integrator->x), X, sizeof(real_t) * N);
 
+#if 0
+  // Make sure the maximum Newton step size makes sense.
+  real_t L2_X = 0.0; 
+  for (int i = 0; i < N; ++i)
+    L2_X += NV_Ith(integrator->x_scale, i) * X[i] * X[i];
+  L2_X = sqrt(L2_X);
+  KINSetMaxNewtonStep(integrator->kinsol, MAX(10.0, 1000.0 * L2_X));
+#endif
+
   // Suspend the currently active floating point exceptions for now.
-  polymec_suspend_fpe_exceptions();
+//  polymec_suspend_fpe_exceptions();
 
   // Solve.
   int status = KINSol(integrator->kinsol, integrator->x, integrator->strategy, 
@@ -414,7 +423,7 @@ bool nonlinear_integrator_solve(nonlinear_integrator_t* integrator,
 
 
   // Reinstate the floating point exceptions.
-  polymec_restore_fpe_exceptions();
+//  polymec_restore_fpe_exceptions();
 
   if ((status == KIN_SUCCESS) || (status == KIN_INITIAL_GUESS_OK))
   {
