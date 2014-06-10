@@ -406,6 +406,13 @@ void tag_rectilinear_mesh_faces(mesh_t* mesh,
   while (int_slist_next(z2_faces, &iter, &face))
     z2tag[f++] = face;
 
+  // Clean up.
+  int_slist_free(x1_faces);
+  int_slist_free(x2_faces);
+  int_slist_free(y1_faces);
+  int_slist_free(y2_faces);
+  int_slist_free(z1_faces);
+  int_slist_free(z2_faces);
   lattice = NULL;
   bbox = NULL;
 }
