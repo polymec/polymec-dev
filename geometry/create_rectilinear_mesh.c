@@ -25,6 +25,7 @@
 #include "core/array.h"
 #include "core/unordered_set.h"
 #include "core/unordered_map.h"
+#include "core/slist.h"
 #include "geometry/create_rectilinear_mesh.h"
 #include "geometry/cubic_lattice.h"
 
@@ -319,6 +320,10 @@ mesh_t* create_rectilinear_mesh(MPI_Comm comm,
   // Stash the lattice in the "lattice" property.
   mesh_set_property(mesh, "lattice", (void*)lattice, NULL);
 
+  // Stash a bounding box for easy reference.
+  bbox_t* bbox = bbox_new(xs[0], xs[nxs-1], ys[0], ys[nys-1], zs[0], zs[nzs-1]);
+  mesh_set_property(mesh, "bbox", (void*)bbox, NULL);
+
   return mesh;
 }
 
@@ -331,41 +336,77 @@ void tag_rectilinear_mesh_faces(mesh_t* mesh,
                                 const char* z1_tag,
                                 const char* z2_tag)
 {
-  // Tag the boundaries of the mesh.
+  // Get some stuff from our rectilinear mesh.
   cubic_lattice_t* lattice = mesh_property(mesh, "lattice");
   ASSERT(lattice != NULL);
-  int* x1tag = mesh_create_tag(mesh->face_tags, x1_tag, ny*nz);
-  int* x2tag = mesh_create_tag(mesh->face_tags, x2_tag, ny*nz);
-  for (int j = 0; j < ny; ++j)
-  {
-    for (int k = 0; k < nz; ++k)
-    {
-      x1tag[nz*j + k] = cubic_lattice_x_face(lattice, 0, j, k);
-      x2tag[nz*j + k] = cubic_lattice_x_face(lattice, nx, j, k);
-    }
-  }
+  bbox_t* bbox = mesh_property(mesh, "bbox");
+  ASSERT(bbox != NULL);
 
-  int* y1tag = mesh_create_tag(mesh->face_tags, y1_tag, nx*nz);
-  int* y2tag = mesh_create_tag(mesh->face_tags, y2_tag, nx*nz);
-  for (int i = 0; i < nx; ++i)
+  // Figure out the boundary faces of the mesh by checking their face centers 
+  // against the boundary coordinates. We don't have to be too clever, since 
+  // the face centers should be basically right on top of the bounding box 
+  // coordinates (in a floating point sense).
+  int_slist_t* x1_faces = int_slist_new();
+  int_slist_t* x2_faces = int_slist_new();
+  int_slist_t* y1_faces = int_slist_new();
+  int_slist_t* y2_faces = int_slist_new();
+  int_slist_t* z1_faces = int_slist_new();
+  int_slist_t* z2_faces = int_slist_new();
+  real_t face_tol = 1e-8;
+  for (int f = 0; f < mesh->num_faces; ++f)
   {
-    for (int k = 0; k < nz; ++k)
-    {
-      y1tag[nz*i + k] = cubic_lattice_y_face(lattice, i, 0, k);
-      y2tag[nz*i + k] = cubic_lattice_y_face(lattice, i, ny, k);
-    }
+    if (fabs(mesh->face_centers[f].x - bbox->x1) < face_tol)
+      int_slist_append(x1_faces, f);
+    else if (fabs(mesh->face_centers[f].x - bbox->x2) < face_tol)
+      int_slist_append(x2_faces, f);
+    if (fabs(mesh->face_centers[f].y - bbox->y1) < face_tol)
+      int_slist_append(y1_faces, f);
+    else if (fabs(mesh->face_centers[f].y - bbox->y2) < face_tol)
+      int_slist_append(y2_faces, f);
+    if (fabs(mesh->face_centers[f].z - bbox->z1) < face_tol)
+      int_slist_append(z1_faces, f);
+    else if (fabs(mesh->face_centers[f].z - bbox->z2) < face_tol)
+      int_slist_append(z2_faces, f);
   }
+  
+  // Now create the boundary tags and populate them.
+  int_slist_node_t* iter = NULL;
+  int f = 0, face;
+  int* x1tag = mesh_create_tag(mesh->face_tags, x1_tag, x1_faces->size);
+  while (int_slist_next(x1_faces, &iter, &face))
+    x1tag[f++] = face;
 
-  int* z1tag = mesh_create_tag(mesh->face_tags, z1_tag, nx*ny);
-  int* z2tag = mesh_create_tag(mesh->face_tags, z2_tag, nx*ny);
-  for (int i = 0; i < nx; ++i)
-  {
-    for (int j = 0; j < ny; ++j)
-    {
-      z1tag[ny*i + j] = cubic_lattice_z_face(lattice, i, j, 0);
-      z2tag[ny*i + j] = cubic_lattice_z_face(lattice, i, j, nz);
-    }
-  }
+  iter = NULL;
+  f = 0;
+  int* x2tag = mesh_create_tag(mesh->face_tags, x2_tag, x2_faces->size);
+  while (int_slist_next(x2_faces, &iter, &face))
+    x2tag[f++] = face;
+
+  iter = NULL;
+  f = 0;
+  int* y1tag = mesh_create_tag(mesh->face_tags, y1_tag, y1_faces->size);
+  while (int_slist_next(y1_faces, &iter, &face))
+    y1tag[f++] = face;
+
+  iter = NULL;
+  f = 0;
+  int* y2tag = mesh_create_tag(mesh->face_tags, y2_tag, y2_faces->size);
+  while (int_slist_next(y2_faces, &iter, &face))
+    y2tag[f++] = face;
+
+  iter = NULL;
+  f = 0;
+  int* z1tag = mesh_create_tag(mesh->face_tags, z1_tag, z1_faces->size);
+  while (int_slist_next(z1_faces, &iter, &face))
+    z1tag[f++] = face;
+
+  iter = NULL;
+  f = 0;
+  int* z2tag = mesh_create_tag(mesh->face_tags, z2_tag, z2_faces->size);
+  while (int_slist_next(z2_faces, &iter, &face))
+    z2tag[f++] = face;
+
   lattice = NULL;
+  bbox = NULL;
 }
 
