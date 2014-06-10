@@ -157,6 +157,17 @@ void nonlinear_integrator_set_preconditioner(nonlinear_integrator_t* integrator,
 // NULL if there is no such matrix.
 preconditioner_matrix_t* nonlinear_integrator_preconditioner_matrix(nonlinear_integrator_t* integrator);
 
+// Sets the null space associated with the nonlinear operator F(X).
+// The null space consists of the set of vectors {X: X != 0}: dF/dX * X = 0.
+// If the null space contains the spatially homogeneous functions, the 
+// homogeneous_functions flag should be set to true, and no such homogeneous 
+// vector should be included in the null space. null_dim is the dimension of 
+// the null space excluding the homogeneous functions.
+void nonlinear_integrator_set_null_space(nonlinear_integrator_t* integrator,
+                                         bool homogeneous_functions,
+                                         real_t** null_space_vectors,
+                                         int null_dim);
+
 // Evaluates the residual vector, storing it in F.
 void nonlinear_integrator_eval_residual(nonlinear_integrator_t* integrator, real_t t, real_t* X, real_t* F);
 

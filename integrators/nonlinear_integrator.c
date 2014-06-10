@@ -64,9 +64,32 @@ struct nonlinear_integrator_t
   preconditioner_t* precond;
   preconditioner_matrix_t* precond_mat;
 
+  // Null space information.
+  bool homogeneous_functions_in_null_space;
+  real_t** null_space_vectors;
+  int null_dim;
+
   // Current simulation time.
   real_t current_time;
 };
+
+static void project_out_of_null_space(nonlinear_integrator_t* integrator,
+                                      real_t* R)
+{
+  // If homogeneous functions are in the null space, subtract the spatial 
+  // mean from R.
+  if (integrator->homogeneous_functions_in_null_space)
+  {
+    real_t mean = 0.0;
+    for (int i = 0; i < integrator->N; ++i)
+      mean += R[i];
+    mean *= 1.0/integrator->N;
+    for (int i = 0; i < integrator->N; ++i)
+      R[i] -= mean;
+  }
+
+  // FIXME: Do the other stuff here.
+}
 
 // This function wraps around the user-supplied evaluation function.
 static int evaluate_F(N_Vector x, N_Vector F, void* context)
@@ -76,7 +99,9 @@ static int evaluate_F(N_Vector x, N_Vector F, void* context)
   real_t* FF = NV_DATA(F);
 
   // Evaluate the residual.
-  return integrator->vtable.eval(integrator->context, integrator->current_time, xx, FF);
+  int retval = integrator->vtable.eval(integrator->context, integrator->current_time, xx, FF);
+  project_out_of_null_space(integrator, FF);
+  return retval;
 }
 
 // This function sets up the preconditioner data within the integrator.
@@ -191,6 +216,11 @@ static nonlinear_integrator_t* nonlinear_integrator_new(const char* name,
   integrator->precond_mat = NULL;
   integrator->current_time = 0.0;
 
+  // Set up the null space.
+  integrator->homogeneous_functions_in_null_space = false;
+  integrator->null_space_vectors = NULL;
+  integrator->null_dim = 0;
+
   return integrator;
 }
 
@@ -233,6 +263,9 @@ nonlinear_integrator_t* tfqmr_nonlinear_integrator_new(const char* name,
 
 void nonlinear_integrator_free(nonlinear_integrator_t* integrator)
 {
+  // Kill the null space.
+  nonlinear_integrator_set_null_space(integrator, false, NULL, 0);
+
   // Kill the preconditioner stuff.
   if (integrator->precond != NULL)
     preconditioner_free(integrator->precond);
@@ -298,9 +331,39 @@ preconditioner_matrix_t* nonlinear_integrator_preconditioner_matrix(nonlinear_in
   return integrator->precond_mat;
 }
 
+void nonlinear_integrator_set_null_space(nonlinear_integrator_t* integrator,
+                                         bool homogeneous_functions,
+                                         real_t** null_space_vectors,
+                                         int null_dim)
+{
+  ASSERT(((null_dim == 0) && (null_space_vectors == NULL)) ||
+         ((null_dim > 0) && (null_space_vectors != NULL)));
+
+  integrator->homogeneous_functions_in_null_space = homogeneous_functions;
+  if (integrator->null_space_vectors != NULL)
+  {
+    for (int i = 0; i < integrator->null_dim; ++i)
+      polymec_free(integrator->null_space_vectors[i]);
+    polymec_free(integrator->null_space_vectors);
+    integrator->null_dim = 0;
+    integrator->null_space_vectors = NULL;
+  }
+  if (null_space_vectors != NULL)
+  {
+    integrator->null_dim = null_dim;
+    integrator->null_space_vectors = polymec_malloc(sizeof(real_t*));
+    for (int i = 0; i < null_dim; ++i)
+    {
+      integrator->null_space_vectors[i] = polymec_malloc(sizeof(real_t) * integrator->N);
+      memcpy(integrator->null_space_vectors[i], null_space_vectors[i], integrator->N * sizeof(real_t));
+    }
+  }
+}
+
 void nonlinear_integrator_eval_residual(nonlinear_integrator_t* integrator, real_t t, real_t* X, real_t* F)
 {
   integrator->vtable.eval(integrator->context, t, X, F);
+  project_out_of_null_space(integrator, F);
 }
 
 bool nonlinear_integrator_solve(nonlinear_integrator_t* integrator,
