@@ -114,17 +114,27 @@ static int helm_ax(void* context, real_t* x, real_t* Ax)
       real_t gamma = (bc->gamma != NULL) ? bc->gamma[f] : 0.0;
       real_t area = mesh->face_areas[face];
       vector_t* normal = &mesh->face_normals[face];
-      real_t contrib;
       int cell = mesh->face_cells[2*face];
+      point_t* xc = &mesh->cell_centers[cell];
+      point_t* xf = &mesh->face_centers[face];
+      real_t phi_c = x[cell];
+      real_t contrib;
       if (alpha == 0.0)
         contrib = area * gamma / beta;
-      else if (beta == 0.0)
+      else 
       {
-        // FIXME
-      }
-      else
-      {
-        // FIXME
+        // Compute phi_f, the solution on the face, from phi_c, the solution 
+        // on the cell (and other things).
+        real_t n_term = normal->x / (xf->x - xc->x) + 
+                        normal->y / (xf->y - xc->y) + 
+                        normal->z / (xc->z - xc->z);
+        real_t phi_f = (beta * n_term * phi_c + gamma) / (alpha + beta * n_term);
+
+        // Now construct the gradient and the contribution.
+        vector_t grad = {.x = (phi_f - phi_c) / (xf->x - xc->x),            
+                         .y = (phi_f - phi_c) / (xf->y - xc->y),
+                         .z = (phi_f - phi_c) / (xf->z - xc->z)};
+        contrib = area * vector_dot(normal, &grad);
       }
       Ax[cell] += contrib;
     }
