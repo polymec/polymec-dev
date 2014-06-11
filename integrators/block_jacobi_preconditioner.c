@@ -238,6 +238,14 @@ static bool block_jacobi_preconditioner_solve(void* context, preconditioner_matr
     memcpy(Aij, &mat->coeffs[i*bs*bs], sizeof(real_t)*bs*bs);
     memcpy(bi, &B[i*bs], sizeof(real_t)*bs);
 
+    // Replace each zero on the diagonal of Aij with a small number.
+    static const real_t epsilon = 1e-25;
+    for (int j = 0; j < bs; ++j)
+    {
+      if (Aij[bs*j+j] == 0.0)
+        Aij[bs*j+j] = epsilon;
+    }
+
     // Solve the linear system.
     int one = 1, ipiv[bs], info;
     dgesv(&bs, &one, Aij, &bs, ipiv, bi, &bs, &info);
