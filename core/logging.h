@@ -54,7 +54,7 @@ void set_log_stream(log_level_t log_type, FILE* stream);
 
 // Sets the output MPI rank for parallel logging output. Output will only 
 // be reported on this rank.
-void set_log_mpi_rank(log_level_t log_type, int mpi_rank);
+void set_log_mpi_rank(log_level_t log_type, int rank);
 
 // Returns the output stream for the given type of log message if the 
 // type is enabled, NULL if it is not.

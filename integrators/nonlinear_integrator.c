@@ -128,6 +128,9 @@ static int solve_preconditioner_system(N_Vector x, N_Vector x_scale,
 
   // FIXME: Apply scaling if needed.
 
+  // Project r out of the null space.
+  project_out_of_null_space(integrator, NV_DATA(r));
+
   if (preconditioner_solve(integrator->precond, integrator->precond_mat, NV_DATA(r)))
     return 0;
   else 
@@ -398,15 +401,6 @@ bool nonlinear_integrator_solve(nonlinear_integrator_t* integrator,
   // Copy the values in X to the internal solution vector.
   memcpy(NV_DATA(integrator->x), X, sizeof(real_t) * N);
 
-#if 0
-  // Make sure the maximum Newton step size makes sense.
-  real_t L2_X = 0.0; 
-  for (int i = 0; i < N; ++i)
-    L2_X += NV_Ith(integrator->x_scale, i) * X[i] * X[i];
-  L2_X = sqrt(L2_X);
-  KINSetMaxNewtonStep(integrator->kinsol, MAX(10.0, 1000.0 * L2_X));
-#endif
-
   // Suspend the currently active floating point exceptions for now.
 //  polymec_suspend_fpe_exceptions();
 
@@ -420,7 +414,6 @@ bool nonlinear_integrator_solve(nonlinear_integrator_t* integrator,
     polymec_free(integrator->status_message);
     integrator->status_message = NULL;
   }
-
 
   // Reinstate the floating point exceptions.
 //  polymec_restore_fpe_exceptions();

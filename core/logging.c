@@ -41,6 +41,10 @@ static bool first_time = true;
 static log_level_t logging_level = LOG_INFO;
 static logger_t* loggers[] = {NULL, NULL, NULL, NULL, NULL};
 
+// MPI stuff.
+static int mpi_nproc = -1;
+static int mpi_rank = -1;
+
 static void delete_loggers()
 {
   for (int i = 0; i < 5; ++i)
@@ -99,6 +103,8 @@ static logger_t* create_logger()
   logger_set_buffering(logger, 1024, 1);
   if (first_time)
   {
+    MPI_Comm_size(MPI_COMM_WORLD, &mpi_nproc);
+    MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
     polymec_atexit(delete_loggers);
     first_time = false;
   }
@@ -133,7 +139,7 @@ void set_log_buffering(log_level_t level, int message_size_limit, int num_messag
 void set_log_stream(log_level_t log_type, FILE* stream)
 {
   logger_t* logger = get_logger(log_type);
-  if (logger != NULL)
+  if ((mpi_rank == logger->mpi_rank) && (logger != NULL))
   {
     if (logger->stream != NULL)
       fclose(logger->stream);
@@ -141,14 +147,13 @@ void set_log_stream(log_level_t log_type, FILE* stream)
   }
 }
 
-void set_log_mpi_rank(log_level_t log_type, int mpi_rank)
+void set_log_mpi_rank(log_level_t log_type, int rank)
 {
-  ASSERT(mpi_rank >= 0);
-  int nprocs = MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
-  ASSERT(mpi_rank < nprocs);
+  ASSERT(rank >= 0);
+  ASSERT(rank < mpi_nproc);
   logger_t* logger = get_logger(log_type);
   if (logger != NULL)
-    logger->mpi_rank = mpi_rank;
+    logger->mpi_rank = rank;
 }
 
 FILE* log_stream(log_level_t log_type)
@@ -169,9 +174,7 @@ void log_debug(const char* message, ...)
 {
   logger_t* logger = get_logger(LOG_DEBUG);
   if (logging_level < LOG_DEBUG) return;
-  int rank;
-  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-  if (rank != logger->mpi_rank) return;
+  if (mpi_rank != logger->mpi_rank) return;
   if (logger->stream != NULL)
   {
     // Extract the variadic arguments and splat them into a string.
@@ -190,9 +193,7 @@ void log_detail(const char* message, ...)
 {
   logger_t* logger = get_logger(LOG_DETAIL);
   if (logging_level < LOG_DETAIL) return;
-  int rank;
-  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-  if (rank != logger->mpi_rank) return;
+  if (mpi_rank != logger->mpi_rank) return;
   if (logger->stream != NULL)
   {
     // Extract the variadic arguments and splat them into a string.
@@ -211,9 +212,7 @@ void log_info(const char* message, ...)
 {
   logger_t* logger = get_logger(LOG_INFO);
   if (logging_level < LOG_INFO) return;
-  int rank;
-  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-  if (rank != logger->mpi_rank) return;
+  if (mpi_rank != logger->mpi_rank) return;
   if (logger->stream != NULL)
   {
     // Extract the variadic arguments and splat them into a string.
@@ -232,9 +231,7 @@ void log_urgent(const char* message, ...)
 {
   logger_t* logger = get_logger(LOG_URGENT);
   if (logging_level < LOG_URGENT) return;
-  int rank;
-  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-  if (rank != logger->mpi_rank) return;
+  if (mpi_rank != logger->mpi_rank) return;
   if (logger->stream != NULL)
   {
     // Extract the variadic arguments and splat them into a string.
