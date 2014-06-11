@@ -155,6 +155,11 @@ void krylov_solver_free(krylov_solver_t* solver)
   polymec_free(solver);
 }
 
+void* krylov_solver_context(krylov_solver_t* solver)
+{
+  return solver->context;
+}
+
 void krylov_solver_set_tolerance(krylov_solver_t* solver, real_t delta)
 {
   ASSERT(delta > 0.0);

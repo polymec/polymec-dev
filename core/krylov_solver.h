@@ -72,6 +72,9 @@ krylov_solver_t* bicgstab_krylov_solver_new(MPI_Comm comm,
 // Frees the resources associated with the given Krylov solver.
 void krylov_solver_free(krylov_solver_t* solver);
 
+// Returns the context pointer associated with this solver.
+void* krylov_solver_context(krylov_solver_t* solver);
+
 // Sets the tolerance on the L2 norm of the residual for the Krylov solver.
 // By default, the tolerance is 1e-8.
 void krylov_solver_set_tolerance(krylov_solver_t* solver, real_t delta);
