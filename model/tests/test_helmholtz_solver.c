@@ -27,6 +27,7 @@
 #include <setjmp.h>
 #include <string.h>
 #include "cmockery.h"
+#include "core/silo_file.h"
 #include "geometry/create_uniform_mesh.h"
 #include "model/helmholtz_solver.h"
 
@@ -44,13 +45,14 @@ void test_gmres_helmholtz_solver_laplace_dirichlet(void** state)
 {
   // Set up a solver.
   bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
-  mesh_t* mesh = create_uniform_mesh(MPI_COMM_WORLD, 10, 10, 10, &bbox);
-  tag_rectilinear_mesh_faces(mesh, 10, 10, 10, "-x", "+x", "-y", "+y", "-z", "+z");
+  int nx = 10, ny = 10, nz = 10;
+  mesh_t* mesh = create_uniform_mesh(MPI_COMM_WORLD, nx, ny, nz, &bbox);
+  tag_rectilinear_mesh_faces(mesh, nx, ny, nz, "-x", "+x", "-y", "+y", "-z", "+z");
   krylov_solver_t* solver = gmres_helmholtz_solver_new(mesh, NULL, NULL, 15, 5);
 
   // Set Dirichlet boundary conditions.
   const char* tag_names[6] = {"-x", "+x", "-y", "+y", "-z", "+z"};
-  real_t alpha[6][100], gamma[6][100];
+  real_t alpha[6][nx*ny], gamma[6][nx*ny];
   int num_faces, *tag;
   for (int d = 0; d < 3; ++d)
   {
@@ -76,12 +78,17 @@ void test_gmres_helmholtz_solver_laplace_dirichlet(void** state)
   real_t* X = krylov_solver_vector(solver);
   int num_iters, num_precond;
   bool result = krylov_solver_solve(solver, X, &res_norm, &num_iters, &num_precond);
-  printf("phi = [");
-  for (int i = 0; i < 1000; ++i)
-    printf("%g ", X[i]);
-  printf("]\n");
+//  printf("phi = [");
+//  for (int i = 0; i < nx*ny*nz; ++i)
+//    printf("%g ", X[i]);
+//  printf("]\n");
   printf("res_norm = %g, num_iters = %d\n", res_norm, num_iters);
   assert_true(result);
+
+  silo_file_t* silo = silo_file_new(mesh->comm, "test_helmholtz_solver_laplace_dirichlet", ".", 1, 0, 0, 0.0);
+  silo_file_write_mesh(silo, "mesh", mesh);
+  silo_file_write_scalar_cell_field(silo, "phi", "mesh", X);
+  silo_file_close(silo);
 
   // Clean up.
   polymec_free(X);
