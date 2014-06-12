@@ -176,6 +176,9 @@ static int krylov_ax(void* solver_ptr, N_Vector x, N_Vector Ax)
 bool krylov_solver_solve(krylov_solver_t* solver, real_t* X, real_t* res_norm, 
                          int* num_iters, int* num_precond)
 {
+  // Copy data into the X vector.
+  memcpy(NV_DATA(solver->X), X, sizeof(real_t) * solver->N);
+
   // Compute the right hand.
   if (solver->vtable.b != NULL)
     solver->vtable.b(solver->context, NV_DATA(solver->B), solver->N);

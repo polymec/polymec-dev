@@ -64,11 +64,11 @@ krylov_solver_t* bicgstab_krylov_solver_new(MPI_Comm comm,
 // Quasi-Minimum Residual (TFQMR) method with the given maximum subspace 
 // dimension and the given problem size N. The given context and virtual table 
 // define the behavior of the solver.
-krylov_solver_t* bicgstab_krylov_solver_new(MPI_Comm comm,
-                                            void* context,
-                                            krylov_solver_vtable vtable,
-                                            int N,
-                                            int max_krylov_dim);
+krylov_solver_t* tfqmr_krylov_solver_new(MPI_Comm comm,
+                                         void* context,
+                                         krylov_solver_vtable vtable,
+                                         int N,
+                                         int max_krylov_dim);
  
 // Frees the resources associated with the given Krylov solver.
 void krylov_solver_free(krylov_solver_t* solver);

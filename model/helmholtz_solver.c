@@ -88,13 +88,11 @@ static int helm_ax(void* context, real_t* x, real_t* Ax, int N)
       {
         real_t dx = x[neighbor] - x[cell];
         point_t* xn = &mesh->cell_centers[neighbor];
-        vector_t grad = {.x = dx / (xn->x - xc->x),            
-                         .y = dx / (xn->y - xc->y),
-                         .z = dx / (xn->z - xc->z)};
-        div_grad += mesh->face_areas[face] * vector_dot(&mesh->face_normals[face], &grad);
+        real_t grad = dx / point_distance(xn, xc);           
+        div_grad += mesh->face_areas[face] * grad;
       }
     }
-    real_t k = helm->k[cell];
+    real_t k = (helm->k != NULL) ? helm->k[cell]: 0.0;
     Ax[cell] = div_grad + k * k * x[cell] * volume;
   }
 
@@ -111,33 +109,37 @@ static int helm_ax(void* context, real_t* x, real_t* Ax, int N)
     {
       int face = tag[f];
 
-      // Construct this face's contribution to its cell's Laplacian.
+      // Construct this face's contribution to the LHS.
       real_t alpha = (bc->alpha != NULL) ? bc->alpha[f] : 0.0;
       real_t beta = (bc->beta != NULL) ? bc->beta[f] : 0.0;
       real_t gamma = (bc->gamma != NULL) ? bc->gamma[f] : 0.0;
-      real_t area = mesh->face_areas[face];
       vector_t* normal = &mesh->face_normals[face];
       int cell = mesh->face_cells[2*face];
       point_t* xc = &mesh->cell_centers[cell];
       point_t* xf = &mesh->face_centers[face];
-      real_t phi_c = x[cell];
       real_t contrib;
-      if (alpha == 0.0)
-        contrib = area * gamma / beta;
+      if (beta == 0.0)
+      {
+        // Supposing for the moment the existence of a ghost cell equidistant
+        // from this face, we have 
+        // alpha * phi_f = gamma,
+        // phi_f = (phi_i + phi_g)/2.0,
+        // phi_g = phi_i + 2 * (gamma - phi_i) / (xf - xc),
+        // so alpha * (1 - 1/(xf-xc)) * phi_i = gamma * (1 - alpha / (xf - xc))
+        contrib = alpha * (1.0 - 1.0 / point_distance(xf, xc));
+      }
       else 
       {
-        // Compute phi_f, the solution on the face, from phi_c, the solution 
-        // on the cell (and other things).
-        real_t n_term = normal->x / (xf->x - xc->x) + 
-                        normal->y / (xf->y - xc->y) + 
-                        normal->z / (xc->z - xc->z);
-        real_t phi_f = (beta * n_term * phi_c + gamma) / (alpha + beta * n_term);
-
-        // Now construct the gradient and the contribution.
-        vector_t grad = {.x = (phi_f - phi_c) / (xf->x - xc->x),            
-                         .y = (phi_f - phi_c) / (xf->y - xc->y),
-                         .z = (phi_f - phi_c) / (xf->z - xc->z)};
-        contrib = area * vector_dot(normal, &grad);
+#if 0
+        // alpha * phi + beta * n o grad phi = gamma, and 
+        // grad phi = (phi_f - phi_c) / (xf - xc)...
+        real_t n_o_grad = normal->x / (xf->x - xc->x) + 
+                          normal->y / (xf->y - xc->y) + 
+                          normal->z / (xc->z - xc->z);
+        // ...so phi_f = (beta * n_o_grad * phi_c + gamma) / (alpha + beta * n_o_grad).
+        real_t phi_f_coeff = beta * n_o_grad / (alpha + beta * n_term);
+        contrib = (1.0 + beta * n_o_grad * phi_f_coeff) * x[cell];
+#endif
       }
       Ax[cell] += contrib;
     }
@@ -149,15 +151,65 @@ static int helm_ax(void* context, real_t* x, real_t* Ax, int N)
 static void helm_b(void* context, real_t* B, int N)
 {
   helm_t* helm = context;
+  mesh_t* mesh = helm->mesh;
   if (helm->f != NULL)
   {
-    mesh_t* mesh = helm->mesh;
     ASSERT(mesh->num_cells == N);
     for (int c = 0; c < N; ++c)
       B[c] = -mesh->cell_volumes[c] * helm->f[c];
   }
   else
     memset(B, 0, sizeof(real_t) * N);
+
+  // Handle boundary conditions.
+  int pos = 0;
+  char* face_tag;
+  void* bc_ptr;
+  while (string_ptr_unordered_map_next(helm->bcs, &pos, &face_tag, &bc_ptr))
+  {
+    helm_bc_t* bc = bc_ptr;
+    int num_faces;
+    int* tag = mesh_tag(helm->mesh->face_tags, face_tag, &num_faces);
+    for (int f = 0; f < num_faces; ++f)
+    {
+      int face = tag[f];
+
+      // Construct this face's contribution to the RHS.
+      real_t alpha = (bc->alpha != NULL) ? bc->alpha[f] : 0.0;
+      real_t beta = (bc->beta != NULL) ? bc->beta[f] : 0.0;
+      real_t gamma = (bc->gamma != NULL) ? bc->gamma[f] : 0.0;
+      vector_t* normal = &mesh->face_normals[face];
+      int cell = mesh->face_cells[2*face];
+      point_t* xc = &mesh->cell_centers[cell];
+      point_t* xf = &mesh->face_centers[face];
+      real_t contrib;
+      if (beta == 0.0)
+      {
+        // Supposing for the moment the existence of a ghost cell equidistant
+        // from this face, we have 
+        // alpha * phi_f = gamma,
+        // phi_f = (phi_i + phi_g)/2.0,
+        // phi_g = phi_i + 2 * (gamma - phi_i) / (xf - xc),
+        // so alpha * (1 - 1/(xf-xc)) * phi_i = gamma * (1 - alpha / (xf - xc))
+        contrib = gamma * (1.0 - alpha / point_distance(xf, xc));
+      }
+      else 
+      {
+#if 0
+        // alpha * phi + beta * n o grad phi = gamma, and 
+        // grad phi = (phi_f - phi_c) / (xf - xc)...
+        real_t n_o_grad = normal->x / (xf->x - xc->x) + 
+                          normal->y / (xf->y - xc->y) + 
+                          normal->z / (xc->z - xc->z);
+        // ...so phi_f = (beta * n_o_grad * phi_c + gamma) / (alpha + beta * n_o_grad).
+        real_t phi_f_rhs = gamma / (alpha + beta * n_term);
+        contrib = -beta * n_o_grad * phi_f_rhs;
+#endif
+      }
+      B[cell] += contrib;
+      printf("%d: alpha = %g, beta = %g, gamma = %g, B += %g\n", cell, alpha, beta, gamma, contrib);
+    }
+  }
 }
 
 static void helm_free(void* context)
@@ -167,7 +219,8 @@ static void helm_free(void* context)
   polymec_free(helm);
 }
 
-krylov_solver_t* helmholtz_solver_new(mesh_t* mesh, real_t* k, real_t* f)
+krylov_solver_t* gmres_helmholtz_solver_new(mesh_t* mesh, real_t* k, real_t* f,
+                                            int max_krylov_dim, int max_restarts)
 {
   helm_t* helm = polymec_malloc(sizeof(helm_t));
   helm->mesh = mesh;
@@ -175,12 +228,34 @@ krylov_solver_t* helmholtz_solver_new(mesh_t* mesh, real_t* k, real_t* f)
   helm->f = f;
   helm->bcs = string_ptr_unordered_map_new();
   krylov_solver_vtable vtable = {.ax = helm_ax, .b = helm_b, .dtor = helm_free};
-
-  // For now, we use GMRES.
-  int max_krylov_dim = 15;
-  int max_restarts = 5;
   return gmres_krylov_solver_new(mesh->comm, helm, vtable, mesh->num_cells,
                                  max_krylov_dim, max_restarts);
+}
+
+krylov_solver_t* bicgstab_helmholtz_solver_new(mesh_t* mesh, real_t* k, real_t* f,
+                                               int max_krylov_dim)
+{
+  helm_t* helm = polymec_malloc(sizeof(helm_t));
+  helm->mesh = mesh;
+  helm->k = k;
+  helm->f = f;
+  helm->bcs = string_ptr_unordered_map_new();
+  krylov_solver_vtable vtable = {.ax = helm_ax, .b = helm_b, .dtor = helm_free};
+  return bicgstab_krylov_solver_new(mesh->comm, helm, vtable, mesh->num_cells,
+                                    max_krylov_dim);
+}
+
+krylov_solver_t* tfqmr_helmholtz_solver_new(mesh_t* mesh, real_t* k, real_t* f,
+                                            int max_krylov_dim)
+{
+  helm_t* helm = polymec_malloc(sizeof(helm_t));
+  helm->mesh = mesh;
+  helm->k = k;
+  helm->f = f;
+  helm->bcs = string_ptr_unordered_map_new();
+  krylov_solver_vtable vtable = {.ax = helm_ax, .b = helm_b, .dtor = helm_free};
+  return tfqmr_krylov_solver_new(mesh->comm, helm, vtable, mesh->num_cells,
+                                 max_krylov_dim);
 }
 
 void helmholtz_solver_add_bc(krylov_solver_t* helmholtz, const char* face_tag,

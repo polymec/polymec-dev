@@ -40,11 +40,26 @@
 // for nonlinear elliptical partial differential equations that resemble the 
 // Helmholtz equation (or any of its variants).
 
-// Creates a new Helmholtz solver that solves the Helmholtz equation on the 
-// given mesh. The arrays k and f are used by the solver to provide the values 
-// of k and f on cell centers, but are not consumed by the solver. If f is 
-// NULL, the homogeneous Helmholtz equation is solved.
-krylov_solver_t* helmholtz_solver_new(mesh_t* mesh, real_t* k, real_t* f);
+// These constructors all create a new Helmholtz solver that solve the 
+// Helmholtz equation on the given mesh. The arrays k and f are used by the 
+// solver to provide the values of k and f on cell centers, but are not 
+// consumed by the solver. If k is NULL, Poisson's equation is solved. 
+// If f is NULL, the homogeneous Helmholtz equation is solved.
+
+// Creates a solver that uses the GMRES method with the given max Krylov 
+// subspace dimension and the maximum number of restarts.
+krylov_solver_t* gmres_helmholtz_solver_new(mesh_t* mesh, real_t* k, real_t* f,
+                                            int max_krylov_dim, int max_restarts);
+
+// Creates a solver that uses the BiCGSTAB method with the given max Krylov 
+// subspace dimension.
+krylov_solver_t* bicgstab_helmholtz_solver_new(mesh_t* mesh, real_t* k, real_t* f,
+                                               int max_krylov_dim);
+
+// Creates a solver that uses the TFQMR method with the given max Krylov 
+// subspace dimension.
+krylov_solver_t* tfqmr_helmholtz_solver_new(mesh_t* mesh, real_t* k, real_t* f,
+                                            int max_krylov_dim);
 
 // Adds a Robin-type boundary condition to the faces in the solver's mesh 
 // corresponding to the given tag: 
