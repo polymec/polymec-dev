@@ -26,7 +26,6 @@
 #include "core/unordered_set.h"
 #include "core/text_buffer.h"
 #include "core/array_utils.h"
-#include "core/distribute_serial_mesh.h"
 #include "geometry/create_tetgen_mesh.h"
 
 typedef struct
@@ -625,13 +624,16 @@ mesh_t* create_tetgen_mesh(MPI_Comm comm,
 {
   ASSERT((num_reader_groups > 0) || (num_reader_groups == -1));
 
-  mesh_t* mesh = NULL;
-
   int rank, nproc;
   MPI_Comm_rank(comm, &rank);
   MPI_Comm_size(comm, &nproc);
   if (num_reader_groups == -1)
     num_reader_groups = nproc;
+
+  if (nproc > 1)
+    polymec_not_implemented("parallel create_tetgen_mesh()");
+
+  mesh_t* mesh = NULL;
 
   int read_group_size = nproc / num_reader_groups;
   int read_process = rank / read_group_size;
@@ -827,20 +829,6 @@ mesh_t* create_tetgen_mesh(MPI_Comm comm,
     int_tuple_int_unordered_map_free(face_for_nodes);
   }
   
-  if (nproc > 1)
-  {
-    // Break the serial mesh up into pieces.
-    int num_cells;
-    if (rank == 0)
-      num_cells = mesh->num_cells;
-    MPI_Scatter(&num_cells, 1, MPI_INT, &num_cells, 1, MPI_INT, 0, comm);
-    int* partition = polymec_malloc(sizeof(int) * num_cells);
-    mesh_t* local_mesh = distribute_serial_mesh(comm, mesh, partition);
-    polymec_free(partition);
-    mesh_free(mesh);
-    mesh = local_mesh;
-  }
-
   mesh_add_feature(mesh, TETRAHEDRAL);
   return mesh;
 }
