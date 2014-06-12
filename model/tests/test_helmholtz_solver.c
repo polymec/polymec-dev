@@ -72,17 +72,19 @@ void test_gmres_helmholtz_solver_laplace_dirichlet(void** state)
   }
 
   // Find the solution.
-  real_t X[mesh->num_cells], res_norm;
+  real_t res_norm;
+  real_t* X = krylov_solver_vector(solver);
   int num_iters, num_precond;
-  memset(X, 0, sizeof(real_t) * mesh->num_cells);
   bool result = krylov_solver_solve(solver, X, &res_norm, &num_iters, &num_precond);
   printf("phi = [");
   for (int i = 0; i < 1000; ++i)
     printf("%g ", X[i]);
   printf("]\n");
+  printf("res_norm = %g, num_iters = %d\n", res_norm, num_iters);
   assert_true(result);
 
   // Clean up.
+  polymec_free(X);
   krylov_solver_free(solver);
   mesh_free(mesh);
 }

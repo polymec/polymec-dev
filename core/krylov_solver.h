@@ -80,6 +80,11 @@ void* krylov_solver_context(krylov_solver_t* solver);
 // By default, the tolerance is 1e-8.
 void krylov_solver_set_tolerance(krylov_solver_t* solver, real_t delta);
 
+// Returns a newly-created array that is large enough to store the solution 
+// vector for the linear system represented by the Krylov solver. Contains 
+// zeros. Must be freed using polymec_free().
+real_t* krylov_solver_vector(krylov_solver_t* solver);
+
 // Solves the linear system A * X = B defined by the Krylov solver, storing:
 // - the solution in X,
 // - the L2 norm of the residual in res_norm,

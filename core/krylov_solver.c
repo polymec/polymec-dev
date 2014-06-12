@@ -173,6 +173,13 @@ static int krylov_ax(void* solver_ptr, N_Vector x, N_Vector Ax)
   return solver->vtable.ax(solver->context, NV_DATA(x), NV_DATA(Ax), solver->N);
 }
 
+real_t* krylov_solver_vector(krylov_solver_t* solver)
+{
+  real_t* X = polymec_malloc(sizeof(real_t) * solver->N);
+  memset(X, 0, sizeof(real_t) * solver->N);
+  return X;
+}
+
 bool krylov_solver_solve(krylov_solver_t* solver, real_t* X, real_t* res_norm, 
                          int* num_iters, int* num_precond)
 {
@@ -183,13 +190,14 @@ bool krylov_solver_solve(krylov_solver_t* solver, real_t* X, real_t* res_norm,
   if (solver->vtable.b != NULL)
     solver->vtable.b(solver->context, NV_DATA(solver->B), solver->N);
 
+  bool result;
   if (solver->type == GMRES)
   {
     int stat = SpgmrSolve(solver->gmres, solver, solver->X, 
                           solver->B, PREC_NONE, MODIFIED_GS, solver->delta, 
                           solver->max_restarts, NULL, NULL, NULL, krylov_ax, NULL, res_norm,
                           num_iters, num_precond);
-    return ((stat == SPGMR_SUCCESS) || (stat == SPGMR_RES_REDUCED));
+    result = ((stat == SPGMR_SUCCESS) || (stat == SPGMR_RES_REDUCED));
   }
   else if (solver->type == BICGSTAB)
   {
@@ -197,7 +205,7 @@ bool krylov_solver_solve(krylov_solver_t* solver, real_t* X, real_t* res_norm,
                           solver->B, PREC_NONE, solver->delta, NULL, 
                           NULL, NULL, krylov_ax, NULL, res_norm,
                           num_iters, num_precond);
-    return ((stat == SPBCG_SUCCESS) || (stat == SPBCG_RES_REDUCED));
+    result = ((stat == SPBCG_SUCCESS) || (stat == SPBCG_RES_REDUCED));
   }
   else
   {
@@ -205,7 +213,11 @@ bool krylov_solver_solve(krylov_solver_t* solver, real_t* X, real_t* res_norm,
                             solver->B, PREC_NONE, solver->delta, NULL, 
                             NULL, NULL, krylov_ax, NULL, res_norm,
                             num_iters, num_precond);
-    return ((stat == SPTFQMR_SUCCESS) || (stat == SPTFQMR_RES_REDUCED));
+    result = ((stat == SPTFQMR_SUCCESS) || (stat == SPTFQMR_RES_REDUCED));
   }
+  
+  // Copy the data out.
+  memcpy(X, NV_DATA(solver->X), sizeof(real_t) * solver->N);
+  return result;
 }
 
