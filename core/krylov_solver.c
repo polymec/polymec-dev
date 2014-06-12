@@ -170,12 +170,16 @@ void krylov_solver_set_tolerance(krylov_solver_t* solver, real_t delta)
 static int krylov_ax(void* solver_ptr, N_Vector x, N_Vector Ax)
 {
   krylov_solver_t* solver = solver_ptr;
-  return solver->vtable.ax(solver->context, NV_DATA(x), NV_DATA(Ax));
+  return solver->vtable.ax(solver->context, NV_DATA(x), NV_DATA(Ax), solver->N);
 }
 
-bool krylov_solver_solve(krylov_solver_t* solver, real_t* B, real_t* X, 
-                         real_t* res_norm, int* num_iters, int* num_precond)
+bool krylov_solver_solve(krylov_solver_t* solver, real_t* X, real_t* res_norm, 
+                         int* num_iters, int* num_precond)
 {
+  // Compute the right hand.
+  if (solver->vtable.b != NULL)
+    solver->vtable.b(solver->context, NV_DATA(solver->B), solver->N);
+
   if (solver->type == GMRES)
   {
     int stat = SpgmrSolve(solver->gmres, solver, solver->X, 

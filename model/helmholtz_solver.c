@@ -62,7 +62,7 @@ static void kv_dtor(char* key, void* val)
   helm_bc_free(bc);
 }
 
-static int helm_ax(void* context, real_t* x, real_t* Ax)
+static int helm_ax(void* context, real_t* x, real_t* Ax, int N)
 {
   // x and Ax are both cell centered. We now form the product Ax on the 
   // cell centers.
@@ -71,9 +71,12 @@ static int helm_ax(void* context, real_t* x, real_t* Ax)
 
   helm_t* helm = context;
   mesh_t* mesh = helm->mesh;
+  ASSERT(mesh->num_cells == N);
   for (int cell = 0; cell < mesh->num_cells; ++cell)
   {
     int pos = 0, face;
+
+    real_t volume = mesh->cell_volumes[cell];
 
     // Evaluate the Laplacian of phi using the discrete divergence theorem.
     real_t div_grad = 0.0;
@@ -92,7 +95,7 @@ static int helm_ax(void* context, real_t* x, real_t* Ax)
       }
     }
     real_t k = helm->k[cell];
-    Ax[cell] = div_grad + k * k * x[cell];
+    Ax[cell] = div_grad + k * k * x[cell] * volume;
   }
 
   // Handle boundary conditions.
@@ -143,6 +146,20 @@ static int helm_ax(void* context, real_t* x, real_t* Ax)
   return 0;
 }
 
+static void helm_b(void* context, real_t* B, int N)
+{
+  helm_t* helm = context;
+  if (helm->f != NULL)
+  {
+    mesh_t* mesh = helm->mesh;
+    ASSERT(mesh->num_cells == N);
+    for (int c = 0; c < N; ++c)
+      B[c] = -mesh->cell_volumes[c] * helm->f[c];
+  }
+  else
+    memset(B, 0, sizeof(real_t) * N);
+}
+
 static void helm_free(void* context)
 {
   helm_t* helm = context;
@@ -157,7 +174,7 @@ krylov_solver_t* helmholtz_solver_new(mesh_t* mesh, real_t* k, real_t* f)
   helm->k = k;
   helm->f = f;
   helm->bcs = string_ptr_unordered_map_new();
-  krylov_solver_vtable vtable = {.ax = helm_ax, .dtor = helm_free};
+  krylov_solver_vtable vtable = {.ax = helm_ax, .b = helm_b, .dtor = helm_free};
 
   // For now, we use GMRES.
   int max_krylov_dim = 15;

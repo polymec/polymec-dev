@@ -34,7 +34,8 @@ typedef struct krylov_solver_t krylov_solver_t;
 // This virtual table must be defined by any implementation of a Krylov solver.
 typedef struct
 {
-  int (*ax)(void* context, real_t* x, real_t* Ax); // Implements A*X.
+  int (*ax)(void* context, real_t* x, real_t* Ax, int N); // Implements A*X.
+  void (*b)(void* context, real_t* b, int N); // Computes B, the right hand side.
   void (*dtor)(void* context); // context destructor
 } krylov_solver_vtable;
 
@@ -86,7 +87,7 @@ void krylov_solver_set_tolerance(krylov_solver_t* solver, real_t delta);
 // - the number of preconditioning calls in num_precond.
 // Returns true if the linear system was solved (however approximately), 
 // false if not.
-bool krylov_solver_solve(krylov_solver_t* solver, real_t* B, real_t* X, 
-                         real_t* res_norm, int* num_iters, int* num_precond);
+bool krylov_solver_solve(krylov_solver_t* solver, real_t* X, real_t* res_norm, 
+                         int* num_iters, int* num_precond);
 
 #endif
