@@ -69,16 +69,6 @@ static void kv_dtor(char* key, void* val)
   cond_bc_free(bc);
 }
 
-// The dot product of u o T o v, where u and v are vectors and T is a 
-// symmetric tensor.
-static real_t dot(vector_t* u, real_t* T, vector_t* v)
-{
-  vector_t T_o_v = {.x = T[0] * v->x + T[1] * v->y + T[2] * v->z,
-                    .y = T[1] * v->x + T[3] * v->y + T[4] * v->z,
-                    .z = T[2] * v->x + T[4] * v->y + T[5] * v->z};
-  return vector_dot(u, &T_o_v);
-}
-
 static int cond_ax(void* context, real_t* x, real_t* Ax, int N)
 {
   // x and Ax are both cell centered. We now form the product Ax on the 
