@@ -22,42 +22,43 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef POLYMEC_HELMHOLTZ_SOLVER_H
-#define POLYMEC_HELMHOLTZ_SOLVER_H
+#ifndef POLYMEC_CONDUCTION_SOLVER_H
+#define POLYMEC_CONDUCTION_SOLVER_H
 
 #include "core/krylov_solver.h"
 #include "core/mesh.h"
 
-// The Helmholtz solver is a (Krylov) linear solver that uses a low-order 
-// finite-volume discretization to obtain a solution to Helmholtz's equation 
+// The conduction solver is a (Krylov) linear solver that uses a low-order 
+// finite-volume discretization to obtain a solution to the steady-state 
+// heat equation 
 // 
-//                                          2
-//                          div grad phi + k phi = -f
+//                          div (lambda o grad phi) = f 
 //
-// on a mesh. The solution phi and the quantities k and f are assumed to be 
-// cell-centered. This solver is a fine way to produce good initial guesses 
-// for nonlinear elliptical partial differential equations that resemble the 
-// Helmholtz equation (or any of its variants).
+// on a mesh. The solution phi and the quantities lambda and f are assumed to be 
+// cell-centered scalars. This solver is a fine way to produce good initial 
+// guesses for nonlinear elliptical partial differential equations that 
+// resemble the steady-state heat equation (or any of its variants).
 
-// These constructors all create a new Helmholtz solver that solve the 
-// Helmholtz equation on the given mesh. The arrays k and f are used by the 
-// solver to provide the values of k and f on cell centers, but are not 
-// consumed by the solver. If k is NULL, Poisson's equation is solved. 
-// If f is NULL, the homogeneous Helmholtz equation is solved.
+// These constructors all create a new conduction solver that solve the 
+// steady-state heat equation on the given mesh. The arrays lambda and f are 
+// used by the solver to provide the values of lambda and f on cell centers, 
+// but are not consumed by the solver. If lambda is NULL, Poisson's equation 
+// is solved. If f is NULL, the homogeneous steady-state heat equation is 
+// solved.
 
 // Creates a solver that uses the GMRES method with the given max Krylov 
 // subspace dimension and the maximum number of restarts.
-krylov_solver_t* gmres_helmholtz_solver_new(mesh_t* mesh, real_t* k, real_t* f,
-                                            int max_krylov_dim, int max_restarts);
+krylov_solver_t* gmres_conduction_solver_new(mesh_t* mesh, real_t* lambda, real_t* f,
+                                             int max_krylov_dim, int max_restarts);
 
 // Creates a solver that uses the BiCGSTAB method with the given max Krylov 
 // subspace dimension.
-krylov_solver_t* bicgstab_helmholtz_solver_new(mesh_t* mesh, real_t* k, real_t* f,
-                                               int max_krylov_dim);
+krylov_solver_t* bicgstab_conduction_solver_new(mesh_t* mesh, real_t* lambda, real_t* f,
+                                                int max_krylov_dim);
 
 // Creates a solver that uses the TFQMR method with the given max Krylov 
 // subspace dimension.
-krylov_solver_t* tfqmr_helmholtz_solver_new(mesh_t* mesh, real_t* k, real_t* f,
+krylov_solver_t* tfqmr_conduction_solver_new(mesh_t* mesh, real_t* lambda, real_t* f,
                                             int max_krylov_dim);
 
 // Adds a Robin-type boundary condition to the faces in the solver's mesh 
@@ -69,8 +70,8 @@ krylov_solver_t* tfqmr_helmholtz_solver_new(mesh_t* mesh, real_t* k, real_t* f,
 // face tag, such that (e. g.) alpha[i] stores the value of alpha on the face 
 // with index tag[i] if tag is the array associated with face_tag. The arrays 
 // alpha, beta, and gamma are used by the solver but not consumed by it.
-void helmholtz_solver_add_bc(krylov_solver_t* helmholtz, const char* face_tag,
-                             real_t* alpha, real_t* beta, real_t* gamma);
+void conduction_solver_add_bc(krylov_solver_t* conduction, const char* face_tag,
+                              real_t* alpha, real_t* beta, real_t* gamma);
 
 
 #endif

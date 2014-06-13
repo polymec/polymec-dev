@@ -2,4 +2,5 @@ include(add_polymec_test)
 
 add_polymec_test(test_polynomial_fit test_polynomial_fit.c)
 add_polymec_test(test_helmholtz_solver test_helmholtz_solver.c)
+add_polymec_test(test_conduction_solver test_conduction_solver.c)
 
