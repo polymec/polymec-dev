@@ -43,6 +43,9 @@ typedef enum
 // -1 for a fatal error.
 typedef int (*nonlinear_integrator_residual_func)(void* context, real_t t, real_t* x, real_t* F);
 
+// Initial guess function.
+typedef void (*nonlinear_integrator_initial_guess_func)(void* context, real_t t, real_t* x);
+
 // Scaling function.
 typedef void (*nonlinear_integrator_scaling_func)(void* context, real_t* scale_factor);
 
@@ -55,7 +58,12 @@ typedef void (*nonlinear_integrator_dtor)(void* context);
 // This virtual table determines the behavior of the nonlinear integrator.
 typedef struct
 {
+  // This function evaluates the residual of the nonlinear system.
   nonlinear_integrator_residual_func eval;
+
+  // This (optional) function forms an initial guess to use to initiate 
+  // the nonlinear iteration.
+  nonlinear_integrator_initial_guess_func initial_guess;
 
   // This (optional) function sets the "x-scaling vector," which contains the diagonal 
   // components of a matrix Dx such that the components of Dx * x all have 

@@ -398,8 +398,16 @@ bool nonlinear_integrator_solve(nonlinear_integrator_t* integrator,
       NV_Ith(integrator->F_scale, i) = 1.0;
   }
 
-  // Copy the values in X to the internal solution vector.
-  memcpy(NV_DATA(integrator->x), X, sizeof(real_t) * N);
+  if (integrator->vtable.initial_guess != NULL)
+  {
+    // Form the initial guess magically.
+    integrator->vtable.initial_guess(integrator->context, t, NV_DATA(integrator->x));
+  }
+  else
+  {
+    // Copy the values in X to the internal solution vector.
+    memcpy(NV_DATA(integrator->x), X, sizeof(real_t) * N);
+  }
 
   // Suspend the currently active floating point exceptions for now.
 //  polymec_suspend_fpe_exceptions();
