@@ -171,6 +171,8 @@ static void helm_dtor(void* context)
   helm_t* helm = context;
   int_int_unordered_map_free(helm->bcell_map);
   string_ptr_unordered_map_free(helm->bcs);
+  polymec_free(helm->k);
+  polymec_free(helm->f);
   polymec_free(helm);
 }
 
