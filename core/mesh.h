@@ -325,7 +325,10 @@ static inline bool mesh_face_next_node(mesh_t* mesh, int face, int* pos, int* no
   else
   {
     actual_face = ~face;
-    *node = mesh->face_nodes[mesh->face_node_offsets[actual_face+1] - *pos - 1];
+    // We have to take care not to step off the beginning of the face_nodes array.
+    int offset = mesh->face_node_offsets[actual_face+1] - *pos - 1;
+    if (offset >= 0)
+      *node = mesh->face_nodes[mesh->face_node_offsets[actual_face+1] - *pos - 1];
   }
   ++(*pos);
   return (*pos <= (mesh->face_node_offsets[actual_face+1] - mesh->face_node_offsets[actual_face]));
@@ -354,7 +357,10 @@ static inline bool mesh_face_next_edge(mesh_t* mesh, int face, int* pos, int* ed
   else
   {
     actual_face = ~face;
-    *edge = mesh->face_edges[mesh->face_edge_offsets[actual_face+1] - *pos - 1];
+    // We have to take care not to step off the beginning of the face_edges array.
+    int offset = mesh->face_edge_offsets[actual_face+1] - *pos - 1;
+    if (offset >= 0)
+      *edge = mesh->face_edges[mesh->face_edge_offsets[actual_face+1] - *pos - 1];
   }
   ++(*pos);
   return (*pos <= (mesh->face_edge_offsets[actual_face+1] - mesh->face_edge_offsets[actual_face]));
