@@ -47,7 +47,7 @@ void test_gmres_conduction_solver_laplace_dirichlet(void** state)
   bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
   int nx = 10, ny = 10, nz = 10;
   mesh_t* mesh = create_uniform_mesh(MPI_COMM_WORLD, nx, ny, nz, &bbox);
-  tag_rectilinear_mesh_faces(mesh, nx, ny, nz, "-x", "+x", "-y", "+y", "-z", "+z");
+  tag_rectilinear_mesh_faces(mesh, "-x", "+x", "-y", "+y", "-z", "+z");
   krylov_solver_t* solver = gmres_conduction_solver_new(mesh, 15, 5);
 
   // Set Dirichlet boundary conditions.

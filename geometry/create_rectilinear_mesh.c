@@ -328,7 +328,6 @@ mesh_t* create_rectilinear_mesh(MPI_Comm comm,
 }
 
 void tag_rectilinear_mesh_faces(mesh_t* mesh, 
-                                int nx, int ny, int nz,
                                 const char* x1_tag, 
                                 const char* x2_tag, 
                                 const char* y1_tag,

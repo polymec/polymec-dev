@@ -75,7 +75,7 @@ int mesh_factory_uniform(lua_State* lua)
   mesh_t* mesh = create_uniform_mesh(MPI_COMM_WORLD, nx, ny, nz, bbox);
 
   // Tag its faces.
-  tag_rectilinear_mesh_faces(mesh, nx, ny, nz, "x1", "x2", "y1", "y2", "z1", "z2");
+  tag_rectilinear_mesh_faces(mesh, "x1", "x2", "y1", "y2", "z1", "z2");
 
   // Push the mesh onto the stack.
   lua_pushmesh(lua, mesh);
@@ -109,7 +109,7 @@ int mesh_factory_rectilinear(lua_State* lua)
   mesh_t* mesh = create_rectilinear_mesh(MPI_COMM_WORLD, xs, nxs, ys, nys, zs, nzs);
 
   // Tag its faces.
-  tag_rectilinear_mesh_faces(mesh, nxs-1, nys-1, nzs-1, "x1", "x2", "y1", "y2", "z1", "z2");
+  tag_rectilinear_mesh_faces(mesh, "x1", "x2", "y1", "y2", "z1", "z2");
 
   // Push the mesh onto the stack.
   lua_pushmesh(lua, mesh);

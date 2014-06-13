@@ -95,7 +95,7 @@ mesh_t* create_nonuniform_cartesian_1d_mesh(MPI_Comm comm, real_t* xs, int N)
   mesh_t* mesh = create_rectilinear_mesh(comm, xs, N+1, ys, 2, zs, 2);
 
   // Tag the boundary faces.
-  tag_rectilinear_mesh_faces(mesh, N, 1, 1, "x1", "x2", "y1", "y2", "z1", "z2");
+  tag_rectilinear_mesh_faces(mesh, "x1", "x2", "y1", "y2", "z1", "z2");
 
   // Add some symmetry-related features.
   mesh_add_feature(mesh, SYMMETRIC);

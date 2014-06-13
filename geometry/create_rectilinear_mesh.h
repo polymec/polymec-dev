@@ -36,7 +36,7 @@ mesh_t* create_rectilinear_mesh(MPI_Comm comm,
 
 // This function tags the faces of a rectilinear mesh for convenient boundary 
 // condition assignments.
-void tag_rectilinear_mesh_faces(mesh_t* mesh, int nx, int ny, int nz,
+void tag_rectilinear_mesh_faces(mesh_t* mesh, 
                                 const char* x1_tag, 
                                 const char* x2_tag, 
                                 const char* y1_tag,
