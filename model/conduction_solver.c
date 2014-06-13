@@ -36,24 +36,29 @@ typedef struct
 typedef struct
 {
   real_t *alpha, *beta, *gamma;
-  int N;
+  int num_faces;
 } cond_bc_t;
 
-static cond_bc_t* cond_bc_new(real_t* alpha, real_t* beta, real_t* gamma, int N)
+static cond_bc_t* cond_bc_new(int num_faces)
 {
-  ASSERT(N > 0);
-  ASSERT((alpha != NULL) || (beta != NULL) || (gamma != NULL));
+  ASSERT(num_faces > 0);
 
   cond_bc_t* bc = polymec_malloc(sizeof(cond_bc_t));
-  bc->alpha = alpha;
-  bc->beta = beta;
-  bc->gamma = gamma;
-  bc->N = N;
+  bc->alpha = polymec_malloc(sizeof(real_t) * num_faces);
+  memset(bc->alpha, 0, sizeof(real_t) * num_faces);
+  bc->beta = polymec_malloc(sizeof(real_t) * num_faces);
+  memset(bc->beta, 0, sizeof(real_t) * num_faces);
+  bc->gamma = polymec_malloc(sizeof(real_t) * num_faces);
+  memset(bc->gamma, 0, sizeof(real_t) * num_faces);
+  bc->num_faces = num_faces;
   return bc;
 }
 
 static void cond_bc_free(cond_bc_t* bc)
 {
+  polymec_free(bc->alpha);
+  polymec_free(bc->beta);
+  polymec_free(bc->gamma);
   polymec_free(bc);
 }
 
@@ -149,14 +154,9 @@ static void cond_b(void* context, real_t* B, int N)
 {
   cond_t* cond = context;
   mesh_t* mesh = cond->mesh;
-  if (cond->f != NULL)
-  {
-    ASSERT(mesh->num_cells == N);
-    for (int c = 0; c < N; ++c)
-      B[c] = mesh->cell_volumes[c] * cond->f[c];
-  }
-  else
-    memset(B, 0, sizeof(real_t) * N);
+  ASSERT(mesh->num_cells + cond->bcell_map->size == N);
+  for (int c = 0; c < mesh->num_cells; ++c)
+    B[c] = mesh->cell_volumes[c] * cond->f[c];
 
   // Handle boundary conditions.
   int pos = 0;
@@ -182,6 +182,8 @@ static void cond_b(void* context, real_t* B, int N)
 static void cond_dtor(void* context)
 {
   cond_t* cond = context;
+  polymec_free(cond->f);
+  polymec_free(cond->lambda);
   int_int_unordered_map_free(cond->bcell_map);
   string_ptr_unordered_map_free(cond->bcs);
   polymec_free(cond);
@@ -207,13 +209,17 @@ static int_int_unordered_map_t* generate_boundary_cell_map(mesh_t* mesh)
   return bcell_map;
 }
 
-krylov_solver_t* gmres_conduction_solver_new(mesh_t* mesh, real_t* lambda, real_t* f,
-                                            int max_krylov_dim, int max_restarts)
+krylov_solver_t* gmres_conduction_solver_new(mesh_t* mesh, int max_krylov_dim, int max_restarts)
 {
   cond_t* cond = polymec_malloc(sizeof(cond_t));
   cond->mesh = mesh;
-  cond->lambda = lambda;
-  cond->f = f;
+  cond->lambda = polymec_malloc(sizeof(real_t) * mesh->num_cells);
+  cond->f = polymec_malloc(sizeof(real_t) * mesh->num_cells);
+  for (int i = 0; i < mesh->num_cells; ++i)
+  {
+    cond->lambda[i] = 1.0;
+    cond->f[i] = 0.0;
+  }
   cond->bcs = string_ptr_unordered_map_new();
   cond->bcell_map = generate_boundary_cell_map(mesh);
   int N = mesh->num_cells + cond->bcell_map->size;
@@ -221,13 +227,17 @@ krylov_solver_t* gmres_conduction_solver_new(mesh_t* mesh, real_t* lambda, real_
   return gmres_krylov_solver_new(mesh->comm, cond, vtable, N, max_krylov_dim, max_restarts);
 }
 
-krylov_solver_t* bicgstab_conduction_solver_new(mesh_t* mesh, real_t* lambda, real_t* f,
-                                               int max_krylov_dim)
+krylov_solver_t* bicgstab_conduction_solver_new(mesh_t* mesh, int max_krylov_dim)
 {
   cond_t* cond = polymec_malloc(sizeof(cond_t));
   cond->mesh = mesh;
-  cond->lambda = lambda;
-  cond->f = f;
+  cond->lambda = polymec_malloc(sizeof(real_t) * mesh->num_cells);
+  cond->f = polymec_malloc(sizeof(real_t) * mesh->num_cells);
+  for (int i = 0; i < mesh->num_cells; ++i)
+  {
+    cond->lambda[i] = 1.0;
+    cond->f[i] = 0.0;
+  }
   cond->bcs = string_ptr_unordered_map_new();
   cond->bcell_map = generate_boundary_cell_map(mesh);
   int N = mesh->num_cells + cond->bcell_map->size;
@@ -235,13 +245,17 @@ krylov_solver_t* bicgstab_conduction_solver_new(mesh_t* mesh, real_t* lambda, re
   return bicgstab_krylov_solver_new(mesh->comm, cond, vtable, N, max_krylov_dim);
 }
 
-krylov_solver_t* tfqmr_conduction_solver_new(mesh_t* mesh, real_t* lambda, real_t* f,
-                                            int max_krylov_dim)
+krylov_solver_t* tfqmr_conduction_solver_new(mesh_t* mesh, int max_krylov_dim)
 {
   cond_t* cond = polymec_malloc(sizeof(cond_t));
   cond->mesh = mesh;
-  cond->lambda = lambda;
-  cond->f = f;
+  cond->lambda = polymec_malloc(sizeof(real_t) * mesh->num_cells);
+  cond->f = polymec_malloc(sizeof(real_t) * mesh->num_cells);
+  for (int i = 0; i < mesh->num_cells; ++i)
+  {
+    cond->lambda[i] = 1.0;
+    cond->f[i] = 0.0;
+  }
   cond->bcs = string_ptr_unordered_map_new();
   cond->bcell_map = generate_boundary_cell_map(mesh);
   int N = mesh->num_cells + cond->bcell_map->size;
@@ -249,10 +263,21 @@ krylov_solver_t* tfqmr_conduction_solver_new(mesh_t* mesh, real_t* lambda, real_
   return tfqmr_krylov_solver_new(mesh->comm, cond, vtable, N, max_krylov_dim);
 }
 
-void conduction_solver_add_bc(krylov_solver_t* conduction, const char* face_tag,
-                              real_t* alpha, real_t* beta, real_t* gamma)
+real_t* conduction_solver_lambda(krylov_solver_t* solver)
 {
-  cond_t* cond = krylov_solver_context(conduction);
+  cond_t* cond = krylov_solver_context(solver);
+  return cond->lambda;
+}
+
+real_t* conduction_solver_f(krylov_solver_t* solver)
+{
+  cond_t* cond = krylov_solver_context(solver);
+  return cond->f;
+}
+
+void conduction_solver_add_bc(krylov_solver_t* solver, const char* face_tag)
+{
+  cond_t* cond = krylov_solver_context(solver);
 
   // Retrieve the mesh's face tag.
   ASSERT(mesh_has_tag(cond->mesh->face_tags, face_tag));
@@ -260,8 +285,39 @@ void conduction_solver_add_bc(krylov_solver_t* conduction, const char* face_tag,
   mesh_tag(cond->mesh->face_tags, face_tag, &num_faces);
 
   // Set up a boundary condition and stick it into our map of BCs.
-  cond_bc_t* bc = cond_bc_new(alpha, beta, gamma, num_faces);
+  cond_bc_t* bc = cond_bc_new(num_faces);
   char* tag_name = string_dup(face_tag);
   string_ptr_unordered_map_insert_with_kv_dtor(cond->bcs, tag_name, bc, kv_dtor);
+}
+
+void conduction_solver_get_bc_arrays(krylov_solver_t* solver, const char* face_tag, 
+                                     real_t** alpha, real_t** beta, real_t** gamma, int* num_faces)
+{
+  cond_t* cond = krylov_solver_context(solver);
+
+  cond_bc_t** bc_ptr = (cond_bc_t**)string_ptr_unordered_map_get(cond->bcs, (char*)face_tag);
+  if (bc_ptr != NULL)
+  {
+    cond_bc_t* bc = *bc_ptr;
+    if (alpha != NULL)
+      *alpha = bc->alpha;
+    if (beta != NULL)
+      *beta = bc->beta;
+    if (gamma != NULL)
+      *gamma = bc->gamma;
+    if (num_faces != NULL)
+      *num_faces = bc->num_faces;
+  }
+  else
+  {
+    if (alpha != NULL)
+      *alpha = NULL;
+    if (beta != NULL)
+      *beta = NULL;
+    if (gamma != NULL)
+      *gamma = NULL;
+    if (num_faces != NULL)
+      *num_faces = 0;
+  }
 }
 

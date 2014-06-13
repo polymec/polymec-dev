@@ -36,24 +36,29 @@ typedef struct
 typedef struct
 {
   real_t *alpha, *beta, *gamma;
-  int N;
+  int num_faces;
 } helm_bc_t;
 
-static helm_bc_t* helm_bc_new(real_t* alpha, real_t* beta, real_t* gamma, int N)
+static helm_bc_t* helm_bc_new(int num_faces)
 {
-  ASSERT(N > 0);
-  ASSERT((alpha != NULL) || (beta != NULL) || (gamma != NULL));
+  ASSERT(num_faces > 0);
 
   helm_bc_t* bc = polymec_malloc(sizeof(helm_bc_t));
-  bc->alpha = alpha;
-  bc->beta = beta;
-  bc->gamma = gamma;
-  bc->N = N;
+  bc->alpha = polymec_malloc(sizeof(real_t) * num_faces);
+  memset(bc->alpha, 0, sizeof(real_t) * num_faces);
+  bc->beta = polymec_malloc(sizeof(real_t) * num_faces);
+  memset(bc->beta, 0, sizeof(real_t) * num_faces);
+  bc->gamma = polymec_malloc(sizeof(real_t) * num_faces);
+  memset(bc->gamma, 0, sizeof(real_t) * num_faces);
+  bc->num_faces = num_faces;
   return bc;
 }
 
 static void helm_bc_free(helm_bc_t* bc)
 {
+  polymec_free(bc->alpha);
+  polymec_free(bc->beta);
+  polymec_free(bc->gamma);
   polymec_free(bc);
 }
 
@@ -136,14 +141,9 @@ static void helm_b(void* context, real_t* B, int N)
 {
   helm_t* helm = context;
   mesh_t* mesh = helm->mesh;
-  if (helm->f != NULL)
-  {
-    ASSERT(mesh->num_cells == N);
-    for (int c = 0; c < N; ++c)
-      B[c] = -mesh->cell_volumes[c] * helm->f[c];
-  }
-  else
-    memset(B, 0, sizeof(real_t) * N);
+  ASSERT(mesh->num_cells + helm->bcell_map->size == N);
+  for (int c = 0; c < mesh->num_cells; ++c)
+    B[c] = -mesh->cell_volumes[c] * helm->f[c];
 
   // Handle boundary conditions.
   int pos = 0;
@@ -194,13 +194,17 @@ static int_int_unordered_map_t* generate_boundary_cell_map(mesh_t* mesh)
   return bcell_map;
 }
 
-krylov_solver_t* gmres_helmholtz_solver_new(mesh_t* mesh, real_t* k, real_t* f,
-                                            int max_krylov_dim, int max_restarts)
+krylov_solver_t* gmres_helmholtz_solver_new(mesh_t* mesh, int max_krylov_dim, int max_restarts)
 {
   helm_t* helm = polymec_malloc(sizeof(helm_t));
   helm->mesh = mesh;
-  helm->k = k;
-  helm->f = f;
+  helm->k = polymec_malloc(sizeof(real_t) * mesh->num_cells);
+  helm->f = polymec_malloc(sizeof(real_t) * mesh->num_cells);
+  for (int i = 0; i < mesh->num_cells; ++i)
+  {
+    helm->k[i] = 0.0;
+    helm->f[i] = 0.0;
+  }
   helm->bcs = string_ptr_unordered_map_new();
   helm->bcell_map = generate_boundary_cell_map(mesh);
   int N = mesh->num_cells + helm->bcell_map->size;
@@ -208,13 +212,17 @@ krylov_solver_t* gmres_helmholtz_solver_new(mesh_t* mesh, real_t* k, real_t* f,
   return gmres_krylov_solver_new(mesh->comm, helm, vtable, N, max_krylov_dim, max_restarts);
 }
 
-krylov_solver_t* bicgstab_helmholtz_solver_new(mesh_t* mesh, real_t* k, real_t* f,
-                                               int max_krylov_dim)
+krylov_solver_t* bicgstab_helmholtz_solver_new(mesh_t* mesh, int max_krylov_dim)
 {
   helm_t* helm = polymec_malloc(sizeof(helm_t));
   helm->mesh = mesh;
-  helm->k = k;
-  helm->f = f;
+  helm->k = polymec_malloc(sizeof(real_t) * mesh->num_cells);
+  helm->f = polymec_malloc(sizeof(real_t) * mesh->num_cells);
+  for (int i = 0; i < mesh->num_cells; ++i)
+  {
+    helm->k[i] = 0.0;
+    helm->f[i] = 0.0;
+  }
   helm->bcs = string_ptr_unordered_map_new();
   helm->bcell_map = generate_boundary_cell_map(mesh);
   int N = mesh->num_cells + helm->bcell_map->size;
@@ -222,13 +230,17 @@ krylov_solver_t* bicgstab_helmholtz_solver_new(mesh_t* mesh, real_t* k, real_t* 
   return bicgstab_krylov_solver_new(mesh->comm, helm, vtable, N, max_krylov_dim);
 }
 
-krylov_solver_t* tfqmr_helmholtz_solver_new(mesh_t* mesh, real_t* k, real_t* f,
-                                            int max_krylov_dim)
+krylov_solver_t* tfqmr_helmholtz_solver_new(mesh_t* mesh, int max_krylov_dim)
 {
   helm_t* helm = polymec_malloc(sizeof(helm_t));
   helm->mesh = mesh;
-  helm->k = k;
-  helm->f = f;
+  helm->k = polymec_malloc(sizeof(real_t) * mesh->num_cells);
+  helm->f = polymec_malloc(sizeof(real_t) * mesh->num_cells);
+  for (int i = 0; i < mesh->num_cells; ++i)
+  {
+    helm->k[i] = 0.0;
+    helm->f[i] = 0.0;
+  }
   helm->bcs = string_ptr_unordered_map_new();
   helm->bcell_map = generate_boundary_cell_map(mesh);
   int N = mesh->num_cells + helm->bcell_map->size;
@@ -236,8 +248,7 @@ krylov_solver_t* tfqmr_helmholtz_solver_new(mesh_t* mesh, real_t* k, real_t* f,
   return tfqmr_krylov_solver_new(mesh->comm, helm, vtable, N, max_krylov_dim);
 }
 
-void helmholtz_solver_add_bc(krylov_solver_t* helmholtz, const char* face_tag,
-                             real_t* alpha, real_t* beta, real_t* gamma)
+void helmholtz_solver_add_bc(krylov_solver_t* helmholtz, const char* face_tag)
 {
   helm_t* helm = krylov_solver_context(helmholtz);
 
@@ -247,8 +258,39 @@ void helmholtz_solver_add_bc(krylov_solver_t* helmholtz, const char* face_tag,
   mesh_tag(helm->mesh->face_tags, face_tag, &num_faces);
 
   // Set up a boundary condition and stick it into our map of BCs.
-  helm_bc_t* bc = helm_bc_new(alpha, beta, gamma, num_faces);
+  helm_bc_t* bc = helm_bc_new(num_faces);
   char* tag_name = string_dup(face_tag);
   string_ptr_unordered_map_insert_with_kv_dtor(helm->bcs, tag_name, bc, kv_dtor);
+}
+
+void helmholtz_solver_get_bc_arrays(krylov_solver_t* solver, const char* face_tag, 
+                                    real_t** alpha, real_t** beta, real_t** gamma, int* num_faces)
+{
+  helm_t* helm = krylov_solver_context(solver);
+
+  helm_bc_t** bc_ptr = (helm_bc_t**)string_ptr_unordered_map_get(helm->bcs, (char*)face_tag);
+  if (bc_ptr != NULL)
+  {
+    helm_bc_t* bc = *bc_ptr;
+    if (alpha != NULL)
+      *alpha = bc->alpha;
+    if (beta != NULL)
+      *beta = bc->beta;
+    if (gamma != NULL)
+      *gamma = bc->gamma;
+    if (num_faces != NULL)
+      *num_faces = bc->num_faces;
+  }
+  else
+  {
+    if (alpha != NULL)
+      *alpha = NULL;
+    if (beta != NULL)
+      *beta = NULL;
+    if (gamma != NULL)
+      *gamma = NULL;
+    if (num_faces != NULL)
+      *num_faces = 0;
+  }
 }
 

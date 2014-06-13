@@ -40,38 +40,43 @@
 // resemble the steady-state heat equation (or any of its variants).
 
 // These constructors all create a new conduction solver that solve the 
-// steady-state heat equation on the given mesh. The arrays lambda and f are 
-// used by the solver to provide the values of lambda and f on cell centers, 
-// but are not consumed by the solver. If lambda is NULL, Poisson's equation 
-// is solved. If f is NULL, the homogeneous steady-state heat equation is 
-// solved.
+// steady-state heat equation on the given mesh. 
 
 // Creates a solver that uses the GMRES method with the given max Krylov 
 // subspace dimension and the maximum number of restarts.
-krylov_solver_t* gmres_conduction_solver_new(mesh_t* mesh, real_t* lambda, real_t* f,
-                                             int max_krylov_dim, int max_restarts);
+krylov_solver_t* gmres_conduction_solver_new(mesh_t* mesh, int max_krylov_dim, int max_restarts);
 
 // Creates a solver that uses the BiCGSTAB method with the given max Krylov 
 // subspace dimension.
-krylov_solver_t* bicgstab_conduction_solver_new(mesh_t* mesh, real_t* lambda, real_t* f,
-                                                int max_krylov_dim);
+krylov_solver_t* bicgstab_conduction_solver_new(mesh_t* mesh, int max_krylov_dim);
 
 // Creates a solver that uses the TFQMR method with the given max Krylov 
 // subspace dimension.
-krylov_solver_t* tfqmr_conduction_solver_new(mesh_t* mesh, real_t* lambda, real_t* f,
-                                            int max_krylov_dim);
+krylov_solver_t* tfqmr_conduction_solver_new(mesh_t* mesh, int max_krylov_dim);
+
+// Returns an internal pointer to the array that stores the cell-centered 
+// values of lambda. By default, lambda is set to 1 everywhere.
+real_t* conduction_solver_lambda(krylov_solver_t* solver);
+
+// Returns an internal pointer to the array that stores the cell-centered 
+// values of f. By default, f is set to 0 everywhere.
+real_t* conduction_solver_f(krylov_solver_t* solver);
 
 // Adds a Robin-type boundary condition to the faces in the solver's mesh 
 // corresponding to the given tag: 
-//
-// alpha * phi + beta * n o grad phi = gamma
-//
+//   alpha * phi + beta * n o grad phi = gamma
+void conduction_solver_add_bc(krylov_solver_t* solver, const char* face_tag);
+
+// Returns internal pointers to the alpha/beta/gamma arrays that define the 
+// values of these coefficients for the boundary condition assigned to the 
+// given face tag. Also stores the number of faces in the tag in num_faces.
 // The arrays alpha, beta, and gamma store values for the faces in the given 
 // face tag, such that (e. g.) alpha[i] stores the value of alpha on the face 
-// with index tag[i] if tag is the array associated with face_tag. The arrays 
-// alpha, beta, and gamma are used by the solver but not consumed by it.
-void conduction_solver_add_bc(krylov_solver_t* conduction, const char* face_tag,
-                              real_t* alpha, real_t* beta, real_t* gamma);
-
+// with index tag[i] if tag is the array associated with face_tag. 
+// By default, the values in all arrays are set to zero. Any of these array 
+// pointers can be set to NULL if no data is requested. If no such tag is 
+// found, these array pointer values are set to NULL.
+void conduction_solver_get_bc_arrays(krylov_solver_t* solver, const char* face_tag, 
+                                     real_t** alpha, real_t** beta, real_t** gamma, int* num_faces);
 
 #endif

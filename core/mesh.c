@@ -194,6 +194,7 @@ void mesh_free(mesh_t* mesh)
   polymec_free(mesh->face_nodes);
   polymec_free(mesh->face_node_offsets);
   polymec_free(mesh->cell_faces);
+  polymec_free(mesh->cell_face_offsets);
 
   // Destroy the mesh itself.
   polymec_free(mesh);

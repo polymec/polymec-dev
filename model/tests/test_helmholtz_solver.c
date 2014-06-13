@@ -35,7 +35,7 @@ void test_gmres_helmholtz_solver_ctor(void** state)
 {
   bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
   mesh_t* mesh = create_uniform_mesh(MPI_COMM_WORLD, 10, 10, 10, &bbox);
-  krylov_solver_t* solver = gmres_helmholtz_solver_new(mesh, NULL, NULL, 15, 5);
+  krylov_solver_t* solver = gmres_helmholtz_solver_new(mesh, 15, 5);
   assert_true(solver != NULL);
   krylov_solver_free(solver);
   mesh_free(mesh);
@@ -48,29 +48,30 @@ void test_gmres_helmholtz_solver_laplace_dirichlet(void** state)
   int nx = 10, ny = 10, nz = 10;
   mesh_t* mesh = create_uniform_mesh(MPI_COMM_WORLD, nx, ny, nz, &bbox);
   tag_rectilinear_mesh_faces(mesh, nx, ny, nz, "-x", "+x", "-y", "+y", "-z", "+z");
-  krylov_solver_t* solver = gmres_helmholtz_solver_new(mesh, NULL, NULL, 15, 5);
+  krylov_solver_t* solver = gmres_helmholtz_solver_new(mesh, 15, 5);
 
   // Set Dirichlet boundary conditions.
   const char* tag_names[6] = {"-x", "+x", "-y", "+y", "-z", "+z"};
-  real_t alpha[6][nx*ny], gamma[6][nx*ny];
-  int num_faces, *tag;
   for (int d = 0; d < 3; ++d)
   {
-    tag = mesh_tag(mesh->face_tags, tag_names[2*d], &num_faces);
-    for (int i = 0; i < num_faces; ++i)
-    {
-      alpha[2*d][i] = 1.0;
-      gamma[2*d][i] = 0.0;
-    }
-    helmholtz_solver_add_bc(solver, tag_names[2*d], alpha[2*d], NULL, gamma[2*d]);
+    int num_faces;
+    real_t *alpha, *gamma;
 
-    tag = mesh_tag(mesh->face_tags, tag_names[2*d+1], &num_faces);
+    helmholtz_solver_add_bc(solver, tag_names[2*d]);
+    helmholtz_solver_get_bc_arrays(solver, tag_names[2*d], &alpha, NULL, &gamma, &num_faces);
     for (int i = 0; i < num_faces; ++i)
     {
-      alpha[2*d+1][i] = 1.0;
-      gamma[2*d+1][i] = 1.0;
+      alpha[i] = 1.0;
+      gamma[i] = 0.0;
     }
-    helmholtz_solver_add_bc(solver, tag_names[2*d+1], alpha[2*d+1], NULL, gamma[2*d+1]);
+
+    helmholtz_solver_add_bc(solver, tag_names[2*d+1]);
+    helmholtz_solver_get_bc_arrays(solver, tag_names[2*d+1], &alpha, NULL, &gamma, &num_faces);
+    for (int i = 0; i < num_faces; ++i)
+    {
+      alpha[i] = 1.0;
+      gamma[i] = 1.0;
+    }
   }
 
   // Find the solution.

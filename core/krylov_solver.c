@@ -149,6 +149,8 @@ void krylov_solver_free(krylov_solver_t* solver)
   {
     SptfqmrFree(solver->tfqmr);
   }
+  N_VDestroy(solver->X);
+  N_VDestroy(solver->B);
   polymec_free(solver->name);
   if ((solver->context != NULL) && (solver->vtable.dtor != NULL))
     solver->vtable.dtor(solver->context);
