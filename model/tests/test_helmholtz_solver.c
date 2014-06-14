@@ -28,6 +28,7 @@
 #include <string.h>
 #include "cmockery.h"
 #include "core/silo_file.h"
+#include "core/sp_func.h"
 #include "geometry/create_uniform_mesh.h"
 #include "model/helmholtz_solver.h"
 
@@ -39,6 +40,165 @@ void test_gmres_helmholtz_solver_ctor(void** state)
   assert_true(solver != NULL);
   krylov_solver_free(solver);
   mesh_free(mesh);
+}
+
+static void laplace_1d_dirichlet_solution(void* context, point_t* x, real_t* phi)
+{
+  phi[0] = 1.0 + 2.0 * x->x;
+}
+
+void test_gmres_helmholtz_solver_laplace_1d_dirichlet(void** state)
+{
+  // Set up a solver.
+  int nx = 10, ny = 1, nz = 1;
+  bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0/nx, .z1 = 0.0, .z2 = 1.0/nx};
+  mesh_t* mesh = create_uniform_mesh(MPI_COMM_WORLD, nx, ny, nz, &bbox);
+  tag_rectilinear_mesh_faces(mesh, "-x", "+x", "-y", "+y", "-z", "+z");
+  krylov_solver_t* solver = gmres_helmholtz_solver_new(mesh, 15, 5);
+
+  // Set Dirichlet boundary conditions on the far ends and Neumann (no-flux)
+  // boundary conditions on the sides.
+  const char* tag_names[6] = {"-x", "+x", "-y", "+y", "-z", "+z"};
+  int num_faces;
+  real_t *alpha, *beta, *gamma;
+  helmholtz_solver_add_bc(solver, "-x");
+  helmholtz_solver_get_bc_arrays(solver, "-x", &alpha, NULL, &gamma, &num_faces);
+  for (int i = 0; i < num_faces; ++i)
+  {
+    alpha[i] = 1.0;
+    gamma[i] = 1.0;
+  }
+  helmholtz_solver_add_bc(solver, "+x");
+  helmholtz_solver_get_bc_arrays(solver, "+x", &alpha, NULL, &gamma, &num_faces);
+  for (int i = 0; i < num_faces; ++i)
+  {
+    alpha[i] = 1.0;
+    gamma[i] = 3.0;
+  }
+  for (int t = 2; t < 6; ++t)
+  {
+    helmholtz_solver_add_bc(solver, tag_names[t]);
+    helmholtz_solver_get_bc_arrays(solver, tag_names[t], NULL, &beta, &gamma, &num_faces);
+    for (int i = 0; i < num_faces; ++i)
+    {
+      beta[i] = 1.0;
+      gamma[i] = 0.0;
+    }
+  }
+
+  // Find the solution.
+  real_t res_norm;
+  real_t* X = krylov_solver_vector(solver);
+  int num_iters, num_precond;
+  bool result = krylov_solver_solve(solver, X, &res_norm, &num_iters, &num_precond);
+  assert_true(result);
+  assert_true(res_norm < 3.06e-6);
+
+  // Compute the error by comparing to the analytic solution.
+  sp_func_t* solution = sp_func_from_func("solution", laplace_1d_dirichlet_solution,
+                                          SP_INHOMOGENEOUS, 1);
+  real_t* error = krylov_solver_vector(solver);
+  for (int c = 0; c < mesh->num_cells; ++c)
+  {
+    real_t X_sol;
+    sp_func_eval(solution, &mesh->cell_centers[c], &X_sol);
+    error[c] = mesh->cell_volumes[c] * (X[c] - X_sol);
+  }
+
+  // Dump out the computed solution and the error.
+  silo_file_t* silo = silo_file_new(mesh->comm, "test_helmholtz_solver_laplace_1d_dirichlet", ".", 1, 0, 0, 0.0);
+  silo_file_write_mesh(silo, "mesh", mesh);
+  silo_file_write_scalar_cell_field(silo, "phi", "mesh", X);
+  silo_file_write_scalar_cell_field(silo, "error", "mesh", error);
+  silo_file_close(silo);
+
+  // Clean up.
+  polymec_free(error);
+  polymec_free(X);
+  krylov_solver_free(solver);
+  mesh_free(mesh);
+}
+
+static void laplace_1d_neumann_solution(void* context, point_t* x, real_t* phi)
+{
+  phi[0] = 1.0 + 2.0 * x->x;
+}
+
+void test_gmres_helmholtz_solver_laplace_1d_neumann(void** state)
+{
+  // Set up a solver.
+  int nx = 10, ny = 1, nz = 1;
+  bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0/nx, .z1 = 0.0, .z2 = 1.0/nx};
+  mesh_t* mesh = create_uniform_mesh(MPI_COMM_WORLD, nx, ny, nz, &bbox);
+  tag_rectilinear_mesh_faces(mesh, "-x", "+x", "-y", "+y", "-z", "+z");
+  krylov_solver_t* solver = gmres_helmholtz_solver_new(mesh, 15, 5);
+
+  // Set Dirichlet/Neumann boundary conditions on the far ends and no-flow 
+  // conditions on the sides.
+  const char* tag_names[6] = {"-x", "+x", "-y", "+y", "-z", "+z"};
+  int num_faces;
+  real_t *alpha, *beta, *gamma;
+  helmholtz_solver_add_bc(solver, "-x");
+  helmholtz_solver_get_bc_arrays(solver, "-x", &alpha, NULL, &gamma, &num_faces);
+  for (int i = 0; i < num_faces; ++i)
+  {
+    alpha[i] = 1.0;
+    gamma[i] = 1.0;
+  }
+  helmholtz_solver_add_bc(solver, "+x");
+  helmholtz_solver_get_bc_arrays(solver, "+x", NULL, &beta, &gamma, &num_faces);
+  for (int i = 0; i < num_faces; ++i)
+  {
+    beta[i] = 1.0;
+    gamma[i] = 2.0;
+  }
+  for (int t = 2; t < 6; ++t)
+  {
+    helmholtz_solver_add_bc(solver, tag_names[t]);
+    helmholtz_solver_get_bc_arrays(solver, tag_names[t], NULL, &beta, &gamma, &num_faces);
+    for (int i = 0; i < num_faces; ++i)
+    {
+      beta[i] = 1.0;
+      gamma[i] = 0.0;
+    }
+  }
+
+  // Find the solution.
+  real_t res_norm;
+  real_t* X = krylov_solver_vector(solver);
+  int num_iters, num_precond;
+  bool result = krylov_solver_solve(solver, X, &res_norm, &num_iters, &num_precond);
+  assert_true(result);
+  assert_true(res_norm < 1.24e-6);
+
+  // Compute the error by comparing to the analytic solution.
+  sp_func_t* solution = sp_func_from_func("solution", laplace_1d_neumann_solution,
+                                          SP_INHOMOGENEOUS, 1);
+  real_t* error = krylov_solver_vector(solver);
+  for (int c = 0; c < mesh->num_cells; ++c)
+  {
+    real_t X_sol;
+    sp_func_eval(solution, &mesh->cell_centers[c], &X_sol);
+    error[c] = mesh->cell_volumes[c] * (X[c] - X_sol);
+  }
+
+  // Dump out the computed solution and the error.
+  silo_file_t* silo = silo_file_new(mesh->comm, "test_helmholtz_solver_laplace_1d_neumann", ".", 1, 0, 0, 0.0);
+  silo_file_write_mesh(silo, "mesh", mesh);
+  silo_file_write_scalar_cell_field(silo, "phi", "mesh", X);
+  silo_file_write_scalar_cell_field(silo, "error", "mesh", error);
+  silo_file_close(silo);
+
+  // Clean up.
+  polymec_free(error);
+  polymec_free(X);
+  krylov_solver_free(solver);
+  mesh_free(mesh);
+}
+
+static void laplace_dirichlet_solution(void* context, point_t* x, real_t* phi)
+{
+  phi[0] = x->x + x->y + x->z;
 }
 
 void test_gmres_helmholtz_solver_laplace_dirichlet(void** state)
@@ -79,16 +239,25 @@ void test_gmres_helmholtz_solver_laplace_dirichlet(void** state)
   real_t* X = krylov_solver_vector(solver);
   int num_iters, num_precond;
   bool result = krylov_solver_solve(solver, X, &res_norm, &num_iters, &num_precond);
-//  printf("phi = [");
-//  for (int i = 0; i < nx*ny*nz; ++i)
-//    printf("%g ", X[i]);
-//  printf("]\n");
-  printf("res_norm = %g, num_iters = %d\n", res_norm, num_iters);
   assert_true(result);
+  assert_true(res_norm < 3.06e-6);
 
+  // Compute the error by comparing to the analytic solution.
+  sp_func_t* solution = sp_func_from_func("solution", laplace_dirichlet_solution,
+                                          SP_INHOMOGENEOUS, 1);
+  real_t* error = krylov_solver_vector(solver);
+  for (int c = 0; c < mesh->num_cells; ++c)
+  {
+    real_t X_sol;
+    sp_func_eval(solution, &mesh->cell_centers[c], &X_sol);
+    error[c] = mesh->cell_volumes[c] * (X[c] - X_sol);
+  }
+
+  // Dump out the computed solution and the error.
   silo_file_t* silo = silo_file_new(mesh->comm, "test_helmholtz_solver_laplace_dirichlet", ".", 1, 0, 0, 0.0);
   silo_file_write_mesh(silo, "mesh", mesh);
   silo_file_write_scalar_cell_field(silo, "phi", "mesh", X);
+  silo_file_write_scalar_cell_field(silo, "error", "mesh", error);
   silo_file_close(silo);
 
   // Clean up.
@@ -103,6 +272,8 @@ int main(int argc, char* argv[])
   const UnitTest tests[] = 
   {
     unit_test(test_gmres_helmholtz_solver_ctor),
+    unit_test(test_gmres_helmholtz_solver_laplace_1d_dirichlet),
+    unit_test(test_gmres_helmholtz_solver_laplace_1d_neumann),
     unit_test(test_gmres_helmholtz_solver_laplace_dirichlet)
   };
   return run_tests(tests);
