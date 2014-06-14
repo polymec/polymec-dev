@@ -84,7 +84,7 @@ mesh_t* create_rectilinear_mesh(MPI_Comm comm,
                          cubic_lattice_y_face(lattice, i, j+1, k),
                          cubic_lattice_z_face(lattice, i, j, k),
                          cubic_lattice_z_face(lattice, i, j, k+1)};
-    for (int f = 0; f < 8; ++f)
+    for (int f = 0; f < 6; ++f)
     {
       if (!int_int_unordered_map_contains(local_faces, faces[f]))
         int_int_unordered_map_insert(local_faces, faces[f], num_faces++);
