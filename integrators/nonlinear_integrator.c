@@ -401,6 +401,7 @@ bool nonlinear_integrator_solve(nonlinear_integrator_t* integrator,
   if (integrator->vtable.initial_guess != NULL)
   {
     // Form the initial guess magically.
+    log_debug("nonlinear_integrator: forming initial guess...");
     integrator->vtable.initial_guess(integrator->context, t, NV_DATA(integrator->x));
   }
   else
@@ -413,6 +414,7 @@ bool nonlinear_integrator_solve(nonlinear_integrator_t* integrator,
 //  polymec_suspend_fpe_exceptions();
 
   // Solve.
+  log_debug("nonlinear_integrator: solving...");
   int status = KINSol(integrator->kinsol, integrator->x, integrator->strategy, 
                       integrator->x_scale, integrator->F_scale);
 
