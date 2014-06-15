@@ -89,7 +89,7 @@ all test clean install:
 	@if [ ! -f $(BUILDDIR)/Makefile ]; then \
 		more INSTALL; \
 	else \
-		make -C $(BUILDDIR) $@ --no-print-directory $(MAKEFLAGS); \
+		$(MAKE) -C $(BUILDDIR) $@ --no-print-directory $(MAKEFLAGS); \
 	fi
 
 config: distclean
@@ -97,13 +97,6 @@ config: distclean
 
 distclean:
 	@rm -rf $(BUILDDIR)
-
-# For rebuilding the polytope library, which is a common thing to do 
-# at the moment.
-rebuild-polytope:
-	@rm -f $(BUILDDIR)/lib/libpolytope*
-	@touch 3rdparty/CMakeLists.txt
-	@make -C $(BUILDDIR) $(MAKEFLAGS)
 
 stats: 
 	@python tools/gather_stats.py
