@@ -223,6 +223,7 @@ static void solve_direct_least_squares(polynomial_fit_t* fit)
   int num_rows = equations[0]->size * num_components;
   int dim = polynomial_basis_dim(p);
   int num_cols = dim * num_components;
+  ASSERT(num_rows >= num_cols);
 
   real_t A[num_rows*num_cols], X[num_rows];
   int j = 0;
@@ -236,7 +237,7 @@ static void solve_direct_least_squares(polynomial_fit_t* fit)
   int one = 1, rank, info;
   int lwork = MAX(num_rows*num_cols+3*num_rows+1, 2*num_rows*num_cols+1); // unblocked strategy
   real_t rcond = 0.01, work[lwork];
-  int jpivot[num_rows];
+  int jpivot[num_cols];
   rgelsy(&num_rows, &num_cols, &one, A, &num_rows, X, &num_rows, jpivot, &rcond, &rank, work, &lwork, &info);
 //  real_t S[MIN(N, num_components*dim)];
 //  rgelss(&N, &dim, &one, A, &N, X, &N, S, &rcond, &rank, work, &lwork, &info);
