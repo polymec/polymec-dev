@@ -87,6 +87,10 @@ void polynomial_fit_free(polynomial_fit_t* fit)
 // coefficients: dim for the polynomial basis, and 1 for the RHS.
 static real_t* append_equation(polynomial_fit_t* fit, int component, point_t* x)
 {
+  // After computing a fit, one should call polynomial_fit_reset() before
+  // attempting to add more equations.
+  ASSERT(!fit->computed); 
+
   ASSERT(component >= 0);
   ASSERT(component < fit->num_components);
 
