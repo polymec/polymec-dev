@@ -61,7 +61,8 @@ void polynomial_fit_add_robin_bc(polynomial_fit_t* fit, int component,
                                  point_t* x);
 
 // Resets the least squares system governing the polynomial fit, removing all 
-// its equations and recentering it at the point x0.
+// its equations and recentering it at the point x0. If x0 is NULL, it will 
+// be set to the origin.
 void polynomial_fit_reset(polynomial_fit_t* fit, point_t* x0);
 
 // Returns the number of equations in the underlying least squares system.

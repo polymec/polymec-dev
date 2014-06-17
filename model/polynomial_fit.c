@@ -187,7 +187,8 @@ void polynomial_fit_reset(polynomial_fit_t* fit, point_t* x0)
   for (int c = 0; c < fit->num_components; ++c)
   {
     // Reset x0 and the polynomial coefficients.
-    *polynomial_x0(fit->poly[c]) = *x0;
+    if (x0 != NULL)
+      *polynomial_x0(fit->poly[c]) = *x0;
     memcpy(polynomial_coeffs(fit->poly[c]), coeffs, sizeof(real_t)*dim);
 
     // Reset the equation counter to 0.
@@ -336,6 +337,7 @@ void polynomial_fit_compute(polynomial_fit_t* fit)
     solve_direct_least_squares(fit);
   else
     solve_coupled_least_squares(fit);
+
   fit->computed = true;
 }
 
