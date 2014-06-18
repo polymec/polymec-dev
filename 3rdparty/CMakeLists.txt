@@ -273,6 +273,13 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libsundials_cvode.a)
   if (NOT stat EQUAL 0)
     message(FATAL_ERROR "Copying library source failed.")
   endif()
+  execute_process(COMMAND patch -p1 -i ${CMAKE_CURRENT_SOURCE_DIR}/sundials.patch WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/sundials
+                  OUTPUT_VARIABLE fuk
+                  RESULT_VARIABLE stat)
+  message("${fuk}")
+  if (NOT stat EQUAL 0)
+    message(FATAL_ERROR "Patching library source failed.")
+  endif()
 
   message("Configuring sundials...")
   execute_process(COMMAND env CC=${CC} ./configure ${SUNDIALS_CONFIG_OPTS}
