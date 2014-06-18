@@ -38,7 +38,7 @@ typedef void (*preconditioner_setup_func)(void* context, real_t alpha, real_t be
 // This function solves the preconditioner system A*X = B, where A is the 
 // preconditioner matrix and B is the given right-hand side. The right-hand 
 // side is taken as input and is filled with the solution on output.
-typedef bool (*preconditioner_solve_func)(void* context, real_t* B);
+typedef bool (*preconditioner_solve_func)(void* context, real_t t, real_t* B);
 
 // This function writes a text representation of the preconditioner to the given file.
 typedef void (*preconditioner_fprintf_func)(void* context, FILE* stream);
@@ -85,8 +85,7 @@ void preconditioner_setup(preconditioner_t* precond, real_t alpha, real_t beta, 
 // right-hand side of the system, and on output, it contains the solution 
 // to the preconditioned system. Returns true if the system was successfully 
 // solved, false if not.
-bool preconditioner_solve(preconditioner_t* precond,
-                          real_t* rhs);
+bool preconditioner_solve(preconditioner_t* precond, real_t t, real_t* rhs);
 
 // Writes a text representation of the given preconditioner to the given file.
 void preconditioner_fprintf(preconditioner_t* precond, FILE* stream);

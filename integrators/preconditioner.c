@@ -67,14 +67,14 @@ void preconditioner_setup(preconditioner_t* precond, real_t t,
                           real_t alpha, real_t beta, real_t gamma,
                           real_t* x, real_t* xdot)
 {
-  log_debug("preconditioner: Setting up...");
+  log_debug("preconditioner: setting up...");
   precond->vtable.setup(precond->context, t, alpha, beta, gamma, x, xdot);
 }
 
-bool preconditioner_solve(preconditioner_t* precond,
-                          real_t* rhs)
+bool preconditioner_solve(preconditioner_t* precond, real_t t, real_t* rhs)
 {
-  return precond->vtable.solve(precond->context, rhs);
+  log_debug("preconditioner: solving...");
+  return precond->vtable.solve(precond->context, t, rhs);
 }
 
 void preconditioner_fprintf(preconditioner_t* precond, FILE* stream)

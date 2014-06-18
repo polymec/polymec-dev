@@ -236,7 +236,7 @@ static void block_jacobi_preconditioner_setup(void* context, real_t alpha, real_
 }
 
 
-static bool block_jacobi_preconditioner_solve(void* context, real_t* B)
+static bool block_jacobi_preconditioner_solve(void* context, real_t t, real_t* B)
 {
   block_jacobi_preconditioner_t* precond = context;
   int bs = precond->block_size;

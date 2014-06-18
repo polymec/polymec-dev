@@ -107,7 +107,7 @@ static int solve_preconditioner_system(real_t t, N_Vector x, N_Vector x_dot,
   memcpy(NV_DATA(z), NV_DATA(r), sizeof(real_t) * integ->N);
 
   // Solve it.
-  if (preconditioner_solve(integ->precond, NV_DATA(z)))
+  if (preconditioner_solve(integ->precond, t, NV_DATA(z)))
     return 0;
   else 
     return 1; // recoverable error.

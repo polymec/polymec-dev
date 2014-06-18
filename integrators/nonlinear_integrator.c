@@ -130,7 +130,7 @@ static int solve_preconditioner_system(N_Vector x, N_Vector x_scale,
   // Project r out of the null space.
   project_out_of_null_space(integrator, NV_DATA(r));
 
-  if (preconditioner_solve(integrator->precond, NV_DATA(r)))
+  if (preconditioner_solve(integrator->precond, integrator->current_time, NV_DATA(r)))
     return 0;
   else 
   {

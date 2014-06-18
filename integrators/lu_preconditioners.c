@@ -294,7 +294,7 @@ static void lu_preconditioner_setup(void* context, real_t alpha, real_t beta, re
   polymec_free(Jv);
 }
 
-static bool lu_preconditioner_solve(void* context, real_t* B)
+static bool lu_preconditioner_solve(void* context, real_t t, real_t* B)
 {
   lu_preconditioner_t* precond = context;
   SuperMatrix* mat = precond->P;
@@ -467,7 +467,7 @@ ilu_params_t* ilu_params_new()
   return params;
 }
 
-static bool ilu_preconditioner_solve(void* context, real_t* B)
+static bool ilu_preconditioner_solve(void* context, real_t t, real_t* B)
 {
   lu_preconditioner_t* precond = context;
   SuperMatrix* mat = precond->P;
