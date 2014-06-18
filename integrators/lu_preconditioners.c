@@ -33,7 +33,8 @@ typedef struct
 {
   adj_graph_t* sparsity;
   adj_graph_coloring_t* coloring;
-  int (*F)(void* context, real_t t, real_t* x, real_t* F);
+  int (*F)(void* context, real_t t, real_t* x, real_t* Fval);
+  int (*dae_F)(void* context, real_t t, real_t* x, real_t* xdot, real_t* Fval);
   void* context;
 
   int N; // Number of rows in matrix.
@@ -49,9 +50,29 @@ typedef struct
   superlu_options_t options;
   SuperLUStat_t stat;
 
+  // Preconditioner matrix.
+  SuperMatrix* P;
+
   // ILU parameters (if any).
   ilu_params_t* ilu_params;
 } lu_preconditioner_t;
+
+static void supermatrix_eye(SuperMatrix* mat, real_t diag_val)
+{
+  int num_cols = mat->ncol;
+  NCformat* data = mat->Store;
+  real_t* Aij = data->nzval;
+  for (int j = 0; j < num_cols; ++j)
+  {
+    int col_index = data->colptr[j];
+    Aij[col_index] = diag_val;
+
+    // Zero off-diagonal values.
+    size_t num_rows = data->colptr[j+1] - col_index;
+    for (int i = 1; i < num_rows; ++i)
+      Aij[col_index + i] = 0.0;
+  }
+}
 
 static void supermatrix_scale_and_shift(void* context, real_t gamma)
 {
@@ -123,31 +144,8 @@ static real_t supermatrix_coeff(void* context, int i, int j)
   }
 }
 
-static void supermatrix_fprintf(void* context, FILE* stream)
+static void supermatrix_dtor(SuperMatrix* matrix)
 {
-  SuperMatrix* A = context;
-  fprintf(stream, "\nCompCol matrix P:\n");
-  fprintf(stream, "Stype %d, Dtype %d, Mtype %d\n", A->Stype,A->Dtype,A->Mtype);
-  int n = A->ncol;
-  NCformat* Astore = (NCformat *) A->Store;
-  real_t* dp = Astore->nzval;
-  fprintf(stream, "nrow %d, ncol %d, nnz %d\n", A->nrow,A->ncol,Astore->nnz);
-  fprintf(stream, "nzval: ");
-  for (int i = 0; i < Astore->colptr[n]; ++i) 
-    fprintf(stream, "%f  ", (double)dp[i]);
-  fprintf(stream, "\nrowind: ");
-  for (int i = 0; i < Astore->colptr[n]; ++i) 
-    fprintf(stream, "%d  ", Astore->rowind[i]);
-  fprintf(stream, "\ncolptr: ");
-  for (int i = 0; i <= n; ++i) 
-    fprintf(stream, "%d  ", Astore->colptr[i]);
-  fprintf(stream, "\n");
-}
-
-
-static void supermatrix_dtor(void* context)
-{
-  SuperMatrix* matrix = context;
   switch(matrix->Stype) {
   case SLU_DN:
     Destroy_Dense_Matrix(matrix);
@@ -165,14 +163,11 @@ static void supermatrix_dtor(void* context)
   polymec_free(matrix);
 }
 
-static preconditioner_matrix_t* lu_preconditioner_matrix(void* context)
+static SuperMatrix* supermatrix_new(adj_graph_t* graph)
 {
-  lu_preconditioner_t* precond = context;
-
   SuperMatrix* A = polymec_malloc(sizeof(SuperMatrix));
   
   // Fetch sparsity information from the graph.
-  adj_graph_t* graph = precond->sparsity;
   int* edge_offsets = adj_graph_edge_offsets(graph);
   int num_rows = adj_graph_num_vertices(graph);
   int num_edges = edge_offsets[num_rows];
@@ -206,50 +201,76 @@ static preconditioner_matrix_t* lu_preconditioner_matrix(void* context)
   dCreate_CompCol_Matrix(A, num_rows, num_rows, num_nz, 
                          mat_zeros, col_indices, row_ptrs, 
                          SLU_NC, SLU_D, SLU_GE);
-
-  preconditioner_matrix_vtable vtable = {.scale_and_shift = supermatrix_scale_and_shift,
-                                         .add = supermatrix_add,
-                                         .coeff = supermatrix_coeff,
-                                         .fprintf = supermatrix_fprintf,
-                                         .dtor = supermatrix_dtor};
-  return preconditioner_matrix_new("SuperMatrix", A, vtable, num_rows);
+  return A;
 }
 
-// Here's our finite difference implementation of the Jacobian matrix-vector 
+// Here's our finite difference implementation of the dF/dx matrix-vector 
 // product. 
-static void finite_diff_Jv(int (*F)(void* context, real_t t, real_t* x, real_t* F), 
-                           void* context, 
-                           real_t* x, 
-                           real_t t, 
-                           int num_rows,
-                           real_t* v, 
-                           real_t** work, 
-                           real_t* Jv)
+static void finite_diff_dFdx_v(int (*F)(void* context, real_t t, real_t* x, real_t* xdot, real_t* Fval), 
+                               void* context, 
+                               real_t t, 
+                               real_t* x, 
+                               real_t* xdot, 
+                               int num_rows,
+                               real_t* v, 
+                               real_t** work, 
+                               real_t* dFdx_v)
 {
   real_t eps = sqrt(UNIT_ROUNDOFF);
 
   // work[0] == v
-  // work[1] contains F(x).
-  // work[2] == u + eps*v
-  // work[3] == F(x + eps*v)
+  // work[1] contains F(t, x, xdot).
+  // work[2] == x + eps*v
+  // work[3] == F(t, x + eps*v, xdot)
 
-  // u + eps*v -> work[2].
+  // x + eps*v -> work[2].
   for (int i = 0; i < num_rows; ++i)
     work[2][i] = x[i] + eps*v[i];
 
-  // F(t, x + eps*v) -> work[3].
-  F(context, t, work[2], work[3]);
+  // F(t, x + eps*v, xdot) -> work[3].
+  F(context, t, work[2], xdot, work[3]);
 
-  // (F(x + eps*v) - F(x)) / eps -> Jv
+  // (F(t, x + eps*v, xdot) - F(t, x, xdot)) / eps -> dFdx_v
   for (int i = 0; i < num_rows; ++i)
-    Jv[i] = (work[3][i] - work[1][i]) / eps;
+    dFdx_v[i] = (work[3][i] - work[1][i]) / eps;
 }
 
-static void insert_Jv_into_supermatrix(adj_graph_t* graph, 
-                                       adj_graph_coloring_t* coloring, 
-                                       int color, 
-                                       real_t* Jv, 
-                                       SuperMatrix* J)
+// Here's the same matrix-vector product for dF/d(xdot).  
+static void finite_diff_dFdxdot_v(int (*F)(void* context, real_t t, real_t* x, real_t* xdot, real_t* Fval), 
+                                  void* context, 
+                                  real_t t, 
+                                  real_t* x, 
+                                  real_t* xdot, 
+                                  int num_rows,
+                                  real_t* v, 
+                                  real_t** work, 
+                                  real_t* dFdxdot_v)
+{
+  real_t eps = sqrt(UNIT_ROUNDOFF);
+
+  // work[0] == v
+  // work[1] contains F(t, x, xdot).
+  // work[2] == xdot + eps*v
+  // work[3] == F(t, x, xdot + eps*v)
+
+  // xdot + eps*v -> work[2].
+  for (int i = 0; i < num_rows; ++i)
+    work[2][i] = x[i] + eps*v[i];
+
+  // F(t, x, xdot + eps*v) -> work[3].
+  F(context, t, x, work[2], work[3]);
+
+  // (F(t, x, xdot + eps*v, xdot) - F(t, x, xdot)) / eps -> dFdxdot_v
+  for (int i = 0; i < num_rows; ++i)
+    dFdxdot_v[i] = (work[3][i] - work[1][i]) / eps;
+}
+
+static void add_Jv_into_supermatrix(adj_graph_t* graph, 
+                                    adj_graph_coloring_t* coloring, 
+                                    int color, 
+                                    real_t factor, 
+                                    real_t* Jv, 
+                                    SuperMatrix* J)
 {
   NCformat* data = J->Store;
   real_t* Jij = data->nzval;
@@ -268,17 +289,48 @@ static void insert_Jv_into_supermatrix(adj_graph_t* graph,
       int* entry = int_bsearch(&data->rowind[col_index+1], num_rows - 1, j);
       ASSERT(entry != NULL);
       size_t offset = entry - &data->rowind[col_index];
-      Jij[data->colptr[i] + offset] = Jv[j];
+      Jij[data->colptr[i] + offset] += factor * Jv[j];
     }
   }
 }
 
-static void lu_preconditioner_compute_jacobian(void* context, real_t t, real_t* x, preconditioner_matrix_t* mat)
+// This function adapts non-DAE functions F(t, x) to DAE ones F(t, x, xdot).
+static int F_adaptor(void* context, real_t t, real_t* x, real_t* xdot, real_t* Fval)
+{
+  ASSERT(xdot == NULL);
+
+  // We are passed the actual preconditioner as our context pointer, so get the 
+  // "real" one here.
+  lu_preconditioner_t* pc = context;
+  void* ctx = pc->context;
+  return pc->F(ctx, t, x, Fval);
+}
+
+static void lu_preconditioner_setup(void* context, real_t alpha, real_t beta, real_t gamma,
+                                    real_t t, real_t* x, real_t* xdot)
 {
   lu_preconditioner_t* precond = context;
   adj_graph_t* graph = precond->sparsity;
   adj_graph_coloring_t* coloring = precond->coloring;
   real_t** work = precond->work;
+
+  // Zero our preconditioner matrix and set the diagonal term.
+  supermatrix_eye(precond->P, alpha);
+
+  int (*F)(void* context, real_t t, real_t* x, real_t* xdot, real_t* Fval);
+  void* F_context;
+  if (precond->dae_F != NULL)
+  {
+    ASSERT(xdot != NULL);
+    F = precond->dae_F;
+    F_context = precond->context;
+  }
+  else
+  {
+    ASSERT(xdot == NULL);
+    F = F_adaptor;
+    F_context = precond;
+  }
 
   // We compute the system Jacobian using the method described in 
   // Curtis, Powell, and Reed.
@@ -294,23 +346,28 @@ static void lu_preconditioner_compute_jacobian(void* context, real_t t, real_t* 
       work[0][i] = 1.0;
 
     // We evaluate F(x) and place it into work[1].
-    precond->F(precond->context, t, x, work[1]);
+    F(F_context, t, x, xdot, work[1]);
 
-    // Now evaluate the matrix-vector product.
+    // Now evaluate the matrix-vector product for dF/dx and stash it.
     memset(Jv, 0, sizeof(real_t) * num_rows);
-    finite_diff_Jv(precond->F, precond->context, x, t, num_rows, work[0], work, Jv);
+    finite_diff_dFdx_v(F, F_context, t, x, xdot, num_rows, work[0], work, Jv);
+    add_Jv_into_supermatrix(graph, coloring, c, beta, Jv, precond->P);
 
-    // Copy the components of Jv into their proper locations.
-    SuperMatrix* J = preconditioner_matrix_context(mat);
-    insert_Jv_into_supermatrix(graph, coloring, c, Jv, J);
+    // Do the same for dF/d(xdot).
+    if (xdot != NULL)
+    {
+      memset(Jv, 0, sizeof(real_t) * num_rows);
+      finite_diff_dFdxdot_v(F, F_context, t, x, xdot, num_rows, work[0], work, Jv);
+      add_Jv_into_supermatrix(graph, coloring, c, gamma, Jv, precond->P);
+    }
   }
   polymec_free(Jv);
 }
 
-static bool lu_preconditioner_solve(void* context, preconditioner_matrix_t* A, real_t* B)
+static bool lu_preconditioner_solve(void* context, real_t* B)
 {
   lu_preconditioner_t* precond = context;
-  SuperMatrix* mat = preconditioner_matrix_context(A);
+  SuperMatrix* mat = precond->P;
 
   // Copy B to the rhs vector.
   DNformat* rhs = precond->rhs.Store;
@@ -347,6 +404,28 @@ static bool lu_preconditioner_solve(void* context, preconditioner_matrix_t* A, r
   return success;
 }
 
+static void lu_preconditioner_fprintf(void* context, FILE* stream)
+{
+  lu_preconditioner_t* precond = context;
+  SuperMatrix* A = precond->P;
+  fprintf(stream, "\nCompCol preconditioner matrix P:\n");
+  fprintf(stream, "Stype %d, Dtype %d, Mtype %d\n", A->Stype,A->Dtype,A->Mtype);
+  int n = A->ncol;
+  NCformat* Astore = (NCformat *) A->Store;
+  real_t* dp = Astore->nzval;
+  fprintf(stream, "nrow %d, ncol %d, nnz %d\n", A->nrow,A->ncol,Astore->nnz);
+  fprintf(stream, "nzval: ");
+  for (int i = 0; i < Astore->colptr[n]; ++i) 
+    fprintf(stream, "%f  ", (double)dp[i]);
+  fprintf(stream, "\nrowind: ");
+  for (int i = 0; i < Astore->colptr[n]; ++i) 
+    fprintf(stream, "%d  ", Astore->rowind[i]);
+  fprintf(stream, "\ncolptr: ");
+  for (int i = 0; i <= n; ++i) 
+    fprintf(stream, "%d  ", Astore->colptr[i]);
+  fprintf(stream, "\n");
+}
+
 static void lu_preconditioner_dtor(void* context)
 {
   lu_preconditioner_t* precond = context;
@@ -360,6 +439,7 @@ static void lu_preconditioner_dtor(void* context)
   Destroy_SuperMatrix_Store(&precond->rhs);
   polymec_free(precond->rhs_data);
   Destroy_SuperMatrix_Store(&precond->X);
+  supermatrix_dtor(precond->P);
   polymec_free(precond->X_data);
   StatFree(&precond->stat);
   for (int i = 0; i < precond->num_work_vectors; ++i)
@@ -372,18 +452,17 @@ static void lu_preconditioner_dtor(void* context)
   polymec_free(precond);
 }
 
-preconditioner_t* lu_preconditioner_new(void* context,
-                                        int (*residual_func)(void* context, real_t t, real_t* x, real_t* F),
-                                        adj_graph_t* sparsity)
+static preconditioner_t* general_lu_preconditioner_new(void* context,
+                                                       adj_graph_t* sparsity)
 {
   lu_preconditioner_t* precond = polymec_malloc(sizeof(lu_preconditioner_t));
   precond->sparsity = sparsity;
   precond->coloring = adj_graph_coloring_new(sparsity, SMALLEST_LAST);
   log_debug("LU preconditioner: graph coloring produced %d colors.", 
             adj_graph_coloring_num_colors(precond->coloring));
-  precond->F = residual_func;
   precond->context = context;
   precond->ilu_params = NULL;
+  precond->P = supermatrix_new(sparsity);
 
   // Preconditioner data.
   precond->N = adj_graph_num_vertices(precond->sparsity);
@@ -398,6 +477,8 @@ preconditioner_t* lu_preconditioner_new(void* context,
   precond->options.ColPerm = NATURAL;
   precond->options.Fact = DOFACT;
   precond->etree = NULL;
+  precond->F = NULL;
+  precond->dae_F = NULL;
 
   // Make work vectors.
   precond->num_work_vectors = 4;
@@ -405,13 +486,35 @@ preconditioner_t* lu_preconditioner_new(void* context,
   for (int i = 0; i < precond->num_work_vectors; ++i)
     precond->work[i] = polymec_malloc(sizeof(real_t) * precond->N);
 
-  preconditioner_vtable vtable = {.matrix = lu_preconditioner_matrix,
-                                  .compute_jacobian = lu_preconditioner_compute_jacobian,
+  preconditioner_vtable vtable = {.setup = lu_preconditioner_setup,
                                   .solve = lu_preconditioner_solve,
+                                  .fprintf = lu_preconditioner_fprintf,
                                   .dtor = lu_preconditioner_dtor};
   return preconditioner_new("LU preconditioner", precond, vtable);
 }
    
+preconditioner_t* lu_preconditioner_new(void* context,
+                                        int (*F)(void* context, real_t t, real_t* x, real_t* Fval),
+                                        adj_graph_t* sparsity)
+{
+  ASSERT(F != NULL);
+  preconditioner_t* precond = general_lu_preconditioner_new(context, sparsity);
+  lu_preconditioner_t* lu = preconditioner_context(precond);
+  lu->F = F;
+  return precond;
+}
+
+preconditioner_t* lu_dae_preconditioner_new(void* context,
+                                            int (*F)(void* context, real_t t, real_t* x, real_t* xdot, real_t* Fval),
+                                            adj_graph_t* sparsity)
+{
+  ASSERT(F != NULL);
+  preconditioner_t* precond = general_lu_preconditioner_new(context, sparsity);
+  lu_preconditioner_t* lu = preconditioner_context(precond);
+  lu->dae_F = F;
+  return precond;
+}
+
 // Globals borrowed from SuperLU.
 const int ILU_DROP_BASIC = DROP_BASIC;
 const int ILU_DROP_PROWS = DROP_PROWS;
@@ -434,10 +537,10 @@ ilu_params_t* ilu_params_new()
   return params;
 }
 
-static bool ilu_preconditioner_solve(void* context, preconditioner_matrix_t* A, real_t* B)
+static bool ilu_preconditioner_solve(void* context, real_t* B)
 {
   lu_preconditioner_t* precond = context;
-  SuperMatrix* mat = preconditioner_matrix_context(A);
+  SuperMatrix* mat = precond->P;
 
   // Copy B to the rhs vector.
   DNformat* rhs = precond->rhs.Store;
@@ -476,18 +579,17 @@ static bool ilu_preconditioner_solve(void* context, preconditioner_matrix_t* A, 
 }
 
 // ILU preconditioner.
-preconditioner_t* ilu_preconditioner_new(void* context,
-                                         int (*residual_func)(void* context, real_t t, real_t* x, real_t* F),
-                                         adj_graph_t* sparsity, 
-                                         ilu_params_t* ilu_params)
+static preconditioner_t* general_ilu_preconditioner_new(void* context,
+                                                        adj_graph_t* sparsity, 
+                                                        ilu_params_t* ilu_params)
 {
   lu_preconditioner_t* precond = polymec_malloc(sizeof(lu_preconditioner_t));
   precond->sparsity = sparsity;
   precond->coloring = adj_graph_coloring_new(sparsity, SMALLEST_LAST);
   log_debug("ILU preconditioner: graph coloring produced %d colors.", 
             adj_graph_coloring_num_colors(precond->coloring));
-  precond->F = residual_func;
   precond->context = context;
+  precond->P = supermatrix_new(sparsity);
 
   // Copy options into place.
   ilu_set_default_options(&precond->options);
@@ -528,6 +630,8 @@ preconditioner_t* ilu_preconditioner_new(void* context,
   precond->options.ColPerm = NATURAL;
   precond->options.Fact = DOFACT;
   precond->etree = polymec_malloc(sizeof(int) * precond->N);
+  precond->F = NULL;
+  precond->dae_F = NULL;
 
   // Make work vectors.
   precond->num_work_vectors = 4;
@@ -535,124 +639,35 @@ preconditioner_t* ilu_preconditioner_new(void* context,
   for (int i = 0; i < precond->num_work_vectors; ++i)
     precond->work[i] = polymec_malloc(sizeof(real_t) * precond->N);
 
-  preconditioner_vtable vtable = {.matrix = lu_preconditioner_matrix,
-                                  .compute_jacobian = lu_preconditioner_compute_jacobian,
+  preconditioner_vtable vtable = {.setup = lu_preconditioner_setup,
                                   .solve = ilu_preconditioner_solve,
+                                  .fprintf = lu_preconditioner_fprintf,
                                   .dtor = lu_preconditioner_dtor};
   return preconditioner_new("ILU preconditioner", precond, vtable);
 }
 
-//------------------------------------------------------------------------
-//          Differential-Algebraic Equation (DAE) preconditioners
-//------------------------------------------------------------------------
-// These preconditioners are designed to work with the dae_integrator.
-// They re-use as much logic as possible from their constituent components.
-//------------------------------------------------------------------------
-typedef struct
+preconditioner_t* ilu_preconditioner_new(void* context,
+                                         int (*F)(void* context, real_t t, real_t* x, real_t* Fval),
+                                         adj_graph_t* sparsity,
+                                         ilu_params_t* ilu_params)
 {
-  void* context; // Context.
-
-  int N; // Number of rows in matrix.
-
-  // Preconditioners and matrices for dF/dx and dF/d(x_dot).
-  preconditioner_t *dFdx_precond, *dFdxdot_precond;
-
-  // Virtual table.
-  int (*F)(void* context, real_t t, real_t* x, real_t* x_dot, real_t* F);
-
-  // States (x and x_dot) about which derivatives are computed.
-  real_t *x0, *x_dot0;
-} lu_dae_preconditioner_t;
-
-// This adaptor function serves to compute the preconditioner matrix for dF/dx. 
-static int lu_dae_compute_res_for_x(void* context, real_t t, real_t* x, real_t* F)
-{
-  lu_dae_preconditioner_t* precond = context;
-  real_t* x_dot = precond->x_dot0;
-  return precond->F(precond->context, t, x, x_dot, F);
+  ASSERT(F != NULL);
+  preconditioner_t* precond = general_ilu_preconditioner_new(context, sparsity, ilu_params);
+  lu_preconditioner_t* ilu = preconditioner_context(precond);
+  ilu->F = F;
+  return precond;
 }
 
-// This adaptor function serves to compute the preconditioner matrix for dF/d(x_dot). 
-static int lu_dae_compute_res_for_x_dot(void* context, real_t t, real_t* x_dot, real_t* F)
-{
-  lu_dae_preconditioner_t* precond = context;
-  real_t* x = precond->x0;
-  return precond->F(precond->context, t, x, x_dot, F);
-}
-
-static preconditioner_matrix_t* lu_dae_preconditioner_matrix(void* context)
-{
-  lu_dae_preconditioner_t* precond = context;
-  return preconditioner_matrix(precond->dFdx_precond);
-}
-
-static void lu_dae_preconditioner_compute_dae_jacobians(void* context, real_t t, real_t* x, real_t* x_dot, preconditioner_matrix_t* dFdx, preconditioner_matrix_t* dFdxdot)
-{
-  lu_dae_preconditioner_t* precond = context;
-  memcpy(precond->x0, x, sizeof(real_t) * precond->N);
-  memcpy(precond->x_dot0, x_dot, sizeof(real_t) * precond->N);
-  preconditioner_compute_jacobian(precond->dFdx_precond, t, x, dFdx);
-  preconditioner_compute_jacobian(precond->dFdxdot_precond, t, x_dot, dFdxdot);
-}
-
-static bool lu_dae_preconditioner_solve(void* context, preconditioner_matrix_t* A, real_t* B)
-{
-  lu_dae_preconditioner_t* precond = context;
-  return preconditioner_solve(precond->dFdx_precond, A, B);
-}
-
-static void lu_dae_preconditioner_dtor(void* context)
-{
-  lu_dae_preconditioner_t* precond = context;
-  preconditioner_free(precond->dFdx_precond);
-  preconditioner_free(precond->dFdxdot_precond);
-  polymec_free(precond->x0);
-  polymec_free(precond->x_dot0);
-  polymec_free(precond);
-}
-
-preconditioner_t* lu_dae_preconditioner_new(void* context,
-                                            int (*residual_func)(void* context, real_t t, real_t* x, real_t* x_dot, real_t* F),
-                                            adj_graph_t* sparsity)
-{
-  lu_dae_preconditioner_t* precond = polymec_malloc(sizeof(lu_dae_preconditioner_t));
-  precond->dFdx_precond = lu_preconditioner_new(precond, lu_dae_compute_res_for_x, sparsity);
-  precond->dFdxdot_precond = lu_preconditioner_new(precond, lu_dae_compute_res_for_x_dot, sparsity);
-  precond->F = residual_func;
-  precond->context = context;
-
-  // Preconditioner data.
-  precond->N = adj_graph_num_vertices(sparsity);
-  precond->x0 = polymec_malloc(sizeof(real_t) * precond->N);
-  precond->x_dot0 = polymec_malloc(sizeof(real_t) * precond->N);
-
-  preconditioner_vtable vtable = {.matrix = lu_dae_preconditioner_matrix,
-                                  .compute_dae_jacobians = lu_dae_preconditioner_compute_dae_jacobians,
-                                  .solve = lu_dae_preconditioner_solve,
-                                  .dtor = lu_dae_preconditioner_dtor};
-  return preconditioner_new("LU DAE preconditioner", precond, vtable);
-}
-                                        
 preconditioner_t* ilu_dae_preconditioner_new(void* context,
-                                             int (*residual_func)(void* context, real_t t, real_t* x, real_t* x_dot, real_t* F),
+                                             int (*F)(void* context, real_t t, real_t* x, real_t* xdot, real_t* Fval),
                                              adj_graph_t* sparsity,
                                              ilu_params_t* ilu_params)
 {
-  lu_dae_preconditioner_t* precond = polymec_malloc(sizeof(lu_dae_preconditioner_t));
-  precond->dFdx_precond = ilu_preconditioner_new(precond, lu_dae_compute_res_for_x, sparsity, ilu_params);
-  precond->dFdxdot_precond = ilu_preconditioner_new(precond, lu_dae_compute_res_for_x_dot, sparsity, ilu_params);
-  precond->F = residual_func;
-  precond->context = context;
-
-  // Preconditioner data.
-  precond->N = adj_graph_num_vertices(sparsity);
-  precond->x0 = polymec_malloc(sizeof(real_t) * precond->N);
-  precond->x_dot0 = polymec_malloc(sizeof(real_t) * precond->N);
-
-  preconditioner_vtable vtable = {.matrix = lu_dae_preconditioner_matrix,
-                                  .compute_dae_jacobians = lu_dae_preconditioner_compute_dae_jacobians,
-                                  .solve = lu_dae_preconditioner_solve,
-                                  .dtor = lu_dae_preconditioner_dtor};
-  return preconditioner_new("ILU DAE preconditioner", precond, vtable);
+  ASSERT(F != NULL);
+  preconditioner_t* precond = general_ilu_preconditioner_new(context, sparsity, ilu_params);
+  lu_preconditioner_t* ilu = preconditioner_context(precond);
+  ilu->dae_F = F;
+  return precond;
 }
-                                        
+
+

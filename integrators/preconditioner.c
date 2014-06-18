@@ -31,17 +31,12 @@ struct preconditioner_t
   preconditioner_vtable vtable;
 };
 
-struct preconditioner_matrix_t 
-{
-  char* name;
-  void* context;
-  preconditioner_matrix_vtable vtable;
-};
-
 preconditioner_t* preconditioner_new(const char* name,
                                      void* context,
                                      preconditioner_vtable vtable)
 {
+  ASSERT(vtable.setup != NULL);
+  ASSERT(vtable.solve != NULL);
   preconditioner_t* precond = polymec_malloc(sizeof(preconditioner_t));
   precond->name = string_dup(name);
   precond->context = context;
@@ -68,87 +63,26 @@ void* preconditioner_context(preconditioner_t* precond)
   return precond->context;
 }
 
-preconditioner_matrix_t* preconditioner_matrix(preconditioner_t* precond)
+void preconditioner_setup(preconditioner_t* precond, real_t t, 
+                          real_t alpha, real_t beta, real_t gamma,
+                          real_t* x, real_t* xdot)
 {
-  return precond->vtable.matrix(precond->context);
-}
-
-void preconditioner_compute_jacobian(preconditioner_t* precond,
-                                     real_t t,
-                                     real_t* x,
-                                     preconditioner_matrix_t* mat)
-{
-  ASSERT(precond->vtable.compute_jacobian != NULL);
-  log_debug("preconditioner: Computing Jacobian matrix...");
-  precond->vtable.compute_jacobian(precond->context, t, x, mat);
-}
-
-void preconditioner_compute_dae_jacobians(preconditioner_t* precond,
-                                          real_t t,
-                                          real_t* x,
-                                          real_t* x_dot,
-                                          preconditioner_matrix_t* dFdx,
-                                          preconditioner_matrix_t* dFdxdot)
-{
-  ASSERT(precond->vtable.compute_dae_jacobians != NULL);
-  log_debug("preconditioner: Computing DAE Jacobians...");
-  precond->vtable.compute_dae_jacobians(precond->context, t, x, x_dot, dFdx, dFdxdot);
+  log_debug("preconditioner: Setting up...");
+  precond->vtable.setup(precond->context, t, alpha, beta, gamma, x, xdot);
 }
 
 bool preconditioner_solve(preconditioner_t* precond,
-                          preconditioner_matrix_t* mat,
                           real_t* rhs)
 {
-  return precond->vtable.solve(precond->context, mat, rhs);
+  return precond->vtable.solve(precond->context, rhs);
 }
 
-preconditioner_matrix_t* preconditioner_matrix_new(const char* name,
-                                                   void* context,
-                                                   preconditioner_matrix_vtable vtable,
-                                                   int num_rows)
-{
-  ASSERT(vtable.scale_and_shift != NULL);
-  ASSERT(vtable.add != NULL);
-  ASSERT(vtable.coeff != NULL);
-  preconditioner_matrix_t* mat = polymec_malloc(sizeof(preconditioner_matrix_t));
-  mat->name = string_dup(name);
-  mat->context = context;
-  mat->vtable = vtable;
-
-  return mat;
-}
-
-void preconditioner_matrix_free(preconditioner_matrix_t* mat)
-{
-  if ((mat->vtable.dtor != NULL) && (mat->context != NULL))
-    mat->vtable.dtor(mat->context);
-  polymec_free(mat->name);
-  polymec_free(mat);
-}
-
-void* preconditioner_matrix_context(preconditioner_matrix_t* mat)
-{
-  return mat->context;
-}
-
-void preconditioner_matrix_scale_and_shift(preconditioner_matrix_t* mat, real_t gamma)
-{
-  mat->vtable.scale_and_shift(mat->context, gamma);
-}
-
-void preconditioner_matrix_add(preconditioner_matrix_t* mat, real_t alpha, preconditioner_matrix_t* B)
-{
-  mat->vtable.add(mat->context, alpha, B->context);
-}
-
-real_t preconditioner_matrix_coeff(preconditioner_matrix_t* mat, int i, int j)
-{
-  return mat->vtable.coeff(mat->context, i, j);
-}
-
-void preconditioner_matrix_fprintf(preconditioner_matrix_t* mat, FILE* stream)
+void preconditioner_fprintf(preconditioner_t* precond, FILE* stream)
 {
   if (stream == NULL) return;
-  mat->vtable.fprintf(mat->context, stream);
+  if (precond->vtable.fprintf != NULL)
+    precond->vtable.fprintf(precond->context, stream);
+  else
+    fprintf(stream, "Preconditioner '%s'", precond->name);
 }
 

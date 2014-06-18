@@ -32,22 +32,16 @@
 // the Jacobian-free Newton-Krylov solution of a nonlinear system.
 typedef struct preconditioner_t preconditioner_t;
 
-// This class holds information representing a preconditioner matrix.
-typedef struct preconditioner_matrix_t preconditioner_matrix_t;
-
-// This function constructs a new matrix for the given preconditioner.
-typedef preconditioner_matrix_t* (*preconditioner_matrix_func)(void* context);
-
-// This function computes the preconditioned Jacobian for the given preconditioner.
-typedef void (*preconditioner_compute_jac_func)(void* context, real_t t, real_t* x, preconditioner_matrix_t* mat);
-
-// This function computes the preconditioned Jacobians for the given DAE preconditioner.
-typedef void (*preconditioner_compute_dae_jac_func)(void* context, real_t t, real_t* x, real_t* x_dot, preconditioner_matrix_t* dFdx, preconditioner_matrix_t* dFdxdot);
+// This function sets up the preconditioner to obtain a preconditioned solution.
+typedef void (*preconditioner_setup_func)(void* context, real_t alpha, real_t beta, real_t gamma, real_t t, real_t* x, real_t* xdot);
 
 // This function solves the preconditioner system A*X = B, where A is the 
 // preconditioner matrix and B is the given right-hand side. The right-hand 
 // side is taken as input and is filled with the solution on output.
-typedef bool (*preconditioner_solve_func)(void* context, preconditioner_matrix_t* A, real_t* B);
+typedef bool (*preconditioner_solve_func)(void* context, real_t* B);
+
+// This function writes a text representation of the preconditioner to the given file.
+typedef void (*preconditioner_fprintf_func)(void* context, FILE* stream);
 
 // This function destroys the data context for the preconditioner.
 typedef void (*preconditioner_dtor)(void* context);
@@ -55,11 +49,10 @@ typedef void (*preconditioner_dtor)(void* context);
 // This virtual table determines the behavior of the preconditioner.
 typedef struct
 {
-  preconditioner_matrix_func          matrix;
-  preconditioner_compute_jac_func     compute_jacobian;
-  preconditioner_compute_dae_jac_func compute_dae_jacobians;
-  preconditioner_solve_func           solve;
-  preconditioner_dtor                 dtor;
+  preconditioner_setup_func   setup;
+  preconditioner_solve_func   solve;
+  preconditioner_fprintf_func fprintf;
+  preconditioner_dtor         dtor;
 } preconditioner_vtable;
 
 // Constructs a preconditioner with the given name, data context, 
@@ -77,90 +70,26 @@ char* preconditioner_name(preconditioner_t* precond);
 // Returns the data context for the preconditioner.
 void* preconditioner_context(preconditioner_t* precond);
 
-// Constructs a new preconditioner matrix for this preconditioner.
-preconditioner_matrix_t* preconditioner_matrix(preconditioner_t* precond);
-
-// Calculates the coefficients of the preconditioner matrix corresponding to 
-// the Jacobian of the underlying nonlinear system, storing the result in mat.
-void preconditioner_compute_jacobian(preconditioner_t* precond,
-                                     real_t t,
-                                     real_t* x,
-                                     preconditioner_matrix_t* mat);
-
-// Calculates the coefficients of the preconditioner matrix corresponding to 
-// the Jacobian of the underlying differential algebraic equation (DAE) 
-// system, storing the result in mat.
-void preconditioner_compute_dae_jacobians(preconditioner_t* precond,
-                                          real_t t,
-                                          real_t* x,
-                                          real_t* x_dot,
-                                          preconditioner_matrix_t* dFdx,
-                                          preconditioner_matrix_t* dFdxdot);
+// Sets up the preconditioner to obtain a representation of the preconditioner
+// operator. This operator represents the expression 
+//
+// alpha I + beta * dF/dx + gamma * dF/dxdot
+//
+// where I is the identity matrix, and dF/dx and dF/dxdot are the derivatives 
+// of a system function F with respect to the solution and its time derivative.
+// Note that xdot can be NULL if gamma == 0.0.
+void preconditioner_setup(preconditioner_t* precond, real_t alpha, real_t beta, real_t gamma,
+                          real_t, real_t* x, real_t* xdot);
 
 // Solves the preconditioned linear system. On input, rhs contains the 
 // right-hand side of the system, and on output, it contains the solution 
 // to the preconditioned system. Returns true if the system was successfully 
 // solved, false if not.
 bool preconditioner_solve(preconditioner_t* precond,
-                          preconditioner_matrix_t* mat,
                           real_t* rhs);
 
-// Transforms the given preconditioner matrix A to (I - gamma * A).
-typedef void (*preconditioner_matrix_scale_and_shift_func)(void* context, real_t gamma);
-
-// Adds the scaled matrix alpha * B to the given matrix A in-place.
-typedef void (*preconditioner_matrix_add_func)(void* A_context, real_t alpha, void* B_context);
-
-// This function provides (read-only) access to the (i, j)th coefficient 
-// in a preconditioner matrix.
-typedef real_t (*preconditioner_matrix_coeff_func)(void* context, int i, int j);
-
-// This function writes a text representation of the matrix to the given file.
-typedef void (*preconditioner_matrix_fprintf_func)(void* context, FILE* stream);
-
-// This function destroys the data context for the preconditioner matrix.
-typedef void (*preconditioner_matrix_dtor)(void* context);
-
-// This virtual table determines the nature of the preconditioner matrix 
-// representation.
-typedef struct
-{
-  preconditioner_matrix_scale_and_shift_func scale_and_shift;
-  preconditioner_matrix_add_func             add;
-  preconditioner_matrix_coeff_func           coeff;
-  preconditioner_matrix_fprintf_func         fprintf;
-  preconditioner_matrix_dtor                 dtor;
-} preconditioner_matrix_vtable;
-
-// Constructs a representation of a (square) preconditioner matrix with the 
-// given name, data context, virtual table, and number of rows. The representation
-// of the matrix is tied to the implementation of a particular preconditioner.
-preconditioner_matrix_t* preconditioner_matrix_new(const char* name,
-                                                   void* context,
-                                                   preconditioner_matrix_vtable vtable,
-                                                   int num_rows);
-
-// Destroys the given preconditioner matrix.
-void preconditioner_matrix_free(preconditioner_matrix_t* mat);
-
-// Returns the data context for the preconditioner matrix.
-void* preconditioner_matrix_context(preconditioner_matrix_t* mat);
-
-// Transforms the given preconditioner matrix A to (I - gamma * A), where 
-// I is the identity matrix. This is used for preconditioning time-dependent
-// problems.
-void preconditioner_matrix_scale_and_shift(preconditioner_matrix_t* mat, real_t gamma);
-
-// Adds the scaled matrix alpha*B to this matrix in-place. This is used for 
-// DAE preconditioning.
-void preconditioner_matrix_add(preconditioner_matrix_t* A, real_t alpha, preconditioner_matrix_t* B);
-
-// Returns the (i, j)th entry in the preconditioner matrix. This method of 
-// access is slow in general and should only be used for diagnostics.
-real_t preconditioner_matrix_coeff(preconditioner_matrix_t* mat, int i, int j);
-
-// Writes the given matrix to the given file.
-void preconditioner_matrix_fprintf(preconditioner_matrix_t* mat, FILE* stream);
+// Writes a text representation of the given preconditioner to the given file.
+void preconditioner_fprintf(preconditioner_t* precond, FILE* stream);
 
 #endif
 

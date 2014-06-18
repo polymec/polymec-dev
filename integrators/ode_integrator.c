@@ -64,7 +64,6 @@ struct ode_integrator_t
 
   // Preconditioning stuff.
   preconditioner_t* precond;
-  preconditioner_matrix_t* precond_mat;
 };
 
 // This function wraps around the user-supplied right hand side.
@@ -87,8 +86,7 @@ static int set_up_preconditioner(real_t t, N_Vector x, N_Vector F,
   ode_integrator_t* integ = context;
   if (!jacobian_is_current)
   {
-    preconditioner_compute_jacobian(integ->precond, t, NV_DATA(x), integ->precond_mat);
-    preconditioner_matrix_scale_and_shift(integ->precond_mat, -gamma);
+    preconditioner_setup(integ->precond, 1.0, -gamma, 0.0, t, NV_DATA(x), NULL);
     *jacobian_was_updated = 1;
   }
   else
@@ -114,7 +112,7 @@ static int solve_preconditioner_system(real_t t, N_Vector x, N_Vector F,
   memcpy(NV_DATA(z), NV_DATA(r), sizeof(real_t) * integ->N);
 
   // Solve it.
-  if (preconditioner_solve(integ->precond, integ->precond_mat, NV_DATA(z)))
+  if (preconditioner_solve(integ->precond, NV_DATA(z)))
     return 0;
   else 
     return 1; // recoverable error.
@@ -173,7 +171,6 @@ static ode_integrator_t* ode_integrator_new(const char* name,
                            solve_preconditioner_system);
 
   integ->precond = NULL;
-  integ->precond_mat = NULL;
 
   // Set some default tolerances:
   // relative error of 1e-4 means errors are controlled to 0.01%.
@@ -227,8 +224,6 @@ void ode_integrator_free(ode_integrator_t* integ)
   // Kill the preconditioner stuff.
   if (integ->precond != NULL)
     preconditioner_free(integ->precond);
-  if (integ->precond_mat != NULL)
-    preconditioner_matrix_free(integ->precond_mat);
 
   // Kill the CVode stuff.
   N_VDestroy(integ->x);
@@ -262,14 +257,11 @@ void ode_integrator_set_preconditioner(ode_integrator_t* integrator,
                                        preconditioner_t* precond)
 {
   integrator->precond = precond;
-  if (integrator->precond_mat != NULL)
-    preconditioner_matrix_free(integrator->precond_mat);
-  integrator->precond_mat = preconditioner_matrix(precond);
 }
 
-preconditioner_matrix_t* ode_integrator_preconditioner_matrix(ode_integrator_t* integrator)
+preconditioner_t* ode_integrator_preconditioner(ode_integrator_t* integrator)
 {
-  return integrator->precond_mat;
+  return integrator->precond;
 }
 
 void ode_integrator_set_stability_limit_detection(ode_integrator_t* integrator,

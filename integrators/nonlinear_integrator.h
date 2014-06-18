@@ -161,9 +161,8 @@ void nonlinear_integrator_set_max_iterations(nonlinear_integrator_t* integrator,
 void nonlinear_integrator_set_preconditioner(nonlinear_integrator_t* integrator,
                                              preconditioner_t* precond);
 
-// Returns the current preconditioner matrix for the integrator, or 
-// NULL if there is no such matrix.
-preconditioner_matrix_t* nonlinear_integrator_preconditioner_matrix(nonlinear_integrator_t* integrator);
+// Gets an internal pointer to the preconditioner.
+preconditioner_t* nonlinear_integrator_preconditioner(nonlinear_integrator_t* integrator);
 
 // Sets the null space associated with the nonlinear operator F(X).
 // The null space consists of the set of vectors {X: X != 0}: dF/dX * X = 0.

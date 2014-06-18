@@ -32,14 +32,16 @@
 // (i.e. whether it is a block graph or not) is inferred from the number of 
 // block rows and the block size.
 preconditioner_t* block_jacobi_preconditioner_new(void* context,
-                                                  int (*residual_func)(void* context, real_t t, real_t* x, real_t* F),
+                                                  int (*F)(void* context, real_t t, real_t* x, real_t* Fval),
                                                   adj_graph_t* sparsity,
                                                   int num_block_rows,
                                                   int block_size);
                                         
-// Creates a DAE-enabled block Jacobi preconditioner.
+// Creates a block Jacobi preconditioner with the given sparsity graph, 
+// number of block rows, and block size, appropriate for preconditioning 
+// differential-algebraic systems.
 preconditioner_t* block_jacobi_dae_preconditioner_new(void* context,
-                                                      int (*residual_func)(void* context, real_t t, real_t* x, real_t* x_dot, real_t* F),
+                                                      int (*F)(void* context, real_t t, real_t* x, real_t* xdot, real_t* Fval),
                                                       adj_graph_t* sparsity,
                                                       int num_block_rows,
                                                       int block_size);

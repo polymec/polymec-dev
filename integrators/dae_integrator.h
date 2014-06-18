@@ -120,9 +120,8 @@ int dae_integrator_order(dae_integrator_t* integrator);
 void dae_integrator_set_preconditioner(dae_integrator_t* integrator,
                                        preconditioner_t* precond);
 
-// Returns the current preconditioner matrix for the integrator, or 
-// NULL if there is no such matrix.
-preconditioner_matrix_t* dae_integrator_preconditioner_matrix(dae_integrator_t* integrator);
+// Gets an internal pointer to the preconditioner.
+preconditioner_t* dae_integrator_preconditioner(dae_integrator_t* integrator);
 
 // Sets whether to use a stability limit detection algorithm to improve 
 // robustness on particularly stiff problems (2-10% overhead, depending 

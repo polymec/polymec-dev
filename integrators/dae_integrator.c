@@ -62,10 +62,8 @@ struct dae_integrator_t
   // Error weight function.
   dae_integrator_error_weight_func compute_weights;
 
-  // Preconditioning stuff. Note that we must store two preconditioner 
-  // matrices--one for dFdx and one for dFdxdot.
+  // Preconditioning stuff. 
   preconditioner_t* precond;
-  preconditioner_matrix_t *precond_J, *precond_dFdxdot;
 };
 
 // This function wraps around the user-supplied right hand side.
@@ -88,11 +86,8 @@ static int set_up_preconditioner(real_t t, N_Vector x, N_Vector x_dot, N_Vector 
 {
   dae_integrator_t* integ = context;
 
-  // Compute dFdx and dFdxdot.
-  preconditioner_compute_dae_jacobians(integ->precond, t, NV_DATA(x), NV_DATA(x_dot), integ->precond_J, integ->precond_dFdxdot);
-
-  // Form the linear combination dFdx + cj * dFdxdot and store it in precond_J.
-  preconditioner_matrix_add(integ->precond_J, cj, integ->precond_dFdxdot);
+  // Form the linear combination dFdx + cj * dFdxdot.
+  preconditioner_setup(integ->precond, 0.0, 1.0, cj, t, NV_DATA(x), NV_DATA(x_dot));
 
   return 0;
 }
@@ -112,7 +107,7 @@ static int solve_preconditioner_system(real_t t, N_Vector x, N_Vector x_dot,
   memcpy(NV_DATA(z), NV_DATA(r), sizeof(real_t) * integ->N);
 
   // Solve it.
-  if (preconditioner_solve(integ->precond, integ->precond_J, NV_DATA(z)))
+  if (preconditioner_solve(integ->precond, NV_DATA(z)))
     return 0;
   else 
     return 1; // recoverable error.
@@ -170,8 +165,6 @@ static dae_integrator_t* dae_integrator_new(const char* name,
   IDASpilsSetPreconditioner(integ->ida, set_up_preconditioner,
                            solve_preconditioner_system);
   integ->precond = NULL;
-  integ->precond_J = NULL;
-  integ->precond_dFdxdot = NULL;
 
   // Algebraic constraints.
   if (integ->vtable.set_constraints != NULL)
@@ -234,10 +227,6 @@ void dae_integrator_free(dae_integrator_t* integ)
   // Kill the preconditioner stuff.
   if (integ->precond != NULL)
     preconditioner_free(integ->precond);
-  if (integ->precond_J != NULL)
-    preconditioner_matrix_free(integ->precond_J);
-  if (integ->precond_dFdxdot != NULL)
-    preconditioner_matrix_free(integ->precond_dFdxdot);
 
   // Kill the IDA stuff.
   N_VDestroy(integ->x_dot);
@@ -272,17 +261,11 @@ void dae_integrator_set_preconditioner(dae_integrator_t* integrator,
                                        preconditioner_t* precond)
 {
   integrator->precond = precond;
-  if (integrator->precond_J != NULL)
-    preconditioner_matrix_free(integrator->precond_J);
-  integrator->precond_J = preconditioner_matrix(precond);
-  if (integrator->precond_dFdxdot != NULL)
-    preconditioner_matrix_free(integrator->precond_dFdxdot);
-  integrator->precond_dFdxdot = preconditioner_matrix(precond);
 }
 
-preconditioner_matrix_t* dae_integrator_preconditioner_matrix(dae_integrator_t* integrator)
+preconditioner_t* dae_integrator_preconditioner(dae_integrator_t* integrator)
 {
-  return integrator->precond_J;
+  return integrator->precond;
 }
 
 void dae_integrator_set_tolerances(dae_integrator_t* integrator,

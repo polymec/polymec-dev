@@ -29,14 +29,14 @@
 
 // Sparse (Supernode) LU preconditioner.
 preconditioner_t* lu_preconditioner_new(void* context,
-                                        int (*residual_func)(void* context, real_t t, real_t* x, real_t* F),
+                                        int (*F)(void* context, real_t t, real_t* x, real_t* Fval),
                                         adj_graph_t* sparsity);
  
-// DAE-enabled LU preconditioner.
+// Sparse (Supernode) LU preconditioner -- differential-algebraic version.
 preconditioner_t* lu_dae_preconditioner_new(void* context,
-                                            int (*residual_func)(void* context, real_t t, real_t* x, real_t* x_dot, real_t* F),
+                                            int (*F)(void* context, real_t t, real_t* x, real_t* xdot, real_t* Fval),
                                             adj_graph_t* sparsity);
-
+ 
 // The following types give options to control ILU preconditioners for the 
 // nonlinear and time integrators.
 
@@ -93,14 +93,14 @@ ilu_params_t* ilu_params_new();
 
 // ILU preconditioner.
 preconditioner_t* ilu_preconditioner_new(void* context,
-                                         int (*residual_func)(void* context, real_t t, real_t* x, real_t* F),
+                                         int (*F)(void* context, real_t t, real_t* x, real_t* Fval),
                                          adj_graph_t* sparsity, 
                                          ilu_params_t* ilu_params);
 
-// DAE-enabled ILU preconditioner.
+// ILU preconditioner -- differential-algebraic version.
 preconditioner_t* ilu_dae_preconditioner_new(void* context,
-                                             int (*residual_func)(void* context, real_t t, real_t* x, real_t* x_dot, real_t* F),
-                                             adj_graph_t* sparsity,
+                                             int (*F)(void* context, real_t t, real_t* x, real_t* xdot, real_t* Fval),
+                                             adj_graph_t* sparsity, 
                                              ilu_params_t* ilu_params);
 
 #endif

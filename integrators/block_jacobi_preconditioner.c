@@ -26,22 +26,6 @@
 #include "core/sundials_helpers.h"
 #include "integrators/block_jacobi_preconditioner.h"
 
-typedef struct 
-{
-  adj_graph_t* sparsity;
-  adj_graph_coloring_t* coloring;
-  int (*F)(void* context, real_t t, real_t* x, real_t* F);
-  void* context;
-
-  int num_block_rows;
-  int block_size; 
-
-  // Work vectors.
-  int num_work_vectors;
-  real_t** work;
-
-} block_jacobi_preconditioner_t;
-
 // Block-diagonal matrix.
 typedef struct
 {
@@ -50,129 +34,111 @@ typedef struct
   real_t* coeffs;
 } bd_mat_t;
 
-static void bd_scale_and_shift(void* context, real_t gamma)
+typedef struct 
 {
-  bd_mat_t* mat = context;
-  int n = mat->num_block_rows;
-  int bs = mat->block_size;
-  for (int i = 0; i < n; ++i)
-  {
-    real_t* A = &mat->coeffs[i*bs*bs];
+  adj_graph_t* sparsity;
+  adj_graph_coloring_t* coloring;
+  int (*F)(void* context, real_t t, real_t* x, real_t* Fval);
+  int (*dae_F)(void* context, real_t t, real_t* x, real_t* x_dot, real_t* Fval);
+  void* context;
 
-    // Scale.
-    for (int j = 0; j < bs*bs; ++j)
-      A[j] *= gamma;
+  int num_block_rows;
+  int block_size; 
 
-    // Shift.
-    for (int j = 0; j < bs; ++j)
-      A[j*bs+j] += 1.0;
-  }
-}
+  // Preconditioner matrix.
+  bd_mat_t* P;
 
-static void bd_add(void* A_context, real_t alpha, void* B_context)
-{
-  bd_mat_t* A = A_context;
-  bd_mat_t* B = B_context;
-  ASSERT(A->num_block_rows == B->num_block_rows);
-  ASSERT(A->block_size == B->block_size);
+  // Work vectors.
+  int num_work_vectors;
+  real_t** work;
 
-  int n = A->num_block_rows;
-  int bs = A->block_size;
-  real_t* Aij = A->coeffs;
-  real_t* Bij = B->coeffs;
-  for (int i = 0; i < n*bs; ++i)
-    Aij[i] += alpha * Bij[i];
-}
-
-static real_t bd_coeff(void* context, int i, int j)
-{
-  bd_mat_t* mat = context;
-  int bs = mat->block_size;
-  if (abs(j - i) >= bs)
-    return 0.0;
-  int block_row = i/bs;
-  int r = i % bs;
-  int c = j - block_row*bs;
-  if ((r < 0) || (r >= bs) || (c < 0) || (c >= bs))
-    return 0.0;
-  real_t* A = &mat->coeffs[block_row * bs * bs];
-  return A[bs * c + r];
-}
-
-static void bd_fprintf(void* context, FILE* stream)
-{
-  bd_mat_t* mat = context;
-  int n = mat->num_block_rows;
-  int bs = mat->block_size;
-  fprintf(stream, "Block diagonal matrix: (%d rows):", n * bs);
-  for (int i = 0; i < n; ++i)
-  {
-    fprintf(stream, "\nRows %6d - %6d: ", i*bs, (i+1)*bs - 1);
-    matrix_fprintf(&mat->coeffs[i * bs * bs], bs, bs, stream);
-  }
-  fprintf(stream, "\n");
-}
+} block_jacobi_preconditioner_t;
 
 static void bd_dtor(void* context)
 {
-  bd_mat_t* mat = context;
-  polymec_free(mat->coeffs);
-  polymec_free(mat);
+  bd_mat_t* P = context;
+  polymec_free(P->coeffs);
+  polymec_free(P);
 }
 
-static preconditioner_matrix_t* block_jacobi_preconditioner_matrix(void* context)
+static bd_mat_t* block_jacobi_matrix(block_jacobi_preconditioner_t* precond)
 {
-  block_jacobi_preconditioner_t* precond = context;
-  preconditioner_matrix_vtable vtable = {.scale_and_shift = bd_scale_and_shift,
-                                         .add = bd_add,
-                                         .coeff = bd_coeff,
-                                         .fprintf = bd_fprintf,
-                                         .dtor = bd_dtor};
   int bs = precond->block_size;
-  int num_rows = precond->num_block_rows * bs;
-  bd_mat_t* mat = polymec_malloc(sizeof(bd_mat_t));
-  mat->num_block_rows = precond->num_block_rows;
-  mat->block_size = bs;
-  mat->coeffs = polymec_malloc(sizeof(real_t) * mat->num_block_rows * bs * bs);
-  memset(mat->coeffs, 0, sizeof(real_t) * mat->num_block_rows * bs * bs);
-  return preconditioner_matrix_new("Block-diagonal", mat, vtable, num_rows);
+  bd_mat_t* P = polymec_malloc(sizeof(bd_mat_t));
+  P->num_block_rows = precond->num_block_rows;
+  P->block_size = bs;
+  P->coeffs = polymec_malloc(sizeof(real_t) * P->num_block_rows * bs * bs);
+  memset(P->coeffs, 0, sizeof(real_t) * P->num_block_rows * bs * bs);
+  return P;
 }
 
-// Here's our finite difference implementation of the Jacobian matrix-vector 
+// Here's our finite difference implementation of the dF/dx matrix-vector 
 // product. 
-static void finite_diff_Jv(int (*F)(void* context, real_t t, real_t* x, real_t* F), 
-                           void* context, 
-                           real_t* x, 
-                           real_t t, 
-                           int num_rows,
-                           real_t* v, 
-                           real_t** work, 
-                           real_t* Jv)
+static void finite_diff_dFdx_v(int (*F)(void* context, real_t t, real_t* x, real_t* xdot, real_t* F), 
+                               void* context, 
+                               real_t t, 
+                               real_t* x, 
+                               real_t* xdot, 
+                               int num_rows,
+                               real_t* v, 
+                               real_t** work, 
+                               real_t* dFdx_v)
 {
   real_t eps = sqrt(UNIT_ROUNDOFF);
 
   // work[0] == v
-  // work[1] contains F(x).
-  // work[2] == u + eps*v
-  // work[3] == F(x + eps*v)
+  // work[1] contains F(t, x, xdot).
+  // work[2] == x + eps*v
+  // work[3] == F(t, x + eps*v)
 
-  // u + eps*v -> work[2].
+  // x + eps*v -> work[2].
   for (int i = 0; i < num_rows; ++i)
     work[2][i] = x[i] + eps*v[i];
 
-  // F(t, x + eps*v) -> work[3].
-  F(context, t, work[2], work[3]);
+  // F(t, x + eps*v, xdot) -> work[3].
+  F(context, t, work[2], xdot, work[3]);
 
-  // (F(x + eps*v) - F(x)) / eps -> Jv
+  // (F(t, x + eps*v, xdot) - F(t, x, xdot)) / eps -> (dF/dx) * v
   for (int i = 0; i < num_rows; ++i)
-    Jv[i] = (work[3][i] - work[1][i]) / eps;
+    dFdx_v[i] = (work[3][i] - work[1][i]) / eps;
 }
 
-static void insert_Jv_into_bd_mat(adj_graph_t* graph,
-                                  adj_graph_coloring_t* coloring, 
-                                  int color, 
-                                  real_t* Jv, 
-                                  bd_mat_t* J)
+// Here's the same finite difference calculation for dF/d(xdot).
+static void finite_diff_dFdxdot_v(int (*F)(void* context, real_t t, real_t* x, real_t* xdot, real_t* F), 
+                                  void* context, 
+                                  real_t t, 
+                                  real_t* x, 
+                                  real_t* xdot, 
+                                  int num_rows,
+                                  real_t* v, 
+                                  real_t** work, 
+                                  real_t* dFdxdot_v)
+{
+  real_t eps = sqrt(UNIT_ROUNDOFF);
+
+  // work[0] == v
+  // work[1] contains F(t, x, xdot).
+  // work[2] == xdot + eps*v
+  // work[3] == F(t, x, xdot + eps*v)
+
+  // xdot + eps*v -> work[2].
+  for (int i = 0; i < num_rows; ++i)
+    work[2][i] = xdot[i] + eps*v[i];
+
+  // F(t, x, xdot + eps*v) -> work[3].
+  F(context, t, x, work[2], work[3]);
+
+  // (F(t, x, xdot + eps*v) - F(t, x, xdot)) / eps -> (dF/dx) * v
+  for (int i = 0; i < num_rows; ++i)
+    dFdxdot_v[i] = (work[3][i] - work[1][i]) / eps;
+}
+
+static void add_Jv_into_bd_mat(adj_graph_t* graph,
+                               adj_graph_coloring_t* coloring, 
+                               int color, 
+                               real_t factor,
+                               real_t* Jv, 
+                               bd_mat_t* J)
 {
   int bs = J->block_size;
   int pos = 0, i;
@@ -183,17 +149,59 @@ static void insert_Jv_into_bd_mat(adj_graph_t* graph,
     for (int j = block_col*bs; j < (block_col+1)*bs; ++j)
     {
       int r = j % bs;
-      J->coeffs[block_col*bs*bs + c*bs + r] = Jv[j];
+      J->coeffs[block_col*bs*bs + c*bs + r] += factor * Jv[j];
     }
   }
 }
 
-static void block_jacobi_preconditioner_compute_jacobian(void* context, real_t t, real_t* x, preconditioner_matrix_t* mat)
+// This function adapts non-DAE functions F(t, x) to DAE ones F(t, x, xdot).
+static int F_adaptor(void* context, real_t t, real_t* x, real_t* xdot, real_t* Fval)
+{
+  ASSERT(xdot == NULL);
+
+  // We are passed the actual preconditioner as our context pointer, so get the 
+  // "real" one here.
+  block_jacobi_preconditioner_t* pc = context;
+  void* ctx = pc->context;
+  return pc->F(ctx, t, x, Fval);
+}
+
+static void block_jacobi_preconditioner_setup(void* context, real_t alpha, real_t beta, real_t gamma,
+                                              real_t t, real_t* x, real_t* xdot)
 {
   block_jacobi_preconditioner_t* precond = context;
   adj_graph_t* graph = precond->sparsity;
   adj_graph_coloring_t* coloring = precond->coloring;
   real_t** work = precond->work;
+
+  // Zero our preconditioner matrix and set the diagonal term.
+  {
+    bd_mat_t* P = precond->P;
+    int n = P->num_block_rows;
+    int bs = P->block_size;
+    memset(P->coeffs, 0, sizeof(real_t) * n * bs * bs);
+    for (int i = 0; i < n; ++i)
+    {
+      real_t* A = &P->coeffs[i*bs*bs];
+      for (int j = 0; j < bs; ++j)
+        A[j*bs+j] = alpha;
+    }
+  }
+
+  int (*F)(void* context, real_t t, real_t* x, real_t* xdot, real_t* Fval);
+  void* F_context;
+  if (precond->dae_F != NULL)
+  {
+    ASSERT(xdot != NULL);
+    F = precond->dae_F;
+    F_context = precond->context;
+  }
+  else
+  {
+    ASSERT(xdot == NULL);
+    F = F_adaptor;
+    F_context = precond;
+  }
 
   // We compute the system Jacobian using the method described in 
   // Curtis, Powell, and Reed.
@@ -209,33 +217,38 @@ static void block_jacobi_preconditioner_compute_jacobian(void* context, real_t t
     while (adj_graph_coloring_next_vertex(coloring, c, &pos, &i))
       work[0][i] = 1.0;
 
-    // We evaluate F(x) and place it into work[1].
-    precond->F(precond->context, t, x, work[1]);
+    // We evaluate F(t, x, xdot) and place it into work[1].
+    F(F_context, t, x, xdot, work[1]);
 
-    // Now evaluate the matrix-vector product.
+    // Evaluate dF/dx and stash it in P.
     memset(Jv, 0, sizeof(real_t) * num_rows);
-    finite_diff_Jv(precond->F, precond->context, x, t, num_rows, work[0], work, Jv);
+    finite_diff_dFdx_v(F, F_context, t, x, xdot, num_rows, work[0], work, Jv);
+    add_Jv_into_bd_mat(graph, coloring, c, beta, Jv, precond->P);
 
-    // Copy the components of Jv into their proper locations.
-    bd_mat_t* J = preconditioner_matrix_context(mat);
-    insert_Jv_into_bd_mat(graph, coloring, c, Jv, J);
+    if (xdot != NULL)
+    {
+      // Now evaluate dF/d(xdot) and do the same.
+      memset(Jv, 0, sizeof(real_t) * num_rows);
+      finite_diff_dFdxdot_v(F, F_context, t, x, xdot, num_rows, work[0], work, Jv);
+      add_Jv_into_bd_mat(graph, coloring, c, gamma, Jv, precond->P);
+    }
   }
   polymec_free(Jv);
 }
 
 
-static bool block_jacobi_preconditioner_solve(void* context, preconditioner_matrix_t* A, real_t* B)
+static bool block_jacobi_preconditioner_solve(void* context, real_t* B)
 {
   block_jacobi_preconditioner_t* precond = context;
   int bs = precond->block_size;
-  bd_mat_t* mat = preconditioner_matrix_context(A);
+  bd_mat_t* P = precond->P;
 
   bool success = false;
   for (int i = 0; i < precond->num_block_rows; ++i)
   {
     // Copy the block for this row into place.
     real_t Aij[bs*bs], bi[bs];
-    memcpy(Aij, &mat->coeffs[i*bs*bs], sizeof(real_t)*bs*bs);
+    memcpy(Aij, &P->coeffs[i*bs*bs], sizeof(real_t)*bs*bs);
     memcpy(bi, &B[i*bs], sizeof(real_t)*bs);
 
     // Replace each zero on the diagonal of Aij with a small number.
@@ -261,13 +274,26 @@ static bool block_jacobi_preconditioner_solve(void* context, preconditioner_matr
       ASSERT(info > 0);
       log_debug("block_jacobi_preconditioner_solve: call to dgesv failed for block row %d.", i);
       log_debug("(U is singular).", i);
-      if (log_level() == LOG_DEBUG)
-        bd_fprintf(mat, log_stream(LOG_DEBUG));
       break;
     }
   }
 
   return success;
+}
+
+static void block_jacobi_preconditioner_fprintf(void* context, FILE* stream)
+{
+  block_jacobi_preconditioner_t* precond = context;
+  bd_mat_t* P = precond->P;
+  int n = P->num_block_rows;
+  int bs = P->block_size;
+  fprintf(stream, "Block Jacobian preconditioner matrix: (%d rows):", n * bs);
+  for (int i = 0; i < n; ++i)
+  {
+    fprintf(stream, "\nRows %6d - %6d: ", i*bs, (i+1)*bs - 1);
+    matrix_fprintf(&P->coeffs[i * bs * bs], bs, bs, stream);
+  }
+  fprintf(stream, "\n");
 }
 
 static void block_jacobi_preconditioner_dtor(void* context)
@@ -281,11 +307,10 @@ static void block_jacobi_preconditioner_dtor(void* context)
   polymec_free(precond);
 }
 
-preconditioner_t* block_jacobi_preconditioner_new(void* context,
-                                                  int (*residual_func)(void* context, real_t t, real_t* x, real_t* F),
-                                                  adj_graph_t* sparsity,
-                                                  int num_block_rows,
-                                                  int block_size)
+static preconditioner_t* general_block_jacobi_preconditioner_new(void* context,
+                                                                 adj_graph_t* sparsity,
+                                                                 int num_block_rows,
+                                                                 int block_size)
 {
   ASSERT(num_block_rows > 0);
   ASSERT(block_size > 0);
@@ -303,10 +328,12 @@ preconditioner_t* block_jacobi_preconditioner_new(void* context,
   precond->coloring = adj_graph_coloring_new(precond->sparsity, SMALLEST_LAST);
   log_debug("Block Jacobi preconditioner: graph coloring produced %d colors.", 
             adj_graph_coloring_num_colors(precond->coloring));
-  precond->F = residual_func;
   precond->context = context;
   precond->num_block_rows = num_block_rows;
   precond->block_size = block_size;
+  precond->P = block_jacobi_matrix(precond);
+  precond->F = NULL;
+  precond->dae_F = NULL;
 
   // Make work vectors.
   precond->num_work_vectors = 4;
@@ -314,100 +341,36 @@ preconditioner_t* block_jacobi_preconditioner_new(void* context,
   for (int i = 0; i < precond->num_work_vectors; ++i)
     precond->work[i] = polymec_malloc(sizeof(real_t) * precond->num_block_rows * precond->block_size);
 
-  preconditioner_vtable vtable = {.matrix = block_jacobi_preconditioner_matrix,
-                                  .compute_jacobian = block_jacobi_preconditioner_compute_jacobian,
+  preconditioner_vtable vtable = {.setup = block_jacobi_preconditioner_setup,
                                   .solve = block_jacobi_preconditioner_solve,
+                                  .fprintf = block_jacobi_preconditioner_fprintf,
                                   .dtor = block_jacobi_preconditioner_dtor};
   return preconditioner_new("Block Jacobi preconditioner", precond, vtable);
 }
 
-// DAE preconditioner type.
-typedef struct
+preconditioner_t* block_jacobi_preconditioner_new(void* context,
+                                                  int (*F)(void* context, real_t t, real_t* x, real_t* func),
+                                                  adj_graph_t* sparsity,
+                                                  int num_block_rows,
+                                                  int block_size)
 {
-  void* context; // Context.
-
-  int num_block_rows, block_size;
-
-  // Preconditioners and matrices for dF/dx and dF/d(x_dot).
-  preconditioner_t *dFdx_precond, *dFdxdot_precond;
-
-  // Virtual table.
-  int (*F)(void* context, real_t t, real_t* x, real_t* x_dot, real_t* F);
-
-  // States (x and x_dot) about which derivatives are computed.
-  real_t *x0, *x_dot0;
-} block_jacobi_dae_preconditioner_t;
-
-// This adaptor function serves to compute the preconditioner matrix for dF/dx. 
-static int block_jacobi_dae_compute_res_for_x(void* context, real_t t, real_t* x, real_t* F)
-{
-  block_jacobi_dae_preconditioner_t* precond = context;
-  real_t* x_dot = precond->x_dot0;
-  return precond->F(precond->context, t, x, x_dot, F);
-}
-
-// This adaptor function serves to compute the preconditioner matrix for dF/d(x_dot). 
-static int block_jacobi_dae_compute_res_for_x_dot(void* context, real_t t, real_t* x_dot, real_t* F)
-{
-  block_jacobi_dae_preconditioner_t* precond = context;
-  real_t* x = precond->x0;
-  return precond->F(precond->context, t, x, x_dot, F);
-}
-
-static preconditioner_matrix_t* block_jacobi_dae_preconditioner_matrix(void* context)
-{
-  block_jacobi_dae_preconditioner_t* precond = context;
-  return preconditioner_matrix(precond->dFdx_precond);
-}
-
-static void block_jacobi_dae_preconditioner_compute_dae_jacobians(void* context, real_t t, real_t* x, real_t* x_dot, preconditioner_matrix_t* dFdx, preconditioner_matrix_t* dFdxdot)
-{
-  block_jacobi_dae_preconditioner_t* precond = context;
-  int N = precond->num_block_rows * precond->block_size;
-  memcpy(precond->x0, x, sizeof(real_t) * N);
-  memcpy(precond->x_dot0, x_dot, sizeof(real_t) * N);
-  preconditioner_compute_jacobian(precond->dFdx_precond, t, x, dFdx);
-  preconditioner_compute_jacobian(precond->dFdxdot_precond, t, x_dot, dFdxdot);
-}
-
-static bool block_jacobi_dae_preconditioner_solve(void* context, preconditioner_matrix_t* A, real_t* B)
-{
-  block_jacobi_dae_preconditioner_t* precond = context;
-  return preconditioner_solve(precond->dFdx_precond, A, B);
-}
-
-static void block_jacobi_dae_preconditioner_dtor(void* context)
-{
-  block_jacobi_dae_preconditioner_t* precond = context;
-  preconditioner_free(precond->dFdx_precond);
-  preconditioner_free(precond->dFdxdot_precond);
-  polymec_free(precond->x0);
-  polymec_free(precond->x_dot0);
-  polymec_free(precond);
+  ASSERT(F != NULL);
+  preconditioner_t* pc = general_block_jacobi_preconditioner_new(context, sparsity, num_block_rows, block_size);
+  block_jacobi_preconditioner_t* bj = preconditioner_context(pc);
+  bj->F = F;
+  return pc;
 }
 
 preconditioner_t* block_jacobi_dae_preconditioner_new(void* context,
-                                                      int (*residual_func)(void* context, real_t t, real_t* x, real_t* x_dot, real_t* F),
+                                                      int (*F)(void* context, real_t t, real_t* x, real_t* xdot, real_t* func),
                                                       adj_graph_t* sparsity,
                                                       int num_block_rows,
                                                       int block_size)
 {
-  block_jacobi_dae_preconditioner_t* precond = polymec_malloc(sizeof(block_jacobi_dae_preconditioner_t));
-  precond->dFdx_precond = block_jacobi_preconditioner_new(precond, block_jacobi_dae_compute_res_for_x, sparsity, num_block_rows, block_size);
-  precond->dFdxdot_precond = block_jacobi_preconditioner_new(precond, block_jacobi_dae_compute_res_for_x_dot, sparsity, num_block_rows, block_size);
-  precond->F = residual_func;
-  precond->context = context;
-
-  // Preconditioner data.
-  precond->num_block_rows = num_block_rows;
-  precond->block_size = block_size;
-  precond->x0 = polymec_malloc(sizeof(real_t) * (num_block_rows*block_size));
-  precond->x_dot0 = polymec_malloc(sizeof(real_t) * (num_block_rows*block_size));
-
-  preconditioner_vtable vtable = {.matrix = block_jacobi_dae_preconditioner_matrix,
-                                  .compute_dae_jacobians = block_jacobi_dae_preconditioner_compute_dae_jacobians,
-                                  .solve = block_jacobi_dae_preconditioner_solve,
-                                  .dtor = block_jacobi_dae_preconditioner_dtor};
-  return preconditioner_new("Block Jacobi DAE preconditioner", precond, vtable);
+  ASSERT(F != NULL);
+  preconditioner_t* pc = general_block_jacobi_preconditioner_new(context, sparsity, num_block_rows, block_size);
+  block_jacobi_preconditioner_t* bj = preconditioner_context(pc);
+  bj->dae_F = F;
+  return pc;
 }
 

@@ -62,7 +62,6 @@ struct nonlinear_integrator_t
 
   // Preconditioning stuff.
   preconditioner_t* precond;
-  preconditioner_matrix_t* precond_mat;
 
   // Null space information.
   bool homogeneous_functions_in_null_space;
@@ -112,7 +111,7 @@ static int set_up_preconditioner(N_Vector x, N_Vector x_scale,
 {
   nonlinear_integrator_t* integrator = context;
   real_t t = integrator->current_time;
-  preconditioner_compute_jacobian(integrator->precond, t, NV_DATA(x), integrator->precond_mat);
+  preconditioner_setup(integrator->precond, 0.0, 1.0, 0.0, t, NV_DATA(x), NULL);
   return 0;
 }
 
@@ -131,7 +130,7 @@ static int solve_preconditioner_system(N_Vector x, N_Vector x_scale,
   // Project r out of the null space.
   project_out_of_null_space(integrator, NV_DATA(r));
 
-  if (preconditioner_solve(integrator->precond, integrator->precond_mat, NV_DATA(r)))
+  if (preconditioner_solve(integrator->precond, NV_DATA(r)))
     return 0;
   else 
   {
@@ -216,7 +215,6 @@ static nonlinear_integrator_t* nonlinear_integrator_new(const char* name,
   }
 
   integrator->precond = NULL;
-  integrator->precond_mat = NULL;
   integrator->current_time = 0.0;
 
   // Set up the null space.
@@ -272,8 +270,6 @@ void nonlinear_integrator_free(nonlinear_integrator_t* integrator)
   // Kill the preconditioner stuff.
   if (integrator->precond != NULL)
     preconditioner_free(integrator->precond);
-  if (integrator->precond_mat != NULL)
-    preconditioner_matrix_free(integrator->precond_mat);
 
   // Kill the KINSol stuff.
   N_VDestroy(integrator->x);
@@ -324,14 +320,11 @@ void nonlinear_integrator_set_preconditioner(nonlinear_integrator_t* integrator,
                                              preconditioner_t* precond)
 {
   integrator->precond = precond;
-  if (integrator->precond_mat != NULL)
-    preconditioner_matrix_free(integrator->precond_mat);
-  integrator->precond_mat = preconditioner_matrix(precond);
 }
 
-preconditioner_matrix_t* nonlinear_integrator_preconditioner_matrix(nonlinear_integrator_t* integrator)
+preconditioner_t* nonlinear_integrator_preconditioner(nonlinear_integrator_t* integrator)
 {
-  return integrator->precond_mat;
+  return integrator->precond;
 }
 
 void nonlinear_integrator_set_null_space(nonlinear_integrator_t* integrator,
