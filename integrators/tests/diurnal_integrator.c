@@ -194,7 +194,10 @@ static int diurnal_rhs(void* context, real_t t, real_t* u, real_t* udot)
   int jx, jy, idn, iup, ileft, iright;
   diurnal_t* data = context;
 
-  /* Set diurnal rate coefficients. */
+  // We don't bother with FPE for now.
+  polymec_suspend_fpe();
+
+  // Set diurnal rate coefficients. 
 
   s = sin(data->om*t);
   if (s > ZERO) {
@@ -266,6 +269,9 @@ static int diurnal_rhs(void* context, real_t t, real_t* u, real_t* udot)
       IJKth(udot, 2, jx, jy) = vertd2 + hord2 + horad2 + rkin2;
     }
   }
+
+  // Resume FPE.
+  polymec_restore_fpe();
 
   return 0;
 }

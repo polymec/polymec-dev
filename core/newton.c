@@ -162,14 +162,14 @@ bool newton_solver_solve_scaled(newton_solver_t* solver, real_t* X, real_t* x_sc
   memcpy(NV_DATA_S(solver->x), X, sizeof(real_t) * solver->dim);
 
   // Suspend the currently active floating point exceptions for now.
-  polymec_suspend_fpe_exceptions();
+  polymec_suspend_fpe();
 
   // Solve.
   int status = KINSol(solver->kinsol, solver->x, KIN_LINESEARCH, 
                       solver->x_scale, solver->F_scale);
 
   // Reinstate the floating point exceptions.
-  polymec_restore_fpe_exceptions();
+  polymec_restore_fpe();
 
   if ((status == KIN_SUCCESS) || (status == KIN_INITIAL_GUESS_OK))
   {

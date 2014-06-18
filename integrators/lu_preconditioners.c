@@ -62,19 +62,19 @@ static void supermatrix_eye(SuperMatrix* mat, real_t diag_val)
   int num_cols = mat->ncol;
   NCformat* data = mat->Store;
   real_t* Aij = data->nzval;
+
+  // Zero the matrix coefficients.
+  memset(Aij, 0, data->colptr[num_cols]);
+
+  // Set the diagonal values.
   for (int j = 0; j < num_cols; ++j)
   {
     int col_index = data->colptr[j];
     Aij[col_index] = diag_val;
-
-    // Zero off-diagonal values.
-    size_t num_rows = data->colptr[j+1] - col_index;
-    for (int i = 1; i < num_rows; ++i)
-      Aij[col_index + i] = 0.0;
   }
 }
 
-static void supermatrix_dtor(SuperMatrix* matrix)
+static void supermatrix_free(SuperMatrix* matrix)
 {
   switch(matrix->Stype) {
   case SLU_DN:
@@ -207,10 +207,10 @@ static void add_Jv_into_supermatrix(adj_graph_t* graph,
   int pos = 0, i;
   while (adj_graph_coloring_next_vertex(coloring, color, &pos, &i))
   {
-    // Fill in the diagonal element.
-    Jij[data->colptr[i]] = Jv[i];
+    // Add in the diagonal element.
+    Jij[data->colptr[i]] += Jv[i];
       
-    // Fill in off-diagonal column values.
+    // Add in off-diagonal column values.
     int pos = 0, j;
     while (adj_graph_next_edge(graph, i, &pos, &j))
     {
@@ -369,7 +369,7 @@ static void lu_preconditioner_dtor(void* context)
   Destroy_SuperMatrix_Store(&precond->rhs);
   polymec_free(precond->rhs_data);
   Destroy_SuperMatrix_Store(&precond->X);
-  supermatrix_dtor(precond->P);
+  supermatrix_free(precond->P);
   polymec_free(precond->X_data);
   StatFree(&precond->stat);
   for (int i = 0; i < precond->num_work_vectors; ++i)

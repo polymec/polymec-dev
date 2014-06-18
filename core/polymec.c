@@ -92,7 +92,7 @@ static void shutdown()
 
   MPI_Finalize();
 #ifndef NDEBUG
-  polymec_disable_fpe_exceptions();
+  polymec_disable_fpe();
 #endif
 }
 
@@ -105,7 +105,7 @@ void polymec_init(int argc, char** argv)
 
 #ifndef NDEBUG
     // By default, we enable floating point exceptions for debug builds.
-    polymec_enable_fpe_exceptions();
+    polymec_enable_fpe();
 #endif
 
     // Jot down command line args (use regular malloc).
@@ -228,7 +228,7 @@ void polymec_warn(const char* message, ...)
   va_end(argp);
 }
 
-void polymec_enable_fpe_exceptions()
+void polymec_enable_fpe()
 {
   feclearexcept(FE_ALL_EXCEPT);
 #ifdef Linux
@@ -246,7 +246,7 @@ void polymec_enable_fpe_exceptions()
 #endif
 }
 
-void polymec_disable_fpe_exceptions()
+void polymec_disable_fpe()
 {
 #ifdef Linux
   fedisableexcept(fegetexcept());
@@ -263,13 +263,13 @@ void polymec_disable_fpe_exceptions()
 // kung fu.
 static fenv_t fpe_env;
 
-void polymec_suspend_fpe_exceptions()
+void polymec_suspend_fpe()
 {
   // Hold exceptions till further notice.
   feholdexcept(&fpe_env);
 }
 
-void polymec_restore_fpe_exceptions()
+void polymec_restore_fpe()
 {
   // Clear all exception flags.
   feclearexcept(FE_ALL_EXCEPT);

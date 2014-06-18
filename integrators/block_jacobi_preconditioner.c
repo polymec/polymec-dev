@@ -54,14 +54,13 @@ typedef struct
 
 } block_jacobi_preconditioner_t;
 
-static void bd_dtor(void* context)
+static void block_jacobi_matrix_free(bd_mat_t* mat)
 {
-  bd_mat_t* P = context;
-  polymec_free(P->coeffs);
-  polymec_free(P);
+  polymec_free(mat->coeffs);
+  polymec_free(mat);
 }
 
-static bd_mat_t* block_jacobi_matrix(block_jacobi_preconditioner_t* precond)
+static bd_mat_t* block_jacobi_matrix_new(block_jacobi_preconditioner_t* precond)
 {
   int bs = precond->block_size;
   bd_mat_t* P = polymec_malloc(sizeof(bd_mat_t));
@@ -302,6 +301,7 @@ static void block_jacobi_preconditioner_dtor(void* context)
   for (int i = 0; i < precond->num_work_vectors; ++i)
     polymec_free(precond->work[i]);
   polymec_free(precond->work);
+  block_jacobi_matrix_free(precond->P);
   adj_graph_coloring_free(precond->coloring);
   adj_graph_free(precond->sparsity);
   polymec_free(precond);
@@ -331,7 +331,7 @@ static preconditioner_t* general_block_jacobi_preconditioner_new(void* context,
   precond->context = context;
   precond->num_block_rows = num_block_rows;
   precond->block_size = block_size;
-  precond->P = block_jacobi_matrix(precond);
+  precond->P = block_jacobi_matrix_new(precond);
   precond->F = NULL;
   precond->dae_F = NULL;
 
