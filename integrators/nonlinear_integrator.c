@@ -188,10 +188,6 @@ static nonlinear_integrator_t* nonlinear_integrator_new(const char* name,
   else
     KINSptfqmr(integrator->kinsol, integrator->max_krylov_dim);
 
-  // Set up the preconditioner.
-  KINSpilsSetPreconditioner(integrator->kinsol, set_up_preconditioner,
-                            solve_preconditioner_system);
-
   // Enable debugging diagnostics if logging permits.
   FILE* info_stream = log_stream(LOG_DEBUG);
   if (info_stream != NULL)
@@ -320,6 +316,13 @@ void nonlinear_integrator_set_preconditioner(nonlinear_integrator_t* integrator,
                                              preconditioner_t* precond)
 {
   integrator->precond = precond;
+
+  // Set up the preconditioner.
+  if (integrator->precond != NULL)
+  {
+    KINSpilsSetPreconditioner(integrator->kinsol, set_up_preconditioner,
+                              solve_preconditioner_system);
+  }
 }
 
 preconditioner_t* nonlinear_integrator_preconditioner(nonlinear_integrator_t* integrator)
