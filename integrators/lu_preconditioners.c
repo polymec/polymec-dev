@@ -74,76 +74,6 @@ static void supermatrix_eye(SuperMatrix* mat, real_t diag_val)
   }
 }
 
-static void supermatrix_scale_and_shift(void* context, real_t gamma)
-{
-  SuperMatrix* mat = context;
-  int num_cols = mat->ncol;
-  NCformat* data = mat->Store;
-  real_t* Aij = data->nzval;
-  for (int j = 0; j < num_cols; ++j)
-  {
-    int col_index = data->colptr[j];
-
-    // Scale and shift diagonal value.
-    Aij[col_index] = gamma * Aij[col_index] + 1.0;
-
-    // Scale off-diagonal values.
-    size_t num_rows = data->colptr[j+1] - col_index;
-    for (int i = 1; i < num_rows; ++i)
-      Aij[col_index + i] *= gamma;
-  }
-}
-
-static void supermatrix_add(void* A_context, real_t alpha, void* B_context)
-{
-  // For now, we assume that the adjacency graphs for the matrices A and 
-  // B are identical. I think this is the only forseeable use case.
-  SuperMatrix* A = A_context;
-  SuperMatrix* B = B_context;
-  ASSERT(A->ncol == B->ncol);
-  int num_cols = A->ncol;
-  NCformat* A_data = A->Store;
-  real_t* Aij = A_data->nzval;
-  NCformat* B_data = B->Store;
-  real_t* Bij = B_data->nzval;
-  for (int j = 0; j < num_cols; ++j)
-  {
-    int col_index = A_data->colptr[j];
-    ASSERT(col_index == B_data->colptr[j]);
-
-    // Add the scaled diagonal value.
-    Aij[col_index] += alpha * Bij[col_index];
-
-    // Add the scaled off-diagonal values.
-    size_t num_rows = A_data->colptr[j+1] - col_index;
-    ASSERT(num_rows == (B_data->colptr[j+1] - col_index));
-    for (int i = 1; i < num_rows; ++i)
-      Aij[col_index + i] += alpha * Bij[col_index + i];
-  }
-}
-
-static real_t supermatrix_coeff(void* context, int i, int j)
-{
-  SuperMatrix* mat = context;
-  NCformat* data = mat->Store;
-  real_t* Aij = data->nzval;
-  if (i == j)
-    return Aij[data->colptr[i]];
-  else
-  {
-    int col_index = data->colptr[j];
-    size_t num_rows = data->colptr[j+1] - col_index;
-    int* entry = int_bsearch(&data->rowind[col_index+1], num_rows - 1, i);
-    if (entry == NULL)
-      return 0.0;
-    else
-    {
-      size_t offset = entry - &data->rowind[col_index];
-      return Aij[data->colptr[j] + offset];
-    }
-  }
-}
-
 static void supermatrix_dtor(SuperMatrix* matrix)
 {
   switch(matrix->Stype) {
@@ -354,7 +284,7 @@ static void lu_preconditioner_setup(void* context, real_t alpha, real_t beta, re
     add_Jv_into_supermatrix(graph, coloring, c, beta, Jv, precond->P);
 
     // Do the same for dF/d(xdot).
-    if (xdot != NULL)
+    if ((gamma != 0.0) && (xdot != NULL))
     {
       memset(Jv, 0, sizeof(real_t) * num_rows);
       finite_diff_dFdxdot_v(F, F_context, t, x, xdot, num_rows, work[0], work, Jv);

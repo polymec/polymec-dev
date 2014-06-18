@@ -225,7 +225,7 @@ static void block_jacobi_preconditioner_setup(void* context, real_t alpha, real_
     finite_diff_dFdx_v(F, F_context, t, x, xdot, num_rows, work[0], work, Jv);
     add_Jv_into_bd_mat(graph, coloring, c, beta, Jv, precond->P);
 
-    if (xdot != NULL)
+    if ((gamma != 0.0) && (xdot != NULL))
     {
       // Now evaluate dF/d(xdot) and do the same.
       memset(Jv, 0, sizeof(real_t) * num_rows);
