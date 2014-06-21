@@ -81,8 +81,12 @@ void conduction_solver_get_bc_arrays(krylov_solver_t* solver, const char* face_t
                                      real_t** alpha, real_t** beta, real_t** gamma, int* num_faces);
 
 // This type implements a Jacobi preconditioner that can be used to solve 
-// the above conduction equation.
-preconditioner_t* jacobi_conduction_pc_new(mesh_t* mesh);
+// the above conduction equation. The context pointer is used with the
+// update_lambda function to set the value of the conduction coefficient.
+preconditioner_t* jacobi_conduction_pc_new(void* context, 
+                                           void (*update_lambda)(void* context, real_t t, real_t* lambda),
+                                           void (*dtor)(void* context),
+                                           mesh_t* mesh);
 
 // Returns an internal pointer to the array that stores the cell-centered 
 // values of lambda for the preconditioner. By default, lambda is set to 

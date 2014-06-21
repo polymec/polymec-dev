@@ -314,6 +314,9 @@ void conduction_solver_get_bc_arrays(krylov_solver_t* solver, const char* face_t
 
 typedef struct
 {
+  void* context;
+  void (*update_lambda)(void* context, real_t t, real_t* lambda);
+  void (*dtor)(void* context);
   mesh_t* mesh;
   real_t *lambda;
 } cond_pc_t;
@@ -327,6 +330,11 @@ static void bjc_compute_diagonal(void* context, int block_size,
   ASSERT(gamma == 0.0);
 
   cond_pc_t* pc = context;
+
+  // Update the conduction coefficient.
+  if (pc->update_lambda != NULL)
+    pc->update_lambda(pc->context, t, pc->lambda);
+
   mesh_t* mesh = pc->mesh;
   for (int cell = 0; cell < pc->mesh->num_cells; ++cell)
   {
@@ -366,12 +374,20 @@ static void bjc_dtor(void* context)
 {
   cond_pc_t* pc = context;
   polymec_free(pc->lambda);
+  if ((pc->dtor != NULL) && (pc->context != NULL))
+    pc->dtor(pc->context);
   polymec_free(pc);
 }
 
-preconditioner_t* jacobi_conduction_pc_new(mesh_t* mesh)
+preconditioner_t* jacobi_conduction_pc_new(void* context,
+                                           void (*update_lambda)(void* context, real_t t, real_t* lambda),
+                                           void (*dtor)(void* context),
+                                           mesh_t* mesh)
 {
   cond_pc_t* pc = polymec_malloc(sizeof(cond_pc_t));
+  pc->context = context;
+  pc->dtor = dtor;
+  pc->update_lambda = update_lambda;
   pc->mesh = mesh;
   pc->lambda = polymec_malloc(sizeof(real_t) * pc->mesh->num_cells);
   return block_jacobi_preconditioner_new(pc, bjc_compute_diagonal, bjc_dtor, pc->mesh->num_cells, 1);
