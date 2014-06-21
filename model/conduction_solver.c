@@ -315,7 +315,7 @@ void conduction_solver_get_bc_arrays(krylov_solver_t* solver, const char* face_t
 typedef struct
 {
   mesh_t* mesh;
-  real_t *lambda, *f;
+  real_t *lambda;
 } cond_pc_t;
 
 static void bjc_compute_diagonal(void* context, int block_size, 
@@ -366,16 +366,14 @@ static void bjc_dtor(void* context)
 {
   cond_pc_t* pc = context;
   polymec_free(pc->lambda);
-  polymec_free(pc->f);
   polymec_free(pc);
 }
 
-preconditioner_t* jacobi_conduction_pc(mesh_t* mesh)
+preconditioner_t* jacobi_conduction_pc_new(mesh_t* mesh)
 {
   cond_pc_t* pc = polymec_malloc(sizeof(cond_pc_t));
   pc->mesh = mesh;
   pc->lambda = polymec_malloc(sizeof(real_t) * pc->mesh->num_cells);
-  pc->f = polymec_malloc(sizeof(real_t) * pc->mesh->num_cells);
   return block_jacobi_preconditioner_new(pc, bjc_compute_diagonal, bjc_dtor, pc->mesh->num_cells, 1);
 }
 
@@ -385,8 +383,3 @@ real_t* jacobi_conduction_pc_lambda(preconditioner_t* pc)
   return pcc->lambda;
 }
 
-real_t* jacobi_conduction_pc_f(preconditioner_t* pc)
-{
-  cond_pc_t* pcc = block_jacobi_preconditioner_context(pc);
-  return pcc->f;
-}
