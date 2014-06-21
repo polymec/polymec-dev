@@ -370,7 +370,7 @@ static void bjc_dtor(void* context)
   polymec_free(pc);
 }
 
-preconditioner_t* block_jacobi_conduction_pc(mesh_t* mesh)
+preconditioner_t* jacobi_conduction_pc(mesh_t* mesh)
 {
   cond_pc_t* pc = polymec_malloc(sizeof(cond_pc_t));
   pc->mesh = mesh;
@@ -379,13 +379,13 @@ preconditioner_t* block_jacobi_conduction_pc(mesh_t* mesh)
   return block_jacobi_preconditioner_new(pc, bjc_compute_diagonal, bjc_dtor, pc->mesh->num_cells, 1);
 }
 
-real_t* block_jacobi_conduction_pc_lambda(preconditioner_t* pc)
+real_t* jacobi_conduction_pc_lambda(preconditioner_t* pc)
 {
   cond_pc_t* pcc = block_jacobi_preconditioner_context(pc);
   return pcc->lambda;
 }
 
-real_t* block_jacobi_conduction_pc_f(preconditioner_t* pc)
+real_t* jacobi_conduction_pc_f(preconditioner_t* pc)
 {
   cond_pc_t* pcc = block_jacobi_preconditioner_context(pc);
   return pcc->f;
