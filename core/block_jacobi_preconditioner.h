@@ -38,6 +38,10 @@ preconditioner_t* block_jacobi_preconditioner_new(void* context,
                                                   int num_block_rows,
                                                   int block_size);
 
+// Use this to retrieve the context pointer for the given block Jacobi 
+// preconditioner. DON'T use this unless you know what you're doing.
+void* block_jacobi_preconditioner_context(preconditioner_t* bj_precond);
+
 // Creates a block Jacobi preconditioner with the given sparsity graph, 
 // number of block rows, and block size. The nature of the sparsity graph 
 // (i.e. whether it is a block graph or not) is inferred from the number of 

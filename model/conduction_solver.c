@@ -24,6 +24,7 @@
 
 #include "model/conduction_solver.h"
 #include "core/unordered_map.h"
+#include "core/block_jacobi_preconditioner.h"
 
 typedef struct
 {
@@ -311,3 +312,81 @@ void conduction_solver_get_bc_arrays(krylov_solver_t* solver, const char* face_t
   }
 }
 
+typedef struct
+{
+  mesh_t* mesh;
+  real_t *lambda, *f;
+} cond_pc_t;
+
+static void bjc_compute_diagonal(void* context, int block_size, 
+                                 real_t alpha, real_t beta, real_t gamma, 
+                                 real_t t, real_t* x, real_t* xdot, real_t* D)
+{
+  ASSERT(alpha == 0.0);
+  ASSERT(beta == 1.0);
+  ASSERT(gamma == 0.0);
+
+  cond_pc_t* pc = context;
+  mesh_t* mesh = pc->mesh;
+  for (int cell = 0; cell < pc->mesh->num_cells; ++cell)
+  {
+    int pos = 0, face;
+
+    // Evaluate the diagonal portion of div ( lambda o grad phi) using 
+    // the discrete divergence theorem.
+    real_t div_lambda_grad = 0.0;
+    point_t* xc = &mesh->cell_centers[cell];
+    while (mesh_cell_next_face(mesh, cell, &pos, &face))
+    {
+      int neighbor = mesh_face_opp_cell(mesh, face, cell);
+      real_t grad;
+      real_t lambda = 1.0;
+      if (neighbor != -1)
+      {
+        point_t* xn = &mesh->cell_centers[neighbor];
+        grad = -x[cell] / point_distance(xn, xc);
+        if (pc->lambda != NULL)
+          lambda = 0.5 * (pc->lambda[cell] + pc->lambda[neighbor]);
+      }
+      else
+      {
+        point_t* xf = &mesh->face_centers[face];
+        grad = x[cell] / (2.0 * point_distance(xf, xc));
+        if (pc->lambda != NULL)
+          lambda = pc->lambda[cell];
+      }
+      real_t area = mesh->face_areas[face];
+      div_lambda_grad += area * lambda * grad;
+    }
+    D[cell] = div_lambda_grad;
+  }
+}
+
+static void bjc_dtor(void* context)
+{
+  cond_pc_t* pc = context;
+  polymec_free(pc->lambda);
+  polymec_free(pc->f);
+  polymec_free(pc);
+}
+
+preconditioner_t* block_jacobi_conduction_pc(mesh_t* mesh)
+{
+  cond_pc_t* pc = polymec_malloc(sizeof(cond_pc_t));
+  pc->mesh = mesh;
+  pc->lambda = polymec_malloc(sizeof(real_t) * pc->mesh->num_cells);
+  pc->f = polymec_malloc(sizeof(real_t) * pc->mesh->num_cells);
+  return block_jacobi_preconditioner_new(pc, bjc_compute_diagonal, bjc_dtor, pc->mesh->num_cells, 1);
+}
+
+real_t* block_jacobi_conduction_pc_lambda(preconditioner_t* pc)
+{
+  cond_pc_t* pcc = block_jacobi_preconditioner_context(pc);
+  return pcc->lambda;
+}
+
+real_t* block_jacobi_conduction_pc_f(preconditioner_t* pc)
+{
+  cond_pc_t* pcc = block_jacobi_preconditioner_context(pc);
+  return pcc->f;
+}

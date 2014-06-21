@@ -159,6 +159,12 @@ preconditioner_t* block_jacobi_preconditioner_new(void* context,
   return preconditioner_new("Block Jacobi preconditioner", precond, vtable);
 }
 
+void* block_jacobi_preconditioner_context(preconditioner_t* bj_precond)
+{
+  block_jacobi_preconditioner_t* precond = preconditioner_context(bj_precond);
+  return precond->context;
+}
+
 //------------------------------------------------------------------------ 
 //                  Function-based block-Jacobi preconditioners
 //------------------------------------------------------------------------ 

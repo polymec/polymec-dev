@@ -26,6 +26,7 @@
 #define POLYMEC_CONDUCTION_SOLVER_H
 
 #include "core/krylov_solver.h"
+#include "core/preconditioner.h"
 #include "core/mesh.h"
 
 // The conduction solver is a (Krylov) linear solver that uses a low-order 
@@ -78,5 +79,18 @@ void conduction_solver_add_bc(krylov_solver_t* solver, const char* face_tag);
 // found, these array pointer values are set to NULL.
 void conduction_solver_get_bc_arrays(krylov_solver_t* solver, const char* face_tag, 
                                      real_t** alpha, real_t** beta, real_t** gamma, int* num_faces);
+
+// This type implements a Jacobi preconditioner that can be used to solve 
+// the above conduction equation.
+preconditioner_t* block_jacobi_conduction_pc(mesh_t* mesh);
+
+// Returns an internal pointer to the array that stores the cell-centered 
+// values of lambda for the preconditioner. By default, lambda is set to 
+// 1 everywhere.
+real_t* block_jacobi_conduction_pc_lambda(preconditioner_t* pc);
+
+// Returns an internal pointer to the array that stores the cell-centered 
+// values of f for the preconditioner. By default, f is set to 0 everywhere.
+real_t* block_jacobi_conduction_pc_f(preconditioner_t* pc);
 
 #endif
