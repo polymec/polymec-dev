@@ -23,9 +23,9 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "core/polymec.h"
+#include "core/block_jacobi_preconditioner.h"
+#include "core/lu_preconditioners.h"
 #include "integrators/ode_integrator.h"
-#include "integrators/block_jacobi_preconditioner.h"
-#include "integrators/lu_preconditioners.h"
 
 //------------------------------------------------------------------------
 //               Diurnal kinetic advection-diffusion problem
@@ -332,7 +332,7 @@ ode_integrator_t* block_jacobi_precond_diurnal_integrator_new()
 {
   ode_integrator_t* integ = diurnal_integrator_new();
   diurnal_t* data = ode_integrator_context(integ);
-  preconditioner_t* precond = block_jacobi_preconditioner_new(data, diurnal_rhs, data->sparsity, NEQ/NUM_SPECIES, NUM_SPECIES);
+  preconditioner_t* precond = block_jacobi_preconditioner_from_function(data, diurnal_rhs, NULL, data->sparsity, NEQ/NUM_SPECIES, NUM_SPECIES);
   ode_integrator_set_preconditioner(integ, precond);
   return integ;
 }
@@ -342,7 +342,7 @@ ode_integrator_t* lu_precond_diurnal_integrator_new()
 {
   ode_integrator_t* integ = diurnal_integrator_new();
   diurnal_t* data = ode_integrator_context(integ);
-  preconditioner_t* precond = lu_preconditioner_new(data, diurnal_rhs, data->sparsity);
+  preconditioner_t* precond = lu_preconditioner_new(data, diurnal_rhs, NULL, data->sparsity);
   ode_integrator_set_preconditioner(integ, precond);
   return integ;
 }
@@ -353,7 +353,7 @@ ode_integrator_t* ilu_precond_diurnal_integrator_new()
   ode_integrator_t* integ = diurnal_integrator_new();
   ilu_params_t* ilu_params = ilu_params_new();
   diurnal_t* data = ode_integrator_context(integ);
-  preconditioner_t* precond = ilu_preconditioner_new(data, diurnal_rhs, data->sparsity, ilu_params);
+  preconditioner_t* precond = ilu_preconditioner_new(data, diurnal_rhs, NULL, data->sparsity, ilu_params);
   ode_integrator_set_preconditioner(integ, precond);
   return integ;
 }

@@ -21,4 +21,6 @@ add_polymec_test(test_polynomial test_polynomial.c)
 add_polymec_test(test_least_squares test_least_squares.c)
 add_polymec_test(test_interpreter test_interpreter.c)
 add_polymec_test(test_exchanger test_exchanger.c)
+add_polymec_test(test_block_jacobi_preconditioner test_block_jacobi_preconditioner.c)
+add_polymec_test(test_lu_preconditioner test_lu_preconditioner.c)
 

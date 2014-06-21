@@ -29,15 +29,33 @@
 
 #include "cmockery.h"
 #include "core/polymec.h"
-#include "geometry/create_uniform_mesh.h"
-#include "integrators/block_jacobi_preconditioner.h"
+#include "core/block_jacobi_preconditioner.h"
 
-static adj_graph_t* graph_from_uniform_mesh(int N)
+static adj_graph_t* linear_graph(int N)
 {
-  bbox_t box = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
-  mesh_t* m = create_uniform_mesh(MPI_COMM_WORLD, N, N, N, &box);
-  adj_graph_t* g = graph_from_mesh_cells(m);
-  mesh_free(m);
+  adj_graph_t* g = adj_graph_new(MPI_COMM_SELF, N);
+  for (int i = 0; i < N; ++i)
+  {
+    if ((i > 0) && (i < N-1))
+    {
+      adj_graph_set_num_edges(g, i, 2);
+      int* edges = adj_graph_edges(g, i);
+      edges[0] = i-1;
+      edges[1] = i+1;
+    }
+    else if (i == 0)
+    {
+      adj_graph_set_num_edges(g, i, 1);
+      int* edges = adj_graph_edges(g, i);
+      edges[0] = 1;
+    }
+    else
+    {
+      adj_graph_set_num_edges(g, i, N-1);
+      int* edges = adj_graph_edges(g, i);
+      edges[0] = N-2;
+    }
+  }
   return g;
 }
 
@@ -49,11 +67,11 @@ static int sys_func(void* context, real_t t, real_t* x, real_t* F)
 void test_ctor(void** state)
 {
   int bs = 2;
-  adj_graph_t* g = graph_from_uniform_mesh(10);
-  preconditioner_t* precond = block_jacobi_preconditioner_new(NULL, sys_func, g, 1000, bs);
+  adj_graph_t* g = linear_graph(10);
+  preconditioner_t* precond = block_jacobi_preconditioner_from_function(NULL, sys_func, NULL, g, 1000, bs);
   preconditioner_free(precond);
   adj_graph_t* bg = adj_graph_new_with_block_size(bs, g);
-  precond = block_jacobi_preconditioner_new(NULL, sys_func, bg, 1000, bs);
+  precond = block_jacobi_preconditioner_from_function(NULL, sys_func, NULL, bg, 1000, bs);
   preconditioner_free(precond);
   adj_graph_free(bg);
   adj_graph_free(g);

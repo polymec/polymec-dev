@@ -25,16 +25,19 @@
 #ifndef POLYMEC_LU_PRECONDITIONERS_H
 #define POLYMEC_LU_PRECONDITIONERS_H
 
-#include "integrators/preconditioner.h"
+#include "core/preconditioner.h"
+#include "core/adj_graph.h"
 
 // Sparse (Supernode) LU preconditioner.
 preconditioner_t* lu_preconditioner_new(void* context,
                                         int (*F)(void* context, real_t t, real_t* x, real_t* Fval),
+                                        void (*dtor)(void* context),
                                         adj_graph_t* sparsity);
  
 // Sparse (Supernode) LU preconditioner -- differential-algebraic version.
 preconditioner_t* lu_dae_preconditioner_new(void* context,
                                             int (*F)(void* context, real_t t, real_t* x, real_t* xdot, real_t* Fval),
+                                            void (*dtor)(void* context),
                                             adj_graph_t* sparsity);
  
 // The following types give options to control ILU preconditioners for the 
@@ -94,12 +97,14 @@ ilu_params_t* ilu_params_new();
 // ILU preconditioner.
 preconditioner_t* ilu_preconditioner_new(void* context,
                                          int (*F)(void* context, real_t t, real_t* x, real_t* Fval),
+                                         void (*dtor)(void* context),
                                          adj_graph_t* sparsity, 
                                          ilu_params_t* ilu_params);
 
 // ILU preconditioner -- differential-algebraic version.
 preconditioner_t* ilu_dae_preconditioner_new(void* context,
                                              int (*F)(void* context, real_t t, real_t* x, real_t* xdot, real_t* Fval),
+                                             void (*dtor)(void* context),
                                              adj_graph_t* sparsity, 
                                              ilu_params_t* ilu_params);
 

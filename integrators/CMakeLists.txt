@@ -1,5 +1,4 @@
 add_library(polymec_integrators 
-            preconditioner.c block_jacobi_preconditioner.c lu_preconditioners.c
             ode_integrator.c dae_integrator.c nonlinear_integrator.c
             gauss_rules.c polyhedron_integrator.c sphere_integrator.c 
             div_free_poly_basis.c)

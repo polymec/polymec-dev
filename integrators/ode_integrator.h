@@ -27,7 +27,7 @@
 
 #include "core/polymec.h"
 #include "core/adj_graph.h"
-#include "integrators/preconditioner.h"
+#include "core/preconditioner.h"
 
 // This function evaluates the RHS of a system of ODEs.
 typedef int (*ode_integrator_rhs_func)(void* context, real_t t, real_t* x, real_t* x_dot);

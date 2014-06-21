@@ -27,7 +27,7 @@
 
 #include "core/polymec.h"
 #include "core/adj_graph.h"
-#include "integrators/preconditioner.h"
+#include "core/preconditioner.h"
 
 // The different global strategies for the Newton iteration.
 typedef enum

@@ -27,7 +27,7 @@
 
 #include "core/polymec.h"
 #include "core/adj_graph.h"
-#include "integrators/preconditioner.h"
+#include "core/preconditioner.h"
 
 // This function evaluates the residual of a system of differential-algebraic 
 // equations (DAEs).

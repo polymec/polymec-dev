@@ -27,7 +27,7 @@
 #include "slu_util.h"
 #include "core/array_utils.h"
 #include "core/sundials_helpers.h"
-#include "integrators/lu_preconditioners.h"
+#include "core/lu_preconditioners.h"
 
 typedef struct 
 {
@@ -36,6 +36,7 @@ typedef struct
   int (*F)(void* context, real_t t, real_t* x, real_t* Fval);
   int (*dae_F)(void* context, real_t t, real_t* x, real_t* xdot, real_t* Fval);
   void* context;
+  void (*dtor)(void* context);
 
   int N; // Number of rows in matrix.
 
@@ -379,10 +380,13 @@ static void lu_preconditioner_dtor(void* context)
     polymec_free(precond->etree);
   adj_graph_coloring_free(precond->coloring);
   precond->ilu_params = NULL;
+  if ((precond->dtor != NULL) && (precond->context != NULL))
+    precond->dtor(precond->context);
   polymec_free(precond);
 }
 
 static preconditioner_t* general_lu_preconditioner_new(void* context,
+                                                       void (*dtor)(void* context),
                                                        adj_graph_t* sparsity)
 {
   lu_preconditioner_t* precond = polymec_malloc(sizeof(lu_preconditioner_t));
@@ -409,6 +413,7 @@ static preconditioner_t* general_lu_preconditioner_new(void* context,
   precond->etree = NULL;
   precond->F = NULL;
   precond->dae_F = NULL;
+  precond->dtor = dtor;
 
   // Make work vectors.
   precond->num_work_vectors = 4;
@@ -425,10 +430,11 @@ static preconditioner_t* general_lu_preconditioner_new(void* context,
    
 preconditioner_t* lu_preconditioner_new(void* context,
                                         int (*F)(void* context, real_t t, real_t* x, real_t* Fval),
+                                        void (*dtor)(void* context),
                                         adj_graph_t* sparsity)
 {
   ASSERT(F != NULL);
-  preconditioner_t* precond = general_lu_preconditioner_new(context, sparsity);
+  preconditioner_t* precond = general_lu_preconditioner_new(context, dtor, sparsity);
   lu_preconditioner_t* lu = preconditioner_context(precond);
   lu->F = F;
   return precond;
@@ -436,10 +442,11 @@ preconditioner_t* lu_preconditioner_new(void* context,
 
 preconditioner_t* lu_dae_preconditioner_new(void* context,
                                             int (*F)(void* context, real_t t, real_t* x, real_t* xdot, real_t* Fval),
+                                            void (*dtor)(void* context),
                                             adj_graph_t* sparsity)
 {
   ASSERT(F != NULL);
-  preconditioner_t* precond = general_lu_preconditioner_new(context, sparsity);
+  preconditioner_t* precond = general_lu_preconditioner_new(context, dtor, sparsity);
   lu_preconditioner_t* lu = preconditioner_context(precond);
   lu->dae_F = F;
   return precond;
@@ -510,6 +517,7 @@ static bool ilu_preconditioner_solve(void* context, real_t t, real_t* B)
 
 // ILU preconditioner.
 static preconditioner_t* general_ilu_preconditioner_new(void* context,
+                                                        void (*dtor)(void* context),
                                                         adj_graph_t* sparsity, 
                                                         ilu_params_t* ilu_params)
 {
@@ -519,6 +527,7 @@ static preconditioner_t* general_ilu_preconditioner_new(void* context,
   log_debug("ILU preconditioner: graph coloring produced %d colors.", 
             adj_graph_coloring_num_colors(precond->coloring));
   precond->context = context;
+  precond->dtor = dtor;
   precond->P = supermatrix_new(sparsity);
 
   // Copy options into place.
@@ -578,11 +587,12 @@ static preconditioner_t* general_ilu_preconditioner_new(void* context,
 
 preconditioner_t* ilu_preconditioner_new(void* context,
                                          int (*F)(void* context, real_t t, real_t* x, real_t* Fval),
+                                         void (*dtor)(void* context),
                                          adj_graph_t* sparsity,
                                          ilu_params_t* ilu_params)
 {
   ASSERT(F != NULL);
-  preconditioner_t* precond = general_ilu_preconditioner_new(context, sparsity, ilu_params);
+  preconditioner_t* precond = general_ilu_preconditioner_new(context, dtor, sparsity, ilu_params);
   lu_preconditioner_t* ilu = preconditioner_context(precond);
   ilu->F = F;
   return precond;
@@ -590,11 +600,12 @@ preconditioner_t* ilu_preconditioner_new(void* context,
 
 preconditioner_t* ilu_dae_preconditioner_new(void* context,
                                              int (*F)(void* context, real_t t, real_t* x, real_t* xdot, real_t* Fval),
+                                             void (*dtor)(void* context),
                                              adj_graph_t* sparsity,
                                              ilu_params_t* ilu_params)
 {
   ASSERT(F != NULL);
-  preconditioner_t* precond = general_ilu_preconditioner_new(context, sparsity, ilu_params);
+  preconditioner_t* precond = general_ilu_preconditioner_new(context, dtor, sparsity, ilu_params);
   lu_preconditioner_t* ilu = preconditioner_context(precond);
   ilu->dae_F = F;
   return precond;

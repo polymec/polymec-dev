@@ -26,7 +26,6 @@
 #define POLYMEC_PRECONDITIONER_H
 
 #include "core/polymec.h"
-#include "core/adj_graph.h"
 
 // This class constructs and solves a preconditioned linear system to aid 
 // the Jacobian-free Newton-Krylov solution of a nonlinear system.

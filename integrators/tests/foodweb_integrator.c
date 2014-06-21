@@ -23,9 +23,9 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "core/polymec.h"
+#include "core/block_jacobi_preconditioner.h"
+#include "core/lu_preconditioners.h"
 #include "integrators/nonlinear_integrator.h"
-#include "integrators/block_jacobi_preconditioner.h"
-#include "integrators/lu_preconditioners.h"
 
 // We use this for some of the underlying data structures.
 #include "sundials/sundials_direct.h"
@@ -415,7 +415,7 @@ nonlinear_integrator_t* block_jacobi_precond_foodweb_integrator_new()
   nonlinear_integrator_t* integ = foodweb_integrator_new();
   foodweb_t* data = nonlinear_integrator_context(integ);
   int block_size = NUM_SPECIES;
-  preconditioner_t* precond = block_jacobi_preconditioner_new(data, foodweb_func, data->sparsity, NEQ/block_size, block_size);
+  preconditioner_t* precond = block_jacobi_preconditioner_from_function(data, foodweb_func, NULL, data->sparsity, NEQ/block_size, block_size);
   nonlinear_integrator_set_preconditioner(integ, precond);
   return integ;
 }
@@ -425,7 +425,7 @@ nonlinear_integrator_t* lu_precond_foodweb_integrator_new()
 {
   nonlinear_integrator_t* integ = foodweb_integrator_new();
   foodweb_t* data = nonlinear_integrator_context(integ);
-  preconditioner_t* precond = lu_preconditioner_new(data, foodweb_func, data->sparsity);
+  preconditioner_t* precond = lu_preconditioner_new(data, foodweb_func, NULL, data->sparsity);
   nonlinear_integrator_set_preconditioner(integ, precond);
   return integ;
 }
@@ -436,7 +436,7 @@ nonlinear_integrator_t* ilu_precond_foodweb_integrator_new()
   nonlinear_integrator_t* integ = foodweb_integrator_new();
   foodweb_t* data = nonlinear_integrator_context(integ);
   ilu_params_t* ilu_params = ilu_params_new();
-  preconditioner_t* precond = ilu_preconditioner_new(data, foodweb_func, data->sparsity, ilu_params);
+  preconditioner_t* precond = ilu_preconditioner_new(data, foodweb_func, NULL, data->sparsity, ilu_params);
   nonlinear_integrator_set_preconditioner(integ, precond);
   return integ;
 }

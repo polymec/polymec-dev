@@ -31,15 +31,33 @@
 #include "slu_ddefs.h"
 #include "core/polymec.h"
 #include "core/array_utils.h"
-#include "geometry/create_uniform_mesh.h"
-#include "integrators/lu_preconditioners.h"
+#include "core/lu_preconditioners.h"
 
-static adj_graph_t* graph_from_uniform_mesh()
+static adj_graph_t* linear_graph(int N)
 {
-  bbox_t box = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
-  mesh_t* m = create_uniform_mesh(MPI_COMM_WORLD, 10, 10, 10, &box);
-  adj_graph_t* g = graph_from_mesh_cells(m);
-  mesh_free(m);
+  adj_graph_t* g = adj_graph_new(MPI_COMM_SELF, N);
+  for (int i = 0; i < N; ++i)
+  {
+    if ((i > 0) && (i < N-1))
+    {
+      adj_graph_set_num_edges(g, i, 2);
+      int* edges = adj_graph_edges(g, i);
+      edges[0] = i-1;
+      edges[1] = i+1;
+    }
+    else if (i == 0)
+    {
+      adj_graph_set_num_edges(g, i, 1);
+      int* edges = adj_graph_edges(g, i);
+      edges[0] = 1;
+    }
+    else
+    {
+      adj_graph_set_num_edges(g, i, N-1);
+      int* edges = adj_graph_edges(g, i);
+      edges[0] = N-2;
+    }
+  }
   return g;
 }
 
@@ -50,8 +68,8 @@ static int sys_func(void* context, real_t t, real_t* x, real_t* F)
 
 void test_ctor(void** state)
 {
-  adj_graph_t* g = graph_from_uniform_mesh();
-  preconditioner_t* precond = lu_preconditioner_new(NULL, sys_func, g);
+  adj_graph_t* g = linear_graph(10);
+  preconditioner_t* precond = lu_preconditioner_new(NULL, sys_func, NULL, g);
   preconditioner_free(precond);
   adj_graph_free(g);
 }
