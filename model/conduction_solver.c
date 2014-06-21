@@ -390,6 +390,8 @@ preconditioner_t* jacobi_conduction_pc_new(void* context,
   pc->update_lambda = update_lambda;
   pc->mesh = mesh;
   pc->lambda = polymec_malloc(sizeof(real_t) * pc->mesh->num_cells);
+  for (int i = 0; i < pc->mesh->num_cells; ++i)
+    pc->lambda[i] = 1.0;
   return block_jacobi_preconditioner_new(pc, bjc_compute_diagonal, bjc_dtor, pc->mesh->num_cells, 1);
 }
 

@@ -317,12 +317,10 @@ static void func_bjpc_compute_diagonal(void* context, int block_size,
       work[0][i] = 1.0;
 
     // We evaluate F(t, x, xdot) and place it into work[1].
-printf("F\n");
     F(F_context, t, x, xdot, work[1]);
 
     // Evaluate dF/dx and stash it in P.
     memset(Jv, 0, sizeof(real_t) * num_rows);
-printf("dFdx\n");
     finite_diff_dFdx_v(F, F_context, t, x, xdot, num_rows, work[0], work, Jv);
     add_Jv_into_diagonal(graph, coloring, c, block_size, beta, Jv, D);
 
