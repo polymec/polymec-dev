@@ -28,10 +28,11 @@
 
 typedef struct
 {
-  mesh_t* mesh;
-  real_t *lambda, *f;
-  string_ptr_unordered_map_t* bcs;
-  int_int_unordered_map_t* bcell_map;
+  mesh_t* mesh;                       // Underlying domain.
+  real_t *lambda, *f;                 // Coefficients
+  string_ptr_unordered_map_t* bcs;    // Boundary conditions
+  int_int_unordered_map_t* bcell_map; // Boundary cells
+  real_t* D;                          // Diagonals for Jacobi preconditioning.
 } cond_t;
 
 typedef struct
@@ -91,21 +92,20 @@ static int cond_ax(void* context, real_t* x, real_t* Ax, int N)
     {
       int neighbor = mesh_face_opp_cell(mesh, face, cell);
       real_t grad;
-      real_t lambda = 1.0;
+      real_t lambda;
       if (neighbor != -1)
       {
         point_t* xn = &mesh->cell_centers[neighbor];
         grad = (x[neighbor] - x[cell]) / point_distance(xn, xc);
-        if (cond->lambda != NULL)
-          lambda = 0.5 * (cond->lambda[cell] + cond->lambda[neighbor]);
+        lambda = 0.5 * (cond->lambda[cell] + cond->lambda[neighbor]);
       }
       else
       {
         int bcell = *int_int_unordered_map_get(cond->bcell_map, face);
+        ASSERT(bcell >= mesh->num_cells);
         point_t* xf = &mesh->face_centers[face];
         grad = (x[bcell] - x[cell]) / (2.0 * point_distance(xf, xc));
-        if (cond->lambda != NULL)
-          lambda = cond->lambda[cell];
+        lambda = cond->lambda[cell];
       }
       real_t area = mesh->face_areas[face];
       div_lambda_grad += area * lambda * grad;
@@ -127,10 +127,11 @@ static int cond_ax(void* context, real_t* x, real_t* Ax, int N)
       int face = tag[f];
       int cell = mesh->face_cells[2*face];
       int bcell = *int_int_unordered_map_get(cond->bcell_map, face);
+      ASSERT(bcell >= mesh->num_cells);
 
       // Construct this face's contribution to the LHS.
-      real_t alpha = (bc->alpha != NULL) ? bc->alpha[f] : 0.0;
-      real_t beta = (bc->beta != NULL) ? bc->beta[f] : 0.0;
+      real_t alpha = bc->alpha[f];
+      real_t beta = bc->beta[f];
       point_t* xc = &mesh->cell_centers[cell];
       point_t* xf = &mesh->face_centers[face];
       real_t grad = (x[bcell] - x[cell]) / (2.0 * point_distance(xc, xf));
@@ -164,7 +165,7 @@ static void cond_b(void* context, real_t* B, int N)
       int bcell = *int_int_unordered_map_get(cond->bcell_map, face);
 
       // Construct this face's contribution to the RHS.
-      real_t gamma = (bc->gamma != NULL) ? bc->gamma[f] : 0.0;
+      real_t gamma = bc->gamma[f];
       B[bcell] = gamma;
     }
   }
@@ -214,6 +215,7 @@ krylov_solver_t* gmres_conduction_solver_new(mesh_t* mesh, int max_krylov_dim, i
   cond->bcs = string_ptr_unordered_map_new();
   cond->bcell_map = generate_boundary_cell_map(mesh);
   int N = mesh->num_cells + cond->bcell_map->size;
+  cond->D = polymec_malloc(sizeof(real_t) * N);
   krylov_solver_vtable vtable = {.ax = cond_ax, .b = cond_b, .dtor = cond_dtor};
   return gmres_krylov_solver_new(mesh->comm, cond, vtable, N, max_krylov_dim, max_restarts);
 }
@@ -232,6 +234,7 @@ krylov_solver_t* bicgstab_conduction_solver_new(mesh_t* mesh, int max_krylov_dim
   cond->bcs = string_ptr_unordered_map_new();
   cond->bcell_map = generate_boundary_cell_map(mesh);
   int N = mesh->num_cells + cond->bcell_map->size;
+  cond->D = polymec_malloc(sizeof(real_t) * N);
   krylov_solver_vtable vtable = {.ax = cond_ax, .b = cond_b, .dtor = cond_dtor};
   return bicgstab_krylov_solver_new(mesh->comm, cond, vtable, N, max_krylov_dim);
 }
@@ -250,6 +253,7 @@ krylov_solver_t* tfqmr_conduction_solver_new(mesh_t* mesh, int max_krylov_dim)
   cond->bcs = string_ptr_unordered_map_new();
   cond->bcell_map = generate_boundary_cell_map(mesh);
   int N = mesh->num_cells + cond->bcell_map->size;
+  cond->D = polymec_malloc(sizeof(real_t) * N);
   krylov_solver_vtable vtable = {.ax = cond_ax, .b = cond_b, .dtor = cond_dtor};
   return tfqmr_krylov_solver_new(mesh->comm, cond, vtable, N, max_krylov_dim);
 }

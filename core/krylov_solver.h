@@ -26,6 +26,7 @@
 #define POLYMEC_KRYLOV_SOLVER_H
 
 #include "core/polymec.h"
+#include "core/preconditioner.h"
 
 // A Krylov solver is an iterative linear solver that uses Krylov subspace 
 // methods to solve a linear system A * X = B.

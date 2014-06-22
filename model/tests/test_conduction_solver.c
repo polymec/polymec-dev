@@ -50,11 +50,12 @@ static void laplace_1d_dirichlet_solution(void* context, point_t* x, real_t* phi
 void test_gmres_conduction_solver_laplace_1d_dirichlet(void** state)
 {
   // Set up a solver.
-  int nx = 10, ny = 1, nz = 1;
+  int nx = 32, ny = 1, nz = 1;
   bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0/nx, .z1 = 0.0, .z2 = 1.0/nx};
   mesh_t* mesh = create_uniform_mesh(MPI_COMM_WORLD, nx, ny, nz, &bbox);
   tag_rectilinear_mesh_faces(mesh, "-x", "+x", "-y", "+y", "-z", "+z");
   krylov_solver_t* solver = gmres_conduction_solver_new(mesh, 15, 5);
+  krylov_solver_set_tolerance(solver, 1e-15);
 
   // Set Dirichlet boundary conditions on the far ends and Neumann (no-flux)
   // boundary conditions on the sides.
@@ -92,18 +93,27 @@ void test_gmres_conduction_solver_laplace_1d_dirichlet(void** state)
   int num_iters, num_precond;
   bool result = krylov_solver_solve(solver, X, &res_norm, &num_iters, &num_precond);
   assert_true(result);
-  assert_true(res_norm < 8.35e-9);
+//  assert_true(res_norm < 8.35e-9);
+printf("res_norm = %g, num_iters = %d\n", res_norm, num_iters);
 
   // Compute the error by comparing to the analytic solution.
   sp_func_t* solution = sp_func_from_func("solution", laplace_1d_dirichlet_solution,
                                           SP_INHOMOGENEOUS, 1);
   real_t* error = krylov_solver_vector(solver);
+  real_t L2_norm = 0.0;
   for (int c = 0; c < mesh->num_cells; ++c)
   {
     real_t X_sol;
     sp_func_eval(solution, &mesh->cell_centers[c], &X_sol);
     error[c] = mesh->cell_volumes[c] * (X[c] - X_sol);
+    L2_norm += error[c]*error[c];
   }
+  L2_norm = sqrt(L2_norm);
+printf("L2 = %g\n", L2_norm);
+FILE* u0f = fopen("u0.txt", "w");
+for (int i = 0; i < mesh->num_cells; ++i)
+  fprintf(u0f, "%g %g\n", mesh->cell_centers[i].x, X[i]);
+fclose(u0f);
 
   // Dump out the computed solution and the error.
   silo_file_t* silo = silo_file_new(mesh->comm, "test_conduction_solver_laplace_1d_dirichlet", ".", 1, 0, 0, 0.0);

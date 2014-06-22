@@ -48,6 +48,8 @@ struct krylov_solver_t
   SpbcgMem bicgstab;
   SptfqmrMem tfqmr;
 
+  preconditioner_t* precond;
+
   N_Vector X, B;
 };
 
@@ -77,6 +79,9 @@ krylov_solver_t* gmres_krylov_solver_new(MPI_Comm comm,
   solver->X = N_VNew(comm, N);
   solver->B = N_VNew(comm, N);
   solver->gmres = SpgmrMalloc(max_krylov_dim, solver->X);
+  solver->bicgstab = NULL;
+  solver->tfqmr = NULL;
+  solver->precond = NULL;
 
   return solver;
 }
@@ -103,7 +108,10 @@ krylov_solver_t* bicgstab_krylov_solver_new(MPI_Comm comm,
 
   solver->X = N_VNew(comm, N);
   solver->B = N_VNew(comm, N);
+  solver->gmres = NULL;
   solver->bicgstab = SpbcgMalloc(max_krylov_dim, solver->X);
+  solver->tfqmr = NULL;
+  solver->precond = NULL;
 
   return solver;
 }
@@ -130,7 +138,10 @@ krylov_solver_t* tfqmr_krylov_solver_new(MPI_Comm comm,
 
   solver->X = N_VNew(comm, N);
   solver->B = N_VNew(comm, N);
+  solver->gmres = NULL;
+  solver->bicgstab = NULL;
   solver->tfqmr = SptfqmrMalloc(max_krylov_dim, solver->X);
+  solver->precond = NULL;
 
   return solver;
 }
@@ -168,6 +179,11 @@ void krylov_solver_set_tolerance(krylov_solver_t* solver, real_t delta)
   solver->delta = delta;
 }
 
+void krylov_solver_set_preconditioner(krylov_solver_t* solver, preconditioner_t* precond)
+{
+  solver->precond = precond;
+}
+
 // This implements the A*X function in terms understandable to Sundials.
 static int krylov_ax(void* solver_ptr, N_Vector x, N_Vector Ax)
 {
@@ -182,6 +198,19 @@ real_t* krylov_solver_vector(krylov_solver_t* solver)
   return X;
 }
 
+// This is a proxy to the preconditioner solve function.
+static int pc_solve(void* context, N_Vector r, N_Vector z, int pc_type)
+{
+  if (pc_type != PREC_NONE)
+  {
+    krylov_solver_t* solver = context;
+    memcpy(NV_DATA(z), NV_DATA(r), sizeof(real_t) * NV_LOCLENGTH(r));
+    bool result = preconditioner_solve(solver->precond, 0.0, NV_DATA(z));
+    return (result) ? 0 : -1;
+  }
+  return 0;
+}
+
 bool krylov_solver_solve(krylov_solver_t* solver, real_t* X, real_t* res_norm, 
                          int* num_iters, int* num_precond)
 {
@@ -192,30 +221,32 @@ bool krylov_solver_solve(krylov_solver_t* solver, real_t* X, real_t* res_norm,
   if (solver->vtable.b != NULL)
     solver->vtable.b(solver->context, NV_DATA(solver->B), solver->N);
 
+  int prec_type = (solver->precond != NULL) ? PREC_RIGHT : PREC_NONE;
+
   bool result;
   if (solver->type == GMRES)
   {
     int stat = SpgmrSolve(solver->gmres, solver, solver->X, 
-                          solver->B, PREC_NONE, MODIFIED_GS, solver->delta, 
-                          solver->max_restarts, NULL, NULL, NULL, krylov_ax, NULL, res_norm,
+                          solver->B, prec_type, MODIFIED_GS, solver->delta, 
+                          solver->max_restarts, solver, NULL, NULL, krylov_ax, pc_solve, res_norm,
                           num_iters, num_precond);
-    result = ((stat == SPGMR_SUCCESS) || (stat == SPGMR_RES_REDUCED));
+    result = (stat == SPGMR_SUCCESS);
   }
   else if (solver->type == BICGSTAB)
   {
     int stat = SpbcgSolve(solver->bicgstab, solver, solver->X, 
-                          solver->B, PREC_NONE, solver->delta, NULL, 
-                          NULL, NULL, krylov_ax, NULL, res_norm,
+                          solver->B, prec_type, solver->delta, solver, 
+                          NULL, NULL, krylov_ax, pc_solve, res_norm,
                           num_iters, num_precond);
-    result = ((stat == SPBCG_SUCCESS) || (stat == SPBCG_RES_REDUCED));
+    result = (stat == SPBCG_SUCCESS);
   }
   else
   {
     int stat = SptfqmrSolve(solver->tfqmr, solver, solver->X, 
-                            solver->B, PREC_NONE, solver->delta, NULL, 
-                            NULL, NULL, krylov_ax, NULL, res_norm,
+                            solver->B, prec_type, solver->delta, solver, 
+                            NULL, NULL, krylov_ax, pc_solve, res_norm,
                             num_iters, num_precond);
-    result = ((stat == SPTFQMR_SUCCESS) || (stat == SPTFQMR_RES_REDUCED));
+    result = (stat == SPTFQMR_SUCCESS);
   }
   
   // Copy the data out.

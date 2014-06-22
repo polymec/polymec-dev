@@ -193,6 +193,11 @@ void polynomial_fit_reset(polynomial_fit_t* fit, point_t* x0)
     // Reset x0 and the polynomial coefficients.
     if (x0 != NULL)
       *polynomial_x0(fit->poly[c]) = *x0;
+    else
+    {
+      static point_t origin = {.x = 0.0, .y = 0.0, .z = 0.0};
+      *polynomial_x0(fit->poly[c]) = origin;
+    }
     memcpy(polynomial_coeffs(fit->poly[c]), coeffs, sizeof(real_t)*dim);
 
     // Reset the equation counter to 0.
