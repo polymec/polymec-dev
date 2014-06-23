@@ -536,7 +536,7 @@ static void lupc_add_Jv_into_matrix(void* context,
   while (adj_graph_coloring_next_vertex(coloring, color, &pos, &i))
   {
     // Add in the diagonal element.
-    Jij[data->colptr[i]] += Jv[i];
+    Jij[data->colptr[i]] += factor * Jv[i];
       
     // Add in off-diagonal column values.
     int pos = 0, j;
