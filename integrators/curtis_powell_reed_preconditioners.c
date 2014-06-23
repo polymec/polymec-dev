@@ -363,6 +363,7 @@ static bool bjpc_solve(void* context, real_t* B)
 static void bjpc_dtor(void* context)
 {
   bjpc_t* precond = context;
+  polymec_free(precond->D);
   if ((precond->dtor != NULL) && (precond->context != NULL))
     precond->dtor(precond->context);
   polymec_free(precond);
