@@ -234,6 +234,8 @@ static preconditioner_t* curtis_powell_reed_preconditioner_new(const char* name,
   ASSERT((vtable.F == NULL) || (vtable.F_dae == NULL));
 
   cpr_t* precond = polymec_malloc(sizeof(cpr_t));
+  precond->context = context;
+  precond->vtable = vtable;
 
   // Do we have a block graph?
   int num_rows = adj_graph_num_vertices(sparsity);
@@ -246,8 +248,6 @@ static preconditioner_t* curtis_powell_reed_preconditioner_new(const char* name,
   precond->coloring = adj_graph_coloring_new(precond->sparsity, SMALLEST_LAST);
   log_debug("Curtis-Powell-Reed preconditioner: graph coloring produced %d colors.", 
             adj_graph_coloring_num_colors(precond->coloring));
-  precond->context = context;
-  precond->vtable = vtable;
 
   // Make work vectors.
   precond->num_work_vectors = 4;
@@ -405,6 +405,7 @@ preconditioner_t* block_jacobi_preconditioner_from_dae_function(const char* name
   bjpc_t* pc = polymec_malloc(sizeof(bjpc_t));
   pc->context = context;
   pc->dtor = dtor;
+  pc->num_block_rows = num_block_rows;
   pc->block_size = block_size;
   pc->D = polymec_malloc(sizeof(real_t) * num_block_rows * block_size * block_size);
   cpr_vtable vtable = {.F_dae = F,
@@ -722,7 +723,6 @@ static bool ilupc_solve(void* context, real_t* B)
     Destroy_SuperNode_Matrix(&precond->L);
     Destroy_CompCol_Matrix(&precond->U);
   }
-
 
   // Do the (approximate) solve.
   int info;
