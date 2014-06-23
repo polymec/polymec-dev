@@ -24,7 +24,7 @@
 
 #include "core/polymec.h"
 #include "integrators/nonlinear_integrator.h"
-#include "integrators/nonlinear_preconditioner.h"
+#include "integrators/curtis_powell_reed_preconditioners.h"
 
 // We use this for some of the underlying data structures.
 #include "sundials/sundials_direct.h"

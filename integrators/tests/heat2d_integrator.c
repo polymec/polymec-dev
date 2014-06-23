@@ -50,7 +50,7 @@
 
 #include "core/polymec.h"
 #include "integrators/dae_integrator.h"
-#include "integrators/nonlinear_preconditioner.h"
+#include "integrators/curtis_powell_reed_preconditioners.h"
 
 /* Problem Constants */
 

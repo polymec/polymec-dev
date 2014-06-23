@@ -31,7 +31,7 @@
 #include "slu_ddefs.h"
 #include "core/polymec.h"
 #include "core/array_utils.h"
-#include "integrators/nonlinear_preconditioner.h"
+#include "integrators/curtis_powell_reed_preconditioners.h"
 
 static adj_graph_t* linear_graph(int N)
 {
