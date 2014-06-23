@@ -149,9 +149,33 @@ preconditioner_t* block_jacobi_preconditioner_new(void* context,
   return preconditioner_new("Block Jacobi preconditioner", precond, vtable);
 }
 
-void* block_jacobi_preconditioner_context(preconditioner_t* bj_precond)
+// Support for array-based preconditioner.
+typedef struct
 {
-  block_jacobi_preconditioner_t* precond = preconditioner_context(bj_precond);
-  return precond->context;
+  int num_block_rows;
+  real_t* D;
+} bja_t;
+
+static void bja_compute_diagonal(void* context, int block_size, real_t* D)
+{
+  bja_t* pc = context;
+  memcpy(D, pc->D, sizeof(real_t) * block_size * block_size * pc->num_block_rows);
+}
+
+static void bja_dtor(void* context)
+{
+  bja_t* pc = context;
+  polymec_free(pc);
+}
+
+preconditioner_t* block_jacobi_preconditioner_from_array(real_t* array,
+                                                         int num_block_rows,
+                                                         int block_size)
+{
+  bja_t* pc = polymec_malloc(sizeof(bja_t));
+  pc->num_block_rows = num_block_rows;
+  pc->D = array;
+  return block_jacobi_preconditioner_new(pc, bja_compute_diagonal, bja_dtor, 
+                                         num_block_rows, block_size);
 }
 

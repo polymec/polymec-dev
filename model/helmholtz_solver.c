@@ -22,13 +22,14 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "model/helmholtz_solver.h"
 #include "core/unordered_map.h"
+#include "core/block_jacobi_preconditioner.h"
+#include "model/helmholtz_solver.h"
 
 typedef struct
 {
   mesh_t* mesh;
-  real_t *k, *f;
+  real_t *k, *f, *D;
   string_ptr_unordered_map_t* bcs;
   int_int_unordered_map_t* bcell_map;
 } helm_t;
@@ -196,7 +197,7 @@ static int_int_unordered_map_t* generate_boundary_cell_map(mesh_t* mesh)
   return bcell_map;
 }
 
-krylov_solver_t* gmres_helmholtz_solver_new(mesh_t* mesh, int max_krylov_dim, int max_restarts)
+static helm_t* helmholtz_context_new(mesh_t* mesh, int* N)
 {
   helm_t* helm = polymec_malloc(sizeof(helm_t));
   helm->mesh = mesh;
@@ -209,45 +210,44 @@ krylov_solver_t* gmres_helmholtz_solver_new(mesh_t* mesh, int max_krylov_dim, in
   }
   helm->bcs = string_ptr_unordered_map_new();
   helm->bcell_map = generate_boundary_cell_map(mesh);
-  int N = mesh->num_cells + helm->bcell_map->size;
+  *N = mesh->num_cells + helm->bcell_map->size;
+  helm->D = polymec_malloc(sizeof(real_t) * (*N));
+  for (int i = 0; i < (*N); ++i)
+    helm->D[i] = 1.0;
+  return helm;
+}
+
+krylov_solver_t* gmres_helmholtz_solver_new(mesh_t* mesh, int max_krylov_dim, int max_restarts)
+{
+  int N;
+  helm_t* helm = helmholtz_context_new(mesh, &N);
   krylov_solver_vtable vtable = {.ax = helm_ax, .b = helm_b, .dtor = helm_dtor};
-  return gmres_krylov_solver_new(mesh->comm, helm, vtable, N, max_krylov_dim, max_restarts);
+  krylov_solver_t* solver = gmres_krylov_solver_new(mesh->comm, helm, vtable, N, max_krylov_dim, max_restarts);
+  preconditioner_t* pc = block_jacobi_preconditioner_from_array(helm->D, N, 1);
+  krylov_solver_set_preconditioner(solver, pc);
+  return solver;
 }
 
 krylov_solver_t* bicgstab_helmholtz_solver_new(mesh_t* mesh, int max_krylov_dim)
 {
-  helm_t* helm = polymec_malloc(sizeof(helm_t));
-  helm->mesh = mesh;
-  helm->k = polymec_malloc(sizeof(real_t) * mesh->num_cells);
-  helm->f = polymec_malloc(sizeof(real_t) * mesh->num_cells);
-  for (int i = 0; i < mesh->num_cells; ++i)
-  {
-    helm->k[i] = 0.0;
-    helm->f[i] = 0.0;
-  }
-  helm->bcs = string_ptr_unordered_map_new();
-  helm->bcell_map = generate_boundary_cell_map(mesh);
-  int N = mesh->num_cells + helm->bcell_map->size;
+  int N;
+  helm_t* helm = helmholtz_context_new(mesh, &N);
   krylov_solver_vtable vtable = {.ax = helm_ax, .b = helm_b, .dtor = helm_dtor};
-  return bicgstab_krylov_solver_new(mesh->comm, helm, vtable, N, max_krylov_dim);
+  krylov_solver_t* solver = bicgstab_krylov_solver_new(mesh->comm, helm, vtable, N, max_krylov_dim);
+  preconditioner_t* pc = block_jacobi_preconditioner_from_array(helm->D, N, 1);
+  krylov_solver_set_preconditioner(solver, pc);
+  return solver;
 }
 
 krylov_solver_t* tfqmr_helmholtz_solver_new(mesh_t* mesh, int max_krylov_dim)
 {
-  helm_t* helm = polymec_malloc(sizeof(helm_t));
-  helm->mesh = mesh;
-  helm->k = polymec_malloc(sizeof(real_t) * mesh->num_cells);
-  helm->f = polymec_malloc(sizeof(real_t) * mesh->num_cells);
-  for (int i = 0; i < mesh->num_cells; ++i)
-  {
-    helm->k[i] = 0.0;
-    helm->f[i] = 0.0;
-  }
-  helm->bcs = string_ptr_unordered_map_new();
-  helm->bcell_map = generate_boundary_cell_map(mesh);
-  int N = mesh->num_cells + helm->bcell_map->size;
+  int N;
+  helm_t* helm = helmholtz_context_new(mesh, &N);
   krylov_solver_vtable vtable = {.ax = helm_ax, .b = helm_b, .dtor = helm_dtor};
-  return tfqmr_krylov_solver_new(mesh->comm, helm, vtable, N, max_krylov_dim);
+  krylov_solver_t* solver = tfqmr_krylov_solver_new(mesh->comm, helm, vtable, N, max_krylov_dim);
+  preconditioner_t* pc = block_jacobi_preconditioner_from_array(helm->D, N, 1);
+  krylov_solver_set_preconditioner(solver, pc);
+  return solver;
 }
 
 void helmholtz_solver_add_bc(krylov_solver_t* helmholtz, const char* face_tag)

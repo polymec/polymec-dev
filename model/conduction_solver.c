@@ -98,6 +98,7 @@ static int cond_ax(void* context, real_t* x, real_t* Ax, int N)
         point_t* xn = &mesh->cell_centers[neighbor];
         grad = (x[neighbor] - x[cell]) / point_distance(xn, xc);
         lambda = 0.5 * (cond->lambda[cell] + cond->lambda[neighbor]);
+        cond->D[cell] = -lambda / point_distance(xn, xc);
       }
       else
       {
@@ -106,6 +107,7 @@ static int cond_ax(void* context, real_t* x, real_t* Ax, int N)
         point_t* xf = &mesh->face_centers[face];
         grad = (x[bcell] - x[cell]) / (2.0 * point_distance(xf, xc));
         lambda = cond->lambda[cell];
+        cond->D[cell] = -0.5 * lambda / point_distance(xf, xc);
       }
       real_t area = mesh->face_areas[face];
       div_lambda_grad += area * lambda * grad;
@@ -134,8 +136,9 @@ static int cond_ax(void* context, real_t* x, real_t* Ax, int N)
       real_t beta = bc->beta[f];
       point_t* xc = &mesh->cell_centers[cell];
       point_t* xf = &mesh->face_centers[face];
-      real_t grad = (x[bcell] - x[cell]) / (2.0 * point_distance(xc, xf));
+      real_t grad = (x[bcell] - x[cell]) / (2.0 * point_distance(xf, xc));
       Ax[bcell] = alpha * 0.5 * (x[cell] + x[bcell]) + beta * grad;
+      cond->D[bcell] = 0.5 * alpha + beta / (2.0 * point_distance(xf, xc));
     }
   }
 
@@ -174,6 +177,7 @@ static void cond_b(void* context, real_t* B, int N)
 static void cond_dtor(void* context)
 {
   cond_t* cond = context;
+  polymec_free(cond->D);
   polymec_free(cond->f);
   polymec_free(cond->lambda);
   int_int_unordered_map_free(cond->bcell_map);
@@ -201,7 +205,7 @@ static int_int_unordered_map_t* generate_boundary_cell_map(mesh_t* mesh)
   return bcell_map;
 }
 
-krylov_solver_t* gmres_conduction_solver_new(mesh_t* mesh, int max_krylov_dim, int max_restarts)
+static cond_t* conduction_context_new(mesh_t* mesh, int* N)
 {
   cond_t* cond = polymec_malloc(sizeof(cond_t));
   cond->mesh = mesh;
@@ -214,48 +218,44 @@ krylov_solver_t* gmres_conduction_solver_new(mesh_t* mesh, int max_krylov_dim, i
   }
   cond->bcs = string_ptr_unordered_map_new();
   cond->bcell_map = generate_boundary_cell_map(mesh);
-  int N = mesh->num_cells + cond->bcell_map->size;
-  cond->D = polymec_malloc(sizeof(real_t) * N);
+  *N = mesh->num_cells + cond->bcell_map->size;
+  cond->D = polymec_malloc(sizeof(real_t) * (*N));
+  for (int i = 0; i < (*N); ++i)
+    cond->D[i] = 1.0;
+  return cond;
+}
+
+krylov_solver_t* gmres_conduction_solver_new(mesh_t* mesh, int max_krylov_dim, int max_restarts)
+{
+  int N;
+  cond_t* cond = conduction_context_new(mesh, &N);
   krylov_solver_vtable vtable = {.ax = cond_ax, .b = cond_b, .dtor = cond_dtor};
-  return gmres_krylov_solver_new(mesh->comm, cond, vtable, N, max_krylov_dim, max_restarts);
+  krylov_solver_t* solver = gmres_krylov_solver_new(mesh->comm, cond, vtable, N, max_krylov_dim, max_restarts);
+  preconditioner_t* pc = block_jacobi_preconditioner_from_array(cond->D, N, 1);
+  krylov_solver_set_preconditioner(solver, pc);
+  return solver;
 }
 
 krylov_solver_t* bicgstab_conduction_solver_new(mesh_t* mesh, int max_krylov_dim)
 {
-  cond_t* cond = polymec_malloc(sizeof(cond_t));
-  cond->mesh = mesh;
-  cond->lambda = polymec_malloc(sizeof(real_t) * mesh->num_cells);
-  cond->f = polymec_malloc(sizeof(real_t) * mesh->num_cells);
-  for (int i = 0; i < mesh->num_cells; ++i)
-  {
-    cond->lambda[i] = 1.0;
-    cond->f[i] = 0.0;
-  }
-  cond->bcs = string_ptr_unordered_map_new();
-  cond->bcell_map = generate_boundary_cell_map(mesh);
-  int N = mesh->num_cells + cond->bcell_map->size;
-  cond->D = polymec_malloc(sizeof(real_t) * N);
+  int N;
+  cond_t* cond = conduction_context_new(mesh, &N);
   krylov_solver_vtable vtable = {.ax = cond_ax, .b = cond_b, .dtor = cond_dtor};
-  return bicgstab_krylov_solver_new(mesh->comm, cond, vtable, N, max_krylov_dim);
+  krylov_solver_t* solver = bicgstab_krylov_solver_new(mesh->comm, cond, vtable, N, max_krylov_dim);
+  preconditioner_t* pc = block_jacobi_preconditioner_from_array(cond->D, N, 1);
+  krylov_solver_set_preconditioner(solver, pc);
+  return solver;
 }
 
 krylov_solver_t* tfqmr_conduction_solver_new(mesh_t* mesh, int max_krylov_dim)
 {
-  cond_t* cond = polymec_malloc(sizeof(cond_t));
-  cond->mesh = mesh;
-  cond->lambda = polymec_malloc(sizeof(real_t) * mesh->num_cells);
-  cond->f = polymec_malloc(sizeof(real_t) * mesh->num_cells);
-  for (int i = 0; i < mesh->num_cells; ++i)
-  {
-    cond->lambda[i] = 1.0;
-    cond->f[i] = 0.0;
-  }
-  cond->bcs = string_ptr_unordered_map_new();
-  cond->bcell_map = generate_boundary_cell_map(mesh);
-  int N = mesh->num_cells + cond->bcell_map->size;
-  cond->D = polymec_malloc(sizeof(real_t) * N);
+  int N;
+  cond_t* cond = conduction_context_new(mesh, &N);
   krylov_solver_vtable vtable = {.ax = cond_ax, .b = cond_b, .dtor = cond_dtor};
-  return tfqmr_krylov_solver_new(mesh->comm, cond, vtable, N, max_krylov_dim);
+  krylov_solver_t* solver = tfqmr_krylov_solver_new(mesh->comm, cond, vtable, N, max_krylov_dim);
+  preconditioner_t* pc = block_jacobi_preconditioner_from_array(cond->D, N, 1);
+  krylov_solver_set_preconditioner(solver, pc);
+  return solver;
 }
 
 real_t* conduction_solver_lambda(krylov_solver_t* solver)
@@ -314,88 +314,5 @@ void conduction_solver_get_bc_arrays(krylov_solver_t* solver, const char* face_t
     if (num_faces != NULL)
       *num_faces = 0;
   }
-}
-
-typedef struct
-{
-  void* context;
-  void (*update_lambda)(void* context, real_t t, real_t* lambda);
-  void (*dtor)(void* context);
-  mesh_t* mesh;
-  real_t *lambda;
-} cond_pc_t;
-
-static void bjc_compute_diagonal(void* context, int block_size, real_t* D)
-{
-  cond_pc_t* pc = context;
-
-  // Update the conduction coefficient.
-  if (pc->update_lambda != NULL)
-    pc->update_lambda(pc->context, 0.0, pc->lambda);
-
-  mesh_t* mesh = pc->mesh;
-  for (int cell = 0; cell < pc->mesh->num_cells; ++cell)
-  {
-    int pos = 0, face;
-
-    // Evaluate the diagonal portion of div ( lambda o grad phi) using 
-    // the discrete divergence theorem.
-    real_t div_lambda_grad = 0.0;
-    point_t* xc = &mesh->cell_centers[cell];
-    while (mesh_cell_next_face(mesh, cell, &pos, &face))
-    {
-      int neighbor = mesh_face_opp_cell(mesh, face, cell);
-      real_t grad;
-      real_t lambda = 1.0;
-      if (neighbor != -1)
-      {
-        point_t* xn = &mesh->cell_centers[neighbor];
-        grad = -1.0 / point_distance(xn, xc);
-        if (pc->lambda != NULL)
-          lambda = 0.5 * (pc->lambda[cell] + pc->lambda[neighbor]);
-      }
-      else
-      {
-        point_t* xf = &mesh->face_centers[face];
-        grad = 1.0 / (2.0 * point_distance(xf, xc));
-        if (pc->lambda != NULL)
-          lambda = pc->lambda[cell];
-      }
-      real_t area = mesh->face_areas[face];
-      div_lambda_grad += area * lambda * grad;
-    }
-    D[cell] = div_lambda_grad;
-  }
-}
-
-static void bjc_dtor(void* context)
-{
-  cond_pc_t* pc = context;
-  polymec_free(pc->lambda);
-  if ((pc->dtor != NULL) && (pc->context != NULL))
-    pc->dtor(pc->context);
-  polymec_free(pc);
-}
-
-preconditioner_t* jacobi_conduction_pc_new(void* context,
-                                           void (*update_lambda)(void* context, real_t t, real_t* lambda),
-                                           void (*dtor)(void* context),
-                                           mesh_t* mesh)
-{
-  cond_pc_t* pc = polymec_malloc(sizeof(cond_pc_t));
-  pc->context = context;
-  pc->dtor = dtor;
-  pc->update_lambda = update_lambda;
-  pc->mesh = mesh;
-  pc->lambda = polymec_malloc(sizeof(real_t) * pc->mesh->num_cells);
-  for (int i = 0; i < pc->mesh->num_cells; ++i)
-    pc->lambda[i] = 1.0;
-  return block_jacobi_preconditioner_new(pc, bjc_compute_diagonal, bjc_dtor, pc->mesh->num_cells, 1);
-}
-
-real_t* jacobi_conduction_pc_lambda(preconditioner_t* pc)
-{
-  cond_pc_t* pcc = block_jacobi_preconditioner_context(pc);
-  return pcc->lambda;
 }
 

@@ -36,7 +36,7 @@ void test_gmres_helmholtz_solver_ctor(void** state)
 {
   bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
   mesh_t* mesh = create_uniform_mesh(MPI_COMM_WORLD, 10, 10, 10, &bbox);
-  krylov_solver_t* solver = gmres_helmholtz_solver_new(mesh, 15, 5);
+  krylov_solver_t* solver = gmres_helmholtz_solver_new(mesh, 30, 10);
   assert_true(solver != NULL);
   krylov_solver_free(solver);
   mesh_free(mesh);
@@ -50,11 +50,15 @@ static void laplace_1d_dirichlet_solution(void* context, point_t* x, real_t* phi
 void test_gmres_helmholtz_solver_laplace_1d_dirichlet(void** state)
 {
   // Set up a solver.
-  int nx = 10, ny = 1, nz = 1;
+  int nx = 32, ny = 1, nz = 1;
   bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0/nx, .z1 = 0.0, .z2 = 1.0/nx};
   mesh_t* mesh = create_uniform_mesh(MPI_COMM_WORLD, nx, ny, nz, &bbox);
   tag_rectilinear_mesh_faces(mesh, "-x", "+x", "-y", "+y", "-z", "+z");
-  krylov_solver_t* solver = gmres_helmholtz_solver_new(mesh, 15, 5);
+  krylov_solver_t* solver = gmres_helmholtz_solver_new(mesh, 30, 10);
+
+  // Set the tolerance on the solution.
+  real_t tolerance = 4e-7;
+  krylov_solver_set_tolerance(solver, tolerance);
 
   // Set Dirichlet boundary conditions on the far ends and Neumann (no-flux)
   // boundary conditions on the sides.
@@ -92,7 +96,7 @@ void test_gmres_helmholtz_solver_laplace_1d_dirichlet(void** state)
   int num_iters, num_precond;
   bool result = krylov_solver_solve(solver, X, &res_norm, &num_iters, &num_precond);
   assert_true(result);
-  assert_true(res_norm < 3.06e-6);
+  assert_true(res_norm < tolerance);
 
   // Compute the error by comparing to the analytic solution.
   sp_func_t* solution = sp_func_from_func("solution", laplace_1d_dirichlet_solution,
@@ -127,11 +131,15 @@ static void laplace_1d_neumann_solution(void* context, point_t* x, real_t* phi)
 void test_gmres_helmholtz_solver_laplace_1d_neumann(void** state)
 {
   // Set up a solver.
-  int nx = 10, ny = 1, nz = 1;
+  int nx = 32, ny = 1, nz = 1;
   bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0/nx, .z1 = 0.0, .z2 = 1.0/nx};
   mesh_t* mesh = create_uniform_mesh(MPI_COMM_WORLD, nx, ny, nz, &bbox);
   tag_rectilinear_mesh_faces(mesh, "-x", "+x", "-y", "+y", "-z", "+z");
-  krylov_solver_t* solver = gmres_helmholtz_solver_new(mesh, 15, 5);
+  krylov_solver_t* solver = gmres_helmholtz_solver_new(mesh, 30, 10);
+
+  // Set the tolerance on the solution.
+  real_t tolerance = 4e-6;
+  krylov_solver_set_tolerance(solver, tolerance);
 
   // Set Dirichlet/Neumann boundary conditions on the far ends and no-flow 
   // conditions on the sides.
@@ -169,7 +177,7 @@ void test_gmres_helmholtz_solver_laplace_1d_neumann(void** state)
   int num_iters, num_precond;
   bool result = krylov_solver_solve(solver, X, &res_norm, &num_iters, &num_precond);
   assert_true(result);
-  assert_true(res_norm < 1.24e-6);
+  assert_true(res_norm < tolerance);
 
   // Compute the error by comparing to the analytic solution.
   sp_func_t* solution = sp_func_from_func("solution", laplace_1d_neumann_solution,
@@ -208,7 +216,11 @@ void test_gmres_helmholtz_solver_laplace_dirichlet(void** state)
   int nx = 10, ny = 10, nz = 10;
   mesh_t* mesh = create_uniform_mesh(MPI_COMM_WORLD, nx, ny, nz, &bbox);
   tag_rectilinear_mesh_faces(mesh, "-x", "+x", "-y", "+y", "-z", "+z");
-  krylov_solver_t* solver = gmres_helmholtz_solver_new(mesh, 15, 5);
+  krylov_solver_t* solver = gmres_helmholtz_solver_new(mesh, 30, 10);
+
+  // Set the tolerance on the solution.
+  real_t tolerance = 1e-8;
+  krylov_solver_set_tolerance(solver, tolerance);
 
   // Set Dirichlet boundary conditions.
   const char* tag_names[6] = {"-x", "+x", "-y", "+y", "-z", "+z"};
@@ -240,7 +252,7 @@ void test_gmres_helmholtz_solver_laplace_dirichlet(void** state)
   int num_iters, num_precond;
   bool result = krylov_solver_solve(solver, X, &res_norm, &num_iters, &num_precond);
   assert_true(result);
-  assert_true(res_norm < 3.06e-6);
+  assert_true(res_norm < tolerance);
 
   // Compute the error by comparing to the analytic solution.
   sp_func_t* solution = sp_func_from_func("solution", laplace_dirichlet_solution,

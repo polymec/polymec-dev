@@ -50,8 +50,45 @@ struct krylov_solver_t
 
   preconditioner_t* precond;
 
-  N_Vector X, B;
+  N_Vector X, B, S1, S2;
 };
+
+static krylov_solver_t* general_krylov_solver_new(MPI_Comm comm, 
+                                                  void* context,
+                                                  krylov_solver_vtable vtable,
+                                                  int N,
+                                                  int max_krylov_dim)
+{
+  ASSERT(max_krylov_dim >= 3);
+  ASSERT(vtable.ax != NULL);
+  ASSERT(N > 0);
+
+  krylov_solver_t* solver = polymec_malloc(sizeof(krylov_solver_t));
+  solver->name = NULL;
+  solver->comm = comm;
+  solver->context = context;
+  solver->vtable = vtable;
+  solver->N = N;
+  solver->max_krylov_dim = max_krylov_dim;
+  solver->max_restarts = -1;
+  solver->delta = 1e-8;
+
+  solver->X = N_VNew(comm, N);
+  solver->B = N_VNew(comm, N);
+  solver->S1 = N_VNew(comm, N);
+  solver->S2 = N_VNew(comm, N);
+  for (int i = 0; i < N; ++i)
+  {
+    NV_Ith(solver->S1, i) = 1.0;
+    NV_Ith(solver->S2, i) = 1.0;
+  }
+  solver->gmres = NULL;
+  solver->bicgstab = NULL;
+  solver->tfqmr = NULL;
+  solver->precond = NULL;
+
+  return solver;
+}
 
 krylov_solver_t* gmres_krylov_solver_new(MPI_Comm comm, 
                                          void* context,
@@ -60,29 +97,13 @@ krylov_solver_t* gmres_krylov_solver_new(MPI_Comm comm,
                                          int max_krylov_dim,
                                          int max_restarts)
 {
-  ASSERT(vtable.ax != NULL);
-  ASSERT(N > 0);
-  ASSERT(max_krylov_dim >= 3);
   ASSERT(max_restarts >= 0);
 
-  krylov_solver_t* solver = polymec_malloc(sizeof(krylov_solver_t));
+  krylov_solver_t* solver = general_krylov_solver_new(comm, context, vtable, N, max_krylov_dim);
   solver->name = string_dup("GMRES");
   solver->type = GMRES;
-  solver->comm = comm;
-  solver->context = context;
-  solver->vtable = vtable;
-  solver->N = N;
-  solver->max_krylov_dim = max_krylov_dim;
   solver->max_restarts = max_restarts;
-  solver->delta = 1e-8;
-
-  solver->X = N_VNew(comm, N);
-  solver->B = N_VNew(comm, N);
   solver->gmres = SpgmrMalloc(max_krylov_dim, solver->X);
-  solver->bicgstab = NULL;
-  solver->tfqmr = NULL;
-  solver->precond = NULL;
-
   return solver;
 }
   
@@ -92,27 +113,10 @@ krylov_solver_t* bicgstab_krylov_solver_new(MPI_Comm comm,
                                             int N,
                                             int max_krylov_dim)
 {
-  ASSERT(vtable.ax != NULL);
-  ASSERT(N > 0);
-  ASSERT(max_krylov_dim >= 3);
-
-  krylov_solver_t* solver = polymec_malloc(sizeof(krylov_solver_t));
+  krylov_solver_t* solver = general_krylov_solver_new(comm, context, vtable, N, max_krylov_dim);
   solver->name = string_dup("BiCGSTAB");
   solver->type = BICGSTAB;
-  solver->comm = comm;
-  solver->context = context;
-  solver->vtable = vtable;
-  solver->N = N;
-  solver->max_krylov_dim = max_krylov_dim;
-  solver->delta = 1e-8;
-
-  solver->X = N_VNew(comm, N);
-  solver->B = N_VNew(comm, N);
-  solver->gmres = NULL;
   solver->bicgstab = SpbcgMalloc(max_krylov_dim, solver->X);
-  solver->tfqmr = NULL;
-  solver->precond = NULL;
-
   return solver;
 }
   
@@ -122,27 +126,10 @@ krylov_solver_t* tfqmr_krylov_solver_new(MPI_Comm comm,
                                          int N,
                                          int max_krylov_dim)
 {
-  ASSERT(vtable.ax != NULL);
-  ASSERT(N > 0);
-  ASSERT(max_krylov_dim >= 3);
-
-  krylov_solver_t* solver = polymec_malloc(sizeof(krylov_solver_t));
+  krylov_solver_t* solver = general_krylov_solver_new(comm, context, vtable, N, max_krylov_dim);
   solver->name = string_dup("TFQMR");
   solver->type = TFQMR;
-  solver->comm = comm;
-  solver->context = context;
-  solver->vtable = vtable;
-  solver->N = N;
-  solver->max_krylov_dim = max_krylov_dim;
-  solver->delta = 1e-8;
-
-  solver->X = N_VNew(comm, N);
-  solver->B = N_VNew(comm, N);
-  solver->gmres = NULL;
-  solver->bicgstab = NULL;
   solver->tfqmr = SptfqmrMalloc(max_krylov_dim, solver->X);
-  solver->precond = NULL;
-
   return solver;
 }
  
@@ -160,6 +147,8 @@ void krylov_solver_free(krylov_solver_t* solver)
   {
     SptfqmrFree(solver->tfqmr);
   }
+  N_VDestroy(solver->S1);
+  N_VDestroy(solver->S2);
   N_VDestroy(solver->X);
   N_VDestroy(solver->B);
   polymec_free(solver->name);
@@ -181,6 +170,8 @@ void krylov_solver_set_tolerance(krylov_solver_t* solver, real_t delta)
 
 void krylov_solver_set_preconditioner(krylov_solver_t* solver, preconditioner_t* precond)
 {
+  if (solver->precond != NULL)
+    preconditioner_free(solver->precond);
   solver->precond = precond;
 }
 
@@ -189,6 +180,16 @@ static int krylov_ax(void* solver_ptr, N_Vector x, N_Vector Ax)
 {
   krylov_solver_t* solver = solver_ptr;
   return solver->vtable.ax(solver->context, NV_DATA(x), NV_DATA(Ax), solver->N);
+}
+
+real_t* krylov_solver_s1(krylov_solver_t* solver)
+{
+  return NV_DATA(solver->S1);
+}
+
+real_t* krylov_solver_s2(krylov_solver_t* solver)
+{
+  return NV_DATA(solver->S2);
 }
 
 real_t* krylov_solver_vector(krylov_solver_t* solver)
@@ -204,6 +205,8 @@ static int pc_solve(void* context, N_Vector r, N_Vector z, int pc_type)
   if (pc_type != PREC_NONE)
   {
     krylov_solver_t* solver = context;
+    ASSERT(solver->precond != NULL);
+    preconditioner_setup(solver->precond);
     memcpy(NV_DATA(z), NV_DATA(r), sizeof(real_t) * NV_LOCLENGTH(r));
     bool result = preconditioner_solve(solver->precond, NV_DATA(z));
     return (result) ? 0 : -1;
@@ -228,25 +231,25 @@ bool krylov_solver_solve(krylov_solver_t* solver, real_t* X, real_t* res_norm,
   {
     int stat = SpgmrSolve(solver->gmres, solver, solver->X, 
                           solver->B, prec_type, MODIFIED_GS, solver->delta, 
-                          solver->max_restarts, solver, NULL, NULL, krylov_ax, pc_solve, res_norm,
-                          num_iters, num_precond);
-    result = (stat == SPGMR_SUCCESS);
+                          solver->max_restarts, solver, solver->S1, solver->S2, 
+                          krylov_ax, pc_solve, res_norm, num_iters, num_precond);
+    result = ((stat == SPGMR_SUCCESS || (stat == SPGMR_RES_REDUCED)));
   }
   else if (solver->type == BICGSTAB)
   {
     int stat = SpbcgSolve(solver->bicgstab, solver, solver->X, 
                           solver->B, prec_type, solver->delta, solver, 
-                          NULL, NULL, krylov_ax, pc_solve, res_norm,
-                          num_iters, num_precond);
-    result = (stat == SPBCG_SUCCESS);
+                          solver->S1, solver->S2, krylov_ax, pc_solve, 
+                          res_norm, num_iters, num_precond);
+    result = ((stat == SPBCG_SUCCESS) || (stat == SPBCG_RES_REDUCED));
   }
   else
   {
     int stat = SptfqmrSolve(solver->tfqmr, solver, solver->X, 
                             solver->B, prec_type, solver->delta, solver, 
-                            NULL, NULL, krylov_ax, pc_solve, res_norm,
-                            num_iters, num_precond);
-    result = (stat == SPTFQMR_SUCCESS);
+                            solver->S1, solver->S2, krylov_ax, pc_solve, 
+                            res_norm, num_iters, num_precond);
+    result = ((stat == SPTFQMR_SUCCESS) || (stat == SPTFQMR_RES_REDUCED));
   }
   
   // Copy the data out.

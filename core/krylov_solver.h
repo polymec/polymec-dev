@@ -81,6 +81,17 @@ void* krylov_solver_context(krylov_solver_t* solver);
 // By default, the tolerance is 1e-8.
 void krylov_solver_set_tolerance(krylov_solver_t* solver, real_t delta);
 
+// Sets the (linear) preconditioner to use for this Krylov solver.
+void krylov_solver_set_preconditioner(krylov_solver_t* solver, preconditioner_t* precond);
+
+// Returns an internal pointer to the diagonal scaling matrix S1. By default,
+// S2 is the identity matrix.
+real_t* krylov_solver_s1(krylov_solver_t* solver);
+
+// Returns an internal pointer to the diagonal scaling matrix S2. By default,
+// S2 is the identity matrix.
+real_t* krylov_solver_s2(krylov_solver_t* solver);
+
 // Returns a newly-created array that is large enough to store the solution 
 // vector for the linear system represented by the Krylov solver. Contains 
 // zeros. Must be freed using polymec_free().

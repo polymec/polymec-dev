@@ -38,9 +38,12 @@ preconditioner_t* block_jacobi_preconditioner_new(void* context,
                                                   int num_block_rows,
                                                   int block_size);
 
-// Use this to retrieve the context pointer for the given block Jacobi 
-// preconditioner. DON'T use this unless you know what you're doing.
-void* block_jacobi_preconditioner_context(preconditioner_t* bj_precond);
+// Creates a block Jacobi preconditioner that uses data in the given 
+// (block-major) array as its diagonal. The preconditioner does NOT manage the 
+// array -- this array is assumed to be valid for the lifetime of the preconditioner.
+preconditioner_t* block_jacobi_preconditioner_from_array(real_t* array,
+                                                         int num_block_rows,
+                                                         int block_size);
 
 #endif
 
