@@ -65,13 +65,11 @@ void* preconditioner_context(preconditioner_t* precond)
 
 void preconditioner_setup(preconditioner_t* precond)
 {
-  log_debug("preconditioner: setting up...");
   precond->vtable.setup(precond->context);
 }
 
 bool preconditioner_solve(preconditioner_t* precond, real_t* rhs)
 {
-  log_debug("preconditioner: solving...");
   return precond->vtable.solve(precond->context, rhs);
 }
 
