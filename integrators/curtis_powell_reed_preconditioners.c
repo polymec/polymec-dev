@@ -287,7 +287,7 @@ static void bjpc_set_identity_matrix(void* context, real_t diag_val)
   // Set the diagonal values.
   for (int i = 0; i < pc->num_block_rows; ++i)
   {
-    for (int j = 0; j < bs*bs; ++j)
+    for (int j = 0; j < bs; ++j)
       pc->D[bs*bs*i+bs*j+j] = diag_val;
   }
 }
