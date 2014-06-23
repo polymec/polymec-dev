@@ -32,12 +32,12 @@
 typedef struct preconditioner_t preconditioner_t;
 
 // This function sets up the preconditioner to obtain a preconditioned solution.
-typedef void (*preconditioner_setup_func)(void* context, real_t alpha, real_t beta, real_t gamma, real_t t, real_t* x, real_t* xdot);
+typedef void (*preconditioner_setup_func)(void* context);
 
 // This function solves the preconditioner system A*X = B, where A is the 
 // preconditioner matrix and B is the given right-hand side. The right-hand 
 // side is taken as input and is filled with the solution on output.
-typedef bool (*preconditioner_solve_func)(void* context, real_t t, real_t* B);
+typedef bool (*preconditioner_solve_func)(void* context, real_t* B);
 
 // This function writes a text representation of the preconditioner to the given file.
 typedef void (*preconditioner_fprintf_func)(void* context, FILE* stream);
@@ -70,21 +70,14 @@ char* preconditioner_name(preconditioner_t* precond);
 void* preconditioner_context(preconditioner_t* precond);
 
 // Sets up the preconditioner to obtain a representation of the preconditioner
-// operator. This operator represents the expression 
-//
-// alpha I + beta * dF/dx + gamma * dF/dxdot
-//
-// where I is the identity matrix, and dF/dx and dF/dxdot are the derivatives 
-// of a system function F with respect to the solution and its time derivative.
-// Note that xdot can be NULL if gamma == 0.0.
-void preconditioner_setup(preconditioner_t* precond, real_t alpha, real_t beta, real_t gamma,
-                          real_t, real_t* x, real_t* xdot);
+// operator. 
+void preconditioner_setup(preconditioner_t* precond);
 
 // Solves the preconditioned linear system. On input, rhs contains the 
 // right-hand side of the system, and on output, it contains the solution 
 // to the preconditioned system. Returns true if the system was successfully 
 // solved, false if not.
-bool preconditioner_solve(preconditioner_t* precond, real_t t, real_t* rhs);
+bool preconditioner_solve(preconditioner_t* precond, real_t* rhs);
 
 // Writes a text representation of the given preconditioner to the given file.
 void preconditioner_fprintf(preconditioner_t* precond, FILE* stream);

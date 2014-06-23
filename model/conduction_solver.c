@@ -325,19 +325,13 @@ typedef struct
   real_t *lambda;
 } cond_pc_t;
 
-static void bjc_compute_diagonal(void* context, int block_size, 
-                                 real_t alpha, real_t beta, real_t gamma, 
-                                 real_t t, real_t* x, real_t* xdot, real_t* D)
+static void bjc_compute_diagonal(void* context, int block_size, real_t* D)
 {
-  ASSERT(alpha == 0.0);
-  ASSERT(beta == 1.0);
-  ASSERT(gamma == 0.0);
-
   cond_pc_t* pc = context;
 
   // Update the conduction coefficient.
   if (pc->update_lambda != NULL)
-    pc->update_lambda(pc->context, t, pc->lambda);
+    pc->update_lambda(pc->context, 0.0, pc->lambda);
 
   mesh_t* mesh = pc->mesh;
   for (int cell = 0; cell < pc->mesh->num_cells; ++cell)
@@ -356,14 +350,14 @@ static void bjc_compute_diagonal(void* context, int block_size,
       if (neighbor != -1)
       {
         point_t* xn = &mesh->cell_centers[neighbor];
-        grad = -x[cell] / point_distance(xn, xc);
+        grad = -1.0 / point_distance(xn, xc);
         if (pc->lambda != NULL)
           lambda = 0.5 * (pc->lambda[cell] + pc->lambda[neighbor]);
       }
       else
       {
         point_t* xf = &mesh->face_centers[face];
-        grad = x[cell] / (2.0 * point_distance(xf, xc));
+        grad = 1.0 / (2.0 * point_distance(xf, xc));
         if (pc->lambda != NULL)
           lambda = pc->lambda[cell];
       }

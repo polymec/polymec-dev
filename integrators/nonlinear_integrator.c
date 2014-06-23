@@ -25,6 +25,7 @@
 #include <float.h>
 #include "core/sundials_helpers.h"
 #include "integrators/nonlinear_integrator.h"
+#include "integrators/nonlinear_preconditioner.h"
 
 // We use KINSOL for doing the matrix-free nonlinear solve.
 #include "kinsol/kinsol.h"
@@ -111,7 +112,7 @@ static int set_up_preconditioner(N_Vector x, N_Vector x_scale,
 {
   nonlinear_integrator_t* integrator = context;
   real_t t = integrator->current_time;
-  preconditioner_setup(integrator->precond, 0.0, 1.0, 0.0, t, NV_DATA(x), NULL);
+  nonlinear_preconditioner_setup(integrator->precond, 0.0, 1.0, 0.0, t, NV_DATA(x), NULL);
   return 0;
 }
 
@@ -130,7 +131,7 @@ static int solve_preconditioner_system(N_Vector x, N_Vector x_scale,
   // Project r out of the null space.
   project_out_of_null_space(integrator, NV_DATA(r));
 
-  if (preconditioner_solve(integrator->precond, integrator->current_time, NV_DATA(r)))
+  if (preconditioner_solve(integrator->precond, NV_DATA(r)))
     return 0;
   else 
   {

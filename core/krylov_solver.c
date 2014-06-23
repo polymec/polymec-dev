@@ -205,7 +205,7 @@ static int pc_solve(void* context, N_Vector r, N_Vector z, int pc_type)
   {
     krylov_solver_t* solver = context;
     memcpy(NV_DATA(z), NV_DATA(r), sizeof(real_t) * NV_LOCLENGTH(r));
-    bool result = preconditioner_solve(solver->precond, 0.0, NV_DATA(z));
+    bool result = preconditioner_solve(solver->precond, NV_DATA(z));
     return (result) ? 0 : -1;
   }
   return 0;

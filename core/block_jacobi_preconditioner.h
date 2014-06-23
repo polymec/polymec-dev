@@ -33,7 +33,7 @@
 // it is an array consisting of the components of column-major dense matrices 
 // stacked end-to-end.
 preconditioner_t* block_jacobi_preconditioner_new(void* context,
-                                                  void (*compute_diagonal)(void* context, int block_size, real_t alpha, real_t beta, real_t gamma, real_t t, real_t* x, real_t* x_dot, real_t* D),
+                                                  void (*compute_diagonal)(void* context, int block_size, real_t* D),
                                                   void (*dtor)(void* context),
                                                   int num_block_rows,
                                                   int block_size);
@@ -42,26 +42,5 @@ preconditioner_t* block_jacobi_preconditioner_new(void* context,
 // preconditioner. DON'T use this unless you know what you're doing.
 void* block_jacobi_preconditioner_context(preconditioner_t* bj_precond);
 
-// Creates a block Jacobi preconditioner with the given sparsity graph, 
-// number of block rows, and block size. The nature of the sparsity graph 
-// (i.e. whether it is a block graph or not) is inferred from the number of 
-// block rows and the block size.
-preconditioner_t* block_jacobi_preconditioner_from_function(void* context,
-                                                            int (*F)(void* context, real_t t, real_t* x, real_t* Fval),
-                                                            void (*dtor)(void* context),
-                                                            adj_graph_t* sparsity,
-                                                            int num_block_rows,
-                                                            int block_size);
-                                        
-// Creates a block Jacobi preconditioner with the given sparsity graph, 
-// number of block rows, and block size, appropriate for preconditioning 
-// differential-algebraic systems.
-preconditioner_t* block_jacobi_dae_preconditioner_from_function(void* context,
-                                                                int (*F)(void* context, real_t t, real_t* x, real_t* xdot, real_t* Fval),
-                                                                void (*dtor)(void* context),
-                                                                adj_graph_t* sparsity,
-                                                                int num_block_rows,
-                                                                int block_size);
-                                        
 #endif
 

@@ -63,18 +63,16 @@ void* preconditioner_context(preconditioner_t* precond)
   return precond->context;
 }
 
-void preconditioner_setup(preconditioner_t* precond, real_t t, 
-                          real_t alpha, real_t beta, real_t gamma,
-                          real_t* x, real_t* xdot)
+void preconditioner_setup(preconditioner_t* precond)
 {
   log_debug("preconditioner: setting up...");
-  precond->vtable.setup(precond->context, t, alpha, beta, gamma, x, xdot);
+  precond->vtable.setup(precond->context);
 }
 
-bool preconditioner_solve(preconditioner_t* precond, real_t t, real_t* rhs)
+bool preconditioner_solve(preconditioner_t* precond, real_t* rhs)
 {
   log_debug("preconditioner: solving...");
-  return precond->vtable.solve(precond->context, t, rhs);
+  return precond->vtable.solve(precond->context, rhs);
 }
 
 void preconditioner_fprintf(preconditioner_t* precond, FILE* stream)

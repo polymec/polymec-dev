@@ -28,8 +28,10 @@
 #include <string.h>
 
 #include "cmockery.h"
+#include "slu_ddefs.h"
 #include "core/polymec.h"
-#include "core/block_jacobi_preconditioner.h"
+#include "core/array_utils.h"
+#include "integrators/nonlinear_preconditioner.h"
 
 static adj_graph_t* linear_graph(int N)
 {
@@ -64,16 +66,27 @@ static int sys_func(void* context, real_t t, real_t* x, real_t* F)
   return 0;
 }
 
-void test_ctor(void** state)
+void test_block_jacobi_ctor(void** state)
 {
+  int N = 10;
   int bs = 2;
-  adj_graph_t* g = linear_graph(10);
-  preconditioner_t* precond = block_jacobi_preconditioner_from_function(NULL, sys_func, NULL, g, 1000, bs);
+  adj_graph_t* g = linear_graph(N);
+  preconditioner_t* precond = block_jacobi_preconditioner_from_function("test", NULL, sys_func, NULL, g, N, bs);
   preconditioner_free(precond);
   adj_graph_t* bg = adj_graph_new_with_block_size(bs, g);
-  precond = block_jacobi_preconditioner_from_function(NULL, sys_func, NULL, bg, 1000, bs);
+  precond = block_jacobi_preconditioner_from_function("test", NULL, sys_func, NULL, bg, N, bs);
   preconditioner_free(precond);
   adj_graph_free(bg);
+  adj_graph_free(g);
+}
+
+void test_lu_ctor(void** state)
+{
+  int N = 10;
+  int bs = 2;
+  adj_graph_t* g = linear_graph(N);
+  preconditioner_t* precond = lu_preconditioner_from_function("test", NULL, sys_func, NULL, g, N, bs);
+  preconditioner_free(precond);
   adj_graph_free(g);
 }
 
@@ -82,7 +95,8 @@ int main(int argc, char* argv[])
   polymec_init(argc, argv);
   const UnitTest tests[] = 
   {
-    unit_test(test_ctor)
+    unit_test(test_block_jacobi_ctor),
+    unit_test(test_lu_ctor)
   };
   return run_tests(tests);
 }

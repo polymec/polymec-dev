@@ -24,6 +24,7 @@
 
 #include "core/sundials_helpers.h"
 #include "integrators/ode_integrator.h"
+#include "integrators/nonlinear_preconditioner.h"
 
 #include "cvode/cvode.h"
 #include "cvode/cvode_spils.h"
@@ -86,7 +87,7 @@ static int set_up_preconditioner(real_t t, N_Vector x, N_Vector F,
   ode_integrator_t* integ = context;
   if (!jacobian_is_current)
   {
-    preconditioner_setup(integ->precond, 1.0, -gamma, 0.0, t, NV_DATA(x), NULL);
+    nonlinear_preconditioner_setup(integ->precond, 1.0, -gamma, 0.0, t, NV_DATA(x), NULL);
     *jacobian_was_updated = 1;
   }
   else
@@ -112,7 +113,7 @@ static int solve_preconditioner_system(real_t t, N_Vector x, N_Vector F,
   memcpy(NV_DATA(z), NV_DATA(r), sizeof(real_t) * integ->N);
 
   // Solve it.
-  if (preconditioner_solve(integ->precond, t, NV_DATA(z)))
+  if (preconditioner_solve(integ->precond, NV_DATA(z)))
     return 0;
   else 
     return 1; // recoverable error.
