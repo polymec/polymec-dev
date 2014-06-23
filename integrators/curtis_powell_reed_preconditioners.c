@@ -67,8 +67,7 @@ static int F_adaptor(void* context, real_t t, real_t* x, real_t* xdot, real_t* F
   // We are passed the actual preconditioner as our context pointer, so get the 
   // "real" one here.
   cpr_t* pc = context;
-  void* ctx = pc->context;
-  return pc->vtable.F(ctx, t, x, Fval);
+  return pc->vtable.F(pc->context, t, x, Fval);
 }
 
 // Here's our finite difference implementation of the dF/dx matrix-vector 
@@ -235,6 +234,7 @@ static preconditioner_t* curtis_powell_reed_preconditioner_new(const char* name,
   log_debug("Curtis-Powell-Reed preconditioner: graph coloring produced %d colors.", 
             adj_graph_coloring_num_colors(precond->coloring));
   precond->context = context;
+  precond->vtable = vtable;
 
   // Make work vectors.
   precond->num_work_vectors = 4;
@@ -484,6 +484,25 @@ static SuperMatrix* supermatrix_new(adj_graph_t* graph)
   return A;
 }
 
+static void lupc_set_identity_matrix(void* context, real_t diag_val)
+{
+  lupc_t* pc = context;
+  SuperMatrix* mat = pc->P;
+  int num_cols = mat->ncol;
+  NCformat* data = mat->Store;
+  real_t* Aij = data->nzval;
+
+  // Zero the matrix coefficients.
+  memset(Aij, 0, data->colptr[num_cols]);
+
+  // Set the diagonal values.
+  for (int j = 0; j < num_cols; ++j)
+  {
+    int col_index = data->colptr[j];
+    Aij[col_index] = diag_val;
+  }
+}
+
 static void lupc_add_Jv_into_matrix(void* context, 
                                     adj_graph_t* graph, 
                                     adj_graph_coloring_t* coloring, 
@@ -513,25 +532,6 @@ static void lupc_add_Jv_into_matrix(void* context,
       size_t offset = entry - &data->rowind[col_index];
       Jij[data->colptr[i] + offset] += factor * Jv[j];
     }
-  }
-}
-
-static void lupc_set_identity_matrix(void* context, real_t diag_val)
-{
-  lupc_t* pc = context;
-  SuperMatrix* mat = pc->P;
-  int num_cols = mat->ncol;
-  NCformat* data = mat->Store;
-  real_t* Aij = data->nzval;
-
-  // Zero the matrix coefficients.
-  memset(Aij, 0, data->colptr[num_cols]);
-
-  // Set the diagonal values.
-  for (int j = 0; j < num_cols; ++j)
-  {
-    int col_index = data->colptr[j];
-    Aij[col_index] = diag_val;
   }
 }
 
@@ -778,6 +778,8 @@ preconditioner_t* ilu_preconditioner_from_function(const char* name,
   lupc_initialize_matrix_data(precond, sparsity);
   ilupc_set_ilu_params(precond, ilu_params);
   cpr_vtable vtable = {.F = F,
+                       .set_identity_matrix = lupc_set_identity_matrix,
+                       .add_Jv_into_matrix = lupc_add_Jv_into_matrix,
                        .solve = lupc_solve,
                        .fprintf = lupc_fprintf,
                        .dtor = lupc_dtor};
@@ -802,6 +804,8 @@ preconditioner_t* ilu_preconditioner_from_dae_function(const char* name,
   lupc_initialize_matrix_data(precond, sparsity);
   ilupc_set_ilu_params(precond, ilu_params);
   cpr_vtable vtable = {.F_dae = F,
+                       .set_identity_matrix = lupc_set_identity_matrix,
+                       .add_Jv_into_matrix = lupc_add_Jv_into_matrix,
                        .solve = lupc_solve,
                        .fprintf = lupc_fprintf,
                        .dtor = lupc_dtor};
