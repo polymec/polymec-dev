@@ -34,15 +34,24 @@ typedef struct
 {
   void* context;
   nonlinear_preconditioner_vtable vtable;
-
-  // Weights for evaluating the nonlinear expression.
-  real_t alpha, beta, gamma;
 } nlpc_t;
 
 static void nlpc_setup(void* context)
 {
   polymec_error("Do not call preconditioner_setup() on a nonlinear preconditioner.\n"
                 "Instead call nonlinear_preconditioner_setup().");
+}
+
+static bool nlpc_solve(void* context, real_t* z)
+{
+  nlpc_t* pc = context;
+  return pc->vtable.solve(pc->context, z);
+}
+
+static void nlpc_fprintf(void* context, FILE* stream)
+{
+  nlpc_t* pc = context;
+  pc->vtable.fprintf(pc->context, stream);
 }
 
 static void nlpc_dtor(void* context)
@@ -66,8 +75,8 @@ preconditioner_t* nonlinear_preconditioner_new(const char* name,
   pc->vtable = vtable;
 
   preconditioner_vtable pc_vtable = {.setup = nlpc_setup,
-                                     .solve = pc->vtable.solve,
-                                     .fprintf = pc->vtable.fprintf,
+                                     .solve = nlpc_solve,
+                                     .fprintf = nlpc_fprintf,
                                      .dtor = nlpc_dtor};
   return preconditioner_new(name, pc, pc_vtable);
 }
@@ -81,6 +90,6 @@ void nonlinear_preconditioner_setup(preconditioner_t* precond,
          ((alpha == 0.0) && (beta == 1.0)));
 
   nlpc_t* pc = preconditioner_context(precond);
-  pc->vtable.compute_P(pc->context, pc->alpha, pc->beta, pc->gamma, t, x, xdot);
+  pc->vtable.compute_P(pc->context, alpha, beta, gamma, t, x, xdot);
 }
 

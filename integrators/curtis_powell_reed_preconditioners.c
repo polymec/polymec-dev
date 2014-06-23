@@ -34,6 +34,7 @@ typedef struct
 {
   int (*F)(void* context, real_t t, real_t* x, real_t* Fval);
   int (*F_dae)(void* context, real_t t, real_t* x, real_t* xdot, real_t* Fval);
+  void* F_context;
   void (*set_identity_matrix)(void* context, real_t alpha);
   void (*add_Jv_into_matrix)(void* context, adj_graph_t* graph,
                              adj_graph_coloring_t* coloring, 
@@ -67,7 +68,7 @@ static int F_adaptor(void* context, real_t t, real_t* x, real_t* xdot, real_t* F
   // We are passed the actual preconditioner as our context pointer, so get the 
   // "real" one here.
   cpr_t* pc = context;
-  return pc->vtable.F(pc->context, t, x, Fval);
+  return pc->vtable.F(pc->vtable.F_context, t, x, Fval);
 }
 
 // Here's our finite difference implementation of the dF/dx matrix-vector 
@@ -147,7 +148,7 @@ static void cpr_compute_P(void* context,
   {
     ASSERT(xdot != NULL);
     F = precond->vtable.F_dae;
-    F_context = precond->context;
+    F_context = precond->vtable.F_context;
   }
   else
   {
@@ -160,7 +161,7 @@ static void cpr_compute_P(void* context,
   // Curtis, Powell, and Reed.
 
   // First, set up an identity matrix.
-  precond->vtable.set_identity_matrix(context, alpha);
+  precond->vtable.set_identity_matrix(precond->context, alpha);
 
   int num_rows = adj_graph_num_vertices(graph);
   real_t* Jv = polymec_malloc(sizeof(real_t) * num_rows);
@@ -190,6 +191,18 @@ static void cpr_compute_P(void* context,
     }
   }
   polymec_free(Jv);
+}
+
+static bool cpr_solve(void* context, real_t* z)
+{
+  cpr_t* precond = context;
+  return precond->vtable.solve(precond->context, z);
+}
+
+static void cpr_fprintf(void* context, FILE* stream)
+{
+  cpr_t* precond = context;
+  precond->vtable.fprintf(precond->context, stream);
 }
 
 static void cpr_dtor(void* context)
@@ -243,8 +256,8 @@ static preconditioner_t* curtis_powell_reed_preconditioner_new(const char* name,
     precond->work[i] = polymec_malloc(sizeof(real_t) * num_block_rows * block_size);
 
   nonlinear_preconditioner_vtable nlpc_vtable = {.compute_P = cpr_compute_P,
-                                                 .solve = vtable.solve,
-                                                 .fprintf = vtable.fprintf,
+                                                 .solve = cpr_solve,
+                                                 .fprintf = cpr_fprintf,
                                                  .dtor = cpr_dtor};
   return nonlinear_preconditioner_new(name, precond, nlpc_vtable);
 }
@@ -369,8 +382,9 @@ preconditioner_t* block_jacobi_preconditioner_from_function(const char* name,
   pc->dtor = dtor;
   pc->num_block_rows = num_block_rows;
   pc->block_size = block_size;
-  pc->D = polymec_malloc(sizeof(real_t) * num_block_rows * block_size);
+  pc->D = polymec_malloc(sizeof(real_t) * num_block_rows * block_size * block_size);
   cpr_vtable vtable = {.F = F,
+                       .F_context = context,
                        .set_identity_matrix = bjpc_set_identity_matrix,
                        .add_Jv_into_matrix = bjpc_add_Jv_into_matrix,
                        .solve = bjpc_solve,
@@ -391,8 +405,9 @@ preconditioner_t* block_jacobi_preconditioner_from_dae_function(const char* name
   pc->context = context;
   pc->dtor = dtor;
   pc->block_size = block_size;
-  pc->D = polymec_malloc(sizeof(real_t) * num_block_rows * block_size);
+  pc->D = polymec_malloc(sizeof(real_t) * num_block_rows * block_size * block_size);
   cpr_vtable vtable = {.F_dae = F,
+                       .F_context = context,
                        .set_identity_matrix = bjpc_set_identity_matrix,
                        .add_Jv_into_matrix = bjpc_add_Jv_into_matrix,
                        .solve = bjpc_solve,
@@ -778,6 +793,7 @@ preconditioner_t* ilu_preconditioner_from_function(const char* name,
   lupc_initialize_matrix_data(precond, sparsity);
   ilupc_set_ilu_params(precond, ilu_params);
   cpr_vtable vtable = {.F = F,
+                       .F_context = context,
                        .set_identity_matrix = lupc_set_identity_matrix,
                        .add_Jv_into_matrix = lupc_add_Jv_into_matrix,
                        .solve = lupc_solve,
@@ -804,6 +820,7 @@ preconditioner_t* ilu_preconditioner_from_dae_function(const char* name,
   lupc_initialize_matrix_data(precond, sparsity);
   ilupc_set_ilu_params(precond, ilu_params);
   cpr_vtable vtable = {.F_dae = F,
+                       .F_context = context,
                        .set_identity_matrix = lupc_set_identity_matrix,
                        .add_Jv_into_matrix = lupc_add_Jv_into_matrix,
                        .solve = lupc_solve,
