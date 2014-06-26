@@ -70,7 +70,7 @@ add_library(arena ${arena_sources})
 set(POLYMEC_TP_LIBS arena;${POLYMEC_TP_LIBS})
 
 # Build zlib for compression.
-if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libz.a)
+if (NOT EXISTS ${Z_LIBRARY})
   set(ZLIB_CONFIG_OPTS --prefix=${PROJECT_BINARY_DIR} --static)
 
   message("Preparing zlib...")
@@ -110,7 +110,7 @@ install(FILES ${PROJECT_BINARY_DIR}/lib/libz.a DESTINATION lib)
 set(POLYMEC_TP_LIBS z;${POLYMEC_TP_LIBS})
 
 # Build the HDF5 parallel I/O library. 
-if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libhdf5.a)
+if (NOT EXISTS ${HDF5_LIBRARY})
   set(HDF5_CONFIG_OPTS --enable-static --disable-shared --with-zlib=${PROJECT_BINARY_DIR} --disable-dependency-tracking)
   set(HDF5_CONFIG_OPTS ${HDF5_CONFIG_OPTS} --prefix=${PROJECT_BINARY_DIR})
   if (${CMAKE_BUILD_TYPE} STREQUAL "Debug")
@@ -158,7 +158,7 @@ install(FILES ${PROJECT_BINARY_DIR}/lib/libhdf5.a DESTINATION lib)
 set(POLYMEC_TP_LIBS hdf5;${POLYMEC_TP_LIBS})
 
 # Install silo with HDF5 support.
-if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libsiloh5.a)
+if (NOT EXISTS ${SILO_LIBRARY})
 
   message("Preparing silo...")
   execute_process(COMMAND cmake -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/silo ${CMAKE_CURRENT_BINARY_DIR}/silo

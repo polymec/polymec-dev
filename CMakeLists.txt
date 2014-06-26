@@ -5,19 +5,19 @@ cmake_minimum_required (VERSION 2.8.5)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/Modules/")
 
 # Set compilers. This must be done before enabling languages.
+include(set_up_platform)
 set(CMAKE_C_COMPILER "${CC}")
-message("-- C compiler is ${CMAKE_C_COMPILER}")
 set(CMAKE_CXX_COMPILER "${CXX}")
-message("-- C++ compiler is ${CMAKE_CXX_COMPILER}")
+set(CMAKE_Fortran_COMPILER "${FC}")
+set_up_platform()
+message("-- C compiler is ${CMAKE_C_COMPILER}")
 enable_language(C)
+message("-- C++ compiler is ${CMAKE_CXX_COMPILER}")
 enable_language(CXX)
 if (LINUX EQUAL 1)
-  set(CMAKE_Fortran_COMPILER "gfortran")
+  message("-- Fortran compiler is ${CMAKE_Fortran_COMPILER}")
   enable_language(Fortran)
 endif()
-
-# Build everything as static libs.
-set (BUILD_SHARED_LIBS OFF)
 
 # Project and version numbers.
 project (polymec)
@@ -40,6 +40,9 @@ else()
   message(FATAL_ERROR "Unknown precision: ${POLYMEC_PRECISION}")
 endif()
 message("-- Real number representation is ${POLYMEC_REAL_TYPE}")
+
+# Build everything as static libs.
+set (BUILD_SHARED_LIBS OFF)
 
 # Add a custom target (always out of date) that generates polymec_version.h.
 add_custom_target(update_version_h ALL

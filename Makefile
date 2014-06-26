@@ -28,11 +28,13 @@ ifeq ($(mpi), 1)
   BUILDDIR := ${BUILDDIR}-mpi
   CC = mpicc
   CXX = mpicxx
+  FC = mpif90
   CONFIG_FLAGS += -DHAVE_MPI=1
 else
   ifeq ($(CC), )
     CC  = cc
     CXX = c++
+    FC = gfortran
   endif
   CONFIG_FLAGS += -DHAVE_MPI=0
 endif
