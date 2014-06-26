@@ -25,6 +25,7 @@
 #ifndef POLYMEC_FILE_UTILS_H
 #define POLYMEC_FILE_UTILS_H
 
+#include <sys/types.h> // for mode_t.
 #include <sys/stat.h> // for mkdir().
 
 // Given a full pathname, parse it into directory and file portions.

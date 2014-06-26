@@ -21,8 +21,10 @@ macro(set_up_platform)
   site_name(HOSTNAME)
 
   if (HOSTNAME MATCHES "edison") # NERSC Edison
-    # Edison likes Intel's compilers.
-    set(CMAKE_C_COMPILER icc)
+    # Edison likes Intel's compilers...
+    # ...but Intel's compilers don't do C11.
+    #set(CMAKE_C_COMPILER icc)
+    set(CMAKE_C_COMPILER gcc)
     set(CMAKE_CXX_COMPILER icpc)
     set(CMAKE_Fortran_COMPILER ifort)
 

@@ -25,8 +25,10 @@
 #ifndef POLYMEC_H
 #define POLYMEC_H
 
-// We only use standard C11 around here.
-#if !defined __STDC_VERSION__ || __STDC_VERSION__ < 201112L
+// We only use standard C11 around here. Intel is a bad actor, but we try to 
+// accommodate it.
+#if defined(__INTEL_COMPILER)
+#elif !defined __STDC_VERSION__ || __STDC_VERSION__ < 201112L
 #error "Polymec requires a C11-compliant compiler."
 #endif
 
