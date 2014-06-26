@@ -117,7 +117,7 @@ if (LINUX EQUAL 1)
   if (${BLAS_LIBRARY_DIR})
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -L${BLAS_LIBRARY_DIR}")
   endif()
-  set(POLYMEC_LIBS ${POLYMEC_LIBS};lapack;blas)
+  set(POLYMEC_LIBS ${POLYMEC_LIBS};${LAPACK_LIBRARIES};${BLAS_LIBRARIES})
 endif()
 
 # NOTE: HDF5 requires dynamic loading as of v1.8.11, so we need libdl.

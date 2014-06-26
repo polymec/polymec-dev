@@ -23,8 +23,8 @@ macro(set_up_platform)
   if (HOSTNAME MATCHES "edison") # NERSC Edison
     # Edison likes Intel's compilers...
     # ...but Intel's compilers don't do C11.
-    #set(CMAKE_C_COMPILER icc)
-    set(CMAKE_C_COMPILER gcc)
+    set(CMAKE_C_COMPILER icc)
+    #set(CMAKE_C_COMPILER gcc)
     set(CMAKE_CXX_COMPILER icpc)
     set(CMAKE_Fortran_COMPILER ifort)
 
@@ -36,6 +36,7 @@ macro(set_up_platform)
       message(FATAL_ERROR "HDF5_DIR not found. Please load the cray-hdf5 module.")
     endif()
     include_directories(${HDF5_LOC}/include)
+    link_directories(${HDF5_LOC}/lib)
     set(HDF5_LIBRARY ${HDF5_LOC}/lib/libhdf5.a)
 
     set(SILO_LOC $ENV{SILO_DIR})
@@ -43,6 +44,7 @@ macro(set_up_platform)
       message(FATAL_ERROR "SILO_DIR not found. Please load the silo module.")
     endif()
     include_directories(${SILO_LOC}/include)
+    link_directories(${SILO_LOC}/lib)
     set(SILO_LIBRARY ${SILO_LOC}/lib/libsiloh5.a)
   endif()
 

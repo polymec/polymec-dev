@@ -102,10 +102,11 @@ void* polymec_malloc(size_t size)
 void* polymec_aligned_alloc(size_t alignment, size_t size)
 {
   if ((alloc_stack == NULL) || (alloc_stack->size == 0))
-#ifdef APPLE
+#if defined(APPLE) || defined(__INTEL_COMPILER)
   {
-    // Mac OS X doesn't have this yet!
+    // Mac OS X and Intel don't have this yet!
     polymec_error("Mac OS standard allocator does not support aligned allocation.");
+    return NULL;
   }
 #else
     return aligned_alloc(alignment, size);
@@ -116,7 +117,10 @@ void* polymec_aligned_alloc(size_t alignment, size_t size)
     if (alloc->vtable.aligned_alloc != NULL)
       return alloc->vtable.aligned_alloc(alloc->context, alignment, size);
     else
+    {
       polymec_error("%s allocator does not support aligned allocation.");
+      return NULL;
+    }
   }
 }
 
@@ -137,6 +141,7 @@ void* polymec_aligned_realloc(void* memory, size_t alignment, size_t size)
   {
     // Not possible in general, since we can't get the old memory size.
     polymec_error("No allocator is available, so aligned realloc() is not possible.");
+    return NULL;
   }
   else
   {
@@ -144,7 +149,10 @@ void* polymec_aligned_realloc(void* memory, size_t alignment, size_t size)
     if (alloc->vtable.aligned_realloc != NULL)
       return alloc->vtable.aligned_realloc(alloc->context, memory, alignment, size);
     else
+    {
       polymec_error("%s allocator does not support aligned allocation.");
+      return NULL;
+    }
   }
 }
 
@@ -166,8 +174,9 @@ static void* std_malloc(void* context, size_t size)
 
 static void* std_aligned_alloc(void* context, size_t alignment, size_t size)
 {
-#ifdef APPLE
+#if defined(APPLE) || defined(__INTEL_COMPILER)
   polymec_error("Aligned allocations are not available on Mac OS at this time.");
+  return NULL;
 #else
   return aligned_alloc(alignment, size);
 #endif
