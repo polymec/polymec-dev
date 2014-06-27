@@ -26,9 +26,48 @@
 #include "core/unordered_map.h"
 #include "geometry/crop_mesh.h"
 
-mesh_t* crop_mesh(mesh_t* mesh, sp_func_t* boundary_func)
+static void project_nodes(mesh_t* mesh, sp_func_t* boundary_func)
 {
-  // Mark the cells outside the boundary.
+  ASSERT(sp_func_has_deriv(boundary_func, 1));
+
+  // Go over the boundary faces and project each of the nodes.
+  int_unordered_set_t* projected_nodes = int_unordered_set_new();
+  int nfaces;
+  int* faces = mesh_tag(mesh->face_tags, sp_func_name(boundary_func), &nfaces);
+  for (int f = 0; f < nfaces; ++f)
+  {
+    int face = faces[f];
+    int pos = 0, node;
+    while (mesh_face_next_node(mesh, face, &pos, &node))
+    {
+      if (!int_unordered_set_contains(projected_nodes, node))
+      {
+        point_t* x = &mesh->nodes[node];
+        real_t D, grad[3];
+        sp_func_eval(boundary_func, x, &D);
+        sp_func_eval_deriv(boundary_func, 1, x, grad);
+        real_t G = sqrt(grad[0]*grad[0] + grad[1]*grad[1] + grad[2]*grad[2]);
+        if ((D != 0.0) && (G != 0.0))
+        {
+          x->x -= D * grad[0]/G;
+          x->y -= D * grad[1]/G;
+          x->z -= D * grad[2]/G;
+        }
+        int_unordered_set_insert(projected_nodes, node);
+      }
+    }
+  }
+  int_unordered_set_free(projected_nodes);
+}
+
+static void project_faces(mesh_t* mesh, sp_func_t* boundary_func)
+{
+  POLYMEC_NOT_IMPLEMENTED
+}
+
+mesh_t* crop_mesh(mesh_t* mesh, sp_func_t* boundary_func, mesh_crop_t crop_type)
+{
+  // Mark the cells whose centers fall outside the boundary.
   int_unordered_set_t* outside_cells = int_unordered_set_new();
   for (int cell = 0; cell < mesh->num_cells; ++cell)
   {
@@ -51,8 +90,11 @@ mesh_t* crop_mesh(mesh_t* mesh, sp_func_t* boundary_func)
     int pos = 0, face;
     while (mesh_cell_next_face(mesh, cell, &pos, &face))
     {
+      // This face is still in the mesh.
       if (!int_int_unordered_map_contains(remaining_faces, face))
         int_int_unordered_map_insert(remaining_faces, face, new_face_index++);
+
+      // A boundary face is a face with only one cell attached to it.
       int opp_cell = mesh_face_opp_cell(mesh, face, cell);
       if ((opp_cell == -1) || int_unordered_set_contains(outside_cells, opp_cell))
         int_unordered_set_insert(boundary_faces, face);
@@ -167,21 +209,29 @@ mesh_t* crop_mesh(mesh_t* mesh, sp_func_t* boundary_func)
       cropped_mesh->nodes[node_map[n]] = mesh->nodes[n];
   }
 
-  // Build the rest.
+  // Construct edges.
   mesh_construct_edges(cropped_mesh);
-  mesh_compute_geometry(cropped_mesh);
   
   // Create the boundary faces tag.
   int* bf_tag = mesh_create_tag(cropped_mesh->face_tags, sp_func_name(boundary_func), boundary_faces->size);
   int pos = 0, i = 0, face;
   while (int_unordered_set_next(boundary_faces, &pos, &face))
-    bf_tag[i++] = face;
+    bf_tag[i++] = face_map[face];
 
   // Clean up.
   polymec_free(node_map);
   polymec_free(face_map);
   int_unordered_set_free(boundary_faces);
   int_unordered_set_free(outside_cells);
+
+  // Now it remains just to project node positions.
+  if (crop_type == PROJECT_NODES)
+    project_nodes(cropped_mesh, boundary_func);
+  else if (crop_type == PROJECT_FACES)
+    project_faces(cropped_mesh, boundary_func);
+
+  // Finally, compute the mesh geometry.
+  mesh_compute_geometry(cropped_mesh);
 
   return cropped_mesh;
 }

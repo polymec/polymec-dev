@@ -31,24 +31,61 @@
 #include "geometry/create_uniform_mesh.h"
 #include "geometry/crop_mesh.h"
 #include "geometry/cylinder.h"
+#include "geometry/plane.h"
+#include "geometry/intersection.h"
+#include "geometry/sphere.h"
 
 void test_cylindrical_crop(void** state)
 {
-  // Create a 20x20x20 uniform mesh.
+  // Create a cubic uniform mesh.
+  int Nx = 10, Ny = 10, Nz = 10;
   bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
-  mesh_t* mesh = create_uniform_mesh(MPI_COMM_WORLD, 20, 20, 20, &bbox);
+  mesh_t* mesh = create_uniform_mesh(MPI_COMM_WORLD, Nx, Ny, Nz, &bbox);
 
   // Create a cropped mesh using a cylinder.
   point_t O = {.x = 0.5, .y = 0.5, .z = 0.5};
   sp_func_t* cyl = cylinder_new(&O, 0.5, INWARD_NORMAL);
-  mesh_t* cropped_mesh = crop_mesh(mesh, cyl);
+  vector_t ntop = {.x = 0.0, .y = 0.0, .z = -1.0}; 
+  point_t xtop = {.x = 0.0, .y = 0.0, .z = 1.0};
+  vector_t nbot = {.x = 0.0, .y = 0.0, .z = +1.0}; 
+  point_t xbot = {.x = 0.0, .y = 0.0, .z = 0.0};
+  sp_func_t* ptop = plane_new(&ntop, &xtop);
+  sp_func_t* pbot = plane_new(&nbot, &xbot);
+  sp_func_t* surfaces[] = {cyl, ptop, pbot};
+  sp_func_t* boundary = intersection_new(surfaces, 3);
+  mesh_t* cropped_mesh = crop_mesh(mesh, boundary, PROJECT_NODES);
   mesh_free(mesh);
 
   // Plot the cropped mesh.
-  double ones[20*20*20];
-  for (int c = 0; c < 20*20*20; ++c)
+  double ones[Nx*Ny*Nz];
+  for (int c = 0; c < Nx*Ny*Nz; ++c)
     ones[c] = 1.0*c;
   silo_file_t* silo = silo_file_new(cropped_mesh->comm, "cyl_cropped_mesh", ".", 1, 0, 0, 0.0);
+  silo_file_write_mesh(silo, "mesh", cropped_mesh);
+  silo_file_write_scalar_cell_field(silo, "solution", "mesh", ones);
+  silo_file_close(silo);
+
+  mesh_free(cropped_mesh);
+}
+
+void test_spherical_crop(void** state)
+{
+  // Create a cubic uniform mesh.
+  int Nx = 10, Ny = 10, Nz = 10;
+  bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
+  mesh_t* mesh = create_uniform_mesh(MPI_COMM_WORLD, Nx, Ny, Nz, &bbox);
+
+  // Create a cropped mesh using a sphere.
+  point_t O = {.x = 0.5, .y = 0.5, .z = 0.5};
+  sp_func_t* boundary = sphere_new(&O, 0.5, INWARD_NORMAL);
+  mesh_t* cropped_mesh = crop_mesh(mesh, boundary, PROJECT_NODES);
+  mesh_free(mesh);
+
+  // Plot the cropped mesh.
+  double ones[Nx*Ny*Nz];
+  for (int c = 0; c < Nx*Ny*Nz; ++c)
+    ones[c] = 1.0*c;
+  silo_file_t* silo = silo_file_new(cropped_mesh->comm, "sph_cropped_mesh", ".", 1, 0, 0, 0.0);
   silo_file_write_mesh(silo, "mesh", cropped_mesh);
   silo_file_write_scalar_cell_field(silo, "solution", "mesh", ones);
   silo_file_close(silo);
@@ -61,7 +98,8 @@ int main(int argc, char* argv[])
   polymec_init(argc, argv);
   const UnitTest tests[] = 
   {
-    unit_test(test_cylindrical_crop)
+    unit_test(test_cylindrical_crop),
+    unit_test(test_spherical_crop)
   };
   return run_tests(tests);
 }
