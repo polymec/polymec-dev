@@ -10,4 +10,5 @@ add_polymec_test(test_create_rectilinear_mesh test_create_rectilinear_mesh.c)
 add_polymec_test(test_create_uniform_mesh test_create_uniform_mesh.c)
 add_polymec_test(test_graph_from_mesh_cells test_graph_from_mesh_cells.c)
 add_polymec_test(test_create_tetgen_mesh test_create_tetgen_mesh.c)
+add_polymec_test(test_crop_mesh test_crop_mesh.c)
 
