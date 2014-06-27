@@ -151,7 +151,9 @@ void* nonlinear_integrator_context(nonlinear_integrator_t* integrator);
 int nonlinear_integrator_num_equations(nonlinear_integrator_t* integrator);
 
 // Sets the tolerances for the function norm (norm_tolerance) and the Newton
-// step (step_tolerance) for the nonlinear integrator.
+// step (step_tolerance) for the nonlinear integrator. The default values 
+// for these tolerances are the machine roundoff threshold raised to the 
+// 1/3 and 1/2 powers, respectively.
 void nonlinear_integrator_set_tolerances(nonlinear_integrator_t* integrator, real_t norm_tolerance, real_t step_tolerance);
 
 // Sets the maximum number of Newton iterations for the integrator.
