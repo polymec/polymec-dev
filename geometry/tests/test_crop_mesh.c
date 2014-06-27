@@ -39,22 +39,42 @@ void test_cylindrical_crop(void** state)
 {
   // Create a cubic uniform mesh.
   int Nx = 10, Ny = 10, Nz = 10;
-  bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
+  real_t dz = 1.0/Nz;
+  bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = -dz, .z2 = 1.0+dz};
   mesh_t* mesh = create_uniform_mesh(MPI_COMM_WORLD, Nx, Ny, Nz, &bbox);
 
   // Create a cropped mesh using a cylinder.
-  point_t O = {.x = 0.5, .y = 0.5, .z = 0.5};
-  sp_func_t* cyl = cylinder_new(&O, 0.5, INWARD_NORMAL);
-  vector_t ntop = {.x = 0.0, .y = 0.0, .z = -1.0}; 
-  point_t xtop = {.x = 0.0, .y = 0.0, .z = 1.0};
-  vector_t nbot = {.x = 0.0, .y = 0.0, .z = +1.0}; 
-  point_t xbot = {.x = 0.0, .y = 0.0, .z = 0.0};
-  sp_func_t* ptop = plane_new(&ntop, &xtop);
-  sp_func_t* pbot = plane_new(&nbot, &xbot);
-  sp_func_t* surfaces[] = {cyl, ptop, pbot};
-  sp_func_t* boundary = intersection_new(surfaces, 3);
-  mesh_t* cropped_mesh = crop_mesh(mesh, boundary, PROJECT_NODES);
-  mesh_free(mesh);
+  mesh_t* almost_cropped_mesh;
+  {
+    point_t O = {.x = 0.5, .y = 0.5, .z = 0.5};
+    sp_func_t* cyl = cylinder_new(&O, 0.5, INWARD_NORMAL);
+    vector_t ntop = {.x = 0.0, .y = 0.0, .z = -1.0}; 
+    point_t xtop = {.x = 0.0, .y = 0.0, .z = 1.0 + dz};
+    vector_t nbot = {.x = 0.0, .y = 0.0, .z = 1.0}; 
+    point_t xbot = {.x = 0.0, .y = 0.0, .z = 0.0 - dz};
+    sp_func_t* ptop = plane_new(&ntop, &xtop);
+    sp_func_t* pbot = plane_new(&nbot, &xbot);
+    sp_func_t* surfaces[] = {cyl, ptop, pbot};
+    sp_func_t* boundary = intersection_new(surfaces, 3);
+    almost_cropped_mesh = crop_mesh(mesh, boundary, PROJECT_NODES);
+    mesh_free(mesh);
+  }
+
+  // Projecting the nodes *almost* works like it should, but there are some 
+  // artifacts. We chop off the top and bottom now to get rid of these.
+  mesh_t* cropped_mesh;
+  {
+    vector_t ntop = {.x = 0.0, .y = 0.0, .z = -1.0}; 
+    point_t xtop = {.x = 0.0, .y = 0.0, .z = 1.0};
+    vector_t nbot = {.x = 0.0, .y = 0.0, .z = 1.0}; 
+    point_t xbot = {.x = 0.0, .y = 0.0, .z = 0.0};
+    sp_func_t* ptop = plane_new(&ntop, &xtop);
+    sp_func_t* pbot = plane_new(&nbot, &xbot);
+    sp_func_t* surfaces[] = {ptop, pbot};
+    sp_func_t* boundary = intersection_new(surfaces, 2);
+    cropped_mesh = crop_mesh(almost_cropped_mesh, boundary, REMOVE_CELLS);
+    mesh_free(almost_cropped_mesh);
+  }
 
   // Plot the cropped mesh.
   double ones[Nx*Ny*Nz];
