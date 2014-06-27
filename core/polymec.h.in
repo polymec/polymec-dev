@@ -132,6 +132,15 @@ typedef @POLYMEC_REAL_TYPE@ real_t;
 // This returns the sign (+1/-1) of the given quantity x.
 #define SIGN(x) ((x > 0) ? 1 : (x < 0) ? -1 : 0)
 
+// Use polymec_unreachable() to tell the C compiler that a line in a function 
+// can never be reached.
+#if defined(__clang__) || defined(__GNUC__)
+// Both Clang and GNU have __builtin_unreachable.
+#define polymec_unreachable __builtin_unreachable
+#else
+#define polymec_unreachable()
+#endif
+
 // Global indices are unsigned 64-bit integers.
 typedef uint64_t index_t;
 #ifndef MPI_INDEX

@@ -155,6 +155,7 @@ static noreturn void default_error_handler(const char* message)
   if (rank == 0)
     printf("Fatal error: %s\n", message);
   exit(-1);
+  polymec_unreachable();
 }
 
 #if POLYMEC_HAVE_MPI
@@ -192,6 +193,7 @@ void polymec_abort(const char* message, ...)
 #else
   abort(); 
 #endif
+  polymec_unreachable();
 }
 
 void polymec_error(const char* message, ...)
@@ -212,6 +214,7 @@ void polymec_error(const char* message, ...)
 
   // Make sure we don't return.
   exit(-1);
+  polymec_unreachable();
 }
 
 void polymec_set_error_handler(polymec_error_handler_function handler)
@@ -285,6 +288,7 @@ void polymec_not_implemented(const char* component)
   if (rank == 0)
     fprintf(stderr, "polymec: not implemented: %s\n", component);
   exit(-1);
+  polymec_unreachable();
 }
 
 void polymec_atexit(void (*func)()) 
