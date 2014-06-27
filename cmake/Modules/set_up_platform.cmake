@@ -31,9 +31,11 @@ macro(set_up_platform)
     # We expect the following libraries to be available.
     set(Z_LIBRARY /usr/lib64/libz.a)
 
+    # Note that we use the hdf5 module and not cray-hdf5, since the silo 
+    # module (below) is linked against hdf5 and not cray-hdf5.
     set(HDF5_LOC $ENV{HDF5_DIR})
     if (NOT HDF5_LOC)
-      message(FATAL_ERROR "HDF5_DIR not found. Please load the cray-hdf5 module.")
+      message(FATAL_ERROR "HDF5_DIR not found. Please load the hdf5 module.")
     endif()
     include_directories(${HDF5_LOC}/include)
     link_directories(${HDF5_LOC}/lib)
