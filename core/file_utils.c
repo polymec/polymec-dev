@@ -107,7 +107,7 @@ static void make_polymec_temp_dir(char* temp_dir)
   {
     char* tmpdir = getenv("TMPDIR");
     int pid = getpid();
-    if (tmpdir != NULL)
+    if ((tmpdir != NULL) && (strlen(tmpdir) > 0))
       snprintf(temp_dir, FILENAME_MAX, "%s/polymec-%d", tmpdir, pid);
     else
       snprintf(temp_dir, FILENAME_MAX, "/tmp/polymec-%d", pid);
