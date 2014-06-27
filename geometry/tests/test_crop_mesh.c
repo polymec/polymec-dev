@@ -45,8 +45,8 @@ void test_cylindrical_crop(void** state)
   mesh_free(mesh);
 
   // Plot the cropped mesh.
-  double ones[4*4*4];
-  for (int c = 0; c < 4*4*4; ++c)
+  double ones[20*20*20];
+  for (int c = 0; c < 20*20*20; ++c)
     ones[c] = 1.0*c;
   silo_file_t* silo = silo_file_new(cropped_mesh->comm, "cyl_cropped_mesh", ".", 1, 0, 0, 0.0);
   silo_file_write_mesh(silo, "mesh", cropped_mesh);
