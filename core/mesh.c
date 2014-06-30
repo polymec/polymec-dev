@@ -25,10 +25,6 @@
 #include "core/mesh.h"
 #include "core/table.h"
 
-#if POLYMEC_HAVE_MPI
-#include "ptscotch.h"
-#endif
-
 // Mesh features.
 const char* TETRAHEDRAL = "tetrahedral";
 
@@ -315,6 +311,15 @@ void mesh_set_stencil_size(mesh_t* mesh, int new_size)
 exchanger_t* mesh_exchanger(mesh_t* mesh)
 {
   return mesh->storage->exchanger;
+}
+
+SCOTCH_Dgraph* mesh_dgraph(mesh_t* mesh)
+{
+#if POLYMEC_HAVE_MPI
+  return mesh->storage->dgraph;
+#else
+  return NULL;
+#endif
 }
 
 void mesh_add_feature(mesh_t* mesh, const char* feature)

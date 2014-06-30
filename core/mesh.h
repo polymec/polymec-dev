@@ -32,6 +32,12 @@
 #include "core/adj_graph.h"
 #include "core/serializer.h"
 
+#if POLYMEC_HAVE_MPI
+#include "ptscotch.h"
+#else
+typedef struct SCOTCH_Dgraph SCOTCH_Dgraph;
+#endif
+
 // Mesh centerings.
 typedef enum
 {
@@ -166,6 +172,10 @@ void mesh_set_stencil_size(mesh_t* mesh, int new_size);
 // on cell-centered mesh data. In serial configurations, this exchanger holds 
 // no data and exchanges have no effect.
 exchanger_t* mesh_exchanger(mesh_t* mesh);
+
+// Returns the SCOTCH distributed graph that is used to manage parallel 
+// communications for this mesh. In serial configurations, this returns NULL.
+SCOTCH_Dgraph* mesh_dgraph(mesh_t* mesh);
 
 // Adds a named "feature" to the mesh. A mesh either has a feature or it doesn't.
 // Features can be used to make algorithmic decisions about how to perform 
