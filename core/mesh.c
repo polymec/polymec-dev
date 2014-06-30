@@ -22,10 +22,12 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include <stdlib.h>
 #include "core/mesh.h"
-#include "core/unordered_set.h"
 #include "core/table.h"
+
+#if POLYMEC_HAVE_MPI
+#include "ptscotch.h"
+#endif
 
 // Mesh features.
 const char* TETRAHEDRAL = "tetrahedral";
@@ -46,6 +48,9 @@ struct mesh_storage_t
   int face_node_capacity;
   int stencil_size;
   exchanger_t* exchanger;
+#if POLYMEC_HAVE_MPI
+  SCOTCH_Dgraph* dgraph;
+#endif
 };
 
 // Initializes a new storage mechanism for a mesh.
@@ -57,12 +62,18 @@ static mesh_storage_t* mesh_storage_new(MPI_Comm comm)
   storage->face_node_capacity = 0;
   storage->stencil_size = 1;
   storage->exchanger = exchanger_new(comm);
+#if POLYMEC_HAVE_MPI
+  storage->dgraph = SCOTCH_dgraphAlloc();
+#endif
   return storage;
 }
 
 // Frees the given storage mechanism.
 static void mesh_storage_free(mesh_storage_t* storage)
 {
+#if POLYMEC_HAVE_MPI
+  SCOTCH_dgraphExit(storage->dgraph);
+#endif
   exchanger_free(storage->exchanger);
   polymec_free(storage);
 }
