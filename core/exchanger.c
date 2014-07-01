@@ -400,6 +400,18 @@ void exchanger_delete_send(exchanger_t* ex, int remote_process)
     ex->max_send = (proc > ex->max_send) ? proc : ex->max_send;
 }
 
+bool exchanger_next_send(exchanger_t* ex, int* pos, int* remote_process, int** indices, int* num_indices)
+{
+  exchanger_channel_t* c;
+  bool result = exchanger_map_next(ex->send_map, pos, remote_process, &c);
+  if (result)
+  {
+    *indices = c->indices;
+    *num_indices = c->num_indices;
+  }
+  return result;
+}
+
 void exchanger_set_receive(exchanger_t* ex, int remote_process, int* indices, int num_indices, bool copy_indices)
 {
   exchanger_channel_t* c = exchanger_channel_new(num_indices, indices, copy_indices);
@@ -427,6 +439,18 @@ void exchanger_delete_receive(exchanger_t* ex, int remote_process)
   exchanger_channel_t* c;
   while (exchanger_map_next(ex->receive_map, &pos, &proc, &c))
     ex->max_receive = (proc > ex->max_receive) ? proc : ex->max_receive;
+}
+
+bool exchanger_next_receive(exchanger_t* ex, int* pos, int* remote_process, int** indices, int* num_indices)
+{
+  exchanger_channel_t* c;
+  bool result = exchanger_map_next(ex->receive_map, pos, remote_process, &c);
+  if (result)
+  {
+    *indices = c->indices;
+    *num_indices = c->num_indices;
+  }
+  return result;
 }
 
 bool exchanger_is_valid(exchanger_t* ex)

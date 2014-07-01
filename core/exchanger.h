@@ -52,6 +52,9 @@ void exchanger_set_sends(exchanger_t* ex, int_ptr_unordered_map_t* send_map);
 // exchanger sends data.
 void exchanger_delete_send(exchanger_t* ex, int remote_process);
 
+// Allows the traversal of the set of send indices for remote processes.
+bool exchanger_next_send(exchanger_t* ex, int* pos, int* remote_process, int** indices, int* num_indices);
+
 // Establishes a communication pattern in which this exchanger receives data at 
 // the given indices of an array from the given remote process.
 void exchanger_set_receive(exchanger_t* ex, int remote_process, int* indices, int num_indices, bool copy_indices);
@@ -65,6 +68,9 @@ void exchanger_set_receives(exchanger_t* ex, int_ptr_unordered_map_t* recv_map);
 // Removes the given remote process from the set of processes from which this 
 // exchanger receives data.
 void exchanger_delete_receive(exchanger_t* ex, int remote_process);
+
+// Allows the traversal of the set of receive indices for remote processes.
+bool exchanger_next_receive(exchanger_t* ex, int* pos, int* remote_process, int** indices, int* num_indices);
 
 // Returns true if the given exchanger is valid, false otherwise.
 // WARNING: This involves non-local communication and is potentially expensive!

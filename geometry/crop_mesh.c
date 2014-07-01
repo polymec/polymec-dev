@@ -127,7 +127,7 @@ mesh_t* crop_mesh(mesh_t* mesh, sp_func_t* boundary_func, mesh_crop_t crop_type)
       node_map[old_node] = new_node;
   }
 
-  // Do a partial Clean up.
+  // Do a partial clean up.
   int num_new_faces = remaining_faces->size;
   int num_new_nodes = remaining_nodes->size;
   int num_new_ghosts = remaining_ghosts->size;
@@ -217,6 +217,30 @@ mesh_t* crop_mesh(mesh_t* mesh, sp_func_t* boundary_func, mesh_crop_t crop_type)
   int pos = 0, i = 0, face;
   while (int_unordered_set_next(boundary_faces, &pos, &face))
     bf_tag[i++] = face_map[face];
+
+  // Create a new exchanger from the old one.
+  {
+    exchanger_t* old_ex = mesh_exchanger(mesh);
+    exchanger_t* new_ex = mesh_exchanger(cropped_mesh);
+    int pos = 0, remote, *indices, num_indices;
+    while (exchanger_next_send(old_ex, &pos, &remote, &indices, &num_indices))
+    {
+      int send_indices[num_indices], j = 0;
+      for (int i = 0; i < num_indices; ++i)
+        if (!int_unordered_set_contains(outside_cells, indices[i]))
+          send_indices[j++] = indices[i];
+      exchanger_set_send(new_ex, remote, send_indices, j, true);
+    }
+    pos = 0;
+    while (exchanger_next_receive(old_ex, &pos, &remote, &indices, &num_indices))
+    {
+      int recv_indices[num_indices], j = 0;
+      for (int i = 0; i < num_indices; ++i)
+        if (!int_unordered_set_contains(outside_cells, indices[i]))
+          recv_indices[j++] = indices[i];
+      exchanger_set_receive(new_ex, remote, recv_indices, j, true);
+    }
+  }
 
   // Clean up.
   polymec_free(node_map);
