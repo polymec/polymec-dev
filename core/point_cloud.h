@@ -29,6 +29,7 @@
 #include "core/point.h"
 #include "core/tagger.h"
 #include "core/adj_graph.h"
+#include "core/exchanger.h"
 
 // This strategy (base) class provides an interface to algorithms for 
 // connecting points in point clouds.
@@ -100,6 +101,9 @@ typedef struct
 
   // Point tagging mechanism.
   tagger_t* tags;
+
+  // Exchanger. 
+  exchanger_t* exchanger;
 } point_cloud_t;
 
 // Construct a new point cloud from the set of points with the given 
@@ -179,6 +183,9 @@ static inline bool point_cloud_next_neighbor(point_cloud_t* cloud, int point, in
   ++(*pos);
   return (*pos < (cloud->neighbor_offsets[point+1] - cloud->neighbor_offsets[point]));
 }
+
+// Returns the exchanger associated with the point cloud.
+exchanger_t* point_cloud_exchanger(point_cloud_t* cloud);
 
 // Creates an adjacency graph representing the topological relationships 
 // between the points in the given point cloud.

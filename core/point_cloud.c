@@ -94,6 +94,9 @@ point_cloud_t* point_cloud_new(MPI_Comm comm, point_t* points, int num_points)
   int* prop_tag = tagger_create_tag(cloud->tags, "properties", 1);
   prop_tag[0] = 0;
 
+  // Set up a parallel exchanger.
+  cloud->exchanger = exchanger_new(cloud->comm);
+
   return cloud;
 }
 
@@ -101,6 +104,7 @@ void point_cloud_free(point_cloud_t* cloud)
 {
   ASSERT(cloud != NULL);
 
+  exchanger_free(cloud->exchanger);
   tagger_free(cloud->tags);
 
   polymec_free(cloud->neighbors);

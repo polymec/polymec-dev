@@ -33,13 +33,13 @@
 // If weights is NULL, the points are assigned equal weights.
 // It creates and returns an exchanger object that can be used to migrate 
 // data from the old partition to the new.
-exchanger_t* repartition_point_cloud(point_cloud_t* cloud, real_t* weights);
+exchanger_t* repartition_point_cloud(point_cloud_t* cloud, int* weights);
 
 // This function repartitions the given mesh with the given load weights, 
 // alloting the cells to parallel domains to balance the load.
 // It creates and returns an exchanger object that can be used to migrate 
 // data from the old partition to the new.
-exchanger_t* repartition_mesh(mesh_t* mesh, real_t* weights);
+exchanger_t* repartition_mesh(mesh_t* mesh, int* weights);
 
 #endif
 

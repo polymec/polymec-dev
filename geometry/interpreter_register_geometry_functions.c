@@ -576,21 +576,26 @@ static int repartition(lua_State* lua)
   }
   mesh_t* mesh = lua_tomesh(lua, 1);
   int num_weights = 0;
-  real_t* weights = NULL;
+  int* weights = NULL;
   if (num_args == 2)
   {
-    weights = lua_tosequence(lua, 2, &num_weights);
-    if ((weights != NULL) && (num_weights != mesh->num_cells))
+    real_t* real_weights = lua_tosequence(lua, 2, &num_weights);
+    if ((real_weights != NULL) && (num_weights != mesh->num_cells))
     {
       return luaL_error(lua, "Number of cell load weights (%d) must equal the number of cells (%d).", 
                         num_weights, mesh->num_cells);
     }
+    weights = polymec_malloc(sizeof(int) * num_weights);
+    for (int i = 0; i < num_weights; ++i)
+      weights[i] = (int)real_weights[i];
   }
 
   // Perform the repartitioning and toss the exchanger, since our poor 
   // interpreter doesn't understand exchangers.
   exchanger_t* ex = repartition_mesh(mesh, weights);
   exchanger_free(ex);
+  if (weights != NULL)
+    polymec_free(weights);
 
   return 0;
 }

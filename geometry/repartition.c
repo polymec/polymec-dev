@@ -24,163 +24,101 @@
 
 #include "geometry/repartition.h"
 
-exchanger_t* repartition_point_cloud(point_cloud_t* cloud, real_t* weights)
+#if POLYMEC_HAVE_MPI
+#include "ptscotch.h"
+#endif
+
+exchanger_t* repartition_point_cloud(point_cloud_t* cloud, int* weights)
 {
   exchanger_t* ex = exchanger_new(cloud->comm);
+
 #if POLYMEC_HAVE_MPI
-#if 0
+  ASSERT(sizeof(SCOTCH_Num) == sizeof(index_t));
+
   int nprocs, rank;
-  MPI_Comm_size(comm, &nprocs);
-  MPI_Comm_rank(comm, &rank);
-  idx_t dim = 3;
-  exchanger_t* ex = exchanger_new();
+  MPI_Comm_size(cloud->comm, &nprocs);
+  MPI_Comm_rank(cloud->comm, &rank);
 
   // On a single process, repartitioning has no meaning.
   if (nprocs == 1)
     return ex;
 
-  // Generate coordinate information for Parmetis.
-  real_t coords[3*num_points];
-  for (int i = 0; i < points.size(); ++i)
+  SCOTCH_Num* vert_weights = NULL;
+  if (weights != NULL)
   {
-    coords[3*i]   = points[i].x;
-    coords[3*i+1] = points[i].y;
-    coords[3*i+2] = points[i].z;
+    vert_weights = polymec_malloc(sizeof(SCOTCH_Num) * cloud->num_points);
+    for (int i = 0; i < cloud->num_points; ++i)
+      vert_weights[i] = (SCOTCH_Num)weights[i];
   }
 
-  // Generate the global vertex distribution array.
-  int num_local_pts = num_points;
-  int npts_for_proc[nprocs];
-  MPI_Allgather(&num_local_pts, 1, MPI_INT, npts_for_proc, 1, MPI_INT, comm);
+  // Generate a local adjacency graph for the point cloud.
+  adj_graph_t* local_graph = graph_from_point_cloud(cloud);
 
-  // Perform the partitioning using ParMetis's space-filling curve method.
-  idx_t vtxdist[nprocs+1];
-  int tot_npts_for_proc = 0;
-  for (int i = 0; i < nprocs; ++i)
+  // Extract the adjacency information.
+  SCOTCH_Num* xadj = malloc(sizeof(SCOTCH_Num) * (cloud->num_points+1));
+  memcpy(xadj, adj_graph_edge_offsets(local_graph), sizeof(SCOTCH_Num) * cloud->num_points+1);
+  SCOTCH_Num num_arcs = xadj[cloud->num_points];
+  SCOTCH_Num* adj = malloc(sizeof(SCOTCH_Num) * num_arcs);
+  memcpy(adj, adj_graph_adjacency(local_graph), sizeof(SCOTCH_Num) * num_arcs);
+
+  // Populate adj with global cell indices.
+  int* vtx_dist = adj_graph_vertex_dist(local_graph);
+  index_t* global_cell_indices = polymec_malloc(sizeof(SCOTCH_Num) * (cloud->num_points + cloud->num_ghost_points));
+  for (int i = 0; i < cloud->num_points + cloud->num_ghost_points; ++i)
+    global_cell_indices[i] = (index_t)(vtx_dist[rank] + i);
+  exchanger_t* cloud_ex = point_cloud_exchanger(cloud);
+  exchanger_exchange(cloud_ex, global_cell_indices, 1, 0, MPI_INT);
+  for (int i = 0; i < num_arcs; ++i)
   {
-    vtxdist[i] = tot_npts_for_proc;
-    tot_npts_for_proc += npts_for_proc[i];
+    if (adj[i] >= cloud->num_points)
+      adj[i] = global_cell_indices[adj[i]];
   }
-  vtxdist[nprocs] = tot_npts_for_proc;
-  idx_t part[num_points];
-  for (int i = 0; i < num_points; ++i)
-    part[i] = rank;
-  int err = ParMETIS_V3_PartGeom(vtxdist, &dim, coords, part, &comm);
+  polymec_free(global_cell_indices);
 
-  // Now part contains the new partitioning of the points. We determine the 
-  // communication topology by gathering (send/receive) sizes from all processors.
-  // After the all-to-all, npts_for_proc_to_send(i) holds the number of points to send 
-  // to process i, and npts_for_proc_to_receive(i) holds the number of points to receive 
-  // from process i.
-  int npts_for_proc_to_send[nprocs], npts_for_proc_to_receive[nprocs];
-  for (int i = 0; i < num_points; ++i)
-    npts_for_proc_to_send[part[i]]++;
-  err = MPI_Alltoall(npts_for_proc_to_send, 1, MPI_INTEGER, 
-                     npts_for_proc_to_receive, 1, MPI_INTEGER, comm);
+  // Build a distributed graph for the point cloud.
+  SCOTCH_Dgraph* dist_graph = SCOTCH_dgraphAlloc();
+  SCOTCH_dgraphInit(dist_graph, cloud->comm);
+  SCOTCH_dgraphBuild(dist_graph, 0, cloud->num_points, cloud->num_points,
+                     xadj, NULL, vert_weights, NULL, num_arcs, num_arcs,
+                     adj, NULL, NULL);
 
-  // Now that we now how many, find out which points to send where.
-  int num_sends = 0, num_receives = 0;
-  for (int i = 0; i < nprocs; ++i)
-  {
-    if ((npts_for_proc_to_receive[i] > 0) and (i != rank))
-      ++num_receives;
-    if ((npts_for_proc_to_send[i] > 0) and (i != rank))
-      ++num_sends;
-  }
-  int *sends = polymec_malloc(num_sends*sizeof(int)), 
-      *send_sizes = polymec_malloc(num_sends*sizeof(int)), 
-      **send_idx = polymec_malloc(num_sends*sizeof(int*)),
-      *receives = polymec_malloc(num_receives*sizeof(int)), 
-      *receive_sizes = polymec_malloc(num_receives*sizeof(int)), 
-      **receive_idx = polymec_malloc(num_receives*sizeof(int*));
+  // Free the local graph.
+  adj_graph_free(local_graph);
 
-  // Post receives for processes from which we expect point data.
-  int tag = 0, npts_for_proc_received = 0;
-  int num_requests = 0, offset = 0;
-  MPI_Request requests[2*nprocs];
-  for (int i = 0; i < nprocs; ++i)
-  {
-    if ((npts_for_proc_to_receive[i] > 0) and (i != rank))
-    {
-      receives[offset] = i;
-      receive_sizes[offset] = npts_for_proc_to_receive[i];
-      receive_idx[offset] = polymec_malloc(receive_sizes[offset]*sizeof(int));
-      err = MPI_Irecv(receive_idx[offset], npts_for_proc_to_receive[i], 
-                      MPI_INTEGER, i, tag, comm, &requests[num_requests]);
-      ++offset;
-      ++num_requests;
-      npts_for_proc_received += npts_for_proc_to_receive[i];
-    }
-  }
-
-  // Now send point index data to all of our receivers.
-  int npts_for_proc_sent = 0;
-  offset = 0;
-  for (int i = 0; i < nprocs; ++i)
-  {
-    if ((npts_for_proc_to_send[i] > 0) and (i != rank))
-    {
-      sends[offset] = i;
-      send_sizes[offset] = npts_for_proc_to_send[i];
-      send_idx[offset] = polymec_malloc(send_sizes[offset]*sizeof(int));
-      int j = 0, num_sent = 0;
-      while (num_sent < npts_for_proc_to_send[i])
-      {
-        if (part[j] == i)
-          send_idx[offset][num_sent++] = j;
-        ++j;
-      }
-
-      err = MPI_Isend(send_idx[offset], npts_for_proc_to_send[i], 
-                      MPI_INTEGER, i, tag, comm, &requests[num_requests]);
-      ++offset;
-      ++num_requests;
-      npts_for_proc_sent += npts_for_proc_to_send[i];
-    }
-  }
-
-  // Wait for all the messages to transfer.
-  MPI_Status statuses[num_requests];
-  err = MPI_Waitall(num_requests, requests, statuses);
-
-  // Now we initialize our exchanger.
-  exchanger_init(ex, comm, 
-                 num_sends, sends, send_sizes, send_idx,
-                 num_receives, receives, receive_sizes, receive_idx);
-
-  // Now it only remains to transfer the coordinate data and unpack it on 
-  // the other side.
-  int count, xfer_tag = 10;
-  exchanger_transfer(ex, coords, count, 3, xfer_tag, MPI_REAL);
-  for (int i = 0; i < count; ++i)
-  {
-    points[i].x = coords[3*i];
-    points[i].y = coords[3*i+1];
-    points[i].z = coords[3*i+2];
-  }
+#if 0
+  // Now map the distributed graph to the different domains.
+  SCOTCH_Num* partition = polymec_malloc(sizeof(SCOTCH_Num) * cloud->num_points);
+  int result = SCOTCH_dgraphMap(dist_graph, arch, strategy, partition);
 #endif
-  int nproc;
-  MPI_Comm_size(cloud->comm, &nproc);
-  if (nproc > 1)
-  {
-    polymec_not_implemented("repartition_mesh");
-  }
+
+  // Clean up.
+  if (weights != NULL)
+    polymec_free(vert_weights);
+
+  SCOTCH_dgraphExit(dist_graph);
+  free(dist_graph); // FIXME: ???
+
+  polymec_not_implemented("repartition_mesh");
 #endif
 
   // Return the exchanger.
   return ex;
 }
 
-exchanger_t* repartition_mesh(mesh_t* mesh, real_t* weights)
+exchanger_t* repartition_mesh(mesh_t* mesh, int* weights)
 {
   exchanger_t* ex = exchanger_new(mesh->comm);
+
 #if POLYMEC_HAVE_MPI
-  int nproc;
-  MPI_Comm_size(mesh->comm, &nproc);
-  if (nproc > 1)
-  {
-    polymec_not_implemented("repartition_mesh");
-  }
+  int nprocs, rank;
+  MPI_Comm_size(mesh->comm, &nprocs);
+  MPI_Comm_rank(mesh->comm, &rank);
+
+  // On a single process, repartitioning has no meaning.
+  if (nprocs == 1)
+    return ex;
+
+  polymec_not_implemented("repartition_mesh");
 #endif
   return ex;
 }
