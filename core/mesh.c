@@ -44,9 +44,6 @@ struct mesh_storage_t
   int face_node_capacity;
   int stencil_size;
   exchanger_t* exchanger;
-#if POLYMEC_HAVE_MPI
-  SCOTCH_Dgraph* dgraph;
-#endif
 };
 
 // Initializes a new storage mechanism for a mesh.
@@ -58,18 +55,12 @@ static mesh_storage_t* mesh_storage_new(MPI_Comm comm)
   storage->face_node_capacity = 0;
   storage->stencil_size = 1;
   storage->exchanger = exchanger_new(comm);
-#if POLYMEC_HAVE_MPI
-  storage->dgraph = SCOTCH_dgraphAlloc();
-#endif
   return storage;
 }
 
 // Frees the given storage mechanism.
 static void mesh_storage_free(mesh_storage_t* storage)
 {
-#if POLYMEC_HAVE_MPI
-  SCOTCH_dgraphExit(storage->dgraph);
-#endif
   exchanger_free(storage->exchanger);
   polymec_free(storage);
 }
@@ -311,15 +302,6 @@ void mesh_set_stencil_size(mesh_t* mesh, int new_size)
 exchanger_t* mesh_exchanger(mesh_t* mesh)
 {
   return mesh->storage->exchanger;
-}
-
-SCOTCH_Dgraph* mesh_dgraph(mesh_t* mesh)
-{
-#if POLYMEC_HAVE_MPI
-  return mesh->storage->dgraph;
-#else
-  return NULL;
-#endif
 }
 
 void mesh_add_feature(mesh_t* mesh, const char* feature)
