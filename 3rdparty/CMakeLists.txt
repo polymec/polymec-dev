@@ -152,10 +152,12 @@ if (NOT EXISTS ${HDF5_LIBRARY})
   endif()
 
 endif()
-file(GLOB headers "${PROJECT_BINARY_DIR}/include/H5*.h")
-install(FILES ${headers} DESTINATION include/polymec)
-install(FILES ${PROJECT_BINARY_DIR}/lib/libhdf5.a DESTINATION lib)
-set(POLYMEC_TP_LIBS hdf5;${POLYMEC_TP_LIBS})
+if (${HDF5_LIBRARY} STREQUAL "${PROJECT_BINARY_DIR}/lib/libhdf5.a")
+  file(GLOB headers "${PROJECT_BINARY_DIR}/include/H5*.h")
+  install(FILES ${headers} DESTINATION include/polymec)
+  install(FILES ${PROJECT_BINARY_DIR}/lib/libhdf5.a DESTINATION lib)
+endif()
+set(POLYMEC_TP_LIBS ${HDF5_LIBRARIES};${POLYMEC_TP_LIBS})
 
 # Install silo with HDF5 support.
 if (NOT EXISTS ${SILO_LIBRARY})
