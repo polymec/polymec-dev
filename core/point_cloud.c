@@ -204,6 +204,11 @@ void point_cloud_delete_tag(point_cloud_t* cloud, const char* tag)
   tagger_delete_tag(cloud->tags, tag);
 }
 
+exchanger_t* point_cloud_exchanger(point_cloud_t* cloud)
+{
+  return cloud->exchanger;
+}
+
 adj_graph_t* graph_from_point_cloud(point_cloud_t* cloud)
 {
   // Create a graph whose vertices are the cloud's points.

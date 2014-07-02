@@ -22,24 +22,45 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef POLYMEC_REPARTITION_H
-#define POLYMEC_REPARTITION_H
+#include <stdarg.h>
+#include <stddef.h>
+#include <setjmp.h>
+#include <string.h>
+#include "cmockery.h"
+#include "core/silo_file.h"
+#include "geometry/create_uniform_mesh.h"
+#include "geometry/repartition.h"
 
-#include "core/point_cloud.h"
-#include "core/mesh.h"
+void test_repartition_uniform_mesh(void** state)
+{
+  // Create a 10x10x10 uniform mesh.
+  bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
+  mesh_t* mesh = create_uniform_mesh(MPI_COMM_WORLD, 10, 10, 10, &bbox);
 
-// This function repartitions the given point cloud with the given load
-// weights, alloting them to parallel domains to balance their load.
-// If weights is NULL, the points are assigned equal weights.
-// It creates and returns an exchanger object that can be used to migrate 
-// data from the old partition to the new.
-exchanger_t* repartition_point_cloud(point_cloud_t* cloud, int* weights, real_t imbalance_tol);
+  // Repartition it.
+  repartition_mesh(mesh, NULL, 0.05);
 
-// This function repartitions the given mesh with the given load weights, 
-// alloting the cells to parallel domains to balance the load.
-// It creates and returns an exchanger object that can be used to migrate 
-// data from the old partition to the new.
-exchanger_t* repartition_mesh(mesh_t* mesh, int* weights, real_t imbalance_tol);
+  // Plot it.
+  int rank;
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  double ones[mesh->num_cells];
+  for (int c = 0; c < mesh->num_cells; ++c)
+    ones[c] = 1.0*rank;
+  silo_file_t* silo = silo_file_new(mesh->comm, "uniform_mesh_10x10x10", ".", 1, 0, 0, 0.0);
+  silo_file_write_mesh(silo, "mesh", mesh);
+  silo_file_write_scalar_cell_field(silo, "rank", "mesh", ones);
+  silo_file_close(silo);
 
-#endif
+  // Clean up.
+  mesh_free(mesh);
+}
 
+int main(int argc, char* argv[]) 
+{
+  polymec_init(argc, argv);
+  const UnitTest tests[] = 
+  {
+    unit_test(test_repartition_uniform_mesh)
+  };
+  return run_tests(tests);
+}
