@@ -86,9 +86,8 @@ typedef struct
   model_dtor                     dtor;
 } model_vtable;
 
-// Creates an instance of a model with the given name and characteristics, 
-// along with any relevant options.
-model_t* model_new(const char* name, void* context, model_vtable vtable, docstring_t* doc, options_t* options);
+// Creates an instance of a model with the given name and characteristics.
+model_t* model_new(const char* name, void* context, model_vtable vtable, docstring_t* doc);
 
 // Destroys the model.
 void model_free(model_t* model);
@@ -121,18 +120,18 @@ void model_register_benchmark(model_t* model, const char* benchmark, model_bench
 void model_describe_benchmark(model_t* model, const char* benchmark, FILE* stream);
 
 // Runs the given benchmark problem for the model.
-void model_run_benchmark(model_t* model, const char* benchmark, options_t* options);
+void model_run_benchmark(model_t* model, const char* benchmark);
 
 // Runs all benchmark problems for the model.
-void model_run_all_benchmarks(model_t* model, options_t* options);
+void model_run_all_benchmarks(model_t* model);
 
 // Tells the model to read the contents of the given string as input, 
 // tempered by options.
-void model_read_input_string(model_t* model, const char* input, options_t* options);
+void model_read_input_string(model_t* model, const char* input);
 
 // Tells the model to read the contents of the given file as input,
 // tempered by options.
-void model_read_input_file(model_t* model, const char* file, options_t* options);
+void model_read_input_file(model_t* model, const char* file);
 
 // Defines a point observation by its name, number of components, and 
 // calculation function, and at the given point.
@@ -214,11 +213,11 @@ int model_minimal_main(const char* model_name, model_ctor constructor, int argc,
 
 // Use this to report a convergence rate from within a benchmark. This can be 
 // used to determine whether the given benchmark "passed."
-void model_report_conv_rate(options_t* options, real_t conv_rate, real_t sigma);
+void model_report_conv_rate(real_t conv_rate, real_t sigma);
 
 // Use this to report an error norm from within a benchmark. This can be 
 // used to determine whether the given benchmark "passed."
-void model_report_error_norm(options_t* options, real_t error_norm);
+void model_report_error_norm(real_t error_norm);
 
 #endif
 

@@ -24,7 +24,6 @@
 
 #include "core/polymec.h"
 #include "core/unordered_map.h"
-#include "core/options.h"
 #include "core/array.h"
 #include "core/array_utils.h"
 #include "model/model.h"
@@ -104,10 +103,8 @@ static real_t* parse_observation_times(char* observation_time_str, int* num_time
   return times;
 }
 
-model_t* model_new(const char* name, void* context, model_vtable vtable, docstring_t* doc, options_t* options)
+model_t* model_new(const char* name, void* context, model_vtable vtable, docstring_t* doc)
 {
-  ASSERT(options != NULL);
-
   model_t* model = polymec_malloc(sizeof(model_t));
   model->vtable = vtable;
   model->context = context;
@@ -216,19 +213,21 @@ void model_describe_benchmark(model_t* model, const char* benchmark, FILE* strea
   }
 }
 
-void model_run_all_benchmarks(model_t* model, options_t* options)
+void model_run_all_benchmarks(model_t* model)
 {
   int pos = 0;
   char *benchmark;
   model_benchmark_t* metadata;
+  options_t* options = options_argv();
   while (model_benchmark_map_next(model->benchmarks, &pos, &benchmark, &metadata))
     (*metadata->function)(options);
 }
 
-void model_run_benchmark(model_t* model, const char* benchmark, options_t* options)
+void model_run_benchmark(model_t* model, const char* benchmark)
 {
   // Try to retrieve this benchmark.
   model_benchmark_t** metadata = model_benchmark_map_get(model->benchmarks, (char*)benchmark);
+  options_t* options = options_argv();
   if (metadata != NULL)
   {
     // By default (unless overridden), benchmarks communicate only with 
@@ -289,14 +288,9 @@ void model_run_benchmark(model_t* model, const char* benchmark, options_t* optio
   }
 }
 
-static void model_read_input(model_t* model, interpreter_t* interp, options_t* options)
+static void model_read_input(model_t* model, interpreter_t* interp)
 {
-  bool no_opts = false;
-  if (options == NULL)
-  {
-    no_opts = true;
-    options = options_new();
-  }
+  options_t* options = options_argv();
 
   // We always read certain inputs.
   if (interpreter_contains(interp, "load_step", INTERPRETER_NUMBER))
@@ -375,25 +369,20 @@ static void model_read_input(model_t* model, interpreter_t* interp, options_t* o
 
   // Read the model-specific inputs.
   model->vtable.read_input(model->context, interp, options);
-
-  if (no_opts)
-    options = NULL; 
 }
 
-void model_read_input_string(model_t* model, const char* input, options_t* options)
+void model_read_input_string(model_t* model, const char* input)
 {
   interpreter_t* interp = model_interpreter(model);
   interpreter_parse_string(interp, (char*)input);
-
-  model_read_input(model, interp, options);
+  model_read_input(model, interp);
 }
 
-void model_read_input_file(model_t* model, const char* file, options_t* options)
+void model_read_input_file(model_t* model, const char* file)
 {
   interpreter_t* interp = model_interpreter(model);
   interpreter_parse_file(interp, (char*)file);
-
-  model_read_input(model, interp, options);
+  model_read_input(model, interp);
 }
 
 typedef struct 
@@ -820,11 +809,11 @@ void model_set_sim_name(model_t* model, const char* sim_name)
 // This helper overrides interpreted parameters with options from the 
 // command line.
 static void override_interpreted_values(model_t* model, 
-                                        options_t* options,
                                         real_t* t1, 
                                         real_t* t2, 
                                         int* max_steps)
 {
+  options_t* options = options_argv();
   // Run parameters -- not intrinsically part of a model.
   char* opt = options_value(options, "t1");
   if (opt != NULL)
@@ -990,7 +979,7 @@ int model_main(const char* model_name, model_ctor constructor, int argc, char* a
     }
 
     if (!strcmp(input, "all")) // Run all benchmarks?
-      model_run_all_benchmarks(model, opts);
+      model_run_all_benchmarks(model);
     else if (!strcmp(input, "list")) // List benchmarks?
     {
       fprintf(stderr, "Benchmarks for %s model:\n", model_name);
@@ -1015,7 +1004,7 @@ int model_main(const char* model_name, model_ctor constructor, int argc, char* a
       model_describe_benchmark(model, benchmark, stderr);
     }
     else
-      model_run_benchmark(model, input, opts);
+      model_run_benchmark(model, input);
 
     model_free(model);
     return 0;
@@ -1043,7 +1032,7 @@ int model_main(const char* model_name, model_ctor constructor, int argc, char* a
   model_set_sim_name(model, input);
 
   // Read the contents of the input file into the model's interpreter.
-  model_read_input_file(model, input, opts);
+  model_read_input_file(model, input);
 
   // Default time endpoints, max number of steps.
   real_t t1 = 0.0, t2 = 1.0;
@@ -1059,7 +1048,7 @@ int model_main(const char* model_name, model_ctor constructor, int argc, char* a
     max_steps = (int)interpreter_get_number(interp, "max_steps");
 
   // Override options given at the command line.
-  override_interpreted_values(model, opts, &t1, &t2, &max_steps);
+  override_interpreted_values(model, &t1, &t2, &max_steps);
 
   // Run the model.
   model_run(model, t1, t2, max_steps);
@@ -1109,7 +1098,7 @@ int model_minimal_main(const char* model_name, model_ctor constructor, int argc,
   model_set_sim_name(model, input);
 
   // Read the contents of the input file into the model's interpreter.
-  model_read_input_file(model, input, opts);
+  model_read_input_file(model, input);
 
   // Default time endpoints, max number of steps.
   real_t t1 = 0.0, t2 = 1.0;
@@ -1125,7 +1114,7 @@ int model_minimal_main(const char* model_name, model_ctor constructor, int argc,
     max_steps = (int)interpreter_get_number(interp, "max_steps");
 
   // Override options given at the command line.
-  override_interpreted_values(model, opts, &t1, &t2, &max_steps);
+  override_interpreted_values(model, &t1, &t2, &max_steps);
 
   // Run the model.
   model_run(model, t1, t2, max_steps);
@@ -1136,9 +1125,9 @@ int model_minimal_main(const char* model_name, model_ctor constructor, int argc,
   return 0;
 }
 
-void model_report_conv_rate(options_t* options, real_t conv_rate, real_t sigma)
+void model_report_conv_rate(real_t conv_rate, real_t sigma)
 {
-  ASSERT(options != NULL);
+  options_t* options = options_argv();
   char crstr[1024], sigmastr[1024];
   snprintf(crstr, 1024, "%g", conv_rate);
   snprintf(sigmastr, 1024, "%g", sigma);
@@ -1146,9 +1135,9 @@ void model_report_conv_rate(options_t* options, real_t conv_rate, real_t sigma)
   options_set(options, "conv_rate_sigma", sigmastr);
 }
 
-void model_report_error_norm(options_t* options, real_t error_norm)
+void model_report_error_norm(real_t error_norm)
 {
-  ASSERT(options != NULL);
+  options_t* options = options_argv();
   char nstr[1024];
   snprintf(nstr, 1024, "%g", error_norm);
   options_set(options, "error_norm", nstr);
