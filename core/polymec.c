@@ -96,6 +96,68 @@ static void shutdown()
 #endif
 }
 
+// This somewhat delicate procedure implements a simple mechanism to pause 
+// and allow a developer to attach a debugger.
+static void pause_if_requested()
+{
+  options_t* opts = options_argv();
+  char* delay = options_value(opts, "pause");
+  bool free_delay = false;
+  if (delay == NULL)
+  {
+    // Are we maybe in a test environment, in which the pause=xxx 
+    // argument is the first one passed?
+    char* command = options_command(opts);
+    if ((command != NULL) && (strcasecmp(command, "pause=")))
+    {
+      int num_words;
+      char** words = string_split(command, "=", &num_words);
+      if (num_words == 2)
+      {
+        ASSERT(strcasecmp(words[0], "pause") == 0);
+        delay = words[1];
+        free_delay = true;
+      }
+      for (int i = 0; i < num_words; ++i)
+      {
+        if (i != 1)
+          string_free(words[i]);
+      }
+      polymec_free(words);
+    }
+  }
+
+  if (delay != NULL)
+  {
+    int secs = atoi((const char*)delay);
+    if (secs <= 0)
+      polymec_error("Cannot pause for a non-positive interval.");
+    int nprocs, rank;
+    MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    if (nprocs > 1)
+    {
+      log_urgent("Pausing for %d seconds. PIDS: ", secs);
+      int pid = (int)getpid();
+      int pids[nprocs];
+      MPI_Gather(&pid, 1, MPI_INT, pids, 1, MPI_INT, 0, MPI_COMM_WORLD);
+      if (rank == 0)
+      {
+        for (int p = 0; p < nprocs; ++p)
+          log_urgent("Rank %d: %d", p, pids[p]);
+      }
+    }
+    else
+    {
+      int pid = (int)getpid();
+      log_urgent("Pausing for %d seconds (PID = %d).", secs, pid);
+    }
+    sleep((unsigned)secs);
+    if (free_delay)
+      string_free(delay);
+  }
+}
+
 void polymec_init(int argc, char** argv)
 {
   if (!polymec_initialized)
@@ -136,47 +198,20 @@ void polymec_init(int argc, char** argv)
     // Start up the garbage collector.
     GC_INIT();
 
-    // Parse command line options.
-    options_parse(argc, argv);
-
     // Initialize variables for exact arithmetic.
     exactinit();
 
     // Register a shutdown function.
     atexit(&shutdown);
 
+    // Parse command line options.
+    options_parse(argc, argv);
+
     // Okay! We're initialized.
     polymec_initialized = true;
 
     // If we are asked to pause, do so.
-    char* delay = options_value(options_argv(), "pause");
-    if (delay != NULL)
-    {
-      int secs = atoi((const char*)delay);
-      if (secs <= 0)
-        polymec_error("Cannot pause for a non-positive interval.");
-      int nprocs, rank;
-      MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
-      MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-      if (nprocs > 1)
-      {
-        log_urgent("Pausing for %d seconds. PIDS: ", secs);
-        int pid = (int)getpid();
-        int pids[nprocs];
-        MPI_Gather(&pid, 1, MPI_INT, pids, 1, MPI_INT, 0, MPI_COMM_WORLD);
-        if (rank == 0)
-        {
-          for (int p = 0; p < nprocs; ++p)
-            log_urgent("Rank %d: %d", p, pids[p]);
-        }
-      }
-      else
-      {
-        int pid = (int)getpid();
-        log_urgent("Pausing for %d seconds (PID = %d).", secs, pid);
-      }
-      sleep((unsigned)secs);
-    }
+    pause_if_requested();
   }
 }
 
