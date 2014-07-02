@@ -15,7 +15,7 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libgc.a)
   endif()
 
   message("Configuring gc...")
-  execute_process(COMMAND env CC=${CC} ./configure ${GC_CONFIG_OPTS}
+  execute_process(COMMAND env CC=${CMAKE_C_COMPILER} ./configure ${GC_CONFIG_OPTS}
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/gc
                   OUTPUT_VARIABLE gc_config_log ERROR_VARIABLE gc_config_err
                   RESULT_VARIABLE stat)
@@ -282,7 +282,7 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libsundials_cvode.a)
   endif()
 
   message("Configuring sundials...")
-  execute_process(COMMAND env CC=${CC} ./configure ${SUNDIALS_CONFIG_OPTS}
+  execute_process(COMMAND env CC=${CMAKE_C_COMPILER} ./configure ${SUNDIALS_CONFIG_OPTS}
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/sundials
                   OUTPUT_VARIABLE sundials_config_log ERROR_VARIABLE sundials_config_err
                   RESULT_VARIABLE stat)

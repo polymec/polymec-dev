@@ -23,10 +23,9 @@ macro(set_up_platform)
   if (HOSTNAME MATCHES "edison") # NERSC Edison
     # Edison likes Intel's compilers...
     # ...but Intel's compilers don't do C11.
-    set(CMAKE_C_COMPILER icc)
-    #set(CMAKE_C_COMPILER gcc)
-    set(CMAKE_CXX_COMPILER icpc)
-    set(CMAKE_Fortran_COMPILER ifort)
+    set(CMAKE_C_COMPILER cc)
+    set(CMAKE_CXX_COMPILER CC)
+    set(CMAKE_Fortran_COMPILER ftn)
 
     # We expect the following libraries to be available.
     set(Z_LIBRARY /usr/lib64/libz.a)
