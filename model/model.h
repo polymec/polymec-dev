@@ -37,7 +37,7 @@
 typedef struct model_t model_t;
 
 // A model constructor function for creating an object context.
-typedef model_t* (*model_ctor)(options_t* options);
+typedef model_t* (*model_ctor)();
 
 // A function for reading input from an interpreter into the model.
 typedef void (*model_read_input_func)(void* context, interpreter_t* interpreter, options_t* options);
@@ -110,7 +110,7 @@ void model_usage(model_t* model, FILE* stream);
 
 // This is the type of function that needs to be implemented to 
 // run a benchmark calculation.
-typedef void (*model_benchmark_function_t)(options_t*);
+typedef void (*model_benchmark_function_t)();
 
 // Registers the given benchmark name, function, and description with 
 // this model. The description is consumed if given.

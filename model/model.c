@@ -218,9 +218,8 @@ void model_run_all_benchmarks(model_t* model)
   int pos = 0;
   char *benchmark;
   model_benchmark_t* metadata;
-  options_t* options = options_argv();
   while (model_benchmark_map_next(model->benchmarks, &pos, &benchmark, &metadata))
-    (*metadata->function)(options);
+    (*metadata->function)();
 }
 
 void model_run_benchmark(model_t* model, const char* benchmark)
@@ -244,7 +243,7 @@ void model_run_benchmark(model_t* model, const char* benchmark)
 
     log_info("%s: Running benchmark '%s'.", model->name, benchmark);
     options_set(options, "sim_name", benchmark);
-    (*(*metadata)->function)(options);
+    (*(*metadata)->function)();
     log_info("%s: Finished running benchmark '%s'.", model->name, benchmark);
 
     char* conv_rate = options_value(options, "conv_rate");
@@ -954,7 +953,7 @@ int model_main(const char* model_name, model_ctor constructor, int argc, char* a
     driver_usage(model_name, stderr);
 
   // Attempt to construct the model.
-  model_t* model = (*constructor)(opts);
+  model_t* model = (*constructor)();
   ASSERT(model != NULL);
 
   // Have we been asked for help?
@@ -1082,7 +1081,7 @@ int model_minimal_main(const char* model_name, model_ctor constructor, int argc,
   }
 
   // Attempt to construct the model.
-  model_t* model = (*constructor)(opts);
+  model_t* model = (*constructor)();
   ASSERT(model != NULL);
 
   // Check to see whether the given file exists.
