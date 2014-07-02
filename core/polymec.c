@@ -167,7 +167,7 @@ void polymec_init(int argc, char** argv)
         if (rank == 0)
         {
           for (int p = 0; p < nprocs; ++p)
-            log_urgent("%d: %d", p, pids[p]);
+            log_urgent("Rank %d: %d", p, pids[p]);
         }
       }
       else
