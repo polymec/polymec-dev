@@ -147,6 +147,36 @@ void polymec_init(int argc, char** argv)
 
     // Okay! We're initialized.
     polymec_initialized = true;
+
+    // If we are asked to pause, do so.
+    char* delay = options_value(options_argv(), "pause");
+    if (delay != NULL)
+    {
+      int secs = atoi((const char*)delay);
+      if (secs <= 0)
+        polymec_error("Cannot pause for a non-positive interval.");
+      int nprocs, rank;
+      MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
+      MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+      if (nprocs > 1)
+      {
+        log_urgent("Pausing for %d seconds. PIDS: ", secs);
+        int pid = (int)getpid();
+        int pids[nprocs];
+        MPI_Gather(&pid, 1, MPI_INT, pids, 1, MPI_INT, 0, MPI_COMM_WORLD);
+        if (rank == 0)
+        {
+          for (int p = 0; p < nprocs; ++p)
+            log_urgent("%d: %d", p, pids[p]);
+        }
+      }
+      else
+      {
+        int pid = (int)getpid();
+        log_urgent("Pausing for %d seconds (PID = %d).", secs, pid);
+      }
+      sleep((unsigned)secs);
+    }
   }
 }
 
