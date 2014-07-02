@@ -84,14 +84,8 @@ int main(int argc, char** argv)
   int leave = 0;
   if (rank == 0)
   {
-    // Parse options on the command line.
-    opts = options_parse(argc, argv);
-    if (opts == NULL)
-    {
-      mesher_usage(stderr);
-      leave = 1;
-      goto leaving;
-    }
+    // Get the parsed command line options.
+    opts = options_argv();
 
     // Extract the input file and arguments. Note that we use "command" here 
     // to get the input file, since it comes first.
@@ -164,7 +158,7 @@ int main(int argc, char** argv)
   }
   else
   {
-    opts = options_parse(argc, argv);
+    opts = options_argv();
     if (opts != NULL)
       input = options_command(opts);
     if (input != NULL)

@@ -34,8 +34,13 @@ typedef struct options_t options_t;
 // Creates an empty options object. This is mostly for simplifying logic.
 options_t* options_new();
 
-// Parses options from the command line, returning an options object.
-options_t* options_parse(int argc, char** argv);
+// Returns the options_argv singleton that holds all of the parsed command 
+// line options.
+options_t* options_argv();
+
+// Parses options from the command line, initializing the command line 
+// options singleton.
+void options_parse(int argc, char** argv);
 
 // Returns the command passed on the command line, or NULL if no command 
 // was given.

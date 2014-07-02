@@ -937,10 +937,8 @@ int model_main(const char* model_name, model_ctor constructor, int argc, char* a
   // Start everything up.
   polymec_init(argc, argv);
 
-  // Parse options on the command line.
-  options_t* opts = options_parse(argc, argv);
-  if (opts == NULL)
-    driver_usage(model_name, stderr);
+  // Get the parsed command line options.
+  options_t* opts = options_argv();
 
   // Extract the command and arguments.
   char* command = options_command(opts);
@@ -1084,10 +1082,8 @@ int model_minimal_main(const char* model_name, model_ctor constructor, int argc,
   // Start everything up.
   polymec_init(argc, argv);
 
-  // Parse options on the command line.
-  options_t* opts = options_parse(argc, argv);
-  if (opts == NULL)
-    minimal_driver_usage(model_name, stderr);
+  // Get the parsed command line options.
+  options_t* opts = options_argv();
 
   // Here, the command serves as the input.
   char* input = options_command(opts);

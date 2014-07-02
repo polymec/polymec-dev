@@ -35,7 +35,8 @@ void test_options_without_input(void** state)
   // Generic commands have no input.
   int argc = 6;
   char* argv[] = {"program", "command", "input", "p1=v1", "p2=v2", "p3=v3"};
-  options_t* opt = options_parse(argc, argv);
+  options_parse(argc, argv);
+  options_t* opt = options_argv();
   assert_string_equal("command", options_command(opt));
   assert_true(options_input(opt) == NULL);
   assert_string_equal("v1", options_value(opt, "p1"));
@@ -49,7 +50,8 @@ void test_options_with_input(void** state)
   // The "run" and "benchmark" commands have input.
   int argc = 6;
   char* argv[] = {"program", "run", "input", "p1=v1", "p2=v2", "p3=v3"};
-  options_t* opt = options_parse(argc, argv);
+  options_parse(argc, argv);
+  options_t* opt = options_argv();
   assert_string_equal("run", options_command(opt));
   assert_string_equal("input", options_input(opt));
   assert_string_equal("v1", options_value(opt, "p1"));

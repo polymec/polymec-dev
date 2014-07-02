@@ -34,6 +34,9 @@ struct options_t
   string_string_unordered_map_t* params;
 };
 
+// Options argv singleton.
+static options_t* argv_singleton = NULL;
+
 static void options_free(void* ctx, void* dummy)
 {
   options_t* opts = (options_t*)ctx;
@@ -65,8 +68,15 @@ options_t* options_new()
   return o;
 }
 
-options_t* options_parse(int argc, char** argv)
+options_t* options_argv()
 {
+  return argv_singleton;
+}
+
+void options_parse(int argc, char** argv)
+{
+  if (argv_singleton != NULL)
+    argv_singleton = NULL;
   options_t* o = options_new();
   o->command = NULL;
   o->input = NULL;
@@ -115,7 +125,7 @@ options_t* options_parse(int argc, char** argv)
     ++i;
   }
 
-  return o;
+  argv_singleton = o;
 }
 
 char* options_command(options_t* opts)

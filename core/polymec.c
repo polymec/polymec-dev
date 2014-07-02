@@ -136,6 +136,9 @@ void polymec_init(int argc, char** argv)
     // Start up the garbage collector.
     GC_INIT();
 
+    // Parse command line options.
+    options_parse(argc, argv);
+
     // Initialize variables for exact arithmetic.
     exactinit();
 
@@ -325,7 +328,7 @@ void polymec_provenance_fprintf(FILE* stream)
   }
 
   // If we received an input script, write out its contents.
-  options_t* options = options_parse(polymec_argc, polymec_argv);
+  options_t* options = options_argv();
   char* input = options_input(options);
   if (input == NULL)
   {
