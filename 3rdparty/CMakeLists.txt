@@ -410,6 +410,9 @@ if (HAVE_MPI EQUAL 1)
       # The "new" timing mechanism for Scotch only works on Linux?
       set(SCOTCH_C_FLAGS "${SCOTCH_C_FLAGS} -DCOMMON_TIMING_OLD")
     endif()
+    if (CMAKE_BUILD_TYPE STREQUAL "Debug")
+      set(SCOTCH_C_FLAGS "${SCOTCH_C_FLAGS} -g")
+    endif()
 
     message("Preparing scotch...")
     execute_process(COMMAND cmake -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/scotch ${CMAKE_CURRENT_BINARY_DIR}/scotch
