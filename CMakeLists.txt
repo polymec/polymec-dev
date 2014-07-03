@@ -106,7 +106,7 @@ endif()
 
 # Basic libraries to be linked in.
 set(POLYMEC_LIBS m)
-if (LINUX EQUAL 1)
+if (${NEED_LAPACK})
   include(FindBLAS)
   include(FindLAPACK)
   find_package(BLAS REQUIRED)
