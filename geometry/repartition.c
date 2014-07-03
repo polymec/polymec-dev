@@ -152,7 +152,7 @@ exchanger_t* repartition_mesh(mesh_t* mesh, int* weights, real_t imbalance_tol)
 
   // Extract the adjacency information.
   SCOTCH_Num* xadj = malloc(sizeof(SCOTCH_Num) * (mesh->num_cells+1));
-  memcpy(xadj, adj_graph_edge_offsets(local_graph), sizeof(SCOTCH_Num) * mesh->num_cells+1);
+  memcpy(xadj, adj_graph_edge_offsets(local_graph), sizeof(SCOTCH_Num) * (mesh->num_cells+1));
   SCOTCH_Num num_arcs = xadj[mesh->num_cells];
   SCOTCH_Num* adj = malloc(sizeof(SCOTCH_Num) * num_arcs);
   memcpy(adj, adj_graph_adjacency(local_graph), sizeof(SCOTCH_Num) * num_arcs);
