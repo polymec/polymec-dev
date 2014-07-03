@@ -50,6 +50,9 @@ endif
 
 BUILDDIR := ${BUILDDIR}-`basename ${CC}`
 CONFIG_FLAGS += -DCC=${CC} -DCXX=${CXX}
+ifneq ($(FC), )
+  CONFIG_FLAGS += -DFC=${FC}
+endif
 
 # Debugging symbols
 ifneq ($(debug), not-set)
