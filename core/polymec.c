@@ -139,12 +139,16 @@ static void pause_if_requested()
     {
       log_urgent("Pausing for %d seconds. PIDS: ", secs);
       int pid = (int)getpid();
+      char hostname[32];
+      gethostname(hostname, 32);
       int pids[nprocs];
+      char hostnames[32*nprocs];
       MPI_Gather(&pid, 1, MPI_INT, pids, 1, MPI_INT, 0, MPI_COMM_WORLD);
+      MPI_Gather(hostname, 32, MPI_CHAR, hostnames, 32, MPI_CHAR, 0, MPI_COMM_WORLD);
       if (rank == 0)
       {
         for (int p = 0; p < nprocs; ++p)
-          log_urgent("Rank %d: %d", p, pids[p]);
+          log_urgent("Rank %d (%s): %d", p, &hostnames[32*p], pids[p]);
       }
     }
     else
