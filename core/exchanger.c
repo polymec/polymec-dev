@@ -344,6 +344,8 @@ exchanger_t* exchanger_new(MPI_Comm comm)
   memset(ex->orig_buffers, 0, ex->pending_msg_cap * sizeof(void*));
   ex->transfer_counts = polymec_malloc(ex->pending_msg_cap * sizeof(int*));
   memset(ex->transfer_counts, 0, ex->pending_msg_cap * sizeof(int*));
+  ex->max_send = -1;
+  ex->max_receive = -1;
 
   return ex;
 }
@@ -356,6 +358,9 @@ static void exchanger_clear(exchanger_t* ex)
   polymec_free(ex->pending_msgs);
   polymec_free(ex->orig_buffers);
   polymec_free(ex->transfer_counts);
+
+  ex->max_send = -1;
+  ex->max_receive = -1;
 }
 
 void exchanger_free(exchanger_t* ex)

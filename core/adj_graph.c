@@ -76,7 +76,7 @@ adj_graph_t* adj_graph_new_with_dist(MPI_Comm comm,
   MPI_Comm_rank(comm, &graph->rank);
 
   graph->comm = comm;
-  graph->vtx_dist = polymec_malloc(sizeof(int) * (graph->nproc+1));
+  graph->vtx_dist = polymec_malloc(sizeof(index_t) * (graph->nproc+1));
   memcpy(graph->vtx_dist, vertex_dist, sizeof(index_t) * (graph->nproc+1));
 
   int num_local_vertices = (int)(vertex_dist[graph->rank+1] - vertex_dist[graph->rank]);
@@ -281,7 +281,7 @@ void adj_graph_fprintf(adj_graph_t* graph, FILE* stream)
 {
   if (stream == NULL) return;
   int num_vertices = adj_graph_num_vertices(graph);
-  fprintf(stream, "Adjacency graph (%d/%d vertices locally):\n", num_vertices, graph->vtx_dist[graph->nproc]);
+  fprintf(stream, "Adjacency graph (%d/%zd vertices locally):\n", num_vertices, graph->vtx_dist[graph->nproc]);
   for (int i = 0; i < num_vertices; ++i)
   {
     fprintf(stream, " %d: ", i);
