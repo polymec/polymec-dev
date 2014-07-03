@@ -183,11 +183,6 @@ exchanger_t* repartition_mesh(mesh_t* mesh, int* weights, real_t imbalance_tol)
                      xadj, NULL, vert_weights, NULL, num_arcs, num_arcs,
                      adj, NULL, NULL);
 
-  // Free the local graph.
-printf("%d: XXX\n", rank);
-  adj_graph_free(local_graph);
-printf("%d: OOO\n", rank);
-
   // Now map the distributed graph to the different domains.
   SCOTCH_Arch arch;
   SCOTCH_archInit(&arch);
@@ -217,6 +212,7 @@ printf("]\n");
   SCOTCH_stratExit(&strategy);
   SCOTCH_archExit(&arch);
   SCOTCH_dgraphExit(&dist_graph);
+  adj_graph_free(local_graph);
 
 #endif
 
