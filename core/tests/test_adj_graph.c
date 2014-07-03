@@ -43,7 +43,7 @@ void test_distributed_constructor(void** state)
 {
   int nprocs;
   MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
-  int vertex_dist[nprocs+1];
+  index_t vertex_dist[nprocs+1];
   vertex_dist[0] = 0;
   for (int p = 0; p < nprocs; ++p)
     vertex_dist[p+1] = vertex_dist[p] + 1000/nprocs;

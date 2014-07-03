@@ -737,6 +737,9 @@ serializer_t* mesh_serializer()
 adj_graph_t* graph_from_mesh_cells(mesh_t* mesh)
 {
   // Create a graph whose vertices are the mesh's cells.
+  int rank, nproc;
+  MPI_Comm_size(mesh->comm, &nproc);
+  MPI_Comm_rank(mesh->comm, &rank);
   adj_graph_t* g = adj_graph_new(mesh->comm, mesh->num_cells);
 
   // Allocate space in the graph for the edges (faces connecting cells).

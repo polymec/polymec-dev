@@ -43,7 +43,7 @@ adj_graph_t* adj_graph_new(MPI_Comm comm, int num_local_vertices);
 // with the given number of vertices distributed according to vertex_dist.
 adj_graph_t* adj_graph_new_with_dist(MPI_Comm comm, 
                                      int num_global_vertices,
-                                     int* vertex_dist);
+                                     index_t* vertex_dist);
 
 // Constructs an adjacency graph that represents the connectivity between 
 // super-vertices that consist of blocks of actual vertices with the given 
@@ -82,10 +82,10 @@ int* adj_graph_edges(adj_graph_t* graph, int vertex);
 bool adj_graph_contains_edge(adj_graph_t* graph, int vertex1, int vertex2);
 
 // Returns the global index of the first local vertex in the graph.
-int adj_graph_first_vertex(adj_graph_t* graph);
+index_t adj_graph_first_vertex(adj_graph_t* graph);
 
 // Returns the global index of the last local vertex in the graph.
-int adj_graph_last_vertex(adj_graph_t* graph);
+index_t adj_graph_last_vertex(adj_graph_t* graph);
 
 // Allows iteration over the vertices connected by edges to the given vertex.
 // Returns true if more vertices are found, false if not. Set pos to 0 to 
@@ -109,7 +109,7 @@ int* adj_graph_edge_offsets(adj_graph_t* graph);
 // The pth entry in this array holds the global index of the first vertex 
 // found on process p. This array plays the role of VTX_DIST in the ParMetis 
 // documentation.
-int* adj_graph_vertex_dist(adj_graph_t* graph);
+index_t* adj_graph_vertex_dist(adj_graph_t* graph);
 
 // Prints a textual representation of the graph to the given file.
 void adj_graph_fprintf(adj_graph_t* graph, FILE* stream);

@@ -62,7 +62,7 @@ exchanger_t* repartition_point_cloud(point_cloud_t* cloud, int* weights, real_t 
   memcpy(adj, adj_graph_adjacency(local_graph), sizeof(SCOTCH_Num) * num_arcs);
 
   // Populate adj with global cell indices.
-  int* vtx_dist = adj_graph_vertex_dist(local_graph);
+  index_t* vtx_dist = adj_graph_vertex_dist(local_graph);
   index_t* global_point_indices = polymec_malloc(sizeof(SCOTCH_Num) * (cloud->num_points + cloud->num_ghost_points));
   for (int i = 0; i < cloud->num_points + cloud->num_ghost_points; ++i)
     global_point_indices[i] = (index_t)(vtx_dist[rank] + i);
@@ -152,13 +152,17 @@ exchanger_t* repartition_mesh(mesh_t* mesh, int* weights, real_t imbalance_tol)
 
   // Extract the adjacency information.
   SCOTCH_Num* xadj = malloc(sizeof(SCOTCH_Num) * (mesh->num_cells+1));
-  memcpy(xadj, adj_graph_edge_offsets(local_graph), sizeof(SCOTCH_Num) * (mesh->num_cells+1));
+  int* edge_offsets = adj_graph_edge_offsets(local_graph);
+  for (int i = 0; i <= mesh->num_cells; ++i)
+    xadj[i] = (SCOTCH_Num)edge_offsets[i];
   SCOTCH_Num num_arcs = xadj[mesh->num_cells];
   SCOTCH_Num* adj = malloc(sizeof(SCOTCH_Num) * num_arcs);
-  memcpy(adj, adj_graph_adjacency(local_graph), sizeof(SCOTCH_Num) * num_arcs);
+  int* edges = adj_graph_adjacency(local_graph);
+  for (int i = 0; i < xadj[mesh->num_cells]; ++i)
+    adj[i] = (SCOTCH_Num)edges[i];
 
-  // Populate adj with global cell indices.
-  int* vtx_dist = adj_graph_vertex_dist(local_graph);
+  // Replace the ghost entries in adj with global cell indices.
+  index_t* vtx_dist = adj_graph_vertex_dist(local_graph);
   index_t* global_cell_indices = polymec_malloc(sizeof(SCOTCH_Num) * (mesh->num_cells + mesh->num_ghost_cells));
   for (int i = 0; i < mesh->num_cells + mesh->num_ghost_cells; ++i)
     global_cell_indices[i] = (index_t)(vtx_dist[rank] + i);
@@ -180,7 +184,9 @@ exchanger_t* repartition_mesh(mesh_t* mesh, int* weights, real_t imbalance_tol)
                      adj, NULL, NULL);
 
   // Free the local graph.
+printf("%d: XXX\n", rank);
   adj_graph_free(local_graph);
+printf("%d: OOO\n", rank);
 
   // Now map the distributed graph to the different domains.
   SCOTCH_Arch arch;

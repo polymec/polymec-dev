@@ -38,7 +38,7 @@ struct adj_graph_t
   int* xadj; 
 
   // vtx_dist[p] holds the global index of the first vertex on process p.
-  int* vtx_dist; 
+  index_t* vtx_dist; 
 
   // The current capacity of adjacency.
   int edge_cap;
@@ -55,7 +55,7 @@ adj_graph_t* adj_graph_new(MPI_Comm comm, int num_local_vertices)
 #else
   num_verts[0] = num_local_vertices;
 #endif
-  int vtxdist[nprocs+1], num_global_vertices = 0;
+  index_t vtxdist[nprocs+1], num_global_vertices = 0;
   vtxdist[0] = 0;
   for (int p = 0; p < nprocs; ++p)
   {
@@ -67,7 +67,7 @@ adj_graph_t* adj_graph_new(MPI_Comm comm, int num_local_vertices)
 
 adj_graph_t* adj_graph_new_with_dist(MPI_Comm comm, 
                                      int num_global_vertices, 
-                                     int* vertex_dist)
+                                     index_t* vertex_dist)
 {
   ASSERT(num_global_vertices >= 0);
 
@@ -77,9 +77,9 @@ adj_graph_t* adj_graph_new_with_dist(MPI_Comm comm,
 
   graph->comm = comm;
   graph->vtx_dist = polymec_malloc(sizeof(int) * (graph->nproc+1));
-  memcpy(graph->vtx_dist, vertex_dist, sizeof(int) * (graph->nproc+1));
+  memcpy(graph->vtx_dist, vertex_dist, sizeof(index_t) * (graph->nproc+1));
 
-  int num_local_vertices = vertex_dist[graph->rank+1] - vertex_dist[graph->rank];
+  int num_local_vertices = (int)(vertex_dist[graph->rank+1] - vertex_dist[graph->rank]);
   graph->edge_cap = 4 * num_local_vertices;
   graph->adjacency = polymec_malloc(sizeof(int) * graph->edge_cap);
   memset(graph->adjacency, 0, sizeof(int) * graph->edge_cap);
@@ -102,7 +102,7 @@ adj_graph_t* adj_graph_new_with_block_size(int block_size,
   // Distribute the vertices in a manner analogous to the way they are 
   // distributed in the given graph.
   int num_global_vertices = block_size * graph->vtx_dist[nproc];
-  int vtx_dist[nproc+1];
+  index_t vtx_dist[nproc+1];
   vtx_dist[0] = 0;
   for (int p = 1; p <= nproc; ++p)
     vtx_dist[p] = block_size * graph->vtx_dist[p];
@@ -152,12 +152,12 @@ adj_graph_t* adj_graph_clone(adj_graph_t* graph)
   g->comm = graph->comm;
   g->nproc = graph->nproc;
   g->rank = graph->rank;
-  g->vtx_dist = polymec_malloc(sizeof(int) * (g->nproc+1));
-  memcpy(g->vtx_dist, graph->vtx_dist, sizeof(int) * (g->nproc+1));
+  g->vtx_dist = polymec_malloc(sizeof(index_t) * (g->nproc+1));
+  memcpy(g->vtx_dist, graph->vtx_dist, sizeof(index_t) * (g->nproc+1));
   g->edge_cap = graph->edge_cap;
   g->adjacency = polymec_malloc(sizeof(int) * g->edge_cap);
   memcpy(g->adjacency, graph->adjacency, sizeof(int) * g->edge_cap);
-  int num_local_vertices = g->vtx_dist[g->rank+1] - g->vtx_dist[g->rank];
+  int num_local_vertices = (int)(g->vtx_dist[g->rank+1] - g->vtx_dist[g->rank]);
   g->xadj = polymec_malloc(sizeof(int) * (num_local_vertices + 1));
   memcpy(g->xadj, graph->xadj, sizeof(int) * (num_local_vertices + 1));
   return g;
@@ -181,7 +181,7 @@ MPI_Comm adj_graph_comm(adj_graph_t* graph)
 
 int adj_graph_num_vertices(adj_graph_t* graph)
 {
-  return graph->vtx_dist[graph->rank+1] - graph->vtx_dist[graph->rank];
+  return (int)(graph->vtx_dist[graph->rank+1] - graph->vtx_dist[graph->rank]);
 }
 
 void adj_graph_set_num_edges(adj_graph_t* graph, int vertex, int num_edges)
@@ -189,7 +189,7 @@ void adj_graph_set_num_edges(adj_graph_t* graph, int vertex, int num_edges)
   ASSERT(vertex >= 0);
   ASSERT(vertex < adj_graph_num_vertices(graph));
   int old_num_edges = graph->xadj[vertex+1] - graph->xadj[vertex];
-  int num_vertices = graph->vtx_dist[graph->rank+1] - graph->vtx_dist[graph->rank];
+  int num_vertices = (int)(graph->vtx_dist[graph->rank+1] - graph->vtx_dist[graph->rank]);
   int tot_num_edges = graph->xadj[num_vertices];
   if (num_edges < old_num_edges)
   {
@@ -240,12 +240,12 @@ bool adj_graph_contains_edge(adj_graph_t* graph, int vertex1, int vertex2)
   return false;
 }
 
-int adj_graph_first_vertex(adj_graph_t* graph)
+index_t adj_graph_first_vertex(adj_graph_t* graph)
 {
   return graph->vtx_dist[graph->rank];
 }
 
-int adj_graph_last_vertex(adj_graph_t* graph)
+index_t adj_graph_last_vertex(adj_graph_t* graph)
 {
   return graph->vtx_dist[graph->rank+1] - 1;
 }
@@ -272,7 +272,7 @@ int* adj_graph_edge_offsets(adj_graph_t* graph)
   return graph->xadj;
 }
 
-int* adj_graph_vertex_dist(adj_graph_t* graph)
+index_t* adj_graph_vertex_dist(adj_graph_t* graph)
 {
   return graph->vtx_dist;
 }
