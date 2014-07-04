@@ -7,6 +7,9 @@ precision  = not-set
 verbose    = not-set
 prefix     = not-set
 sanitize   = not-set
+CC         = not-set
+CXX        = not-set
+FC         = not-set
 
 # This proxies everything to the builddir cmake.
 
@@ -31,9 +34,13 @@ ifeq ($(mpi), 1)
   FC = mpif90
   CONFIG_FLAGS += -DHAVE_MPI=1
 else
-  ifeq ($(CC), )
+  ifeq ($(CC), not-set)
     CC  = cc
+  endif
+  ifeq ($(CXX), not-set)
     CXX = c++
+  endif
+  ifeq ($(FC), not-set)
     FC = gfortran
   endif
   CONFIG_FLAGS += -DHAVE_MPI=0

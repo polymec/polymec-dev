@@ -7,7 +7,7 @@ macro(set_up_platform)
   # this macro is executed, and so PROJECT_BINARY_DIR is unavailable.
   set(Z_LIBRARY "${CMAKE_CURRENT_BINARY_DIR}/lib/libz.a")
   set(HDF5_LIBRARY "${CMAKE_CURRENT_BINARY_DIR}/lib/libhdf5.a")
-  set(HDF5_LIBRARIES hdf5;hdf5_hl)
+  set(HDF5_LIBRARIES hdf5)
   set(SILO_LIBRARY "${CMAKE_CURRENT_BINARY_DIR}/lib/libsiloh5.a")
   if (APPLE)
     set(NEED_LAPACK FALSE)
