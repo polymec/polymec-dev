@@ -174,11 +174,8 @@ MPI_Barrier(mesh->comm);
   // Replace the ghost entries in adj with global cell indices.
   index_t* vtx_dist = adj_graph_vertex_dist(local_graph);
   index_t* global_cell_indices = polymec_malloc(sizeof(SCOTCH_Num) * (mesh->num_cells + mesh->num_ghost_cells));
-  for (int i = 0; i < mesh->num_cells + mesh->num_ghost_cells; ++i)
-{
+  for (int i = 0; i < mesh->num_cells; ++i)
     global_cell_indices[i] = (index_t)(vtx_dist[rank] + i);
-printf("%d: GCI[%d] = %d\n", rank, i, global_cell_indices[i]);
-}
   exchanger_t* mesh_ex = mesh_exchanger(mesh);
 exchanger_fprintf(mesh_ex, stdout);
 exchanger_enable_deadlock_detection(mesh_ex, 1.0, 0, stdout);
@@ -186,10 +183,7 @@ exchanger_enable_deadlock_detection(mesh_ex, 1.0, 0, stdout);
 for (int i = 0; i < mesh->num_cells + mesh->num_ghost_cells; ++i)
 printf("%d: GCI[%d] = %d\n", rank, i, global_cell_indices[i]);
   for (int i = 0; i < num_arcs; ++i)
-  {
-    if (adj[i] >= mesh->num_cells)
-      adj[i] = global_cell_indices[adj[i]];
-  }
+    adj[i] = global_cell_indices[adj[i]];
   polymec_free(global_cell_indices);
 printf("%d: adj = [", rank);
 for (int i = 0; i < num_arcs; ++i)
