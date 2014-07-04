@@ -10,15 +10,30 @@ function(add_polymec_test exe)
   set_tests_properties(${exe} PROPERTIES WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 endfunction()
 
-# This function adds a parallel unit test executable to be built using gtest.
-# The procs argument is a list of numbers of processes to be run.
+# This function adds a parallel unit test executable to be built using cmockery.
+# Arguments are source files and numbers of processes (in no particular order, 
+# but usually with process counts following source files by convention).
 # 1 test run will be generated for each processor number value.
-function(add_mpi_polymec_test exe procs)
-  add_executable(${exe} ${ARGN})
-  target_link_libraries(${exe} ${POLYMEC_LIBS})
-  foreach (proc ${procs})
-    add_test(${exe}_${proc}_proc ${MPIEXEC} ${MPIEXEC_NUMPROC_FLAG} ${proc} ${MPIEXEC_PREFLAGS} ${CMAKE_CURRENT_BINARY_DIR}/${exe} ${MPIEXEC_POSTFLAGS})
+function(add_mpi_polymec_test exe)
+  foreach (arg ${ARGN})
+    if (arg MATCHES ".c")
+      list(APPEND sources ${arg})
+    else()
+      list(APPEND procs ${arg})
+    endif()
   endforeach()
+  add_executable(${exe} ${sources})
+  target_link_libraries(${exe} cmockery ${POLYMEC_LIBS})
+  if (HAVE_MPI EQUAL 1)
+    foreach (proc ${procs})
+      add_test(${exe}_${proc}_proc ${MPIEXEC} ${MPIEXEC_NUMPROC_FLAG} ${proc} ${MPIEXEC_PREFLAGS} ${CMAKE_CURRENT_BINARY_DIR}/${exe} ${MPIEXEC_POSTFLAGS})
+      set_tests_properties(${exe}_${proc}_proc PROPERTIES WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+    endforeach()
+  else()
+    # We only add a single-process test case when MPI is not present.
+    add_test(${exe}_1_proc ${CMAKE_CURRENT_BINARY_DIR}/${exe})
+    set_tests_properties(${exe}_1_proc PROPERTIES WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+  endif()
 endfunction()
 
 # This function adds a (serial) benchmark test run.
