@@ -105,11 +105,13 @@ static void shutdown()
 // This MPI error handler can be used to intercept MPI errors.
 static void mpi_fatal_error_handler(MPI_Comm* comm, int* error_code, ...)
 {
+  int rank;
+  MPI_Comm_rank(*comm, &rank);
   int len;
   char error_string[1024];
   MPI_Error_string(*error_code, error_string, &len);
   ASSERT(len < 1024);
-  polymec_error("%s\n", error_string);
+  polymec_error("%s on rank %d\n", error_string, rank);
 }
 #endif
 

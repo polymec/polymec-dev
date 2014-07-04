@@ -67,7 +67,7 @@ exchanger_t* repartition_point_cloud(point_cloud_t* cloud, int* weights, real_t 
   for (int i = 0; i < cloud->num_points + cloud->num_ghost_points; ++i)
     global_point_indices[i] = (index_t)(vtx_dist[rank] + i);
   exchanger_t* cloud_ex = point_cloud_exchanger(cloud);
-  exchanger_exchange(cloud_ex, global_point_indices, 1, 0, MPI_INT);
+  exchanger_exchange(cloud_ex, global_point_indices, 1, 0, MPI_UINT64_T);
   for (int i = 0; i < num_arcs; ++i)
   {
     if (adj[i] >= cloud->num_points)
@@ -175,10 +175,16 @@ MPI_Barrier(mesh->comm);
   index_t* vtx_dist = adj_graph_vertex_dist(local_graph);
   index_t* global_cell_indices = polymec_malloc(sizeof(SCOTCH_Num) * (mesh->num_cells + mesh->num_ghost_cells));
   for (int i = 0; i < mesh->num_cells + mesh->num_ghost_cells; ++i)
+{
     global_cell_indices[i] = (index_t)(vtx_dist[rank] + i);
+printf("%d: GCI[%d] = %d\n", rank, i, global_cell_indices[i]);
+}
   exchanger_t* mesh_ex = mesh_exchanger(mesh);
 exchanger_fprintf(mesh_ex, stdout);
-  exchanger_exchange(mesh_ex, global_cell_indices, 1, 0, MPI_INT);
+exchanger_enable_deadlock_detection(mesh_ex, 1.0, 0, stdout);
+  exchanger_exchange(mesh_ex, global_cell_indices, 1, 0, MPI_UINT64_T);
+for (int i = 0; i < mesh->num_cells + mesh->num_ghost_cells; ++i)
+printf("%d: GCI[%d] = %d\n", rank, i, global_cell_indices[i]);
   for (int i = 0; i < num_arcs; ++i)
   {
     if (adj[i] >= mesh->num_cells)
