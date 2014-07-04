@@ -71,6 +71,11 @@ time_t polymec_invoc_time = 0;
 // Error handler.
 static polymec_error_handler_function error_handler = NULL;
 
+#if POLYMEC_HAVE_MPI
+// MPI error handler.
+static MPI_Errhandler mpi_error_handler;
+#endif
+
 // Functions to call on exit.
 typedef void (*at_exit_func)();
 static at_exit_func _atexit_funcs[32];
@@ -95,6 +100,18 @@ static void shutdown()
   polymec_disable_fpe();
 #endif
 }
+
+#if POLYMEC_HAVE_MPI
+// This MPI error handler can be used to intercept MPI errors.
+static void mpi_fatal_error_handler(MPI_Comm* comm, int* error_code, ...)
+{
+  int len;
+  char error_string[1024];
+  MPI_Error_string(*error_code, error_string, &len);
+  ASSERT(len < 1024);
+  polymec_error("%s\n", error_string);
+}
+#endif
 
 // This somewhat delicate procedure implements a simple mechanism to pause 
 // and allow a developer to attach a debugger.
@@ -198,6 +215,12 @@ void polymec_init(int argc, char** argv)
 
     // Start up MPI.
     MPI_Init(&argc, &argv);
+
+#if POLYMEC_HAVE_MPI
+    // Set up the MPI error handler.
+    MPI_Comm_create_errhandler(mpi_fatal_error_handler, &mpi_error_handler);
+    MPI_Comm_set_errhandler(MPI_COMM_WORLD, mpi_error_handler);
+#endif
 
     // Start up the garbage collector.
     GC_INIT();
