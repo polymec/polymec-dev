@@ -116,7 +116,7 @@ mesh_t* create_rectilinear_mesh(MPI_Comm comm,
     {
       if ((neighboring_cells[ii] != -1) && 
           ((neighboring_cells[ii] < cells_per_proc*rank) || 
-          (neighboring_cells[ii] > cells_per_proc*(rank+1))))
+          (neighboring_cells[ii] >= cells_per_proc*(rank+1))))
       {
         ++num_ghost_cells;
       }
@@ -262,9 +262,10 @@ mesh_t* create_rectilinear_mesh(MPI_Comm comm,
     {
       if ((neighboring_cells[ii] != -1) && 
           ((neighboring_cells[ii] < cells_per_proc*rank) || 
-           (neighboring_cells[ii] > cells_per_proc*(rank+1))))
+           (neighboring_cells[ii] >= cells_per_proc*(rank+1))))
       {
         int face = mesh->cell_faces[6*cell+ii];
+        if (face < 0) face = ~face;
         ASSERT(mesh->face_cells[2*face] != -1);
         mesh->face_cells[2*face+1] = ghost_cell_index;
 

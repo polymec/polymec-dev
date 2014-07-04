@@ -33,9 +33,10 @@
 
 void test_repartition_uniform_mesh(void** state)
 {
-  // Create a 10x10x10 uniform mesh.
+  // Create a 2x1x1 uniform mesh.
+  int nx = 2, ny = 1, nz = 1;
   bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
-  mesh_t* mesh = create_uniform_mesh(MPI_COMM_WORLD, 10, 10, 10, &bbox);
+  mesh_t* mesh = create_uniform_mesh(MPI_COMM_WORLD, nx, ny, nz, &bbox);
 
   // Repartition it.
   exchanger_t* migrator = repartition_mesh(mesh, NULL, 0.05);
@@ -47,7 +48,7 @@ void test_repartition_uniform_mesh(void** state)
   double ones[mesh->num_cells];
   for (int c = 0; c < mesh->num_cells; ++c)
     ones[c] = 1.0*rank;
-  silo_file_t* silo = silo_file_new(mesh->comm, "uniform_mesh_10x10x10", ".", 1, 0, 0, 0.0);
+  silo_file_t* silo = silo_file_new(mesh->comm, "uniform_mesh_repartition", ".", 1, 0, 0, 0.0);
   silo_file_write_mesh(silo, "mesh", mesh);
   silo_file_write_scalar_cell_field(silo, "rank", "mesh", ones);
   silo_file_close(silo);

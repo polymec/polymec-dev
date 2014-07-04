@@ -68,12 +68,14 @@ typedef struct
   int num_receives;
   void** send_buffers;
   int* send_buffer_sizes;
+  int* dest_procs;
   void** receive_buffers;
   int* receive_buffer_sizes;
+  int* source_procs;
   MPI_Request* requests;
 } mpi_message_t;
 
-#if USE_MPI
+#if POLYMEC_HAVE_MPI
 static mpi_message_t* mpi_message_new(MPI_Datatype type, int stride, int tag)
 {
   ASSERT(stride > 0);
@@ -106,73 +108,80 @@ static void mpi_message_pack(mpi_message_t* msg, void* data,
   int num_sends = send_map->size;
   int num_receives = receive_map->size;
   msg->num_sends = num_sends;
+  msg->dest_procs = polymec_malloc(sizeof(int)*msg->num_sends);
   msg->send_buffer_sizes = polymec_malloc(sizeof(int)*msg->num_sends);
   msg->send_buffers = polymec_malloc(sizeof(void*)*msg->num_sends);
   msg->num_receives = num_receives;
+  msg->source_procs = polymec_malloc(sizeof(int)*msg->num_receives);
   msg->receive_buffer_sizes = polymec_malloc(sizeof(int)*msg->num_receives);
   msg->receive_buffers = polymec_malloc(sizeof(void*)*msg->num_receives);
 
   int pos = 0, proc, i = 0;
-  exchange_channel_t* c;
+  exchanger_channel_t* c;
   while (exchanger_map_next(send_map, &pos, &proc, &c))
   {
-    msg->send_buffer_sizes[i] = c->num_indices;
-    msg->send_buffers[i] = polymec_malloc(c->num_indices*msg->data_size*msg->stride);
+    int num_send_indices = c->num_indices;
+    int* send_indices = c->indices;
+    int stride = msg->stride;
+    msg->dest_procs[i] = proc;
+    msg->send_buffer_sizes[i] = num_send_indices;
+    msg->send_buffers[i] = polymec_malloc(num_send_indices*msg->data_size*stride);
+
     if (msg->type == MPI_REAL)
     {
       real_t* src = (real_t*)data;
       real_t* dest = (real_t*)(msg->send_buffers[i]);
-      for (int j = 0; j < send_buffer_sizes[i]; ++j)
-        for (int s = 0; s < msg->stride; ++s)
-          dest[msg->stride*j+s] = src[send_idx[i][msg->stride*j+s]];
+      for (int j = 0; j < msg->send_buffer_sizes[i]; ++j)
+        for (int s = 0; s < stride; ++s)
+          dest[stride*j+s] = src[stride*send_indices[j]+s];
     }
     else if (msg->type == MPI_DOUBLE)
     {
       double* src = (double*)data;
       double* dest = (double*)(msg->send_buffers[i]);
-      for (int j = 0; j < send_buffer_sizes[i]; ++j)
-        for (int s = 0; s < msg->stride; ++s)
-          dest[msg->stride*j+s] = src[send_idx[i][msg->stride*j+s]];
+      for (int j = 0; j < msg->send_buffer_sizes[i]; ++j)
+        for (int s = 0; s < stride; ++s)
+          dest[stride*j+s] = src[stride*send_indices[j]+s];
     }
     else if (msg->type == MPI_FLOAT)
     {
       float* src = (float*)data;
       float* dest = (float*)(msg->send_buffers[i]);
-      for (int j = 0; j < send_buffer_sizes[i]; ++j)
-        for (int s = 0; s < msg->stride; ++s)
-          dest[msg->stride*j+s] = src[send_idx[i][msg->stride*j+s]];
+      for (int j = 0; j < msg->send_buffer_sizes[i]; ++j)
+        for (int s = 0; s < stride; ++s)
+          dest[stride*j+s] = src[stride*send_indices[j]+s];
     }
     else if (msg->type == MPI_INT)
     {
       int* src = (int*)data;
       int* dest = (int*)(msg->send_buffers[i]);
-      for (int j = 0; j < send_buffer_sizes[i]; ++j)
-        for (int s = 0; s < msg->stride; ++s)
-          dest[msg->stride*j+s] = src[send_idx[i][msg->stride*j+s]];
+      for (int j = 0; j < msg->send_buffer_sizes[i]; ++j)
+        for (int s = 0; s < stride; ++s)
+          dest[stride*j+s] = src[stride*send_indices[j]+s];
     }
     else if (msg->type == MPI_LONG)
     {
       long* src = (long*)data;
       long* dest = (long*)(msg->send_buffers[i]);
-      for (int j = 0; j < send_buffer_sizes[i]; ++j)
-        for (int s = 0; s < msg->stride; ++s)
-          dest[msg->stride*j+s] = src[send_idx[i][msg->stride*j+s]];
+      for (int j = 0; j < msg->send_buffer_sizes[i]; ++j)
+        for (int s = 0; s < stride; ++s)
+          dest[stride*j+s] = src[stride*send_indices[j]+s];
     }
     else if (msg->type == MPI_LONG_LONG)
     {
       long long* src = (long long*)data;
       long long* dest = (long long*)(msg->send_buffers[i]);
-      for (int j = 0; j < send_buffer_sizes[i]; ++j)
-        for (int s = 0; s < msg->stride; ++s)
-          dest[msg->stride*j+s] = src[send_idx[i][msg->stride*j+s]];
+      for (int j = 0; j < msg->send_buffer_sizes[i]; ++j)
+        for (int s = 0; s < stride; ++s)
+          dest[stride*j+s] = src[stride*send_indices[j]+s];
     }
     else if (msg->type == MPI_CHAR)
     {
       char* src = (char*)data;
       char* dest = (char*)(msg->send_buffers[i]);
-      for (int j = 0; j < send_buffer_sizes[i]; ++j)
-        for (int s = 0; s < msg->stride; ++s)
-          dest[msg->stride*j+s] = src[send_idx[i][msg->stride*j+s]];
+      for (int j = 0; j < msg->send_buffer_sizes[i]; ++j)
+        for (int s = 0; s < stride; ++s)
+          dest[stride*j+s] = src[stride*send_indices[j]+s];
     }
     ++i;
   }
@@ -188,65 +197,69 @@ static void mpi_message_pack(mpi_message_t* msg, void* data,
 }
 
 static void mpi_message_unpack(mpi_message_t* msg, void* data, 
-                               int** receive_idx)
+                               exchanger_map_t* receive_map)
 {
-  for (int i = 0; i < msg->num_receives; ++i)
+  int pos = 0, proc, i = 0;
+  exchanger_channel_t* c;
+  while (exchanger_map_next(receive_map, &pos, &proc, &c))
   {
+    int* recv_indices = c->indices;
+    int stride = msg->stride;
     if (msg->type == MPI_REAL)
     {
       real_t* src = (real_t*)(msg->send_buffers[i]);
       real_t* dest = (real_t*)data;
       for (int j = 0; j < msg->receive_buffer_sizes[i]; ++j)
-        for (int s = 0; s < msg->stride; ++s)
-          dest[receive_idx[i][msg->stride*j+s]] = src[msg->stride*j+s];
+        for (int s = 0; s < stride; ++s)
+          dest[stride*recv_indices[j]+s] = src[stride*j+s];
     }
     else if (msg->type == MPI_DOUBLE)
     {
       double* src = (double*)(msg->send_buffers[i]);
       double* dest = (double*)data;
       for (int j = 0; j < msg->receive_buffer_sizes[i]; ++j)
-        for (int s = 0; s < msg->stride; ++s)
-          dest[receive_idx[i][msg->stride*j+s]] = src[msg->stride*j+s];
+        for (int s = 0; s < stride; ++s)
+          dest[stride*recv_indices[j]+s] = src[stride*j+s];
     }
     else if (msg->type == MPI_FLOAT)
     {
       float* src = (float*)(msg->send_buffers[i]);
       float* dest = (float*)data;
       for (int j = 0; j < msg->receive_buffer_sizes[i]; ++j)
-        for (int s = 0; s < msg->stride; ++s)
-          dest[receive_idx[i][msg->stride*j+s]] = src[msg->stride*j+s];
+        for (int s = 0; s < stride; ++s)
+          dest[stride*recv_indices[j]+s] = src[stride*j+s];
     }
     else if (msg->type == MPI_INT)
     {
       int* src = (int*)(msg->send_buffers[i]);
       int* dest = (int*)data;
       for (int j = 0; j < msg->receive_buffer_sizes[i]; ++j)
-        for (int s = 0; s < msg->stride; ++s)
-          dest[receive_idx[i][msg->stride*j+s]] = src[msg->stride*j+s];
+        for (int s = 0; s < stride; ++s)
+          dest[stride*recv_indices[j]+s] = src[stride*j+s];
     }
     else if (msg->type == MPI_LONG)
     {
       long* src = (long*)(msg->send_buffers[i]);
       long* dest = (long*)data;
       for (int j = 0; j < msg->receive_buffer_sizes[i]; ++j)
-        for (int s = 0; s < msg->stride; ++s)
-          dest[receive_idx[i][msg->stride*j+s]] = src[msg->stride*j+s];
+        for (int s = 0; s < stride; ++s)
+          dest[stride*recv_indices[j]+s] = src[stride*j+s];
     }
     else if (msg->type == MPI_LONG_LONG)
     {
       long long* src = (long long*)(msg->send_buffers[i]);
       long long* dest = (long long*)data;
       for (int j = 0; j < msg->receive_buffer_sizes[i]; ++j)
-        for (int s = 0; s < msg->stride; ++s)
-          dest[receive_idx[i][msg->stride*j+s]] = src[msg->stride*j+s];
+        for (int s = 0; s < stride; ++s)
+          dest[stride*recv_indices[j]+s] = src[stride*j+s];
     }
     else if (msg->type == MPI_CHAR)
     {
       char* src = (char*)(msg->send_buffers[i]);
       char* dest = (char*)data;
       for (int j = 0; j < msg->receive_buffer_sizes[i]; ++j)
-        for (int s = 0; s < msg->stride; ++s)
-          dest[receive_idx[i][msg->stride*j+s]] = src[msg->stride*j+s];
+        for (int s = 0; s < stride; ++s)
+          dest[stride*recv_indices[j]+s] = src[stride*j+s];
     }
   }
 }
@@ -260,6 +273,7 @@ static void mpi_message_free(mpi_message_t* msg)
   }
   polymec_free(msg->send_buffers);
   polymec_free(msg->send_buffer_sizes);
+  polymec_free(msg->dest_procs);
   for (int i = 0; i < msg->num_receives; ++i)
   {
     if (msg->receive_buffers[i] != NULL)
@@ -267,6 +281,7 @@ static void mpi_message_free(mpi_message_t* msg)
   }
   polymec_free(msg->receive_buffers);
   polymec_free(msg->receive_buffer_sizes);
+  polymec_free(msg->source_procs);
   if (msg->requests != NULL)
     polymec_free(msg->requests);
   polymec_free(msg);
@@ -507,7 +522,7 @@ void exchanger_exchange(exchanger_t* ex, void* data, int stride, int tag, MPI_Da
 
 int exchanger_start_exchange(exchanger_t* ex, void* data, int stride, int tag, MPI_Datatype type)
 {
-#if USE_MPI
+#if POLYMEC_HAVE_MPI
   // Create a message for this array.
   mpi_message_t* msg = mpi_message_new(type, stride, tag);
   mpi_message_pack(msg, data, ex->send_map, ex->receive_map);
@@ -517,7 +532,7 @@ int exchanger_start_exchange(exchanger_t* ex, void* data, int stride, int tag, M
   {
     int err = MPI_Irecv(msg->receive_buffers[i], 
                         msg->receive_buffer_sizes[i]/msg->data_size, 
-                        msg->type, ex->receives[i], msg->tag, ex->comm, 
+                        msg->type, msg->source_procs[i], msg->tag, ex->comm, 
                         &(msg->requests[i]));
     if (err != MPI_SUCCESS)
     {
@@ -526,7 +541,7 @@ int exchanger_start_exchange(exchanger_t* ex, void* data, int stride, int tag, M
       MPI_Error_string(err, str, &resultlen);
       char err_msg[1024];
       snprintf(err_msg, 1024, "%d: MPI Error posting receive from %d: %d\n(%s)\n", 
-               ex->rank, ex->receives[i], err, str);
+               ex->rank, msg->source_procs[i], err, str);
       polymec_error(err_msg);
     }
   }
@@ -536,8 +551,8 @@ int exchanger_start_exchange(exchanger_t* ex, void* data, int stride, int tag, M
   {
     int err = MPI_Isend(msg->send_buffers[i], 
                         msg->send_buffer_sizes[i]/msg->data_size, 
-                        msg->type, ex->sends[i], msg->tag, ex->comm, 
-                        &(msg->requests[i + ex->num_receives])); 
+                        msg->type, msg->dest_procs[i], msg->tag, ex->comm, 
+                        &(msg->requests[i + ex->receive_map->size])); 
     if (err != MPI_SUCCESS)
     {
       int resultlen;
@@ -545,7 +560,7 @@ int exchanger_start_exchange(exchanger_t* ex, void* data, int stride, int tag, M
       MPI_Error_string(err, str, &resultlen);
       char err_msg[1024];
       snprintf(err_msg, 1024, "%d: MPI Error sending to %d: %d\n(%s)\n", 
-               ex->rank, ex->receives[i], err, str);
+               ex->rank, msg->dest_procs[i], err, str);
       polymec_error(err_msg);
     }
   }
@@ -569,7 +584,7 @@ int exchanger_start_exchange(exchanger_t* ex, void* data, int stride, int tag, M
 #endif
 }
 
-#if USE_MPI
+#if POLYMEC_HAVE_MPI
 static int exchanger_waitall(exchanger_t* ex, mpi_message_t* msg)
 {
   // Allocate storage for statuses of sends/receives.
@@ -644,30 +659,30 @@ static int exchanger_waitall(exchanger_t* ex, mpi_message_t* msg)
         {
           if (!finished[i])
           {
-            if (expecting_data && (i < ex->num_receives)) // outstanding receive 
+            if (expecting_data && (i < ex->receive_map->size)) // outstanding receive 
             {
-              outstanding_receive_procs[num_outstanding_receives] = ex->receives[i];
+              outstanding_receive_procs[num_outstanding_receives] = msg->source_procs[i];
               outstanding_receive_bytes[num_outstanding_receives] = msg->receive_buffer_sizes[i];
               ++num_outstanding_receives;
             }
             else if (sent_data) // outstanding send 
             {
-              outstanding_send_procs[num_outstanding_sends] = ex->sends[i - msg->num_receives];
+              outstanding_send_procs[num_outstanding_sends] = msg->dest_procs[i - msg->num_receives];
               outstanding_send_bytes[num_outstanding_sends] = msg->send_buffer_sizes[i - msg->num_receives];
               ++num_outstanding_sends;
             }
           }
           else
           {
-            if (expecting_data && (i < ex->num_receives)) // completed receive 
+            if (expecting_data && (i < msg->num_receives)) // completed receive 
             {
-              completed_receive_procs[num_completed_receives] = ex->receives[i];
+              completed_receive_procs[num_completed_receives] = msg->source_procs[i];
               completed_receive_bytes[num_completed_receives] = msg->receive_buffer_sizes[i];
               ++num_completed_receives;
             }
             else if (sent_data) // completed send 
             {
-              completed_send_procs[num_completed_sends] = ex->sends[i - msg->num_receives];
+              completed_send_procs[num_completed_sends] = msg->dest_procs[i - msg->num_receives];
               completed_send_bytes[num_completed_sends] = msg->send_buffer_sizes[i - msg->num_receives];
               ++num_completed_sends;
             }
@@ -724,26 +739,26 @@ static int exchanger_waitall(exchanger_t* ex, mpi_message_t* msg)
       if (statuses[i].MPI_ERROR != MPI_SUCCESS)
       {
         MPI_Error_string(statuses[i].MPI_ERROR, errstr, &errlen);
-        if (i < ex->num_receives)
+        if (i < msg->num_receives)
         {
           // Now we can really get nitty-gritty and try to diagnose the
           // problem carefully! 
           if (statuses[i].MPI_ERROR == MPI_ERR_TRUNCATE)
           {
             fprintf(ex->dl_output_stream, "%d: MPI error receiving from %d (%d) %s\n"
-                    "(Expected %d bytes)\n", ex->rank, ex->receives[i], statuses[i].MPI_ERROR, 
+                    "(Expected %d bytes)\n", ex->rank, msg->source_procs[i], statuses[i].MPI_ERROR, 
                     errstr, msg->receive_buffer_sizes[i]);
           }
           else
           {
             fprintf(ex->dl_output_stream, "%d: MPI error receiving from %d (%d) %s\n",
-                    ex->rank, ex->receives[i], statuses[i].MPI_ERROR, errstr);
+                    ex->rank, msg->source_procs[i], statuses[i].MPI_ERROR, errstr);
           }
         }
         else 
         {
           fprintf(ex->dl_output_stream, "%d: MPI error sending to %d (%d) %s\n",
-                  ex->rank, ex->sends[i - msg->num_receives], statuses[i].MPI_ERROR, errstr);
+                  ex->rank, msg->dest_procs[i - msg->num_receives], statuses[i].MPI_ERROR, errstr);
         }
         return -1;
       }
@@ -758,7 +773,7 @@ static int exchanger_waitall(exchanger_t* ex, mpi_message_t* msg)
 
 void exchanger_finish_exchange(exchanger_t* ex, int token) 
 {
-#if USE_MPI
+#if POLYMEC_HAVE_MPI
   ASSERT(token >= 0);
   ASSERT(token < ex->num_pending_msgs);
 
@@ -769,7 +784,7 @@ void exchanger_finish_exchange(exchanger_t* ex, int token)
 
   // Copy the received data into the original array.
   void* orig_buffer = ex->orig_buffers[token];
-  mpi_message_unpack(msg, orig_buffer, ex->receive_idx);
+  mpi_message_unpack(msg, orig_buffer, ex->receive_map);
 
   // Pull the message out of our list of pending messages and delete it.
   ex->pending_msgs[token] = NULL;
@@ -780,7 +795,7 @@ void exchanger_finish_exchange(exchanger_t* ex, int token)
 
 void exchanger_transfer(exchanger_t* ex, void* data, int* count, int stride, int tag, MPI_Datatype type)
 {
-#if USE_MPI
+#if POLYMEC_HAVE_MPI
   int token = exchanger_start_transfer(ex, data, count, stride, tag, type);
   exchanger_finish_transfer(ex, token);
 #endif
@@ -788,7 +803,7 @@ void exchanger_transfer(exchanger_t* ex, void* data, int* count, int stride, int
 
 int exchanger_start_transfer(exchanger_t* ex, void* data, int* count, int stride, int tag, MPI_Datatype type)
 {
-#if USE_MPI
+#if POLYMEC_HAVE_MPI
   // This is the same as an exchange, with an additional datum (the length 
   // of data) stored.
   int token = exchanger_start_exchange(ex, data, stride, tag, type);
@@ -801,7 +816,7 @@ int exchanger_start_transfer(exchanger_t* ex, void* data, int* count, int stride
 
 void exchanger_finish_transfer(exchanger_t* ex, int token)
 {
-#if USE_MPI
+#if POLYMEC_HAVE_MPI
   ASSERT(token >= 0);
   ASSERT(token < ex->num_pending_msgs);
 
@@ -815,22 +830,23 @@ void exchanger_finish_transfer(exchanger_t* ex, int token)
 
   // Copy the received data into the original array.
   void* orig_buffer = ex->orig_buffers[token];
-  mpi_message_unpack(msg, orig_buffer, ex->receive_idx);
+  mpi_message_unpack(msg, orig_buffer, ex->receive_map);
 
   // Now cull the sent elements from the array.
-  int num_sent = 0;
-  for (int p = 0; p < ex->num_sends; ++p)
+  int num_sent = 0, pos = 0, proc;
+  exchanger_channel_t* c;
+  while (exchanger_map_next(ex->send_map, &pos, &proc, &c))
   {
     // Move the sent elements to the back.
     int stride = msg->stride;
     if (msg->type == MPI_REAL)
     {
       real_t* array = (real_t*)orig_buffer;
-      for (int i = 0; i < ex->send_sizes[p]; ++i)
+      for (int i = 0; i < c->num_indices; ++i)
       {
         for (int s = 0; s < stride; ++s)
         {
-          array[stride*ex->send_idx[p][i]+s] = array[*count-1-num_sent];
+          array[stride*c->indices[i]+s] = array[*count-1-num_sent];
           ++num_sent;
         }
       }
@@ -838,11 +854,11 @@ void exchanger_finish_transfer(exchanger_t* ex, int token)
     else if (msg->type == MPI_DOUBLE)
     {
       double* array = (double*)orig_buffer;
-      for (int i = 0; i < ex->send_sizes[p]; ++i)
+      for (int i = 0; i < c->num_indices; ++i)
       {
         for (int s = 0; s < stride; ++s)
         {
-          array[stride*ex->send_idx[p][i]+s] = array[*count-1-num_sent];
+          array[stride*c->indices[i]+s] = array[*count-1-num_sent];
           ++num_sent;
         }
       }
@@ -865,30 +881,33 @@ void exchanger_finish_transfer(exchanger_t* ex, int token)
 void
 exchanger_fprintf(exchanger_t* ex, FILE* stream)
 {
-#if USE_MPI
+#if POLYMEC_HAVE_MPI
   fprintf(stream, "Exchanger(");
   if (ex->comm == MPI_COMM_WORLD)
     fprintf(stream, "MPI_COMM_WORLD");
   else
     fprintf(stream, "[user communicator]");
   fprintf(stream, ", rank %d):", ex->rank);
-  if ((ex->num_sends == 0) && (ex->num_receives == 0))
+  if ((ex->send_map->size == 0) && (ex->receive_map->size == 0))
     fprintf(stream, " (no transactions)\n");
   else
   {
     fprintf(stream, "\n");
-    for (int i = 0; i < ex->num_sends; ++i)
+    int pos = 0, proc;
+    exchanger_channel_t* c;
+    while (exchanger_map_next(ex->send_map, &pos, &proc, &c))
     {
-      fprintf(stream, " [%d] -> [%d: ", ex->rank, ex->sends[i]);
-      for (int j = 0; j < ex->send_sizes[i]; ++j)
-        fprintf(stream, " %d ", ex->send_idx[i][j]);
+      fprintf(stream, " [%d] -> [%d]: ", ex->rank, proc);
+      for (int j = 0; j < c->num_indices; ++j)
+        fprintf(stream, " %d ", c->indices[j]);
       fprintf(stream, "\n");
     }
-    for (int i = 0; i < ex->num_receives; ++i)
+    pos = 0;
+    while (exchanger_map_next(ex->receive_map, &pos, &proc, &c))
     {
-      fprintf(stream, " [%d] <- [%d: ", ex->rank, ex->receives[i]);
-      for (int j = 0; j < ex->receive_sizes[i]; ++j)
-        fprintf(stream, " %d ", ex->receive_idx[i][j]);
+      fprintf(stream, " [%d] <- [%d]: ", ex->rank, proc);
+      for (int j = 0; j < c->num_indices; ++j)
+        fprintf(stream, " %d ", c->indices[j]);
       fprintf(stream, "\n");
     }
   }

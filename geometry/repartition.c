@@ -74,6 +74,10 @@ exchanger_t* repartition_point_cloud(point_cloud_t* cloud, int* weights, real_t 
       adj[i] = global_point_indices[adj[i]];
   }
   polymec_free(global_point_indices);
+printf("adj = [");
+for (int i = 0; i < num_arcs; ++i)
+printf("%d ", adj[i]);
+printf("]\n");
 
   // Build a distributed graph for the point cloud.
   SCOTCH_Num num_points = cloud->num_points;
@@ -149,6 +153,12 @@ exchanger_t* repartition_mesh(mesh_t* mesh, int* weights, real_t imbalance_tol)
 
   // Generate a local adjacency graph for the mesh.
   adj_graph_t* local_graph = graph_from_mesh_cells(mesh);
+for (int p = 0; p < nprocs; ++p)
+{
+if (rank == p)
+  adj_graph_fprintf(local_graph, stdout);
+MPI_Barrier(mesh->comm);
+}
 
   // Extract the adjacency information.
   SCOTCH_Num* xadj = malloc(sizeof(SCOTCH_Num) * (mesh->num_cells+1));
@@ -167,6 +177,7 @@ exchanger_t* repartition_mesh(mesh_t* mesh, int* weights, real_t imbalance_tol)
   for (int i = 0; i < mesh->num_cells + mesh->num_ghost_cells; ++i)
     global_cell_indices[i] = (index_t)(vtx_dist[rank] + i);
   exchanger_t* mesh_ex = mesh_exchanger(mesh);
+exchanger_fprintf(mesh_ex, stdout);
   exchanger_exchange(mesh_ex, global_cell_indices, 1, 0, MPI_INT);
   for (int i = 0; i < num_arcs; ++i)
   {
@@ -174,6 +185,10 @@ exchanger_t* repartition_mesh(mesh_t* mesh, int* weights, real_t imbalance_tol)
       adj[i] = global_cell_indices[adj[i]];
   }
   polymec_free(global_cell_indices);
+printf("%d: adj = [", rank);
+for (int i = 0; i < num_arcs; ++i)
+printf("%d ", adj[i]);
+printf("]\n");
 
   // Build a distributed graph for the mesh.
   SCOTCH_Num num_cells = mesh->num_cells;
