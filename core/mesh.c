@@ -729,6 +729,10 @@ static void mesh_byte_write(void* obj, byte_array_t* bytes, size_t* offset)
   byte_array_write_tags(bytes, mesh->node_tags, offset);
 }
 
+void mesh_migrate(mesh_t* cloud, exchanger_t* migrator)
+{
+}
+
 serializer_t* mesh_serializer()
 {
   return serializer_new(mesh_byte_size, mesh_byte_read, mesh_byte_write);

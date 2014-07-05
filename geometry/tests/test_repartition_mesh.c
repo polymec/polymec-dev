@@ -44,7 +44,7 @@ void test_repartition_uniform_mesh(void** state)
 
   // Plot it.
   int rank;
-  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  MPI_Comm_rank(mesh->comm, &rank);
   double ones[mesh->num_cells];
   for (int c = 0; c < mesh->num_cells; ++c)
     ones[c] = 1.0*rank;

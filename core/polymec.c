@@ -251,7 +251,11 @@ static noreturn void default_error_handler(const char* message)
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   if (rank == 0)
     printf("Fatal error: %s\n", message);
+#if POLYMEC_HAVE_MPI
+  MPI_Abort(MPI_COMM_WORLD, -1);
+#else
   exit(-1);
+#endif
   polymec_unreachable();
 }
 

@@ -374,6 +374,10 @@ static inline int mesh_face_opp_cell(mesh_t* mesh, int face, int cell)
                                             : mesh->face_cells[2*face];
 }
 
+// Uses the given exchanger to migrate data between processes. Provided for
+// repartitioning.
+void mesh_migrate(mesh_t* mesh, exchanger_t* migrator);
+
 // Returns a serializer object that can read/write meshes from/to byte arrays.
 serializer_t* mesh_serializer();
 

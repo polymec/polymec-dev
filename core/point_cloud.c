@@ -209,6 +209,10 @@ exchanger_t* point_cloud_exchanger(point_cloud_t* cloud)
   return cloud->exchanger;
 }
 
+void point_cloud_migrate(point_cloud_t* cloud, exchanger_t* migrator)
+{
+}
+
 adj_graph_t* graph_from_point_cloud(point_cloud_t* cloud)
 {
   // Create a graph whose vertices are the cloud's points.

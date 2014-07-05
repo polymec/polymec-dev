@@ -187,6 +187,10 @@ static inline bool point_cloud_next_neighbor(point_cloud_t* cloud, int point, in
 // Returns the exchanger associated with the point cloud.
 exchanger_t* point_cloud_exchanger(point_cloud_t* cloud);
 
+// Uses the given exchanger to migrate data between processes. Provided for
+// repartitioning.
+void point_cloud_migrate(point_cloud_t* cloud, exchanger_t* migrator);
+
 // Creates an adjacency graph representing the topological relationships 
 // between the points in the given point cloud.
 adj_graph_t* graph_from_point_cloud(point_cloud_t* cloud);

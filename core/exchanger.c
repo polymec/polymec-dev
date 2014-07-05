@@ -183,10 +183,7 @@ static void mpi_message_pack(mpi_message_t* msg, void* data,
       uint64_t* dest = msg->send_buffers[i];
       for (int j = 0; j < msg->send_buffer_sizes[i]; ++j)
         for (int s = 0; s < stride; ++s)
-{
-printf("packing %lld from %d into %d\n", src[stride*send_indices[j]+s], stride*send_indices[j]+s, stride*j+s);
           dest[stride*j+s] = src[stride*send_indices[j]+s];
-}
     }
     else if (msg->type == MPI_CHAR)
     {
@@ -273,10 +270,7 @@ static void mpi_message_unpack(mpi_message_t* msg, void* data,
       uint64_t* dest = data;
       for (int j = 0; j < msg->receive_buffer_sizes[i]; ++j)
         for (int s = 0; s < stride; ++s)
-{
-printf("unpacking %lld from %d into %d\n", src[stride*j+s], stride*j+s, stride*recv_indices[j]+s);
           dest[stride*recv_indices[j]+s] = src[stride*j+s];
-}
     }
     else if (msg->type == MPI_CHAR)
     {
