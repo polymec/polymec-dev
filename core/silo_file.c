@@ -58,7 +58,14 @@ static void* pmpio_open_file(const char* filename,
   DBfile* file;
   if (iomode == PMPIO_WRITE)
   { 
-    file = DBCreate(filename, DB_CLOBBER, DB_LOCAL, NULL, driver);
+    FILE* f = fopen(filename, "r");
+    if (f == NULL)
+      file = DBCreate(filename, DB_CLOBBER, DB_LOCAL, NULL, driver);
+    else
+    {
+      fclose(f);
+      file = DBOpen(filename, driver, DB_APPEND);
+    }
     DBMkDir(file, dir_name);
     DBSetDir(file, dir_name);
   }
@@ -148,7 +155,7 @@ struct silo_file_t
 #if POLYMEC_HAVE_MPI
 static void write_multivars_to_file(silo_file_t* file)
 {
-  ASSERT((file->mode == DB_CLOBBER) || (file->mode == DB_APPEND));
+  ASSERT(file->mode == DB_CLOBBER);
 
   if (file->rank_in_group != 0) return;
 
@@ -324,6 +331,7 @@ silo_file_t* silo_file_new(MPI_Comm comm,
                            real_t time)
 {
   silo_file_t* file = polymec_malloc(sizeof(silo_file_t));
+  file->mpi_tag = mpi_tag;
 
   // Strip .silo off of the prefix if it's there.
   {
@@ -421,6 +429,7 @@ silo_file_t* silo_file_open(MPI_Comm comm,
 {
   silo_file_t* file = polymec_malloc(sizeof(silo_file_t));
   file->mode = DB_READ;
+  file->mpi_tag = mpi_tag;
   file->cycle = -1;
   file->time = -FLT_MAX;
 

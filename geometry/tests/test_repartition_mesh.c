@@ -48,7 +48,7 @@ void test_repartition_uniform_mesh(void** state)
   double ones[mesh->num_cells];
   for (int c = 0; c < mesh->num_cells; ++c)
     ones[c] = 1.0*rank;
-  silo_file_t* silo = silo_file_new(mesh->comm, "uniform_mesh_repartition", ".", 1, 0, 0, 0.0);
+  silo_file_t* silo = silo_file_new(mesh->comm, "uniform_mesh_repartition", "uniform_mesh_repartition", 1, 0, 0, 0.0);
   silo_file_write_mesh(silo, "mesh", mesh);
   silo_file_write_scalar_cell_field(silo, "rank", "mesh", ones);
   silo_file_close(silo);

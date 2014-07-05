@@ -5,6 +5,6 @@ bbox = bounding_box{x1 = -1, x2 = 1,
                     z1 = -1, z2 = 1}
 mesh = mesh_factory.uniform(10, 10, 10, bbox)
 --mesh = mesh_factory.rectilinear({0, 0.25, 1}, {0, 0.25, 1}, {0, 0.25, 1})
-repartition(mesh)
+--repartition(mesh)
 print(mesh)
 write_silo_mesh(mesh, 'uniform_mesh')
