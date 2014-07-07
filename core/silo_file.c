@@ -331,7 +331,6 @@ silo_file_t* silo_file_new(MPI_Comm comm,
                            real_t time)
 {
   silo_file_t* file = polymec_malloc(sizeof(silo_file_t));
-  file->mpi_tag = mpi_tag;
 
   // Strip .silo off of the prefix if it's there.
   {
@@ -351,6 +350,7 @@ silo_file_t* silo_file_new(MPI_Comm comm,
   else
     file->num_files = num_files;
   ASSERT(file->num_files <= file->nproc);
+  file->mpi_tag = mpi_tag;
 
   // We put the entire data set into a directory named after the 
   // prefix, and every process gets its own subdirectory therein.
@@ -429,7 +429,6 @@ silo_file_t* silo_file_open(MPI_Comm comm,
 {
   silo_file_t* file = polymec_malloc(sizeof(silo_file_t));
   file->mode = DB_READ;
-  file->mpi_tag = mpi_tag;
   file->cycle = -1;
   file->time = -FLT_MAX;
 
@@ -451,6 +450,7 @@ silo_file_t* silo_file_open(MPI_Comm comm,
   else
     file->num_files = num_files;
   ASSERT(file->num_files <= file->nproc);
+  file->mpi_tag = mpi_tag;
 
   // We put the entire data set into a directory named after the 
   // prefix, and every process gets its own subdirectory therein.
