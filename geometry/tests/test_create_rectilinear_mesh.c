@@ -38,11 +38,32 @@ void test_create_rectilinear_mesh(void** state)
   double zs[] = {0.0, 1.0, 2.0, 4.0, 8.0, 16.0, 32.0, 64.0, 128.0, 256.0, 512.0};
   mesh_t* mesh = create_rectilinear_mesh(MPI_COMM_WORLD, xs, 11, ys, 11, zs, 11);
   mesh_verify(mesh);
-  assert_int_equal(10*10*10, mesh->num_cells);
-  assert_int_equal(0, mesh->num_ghost_cells);
+
+  int num_cells;
+  MPI_Allreduce(&mesh->num_cells, &num_cells, 1, MPI_INT, MPI_SUM, mesh->comm);
+  assert_int_equal(10*10*10, num_cells);
+
+  int nproc;
+  MPI_Comm_size(mesh->comm, &nproc);
+  if (nproc > 1)
+  {
+    assert_true(mesh->num_ghost_cells > 0);
+  }
+  else
+  {
+    assert_int_equal(0, mesh->num_ghost_cells);
+  }
+
+  int num_faces;
+  MPI_Allreduce(&mesh->num_faces, &num_faces, 1, MPI_INT, MPI_SUM, mesh->comm);
   assert_int_equal(mesh->num_faces, 3*10*10*11);
+  int num_edges;
+  MPI_Allreduce(&mesh->num_edges, &num_edges, 1, MPI_INT, MPI_SUM, mesh->comm);
   assert_int_equal(mesh->num_edges, 3*10*11*11);
+  int num_nodes;
+  MPI_Allreduce(&mesh->num_nodes, &num_nodes, 1, MPI_INT, MPI_SUM, mesh->comm);
   assert_int_equal(11*11*11, mesh->num_nodes);
+
   mesh_free(mesh);
 }
 

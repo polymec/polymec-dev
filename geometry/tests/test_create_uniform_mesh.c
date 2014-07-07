@@ -61,6 +61,7 @@ void test_create_uniform_mesh(void** state)
   int num_nodes;
   MPI_Allreduce(&mesh->num_nodes, &num_nodes, 1, MPI_INT, MPI_SUM, mesh->comm);
   assert_int_equal(11*11*11, mesh->num_nodes);
+
   mesh_free(mesh);
 }
 
