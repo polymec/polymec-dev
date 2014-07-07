@@ -37,21 +37,39 @@ void test_exchanger_new(void** state)
 
 void test_exchanger_construct(void** state)
 {
-  exchanger_t* exchanger = exchanger_new(MPI_COMM_WORLD);
-  int send_indices[5] = {0, 1, 2, 3, 4};
-  exchanger_set_send(exchanger, 1, send_indices, 5, true);
-  int receive_indices[5] = {5, 6, 7, 8, 9};
-  exchanger_set_receive(exchanger, 1, receive_indices, 5, true);
+  MPI_Comm comm = MPI_COMM_WORLD;
+  int nproc, rank;
+  MPI_Comm_size(comm, &nproc);
+  MPI_Comm_rank(comm, &rank);
+  int N = 100*nproc;
+  exchanger_t* exchanger = exchanger_new(comm);
+  int send_indices[N/nproc];
+  for (int i = 0; i < N/nproc; ++i)
+    send_indices[i] = i;
+  exchanger_set_send(exchanger, (rank+1) % nproc, send_indices, N/nproc, true);
+  int receive_indices[N/nproc];
+  for (int i = 0; i < N/nproc; ++i)
+    send_indices[i] = i;
+  exchanger_set_receive(exchanger, (rank-1) % nproc, receive_indices, N/nproc, true);
   exchanger_free(exchanger);
 }
 
 void test_exchanger_construct_and_delete(void** state)
 {
-  exchanger_t* exchanger = exchanger_new(MPI_COMM_WORLD);
-  int send_indices[5] = {0, 1, 2, 3, 4};
-  exchanger_set_send(exchanger, 1, send_indices, 5, true);
-  int receive_indices[5] = {5, 6, 7, 8, 9};
-  exchanger_set_receive(exchanger, 1, receive_indices, 5, true);
+  MPI_Comm comm = MPI_COMM_WORLD;
+  int nproc, rank;
+  MPI_Comm_size(comm, &nproc);
+  MPI_Comm_rank(comm, &rank);
+  int N = 100*nproc;
+  exchanger_t* exchanger = exchanger_new(comm);
+  int send_indices[N/nproc];
+  for (int i = 0; i < N/nproc; ++i)
+    send_indices[i] = i;
+  exchanger_set_send(exchanger, (rank+1) % nproc, send_indices, N/nproc, true);
+  int receive_indices[N/nproc];
+  for (int i = 0; i < N/nproc; ++i)
+    send_indices[i] = i;
+  exchanger_set_receive(exchanger, (rank-1) % nproc, receive_indices, N/nproc, true);
 
   exchanger_delete_send(exchanger, 1);
   exchanger_delete_receive(exchanger, 1);
@@ -64,7 +82,8 @@ int main(int argc, char* argv[])
   const UnitTest tests[] = 
   {
     unit_test(test_exchanger_new),
-    unit_test(test_exchanger_construct)
+    unit_test(test_exchanger_construct),
+    unit_test(test_exchanger_construct_and_delete)
   };
   return run_tests(tests);
 }
