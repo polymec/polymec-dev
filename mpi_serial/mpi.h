@@ -42,12 +42,18 @@
 #define MPI_COMM_SELF       2
 
 #define MPI_DOUBLE          0           
-#define MPI_INT             1              
-#define MPI_LONG_LONG_INT   2              
-#define MPI_CHAR            3             
-#define MPI_LONG            4             
-#define MPI_UNSIGNED_LONG   5             
-#define MPI_BYTE            6             
+#define MPI_FLOAT           1           
+#define MPI_INT             2              
+#define MPI_SHORT           3              
+#define MPI_LONG_LONG_INT   4              
+#define MPI_LONG_LONG       5              
+#define MPI_CHAR            6             
+#define MPI_LONG            7             
+#define MPI_UNSIGNED_LONG   8             
+#define MPI_BYTE            9             
+#define MPI_UINT16_T        10             
+#define MPI_UINT32_T        11             
+#define MPI_UINT64_T        12
 
 #define MPI_SUM             0              
 #define MPI_MIN             1              

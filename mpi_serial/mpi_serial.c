@@ -24,7 +24,23 @@
 
 #include <time.h>
 #include <stdlib.h>
+#include <string.h>
 #include "mpi.h"
+
+static size_t mpi_size(MPI_Datatype type)
+{
+  switch(type)
+  {
+    case MPI_CHAR: return sizeof(char);
+    case MPI_SHORT: return sizeof(short);
+    case MPI_INT: return sizeof(int);
+    case MPI_LONG: return sizeof(long);
+    case MPI_LONG_LONG: return sizeof(long long);
+    case MPI_UINT64_T: return sizeof(uint64_t);
+    case MPI_DOUBLE: return sizeof(double);
+    default: exit(-1); // Not supported.
+  }
+}
 
 int MPI_Init(int *argc, char ***argv)
 {
@@ -221,11 +237,13 @@ int MPI_Waitany(int count, MPI_Request *array_of_requests, int *index, MPI_Statu
 
 int MPI_Allreduce(void *sendbuf, void *recvbuf, int count, MPI_Datatype datatype, MPI_Op op, MPI_Comm comm)
 {
+  memcpy(recvbuf, sendbuf, count * sizeof(datatype));
   return MPI_SUCCESS;
 }
 
 int MPI_Reduce(void *sendbuf, void *recvbuf, int count, MPI_Datatype datatype, MPI_Op op, int root, MPI_Comm comm)
 {
+  memcpy(recvbuf, sendbuf, count * sizeof(datatype));
   return MPI_SUCCESS;
 }
 
