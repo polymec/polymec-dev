@@ -11,5 +11,5 @@ add_polymec_test(test_create_tetgen_mesh test_create_tetgen_mesh.c)
 
 add_mpi_polymec_test(test_create_uniform_mesh test_create_uniform_mesh.c 1 2 4)
 add_mpi_polymec_test(test_create_rectilinear_mesh test_create_rectilinear_mesh.c 1 2 4)
-add_mpi_polymec_test(test_repartition_mesh test_repartition_mesh.c 1 2 4)
+add_mpi_polymec_test(test_repartition_mesh test_repartition_mesh.c 1 2)
 add_mpi_polymec_test(test_crop_mesh test_crop_mesh.c 1 2 4)
