@@ -37,30 +37,28 @@ void test_create_uniform_mesh(void** state)
   mesh_t* mesh = create_uniform_mesh(MPI_COMM_WORLD, 10, 10, 10, &bbox);
   mesh_verify(mesh);
 
-  int num_cells;
-  MPI_Allreduce(&mesh->num_cells, &num_cells, 1, MPI_INT, MPI_SUM, mesh->comm);
-  assert_int_equal(10*10*10, num_cells);
-
   int nproc;
   MPI_Comm_size(mesh->comm, &nproc);
+  int num_cells, num_faces, num_edges, num_nodes;
+  MPI_Allreduce(&mesh->num_cells, &num_cells, 1, MPI_INT, MPI_SUM, mesh->comm);
+  MPI_Allreduce(&mesh->num_faces, &num_faces, 1, MPI_INT, MPI_SUM, mesh->comm);
+  MPI_Allreduce(&mesh->num_edges, &num_edges, 1, MPI_INT, MPI_SUM, mesh->comm);
+  MPI_Allreduce(&mesh->num_nodes, &num_nodes, 1, MPI_INT, MPI_SUM, mesh->comm);
+  assert_int_equal(10*10*10, num_cells);
   if (nproc > 1)
   {
     assert_true(mesh->num_ghost_cells > 0);
+    assert_true(num_faces > 3*10*10*11);
+    assert_true(num_edges > 3*10*11*11);
+    assert_true(num_nodes > 11*11*11);
   }
   else
   {
     assert_int_equal(0, mesh->num_ghost_cells);
+    assert_int_equal(3*10*10*11, num_faces);
+    assert_int_equal(3*10*11*11, num_edges);
+    assert_int_equal(11*11*11, num_nodes);
   }
-
-  int num_faces;
-  MPI_Allreduce(&mesh->num_faces, &num_faces, 1, MPI_INT, MPI_SUM, mesh->comm);
-  assert_int_equal(mesh->num_faces, 3*10*10*11);
-  int num_edges;
-  MPI_Allreduce(&mesh->num_edges, &num_edges, 1, MPI_INT, MPI_SUM, mesh->comm);
-  assert_int_equal(mesh->num_edges, 3*10*11*11);
-  int num_nodes;
-  MPI_Allreduce(&mesh->num_nodes, &num_nodes, 1, MPI_INT, MPI_SUM, mesh->comm);
-  assert_int_equal(11*11*11, mesh->num_nodes);
 
   mesh_free(mesh);
 }
