@@ -28,6 +28,7 @@
 #include "core/polymec.h"
 #include "core/mesh.h"
 #include "core/unordered_map.h"
+#include "core/slist.h"
 
 // A Silo file can store various geometries (meshes) and data, using 
 // "Poor Man's Parallel I/O" (PMPIO) to achieve scalable throughput.
@@ -36,14 +37,13 @@ typedef struct silo_file_t silo_file_t;
 // Queries the given directory for a file or set of files matching the given 
 // prefix, storing the number of files and the number of MPI processes used to 
 // write them in the variables num_files and num_mpi_processes. If the cycles 
-// array is non-NULL, it also fills this array with the cycle numbers 
-// available in the files, up to max_cycles_size.
+// linked list is non-NULL, it is filled with the cycle numbers available in 
+// the files.
 void silo_file_query(const char* file_prefix,
                      const char* directory,
                      int* num_files,
                      int* num_mpi_processes,
-                     int* cycles,
-                     int max_cycles_size);
+                     int_slist_t* cycles);
 
 // Creates and opens a new Silo file for writing simulation data, 
 // returning the Silo file object. If cycle is non-negative, the file associates 
@@ -60,11 +60,13 @@ silo_file_t* silo_file_new(MPI_Comm comm,
 
 // Opens an existing Silo file for reading simulation data, returning the 
 // Silo file object. If the directory is the blank string(""), the directory 
-// is assumed to be the current working directory.
+// is assumed to be the current working directory. If the cycle is -1, the 
+// most recent cycle will be loaded, unless no files with cycle information 
+// can be found, in which case the single set of files containing no cycle 
+// information will be loaded.
 silo_file_t* silo_file_open(MPI_Comm comm,
                             const char* file_prefix,
                             const char* directory,
-                            int num_files,
                             int mpi_tag,
                             int cycle);
 

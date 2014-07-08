@@ -26,7 +26,6 @@
 #include <dirent.h>
 #include "silo.h"
 #include "core/silo_file.h"
-#include "core/slist.h"
 #include "core/array.h"
 
 #if POLYMEC_HAVE_DOUBLE_PRECISION
@@ -38,122 +37,6 @@
 #if POLYMEC_HAVE_MPI
 #include "mpi.h"
 #include "pmpio.h"
-
-void silo_file_query(const char* file_prefix,
-                     const char* directory,
-                     int* num_files,
-                     int* num_mpi_processes,
-                     int* cycles,
-                     int max_cycles_size)
-{
-  // No blank strings allowed for queries.
-  ASSERT(strlen(file_prefix) > 0);
-  ASSERT(strlen(directory) > 0);
-  ASSERT(max_cycles_size >= 0);
-
-  // Inspect the given directory's contents.
-  if (!directory_exists(directory))
-    polymec_error("Can't query non-existent directory: %s", directory);
-  string_slist_t* files_in_dir = files_within_directory(directory);
-
-  // Try to find a master file or single data file.
-  char data_file[FILENAME_MAX];
-  data_file[0] = '\0';
-  bool found_cycles = false;
-  {
-    string_slist_node_t* node = files_in_dir->front;
-    char path[FILENAME_MAX];
-    snprintf(path, FILENAME_MAX, "%s/%s", directory, file_prefix); 
-    if (strstr(node->value, path) && strstr(node->value, "silo"))
-    {
-      strncpy(data_file, node->value, FILENAME_MAX);
-      snprintf(path, FILENAME_MAX, "%s/%s-", directory, file_prefix); 
-      if (strstr(node->value, path))
-        found_cycles = true;
-    }
-  }
-
-  // Open up the file and see whether it's a master file or a serial data file.
-  bool is_master = false;
-  int driver = DB_HDF5;
-  DBfile* file = DBOpen(data_file, driver, DB_READ);
-
-  // What's in there?
-  DBtoc* toc = DBGetToc(file); 
-  if ((toc->nucdmesh == 0) && (toc->nptmesh == 0) && (toc->nmultimesh > 0))
-    is_master = true;
-  if (is_master)
-  {
-    // How many files are referenced in the master file?
-    int fmax = -1;
-    for (int f = 0; f < toc->nmultimesh; ++f)
-    {
-      char* p1 = toc->multimesh_names[f];
-      char* p2 = strstr(toc->multimesh_names[f], "/");
-      ASSERT(p2 != NULL);
-      ASSERT(p2 > p1);
-      char file_num[p2-p1+1];
-      strncpy(file_num, p1, p2-p1);
-      ASSERT(string_is_number(file_num));
-      fmax = MAX(fmax, atoi(file_num));
-    }
-    *num_files = fmax + 1;
-
-    // Grab one of the meshes and use its name as a template for identifying
-    // the number of MPI processes used to construct the data set.
-    {
-      char* p1 = strstr(toc->multimesh_names[0], "domain_");
-      ASSERT(p1 != NULL);
-      char* p2 = p1 + strlen("domain_");
-      char multimesh_prefix[p2-p1+1];
-      strncpy(multimesh_prefix, toc->multimesh_names[0], p2-p1);
-      int num_domains = 0;
-      for (int f = 0; f < toc->nmultimesh; ++f)
-      {
-        char* s = strstr(toc->multimesh_names[f], multimesh_prefix);
-        if (s != NULL)
-          ++num_domains;
-      }
-      *num_mpi_processes = num_domains;
-    }
-  }
-  else
-  {
-    // A single data file can only be written for a serial run.
-    *num_files = 1;
-    *num_mpi_processes = 1;
-  }
-
-  DBClose(file);
-
-  // Search for available cycles.
-  if ((cycles != NULL) && (max_cycles_size > 0) && found_cycles)
-  {
-    int num_cycles = 0;
-    string_slist_node_t* node = files_in_dir->front;
-    while (node != NULL)
-    {
-      char path[FILENAME_MAX];
-      snprintf(path, FILENAME_MAX, "%s/%s-", directory, file_prefix); 
-      char* p1 = strstr(node->value, path);
-      char* p2 = strstr(node->value, ".silo");
-      if ((p1 != NULL) && (p2 != NULL))
-      {
-        char* c = p1 + strlen(path);
-        char num[p2 - c+1];
-        strncpy(num, c, p2 - c);
-        if (string_is_number(num))
-          cycles[num_cycles++] = atoi(num);
-        if (num_cycles == max_cycles_size)
-          break;
-      }
-      node = node->next;
-    }
-  }
-
-  // Clean up.
-  string_slist_free(files_in_dir);
-}
 
 static void* pmpio_create_file(const char* filename,
                                const char* dir_name,
@@ -248,6 +131,118 @@ static void multivar_free(multivar_t* var)
 }
 
 #endif
+
+void silo_file_query(const char* file_prefix,
+                     const char* directory,
+                     int* num_files,
+                     int* num_mpi_processes,
+                     int_slist_t* cycles)
+{
+  // No blank strings allowed for queries.
+  ASSERT(strlen(file_prefix) > 0);
+  ASSERT(strlen(directory) > 0);
+
+  // Inspect the given directory's contents.
+  if (!directory_exists(directory))
+    polymec_error("Can't query non-existent directory: %s", directory);
+  string_slist_t* files_in_dir = files_within_directory(directory);
+
+  // Try to find a master file or single data file.
+  char data_file[FILENAME_MAX];
+  data_file[0] = '\0';
+  bool found_cycles = false;
+  {
+    string_slist_node_t* node = files_in_dir->front;
+    char path[FILENAME_MAX];
+    snprintf(path, FILENAME_MAX, "%s/%s", directory, file_prefix); 
+    if (strstr(node->value, path) && strstr(node->value, "silo"))
+    {
+      strncpy(data_file, node->value, FILENAME_MAX);
+      snprintf(path, FILENAME_MAX, "%s/%s-", directory, file_prefix); 
+      if (strstr(node->value, path))
+        found_cycles = true;
+    }
+  }
+
+  // Open up the file and see whether it's a master file or a serial data file.
+  bool is_master = false;
+  int driver = DB_HDF5;
+  DBfile* file = DBOpen(data_file, driver, DB_READ);
+
+  // What's in there?
+  DBtoc* toc = DBGetToc(file); 
+  if ((toc->nucdmesh == 0) && (toc->nptmesh == 0) && (toc->nmultimesh > 0))
+    is_master = true;
+  if (is_master)
+  {
+    // How many files are referenced in the master file?
+    int fmax = -1;
+    for (int f = 0; f < toc->nmultimesh; ++f)
+    {
+      char* p1 = toc->multimesh_names[f];
+      char* p2 = strstr(toc->multimesh_names[f], "/");
+      ASSERT(p2 != NULL);
+      ASSERT(p2 > p1);
+      char file_num[p2-p1+1];
+      strncpy(file_num, p1, p2-p1);
+      ASSERT(string_is_number(file_num));
+      fmax = MAX(fmax, atoi(file_num));
+    }
+    *num_files = fmax + 1;
+
+    // Grab one of the meshes and use its name as a template for identifying
+    // the number of MPI processes used to construct the data set.
+    {
+      char* p1 = strstr(toc->multimesh_names[0], "domain_");
+      ASSERT(p1 != NULL);
+      char* p2 = p1 + strlen("domain_");
+      char multimesh_prefix[p2-p1+1];
+      strncpy(multimesh_prefix, toc->multimesh_names[0], p2-p1);
+      int num_domains = 0;
+      for (int f = 0; f < toc->nmultimesh; ++f)
+      {
+        char* s = strstr(toc->multimesh_names[f], multimesh_prefix);
+        if (s != NULL)
+          ++num_domains;
+      }
+      *num_mpi_processes = num_domains;
+    }
+  }
+  else
+  {
+    // A single data file can only be written for a serial run.
+    *num_files = 1;
+    *num_mpi_processes = 1;
+  }
+
+  DBClose(file);
+
+  // Search for available cycles.
+  if ((cycles != NULL) && found_cycles)
+  {
+    int_slist_clear(cycles);
+    string_slist_node_t* node = files_in_dir->front;
+    while (node != NULL)
+    {
+      char path[FILENAME_MAX];
+      snprintf(path, FILENAME_MAX, "%s/%s-", directory, file_prefix); 
+      char* p1 = strstr(node->value, path);
+      char* p2 = strstr(node->value, ".silo");
+      if ((p1 != NULL) && (p2 != NULL))
+      {
+        char* c = p1 + strlen(path);
+        char num[p2 - c+1];
+        strncpy(num, c, p2 - c);
+        if (string_is_number(num))
+          int_slist_append(cycles, atoi(num));
+      }
+      node = node->next;
+    }
+  }
+
+  // Clean up.
+  string_slist_free(files_in_dir);
+}
 
 struct silo_file_t 
 {
@@ -562,7 +557,6 @@ silo_file_t* silo_file_new(MPI_Comm comm,
 silo_file_t* silo_file_open(MPI_Comm comm,
                             const char* file_prefix,
                             const char* directory,
-                            int num_files,
                             int mpi_tag,
                             int cycle)
 {
@@ -581,14 +575,34 @@ silo_file_t* silo_file_open(MPI_Comm comm,
     strcpy(file->prefix, prefix);
   }
 
+  // Query the dataset for the number of files and MPI processes and cycles.
+  int num_files, num_mpi_procs;
+  int_slist_t* cycles = int_slist_new();
+  silo_file_query(file_prefix, directory, &num_files, &num_mpi_procs, cycles);
+
+  // Check to see whether the requested cycle is available, or whether the 
+  // latest one is requested (with -1).
+  if (cycle >= 0)
+  {
+    bool cycle_found = false;
+    int_slist_node_t* node = cycles->front;
+    while (node != NULL)
+    {
+      if (node->value == cycle)
+      {
+        cycle_found = true;
+        break;
+      }
+      node = node->next;
+    }
+    if (!cycle_found)
+      polymec_error("silo_file_open: Cycle %d was not found for prefix '%s' in directory %s.", cycle, file->prefix, directory);
+  }
+
 #if POLYMEC_HAVE_MPI
   MPI_Comm_size(comm, &file->nproc);
   MPI_Comm_rank(comm, &file->rank);
-  if (num_files == -1)
-    file->num_files = file->nproc;
-  else
-    file->num_files = num_files;
-  ASSERT(file->num_files <= file->nproc);
+  file->num_files = num_files;
   file->mpi_tag = mpi_tag;
 
   if (file->nproc > 1)
