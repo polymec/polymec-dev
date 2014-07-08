@@ -125,7 +125,7 @@ int main(int argc, char* argv[])
   const UnitTest tests[] = 
   {
     unit_test(test_create_uniform_mesh),
-//    unit_test(test_plot_uniform_mesh_to_single_file),
+    unit_test(test_plot_uniform_mesh_to_single_file),
     unit_test(test_plot_uniform_mesh_to_n_files)
   };
   return run_tests(tests);

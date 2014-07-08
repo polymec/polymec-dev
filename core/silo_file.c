@@ -27,6 +27,7 @@
 #include "silo.h"
 #include "core/silo_file.h"
 #include "core/array.h"
+#include "core/array_utils.h"
 
 #if POLYMEC_HAVE_DOUBLE_PRECISION
 #define SILO_FLOAT_TYPE DB_DOUBLE
@@ -44,7 +45,8 @@ static void* pmpio_create_file(const char* filename,
 {
   int driver = DB_HDF5;
   DBfile* file = DBCreate(filename, DB_CLOBBER, DB_LOCAL, NULL, driver);
-  DBMkDir(file, dir_name);
+  if (strcmp(dir_name, "/") != 0)
+    DBMkDir(file, dir_name);
   DBSetDir(file, dir_name);
   return (void*)file;
 }
@@ -66,7 +68,8 @@ static void* pmpio_open_file(const char* filename,
       fclose(f);
       file = DBOpen(filename, driver, DB_APPEND);
     }
-    DBMkDir(file, dir_name);
+    if (strcmp(dir_name, "/") != 0)
+      DBMkDir(file, dir_name);
     DBSetDir(file, dir_name);
   }
   else
@@ -142,117 +145,137 @@ void silo_file_query(const char* file_prefix,
   ASSERT(strlen(file_prefix) > 0);
   ASSERT(strlen(directory) > 0);
 
-  // Inspect the given directory's contents.
-  if (!directory_exists(directory))
-    polymec_error("Can't query non-existent directory: %s", directory);
-  string_slist_t* files_in_dir = files_within_directory(directory);
-
-  // Try to find a master file or single data file.
-  char data_file[FILENAME_MAX];
-  data_file[0] = '\0';
-  bool found_cycles = false;
+  // Rank 0 does all the dirty work.
+  int rank;
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  if (rank == 0)
   {
-    string_slist_node_t* node = files_in_dir->front;
-    while (node != NULL)
+    // Inspect the given directory's contents.
+    if (!directory_exists(directory))
+      polymec_error("Can't query non-existent directory: %s", directory);
+    string_slist_t* files_in_dir = files_within_directory(directory);
+
+    // Try to find a master file or single data file.
+    char data_file[FILENAME_MAX];
+    data_file[0] = '\0';
+    bool found_cycles = false;
     {
-      char path[FILENAME_MAX];
-      snprintf(path, FILENAME_MAX, "%s", file_prefix); 
-      if (strstr(node->value, path) && strstr(node->value, "silo"))
+      string_slist_node_t* node = files_in_dir->front;
+      while (node != NULL)
       {
-        strncpy(data_file, node->value, FILENAME_MAX);
-        snprintf(path, FILENAME_MAX, "%s-", file_prefix); 
-        if (strstr(node->value, path))
-          found_cycles = true;
-        break;
+        char path[FILENAME_MAX];
+        snprintf(path, FILENAME_MAX, "%s", file_prefix); 
+        if (strstr(node->value, path) && strstr(node->value, "silo"))
+        {
+          strncpy(data_file, node->value, FILENAME_MAX);
+          snprintf(data_file, FILENAME_MAX, "%s/%s", directory, node->value);
+          snprintf(path, FILENAME_MAX, "%s-", file_prefix); 
+          if (strstr(node->value, path))
+            found_cycles = true;
+          break;
+        }
+        node = node->next;
       }
-      node = node->next;
     }
-  }
-  if (strlen(data_file) == 0)
-    polymec_error("silo_file_query: Could not find %s/%s-*.silo.", directory, file_prefix);
+    if (strlen(data_file) == 0)
+      polymec_error("silo_file_query: Could not find %s/%s-*.silo.", directory, file_prefix);
 
-  // Open up the file and see whether it's a master file or a serial data file.
-  bool is_master = false;
-  int driver = DB_HDF5;
-  DBfile* file = DBOpen(data_file, driver, DB_READ);
+    // Open up the file and see whether it's a master file or a serial data file.
+    bool is_master = false;
+    int driver = DB_HDF5;
+    DBfile* file = DBOpen(data_file, driver, DB_READ);
 
-  // What's in there?
-  DBtoc* toc = DBGetToc(file); 
-printf("%s/%s: %d, %d, %d\n", directory, data_file, toc->nucdmesh, toc->nptmesh, toc->nmultimesh);
-  if ((toc->nucdmesh == 0) && (toc->nptmesh == 0) && (toc->nmultimesh > 0))
-    is_master = true;
-  if (is_master)
-  {
-printf("MASTER\n");
-    // How many files are referenced in the master file?
-    int fmax = -1;
-    for (int f = 0; f < toc->nmultimesh; ++f)
+    // What's in there?
+    DBtoc* toc = DBGetToc(file); 
+    if ((toc->nucdmesh == 0) && (toc->nptmesh == 0) && (toc->nmultimesh > 0))
+      is_master = true;
+    if (is_master)
     {
-      char* p1 = toc->multimesh_names[f];
-      char* p2 = strstr(toc->multimesh_names[f], "/");
-      ASSERT(p2 != NULL);
-      ASSERT(p2 > p1);
-      char file_num[p2-p1+1];
-      strncpy(file_num, p1, p2-p1);
-      ASSERT(string_is_number(file_num));
-      fmax = MAX(fmax, atoi(file_num));
-    }
-    *num_files = fmax + 1;
-
-    // Grab one of the meshes and use its name as a template for identifying
-    // the number of MPI processes used to construct the data set.
-    {
-      char* p1 = strstr(toc->multimesh_names[0], "domain_");
-      ASSERT(p1 != NULL);
-      char* p2 = p1 + strlen("domain_");
-      char multimesh_prefix[p2-p1+1];
-      strncpy(multimesh_prefix, toc->multimesh_names[0], p2-p1);
-      int num_domains = 0;
+      // How many MPI processes were used to construct the data set?
+      int my_num_mpi_procs = -1;
       for (int f = 0; f < toc->nmultimesh; ++f)
       {
-printf("%s %s? %p\n", toc->multimesh_names[f], multimesh_prefix, strstr(toc->multimesh_names[f], multimesh_prefix));
-        char* s = strstr(toc->multimesh_names[f], multimesh_prefix);
-        if (s != NULL)
-          ++num_domains;
+        DBmultimesh* multimesh = DBGetMultimesh(file, toc->multimesh_names[f]);
+        if (my_num_mpi_procs == -1)
+          my_num_mpi_procs = multimesh->nblocks;
+        ASSERT(my_num_mpi_procs == multimesh->nblocks);
       }
-      *num_mpi_processes = num_domains;
+      *num_mpi_processes = my_num_mpi_procs;
+
+      // How many files are in the data set?
+      DBReadVar(file, "num_files", num_files);
     }
-  }
-  else
-  {
-    // A single data file can only be written for a serial run.
-    *num_files = 1;
-    *num_mpi_processes = 1;
-  }
-
-  DBClose(file);
-
-  // Search for available cycles.
-  if ((cycles != NULL) && found_cycles)
-  {
-    int_slist_clear(cycles);
-    string_slist_node_t* node = files_in_dir->front;
-    while (node != NULL)
+    else
     {
-      char path[FILENAME_MAX];
-      snprintf(path, FILENAME_MAX, "%s-", file_prefix); 
-      char* p1 = strstr(node->value, path);
-      char* p2 = strstr(node->value, ".silo");
-      if ((p1 != NULL) && (p2 != NULL))
-      {
-        char* c = p1 + strlen(path);
-        char num[p2-c+1];
-        strncpy(num, c, p2-c);
-        num[p2-c] = '\0';
-        if (string_is_number(num))
-          int_slist_append(cycles, atoi(num));
-      }
-      node = node->next;
+      // A single data file can only be written for a serial run.
+      *num_files = 1;
+      *num_mpi_processes = 1;
     }
+
+    DBClose(file);
+
+    // Search for available cycles.
+    if ((cycles != NULL) && found_cycles)
+    {
+      int_slist_clear(cycles);
+      string_slist_node_t* node = files_in_dir->front;
+      while (node != NULL)
+      {
+        char path[FILENAME_MAX];
+        snprintf(path, FILENAME_MAX, "%s-", file_prefix); 
+        char* p1 = strstr(node->value, path);
+        char* p2 = strstr(node->value, ".silo");
+        if ((p1 != NULL) && (p2 != NULL))
+        {
+          char* c = p1 + strlen(path);
+          char num[p2-c+1];
+          strncpy(num, c, p2-c);
+          num[p2-c] = '\0';
+          if (string_is_number(num))
+            int_slist_append(cycles, atoi(num));
+        }
+        node = node->next;
+      }
+    }
+
+    // Clean up.
+    string_slist_free(files_in_dir);
   }
 
-  // Clean up.
-  string_slist_free(files_in_dir);
+  // Now spread the word to other processes.
+  int num_cycles = (cycles != NULL) ? cycles->size : 0;
+  int data[3] = {*num_files, *num_mpi_processes, num_cycles};
+  MPI_Bcast(data, 3, MPI_INT, 0, MPI_COMM_WORLD);
+  if (rank != 0)
+  {
+    *num_files = data[0];
+    *num_mpi_processes = data[1];
+    num_cycles = data[2];
+  }
+
+  if (cycles != NULL)
+  {
+    int cycles_buffer[num_cycles];
+    if (rank == 0)
+    {
+      // Spit the cycles into the array and sort them.
+      int_slist_node_t* node = cycles->front;
+      int i = 0;
+      while (node != NULL)
+      {
+        cycles_buffer[i++] = node->value;
+        node = node->next;
+      }
+      ASSERT(i == num_cycles);
+      int_qsort(cycles_buffer, num_cycles);
+    }
+    MPI_Bcast(cycles_buffer, num_cycles, MPI_INT, 0, MPI_COMM_WORLD);
+
+    // Shuffle them back into our linked list.
+    int_slist_clear(cycles);
+    for (int i = 0; i < num_cycles; ++i)
+      int_slist_append(cycles, cycles_buffer[i]);
+  }
 }
 
 struct silo_file_t 
@@ -269,6 +292,7 @@ struct silo_file_t
 #if POLYMEC_HAVE_MPI
   // Stuff for poor man's parallel I/O.
   PMPIO_baton_t* baton;
+  MPI_Comm comm;
   int num_files, mpi_tag, nproc, rank, group_rank, rank_in_group;
   ptr_array_t* multimeshes;
   ptr_array_t* multivars;
@@ -354,15 +378,15 @@ static void write_master_file(silo_file_t* file)
   // FIXME: Should change this to use Silo's name schemes for multi-block 
   // FIXME: objects when we start to Get Real Parallel.
 
-  if (file->rank != 0) return;
-
   char master_file_name[FILENAME_MAX];
   if (file->cycle == -1)
     snprintf(master_file_name, FILENAME_MAX, "%s/%s.silo", file->directory, file->prefix);
   else
     snprintf(master_file_name, FILENAME_MAX, "%s/%s-%d.silo", file->directory, file->prefix, file->cycle);
-  int driver = DB_HDF5;
-  DBfile* master = DBCreate(master_file_name, DB_CLOBBER, DB_LOCAL, "Master file", driver);
+  PMPIO_baton_t* baton = PMPIO_Init(file->num_files, PMPIO_WRITE, file->comm, file->mpi_tag+1, 
+                                    pmpio_create_file, pmpio_open_file, 
+                                    pmpio_close_file, 0);
+  DBfile* master = (DBfile*)PMPIO_WaitForBaton(baton, master_file_name, "/");
 
   // Stick in cycle/time information if needed.
   DBoptlist* optlist = DBMakeOptlist(2);
@@ -435,13 +459,20 @@ static void write_master_file(silo_file_t* file)
     // Write the multivariable data.
     DBPutMultivar(master, var->name, num_files*num_chunks, var_names, var_types, optlist);
 
+    // Finally, write the number of files to the master file.
+    int one = 1;
+    DBWrite(master, "num_files", &num_files, &one, 1, DB_INT);
+
     // Clean up.
     for (int j = 0; j < num_files*num_chunks; ++j)
       polymec_free(var_names[j]);
   }
 
   DBFreeOptlist(optlist);
-  DBClose(master);
+
+  PMPIO_HandOffBaton(baton, (void*)master);
+  PMPIO_Finish(baton);
+//  DBClose(master);
 }
 #endif
 
@@ -466,8 +497,9 @@ silo_file_t* silo_file_new(MPI_Comm comm,
   }
 
 #if POLYMEC_HAVE_MPI
-  MPI_Comm_size(comm, &file->nproc);
-  MPI_Comm_rank(comm, &file->rank);
+  file->comm = comm;
+  MPI_Comm_size(file->comm, &file->nproc);
+  MPI_Comm_rank(file->comm, &file->rank);
   if (num_files == -1)
     file->num_files = file->nproc;
   else
@@ -489,15 +521,18 @@ silo_file_t* silo_file_new(MPI_Comm comm,
       strncpy(file->directory, directory, FILENAME_MAX);
     if (file->rank == 0)
     {
-      remove_directory(file->directory);
-      create_directory(file->directory, S_IRWXU | S_IRWXG);
-      MPI_Barrier(comm);
+      if (strcmp(file->directory, ".") != 0)
+      {
+        remove_directory(file->directory);
+        create_directory(file->directory, S_IRWXU | S_IRWXG);
+      }
+      MPI_Barrier(file->comm);
     }
     else
-      MPI_Barrier(comm);
+      MPI_Barrier(file->comm);
 
     // Initialize poor man's I/O and figure out group ranks.
-    file->baton = PMPIO_Init(file->num_files, PMPIO_WRITE, comm, file->mpi_tag, 
+    file->baton = PMPIO_Init(file->num_files, PMPIO_WRITE, file->comm, file->mpi_tag, 
         pmpio_create_file, pmpio_open_file, 
         pmpio_close_file, 0);
     file->group_rank = PMPIO_GroupRank(file->baton, file->rank);
@@ -509,10 +544,10 @@ silo_file_t* silo_file_new(MPI_Comm comm,
     if (file->rank_in_group == 0)
     {
       create_directory(group_dir_name, S_IRWXU | S_IRWXG);
-      MPI_Barrier(comm);
+      MPI_Barrier(file->comm);
     }
     else
-      MPI_Barrier(comm);
+      MPI_Barrier(file->comm);
 
     // Determine a file name and directory name.
     if (cycle == -1)
@@ -539,8 +574,11 @@ silo_file_t* silo_file_new(MPI_Comm comm,
       snprintf(file->filename, FILENAME_MAX, "%s/%s-%d.silo", file->directory, file->prefix, cycle);
 
     int driver = DB_HDF5;
-    remove_directory(file->directory);
-    create_directory(file->directory, S_IRWXU | S_IRWXG);
+    if (strcmp(file->directory, ".") != 0)
+    {
+      remove_directory(file->directory);
+      create_directory(file->directory, S_IRWXU | S_IRWXG);
+    }
     file->dbfile = DBCreate(file->filename, DB_CLOBBER, DB_LOCAL, NULL, driver);
     DBSetDir(file->dbfile, "/");
   }
@@ -613,8 +651,9 @@ silo_file_t* silo_file_open(MPI_Comm comm,
   }
 
 #if POLYMEC_HAVE_MPI
-  MPI_Comm_size(comm, &file->nproc);
-  MPI_Comm_rank(comm, &file->rank);
+  file->comm = comm;
+  MPI_Comm_size(file->comm, &file->nproc);
+  MPI_Comm_rank(file->comm, &file->rank);
   file->num_files = num_files;
   file->mpi_tag = mpi_tag;
 
@@ -638,13 +677,13 @@ silo_file_t* silo_file_open(MPI_Comm comm,
       }
       else
         closedir(master_dir);
-      MPI_Barrier(comm);
+      MPI_Barrier(file->comm);
     }
     else
-      MPI_Barrier(comm);
+      MPI_Barrier(file->comm);
 
     // Initialize poor man's I/O and figure out group ranks.
-    file->baton = PMPIO_Init(file->num_files, PMPIO_READ, comm, file->mpi_tag, 
+    file->baton = PMPIO_Init(file->num_files, PMPIO_READ, file->comm, file->mpi_tag, 
         pmpio_create_file, pmpio_open_file, 
         pmpio_close_file, 0);
     file->group_rank = PMPIO_GroupRank(file->baton, file->rank);
@@ -663,10 +702,10 @@ silo_file_t* silo_file_open(MPI_Comm comm,
       }
       else
         closedir(group_dir);
-      MPI_Barrier(comm);
+      MPI_Barrier(file->comm);
     }
     else
-      MPI_Barrier(comm);
+      MPI_Barrier(file->comm);
 
     // Determine a file name and directory name.
     if (cycle == -1)
