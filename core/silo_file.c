@@ -131,17 +131,23 @@ void silo_file_query(const char* file_prefix,
   {
     int num_cycles = 0;
     string_slist_node_t* node = files_in_dir->front;
-    char path[FILENAME_MAX];
-    snprintf(path, FILENAME_MAX, "%s/%s-", directory, file_prefix); 
-    char* p1 = strstr(node->value, path);
-    char* p2 = strstr(node->value, ".silo");
-    if ((p1 != NULL) && (p2 != NULL))
+    while (node != NULL)
     {
-      char* c = p1 + strlen(path);
-      char num[p2 - c+1];
-      strncpy(num, c, p2 - c);
-      if (string_is_number(num))
-        cycles[num_cycles++] = atoi(num);
+      char path[FILENAME_MAX];
+      snprintf(path, FILENAME_MAX, "%s/%s-", directory, file_prefix); 
+      char* p1 = strstr(node->value, path);
+      char* p2 = strstr(node->value, ".silo");
+      if ((p1 != NULL) && (p2 != NULL))
+      {
+        char* c = p1 + strlen(path);
+        char num[p2 - c+1];
+        strncpy(num, c, p2 - c);
+        if (string_is_number(num))
+          cycles[num_cycles++] = atoi(num);
+        if (num_cycles == max_cycles_size)
+          break;
+      }
+      node = node->next;
     }
   }
 
