@@ -36,7 +36,8 @@ typedef struct silo_file_t silo_file_t;
 // Creates and opens a new Silo file for writing simulation data, 
 // returning the Silo file object. If cycle is non-negative, the file associates 
 // itself with the given simulation cycle number, which is incorporated into 
-// its filename. 
+// its filename. If directory is the blank string (""), a directory named 
+// <prefix>_<nprocs>procs is generated and used.
 silo_file_t* silo_file_new(MPI_Comm comm,
                            const char* file_prefix,
                            const char* directory,
@@ -45,8 +46,9 @@ silo_file_t* silo_file_new(MPI_Comm comm,
                            int cycle,
                            real_t time);
 
-// Opens an existing Silo file for reading simulation data, 
-// returning the Silo file object.
+// Opens an existing Silo file for reading simulation data, returning the 
+// Silo file object. If the directory is the blank string(""), the directory 
+// is assumed to be the current working directory.
 silo_file_t* silo_file_open(MPI_Comm comm,
                             const char* file_prefix,
                             const char* directory,
