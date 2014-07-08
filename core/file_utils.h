@@ -28,6 +28,8 @@
 #include <sys/types.h> // for mode_t.
 #include <sys/stat.h> // for mkdir().
 
+typedef struct string_slist_t string_slist_t;
+
 // Given a full pathname, parse it into directory and file portions.
 // Memory must be allocated for dirname and for filename that is sufficient 
 // to store any portion of path.
@@ -36,6 +38,17 @@ void parse_path(const char* path, char* dirname, char* filename);
 // Given a path and a filename, join them using the OS-specific separator, 
 // storing the result in path.
 void join_paths(const char* dirname, const char* filename, char* path);
+
+// Returns true if the given directory exists, false if not.
+bool directory_exists(const char* dirname);
+
+// Returns a linked list containing the names of all files within the 
+// given directory.
+string_slist_t* files_within_directory(const char* dirname);
+
+// Returns a linked list containing the names of all directories within 
+// the given directory.
+string_slist_t* directories_within_directory(const char* dirname);
 
 // Creates the given directory if it doesn't exist and if it's capable. 
 // If it does exist, this function has no effect. Returns true if the 

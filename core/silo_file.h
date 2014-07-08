@@ -33,6 +33,18 @@
 // "Poor Man's Parallel I/O" (PMPIO) to achieve scalable throughput.
 typedef struct silo_file_t silo_file_t;
 
+// Queries the given directory for a file or set of files matching the given 
+// prefix, storing the number of files and the number of MPI processes used to 
+// write them in the variables num_files and num_mpi_processes. If the cycles 
+// array is non-NULL, it also fills this array with the cycle numbers 
+// available in the files, up to max_cycles_size.
+void silo_file_query(const char* file_prefix,
+                     const char* directory,
+                     int* num_files,
+                     int* num_mpi_processes,
+                     int* cycles,
+                     int max_cycles_size);
+
 // Creates and opens a new Silo file for writing simulation data, 
 // returning the Silo file object. If cycle is non-negative, the file associates 
 // itself with the given simulation cycle number, which is incorporated into 

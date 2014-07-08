@@ -70,46 +70,6 @@
 
 #include <mpi.h>
 
-#include "core/allocators.h"
-#include "core/logging.h"
-#include "core/arch.h"
-#include "core/string_utils.h"
-#include "core/file_utils.h"
-
-// Configuration information
-#define POLYMEC_HAVE_MPI @HAVE_MPI@
-#define POLYMEC_HAVE_TETGEN @HAVE_TETGEN@
-#define POLYMEC_C_COMPILER "@CMAKE_C_COMPILER@"
-#define POLYMEC_INCLUDE_DIR "@PROJECT_BINARY_DIR@/include"
-
-// The C standard no longer defines M_PI(!!!!). 
-// So we have to provide it ourselves.
-#ifndef M_PI
-#include <float.h>
-#define M_PI 3.1415926535897932384626433832795L
-#if LDBL_DIG > 32
-#error "Definition of PI doesn't use the full precision of long double"
-#endif
-#endif
-
-// Some macros.
-#ifndef NDEBUG
-#define ASSERT(x) \
-  if (!(x)) \
-    polymec_abort("Assertion %s failed\nat %s: %d\n", #x, __FILE__, __LINE__);
-#else
-#define ASSERT(x) 
-#endif
-
-// This converts a destructor function for a specific type to a generic
-// void (*dtor)(void*) destructor.
-#define DTOR(x) ((void (*)(void*))(x))
-
-// Here's a macro that fills an array with the given values.
-#define FILL_ARRAY(array, start, num, val) \
-for (int i = start; i < start + num; ++i) \
-  array[i] = val
-
 // Real number representation.
 typedef @POLYMEC_REAL_TYPE@ real_t;
 #define POLYMEC_HAVE_SINGLE_PRECISION @HAVE_SINGLE_PRECISION@
@@ -146,6 +106,46 @@ typedef uint64_t index_t;
 #ifndef MPI_INDEX
 #define MPI_INDEX MPI_INT64_T
 #endif
+
+// Configuration information
+#define POLYMEC_HAVE_MPI @HAVE_MPI@
+#define POLYMEC_HAVE_TETGEN @HAVE_TETGEN@
+#define POLYMEC_C_COMPILER "@CMAKE_C_COMPILER@"
+#define POLYMEC_INCLUDE_DIR "@PROJECT_BINARY_DIR@/include"
+
+// The C standard no longer defines M_PI(!!!!). 
+// So we have to provide it ourselves.
+#ifndef M_PI
+#include <float.h>
+#define M_PI 3.1415926535897932384626433832795L
+#if LDBL_DIG > 32
+#error "Definition of PI doesn't use the full precision of long double"
+#endif
+#endif
+
+// Some macros.
+#ifndef NDEBUG
+#define ASSERT(x) \
+  if (!(x)) \
+    polymec_abort("Assertion %s failed\nat %s: %d\n", #x, __FILE__, __LINE__);
+#else
+#define ASSERT(x) 
+#endif
+
+// This converts a destructor function for a specific type to a generic
+// void (*dtor)(void*) destructor.
+#define DTOR(x) ((void (*)(void*))(x))
+
+// Here's a macro that fills an array with the given values.
+#define FILL_ARRAY(array, start, num, val) \
+for (int i = start; i < start + num; ++i) \
+  array[i] = val
+
+#include "core/allocators.h"
+#include "core/logging.h"
+#include "core/arch.h"
+#include "core/string_utils.h"
+#include "core/file_utils.h"
 
 typedef void (*polymec_error_handler_function)(const char*);
 

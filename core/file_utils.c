@@ -25,8 +25,9 @@
 #include <dirent.h>
 #include <unistd.h> // for rmdir().
 #include "core/polymec.h"
-#include "file_utils.h"
-#include "string_utils.h"
+#include "core/file_utils.h"
+#include "core/string_utils.h"
+#include "core/slist.h"
 
 #define SEPARATOR '/'
 
@@ -84,6 +85,63 @@ bool create_directory(const char* dirname, mode_t mode)
   }
   snprintf(path, FILENAME_MAX, "%s", dirname);
   return (mkdir(path, mode) == 0);
+}
+
+bool directory_exists(const char* dirname)
+{
+  DIR* dir = opendir(dirname);
+  bool result = (dir != NULL);
+  if (dir != NULL)
+    closedir(dir);
+  return result;
+}
+
+string_slist_t* files_within_directory(const char* dirname)
+{
+  DIR* dir = opendir(dirname);
+  if (dir == NULL)
+    polymec_error("Directory '%s' does not exist.", dirname);
+  int path_len = strlen(dirname);
+  struct dirent* p;
+  string_slist_t* files = string_slist_new();
+  while ((p = readdir(dir)))
+  {
+    int len = path_len + strlen(p->d_name) + 2; 
+    char entry_name[FILENAME_MAX];
+    snprintf(entry_name, len, "%s/%s", dirname, p->d_name);
+    struct stat statbuf;
+    if (stat(entry_name, &statbuf) == 0)
+    {
+      if (!S_ISDIR(statbuf.st_mode))
+        string_slist_append_with_dtor(files, string_dup(p->d_name), string_free);
+    }
+  }
+  closedir(dir);
+  return files;
+}
+
+string_slist_t* directories_within_directory(const char* dirname)
+{
+  DIR* dir = opendir(dirname);
+  if (dir == NULL)
+    polymec_error("Directory '%s' does not exist.", dirname);
+  int path_len = strlen(dirname);
+  struct dirent* p;
+  string_slist_t* dirs = string_slist_new();
+  while ((p = readdir(dir)))
+  {
+    int len = path_len + strlen(p->d_name) + 2; 
+    char entry_name[FILENAME_MAX];
+    snprintf(entry_name, len, "%s/%s", dirname, p->d_name);
+    struct stat statbuf;
+    if (stat(entry_name, &statbuf) == 0)
+    {
+      if (S_ISDIR(statbuf.st_mode))
+        string_slist_append_with_dtor(dirs, string_dup(p->d_name), string_free);
+    }
+  }
+  closedir(dir);
+  return dirs;
 }
 
 // Global temporary directory for the present process.
