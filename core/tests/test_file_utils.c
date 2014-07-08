@@ -63,13 +63,13 @@ void test_make_temp_file(void** state)
   fclose(temp_file);
 }
 
-void test_make_temp_dir(void** state)
+void test_make_temp_directory(void** state)
 {
   const char* template = "temporary-dir-XXXXXX";
   char actual_dir[FILENAME_MAX];
 
   // Check to see whether we made the directory.
-  bool result = make_temp_dir(template, actual_dir);
+  bool result = make_temp_directory(template, actual_dir);
   assert_true(result == true);
 
   // Now try to put something in it.
@@ -93,7 +93,7 @@ int main(int argc, char* argv[])
     unit_test(test_parse_path),
     unit_test(test_join_paths),
     unit_test(test_make_temp_file),
-    unit_test(test_make_temp_dir)
+    unit_test(test_make_temp_directory)
   };
   return run_tests(tests);
 }

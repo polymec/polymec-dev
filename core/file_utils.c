@@ -153,7 +153,7 @@ static void remove_polymec_temp_dir()
   ASSERT(polymec_temp_dir != NULL);
 
   log_debug("Deleting temporary directory '%s'.", polymec_temp_dir);
-  remove_dir(polymec_temp_dir);
+  remove_directory(polymec_temp_dir);
   polymec_free(polymec_temp_dir);
 }
 
@@ -196,7 +196,7 @@ FILE* make_temp_file(const char* file_template, char* filename)
   return fdopen(fd, "w");
 }
 
-bool make_temp_dir(const char* dir_template, char* dirname)
+bool make_temp_directory(const char* dir_template, char* dirname)
 {
   // Construct polymec's temporary directory/name.
   char temp_dir[FILENAME_MAX];
@@ -215,7 +215,7 @@ bool make_temp_dir(const char* dir_template, char* dirname)
   return (dir != NULL);
 }
 
-int remove_dir(const char* path)
+int remove_directory(const char* path)
 {
   DIR* d = opendir(path);
   int path_len = strlen(path);
@@ -242,7 +242,7 @@ int remove_dir(const char* path)
       if (!stat(buf, &statbuf))
       {
         if (S_ISDIR(statbuf.st_mode))
-          r2 = remove_dir(buf);
+          r2 = remove_directory(buf);
         else
           r2 = remove(buf);
       }

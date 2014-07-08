@@ -153,16 +153,23 @@ void silo_file_query(const char* file_prefix,
   bool found_cycles = false;
   {
     string_slist_node_t* node = files_in_dir->front;
-    char path[FILENAME_MAX];
-    snprintf(path, FILENAME_MAX, "%s/%s", directory, file_prefix); 
-    if (strstr(node->value, path) && strstr(node->value, "silo"))
+    while (node != NULL)
     {
-      strncpy(data_file, node->value, FILENAME_MAX);
-      snprintf(path, FILENAME_MAX, "%s/%s-", directory, file_prefix); 
-      if (strstr(node->value, path))
-        found_cycles = true;
+      char path[FILENAME_MAX];
+      snprintf(path, FILENAME_MAX, "%s", file_prefix); 
+      if (strstr(node->value, path) && strstr(node->value, "silo"))
+      {
+        strncpy(data_file, node->value, FILENAME_MAX);
+        snprintf(path, FILENAME_MAX, "%s-", file_prefix); 
+        if (strstr(node->value, path))
+          found_cycles = true;
+        break;
+      }
+      node = node->next;
     }
   }
+  if (strlen(data_file) == 0)
+    polymec_error("silo_file_query: Could not find %s/%s-*.silo.", directory, file_prefix);
 
   // Open up the file and see whether it's a master file or a serial data file.
   bool is_master = false;
@@ -171,10 +178,12 @@ void silo_file_query(const char* file_prefix,
 
   // What's in there?
   DBtoc* toc = DBGetToc(file); 
+printf("%s/%s: %d, %d, %d\n", directory, data_file, toc->nucdmesh, toc->nptmesh, toc->nmultimesh);
   if ((toc->nucdmesh == 0) && (toc->nptmesh == 0) && (toc->nmultimesh > 0))
     is_master = true;
   if (is_master)
   {
+printf("MASTER\n");
     // How many files are referenced in the master file?
     int fmax = -1;
     for (int f = 0; f < toc->nmultimesh; ++f)
@@ -201,6 +210,7 @@ void silo_file_query(const char* file_prefix,
       int num_domains = 0;
       for (int f = 0; f < toc->nmultimesh; ++f)
       {
+printf("%s %s? %p\n", toc->multimesh_names[f], multimesh_prefix, strstr(toc->multimesh_names[f], multimesh_prefix));
         char* s = strstr(toc->multimesh_names[f], multimesh_prefix);
         if (s != NULL)
           ++num_domains;
@@ -225,14 +235,15 @@ void silo_file_query(const char* file_prefix,
     while (node != NULL)
     {
       char path[FILENAME_MAX];
-      snprintf(path, FILENAME_MAX, "%s/%s-", directory, file_prefix); 
+      snprintf(path, FILENAME_MAX, "%s-", file_prefix); 
       char* p1 = strstr(node->value, path);
       char* p2 = strstr(node->value, ".silo");
       if ((p1 != NULL) && (p2 != NULL))
       {
         char* c = p1 + strlen(path);
-        char num[p2 - c+1];
-        strncpy(num, c, p2 - c);
+        char num[p2-c+1];
+        strncpy(num, c, p2-c);
+        num[p2-c] = '\0';
         if (string_is_number(num))
           int_slist_append(cycles, atoi(num));
       }
@@ -478,6 +489,7 @@ silo_file_t* silo_file_new(MPI_Comm comm,
       strncpy(file->directory, directory, FILENAME_MAX);
     if (file->rank == 0)
     {
+      remove_directory(file->directory);
       create_directory(file->directory, S_IRWXU | S_IRWXG);
       MPI_Barrier(comm);
     }
@@ -527,6 +539,7 @@ silo_file_t* silo_file_new(MPI_Comm comm,
       snprintf(file->filename, FILENAME_MAX, "%s/%s-%d.silo", file->directory, file->prefix, cycle);
 
     int driver = DB_HDF5;
+    remove_directory(file->directory);
     create_directory(file->directory, S_IRWXU | S_IRWXG);
     file->dbfile = DBCreate(file->filename, DB_CLOBBER, DB_LOCAL, NULL, driver);
     DBSetDir(file->dbfile, "/");

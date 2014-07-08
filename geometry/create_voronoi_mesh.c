@@ -35,7 +35,7 @@ mesh_t* create_voronoi_mesh(MPI_Comm comm, point_t* generators,
   // Generate a temporary directory for working with tetgen.
   char template[FILENAME_MAX], dir_path[FILENAME_MAX];
   sprintf(template, "voronoi-XXXXXX");
-  bool made_dir = make_temp_dir(template, dir_path);
+  bool made_dir = make_temp_directory(template, dir_path);
   if (!made_dir)
     polymec_error("create_voronoi_mesh: Could not open temporary directory.");
 
