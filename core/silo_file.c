@@ -789,6 +789,7 @@ void silo_file_close(silo_file_t* file)
       // Write the uber-master file containing any multiobjects if need be.
       write_master_file(file);
     }
+    MPI_Barrier(file->comm);
 
     ptr_array_free(file->multimeshes);
     ptr_array_free(file->multivars);
