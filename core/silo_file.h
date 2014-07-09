@@ -78,12 +78,22 @@ void silo_file_write_mesh(silo_file_t* file,
                           const char* mesh_name,
                           mesh_t* mesh);
 
+// Reads a named arbitrary polyhedral mesh from the given Silo file, returning 
+// a newly-allocated mesh object.
+mesh_t* silo_file_read_mesh(silo_file_t* file,
+                            const char* mesh_name);
+
 // Writes a named scalar cell-centered field, understood to exist on 
 // the mesh with the given name, to the given Silo file.
 void silo_file_write_scalar_cell_field(silo_file_t* file,
                                        const char* field_name,
                                        const char* mesh_name,
                                        real_t* field_data);
+
+// Reads a named scalar cell-centered field from the Silo file.
+real_t* silo_file_read_scalar_cell_field(silo_file_t* file,
+                                         const char* field_name,
+                                         const char* mesh_name);
 
 // Writes a named multicomponent cell-centered field, understood to exist on 
 // the mesh with the given name, to the given Silo file. The field data is 
@@ -94,11 +104,22 @@ void silo_file_write_cell_field(silo_file_t* file,
                                 real_t* field_data,
                                 int num_components);
 
+// Reads a named multicomponent cell-centered field from the Silo file.
+real_t* silo_file_read_cell_field(silo_file_t* file,
+                                  const char** field_component_names,
+                                  const char* mesh_name,
+                                  int num_components);
+
 // Adds a point mesh to the given Silo file.
 void silo_file_write_point_mesh(silo_file_t* file,
                                 const char* point_mesh_name,
                                 point_t* points,
                                 int num_points);
+
+// Reads a point mesh from the Silo file.
+point_t* silo_file_read_point_mesh(silo_file_t* file,
+                                   const char* point_mesh_name,
+                                   int* num_points);
 
 // Writes a named scalar point field to the given Silo file, associated with 
 // the given point mesh.
@@ -106,6 +127,11 @@ void silo_file_write_scalar_point_field(silo_file_t* file,
                                         const char* field_name,
                                         const char* point_mesh_name,
                                         real_t* field_data);
+
+// Reads a named scalar point field from the Silo file.
+real_t* silo_file_read_scalar_point_field(silo_file_t* file,
+                                          const char* field_name,
+                                          const char* point_mesh_name);
 
 // Writes a named multicomponent point field to the given Silo file, 
 // associated with the given point mesh. The field data is interpreted to 
@@ -115,5 +141,11 @@ void silo_file_write_point_field(silo_file_t* file,
                                  const char* point_mesh_name,
                                  real_t* field_data,
                                  int num_components);
+
+// Reads a named multicomponent point field from the Silo file.
+real_t* silo_file_read_point_field(silo_file_t* file,
+                                   const char** field_component_names,
+                                   const char* point_mesh_name,
+                                   int num_components);
 
 #endif

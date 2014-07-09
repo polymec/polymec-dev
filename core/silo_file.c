@@ -631,6 +631,15 @@ silo_file_t* silo_file_open(MPI_Comm comm,
   int_slist_t* cycles = int_slist_new();
   silo_file_query(file_prefix, directory, &num_files, &num_mpi_procs, cycles);
 
+  // For now, we only support reading files that were written with the same 
+  // number of processes.
+  int nproc = 1;
+#if POLYMEC_HAVE_MPI
+  MPI_Comm_rank(file->comm, &nproc); 
+#endif
+  if (nproc != num_mpi_procs)
+    polymec_not_implemented("silo_file_open: reading files written with different number of MPI processes is not yet supported.");
+
   // Check to see whether the requested cycle is available, or whether the 
   // latest one is requested (with -1).
   if (cycle >= 0)
@@ -662,34 +671,24 @@ silo_file_t* silo_file_open(MPI_Comm comm,
   file->nproc = num_mpi_procs; // number of MPI procs used to write the thing.
   file->mpi_tag = mpi_tag; // this is fine.
 
-  int nproc;
-  MPI_Comm_rank(file->comm, &nproc); 
-  if (nproc > 1)
+  if (file->nproc > 1)
   {
-    // We put the entire data set into a directory named after the 
-    // prefix, and every process gets its own subdirectory therein.
-
-    // Look in the master directory.
+    // Look for the master directory.
     if (strlen(directory) == 0)
       snprintf(file->directory, FILENAME_MAX, "%s_%dprocs", file->prefix, file->nproc);
     else
       strncpy(file->directory, directory, FILENAME_MAX);
     if (file->rank == 0)
     {
-      DIR* master_dir = opendir(file->directory);
-      if (master_dir == NULL)
+      if (!directory_exists(file->directory))
       {
         polymec_error("silo_file_open: Master directory %s does not exist for file prefix %s.",
             file->directory, file->prefix);
       }
-      else
-        closedir(master_dir);
-      MPI_Barrier(file->comm);
     }
-    else
-      MPI_Barrier(file->comm);
 
     // Initialize poor man's I/O and figure out group ranks.
+    MPI_Barrier(file->comm);
     file->baton = PMPIO_Init(file->num_files, PMPIO_READ, file->comm, file->mpi_tag, 
                              pmpio_create_file, pmpio_open_file, pmpio_close_file, 0);
     file->group_rank = PMPIO_GroupRank(file->baton, file->rank);
@@ -1006,6 +1005,13 @@ void silo_file_write_mesh(silo_file_t* file,
   silo_file_add_multimesh(file, mesh_name, DB_UCDMESH);
 }
 
+mesh_t* silo_file_read_mesh(silo_file_t* file,
+                            const char* mesh_name)
+{
+  // FIXME
+  return NULL;
+}
+
 void silo_file_write_scalar_cell_field(silo_file_t* file,
                                        const char* field_name,
                                        const char* mesh_name,
@@ -1027,17 +1033,57 @@ void silo_file_write_scalar_cell_field(silo_file_t* file,
   silo_file_add_multivar(file, mesh_name, field_name, DB_UCDVAR);
 }
 
+real_t* silo_file_read_scalar_cell_field(silo_file_t* file,
+                                         const char* field_name,
+                                         const char* mesh_name)
+{
+  // FIXME
+  return NULL;
+}
+
 void silo_file_write_cell_field(silo_file_t* file,
                                 const char** field_component_names,
                                 const char* mesh_name,
                                 real_t* field_data,
                                 int num_components)
 {
+  // How many cells does our mesh have?
+  char num_cells_var[FILENAME_MAX];
+  snprintf(num_cells_var, FILENAME_MAX, "%s_mesh_num_cells", mesh_name);
+  ASSERT(DBInqVarExists(file->dbfile, num_cells_var));
+  int num_cells;
+  DBReadVar(file->dbfile, num_cells_var, &num_cells);
+  real_t* comp_data = polymec_malloc(sizeof(real_t) * num_cells); 
   for (int c = 0; c < num_components; ++c)
   {
+    for (int i = 0; i < num_cells; ++i)
+      comp_data[i] = field_data[num_components*i+c];
     silo_file_write_scalar_cell_field(file, field_component_names[c], 
-                                      mesh_name, field_data);
+                                      mesh_name, comp_data);
   }
+  polymec_free(comp_data);
+}
+
+real_t* silo_file_read_cell_field(silo_file_t* file,
+                                  const char** field_component_names,
+                                  const char* mesh_name,
+                                  int num_components)
+{
+  // How many cells does our mesh have?
+  char num_cells_var[FILENAME_MAX];
+  snprintf(num_cells_var, FILENAME_MAX, "%s_mesh_num_cells", mesh_name);
+  ASSERT(DBInqVarExists(file->dbfile, num_cells_var));
+  int num_cells;
+  DBReadVar(file->dbfile, num_cells_var, &num_cells);
+  real_t* field = polymec_malloc(sizeof(real_t) * num_components * num_cells); 
+  for (int c = 0; c < num_components; ++c)
+  {
+    real_t* comp_data = silo_file_read_scalar_cell_field(file, field_component_names[c], mesh_name);
+    for (int i = 0; i < num_cells; ++i)
+      field[num_components*i+c] = comp_data[i];
+    polymec_free(comp_data);
+  }
+  return field;
 }
 
 void silo_file_write_point_mesh(silo_file_t* file,
@@ -1078,6 +1124,21 @@ void silo_file_write_point_mesh(silo_file_t* file,
   silo_file_add_multimesh(file, point_mesh_name, DB_POINTMESH);
 }
 
+point_t* silo_file_read_point_mesh(silo_file_t* file,
+                                   const char* point_mesh_name,
+                                   int* num_points)
+{
+  // How many points does our mesh have?
+  char num_points_var[FILENAME_MAX];
+  snprintf(num_points_var, FILENAME_MAX, "%s_num_points", point_mesh_name);
+  ASSERT(DBInqVarExists(file->dbfile, num_points_var));
+  DBReadVar(file->dbfile, num_points_var, num_points);
+
+  point_t* points = polymec_malloc(sizeof(point_t) * (*num_points));
+  // FIXME
+  return points;
+}
+
 void silo_file_write_scalar_point_field(silo_file_t* file,
                                         const char* field_name,
                                         const char* point_mesh_name,
@@ -1099,6 +1160,14 @@ void silo_file_write_scalar_point_field(silo_file_t* file,
   silo_file_add_multivar(file, point_mesh_name, field_name, DB_POINTVAR);
 }
 
+real_t* silo_file_read_scalar_point_field(silo_file_t* file,
+                                          const char* field_name,
+                                          const char* point_mesh_name)
+{
+  // FIXME
+  return NULL;
+}
+
 void silo_file_write_point_field(silo_file_t* file,
                                  const char** field_component_names,
                                  const char* point_mesh_name,
@@ -1110,5 +1179,27 @@ void silo_file_write_point_field(silo_file_t* file,
     silo_file_write_scalar_point_field(file, field_component_names[c], 
                                        point_mesh_name, field_data);
   }
+}
+
+real_t* silo_file_read_point_field(silo_file_t* file,
+                                   const char** field_component_names,
+                                   const char* point_mesh_name,
+                                   int num_components)
+{
+  // How many points does our mesh have?
+  char num_points_var[FILENAME_MAX];
+  snprintf(num_points_var, FILENAME_MAX, "%s_num_points", point_mesh_name);
+  ASSERT(DBInqVarExists(file->dbfile, num_points_var));
+  int num_points;
+  DBReadVar(file->dbfile, num_points_var, &num_points);
+  real_t* field = polymec_malloc(sizeof(real_t) * num_components * num_points); 
+  for (int c = 0; c < num_components; ++c)
+  {
+    real_t* comp_data = silo_file_read_scalar_cell_field(file, field_component_names[c], point_mesh_name);
+    for (int i = 0; i < num_points; ++i)
+      field[num_components*i+c] = comp_data[i];
+    polymec_free(comp_data);
+  }
+  return field;
 }
 
