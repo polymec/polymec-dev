@@ -644,6 +644,8 @@ silo_file_t* silo_file_open(MPI_Comm comm,
         cycle_found = true;
         break;
       }
+      else if (node->value > cycle) // cycles are sorted
+        break;
       node = node->next;
     }
     if (!cycle_found)
@@ -651,18 +653,23 @@ silo_file_t* silo_file_open(MPI_Comm comm,
   }
 
 #if POLYMEC_HAVE_MPI
-  file->comm = comm;
-  MPI_Comm_size(file->comm, &file->nproc);
-  MPI_Comm_rank(file->comm, &file->rank);
-  file->num_files = num_files;
-  file->mpi_tag = mpi_tag;
 
-  if (file->nproc > 1)
+  // The way these things are defined for a file has to do with how the 
+  // file was generated, not how we are currently running.
+  file->comm = comm; // ...for lack of a better value. Plus, might be useful.
+  MPI_Comm_rank(file->comm, &file->rank); // ...also might be useful.
+  file->num_files = num_files; // number of files in the data set.
+  file->nproc = num_mpi_procs; // number of MPI procs used to write the thing.
+  file->mpi_tag = mpi_tag; // this is fine.
+
+  int nproc;
+  MPI_Comm_rank(file->comm, &nproc); 
+  if (nproc > 1)
   {
     // We put the entire data set into a directory named after the 
     // prefix, and every process gets its own subdirectory therein.
 
-    // Create the master directory if we need to.
+    // Look in the master directory.
     if (strlen(directory) == 0)
       snprintf(file->directory, FILENAME_MAX, "%s_%dprocs", file->prefix, file->nproc);
     else
@@ -684,8 +691,7 @@ silo_file_t* silo_file_open(MPI_Comm comm,
 
     // Initialize poor man's I/O and figure out group ranks.
     file->baton = PMPIO_Init(file->num_files, PMPIO_READ, file->comm, file->mpi_tag, 
-        pmpio_create_file, pmpio_open_file, 
-        pmpio_close_file, 0);
+                             pmpio_create_file, pmpio_open_file, pmpio_close_file, 0);
     file->group_rank = PMPIO_GroupRank(file->baton, file->rank);
     file->rank_in_group = PMPIO_RankInGroup(file->baton, file->rank);
 
