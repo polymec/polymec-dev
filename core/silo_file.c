@@ -609,7 +609,8 @@ silo_file_t* silo_file_open(MPI_Comm comm,
                             const char* file_prefix,
                             const char* directory,
                             int mpi_tag,
-                            int cycle)
+                            int cycle, 
+                            real_t* time)
 {
   silo_file_t* file = polymec_malloc(sizeof(silo_file_t));
   file->mode = DB_READ;
@@ -762,8 +763,15 @@ silo_file_t* silo_file_open(MPI_Comm comm,
     DBReadVar(file->dbfile, "dtime", &dtime);
     file->time = (real_t)dtime;
   }
+  else
+    file->time = 0.0;
   if (DBInqVarExists(file->dbfile, "cycle"))
     DBReadVar(file->dbfile, "cycle", &file->cycle);
+  else
+    file->cycle = -1;
+
+  if (time != NULL)
+    *time = file->time;
 
   return file;
 }
@@ -935,10 +943,9 @@ void silo_file_write_mesh(silo_file_t* file,
     cell_face_counts[i] = mesh->cell_face_offsets[i+1] - mesh->cell_face_offsets[i];
 
   // Write the connectivity information.
-  DBPutPHZonelist(file->dbfile, zonelist_name, 
-                  num_faces, face_node_counts,
+  DBPutPHZonelist(file->dbfile, zonelist_name, num_faces, face_node_counts,
                   mesh->face_node_offsets[num_faces], mesh->face_nodes,
-                  ext_faces, num_cells, cell_face_counts,
+                  ext_faces, num_cells + mesh->num_ghost_cells, cell_face_counts,
                   mesh->cell_face_offsets[num_cells], mesh->cell_faces,
                   0, 0, num_cells-1, optlist);
 
@@ -1008,8 +1015,69 @@ void silo_file_write_mesh(silo_file_t* file,
 mesh_t* silo_file_read_mesh(silo_file_t* file,
                             const char* mesh_name)
 {
-  // FIXME
-  return NULL;
+  ASSERT(file->mode == DB_READ);
+
+  char mesh_dir[FILENAME_MAX];
+#if POLYMEC_HAVE_MPI
+  snprintf(mesh_dir, FILENAME_MAX, "domain_%d", file->rank_in_group);
+#else
+  snprintf(mesh_dir, FILENAME_MAX, "/");
+#endif
+  DBSetDir(file->dbfile, mesh_dir);
+  DBucdmesh* ucd_mesh = DBGetUcdmesh(file->dbfile, mesh_name);
+  if (ucd_mesh == NULL)
+    polymec_error("No mesh named '%s' was found within the Silo file.", mesh_name);
+  ASSERT(ucd_mesh->ndims == 3);
+
+  // Also get the polyhedral zone list.
+  char phzl_name[FILENAME_MAX];
+  snprintf(phzl_name, FILENAME_MAX, "%s_zonelist", mesh_name);
+  DBphzonelist* ph_zonelist = DBGetPHZonelist(file->dbfile, phzl_name);
+  if (ph_zonelist == NULL)
+    polymec_error("Mesh '%s' is not a polymec polyhedral mesh.", mesh_name);
+
+  // Decipher the mesh object.
+  int num_cells = ph_zonelist->hi_offset;
+  int num_ghost_cells = ph_zonelist->nzones - num_cells;
+  int num_faces = ph_zonelist->nfaces;
+  int num_nodes = ucd_mesh->nnodes;
+#if POLYMEC_HAVE_MPI
+  MPI_Comm comm = file->comm;
+#else
+  MPI_Comm comm = MPI_COMM_WORLD;
+#endif
+  mesh_t* mesh = mesh_new(comm, num_cells, num_ghost_cells, 
+                          num_faces, num_nodes);
+
+  // Set node positions.
+  double* x = ucd_mesh->coords[0];
+  double* y = ucd_mesh->coords[1];
+  double* z = ucd_mesh->coords[2];
+  for (int n = 0; n < num_nodes; ++n)
+  {
+    mesh->nodes[n].x = x[n];
+    mesh->nodes[n].y = y[n];
+    mesh->nodes[n].z = z[n];
+  }
+
+  // Set up cell face counts and face node counts.
+  mesh->cell_face_offsets[0] = 0;
+  for (int c = 0; c < num_cells; ++c)
+    mesh->cell_face_offsets[c+1] = ph_zonelist->facecnt[c];
+  mesh->face_node_offsets[0] = 0;
+  for (int f = 0; f < num_faces; ++f)
+    mesh->face_node_offsets[f+1] = ph_zonelist->nodecnt[f];
+  mesh_reserve_connectivity_storage(mesh);
+
+  // Fill in cell faces and face nodes.
+  memcpy(mesh->cell_faces, ph_zonelist->facelist, sizeof(int) * mesh->cell_face_offsets[mesh->num_cells]);
+  memcpy(mesh->face_nodes, ph_zonelist->nodelist, sizeof(int) * mesh->face_node_offsets[mesh->num_faces]);
+
+  // Finish everything up.
+  mesh_construct_edges(mesh);
+  mesh_compute_geometry(mesh);
+
+  return mesh;
 }
 
 void silo_file_write_scalar_cell_field(silo_file_t* file,
@@ -1037,8 +1105,16 @@ real_t* silo_file_read_scalar_cell_field(silo_file_t* file,
                                          const char* field_name,
                                          const char* mesh_name)
 {
-  // FIXME
-  return NULL;
+  ASSERT(file->mode == DB_READ);
+
+  DBucdvar* var = DBGetUcdvar(file->dbfile, (char*)field_name);
+  if (var == NULL)
+    polymec_error("Field '%s' was not found in the Silo file.", field_name);
+  if (var->centering != DB_ZONECENT)
+    polymec_error("Field '%s' is not a polymec cell-centered field.", field_name);
+  real_t* field = polymec_malloc(sizeof(real_t) * var->nels);
+  memcpy(field, var->vals[0], sizeof(real_t) * var->nels);
+  return field;
 }
 
 void silo_file_write_cell_field(silo_file_t* file,
@@ -1047,6 +1123,8 @@ void silo_file_write_cell_field(silo_file_t* file,
                                 real_t* field_data,
                                 int num_components)
 {
+  ASSERT(file->mode == DB_CLOBBER);
+
   // How many cells does our mesh have?
   char num_cells_var[FILENAME_MAX];
   snprintf(num_cells_var, FILENAME_MAX, "%s_mesh_num_cells", mesh_name);
@@ -1069,6 +1147,8 @@ real_t* silo_file_read_cell_field(silo_file_t* file,
                                   const char* mesh_name,
                                   int num_components)
 {
+  ASSERT(file->mode == DB_READ);
+
   // How many cells does our mesh have?
   char num_cells_var[FILENAME_MAX];
   snprintf(num_cells_var, FILENAME_MAX, "%s_mesh_num_cells", mesh_name);
@@ -1128,14 +1208,35 @@ point_t* silo_file_read_point_mesh(silo_file_t* file,
                                    const char* point_mesh_name,
                                    int* num_points)
 {
+  ASSERT(file->mode == DB_READ);
+
+  char mesh_dir[FILENAME_MAX];
+#if POLYMEC_HAVE_MPI
+  snprintf(mesh_dir, FILENAME_MAX, "domain_%d", file->rank_in_group);
+#else
+  snprintf(mesh_dir, FILENAME_MAX, "/");
+#endif
+  DBSetDir(file->dbfile, mesh_dir);
+
   // How many points does our mesh have?
   char num_points_var[FILENAME_MAX];
   snprintf(num_points_var, FILENAME_MAX, "%s_num_points", point_mesh_name);
   ASSERT(DBInqVarExists(file->dbfile, num_points_var));
   DBReadVar(file->dbfile, num_points_var, num_points);
 
+  DBpointmesh* pm = DBGetPointmesh(file->dbfile, (char*)point_mesh_name);
+  if (pm == NULL)
+    polymec_error("Point mesh '%s' was not found in the Silo file.", point_mesh_name);
   point_t* points = polymec_malloc(sizeof(point_t) * (*num_points));
-  // FIXME
+  double* x = pm->coords[0];
+  double* y = pm->coords[1];
+  double* z = pm->coords[2];
+  for (int p = 0; p < *num_points; ++p)
+  {
+    points[p].x = x[p];
+    points[p].y = y[p];
+    points[p].z = z[p];
+  }
   return points;
 }
 
@@ -1164,8 +1265,14 @@ real_t* silo_file_read_scalar_point_field(silo_file_t* file,
                                           const char* field_name,
                                           const char* point_mesh_name)
 {
-  // FIXME
-  return NULL;
+  ASSERT(file->mode == DB_READ);
+
+  DBmeshvar* var = DBGetPointvar(file->dbfile, (char*)field_name);
+  if (var == NULL)
+    polymec_error("Field '%s' was not found in the Silo file.", field_name);
+  real_t* field = polymec_malloc(sizeof(real_t) * var->nels);
+  memcpy(field, var->vals[0], sizeof(real_t) * var->nels);
+  return field;
 }
 
 void silo_file_write_point_field(silo_file_t* file,
@@ -1174,6 +1281,8 @@ void silo_file_write_point_field(silo_file_t* file,
                                  real_t* field_data,
                                  int num_components)
 {
+  ASSERT(file->mode == DB_CLOBBER);
+
   for (int c = 0; c < num_components; ++c)
   {
     silo_file_write_scalar_point_field(file, field_component_names[c], 
@@ -1186,6 +1295,8 @@ real_t* silo_file_read_point_field(silo_file_t* file,
                                    const char* point_mesh_name,
                                    int num_components)
 {
+  ASSERT(file->mode == DB_READ);
+
   // How many points does our mesh have?
   char num_points_var[FILENAME_MAX];
   snprintf(num_points_var, FILENAME_MAX, "%s_num_points", point_mesh_name);

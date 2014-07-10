@@ -63,12 +63,14 @@ silo_file_t* silo_file_new(MPI_Comm comm,
 // is assumed to be the current working directory. If the cycle is -1, the 
 // most recent cycle will be loaded, unless no files with cycle information 
 // can be found, in which case the single set of files containing no cycle 
-// information will be loaded.
+// information will be loaded. If time is not NULL, it will store the time 
+// found in the file (or 0.0 if it does not exist in the file).
 silo_file_t* silo_file_open(MPI_Comm comm,
                             const char* file_prefix,
                             const char* directory,
                             int mpi_tag,
-                            int cycle);
+                            int cycle, 
+                            real_t* time);
 
 // Closes and destroys the given Silo file, writing all its data to disk.
 void silo_file_close(silo_file_t* file);
