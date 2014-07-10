@@ -416,7 +416,7 @@ static void write_master_file(silo_file_t* file)
 
   // Write our stamp of approval.
   int one = 1;
-  DBWrite(file->dbfile, "POLYMEC_SILO_MASTER_FILE", &one, &one, 1, DB_INT);
+  DBWrite(master, "POLYMEC_SILO_MASTER_FILE", &one, &one, 1, DB_INT);
 
   // Stick in cycle/time information if needed.
   DBoptlist* optlist = DBMakeOptlist(2);
@@ -1107,7 +1107,7 @@ void silo_file_write_mesh(silo_file_t* file,
   // Write out exchanger information.
   {
     char ex_name[FILENAME_MAX];
-    snprintf(ex_name, FILENAME_MAX, "%s_exchanger", ex_name);
+    snprintf(ex_name, FILENAME_MAX, "%s_exchanger", mesh_name);
     silo_file_write_exchanger(file, mesh_exchanger(mesh), ex_name);
   }
 
