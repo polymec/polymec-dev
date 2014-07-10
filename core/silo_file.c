@@ -879,6 +879,108 @@ static void silo_file_write_tags(silo_file_t* file, tagger_t* tagger, const char
   int_array_free(tag_data);
 }
 
+static void silo_file_read_tags(silo_file_t* file, const char* tag_list_name, tagger_t* tagger)
+{
+  ASSERT(DBInqVarExists(file->dbfile, tag_list_name));
+  DBcompoundarray* var = DBGetCompoundarray(file->dbfile, (char*)tag_list_name);
+  int num_tags = var->nelems;
+  char** tag_names = var->elemnames;
+  int* tag_sizes = var->elemlengths;
+  int* array = var->values;
+  int size = var->nvalues;
+  int j = 0;
+  for (int i = 0; i < num_tags; ++i)
+  {
+    int* tag = tagger_create_tag(tagger, (const char*)tag_names[i], tag_sizes[i]);
+    memcpy(tag, &array[j], sizeof(int) * tag_sizes[i]);
+    j += tag_sizes[i];
+  }
+  ASSERT(j == size);
+}
+
+static void silo_file_write_exchanger(silo_file_t* file, exchanger_t* ex, const char* exchanger_name)
+{
+  // Collapse the exchanger into a set of integers.
+  // Format is: [nprocs rank send_map receive_map]
+  // where send_map and receive_map are sets of integers encoding mappings
+  // of processes to sets of indices. Such a map has the format
+  // [num_procs [process num_indices i0 i1 ... iN] ... ]
+  int_array_t* array = int_array_new();
+#if POLYMEC_HAVE_MPI
+  int_array_append(array, file->nproc);
+  int_array_append(array, file->rank);
+#endif
+
+  int pos = 0, proc, *indices, num_indices;
+  int_array_append(array, exchanger_num_sends(ex));
+  while (exchanger_next_send(ex, &pos, &proc, &indices, &num_indices))
+  {
+    int_array_append(array, proc);
+    int_array_append(array, num_indices);
+    for (int i = 0; i < num_indices; ++i)
+    int_array_append(array, indices[i]);
+  }
+  pos = 0;
+  int_array_append(array, exchanger_num_receives(ex));
+  while (exchanger_next_receive(ex, &pos, &proc, &indices, &num_indices))
+  {
+    int_array_append(array, proc);
+    int_array_append(array, num_indices);
+    for (int i = 0; i < num_indices; ++i)
+    int_array_append(array, indices[i]);
+  }
+
+  // Write the exchanger array to the file.
+  int size = array->size;
+  DBWrite(file->dbfile, exchanger_name, array->data, &size, 1, DB_INT);
+  char exchanger_size_name[FILENAME_MAX];
+  snprintf(exchanger_size_name, FILENAME_MAX, "%s_size", exchanger_name);
+  int one = 1;
+  DBWrite(file->dbfile, exchanger_size_name, &array->size, &one, 1, DB_INT);
+
+  // Clean up.
+  int_array_free(array);
+}
+
+static void silo_file_read_exchanger(silo_file_t* file, const char* exchanger_name, exchanger_t* ex)
+{
+  ASSERT(DBInqVarExists(file->dbfile, exchanger_name));
+  char exchanger_size_name[FILENAME_MAX];
+  snprintf(exchanger_size_name, FILENAME_MAX, "%s_size", exchanger_name);
+  ASSERT(DBInqVarExists(file->dbfile, exchanger_name));
+  int size;
+  DBReadVar(file->dbfile, (char*)exchanger_size_name, &size);
+  int* array = polymec_malloc(sizeof(int) * size);
+  DBReadVar(file->dbfile, (char*)exchanger_name, array);
+
+  // Expand the exchanger.
+  int i = 0;
+#if POLYMEC_HAVE_MPI
+  ASSERT(array[i++] == file->nproc);
+  ASSERT(array[i++] == file->nproc);
+#endif
+  int num_sends = array[i++];
+  for (int j = 0; j < num_sends; ++j)
+  {
+    int proc = array[i++];
+    int num_indices = array[i++];
+    exchanger_set_send(ex, proc, &array[i], num_indices, true);
+    array += num_indices;
+  }
+  int num_receives = array[i++];
+  for (int j = 0; j < num_receives; ++j)
+  {
+    int proc = array[i++];
+    int num_indices = array[i++];
+    exchanger_set_receive(ex, proc, &array[i], num_indices, true);
+    array += num_indices;
+  }
+  ASSERT(i == size);
+
+  // Clean up.
+  polymec_free(array);
+}
+
 static void silo_file_add_multimesh(silo_file_t* file,
                                     const char* mesh_name, 
                                     int silo_mesh_type)
@@ -1002,6 +1104,13 @@ void silo_file_write_mesh(silo_file_t* file,
     silo_file_write_tags(file, mesh->cell_tags, tag_name);
   }
 
+  // Write out exchanger information.
+  {
+    char ex_name[FILENAME_MAX];
+    snprintf(ex_name, FILENAME_MAX, "%s_exchanger", ex_name);
+    silo_file_write_exchanger(file, mesh_exchanger(mesh), ex_name);
+  }
+
   // Write out the number of mesh cells to a special variable.
   char num_cells_var[FILENAME_MAX];
   snprintf(num_cells_var, FILENAME_MAX, "%s_mesh_num_cells", mesh_name);
@@ -1069,9 +1178,29 @@ mesh_t* silo_file_read_mesh(silo_file_t* file,
   memcpy(mesh->cell_faces, ph_zonelist->facelist, sizeof(int) * mesh->cell_face_offsets[mesh->num_cells]);
   memcpy(mesh->face_nodes, ph_zonelist->nodelist, sizeof(int) * mesh->face_node_offsets[mesh->num_faces]);
 
-  // Finish everything up.
+  // Finish constructing the mesh.
   mesh_construct_edges(mesh);
   mesh_compute_geometry(mesh);
+
+  // Read in tag information.
+  {
+    char tag_name[FILENAME_MAX];
+    snprintf(tag_name, FILENAME_MAX, "%s_node_tags", mesh_name);
+    silo_file_read_tags(file, tag_name, mesh->node_tags);
+    snprintf(tag_name, FILENAME_MAX, "%s_edge_tags", mesh_name);
+    silo_file_read_tags(file, tag_name, mesh->edge_tags);
+    snprintf(tag_name, FILENAME_MAX, "%s_face_tags", mesh_name);
+    silo_file_read_tags(file, tag_name, mesh->face_tags);
+    snprintf(tag_name, FILENAME_MAX, "%s_cell_tags", mesh_name);
+    silo_file_read_tags(file, tag_name, mesh->cell_tags);
+  }
+
+  // Read in exchanger information.
+  {
+    char ex_name[FILENAME_MAX];
+    snprintf(ex_name, FILENAME_MAX, "%s_exchanger", ex_name);
+    silo_file_read_exchanger(file, ex_name, mesh_exchanger(mesh));
+  }
 
   return mesh;
 }

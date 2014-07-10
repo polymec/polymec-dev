@@ -430,6 +430,11 @@ void exchanger_set_sends(exchanger_t* ex, int_ptr_unordered_map_t* send_map)
     exchanger_set_send(ex, send_proc, send_indices->data, send_indices->size, true);   
 }
 
+int exchanger_num_sends(exchanger_t* ex)
+{
+  return ex->send_map->size;
+}
+
 void exchanger_delete_send(exchanger_t* ex, int remote_process)
 {
   exchanger_map_delete(ex->send_map, remote_process);
@@ -469,6 +474,11 @@ void exchanger_set_receives(exchanger_t* ex, int_ptr_unordered_map_t* recv_map)
   int_array_t* recv_indices;
   while (int_ptr_unordered_map_next(recv_map, &pos, &recv_proc, (void**)&recv_indices))
     exchanger_set_receive(ex, recv_proc, recv_indices->data, recv_indices->size, true);   
+}
+
+int exchanger_num_receives(exchanger_t* ex)
+{
+  return ex->receive_map->size;
 }
 
 void exchanger_delete_receive(exchanger_t* ex, int remote_process)

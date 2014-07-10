@@ -48,6 +48,9 @@ void exchanger_set_send(exchanger_t* ex, int remote_process, int* indices, int n
 // data that will be sent.
 void exchanger_set_sends(exchanger_t* ex, int_ptr_unordered_map_t* send_map);
 
+// Returns the number of processes to which this exchanger sends data.
+int exchanger_num_sends(exchanger_t* ex);
+
 // Removes the given remote process from the set of processes to which this 
 // exchanger sends data.
 void exchanger_delete_send(exchanger_t* ex, int remote_process);
@@ -64,6 +67,9 @@ void exchanger_set_receive(exchanger_t* ex, int remote_process, int* indices, in
 // maps remote process ranks to int_arrays containing local indices identifying
 // locations where received data will be stored.
 void exchanger_set_receives(exchanger_t* ex, int_ptr_unordered_map_t* recv_map);
+
+// Returns the number of processes from which this exchanger receives data.
+int exchanger_num_receives(exchanger_t* ex);
 
 // Removes the given remote process from the set of processes from which this 
 // exchanger receives data.
