@@ -25,6 +25,7 @@
 #include <time.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
 #include "mpi.h"
 
 static size_t mpi_size(MPI_Datatype type)
