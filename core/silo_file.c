@@ -201,6 +201,7 @@ bool silo_file_query(const char* file_prefix,
       if (!DBInqVarExists(file, "POLYMEC_SILO_MASTER_FILE"))
       {
         log_urgent("silo_query_file: invalid Silo master file.");
+        DBClose(file);
         return false;
       }
 
@@ -221,6 +222,7 @@ bool silo_file_query(const char* file_prefix,
       else
       {
         log_urgent("silo_file_query: Could not read number of files in set.");
+        DBClose(file);
         return false;
       }
     }
@@ -229,6 +231,7 @@ bool silo_file_query(const char* file_prefix,
       if (!DBInqVarExists(file, "POLYMEC_SILO_FILE"))
       {
         log_urgent("silo_query_file: Invalid Silo file.");
+        DBClose(file);
         return false;
       }
 
