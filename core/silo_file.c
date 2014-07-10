@@ -989,38 +989,6 @@ void silo_file_write_mesh(silo_file_t* file,
   polymec_free(ext_faces);
   polymec_free(cell_face_counts);
 
-#if 0
-  // Write out the cell-face connectivity data.
-  int* conn = polymec_malloc(sizeof(int) * num_cells);
-  int elem_lengths[3];
-  char* elem_names[3];
-  for (int c = 0; c < num_cells; ++c)
-    conn[c] = mesh.cells[c].size();
-  for (int c = 0; c < num_cells; ++c)
-  {
-    for (int f = 0; f < mesh.cells[c].size(); ++f) {
-      int j = mesh.cells[c][f];
-      conn.push_back(j < 0 ? ~j : j);
-    }
-  }
-  for (int f = 0; f < mesh.faceCells.size(); ++f)
-  {
-    conn.push_back(mesh.faceCells[f][0]);
-    conn.push_back(mesh.faceCells[f][0]);
-  }
-  elem_names[0] = strDup("ncellfaces");
-  elem_lengths[0] = num_cells;
-  elem_names[2] = strDup("facecells");
-  elem_lengths[2] = conn.size() - 2*mesh.faces.size();
-  elem_names[1] = strDup("cellfaces");
-  elem_lengths[1] = conn.size() - elem_lengths[2] - elem_lengths[0];
-  DBPutCompoundarray(file, "conn", elem_names, elem_lengths, 3, 
-                     (void*)&conn[0], conn.size(), DB_INT, 0);
-  polymec_free(elem_names[0]);
-  polymec_free(elem_names[1]);
-  polymec_free(elem_names[2]);
-#endif
-
   // Write out tag information.
   {
     char tag_name[FILENAME_MAX];
