@@ -89,13 +89,13 @@ void test_plot_uniform_mesh_with_num_files(void** state, int num_files)
     snprintf(dir_name, FILENAME_MAX, "%s_%dprocs", prefix, nprocs);
   else
     snprintf(dir_name, FILENAME_MAX, ".");
-  silo_file_query(prefix, dir_name, &my_num_files, &num_mpi_procs, NULL);
+  assert_true(silo_file_query(prefix, dir_name, &my_num_files, &num_mpi_procs, NULL));
   assert_int_equal(num_files, my_num_files);
   assert_int_equal(nprocs, num_mpi_procs);
 
   // Get cycles too.
   int_slist_t* cycles = int_slist_new();
-  silo_file_query(prefix, dir_name, &my_num_files, &num_mpi_procs, cycles);
+  assert_true(silo_file_query(prefix, dir_name, &my_num_files, &num_mpi_procs, cycles));
   assert_int_equal(num_files, my_num_files);
   assert_int_equal(nprocs, num_mpi_procs);
   assert_int_equal(1, cycles->size);

@@ -135,7 +135,7 @@ static void multivar_free(multivar_t* var)
 
 #endif
 
-void silo_file_query(const char* file_prefix,
+bool silo_file_query(const char* file_prefix,
                      const char* directory,
                      int* num_files,
                      int* num_mpi_processes,
@@ -152,7 +152,10 @@ void silo_file_query(const char* file_prefix,
   {
     // Inspect the given directory's contents.
     if (!directory_exists(directory))
-      polymec_error("Can't query non-existent directory: %s", directory);
+    {
+      log_urgent("Can't query non-existent directory: %s", directory);
+      return false;
+    }
     string_slist_t* files_in_dir = files_within_directory(directory);
 
     // Try to find a master file or single data file.
@@ -178,7 +181,11 @@ void silo_file_query(const char* file_prefix,
       }
     }
     if (strlen(data_file) == 0)
-      polymec_error("silo_file_query: Could not find %s/%s-*.silo.", directory, file_prefix);
+    {
+      log_urgent("silo_file_query: Could not find %s/%s-*.silo.", directory, file_prefix);
+      string_slist_free(files_in_dir);
+      return false;
+    }
 
     // Open up the file and see whether it's a master file or a serial data file.
     bool is_master = false;
@@ -191,6 +198,12 @@ void silo_file_query(const char* file_prefix,
       is_master = true;
     if (is_master)
     {
+      if (!DBInqVarExists(file, "POLYMEC_SILO_MASTER_FILE"))
+      {
+        log_urgent("silo_query_file: invalid Silo master file.");
+        return false;
+      }
+
       // How many MPI processes were used to construct the data set?
       int my_num_mpi_procs = -1;
       for (int f = 0; f < toc->nmultimesh; ++f)
@@ -203,10 +216,22 @@ void silo_file_query(const char* file_prefix,
       *num_mpi_processes = my_num_mpi_procs;
 
       // How many files are in the data set?
-      DBReadVar(file, "num_files", num_files);
+      if (DBInqVarExists(file, "num_files"))
+        DBReadVar(file, "num_files", num_files);
+      else
+      {
+        log_urgent("silo_file_query: Could not read number of files in set.");
+        return false;
+      }
     }
     else
     {
+      if (!DBInqVarExists(file, "POLYMEC_SILO_FILE"))
+      {
+        log_urgent("silo_query_file: Invalid Silo file.");
+        return false;
+      }
+
       // A single data file can only be written for a serial run.
       *num_files = 1;
       *num_mpi_processes = 1;
@@ -276,6 +301,7 @@ void silo_file_query(const char* file_prefix,
     for (int i = 0; i < num_cycles; ++i)
       int_slist_append(cycles, cycles_buffer[i]);
   }
+  return true;
 }
 
 struct silo_file_t 
@@ -387,6 +413,10 @@ static void write_master_file(silo_file_t* file)
                                     pmpio_create_file, pmpio_open_file, 
                                     pmpio_close_file, 0);
   DBfile* master = (DBfile*)PMPIO_WaitForBaton(baton, master_file_name, "/");
+
+  // Write our stamp of approval.
+  int one = 1;
+  DBWrite(file->dbfile, "POLYMEC_SILO_MASTER_FILE", &one, &one, 1, DB_INT);
 
   // Stick in cycle/time information if needed.
   DBoptlist* optlist = DBMakeOptlist(2);
@@ -602,6 +632,10 @@ silo_file_t* silo_file_new(MPI_Comm comm,
   file->cycle = cycle;
   file->time = time;
 
+  // Write our stamp of approval.
+  int one = 1;
+  DBWrite(file->dbfile, "POLYMEC_SILO_FILE", &one, &one, 1, DB_INT);
+
   return file;
 }
 
@@ -630,7 +664,8 @@ silo_file_t* silo_file_open(MPI_Comm comm,
   // Query the dataset for the number of files and MPI processes and cycles.
   int num_files, num_mpi_procs;
   int_slist_t* cycles = int_slist_new();
-  silo_file_query(file_prefix, directory, &num_files, &num_mpi_procs, cycles);
+  if (!silo_file_query(file_prefix, directory, &num_files, &num_mpi_procs, cycles))
+    polymec_error("silo_file_open: Invalid file.");
 
   // For now, we only support reading files that were written with the same 
   // number of processes.

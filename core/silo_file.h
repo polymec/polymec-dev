@@ -38,8 +38,10 @@ typedef struct silo_file_t silo_file_t;
 // prefix, storing the number of files and the number of MPI processes used to 
 // write them in the variables num_files and num_mpi_processes. If the cycles 
 // linked list is non-NULL, it is filled with the cycle numbers available in 
-// the files.
-void silo_file_query(const char* file_prefix,
+// the files. This function returns true if the file/files are valid Polymec 
+// Silo files (that is, if they were written using the silo_file mechanism)
+// and false if they are non-Polymec Silo files or non-Silo files.
+bool silo_file_query(const char* file_prefix,
                      const char* directory,
                      int* num_files,
                      int* num_mpi_processes,
