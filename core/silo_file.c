@@ -1052,13 +1052,6 @@ mesh_t* silo_file_read_mesh(silo_file_t* file,
 {
   ASSERT(file->mode == DB_READ);
 
-  char mesh_dir[FILENAME_MAX];
-#if POLYMEC_HAVE_MPI
-  snprintf(mesh_dir, FILENAME_MAX, "domain_%d", file->rank_in_group);
-#else
-  snprintf(mesh_dir, FILENAME_MAX, "/");
-#endif
-  DBSetDir(file->dbfile, mesh_dir);
   DBucdmesh* ucd_mesh = DBGetUcdmesh(file->dbfile, mesh_name);
   if (ucd_mesh == NULL)
     polymec_error("No mesh named '%s' was found within the Silo file.", mesh_name);
@@ -1244,14 +1237,6 @@ point_t* silo_file_read_point_mesh(silo_file_t* file,
                                    int* num_points)
 {
   ASSERT(file->mode == DB_READ);
-
-  char mesh_dir[FILENAME_MAX];
-#if POLYMEC_HAVE_MPI
-  snprintf(mesh_dir, FILENAME_MAX, "domain_%d", file->rank_in_group);
-#else
-  snprintf(mesh_dir, FILENAME_MAX, "/");
-#endif
-  DBSetDir(file->dbfile, mesh_dir);
 
   // How many points does our mesh have?
   char num_points_var[FILENAME_MAX];
