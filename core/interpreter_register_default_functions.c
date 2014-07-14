@@ -497,10 +497,11 @@ static int lua_write_silo_points(lua_State* lua)
     }
   }
 
-  // Write the thing to a file.
+  // Write the thing to a file via a point cloud.
   log_info("Writing SILO points file with prefix '%s'...", filename);
+  point_cloud_t* cloud = point_cloud_new(MPI_COMM_WORLD, points, N);
   silo_file_t* silo = silo_file_new(MPI_COMM_WORLD, filename, ".", 1, 0, 0, 0.0);
-  silo_file_write_point_mesh(silo, "points", points, N);
+  silo_file_write_point_cloud(silo, "points", cloud);
   int pos = 0;
   char* field_name;
   void* field;
@@ -510,6 +511,7 @@ static int lua_write_silo_points(lua_State* lua)
 
   // Clean up.
   polymec_free(filename);
+  point_cloud_free(cloud);
   string_ptr_unordered_map_free(fields);
 
   return 1;

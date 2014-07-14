@@ -1294,14 +1294,15 @@ real_t* silo_file_read_cell_field(silo_file_t* file,
   return field;
 }
 
-void silo_file_write_point_mesh(silo_file_t* file,
-                                const char* point_mesh_name,
-                                point_t* points,
-                                int num_points)
+void silo_file_write_point_cloud(silo_file_t* file,
+                                 const char* cloud_name,
+                                 point_cloud_t* cloud)
 {
   ASSERT(file->mode == DB_CLOBBER);
 
   // Point coordinates.
+  int num_points = cloud->num_points;
+  point_t* points = cloud->point_coords;
   real_t* x = polymec_malloc(sizeof(real_t) * num_points);
   real_t* y = polymec_malloc(sizeof(real_t) * num_points);
   real_t* z = polymec_malloc(sizeof(real_t) * num_points);
@@ -1317,73 +1318,79 @@ void silo_file_write_point_mesh(silo_file_t* file,
   coords[2] = &(z[0]);
 
   // Write out the point mesh.
-  DBPutPointmesh(file->dbfile, (char*)point_mesh_name, 3, coords, num_points, SILO_FLOAT_TYPE, NULL); 
+  DBPutPointmesh(file->dbfile, (char*)cloud_name, 3, coords, num_points, SILO_FLOAT_TYPE, NULL); 
   polymec_free(x);
   polymec_free(y);
   polymec_free(z);
 
   // Write out the number of points to a special variable.
   char num_points_var[FILENAME_MAX];
-  snprintf(num_points_var, FILENAME_MAX, "%s_num_points", point_mesh_name);
+  snprintf(num_points_var, FILENAME_MAX, "%s_num_points", cloud_name);
   int one = 1;
   DBWrite(file->dbfile, num_points_var, &num_points, &one, 1, DB_INT);
   
   // Add a multi-object entry.
-  silo_file_add_multimesh(file, point_mesh_name, DB_POINTMESH);
+  silo_file_add_multimesh(file, cloud_name, DB_POINTMESH);
 }
 
-point_t* silo_file_read_point_mesh(silo_file_t* file,
-                                   const char* point_mesh_name,
-                                   int* num_points)
+point_cloud_t* silo_file_read_point_cloud(silo_file_t* file,
+                                          const char* cloud_name)
 {
   ASSERT(file->mode == DB_READ);
 
-  // How many points does our mesh have?
+  // How many points does our cloud have?
+  int num_points;
   char num_points_var[FILENAME_MAX];
-  snprintf(num_points_var, FILENAME_MAX, "%s_num_points", point_mesh_name);
+  snprintf(num_points_var, FILENAME_MAX, "%s_num_points", cloud_name);
   ASSERT(DBInqVarExists(file->dbfile, num_points_var));
-  DBReadVar(file->dbfile, num_points_var, num_points);
+  DBReadVar(file->dbfile, num_points_var, &num_points);
 
-  DBpointmesh* pm = DBGetPointmesh(file->dbfile, (char*)point_mesh_name);
+  DBpointmesh* pm = DBGetPointmesh(file->dbfile, (char*)cloud_name);
   if (pm == NULL)
-    polymec_error("Point mesh '%s' was not found in the Silo file.", point_mesh_name);
-  point_t* points = polymec_malloc(sizeof(point_t) * (*num_points));
+    polymec_error("Point mesh '%s' was not found in the Silo file.", cloud_name);
+  point_t* points = polymec_malloc(sizeof(point_t) * num_points);
   double* x = pm->coords[0];
   double* y = pm->coords[1];
   double* z = pm->coords[2];
-  for (int p = 0; p < *num_points; ++p)
+  for (int p = 0; p < num_points; ++p)
   {
     points[p].x = x[p];
     points[p].y = y[p];
     points[p].z = z[p];
   }
-  return points;
+#if POLYMEC_HAVE_MPI
+  point_cloud_t* cloud = point_cloud_new(file->comm, points, num_points);
+#else
+  point_cloud_t* cloud = point_cloud_new(MPI_COMM_WORLD, points, num_points);
+#endif
+  polymec_free(points);
+  return cloud;
 }
 
 void silo_file_write_scalar_point_field(silo_file_t* file,
                                         const char* field_name,
-                                        const char* point_mesh_name,
+                                        const char* cloud_name,
                                         real_t* field_data)
 {
   ASSERT(file->mode == DB_CLOBBER);
 
   // How many points does our mesh have?
   char num_points_var[FILENAME_MAX];
-  snprintf(num_points_var, FILENAME_MAX, "%s_num_points", point_mesh_name);
+  snprintf(num_points_var, FILENAME_MAX, "%s_num_points", cloud_name);
   ASSERT(DBInqVarExists(file->dbfile, num_points_var));
   int num_points;
   DBReadVar(file->dbfile, num_points_var, &num_points);
 
-  // Write the point mesh.
-  DBPutPointvar1(file->dbfile, field_name, point_mesh_name, field_data, num_points, SILO_FLOAT_TYPE, NULL);
+  // Write the field.
+  DBPutPointvar1(file->dbfile, field_name, cloud_name, field_data, num_points, SILO_FLOAT_TYPE, NULL);
 
   // Add a multi-object entry.
-  silo_file_add_multivar(file, point_mesh_name, field_name, DB_POINTVAR);
+  silo_file_add_multivar(file, cloud_name, field_name, DB_POINTVAR);
 }
 
 real_t* silo_file_read_scalar_point_field(silo_file_t* file,
                                           const char* field_name,
-                                          const char* point_mesh_name)
+                                          const char* cloud_name)
 {
   ASSERT(file->mode == DB_READ);
 
@@ -1397,7 +1404,7 @@ real_t* silo_file_read_scalar_point_field(silo_file_t* file,
 
 void silo_file_write_point_field(silo_file_t* file,
                                  const char** field_component_names,
-                                 const char* point_mesh_name,
+                                 const char* cloud_name,
                                  real_t* field_data,
                                  int num_components)
 {
@@ -1406,27 +1413,27 @@ void silo_file_write_point_field(silo_file_t* file,
   for (int c = 0; c < num_components; ++c)
   {
     silo_file_write_scalar_point_field(file, field_component_names[c], 
-                                       point_mesh_name, field_data);
+                                       cloud_name, field_data);
   }
 }
 
 real_t* silo_file_read_point_field(silo_file_t* file,
                                    const char** field_component_names,
-                                   const char* point_mesh_name,
+                                   const char* cloud_name,
                                    int num_components)
 {
   ASSERT(file->mode == DB_READ);
 
   // How many points does our mesh have?
   char num_points_var[FILENAME_MAX];
-  snprintf(num_points_var, FILENAME_MAX, "%s_num_points", point_mesh_name);
+  snprintf(num_points_var, FILENAME_MAX, "%s_num_points", cloud_name);
   ASSERT(DBInqVarExists(file->dbfile, num_points_var));
   int num_points;
   DBReadVar(file->dbfile, num_points_var, &num_points);
   real_t* field = polymec_malloc(sizeof(real_t) * num_components * num_points); 
   for (int c = 0; c < num_components; ++c)
   {
-    real_t* comp_data = silo_file_read_scalar_cell_field(file, field_component_names[c], point_mesh_name);
+    real_t* comp_data = silo_file_read_scalar_cell_field(file, field_component_names[c], cloud_name);
     for (int i = 0; i < num_points; ++i)
       field[num_components*i+c] = comp_data[i];
     polymec_free(comp_data);

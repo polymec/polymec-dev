@@ -27,7 +27,7 @@
 
 #include "core/polymec.h"
 #include "core/mesh.h"
-#include "core/unordered_map.h"
+#include "core/point_cloud.h"
 #include "core/slist.h"
 
 // A Silo file can store various geometries (meshes) and data, using 
@@ -115,41 +115,39 @@ real_t* silo_file_read_cell_field(silo_file_t* file,
                                   int num_components);
 
 // Adds a point mesh to the given Silo file.
-void silo_file_write_point_mesh(silo_file_t* file,
-                                const char* point_mesh_name,
-                                point_t* points,
-                                int num_points);
+void silo_file_write_point_cloud(silo_file_t* file,
+                                 const char* cloud_name,
+                                 point_cloud_t* cloud);
 
 // Reads a point mesh from the Silo file.
-point_t* silo_file_read_point_mesh(silo_file_t* file,
-                                   const char* point_mesh_name,
-                                   int* num_points);
+point_cloud_t* silo_file_read_point_cloud(silo_file_t* file,
+                                          const char* cloud_name);
 
 // Writes a named scalar point field to the given Silo file, associated with 
-// the given point mesh.
+// the given point cloud.
 void silo_file_write_scalar_point_field(silo_file_t* file,
                                         const char* field_name,
-                                        const char* point_mesh_name,
+                                        const char* cloud_name,
                                         real_t* field_data);
 
 // Reads a named scalar point field from the Silo file.
 real_t* silo_file_read_scalar_point_field(silo_file_t* file,
                                           const char* field_name,
-                                          const char* point_mesh_name);
+                                          const char* cloud_name);
 
 // Writes a named multicomponent point field to the given Silo file, 
-// associated with the given point mesh. The field data is interpreted to 
+// associated with the given point cloud. The field data is interpreted to 
 // be in component-minor order.
 void silo_file_write_point_field(silo_file_t* file,
                                  const char** field_component_names,
-                                 const char* point_mesh_name,
+                                 const char* cloud_name,
                                  real_t* field_data,
                                  int num_components);
 
 // Reads a named multicomponent point field from the Silo file.
 real_t* silo_file_read_point_field(silo_file_t* file,
                                    const char** field_component_names,
-                                   const char* point_mesh_name,
+                                   const char* cloud_name,
                                    int num_components);
 
 #endif
