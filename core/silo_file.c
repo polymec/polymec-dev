@@ -1329,6 +1329,20 @@ void silo_file_write_point_cloud(silo_file_t* file,
   int one = 1;
   DBWrite(file->dbfile, num_points_var, &num_points, &one, 1, DB_INT);
   
+  // Write out tag information.
+  {
+    char tag_name[FILENAME_MAX];
+    snprintf(tag_name, FILENAME_MAX, "%s_node_tags", cloud_name);
+    silo_file_write_tags(file, cloud->tags, tag_name);
+  }
+
+  // Write out exchanger information.
+  {
+    char ex_name[FILENAME_MAX];
+    snprintf(ex_name, FILENAME_MAX, "%s_exchanger", cloud_name);
+    silo_file_write_exchanger(file, point_cloud_exchanger(cloud), ex_name);
+  }
+
   // Add a multi-object entry.
   silo_file_add_multimesh(file, cloud_name, DB_POINTMESH);
 }
@@ -1364,6 +1378,20 @@ point_cloud_t* silo_file_read_point_cloud(silo_file_t* file,
   point_cloud_t* cloud = point_cloud_new(MPI_COMM_WORLD, points, num_points);
 #endif
   polymec_free(points);
+
+  // Read in tag information.
+  {
+    char tag_name[FILENAME_MAX];
+    snprintf(tag_name, FILENAME_MAX, "%s_node_tags", cloud_name);
+    silo_file_read_tags(file, tag_name, cloud->tags);
+  }
+
+  // Read in exchanger information.
+  {
+    char ex_name[FILENAME_MAX];
+    snprintf(ex_name, FILENAME_MAX, "%s_exchanger", ex_name);
+    silo_file_read_exchanger(file, ex_name, point_cloud_exchanger(cloud));
+  }
   return cloud;
 }
 
