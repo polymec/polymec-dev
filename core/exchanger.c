@@ -948,4 +948,77 @@ exchanger_fprintf(exchanger_t* ex, FILE* stream)
 #endif
 }
 
+static size_t ex_size(void* obj)
+{
+#if POLYMEC_HAVE_MPI
+  exchanger_t* ex = obj;
+  size_t size = 2 * sizeof(int);
+  int pos = 0, proc, *indices, num_indices;
+  while (exchanger_next_send(ex, &pos, &proc, &indices, &num_indices))
+    size += (1 + num_indices) * sizeof(int);
+  pos = 0;
+  while (exchanger_next_receive(ex, &pos, &proc, &indices, &num_indices))
+    size += (1 + num_indices) * sizeof(int);
+  return size;
+#else
+  return 0;
+#endif
+}
+
+static void* ex_read(byte_array_t* bytes, size_t* offset)
+{
+  MPI_Comm comm = MPI_COMM_WORLD;
+  exchanger_t* ex = exchanger_new(comm);
+#if POLYMEC_HAVE_MPI
+  int num_sends, num_receives;
+  MPI_Comm_rank(comm, &ex->rank);
+  byte_array_read_ints(bytes, 1, &num_sends, offset);
+  for (int i = 0; i < num_sends; ++i)
+  {
+    int proc, num_indices;
+    byte_array_read_ints(bytes, 1, &proc, offset);
+    byte_array_read_ints(bytes, 1, &num_indices, offset);
+    int indices[num_indices];
+    byte_array_read_ints(bytes, num_indices, indices, offset);
+    exchanger_set_send(ex, proc, indices, num_indices, true);
+  }
+  byte_array_read_ints(bytes, 1, &num_receives, offset);
+  for (int i = 0; i < num_receives; ++i)
+  {
+    int proc, num_indices;
+    byte_array_read_ints(bytes, 1, &proc, offset);
+    byte_array_read_ints(bytes, 1, &num_indices, offset);
+    int indices[num_indices];
+    byte_array_read_ints(bytes, num_indices, indices, offset);
+    exchanger_set_receive(ex, proc, indices, num_indices, true);
+  }
+#endif 
+  return ex;
+}
+
+static void ex_write(void* obj, byte_array_t* bytes, size_t* offset)
+{
+#if POLYMEC_HAVE_MPI
+  exchanger_t* ex = obj;
+
+  int pos = 0, proc, *indices, num_indices;
+  byte_array_write_ints(bytes, 1, &ex->send_map->size, offset);
+  while (exchanger_next_send(ex, &pos, &proc, &indices, &num_indices))
+  {
+    byte_array_write_ints(bytes, 1, &proc, offset);
+    byte_array_write_ints(bytes, num_indices, indices, offset);
+  }
+  byte_array_write_ints(bytes, 1, &ex->receive_map->size, offset);
+  while (exchanger_next_receive(ex, &pos, &proc, &indices, &num_indices))
+  {
+    byte_array_write_ints(bytes, 1, &proc, offset);
+    byte_array_write_ints(bytes, num_indices, indices, offset);
+  }
+#endif
+}
+
+serializer_t* exchanger_serializer()
+{
+  return serializer_new(ex_size, ex_read, ex_write);
+}
 

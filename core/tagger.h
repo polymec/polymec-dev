@@ -27,6 +27,7 @@
 
 #include <stdlib.h>
 #include <stdbool.h>
+#include "core/serializer.h"
 
 // A tagger is an object that stores tag and property information. A tag is 
 // a set of integer indices associated with a name. It can be used to store 
@@ -78,5 +79,8 @@ void tagger_delete_tag(tagger_t* tagger, const char* tag);
 // and size of the tag. Returns true if a tag was found, or false if the 
 // iteration has ended. Set pos to 0 to reset the iteration.
 bool tagger_next_tag(tagger_t* tagger, int* pos, char** tag_name, int** tag_indices, int* tag_size);
+
+// Returns a serializer object that can read/write taggers from/to byte arrays.
+serializer_t* tagger_serializer();
 
 #endif

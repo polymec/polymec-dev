@@ -27,6 +27,7 @@
 
 #include "core/polymec.h"
 #include "core/unordered_map.h"
+#include "core/serializer.h"
 
 // This opaque type implements an MPI transmitter/receiver for exchanging 
 // data between processes in a point-to-point fashion.
@@ -127,5 +128,8 @@ void exchanger_finish_transfer(exchanger_t* ex, int token);
 
 // This writes a string representation of the exchanger to the given file stream.
 void exchanger_fprintf(exchanger_t* ex, FILE* stream);
+
+// This creates a serializer object that can read and write exchangers to byte streams.
+serializer_t* exchanger_serializer();
 
 #endif

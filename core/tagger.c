@@ -224,3 +224,66 @@ bool tagger_next_tag(tagger_t* tagger, int* pos, char** tag_name, int** tag_indi
   return result;
 }
 
+static size_t tagger_byte_size(void* obj)
+{
+  tagger_t* tagger = obj;
+
+  size_t size = sizeof(int); // Number of tags.
+  int pos = 0, *tag, tag_size;
+  char* tag_name;
+  while (tagger_next_tag(tagger, &pos, &tag_name, &tag, &tag_size))
+  {
+    size += sizeof(int) + strlen(tag_name) * sizeof(char);
+    size += sizeof(int) + tag_size * sizeof(int);
+  }
+  return size;
+}
+
+static void* tagger_byte_read(byte_array_t* bytes, size_t* offset)
+{
+  tagger_t* tagger = tagger_new();
+
+  int num_tags;
+  byte_array_read_ints(bytes, 1, &num_tags, offset);
+  for (int i = 0; i < num_tags; ++i)
+  {
+    int tag_name_len;
+    byte_array_read_ints(bytes, 1, &tag_name_len, offset);
+    char tag_name[tag_name_len+1];
+    byte_array_read_chars(bytes, tag_name_len, tag_name, offset);
+    tag_name[tag_name_len] = '\0';
+    int tag_size;
+    byte_array_read_ints(bytes, 1, &tag_size, offset);
+    int* tag = tagger_create_tag(tagger, tag_name, tag_size);
+    byte_array_read_ints(bytes, tag_size, tag, offset);
+  }
+
+  return tagger;
+}
+
+static void tagger_byte_write(void* obj, byte_array_t* bytes, size_t* offset)
+{
+  tagger_t* tagger = obj;
+
+  // Count up the tags.
+  int pos = 0, *tag, tag_size, num_tags = 0;
+  char* tag_name;
+  while (tagger_next_tag(tagger, &pos, &tag_name, &tag, &tag_size))
+    ++num_tags;
+  byte_array_write_ints(bytes, 1, &num_tags, offset);
+
+  pos = 0;
+  while (tagger_next_tag(tagger, &pos, &tag_name, &tag, &tag_size))
+  {
+    int tag_name_len = strlen(tag_name);
+    byte_array_write_ints(bytes, 1, &tag_name_len, offset);
+    byte_array_write_chars(bytes, tag_name_len, tag_name, offset);
+    byte_array_write_ints(bytes, 1, &tag_size, offset);
+    byte_array_write_ints(bytes, tag_size, tag, offset);
+  }
+}
+
+serializer_t* tagger_serializer()
+{
+  return serializer_new(tagger_byte_size, tagger_byte_read, tagger_byte_write);
+}

@@ -575,53 +575,20 @@ static size_t mesh_byte_size(void* obj)
     mesh->num_cells*(sizeof(real_t) + sizeof(point_t)) + 
     mesh->num_faces*(sizeof(point_t) + sizeof(real_t) + sizeof(vector_t));
   
-  size_t tag_storage = 4 * sizeof(int); // Numbers of tags.
-  int pos = 0, *tag, tag_size;
-  char* tag_name;
-  while (mesh_next_tag(mesh->node_tags, &pos, &tag_name, &tag, &tag_size))
-  {
-    tag_storage += sizeof(int) + strlen(tag_name) * sizeof(char);
-    tag_storage += sizeof(int) + tag_size * sizeof(int);
-  }
-  pos = 0;
-  while (mesh_next_tag(mesh->edge_tags, &pos, &tag_name, &tag, &tag_size))
-  {
-    tag_storage += sizeof(int) + strlen(tag_name) * sizeof(char);
-    tag_storage += sizeof(int) + tag_size * sizeof(int);
-  }
-  pos = 0;
-  while (mesh_next_tag(mesh->face_tags, &pos, &tag_name, &tag, &tag_size))
-  {
-    tag_storage += sizeof(int) + strlen(tag_name) * sizeof(char);
-    tag_storage += sizeof(int) + tag_size * sizeof(int);
-  }
-  pos = 0;
-  while (mesh_next_tag(mesh->cell_tags, &pos, &tag_name, &tag, &tag_size))
-  {
-    tag_storage += sizeof(int) + strlen(tag_name) * sizeof(char);
-    tag_storage += sizeof(int) + tag_size * sizeof(int);
-  }
+  // Tag-related storage.
+  serializer_t* tag_s = tagger_serializer();
+  size_t tag_storage = serializer_size(tag_s, mesh->cell_tags) + 
+                       serializer_size(tag_s, mesh->face_tags) + 
+                       serializer_size(tag_s, mesh->edge_tags) + 
+                       serializer_size(tag_s, mesh->node_tags);
+  tag_s = NULL;
 
-  return basic_storage + tag_storage;
-}
+  // Exchanger-related storage.
+  serializer_t* ex_s = exchanger_serializer();
+  size_t ex_storage = serializer_size(ex_s, mesh_exchanger(mesh));
+  ex_s = NULL;
 
-static void byte_array_read_tags(byte_array_t* bytes, size_t* offset, tagger_t* tagger)
-{
-  int num_tags;
-  byte_array_read_ints(bytes, 1, offset, &num_tags);
-  for (int i = 0; i < num_tags; ++i)
-  {
-    int tag_name_len;
-    byte_array_read_ints(bytes, 1, offset, &tag_name_len);
-    char tag_name[tag_name_len+1];
-    byte_array_read_chars(bytes, tag_name_len, offset, tag_name);
-    tag_name[tag_name_len] = '\0';
-    int tag_size;
-    byte_array_read_ints(bytes, 1, offset, &tag_size);
-    mesh_delete_tag(tagger, tag_name);
-    int* tag = mesh_create_tag(tagger, tag_name, tag_size);
-    byte_array_read_ints(bytes, tag_size, offset, tag);
-  }
+  return basic_storage + tag_storage + ex_storage;
 }
 
 static void* mesh_byte_read(byte_array_t* bytes, size_t* offset)
@@ -629,68 +596,63 @@ static void* mesh_byte_read(byte_array_t* bytes, size_t* offset)
   // Read the number of cells, faces, nodes, and allocate a mesh
   // accordingly.
   int num_cells, num_ghost_cells, num_faces, num_nodes;
-  byte_array_read_ints(bytes, 1, offset, &num_cells);
-  byte_array_read_ints(bytes, 1, offset, &num_ghost_cells);
-  byte_array_read_ints(bytes, 1, offset, &num_faces);
-  byte_array_read_ints(bytes, 1, offset, &num_nodes);
+  byte_array_read_ints(bytes, 1, &num_cells, offset);
+  byte_array_read_ints(bytes, 1, &num_ghost_cells, offset);
+  byte_array_read_ints(bytes, 1, &num_faces, offset);
+  byte_array_read_ints(bytes, 1, &num_nodes, offset);
 
   mesh_t* mesh = mesh_new(MPI_COMM_WORLD, num_cells, num_ghost_cells,
                           num_faces, num_nodes);
 
   // Read all the connectivity metadata.
-  byte_array_read_ints(bytes, num_cells+1, offset, mesh->cell_face_offsets);
-  byte_array_read_ints(bytes, num_faces+1, offset, mesh->face_node_offsets);
+  byte_array_read_ints(bytes, num_cells+1, mesh->cell_face_offsets, offset);
+  byte_array_read_ints(bytes, num_faces+1, mesh->face_node_offsets, offset);
 
   // Make sure that connectivity storage is sufficient.
   mesh_reserve_connectivity_storage(mesh);
 
   // Actual connectivity data.
   int num_cell_faces = mesh->cell_face_offsets[mesh->num_cells];
-  byte_array_read_ints(bytes, num_cell_faces, offset, mesh->cell_faces);
+  byte_array_read_ints(bytes, num_cell_faces, mesh->cell_faces, offset);
   int num_face_nodes = mesh->face_node_offsets[mesh->num_faces];
-  byte_array_read_ints(bytes, num_face_nodes, offset, mesh->face_nodes);
-  byte_array_read_ints(bytes, 2*num_faces, offset, mesh->face_cells);
+  byte_array_read_ints(bytes, num_face_nodes, mesh->face_nodes, offset);
+  byte_array_read_ints(bytes, 2*num_faces, mesh->face_cells, offset);
 
   // Node stuff.
-  byte_array_read_points(bytes, num_nodes, offset, mesh->nodes);
+  byte_array_read_points(bytes, num_nodes, mesh->nodes, offset);
 
   // Construct edges.
   mesh_construct_edges(mesh);
 
   // Geometry stuff.
-  byte_array_read_reals(bytes, num_cells, offset, mesh->cell_volumes);
-  byte_array_read_points(bytes, num_cells, offset, mesh->cell_centers);
-  byte_array_read_points(bytes, num_faces, offset, mesh->face_centers);
-  byte_array_read_reals(bytes, num_faces, offset, mesh->face_areas);
-  byte_array_read_vectors(bytes, num_faces, offset, mesh->face_normals);
+  byte_array_read_reals(bytes, num_cells, mesh->cell_volumes, offset);
+  byte_array_read_points(bytes, num_cells, mesh->cell_centers, offset);
+  byte_array_read_points(bytes, num_faces, mesh->face_centers, offset);
+  byte_array_read_reals(bytes, num_faces, mesh->face_areas, offset);
+  byte_array_read_vectors(bytes, num_faces, mesh->face_normals, offset);
 
   // Tag stuff.
-  byte_array_read_tags(bytes, offset, mesh->cell_tags);
-  byte_array_read_tags(bytes, offset, mesh->face_tags);
-  byte_array_read_tags(bytes, offset, mesh->edge_tags);
-  byte_array_read_tags(bytes, offset, mesh->node_tags);
+  tagger_free(mesh->cell_tags);
+  tagger_free(mesh->face_tags);
+  tagger_free(mesh->edge_tags);
+  tagger_free(mesh->node_tags);
+  serializer_t* ser = tagger_serializer();
+  mesh->cell_tags = serializer_read(ser, bytes, offset);
+  mesh->face_tags = serializer_read(ser, bytes, offset);
+  mesh->edge_tags = serializer_read(ser, bytes, offset);
+  mesh->node_tags = serializer_read(ser, bytes, offset);
+
+  // Storage/exchanger stuff.
+  mesh_storage_t* storage = mesh->storage;
+  byte_array_read_ints(bytes, 1, &storage->cell_face_capacity, offset);
+  byte_array_read_ints(bytes, 1, &storage->face_edge_capacity, offset);
+  byte_array_read_ints(bytes, 1, &storage->face_node_capacity, offset);
+  byte_array_read_ints(bytes, 1, &storage->stencil_size, offset);
+  exchanger_free(storage->exchanger);
+  ser = exchanger_serializer();
+  storage->exchanger = serializer_read(ser, bytes, offset);
 
   return mesh;
-}
-
-static void byte_array_write_tags(byte_array_t* bytes, tagger_t* tagger, size_t* offset)
-{
-  // Count up the tags.
-  int pos = 0, *tag, tag_size, num_tags = 0;
-  char* tag_name;
-  while (mesh_next_tag(tagger, &pos, &tag_name, &tag, &tag_size))
-    ++num_tags;
-  byte_array_write_ints(bytes, 1, &num_tags, offset);
-
-  pos = 0;
-  while (mesh_next_tag(tagger, &pos, &tag_name, &tag, &tag_size))
-  {
-    int tag_name_len = strlen(tag_name);
-    byte_array_write_ints(bytes, 1, &tag_name_len, offset);
-    byte_array_write_chars(bytes, tag_name_len, tag_name, offset);
-    byte_array_write_ints(bytes, 1, &tag_size, offset);
-    byte_array_write_ints(bytes, tag_size, tag, offset);
-  }
 }
 
 static void mesh_byte_write(void* obj, byte_array_t* bytes, size_t* offset)
@@ -723,19 +685,30 @@ static void mesh_byte_write(void* obj, byte_array_t* bytes, size_t* offset)
   byte_array_write_vectors(bytes, mesh->num_faces, mesh->face_normals, offset);
 
   // Tag stuff.
-  byte_array_write_tags(bytes, mesh->cell_tags, offset);
-  byte_array_write_tags(bytes, mesh->face_tags, offset);
-  byte_array_write_tags(bytes, mesh->edge_tags, offset);
-  byte_array_write_tags(bytes, mesh->node_tags, offset);
-}
+  serializer_t* ser = tagger_serializer();
+  serializer_write(ser, mesh->cell_tags, bytes, offset);
+  serializer_write(ser, mesh->face_tags, bytes, offset);
+  serializer_write(ser, mesh->edge_tags, bytes, offset);
+  serializer_write(ser, mesh->node_tags, bytes, offset);
 
-void mesh_migrate(mesh_t* cloud, exchanger_t* migrator)
-{
+  // Storage/exchanger stuff.
+  mesh_storage_t* storage = mesh->storage;
+  byte_array_write_ints(bytes, 1, &storage->cell_face_capacity, offset);
+  byte_array_write_ints(bytes, 1, &storage->face_edge_capacity, offset);
+  byte_array_write_ints(bytes, 1, &storage->face_node_capacity, offset);
+  byte_array_write_ints(bytes, 1, &storage->stencil_size, offset);
+  ser = exchanger_serializer();
+  serializer_write(ser, mesh_exchanger(mesh), bytes, offset);
+  ser = NULL;
 }
 
 serializer_t* mesh_serializer()
 {
   return serializer_new(mesh_byte_size, mesh_byte_read, mesh_byte_write);
+}
+
+void mesh_migrate(mesh_t* cloud, exchanger_t* migrator)
+{
 }
 
 adj_graph_t* graph_from_mesh_cells(mesh_t* mesh)

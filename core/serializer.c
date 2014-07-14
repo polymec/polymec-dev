@@ -46,6 +46,11 @@ serializer_t* serializer_new(serializer_size_func size_func,
   return s;
 }
 
+size_t serializer_size(serializer_t* s, void* object)
+{
+  return s->size(object);
+}
+
 void serializer_write(serializer_t* s, void* object, byte_array_t* byte_stream, size_t* offset)
 {
   s->write(object, byte_stream, offset);
@@ -58,9 +63,9 @@ void* serializer_read(serializer_t* s, byte_array_t* byte_stream, size_t* offset
   return object;
 }
 
-void byte_array_read_chars(byte_array_t* byte_stream, size_t n, size_t* offset, char* data)
+void byte_array_read_chars(byte_array_t* byte_stream, size_t n, char* data, size_t* offset)
 {
-  ASSERT(*offset < byte_stream->size + sizeof(char) * n);
+  ASSERT(*offset <= byte_stream->size - sizeof(char) * n);
   memcpy(data, &byte_stream->data[*offset], sizeof(char) * n);
   *offset += n * sizeof(char);
 }
@@ -72,9 +77,9 @@ void byte_array_write_chars(byte_array_t* byte_stream, size_t n, char* data, siz
   *offset += sizeof(char) * n;
 }
 
-void byte_array_read_ints(byte_array_t* byte_stream, size_t n, size_t* offset, int* data)
+void byte_array_read_ints(byte_array_t* byte_stream, size_t n, int* data, size_t* offset)
 {
-  ASSERT(*offset < byte_stream->size + sizeof(int) * n);
+  ASSERT(*offset <= byte_stream->size - sizeof(int) * n);
   memcpy(data, &byte_stream->data[*offset], sizeof(int) * n);
   *offset += n * sizeof(int);
 }
@@ -86,9 +91,9 @@ void byte_array_write_ints(byte_array_t* byte_stream, size_t n, int* data, size_
   *offset += sizeof(int) * n;
 }
 
-void byte_array_read_longs(byte_array_t* byte_stream, size_t n, size_t* offset, long* data)
+void byte_array_read_longs(byte_array_t* byte_stream, size_t n, long* data, size_t* offset)
 {
-  ASSERT(*offset < byte_stream->size + sizeof(long) * n);
+  ASSERT(*offset <= byte_stream->size - sizeof(long) * n);
   memcpy(data, &byte_stream->data[*offset], sizeof(long) * n);
   *offset += n * sizeof(long);
 }
@@ -100,9 +105,9 @@ void byte_array_write_longs(byte_array_t* byte_stream, size_t n, long* data, siz
   *offset += sizeof(long) * n;
 }
 
-void byte_array_read_long_longs(byte_array_t* byte_stream, size_t n, size_t* offset, long long* data)
+void byte_array_read_long_longs(byte_array_t* byte_stream, size_t n, long long* data, size_t* offset)
 {
-  ASSERT(*offset < byte_stream->size + sizeof(long long) * n);
+  ASSERT(*offset <= byte_stream->size - sizeof(long long) * n);
   memcpy(data, &byte_stream->data[*offset], sizeof(long long) * n);
   *offset += n * sizeof(long long);
 }
@@ -114,9 +119,9 @@ void byte_array_write_long_longs(byte_array_t* byte_stream, size_t n, long long*
   *offset += sizeof(long long) * n;
 }
 
-void byte_array_read_reals(byte_array_t* byte_stream, size_t n, size_t* offset, real_t* data)
+void byte_array_read_reals(byte_array_t* byte_stream, size_t n, real_t* data, size_t* offset)
 {
-  ASSERT(*offset < byte_stream->size + sizeof(real_t) * n);
+  ASSERT(*offset <= byte_stream->size - sizeof(real_t) * n);
   memcpy(data, &byte_stream->data[*offset], sizeof(real_t) * n);
   *offset += n * sizeof(real_t);
 }
@@ -129,9 +134,9 @@ void byte_array_write_reals(byte_array_t* byte_stream, size_t n, real_t* data, s
 }
 
 
-void byte_array_read_points(byte_array_t* byte_stream, size_t n, size_t* offset, point_t* data)
+void byte_array_read_points(byte_array_t* byte_stream, size_t n, point_t* data, size_t* offset)
 {
-  ASSERT(*offset < byte_stream->size + sizeof(point_t) * n);
+  ASSERT(*offset <= byte_stream->size - sizeof(point_t) * n);
   memcpy(data, &byte_stream->data[*offset], sizeof(point_t) * n);
   *offset += n * sizeof(point_t);
 }
@@ -143,9 +148,9 @@ void byte_array_write_points(byte_array_t* byte_stream, size_t n, point_t* data,
   *offset += sizeof(point_t) * n;
 }
 
-void byte_array_read_vectors(byte_array_t* byte_stream, size_t n, size_t* offset, vector_t* data)
+void byte_array_read_vectors(byte_array_t* byte_stream, size_t n, vector_t* data, size_t* offset)
 {
-  ASSERT(*offset < byte_stream->size + sizeof(vector_t) * n);
+  ASSERT(*offset <= byte_stream->size - sizeof(vector_t) * n);
   memcpy(data, &byte_stream->data[*offset], sizeof(vector_t) * n);
   *offset += n * sizeof(vector_t);
 }
