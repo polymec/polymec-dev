@@ -23,6 +23,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "core/mesh.h"
+#include "core/unordered_set.h"
 #include "core/table.h"
 
 // Mesh features.
@@ -707,8 +708,110 @@ serializer_t* mesh_serializer()
   return serializer_new(mesh_byte_size, mesh_byte_read, mesh_byte_write);
 }
 
-void mesh_migrate(mesh_t* cloud, exchanger_t* migrator)
+void mesh_migrate(mesh_t* mesh, exchanger_t* migrator)
 {
+  // Post receives for buffer sizes.
+  int num_receives = exchanger_num_receives(migrator);
+  int num_sends = exchanger_num_sends(migrator);
+  int receive_buffer_sizes[num_receives], receive_procs[num_receives];
+  int pos = 0, proc, num_indices, *indices;
+  MPI_Request requests[num_receives + num_sends];
+  while (exchanger_next_send(migrator, &pos, &proc, &indices, &num_indices))
+  {
+    int i = pos - 1;
+    receive_procs[i] = proc;
+    MPI_Irecv(&receive_buffer_sizes[i], 1, MPI_INT, proc, 0, mesh->comm, &requests[i]);
+  }
+
+  // Build meshes to send to other processes.
+  serializer_t* ser = mesh_serializer();
+  int_unordered_set_t* cells = int_unordered_set_new();
+  int_unordered_set_t* faces = int_unordered_set_new();
+  int_unordered_set_t* nodes = int_unordered_set_new();
+  byte_array_t* send_buffers[num_sends];
+  int send_procs[num_sends];
+  while (exchanger_next_send(migrator, &pos, &proc, &indices, &num_indices))
+  {
+    int i = pos - 1;
+    send_procs[i] = proc;
+    byte_array_t* bytes = byte_array_new();
+
+    int_unordered_set_clear(cells);
+    int_unordered_set_clear(faces);
+    int_unordered_set_clear(nodes);
+
+    // Make a set of these indices and count up the various thingies.
+    int num_ghost_cells = 0; 
+    for (int j = 0; j < num_indices; ++j)
+    {
+      int cell = indices[j];
+      int_unordered_set_insert(cells, cell);
+      int pos = 0, face;
+      while (mesh_cell_next_face(mesh, cell, &pos, &face))
+      {
+        int_unordered_set_insert(faces, face);
+        int pos1 = 0, node;
+        while (mesh_face_next_node(mesh, face, &pos1, &node))
+          int_unordered_set_insert(nodes, node);
+      }
+    }
+    int num_cells = cells->size;
+    int num_faces = faces->size;
+    int num_nodes = nodes->size;
+
+    // Create the mesh to send.
+    mesh_t* submesh = mesh_new(mesh->comm, num_cells, num_ghost_cells, num_faces, num_nodes);
+    // FIXME
+
+    // Serialize and send the buffer size.
+    size_t offset = 0;
+    serializer_write(ser, submesh, bytes, &offset);
+    MPI_Isend(&bytes->size, 1, MPI_INT, proc, 0, mesh->comm, &requests[num_receives + i]);
+
+    // Clean up.
+    mesh_free(submesh);
+    send_buffers[i] = bytes;
+  }
+
+  // Preliminary clean up.
+  int_unordered_set_free(cells);
+  int_unordered_set_free(faces);
+  int_unordered_set_free(nodes);
+  ser = NULL;
+
+  // Wait for the buffer sizes to be transmitted.
+  MPI_Status statuses[num_receives + num_sends];
+  MPI_Waitall(num_receives + num_sends, requests, statuses);
+
+  // Post receives for the actual messages.
+  byte_array_t* receive_buffers[num_receives];
+  for (int i = 0; i < num_receives; ++i)
+  {
+    receive_buffers[i] = byte_array_new();
+    byte_array_resize(receive_buffers[i], receive_buffer_sizes[i]);
+    MPI_Irecv(receive_buffers[i]->data, receive_buffer_sizes[i], MPI_BYTE, receive_procs[i], 0, mesh->comm, &requests[i]);
+  }
+
+  // Send the actual meshes and wait for receipt.
+  for (int i = 0; i < num_sends; ++i)
+    MPI_Isend(send_buffers[i]->data, send_buffers[i]->size, MPI_BYTE, send_procs[i], 0, mesh->comm, &requests[num_receives + i]);
+  MPI_Waitall(num_receives + num_sends, requests, statuses);
+
+  // Unpack the meshes.
+  mesh_t* submeshes[num_receives];
+  for (int i = 0; i < num_receives; ++i)
+  {
+    size_t offset = 0;
+    submeshes[i] = serializer_read(ser, receive_buffers[i], &offset);
+  }
+
+  // Clean up all the stuff from the exchange.
+  for (int i = 0; i < num_receives; ++i)
+    byte_array_free(receive_buffers[i]);
+  polymec_free(receive_buffers);
+  for (int i = 0; i < num_sends; ++i)
+    byte_array_free(send_buffers[i]);
+  polymec_free(send_buffers);
 }
 
 adj_graph_t* graph_from_mesh_cells(mesh_t* mesh)
