@@ -66,6 +66,7 @@ typedef struct
   int tag;
   int num_sends;
   int num_receives;
+  int num_requests;
   void** send_buffers;
   int* send_buffer_sizes;
   int* dest_procs;
@@ -552,6 +553,69 @@ void exchanger_exchange(exchanger_t* ex, void* data, int stride, int tag, MPI_Da
   exchanger_finish_exchange(ex, token);
 }
 
+#if POLYMEC_HAVE_MPI
+static void local_copy(int* dest_indices, int* src_indices, int num_indices, 
+                       MPI_Datatype type, int stride, void* data)
+{
+  if (type == MPI_REAL)
+  {
+    real_t* a = data;
+    for (int i = 0; i < num_indices; ++i)
+      for (int s = 0; s < stride; ++s)
+        a[stride*dest_indices[i]+s] = a[stride*src_indices[i]+s];
+  }
+  else if (type == MPI_DOUBLE)
+  {
+    double* a = data;
+    for (int i = 0; i < num_indices; ++i)
+      for (int s = 0; s < stride; ++s)
+        a[stride*dest_indices[i]+s] = a[stride*src_indices[i]+s];
+  }
+  else if (type == MPI_FLOAT)
+  {
+    float* a = data;
+    for (int i = 0; i < num_indices; ++i)
+      for (int s = 0; s < stride; ++s)
+        a[stride*dest_indices[i]+s] = a[stride*src_indices[i]+s];
+  }
+  else if (type == MPI_INT)
+  {
+    int* a = data;
+    for (int i = 0; i < num_indices; ++i)
+      for (int s = 0; s < stride; ++s)
+        a[stride*dest_indices[i]+s] = a[stride*src_indices[i]+s];
+  }
+  else if (type == MPI_LONG)
+  {
+    long* a = data;
+    for (int i = 0; i < num_indices; ++i)
+      for (int s = 0; s < stride; ++s)
+        a[stride*dest_indices[i]+s] = a[stride*src_indices[i]+s];
+  }
+  else if (type == MPI_LONG_LONG)
+  {
+    long long* a = data;
+    for (int i = 0; i < num_indices; ++i)
+      for (int s = 0; s < stride; ++s)
+        a[stride*dest_indices[i]+s] = a[stride*src_indices[i]+s];
+  }
+  else if (type == MPI_UINT64_T)
+  {
+    uint64_t* a = data;
+    for (int i = 0; i < num_indices; ++i)
+      for (int s = 0; s < stride; ++s)
+        a[stride*dest_indices[i]+s] = a[stride*src_indices[i]+s];
+  }
+  else if (type == MPI_CHAR)
+  {
+    char* a = data;
+    for (int i = 0; i < num_indices; ++i)
+      for (int s = 0; s < stride; ++s)
+        a[stride*dest_indices[i]+s] = a[stride*src_indices[i]+s];
+  }
+}
+#endif
+
 int exchanger_start_exchange(exchanger_t* ex, void* data, int stride, int tag, MPI_Datatype type)
 {
 #if POLYMEC_HAVE_MPI
@@ -560,42 +624,73 @@ int exchanger_start_exchange(exchanger_t* ex, void* data, int stride, int tag, M
   mpi_message_pack(msg, data, ex->send_map, ex->receive_map);
 
   // If we are expecting data, post asynchronous receives. 
+  int j = 0;
   for (int i = 0; i < msg->num_receives; ++i)
   {
-    int err = MPI_Irecv(msg->receive_buffers[i], 
-                        msg->receive_buffer_sizes[i],
-                        msg->type, msg->source_procs[i], msg->tag, ex->comm, 
-                        &(msg->requests[i]));
-    if (err != MPI_SUCCESS)
+    if (ex->rank != msg->source_procs[i])
     {
-      int resultlen;
-      char str[MPI_MAX_ERROR_STRING];
-      MPI_Error_string(err, str, &resultlen);
-      char err_msg[1024];
-      snprintf(err_msg, 1024, "%d: MPI Error posting receive from %d: %d\n(%s)\n", 
-               ex->rank, msg->source_procs[i], err, str);
-      polymec_error(err_msg);
+      int err = MPI_Irecv(msg->receive_buffers[i], 
+                          msg->receive_buffer_sizes[i],
+                          msg->type, msg->source_procs[i], msg->tag, ex->comm, 
+                          &(msg->requests[j++]));
+      if (err != MPI_SUCCESS)
+      {
+        int resultlen;
+        char str[MPI_MAX_ERROR_STRING];
+        MPI_Error_string(err, str, &resultlen);
+        char err_msg[1024];
+        snprintf(err_msg, 1024, "%d: MPI Error posting receive from %d: %d\n(%s)\n", 
+            ex->rank, msg->source_procs[i], err, str);
+        polymec_error(err_msg);
+      }
     }
   }
 
   // Send the data asynchronously. 
   for (int i = 0; i < msg->num_sends; ++i)
   {
-    int err = MPI_Isend(msg->send_buffers[i], 
-                        msg->send_buffer_sizes[i], 
-                        msg->type, msg->dest_procs[i], msg->tag, ex->comm, 
-                        &(msg->requests[i + ex->receive_map->size])); 
-    if (err != MPI_SUCCESS)
+    if (ex->rank != msg->dest_procs[i])
     {
-      int resultlen;
-      char str[MPI_MAX_ERROR_STRING];
-      MPI_Error_string(err, str, &resultlen);
-      char err_msg[1024];
-      snprintf(err_msg, 1024, "%d: MPI Error sending to %d: %d\n(%s)\n", 
-               ex->rank, msg->dest_procs[i], err, str);
-      polymec_error(err_msg);
+      int err = MPI_Isend(msg->send_buffers[i], 
+                          msg->send_buffer_sizes[i], 
+                          msg->type, msg->dest_procs[i], msg->tag, ex->comm, 
+                          &(msg->requests[j++])); 
+      if (err != MPI_SUCCESS)
+      {
+        int resultlen;
+        char str[MPI_MAX_ERROR_STRING];
+        MPI_Error_string(err, str, &resultlen);
+        char err_msg[1024];
+        snprintf(err_msg, 1024, "%d: MPI Error sending to %d: %d\n(%s)\n", 
+            ex->rank, msg->dest_procs[i], err, str);
+        polymec_error(err_msg);
+      }
     }
   }
+  msg->num_requests = j;
+printf("requests: %d\n", msg->num_requests);
+
+  // Perform any local copies.
+  int pos = 0, proc;
+  exchanger_channel_t* c;
+  while (exchanger_map_next(ex->send_map, &pos, &proc, &c))
+  {
+    if (proc == ex->rank)
+    {
+      int pos1 = 0, proc1;
+      exchanger_channel_t* c1;
+      while (exchanger_map_next(ex->receive_map, &pos1, &proc1, &c1))
+      {
+        if (proc1 == ex->rank)
+        {
+          ASSERT(c->num_indices == c1->num_indices);
+          local_copy(c1->indices, c->indices, c->num_indices, 
+                     msg->type, stride, data);
+        }
+      }
+    }
+  }
+
 
   // Allocate a token for the transmission and store the pending message.
   int token = 0;
@@ -621,7 +716,7 @@ int exchanger_start_exchange(exchanger_t* ex, void* data, int stride, int tag, M
 static int exchanger_waitall(exchanger_t* ex, mpi_message_t* msg)
 {
   // Allocate storage for statuses of sends/receives.
-  int num_requests = msg->num_sends + msg->num_receives;
+  int num_requests = msg->num_requests;
   MPI_Status statuses[num_requests];
   
   int err = 0;

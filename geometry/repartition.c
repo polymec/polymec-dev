@@ -42,13 +42,6 @@ static SCOTCH_Num* repartition_graph(adj_graph_t* local_graph,
   MPI_Comm_rank(comm, &rank);
   int num_vertices = adj_graph_num_vertices(local_graph);
 
-for (int p = 0; p < nprocs; ++p)
-{
-if (rank == p)
-  adj_graph_fprintf(local_graph, stdout);
-MPI_Barrier(comm);
-}
-
   // Extract the adjacency information.
   SCOTCH_Num* xadj = malloc(sizeof(SCOTCH_Num) * (num_vertices+1));
   int* edge_offsets = adj_graph_edge_offsets(local_graph);
@@ -66,11 +59,7 @@ MPI_Barrier(comm);
     index_t* global_indices = polymec_malloc(sizeof(SCOTCH_Num) * (num_vertices + num_ghost_vertices));
     for (int i = 0; i < num_vertices; ++i)
       global_indices[i] = (index_t)(vtx_dist[rank] + i);
-exchanger_fprintf(local_graph_ex, stdout);
-exchanger_enable_deadlock_detection(local_graph_ex, 1.0, 0, stdout);
     exchanger_exchange(local_graph_ex, global_indices, 1, 0, MPI_UINT64_T);
-for (int i = 0; i < num_vertices + num_ghost_vertices; ++i)
-  printf("%d: GCI[%d] = %d\n", rank, i, global_indices[i]);
     for (int i = 0; i < num_arcs; ++i)
       adj[i] = global_indices[adj[i]];
     polymec_free(global_indices);
@@ -117,11 +106,6 @@ for (int i = 0; i < num_vertices + num_ghost_vertices; ++i)
 //  SCOTCH_dgraphInit(&redist_graph, comm);
 //  result = SCOTCH_dgraphRedist(&dist_graph, partition, NULL, 0, 0, &redist_graph); 
 
-printf("p = [");
-for (int i = 0; i < num_vertices; ++i)
-printf("%d ", local_partition[i]);
-printf("]\n");
-
   // Return the local partition vector.
   return local_partition;
 
@@ -159,17 +143,15 @@ static exchanger_t* create_migrator(MPI_Comm comm,
 {
   exchanger_t* migrator = exchanger_new(comm);
   
-  // Tally up the number of vertices we're going to send to every other process
+  // Tally up the number of vertices we're going to send to every other process, 
+  // including those that are staying on our own.
   int nprocs, rank;
   MPI_Comm_size(comm, &nprocs);
   MPI_Comm_rank(comm, &rank);
   int num_vertices_to_send[nprocs];
   memset(num_vertices_to_send, 0, sizeof(int) * nprocs);
   for (int v = 0; v < num_vertices; ++v)
-  {
-    if (local_partition[v] != rank)
-      num_vertices_to_send[local_partition[v]]++;
-  }
+    num_vertices_to_send[local_partition[v]]++;
 
   // Get the number of vertices we're going to receive from every other process.
   int num_vertices_to_receive[nprocs];
@@ -180,8 +162,8 @@ static exchanger_t* create_migrator(MPI_Comm comm,
   int num_requests = 0;
   for (int p = 0; p < nprocs; ++p)
   {
-    if (num_vertices_to_receive[p] > 0) ++num_requests;
-    if (num_vertices_to_send[p] > 0) ++num_requests;
+    if ((rank != p) && (num_vertices_to_receive[p] > 0)) ++num_requests;
+    if ((rank != p) && (num_vertices_to_send[p] > 0)) ++num_requests;
   }
   MPI_Request requests[num_requests];
   int r = 0;
@@ -192,7 +174,8 @@ static exchanger_t* create_migrator(MPI_Comm comm,
     if (num_vertices_to_receive[p] > 0)
     {
       receive_vertices[p] = polymec_malloc(sizeof(int) * num_vertices_to_receive[p]);
-      MPI_Irecv(receive_vertices, num_vertices_to_receive[p], MPI_INT, p, p, comm, &requests[r++]);
+      if (p != rank)
+        MPI_Irecv(receive_vertices, num_vertices_to_receive[p], MPI_INT, p, p, comm, &requests[r++]);
     }
     if (num_vertices_to_send[p] > 0)
     {
@@ -203,9 +186,24 @@ static exchanger_t* create_migrator(MPI_Comm comm,
           send_vertices[s++] = v;
       }
       exchanger_set_send(migrator, p, send_vertices, num_vertices_to_send[p], true);
-      MPI_Isend(send_vertices, num_vertices_to_receive[p], MPI_INT, p, p, comm, &requests[r++]);
+      if (p != rank)
+        MPI_Isend(send_vertices, num_vertices_to_receive[p], MPI_INT, p, p, comm, &requests[r++]);
     }
   }
+  // Do any local copies.
+  if (num_vertices_to_receive[rank] > 0)
+  {
+    ASSERT(num_vertices_to_receive[rank] == num_vertices_to_send[rank]);
+    int send_vertices[num_vertices_to_send[rank]], s = 0;
+    for (int v = 0; v < num_vertices; ++v)
+    {
+      if (local_partition[v] == rank)
+        send_vertices[s++] = v;
+    }
+    memcpy(receive_vertices[rank], send_vertices, sizeof(int) * num_vertices_to_receive[rank]);
+  }
+
+  // Wait for exchanges to finish.
   MPI_Status statuses[num_requests];
   MPI_Waitall(num_requests, requests, statuses);
 
@@ -240,13 +238,13 @@ static void mesh_migrate(mesh_t* mesh,
   int num_receives = exchanger_num_receives(migrator);
   int num_sends = exchanger_num_sends(migrator);
   int receive_buffer_sizes[num_receives], receive_procs[num_receives];
-  int pos = 0, proc, num_indices, *indices;
+  int pos = 0, proc, num_indices, *indices, i_req = 0;
   MPI_Request requests[num_receives + num_sends];
   while (exchanger_next_send(migrator, &pos, &proc, &indices, &num_indices))
   {
-    int i = pos - 1;
-    receive_procs[i] = proc;
-    MPI_Irecv(&receive_buffer_sizes[i], 1, MPI_INT, proc, 0, mesh->comm, &requests[i]);
+    receive_procs[i_req] = proc;
+    MPI_Irecv(&receive_buffer_sizes[i_req], 1, MPI_INT, proc, 0, mesh->comm, &requests[i_req]);
+    ++i_req;
   }
 
   // Build meshes to send to other processes.
@@ -256,10 +254,10 @@ static void mesh_migrate(mesh_t* mesh,
   int_unordered_set_t* nodes = int_unordered_set_new();
   byte_array_t* send_buffers[num_sends];
   int send_procs[num_sends];
+  pos = 0;
   while (exchanger_next_send(migrator, &pos, &proc, &indices, &num_indices))
   {
-    int i = pos - 1;
-    send_procs[i] = proc;
+    send_procs[i_req-num_receives] = proc;
     byte_array_t* bytes = byte_array_new();
 
     int_unordered_set_clear(cells);
@@ -295,18 +293,19 @@ static void mesh_migrate(mesh_t* mesh,
     // Serialize and send the buffer size.
     size_t offset = 0;
     serializer_write(ser, submesh, bytes, &offset);
-    MPI_Isend(&bytes->size, 1, MPI_INT, proc, 0, mesh->comm, &requests[num_receives + i]);
+    MPI_Isend(&bytes->size, 1, MPI_INT, proc, 0, mesh->comm, &requests[i_req]);
 
     // Clean up.
     mesh_free(submesh);
-    send_buffers[i] = bytes;
+    send_buffers[i_req - num_receives] = bytes;
+    ++i_req;
   }
+  ASSERT(i_req == num_sends + num_receives);
 
   // Preliminary clean up.
   int_unordered_set_free(cells);
   int_unordered_set_free(faces);
   int_unordered_set_free(nodes);
-  ser = NULL;
 
   // Wait for the buffer sizes to be transmitted.
   MPI_Status statuses[num_receives + num_sends];
@@ -335,6 +334,7 @@ static void mesh_migrate(mesh_t* mesh,
   }
 
   // Clean up all the stuff from the exchange.
+  ser = NULL;
   for (int i = 0; i < num_receives; ++i)
     byte_array_free(receive_buffers[i]);
   polymec_free(receive_buffers);
