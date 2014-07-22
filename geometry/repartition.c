@@ -28,7 +28,72 @@
 #include "core/unordered_set.h"
 #include "ptscotch.h"
 
-// This helper partitions a local graph, creating and returning a 
+// This helper partitions a (serial) local graph, creating and returning a 
+// local partition vector.
+static SCOTCH_Num* partition_graph(adj_graph_t* local_graph, 
+                                   int* weights,
+                                   real_t imbalance_tol,
+                                   exchanger_t* local_graph_ex)
+{
+  int nprocs, rank;
+  MPI_Comm comm = adj_graph_comm(local_graph);
+  MPI_Comm_size(comm, &nprocs);
+  MPI_Comm_rank(comm, &rank);
+  int num_vertices = adj_graph_num_vertices(local_graph);
+
+  // Extract the adjacency information.
+  SCOTCH_Num* xadj = malloc(sizeof(SCOTCH_Num) * (num_vertices+1));
+  int* edge_offsets = adj_graph_edge_offsets(local_graph);
+  for (int i = 0; i <= num_vertices; ++i)
+    xadj[i] = (SCOTCH_Num)edge_offsets[i];
+  SCOTCH_Num num_arcs = xadj[num_vertices];
+  SCOTCH_Num* adj = malloc(sizeof(SCOTCH_Num) * num_arcs);
+  int* edges = adj_graph_adjacency(local_graph);
+  for (int i = 0; i < xadj[num_vertices]; ++i)
+    adj[i] = (SCOTCH_Num)edges[i];
+
+  // Build a distributed graph.
+  // FIXME
+  SCOTCH_Num* vtx_weights = NULL;
+  if (weights != NULL)
+  {
+    vtx_weights = polymec_malloc(sizeof(SCOTCH_Num) * num_vertices);
+    for (int i = 0; i < num_vertices; ++i)
+      vtx_weights[i] = (SCOTCH_Num)weights[i];
+  }
+  SCOTCH_Dgraph dist_graph;
+  SCOTCH_dgraphInit(&dist_graph, comm);
+  SCOTCH_dgraphBuild(&dist_graph, 0, (SCOTCH_Num)num_vertices, (SCOTCH_Num)num_vertices,
+                     xadj, NULL, vtx_weights, NULL, num_arcs, num_arcs,
+                     adj, NULL, NULL);
+
+  // Generate the local partition vector by mapping the distributed graph.
+  SCOTCH_Num* local_partition = polymec_malloc(sizeof(SCOTCH_Num) * num_vertices);
+  {
+    SCOTCH_Arch arch;
+    SCOTCH_archInit(&arch);
+    if (vtx_weights == NULL)
+      SCOTCH_archCmplt(&arch, num_vertices);
+    else
+      SCOTCH_archCmpltw(&arch, num_vertices, vtx_weights);
+    SCOTCH_Strat strategy;
+    SCOTCH_stratInit(&strategy);
+    SCOTCH_Num strat_flags = SCOTCH_STRATDEFAULT;
+    SCOTCH_stratDgraphMapBuild(&strategy, strat_flags, nprocs, nprocs, (double)imbalance_tol);
+    int result = SCOTCH_dgraphMap(&dist_graph, &arch, &strategy, local_partition);
+    if (result != 0)
+      polymec_error("Partitioning failed.");
+    SCOTCH_stratExit(&strategy);
+    SCOTCH_archExit(&arch);
+  }
+  if (vtx_weights != NULL)
+    polymec_free(vtx_weights);
+
+  // Return the local partition vector.
+  return local_partition;
+}
+
+// This helper repartitions a local graph, creating and returning a 
 // local partition vector.
 static SCOTCH_Num* repartition_graph(adj_graph_t* local_graph, 
                                      int num_ghost_vertices,
@@ -350,6 +415,53 @@ static void mesh_migrate(mesh_t** mesh,
 
 #endif
 
+exchanger_t* partition_point_cloud(point_cloud_t** cloud, int* weights, real_t imbalance_tol)
+{
+  ASSERT(imbalance_tol > 0.0);
+  ASSERT(imbalance_tol <= 1.0);
+  point_cloud_t* cl = *cloud;
+
+#if POLYMEC_HAVE_MPI
+  _Static_assert(sizeof(SCOTCH_Num) == sizeof(index_t), "SCOTCH_Num must be 64-bit.");
+
+  int nprocs, rank;
+  MPI_Comm_size(cl->comm, &nprocs);
+  MPI_Comm_rank(cl->comm, &rank);
+
+  // On a single process, partitioning has no meaning.
+  if (nprocs == 1)
+    return exchanger_new(cl->comm);
+
+  // Clouds on rank != 0 must be NULL.
+  ASSERT((rank == 0) || (*cloud == NULL));
+
+  // Generate a local adjacency graph for the point cloud.
+  adj_graph_t* local_graph = graph_from_point_cloud(cl);
+
+  // Get the exchanger for the point cloud.
+  exchanger_t* cloud_ex = point_cloud_exchanger(cl);
+
+  // Map the graph to the different domains, producing a local partition vector.
+  SCOTCH_Num* local_partition = partition_graph(local_graph, weights, imbalance_tol, cloud_ex);
+
+  // Set up an exchanger to migrate field data.
+  int num_vertices = adj_graph_num_vertices(local_graph);
+  exchanger_t* migrator = create_migrator(cl->comm, local_partition, num_vertices);
+
+  // Migrate the point cloud.
+  point_cloud_migrate(cloud, local_graph, migrator);
+
+  // Clean up.
+  adj_graph_free(local_graph);
+  polymec_free(local_partition);
+
+  // Return the migrator.
+  return (migrator == NULL) ? exchanger_new(cl->comm) : migrator;
+#else
+  return exchanger_new(cl->comm);
+#endif
+}
+
 exchanger_t* repartition_point_cloud(point_cloud_t** cloud, int* weights, real_t imbalance_tol)
 {
   ASSERT(imbalance_tol > 0.0);
@@ -391,6 +503,53 @@ exchanger_t* repartition_point_cloud(point_cloud_t** cloud, int* weights, real_t
   return (migrator == NULL) ? exchanger_new(cl->comm) : migrator;
 #else
   return exchanger_new(cl->comm);
+#endif
+}
+
+exchanger_t* partition_mesh(mesh_t** mesh, int* weights, real_t imbalance_tol)
+{
+  ASSERT(imbalance_tol > 0.0);
+  ASSERT(imbalance_tol <= 1.0);
+  mesh_t* m = *mesh;
+
+#if POLYMEC_HAVE_MPI
+  _Static_assert(sizeof(SCOTCH_Num) == sizeof(index_t), "SCOTCH_Num must be 64-bit.");
+
+  int nprocs, rank;
+  MPI_Comm_size(m->comm, &nprocs);
+  MPI_Comm_rank(m->comm, &rank);
+
+  // On a single process, partitioning has no meaning.
+  if (nprocs == 1)
+    return exchanger_new(m->comm);
+
+  // Meshes on rank != 0 must be NULL.
+  ASSERT((rank == 0) || (*mesh == NULL));
+
+  // Generate a local adjacency graph for the mesh.
+  adj_graph_t* local_graph = graph_from_mesh_cells(m);
+
+  // Get the exchanger for the mesh.
+  exchanger_t* mesh_ex = mesh_exchanger(m);
+
+  // Map the graph to the different domains, producing a local partition vector.
+  SCOTCH_Num* local_partition = partition_graph(local_graph, weights, imbalance_tol, mesh_ex);
+
+  // Set up an exchanger to migrate field data.
+  int num_vertices = adj_graph_num_vertices(local_graph);
+  exchanger_t* migrator = create_migrator(m->comm, local_partition, num_vertices);
+
+  // Migrate the mesh.
+  mesh_migrate(mesh, local_graph, migrator);
+
+  // Clean up.
+  adj_graph_free(local_graph);
+  polymec_free(local_partition);
+
+  // Return the migrator.
+  return migrator;
+#else
+  return exchanger_new(m->comm);
 #endif
 }
 

@@ -28,6 +28,15 @@
 #include "core/point_cloud.h"
 #include "core/mesh.h"
 
+// This function partitions the given point cloud on rank 0 with the given 
+// load weights, alloting them to parallel domains to balance their load.
+// If weights is NULL, the points are assigned equal weights.
+// It creates and returns an exchanger object that can be used to migrate 
+// data from rank 0 to the partition. The cloud on rank 0 is consumed and 
+// replaced with a repartitioned cloud--on other processes the cloud must be 
+// NULL.
+exchanger_t* partition_point_cloud(point_cloud_t** cloud, int* weights, real_t imbalance_tol);
+
 // This function repartitions the given point cloud with the given load
 // weights, alloting them to parallel domains to balance their load.
 // If weights is NULL, the points are assigned equal weights.
@@ -36,8 +45,16 @@
 // with a repartitioned cloud.
 exchanger_t* repartition_point_cloud(point_cloud_t** cloud, int* weights, real_t imbalance_tol);
 
+// This function partitions the given mesh on rank 0 with the given load 
+// weights, alloting the cells to parallel domains to balance their load.
+// It creates and returns an exchanger object that can be used to migrate 
+// data from the rank 0 to the partition. The mesh on rank 0 is consumed and 
+// replaced with a repartitioned mesh--on other processes the mesh must be 
+// NULL.
+exchanger_t* partition_mesh(mesh_t** mesh, int* weights, real_t imbalance_tol);
+
 // This function repartitions the given mesh with the given load weights, 
-// alloting the cells to parallel domains to balance the load.
+// alloting the cells to parallel domains to balance their load.
 // It creates and returns an exchanger object that can be used to migrate 
 // data from the old partition to the new. The mesh is consumed and replaced
 // with a repartitioned mesh.
