@@ -224,16 +224,18 @@ static exchanger_t* create_migrator(MPI_Comm comm,
   return migrator;
 }
 
-static void point_cloud_migrate(point_cloud_t* cloud, 
+static void point_cloud_migrate(point_cloud_t** cloud, 
                                 adj_graph_t* local_graph, 
                                 exchanger_t* migrator)
 {
 }
 
-static void mesh_migrate(mesh_t* mesh, 
+static void mesh_migrate(mesh_t** mesh, 
                          adj_graph_t* local_graph, 
                          exchanger_t* migrator)
 {
+  mesh_t* m = *mesh;
+
   // Post receives for buffer sizes.
   int num_receives = exchanger_num_receives(migrator);
   int num_sends = exchanger_num_sends(migrator);
@@ -243,7 +245,7 @@ static void mesh_migrate(mesh_t* mesh,
   while (exchanger_next_send(migrator, &pos, &proc, &indices, &num_indices))
   {
     receive_procs[i_req] = proc;
-    MPI_Irecv(&receive_buffer_sizes[i_req], 1, MPI_INT, proc, 0, mesh->comm, &requests[i_req]);
+    MPI_Irecv(&receive_buffer_sizes[i_req], 1, MPI_INT, proc, 0, m->comm, &requests[i_req]);
     ++i_req;
   }
 
@@ -271,11 +273,11 @@ static void mesh_migrate(mesh_t* mesh,
       int cell = indices[j];
       int_unordered_set_insert(cells, cell);
       int pos = 0, face;
-      while (mesh_cell_next_face(mesh, cell, &pos, &face))
+      while (mesh_cell_next_face(m, cell, &pos, &face))
       {
         int_unordered_set_insert(faces, face);
         int pos1 = 0, node;
-        while (mesh_face_next_node(mesh, face, &pos1, &node))
+        while (mesh_face_next_node(m, face, &pos1, &node))
           int_unordered_set_insert(nodes, node);
       }
     }
@@ -287,13 +289,13 @@ static void mesh_migrate(mesh_t* mesh,
     // All internal cells have their original local indices. A ghost cell,
     // on the other hand, has index -G - 2, where G is its global index.
     // Face and node indices are local and used only to express connectivity.
-    mesh_t* submesh = mesh_new(mesh->comm, num_cells, num_ghost_cells, num_faces, num_nodes);
+    mesh_t* submesh = mesh_new(m->comm, num_cells, num_ghost_cells, num_faces, num_nodes);
     // FIXME
 
     // Serialize and send the buffer size.
     size_t offset = 0;
     serializer_write(ser, submesh, bytes, &offset);
-    MPI_Isend(&bytes->size, 1, MPI_INT, proc, 0, mesh->comm, &requests[i_req]);
+    MPI_Isend(&bytes->size, 1, MPI_INT, proc, 0, m->comm, &requests[i_req]);
 
     // Clean up.
     mesh_free(submesh);
@@ -317,12 +319,12 @@ static void mesh_migrate(mesh_t* mesh,
   {
     receive_buffers[i] = byte_array_new();
     byte_array_resize(receive_buffers[i], receive_buffer_sizes[i]);
-    MPI_Irecv(receive_buffers[i]->data, receive_buffer_sizes[i], MPI_BYTE, receive_procs[i], 0, mesh->comm, &requests[i]);
+    MPI_Irecv(receive_buffers[i]->data, receive_buffer_sizes[i], MPI_BYTE, receive_procs[i], 0, m->comm, &requests[i]);
   }
 
   // Send the actual meshes and wait for receipt.
   for (int i = 0; i < num_sends; ++i)
-    MPI_Isend(send_buffers[i]->data, send_buffers[i]->size, MPI_BYTE, send_procs[i], 0, mesh->comm, &requests[num_receives + i]);
+    MPI_Isend(send_buffers[i]->data, send_buffers[i]->size, MPI_BYTE, send_procs[i], 0, m->comm, &requests[num_receives + i]);
   MPI_Waitall(num_receives + num_sends, requests, statuses);
 
   // Unpack the meshes.
@@ -332,6 +334,9 @@ static void mesh_migrate(mesh_t* mesh,
     size_t offset = 0;
     submeshes[i] = serializer_read(ser, receive_buffers[i], &offset);
   }
+
+  // Fuse 'em into a single mesh.
+  // FIXME
 
   // Clean up all the stuff from the exchange.
   ser = NULL;
@@ -345,33 +350,35 @@ static void mesh_migrate(mesh_t* mesh,
 
 #endif
 
-exchanger_t* repartition_point_cloud(point_cloud_t* cloud, int* weights, real_t imbalance_tol)
+exchanger_t* repartition_point_cloud(point_cloud_t** cloud, int* weights, real_t imbalance_tol)
 {
   ASSERT(imbalance_tol > 0.0);
   ASSERT(imbalance_tol <= 1.0);
+  point_cloud_t* cl = *cloud;
+
 #if POLYMEC_HAVE_MPI
   _Static_assert(sizeof(SCOTCH_Num) == sizeof(index_t), "SCOTCH_Num must be 64-bit.");
 
   int nprocs, rank;
-  MPI_Comm_size(cloud->comm, &nprocs);
-  MPI_Comm_rank(cloud->comm, &rank);
+  MPI_Comm_size(cl->comm, &nprocs);
+  MPI_Comm_rank(cl->comm, &rank);
 
   // On a single process, repartitioning has no meaning.
   if (nprocs == 1)
-    return exchanger_new(cloud->comm);
+    return exchanger_new(cl->comm);
 
   // Generate a local adjacency graph for the point cloud.
-  adj_graph_t* local_graph = graph_from_point_cloud(cloud);
+  adj_graph_t* local_graph = graph_from_point_cloud(cl);
 
   // Get the exchanger for the point cloud.
-  exchanger_t* cloud_ex = point_cloud_exchanger(cloud);
+  exchanger_t* cloud_ex = point_cloud_exchanger(cl);
 
   // Map the graph to the different domains, producing a local partition vector.
-  SCOTCH_Num* local_partition = repartition_graph(local_graph, cloud->num_ghost_points, weights, imbalance_tol, cloud_ex);
+  SCOTCH_Num* local_partition = repartition_graph(local_graph, cl->num_ghost_points, weights, imbalance_tol, cloud_ex);
 
   // Set up an exchanger to migrate field data.
   int num_vertices = adj_graph_num_vertices(local_graph);
-  exchanger_t* migrator = create_migrator(cloud->comm, local_partition, num_vertices);
+  exchanger_t* migrator = create_migrator(cl->comm, local_partition, num_vertices);
 
   // Migrate the point cloud.
   point_cloud_migrate(cloud, local_graph, migrator);
@@ -381,39 +388,41 @@ exchanger_t* repartition_point_cloud(point_cloud_t* cloud, int* weights, real_t 
   polymec_free(local_partition);
 
   // Return the migrator.
-  return migrator;
+  return (migrator == NULL) ? exchanger_new(cl->comm) : migrator;
 #else
-  return exchanger_new(cloud->comm);
+  return exchanger_new(cl->comm);
 #endif
 }
 
-exchanger_t* repartition_mesh(mesh_t* mesh, int* weights, real_t imbalance_tol)
+exchanger_t* repartition_mesh(mesh_t** mesh, int* weights, real_t imbalance_tol)
 {
   ASSERT(imbalance_tol > 0.0);
   ASSERT(imbalance_tol <= 1.0);
+  mesh_t* m = *mesh;
+
 #if POLYMEC_HAVE_MPI
   _Static_assert(sizeof(SCOTCH_Num) == sizeof(index_t), "SCOTCH_Num must be 64-bit.");
 
   int nprocs, rank;
-  MPI_Comm_size(mesh->comm, &nprocs);
-  MPI_Comm_rank(mesh->comm, &rank);
+  MPI_Comm_size(m->comm, &nprocs);
+  MPI_Comm_rank(m->comm, &rank);
 
   // On a single process, repartitioning has no meaning.
   if (nprocs == 1)
-    return exchanger_new(mesh->comm);
+    return exchanger_new(m->comm);
 
   // Generate a local adjacency graph for the mesh.
-  adj_graph_t* local_graph = graph_from_mesh_cells(mesh);
+  adj_graph_t* local_graph = graph_from_mesh_cells(m);
 
   // Get the exchanger for the mesh.
-  exchanger_t* mesh_ex = mesh_exchanger(mesh);
+  exchanger_t* mesh_ex = mesh_exchanger(m);
 
   // Map the graph to the different domains, producing a local partition vector.
-  SCOTCH_Num* local_partition = repartition_graph(local_graph, mesh->num_ghost_cells, weights, imbalance_tol, mesh_ex);
+  SCOTCH_Num* local_partition = repartition_graph(local_graph, m->num_ghost_cells, weights, imbalance_tol, mesh_ex);
 
   // Set up an exchanger to migrate field data.
   int num_vertices = adj_graph_num_vertices(local_graph);
-  exchanger_t* migrator = create_migrator(mesh->comm, local_partition, num_vertices);
+  exchanger_t* migrator = create_migrator(m->comm, local_partition, num_vertices);
 
   // Migrate the mesh.
   mesh_migrate(mesh, local_graph, migrator);
@@ -425,7 +434,7 @@ exchanger_t* repartition_mesh(mesh_t* mesh, int* weights, real_t imbalance_tol)
   // Return the migrator.
   return migrator;
 #else
-  return exchanger_new(mesh->comm);
+  return exchanger_new(m->comm);
 #endif
 }
 

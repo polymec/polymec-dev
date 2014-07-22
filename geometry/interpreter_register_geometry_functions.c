@@ -600,7 +600,7 @@ static int repartition(lua_State* lua)
 
   // Perform the repartitioning and toss the exchanger, since our poor 
   // interpreter doesn't understand exchangers.
-  exchanger_t* ex = repartition_mesh(mesh, weights, imbalance_tol);
+  exchanger_t* ex = repartition_mesh(&mesh, weights, imbalance_tol);
   exchanger_free(ex);
   if (weights != NULL)
     polymec_free(weights);

@@ -39,7 +39,7 @@ void test_repartition_uniform_mesh(void** state)
   mesh_t* mesh = create_uniform_mesh(MPI_COMM_WORLD, nx, ny, nz, &bbox);
 
   // Repartition it.
-  exchanger_t* migrator = repartition_mesh(mesh, NULL, 0.05);
+  exchanger_t* migrator = repartition_mesh(&mesh, NULL, 0.05);
   exchanger_free(migrator);
 
   // Plot it.
