@@ -28,69 +28,72 @@
 #include "core/unordered_set.h"
 #include "ptscotch.h"
 
-// This helper partitions a (serial) local graph, creating and returning a 
-// local partition vector.
-static SCOTCH_Num* partition_graph(adj_graph_t* local_graph, 
+// This helper partitions a (serial) global graph, creating and returning a 
+// global partition vector on rank 0.
+static SCOTCH_Num* partition_graph(adj_graph_t* global_graph, 
                                    int* weights,
-                                   real_t imbalance_tol,
-                                   exchanger_t* local_graph_ex)
+                                   real_t imbalance_tol)
 {
+  ASSERT(adj_graph_comm(global_graph) == MPI_COMM_WORLD);
+
   int nprocs, rank;
-  MPI_Comm comm = adj_graph_comm(local_graph);
+  MPI_Comm comm = adj_graph_comm(global_graph);
   MPI_Comm_size(comm, &nprocs);
   MPI_Comm_rank(comm, &rank);
-  int num_vertices = adj_graph_num_vertices(local_graph);
 
-  // Extract the adjacency information.
-  SCOTCH_Num* xadj = malloc(sizeof(SCOTCH_Num) * (num_vertices+1));
-  int* edge_offsets = adj_graph_edge_offsets(local_graph);
-  for (int i = 0; i <= num_vertices; ++i)
-    xadj[i] = (SCOTCH_Num)edge_offsets[i];
-  SCOTCH_Num num_arcs = xadj[num_vertices];
-  SCOTCH_Num* adj = malloc(sizeof(SCOTCH_Num) * num_arcs);
-  int* edges = adj_graph_adjacency(local_graph);
-  for (int i = 0; i < xadj[num_vertices]; ++i)
-    adj[i] = (SCOTCH_Num)edges[i];
+  ASSERT((rank == 0) || (global_graph == NULL));
 
-  // Build a distributed graph.
-  // FIXME
-  SCOTCH_Num* vtx_weights = NULL;
-  if (weights != NULL)
-  {
-    vtx_weights = polymec_malloc(sizeof(SCOTCH_Num) * num_vertices);
-    for (int i = 0; i < num_vertices; ++i)
-      vtx_weights[i] = (SCOTCH_Num)weights[i];
-  }
   SCOTCH_Dgraph dist_graph;
-  SCOTCH_dgraphInit(&dist_graph, comm);
-  SCOTCH_dgraphBuild(&dist_graph, 0, (SCOTCH_Num)num_vertices, (SCOTCH_Num)num_vertices,
-                     xadj, NULL, vtx_weights, NULL, num_arcs, num_arcs,
-                     adj, NULL, NULL);
-
-  // Generate the local partition vector by mapping the distributed graph.
-  SCOTCH_Num* local_partition = polymec_malloc(sizeof(SCOTCH_Num) * num_vertices);
+  SCOTCH_Num* vtx_weights = NULL;
+  int num_global_vertices = 0;
+  if (rank == 0)
   {
-    SCOTCH_Arch arch;
-    SCOTCH_archInit(&arch);
-    if (vtx_weights == NULL)
-      SCOTCH_archCmplt(&arch, num_vertices);
-    else
-      SCOTCH_archCmpltw(&arch, num_vertices, vtx_weights);
+    num_global_vertices = adj_graph_num_vertices(global_graph);
+
+    // Extract the adjacency information.
+    SCOTCH_Num* xadj = malloc(sizeof(SCOTCH_Num) * (num_global_vertices+1));
+    int* edge_offsets = adj_graph_edge_offsets(global_graph);
+    for (int i = 0; i <= num_global_vertices; ++i)
+      xadj[i] = (SCOTCH_Num)edge_offsets[i];
+    SCOTCH_Num num_arcs = xadj[num_global_vertices];
+    SCOTCH_Num* adj = malloc(sizeof(SCOTCH_Num) * num_arcs);
+    int* edges = adj_graph_adjacency(global_graph);
+    for (int i = 0; i < xadj[num_global_vertices]; ++i)
+      adj[i] = (SCOTCH_Num)edges[i];
+
+    // Build a graph on rank 0.
+    SCOTCH_dgraphInit(&dist_graph, comm);
+    if (weights != NULL)
+    {
+      vtx_weights = polymec_malloc(sizeof(SCOTCH_Num) * num_global_vertices);
+      for (int i = 0; i < num_global_vertices; ++i)
+        vtx_weights[i] = (SCOTCH_Num)weights[i];
+    }
+    SCOTCH_dgraphBuild(&dist_graph, 0, (SCOTCH_Num)num_global_vertices, (SCOTCH_Num)num_global_vertices,
+        xadj, NULL, vtx_weights, NULL, num_arcs, num_arcs,
+        adj, NULL, NULL);
+  }
+
+  // Generate the global partition vector by scattering the global graph.
+  SCOTCH_Num* global_partition = NULL;
+  if (rank == 0)
+  {
+    global_partition = polymec_malloc(sizeof(SCOTCH_Num) * num_global_vertices);
     SCOTCH_Strat strategy;
     SCOTCH_stratInit(&strategy);
     SCOTCH_Num strat_flags = SCOTCH_STRATDEFAULT;
     SCOTCH_stratDgraphMapBuild(&strategy, strat_flags, nprocs, nprocs, (double)imbalance_tol);
-    int result = SCOTCH_dgraphMap(&dist_graph, &arch, &strategy, local_partition);
+    int result = SCOTCH_dgraphPart(&dist_graph, nprocs, &strategy, global_partition);
     if (result != 0)
       polymec_error("Partitioning failed.");
     SCOTCH_stratExit(&strategy);
-    SCOTCH_archExit(&arch);
-  }
-  if (vtx_weights != NULL)
-    polymec_free(vtx_weights);
 
-  // Return the local partition vector.
-  return local_partition;
+    if (vtx_weights != NULL)
+      polymec_free(vtx_weights);
+  }
+
+  // Return the global partition vector.
+  return global_partition;
 }
 
 // This helper repartitions a local graph, creating and returning a 
@@ -200,6 +203,76 @@ printf("]\n");
 #endif
 }
 
+// This helper sets up the exchanger ex so that it can distribute data from the 
+// root process (0) according to the global partition vector. The partition 
+// vector is NULL on all nonzero ranks and defined on rank 0.
+static exchanger_t* create_distributor(SCOTCH_Num* global_partition,
+                                       int num_global_vertices)
+{
+  MPI_Comm comm = MPI_COMM_WORLD;
+
+  int nprocs, rank;
+  MPI_Comm_size(comm, &nprocs);
+  MPI_Comm_rank(comm, &rank);
+  ASSERT((rank == 0) || (global_partition == NULL));
+  ASSERT((rank == 0) || (num_global_vertices == 0));
+
+  exchanger_t* distributor = exchanger_new(comm);
+  
+  if (rank == 0)
+  {
+    // Get the number of vertices we're going to send to each other process.
+    int num_vertices_to_send[nprocs];
+    memset(num_vertices_to_send, 0, sizeof(int) * nprocs);
+    for (int v = 0; v < num_global_vertices; ++v)
+      num_vertices_to_send[global_partition[v]]++;
+
+    // Send this number.
+    int n;
+    MPI_Scatter(num_vertices_to_send, 1, MPI_INT, &n, 1, MPI_INT, 0, comm);
+
+    // Now send the vertices to each process and register these sends
+    // with the distributor.
+    for (int p = 1; p < nprocs; ++p)
+    {
+      int vertices[num_vertices_to_send[p]], k = 0, p_tag = p;
+      for (int i = 0; i < num_global_vertices; ++i)
+      {
+        if (global_partition[i] == p)
+          vertices[k++] = i;
+      }
+      MPI_Send(vertices, num_vertices_to_send[p], MPI_INT, p, p_tag, comm);
+      exchanger_set_send(distributor, p, vertices, num_vertices_to_send[p], true);
+    }
+
+    // Figure out the local vertices for rank 0.
+    int num_local_vertices = num_vertices_to_send[0];
+    int local_vertices[num_local_vertices], k = 0;
+    for (int i = 0; i < num_global_vertices; ++i)
+    {
+      if (global_partition[i] == 0)
+        local_vertices[k++] = i;
+    }
+  }
+  else
+  {
+    // Get the number of vertices we will receive from rank 0.
+    int num_local_vertices;
+    MPI_Scatter(NULL, 1, MPI_INT, &num_local_vertices, 1, MPI_INT, 0, comm);
+
+    // Now get the vertices.
+    int local_vertices[num_local_vertices], p_tag = rank;
+    MPI_Status status;
+    MPI_Recv(local_vertices, num_local_vertices, MPI_INT, 0, p_tag, comm, &status);
+
+    // Now register all the vertices we're receiving with the migrator.
+    ASSERT(num_local_vertices > 0);
+    exchanger_set_receive(distributor, 0, local_vertices, num_local_vertices, true);
+  }
+
+  return distributor;
+}
+
 // This helper sets up the exchanger ex so that it can migrate data from the 
 // current process according to the local partition vector.
 static exchanger_t* create_migrator(MPI_Comm comm,
@@ -289,9 +362,21 @@ static exchanger_t* create_migrator(MPI_Comm comm,
   return migrator;
 }
 
+static void point_cloud_distribute(point_cloud_t** cloud, 
+                                   adj_graph_t* global_graph, 
+                                   SCOTCH_Num* global_partition)
+{
+}
+
 static void point_cloud_migrate(point_cloud_t** cloud, 
                                 adj_graph_t* local_graph, 
                                 exchanger_t* migrator)
+{
+}
+
+static void mesh_distribute(mesh_t** mesh, 
+                            adj_graph_t* global_graph, 
+                            SCOTCH_Num* global_partition)
 {
 }
 
@@ -435,28 +520,25 @@ exchanger_t* partition_point_cloud(point_cloud_t** cloud, int* weights, real_t i
   // Clouds on rank != 0 must be NULL.
   ASSERT((rank == 0) || (*cloud == NULL));
 
-  // Generate a local adjacency graph for the point cloud.
-  adj_graph_t* local_graph = graph_from_point_cloud(cl);
-
-  // Get the exchanger for the point cloud.
-  exchanger_t* cloud_ex = point_cloud_exchanger(cl);
+  // Generate a global adjacency graph for the point cloud.
+  adj_graph_t* global_graph = (cl != NULL) ? graph_from_point_cloud(cl) : NULL;
 
   // Map the graph to the different domains, producing a local partition vector.
-  SCOTCH_Num* local_partition = partition_graph(local_graph, weights, imbalance_tol, cloud_ex);
+  SCOTCH_Num* global_partition = partition_graph(global_graph, weights, imbalance_tol);
 
-  // Set up an exchanger to migrate field data.
-  int num_vertices = adj_graph_num_vertices(local_graph);
-  exchanger_t* migrator = create_migrator(cl->comm, local_partition, num_vertices);
+  // Distribute the point cloud.
+  point_cloud_distribute(cloud, global_graph, global_partition);
 
-  // Migrate the point cloud.
-  point_cloud_migrate(cloud, local_graph, migrator);
+  // Set up an exchanger to distribute field data.
+  int num_vertices = (cl != NULL) ? adj_graph_num_vertices(global_graph) : 0;
+  exchanger_t* distributor = create_distributor(global_partition, num_vertices);
 
   // Clean up.
-  adj_graph_free(local_graph);
-  polymec_free(local_partition);
+  adj_graph_free(global_graph);
+  polymec_free(global_partition);
 
   // Return the migrator.
-  return (migrator == NULL) ? exchanger_new(cl->comm) : migrator;
+  return (distributor == NULL) ? exchanger_new(cl->comm) : distributor;
 #else
   return exchanger_new(cl->comm);
 #endif
@@ -526,28 +608,25 @@ exchanger_t* partition_mesh(mesh_t** mesh, int* weights, real_t imbalance_tol)
   // Meshes on rank != 0 must be NULL.
   ASSERT((rank == 0) || (*mesh == NULL));
 
-  // Generate a local adjacency graph for the mesh.
-  adj_graph_t* local_graph = graph_from_mesh_cells(m);
-
-  // Get the exchanger for the mesh.
-  exchanger_t* mesh_ex = mesh_exchanger(m);
+  // Generate a global adjacency graph for the mesh.
+  adj_graph_t* global_graph = (m != NULL) ? graph_from_mesh_cells(m) : NULL;
 
   // Map the graph to the different domains, producing a local partition vector.
-  SCOTCH_Num* local_partition = partition_graph(local_graph, weights, imbalance_tol, mesh_ex);
+  SCOTCH_Num* global_partition = partition_graph(global_graph, weights, imbalance_tol);
 
-  // Set up an exchanger to migrate field data.
-  int num_vertices = adj_graph_num_vertices(local_graph);
-  exchanger_t* migrator = create_migrator(m->comm, local_partition, num_vertices);
+  // Distribute the mesh.
+  mesh_distribute(mesh, global_graph, global_partition);
 
-  // Migrate the mesh.
-  mesh_migrate(mesh, local_graph, migrator);
+  // Set up an exchanger to distribute field data.
+  int num_vertices = (m != NULL) ? adj_graph_num_vertices(global_graph) : 0;
+  exchanger_t* distributor = create_distributor(global_partition, num_vertices);
 
   // Clean up.
-  adj_graph_free(local_graph);
-  polymec_free(local_partition);
+  adj_graph_free(global_graph);
+  polymec_free(global_partition);
 
   // Return the migrator.
-  return migrator;
+  return distributor;
 #else
   return exchanger_new(m->comm);
 #endif
