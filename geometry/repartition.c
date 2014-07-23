@@ -592,21 +592,27 @@ exchanger_t* partition_mesh(mesh_t** mesh, int* weights, real_t imbalance_tol)
 {
   ASSERT(imbalance_tol > 0.0);
   ASSERT(imbalance_tol <= 1.0);
+
+  MPI_Comm comm = MPI_COMM_WORLD;
   mesh_t* m = *mesh;
 
 #if POLYMEC_HAVE_MPI
   _Static_assert(sizeof(SCOTCH_Num) == sizeof(index_t), "SCOTCH_Num must be 64-bit.");
 
   int nprocs, rank;
-  MPI_Comm_size(m->comm, &nprocs);
-  MPI_Comm_rank(m->comm, &rank);
+  MPI_Comm_size(comm, &nprocs);
+  MPI_Comm_rank(comm, &rank);
 
   // On a single process, partitioning has no meaning.
   if (nprocs == 1)
-    return exchanger_new(m->comm);
+    return exchanger_new(comm);
 
-  // Meshes on rank != 0 must be NULL.
-  ASSERT((rank == 0) || (*mesh == NULL));
+  // If meshes on rank != 0 are not NULL, we delete them.
+  if ((rank != 0) && (m != NULL))
+  {
+    mesh_free(m);
+    m = NULL; 
+  }
 
   // Generate a global adjacency graph for the mesh.
   adj_graph_t* global_graph = (m != NULL) ? graph_from_mesh_cells(m) : NULL;
@@ -628,7 +634,7 @@ exchanger_t* partition_mesh(mesh_t** mesh, int* weights, real_t imbalance_tol)
   // Return the migrator.
   return distributor;
 #else
-  return exchanger_new(m->comm);
+  return exchanger_new(comm);
 #endif
 }
 
