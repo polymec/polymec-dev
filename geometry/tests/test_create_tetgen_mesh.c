@@ -37,8 +37,7 @@ void test_create_tetgen_mesh(void** state)
                                     CMAKE_CURRENT_SOURCE_DIR "/tetgen_example.1.node", 
                                     CMAKE_CURRENT_SOURCE_DIR "/tetgen_example.1.ele", 
                                     CMAKE_CURRENT_SOURCE_DIR "/tetgen_example.1.face", 
-                                    CMAKE_CURRENT_SOURCE_DIR "/tetgen_example.1.neigh", 
-                                    1);
+                                    CMAKE_CURRENT_SOURCE_DIR "/tetgen_example.1.neigh");
   mesh_verify(mesh);
   assert_int_equal(1020, mesh->num_cells);
   assert_int_equal(0, mesh->num_ghost_cells);
@@ -55,8 +54,7 @@ void test_plot_tetgen_mesh(void** state)
                                     CMAKE_CURRENT_SOURCE_DIR "/tetgen_example.1.node", 
                                     CMAKE_CURRENT_SOURCE_DIR "/tetgen_example.1.ele", 
                                     CMAKE_CURRENT_SOURCE_DIR "/tetgen_example.1.face", 
-                                    CMAKE_CURRENT_SOURCE_DIR "/tetgen_example.1.neigh",
-                                    1);
+                                    CMAKE_CURRENT_SOURCE_DIR "/tetgen_example.1.neigh");
   // Plot it.
   silo_file_t* silo = silo_file_new(mesh->comm, "tetgen_example", ".", 1, 0, 0, 0.0);
   silo_file_write_mesh(silo, "mesh", mesh);

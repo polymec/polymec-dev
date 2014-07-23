@@ -29,17 +29,14 @@
 #include "core/point.h"
 
 // This function creates a mesh using .node, .ele, .face, and .neigh files 
-// created by TetGen. When called by parallel processes, the function opens 
-// one file descriptor per number of "reader groups," and one process per 
-// group reads the files and distributes mesh information to other processes 
-// in that group. If num_reader_groups == -1, the number of groups is equal 
-// to the number of processes in the given communicator.
+// created by TetGen. A global mesh is constructed on process 0 and is then 
+// partitioned onto the given communicator using an unweighted partitioning 
+// algorithm with a maximum load imbalance ratio of 0.05.
 mesh_t* create_tetgen_mesh(MPI_Comm comm, 
                            const char* node_file,
                            const char* ele_file,
                            const char* face_file,
-                           const char* neigh_file,
-                           int num_reader_groups);
+                           const char* neigh_file);
 
 #endif
 
