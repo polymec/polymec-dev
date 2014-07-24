@@ -362,6 +362,13 @@ static exchanger_t* create_migrator(MPI_Comm comm,
   return migrator;
 }
 
+// This helper constructs and returns a point cloud from the given points in 
+// the given point cloud.
+static point_cloud_t* create_subcloud(point_cloud_t* cloud, int* indices, int num_indices)
+{
+  return NULL;
+}
+
 static void point_cloud_distribute(point_cloud_t** cloud, 
                                    adj_graph_t* global_graph, 
                                    SCOTCH_Num* global_partition)
@@ -374,10 +381,93 @@ static void point_cloud_migrate(point_cloud_t** cloud,
 {
 }
 
+// This helper constructs and returns a mesh from the cells with the given
+// indices in the given mesh.
+static mesh_t* create_submesh(mesh_t* mesh, int* indices, int num_indices)
+{
+  return NULL;
+}
+
 static void mesh_distribute(mesh_t** mesh, 
                             adj_graph_t* global_graph, 
                             SCOTCH_Num* global_partition)
 {
+  MPI_Comm comm = MPI_COMM_WORLD;
+  int nprocs, rank;
+  MPI_Comm_size(comm, &nprocs);
+  MPI_Comm_rank(comm, &rank);
+
+  mesh_t* global_mesh = *mesh;
+  mesh_t* local_mesh = NULL;
+  if (rank == 0)
+  {
+    // Take stock of how many cells we'll have per process.
+    int num_cells[nprocs];
+    memset(num_cells, 0, sizeof(int) * nprocs);
+    for (int i = 0; i < global_mesh->num_cells; ++i)
+      num_cells[global_partition[i]]++;
+
+    // Carve out the portion of the mesh that will stick around on process 0.
+    {
+      int indices[num_cells[0]], k = 0;
+      for (int i = 0; i < global_mesh->num_cells; ++i)
+      {
+        if (global_partition[i] == rank)
+          indices[k++] = i;
+      }
+      local_mesh = create_submesh(global_mesh, indices, num_cells[0]);
+    }
+
+    // Now do the other processes.
+    serializer_t* ser = mesh_serializer();
+    byte_array_t* bytes = byte_array_new();
+    for (int p = 1; p < nprocs; ++p)
+    {
+      // Create the pth submesh.
+      int indices[num_cells[p]], k = 0;
+      for (int i = 0; i < global_mesh->num_cells; ++i)
+      {
+        if (global_partition[i] == p)
+          indices[k++] = i;
+      }
+      mesh_t* p_mesh = create_submesh(global_mesh, indices, num_cells[p]);
+
+      // Serialize it and send its size (and it) to process p.
+      size_t offset = 0;
+      serializer_write(ser, p_mesh, bytes, &offset);
+      MPI_Send(&bytes->size, 1, MPI_INT, p, p, comm);
+      MPI_Send(&bytes->data, bytes->size, MPI_BYTE, p, p, comm);
+
+      // Clean up.
+      byte_array_clear(bytes);
+      mesh_free(p_mesh);
+    }
+    ser = NULL;
+    byte_array_free(bytes);
+  }
+  else
+  {
+    // Receive the size of the incoming mesh.
+    int mesh_size;
+    MPI_Status status;
+    MPI_Recv(&mesh_size, 1, MPI_INT, 0, rank, comm, &status);
+
+    // Now receive the mesh.
+    byte_array_t* bytes = byte_array_new();
+    byte_array_resize(bytes, mesh_size);
+    MPI_Recv(bytes->data, mesh_size, MPI_BYTE, 0, rank, comm, &status);
+    size_t offset = 0;
+    serializer_t* ser = mesh_serializer();
+    local_mesh = serializer_read(ser, bytes, &offset);
+    
+    byte_array_free(bytes);
+    ser = NULL;
+  }
+
+  *mesh = local_mesh;
+
+  // Clean up.
+  mesh_free(global_mesh);
 }
 
 static void mesh_migrate(mesh_t** mesh, 
