@@ -1022,7 +1022,6 @@ static void interpreter_store_chunk_contents(interpreter_t* interp)
         continue;
       }
       string_ptr_unordered_map_t* table = lua_tounorderedmap(lua, val_index);
-      if (table == NULL)
       var = store_table(NULL, table);
     }
     else 
