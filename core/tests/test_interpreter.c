@@ -232,6 +232,34 @@ void test_vectorlist_parsing(void** state)
   interpreter_free(interp);
 }
 
+void test_table_parsing(void** state)
+{
+  static const char* test_string = "tab = {a = 1, b = 'bob', c = 2.0}";
+  interpreter_validation_t valid_inputs[] = {{"tab", INTERPRETER_TABLE, REQUIRED},
+                                             END_OF_VALID_INPUTS};
+  interpreter_t* interp = interpreter_new(valid_inputs);
+  interpreter_parse_string(interp, (char*)test_string);
+
+  assert_true(interpreter_contains(interp, "tab", INTERPRETER_TABLE));
+  assert_true(!interpreter_contains(interp, "c", INTERPRETER_TABLE));
+  assert_true(interpreter_get_table(interp, "tab") != NULL);
+  assert_true(interpreter_get_table(interp, "c") == NULL);
+  string_ptr_unordered_map_t* tab = interpreter_get_table(interp, "tab");
+  assert_true(tab != NULL);
+  assert_int_equal(3, tab->size);
+  double** a = (double**)string_ptr_unordered_map_get(tab, "a");
+  assert_true(a != NULL);
+  assert_true(**a == 1.0);
+  char** b = (char**)string_ptr_unordered_map_get(tab, "b");
+  assert_true(b != NULL);
+  assert_int_equal(0, strcmp(*b, "bob"));
+  double** c = (double**)string_ptr_unordered_map_get(tab, "c");
+  assert_true(c != NULL);
+  assert_true(**c == 2.0);
+  string_ptr_unordered_map_free(tab);
+  interpreter_free(interp);
+}
+
 int main(int argc, char* argv[]) 
 {
   polymec_init(argc, argv);
@@ -242,7 +270,8 @@ int main(int argc, char* argv[])
     unit_test(test_vector_parsing),
     unit_test(test_boundingbox_parsing),
     unit_test(test_pointlist_parsing),
-    unit_test(test_vectorlist_parsing)
+    unit_test(test_vectorlist_parsing),
+    unit_test(test_table_parsing)
   };
   return run_tests(tests);
 }

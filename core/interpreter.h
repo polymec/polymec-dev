@@ -464,7 +464,7 @@ void lua_pushuserdefined(struct lua_State* lua, void* userdefined, void (*dtor)(
 // Converts the lua table at the given index to an unordered map that associates 
 // string keys with user-defined (pointer) objects. This function returns a newly-
 // allocated unordered map if the table at the given index has string or integer keys,
-// and fails with a fatal error if the table cannot be constructed.
+// and NULL if no such table can be constructed.
 string_ptr_unordered_map_t* lua_tounorderedmap(struct lua_State* lua, int index);
 
 #endif

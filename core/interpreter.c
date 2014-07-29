@@ -163,19 +163,6 @@ static void destroy_string(char* key)
   polymec_free(key);
 }
 
-static void destroy_table_entry(char* key, void* value)
-{
-  polymec_free(key);
-  polymec_free(value);
-}
-
-static void destroy_table_tuple(char* key, void* value)
-{
-  polymec_free(key);
-  real_t* tuple = value;
-  real_tuple_free(tuple);
-}
-
 // A key-value pair for a metatable.
 typedef struct
 {
@@ -1022,6 +1009,11 @@ static void interpreter_store_chunk_contents(interpreter_t* interp)
         continue;
       }
       string_ptr_unordered_map_t* table = lua_tounorderedmap(lua, val_index);
+      if (table == NULL)
+      {
+        polymec_error("Variable '%s' could not be interpreted as a table.\n"
+                      "(Tables must be integer or string keys mapped to objects.)", key);
+      }
       var = store_table(NULL, table);
     }
     else 
@@ -2573,12 +2565,25 @@ void lua_pushuserdefined(struct lua_State* lua, void* userdefined, void (*dtor)(
   store_user_defined(lua, userdefined, dtor);
 }
 
+static void destroy_table_entry(char* key, void* value)
+{
+  polymec_free(key);
+  polymec_free(value);
+}
+
+static void destroy_table_tuple(char* key, void* value)
+{
+  polymec_free(key);
+  real_t* tuple = value;
+  real_tuple_free(tuple);
+}
+
 string_ptr_unordered_map_t* lua_tounorderedmap(struct lua_State* lua, int index)
 {
   // Before we do anything, we validate the table.
   interpreter_var_type_t value_type = INTERPRETER_TERMINUS;
-  static const char* type_names[] = {"string", "number", "boolean", "sequence", "mesh", "function"};
   // Traverse this table and make sure its keys are all of one type.
+  index = lua_absindex(lua, index);
   lua_pushnil(lua);
   while (lua_next(lua, index))
   {
@@ -2586,21 +2591,16 @@ string_ptr_unordered_map_t* lua_tounorderedmap(struct lua_State* lua, int index)
     static const int key_index = -2;
     static const int val_index = -1;
     if (!lua_isstring(lua, key_index) && !lua_isnumber(lua, key_index))
-    {
-      polymec_error("Type error: table must be a list of objects or a table mapping strings to objects.");
-    }
+      return NULL;
     if (!lua_isnumber(lua, val_index) && 
         !lua_isboolean(lua, val_index) && 
         !lua_isstring(lua, val_index) && 
         !lua_issequence(lua, val_index) && 
         !lua_isuserdata(lua, val_index))
-    {
-      polymec_error("Type error: table must be a list of objects or a table mapping strings to objects.");
-    }
+      return NULL;
 
     // Convert our key to a string. If it's an integer, it will be 
     // converted to its string representation.
-    char* tkey = (char*)lua_tostring(lua, key_index);
     void* tval = lua_touserdata(lua, val_index);
     if (tval == NULL)
     {
@@ -2615,14 +2615,11 @@ string_ptr_unordered_map_t* lua_tounorderedmap(struct lua_State* lua, int index)
     {
       interpreter_storage_t* tvar = tval;
       if (tvar->type == INTERPRETER_TABLE)
-        polymec_error("Value error: Key '%s' in table stores a table (not allowed!)", tkey); 
+        return NULL;
       if (value_type == INTERPRETER_TERMINUS)
         value_type = tvar->type;
       else if (tvar->type != value_type)
-      {
-        polymec_error("Value error: Key '%s' in table stores a %s (should be %s)", 
-            tkey, type_names[tvar->type], type_names[value_type]);
-      }
+        return NULL;
     }
 
     // Removes value from stack.
@@ -2642,18 +2639,18 @@ string_ptr_unordered_map_t* lua_tounorderedmap(struct lua_State* lua, int index)
     {
       real_t* var = polymec_malloc(sizeof(real_t));
       *var = (real_t)lua_tonumber(lua, val_index);
-      string_ptr_unordered_map_insert_with_kv_dtor(table, tkey, var, destroy_table_entry);
+      string_ptr_unordered_map_insert_with_kv_dtor(table, string_dup(tkey), var, destroy_table_entry);
     }
     else if (lua_isboolean(lua, val_index))
     {
       bool* var = polymec_malloc(sizeof(bool));
       *var = lua_toboolean(lua, val_index);
-      string_ptr_unordered_map_insert_with_kv_dtor(table, tkey, var, destroy_table_entry);
+      string_ptr_unordered_map_insert_with_kv_dtor(table, string_dup(tkey), var, destroy_table_entry);
     }
     else if (lua_isstring(lua, val_index))
     {
       const char* var = lua_tostring(lua, val_index);
-      string_ptr_unordered_map_insert_with_kv_dtor(table, tkey, string_dup(var), destroy_table_entry);
+      string_ptr_unordered_map_insert_with_kv_dtor(table, string_dup(tkey), string_dup(var), destroy_table_entry);
     }
     else if (lua_issequence(lua, val_index))
     {
@@ -2663,13 +2660,13 @@ string_ptr_unordered_map_t* lua_tounorderedmap(struct lua_State* lua, int index)
       real_t* tuple = real_tuple_new(len);
       memcpy(tuple, var, sizeof(real_t) * len);
       polymec_free(var);
-      string_ptr_unordered_map_insert_with_kv_dtor(table, tkey, tuple, destroy_table_tuple);
+      string_ptr_unordered_map_insert_with_kv_dtor(table, string_dup(tkey), tuple, destroy_table_tuple);
     }
     else if (lua_isuserdata(lua, val_index))
     {
       void* tval = (void*)lua_topointer(lua, val_index);
       interpreter_storage_t* tvar = (interpreter_storage_t*)tval;
-      string_ptr_unordered_map_insert_with_kv_dtor(table, tkey, tvar->datum, destroy_table_entry);
+      string_ptr_unordered_map_insert_with_kv_dtor(table, string_dup(tkey), tvar->datum, destroy_table_entry);
     }
 
     // Removes value from stack.
