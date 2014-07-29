@@ -461,5 +461,11 @@ void* lua_touserdefined(struct lua_State* lua, int index);
 // return value for a function). dtor is a destructor for the user-defined object.
 void lua_pushuserdefined(struct lua_State* lua, void* userdefined, void (*dtor)(void*));
 
+// Converts the lua table at the given index to an unordered map that associates 
+// string keys with user-defined (pointer) objects. This function returns a newly-
+// allocated unordered map if the table at the given index has string or integer keys,
+// and fails with a fatal error if the table cannot be constructed.
+string_ptr_unordered_map_t* lua_tounorderedmap(struct lua_State* lua, int index);
+
 #endif
 
