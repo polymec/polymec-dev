@@ -468,6 +468,45 @@ static void mesh_distribute(mesh_t** mesh,
 
   // Clean up.
   mesh_free(global_mesh);
+
+  // Now we create the exchanger using the encoded ghost cell indices.
+  index_t* vtx_dist = adj_graph_vertex_dist(global_graph);
+  int_ptr_unordered_map_t* ghost_cell_indices = int_ptr_unordered_map_new();
+  for (int f = 0; f < local_mesh->num_faces; ++f)
+  {
+    if (local_mesh->face_cells[2*f+1] < -1) 
+    {
+      int global_ghost_index = -(local_mesh->face_cells[2*f+1] + 2);
+
+      // Find the process and local index for this ghost cell.
+      int proc = 0;
+      while (vtx_dist[proc+1] < global_ghost_index) ++proc;
+      int local_ghost_index = global_ghost_index - vtx_dist[proc];
+
+      if (!int_ptr_unordered_map_contains(ghost_cell_indices, proc))
+        int_ptr_unordered_map_insert_with_v_dtor(ghost_cell_indices, proc, int_array_new(), DTOR(int_array_free));
+      int_array_t* indices = *int_ptr_unordered_map_get(ghost_cell_indices, proc);
+      int_array_append(indices, local_mesh->face_cells[2*f]);
+      int_array_append(indices, local_ghost_index);
+    }
+  }
+  exchanger_t* ex = mesh_exchanger(local_mesh);
+  int pos = 0, proc;
+  index_array_t* indices;
+  while (int_ptr_unordered_map_next(ghost_cell_indices, &pos, &proc, (void**)&indices))
+  {
+    int send_indices[indices->size/2], recv_indices[indices->size/2];
+    for (int i = 0; i < indices->size/2; ++i)
+    {
+      send_indices[i] = indices->data[2*i];
+      recv_indices[i] = indices->data[2*i+1];
+    }
+    exchanger_set_send(ex, proc, send_indices, indices->size/2, true);
+    exchanger_set_receive(ex, proc, recv_indices, indices->size/2, true);
+  }
+
+  // Clean up again.
+  int_ptr_unordered_map_free(ghost_cell_indices);
 }
 
 static void mesh_migrate(mesh_t** mesh, 
