@@ -385,7 +385,111 @@ static void point_cloud_migrate(point_cloud_t** cloud,
 // indices in the given mesh.
 static mesh_t* create_submesh(mesh_t* mesh, int* indices, int num_indices)
 {
-  return NULL;
+  // Count unique mesh elements.
+  int num_cells = num_indices, num_ghost_cells = 0;
+  int_unordered_set_t* face_indices = int_unordered_set_new();
+  int_unordered_set_t* node_indices = int_unordered_set_new();
+  for (int i = 0; i < num_indices; ++i)
+  {
+    int cell = indices[i], fpos = 0, face;
+    while (mesh_cell_next_face(mesh, cell, &fpos, &face))
+    {
+      if (mesh_face_opp_cell(mesh, face, cell) >= mesh->num_cells)
+        ++num_ghost_cells;
+      int_unordered_set_insert(face_indices, face);
+      int npos = 0, node;
+      while (mesh_face_next_node(mesh, face, &npos, &node))
+        int_unordered_set_insert(node_indices, node);
+    }
+  }
+
+  // Create the submesh container.
+  int num_faces = face_indices->size, num_nodes = node_indices->size;
+  mesh_t* submesh = mesh_new(mesh->comm, num_cells, num_ghost_cells, num_faces, num_nodes);
+
+  // Create mappings for faces and nodes.
+  int* face_map = polymec_malloc(sizeof(int) * num_faces);
+  {
+    int fpos = 0, face, f = 0;
+    while (int_unordered_set_next(face_indices, &fpos, &face))
+      face_map[f++] = face;
+  }
+  int_unordered_set_free(face_indices);
+  int* node_map = polymec_malloc(sizeof(int) * num_nodes);
+  {
+    int npos = 0, node, n = 0;
+    while (int_unordered_set_next(node_indices, &npos, &node))
+      node_map[n++] = node;
+  }
+  int_unordered_set_free(node_indices);
+
+  // Allocate cell faces and face nodes (and generate inverse maps).
+  int_int_unordered_map_t* inverse_cell_map = int_int_unordered_map_new();
+  submesh->cell_face_offsets[0] = 0;
+  for (int c = 0; c < num_cells; ++c)
+  {
+    int_int_unordered_map_insert(inverse_cell_map, indices[c], c);
+    int num_cell_faces = mesh->cell_face_offsets[indices[c]+1] - mesh->cell_face_offsets[indices[c]];
+    submesh->cell_face_offsets[c+1] = submesh->cell_face_offsets[c] + num_cell_faces;
+  }
+  int_int_unordered_map_t* inverse_face_map = int_int_unordered_map_new();
+  submesh->face_node_offsets[0] = 0;
+  for (int f = 0; f < num_faces; ++f)
+  {
+    int_int_unordered_map_insert(inverse_face_map, face_map[f], f);
+    int num_face_nodes = mesh->face_node_offsets[face_map[f]+1] - mesh->face_node_offsets[face_map[f]];
+    submesh->face_node_offsets[f+1] = submesh->face_node_offsets[f] + num_face_nodes;
+  }
+  int_int_unordered_map_t* inverse_node_map = int_int_unordered_map_new();
+  for (int n = 0; n < num_nodes; ++n)
+    int_int_unordered_map_insert(inverse_node_map, node_map[n], n);
+  mesh_reserve_connectivity_storage(submesh);
+
+  // Copy cell faces.
+  for (int c = 0; c < num_cells; ++c)
+  {
+    int num_cell_faces = submesh->cell_face_offsets[c+1] - submesh->cell_face_offsets[c];
+    for (int f = 0; f < num_cell_faces; ++f)
+      submesh->cell_faces[submesh->cell_face_offsets[c]+f] = *int_int_unordered_map_get(inverse_face_map, mesh->cell_faces[indices[c]+f]);
+  }
+
+  // Copy face cells and face nodes.
+  for (int f = 0; f < num_faces; ++f)
+  {
+    submesh->face_cells[2*f] = *int_int_unordered_map_get(inverse_cell_map, mesh->face_cells[2*face_map[f]]);
+    int* opp_cell_p = int_int_unordered_map_get(inverse_cell_map, mesh->face_cells[2*face_map[f]+1]);
+    if (opp_cell_p != NULL)
+      submesh->face_cells[2*f+1] = *opp_cell_p;
+    else
+    {
+      // This is a ghost cell. FIXME
+    }
+    int num_face_nodes = submesh->face_node_offsets[f+1] - submesh->face_node_offsets[f];
+    for (int n = 0; n < num_face_nodes; ++n)
+      submesh->face_nodes[submesh->face_node_offsets[f]+n] = *int_int_unordered_map_get(inverse_node_map, mesh->face_nodes[face_map[f]+n]);
+  }
+
+  // Copy node positions.
+  for (int n = 0; n < num_nodes; ++n)
+  {
+    submesh->nodes[n].x = mesh->nodes[node_map[n]].x;
+    submesh->nodes[n].y = mesh->nodes[node_map[n]].y;
+    submesh->nodes[n].z = mesh->nodes[node_map[n]].z;
+  }
+
+  // Finish things up.
+  // FIXME: Is this needed?
+  mesh_construct_edges(submesh);
+  mesh_compute_geometry(submesh);
+
+  // Clean up.
+  int_int_unordered_map_free(inverse_cell_map);
+  int_int_unordered_map_free(inverse_face_map);
+  int_int_unordered_map_free(inverse_node_map);
+  polymec_free(face_map);
+  polymec_free(node_map);
+
+  return submesh;
 }
 
 static void mesh_distribute(mesh_t** mesh, 
