@@ -383,8 +383,18 @@ static void point_cloud_migrate(point_cloud_t** cloud,
 
 // This helper constructs and returns a mesh from the cells with the given
 // indices in the given mesh.
-static mesh_t* create_submesh(mesh_t* mesh, int* indices, int num_indices)
+static mesh_t* create_submesh(mesh_t* mesh, index_t* vtx_dist, int* indices, int num_indices)
 {
+  int rank;
+  MPI_Comm_rank(mesh->comm, &rank);
+
+  // Construct a set of global cell indices for ghosts on this mesh.
+  uint64_t* global_cell_indices = polymec_malloc(sizeof(uint64_t) * (mesh->num_cells + mesh->num_ghost_cells));
+  for (int i = 0; i < mesh->num_cells; ++i)
+    global_cell_indices[i] = vtx_dist[rank] + i;
+  exchanger_t* ex = mesh_exchanger(mesh);
+  exchanger_exchange(ex, global_cell_indices, 1, 0, MPI_UINT64_T);
+
   // Count unique mesh elements.
   int num_cells = num_indices, num_ghost_cells = 0;
   int_unordered_set_t* face_indices = int_unordered_set_new();
@@ -462,7 +472,25 @@ static mesh_t* create_submesh(mesh_t* mesh, int* indices, int num_indices)
       submesh->face_cells[2*f+1] = *opp_cell_p;
     else
     {
-      // This is a ghost cell. FIXME
+      // This is a ghost cell. Either it belongs to the mesh we're carving up, 
+      // or we can find it in the exchanger.
+      int ghost_cell = mesh->face_cells[2*face_map[f]+1];
+      int global_index;
+      if (ghost_cell < mesh->num_cells) 
+      {
+        // It belongs to the mesh. 
+        global_index = ghost_cell + vtx_dist[rank];
+      }
+      else
+      {
+        // It's actually a ghost cell of the mesh. Fetch its global cell index 
+        // from the exchanger.
+        ASSERT(ghost_cell >= mesh->num_cells);
+        global_index = global_cell_indices[ghost_cell];
+      }
+
+      // Encode the global cell index in this entry of the submesh.
+      submesh->face_cells[2*f+1] = -global_index - 2;
     }
     int num_face_nodes = submesh->face_node_offsets[f+1] - submesh->face_node_offsets[f];
     for (int n = 0; n < num_face_nodes; ++n)
@@ -483,6 +511,7 @@ static mesh_t* create_submesh(mesh_t* mesh, int* indices, int num_indices)
   mesh_compute_geometry(submesh);
 
   // Clean up.
+  polymec_free(global_cell_indices);
   int_int_unordered_map_free(inverse_cell_map);
   int_int_unordered_map_free(inverse_face_map);
   int_int_unordered_map_free(inverse_node_map);
@@ -503,6 +532,7 @@ static void mesh_distribute(mesh_t** mesh,
 
   mesh_t* global_mesh = *mesh;
   mesh_t* local_mesh = NULL;
+  index_t* vtx_dist = adj_graph_vertex_dist(global_graph);
   if (rank == 0)
   {
     // Take stock of how many cells we'll have per process.
@@ -519,7 +549,7 @@ static void mesh_distribute(mesh_t** mesh,
         if (global_partition[i] == rank)
           indices[k++] = i;
       }
-      local_mesh = create_submesh(global_mesh, indices, num_cells[0]);
+      local_mesh = create_submesh(global_mesh, vtx_dist, indices, num_cells[0]);
     }
 
     // Now do the other processes.
@@ -534,7 +564,7 @@ static void mesh_distribute(mesh_t** mesh,
         if (global_partition[i] == p)
           indices[k++] = i;
       }
-      mesh_t* p_mesh = create_submesh(global_mesh, indices, num_cells[p]);
+      mesh_t* p_mesh = create_submesh(global_mesh, vtx_dist, indices, num_cells[p]);
 
       // Serialize it and send its size (and it) to process p.
       size_t offset = 0;
@@ -574,7 +604,6 @@ static void mesh_distribute(mesh_t** mesh,
   mesh_free(global_mesh);
 
   // Now we create the exchanger using the encoded ghost cell indices.
-  index_t* vtx_dist = adj_graph_vertex_dist(global_graph);
   int_ptr_unordered_map_t* ghost_cell_indices = int_ptr_unordered_map_new();
   for (int f = 0; f < local_mesh->num_faces; ++f)
   {
@@ -827,7 +856,6 @@ exchanger_t* partition_mesh(mesh_t** mesh, int* weights, real_t imbalance_tol)
   ASSERT(imbalance_tol <= 1.0);
 
   MPI_Comm comm = MPI_COMM_WORLD;
-  mesh_t* m = *mesh;
 
 #if POLYMEC_HAVE_MPI
   _Static_assert(sizeof(SCOTCH_Num) == sizeof(index_t), "SCOTCH_Num must be 64-bit.");
@@ -841,6 +869,7 @@ exchanger_t* partition_mesh(mesh_t** mesh, int* weights, real_t imbalance_tol)
     return exchanger_new(comm);
 
   // If meshes on rank != 0 are not NULL, we delete them.
+  mesh_t* m = *mesh;
   if ((rank != 0) && (m != NULL))
   {
     mesh_free(m);
