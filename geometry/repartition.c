@@ -385,13 +385,17 @@ static void point_cloud_migrate(point_cloud_t** cloud,
 // indices in the given mesh.
 static mesh_t* create_submesh(mesh_t* mesh, index_t* vtx_dist, int* indices, int num_indices)
 {
+  // This is either called with vtx_dist == NULL for one global mesh on rank 0, 
+  // or with a non-NULL vtx_dist for a set of local meshes.
   int rank;
   MPI_Comm_rank(mesh->comm, &rank);
+  ASSERT(((rank == 0) && (vtx_dist == NULL)) || (vtx_dist != NULL));
+  index_t first_index = (vtx_dist != NULL) ? vtx_dist[rank] : 0;
 
   // Construct a set of global cell indices for ghosts on this mesh.
   uint64_t* global_cell_indices = polymec_malloc(sizeof(uint64_t) * (mesh->num_cells + mesh->num_ghost_cells));
   for (int i = 0; i < mesh->num_cells; ++i)
-    global_cell_indices[i] = vtx_dist[rank] + i;
+    global_cell_indices[i] = first_index + i;
   exchanger_t* ex = mesh_exchanger(mesh);
   exchanger_exchange(ex, global_cell_indices, 1, 0, MPI_UINT64_T);
 
@@ -479,7 +483,7 @@ static mesh_t* create_submesh(mesh_t* mesh, index_t* vtx_dist, int* indices, int
       if (ghost_cell < mesh->num_cells) 
       {
         // It belongs to the mesh. 
-        global_index = ghost_cell + vtx_dist[rank];
+        global_index = ghost_cell + first_index;
       }
       else
       {
@@ -532,7 +536,7 @@ static void mesh_distribute(mesh_t** mesh,
 
   mesh_t* global_mesh = *mesh;
   mesh_t* local_mesh = NULL;
-  index_t* vtx_dist = adj_graph_vertex_dist(global_graph);
+  uint64_t vtx_dist[nprocs+1];
   if (rank == 0)
   {
     // Take stock of how many cells we'll have per process.
@@ -540,6 +544,11 @@ static void mesh_distribute(mesh_t** mesh,
     memset(num_cells, 0, sizeof(int) * nprocs);
     for (int i = 0; i < global_mesh->num_cells; ++i)
       num_cells[global_partition[i]]++;
+
+    // Construct the distribution of vertices for the partitioning.
+    vtx_dist[0] = 0;
+    for (int p = 0; p < nprocs; ++p)
+      vtx_dist[p+1] = vtx_dist[p] + num_cells[p];
 
     // Carve out the portion of the mesh that will stick around on process 0.
     {
@@ -549,7 +558,7 @@ static void mesh_distribute(mesh_t** mesh,
         if (global_partition[i] == rank)
           indices[k++] = i;
       }
-      local_mesh = create_submesh(global_mesh, vtx_dist, indices, num_cells[0]);
+      local_mesh = create_submesh(global_mesh, NULL, indices, num_cells[0]);
     }
 
     // Now do the other processes.
@@ -564,7 +573,7 @@ static void mesh_distribute(mesh_t** mesh,
         if (global_partition[i] == p)
           indices[k++] = i;
       }
-      mesh_t* p_mesh = create_submesh(global_mesh, vtx_dist, indices, num_cells[p]);
+      mesh_t* p_mesh = create_submesh(global_mesh, NULL, indices, num_cells[p]);
 
       // Serialize it and send its size (and it) to process p.
       size_t offset = 0;
@@ -603,13 +612,16 @@ static void mesh_distribute(mesh_t** mesh,
   // Clean up.
   mesh_free(global_mesh);
 
+  // Share the vertex distribution with our friends.
+  MPI_Allgather(vtx_dist, nprocs+1, MPI_UINT64_T, vtx_dist, nprocs+1, MPI_UINT64_T, local_mesh->comm);
+
   // Now we create the exchanger using the encoded ghost cell indices.
   int_ptr_unordered_map_t* ghost_cell_indices = int_ptr_unordered_map_new();
   for (int f = 0; f < local_mesh->num_faces; ++f)
   {
     if (local_mesh->face_cells[2*f+1] < -1) 
     {
-      int global_ghost_index = -(local_mesh->face_cells[2*f+1] + 2);
+      uint64_t global_ghost_index = -(local_mesh->face_cells[2*f+1] + 2);
 
       // Find the process and local index for this ghost cell.
       int proc = 0;
