@@ -356,7 +356,7 @@ static bool face_points_outward(tet_face_t* face,
   return (vector_dot(&d, &nf) > 0.0);
 }
 
-mesh_t* create_tetgen_mesh(MPI_Comm comm, 
+mesh_t* create_tetgen_mesh(MPI_Comm comm,
                            const char* node_file,
                            const char* ele_file,
                            const char* face_file,
@@ -365,9 +365,6 @@ mesh_t* create_tetgen_mesh(MPI_Comm comm,
   int rank, nproc;
   MPI_Comm_rank(comm, &rank);
   MPI_Comm_size(comm, &nproc);
-
-  if (nproc > 1)
-    polymec_not_implemented("create_tetgen_mesh()");
 
   mesh_t* mesh = NULL;
 
@@ -387,7 +384,7 @@ mesh_t* create_tetgen_mesh(MPI_Comm comm,
     read_neighbors(neigh_file, tets, num_tets);
 
     // Create a mesh full of tetrahedra (4 faces per cell, 3 nodes per face).
-    mesh = mesh_new_with_cell_type(comm, num_tets, 0, num_faces, num_nodes, 4, nodes_per_face);
+    mesh = mesh_new_with_cell_type(MPI_COMM_SELF, num_tets, 0, num_faces, num_nodes, 4, nodes_per_face);
 
     // Copy node coordinates.
     memcpy(mesh->nodes, nodes, sizeof(point_t) * num_nodes);
@@ -563,7 +560,7 @@ mesh_t* create_tetgen_mesh(MPI_Comm comm,
   }
 
   // Partition the mesh (without weights).
-  partition_mesh(&mesh, NULL, 0.05);
+  partition_mesh(&mesh, comm, NULL, 0.05);
   
   mesh_add_feature(mesh, TETRAHEDRAL);
   return mesh;

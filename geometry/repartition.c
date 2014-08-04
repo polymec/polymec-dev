@@ -31,13 +31,13 @@
 // This helper partitions a (serial) global graph, creating and returning a 
 // global partition vector. It should only be called on rank 0.
 static SCOTCH_Num* partition_graph(adj_graph_t* global_graph, 
+                                   MPI_Comm comm,
                                    int* weights,
                                    real_t imbalance_tol)
 {
   ASSERT(adj_graph_comm(global_graph) == MPI_COMM_SELF);
 
   int nprocs, rank;
-  MPI_Comm comm = MPI_COMM_WORLD;
   MPI_Comm_size(comm, &nprocs);
   MPI_Comm_rank(comm, &rank);
   ASSERT(rank == 0);
@@ -205,11 +205,10 @@ printf("]\n");
 // This helper sets up the exchanger ex so that it can distribute data from the 
 // root process (0) according to the global partition vector. The partition 
 // vector is NULL on all nonzero ranks and defined on rank 0.
-static exchanger_t* create_distributor(SCOTCH_Num* global_partition,
+static exchanger_t* create_distributor(MPI_Comm comm, 
+                                       SCOTCH_Num* global_partition,
                                        int num_global_vertices)
 {
-  MPI_Comm comm = MPI_COMM_WORLD;
-
   int nprocs, rank;
   MPI_Comm_size(comm, &nprocs);
   MPI_Comm_rank(comm, &rank);
@@ -370,6 +369,7 @@ static point_cloud_t* create_subcloud(point_cloud_t* cloud, int* indices, int nu
 }
 
 static void point_cloud_distribute(point_cloud_t** cloud, 
+                                   MPI_Comm comm,
                                    adj_graph_t* global_graph, 
                                    SCOTCH_Num* global_partition)
 {
@@ -405,6 +405,11 @@ static mesh_t* create_submesh(MPI_Comm comm, mesh_t* mesh, index_t* vtx_dist, in
     exchanger_exchange(ex, global_cell_indices, 1, 0, MPI_UINT64_T);
   }
 
+  // Make a set of cells for querying membership.
+  int_unordered_set_t* cell_set = int_unordered_set_new();
+  for (int i = 0; i < num_indices; ++i)
+    int_unordered_set_insert(cell_set, indices[i]);
+
   // Count unique mesh elements.
   int num_cells = num_indices, num_ghost_cells = 0;
   int_unordered_set_t* face_indices = int_unordered_set_new();
@@ -414,14 +419,18 @@ static mesh_t* create_submesh(MPI_Comm comm, mesh_t* mesh, index_t* vtx_dist, in
     int cell = indices[i], fpos = 0, face;
     while (mesh_cell_next_face(mesh, cell, &fpos, &face))
     {
-      if (mesh_face_opp_cell(mesh, face, cell) >= mesh->num_cells)
+      int opp_cell = mesh_face_opp_cell(mesh, face, cell);
+      //if (opp_cell >= mesh->num_cells)
+      if ((opp_cell != -1) && !int_unordered_set_contains(cell_set, opp_cell))
         ++num_ghost_cells;
+
       int_unordered_set_insert(face_indices, face);
       int npos = 0, node;
       while (mesh_face_next_node(mesh, face, &npos, &node))
         int_unordered_set_insert(node_indices, node);
     }
   }
+  int_unordered_set_free(cell_set);
 
   // Create the submesh container.
   int num_faces = face_indices->size, num_nodes = node_indices->size;
@@ -557,10 +566,10 @@ static mesh_t* create_submesh(MPI_Comm comm, mesh_t* mesh, index_t* vtx_dist, in
 }
 
 static void mesh_distribute(mesh_t** mesh, 
+                            MPI_Comm comm,
                             adj_graph_t* global_graph, 
                             SCOTCH_Num* global_partition)
 {
-  MPI_Comm comm = MPI_COMM_WORLD;
   int nprocs, rank;
   MPI_Comm_size(comm, &nprocs);
   MPI_Comm_rank(comm, &rank);
@@ -589,7 +598,7 @@ static void mesh_distribute(mesh_t** mesh,
         if (global_partition[i] == rank)
           indices[k++] = i;
       }
-      local_mesh = create_submesh(MPI_COMM_WORLD, global_mesh, NULL, indices, num_cells[0]);
+      local_mesh = create_submesh(comm, global_mesh, NULL, indices, num_cells[0]);
     }
 
     // Now do the other processes.
@@ -604,7 +613,7 @@ static void mesh_distribute(mesh_t** mesh,
         if (global_partition[i] == p)
           indices[k++] = i;
       }
-      mesh_t* p_mesh = create_submesh(MPI_COMM_WORLD, global_mesh, NULL, indices, num_cells[p]);
+      mesh_t* p_mesh = create_submesh(comm, global_mesh, NULL, indices, num_cells[p]);
 
       // Serialize it and send its size (and it) to process p.
       size_t offset = 0;
@@ -806,7 +815,7 @@ static void mesh_migrate(mesh_t** mesh,
 
 #endif
 
-exchanger_t* partition_point_cloud(point_cloud_t** cloud, int* weights, real_t imbalance_tol)
+exchanger_t* partition_point_cloud(point_cloud_t** cloud, MPI_Comm comm, int* weights, real_t imbalance_tol)
 {
   ASSERT(imbalance_tol > 0.0);
   ASSERT(imbalance_tol <= 1.0);
@@ -830,14 +839,14 @@ exchanger_t* partition_point_cloud(point_cloud_t** cloud, int* weights, real_t i
   adj_graph_t* global_graph = (cl != NULL) ? graph_from_point_cloud(cl) : NULL;
 
   // Map the graph to the different domains, producing a local partition vector.
-  SCOTCH_Num* global_partition = (rank == 0) ? partition_graph(global_graph, weights, imbalance_tol) : NULL;
+  SCOTCH_Num* global_partition = (rank == 0) ? partition_graph(global_graph, comm, weights, imbalance_tol) : NULL;
 
   // Distribute the point cloud.
-  point_cloud_distribute(cloud, global_graph, global_partition);
+  point_cloud_distribute(cloud, comm, global_graph, global_partition);
 
   // Set up an exchanger to distribute field data.
   int num_vertices = (cl != NULL) ? adj_graph_num_vertices(global_graph) : 0;
-  exchanger_t* distributor = create_distributor(global_partition, num_vertices);
+  exchanger_t* distributor = create_distributor(comm, global_partition, num_vertices);
 
   // Clean up.
   adj_graph_free(global_graph);
@@ -894,12 +903,10 @@ exchanger_t* repartition_point_cloud(point_cloud_t** cloud, int* weights, real_t
 #endif
 }
 
-exchanger_t* partition_mesh(mesh_t** mesh, int* weights, real_t imbalance_tol)
+exchanger_t* partition_mesh(mesh_t** mesh, MPI_Comm comm, int* weights, real_t imbalance_tol)
 {
   ASSERT(imbalance_tol > 0.0);
   ASSERT(imbalance_tol <= 1.0);
-
-  MPI_Comm comm = MPI_COMM_WORLD;
 
 #if POLYMEC_HAVE_MPI
   _Static_assert(sizeof(SCOTCH_Num) == sizeof(index_t), "SCOTCH_Num must be 64-bit.");
@@ -924,14 +931,14 @@ exchanger_t* partition_mesh(mesh_t** mesh, int* weights, real_t imbalance_tol)
   adj_graph_t* global_graph = (m != NULL) ? graph_from_mesh_cells(m) : NULL;
 
   // Map the graph to the different domains, producing a local partition vector.
-  SCOTCH_Num* global_partition = (rank == 0) ? partition_graph(global_graph, weights, imbalance_tol): NULL;
+  SCOTCH_Num* global_partition = (rank == 0) ? partition_graph(global_graph, comm, weights, imbalance_tol): NULL;
 
   // Distribute the mesh.
-  mesh_distribute(mesh, global_graph, global_partition);
+  mesh_distribute(mesh, comm, global_graph, global_partition);
 
   // Set up an exchanger to distribute field data.
   int num_vertices = (m != NULL) ? adj_graph_num_vertices(global_graph) : 0;
-  exchanger_t* distributor = create_distributor(global_partition, num_vertices);
+  exchanger_t* distributor = create_distributor(comm, global_partition, num_vertices);
 
   // Clean up.
   if (global_graph != NULL)

@@ -31,15 +31,53 @@
 #include "geometry/create_uniform_mesh.h"
 #include "geometry/repartition.h"
 
-void test_partition_uniform_mesh(void** state)
+void test_partition_linear_mesh(void** state)
 {
-  // Create a 2x1x1 uniform mesh.
-  int nx = 4, ny = 1, nz = 1;
+  // Create a 100x1x1 uniform mesh.
+  int nx = 100, ny = 1, nz = 1;
   bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
   mesh_t* mesh = create_uniform_mesh(MPI_COMM_SELF, nx, ny, nz, &bbox);
 
-  // Repartition it.
-  exchanger_t* distributor = partition_mesh(&mesh, NULL, 0.05);
+  // Partition it.
+  exchanger_t* distributor = partition_mesh(&mesh, MPI_COMM_WORLD, NULL, 0.05);
+  exchanger_free(distributor);
+
+  // Check the ghost cells.
+  int rank, nprocs;
+  MPI_Comm_rank(mesh->comm, &rank);
+  MPI_Comm_size(mesh->comm, &nprocs);
+  if (nprocs > 1)
+  {
+    if ((rank == 0) || (rank == (nprocs-1)))
+      assert_int_equal(1, mesh->num_ghost_cells);
+    else
+      assert_int_equal(2, mesh->num_ghost_cells);
+  }
+  else
+    assert_int_equal(0, mesh->num_ghost_cells);
+
+  // Plot it.
+  double ones[mesh->num_cells];
+  for (int c = 0; c < mesh->num_cells; ++c)
+    ones[c] = 1.0*rank;
+  silo_file_t* silo = silo_file_new(mesh->comm, "linear_mesh_partition", "linear_mesh_partition", 1, 0, 0, 0.0);
+  silo_file_write_mesh(silo, "mesh", mesh);
+  silo_file_write_scalar_cell_field(silo, "rank", "mesh", ones);
+  silo_file_close(silo);
+
+  // Clean up.
+  mesh_free(mesh);
+}
+
+void test_partition_slab_mesh(void** state)
+{
+  // Create a 50x50x1 uniform mesh.
+  int nx = 50, ny = 50, nz = 1;
+  bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
+  mesh_t* mesh = create_uniform_mesh(MPI_COMM_SELF, nx, ny, nz, &bbox);
+
+  // Partition it.
+  exchanger_t* distributor = partition_mesh(&mesh, MPI_COMM_WORLD, NULL, 0.05);
   exchanger_free(distributor);
 
   // Plot it.
@@ -48,7 +86,33 @@ void test_partition_uniform_mesh(void** state)
   double ones[mesh->num_cells];
   for (int c = 0; c < mesh->num_cells; ++c)
     ones[c] = 1.0*rank;
-  silo_file_t* silo = silo_file_new(mesh->comm, "uniform_mesh_partition", "uniform_mesh_partition", 1, 0, 0, 0.0);
+  silo_file_t* silo = silo_file_new(mesh->comm, "slab_mesh_partition", "slab_mesh_partition", 1, 0, 0, 0.0);
+  silo_file_write_mesh(silo, "mesh", mesh);
+  silo_file_write_scalar_cell_field(silo, "rank", "mesh", ones);
+  silo_file_close(silo);
+
+  // Clean up.
+  mesh_free(mesh);
+}
+
+void test_partition_box_mesh(void** state)
+{
+  // Create a 20x20x20 uniform mesh.
+  int nx = 20, ny = 20, nz = 20;
+  bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
+  mesh_t* mesh = create_uniform_mesh(MPI_COMM_SELF, nx, ny, nz, &bbox);
+
+  // Partition it.
+  exchanger_t* distributor = partition_mesh(&mesh, MPI_COMM_WORLD, NULL, 0.05);
+  exchanger_free(distributor);
+
+  // Plot it.
+  int rank;
+  MPI_Comm_rank(mesh->comm, &rank);
+  double ones[mesh->num_cells];
+  for (int c = 0; c < mesh->num_cells; ++c)
+    ones[c] = 1.0*rank;
+  silo_file_t* silo = silo_file_new(mesh->comm, "box_mesh_partition", "box_mesh_partition", 1, 0, 0, 0.0);
   silo_file_write_mesh(silo, "mesh", mesh);
   silo_file_write_scalar_cell_field(silo, "rank", "mesh", ones);
   silo_file_close(silo);
@@ -62,7 +126,9 @@ int main(int argc, char* argv[])
   polymec_init(argc, argv);
   const UnitTest tests[] = 
   {
-    unit_test(test_partition_uniform_mesh)
+    unit_test(test_partition_linear_mesh),
+    unit_test(test_partition_slab_mesh),
+    unit_test(test_partition_box_mesh)
   };
   return run_tests(tests);
 }

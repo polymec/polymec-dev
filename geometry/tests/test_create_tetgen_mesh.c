@@ -39,11 +39,31 @@ void test_create_tetgen_mesh(void** state)
                                     CMAKE_CURRENT_SOURCE_DIR "/tetgen_example.1.face", 
                                     CMAKE_CURRENT_SOURCE_DIR "/tetgen_example.1.neigh");
   mesh_verify(mesh);
-  assert_int_equal(1020, mesh->num_cells);
-  assert_int_equal(0, mesh->num_ghost_cells);
-  assert_int_equal(2286, mesh->num_faces);
-  assert_int_equal(1569, mesh->num_edges);
-  assert_int_equal(304, mesh->num_nodes);
+
+  int nprocs;
+  MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
+  if (nprocs == 1)
+  {
+    assert_int_equal(1020, mesh->num_cells);
+    assert_int_equal(0, mesh->num_ghost_cells);
+    assert_int_equal(2286, mesh->num_faces);
+    assert_int_equal(1569, mesh->num_edges);
+    assert_int_equal(304, mesh->num_nodes);
+  }
+  else
+  {
+    int num_cells, num_ghost_cells, num_faces, num_edges, num_nodes;
+    MPI_Allreduce(&mesh->num_cells, &num_cells, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+    MPI_Allreduce(&mesh->num_ghost_cells, &num_ghost_cells, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+    MPI_Allreduce(&mesh->num_faces, &num_faces, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+    MPI_Allreduce(&mesh->num_edges, &num_edges, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+    MPI_Allreduce(&mesh->num_nodes, &num_nodes, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+    assert_true(num_cells == 1020);
+    assert_true(num_ghost_cells > 0);
+    assert_true(num_faces >= 2286);
+    assert_true(num_edges >= 1569);
+    assert_true(num_nodes >= 304);
+  }
   mesh_free(mesh);
 }
 
@@ -56,7 +76,7 @@ void test_plot_tetgen_mesh(void** state)
                                     CMAKE_CURRENT_SOURCE_DIR "/tetgen_example.1.face", 
                                     CMAKE_CURRENT_SOURCE_DIR "/tetgen_example.1.neigh");
   // Plot it.
-  silo_file_t* silo = silo_file_new(mesh->comm, "tetgen_example", ".", 1, 0, 0, 0.0);
+  silo_file_t* silo = silo_file_new(mesh->comm, "tetgen_example", "tetgen_example", 1, 0, 0, 0.0);
   silo_file_write_mesh(silo, "mesh", mesh);
   silo_file_close(silo);
 
