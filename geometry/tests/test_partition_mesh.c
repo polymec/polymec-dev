@@ -62,18 +62,9 @@ void test_partition_linear_mesh(void** state)
       for (int i = 0; i < num_indices; ++i)
         ++num_receives;
     }
-    if ((rank == 0) || (rank == (nprocs-1)))
-    {
-      assert_int_equal(1, mesh->num_ghost_cells);
-      assert_int_equal(1, num_sends);
-      assert_int_equal(1, num_receives);
-    }
-    else
-    {
-      assert_int_equal(2, mesh->num_ghost_cells);
-      assert_int_equal(2, num_sends);
-      assert_int_equal(2, num_receives);
-    }
+    assert_true((mesh->num_ghost_cells == 1) || (mesh->num_ghost_cells == 2));
+    assert_true(num_sends == mesh->num_ghost_cells);
+    assert_true(num_receives == mesh->num_ghost_cells);
   }
   else
     assert_int_equal(0, mesh->num_ghost_cells);
