@@ -76,8 +76,14 @@ void test_plot_tetgen_mesh(void** state)
                                     CMAKE_CURRENT_SOURCE_DIR "/tetgen_example.1.face", 
                                     CMAKE_CURRENT_SOURCE_DIR "/tetgen_example.1.neigh");
   // Plot it.
+  int rank;
+  MPI_Comm_rank(mesh->comm, &rank);
+  double p[mesh->num_cells];
+  for (int c = 0; c < mesh->num_cells; ++c)
+    p[c] = 1.0*rank;
   silo_file_t* silo = silo_file_new(mesh->comm, "tetgen_example", "tetgen_example", 1, 0, 0, 0.0);
   silo_file_write_mesh(silo, "mesh", mesh);
+  silo_file_write_scalar_cell_field(silo, "rank", "mesh", p);
   silo_file_close(silo);
 
   // Clean up.
