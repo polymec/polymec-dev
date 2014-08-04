@@ -512,9 +512,18 @@ static mesh_t* create_submesh(MPI_Comm comm, mesh_t* mesh, index_t* vtx_dist, in
       // One of the cells attached to this face is a ghost cell.
       // Either it belongs to the mesh we're carving up, or we can find 
       // it in the exchanger.
-      this_cell = (cell_p != NULL) ? *cell_p : *opp_cell_p;
+      int ghost_cell;
+      if (cell_p != NULL)
+      {
+        this_cell = *cell_p;
+        ghost_cell = mesh->face_cells[2*orig_mesh_face+1];
+      }
+      else
+      {
+        this_cell = *opp_cell_p;
+        ghost_cell = mesh->face_cells[2*orig_mesh_face];
+      }
 
-      int ghost_cell = mesh->face_cells[2*face_map[f]+1];
       int global_index;
       if (ghost_cell < mesh->num_cells) 
       {
@@ -606,6 +615,9 @@ static void mesh_distribute(mesh_t** mesh,
     byte_array_t* bytes = byte_array_new();
     for (int p = 1; p < nprocs; ++p)
     {
+      // Share the vertex distribution.
+      MPI_Send(vtx_dist, nprocs+1, MPI_UINT64_T, p, p, comm);
+
       // Create the pth submesh.
       int indices[num_cells[p]], k = 0;
       for (int i = 0; i < global_mesh->num_cells; ++i)
@@ -630,9 +642,12 @@ static void mesh_distribute(mesh_t** mesh,
   }
   else
   {
+    // Receive the vertex distribution of the incoming mesh.
+    MPI_Status status;
+    MPI_Recv(vtx_dist, nprocs+1, MPI_UINT64_T, 0, rank, comm, &status);
+
     // Receive the size of the incoming mesh.
     int mesh_size;
-    MPI_Status status;
     MPI_Recv(&mesh_size, 1, MPI_INT, 0, rank, comm, &status);
 
     // Now receive the mesh.
@@ -653,9 +668,6 @@ static void mesh_distribute(mesh_t** mesh,
   if (global_mesh != NULL)
     mesh_free(global_mesh);
 
-  // Share the vertex distribution with our friends.
-  MPI_Allgather(vtx_dist, nprocs+1, MPI_UINT64_T, vtx_dist, nprocs+1, MPI_UINT64_T, local_mesh->comm);
-
   // Now we create the exchanger using the encoded ghost cell indices.
   int_ptr_unordered_map_t* ghost_cell_indices = int_ptr_unordered_map_new();
   for (int f = 0; f < local_mesh->num_faces; ++f)
@@ -663,6 +675,7 @@ static void mesh_distribute(mesh_t** mesh,
     if (local_mesh->face_cells[2*f+1] < -1) 
     {
       uint64_t global_ghost_index = -(local_mesh->face_cells[2*f+1] + 2);
+      ASSERT(global_ghost_index < vtx_dist[nprocs]);
 
       // Find the process and local index for this ghost cell.
       int proc = 0;

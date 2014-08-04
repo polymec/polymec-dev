@@ -48,21 +48,43 @@ void test_partition_linear_mesh(void** state)
   MPI_Comm_size(mesh->comm, &nprocs);
   if (nprocs > 1)
   {
+    exchanger_t* ex = mesh_exchanger(mesh);
+    int pos = 0, proc, *indices, num_indices;
+    int num_sends = 0, num_receives = 0;
+    while (exchanger_next_send(ex, &pos, &proc, &indices, &num_indices))
+    {
+      for (int i = 0; i < num_indices; ++i)
+        ++num_sends;
+    }
+    pos = 0;
+    while (exchanger_next_receive(ex, &pos, &proc, &indices, &num_indices))
+    {
+      for (int i = 0; i < num_indices; ++i)
+        ++num_receives;
+    }
     if ((rank == 0) || (rank == (nprocs-1)))
+    {
       assert_int_equal(1, mesh->num_ghost_cells);
+      assert_int_equal(1, num_sends);
+      assert_int_equal(1, num_receives);
+    }
     else
+    {
       assert_int_equal(2, mesh->num_ghost_cells);
+      assert_int_equal(2, num_sends);
+      assert_int_equal(2, num_receives);
+    }
   }
   else
     assert_int_equal(0, mesh->num_ghost_cells);
 
   // Plot it.
-  double ones[mesh->num_cells];
+  double p[mesh->num_cells];
   for (int c = 0; c < mesh->num_cells; ++c)
-    ones[c] = 1.0*rank;
+    p[c] = 1.0*rank;
   silo_file_t* silo = silo_file_new(mesh->comm, "linear_mesh_partition", "linear_mesh_partition", 1, 0, 0, 0.0);
   silo_file_write_mesh(silo, "mesh", mesh);
-  silo_file_write_scalar_cell_field(silo, "rank", "mesh", ones);
+  silo_file_write_scalar_cell_field(silo, "rank", "mesh", p);
   silo_file_close(silo);
 
   // Clean up.
@@ -83,12 +105,12 @@ void test_partition_slab_mesh(void** state)
   // Plot it.
   int rank;
   MPI_Comm_rank(mesh->comm, &rank);
-  double ones[mesh->num_cells];
+  double p[mesh->num_cells];
   for (int c = 0; c < mesh->num_cells; ++c)
-    ones[c] = 1.0*rank;
+    p[c] = 1.0*rank;
   silo_file_t* silo = silo_file_new(mesh->comm, "slab_mesh_partition", "slab_mesh_partition", 1, 0, 0, 0.0);
   silo_file_write_mesh(silo, "mesh", mesh);
-  silo_file_write_scalar_cell_field(silo, "rank", "mesh", ones);
+  silo_file_write_scalar_cell_field(silo, "rank", "mesh", p);
   silo_file_close(silo);
 
   // Clean up.
@@ -109,12 +131,12 @@ void test_partition_box_mesh(void** state)
   // Plot it.
   int rank;
   MPI_Comm_rank(mesh->comm, &rank);
-  double ones[mesh->num_cells];
+  double p[mesh->num_cells];
   for (int c = 0; c < mesh->num_cells; ++c)
-    ones[c] = 1.0*rank;
+    p[c] = 1.0*rank;
   silo_file_t* silo = silo_file_new(mesh->comm, "box_mesh_partition", "box_mesh_partition", 1, 0, 0, 0.0);
   silo_file_write_mesh(silo, "mesh", mesh);
-  silo_file_write_scalar_cell_field(silo, "rank", "mesh", ones);
+  silo_file_write_scalar_cell_field(silo, "rank", "mesh", p);
   silo_file_close(silo);
 
   // Clean up.
