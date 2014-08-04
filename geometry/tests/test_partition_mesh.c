@@ -35,7 +35,8 @@ void test_partition_linear_mesh(void** state)
 {
   // Create a 100x1x1 uniform mesh.
   int nx = 100, ny = 1, nz = 1;
-  bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
+  real_t dx = 1.0/nx;
+  bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = dx, .z1 = 0.0, .z2 = dx};
   mesh_t* mesh = create_uniform_mesh(MPI_COMM_SELF, nx, ny, nz, &bbox);
 
   // Partition it.
@@ -80,13 +81,21 @@ void test_partition_linear_mesh(void** state)
 
   // Clean up.
   mesh_free(mesh);
+
+  // Superficially check that the file is okay.
+  int num_files, num_procs;
+  assert_true(silo_file_query("linear_mesh_partition", "linear_mesh_partition",
+                              &num_files, &num_procs, NULL));
+  assert_int_equal(1, num_files);
+  assert_int_equal(nprocs, num_procs);
 }
 
 void test_partition_slab_mesh(void** state)
 {
   // Create a 50x50x1 uniform mesh.
   int nx = 50, ny = 50, nz = 1;
-  bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
+  real_t dx = 1.0/nx;
+  bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = dx};
   mesh_t* mesh = create_uniform_mesh(MPI_COMM_SELF, nx, ny, nz, &bbox);
 
   // Partition it.
@@ -94,7 +103,8 @@ void test_partition_slab_mesh(void** state)
   exchanger_free(distributor);
 
   // Plot it.
-  int rank;
+  int nprocs, rank;
+  MPI_Comm_size(mesh->comm, &nprocs);
   MPI_Comm_rank(mesh->comm, &rank);
   double p[mesh->num_cells];
   for (int c = 0; c < mesh->num_cells; ++c)
@@ -106,6 +116,13 @@ void test_partition_slab_mesh(void** state)
 
   // Clean up.
   mesh_free(mesh);
+
+  // Superficially check that the file is okay.
+  int num_files, num_procs;
+  assert_true(silo_file_query("slab_mesh_partition", "slab_mesh_partition",
+                              &num_files, &num_procs, NULL));
+  assert_int_equal(1, num_files);
+  assert_int_equal(nprocs, num_procs);
 }
 
 void test_partition_box_mesh(void** state)
@@ -120,7 +137,8 @@ void test_partition_box_mesh(void** state)
   exchanger_free(distributor);
 
   // Plot it.
-  int rank;
+  int nprocs, rank;
+  MPI_Comm_size(mesh->comm, &nprocs);
   MPI_Comm_rank(mesh->comm, &rank);
   double p[mesh->num_cells];
   for (int c = 0; c < mesh->num_cells; ++c)
@@ -132,6 +150,13 @@ void test_partition_box_mesh(void** state)
 
   // Clean up.
   mesh_free(mesh);
+
+  // Superficially check that the file is okay.
+  int num_files, num_procs;
+  assert_true(silo_file_query("box_mesh_partition", "box_mesh_partition",
+                              &num_files, &num_procs, NULL));
+  assert_int_equal(1, num_files);
+  assert_int_equal(nprocs, num_procs);
 }
 
 int main(int argc, char* argv[]) 
