@@ -570,10 +570,7 @@ static size_t mesh_byte_size(void* obj)
     mesh->face_node_offsets[mesh->num_faces] * sizeof(int) + 
     2*mesh->num_faces * sizeof(int) + 
     // node stuff
-    sizeof(int) + mesh->num_nodes*sizeof(point_t) + 
-    // geometry
-    mesh->num_cells*(sizeof(real_t) + sizeof(point_t)) + 
-    mesh->num_faces*(sizeof(point_t) + sizeof(real_t) + sizeof(vector_t));
+    sizeof(int) + mesh->num_nodes*sizeof(point_t);
   
   // Tag-related storage.
   serializer_t* tag_s = tagger_serializer();
@@ -621,15 +618,9 @@ static void* mesh_byte_read(byte_array_t* bytes, size_t* offset)
   // Node stuff.
   byte_array_read_points(bytes, num_nodes, mesh->nodes, offset);
 
-  // Construct edges.
+  // Construct edges and compute geometry.
   mesh_construct_edges(mesh);
-
-  // Geometry stuff.
-  byte_array_read_reals(bytes, num_cells, mesh->cell_volumes, offset);
-  byte_array_read_points(bytes, num_cells, mesh->cell_centers, offset);
-  byte_array_read_points(bytes, num_faces, mesh->face_centers, offset);
-  byte_array_read_reals(bytes, num_faces, mesh->face_areas, offset);
-  byte_array_read_vectors(bytes, num_faces, mesh->face_normals, offset);
+  mesh_compute_geometry(mesh);
 
   // Tag stuff.
   tagger_free(mesh->cell_tags);
@@ -676,13 +667,6 @@ static void mesh_byte_write(void* obj, byte_array_t* bytes, size_t* offset)
 
   // Node stuff.
   byte_array_write_points(bytes, mesh->num_nodes, mesh->nodes, offset);
-
-  // Geometry stuff.
-  byte_array_write_reals(bytes, mesh->num_cells, mesh->cell_volumes, offset);
-  byte_array_write_points(bytes, mesh->num_cells, mesh->cell_centers, offset);
-  byte_array_write_points(bytes, mesh->num_faces, mesh->face_centers, offset);
-  byte_array_write_reals(bytes, mesh->num_faces, mesh->face_areas, offset);
-  byte_array_write_vectors(bytes, mesh->num_faces, mesh->face_normals, offset);
 
   // Tag stuff.
   serializer_t* ser = tagger_serializer();

@@ -70,6 +70,20 @@ void test_partition_linear_mesh(void** state)
   else
     assert_int_equal(0, mesh->num_ghost_cells);
 
+  // Check the geometry of the mesh.
+  int volumes_are_ok = 1;
+  for (int c = 0; c < mesh->num_cells; ++c)
+  {
+    printf("%d: V[%d] = %g\n", rank, c, mesh->cell_volumes[c]);
+    if (fabs(mesh->cell_volumes[c] - dx*dx*dx) > 1e-12)
+    {
+      volumes_are_ok = 0;
+      break; 
+    }
+  }
+  MPI_Allreduce(&volumes_are_ok, &volumes_are_ok, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
+  assert_true(volumes_are_ok);
+
   // Plot it.
   double p[mesh->num_cells];
   for (int c = 0; c < mesh->num_cells; ++c)

@@ -43,19 +43,19 @@ static SCOTCH_Num* partition_graph(adj_graph_t* global_graph,
   ASSERT(rank == 0);
 
   SCOTCH_Dgraph dist_graph;
-  SCOTCH_Num* vtx_weights = NULL;
+  SCOTCH_Num *vtx_weights = NULL, *xadj = NULL, *adj = NULL;
   int num_global_vertices = 0;
   if (rank == 0)
   {
     num_global_vertices = adj_graph_num_vertices(global_graph);
 
     // Extract the adjacency information.
-    SCOTCH_Num* xadj = malloc(sizeof(SCOTCH_Num) * (num_global_vertices+1));
+    xadj = polymec_malloc(sizeof(SCOTCH_Num) * (num_global_vertices+1));
     int* edge_offsets = adj_graph_edge_offsets(global_graph);
     for (int i = 0; i <= num_global_vertices; ++i)
       xadj[i] = (SCOTCH_Num)edge_offsets[i];
     SCOTCH_Num num_arcs = xadj[num_global_vertices];
-    SCOTCH_Num* adj = malloc(sizeof(SCOTCH_Num) * num_arcs);
+    adj = polymec_malloc(sizeof(SCOTCH_Num) * num_arcs);
     int* edges = adj_graph_adjacency(global_graph);
     for (int i = 0; i < xadj[num_global_vertices]; ++i)
       adj[i] = (SCOTCH_Num)edges[i];
@@ -85,10 +85,13 @@ static SCOTCH_Num* partition_graph(adj_graph_t* global_graph,
     int result = SCOTCH_dgraphPart(&dist_graph, nprocs, &strategy, global_partition);
     if (result != 0)
       polymec_error("Partitioning failed.");
+    SCOTCH_dgraphExit(&dist_graph);
     SCOTCH_stratExit(&strategy);
 
     if (vtx_weights != NULL)
       polymec_free(vtx_weights);
+    polymec_free(xadj);
+    polymec_free(adj);
   }
 
   // Return the global partition vector.
@@ -405,7 +408,7 @@ static mesh_t* create_submesh(MPI_Comm comm, mesh_t* mesh, index_t* vtx_dist, in
     exchanger_exchange(ex, global_cell_indices, 1, 0, MPI_UINT64_T);
   }
 
-  // Make a set of cells for querying membership.
+  // Make a set of cells for querying membership in this submesh.
   int_unordered_set_t* cell_set = int_unordered_set_new();
   for (int i = 0; i < num_indices; ++i)
     int_unordered_set_insert(cell_set, indices[i]);
@@ -478,6 +481,7 @@ static mesh_t* create_submesh(MPI_Comm comm, mesh_t* mesh, index_t* vtx_dist, in
   for (int c = 0; c < submesh->num_cells; ++c)
   {
     int num_cell_faces = submesh->cell_face_offsets[c+1] - submesh->cell_face_offsets[c];
+printf("Submesh cell %d (%d) has faces [", c, indices[c]);
     for (int f = 0; f < num_cell_faces; ++f)
     {
       int face_index = mesh->cell_faces[mesh->cell_face_offsets[indices[c]]+f];
@@ -488,20 +492,23 @@ static mesh_t* create_submesh(MPI_Comm comm, mesh_t* mesh, index_t* vtx_dist, in
         face_index = ~face_index;
       }
       int subface_index = *int_int_unordered_map_get(inverse_face_map, face_index);
+printf("%d (%d), ", subface_index, (face_index < 0) ? ~face_index : face_index);
       if (flipped)
         subface_index = ~subface_index;
       submesh->cell_faces[submesh->cell_face_offsets[c]+f] = subface_index;
     }
+printf("]\n");
   }
 
   // Copy face cells and face nodes.
   for (int f = 0; f < submesh->num_faces; ++f)
   {
+    // Identify the cells attached to the face and construct them within the submesh.
     int orig_mesh_face = face_map[f];
     int* cell_p = int_int_unordered_map_get(inverse_cell_map, mesh->face_cells[2*orig_mesh_face]);
     int* opp_cell_p = int_int_unordered_map_get(inverse_cell_map, mesh->face_cells[2*orig_mesh_face+1]);
     ASSERT((cell_p != NULL) || (opp_cell_p != NULL));
-    int this_cell, that_cell;
+    int this_cell = -1, that_cell = -1;
     if ((cell_p != NULL) && (opp_cell_p != NULL))
     {
       this_cell = *cell_p;
@@ -524,13 +531,13 @@ static mesh_t* create_submesh(MPI_Comm comm, mesh_t* mesh, index_t* vtx_dist, in
         ghost_cell = mesh->face_cells[2*orig_mesh_face];
       }
 
-      int global_index;
+      int global_index = -1;
       if (ghost_cell < mesh->num_cells) 
       {
         // It belongs to the mesh. 
         global_index = ghost_cell + first_index;
       }
-      else
+      else if (ghost_cell != -1)
       {
         // It's actually a ghost cell of the mesh. Fetch its global cell index 
         // from the exchanger.
@@ -539,28 +546,33 @@ static mesh_t* create_submesh(MPI_Comm comm, mesh_t* mesh, index_t* vtx_dist, in
       }
 
       // Encode the global cell index in this entry of the submesh.
-      that_cell = -global_index - 2;
+      if (global_index != -1)
+        that_cell = -global_index - 2;
     }
     submesh->face_cells[2*f] = this_cell;
     submesh->face_cells[2*f+1] = that_cell;
+printf("Submesh face %d has cells %d, %d.\n", f, this_cell, that_cell);
 
+    // Copy over the nodes for this face.
     int num_face_nodes = submesh->face_node_offsets[f+1] - submesh->face_node_offsets[f];
     for (int n = 0; n < num_face_nodes; ++n)
-      submesh->face_nodes[submesh->face_node_offsets[f]+n] = *int_int_unordered_map_get(inverse_node_map, mesh->face_nodes[mesh->face_node_offsets[face_map[f]]+n]);
+    {
+      submesh->face_nodes[submesh->face_node_offsets[f]+n] = 
+        *int_int_unordered_map_get(inverse_node_map, mesh->face_nodes[mesh->face_node_offsets[orig_mesh_face]+n]);
+    }
   }
 
   // Copy node positions.
   for (int n = 0; n < submesh->num_nodes; ++n)
   {
-    submesh->nodes[n].x = mesh->nodes[node_map[n]].x;
-    submesh->nodes[n].y = mesh->nodes[node_map[n]].y;
-    submesh->nodes[n].z = mesh->nodes[node_map[n]].z;
+    int orig_mesh_node = node_map[n];
+    submesh->nodes[n].x = mesh->nodes[orig_mesh_node].x;
+    submesh->nodes[n].y = mesh->nodes[orig_mesh_node].y;
+    submesh->nodes[n].z = mesh->nodes[orig_mesh_node].z;
   }
 
-  // Finish things up.
-  // FIXME: Is this needed?
-  mesh_construct_edges(submesh);
-  mesh_compute_geometry(submesh);
+  // NOTE: we don't need to construct edges or compute geometry, since 
+  // NOTE: this can be done on the "far end."
 
   // Clean up.
   if (global_cell_indices != NULL)
@@ -582,6 +594,9 @@ static void mesh_distribute(mesh_t** mesh,
   int nprocs, rank;
   MPI_Comm_size(comm, &nprocs);
   MPI_Comm_rank(comm, &rank);
+
+  // Make sure we're all here.
+  MPI_Barrier(comm);
 
   mesh_t* global_mesh = *mesh;
   mesh_t* local_mesh = NULL;
@@ -653,6 +668,7 @@ static void mesh_distribute(mesh_t** mesh,
     // Now receive the mesh.
     byte_array_t* bytes = byte_array_new();
     byte_array_resize(bytes, mesh_size);
+
     MPI_Recv(bytes->data, mesh_size, MPI_BYTE, 0, rank, comm, &status);
     serializer_t* ser = mesh_serializer();
     size_t offset = 0;
@@ -922,6 +938,7 @@ exchanger_t* partition_mesh(mesh_t** mesh, MPI_Comm comm, int* weights, real_t i
   ASSERT(imbalance_tol <= 1.0);
 
 #if POLYMEC_HAVE_MPI
+  ASSERT((*mesh)->comm == MPI_COMM_SELF);
   _Static_assert(sizeof(SCOTCH_Num) == sizeof(index_t), "SCOTCH_Num must be 64-bit.");
 
   int nprocs, rank;
