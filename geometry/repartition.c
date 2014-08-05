@@ -623,6 +623,10 @@ static void mesh_distribute(mesh_t** mesh,
           indices[k++] = i;
       }
       local_mesh = create_submesh(comm, global_mesh, NULL, indices, num_cells[0]);
+
+      // Construct edges, geometry, since this hasn't been done yet.
+      mesh_construct_edges(local_mesh);
+      mesh_compute_geometry(local_mesh);
     }
 
     // Now do the other processes.

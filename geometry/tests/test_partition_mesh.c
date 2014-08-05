@@ -71,18 +71,28 @@ void test_partition_linear_mesh(void** state)
     assert_int_equal(0, mesh->num_ghost_cells);
 
   // Check the geometry of the mesh.
-  int volumes_are_ok = 1;
+  int cell_volumes_are_ok = 1;
   for (int c = 0; c < mesh->num_cells; ++c)
   {
-    printf("%d: V[%d] = %g\n", rank, c, mesh->cell_volumes[c]);
     if (fabs(mesh->cell_volumes[c] - dx*dx*dx) > 1e-12)
     {
-      volumes_are_ok = 0;
+      cell_volumes_are_ok = 0;
       break; 
     }
   }
-  MPI_Allreduce(&volumes_are_ok, &volumes_are_ok, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
-  assert_true(volumes_are_ok);
+  int face_areas_are_ok = 1;
+  for (int f = 0; f < mesh->num_faces; ++f)
+  {
+    if (fabs(mesh->face_areas[f] - dx*dx) > 1e-12)
+    {
+      face_areas_are_ok = 0;
+      break; 
+    }
+  }
+  MPI_Allreduce(&cell_volumes_are_ok, &cell_volumes_are_ok, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
+  MPI_Allreduce(&face_areas_are_ok, &cell_volumes_are_ok, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
+  assert_true(cell_volumes_are_ok);
+  assert_true(face_areas_are_ok);
 
   // Plot it.
   double p[mesh->num_cells];
@@ -115,6 +125,30 @@ void test_partition_slab_mesh(void** state)
   // Partition it.
   exchanger_t* distributor = partition_mesh(&mesh, MPI_COMM_WORLD, NULL, 0.05);
   exchanger_free(distributor);
+
+  // Check the geometry of the mesh.
+  int cell_volumes_are_ok = 1;
+  for (int c = 0; c < mesh->num_cells; ++c)
+  {
+    if (fabs(mesh->cell_volumes[c] - dx*dx*dx) > 1e-12)
+    {
+      cell_volumes_are_ok = 0;
+      break; 
+    }
+  }
+  int face_areas_are_ok = 1;
+  for (int f = 0; f < mesh->num_faces; ++f)
+  {
+    if (fabs(mesh->face_areas[f] - dx*dx) > 1e-12)
+    {
+      face_areas_are_ok = 0;
+      break; 
+    }
+  }
+  MPI_Allreduce(&cell_volumes_are_ok, &cell_volumes_are_ok, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
+  MPI_Allreduce(&face_areas_are_ok, &cell_volumes_are_ok, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
+  assert_true(cell_volumes_are_ok);
+  assert_true(face_areas_are_ok);
 
   // Plot it.
   int nprocs, rank;
@@ -149,6 +183,31 @@ void test_partition_box_mesh(void** state)
   // Partition it.
   exchanger_t* distributor = partition_mesh(&mesh, MPI_COMM_WORLD, NULL, 0.05);
   exchanger_free(distributor);
+
+  // Check the geometry of the mesh.
+  real_t dx = 1.0/nx;
+  int cell_volumes_are_ok = 1;
+  for (int c = 0; c < mesh->num_cells; ++c)
+  {
+    if (fabs(mesh->cell_volumes[c] - dx*dx*dx) > 1e-12)
+    {
+      cell_volumes_are_ok = 0;
+      break; 
+    }
+  }
+  int face_areas_are_ok = 1;
+  for (int f = 0; f < mesh->num_faces; ++f)
+  {
+    if (fabs(mesh->face_areas[f] - dx*dx) > 1e-12)
+    {
+      face_areas_are_ok = 0;
+      break; 
+    }
+  }
+  MPI_Allreduce(&cell_volumes_are_ok, &cell_volumes_are_ok, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
+  MPI_Allreduce(&face_areas_are_ok, &cell_volumes_are_ok, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
+  assert_true(cell_volumes_are_ok);
+  assert_true(face_areas_are_ok);
 
   // Plot it.
   int nprocs, rank;
