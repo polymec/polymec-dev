@@ -113,12 +113,12 @@ static SCOTCH_Num* repartition_graph(adj_graph_t* local_graph,
   int num_vertices = adj_graph_num_vertices(local_graph);
 
   // Extract the adjacency information.
-  SCOTCH_Num* xadj = malloc(sizeof(SCOTCH_Num) * (num_vertices+1));
+  SCOTCH_Num* xadj = polymec_malloc(sizeof(SCOTCH_Num) * (num_vertices+1));
   int* edge_offsets = adj_graph_edge_offsets(local_graph);
   for (int i = 0; i <= num_vertices; ++i)
     xadj[i] = (SCOTCH_Num)edge_offsets[i];
   SCOTCH_Num num_arcs = xadj[num_vertices];
-  SCOTCH_Num* adj = malloc(sizeof(SCOTCH_Num) * num_arcs);
+  SCOTCH_Num* adj = polymec_malloc(sizeof(SCOTCH_Num) * num_arcs);
   int* edges = adj_graph_adjacency(local_graph);
   for (int i = 0; i < xadj[num_vertices]; ++i)
     adj[i] = (SCOTCH_Num)edges[i];
@@ -165,16 +165,14 @@ static SCOTCH_Num* repartition_graph(adj_graph_t* local_graph,
     int result = SCOTCH_dgraphMap(&dist_graph, &arch, &strategy, local_partition);
     if (result != 0)
       polymec_error("Repartitioning failed.");
+    SCOTCH_dgraphExit(&dist_graph);
     SCOTCH_stratExit(&strategy);
     SCOTCH_archExit(&arch);
+    polymec_free(adj);
+    polymec_free(xadj);
   }
   if (vtx_weights != NULL)
     polymec_free(vtx_weights);
-
-//  // Produce a redistributed graph using the partition vector.
-//  SCOTCH_Dgraph redist_graph;
-//  SCOTCH_dgraphInit(&redist_graph, comm);
-//  result = SCOTCH_dgraphRedist(&dist_graph, partition, NULL, 0, 0, &redist_graph); 
 
   // Return the local partition vector.
   return local_partition;
@@ -747,9 +745,6 @@ static void mesh_migrate(mesh_t** mesh,
 
   // Build meshes to send to other processes.
   serializer_t* ser = mesh_serializer();
-  int_unordered_set_t* cells = int_unordered_set_new();
-  int_unordered_set_t* faces = int_unordered_set_new();
-  int_unordered_set_t* nodes = int_unordered_set_new();
   byte_array_t* send_buffers[num_sends];
   int send_procs[num_sends];
   pos = 0;
@@ -758,35 +753,12 @@ static void mesh_migrate(mesh_t** mesh,
     send_procs[i_req-num_receives] = proc;
     byte_array_t* bytes = byte_array_new();
 
-    int_unordered_set_clear(cells);
-    int_unordered_set_clear(faces);
-    int_unordered_set_clear(nodes);
-
-    // Make a set of these indices and count up the various thingies.
-    int num_ghost_cells = 0; 
-    for (int j = 0; j < num_indices; ++j)
-    {
-      int cell = indices[j];
-      int_unordered_set_insert(cells, cell);
-      int pos = 0, face;
-      while (mesh_cell_next_face(m, cell, &pos, &face))
-      {
-        int_unordered_set_insert(faces, face);
-        int pos1 = 0, node;
-        while (mesh_face_next_node(m, face, &pos1, &node))
-          int_unordered_set_insert(nodes, node);
-      }
-    }
-    int num_cells = cells->size;
-    int num_faces = faces->size;
-    int num_nodes = nodes->size;
-
     // Create the mesh to send. We encode the indices as follows: 
     // All internal cells have their original local indices. A ghost cell,
     // on the other hand, has index -G - 2, where G is its global index.
     // Face and node indices are local and used only to express connectivity.
-    mesh_t* submesh = mesh_new(m->comm, num_cells, num_ghost_cells, num_faces, num_nodes);
-    // FIXME
+    index_t* vtx_dist = adj_graph_vertex_dist(local_graph);
+    mesh_t* submesh = create_submesh(m->comm, m, vtx_dist, indices, num_indices);
 
     // Serialize and send the buffer size.
     size_t offset = 0;
@@ -799,11 +771,6 @@ static void mesh_migrate(mesh_t** mesh,
     ++i_req;
   }
   ASSERT(i_req == num_sends + num_receives);
-
-  // Preliminary clean up.
-  int_unordered_set_free(cells);
-  int_unordered_set_free(faces);
-  int_unordered_set_free(nodes);
 
   // Wait for the buffer sizes to be transmitted.
   MPI_Status statuses[num_receives + num_sends];
@@ -838,10 +805,8 @@ static void mesh_migrate(mesh_t** mesh,
   ser = NULL;
   for (int i = 0; i < num_receives; ++i)
     byte_array_free(receive_buffers[i]);
-  polymec_free(receive_buffers);
   for (int i = 0; i < num_sends; ++i)
     byte_array_free(send_buffers[i]);
-  polymec_free(send_buffers);
 }
 
 #endif
