@@ -481,7 +481,6 @@ static mesh_t* create_submesh(MPI_Comm comm, mesh_t* mesh, index_t* vtx_dist, in
   for (int c = 0; c < submesh->num_cells; ++c)
   {
     int num_cell_faces = submesh->cell_face_offsets[c+1] - submesh->cell_face_offsets[c];
-printf("Submesh cell %d (%d) has faces [", c, indices[c]);
     for (int f = 0; f < num_cell_faces; ++f)
     {
       int face_index = mesh->cell_faces[mesh->cell_face_offsets[indices[c]]+f];
@@ -492,12 +491,10 @@ printf("Submesh cell %d (%d) has faces [", c, indices[c]);
         face_index = ~face_index;
       }
       int subface_index = *int_int_unordered_map_get(inverse_face_map, face_index);
-printf("%d (%d), ", subface_index, (face_index < 0) ? ~face_index : face_index);
       if (flipped)
         subface_index = ~subface_index;
       submesh->cell_faces[submesh->cell_face_offsets[c]+f] = subface_index;
     }
-printf("]\n");
   }
 
   // Copy face cells and face nodes.
@@ -551,14 +548,13 @@ printf("]\n");
     }
     submesh->face_cells[2*f] = this_cell;
     submesh->face_cells[2*f+1] = that_cell;
-printf("Submesh face %d has cells %d, %d.\n", f, this_cell, that_cell);
 
     // Copy over the nodes for this face.
     int num_face_nodes = submesh->face_node_offsets[f+1] - submesh->face_node_offsets[f];
     for (int n = 0; n < num_face_nodes; ++n)
     {
-      submesh->face_nodes[submesh->face_node_offsets[f]+n] = 
-        *int_int_unordered_map_get(inverse_node_map, mesh->face_nodes[mesh->face_node_offsets[orig_mesh_face]+n]);
+      int subnode = *int_int_unordered_map_get(inverse_node_map, mesh->face_nodes[mesh->face_node_offsets[orig_mesh_face]+n]);
+      submesh->face_nodes[submesh->face_node_offsets[f]+n] = subnode;
     }
   }
 
@@ -701,7 +697,6 @@ static void mesh_distribute(mesh_t** mesh,
       // Find the process and local index for this ghost cell.
       int proc = 0;
       while (vtx_dist[proc+1] < global_ghost_index) ++proc;
-      int local_ghost_index = global_ghost_index - vtx_dist[proc];
       local_mesh->face_cells[2*f+1] = num_ghosts;
 
       if (!int_ptr_unordered_map_contains(ghost_cell_indices, proc))

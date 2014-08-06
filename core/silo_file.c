@@ -1077,8 +1077,8 @@ void silo_file_write_mesh(silo_file_t* file,
   // Construct the silo cell-face info.  Silo uses the same 1's complement
   // convention we use for indicating face orientation, so we can
   // simply copy our faces.
-  int* cell_face_counts = polymec_malloc(sizeof(int) * num_cells);
-  memset(cell_face_counts, 0, sizeof(int) * num_cells);
+  int* cell_face_counts = polymec_malloc(sizeof(int) * (num_cells + mesh->num_ghost_cells));
+  memset(cell_face_counts, 0, sizeof(int) * (num_cells + mesh->num_ghost_cells));
   for (int i = 0; i < num_cells; ++i)
     cell_face_counts[i] = mesh->cell_face_offsets[i+1] - mesh->cell_face_offsets[i];
 
