@@ -940,7 +940,7 @@ exchanger_t* partition_mesh(mesh_t** mesh, MPI_Comm comm, int* weights, real_t i
   ASSERT(imbalance_tol <= 1.0);
 
 #if POLYMEC_HAVE_MPI
-  ASSERT((*mesh)->comm == MPI_COMM_SELF);
+  ASSERT((*mesh == NULL) || ((*mesh)->comm == MPI_COMM_SELF));
   _Static_assert(sizeof(SCOTCH_Num) == sizeof(index_t), "SCOTCH_Num must be 64-bit.");
 
   int nprocs, rank;
