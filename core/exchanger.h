@@ -40,13 +40,15 @@ exchanger_t* exchanger_new(MPI_Comm comm);
 void exchanger_free(exchanger_t* ex);
 
 // Establishes a communication pattern in which this exchanger sends data at 
-// the given indices of an array to the given remote process.
+// the given indices of an array to the given remote process. Note that 
+// remote_process must differ from the local rank on the exchanger's communicator.
 void exchanger_set_send(exchanger_t* ex, int remote_process, int* indices, int num_indices, bool copy_indices);
 
 // Establishes communications patterns in which this exchanger sends data at 
 // the given indices of an array to various remote processes. Here, send_map 
 // maps remote process ranks to int_arrays containing local indices identifying
-// data that will be sent.
+// data that will be sent. Note that the remote_processes must differ from the 
+// local rank on the exchanger's communicator.
 void exchanger_set_sends(exchanger_t* ex, int_ptr_unordered_map_t* send_map);
 
 // Returns the number of processes to which this exchanger sends data.
@@ -60,13 +62,15 @@ void exchanger_delete_send(exchanger_t* ex, int remote_process);
 bool exchanger_next_send(exchanger_t* ex, int* pos, int* remote_process, int** indices, int* num_indices);
 
 // Establishes a communication pattern in which this exchanger receives data at 
-// the given indices of an array from the given remote process.
+// the given indices of an array from the given remote process. Note that
+// remote_process must differ from the local rank on the exchanger's communicator.
 void exchanger_set_receive(exchanger_t* ex, int remote_process, int* indices, int num_indices, bool copy_indices);
 
 // Establishes communications patterns in which this exchanger receives data at 
 // the given indices of an array from various remote processes. Here, recv_map 
 // maps remote process ranks to int_arrays containing local indices identifying
-// locations where received data will be stored.
+// locations where received data will be stored. Note that the remote_processes must differ from the 
+// local rank on the exchanger's communicator.
 void exchanger_set_receives(exchanger_t* ex, int_ptr_unordered_map_t* recv_map);
 
 // Returns the number of processes from which this exchanger receives data.

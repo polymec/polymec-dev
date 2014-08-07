@@ -43,14 +43,17 @@ void test_exchanger_construct(void** state)
   MPI_Comm_rank(comm, &rank);
   int N = 100*nproc;
   exchanger_t* exchanger = exchanger_new(comm);
-  int send_indices[N/nproc];
-  for (int i = 0; i < N/nproc; ++i)
-    send_indices[i] = i;
-  exchanger_set_send(exchanger, (rank+1) % nproc, send_indices, N/nproc, true);
-  int receive_indices[N/nproc];
-  for (int i = 0; i < N/nproc; ++i)
-    send_indices[i] = i;
-  exchanger_set_receive(exchanger, (rank-1) % nproc, receive_indices, N/nproc, true);
+  if (nproc > 1)
+  {
+    int send_indices[N/nproc];
+    for (int i = 0; i < N/nproc; ++i)
+      send_indices[i] = i;
+    exchanger_set_send(exchanger, (rank+1) % nproc, send_indices, N/nproc, true);
+    int receive_indices[N/nproc];
+    for (int i = 0; i < N/nproc; ++i)
+      send_indices[i] = i;
+    exchanger_set_receive(exchanger, (rank+nproc-1) % nproc, receive_indices, N/nproc, true);
+  }
   exchanger_free(exchanger);
 }
 
@@ -62,17 +65,20 @@ void test_exchanger_construct_and_delete(void** state)
   MPI_Comm_rank(comm, &rank);
   int N = 100*nproc;
   exchanger_t* exchanger = exchanger_new(comm);
-  int send_indices[N/nproc];
-  for (int i = 0; i < N/nproc; ++i)
-    send_indices[i] = i;
-  exchanger_set_send(exchanger, (rank+1) % nproc, send_indices, N/nproc, true);
-  int receive_indices[N/nproc];
-  for (int i = 0; i < N/nproc; ++i)
-    send_indices[i] = i;
-  exchanger_set_receive(exchanger, (rank-1) % nproc, receive_indices, N/nproc, true);
+  if (nproc > 1)
+  {
+    int send_indices[N/nproc];
+    for (int i = 0; i < N/nproc; ++i)
+      send_indices[i] = i;
+    exchanger_set_send(exchanger, (rank+1) % nproc, send_indices, N/nproc, true);
+    int receive_indices[N/nproc];
+    for (int i = 0; i < N/nproc; ++i)
+      send_indices[i] = i;
+    exchanger_set_receive(exchanger, (rank+nproc-1) % nproc, receive_indices, N/nproc, true);
 
-  exchanger_delete_send(exchanger, 1);
-  exchanger_delete_receive(exchanger, 1);
+    exchanger_delete_send(exchanger, 1);
+    exchanger_delete_receive(exchanger, 1);
+  }
   exchanger_free(exchanger);
 }
 

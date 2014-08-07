@@ -313,7 +313,9 @@ static exchanger_t* create_migrator(MPI_Comm comm,
     {
       receive_vertices[p] = polymec_malloc(sizeof(int) * num_vertices_to_receive[p]);
       if (p != rank)
+      {
         MPI_Irecv(receive_vertices, num_vertices_to_receive[p], MPI_INT, p, p, comm, &requests[r++]);
+      }
     }
     if (num_vertices_to_send[p] > 0)
     {
@@ -323,23 +325,16 @@ static exchanger_t* create_migrator(MPI_Comm comm,
         if (local_partition[v] == p)
           send_vertices[s++] = v;
       }
-      exchanger_set_send(migrator, p, send_vertices, num_vertices_to_send[p], true);
       if (p != rank)
+      {
+        exchanger_set_send(migrator, p, send_vertices, num_vertices_to_send[p], true);
         MPI_Isend(send_vertices, num_vertices_to_receive[p], MPI_INT, p, p, comm, &requests[r++]);
+      }
+      else
+        memcpy(receive_vertices[rank], send_vertices, sizeof(int) * num_vertices_to_receive[rank]);
     }
   }
-  // Do any local copies.
-  if (num_vertices_to_receive[rank] > 0)
-  {
-    ASSERT(num_vertices_to_receive[rank] == num_vertices_to_send[rank]);
-    int send_vertices[num_vertices_to_send[rank]], s = 0;
-    for (int v = 0; v < num_vertices; ++v)
-    {
-      if (local_partition[v] == rank)
-        send_vertices[s++] = v;
-    }
-    memcpy(receive_vertices[rank], send_vertices, sizeof(int) * num_vertices_to_receive[rank]);
-  }
+  ASSERT(r == num_requests);
 
   // Wait for exchanges to finish.
   MPI_Status statuses[num_requests];
@@ -349,7 +344,7 @@ static exchanger_t* create_migrator(MPI_Comm comm,
   r = 0;
   for (int p = 0; p < nprocs; ++p)
   {
-    if (num_vertices_to_receive[p] > 0)
+    if ((rank != p) && (num_vertices_to_receive[p] > 0))
     {
       ASSERT(receive_vertices[p] != NULL)
       exchanger_set_receive(migrator, p, receive_vertices[p], num_vertices_to_receive[p], true);
@@ -694,7 +689,7 @@ static void mesh_distribute(mesh_t** mesh,
 
       // Find the process and local index for this ghost cell.
       int proc = 0;
-      while (vtx_dist[proc+1] < global_ghost_index) ++proc;
+      while (vtx_dist[proc+1] <= global_ghost_index) ++proc;
       local_mesh->face_cells[2*f+1] = num_ghosts;
 
       if (!int_ptr_unordered_map_contains(ghost_cell_indices, proc))
@@ -710,14 +705,17 @@ static void mesh_distribute(mesh_t** mesh,
   index_array_t* indices;
   while (int_ptr_unordered_map_next(ghost_cell_indices, &pos, &proc, (void**)&indices))
   {
-    int send_indices[indices->size/2], recv_indices[indices->size/2];
-    for (int i = 0; i < indices->size/2; ++i)
+    if (proc != rank) 
     {
-      send_indices[i] = indices->data[2*i];
-      recv_indices[i] = indices->data[2*i+1];
+      int send_indices[indices->size/2], recv_indices[indices->size/2];
+      for (int i = 0; i < indices->size/2; ++i)
+      {
+        send_indices[i] = indices->data[2*i];
+        recv_indices[i] = indices->data[2*i+1];
+      }
+      exchanger_set_send(ex, proc, send_indices, indices->size/2, true);
+      exchanger_set_receive(ex, proc, recv_indices, indices->size/2, true);
     }
-    exchanger_set_send(ex, proc, send_indices, indices->size/2, true);
-    exchanger_set_receive(ex, proc, recv_indices, indices->size/2, true);
   }
 
   // Clean up again.
@@ -736,7 +734,7 @@ static void mesh_migrate(mesh_t** mesh,
   int receive_buffer_sizes[num_receives], receive_procs[num_receives];
   int pos = 0, proc, num_indices, *indices, i_req = 0;
   MPI_Request requests[num_receives + num_sends];
-  while (exchanger_next_send(migrator, &pos, &proc, &indices, &num_indices))
+  while (exchanger_next_receive(migrator, &pos, &proc, &indices, &num_indices))
   {
     receive_procs[i_req] = proc;
     MPI_Irecv(&receive_buffer_sizes[i_req], 1, MPI_INT, proc, 0, m->comm, &requests[i_req]);
