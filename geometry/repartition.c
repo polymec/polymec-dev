@@ -722,11 +722,20 @@ static void mesh_distribute(mesh_t** mesh,
   int_ptr_unordered_map_free(ghost_cell_indices);
 }
 
+static mesh_t* fuse_submeshes(mesh_t** submeshes, 
+                              int num_submeshes,
+                              index_t* vtx_dist)
+{
+  // FIXME
+  return NULL;
+}
+
 static void mesh_migrate(mesh_t** mesh, 
                          adj_graph_t* local_graph, 
                          exchanger_t* migrator)
 {
   mesh_t* m = *mesh;
+  index_t* vtx_dist = adj_graph_vertex_dist(local_graph);
 
   // Post receives for buffer sizes.
   int num_receives = exchanger_num_receives(migrator);
@@ -742,6 +751,7 @@ static void mesh_migrate(mesh_t** mesh,
   }
 
   // Build meshes to send to other processes.
+  int_unordered_set_t* sent_cells = int_unordered_set_new();
   serializer_t* ser = mesh_serializer();
   byte_array_t* send_buffers[num_sends];
   int send_procs[num_sends];
@@ -751,11 +761,14 @@ static void mesh_migrate(mesh_t** mesh,
     send_procs[i_req-num_receives] = proc;
     byte_array_t* bytes = byte_array_new();
 
+    // Add the indices of the cells we are sending.
+    for (int i = 0; i < num_indices; ++i)
+      int_unordered_set_insert(sent_cells, indices[i]);
+
     // Create the mesh to send. We encode the indices as follows: 
     // All internal cells have their original local indices. A ghost cell,
     // on the other hand, has index -G - 2, where G is its global index.
     // Face and node indices are local and used only to express connectivity.
-    index_t* vtx_dist = adj_graph_vertex_dist(local_graph);
     mesh_t* submesh = create_submesh(m->comm, m, vtx_dist, indices, num_indices);
 
     // Serialize and send the buffer size.
@@ -789,15 +802,30 @@ static void mesh_migrate(mesh_t** mesh,
   MPI_Waitall(num_receives + num_sends, requests, statuses);
 
   // Unpack the meshes.
-  mesh_t* submeshes[num_receives];
+  mesh_t* submeshes[1+num_receives];
   for (int i = 0; i < num_receives; ++i)
   {
     size_t offset = 0;
-    submeshes[i] = serializer_read(ser, receive_buffers[i], &offset);
+    submeshes[i+1] = serializer_read(ser, receive_buffers[i], &offset);
   }
 
-  // Fuse 'em into a single mesh.
-  // FIXME
+  // Construct a local submesh and store it in submeshes[0]. This submesh
+  // consists of all cells not sent to other processes.
+  {
+    int num_cells = adj_graph_num_vertices(local_graph);
+    int num_local_cells = num_cells - sent_cells->size;
+    int local_cells[num_local_cells], j = 0;
+    for (int i = 0; i < num_cells; ++i)
+    {
+      if (!int_unordered_set_contains(sent_cells, i))
+        local_cells[j++] = i;
+    }
+    submeshes[0] = create_submesh(m->comm, m, vtx_dist, local_cells, num_local_cells);
+  }
+
+  // Fuse all the submeshes into a single mesh.
+  mesh_free(m);
+  *mesh = fuse_submeshes(submeshes, 1+num_receives, vtx_dist);
 
   // Clean up all the stuff from the exchange.
   ser = NULL;
