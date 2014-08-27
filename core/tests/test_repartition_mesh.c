@@ -28,8 +28,8 @@
 #include <string.h>
 #include "cmockery.h"
 #include "core/silo_file.h"
+#include "core/repartition.h"
 #include "geometry/create_uniform_mesh.h"
-#include "geometry/repartition.h"
 
 void test_repartition_uniform_mesh(void** state)
 {

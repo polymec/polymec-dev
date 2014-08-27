@@ -26,8 +26,8 @@
 #include "core/unordered_set.h"
 #include "core/text_buffer.h"
 #include "core/array_utils.h"
+#include "core/repartition.h"
 #include "geometry/create_tetgen_mesh.h"
-#include "geometry/repartition.h"
 
 typedef struct
 {

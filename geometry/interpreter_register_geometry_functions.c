@@ -27,7 +27,6 @@
 #include "core/unordered_set.h"
 #include "geometry/interpreter_register_geometry_functions.h"
 #include "geometry/rect_prism.h"
-#include "geometry/repartition.h"
 
 // Lua stuff.
 #include "lua.h"
@@ -562,52 +561,6 @@ static int remove_points(lua_State* lua)
   return 1;
 }
 
-static int repartition(lua_State* lua)
-{
-  // Check the arguments.
-  int num_args = lua_gettop(lua);
-  if (((num_args == 1) && !lua_ismesh(lua, 1)) || 
-      ((num_args == 2) && !lua_ismesh(lua, 1) && !lua_issequence(lua, 2)) || 
-      ((num_args != 1) && (num_args != 2)))
-  {
-    return luaL_error(lua, "Invalid argument(s). Usage:\n"
-                      "repartition(mesh[, weights[, imbalance_tol = 0.05]]) ->\n"
-                      "Repartitions the given mesh using the given list of cell load weights.");
-  }
-  mesh_t* mesh = lua_tomesh(lua, 1);
-  int num_weights = 0;
-  int* weights = NULL;
-  real_t imbalance_tol = 0.05;
-  if (num_args > 1)
-  {
-    real_t* real_weights = lua_tosequence(lua, 2, &num_weights);
-    if ((real_weights != NULL) && (num_weights != mesh->num_cells))
-    {
-      return luaL_error(lua, "Number of cell load weights (%d) must equal the number of cells (%d).", 
-                        num_weights, mesh->num_cells);
-    }
-    weights = polymec_malloc(sizeof(int) * num_weights);
-    for (int i = 0; i < num_weights; ++i)
-      weights[i] = (int)real_weights[i];
-
-    if (num_args > 2)
-      imbalance_tol = lua_tonumber(lua, 3);
-    if (imbalance_tol <= 0.0)
-      return luaL_error(lua, "Invalid load imbalance tolerance: %g (must be positive).", imbalance_tol);
-    if (imbalance_tol > 1.0)
-      return luaL_error(lua, "Invalid load imbalance tolerance: %g (must be less than 1).", imbalance_tol);
-  }
-
-  // Perform the repartitioning and toss the exchanger, since our poor 
-  // interpreter doesn't understand exchangers.
-  exchanger_t* ex = repartition_mesh(&mesh, weights, imbalance_tol);
-  exchanger_free(ex);
-  if (weights != NULL)
-    polymec_free(weights);
-
-  return 0;
-}
-
 void interpreter_register_geometry_functions(interpreter_t* interp)
 {
   // Set up a point factory for generating points in 3D.
@@ -651,7 +604,6 @@ void interpreter_register_geometry_functions(interpreter_t* interp)
   interpreter_register_function(interp, "copy_points", copy_points, NULL);
   interpreter_register_function(interp, "select_points", select_points, NULL);
   interpreter_register_function(interp, "remove_points", remove_points, NULL);
-  interpreter_register_function(interp, "repartition", repartition, NULL);
   interpreter_register_spfuncs(interp);
 }
 
