@@ -99,7 +99,7 @@ static SCOTCH_Num* partition_graph(adj_graph_t* global_graph,
 }
 
 // This helper repartitions a local graph, creating and returning a 
-// local partition vector.
+// local partition vector with destination ranks included for ghost cells.
 static SCOTCH_Num* repartition_graph(adj_graph_t* local_graph, 
                                      int num_ghost_vertices,
                                      int* weights,
@@ -150,7 +150,7 @@ static SCOTCH_Num* repartition_graph(adj_graph_t* local_graph,
                      adj, NULL, NULL);
 
   // Generate the local partition vector by mapping the distributed graph.
-  SCOTCH_Num* local_partition = polymec_malloc(sizeof(SCOTCH_Num) * num_vertices);
+  SCOTCH_Num* local_partition = polymec_malloc(sizeof(SCOTCH_Num) * (num_vertices + num_ghost_vertices));
   {
     SCOTCH_Arch arch;
     SCOTCH_archInit(&arch);
@@ -173,6 +173,12 @@ static SCOTCH_Num* repartition_graph(adj_graph_t* local_graph,
   }
   if (vtx_weights != NULL)
     polymec_free(vtx_weights);
+
+  // At this point, the local partition vector contains only the destination 
+  // ranks of the local vertices. Now we talk amongst ourselves to figure 
+  // out the destination ranks of the ghost vertices. This operation should 
+  // preserve the ordering of the ghost vertices, too.
+  exchanger_exchange(local_graph_ex, local_partition, 1, 0, MPI_UINT64_T);
 
   // Return the local partition vector.
   return local_partition;
@@ -378,29 +384,15 @@ static void point_cloud_migrate(point_cloud_t** cloud,
 }
 
 // This helper constructs and returns a mesh from the cells with the given
-// indices in the given mesh.
-static mesh_t* create_submesh(MPI_Comm comm, mesh_t* mesh, index_t* vtx_dist, int* indices, int num_indices)
+// indices in the given mesh. The submesh is valid with the following 
+// exceptions:
+// 1. The indices of ghost cells referenced in submesh->face_cells are 
+//    replaced with destination process ranks.
+// 2. The geometry for the submesh is not computed.
+static mesh_t* create_submesh(MPI_Comm comm, mesh_t* mesh, 
+                              SCOTCH_Num* partition, index_t* vtx_dist, 
+                              int* indices, int num_indices)
 {
-  // This is either called with vtx_dist == NULL for one global mesh on rank 0, 
-  // or with a non-NULL vtx_dist for a set of local meshes.
-  int rank;
-  MPI_Comm_rank(mesh->comm, &rank);
-  ASSERT(((rank == 0) && (vtx_dist == NULL)) || (vtx_dist != NULL));
-  index_t first_index = (vtx_dist != NULL) ? vtx_dist[rank] : 0;
-
-  // If the submesh is being created from a distributed mesh, construct a set 
-  // of global cell indices for ghosts on this mesh. Otherwise, we can get 
-  // the global indices from the global mesh itself.
-  uint64_t* global_cell_indices = NULL;
-  if (vtx_dist != NULL)
-  {
-    global_cell_indices = polymec_malloc(sizeof(uint64_t) * (mesh->num_cells + mesh->num_ghost_cells));
-    for (int i = 0; i < mesh->num_cells; ++i)
-      global_cell_indices[i] = first_index + i;
-    exchanger_t* ex = mesh_exchanger(mesh);
-    exchanger_exchange(ex, global_cell_indices, 1, 0, MPI_UINT64_T);
-  }
-
   // Make a set of cells for querying membership in this submesh.
   int_unordered_set_t* cell_set = int_unordered_set_new();
   for (int i = 0; i < num_indices; ++i)
@@ -507,8 +499,6 @@ static mesh_t* create_submesh(MPI_Comm comm, mesh_t* mesh, index_t* vtx_dist, in
     else
     {
       // One of the cells attached to this face is a ghost cell.
-      // Either it belongs to the mesh we're carving up, or we can find 
-      // it in the exchanger.
       int ghost_cell;
       if (cell_p != NULL)
       {
@@ -521,23 +511,11 @@ static mesh_t* create_submesh(MPI_Comm comm, mesh_t* mesh, index_t* vtx_dist, in
         ghost_cell = mesh->face_cells[2*orig_mesh_face];
       }
 
-      int global_index = -1;
-      if (ghost_cell < mesh->num_cells) 
+      // We encode the destination process rank in the ghost cell.
+      if (ghost_cell != -1)
       {
-        // It belongs to the mesh. 
-        global_index = ghost_cell + first_index;
+        that_cell = -partition[ghost_cell] - 2;
       }
-      else if (ghost_cell != -1)
-      {
-        // It's actually a ghost cell of the mesh. Fetch its global cell index 
-        // from the exchanger.
-        ASSERT(ghost_cell >= mesh->num_cells);
-        global_index = global_cell_indices[ghost_cell];
-      }
-
-      // Encode the global cell index in this entry of the submesh.
-      if (global_index != -1)
-        that_cell = -global_index - 2;
     }
     submesh->face_cells[2*f] = this_cell;
     submesh->face_cells[2*f+1] = that_cell;
@@ -564,8 +542,6 @@ static mesh_t* create_submesh(MPI_Comm comm, mesh_t* mesh, index_t* vtx_dist, in
   // NOTE: this can be done on the "far end."
 
   // Clean up.
-  if (global_cell_indices != NULL)
-    polymec_free(global_cell_indices);
   int_int_unordered_map_free(inverse_cell_map);
   int_int_unordered_map_free(inverse_face_map);
   int_int_unordered_map_free(inverse_node_map);
@@ -611,7 +587,7 @@ static void mesh_distribute(mesh_t** mesh,
         if (global_partition[i] == rank)
           indices[k++] = i;
       }
-      local_mesh = create_submesh(comm, global_mesh, NULL, indices, num_cells[0]);
+      local_mesh = create_submesh(comm, global_mesh, global_partition, NULL, indices, num_cells[0]);
 
       // Construct edges, geometry, since this hasn't been done yet.
       mesh_construct_edges(local_mesh);
@@ -633,7 +609,7 @@ static void mesh_distribute(mesh_t** mesh,
         if (global_partition[i] == p)
           indices[k++] = i;
       }
-      mesh_t* p_mesh = create_submesh(comm, global_mesh, NULL, indices, num_cells[p]);
+      mesh_t* p_mesh = create_submesh(comm, global_mesh, global_partition, NULL, indices, num_cells[p]);
 
       // Serialize it and send its size (and it) to process p.
       size_t offset = 0;
@@ -677,19 +653,17 @@ static void mesh_distribute(mesh_t** mesh,
   if (global_mesh != NULL)
     mesh_free(global_mesh);
 
-  // Now we create the exchanger using the encoded ghost cell indices.
+  // Now we create the exchanger using the encoded destination ranks.
   int_ptr_unordered_map_t* ghost_cell_indices = int_ptr_unordered_map_new();
   int num_ghosts = 0;
   for (int f = 0; f < local_mesh->num_faces; ++f)
   {
     if (local_mesh->face_cells[2*f+1] < -1) 
     {
-      uint64_t global_ghost_index = -(local_mesh->face_cells[2*f+1] + 2);
-      ASSERT(global_ghost_index < vtx_dist[nprocs]);
-
-      // Find the process and local index for this ghost cell.
-      int proc = 0;
-      while (vtx_dist[proc+1] <= global_ghost_index) ++proc;
+      // Get the destination process for this ghost cell.
+      int proc = -local_mesh->face_cells[2*f+1] - 2;
+      ASSERT(proc >= 0);
+      ASSERT(proc < nprocs);
       local_mesh->face_cells[2*f+1] = num_ghosts;
 
       if (!int_ptr_unordered_map_contains(ghost_cell_indices, proc))
@@ -724,6 +698,7 @@ static void mesh_distribute(mesh_t** mesh,
 
 static mesh_t* fuse_submeshes(mesh_t** submeshes, 
                               int num_submeshes,
+                              SCOTCH_Num* local_partition,
                               index_t* vtx_dist)
 {
   // FIXME
@@ -732,6 +707,7 @@ static mesh_t* fuse_submeshes(mesh_t** submeshes,
 
 static void mesh_migrate(mesh_t** mesh, 
                          adj_graph_t* local_graph, 
+                         SCOTCH_Num* local_partition,
                          exchanger_t* migrator)
 {
   mesh_t* m = *mesh;
@@ -765,11 +741,10 @@ static void mesh_migrate(mesh_t** mesh,
     for (int i = 0; i < num_indices; ++i)
       int_unordered_set_insert(sent_cells, indices[i]);
 
-    // Create the mesh to send. We encode the indices as follows: 
-    // All internal cells have their original local indices. A ghost cell,
-    // on the other hand, has index -G - 2, where G is its global index.
-    // Face and node indices are local and used only to express connectivity.
-    mesh_t* submesh = create_submesh(m->comm, m, vtx_dist, indices, num_indices);
+    // Create the mesh to send. Recall that the submesh encodes the destination
+    // process rank in the ghost cells referenced in submesh->face_cells.
+    mesh_t* submesh = create_submesh(m->comm, m, local_partition, vtx_dist, 
+                                     indices, num_indices);
 
     // Serialize and send the buffer size.
     size_t offset = 0;
@@ -820,12 +795,13 @@ static void mesh_migrate(mesh_t** mesh,
       if (!int_unordered_set_contains(sent_cells, i))
         local_cells[j++] = i;
     }
-    submeshes[0] = create_submesh(m->comm, m, vtx_dist, local_cells, num_local_cells);
+    submeshes[0] = create_submesh(m->comm, m, local_partition, vtx_dist, 
+                                  local_cells, num_local_cells);
   }
 
   // Fuse all the submeshes into a single mesh.
   mesh_free(m);
-  *mesh = fuse_submeshes(submeshes, 1+num_receives, vtx_dist);
+  *mesh = fuse_submeshes(submeshes, 1+num_receives, local_partition, vtx_dist);
 
   // Clean up all the stuff from the exchange.
   ser = NULL;
@@ -904,8 +880,10 @@ exchanger_t* repartition_point_cloud(point_cloud_t** cloud, int* weights, real_t
   // Get the exchanger for the point cloud.
   exchanger_t* cloud_ex = point_cloud_exchanger(cl);
 
-  // Map the graph to the different domains, producing a local partition vector.
-  SCOTCH_Num* local_partition = repartition_graph(local_graph, cl->num_ghost_points, weights, imbalance_tol, cloud_ex);
+  // Map the graph to the different domains, producing a local partition vector
+  // (with values included for ghost cells).
+  SCOTCH_Num* local_partition = repartition_graph(local_graph, cl->num_ghost_points, 
+                                                  weights, imbalance_tol, cloud_ex);
 
   // Set up an exchanger to migrate field data.
   int num_vertices = adj_graph_num_vertices(local_graph);
@@ -1007,7 +985,7 @@ exchanger_t* repartition_mesh(mesh_t** mesh, int* weights, real_t imbalance_tol)
   exchanger_t* migrator = create_migrator(m->comm, local_partition, num_vertices);
 
   // Migrate the mesh.
-  mesh_migrate(mesh, local_graph, migrator);
+  mesh_migrate(mesh, local_graph, local_partition, migrator);
 
   // Clean up.
   adj_graph_free(local_graph);
