@@ -26,6 +26,7 @@
 
 #if POLYMEC_HAVE_MPI
 #include "core/unordered_set.h"
+#include "core/kd_tree.h"
 #include "ptscotch.h"
 
 // This helper partitions a (serial) global graph, creating and returning a 
@@ -533,9 +534,7 @@ static mesh_t* create_submesh(MPI_Comm comm, mesh_t* mesh,
   for (int n = 0; n < submesh->num_nodes; ++n)
   {
     int orig_mesh_node = node_map[n];
-    submesh->nodes[n].x = mesh->nodes[orig_mesh_node].x;
-    submesh->nodes[n].y = mesh->nodes[orig_mesh_node].y;
-    submesh->nodes[n].z = mesh->nodes[orig_mesh_node].z;
+    submesh->nodes[n] = mesh->nodes[orig_mesh_node];
   }
 
   // NOTE: we don't need to construct edges or compute geometry, since 
@@ -744,29 +743,196 @@ static mesh_t* fuse_submeshes(mesh_t** submeshes,
     }
   }
   num_ghost_cells -= seam_faces->size;
-  num_faces -= seam_faces->size;
-  num_nodes -= seam_nodes->size;
 
-  // Construct kd-trees and create mappings to remove duplicate faces/nodes.
-  // FIXME
+  // Construct mappings to remove duplicate faces by mapping redundant 
+  // ones to "originals."
+  int_int_unordered_map_t* dup_face_map = int_int_unordered_map_new();
+  {
+    // Make a kd-tree of face centers.
+    point_t* xf = polymec_malloc(sizeof(point_t) * seam_faces->size);
+    int pos = 0, i = 0, j;
+    while (int_unordered_set_next(seam_faces, &pos, &j))
+    {
+      // Find the submesh that contains this face.
+      int m = 0;
+      while (j < submesh_face_offsets[m]) ++m;
 
-  // Do an intermediary clean up.
+      // Put the face center into this array.
+      int f = j - submesh_face_offsets[m];
+      xf[i] = submeshes[m]->face_centers[f];
+      ++i;
+    }
+    kd_tree_t* face_tree = kd_tree_new(xf, seam_faces->size);
+    polymec_free(xf);
+
+    // Now examine each seam face and find the 2 nearest faces to it.
+    // One will be the face itself, and the other will be a duplicate. 
+    // Map the one with the higher index to the lower index.
+    pos = 0;
+    while (int_unordered_set_next(seam_faces, &pos, &j))
+    {
+      int nearest[2];
+
+      // Get the face center we're considering (in the same way we did above).
+      int m = 0;
+      while (j < submesh_face_offsets[m]) ++m;
+      int f = j - submesh_face_offsets[m];
+      point_t* x = &submeshes[m]->face_centers[f];
+
+      // Find the 2 nearest faces.
+      kd_tree_nearest_n(face_tree, x, 2, nearest);
+
+      // Merge the faces by mapping the one with the higher index to the 
+      // lower index.
+      int index0 = submesh_face_offsets[m] + nearest[0];
+      int index1 = submesh_face_offsets[m] + nearest[1];
+      int_int_unordered_map_insert(dup_face_map, MAX(index0, index1), MIN(index0, index1));
+    }
+
+    // Clean up.
+    kd_tree_free(face_tree);
+  }
+
+  // Do the same for duplicate nodes.
+  int_int_unordered_map_t* dup_node_map = int_int_unordered_map_new();
+  {
+    // Make a kd-tree of node positions.
+    point_t* xn = polymec_malloc(sizeof(point_t) * seam_nodes->size);
+    int pos = 0, i = 0, j;
+    while (int_unordered_set_next(seam_nodes, &pos, &j))
+    {
+      // Find the submesh that contains this face.
+      int m = 0;
+      while (j < submesh_node_offsets[m]) ++m;
+
+      // Put the node position into this array.
+      int n = j - submesh_node_offsets[m];
+      xn[i] = submeshes[m]->nodes[n];
+      ++i;
+    }
+    kd_tree_t* node_tree = kd_tree_new(xn, seam_nodes->size);
+    polymec_free(xn);
+
+    // Now examine each seam node and find the 2 nearest node to it.
+    // One will be the node itself, and the other will be a duplicate. 
+    // Map the one with the higher index to the lower index.
+    pos = 0;
+    while (int_unordered_set_next(seam_nodes, &pos, &j))
+    {
+      int nearest[2];
+
+      // Get the node position we're considering (in the same way we did above).
+      int m = 0;
+      while (j < submesh_node_offsets[m]) ++m;
+      int n = j - submesh_node_offsets[m];
+      point_t* x = &submeshes[m]->nodes[n];
+
+      // Find the 2 nearest nodes.
+      kd_tree_nearest_n(node_tree, x, 2, nearest);
+
+      // Merge the nodes by mapping the one with the higher index to the 
+      // lower index.
+      int index0 = submesh_node_offsets[m] + nearest[0];
+      int index1 = submesh_node_offsets[m] + nearest[1];
+      int_int_unordered_map_insert(dup_node_map, MAX(index0, index1), MIN(index0, index1));
+    }
+
+    // Clean up.
+    kd_tree_free(node_tree);
+  }
+
+  // We're through with the seam faces/nodes.
   int_unordered_set_free(seam_faces);
   int_unordered_set_free(seam_nodes);
+
+  // Reduce the number of faces and nodes in the fused mesh by the ones that 
+  // have been merged to others.
+  num_faces -= seam_faces->size;
+  num_nodes -= seam_nodes->size;
 
   // Now we create the fused mesh and fill it with the contents of the submeshes.
   mesh_t* fused_mesh = mesh_new(submeshes[0]->comm, num_cells, num_ghost_cells,
                                 num_faces, num_nodes);
+
+  // Allocate storage for cell faces and face nodes.
+  fused_mesh->cell_face_offsets[0] = 0;
+  int cell = 0, face = 0;
+  for (int m = 0; m < num_submeshes; ++m)
+  {
+    mesh_t* submesh = submeshes[m];
+    for (int c = 0; c < submesh->num_cells; ++c, ++cell)
+    {
+      int num_cell_faces = submesh->cell_face_offsets[c+1] - submesh->cell_face_offsets[c];
+      fused_mesh->cell_face_offsets[cell+1] = fused_mesh->cell_face_offsets[cell] + num_cell_faces;
+    }
+    for (int f = 0; f < submesh->num_faces; ++f)
+    {
+      int flattened_face = submesh_face_offsets[m] + f;
+      if (!int_int_unordered_map_contains(dup_face_map, flattened_face))
+      {
+        int num_face_nodes = submesh->face_node_offsets[f+1] - submesh->face_node_offsets[f];
+        fused_mesh->face_node_offsets[face+1] = fused_mesh->face_node_offsets[face] + num_face_nodes;
+        ++face;
+      }
+    }
+  }
+  mesh_reserve_connectivity_storage(fused_mesh);
+
+  // Copy cell faces.
+  cell = 0;
+  for (int m = 0; m < num_submeshes; ++m)
+  {
+    mesh_t* submesh = submeshes[m];
+    for (int c = 0; c < submesh->num_cells; ++c, ++cell)
+    {
+      int num_cell_faces = submesh->cell_face_offsets[c+1] - submesh->cell_face_offsets[c];
+      for (int f = 0; f < num_cell_faces; ++f)
+      {
+        int subface_index = submesh->cell_faces[submesh->cell_face_offsets[c]] + f;
+        bool flipped = false;
+        if (subface_index < 0)
+        {
+          flipped = true;
+          subface_index = ~subface_index;
+        }
+        int flattened_face = submesh_face_offsets[m] + subface_index;
+        int* face_p = int_int_unordered_map_get(dup_face_map, flattened_face);
+        int face_index = (face_p != NULL) ? *face_p : flattened_face;
+        if (flipped)
+          face_index = ~face_index;
+        fused_mesh->cell_faces[fused_mesh->cell_face_offsets[cell]+f] = face_index;
+      }
+    }
+  }
+
+  // Copy face cells and face nodes.
   // FIXME
+
+  // Copy node positions.
+  int node = 0;
+  for (int m = 0; m < num_submeshes; ++m)
+  {
+    mesh_t* submesh = submeshes[m];
+    for (int n = 0; n < submesh->num_nodes; ++n)
+    {
+      int flattened_node = submesh_node_offsets[m] + n;
+      if (!int_int_unordered_map_contains(dup_node_map, flattened_node))
+      {
+        fused_mesh->nodes[node] = submesh->nodes[n];
+        ++node;
+      }
+    }
+  }
 
   // Now fill the exchanger for the fused mesh with data.
   exchanger_t* fused_ex = mesh_exchanger(fused_mesh);
   // FIXME
 
-  // Clean up.
+  // Consume the submeshes.
   for (int i = 0; i < 1+num_submeshes; ++i)
     mesh_free(submeshes[i]);
 
+  // Return the final fused mesh.
   return fused_mesh;
 }
 
