@@ -703,18 +703,56 @@ static mesh_t* fuse_submeshes(mesh_t** submeshes,
                               int num_submeshes,
                               index_t* vtx_dist)
 {
-  // First we traverse each of the submeshes and assign local internal cell 
-  // indices to each of their internal cells. We also count up all the ghost cells.
-  int num_cells = 0, num_ghost_cells = 0;
+  int rank;
+  MPI_Comm_rank(submeshes[0]->comm, &rank);
+
+  // First we traverse each of the submeshes and count up all the internal 
+  // and ghost cells, faces, nodes.
+  int num_cells = 0, num_ghost_cells = 0, num_faces = 0, num_nodes = 0, 
+      submesh_cell_offsets[num_submeshes+1], submesh_face_offsets[num_submeshes+1], 
+      submesh_node_offsets[num_submeshes+1];
+  submesh_cell_offsets[0] = submesh_face_offsets[0] = submesh_node_offsets[0] = 0;
+  for (int m = 0; m < num_submeshes; ++m)
+  {
+    mesh_t* submesh = submeshes[m];
+    num_cells += submesh->num_cells;
+    num_ghost_cells += submesh->num_ghost_cells;
+    submesh_cell_offsets[m+1] = num_cells;
+    num_faces += submesh->num_faces;
+    submesh_face_offsets[m+1] = num_faces;
+    num_nodes += submesh->num_nodes;
+    submesh_node_offsets[m+1] = num_nodes;
+  }
+
+  // Next, we traverse these submeshes and construct sets of all the 
+  // faces/nodes that make up the "seams" of the fused mesh--those whose 
+  // would-be-ghost cells belong to other submeshes on this process. 
+  int_unordered_set_t* seam_faces = int_unordered_set_new();
+  int_unordered_set_t* seam_nodes = int_unordered_set_new();
+  for (int m = 0; m < num_submeshes; ++m)
+  {
+    mesh_t* submesh = submeshes[m];
+    for (int f = 0; f < submesh->num_faces; ++f)
+    {
+      if (submesh->face_cells[2*f+1] == -rank - 2) // belongs to this domain
+      {
+        int_unordered_set_insert(seam_faces, submesh_face_offsets[m] + f);
+        int pos = 0, node;
+        while (mesh_face_next_node(submesh, f, &pos, &node))
+          int_unordered_set_insert(seam_nodes, submesh_node_offsets[m] + node);
+      }
+    }
+  }
+  num_ghost_cells -= seam_faces->size;
+  num_faces -= seam_faces->size;
+  num_nodes -= seam_nodes->size;
+
+  // Construct kd-trees and create mappings to remove duplicate faces/nodes.
   // FIXME
 
-  // Next, we traverse these submeshes and subtract ghost cells that actually 
-  // belong to other submeshes. We also create a mapping of faces and nodes 
-  // attached to these not-ghost cells to unique face and node indices. We end up 
-  // with counts for unique internal cells, ghost cells, faces, and nodes for the 
-  // fused mesh.
-  int num_faces = 0, num_nodes = 0;
-  // FIXME
+  // Do an intermediary clean up.
+  int_unordered_set_free(seam_faces);
+  int_unordered_set_free(seam_nodes);
 
   // Now we create the fused mesh and fill it with the contents of the submeshes.
   mesh_t* fused_mesh = mesh_new(submeshes[0]->comm, num_cells, num_ghost_cells,
