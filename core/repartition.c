@@ -696,13 +696,40 @@ static void mesh_distribute(mesh_t** mesh,
   int_ptr_unordered_map_free(ghost_cell_indices);
 }
 
+// This helper takes an array of submeshes and stitches them all together into 
+// one single mesh (contiguous or not) on the current domain. The submeshes are 
+// consumed in the process.
 static mesh_t* fuse_submeshes(mesh_t** submeshes, 
                               int num_submeshes,
-                              SCOTCH_Num* local_partition,
                               index_t* vtx_dist)
 {
+  // First we traverse each of the submeshes and assign local internal cell 
+  // indices to each of their internal cells. We also count up all the ghost cells.
+  int num_cells = 0, num_ghost_cells = 0;
   // FIXME
-  return NULL;
+
+  // Next, we traverse these submeshes and subtract ghost cells that actually 
+  // belong to other submeshes. We also create a mapping of faces and nodes 
+  // attached to these not-ghost cells to unique face and node indices. We end up 
+  // with counts for unique internal cells, ghost cells, faces, and nodes for the 
+  // fused mesh.
+  int num_faces = 0, num_nodes = 0;
+  // FIXME
+
+  // Now we create the fused mesh and fill it with the contents of the submeshes.
+  mesh_t* fused_mesh = mesh_new(submeshes[0]->comm, num_cells, num_ghost_cells,
+                                num_faces, num_nodes);
+  // FIXME
+
+  // Now fill the exchanger for the fused mesh with data.
+  exchanger_t* fused_ex = mesh_exchanger(fused_mesh);
+  // FIXME
+
+  // Clean up.
+  for (int i = 0; i < 1+num_submeshes; ++i)
+    mesh_free(submeshes[i]);
+
+  return fused_mesh;
 }
 
 static void mesh_migrate(mesh_t** mesh, 
@@ -784,6 +811,13 @@ static void mesh_migrate(mesh_t** mesh,
     submeshes[i+1] = serializer_read(ser, receive_buffers[i], &offset);
   }
 
+  // Clean up all the stuff from the exchange.
+  ser = NULL;
+  for (int i = 0; i < num_receives; ++i)
+    byte_array_free(receive_buffers[i]);
+  for (int i = 0; i < num_sends; ++i)
+    byte_array_free(send_buffers[i]);
+
   // Construct a local submesh and store it in submeshes[0]. This submesh
   // consists of all cells not sent to other processes.
   {
@@ -801,14 +835,7 @@ static void mesh_migrate(mesh_t** mesh,
 
   // Fuse all the submeshes into a single mesh.
   mesh_free(m);
-  *mesh = fuse_submeshes(submeshes, 1+num_receives, local_partition, vtx_dist);
-
-  // Clean up all the stuff from the exchange.
-  ser = NULL;
-  for (int i = 0; i < num_receives; ++i)
-    byte_array_free(receive_buffers[i]);
-  for (int i = 0; i < num_sends; ++i)
-    byte_array_free(send_buffers[i]);
+  *mesh = fuse_submeshes(submeshes, 1+num_receives, vtx_dist);
 }
 
 #endif
