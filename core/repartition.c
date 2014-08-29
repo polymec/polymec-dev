@@ -699,8 +699,7 @@ static void mesh_distribute(mesh_t** mesh,
 // one single mesh (contiguous or not) on the current domain. The submeshes are 
 // consumed in the process.
 static mesh_t* fuse_submeshes(mesh_t** submeshes, 
-                              int num_submeshes,
-                              index_t* vtx_dist)
+                              int num_submeshes)
 {
   int rank;
   MPI_Comm_rank(submeshes[0]->comm, &rank);
@@ -970,13 +969,37 @@ static mesh_t* fuse_submeshes(mesh_t** submeshes,
     }
   }
 
-  // Now fill the exchanger for the fused mesh with data.
-  exchanger_t* fused_ex = mesh_exchanger(fused_mesh);
-  // FIXME
-
   // Consume the submeshes.
   for (int i = 0; i < 1+num_submeshes; ++i)
     mesh_free(submeshes[i]);
+
+  // Now fill the exchanger for the fused mesh with data.
+  int_ptr_unordered_map_t* send_map = int_ptr_unordered_map_new(); 
+  int_ptr_unordered_map_t* recv_map = int_ptr_unordered_map_new(); 
+  int ghost_cell = fused_mesh->num_cells;
+  for (int f = 0; f < fused_mesh->num_faces; ++f)
+  {
+    if (fused_mesh->face_cells[2*f+1] < -1)
+    {
+      // Found a ghost cell. Get its owning process.
+      int proc = -fused_mesh->face_cells[2*f+1] + 2;
+      ASSERT(proc != rank);
+      if (!int_ptr_unordered_map_contains(send_map, proc))
+        int_ptr_unordered_map_insert_with_v_dtor(send_map, proc, int_array_new(), DTOR(int_array_free));
+      int_array_t* send_indices = *int_ptr_unordered_map_get(send_map, proc);
+      int_array_append(send_indices, fused_mesh->face_cells[2*f]);
+      if (!int_ptr_unordered_map_contains(recv_map, proc))
+        int_ptr_unordered_map_insert_with_v_dtor(recv_map, proc, int_array_new(), DTOR(int_array_free));
+      int_array_append(send_indices, ghost_cell);
+      ++ghost_cell;
+    }
+  }
+  ASSERT(ghost_cell == (fused_mesh->num_cells + fused_mesh->num_ghost_cells));
+  exchanger_t* fused_ex = mesh_exchanger(fused_mesh);
+  exchanger_set_sends(fused_ex, send_map);
+  int_ptr_unordered_map_free(send_map);
+  exchanger_set_receives(fused_ex, recv_map);
+  int_ptr_unordered_map_free(recv_map);
 
   // Return the final fused mesh.
   return fused_mesh;
@@ -1085,7 +1108,7 @@ static void mesh_migrate(mesh_t** mesh,
 
   // Fuse all the submeshes into a single mesh.
   mesh_free(m);
-  *mesh = fuse_submeshes(submeshes, 1+num_receives, vtx_dist);
+  *mesh = fuse_submeshes(submeshes, 1+num_receives);
 }
 
 #endif

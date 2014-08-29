@@ -604,7 +604,6 @@ int exchanger_start_exchange(exchanger_t* ex, void* data, int stride, int tag, M
     }
   }
   msg->num_requests = j;
-printf("requests: %d\n", msg->num_requests);
 
   // Allocate a token for the transmission and store the pending message.
   int token = 0;
