@@ -115,6 +115,49 @@ static void mpi_fatal_error_handler(MPI_Comm* comm, int* error_code, ...)
 }
 #endif
 
+// This sets the logging level if it is given as a command-line argument.
+static void set_up_logging()
+{
+  options_t* opts = options_argv();
+  bool free_logging = false;
+  char* logging = options_value(opts, "logging");
+  if (logging == NULL)
+  {
+    // Are we maybe in a test environment, in which the logging=xxx 
+    // argument is the first one passed?
+    char* command = options_command(opts);
+    if ((command != NULL) && (strstr(command, "logging") != NULL) && (strcasecmp(command, "logging=") != 0))
+    {
+      int num_words;
+      char** words = string_split(command, "=", &num_words);
+      if (num_words == 2)
+      {
+        ASSERT(strcasecmp(words[0], "logging") == 0);
+        free_logging = true;
+        logging = string_dup(words[1]);
+      }
+      for (int i = 0; i < num_words; ++i)
+        string_free(words[i]);
+      polymec_free(words);
+    }
+  }
+  if (logging != NULL)
+  {
+    if (!strcasecmp(logging, "debug"))
+      set_log_level(LOG_DEBUG);
+    else if (!strcasecmp(logging, "detail"))
+      set_log_level(LOG_DETAIL);
+    else if (!strcasecmp(logging, "info"))
+      set_log_level(LOG_INFO);
+    else if (!strcasecmp(logging, "urgent"))
+      set_log_level(LOG_URGENT);
+    else if (!strcasecmp(logging, "off"))
+      set_log_level(LOG_NONE);
+    if (free_logging)
+      string_free(logging);
+  }
+}
+
 // This somewhat delicate procedure implements a simple mechanism to pause 
 // and allow a developer to attach a debugger.
 static void pause_if_requested()
@@ -127,7 +170,7 @@ static void pause_if_requested()
     // Are we maybe in a test environment, in which the pause=xxx 
     // argument is the first one passed?
     char* command = options_command(opts);
-    if ((command != NULL) && (strcasecmp(command, "pause=")))
+    if ((command != NULL) && (strstr(command, "pause") != NULL) && (strcasecmp(command, "pause=") != 0))
     {
       int num_words;
       char** words = string_split(command, "=", &num_words);
@@ -238,6 +281,9 @@ void polymec_init(int argc, char** argv)
 
     // Okay! We're initialized.
     polymec_initialized = true;
+
+    // If we are asked to set a specific logging level, do so.
+    set_up_logging();
 
     // If we are asked to pause, do so.
     pause_if_requested();

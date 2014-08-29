@@ -721,6 +721,7 @@ static mesh_t* fuse_submeshes(mesh_t** submeshes,
     num_nodes += submesh->num_nodes;
     submesh_node_offsets[m+1] = num_nodes;
   }
+  log_debug("mesh_repartition: Fusing %d submeshes totaling %d cells.", num_submeshes, num_cells);
 
   // Next, we traverse these submeshes and construct sets of all the 
   // faces/nodes that make up the "seams" of the fused mesh--those whose 
@@ -855,14 +856,14 @@ static mesh_t* fuse_submeshes(mesh_t** submeshes,
     kd_tree_free(node_tree);
   }
 
-  // We're through with the seam faces/nodes.
-  int_unordered_set_free(seam_faces);
-  int_unordered_set_free(seam_nodes);
-
   // Reduce the number of faces and nodes in the fused mesh by the ones that 
   // have been merged to others.
   num_faces -= seam_faces->size;
   num_nodes -= seam_nodes->size;
+
+  // We're through with the seam faces/nodes.
+  int_unordered_set_free(seam_faces);
+  int_unordered_set_free(seam_nodes);
 
   // Now we create the fused mesh and fill it with the contents of the submeshes.
   mesh_t* fused_mesh = mesh_new(submeshes[0]->comm, num_cells, num_ghost_cells,
@@ -970,8 +971,8 @@ static mesh_t* fuse_submeshes(mesh_t** submeshes,
   }
 
   // Consume the submeshes.
-  for (int i = 0; i < 1+num_submeshes; ++i)
-    mesh_free(submeshes[i]);
+  for (int m = 0; m < num_submeshes; ++m)
+    mesh_free(submeshes[m]);
 
   // Now fill the exchanger for the fused mesh with data.
   int_ptr_unordered_map_t* send_map = int_ptr_unordered_map_new(); 
@@ -990,7 +991,8 @@ static mesh_t* fuse_submeshes(mesh_t** submeshes,
       int_array_append(send_indices, fused_mesh->face_cells[2*f]);
       if (!int_ptr_unordered_map_contains(recv_map, proc))
         int_ptr_unordered_map_insert_with_v_dtor(recv_map, proc, int_array_new(), DTOR(int_array_free));
-      int_array_append(send_indices, ghost_cell);
+      int_array_t* recv_indices = *int_ptr_unordered_map_get(recv_map, proc);
+      int_array_append(recv_indices, ghost_cell);
       ++ghost_cell;
     }
   }
