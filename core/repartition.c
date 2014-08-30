@@ -181,33 +181,13 @@ static SCOTCH_Num* repartition_graph(adj_graph_t* local_graph,
   // preserve the ordering of the ghost vertices, too.
   exchanger_exchange(local_graph_ex, local_partition, 1, 0, MPI_UINT64_T);
 
+//printf("%d: P = [", rank);
+//for (int i = 0; i < num_vertices + num_ghost_vertices; ++i)
+//printf("%d ", local_partition[i]);
+//printf("]\n");
+
   // Return the local partition vector.
   return local_partition;
-
-#if 0
-  // Assemble a global partition vector.
-  index_t global_num_points = vtx_dist[nprocs];
-  SCOTCH_Num* global_partition = polymec_malloc(sizeof(SCOTCH_Num) * global_num_points);
-  int recv_counts[nprocs], offsets[nprocs];
-  for (int p = 0; p < nprocs; ++p)
-  {
-    recv_counts[p] = (int)(vtx_dist[p+1] - vtx_dist[p]);
-    offsets[p] = (int)vtx_dist[p];
-  }
-  MPI_Allgatherv(local_partition, num_vertices, MPI_UINT64_T, global_partition, 
-                 recv_counts, offsets, MPI_UINT64_T, comm);
-  polymec_free(local_partition);
-
-  // Clean up.
-  SCOTCH_dgraphExit(&dist_graph);
-
-printf("P = [");
-for (int i = 0; i < global_num_points; ++i)
-printf("%d ", global_partition[i]);
-printf("]\n");
-
-  polymec_free(global_partition);
-#endif
 }
 
 // This helper sets up the exchanger ex so that it can distribute data from the 
@@ -701,6 +681,12 @@ static void mesh_distribute(mesh_t** mesh,
 static mesh_t* fuse_submeshes(mesh_t** submeshes, 
                               int num_submeshes)
 {
+  ASSERT(num_submeshes > 0);
+
+  // If we're only given 1 submesh, simply copy it.
+  if (num_submeshes == 1)
+    return submeshes[0];
+
   int rank;
   MPI_Comm_rank(submeshes[0]->comm, &rank);
 
@@ -721,7 +707,7 @@ static mesh_t* fuse_submeshes(mesh_t** submeshes,
     num_nodes += submesh->num_nodes;
     submesh_node_offsets[m+1] = num_nodes;
   }
-  log_debug("mesh_repartition: Fusing %d submeshes totaling %d cells.", num_submeshes, num_cells);
+  printf("%d: Fusing %d submeshes totaling %d cells.", rank, num_submeshes, num_cells);
 
   // Next, we traverse these submeshes and construct sets of all the 
   // faces/nodes that make up the "seams" of the fused mesh--those whose 
