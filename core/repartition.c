@@ -682,11 +682,6 @@ static mesh_t* fuse_submeshes(mesh_t** submeshes,
                               int num_submeshes)
 {
   ASSERT(num_submeshes > 0);
-
-  // If we're only given 1 submesh, simply copy it.
-  if (num_submeshes == 1)
-    return submeshes[0];
-
   int rank;
   MPI_Comm_rank(submeshes[0]->comm, &rank);
 
@@ -707,7 +702,6 @@ static mesh_t* fuse_submeshes(mesh_t** submeshes,
     num_nodes += submesh->num_nodes;
     submesh_node_offsets[m+1] = num_nodes;
   }
-  printf("%d: Fusing %d submeshes totaling %d cells.", rank, num_submeshes, num_cells);
 
   // Next, we traverse these submeshes and construct sets of all the 
   // faces/nodes that make up the "seams" of the fused mesh--those whose 
@@ -734,30 +728,37 @@ static mesh_t* fuse_submeshes(mesh_t** submeshes,
   // ones to "originals."
   int_int_unordered_map_t* dup_face_map = int_int_unordered_map_new();
   {
+    // Translate the seam faces to an array.
+    int seam_face_array[seam_faces->size];
+    {
+      int pos = 0, i = 0, j;
+      while (int_unordered_set_next(seam_faces, &pos, &j))
+        seam_face_array[i++] = j;
+    }
+
     // Make a kd-tree of face centers.
     point_t* xf = polymec_malloc(sizeof(point_t) * seam_faces->size);
-    int pos = 0, i = 0, j;
-    while (int_unordered_set_next(seam_faces, &pos, &j))
+    for (int i = 0; i < seam_faces->size; ++i)
     {
       // Find the submesh that contains this face.
-      int m = 0;
+      int m = 0, j = seam_face_array[i];
       while (j < submesh_face_offsets[m]) ++m;
 
       // Put the face center into this array.
       int f = j - submesh_face_offsets[m];
       xf[i] = submeshes[m]->face_centers[f];
-      ++i;
     }
     kd_tree_t* face_tree = kd_tree_new(xf, seam_faces->size);
     polymec_free(xf);
 
     // Now examine each seam face and find the 2 nearest faces to it.
     // One will be the face itself, and the other will be a duplicate. 
-    // Map the one with the higher index to the lower index.
-    pos = 0;
-    while (int_unordered_set_next(seam_faces, &pos, &j))
+    // Map the one with the higher index to the lower index. Note that 
+    // the indices of the points in the kd-tree should correspond to those
+    // in the seam face array.
+    for (int i = 0; i < seam_faces->size; ++i)
     {
-      int nearest[2];
+      int nearest[2], j = seam_face_array[i];
 
       // Get the face center we're considering (in the same way we did above).
       int m = 0;
@@ -770,8 +771,8 @@ static mesh_t* fuse_submeshes(mesh_t** submeshes,
 
       // Merge the faces by mapping the one with the higher index to the 
       // lower index. 
-      int index0 = submesh_face_offsets[m] + nearest[0];
-      int index1 = submesh_face_offsets[m] + nearest[1];
+      int index0 = seam_face_array[nearest[0]];
+      int index1 = seam_face_array[nearest[1]];
       ASSERT(index0 != index1);
       int_int_unordered_map_insert(dup_face_map, MAX(index0, index1), MIN(index0, index1));
 
@@ -797,13 +798,20 @@ static mesh_t* fuse_submeshes(mesh_t** submeshes,
   // Do the same for duplicate nodes.
   int_int_unordered_map_t* dup_node_map = int_int_unordered_map_new();
   {
+    // Translate the seam nodes to an array.
+    int seam_node_array[seam_nodes->size];
+    {
+      int pos = 0, i = 0, j;
+      while (int_unordered_set_next(seam_nodes, &pos, &j))
+        seam_node_array[i++] = j;
+    }
+
     // Make a kd-tree of node positions.
     point_t* xn = polymec_malloc(sizeof(point_t) * seam_nodes->size);
-    int pos = 0, i = 0, j;
-    while (int_unordered_set_next(seam_nodes, &pos, &j))
+    for (int i = 0; i < seam_nodes->size; ++i)
     {
       // Find the submesh that contains this face.
-      int m = 0;
+      int m = 0, j = seam_node_array[i];
       while (j < submesh_node_offsets[m]) ++m;
 
       // Put the node position into this array.
@@ -817,10 +825,9 @@ static mesh_t* fuse_submeshes(mesh_t** submeshes,
     // Now examine each seam node and find the 2 nearest node to it.
     // One will be the node itself, and the other will be a duplicate. 
     // Map the one with the higher index to the lower index.
-    pos = 0;
-    while (int_unordered_set_next(seam_nodes, &pos, &j))
+    for (int i = 0; i < seam_nodes->size; ++i)
     {
-      int nearest[2];
+      int nearest[2], j = seam_node_array[i];
 
       // Get the node position we're considering (in the same way we did above).
       int m = 0;
@@ -833,8 +840,8 @@ static mesh_t* fuse_submeshes(mesh_t** submeshes,
 
       // Merge the nodes by mapping the one with the higher index to the 
       // lower index.
-      int index0 = submesh_node_offsets[m] + nearest[0];
-      int index1 = submesh_node_offsets[m] + nearest[1];
+      int index0 = seam_node_array[nearest[0]];
+      int index1 = seam_node_array[nearest[1]];
       int_int_unordered_map_insert(dup_node_map, MAX(index0, index1), MIN(index0, index1));
     }
 
