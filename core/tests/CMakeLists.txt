@@ -22,5 +22,5 @@ add_polymec_test(test_interpreter test_interpreter.c)
 
 add_mpi_polymec_test(test_exchanger test_exchanger.c 1 2 3 4)
 add_mpi_polymec_test(test_partition_mesh test_partition_mesh.c ../../geometry/create_uniform_mesh.c ../../geometry/create_rectilinear_mesh.c ../../geometry/cubic_lattice.c 1 2 4)
-add_mpi_polymec_test(test_repartition_mesh test_repartition_mesh.c ../../geometry/create_uniform_mesh.c ../../geometry/create_rectilinear_mesh.c ../../geometry/cubic_lattice.c 1 2)
+add_mpi_polymec_test(test_repartition_mesh test_repartition_mesh.c ../../geometry/create_uniform_mesh.c ../../geometry/create_rectilinear_mesh.c ../../geometry/cubic_lattice.c 1 2 4)
 

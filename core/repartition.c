@@ -723,8 +723,6 @@ static mesh_t* fuse_submeshes(mesh_t** submeshes,
     }
   }
   num_ghost_cells -= seam_faces->size;
-printf("%d: %d seam faces\n", rank, seam_faces->size);
-printf("%d: %d seam nodes\n", rank, seam_nodes->size);
 
   // Construct mappings to remove duplicate faces by mapping redundant 
   // ones to "originals."
