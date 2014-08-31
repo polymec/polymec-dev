@@ -723,10 +723,13 @@ static mesh_t* fuse_submeshes(mesh_t** submeshes,
     }
   }
   num_ghost_cells -= seam_faces->size;
+printf("%d: %d seam faces\n", rank, seam_faces->size);
+printf("%d: %d seam nodes\n", rank, seam_nodes->size);
 
   // Construct mappings to remove duplicate faces by mapping redundant 
   // ones to "originals."
   int_int_unordered_map_t* dup_face_map = int_int_unordered_map_new();
+  if (seam_faces->size > 0)
   {
     // Translate the seam faces to an array.
     int seam_face_array[seam_faces->size];
@@ -797,6 +800,7 @@ static mesh_t* fuse_submeshes(mesh_t** submeshes,
 
   // Do the same for duplicate nodes.
   int_int_unordered_map_t* dup_node_map = int_int_unordered_map_new();
+  if (seam_nodes->size > 0)
   {
     // Translate the seam nodes to an array.
     int seam_node_array[seam_nodes->size];
@@ -896,7 +900,7 @@ static mesh_t* fuse_submeshes(mesh_t** submeshes,
       int num_cell_faces = submesh->cell_face_offsets[c+1] - submesh->cell_face_offsets[c];
       for (int f = 0; f < num_cell_faces; ++f)
       {
-        int subface_index = submesh->cell_faces[submesh->cell_face_offsets[c]] + f;
+        int subface_index = submesh->cell_faces[submesh->cell_face_offsets[c] + f];
         bool flipped = false;
         if (subface_index < 0)
         {
@@ -936,11 +940,11 @@ static mesh_t* fuse_submeshes(mesh_t** submeshes,
         int num_face_nodes = submesh->face_node_offsets[f+1] - submesh->face_node_offsets[f];
         for (int n = 0; n < num_face_nodes; ++n)
         {
-          int subnode_index = submesh->face_nodes[submesh->face_node_offsets[f]] + n;
+          int subnode_index = submesh->face_nodes[submesh->face_node_offsets[f] + n];
           int flattened_node = submesh_node_offsets[m] + subnode_index;
           int* node_p = int_int_unordered_map_get(dup_node_map, flattened_node);
           int node_index = (node_p != NULL) ? *node_p : flattened_node;
-          fused_mesh->face_nodes[fused_mesh->face_node_offsets[face]+f] = node_index;
+          fused_mesh->face_nodes[fused_mesh->face_node_offsets[face]+n] = node_index;
         }
         ++face;
       }
@@ -962,6 +966,9 @@ static mesh_t* fuse_submeshes(mesh_t** submeshes,
       }
     }
   }
+
+  // Now calculate geometry.
+  mesh_compute_geometry(fused_mesh);
 
   // Consume the submeshes.
   for (int m = 0; m < num_submeshes; ++m)
