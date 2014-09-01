@@ -143,7 +143,7 @@ mesh_t* create_rectilinear_mesh(MPI_Comm comm,
   int_ptr_unordered_map_t* recv_map = int_ptr_unordered_map_new();
 
   int ghost_cell_index = num_cells;
-  for (int cell = 0; cell < cells_per_proc; ++cell)
+  for (int cell = 0; cell < num_cells; ++cell)
   {
     // Figure out (i, j, k) indices for this cell.
     uint64_t global_cell_index = rank*cells_per_proc + cell, i, j, k;
@@ -267,16 +267,21 @@ mesh_t* create_rectilinear_mesh(MPI_Comm comm,
           ((neighboring_cells[ii] < cells_per_proc*rank) || 
            (neighboring_cells[ii] >= cells_per_proc*(rank+1))))
       {
+        int face = mesh->cell_faces[6*cell+ii];
+        if (face < 0) face = ~face;
+        ASSERT(mesh->face_cells[2*face] != -1);
+
         // First of all, let's make sure that the neighboring cell 
         // actually belongs on a different process.
         if ((rank == (nproc-1)) && 
             (neighboring_cells[ii] >= cells_per_proc*rank) && 
             (neighboring_cells[ii] < (cells_per_proc*rank + num_cells)))
+        {
+          mesh->face_cells[2*face+1] = -1;
           continue;
+        }
 
-        int face = mesh->cell_faces[6*cell+ii];
-        if (face < 0) face = ~face;
-        ASSERT(mesh->face_cells[2*face] != -1);
+        // Okay, it's a proper ghost cell.
         mesh->face_cells[2*face+1] = ghost_cell_index;
 
         // Generate send mappings.

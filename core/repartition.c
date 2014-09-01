@@ -125,6 +125,7 @@ static SCOTCH_Num* repartition_graph(adj_graph_t* local_graph,
     adj[i] = (SCOTCH_Num)edges[i];
 
   // Replace the ghost entries in adj with global indices.
+adj_graph_fprintf(local_graph, stdout);
 exchanger_fprintf(local_graph_ex, stdout);
   index_t* vtx_dist = adj_graph_vertex_dist(local_graph);
   {
@@ -983,7 +984,8 @@ static mesh_t* fuse_submeshes(mesh_t** submeshes,
     }
   }
 
-  // Now calculate geometry.
+  // Construct edges and compute geometry.
+  mesh_construct_edges(fused_mesh);
   mesh_compute_geometry(fused_mesh);
 
   // Consume the submeshes.
