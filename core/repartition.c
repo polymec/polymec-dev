@@ -125,16 +125,29 @@ static SCOTCH_Num* repartition_graph(adj_graph_t* local_graph,
     adj[i] = (SCOTCH_Num)edges[i];
 
   // Replace the ghost entries in adj with global indices.
+exchanger_fprintf(local_graph_ex, stdout);
   index_t* vtx_dist = adj_graph_vertex_dist(local_graph);
   {
     index_t* global_indices = polymec_malloc(sizeof(SCOTCH_Num) * (num_vertices + num_ghost_vertices));
     for (int i = 0; i < num_vertices; ++i)
       global_indices[i] = (index_t)(vtx_dist[rank] + i);
     exchanger_exchange(local_graph_ex, global_indices, 1, 0, MPI_UINT64_T);
+printf("%d: G' = [", rank);
+for (int i = 0; i < num_vertices + num_ghost_vertices; ++i)
+printf("%zd ", global_indices[i]);
+printf("]\n");
     for (int i = 0; i < num_arcs; ++i)
       adj[i] = global_indices[adj[i]];
     polymec_free(global_indices);
   }
+printf("%d: xadj = [", rank);
+for (int i = 0; i < num_vertices+1; ++i)
+printf("%zd ", xadj[i]);
+printf("]\n");
+printf("%d: adj = [", rank);
+for (int i = 0; i < num_arcs; ++i)
+printf("%zd ", adj[i]);
+printf("]\n");
 
   // Build a distributed graph.
   SCOTCH_Num* vtx_weights = NULL;
@@ -161,7 +174,7 @@ static SCOTCH_Num* repartition_graph(adj_graph_t* local_graph,
       SCOTCH_archCmpltw(&arch, num_vertices, vtx_weights);
     SCOTCH_Strat strategy;
     SCOTCH_stratInit(&strategy);
-    SCOTCH_Num strat_flags = SCOTCH_STRATDEFAULT;
+    SCOTCH_Num strat_flags = SCOTCH_STRATBALANCE;
     SCOTCH_stratDgraphMapBuild(&strategy, strat_flags, nprocs, nprocs, (double)imbalance_tol);
     int result = SCOTCH_dgraphMap(&dist_graph, &arch, &strategy, local_partition);
     if (result != 0)
@@ -181,10 +194,14 @@ static SCOTCH_Num* repartition_graph(adj_graph_t* local_graph,
   // preserve the ordering of the ghost vertices, too.
   exchanger_exchange(local_graph_ex, local_partition, 1, 0, MPI_UINT64_T);
 
-//printf("%d: P = [", rank);
-//for (int i = 0; i < num_vertices + num_ghost_vertices; ++i)
-//printf("%d ", local_partition[i]);
+//printf("%d: vtx_dist = [", rank);
+//for (int p = 0; p < nprocs+1; ++p)
+//printf("%zd ", vtx_dist[p]);
 //printf("]\n");
+printf("%d: P = [", rank);
+for (int i = 0; i < num_vertices + num_ghost_vertices; ++i)
+printf("%zd ", local_partition[i]);
+printf("]\n");
 
   // Return the local partition vector.
   return local_partition;

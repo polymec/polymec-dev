@@ -41,16 +41,6 @@ void test_repartition_uniform_mesh(void** state)
   bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
   mesh_t* mesh = create_uniform_mesh(MPI_COMM_WORLD, nx, ny, nz, &bbox);
 
-  {
-  double r[mesh->num_cells];
-  for (int c = 0; c < mesh->num_cells; ++c)
-    r[c] = 1.0*rank;
-  silo_file_t* silo = silo_file_new(mesh->comm, "uniform_mesh_init", "uniform_mesh_init", 1, 0, 0, 0.0);
-  silo_file_write_mesh(silo, "mesh", mesh);
-  silo_file_write_scalar_cell_field(silo, "rank", "mesh", r);
-  silo_file_close(silo);
-  }
-
   // Repartition it.
   exchanger_t* migrator = repartition_mesh(&mesh, NULL, 0.05);
   exchanger_free(migrator);

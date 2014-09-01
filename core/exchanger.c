@@ -133,7 +133,7 @@ static void mpi_message_pack(mpi_message_t* msg, void* data,
     if (msg->type == MPI_REAL)
     {
       real_t* src = data;
-      real_t* dest = (msg->send_buffers[i]);
+      real_t* dest = msg->send_buffers[i];
       for (int j = 0; j < msg->send_buffer_sizes[i]; ++j)
         for (int s = 0; s < stride; ++s)
           dest[stride*j+s] = src[stride*send_indices[j]+s];
@@ -281,6 +281,7 @@ static void mpi_message_unpack(mpi_message_t* msg, void* data,
         for (int s = 0; s < stride; ++s)
           dest[stride*recv_indices[j]+s] = src[stride*j+s];
     }
+    ++i;
   }
 }
 
@@ -332,18 +333,18 @@ static void mpi_message_fprintf(mpi_message_t* msg, FILE* stream)
   if (msg->num_sends > 0)
     fprintf(stream, "Send buffers:\n");
   for (int i = 0; i < msg->num_sends; ++i)
-    fprintf(stream, " %d: %d bytes\n", i, msg->send_buffer_sizes[i]);
+    fprintf(stream, " %d: %d items\n", i, msg->send_buffer_sizes[i]);
   if (msg->num_receives > 0)
     fprintf(stream, "Receive buffers:\n");
   for (int i = 0; i < msg->num_receives; ++i)
-    fprintf(stream, " %d: %d bytes\n", i, msg->receive_buffer_sizes[i]);
+    fprintf(stream, " %d: %d items\n", i, msg->receive_buffer_sizes[i]);
 }
 #endif
 
 struct exchanger_t
 {
   MPI_Comm comm;
-  int rank;
+  int rank, nprocs;
 
   // Communication maps.
   exchanger_map_t* send_map;
@@ -369,6 +370,7 @@ exchanger_t* exchanger_new(MPI_Comm comm)
   exchanger_t* ex = polymec_malloc(sizeof(exchanger_t));
   ex->comm = comm;
   MPI_Comm_rank(comm, &(ex->rank));
+  MPI_Comm_size(comm, &(ex->nprocs));
   ex->dl_thresh = -1.0;
   ex->dl_output_rank = -1;
   ex->dl_output_stream = NULL;
@@ -418,6 +420,7 @@ void exchanger_set_send(exchanger_t* ex, int remote_process, int* indices, int n
 {
   ASSERT(remote_process >= 0);
   ASSERT(remote_process != ex->rank);
+  ASSERT(remote_process < ex->nprocs);
   exchanger_channel_t* c = exchanger_channel_new(num_indices, indices, copy_indices);
   exchanger_map_insert_with_kv_dtor(ex->send_map, remote_process, c, delete_map_entry);
 
@@ -466,6 +469,7 @@ void exchanger_set_receive(exchanger_t* ex, int remote_process, int* indices, in
 {
   ASSERT(remote_process >= 0);
   ASSERT(remote_process != ex->rank);
+  ASSERT(remote_process < ex->nprocs);
   exchanger_channel_t* c = exchanger_channel_new(num_indices, indices, copy_indices);
   exchanger_map_insert_with_kv_dtor(ex->receive_map, remote_process, c, delete_map_entry);
 
