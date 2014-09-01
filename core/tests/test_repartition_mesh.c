@@ -31,13 +31,13 @@
 #include "core/repartition.h"
 #include "geometry/create_uniform_mesh.h"
 
-void test_repartition_uniform_mesh(void** state)
+static void test_repartition_uniform_mesh_of_size(void** state, int nx)
 {
   int rank;
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
-  // Create a 2x1x1 uniform mesh.
-  int nx = 4, ny = 1, nz = 1;
+  // Create an nx x 1 x 1 uniform mesh.
+  int ny = 1, nz = 1;
   bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
   mesh_t* mesh = create_uniform_mesh(MPI_COMM_WORLD, nx, ny, nz, &bbox);
 
@@ -58,12 +58,22 @@ void test_repartition_uniform_mesh(void** state)
   mesh_free(mesh);
 }
 
+void test_repartition_uniform_mesh(void** state)
+{
+  test_repartition_uniform_mesh_of_size(state, 128);
+}
+
+void test_repartition_tiny_uniform_mesh(void** state)
+{
+  test_repartition_uniform_mesh_of_size(state, 4);
+}
+
 int main(int argc, char* argv[]) 
 {
   polymec_init(argc, argv);
   const UnitTest tests[] = 
   {
-    unit_test(test_repartition_uniform_mesh)
+    unit_test(test_repartition_tiny_uniform_mesh)
   };
   return run_tests(tests);
 }

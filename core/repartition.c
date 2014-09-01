@@ -125,8 +125,6 @@ static SCOTCH_Num* repartition_graph(adj_graph_t* local_graph,
     adj[i] = (SCOTCH_Num)edges[i];
 
   // Replace the ghost entries in adj with global indices.
-adj_graph_fprintf(local_graph, stdout);
-exchanger_fprintf(local_graph_ex, stdout);
   index_t* vtx_dist = adj_graph_vertex_dist(local_graph);
   {
     index_t* global_indices = polymec_malloc(sizeof(SCOTCH_Num) * (num_vertices + num_ghost_vertices));
@@ -167,22 +165,23 @@ printf("]\n");
   // Generate the local partition vector by mapping the distributed graph.
   SCOTCH_Num* local_partition = polymec_malloc(sizeof(SCOTCH_Num) * (num_vertices + num_ghost_vertices));
   {
-    SCOTCH_Arch arch;
-    SCOTCH_archInit(&arch);
-    if (vtx_weights == NULL)
-      SCOTCH_archCmplt(&arch, num_vertices);
-    else
-      SCOTCH_archCmpltw(&arch, num_vertices, vtx_weights);
+//    SCOTCH_Arch arch;
+//    SCOTCH_archInit(&arch);
+//    if (vtx_weights == NULL)
+//      SCOTCH_archCmplt(&arch, num_vertices);
+//    else
+//      SCOTCH_archCmpltw(&arch, num_vertices, vtx_weights);
     SCOTCH_Strat strategy;
     SCOTCH_stratInit(&strategy);
     SCOTCH_Num strat_flags = SCOTCH_STRATBALANCE;
     SCOTCH_stratDgraphMapBuild(&strategy, strat_flags, nprocs, nprocs, (double)imbalance_tol);
-    int result = SCOTCH_dgraphMap(&dist_graph, &arch, &strategy, local_partition);
+    int result = SCOTCH_dgraphPart(&dist_graph, nprocs, &strategy, local_partition);
+//    int result = SCOTCH_dgraphMap(&dist_graph, &arch, &strategy, local_partition);
     if (result != 0)
       polymec_error("Repartitioning failed.");
     SCOTCH_dgraphExit(&dist_graph);
     SCOTCH_stratExit(&strategy);
-    SCOTCH_archExit(&arch);
+//    SCOTCH_archExit(&arch);
     polymec_free(adj);
     polymec_free(xadj);
   }
@@ -302,51 +301,74 @@ static exchanger_t* create_migrator(MPI_Comm comm,
                num_vertices_to_receive, 1, MPI_INT, comm);
 
   // Send and receive the actual vertices.
+  int** receive_vertices = polymec_malloc(sizeof(int*) * nprocs);
+  memset(receive_vertices, 0, sizeof(int*) * nprocs);
   int num_requests = 0;
   for (int p = 0; p < nprocs; ++p)
   {
     if ((rank != p) && (num_vertices_to_receive[p] > 0)) ++num_requests;
     if ((rank != p) && (num_vertices_to_send[p] > 0)) ++num_requests;
   }
-  MPI_Request requests[num_requests];
-  int r = 0;
-  int** receive_vertices = polymec_malloc(sizeof(int*) * nprocs);
-  memset(receive_vertices, 0, sizeof(int*) * nprocs);
-  for (int p = 0; p < nprocs; ++p)
+  if (num_requests > 0)
   {
-    if (num_vertices_to_receive[p] > 0)
+    MPI_Request requests[num_requests];
+    int r = 0;
+    for (int p = 0; p < nprocs; ++p)
     {
-      receive_vertices[p] = polymec_malloc(sizeof(int) * num_vertices_to_receive[p]);
-      if (p != rank)
+      if (num_vertices_to_receive[p] > 0)
       {
-        MPI_Irecv(receive_vertices, num_vertices_to_receive[p], MPI_INT, p, p, comm, &requests[r++]);
+        receive_vertices[p] = polymec_malloc(sizeof(int) * num_vertices_to_receive[p]);
+        if (p != rank)
+        {
+          // Note that we use this rank as our tag.
+          MPI_Irecv(receive_vertices, num_vertices_to_receive[p], MPI_INT, p, rank, comm, &requests[r++]);
+        }
+      }
+      if (num_vertices_to_send[p] > 0)
+      {
+        int send_vertices[num_vertices_to_send[p]], s = 0;
+        for (int v = 0; v < num_vertices; ++v)
+        {
+          if (local_partition[v] == p)
+            send_vertices[s++] = v;
+        }
+        if (p != rank)
+        {
+          // Note that we use the destination rank p as our tag.
+          exchanger_set_send(migrator, p, send_vertices, num_vertices_to_send[p], true);
+          MPI_Isend(send_vertices, num_vertices_to_send[p], MPI_INT, p, p, comm, &requests[r++]);
+        }
+        else
+          memcpy(receive_vertices[rank], send_vertices, sizeof(int) * num_vertices_to_receive[rank]);
       }
     }
-    if (num_vertices_to_send[p] > 0)
-    {
-      int send_vertices[num_vertices_to_send[p]], s = 0;
-      for (int v = 0; v < num_vertices; ++v)
-      {
-        if (local_partition[v] == p)
-          send_vertices[s++] = v;
-      }
-      if (p != rank)
-      {
-        exchanger_set_send(migrator, p, send_vertices, num_vertices_to_send[p], true);
-        MPI_Isend(send_vertices, num_vertices_to_receive[p], MPI_INT, p, p, comm, &requests[r++]);
-      }
-      else
-        memcpy(receive_vertices[rank], send_vertices, sizeof(int) * num_vertices_to_receive[rank]);
-    }
-  }
-  ASSERT(r == num_requests);
+    ASSERT(r == num_requests);
 
-  // Wait for exchanges to finish.
-  MPI_Status statuses[num_requests];
-  MPI_Waitall(num_requests, requests, statuses);
+    // Wait for exchanges to finish. We can't use MPI_Waitall here because 
+    // not all processes necessary participate.
+    MPI_Status statuses[num_requests];
+    int finished[num_requests];
+    memset(finished, 0, num_requests*sizeof(int));
+    while (true)
+    {
+      bool all_finished = true;
+      for (int i = 0; i < num_requests; ++i)
+      {
+        if (!finished[i])
+        {
+          if (MPI_Test(&requests[i], &finished[i], &statuses[i]) != MPI_SUCCESS)
+            polymec_error("create_migrator: Internal error.");
+          if (!finished[i]) all_finished = false;
+        }
+      }
+
+      // If the transmissions have finished at this point, we 
+      // can break out of the loop. 
+      if (all_finished) break;
+    } 
+  }
 
   // Now register all the vertices we're receiving with the migrator.
-  r = 0;
   for (int p = 0; p < nprocs; ++p)
   {
     if ((rank != p) && (num_vertices_to_receive[p] > 0))
