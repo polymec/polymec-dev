@@ -699,8 +699,9 @@ static mesh_t* fuse_submeshes(mesh_t** submeshes,
                               int num_submeshes)
 {
   ASSERT(num_submeshes > 0);
-  int rank;
+  int rank, nprocs;
   MPI_Comm_rank(submeshes[0]->comm, &rank);
+  MPI_Comm_rank(submeshes[0]->comm, &nprocs);
 
   // First we traverse each of the submeshes and count up all the internal 
   // and ghost cells, faces, nodes.
@@ -1000,6 +1001,10 @@ static mesh_t* fuse_submeshes(mesh_t** submeshes,
       // Found a ghost cell. Get its owning process.
       int proc = -fused_mesh->face_cells[2*f+1] + 2;
       ASSERT(proc != rank);
+      ASSERT(proc >= 0);
+      ASSERT(proc < nprocs);
+
+      // Set up the sends and receives associated with this process.
       if (!int_ptr_unordered_map_contains(send_map, proc))
         int_ptr_unordered_map_insert_with_v_dtor(send_map, proc, int_array_new(), DTOR(int_array_free));
       int_array_t* send_indices = *int_ptr_unordered_map_get(send_map, proc);
