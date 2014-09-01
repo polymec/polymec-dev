@@ -118,7 +118,10 @@ mesh_t* create_rectilinear_mesh(MPI_Comm comm,
           ((neighboring_cells[ii] < cells_per_proc*rank) || 
           (neighboring_cells[ii] >= cells_per_proc*(rank+1))))
       {
-        ++num_ghost_cells;
+        if (! ((rank == (nproc-1)) && 
+               (neighboring_cells[ii] >= cells_per_proc*rank) && 
+               (neighboring_cells[ii] < (cells_per_proc*rank + num_cells))))
+          ++num_ghost_cells;
       }
     }
   }
@@ -264,6 +267,13 @@ mesh_t* create_rectilinear_mesh(MPI_Comm comm,
           ((neighboring_cells[ii] < cells_per_proc*rank) || 
            (neighboring_cells[ii] >= cells_per_proc*(rank+1))))
       {
+        // First of all, let's make sure that the neighboring cell 
+        // actually belongs on a different process.
+        if ((rank == (nproc-1)) && 
+            (neighboring_cells[ii] >= cells_per_proc*rank) && 
+            (neighboring_cells[ii] < (cells_per_proc*rank + num_cells)))
+          continue;
+
         int face = mesh->cell_faces[6*cell+ii];
         if (face < 0) face = ~face;
         ASSERT(mesh->face_cells[2*face] != -1);

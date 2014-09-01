@@ -701,7 +701,7 @@ static mesh_t* fuse_submeshes(mesh_t** submeshes,
   ASSERT(num_submeshes > 0);
   int rank, nprocs;
   MPI_Comm_rank(submeshes[0]->comm, &rank);
-  MPI_Comm_rank(submeshes[0]->comm, &nprocs);
+  MPI_Comm_size(submeshes[0]->comm, &nprocs);
 
   // First we traverse each of the submeshes and count up all the internal 
   // and ghost cells, faces, nodes.
@@ -999,7 +999,7 @@ static mesh_t* fuse_submeshes(mesh_t** submeshes,
     if (fused_mesh->face_cells[2*f+1] < -1)
     {
       // Found a ghost cell. Get its owning process.
-      int proc = -fused_mesh->face_cells[2*f+1] + 2;
+      int proc = -fused_mesh->face_cells[2*f+1] - 2;
       ASSERT(proc != rank);
       ASSERT(proc >= 0);
       ASSERT(proc < nprocs);
