@@ -406,10 +406,9 @@ static void point_cloud_migrate(point_cloud_t** cloud,
 
 // This helper constructs and returns a mesh from the cells with the given
 // indices in the given mesh. The submesh is valid with the following 
-// exceptions:
-// 1. The indices of ghost cells referenced in submesh->face_cells are 
-//    replaced with destination process ranks.
-// 2. The geometry for the submesh is not computed.
+// exception:
+// The indices of ghost cells referenced in submesh->face_cells are 
+// replaced with destination process ranks.
 static mesh_t* create_submesh(MPI_Comm comm, mesh_t* mesh, 
                               SCOTCH_Num* partition, index_t* vtx_dist, 
                               int* indices, int num_indices)
@@ -557,8 +556,9 @@ static mesh_t* create_submesh(MPI_Comm comm, mesh_t* mesh,
     submesh->nodes[n] = mesh->nodes[orig_mesh_node];
   }
 
-  // NOTE: we don't need to construct edges or compute geometry, since 
-  // NOTE: this can be done on the "far end."
+  // Construct edges and compute geometry.
+  mesh_construct_edges(submesh);
+  mesh_compute_geometry(submesh);
 
   // Clean up.
   int_int_unordered_map_free(inverse_cell_map);
@@ -607,10 +607,6 @@ static void mesh_distribute(mesh_t** mesh,
           indices[k++] = i;
       }
       local_mesh = create_submesh(comm, global_mesh, global_partition, NULL, indices, num_cells[0]);
-
-      // Construct edges, geometry, since this hasn't been done yet.
-      mesh_construct_edges(local_mesh);
-      mesh_compute_geometry(local_mesh);
     }
 
     // Now do the other processes.
@@ -862,7 +858,6 @@ static mesh_t* fuse_submeshes(mesh_t** submeshes,
       // Put the node position into this array.
       int n = j - submesh_node_offsets[m];
       xn[i] = submeshes[m]->nodes[n];
-      ++i;
     }
     kd_tree_t* node_tree = kd_tree_new(xn, seam_nodes->size);
     polymec_free(xn);
@@ -896,8 +891,8 @@ static mesh_t* fuse_submeshes(mesh_t** submeshes,
 
   // Reduce the number of faces and nodes in the fused mesh by the ones that 
   // have been merged to others.
-  num_faces -= seam_faces->size;
-  num_nodes -= seam_nodes->size;
+  num_faces -= dup_face_map->size;
+  num_nodes -= dup_node_map->size;
 
   // We're through with the seam faces/nodes.
   int_unordered_set_free(seam_faces);
