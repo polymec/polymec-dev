@@ -321,7 +321,7 @@ static exchanger_t* create_migrator(MPI_Comm comm,
         if (p != rank)
         {
           // Note that we use this rank as our tag.
-          MPI_Irecv(receive_vertices, num_vertices_to_receive[p], MPI_INT, p, rank, comm, &requests[r++]);
+          MPI_Irecv(receive_vertices[p], num_vertices_to_receive[p], MPI_INT, p, rank, comm, &requests[r++]);
         }
       }
       if (num_vertices_to_send[p] > 0)
@@ -366,20 +366,20 @@ static exchanger_t* create_migrator(MPI_Comm comm,
       // can break out of the loop. 
       if (all_finished) break;
     } 
-  }
 
-  // Now register all the vertices we're receiving with the migrator.
-  for (int p = 0; p < nprocs; ++p)
-  {
-    if ((rank != p) && (num_vertices_to_receive[p] > 0))
+    // Now register all the vertices we're receiving with the migrator.
+    for (int p = 0; p < nprocs; ++p)
     {
-      ASSERT(receive_vertices[p] != NULL)
-      exchanger_set_receive(migrator, p, receive_vertices[p], num_vertices_to_receive[p], true);
-      polymec_free(receive_vertices[p]);
+      if ((rank != p) && (num_vertices_to_receive[p] > 0))
+      {
+        ASSERT(receive_vertices[p] != NULL);
+        exchanger_set_receive(migrator, p, receive_vertices[p], num_vertices_to_receive[p], true);
+        polymec_free(receive_vertices[p]);
+      }
     }
+    polymec_free(receive_vertices);
+    exchanger_fprintf(migrator, stdout);
   }
-  polymec_free(receive_vertices);
-  exchanger_fprintf(migrator, stdout);
 
   return migrator;
 }
