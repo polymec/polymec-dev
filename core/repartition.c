@@ -784,10 +784,11 @@ static mesh_t* fuse_submeshes(mesh_t** submeshes,
     {
       // Find the submesh that contains this face.
       int m = 0, j = seam_face_array[i];
-      while (j < submesh_face_offsets[m]) ++m;
+      while (j > submesh_face_offsets[m+1]) ++m;
 
       // Put the face center into this array.
       int f = j - submesh_face_offsets[m];
+      ASSERT((f >= 0) && (f < submeshes[m]->num_faces));
       xf[i] = submeshes[m]->face_centers[f];
     }
     kd_tree_t* face_tree = kd_tree_new(xf, seam_faces->size);
@@ -804,7 +805,7 @@ static mesh_t* fuse_submeshes(mesh_t** submeshes,
 
       // Get the face center we're considering (in the same way we did above).
       int m = 0;
-      while (j < submesh_face_offsets[m]) ++m;
+      while (j > submesh_face_offsets[m+1]) ++m;
       int f = j - submesh_face_offsets[m];
       point_t* x = &submeshes[m]->face_centers[f];
 
@@ -827,8 +828,9 @@ static mesh_t* fuse_submeshes(mesh_t** submeshes,
       else
         j1 = MIN(index0, index1);
       int m1 = 0;
-      while (j1 < submesh_face_offsets[m1]) ++m1;
+      while (j1 > submesh_face_offsets[m1+1]) ++m1;
       int f1 = j1 - submesh_face_offsets[m1];
+      ASSERT((f1 >= 0) && (f1 < submeshes[m1]->num_faces));
       int flattened_cell1 = submesh_cell_offsets[m1] + submeshes[m1]->face_cells[2*f1];
       submeshes[m]->face_cells[2*f+1] = flattened_cell1;
     }
@@ -855,7 +857,7 @@ static mesh_t* fuse_submeshes(mesh_t** submeshes,
     {
       // Find the submesh that contains this face.
       int m = 0, j = seam_node_array[i];
-      while (j < submesh_node_offsets[m]) ++m;
+      while (j > submesh_node_offsets[m+1]) ++m;
 
       // Put the node position into this array.
       int n = j - submesh_node_offsets[m];
@@ -874,7 +876,7 @@ static mesh_t* fuse_submeshes(mesh_t** submeshes,
 
       // Get the node position we're considering (in the same way we did above).
       int m = 0;
-      while (j < submesh_node_offsets[m]) ++m;
+      while (j > submesh_node_offsets[m+1]) ++m;
       int n = j - submesh_node_offsets[m];
       point_t* x = &submeshes[m]->nodes[n];
 
