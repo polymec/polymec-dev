@@ -328,7 +328,7 @@ void kd_tree_nearest_n(kd_tree_t* tree, point_t* point, int n, int* neighbors)
   ASSERT(n > 0);
   ASSERT(neighbors != NULL);
   for (int i = 0; i < n; ++i)
-    neighbors[n] = -1;
+    neighbors[i] = -1;
 
   if (tree->root == NULL)
     return;
