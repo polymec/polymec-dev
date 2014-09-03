@@ -131,22 +131,10 @@ static SCOTCH_Num* repartition_graph(adj_graph_t* local_graph,
     for (int i = 0; i < num_vertices; ++i)
       global_indices[i] = (index_t)(vtx_dist[rank] + i);
     exchanger_exchange(local_graph_ex, global_indices, 1, 0, MPI_UINT64_T);
-printf("%d: G' = [", rank);
-for (int i = 0; i < num_vertices + num_ghost_vertices; ++i)
-printf("%zd ", global_indices[i]);
-printf("]\n");
     for (int i = 0; i < num_arcs; ++i)
       adj[i] = global_indices[adj[i]];
     polymec_free(global_indices);
   }
-printf("%d: xadj = [", rank);
-for (int i = 0; i < num_vertices+1; ++i)
-printf("%zd ", xadj[i]);
-printf("]\n");
-printf("%d: adj = [", rank);
-for (int i = 0; i < num_arcs; ++i)
-printf("%zd ", adj[i]);
-printf("]\n");
 
   // Build a distributed graph.
   SCOTCH_Num* vtx_weights = NULL;
@@ -193,15 +181,6 @@ printf("]\n");
   // out the destination ranks of the ghost vertices. This operation should 
   // preserve the ordering of the ghost vertices, too.
   exchanger_exchange(local_graph_ex, local_partition, 1, 0, MPI_UINT64_T);
-
-//printf("%d: vtx_dist = [", rank);
-//for (int p = 0; p < nprocs+1; ++p)
-//printf("%zd ", vtx_dist[p]);
-//printf("]\n");
-printf("%d: P = [", rank);
-for (int i = 0; i < num_vertices + num_ghost_vertices; ++i)
-printf("%zd ", local_partition[i]);
-printf("]\n");
 
   // Return the local partition vector.
   return local_partition;
@@ -378,7 +357,6 @@ static exchanger_t* create_migrator(MPI_Comm comm,
       }
     }
     polymec_free(receive_vertices);
-    exchanger_fprintf(migrator, stdout);
   }
 
   return migrator;
@@ -711,6 +689,26 @@ static void mesh_distribute(mesh_t** mesh,
   int_ptr_unordered_map_free(ghost_cell_indices);
 }
 
+// This helper creates an array containing an index map that removes "holes" 
+// left by mapped duplicates as mapped in dup_map. The range [0, num_indices) 
+// is mapped. This is used to remap faces and nodes in the fuse_submeshes() 
+// helper below. A newly-allocated array of length num_indices is returned.
+static int* create_index_map_with_dups_removed(int num_indices, 
+                                               int_int_unordered_map_t* dup_map)
+{
+  int* map = polymec_malloc(sizeof(int) * num_indices);
+  int j = 0; // Mapped index.
+  for (int i = 0; i < num_indices; ++i)
+  {
+    int* k_ptr = int_int_unordered_map_get(dup_map, i);
+    if (k_ptr == NULL)
+      map[i] = j++;
+    else
+      map[i] = *k_ptr;
+  }
+  return map;
+}
+
 // This helper takes an array of submeshes and stitches them all together into 
 // one single mesh (contiguous or not) on the current domain. The submeshes are 
 // consumed in the process.
@@ -835,6 +833,7 @@ static mesh_t* fuse_submeshes(mesh_t** submeshes,
     // Clean up.
     kd_tree_free(face_tree);
   }
+  int* face_map = create_index_map_with_dups_removed(num_faces, dup_face_map); 
 
   // Do the same for duplicate nodes.
   int_int_unordered_map_t* dup_node_map = int_int_unordered_map_new();
@@ -884,13 +883,13 @@ static mesh_t* fuse_submeshes(mesh_t** submeshes,
       int index0 = seam_node_array[nearest[0]];
       int index1 = seam_node_array[nearest[1]];
       ASSERT((index0 == j) || (index1 == j));
-//printf("%d: Merging nodes %d and %d at (%g, %g, %g), (%g, %g, %g)\n", rank, index0, index1, xn[nearest[0]].x, xn[nearest[0]].y, xn[nearest[0]].z, xn[nearest[1]].x, xn[nearest[1]].y, xn[nearest[1]].z);
       int_int_unordered_map_insert(dup_node_map, MAX(index0, index1), MIN(index0, index1));
     }
 
     // Clean up.
     kd_tree_free(node_tree);
   }
+  int* node_map = create_index_map_with_dups_removed(num_nodes, dup_node_map); 
 
   // Reduce the number of faces and nodes in the fused mesh by the ones that 
   // have been merged to others.
@@ -948,7 +947,7 @@ static mesh_t* fuse_submeshes(mesh_t** submeshes,
         }
         int flattened_face = submesh_face_offsets[m] + subface_index;
         int* face_p = int_int_unordered_map_get(dup_face_map, flattened_face);
-        int face_index = (face_p != NULL) ? *face_p : flattened_face;
+        int face_index = (face_p != NULL) ? face_map[*face_p] : face_map[flattened_face];
         if (flipped)
           face_index = ~face_index;
         fused_mesh->cell_faces[fused_mesh->cell_face_offsets[cell]+f] = face_index;
@@ -982,7 +981,7 @@ static mesh_t* fuse_submeshes(mesh_t** submeshes,
           int subnode_index = submesh->face_nodes[submesh->face_node_offsets[f] + n];
           int flattened_node = submesh_node_offsets[m] + subnode_index;
           int* node_p = int_int_unordered_map_get(dup_node_map, flattened_node);
-          int node_index = (node_p != NULL) ? *node_p : flattened_node;
+          int node_index = (node_p != NULL) ? node_map[*node_p] : node_map[flattened_node];
           ASSERT(node_index < fused_mesh->num_nodes);
           fused_mesh->face_nodes[fused_mesh->face_node_offsets[face]+n] = node_index;
         }
@@ -990,6 +989,8 @@ static mesh_t* fuse_submeshes(mesh_t** submeshes,
       }
     }
   }
+  polymec_free(face_map);
+  polymec_free(node_map);
 
   // Copy node positions.
   node = 0;

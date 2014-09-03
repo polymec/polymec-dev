@@ -31,14 +31,14 @@
 #include "core/repartition.h"
 #include "geometry/create_uniform_mesh.h"
 
-static void test_repartition_uniform_mesh_of_size(void** state, int nx)
+static void test_repartition_uniform_mesh_of_size(void** state, const char* prefix, int nx, int ny, int nz)
 {
   int rank;
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
-  // Create an nx x 1 x 1 uniform mesh.
-  int ny = 1, nz = 1;
-  bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
+  // Create an nx x ny x nz uniform mesh.
+  real_t dx = 1.0/MAX(MAX(1.0/nx, 1.0/ny), 1.0/nz);
+  bbox_t bbox = {.x1 = 0.0, .x2 = nx*dx, .y1 = 0.0, .y2 = ny*dx, .z1 = 0.0, .z2 = nz*dx};
   mesh_t* mesh = create_uniform_mesh(MPI_COMM_WORLD, nx, ny, nz, &bbox);
 
   // Repartition it.
@@ -49,7 +49,7 @@ static void test_repartition_uniform_mesh_of_size(void** state, int nx)
   double r[mesh->num_cells];
   for (int c = 0; c < mesh->num_cells; ++c)
     r[c] = 1.0*rank;
-  silo_file_t* silo = silo_file_new(mesh->comm, "uniform_mesh_repartition", "uniform_mesh_repartition", 1, 0, 0, 0.0);
+  silo_file_t* silo = silo_file_new(mesh->comm, prefix, prefix, 1, 0, 0, 0.0);
   silo_file_write_mesh(silo, "mesh", mesh);
   silo_file_write_scalar_cell_field(silo, "rank", "mesh", r);
   silo_file_close(silo);
@@ -58,14 +58,34 @@ static void test_repartition_uniform_mesh_of_size(void** state, int nx)
   mesh_free(mesh);
 }
 
-void test_repartition_uniform_mesh(void** state)
+void test_repartition_x_uniform_mesh(void** state)
 {
-  test_repartition_uniform_mesh_of_size(state, 128);
+  test_repartition_uniform_mesh_of_size(state, "uniform_x_mesh_repartition", 128, 1, 1);
 }
 
-void test_repartition_tiny_uniform_mesh(void** state)
+void test_repartition_xy_uniform_mesh(void** state)
 {
-  test_repartition_uniform_mesh_of_size(state, 4);
+  test_repartition_uniform_mesh_of_size(state, "uniform_xy_mesh_repartition", 128, 128, 1);
+}
+
+void test_repartition_xyz_uniform_mesh(void** state)
+{
+  test_repartition_uniform_mesh_of_size(state, "uniform_xyz_mesh_repartition", 32, 32, 32);
+}
+
+void test_repartition_tiny_x_uniform_mesh(void** state)
+{
+  test_repartition_uniform_mesh_of_size(state, "tiny_x_mesh_repartition", 4, 1, 1);
+}
+
+void test_repartition_tiny_xy_uniform_mesh(void** state)
+{
+  test_repartition_uniform_mesh_of_size(state, "tiny_xy_mesh_repartition", 4, 4, 1);
+}
+
+void test_repartition_tiny_xyz_uniform_mesh(void** state)
+{
+  test_repartition_uniform_mesh_of_size(state, "tiny_xyz_mesh_repartition", 4, 4, 4);
 }
 
 int main(int argc, char* argv[]) 
@@ -73,7 +93,12 @@ int main(int argc, char* argv[])
   polymec_init(argc, argv);
   const UnitTest tests[] = 
   {
-    unit_test(test_repartition_tiny_uniform_mesh)
+    unit_test(test_repartition_tiny_x_uniform_mesh),
+    unit_test(test_repartition_tiny_xy_uniform_mesh),
+    unit_test(test_repartition_tiny_xyz_uniform_mesh),
+    unit_test(test_repartition_x_uniform_mesh),
+    unit_test(test_repartition_xy_uniform_mesh),
+    unit_test(test_repartition_xyz_uniform_mesh)
   };
   return run_tests(tests);
 }
