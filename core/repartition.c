@@ -813,6 +813,7 @@ static mesh_t* fuse_submeshes(mesh_t** submeshes,
       int index0 = seam_face_array[nearest[0]];
       int index1 = seam_face_array[nearest[1]];
       ASSERT(index0 != index1);
+      ASSERT((index0 == j) || (index1 == j));
       int_int_unordered_map_insert(dup_face_map, MAX(index0, index1), MIN(index0, index1));
 
       // ALSO: Alter the submesh so that its interior ghost cells actually 
@@ -882,6 +883,8 @@ static mesh_t* fuse_submeshes(mesh_t** submeshes,
       // lower index.
       int index0 = seam_node_array[nearest[0]];
       int index1 = seam_node_array[nearest[1]];
+      ASSERT((index0 == j) || (index1 == j));
+//printf("%d: Merging nodes %d and %d at (%g, %g, %g), (%g, %g, %g)\n", rank, index0, index1, xn[nearest[0]].x, xn[nearest[0]].y, xn[nearest[0]].z, xn[nearest[1]].x, xn[nearest[1]].y, xn[nearest[1]].z);
       int_int_unordered_map_insert(dup_node_map, MAX(index0, index1), MIN(index0, index1));
     }
 
@@ -980,6 +983,7 @@ static mesh_t* fuse_submeshes(mesh_t** submeshes,
           int flattened_node = submesh_node_offsets[m] + subnode_index;
           int* node_p = int_int_unordered_map_get(dup_node_map, flattened_node);
           int node_index = (node_p != NULL) ? *node_p : flattened_node;
+          ASSERT(node_index < fused_mesh->num_nodes);
           fused_mesh->face_nodes[fused_mesh->face_node_offsets[face]+n] = node_index;
         }
         ++face;
