@@ -749,13 +749,13 @@ static mesh_t* fuse_submeshes(mesh_t** submeshes,
         while (mesh_face_next_node(submesh, f, &pos, &node))
           int_unordered_set_insert(seam_nodes, submesh_node_offsets[m] + node);
       }
-//      else if (submesh->face_cells[2*f+1] <= -1) // belongs to another domain
-//      {
-//        // These nodes may need to be merged with their neighbors.
-//        int pos = 0, node;
-//        while (mesh_face_next_node(submesh, f, &pos, &node))
-//          int_unordered_set_insert(seam_nodes, submesh_node_offsets[m] + node);
-//      }
+      else if (submesh->face_cells[2*f+1] <= -1) // belongs to another domain
+      {
+        // These nodes may need to be merged with their neighbors.
+        int pos = 0, node;
+        while (mesh_face_next_node(submesh, f, &pos, &node))
+          int_unordered_set_insert(seam_nodes, submesh_node_offsets[m] + node);
+      }
     }
   }
   num_ghost_cells -= seam_faces->size;
@@ -878,28 +878,35 @@ static mesh_t* fuse_submeshes(mesh_t** submeshes,
       point_t* x = &submeshes[m]->nodes[n];
 
       // Find all the nodes within epsilon of this one.
+      // Note that not all "seam nodes" will be merged with others, since we 
+      // identify seam node candidates from a broader class of nodes including
+      // nodes on the problem boundary that don't necessary belong to a seam 
+      // face.
       static const real_t epsilon = 1e-12;
       int_slist_t* same_nodes = kd_tree_within_radius(node_tree, x, epsilon);
-      ASSERT(same_nodes->size >= 2);
+//      ASSERT(same_nodes->size >= 2);
 
-      // Merge the nodes by mapping all those with higher indices to the 
-      // lowest index.
-      int_slist_node_t *pos = NULL, *min_node = NULL;
-      int index, min_index = INT_MAX;
-      while (int_slist_next(same_nodes, &pos, &index))
+      if (same_nodes->size > 1)
       {
-        if (index < min_index)
+        // Merge the nodes by mapping all those with higher indices to the 
+        // lowest index.
+        int_slist_node_t *pos = NULL, *min_node = NULL;
+        int index, min_index = INT_MAX;
+        while (int_slist_next(same_nodes, &pos, &index))
         {
-          min_index = index;
-          min_node = pos;
+          if (index < min_index)
+          {
+            min_index = index;
+            min_node = pos;
+          }
         }
-      }
-      ASSERT(min_node != NULL);
-      pos = NULL;
-      while (int_slist_next(same_nodes, &pos, &index))
-      {
-        if (index != min_index)
-          int_int_unordered_map_insert(dup_node_map, index, min_index);
+        ASSERT(min_node != NULL);
+        pos = NULL;
+        while (int_slist_next(same_nodes, &pos, &index))
+        {
+          if (index != min_index)
+            int_int_unordered_map_insert(dup_node_map, index, min_index);
+        }
       }
     }
 
@@ -1296,6 +1303,16 @@ exchanger_t* partition_mesh(mesh_t** mesh, MPI_Comm comm, int* weights, real_t i
   // Generate a global adjacency graph for the mesh.
   adj_graph_t* global_graph = (m != NULL) ? graph_from_mesh_cells(m) : NULL;
 
+#ifndef NDEBUG
+  // Make sure there are enough cells to go around for the processes we're given.
+  if (rank == 0)
+  {
+    index_t* vtx_dist = adj_graph_vertex_dist(global_graph);
+    index_t total_num_cells = vtx_dist[nprocs];
+    ASSERT(total_num_cells > nprocs);
+  }
+#endif
+
   // Map the graph to the different domains, producing a local partition vector.
   SCOTCH_Num* global_partition = (rank == 0) ? partition_graph(global_graph, comm, weights, imbalance_tol): NULL;
 
@@ -1338,6 +1355,13 @@ exchanger_t* repartition_mesh(mesh_t** mesh, int* weights, real_t imbalance_tol)
 
   // Generate a local adjacency graph for the mesh.
   adj_graph_t* local_graph = graph_from_mesh_cells(m);
+
+#ifndef NDEBUG
+  // Make sure there are enough cells to go around for the processes we're given.
+  index_t* vtx_dist = adj_graph_vertex_dist(local_graph);
+  index_t total_num_cells = vtx_dist[nprocs];
+  ASSERT(total_num_cells >= nprocs);
+#endif
 
   // Get the exchanger for the mesh.
   exchanger_t* mesh_ex = mesh_exchanger(m);
