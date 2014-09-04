@@ -928,6 +928,18 @@ static int repartition(lua_State* lua)
       return luaL_error(lua, "Invalid load imbalance tolerance: %g (must be less than 1).", imbalance_tol);
   }
 
+  // Bug out if there's only one process.
+  int nprocs;
+  MPI_Comm_size(mesh->comm, &nprocs);
+  if (nprocs == 1)
+    return 0;
+
+  // Make sure there are enough cells for our processes.
+  index_t local_num_cells = mesh->num_cells, global_num_cells;
+  MPI_Allreduce(&local_num_cells, &global_num_cells, 1, MPI_INDEX, MPI_SUM, mesh->comm);
+  if (global_num_cells < nprocs)
+    return luaL_error(lua, "Insufficient number of cells (%zd) for number of processes (%d).", global_num_cells, nprocs);
+
   // Perform the repartitioning and toss the exchanger, since our poor 
   // interpreter doesn't understand exchangers.
   exchanger_t* ex = repartition_mesh(&mesh, weights, imbalance_tol);
