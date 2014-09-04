@@ -153,23 +153,15 @@ static SCOTCH_Num* repartition_graph(adj_graph_t* local_graph,
   // Generate the local partition vector by mapping the distributed graph.
   SCOTCH_Num* local_partition = polymec_malloc(sizeof(SCOTCH_Num) * (num_vertices + num_ghost_vertices));
   {
-//    SCOTCH_Arch arch;
-//    SCOTCH_archInit(&arch);
-//    if (vtx_weights == NULL)
-//      SCOTCH_archCmplt(&arch, num_vertices);
-//    else
-//      SCOTCH_archCmpltw(&arch, num_vertices, vtx_weights);
     SCOTCH_Strat strategy;
     SCOTCH_stratInit(&strategy);
     SCOTCH_Num strat_flags = SCOTCH_STRATBALANCE;
     SCOTCH_stratDgraphMapBuild(&strategy, strat_flags, nprocs, nprocs, (double)imbalance_tol);
     int result = SCOTCH_dgraphPart(&dist_graph, nprocs, &strategy, local_partition);
-//    int result = SCOTCH_dgraphMap(&dist_graph, &arch, &strategy, local_partition);
     if (result != 0)
       polymec_error("Repartitioning failed.");
     SCOTCH_dgraphExit(&dist_graph);
     SCOTCH_stratExit(&strategy);
-//    SCOTCH_archExit(&arch);
     polymec_free(adj);
     polymec_free(xadj);
   }
