@@ -751,10 +751,19 @@ static mesh_t* fuse_submeshes(mesh_t** submeshes,
       if (submesh->face_cells[2*f+1] == -rank - 2) // belongs to this domain
       {
         int_unordered_set_insert(seam_faces, submesh_face_offsets[m] + f);
+
+        // These nodes need to be merged with their neighbors.
         int pos = 0, node;
         while (mesh_face_next_node(submesh, f, &pos, &node))
           int_unordered_set_insert(seam_nodes, submesh_node_offsets[m] + node);
       }
+//      else if (submesh->face_cells[2*f+1] <= -1) // belongs to another domain
+//      {
+//        // These nodes may need to be merged with their neighbors.
+//        int pos = 0, node;
+//        while (mesh_face_next_node(submesh, f, &pos, &node))
+//          int_unordered_set_insert(seam_nodes, submesh_node_offsets[m] + node);
+//      }
     }
   }
   num_ghost_cells -= seam_faces->size;
@@ -862,12 +871,13 @@ static mesh_t* fuse_submeshes(mesh_t** submeshes,
     kd_tree_t* node_tree = kd_tree_new(xn, seam_nodes->size);
     polymec_free(xn);
 
-    // Now examine each seam node and find the 2 nearest node to it.
-    // One will be the node itself, and the other will be a duplicate. 
-    // Map the one with the higher index to the lower index.
+    // Now examine each seam node and find ALL NODES that appear to be 
+    // the same. NOTE: for now, we find all the nodes within a distance 
+    // of epsilon, which is KNOWN NOT TO BE A ROBUST METHOD OF FUSING NODES.
+    // It might be good enough for now, though...
     for (int i = 0; i < seam_nodes->size; ++i)
     {
-      int nearest[2], j = seam_node_array[i];
+      int j = seam_node_array[i];
 
       // Get the node position we're considering (in the same way we did above).
       int m = 0;
@@ -875,15 +885,30 @@ static mesh_t* fuse_submeshes(mesh_t** submeshes,
       int n = j - submesh_node_offsets[m];
       point_t* x = &submeshes[m]->nodes[n];
 
-      // Find the 2 nearest nodes.
-      kd_tree_nearest_n(node_tree, x, 2, nearest);
+      // Find all the nodes within epsilon of this one.
+      static const real_t epsilon = 1e-12;
+      int_slist_t* same_nodes = kd_tree_within_radius(node_tree, x, epsilon);
+      ASSERT(same_nodes->size >= 2);
 
-      // Merge the nodes by mapping the one with the higher index to the 
-      // lower index.
-      int index0 = seam_node_array[nearest[0]];
-      int index1 = seam_node_array[nearest[1]];
-      ASSERT((index0 == j) || (index1 == j));
-      int_int_unordered_map_insert(dup_node_map, MAX(index0, index1), MIN(index0, index1));
+      // Merge the nodes by mapping all those with higher indices to the 
+      // lowest index.
+      int_slist_node_t *pos = NULL, *min_node = NULL;
+      int index, min_index = INT_MAX;
+      while (int_slist_next(same_nodes, &pos, &index))
+      {
+        if (index < min_index)
+        {
+          min_index = index;
+          min_node = pos;
+        }
+      }
+      ASSERT(min_node != NULL);
+      pos = NULL;
+      while (int_slist_next(same_nodes, &pos, &index))
+      {
+        if (index != min_index)
+          int_int_unordered_map_insert(dup_node_map, index, min_index);
+      }
     }
 
     // Clean up.
