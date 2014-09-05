@@ -527,8 +527,15 @@ static mesh_t* create_submesh(MPI_Comm comm, mesh_t* mesh,
     submesh->nodes[n] = mesh->nodes[orig_mesh_node];
   }
 
-  // Construct edges and compute geometry.
+  // Construct edges.
   mesh_construct_edges(submesh);
+
+#ifndef NDEBUG
+  // Verify the submesh's topological correctness.
+  mesh_verify_topology(submesh, polymec_error);
+#endif
+
+  // Do geometry.
   mesh_compute_geometry(submesh);
 
   // Clean up.
