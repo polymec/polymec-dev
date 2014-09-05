@@ -479,7 +479,7 @@ static mesh_t* create_submesh(MPI_Comm comm, mesh_t* mesh,
     int orig_mesh_face = face_map[f];
     int* cell_p = int_int_unordered_map_get(inverse_cell_map, mesh->face_cells[2*orig_mesh_face]);
     int* opp_cell_p = int_int_unordered_map_get(inverse_cell_map, mesh->face_cells[2*orig_mesh_face+1]);
-    ASSERT((cell_p != NULL) || (opp_cell_p != NULL));
+    ASSERT((cell_p != NULL) || (opp_cell_p != NULL)); // There must be at least one internal cell attached to this face.
     int this_cell = -1, that_cell = -1;
     if ((cell_p != NULL) && (opp_cell_p != NULL))
     {

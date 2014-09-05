@@ -295,8 +295,7 @@ static noreturn void default_error_handler(const char* message)
 {
   int rank;
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-  if (rank == 0)
-    printf("Fatal error: %s\n", message);
+  printf("%d: Fatal error: %s\n", rank, message);
 #if POLYMEC_HAVE_MPI
   MPI_Abort(MPI_COMM_WORLD, -1);
 #else
