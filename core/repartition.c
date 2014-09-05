@@ -1035,6 +1035,7 @@ static mesh_t* fuse_submeshes(mesh_t** submeshes,
     }
   }
   int_int_unordered_map_free(dup_node_map);
+mesh_verify_topology(fused_mesh, polymec_error);
 
   // Construct edges and compute geometry.
   mesh_construct_edges(fused_mesh);

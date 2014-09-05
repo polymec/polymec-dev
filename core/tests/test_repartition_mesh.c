@@ -40,7 +40,7 @@ static void test_repartition_uniform_mesh_of_size(void** state, const char* pref
   real_t dx = 1.0/MAX(MAX(1.0/nx, 1.0/ny), 1.0/nz);
   bbox_t bbox = {.x1 = 0.0, .x2 = nx*dx, .y1 = 0.0, .y2 = ny*dx, .z1 = 0.0, .z2 = nz*dx};
   mesh_t* mesh = create_uniform_mesh(MPI_COMM_WORLD, nx, ny, nz, &bbox);
-  mesh_verify(mesh);
+  mesh_verify_topology(mesh, polymec_error);
 
   // Repartition it.
   exchanger_t* migrator = repartition_mesh(&mesh, NULL, 0.05);
@@ -96,10 +96,10 @@ int main(int argc, char* argv[])
   {
     unit_test(test_repartition_tiny_x_uniform_mesh),
     unit_test(test_repartition_tiny_xy_uniform_mesh),
-//    unit_test(test_repartition_tiny_xyz_uniform_mesh),
+    unit_test(test_repartition_tiny_xyz_uniform_mesh),
     unit_test(test_repartition_x_uniform_mesh),
-    unit_test(test_repartition_xy_uniform_mesh)
-//    unit_test(test_repartition_xyz_uniform_mesh)
+    unit_test(test_repartition_xy_uniform_mesh),
+    unit_test(test_repartition_xyz_uniform_mesh)
   };
   return run_tests(tests);
 }

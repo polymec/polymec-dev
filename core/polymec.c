@@ -25,6 +25,7 @@
 #include <unistd.h>
 #include <time.h>
 #include <stdarg.h>
+#include <signal.h>
 #include <gc/gc.h>
 #include "arena/proto.h"
 #include "arena/pool.h"
@@ -34,7 +35,8 @@
 
 // Standard C support for floating point environment.
 #ifdef LINUX
-#define __USE_GNU
+#define _GNU_SOURCE // for older GNU compilers
+#define __USE_GNU   // for newer GNU compilers
 #endif
 #include <fenv.h>
 
@@ -380,6 +382,13 @@ void polymec_warn(const char* message, ...)
   va_end(argp);
 }
 
+static void handle_fpe_signal(int signal)
+{
+  int rank;
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  polymec_error("%d: Detected a floating point exception signal.", rank);
+}
+
 void polymec_enable_fpe()
 {
   feclearexcept(FE_ALL_EXCEPT);
@@ -396,6 +405,7 @@ void polymec_enable_fpe()
   unsigned int mask = _MM_MASK_INVALID | _MM_MASK_DIV_ZERO | _MM_MASK_OVERFLOW | _MM_MASK_DENORM;
   _MM_SET_EXCEPTION_MASK(_MM_GET_EXCEPTION_MASK() & ~mask);
 #endif
+  signal(SIGFPE, handle_fpe_signal);
   log_debug("Enabled floating point exception support.");
 }
 

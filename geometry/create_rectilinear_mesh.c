@@ -228,12 +228,10 @@ mesh_t* create_rectilinear_mesh(MPI_Comm comm,
     {
       int face = mesh->cell_faces[6*cell+f];
       if (face < 0) face = ~face;
-printf("%d: Cell %d has face %d\n", rank, cell, face);
       if (mesh->face_cells[2*face] == -1)
         mesh->face_cells[2*face] = cell;
       else if (mesh->face_cells[2*face+1] == -1)
         mesh->face_cells[2*face+1] = cell;
-printf("%d: Face %d has cells (%d, %d)\n", rank, face, mesh->face_cells[2*face], mesh->face_cells[2*face+1]);
 
       for (int n = 0; n < 4; ++n)
         mesh->face_nodes[4*face+n] = nodes[f][n];

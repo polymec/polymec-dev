@@ -35,7 +35,7 @@ void test_create_uniform_mesh(void** state)
   // Create a 10x10x10 uniform mesh.
   bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
   mesh_t* mesh = create_uniform_mesh(MPI_COMM_WORLD, 10, 10, 10, &bbox);
-  mesh_verify(mesh);
+  mesh_verify_topology(mesh, polymec_error);
 
   int nproc;
   MPI_Comm_size(mesh->comm, &nproc);
