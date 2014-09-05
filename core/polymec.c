@@ -33,9 +33,12 @@
 #include "core/options.h"
 
 // Standard C support for floating point environment.
+#ifdef LINUX
+#define __USE_GNU
+#endif
 #include <fenv.h>
 
-#ifdef Linux
+#ifdef LINUX
 // FE_INEXACT    inexact result
 // FE_DIVBYZERO  division by zero
 // FE_UNDERFLOW  result not representable due to underflow
@@ -231,11 +234,6 @@ void polymec_init(int argc, char** argv)
     // Jot down the invocation time.
     polymec_invoc_time = time(NULL);
 
-#ifndef NDEBUG
-    // By default, we enable floating point exceptions for debug builds.
-    polymec_enable_fpe();
-#endif
-
     // Jot down command line args (use regular malloc).
     polymec_argc = argc;
     polymec_argv = malloc(sizeof(char*) * argc);
@@ -287,6 +285,11 @@ void polymec_init(int argc, char** argv)
 
     // If we are asked to pause, do so.
     pause_if_requested();
+
+#ifndef NDEBUG
+    // By default, we enable floating point exceptions for debug builds.
+    polymec_enable_fpe();
+#endif
   }
 }
 
@@ -380,7 +383,7 @@ void polymec_warn(const char* message, ...)
 void polymec_enable_fpe()
 {
   feclearexcept(FE_ALL_EXCEPT);
-#ifdef Linux
+#ifdef LINUX
   int flags = FE_DIVBYZERO |
               FE_INVALID   |
 //              FE_UNDERFLOW |
@@ -393,11 +396,12 @@ void polymec_enable_fpe()
   unsigned int mask = _MM_MASK_INVALID | _MM_MASK_DIV_ZERO | _MM_MASK_OVERFLOW | _MM_MASK_DENORM;
   _MM_SET_EXCEPTION_MASK(_MM_GET_EXCEPTION_MASK() & ~mask);
 #endif
+  log_debug("Enabled floating point exception support.");
 }
 
 void polymec_disable_fpe()
 {
-#ifdef Linux
+#ifdef LINUX
   fedisableexcept(fegetexcept());
 #endif
 
@@ -405,6 +409,7 @@ void polymec_disable_fpe()
   unsigned int mask = _MM_MASK_INVALID | _MM_MASK_DIV_ZERO | _MM_MASK_OVERFLOW | _MM_MASK_DENORM;
   _MM_SET_EXCEPTION_MASK(_MM_GET_EXCEPTION_MASK() & mask);
 #endif
+  log_debug("Disabled floating point exception support.");
 }
 
 
