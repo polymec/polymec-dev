@@ -341,10 +341,11 @@ static exchanger_t* create_migrator(MPI_Comm comm,
     // Now register all the vertices we're receiving with the migrator.
     for (int p = 0; p < nprocs; ++p)
     {
-      if ((rank != p) && (num_vertices_to_receive[p] > 0))
+      if (num_vertices_to_receive[p] > 0)
       {
         ASSERT(receive_vertices[p] != NULL);
-        exchanger_set_receive(migrator, p, receive_vertices[p], num_vertices_to_receive[p], true);
+        if (rank != p)
+          exchanger_set_receive(migrator, p, receive_vertices[p], num_vertices_to_receive[p], true);
         polymec_free(receive_vertices[p]);
       }
     }
@@ -908,6 +909,7 @@ static mesh_t* fuse_submeshes(mesh_t** submeshes,
             int_int_unordered_map_insert(dup_node_map, index, min_index);
         }
       }
+      int_slist_free(same_nodes);
     }
 
     // Clean up.
@@ -1013,6 +1015,7 @@ static mesh_t* fuse_submeshes(mesh_t** submeshes,
       }
     }
   }
+  int_int_unordered_map_free(dup_face_map);
   polymec_free(face_map);
   polymec_free(node_map);
 
@@ -1031,6 +1034,7 @@ static mesh_t* fuse_submeshes(mesh_t** submeshes,
       }
     }
   }
+  int_int_unordered_map_free(dup_node_map);
 
   // Construct edges and compute geometry.
   mesh_construct_edges(fused_mesh);
@@ -1179,6 +1183,7 @@ static void mesh_migrate(mesh_t** mesh,
   }
 
   // Fuse all the submeshes into a single mesh.
+  int_unordered_set_free(sent_cells);
   mesh_free(m);
   *mesh = fuse_submeshes(submeshes, 1+num_receives);
 }
