@@ -38,7 +38,7 @@ void test_create_tetgen_mesh(void** state)
                                     CMAKE_CURRENT_SOURCE_DIR "/tetgen_example.1.ele", 
                                     CMAKE_CURRENT_SOURCE_DIR "/tetgen_example.1.face", 
                                     CMAKE_CURRENT_SOURCE_DIR "/tetgen_example.1.neigh");
-  mesh_verify_topology(mesh, polymec_error);
+  assert_true(mesh_verify_topology(mesh, polymec_error));
 
   int nprocs;
   MPI_Comm_size(MPI_COMM_WORLD, &nprocs);

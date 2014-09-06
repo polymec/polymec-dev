@@ -530,10 +530,8 @@ static mesh_t* create_submesh(MPI_Comm comm, mesh_t* mesh,
   // Construct edges.
   mesh_construct_edges(submesh);
 
-#ifndef NDEBUG
   // Verify the submesh's topological correctness.
-  mesh_verify_topology(submesh, polymec_error);
-#endif
+  ASSERT(mesh_verify_topology(submesh, polymec_error));
 
   // Do geometry.
   mesh_compute_geometry(submesh);
@@ -1064,10 +1062,8 @@ static mesh_t* fuse_submeshes(mesh_t** submeshes,
   // Construct edges.
   mesh_construct_edges(fused_mesh);
 
-#ifndef NDEBUG
   // At this point, we can verify the topological correctness of the fused mesh.
-  mesh_verify_topology(fused_mesh, polymec_error);
-#endif
+  ASSERT(mesh_verify_topology(fused_mesh, polymec_error));
 
   // Now compute geometry.
   mesh_compute_geometry(fused_mesh);

@@ -131,8 +131,9 @@ void mesh_free(mesh_t* mesh);
 // Verifies the topological correctness of the mesh, calling the given 
 // (variadic) handler function with a formatted string containing a 
 // description of any problems encountered. If the topology of the mesh is 
-// correct, the handler function is not called.
-void mesh_verify_topology(mesh_t* mesh, void (*handler)(const char* format, ...));
+// correct, this function returns true and the handler function is not called.
+// Otherwise, the function returns false.
+bool mesh_verify_topology(mesh_t* mesh, void (*handler)(const char* format, ...));
 
 // Returns an exact copy of the given mesh.
 mesh_t* mesh_clone(mesh_t* mesh);

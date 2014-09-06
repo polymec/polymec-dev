@@ -198,7 +198,7 @@ void mesh_free(mesh_t* mesh)
   polymec_free(mesh);
 }
 
-void mesh_verify_topology(mesh_t* mesh, void (*handler)(const char* format, ...))
+bool mesh_verify_topology(mesh_t* mesh, void (*handler)(const char* format, ...))
 {
   // All cells must have at least 4 faces.
   for (int c = 0; c < mesh->num_cells; ++c)
@@ -207,6 +207,7 @@ void mesh_verify_topology(mesh_t* mesh, void (*handler)(const char* format, ...)
     {
       handler("mesh_verify_topology: polyhedral cell %d has only %d faces.", 
               c, mesh_cell_num_faces(mesh, c));
+      return false;
     }
   }
 
@@ -215,9 +216,15 @@ void mesh_verify_topology(mesh_t* mesh, void (*handler)(const char* format, ...)
   {
     int ne = mesh_face_num_edges(mesh, f);
     if (ne == 0)
+    {
       handler("mesh_verify_topology: polygonal face %d has no edges!", f);
+      return false;
+    }
     if (ne < 3)
+    {
       handler("mesh_verify_topology: polygonal face %d has only %d edges.", f, ne);
+      return false;
+    }
   }
 
   // Check cell-face topology.
@@ -227,7 +234,10 @@ void mesh_verify_topology(mesh_t* mesh, void (*handler)(const char* format, ...)
     while (mesh_cell_next_face(mesh, c, &pos, &f))
     {
       if ((mesh->face_cells[2*f] != c) && (mesh->face_cells[2*f+1] != c))
+      {
         handler("mesh_verify_topology: cell %d has face %d but is not attached to it.", c, f);
+        return false;
+      }
     }
   }
   for (int f = 0; f < mesh->num_faces; ++f)
@@ -243,7 +253,10 @@ void mesh_verify_topology(mesh_t* mesh, void (*handler)(const char* format, ...)
       }
     }
     if (!found_face)
+    {
       handler("mesh_verify_topology: face %d has cell %d but is not attached to it.", f, mesh->face_cells[2*f]);
+      return false;
+    }
     if (mesh->face_cells[2*f+1] != -1)
     {
       while (mesh_cell_next_face(mesh, mesh->face_cells[2*f], &pos, &ff))
@@ -255,9 +268,14 @@ void mesh_verify_topology(mesh_t* mesh, void (*handler)(const char* format, ...)
         }
       }
       if (!found_face)
+      {
         handler("mesh_verify_topology: face %d has cell %d but is not attached to it.", f, mesh->face_cells[2*f+1]);
+        return false;
+      }
     }
   }
+
+  return true;
 }
 
 mesh_t* mesh_clone(mesh_t* mesh)
