@@ -980,6 +980,7 @@ static mesh_t* fuse_submeshes(mesh_t** submeshes,
         int face_index = face_map[flattened_face];
 //        int* face_p = int_int_unordered_map_get(dup_face_map, flattened_face);
 //        int face_index = (face_p != NULL) ? face_map[*face_p] : face_map[flattened_face];
+        ASSERT(face_index < fused_mesh->num_faces);
         if (flipped)
           face_index = ~face_index;
         fused_mesh->cell_faces[fused_mesh->cell_face_offsets[cell]+f] = face_index;

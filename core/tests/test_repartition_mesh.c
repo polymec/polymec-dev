@@ -31,7 +31,7 @@
 #include "core/repartition.h"
 #include "geometry/create_uniform_mesh.h"
 
-static void test_repartition_uniform_mesh_of_size(void** state, const char* prefix, int nx, int ny, int nz)
+static void test_repartition_uniform_mesh_of_size(void** state, int nx, int ny, int nz)
 {
   int rank;
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -50,6 +50,8 @@ static void test_repartition_uniform_mesh_of_size(void** state, const char* pref
   double r[mesh->num_cells];
   for (int c = 0; c < mesh->num_cells; ++c)
     r[c] = 1.0*rank;
+  char prefix[FILENAME_MAX];
+  snprintf(prefix, FILENAME_MAX, "%dx%dx%d_uniform_mesh_repartition", nx, ny, nz);
   silo_file_t* silo = silo_file_new(mesh->comm, prefix, prefix, 1, 0, 0, 0.0);
   silo_file_write_mesh(silo, "mesh", mesh);
   silo_file_write_scalar_cell_field(silo, "rank", "mesh", r);
@@ -59,34 +61,44 @@ static void test_repartition_uniform_mesh_of_size(void** state, const char* pref
   mesh_free(mesh);
 }
 
-void test_repartition_x_uniform_mesh(void** state)
+void test_repartition_4x1x1_uniform_mesh(void** state)
 {
-  test_repartition_uniform_mesh_of_size(state, "uniform_x_mesh_repartition", 128, 1, 1);
+  test_repartition_uniform_mesh_of_size(state, 4, 1, 1);
 }
 
-void test_repartition_xy_uniform_mesh(void** state)
+void test_repartition_2x2x1_uniform_mesh(void** state)
 {
-  test_repartition_uniform_mesh_of_size(state, "uniform_xy_mesh_repartition", 128, 128, 1);
+  test_repartition_uniform_mesh_of_size(state, 2, 2, 1);
 }
 
-void test_repartition_xyz_uniform_mesh(void** state)
+void test_repartition_4x4x1_uniform_mesh(void** state)
 {
-  test_repartition_uniform_mesh_of_size(state, "uniform_xyz_mesh_repartition", 32, 32, 32);
+  test_repartition_uniform_mesh_of_size(state, 4, 4, 1);
 }
 
-void test_repartition_tiny_x_uniform_mesh(void** state)
+void test_repartition_2x2x2_uniform_mesh(void** state)
 {
-  test_repartition_uniform_mesh_of_size(state, "tiny_x_mesh_repartition", 4, 1, 1);
+  test_repartition_uniform_mesh_of_size(state, 2, 2, 2);
 }
 
-void test_repartition_tiny_xy_uniform_mesh(void** state)
+void test_repartition_4x4x4_uniform_mesh(void** state)
 {
-  test_repartition_uniform_mesh_of_size(state, "tiny_xy_mesh_repartition", 4, 4, 1);
+  test_repartition_uniform_mesh_of_size(state, 4, 4, 4);
 }
 
-void test_repartition_tiny_xyz_uniform_mesh(void** state)
+void test_repartition_128x1x1_uniform_mesh(void** state)
 {
-  test_repartition_uniform_mesh_of_size(state, "tiny_xyz_mesh_repartition", 4, 4, 4);
+  test_repartition_uniform_mesh_of_size(state, 128, 1, 1);
+}
+
+void test_repartition_128x128x1_uniform_mesh(void** state)
+{
+  test_repartition_uniform_mesh_of_size(state, 128, 128, 1);
+}
+
+void test_repartition_32x32x32_uniform_mesh(void** state)
+{
+  test_repartition_uniform_mesh_of_size(state, 32, 32, 32);
 }
 
 int main(int argc, char* argv[]) 
@@ -94,12 +106,14 @@ int main(int argc, char* argv[])
   polymec_init(argc, argv);
   const UnitTest tests[] = 
   {
-    unit_test(test_repartition_tiny_x_uniform_mesh),
-    unit_test(test_repartition_tiny_xy_uniform_mesh),
-    unit_test(test_repartition_tiny_xyz_uniform_mesh),
-    unit_test(test_repartition_x_uniform_mesh),
-    unit_test(test_repartition_xy_uniform_mesh),
-    unit_test(test_repartition_xyz_uniform_mesh)
+    unit_test(test_repartition_4x1x1_uniform_mesh),
+    unit_test(test_repartition_2x2x1_uniform_mesh),
+    unit_test(test_repartition_4x4x1_uniform_mesh),
+    unit_test(test_repartition_2x2x2_uniform_mesh),
+    unit_test(test_repartition_4x4x4_uniform_mesh),
+    unit_test(test_repartition_128x1x1_uniform_mesh),
+    unit_test(test_repartition_128x128x1_uniform_mesh),
+    unit_test(test_repartition_32x32x32_uniform_mesh)
   };
   return run_tests(tests);
 }
