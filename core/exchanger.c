@@ -84,7 +84,7 @@ static mpi_message_t* mpi_message_new(MPI_Datatype type, int stride, int tag)
   msg->type = type;
   msg->stride = stride;
   msg->tag = tag;
-  if (type == MPI_REAL)
+  if (type == MPI_REAL_T)
     msg->data_size = sizeof(real_t);
   else if (type == MPI_DOUBLE)
     msg->data_size = sizeof(double);
@@ -100,6 +100,8 @@ static mpi_message_t* mpi_message_new(MPI_Datatype type, int stride, int tag)
     msg->data_size = sizeof(uint64_t);
   else if (type == MPI_CHAR)
     msg->data_size = sizeof(char);
+  else 
+    polymec_error("Unsupported MPI data type used to construct MPI message.");
   return msg;
 }
 
@@ -130,7 +132,7 @@ static void mpi_message_pack(mpi_message_t* msg, void* data,
     msg->send_buffer_sizes[i] = num_send_indices;
     msg->send_buffers[i] = polymec_malloc(num_send_indices*msg->data_size*stride);
 
-    if (msg->type == MPI_REAL)
+    if (msg->type == MPI_REAL_T)
     {
       real_t* src = data;
       real_t* dest = msg->send_buffers[i];
@@ -217,7 +219,7 @@ static void mpi_message_unpack(mpi_message_t* msg, void* data,
   {
     int* recv_indices = c->indices;
     int stride = msg->stride;
-    if (msg->type == MPI_REAL)
+    if (msg->type == MPI_REAL_T)
     {
       real_t* src = msg->receive_buffers[i];
       real_t* dest = data;
@@ -312,7 +314,7 @@ static void mpi_message_fprintf(mpi_message_t* msg, FILE* stream)
 {
   if (stream == NULL) return;
   char typeStr[1024];
-  if (msg->type == MPI_REAL)
+  if (msg->type == MPI_REAL_T)
     strcpy(typeStr, "real");
   else if (msg->type == MPI_DOUBLE)
     strcpy(typeStr, "double");
@@ -883,7 +885,7 @@ void exchanger_finish_transfer(exchanger_t* ex, int token)
   {
     // Move the sent elements to the back.
     int stride = msg->stride;
-    if (msg->type == MPI_REAL)
+    if (msg->type == MPI_REAL_T)
     {
       real_t* array = (real_t*)orig_buffer;
       for (int i = 0; i < c->num_indices; ++i)
@@ -907,7 +909,11 @@ void exchanger_finish_transfer(exchanger_t* ex, int token)
         }
       }
     }
-    // FIXME: What about other data types???
+    else 
+    {
+      // FIXME: What about other data types???
+      polymec_error("exchanger_finish_transfer: unimplemented data type.");
+    }
   }
 
   // Convey the change in count of the transferred data.

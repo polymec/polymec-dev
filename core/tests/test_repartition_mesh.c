@@ -51,7 +51,8 @@ static void test_repartition_uniform_mesh_of_size(void** state, int nx, int ny, 
   for (int c = 0; c < mesh->num_cells; ++c)
     V += mesh->cell_volumes[c];
   real_t V_total;
-  MPI_Allreduce(&V, &V_total, 1, MPI_REAL, MPI_SUM, MPI_COMM_WORLD);
+  MPI_Allreduce(&V, &V_total, 1, MPI_REAL_T, MPI_SUM, MPI_COMM_WORLD);
+printf("%d: V_total = %g, V_actual = %g, |V_total - V_actual| = %g\n", rank, V_total, V_actual, fabs(V_total - V_actual));
   assert_true(fabs(V_total - V_actual) < 1e-14);
 
   // Plot it.
