@@ -46,6 +46,14 @@ static void test_repartition_uniform_mesh_of_size(void** state, int nx, int ny, 
   exchanger_t* migrator = repartition_mesh(&mesh, NULL, 0.05);
   exchanger_free(migrator);
 
+  // Check the total volume.
+  real_t V = 0.0, V_actual = nx*dx * ny*dx * ny*dx;
+  for (int c = 0; c < mesh->num_cells; ++c)
+    V += mesh->cell_volumes[c];
+  real_t V_total;
+  MPI_Allreduce(&V, &V_total, 1, MPI_REAL, MPI_SUM, MPI_COMM_WORLD);
+  assert_true(fabs(V_total - V_actual) < 1e-14);
+
   // Plot it.
   double r[mesh->num_cells];
   for (int c = 0; c < mesh->num_cells; ++c)
