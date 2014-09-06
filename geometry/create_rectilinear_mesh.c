@@ -285,7 +285,7 @@ mesh_t* create_rectilinear_mesh(MPI_Comm comm,
         mesh->face_cells[2*face+1] = ghost_cell_index;
 
         // Generate send mappings.
-        int ghost_proc = neighboring_cells[ii] / cells_per_proc;
+        int ghost_proc = MIN(neighboring_cells[ii] / cells_per_proc, nproc-1);
         int_array_t** send_indices_p = (int_array_t**)int_ptr_unordered_map_get(send_map, ghost_proc);
         int_array_t* send_indices = NULL;
         if (send_indices_p == NULL)
