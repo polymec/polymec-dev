@@ -826,17 +826,14 @@ static mesh_t* fuse_submeshes(mesh_t** submeshes,
       // ALSO: Alter the submesh so that its interior ghost cells actually 
       // refer to the correct (flattened) interior cells. This may seem strange,
       // but it helps us to get the face->cell connectivity right later on.
-      int j1;
-      if (j == MIN(index0, index1))
-        j1 = MAX(index0, index1);
-      else
-        j1 = MIN(index0, index1);
+      int j1 = (j == index0) ? index1 : index0;
       int m1 = 0;
       while (j1 >= submesh_face_offsets[m1+1]) ++m1;
       int f1 = j1 - submesh_face_offsets[m1];
       ASSERT((f1 >= 0) && (f1 < submeshes[m1]->num_faces));
       int flattened_cell1 = submesh_cell_offsets[m1] + submeshes[m1]->face_cells[2*f1];
       submeshes[m]->face_cells[2*f+1] = flattened_cell1;
+//printf("%d: Munging submesh[%d] face %d to attach to cell %d\n", rank, m, f, flattened_cell1);
     }
 
     // Clean up.
@@ -928,10 +925,10 @@ static mesh_t* fuse_submeshes(mesh_t** submeshes,
   num_faces -= dup_face_map->size;
   num_nodes -= dup_node_map->size;
 
-  // We're through with the seam faces/nodes and the duplicate maps.
+  // We're through with the seam faces/nodes and the duplicate node maps.
+  // We still need the duplicate face map below.
   int_unordered_set_free(seam_faces);
   int_unordered_set_free(seam_nodes);
-  int_int_unordered_map_free(dup_face_map);
   int_int_unordered_map_free(dup_node_map);
 
   // Now we create the fused mesh and fill it with the contents of the submeshes.
@@ -981,6 +978,7 @@ static mesh_t* fuse_submeshes(mesh_t** submeshes,
 //        int* face_p = int_int_unordered_map_get(dup_face_map, flattened_face);
 //        int face_index = (face_p != NULL) ? face_map[*face_p] : face_map[flattened_face];
         ASSERT(face_index < fused_mesh->num_faces);
+//printf("%d: Cell %d has face %d\n", rank, cell, face_index);
         if (flipped)
           face_index = ~face_index;
         fused_mesh->cell_faces[fused_mesh->cell_face_offsets[cell]+f] = face_index;
@@ -997,13 +995,41 @@ static mesh_t* fuse_submeshes(mesh_t** submeshes,
       int flattened_face = submesh_face_offsets[m] + f;
       int face = face_map[flattened_face];
 
-      // Set up the cells of the face. We can do this expediently now 
-      // because of the way we altered the submeshes with interior ghost cells.
+      // Set up the cells of the face. 
       int subcell_index = submesh->face_cells[2*f];
       int flattened_cell = submesh_cell_offsets[m] + subcell_index;
-      int flattened_cell1 = submesh->face_cells[2*f+1]; // we stuck this here earlier!
+
+      // To get the second cell attached to this face, we ask whether this 
+      // face is on a seam. If it is, we can read off the second flattened 
+      // cell index because we stored it directly in the submesh.
+      int flattened_cell1;
+      if (int_int_unordered_map_contains(dup_face_map, flattened_face))
+        flattened_cell1 = submesh->face_cells[2*f+1];
+      else
+      {
+        if (submesh->face_cells[2*f+1] < -1)
+        {
+          // Otherwise, if it's a ghost cell (< -1), it has its owning 
+          // process encoded. If so, we simply copy it into place and 
+          // deal with it later.
+          flattened_cell1 = submesh->face_cells[2*f+1];
+        }
+        else if (submesh->face_cells[2*f+1] == -1)
+        {
+          // If it's on a boundary, the other cell is -1.
+          flattened_cell1 = -1;
+        }
+        else 
+        {
+          // Otherwise, we construct its flattened index from this 
+          // same submesh.
+          ASSERT(submesh->face_cells[2*f+1] >= 0);
+          flattened_cell1 = submesh_cell_offsets[m] + submesh->face_cells[2*f+1];
+        }
+      }
       fused_mesh->face_cells[2*face] = flattened_cell;
       fused_mesh->face_cells[2*face+1] = flattened_cell1;
+//printf("%d: Face %d (from [%d, %d]) has cells %d, %d\n", rank, face, m, f, flattened_cell, flattened_cell1);
 
       // Set up the nodes of the face.
       int num_face_nodes = submesh->face_node_offsets[f+1] - submesh->face_node_offsets[f];
@@ -1020,6 +1046,7 @@ static mesh_t* fuse_submeshes(mesh_t** submeshes,
     }
   }
   polymec_free(face_map);
+  int_int_unordered_map_free(dup_face_map);
 
   // Copy node positions.
   for (int m = 0; m < num_submeshes; ++m)
