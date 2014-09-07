@@ -46,14 +46,23 @@ static void test_repartition_uniform_mesh_of_size(void** state, int nx, int ny, 
   exchanger_t* migrator = repartition_mesh(&mesh, NULL, 0.05);
   exchanger_free(migrator);
 
-  // Check the total volume.
-  real_t V = 0.0, V_actual = nx*dx * ny*dx * ny*dx;
+  // Since the mesh is uniform, we can check the properties of each cell.
   for (int c = 0; c < mesh->num_cells; ++c)
-    V += mesh->cell_volumes[c];
-  real_t V_total;
-  MPI_Allreduce(&V, &V_total, 1, MPI_REAL_T, MPI_SUM, MPI_COMM_WORLD);
-printf("%d: V_total = %g, V_actual = %g, |V_total - V_actual| = %g\n", rank, V_total, V_actual, fabs(V_total - V_actual));
-  assert_true(fabs(V_total - V_actual) < 1e-14);
+  {
+    assert_int_equal(6, mesh_cell_num_faces(mesh, c));
+    real_t V = dx * dx * dx;
+printf("%d: V[%d] = %g, should be %g\n", rank, c, mesh->cell_volumes[c], V);
+    assert_true(fabs(mesh->cell_volumes[c] - V)/V < 1e-14);
+  }
+
+  // We can also check the properties of each face.
+  for (int f = 0; f < mesh->num_faces; ++f)
+  {
+    assert_int_equal(4, mesh_face_num_edges(mesh, f));
+    assert_int_equal(4, mesh_face_num_nodes(mesh, f));
+    real_t A = dx * dx;
+    assert_true(fabs(mesh->face_areas[f] - A)/A < 1e-14);
+  }
 
   // Plot it.
   double r[mesh->num_cells];
