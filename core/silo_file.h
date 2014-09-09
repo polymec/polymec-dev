@@ -94,7 +94,8 @@ void silo_file_write_scalar_cell_field(silo_file_t* file,
                                        const char* mesh_name,
                                        real_t* field_data);
 
-// Reads a named scalar cell-centered field from the Silo file.
+// Reads a named scalar cell-centered field from the Silo file, returning a newly-
+// allocated array of field data.
 real_t* silo_file_read_scalar_cell_field(silo_file_t* file,
                                          const char* field_name,
                                          const char* mesh_name);
@@ -108,7 +109,8 @@ void silo_file_write_cell_field(silo_file_t* file,
                                 real_t* field_data,
                                 int num_components);
 
-// Reads a named multicomponent cell-centered field from the Silo file.
+// Reads a named multicomponent cell-centered field from the Silo file, returning a 
+// newly-allocated array of field data.
 real_t* silo_file_read_cell_field(silo_file_t* file,
                                   const char** field_component_names,
                                   const char* mesh_name,

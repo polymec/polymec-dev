@@ -23,15 +23,25 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "core/polymec.h"
+#include "core/kd_tree.h"
 #include "core/silo_file.h"
 #include "geometry/create_uniform_mesh.h"
 #include "model/model.h"
 
 typedef struct
 {
-  int nx, ny;
+  // State information.
   mesh_t* grid;
   real_t* state;
+
+  // The Game of Life rule we use.
+  int alive_nums[9]; // alive_nums[x] is 1 if x neighbors keeps a cell alive, 0 if not.
+  int born_nums[9];  // born_nums[x] is 1 if x neighbors births a cell, 0 if not.
+
+  // The information we read from our custom input file.
+  int x_min, x_max, y_min, y_max;
+  int_array_t* xs;
+  int_array_t* ys;
 } gol_t;
 
 static const char gol_desc[] = "Game of Life model\n"
@@ -41,10 +51,42 @@ static const char gol_desc[] = "Game of Life model\n"
 
 static void gol_read_custom_input(void* context, const char* input, options_t* options)
 {
+  // We read .LIF/.LIFE files in Life 1.05 format, populating an initial state.
+
 }
 
 static void gol_init(void* context, real_t t)
 {
+  gol_t* gol = context;
+  ASSERT(gol->xs->size == gol->ys->size);
+  ASSERT(gol->xs->size > 0);
+  ASSERT(gol->x_min < gol->x_max);
+  ASSERT(gol->y_min < gol->y_max);
+
+  // Fish out the minimum and maximum coordinates for the initial population.
+  bbox_t bbox = {.x1 = 1.0*gol->x_min, .x2 = 1.0*gol->x_max,
+                 .y1 = 1.0*gol->y_min, .y2 = 1.0*gol->y_max,
+                 .z1 = -0.5, .z2 = 0.5};
+
+  // Create the grid and the state vector.
+  int nx = gol->x_max - gol->x_min;
+  int ny = gol->y_max - gol->y_min;
+  gol->grid = create_uniform_mesh(MPI_COMM_WORLD, nx, ny, 1, &bbox);
+  gol->state = polymec_malloc(sizeof(real_t) * gol->grid->num_cells);
+  memset(gol->state, 0, sizeof(real_t) * gol->grid->num_cells);
+
+  // Place the living cells into the grid. This is a little silly, but this is what 
+  // we get for using a completely unstructured grid!
+  kd_tree_t* tree = kd_tree_new(gol->grid->cell_centers, gol->grid->num_cells);
+  int num_living_cells = gol->xs->size;
+  for (int i = 0; i < num_living_cells; ++i)
+  {
+    point_t x = {.x = 1.0*gol->xs->data[i], .y = 1.0*gol->ys->data[i]};
+    int cell_index = kd_tree_nearest(tree, &x);
+    ASSERT(cell_index >= 0);
+    ASSERT(cell_index < gol->grid->num_cells);
+    gol->state[cell_index] = 1.0;
+  }
 }
 
 static real_t gol_max_dt(void* context, real_t t, char* reason)
@@ -54,18 +96,45 @@ static real_t gol_max_dt(void* context, real_t t, char* reason)
 
 static real_t gol_advance(void* context, real_t max_dt, real_t t)
 {
+  gol_t* gol = context;
+  for (int cell = 0; cell < gol->grid->num_cells; ++cell)
+  {
+    int pos = 0, neighbor;
+    real_t count = 0.0;
+    while (mesh_cell_next_neighbor(gol->grid, cell, &pos, &neighbor))
+    {
+      if (neighbor >= 0)
+        count += gol->state[neighbor];
+    }
+    int icount = (int)count;
+    int living = (int)gol->state[cell];
+    if (living)
+    {
+      if (!gol->alive_nums[icount])
+        gol->state[cell] = 0.0;
+    }
+    else if (gol->born_nums[icount])
+      gol->state[cell] = 1.0;
+  }
   return 1.0;
 }
 
 static void gol_load(void* context, const char* file_prefix, const char* directory, real_t* t, int step)
 {
+  gol_t* gol = context;
+  silo_file_t* silo = silo_file_open(gol->grid->comm, file_prefix, directory, 0, step, t);
   *t = 1.0 * step;
+
+  ASSERT(gol->grid == NULL);
+  ASSERT(gol->state == NULL);
+  gol->grid = silo_file_read_mesh(silo, "grid");
+  gol->state = silo_file_read_scalar_cell_field(silo, "state", "grid");
+  silo_file_close(silo);
 }
 
 static void gol_save(void* context, const char* file_prefix, const char* directory, real_t t, int step)
 {
   gol_t* gol = context;
-  ASSERT(t == 1.0*step);
 
   int rank;
   MPI_Comm_rank(gol->grid->comm, &rank);
@@ -81,20 +150,37 @@ static void gol_save(void* context, const char* file_prefix, const char* directo
   silo_file_close(silo);
 }
 
+static void gol_finalize(void* context, int step, real_t t)
+{
+  gol_t* gol = context;
+  mesh_free(gol->grid);
+  polymec_free(gol->state);
+}
+
 static void gol_dtor(void* context)
 {
-  polymec_free(context);
+  gol_t* gol = context;
+  int_array_free(gol->xs);
+  int_array_free(gol->ys);
+  polymec_free(gol);
 }
 
 static model_t* gol_ctor()
 {
   gol_t* gol = polymec_malloc(sizeof(gol_t));
+  gol->grid = NULL;
+  gol->state = NULL;
+  gol->xs = NULL;
+  gol->ys = NULL;
+  memset(gol->alive_nums, 0, sizeof(int) * 9);
+  memset(gol->born_nums, 0, sizeof(int) * 9);
   model_vtable vtable = {.read_custom_input = gol_read_custom_input,
                          .init = gol_init,
                          .max_dt = gol_max_dt,
                          .advance = gol_advance,
                          .load = gol_load,
                          .save = gol_save,
+                         .finalize = gol_finalize,
                          .dtor = gol_dtor};
   docstring_t* gol_doc = docstring_from_string(gol_desc);
   return model_new("game_of_life", gol, vtable, gol_doc);
