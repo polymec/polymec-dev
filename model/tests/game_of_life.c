@@ -31,15 +31,15 @@ typedef struct
 {
   int nx, ny;
   mesh_t* grid;
-  real_t* life;
+  real_t* state;
 } gol_t;
 
 static const char gol_desc[] = "Game of Life model\n"
   "This model demonstrates a parallel version of the Game of Life. For more\n"
-  "details on Life and it's variations, see\n"
+  "details on Life and its variations, see\n"
   "See http://en.wikipedia.org/wiki/Conway%27s_Game_of_Life#Notable_Life_programs\n";
 
-static void gol_read_input(void* context, interpreter_t* interp, options_t* options)
+static void gol_read_custom_input(void* context, const char* input, options_t* options)
 {
 }
 
@@ -57,20 +57,28 @@ static real_t gol_advance(void* context, real_t max_dt, real_t t)
   return 1.0;
 }
 
-static void gol_load(void* context, const char* filename, const char* directory, real_t* t, int step)
+static void gol_load(void* context, const char* file_prefix, const char* directory, real_t* t, int step)
 {
+  *t = 1.0 * step;
 }
 
-static void gol_save(void* context, const char* filename, const char* directory, real_t t, int step)
+static void gol_save(void* context, const char* file_prefix, const char* directory, real_t t, int step)
 {
-}
+  gol_t* gol = context;
+  ASSERT(t == 1.0*step);
 
-static void gol_plot(void* context, const char* filename, const char* directory, real_t t, int step)
-{
-}
+  int rank;
+  MPI_Comm_rank(gol->grid->comm, &rank);
 
-static void gol_compute_error_norms(void* context, st_func_t* solution, real_t t, real_t* norms)
-{
+  silo_file_t* silo = silo_file_new(gol->grid->comm, file_prefix, directory, 1, 0, step, t);
+  silo_file_write_mesh(silo, "grid", gol->grid);
+  silo_file_write_scalar_cell_field(silo, "life", "grid", gol->state);
+  real_t* rank_field = polymec_malloc(sizeof(real_t) * gol->grid->num_cells);
+  for (int i = 0; i < gol->grid->num_cells; ++i)
+    rank_field[i] = 1.0 * rank;
+  silo_file_write_scalar_cell_field(silo, "rank", "grid", rank_field);
+  polymec_free(rank_field);
+  silo_file_close(silo);
 }
 
 static void gol_dtor(void* context)
@@ -81,14 +89,12 @@ static void gol_dtor(void* context)
 static model_t* gol_ctor()
 {
   gol_t* gol = polymec_malloc(sizeof(gol_t));
-  model_vtable vtable = {.read_input = gol_read_input,
+  model_vtable vtable = {.read_custom_input = gol_read_custom_input,
                          .init = gol_init,
                          .max_dt = gol_max_dt,
                          .advance = gol_advance,
                          .load = gol_load,
                          .save = gol_save,
-                         .plot = gol_plot,
-                         .compute_error_norms = gol_compute_error_norms,
                          .dtor = gol_dtor};
   docstring_t* gol_doc = docstring_from_string(gol_desc);
   return model_new("game_of_life", gol, vtable, gol_doc);

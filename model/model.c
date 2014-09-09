@@ -816,11 +816,15 @@ static void model_help(model_t* model, const char* arg, FILE* stream)
       fprintf(stream, "'%s help list <function>' for documentation on a given function.\n", model_name(model));
     }
   }
-  else
+  else if (model->vtable.read_input != NULL)
   {
     // Attempt to dig up the documentation for the given registered function.
     interpreter_t* interp = model_interpreter(model);
     interpreter_help(interp, arg, stream);
+  }
+  else
+  {
+    fprintf(stream, "No specific help is available for models with custom input.\n");
   }
 }
 

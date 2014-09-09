@@ -59,13 +59,13 @@ typedef real_t (*model_advance_func)(void* context, real_t max_dt, real_t t);
 typedef void (*model_finalize_func)(void* context, int step, real_t t);
 
 // A function for loading the model's state.
-typedef void (*model_load_func)(void* context, const char* filename, const char* directory, real_t* time, int step);
+typedef void (*model_load_func)(void* context, const char* file_prefix, const char* directory, real_t* time, int step);
 
 // A function for saving the model's state to the given I/O interface.
-typedef void (*model_save_func)(void* context, const char* filename, const char* directory, real_t time, int step);
+typedef void (*model_save_func)(void* context, const char* file_prefix, const char* directory, real_t time, int step);
 
 // A function for plotting the model to the given I/O interface.
-typedef void (*model_plot_func)(void* context, const char* filename, const char* directory, real_t time, int step);
+typedef void (*model_plot_func)(void* context, const char* file_prefix, const char* directory, real_t time, int step);
 
 // A function for computing error norms for the computed solution, compared 
 // with an analytic solution. The error norms can be specific to the model.
