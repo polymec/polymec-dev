@@ -42,6 +42,9 @@ typedef model_t* (*model_ctor)();
 // A function for reading input from an interpreter into the model.
 typedef void (*model_read_input_func)(void* context, interpreter_t* interpreter, options_t* options);
 
+// A function for reading custom (non-Lua) input from a file into the model.
+typedef void (*model_read_custom_input_func)(void* context, const char* input_string, options_t* options);
+
 // A function for initializing the model.
 typedef void (*model_init_func)(void* context, real_t t);
 
@@ -75,6 +78,7 @@ typedef void (*model_dtor)(void* context);
 typedef struct 
 {
   model_read_input_func          read_input;
+  model_read_custom_input_func   read_custom_input;
   model_init_func                init;
   model_max_dt_func              max_dt;
   model_advance_func             advance;
@@ -126,11 +130,11 @@ void model_run_benchmark(model_t* model, const char* benchmark);
 void model_run_all_benchmarks(model_t* model);
 
 // Tells the model to read the contents of the given string as input, 
-// tempered by options.
+// with values overridden by options.
 void model_read_input_string(model_t* model, const char* input);
 
-// Tells the model to read the contents of the given file as input,
-// tempered by options.
+// Tells the model to read the contents of the file with the given name 
+// as input, with values overwritten by options.
 void model_read_input_file(model_t* model, const char* file);
 
 // Defines a point observation by its name, number of components, and 

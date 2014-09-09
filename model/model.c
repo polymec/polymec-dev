@@ -26,6 +26,7 @@
 #include "core/unordered_map.h"
 #include "core/array.h"
 #include "core/array_utils.h"
+#include "core/text_buffer.h"
 #include "model/model.h"
 
 // Benchmark metadatum.
@@ -105,6 +106,12 @@ static real_t* parse_observation_times(char* observation_time_str, int* num_time
 
 model_t* model_new(const char* name, void* context, model_vtable vtable, docstring_t* doc)
 {
+  // First, inspect the virtual table.
+
+  // Exactly one of read_input and read_custom_input should be given.
+  ASSERT(((vtable.read_input != NULL) && (vtable.read_custom_input == NULL)) ||
+          (vtable.read_input == NULL) && (vtable.read_custom_input != NULL));
+
   model_t* model = polymec_malloc(sizeof(model_t));
   model->vtable = vtable;
   model->context = context;
@@ -372,16 +379,36 @@ static void model_read_input(model_t* model, interpreter_t* interp)
 
 void model_read_input_string(model_t* model, const char* input)
 {
-  interpreter_t* interp = model_interpreter(model);
-  interpreter_parse_string(interp, (char*)input);
-  model_read_input(model, interp);
+  if (model->vtable.read_input != NULL)
+  {
+    interpreter_t* interp = model_interpreter(model);
+    interpreter_parse_string(interp, (char*)input);
+    model_read_input(model, interp);
+  }
+  else
+  {
+    options_t* options = options_argv();
+    model->vtable.read_custom_input(model->context, input, options);
+  }
 }
 
 void model_read_input_file(model_t* model, const char* file)
 {
-  interpreter_t* interp = model_interpreter(model);
-  interpreter_parse_file(interp, (char*)file);
-  model_read_input(model, interp);
+  if (model->vtable.read_input != NULL)
+  {
+    interpreter_t* interp = model_interpreter(model);
+    interpreter_parse_file(interp, (char*)file);
+    model_read_input(model, interp);
+  }
+  else
+  {
+    text_buffer_t* text = text_buffer_from_file(file);
+    char* input = text_buffer_to_string(text);
+    text_buffer_free(text);
+    options_t* options = options_argv();
+    model->vtable.read_custom_input(model->context, (const char*)input, options);
+    polymec_free(input);
+  }
 }
 
 typedef struct 

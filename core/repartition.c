@@ -1340,9 +1340,7 @@ exchanger_t* partition_mesh(mesh_t** mesh, MPI_Comm comm, int* weights, real_t i
   // Make sure there are enough cells to go around for the processes we're given.
   if (rank == 0)
   {
-    index_t* vtx_dist = adj_graph_vertex_dist(global_graph);
-    index_t total_num_cells = vtx_dist[nprocs];
-    ASSERT(total_num_cells > nprocs);
+    ASSERT((*mesh)->num_cells > nprocs);
   }
 #endif
 
