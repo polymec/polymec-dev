@@ -51,6 +51,11 @@ int text_buffer_num_lines(text_buffer_t* buffer);
 // use line_length to determine its length.
 bool text_buffer_next(text_buffer_t* buffer, int* pos, char** line, int* line_length);
 
+// Iterates over the file, returning the next non-empty line. Set pos to 0 
+// to reset the iteration. Since line is not NULL-terminated, you should 
+// use line_length to determine its length.
+bool text_buffer_next_nonempty(text_buffer_t* buffer, int* pos, char** line, int* line_length);
+
 // Returns a newly-allocated string containing the contents of this text buffer.
 char* text_buffer_to_string(text_buffer_t* buffer);
 

@@ -94,10 +94,10 @@ char** string_split(const char* s, const char* delimiter, int* num_substrings)
 bool string_is_number(const char* s)
 {
   if ((s == NULL) || (*s == '\0') || isspace(*s))
-    return 0;
+    return false;
   char* p;
   strtod(s, &p);
-  return (*p == '\0');
+  return (isspace(*p) || (*p == '\0'));
 }
 
 // This stuff is used for string_subst, below.

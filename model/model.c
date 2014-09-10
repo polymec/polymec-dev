@@ -590,7 +590,10 @@ real_t model_advance(model_t* model, real_t max_dt)
 
   // Record timings.
   real_t post_wall_time = MPI_Wtime();
-  model->sim_speed = model->dt / (post_wall_time - pre_wall_time); // Simulation "speed"
+  if (post_wall_time > pre_wall_time)
+    model->sim_speed = model->dt / (post_wall_time - pre_wall_time); // Simulation "speed"
+  else
+    model->sim_speed = FLT_MAX;
   model->wall_time = post_wall_time;
 
   return model->dt;
@@ -608,10 +611,11 @@ void model_load(model_t* model, int step)
   ASSERT(step >= 0);
   if (model->sim_name == NULL)
     polymec_error("No simulation name was set with model_set_sim_name.");
-  char prefix[strlen(model->sim_name) + 16];
-  snprintf(prefix, strlen(model->sim_name) + 16, "%s-%d", model->sim_name, step);
-  log_detail("%s: Loading save file from directory %s...", model->name, model->sim_name);
-  model->vtable.load(model->context, prefix, model->sim_name, &model->time, step);
+  char prefix[FILENAME_MAX], dir[FILENAME_MAX];
+  snprintf(prefix, FILENAME_MAX, "%s", model->sim_name);
+  snprintf(dir, FILENAME_MAX, "%s.dir", model->sim_name);
+  log_detail("%s: Loading save file from directory %s...", model->name, dir);
+  model->vtable.load(model->context, prefix, dir, &model->time, step);
   model->step = step;
 
   // Reset the wall time(s).
@@ -623,20 +627,22 @@ void model_save(model_t* model)
 {
   if (model->sim_name == NULL)
     polymec_error("No simulation name was set with model_set_sim_name.");
-  char prefix[strlen(model->sim_name) + 16];
-  snprintf(prefix, strlen(model->sim_name) + 16, "%s-%d", model->sim_name, model->step);
-  log_detail("%s: Writing save file to directory %s...", model->name, model->sim_name);
-  model->vtable.save(model->context, prefix, model->sim_name, model->time, model->step);
+  char prefix[FILENAME_MAX], dir[FILENAME_MAX];
+  snprintf(prefix, FILENAME_MAX, "%s", model->sim_name);
+  snprintf(dir, FILENAME_MAX, "%s.dir", model->sim_name);
+  log_detail("%s: Writing save file to directory %s...", model->name, dir);
+  model->vtable.save(model->context, prefix, dir, model->time, model->step);
 }
 
 void model_plot(model_t* model)
 {
   if (model->sim_name == NULL)
     polymec_error("No simulation name was set with model_set_sim_name.");
-  char prefix[strlen(model->sim_name) + 16];
-  snprintf(prefix, strlen(model->sim_name) + 16, "%s-%d", model->sim_name, model->step);
-  log_detail("%s: Writing plot to directory %s...", model->name, model->sim_name);
-  model->vtable.plot(model->context, prefix, model->sim_name, model->time, model->step);
+  char prefix[FILENAME_MAX], dir[FILENAME_MAX];
+  snprintf(prefix, FILENAME_MAX, "%s", model->sim_name);
+  snprintf(dir, FILENAME_MAX, "%s.dir", model->sim_name);
+  log_detail("%s: Writing plot to directory %s...", model->name, dir);
+  model->vtable.plot(model->context, prefix, dir, model->time, model->step);
 }
 
 void model_record_observations(model_t* model)
@@ -760,7 +766,7 @@ void model_run(model_t* model, real_t t1, real_t t2, int max_steps)
         max_dt = t2 - model->time;
         snprintf(reason, POLYMEC_MODEL_MAXDT_REASON_SIZE, "End of simulation");
       }
-      log_detail("%s: Max time step max_dt = %g\n (Reason: %s).", model->name, max_dt, reason);
+      log_detail("%s: Max time step max_dt = %g\n (Reason: %s)", model->name, max_dt, reason);
       model_advance(model, max_dt);
     }
   }
@@ -1058,8 +1064,10 @@ int model_main(const char* model_name, model_ctor constructor, int argc, char* a
   }
   fclose(fp);
 
-  // By default, the simulation is named after the input file (minus its suffix).
-  model_set_sim_name(model, input);
+  // By default, the simulation is named after the input file (minus its prefix).
+  char dir_name[FILENAME_MAX], file_name[FILENAME_MAX];
+  parse_path(input, dir_name, file_name);
+  model_set_sim_name(model, file_name);
 
   // Read the contents of the input file into the model's interpreter.
   model_read_input_file(model, input);
