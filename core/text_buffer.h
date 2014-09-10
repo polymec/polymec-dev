@@ -47,12 +47,14 @@ long text_buffer_size(text_buffer_t* buffer);
 int text_buffer_num_lines(text_buffer_t* buffer);
 
 // Iterates over the file, returning the next line. Set pos to 0 
-// to reset the iteration. Since line is not NULL-terminated, you should 
+// to reset the iteration. line is not NULL-terminated--it is just the portion
+// of the buffer holding the current line. Thus, you should 
 // use line_length to determine its length.
 bool text_buffer_next(text_buffer_t* buffer, int* pos, char** line, int* line_length);
 
 // Iterates over the file, returning the next non-empty line. Set pos to 0 
-// to reset the iteration. Since line is not NULL-terminated, you should 
+// to reset the iteration. line is not NULL-terminated--it is just the portion
+// of the buffer holding the current line. Thus, you should 
 // use line_length to determine its length.
 bool text_buffer_next_nonempty(text_buffer_t* buffer, int* pos, char** line, int* line_length);
 

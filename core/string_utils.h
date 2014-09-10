@@ -55,6 +55,12 @@ int string_num_tokens(const char* s, const char* delimiter);
 // be a single substring.
 char** string_split(const char* s, const char* delimiter, int* num_substrings);
 
+// This function allows one to remove whitespace from the front and back of 
+// the given NULL-terminated string s. It replaces the character after the 
+// last non-whitespace character in s with '\0', and returns the index of the 
+// first non-whitespace character in s.
+int string_trim(char* s);
+
 // Returns true if the given string is numeric, false if not.
 bool string_is_number(const char* s);
 

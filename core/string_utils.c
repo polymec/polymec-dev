@@ -91,13 +91,24 @@ char** string_split(const char* s, const char* delimiter, int* num_substrings)
   return strs;
 }
 
+int string_trim(char* s)
+{
+  int len = strlen(s);
+  if (len == 0) return 0;
+  int l = 0, r = strlen(s) - 1;
+  while ((r > 0) && isspace(s[r])) --r;
+  while ((l < r) && isspace(s[l])) ++l;
+  s[r+1] = '\0';
+  return l;
+}
+
 bool string_is_number(const char* s)
 {
   if ((s == NULL) || (*s == '\0') || isspace(*s))
     return false;
   char* p;
   strtod(s, &p);
-  return (isspace(*p) || (*p == '\0'));
+  return (*p == '\0');
 }
 
 // This stuff is used for string_subst, below.

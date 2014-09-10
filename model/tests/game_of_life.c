@@ -155,15 +155,17 @@ static void gol_read_custom_input(void* context, const char* input, options_t* o
     if (!found_coords)
       polymec_error("Invalid cell block offset: %s", line);
     strlcpy(num_buf, str, slen+1);
-    if (!string_is_number(num_buf))
-      polymec_error("Invalid x position of cell block: %s", num_buf);
+    int t = string_trim(num_buf);
+    if (!string_is_number(&num_buf[t]))
+      polymec_error("Invalid x position of cell block: %s", &num_buf[t]);
     int block_x = atoi(num_buf);
     found_coords = string_next_token(&line[3], " ", &spos, &str, &slen);
     if (!found_coords)
       polymec_error("Invalid cell block offset: %s", line);
     strlcpy(num_buf, str, slen+1);
-    if (!string_is_number(num_buf))
-      polymec_error("Invalid y position of cell block: '%s'", num_buf);
+    t = string_trim(num_buf);
+    if (!string_is_number(&num_buf[t]))
+      polymec_error("Invalid y position of cell block: %s", &num_buf[t]);
     int block_y = atoi(num_buf);
     
     if (block_x < gol->x_min)
@@ -204,9 +206,8 @@ static void gol_read_custom_input(void* context, const char* input, options_t* o
 
   // Because we parse custom input, we rely on command line options for 
   // some of our required inputs.
-  if ((options_value(options, "max_steps") == NULL) && 
-      (options_value(options, "t2") == NULL))
-    polymec_error("Either t1/t2 or max_steps (>= 0) must be given as arguments.");
+  if (options_value(options, "t2") == NULL)
+    polymec_error("t2 must be given as an argument.");
 }
 
 static void gol_init(void* context, real_t t)
