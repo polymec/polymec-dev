@@ -329,8 +329,10 @@ static void gol_finalize(void* context, int step, real_t t)
 static void gol_dtor(void* context)
 {
   gol_t* gol = context;
-  int_array_free(gol->xs);
-  int_array_free(gol->ys);
+  if (gol->xs != NULL)
+    int_array_free(gol->xs);
+  if (gol->ys != NULL)
+    int_array_free(gol->ys);
   polymec_free(gol);
 }
 
