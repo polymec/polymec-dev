@@ -202,7 +202,7 @@ static void gol_read_custom_input(void* context, const char* input, options_t* o
   }
   text_buffer_free(text);
 
-  log_detail("Read %d cell blocks from input.", num_cell_blocks);
+  log_detail("game_of_life: Read %d cell blocks from input.", num_cell_blocks);
 
   // Because we parse custom input, we rely on command line options for 
   // some of our required inputs.
@@ -230,6 +230,7 @@ static void gol_init(void* context, real_t t)
   if ((total_num_cells / nprocs) > 10000000)
     polymec_error("Excessively huge grid (%d cells on %d processes)!", total_num_cells, nprocs);
 
+  log_detail("game_of_life: Creating %d x %d grid...", nx, ny);
   bbox_t bbox = {.x1 = 1.0*gol->x_min - 0.5, .x2 = 1.0*gol->x_max + 0.5,
                  .y1 = 1.0*gol->y_min - 0.5, .y2 = 1.0*gol->y_max + 0.5,
                  .z1 = -0.5, .z2 = 0.5};
@@ -239,8 +240,9 @@ static void gol_init(void* context, real_t t)
 
   // Place the living cells into the grid. This is a little silly, but this is what 
   // we get for using a completely unstructured grid!
-  kd_tree_t* tree = kd_tree_new(gol->grid->cell_centers, gol->grid->num_cells);
   int num_living_cells = gol->xs->size;
+  log_detail("game_of_life: Placing %d living cells...", num_living_cells);
+  kd_tree_t* tree = kd_tree_new(gol->grid->cell_centers, gol->grid->num_cells);
   for (int i = 0; i < num_living_cells; ++i)
   {
     point_t x = {.x = 1.0*gol->xs->data[i], .y = 1.0*gol->ys->data[i]};

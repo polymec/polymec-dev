@@ -402,6 +402,7 @@ void model_read_input_file(model_t* model, const char* file)
   }
   else
   {
+    log_detail("%s: Reading custom input from '%s'...", model->name, file);
     text_buffer_t* text = text_buffer_from_file(file);
     char* input = text_buffer_to_string(text);
     text_buffer_free(text);
@@ -608,12 +609,15 @@ void model_finalize(model_t* model)
 
 void model_load(model_t* model, int step)
 {
+  int nprocs;
+  MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
+
   ASSERT(step >= 0);
   if (model->sim_name == NULL)
     polymec_error("No simulation name was set with model_set_sim_name.");
   char prefix[FILENAME_MAX], dir[FILENAME_MAX];
   snprintf(prefix, FILENAME_MAX, "%s", model->sim_name);
-  snprintf(dir, FILENAME_MAX, "%s.dir", model->sim_name);
+  snprintf(dir, FILENAME_MAX, "%s-%d", model->sim_name, nprocs);
   log_detail("%s: Loading save file from directory %s...", model->name, dir);
   model->vtable.load(model->context, prefix, dir, &model->time, step);
   model->step = step;
@@ -625,22 +629,28 @@ void model_load(model_t* model, int step)
 
 void model_save(model_t* model)
 {
+  int nprocs;
+  MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
+
   if (model->sim_name == NULL)
     polymec_error("No simulation name was set with model_set_sim_name.");
   char prefix[FILENAME_MAX], dir[FILENAME_MAX];
   snprintf(prefix, FILENAME_MAX, "%s", model->sim_name);
-  snprintf(dir, FILENAME_MAX, "%s.dir", model->sim_name);
+  snprintf(dir, FILENAME_MAX, "%s-%d", model->sim_name, nprocs);
   log_detail("%s: Writing save file to directory %s...", model->name, dir);
   model->vtable.save(model->context, prefix, dir, model->time, model->step);
 }
 
 void model_plot(model_t* model)
 {
+  int nprocs;
+  MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
+
   if (model->sim_name == NULL)
     polymec_error("No simulation name was set with model_set_sim_name.");
   char prefix[FILENAME_MAX], dir[FILENAME_MAX];
   snprintf(prefix, FILENAME_MAX, "%s", model->sim_name);
-  snprintf(dir, FILENAME_MAX, "%s.dir", model->sim_name);
+  snprintf(dir, FILENAME_MAX, "%s-%d", model->sim_name, nprocs);
   log_detail("%s: Writing plot to directory %s...", model->name, dir);
   model->vtable.plot(model->context, prefix, dir, model->time, model->step);
 }
