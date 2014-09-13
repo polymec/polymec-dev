@@ -89,4 +89,8 @@ stencil_t* cell_face_stencil_new(mesh_t* mesh);
 // cell. The stencil is constructed for every cell in the given mesh.
 stencil_t* cell_edge_stencil_new(mesh_t* mesh);
 
+// Creates a stencil for the cells that share at least one node with a given 
+// cell. The stencil is constructed for every cell in the given mesh.
+stencil_t* cell_node_stencil_new(mesh_t* mesh);
+
 #endif

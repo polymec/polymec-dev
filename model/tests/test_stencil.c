@@ -104,12 +104,32 @@ void test_serial_10x1x1_cell_edge_stencil(void** state)
 
 void test_serial_10x10x1_cell_edge_stencil(void** state)
 {
-  test_serial_NXxNYxNZ_stencil(state, cell_edge_stencil_new, 10, 1, 1, 8, 8, 5, 3);
+  test_serial_NXxNYxNZ_stencil(state, cell_edge_stencil_new, 10, 10, 1, 8, 8, 5, 3);
 }
 
 void test_serial_10x10x10_cell_edge_stencil(void** state)
 {
-  test_serial_NXxNYxNZ_stencil(state, cell_edge_stencil_new, 10, 1, 1, 26, 15, 15, 3);
+  test_serial_NXxNYxNZ_stencil(state, cell_edge_stencil_new, 10, 10, 10, 18, 13, 9, 6);
+}
+
+void test_serial_1x1x1_cell_node_stencil(void** state)
+{
+  test_serial_NXxNYxNZ_stencil(state, cell_node_stencil_new, 1, 1, 1, 0, 0, 0, 0);
+}
+
+void test_serial_10x1x1_cell_node_stencil(void** state)
+{
+  test_serial_NXxNYxNZ_stencil(state, cell_node_stencil_new, 10, 1, 1, 0, 0, 2, 1);
+}
+
+void test_serial_10x10x1_cell_node_stencil(void** state)
+{
+  test_serial_NXxNYxNZ_stencil(state, cell_node_stencil_new, 10, 10, 1, 8, 8, 5, 3);
+}
+
+void test_serial_10x10x10_cell_node_stencil(void** state)
+{
+  test_serial_NXxNYxNZ_stencil(state, cell_node_stencil_new, 10, 10, 10, 26, 17, 11, 7);
 }
 
 int main(int argc, char* argv[]) 
@@ -120,7 +140,11 @@ int main(int argc, char* argv[])
     unit_test(test_serial_1x1x1_cell_edge_stencil),
     unit_test(test_serial_10x1x1_cell_edge_stencil),
     unit_test(test_serial_10x10x1_cell_edge_stencil),
-    unit_test(test_serial_10x10x10_cell_edge_stencil)
+    unit_test(test_serial_10x10x10_cell_edge_stencil),
+    unit_test(test_serial_1x1x1_cell_node_stencil),
+    unit_test(test_serial_10x1x1_cell_node_stencil),
+    unit_test(test_serial_10x10x1_cell_node_stencil),
+    unit_test(test_serial_10x10x10_cell_node_stencil)
   };
   return run_tests(tests);
 }
