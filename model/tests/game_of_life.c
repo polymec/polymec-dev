@@ -24,6 +24,7 @@
 
 #include "core/polymec.h"
 #include "core/kd_tree.h"
+#include "core/unordered_set.h"
 #include "core/silo_file.h"
 #include "core/text_buffer.h"
 #include "geometry/create_uniform_mesh.h"
@@ -41,17 +42,35 @@ typedef struct
 
   // The information we read from our custom input file.
   int x_min, x_max, y_min, y_max;
-  int_array_t* xs;
-  int_array_t* ys;
+  int_tuple_unordered_set_t* xy_pairs;
+
+  // Expected difference in life pattern.
+  int expected_diff;
 } gol_t;
 
-static const char gol_desc[] = "Game of Life model\n"
+static const char gol_desc[] = "Game of Life model (game_of_life)\n"
   "This model demonstrates a parallel version of the Game of Life. For more\n"
   "details on Life and its variations, see\n"
-  "See http://en.wikipedia.org/wiki/Conway%27s_Game_of_Life#Notable_Life_programs\n";
+  "See http://en.wikipedia.org/wiki/Conway%27s_Game_of_Life#Notable_Life_programs\n\n"
+  "game_of_life takes Life 1.05 (*.LIF) files as input and takes time steps\n"
+  "of size 1. Important command line options are:\n\n"
+  "  t1=T          (optional) - floor(T) specifies the start time for the\n"
+  "                             simulation.\n"
+  "  t2=T          (required) - floor(T) specifies the end time for the\n"
+  "                             simulation.\n"
+  "  expect_diff=D (optional) - computes the difference in the life pattern and\n"
+  "                             compares it to D.\n"
+  "  save_every=N  (optional) - causes a save (.silo) file to be written every\n"
+  "                             N steps.\n"
+  "  pause=D       (optional) - Pauses for D seconds before execution.\n\n";
 
 static void gol_read_custom_input(void* context, const char* input, options_t* options)
 {
+  // Because we parse custom input, we rely on command line options for 
+  // some of our required inputs.
+  if (options_value(options, "t2") == NULL)
+    polymec_error("t2 must be given as an argument.");
+
   gol_t* gol = context;
 
   // We read .LIF/.LIFE files in Life 1.05 format, populating an initial state.
@@ -135,8 +154,7 @@ static void gol_read_custom_input(void* context, const char* input, options_t* o
   strlcpy(line, bline, len+1);
   
   // Now we move on to cell blocks.
-  gol->xs = int_array_new();
-  gol->ys = int_array_new();
+  gol->xy_pairs = int_tuple_unordered_set_new();
   gol->x_min = INT_MAX;
   gol->x_max = -INT_MAX;
   gol->y_min = INT_MAX;
@@ -190,8 +208,10 @@ static void gol_read_custom_input(void* context, const char* input, options_t* o
             gol->x_max = x;
           if (y > gol->y_max)
             gol->y_max = y;
-          int_array_append(gol->xs, x);
-          int_array_append(gol->ys, y);
+          int* xy = int_tuple_new(2);
+          xy[0] = x;
+          xy[1] = y;
+          int_tuple_unordered_set_insert_with_dtor(gol->xy_pairs, xy, int_tuple_free);
         }
         else if (c != '.')
           break;
@@ -204,10 +224,17 @@ static void gol_read_custom_input(void* context, const char* input, options_t* o
 
   log_detail("game_of_life: Read %d cell blocks from input.", num_cell_blocks);
 
-  // Because we parse custom input, we rely on command line options for 
-  // some of our required inputs.
-  if (options_value(options, "t2") == NULL)
-    polymec_error("t2 must be given as an argument.");
+  char* exp_diff = options_value(options, "expect_diff");
+  if (exp_diff != NULL)
+  {
+    if (!string_is_number(exp_diff))
+      polymec_error("Invalid expected diff: %s\n", exp_diff);
+    gol->expected_diff = atoi(exp_diff);
+    if (gol->expected_diff < 0)
+      polymec_error("Invalid expected diff: %s\n", exp_diff);
+  }
+  else
+    gol->expected_diff = -1;
 }
 
 static void gol_init(void* context, real_t t)
@@ -217,8 +244,7 @@ static void gol_init(void* context, real_t t)
   MPI_Comm_size(comm, &nprocs);
 
   gol_t* gol = context;
-  ASSERT(gol->xs->size == gol->ys->size);
-  ASSERT(gol->xs->size > 0);
+  ASSERT(gol->xy_pairs->size > 0);
   ASSERT(gol->x_min < gol->x_max);
   ASSERT(gol->y_min < gol->y_max);
 
@@ -240,12 +266,13 @@ static void gol_init(void* context, real_t t)
 
   // Place the living cells into the grid. This is a little silly, but this is what 
   // we get for using a completely unstructured grid!
-  int num_living_cells = gol->xs->size;
+  int num_living_cells = gol->xy_pairs->size;
   log_detail("game_of_life: Placing %d living cells...", num_living_cells);
   kd_tree_t* tree = kd_tree_new(gol->grid->cell_centers, gol->grid->num_cells);
-  for (int i = 0; i < num_living_cells; ++i)
+  int pos = 0, *xy;
+  while (int_tuple_unordered_set_next(gol->xy_pairs, &pos, &xy))
   {
-    point_t x = {.x = 1.0*gol->xs->data[i], .y = 1.0*gol->ys->data[i]};
+    point_t x = {.x = 1.0*xy[0], .y = 1.0*xy[1]};
     int cell_index = kd_tree_nearest(tree, &x);
     ASSERT(cell_index >= 0);
     ASSERT(cell_index < gol->grid->num_cells);
@@ -324,6 +351,34 @@ static void gol_save(void* context, const char* file_prefix, const char* directo
 static void gol_finalize(void* context, int step, real_t t)
 {
   gol_t* gol = context;
+
+  // Check for any expected difference.
+  if (gol->expected_diff >= 0)
+  {
+    int local_diff = 0;
+    int* xy = int_tuple_new(2);
+    for (int c = 0; c < gol->grid->num_cells; ++c)
+    {
+      int val = (int)gol->state[c];
+      point_t* x = &gol->grid->cell_centers[c];
+      xy[0] = (int)x->x, xy[1] = (int)x->y;
+      if (int_tuple_unordered_set_contains(gol->xy_pairs, xy))
+        local_diff += abs(val - 1);
+      else
+        local_diff += val;
+    }
+    int_tuple_free(xy);
+    int global_diff;
+    MPI_Allreduce(&local_diff, &global_diff, 1, MPI_INT, MPI_SUM, gol->grid->comm);
+
+    log_urgent("game_of_life: expected diff: %d", gol->expected_diff);
+    log_urgent("game_of_life: computed diff: %d", global_diff);
+    if (gol->expected_diff == global_diff)
+      log_urgent("game_of_life: expected == computed");
+    else
+      log_urgent("game_of_life: expected != computed");
+  }
+
   mesh_free(gol->grid);
   polymec_free(gol->state);
 }
@@ -331,10 +386,8 @@ static void gol_finalize(void* context, int step, real_t t)
 static void gol_dtor(void* context)
 {
   gol_t* gol = context;
-  if (gol->xs != NULL)
-    int_array_free(gol->xs);
-  if (gol->ys != NULL)
-    int_array_free(gol->ys);
+  if (gol->xy_pairs != NULL)
+    int_tuple_unordered_set_free(gol->xy_pairs);
   polymec_free(gol);
 }
 
@@ -343,8 +396,7 @@ static model_t* gol_ctor()
   gol_t* gol = polymec_malloc(sizeof(gol_t));
   gol->grid = NULL;
   gol->state = NULL;
-  gol->xs = NULL;
-  gol->ys = NULL;
+  gol->xy_pairs = NULL;
   memset(gol->alive_nums, 0, sizeof(int) * 9);
   memset(gol->born_nums, 0, sizeof(int) * 9);
   model_vtable vtable = {.read_custom_input = gol_read_custom_input,

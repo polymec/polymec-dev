@@ -43,6 +43,7 @@
 // void x_set_clear(x_set_t* set) - Empties the set.
 // bool x_set_contains(x_set_t* set, x datum) - Returns true if the set contains the datum, false otherwise.
 // void x_set_insert(x_set_t* set, x datum) - Inserts a datum into the set.
+// void x_set_insert_with_dtor(x_set_t* set, x datum, x_dtor dtor) - Inserts a datum into the set with the given destructor.
 // void x_set_delete(x_set_t* set, x datum) - Deletes the datum from the set.
 // bool x_set_next(x_set_t* set, int* pos, x* datum) - Allows traversal of the set.
 // void x_set_intersection(x_set_t* set, x_set_t* other_set, x_set_t* intersection) - Intersects this set with the other set, storing the result in intersection.

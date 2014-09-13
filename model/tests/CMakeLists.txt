@@ -4,5 +4,13 @@ add_polymec_test(test_polynomial_fit test_polynomial_fit.c)
 add_polymec_test(test_helmholtz_solver test_helmholtz_solver.c)
 add_polymec_test(test_conduction_solver test_conduction_solver.c)
 
+function(add_game_of_life_test input num_steps diff)
+  set(test_name game_of_life_${input}_${num_steps}_steps)
+  add_test(${test_name} game_of_life run ${CMAKE_CURRENT_SOURCE_DIR}/patterns/${input}.lif t2=${num_steps} expect_diff=${diff})
+  set_tests_properties(${test_name} PROPERTIES PASS_REGULAR_EXPRESSION "expected == computed")
+endfunction()
+
 add_polymec_executable(game_of_life game_of_life.c)
-#add_test(game_of_life glider.rle num_steps=48 check_against=glider-48.rle
+add_game_of_life_test(still 0 0)
+add_game_of_life_test(still 1 0)
+add_game_of_life_test(still 10 0)
