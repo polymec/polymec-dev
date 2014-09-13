@@ -29,11 +29,13 @@
 #include "core/text_buffer.h"
 #include "geometry/create_uniform_mesh.h"
 #include "model/model.h"
+#include "model/stencil.h"
 
 typedef struct
 {
   // State information.
   mesh_t* grid;
+  stencil_t* stencil;
   real_t* state;
 
   // The Game of Life rule we use.
@@ -261,6 +263,7 @@ static void gol_init(void* context, real_t t)
                  .y1 = 1.0*gol->y_min - 0.5, .y2 = 1.0*gol->y_max + 0.5,
                  .z1 = -0.5, .z2 = 0.5};
   gol->grid = create_uniform_mesh(comm, nx, ny, 1, &bbox);
+  gol->stencil = cell_edge_stencil_new(gol->grid);
   gol->state = polymec_malloc(sizeof(real_t) * gol->grid->num_cells);
   memset(gol->state, 0, sizeof(real_t) * gol->grid->num_cells);
 
@@ -298,12 +301,15 @@ static real_t gol_advance(void* context, real_t max_dt, real_t t)
   for (int cell = 0; cell < gol->grid->num_cells; ++cell)
   {
     int pos = 0, neighbor;
-    real_t count = 0.0;
-    while (mesh_cell_next_neighbor(gol->grid, cell, &pos, &neighbor))
+    real_t count = 0.0, weight;
+printf("Cell %d has %d neighbors: ", cell, stencil_size(gol->stencil, cell));
+    while (stencil_next(gol->stencil, cell, &pos, &neighbor, &weight))
     {
+printf("%d ", neighbor);
       if (neighbor >= 0)
         count += gol->state[neighbor];
     }
+printf("\n");
     int icount = (int)count;
     int living = (int)gol->state[cell];
     if (living)
@@ -326,6 +332,7 @@ static void gol_load(void* context, const char* file_prefix, const char* directo
   ASSERT(gol->grid == NULL);
   ASSERT(gol->state == NULL);
   gol->grid = silo_file_read_mesh(silo, "grid");
+  gol->stencil = cell_edge_stencil_new(gol->grid);
   gol->state = silo_file_read_scalar_cell_field(silo, "state", "grid");
   silo_file_close(silo);
 }
@@ -379,6 +386,7 @@ static void gol_finalize(void* context, int step, real_t t)
       log_urgent("game_of_life: expected != computed");
   }
 
+  stencil_free(gol->stencil);
   mesh_free(gol->grid);
   polymec_free(gol->state);
 }
@@ -395,6 +403,7 @@ static model_t* gol_ctor()
 {
   gol_t* gol = polymec_malloc(sizeof(gol_t));
   gol->grid = NULL;
+  gol->stencil = NULL;
   gol->state = NULL;
   gol->xy_pairs = NULL;
   memset(gol->alive_nums, 0, sizeof(int) * 9);

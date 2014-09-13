@@ -23,7 +23,8 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "model/stencil.h"
-#include "model/stencil.h"
+#include "core/unordered_set.h"
+#include "core/array.h"
 
 stencil_t* stencil_new(const char* name, int num_indices, 
                        int* offsets, int* indices, real_t* weights,
@@ -53,6 +54,7 @@ void stencil_free(stencil_t* stencil)
 stencil_t* cell_face_stencil_new(mesh_t* mesh)
 {
   // Read off the stencil from the mesh.
+  // FIXME: This is broken at the moment, since we have -1's in there.
   int* offsets = polymec_malloc(sizeof(int) * (mesh->num_cells+1));
   memcpy(offsets, mesh->cell_face_offsets, sizeof(int) * (mesh->num_cells+1));
   int* indices = polymec_malloc(sizeof(int) * offsets[mesh->num_cells]);
@@ -69,7 +71,87 @@ stencil_t* cell_face_stencil_new(mesh_t* mesh)
 
 stencil_t* cell_edge_stencil_new(mesh_t* mesh)
 {
-  // FIXME: Todo.
-  return NULL;
+  // First we will make a big clumsy mapping from each cell to its list of 
+  // neighboring cells.
+  int_array_t** stencil_map = polymec_malloc(sizeof(int_array_t*) * mesh->num_cells);
+  int_unordered_set_t* cell_edges = int_unordered_set_new();
+  int_unordered_set_t* cell_neighbors = int_unordered_set_new();
+  exchanger_t* ex = exchanger_new(mesh->comm);
+  for (int cell = 0; cell < mesh->num_cells; ++cell)
+  {
+    int_array_t* neighbors = int_array_new();
+
+    // Make a list of all the edges in the cell.
+    int_unordered_set_clear(cell_edges);
+    int pos = 0, face;
+    while (mesh_cell_next_face(mesh, cell, &pos, &face))
+    {
+      int fpos = 0, edge;
+      while (mesh_face_next_edge(mesh, face, &fpos, &edge))
+        int_unordered_set_insert(cell_edges, edge);
+    }
+
+    int opp_cell;
+    pos = 0;
+    int_unordered_set_clear(cell_neighbors);
+    while (mesh_cell_next_neighbor(mesh, cell, &pos, &opp_cell))
+    {
+      if (opp_cell != -1)
+      {
+        // This one's definitely a neighbor.
+        int_array_append(neighbors, opp_cell);
+        
+        // Each neighbor of this opposite cell that shares an edge with our 
+        // original cell is a neighbor of that cell.
+        int opos = 0, face;
+        while (mesh_cell_next_face(mesh, opp_cell, &opos, &face))
+        {
+          int ncell = mesh_face_opp_cell(mesh, opp_cell, face);
+          if ((ncell != -1) && (ncell != cell))
+          {
+            int fpos = 0, edge;
+            while (mesh_face_next_edge(mesh, face, &fpos, &edge))
+            {
+              if (int_unordered_set_contains(cell_edges, edge) && 
+                  !int_unordered_set_contains(cell_neighbors, ncell))
+              {
+                int_array_append(neighbors, ncell);
+                int_unordered_set_insert(cell_neighbors, ncell);
+              }
+            }
+          }
+        }
+      }
+    }
+
+    stencil_map[cell] = neighbors;
+  }
+  int_unordered_set_free(cell_edges);
+  int_unordered_set_free(cell_neighbors);
+
+  // FIXME: Still have to construct the exchanger for this stencil.
+
+  // Create the stencil from the map.
+  int* offsets = polymec_malloc(sizeof(int) * (mesh->num_cells+1));
+  offsets[0] = 0;
+  for (int i = 0; i < mesh->num_cells; ++i)
+    offsets[i+1] = offsets[i] + stencil_map[i]->size;
+  int* indices = polymec_malloc(sizeof(int) * offsets[mesh->num_cells]);
+  real_t* weights = polymec_malloc(sizeof(real_t) * offsets[mesh->num_cells]);
+  int k = 0;
+  for (int i = 0; i < mesh->num_cells; ++i)
+  {
+    int_array_t* neighbors = stencil_map[i];
+    for (int j = 0; j < neighbors->size; ++j, ++k)
+    {
+      indices[k] = neighbors->data[j];
+      weights[k] = 1.0;
+    }
+    ASSERT(k == offsets[i+1]);
+    int_array_free(neighbors);
+  }
+  polymec_free(stencil_map);
+  return stencil_new("cell-edge stencil", mesh->num_cells, offsets, 
+                     indices, weights, ex);
 }
 

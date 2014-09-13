@@ -56,6 +56,13 @@ stencil_t* stencil_new(const char* name, int num_indices,
 // Destroys the given stencil object.
 void stencil_free(stencil_t* stencil);
 
+// Returns the number of indices in the stencil for the given index i.
+static inline int stencil_size(stencil_t* stencil, int i)
+{
+  ASSERT(i < stencil->num_indices);
+  return stencil->offsets[i+1] - stencil->offsets[i];
+}
+
 // Traverses the stencil for a given index i, returning true if the traversal
 // has more indices remaining and false if it has completed. The pos pointer 
 // must be set to zero to reset the traversal. The j and weight pointers will 
@@ -64,18 +71,11 @@ static inline bool stencil_next(stencil_t* stencil, int i, int* pos,
                                 int* j, real_t* weight)
 {
   ASSERT(i < stencil->num_indices);
-  if (*pos >= stencil->offsets[i+1])
+  if (*pos >= (stencil->offsets[i+1] - stencil->offsets[i]))
     return false;
-  int k = stencil->offsets[i+*pos];
+  int k = stencil->offsets[i] + *pos;
   *j = stencil->indices[k];
-  while ((*j == -1) && (*pos < stencil->offsets[i+1]))
-  {
-    ++(*pos);
-    k = stencil->offsets[i+*pos];
-    *j = stencil->indices[k];
-  }
-  if (*j == -1)
-    return false;
+  ASSERT(*j != -1);
   *weight = stencil->weights[k];
   ++(*pos);
   return true;
