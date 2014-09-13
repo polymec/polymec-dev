@@ -50,3 +50,26 @@ void stencil_free(stencil_t* stencil)
   polymec_free(stencil);
 }
 
+stencil_t* cell_face_stencil_new(mesh_t* mesh)
+{
+  // Read off the stencil from the mesh.
+  int* offsets = polymec_malloc(sizeof(int) * (mesh->num_cells+1));
+  memcpy(offsets, mesh->cell_face_offsets, sizeof(int) * (mesh->num_cells+1));
+  int* indices = polymec_malloc(sizeof(int) * offsets[mesh->num_cells]);
+  real_t* weights = polymec_malloc(sizeof(real_t) * offsets[mesh->num_cells]);
+  for (int i = 0; i < offsets[mesh->num_cells]; ++i)
+  {
+    indices[i] = mesh_face_opp_cell(mesh, mesh->cell_faces[offsets[i]], i);
+    weights[i] = 1.0;
+  }
+  exchanger_t* ex = exchanger_clone(mesh_exchanger(mesh));
+  return stencil_new("cell-face stencil", mesh->num_cells, offsets, indices, 
+                     weights, ex);
+}
+
+stencil_t* cell_edge_stencil_new(mesh_t* mesh)
+{
+  // FIXME: Todo.
+  return NULL;
+}
+

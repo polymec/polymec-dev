@@ -39,6 +39,9 @@ exchanger_t* exchanger_new(MPI_Comm comm);
 // Destroys an exchanger.
 void exchanger_free(exchanger_t* ex);
 
+// Creates a complete copy of the given exchanger.
+exchanger_t* exchanger_clone(exchanger_t* ex);
+
 // Establishes a communication pattern in which this exchanger sends data at 
 // the given indices of an array to the given remote process. Note that 
 // remote_process must differ from the local rank on the exchanger's communicator.

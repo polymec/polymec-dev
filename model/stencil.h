@@ -26,7 +26,8 @@
 #define POLYMEC_STENCIL_H
 
 #include "core/polymec.h"
-#include "core/exchanger.h"
+#include "core/mesh.h"
+#include "core/point_cloud.h"
 
 // A stencil is a set of indices and weights associated with a stencil for 
 // some spatial discretization. Stencils can be constructed for any set of 
@@ -67,9 +68,25 @@ static inline bool stencil_next(stencil_t* stencil, int i, int* pos,
     return false;
   int k = stencil->offsets[i+*pos];
   *j = stencil->indices[k];
+  while ((*j == -1) && (*pos < stencil->offsets[i+1]))
+  {
+    ++(*pos);
+    k = stencil->offsets[i+*pos];
+    *j = stencil->indices[k];
+  }
+  if (*j == -1)
+    return false;
   *weight = stencil->weights[k];
   ++(*pos);
   return true;
 }
+
+// Creates a stencil for the cells that share at least one face with a given 
+// cell. The stencil is constructed for every cell in the given mesh.
+stencil_t* cell_face_stencil_new(mesh_t* mesh);
+
+// Creates a stencil for the cells that share at least one edge with a given 
+// cell. The stencil is constructed for every cell in the given mesh.
+stencil_t* cell_edge_stencil_new(mesh_t* mesh);
 
 #endif

@@ -413,6 +413,19 @@ void exchanger_free(exchanger_t* ex)
   polymec_free(ex);
 }
 
+exchanger_t* exchanger_clone(exchanger_t* ex)
+{
+  exchanger_t* clone = exchanger_new(ex->comm);
+  int pos = 0, proc;
+  int *indices, num_indices;
+  while (exchanger_next_send(ex, &pos, &proc, &indices, &num_indices))
+    exchanger_set_send(clone, proc, indices, num_indices, true);   
+  pos = 0;
+  while (exchanger_next_receive(ex, &pos, &proc, &indices, &num_indices))
+    exchanger_set_receive(clone, proc, indices, num_indices, true);
+  return clone;
+}
+
 static void delete_map_entry(int key, exchanger_channel_t* value)
 {
   exchanger_channel_free(value);
