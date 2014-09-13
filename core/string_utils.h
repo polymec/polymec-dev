@@ -34,6 +34,14 @@ char* string_dup(const char* s);
 // tacking an '\0' to the end.
 char* string_ndup(const char* s, int n);
 
+// This function copies at most n-1 characters from a raw array to the string 
+// dest. The raw array is not assumed to be NULL-terminated, but if it is, 
+// only those characters preceding the NULL character will be copied. The 
+// destination string dest is assumed to have enough storage to hold at least 
+// n characters including a NULL termination character. After the copy is 
+// performed, a NULL character will be written to the (n-1)th index of dest.
+void string_copy_from_raw(const char* raw_array, int n, char* dest);
+
 // This just calls polymec_free() to free a string, but can be used as a 
 // convenience function for assigning destructors to strings in containers.
 void string_free(char* s);

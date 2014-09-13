@@ -49,6 +49,12 @@ void string_free(char* s)
   polymec_free(s);
 }
 
+void string_copy_from_raw(const char* raw_array, int n, char* dest)
+{
+  strncpy(dest, raw_array, n-1);
+  dest[n-1] = '\0';
+}
+
 bool string_next_token(const char* s, const char* delimiter, int* pos, char** token, int* length)
 {
   if (*pos >= strlen(s))
