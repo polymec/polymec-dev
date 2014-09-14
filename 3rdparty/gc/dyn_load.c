@@ -323,7 +323,7 @@ STATIC word GC_register_map_entries(char *maps)
               /* away pointers in pieces of the stack segment that we   */
               /* don't scan.  We work around this                       */
               /* by treating anything allocated by libpthread as        */
-              /* uncollectable, as we do in some other cases.           */
+              /* uncollectible, as we do in some other cases.           */
               /* A specifically identified problem is that              */
               /* thread stacks contain pointers to dynamic thread       */
               /* vectors, which may be reused due to thread caching.    */
@@ -865,9 +865,9 @@ GC_INNER void GC_register_dynamic_libraries(void)
       }
       if (curr_base < limit) GC_add_roots_inner(curr_base, limit, TRUE);
 #   else
-      char dummy;
       char * stack_top
-         = (char *) ((word)(&dummy) & ~(GC_sysinfo.dwAllocationGranularity-1));
+         = (char *)((word)GC_approx_sp() &
+                        ~(GC_sysinfo.dwAllocationGranularity - 1));
       if (base == limit) return;
       if (limit > stack_top && base < GC_stackbottom) {
           /* Part of the stack; ignore it. */
@@ -1099,7 +1099,7 @@ GC_INNER void GC_register_dynamic_libraries(void)
       /* Get info about next shared library */
         status = shl_get(index, &shl_desc);
 
-      /* Check if this is the end of the list or if some error occured */
+      /* Check if this is the end of the list or if some error occurred */
         if (status != 0) {
 #        ifdef GC_HPUX_THREADS
            /* I've seen errno values of 0.  The man page is not clear   */

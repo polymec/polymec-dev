@@ -97,12 +97,6 @@
 # include <malloc.h>   /* for locking */
 #endif
 
-#if defined(LINUX) || defined(FREEBSD) || defined(SOLARIS) || defined(IRIX5) \
-        || ((defined(USE_MMAP) || defined(USE_MUNMAP)) \
-        && !defined(MSWIN32) && !defined(MSWINCE))
-# define MMAP_SUPPORTED
-#endif
-
 #if defined(MMAP_SUPPORTED) || defined(ADD_HEAP_GUARD_PAGES)
 # if defined(USE_MUNMAP) && !defined(USE_MMAP)
 #   error "invalid config - USE_MUNMAP requires USE_MMAP"
@@ -533,7 +527,7 @@ GC_INNER char *GC_parse_map_entry(char *buf_ptr, ptr_t *start, ptr_t *end,
      siglongjmp(GC_jmp_buf_openbsd, 1);
   }
 
-  /* Return the first non-addressible location > p or bound.    */
+  /* Return the first non-addressable location > p or bound.    */
   /* Requires the allocation lock.                              */
   STATIC ptr_t GC_find_limit_openbsd(ptr_t p, ptr_t bound)
   {
@@ -757,9 +751,7 @@ GC_INNER word GC_page_size = 0;
 
     GC_API int GC_CALL GC_get_stack_base(struct GC_stack_base *sb)
     {
-      int dummy;
-      ptr_t sp = (ptr_t)(&dummy);
-      ptr_t trunc_sp = (ptr_t)((word)sp & ~(GC_page_size - 1));
+      ptr_t trunc_sp = (ptr_t)((word)GC_approx_sp() & ~(GC_page_size - 1));
       /* FIXME: This won't work if called from a deeply recursive       */
       /* client code (and the committed stack space has grown).         */
       word size = GC_get_writable_length(trunc_sp, 0);
@@ -772,7 +764,10 @@ GC_INNER word GC_page_size = 0;
     /* gcc version of boehm-gc).                                        */
     GC_API int GC_CALL GC_get_stack_base(struct GC_stack_base *sb)
     {
-      extern void * _tlsbase __asm__ ("%fs:4");
+      void * _tlsbase;
+
+      __asm__ ("movl %%fs:4, %0"
+               : "=r" (_tlsbase));
       sb -> mem_base = _tlsbase;
       return GC_SUCCESS;
     }
@@ -830,7 +825,7 @@ GC_INNER word GC_page_size = 0;
     typedef void (*GC_fault_handler_t)(int);
 
 #   if defined(SUNOS5SIGS) || defined(IRIX5) || defined(OSF1) \
-       || defined(HURD) || defined(NETBSD)
+       || defined(HURD) || defined(FREEBSD) || defined(NETBSD)
         static struct sigaction old_segv_act;
 #       if defined(_sigargs) /* !Irix6.x */ || defined(HPUX) \
            || defined(HURD) || defined(NETBSD) || defined(FREEBSD)
@@ -842,8 +837,8 @@ GC_INNER word GC_page_size = 0;
 
     GC_INNER void GC_set_and_save_fault_handler(GC_fault_handler_t h)
     {
-#       if defined(SUNOS5SIGS) || defined(IRIX5) \
-           || defined(OSF1) || defined(HURD) || defined(NETBSD)
+#       if defined(SUNOS5SIGS) || defined(IRIX5) || defined(OSF1) \
+            || defined(HURD) || defined(FREEBSD) || defined(NETBSD)
           struct sigaction act;
 
           act.sa_handler = h;
@@ -871,7 +866,7 @@ GC_INNER word GC_page_size = 0;
               /* don't have to worry in the threads case.       */
               (void) sigaction(SIGBUS, &act, &old_bus_act);
 #           endif
-#         endif /* GC_IRIX_THREADS */
+#         endif /* !GC_IRIX_THREADS */
 #       else
           old_segv_handler = signal(SIGSEGV, h);
 #         ifdef SIGBUS
@@ -902,8 +897,8 @@ GC_INNER word GC_page_size = 0;
 
     GC_INNER void GC_reset_fault_handler(void)
     {
-#       if defined(SUNOS5SIGS) || defined(IRIX5) \
-           || defined(OSF1) || defined(HURD) || defined(NETBSD)
+#       if defined(SUNOS5SIGS) || defined(IRIX5) || defined(OSF1) \
+           || defined(HURD) || defined(FREEBSD) || defined(NETBSD)
           (void) sigaction(SIGSEGV, &old_segv_act, 0);
 #         if defined(IRIX5) && defined(_sigargs) /* Irix 5.x, not 6.x */ \
              || defined(HPUX) || defined(HURD) || defined(NETBSD) \
@@ -1155,13 +1150,14 @@ GC_INNER word GC_page_size = 0;
 
   ptr_t GC_get_main_stack_base(void)
   {
-    ptr_t result; /* also used as "dummy" to get the approx. sp value */
+    ptr_t result;
 #   if defined(LINUX) && !defined(NACL) \
        && (defined(USE_GET_STACKBASE_FOR_MAIN) \
            || (defined(THREADS) && !defined(REDIRECT_MALLOC)))
       pthread_attr_t attr;
       void *stackaddr;
       size_t size;
+
       if (pthread_getattr_np(pthread_self(), &attr) == 0) {
         if (pthread_attr_getstack(&attr, &stackaddr, &size) == 0
             && stackaddr != NULL) {
@@ -1182,10 +1178,10 @@ GC_INNER word GC_page_size = 0;
 #     define STACKBOTTOM_ALIGNMENT_M1 ((word)STACK_GRAN - 1)
 #     ifdef HEURISTIC1
 #       ifdef STACK_GROWS_DOWN
-          result = (ptr_t)((((word)(&result)) + STACKBOTTOM_ALIGNMENT_M1)
+          result = (ptr_t)(((word)GC_approx_sp() + STACKBOTTOM_ALIGNMENT_M1)
                            & ~STACKBOTTOM_ALIGNMENT_M1);
 #       else
-          result = (ptr_t)(((word)(&result)) & ~STACKBOTTOM_ALIGNMENT_M1);
+          result = (ptr_t)((word)GC_approx_sp() & ~STACKBOTTOM_ALIGNMENT_M1);
 #       endif
 #     endif /* HEURISTIC1 */
 #     ifdef LINUX_STACKBOTTOM
@@ -1195,30 +1191,33 @@ GC_INNER word GC_page_size = 0;
          result = GC_freebsd_main_stack_base();
 #     endif
 #     ifdef HEURISTIC2
-#       ifdef STACK_GROWS_DOWN
-          result = GC_find_limit((ptr_t)(&result), TRUE);
-#         ifdef HEURISTIC2_LIMIT
-            if (result > HEURISTIC2_LIMIT
-                && (ptr_t)(&result) < HEURISTIC2_LIMIT) {
-              result = HEURISTIC2_LIMIT;
-            }
+        {
+          ptr_t sp = GC_approx_sp();
+#         ifdef STACK_GROWS_DOWN
+            result = GC_find_limit(sp, TRUE);
+#           ifdef HEURISTIC2_LIMIT
+              if (result > HEURISTIC2_LIMIT
+                  && sp < HEURISTIC2_LIMIT) {
+                result = HEURISTIC2_LIMIT;
+              }
+#           endif
+#         else
+            result = GC_find_limit(sp, FALSE);
+#           ifdef HEURISTIC2_LIMIT
+              if (result < HEURISTIC2_LIMIT
+                  && sp > HEURISTIC2_LIMIT) {
+                result = HEURISTIC2_LIMIT;
+              }
+#           endif
 #         endif
-#       else
-          result = GC_find_limit((ptr_t)(&result), FALSE);
-#         ifdef HEURISTIC2_LIMIT
-            if (result < HEURISTIC2_LIMIT
-                && (ptr_t)(&result) > HEURISTIC2_LIMIT) {
-              result = HEURISTIC2_LIMIT;
-            }
-#         endif
-#       endif
+        }
 #     endif /* HEURISTIC2 */
 #     ifdef STACK_GROWS_DOWN
         if (result == 0)
           result = (ptr_t)(signed_word)(-sizeof(ptr_t));
 #     endif
 #   endif
-    GC_ASSERT((ptr_t)(&result) HOTTER_THAN result);
+    GC_ASSERT(GC_approx_sp() HOTTER_THAN result);
     return(result);
   }
 # define GET_MAIN_STACKBASE_SPECIAL
@@ -1283,13 +1282,10 @@ GC_INNER word GC_page_size = 0;
 
   GC_API int GC_CALL GC_get_stack_base(struct GC_stack_base *b)
   {
-#   ifdef GC_ASSERTIONS
-      int dummy;
-#   endif
     /* pthread_get_stackaddr_np() should return stack bottom (highest   */
     /* stack address plus 1).                                           */
     b->mem_base = pthread_get_stackaddr_np(pthread_self());
-    GC_ASSERT((void *)&dummy HOTTER_THAN b->mem_base);
+    GC_ASSERT((void *)GC_approx_sp() HOTTER_THAN b->mem_base);
     return GC_SUCCESS;
   }
 # define HAVE_GET_STACK_BASE
@@ -1304,7 +1300,8 @@ GC_INNER word GC_page_size = 0;
   GC_API int GC_CALL GC_get_stack_base(struct GC_stack_base *sb)
   {
     stack_t stack;
-    pthread_stackseg_np(pthread_self(), &stack);
+    if (pthread_stackseg_np(pthread_self(), &stack))
+      ABORT("pthread_stackseg_np(self) failed");
     sb->mem_base = stack.ss_sp;
     return GC_SUCCESS;
   }
@@ -1328,6 +1325,7 @@ GC_INNER word GC_page_size = 0;
   {
     stack_t s;
     pthread_t self = pthread_self();
+
     if (self == stackbase_main_self)
       {
         /* If the client calls GC_get_stack_base() from the main thread */
@@ -1345,7 +1343,7 @@ GC_INNER word GC_page_size = 0;
       ABORT("thr_stksegment failed");
     }
     /* s.ss_sp holds the pointer to the stack bottom. */
-    GC_ASSERT((void *)&s HOTTER_THAN s.ss_sp);
+    GC_ASSERT((void *)GC_approx_sp() HOTTER_THAN s.ss_sp);
 
     if (!stackbase_main_self && thr_main() != 0)
       {
@@ -1381,19 +1379,18 @@ GC_INNER word GC_page_size = 0;
   GC_API int GC_CALL GC_get_stack_base(struct GC_stack_base *b)
   {
 #   ifdef NEED_FIND_LIMIT
-      int dummy;
       IF_CANCEL(int cancel_state;)
       DCL_LOCK_STATE;
 
       LOCK();
       DISABLE_CANCEL(cancel_state);  /* May be unnecessary? */
 #     ifdef STACK_GROWS_DOWN
-        b -> mem_base = GC_find_limit((ptr_t)(&dummy), TRUE);
+        b -> mem_base = GC_find_limit(GC_approx_sp(), TRUE);
 #       ifdef IA64
           b -> reg_base = GC_find_limit(GC_save_regs_in_stack(), FALSE);
 #       endif
 #     else
-        b -> mem_base = GC_find_limit(&dummy, FALSE);
+        b -> mem_base = GC_find_limit(GC_approx_sp(), FALSE);
 #     endif
       RESTORE_CANCEL(cancel_state);
       UNLOCK();
@@ -1409,9 +1406,10 @@ GC_INNER word GC_page_size = 0;
   ptr_t GC_get_main_stack_base(void)
   {
     struct GC_stack_base sb;
+
     if (GC_get_stack_base(&sb) != GC_SUCCESS)
       ABORT("GC_get_stack_base failed");
-    GC_ASSERT((void *)&sb HOTTER_THAN sb.mem_base);
+    GC_ASSERT((void *)GC_approx_sp() HOTTER_THAN sb.mem_base);
     return (ptr_t)sb.mem_base;
   }
 #endif /* !GET_MAIN_STACKBASE_SPECIAL */
@@ -1432,7 +1430,7 @@ void GC_register_data_segments(void)
     FILE * myexefile;
     struct exe_hdr hdrdos;      /* MSDOS header.        */
     struct e32_exe hdr386;      /* Real header for my executable */
-    struct o32_obj seg; /* Currrent segment */
+    struct o32_obj seg;         /* Current segment */
     int nsegs;
 
 
@@ -1618,7 +1616,7 @@ void GC_register_data_segments(void)
           } else {
             GetWriteWatch_alloc_flag = MEM_WRITE_WATCH;
           }
-          VirtualFree(page, GC_page_size, MEM_RELEASE);
+          VirtualFree(page, 0 /* dwSize */, MEM_RELEASE);
         } else {
           /* GetWriteWatch will be useless. */
           GetWriteWatch_func = NULL;
@@ -2040,6 +2038,9 @@ STATIC ptr_t GC_unix_mmap_get_mem(word bytes)
 
       if (!initialized) {
           zero_fd = open("/dev/zero", O_RDONLY);
+          if (zero_fd == -1)
+            ABORT("Could not open /dev/zero");
+
           fcntl(zero_fd, F_SETFD, FD_CLOEXEC);
           initialized = TRUE;
       }
@@ -2247,7 +2248,7 @@ void * os2_alloc(size_t bytes)
   GC_API void GC_CALL GC_win32_free_heap(void)
   {
 #   ifndef CYGWIN32
-      if (GC_no_win32_dlls)
+      if (GLOBAL_ALLOC_TEST)
 #   endif
     {
       while (GC_n_heap_bases-- > 0) {
@@ -2258,7 +2259,16 @@ void * os2_alloc(size_t bytes)
 #       endif
         GC_heap_bases[GC_n_heap_bases] = 0;
       }
-    }
+    } /* else */
+#   ifndef CYGWIN32
+      else {
+        /* Avoiding VirtualAlloc leak. */
+        while (GC_n_heap_bases > 0) {
+          VirtualFree(GC_heap_bases[--GC_n_heap_bases], 0, MEM_RELEASE);
+          GC_heap_bases[GC_n_heap_bases] = 0;
+        }
+      }
+#   endif
   }
 #endif /* MSWIN32 || CYGWIN32 */
 
@@ -2894,13 +2904,13 @@ STATIC void GC_default_push_other_roots(void)
    * SIGBUS or SIGSEGV.  We assume no write faults occur in system calls.
    * This means that clients must ensure that system calls don't write
    * to the write-protected heap.  Probably the best way to do this is to
-   * ensure that system calls write at most to POINTERFREE objects in the
+   * ensure that system calls write at most to pointer-free objects in the
    * heap, and do even that only if we are on a platform on which those
    * are not protected.  Another alternative is to wrap system calls
    * (see example for read below), but the current implementation holds
    * applications.
    * We assume the page size is a multiple of HBLKSIZE.
-   * We prefer them to be the same.  We avoid protecting POINTERFREE
+   * We prefer them to be the same.  We avoid protecting pointer-free
    * objects only if they are the same.
    */
 # ifdef DARWIN
@@ -3072,8 +3082,15 @@ STATIC void GC_default_push_other_roots(void)
 #     ifndef SEGV_ACCERR
 #       define SEGV_ACCERR 2
 #     endif
-#     define CODE_OK (si -> si_code == BUS_PAGE_FAULT \
+#     if defined(POWERPC)
+#      define AIM      /* Pretend that we're AIM. */
+#      include <machine/trap.h>
+#       define CODE_OK (si -> si_code == EXC_DSI \
           || si -> si_code == SEGV_ACCERR)
+#     else
+#       define CODE_OK (si -> si_code == BUS_PAGE_FAULT \
+          || si -> si_code == SEGV_ACCERR)
+#     endif
 #   elif defined(OSF1)
 #     define CODE_OK (si -> si_code == 2 /* experimentally determined */)
 #   elif defined(IRIX5)
@@ -3422,7 +3439,7 @@ STATIC void GC_protect_heap(void)
 }
 
 /* We assume that either the world is stopped or its OK to lose dirty   */
-/* bits while this is happenning (as in GC_enable_incremental).         */
+/* bits while this is happening (as in GC_enable_incremental).          */
 GC_INNER void GC_read_dirty(void)
 {
 #   if defined(GWW_VDB)
@@ -3511,15 +3528,15 @@ void GC_unprotect_range(ptr_t addr, word len)
 /* This still serves as sample code if you do want to wrap system calls.*/
 
 #if !defined(MSWIN32) && !defined(MSWINCE) && !defined(GC_USE_LD_WRAP)
-/* Replacement for UNIX system call.                                      */
-/* Other calls that write to the heap should be handled similarly.        */
-/* Note that this doesn't work well for blocking reads:  It will hold     */
-/* the allocation lock for the entire duration of the call. Multithreaded */
-/* clients should really ensure that it won't block, either by setting    */
-/* the descriptor nonblocking, or by calling select or poll first, to     */
-/* make sure that input is available.                                     */
-/* Another, preferred alternative is to ensure that system calls never    */
-/* write to the protected heap (see above).                               */
+/* Replacement for UNIX system call.                                    */
+/* Other calls that write to the heap should be handled similarly.      */
+/* Note that this doesn't work well for blocking reads:  It will hold   */
+/* the allocation lock for the entire duration of the call.             */
+/* Multi-threaded clients should really ensure that it won't block,     */
+/* either by setting the descriptor non-blocking, or by calling select  */
+/* or poll first, to make sure that input is available.                 */
+/* Another, preferred alternative is to ensure that system calls never  */
+/* write to the protected heap (see above).                             */
 # include <unistd.h>
 # include <sys/uio.h>
 ssize_t read(int fd, void *buf, size_t nbyte)

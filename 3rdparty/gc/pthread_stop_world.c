@@ -197,8 +197,13 @@ STATIC void GC_suspend_handler_inner(ptr_t sig_arg, void *context)
   IF_CANCEL(int cancel_state;)
   AO_t my_stop_count = AO_load(&GC_stop_count);
 
-  if ((signed_word)sig_arg != SIG_SUSPEND)
+  if ((signed_word)sig_arg != SIG_SUSPEND) {
+#   if defined(GC_FREEBSD_THREADS)
+      /* Workaround "deferred signal handling" bug in FreeBSD 9.2.      */
+      if (0 == sig_arg) return;
+#   endif
     ABORT("Bad signal in suspend_handler");
+  }
 
   DISABLE_CANCEL(cancel_state);
       /* pthread_setcancelstate is not defined to be async-signal-safe. */
@@ -229,7 +234,7 @@ STATIC void GC_suspend_handler_inner(ptr_t sig_arg, void *context)
 # ifdef SPARC
       me -> stop_info.stack_ptr = GC_save_regs_in_stack();
 # else
-      me -> stop_info.stack_ptr = (ptr_t)(&me);
+      me -> stop_info.stack_ptr = GC_approx_sp();
 # endif
 # ifdef IA64
       me -> backing_store_ptr = GC_save_regs_in_stack();
@@ -275,7 +280,7 @@ STATIC void GC_restart_handler(int sig)
     int old_errno = errno;      /* Preserve errno value.        */
 # endif
 
-  if (sig != SIG_THR_RESTART) ABORT("Bad signal in suspend_handler");
+  if (sig != SIG_THR_RESTART) ABORT("Bad signal in restart handler");
 
 # ifdef GC_NETBSD_THREADS_WORKAROUND
     sem_post(&GC_restart_ack_sem);
@@ -316,6 +321,7 @@ GC_INNER void GC_push_all_stacks(void)
     ptr_t lo, hi;
     /* On IA64, we also need to scan the register backing store. */
     IF_IA64(ptr_t bs_lo; ptr_t bs_hi;)
+    struct GC_traced_stack_sect_s *traced_stack_sect;
     pthread_t self = pthread_self();
     word total_size = 0;
 
@@ -327,6 +333,7 @@ GC_INNER void GC_push_all_stacks(void)
       for (p = GC_threads[i]; p != 0; p = p -> next) {
         if (p -> flags & FINISHED) continue;
         ++nthreads;
+        traced_stack_sect = p -> traced_stack_sect;
         if (THREAD_EQUAL(p -> id, self)) {
             GC_ASSERT(!p->thread_blocked);
 #           ifdef SPARC
@@ -339,6 +346,13 @@ GC_INNER void GC_push_all_stacks(void)
         } else {
             lo = p -> stop_info.stack_ptr;
             IF_IA64(bs_hi = p -> backing_store_ptr;)
+            if (traced_stack_sect != NULL
+                    && traced_stack_sect->saved_stack_ptr == lo) {
+              /* If the thread has never been stopped since the recent  */
+              /* GC_call_with_gc_active invocation then skip the top    */
+              /* "stack section" as stack_ptr already points to.        */
+              traced_stack_sect = traced_stack_sect->prev;
+            }
         }
         if ((p -> flags & MAIN_THREAD) == 0) {
             hi = p -> stack_end;
@@ -353,7 +367,7 @@ GC_INNER void GC_push_all_stacks(void)
                         (unsigned)(p -> id), lo, hi);
 #       endif
         if (0 == lo) ABORT("GC_push_all_stacks: sp not set!");
-        GC_push_all_stack_sections(lo, hi, p -> traced_stack_sect);
+        GC_push_all_stack_sections(lo, hi, traced_stack_sect);
 #       ifdef STACK_GROWS_UP
           total_size += lo - hi;
 #       else
@@ -374,7 +388,7 @@ GC_INNER void GC_push_all_stacks(void)
           /* entries, and hence overflow the mark stack, which is bad.   */
           GC_push_all_register_sections(bs_lo, bs_hi,
                                         THREAD_EQUAL(p -> id, self),
-                                        p -> traced_stack_sect);
+                                        traced_stack_sect);
           total_size += bs_hi - bs_lo; /* bs_lo <= bs_hi */
 #       endif
       }
@@ -446,15 +460,14 @@ STATIC int GC_suspend_all(void)
 #           endif
 
 #           ifdef GC_OPENBSD_THREADS
-              if (pthread_suspend_np(p -> id) != 0)
-                ABORT("pthread_suspend_np failed");
-              /* This will only work for userland pthreads.  It will    */
-              /* fail badly on rthreads.  Perhaps we should consider    */
-              /* a pthread_sp_np() function that returns the stack      */
-              /* pointer for a suspended thread and implement in both   */
-              /* pthreads and rthreads.                                 */
-              p -> stop_info.stack_ptr =
-                        *(ptr_t *)((char *)p -> id + UTHREAD_SP_OFFSET);
+              {
+                stack_t stack;
+                if (pthread_suspend_np(p -> id) != 0)
+                  ABORT("pthread_suspend_np failed");
+                if (pthread_stackseg_np(p->id, &stack))
+                  ABORT("pthread_stackseg_np failed");
+                p -> stop_info.stack_ptr = (ptr_t)stack.ss_sp - stack.ss_size;
+              }
 #           else
 #             ifndef PLATFORM_ANDROID
                 result = pthread_kill(p -> id, SIG_SUSPEND);
@@ -642,10 +655,9 @@ GC_INNER void GC_stop_world(void)
 
   GC_API_OSCALL void nacl_pre_syscall_hook(void)
   {
-    int local_dummy = 0;
     if (GC_nacl_thread_idx != -1) {
       NACL_STORE_REGS();
-      GC_nacl_gc_thread_self->stop_info.stack_ptr = (ptr_t)(&local_dummy);
+      GC_nacl_gc_thread_self->stop_info.stack_ptr = GC_approx_sp();
       GC_nacl_thread_parked[GC_nacl_thread_idx] = 1;
     }
   }
@@ -654,7 +666,6 @@ GC_INNER void GC_stop_world(void)
   {
     if (GC_nacl_park_threads_now) {
       pthread_t self = pthread_self();
-      int local_dummy = 0;
 
       /* Don't try to park the thread parker.   */
       if (GC_nacl_thread_parker == self)
@@ -669,7 +680,7 @@ GC_INNER void GC_stop_world(void)
       /* so don't bother storing registers again, the GC has a set.     */
       if (!GC_nacl_thread_parked[GC_nacl_thread_idx]) {
         NACL_STORE_REGS();
-        GC_nacl_gc_thread_self->stop_info.stack_ptr = (ptr_t)(&local_dummy);
+        GC_nacl_gc_thread_self->stop_info.stack_ptr = GC_approx_sp();
       }
       GC_nacl_thread_parked[GC_nacl_thread_idx] = 1;
       while (GC_nacl_park_threads_now) {

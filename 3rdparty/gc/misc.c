@@ -280,15 +280,15 @@ GC_INNER void GC_extend_size_map(size_t i)
   void *GC_clear_stack_inner(void *, ptr_t);
 #else
   /* Clear the stack up to about limit.  Return arg.  This function is  */
-  /* not static because it could also be errorneously defined in .S     */
+  /* not static because it could also be erroneously defined in .S      */
   /* file, so this error would be caught by the linker.                 */
   /*ARGSUSED*/
   void * GC_clear_stack_inner(void *arg, ptr_t limit)
   {
-    word dummy[CLEAR_SIZE];
+    volatile word dummy[CLEAR_SIZE];
 
-    BZERO(dummy, CLEAR_SIZE*sizeof(word));
-    if ((ptr_t)(dummy) COOLER_THAN limit) {
+    BZERO((/* no volatile */ void *)dummy, sizeof(dummy));
+    if ((word)GC_approx_sp() COOLER_THAN (word)limit) {
         (void) GC_clear_stack_inner(arg, limit);
     }
     /* Make sure the recursive call is not a tail call, and the bzero   */
@@ -305,7 +305,7 @@ GC_API void * GC_CALL GC_clear_stack(void *arg)
 {
     ptr_t sp = GC_approx_sp();  /* Hotter than actual sp */
 #   ifdef THREADS
-        word dummy[SMALL_CLEAR_SIZE];
+        word volatile dummy[SMALL_CLEAR_SIZE];
         static unsigned random_no = 0;
                                  /* Should be more random than it is ... */
                                  /* Used to occasionally clear a bigger  */
@@ -337,7 +337,7 @@ GC_API void * GC_CALL GC_clear_stack(void *arg)
                         /* implementations of GC_clear_stack_inner.     */
         return GC_clear_stack_inner(arg, limit);
     } else {
-        BZERO(dummy, SMALL_CLEAR_SIZE*sizeof(word));
+        BZERO((void *)dummy, SMALL_CLEAR_SIZE*sizeof(word));
         return arg;
     }
 # else
@@ -542,7 +542,7 @@ GC_API void GC_CALL GC_get_heap_usage_safe(GC_word *pheap_size,
       }
       /* At this execution point, GC_setpagesize() and GC_init_win32()  */
       /* must already be called (for GET_MEM() to work correctly).      */
-      content = (char *)GET_MEM(len + 1);
+      content = (char *)GET_MEM(ROUNDUP_PAGESIZE_IF_MMAP(len + 1));
       if (content == NULL) {
         CloseHandle(hFile);
         return; /* allocation failure */
@@ -675,9 +675,6 @@ STATIC word GC_parse_mem_size_arg(const char *str)
 GC_API void GC_CALL GC_init(void)
 {
     /* LOCK(); -- no longer does anything this early. */
-#   if !defined(THREADS) && defined(GC_ASSERTIONS)
-        word dummy;
-#   endif
     word initial_heap_sz;
     IF_CANCEL(int cancel_state;)
 
@@ -956,7 +953,7 @@ GC_API void GC_CALL GC_init(void)
     GC_STATIC_ASSERT(sizeof (signed_word) == sizeof(word));
     GC_STATIC_ASSERT(sizeof (struct hblk) == HBLKSIZE);
 #   ifndef THREADS
-      GC_ASSERT(!((word)GC_stackbottom HOTTER_THAN (word)(&dummy)));
+      GC_ASSERT(!((word)GC_stackbottom HOTTER_THAN (word)GC_approx_sp()));
 #   endif
 #   if !defined(_AUX_SOURCE) || defined(__GNUC__)
       GC_STATIC_ASSERT((word)(-1) > (word)0);
@@ -1181,11 +1178,22 @@ GC_API void GC_CALL GC_enable_incremental(void)
   {
       BOOL tmp;
       DWORD written;
+#     if (defined(THREADS) && defined(GC_ASSERTIONS)) \
+         || !defined(GC_PRINT_VERBOSE_STATS)
+        static GC_bool inside_write = FALSE;
+                        /* to prevent infinite recursion at abort.      */
+        if (inside_write)
+          return -1;
+#     endif
+
       if (len == 0)
           return 0;
       IF_NEED_TO_LOCK(EnterCriticalSection(&GC_write_cs));
-#     ifdef THREADS
-        GC_ASSERT(!GC_write_disabled);
+#     if defined(THREADS) && defined(GC_ASSERTIONS)
+        if (GC_write_disabled) {
+          inside_write = TRUE;
+          ABORT("Assertion failure: GC_write called with write_disabled");
+        }
 #     endif
       if (GC_log == INVALID_HANDLE_VALUE) {
           IF_NEED_TO_LOCK(LeaveCriticalSection(&GC_write_cs));
@@ -1195,8 +1203,10 @@ GC_API void GC_CALL GC_enable_incremental(void)
         /* Ignore open log failure if the collector is built with       */
         /* print_stats always set on.                                   */
 #       ifndef GC_PRINT_VERBOSE_STATS
-          if (GC_log == INVALID_HANDLE_VALUE)
+          if (GC_log == INVALID_HANDLE_VALUE) {
+            inside_write = TRUE;
             ABORT("Open of log file failed");
+          }
 #       endif
       }
       tmp = WriteFile(GC_log, buf, (DWORD)len, &written, NULL);
@@ -1429,8 +1439,15 @@ GC_API GC_warn_proc GC_CALL GC_get_warn_proc(void)
       /* Avoid calling GC_err_printf() here, as GC_abort() could be     */
       /* called from it.  Note 1: this is not an atomic output.         */
       /* Note 2: possible write errors are ignored.                     */
-      if (WRITE(GC_stderr, (void *)msg, strlen(msg)) >= 0)
-        (void)WRITE(GC_stderr, (void *)("\n"), 1);
+
+#     if defined(THREADS) && defined(GC_ASSERTIONS) \
+         && (defined(MSWIN32) || defined(MSWINCE))
+        if (!GC_write_disabled)
+#     endif
+      {
+        if (WRITE(GC_stderr, (void *)msg, strlen(msg)) >= 0)
+          (void)WRITE(GC_stderr, (void *)("\n"), 1);
+      }
 
     if (GETENV("GC_LOOP_ON_ABORT") != NULL) {
             /* In many cases it's easier to debug a running process.    */
@@ -1544,16 +1561,20 @@ GC_API unsigned GC_CALL GC_new_proc(GC_mark_proc proc)
 
 GC_API void * GC_CALL GC_call_with_stack_base(GC_stack_base_func fn, void *arg)
 {
-    int dummy;
     struct GC_stack_base base;
+    void *result;
 
-    base.mem_base = (void *)&dummy;
+    base.mem_base = (void *)&base;
 #   ifdef IA64
       base.reg_base = (void *)GC_save_regs_in_stack();
       /* Unnecessarily flushes register stack,          */
       /* but that probably doesn't hurt.                */
 #   endif
-    return fn(&base, arg);
+    result = fn(&base, arg);
+    /* Strongly discourage the compiler from treating the above */
+    /* as a tail call.                                          */
+    GC_noop1((word)(&base));
+    return result;
 }
 
 #ifndef THREADS
@@ -1581,7 +1602,10 @@ GC_API void * GC_CALL GC_call_with_gc_active(GC_fn_type fn,
 
     if (GC_blocked_sp == NULL) {
       /* We are not inside GC_do_blocking() - do nothing more.  */
-      return fn(client_data);
+      client_data = fn(client_data);
+      /* Prevent treating the above as a tail call.     */
+      GC_noop1((word)(&stacksect));
+      return client_data; /* result */
     }
 
     /* Setup new "stack section".       */

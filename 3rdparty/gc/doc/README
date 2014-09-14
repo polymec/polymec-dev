@@ -36,11 +36,11 @@ Public License, but is not needed by, nor linked into the collector library.
 It is included here only because the atomic_ops distribution is, for
 simplicity, included in its entirety.
 
-This is version 7.2c of a conservative garbage collector for C and C++.
+This is version 7.2f of a conservative garbage collector for C and C++.
 
 You might find a more recent version of this at
 
-http://www.hpl.hp.com/personal/Hans_Boehm/gc
+http://www.hboehm.info/gc/
 
 OVERVIEW
 
@@ -74,7 +74,7 @@ of the ACM SIGPLAN '96 Conference on Programming Language Design and
 Implementation.
 
 (Some of these are also available from
-http://www.hpl.hp.com/personal/Hans_Boehm/papers/, among other places.)
+http://www.hboehm.info/gc/papers/, among other places.)
 
   Unlike the collector described in the second reference, this collector
 operates either with the mutator stopped during the entire collection
@@ -93,7 +93,7 @@ was part of version 8 UNIX (tm), but appears to not have received
 widespread use.
 
   Rudimentary tools for use of the collector as a leak detector are included
-(see http://www.hpl.hp.com/personal/Hans_Boehm/gc/leak.html),
+(see http://www.hboehm.info/gc/leak.html),
 as is a fairly sophisticated string package "cord" that makes use of the
 collector.  (See doc/README.cords and H.-J. Boehm, R. Atkinson, and M. Plass,
 "Ropes: An Alternative to Strings", Software Practice and Experience 25, 12
@@ -102,7 +102,7 @@ in Xerox Cedar, or the "rope" package in the SGI STL or the g++ distribution.)
 
 Further collector documentation can be found at
 
-http://www.hpl.hp.com/personal/Hans_Boehm/gc
+http://www.hboehm.info/gc/
 
 
 GENERAL DESCRIPTION
@@ -142,13 +142,13 @@ to be disregarded, greatly reducing the probability of accidental
 retention of large objects.  For most purposes it seems best to compile
 with ALL_INTERIOR_POINTERS and to use GC_malloc_ignore_off_page if
 you get collector warnings from allocations of very large objects.
-See README.debugging for details.
+See debugging.html for details.
 
   WARNING: pointers inside memory allocated by the standard "malloc" are not
 seen by the garbage collector.  Thus objects pointed to only from such a
 region may be prematurely deallocated.  It is thus suggested that the
 standard "malloc" be used only for memory regions, such as I/O buffers, that
-are guaranteed not to contain pointers to garbage collectable memory.
+are guaranteed not to contain pointers to garbage collectible memory.
 Pointers in C language automatic, static, or register variables,
 are correctly recognized.  (Note that GC_malloc_uncollectable has semantics
 similar to standard malloc, but allocates objects that are traced by the
@@ -359,8 +359,8 @@ good way for the collector to compute this value.)  Client code may include
    see gc.h.
 
   The global variable GC_free_space_divisor may be adjusted up from its
-default value of 4 to use less space and more collection time, or down for
-the opposite effect.  Setting it to 1 or 0 will effectively disable collections
+default value of 3 to use less space and more collection time, or down for
+the opposite effect.  Setting it to 1 will almost disable collections
 and cause all allocations to simply grow the heap.
 
   The variable GC_non_gc_bytes, which is normally 0, may be changed to reflect
@@ -512,7 +512,7 @@ GC_change_stubborn.
 This mechanism performs best for objects that are written only for
 initialization, and such that only one stubborn object is writable
 at once.  It is typically not worth using for short-lived
-objects.  Stubborn objects are treated less efficiently than pointerfree
+objects.  Stubborn objects are treated less efficiently than pointer-free
 (atomic) objects.
 
 A rough rule of thumb is that, in the absence of VM information, garbage
@@ -538,7 +538,7 @@ reclaimed.  Exclusive-or'ing forward and backward links in a list
 doesn't cut it.
   Some C optimizers may lose the last undisguised pointer to a memory
 object as a consequence of clever optimizations.  This has almost
-never been observed in practice.  Send mail to gc@linux.hpl.hp.com
+never been observed in practice.  Send mail to bdwgc@lists.opendylan.org
 for suggestions on how to fix your compiler.
   This is not a real-time collector.  In the standard configuration,
 percentage of time required for collection should be constant across
@@ -549,6 +549,6 @@ is enabled.
 per MB of accessible memory that needs to be scanned and processor.
 Your mileage may vary.)  The incremental/generational collection facility
 may help in some cases.
-  Please address bug reports to gc@linux.hpl.hp.com.  If you are
+  Please address bug reports to bdwgc@lists.opendylan.org.  If you are
 contemplating a major addition, you might also send mail to ask whether
 it's already been done (or whether we tried and discarded it).

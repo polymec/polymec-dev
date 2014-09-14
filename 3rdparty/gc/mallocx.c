@@ -153,9 +153,8 @@ GC_API void * GC_CALL GC_realloc(void * p, size_t lb)
 # ifdef REDIRECT_REALLOC
 
 /* As with malloc, avoid two levels of extra calls here.        */
-
 # define GC_debug_realloc_replacement(p, lb) \
-        GC_debug_realloc(p, lb, GC_DBG_RA "unknown", 0)
+        GC_debug_realloc(p, lb, GC_DBG_EXTRAS)
 
 void * realloc(void * p, size_t lb)
   {
@@ -277,6 +276,7 @@ GC_API void GC_CALL GC_generic_malloc_many(size_t lb, int k, void **result)
     size_t lg;      /* Length in granules.  */
     signed_word my_bytes_allocd = 0;
     struct obj_kind * ok = &(GC_obj_kinds[k]);
+    struct hblk ** rlh;
     DCL_LOCK_STATE;
 
     GC_ASSERT(lb != 0 && (lb & (GRANULE_BYTES-1)) == 0);
@@ -300,8 +300,8 @@ GC_API void GC_CALL GC_generic_malloc_many(size_t lb, int k, void **result)
       }
     /* First see if we can reclaim a page of objects waiting to be */
     /* reclaimed.                                                  */
-    {
-        struct hblk ** rlh = ok -> ok_reclaim_list;
+    rlh = ok -> ok_reclaim_list;
+    if (rlh != NULL) {
         struct hblk * hbp;
         hdr * hhdr;
 
@@ -475,7 +475,7 @@ GC_API void * GC_CALL GC_memalign(size_t align, size_t lb)
     return result;
 }
 
-/* This one exists largerly to redirect posix_memalign for leaks finding. */
+/* This one exists largely to redirect posix_memalign for leaks finding. */
 GC_API int GC_CALL GC_posix_memalign(void **memptr, size_t align, size_t lb)
 {
   /* Check alignment properly.  */
@@ -498,7 +498,7 @@ GC_API int GC_CALL GC_posix_memalign(void **memptr, size_t align, size_t lb)
 }
 
 #ifdef ATOMIC_UNCOLLECTABLE
-  /* Allocate lb bytes of pointerfree, untraced, uncollectable data     */
+  /* Allocate lb bytes of pointer-free, untraced, uncollectible data    */
   /* This is normally roughly equivalent to the system malloc.          */
   /* But it may be useful if malloc is redefined.                       */
   GC_API void * GC_CALL GC_malloc_atomic_uncollectable(size_t lb)

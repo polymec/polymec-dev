@@ -162,13 +162,12 @@ void (GC_CALLBACK *GC_is_visible_print_proc)(void * p) =
 /* Could p be a stack address? */
    STATIC GC_bool GC_on_stack(ptr_t p)
    {
-        int dummy;
 #       ifdef STACK_GROWS_DOWN
-            if ((ptr_t)p >= (ptr_t)(&dummy) && (ptr_t)p < GC_stackbottom ) {
+            if ((ptr_t)p >= GC_approx_sp() && (ptr_t)p < GC_stackbottom) {
                 return(TRUE);
             }
 #       else
-            if ((ptr_t)p <= (ptr_t)(&dummy) && (ptr_t)p > GC_stackbottom ) {
+            if ((ptr_t)p <= GC_approx_sp() && (ptr_t)p > GC_stackbottom) {
                 return(TRUE);
             }
 #       endif
@@ -183,7 +182,7 @@ void (GC_CALLBACK *GC_is_visible_print_proc)(void * p) =
 /* in hard cases.  (This is intended for debugging use with             */
 /* untyped allocations.  The idea is that it should be possible, though */
 /* slow, to add such a call to all indirect pointer stores.)            */
-/* Currently useless for multithreaded worlds.                          */
+/* Currently useless for the multi-threaded worlds.                     */
 GC_API void * GC_CALL GC_is_visible(void *p)
 {
     hdr *hhdr;

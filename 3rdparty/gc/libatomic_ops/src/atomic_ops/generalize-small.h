@@ -21,14 +21,14 @@
  */
 
 /* char_load */
-#if defined(AO_HAVE_char_load_acquire) && !defined(AO_HAVE_char_load)
-# define AO_char_load(addr) AO_char_load_acquire(addr)
-# define AO_HAVE_char_load
-#endif
-
 #if defined(AO_HAVE_char_load_full) && !defined(AO_HAVE_char_load_acquire)
 # define AO_char_load_acquire(addr) AO_char_load_full(addr)
 # define AO_HAVE_char_load_acquire
+#endif
+
+#if defined(AO_HAVE_char_load_acquire) && !defined(AO_HAVE_char_load)
+# define AO_char_load(addr) AO_char_load_acquire(addr)
+# define AO_HAVE_char_load
 #endif
 
 #if defined(AO_HAVE_char_load_full) && !defined(AO_HAVE_char_load_read)
@@ -100,14 +100,14 @@
 #endif /* !AO_NO_DD_ORDERING */
 
 /* char_store */
-#if defined(AO_HAVE_char_store_release) && !defined(AO_HAVE_char_store)
-# define AO_char_store(addr, val) AO_char_store_release(addr,val)
-# define AO_HAVE_char_store
-#endif
-
 #if defined(AO_HAVE_char_store_full) && !defined(AO_HAVE_char_store_release)
 # define AO_char_store_release(addr,val) AO_char_store_full(addr,val)
 # define AO_HAVE_char_store_release
+#endif
+
+#if defined(AO_HAVE_char_store_release) && !defined(AO_HAVE_char_store)
+# define AO_char_store(addr, val) AO_char_store_release(addr,val)
+# define AO_HAVE_char_store
 #endif
 
 #if defined(AO_HAVE_char_store_full) && !defined(AO_HAVE_char_store_write)
@@ -157,7 +157,7 @@
 /* char_fetch_and_add */
 #if defined(AO_HAVE_char_compare_and_swap_full) \
     && !defined(AO_HAVE_char_fetch_and_add_full)
-  AO_INLINE char
+  AO_INLINE unsigned char
   AO_char_fetch_and_add_full(volatile unsigned char *addr,
                               unsigned char incr)
   {
@@ -174,7 +174,7 @@
 
 #if defined(AO_HAVE_char_compare_and_swap_acquire) \
     && !defined(AO_HAVE_char_fetch_and_add_acquire)
-  AO_INLINE char
+  AO_INLINE unsigned char
   AO_char_fetch_and_add_acquire(volatile unsigned char *addr,
                                  unsigned char incr)
   {
@@ -191,7 +191,7 @@
 
 #if defined(AO_HAVE_char_compare_and_swap_release) \
     && !defined(AO_HAVE_char_fetch_and_add_release)
-  AO_INLINE char
+  AO_INLINE unsigned char
   AO_char_fetch_and_add_release(volatile unsigned char *addr,
                                  unsigned char incr)
   {
@@ -204,6 +204,22 @@
     return old;
   }
 # define AO_HAVE_char_fetch_and_add_release
+#endif
+
+#if defined(AO_HAVE_char_compare_and_swap) \
+    && !defined(AO_HAVE_char_fetch_and_add)
+  AO_INLINE unsigned char
+  AO_char_fetch_and_add(volatile unsigned char *addr, unsigned char incr)
+  {
+    unsigned char old;
+    do
+      {
+        old = *addr;
+      }
+    while (!AO_char_compare_and_swap(addr, old, old + incr));
+    return old;
+  }
+# define AO_HAVE_char_fetch_and_add
 #endif
 
 #if defined(AO_HAVE_char_fetch_and_add_full)
@@ -604,14 +620,14 @@
  */
 
 /* short_load */
-#if defined(AO_HAVE_short_load_acquire) && !defined(AO_HAVE_short_load)
-# define AO_short_load(addr) AO_short_load_acquire(addr)
-# define AO_HAVE_short_load
-#endif
-
 #if defined(AO_HAVE_short_load_full) && !defined(AO_HAVE_short_load_acquire)
 # define AO_short_load_acquire(addr) AO_short_load_full(addr)
 # define AO_HAVE_short_load_acquire
+#endif
+
+#if defined(AO_HAVE_short_load_acquire) && !defined(AO_HAVE_short_load)
+# define AO_short_load(addr) AO_short_load_acquire(addr)
+# define AO_HAVE_short_load
 #endif
 
 #if defined(AO_HAVE_short_load_full) && !defined(AO_HAVE_short_load_read)
@@ -683,14 +699,14 @@
 #endif /* !AO_NO_DD_ORDERING */
 
 /* short_store */
-#if defined(AO_HAVE_short_store_release) && !defined(AO_HAVE_short_store)
-# define AO_short_store(addr, val) AO_short_store_release(addr,val)
-# define AO_HAVE_short_store
-#endif
-
 #if defined(AO_HAVE_short_store_full) && !defined(AO_HAVE_short_store_release)
 # define AO_short_store_release(addr,val) AO_short_store_full(addr,val)
 # define AO_HAVE_short_store_release
+#endif
+
+#if defined(AO_HAVE_short_store_release) && !defined(AO_HAVE_short_store)
+# define AO_short_store(addr, val) AO_short_store_release(addr,val)
+# define AO_HAVE_short_store
 #endif
 
 #if defined(AO_HAVE_short_store_full) && !defined(AO_HAVE_short_store_write)
@@ -740,7 +756,7 @@
 /* short_fetch_and_add */
 #if defined(AO_HAVE_short_compare_and_swap_full) \
     && !defined(AO_HAVE_short_fetch_and_add_full)
-  AO_INLINE short
+  AO_INLINE unsigned short
   AO_short_fetch_and_add_full(volatile unsigned short *addr,
                               unsigned short incr)
   {
@@ -757,7 +773,7 @@
 
 #if defined(AO_HAVE_short_compare_and_swap_acquire) \
     && !defined(AO_HAVE_short_fetch_and_add_acquire)
-  AO_INLINE short
+  AO_INLINE unsigned short
   AO_short_fetch_and_add_acquire(volatile unsigned short *addr,
                                  unsigned short incr)
   {
@@ -774,7 +790,7 @@
 
 #if defined(AO_HAVE_short_compare_and_swap_release) \
     && !defined(AO_HAVE_short_fetch_and_add_release)
-  AO_INLINE short
+  AO_INLINE unsigned short
   AO_short_fetch_and_add_release(volatile unsigned short *addr,
                                  unsigned short incr)
   {
@@ -787,6 +803,22 @@
     return old;
   }
 # define AO_HAVE_short_fetch_and_add_release
+#endif
+
+#if defined(AO_HAVE_short_compare_and_swap) \
+    && !defined(AO_HAVE_short_fetch_and_add)
+  AO_INLINE unsigned short
+  AO_short_fetch_and_add(volatile unsigned short *addr, unsigned short incr)
+  {
+    unsigned short old;
+    do
+      {
+        old = *addr;
+      }
+    while (!AO_short_compare_and_swap(addr, old, old + incr));
+    return old;
+  }
+# define AO_HAVE_short_fetch_and_add
 #endif
 
 #if defined(AO_HAVE_short_fetch_and_add_full)
@@ -1187,14 +1219,14 @@
  */
 
 /* int_load */
-#if defined(AO_HAVE_int_load_acquire) && !defined(AO_HAVE_int_load)
-# define AO_int_load(addr) AO_int_load_acquire(addr)
-# define AO_HAVE_int_load
-#endif
-
 #if defined(AO_HAVE_int_load_full) && !defined(AO_HAVE_int_load_acquire)
 # define AO_int_load_acquire(addr) AO_int_load_full(addr)
 # define AO_HAVE_int_load_acquire
+#endif
+
+#if defined(AO_HAVE_int_load_acquire) && !defined(AO_HAVE_int_load)
+# define AO_int_load(addr) AO_int_load_acquire(addr)
+# define AO_HAVE_int_load
 #endif
 
 #if defined(AO_HAVE_int_load_full) && !defined(AO_HAVE_int_load_read)
@@ -1266,14 +1298,14 @@
 #endif /* !AO_NO_DD_ORDERING */
 
 /* int_store */
-#if defined(AO_HAVE_int_store_release) && !defined(AO_HAVE_int_store)
-# define AO_int_store(addr, val) AO_int_store_release(addr,val)
-# define AO_HAVE_int_store
-#endif
-
 #if defined(AO_HAVE_int_store_full) && !defined(AO_HAVE_int_store_release)
 # define AO_int_store_release(addr,val) AO_int_store_full(addr,val)
 # define AO_HAVE_int_store_release
+#endif
+
+#if defined(AO_HAVE_int_store_release) && !defined(AO_HAVE_int_store)
+# define AO_int_store(addr, val) AO_int_store_release(addr,val)
+# define AO_HAVE_int_store
 #endif
 
 #if defined(AO_HAVE_int_store_full) && !defined(AO_HAVE_int_store_write)
@@ -1323,7 +1355,7 @@
 /* int_fetch_and_add */
 #if defined(AO_HAVE_int_compare_and_swap_full) \
     && !defined(AO_HAVE_int_fetch_and_add_full)
-  AO_INLINE int
+  AO_INLINE unsigned int
   AO_int_fetch_and_add_full(volatile unsigned int *addr,
                               unsigned int incr)
   {
@@ -1340,7 +1372,7 @@
 
 #if defined(AO_HAVE_int_compare_and_swap_acquire) \
     && !defined(AO_HAVE_int_fetch_and_add_acquire)
-  AO_INLINE int
+  AO_INLINE unsigned int
   AO_int_fetch_and_add_acquire(volatile unsigned int *addr,
                                  unsigned int incr)
   {
@@ -1357,7 +1389,7 @@
 
 #if defined(AO_HAVE_int_compare_and_swap_release) \
     && !defined(AO_HAVE_int_fetch_and_add_release)
-  AO_INLINE int
+  AO_INLINE unsigned int
   AO_int_fetch_and_add_release(volatile unsigned int *addr,
                                  unsigned int incr)
   {
@@ -1370,6 +1402,22 @@
     return old;
   }
 # define AO_HAVE_int_fetch_and_add_release
+#endif
+
+#if defined(AO_HAVE_int_compare_and_swap) \
+    && !defined(AO_HAVE_int_fetch_and_add)
+  AO_INLINE unsigned int
+  AO_int_fetch_and_add(volatile unsigned int *addr, unsigned int incr)
+  {
+    unsigned int old;
+    do
+      {
+        old = *addr;
+      }
+    while (!AO_int_compare_and_swap(addr, old, old + incr));
+    return old;
+  }
+# define AO_HAVE_int_fetch_and_add
 #endif
 
 #if defined(AO_HAVE_int_fetch_and_add_full)

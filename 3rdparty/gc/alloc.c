@@ -196,15 +196,16 @@ GC_API GC_stop_func GC_CALL GC_get_stop_func(void)
   GC_INNER word GC_total_stacksize = 0; /* updated on every push_all_stacks */
 #endif
 
-/* Return the minimum number of words that must be allocated between    */
-/* collections to amortize the collection cost.                         */
+/* Return the minimum number of bytes that must be allocated between    */
+/* collections to amortize the collection cost.  Should be non-zero.    */
 static word min_bytes_allocd(void)
 {
-    int dummy; /* GC_stackbottom is used only for a single-threaded case. */
+    word result;
 #   ifdef STACK_GROWS_UP
-      word stack_size = (ptr_t)(&dummy) - GC_stackbottom;
+      word stack_size = GC_approx_sp() - GC_stackbottom;
+            /* GC_stackbottom is used only for a single-threaded case.  */
 #   else
-      word stack_size = GC_stackbottom - (ptr_t)(&dummy);
+      word stack_size = GC_stackbottom - GC_approx_sp();
 #   endif
 
     word total_root_size;       /* includes double stack size,  */
@@ -228,11 +229,11 @@ static word min_bytes_allocd(void)
     total_root_size = 2 * stack_size + GC_root_size;
     scan_size = 2 * GC_composite_in_use + GC_atomic_in_use / 4
                 + total_root_size;
+    result = scan_size / GC_free_space_divisor;
     if (GC_incremental) {
-        return scan_size / (2 * GC_free_space_divisor);
-    } else {
-        return scan_size / GC_free_space_divisor;
+      result /= 2;
     }
+    return result > 0 ? result : 1;
 }
 
 /* Return the number of bytes allocated, adjusted for explicit storage  */
@@ -560,7 +561,7 @@ GC_API int GC_CALL GC_collect_a_little(void)
 #ifndef SMALL_CONFIG
   /* Variables for world-stop average delay time statistic computation. */
   /* "divisor" is incremented every world-stop and halved when reached  */
-  /* its maximum (or upon "total_time" oveflow).                        */
+  /* its maximum (or upon "total_time" overflow).                       */
   static unsigned world_stopped_total_time = 0;
   static unsigned world_stopped_total_divisor = 0;
 # ifndef MAX_TOTAL_TIME_DIVISOR
@@ -579,7 +580,6 @@ GC_API int GC_CALL GC_collect_a_little(void)
 STATIC GC_bool GC_stopped_mark(GC_stop_func stop_func)
 {
     unsigned i;
-    int dummy;
 #   ifndef SMALL_CONFIG
       CLOCK_TYPE start_time = 0; /* initialized to prevent warning. */
       CLOCK_TYPE current_time;
@@ -631,7 +631,7 @@ STATIC GC_bool GC_stopped_mark(GC_stop_func stop_func)
             START_WORLD();
             return(FALSE);
           }
-          if (GC_mark_some((ptr_t)(&dummy))) break;
+          if (GC_mark_some(GC_approx_sp())) break;
         }
 
     GC_gc_no++;
@@ -1075,6 +1075,16 @@ GC_INNER void GC_add_to_heap(struct hblk *p, size_t bytes)
     phdr -> hb_flags = 0;
     GC_freehblk(p);
     GC_heapsize += bytes;
+
+    /* Normally the caller calculates a new GC_collect_at_heapsize,
+     * but this is also called directly from alloc_mark_stack, so
+     * adjust here. It will be recalculated when called from
+     * GC_expand_hp_inner.
+     */
+    GC_collect_at_heapsize += bytes;
+    if (GC_collect_at_heapsize < GC_heapsize /* wrapped */)
+       GC_collect_at_heapsize = (word)(-1);
+
     if ((ptr_t)p <= (ptr_t)GC_least_plausible_heap_addr
         || GC_least_plausible_heap_addr == 0) {
         GC_least_plausible_heap_addr = (void *)((ptr_t)p - sizeof(word));
@@ -1224,7 +1234,7 @@ GC_INNER unsigned GC_fail_count = 0;
 
 /* Collect or expand heap in an attempt make the indicated number of    */
 /* free blocks available.  Should be called until the blocks are        */
-/* available (seting retry value to TRUE unless this is the first call  */
+/* available (setting retry value to TRUE unless this is the first call */
 /* in a loop) or until it fails by returning FALSE.                     */
 GC_INNER GC_bool GC_collect_or_expand(word needed_blocks,
                                       GC_bool ignore_off_page,

@@ -252,7 +252,7 @@
         && !defined(GC_HAVE_BUILTIN_BACKTRACE)
 #   define GC_HAVE_BUILTIN_BACKTRACE
 # endif
-# if defined(__i386__) || defined(__x86_64__)
+# if defined(__i386__) || defined(__amd64__) || defined(__x86_64__)
 #   define GC_CAN_SAVE_CALL_STACKS
 # endif
 #endif /* GLIBC */
@@ -272,7 +272,7 @@
 # define GC_CAN_SAVE_CALL_STACKS
 #endif
 
-/* If we're on an a platform on which we can't save call stacks, but    */
+/* If we're on a platform on which we can't save call stacks, but       */
 /* gcc is normally used, we go ahead and define GC_ADD_CALLER.          */
 /* We make this decision independent of whether gcc is actually being   */
 /* used, in order to keep the interface consistent, and allow mixing    */
@@ -287,6 +287,11 @@
     /* gcc knows how to retrieve return address, but we don't know      */
     /* how to generate call stacks.                                     */
 #   define GC_RETURN_ADDR (GC_word)__builtin_return_address(0)
+#   if (__GNUC__ >= 4) && (defined(__i386__) || defined(__amd64__) \
+        || defined(__x86_64__) /* and probably others... */)
+#     define GC_RETURN_ADDR_PARENT \
+        (GC_word)__builtin_extract_return_addr(__builtin_return_address(1))
+#   endif
 # else
     /* Just pass 0 for gcc compatibility.       */
 #   define GC_RETURN_ADDR 0
