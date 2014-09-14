@@ -53,6 +53,11 @@ stencil_t* stencil_new(const char* name, int num_indices,
                        int* offsets, int* indices, real_t* weights,
                        exchanger_t* ex);
 
+// Creates a stencil object with weights all equal to one. See the other 
+// constructor for details.
+stencil_t* unweighted_stencil_new(const char* name, int num_indices, 
+                                  int* offsets, int* indices, exchanger_t* ex);
+
 // Destroys the given stencil object.
 void stencil_free(stencil_t* stencil);
 
@@ -76,7 +81,7 @@ static inline bool stencil_next(stencil_t* stencil, int i, int* pos,
   int k = stencil->offsets[i] + *pos;
   *j = stencil->indices[k];
   ASSERT(*j != -1);
-  *weight = stencil->weights[k];
+  *weight = (stencil->weights != NULL) ? stencil->weights[k] : 1.0;
   ++(*pos);
   return true;
 }

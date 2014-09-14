@@ -31,6 +31,8 @@ stencil_t* stencil_new(const char* name, int num_indices,
                        exchanger_t* ex)
 {
   ASSERT(num_indices > 0);
+  ASSERT(offsets != NULL);
+  ASSERT(indices != NULL);
   stencil_t* s = polymec_malloc(sizeof(stencil_t));
   s->name = string_dup(name);
   s->num_indices = num_indices;
@@ -41,12 +43,19 @@ stencil_t* stencil_new(const char* name, int num_indices,
   return s;
 }
 
+stencil_t* unweighted_stencil_new(const char* name, int num_indices, 
+                                  int* offsets, int* indices, exchanger_t* ex)
+{
+  return stencil_new(name, num_indices, offsets, indices, NULL, ex);
+}
+
 void stencil_free(stencil_t* stencil)
 {
   polymec_free(stencil->name);
   polymec_free(stencil->offsets);
   polymec_free(stencil->indices);
-  polymec_free(stencil->weights);
+  if (stencil->weights != NULL)
+    polymec_free(stencil->weights);
   exchanger_free(stencil->ex);
   polymec_free(stencil);
 }
@@ -58,15 +67,11 @@ stencil_t* cell_face_stencil_new(mesh_t* mesh)
   int* offsets = polymec_malloc(sizeof(int) * (mesh->num_cells+1));
   memcpy(offsets, mesh->cell_face_offsets, sizeof(int) * (mesh->num_cells+1));
   int* indices = polymec_malloc(sizeof(int) * offsets[mesh->num_cells]);
-  real_t* weights = polymec_malloc(sizeof(real_t) * offsets[mesh->num_cells]);
   for (int i = 0; i < offsets[mesh->num_cells]; ++i)
-  {
     indices[i] = mesh_face_opp_cell(mesh, mesh->cell_faces[offsets[i]], i);
-    weights[i] = 1.0;
-  }
   exchanger_t* ex = exchanger_clone(mesh_exchanger(mesh));
-  return stencil_new("cell-face stencil", mesh->num_cells, offsets, indices, 
-                     weights, ex);
+  return unweighted_stencil_new("cell-face stencil", mesh->num_cells, offsets, 
+                                indices, ex);
 }
 
 stencil_t* cell_edge_stencil_new(mesh_t* mesh)
@@ -149,22 +154,18 @@ stencil_t* cell_edge_stencil_new(mesh_t* mesh)
   for (int i = 0; i < mesh->num_cells; ++i)
     offsets[i+1] = offsets[i] + stencil_map[i]->size;
   int* indices = polymec_malloc(sizeof(int) * offsets[mesh->num_cells]);
-  real_t* weights = polymec_malloc(sizeof(real_t) * offsets[mesh->num_cells]);
   int k = 0;
   for (int i = 0; i < mesh->num_cells; ++i)
   {
     int_array_t* neighbors = stencil_map[i];
     for (int j = 0; j < neighbors->size; ++j, ++k)
-    {
       indices[k] = neighbors->data[j];
-      weights[k] = 1.0;
-    }
     ASSERT(k == offsets[i+1]);
     int_array_free(neighbors);
   }
   polymec_free(stencil_map);
-  return stencil_new("cell-edge stencil", mesh->num_cells, offsets, 
-                     indices, weights, ex);
+  return unweighted_stencil_new("cell-edge stencil", mesh->num_cells, offsets, 
+                                indices, ex);
 }
 
 stencil_t* cell_node_stencil_new(mesh_t* mesh)
@@ -265,21 +266,17 @@ stencil_t* cell_node_stencil_new(mesh_t* mesh)
   for (int i = 0; i < mesh->num_cells; ++i)
     offsets[i+1] = offsets[i] + stencil_map[i]->size;
   int* indices = polymec_malloc(sizeof(int) * offsets[mesh->num_cells]);
-  real_t* weights = polymec_malloc(sizeof(real_t) * offsets[mesh->num_cells]);
   int k = 0;
   for (int i = 0; i < mesh->num_cells; ++i)
   {
     int_array_t* neighbors = stencil_map[i];
     for (int j = 0; j < neighbors->size; ++j, ++k)
-    {
       indices[k] = neighbors->data[j];
-      weights[k] = 1.0;
-    }
     ASSERT(k == offsets[i+1]);
     int_array_free(neighbors);
   }
   polymec_free(stencil_map);
-  return stencil_new("cell-node stencil", mesh->num_cells, offsets, 
-                     indices, weights, ex);
+  return unweighted_stencil_new("cell-node stencil", mesh->num_cells, offsets, 
+                                indices, ex);
 }
 
