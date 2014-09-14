@@ -302,14 +302,11 @@ static real_t gol_advance(void* context, real_t max_dt, real_t t)
   {
     int pos = 0, neighbor;
     real_t count = 0.0, weight;
-printf("Cell %d has %d neighbors: ", cell, stencil_size(gol->stencil, cell));
     while (stencil_next(gol->stencil, cell, &pos, &neighbor, &weight))
     {
-printf("%d ", neighbor);
       if (neighbor >= 0)
         count += gol->state[neighbor];
     }
-printf("\n");
     int icount = (int)count;
     int living = (int)gol->state[cell];
     if (living)

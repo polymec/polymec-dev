@@ -102,6 +102,7 @@ static mpi_message_t* mpi_message_new(MPI_Datatype type, int stride, int tag)
     msg->data_size = sizeof(char);
   else 
     polymec_error("Unsupported MPI data type used to construct MPI message.");
+  msg->requests = NULL;
   return msg;
 }
 
