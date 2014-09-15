@@ -62,14 +62,41 @@ void stencil_free(stencil_t* stencil)
 
 stencil_t* cell_face_stencil_new(mesh_t* mesh)
 {
-  // Read off the stencil from the mesh.
-  // FIXME: This is broken at the moment, since we have -1's in there.
-  int* offsets = polymec_malloc(sizeof(int) * (mesh->num_cells+1));
-  memcpy(offsets, mesh->cell_face_offsets, sizeof(int) * (mesh->num_cells+1));
-  int* indices = polymec_malloc(sizeof(int) * offsets[mesh->num_cells]);
-  for (int i = 0; i < offsets[mesh->num_cells]; ++i)
-    indices[i] = mesh_face_opp_cell(mesh, mesh->cell_faces[offsets[i]], i);
+  // First we will make a big clumsy mapping from each cell to its list of 
+  // neighboring cells.
+  int_array_t** stencil_map = polymec_malloc(sizeof(int_array_t*) * mesh->num_cells);
+  for (int cell = 0; cell < mesh->num_cells; ++cell)
+  {
+    int_array_t* neighbors = int_array_new();
+
+    int pos = 0, opp_cell;
+    while (mesh_cell_next_neighbor(mesh, cell, &pos, &opp_cell))
+    {
+      if (opp_cell != -1)
+        int_array_append(neighbors, opp_cell);
+    }
+    stencil_map[cell] = neighbors;
+  }
+
+  // The exchanger for this stencil is the same as that for the mesh.
   exchanger_t* ex = exchanger_clone(mesh_exchanger(mesh));
+
+  // Create the stencil from the map.
+  int* offsets = polymec_malloc(sizeof(int) * (mesh->num_cells+1));
+  offsets[0] = 0;
+  for (int i = 0; i < mesh->num_cells; ++i)
+    offsets[i+1] = offsets[i] + stencil_map[i]->size;
+  int* indices = polymec_malloc(sizeof(int) * offsets[mesh->num_cells]);
+  int k = 0;
+  for (int i = 0; i < mesh->num_cells; ++i)
+  {
+    int_array_t* neighbors = stencil_map[i];
+    for (int j = 0; j < neighbors->size; ++j, ++k)
+      indices[k] = neighbors->data[j];
+    ASSERT(k == offsets[i+1]);
+    int_array_free(neighbors);
+  }
+  polymec_free(stencil_map);
   return unweighted_stencil_new("cell-face stencil", mesh->num_cells, offsets, 
                                 indices, ex);
 }

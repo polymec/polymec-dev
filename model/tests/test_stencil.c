@@ -93,6 +93,26 @@ void test_NXxNYxNZ_stencil(void** state,
   mesh_free(mesh);
 }
 
+void test_serial_1x1x1_cell_face_stencil(void** state)
+{
+  test_NXxNYxNZ_stencil(state, MPI_COMM_SELF, cell_face_stencil_new, 1, 1, 1, 0, 0, 0, 0);
+}
+
+void test_serial_10x1x1_cell_face_stencil(void** state)
+{
+  test_NXxNYxNZ_stencil(state, MPI_COMM_SELF, cell_face_stencil_new, 10, 1, 1, 0, 0, 2, 1);
+}
+
+void test_serial_10x10x1_cell_face_stencil(void** state)
+{
+  test_NXxNYxNZ_stencil(state, MPI_COMM_SELF, cell_face_stencil_new, 10, 10, 1, 4, 4, 3, 2);
+}
+
+void test_serial_10x10x10_cell_face_stencil(void** state)
+{
+  test_NXxNYxNZ_stencil(state, MPI_COMM_SELF, cell_face_stencil_new, 10, 10, 10, 6, 5, 4, 3);
+}
+
 void test_serial_1x1x1_cell_edge_stencil(void** state)
 {
   test_NXxNYxNZ_stencil(state, MPI_COMM_SELF, cell_edge_stencil_new, 1, 1, 1, 0, 0, 0, 0);
@@ -131,6 +151,26 @@ void test_serial_10x10x1_cell_node_stencil(void** state)
 void test_serial_10x10x10_cell_node_stencil(void** state)
 {
   test_NXxNYxNZ_stencil(state, MPI_COMM_SELF, cell_node_stencil_new, 10, 10, 10, 26, 17, 11, 7);
+}
+
+void test_parallel_1x1x1_cell_face_stencil(void** state)
+{
+  test_NXxNYxNZ_stencil(state, MPI_COMM_WORLD, cell_face_stencil_new, 1, 1, 1, 0, 0, 0, 0);
+}
+
+void test_parallel_10x1x1_cell_face_stencil(void** state)
+{
+  test_NXxNYxNZ_stencil(state, MPI_COMM_WORLD, cell_face_stencil_new, 10, 1, 1, 0, 0, 2, 1);
+}
+
+void test_parallel_10x10x1_cell_face_stencil(void** state)
+{
+  test_NXxNYxNZ_stencil(state, MPI_COMM_WORLD, cell_face_stencil_new, 10, 10, 1, 4, 4, 3, 2);
+}
+
+void test_parallel_10x10x10_cell_face_stencil(void** state)
+{
+  test_NXxNYxNZ_stencil(state, MPI_COMM_WORLD, cell_face_stencil_new, 10, 10, 10, 6, 5, 4, 3);
 }
 
 void test_parallel_1x1x1_cell_edge_stencil(void** state)
@@ -178,6 +218,10 @@ int main(int argc, char* argv[])
   polymec_init(argc, argv);
   const UnitTest tests[] = 
   {
+    unit_test(test_serial_1x1x1_cell_face_stencil),
+    unit_test(test_serial_10x1x1_cell_face_stencil),
+    unit_test(test_serial_10x10x1_cell_face_stencil),
+    unit_test(test_serial_10x10x10_cell_face_stencil),
     unit_test(test_serial_1x1x1_cell_edge_stencil),
     unit_test(test_serial_10x1x1_cell_edge_stencil),
     unit_test(test_serial_10x10x1_cell_edge_stencil),
@@ -187,7 +231,11 @@ int main(int argc, char* argv[])
     unit_test(test_serial_10x10x1_cell_node_stencil),
     unit_test(test_serial_10x10x10_cell_node_stencil)
 #if POLYMEC_HAVE_MPI
-   ,unit_test(test_parallel_1x1x1_cell_edge_stencil),
+   ,unit_test(test_parallel_1x1x1_cell_face_stencil),
+    unit_test(test_parallel_10x1x1_cell_face_stencil),
+    unit_test(test_parallel_10x10x1_cell_face_stencil),
+    unit_test(test_parallel_10x10x10_cell_face_stencil),
+    unit_test(test_parallel_1x1x1_cell_edge_stencil),
     unit_test(test_parallel_10x1x1_cell_edge_stencil),
     unit_test(test_parallel_10x10x1_cell_edge_stencil),
     unit_test(test_parallel_10x10x10_cell_edge_stencil),
