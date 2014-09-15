@@ -153,19 +153,6 @@ void* mesh_property(mesh_t* mesh, const char* property);
 // property is not found.
 void mesh_delete_property(mesh_t* mesh, const char* property);
 
-// Returns the current stencil size for this mesh. The "stencil size" is a 
-// special mesh property that governs the creation and maintenance of ghost 
-// cells in parallel calculations. It is an integer that determines how many 
-// layers of surrounding cells are included in a stencil calculation for a 
-// spatial derivative on a cell. By default, the stencil size in a mesh is 
-// set to 1.
-int mesh_stencil_size(mesh_t* mesh);
-
-// Sets the stencil size for this mesh to some positive number. Calling this 
-// does not add new ghost cells, but subsequent operations for determining 
-// ghost cells will accommodate this new stencil size.
-void mesh_set_stencil_size(mesh_t* mesh, int new_size);
-
 // Returns an exchanger object that can be used to perform parallel exchanges
 // on cell-centered mesh data. In serial configurations, this exchanger holds 
 // no data and exchanges have no effect.

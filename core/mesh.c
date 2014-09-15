@@ -42,7 +42,6 @@ struct mesh_storage_t
   int cell_face_capacity;
   int face_edge_capacity;
   int face_node_capacity;
-  int stencil_size;
   exchanger_t* exchanger;
 };
 
@@ -53,7 +52,6 @@ static mesh_storage_t* mesh_storage_new(MPI_Comm comm)
   storage->cell_face_capacity = 0;
   storage->face_edge_capacity = 0;
   storage->face_node_capacity = 0;
-  storage->stencil_size = 1;
   storage->exchanger = exchanger_new(comm);
   return storage;
 }
@@ -332,17 +330,6 @@ void* mesh_property(mesh_t* mesh, const char* property)
 void mesh_delete_property(mesh_t* mesh, const char* property)
 {
   tagger_delete_property(mesh->cell_tags, "properties", property);
-}
-
-int mesh_stencil_size(mesh_t* mesh)
-{
-  return mesh->storage->stencil_size;
-}
-
-void mesh_set_stencil_size(mesh_t* mesh, int new_size)
-{
-  ASSERT(new_size >= 1);
-  mesh->storage->stencil_size = new_size;
 }
 
 exchanger_t* mesh_exchanger(mesh_t* mesh)
@@ -684,7 +671,6 @@ static void* mesh_byte_read(byte_array_t* bytes, size_t* offset)
   byte_array_read_ints(bytes, 1, &storage->cell_face_capacity, offset);
   byte_array_read_ints(bytes, 1, &storage->face_edge_capacity, offset);
   byte_array_read_ints(bytes, 1, &storage->face_node_capacity, offset);
-  byte_array_read_ints(bytes, 1, &storage->stencil_size, offset);
   exchanger_free(storage->exchanger);
   ser = exchanger_serializer();
   storage->exchanger = serializer_read(ser, bytes, offset);
@@ -726,7 +712,6 @@ static void mesh_byte_write(void* obj, byte_array_t* bytes, size_t* offset)
   byte_array_write_ints(bytes, 1, &storage->cell_face_capacity, offset);
   byte_array_write_ints(bytes, 1, &storage->face_edge_capacity, offset);
   byte_array_write_ints(bytes, 1, &storage->face_node_capacity, offset);
-  byte_array_write_ints(bytes, 1, &storage->stencil_size, offset);
   ser = exchanger_serializer();
   serializer_write(ser, mesh_exchanger(mesh), bytes, offset);
   ser = NULL;
