@@ -112,11 +112,12 @@ bool exchanger_deadlock_detection_enabled(exchanger_t* ex);
 // Exchanges data of the given type in the given array with other processors.
 void exchanger_exchange(exchanger_t* ex, void* data, int stride, int tag, MPI_Datatype type);
 
-// Begins an asynchronous data exchange, returning a unique token.
+// Begins an asynchronous data exchange. This returns a unique token that can 
+// be used to finish the exchange when passed to exchanger_finish_exchange().
 int exchanger_start_exchange(exchanger_t* ex, void* data, int stride, int tag, MPI_Datatype type);
 
 // Concludes the asynchronous exchange corresponding to the given token.
-// This fills the array given in exchanger_begin with the data it expects.
+// This fills the array given in exchanger_start_exchange with the data it expects.
 void exchanger_finish_exchange(exchanger_t* ex, int token);
 
 // Transfers data between processes, creating new received elements 

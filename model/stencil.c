@@ -60,6 +60,21 @@ void stencil_free(stencil_t* stencil)
   polymec_free(stencil);
 }
 
+void stencil_exchange(stencil_t* stencil, void* data, int stride, int tag, MPI_Datatype type)
+{
+  exchanger_exchange(stencil->ex, data, stride, tag, type);
+}
+
+int stencil_start_exchange(stencil_t* stencil, void* data, int stride, int tag, MPI_Datatype type)
+{
+  return exchanger_start_exchange(stencil->ex, data, stride, tag, type);
+}
+
+void stencil_finish_exchange(stencil_t* stencil, int token)
+{
+  exchanger_finish_exchange(stencil->ex, token);
+}
+
 stencil_t* cell_face_stencil_new(mesh_t* mesh)
 {
   // First we will make a big clumsy mapping from each cell to its list of 

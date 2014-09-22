@@ -294,8 +294,7 @@ static real_t gol_advance(void* context, real_t max_dt, real_t t)
   gol_t* gol = context;
 
   // Make sure that the state field is exchanged all parallel-like.
-  exchanger_t* ex = mesh_exchanger(gol->grid);
-  exchanger_exchange(ex, gol->state, 1, 0, MPI_REAL_T);
+  stencil_exchange(gol->stencil, gol->state, 1, 0, MPI_REAL_T);
 
   // Now go over each cell and update according to living neighbor counts.
   for (int cell = 0; cell < gol->grid->num_cells; ++cell)

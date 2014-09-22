@@ -40,7 +40,7 @@ typedef struct
   int* offsets;
   int* indices;
   real_t* weights;
-  exchanger_t* ex; // Used to perform exchanges to fill all stencils on a domain.
+  exchanger_t* ex; // Used to perform exchanges to fill all values for indices on a domain.
 } stencil_t;
 
 // Creates a stencil object using compressed arrays for (1) the offsets of 
@@ -60,6 +60,18 @@ stencil_t* unweighted_stencil_new(const char* name, int num_indices,
 
 // Destroys the given stencil object.
 void stencil_free(stencil_t* stencil);
+
+// Performs a synchronous exchange of the values for this stencil for the 
+// given data. This method has the same signature as exchanger_exchange().
+void stencil_exchange(stencil_t* stencil, void* data, int stride, int tag, MPI_Datatype type);
+
+// Begins a synchronous exchange of the values for this stencil for the 
+// given data. This method has the same signature as exchanger_start_exchange().
+int stencil_start_exchange(stencil_t* stencil, void* data, int stride, int tag, MPI_Datatype type);
+
+// Concludes the asynchronous exchange corresponding to the given token for 
+// this stencil. This method has the same signature as exchanger_finish_exchange().
+void stencil_finish_exchange(stencil_t* stencil, int token);
 
 // Returns the number of indices in the stencil for the given index i.
 static inline int stencil_size(stencil_t* stencil, int i)
