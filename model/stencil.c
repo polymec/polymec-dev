@@ -116,29 +116,40 @@ stencil_t* cell_face_stencil_new(mesh_t* mesh)
                                 indices, ex);
 }
 
-// Here's a struct holding cell connectivity metadata.
+// Here's a struct holding cell connectivity properties.
 typedef struct
 {
   int num_faces, num_edges, num_nodes;
   int faces[64], edges[128], nodes[256];
-} stencil_cell_t;
+} cell_properties_t;
 
-// This helper allows us to grow larger stencils from the trivial cell-face 
-// stencil. It grows the given stencil by one "layer," adding all cells {i} for 
-// which i_is_neighbor_cell(context, cell, i) returns true, where context is 
-// a pointer to some data, cell is a data structure holding the metadata for 
-// the connectivity of a given cell in the stencil's outermost layer, and i 
-// is the index of the cell whose membership in the stencil is in question.
-// This function returns the number of new cells added to the stencil as 
-// a result of this operation.
-static int extend_mesh_stencil(stencil_t* stencil, 
-                               mesh_t* mesh, 
-                               bool (*i_is_neighbor_of_cell)(void* context, stencil_cell_t* cell, int i),
-                               void* context)
+static stencil_t* create_layered_mesh_stencil(mesh_t* mesh,
+                                              int num_layers,
+                                              bool (*cell_matches)(void* context, 
+                                                                   cell_properties_t* cell, 
+                                                                   int cell_index),
+                                              void* context)
 {
-  // We stuff our 
-  int num_new_cells = 0;
-  return num_new_cells;
+  ASSERT(num_layers > 0);
+
+  // The first layer is identical to the cell-face stencil.
+  int layer = 1;
+  stencil_t* s = cell_face_stencil_new(mesh);
+
+  // Make a list of cells 
+
+  // Send the 
+
+  // Now we determine the cells that belong within the rest of the layers of 
+  // the stencil.
+  while (layer < num_layers)
+  {
+    ++layer;
+  }
+
+  // Send back all the cells that are attached to the cells near ghosts.
+
+  return s;
 }
 
 stencil_t* cell_edge_stencil_new(mesh_t* mesh)

@@ -1302,7 +1302,7 @@ void silo_file_write_point_cloud(silo_file_t* file,
 
   // Point coordinates.
   int num_points = cloud->num_points;
-  point_t* points = cloud->point_coords;
+  point_t* points = cloud->points;
   real_t* x = polymec_malloc(sizeof(real_t) * num_points);
   real_t* y = polymec_malloc(sizeof(real_t) * num_points);
   real_t* z = polymec_malloc(sizeof(real_t) * num_points);
@@ -1373,9 +1373,9 @@ point_cloud_t* silo_file_read_point_cloud(silo_file_t* file,
     points[p].z = z[p];
   }
 #if POLYMEC_HAVE_MPI
-  point_cloud_t* cloud = point_cloud_new(file->comm, points, num_points);
+  point_cloud_t* cloud = point_cloud_from_points(file->comm, points, num_points);
 #else
-  point_cloud_t* cloud = point_cloud_new(MPI_COMM_WORLD, points, num_points);
+  point_cloud_t* cloud = point_cloud_from_points(MPI_COMM_WORLD, points, num_points);
 #endif
   polymec_free(points);
 
