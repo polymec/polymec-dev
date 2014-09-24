@@ -25,21 +25,6 @@
 #include <stdlib.h>
 #include "core/array_utils.h"
 
-int* int_lsearch(int* array, int length, int element)
-{
-  for (int i = 0; i < length; ++i)
-  {
-    if (array[i] == element)
-      return &array[i];
-  }
-  return NULL;
-}
-
-int* int_bsearch(int* array, int length, int element)
-{
-  return bsearch(&element, array, (size_t)length, sizeof(int), int_bsearch_comp);
-}
-
 // This is the generic implementation of lower_bound(). 
 static int lower_bound(void* array, int length, void* element, size_t elem_size, int (*comp)(const void*, const void*))
 {
@@ -60,6 +45,21 @@ static int lower_bound(void* array, int length, void* element, size_t elem_size,
   return first;
 }
 
+int* int_lsearch(int* array, int length, int element)
+{
+  for (int i = 0; i < length; ++i)
+  {
+    if (array[i] == element)
+      return &array[i];
+  }
+  return NULL;
+}
+
+int* int_bsearch(int* array, int length, int element)
+{
+  return bsearch(&element, array, (size_t)length, sizeof(int), int_bsearch_comp);
+}
+
 int int_lower_bound(int* array, int length, int element)
 {
   return lower_bound(array, length, &element, sizeof(int), int_bsearch_comp);
@@ -70,7 +70,7 @@ void int_qsort(int* array, int length)
   qsort(array, (size_t)length, sizeof(int), int_bsearch_comp);
 }
 
-real_t* real_lsearch(real_t* array, int length, int element)
+index_t* index_lsearch(index_t* array, int length, index_t element)
 {
   for (int i = 0; i < length; ++i)
   {
@@ -80,12 +80,37 @@ real_t* real_lsearch(real_t* array, int length, int element)
   return NULL;
 }
 
-real_t* real_bsearch(real_t* array, int length, int element)
+index_t* index_bsearch(index_t* array, int length, index_t element)
+{
+  return bsearch(&element, array, (size_t)length, sizeof(index_t), index_bsearch_comp);
+}
+
+int index_lower_bound(index_t* array, int length, index_t element)
+{
+  return lower_bound(array, length, &element, sizeof(index_t), index_bsearch_comp);
+}
+
+void index_qsort(index_t* array, int length)
+{
+  qsort(array, (size_t)length, sizeof(index_t), index_bsearch_comp);
+}
+
+real_t* real_lsearch(real_t* array, int length, real_t element)
+{
+  for (int i = 0; i < length; ++i)
+  {
+    if (array[i] == element)
+      return &array[i];
+  }
+  return NULL;
+}
+
+real_t* real_bsearch(real_t* array, int length, real_t element)
 {
   return bsearch(&element, array, (size_t)length, sizeof(real_t), real_bsearch_comp);
 }
 
-int real_lower_bound(real_t* array, int length, int element)
+int real_lower_bound(real_t* array, int length, real_t element)
 {
   return lower_bound(array, length, &element, sizeof(real_t), real_bsearch_comp);
 }
