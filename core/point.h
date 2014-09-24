@@ -170,7 +170,7 @@ bool points_are_coplanar(point_t* p1, point_t* p2, point_t* p3, point_t* p4);
 // otherwise.
 bool all_points_are_coplanar(point_t* points, int num_points);
 
-// A bounding box.
+// A bounding box. Objects of this type are garbage-collected when allocated on the heap.
 typedef struct
 {
   real_t x1, x2;
@@ -178,8 +178,7 @@ typedef struct
   real_t z1, z2;
 } bbox_t;
 
-// Allocates a bounding box on the heap. Objects of this type are garbage-
-// collected when allocated on the heap.
+// Allocates a bounding box with the given extents on the heap. 
 bbox_t* bbox_new(real_t x1, real_t x2, real_t y1, real_t y2, real_t z1, real_t z2);
 
 // Returns true if the given bounding box contains the given point, false otherwise.

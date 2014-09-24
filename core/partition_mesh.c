@@ -27,6 +27,7 @@
 #if POLYMEC_HAVE_MPI
 #include "core/unordered_set.h"
 #include "core/kd_tree.h"
+#include "core/hilbert.h"
 #include "ptscotch.h"
 
 // This helper partitions a (serial) global graph, creating and returning a 
@@ -1195,6 +1196,7 @@ static void mesh_migrate(mesh_t** mesh,
   mesh_free(m);
   *mesh = fuse_submeshes(submeshes, 1+num_receives);
 }
+
 #endif
 
 exchanger_t* partition_mesh(mesh_t** mesh, MPI_Comm comm, int* weights, real_t imbalance_tol)
