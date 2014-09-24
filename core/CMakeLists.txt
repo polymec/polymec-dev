@@ -5,7 +5,7 @@ configure_file(
 )
 
 add_library(polymec_core polymec.c arch.c allocators.c logging.c point.c tagger.c mesh.c 
-            point_cloud.c repartition.c kd_tree.c octree.c 
+            point_cloud.c hilbert.c repartition.c kd_tree.c octree.c 
             permutations.c adj_graph.c sp_func.c st_func.c polynomial.c 
             least_squares.c index_space.c newton.c options.c interpreter.c 
             text_buffer.c serializer.c interpreter_register_default_functions.c 

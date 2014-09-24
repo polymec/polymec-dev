@@ -61,6 +61,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <inttypes.h> // for printing uint64_t, etc.
 #include <string.h>
 #include <math.h>
 #include <limits.h>
