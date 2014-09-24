@@ -34,7 +34,7 @@ static point_cloud_t* create_subcloud(point_cloud_t* cloud, int* indices, int nu
 
 static void point_cloud_distribute(point_cloud_t** cloud, 
                                    MPI_Comm comm,
-                                   int* global_partition)
+                                   int64_t* global_partition)
 {
 }
 
@@ -75,7 +75,7 @@ exchanger_t* partition_point_cloud(point_cloud_t** cloud, MPI_Comm comm, int* we
   // Clouds on rank != 0 must be NULL.
   ASSERT((rank == 0) || (*cloud == NULL));
 
-  int* global_partition = NULL;
+  int64_t* global_partition = NULL;
   if (rank == 0)
   {
     // Set up a Hilbert space filling curve that can map the given points to indices.
@@ -136,7 +136,7 @@ exchanger_t* partition_point_cloud(point_cloud_t** cloud, MPI_Comm comm, int* we
     }
     
     // Now we create the global partition vector and fill it.
-    global_partition = polymec_malloc(sizeof(int) * cl->num_points);
+    global_partition = polymec_malloc(sizeof(int64_t) * cl->num_points);
     int k = 0;
     for (int p = 0; p < nprocs; ++p)
     {
@@ -150,7 +150,7 @@ exchanger_t* partition_point_cloud(point_cloud_t** cloud, MPI_Comm comm, int* we
 
   // Set up an exchanger to distribute field data.
   int num_points = (cl != NULL) ? cl->num_points : 0;
-  exchanger_t* distributor = NULL; //create_distributor(comm, global_partition, num_points);
+  exchanger_t* distributor = create_distributor(comm, global_partition, num_points);
 
   // Clean up.
   polymec_free(global_partition);

@@ -1054,3 +1054,180 @@ serializer_t* exchanger_serializer()
   return serializer_new(ex_size, ex_read, ex_write);
 }
 
+// This helper sets up the exchanger ex so that it can distribute data from the 
+// root process (0) according to the global partition vector. The partition 
+// vector is NULL on all nonzero ranks and defined on rank 0.
+exchanger_t* create_distributor(MPI_Comm comm, 
+                                int64_t* global_partition,
+                                int num_global_vertices)
+{
+  int nprocs, rank;
+  MPI_Comm_size(comm, &nprocs);
+  MPI_Comm_rank(comm, &rank);
+  ASSERT((rank == 0) || (global_partition == NULL));
+  ASSERT((rank == 0) || (num_global_vertices == 0));
+
+  exchanger_t* distributor = exchanger_new(comm);
+  
+  if (rank == 0)
+  {
+    // Get the number of vertices we're going to send to each other process.
+    int num_vertices_to_send[nprocs];
+    memset(num_vertices_to_send, 0, sizeof(int) * nprocs);
+    for (int v = 0; v < num_global_vertices; ++v)
+      num_vertices_to_send[global_partition[v]]++;
+
+    // Send this number.
+    int n;
+    MPI_Scatter(num_vertices_to_send, 1, MPI_INT, &n, 1, MPI_INT, 0, comm);
+
+    // Now send the vertices to each process and register these sends
+    // with the distributor.
+    for (int p = 1; p < nprocs; ++p)
+    {
+      ASSERT(num_vertices_to_send[p] > 0);
+      int vertices[num_vertices_to_send[p]], k = 0, p_tag = p;
+      for (int i = 0; i < num_global_vertices; ++i)
+      {
+        if (global_partition[i] == p)
+          vertices[k++] = i;
+      }
+      MPI_Send(vertices, num_vertices_to_send[p], MPI_INT, p, p_tag, comm);
+      exchanger_set_send(distributor, p, vertices, num_vertices_to_send[p], true);
+    }
+
+    // Figure out the local vertices for rank 0.
+    int num_local_vertices = num_vertices_to_send[0];
+    int local_vertices[num_local_vertices], k = 0;
+    for (int i = 0; i < num_global_vertices; ++i)
+    {
+      if (global_partition[i] == 0)
+        local_vertices[k++] = i;
+    }
+  }
+  else
+  {
+    // Get the number of vertices we will receive from rank 0.
+    int num_local_vertices;
+    MPI_Scatter(NULL, 1, MPI_INT, &num_local_vertices, 1, MPI_INT, 0, comm);
+
+    // Now get the vertices.
+    int local_vertices[num_local_vertices], p_tag = rank;
+    MPI_Status status;
+    MPI_Recv(local_vertices, num_local_vertices, MPI_INT, 0, p_tag, comm, &status);
+
+    // Now register all the vertices we're receiving with the migrator.
+    ASSERT(num_local_vertices > 0);
+    exchanger_set_receive(distributor, 0, local_vertices, num_local_vertices, true);
+  }
+
+  return distributor;
+}
+
+// This helper sets up the exchanger ex so that it can migrate data from the 
+// current process according to the local partition vector.
+exchanger_t* create_migrator(MPI_Comm comm,
+                             int64_t* local_partition,
+                             int num_vertices)
+{
+  exchanger_t* migrator = exchanger_new(comm);
+  
+  // Tally up the number of vertices we're going to send to every other process, 
+  // including those that are staying on our own.
+  int nprocs, rank;
+  MPI_Comm_size(comm, &nprocs);
+  MPI_Comm_rank(comm, &rank);
+  int num_vertices_to_send[nprocs];
+  memset(num_vertices_to_send, 0, sizeof(int) * nprocs);
+  for (int v = 0; v < num_vertices; ++v)
+    num_vertices_to_send[local_partition[v]]++;
+
+  // Get the number of vertices we're going to receive from every other process.
+  int num_vertices_to_receive[nprocs];
+  MPI_Alltoall(num_vertices_to_send, 1, MPI_INT, 
+               num_vertices_to_receive, 1, MPI_INT, comm);
+
+  // Send and receive the actual vertices.
+  int** receive_vertices = polymec_malloc(sizeof(int*) * nprocs);
+  memset(receive_vertices, 0, sizeof(int*) * nprocs);
+  int num_requests = 0;
+  for (int p = 0; p < nprocs; ++p)
+  {
+    if ((rank != p) && (num_vertices_to_receive[p] > 0)) ++num_requests;
+    if ((rank != p) && (num_vertices_to_send[p] > 0)) ++num_requests;
+  }
+  if (num_requests > 0)
+  {
+    MPI_Request requests[num_requests];
+    int r = 0;
+    for (int p = 0; p < nprocs; ++p)
+    {
+      if (num_vertices_to_receive[p] > 0)
+      {
+        receive_vertices[p] = polymec_malloc(sizeof(int) * num_vertices_to_receive[p]);
+        if (p != rank)
+        {
+          // Note that we use this rank as our tag.
+          MPI_Irecv(receive_vertices[p], num_vertices_to_receive[p], MPI_INT, p, rank, comm, &requests[r++]);
+        }
+      }
+      if (num_vertices_to_send[p] > 0)
+      {
+        int send_vertices[num_vertices_to_send[p]], s = 0;
+        for (int v = 0; v < num_vertices; ++v)
+        {
+          if (local_partition[v] == p)
+            send_vertices[s++] = v;
+        }
+        if (p != rank)
+        {
+          // Note that we use the destination rank p as our tag.
+          exchanger_set_send(migrator, p, send_vertices, num_vertices_to_send[p], true);
+          MPI_Isend(send_vertices, num_vertices_to_send[p], MPI_INT, p, p, comm, &requests[r++]);
+        }
+        else
+          memcpy(receive_vertices[rank], send_vertices, sizeof(int) * num_vertices_to_receive[rank]);
+      }
+    }
+    ASSERT(r == num_requests);
+
+    // Wait for exchanges to finish. We can't use MPI_Waitall here because 
+    // not all processes necessary participate.
+    MPI_Status statuses[num_requests];
+    int finished[num_requests];
+    memset(finished, 0, num_requests*sizeof(int));
+    while (true)
+    {
+      bool all_finished = true;
+      for (int i = 0; i < num_requests; ++i)
+      {
+        if (!finished[i])
+        {
+          if (MPI_Test(&requests[i], &finished[i], &statuses[i]) != MPI_SUCCESS)
+            polymec_error("create_migrator: Internal error.");
+          if (!finished[i]) all_finished = false;
+        }
+      }
+
+      // If the transmissions have finished at this point, we 
+      // can break out of the loop. 
+      if (all_finished) break;
+    } 
+
+    // Now register all the vertices we're receiving with the migrator.
+    for (int p = 0; p < nprocs; ++p)
+    {
+      if (num_vertices_to_receive[p] > 0)
+      {
+        ASSERT(receive_vertices[p] != NULL);
+        if (rank != p)
+          exchanger_set_receive(migrator, p, receive_vertices[p], num_vertices_to_receive[p], true);
+        polymec_free(receive_vertices[p]);
+      }
+    }
+    polymec_free(receive_vertices);
+  }
+
+  return migrator;
+}
+

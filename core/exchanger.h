@@ -140,4 +140,17 @@ void exchanger_fprintf(exchanger_t* ex, FILE* stream);
 // This creates a serializer object that can read and write exchangers to byte streams.
 serializer_t* exchanger_serializer();
 
+// This function creates an exchanger that can distribute data from the 
+// root process (0) according to the global partition vector. The partition 
+// vector is NULL on all nonzero ranks and defined on rank 0.
+exchanger_t* create_distributor(MPI_Comm comm, 
+                                int64_t* global_partition,
+                                int num_global_vertices);
+
+// This function creates an exchanger that can migrate data from all 
+// processes to others according to their respective local partition vectors.
+exchanger_t* create_migrator(MPI_Comm comm,
+                             int64_t* local_partition,
+                             int num_vertices);
+
 #endif
