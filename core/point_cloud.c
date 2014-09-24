@@ -115,3 +115,55 @@ void point_cloud_delete_tag(point_cloud_t* cloud, const char* tag)
   tagger_delete_tag(cloud->tags, tag);
 }
 
+static size_t cloud_byte_size(void* obj)
+{
+  point_cloud_t* cloud = obj;
+  
+  size_t basic_storage = sizeof(int) + (cloud->num_points) * sizeof(point_t);
+  
+  // Tag-related storage.
+  serializer_t* tag_s = tagger_serializer();
+  size_t tag_storage = serializer_size(tag_s, cloud->tags);
+  tag_s = NULL;
+
+  return basic_storage + tag_storage;
+}
+
+static void* cloud_byte_read(byte_array_t* bytes, size_t* offset)
+{
+  // Read the number of points and allocate a point cloud accordingly.
+  int num_points;
+  byte_array_read_ints(bytes, 1, &num_points, offset);
+  point_cloud_t* cloud = point_cloud_new(MPI_COMM_WORLD, num_points);
+
+  // Read the point coordinates.
+  byte_array_read_points(bytes, num_points, cloud->points, offset);
+
+  // Tag stuff.
+  tagger_free(cloud->tags);
+  serializer_t* ser = tagger_serializer();
+  cloud->tags = serializer_read(ser, bytes, offset);
+
+  return cloud;
+}
+
+static void cloud_byte_write(void* obj, byte_array_t* bytes, size_t* offset)
+{
+  point_cloud_t* cloud = obj;
+
+  // Write the number of points and their coordinates.
+  byte_array_write_ints(bytes, 1, &cloud->num_points, offset);
+  byte_array_write_points(bytes, cloud->num_points, cloud->points, offset);
+
+  // Tag stuff.
+  serializer_t* ser = tagger_serializer();
+  serializer_write(ser, cloud->tags, bytes, offset);
+
+  ser = NULL;
+}
+
+serializer_t* point_cloud_serializer()
+{
+  return serializer_new(cloud_byte_size, cloud_byte_read, cloud_byte_write);
+}
+

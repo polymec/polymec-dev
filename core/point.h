@@ -66,6 +66,9 @@ static inline void point_copy(point_t* dest, point_t* source)
   dest->z = source->z;
 }
 
+// Writes a text representation of the point to the given file.
+void point_fprintf(point_t* x, FILE* stream);
+
 // A vector in 1, 2, or 3D space.
 typedef struct
 {
@@ -185,7 +188,7 @@ bbox_t* bbox_new(real_t x1, real_t x2, real_t y1, real_t y2, real_t z1, real_t z
 static inline bool bbox_contains(bbox_t* bbox, point_t* p)
 {
   return ((p->x >= bbox->x1) && (p->x <= bbox->x2) &&
-          (p->y >= bbox->y1) && (p->x <= bbox->y2) &&
+          (p->y >= bbox->y1) && (p->y <= bbox->y2) &&
           (p->z >= bbox->z1) && (p->z <= bbox->z2));
 }
 
@@ -200,6 +203,9 @@ static inline bool bbox_contains_bbox(bbox_t* bbox, bbox_t* box)
 
 // Grows the given bounding box to accommodate the given point.
 void bbox_grow(bbox_t* box, point_t* p);
+
+// Writes a text representation of the bounding box to the given file.
+void bbox_fprintf(bbox_t* box, FILE* stream);
 
 // Given a random number generator and a bounding box, generate random 
 // coordinates for the given point within the bounding box. The random 

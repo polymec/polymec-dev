@@ -32,6 +32,11 @@ point_t* point_new(real_t x, real_t y, real_t z)
   return p;
 }
 
+void point_fprintf(point_t* x, FILE* stream)
+{
+  fprintf(stream, "(%g, %g, %g)\n", x->x, x->y, x->z);
+}
+
 vector_t* vector_new(real_t vx, real_t vy, real_t vz)
 {
   vector_t* v = GC_MALLOC(sizeof(vector_t));
@@ -96,6 +101,12 @@ void bbox_grow(bbox_t* box, point_t* p)
     box->z1 = p->z;
   if (box->z2 < p->z)
     box->z2 = p->z;
+}
+
+void bbox_fprintf(bbox_t* box, FILE* stream)
+{
+  fprintf(stream, "bounding box [%g, %g] x [%g, %g] x [%g, %g]\n",
+          box->x1, box->x2, box->y1, box->y2, box->z1, box->z2);
 }
 
 extern double orient3d(double* pa, double* pb, double* pc, double* pd);

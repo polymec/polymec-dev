@@ -32,10 +32,10 @@
 
 // This helper partitions a (serial) global graph, creating and returning a 
 // global partition vector. It should only be called on rank 0.
-static SCOTCH_Num* partition_graph(adj_graph_t* global_graph, 
-                                   MPI_Comm comm,
-                                   int* weights,
-                                   real_t imbalance_tol)
+static int64_t* partition_graph(adj_graph_t* global_graph, 
+                                MPI_Comm comm,
+                                int* weights,
+                                real_t imbalance_tol)
 {
   ASSERT(adj_graph_comm(global_graph) == MPI_COMM_SELF);
 
@@ -76,10 +76,10 @@ static SCOTCH_Num* partition_graph(adj_graph_t* global_graph,
   }
 
   // Generate the global partition vector by scattering the global graph.
-  SCOTCH_Num* global_partition = NULL;
+  int64_t* global_partition = NULL;
   if (rank == 0)
   {
-    global_partition = polymec_malloc(sizeof(SCOTCH_Num) * num_global_vertices);
+    global_partition = polymec_malloc(sizeof(int64_t) * num_global_vertices);
     SCOTCH_Strat strategy;
     SCOTCH_stratInit(&strategy);
     SCOTCH_Num strat_flags = SCOTCH_STRATDEFAULT;
@@ -102,11 +102,11 @@ static SCOTCH_Num* partition_graph(adj_graph_t* global_graph,
 
 // This helper repartitions a local graph, creating and returning a 
 // local partition vector with destination ranks included for ghost cells.
-static SCOTCH_Num* repartition_graph(adj_graph_t* local_graph, 
-                                     int num_ghost_vertices,
-                                     int* weights,
-                                     real_t imbalance_tol,
-                                     exchanger_t* local_graph_ex)
+static int64_t* repartition_graph(adj_graph_t* local_graph, 
+                                  int num_ghost_vertices,
+                                  int* weights,
+                                  real_t imbalance_tol,
+                                  exchanger_t* local_graph_ex)
 {
   int nprocs, rank;
   MPI_Comm comm = adj_graph_comm(local_graph);
@@ -128,7 +128,7 @@ static SCOTCH_Num* repartition_graph(adj_graph_t* local_graph,
   // Replace the ghost entries in adj with global indices.
   index_t* vtx_dist = adj_graph_vertex_dist(local_graph);
   {
-    index_t* global_indices = polymec_malloc(sizeof(SCOTCH_Num) * (num_vertices + num_ghost_vertices));
+    index_t* global_indices = polymec_malloc(sizeof(index_t) * (num_vertices + num_ghost_vertices));
     for (int i = 0; i < num_vertices; ++i)
       global_indices[i] = (index_t)(vtx_dist[rank] + i);
     exchanger_exchange(local_graph_ex, global_indices, 1, 0, MPI_UINT64_T);
@@ -152,7 +152,7 @@ static SCOTCH_Num* repartition_graph(adj_graph_t* local_graph,
                      adj, NULL, NULL);
 
   // Generate the local partition vector by mapping the distributed graph.
-  SCOTCH_Num* local_partition = polymec_malloc(sizeof(SCOTCH_Num) * (num_vertices + num_ghost_vertices));
+  int64_t* local_partition = polymec_malloc(sizeof(int64_t) * (num_vertices + num_ghost_vertices));
   {
     SCOTCH_Strat strategy;
     SCOTCH_stratInit(&strategy);
@@ -185,7 +185,7 @@ static SCOTCH_Num* repartition_graph(adj_graph_t* local_graph,
 // The indices of ghost cells referenced in submesh->face_cells are 
 // replaced with destination process ranks.
 static mesh_t* create_submesh(MPI_Comm comm, mesh_t* mesh, 
-                              SCOTCH_Num* partition, index_t* vtx_dist, 
+                              int64_t* partition, index_t* vtx_dist, 
                               int* indices, int num_indices)
 {
   // Make a set of cells for querying membership in this submesh.
@@ -353,7 +353,7 @@ static mesh_t* create_submesh(MPI_Comm comm, mesh_t* mesh,
 static void mesh_distribute(mesh_t** mesh, 
                             MPI_Comm comm,
                             adj_graph_t* global_graph, 
-                            SCOTCH_Num* global_partition)
+                            int64_t* global_partition)
 {
   int nprocs, rank;
   MPI_Comm_size(comm, &nprocs);
@@ -915,7 +915,7 @@ static mesh_t* fuse_submeshes(mesh_t** submeshes,
 
 static void mesh_migrate(mesh_t** mesh, 
                          adj_graph_t* local_graph, 
-                         SCOTCH_Num* local_partition,
+                         int64_t* local_partition,
                          exchanger_t* migrator)
 {
   mesh_t* m = *mesh;
@@ -1059,7 +1059,7 @@ exchanger_t* partition_mesh(mesh_t** mesh, MPI_Comm comm, int* weights, real_t i
 #endif
 
   // Map the graph to the different domains, producing a local partition vector.
-  SCOTCH_Num* global_partition = (rank == 0) ? partition_graph(global_graph, comm, weights, imbalance_tol): NULL;
+  int64_t* global_partition = (rank == 0) ? partition_graph(global_graph, comm, weights, imbalance_tol): NULL;
 
   // Distribute the mesh.
   mesh_distribute(mesh, comm, global_graph, global_partition);
@@ -1112,7 +1112,7 @@ exchanger_t* repartition_mesh(mesh_t** mesh, int* weights, real_t imbalance_tol)
   exchanger_t* mesh_ex = mesh_exchanger(m);
 
   // Map the graph to the different domains, producing a local partition vector.
-  SCOTCH_Num* local_partition = repartition_graph(local_graph, m->num_ghost_cells, weights, imbalance_tol, mesh_ex);
+  int64_t* local_partition = repartition_graph(local_graph, m->num_ghost_cells, weights, imbalance_tol, mesh_ex);
 
   // Set up an exchanger to migrate field data.
   int num_vertices = adj_graph_num_vertices(local_graph);

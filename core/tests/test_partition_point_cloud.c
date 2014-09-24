@@ -48,19 +48,16 @@ void test_partition_linear_cloud(void** state)
   int rank, nprocs;
   MPI_Comm_rank(comm, &rank);
   MPI_Comm_size(comm, &nprocs);
-  if (rank < (nprocs-1))
-    assert_int_equal(N/nprocs, cloud->num_points);
-  else
-    assert_int_equal(N - rank*(N/nprocs), cloud->num_points);
+  int points_per_proc = N/nprocs;
+  assert_true(fabs(1.0*(cloud->num_points - points_per_proc)/points_per_proc) < 0.05);
 
-  // Now check data.
-  int first_point = rank*(N/nprocs);
+  // Now check data. Points should all fall on dx tick marks.
   for (int i = 0; i < cloud->num_points; ++i)
   {
-    int j = first_point + i;
     real_t x = cloud->points[i].x;
     real_t y = cloud->points[i].y;
     real_t z = cloud->points[i].z;
+    int j = lround(x/dx - 0.5);
     assert_true(fabs(x - (0.5+j)*dx) < 1e-6);
     assert_true(fabs(y) < 1e-6);
     assert_true(fabs(z) < 1e-6);

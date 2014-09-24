@@ -28,6 +28,7 @@
 #include "core/polymec.h"
 #include "core/point.h"
 #include "core/tagger.h"
+#include "core/serializer.h"
 
 // This data type represents a cloud consisting of points, possibly with 
 // associated properties.
@@ -105,6 +106,9 @@ void point_cloud_rename_tag(point_cloud_t* cloud, const char* old_tag, const cha
 
 // Deletes the given tag. This has no effect if the tag is not found.
 void point_cloud_delete_tag(point_cloud_t* cloud, const char* tag);
+
+// Returns a serializer object that can read/write point clouds from/to byte arrays.
+serializer_t* point_cloud_serializer();
 
 #endif
 
