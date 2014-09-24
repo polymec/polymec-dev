@@ -47,7 +47,7 @@ hilbert_t* hilbert_new(bbox_t* bbox)
   return curve;
 }
 
-uint64_t hilbert_index(hilbert_t* curve, point_t* x)
+index_t hilbert_index(hilbert_t* curve, point_t* x)
 {
   ASSERT(bbox_contains(&curve->bbox, x));
 
@@ -56,11 +56,9 @@ uint64_t hilbert_index(hilbert_t* curve, point_t* x)
   X[0] = (uint16_t)((x->x - curve->bbox.x1)/curve->dx);
   X[1] = (uint16_t)((x->y - curve->bbox.y1)/curve->dy);
   X[2] = (uint16_t)((x->z - curve->bbox.z1)/curve->dz);
-printf("%g, %g, %g\n", (x->x - curve->bbox.x1)/curve->dx, (x->y - curve->bbox.y1)/curve->dy, (x->z - curve->bbox.z1)/curve->dz);
-printf("%g, %g, %g\n", x->x - curve->bbox.x1, x->y - curve->bbox.y1, x->z - curve->bbox.z1);
-printf("%" PRIu16 ", %" PRIu16 ", %" PRIu16 "\n", X[0], X[1], X[2]);
   
-  // Compute the Hilbert index of this triple.
+  // Compute the Hilbert "transpose" (X[0], X[1], X[2]) corresponding to these 
+  // discrete coordinates.
 
   // Inverse undo.
   uint16_t M = 1 << (num_bits - 1);
@@ -94,16 +92,13 @@ printf("%" PRIu16 ", %" PRIu16 ", %" PRIu16 "\n", X[0], X[1], X[2]);
     X[i] ^= t;
 
   // Now jam X[0], X[1], X[2] together into a single Hilbert index.
-printf("%d, %d, %d\n", X[0], X[1], X[2]);
   uint64_t index = 0;
   for (int b = num_bits-1; b >= 0; --b)
   {
-    for (int i = 2; i >= 0; --i)
+    for (int i = 0; i < 3; ++i)
     {
-      int digit = 3 * b + i;
-      index += ((X[i] >> b) & 1);
       index <<= 1;
-printf("digit = %d, contrib = %d, index = %" PRIu64 "\n", digit, (X[i] >> b) & 1, index);
+      index += ((X[i] >> b) & 1);
     }
   }
   return index;
@@ -117,8 +112,9 @@ void hilbert_create_point(hilbert_t* curve, index_t index, point_t* x)
   {
     for (int i = 0; i < 3; ++i)
     {
-      int digit = 3 * b + i;
-      X[i] += ((index >> digit) & 1) << b;
+      X[i] <<= 1;
+      int digit = 3 * b + (2 - i);
+      X[i] += ((index >> digit) & 1);
     }
   }
 
