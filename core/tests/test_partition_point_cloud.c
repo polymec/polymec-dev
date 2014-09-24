@@ -28,7 +28,7 @@
 #include <string.h>
 #include "cmockery.h"
 #include "core/silo_file.h"
-#include "core/repartition.h"
+#include "core/partition_point_cloud.h"
 
 void test_partition_linear_cloud(void** state)
 {

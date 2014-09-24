@@ -28,7 +28,7 @@
 #include <string.h>
 #include "cmockery.h"
 #include "core/silo_file.h"
-#include "core/repartition.h"
+#include "core/partition_mesh.h"
 #include "geometry/create_uniform_mesh.h"
 
 static void test_repartition_uniform_mesh_of_size(void** state, int nx, int ny, int nz)

@@ -28,8 +28,6 @@
 #include "core/polymec.h"
 #include "core/point.h"
 #include "core/tagger.h"
-#include "core/adj_graph.h"
-#include "core/exchanger.h"
 
 // This data type represents a cloud consisting of points, possibly with 
 // associated properties.
@@ -40,14 +38,12 @@ typedef struct
 
   // The total number of (locally-owned) points in the cloud.
   int num_points;
+
   // Coordinates of the points, indexed from 0 to N-1.
   point_t* points;
 
   // Point tagging mechanism.
   tagger_t* tags;
-
-  // Exchanger. 
-  exchanger_t* exchanger;
 } point_cloud_t;
 
 // Construct a new point cloud whose point coordinates are all set to the 
@@ -109,13 +105,6 @@ void point_cloud_rename_tag(point_cloud_t* cloud, const char* old_tag, const cha
 
 // Deletes the given tag. This has no effect if the tag is not found.
 void point_cloud_delete_tag(point_cloud_t* cloud, const char* tag);
-
-// Returns the exchanger associated with the point cloud.
-exchanger_t* point_cloud_exchanger(point_cloud_t* cloud);
-
-// Creates an adjacency graph representing the topological relationships 
-// between the points in the given point cloud.
-adj_graph_t* graph_from_point_cloud(point_cloud_t* cloud);
 
 #endif
 

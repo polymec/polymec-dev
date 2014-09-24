@@ -40,9 +40,6 @@ point_cloud_t* point_cloud_new(MPI_Comm comm, int num_points)
   int* prop_tag = tagger_create_tag(cloud->tags, "properties", 1);
   prop_tag[0] = 0;
 
-  // Set up a parallel exchanger.
-  cloud->exchanger = exchanger_new(cloud->comm);
-
   return cloud;
 }
 
@@ -56,8 +53,6 @@ point_cloud_t* point_cloud_from_points(MPI_Comm comm, point_t* points, int num_p
 void point_cloud_free(point_cloud_t* cloud)
 {
   ASSERT(cloud != NULL);
-
-  exchanger_free(cloud->exchanger);
   tagger_free(cloud->tags);
   polymec_free(cloud->points);
 }
@@ -118,10 +113,5 @@ void point_cloud_rename_tag(point_cloud_t* cloud, const char* old_tag, const cha
 void point_cloud_delete_tag(point_cloud_t* cloud, const char* tag)
 {
   tagger_delete_tag(cloud->tags, tag);
-}
-
-exchanger_t* point_cloud_exchanger(point_cloud_t* cloud)
-{
-  return cloud->exchanger;
 }
 

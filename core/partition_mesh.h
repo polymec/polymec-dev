@@ -22,28 +22,10 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef POLYMEC_REPARTITION_H
-#define POLYMEC_REPARTITION_H
+#ifndef POLYMEC_PARTITION_MESH_H
+#define POLYMEC_PARTITION_MESH_H
 
-#include "core/point_cloud.h"
 #include "core/mesh.h"
-
-// This function partitions the given point cloud on rank 0 with the given pointwise
-// load weights, distributing it to parallel subdomains on the given communicator 
-// in such a way as to balance the load. If weights is NULL, the points are assigned 
-// equal weights. It creates and returns an exchanger object that can be used 
-// to distribute data from rank 0 to the partitions. The cloud on rank 0 (as 
-// well as any non-NULL cloud on rank != 0) is consumed. In each case, the 
-// cloud is replaced with a partitioned cloud.
-exchanger_t* partition_point_cloud(point_cloud_t** cloud, MPI_Comm comm, int* weights, real_t imbalance_tol);
-
-// This function repartitions the given point cloud with the given load
-// weights, alloting them to parallel domains to balance their load.
-// If weights is NULL, the points are assigned equal weights.
-// It creates and returns an exchanger object that can be used to migrate 
-// data from the old partition to the new. The cloud is consumed and replaced
-// with a repartitioned cloud.
-exchanger_t* repartition_point_cloud(point_cloud_t** cloud, int* weights, real_t imbalance_tol);
 
 // This function partitions the given mesh on rank 0 with the given cell-centered 
 // load weights, distributing the cells to parallel domains on the given 

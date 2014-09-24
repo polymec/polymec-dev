@@ -25,7 +25,8 @@
 #include "core/interpreter.h"
 #include "core/st_func.h"
 #include "core/silo_file.h"
-#include "core/repartition.h"
+#include "core/partition_mesh.h"
+#include "core/partition_point_cloud.h"
 
 // Lua stuff.
 #include "lua.h"

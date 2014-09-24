@@ -22,7 +22,7 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "core/repartition.h"
+#include "core/partition_mesh.h"
 
 #if POLYMEC_HAVE_MPI
 #include "core/unordered_set.h"
@@ -353,26 +353,6 @@ static exchanger_t* create_migrator(MPI_Comm comm,
   }
 
   return migrator;
-}
-
-// This helper constructs and returns a point cloud from the given points in 
-// the given point cloud.
-static point_cloud_t* create_subcloud(point_cloud_t* cloud, int* indices, int num_indices)
-{
-  return NULL;
-}
-
-static void point_cloud_distribute(point_cloud_t** cloud, 
-                                   MPI_Comm comm,
-                                   adj_graph_t* global_graph, 
-                                   SCOTCH_Num* global_partition)
-{
-}
-
-static void point_cloud_migrate(point_cloud_t** cloud, 
-                                adj_graph_t* local_graph, 
-                                exchanger_t* migrator)
-{
 }
 
 // This helper constructs and returns a mesh from the cells with the given
@@ -1215,98 +1195,7 @@ static void mesh_migrate(mesh_t** mesh,
   mesh_free(m);
   *mesh = fuse_submeshes(submeshes, 1+num_receives);
 }
-
 #endif
-
-exchanger_t* partition_point_cloud(point_cloud_t** cloud, MPI_Comm comm, int* weights, real_t imbalance_tol)
-{
-  ASSERT(imbalance_tol > 0.0);
-  ASSERT(imbalance_tol <= 1.0);
-  point_cloud_t* cl = *cloud;
-
-#if POLYMEC_HAVE_MPI
-  _Static_assert(sizeof(SCOTCH_Num) == sizeof(index_t), "SCOTCH_Num must be 64-bit.");
-
-  int nprocs, rank;
-  MPI_Comm_size(cl->comm, &nprocs);
-  MPI_Comm_rank(cl->comm, &rank);
-
-  // On a single process, partitioning has no meaning.
-  if (nprocs == 1)
-    return exchanger_new(cl->comm);
-
-  // Clouds on rank != 0 must be NULL.
-  ASSERT((rank == 0) || (*cloud == NULL));
-
-  // Generate a global adjacency graph for the point cloud.
-  adj_graph_t* global_graph = (cl != NULL) ? graph_from_point_cloud(cl) : NULL;
-
-  // Map the graph to the different domains, producing a local partition vector.
-  SCOTCH_Num* global_partition = (rank == 0) ? partition_graph(global_graph, comm, weights, imbalance_tol) : NULL;
-
-  // Distribute the point cloud.
-  point_cloud_distribute(cloud, comm, global_graph, global_partition);
-
-  // Set up an exchanger to distribute field data.
-  int num_vertices = (cl != NULL) ? adj_graph_num_vertices(global_graph) : 0;
-  exchanger_t* distributor = create_distributor(comm, global_partition, num_vertices);
-
-  // Clean up.
-  adj_graph_free(global_graph);
-  polymec_free(global_partition);
-
-  // Return the migrator.
-  return (distributor == NULL) ? exchanger_new(cl->comm) : distributor;
-#else
-  return exchanger_new(cl->comm);
-#endif
-}
-
-exchanger_t* repartition_point_cloud(point_cloud_t** cloud, int* weights, real_t imbalance_tol)
-{
-  ASSERT(imbalance_tol > 0.0);
-  ASSERT(imbalance_tol <= 1.0);
-  point_cloud_t* cl = *cloud;
-
-#if POLYMEC_HAVE_MPI
-  _Static_assert(sizeof(SCOTCH_Num) == sizeof(index_t), "SCOTCH_Num must be 64-bit.");
-
-  int nprocs, rank;
-  MPI_Comm_size(cl->comm, &nprocs);
-  MPI_Comm_rank(cl->comm, &rank);
-
-  // On a single process, repartitioning has no meaning.
-  if (nprocs == 1)
-    return exchanger_new(cl->comm);
-
-  // Generate a local adjacency graph for the point cloud.
-  adj_graph_t* local_graph = graph_from_point_cloud(cl);
-
-  // Get the exchanger for the point cloud.
-  exchanger_t* cloud_ex = point_cloud_exchanger(cl);
-
-  // Map the graph to the different domains, producing a local partition vector
-  // (with values included for ghost cells).
-  SCOTCH_Num* local_partition = repartition_graph(local_graph, cl->num_ghost_points, 
-                                                  weights, imbalance_tol, cloud_ex);
-
-  // Set up an exchanger to migrate field data.
-  int num_vertices = adj_graph_num_vertices(local_graph);
-  exchanger_t* migrator = create_migrator(cl->comm, local_partition, num_vertices);
-
-  // Migrate the point cloud.
-  point_cloud_migrate(cloud, local_graph, migrator);
-
-  // Clean up.
-  adj_graph_free(local_graph);
-  polymec_free(local_partition);
-
-  // Return the migrator.
-  return (migrator == NULL) ? exchanger_new(cl->comm) : migrator;
-#else
-  return exchanger_new(cl->comm);
-#endif
-}
 
 exchanger_t* partition_mesh(mesh_t** mesh, MPI_Comm comm, int* weights, real_t imbalance_tol)
 {
