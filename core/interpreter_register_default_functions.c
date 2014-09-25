@@ -937,7 +937,7 @@ static int repartition(lua_State* lua)
 
   // Make sure there are enough cells for our processes.
   index_t local_num_cells = mesh->num_cells, global_num_cells;
-  MPI_Allreduce(&local_num_cells, &global_num_cells, 1, MPI_INDEX, MPI_SUM, mesh->comm);
+  MPI_Allreduce(&local_num_cells, &global_num_cells, 1, MPI_INDEX_T, MPI_SUM, mesh->comm);
   if (global_num_cells < nprocs)
     return luaL_error(lua, "Insufficient number of cells (%zd) for number of processes (%d).", global_num_cells, nprocs);
 

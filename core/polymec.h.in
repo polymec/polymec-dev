@@ -78,6 +78,11 @@ typedef @POLYMEC_REAL_TYPE@ real_t;
 #define POLYMEC_PRECISION @POLYMEC_PRECISION@
 #define MPI_REAL_T @POLYMEC_MPI_REAL_TYPE@
 
+// Bad Fortran! No biscuit!
+#ifdef MPI_REAL
+#undef MPI_REAL
+#endif
+
 // This returns the minimum of a and b.
 #ifndef MIN
 #define MIN(a, b) ((a < b) ? a : b)
@@ -102,8 +107,8 @@ typedef @POLYMEC_REAL_TYPE@ real_t;
 
 // Global indices are unsigned 64-bit integers.
 typedef uint64_t index_t;
-#ifndef MPI_INDEX
-#define MPI_INDEX MPI_INT64_T
+#ifndef MPI_INDEX_T
+#define MPI_INDEX_T MPI_INT64_T
 #endif
 
 // Configuration information
