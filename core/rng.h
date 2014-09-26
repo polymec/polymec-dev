@@ -34,11 +34,27 @@ typedef struct rng_t rng_t;
 // This virtual table must be implemented by any space-time function.
 typedef struct 
 {
+  // Optional method to set the seed to the random number generator. 
+  // rng_set_seed() is a no-op if not provided.
   void (*set_seed)(void* context, uint32_t seed);
+
+  // Required method to return a random integer in [min, max].
   uint32_t (*get)(void* context);
+
+  // Optional method to return a random real_t in [0, 1].
+  // Defaults to (rng_get(rng) / (max + 1.0)).
   real_t (*uniform)(void* context);
+
+  // Optional method to return a random real in (0, 1].
+  // Defaults to rng_uniform(rng), which is called until it returns 
+  // a positive value.
   real_t (*uniform_positive)(void* context);
+
+  // Optional method to return a random integer in [0, n-1].
+  // Defaults to a scaled implementation using rng_get(rng).
   uint32_t (*uniform_int)(void* context, uint32_t n);
+
+  // Optional method to provide a destructor for the context.
   void (*dtor)(void* context);
 } rng_vtable;
 

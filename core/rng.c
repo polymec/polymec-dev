@@ -46,9 +46,6 @@ rng_t* rng_new(const char* name, void* context,
 {
   ASSERT(min < max);
   ASSERT(vtable.get != NULL);
-  ASSERT(vtable.uniform != NULL);
-  ASSERT(vtable.uniform_positive != NULL);
-  ASSERT(vtable.uniform_int != NULL);
   rng_t* rng = GC_MALLOC(sizeof(rng_t));
   rng->name = string_dup(name);
   rng->context = context;
@@ -87,17 +84,36 @@ uint32_t rng_get(rng_t* rng)
 
 real_t rng_uniform(rng_t* rng)
 {
-  return rng->vtable.uniform(rng->context);
+  if (rng->vtable.uniform != NULL)
+    return rng->vtable.uniform(rng->context);
+  else
+    return (real_t)(1.0 * rng_get(rng) / (rng->max + 1.0));
 }
 
 real_t rng_uniform_positive(rng_t* rng)
 {
-  return rng->vtable.uniform_positive(rng->context);
+  if (rng->vtable.uniform_positive != NULL)
+    return rng->vtable.uniform_positive(rng->context);
+  else
+  {
+    while (true)
+    {
+      real_t val = rng_uniform(rng);
+      if (val != 0.0)
+        return val;
+    }
+  }
 }
 
 uint32_t rng_uniform_int(rng_t* rng, uint32_t n)
 {
-  return rng->vtable.uniform_int(rng->context, n);
+  if (rng->vtable.uniform_int != NULL)
+    return rng->vtable.uniform_int(rng->context, n);
+  else
+  {
+    uint32_t reduction_factor = rng->max / n;
+    return rng_get(rng) / reduction_factor;
+  }
 }
 
 #ifdef _BSD_SOURCE
@@ -118,27 +134,6 @@ static uint32_t posix_get(void* context)
   return (uint32_t)random();
 }
 
-static real_t posix_uniform(void* context)
-{
-  return (real_t)(1.0 * random() / (posix_max + 1.0));
-}
-
-static real_t posix_uniform_positive(void* context)
-{
-  while (true)
-  {
-    real_t val = posix_uniform(context);
-    if (val != 0.0)
-      return val;
-  }
-}
-
-static uint32_t posix_uniform_int(void* context, uint32_t n)
-{
-  uint32_t reduction_factor = posix_max / n;
-  return posix_get(context) / reduction_factor;
-}
-
 static void posix_free(void* context)
 {
   polymec_free(context);
@@ -150,9 +145,6 @@ rng_t* posix_rng_new()
   char* state = polymec_malloc(sizeof(char) * num_bytes);
   rng_vtable vtable = {.set_seed = posix_set_seed,
                        .get = posix_get,
-                       .uniform = posix_uniform,
-                       .uniform_positive = posix_uniform_positive,
-                       .uniform_int = posix_uniform_int,
                        .dtor = posix_free};
   initstate(random(), state, num_bytes);
   return rng_new("posix RNG", state, 0, posix_max, vtable);
@@ -170,21 +162,6 @@ static uint32_t arc4_get(void* context)
   return arc4random();
 }
 
-static real_t arc4_uniform(void* context)
-{
-  return (real_t)(1.0 * arc4random() / (arc4_max + 1.0));
-}
-
-static real_t arc4_uniform_positive(void* context)
-{
-  while (true)
-  {
-    real_t val = arc4_uniform(context);
-    if (val != 0.0)
-      return val;
-  }
-}
-
 static uint32_t arc4_uniform_int(void* context, uint32_t n)
 {
   return arc4random_uniform(n);
@@ -193,8 +170,6 @@ static uint32_t arc4_uniform_int(void* context, uint32_t n)
 static rng_t* arc4_rng_new()
 {
   rng_vtable vtable = {.get = arc4_get,
-                       .uniform = arc4_uniform,
-                       .uniform_positive = arc4_uniform_positive,
                        .uniform_int = arc4_uniform_int};
   return rng_new("arc4 RNG", NULL, 0, arc4_max, vtable);
 }
@@ -214,34 +189,10 @@ static uint32_t rand_get(void* context)
   return (uint32_t)rand();
 }
 
-static real_t rand_uniform(void* context)
-{
-  return (real_t)(1.0 * rand() / (rand_max + 1.0));
-}
-
-static real_t rand_uniform_positive(void* context)
-{
-  while (true)
-  {
-    real_t val = rand_uniform(context);
-    if (val != 0.0)
-      return val;
-  }
-}
-
-static uint32_t rand_uniform_int(void* context, uint32_t n)
-{
-  uint32_t reduction_factor = rand_max / n;
-  return rand_get(context) / reduction_factor;
-}
-
 rng_t* rand_rng_new()
 {
   rng_vtable vtable = {.set_seed = rand_set_seed,
-                       .get = rand_get,
-                       .uniform = rand_uniform,
-                       .uniform_positive = rand_uniform_positive,
-                       .uniform_int = rand_uniform_int};
+                       .get = rand_get};
   return rng_new("rand (standard C) RNG", NULL, 0, rand_max, vtable);
 }
 
