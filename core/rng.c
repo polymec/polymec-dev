@@ -100,6 +100,8 @@ uint32_t rng_uniform_int(rng_t* rng, uint32_t n)
   return rng->vtable.uniform_int(rng->context, n);
 }
 
+#ifdef _BSD_SOURCE
+
 // POSIX random() generator.
 
 static const uint32_t posix_max = (uint32_t)(-1);
@@ -155,6 +157,7 @@ rng_t* posix_rng_new()
   initstate(random(), state, num_bytes);
   return rng_new("posix RNG", state, 0, posix_max, vtable);
 }
+#endif
 
 #if APPLE 
 
@@ -197,12 +200,59 @@ static rng_t* arc4_rng_new()
 }
 #endif
 
+// Standard C rand() generator -- always available.
+
+static const uint32_t rand_max = (uint32_t)(-1);
+
+static void rand_set_seed(void* context, uint32_t seed)
+{
+  srand(seed);
+}
+
+static uint32_t rand_get(void* context)
+{
+  return (uint32_t)rand();
+}
+
+static real_t rand_uniform(void* context)
+{
+  return (real_t)(1.0 * rand() / (rand_max + 1.0));
+}
+
+static real_t rand_uniform_positive(void* context)
+{
+  while (true)
+  {
+    real_t val = rand_uniform(context);
+    if (val != 0.0)
+      return val;
+  }
+}
+
+static uint32_t rand_uniform_int(void* context, uint32_t n)
+{
+  uint32_t reduction_factor = rand_max / n;
+  return rand_get(context) / reduction_factor;
+}
+
+rng_t* rand_rng_new()
+{
+  rng_vtable vtable = {.set_seed = rand_set_seed,
+                       .get = rand_get,
+                       .uniform = rand_uniform,
+                       .uniform_positive = rand_uniform_positive,
+                       .uniform_int = rand_uniform_int};
+  return rng_new("rand (standard C) RNG", NULL, 0, rand_max, vtable);
+}
+
 rng_t* host_rng_new()
 {
 #if APPLE 
   return arc4_rng_new();
-#else
+#elif _BSD_SOURCE
   return posix_rng_new();
+#else
+  return rand_rng_new();
 #endif
 }
 

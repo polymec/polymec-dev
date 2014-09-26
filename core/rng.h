@@ -77,8 +77,9 @@ real_t rng_uniform_positive(rng_t* rng);
 // uniform probability.
 uint32_t rng_uniform_int(rng_t* rng, uint32_t n);
 
-// Creates the POSIX random number generator implemented using random().
-rng_t* posix_rng_new();
+// Creates the standard C random number generator implemented using rand().
+// This is available on every platform.
+rng_t* rand_rng_new();
 
 // Creates the best vanilla random number generator available on this system.
 rng_t* host_rng_new();
