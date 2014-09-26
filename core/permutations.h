@@ -25,8 +25,10 @@
 #ifndef POLYMEC_PERMUTE_H
 #define POLYMEC_PERMUTE_H
 
+#include "core/rng.h"
+
 // Generates a random permutation of N elements using Knuth shuffles and the 
 // given random number generator.
-void random_permutation(int N, int (*rand_gen)(), int* permutation);
+void random_permutation(int N, rng_t* rng, int* permutation);
 
 #endif

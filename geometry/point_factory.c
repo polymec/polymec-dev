@@ -703,7 +703,8 @@ int point_factory_random_points(lua_State* lua)
   }
 
   point_t* points = polymec_malloc(sizeof(point_t) * N);
-  generate_random_points(rand, density, bbox, N, points);
+  rng_t* rng = host_rng_new();
+  generate_random_points(rng, density, bbox, N, points);
 
   // Return the point list.
   lua_pushpointlist(lua, points, N);

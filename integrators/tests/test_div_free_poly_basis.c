@@ -44,6 +44,7 @@ void test_ctor(void** state)
 
 void test_compute(void** state)
 {
+  rng_t* rng = host_rng_new();
   point_t x0 = {0.0, 0.0, 0.0};
   real_t R = 1.0;
   bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
@@ -55,7 +56,7 @@ void test_compute(void** state)
     for (int i = 0; i < 10; ++i)
     {
       point_t x;
-      point_randomize(&x, rand, &bbox);
+      point_randomize(&x, rng, &bbox);
       div_free_poly_basis_compute(basis, &x, vectors);
     }
     basis = NULL;
@@ -66,6 +67,7 @@ void test_compute(void** state)
 // Tests that the divergence of each vector in the basis is zero.
 void test_divergence(void** state)
 {
+  rng_t* rng = host_rng_new();
   point_t x0 = {0.0, 0.0, 0.0};
   real_t R = 1.0;
   bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
@@ -78,7 +80,7 @@ void test_divergence(void** state)
     while (div_free_poly_basis_next(basis, &pos, &x, &y, &z))
     {
       point_t X;
-      point_randomize(&X, rand, &bbox);
+      point_randomize(&X, rng, &bbox);
       real_t dfxdx = polynomial_deriv_value(x, 1, 0, 0, &X);
       real_t dfydy = polynomial_deriv_value(y, 0, 1, 0, &X);
       real_t dfzdz = polynomial_deriv_value(z, 0, 0, 1, &X);

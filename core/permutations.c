@@ -24,11 +24,11 @@
 
 #include "core/permutations.h"
 
-void random_permutation(int N, int (*rand_gen)(), int* permutation)
+void random_permutation(int N, rng_t* rng, int* permutation)
 {
   for (int i = 0; i < N; ++i)
   {
-    int j = rand_gen() % (N+1); // FIXME: biased generation!
+    int j = rng_uniform_int(rng, N+1);
     permutation[j] = i;
   }
 }

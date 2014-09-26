@@ -24,7 +24,7 @@
 
 #include "geometry/generate_random_points.h"
 
-void generate_random_points(int (*rng)(), sp_func_t* density, bbox_t* bounding_box, int num_points, point_t* points)
+void generate_random_points(rng_t* rng, sp_func_t* density, bbox_t* bounding_box, int num_points, point_t* points)
 {
   ASSERT(density != NULL);
   ASSERT(bounding_box != NULL);
@@ -49,7 +49,7 @@ void generate_random_points(int (*rng)(), sp_func_t* density, bbox_t* bounding_b
       sp_func_eval(density, &points[i], &rho);
       if (rho > rho_max) rho_max = rho;
 
-      real_t P = rng()/RAND_MAX;
+      real_t P = rng_uniform(rng);
       rejected = (rho/rho_max < P);
     }
     while (rejected);

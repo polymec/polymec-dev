@@ -26,6 +26,7 @@
 #define POLYMEC_POINT_H
 
 #include "core/polymec.h"
+#include "core/rng.h"
 
 // A point in 1, 2, or 3D space.
 typedef struct
@@ -210,20 +211,20 @@ void bbox_fprintf(bbox_t* box, FILE* stream);
 // Given a random number generator and a bounding box, generate random 
 // coordinates for the given point within the bounding box. The random 
 // number generator must generate an integer between 0 and RAND_MAX.
-static inline void point_randomize(point_t* point, int (*rand_gen)(), bbox_t* bounding_box)
+static inline void point_randomize(point_t* point, rng_t* rng, bbox_t* bounding_box)
 {
-  point->x = (1.0*rand_gen()/RAND_MAX) * (bounding_box->x2 - bounding_box->x1) + bounding_box->x1;
-  point->y = (1.0*rand_gen()/RAND_MAX) * (bounding_box->y2 - bounding_box->y1) + bounding_box->y1;
-  point->z = (1.0*rand_gen()/RAND_MAX) * (bounding_box->z2 - bounding_box->z1) + bounding_box->z1;
+  point->x = rng_uniform(rng) * (bounding_box->x2 - bounding_box->x1) + bounding_box->x1;
+  point->y = rng_uniform(rng) * (bounding_box->y2 - bounding_box->y1) + bounding_box->y1;
+  point->z = rng_uniform(rng) * (bounding_box->z2 - bounding_box->z1) + bounding_box->z1;
 }
 
 // Given a random number generator, generate a vector with the given magnitude
 // pointing in a random direction. The random number generator must generate 
 // an integer between 0 and RAND_MAX.
-static inline void vector_randomize(vector_t* vector, int (*rand_gen)(), real_t magnitude)
+static inline void vector_randomize(vector_t* vector, rng_t* rng, real_t magnitude)
 {
-  real_t theta = (1.0*rand_gen()/RAND_MAX) * M_PI;
-  real_t phi = (1.0*rand_gen()/RAND_MAX) * 2.0 * M_PI;
+  real_t theta = rng_uniform(rng) * M_PI;
+  real_t phi = rng_uniform(rng) * 2.0 * M_PI;
   vector->x = magnitude * cos(theta) * sin(phi);
   vector->y = magnitude * sin(theta) * sin(phi);
   vector->z = magnitude * cos(phi);

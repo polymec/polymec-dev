@@ -57,7 +57,8 @@ point_t* create_convex_hull(point_t* points, int num_points, int* hull_size)
 
   // Create a random permutation of the remaining points.
   int perm[num_points-4];
-  random_permutation(num_points-4, rand, perm);
+  rng_t* rng = host_rng_new();
+  random_permutation(num_points-4, rng, perm);
   for (int i = 0; i < num_points-4; ++i)
     perm[i] += 4;
 
