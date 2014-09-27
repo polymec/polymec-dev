@@ -61,10 +61,22 @@ typedef struct
 // Constructs a random number generator from the given name, context, and 
 // virtual table.
 rng_t* rng_new(const char* name, void* context, 
-               uint32_t min, uint32_t max, rng_vtable vtable);
+               uint32_t min, uint32_t max, rng_vtable vtable,
+               bool has_global_state, bool is_thread_safe);
 
 // Returns the name of the random number generator.
 const char* rng_name(rng_t* rng);
+
+// Returns true if the random number generator has a global state, false if 
+// not. Most "bundled" generators have a global state in the sense that two 
+// different rng objects of a given type will generate random numbers using 
+// common machinery, and using one will affect the state of the other.
+bool rng_has_global_state(rng_t* rng);
+
+// Returns true if the random number generator is thread-safe (re-entrant), 
+// false if not. Note that the question of thread-safety is separate from 
+// that of a global state (see above).
+bool rng_is_thread_safe(rng_t* rng);
 
 // Sets the seed used by the random number generator.
 void rng_set_seed(rng_t* rng, uint32_t seed);
@@ -92,6 +104,13 @@ real_t rng_uniform_positive(rng_t* rng);
 // Generates an integer within the range [0, n-1], with 
 // uniform probability.
 uint32_t rng_uniform_int(rng_t* rng, uint32_t n);
+
+#ifdef _BSD_SOURCE
+// On (BSD-like) systems with random() available, this creates a random 
+// number with the given number of bytes in the internal state. Optimal sizes 
+// are 8, 32, 64, 128, and 256.
+rng_t* posix_rng_new(size_t state_size);
+#endif
 
 // Creates the standard C random number generator implemented using rand().
 // This is available on every platform.

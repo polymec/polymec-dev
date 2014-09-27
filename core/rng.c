@@ -31,6 +31,7 @@ struct rng_t
   void* context;
   rng_vtable vtable;
   uint32_t min, max;
+  bool has_global_state, is_thread_safe;
 };
 
 static void rng_free(void* ctx, void* dummy)
@@ -42,7 +43,8 @@ static void rng_free(void* ctx, void* dummy)
 }
 
 rng_t* rng_new(const char* name, void* context, 
-               uint32_t min, uint32_t max, rng_vtable vtable)
+               uint32_t min, uint32_t max, rng_vtable vtable,
+               bool has_global_state, bool is_thread_safe)
 {
   ASSERT(min < max);
   ASSERT(vtable.get != NULL);
@@ -52,6 +54,8 @@ rng_t* rng_new(const char* name, void* context,
   rng->min = min;
   rng->max = max;
   rng->vtable = vtable;
+  rng->has_global_state = has_global_state;
+  rng->is_thread_safe = is_thread_safe;
   GC_register_finalizer(rng, rng_free, rng, NULL, NULL);
   return rng;
 }
@@ -139,7 +143,7 @@ static void posix_free(void* context)
   polymec_free(context);
 }
 
-rng_t* posix_rng_new()
+rng_t* posix_rng_new(size_t state_size)
 {
   static const int num_bytes = 256;
   char* state = polymec_malloc(sizeof(char) * num_bytes);
@@ -147,7 +151,7 @@ rng_t* posix_rng_new()
                        .get = posix_get,
                        .dtor = posix_free};
   initstate(random(), state, num_bytes);
-  return rng_new("posix RNG", state, 0, posix_max, vtable);
+  return rng_new("posix RNG", state, 0, posix_max, vtable, true, false);
 }
 #endif
 
@@ -171,7 +175,7 @@ static rng_t* arc4_rng_new()
 {
   rng_vtable vtable = {.get = arc4_get,
                        .uniform_int = arc4_uniform_int};
-  return rng_new("arc4 RNG", NULL, 0, arc4_max, vtable);
+  return rng_new("arc4 RNG", NULL, 0, arc4_max, vtable, true, true);
 }
 #endif
 
@@ -193,14 +197,15 @@ rng_t* rand_rng_new()
 {
   rng_vtable vtable = {.set_seed = rand_set_seed,
                        .get = rand_get};
-  return rng_new("rand (standard C) RNG", NULL, 0, rand_max, vtable);
+  return rng_new("rand (standard C) RNG", NULL, 0, rand_max, vtable,
+                 true, false);
 }
 
 rng_t* host_rng_new()
 {
 #if APPLE 
   return arc4_rng_new();
-#elif _BSD_SOURCE
+#elif defined(_BSD_SOURCE)
   return posix_rng_new();
 #else
   return rand_rng_new();
