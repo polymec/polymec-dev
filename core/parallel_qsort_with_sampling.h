@@ -22,51 +22,28 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef POLYMEC_COMPARATORS_H
-#define POLYMEC_COMPARATORS_H
+#ifndef POLYMEC_PARALLEL_QSORT_WITH_SAMPLING_H
+#define POLYMEC_PARALLEL_QSORT_WITH_SAMPLING_H
 
-#include "core/polymec.h"
+#include "core/rng.h"
 
-// These comparators return -1 if x < y, 0 if x == y, and 1 if x > y.
-
-static inline int int_cmp(int x, int y)
-{
-  return (x < y) ? -1 : (x == y) ? 0 : 1;
-}
-
-static inline int index_cmp(index_t x, index_t y)
-{
-  return (x < y) ? -1 : (x == y) ? 0 : 1;
-}
-
-static inline int real_cmp(real_t x, real_t y)
-{
-  return (x < y) ? -1 : (x == y) ? 0 : 1;
-}
-
-static inline bool int_equals(int x, int y)
-{
-  return (x == y);
-}
-
-static inline bool index_equals(index_t x, index_t y)
-{
-  return (x == y);
-}
-
-static inline bool int_pair_equals(int* x, int* y)
-{
-  return ((x[0] == y[0]) && (x[1] == y[1]));
-}
-
-static inline bool string_equals(char* x, char* y)
-{
-  return (strcmp(x, y) == 0);
-}
-
-static inline bool pointer_equals(void* x, void* y)
-{
-  return (x == y);
-}
+// This function implements a parallel quicksort using regular or 
+// random sampling. Data is assumed to exist for each process belonging to 
+// the communicator comm, in an array pointed to by base, each having a 
+// (locally-stored) number of elements nel, each of a size width in bytes. 
+// The comparator compar is used to perform comparisons between local elements 
+// in each array. If rng is NULL, sampling for pivots is performed at regular 
+// intervals. Otherwise, rng is used to randomly select pivots on each process.
+// On output, base points to the same locally-stored array as before, but its 
+// data has been sorted on each process p such that processes preceding p 
+// contain sorted data preceding that on p, and processes following p contain 
+// sorted data following that on p.
+void parallel_qsort_with_sampling(MPI_Comm comm, 
+                                  void* base, 
+                                  size_t nel, 
+                                  size_t width,
+                                  int (*compar)(const void* left, const void* right),
+                                  rng_t* rng);
 
 #endif
+
