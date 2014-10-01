@@ -189,7 +189,7 @@ static inline bool array_name##_next(array_name##_t* array, int* pos, element* v
 } \
 
 // Define some basic array types.
-DEFINE_ARRAY(byte_array, unsigned char)
+DEFINE_ARRAY(byte_array, uint8_t)
 DEFINE_ARRAY(int_array, int)
 DEFINE_ARRAY(index_array, index_t)
 DEFINE_ARRAY(real_array, real_t)

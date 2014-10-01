@@ -22,19 +22,29 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "core/heap.h"
 #include "core/parallel_qsort_with_sampling.h"
 
 // This helper merges an array of sorted lists of data (having elements of 
 // the given width in bytes), merging them into a single sorted list using 
 // the given comparator function.
-static void merge_sorted_lists(char** lists_to_merge, 
+static void merge_sorted_lists(uint8_t** lists_to_merge, 
                                int* list_sizes,
-                               int width,
                                int num_lists,
+                               int width,
                                int (*compar)(const void* left, const void* right),
-                               void* merged_list)
+                               uint8_t* merged_list)
 {
+  // For now, we do the incredibly stupid thing--just make a giant list 
+  // out of all the smaller ones, and then qsort it.
+  // FIXME: Suboptimal much??
+  int k = 0;
+  for (int i = 0; i < num_lists; ++i)
+  {
+    for (int j = 0; j < list_sizes[i]; ++j, ++k)
+      for (int l = 0; l < width; ++l)
+        merged_list[width*k+l] = lists_to_merge[i][width*j+l];
+  }
+  qsort(merged_list, k, width, compar);
 }
 
 static void parallel_qsort_with_regular_sampling(MPI_Comm comm, 
@@ -55,16 +65,17 @@ static void parallel_qsort_with_regular_sampling(MPI_Comm comm,
   if (nprocs == 1) return;
 
   // Here's our local array in bytes.
-  char* base_bytes = base;
+  uint8_t* base_bytes = base;
 
   // We will store sampled pivots in this buffer. NOTE: This is going to be 
   // the bottleneck for large numbers of processes!
   int pivot_buffer_size = nprocs * nprocs;
-  char* pivot_buffer = polymec_malloc(width * pivot_buffer_size);
+  uint8_t* pivot_buffer = polymec_malloc(width * pivot_buffer_size);
 
   // Now select pivots by sampling the sorted list.
   for (int p = 0; p < nprocs; ++p)
-    memcpy(&pivot_buffer[p*width], &base_bytes[p*nel*width/nprocs], width);
+    for (int i = 0; i < width; ++i)
+      pivot_buffer[p*width+i] = base_bytes[p*nel*width/nprocs+i];
 
   // The root process (rank 0) gathers all pivot candidates from the others.
   if (rank == 0)
@@ -77,19 +88,20 @@ static void parallel_qsort_with_regular_sampling(MPI_Comm comm,
   if (rank == 0)
   {
     // Merge the pivot lists.
-    char* pivot_lists[width*nprocs];
+    uint8_t* pivot_lists[nprocs];
     int pivot_lengths[nprocs];
     for (int p = 0; p < nprocs; ++p)
     {
-      memcpy(&pivot_lists[width*p], &pivot_buffer[width*p], width);
+      pivot_lists[p] = &pivot_buffer[width*p];
       pivot_lengths[p] = nprocs;
     }
-    char* merged_pivots = polymec_malloc(width * nprocs * nprocs);
-    merge_sorted_lists(pivot_lists, pivot_lengths, width, nprocs, compar, merged_pivots);
+    uint8_t* merged_pivots = polymec_malloc(width * nprocs * nprocs);
+    merge_sorted_lists(pivot_lists, pivot_lengths, nprocs, width, compar, merged_pivots);
 
     // Select pivots to broadcast as partition pivots for other processes.
     for (int p = 1; p < nprocs; ++p)
-      memcpy(&pivot_buffer[(p-1)*width], &merged_pivots[(p+1)*nprocs*width], width);
+      for (int i = 0; i < width; ++i)
+        pivot_buffer[(p-1)*width+i] = merged_pivots[p*nprocs*width+i];
 
     polymec_free(merged_pivots);
   }
@@ -118,7 +130,7 @@ static void parallel_qsort_with_regular_sampling(MPI_Comm comm,
   // Now each process gathers the data belonging to its class.
   int data_sizes[nprocs], data_byte_sizes[nprocs];
   int data_byte_offsets[nprocs];
-  char* class_data = polymec_malloc(width * nel);
+  uint8_t* class_data = polymec_malloc(width * nel);
   for (int p = 0; p < nprocs; ++p)
   {
     // Gather the various sizes of the data in this class from other 
@@ -143,10 +155,10 @@ static void parallel_qsort_with_regular_sampling(MPI_Comm comm,
   }
 
   // Now each process merges the class data it has received.
-  char* class_lists[nprocs];
+  uint8_t* class_lists[nprocs];
   for (int p = 0; p < nprocs; ++p)
     class_lists[p] = &class_data[width * data_byte_offsets[p]];
-  merge_sorted_lists(class_lists, data_sizes, width, nprocs, compar, base);
+  merge_sorted_lists(class_lists, data_sizes, nprocs, width, compar, base);
 
   // Clean up.
   polymec_free(pivot_buffer);
