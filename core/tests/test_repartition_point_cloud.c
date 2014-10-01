@@ -38,8 +38,12 @@ void test_repartition_linear_cloud(void** state)
   MPI_Comm_size(comm, &nprocs);
 
   // Create a 100x1x1 uniform point cloud distributed over N processes.
-  int N = 100;
-  int Np = (rank < nprocs-1) ? N/nprocs : N - (rank-1)*N/nprocs;
+  int N = 100, Np;
+  if (nprocs > 1) 
+    Np = (rank < nprocs-1) ? N/nprocs : N - (rank-1)*N/nprocs;
+  else
+    Np = N;
+
   real_t dx = 1.0/N;
   point_cloud_t* cloud = point_cloud_new(comm, N);
   for (int i = 0; i < Np; ++i)
@@ -50,6 +54,7 @@ void test_repartition_linear_cloud(void** state)
   exchanger_free(migrator);
 
   // Check the number of points on each domain.
+printf("%d: %d %d %g\n", rank, cloud->num_points, Np, fabs(1.0*(cloud->num_points - Np)/Np));
   assert_true(fabs(1.0*(cloud->num_points - Np)/Np) < 0.05);
 
   // Now check data. Points should all fall on dx tick marks.

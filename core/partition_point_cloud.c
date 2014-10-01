@@ -24,6 +24,7 @@
 
 #include "core/partition_point_cloud.h"
 #include "core/hilbert.h"
+#include "core/parallel_qsort_with_sampling.h"
 
 #if POLYMEC_HAVE_MPI
 
@@ -143,6 +144,34 @@ static void point_cloud_migrate(point_cloud_t** cloud,
 {
 }
 
+// This helper creates a Hilbert space-filling curve from a set of points.
+static hilbert_t* hilbert_from_points(point_t* points, int num_points)
+{
+  bbox_t bbox = {.x1 = FLT_MAX, .x2 = -FLT_MAX, 
+                 .y1 = FLT_MAX, .y2 = -FLT_MAX, 
+                 .z1 = FLT_MAX, .z2 = -FLT_MAX};
+  for (int i = 0; i < num_points; ++i)
+    bbox_grow(&bbox, &points[i]);
+
+  // (Handle lower dimensional point distributions gracefully.)
+  if (fabs(bbox.x2 - bbox.x1) < FLT_MIN)
+  {
+    bbox.x1 -= 0.5;
+    bbox.x2 += 0.5;
+  }
+  if (fabs(bbox.y2 - bbox.y1) < FLT_MIN)
+  {
+    bbox.y1 -= 0.5;
+    bbox.y2 += 0.5;
+  }
+  if (fabs(bbox.z2 - bbox.z1) < FLT_MIN)
+  {
+    bbox.z1 -= 0.5;
+    bbox.z2 += 0.5;
+  }
+  return hilbert_new(&bbox);
+}
+
 // This helper is a comparison function used to sort (Hilbert index, weight) tuples.
 // Only the Hilbert index factors into the ordering.
 static int hilbert_comp(const void* l, const void* r)
@@ -176,29 +205,7 @@ exchanger_t* partition_point_cloud(point_cloud_t** cloud, MPI_Comm comm, int* we
   if (rank == 0)
   {
     // Set up a Hilbert space filling curve that can map the given points to indices.
-    // Also, sum up all the work on the points.
-    bbox_t bbox = {.x1 = FLT_MAX, .x2 = -FLT_MAX, .y1 = FLT_MAX, .y2 = -FLT_MAX, 
-      .z1 = FLT_MAX, .z2 = -FLT_MAX};
-    for (int i = 0; i < cl->num_points; ++i)
-      bbox_grow(&bbox, &cl->points[i]);
-
-    // (Handle lower dimensional point distributions gracefully.)
-    if (fabs(bbox.x2 - bbox.x1) < FLT_MIN)
-    {
-      bbox.x1 -= 0.5;
-      bbox.x2 += 0.5;
-    }
-    if (fabs(bbox.y2 - bbox.y1) < FLT_MIN)
-    {
-      bbox.y1 -= 0.5;
-      bbox.y2 += 0.5;
-    }
-    if (fabs(bbox.z2 - bbox.z1) < FLT_MIN)
-    {
-      bbox.z1 -= 0.5;
-      bbox.z2 += 0.5;
-    }
-    hilbert_t* hilbert = hilbert_new(&bbox);
+    hilbert_t* hilbert = hilbert_from_points(cl->points, cl->num_points);
 
     // Create an array of 2-tuples containing the (Hilbert index, weight) of each point. 
     // Partitioning the points amounts to sorting this array and breaking it into parts whose 
@@ -291,6 +298,38 @@ exchanger_t* repartition_point_cloud(point_cloud_t** cloud, int* weights, real_t
   // On a single process, repartitioning has no meaning.
   if (nprocs == 1)
     return exchanger_new(cl->comm);
+
+  // Set up a Hilbert space filling curve that can map the given points to indices.
+  hilbert_t* hilbert = hilbert_from_points(cl->points, cl->num_points);
+
+  // Create an array of 2-tuples containing the (Hilbert index, weight) of each point. 
+  // Partitioning the points amounts to sorting this array and breaking it into parts whose 
+  // work is equal. Also sum up the work on the points.
+  index_t* part_array = polymec_malloc(sizeof(index_t) * 2 * cl->num_points);
+  uint64_t total_work = 0;
+  if (weights != NULL)
+  {
+    for (int i = 0; i < cl->num_points; ++i)
+    {
+      part_array[2*i] = hilbert_index(hilbert, &cl->points[i]);
+      part_array[2*i+1] = (index_t)weights[i];
+      total_work += weights[i];
+    }
+  }
+  else
+  {
+    for (int i = 0; i < cl->num_points; ++i)
+    {
+      part_array[2*i] = hilbert_index(hilbert, &cl->points[i]);
+      part_array[2*i+1] = 1;
+    }
+    total_work = cl->num_points;
+  }
+
+  // Now we have a distributed array, stored in segments on the processors in this communicator.
+  // Sort the thing all-parallel-like using regular sampling.
+  parallel_qsort_with_sampling(cl->comm, part_array, (size_t)cl->num_points, 
+                               2*sizeof(index_t), hilbert_comp, NULL);
 
 #if 0
   // Map the graph to the different domains, producing a local partition vector
