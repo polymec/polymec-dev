@@ -110,7 +110,7 @@ model_t* model_new(const char* name, void* context, model_vtable vtable, docstri
 
   // Exactly one of read_input and read_custom_input should be given.
   ASSERT(((vtable.read_input != NULL) && (vtable.read_custom_input == NULL)) ||
-          (vtable.read_input == NULL) && (vtable.read_custom_input != NULL));
+         ((vtable.read_input == NULL) && (vtable.read_custom_input != NULL)));
 
   model_t* model = polymec_malloc(sizeof(model_t));
   model->vtable = vtable;
