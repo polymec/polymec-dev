@@ -151,6 +151,11 @@ int MPI_Gather(void *sendbuf, int sendcount, MPI_Datatype sendtype, void *recvbu
   return MPI_SUCCESS;
 }
 
+int MPI_Gatherv(void *sendbuf, int sendcount, MPI_Datatype sendtype, void *recvbuf, int* recvcounts, int* displs, MPI_Datatype recvtype, int root, MPI_Comm comm)
+{
+  return MPI_SUCCESS;
+}
+
 int MPI_Scatter(void *sendbuf, int sendcount, MPI_Datatype sendtype, void *recvbuf, int recvcount, MPI_Datatype recvtype, int root, MPI_Comm comm)
 {
   return MPI_SUCCESS;

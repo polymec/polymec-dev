@@ -22,7 +22,7 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "core/parallel_qsort_with_sampling.h"
+#include "core/parallel_qsort.h"
 
 // This helper merges an array of sorted lists of data (having elements of 
 // the given width in bytes), merging them into a single sorted list using 
@@ -175,12 +175,12 @@ static void parallel_qsort_with_random_sampling(MPI_Comm comm,
   POLYMEC_NOT_IMPLEMENTED;
 }
 
-void parallel_qsort_with_sampling(MPI_Comm comm, 
-                                  void* base, 
-                                  size_t nel, 
-                                  size_t width,
-                                  int (*compar)(const void* left, const void* right),
-                                  rng_t* rng)
+void parallel_qsort(MPI_Comm comm, 
+                    void* base, 
+                    size_t nel, 
+                    size_t width,
+                    int (*compar)(const void* left, const void* right),
+                    rng_t* rng)
 {
   if (rng == NULL)
     parallel_qsort_with_regular_sampling(comm, base, nel, width, compar);

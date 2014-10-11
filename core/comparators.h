@@ -39,6 +39,16 @@ static inline int index_cmp(index_t x, index_t y)
   return (x < y) ? -1 : (x == y) ? 0 : 1;
 }
 
+static inline int double_cmp(double x, double y)
+{
+  return (x < y) ? -1 : (x == y) ? 0 : 1;
+}
+
+static inline int float_cmp(float x, float y)
+{
+  return (x < y) ? -1 : (x == y) ? 0 : 1;
+}
+
 static inline int real_cmp(real_t x, real_t y)
 {
   return (x < y) ? -1 : (x == y) ? 0 : 1;

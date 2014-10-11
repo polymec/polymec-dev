@@ -24,7 +24,7 @@
 
 #include "core/partition_point_cloud.h"
 #include "core/hilbert.h"
-#include "core/parallel_qsort_with_sampling.h"
+#include "core/parallel_qsort.h"
 
 #if POLYMEC_HAVE_MPI
 
@@ -182,6 +182,31 @@ static int hilbert_comp(const void* l, const void* r)
                          : (li[0] > ri[0]) ? 1
                                            : 0;
 }
+
+// This creates a local partition vector using the information in the sorted 
+// distributed array. This is to be used only with repartition_point_cloud().
+static int* create_partition_from_sorted_array(MPI_Comm comm, 
+                                               index_t* array, 
+                                               int local_array_size)
+{
+  int nprocs, rank;
+  MPI_Comm_size(comm, &nprocs);
+  MPI_Comm_rank(comm, &rank);
+
+  // Find out who expects data from us.
+  int num_points_for_rank[nprocs], my_num_points_for_rank[nprocs];
+  memset(my_num_points_for_rank, 0, sizeof(int) * nprocs);
+  for (int i = 0; i < local_array_size; ++i)
+  {
+    int rank = array[4*i+1];
+    ++my_num_points_for_rank[rank];
+  }
+  MPI_Alltoall(my_num_points_for_rank, 1, MPI_INT, num_points_for_rank, 1, MPI_INT, comm);
+
+  // Now find out which ranks got our points.
+
+}
+
 #endif
 
 exchanger_t* partition_point_cloud(point_cloud_t** cloud, MPI_Comm comm, int* weights, real_t imbalance_tol)
@@ -302,17 +327,20 @@ exchanger_t* repartition_point_cloud(point_cloud_t** cloud, int* weights, real_t
   // Set up a Hilbert space filling curve that can map the given points to indices.
   hilbert_t* hilbert = hilbert_from_points(cl->points, cl->num_points);
 
-  // Create an array of 2-tuples containing the (Hilbert index, weight) of each point. 
+  // Create an array of 4-tuples containing the 
+  // (Hilbert index, rank, index, weight) of each point. 
   // Partitioning the points amounts to sorting this array and breaking it into parts whose 
   // work is equal. Also sum up the work on the points.
-  index_t* part_array = polymec_malloc(sizeof(index_t) * 2 * cl->num_points);
+  index_t* part_array = polymec_malloc(sizeof(index_t) * 4 * cl->num_points);
   uint64_t total_work = 0;
   if (weights != NULL)
   {
     for (int i = 0; i < cl->num_points; ++i)
     {
-      part_array[2*i] = hilbert_index(hilbert, &cl->points[i]);
-      part_array[2*i+1] = (index_t)weights[i];
+      part_array[4*i] = hilbert_index(hilbert, &cl->points[i]);
+      part_array[4*i+1] = (index_t)rank;
+      part_array[4*i+2] = (index_t)i;
+      part_array[4*i+3] = (index_t)weights[i];
       total_work += weights[i];
     }
   }
@@ -320,16 +348,22 @@ exchanger_t* repartition_point_cloud(point_cloud_t** cloud, int* weights, real_t
   {
     for (int i = 0; i < cl->num_points; ++i)
     {
-      part_array[2*i] = hilbert_index(hilbert, &cl->points[i]);
-      part_array[2*i+1] = 1;
+      part_array[4*i] = hilbert_index(hilbert, &cl->points[i]);
+      part_array[4*i+1] = (index_t)rank;
+      part_array[4*i+2] = (index_t)i;
+      part_array[4*i+1] = 1;
     }
     total_work = cl->num_points;
   }
 
   // Now we have a distributed array, stored in segments on the processors in this communicator.
   // Sort the thing all-parallel-like using regular sampling.
-  parallel_qsort_with_sampling(cl->comm, part_array, (size_t)cl->num_points, 
-                               2*sizeof(index_t), hilbert_comp, NULL);
+  parallel_qsort(cl->comm, part_array, (size_t)cl->num_points, 
+                 4*sizeof(index_t), hilbert_comp, NULL);
+
+  // Now we create a local partition vector for each process using the elements
+  // in the sorted list.
+  int* local_partition = create_partition_from_sorted_array(cl->comm, part_array, cl->num_points);
 
 #if 0
   // Map the graph to the different domains, producing a local partition vector

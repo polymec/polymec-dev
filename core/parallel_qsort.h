@@ -22,8 +22,8 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef POLYMEC_PARALLEL_QSORT_WITH_SAMPLING_H
-#define POLYMEC_PARALLEL_QSORT_WITH_SAMPLING_H
+#ifndef POLYMEC_PARALLEL_QSORT_H
+#define POLYMEC_PARALLEL_QSORT_H
 
 #include "core/rng.h"
 
@@ -38,12 +38,12 @@
 // data has been sorted on each process p such that processes preceding p 
 // contain sorted data preceding that on p, and processes following p contain 
 // sorted data following that on p.
-void parallel_qsort_with_sampling(MPI_Comm comm, 
-                                  void* base, 
-                                  size_t nel, 
-                                  size_t width,
-                                  int (*compar)(const void* left, const void* right),
-                                  rng_t* rng);
+void parallel_qsort(MPI_Comm comm, 
+                    void* base, 
+                    size_t nel, 
+                    size_t width,
+                    int (*compar)(const void* left, const void* right),
+                    rng_t* rng);
 
 #endif
 
