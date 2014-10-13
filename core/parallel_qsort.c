@@ -76,11 +76,11 @@ static void parallel_qsort_with_regular_sampling(MPI_Comm comm,
   for (int p = 0; p < nprocs; ++p)
     for (int i = 0; i < width; ++i)
       pivot_buffer[p*width+i] = base_bytes[p*nel*width/nprocs+i];
-{printf("%d: Selected pivots: [", rank);
-int* a = (int*)pivot_buffer;
-for (int i = 0; i < nprocs; ++i)
-printf("%d ", a[i]);
-printf("]\n");}
+//{printf("%d: Selected pivots: [", rank);
+//int* a = (int*)pivot_buffer;
+//for (int i = 0; i < nprocs; ++i)
+//printf("%d ", a[i]);
+//printf("]\n");}
 
   // The root process (rank 0) gathers all pivot candidates from the others.
   if (rank == 0)
@@ -92,11 +92,11 @@ printf("]\n");}
   // selects pivots to broadcast.
   if (rank == 0)
   {
-{printf("Gathered pivots: [");
-int* a = (int*)pivot_buffer;
-for (int i = 0; i < nprocs*nprocs; ++i)
-printf("%d ", a[i]);
-printf("]\n");}
+//{printf("Gathered pivots: [");
+//int* a = (int*)pivot_buffer;
+//for (int i = 0; i < nprocs*nprocs; ++i)
+//printf("%d ", a[i]);
+//printf("]\n");}
     // Merge the pivot lists.
     uint8_t* pivot_lists[nprocs];
     int pivot_lengths[nprocs];
@@ -112,11 +112,11 @@ printf("]\n");}
     for (int p = 1; p < nprocs; ++p)
       for (int i = 0; i < width; ++i)
         pivot_buffer[(p-1)*width+i] = merged_pivots[p*nprocs*width+i];
-{printf("Merged pivots: [");
-int* a = (int*)pivot_buffer;
-for (int i = 0; i < nprocs; ++i)
-printf("%d ", a[i]);
-printf("]\n");}
+//{printf("Merged pivots: [");
+//int* a = (int*)pivot_buffer;
+//for (int i = 0; i < nprocs; ++i)
+//printf("%d ", a[i]);
+//printf("]\n");}
 
     polymec_free(merged_pivots);
   }
@@ -138,25 +138,25 @@ printf("]\n");}
       ++(class_size[i]);
       ++k;
     }
-printf("%d: %d members of class %d (starting at %d)\n", rank, class_size[i], i, class_offset[i]);
-{
-int* a = (int*)base_bytes;
-printf("%d: [", rank);
-for (int j = 0; j < class_size[i]; ++j)
-printf("%d ", a[class_offset[i]+j]);
-printf("]\n");
-}
+//printf("%d: %d members of class %d (starting at %d)\n", rank, class_size[i], i, class_offset[i]);
+//{
+//int* a = (int*)base_bytes;
+//printf("%d: [", rank);
+//for (int j = 0; j < class_size[i]; ++j)
+//printf("%d ", a[class_offset[i]+j]);
+//printf("]\n");
+//}
   }
   class_offset[nprocs-1] = k;
   class_size[nprocs-1] = nel - k;
-printf("%d: %d members of class %d (starting at %d)\n", rank, class_size[nprocs-1], nprocs-1, class_offset[nprocs-1]);
-{
-int* a = (int*)base_bytes;
-printf("%d: [", rank);
-for (int j = 0; j < class_size[nprocs-1]; ++j)
-printf("%d ", a[class_offset[nprocs-1]+j]);
-printf("]\n");
-}
+//printf("%d: %d members of class %d (starting at %d)\n", rank, class_size[nprocs-1], nprocs-1, class_offset[nprocs-1]);
+//{
+//int* a = (int*)base_bytes;
+//printf("%d: [", rank);
+//for (int j = 0; j < class_size[nprocs-1]; ++j)
+//printf("%d ", a[class_offset[nprocs-1]+j]);
+//printf("]\n");
+//}
 
   // Now each process gathers the data belonging to its class.
   int data_sizes[nprocs], data_byte_sizes[nprocs];
