@@ -76,6 +76,11 @@ static void parallel_qsort_with_regular_sampling(MPI_Comm comm,
   for (int p = 0; p < nprocs; ++p)
     for (int i = 0; i < width; ++i)
       pivot_buffer[p*width+i] = base_bytes[p*nel*width/nprocs+i];
+{printf("%d: Selected pivots: [", rank);
+int* a = (int*)pivot_buffer;
+for (int i = 0; i < nprocs; ++i)
+printf("%d ", a[i]);
+printf("]\n");}
 
   // The root process (rank 0) gathers all pivot candidates from the others.
   if (rank == 0)
@@ -87,12 +92,17 @@ static void parallel_qsort_with_regular_sampling(MPI_Comm comm,
   // selects pivots to broadcast.
   if (rank == 0)
   {
+{printf("Gathered pivots: [");
+int* a = (int*)pivot_buffer;
+for (int i = 0; i < nprocs*nprocs; ++i)
+printf("%d ", a[i]);
+printf("]\n");}
     // Merge the pivot lists.
     uint8_t* pivot_lists[nprocs];
     int pivot_lengths[nprocs];
     for (int p = 0; p < nprocs; ++p)
     {
-      pivot_lists[p] = &pivot_buffer[width*p];
+      pivot_lists[p] = &pivot_buffer[width*p*nprocs];
       pivot_lengths[p] = nprocs;
     }
     uint8_t* merged_pivots = polymec_malloc(width * nprocs * nprocs);
@@ -102,6 +112,11 @@ static void parallel_qsort_with_regular_sampling(MPI_Comm comm,
     for (int p = 1; p < nprocs; ++p)
       for (int i = 0; i < width; ++i)
         pivot_buffer[(p-1)*width+i] = merged_pivots[p*nprocs*width+i];
+{printf("Merged pivots: [");
+int* a = (int*)pivot_buffer;
+for (int i = 0; i < nprocs; ++i)
+printf("%d ", a[i]);
+printf("]\n");}
 
     polymec_free(merged_pivots);
   }
@@ -118,14 +133,30 @@ static void parallel_qsort_with_regular_sampling(MPI_Comm comm,
     class_size[i] = 0;
 
     // Populate this class with data.
-    while ((k < nel) && (compar(&base_bytes[k*width], &pivot_buffer[i*width]) < 0))
+    while ((k < nel) && (compar(&base_bytes[k*width], &pivot_buffer[i*width]) <= 0))
     {
       ++(class_size[i]);
       ++k;
     }
+printf("%d: %d members of class %d (starting at %d)\n", rank, class_size[i], i, class_offset[i]);
+{
+int* a = (int*)base_bytes;
+printf("%d: [", rank);
+for (int j = 0; j < class_size[i]; ++j)
+printf("%d ", a[class_offset[i]+j]);
+printf("]\n");
+}
   }
   class_offset[nprocs-1] = k;
   class_size[nprocs-1] = nel - k;
+printf("%d: %d members of class %d (starting at %d)\n", rank, class_size[nprocs-1], nprocs-1, class_offset[nprocs-1]);
+{
+int* a = (int*)base_bytes;
+printf("%d: [", rank);
+for (int j = 0; j < class_size[nprocs-1]; ++j)
+printf("%d ", a[class_offset[nprocs-1]+j]);
+printf("]\n");
+}
 
   // Now each process gathers the data belonging to its class.
   int data_sizes[nprocs], data_byte_sizes[nprocs];
@@ -149,15 +180,23 @@ static void parallel_qsort_with_regular_sampling(MPI_Comm comm,
     }
 
     // Now process p gathers the data in this class.
-    MPI_Gatherv(&base_bytes[width*class_offset[p]], class_size[p],
+    MPI_Gatherv(&base_bytes[width*class_offset[p]], width * class_size[p],
                 MPI_BYTE, class_data, data_byte_sizes, data_byte_offsets, 
                 MPI_BYTE, p, comm);
   }
+{
+int* a = (int*)class_data;
+printf("%d: Unmerged class data: [", rank);
+for (int i = 0; i < nel; ++i)
+printf("%d ", a[i]);
+printf("]\n");
+printf("%d: First data size: %d\n", rank, data_sizes[0]);
+}
 
   // Now each process merges the class data it has received.
   uint8_t* class_lists[nprocs];
   for (int p = 0; p < nprocs; ++p)
-    class_lists[p] = &class_data[width * data_byte_offsets[p]];
+    class_lists[p] = &class_data[data_byte_offsets[p]];
   merge_sorted_lists(class_lists, data_sizes, nprocs, width, compar, base);
 
   // Clean up.

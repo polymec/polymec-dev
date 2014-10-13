@@ -75,16 +75,23 @@ static bool list_is_ordered(MPI_Comm comm,
   char left[width], right[width];
   MPI_Status statuses[2];
   MPI_Request requests[2];
+  int num_requests = 0;
   if (rank > 0)
-    MPI_Irecv(left, width, MPI_BYTE, rank-1, 0, comm, &requests[0]);
+  {
+    MPI_Irecv(left, width, MPI_BYTE, rank-1, 0, comm, &requests[num_requests]);
+    ++num_requests;
+  }
   if (rank < (nprocs - 1))
-    MPI_Irecv(right, width, MPI_BYTE, rank+1, 0, comm, &requests[1]);
+  {
+    MPI_Irecv(right, width, MPI_BYTE, rank+1, 0, comm, &requests[num_requests]);
+    ++num_requests;
+  }
   if (rank > 0)
     MPI_Send(list, width, MPI_BYTE, rank-1, 0, comm);
   if (rank < (nprocs - 1))
     MPI_Send(&list[width*(nel-1)], width, MPI_BYTE, rank+1, 0, comm);
 
-  MPI_Waitall(2, requests, statuses);
+  MPI_Waitall(num_requests, requests, statuses);
 
   // Now make sure everything is properly sorted.
   if ((rank > 0) && (compar(left, &list[0]) > 0))
@@ -135,6 +142,7 @@ printf("\n");
   }
 
   // Generate and sort a list of doubles, 100 per process.
+return;
   {
     double* doubles = random_doubles(rng, 100);
     parallel_qsort(comm, doubles, 100, sizeof(double), compare_doubles, NULL);
