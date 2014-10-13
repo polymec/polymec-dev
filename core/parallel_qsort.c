@@ -66,49 +66,94 @@ static void reshuffle_if_necessary(MPI_Comm comm,
   MPI_Allreduce(&reshuffle, &global_reshuffle, 1, MPI_INT, MPI_MAX, comm);
   if (global_reshuffle)
   {
+    uint8_t* temp_bytes = temp;
     int num_excess_elems = new_size - nel;
-    int num_elems_from_left = 0;
+    int num_elems_from_left = 0, num_elems_from_right = 0, num_elems_to_left = 0;
     uint8_t* elems_from_left = NULL;
+    uint8_t* elems_from_right = NULL;
 
-    // Get any elements from our left neighbor.
+    // Get any elements we need from our neighbor.
+    MPI_Status status;
+
+    // Interact with the left neighbor.
+printf("%d has %d excess elements.\n", rank, num_excess_elems);
     if (rank > 0)
     {
-      MPI_Status status;
       MPI_Recv(&num_elems_from_left, 1, MPI_INT, rank-1, 0, comm, &status);
 printf("%d is getting %d elems from the left.\n", rank, num_elems_from_left);
+      num_excess_elems += num_elems_from_left;
       if (num_elems_from_left > 0)
       {
-        num_excess_elems += num_elems_from_left;
         elems_from_left = polymec_malloc(width * num_elems_from_left);
         MPI_Recv(elems_from_left, width * num_elems_from_left, MPI_BYTE, rank-1, 0, comm, &status);
       }
-    }
-
-    // Construct a list of excess elements and ship them to our right.
-    uint8_t* temp_bytes = temp;
-    if (num_excess_elems > 0)
-    {
-      // The last process shouldn't have any excess elements.
-printf("%d has %d excess elems.\n", rank, num_excess_elems);
-      ASSERT(rank < (nprocs - 1));
-
-      uint8_t* excess_elems = polymec_malloc(width * num_excess_elems);
-      if (num_elems_from_left > nel)
+      else if (num_elems_from_left < 0)
       {
-        memcpy(excess_elems, &elems_from_left[width*(num_elems_from_left - nel)], width * (num_elems_from_left - nel));
-        memcpy(&excess_elems[width*(num_elems_from_left - nel)], temp_bytes, width * nel);
+        num_elems_to_left = -num_elems_from_left;
+        uint8_t* elems_to_left = polymec_malloc(width * num_elems_to_left);
+        memcpy(elems_to_left, temp_bytes, width * num_elems_to_left);
+        MPI_Send(elems_to_left, width * num_elems_to_left, MPI_BYTE, rank-1, 0, comm);
+        polymec_free(elems_to_left);
       }
-      else
-        memcpy(excess_elems, &temp_bytes[width*(nel - num_elems_from_left)], width * (nel - num_elems_from_left));
-      MPI_Send(excess_elems, width*num_excess_elems, MPI_BYTE, rank+1, 0, comm);
+    }
+printf("%d now has %d excess elements.\n", rank, num_excess_elems);
+
+    // Interact with the right neighbor.
+    if (rank < (nprocs - 1))
+    {
+      MPI_Send(&num_excess_elems, 1, MPI_INT, rank+1, 0, comm);
+      if (num_excess_elems < 0)
+      {
+        // We are getting elements from our right neighbor.
+        num_elems_from_right = -num_excess_elems;
+printf("%d is getting %d elems from the right.\n", rank, num_elems_from_right);
+        elems_from_right = polymec_malloc(width * num_elems_from_right);
+        MPI_Recv(elems_from_right, width * num_elems_from_right, MPI_BYTE, rank+1, 0, comm, &status);
+      }
+      else if (num_excess_elems > 0)
+      {
+        // We are giving elements to our right neighbor.
+        uint8_t* elems_to_right = polymec_malloc(width * num_excess_elems);
+        if ((num_elems_from_left > 0) && (num_elems_from_left > nel))
+        {
+          // We are passing along excess elements we got from the left, since we got so many.
+          int num_passed_on_from_left = num_elems_from_left - nel;
+          memcpy(elems_to_right, elems_from_left[width*nel], width * num_passed_on_from_left);
+          if (num_excess_elems > num_passed_on_from_left)
+            memcpy(&elems_to_right[width*num_passed_on_from_left], &temp_bytes[num_elems_to_left], width * (num_excess_elems - num_passed_on_from_left));
+          num_elems_from_left = nel;
+        }
+        else
+          memcpy(elems_to_right, &temp_bytes[width*(nel+num_elems_to_left)], width * num_excess_elems);
+        MPI_Send(elems_to_right, width * num_excess_elems, MPI_BYTE, rank+1, 0, comm);
+        polymec_free(elems_to_right);
+      }
     }
 
     // Copy the elements into place.
     uint8_t* base_bytes = base;
-    if (num_elems_from_left < nel)
-      memmove(&base_bytes[width * num_elems_from_left], temp_bytes, width * (nel - num_elems_from_left));
+    memcpy(base_bytes, temp_bytes, width * nel);
     if (num_elems_from_left > 0)
-      memcpy(base_bytes, elems_from_left, width * num_elems_from_left);
+    {
+printf("%d: Getting stuff from left!\n", rank);
+      if (num_elems_from_left > 0)
+      {
+        if (num_elems_from_left < nel)
+          memcpy(&base_bytes[width * num_elems_from_left], temp_bytes, width * (nel - num_elems_from_left));
+        memcpy(base_bytes, elems_from_left, width * MIN(nel, num_elems_from_left));
+      }
+    }
+    else if (num_elems_to_left > 0)
+    {
+      if (num_elems_to_left < nel)
+        memcpy(base_bytes, &temp_bytes[width * num_elems_to_left], width * nel);
+    }
+    if (num_elems_from_right > 0)
+    {
+printf("%d: Getting stuff from right!\n", rank);
+      ASSERT(num_elems_from_right <= nel);
+      memcpy(&base_bytes[width * (nel-num_elems_from_right)], elems_from_right, width * num_elems_from_right);
+    }
   }
 }
 
@@ -272,6 +317,13 @@ static void parallel_qsort_with_regular_sampling(MPI_Comm comm,
   for (int p = 0; p < nprocs; ++p)
     class_lists[p] = &class_data[data_byte_offsets[p]];
   merge_sorted_lists(class_lists, data_sizes, nprocs, width, compar, temp);
+{
+int* a = (int*)temp;
+printf("%d: Unshuffled list: [", rank);
+for (int i = 0; i < new_size; ++i)
+printf("%d ", a[i]);
+printf("]\n");
+}
 
   reshuffle_if_necessary(comm, width, new_size, temp, nel, base);
 
