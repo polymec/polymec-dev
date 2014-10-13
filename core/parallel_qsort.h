@@ -34,8 +34,8 @@
 // The comparator compar is used to perform comparisons between local elements 
 // in each array. If rng is NULL, sampling for pivots is performed at regular 
 // intervals. Otherwise, rng is used to randomly select pivots on each process.
-// On output, base points to the same locally-stored array as before, but its 
-// data has been sorted on each process p such that processes preceding p 
+// On output, base points to the same locally-stored array as before, but
+// its data has been sorted on each process p such that processes preceding p 
 // contain sorted data preceding that on p, and processes following p contain 
 // sorted data following that on p.
 void parallel_qsort(MPI_Comm comm, 

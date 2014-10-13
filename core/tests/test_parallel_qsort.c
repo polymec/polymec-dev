@@ -44,7 +44,7 @@ static int compare_doubles(const void* l, const void* r)
   return (left[0] < right[0]) ? -1 : (left[0] == right[0]) ? 0 : 1;
 }
 
-static int* random_ints(rng_t* rng, int size)
+static int* random_ints(rng_t* rng, size_t size)
 {
   int* list = polymec_malloc(sizeof(int) * size);
   for (int i = 0; i < size; ++i)
@@ -52,7 +52,7 @@ static int* random_ints(rng_t* rng, int size)
   return list;
 }
 
-static double* random_doubles(rng_t* rng, int size)
+static double* random_doubles(rng_t* rng, size_t size)
 {
   double* list = polymec_malloc(sizeof(double) * size);
   for (int i = 0; i < size; ++i)
@@ -96,7 +96,7 @@ static bool list_is_ordered(MPI_Comm comm,
   // Now make sure everything is properly sorted.
   if ((rank > 0) && (compar(left, &list[0]) > 0))
   {
-    printf("list_is_ordered: first element on rank %d exceeds last on rank %d\n", rank, rank-1);
+    printf("list_is_ordered: last element on rank %d exceeds first on rank %d\n", rank-1, rank);
     return false;
   }
 
@@ -125,28 +125,30 @@ void test_regular_sampling(void** state)
 
   // Generate and sort a list of integers, 100 per process.
   {
-    int* ints = random_ints(rng, 100);
+    size_t size = 100;
+    int* ints = random_ints(rng, size);
 int rank;
 MPI_Comm_rank(comm, &rank);
-printf("%d: ", rank);
-for (int i = 0; i < 100; ++i)
+//printf("%d: ", rank);
+//for (int i = 0; i < size; ++i)
+//  printf("%d ", ints[i]);
+//printf("\n");
+    parallel_qsort(comm, ints, size, sizeof(int), compare_ints, NULL);
+printf("%d (%d): ", rank, size);
+for (int i = 0; i < size; ++i)
   printf("%d ", ints[i]);
 printf("\n");
-    parallel_qsort(comm, ints, 100, sizeof(int), compare_ints, NULL);
-printf("%d: ", rank);
-for (int i = 0; i < 100; ++i)
-  printf("%d ", ints[i]);
-printf("\n");
-    assert_true(list_is_ordered(comm, ints, 100, sizeof(int), compare_ints));
+    assert_true(list_is_ordered(comm, ints, size, sizeof(int), compare_ints));
     polymec_free(ints);
   }
 
   // Generate and sort a list of doubles, 100 per process.
 return;
   {
-    double* doubles = random_doubles(rng, 100);
-    parallel_qsort(comm, doubles, 100, sizeof(double), compare_doubles, NULL);
-    assert_true(list_is_ordered(comm, doubles, 100, sizeof(double), compare_doubles));
+    size_t size = 100;
+    double* doubles = random_doubles(rng, size);
+    parallel_qsort(comm, doubles, size, sizeof(double), compare_doubles, NULL);
+    assert_true(list_is_ordered(comm, doubles, size, sizeof(double), compare_doubles));
     polymec_free(doubles);
   }
 }

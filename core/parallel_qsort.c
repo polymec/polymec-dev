@@ -47,6 +47,71 @@ static void merge_sorted_lists(uint8_t** lists_to_merge,
   qsort(merged_list, k, width, compar);
 }
 
+static void reshuffle_if_necessary(MPI_Comm comm, 
+                                   size_t width, 
+                                   size_t new_size, 
+                                   void* temp,
+                                   size_t nel,
+                                   void* base)
+{
+  int nprocs, rank;
+  MPI_Comm_size(comm, &nprocs);
+  MPI_Comm_rank(comm, &rank);
+
+  // If we have disturbed the number of elements per process, we reshuffle 
+  // them now. This is potentially expensive, but much less confusing than 
+  // imbalancing the load on each process for our purposes. Everyone needs 
+  // to participate at this stage of the game, in any case.
+  int reshuffle = (new_size == nel) ? 0 : 1, global_reshuffle;
+  MPI_Allreduce(&reshuffle, &global_reshuffle, 1, MPI_INT, MPI_MAX, comm);
+  if (global_reshuffle)
+  {
+    int num_excess_elems = new_size - nel;
+    int num_elems_from_left = 0;
+    uint8_t* elems_from_left = NULL;
+
+    // Get any elements from our left neighbor.
+    if (rank > 0)
+    {
+      MPI_Status status;
+      MPI_Recv(&num_elems_from_left, 1, MPI_INT, rank-1, 0, comm, &status);
+printf("%d is getting %d elems from the left.\n", rank, num_elems_from_left);
+      if (num_elems_from_left > 0)
+      {
+        num_excess_elems += num_elems_from_left;
+        elems_from_left = polymec_malloc(width * num_elems_from_left);
+        MPI_Recv(elems_from_left, width * num_elems_from_left, MPI_BYTE, rank-1, 0, comm, &status);
+      }
+    }
+
+    // Construct a list of excess elements and ship them to our right.
+    uint8_t* temp_bytes = temp;
+    if (num_excess_elems > 0)
+    {
+      // The last process shouldn't have any excess elements.
+printf("%d has %d excess elems.\n", rank, num_excess_elems);
+      ASSERT(rank < (nprocs - 1));
+
+      uint8_t* excess_elems = polymec_malloc(width * num_excess_elems);
+      if (num_elems_from_left > nel)
+      {
+        memcpy(excess_elems, &elems_from_left[width*(num_elems_from_left - nel)], width * (num_elems_from_left - nel));
+        memcpy(&excess_elems[width*(num_elems_from_left - nel)], temp_bytes, width * nel);
+      }
+      else
+        memcpy(excess_elems, &temp_bytes[width*(nel - num_elems_from_left)], width * (nel - num_elems_from_left));
+      MPI_Send(excess_elems, width*num_excess_elems, MPI_BYTE, rank+1, 0, comm);
+    }
+
+    // Copy the elements into place.
+    uint8_t* base_bytes = base;
+    if (num_elems_from_left < nel)
+      memmove(&base_bytes[width * num_elems_from_left], temp_bytes, width * (nel - num_elems_from_left));
+    if (num_elems_from_left > 0)
+      memcpy(base_bytes, elems_from_left, width * num_elems_from_left);
+  }
+}
+
 static void parallel_qsort_with_regular_sampling(MPI_Comm comm, 
                                                  void* base, 
                                                  size_t nel, 
@@ -158,14 +223,12 @@ static void parallel_qsort_with_regular_sampling(MPI_Comm comm,
 //printf("]\n");
 //}
 
-  // Now each process gathers the data belonging to its class.
+  // Gather the various sizes of the data in this class from other 
+  // processes to process p.
   int data_sizes[nprocs], data_byte_sizes[nprocs];
   int data_byte_offsets[nprocs];
-  uint8_t* class_data = polymec_malloc(width * nel);
   for (int p = 0; p < nprocs; ++p)
   {
-    // Gather the various sizes of the data in this class from other 
-    // processes to process p.
     MPI_Gather(&class_size[p], 1, MPI_INT, data_sizes, 1, MPI_INT, p, comm);
     for (int p = 0; p < nprocs; ++p)
       data_byte_sizes[p] = width * data_sizes[p];
@@ -178,28 +241,43 @@ static void parallel_qsort_with_regular_sampling(MPI_Comm comm,
       for (int pp = 1; pp < nprocs; ++pp)
         data_byte_offsets[pp] = data_byte_offsets[pp-1] + data_byte_sizes[pp-1];
     }
+  }
+  size_t new_size = (data_byte_offsets[nprocs-1] + data_byte_sizes[nprocs-1])/width;
 
+  // Now each process gathers the data belonging to its class.
+  uint8_t* class_data = polymec_malloc(width * new_size);
+  for (int p = 0; p < nprocs; ++p)
+  {
     // Now process p gathers the data in this class.
     MPI_Gatherv(&base_bytes[width*class_offset[p]], width * class_size[p],
                 MPI_BYTE, class_data, data_byte_sizes, data_byte_offsets, 
                 MPI_BYTE, p, comm);
   }
-{
-int* a = (int*)class_data;
-printf("%d: Unmerged class data: [", rank);
-for (int i = 0; i < nel; ++i)
-printf("%d ", a[i]);
-printf("]\n");
-printf("%d: First data size: %d\n", rank, data_sizes[0]);
-}
+//{
+//int* a = (int*)class_data;
+//printf("%d: Unmerged class data: [", rank);
+//for (int i = 0; i < nel; ++i)
+//printf("%d ", a[i]);
+//printf("]\n");
+//}
+
+  // If the new local size is not the old size, create a temporary local 
+  // array.
+  void* temp = base;
+  if (new_size != nel)
+    temp = polymec_malloc(width * new_size);
 
   // Now each process merges the class data it has received.
   uint8_t* class_lists[nprocs];
   for (int p = 0; p < nprocs; ++p)
     class_lists[p] = &class_data[data_byte_offsets[p]];
-  merge_sorted_lists(class_lists, data_sizes, nprocs, width, compar, base);
+  merge_sorted_lists(class_lists, data_sizes, nprocs, width, compar, temp);
+
+  reshuffle_if_necessary(comm, width, new_size, temp, nel, base);
 
   // Clean up.
+  if (temp != base)
+    polymec_free(temp);
   polymec_free(pivot_buffer);
   polymec_free(class_data);
 }
@@ -221,6 +299,8 @@ void parallel_qsort(MPI_Comm comm,
                     int (*compar)(const void* left, const void* right),
                     rng_t* rng)
 {
+  ASSERT(base != NULL);
+
   if (rng == NULL)
     parallel_qsort_with_regular_sampling(comm, base, nel, width, compar);
   else

@@ -358,7 +358,7 @@ exchanger_t* repartition_point_cloud(point_cloud_t** cloud, int* weights, real_t
 
   // Now we have a distributed array, stored in segments on the processors in this communicator.
   // Sort the thing all-parallel-like using regular sampling.
-  parallel_qsort(cl->comm, part_array, (size_t)cl->num_points, 
+  parallel_qsort(cl->comm, part_array, cl->num_points, 
                  4*sizeof(index_t), hilbert_comp, NULL);
 
   // Now we create a local partition vector for each process using the elements
