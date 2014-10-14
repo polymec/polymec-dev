@@ -309,6 +309,7 @@ exchanger_t* partition_point_cloud(point_cloud_t** cloud, MPI_Comm comm, int* we
 #endif
 }
 
+#if 0
 exchanger_t* repartition_point_cloud(point_cloud_t** cloud, int* weights, real_t imbalance_tol)
 {
   ASSERT(imbalance_tol > 0.0);
@@ -390,4 +391,5 @@ exchanger_t* repartition_point_cloud(point_cloud_t** cloud, int* weights, real_t
   return exchanger_new(cl->comm);
 #endif
 }
+#endif
 

@@ -1081,6 +1081,7 @@ exchanger_t* partition_mesh(mesh_t** mesh, MPI_Comm comm, int* weights, real_t i
 #endif
 }
 
+#if 0
 exchanger_t* repartition_mesh(mesh_t** mesh, int* weights, real_t imbalance_tol)
 {
   ASSERT(imbalance_tol > 0.0);
@@ -1131,4 +1132,5 @@ exchanger_t* repartition_mesh(mesh_t** mesh, int* weights, real_t imbalance_tol)
   return exchanger_new(m->comm);
 #endif
 }
+#endif
 

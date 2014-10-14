@@ -893,6 +893,7 @@ static int tag_nodes(lua_State* lua)
   return 0;
 }
 
+#if 0
 static int repartition(lua_State* lua)
 {
   // Check the arguments.
@@ -950,6 +951,7 @@ static int repartition(lua_State* lua)
 
   return 0;
 }
+#endif
 
 void interpreter_register_default_functions(interpreter_t* interp)
 {
@@ -979,6 +981,6 @@ void interpreter_register_default_functions(interpreter_t* interp)
   interpreter_register_function(interp, "tag_nodes", tag_nodes, NULL);
 
   // Other stuff.
-  interpreter_register_function(interp, "repartition", repartition, NULL);
+//  interpreter_register_function(interp, "repartition", repartition, NULL);
 }
 
