@@ -1,5 +1,5 @@
 add_library(polymec_model model.c boundary_cell_map.c periodic_bc.c stencil.c
-            polynomial_fit.c helmholtz_solver.c conduction_solver.c
+            neighbor_pairing.c polynomial_fit.c helmholtz_solver.c conduction_solver.c
             interpreter_register_model_functions.c)
 
 set(POLYMEC_LIBS polymec_model;${POLYMEC_LIBS} PARENT_SCOPE)
