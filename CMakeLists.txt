@@ -48,6 +48,10 @@ set (BUILD_SHARED_LIBS OFF)
 add_custom_target(update_version_h ALL
                   python ${PROJECT_SOURCE_DIR}/tools/update_version_h.py polymec ${POLYMEC_VERSION} ${PROJECT_BINARY_DIR}/core/polymec_version.h)
                   
+# Add a custom target that generates polymec.h and friends at the top level.
+add_custom_target(generate_headers ALL
+                  python ${PROJECT_SOURCE_DIR}/tools/generate_headers.py ${PROJECT_SOURCE_DIR} ${PROJECT_BINARY_DIR})
+                  
 # Figure out the system type.
 if (APPLE EQUAL 1)
   set(SYS_FLAGS "-DAPPLE=1")
@@ -164,6 +168,12 @@ configure_file(
   "${CMAKE_CURRENT_SOURCE_DIR}/cmake/Templates/polymec.cmake.in"
   "${CMAKE_CURRENT_BINARY_DIR}/polymec.cmake"
 )
+
+# Install the top-level generated headers.
+file(GLOB top_level_headers "${PROJECT_BINARY_DIR}/polymec*.h")
+install(FILES ${top_level_headers} DESTINATION include/polymec)
+
+# Install miscellaneous build/test files.
 install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/tools/update_version_h.py DESTINATION share/polymec)
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/polymec.cmake DESTINATION share/polymec)
 install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/cmake/Modules/add_polymec_executable.cmake DESTINATION share/polymec)
