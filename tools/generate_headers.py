@@ -5,6 +5,8 @@ source_dir = sys.argv[1]
 target_dir = sys.argv[2]
 
 def visit_files(headers, dirname, files):
+    if 'tests' in files:
+        files.remove('tests')
     headers.extend([f for f in files if f[-2:] == '.h'])
 
 def find_headers(dirname):

@@ -52,6 +52,7 @@ typedef struct \
 { \
   int priority; \
   element value; \
+  void (*dtor)(element e); \
 } queue_name##_datum_t; \
 \
 static int queue_name##_cmp(queue_name##_datum_t l, queue_name##_datum_t r) \
@@ -59,11 +60,11 @@ static int queue_name##_cmp(queue_name##_datum_t l, queue_name##_datum_t r) \
   return int_cmp(l.priority, r.priority); \
 } \
 \
-DEFINE_HEAP(queue_name##_heap_t, queue_name##_datum_t, queue_name##_cmp) \
+DEFINE_HEAP(queue_name##_heap, queue_name##_datum_t, queue_name##_cmp) \
 \
 struct queue_name##_t \
 { \
-  queue_name##_heap_t heap; \
+  queue_name##_heap_t* heap; \
 }; \
 \
 static inline queue_name##_t* queue_name##_new() \
@@ -79,10 +80,16 @@ static inline void queue_name##_free(queue_name##_t* queue) \
   polymec_free(queue); \
 } \
 \
+static inline void queue_name##_datum_dtor(queue_name##_datum_t datum) \
+{ \
+  if (datum.dtor != NULL) \
+    datum.dtor(datum.value); \
+} \
+\
 static inline void queue_name##_push_with_dtor(queue_name##_t* queue, queue_name##_element_t value, int priority, void (*dtor)(element e)) \
 { \
-  queue_name##_datum_t datum = {.priority = priority, .value = value}; \
-  queue_name##_heap_push_with_dtor(queue->heap, datum, dtor); \
+  queue_name##_datum_t datum = {.priority = priority, .value = value, .dtor = dtor}; \
+  queue_name##_heap_push_with_dtor(queue->heap, datum, queue_name##_datum_dtor); \
 } \
 \
 static inline void queue_name##_push(queue_name##_t* queue, queue_name##_element_t value, int priority) \
@@ -114,7 +121,7 @@ static inline void queue_name##_clear(queue_name##_t* queue) \
 \
 
 // Define some priority_queues.
-DEFINE_priority_queue(int_priority_queue, int)
-DEFINE_priority_queue(index_priority_queue, index_t)
+DEFINE_PRIORITY_QUEUE(int_priority_queue, int)
+DEFINE_PRIORITY_QUEUE(index_priority_queue, index_t)
 
 #endif
