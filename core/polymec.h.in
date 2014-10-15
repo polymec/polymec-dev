@@ -27,7 +27,7 @@
 
 // We only use standard C11 around here. Intel is a bad actor, but we try to 
 // accommodate it.
-#if !defined(__INTEL_COMPILER) && (!defined __STDC_VERSION__ || __STDC_VERSION__ < 201112L) 
+#if !defined(__INTEL_COMPILER) && (!defined __STDC_VERSION__ || __STDC_VERSION__ < 201112L) && !defined(__cplusplus)
 #error "Polymec requires a C11-compliant compiler."
 #endif
 
@@ -50,7 +50,7 @@
 //#endif
 
 // Intel doesn't do C11 stuff, so we have to be clever.
-#if defined(__INTEL_COMPILER)
+#if defined(__INTEL_COMPILER) || defined(__cplusplus)
 #define noreturn
 #else
 #include <stdnoreturn.h>

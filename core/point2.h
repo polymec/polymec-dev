@@ -36,18 +36,8 @@ typedef struct
 
 // Creates a new point with the given coordinates in the plane. 
 // Not necessary if you are allocating a point on the stack.
-static inline point2_t* point2_new(real_t x, real_t y)
-{
-  point2_t* p = polymec_malloc(sizeof(point2_t));
-  p->x = x, p->y = y;
-  return p;
-}
-
-// Destroys a point2 that has been allocated on the heap.
-static inline void point2_free(point2_t* p)
-{
-  polymec_free(p);
-}
+// This point will be garbage-collected.
+point2_t* point2_new(real_t x, real_t y);
 
 // Square distance between two points in the plane.
 static inline real_t point2_square_distance(point2_t* x, point2_t* y)
@@ -76,18 +66,8 @@ typedef struct
 
 // Creates a new vector with the given components in the plane. 
 // Not necessary if you are allocating a vector on the stack.
-static inline vector2_t* vector2_new(real_t vx, real_t vy)
-{
-  vector2_t* v = polymec_malloc(sizeof(vector2_t));
-  v->x = vx, v->y = vy;
-  return v;
-}
-
-// Destroys a vector2 that has been allocated on the heap.
-static inline void vector2_free(vector2_t* v)
-{
-  polymec_free(v);
-}
+// This vector will be garbage-collected.
+vector2_t* vector2_new(real_t vx, real_t vy);
 
 // Vector dot product.
 static inline real_t vector2_dot(vector2_t* v1, vector2_t* v2)
