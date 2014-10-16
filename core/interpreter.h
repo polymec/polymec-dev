@@ -81,7 +81,7 @@ typedef struct
 } interpreter_validation_t;
 
 // This validation object is used to terminate lists of valid inputs.
-static const interpreter_validation_t END_OF_VALID_INPUTS = {.variable = "TERMINUS", .type = INTERPRETER_TERMINUS, .required = REQUIRED};
+static const interpreter_validation_t END_OF_VALID_INPUTS = {(char*)"TERMINUS", INTERPRETER_TERMINUS, REQUIRED};
 
 // The docstring type holds lines of documentation for interpreter functions.
 // Docstrings are stored in a static database and destroyed upon exit, so they 

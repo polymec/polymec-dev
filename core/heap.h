@@ -62,10 +62,10 @@ struct heap_name##_t \
 \
 static inline heap_name##_t* heap_name##_with_comparator(heap_name##_comparator_t comp) \
 { \
-  heap_name##_t* heap = polymec_malloc(sizeof(heap_name##_t)); \
+  heap_name##_t* heap = (heap_name##_t*)polymec_malloc(sizeof(heap_name##_t)); \
   heap->capacity = 4; \
   heap->size = 0; \
-  heap->data = polymec_malloc(sizeof(element) * heap->capacity); \
+  heap->data = (element*)polymec_malloc(sizeof(element) * heap->capacity); \
   heap->cmp = comp; \
   heap->cmp_factor = 1; \
   return heap; \
@@ -102,8 +102,8 @@ static inline void heap_name##_push_with_dtor(heap_name##_t* heap, heap_name##_e
 	if (heap->size == heap->capacity) \
 	{ \
 		heap->capacity *= 2; \
-		heap->data = polymec_realloc(heap->data, sizeof(element) * heap->capacity); \
-		heap->dtors = polymec_realloc(heap->dtors, sizeof(heap_name##_dtor) * heap->capacity); \
+		heap->data = (element*)polymec_realloc(heap->data, sizeof(element) * heap->capacity); \
+		heap->dtors = (heap_name##_dtor*)polymec_realloc(heap->dtors, sizeof(heap_name##_dtor) * heap->capacity); \
 	} \
   int index, parent; \
 	for(index = heap->size++; index; index = parent) \
@@ -130,8 +130,8 @@ static inline void heap_name##_pop(heap_name##_t* heap) \
 	if ((heap->size <= (heap->capacity >> 2)) && (heap->capacity > 4)) \
 	{ \
 		heap->capacity >>= 1; \
-		heap->data = polymec_realloc(heap->data, sizeof(element) * heap->capacity); \
-		heap->dtors = polymec_realloc(heap->dtors, sizeof(heap_name##_dtor) * heap->capacity); \
+		heap->data = (element*)polymec_realloc(heap->data, sizeof(element) * heap->capacity); \
+		heap->dtors = (heap_name##_dtor*)polymec_realloc(heap->dtors, sizeof(heap_name##_dtor) * heap->capacity); \
 	} \
 	int index, swap; \
 	for(index = 0; 1; index = swap) \
@@ -165,7 +165,8 @@ static inline void heap_name##_clear(heap_name##_t* heap) \
   if (heap->capacity > 4) \
   { \
     heap->capacity = 4; \
-    heap->data = polymec_realloc(heap->data, sizeof(element) * heap->capacity); \
+		heap->data = (element*)polymec_realloc(heap->data, sizeof(element) * heap->capacity); \
+		heap->dtors = (heap_name##_dtor*)polymec_realloc(heap->dtors, sizeof(heap_name##_dtor) * heap->capacity); \
   } \
 } \
 \

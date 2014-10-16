@@ -69,7 +69,7 @@ struct queue_name##_t \
 \
 static inline queue_name##_t* queue_name##_new() \
 { \
-  queue_name##_t* queue = polymec_malloc(sizeof(queue_name##_t)); \
+  queue_name##_t* queue = (queue_name##_t*)polymec_malloc(sizeof(queue_name##_t)); \
   queue->heap = queue_name##_heap_new(); \
   return queue; \
 } \
@@ -94,7 +94,7 @@ static inline void queue_name##_push_with_dtor(queue_name##_t* queue, queue_name
 \
 static inline void queue_name##_push(queue_name##_t* queue, queue_name##_element_t value, int priority) \
 { \
-  queue_name##_datum_t datum = {.priority = priority, .value = value}; \
+  queue_name##_datum_t datum = {.priority = priority, .value = value, .dtor = NULL}; \
   queue_name##_heap_push(queue->heap, datum); \
 } \
 \

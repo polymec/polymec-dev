@@ -64,7 +64,7 @@ struct map_name##_t \
 \
 static inline map_name##_t* map_name##_new() \
 { \
-  map_name##_t* map = polymec_malloc(sizeof(map_name##_t)); \
+  map_name##_t* map = (map_name##_t*)polymec_malloc(sizeof(map_name##_t)); \
   map->tree = map_name##_avl_tree_new(); \
   map->size = 0; \
   return map; \

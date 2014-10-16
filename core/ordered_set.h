@@ -60,7 +60,7 @@ struct set_name##_t \
 \
 static inline set_name##_t* set_name##_new() \
 { \
-  set_name##_t* set = polymec_malloc(sizeof(set_name##_t)); \
+  set_name##_t* set = (set_name##_t*)polymec_malloc(sizeof(set_name##_t)); \
   set->tree = tree_name##_new(); \
   set->size = 0; \
   return set; \

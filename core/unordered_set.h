@@ -62,7 +62,7 @@ typedef struct \
 \
 static inline set_name##_t* set_name##_new() \
 { \
-  set_name##_t* set = polymec_malloc(sizeof(set_name##_t)); \
+  set_name##_t* set = (set_name##_t*)polymec_malloc(sizeof(set_name##_t)); \
   set->map = set_name##_unordered_map_new(); \
   set->size = 0; \
   return set; \

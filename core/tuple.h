@@ -56,7 +56,7 @@ static inline element* tuple_name##_new(int N) \
 { \
   ASSERT(N > 0); \
   size_t offset = MAX((sizeof(int) / sizeof(element)), 1); \
-  element* tuple = polymec_malloc(sizeof(element) * (N + offset)); \
+  element* tuple = (element*)polymec_malloc(sizeof(element) * (N + offset)); \
   int* length = (int*)(tuple); \
   *length = N; \
   return tuple + offset; \

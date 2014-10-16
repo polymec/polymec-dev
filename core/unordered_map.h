@@ -88,12 +88,12 @@ typedef struct \
 \
 static inline map_name##_t* map_name##_new_with_capacity(int N) \
 { \
-  map_name##_t* map = polymec_malloc(sizeof(map_name##_t)); \
+  map_name##_t* map = (map_name##_t*)polymec_malloc(sizeof(map_name##_t)); \
   int minimum_bucket_count = N * 4 / 3; \
   map->bucket_count = 1; \
   while (map->bucket_count <= minimum_bucket_count) \
     map->bucket_count <<= 1; \
-  map->buckets = polymec_malloc(map->bucket_count * sizeof(map_name##_entry_t*)); \
+  map->buckets = (map_name##_entry_t**)polymec_malloc(map->bucket_count * sizeof(map_name##_entry_t*)); \
   memset(map->buckets, 0, map->bucket_count * sizeof(map_name##_entry_t*)); \
   ASSERT(map->buckets != NULL); \
   map->size = 0; \
@@ -191,7 +191,7 @@ static inline void map_name##_expand(map_name##_t* map) \
   if (map->size > (map->bucket_count * 3/4)) \
   { \
     int new_count = map->bucket_count * 2; \
-    map_name##_entry_t** new_buckets = polymec_malloc(new_count * sizeof(map_name##_entry_t*)); \
+    map_name##_entry_t** new_buckets = (map_name##_entry_t**)polymec_malloc(new_count * sizeof(map_name##_entry_t*)); \
     memset(new_buckets, 0, new_count * sizeof(map_name##_entry_t*)); \
     if (new_buckets == NULL) \
       return; \
@@ -225,7 +225,7 @@ static inline void map_name##_insert_with_dtors(map_name##_t* map, key_type key,
     map_name##_entry_t* current = *p; \
     if (current == NULL) \
     { \
-      *p = polymec_malloc(sizeof(map_name##_entry_t)); \
+      *p = (map_name##_entry_t*)polymec_malloc(sizeof(map_name##_entry_t)); \
       (*p)->key = key; \
       (*p)->hash = h; \
       (*p)->value = value; \

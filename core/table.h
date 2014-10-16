@@ -74,7 +74,7 @@ typedef struct \
 \
 static inline table_name##_t* table_name##_new_with_capacity(int N) \
 { \
-  table_name##_t* table = polymec_malloc(sizeof(table_name##_t)); \
+  table_name##_t* table = (table_name##_t*)polymec_malloc(sizeof(table_name##_t)); \
   table->map = table_name##_map_new_with_capacity(N); \
   table->num_rows = 0; \
   return table; \
@@ -209,14 +209,14 @@ static inline bool table_name##_next_cell(table_name##_t* table, table_name##_ce
 \
 static inline table_name##_t* table_name##_copy(table_name##_t* table) \
 { \
-  table_name##_t* t = polymec_malloc(sizeof(table_name##_t)); \
+  table_name##_t* t = (table_name##_t*)polymec_malloc(sizeof(table_name##_t)); \
   t->map = table_name##_map_copy(table->map); \
   t->num_rows = table->num_rows; \
   return t; \
 } \
 static inline table_name##_cell_pos_t table_name##_start(table_name##_t* table) \
 { \
-  table_name##_cell_pos_t pos = {0, 0}; \
+  table_name##_cell_pos_t pos = {0, 0, 0}; \
   return pos; \
 } \
 

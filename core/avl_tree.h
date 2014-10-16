@@ -70,7 +70,7 @@ struct tree_name##_t \
 \
 static inline tree_name##_t* tree_name##_new() \
 { \
-  tree_name##_t* tree = polymec_malloc(sizeof(tree_name##_t)); \
+  tree_name##_t* tree = (tree_name##_t*)polymec_malloc(sizeof(tree_name##_t)); \
   tree->root = NULL; \
   return tree; \
 } \
@@ -160,7 +160,7 @@ static inline tree_name##_node_t* tree_name##_insert_node(tree_name##_node_t* no
 { \
   if (node == NULL) \
   { \
-    node = polymec_malloc(sizeof(tree_name##_node_t)); \
+    node = (tree_name##_node_t*)polymec_malloc(sizeof(tree_name##_node_t)); \
     node->left = NULL; \
     node->right = NULL; \
     node->value = datum; \
