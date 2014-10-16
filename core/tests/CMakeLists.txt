@@ -21,6 +21,7 @@ add_polymec_test(test_mesh test_mesh.c)
 add_polymec_test(test_polynomial test_polynomial.c)
 add_polymec_test(test_least_squares test_least_squares.c)
 add_polymec_test(test_interpreter test_interpreter.c)
+add_polymec_test(test_cxx_program test_cxx_program.cpp)
 
 #add_mpi_polymec_test(test_parallel_qsort test_parallel_qsort.c 1 2 3 4)
 add_mpi_polymec_test(test_exchanger test_exchanger.c 1 2 3 4)

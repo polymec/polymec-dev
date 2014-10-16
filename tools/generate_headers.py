@@ -27,11 +27,17 @@ for lib in polymec_libs:
     header.write('// in the actual source files for details of distribution.\n\n')
     header.write('#ifndef POLYMEC_LIBRARY_H\n')
     header.write('#define POLYMEC_LIBRARY_H\n\n')
+    header.write('#ifdef __cplusplus\n')
+    header.write('extern "C" {\n')
+    header.write('#endif\n\n')
     if lib == 'core':
         header.write('#include "core/polymec.h"\n')
     for h in c_headers:
         header.write('#include "%s/%s"\n'%(lib, h))
     header.write('\n')
+    header.write('#ifdef __cplusplus\n')
+    header.write('}\n')
+    header.write('#endif\n\n')
     header.write('#endif\n\n')
     header.close()
 

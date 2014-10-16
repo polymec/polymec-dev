@@ -63,12 +63,9 @@ else ()
   endif ()
 endif ()
 
-# General compiler flags.
+# General C compiler flags.
 if (CMAKE_C_COMPILER_ID STREQUAL "GNU")
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c11 -Wall -pedantic-errors -Wextra -Werror-implicit-function-declaration")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fpermissive -Wall -Wextra")
-
-  # Warning suppressants.
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-sign-compare -Wno-unused-parameter -Wno-unused-but-set-variable -Wno-int-to-pointer-cast -Wno-pointer-to-int-cast")
 
   if (LINUX EQUAL 1)
@@ -80,16 +77,21 @@ if (CMAKE_C_COMPILER_ID STREQUAL "GNU")
 
 elseif (CMAKE_C_COMPILER_ID STREQUAL "Clang")
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c11 -Wall -pedantic-errors -Wextra -Werror-implicit-function-declaration -fno-builtin")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fpermissive -Wall -Wextra")
-
-  # Warning suppressants.
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-sign-compare -Wno-unused-parameter -Wno-int-to-pointer-cast -Wno-pointer-to-int-cast -Wno-unused-function")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-sign-compare -Wno-unused-parameter -Wno-int-to-pointer-cast -Wno-pointer-to-int-cast -Wno-unused-function")
-
 elseif (CMAKE_C_COMPILER_ID STREQUAL "Intel")
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c11 -Wall")
-endif ()
+endif()
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${SYS_FLAGS}")
+
+# C++ compiler flags (have to accommodate some C-only constructions).
+if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fpermissive -Wall -Wextra")
+elseif (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fpermissive -Wall -Wextra")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-sign-compare -Wno-unused-parameter -Wno-int-to-pointer-cast -Wno-pointer-to-int-cast -Wno-unused-function")
+elseif (CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall")
+endif()
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${SYS_FLAGS}")
 
 # Address sanitizer.

@@ -216,7 +216,7 @@ static inline table_name##_t* table_name##_copy(table_name##_t* table) \
 } \
 static inline table_name##_cell_pos_t table_name##_start(table_name##_t* table) \
 { \
-  table_name##_cell_pos_t pos = {.row_pos = 0, .col_pos = 0}; \
+  table_name##_cell_pos_t pos = {0, 0}; \
   return pos; \
 } \
 

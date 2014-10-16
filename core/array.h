@@ -94,7 +94,7 @@ static inline array_name##_t* array_name##_new() \
 \
 static inline array_name##_t empty_##array_name() \
 { \
-  static array_name##_t empty = {.data = NULL, .size = 0, .capacity = 0, .dtors = NULL}; \
+  static array_name##_t empty = {NULL, NULL, 0, 0}; \
   return empty; \
 } \
 \
