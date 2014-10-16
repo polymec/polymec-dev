@@ -12,8 +12,8 @@ add_library(polymec_geometry mapping.c plane.c cylinder.c sphere.c
             symmetry_1d.c interpreter_register_geometry_functions.c 
             interpreter_register_spfuncs.c)
 
-set(POLYMEC_LIBS polymec_geometry;${POLYMEC_LIBS} PARENT_SCOPE)
-set(POLYMEC_LIBS polymec_geometry;${POLYMEC_LIBS})
+set(POLYMEC_LIBRARIES polymec_geometry;${POLYMEC_LIBRARIES} PARENT_SCOPE)
+set(POLYMEC_LIBRARIES polymec_geometry;${POLYMEC_LIBRARIES})
 
 add_subdirectory(tests)
 

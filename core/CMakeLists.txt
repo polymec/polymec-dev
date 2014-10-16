@@ -19,8 +19,8 @@ add_library(polymec_core polymec.c arch.c allocators.c logging.c point.c
 # polymec.c depends on the creation of polymec_version.h.
 add_dependencies(polymec_core update_version_h)
 
-set(POLYMEC_LIBS polymec_core;${POLYMEC_LIBS} PARENT_SCOPE)
-set(POLYMEC_LIBS polymec_core;${POLYMEC_LIBS})
+set(POLYMEC_LIBRARIES polymec_core;${POLYMEC_LIBRARIES} PARENT_SCOPE)
+set(POLYMEC_LIBRARIES polymec_core;${POLYMEC_LIBRARIES})
 add_subdirectory(tests)
 
 # Install library.

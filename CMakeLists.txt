@@ -109,7 +109,7 @@ if (ADDRESS_SANITIZER EQUAL 1)
 endif()
 
 # Basic libraries to be linked in.
-set(POLYMEC_LIBS m)
+set(POLYMEC_LIBRARIES m)
 if (${NEED_LAPACK})
   include(FindBLAS)
   include(FindLAPACK)
@@ -121,11 +121,11 @@ if (${NEED_LAPACK})
   if (${BLAS_LIBRARY_DIR})
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -L${BLAS_LIBRARY_DIR}")
   endif()
-  set(POLYMEC_LIBS ${POLYMEC_LIBS};${LAPACK_LIBRARIES};${BLAS_LIBRARIES})
+  set(POLYMEC_LIBRARIES ${POLYMEC_LIBRARIES};${LAPACK_LIBRARIES};${BLAS_LIBRARIES})
 endif()
 
 # NOTE: HDF5 requires dynamic loading as of v1.8.11, so we need libdl.
-set(POLYMEC_LIBS ${POLYMEC_LIBS};dl)
+set(POLYMEC_LIBRARIES ${POLYMEC_LIBRARIES};dl)
 
 # Figure out MPI.
 if (HAVE_MPI EQUAL 1)

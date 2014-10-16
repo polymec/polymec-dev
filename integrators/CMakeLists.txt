@@ -3,8 +3,8 @@ add_library(polymec_integrators nonlinear_preconditioner.c
             ode_integrator.c dae_integrator.c nonlinear_integrator.c
             gauss_rules.c polyhedron_integrator.c sphere_integrator.c 
             div_free_poly_basis.c)
-set(POLYMEC_LIBS polymec_integrators;${POLYMEC_LIBS} PARENT_SCOPE)
-set(POLYMEC_LIBS polymec_integrators;${POLYMEC_LIBS})
+set(POLYMEC_LIBRARIES polymec_integrators;${POLYMEC_LIBRARIES} PARENT_SCOPE)
+set(POLYMEC_LIBRARIES polymec_integrators;${POLYMEC_LIBRARIES})
 
 # Executable.
 include(add_polymec_executable)
