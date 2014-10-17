@@ -244,5 +244,10 @@ void composite_model_register(model_t* composite_model,
 // been selected, this produces a fatal error.
 bool composite_model_select(model_t* composite_model, const char* submodel_name);
 
+// By default, the submodel of a composite model is selected by reading the 
+// value of the variable "model" in the model's interpreter. This method 
+// sets the variable that should be used to select the submodel instead.
+void composite_model_set_selection_var(model_t* composite_model, const char* selection_var);
+
 #endif
 

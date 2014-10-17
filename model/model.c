@@ -1202,6 +1202,7 @@ typedef struct
   model_t* ubermodel;
   submodel_table_t* models;
   model_t* selected_submodel;
+  char* selection_var;
 } comp_model_t;
 
 static void comp_read_input(void* context, interpreter_t* interpreter, options_t* options)
@@ -1209,9 +1210,9 @@ static void comp_read_input(void* context, interpreter_t* interpreter, options_t
   comp_model_t* model = context;
 
   // Look for a "model" variable in the interpreter.
-  char* model_name = interpreter_get_string(interpreter, "model");
+  char* model_name = interpreter_get_string(interpreter, model->selection_var);
   if (model_name == NULL)
-    polymec_error("No 'model' variable was found in the input.");
+    polymec_error("No '%s' variable was found in the input.", model->selection_var);
 
   if (!composite_model_select(model->ubermodel, model_name))
     polymec_error("Invalid model was selected: '%s'", model_name);
@@ -1284,6 +1285,7 @@ model_t* composite_model_new(const char* name, docstring_t* doc)
   comp_model_t* comp_model = polymec_malloc(sizeof(comp_model_t));
   comp_model->models = submodel_table_new();
   comp_model->selected_submodel = NULL;
+  comp_model->selection_var = string_dup("model");
   model_vtable vtable = {.read_input = comp_read_input,
                          .read_custom_input = NULL,
                          .init = comp_init,
@@ -1322,5 +1324,12 @@ bool composite_model_select(model_t* composite_model, const char* submodel_name)
     return false;
   comp_model->selected_submodel = (*model_ctor_p)();
   return true;
+}
+
+void composite_model_set_selection_var(model_t* composite_model, const char* selection_var)
+{
+  comp_model_t* comp_model = composite_model->context;
+  string_free(comp_model->selection_var);
+  comp_model->selection_var = string_dup(selection_var);
 }
 
