@@ -1195,10 +1195,12 @@ void model_report_error_norm(real_t error_norm)
 //                        Composite model logic
 //------------------------------------------------------------------------
 
+DEFINE_UNORDERED_MAP(submodel_table, char*, model_ctor, string_hash, string_equals)
+
 typedef struct
 {
   model_t* ubermodel;
-  string_ptr_unordered_map_t* models;
+  submodel_table_t* models;
   model_t* selected_submodel;
 } comp_model_t;
 
@@ -1274,13 +1276,13 @@ static void comp_compute_error_norms(void* context, st_func_t* solution, real_t 
 static void comp_dtor(void* context)
 {
   comp_model_t* model = context;
-  string_ptr_unordered_map_free(model->models);
+  submodel_table_free(model->models);
 }
 
 model_t* composite_model_new(const char* name, docstring_t* doc)
 {
   comp_model_t* comp_model = polymec_malloc(sizeof(comp_model_t));
-  comp_model->models = string_ptr_unordered_map_new();
+  comp_model->models = submodel_table_new();
   comp_model->selected_submodel = NULL;
   model_vtable vtable = {.read_input = comp_read_input,
                          .read_custom_input = NULL,
@@ -1297,32 +1299,28 @@ model_t* composite_model_new(const char* name, docstring_t* doc)
   return comp_model->ubermodel;
 }
 
-static void model_kv_dtor(char* key, void* value)
-{
-  string_free(key);
-  model_t* model = value;
-  model_free(model);
-}
-
 void composite_model_register(model_t* composite_model, 
                               const char* submodel_name, 
-                              model_t* submodel)
+                              model_ctor submodel_ctor)
 {
   comp_model_t* comp_model = composite_model->context;
-  ASSERT(!string_ptr_unordered_map_contains(comp_model->models, (char*)submodel_name));
-  string_ptr_unordered_map_insert_with_kv_dtor(comp_model->models, 
-                                               string_dup(submodel_name), 
-                                               submodel,
-                                               model_kv_dtor);
+  ASSERT(!submodel_table_contains(comp_model->models, (char*)submodel_name));
+  submodel_table_insert_with_k_dtor(comp_model->models, 
+                                    string_dup(submodel_name), 
+                                    submodel_ctor,
+                                    string_free);
 }
 
-bool composite_model_select(model_t* composite_model, const char* model_name)
+bool composite_model_select(model_t* composite_model, const char* submodel_name)
 {
   comp_model_t* comp_model = composite_model->context;
-  model_t** model_ptr = (model_t**)string_ptr_unordered_map_get(comp_model->models, (char*)model_name);
-  if (model_ptr == NULL)
+  if (comp_model->selected_submodel != NULL)
+    polymec_error("A submodel has already been selected for the %s model.", model_name(composite_model));
+
+  model_ctor* model_ctor_p = (model_ctor*)submodel_table_get(comp_model->models, (char*)submodel_name);
+  if (model_ctor_p == NULL)
     return false;
-  comp_model->selected_submodel = *model_ptr;
+  comp_model->selected_submodel = (*model_ctor_p)();
   return true;
 }
 

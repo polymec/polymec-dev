@@ -230,17 +230,19 @@ void model_report_error_norm(real_t error_norm);
 model_t* composite_model_new(const char* name, docstring_t* doc);
 
 // Registers a submodel with the given name to the composite model so that 
-// it can be selected using composite_model_select(). This model should not 
-// already exist in the composite model's list of submodels. The model is 
-// consumed.
+// it can be selected using composite_model_select(). More specifically, it 
+// registers a constructor that can be called when a submodel needs to be 
+// created. This submodel should not already exist in the composite model's 
+// list.
 void composite_model_register(model_t* composite_model, 
                               const char* submodel_name, 
-                              model_t* submodel);
+                              model_ctor submodel_ctor);
 
-// Sets the model to be used by the given composite model. Returns true if the 
-// selection succeeded (i.e. if the model name exists in the composite model's 
-// table of submodels), and false otherwise. 
-bool composite_model_select(model_t* composite_model, const char* model_name);
+// Selects the model to be used by the given composite model. Returns true if 
+// the selection succeeded (i.e. if the model name exists in the composite 
+// model's table of submodels), and false otherwise. If a model has already 
+// been selected, this produces a fatal error.
+bool composite_model_select(model_t* composite_model, const char* submodel_name);
 
 #endif
 
