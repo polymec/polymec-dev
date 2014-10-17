@@ -1191,3 +1191,124 @@ void model_report_error_norm(real_t error_norm)
   options_set(options, "error_norm", nstr);
 }
 
+//------------------------------------------------------------------------
+//                        Composite model logic
+//------------------------------------------------------------------------
+
+typedef struct
+{
+  model_t* ubermodel;
+  string_ptr_unordered_map_t* models;
+  model_t* selected_submodel;
+} comp_model_t;
+
+static void comp_read_input(void* context, interpreter_t* interpreter, options_t* options)
+{
+  comp_model_t* model = context;
+
+  // Look for a "model" variable in the interpreter.
+  char* model_name = interpreter_get_string(interpreter, "model");
+  if (model_name == NULL)
+    polymec_error("No 'model' variable was found in the input.");
+
+  if (!composite_model_select(model->ubermodel, model_name))
+    polymec_error("Invalid model was selected: '%s'", model_name);
+}
+
+static void comp_init(void* context, real_t t)
+{
+  comp_model_t* model = context;
+  ASSERT(model->selected_submodel != NULL);
+  model_init(model->selected_submodel, t);
+}
+
+static real_t comp_max_dt(void* context, real_t t, char* reason)
+{
+  comp_model_t* model = context;
+  ASSERT(model->selected_submodel != NULL);
+  return model_max_dt(model->selected_submodel, reason);
+}
+
+static real_t comp_advance(void* context, real_t max_dt, real_t t)
+{
+  comp_model_t* model = context;
+  ASSERT(model->selected_submodel != NULL);
+  return model_advance(model->selected_submodel, max_dt);
+}
+
+static void comp_finalize(void* context, int step, real_t t)
+{
+  comp_model_t* model = context;
+  ASSERT(model->selected_submodel != NULL);
+  model_finalize(model->selected_submodel);
+}
+
+static void comp_load(void* context, const char* file_prefix, const char* directory, real_t* time, int step)
+{
+  comp_model_t* model = context;
+  ASSERT(model->selected_submodel != NULL);
+  model_load(model->selected_submodel, step);
+}
+
+static void comp_save(void* context, const char* file_prefix, const char* directory, real_t time, int step)
+{
+  comp_model_t* model = context;
+  ASSERT(model->selected_submodel != NULL);
+  model_save(model->selected_submodel);
+}
+
+static void comp_plot(void* context, const char* file_prefix, const char* directory, real_t time, int step)
+{
+  comp_model_t* model = context;
+  ASSERT(model->selected_submodel != NULL);
+  model_plot(model->selected_submodel);
+}
+
+static void comp_compute_error_norms(void* context, st_func_t* solution, real_t t, real_t* norms)
+{
+  comp_model_t* model = context;
+  ASSERT(model->selected_submodel != NULL);
+  model_compute_error_norms(model->selected_submodel, solution, norms);
+}
+
+static void comp_dtor(void* context)
+{
+  comp_model_t* model = context;
+  string_ptr_unordered_map_free(model->models);
+}
+
+model_t* composite_model_new(const char* name, 
+                             string_ptr_unordered_map_t* model_table,
+                             docstring_t* doc)
+{
+  ASSERT(model_table != NULL);
+  ASSERT(model_table->size > 0);
+
+  comp_model_t* comp_model = polymec_malloc(sizeof(comp_model_t));
+  comp_model->models = model_table;
+  comp_model->selected_submodel = NULL;
+  model_vtable vtable = {.read_input = comp_read_input,
+                         .read_custom_input = NULL,
+                         .init = comp_init,
+                         .max_dt = comp_max_dt,
+                         .advance = comp_advance,
+                         .finalize = comp_finalize,
+                         .load = comp_load,
+                         .save = comp_save,
+                         .plot = comp_plot,
+                         .compute_error_norms = comp_compute_error_norms,
+                         .dtor = comp_dtor};
+  comp_model->ubermodel = model_new(name, comp_model, vtable, doc);
+  return comp_model->ubermodel;
+}
+
+bool composite_model_select(model_t* composite_model, const char* model_name)
+{
+  comp_model_t* comp_model = composite_model->context;
+  model_t** model_ptr = (model_t**)string_ptr_unordered_map_get(comp_model->models, (char*)model_name);
+  if (model_ptr == NULL)
+    return false;
+  comp_model->selected_submodel = *model_ptr;
+  return true;
+}
+
