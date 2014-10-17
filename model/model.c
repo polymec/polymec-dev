@@ -1277,15 +1277,10 @@ static void comp_dtor(void* context)
   string_ptr_unordered_map_free(model->models);
 }
 
-model_t* composite_model_new(const char* name, 
-                             string_ptr_unordered_map_t* model_table,
-                             docstring_t* doc)
+model_t* composite_model_new(const char* name, docstring_t* doc)
 {
-  ASSERT(model_table != NULL);
-  ASSERT(model_table->size > 0);
-
   comp_model_t* comp_model = polymec_malloc(sizeof(comp_model_t));
-  comp_model->models = model_table;
+  comp_model->models = string_ptr_unordered_map_new();
   comp_model->selected_submodel = NULL;
   model_vtable vtable = {.read_input = comp_read_input,
                          .read_custom_input = NULL,
@@ -1300,6 +1295,25 @@ model_t* composite_model_new(const char* name,
                          .dtor = comp_dtor};
   comp_model->ubermodel = model_new(name, comp_model, vtable, doc);
   return comp_model->ubermodel;
+}
+
+static void model_kv_dtor(char* key, void* value)
+{
+  string_free(key);
+  model_t* model = value;
+  model_free(model);
+}
+
+void composite_model_register(model_t* composite_model, 
+                              const char* submodel_name, 
+                              model_t* submodel)
+{
+  comp_model_t* comp_model = composite_model->context;
+  ASSERT(!string_ptr_unordered_map_contains(comp_model->models, (char*)submodel_name));
+  string_ptr_unordered_map_insert_with_kv_dtor(comp_model->models, 
+                                               string_dup(submodel_name), 
+                                               submodel,
+                                               model_kv_dtor);
 }
 
 bool composite_model_select(model_t* composite_model, const char* model_name)

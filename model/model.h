@@ -224,18 +224,22 @@ void model_report_conv_rate(real_t conv_rate, real_t sigma);
 void model_report_error_norm(real_t error_norm);
 
 // Creates an instance of a "composite" model that can be set to use one of 
-// a set of named submodels, given in the specified table. Note that submodels 
+// a set of named submodels. The submodels must be registered with 
+// composite_model_register(), given below. Note that these submodels
 // cannot use custom input--they must parse input using the Lua interpreter.
-// The model_table is consumed, and should have destructors associated with 
-// each model it contains. 
-model_t* composite_model_new(const char* name, 
-                             string_ptr_unordered_map_t* model_table,
-                             docstring_t* doc);
+model_t* composite_model_new(const char* name, docstring_t* doc);
+
+// Registers a submodel with the given name to the composite model so that 
+// it can be selected using composite_model_select(). This model should not 
+// already exist in the composite model's list of submodels. The model is 
+// consumed.
+void composite_model_register(model_t* composite_model, 
+                              const char* submodel_name, 
+                              model_t* submodel);
 
 // Sets the model to be used by the given composite model. Returns true if the 
 // selection succeeded (i.e. if the model name exists in the composite model's 
-// table of submodels), and false otherwise. Note that this produces undefined 
-// behavior when called with non-composite models, so be careful!
+// table of submodels), and false otherwise. 
 bool composite_model_select(model_t* composite_model, const char* model_name);
 
 #endif
