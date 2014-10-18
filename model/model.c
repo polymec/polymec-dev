@@ -829,7 +829,7 @@ static void model_help(model_t* model, const char* arg, FILE* stream)
     {
       fprintf(stream, "No documentation is available for the %s model.\n", model_name(model));
       fprintf(stream, "Use '%s help list' to list available functions, and \n", model_name(model));
-      fprintf(stream, "'%s help list <function>' for documentation on a given function.\n", model_name(model));
+      fprintf(stream, "'%s help <function>' for documentation on a given function.\n", model_name(model));
     }
   }
   else if (model->vtable.read_input != NULL)
