@@ -28,21 +28,6 @@
 #include <stdint.h>
 #include "mpi.h"
 
-static size_t mpi_size(MPI_Datatype type)
-{
-  switch(type)
-  {
-    case MPI_CHAR: return sizeof(char);
-    case MPI_SHORT: return sizeof(short);
-    case MPI_INT: return sizeof(int);
-    case MPI_LONG: return sizeof(long);
-    case MPI_LONG_LONG: return sizeof(long long);
-    case MPI_UINT64_T: return sizeof(uint64_t);
-    case MPI_DOUBLE: return sizeof(double);
-    default: exit(-1); // Not supported.
-  }
-}
-
 int MPI_Init(int *argc, char ***argv)
 {
   return MPI_SUCCESS;
