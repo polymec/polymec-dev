@@ -315,13 +315,13 @@ static ode_integrator_t* diurnal_integrator_new()
   // Set up a time integrator using GMRES with a maximum order of 2 and 
   // a Krylov space of maximum dimension 5.
   diurnal_t* data = diurnal_new();
-  ode_integrator_vtable vtable = {.rhs = diurnal_rhs,
-                                   .dtor = diurnal_dtor};
-  ode_integrator_t* integ = gmres_ode_integrator_new("Diurnal",
-                                                       data,
-                                                       MPI_COMM_SELF,
-                                                       NEQ,
-                                                       vtable, 5, 5);
+  jfnk_ode_integrator_vtable vtable = {.rhs = diurnal_rhs,
+                                       .dtor = diurnal_dtor};
+  ode_integrator_t* integ = gmres_jfnk_ode_integrator_new("Diurnal",
+                                                          data,
+                                                          MPI_COMM_SELF,
+                                                          NEQ,
+                                                          vtable, 5, 5);
 
   return integ;
 }
