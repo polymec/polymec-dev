@@ -321,6 +321,7 @@ ode_integrator_t* jfnk_am_ode_integrator_new(int order,
   integ->dtor = dtor;
   integ->status_message = NULL;
   integ->max_krylov_dim = max_krylov_dim;
+  integ->initialized = false;
 
   // Set up KINSol and accessories.
   integ->x = N_VNew(integ->comm, integ->N);
