@@ -29,7 +29,7 @@
 
 #include "cmockery.h"
 #include "core/polymec.h"
-#include "integrators/ode_integrator.h"
+#include "integrators/bdf_ode_integrator.h"
 
 extern ode_integrator_t* block_jacobi_precond_diurnal_integrator_new();
 extern ode_integrator_t* lu_precond_diurnal_integrator_new();
@@ -39,28 +39,25 @@ extern real_t* diurnal_initial_conditions(ode_integrator_t* integ);
 void test_block_jacobi_precond_diurnal_ctor(void** state)
 {
   ode_integrator_t* integ = block_jacobi_precond_diurnal_integrator_new();
-  assert_true(strcmp(ode_integrator_name(integ), "Diurnal") == 0);
   ode_integrator_free(integ);
 }
 
 void test_lu_precond_diurnal_ctor(void** state)
 {
   ode_integrator_t* integ = lu_precond_diurnal_integrator_new();
-  assert_true(strcmp(ode_integrator_name(integ), "Diurnal") == 0);
   ode_integrator_free(integ);
 }
 
 void test_ilu_precond_diurnal_ctor(void** state)
 {
   ode_integrator_t* integ = ilu_precond_diurnal_integrator_new();
-  assert_true(strcmp(ode_integrator_name(integ), "Diurnal") == 0);
   ode_integrator_free(integ);
 }
 
 void test_diurnal_step(void** state, ode_integrator_t* integ)
 {
   // Set up the problem.
-  ode_integrator_set_tolerances(integ, 1e-5, 1e-3);
+  bdf_ode_integrator_set_tolerances(integ, 1e-5, 1e-3);
   real_t* u = diurnal_initial_conditions(integ);
 
   // Integrate it.
@@ -76,9 +73,9 @@ printf("u = [");
 for (int i = 0; i < 200; ++i)
 printf("%g ", u[i]);
 printf("]\n");
-  ode_integrator_diagnostics_t diags;
-  ode_integrator_get_diagnostics(integ, &diags);
-  ode_integrator_diagnostics_fprintf(&diags, stdout);
+  bdf_ode_integrator_diagnostics_t diags;
+  bdf_ode_integrator_get_diagnostics(integ, &diags);
+  bdf_ode_integrator_diagnostics_fprintf(&diags, stdout);
 
   ode_integrator_free(integ);
   free(u);

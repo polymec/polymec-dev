@@ -5,6 +5,6 @@ add_polymec_test(test_div_free_poly_basis test_div_free_poly_basis.c)
 #add_polymec_test(test_sphere_integrator test_sphere_integrator.c)
 add_polymec_test(test_cpr_preconditioners test_cpr_preconditioners.c)
 add_polymec_test(test_nonlinear_solver foodweb_solver.c test_nonlinear_solver.c)
-#add_polymec_test(test_ode_integrator diurnal_integrator.c test_ode_integrator.c)
+add_polymec_test(test_bdf_ode_integrator diurnal_integrator.c test_bdf_ode_integrator.c)
 add_polymec_test(test_dae_integrator heat2d_integrator.c test_dae_integrator.c)
 

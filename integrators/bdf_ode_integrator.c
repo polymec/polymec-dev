@@ -23,7 +23,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "core/sundials_helpers.h"
-#include "integrators/am_ode_integrator.h"
+#include "integrators/bdf_ode_integrator.h"
 #include "integrators/nonlinear_preconditioner.h"
 #include "cvode/cvode.h"
 
@@ -54,8 +54,8 @@ typedef struct
   int (*Jy)(void* context, real_t t, real_t* x, real_t* rhstx, real_t* y, real_t* temp, real_t* Jy);
 
   // Error weight function.
-  am_ode_integrator_error_weight_func compute_weights;
-} am_ode_t;
+  bdf_ode_integrator_error_weight_func compute_weights;
+} bdf_ode_t;
 
 static char* get_status_message(int status, real_t current_time)
 {
@@ -94,9 +94,9 @@ static char* get_status_message(int status, real_t current_time)
 }
 
 // This function wraps around the user-supplied right hand side.
-static int am_evaluate_rhs(real_t t, N_Vector x, N_Vector x_dot, void* context)
+static int bdf_evaluate_rhs(real_t t, N_Vector x, N_Vector x_dot, void* context)
 {
-  am_ode_t* integ = context;
+  bdf_ode_t* integ = context;
   real_t* xx = NV_DATA(x);
   real_t* xxd = NV_DATA(x_dot);
 
@@ -104,9 +104,9 @@ static int am_evaluate_rhs(real_t t, N_Vector x, N_Vector x_dot, void* context)
   return integ->rhs(integ->context, t, xx, xxd);
 }
 
-static bool am_step(void* context, real_t max_dt, real_t max_t, real_t* t, real_t* x)
+static bool bdf_step(void* context, real_t max_dt, real_t max_t, real_t* t, real_t* x)
 {
-  am_ode_t* integ = context;
+  bdf_ode_t* integ = context;
   CVodeSetMaxStep(integ->cvode, max_dt);
   CVodeSetStopTime(integ->cvode, max_t);
 
@@ -147,9 +147,9 @@ static bool am_step(void* context, real_t max_dt, real_t max_t, real_t* t, real_
   }
 }
 
-static bool am_advance(void* context, real_t max_dt, real_t max_t, real_t* x)
+static bool bdf_advance(void* context, real_t max_dt, real_t max_t, real_t* x)
 {
-  am_ode_t* integ = context;
+  bdf_ode_t* integ = context;
   CVodeSetMaxStep(integ->cvode, max_dt);
   CVodeSetStopTime(integ->cvode, max_t);
   
@@ -180,9 +180,9 @@ static bool am_advance(void* context, real_t max_dt, real_t max_t, real_t* x)
   }
 }
 
-static void am_dtor(void* context)
+static void bdf_dtor(void* context)
 {
-  am_ode_t* integ = context;
+  bdf_ode_t* integ = context;
 
   // Kill the preconditioner stuff.
   if (integ->precond != NULL)
@@ -200,55 +200,13 @@ static void am_dtor(void* context)
   polymec_free(integ);
 }
 
-ode_integrator_t* functional_am_ode_integrator_new(int order, 
-                                                   MPI_Comm comm, 
-                                                   int N,
-                                                   void* context, 
-                                                   int (*rhs)(void* context, real_t t, real_t* x, real_t* xdot),
-                                                   void (*dtor)(void* context))
-{
-  ASSERT(order >= 1);
-  ASSERT(order <= 12);
-  ASSERT(N > 0);
-  ASSERT(rhs != NULL);
-
-  am_ode_t* integ = polymec_malloc(sizeof(am_ode_t));
-  integ->comm = comm;
-  integ->N = N;
-  integ->context = context;
-  integ->rhs = rhs;
-  integ->dtor = dtor;
-  integ->status_message = NULL;
-  integ->max_krylov_dim = 0;
-  integ->initialized = false;
-
-  // Set up KINSol and accessories.
-  integ->x = N_VNew(integ->comm, integ->N);
-  integ->cvode = CVodeCreate(CV_ADAMS, CV_FUNCTIONAL);
-  CVodeSetMaxOrd(integ->cvode, order);
-  CVodeSetUserData(integ->cvode, integ);
-  CVodeInit(integ->cvode, am_evaluate_rhs, 0.0, integ->x);
-
-  ode_integrator_vtable vtable = {.step = am_step, .advance = am_advance, .dtor = am_dtor};
-  char name[1024];
-  snprintf(name, 1024, "Functional Adams-Moulton (order %d)", order);
-  ode_integrator_t* I = ode_integrator_new(name, integ, vtable, order);
-
-  // Set default tolerances.
-  // relative error of 1e-4 means errors are controlled to 0.01%.
-  // absolute error is set to 1 because it's completely problem dependent.
-  am_ode_integrator_set_tolerances(I, 1e-4, 1.0);
-
-  return I;
-}
-
 // This function sets up the preconditioner data within the integrator.
 static int set_up_preconditioner(real_t t, N_Vector x, N_Vector F,
                                  int jacobian_is_current, int* jacobian_was_updated, 
                                  real_t gamma, void* context, 
                                  N_Vector work1, N_Vector work2, N_Vector work3)
 {
-  am_ode_t* integ = context;
+  bdf_ode_t* integ = context;
   if (!jacobian_is_current)
   {
     nonlinear_preconditioner_setup(integ->precond, 1.0, -gamma, 0.0, t, NV_DATA(x), NULL);
@@ -270,7 +228,7 @@ static int solve_preconditioner_system(real_t t, N_Vector x, N_Vector F,
 {
   ASSERT(lr == 1); // Left preconditioning only.
 
-  am_ode_t* integ = context;
+  bdf_ode_t* integ = context;
   
   // FIXME: Apply scaling if needed.
   // Copy the contents of the RHS to the output vector.
@@ -286,7 +244,7 @@ static int solve_preconditioner_system(real_t t, N_Vector x, N_Vector F,
 // Adaptor for J*y function
 static int eval_Jy(N_Vector y, N_Vector Jy, real_t t, N_Vector x, N_Vector rhstx, void* context, N_Vector tmp)
 {
-  am_ode_t* integ = context;
+  bdf_ode_t* integ = context;
   real_t* xx = NV_DATA(x);
   real_t* yy = NV_DATA(y);
   real_t* rhs = NV_DATA(rhstx);
@@ -295,7 +253,7 @@ static int eval_Jy(N_Vector y, N_Vector Jy, real_t t, N_Vector x, N_Vector rhstx
   return integ->Jy(integ->context, t, xx, rhs, yy, temp, jjy);
 }
 
-ode_integrator_t* jfnk_am_ode_integrator_new(int order,
+ode_integrator_t* jfnk_bdf_ode_integrator_new(int order,
                                              MPI_Comm comm,
                                              int N, 
                                              void* context, 
@@ -303,7 +261,7 @@ ode_integrator_t* jfnk_am_ode_integrator_new(int order,
                                              int (*Jy)(void* context, real_t t, real_t* x, real_t* rhstx, real_t* y, real_t* temp, real_t* Jy),
                                              void (*dtor)(void* context),
                                              preconditioner_t* precond,
-                                             jfnk_am_krylov_t solver_type,
+                                             jfnk_bdf_krylov_t solver_type,
                                              int max_krylov_dim)
 {
   ASSERT(order >= 1);
@@ -313,7 +271,7 @@ ode_integrator_t* jfnk_am_ode_integrator_new(int order,
   ASSERT(precond != NULL);
   ASSERT(max_krylov_dim > 3);
 
-  am_ode_t* integ = polymec_malloc(sizeof(am_ode_t));
+  bdf_ode_t* integ = polymec_malloc(sizeof(bdf_ode_t));
   integ->comm = comm;
   integ->N = N;
   integ->context = context;
@@ -324,19 +282,19 @@ ode_integrator_t* jfnk_am_ode_integrator_new(int order,
 
   // Set up KINSol and accessories.
   integ->x = N_VNew(integ->comm, integ->N);
-  integ->cvode = CVodeCreate(CV_ADAMS, CV_NEWTON);
+  integ->cvode = CVodeCreate(CV_BDF, CV_NEWTON);
   CVodeSetMaxOrd(integ->cvode, order);
   CVodeSetUserData(integ->cvode, integ);
-  CVodeInit(integ->cvode, am_evaluate_rhs, 0.0, integ->x);
+  CVodeInit(integ->cvode, bdf_evaluate_rhs, 0.0, integ->x);
 
   // Set up the solver type.
-  if (solver_type == JFNK_AM_GMRES)
+  if (solver_type == JFNK_BDF_GMRES)
   {
     CVSpgmr(integ->cvode, PREC_LEFT, max_krylov_dim); 
     // We use modified Gram-Schmidt orthogonalization.
     CVSpilsSetGSType(integ->cvode, MODIFIED_GS);
   }
-  else if (solver_type == JFNK_AM_BICGSTAB)
+  else if (solver_type == JFNK_BDF_BICGSTAB)
     CVSpbcg(integ->cvode, PREC_LEFT, max_krylov_dim);
   else
     CVSptfqmr(integ->cvode, PREC_LEFT, max_krylov_dim);
@@ -348,32 +306,32 @@ ode_integrator_t* jfnk_am_ode_integrator_new(int order,
   CVSpilsSetPreconditioner(integ->cvode, set_up_preconditioner,
                            solve_preconditioner_system);
 
-  ode_integrator_vtable vtable = {.step = am_step, .advance = am_advance, .dtor = am_dtor};
+  ode_integrator_vtable vtable = {.step = bdf_step, .advance = bdf_advance, .dtor = bdf_dtor};
   char name[1024];
-  snprintf(name, 1024, "JFNK Adams-Moulton (order %d)", order);
+  snprintf(name, 1024, "JFNK Backwards-Difference-Formulae (order %d)", order);
   ode_integrator_t* I = ode_integrator_new(name, integ, vtable, order);
 
   // Set default tolerances.
   // relative error of 1e-4 means errors are controlled to 0.01%.
   // absolute error is set to 1 because it's completely problem dependent.
-  am_ode_integrator_set_tolerances(I, 1e-4, 1.0);
+  bdf_ode_integrator_set_tolerances(I, 1e-4, 1.0);
 
   return I;
 }
 
-void* am_ode_integrator_context(ode_integrator_t* integrator)
+void* bdf_ode_integrator_context(ode_integrator_t* integrator)
 {
-  am_ode_t* integ = ode_integrator_context(integrator);
+  bdf_ode_t* integ = ode_integrator_context(integrator);
   return integ->context;
 }
 
-void am_ode_integrator_set_tolerances(ode_integrator_t* integrator,
+void bdf_ode_integrator_set_tolerances(ode_integrator_t* integrator,
                                       real_t relative_tol, real_t absolute_tol)
 {
   ASSERT(relative_tol > 0.0);
   ASSERT(absolute_tol > 0.0);
 
-  am_ode_t* integ = ode_integrator_context(integrator);
+  bdf_ode_t* integ = ode_integrator_context(integrator);
 
   // Clear any existing error weight function.
   integ->compute_weights = NULL;
@@ -385,30 +343,37 @@ void am_ode_integrator_set_tolerances(ode_integrator_t* integrator,
 // Error weight adaptor function.
 static int compute_error_weights(N_Vector y, N_Vector ewt, void* context)
 {
-  am_ode_t* integ = context;
+  bdf_ode_t* integ = context;
   integ->compute_weights(integ->context, NV_DATA(y), NV_DATA(ewt));
   return 0;
 }
 
-void am_ode_integrator_set_error_weight_function(ode_integrator_t* integrator,
-                                                 am_ode_integrator_error_weight_func compute_weights)
+void bdf_ode_integrator_set_error_weight_function(ode_integrator_t* integrator,
+                                                 bdf_ode_integrator_error_weight_func compute_weights)
 {
-  am_ode_t* integ = ode_integrator_context(integrator);
+  bdf_ode_t* integ = ode_integrator_context(integrator);
   ASSERT(compute_weights != NULL);
   integ->compute_weights = compute_weights;
   CVodeWFtolerances(integ->cvode, compute_error_weights);
 }
 
-void am_ode_integrator_eval_rhs(ode_integrator_t* integrator, real_t t, real_t* X, real_t* rhs)
+void bdf_integrator_set_stability_limit_detection(ode_integrator_t* integrator,
+                                                  bool use_detection)
 {
-  am_ode_t* integ = ode_integrator_context(integrator);
+  bdf_ode_t* integ = ode_integrator_context(integrator);
+  CVodeSetStabLimDet(integ->cvode, use_detection);
+}
+
+void bdf_ode_integrator_eval_rhs(ode_integrator_t* integrator, real_t t, real_t* X, real_t* rhs)
+{
+  bdf_ode_t* integ = ode_integrator_context(integrator);
   integ->rhs(integ->context, t, X, rhs);
 }
 
-void am_ode_integrator_get_diagnostics(ode_integrator_t* integrator, 
-                                       am_ode_integrator_diagnostics_t* diagnostics)
+void bdf_ode_integrator_get_diagnostics(ode_integrator_t* integrator, 
+                                        bdf_ode_integrator_diagnostics_t* diagnostics)
 {
-  am_ode_t* integ = ode_integrator_context(integrator);
+  bdf_ode_t* integ = ode_integrator_context(integrator);
   diagnostics->status_message = integ->status_message; // borrowed!
   CVodeGetNumSteps(integ->cvode, &diagnostics->num_steps);
   CVodeGetLastOrder(integ->cvode, &diagnostics->order_of_last_step);
@@ -424,8 +389,8 @@ void am_ode_integrator_get_diagnostics(ode_integrator_t* integrator,
   CVSpilsGetNumConvFails(integ->cvode, &diagnostics->num_linear_solve_convergence_failures);
 }
 
-void am_ode_integrator_diagnostics_fprintf(am_ode_integrator_diagnostics_t* diagnostics, 
-                                           FILE* stream)
+void bdf_ode_integrator_diagnostics_fprintf(bdf_ode_integrator_diagnostics_t* diagnostics, 
+                                            FILE* stream)
 {
   if (stream == NULL) return;
   fprintf(stream, "ODE integrator diagnostics:\n");
