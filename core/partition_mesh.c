@@ -83,8 +83,10 @@ static int64_t* partition_graph(adj_graph_t* global_graph,
     SCOTCH_Strat strategy;
     SCOTCH_stratInit(&strategy);
     SCOTCH_Num strat_flags = SCOTCH_STRATDEFAULT;
-    SCOTCH_stratDgraphMapBuild(&strategy, strat_flags, nprocs, nprocs, (double)imbalance_tol);
-    int result = SCOTCH_dgraphPart(&dist_graph, nprocs, &strategy, global_partition);
+    int result = SCOTCH_stratDgraphMapBuild(&strategy, strat_flags, nprocs, nprocs, (double)imbalance_tol);
+    if (result != 0)
+      polymec_error("Partitioning strategy could not be constructed.");
+    result = SCOTCH_dgraphPart(&dist_graph, nprocs, &strategy, global_partition);
     if (result != 0)
       polymec_error("Partitioning failed.");
     SCOTCH_dgraphExit(&dist_graph);
