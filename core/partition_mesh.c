@@ -471,19 +471,21 @@ static void mesh_distribute(mesh_t** mesh,
   ASSERT(num_ghosts == local_mesh->num_ghost_cells);
   exchanger_t* ex = mesh_exchanger(local_mesh);
   int pos = 0, proc;
-  index_array_t* indices;
+  int_array_t* indices;
   while (int_ptr_unordered_map_next(ghost_cell_indices, &pos, &proc, (void**)&indices))
   {
-    if (proc != rank) 
+    if (proc != rank)
     {
-      int send_indices[indices->size/2], recv_indices[indices->size/2];
-      for (int i = 0; i < indices->size/2; ++i)
+      ASSERT((indices->size > 0) && ((indices->size % 2) == 0));
+      int num_pairs = indices->size/2;
+      int send_indices[num_pairs], recv_indices[num_pairs];
+      for (int i = 0; i < num_pairs; ++i)
       {
         send_indices[i] = indices->data[2*i];
         recv_indices[i] = indices->data[2*i+1];
       }
-      exchanger_set_send(ex, proc, send_indices, indices->size/2, true);
-      exchanger_set_receive(ex, proc, recv_indices, indices->size/2, true);
+      exchanger_set_send(ex, proc, send_indices, num_pairs, true);
+      exchanger_set_receive(ex, proc, recv_indices, num_pairs, true);
     }
   }
 
