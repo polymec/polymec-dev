@@ -223,31 +223,32 @@ void model_report_conv_rate(real_t conv_rate, real_t sigma);
 // used to determine whether the given benchmark "passed."
 void model_report_error_norm(real_t error_norm);
 
-// Creates an instance of a "composite" model that can be set to use one of 
-// a set of named submodels. The submodels must be registered with 
-// composite_model_register(), given below. Note that these submodels
-// cannot use custom input--they must parse input using the Lua interpreter.
-model_t* composite_model_new(const char* name, docstring_t* doc);
+// Creates an instance of a "dispatch" model that simply dispatches its 
+// methods to a selected one in a set. The models in this set must be 
+// registered with dispatch_model_register(), given below. Note that these 
+// models cannot use custom input--they must parse input using the Lua 
+// interpreter.
+model_t* dispatch_model_new(const char* name, docstring_t* doc);
 
-// Registers a submodel with the given name to the composite model so that 
-// it can be selected using composite_model_select(). More specifically, it 
-// registers a constructor that can be called when a submodel needs to be 
-// created. This submodel should not already exist in the composite model's 
-// list.
-void composite_model_register(model_t* composite_model, 
-                              const char* submodel_name, 
-                              model_ctor submodel_ctor);
+// Registers a model with the given name to the given dispatch model so that 
+// it can be selected using dispatch_model_select(). More specifically, it 
+// registers a constructor that can be called when a model needs to be 
+// created. This model should not already exist in the dispatch model's 
+// set.
+void dispatch_model_register(model_t* dispatch_model, 
+                             const char* model_name, 
+                             model_ctor model_constructor);
 
-// Selects the model to be used by the given composite model. Returns true if 
-// the selection succeeded (i.e. if the model name exists in the composite 
+// Selects the model to be used by the given dispatch model. Returns true if 
+// the selection succeeded (i.e. if the model name exists in the dispatch 
 // model's table of submodels), and false otherwise. If a model has already 
 // been selected, this produces a fatal error.
-bool composite_model_select(model_t* composite_model, const char* submodel_name);
+bool dispatch_model_select(model_t* dispatch_model, const char* selected_name);
 
-// By default, the submodel of a composite model is selected by reading the 
+// By default, a dispatch model selects its dispatchee by reading the 
 // value of the variable "model" in the model's interpreter. This method 
-// sets the variable that should be used to select the submodel instead.
-void composite_model_set_selection_var(model_t* composite_model, const char* selection_var);
+// sets the variable that should be used to select the model instead.
+void dispatch_model_set_selection_var(model_t* dispatch_model, const char* selection_var);
 
 #endif
 

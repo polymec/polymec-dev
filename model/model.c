@@ -1192,144 +1192,146 @@ void model_report_error_norm(real_t error_norm)
 }
 
 //------------------------------------------------------------------------
-//                        Composite model logic
+//                        Dispatch model logic
 //------------------------------------------------------------------------
 
-DEFINE_UNORDERED_MAP(submodel_table, char*, model_ctor, string_hash, string_equals)
+DEFINE_UNORDERED_MAP(model_table, char*, model_ctor, string_hash, string_equals)
 
 typedef struct
 {
   model_t* ubermodel;
-  submodel_table_t* models;
-  model_t* selected_submodel;
+  model_table_t* models;
+  model_t* selected_model;
   char* selection_var;
-} comp_model_t;
+} dispatch_model_t;
 
-static void comp_read_input(void* context, interpreter_t* interpreter, options_t* options)
+static void disp_read_input(void* context, interpreter_t* interpreter, options_t* options)
 {
-  comp_model_t* model = context;
+  dispatch_model_t* model = context;
 
   // Look for a "model" variable in the interpreter.
   char* model_name = interpreter_get_string(interpreter, model->selection_var);
   if (model_name == NULL)
     polymec_error("No '%s' variable was found in the input.", model->selection_var);
 
-  if (!composite_model_select(model->ubermodel, model_name))
+  if (!dispatch_model_select(model->ubermodel, model_name))
     polymec_error("Invalid model was selected: '%s'", model_name);
 }
 
-static void comp_init(void* context, real_t t)
+static void disp_init(void* context, real_t t)
 {
-  comp_model_t* model = context;
-  ASSERT(model->selected_submodel != NULL);
-  model_init(model->selected_submodel, t);
+  dispatch_model_t* model = context;
+  ASSERT(model->selected_model != NULL);
+  model_init(model->selected_model, t);
 }
 
-static real_t comp_max_dt(void* context, real_t t, char* reason)
+static real_t disp_max_dt(void* context, real_t t, char* reason)
 {
-  comp_model_t* model = context;
-  ASSERT(model->selected_submodel != NULL);
-  return model_max_dt(model->selected_submodel, reason);
+  dispatch_model_t* model = context;
+  ASSERT(model->selected_model != NULL);
+  return model_max_dt(model->selected_model, reason);
 }
 
-static real_t comp_advance(void* context, real_t max_dt, real_t t)
+static real_t disp_advance(void* context, real_t max_dt, real_t t)
 {
-  comp_model_t* model = context;
-  ASSERT(model->selected_submodel != NULL);
-  return model_advance(model->selected_submodel, max_dt);
+  dispatch_model_t* model = context;
+  ASSERT(model->selected_model != NULL);
+  return model_advance(model->selected_model, max_dt);
 }
 
-static void comp_finalize(void* context, int step, real_t t)
+static void disp_finalize(void* context, int step, real_t t)
 {
-  comp_model_t* model = context;
-  ASSERT(model->selected_submodel != NULL);
-  model_finalize(model->selected_submodel);
+  dispatch_model_t* model = context;
+  ASSERT(model->selected_model != NULL);
+  model_finalize(model->selected_model);
 }
 
-static void comp_load(void* context, const char* file_prefix, const char* directory, real_t* time, int step)
+static void disp_load(void* context, const char* file_prefix, const char* directory, real_t* time, int step)
 {
-  comp_model_t* model = context;
-  ASSERT(model->selected_submodel != NULL);
-  model_load(model->selected_submodel, step);
+  dispatch_model_t* model = context;
+  ASSERT(model->selected_model != NULL);
+  model_load(model->selected_model, step);
 }
 
-static void comp_save(void* context, const char* file_prefix, const char* directory, real_t time, int step)
+static void disp_save(void* context, const char* file_prefix, const char* directory, real_t time, int step)
 {
-  comp_model_t* model = context;
-  ASSERT(model->selected_submodel != NULL);
-  model_save(model->selected_submodel);
+  dispatch_model_t* model = context;
+  ASSERT(model->selected_model != NULL);
+  model_save(model->selected_model);
 }
 
-static void comp_plot(void* context, const char* file_prefix, const char* directory, real_t time, int step)
+static void disp_plot(void* context, const char* file_prefix, const char* directory, real_t time, int step)
 {
-  comp_model_t* model = context;
-  ASSERT(model->selected_submodel != NULL);
-  model_plot(model->selected_submodel);
+  dispatch_model_t* model = context;
+  ASSERT(model->selected_model != NULL);
+  model_plot(model->selected_model);
 }
 
-static void comp_compute_error_norms(void* context, st_func_t* solution, real_t t, real_t* norms)
+static void disp_compute_error_norms(void* context, st_func_t* solution, real_t t, real_t* norms)
 {
-  comp_model_t* model = context;
-  ASSERT(model->selected_submodel != NULL);
-  model_compute_error_norms(model->selected_submodel, solution, norms);
+  dispatch_model_t* model = context;
+  ASSERT(model->selected_model != NULL);
+  model_compute_error_norms(model->selected_model, solution, norms);
 }
 
-static void comp_dtor(void* context)
+static void disp_dtor(void* context)
 {
-  comp_model_t* model = context;
-  submodel_table_free(model->models);
+  dispatch_model_t* model = context;
+  model_table_free(model->models);
+  string_free(model->selection_var);
+  polymec_free(model);
 }
 
-model_t* composite_model_new(const char* name, docstring_t* doc)
+model_t* dispatch_model_new(const char* name, docstring_t* doc)
 {
-  comp_model_t* comp_model = polymec_malloc(sizeof(comp_model_t));
-  comp_model->models = submodel_table_new();
-  comp_model->selected_submodel = NULL;
-  comp_model->selection_var = string_dup("model");
-  model_vtable vtable = {.read_input = comp_read_input,
+  dispatch_model_t* d = polymec_malloc(sizeof(dispatch_model_t));
+  d->models = model_table_new();
+  d->selected_model = NULL;
+  d->selection_var = string_dup("model");
+  model_vtable vtable = {.read_input = disp_read_input,
                          .read_custom_input = NULL,
-                         .init = comp_init,
-                         .max_dt = comp_max_dt,
-                         .advance = comp_advance,
-                         .finalize = comp_finalize,
-                         .load = comp_load,
-                         .save = comp_save,
-                         .plot = comp_plot,
-                         .compute_error_norms = comp_compute_error_norms,
-                         .dtor = comp_dtor};
-  comp_model->ubermodel = model_new(name, comp_model, vtable, doc);
-  return comp_model->ubermodel;
+                         .init = disp_init,
+                         .max_dt = disp_max_dt,
+                         .advance = disp_advance,
+                         .finalize = disp_finalize,
+                         .load = disp_load,
+                         .save = disp_save,
+                         .plot = disp_plot,
+                         .compute_error_norms = disp_compute_error_norms,
+                         .dtor = disp_dtor};
+  d->ubermodel = model_new(name, d, vtable, doc);
+  return d->ubermodel;
 }
 
-void composite_model_register(model_t* composite_model, 
-                              const char* submodel_name, 
-                              model_ctor submodel_ctor)
+void dispatch_model_register(model_t* dispatch_model, 
+                              const char* model_name, 
+                              model_ctor model_constructor)
 {
-  comp_model_t* comp_model = composite_model->context;
-  ASSERT(!submodel_table_contains(comp_model->models, (char*)submodel_name));
-  submodel_table_insert_with_k_dtor(comp_model->models, 
-                                    string_dup(submodel_name), 
-                                    submodel_ctor,
-                                    string_free);
+  dispatch_model_t* d = dispatch_model->context;
+  ASSERT(!model_table_contains(d->models, (char*)model_name));
+  model_table_insert_with_k_dtor(d->models, 
+                                 string_dup(model_name), 
+                                 model_constructor,
+                                 string_free);
 }
 
-bool composite_model_select(model_t* composite_model, const char* submodel_name)
+bool dispatch_model_select(model_t* dispatch_model, const char* selection_name)
 {
-  comp_model_t* comp_model = composite_model->context;
-  if (comp_model->selected_submodel != NULL)
-    polymec_error("A submodel has already been selected for the %s model.", model_name(composite_model));
+  dispatch_model_t* d = dispatch_model->context;
+  if (d->selected_model != NULL)
+    polymec_error("A model has already been selected for the %s model.", model_name(dispatch_model));
 
-  model_ctor* model_ctor_p = (model_ctor*)submodel_table_get(comp_model->models, (char*)submodel_name);
+  model_ctor* model_ctor_p = (model_ctor*)model_table_get(d->models, (char*)selection_name);
   if (model_ctor_p == NULL)
     return false;
-  comp_model->selected_submodel = (*model_ctor_p)();
+  d->selected_model = (*model_ctor_p)();
   return true;
 }
 
-void composite_model_set_selection_var(model_t* composite_model, const char* selection_var)
+void dispatch_model_set_selection_var(model_t* dispatch_model, const char* selection_var)
 {
-  comp_model_t* comp_model = composite_model->context;
-  string_free(comp_model->selection_var);
-  comp_model->selection_var = string_dup(selection_var);
+  dispatch_model_t* d = dispatch_model->context;
+  string_free(d->selection_var);
+  d->selection_var = string_dup(selection_var);
 }
 
