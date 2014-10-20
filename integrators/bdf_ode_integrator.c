@@ -110,6 +110,9 @@ static bool bdf_step(void* context, real_t max_dt, real_t max_t, real_t* t, real
   CVodeSetMaxStep(integ->cvode, max_dt);
   CVodeSetStopTime(integ->cvode, max_t);
 
+  // Copy in the solution.
+  memcpy(NV_DATA(integ->x), x, sizeof(real_t) * integ->N); 
+
   if (!integ->initialized || (fabs(integ->t - *t) > 1e-14))
   {
     CVodeReInit(integ->cvode, *t, integ->x);
@@ -117,9 +120,6 @@ static bool bdf_step(void* context, real_t max_dt, real_t max_t, real_t* t, real
     integ->t = *t;
   }
   
-  // Copy in the solution.
-  memcpy(NV_DATA(integ->x), x, sizeof(real_t) * integ->N); 
-
   // Integrate.
   integ->t = *t;
   real_t t2 = *t + max_dt;
@@ -280,6 +280,7 @@ ode_integrator_t* jfnk_bdf_ode_integrator_new(int order,
   integ->status_message = NULL;
   integ->max_krylov_dim = max_krylov_dim;
   integ->initialized = false;
+  integ->t = 0.0;
 
   // Set up KINSol and accessories.
   integ->x = N_VNew(integ->comm, integ->N);

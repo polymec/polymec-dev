@@ -110,6 +110,9 @@ static bool am_step(void* context, real_t max_dt, real_t max_t, real_t* t, real_
   CVodeSetMaxStep(integ->cvode, max_dt);
   CVodeSetStopTime(integ->cvode, max_t);
 
+  // Copy in the solution.
+  memcpy(NV_DATA(integ->x), x, sizeof(real_t) * integ->N); 
+
   if (!integ->initialized || (fabs(integ->t - *t) > 1e-14))
   {
     CVodeReInit(integ->cvode, *t, integ->x);
@@ -117,9 +120,6 @@ static bool am_step(void* context, real_t max_dt, real_t max_t, real_t* t, real_
     integ->t = *t;
   }
   
-  // Copy in the solution.
-  memcpy(NV_DATA(integ->x), x, sizeof(real_t) * integ->N); 
-
   // Integrate.
   integ->t = *t;
   real_t t2 = *t + max_dt;
