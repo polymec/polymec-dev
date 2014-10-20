@@ -444,7 +444,7 @@ if (HAVE_MPI EQUAL 1)
   file(COPY ${CMAKE_CURRENT_BINARY_DIR}/scotch/lib/libscotch.a DESTINATION ${PROJECT_BINARY_DIR}/lib)
   file(COPY ${CMAKE_CURRENT_BINARY_DIR}/scotch/lib/libptscotch.a DESTINATION ${PROJECT_BINARY_DIR}/lib)
   install(FILES ${PROJECT_BINARY_DIR}/lib/libscotch.a ${PROJECT_BINARY_DIR}/lib/libptscotch.a DESTINATION lib)
-  install(FILES ${PROJECT_BINARY_DIR}/include/scotch.h ${PROJECT_BINARY_DIR}/include/ptscotch.h DESTINATION include)
+  install(FILES ${PROJECT_BINARY_DIR}/include/scotch.h ${PROJECT_BINARY_DIR}/include/ptscotch.h DESTINATION include/polymec)
   set(POLYMEC_TP_LIBS ptscotch;scotch;${POLYMEC_TP_LIBS})
 endif()
 
