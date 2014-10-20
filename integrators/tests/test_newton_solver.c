@@ -30,49 +30,49 @@
 #include "cmockery.h"
 #include "core/polymec.h"
 #include "core/norms.h"
-#include "integrators/nonlinear_solver.h"
+#include "integrators/newton_solver.h"
 
-extern nonlinear_solver_t* block_jacobi_precond_foodweb_solver_new();
-extern nonlinear_solver_t* lu_precond_foodweb_solver_new();
-extern nonlinear_solver_t* ilu_precond_foodweb_solver_new();
+extern newton_solver_t* block_jacobi_precond_foodweb_solver_new();
+extern newton_solver_t* lu_precond_foodweb_solver_new();
+extern newton_solver_t* ilu_precond_foodweb_solver_new();
 extern real_t* foodweb_initial_conditions();
 
 void test_block_jacobi_precond_foodweb_ctor(void** state)
 {
-  nonlinear_solver_t* integ = block_jacobi_precond_foodweb_solver_new();
-  assert_true(strcmp(nonlinear_solver_name(integ), "Food web") == 0);
-  nonlinear_solver_free(integ);
+  newton_solver_t* integ = block_jacobi_precond_foodweb_solver_new();
+  assert_true(strcmp(newton_solver_name(integ), "Food web") == 0);
+  newton_solver_free(integ);
 }
 
 void test_lu_precond_foodweb_ctor(void** state)
 {
-  nonlinear_solver_t* integ = lu_precond_foodweb_solver_new();
-  assert_true(strcmp(nonlinear_solver_name(integ), "Food web") == 0);
-  nonlinear_solver_free(integ);
+  newton_solver_t* integ = lu_precond_foodweb_solver_new();
+  assert_true(strcmp(newton_solver_name(integ), "Food web") == 0);
+  newton_solver_free(integ);
 }
 
 void test_ilu_precond_foodweb_ctor(void** state)
 {
-  nonlinear_solver_t* integ = ilu_precond_foodweb_solver_new();
-  assert_true(strcmp(nonlinear_solver_name(integ), "Food web") == 0);
-  nonlinear_solver_free(integ);
+  newton_solver_t* integ = ilu_precond_foodweb_solver_new();
+  assert_true(strcmp(newton_solver_name(integ), "Food web") == 0);
+  newton_solver_free(integ);
 }
 
-void test_foodweb_solve(void** state, nonlinear_solver_t* integ)
+void test_foodweb_solve(void** state, newton_solver_t* integ)
 {
   // Set up the problem.
-  nonlinear_solver_set_tolerances(integ, 1e-7, 1e-13);
+  newton_solver_set_tolerances(integ, 1e-7, 1e-13);
   real_t* cc = foodweb_initial_conditions();
 
   // Solve it.
   int num_iters;
-  bool solved = nonlinear_solver_solve(integ, 0.0, cc, &num_iters);
+  bool solved = newton_solver_solve(integ, 0.0, cc, &num_iters);
   if (!solved)
   {
-    nonlinear_solver_diagnostics_t diagnostics;
-    nonlinear_solver_get_diagnostics(integ, &diagnostics);
-    nonlinear_solver_diagnostics_fprintf(&diagnostics, stdout);
-    preconditioner_fprintf(nonlinear_solver_preconditioner(integ), stdout);
+    newton_solver_diagnostics_t diagnostics;
+    newton_solver_get_diagnostics(integ, &diagnostics);
+    newton_solver_diagnostics_fprintf(&diagnostics, stdout);
+    preconditioner_fprintf(newton_solver_preconditioner(integ), stdout);
   }
   assert_true(solved);
   log_info("num iterations = %d\n", num_iters);
@@ -81,33 +81,33 @@ void test_foodweb_solve(void** state, nonlinear_solver_t* integ)
   // Evaluate the 2-norm of the residual.
   int num_eq = 6*8*8;
   real_t F[num_eq];
-  nonlinear_solver_eval_residual(integ, 0.0, cc, F);
+  newton_solver_eval_residual(integ, 0.0, cc, F);
   real_t L2 = l2_norm(F, num_eq);
   log_info("||F||_L2 = %g\n", L2);
   assert_true(L2 < sqrt(1e-7));
 
-  nonlinear_solver_free(integ);
+  newton_solver_free(integ);
   free(cc);
 }
 
 void test_block_jacobi_precond_foodweb_solve(void** state)
 {
   // Set up the problem.
-  nonlinear_solver_t* integ = block_jacobi_precond_foodweb_solver_new();
+  newton_solver_t* integ = block_jacobi_precond_foodweb_solver_new();
   test_foodweb_solve(state, integ);
 }
 
 void test_lu_precond_foodweb_solve(void** state)
 {
   // Set up the problem.
-  nonlinear_solver_t* integ = lu_precond_foodweb_solver_new();
+  newton_solver_t* integ = lu_precond_foodweb_solver_new();
   test_foodweb_solve(state, integ);
 }
 
 void test_ilu_precond_foodweb_solve(void** state)
 {
   // Set up the problem.
-  nonlinear_solver_t* integ = ilu_precond_foodweb_solver_new();
+  newton_solver_t* integ = ilu_precond_foodweb_solver_new();
   test_foodweb_solve(state, integ);
 }
 

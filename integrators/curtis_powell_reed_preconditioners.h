@@ -25,11 +25,12 @@
 #ifndef POLYMEC_CURTIS_POWELL_REED_PRECONDITIONERS_H
 #define POLYMEC_CURTIS_POWELL_REED_PRECONDITIONERS_H
 
-#include "integrators/nonlinear_preconditioner.h"
+#include "core/adj_graph.h"
+#include "core/preconditioner.h"
 
-//------------------------------------------------------------------------
-//               Curtis-Powell-Reed preconditioner implementations
-//------------------------------------------------------------------------
+// Curtis-Powell-Reed preconditioners are Newton preconditioners that use the 
+// method of Curtis, Powell and Reed to approximate the entries of a Jacobian 
+// matrix automatically, given only the residual (or right-hand side) function.
 
 // Creates a block Jacobi preconditioner with the given sparsity graph, 
 // number of block rows, and block size. The nature of the sparsity graph 

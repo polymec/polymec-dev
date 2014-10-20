@@ -23,7 +23,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "core/polymec.h"
-#include "integrators/nonlinear_solver.h"
+#include "integrators/newton_solver.h"
 #include "integrators/curtis_powell_reed_preconditioners.h"
 
 // We use this for some of the underlying data structures.
@@ -388,17 +388,17 @@ static void foodweb_set_constraints(void* context, real_t* constraints)
 }
 
 // Constructor for food web integrator with no preconditioner.
-static nonlinear_solver_t* foodweb_solver_new()
+static newton_solver_t* foodweb_solver_new()
 {
   // Set up a nonlinear integrator using GMRES with no globalization 
   // strategy.
   foodweb_t* data = foodweb_new();
-  nonlinear_solver_vtable vtable = {.eval = foodweb_func,
+  newton_solver_vtable vtable = {.eval = foodweb_func,
                                         .set_x_scale = foodweb_set_x_scale,
                                         .set_F_scale = foodweb_set_F_scale,
                                         .set_constraints = foodweb_set_constraints,
                                         .dtor = foodweb_dtor};
-  nonlinear_solver_t* integ = gmres_nonlinear_solver_new("Food web",
+  newton_solver_t* integ = gmres_newton_solver_new("Food web",
                                                                  data,
                                                                  MPI_COMM_SELF,
                                                                  NEQ,
@@ -409,36 +409,36 @@ static nonlinear_solver_t* foodweb_solver_new()
 }
 
 // Constructor for block-Jacobi-preconditioned food web integrator.
-nonlinear_solver_t* block_jacobi_precond_foodweb_solver_new()
+newton_solver_t* block_jacobi_precond_foodweb_solver_new()
 {
-  nonlinear_solver_t* integ = foodweb_solver_new();
-  foodweb_t* data = nonlinear_solver_context(integ);
+  newton_solver_t* integ = foodweb_solver_new();
+  foodweb_t* data = newton_solver_context(integ);
   int block_size = NUM_SPECIES;
   preconditioner_t* precond = block_jacobi_preconditioner_from_function("Food web", data, foodweb_func, NULL, data->sparsity, NEQ/block_size, block_size);
-  nonlinear_solver_set_preconditioner(integ, precond);
+  newton_solver_set_preconditioner(integ, precond);
   return integ;
 }
 
 // Constructor for LU-preconditioned food web integrator.
-nonlinear_solver_t* lu_precond_foodweb_solver_new()
+newton_solver_t* lu_precond_foodweb_solver_new()
 {
-  nonlinear_solver_t* integ = foodweb_solver_new();
-  foodweb_t* data = nonlinear_solver_context(integ);
+  newton_solver_t* integ = foodweb_solver_new();
+  foodweb_t* data = newton_solver_context(integ);
   int block_size = NUM_SPECIES;
   preconditioner_t* precond = lu_preconditioner_from_function("Food web", data, foodweb_func, NULL, data->sparsity, NEQ/block_size, block_size);
-  nonlinear_solver_set_preconditioner(integ, precond);
+  newton_solver_set_preconditioner(integ, precond);
   return integ;
 }
 
 // Constructor for ILU-preconditioned food web integrator.
-nonlinear_solver_t* ilu_precond_foodweb_solver_new()
+newton_solver_t* ilu_precond_foodweb_solver_new()
 {
-  nonlinear_solver_t* integ = foodweb_solver_new();
-  foodweb_t* data = nonlinear_solver_context(integ);
+  newton_solver_t* integ = foodweb_solver_new();
+  foodweb_t* data = newton_solver_context(integ);
   ilu_params_t* ilu_params = ilu_params_new();
   int block_size = NUM_SPECIES;
   preconditioner_t* precond = ilu_preconditioner_from_function("Food web", data, foodweb_func, NULL, data->sparsity, NEQ/block_size, block_size, ilu_params);
-  nonlinear_solver_set_preconditioner(integ, precond);
+  newton_solver_set_preconditioner(integ, precond);
   return integ;
 }
 

@@ -24,7 +24,7 @@
 
 #include "core/sundials_helpers.h"
 #include "integrators/am_ode_integrator.h"
-#include "integrators/nonlinear_preconditioner.h"
+#include "integrators/newton_preconditioner.h"
 #include "cvode/cvode.h"
 
 // JFNK stuff.
@@ -251,7 +251,7 @@ static int set_up_preconditioner(real_t t, N_Vector x, N_Vector F,
   am_ode_t* integ = context;
   if (!jacobian_is_current)
   {
-    nonlinear_preconditioner_setup(integ->precond, 1.0, -gamma, 0.0, t, NV_DATA(x), NULL);
+    newton_preconditioner_setup(integ->precond, 1.0, -gamma, 0.0, t, NV_DATA(x), NULL);
     *jacobian_was_updated = 1;
   }
   else

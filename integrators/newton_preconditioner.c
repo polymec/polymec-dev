@@ -28,18 +28,18 @@
 #include "core/linear_algebra.h"
 #include "core/array_utils.h"
 #include "core/sundials_helpers.h"
-#include "integrators/nonlinear_preconditioner.h"
+#include "integrators/newton_preconditioner.h"
 
 typedef struct
 {
   void* context;
-  nonlinear_preconditioner_vtable vtable;
+  newton_preconditioner_vtable vtable;
 } nlpc_t;
 
 static void nlpc_setup(void* context)
 {
   polymec_error("Do not call preconditioner_setup() on a nonlinear preconditioner.\n"
-                "Instead call nonlinear_preconditioner_setup().");
+                "Instead call newton_preconditioner_setup().");
 }
 
 static bool nlpc_solve(void* context, real_t* z)
@@ -62,9 +62,9 @@ static void nlpc_dtor(void* context)
   polymec_free(pc);
 }
 
-preconditioner_t* nonlinear_preconditioner_new(const char* name,
-                                               void* context,
-                                               nonlinear_preconditioner_vtable vtable)
+preconditioner_t* newton_preconditioner_new(const char* name,
+                                            void* context,
+                                            newton_preconditioner_vtable vtable)
 {
   // Make sure everything is there.
   ASSERT(vtable.compute_P != NULL);
@@ -81,9 +81,9 @@ preconditioner_t* nonlinear_preconditioner_new(const char* name,
   return preconditioner_new(name, pc, pc_vtable);
 }
 
-void nonlinear_preconditioner_setup(preconditioner_t* precond, 
-                                    real_t alpha, real_t beta, real_t gamma,
-                                    real_t t, real_t* x, real_t* xdot)
+void newton_preconditioner_setup(preconditioner_t* precond, 
+                                 real_t alpha, real_t beta, real_t gamma,
+                                 real_t t, real_t* x, real_t* xdot)
 {
   // Only certain combinations of alpha, beta, and gamma are allowed.
   ASSERT(((alpha == 1.0) && (beta != 0.0) && (gamma == 0.0)) || 

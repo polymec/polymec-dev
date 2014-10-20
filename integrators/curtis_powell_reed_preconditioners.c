@@ -29,6 +29,7 @@
 #include "core/array_utils.h"
 #include "core/sundials_helpers.h"
 #include "integrators/curtis_powell_reed_preconditioners.h"
+#include "integrators/newton_preconditioner.h"
 
 typedef struct
 {
@@ -255,15 +256,15 @@ static preconditioner_t* curtis_powell_reed_preconditioner_new(const char* name,
   for (int i = 0; i < precond->num_work_vectors; ++i)
     precond->work[i] = polymec_malloc(sizeof(real_t) * num_block_rows * block_size);
 
-  nonlinear_preconditioner_vtable nlpc_vtable = {.compute_P = cpr_compute_P,
-                                                 .solve = cpr_solve,
-                                                 .fprintf = cpr_fprintf,
-                                                 .dtor = cpr_dtor};
-  return nonlinear_preconditioner_new(name, precond, nlpc_vtable);
+  newton_preconditioner_vtable nlpc_vtable = {.compute_P = cpr_compute_P,
+                                              .solve = cpr_solve,
+                                              .fprintf = cpr_fprintf,
+                                              .dtor = cpr_dtor};
+  return newton_preconditioner_new(name, precond, nlpc_vtable);
 }
 
 //------------------------------------------------------------------------
-//              Block-Jacobi nonlinear preconditioner.
+//              Block-Jacobi Newton preconditioner.
 //------------------------------------------------------------------------
 
 typedef struct 
@@ -418,7 +419,7 @@ preconditioner_t* block_jacobi_preconditioner_from_dae_function(const char* name
 }
 
 //------------------------------------------------------------------------
-//              LU nonlinear preconditioner.
+//              LU Newton preconditioner.
 //------------------------------------------------------------------------
 
 typedef struct 

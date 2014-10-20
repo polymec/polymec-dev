@@ -58,12 +58,12 @@ static int cubic_poly_1_jac(void* context, int N, real_t* x, real_t* F,
 
 void test_newton_solve_system_1(void** state)
 {
-  newton_solver_t* solver = newton_solver_new(1, NULL, cubic_poly_1, NULL);
-  newton_solver_set_tolerances(solver, 1e-12, 1e-8);
+  dense_newton_solver_t* solver = dense_newton_solver_new(1, NULL, cubic_poly_1, NULL);
+  dense_newton_solver_set_tolerances(solver, 1e-12, 1e-8);
   double x = 3.0;
   int num_iters;
-  assert_true(newton_solver_solve(solver, &x, &num_iters));
-  newton_solver_free(solver);
+  assert_true(dense_newton_solver_solve(solver, &x, &num_iters));
+  dense_newton_solver_free(solver);
 
   double F = (x + 1.0) * (x - 2.0) * (x + 3.0);
   assert_true(fabs(F) < 1e-12);
@@ -71,12 +71,12 @@ void test_newton_solve_system_1(void** state)
 
 void test_newton_solve_system_1_with_jacobian(void** state)
 {
-  newton_solver_t* solver = newton_solver_new_with_jacobian(1, NULL, cubic_poly_1, cubic_poly_1_jac, NULL);
-  newton_solver_set_tolerances(solver, 1e-12, 1e-8);
+  dense_newton_solver_t* solver = dense_newton_solver_new_with_jacobian(1, NULL, cubic_poly_1, cubic_poly_1_jac, NULL);
+  dense_newton_solver_set_tolerances(solver, 1e-12, 1e-8);
   double x = 3.0;
   int num_iters;
-  assert_true(newton_solver_solve(solver, &x, &num_iters));
-  newton_solver_free(solver);
+  assert_true(dense_newton_solver_solve(solver, &x, &num_iters));
+  dense_newton_solver_free(solver);
 
   double F = (x + 1.0) * (x - 2.0) * (x + 3.0);
   assert_true(fabs(F) < 1e-12);
@@ -104,22 +104,22 @@ static int circle_2_jac(void* context, int N, real_t* x, real_t* F,
 
 void test_newton_solve_system_2(void** state)
 {
-  newton_solver_t* solver = newton_solver_new(2, NULL, circle_2, NULL);
+  dense_newton_solver_t* solver = dense_newton_solver_new(2, NULL, circle_2, NULL);
   double x[] = {3.0, -2.0};
   int num_iters;
-  assert_true(newton_solver_solve(solver, x, &num_iters));
-  newton_solver_free(solver);
+  assert_true(dense_newton_solver_solve(solver, x, &num_iters));
+  dense_newton_solver_free(solver);
 
   assert_true((x[0]-1.0)*(x[0]-1.0) + (x[1]-1.0)*(x[1]-1.0) < 1e-3);
 }
 
 void test_newton_solve_system_2_with_jacobian(void** state)
 {
-  newton_solver_t* solver = newton_solver_new_with_jacobian(2, NULL, circle_2, circle_2_jac, NULL);
+  dense_newton_solver_t* solver = dense_newton_solver_new_with_jacobian(2, NULL, circle_2, circle_2_jac, NULL);
   double x[] = {3.0, -2.0};
   int num_iters;
-  assert_true(newton_solver_solve(solver, x, &num_iters));
-  newton_solver_free(solver);
+  assert_true(dense_newton_solver_solve(solver, x, &num_iters));
+  dense_newton_solver_free(solver);
 
   assert_true((x[0]-1.0)*(x[0]-1.0) + (x[1]-1.0)*(x[1]-1.0) < 1e-3);
 }
@@ -152,22 +152,22 @@ static int sphere_3_jac(void* context, int N, real_t* x, real_t* F,
 
 void test_newton_solve_system_3(void** state)
 {
-  newton_solver_t* solver = newton_solver_new(3, NULL, sphere_3, NULL);
+  dense_newton_solver_t* solver = dense_newton_solver_new(3, NULL, sphere_3, NULL);
   double x[] = {3.0, -2.0, 10.0};
   int num_iters;
-  assert_true(newton_solver_solve(solver, x, &num_iters));
-  newton_solver_free(solver);
+  assert_true(dense_newton_solver_solve(solver, x, &num_iters));
+  dense_newton_solver_free(solver);
 
   assert_true((x[0]-1.0)*(x[0]-1.0) + (x[1]-1.0)*(x[1]-1.0) + (x[2]-1.0)*(x[2]-1.0) < 1e-3);
 }
 
 void test_newton_solve_system_3_with_jacobian(void** state)
 {
-  newton_solver_t* solver = newton_solver_new_with_jacobian(3, NULL, sphere_3, sphere_3_jac, NULL);
+  dense_newton_solver_t* solver = dense_newton_solver_new_with_jacobian(3, NULL, sphere_3, sphere_3_jac, NULL);
   double x[] = {3.0, -2.0, 10.0};
   int num_iters;
-  assert_true(newton_solver_solve(solver, x, &num_iters));
-  newton_solver_free(solver);
+  assert_true(dense_newton_solver_solve(solver, x, &num_iters));
+  dense_newton_solver_free(solver);
 
   assert_true((x[0]-1.0)*(x[0]-1.0) + (x[1]-1.0)*(x[1]-1.0) + (x[2]-1.0)*(x[2]-1.0) < 1e-3);
 }

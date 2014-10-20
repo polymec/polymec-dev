@@ -24,8 +24,8 @@
 
 #include <float.h>
 #include "core/sundials_helpers.h"
-#include "integrators/nonlinear_solver.h"
-#include "integrators/nonlinear_preconditioner.h"
+#include "integrators/newton_solver.h"
+#include "integrators/newton_preconditioner.h"
 
 // We use KINSOL for doing the matrix-free nonlinear solve.
 #include "kinsol/kinsol.h"
@@ -41,7 +41,7 @@ typedef enum
   TFQMR
 } solver_type_t;
 
-struct nonlinear_solver_t 
+struct newton_solver_t 
 {
   // Parallel stuff.
   int rank, nprocs;
@@ -49,7 +49,7 @@ struct nonlinear_solver_t
 
   char* name;
   void* context;
-  nonlinear_solver_vtable vtable;
+  newton_solver_vtable vtable;
   solver_type_t solver_type;
   int max_krylov_dim, max_restarts;
 
@@ -73,7 +73,7 @@ struct nonlinear_solver_t
   real_t current_time;
 };
 
-static void project_out_of_null_space(nonlinear_solver_t* solver,
+static void project_out_of_null_space(newton_solver_t* solver,
                                       real_t* R)
 {
   // If homogeneous functions are in the null space, subtract the spatial 
@@ -94,7 +94,7 @@ static void project_out_of_null_space(nonlinear_solver_t* solver,
 // This function wraps around the user-supplied evaluation function.
 static int evaluate_F(N_Vector x, N_Vector F, void* context)
 {
-  nonlinear_solver_t* solver = context;
+  newton_solver_t* solver = context;
   real_t* xx = NV_DATA(x);
   real_t* FF = NV_DATA(F);
 
@@ -110,9 +110,9 @@ static int set_up_preconditioner(N_Vector x, N_Vector x_scale,
                                  void* context, 
                                  N_Vector work1, N_Vector work2)
 {
-  nonlinear_solver_t* solver = context;
+  newton_solver_t* solver = context;
   real_t t = solver->current_time;
-  nonlinear_preconditioner_setup(solver->precond, 0.0, 1.0, 0.0, t, NV_DATA(x), NULL);
+  newton_preconditioner_setup(solver->precond, 0.0, 1.0, 0.0, t, NV_DATA(x), NULL);
   return 0;
 }
 
@@ -124,7 +124,7 @@ static int solve_preconditioner_system(N_Vector x, N_Vector x_scale,
                                        N_Vector r, void* context,
                                        N_Vector work)
 {
-  nonlinear_solver_t* solver = context;
+  newton_solver_t* solver = context;
 
   // FIXME: Apply scaling if needed.
 
@@ -136,28 +136,28 @@ static int solve_preconditioner_system(N_Vector x, N_Vector x_scale,
   else 
   {
     // Recoverable error.
-    log_debug("nonlinear_solver: preconditioner solve failed.");
+    log_debug("newton_solver: preconditioner solve failed.");
     return 1; 
   }
 }
 
 // Generic constructor.
-static nonlinear_solver_t* nonlinear_solver_new(const char* name, 
-                                                        void* context,
-                                                        MPI_Comm comm,
-                                                        int N,
-                                                        nonlinear_solver_vtable vtable,
-                                                        nonlinear_solver_strategy_t global_strategy,
-                                                        solver_type_t solver_type,
-                                                        int max_krylov_dim, 
-                                                        int max_restarts)
+static newton_solver_t* newton_solver_new(const char* name, 
+                                          void* context,
+                                          MPI_Comm comm,
+                                          int N,
+                                          newton_solver_vtable vtable,
+                                          newton_solver_strategy_t global_strategy,
+                                          solver_type_t solver_type,
+                                          int max_krylov_dim, 
+                                          int max_restarts)
 {
   ASSERT(N > 0);
   ASSERT(vtable.eval != NULL);
   ASSERT(max_krylov_dim >= 3);
   ASSERT(max_restarts >= 0);
 
-  nonlinear_solver_t* solver = polymec_malloc(sizeof(nonlinear_solver_t));
+  newton_solver_t* solver = polymec_malloc(sizeof(newton_solver_t));
   solver->name = string_dup(name);
   solver->context = context;
   solver->comm = comm;
@@ -222,47 +222,47 @@ static nonlinear_solver_t* nonlinear_solver_new(const char* name,
   return solver;
 }
 
-nonlinear_solver_t* gmres_nonlinear_solver_new(const char* name,
-                                                       void* context,
-                                                       MPI_Comm comm,
-                                                       int N,
-                                                       nonlinear_solver_vtable vtable,
-                                                       nonlinear_solver_strategy_t global_strategy,
-                                                       int max_krylov_dim,
-                                                       int max_restarts)
+newton_solver_t* gmres_newton_solver_new(const char* name,
+                                         void* context,
+                                         MPI_Comm comm,
+                                         int N,
+                                         newton_solver_vtable vtable,
+                                         newton_solver_strategy_t global_strategy,
+                                         int max_krylov_dim,
+                                         int max_restarts)
 {
-  return nonlinear_solver_new(name, context, comm, N, vtable, global_strategy,
+  return newton_solver_new(name, context, comm, N, vtable, global_strategy,
                                   GMRES, max_krylov_dim, max_restarts);
 }
 
-nonlinear_solver_t* bicgstab_nonlinear_solver_new(const char* name,
-                                                          void* context,
-                                                          MPI_Comm comm,
-                                                          int N,
-                                                          nonlinear_solver_vtable vtable,
-                                                          nonlinear_solver_strategy_t global_strategy,
-                                                          int max_krylov_dim)
+newton_solver_t* bicgstab_newton_solver_new(const char* name,
+                                            void* context,
+                                            MPI_Comm comm,
+                                            int N,
+                                            newton_solver_vtable vtable,
+                                            newton_solver_strategy_t global_strategy,
+                                            int max_krylov_dim)
 {
-  return nonlinear_solver_new(name, context, comm, N, vtable, global_strategy,
+  return newton_solver_new(name, context, comm, N, vtable, global_strategy,
                                   BICGSTAB, max_krylov_dim, 0);
 }
 
-nonlinear_solver_t* tfqmr_nonlinear_solver_new(const char* name,
-                                                       void* context,
-                                                       MPI_Comm comm,
-                                                       int N,
-                                                       nonlinear_solver_vtable vtable,
-                                                       nonlinear_solver_strategy_t global_strategy,
-                                                       int max_krylov_dim)
+newton_solver_t* tfqmr_newton_solver_new(const char* name,
+                                         void* context,
+                                         MPI_Comm comm,
+                                         int N,
+                                         newton_solver_vtable vtable,
+                                         newton_solver_strategy_t global_strategy,
+                                         int max_krylov_dim)
 {
-  return nonlinear_solver_new(name, context, comm, N, vtable, global_strategy,
-                                  TFQMR, max_krylov_dim, 0);
+  return newton_solver_new(name, context, comm, N, vtable, global_strategy,
+                           TFQMR, max_krylov_dim, 0);
 }
 
-void nonlinear_solver_free(nonlinear_solver_t* solver)
+void newton_solver_free(newton_solver_t* solver)
 {
   // Kill the null space.
-  nonlinear_solver_set_null_space(solver, false, NULL, 0);
+  newton_solver_set_null_space(solver, false, NULL, 0);
 
   // Kill the preconditioner stuff.
   if (solver->precond != NULL)
@@ -284,22 +284,22 @@ void nonlinear_solver_free(nonlinear_solver_t* solver)
   polymec_free(solver);
 }
 
-char* nonlinear_solver_name(nonlinear_solver_t* solver)
+char* newton_solver_name(newton_solver_t* solver)
 {
   return solver->name;
 }
 
-void* nonlinear_solver_context(nonlinear_solver_t* solver)
+void* newton_solver_context(newton_solver_t* solver)
 {
   return solver->context;
 }
 
-int nonlinear_solver_num_equations(nonlinear_solver_t* solver)
+int newton_solver_num_equations(newton_solver_t* solver)
 {
   return solver->N;
 }
 
-void nonlinear_solver_set_tolerances(nonlinear_solver_t* solver, real_t norm_tolerance, real_t step_tolerance)
+void newton_solver_set_tolerances(newton_solver_t* solver, real_t norm_tolerance, real_t step_tolerance)
 {
   ASSERT(norm_tolerance > 0.0);
   ASSERT(step_tolerance > 0.0);
@@ -307,14 +307,14 @@ void nonlinear_solver_set_tolerances(nonlinear_solver_t* solver, real_t norm_tol
   KINSetScaledStepTol(solver->kinsol, step_tolerance);
 }
 
-void newton_solver_set_max_iterations(nonlinear_solver_t* solver, int max_iterations)
+void newton_solver_set_max_iterations(newton_solver_t* solver, int max_iterations)
 {
   ASSERT(max_iterations > 0);
   KINSetNumMaxIters(solver->kinsol, max_iterations);
 }
 
-void nonlinear_solver_set_preconditioner(nonlinear_solver_t* solver,
-                                             preconditioner_t* precond)
+void newton_solver_set_preconditioner(newton_solver_t* solver,
+                                      preconditioner_t* precond)
 {
   solver->precond = precond;
 
@@ -326,15 +326,15 @@ void nonlinear_solver_set_preconditioner(nonlinear_solver_t* solver,
   }
 }
 
-preconditioner_t* nonlinear_solver_preconditioner(nonlinear_solver_t* solver)
+preconditioner_t* newton_solver_preconditioner(newton_solver_t* solver)
 {
   return solver->precond;
 }
 
-void nonlinear_solver_set_null_space(nonlinear_solver_t* solver,
-                                         bool homogeneous_functions,
-                                         real_t** null_space_vectors,
-                                         int null_dim)
+void newton_solver_set_null_space(newton_solver_t* solver,
+                                  bool homogeneous_functions,
+                                  real_t** null_space_vectors,
+                                  int null_dim)
 {
   ASSERT(((null_dim == 0) && (null_space_vectors == NULL)) ||
          ((null_dim > 0) && (null_space_vectors != NULL)));
@@ -360,16 +360,16 @@ void nonlinear_solver_set_null_space(nonlinear_solver_t* solver,
   }
 }
 
-void nonlinear_solver_eval_residual(nonlinear_solver_t* solver, real_t t, real_t* X, real_t* F)
+void newton_solver_eval_residual(newton_solver_t* solver, real_t t, real_t* X, real_t* F)
 {
   solver->vtable.eval(solver->context, t, X, F);
   project_out_of_null_space(solver, F);
 }
 
-bool nonlinear_solver_solve(nonlinear_solver_t* solver,
-                                real_t t,
-                                real_t* X,
-                                int* num_iterations)
+bool newton_solver_solve(newton_solver_t* solver,
+                            real_t t,
+                            real_t* X,
+                            int* num_iterations)
 {
   ASSERT(X != NULL);
 
@@ -398,7 +398,7 @@ bool nonlinear_solver_solve(nonlinear_solver_t* solver,
   if (solver->vtable.initial_guess != NULL)
   {
     // Form the initial guess magically.
-    log_debug("nonlinear_solver: forming initial guess...");
+    log_debug("newton_solver: forming initial guess...");
     solver->vtable.initial_guess(solver->context, t, NV_DATA(solver->x));
   }
   else
@@ -411,7 +411,7 @@ bool nonlinear_solver_solve(nonlinear_solver_t* solver,
 //  polymec_suspend_fpe_exceptions();
 
   // Solve.
-  log_debug("nonlinear_solver: solving...");
+  log_debug("newton_solver: solving...");
   int status = KINSol(solver->kinsol, solver->x, solver->strategy, 
                       solver->x_scale, solver->F_scale);
 
@@ -431,7 +431,7 @@ bool nonlinear_solver_solve(nonlinear_solver_t* solver,
     long num_iters;
     KINGetNumNonlinSolvIters(solver->kinsol, &num_iters);
     *num_iterations = (int)num_iters;
-    log_debug("nonlinear_solver: solved after %d iterations.", *num_iterations);
+    log_debug("newton_solver: solved after %d iterations.", *num_iterations);
 
     // Copy the data back into X.
     memcpy(X, NV_DATA(solver->x), sizeof(real_t) * N);
@@ -469,8 +469,8 @@ bool nonlinear_solver_solve(nonlinear_solver_t* solver,
   return false;
 }
                                   
-void nonlinear_solver_get_diagnostics(nonlinear_solver_t* solver, 
-                                          nonlinear_solver_diagnostics_t* diagnostics)
+void newton_solver_get_diagnostics(newton_solver_t* solver, 
+                                   newton_solver_diagnostics_t* diagnostics)
 {
   diagnostics->status_message = solver->status_message; // borrowed!
   KINGetNumFuncEvals(solver->kinsol, &diagnostics->num_function_evaluations);
@@ -487,8 +487,8 @@ void nonlinear_solver_get_diagnostics(nonlinear_solver_t* solver,
   KINSpilsGetNumFuncEvals(solver->kinsol, &diagnostics->num_difference_quotient_function_evaluations);
 }
 
-void nonlinear_solver_diagnostics_fprintf(nonlinear_solver_diagnostics_t* diagnostics, 
-                                          FILE* stream)
+void newton_solver_diagnostics_fprintf(newton_solver_diagnostics_t* diagnostics, 
+                                       FILE* stream)
 {
   if (stream == NULL) return;
   fprintf(stream, "Nonlinear solver diagnostics:\n");

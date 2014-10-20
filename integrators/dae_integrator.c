@@ -24,7 +24,7 @@
 
 #include "core/sundials_helpers.h"
 #include "integrators/dae_integrator.h"
-#include "integrators/nonlinear_preconditioner.h"
+#include "integrators/newton_preconditioner.h"
 
 #include "ida/ida.h"
 #include "ida/ida_spils.h"
@@ -88,7 +88,7 @@ static int set_up_preconditioner(real_t t, N_Vector x, N_Vector x_dot, N_Vector 
   dae_integrator_t* integ = context;
 
   // Form the linear combination dFdx + cj * dFdxdot.
-  nonlinear_preconditioner_setup(integ->precond, 0.0, 1.0, cj, t, NV_DATA(x), NV_DATA(x_dot));
+  newton_preconditioner_setup(integ->precond, 0.0, 1.0, cj, t, NV_DATA(x), NV_DATA(x_dot));
 
   return 0;
 }

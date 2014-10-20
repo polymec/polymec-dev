@@ -30,7 +30,7 @@
 #include "kinsol/kinsol.h"
 #include "kinsol/kinsol_dense.h"
 
-struct newton_solver_t 
+struct dense_newton_solver_t 
 {
   // Nonlinear system information.
   int dim;
@@ -50,7 +50,7 @@ struct newton_solver_t
 // Wrapper for system function.
 static int eval_system_func(N_Vector X, N_Vector F, void* context)
 {
-  newton_solver_t* solver = context;
+  dense_newton_solver_t* solver = context;
   return solver->sys_func(context, NV_DATA_S(X), NV_DATA_S(F));
 }
 
@@ -58,29 +58,29 @@ static int eval_system_func(N_Vector X, N_Vector F, void* context)
 static int eval_system_jac(long N, N_Vector X, N_Vector F, DlsMat J,
                            void* context, N_Vector work1, N_Vector work2)
 {
-  newton_solver_t* solver = context;
+  dense_newton_solver_t* solver = context;
   return solver->sys_jac(context, (int)N, NV_DATA_S(X), NV_DATA_S(F), 
                          NV_DATA_S(work1), NV_DATA_S(work2), J->data);
 }
 
-newton_solver_t* newton_solver_new(int dimension,
-                                   void* context,
-                                   newton_system_func system_func,
-                                   void (*context_dtor)(void*))
+dense_newton_solver_t* dense_newton_solver_new(int dimension,
+                                               void* context,
+                                               dense_newton_system_func system_func,
+                                               void (*context_dtor)(void*))
 {
-  return newton_solver_new_with_jacobian(dimension, context, system_func,
-                                         NULL, context_dtor);
+  return dense_newton_solver_new_with_jacobian(dimension, context, system_func,
+                                               NULL, context_dtor);
 }
 
-newton_solver_t* newton_solver_new_with_jacobian(int dimension,
-                                                 void* context,
-                                                 newton_system_func system_func,
-                                                 newton_jacobian_func jacobian_func,
-                                                 void (*context_dtor)(void*))
+dense_newton_solver_t* dense_newton_solver_new_with_jacobian(int dimension,
+                                                             void* context,
+                                                             dense_newton_system_func system_func,
+                                                             dense_newton_jacobian_func jacobian_func,
+                                                             void (*context_dtor)(void*))
 {
   ASSERT(dimension > 0);
   ASSERT(system_func != NULL);
-  newton_solver_t* solver = polymec_malloc(sizeof(newton_solver_t));
+  dense_newton_solver_t* solver = polymec_malloc(sizeof(dense_newton_solver_t));
   solver->dim = dimension;
   solver->context = context;
   solver->dtor = context_dtor;
@@ -104,7 +104,7 @@ newton_solver_t* newton_solver_new_with_jacobian(int dimension,
   return solver;
 }
 
-void newton_solver_free(newton_solver_t* solver)
+void dense_newton_solver_free(dense_newton_solver_t* solver)
 {
   N_VDestroy(solver->x);
   N_VDestroy(solver->x_scale);
@@ -115,12 +115,12 @@ void newton_solver_free(newton_solver_t* solver)
   polymec_free(solver);
 }
 
-int newton_solver_dimension(newton_solver_t* solver)
+int dense_newton_solver_dimension(dense_newton_solver_t* solver)
 {
   return solver->dim;
 }
 
-void newton_solver_set_tolerances(newton_solver_t* solver, real_t norm_tolerance, real_t step_tolerance)
+void dense_newton_solver_set_tolerances(dense_newton_solver_t* solver, real_t norm_tolerance, real_t step_tolerance)
 {
   ASSERT(norm_tolerance > 0.0);
   ASSERT(step_tolerance > 0.0);
@@ -128,19 +128,19 @@ void newton_solver_set_tolerances(newton_solver_t* solver, real_t norm_tolerance
   KINSetScaledStepTol(solver->kinsol, step_tolerance);
 }
 
-void newton_solver_set_max_iterations(newton_solver_t* solver, int max_iterations)
+void dense_newton_solver_set_max_iterations(dense_newton_solver_t* solver, int max_iterations)
 {
   ASSERT(max_iterations > 0);
   KINSetNumMaxIters(solver->kinsol, max_iterations);
 }
 
-bool newton_solver_solve(newton_solver_t* solver, real_t* X, int* num_iterations)
+bool dense_newton_solver_solve(dense_newton_solver_t* solver, real_t* X, int* num_iterations)
 {
   // Call the scaled solve.
-  return newton_solver_solve_scaled(solver, X, NULL, NULL, num_iterations);
+  return dense_newton_solver_solve_scaled(solver, X, NULL, NULL, num_iterations);
 }
 
-bool newton_solver_solve_scaled(newton_solver_t* solver, real_t* X, real_t* x_scale, real_t* F_scale, int* num_iterations)
+bool dense_newton_solver_solve_scaled(dense_newton_solver_t* solver, real_t* X, real_t* x_scale, real_t* F_scale, int* num_iterations)
 {
   // Set the x_scale and F_scale vectors.
   if (x_scale != NULL)
