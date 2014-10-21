@@ -140,6 +140,7 @@ static tet_t* read_tets(const char* tet_file, int* num_tets)
                              attr_str);
       if (num_items < 5)
         polymec_error("Bad line in element file after %d tets read.", tets_read);
+      tet->attribute = -1;
       if (num_items == 6)
       {
         if (string_is_number(attr_str))
@@ -156,6 +157,7 @@ static tet_t* read_tets(const char* tet_file, int* num_tets)
                              &tet->nodes[8], &tet->nodes[9], attr_str);
       if (num_items < 11)
         polymec_error("Bad line in element file after %d tets read.", tets_read);
+      tet->attribute = -1;
       if (num_items == 12)
       {
         if (string_is_number(attr_str))
