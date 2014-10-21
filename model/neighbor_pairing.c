@@ -70,6 +70,84 @@ void neighbor_pairing_finish_exchange(neighbor_pairing_t* pairing, int token)
   exchanger_finish_exchange(pairing->ex, token);
 }
 
+static size_t np_byte_size(void* obj)
+{
+  neighbor_pairing_t* np = obj;
+  
+  // Data.
+  size_t basic_storage = sizeof(int) + sizeof(char) * strlen(np->name) + 
+                         sizeof(int) * (1 + 2*np->num_pairs + 1);
+  if (np->weights != NULL)
+    basic_storage += sizeof(real_t) * np->num_pairs;
+  
+  // Exchanger-related storage.
+  serializer_t* ex_s = exchanger_serializer();
+  size_t ex_storage = serializer_size(ex_s, np->ex);
+  ex_s = NULL;
+
+  return basic_storage + ex_storage;
+}
+
+static void* np_byte_read(byte_array_t* bytes, size_t* offset)
+{
+  // Read the name.
+  int name_len; 
+  byte_array_read_ints(bytes, 1, &name_len, offset);
+  char name[name_len+1];
+  byte_array_read_chars(bytes, name_len, name, offset);
+  name[name_len] = '\0';
+
+  // Read the offsets, indices, weights.
+  int num_pairs, num_weights;
+  byte_array_read_ints(bytes, 1, &num_pairs, offset);
+  int* pairs = polymec_malloc(sizeof(int) * 2 * num_pairs);
+  byte_array_read_ints(bytes, 2*num_pairs, pairs, offset);
+  byte_array_read_ints(bytes, 1, &num_weights, offset);
+  real_t* weights = NULL;
+  if (num_weights > 0)
+    byte_array_read_reals(bytes, num_weights, weights, offset);
+
+  // Exchanger stuff.
+  serializer_t* ser = exchanger_serializer();
+  exchanger_t* ex = serializer_read(ser, bytes, offset);
+
+  return neighbor_pairing_new(name, num_pairs, pairs, weights, ex);
+}
+
+static void np_byte_write(void* obj, byte_array_t* bytes, size_t* offset)
+{
+  neighbor_pairing_t* np = obj;
+
+  // Write the name.
+  int name_len = strlen(np->name);
+  byte_array_write_ints(bytes, 1, &name_len, offset);
+  byte_array_write_chars(bytes, name_len, np->name, offset);
+
+  // Write the offsets, indices, weights.
+  byte_array_write_ints(bytes, 1, &np->num_pairs, offset);
+  byte_array_write_ints(bytes, 2*np->num_pairs+1, np->pairs, offset);
+  if (np->weights != NULL)
+  {
+    byte_array_write_ints(bytes, 1, &np->num_pairs, offset);
+    byte_array_write_reals(bytes, np->num_pairs, np->weights, offset);
+  }
+  else
+  {
+    int zero = 0;
+    byte_array_write_ints(bytes, 1, &zero, offset);
+  }
+
+  // Exchanger.
+  serializer_t* ser = exchanger_serializer();
+  serializer_write(ser, np->ex, bytes, offset);
+  ser = NULL;
+}
+
+serializer_t* neighbor_pairing_serializer()
+{
+  return serializer_new(np_byte_size, np_byte_read, np_byte_write);
+}
+
 adj_graph_t* graph_from_point_cloud_and_neighbors(point_cloud_t* points, 
                                                   neighbor_pairing_t* neighbors)
 {

@@ -26,7 +26,7 @@
 #define POLYMEC_STENCIL_H
 
 #include "core/polymec.h"
-#include "core/adj_graph.h"
+#include "core/serializer.h"
 #include "core/mesh.h"
 #include "core/point_cloud.h"
 
@@ -106,6 +106,9 @@ static inline bool stencil_next(stencil_t* stencil, int i, int* pos,
   ++(*pos);
   return true;
 }
+
+// Returns a serializer object that can read/write stencils from/to byte arrays.
+serializer_t* stencil_serializer();
 
 // Creates a stencil for the cells that share at least one face with a given 
 // cell. The stencil is constructed for every cell in the given mesh.

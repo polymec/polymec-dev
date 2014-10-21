@@ -27,6 +27,7 @@
 
 #include "core/polymec.h"
 #include "core/exchanger.h"
+#include "core/serializer.h"
 #include "core/adj_graph.h"
 #include "core/point_cloud.h"
 
@@ -99,6 +100,9 @@ static inline bool neighbor_pairing_next(neighbor_pairing_t* pairing, int* pos,
   ++(*pos);
   return true;
 }
+
+// Returns a serializer object that can read/write neighbor pairings from/to byte arrays.
+serializer_t* neighbor_pairing_serializer();
 
 // This function creates an adjacency graph for the given point cloud with 
 // the given neighbor pairing.

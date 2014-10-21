@@ -75,6 +75,90 @@ void stencil_finish_exchange(stencil_t* stencil, int token)
   exchanger_finish_exchange(stencil->ex, token);
 }
 
+static size_t stencil_byte_size(void* obj)
+{
+  stencil_t* stencil = obj;
+  
+  // Data.
+  size_t basic_storage = sizeof(int) + sizeof(char) * strlen(stencil->name) + 
+                         sizeof(int) * (1 + stencil->num_indices + 1 + stencil->offsets[stencil->num_indices] + 1);
+  if (stencil->weights != NULL)
+    basic_storage += sizeof(real_t) * stencil->offsets[stencil->num_indices];
+  
+  // Exchanger-related storage.
+  serializer_t* ex_s = exchanger_serializer();
+  size_t ex_storage = serializer_size(ex_s, stencil->ex);
+  ex_s = NULL;
+
+  return basic_storage + ex_storage;
+}
+
+static void* stencil_byte_read(byte_array_t* bytes, size_t* offset)
+{
+  // Read the name.
+  int name_len; 
+  byte_array_read_ints(bytes, 1, &name_len, offset);
+  char name[name_len+1];
+  byte_array_read_chars(bytes, name_len, name, offset);
+  name[name_len] = '\0';
+
+  // Read the offsets, indices, weights.
+  int num_indices, max_offset, num_weights;
+  byte_array_read_ints(bytes, 1, &num_indices, offset);
+  int* offsets = polymec_malloc(sizeof(int) * (num_indices+1));
+  byte_array_read_ints(bytes, num_indices+1, offsets, offset);
+  byte_array_read_ints(bytes, 1, &max_offset, offset);
+  int* indices = polymec_malloc(sizeof(int) * max_offset);
+  byte_array_read_ints(bytes, max_offset, indices, offset);
+  byte_array_read_ints(bytes, 1, &num_weights, offset);
+  real_t* weights = NULL;
+  if (num_weights > 0)
+    byte_array_read_reals(bytes, num_weights, weights, offset);
+
+  // Exchanger stuff.
+  serializer_t* ser = exchanger_serializer();
+  exchanger_t* ex = serializer_read(ser, bytes, offset);
+
+  return stencil_new(name, num_indices, offsets, indices, weights, ex);
+}
+
+static void stencil_byte_write(void* obj, byte_array_t* bytes, size_t* offset)
+{
+  stencil_t* stencil = obj;
+
+  // Write the name.
+  int name_len = strlen(stencil->name);
+  byte_array_write_ints(bytes, 1, &name_len, offset);
+  byte_array_write_chars(bytes, name_len, stencil->name, offset);
+
+  // Write the offsets, indices, weights.
+  byte_array_write_ints(bytes, 1, &stencil->num_indices, offset);
+  byte_array_write_ints(bytes, stencil->num_indices+1, stencil->offsets, offset);
+  int max_offset = stencil->offsets[stencil->num_indices];
+  byte_array_write_ints(bytes, 1, &max_offset, offset);
+  byte_array_write_ints(bytes, max_offset, stencil->indices, offset);
+  if (stencil->weights != NULL)
+  {
+    byte_array_write_ints(bytes, 1, &max_offset, offset);
+    byte_array_write_reals(bytes, max_offset, stencil->weights, offset);
+  }
+  else
+  {
+    int zero = 0;
+    byte_array_write_ints(bytes, 1, &zero, offset);
+  }
+
+  // Exchanger.
+  serializer_t* ser = exchanger_serializer();
+  serializer_write(ser, stencil->ex, bytes, offset);
+  ser = NULL;
+}
+
+serializer_t* stencil_serializer()
+{
+  return serializer_new(stencil_byte_size, stencil_byte_read, stencil_byte_write);
+}
+
 stencil_t* cell_face_stencil_new(mesh_t* mesh)
 {
   // First we will make a big clumsy mapping from each cell to its list of 
