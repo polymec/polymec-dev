@@ -41,9 +41,11 @@ static point_cloud_t* create_subcloud(MPI_Comm comm,
   return subcloud;
 }
 
-static void point_cloud_distribute(point_cloud_t** cloud, 
-                                   MPI_Comm comm,
-                                   int64_t* global_partition)
+// This function is not declared static because it can be used elsewhere in 
+// polymec, but is not part of the public API.
+void point_cloud_distribute(point_cloud_t** cloud, 
+                            MPI_Comm comm,
+                            int64_t* global_partition)
 {
   int nprocs, rank;
   MPI_Comm_size(comm, &nprocs);
@@ -204,7 +206,8 @@ static int* create_partition_from_sorted_array(MPI_Comm comm,
   MPI_Alltoall(my_num_points_for_rank, 1, MPI_INT, num_points_for_rank, 1, MPI_INT, comm);
 
   // Now find out which ranks got our points.
-
+  // FIXME
+  return NULL;
 }
 
 #endif

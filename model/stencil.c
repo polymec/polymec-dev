@@ -358,3 +358,31 @@ stencil_t* cell_node_stencil_new(mesh_t* mesh)
                                 indices, ex);
 }
 
+adj_graph_t* graph_from_point_cloud_and_stencil(point_cloud_t* points, 
+                                                stencil_t* stencil)
+{
+  ASSERT(stencil_num_indices(stencil) == points->num_points);
+
+  // Create a graph whose vertices are the cloud's points.
+  int rank, nproc;
+  MPI_Comm_size(points->comm, &nproc);
+  MPI_Comm_rank(points->comm, &rank);
+  adj_graph_t* g = adj_graph_new(points->comm, points->num_points);
+
+  // Allocate space in the graph for the edges (stencil size).
+  int num_points = points->num_points;
+  for (int i = 0; i < num_points; ++i)
+    adj_graph_set_num_edges(g, i, stencil_size(stencil, i));
+
+  // Now fill in the edges.
+  for (int i = 0; i < num_points; ++i)
+  {
+    int* edges = adj_graph_edges(g, i);
+    int offset = 0, pos = 0, j;
+    while (stencil_next(stencil, i, &pos, &j, NULL))
+      edges[offset++] = j;
+  }
+
+  return g;
+}
+

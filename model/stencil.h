@@ -26,6 +26,7 @@
 #define POLYMEC_STENCIL_H
 
 #include "core/polymec.h"
+#include "core/adj_graph.h"
 #include "core/mesh.h"
 #include "core/point_cloud.h"
 
@@ -89,7 +90,8 @@ static inline int stencil_size(stencil_t* stencil, int i)
 // Traverses the stencil for a given index i, returning true if the traversal
 // has more indices remaining and false if it has completed. The pos pointer 
 // must be set to zero to reset the traversal. The j and weight pointers will 
-// store the next stencil index and weight, respectively.
+// store the next stencil index and weight, respectively. If weight is NULL, 
+// the weight obviously can't be returned.
 static inline bool stencil_next(stencil_t* stencil, int i, int* pos,
                                 int* j, real_t* weight)
 {
@@ -99,7 +101,8 @@ static inline bool stencil_next(stencil_t* stencil, int i, int* pos,
   int k = stencil->offsets[i] + *pos;
   *j = stencil->indices[k];
   ASSERT(*j != -1);
-  *weight = (stencil->weights != NULL) ? stencil->weights[k] : 1.0;
+  if (weight != NULL)
+    *weight = (stencil->weights != NULL) ? stencil->weights[k] : 1.0;
   ++(*pos);
   return true;
 }
@@ -115,5 +118,10 @@ stencil_t* cell_edge_stencil_new(mesh_t* mesh);
 // Creates a stencil for the cells that share at least one node with a given 
 // cell. The stencil is constructed for every cell in the given mesh.
 stencil_t* cell_node_stencil_new(mesh_t* mesh);
+
+// This function creates an adjacency graph for the given point cloud with 
+// the given stencil.
+adj_graph_t* graph_from_point_cloud_and_stencil(point_cloud_t* points, 
+                                                stencil_t* stencil);
 
 #endif

@@ -31,11 +31,13 @@
 #include "ptscotch.h"
 
 // This helper partitions a (serial) global graph, creating and returning a 
-// global partition vector. It should only be called on rank 0.
-static int64_t* partition_graph(adj_graph_t* global_graph, 
-                                MPI_Comm comm,
-                                int* weights,
-                                real_t imbalance_tol)
+// global partition vector. It should only be called on rank 0. This is not 
+// declared static because it may be used by other parts of polymec, but is 
+// not part of the public API.
+int64_t* partition_graph(adj_graph_t* global_graph, 
+                         MPI_Comm comm,
+                         int* weights,
+                         real_t imbalance_tol)
 {
   ASSERT(adj_graph_comm(global_graph) == MPI_COMM_SELF);
 

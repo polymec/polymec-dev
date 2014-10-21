@@ -70,3 +70,50 @@ void neighbor_pairing_finish_exchange(neighbor_pairing_t* pairing, int token)
   exchanger_finish_exchange(pairing->ex, token);
 }
 
+adj_graph_t* graph_from_point_cloud_and_neighbors(point_cloud_t* points, 
+                                                  neighbor_pairing_t* neighbors)
+{
+  // Create a graph whose vertices are the cloud's points.
+  int rank, nproc;
+  MPI_Comm_size(points->comm, &nproc);
+  MPI_Comm_rank(points->comm, &rank);
+  adj_graph_t* g = adj_graph_new(points->comm, points->num_points);
+
+  // Allocate space in the graph for the edges (neighbors associating points).
+  int num_points = points->num_points;
+  int* num_edges = polymec_malloc(sizeof(int) * num_points);
+  memset(num_edges, 0, sizeof(int) * num_points);
+  int pos = 0, i, j;
+  while (neighbor_pairing_next(neighbors, &pos, &i, &j, NULL))
+  {
+    if (i < num_points)
+      ++num_edges[i];
+    if (j < num_points)
+      ++num_edges[j];
+  }
+  for (int i = 0; i < num_points; ++i)
+    adj_graph_set_num_edges(g, i, num_edges[i]);
+
+  // Now fill in the edges.
+  memset(num_edges, 0, sizeof(int) * num_points);
+  pos = 0;
+  while (neighbor_pairing_next(neighbors, &pos, &i, &j, NULL))
+  {
+    if (i < num_points)
+    {
+      int* edges = adj_graph_edges(g, i);
+      edges[num_edges[i]++] = j;
+    }
+    if (j < num_points)
+    {
+      int* edges = adj_graph_edges(g, j);
+      edges[num_edges[j]++] = i;
+    }
+  }
+
+  // Clean up.
+  polymec_free(num_edges);
+
+  return g;
+}
+

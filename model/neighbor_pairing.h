@@ -27,6 +27,8 @@
 
 #include "core/polymec.h"
 #include "core/exchanger.h"
+#include "core/adj_graph.h"
+#include "core/point_cloud.h"
 
 // A neighbor pairing is a set of index pairs associated with some spatial 
 // discretization (usually a mesh-free method). Pairings can be constructed 
@@ -83,6 +85,7 @@ static inline int neighbor_pairing_num_pairs(neighbor_pairing_t* pairing)
 // has more pairs remaining and false if it has completed. The pos pointer 
 // must be set to zero to reset the traversal. The i, j and weight pointers 
 // will store the next (i, j) index pair and its weight, respectively.
+// If weight is NULL, the weight obviously can't be returned.
 static inline bool neighbor_pairing_next(neighbor_pairing_t* pairing, int* pos,
                                          int* i, int* j, real_t* weight)
 {
@@ -91,9 +94,15 @@ static inline bool neighbor_pairing_next(neighbor_pairing_t* pairing, int* pos,
     return false;
   *i = pairing->pairs[2*k];
   *j = pairing->pairs[2*k+1];
-  *weight = (pairing->weights != NULL) ? pairing->weights[k] : 1.0;
+  if (weight != NULL)
+    *weight = (pairing->weights != NULL) ? pairing->weights[k] : 1.0;
   ++(*pos);
   return true;
 }
+
+// This function creates an adjacency graph for the given point cloud with 
+// the given neighbor pairing.
+adj_graph_t* graph_from_point_cloud_and_neighbors(point_cloud_t* points, 
+                                                  neighbor_pairing_t* neighbors);
 
 #endif
