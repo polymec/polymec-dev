@@ -44,7 +44,7 @@ point_cloud_t* create_point_lattice(MPI_Comm comm,
   // Create a new point cloud.
   int points_per_proc = nxs * nys * nzs / nprocs;
   int num_local_points = (rank < (nprocs-1)) ? points_per_proc
-                                             : nxs * nys * nzs - (rank-1) * points_per_proc;
+                                             : nxs * nys * nzs - rank * points_per_proc;
   point_cloud_t* cloud = point_cloud_new(comm, num_local_points);
 
   // Create a cubic lattice object for indexing.
@@ -82,7 +82,9 @@ point_cloud_t* create_uniform_point_lattice(MPI_Comm comm, int nx, int ny, int n
   real_t Lx = bbox->x2 - bbox->x1;
   real_t Ly = bbox->y2 - bbox->y1;
   real_t Lz = bbox->z2 - bbox->z1;
-  real_t dx = Lx/(nx-1), dy = Ly/(ny-1), dz = Lz/(nz-1);
+  real_t dx = (nx == 1) ? 0.0 : Lx/(nx-1), 
+         dy = (ny == 1) ? 0.0 : Ly/(ny-1), 
+         dz = (nz == 1) ? 0.0 : Lz/(nz-1);
 
   // Create a uniform rectilinear lattice!
   real_t* xs = polymec_malloc(sizeof(real_t) * nx);
