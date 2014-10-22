@@ -47,6 +47,7 @@
 // void x_array_resize(x_array_t* array, int new_size) - Resizes the array, keeping data intact if possible.
 // void x_array_reserve(x_array_t* array, int new_capacity) - Reserves storage for the given capacity within the array. No effect if the array already has sufficient storage.
 // bool x_array_next(x_array_t* array, int* pos, x* element) - Allows traversal over the items in the array.
+// void x_array_release_data_and_free(x_array_t* array) - Releases control of the array data, allowing another entity to assume responsibility. Also destroys this object. USE CAREFULLY!!!
 // 
 // Member data for an array a:
 // 
@@ -186,6 +187,12 @@ static inline bool array_name##_next(array_name##_t* array, int* pos, element* v
   } \
   else \
     return false; \
+} \
+\
+static inline void array_name##_release_data_and_free(array_name##_t* array) \
+{ \
+  array->data = NULL; \
+  array_name##_free(array); \
 } \
 
 // Define some basic array types.

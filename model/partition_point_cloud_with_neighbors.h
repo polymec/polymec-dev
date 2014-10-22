@@ -27,27 +27,18 @@
 
 #include "core/point_cloud.h"
 #include "core/exchanger.h"
-#include "model/stencil.h"
 #include "model/neighbor_pairing.h"
-
-// Given a global point cloud and a stencil connecting its points on rank 0, 
-// this function partitions the points onto the processes on the given 
-// communicator, replacing the point cloud and the stencil on each process 
-// with the newly partitioned data. Each point can have a weight alloted to 
-// it that characterizes its workload, and the load will be balanced within
-// the given imbalance tolerance.
-exchanger_t* partition_point_cloud_with_stencil(point_cloud_t** points, 
-                                                stencil_t** stencil, 
-                                                MPI_Comm comm, 
-                                                int* weights, 
-                                                real_t imbalance_tol);
 
 // Given a global point cloud and a neighbor pairing connecting its points on 
 // rank 0, this function partitions the points onto the processes on the given 
 // communicator, replacing the point cloud and the stencil on each process 
 // with the newly partitioned data. Each point can have a weight alloted to 
 // it that characterizes its workload, and the load will be balanced within
-// the given imbalance tolerance.
+// the given imbalance tolerance. 
+// NOTE: partitioning of point clouds using stencils instead of neighbor 
+// NOTE: pairings is NOT supported, since stencils generally represent 
+// NOTE: asymmetric neighbor relations, which produce directed graphs, and 
+// NOTE: our graph partitioning algorithms all operate on undirected graphs.
 exchanger_t* partition_point_cloud_with_neighbors(point_cloud_t** points, 
                                                   neighbor_pairing_t** neighbors, 
                                                   MPI_Comm comm, 
