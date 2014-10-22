@@ -33,6 +33,7 @@
 #include "core/array.h"
 #include "core/kd_tree.h"
 #include "geometry/generate_random_points.h"
+#include "geometry/create_point_lattice.h"
 
 // Lua stuff.
 #include "lua.h"
@@ -46,21 +47,19 @@ int point_factory_cubic_lattice(lua_State* lua)
   if ((num_args != 1) || (!lua_istable(lua, 1)))
   {
     return luaL_error(lua, "Invalid arguments. Usage:\n"
-                      "points = point_factory.cubic_lattice{bounding_box, nx, ny, nz, num_ghost = 0}");
+                      "points = point_factory.cubic_lattice{nx, ny, nz, bounds}");
   }
 
   // Extract arguments.
-  const char* entries[] = {"bounding_box", "nx", "ny", "nz", "num_ghost"};
-  int nx = 0, ny = 0, nz = 0, ng = 0;
+  const char* entries[] = {"nx", "ny", "nz", "bounds"};
+  int nx = 0, ny = 0, nz = 0;
   bbox_t* bbox = NULL;
-  for (int i = 0; i < 5; ++i)
+  for (int i = 0; i < 4; ++i)
   {
     lua_pushstring(lua, entries[i]);
     lua_gettable(lua, 1);
-    if (i > 0)
+    if (i < 3)
     {
-      if ((i == 4) && lua_isnil(lua, -1)) continue;
-
       if (!lua_isnumber(lua, -1))
         return luaL_error(lua, "Missing integer argument: %s", entries[i]);
 
@@ -69,14 +68,13 @@ int point_factory_cubic_lattice(lua_State* lua)
         case 1: nx = (int)lua_tonumber(lua, -1); break;
         case 2: ny = (int)lua_tonumber(lua, -1); break;
         case 3: nz = (int)lua_tonumber(lua, -1); break;
-        case 4: ng = (int)lua_tonumber(lua, -1); break;
         default: break;
       }
     }
     else 
     {
       if (!lua_isboundingbox(lua, -1))
-        return luaL_error(lua, "bounding_box must be a bounding box.");
+        return luaL_error(lua, "bounds must be a bounding box.");
 
       bbox = lua_toboundingbox(lua, -1);
     }
@@ -85,9 +83,6 @@ int point_factory_cubic_lattice(lua_State* lua)
   // Validate arguments.
   if ((nx <= 0) || (ny <= 0) || (nz <= 0))
     return luaL_error(lua, "nx, ny, and nz must all be positive.");
-
-  if (ng < 0)
-    return luaL_error(lua, "ng must be non-negative.");
 
   if (bbox->x1 >= bbox->x2)
     return luaL_error(lua, "In bounding_box: x1 must be less than x2.");
@@ -102,18 +97,18 @@ int point_factory_cubic_lattice(lua_State* lua)
   lua_pop(lua, lua_gettop(lua));
 
   // Create the lattice of points.
-  int num_points = (nx + 2*ng) * (ny + 2*ng) * (nz + 2*ng), offset = 0;
+  int num_points = nx * ny * nz, offset = 0;
   point_t* points = polymec_malloc(sizeof(point_t) * num_points);
   real_t dx = (bbox->x2 - bbox->x1) / nx;
   real_t dy = (bbox->y2 - bbox->y1) / ny;
   real_t dz = (bbox->z2 - bbox->z1) / nz;
-  for (int i = -ng; i < nx+ng; ++i)
+  for (int i = 0; i < nx; ++i)
   {
     real_t xi = bbox->x1 + (i+0.5) * dx;
-    for (int j = -ng; j < ny+ng; ++j)
+    for (int j = 0; j < ny; ++j)
     {
       real_t yj = bbox->y1 + (j+0.5) * dy;
-      for (int k = -ng; k < nz+ng; ++k, ++offset)
+      for (int k = 0; k < nz; ++k, ++offset)
       {
         real_t zk = bbox->z1 + (k+0.5) * dz;
         points[offset].x = xi;
