@@ -22,7 +22,6 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "core/unordered_set.h"
 #include "geometry/create_uniform_mesh.h"
 #include "geometry/create_rectilinear_mesh.h"
 #include "geometry/cubic_lattice.h"

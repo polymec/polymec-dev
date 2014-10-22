@@ -1,9 +1,11 @@
 include(add_polymec_test)
 
-add_mpi_polymec_test(test_stencil test_stencil.c 1 2 3 4)
 add_polymec_test(test_polynomial_fit test_polynomial_fit.c)
 add_polymec_test(test_helmholtz_solver test_helmholtz_solver.c)
 add_polymec_test(test_conduction_solver test_conduction_solver.c)
+add_mpi_polymec_test(test_stencil test_stencil.c 1 2 3 4)
+add_mpi_polymec_test(test_neighbor_pairing test_neighbor_pairing.c 1 2 3 4)
+#add_mpi_polymec_test(test_partition_point_cloud_with_neighbors test_partition_point_cloud_with_neighbors.c 1 2 3 4)
 
 function(add_game_of_life_test input num_steps diff)
   if (HAVE_MPI EQUAL 1)
