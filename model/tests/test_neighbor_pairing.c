@@ -119,7 +119,60 @@ void test_point_lattice(void** state,
   bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
   point_cloud_t* cloud = create_uniform_point_lattice(comm, nx, ny, nz, &bbox);
   neighbor_pairing_t* pairing = create_simple_pairing(cloud, h);
-  // FIXME
+
+  // Find the numbers of neighbors of each of the points. Do it collecting 
+  // weights first, and then ignoring weights, and make sure we get the same
+  // result.
+  int num_neighbors1[nx*ny*nz], num_neighbors2[nx*ny*nz]; 
+  memset(num_neighbors1, 0, nx*ny*nz * sizeof(int));
+  memset(num_neighbors2, 0, nx*ny*nz * sizeof(int));
+  int pos = 0, i, j;
+  real_t wij;
+  while (neighbor_pairing_next(pairing, &pos, &i, &j, &wij))
+  {
+    ++num_neighbors1[i];
+    ++num_neighbors1[j];
+  }
+  pos = 0;
+  while (neighbor_pairing_next(pairing, &pos, &i, &j, NULL))
+  {
+    ++num_neighbors2[i];
+    ++num_neighbors2[j];
+  }
+  for (int i = 0; i < nx*ny*nz; ++i)
+  {
+    assert_int_equal(num_neighbors1[i], num_neighbors2[i]);
+  }
+
+  // Make bins of numbers of neighbors. There shouldn't be more than 4 
+  // bins, and they should be (in ascending order): num_corner_neighbors, 
+  // num_edge_neighbors, num_boundary_neighbors, num_interior_neighbors.
+  int bins[1000]; // Up to 1000 neighbors (ridiculous).
+  memset(bins, 0, 1000 * sizeof(int));
+  for (int i = 0; i < nx*ny*nz; ++i)
+    ++bins[num_neighbors1[i]];
+  int num_nonempty_bins = 0;
+  for (int i = 0; i < 1000; ++i)
+  {
+    if (bins[i] > 0)
+      ++num_nonempty_bins;
+  }
+  assert_true(num_nonempty_bins <= 4);
+
+  // Now order the bins.
+  int b1 = -1, b2 = -1, b3 = -1, b4 = -1;
+  for (int i = 0; i < 1000; ++i)
+  {
+    if ((b1 == -1) || (i < b1))
+    {
+      b4 = b3;
+      b3 = b2;
+      b2 = b1;
+      b1 = i;
+    }
+  }
+  
+  // Clean up.
   neighbor_pairing_free(pairing);
   point_cloud_free(cloud);
 }

@@ -90,11 +90,11 @@ point_cloud_t* create_uniform_point_lattice(MPI_Comm comm, int nx, int ny, int n
   real_t* xs = polymec_malloc(sizeof(real_t) * nx);
   real_t* ys = polymec_malloc(sizeof(real_t) * ny);
   real_t* zs = polymec_malloc(sizeof(real_t) * nz);
-  for (int i = 0; i <= nx; ++i)
+  for (int i = 0; i < nx; ++i)
     xs[i] = bbox->x1 + (0.5+i)*dx;
-  for (int i = 0; i <= ny; ++i)
+  for (int i = 0; i < ny; ++i)
     ys[i] = bbox->y1 + (0.5+i)*dy;
-  for (int i = 0; i <= nz; ++i)
+  for (int i = 0; i < nz; ++i)
     zs[i] = bbox->z1 + (0.5+i)*dz;
 
   point_cloud_t* cloud = create_point_lattice(comm, xs, nx, ys, ny, zs, nz);
