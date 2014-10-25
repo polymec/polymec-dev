@@ -368,11 +368,11 @@ struct exchanger_t
   FILE* dl_output_stream;
 };
 
-exchanger_t* exchanger_new(MPI_Comm comm)
+exchanger_t* exchanger_new_with_rank(MPI_Comm comm, int rank)
 {
   exchanger_t* ex = polymec_malloc(sizeof(exchanger_t));
   ex->comm = comm;
-  MPI_Comm_rank(comm, &(ex->rank));
+  ex->rank = rank;
   MPI_Comm_size(comm, &(ex->nprocs));
   ex->dl_thresh = -1.0;
   ex->dl_output_rank = -1;
@@ -391,6 +391,13 @@ exchanger_t* exchanger_new(MPI_Comm comm)
   ex->max_receive = -1;
 
   return ex;
+}
+
+exchanger_t* exchanger_new(MPI_Comm comm)
+{
+  int rank;
+  MPI_Comm_rank(comm, &rank);
+  return exchanger_new_with_rank(comm, rank);
 }
 
 static void exchanger_clear(exchanger_t* ex)
@@ -435,6 +442,7 @@ static void delete_map_entry(int key, exchanger_channel_t* value)
 void exchanger_set_send(exchanger_t* ex, int remote_process, int* indices, int num_indices, bool copy_indices)
 {
   ASSERT(remote_process >= 0);
+  ASSERT(remote_process != ex->rank);
   ASSERT(remote_process < ex->nprocs);
   exchanger_channel_t* c = exchanger_channel_new(num_indices, indices, copy_indices);
   exchanger_map_insert_with_kv_dtor(ex->send_map, remote_process, c, delete_map_entry);
@@ -483,6 +491,7 @@ bool exchanger_next_send(exchanger_t* ex, int* pos, int* remote_process, int** i
 void exchanger_set_receive(exchanger_t* ex, int remote_process, int* indices, int num_indices, bool copy_indices)
 {
   ASSERT(remote_process >= 0);
+  ASSERT(remote_process != ex->rank);
   ASSERT(remote_process < ex->nprocs);
   exchanger_channel_t* c = exchanger_channel_new(num_indices, indices, copy_indices);
   exchanger_map_insert_with_kv_dtor(ex->receive_map, remote_process, c, delete_map_entry);
@@ -985,10 +994,10 @@ static size_t ex_size(void* obj)
   size_t size = 2 * sizeof(int);
   int pos = 0, proc, *indices, num_indices;
   while (exchanger_next_send(ex, &pos, &proc, &indices, &num_indices))
-    size += (1 + num_indices) * sizeof(int);
+    size += (2 + num_indices) * sizeof(int);
   pos = 0;
   while (exchanger_next_receive(ex, &pos, &proc, &indices, &num_indices))
-    size += (1 + num_indices) * sizeof(int);
+    size += (2 + num_indices) * sizeof(int);
   return size;
 #else
   return 0;
@@ -1036,12 +1045,15 @@ static void ex_write(void* obj, byte_array_t* bytes, size_t* offset)
   while (exchanger_next_send(ex, &pos, &proc, &indices, &num_indices))
   {
     byte_array_write_ints(bytes, 1, &proc, offset);
+    byte_array_write_ints(bytes, 1, &num_indices, offset);
     byte_array_write_ints(bytes, num_indices, indices, offset);
   }
   byte_array_write_ints(bytes, 1, &ex->receive_map->size, offset);
+  pos = 0;
   while (exchanger_next_receive(ex, &pos, &proc, &indices, &num_indices))
   {
     byte_array_write_ints(bytes, 1, &proc, offset);
+    byte_array_write_ints(bytes, 1, &num_indices, offset);
     byte_array_write_ints(bytes, num_indices, indices, offset);
   }
 #endif

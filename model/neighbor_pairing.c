@@ -124,7 +124,7 @@ static void np_byte_write(void* obj, byte_array_t* bytes, size_t* offset)
 
   // Write the offsets, indices, weights.
   byte_array_write_ints(bytes, 1, &np->num_pairs, offset);
-  byte_array_write_ints(bytes, 2*np->num_pairs+1, np->pairs, offset);
+  byte_array_write_ints(bytes, 2*np->num_pairs, np->pairs, offset);
   if (np->weights != NULL)
   {
     byte_array_write_ints(bytes, 1, &np->num_pairs, offset);

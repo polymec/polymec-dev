@@ -121,8 +121,9 @@ static void neighbor_pairing_distribute(neighbor_pairing_t** neighbors,
         int_array_t** send_indices_p = (int_array_t**)int_ptr_unordered_map_get(sends[pi], pj);
         if (send_indices_p == NULL)
         {
-          *send_indices_p = int_array_new();
-          int_ptr_unordered_map_insert_with_v_dtor(sends[pi], pj, *send_indices_p, DTOR(int_array_free));
+          int_array_t* send_indices = int_array_new();
+          int_ptr_unordered_map_insert_with_v_dtor(sends[pi], pj, send_indices, DTOR(int_array_free));
+          send_indices_p = &send_indices;
         }
         int_array_append(*send_indices_p, i);
 
@@ -132,8 +133,9 @@ static void neighbor_pairing_distribute(neighbor_pairing_t** neighbors,
         send_indices_p = (int_array_t**)int_ptr_unordered_map_get(sends[pj], pi);
         if (send_indices_p == NULL)
         {
-          *send_indices_p = int_array_new();
-          int_ptr_unordered_map_insert_with_v_dtor(sends[pj], pi, *send_indices_p, DTOR(int_array_free));
+          int_array_t* send_indices = int_array_new();
+          int_ptr_unordered_map_insert_with_v_dtor(sends[pj], pi, send_indices, DTOR(int_array_free));
+          send_indices_p = &send_indices;
         }
         int_array_append(*send_indices_p, j);
 
@@ -143,8 +145,9 @@ static void neighbor_pairing_distribute(neighbor_pairing_t** neighbors,
         int_array_t** recv_indices_p = (int_array_t**)int_ptr_unordered_map_get(receives[pi], pj);
         if (recv_indices_p == NULL)
         {
-          *recv_indices_p = int_array_new();
-          int_ptr_unordered_map_insert_with_v_dtor(receives[pi], pj, *recv_indices_p, DTOR(int_array_free));
+          int_array_t* recv_indices = int_array_new();
+          int_ptr_unordered_map_insert_with_v_dtor(receives[pi], pj, recv_indices, DTOR(int_array_free));
+          recv_indices_p = &recv_indices;
         }
         int_array_append(*recv_indices_p, ghost_indices[pi]++);
 
@@ -154,8 +157,9 @@ static void neighbor_pairing_distribute(neighbor_pairing_t** neighbors,
         recv_indices_p = (int_array_t**)int_ptr_unordered_map_get(receives[pj], pi);
         if (recv_indices_p == NULL)
         {
-          *recv_indices_p = int_array_new();
-          int_ptr_unordered_map_insert_with_v_dtor(receives[pj], pi, *recv_indices_p, DTOR(int_array_free));
+          int_array_t* recv_indices = int_array_new();
+          int_ptr_unordered_map_insert_with_v_dtor(receives[pj], pi, recv_indices, DTOR(int_array_free));
+          recv_indices_p = &recv_indices;
         }
         int_array_append(*recv_indices_p, ghost_indices[pj]++);
       }
@@ -170,7 +174,7 @@ static void neighbor_pairing_distribute(neighbor_pairing_t** neighbors,
       MPI_Send(vtx_dist, nprocs+1, MPI_UINT64_T, p, p, comm);
 
       // Set up the exchanger for process p's pairing.
-      exchanger_t* ex = exchanger_new(comm);
+      exchanger_t* ex = exchanger_new_with_rank(comm, p);
       if (sends[p] != NULL)
       {
         exchanger_set_sends(ex, sends[p]);

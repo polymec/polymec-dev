@@ -36,6 +36,9 @@ typedef struct exchanger_t exchanger_t;
 // Constructs a new exchanger on the given communicator.
 exchanger_t* exchanger_new(MPI_Comm comm);
 
+// Constructs a new exchanger on the given communicator with the given rank.
+exchanger_t* exchanger_new_with_rank(MPI_Comm comm, int rank);
+
 // Destroys an exchanger.
 void exchanger_free(exchanger_t* ex);
 
