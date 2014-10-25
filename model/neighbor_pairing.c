@@ -28,7 +28,6 @@ neighbor_pairing_t* neighbor_pairing_new(const char* name, int num_pairs,
                                          int* pairs, real_t* weights,
                                          exchanger_t* ex)
 {
-  ASSERT(num_pairs > 0);
   ASSERT(pairs != NULL);
   neighbor_pairing_t* p = polymec_malloc(sizeof(neighbor_pairing_t));
   p->name = string_dup(name);

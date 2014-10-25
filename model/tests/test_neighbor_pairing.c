@@ -28,6 +28,7 @@
 #include <string.h>
 #include "cmockery.h"
 #include "core/kd_tree.h"
+#include "core/array_utils.h"
 #include "geometry/create_point_lattice.h"
 #include "model/point_weight_function.h"
 #include "model/neighbor_pairing.h"
@@ -85,12 +86,15 @@ static neighbor_pairing_t* create_simple_pairing(point_cloud_t* cloud,
     int j;
     while (int_slist_next(neighbors, &n, &j))
     {
-      int_array_append(pairs, i);
-      int_array_append(pairs, j);
-      point_t* xj = &cloud->points[j];
-      vector_t y;
-      point_displacement(xj, xi, &y);
-      real_array_append(weights, point_weight_function_value(W, &y));
+      if (j > i)
+      {
+        int_array_append(pairs, i);
+        int_array_append(pairs, j);
+        point_t* xj = &cloud->points[j];
+        vector_t y;
+        point_displacement(xj, xi, &y);
+        real_array_append(weights, point_weight_function_value(W, &y));
+      }
     }
     int_slist_free(neighbors);
   }
@@ -159,19 +163,27 @@ void test_point_lattice(void** state,
   }
   assert_true(num_nonempty_bins <= 4);
 
-  // Now order the bins.
-  int b1 = -1, b2 = -1, b3 = -1, b4 = -1;
+  // Now order the bin counts.
+  int bin_counts[4] = {-1, -1, -1, -1}, counter = 0;
   for (int i = 0; i < 1000; ++i)
   {
-    if ((b1 == -1) || (i < b1))
-    {
-      b4 = b3;
-      b3 = b2;
-      b2 = b1;
-      b1 = i;
-    }
+    if (bins[i] > 0)
+      bin_counts[counter++] = i;
   }
-  
+  int_qsort(bin_counts, num_nonempty_bins);
+
+  // Now check the neighbor counts against the reference ones we're given.
+  assert_int_equal(num_corner_neighbors, bin_counts[0]);
+  assert_true((num_edge_neighbors == bin_counts[0]) || 
+              (num_edge_neighbors == bin_counts[1]));
+  assert_true((num_boundary_neighbors == bin_counts[0]) || 
+              (num_boundary_neighbors == bin_counts[1]) || 
+              (num_boundary_neighbors == bin_counts[2]));
+  assert_true((num_interior_neighbors == bin_counts[0]) || 
+              (num_interior_neighbors == bin_counts[1]) || 
+              (num_interior_neighbors == bin_counts[2]) ||
+              (num_interior_neighbors == bin_counts[3]));
+
   // Clean up.
   neighbor_pairing_free(pairing);
   point_cloud_free(cloud);
@@ -184,17 +196,17 @@ void test_serial_1x1x1_lattice(void** state)
 
 void test_serial_10x1x1_lattice(void** state)
 {
-  test_point_lattice(state, MPI_COMM_SELF, 10, 1, 1, 0.15, 0, 0, 2, 1);
+  test_point_lattice(state, MPI_COMM_SELF, 10, 1, 1, 0.15, 2, 2, 2, 1);
 }
 
 void test_serial_10x10x1_lattice(void** state)
 {
-  test_point_lattice(state, MPI_COMM_SELF, 10, 10, 1, 0.15, 4, 4, 3, 2);
+  test_point_lattice(state, MPI_COMM_SELF, 10, 10, 1, 0.15, 8, 8, 5, 3);
 }
 
 void test_serial_10x10x10_lattice(void** state)
 {
-  test_point_lattice(state, MPI_COMM_SELF, 10, 10, 10, 0.15, 6, 5, 4, 3);
+  test_point_lattice(state, MPI_COMM_SELF, 10, 10, 10, 0.15, 18, 13, 9, 6);
 }
 
 int main(int argc, char* argv[]) 
