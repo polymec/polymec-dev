@@ -435,7 +435,6 @@ static void delete_map_entry(int key, exchanger_channel_t* value)
 void exchanger_set_send(exchanger_t* ex, int remote_process, int* indices, int num_indices, bool copy_indices)
 {
   ASSERT(remote_process >= 0);
-  ASSERT(remote_process != ex->rank);
   ASSERT(remote_process < ex->nprocs);
   exchanger_channel_t* c = exchanger_channel_new(num_indices, indices, copy_indices);
   exchanger_map_insert_with_kv_dtor(ex->send_map, remote_process, c, delete_map_entry);
@@ -484,7 +483,6 @@ bool exchanger_next_send(exchanger_t* ex, int* pos, int* remote_process, int** i
 void exchanger_set_receive(exchanger_t* ex, int remote_process, int* indices, int num_indices, bool copy_indices)
 {
   ASSERT(remote_process >= 0);
-  ASSERT(remote_process != ex->rank);
   ASSERT(remote_process < ex->nprocs);
   exchanger_channel_t* c = exchanger_channel_new(num_indices, indices, copy_indices);
   exchanger_map_insert_with_kv_dtor(ex->receive_map, remote_process, c, delete_map_entry);
