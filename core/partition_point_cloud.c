@@ -180,8 +180,8 @@ static int hilbert_comp(const void* l, const void* r)
 {
   const index_t* li = l;
   const index_t* ri = r;
-  return (li[0] < ri[0]) ? -1
-                         : (li[0] > ri[0]) ? 1
+  return (li[1] < ri[1]) ? -1
+                         : (li[1] > ri[1]) ? 1
                                            : 0;
 }
 
@@ -230,68 +230,83 @@ exchanger_t* partition_point_cloud(point_cloud_t** cloud, MPI_Comm comm, int* we
     return exchanger_new(comm);
 
   int64_t* global_partition = NULL;
+  int num_global_points = 0;
   if (rank == 0)
   {
+    num_global_points = cl->num_points;
+
     // Set up a Hilbert space filling curve that can map the given points to indices.
-    hilbert_t* hilbert = hilbert_from_points(cl->points, cl->num_points);
+    hilbert_t* hilbert = hilbert_from_points(cl->points, num_global_points);
 
     // Create an array of 2-tuples containing the (Hilbert index, weight) of each point. 
     // Partitioning the points amounts to sorting this array and breaking it into parts whose 
     // work is equal. Also sum up the work on the points.
-    index_t* part_array = polymec_malloc(sizeof(index_t) * 2 * cl->num_points);
+    index_t* part_array = polymec_malloc(sizeof(index_t) * 3 * num_global_points);
     uint64_t total_work = 0;
     if (weights != NULL)
     {
-      for (int i = 0; i < cl->num_points; ++i)
+      for (int i = 0; i < num_global_points; ++i)
       {
-        part_array[2*i] = hilbert_index(hilbert, &cl->points[i]);
-        part_array[2*i+1] = (index_t)weights[i];
+        part_array[3*i]   = i;
+        part_array[3*i+1] = hilbert_index(hilbert, &cl->points[i]);
+        part_array[3*i+2] = (index_t)weights[i];
         total_work += weights[i];
       }
     }
     else
     {
-      for (int i = 0; i < cl->num_points; ++i)
+      for (int i = 0; i < num_global_points; ++i)
       {
-        part_array[2*i] = hilbert_index(hilbert, &cl->points[i]);
-        part_array[2*i+1] = 1;
+        part_array[3*i]   = i;
+        part_array[3*i+1] = hilbert_index(hilbert, &cl->points[i]);
+        part_array[3*i+2] = 1;
       }
-      total_work = cl->num_points;
+      total_work = num_global_points;
     }
 
     // Sort the array.
-    qsort(part_array, (size_t)cl->num_points, 2*sizeof(index_t), hilbert_comp);
+    qsort(part_array, (size_t)num_global_points, 3*sizeof(index_t), hilbert_comp);
 
     // Now we need to break it into parts of equal work.
     real_t work_per_proc = 1.0 * total_work / nprocs;
     int part_offsets[nprocs+1];
+    real_t part_work[nprocs+1];
     part_offsets[0] = 0;
+    part_work[0] = 0.0;
     for (int p = 0; p < nprocs; ++p)
     {
       int i = part_offsets[p];
-      real_t work = 0.0, last_weight = 0.0;
-      do
+      real_t work = 0.0, last_weight = 0.0, cum_work = part_work[p];
+      while ((cum_work < ((p+1) * work_per_proc)) && 
+             (i < num_global_points))
       {
-        last_weight = 1.0 * part_array[2*i+1];
+        last_weight = 1.0 * part_array[3*i+2];
         work += last_weight;
+        cum_work += last_weight;
         ++i;
       }
-      while ((work < work_per_proc) && (i < cl->num_points));
 
       // If we've obviously overloaded this process, back up one step.
       if (((work - work_per_proc)/work_per_proc > imbalance_tol) && 
           ((work_per_proc - (work - last_weight) <= imbalance_tol)))
+      {
         --i;
+        work -= last_weight;
+      }
       part_offsets[p+1] = i;
+      part_work[p+1] = cum_work;
     }
     
     // Now we create the global partition vector and fill it.
-    global_partition = polymec_malloc(sizeof(int64_t) * cl->num_points);
+    global_partition = polymec_malloc(sizeof(int64_t) * num_global_points);
     int k = 0;
     for (int p = 0; p < nprocs; ++p)
     {
       for (int i = part_offsets[p]; i < part_offsets[p+1]; ++i, ++k)
-        global_partition[k] = p;
+      {
+        index_t j = part_array[3*k];
+        global_partition[j] = p;
+      }
     }
   }
 
@@ -299,14 +314,13 @@ exchanger_t* partition_point_cloud(point_cloud_t** cloud, MPI_Comm comm, int* we
   point_cloud_distribute(cloud, comm, global_partition);
 
   // Set up an exchanger to distribute field data.
-  int num_points = (rank == 0) ? cl->num_points : 0;
-  exchanger_t* distributor = create_distributor(comm, global_partition, num_points);
+  exchanger_t* distributor = create_distributor(comm, global_partition, num_global_points);
 
   // Clean up.
   polymec_free(global_partition);
 
   // Return the migrator.
-  return (distributor == NULL) ? exchanger_new(cl->comm) : distributor;
+  return (distributor == NULL) ? exchanger_new(comm) : distributor;
 #else
   return exchanger_new(cl->comm);
 #endif
