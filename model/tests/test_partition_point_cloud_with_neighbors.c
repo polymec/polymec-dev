@@ -58,10 +58,6 @@ void test_partition_linear_cloud(void** state, int N)
   exchanger_t* distributor = partition_point_cloud_with_neighbors(&cloud, &pairing, comm, NULL, 0.05);
   exchanger_free(distributor);
 
-  // Check the number of points on each domain.
-  int points_per_proc = N/nprocs;
-  assert_true(fabs(1.0*(cloud->num_points - points_per_proc)/points_per_proc) < 0.05);
-
   // Now check data. Points should all fall on dx tick marks.
   for (int i = 0; i < cloud->num_points; ++i)
   {
@@ -79,7 +75,7 @@ void test_partition_linear_cloud(void** state, int N)
   for (int i = 0; i < cloud->num_points; ++i)
     p[i] = 1.0*rank;
   char filename[FILENAME_MAX];
-  snprintf(filename, FILENAME_MAX, "linear_cloud_partition_%d", N);
+  snprintf(filename, FILENAME_MAX, "linear_cloud_partition_with_neighbors_%d", N);
   silo_file_t* silo = silo_file_new(comm, filename, filename, 1, 0, 0, 0.0);
   silo_file_write_point_cloud(silo, "cloud", cloud);
   silo_file_write_scalar_point_field(silo, "rank", "cloud", p);
@@ -121,10 +117,6 @@ void test_partition_planar_cloud(void** state, int nx, int ny)
   exchanger_free(distributor);
 
 #if 0
-  // Check the number of points on each domain.
-  int points_per_proc = N/nprocs;
-  assert_true(fabs(1.0*(cloud->num_points - points_per_proc)/points_per_proc) < 0.05);
-
   // Now check data. Points should all fall on dx tick marks.
   for (int i = 0; i < cloud->num_points; ++i)
   {
@@ -143,7 +135,7 @@ void test_partition_planar_cloud(void** state, int nx, int ny)
   for (int i = 0; i < cloud->num_points; ++i)
     p[i] = 1.0*rank;
   char filename[FILENAME_MAX];
-  snprintf(filename, FILENAME_MAX, "planar_cloud_partition_%dx%d", nx, ny);
+  snprintf(filename, FILENAME_MAX, "planar_cloud_partition_with_neighbors_%dx%d", nx, ny);
   silo_file_t* silo = silo_file_new(comm, filename, filename, 1, 0, 0, 0.0);
   silo_file_write_point_cloud(silo, "cloud", cloud);
   silo_file_write_scalar_point_field(silo, "rank", "cloud", p);
@@ -185,10 +177,6 @@ void test_partition_cubic_cloud(void** state, int nx, int ny, int nz)
   exchanger_free(distributor);
 
 #if 0
-  // Check the number of points on each domain.
-  int points_per_proc = N/nprocs;
-  assert_true(fabs(1.0*(cloud->num_points - points_per_proc)/points_per_proc) < 0.05);
-
   // Now check data. Points should all fall on dx tick marks.
   for (int i = 0; i < cloud->num_points; ++i)
   {
@@ -207,7 +195,7 @@ void test_partition_cubic_cloud(void** state, int nx, int ny, int nz)
   for (int i = 0; i < cloud->num_points; ++i)
     p[i] = 1.0*rank;
   char filename[FILENAME_MAX];
-  snprintf(filename, FILENAME_MAX, "cubic_cloud_partition_%dx%dx%d", nx, ny, nz);
+  snprintf(filename, FILENAME_MAX, "cubic_cloud_partition_with_neighbors_%dx%dx%d", nx, ny, nz);
   silo_file_t* silo = silo_file_new(comm, filename, filename, 1, 0, 0, 0.0);
   silo_file_write_point_cloud(silo, "cloud", cloud);
   silo_file_write_scalar_point_field(silo, "rank", "cloud", p);
