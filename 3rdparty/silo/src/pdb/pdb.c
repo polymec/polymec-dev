@@ -1057,7 +1057,7 @@ _PD_write (PDBfile *file, char *name, char *intype, char *outtype,
    if (file->virtual_internal) {
       SC_address ad;
 
-      ad.memaddr = vr;
+      ad.memaddr = (char *)vr;
       ep->blocks->diskaddr = ad.diskaddr;
       lite_SC_mark(vr, 1);
       ep = lite_PD_copy_syment(ep);
@@ -1235,6 +1235,10 @@ lite_PD_create (char *name) {
    file->system_version = PDB_SYSTEM_VERSION;
    file->date           = lite_SC_date();
 
+   /*
+    * Create the top-level directory
+    */
+   lite_PD_mkdir(file,"/");
    return(file);
 }
 #endif /* PDB_WRITE */

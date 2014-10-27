@@ -74,10 +74,13 @@
 #   Ensure a number of silo project files were included.
 #
 #   Kathleen Bonnell, Fri Dec 10 10:02:09 PST 2010
-#   Add silodiff.bat, browser.vcproj
+#   Add silodiff.bat, browser.vcxproj
 #
 #   Kathleen Bonnell, Thu Mar 3 10:38:05 PST 2011
-#   Add MSVC9 project files.
+#   Add MSVC2012 project files.
+#
+#   Kathleen Bonnell, Thu Mar 3 10:38:05 PST 2011
+#   Remove MSVC2012 and MSVC2010 project files. Add MSVC2012 project files.
 
 pkgdatadir = $(datadir)/silo
 pkgincludedir = $(includedir)/silo
@@ -118,28 +121,28 @@ CONFIG_CLEAN_VPATH_FILES =
 SOURCES =
 DIST_SOURCES =
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
-ACLOCAL = ${SHELL} /g/g11/miller86/silo/silo_4.9RC/config/missing --run aclocal-1.11
-AMTAR = ${SHELL} /g/g11/miller86/silo/silo_4.9RC/config/missing --run tar
+ACLOCAL = ${SHELL} /g/g11/miller86/silo/trunk/config/missing --run aclocal-1.11
+AMTAR = ${SHELL} /g/g11/miller86/silo/trunk/config/missing --run tar
 AR = ar
-AUTOCONF = ${SHELL} /g/g11/miller86/silo/silo_4.9RC/config/missing --run autoconf
-AUTOHEADER = ${SHELL} /g/g11/miller86/silo/silo_4.9RC/config/missing --run autoheader
-AUTOMAKE = ${SHELL} /g/g11/miller86/silo/silo_4.9RC/config/missing --run automake-1.11
+AUTOCONF = ${SHELL} /g/g11/miller86/silo/trunk/config/missing --run autoconf
+AUTOHEADER = ${SHELL} /g/g11/miller86/silo/trunk/config/missing --run autoheader
+AUTOMAKE = ${SHELL} /g/g11/miller86/silo/trunk/config/missing --run automake-1.11
 AWK = gawk
 BROWSER = browser
 BUNDLE_TARGET = 
 CC = gcc
 CCDEPMODE = depmode=gcc3
 CC_FULLPATH = /usr/local/bin/gcc
-CFLAGS = -g -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -Wdeclaration-after-statement
-CONFIG_CMD = ./configure '--enable-fortran' 'FC=gfortran' 'F77=gfortran' 'FCFLAGS=-g' 'CFLAGS=-g' 'CXXFLAGS=-g' '--enable-pythonmodule' '--with-hdf5=/usr/gapps/visit/thirdparty_shared_2_7_0/hdf5/1.8.7/linux-x86_64_gcc-4.4/include,/usr/gapps/visit/thirdparty_shared_2_7_0/hdf5/1.8.7/linux-x86_64_gcc-4.4/lib' '--with-szlib=/usr/gapps/visit/thirdparty_shared_2_7_0/szip/2.1/linux-x86_64_gcc-4.4' '--with-Qt-dir=/usr/gapps/visit/thirdparty_shared_2_7_0/qt/4.8.3/linux-x86_64_gcc-4.4' '--with-Qt-lib=QtGui' '--prefix=/usr/gapps/visit/thirdparty_shared_2_7_0/silo/4.9.1-pre1/linux-x86_64_gcc-4.4' '--enable-install-lite-headers'
-CONFIG_DATE = Tue Mar 19 10:33:26 PDT 2013
-CONFIG_USER = miller86@edge83
+CFLAGS = -g -m64 -fPIC -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -Wdeclaration-after-statement
+CONFIG_CMD = ./configure 'CC=gcc' 'CXX=g++' 'FC=gfortran' 'F77=gfortran' 'CFLAGS=-g -m64 -fPIC' 'CXXFLAGS=-g -m64 -fPIC' '--enable-pythonmodule' '--disable-shared' '--with-szlib=/usr/gapps/silo/szip/2.1/chaos_5_x86_64_ib' '--with-hdf5=/usr/gapps/silo/hdf5/1.8.10/chaos_5_x86_64_ib/include,/usr/gapps/silo/hdf5/1.8.10/chaos_5_x86_64_ib/lib' '--with-Qt-dir=/usr/gapps/visit/thirdparty_shared/2.8.1/qt/4.8.3/linux-x86_64_gcc-4.4' '--with-Qt-lib=QtGui -lQtCore' '--enable-silex' '--enable-install-lite-headers' '--enable-json' '--prefix=/g/g11/miller86/silo/trunk/my_install'
+CONFIG_DATE = Mon Oct 13 17:02:30 PDT 2014
+CONFIG_USER = miller86@edge84
 CPP = gcc -E
-CPPFLAGS = -I/usr/gapps/visit/thirdparty_shared_2_7_0/hdf5/1.8.7/linux-x86_64_gcc-4.4/include 
+CPPFLAGS = -I/usr/gapps/silo/hdf5/1.8.10/chaos_5_x86_64_ib/include 
 CXX = g++
 CXXCPP = g++ -E
 CXXDEPMODE = depmode=gcc3
-CXXFLAGS = -g
+CXXFLAGS = -g -m64 -fPIC
 CXX_FULLPATH = /usr/local/bin/g++
 CYGPATH_W = echo
 DEFS = -DHAVE_CONFIG_H
@@ -153,8 +156,8 @@ EGREP = /bin/grep -E
 EXEEXT = 
 F77 = gfortran
 FC = gfortran
-FCFLAGS = -g
-FCLIBS =  -L/usr/lib/gcc/x86_64-redhat-linux/4.4.6 -L/usr/lib/gcc/x86_64-redhat-linux/4.4.6/../../../../lib64 -L/lib/../lib64 -L/usr/lib/../lib64 -L/usr/lib/gcc/x86_64-redhat-linux/4.4.6/../../.. -lgfortranbegin -lgfortran -lm
+FCFLAGS = -g -O2
+FCLIBS =  -L/usr/lib/gcc/x86_64-redhat-linux/4.4.7 -L/usr/lib/gcc/x86_64-redhat-linux/4.4.7/../../../../lib64 -L/lib/../lib64 -L/usr/lib/../lib64 -L/usr/lib/gcc/x86_64-redhat-linux/4.4.7/../../.. -lgfortranbegin -lgfortran -lm
 FC_FULLPATH = /usr/local/bin/gfortran
 FFLAGS = -g -O2
 FGREP = /bin/grep -F
@@ -168,8 +171,9 @@ INSTALL_DATA = ${INSTALL} -m 644
 INSTALL_PROGRAM = ${INSTALL}
 INSTALL_SCRIPT = ${INSTALL}
 INSTALL_STRIP_PROGRAM = $(install_sh) -c -s
+JSON = json
 LD = /usr/local/bin/ld -m elf_x86_64
-LDFLAGS = -L/usr/gapps/visit/thirdparty_shared_2_7_0/hdf5/1.8.7/linux-x86_64_gcc-4.4/lib -L/usr/gapps/visit/thirdparty_shared_2_7_0/szip/2.1/linux-x86_64_gcc-4.4/lib  -L/usr/gapps/visit/thirdparty_shared_2_7_0/szip/2.1/linux-x86_64_gcc-4.4/lib
+LDFLAGS = -L/usr/gapps/silo/hdf5/1.8.10/chaos_5_x86_64_ib/lib -L/usr/gapps/silo/szip/2.1/chaos_5_x86_64_ib/lib  -L/usr/gapps/silo/szip/2.1/chaos_5_x86_64_ib/lib
 LIBM = -lm
 LIBOBJS = 
 LIBS = -lhdf5 -lsz -lsz -lz  -lm -lsz
@@ -178,7 +182,7 @@ LIPO =
 LN_S = ln -s
 LTLIBOBJS = 
 MAINT = #
-MAKEINFO = ${SHELL} /g/g11/miller86/silo/silo_4.9RC/config/missing --run makeinfo
+MAKEINFO = ${SHELL} /g/g11/miller86/silo/trunk/config/missing --run makeinfo
 MKDIR_P = /bin/mkdir -p
 NETCDF = netcdf
 NM = /usr/bin/nm -B
@@ -188,57 +192,54 @@ OBJEXT = o
 OTOOL = 
 OTOOL64 = 
 PACKAGE = silo
-PACKAGE_BUGREPORT = visit-users@email.ornl.gov
+PACKAGE_BUGREPORT = visit-users@elist.ornl.gov
 PACKAGE_NAME = silo
-PACKAGE_STRING = silo 4.9.1
+PACKAGE_STRING = silo 4.10.2
 PACKAGE_TARNAME = silo
-PACKAGE_VERSION = 4.9.1
+PACKAGE_VERSION = 4.10.2
 PATH_SEPARATOR = :
 PDBP_DRV = 
 PDB_DRV = pdb_drv
 PYTHON = /usr/local/bin/python
 PYTHONMODULE = python
-PYTHON_CPPFLAGS = -I/usr/apps/python/include/python2.6
+PYTHON_CPPFLAGS = -I/usr/apps/python/include/python2.7
 PYTHON_EXEC_PREFIX = ${exec_prefix}
 PYTHON_PLATFORM = linux2
 PYTHON_PREFIX = ${prefix}
-PYTHON_VERSION = 2.6
-QT_CXXFLAGS = -I/usr/gapps/visit/thirdparty_shared_2_7_0/qt/4.8.3/linux-x86_64_gcc-4.4/include -I/usr/gapps/visit/thirdparty_shared_2_7_0/qt/4.8.3/linux-x86_64_gcc-4.4/include/Qt -I/usr/gapps/visit/thirdparty_shared_2_7_0/qt/4.8.3/linux-x86_64_gcc-4.4/include/QtCore -I/usr/gapps/visit/thirdparty_shared_2_7_0/qt/4.8.3/linux-x86_64_gcc-4.4/include/QtGui
-QT_DIR = /usr/gapps/visit/thirdparty_shared_2_7_0/qt/4.8.3/linux-x86_64_gcc-4.4
-QT_LIBS = -L/usr/gapps/visit/thirdparty_shared_2_7_0/qt/4.8.3/linux-x86_64_gcc-4.4/lib -lQtGui  -lSM -lICE  -lX11 -lXext -lXmu -lXt -lXi 
-QT_LRELEASE = /usr/gapps/visit/thirdparty_shared_2_7_0/qt/4.8.3/linux-x86_64_gcc-4.4/bin/lrelease
-QT_LUPDATE = /usr/gapps/visit/thirdparty_shared_2_7_0/qt/4.8.3/linux-x86_64_gcc-4.4/bin/lupdate
-QT_MOC = /usr/gapps/visit/thirdparty_shared_2_7_0/qt/4.8.3/linux-x86_64_gcc-4.4/bin/moc
-QT_UIC = /usr/gapps/visit/thirdparty_shared_2_7_0/qt/4.8.3/linux-x86_64_gcc-4.4/bin/uic
+PYTHON_VERSION = 2.7
+QT_CXXFLAGS = -I/usr/gapps/visit/thirdparty_shared/2.8.1/qt/4.8.3/linux-x86_64_gcc-4.4/include -I/usr/gapps/visit/thirdparty_shared/2.8.1/qt/4.8.3/linux-x86_64_gcc-4.4/include/Qt -I/usr/gapps/visit/thirdparty_shared/2.8.1/qt/4.8.3/linux-x86_64_gcc-4.4/include/QtCore -I/usr/gapps/visit/thirdparty_shared/2.8.1/qt/4.8.3/linux-x86_64_gcc-4.4/include/QtGui
+QT_DIR = /usr/gapps/visit/thirdparty_shared/2.8.1/qt/4.8.3/linux-x86_64_gcc-4.4
+QT_LIBS = -L/usr/gapps/visit/thirdparty_shared/2.8.1/qt/4.8.3/linux-x86_64_gcc-4.4/lib -lQtGui -lQtCore  -lSM -lICE  -lX11 -lXext -lXmu -lXt -lXi 
+QT_LRELEASE = /usr/gapps/visit/thirdparty_shared/2.8.1/qt/4.8.3/linux-x86_64_gcc-4.4/bin/lrelease
+QT_LUPDATE = /usr/gapps/visit/thirdparty_shared/2.8.1/qt/4.8.3/linux-x86_64_gcc-4.4/bin/lupdate
+QT_MOC = /usr/gapps/visit/thirdparty_shared/2.8.1/qt/4.8.3/linux-x86_64_gcc-4.4/bin/moc
+QT_UIC = /usr/gapps/visit/thirdparty_shared/2.8.1/qt/4.8.3/linux-x86_64_gcc-4.4/bin/uic
 RANLIB = ranlib
 READLINE_LIBS = -lreadline 
 SED = /bin/sed
 SET_MAKE = 
 SHELL = /bin/sh
 SILEX = silex
-SILO_DTYPPTR = void
-SILO_DTYPPTR1 = void*
-SILO_DTYPPTR2 = void*
 SILO_VERS_MAJ = 4
-SILO_VERS_MIN = 9
-SILO_VERS_PAT = 1
+SILO_VERS_MIN = 10
+SILO_VERS_PAT = 2
 SILO_VERS_PRE = 
-SILO_VERS_TAG = Silo_version_4_9_1
+SILO_VERS_TAG = Silo_version_4_10_2
 STRIP = strip
 TAURUS = taurus
-VERSION = 4.9.1
+VERSION = 4.10.2
 XMKMF = 
 X_CFLAGS = 
 X_EXTRA_LIBS = 
 X_LIBS = 
 X_PRE_LIBS =  -lSM -lICE
 ZLIB = zlib
-abs_builddir = /g/g11/miller86/silo/silo_4.9RC/SiloWindows
-abs_srcdir = /g/g11/miller86/silo/silo_4.9RC/SiloWindows
-abs_top_builddir = /g/g11/miller86/silo/silo_4.9RC
-abs_top_srcdir = /g/g11/miller86/silo/silo_4.9RC
+abs_builddir = /g/g11/miller86/silo/trunk/SiloWindows
+abs_srcdir = /g/g11/miller86/silo/trunk/SiloWindows
+abs_top_builddir = /g/g11/miller86/silo/trunk
+abs_top_srcdir = /g/g11/miller86/silo/trunk
 ac_ct_CC = gcc
-ac_ct_CXX = g++
+ac_ct_CXX = 
 ac_ct_DUMPBIN = 
 ac_ct_F77 = 
 ac_ct_FC = 
@@ -267,7 +268,7 @@ host_vendor = unknown
 htmldir = ${docdir}
 includedir = ${prefix}/include
 infodir = ${datarootdir}/info
-install_sh = ${SHELL} /g/g11/miller86/silo/silo_4.9RC/config/install-sh
+install_sh = ${SHELL} /g/g11/miller86/silo/trunk/config/install-sh
 libdir = ${exec_prefix}/lib
 libexecdir = ${exec_prefix}/libexec
 localedir = ${datarootdir}/locale
@@ -279,11 +280,11 @@ oldincludedir = /usr/include
 pdfdir = ${docdir}
 pkgpyexecdir = ${pyexecdir}/silo
 pkgpythondir = ${pythondir}/silo
-prefix = /usr/gapps/visit/thirdparty_shared_2_7_0/silo/4.9.1-pre1/linux-x86_64_gcc-4.4
+prefix = /g/g11/miller86/silo/trunk/my_install
 program_transform_name = s,x,x,
 psdir = ${docdir}
-pyexecdir = ${exec_prefix}/lib/python2.6/site-packages
-pythondir = ${prefix}/lib/python2.6/site-packages
+pyexecdir = ${exec_prefix}/lib/python2.7/site-packages
+pythondir = ${prefix}/lib/python2.7/site-packages
 sbindir = ${exec_prefix}/sbin
 sharedstatedir = ${prefix}/com
 srcdir = .
@@ -293,73 +294,79 @@ top_build_prefix = ../
 top_builddir = ..
 top_srcdir = ..
 EXTRA_DIST = \
-./MSVC9/Tests/alltypes.vcproj\
-./MSVC9/Tests/arbpoly.vcproj\
-./MSVC9/Tests/arbpoly3d.vcproj\
-./MSVC9/Tests/array.vcproj\
-./MSVC9/Tests/array_f.vfproj\
-./MSVC9/Tests/compression.vcproj\
-./MSVC9/Tests/csg.vcproj\
-./MSVC9/Tests/curve_f.vfproj\
-./MSVC9/Tests/dirtest.vcproj\
-./MSVC9/Tests/empty.vcproj\
-./MSVC9/Tests/extface.vcproj\
-./MSVC9/Tests/grab.vcproj\
-./MSVC9/Tests/group_test.vcproj\
-./MSVC9/Tests/largefile.vcproj\
-./MSVC9/Tests/listtypes.vcproj\
-./MSVC9/Tests/mat3d_3across.vcproj\
-./MSVC9/Tests/mat_f.vfproj\
-./MSVC9/Tests/merge_block.vcproj\
-./MSVC9/Tests/mmadjacency.vcproj\
-./MSVC9/Tests/multi_file.vcproj\
-./MSVC9/Tests/multi_test.vcproj\
-./MSVC9/Tests/multispec.vcproj\
-./MSVC9/Tests/namescheme.vcproj\
-./MSVC9/Tests/obj.vcproj\
-./MSVC9/Tests/onehex.vcproj\
-./MSVC9/Tests/oneprism.vcproj\
-./MSVC9/Tests/onepyramid.vcproj\
-./MSVC9/Tests/onetet.vcproj\
-./MSVC9/Tests/partial_io.vcproj\
-./MSVC9/Tests/point.vcproj\
-./MSVC9/Tests/point_f.vfproj\
-./MSVC9/Tests/polyzl.vcproj\
-./MSVC9/Tests/Preparation.vcproj\
-./MSVC9/Tests/quad.vcproj\
-./MSVC9/Tests/quad_f.vfproj\
-./MSVC9/Tests/sami.vcproj\
-./MSVC9/Tests/simple.vcproj\
-./MSVC9/Tests/spec.vcproj\
-./MSVC9/Tests/specmix.vcproj\
-./MSVC9/Tests/subhex.vcproj\
-./MSVC9/Tests/testall.vcproj\
-./MSVC9/Tests/testall_f.vfproj\
-./MSVC9/Tests/testpdb.vcproj\
-./MSVC9/Tests/TestReadMask.vcproj\
-./MSVC9/Tests/twohex.vcproj\
-./MSVC9/Tests/ucd1d.vcproj\
-./MSVC9/Tests/ucd.vcproj\
-./MSVC9/Tests/ucd_f.vfproj\
-./MSVC9/Tests/ucdsamp3.vcproj\
-./MSVC9/Tests/version.vcproj\
-./MSVC9/Tests/wave.vcproj\
-./MSVC9/Tests/Tests.sln\
-./MSVC9/Tests/CopyTestDependencies.bat\
-./MSVC9/Tests/TestIncludes.vsprops\
-./MSVC9/bin/RunTests.bat\
-./MSVC9/pdb_detect/pdb_detect.vcproj\
-./MSVC9/BaseIncludes.vsprops\
-./MSVC9/DepLibs.vsprops\
-./MSVC9/HDF5_Defines.vsprops\
-./MSVC9/ModernDTPR.vsprops\
-./MSVC9/NO_SEC_DEP.vsprops\
-./MSVC9/NON_BSD_DEFINES.vsprops\
-./MSVC9/QT_Defines.vsprops\
-./MSVC9/browser.vcproj\
-./MSVC9/silex.vcproj\
-./MSVC9/Silo.vcproj\
-./MSVC9/SiloWindows.sln\
+./MSVC2012/Tests/alltypes.vcxproj\
+./MSVC2012/Tests/arbpoly.vcxproj\
+./MSVC2012/Tests/arbpoly3d.vcxproj\
+./MSVC2012/Tests/array.vcxproj\
+./MSVC2012/Tests/array_f.vfproj\
+./MSVC2012/Tests/compression.vcxproj\
+./MSVC2012/Tests/csg.vcxproj\
+./MSVC2012/Tests/csgmesh_f.vfproj\
+./MSVC2012/Tests/curve_f.vfproj\
+./MSVC2012/Tests/dirtest.vcxproj\
+./MSVC2012/Tests/empty.vcxproj\
+./MSVC2012/Tests/extface.vcxproj\
+./MSVC2012/Tests/grab.vcxproj\
+./MSVC2012/Tests/group_test.vcxproj\
+./MSVC2012/Tests/largefile.vcxproj\
+./MSVC2012/Tests/listtypes.vcxproj\
+./MSVC2012/Tests/mat3d_3across.vcxproj\
+./MSVC2012/Tests/mat_f.vfproj\
+./MSVC2012/Tests/merge_block.vcxproj\
+./MSVC2012/Tests/mmadjacency.vcxproj\
+./MSVC2012/Tests/multi_file.vcxproj\
+./MSVC2012/Tests/multi_test.vcxproj\
+./MSVC2012/Tests/multispec.vcxproj\
+./MSVC2012/Tests/namescheme.vcxproj\
+./MSVC2012/Tests/obj.vcxproj\
+./MSVC2012/Tests/onehex.vcxproj\
+./MSVC2012/Tests/oneprism.vcxproj\
+./MSVC2012/Tests/onepyramid.vcxproj\
+./MSVC2012/Tests/onetet.vcxproj\
+./MSVC2012/Tests/partial_io.vcxproj\
+./MSVC2012/Tests/point.vcxproj\
+./MSVC2012/Tests/point_f.vfproj\
+./MSVC2012/Tests/polyzl.vcxproj\
+./MSVC2012/Tests/Preparation.vcxproj\
+./MSVC2012/Tests/quad.vcxproj\
+./MSVC2012/Tests/quad_f.vfproj\
+./MSVC2012/Tests/sami.vcxproj\
+./MSVC2012/Tests/simple.vcxproj\
+./MSVC2012/Tests/spec.vcxproj\
+./MSVC2012/Tests/specmix.vcxproj\
+./MSVC2012/Tests/subhex.vcxproj\
+./MSVC2012/Tests/testall.vcxproj\
+./MSVC2012/Tests/testall_f.vfproj\
+./MSVC2012/Tests/testfs.vcxproj\
+./MSVC2012/Tests/testpdb.vcxproj\
+./MSVC2012/Tests/TestReadMask.vcxproj\
+./MSVC2012/Tests/twohex.vcxproj\
+./MSVC2012/Tests/ucd1d.vcxproj\
+./MSVC2012/Tests/ucd.vcxproj\
+./MSVC2012/Tests/ucd_f.vfproj\
+./MSVC2012/Tests/ucdsamp3.vcxproj\
+./MSVC2012/Tests/version.vcxproj\
+./MSVC2012/Tests/wave.vcxproj\
+./MSVC2012/Tests/Tests.sln\
+./MSVC2012/Tests/CopyTestDependencies.bat\
+./MSVC2012/Tests/TestIncludes.props\
+./MSVC2012/bin/RunTests.bat\
+./MSVC2012/pdb_detect/pdb_detect.vcxproj\
+./MSVC2012/pdb_detect/pdb_detect.vcxproj.filters\
+./MSVC2012/BaseIncludes.props\
+./MSVC2012/DepLibs.props\
+./MSVC2012/HDF5_Defines.props\
+./MSVC2012/ModernDTPR.props\
+./MSVC2012/NO_SEC_DEP.props\
+./MSVC2012/NON_BSD_DEFINES.props\
+./MSVC2012/QT_Defines.props\
+./MSVC2012/browser.vcxproj\
+./MSVC2012/browser.vcxproj.filters\
+./MSVC2012/silex.vcxproj\
+./MSVC2012/silex.vcxproj.filters\
+./MSVC2012/Silo.vcxproj\
+./MSVC2012/Silo.vcxproj.filters\
+./MSVC2012/Silo.sln\
 ./include/config.h\
 ./resources/silex.aps\
 ./resources/silex.ico\
@@ -371,103 +378,21 @@ EXTRA_DIST = \
 ./copysilo.bat\
 ./silodiff.bat\
 ./README\
-./MSVC9-BSD/Tests/alltypes.vcproj\
-./MSVC9-BSD/Tests/arbpoly.vcproj\
-./MSVC9-BSD/Tests/arbpoly3d.vcproj\
-./MSVC9-BSD/Tests/array.vcproj\
-./MSVC9-BSD/Tests/array_f.vfproj\
-./MSVC9-BSD/Tests/compression.vcproj\
-./MSVC9-BSD/Tests/csg.vcproj\
-./MSVC9-BSD/Tests/curve_f.vfproj\
-./MSVC9-BSD/Tests/dirtest.vcproj\
-./MSVC9-BSD/Tests/empty.vcproj\
-./MSVC9-BSD/Tests/extface.vcproj\
-./MSVC9-BSD/Tests/grab.vcproj\
-./MSVC9-BSD/Tests/group_test.vcproj\
-./MSVC9-BSD/Tests/largefile.vcproj\
-./MSVC9-BSD/Tests/listtypes.vcproj\
-./MSVC9-BSD/Tests/mat3d_3across.vcproj\
-./MSVC9-BSD/Tests/mat_f.vfproj\
-./MSVC9-BSD/Tests/merge_block.vcproj\
-./MSVC9-BSD/Tests/mmadjacency.vcproj\
-./MSVC9-BSD/Tests/multi_file.vcproj\
-./MSVC9-BSD/Tests/multi_test.vcproj\
-./MSVC9-BSD/Tests/multispec.vcproj\
-./MSVC9-BSD/Tests/namescheme.vcproj\
-./MSVC9-BSD/Tests/obj.vcproj\
-./MSVC9-BSD/Tests/onehex.vcproj\
-./MSVC9-BSD/Tests/oneprism.vcproj\
-./MSVC9-BSD/Tests/onepyramid.vcproj\
-./MSVC9-BSD/Tests/onetet.vcproj\
-./MSVC9-BSD/Tests/partial_io.vcproj\
-./MSVC9-BSD/Tests/point.vcproj\
-./MSVC9-BSD/Tests/point_f.vfproj\
-./MSVC9-BSD/Tests/polyzl.vcproj\
-./MSVC9-BSD/Tests/Preparation.vcproj\
-./MSVC9-BSD/Tests/quad.vcproj\
-./MSVC9-BSD/Tests/quad_f.vfproj\
-./MSVC9-BSD/Tests/sami.vcproj\
-./MSVC9-BSD/Tests/simple.vcproj\
-./MSVC9-BSD/Tests/spec.vcproj\
-./MSVC9-BSD/Tests/specmix.vcproj\
-./MSVC9-BSD/Tests/subhex.vcproj\
-./MSVC9-BSD/Tests/testall.vcproj\
-./MSVC9-BSD/Tests/testall_f.vfproj\
-./MSVC9-BSD/Tests/testpdb.vcproj\
-./MSVC9-BSD/Tests/TestReadMask.vcproj\
-./MSVC9-BSD/Tests/twohex.vcproj\
-./MSVC9-BSD/Tests/ucd1d.vcproj\
-./MSVC9-BSD/Tests/ucd.vcproj\
-./MSVC9-BSD/Tests/ucd_f.vfproj\
-./MSVC9-BSD/Tests/ucdsamp3.vcproj\
-./MSVC9-BSD/Tests/version.vcproj\
-./MSVC9-BSD/Tests/wave.vcproj\
-./MSVC9-BSD/Tests/Tests.sln\
-./MSVC9-BSD/Tests/CopyTestDependencies.bat\
-./MSVC9-BSD/Tests/TestIncludes.vsprops\
-./MSVC9-BSD/bin/RunTests.bat\
-./MSVC9-BSD/pdb_detect/pdb_detect.vcproj\
-./MSVC9-BSD/BaseIncludes.vsprops\
-./MSVC9-BSD/DepLibs.vsprops\
-./MSVC9-BSD/HDF5_Defines.vsprops\
-./MSVC9-BSD/ModernDTPR.vsprops\
-./MSVC9-BSD/NO_SEC_DEP.vsprops\
-./MSVC9-BSD/QT_Defines.vsprops\
-./MSVC9-BSD/browser.vcproj\
-./MSVC9-BSD/silex.vcproj\
-./MSVC9-BSD/Silo.vcproj\
-./MSVC9-BSD/SiloWindows.sln\
-./MSVC2010/BaseIncludes.props\
-./MSVC2010/DepLibs.props\
-./MSVC2010/HDF5_Defines.props\
-./MSVC2010/ModernDTPR.props\
-./MSVC2010/NON_BSD_DEFINES.props\
-./MSVC2010/NO_SEC_DEP.props\
-./MSVC2010/QT_Defines.props\
-./MSVC2010/Silo.sln\
-./MSVC2010/Silo.vcxproj\
-./MSVC2010/Silo.vcxproj.filters\
-./MSVC2010/browser.vcxproj\
-./MSVC2010/browser.vcxproj.filters\
-./MSVC2010/silex.vcxproj\
-./MSVC2010/silex.vcxproj.filters\
-./MSVC2010/pdb_detect/pdb_detect.vcxproj\
-./MSVC2010/pdb_detect/pdb_detect.vcxproj.filters\
-./MSVC2010-BSD/BaseIncludes.props\
-./MSVC2010-BSD/DepLibs.props\
-./MSVC2010-BSD/HDF5_Defines.props\
-./MSVC2010-BSD/ModernDTPR.props\
-./MSVC2010-BSD/NO_SEC_DEP.props\
-./MSVC2010-BSD/QT_Defines.props\
-./MSVC2010-BSD/Silo.sln\
-./MSVC2010-BSD/Silo.vcxproj\
-./MSVC2010-BSD/Silo.vcxproj.filters\
-./MSVC2010-BSD/browser.vcxproj\
-./MSVC2010-BSD/browser.vcxproj.filters\
-./MSVC2010-BSD/silex.vcxproj\
-./MSVC2010-BSD/silex.vcxproj.filters\
-./MSVC2010-BSD/pdb_detect/pdb_detect.vcxproj\
-./MSVC2010-BSD/pdb_detect/pdb_detect.vcxproj.filters
+./MSVC2012-BSD/pdb_detect/pdb_detect.vcxproj\
+./MSVC2012-BSD/pdb_detect/pdb_detect.vcxproj.filters\
+./MSVC2012-BSD/BaseIncludes.props\
+./MSVC2012-BSD/DepLibs.props\
+./MSVC2012-BSD/HDF5_Defines.props\
+./MSVC2012-BSD/ModernDTPR.props\
+./MSVC2012-BSD/NO_SEC_DEP.props\
+./MSVC2012-BSD/QT_Defines.props\
+./MSVC2012-BSD/browser.vcxproj\
+./MSVC2012-BSD/browser.vcxproj.filters\
+./MSVC2012-BSD/silex.vcxproj\
+./MSVC2012-BSD/silex.vcxproj.filters\
+./MSVC2012-BSD/Silo.vcxproj\
+./MSVC2012-BSD/Silo.vcxproj.filters\
+./MSVC2012-BSD/Silo.sln
 
 all: all-am
 

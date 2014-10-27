@@ -81,7 +81,7 @@ void MCopyFile (char *fileName, char *meshFileName, int driver);
 void GetFileList (char *baseName, char ***files, int *nFiles);
 void ListSort (char **list, int n);
 
-main (int argc, char **argv)
+int main (int argc, char **argv)
 {
     int       i, driver = DB_PDB;
     int       nFiles;
@@ -134,6 +134,8 @@ main (int argc, char **argv)
     }
 
     CleanupDriverStuff();
+
+    return 0;
 }
 
 void
@@ -330,7 +332,7 @@ MCopyFile (char *fileName, char *meshFileName, int driver)
         int       *mix_next2=NULL, *mix_mat2=NULL;
 
         mixlen2 = mat[i]->mixlen;
-        mix_vf2 = mat[i]->mix_vf;
+        mix_vf2 = (float*)mat[i]->mix_vf;
         mix_next2 = mat[i]->mix_next;
         mix_mat2 = mat[i]->mix_mat;
         for (j = 0; j < mixlen2; j++)
@@ -450,7 +452,7 @@ MCopyFile (char *fileName, char *meshFileName, int driver)
         int       *map=NULL;
         int       nnode;
 
-        local_coord = um[i]->coords[0];
+        local_coord = (float*)um[i]->coords[0];
         map = local_global_map[i];
         nnode = um[i]->nnodes;
         for (j = 0; j < nnode; j++)
@@ -466,7 +468,7 @@ MCopyFile (char *fileName, char *meshFileName, int driver)
         int       *map=NULL;
         int       nnode;
 
-        local_coord = um[i]->coords[1];
+        local_coord = (float*)um[i]->coords[1];
         map = local_global_map[i];
         nnode = um[i]->nnodes;
         for (j = 0; j < nnode; j++)
@@ -482,7 +484,7 @@ MCopyFile (char *fileName, char *meshFileName, int driver)
         int       *map=NULL;
         int       nnode;
 
-        local_coord = um[i]->coords[2];
+        local_coord = (float*)um[i]->coords[2];
         map = local_global_map[i];
         nnode = um[i]->nnodes;
         for (j = 0; j < nnode; j++)
@@ -621,7 +623,7 @@ MCopyFile (char *fileName, char *meshFileName, int driver)
                 float     *var2=NULL;
 
                 nels2 = uv[j]->nels;
-                var2  = uv[j]->vals[0];
+                var2  = (float*)uv[j]->vals[0];
                 for (k = 0; k < nels2; k++)
                 {
                     var[l++] = var2[k];
@@ -642,7 +644,7 @@ MCopyFile (char *fileName, char *meshFileName, int driver)
                 int       *map=NULL;
 
                 nels2 = uv[j]->nels;
-                var2  = uv[j]->vals[0];
+                var2  = (float*)uv[j]->vals[0];
                 map = local_global_map[j];
                 for (k = 0; k < nels2; k++)
                 {

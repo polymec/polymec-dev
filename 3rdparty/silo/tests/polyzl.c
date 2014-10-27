@@ -145,8 +145,8 @@ main(int argc, char *argv[])
     optlist = DBMakeOptlist(3);
     DBAddOption(optlist, DBOPT_PHZONELIST, "polyzl");
 
-    DBPutUcdmesh(dbfile, "ucdmesh", 3, coordnames, coords, NNODES, NZONES,
-        NULL, NULL, DB_FLOAT, optlist);
+    DBPutUcdmesh(dbfile, "ucdmesh", 3, (DBCAS_t) coordnames,
+        coords, NNODES, NZONES, NULL, NULL, DB_FLOAT, optlist);
 
     DBPutPHZonelist(dbfile, "polyzl",
         NFACES, nodecnt, lnodelist, nodelist, NULL,

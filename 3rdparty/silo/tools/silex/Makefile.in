@@ -89,6 +89,7 @@ POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
 bin_PROGRAMS = silex$(EXEEXT)
+@JSON_NEEDED_TRUE@am__append_1 = ../json/json-c-0.10/libjson.la
 subdir = tools/silex
 DIST_COMMON = $(noinst_HEADERS) $(srcdir)/Makefile.am \
 	$(srcdir)/Makefile.in
@@ -123,9 +124,9 @@ nodist_silex_OBJECTS = $(am__objects_2)
 silex_OBJECTS = $(am_silex_OBJECTS) $(nodist_silex_OBJECTS)
 am__DEPENDENCIES_1 =
 @HDF5_DRV_NEEDED_FALSE@silex_DEPENDENCIES = ../../src/libsilo.la \
-@HDF5_DRV_NEEDED_FALSE@	$(am__DEPENDENCIES_1)
+@HDF5_DRV_NEEDED_FALSE@	$(am__DEPENDENCIES_1) $(am__append_1)
 @HDF5_DRV_NEEDED_TRUE@silex_DEPENDENCIES = ../../src/libsiloh5.la \
-@HDF5_DRV_NEEDED_TRUE@	$(am__DEPENDENCIES_1)
+@HDF5_DRV_NEEDED_TRUE@	$(am__DEPENDENCIES_1) $(am__append_1)
 DEFAULT_INCLUDES = -I.@am__isrc@ -I$(top_builddir)
 depcomp = $(SHELL) $(top_srcdir)/config/depcomp
 am__depfiles_maybe = depfiles
@@ -195,6 +196,7 @@ INSTALL_DATA = @INSTALL_DATA@
 INSTALL_PROGRAM = @INSTALL_PROGRAM@
 INSTALL_SCRIPT = @INSTALL_SCRIPT@
 INSTALL_STRIP_PROGRAM = @INSTALL_STRIP_PROGRAM@
+JSON = @JSON@
 LD = @LD@
 LDFLAGS = @LDFLAGS@
 LIBM = @LIBM@
@@ -243,9 +245,6 @@ SED = @SED@
 SET_MAKE = @SET_MAKE@
 SHELL = @SHELL@
 SILEX = @SILEX@
-SILO_DTYPPTR = @SILO_DTYPPTR@
-SILO_DTYPPTR1 = @SILO_DTYPPTR1@
-SILO_DTYPPTR2 = @SILO_DTYPPTR2@
 SILO_VERS_MAJ = @SILO_VERS_MAJ@
 SILO_VERS_MIN = @SILO_VERS_MIN@
 SILO_VERS_PAT = @SILO_VERS_PAT@
@@ -321,8 +320,11 @@ top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 silex_SOURCES = $(FILES)
 nodist_silex_SOURCES = $(FILES_MOC)
-@HDF5_DRV_NEEDED_FALSE@silex_LDADD = ../../src/libsilo.la $(QT_LDFLAGS) $(QT_LIBS)
-@HDF5_DRV_NEEDED_TRUE@silex_LDADD = ../../src/libsiloh5.la $(QT_LDFLAGS) $(QT_LIBS)
+@HDF5_DRV_NEEDED_FALSE@silex_LDADD = ../../src/libsilo.la \
+@HDF5_DRV_NEEDED_FALSE@	$(QT_LDFLAGS) $(QT_LIBS) \
+@HDF5_DRV_NEEDED_FALSE@	$(am__append_1)
+@HDF5_DRV_NEEDED_TRUE@silex_LDADD = ../../src/libsiloh5.la \
+@HDF5_DRV_NEEDED_TRUE@	$(QT_LDFLAGS) $(QT_LIBS) $(am__append_1)
 EXTRA_DIST = \
  array.xpm \
  curve.xpm \
@@ -337,6 +339,7 @@ EXTRA_DIST = \
 AM_CXXFLAGS = $(QT_CXXFLAGS)
 AM_CPPFLAGS = \
  -I$(top_builddir)/src/silo \
+ -I$(top_srcdir)/src/silo \
  -I$(includedir)
 
 noinst_HEADERS = \
@@ -712,7 +715,7 @@ uninstall-am: uninstall-binPROGRAMS
 %_moc.cpp: %.h
 	$(QT_MOC) -o $@ $<
 
-install-exec-hook: $(BUNDLE_TARGET)
+install-exec-hook: silex.app
 
 silex.app:
 	@if test -e $@; then \
@@ -723,7 +726,7 @@ silex.app:
 	mkdir $@/Contents; \
 	mkdir $@/Contents/MacOS; \
 	mkdir $@/Contents/Resources; \
-	{
+	{ \
 	  echo '<?xml version="1.0" encoding="UTF-8"?>'; \
 	  echo '<!DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">'; \
 	  echo '<plist version="1.0">'; \
@@ -738,7 +741,7 @@ silex.app:
 	  echo '        <string>SILX</string>'; \
 	  echo '</dict>'; \
 	  echo '</plist>'; \
-	} > $@/Contents/Info.plist
+	} > $@/Contents/Info.plist; \
 	echo 'APPLSILX' > $@/Contents/PkgInfo
 
 .PHONY: silex.app

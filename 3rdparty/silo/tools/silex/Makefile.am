@@ -61,6 +61,9 @@ if HDF5_DRV_NEEDED
 else
   silex_LDADD = ../../src/libsilo.la $(QT_LDFLAGS) $(QT_LIBS)
 endif
+if JSON_NEEDED
+  silex_LDADD += ../json/json-c-0.10/libjson.la
+endif
 
 EXTRA_DIST = \
  array.xpm \
@@ -76,6 +79,7 @@ EXTRA_DIST = \
 AM_CXXFLAGS=$(QT_CXXFLAGS)
 AM_CPPFLAGS = \
  -I$(top_builddir)/src/silo \
+ -I$(top_srcdir)/src/silo \
  -I$(includedir)
 
 noinst_HEADERS = \
@@ -115,7 +119,7 @@ BUILT_SOURCES = $(FILES_MOC)
 
 CLEANFILES = $(FILES_MOC)
 
-install-exec-hook: $(BUNDLE_TARGET)
+install-exec-hook: silex.app
 
 silex.app:
 	@if test -e $@; then \
@@ -126,7 +130,7 @@ silex.app:
 	mkdir $@/Contents; \
 	mkdir $@/Contents/MacOS; \
 	mkdir $@/Contents/Resources; \
-	{
+	{ \
 	  echo '<?xml version="1.0" encoding="UTF-8"?>'; \
 	  echo '<!DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">'; \
 	  echo '<plist version="1.0">'; \
@@ -141,7 +145,7 @@ silex.app:
 	  echo '        <string>SILX</string>'; \
 	  echo '</dict>'; \
 	  echo '</plist>'; \
-	} > $@/Contents/Info.plist
+	} > $@/Contents/Info.plist; \
 	echo 'APPLSILX' > $@/Contents/PkgInfo
 
 .PHONY: silex.app

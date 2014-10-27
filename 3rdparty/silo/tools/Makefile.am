@@ -53,15 +53,18 @@
 ## Procss this file with automake to create Makefile.in
 
 
-TOOLS_DIR =
+TOOLS_DIR = silock
 if BROWSER_NEEDED
-TOOLS_DIR += browser silock
+TOOLS_DIR += browser
 endif
 if PYTHON_NEEDED
 TOOLS_DIR += python
 endif
 if SILEX_NEEDED
 TOOLS_DIR += silex
+endif
+if JSON_NEEDED
+TOOLS_DIR += json
 endif
 SUBDIRS = \
  . \
@@ -71,4 +74,6 @@ DIST_SUBDIRS = \
  browser \
  python \
  silex \
- silock
+ silock \
+ mapred \
+ json

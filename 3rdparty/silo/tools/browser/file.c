@@ -63,16 +63,16 @@ be used for advertising or product endorsement purposes.
  *
  *-------------------------------------------------------------------------
  */
+#include <config.h>     /*Silo configuration record*/
 #include <assert.h>
 #include <browser.h>
+#include <errno.h>
 #ifdef HAVE_FNMATCH_H
 #  include <fnmatch.h>
 #endif
-
-#include <config.h>     /*Silo configuration record*/
+#include <math.h>
 #include <stdio.h>
 #include <string.h>
-#include <errno.h>
 
 #define CHECK_SYMBOL(A)  if (!strncmp(str, #A, strlen(str))) return A
 
@@ -183,13 +183,15 @@ static int StringToOptval(const char *str)
     CHECK_SYMBOL(DB_H5VFD_MPIO);
     CHECK_SYMBOL(DB_H5VFD_MPIP);
     CHECK_SYMBOL(DB_H5VFD_SILO);
+
+    return DB_PDB;
 }
 
 #define MYCLASS(X)      ((obj_file_t*)(X))
 
 typedef struct obj_file_t {
    obj_pub_t    pub;
-   int          rdonly;
+   int          writeable;
    char         *name;
    DBfile       *f;
 } obj_file_t;
@@ -226,10 +228,10 @@ static int      file_diff (obj_t, obj_t);
 class_t
 file_class (void) {
 
-   class_t      cls = calloc (1, sizeof(*cls));
+   class_t      cls = (class_t)calloc (1, sizeof(*cls));
 
    cls->name = safe_strdup ("FILE");
-   cls->new = file_new;
+   cls->newobj = file_new;
    cls->dest = file_dest;
    cls->copy = NULL;
    cls->print = file_print;
@@ -400,12 +402,12 @@ file_new (va_list ap)
    obj_file_t   *self;
    char         *fname=NULL;
    DBfile       *f;
-   int          rdonly;
+   int          writeable;
    int          old_err_level;
    static int   seen_file_format = -1;
 
    fname = va_arg (ap, char*);
-   rdonly = va_arg (ap, int);
+   writeable = va_arg (ap, int);
 
    /* reset hdf5 vfd options (whether the are used or not) */
    file_reset_hdf5_vfd_options();
@@ -415,13 +417,13 @@ file_new (va_list ap)
     * permission then try opening it for read-only
     */
 #define DEFAULT_DB_TYPE DB_UNKNOWN 
-   f = DBOpen (fname, DEFAULT_DB_TYPE, rdonly ? DB_READ : DB_APPEND);
-   if (!f && E_FILENOWRITE==db_errno && !rdonly) {
+   f = DBOpen (fname, DEFAULT_DB_TYPE, writeable ? DB_APPEND : DB_READ);
+   if (!f && E_FILENOWRITE==db_errno && writeable) {
       f = DBOpen (fname, DEFAULT_DB_TYPE, DB_READ);
       if (f) {
          out_info ("file opened, but without write permission");
       }
-      rdonly = true;
+      writeable = false;
    }
 
    /*
@@ -432,7 +434,7 @@ file_new (va_list ap)
    if (!f && E_NOTFILTER==db_errno) {
       old_err_level = DBErrlvl();
       DBShowErrors(DB_ALL, NULL);
-      f = DBOpen (fname, DEFAULT_DB_TYPE, rdonly ? DB_READ : DB_APPEND);
+      f = DBOpen (fname, DEFAULT_DB_TYPE, writeable ? DB_APPEND : DB_READ);
       DBShowErrors(old_err_level, NULL);
    }
 
@@ -441,10 +443,10 @@ file_new (va_list ap)
    }
 
    if (!f) return NIL ; /*error already printed*/
-   self = calloc (1, sizeof(obj_file_t));
+   self = (obj_file_t *)calloc (1, sizeof(obj_file_t));
    self->name = safe_strdup (fname);
    self->f = f;
-   self->rdonly = rdonly;
+   self->writeable = writeable;
 
    /* If we see any file which is not PDB then turn off the `$lowlevel'
     * flag for fear of the caller attempting a `diff' operation across
@@ -524,7 +526,7 @@ file_print (obj_t _self, out_t *f) {
    char         cwd[1024];
 
    if (DBGetDir (self->f, cwd)<0) strcpy (cwd, "???");
-   out_printf (f, "%s%s:%s", self->name, self->rdonly?"[RDONLY]":"", cwd);
+   out_printf (f, "%s%s:%s", self->name, self->writeable?"[WRITEABLE]":"", cwd);
 }
 
 
@@ -598,7 +600,7 @@ fix_objdups(DBobject *obj)
     int         i, j, occur;
     
     if (!obj) return NULL;
-    new_names = calloc(obj->ncomponents, sizeof(char*));
+    new_names = (char **)calloc(obj->ncomponents, sizeof(char*));
 
     /* Look for duplicates and generate new names */
     for (i=1; i<obj->ncomponents; i++) {
@@ -615,7 +617,7 @@ fix_objdups(DBobject *obj)
             } else {
                 sprintf(suffix, " [%dth occurrence]", occur);
             }
-            new_names[i] = malloc(strlen(obj->comp_names[i])+strlen(suffix)+1);
+            new_names[i] = (char *)malloc(strlen(obj->comp_names[i])+strlen(suffix)+1);
             strcpy(new_names[i], obj->comp_names[i]);
             strcat(new_names[i], suffix);
         }
@@ -734,11 +736,11 @@ browser_DBGetObject (DBfile *file, char *name, obj_t *type_ptr)
      * fields (four pointers and an integer) are properly aligned when packed.
      */
     assert(sizeof(char*)==sizeof(void*));
-    b_obj = malloc (need);
+    b_obj = (char *)malloc (need);
     *((DBobject**)b_obj) = obj;
     *((char**)(b_obj+sizeof(void*))) = obj->name;
     *((char**)(b_obj+2*sizeof(void*))) = obj->type;
-    flags = calloc (obj->ncomponents, sizeof(int));
+    flags = (int *)calloc (obj->ncomponents, sizeof(int));
     *((int**)(b_obj+3*sizeof(void*))) = flags;
     *((int*)(b_obj+4*sizeof(void*))) = obj->ncomponents;
     offset = 4 * sizeof(void*) + sizeof(int);
@@ -857,7 +859,7 @@ browser_DBSaveObject (obj_t _self, char *unused, void *mem, obj_t type) {
    double       d;
    obj_t        comp_name;
 
-   if (self->rdonly) {
+   if (!self->writeable) {
       out_errorn ("file `%s' is read-only", self->name);
       return -1;
    }
@@ -905,7 +907,7 @@ browser_DBSaveObject (obj_t _self, char *unused, void *mem, obj_t type) {
          s = *((char**)(b_obj+offset));
          if (strncmp(obj->pdb_names[i]+4, s, strlen(s))) {
             free (obj->pdb_names[i]);
-            obj->pdb_names[i] = malloc (strlen(s)+5);
+            obj->pdb_names[i] = (char *)malloc (strlen(s)+5);
             strcpy (obj->pdb_names[i], "'<s>");
             strcpy (obj->pdb_names[i]+4, s);
             nchanges++;
@@ -924,24 +926,6 @@ browser_DBSaveObject (obj_t _self, char *unused, void *mem, obj_t type) {
    return DBChangeObject (file_file(_self), obj);
 }
 
-
-/*-------------------------------------------------------------------------
- * Function:    browser_DBGetMultimeshadj
- *
- * Purpose:     Deal with non-standard get-API for DBmultimeshadj objects 
- *
- * Return:      DBmultimeshadj 
- *
- * Programmer:  Mark C. Miller 
- *              August 24, 2005
- *
- *-------------------------------------------------------------------------
- */
-static DBmultimeshadj*
-browser_DBGetMultimeshadj(DBfile *file, char *name)
-{
-    return DBGetMultimeshadj(file, name, 0, NULL);
-}
 
 /*-------------------------------------------------------------------------
  * Function:    browser_DBFreeObject
@@ -988,6 +972,333 @@ browser_DBFreeObject (void *mem, obj_t type) {
    DBFreeObject (obj);
 }
 
+/*-------------------------------------------------------------------------
+ * Function:    browser_DBGetMultimeshadj
+ *
+ * Purpose:     Deal with non-standard get-API for DBmultimeshadj objects 
+ *
+ * Return:      DBmultimeshadj 
+ *
+ * Programmer:  Mark C. Miller 
+ *              August 24, 2005
+ *
+ *-------------------------------------------------------------------------
+ */
+static void*
+browser_DBGetMultimeshadj(DBfile *file, char *name, obj_t *type_ptr)
+{
+   DBmultimeshadj       *mmadj;
+   char                 **b_mmadj;
+   char                 buf[64], fmt[64];
+   int                  i, nbytes, digits;
+   obj_t                type=NIL, tmp=NIL;
+
+   /*
+    * Read the multimeshadj and create a browser multimeshadj.  The
+    * first entry in the browser multimeshadj points to the beginning
+    * of the silo multimeshadj so we can free it later.
+    */
+   mmadj = DBGetMultimeshadj(file, name, -1, 0);
+   if (!mmadj) return NULL;
+
+   b_mmadj = (char **)calloc (2*(mmadj->lneighbors)+11, sizeof(char*));
+   type = obj_new (C_STC, NULL, NULL);
+   b_mmadj[0] = (char*)mmadj;
+
+   /*
+    * The browser multimeshadj should point to the silo multimeshadj 
+    * fields so that modifying the browser object actually modifies the
+    * silo object.
+    */
+   b_mmadj[1] = (char*)&(mmadj->nblocks);
+   stc_add (type, obj_new(C_PTR, obj_new(C_PRIM, "int")),
+            1*sizeof(char*), "nblocks");
+
+   b_mmadj[2] = (char*)&(mmadj->blockorigin);
+   stc_add (type, obj_new(C_PTR, obj_new(C_PRIM, "int")),
+            2*sizeof(char*), "blockorigin");
+
+   tmp = obj_new (C_PRIM, "int");
+   prim_set_io_assoc (tmp, PA_OBJTYPE);
+   obj_bind (tmp, NULL);
+   b_mmadj[3] = (char*)mmadj->meshtypes;
+   sprintf (buf, "%d", mmadj->nblocks);
+   stc_add (type, obj_new(C_PTR, obj_new(C_ARY, buf, obj_copy(tmp,SHALLOW))),
+            3*sizeof(char*), "meshtypes");
+   tmp = NIL;
+
+   tmp = obj_new (C_PRIM, "int");
+   obj_bind (tmp, NULL);
+   b_mmadj[4] = (char*)mmadj->nneighbors;
+   sprintf (buf, "%d", mmadj->nblocks);
+   stc_add (type, obj_new(C_PTR, obj_new(C_ARY, buf, obj_copy(tmp,SHALLOW))),
+            4*sizeof(char*), "nneighbors");
+   tmp = NIL;
+
+   b_mmadj[5] = (char*)&(mmadj->lneighbors);
+   stc_add (type, obj_new(C_PTR, obj_new(C_PRIM, "int")),
+            5*sizeof(char*), "lneighbors");
+
+   tmp = obj_new (C_PRIM, "int");
+   obj_bind (tmp, NULL);
+   b_mmadj[6] = (char*)mmadj->neighbors;
+   sprintf (buf, "%d", mmadj->lneighbors);
+   stc_add (type, obj_new(C_PTR, obj_new(C_ARY, buf, obj_copy(tmp,SHALLOW))),
+            6*sizeof(char*), "neighbors");
+   tmp = NIL;
+
+   if (mmadj->back) {
+       tmp = obj_new (C_PRIM, "int");
+       obj_bind (tmp, NULL);
+       b_mmadj[7] = (char*)mmadj->back;
+       sprintf (buf, "%d", mmadj->lneighbors);
+       stc_add (type, obj_new(C_PTR, obj_new(C_ARY, buf, obj_copy(tmp,SHALLOW))),
+            7*sizeof(char*), "back");
+       tmp = NIL;
+   }
+
+   b_mmadj[8] = (char*)&(mmadj->totlnodelists);
+   stc_add (type, obj_new(C_PTR, obj_new(C_PRIM, "int")),
+            8*sizeof(char*), "totlnodelists");
+
+   if (mmadj->lnodelists) {
+       tmp = obj_new (C_PRIM, "int");
+       obj_bind (tmp, NULL);
+       b_mmadj[9] = (char*)mmadj->lnodelists;
+       sprintf (buf, "%d", mmadj->lneighbors);
+       stc_add (type, obj_new(C_PTR, obj_new(C_ARY, buf, obj_copy(tmp,SHALLOW))),
+            9*sizeof(char*), "lnodelists");
+       tmp = NIL;
+   }
+
+   b_mmadj[10] = (char*)&(mmadj->totlzonelists);
+   stc_add (type, obj_new(C_PTR, obj_new(C_PRIM, "int")),
+            10*sizeof(char*), "totlzonelists");
+
+   if (mmadj->zonelists) {
+       tmp = obj_new (C_PRIM, "int");
+       obj_bind (tmp, NULL);
+       b_mmadj[11] = (char*)mmadj->lzonelists;
+       sprintf (buf, "%d", mmadj->lneighbors);
+       stc_add (type, obj_new(C_PTR, obj_new(C_ARY, buf, obj_copy(tmp,SHALLOW))),
+            11*sizeof(char*), "lzonelists");
+       tmp = NIL;
+    }
+
+   /*
+    * Create the sub array base type.
+    */
+   sprintf (buf, "%d", DB_INT);
+   tmp = obj_new (C_PRIM, buf);
+   obj_bind (tmp, NULL);
+   nbytes = obj_sizeof(tmp);
+   assert (nbytes>0);
+
+   /*
+    * Create browser entries for each of the sub arrays.
+    */
+   digits = (int) (log10((double)mmadj->lneighbors) + 1);
+   for (i=0; i<mmadj->lneighbors; i++) {
+      char aname[32];
+
+      /* deal with nodelist entry */
+      sprintf(fmt, "nodelist%%0%dd", digits);
+      if (mmadj->nodelists && mmadj->nodelists[i])
+      {
+          b_mmadj[2*i+11] = (char*)(mmadj->nodelists[i]);
+          sprintf (aname, fmt, i);
+          if (1==mmadj->lnodelists[i]) {
+             stc_add (type, obj_new (C_PTR, obj_copy (tmp, SHALLOW)),
+                      (2*i+11)*sizeof(char*), aname);
+          } else {
+             sprintf (buf, "%d", mmadj->lnodelists[i]);
+             stc_add (type, obj_new (C_PTR, obj_new (C_ARY, buf, obj_copy(tmp,SHALLOW))),
+                      (2*i+11)*sizeof(char*), aname);
+          }
+      }
+
+      /* deal with zonelist entry */
+      sprintf(fmt, "zonelist%%0%dd", digits);
+      if (mmadj->zonelists && mmadj->zonelists[i])
+      {
+          b_mmadj[2*i+1+11] = (char*)(mmadj->zonelists[i]);
+          sprintf (aname, fmt, i);
+          if (1==mmadj->lzonelists[i]) {
+             stc_add (type, obj_new (C_PTR, obj_copy (tmp, SHALLOW)),
+                      (2*i+1+11)*sizeof(char*), aname);
+          } else {
+             sprintf (buf, "%d", mmadj->lzonelists[i]);
+             stc_add (type, obj_new (C_PTR, obj_new (C_ARY, buf, obj_copy(tmp,SHALLOW))),
+                      (2*i+1+11)*sizeof(char*), aname);
+          }
+      }
+   }
+
+   /*
+    * Free temp data and return
+    */
+   tmp = obj_dest (tmp);
+   *type_ptr = type;
+   return b_mmadj;
+}
+
+static void
+browser_DBFreeMultimeshadj(void *mem, obj_t type) {
+
+   char                 *b_mmadj = (char*)mem;
+   DBmultimeshadj       *mmadj;
+
+   if (!b_mmadj) return;
+   mmadj = *((DBmultimeshadj**)b_mmadj);
+   if (!mmadj) return;
+   DBFreeMultimeshadj(mmadj);
+}
+
+static void *
+browser_DBGetGroupelmap(DBfile *file, char *name, obj_t *type_ptr) {
+
+   DBgroupelmap         *gm;
+   char                 **b_gm;
+   char                 buf[64], bufi[64], buff[64];
+   int                  i, nbytes;
+   obj_t                type=NIL, tmp=NIL, tmpi=NIL, tmpf=NIL;
+
+   /*
+    * Read the compound array and create a browser compound array.  The
+    * first entry in the browser compound array points to the beginning
+    * of the silo compound array so we can free it later.
+    */
+   gm = DBGetGroupelmap(file, name);
+   if (!gm) return NULL;
+   b_gm = (char **)calloc (2*gm->num_segments+7, sizeof(char*));
+   type = obj_new (C_STC, NULL, NULL);
+   b_gm[0] = (char*)gm;
+
+   /*
+    * The browser compound array should point to the silo compound array
+    * fields so that modifying the browser object actually modifies the
+    * silo object.
+    */
+   b_gm[1] = gm->name;
+   stc_add (type, obj_new(C_PRIM, "string"),
+            1*sizeof(char*), "name");
+
+   b_gm[2] = (char*)&(gm->num_segments);
+   stc_add (type, obj_new(C_PTR, obj_new(C_PRIM, "int")),
+            2*sizeof(char*), "num_segments");
+
+   tmp = obj_new (C_PRIM, "int");
+   prim_set_io_assoc (tmp, PA_CENTERING);
+   obj_bind (tmp, NULL);
+   b_gm[3] = (char*)gm->groupel_types;
+   sprintf (buf, "%d", gm->num_segments);
+   stc_add (type, obj_new(C_PTR, obj_new(C_ARY, buf, obj_copy(tmp,SHALLOW))),
+            3*sizeof(char*), "groupel_types");
+   tmp = NIL;
+
+   tmp = obj_new (C_PRIM, "int");
+   obj_bind (tmp, NULL);
+   b_gm[4] = (char*)gm->segment_lengths;
+   sprintf (buf, "%d", gm->num_segments);
+   stc_add (type, obj_new(C_PTR, obj_new(C_ARY, buf, obj_copy(tmp,SHALLOW))),
+            4*sizeof(char*), "segment_lengths");
+   tmp = NIL;
+
+   tmp = obj_new (C_PRIM, "int");
+   obj_bind (tmp, NULL);
+   b_gm[5] = (char*)gm->segment_ids;
+   sprintf (buf, "%d", gm->num_segments);
+   stc_add (type, obj_new(C_PTR, obj_new(C_ARY, buf, obj_copy(tmp,SHALLOW))),
+            5*sizeof(char*), "segment_ids");
+   tmp = NIL;
+
+   b_gm[6] = (char*)&(gm->fracs_data_type);
+   tmp = obj_new (C_PRIM, "int");
+   prim_set_io_assoc (tmp, PA_DATATYPE);
+   stc_add (type, obj_new(C_PTR, tmp), 6*sizeof(char*), "fracs_data_type");
+   tmp = NIL;
+
+   /*
+    * Create the sub array base type for segment_data segments
+    */
+   sprintf (bufi, "%d", DB_INT);
+   tmpi = obj_new (C_PRIM, bufi);
+   obj_bind (tmpi, NULL);
+   nbytes = obj_sizeof(tmpi);
+   assert (nbytes>0);
+
+   /*
+    * Create the sub array base type for segment_fracs segments
+    */
+   if (gm->fracs_data_type)
+   {
+       sprintf (buff, "%d", gm->fracs_data_type);
+       tmpf = obj_new (C_PRIM, buff);
+       obj_bind (tmpf, NULL);
+       nbytes = obj_sizeof(tmpf);
+       assert (nbytes>0);
+   }
+
+   /*
+    * Create browser entries for each of the sub arrays.
+    */
+   for (i=0; i<gm->num_segments; i++) {
+      char aname[32];
+      int segid = gm->segment_ids?gm->segment_ids[i]:i;
+      char *segid_label = gm->segment_ids?"":"(def)";
+
+      /* deal segment_data entry */
+      if (gm->segment_lengths[i] && gm->segment_data[i])
+      {
+          b_gm[2*i+7] = (char*)(gm->segment_data[i]);
+          sprintf (aname, "segdata(id=%05d%s)", segid, segid_label);
+          if (1==gm->segment_lengths[i]) {
+             stc_add (type, obj_new (C_PTR, obj_copy (tmpi, SHALLOW)),
+                      (2*i+7)*sizeof(char*), aname);
+          } else {
+             sprintf (bufi, "%d", gm->segment_lengths[i]);
+             stc_add (type, obj_new (C_PTR, obj_new (C_ARY, bufi, obj_copy(tmpi,SHALLOW))),
+                      (2*i+7)*sizeof(char*), aname);
+          }
+      }
+
+      /* deal with segment_fracs entry */
+      if (gm->segment_fracs && gm->segment_lengths[i] && gm->segment_fracs[i])
+      {
+          b_gm[2*i+1+7] = (char*)(gm->segment_fracs[i]);
+          sprintf (aname, "segfracs(id=%05d%s)", segid, segid_label);
+          if (1==gm->segment_lengths[i]) {
+             stc_add (type, obj_new (C_PTR, obj_copy (tmpf, SHALLOW)),
+                      (2*i+1+7)*sizeof(char*), aname);
+          } else {
+             sprintf (buff, "%d", gm->segment_lengths[i]);
+             stc_add (type, obj_new (C_PTR, obj_new (C_ARY, buff, obj_copy(tmpf,SHALLOW))),
+                      (2*i+1+7)*sizeof(char*), aname);
+          }
+      }
+   }
+
+   /*
+    * Free temp data and return
+    */
+   tmpi = obj_dest (tmpi);
+   if (tmpf) tmpf = obj_dest (tmpf);
+   *type_ptr = type;
+   return b_gm;
+}
+
+/*ARGSUSED*/
+static void
+browser_DBFreeGroupelmap(void *mem, obj_t type) {
+
+   char                 *b_gm = (char*)mem;
+   DBgroupelmap         *gm;
+
+   if (!b_gm) return;
+   gm = *((DBgroupelmap**)b_gm);
+   if (!gm) return;
+   DBFreeGroupelmap (gm);
+}
 
 /*-------------------------------------------------------------------------
  * Function:    browser_DBGetCompoundarray
@@ -1023,7 +1334,7 @@ browser_DBGetCompoundarray (DBfile *file, char *name, obj_t *type_ptr) {
     */
    ca = DBGetCompoundarray (file, name);
    if (!ca) return NULL;
-   b_ca = calloc (ca->nelems+7, sizeof(char*));
+   b_ca = (char **)calloc (ca->nelems+7, sizeof(char*));
    type = obj_new (C_STC, NULL, NULL);
    b_ca[0] = (char*)ca;
 
@@ -1165,10 +1476,10 @@ browser_DBGetDirectory (DBfile *file, char *name)
    toc = browser_DBGetToc (file, &nentries, sort_toc_by_type);
    if (DBSetDir (file, cwd)<0) return NULL;
 
-   dir = calloc (1, sizeof(DBdirectory));
+   dir = (DBdirectory *)calloc (1, sizeof(DBdirectory));
    dir->nsyms = nentries;
    dir->toc = toc;
-   if (nentries) dir->entry_ptr = calloc (nentries, sizeof (toc_t *));
+   if (nentries) dir->entry_ptr = (toc_t **)calloc (nentries, sizeof (toc_t *));
    for (i=0; i<nentries; i++) {
       dir->entry_ptr[i] = dir->toc + i;
    }
@@ -1210,7 +1521,7 @@ browser_DBGetSubarray (DBcompoundarray *ca, int elmtno, obj_t *type_ptr) {
    assert (ca);
    assert (elmtno>=0 && elmtno<ca->nelems);
 
-   b_ca = calloc (2, sizeof(char*));
+   b_ca = (char **)calloc (2, sizeof(char*));
    b_ca[1] = (char*)ca;
 
    /*
@@ -1391,25 +1702,6 @@ static void
 browser_DBFreeMultimesh (void *mem, obj_t type) {
 
    DBFreeMultimesh ((DBmultimesh*)mem);
-}
-
-/*-------------------------------------------------------------------------
- * Function:    browser_DBFreeMultimeshadj
- *
- * Purpose:     Frees a DBmultimeshadj.
- *
- * Return:      void
- *
- * Programmer:  Mark C. Miller 
- *              August 24, 2005 
- *
- *-------------------------------------------------------------------------
- */
-/*ARGSUSED*/
-static void
-browser_DBFreeMultimeshadj (void *mem, obj_t type) {
-
-   DBFreeMultimeshadj ((DBmultimeshadj*)mem);
 }
 
 /*-------------------------------------------------------------------------
@@ -1670,12 +1962,6 @@ browser_DBFreeMrgtree(void *mem, obj_t type) {
 
 /*ARGSUSED*/
 static void 
-browser_DBFreeGroupelmap(void *mem, obj_t type) {
-   DBFreeGroupelmap ((DBgroupelmap*)mem);
-}
-
-/*ARGSUSED*/
-static void 
 browser_DBFreeMrgvar(void *mem, obj_t type) {
    DBFreeMrgvar ((DBmrgvar*)mem);
 }
@@ -1829,7 +2115,7 @@ browser_DBSaveVar (obj_t _self, char *name, void *mem, obj_t type)
     DBdatatype      silotype;
     DBfile         *dbfile = file_file(_self);
 
-    if (self->rdonly)
+    if (!self->writeable)
     {
         out_errorn("file `%s' is read-only", self->name);
         return -1;
@@ -1913,7 +2199,7 @@ file_deref_DBdirectory (obj_t _self, int argc, obj_t argv[])
    char         *name=NULL, buf[4096];
    obj_t        retval=NIL, tmp_argv[1];
 
-   dir = sdo_mem (_self);
+   dir = (DBdirectory *)sdo_mem (_self);
    name = obj_name (argv[0]);
 
    /*
@@ -1994,7 +2280,7 @@ file_deref (obj_t _self, int argc, obj_t argv[]) {
     obj_file_t  *self = MYCLASS(_self);
     char        *name=NULL, *orig=NULL, cwd[1024], fullname[1024];
     char        path[1024], *base=NULL, buf[1024];
-    char        *typename=NULL;
+    char        *type_name=NULL;
     DBfile      *file=NULL;
     DBtoc       *toc=NULL;
     void        *r_mem=NULL;
@@ -2057,7 +2343,7 @@ file_deref (obj_t _self, int argc, obj_t argv[]) {
         savefunc = NULL;
         freefunc = browser_DBFreeDirectory;
         dereffunc = file_deref_DBdirectory;
-        typename = "DBdirectory";
+        type_name = "DBdirectory";
         goto done;
     }
 
@@ -2098,7 +2384,7 @@ file_deref (obj_t _self, int argc, obj_t argv[]) {
             loadfunc = (void*(*)(DBfile*,char*))DBGetCurve;
             savefunc = NULL;
             freefunc = browser_DBFreeCurve;
-            typename = "DBcurve";
+            type_name = "DBcurve";
             goto done;
         }
     }
@@ -2108,7 +2394,7 @@ file_deref (obj_t _self, int argc, obj_t argv[]) {
             loadfunc = (void*(*)(DBfile*,char*))DBGetCsgmesh;
             savefunc = NULL;
             freefunc = browser_DBFreeCsgmesh;
-            typename = "DBcsgmesh";
+            type_name = "DBcsgmesh";
             goto done;
         }
     }
@@ -2118,7 +2404,7 @@ file_deref (obj_t _self, int argc, obj_t argv[]) {
             loadfunc = (void*(*)(DBfile*,char*))DBGetCsgvar;
             savefunc = NULL;
             freefunc = browser_DBFreeCsgvar;
-            typename = "DBcsgvar";
+            type_name = "DBcsgvar";
             goto done;
         }
     }
@@ -2128,7 +2414,7 @@ file_deref (obj_t _self, int argc, obj_t argv[]) {
             loadfunc = (void*(*)(DBfile*,char*))DBGetDefvars;
             savefunc = NULL;
             freefunc = browser_DBFreeDefvars;
-            typename = "DBdefvars";
+            type_name = "DBdefvars";
             goto done;
         }
     }
@@ -2138,18 +2424,21 @@ file_deref (obj_t _self, int argc, obj_t argv[]) {
             loadfunc = (void*(*)(DBfile*,char*))DBGetMultimesh;
             savefunc = NULL;
             freefunc = browser_DBFreeMultimesh;
-            typename = "DBmultimesh";
+            type_name = "DBmultimesh";
             goto done;
         }
     }
 
     for (i=0; i<toc->nmultimeshadj; i++) {
         if (!strcmp(toc->multimeshadj_names[i], base)) {
-            loadfunc = (void*(*)(DBfile*,char*))browser_DBGetMultimeshadj;
+            if (Verbosity>=2) {
+                out_info("file_deref: loading DBmultimeshadj%s:%s",
+                         self->name, name);
+            }
+            r_mem = browser_DBGetMultimeshadj(file, base, &type);
             savefunc = NULL;
             freefunc = browser_DBFreeMultimeshadj;
-            typename = "DBmultimeshadj";
-            goto done;
+            if (r_mem) goto done;
         }
     }
 
@@ -2158,7 +2447,7 @@ file_deref (obj_t _self, int argc, obj_t argv[]) {
             loadfunc = (void*(*)(DBfile*,char*))DBGetMultivar;
             savefunc = NULL;
             freefunc = browser_DBFreeMultivar;
-            typename = "DBmultivar";
+            type_name = "DBmultivar";
             goto done;
         }
     }
@@ -2168,7 +2457,7 @@ file_deref (obj_t _self, int argc, obj_t argv[]) {
             loadfunc = (void*(*)(DBfile*,char*))DBGetMultimat;
             savefunc = NULL;
             freefunc = browser_DBFreeMultimat;
-            typename = "DBmultimat";
+            type_name = "DBmultimat";
             goto done;
         }
     }
@@ -2178,7 +2467,7 @@ file_deref (obj_t _self, int argc, obj_t argv[]) {
             loadfunc = (void*(*)(DBfile*,char*))DBGetMultimatspecies;
             savefunc = NULL;
             freefunc = browser_DBFreeMultimatspecies;
-            typename = "DBmultimatspecies";
+            type_name = "DBmultimatspecies";
             goto done;
         }
     }
@@ -2188,7 +2477,7 @@ file_deref (obj_t _self, int argc, obj_t argv[]) {
             loadfunc = (void*(*)(DBfile*,char*))DBGetQuadmesh;
             savefunc = NULL;
             freefunc = browser_DBFreeQuadmesh;
-            typename = "DBquadmesh";
+            type_name = "DBquadmesh";
             goto done;
         }
     }
@@ -2198,7 +2487,7 @@ file_deref (obj_t _self, int argc, obj_t argv[]) {
             loadfunc = (void*(*)(DBfile*,char*))DBGetQuadvar;
             savefunc = NULL;
             freefunc = browser_DBFreeQuadvar;
-            typename = "DBquadvar";
+            type_name = "DBquadvar";
             goto done;
         }
     }
@@ -2208,7 +2497,7 @@ file_deref (obj_t _self, int argc, obj_t argv[]) {
             loadfunc = (void*(*)(DBfile*,char*))DBGetUcdmesh;
             savefunc = NULL;
             freefunc = browser_DBFreeUcdmesh;
-            typename = "DBucdmesh";
+            type_name = "DBucdmesh";
             goto done;
         }
     }
@@ -2218,7 +2507,7 @@ file_deref (obj_t _self, int argc, obj_t argv[]) {
             loadfunc = (void*(*)(DBfile*,char*))DBGetUcdvar;
             savefunc = NULL;
             freefunc = browser_DBFreeUcdvar;
-            typename = "DBucdvar";
+            type_name = "DBucdvar";
             goto done;
         }
     }
@@ -2228,7 +2517,7 @@ file_deref (obj_t _self, int argc, obj_t argv[]) {
             loadfunc = (void*(*)(DBfile*,char*))DBGetPointmesh;
             savefunc = NULL;
             freefunc = browser_DBFreePointmesh;
-            typename = "DBpointmesh";
+            type_name = "DBpointmesh";
             goto done;
         }
     }
@@ -2238,7 +2527,7 @@ file_deref (obj_t _self, int argc, obj_t argv[]) {
             loadfunc = (void*(*)(DBfile*,char*))DBGetPointvar;
             savefunc = NULL;
             freefunc = browser_DBFreeMeshvar;
-            typename = "DBmeshvar";
+            type_name = "DBmeshvar";
             goto done;
         }
     }
@@ -2248,7 +2537,7 @@ file_deref (obj_t _self, int argc, obj_t argv[]) {
             loadfunc = (void*(*)(DBfile*,char*))DBGetMaterial;
             savefunc = NULL;
             freefunc = browser_DBFreeMaterial;
-            typename = "DBmaterial";
+            type_name = "DBmaterial";
             goto done;
         }
     }
@@ -2258,7 +2547,7 @@ file_deref (obj_t _self, int argc, obj_t argv[]) {
             loadfunc = (void*(*)(DBfile*,char*))DBGetMatspecies;
             savefunc = NULL;
             freefunc = browser_DBFreeMatspecies;
-            typename = "DBmatspecies";
+            type_name = "DBmatspecies";
             goto done;
         }
     }
@@ -2268,18 +2557,21 @@ file_deref (obj_t _self, int argc, obj_t argv[]) {
             loadfunc = (void*(*)(DBfile*,char*))DBGetMrgtree;
             savefunc = NULL;
             freefunc = browser_DBFreeMrgtree;
-            typename = "DBmrgtree";
+            type_name = "DBmrgtree";
             goto done;
         }
     }
 
     for (i=0; i<toc->ngroupelmap; i++) {
         if (!strcmp(toc->groupelmap_names[i], base)) {
-            loadfunc = (void*(*)(DBfile*,char*))DBGetGroupelmap;
+            if (Verbosity>=2) {
+                out_info("file_deref: loading DBgroupelmap %s:%s",
+                         self->name, name);
+            }
+            r_mem = browser_DBGetGroupelmap(file, base, &type);
             savefunc = NULL;
             freefunc = browser_DBFreeGroupelmap;
-            typename = "DBgroupelmap";
-            goto done;
+            if (r_mem) goto done;
         }
     }
 
@@ -2288,7 +2580,7 @@ file_deref (obj_t _self, int argc, obj_t argv[]) {
             loadfunc = (void*(*)(DBfile*,char*))DBGetMrgvar;
             savefunc = NULL;
             freefunc = browser_DBFreeMrgvar;
-            typename = "DBmrgvar";
+            type_name = "DBmrgvar";
             goto done;
         }
     }
@@ -2318,7 +2610,7 @@ file_deref (obj_t _self, int argc, obj_t argv[]) {
             savefunc = NULL;
             freefunc = browser_DBFreeDirectory;
             dereffunc = file_deref_DBdirectory;
-            typename = "DBdirectory";
+            type_name = "DBdirectory";
             if (r_mem) goto done;
         }
     }
@@ -2342,8 +2634,8 @@ file_deref (obj_t _self, int argc, obj_t argv[]) {
                  * Add a null terminator just to be sure.  Also make the data
                  * a pointer to a string instead of the string itself.
                  */
-                char **s_ptr = malloc(sizeof(char*));
-                *s_ptr = malloc(nelmts+1);
+                char **s_ptr = (char **)malloc(sizeof(char*));
+                *s_ptr = (char *)malloc(nelmts+1);
                 memcpy(*s_ptr, r_mem, nelmts);
                 (*s_ptr)[nelmts] = '\0';
                 free(r_mem);
@@ -2370,7 +2662,7 @@ file_deref (obj_t _self, int argc, obj_t argv[]) {
             }
 
             lex_in = lex_string(buf);
-            typename = NULL;
+            type_name = NULL;
             in = parse_stmt(lex_in, false);
             lex_in = lex_close(lex_in);
             type = obj_eval(in);
@@ -2396,6 +2688,7 @@ file_deref (obj_t _self, int argc, obj_t argv[]) {
                         browser_DBFreeSubarray(r_mem, type);
                         r_mem = NULL;
                         type = obj_dest(type);
+                        DBFreeCompoundarray(ca);
                         goto error;
                     } else {
                         r_mem = browser_DBGetSubarray(ca, j, &type);
@@ -2407,6 +2700,7 @@ file_deref (obj_t _self, int argc, obj_t argv[]) {
             }
             if (r_mem) goto done;
             toc = DBGetToc(file); /*insure pointer is valid*/
+            DBFreeCompoundarray(ca);
         }
     }
 
@@ -2419,25 +2713,25 @@ file_deref (obj_t _self, int argc, obj_t argv[]) {
             loadfunc = (void*(*)(DBfile*, char*))DBGetFacelist;
             savefunc = NULL;
             freefunc = browser_DBFreeFacelist;
-            typename = "DBfacelist";
+            type_name = "DBfacelist";
             goto done;
         } else if (!strcmp(obj->type, "zonelist")) {
             loadfunc = (void*(*)(DBfile*, char*))DBGetZonelist;
             savefunc = NULL;
             freefunc = browser_DBFreeZonelist;
-            typename = "DBzonelist";
+            type_name = "DBzonelist";
             goto done;
         } else if (!strcmp(obj->type, "polyhedral-zonelist")) {
             loadfunc = (void*(*)(DBfile*, char*))DBGetPHZonelist;
             savefunc = NULL;
             freefunc = browser_DBFreePHZonelist;
-            typename = "DBphzonelist";
+            type_name = "DBphzonelist";
             goto done;
         } else if (!strcmp(obj->type, "csgzonelist")) {
             loadfunc = (void*(*)(DBfile*, char*))DBGetCSGZonelist;
             savefunc = NULL;
             freefunc = browser_DBFreeCSGZonelist;
-            typename = "DBcsgzonelist";
+            type_name = "DBcsgzonelist";
             goto done;
         } else if (!strcmp(obj->type, "edgelist")) {
             out_info("file_deref: edgelists are retrieved with DBGetObject() "
@@ -2451,7 +2745,7 @@ file_deref (obj_t _self, int argc, obj_t argv[]) {
      */
     DBShowErrors(DB_SUSPEND, NULL);
     r_mem = browser_DBGetObject(file, base, &type);
-    typename = NULL;
+    type_name = NULL;
     savefunc = browser_DBSaveObject;
     freefunc = browser_DBFreeObject;
     DBShowErrors(DB_RESUME, NULL);
@@ -2482,7 +2776,7 @@ file_deref (obj_t _self, int argc, obj_t argv[]) {
     if (!r_mem) {
         if (Verbosity>=2) {
             out_info("file_deref: loading %s %s:%s",
-                     typename?typename:"void type", self->name, name);
+                     type_name?type_name:"void type", self->name, name);
         }
         r_mem = (loadfunc)(file, name);
         if (!r_mem) goto error;
@@ -2493,8 +2787,8 @@ file_deref (obj_t _self, int argc, obj_t argv[]) {
                    cwd, self->name);
     }
 
-    if (typename) {
-        in = obj_new(C_SYM, typename);
+    if (type_name) {
+        in = obj_new(C_SYM, type_name);
         type = obj_copy(tmp=sym_vboundp(in), DEEP);
         tmp = obj_dest(tmp);
         in = obj_dest(in);
@@ -2638,6 +2932,8 @@ file_diff (obj_t a, obj_t b)
                         }
                         break;
                     case DIFF_REP_SUMMARY:
+                        free(atoc);
+                        free(btoc);
                         return 1;
                     }
                 } else if (Verbosity>=2) {
@@ -2672,6 +2968,8 @@ file_diff (obj_t a, obj_t b)
                         }
                         break;
                     case DIFF_REP_SUMMARY:
+                        free(atoc);
+                        free(btoc);
                         return 1;
                     }
                 } else if (Verbosity>=2) {
@@ -2710,7 +3008,12 @@ file_diff (obj_t a, obj_t b)
 
                     if (status) {
                         ndiff++;
-                        if (DIFF_REP_SUMMARY==DiffOpt.report) return 1;
+                        if (DIFF_REP_SUMMARY==DiffOpt.report)
+                        {
+                            free(atoc);
+                            free(btoc);
+                            return 1;
+                        }
                     }
                 }
             } else if (Verbosity>=2) {
@@ -2760,6 +3063,8 @@ file_diff (obj_t a, obj_t b)
                         aobj = obj_dest (aobj);
                         bobj = obj_dest (bobj);
                         out_progress(NULL);
+                        free(atoc);
+                        free(btoc);
                         return 1;
                     }
                     break;
@@ -2776,12 +3081,14 @@ file_diff (obj_t a, obj_t b)
     }
 
     out_progress (NULL);
+    free(atoc);
+    free(btoc);
     return ndiff ? 1 : 0;
 }
 
 
 /*-------------------------------------------------------------------------
- * Function:    file_rdonly
+ * Function:    file_writeable
  *
  * Purpose:     Determines if the file is read-only.
  *
@@ -2798,9 +3105,9 @@ file_diff (obj_t a, obj_t b)
  *-------------------------------------------------------------------------
  */
 int
-file_rdonly (obj_t _self)
+file_writeable (obj_t _self)
 {
    obj_file_t   *self = MYCLASS(_self);
 
-   return self->rdonly;
+   return self->writeable;
 }

@@ -83,6 +83,7 @@ EXTRA_DIST= \
  Make_ioperf \
  ioperf_tests \
  std.c \
+ bcastopen.c \
  zeros.dat \
  $(check_SCRIPTS) \
  $(check_DATA)
@@ -117,26 +118,34 @@ if HDF5_DRV_NEEDED
 else
   LDADD = ../src/libsilo.la
 endif
+if JSON_NEEDED
+  LDADD += ../tools/json/json-c-0.10/libjson.la
+endif
 
 # paths look at install directories before sources
 AM_CPPFLAGS = \
- -I$(srcdir)/../src/pdb \
- -I$(srcdir)/../src/score \
  -I$(builddir)/../src/silo \
  -I$(srcdir)/../src/silo \
  -I$(includedir)
 #quad_CPPFLAGS = $(AM_CPPFLAGS)
 PDBTESTS =
 if INSTALL_LITE_HEADERS
-testpdb_CPPFLAGS = -DPDB_LITE $(AM_CPPFLAGS)
-pdbtst_CPPFLAGS = -DPDB_LITE $(AM_CPPFLAGS)
-PDBTESTS += testpdb pdbtst
+ testpdb_CPPFLAGS = -DPDB_LITE $(AM_CPPFLAGS) -I../src/pdb -I../src/score
+ pdbtst_CPPFLAGS = -DPDB_LITE $(AM_CPPFLAGS) -I../src/pdb -I../src/score
+ PDBTESTS += testpdb pdbtst
+endif
+JSONTESTS =
+if JSON_NEEDED
+ json_CPPFLAGS = -I$(prefix)/json/include $(AM_CPPFLAGS)
+ JSONTESTS += json
 endif
 #TestReadMask_CPPFLAGS = $(AM_CPPFLAGS)
+mk_nasf_pdb_CPPFLAGS = $(AM_CPPFLAGS) -I../src/pdb -I../src/score
 AM_FFLAGS = $(AM_CPPFLAGS)
+AM_FCFLAGS = $(AM_CPPFLAGS)
 
 HDF5PROGS=compression grab mk_nasf_h5
-FCPROGS= arrayf77 curvef77 matf77 pointf77 quadf77 ucdf77 testallf77 \
+FCPROGS= arrayf77 arrayf90 curvef77 matf77 pointf77 quadf77 ucdf77 testallf77 \
          csgmesh
 PROGS=array dir extface multi_test partial_io point quad simple ucd \
       ucdsamp3 testall obj onehex oneprism onepyramid onetet subhex \
@@ -144,9 +153,11 @@ PROGS=array dir extface multi_test partial_io point quad simple ucd \
       cpz1plt group_test listtypes alltypes wave multi_file polyzl csg \
       rocket mmadjacency largefile version namescheme efcentering \
       mk_nasf_pdb ioperf arbpoly2d readstuff mat3d_3across merge_block \
-      empty majorder $(PDBTESTS)
+      empty majorder realloc_obj_and_opts $(PDBTESTS) $(JSONTESTS)
 
 dir_SOURCES = dir.c testlib.c
+listtypes_SOURCES = listtypes.c listtypes_main.c
+bcastopen_SOURCES = bcastopen.c bcastopen_test.c
 quad_SOURCES = quad.c testlib.c
 rocket_SOURCES = rocket.cxx
 rocket_LDFLAGS = -ldl
@@ -170,6 +181,7 @@ EXTRA_ioperf_DEPENDENCIES = ioperf_silo.la ioperf_hdf5.la ioperf_pdb.la ioperf_s
 ioperf_LDFLAGS = -ldl
 ioperf_CXXFALGS = -rdynamic
 # the '-rpath /nowhere' is some trick to force libtool to produce a shared lib
+ioperf_pdb_la_CPPFLAGS = $(AM_CPPFLAGS) -I../src/pdb -I../src/score
 ioperf_silo_la_LDFLAGS = -module -avoid-version -rpath /nowhere
 ioperf_hdf5_la_LDFLAGS = -module -avoid-version -rpath /nowhere
 ioperf_pdb_la_LDFLAGS = -module -avoid-version -rpath /nowhere
@@ -226,7 +238,9 @@ check_PROGRAMS = \
  testfs \
  empty \
  majorder \
- $(PDBTESTS)
+ realloc_obj_and_opts \
+ $(PDBTESTS) \
+ $(JSONTESTS)
 
 # Deal with need to use c++ linker whenever we've got C++
 # sources compiled with the silo library and the fact that
@@ -280,6 +294,7 @@ if CXX_LINK_NEEDED
  nodist_EXTRA_version_SOURCES = dummy.cxx
  nodist_EXTRA_namescheme_SOURCES = dummy.cxx
  nodist_EXTRA_arrayf77_SOURCES = dummy.cxx
+ nodist_EXTRA_arrayf90_SOURCES = dummy.cxx
  nodist_EXTRA_curvef77_SOURCES = dummy.cxx
  nodist_EXTRA_matf77_SOURCES = dummy.cxx
  nodist_EXTRA_pointf77_SOURCES = dummy.cxx
@@ -296,6 +311,8 @@ if CXX_LINK_NEEDED
  nodist_EXTRA_testfs_SOURCES = dummy.cxx
  nodist_EXTRA_empty_SOURCES = dummy.cxx
  nodist_EXTRA_majorder_SOURCES = dummy.cxx
+ nodist_EXTRA_realloc_obj_and_opts_SOURCES = dummy.cxx
+ nodist_EXTRA_json_SOURCES = dummy.cxx
 endif
 
 
@@ -316,6 +333,8 @@ if FORTRAN_NEEDED
   check_PROGRAMS += $(FCPROGS)
   arrayf77_SOURCES = arrayf77.f
   arrayf77_LDADD = $(LDADD) $(FCLIBS)
+  arrayf90_SOURCES = arrayf90.f90
+  arrayf90_LDADD = $(LDADD) $(FCLIBS)
   curvef77_SOURCES = curvef77.f
   curvef77_LDADD = $(LDADD) $(FCLIBS)
   matf77_SOURCES = matf77.f

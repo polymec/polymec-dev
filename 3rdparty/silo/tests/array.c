@@ -142,7 +142,7 @@ main(int argc, char *argv[])
     }
 
     DBPutCompoundarray(dbfile, "carray",  /*array */
-                       ename, esize, 3,  /*simple arrays */
+                       (DBCAS_t) ename, esize, 3,  /*simple arrays */
                        val, 18, DB_FLOAT,  /*values */
                        NULL);   /*options */
     i = 1;
@@ -181,7 +181,7 @@ main(int argc, char *argv[])
         }
 
         printf("   values... (float)\n");
-        for (show = ca->values, i = 0; i < ca->nvalues; i++) {
+        for (show = (float*)ca->values, i = 0; i < ca->nvalues; i++) {
             printf(" value %d is %g\n", i, show[i]);
         }
     }

@@ -146,13 +146,17 @@ be used for advertising or product endorsement purposes.
 #define DEEP            1
 #define NIL             ((obj_t)0)
 #define NDIMS           10
+#ifndef NELEMTS
 #define NELMTS(X)       (sizeof(X)/sizeof(*(X)))
-
-#ifndef _WIN32
-char *safe_strdup(const char *);
 #endif
+
+//#ifndef _WIN32
+//extern char *_db_safe_strdup(const char *);
+//#endif
 #undef strdup
-#define strdup(s) safe_strdup(s)
+#undef safe_strdup
+#define strdup(s) _db_safe_strdup(s)
+#define safe_strdup(s) _db_safe_strdup(s)
 
 /*
  * The Makefile can override these constants.
@@ -227,14 +231,8 @@ typedef struct walk_t {
 
 } walk_t;
 
-/*
- * I/O association tables map integer values to string constants and
- * vice versa.
- */
-#define NASSOCS         32
-
 typedef struct prim_assoc_t {
-   int          n ;                     /*integer part                  */
+   double        n ;                    /*double part                  */
    char         *s ;                    /*string part                   */
 } prim_assoc_t;
 
@@ -243,7 +241,7 @@ typedef struct prim_assoc_t {
  */
 struct class_t {
    char                 *name ;                 /*class name            */
-   obj_t                (*new)(va_list);        /*constructor           */
+   obj_t                (*newobj)(va_list);        /*constructor           */
    obj_t                (*dest)(obj_t);         /*destructor            */
    obj_t                (*copy)(obj_t,int);     /*copy constructor      */
    void                 (*print)(obj_t,struct out_t*);  /*print object  */
@@ -499,7 +497,7 @@ obj_t cons_tail (obj_t);
 
 /*** file.c ***/
 DBfile *file_file (obj_t);
-int file_rdonly (obj_t);
+int file_writeable (obj_t);
 
 /*** func.c ***/
 extern diffopt_t DiffOpt;
@@ -634,6 +632,8 @@ extern prim_assoc_t PA_BOUNDARYTYPE[];
 extern prim_assoc_t PA_REGIONOP[];
 extern prim_assoc_t PA_TOPODIM[];
 extern prim_assoc_t PA_REPRBLOCK[];
+extern prim_assoc_t PA_MISSING_VALUE[];
+extern prim_assoc_t PA_ZONETYPE[];
 
 obj_t prim_set_io_assoc (obj_t, prim_assoc_t*);
 DBdatatype prim_silotype (obj_t);

@@ -175,7 +175,6 @@ BuildExprTree(const char **porig)
                 char typec = *p;
                 char tokbuf[129];
                 char *tp = tokbuf;
-                DBexprnode *subtree;
                 p++;
                 while (*p != '[')
                     *tp++ = *p++;
@@ -183,14 +182,6 @@ BuildExprTree(const char **porig)
                 *tp = '\0';
                 errno = 0;
                 tree = UpdateTree(tree, typec, 0, tokbuf);
-                p++;
-                subtree = BuildExprTree(&p);
-                if (tree->left == 0)
-                    tree->left = subtree;
-                else if (tree->right == 0)
-                    tree->right = subtree;
-                else
-                    free(subtree); /* should never hit this case */
                 break;
             }
 
@@ -202,7 +193,7 @@ BuildExprTree(const char **porig)
                 break;
             }
 
-            case '(':
+            case '(': case '[':
             {
                 DBexprnode *subtree;
                 p++;
@@ -257,11 +248,14 @@ BuildExprTree(const char **porig)
 }
 
 /* very simple circular cache for a handful of embedded strings */
-static int SaveInternalString(DBnamescheme *ns, const char *sval)
+static int SaveInternalString(DBnamescheme const *ns, const char *sval)
 {
-    int modn = ns->nembed++ % DB_MAX_EXPSTRS;
-    FREE(ns->embedstrs[modn]);
-    ns->embedstrs[modn] = STRDUP(sval);
+    /* The modn/embedstrs portion of a namescheme is 'internal' state
+       allowed to disobey const rules */
+    DBnamescheme *non_const_ns = (DBnamescheme*) ns;
+    int modn = non_const_ns->nembed++ % DB_MAX_EXPSTRS;
+    FREE(non_const_ns->embedstrs[modn]);
+    non_const_ns->embedstrs[modn] = STRDUP(sval);
     return modn;
 }
 
@@ -285,7 +279,7 @@ static char * SaveReturnedString(char const * retstr)
 }
 
 static int
-EvalExprTree(DBnamescheme *ns, DBexprnode *tree, int n)
+EvalExprTree(DBnamescheme const *ns, DBexprnode *tree, int n)
 {
     if (tree == 0)
         return 0;
@@ -319,16 +313,23 @@ EvalExprTree(DBnamescheme *ns, DBexprnode *tree, int n)
         {
             vc = EvalExprTree(ns, tree->left, n);
             tree = tree->right;
+            if (vc) 
+                vl = EvalExprTree(ns, tree->left, n);
+            else
+                vr = EvalExprTree(ns, tree->right, n);
         }
-        vl = EvalExprTree(ns, tree->left, n);
-        vr = EvalExprTree(ns, tree->right, n);
+        else
+        {
+            vl = EvalExprTree(ns, tree->left, n);
+            vr = EvalExprTree(ns, tree->right, n);
+        }
         switch (tree->type)
         {
             case '+': return vl + vr;
             case '-': return vl - vr;
             case '*': return vl * vr;
-            case '/': return vl / vr;
-            case '%': return vl % vr;
+            case '/': return (vr != 0 ? vl / vr : 1);
+            case '%': return (vr != 0 ? vl % vr : 1);
             case '|': return vl | vr;
             case '&': return vl & vr;
             case '^': return vl ^ vr;
@@ -339,7 +340,7 @@ EvalExprTree(DBnamescheme *ns, DBexprnode *tree, int n)
 }
 
 PUBLIC DBnamescheme *
-DBMakeNamescheme(const char *fmt, ...)
+DBMakeNamescheme(char const *fmt, ...)
 {
     va_list ap;
     int i, j, k, n, pass, ncspecs, done, saved_narrefs;
@@ -495,7 +496,7 @@ DBMakeNamescheme(const char *fmt, ...)
                         {
                             char **tmp = NULL;
                             rv->arrsizes[k] = -1; /* initialize to 'unknown size' */
-                            tmp = DBStringListToStringArray((char*)rv->arrvals[k], &(rv->arrsizes[k]), 0, 0);
+                            tmp = DBStringListToStringArray((char*)rv->arrvals[k], &(rv->arrsizes[k]), 0);
                             FREE(rv->arrvals[k]);
                             rv->arrvals[k] = tmp;
                         }
@@ -535,7 +536,7 @@ DBMakeNamescheme(const char *fmt, ...)
 }
 
 PUBLIC const char *
-DBGetName(DBnamescheme *ns, int natnum)
+DBGetName(DBnamescheme const *ns, int natnum)
 {
     char *currentExpr, *tmpExpr;
     static char retval[1024];

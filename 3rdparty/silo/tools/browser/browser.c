@@ -296,7 +296,7 @@ browser_DBGetToc (DBfile *file, int *nentries, int (*sorter)(toc_t*,toc_t*)) {
            toc->nobj + toc->ndir + toc->narray + toc->ndefvars +
            toc->ncsgmesh + toc->ncsgvar + toc->nmultimeshadj +
            toc->nmrgtree + toc->ngroupelmap + toc->nmrgvar;
-   if (total) retval = malloc (total * sizeof(toc_t));
+   if (total) retval = (toc_t *)malloc (total * sizeof(toc_t));
 
    /*
     * Load the various types of objects into the new structure.
@@ -462,7 +462,7 @@ browser_DBGetToc (DBfile *file, int *nentries, int (*sorter)(toc_t*,toc_t*)) {
  */
 #if defined(HAVE_READLINE_READLINE_H) && defined(HAVE_LIBREADLINE)
 static char *
-browser_rl_obj_generator (char *text, int state) {
+browser_rl_obj_generator (char const *text, int state) {
 
    obj_t        f1, val;
    int          i, n;
@@ -602,67 +602,9 @@ browser_rl_obj_generator (char *text, int state) {
  * Made reltol_eps diff mutually exclusive with abstol || reltol diff.
  *-------------------------------------------------------------------------
  */
-int
-different (double a, double b, double abstol, double reltol,
-    double reltol_eps) {
-
-   double       num, den;
-
-   /*
-    * First, see if we should use the alternate diff.
-    * check |A-B|/(|A|+|B|+EPS) in a way that won't overflow.
-    */
-   if (reltol_eps >= 0 && reltol > 0)
-   {
-      if ((a<0 && b>0) || (b<0 && a>0)) {
-         num = fabs (a/2 - b/2);
-         den = fabs (a/2) + fabs(b/2) + reltol_eps/2;
-         reltol /= 2;
-      } else {
-         num = fabs (a - b);
-         den = fabs (a) + fabs(b) + reltol_eps;
-      }
-      if (0.0==den && num) return 1;
-      if (num/den > reltol) return 1;
-      return 0;
-   }
-   else /* use the old Abs|Rel difference test */
-   {
-      /*
-       * Now the |A-B| but make sure it doesn't overflow which can only
-       * happen if one is negative and the other is positive.
-       */
-      if (abstol>0) {
-         if ((a<0 && b>0) || (b<0 && a>0)) {
-            if (fabs (a/2 - b/2) > abstol/2) return 1;
-         } else {
-            if (fabs(a-b) > abstol) return 1;
-         }
-      }
-
-      /*
-       * Now check 2|A-B|/|A+B| in a way that won't overflow.
-       */
-      if (reltol>0) {
-         if ((a<0 && b>0) || (b<0 && a>0)) {
-            num = fabs (a/2 - b/2);
-            den = fabs (a/2 + b/2);
-            reltol /= 2;
-         } else {
-            num = fabs (a - b);
-            den = fabs (a/2 + b/2);
-         }
-         if (0.0==den && num) return 1;
-         if (num/den > reltol) return 1;
-      }
-
-      if (abstol>0 || reltol>0) return 0;
-   }
-
-   /*
-    * Otherwise do a normal exact comparison.
-    */
-   return a!=b;
+int different (double a, double b, double abstol, double reltol, double reltol_eps)
+{
+    return DBIsDifferentDouble(a,b,abstol,reltol,reltol_eps);
 }
 
 /*-------------------------------------------------------------------------
@@ -682,68 +624,9 @@ different (double a, double b, double abstol, double reltol,
  *   Made it compiled UNconditionally.
  *-------------------------------------------------------------------------
  */
-#define FABS(A) ((A)<0?-(A):(A))
-int
-differentll (long long a, long long b, double abstol, double reltol,
-    double reltol_eps) {
-
-   long long num, den;
-
-   /*
-    * First, see if we should use the alternate diff.
-    * check |A-B|/(|A|+|B|+EPS) in a way that won't overflow.
-    */
-   if (reltol_eps >= 0 && reltol > 0)
-   {
-      if ((a<0 && b>0) || (b<0 && a>0)) {
-         num = FABS (a/2 - b/2);
-         den = FABS (a/2) + FABS(b/2) + reltol_eps/2;
-         reltol /= 2;
-      } else {
-         num = FABS (a - b);
-         den = FABS (a) + FABS(b) + reltol_eps;
-      }
-      if (0.0==den && num) return 1;
-      if (num/den > reltol) return 1;
-      return 0;
-   }
-   else
-   {
-      /*
-       * Now the |A-B| but make sure it doesn't overflow which can only
-       * happen if one is negative and the other is positive.
-       */
-      if (abstol>0) {
-         if ((a<0 && b>0) || (b<0 && a>0)) {
-            if (FABS(a/2 - b/2) > abstol/2) return 1;
-         } else {
-            if (FABS(a-b) > abstol) return 1;
-         }
-      }
-
-      /*
-       * Now check 2|A-B|/|A+B| in a way that won't overflow.
-       */
-      if (reltol>0) {
-         if ((a<0 && b>0) || (b<0 && a>0)) {
-            num = FABS (a/2 - b/2);
-            den = FABS (a/2 + b/2);
-            reltol /= 2;
-         } else {
-            num = FABS (a - b);
-            den = FABS (a/2 + b/2);
-         }
-         if (0.0==den && num) return 1;
-         if (num/den > reltol) return 1;
-
-         if (abstol>0 || reltol>0) return 0;
-      }
-   }
-
-   /*
-    * Otherwise do a normal exact comparison.
-    */
-   return a!=b;
+int differentll (long long a, long long b, double abstol, double reltol, double reltol_eps)
+{
+    return DBIsDifferentLongLong(a,b,abstol,reltol,reltol_eps);
 }
 
 /*-------------------------------------------------------------------------
@@ -1229,9 +1112,9 @@ process_switches(switches_t *switches, int pass)
         sym_bi_set("lowlevel", sw->lexeme, NULL, NULL);
     }
     
-    if ((sw=switch_find(switches, "--rdonly")) && sw->seen) {
+    if ((sw=switch_find(switches, "--writeable")) && sw->seen) {
         sprintf(tmp, "%d", sw->value.d); /*boolean*/
-        sym_bi_set("rdonly", tmp, NULL, NULL);
+        sym_bi_set("writeable", tmp, NULL, NULL);
     }
 
     if ((sw=switch_find(switches, "--single")) && sw->seen) {
@@ -1429,7 +1312,15 @@ main(int argc, char *argv[])
     /* We have our own readline completion function that tries to complete
      * object names instead of the standard completion function that tries
      * to complete file names. */
-    rl_completion_entry_function = (char *(*)(const char *, int)) browser_rl_obj_generator;
+#ifdef RL_READLINE_VERSION
+#   if RL_READLINE_VERSION >= 0x602
+        rl_completion_entry_function = (rl_compentry_func_t *) browser_rl_obj_generator;
+#   else
+        rl_completion_entry_function = (Function *) browser_rl_obj_generator;
+#   endif
+#else
+    rl_completion_entry_function = browser_rl_obj_generator;
+#endif
 #endif /*HAVE_READLINE_READLINE_H && HAVE_LIBREADLINE*/
 
 #if defined(HAVE_READLINE_HISTORY_H) && defined(HAVE_READLINE_HISTORY)
@@ -1503,7 +1394,7 @@ main(int argc, char *argv[])
         if (SUCCEEDED(SHGetFolderPath(NULL, CSIDL_PERSONAL, NULL,
                                   SHGFP_TYPE_CURRENT, szPath)))
         {
-            ExpandEnvironmentStrings(userhome, szPath, 1024);
+            ExpandEnvironmentStrings((LPCWSTR)userhome, szPath, 1024);
             sprintf(init_file_buf, "%s\\%s", userhome, INIT_FILE);
             if (access(init_file_buf, F_OK)>=0) init_file = init_file_buf;
         }
@@ -1629,11 +1520,11 @@ main(int argc, char *argv[])
                "displayed with a type-dependent printf(3C) format string "
                "which is user defined (e.g., `$fmt_int').");
 
-    switch_add(sws, "-r", "--rdonly",   "b=1",          NULL);
+    switch_add(sws, "-W", "--writeable",   "b=1",          NULL);
     switch_doc(NULL,
-               "If this switch is specified then all files will be open in "
-               "read-only mode regardless of their permissions. This switch "
-               "sets the $rdonly variable.");
+               "If this switch is specified then all files will be open with "
+               "write permission if the file permissions allow it. This switch "
+               "sets the $writeable variable.");
 
     switch_add(sws, "-s", "--single",   "b=1",          NULL);
     switch_doc(NULL,

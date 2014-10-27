@@ -688,7 +688,7 @@ SILO_API FORTRAN
 DBPUTMAT_FC (int *dbid, FCD_DB name,
            int *lname, FCD_DB meshname, int *lmeshname,
            int *nmat, int *matnos, int *matlist, int *dims, int *ndims,
-           int *mix_next, int *mix_mat, int *mix_zone, DB_DTPTR1 mix_vf,
+           int *mix_next, int *mix_mat, int *mix_zone, void const *mix_vf,
            int *mixlen, int *datatype, int *optlist_id, int *status)
 {
     int           *mixz = NULL;
@@ -777,7 +777,7 @@ DBPUTMAT_FC (int *dbid, FCD_DB name,
 SILO_API FORTRAN
 DBPUTMSP_FC (int *dbid, FCD_DB name, int *lname, FCD_DB matname, int *lmatname,
            int *nmat, int *nmatspec, int *speclist, int *dims, int *ndims,
-           int *nspecies_mf, DB_DTPTR1 species_mf, int *mix_speclist, int *mixlen,
+           int *nspecies_mf, void const *species_mf, int *mix_speclist, int *mixlen,
            int *datatype, int *optlist_id, int *status)
 {
     char          *nm = NULL, *mnm = NULL;
@@ -1453,7 +1453,7 @@ DBPUTMMESH_FC (int *dbid, FCD_DB name, int *lname, int *nmesh, FCD_DB meshnames,
              int *lmeshnames, int *meshtypes, int *optlist_id, int *status)
 {
     DBfile        *dbfile = NULL;
-    char const *  *meshnms = NULL;
+    char         **meshnms = NULL;
     char          *nm = NULL;
     char          *realmeshnames = NULL;
     int            i, indx;
@@ -1495,12 +1495,12 @@ DBPUTMMESH_FC (int *dbid, FCD_DB name, int *lname, int *nmesh, FCD_DB meshnames,
 
         if (*nmesh <= 0)
             API_ERROR("nmesh", E_BADARGS);
-        meshnms = ALLOC_N(char const *, *nmesh);
+        meshnms = ALLOC_N(char *, *nmesh);
 
         for (indx = 0, i = 0; i < *nmesh; i++) {
             if (lmeshnames[i] < 0)
                 API_ERROR("lmeshnames", E_BADARGS);
-            meshnms[i] = (char const *) SW_strndup(&realmeshnames[indx], lmeshnames[i]);
+            meshnms[i] = (char *) SW_strndup(&realmeshnames[indx], lmeshnames[i]);
             if (fortran2DStrLen > 0)
                 indx += fortran2DStrLen;
             else
@@ -1510,8 +1510,8 @@ DBPUTMMESH_FC (int *dbid, FCD_DB name, int *lname, int *nmesh, FCD_DB meshnames,
         /*----------------------------------------
          *  Invoke the C function to do the work.
          *---------------------------------------*/
-        *status = DBPutMultimesh(dbfile, nm, *nmesh, meshnms,
-                                 meshtypes, optlist);
+        *status = DBPutMultimesh(dbfile, nm, *nmesh,
+                      (char const * const *) meshnms, meshtypes, optlist);
 
         for (i = 0; i < *nmesh; i++)
             FREE(meshnms[i]);
@@ -1635,8 +1635,9 @@ DBPUTDEFVARS_FC (int *dbid, FCD_DB name, int *lname, int *ndefs, FCD_DB names,
         /*----------------------------------------
          *  Invoke the C function to do the work.
          *---------------------------------------*/
-        *status = DBPutDefvars(dbfile, nm, *ndefs, nms, types, defs,
-                      optlists);
+        *status = DBPutDefvars(dbfile, nm, *ndefs, (char const * const *) nms,
+                      types, (char const * const *) defs,
+                      (DBoptlist const * const *) optlists);
 
         for (i = 0; i < *ndefs; i++)
         {
@@ -1751,8 +1752,8 @@ DBPUTMVAR_FC (int *dbid, FCD_DB name, int *lname, int *nvar, FCD_DB varnames,
         }
 
         /* Invoke the C function to do the work. */
-        *status = DBPutMultivar(dbfile, nm, *nvar, varnms, vartypes,
-                                optlist);
+        *status = DBPutMultivar(dbfile, nm, *nvar, (char const * const *) varnms,
+                      vartypes, optlist);
 
         for(i=0;i<*nvar;i++)
             FREE(varnms[i]);
@@ -1852,7 +1853,7 @@ DBPUTMMAT_FC (int *dbid, FCD_DB name, int *lname, int *nmat, FCD_DB matnames,
         /*----------------------------------------
          *  Invoke the C function to do the work.
          *---------------------------------------*/
-        *status = DBPutMultimat(dbfile, nm, *nmat, matnms, optlist);
+        *status = DBPutMultimat(dbfile, nm, *nmat, (char const * const *) matnms, optlist);
 
         for (i = 0; i < *nmat; i++)
             FREE(matnms[i]);
@@ -1900,12 +1901,12 @@ DBPUTMMAT_FC (int *dbid, FCD_DB name, int *lname, int *nmat, FCD_DB matnames,
  *
  *-------------------------------------------------------------------------*/
 SILO_API FORTRAN
-DBPUTPM_FC (int *dbid, FCD_DB name, int *lname, int *ndims, DB_DTPTR1 x, DB_DTPTR1 y,
-          DB_DTPTR1 z, int *nels, int *datatype, int *optlist_id, int *status)
+DBPUTPM_FC (int *dbid, FCD_DB name, int *lname, int *ndims, void const *x, void const *y,
+          void const *z, int *nels, int *datatype, int *optlist_id, int *status)
 {
     DBfile        *dbfile = NULL;
     char          *nm = NULL;
-    DB_DTPTR      *coords[3];
+    void const *coords[3];
     DBoptlist     *optlist = NULL;
 
     API_BEGIN("dbputpm", int, -1) {
@@ -1978,7 +1979,7 @@ DBPUTPM_FC (int *dbid, FCD_DB name, int *lname, int *ndims, DB_DTPTR1 x, DB_DTPT
 SILO_API FORTRAN
 DBPUTPV1_FC (int *dbid, FCD_DB name,
            int *lname, FCD_DB meshname, int *lmeshname,
-           DB_DTPTR1 var, int *nels, int *datatype, int *optlist_id, int *status)
+           void const *var, int *nels, int *datatype, int *optlist_id, int *status)
 {
     char          *nm = NULL, *mnm = NULL;
     DBfile        *dbfile = NULL;
@@ -2071,13 +2072,13 @@ DBPUTPV1_FC (int *dbid, FCD_DB name,
  *-------------------------------------------------------------------------*/
 SILO_API FORTRAN
 DBPUTQM_FC (int *dbid, FCD_DB name, int *lname, FCD_DB xname, int *lxname,
-          FCD_DB yname, int *lyname, FCD_DB zname, int *lzname, DB_DTPTR1 x,
-          DB_DTPTR1 y, DB_DTPTR1 z, int *dims, int *ndims, int *datatype,
+          FCD_DB yname, int *lyname, FCD_DB zname, int *lzname, void const *x,
+          void const *y, void const *z, int *dims, int *ndims, int *datatype,
           int *coordtype, int *optlist_id, int *status)
 {
     DBfile        *dbfile = NULL;
     int            i;
-    DB_DTPTR      *coords[3];
+    void const *coords[3];
     char          *coordnames[3], *nm = NULL;
     DBoptlist     *optlist = NULL;
 
@@ -2160,8 +2161,8 @@ DBPUTQM_FC (int *dbid, FCD_DB name, int *lname, FCD_DB xname, int *lxname,
 
         dbfile = (DBfile *) DBFortranAccessPointer(*dbid);
 
-        *status = DBPutQuadmesh(dbfile, nm, coordnames, coords, dims, *ndims,
-                                *datatype, *coordtype, optlist);
+        *status = DBPutQuadmesh(dbfile, nm, (char const * const *) coordnames,
+                      coords, dims, *ndims, *datatype, *coordtype, optlist);
 
         FREE(nm);
         FREE(coordnames[0]);
@@ -2211,7 +2212,7 @@ DBPUTQM_FC (int *dbid, FCD_DB name, int *lname, FCD_DB xname, int *lxname,
 SILO_API FORTRAN
 DBPUTQV1_FC (int *dbid, FCD_DB name,
            int *lname, FCD_DB meshname, int *lmeshname,
-           DB_DTPTR1 var, int *dims, int *ndims, DB_DTPTR1 mixvar, int *mixlen,
+           void const *var, int *dims, int *ndims, void const *mixvar, int *mixlen,
            int *datatype, int *centering, int *optlist_id, int *status)
 {
     DBfile        *dbfile = NULL;
@@ -2286,7 +2287,7 @@ DBPUTQV1_FC (int *dbid, FCD_DB name,
 SILO_API FORTRAN
 DBPUTQV_FC (int *dbid, FCD_DB vname, int *lvname, FCD_DB mname, int *lmname,
 	    int *nvars, FCD_DB varnames, int* lvarnames,
-	    DB_DTPTR1 vars, int *dims, int *ndims, DB_DTPTR1 mixvar, int *mixlen,
+	    void const *vars, int *dims, int *ndims, void const *mixvar, int *mixlen,
 	    int *datatype, int *centering, int *optlist_id, int *status)
 {
     DBfile        *dbfile = NULL;
@@ -2295,8 +2296,8 @@ DBPUTQV_FC (int *dbid, FCD_DB vname, int *lvname, FCD_DB mname, int *lmname,
     char          **cvarnames = NULL;
     char          *names = NULL;
     int           indx, i, j;
-    float **cvars = NULL ;
-    float **cmixvar = NULL ;
+    void        **cvars = NULL ;
+    void        **cmixvar = NULL ;
 
     API_BEGIN("dbputqv", int, -1) {
         optlist = (DBoptlist *) DBFortranAccessPointer(*optlist_id);
@@ -2359,44 +2360,40 @@ DBPUTQV_FC (int *dbid, FCD_DB vname, int *lvname, FCD_DB mname, int *lmname,
         }
 
         /*------------------------------
-         *  Create the float pointers addresses:
+         *  Create the variable data pointers addresses:
          *-----------------------------*/
-	/* Compute the size of the array */
+	/* Compute the size of the arrays in bytes */
 	indx = dims[0] ;
 	for (j=1; j<*ndims; j++ ) {
 	  indx *= dims[j] ;
 	}
-	if (*datatype == DB_DOUBLE) {
-	  /* Doubles use twice as much storage as floats */
-	  indx*= 2 ;
-	}
+        indx *= db_GetMachDataSize(*datatype);
 
 	/* Now convert the Fortran data arrays into C arrays of data */
 
 	if ((*(int *)vars) != DB_F77NULL) {
-	  cvars = malloc(sizeof(float*) * (*nvars));
+	  cvars = (void **)malloc(sizeof(void*) * (*nvars));
 	  /* Make pointers to Fortran address in vars array */
 	  for (i=0;i<*nvars;i++) {
-	    cvars[i] = (float*)vars + i*indx ;
+	    cvars[i] = (void*)((char*) vars + i*indx);
 	  }
 	} else {
 	  API_ERROR("vars", E_BADARGS);
 	}
 	if ((*(int *)mixvar) != DB_F77NULL) {
 	  /* Now convert the Fortran data array into a C array of data */
-	  cmixvar = malloc(sizeof(float*) * (*nvars));
+	  cmixvar = (void **)malloc(sizeof(void*) * (*nvars));
 	  /* Make pointers to Fortran address in vars array */
 	  for (i=0;i<*nvars;i++) {
-	    cmixvar[i] = (float*)mixvar + i*indx ;
+	    cmixvar[i] = (void*)((char*) mixvar + i*indx);
 	  }
 	}
 
         dbfile = (DBfile *) DBFortranAccessPointer(*dbid);
 
         *status = DBPutQuadvar(dbfile, cvname, cmname, *nvars,
-			       cvarnames, cvars, dims, *ndims,
-			       cmixvar, *mixlen, *datatype, *centering,
-			       optlist);
+                      (char const * const *) cvarnames, cvars, dims, *ndims,
+                      cmixvar, *mixlen, *datatype, *centering, optlist);
 
 	/* Remove pointers to pointers arrays */
 	if (cmixvar != NULL) 
@@ -2452,14 +2449,14 @@ DBPUTQV_FC (int *dbid, FCD_DB vname, int *lvname, FCD_DB mname, int *lmname,
  *
  *-------------------------------------------------------------------------*/
 SILO_API FORTRAN
-DBPUTUM_FC (int *dbid, FCD_DB name, int *lname, int *ndims, DB_DTPTR1 x, DB_DTPTR1 y,
-          DB_DTPTR1 z, FCD_DB xname, int *lxname, FCD_DB yname, int *lyname,
+DBPUTUM_FC (int *dbid, FCD_DB name, int *lname, int *ndims, void const *x, void const *y,
+          void const *z, FCD_DB xname, int *lxname, FCD_DB yname, int *lyname,
           FCD_DB zname, int *lzname, int *datatype, int *nnodes, int *nzones,
           FCD_DB zlname, int *lzlname, FCD_DB flname, int *lflname,
           int *optlist_id, int *status)
 {
     char          *nm = NULL, *zlnm = NULL, *flnm = NULL, *coordnames[3];
-    DB_DTPTR      *coords[3];
+    void const    *coords[3];
     DBfile        *dbfile = NULL;
     DBoptlist     *optlist = NULL;
 
@@ -2570,7 +2567,7 @@ DBPUTUM_FC (int *dbid, FCD_DB name, int *lname, int *ndims, DB_DTPTR1 x, DB_DTPT
 
         dbfile = (DBfile *) DBFortranAccessPointer(*dbid);
 
-        *status = DBPutUcdmesh(dbfile, nm, *ndims, coordnames,
+        *status = DBPutUcdmesh(dbfile, nm, *ndims, (char const * const *) coordnames,
                                coords, *nnodes, *nzones, zlnm, flnm,
                                *datatype, optlist);
 
@@ -2624,7 +2621,7 @@ DBPUTUM_FC (int *dbid, FCD_DB name, int *lname, int *ndims, DB_DTPTR1 x, DB_DTPT
 SILO_API FORTRAN
 DBPUTUV1_FC (int *dbid, FCD_DB name,
            int *lname, FCD_DB meshname, int *lmeshname,
-           DB_DTPTR1 var, int *nels, DB_DTPTR1 mixvar, int *mixlen, int *datatype,
+           void const *var, int *nels, void const *mixvar, int *mixlen, int *datatype,
            int *centering, int *optlist_id, int *status)
 {
     char          *nm = NULL, *mnm = NULL;
@@ -3101,49 +3098,6 @@ DBSETDIR_FC (int *dbid, FCD_DB pathname, int *lpathname)
 }
 
 /*-------------------------------------------------------------------------
- * Routine                                                    DBSETDIRID_FC
- *
- * Purpose
- *     Set the current directory by ID within the database.
- *
- * Notes
- *     This function was built to be called from Fortran.
- *
- * Returns
- *     Returns 0 on success, -1 on failure.
- *
- * Programmer
- *     robb@cloud
- *     Mon Nov 28 14:28:41 EST 1994
- *
- * Modifications
- *     Eric Brugger, Tue Feb  7 08:09:26 PST 1995
- *     I replaced API_END with API_END_NOPOP.
- *
- *     Sean Ahern, Mon Apr 10 20:04:23 PDT 1995
- *     Added a DBfile lookup in a global array using
- *     DBFortranAccessPointer.
- *
- *     Thomas R. Treadway, Thu Oct 11 15:21:03 PDT 2007
- *     Using AC_FC_WRAPPERS for name-mangling
- *
- *     Kathleen Bonnell, Wed Sep 2 15:31:26 PDT 2009
- *     Added SILO_API so symbols are correctly exported on windows.
- *
- *-------------------------------------------------------------------------*/
-SILO_API FORTRAN
-DBSETDIRID_FC (int *dbid, int *dirid)
-{
-    DBfile        *dbfile = NULL;
-
-    API_BEGIN("dbsetdirid", int, -1) {
-        dbfile = (DBfile *) DBFortranAccessPointer(*dbid);
-        API_RETURN(DBSetDirID(dbfile, *dirid));
-    }
-    API_END_NOPOP; /*BEWARE: If API_RETURN above is removed use API_END */
-}
-
-/*-------------------------------------------------------------------------
  * Routine                                                  DBSHOWERRORS_FC
  *
  * Purpose
@@ -3294,7 +3248,7 @@ DBWRITE_FC (int *dbid, FCD_DB varname, int *lvarname, void *var, int *dims,
  *-------------------------------------------------------------------------*/
 SILO_API FORTRAN
 DBPUTCA_FC (int *dbid, FCD_DB _name, int *lname, FCD_DB enames, int *width,
-          int *elengths, int *nelems, DB_DTPTR1 values, int *datatype,
+          int *elengths, int *nelems, void *values, int *datatype,
           int *optlist_id, int *status)
 {
     DBfile        *dbfile = NULL;
@@ -3343,9 +3297,8 @@ DBPUTCA_FC (int *dbid, FCD_DB _name, int *lname, FCD_DB enames, int *width,
 
         dbfile = (DBfile *) DBFortranAccessPointer(*dbid);
 
-        *status = DBPutCompoundarray(dbfile, array_name, elemnames,
-                                     elengths, *nelems, (void *)values,
-                                     nvalues, *datatype, optlist);
+        *status = DBPutCompoundarray(dbfile, array_name, (char const * const *) elemnames,
+                      elengths, *nelems, values, nvalues, *datatype, optlist);
 
         /*
          * Free all temporary memory.
@@ -3405,7 +3358,7 @@ DBPUTCA_FC (int *dbid, FCD_DB _name, int *lname, FCD_DB enames, int *width,
  *-------------------------------------------------------------------------*/
 SILO_API FORTRAN
 DBGETCA_FC (int *dbid, FCD_DB _name, int *lname, int *width, FCD_DB enames,
-          int *elengths, int *nelems, DB_DTPTR1 values, int *nvalues,
+          int *elengths, int *nelems, void *values, int *nvalues,
           int *datatype)
 {
     DBfile        *dbfile = NULL;
@@ -3516,7 +3469,7 @@ DBGETCA_FC (int *dbid, FCD_DB _name, int *lname, int *width, FCD_DB enames,
  *
  *-------------------------------------------------------------------------*/
 SILO_API FORTRAN
-DBFGETCA_FC (int *dbid, FCD_DB _name, int *lname, DB_DTPTR1 values, int *nvalues)
+DBFGETCA_FC (int *dbid, FCD_DB _name, int *lname, void *values, int *nvalues)
 {
     API_BEGIN("dbfgetca", int, -1) {
 #if CRAY
@@ -3559,7 +3512,7 @@ DBFGETCA_FC (int *dbid, FCD_DB _name, int *lname, DB_DTPTR1 values, int *nvalues
  *
  *------------------------------------------------------------------------- */
 SILO_API FORTRAN
-DBPUTCURVE_FC (int *dbid, FCD_DB _name, int *lname, DB_DTPTR1 xvals, DB_DTPTR1 yvals,
+DBPUTCURVE_FC (int *dbid, FCD_DB _name, int *lname, void const *xvals, void const *yvals,
               int *datatype, int *npts, int *optlist_id, int *status)
 {
 
@@ -3622,8 +3575,8 @@ DBPUTCURVE_FC (int *dbid, FCD_DB _name, int *lname, DB_DTPTR1 xvals, DB_DTPTR1 y
  *
  *------------------------------------------------------------------------ */
 SILO_API FORTRAN
-DBGETCURVE_FC (int *dbid, FCD_DB _name, int *lname, int *maxpts, DB_DTPTR1 xvals,
-              DB_DTPTR1 yvals, int *datatype, int *npts)
+DBGETCURVE_FC (int *dbid, FCD_DB _name, int *lname, int *maxpts, void *xvals,
+              void *yvals, int *datatype, int *npts)
 {
 
    DBfile   *dbfile ;
@@ -4364,7 +4317,7 @@ DBSETCOMPRESS_FC (FCD_DB cvalue, int *lcvalue)
     char          *cval = NULL;
     DBoptlist     *optlist = NULL;
 
-    API_BEGIN("dbsetcompression", int, -1) {
+    API_BEGIN("dbsetcompress", int, -1) {
         if (strcmp(cvalue, DB_F77NULLSTRING) < 0 && *lcvalue > 0)
             cval = SW_strndup(cvalue, *lcvalue);
 
@@ -4409,7 +4362,7 @@ DBSETCOMPRESS_FC (FCD_DB cvalue, int *lcvalue)
 SILO_API FORTRAN
 DBGETCOMPRESS_FC (FCD_DB cvalue, int *lcvalue)
 {
-    char          *cval = NULL;
+    char const *cval = NULL;
 
     API_BEGIN("dbgetcompression", int, -1) {
         if (*lcvalue <= 0)
@@ -4560,6 +4513,24 @@ DBUNREGFOPTS_FC ( int *opts_set_id )
 {
     API_BEGIN("dbunregfopts", int, -1) {
         API_RETURN(DBUnregisterFileOptionsSet(*opts_set_id));
+    }
+    API_END_NOPOP; /*BEWARE: If API_RETURN above is removed use API_END */
+}
+
+SILO_API FORTRAN
+DBSETEMPTYOK_FC(int *ok)
+{
+    API_BEGIN("dbsetemptyok", int, -1) {
+        API_RETURN(DBSetAllowEmptyObjects(*ok));
+    }
+    API_END_NOPOP; /*BEWARE: If API_RETURN above is removed use API_END */
+}
+
+SILO_API FORTRAN
+DBGETEMPTYOK_FC()
+{
+    API_BEGIN("dbgetemptyok", int, -1) {
+        API_RETURN(DBGetAllowEmptyObjects());
     }
     API_END_NOPOP; /*BEWARE: If API_RETURN above is removed use API_END */
 }
@@ -4817,7 +4788,7 @@ DBADDREGIONA_FC (int *tree_id, int *nregn, FCD_DB regn_names, int *lregn_names,
                 indx += lregn_names[i] ;
         }
 
-        *status = DBAddRegionArray(tree, *nregn, regn_nms,
+        *status = DBAddRegionArray(tree, *nregn, (char const * const *) regn_nms,
             *type_info_bits, maps_nm, *nsegs, seg_ids, seg_sizes,
              seg_types, optlist);
 
@@ -5029,7 +5000,7 @@ DBPUTGRPLMAP_FC (int *dbid, FCD_DB map_name, int *lmap_name,
         /* convert array of segment data ids to their pointers */
         segment_data = (int**) malloc(*num_segments * sizeof(int*));
         for (i = 0; i < *num_segments; i++)
-            segment_data[i] = DBFortranAccessPointer(segment_data_ids[i]);
+            segment_data[i] = (int *)DBFortranAccessPointer(segment_data_ids[i]);
 
         /* convert array of segment fracs ids to their pointers */
         if (*segment_fracs_ids)
@@ -5040,8 +5011,9 @@ DBPUTGRPLMAP_FC (int *dbid, FCD_DB map_name, int *lmap_name,
         }
 
         *status = DBPutGroupelmap(dbfile, map_nm, *num_segments,
-            groupel_types, segment_lengths, segment_ids, segment_data,
-            segment_fracs, *fracs_data_type, optlist);
+            groupel_types, segment_lengths, segment_ids,
+            (int const * const *) segment_data, (void const * const *) segment_fracs,
+            *fracs_data_type, optlist);
 
         FREE(segment_data);
         FREE(segment_fracs);
@@ -5196,8 +5168,8 @@ DBPUTCSGV_FC (int *dbid, FCD_DB name, int *lname, FCD_DB meshname,
         for (i = 0; i < *nvals; i++)
             data[i] = DBFortranAccessPointer(data_ids[i]);
 
-        *status = DBPutCsgvar(dbfile, nm, m_nm, 1, &nm,
-            data, *nvals, *datatype, *centering, optlist);
+        *status = DBPutCsgvar(dbfile, nm, m_nm, 1, (char const * const *) &nm,
+            (void const * const *) data, *nvals, *datatype, *centering, optlist);
 
         FREE(nm);
         FREE(m_nm);
@@ -5395,8 +5367,8 @@ DBPMRGV_FC (int *dbid, FCD_DB name, int *lname, FCD_DB tname, int *ltname,
         /*----------------------------------------
          *  Invoke the C function to do the work.
          *---------------------------------------*/
-        *status = DBPutMrgvar(dbfile, nm, tnm, *ncomps, compnms,
-            *nregns, regnnms, *datatype, data, optlist);
+        *status = DBPutMrgvar(dbfile, nm, tnm, *ncomps, (char const * const *) compnms,
+            *nregns, (char const * const *) regnnms, *datatype, (void const * const *) data, optlist);
 
         for (i = 0; i < *ncomps; i++)
             FREE(compnms[i]);

@@ -114,7 +114,7 @@ int
 main(int argc, char *argv[])
 {
     DBfile         *dbfile = NULL;
-    char           *coordnames[3];
+    char const * const coordnames[3] = {"xcoords", "ycoords", "zcoords"};
     double         *coords[3];
     int             nodelist[8];
     double          x[8], y[8], z[8];
@@ -234,9 +234,6 @@ main(int argc, char *argv[])
         DBFreeOptlist(split_opts);
     }
 
-    coordnames[0] = "xcoords";
-    coordnames[1] = "ycoords";
-    coordnames[2] = "zcoords";
 
     x[0] = 0; y[0] = 0; z[0] = 0;
     x[1] = 1; y[1] = 0; z[1] = 0;
@@ -303,8 +300,7 @@ main(int argc, char *argv[])
 #endif
             var[0] = sqrt((double)-1.0);
     }
-    DBPutUcdvar1(dbfile, "v", "hex", var, 8, NULL, 0, DB_DOUBLE, DB_NODECENT,
-                 NULL);
+    DBPutUcdvar1(dbfile, "v", "hex", var, 8, NULL, 0, DB_DOUBLE, DB_NODECENT, NULL);
 
     nodelist[0] = 0;
     nodelist[1] = 1;

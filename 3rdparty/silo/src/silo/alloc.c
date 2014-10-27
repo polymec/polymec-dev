@@ -459,7 +459,11 @@ DBFreeMultimesh(DBmultimesh *msh)
     if (msh == NULL)
         return;
 
-    if (msh->meshnames)
+    if (msh->meshnames_alloc)
+    {
+        FREE(msh->meshnames_alloc);
+    }
+    else if (msh->meshnames)
     {
         for (i = 0; i < msh->nblocks; i++) {
             FREE(msh->meshnames[i]);
@@ -560,7 +564,11 @@ DBFreeMultivar (DBmultivar *mv)
      if (mv == NULL)
           return;
 
-     if (mv->varnames)
+     if (mv->varnames_alloc)
+     {
+         FREE(mv->varnames_alloc);
+     }
+     else if (mv->varnames)
      {
          for (i = 0; i < mv->nvars; i++) {
               FREE(mv->varnames[i]);
@@ -616,7 +624,11 @@ DBFreeMultimat (DBmultimat *mat)
      if (mat == NULL)
           return;
 
-     if (mat->matnames)
+     if (mat->matnames_alloc)
+     {
+         FREE(mat->matnames_alloc);
+     }
+     else if (mat->matnames)
      {
          for (i = 0; i < mat->nmats; i++) {
               FREE(mat->matnames[i]);
@@ -699,7 +711,11 @@ DBFreeMultimatspecies (DBmultimatspecies *spec)
          FREE(spec->speccolors);
      }
 
-     if (spec->specnames)
+     if (spec->specnames_alloc)
+     {
+         FREE(spec->specnames_alloc);
+     }
+     else if (spec->specnames)
      {
          for (i = 0; i < spec->nspec; i++) {
               FREE(spec->specnames[i]);
@@ -791,13 +807,7 @@ DBFreeCsgmesh(DBcsgmesh *msh)
 PUBLIC int
 DBIsEmptyCsgmesh(DBcsgmesh const *msh)
 {
-    if (!msh) return 0;
-    if (msh->nbounds!=0) return 0;
-    if (msh->typeflags!=0) return 0;
-    if (msh->bndids!=0) return 0;
-    if (msh->coeffs!=0) return 0;
-    if (msh->lcoeffs!=0) return 0;
-    if (msh->coeffidx!=0) return 0;
+    if (msh && msh->nbounds!=0) return 0;
     return 1;
 }
 
@@ -868,16 +878,17 @@ DBFreeQuadmesh(DBquadmesh *msh)
 PUBLIC int
 DBIsEmptyQuadmesh(DBquadmesh const *msh)
 {
-    if (!msh) return 0;
-    if (msh->nnodes!=0) return 0;
-    if (msh->coords[0]!=0) return 0;
-    if (msh->coords[1]!=0) return 0;
-    if (msh->coords[2]!=0) return 0;
-    if (msh->ndims!=0) return 0;
-    if (msh->dims[0]!=0) return 0;
-    if (msh->dims[1]!=0) return 0;
-    if (msh->dims[2]!=0) return 0;
-    return 1;
+    int i, is_empty = 1;
+
+    for (i = 0; msh && i < msh->ndims; i++)
+    {
+        if (msh->dims[i] > 0)
+        {
+            is_empty = 0;
+            break;
+        }
+    }
+    return is_empty;
 }
 
 /*----------------------------------------------------------------------
@@ -949,12 +960,7 @@ DBFreePointmesh(DBpointmesh *msh)
 PUBLIC int
 DBIsEmptyPointmesh(DBpointmesh const *msh)
 {
-    if (!msh) return 0;
-    if (msh->nels!=0) return 0;
-    if (msh->ndims!=0) return 0;
-    if (msh->coords[0]!=0) return 0;
-    if (msh->coords[1]!=0) return 0;
-    if (msh->coords[2]!=0) return 0;
+    if (msh && msh->nels!=0) return 0;
     return 1;
 }
 
@@ -1026,14 +1032,7 @@ DBFreeMeshvar(DBmeshvar *var)
 PUBLIC int
 DBIsEmptyMeshvar(DBmeshvar const *var)
 {
-    if (!var) return 0;
-    if (var->nels!=0) return 0;
-    if (var->nvals!=0) return 0;
-    if (var->vals!=0) return 0;
-  /*if (var->ndims!=0) return 0; long standing bug/assumption in Silo */
-    if (var->dims[0]!=0) return 0;
-    if (var->dims[1]!=0) return 0;
-    if (var->dims[2]!=0) return 0;
+    if (var && var->nels!=0) return 0;
     return 1;
 }
 
@@ -1138,16 +1137,7 @@ DBFreeUcdmesh(DBucdmesh *msh)
 PUBLIC int
 DBIsEmptyUcdmesh(DBucdmesh const *msh)
 {
-    if (!msh) return 0;
-    if (msh->ndims!=0) return 0;
-    if (msh->topo_dim!=-1) return 0; /* unique case; -1 means 'unset' */
-    if (msh->nnodes!=0) return 0;
-    if (msh->coords[0]!=0) return 0;
-    if (msh->coords[1]!=0) return 0;
-    if (msh->coords[2]!=0) return 0;
-    if (msh->faces!=0) return 0;
-    if (msh->zones!=0) return 0;
-    if (msh->edges!=0) return 0;
+    if (msh && msh->nnodes!=0) return 0;
     return 1;
 }
 
@@ -1213,10 +1203,7 @@ DBFreeCsgvar(DBcsgvar *var)
 PUBLIC int
 DBIsEmptyCsgvar(DBcsgvar const *var)
 {
-    if (!var) return 0;
-    if (var->nels!=0) return 0;
-    if (var->nvals!=0) return 0;
-    if (var->vals!=0) return 0;
+    if (var && var->nels!=0) return 0;
     return 1;
 }
 
@@ -1309,15 +1296,17 @@ DBFreeQuadvar(DBquadvar *var)
 PUBLIC int
 DBIsEmptyQuadvar(DBquadvar const *var)
 {
-    if (!var) return 0;
-    if (var->nels!=0) return 0;
-    if (var->nvals!=0) return 0;
-    if (var->vals!=0) return 0;
-    if (var->ndims!=0) return 0;
-    if (var->dims[0]!=0) return 0;
-    if (var->dims[1]!=0) return 0;
-    if (var->dims[2]!=0) return 0;
-    return 1;
+    int i, is_empty = 1;
+
+    for (i = 0; var && i < var->ndims; i++)
+    {
+        if (var->dims[i] > 0)
+        {
+            is_empty = 0;
+            break;
+        }
+    }
+    return is_empty;
 }
 
 /*----------------------------------------------------------------------
@@ -1409,11 +1398,7 @@ DBFreeUcdvar(DBucdvar *var)
 PUBLIC int
 DBIsEmptyUcdvar(DBucdvar const *var)
 {
-    if (!var) return 0;
-    if (var->nels!=0) return 0;
-    if (var->nvals!=0) return 0;
-    if (var->ndims!=0) return 0;
-    if (var->vals!=0) return 0;
+    if (var && var->nels!=0) return 0;
     return 1;
 }
 
@@ -1449,15 +1434,7 @@ DBAllocZonelist(void)
 PUBLIC int
 DBIsEmptyZonelist(DBzonelist const *zl)
 {
-    if (!zl) return 0;
-    if (zl->ndims!=0) return 0;
-    if (zl->nzones!=0) return 0;
-    if (zl->nshapes!=0) return 0;
-    if (zl->lnodelist!=0) return 0;
-    if (zl->nodelist!=0) return 0;
-    if (zl->shapecnt!=0) return 0;
-    if (zl->shapesize!=0) return 0;
-    if (zl->shapetype!=0) return 0;
+    if (zl && zl->nzones!=0) return 0;
     return 1;
 }
 
@@ -1489,11 +1466,7 @@ DBAllocPHZonelist(void)
 PUBLIC int
 DBIsEmptyPHZonelist(DBphzonelist const *zl)
 {
-    if (!zl) return 0;
-    if (zl->nfaces!=0) return 0;
-    if (zl->nodecnt!=0) return 0;
-    if (zl->lnodelist!=0) return 0;
-    if (zl->nodelist!=0) return 0;
+    if (zl && zl->nfaces!=0) return 0;
     return 1;
 }
 
@@ -1525,13 +1498,7 @@ DBAllocCSGZonelist(void)
 PUBLIC int
 DBIsEmptyCSGZonelist(DBcsgzonelist const *zl)
 {
-    if (!zl) return 0;
-    if (zl->nregs!=0) return 0;
-    if (zl->typeflags!=0) return 0;
-    if (zl->leftids!=0) return 0;
-    if (zl->rightids!=0) return 0;
-    if (zl->nzones!=0) return 0;
-    if (zl->zonelist!=0) return 0;
+    if (zl && zl->nzones!=0) return 0;
     return 1;
 }
 
@@ -1705,14 +1672,7 @@ DBAllocFacelist(void)
 PUBLIC int
 DBIsEmptyFacelist(DBfacelist const *fl)
 {
-    if (!fl) return 0;
-    if (fl->ndims!=0) return 0;
-    if (fl->nfaces!=0) return 0;
-    if (fl->lnodelist!=0) return 0;
-    if (fl->nodelist!=0) return 0;
-    if (fl->nshapes!=0) return 0;
-    if (fl->shapecnt!=0) return 0;
-    if (fl->shapesize!=0) return 0;
+    if (fl && fl->nfaces!=0) return 0;
     return 1;
 }
 
@@ -1811,16 +1771,17 @@ DBFreeMaterial(DBmaterial *mats)
 PUBLIC int
 DBIsEmptyMaterial(DBmaterial const *mats)
 {
-    if (!mats) return 0;
-    if (mats->nmat!=0) return 0;
-    if (mats->matnos!=0) return 0;
-    if (mats->ndims!=0) return 0;
-    if (mats->dims[0]!=0) return 0;
-    if (mats->dims[1]!=0) return 0;
-    if (mats->dims[2]!=0) return 0;
-    if (mats->matlist!=0) return 0;
-    if (mats->mixlen!=0) return 0;
-    return 1;
+    int i, is_empty = 1;
+
+    for (i = 0; mats && i < mats->ndims; i++)
+    {
+        if (mats->dims[i] > 0)
+        {
+            is_empty = 0;
+            break;
+        }
+    }
+    return is_empty;
 }
 
 /*----------------------------------------------------------------------
@@ -1904,19 +1865,20 @@ DBFreeMatspecies(DBmatspecies *species)
 PUBLIC int
 DBIsEmptyMatspecies(DBmatspecies const *species)
 {
-    if (!species) return 0;
-    if (species->nmat!=0) return 0;
-    if (species->nmatspec!=0) return 0;
-    if (species->ndims!=0) return 0;
-    if (species->dims[0]!=0) return 0;
-    if (species->dims[1]!=0) return 0;
-    if (species->dims[2]!=0) return 0;
-    if (species->nspecies_mf!=0) return 0;
-    if (species->species_mf!=0) return 0;
-    if (species->speclist!=0) return 0;
-    if (species->mixlen!=0) return 0;
-    if (species->mix_speclist!=0) return 0;
-    return 1;
+    int i, is_empty = 1;
+
+    if (species->nspecies_mf == 0)
+        return 1;
+
+    for (i = 0; species && i < species->ndims; i++)
+    {
+        if (species->dims[i] > 0)
+        {
+            is_empty = 0;
+            break;
+        }
+    }
+    return is_empty;
 }
 
 /*-------------------------------------------------------------------------
@@ -2014,10 +1976,7 @@ DBAllocCurve (void)
 PUBLIC int
 DBIsEmptyCurve(DBcurve const *crv)
 {
-    if (!crv) return 0;
-    if (crv->npts!=0) return 0;
-    if (crv->x!=0) return 0;
-    if (crv->y!=0) return 0;
+    if (crv && crv->npts!=0) return 0;
     return 1;
 }
 
