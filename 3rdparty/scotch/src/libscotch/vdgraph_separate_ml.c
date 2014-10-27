@@ -1,4 +1,4 @@
-/* Copyright 2007-2010,2012 IPB, Universite de Bordeaux, INRIA & CNRS
+/* Copyright 2007-2010,2012,2014 IPB, Universite de Bordeaux, INRIA & CNRS
 **
 ** This file is part of the Scotch software package for static mapping,
 ** graph partitioning and sparse matrix ordering.
@@ -44,7 +44,7 @@
 /**                # Version 5.1  : from : 14 dec 2008     **/
 /**                                 to   : 26 aug 2010     **/
 /**                # Version 6.0  : from : 11 sep 2012     **/
-/**                                 to   : 12 sep 2012     **/
+/**                                 to   : 28 sep 2014     **/
 /**                                                        **/
 /************************************************************/
 
@@ -87,24 +87,31 @@ Vdgraph * restrict const              coargrafptr, /*+ Coarser graph to build   
 DgraphCoarsenMulti * restrict * const coarmultptr, /*+ Pointer to based multinode table to build +*/
 const VdgraphSeparateMlParam * const  paraptr)     /*+ Method parameters                         +*/
 {
-  int                 dofolddup;
+  int                 foldval;
 
-  dofolddup = 1;
-  if ((paraptr->duplvlmax > -1) &&                  /* duplvlmax can allow fold dup */
-      (paraptr->duplvlmax < finegrafptr->levlnum + 1)) {
-      dofolddup = 0;
+  switch (paraptr->foldval) {
+    case 0 :
+      foldval = DGRAPHCOARSENNONE;
+      break;
+    case 1 :
+      foldval = DGRAPHCOARSENFOLD;
+      break;
+    case 2 :
+      foldval = DGRAPHCOARSENFOLDDUP;
+      break;
+#ifdef SCOTCH_DEBUG_VDGRAPH2
+    default :
+      errorPrint ("vdgraphSeparateMlCoarsen: invalid parameter");
+      return     (1);
+#endif /* SCOTCH_DEBUG_VDGRAPH2 */
   }
-  else if (paraptr->duplvlmax < -1) {              /* duplvlmax can allow only fold */
-    if (- (paraptr->duplvlmax + 1) < finegrafptr->levlnum + 1)
-      dofolddup = 0;
-    else
-      dofolddup = -1;
-  }
+  if ((finegrafptr->s.vertglbnbr / finegrafptr->s.procglbnbr) > paraptr->foldmax) /* If no need to fold */
+    foldval = DGRAPHCOARSENNONE;
 
   *coarmultptr = NULL;                            /* Let the routine create the multinode array */
   dgraphInit (&coargrafptr->s, finegrafptr->s.proccomm); /* Re-use fine graph communicator      */
   if (dgraphCoarsen (&finegrafptr->s, &coargrafptr->s, coarmultptr, paraptr->passnbr,
-                     paraptr->coarnbr, 0, dofolddup, paraptr->dupmax, paraptr->coarrat) != 0)
+                     paraptr->coarnbr, paraptr->coarrat, foldval) != 0)
     return (1);                                   /* Return if coarsening failed */
 
   coargrafptr->fronloctab = NULL;
@@ -362,7 +369,7 @@ const DgraphCoarsenMulti * restrict const coarmulttax) /*+ Based multinode array
       errorPrint ("vdgraphSeparateMlUncoarsen: cannot compute ghost edge array");
       reduloctab[5] = 1;                          /* Allocated data will be freed along with graph structure */
     }
-    if ((finegrafptr->partgsttax = (GraphPart *) memAlloc (finegrafptr->s.vertgstnbr * sizeof (GraphPart))) == NULL) {
+    else if ((finegrafptr->partgsttax = (GraphPart *) memAlloc (finegrafptr->s.vertgstnbr * sizeof (GraphPart))) == NULL) {
       errorPrint ("vdgraphSeparateMlUncoarsen: out of memory (1)");
       reduloctab[5] = 1;                          /* Allocated data will be freed along with graph structure */
     }
@@ -388,7 +395,7 @@ const DgraphCoarsenMulti * restrict const coarmulttax) /*+ Based multinode array
   }
 
   if (memAllocGroup ((void **) (void *)
-                     &vsndcnttab, (size_t) (finegrafptr->s.procglbnbr * sizeof (int)), /* TRICK: srcvdattab after ssnddattab, after vsndcnttab         */
+                     &vsndcnttab, (size_t) (finegrafptr->s.procglbnbr *     sizeof (int)), /* TRICK: srcvdattab after ssnddattab, after vsndcnttab     */
                      &ssnddattab, (size_t) (finegrafptr->s.procglbnbr * 3 * sizeof (Gnum)), /* TRICK: ssnddattab is vrcvcnttab, vsnddsptab, vrcvdsptab */
                      &srcvdattab, (size_t) (finegrafptr->s.procglbnbr * 3 * sizeof (Gnum)),
                      &vsnddattab, (size_t) (coargrafptr->s.vertlocnbr * 2 * sizeof (Gnum)), /* TRICK: vsnddattab overlaps with vrcvdattab */
@@ -700,8 +707,6 @@ const DgraphCoarsenMulti * restrict const coarmulttax) /*+ Based multinode array
   finegrafptr->complocsize[2] = finecomplocsize2;
 
   memFree (vsndcnttab);                           /* Free group leader */
-  if (coargrafptr->s.procglbnbr != 0)
-    memFree ((void *) (coarmulttax + coargrafptr->s.baseval));
 
   reduloctab[0] = finegrafptr->complocload[0];
   reduloctab[1] = finegrafptr->complocload[1];
@@ -750,7 +755,7 @@ const VdgraphSeparateMlParam * const paraptr)     /* Method parameters       */
   DgraphCoarsenMulti * restrict coarmulttax;
   int                           o;
 
-  if (grafptr->s.procglbnbr <= paraptr->seqnbr) { /* We must enter in another mode         */
+  if (grafptr->s.procglbnbr <= 1) {               /* No need to stay parallel              */
     if (((o = vdgraphSeparateMlUncoarsen (grafptr, NULL, NULL)) == 0) && /* Finalize graph */
         ((o = vdgraphSeparateSt (grafptr, paraptr->stratseq)) != 0)) {
 #ifdef SCOTCH_DEBUG_VDGRAPH2
@@ -760,8 +765,10 @@ const VdgraphSeparateMlParam * const paraptr)     /* Method parameters       */
     return (o);
   }
 
+  coarmulttax = NULL;                             /* Assume multinode array is not allocated */
   if (vdgraphSeparateMlCoarsen (grafptr, &coargrafdat, &coarmulttax, paraptr) == 0) {
     o = (coargrafdat.s.procglbnbr == 0) ? 0 : vdgraphSeparateMl2 (&coargrafdat, paraptr); /* Apply recursion on coarsened graph if it exists */
+
     if ((o == 0) &&
         ((o = vdgraphSeparateMlUncoarsen (grafptr, &coargrafdat, coarmulttax)) == 0) &&
         ((o = vdgraphSeparateSt          (grafptr, paraptr->stratasc))         != 0)) { /* Apply ascending strategy if uncoarsening worked */
@@ -773,6 +780,9 @@ const VdgraphSeparateMlParam * const paraptr)     /* Method parameters       */
     if (coargrafdat.fronloctab == grafptr->fronloctab) /* If coarse graph shares fronloctab with fine graph */
       coargrafdat.fronloctab = NULL;              /* Prevent fronloctab of fine graph from being freed      */
     vdgraphExit (&coargrafdat);
+
+    if (coarmulttax != NULL)                      /* If multinode array has been allocated */
+      memFree (coarmulttax + grafptr->s.baseval); /* Free array                            */
 
     if (o == 0)                                   /* If multi-level failed, apply low strategy as fallback */
       return (o);

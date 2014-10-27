@@ -1,4 +1,4 @@
-## Copyright 2011,2012 IPB, Universite de Bordeaux, INRIA & CNRS
+## Copyright 2011,2012,2014 IPB, Universite de Bordeaux, INRIA & CNRS
 ##
 ## This file is part of the Scotch software package for static mapping,
 ## graph partitioning and sparse matrix ordering.
@@ -32,9 +32,13 @@
 
 SCOTCHINCLUDEDIR	= ../../include
 SCOTCHLIBDIR		= ../../lib
+SCOTCHBINDIR		= ../../bin
 
-LIBPTSCOTCH		= -lptscotch -lscotch -lptscotcherr
-LIBSCOTCH		= -lscotch -lscotcherr
+LIBPTSCOTCH		= -lptscotch -lscotch -lptscotcherrexit
+LIBSCOTCH		= -lscotch -lscotcherrexit
+
+DEPPTSCOTCH		= $(SCOTCHLIBDIR)/libptscotch$(LIB)
+DEPSCOTCH		= $(SCOTCHLIBDIR)/libscotch$(LIB)
 
 EXECP			= mpirun -n 4
 
@@ -56,10 +60,10 @@ include ../Makefile.inc
 
 .PHONY				:	check	ptcheck	clean	realclean
 
-check				:	clean
+check				:	realclean
 					$(MAKE) CC="$(CCS)" CCD="$(CCS)" SCOTCHLIBS="$(LIBSCOTCH)" $(CHECKSCOTCH)
 
-ptcheck				:	clean
+ptcheck				:	realclean
 					$(MAKE) CFLAGS="$(CFLAGS) -DSCOTCH_PTSCOTCH" CC="$(CCP)" SCOTCHLIBS="$(LIBPTSCOTCH)" $(CHECKPTSCOTCH)
 
 clean				:
@@ -69,7 +73,12 @@ realclean			:	clean
 					-$(RM) 				\
 					test_common_thread		\
 					test_scotch_graph_color		\
+					test_scotch_graph_map		\
+					test_scotch_graph_order		\
+					test_scotch_graph_part_ovl	\
 					test_scotch_dgraph_band		\
+					test_scotch_dgraph_check	\
+					test_scotch_dgraph_coarsen	\
 					test_scotch_dgraph_grow		\
 					test_scotch_dgraph_redist	\
 					test_strat_par			\
@@ -80,11 +89,17 @@ realclean			:	clean
 ##
 
 CHECKSCOTCH = 		check_common_thread			\
+			check_strat_seq				\
 			check_graph_color			\
-			check_strat_seq
+			check_graph_map				\
+			check_graph_order			\
+			check_graph_part_ovl			\
+			check_prog_gpart_remap
 
 CHECKPTSCOTCH = 	check_strat_par				\
+			check_scotch_dgraph_check		\
 			check_scotch_dgraph_band		\
+			check_scotch_dgraph_coarsen		\
 			check_scotch_dgraph_grow		\
 			check_scotch_dgraph_redist		\
 
@@ -93,7 +108,7 @@ CHECKPTSCOTCH = 	check_strat_par				\
 ##
 
 check_dgraph_fold_comm		:	test_dgraph_fold_comm
-					$(EXECS) test_dgraph_fold_comm data/dgraph_fold_comm_1.txt
+					$(EXECS) ./test_dgraph_fold_comm data/dgraph_fold_comm_1.txt
 
 test_dgraph_fold_comm		:	test_dgraph_fold_comm.c
 
@@ -106,11 +121,16 @@ test_scotch_dgraph_redist	:	test_scotch_dgraph_redist.c
 
 ##
 
+check_prog_gpart_remap		:
+					$(EXECS) $(SCOTCHBINDIR)/gpart 32 data/bump_imbal_32.grf /dev/null -rodata/bump_old.map -vmt
+
+##
+
 check_common_thread		:	test_common_thread
 					$(EXECS) ./test_common_thread
 
 test_common_thread		:	test_common_thread.c		\
-					$(SCOTCHLIBDIR)/libscotch.a
+					$(SCOTCHLIBDIR)/libscotch$(LIB)
 
 ##
 
@@ -118,7 +138,36 @@ check_graph_color		:	test_scotch_graph_color
 					$(EXECS) ./test_scotch_graph_color data/bump.grf
 
 test_graph_color		:	test_scotch_graph_color.c	\
-					$(SCOTCHLIBDIR)/libscotch.a
+					$(SCOTCHLIBDIR)/libscotch$(LIB)
+
+##
+
+check_graph_map			:	test_scotch_graph_map
+					$(EXECS) ./test_scotch_graph_map data/m4x4.grf
+					$(EXECS) ./test_scotch_graph_map data/m4x4_b1.grf
+					$(EXECS) ./test_scotch_graph_map data/m16x16.grf
+					$(EXECS) ./test_scotch_graph_map data/m16x16_b1.grf
+
+test_graph_map			:	test_scotch_graph_map.c		\
+					$(SCOTCHLIBDIR)/libscotch$(LIB)
+
+##
+
+check_graph_order		:	test_scotch_graph_order
+					$(EXECS) ./test_scotch_graph_order data/bump.grf
+					$(EXECS) ./test_scotch_graph_order data/bump_b1.grf
+
+test_graph_order		:	test_scotch_graph_order.c	\
+					$(SCOTCHLIBDIR)/libscotch$(LIB)
+
+##
+
+check_graph_part_ovl		:	test_scotch_graph_part_ovl
+					$(EXECS) ./test_scotch_graph_part_ovl 4 data/m16x16.grf /dev/null
+					$(EXECS) ./test_scotch_graph_part_ovl 4 data/m16x16_b1.grf /dev/null
+
+test_graph_part_ovl		:	test_scotch_graph_part_ovl.c	\
+					$(SCOTCHLIBDIR)/libscotch$(LIB)
 
 ##
 
@@ -126,7 +175,7 @@ check_strat_seq			:	test_strat_seq
 					$(EXECS) ./test_strat_seq
 
 test_strat_seq			:	test_strat_seq.c		\
-					$(SCOTCHLIBDIR)/libscotch.a
+					$(SCOTCHLIBDIR)/libscotch$(LIB)
 
 ##
 
@@ -134,15 +183,33 @@ check_strat_par			:	test_strat_par
 					$(EXECS) ./test_strat_par
 
 test_strat_par			:	test_strat_par.c		\
-					$(SCOTCHLIBDIR)/libptscotch.a
+					$(SCOTCHLIBDIR)/libptscotch$(LIB)
 
 ##
 
 check_scotch_dgraph_band	:	test_scotch_dgraph_band
-					$(EXECP) ./test_scotch_dgraph_band data/bump.grf
+					$(EXECP) ./test_scotch_dgraph_band data/bump_b1.grf
 
 test_scotch_dgraph_band		:	test_scotch_dgraph_band.c	\
-					$(SCOTCHLIBDIR)/libptscotch.a
+					$(SCOTCHLIBDIR)/libptscotch$(LIB)
+
+##
+
+check_scotch_dgraph_coarsen	:	test_scotch_dgraph_coarsen
+					$(EXECP) ./test_scotch_dgraph_coarsen data/bump.grf
+					$(EXECP) ./test_scotch_dgraph_coarsen data/bump_b1.grf
+
+test_scotch_dgraph_coarsen	:	test_scotch_dgraph_coarsen.c	\
+					$(SCOTCHLIBDIR)/libptscotch$(LIB)
+
+##
+
+check_scotch_dgraph_check	:	test_scotch_dgraph_check
+					$(EXECP) ./test_scotch_dgraph_check data/bump.grf
+					$(EXECP) ./test_scotch_dgraph_check data/bump_b1.grf
+
+test_scotch_dgraph_check	:	test_scotch_dgraph_check.c	\
+					$(SCOTCHLIBDIR)/libptscotch$(LIB)
 
 ##
 
@@ -150,4 +217,4 @@ check_scotch_dgraph_grow	:	test_scotch_dgraph_grow
 					$(EXECP) ./test_scotch_dgraph_grow data/bump.grf
 
 test_scotch_dgraph_grow		:	test_scotch_dgraph_grow.c	\
-					$(SCOTCHLIBDIR)/libptscotch.a
+					$(SCOTCHLIBDIR)/libptscotch$(LIB)

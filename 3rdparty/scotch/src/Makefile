@@ -1,4 +1,4 @@
-## Copyright 2004,2007,2008,2010-2012 IPB, Universite de Bordeaux, INRIA & CNRS
+## Copyright 2004,2007,2008,2010-2012,2014 IPB, Universite de Bordeaux, INRIA & CNRS
 ##
 ## This file is part of the Scotch software package for static mapping,
 ## graph partitioning and sparse matrix ordering.
@@ -32,7 +32,7 @@
 
 VERSION	= 6
 RELEASE = 0
-PATCHLEVEL = 0
+PATCHLEVEL = 3
 
 .PHONY				:	clean	default	install	ptscotch	realclean	required	scotch
 
@@ -105,6 +105,12 @@ check				:	scotch
 ptcheck				:	ptscotch
 					(cd check ; $(MAKE) ptcheck)
 
+esmumps				:	scotch
+					(cd esmumps ; $(MAKE) scotch && $(MAKE) install)
+
+ptesmumps			:	ptscotch
+					(cd esmumps ; $(MAKE) ptscotch && $(MAKE) ptinstall)
+
 install				:	required	$(bindir)	$(includedir)	$(libdir)	$(mandir)/man1
 					-$(CP) -f ../bin/[agm]*$(EXE) $(bindir)
 					-$(CP) -f ../bin/d[agm]*$(EXE) $(bindir)
@@ -117,10 +123,12 @@ clean				:	required
 					(cd scotch ;         $(MAKE) clean)
 					(cd libscotchmetis ; $(MAKE) clean)
 					(cd check ;          $(MAKE) clean)
+					(cd esmumps ;        $(MAKE) clean)
 
 realclean			:	required
 					(cd libscotch ;      $(MAKE) realclean)
 					(cd scotch ;         $(MAKE) realclean)
 					(cd libscotchmetis ; $(MAKE) realclean)
 					(cd check ;          $(MAKE) realclean)
+					(cd esmumps ;        $(MAKE) realclean)
 					-$(RM) ../bin/* ../include/* ../lib/*

@@ -426,13 +426,6 @@ if (HAVE_MPI EQUAL 1)
     if (NOT stat EQUAL 0)
       message(FATAL_ERROR "Copying library source failed.")
     endif()
-    execute_process(COMMAND patch -p1 -i ${CMAKE_CURRENT_SOURCE_DIR}/scotch.patch WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/scotch
-                    OUTPUT_VARIABLE patchy
-                    RESULT_VARIABLE stat)
-    message("${patchy}")
-    if (NOT stat EQUAL 0)
-      message(FATAL_ERROR "Patching library source failed.")
-    endif()
     configure_file(
       "scotch.Makefile.inc.in"
       "${CMAKE_CURRENT_BINARY_DIR}/scotch/src/Makefile.inc"
