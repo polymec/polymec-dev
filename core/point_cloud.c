@@ -55,6 +55,7 @@ void point_cloud_free(point_cloud_t* cloud)
   ASSERT(cloud != NULL);
   tagger_free(cloud->tags);
   polymec_free(cloud->points);
+  polymec_free(cloud);
 }
 
 void point_cloud_set_property(point_cloud_t* cloud, const char* property, void* data, void (*dtor)(void*))

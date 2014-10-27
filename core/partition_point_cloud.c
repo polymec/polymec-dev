@@ -308,6 +308,9 @@ exchanger_t* partition_point_cloud(point_cloud_t** cloud, MPI_Comm comm, int* we
         global_partition[j] = p;
       }
     }
+    
+    // Clean up.
+    polymec_free(part_array);
   }
 
   // Distribute the point cloud.
