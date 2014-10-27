@@ -364,8 +364,8 @@ static void write_multivars_to_file(silo_file_t* file)
 
     // Write the point mesh and variable data.
     DBSetDir(file->dbfile, "/");
-    DBPutMultimesh(file->dbfile, mesh->name, num_chunks, &mesh_names[0], 
-                   mesh_types, optlist);
+    DBPutMultimesh(file->dbfile, mesh->name, num_chunks, 
+                   (char const* const*)mesh_names, mesh_types, optlist);
 
     // Clean up.
     for (int j = 0; j < num_chunks; ++j)
@@ -391,7 +391,8 @@ static void write_multivars_to_file(silo_file_t* file)
 
     // Write the variable data.
     DBSetDir(file->dbfile, "/");
-    DBPutMultivar(file->dbfile, var->name, num_chunks, var_names, var_types, optlist);
+    DBPutMultivar(file->dbfile, var->name, num_chunks, 
+                  (char const* const*)var_names, var_types, optlist); 
 
     // Clean up.
     for (int j = 0; j < num_chunks; ++j)
@@ -458,7 +459,8 @@ static void write_master_file(silo_file_t* file)
 
     // Write the multimesh.
     int stat = DBPutMultimesh(master, mesh->name, file->num_files*num_chunks, 
-                              mesh_names, mesh_types, optlist);
+                              (char const* const*)mesh_names, mesh_types, 
+                              optlist);
     if (stat == -1)
       polymec_error("Error writing multi-mesh to Silo master file %s.", master_file_name);
 
@@ -490,7 +492,8 @@ static void write_master_file(silo_file_t* file)
     }
 
     // Write the multivariable data.
-    DBPutMultivar(master, var->name, num_files*num_chunks, var_names, var_types, optlist);
+    DBPutMultivar(master, var->name, num_files*num_chunks, 
+                  (char const* const *)var_names, var_types, optlist);
 
     // Finally, write the number of files to the master file.
     int one = 1;
@@ -872,7 +875,8 @@ static void silo_file_write_tags(silo_file_t* file, tagger_t* tagger, const char
   // Write the compound array.
   if (elem_names->size > 0)
   {
-    DBPutCompoundarray(file->dbfile, tag_list_name, elem_names->data, elem_lengths->data,
+    DBPutCompoundarray(file->dbfile, tag_list_name, 
+                       (char const* const*)elem_names->data, elem_lengths->data,
                        elem_names->size, tag_data->data, tag_data->size, DB_INT, 0);
   }
 
@@ -1051,7 +1055,7 @@ void silo_file_write_mesh(silo_file_t* file,
 
   // Write out the 3D polyhedral mesh.
   int num_cells = mesh->num_cells;
-  DBPutUcdmesh(file->dbfile, (char*)mesh_name, 3, coordnames, coords,
+  DBPutUcdmesh(file->dbfile, (char*)mesh_name, 3, (char const* const*)coordnames, coords,
                num_nodes, num_cells, 0, 0,
                SILO_FLOAT_TYPE, optlist);
 

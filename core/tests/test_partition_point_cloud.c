@@ -92,7 +92,6 @@ void test_partition_planar_cloud(void** state, int nx, int ny)
   MPI_Comm_size(comm, &nprocs);
 
   // Create a nx x ny x 1 uniform point cloud.
-  real_t dx = 1.0/ny, dy = 1.0/ny;
   point_cloud_t* cloud = NULL;
   if (rank == 0)
   {
@@ -103,20 +102,6 @@ void test_partition_planar_cloud(void** state, int nx, int ny)
   // Partition it.
   exchanger_t* distributor = partition_point_cloud(&cloud, comm, NULL, 0.05);
   exchanger_free(distributor);
-
-#if 0
-  // Now check data. Points should all fall on dx tick marks.
-  for (int i = 0; i < cloud->num_points; ++i)
-  {
-    real_t x = cloud->points[i].x;
-    real_t y = cloud->points[i].y;
-    real_t z = cloud->points[i].z;
-    int j = lround(x/dx - 0.5);
-    assert_true(fabs(x - (0.5+j)*dx) < 1e-6);
-    assert_true(fabs(y) < 1e-6);
-    assert_true(fabs(z) < 1e-6);
-  }
-#endif
 
   // Plot it.
   double p[cloud->num_points];
@@ -147,7 +132,6 @@ void test_partition_cubic_cloud(void** state, int nx, int ny, int nz)
   MPI_Comm_size(comm, &nprocs);
 
   // Create a nx x ny x 1 uniform point cloud.
-  real_t dx = 1.0/ny, dy = 1.0/ny, dz = 1.0/nz;
   point_cloud_t* cloud = NULL;
   if (rank == 0)
   {
@@ -158,20 +142,6 @@ void test_partition_cubic_cloud(void** state, int nx, int ny, int nz)
   // Partition it.
   exchanger_t* distributor = partition_point_cloud(&cloud, comm, NULL, 0.05);
   exchanger_free(distributor);
-
-#if 0
-  // Now check data. Points should all fall on dx tick marks.
-  for (int i = 0; i < cloud->num_points; ++i)
-  {
-    real_t x = cloud->points[i].x;
-    real_t y = cloud->points[i].y;
-    real_t z = cloud->points[i].z;
-    int j = lround(x/dx - 0.5);
-    assert_true(fabs(x - (0.5+j)*dx) < 1e-6);
-    assert_true(fabs(y) < 1e-6);
-    assert_true(fabs(z) < 1e-6);
-  }
-#endif
 
   // Plot it.
   double p[cloud->num_points];
