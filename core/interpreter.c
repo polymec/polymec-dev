@@ -2565,6 +2565,11 @@ void lua_pushuserdefined(struct lua_State* lua, void* userdefined, void (*dtor)(
   store_user_defined(lua, userdefined, dtor);
 }
 
+static void destroy_table_key(char* key)
+{
+  polymec_free(key);
+}
+
 static void destroy_table_entry(char* key, void* value)
 {
   polymec_free(key);
@@ -2666,7 +2671,7 @@ string_ptr_unordered_map_t* lua_tounorderedmap(struct lua_State* lua, int index)
     {
       void* tval = (void*)lua_topointer(lua, val_index);
       interpreter_storage_t* tvar = (interpreter_storage_t*)tval;
-      string_ptr_unordered_map_insert_with_kv_dtor(table, string_dup(tkey), tvar->datum, destroy_table_entry);
+      string_ptr_unordered_map_insert_with_k_dtor(table, string_dup(tkey), tvar->datum, destroy_table_key);
     }
 
     // Removes value from stack.
