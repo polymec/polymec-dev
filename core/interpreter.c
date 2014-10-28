@@ -1094,10 +1094,16 @@ void interpreter_parse_file(interpreter_t* interp, char* input_file)
 
     // Allocate storage for the input string on rank > 0 processes.
     if (rank > 0)
-      input_str = polymec_malloc(sizeof(char) * input_len);
+      input_str = polymec_malloc(sizeof(char) * (input_len+1));
 
     // Broadcast the input.
     MPI_Bcast(input_str, input_len, MPI_CHAR, 0, MPI_COMM_WORLD);
+
+    if (rank > 0)
+    {
+      // Don't forget to null-terminate!
+      input_str[input_len] = '\0';
+    }
   }
 
   // Parse the string locally.
