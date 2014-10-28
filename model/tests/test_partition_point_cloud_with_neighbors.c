@@ -239,7 +239,7 @@ void test_partition_small_cubic_cloud(void** state)
 
 void test_partition_large_cubic_cloud(void** state)
 {
-  test_partition_cubic_cloud(state, 50, 50, 50);
+  test_partition_cubic_cloud(state, 20, 20, 20);
 }
 
 int main(int argc, char* argv[]) 
