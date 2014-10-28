@@ -123,7 +123,8 @@ static bool am_step(void* context, real_t max_dt, real_t max_t, real_t* t, real_
   // Integrate.
   integ->t = *t;
   real_t t2 = *t + max_dt;
-  int status = CVode(integ->cvode, t2, integ->x, &integ->t, CV_ONE_STEP);
+  int status = CVode(integ->cvode, t2, integ->x, &integ->t, CV_NORMAL);
+  ASSERT(integ->t <= t2);
   
   // Clear the present status.
   if (integ->status_message != NULL)
