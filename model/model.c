@@ -1160,8 +1160,12 @@ int multi_model_main(model_dispatch_t model_table[],
   // Get the parsed command line options.
   options_t* opts = options_argv();
 
+  // Extract the executable name.
+  char* full_exe_path = options_argument(opts, 0);
+  char exe_dir[FILENAME_MAX], exe_name[FILENAME_MAX];
+  parse_path(full_exe_path, exe_dir, exe_name);
+
   // Extract the command and arguments.
-  char* exe_name = options_argument(opts, 0);
   char* command = options_argument(opts, 1);
   char* model_name = options_argument(opts, 2);
   char* input = options_argument(opts, 3);
@@ -1201,7 +1205,17 @@ int multi_model_main(model_dispatch_t model_table[],
     }
   }
   if (model == NULL)
-    polymec_error("%s: Invalid model: %s\n", exe_name, model_name);
+  {
+    fprintf(stderr, "%s: Invalid model: %s\n", exe_name, model_name);
+    fprintf(stderr, "%s: Valid models are:\n", exe_name);
+    int i = 0;
+    while (strcmp(model_table[i].model_name, END_OF_MODELS.model_name) != 0)
+    {
+      fprintf(stderr, "  %s\n", model_table[i].model_name);
+      ++i;
+    }
+    return -1;
+  }
 
   // Have we been asked for help?
   if (!strcmp(command, "help"))
