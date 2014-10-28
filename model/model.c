@@ -813,7 +813,7 @@ static void driver_usage(const char* model_name, FILE* stream)
 }
 
 // Prints model-specific help.
-static void model_help(model_t* model, const char* arg, FILE* stream)
+static void model_help(const char* exe_name, model_t* model, const char* arg, FILE* stream)
 {
   // If no argument was given, just print the model's basic documentation.
   if (arg == NULL)
@@ -975,6 +975,11 @@ int model_main(const char* model_name, model_ctor constructor, int argc, char* a
   // Get the parsed command line options.
   options_t* opts = options_argv();
 
+  // Extract the executable name.
+  char* full_exe_path = options_argument(opts, 0);
+  char exe_dir[FILENAME_MAX], exe_name[FILENAME_MAX];
+  parse_path(full_exe_path, exe_dir, exe_name);
+
   // Extract the command and arguments.
   char* command = options_argument(opts, 1);
   char* input = options_argument(opts, 2);
@@ -992,12 +997,12 @@ int model_main(const char* model_name, model_ctor constructor, int argc, char* a
     }
     if (valid_commands[c] == NULL)
     {
-      fprintf(stderr, "%s: invalid command: '%s'\n", model_name, command);
+      fprintf(stderr, "%s: invalid command: '%s'\n", exe_name, command);
       return -1;
     }
   }
   else
-    driver_usage(model_name, stderr);
+    driver_usage(exe_name, stderr);
 
   // Attempt to construct the model.
   model_t* model = (*constructor)();
@@ -1006,7 +1011,7 @@ int model_main(const char* model_name, model_ctor constructor, int argc, char* a
   // Have we been asked for help?
   if (!strcmp(command, "help"))
   {
-    model_help(model, input, stderr);
+    model_help(exe_name, model, input, stderr);
     model_free(model);
     return 0;
   }
@@ -1016,11 +1021,11 @@ int model_main(const char* model_name, model_ctor constructor, int argc, char* a
   {
     if (input == NULL)
     {
-      fprintf(stderr, "%s: No benchmark problem given! Usage:\n", model_name);
-      fprintf(stderr, "%s benchmark [problem] OR \n", model_name);
-      fprintf(stderr, "%s benchmark all OR \n", model_name);
-      fprintf(stderr, "%s benchmark list OR \n", model_name);
-      fprintf(stderr, "%s benchmark describe [problem] OR \n", model_name);
+      fprintf(stderr, "%s: No benchmark problem given! Usage:\n", exe_name);
+      fprintf(stderr, "%s benchmark [problem] OR \n", exe_name);
+      fprintf(stderr, "%s benchmark all OR \n", exe_name);
+      fprintf(stderr, "%s benchmark list OR \n", exe_name);
+      fprintf(stderr, "%s benchmark describe [problem] OR \n", exe_name);
       return -1;
     }
 
@@ -1045,7 +1050,7 @@ int model_main(const char* model_name, model_ctor constructor, int argc, char* a
     {
       // We need to reach into argv for the benchmark name.
       if (argc < 4)
-        fprintf(stderr, "%s: No benchmark specified for description.", model_name);
+        fprintf(stderr, "%s: No benchmark specified for description.", exe_name);
       const char* benchmark = argv[3];
       model_describe_benchmark(model, benchmark, stderr);
     }
@@ -1060,8 +1065,8 @@ int model_main(const char* model_name, model_ctor constructor, int argc, char* a
   ASSERT(!strcmp(command, "run"));
   if (input == NULL)
   {
-    fprintf(stderr, "%s: No input file given! Usage:\n", model_name);
-    fprintf(stderr, "%s run [input file]\n", model_name);
+    fprintf(stderr, "%s: No input file given! Usage:\n", exe_name);
+    fprintf(stderr, "%s run [input file]\n", exe_name);
     return -1;
   }
 
@@ -1069,7 +1074,7 @@ int model_main(const char* model_name, model_ctor constructor, int argc, char* a
   FILE* fp = fopen(input, "r");
   if (fp == NULL)
   {
-    fprintf(stderr, "%s: Input file not found: %s\n", model_name, input);
+    fprintf(stderr, "%s: Input file not found: %s\n", exe_name, input);
     return -1;
   }
   fclose(fp);
@@ -1150,6 +1155,39 @@ static void multi_model_usage(const char* exe_name,
   exit(-1);
 }
 
+// Prints model-specific help for multi-model programs.
+static void multi_model_help(const char* exe_name, model_t* model, const char* arg, FILE* stream)
+{
+  // If no argument was given, just print the model's basic documentation.
+  if (arg == NULL)
+  {
+    if (model->doc != NULL)
+    {
+      int pos = 0;
+      char* line;
+      while (docstring_next(model->doc, &pos, &line))
+        fprintf(stream, "%s\n", line);
+    }
+    else
+    {
+      fprintf(stream, "No documentation is available for the %s model.\n", model_name(model));
+      fprintf(stream, "Use '%s help %s list' to list available functions, and \n", exe_name, model_name(model));
+      fprintf(stream, "'%s help %s <function>' for documentation on a given function.\n", exe_name, model_name(model));
+    }
+  }
+  else if (model->vtable.read_input != NULL)
+  {
+    // Attempt to dig up the documentation for the given registered function.
+    interpreter_t* interp = model_interpreter(model);
+    interpreter_help(interp, arg, stream);
+  }
+  else
+  {
+    fprintf(stream, "No specific help is available for models with custom input.\n");
+  }
+}
+
+
 int multi_model_main(model_dispatch_t model_table[], 
                      int argc, 
                      char* argv[])
@@ -1186,6 +1224,10 @@ int multi_model_main(model_dispatch_t model_table[],
       fprintf(stderr, "%s: invalid command: '%s'\n", exe_name, command);
       return -1;
     }
+
+    // Show generic help for help with no model name.
+    if ((strcmp(command, "help") == 0) && (model_name == NULL))
+      multi_model_usage(exe_name, model_table, stderr);
   }
   else
     multi_model_usage(exe_name, model_table, stderr);
@@ -1220,7 +1262,7 @@ int multi_model_main(model_dispatch_t model_table[],
   // Have we been asked for help?
   if (!strcmp(command, "help"))
   {
-    model_help(model, input, stderr);
+    multi_model_help(exe_name, model, input, stderr);
     model_free(model);
     return 0;
   }
