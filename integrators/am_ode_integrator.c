@@ -222,6 +222,7 @@ ode_integrator_t* functional_am_ode_integrator_new(int order,
   integ->status_message = NULL;
   integ->max_krylov_dim = 0;
   integ->initialized = false;
+  integ->precond = NULL;
 
   // Set up KINSol and accessories.
   integ->x = N_VNew(integ->comm, integ->N);
