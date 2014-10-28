@@ -29,8 +29,8 @@
 
 struct options_t 
 {
-  char* command;
-  char* input;
+  int num_args;
+  char** args;
   string_string_unordered_map_t* params;
 };
 
@@ -41,10 +41,9 @@ static void options_free(void* ctx, void* dummy)
 {
   options_t* opts = (options_t*)ctx;
 
-  if (opts->command != NULL)
-    polymec_free(opts->command);
-  if (opts->input != NULL)
-    polymec_free(opts->input);
+  for (int i = 0; i < opts->num_args; ++i)
+    polymec_free(opts->args[i]);
+  polymec_free(opts->args);
 
   // Delete all parameter data.
   int pos = 0;
@@ -65,6 +64,10 @@ static void destroy_kv(char* key, char* value)
 options_t* options_new()
 {
   options_t* o = GC_MALLOC(sizeof(options_t));
+  o->num_args = 0;
+  o->args = NULL;
+  o->params = string_string_unordered_map_new();
+  GC_register_finalizer(o, &options_free, o, NULL, NULL);
   return o;
 }
 
@@ -78,29 +81,25 @@ void options_parse(int argc, char** argv)
   if (argv_singleton != NULL)
     argv_singleton = NULL;
   options_t* o = options_new();
-  o->command = NULL;
-  o->input = NULL;
-  o->params = string_string_unordered_map_new();
-  GC_register_finalizer(o, &options_free, o, NULL, NULL);
 
   // Parse the basic options.
-  if (argc == 1)
-    o->command = NULL;
-  else if (!strcmp(argv[1], "help") || !strcmp(argv[1], "--help"))
-    o->command = string_dup("help");
-  else 
-    o->command = string_dup(argv[1]);
-  bool has_input = false;
-  if ((argc >= 3) && (!strcmp(o->command, "run") || 
-                      !strcmp(o->command, "benchmark") ||
-                      !strcmp(o->command, "help")))
+  o->num_args = argc;
+  o->args = polymec_malloc(sizeof(char*) * o->num_args);
+  int first_named_value = -1;
+  for (int i = 0; i < argc; ++i)
   {
-    has_input = true;
-    o->input = string_dup(argv[2]);
+    if ((i == 2) && (!strcmp(argv[1], "help") || !strcmp(argv[1], "--help")))
+      o->args[i] = string_dup("help");
+    else 
+    {
+      if (string_contains(argv[i], "=") && (first_named_value == -1))
+        first_named_value = i;
+      o->args[i] = string_dup(argv[i]);
+    }
   }
 
   // Now parse parameters.
-  int i = (has_input) ? 3 : 2;
+  int i = (first_named_value == -1) ? 0 : first_named_value;
   while (i < argc)
   {
     // Parse a key=value pair.
@@ -128,14 +127,13 @@ void options_parse(int argc, char** argv)
   argv_singleton = o;
 }
 
-char* options_command(options_t* opts)
+char* options_argument(options_t* opts, int i)
 {
-  return opts->command;
-}
-
-char* options_input(options_t* opts)
-{
-  return opts->input;
+  ASSERT(i >= 0);
+  if (i < opts->num_args)
+    return opts->args[i];
+  else
+    return NULL;
 }
 
 char* options_value(options_t* opts, const char* name)

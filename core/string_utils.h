@@ -72,6 +72,10 @@ int string_trim(char* s);
 // Returns true if the given string is numeric, false if not.
 bool string_is_number(const char* s);
 
+// Returns true if the given string contains the given substring, 
+// false if not.
+bool string_contains(const char* s, const char* subs);
+
 // Given a string and a NULL-terminated list of token-value pairs, 
 // returns a newly-allocated string containing the original string with 
 // all instances of tokens replaced with their substitution values. This 

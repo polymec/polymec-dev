@@ -42,16 +42,12 @@ options_t* options_argv();
 // options singleton.
 void options_parse(int argc, char** argv);
 
-// Returns the command passed on the command line, or NULL if no command 
-// was given.
-char* options_command(options_t* opts);
+// Returns an internal string holding the numbered argument passed on the 
+// command line, in the same way argv would store it, or NULL if no such 
+// argument was given.
+char* options_argument(options_t* opts, int n);
 
-// Returns the input identifier passed to the command line, or NULL if no such 
-// identifier was given. If the given command was "run", this identifies an
-// input file. If the command was "benchmark", this identifies a problem.
-char* options_input(options_t* opts);
-
-// Returns a string value for the given parameter, or NULL if no such 
+// Returns a string holding the given named value, or NULL if no such 
 // parameter exists within opts.
 char* options_value(options_t* opts, const char* name);
 

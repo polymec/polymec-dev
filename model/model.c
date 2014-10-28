@@ -796,7 +796,7 @@ static void driver_usage(const char* model_name, FILE* stream)
 {
   fprintf(stream, "%s: usage:\n", model_name);
   fprintf(stream, "%s [command] [args]\n\n", model_name);
-  fprintf(stream, "Here, [command] is one of the following:\n\n");
+  fprintf(stream, "Here, [command] [args] is one of the following:\n\n");
   fprintf(stream, "  run [file]                -- Runs a simulation with the given input file.\n");
   fprintf(stream, "  benchmark [name]          -- Runs or queries a benchmark problem.\n");
   fprintf(stream, "  help                      -- Prints information about the given model.\n\n");
@@ -976,8 +976,8 @@ int model_main(const char* model_name, model_ctor constructor, int argc, char* a
   options_t* opts = options_argv();
 
   // Extract the command and arguments.
-  char* command = options_command(opts);
-  char* input = options_input(opts);
+  char* command = options_argument(opts, 1);
+  char* input = options_argument(opts, 2);
 
   // Validate our inputs.
   if (command != NULL)
@@ -1118,6 +1118,206 @@ int model_main(const char* model_name, model_ctor constructor, int argc, char* a
   return 0;
 }
 
+static void multi_model_usage(const char* exe_name, 
+                              model_dispatch_t models[], 
+                              FILE* stream)
+{
+  fprintf(stream, "%s: usage:\n", exe_name);
+  fprintf(stream, "%s [command] [model] [args]\n\n", exe_name);
+  fprintf(stream, "Here, [command] [model] [args] is one of the following:\n\n");
+  fprintf(stream, "  run [model] [file]                -- Runs a simulation with the given\n");
+  fprintf(stream, "                                       input file.\n");
+  fprintf(stream, "  benchmark [model] [name]          -- Runs or queries a benchmark problem.\n");
+  fprintf(stream, "  help [model]                      -- Prints information about the\n");
+  fprintf(stream, "                                       given model.\n\n");
+  fprintf(stream, "Benchmark commands:\n");
+  fprintf(stream, "  benchmark [model] list            -- Lists all available benchmark problems.\n");
+  fprintf(stream, "  benchmark [model] describe [name] -- Describes the given benchmark problem.\n");
+  fprintf(stream, "  benchmark [model] all             -- Runs all available benchmark problems.\n");
+  fprintf(stream, "  benchmark [model] [name]          -- Runs the given benchmark problem.\n\n");
+  fprintf(stream, "Help commands:\n");
+  fprintf(stream, "  help [model]                      -- Prints model-specific help information.\n");
+  fprintf(stream, "  help [model] list                 -- Prints a list of available functions.\n");
+  fprintf(stream, "  help [model] [function/symbol]    -- Prints documentation for a\n");
+  fprintf(stream, "                                       function/symbol.\n\n");
+  fprintf(stream, "Above, [model] is one of:\n");
+  int i = 0;
+  while (strcmp(models[i].model_name, END_OF_MODELS.model_name) != 0)
+  {
+    fprintf(stream, "  %s\n", models[i].model_name);
+    ++i;
+  }
+  exit(-1);
+}
+
+int multi_model_main(model_dispatch_t model_table[], 
+                     int argc, 
+                     char* argv[])
+{
+  // Start everything up.
+  polymec_init(argc, argv);
+
+  // Get the parsed command line options.
+  options_t* opts = options_argv();
+
+  // Extract the command and arguments.
+  char* exe_name = options_argument(opts, 0);
+  char* command = options_argument(opts, 1);
+  char* model_name = options_argument(opts, 2);
+  char* input = options_argument(opts, 3);
+
+  // Validate our inputs.
+  if (command != NULL)
+  {
+    int c = 0;
+    static const char* valid_commands[] = {"run", "benchmark", "help", NULL};
+    while (valid_commands[c] != NULL)
+    {
+      if (!strcmp(command, valid_commands[c]))
+        break;
+      ++c;
+    }
+    if (valid_commands[c] == NULL)
+    {
+      fprintf(stderr, "%s: invalid command: '%s'\n", exe_name, command);
+      return -1;
+    }
+  }
+  else
+    multi_model_usage(exe_name, model_table, stderr);
+
+  // Attempt to construct the model.
+  model_t* model = NULL;
+  {
+    int i = 0;
+    while (strcmp(model_table[i].model_name, END_OF_MODELS.model_name) != 0)
+    {
+      if (strcmp(model_table[i].model_name, model_name) == 0)
+      {
+        model = model_table[i].model_constructor();
+        break;
+      }
+      ++i;
+    }
+  }
+  if (model == NULL)
+    polymec_error("%s: Invalid model: %s\n", exe_name, model_name);
+
+  // Have we been asked for help?
+  if (!strcmp(command, "help"))
+  {
+    model_help(model, input, stderr);
+    model_free(model);
+    return 0;
+  }
+
+  // Have we been asked to do something related to a benchmark?
+  if (!strcmp(command, "benchmark"))
+  {
+    if (input == NULL)
+    {
+      fprintf(stderr, "%s: No benchmark problem given! Usage:\n", exe_name);
+      fprintf(stderr, "%s benchmark [model] [problem] OR \n", exe_name);
+      fprintf(stderr, "%s benchmark [model] all OR \n", exe_name);
+      fprintf(stderr, "%s benchmark [model] list OR \n", exe_name);
+      fprintf(stderr, "%s benchmark [model] describe [problem] OR \n", exe_name);
+      return -1;
+    }
+
+    if (!strcmp(input, "all")) // Run all benchmarks?
+      model_run_all_benchmarks(model);
+    else if (!strcmp(input, "list")) // List benchmarks?
+    {
+      fprintf(stderr, "Benchmarks for %s model:\n", model_name);
+      int pos = 0;
+      char *benchmark;
+      model_benchmark_t* metadata;
+      while (model_benchmark_map_next(model->benchmarks, &pos, &benchmark, &metadata))
+      {
+        if (metadata->description != NULL)
+          fprintf(stderr, "  %s (%s)\n", benchmark, docstring_first_line(metadata->description));
+        else
+          fprintf(stderr, "  %s\n", benchmark);
+      }
+      fprintf(stderr, "\n");
+    }
+    else if (!strcmp(input, "describe")) // Describe a benchmark?
+    {
+      // We need to reach into argv for the benchmark name.
+      if (argc < 4)
+        fprintf(stderr, "%s: No benchmark specified for description.", model_name);
+      const char* benchmark = argv[3];
+      model_describe_benchmark(model, benchmark, stderr);
+    }
+    else
+      model_run_benchmark(model, input);
+
+    model_free(model);
+    return 0;
+  }
+
+  // We are asked to run a simulation.
+  ASSERT(!strcmp(command, "run"));
+  if (input == NULL)
+  {
+    fprintf(stderr, "%s: No input file given! Usage:\n", model_name);
+    fprintf(stderr, "%s run [input file]\n", model_name);
+    return -1;
+  }
+
+  // Check to see whether the given file exists.
+  FILE* fp = fopen(input, "r");
+  if (fp == NULL)
+  {
+    fprintf(stderr, "%s: Input file not found: %s\n", model_name, input);
+    return -1;
+  }
+  fclose(fp);
+
+  // By default, the simulation is named after the input file (minus its path 
+  // and anything after the first alphanumeric character).
+  char dir_name[FILENAME_MAX], file_name[FILENAME_MAX];
+  parse_path(input, dir_name, file_name);
+  int len = strlen(file_name), end = 0;
+  while (end < len)
+  {
+    if (!isalnum(file_name[end]))
+      break;
+    ++end;
+  }
+  char prefix[FILENAME_MAX];
+  strncpy(prefix, file_name, end);
+  prefix[end] = '\0';
+  model_set_sim_name(model, prefix);
+
+  // Read the contents of the input file into the model's interpreter.
+  model_read_input_file(model, input);
+
+  // Default time endpoints, max number of steps.
+  real_t t1 = 0.0, t2 = 1.0;
+  int max_steps = INT_MAX;
+
+  // Overwrite these defaults with interpreted values.
+  interpreter_t* interp = model_interpreter(model);
+  if (interpreter_contains(interp, "t1", INTERPRETER_NUMBER))
+    t1 = interpreter_get_number(interp, "t1");
+  if (interpreter_contains(interp, "t2", INTERPRETER_NUMBER))
+    t2 = interpreter_get_number(interp, "t2");
+  if (interpreter_contains(interp, "max_steps", INTERPRETER_NUMBER))
+    max_steps = (int)interpreter_get_number(interp, "max_steps");
+
+  // Override options given at the command line.
+  override_interpreted_values(model, &t1, &t2, &max_steps);
+
+  // Run the model.
+  model_run(model, t1, t2, max_steps);
+
+  // Clean up.
+  model_free(model);
+
+  return 0;
+}
+
 static void minimal_driver_usage(const char* model_name, FILE* stream)
 {
   fprintf(stream, "%s: usage:\n", model_name);
@@ -1133,8 +1333,8 @@ int model_minimal_main(const char* model_name, model_ctor constructor, int argc,
   // Get the parsed command line options.
   options_t* opts = options_argv();
 
-  // Here, the command serves as the input.
-  char* input = options_command(opts);
+  // Here, the first argument serves as the input.
+  char* input = options_argument(opts, 1);
   if ((input == NULL) || !strcmp(input, "help"))
   {
     minimal_driver_usage(model_name, stderr);
@@ -1200,149 +1400,5 @@ void model_report_error_norm(real_t error_norm)
   char nstr[1024];
   snprintf(nstr, 1024, "%g", error_norm);
   options_set(options, "error_norm", nstr);
-}
-
-//------------------------------------------------------------------------
-//                        Dispatch model logic
-//------------------------------------------------------------------------
-
-DEFINE_UNORDERED_MAP(model_table, char*, model_ctor, string_hash, string_equals)
-
-typedef struct
-{
-  model_t* ubermodel;
-  model_table_t* models;
-  model_t* selected_model;
-  char* selection_var;
-} dispatch_model_t;
-
-static void disp_read_input(void* context, interpreter_t* interpreter, options_t* options)
-{
-  dispatch_model_t* model = context;
-
-  // Look for a "model" variable in the interpreter.
-  char* model_name = interpreter_get_string(interpreter, model->selection_var);
-  if (model_name == NULL)
-    polymec_error("No '%s' variable was found in the input.", model->selection_var);
-
-  if (!dispatch_model_select(model->ubermodel, model_name))
-    polymec_error("Invalid model was selected: '%s'", model_name);
-}
-
-static void disp_init(void* context, real_t t)
-{
-  dispatch_model_t* model = context;
-  ASSERT(model->selected_model != NULL);
-  model_init(model->selected_model, t);
-}
-
-static real_t disp_max_dt(void* context, real_t t, char* reason)
-{
-  dispatch_model_t* model = context;
-  ASSERT(model->selected_model != NULL);
-  return model_max_dt(model->selected_model, reason);
-}
-
-static real_t disp_advance(void* context, real_t max_dt, real_t t)
-{
-  dispatch_model_t* model = context;
-  ASSERT(model->selected_model != NULL);
-  return model_advance(model->selected_model, max_dt);
-}
-
-static void disp_finalize(void* context, int step, real_t t)
-{
-  dispatch_model_t* model = context;
-  ASSERT(model->selected_model != NULL);
-  model_finalize(model->selected_model);
-}
-
-static void disp_load(void* context, const char* file_prefix, const char* directory, real_t* time, int step)
-{
-  dispatch_model_t* model = context;
-  ASSERT(model->selected_model != NULL);
-  model_load(model->selected_model, step);
-}
-
-static void disp_save(void* context, const char* file_prefix, const char* directory, real_t time, int step)
-{
-  dispatch_model_t* model = context;
-  ASSERT(model->selected_model != NULL);
-  model_save(model->selected_model);
-}
-
-static void disp_plot(void* context, const char* file_prefix, const char* directory, real_t time, int step)
-{
-  dispatch_model_t* model = context;
-  ASSERT(model->selected_model != NULL);
-  model_plot(model->selected_model);
-}
-
-static void disp_compute_error_norms(void* context, st_func_t* solution, real_t t, real_t* norms)
-{
-  dispatch_model_t* model = context;
-  ASSERT(model->selected_model != NULL);
-  model_compute_error_norms(model->selected_model, solution, norms);
-}
-
-static void disp_dtor(void* context)
-{
-  dispatch_model_t* model = context;
-  model_table_free(model->models);
-  string_free(model->selection_var);
-  polymec_free(model);
-}
-
-model_t* dispatch_model_new(const char* name, docstring_t* doc)
-{
-  dispatch_model_t* d = polymec_malloc(sizeof(dispatch_model_t));
-  d->models = model_table_new();
-  d->selected_model = NULL;
-  d->selection_var = string_dup("model");
-  model_vtable vtable = {.read_input = disp_read_input,
-                         .read_custom_input = NULL,
-                         .init = disp_init,
-                         .max_dt = disp_max_dt,
-                         .advance = disp_advance,
-                         .finalize = disp_finalize,
-                         .load = disp_load,
-                         .save = disp_save,
-                         .plot = disp_plot,
-                         .compute_error_norms = disp_compute_error_norms,
-                         .dtor = disp_dtor};
-  d->ubermodel = model_new(name, d, vtable, doc);
-  return d->ubermodel;
-}
-
-void dispatch_model_register(model_t* dispatch_model, 
-                             const char* model_name, 
-                             model_ctor model_constructor)
-{
-  dispatch_model_t* d = dispatch_model->context;
-  ASSERT(!model_table_contains(d->models, (char*)model_name));
-  model_table_insert_with_k_dtor(d->models, 
-                                 string_dup(model_name), 
-                                 model_constructor,
-                                 string_free);
-}
-
-bool dispatch_model_select(model_t* dispatch_model, const char* selection_name)
-{
-  dispatch_model_t* d = dispatch_model->context;
-  if (d->selected_model != NULL)
-    polymec_error("A model has already been selected for the %s model.", model_name(dispatch_model));
-
-  model_ctor* model_ctor_p = (model_ctor*)model_table_get(d->models, (char*)selection_name);
-  if (model_ctor_p == NULL)
-    return false;
-  d->selected_model = (*model_ctor_p)();
-  return true;
-}
-
-void dispatch_model_set_selection_var(model_t* dispatch_model, const char* selection_var)
-{
-  dispatch_model_t* d = dispatch_model->context;
-  string_free(d->selection_var);
-  d->selection_var = string_dup(selection_var);
 }
 

@@ -87,9 +87,8 @@ int main(int argc, char** argv)
     // Get the parsed command line options.
     opts = options_argv();
 
-    // Extract the input file and arguments. Note that we use "command" here 
-    // to get the input file, since it comes first.
-    input = options_command(opts);
+    // Extract the input file and arguments. 
+    input = options_argument(opts, 1);
     if (input == NULL)
     {
       mesher_usage(stderr);
@@ -150,7 +149,7 @@ int main(int argc, char** argv)
     // If we were asked for help, service the request here.
     if (!strcmp(input, "help"))
     {
-      char* topic = options_input(opts);
+      char* topic = options_argument(opts, 2);
       mesher_help(interp, topic, stderr);
       leave = 1;
       goto leaving;
@@ -160,7 +159,7 @@ int main(int argc, char** argv)
   {
     opts = options_argv();
     if (opts != NULL)
-      input = options_command(opts);
+      input = options_argument(opts, 1);
     if (input != NULL)
     {
       interp = interpreter_new(NULL);

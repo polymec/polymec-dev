@@ -117,6 +117,11 @@ bool string_is_number(const char* s)
   return (*p == '\0');
 }
 
+bool string_contains(const char* s, const char* subs)
+{
+  return (strstr(s, subs) != NULL);
+}
+
 // This stuff is used for string_subst, below.
 
 typedef struct

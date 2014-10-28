@@ -30,30 +30,14 @@
 #include "core/polymec.h"
 #include "core/options.h"
 
-void test_options_without_input(void** state)
+void test_options(void** state)
 {
-  // Generic commands have no input.
-  int argc = 6;
-  char* argv[] = {"program", "command", "input", "p1=v1", "p2=v2", "p3=v3"};
-  options_parse(argc, argv);
-  options_t* opt = options_argv();
-  assert_string_equal("command", options_command(opt));
-  assert_true(options_input(opt) == NULL);
-  assert_string_equal("v1", options_value(opt, "p1"));
-  assert_string_equal("v2", options_value(opt, "p2"));
-  assert_string_equal("v3", options_value(opt, "p3"));
-  opt = NULL;
-}
-
-void test_options_with_input(void** state)
-{
-  // The "run" and "benchmark" commands have input.
   int argc = 6;
   char* argv[] = {"program", "run", "input", "p1=v1", "p2=v2", "p3=v3"};
   options_parse(argc, argv);
   options_t* opt = options_argv();
-  assert_string_equal("run", options_command(opt));
-  assert_string_equal("input", options_input(opt));
+  assert_string_equal("run", options_argument(opt, 1));
+  assert_string_equal("input", options_argument(opt, 2));
   assert_string_equal("v1", options_value(opt, "p1"));
   assert_string_equal("v2", options_value(opt, "p2"));
   assert_string_equal("v3", options_value(opt, "p3"));
@@ -65,8 +49,7 @@ int main(int argc, char* argv[])
   polymec_init(argc, argv);
   const UnitTest tests[] = 
   {
-    unit_test(test_options_without_input),
-    unit_test(test_options_with_input)
+    unit_test(test_options)
   };
   return run_tests(tests);
 }

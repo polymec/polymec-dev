@@ -130,11 +130,11 @@ static void set_up_logging()
   {
     // Are we maybe in a test environment, in which the logging=xxx 
     // argument is the first one passed?
-    char* command = options_command(opts);
-    if ((command != NULL) && (strstr(command, "logging") != NULL) && (strcasecmp(command, "logging=") != 0))
+    char* arg = options_argument(opts, 1);
+    if ((arg != NULL) && (strstr(arg, "logging") != NULL) && (strcasecmp(arg, "logging=") != 0))
     {
       int num_words;
-      char** words = string_split(command, "=", &num_words);
+      char** words = string_split(arg, "=", &num_words);
       if (num_words == 2)
       {
         ASSERT(strcasecmp(words[0], "logging") == 0);
@@ -174,11 +174,11 @@ static void pause_if_requested()
   {
     // Are we maybe in a test environment, in which the pause=xxx 
     // argument is the first one passed?
-    char* command = options_command(opts);
-    if ((command != NULL) && (strstr(command, "pause") != NULL) && (strcasecmp(command, "pause=") != 0))
+    char* arg = options_argument(opts, 1);
+    if ((arg != NULL) && (strstr(arg, "pause") != NULL) && (strcasecmp(arg, "pause=") != 0))
     {
       int num_words;
-      char** words = string_split(command, "=", &num_words);
+      char** words = string_split(arg, "=", &num_words);
       if (num_words == 2)
       {
         ASSERT(strcasecmp(words[0], "pause") == 0);
@@ -487,15 +487,15 @@ void polymec_provenance_fprintf(FILE* stream)
 
   // If we received an input script, write out its contents.
   options_t* options = options_argv();
-  char* input = options_input(options);
+  char* input = options_argument(options, 2);
   if (input == NULL)
   {
     // It's possible that the 1st argument is actually the input file.
-    char* command = options_command(options);
-    FILE* fp = fopen(command, "r");
+    char* arg = options_argument(options, 1);
+    FILE* fp = fopen(arg, "r");
     if (fp != NULL)
     {
-      input = command;
+      input = arg;
       fclose(fp);
     }
   }
