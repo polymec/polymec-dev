@@ -1231,6 +1231,8 @@ int multi_model_main(model_dispatch_t model_table[],
   }
   else
     multi_model_usage(exe_name, model_table, stderr);
+  if (model_name == NULL)
+    multi_model_usage(exe_name, model_table, stderr);
 
   // Attempt to construct the model.
   model_t* model = NULL;
@@ -1301,7 +1303,7 @@ int multi_model_main(model_dispatch_t model_table[],
     {
       // We need to reach into argv for the benchmark name.
       if (argc < 4)
-        fprintf(stderr, "%s: No benchmark specified for description.", model_name);
+        fprintf(stderr, "%s: No benchmark specified for description.", exe_name);
       const char* benchmark = argv[3];
       model_describe_benchmark(model, benchmark, stderr);
     }
@@ -1316,8 +1318,8 @@ int multi_model_main(model_dispatch_t model_table[],
   ASSERT(!strcmp(command, "run"));
   if (input == NULL)
   {
-    fprintf(stderr, "%s: No input file given! Usage:\n", model_name);
-    fprintf(stderr, "%s run [input file]\n", model_name);
+    fprintf(stderr, "%s: No input file given! Usage:\n", exe_name);
+    fprintf(stderr, "%s run %s [input file]\n", exe_name, model_name);
     return -1;
   }
 
@@ -1325,7 +1327,7 @@ int multi_model_main(model_dispatch_t model_table[],
   FILE* fp = fopen(input, "r");
   if (fp == NULL)
   {
-    fprintf(stderr, "%s: Input file not found: %s\n", model_name, input);
+    fprintf(stderr, "%s: Input file not found: %s\n", exe_name, input);
     return -1;
   }
   fclose(fp);
