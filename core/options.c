@@ -88,14 +88,9 @@ void options_parse(int argc, char** argv)
   int first_named_value = -1;
   for (int i = 0; i < argc; ++i)
   {
-    if ((i == 2) && (!strcmp(argv[1], "help") || !strcmp(argv[1], "--help")))
-      o->args[i] = string_dup("help");
-    else 
-    {
-      if (string_contains(argv[i], "=") && (first_named_value == -1))
-        first_named_value = i;
-      o->args[i] = string_dup(argv[i]);
-    }
+    if (string_contains(argv[i], "=") && (first_named_value == -1))
+      first_named_value = i;
+    o->args[i] = string_dup(argv[i]);
   }
 
   // Now parse parameters.
