@@ -209,7 +209,7 @@ bbox_t* interpreter_get_boundingbox(interpreter_t* interp, const char* name);
 void interpreter_set_boundingbox(interpreter_t* interp, const char* name, bbox_t* value);
 
 // Fetches the given mesh from the interpreter, returning NULL if it 
-// is not found or if it is not a table. The caller assumes responsibility
+// is not found or if it is not a mesh. The caller assumes responsibility
 // for destroying the mesh after this call.
 mesh_t* interpreter_get_mesh(interpreter_t* interp, const char* name);
 
@@ -219,7 +219,7 @@ mesh_t* interpreter_get_mesh(interpreter_t* interp, const char* name);
 void interpreter_set_mesh(interpreter_t* interp, const char* name, mesh_t* value);
 
 // Fetches the given scalar function from the interpreter, returning NULL 
-// if it is not found or if it is not a table. 
+// if it is not found or if it is not such a function.
 st_func_t* interpreter_get_scalar_function(interpreter_t* interp, const char* name);
 
 // Sets the given variable within the interpreter to the given scalar function 
@@ -227,7 +227,7 @@ st_func_t* interpreter_get_scalar_function(interpreter_t* interp, const char* na
 void interpreter_set_scalar_function(interpreter_t* interp, const char* name, st_func_t* value);
 
 // Fetches the given vector function from the interpreter, returning NULL 
-// if it is not found or if it is not a table. 
+// if it is not found or if it is not such a function.
 st_func_t* interpreter_get_vector_function(interpreter_t* interp, const char* name);
 
 // Sets the given variable within the interpreter to the given vector function 
@@ -235,7 +235,7 @@ st_func_t* interpreter_get_vector_function(interpreter_t* interp, const char* na
 void interpreter_set_vector_function(interpreter_t* interp, const char* name, st_func_t* value);
 
 // Fetches the given (6-component) symmetric tensor function from the 
-// interpreter, returning NULL if it is not found or if it is not a table. 
+// interpreter, returning NULL if it is not found or if it is not such a function.
 // A symmetric tensor function returns components (Sxx, Sxy, Sxz, Syy, Syz, Szz).
 st_func_t* interpreter_get_sym_tensor_function(interpreter_t* interp, const char* name);
 
@@ -245,7 +245,7 @@ st_func_t* interpreter_get_sym_tensor_function(interpreter_t* interp, const char
 void interpreter_set_sym_tensor_function(interpreter_t* interp, const char* name, st_func_t* value);
 
 // Fetches the given (9-component) tensor function from the 
-// interpreter, returning NULL if it is not found or if it is not a table. 
+// interpreter, returning NULL if it is not found or if it is such a function.
 // A tensor function returns components (Sxx, Sxy, Sxz, Syx, Syy, Syz, Szx, Szy, Szz).
 st_func_t* interpreter_get_tensor_function(interpreter_t* interp, const char* name);
 
