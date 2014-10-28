@@ -1074,10 +1074,21 @@ int model_main(const char* model_name, model_ctor constructor, int argc, char* a
   }
   fclose(fp);
 
-  // By default, the simulation is named after the input file (minus its prefix).
+  // By default, the simulation is named after the input file (minus its path 
+  // and anything after the first alphanumeric character).
   char dir_name[FILENAME_MAX], file_name[FILENAME_MAX];
   parse_path(input, dir_name, file_name);
-  model_set_sim_name(model, file_name);
+  int len = strlen(file_name), end = 0;
+  while (end < len)
+  {
+    if (!isalnum(file_name[end]))
+      break;
+    ++end;
+  }
+  char prefix[FILENAME_MAX];
+  strncpy(prefix, file_name, end);
+  prefix[end] = '\0';
+  model_set_sim_name(model, prefix);
 
   // Read the contents of the input file into the model's interpreter.
   model_read_input_file(model, input);
@@ -1304,8 +1315,8 @@ model_t* dispatch_model_new(const char* name, docstring_t* doc)
 }
 
 void dispatch_model_register(model_t* dispatch_model, 
-                              const char* model_name, 
-                              model_ctor model_constructor)
+                             const char* model_name, 
+                             model_ctor model_constructor)
 {
   dispatch_model_t* d = dispatch_model->context;
   ASSERT(!model_table_contains(d->models, (char*)model_name));
