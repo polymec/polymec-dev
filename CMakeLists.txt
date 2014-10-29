@@ -50,7 +50,7 @@ add_custom_target(update_version_h ALL
                   
 # Add a custom target that generates polymec.h and friends at the top level.
 add_custom_target(generate_headers ALL
-                  python ${PROJECT_SOURCE_DIR}/tools/generate_headers.py ${PROJECT_SOURCE_DIR} ${PROJECT_BINARY_DIR})
+                  python ${PROJECT_SOURCE_DIR}/tools/generate_headers.py ${PROJECT_SOURCE_DIR} ${PROJECT_BINARY_DIR}/include)
                   
 # Figure out the system type.
 if (APPLE EQUAL 1)
