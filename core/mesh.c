@@ -114,8 +114,9 @@ mesh_t* mesh_new(MPI_Comm comm, int num_cells, int num_ghost_cells,
   memset(mesh->nodes, 0, sizeof(point_t)*num_nodes);
 
   // Allocate geometric data.
-  mesh->cell_volumes = polymec_malloc(sizeof(real_t)*num_cells);
-  mesh->cell_centers = polymec_malloc(sizeof(point_t)*num_cells);
+  int total_num_cells = num_cells + num_ghost_cells;
+  mesh->cell_volumes = polymec_malloc(sizeof(real_t)*total_num_cells);
+  mesh->cell_centers = polymec_malloc(sizeof(point_t)*total_num_cells);
   mesh->face_centers = polymec_malloc(sizeof(point_t)*num_faces);
   mesh->face_areas = polymec_malloc(sizeof(real_t)*num_faces);
   mesh->face_normals = polymec_malloc(sizeof(vector_t)*num_faces);
