@@ -173,7 +173,7 @@ configure_file(
 )
 
 # Install the top-level generated headers.
-file(GLOB top_level_headers "${PROJECT_BINARY_DIR}/polymec*.h")
+file(GLOB top_level_headers "${PROJECT_BINARY_DIR}/include/polymec*.h")
 install(FILES ${top_level_headers} DESTINATION include/polymec)
 
 # Install miscellaneous build/test files.
