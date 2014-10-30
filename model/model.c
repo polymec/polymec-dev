@@ -622,6 +622,11 @@ real_t model_advance(model_t* model, real_t max_dt)
   return model->dt;
 }
 
+real_t model_time(model_t* model)
+{
+  return model->time;
+}
+
 void model_finalize(model_t* model)
 {
   log_detail("%s: Finalizing model at t = %g", model->name, model->time);

@@ -184,6 +184,9 @@ real_t model_max_dt(model_t* model, char* reason);
 // the size of the actual time step.
 real_t model_advance(model_t* model, real_t max_dt);
 
+// Returns the current simulation time for the model.
+real_t model_time(model_t* model);
+
 // Performs any post-simulation work for the model.
 void model_finalize(model_t* model);
 
