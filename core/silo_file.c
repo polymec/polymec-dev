@@ -336,7 +336,7 @@ typedef struct
   char* definition;
 } silo_expression_t;
 
-static void write_expressions_to_file(silo_file_t* file)
+static void write_expressions_to_file(silo_file_t* file, DBfile* dbfile)
 {
   ASSERT(file->mode == DB_CLOBBER);
 
@@ -355,12 +355,9 @@ static void write_expressions_to_file(silo_file_t* file)
     defs[k] = exp->definition;
     ++k;
   }
-  DBPutDefvars(file->dbfile, "expressions", file->expressions->size,
+  DBPutDefvars(dbfile, "expressions", file->expressions->size,
                (const char* const*)names, (const int*)types, 
                (const char* const*)defs, NULL);
-
-  // Clean up.
-  string_ptr_unordered_map_free(file->expressions);
 }
 
 #if POLYMEC_HAVE_MPI
@@ -538,6 +535,9 @@ static void write_master_file(silo_file_t* file)
     for (int j = 0; j < num_files*num_chunks; ++j)
       polymec_free(var_names[j]);
   }
+
+  // Don't forget to write expressions to the master file.
+  write_expressions_to_file(file, master);
 
   DBFreeOptlist(optlist);
 
@@ -864,7 +864,7 @@ void silo_file_close(silo_file_t* file)
     {
       // Write multi-block objects to the file if needed.
       write_multivars_to_file(file);
-      write_expressions_to_file(file);
+      write_expressions_to_file(file, file->dbfile);
     }
 
     PMPIO_HandOffBaton(file->baton, (void*)file->dbfile);
@@ -883,17 +883,19 @@ void silo_file_close(silo_file_t* file)
   else
   {
     if (file->mode == DB_CLOBBER)
-      write_expressions_to_file(file);
+      write_expressions_to_file(file, file->dbfile);
     DBClose(file->dbfile);
   }
 #else
   // Write the file.
   if (file->mode == DB_CLOBBER)
-    write_expressions_to_file(file);
+    write_expressions_to_file(file, file->dbfile);
   DBClose(file->dbfile);
 #endif
 
   // Clean up.
+  if (file->expressions != NULL)
+    string_ptr_unordered_map_free(file->expressions);
   polymec_free(file);
 }
 
