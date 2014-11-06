@@ -62,10 +62,9 @@ void test_diurnal_step(void** state, ode_integrator_t* integ)
 
   // Integrate it.
   real_t t = 0.0;
-  ode_integrator_set_stop_time(integ, 7200.0);
   while (t < 7200.0)
   {
-    bool integrated = ode_integrator_step(integ, &t, u);
+    bool integrated = ode_integrator_step(integ, 7200.0, &t, u);
 //    preconditioner_matrix_fprintf(ode_integrator_preconditioner_matrix(integ), stdout);
     assert_true(integrated);
   }

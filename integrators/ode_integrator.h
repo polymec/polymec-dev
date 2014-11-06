@@ -38,11 +38,11 @@ typedef struct
 {
   // This function takes a single step in time, returning true on success 
   // and false on failure.
-  bool (*step)(void* context, real_t max_dt, real_t max_t, real_t* t, real_t* x);
+  bool (*step)(void* context, real_t max_dt, real_t* t, real_t* x);
 
   // This function integrates the solution x to time max_t, returning true 
   // on success and false on failure.
-  bool (*advance)(void* context, real_t max_dt, real_t max_t, real_t* x);
+  bool (*advance)(void* context, real_t t1, real_t t2, real_t* x);
 
   // This function destroys the state (context) when the integrator 
   // is destroyed.
@@ -76,18 +76,18 @@ void ode_integrator_set_max_dt(ode_integrator_t* integ, real_t max_dt);
 // Sets the time past which the integrator will not step.
 void ode_integrator_set_stop_time(ode_integrator_t* integ, real_t stop_time);
 
-// Integrates the given solution X in place, taking a single step starting at 
-// time *t and storing the new time in *t as well. Returns true if the step 
-// succeeded, false if it failed for some reason. If a step fails, both t 
-// and X remain unchanged.
-bool ode_integrator_step(ode_integrator_t* integrator, real_t* t, real_t* X);
+// Integrates the given solution X in place, taking a single step with a maximum 
+// size of max_dt, starting at time *t and storing the new time there as well. 
+// Returns true if the step succeeded, false if it failed for some reason. 
+// If a step fails, both *t and X remain unchanged.
+bool ode_integrator_step(ode_integrator_t* integrator, real_t max_dt, real_t* t, real_t* X);
 
-// Integrates the given solution X in place until the time t_final, taking as 
+// Integrates the given solution X in place from time t1 to t2, taking as 
 // many steps as are needed. The amount of work done by this method depends on the 
 // number of steps taken, so do not call it in contexts that require a 
 // predictable amount of work. Returns true if the integration succeeded, 
 // false if it failed for some reason. If a step fails, X remains unchanged.
-bool ode_integrator_advance(ode_integrator_t* integrator, real_t t_final, real_t* X);
+bool ode_integrator_advance(ode_integrator_t* integrator, real_t t1, real_t t2, real_t* X);
 
 #endif
 

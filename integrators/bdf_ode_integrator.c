@@ -42,7 +42,6 @@ typedef struct
   void (*dtor)(void* context);
 
   // CVODE data structures.
-  bool initialized;
   void* cvode;
   N_Vector x; 
   real_t t;
@@ -104,26 +103,34 @@ static int bdf_evaluate_rhs(real_t t, N_Vector x, N_Vector x_dot, void* context)
   return integ->rhs(integ->context, t, xx, xxd);
 }
 
-static bool bdf_step(void* context, real_t max_dt, real_t max_t, real_t* t, real_t* x)
+static bool bdf_step(void* context, real_t max_dt, real_t* t, real_t* x)
 {
   bdf_ode_t* integ = context;
   CVodeSetMaxStep(integ->cvode, max_dt);
-  CVodeSetStopTime(integ->cvode, max_t);
 
   // Copy in the solution.
   memcpy(NV_DATA(integ->x), x, sizeof(real_t) * integ->N); 
 
-  if (!integ->initialized || (fabs(integ->t - *t) > 1e-14))
-  {
-    CVodeReInit(integ->cvode, *t, integ->x);
-    integ->initialized = true;
-    integ->t = *t;
-  }
-  
-  // Integrate.
-  integ->t = *t;
+  // If our interpolated time is past the time at which we're supposedly 
+  // starting, we don't need to integrate any further--we can simply 
+  // interpolate.
+  int status = CVodeGetCurrentTime(integ->cvode, &integ->t);
+  ASSERT(status == CV_SUCCESS);
   real_t t2 = *t + max_dt;
-  int status = CVode(integ->cvode, t2, integ->x, &integ->t, CV_ONE_STEP);
+  if (integ->t < t2)
+  {
+    // Integrate to at least t = t2.
+    status = CVode(integ->cvode, t2, integ->x, &integ->t, CV_ONE_STEP);
+  }
+
+  // If we integrated past t2, interpolate to t2.
+  if (integ->t > t2)
+  {
+    CVodeGetDky(integ->cvode, t2, 0, integ->x);
+    *t = t2;
+  }
+  else
+    *t = integ->t;
   
   // Clear the present status.
   if (integ->status_message != NULL)
@@ -147,17 +154,18 @@ static bool bdf_step(void* context, real_t max_dt, real_t max_t, real_t* t, real
   }
 }
 
-static bool bdf_advance(void* context, real_t max_dt, real_t max_t, real_t* x)
+static bool bdf_advance(void* context, real_t t1, real_t t2, real_t* x)
 {
   bdf_ode_t* integ = context;
-  CVodeSetMaxStep(integ->cvode, max_dt);
-  CVodeSetStopTime(integ->cvode, max_t);
+  integ->t = t1;
+  CVodeReInit(integ->cvode, t1, integ->x);
+  CVodeSetStopTime(integ->cvode, t2);
   
   // Copy in the solution.
   memcpy(NV_DATA(integ->x), x, sizeof(real_t) * integ->N); 
 
   // Integrate.
-  int status = CVode(integ->cvode, max_t, integ->x, &integ->t, CV_NORMAL);
+  int status = CVode(integ->cvode, t2, integ->x, &integ->t, CV_NORMAL);
   
   // Clear the present status.
   if (integ->status_message != NULL)
@@ -279,7 +287,6 @@ ode_integrator_t* jfnk_bdf_ode_integrator_new(int order,
   integ->dtor = dtor;
   integ->status_message = NULL;
   integ->max_krylov_dim = max_krylov_dim;
-  integ->initialized = false;
   integ->t = 0.0;
 
   // Set up KINSol and accessories.
