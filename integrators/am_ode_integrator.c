@@ -106,16 +106,21 @@ static int am_evaluate_rhs(real_t t, N_Vector x, N_Vector x_dot, void* context)
 static bool am_step(void* context, real_t max_dt, real_t* t, real_t* x)
 {
   am_ode_t* integ = context;
-  CVodeSetMaxStep(integ->cvode, max_dt);
+  int status = CVodeSetMaxStep(integ->cvode, max_dt);
 
-  // Integrate to at least t -> t + max_dt.
+  // If *t + max_dt is less than the time to which we've already integrated, 
+  // we don't need to integrate; we only need to interpolate backward.
   real_t t2 = *t + max_dt;
-  int status = CVode(integ->cvode, t2, integ->x, &integ->t, CV_ONE_STEP);
+  if (t2 > integ->t)
+  {
+    // Integrate to at least t -> t + max_dt.
+    status = CVode(integ->cvode, t2, integ->x, &integ->t, CV_ONE_STEP);
+  }
 
   // If we integrated past t2, interpolate to t2.
   if (integ->t > t2)
   {
-    CVodeGetDky(integ->cvode, t2, 0, integ->x);
+    status = CVodeGetDky(integ->cvode, t2, 0, integ->x);
     *t = t2;
   }
   else
@@ -183,6 +188,7 @@ static void am_reset(void* context, real_t t, real_t* x)
   // Copy in the solution and reinitialize.
   memcpy(NV_DATA(integ->x), x, sizeof(real_t) * integ->N); 
   CVodeReInit(integ->cvode, t, integ->x);
+  integ->t = t;
 }
 
 static void am_dtor(void* context)
