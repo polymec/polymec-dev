@@ -189,6 +189,7 @@ static void bdf_reset(void* context, real_t t, real_t* x)
   // Copy in the solution and reinitialize.
   memcpy(NV_DATA(integ->x), x, sizeof(real_t) * integ->N); 
   CVodeReInit(integ->cvode, t, integ->x);
+  integ->t = t;
 }
 
 static void bdf_dtor(void* context)
