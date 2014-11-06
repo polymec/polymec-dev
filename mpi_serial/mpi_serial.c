@@ -228,7 +228,7 @@ int MPI_Waitany(int count, MPI_Request *array_of_requests, int *index, MPI_Statu
 
 int MPI_Allreduce(void *sendbuf, void *recvbuf, int count, MPI_Datatype datatype, MPI_Op op, MPI_Comm comm)
 {
-  memcpy(recvbuf, sendbuf, count * sizeof(datatype));
+  memmove(recvbuf, sendbuf, count * sizeof(datatype));
   return MPI_SUCCESS;
 }
 
