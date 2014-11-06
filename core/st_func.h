@@ -70,6 +70,7 @@ st_func_t* st_func_new(const char* name, void* context, st_vtable vtable,
                        int num_comp);
 
 // Constructs a space-time function from a function pointer with the given metadata.
+// The function will be passed NULL as its context.
 st_func_t* st_func_from_func(const char* name, st_eval_func func, 
                              st_func_homogeneity_t homogeneity,
                              st_func_constancy_t constancy,
