@@ -339,6 +339,7 @@ typedef struct
 static void write_expressions_to_file(silo_file_t* file, DBfile* dbfile)
 {
   ASSERT(file->mode == DB_CLOBBER);
+  ASSERT(file->expressions != NULL);
 
   // Write out the expressions.
   int pos = 0, k = 0;
@@ -556,6 +557,7 @@ silo_file_t* silo_file_new(MPI_Comm comm,
                            real_t time)
 {
   silo_file_t* file = polymec_malloc(sizeof(silo_file_t));
+  file->expressions = string_ptr_unordered_map_new();
 
   // Strip .silo off of the prefix if it's there.
   {
@@ -577,7 +579,6 @@ silo_file_t* silo_file_new(MPI_Comm comm,
     file->num_files = num_files;
   ASSERT(file->num_files <= file->nproc);
   file->mpi_tag = mpi_tag;
-  file->expressions = string_ptr_unordered_map_new();
 
   if (file->nproc > 1)
   {
