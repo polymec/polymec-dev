@@ -36,8 +36,12 @@ typedef struct ode_integrator_t ode_integrator_t;
 // This virtual table determines the implementation of the ode integrator.
 typedef struct
 {
-  // This function takes a single step in time, returning true on success 
-  // and false on failure.
+  // This function resets the internal state of the integrator to use the 
+  // given solution data at the given time.
+  void (*reset)(void* context, real_t t, real_t* x);
+
+  // This function takes a single step in time, updating x and t and returning 
+  // true on success and false on failure.
   bool (*step)(void* context, real_t max_dt, real_t* t, real_t* x);
 
   // This function integrates the solution x to time max_t, returning true 
@@ -88,6 +92,14 @@ bool ode_integrator_step(ode_integrator_t* integrator, real_t max_dt, real_t* t,
 // predictable amount of work. Returns true if the integration succeeded, 
 // false if it failed for some reason. If a step fails, X remains unchanged.
 bool ode_integrator_advance(ode_integrator_t* integrator, real_t t1, real_t t2, real_t* X);
+
+// Resets the internal state of the integrator to use the given solution data 
+// x at the given time t. It is necessary to call this function when the 
+// solution data has been altered since the last step.
+void ode_integrator_reset(ode_integrator_t* integrator, real_t t, real_t* x);
+
+// Returns the current time at which the integrator sits.
+real_t ode_integrator_current_time(ode_integrator_t* integrator);
 
 #endif
 

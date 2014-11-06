@@ -31,7 +31,7 @@ struct ode_integrator_t
   int order;
   ode_integrator_vtable vtable;
 
-  // CVODE data structures.
+  bool initialized;
   real_t current_time;
 };
 
@@ -50,6 +50,7 @@ ode_integrator_t* ode_integrator_new(const char* name,
   integ->vtable = vtable;
   integ->order = order;
   integ->current_time = 0.0;
+  integ->initialized = false;
   return integ;
 }
 
@@ -76,15 +77,35 @@ int ode_integrator_order(ode_integrator_t* integ)
   return integ->order;
 }
 
-bool ode_integrator_step(ode_integrator_t* integ, real_t max_dt, real_t* t, real_t* X)
+bool ode_integrator_step(ode_integrator_t* integ, real_t max_dt, real_t* t, real_t* x)
 {
+  if (!integ->initialized)
+    ode_integrator_reset(integ, *t, x);
+
   // Integrate.
-  return integ->vtable.step(integ->context, max_dt, t, X);
+  return integ->vtable.step(integ->context, max_dt, t, x);
 }
 
-bool ode_integrator_advance(ode_integrator_t* integ, real_t t1, real_t t2, real_t* X)
+bool ode_integrator_advance(ode_integrator_t* integ, real_t t1, real_t t2, real_t* x)
 {
   // Advance.
-  return integ->vtable.advance(integ->context, t1, t2, X);
+  bool result = integ->vtable.advance(integ->context, t1, t2, x);
+
+  // After a full integration, we must be reset.
+  integ->initialized = false;
+
+  return result;
 }
 
+void ode_integrator_reset(ode_integrator_t* integrator, real_t t, real_t* x)
+{
+  integrator->current_time = t;
+  if (integrator->vtable.reset != NULL)
+    integrator->vtable.reset(integrator->context, t, x);
+  integrator->initialized = true;
+}
+
+real_t ode_integrator_current_time(ode_integrator_t* integrator)
+{
+  return integrator->current_time;
+}

@@ -108,20 +108,9 @@ static bool bdf_step(void* context, real_t max_dt, real_t* t, real_t* x)
   bdf_ode_t* integ = context;
   CVodeSetMaxStep(integ->cvode, max_dt);
 
-  // Copy in the solution.
-  memcpy(NV_DATA(integ->x), x, sizeof(real_t) * integ->N); 
-
-  // If our interpolated time is past the time at which we're supposedly 
-  // starting, we don't need to integrate any further--we can simply 
-  // interpolate.
-  int status = CVodeGetCurrentTime(integ->cvode, &integ->t);
-  ASSERT(status == CV_SUCCESS);
+  // Integrate to at least t -> t + max_dt.
   real_t t2 = *t + max_dt;
-  if (integ->t < t2)
-  {
-    // Integrate to at least t = t2.
-    status = CVode(integ->cvode, t2, integ->x, &integ->t, CV_ONE_STEP);
-  }
+  int status = CVode(integ->cvode, t2, integ->x, &integ->t, CV_ONE_STEP);
 
   // If we integrated past t2, interpolate to t2.
   if (integ->t > t2)
@@ -186,6 +175,15 @@ static bool bdf_advance(void* context, real_t t1, real_t t2, real_t* x)
     integ->status_message = get_status_message(status, integ->t);
     return false;
   }
+}
+
+static void bdf_reset(void* context, real_t t, real_t* x)
+{
+  bdf_ode_t* integ = context;
+
+  // Copy in the solution and reinitialize.
+  memcpy(NV_DATA(integ->x), x, sizeof(real_t) * integ->N); 
+  CVodeReInit(integ->cvode, t, integ->x);
 }
 
 static void bdf_dtor(void* context)
@@ -315,7 +313,7 @@ ode_integrator_t* jfnk_bdf_ode_integrator_new(int order,
   CVSpilsSetPreconditioner(integ->cvode, set_up_preconditioner,
                            solve_preconditioner_system);
 
-  ode_integrator_vtable vtable = {.step = bdf_step, .advance = bdf_advance, .dtor = bdf_dtor};
+  ode_integrator_vtable vtable = {.step = bdf_step, .advance = bdf_advance, .reset = bdf_reset, .dtor = bdf_dtor};
   char name[1024];
   snprintf(name, 1024, "JFNK Backwards-Difference-Formulae (order %d)", order);
   ode_integrator_t* I = ode_integrator_new(name, integ, vtable, order);

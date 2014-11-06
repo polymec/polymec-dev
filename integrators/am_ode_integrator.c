@@ -108,20 +108,9 @@ static bool am_step(void* context, real_t max_dt, real_t* t, real_t* x)
   am_ode_t* integ = context;
   CVodeSetMaxStep(integ->cvode, max_dt);
 
-  // Copy in the solution.
-  memcpy(NV_DATA(integ->x), x, sizeof(real_t) * integ->N); 
-
-  // If our interpolated time is past the time at which we're supposedly 
-  // starting, we don't need to integrate any further--we can simply 
-  // interpolate.
-  int status = CVodeGetCurrentTime(integ->cvode, &integ->t);
-  ASSERT(status == CV_SUCCESS);
+  // Integrate to at least t -> t + max_dt.
   real_t t2 = *t + max_dt;
-  if (integ->t < t2)
-  {
-    // Integrate to at least t = t2.
-    status = CVode(integ->cvode, t2, integ->x, &integ->t, CV_ONE_STEP);
-  }
+  int status = CVode(integ->cvode, t2, integ->x, &integ->t, CV_ONE_STEP);
 
   // If we integrated past t2, interpolate to t2.
   if (integ->t > t2)
@@ -187,6 +176,15 @@ static bool am_advance(void* context, real_t t1, real_t t2, real_t* x)
   }
 }
 
+static void am_reset(void* context, real_t t, real_t* x)
+{
+  am_ode_t* integ = context;
+
+  // Copy in the solution and reinitialize.
+  memcpy(NV_DATA(integ->x), x, sizeof(real_t) * integ->N); 
+  CVodeReInit(integ->cvode, t, integ->x);
+}
+
 static void am_dtor(void* context)
 {
   am_ode_t* integ = context;
@@ -236,7 +234,7 @@ ode_integrator_t* functional_am_ode_integrator_new(int order,
   CVodeSetUserData(integ->cvode, integ);
   CVodeInit(integ->cvode, am_evaluate_rhs, 0.0, integ->x);
 
-  ode_integrator_vtable vtable = {.step = am_step, .advance = am_advance, .dtor = am_dtor};
+  ode_integrator_vtable vtable = {.step = am_step, .advance = am_advance, .reset = am_reset, .dtor = am_dtor};
   char name[1024];
   snprintf(name, 1024, "Functional Adams-Moulton (order %d)", order);
   ode_integrator_t* I = ode_integrator_new(name, integ, vtable, order);
