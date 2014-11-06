@@ -317,6 +317,7 @@ struct silo_file_t
   int cycle;
   real_t time;
   int mode; // Open for reading (DB_READ) or writing (DB_CLOBBER)? 
+  string_ptr_unordered_map_t* expressions;
 
 #if POLYMEC_HAVE_MPI
   // Stuff for poor man's parallel I/O.
@@ -327,6 +328,40 @@ struct silo_file_t
   ptr_array_t* multivars;
 #endif
 };
+
+// Expression struct.
+typedef struct
+{
+  int type;
+  char* definition;
+} silo_expression_t;
+
+static void write_expressions_to_file(silo_file_t* file)
+{
+  ASSERT(file->mode == DB_CLOBBER);
+
+  // Write out the expressions.
+  int pos = 0, k = 0;
+  char* name;
+  void* val;
+  char* names[file->expressions->size];
+  int types[file->expressions->size];
+  char* defs[file->expressions->size];
+  while (string_ptr_unordered_map_next(file->expressions, &pos, &name, &val))
+  {
+    names[k] = name;
+    silo_expression_t* exp = val;
+    types[k] = exp->type;
+    defs[k] = exp->definition;
+    ++k;
+  }
+  DBPutDefvars(file->dbfile, "expressions", file->expressions->size,
+               (const char* const*)names, (const int*)types, 
+               (const char* const*)defs, NULL);
+
+  // Clean up.
+  string_ptr_unordered_map_free(file->expressions);
+}
 
 #if POLYMEC_HAVE_MPI
 static void write_multivars_to_file(silo_file_t* file)
@@ -542,6 +577,7 @@ silo_file_t* silo_file_new(MPI_Comm comm,
     file->num_files = num_files;
   ASSERT(file->num_files <= file->nproc);
   file->mpi_tag = mpi_tag;
+  file->expressions = string_ptr_unordered_map_new();
 
   if (file->nproc > 1)
   {
@@ -656,6 +692,7 @@ silo_file_t* silo_file_open(MPI_Comm comm,
   file->mode = DB_READ;
   file->cycle = -1;
   file->time = -FLT_MAX;
+  file->expressions = NULL;
 
   // Strip .silo off of the prefix if it's there.
   {
@@ -827,6 +864,7 @@ void silo_file_close(silo_file_t* file)
     {
       // Write multi-block objects to the file if needed.
       write_multivars_to_file(file);
+      write_expressions_to_file(file);
     }
 
     PMPIO_HandOffBaton(file->baton, (void*)file->dbfile);
@@ -843,9 +881,15 @@ void silo_file_close(silo_file_t* file)
     ptr_array_free(file->multivars);
   }
   else
+  {
+    if (file->mode == DB_CLOBBER)
+      write_expressions_to_file(file);
     DBClose(file->dbfile);
+  }
 #else
   // Write the file.
+  if (file->mode == DB_CLOBBER)
+    write_expressions_to_file(file);
   DBClose(file->dbfile);
 #endif
 
@@ -1460,3 +1504,50 @@ real_t* silo_file_read_point_field(silo_file_t* file,
   return field;
 }
 
+static void expression_dtor(char* key, void* val)
+{
+  string_free(key);
+  silo_expression_t* exp = val;
+  string_free(exp->definition);
+  polymec_free(exp);
+}
+
+void silo_file_write_scalar_expression(silo_file_t* file,
+                                       const char* expression_name,
+                                       const char* definition)
+
+{
+  ASSERT(file->mode == DB_CLOBBER);
+  silo_expression_t* exp = polymec_malloc(sizeof(silo_expression_t));
+  exp->type = DB_VARTYPE_SCALAR;
+  exp->definition = string_dup(definition);
+  string_ptr_unordered_map_insert_with_kv_dtor(file->expressions,
+                                               string_dup(expression_name), exp,
+                                               expression_dtor);
+}
+
+void silo_file_write_vector_expression(silo_file_t* file,
+                                       const char* expression_name,
+                                       const char* definition)
+{
+  ASSERT(file->mode == DB_CLOBBER);
+  silo_expression_t* exp = polymec_malloc(sizeof(silo_expression_t));
+  exp->type = DB_VARTYPE_VECTOR;
+  exp->definition = string_dup(definition);
+  string_ptr_unordered_map_insert_with_kv_dtor(file->expressions,
+                                               string_dup(expression_name), exp,
+                                               expression_dtor);
+}
+
+void silo_file_write_tensor_expression(silo_file_t* file,
+                                       const char* expression_name,
+                                       const char* definition)
+{
+  ASSERT(file->mode == DB_CLOBBER);
+  silo_expression_t* exp = polymec_malloc(sizeof(silo_expression_t));
+  exp->type = DB_VARTYPE_TENSOR;
+  exp->definition = string_dup(definition);
+  string_ptr_unordered_map_insert_with_kv_dtor(file->expressions,
+                                               string_dup(expression_name), exp,
+                                               expression_dtor);
+}

@@ -152,4 +152,25 @@ real_t* silo_file_read_point_field(silo_file_t* file,
                                    const char* cloud_name,
                                    int num_components);
 
+// Adds a scalar expression (a definition of a new scalar variable in terms 
+// of existing variables) to this Silo file. See the Silo manual for
+// expression (Defvar) syntax.
+void silo_file_write_scalar_expression(silo_file_t* file,
+                                       const char* expression_name,
+                                       const char* definition);
+
+// Adds a vector expression (a definition of a new vector variable in terms 
+// of existing variables) to this Silo file. See the Silo manual for 
+// expression (Defvar) syntax.
+void silo_file_write_vector_expression(silo_file_t* file,
+                                       const char* expression_name,
+                                       const char* definition);
+
+// Adds a (rank 2) tensor expression (a definition of a new tensor variable 
+// in terms of existing variables) to this Silo file. See the Silo manual for 
+// expression (Defvar) syntax.
+void silo_file_write_tensor_expression(silo_file_t* file,
+                                       const char* expression_name,
+                                       const char* definition);
+
 #endif
