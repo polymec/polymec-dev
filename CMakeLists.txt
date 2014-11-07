@@ -172,9 +172,8 @@ configure_file(
   "${CMAKE_CURRENT_BINARY_DIR}/polymec.cmake"
 )
 
-# Install the top-level generated headers.
-file(GLOB top_level_headers "${PROJECT_BINARY_DIR}/include/polymec*.h")
-install(FILES ${top_level_headers} DESTINATION include/polymec)
+# Install all source headers.
+install(DIRECTORY ${PROJECT_BINARY_DIR}/include/ DESTINATION include/polymec)
 
 # Install miscellaneous build/test files.
 install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/tools/update_version_h.py DESTINATION share/polymec)
