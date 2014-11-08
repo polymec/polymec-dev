@@ -761,8 +761,126 @@ void model_compute_error_norms(model_t* model, st_func_t* solution, real_t* erro
     polymec_error("%s: This model is not equipped to compute error norms.", model->name);
 }
 
+// This helper overrides interpreted parameters with options from the 
+// command line.
+static void override_interpreted_values(model_t* model, 
+                                        real_t* t1, 
+                                        real_t* t2, 
+                                        int* max_steps)
+{
+  options_t* options = options_argv();
+  // Run parameters -- not intrinsically part of a model.
+  char* opt = options_value(options, "t1");
+  if (opt != NULL)
+    *t1 = atof(opt);
+  opt = options_value(options, "t2");
+  if (opt != NULL)
+    *t2 = atof(opt);
+  opt = options_value(options, "max_steps");
+  if (opt != NULL)
+    *max_steps = atoi(opt);
+
+  opt = options_value(options, "load_step");
+  if (opt != NULL)
+  {
+    model->load_step = atoi(opt);
+    if (model->load_step < 0)
+      polymec_error("Invalid load step: %d\n", model->load_step);
+  }
+
+  // Some generic options.
+  char* logging = options_value(options, "logging");
+  if (logging != NULL)
+  {
+    if (!strcasecmp(logging, "debug"))
+      set_log_level(LOG_DEBUG);
+    else if (!strcasecmp(logging, "detail"))
+      set_log_level(LOG_DETAIL);
+    else if (!strcasecmp(logging, "info"))
+      set_log_level(LOG_INFO);
+    else if (!strcasecmp(logging, "urgent"))
+      set_log_level(LOG_URGENT);
+    else if (!strcasecmp(logging, "off"))
+      set_log_level(LOG_NONE);
+  }
+  
+  // Plot interval.
+  char* plot_every = options_value(options, "plot_every");
+  if (plot_every != NULL)
+  {
+    model->plot_every = atoi(plot_every);
+    if (model->plot_every < 1)
+      polymec_error("Invalid (non-positive) plot interval: %d\n", model->plot_every);
+  }
+
+  // Save interval.
+  char* save_every = options_value(options, "save_every");
+  if (save_every != NULL)
+  {
+    model->save_every = atoi(save_every);
+    if (model->save_every < 1)
+      polymec_error("Invalid (non-positive) save interval: %d\n", model->save_every);
+  }
+
+  // Handle observation times. Times can be specified with a regular interval
+  // or a comma-delimited list.
+  char* observe_every = options_value(options, "observe_every");
+  if (observe_every != NULL)
+  {
+    model->observe_every = (real_t)atof(observe_every);
+    if (model->observe_every <= 0.0)
+      polymec_error("Invalid (non-positive) observation interval: %g\n", model->observe_every);
+  }
+  char* obs_times_str = options_value(options, "observation_times");
+  if (obs_times_str != NULL)
+  {
+    if (model->observe_every > 0.0)
+      polymec_error("Only one of observe_every and observation_times may be specified.");
+    real_t* obs_times;
+    int num_obs_times;
+    obs_times = parse_observation_times(obs_times_str, &num_obs_times);
+    if (obs_times != NULL)
+    {
+      model_set_observation_times(model, obs_times, num_obs_times);
+      polymec_free(obs_times);
+    }
+    else
+      polymec_error("Could not parse observation times string: %s\n", obs_times_str);
+  }
+
+  // If observation names are given, handle them here.
+  string_array_clear(model->observations);
+  char* obs_names_str = options_value(options, "observations");
+  if (obs_names_str != NULL)
+  {
+    int num_obs;
+    char** obs_names = string_split(obs_names_str, ",", &num_obs);
+    for (int i = 0; i < num_obs; ++i)
+    {
+      model_observe(model, (const char*)obs_names[i]);
+      polymec_free(obs_names[i]);
+    }
+    polymec_free(obs_names); 
+  }
+
+  char* max_dt = options_value(options, "max_dt");
+  if (max_dt != NULL)
+  {
+    model->max_dt = atof(max_dt);
+    if (model->max_dt <= 0.0)
+      polymec_error("Invalid value for max_dt: %g", model->max_dt);
+  }
+
+  char* sim_name = options_value(options, "sim_name");
+  if (sim_name != NULL)
+    model_set_sim_name(model, sim_name);
+}
+
 void model_run(model_t* model, real_t t1, real_t t2, int max_steps)
 {
+  // Override options given at the command line.
+  override_interpreted_values(model, &t1, &t2, &max_steps);
+
   ASSERT(t2 >= t1);
   if (t2 > t1)
   {
@@ -883,121 +1001,6 @@ void model_set_sim_name(model_t* model, const char* sim_name)
   if (model->sim_name != NULL)
     polymec_free(model->sim_name);
   model->sim_name = string_dup(sim_name);
-}
-
-// This helper overrides interpreted parameters with options from the 
-// command line.
-static void override_interpreted_values(model_t* model, 
-                                        real_t* t1, 
-                                        real_t* t2, 
-                                        int* max_steps)
-{
-  options_t* options = options_argv();
-  // Run parameters -- not intrinsically part of a model.
-  char* opt = options_value(options, "t1");
-  if (opt != NULL)
-    *t1 = atof(opt);
-  opt = options_value(options, "t2");
-  if (opt != NULL)
-    *t2 = atof(opt);
-  opt = options_value(options, "max_steps");
-  if (opt != NULL)
-    *max_steps = atoi(opt);
-
-  opt = options_value(options, "load_step");
-  if (opt != NULL)
-  {
-    model->load_step = atoi(opt);
-    if (model->load_step < 0)
-      polymec_error("Invalid load step: %d\n", model->load_step);
-  }
-
-  // Some generic options.
-  char* logging = options_value(options, "logging");
-  if (logging != NULL)
-  {
-    if (!strcasecmp(logging, "debug"))
-      set_log_level(LOG_DEBUG);
-    else if (!strcasecmp(logging, "detail"))
-      set_log_level(LOG_DETAIL);
-    else if (!strcasecmp(logging, "info"))
-      set_log_level(LOG_INFO);
-    else if (!strcasecmp(logging, "urgent"))
-      set_log_level(LOG_URGENT);
-    else if (!strcasecmp(logging, "off"))
-      set_log_level(LOG_NONE);
-  }
-  
-  // Plot interval.
-  char* plot_every = options_value(options, "plot_every");
-  if (plot_every != NULL)
-  {
-    model->plot_every = atoi(plot_every);
-    if (model->plot_every < 1)
-      polymec_error("Invalid (non-positive) plot interval: %d\n", model->plot_every);
-  }
-
-  // Save interval.
-  char* save_every = options_value(options, "save_every");
-  if (save_every != NULL)
-  {
-    model->save_every = atoi(save_every);
-    if (model->save_every < 1)
-      polymec_error("Invalid (non-positive) save interval: %d\n", model->save_every);
-  }
-
-  // Handle observation times. Times can be specified with a regular interval
-  // or a comma-delimited list.
-  char* observe_every = options_value(options, "observe_every");
-  if (observe_every != NULL)
-  {
-    model->observe_every = (real_t)atof(observe_every);
-    if (model->observe_every <= 0.0)
-      polymec_error("Invalid (non-positive) observation interval: %g\n", model->observe_every);
-  }
-  char* obs_times_str = options_value(options, "observation_times");
-  if (obs_times_str != NULL)
-  {
-    if (model->observe_every > 0.0)
-      polymec_error("Only one of observe_every and observation_times may be specified.");
-    real_t* obs_times;
-    int num_obs_times;
-    obs_times = parse_observation_times(obs_times_str, &num_obs_times);
-    if (obs_times != NULL)
-    {
-      model_set_observation_times(model, obs_times, num_obs_times);
-      polymec_free(obs_times);
-    }
-    else
-      polymec_error("Could not parse observation times string: %s\n", obs_times_str);
-  }
-
-  // If observation names are given, handle them here.
-  string_array_clear(model->observations);
-  char* obs_names_str = options_value(options, "observations");
-  if (obs_names_str != NULL)
-  {
-    int num_obs;
-    char** obs_names = string_split(obs_names_str, ",", &num_obs);
-    for (int i = 0; i < num_obs; ++i)
-    {
-      model_observe(model, (const char*)obs_names[i]);
-      polymec_free(obs_names[i]);
-    }
-    polymec_free(obs_names); 
-  }
-
-  char* max_dt = options_value(options, "max_dt");
-  if (max_dt != NULL)
-  {
-    model->max_dt = atof(max_dt);
-    if (model->max_dt <= 0.0)
-      polymec_error("Invalid value for max_dt: %g", model->max_dt);
-  }
-
-  char* sim_name = options_value(options, "sim_name");
-  if (sim_name != NULL)
-    model_set_sim_name(model, sim_name);
 }
 
 int model_main(const char* model_name, model_ctor constructor, int argc, char* argv[])
@@ -1149,9 +1152,6 @@ int model_main(const char* model_name, model_ctor constructor, int argc, char* a
     t2 = interpreter_get_number(interp, "t2");
   if (interpreter_contains(interp, "max_steps", INTERPRETER_NUMBER))
     max_steps = (int)interpreter_get_number(interp, "max_steps");
-
-  // Override options given at the command line.
-  override_interpreted_values(model, &t1, &t2, &max_steps);
 
   // Run the model.
   model_run(model, t1, t2, max_steps);
@@ -1414,9 +1414,6 @@ int multi_model_main(model_dispatch_t model_table[],
   if (interpreter_contains(interp, "max_steps", INTERPRETER_NUMBER))
     max_steps = (int)interpreter_get_number(interp, "max_steps");
 
-  // Override options given at the command line.
-  override_interpreted_values(model, &t1, &t2, &max_steps);
-
   // Run the model.
   model_run(model, t1, t2, max_steps);
 
@@ -1479,9 +1476,6 @@ int model_minimal_main(const char* model_name, model_ctor constructor, int argc,
     t2 = interpreter_get_number(interp, "t2");
   if (interpreter_contains(interp, "max_steps", INTERPRETER_NUMBER))
     max_steps = (int)interpreter_get_number(interp, "max_steps");
-
-  // Override options given at the command line.
-  override_interpreted_values(model, &t1, &t2, &max_steps);
 
   // Run the model.
   model_run(model, t1, t2, max_steps);
