@@ -595,10 +595,7 @@ silo_file_t* silo_file_new(MPI_Comm comm,
     if (file->rank == 0)
     {
       if (strcmp(file->directory, ".") != 0)
-      {
-        remove_directory(file->directory);
         create_directory(file->directory, S_IRWXU | S_IRWXG);
-      }
       MPI_Barrier(file->comm);
     }
     else
@@ -648,10 +645,7 @@ silo_file_t* silo_file_new(MPI_Comm comm,
 
     int driver = DB_HDF5;
     if (strcmp(file->directory, ".") != 0)
-    {
-      remove_directory(file->directory);
       create_directory(file->directory, S_IRWXU | S_IRWXG);
-    }
     file->dbfile = DBCreate(file->filename, DB_CLOBBER, DB_LOCAL, NULL, driver);
     DBSetDir(file->dbfile, "/");
   }
