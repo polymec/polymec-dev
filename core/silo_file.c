@@ -341,24 +341,27 @@ static void write_expressions_to_file(silo_file_t* file, DBfile* dbfile)
   ASSERT(file->mode == DB_CLOBBER);
   ASSERT(file->expressions != NULL);
 
-  // Write out the expressions.
-  int pos = 0, k = 0;
-  char* name;
-  void* val;
-  char* names[file->expressions->size];
-  int types[file->expressions->size];
-  char* defs[file->expressions->size];
-  while (string_ptr_unordered_map_next(file->expressions, &pos, &name, &val))
+  if (file->expressions->size > 0)
   {
-    names[k] = name;
-    silo_expression_t* exp = val;
-    types[k] = exp->type;
-    defs[k] = exp->definition;
-    ++k;
+    // Write out the expressions.
+    int pos = 0, k = 0;
+    char* name;
+    void* val;
+    char* names[file->expressions->size];
+    int types[file->expressions->size];
+    char* defs[file->expressions->size];
+    while (string_ptr_unordered_map_next(file->expressions, &pos, &name, &val))
+    {
+      names[k] = name;
+      silo_expression_t* exp = val;
+      types[k] = exp->type;
+      defs[k] = exp->definition;
+      ++k;
+    }
+    DBPutDefvars(dbfile, "expressions", file->expressions->size,
+                 (const char* const*)names, (const int*)types, 
+                 (const char* const*)defs, NULL);
   }
-  DBPutDefvars(dbfile, "expressions", file->expressions->size,
-               (const char* const*)names, (const int*)types, 
-               (const char* const*)defs, NULL);
 }
 
 #if POLYMEC_HAVE_MPI
