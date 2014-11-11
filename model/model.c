@@ -463,9 +463,15 @@ void model_define_point_observation(model_t* model,
                                                data, point_obs_dtor);
 }
 
-static void key_dtor(char* key)
+typedef struct 
+{
+  real_t (*func)(void*, real_t);
+} global_obs_t;
+
+static void global_obs_dtor(char* key, void* val)
 {
   polymec_free(key);
+  polymec_free(val);
 }
 
 void model_define_global_observation(model_t* model, 
@@ -473,10 +479,14 @@ void model_define_global_observation(model_t* model,
                                      real_t (*compute_global_observation)(void* context,
                                                                           real_t t))
 {
-  string_ptr_unordered_map_insert_with_k_dtor(model->global_obs, 
-                                              string_dup(name), 
-                                              (void*)compute_global_observation, 
-                                              key_dtor);
+  // ISO C doesn't allow us to stuff a function pointer into a pointer slot, so we
+  // create a container for the function pointer and stuff it in there.
+  // "Every problem can be solved by a layer of indirection," etc...
+  global_obs_t* data = polymec_malloc(sizeof(global_obs_t));
+  data->func = compute_global_observation;
+  string_ptr_unordered_map_insert_with_kv_dtor(model->global_obs, 
+                                               string_dup(name), 
+                                               data, global_obs_dtor);
 }
 
 // Support for built-in observations.
@@ -500,6 +510,11 @@ static real_t built_in_observation(model_t* model, char* observation)
     polymec_error("Invalid built-in observation: %s", observation);
     return 0.0;
   }
+}
+
+static void key_dtor(char* key)
+{
+  string_free(key);
 }
 
 void model_observe(model_t* model, const char* observation)
