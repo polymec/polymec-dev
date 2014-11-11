@@ -475,7 +475,7 @@ void model_define_global_observation(model_t* model,
 {
   string_ptr_unordered_map_insert_with_k_dtor(model->global_obs, 
                                               string_dup(name), 
-                                              (void*)&compute_global_observation, 
+                                              (void*)compute_global_observation, 
                                               key_dtor);
 }
 
@@ -541,7 +541,8 @@ static void model_do_periodic_work(model_t* model)
   if (model->num_obs_times > 0)
   {
     int obs_time_index = real_lower_bound(model->obs_times, model->num_obs_times, model->time);
-    if (fabs(model->time - model->obs_times[obs_time_index]) < 1e-12) // FIXME: Good enough?
+    if ((obs_time_index < model->num_obs_times) && 
+        (fabs(model->time - model->obs_times[obs_time_index]) < 1e-12)) // FIXME: Good enough?
       model_record_observations(model);
   }
 }
@@ -581,8 +582,17 @@ real_t model_max_dt(model_t* model, char* reason)
   {
     real_t obs_time = model->obs_times[obs_time_index];
     real_t obs_dt = obs_time - model->time;
-    ASSERT(obs_dt > 0.0);
-    if (obs_dt < model->max_dt)
+    ASSERT(obs_dt >= 0.0);
+    if (obs_dt == 0.0)
+    {
+      if (obs_time_index < (model->num_obs_times - 1))
+      {
+        obs_time = model->obs_times[obs_time_index+1];
+        dt = obs_time - model->time;
+        sprintf(reason, "Requested observation time: %g", obs_time);
+      }
+    }
+    else if (obs_dt < model->max_dt)
     {
       dt = obs_dt;
       sprintf(reason, "Requested observation time: %g", obs_time);
@@ -692,11 +702,11 @@ void model_record_observations(model_t* model)
 
   // Open up the observation file.
   char obs_fn[strlen(model->sim_name) + 5];
-  snprintf(obs_fn, strlen(model->sim_name) + 4, "%s.obs", model->sim_name);
-  FILE* obs = fopen(obs_fn, "w+");
+  snprintf(obs_fn, strlen(model->sim_name) + 5, "%s.obs", model->sim_name);
+  FILE* obs = fopen(obs_fn, "a");
 
   // If we haven't recorded any observations yet, write a header.
-  if (model->time < model->obs_times[0])
+  if (model->time <= model->obs_times[0])
   {
     log_detail("Writing observation file header...");
 
@@ -748,6 +758,7 @@ void model_record_observations(model_t* model)
     // Write the observation to the file.
     fprintf(obs, "%g ", value);
   }
+  fprintf(obs, "\n");
 
   // Close the file.
   fclose(obs);
@@ -903,12 +914,15 @@ void model_run(model_t* model, real_t t1, real_t t2, int max_steps)
     // value for observe_every, set the observation times.
     if (model->observe_every > 0.0)
     {
-      int num_obs_times = (t2 - t1) / model->observe_every;
+      int num_obs_times = (t2 - t1) / model->observe_every + 1;
       real_t* obs_times = polymec_malloc(sizeof(real_t) * num_obs_times);
       for (int i = 0; i < num_obs_times; ++i)
         obs_times[i] = i * model->observe_every;
       model_set_observation_times(model, obs_times, num_obs_times);
       polymec_free(obs_times);
+
+      // Kick off the first set of observations!
+      model_do_periodic_work(model);
     }
 
     // Now run the calculation.
