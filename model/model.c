@@ -763,10 +763,9 @@ void model_record_observations(model_t* model)
       else
       {
         // It must be a global observation.
-        typedef real_t (*global_observation_func)(void*, real_t);
-        global_observation_func* global_func = (global_observation_func*)string_ptr_unordered_map_get(model->global_obs, obs_name);
-        ASSERT(global_func != NULL);
-        value = (*global_func)(model->context, model->time);
+        global_obs_t** global_obs_data = (global_obs_t**)string_ptr_unordered_map_get(model->global_obs, obs_name);
+        if (global_obs_data != NULL)
+          value = (*global_obs_data)->func(model->context, model->time);
       }
     }
 
