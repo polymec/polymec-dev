@@ -572,8 +572,6 @@ void model_init(model_t* model, real_t t)
   model->time = t;
   model->wall_time0 = MPI_Wtime();
   model->wall_time = MPI_Wtime();
-
-  model_do_periodic_work(model);
 }
 
 // Returns the largest permissible time step that can be taken by the model
@@ -729,7 +727,7 @@ void model_record_observations(model_t* model)
   // If we haven't recorded any observations yet, write a header.
   if (model->time <= model->obs_times[0])
   {
-    log_detail("Writing observation file header...");
+    log_detail("%s: Opening observation file %s.obs and writing header...", model->name, model->sim_name);
 
     // Provenance-related header.
     fprintf(obs, "# %s\n", polymec_invocation());
@@ -744,7 +742,7 @@ void model_record_observations(model_t* model)
     fprintf(obs, "\n");
   }
 
-  log_detail("Recording observations...");
+  log_detail("%s: Recording observations at t = %g...", model->name, model->time);
 
   // Write the current simulation time.
   fprintf(obs, "%g ", model->time);
@@ -770,8 +768,8 @@ void model_record_observations(model_t* model)
       {
         // It must be a global observation.
         global_obs_t** global_obs_data = (global_obs_t**)string_ptr_unordered_map_get(model->global_obs, obs_name);
-        if (global_obs_data != NULL)
-          value = (*global_obs_data)->func(model->context, model->time);
+        ASSERT(global_obs_data != NULL);
+        value = (*global_obs_data)->func(model->context, model->time);
       }
     }
 
@@ -944,6 +942,8 @@ void model_run(model_t* model, real_t t1, real_t t2, int max_steps)
       // Kick off the first set of observations!
       model_do_periodic_work(model);
     }
+    else if (model->plot_every > 0)
+      model_do_periodic_work(model);
 
     // Now run the calculation.
     while ((model->time < t2) && (model->step < max_steps))
