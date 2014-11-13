@@ -598,8 +598,9 @@ real_t model_max_dt(model_t* model, char* reason)
     real_t obs_time = model->obs_times[obs_time_index];
     real_t obs_dt = obs_time - model->time;
     ASSERT(obs_dt >= 0.0);
-    if (obs_dt == 0.0)
+    if (obs_dt < 1e-12) 
     {
+      // We're already at one observation time; set our sights on the next.
       if (obs_time_index < (model->num_obs_times - 1))
       {
         obs_time = model->obs_times[obs_time_index+1];
@@ -608,6 +609,11 @@ real_t model_max_dt(model_t* model, char* reason)
       }
     }
     else if (obs_dt < model->max_dt)
+    {
+      dt = obs_dt;
+      sprintf(reason, "Requested observation time: %g", obs_time);
+    }
+    else if (2.0 * obs_dt < model->max_dt)
     {
       dt = obs_dt;
       sprintf(reason, "Requested observation time: %g", obs_time);
