@@ -1097,6 +1097,15 @@ void silo_file_write_mesh(silo_file_t* file,
   snprintf(zonelist_name, FILENAME_MAX, "%s_zonelist", mesh_name);
   DBAddOption(optlist, DBOPT_PHZONELIST, zonelist_name);
 
+  // Stick in cycle/time information if needed.
+  if (file->cycle >= 0)
+    DBAddOption(optlist, DBOPT_CYCLE, &file->cycle);
+  if (file->time != -FLT_MAX)
+  {
+    double t = (double)file->time;
+    DBAddOption(optlist, DBOPT_DTIME, &t);
+  }
+
   // Write out the 3D polyhedral mesh.
   int num_cells = mesh->num_cells;
   DBPutUcdmesh(file->dbfile, (char*)mesh_name, 3, (char const* const*)coordnames, coords,
