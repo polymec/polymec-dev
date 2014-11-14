@@ -719,13 +719,16 @@ void model_record_observations(model_t* model)
   if ((model->observations->size == 0) || (model->num_obs_times == 0))
     return;
 
+  int rank;
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+
   // Open up the observation file.
   char obs_fn[strlen(model->sim_name) + 5];
   snprintf(obs_fn, strlen(model->sim_name) + 5, "%s.obs", model->sim_name);
-  FILE* obs = fopen(obs_fn, "a");
+  FILE* obs = (rank == 0) ? fopen(obs_fn, "a") : NULL;
 
   // If we haven't recorded any observations yet, write a header.
-  if (model->time <= model->obs_times[0])
+  if ((model->time <= model->obs_times[0]) && (rank == 0))
   {
     log_detail("%s: Opening observation file %s.obs and writing header...", model->name, model->sim_name);
 
@@ -745,7 +748,8 @@ void model_record_observations(model_t* model)
   log_detail("%s: Recording observations at t = %g...", model->name, model->time);
 
   // Write the current simulation time.
-  fprintf(obs, "%g ", model->time);
+  if (rank == 0)
+    fprintf(obs, "%g ", model->time);
 
   // Go through all the desired observations.
   for (int i = 0; i < model->observations->size; ++i)
@@ -774,12 +778,15 @@ void model_record_observations(model_t* model)
     }
 
     // Write the observation to the file.
-    fprintf(obs, "%g ", value);
+    if (rank == 0)
+      fprintf(obs, "%g ", value);
   }
-  fprintf(obs, "\n");
+  if (rank == 0)
+    fprintf(obs, "\n");
 
   // Close the file.
-  fclose(obs);
+  if (rank == 0)
+    fclose(obs);
 }
 
 void model_compute_error_norms(model_t* model, st_func_t* solution, real_t* error_norms)
