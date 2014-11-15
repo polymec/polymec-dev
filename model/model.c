@@ -529,6 +529,21 @@ void model_observe(model_t* model, const char* observation)
   string_array_append_with_dtor(model->observations, string_dup(observation), key_dtor);
 }
 
+static void model_observe_all(model_t* model)
+{
+  // Go through all point observations and global observations and add them 
+  // to the observation list.
+  ASSERT(model->observations->size == 0);
+
+  int pos = 0;
+  char* obs_name;
+  void* obs;
+  while (string_ptr_unordered_map_next(model->point_obs, &pos, &obs_name, &obs))
+    string_array_append_with_dtor(model->observations, string_dup(obs_name), key_dtor);
+  while (string_ptr_unordered_map_next(model->global_obs, &pos, &obs_name, &obs))
+    string_array_append_with_dtor(model->observations, string_dup(obs_name), key_dtor);
+}
+
 void model_set_observation_times(model_t* model, real_t* times, int num_times)
 {
   ASSERT(num_times > 0);
@@ -898,6 +913,12 @@ static void override_interpreted_values(model_t* model,
     }
     polymec_free(obs_names); 
   }
+
+  // If no observations were given, but we were asked to make observations 
+  // at certain times, observe everything.
+  if ((model->observations->size == 0) && 
+      ((model->num_obs_times > 0) || (model->observe_every > 0)))
+    model_observe_all(model);
 
   char* max_dt = options_value(options, "max_dt");
   if (max_dt != NULL)
