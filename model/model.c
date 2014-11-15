@@ -1394,7 +1394,7 @@ int multi_model_main(model_dispatch_t model_table[],
         MPI_Comm_rank(MPI_COMM_WORLD, &rank);
       if (rank == 0)
       {
-        const char* benchmark = argv[3];
+        const char* benchmark = argv[4];
         model_describe_benchmark(model, benchmark, stderr);
       }
     }
