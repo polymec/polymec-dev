@@ -991,7 +991,7 @@ void model_run(model_t* model, real_t t1, real_t t2, int max_steps)
   // Do any finalization.
   model_finalize(model);
 
-  log_detail("%s: Run concluded at time %g.", model->name, t2);
+  log_detail("%s: Run concluded at time %g.", model->name, model->time);
 }
 
 void* model_context(model_t* model)
