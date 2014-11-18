@@ -116,6 +116,8 @@ static bool bdf_step(void* context, real_t max_dt, real_t* t, real_t* x)
     // Integrate to at least t -> t + max_dt.
     status = CVode(integ->cvode, t2, integ->x, &integ->t, CV_ONE_STEP);
   }
+  if ((t2 - *t) < (integ->t - *t))
+    log_detail("bdf_ode_integrator: took internal step dt = %g", integ->t - *t);
 
   // If we integrated past t2, interpolate to t2.
   if (integ->t > t2)
