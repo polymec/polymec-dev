@@ -115,6 +115,11 @@ static bool am_step(void* context, real_t max_dt, real_t* t, real_t* x)
   {
     // Integrate to at least t -> t + max_dt.
     status = CVode(integ->cvode, t2, integ->x, &integ->t, CV_ONE_STEP);
+    if ((status != CV_SUCCESS) && (status != CV_TSTOP_RETURN))
+    {
+      integ->status_message = get_status_message(status, integ->t);
+      return false;
+    }
   }
   if ((t2 - *t) < (integ->t - *t))
     log_detail("am_ode_integrator: took internal step dt = %g", integ->t - *t);
@@ -233,6 +238,7 @@ ode_integrator_t* functional_am_ode_integrator_new(int order,
   integ->dtor = dtor;
   integ->status_message = NULL;
   integ->max_krylov_dim = 0;
+  integ->Jy = NULL;
   integ->precond = NULL;
 
   // Set up KINSol and accessories.
@@ -334,6 +340,7 @@ ode_integrator_t* jfnk_am_ode_integrator_new(int order,
   integ->dtor = dtor;
   integ->status_message = NULL;
   integ->max_krylov_dim = max_krylov_dim;
+  integ->Jy = Jy;
 
   // Set up KINSol and accessories.
   integ->x = N_VNew(integ->comm, integ->N);
@@ -378,6 +385,30 @@ void* am_ode_integrator_context(ode_integrator_t* integrator)
 {
   am_ode_t* integ = ode_integrator_context(integrator);
   return integ->context;
+}
+
+void am_ode_integrator_set_max_err_test_failures(ode_integrator_t* integrator,
+                                                 int max_failures)
+{
+  ASSERT(max_failures > 0);
+  am_ode_t* integ = ode_integrator_context(integrator);
+  CVodeSetMaxErrTestFails(integ->cvode, max_failures);
+}
+
+void am_ode_integrator_set_max_nonlinear_iterations(ode_integrator_t* integrator,
+                                                    int max_iterations)
+{
+  ASSERT(max_iterations > 0);
+  am_ode_t* integ = ode_integrator_context(integrator);
+  CVodeSetMaxNonlinIters(integ->cvode, max_iterations);
+}
+
+void am_ode_integrator_set_nonlinear_convergence_coeff(ode_integrator_t* integrator,
+                                                       real_t coefficient)
+{
+  ASSERT(coefficient > 0.0);
+  am_ode_t* integ = ode_integrator_context(integrator);
+  CVodeSetNonlinConvCoef(integ->cvode, (double)coefficient);
 }
 
 void am_ode_integrator_set_tolerances(ode_integrator_t* integrator,
@@ -427,14 +458,25 @@ void am_ode_integrator_get_diagnostics(ode_integrator_t* integrator,
   CVodeGetLastOrder(integ->cvode, &diagnostics->order_of_last_step);
   CVodeGetLastStep(integ->cvode, &diagnostics->last_step_size);
   CVodeGetNumRhsEvals(integ->cvode, &diagnostics->num_rhs_evaluations);
-  CVodeGetNumLinSolvSetups(integ->cvode, &diagnostics->num_linear_solve_setups);
   CVodeGetNumErrTestFails(integ->cvode, &diagnostics->num_error_test_failures);
   CVodeGetNumNonlinSolvIters(integ->cvode, &diagnostics->num_nonlinear_solve_iterations);
   CVodeGetNumNonlinSolvConvFails(integ->cvode, &diagnostics->num_nonlinear_solve_convergence_failures);
-  CVSpilsGetNumLinIters(integ->cvode, &diagnostics->num_linear_solve_iterations);
-  CVSpilsGetNumPrecEvals(integ->cvode, &diagnostics->num_preconditioner_evaluations);
-  CVSpilsGetNumPrecSolves(integ->cvode, &diagnostics->num_preconditioner_solves);
-  CVSpilsGetNumConvFails(integ->cvode, &diagnostics->num_linear_solve_convergence_failures);
+  if (integ->max_krylov_dim > 0)
+  {
+    CVodeGetNumLinSolvSetups(integ->cvode, &diagnostics->num_linear_solve_setups);
+    CVSpilsGetNumLinIters(integ->cvode, &diagnostics->num_linear_solve_iterations);
+    CVSpilsGetNumPrecEvals(integ->cvode, &diagnostics->num_preconditioner_evaluations);
+    CVSpilsGetNumPrecSolves(integ->cvode, &diagnostics->num_preconditioner_solves);
+    CVSpilsGetNumConvFails(integ->cvode, &diagnostics->num_linear_solve_convergence_failures);
+  }
+  else 
+  {
+    diagnostics->num_linear_solve_setups = -1;
+    diagnostics->num_linear_solve_iterations = -1;
+    diagnostics->num_preconditioner_evaluations = -1;
+    diagnostics->num_preconditioner_solves = -1;
+    diagnostics->num_linear_solve_convergence_failures = -1;
+  }
 }
 
 void am_ode_integrator_diagnostics_fprintf(am_ode_integrator_diagnostics_t* diagnostics, 
@@ -448,12 +490,18 @@ void am_ode_integrator_diagnostics_fprintf(am_ode_integrator_diagnostics_t* diag
   fprintf(stream, "  Order of last step: %d\n", diagnostics->order_of_last_step);
   fprintf(stream, "  Last step size: %g\n", diagnostics->last_step_size);
   fprintf(stream, "  Num RHS evaluations: %d\n", (int)diagnostics->num_rhs_evaluations);
-  fprintf(stream, "  Num linear solve setups: %d\n", (int)diagnostics->num_linear_solve_setups);
-  fprintf(stream, "  Num linear solve convergence failures: %d\n", (int)diagnostics->num_linear_solve_convergence_failures);
   fprintf(stream, "  Num error test failures: %d\n", (int)diagnostics->num_error_test_failures);
   fprintf(stream, "  Num nonlinear solve iterations: %d\n", (int)diagnostics->num_nonlinear_solve_iterations);
   fprintf(stream, "  Num nonlinear solve convergence failures: %d\n", (int)diagnostics->num_nonlinear_solve_convergence_failures);
-  fprintf(stream, "  Num preconditioner evaluations: %d\n", (int)diagnostics->num_preconditioner_evaluations);
-  fprintf(stream, "  Num preconditioner solves: %d\n", (int)diagnostics->num_preconditioner_solves);
+  if (diagnostics->num_linear_solve_setups != -1)
+    fprintf(stream, "  Num linear solve setups: %d\n", (int)diagnostics->num_linear_solve_setups);
+  if (diagnostics->num_linear_solve_iterations != -1)
+    fprintf(stream, "  Num linear solve iterations: %d\n", (int)diagnostics->num_linear_solve_iterations);
+  if (diagnostics->num_linear_solve_convergence_failures != -1)
+    fprintf(stream, "  Num linear solve convergence failures: %d\n", (int)diagnostics->num_linear_solve_convergence_failures);
+  if (diagnostics->num_preconditioner_evaluations != -1)
+    fprintf(stream, "  Num preconditioner evaluations: %d\n", (int)diagnostics->num_preconditioner_evaluations);
+  if (diagnostics->num_preconditioner_solves != -1)
+    fprintf(stream, "  Num preconditioner solves: %d\n", (int)diagnostics->num_preconditioner_solves);
 }
 
