@@ -89,8 +89,23 @@ void bdf_ode_integrator_set_error_weight_function(ode_integrator_t* integrator,
 
 // Toggles stability limit detection, making the BDF method more robust at 
 // a cost of 10-20% overhead.
-void ode_integrator_set_stability_limit_detection(ode_integrator_t* integrator,
-                                                  bool use_detection);
+void bdf_ode_integrator_set_stability_limit_detection(ode_integrator_t* integrator,
+                                                      bool use_detection);
+
+// Sets the maximum number of error test failures permitted in attempting 
+// a single time step. By default, this value is 7.
+void bdf_ode_integrator_set_max_err_test_failures(ode_integrator_t* integrator,
+                                                  int max_failures);
+
+// Sets the maximum number of nonlinear solver iterations per time step.
+// By default, this value is 3.
+void bdf_ode_integrator_set_max_nonlinear_iterations(ode_integrator_t* integrator,
+                                                     int max_iterations);
+
+// Sets the safety factor (coefficient) used in the nonlinear convergence test.
+// By default, this value is 0.1.
+void bdf_ode_integrator_set_nonlinear_convergence_coeff(ode_integrator_t* integrator,
+                                                        real_t coefficient);
 
 // Evaluates the right-hand side of the system at the given time and with the 
 // given solution X, placing the results in rhs.

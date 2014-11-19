@@ -340,6 +340,30 @@ void* bdf_ode_integrator_context(ode_integrator_t* integrator)
   return integ->context;
 }
 
+void bdf_ode_integrator_set_max_err_test_failures(ode_integrator_t* integrator,
+                                                  int max_failures)
+{
+  ASSERT(max_failures > 0);
+  bdf_ode_t* integ = ode_integrator_context(integrator);
+  CVodeSetMaxErrTestFails(integ->cvode, max_failures);
+}
+
+void bdf_ode_integrator_set_max_nonlinear_iterations(ode_integrator_t* integrator,
+                                                     int max_iterations)
+{
+  ASSERT(max_iterations > 0);
+  bdf_ode_t* integ = ode_integrator_context(integrator);
+  CVodeSetMaxNonlinIters(integ->cvode, max_iterations);
+}
+
+void bdf_ode_integrator_set_nonlinear_convergence_coeff(ode_integrator_t* integrator,
+                                                        real_t coefficient)
+{
+  ASSERT(coefficient > 0.0);
+  bdf_ode_t* integ = ode_integrator_context(integrator);
+  CVodeSetNonlinConvCoef(integ->cvode, (double)coefficient);
+}
+
 void bdf_ode_integrator_set_tolerances(ode_integrator_t* integrator,
                                       real_t relative_tol, real_t absolute_tol)
 {
