@@ -40,6 +40,19 @@ polynomial_fit_t* polynomial_fit_new(int num_components, int p);
 // Frees the polynomial fit.
 void polynomial_fit_free(polynomial_fit_t* fit);
 
+// Sets the polynomial fit to use uniform weighting. This is the default
+// setting for polynomial fits.
+void polynomial_fit_set_unweighted(polynomial_fit_t* fit);
+
+// Sets up an inverse distance weighting function to use for the next 
+// polynomial fit, in the form W(x, x0) = A / ((x - x0)**C + B**C).
+// Here, A is a normalization coefficient, B is a "softening parameter," and 
+// C is the distance exponent.
+void polynomial_fit_set_inverse_power_weights(polynomial_fit_t* fit, 
+                                              real_t A, 
+                                              real_t B,
+                                              real_t C);
+
 // Returns the degree of the polynomial fit.
 int polynomial_fit_degree(polynomial_fit_t* fit);
 
