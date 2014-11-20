@@ -278,6 +278,8 @@ void model_run_benchmark(model_t* model, const char* benchmark)
     char* conv_rate = options_value(options, "conv_rate");
     char* sigma = options_value(options, "conv_rate_sigma");
     char* exp_conv_rate = options_value(options, "expected_conv_rate");
+    char* exp_err_norm = options_value(options, "expected_error_norm");
+    char* err_norm = options_value(options, "error_norm");
     if ((exp_conv_rate != NULL) && (conv_rate != NULL))
     {
       real_t expected_rate = atof(exp_conv_rate);
@@ -293,21 +295,34 @@ void model_run_benchmark(model_t* model, const char* benchmark)
       else
         log_urgent("%s: Benchmark '%s' convergence test FAILED\n", model->name, benchmark);
     }
-    else
+    else if ((exp_err_norm != NULL) && (err_norm != NULL))
     {
-      char* exp_err_norm = options_value(options, "expected_error_norm");
-      char* err_norm = options_value(options, "error_norm");
-      if ((exp_err_norm != NULL) && (err_norm != NULL))
-      {
-        real_t expected_norm = atof(exp_err_norm);
-        real_t actual_norm = atof(err_norm);
-        log_urgent("%s: Expected error norm: %g", model->name, expected_norm);
-        log_urgent("%s: Measured error norm: %g", model->name, actual_norm);
-        if (actual_norm <= expected_norm)
-          log_urgent("%s: Benchmark '%s' error norm test PASSED\n", model->name, benchmark);
-        else
-          log_urgent("%s: Benchmark '%s' error norm test FAILED\n", model->name, benchmark);
-      }
+      real_t expected_norm = atof(exp_err_norm);
+      real_t actual_norm = atof(err_norm);
+      log_urgent("%s: Expected error norm: %g", model->name, expected_norm);
+      log_urgent("%s: Measured error norm: %g", model->name, actual_norm);
+      if (actual_norm <= expected_norm)
+        log_urgent("%s: Benchmark '%s' error norm test PASSED\n", model->name, benchmark);
+      else
+        log_urgent("%s: Benchmark '%s' error norm test FAILED\n", model->name, benchmark);
+    }
+    else if (conv_rate != NULL)
+    {
+      // We have a convergence rate -- it is probably interesting, even if 
+      // we haven't based a PASS/FAIL critierion on it.
+      real_t actual_rate = atof(conv_rate);
+      real_t actual_rate_sigma = atof(sigma);
+      if (actual_rate_sigma != 0.0)
+        log_urgent("%s: Measured convergence rate: %g +/- %g", model->name, actual_rate, actual_rate_sigma);
+      else
+        log_urgent("%s: Measured convergence rate: %g", model->name, actual_rate);
+    }
+    else if (err_norm != NULL)
+    {
+      // We have an error norm -- it is probably interesting, even if 
+      // we haven't based a PASS/FAIL critierion on it.
+      real_t actual_norm = atof(err_norm);
+      log_urgent("%s: Measured error norm: %g", model->name, actual_norm);
     }
   }
   else
