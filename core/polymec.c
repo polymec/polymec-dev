@@ -411,13 +411,13 @@ void polymec_enable_fpe()
 
 void polymec_disable_fpe()
 {
+  feclearexcept(FE_ALL_EXCEPT);
 #ifdef LINUX
   fedisableexcept(fegetexcept());
 #endif
 
 #ifdef APPLE
-  unsigned int mask = _MM_MASK_INVALID | _MM_MASK_DIV_ZERO | _MM_MASK_OVERFLOW | _MM_MASK_DENORM;
-  _MM_SET_EXCEPTION_MASK(_MM_GET_EXCEPTION_MASK() & mask);
+  _MM_SET_EXCEPTION_MASK(_MM_GET_EXCEPTION_MASK());
 #endif
   log_debug("Disabled floating point exception support.");
 }
