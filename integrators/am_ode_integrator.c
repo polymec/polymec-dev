@@ -120,9 +120,9 @@ static bool am_step(void* context, real_t max_dt, real_t* t, real_t* x)
       integ->status_message = get_status_message(status, integ->t);
       return false;
     }
+    if ((t2 - *t) < (integ->t - *t))
+      log_detail("am_ode_integrator: took internal step dt = %g", integ->t - *t);
   }
-  if ((t2 - *t) < (integ->t - *t))
-    log_detail("am_ode_integrator: took internal step dt = %g", integ->t - *t);
 
   // If we integrated past t2, interpolate to t2.
   if (integ->t > t2)
