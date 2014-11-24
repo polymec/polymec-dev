@@ -45,13 +45,18 @@ void polynomial_fit_free(polynomial_fit_t* fit);
 void polynomial_fit_set_unweighted(polynomial_fit_t* fit);
 
 // Sets up an inverse distance weighting function to use for the next 
-// polynomial fit, in the form W(x, x0) = A / ((x - x0)**C + B**C).
-// Here, A is a normalization coefficient, B is a "softening parameter," and 
-// C is the distance exponent.
+// polynomial fit, in the form 
+//                        W0
+// W(x, x0) = ----------------------------,
+//            (((x - x0)/h)**p + epsilon**p)
+// 
+// where W0 is a constant, epsilon is a "softening parameter," h is a 
+// scaling parameter, and p is the exponent dictating the power law.
 void polynomial_fit_set_inverse_power_weights(polynomial_fit_t* fit, 
-                                              real_t A, 
-                                              real_t B,
-                                              real_t C);
+                                              real_t W0, 
+                                              real_t p,
+                                              real_t h,
+                                              real_t epsilon);
 
 // Returns the degree of the polynomial fit.
 int polynomial_fit_degree(polynomial_fit_t* fit);

@@ -30,7 +30,7 @@
 
 typedef struct 
 {
-  real_t A, B, C;
+  real_t W0, p, h, epsilon;
 } weight_func_params_t;
 
 struct polynomial_fit_t 
@@ -49,8 +49,9 @@ struct polynomial_fit_t
 
 static real_t inverse_power_weight(weight_func_params_t* params, point_t* x, point_t* x0)
 {
-  real_t d = point_distance(x, x0);
-  return params->A / (pow(d, params->C) + pow(params->B, params->C));
+  real_t d = point_distance(x, x0) / params->h;
+  real_t p = params->p;
+  return params->W0 / (pow(d, p) + pow(params->epsilon, p));
 }
 
 polynomial_fit_t* polynomial_fit_new(int num_components, int p)
@@ -104,16 +105,19 @@ void polynomial_fit_set_unweighted(polynomial_fit_t* fit)
 }
 
 void polynomial_fit_set_inverse_power_weights(polynomial_fit_t* fit, 
-                                              real_t A, 
-                                              real_t B,
-                                              real_t C)
+                                              real_t W0, 
+                                              real_t p,
+                                              real_t h,
+                                              real_t epsilon)
 {
-  ASSERT(A > 0.0);
-  ASSERT(B >= 0.0);
-  ASSERT(C > 0.0);
-  fit->weight_params.A = A;
-  fit->weight_params.B = B;
-  fit->weight_params.C = C;
+  ASSERT(W0 > 0.0);
+  ASSERT(p >= 0.0);
+  ASSERT(h > 0.0);
+  ASSERT(epsilon >= 0.0);
+  fit->weight_params.W0 = W0;
+  fit->weight_params.p = p;
+  fit->weight_params.h = h;
+  fit->weight_params.epsilon = epsilon;
   fit->compute_weight = inverse_power_weight;
 }
 
