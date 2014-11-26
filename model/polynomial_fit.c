@@ -296,19 +296,25 @@ static void solve_direct_least_squares(polynomial_fit_t* fit)
 
   // Appeal to LAPACK to solve this least-squares system for us.
   {
-    int one = 1, rank, info;
-    real_t rcond = -1.0;
+    int one = 1, info;
+
+    // QR factorization.
+    char trans = 'N';
+    int block_size = num_components;
+    int lwork = MAX(1, num_rows*num_cols + MAX(num_rows*num_cols, 1) * block_size);
+    real_t work[lwork];
+    rgels(&trans, &num_rows, &num_cols, &one, A, &num_rows, X, &num_rows, work, &lwork, &info);
 
     // Orthogonal factorization. 
-    int lwork = MAX(num_rows*num_cols+3*num_rows+1, 2*num_rows*num_cols+1); // unblocked strategy
-    real_t work[lwork];
-    int jpivot[num_cols];
-    rgelsy(&num_rows, &num_cols, &one, A, &num_rows, X, &num_rows, jpivot, &rcond, &rank, work, &lwork, &info);
+//    int rank, lwork = MAX(num_rows*num_cols+3*num_rows+1, 2*num_rows*num_cols+1); // unblocked strategy
+//    real_t rcond = -1.0, work[lwork];
+//    int jpivot[num_cols];
+//    rgelsy(&num_rows, &num_cols, &one, A, &num_rows, X, &num_rows, jpivot, &rcond, &rank, work, &lwork, &info);
 
     // Regular singular value decomposition.
 //    real_t S[MIN(num_cols, num_components*dim)];
-//    int lwork = 3*num_rows + MAX(2*num_rows, num_rows, 1);
-//    real_t work[lwork];
+//    int rank, lwork = 3*num_rows + MAX(2*num_rows, num_rows, 1);
+//    real_t rcond = -1.0, work[lwork];
 //    polymec_suspend_fpe();
 //    rgelss(&num_rows, &num_cols, &one, A, &num_rows, X, &num_rows, S, &rcond, &rank, work, &lwork, &info);
 //    polymec_restore_fpe();
@@ -316,8 +322,8 @@ static void solve_direct_least_squares(polynomial_fit_t* fit)
     // Divide-n-conquer singular value decomposition.
 //    int SMLSIZ = 25, NLVL = 10;
 //    real_t S[MIN(num_cols, num_components*dim)];
-//    int lwork = 12*num_rows + 2*num_rows*SMLSIZ + 8*num_rows*NLVL + num_rows + (SMLSIZ+1)**2 + 100;
-//    real_t work[lwork];
+//    int rank, lwork = 12*num_rows + 2*num_rows*SMLSIZ + 8*num_rows*NLVL + num_rows + (SMLSIZ+1)**2 + 100;
+//    real_t rcond = -1.0, work[lwork];
 //    polymec_suspend_fpe();
 //    rgelsd(&num_rows, &num_cols, &one, A, &num_rows, X, &num_rows, S, &rcond, &rank, work, &lwork, &info);
 //    polymec_restore_fpe();

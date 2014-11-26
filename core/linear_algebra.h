@@ -39,6 +39,7 @@
 #define dorgqr dorgqr_
 #define dormqr dormqr_
 #define dgesvd dgesvd_
+#define dgels dgels_
 #define dgelsy dgelsy_
 #define dgelss dgelss_
 #define dgelsd dgelsd_
@@ -51,7 +52,10 @@
 #define sorgqr sorgqr_
 #define sormqr sormqr_
 #define sgesvd sgesvd_
+#define sgels  sgels_
 #define sgelsy sgelsy_
+#define sgelss sgelss_
+#define sgelsd sgelsd_
 #endif
 
 // Matrix-vector multiplication: y := alpha*A*x + beta*y.
@@ -174,6 +178,18 @@ void sgesvd(char* jobU, char* jobVT, int* m, int* n,
 void rgesvd(char* jobU, char* jobVT, int* m, int* n, 
             real_t *A, int* lda, real_t* S, real_t* U, int* ldu, 
             real_t* VT, int* ldvt, real_t *work, int* lwork, int* info);
+
+// DGELSY computes the minimum-norm solution to a real linear least
+// squares problem:
+//       minimize || A * X - B ||
+// using a QR factorization of A. A is an M-by-N
+// matrix which must not be rank-deficient. See LAPACK documentation for details.
+void dgels(char* trans, int* m, int* n, int* nrhs, double* A, int* lda, double* B, int* ldb, 
+           double* work, int* lwork, int* info);
+void sgels(char* trans, int* m, int* n, int* nrhs, float* A, int* lda, float* B, int* ldb, 
+           float* work, int* lwork, int* info);
+void rgels(char* trans, int* m, int* n, int* nrhs, real_t* A, int* lda, real_t* B, int* ldb, 
+           real_t* work, int* lwork, int* info);
 
 // DGELSY computes the minimum-norm solution to a real linear least
 // squares problem:

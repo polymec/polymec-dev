@@ -121,6 +121,16 @@ void rgesvd(char* jobU, char* jobVT, int* m, int* n,
 #endif
 }
 
+void rgels(char* trans, int* m, int* n, int* nrhs, real_t* A, int* lda, real_t* B, int* ldb, 
+           real_t* work, int* lwork, int* info)
+{
+#if POLYMEC_HAVE_DOUBLE_PRECISION
+  dgels(trans, m, n, nrhs, A, lda, B, ldb, work, lwork, info);
+#else
+  sgels(trans, m, n, nrhs, A, lda, B, ldb, work, lwork, info);
+#endif
+}
+
 void rgelsy(int* m, int* n, int* nrhs, real_t* A, int* lda, real_t* B, int* ldb, 
             int* jpvt, real_t* rcond, int* rank, real_t* work, int* lwork, 
             int* info)
