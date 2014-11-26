@@ -36,6 +36,7 @@ typedef struct
 struct polynomial_fit_t 
 {
   int num_components, p;
+  polynomial_fit_solver_t solver_type;
   polynomial_t** poly;
   ptr_array_t** equations;
   ptr_array_t** points;
@@ -54,7 +55,9 @@ static real_t inverse_power_weight(weight_func_params_t* params, point_t* x, poi
   return params->W0 / (pow(d, p) + pow(params->epsilon, p));
 }
 
-polynomial_fit_t* polynomial_fit_new(int num_components, int p)
+polynomial_fit_t* polynomial_fit_new(int num_components, 
+                                     int p,
+                                     polynomial_fit_solver_t solver_type)
 {
   ASSERT(num_components >= 1);
   ASSERT(p >= 0);
@@ -67,6 +70,7 @@ polynomial_fit_t* polynomial_fit_new(int num_components, int p)
 
   fit->num_components = num_components;
   fit->p = p;
+  fit->solver_type = solver_type;
   fit->poly = polymec_malloc(sizeof(polynomial_t*) * num_components);
   fit->equations = polymec_malloc(sizeof(ptr_array_t*) * num_components);
   fit->points = polymec_malloc(sizeof(ptr_array_t*) * num_components);
@@ -297,36 +301,41 @@ static void solve_direct_least_squares(polynomial_fit_t* fit)
   // Appeal to LAPACK to solve this least-squares system for us.
   {
     int one = 1, info;
-
-    // QR factorization.
-    char trans = 'N';
-    int block_size = num_components;
-    int lwork = MAX(1, num_rows*num_cols + MAX(num_rows*num_cols, 1) * block_size);
-    real_t work[lwork];
-    rgels(&trans, &num_rows, &num_cols, &one, A, &num_rows, X, &num_rows, work, &lwork, &info);
-
-    // Orthogonal factorization. 
-//    int rank, lwork = MAX(num_rows*num_cols+3*num_rows+1, 2*num_rows*num_cols+1); // unblocked strategy
-//    real_t rcond = -1.0, work[lwork];
-//    int jpivot[num_cols];
-//    rgelsy(&num_rows, &num_cols, &one, A, &num_rows, X, &num_rows, jpivot, &rcond, &rank, work, &lwork, &info);
-
-    // Regular singular value decomposition.
-//    real_t S[MIN(num_cols, num_components*dim)];
-//    int rank, lwork = 3*num_rows + MAX(2*num_rows, num_rows, 1);
-//    real_t rcond = -1.0, work[lwork];
-//    polymec_suspend_fpe();
-//    rgelss(&num_rows, &num_cols, &one, A, &num_rows, X, &num_rows, S, &rcond, &rank, work, &lwork, &info);
-//    polymec_restore_fpe();
+    if (fit->solver_type == QR_FACTORIZATION)
+    {
+      char trans = 'N';
+      int block_size = num_components;
+      int lwork = MAX(1, num_rows*num_cols + MAX(num_rows*num_cols, 1) * block_size);
+      real_t work[lwork];
+      rgels(&trans, &num_rows, &num_cols, &one, A, &num_rows, X, &num_rows, work, &lwork, &info);
+    }
+    else if (fit->solver_type == ORTHOGONAL_FACTORIZATION)
+    {
+      int rank, lwork = MAX(num_rows*num_cols+3*num_rows+1, 2*num_rows*num_cols+1); // unblocked strategy
+      real_t rcond = -1.0, work[lwork];
+      int jpivot[num_cols];
+      rgelsy(&num_rows, &num_cols, &one, A, &num_rows, X, &num_rows, jpivot, &rcond, &rank, work, &lwork, &info);
+    }
+    else
+    {
+      ASSERT(fit->solver_type == SINGULAR_VALUE_DECOMPOSITION);
+      real_t S[MIN(num_cols, num_components*dim)];
+      int rank, lwork = 3*num_rows + MAX(2*num_rows, num_rows) + 100;
+      real_t rcond = -1.0, work[lwork];
+      polymec_suspend_fpe();
+      rgelss(&num_rows, &num_cols, &one, A, &num_rows, X, &num_rows, S, &rcond, &rank, work, &lwork, &info);
+      polymec_restore_fpe();
+    }
 
     // Divide-n-conquer singular value decomposition.
-//    int SMLSIZ = 25, NLVL = 10;
-//    real_t S[MIN(num_cols, num_components*dim)];
-//    int rank, lwork = 12*num_rows + 2*num_rows*SMLSIZ + 8*num_rows*NLVL + num_rows + (SMLSIZ+1)**2 + 100;
-//    real_t rcond = -1.0, work[lwork];
-//    polymec_suspend_fpe();
-//    rgelsd(&num_rows, &num_cols, &one, A, &num_rows, X, &num_rows, S, &rcond, &rank, work, &lwork, &info);
-//    polymec_restore_fpe();
+    //    int SMLSIZ = 25, NLVL = 10;
+    //    real_t S[MIN(num_cols, num_components*dim)];
+    //    int rank, lwork = 12*num_rows + 2*num_rows*SMLSIZ + 8*num_rows*NLVL + num_rows + (SMLSIZ+1)**2 + 100;
+    //    real_t rcond = -1.0, work[lwork];
+    //    polymec_suspend_fpe();
+    //    rgelsd(&num_rows, &num_cols, &one, A, &num_rows, X, &num_rows, S, &rcond, &rank, work, &lwork, &info);
+    //    polymec_restore_fpe();
+
     if (info != 0)
       polymec_error("polynomial_fit: failed to solve least-squares system.");
   }

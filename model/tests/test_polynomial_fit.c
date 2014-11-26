@@ -30,9 +30,9 @@
 #include "core/polynomial.h"
 #include "model/polynomial_fit.h"
 
-void test_polynomial_fit_ctor(void** state, int num_components, int p)
+void test_polynomial_fit_ctor(void** state, int num_components, int p, polynomial_fit_solver_t solver_type)
 {
-  polynomial_fit_t* fit = polynomial_fit_new(num_components, p);
+  polynomial_fit_t* fit = polynomial_fit_new(num_components, p, solver_type);
   assert_int_equal(num_components, polynomial_fit_num_components(fit));
   assert_int_equal(p, polynomial_fit_degree(fit));
   assert_int_equal(0, polynomial_fit_num_equations(fit));
@@ -44,7 +44,11 @@ void test_polynomial_fit_new(void** state)
   for (int num_comp = 1; num_comp < 8; ++num_comp)
   {
     for (int degree = 0; degree < 4; ++degree)
-      test_polynomial_fit_ctor(state, num_comp, degree);
+    {
+      test_polynomial_fit_ctor(state, num_comp, degree, QR_FACTORIZATION);
+      test_polynomial_fit_ctor(state, num_comp, degree, ORTHOGONAL_FACTORIZATION);
+      test_polynomial_fit_ctor(state, num_comp, degree, SINGULAR_VALUE_DECOMPOSITION);
+    }
   }
 }
 
@@ -84,12 +88,12 @@ void test_fit_consistency(void** state, polynomial_fit_t* fit, int component,
 }
 
 void test_polynomial_fit(void** state, polynomial_t** polynomials, 
-                         int num_components)
+                         int num_components, polynomial_fit_solver_t solver_type)
 {
   rng_t* rng = host_rng_new();
   int p = polynomial_degree(polynomials[0]);
 
-  polynomial_fit_t* fit = polynomial_fit_new(num_components, p);
+  polynomial_fit_t* fit = polynomial_fit_new(num_components, p, solver_type);
   point_t x[] = {{.x =  0.0, .y =  0.0, .z =  0.0},
                  {.x =  0.0, .y =  0.0, .z = -0.5},
                  {.x =  0.0, .y = -0.5, .z =  0.0},
@@ -141,7 +145,9 @@ void test_polynomial_fit_constant_scalar(void** state)
   real_t coeffs[] = {3.0};
   point_t x0 = {.x = 0.0, .y = 0.0, .z = 0.0};
   polynomial_t* p0 = polynomial_new(0, coeffs, &x0); 
-  test_polynomial_fit(state, &p0, 1);
+  test_polynomial_fit(state, &p0, 1, QR_FACTORIZATION);
+  test_polynomial_fit(state, &p0, 1, ORTHOGONAL_FACTORIZATION);
+  test_polynomial_fit(state, &p0, 1, SINGULAR_VALUE_DECOMPOSITION);
 }
 
 void test_polynomial_fit_constant_vector(void** state)
@@ -154,7 +160,9 @@ void test_polynomial_fit_constant_vector(void** state)
   polynomial_t* p2 = polynomial_new(0, coeffs2, &x0); 
   polynomial_t* p3 = polynomial_new(0, coeffs3, &x0); 
   polynomial_t* poly[] = {p1, p2, p3};
-  test_polynomial_fit(state, poly, 3);
+  test_polynomial_fit(state, poly, 3, QR_FACTORIZATION);
+  test_polynomial_fit(state, poly, 3, ORTHOGONAL_FACTORIZATION);
+  test_polynomial_fit(state, poly, 3, SINGULAR_VALUE_DECOMPOSITION);
 }
 
 void test_polynomial_fit_linear_scalar(void** state)
@@ -162,7 +170,9 @@ void test_polynomial_fit_linear_scalar(void** state)
   real_t coeffs[] = {1.0, 2.0, 3.0, 4.0};
   point_t x0 = {.x = 0.0, .y = 0.0, .z = 0.0};
   polynomial_t* p1 = polynomial_new(1, coeffs, &x0); 
-  test_polynomial_fit(state, &p1, 1);
+  test_polynomial_fit(state, &p1, 1, QR_FACTORIZATION);
+  test_polynomial_fit(state, &p1, 1, ORTHOGONAL_FACTORIZATION);
+  test_polynomial_fit(state, &p1, 1, SINGULAR_VALUE_DECOMPOSITION);
 }
 
 void test_polynomial_fit_linear_vector(void** state)
@@ -173,7 +183,9 @@ void test_polynomial_fit_linear_vector(void** state)
   polynomial_t* p2 = polynomial_new(1, coeffs, &x0); 
   polynomial_t* p3 = polynomial_new(1, coeffs, &x0); 
   polynomial_t* poly[] = {p1, p2, p3};
-  test_polynomial_fit(state, poly, 3);
+  test_polynomial_fit(state, poly, 3, QR_FACTORIZATION);
+  test_polynomial_fit(state, poly, 3, ORTHOGONAL_FACTORIZATION);
+  test_polynomial_fit(state, poly, 3, SINGULAR_VALUE_DECOMPOSITION);
 }
 
 int main(int argc, char* argv[]) 

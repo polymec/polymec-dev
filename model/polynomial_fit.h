@@ -33,9 +33,21 @@
 // squares methods.
 typedef struct polynomial_fit_t polynomial_fit_t;
 
+// This enumerated type designates methods used to solve the least-squares
+// systems that arise from polynomial fits.
+typedef enum
+{
+  QR_FACTORIZATION,
+  ORTHOGONAL_FACTORIZATION,
+  SINGULAR_VALUE_DECOMPOSITION
+} polynomial_fit_solver_t;
+
 // Creates a new empty least squares system for fitting multi-component 
-// scatter data to a set of degree p polynomials.
-polynomial_fit_t* polynomial_fit_new(int num_components, int p);
+// scatter data to a set of degree p polynomials. The type of underlying 
+// solver must also be given.
+polynomial_fit_t* polynomial_fit_new(int num_components, 
+                                     int p,
+                                     polynomial_fit_solver_t solver_type);
 
 // Frees the polynomial fit.
 void polynomial_fit_free(polynomial_fit_t* fit);
