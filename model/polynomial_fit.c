@@ -293,15 +293,37 @@ static void solve_direct_least_squares(polynomial_fit_t* fit)
       A[num_rows*c+r] = eq[c];
     X[r] = eq[num_cols];
   }
-  int one = 1, rank, info;
-  int lwork = MAX(num_rows*num_cols+3*num_rows+1, 2*num_rows*num_cols+1); // unblocked strategy
-  real_t rcond = -1.0, work[lwork];
-  int jpivot[num_cols];
-  rgelsy(&num_rows, &num_cols, &one, A, &num_rows, X, &num_rows, jpivot, &rcond, &rank, work, &lwork, &info);
-//  real_t S[MIN(N, num_components*dim)];
-//  rgelss(&N, &dim, &one, A, &N, X, &N, S, &rcond, &rank, work, &lwork, &info);
-  if (info != 0)
-    polymec_error("polynomial_fit: failed to solve least-squares system.");
+
+  // Appeal to LAPACK to solve this least-squares system for us.
+  {
+    int one = 1, rank, info;
+    real_t rcond = -1.0;
+
+    // Orthogonal factorization. 
+    int lwork = MAX(num_rows*num_cols+3*num_rows+1, 2*num_rows*num_cols+1); // unblocked strategy
+    real_t work[lwork];
+    int jpivot[num_cols];
+    rgelsy(&num_rows, &num_cols, &one, A, &num_rows, X, &num_rows, jpivot, &rcond, &rank, work, &lwork, &info);
+
+    // Regular singular value decomposition.
+//    real_t S[MIN(num_cols, num_components*dim)];
+//    int lwork = 3*num_rows + MAX(2*num_rows, num_rows, 1);
+//    real_t work[lwork];
+//    polymec_suspend_fpe();
+//    rgelsd(&num_rows, &num_cols, &one, A, &num_rows, X, &num_rows, S, &rcond, &rank, work, &lwork, &info);
+//    polymec_restore_fpe();
+
+    // Divide-n-conquer singular value decomposition.
+//    int SMLSIZ = 25, NLVL = 10;
+//    real_t S[MIN(num_cols, num_components*dim)];
+//    int lwork = 12*num_rows + 2*num_rows*SMLSIZ + 8*num_rows*NLVL + num_rows + (SMLSIZ+1)**2 + 100;
+//    real_t work[lwork];
+//    polymec_suspend_fpe();
+//    rgelsd(&num_rows, &num_cols, &one, A, &num_rows, X, &num_rows, S, &rcond, &rank, work, &lwork, &info);
+//    polymec_restore_fpe();
+    if (info != 0)
+      polymec_error("polynomial_fit: failed to solve least-squares system.");
+  }
 
   // Copy the coefficients into place.
   for (int c = 0; c < num_components; ++c)

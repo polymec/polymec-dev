@@ -205,6 +205,22 @@ void rgelss(int* m, int* n, int* nrhs, real_t* A, int* lda, real_t* B, int* ldb,
             real_t* S, real_t* rcond, int* rank, real_t* work, int* lwork, 
             int* info);
 
+// DGELSD computes the minimum-norm solution to a real linear least
+// squares problem:
+//       minimize || A * X - B ||
+// using the singular value decomposition of A with a divide-and-conquer 
+// method. A is an M-by-N matrix which may be rank-deficient. See LAPACK 
+// documentation for details.
+void dgelsd(int* m, int* n, int* nrhs, double* A, int* lda, double* B, int* ldb, 
+            double* S, double* rcond, int* rank, double* work, int* lwork, 
+            int* info);
+void sgelsd(int* m, int* n, int* nrhs, float* A, int* lda, float* B, int* ldb, 
+            float* S, float* rcond, int* rank, float* work, int* lwork, 
+            int* info);
+void rgelsd(int* m, int* n, int* nrhs, real_t* A, int* lda, real_t* B, int* ldb, 
+            real_t* S, real_t* rcond, int* rank, real_t* work, int* lwork, 
+            int* info);
+
 // Print a (column-major-ordered) matrix to the given file stream.
 void matrix_fprintf(real_t* matrix, int nr, int nc, FILE* stream);
 

@@ -143,6 +143,17 @@ void rgelss(int* m, int* n, int* nrhs, real_t* A, int* lda, real_t* B, int* ldb,
 #endif
 }
 
+void rgelsd(int* m, int* n, int* nrhs, real_t* A, int* lda, real_t* B, int* ldb, 
+            real_t* S, real_t* rcond, int* rank, real_t* work, int* lwork, 
+            int* info)
+{
+#if POLYMEC_HAVE_DOUBLE_PRECISION
+  dgelsd(m, n, nrhs, A, lda, B, ldb, S, rcond, rank, work, lwork, info);
+#else
+  sgelsd(m, n, nrhs, A, lda, B, ldb, S, rcond, rank, work, lwork, info);
+#endif
+}
+
 void matrix_fprintf(real_t* matrix, int nr, int nc, FILE* stream)
 {
   if (stream == NULL) return;
