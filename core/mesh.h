@@ -357,6 +357,25 @@ static inline bool mesh_face_next_edge(mesh_t* mesh, int face, int* pos, int* ed
   return (*pos <= (mesh->face_edge_offsets[actual_face+1] - mesh->face_edge_offsets[actual_face]));
 }
 
+// This returns the index of the edge shared by face and neighbor_face if the two 
+// faces share a edge, -1 otherwise. A non-negative face index must be given.
+// This function can be somewhat costly, since it requires a linear search through 
+// the edges of the two faces.
+static inline int mesh_face_edge_for_neighbor(mesh_t* mesh, int face, int neighbor_face)
+{
+  for (int e1 = mesh->face_edge_offsets[face]; e1 < mesh->face_edge_offsets[face+1]; ++e1)
+  {
+    int edge1 = mesh->face_edges[e1];
+    for (int e2 = mesh->face_edge_offsets[neighbor_face]; e2 < mesh->face_edge_offsets[neighbor_face+1]; ++e2)
+    {
+      int edge2 = mesh->face_edges[e2];
+      if (edge2 == edge1)
+        return edge2;
+    }
+  }
+  return -1;
+}
+
 // Given a face within the mesh and one of its cells, returns the cell on 
 // the opposite side of the face, or -1 if there is no such cell.
 static inline int mesh_face_opp_cell(mesh_t* mesh, int face, int cell)
