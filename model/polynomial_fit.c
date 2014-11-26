@@ -310,7 +310,7 @@ static void solve_direct_least_squares(polynomial_fit_t* fit)
 //    int lwork = 3*num_rows + MAX(2*num_rows, num_rows, 1);
 //    real_t work[lwork];
 //    polymec_suspend_fpe();
-//    rgelsd(&num_rows, &num_cols, &one, A, &num_rows, X, &num_rows, S, &rcond, &rank, work, &lwork, &info);
+//    rgelss(&num_rows, &num_cols, &one, A, &num_rows, X, &num_rows, S, &rcond, &rank, work, &lwork, &info);
 //    polymec_restore_fpe();
 
     // Divide-n-conquer singular value decomposition.
