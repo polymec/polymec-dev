@@ -200,27 +200,30 @@ void polynomial_fit_add_scatter_datum(polynomial_fit_t* fit,
                                       real_t u, 
                                       point_t* x)
 {
-  real_t* eq = append_equation(fit, component, x);
   point_t* x0 = polynomial_x0(fit->poly[component]);
-  int dim = polynomial_basis_dim(polynomial_degree(fit->poly[component]));
-
-  real_t X = x->x - x0->x;
-  real_t Y = x->y - x0->y;
-  real_t Z = x->z - x0->z;
 
   // Weight.
   real_t w = 1.0;
   if (fit->compute_weight != NULL)
     w = fit->compute_weight(&fit->weight_params, x, x0);
 
-  // Left hand side -- powers of (x - x0) in the polynomial.
-  real_t coeff;
-  int pos = 0, x_pow, y_pow, z_pow, i = component*dim;
-  while (polynomial_next(fit->poly[component], &pos, &coeff, &x_pow, &y_pow, &z_pow))
-    eq[i++] = w * pow(X, x_pow) * pow(Y, y_pow) * pow(Z, z_pow);
+  if (w > 0.0)
+  {
+    real_t* eq = append_equation(fit, component, x);
+    int dim = polynomial_basis_dim(polynomial_degree(fit->poly[component]));
+    real_t X = x->x - x0->x;
+    real_t Y = x->y - x0->y;
+    real_t Z = x->z - x0->z;
 
-  // Right hand side -- u.
-  eq[fit->num_components * dim] = w * u;
+    // Left hand side -- powers of (x - x0) in the polynomial.
+    real_t coeff;
+    int pos = 0, x_pow, y_pow, z_pow, i = component*dim;
+    while (polynomial_next(fit->poly[component], &pos, &coeff, &x_pow, &y_pow, &z_pow))
+      eq[i++] = w * pow(X, x_pow) * pow(Y, y_pow) * pow(Z, z_pow);
+
+    // Right hand side -- u.
+    eq[fit->num_components * dim] = w * u;
+  }
 }
 
 // This version of pow() zeros out terms that would have negative powers.
@@ -240,34 +243,37 @@ void polynomial_fit_add_robin_bc(polynomial_fit_t* fit,
                                  real_t gamma, 
                                  point_t* x)
 {
-  real_t* eq = append_equation(fit, component, x);
   point_t* x0 = polynomial_x0(fit->poly[component]);
-  int dim = polynomial_basis_dim(polynomial_degree(fit->poly[component]));
-
-  real_t X = x->x - x0->x;
-  real_t Y = x->y - x0->y;
-  real_t Z = x->z - x0->z;
 
   // Weight.
   real_t w = 1.0;
   if (fit->compute_weight != NULL)
     w = fit->compute_weight(&fit->weight_params, x, x0);
 
-  // Left hand side -- powers of (x - x0) in the polynomial expression.
-  real_t coeff;
-  int pos = 0, x_pow, y_pow, z_pow, i = component*dim;
-  while (polynomial_next(fit->poly[component], &pos, &coeff, &x_pow, &y_pow, &z_pow))
+  if (w > 0.0)
   {
-    real_t u_term = alpha * pow(X, x_pow) * pow(Y, y_pow) * pow(Z, z_pow);
-    real_t dudx_term = x_pow * poly_pow(X, x_pow-1) * pow(Y, y_pow) * pow(Z, z_pow);
-    real_t dudy_term = y_pow * pow(X, x_pow) * poly_pow(Y, y_pow-1) * pow(Z, z_pow);
-    real_t dudz_term = z_pow * pow(X, x_pow) * pow(Y, y_pow) * poly_pow(Z, z_pow-1);
-    real_t n_o_grad_u_term = n->x * dudx_term + n->y * dudy_term + n->z * dudz_term;
-    eq[i++] = w * (alpha * u_term + beta * n_o_grad_u_term);
-  }
+    real_t* eq = append_equation(fit, component, x);
+    int dim = polynomial_basis_dim(polynomial_degree(fit->poly[component]));
+    real_t X = x->x - x0->x;
+    real_t Y = x->y - x0->y;
+    real_t Z = x->z - x0->z;
 
-  // Right hand side -- gamma.
-  eq[i] = w * gamma;
+    // Left hand side -- powers of (x - x0) in the polynomial expression.
+    real_t coeff;
+    int pos = 0, x_pow, y_pow, z_pow, i = component*dim;
+    while (polynomial_next(fit->poly[component], &pos, &coeff, &x_pow, &y_pow, &z_pow))
+    {
+      real_t u_term = alpha * pow(X, x_pow) * pow(Y, y_pow) * pow(Z, z_pow);
+      real_t dudx_term = x_pow * poly_pow(X, x_pow-1) * pow(Y, y_pow) * pow(Z, z_pow);
+      real_t dudy_term = y_pow * pow(X, x_pow) * poly_pow(Y, y_pow-1) * pow(Z, z_pow);
+      real_t dudz_term = z_pow * pow(X, x_pow) * pow(Y, y_pow) * poly_pow(Z, z_pow-1);
+      real_t n_o_grad_u_term = n->x * dudx_term + n->y * dudy_term + n->z * dudz_term;
+      eq[i++] = w * (alpha * u_term + beta * n_o_grad_u_term);
+    }
+
+    // Right hand side -- gamma.
+    eq[i] = w * gamma;
+  }
 }
 
 void polynomial_fit_reset(polynomial_fit_t* fit, point_t* x0)
@@ -343,6 +349,8 @@ static void solve_direct_least_squares(polynomial_fit_t* fit)
       int lwork = MAX(1, num_rows*num_cols + MAX(num_rows*num_cols, 1) * block_size);
       real_t work[lwork];
       rgels(&trans, &num_rows, &num_cols, &one, A, &num_rows, X, &num_rows, work, &lwork, &info);
+      if (info > 0)
+        polymec_error("polynomial_fit: least-squares matrix A is not full-rank -- cannot use QR factorization.");
     }
     else if (fit->solver_type == ORTHOGONAL_FACTORIZATION)
     {
@@ -350,6 +358,7 @@ static void solve_direct_least_squares(polynomial_fit_t* fit)
       real_t rcond = -1.0, work[lwork];
       int jpivot[num_cols];
       rgelsy(&num_rows, &num_cols, &one, A, &num_rows, X, &num_rows, jpivot, &rcond, &rank, work, &lwork, &info);
+      // This function always succeeds if the arguments are correct.
     }
     else
     {
@@ -360,6 +369,11 @@ static void solve_direct_least_squares(polynomial_fit_t* fit)
       polymec_suspend_fpe();
       rgelss(&num_rows, &num_cols, &one, A, &num_rows, X, &num_rows, S, &rcond, &rank, work, &lwork, &info);
       polymec_restore_fpe();
+      if (info > 0)
+      {
+        polymec_error("polynomial_fit: SVD calculation for least-squares system failed:\n" \
+                      "%d off-diagonal elements of intermediate bi-diagonal form did not converge to zero.", info);
+      }
     }
 
     // Divide-n-conquer singular value decomposition.
@@ -370,9 +384,6 @@ static void solve_direct_least_squares(polynomial_fit_t* fit)
     //    polymec_suspend_fpe();
     //    rgelsd(&num_rows, &num_cols, &one, A, &num_rows, X, &num_rows, S, &rcond, &rank, work, &lwork, &info);
     //    polymec_restore_fpe();
-
-    if (info != 0)
-      polymec_error("polynomial_fit: failed to solve least-squares system.");
   }
 
   // Copy the coefficients into place.
