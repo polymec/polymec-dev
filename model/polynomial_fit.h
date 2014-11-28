@@ -56,11 +56,25 @@ void polynomial_fit_free(polynomial_fit_t* fit);
 // setting for polynomial fits.
 void polynomial_fit_set_unweighted(polynomial_fit_t* fit);
 
+// Sets up an order-p spline weighting function to use for the next 
+// polynomial fit, in the form 
+//
+// W(x, x0) = { sum(i, ai * (|x - x0|/h)**i), |x - x0| <= h,
+//            { 0                           , |x - x0| >  h
+// 
+// where i runs from 0 to p, h is the radius of compact support, and 
+// {ai} are coefficients satisfying boundary conditions that cause W and its 
+// derivatives to vanish at the spherical boundary |x - x0| == h. Orders 1 
+// through 4 are supported.
+void polynomial_fit_set_spline_weights(polynomial_fit_t* fit, 
+                                       int p,
+                                       real_t h);
+
 // Sets up an inverse distance weighting function to use for the next 
 // polynomial fit, in the form 
 //                        W0
 // W(x, x0) = ----------------------------,
-//            (((x - x0)/h)**p + epsilon**p)
+//            ((|x - x0|/h)**p + epsilon**p)
 // 
 // where W0 is a constant, epsilon is a "softening parameter," h is a 
 // scaling parameter, and p is the exponent dictating the power law.

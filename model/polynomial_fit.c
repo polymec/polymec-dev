@@ -30,7 +30,7 @@
 
 typedef struct 
 {
-  real_t W0, p, h, epsilon;
+  real_t W0, p, h, epsilon, coeffs[5];
 } weight_func_params_t;
 
 struct polynomial_fit_t 
@@ -47,6 +47,20 @@ struct polynomial_fit_t
   weight_func_params_t weight_params;
   real_t (*compute_weight)(weight_func_params_t* params, point_t* x, point_t* x0);
 };
+
+static real_t spline_weight(weight_func_params_t* params, point_t* x, point_t* x0)
+{
+  real_t d = point_distance(x, x0) / params->h;
+  if (d <= 1.0)
+  {
+    real_t w = 0.0;
+    for (int i = 0; i < 5; ++i)
+      w += params->coeffs[i] * pow(d, i);
+    return w;
+  }
+  else
+    return 0.0;
+}
 
 static real_t inverse_power_weight(weight_func_params_t* params, point_t* x, point_t* x0)
 {
@@ -106,6 +120,27 @@ void polynomial_fit_free(polynomial_fit_t* fit)
 void polynomial_fit_set_unweighted(polynomial_fit_t* fit)
 {
   fit->compute_weight = NULL;
+}
+
+void polynomial_fit_set_spline_weights(polynomial_fit_t* fit, 
+                                       int p,
+                                       real_t h)
+{
+  ASSERT(p >= 1);
+  ASSERT(p <= 4);
+  ASSERT(h > 0.0);
+  fit->weight_params.p = (real_t)p;
+  fit->weight_params.h = h;
+  fit->compute_weight = spline_weight;
+
+  // Assign spline coefficients that fit boundary conditions.
+  static const real_t spline_coeffs[4][5] = 
+    {{1.0, -1.0,  0.0,  0.0,  0.0},  // p = 1
+     {1.0,  0.0, -1.0,  0.0,  0.0},  // p = 2
+     {1.0,  0.0, -3.0,  2.0,  0.0},  // p = 3
+     {1.0,  0.0, -6.0,  8.0, -3.0}}; // p = 4
+  for (int i = 0; i < 5; ++i)
+    fit->weight_params.coeffs[i] = spline_coeffs[p][i];
 }
 
 void polynomial_fit_set_inverse_power_weights(polynomial_fit_t* fit, 
