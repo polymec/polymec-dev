@@ -39,7 +39,8 @@ typedef enum
 {
   QR_FACTORIZATION,
   ORTHOGONAL_FACTORIZATION,
-  SINGULAR_VALUE_DECOMPOSITION
+  SINGULAR_VALUE_DECOMPOSITION,
+  NORMAL_EQUATIONS
 } polynomial_fit_solver_t;
 
 // Creates a new empty least squares system for fitting multi-component 

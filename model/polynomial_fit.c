@@ -203,11 +203,11 @@ void polynomial_fit_add_scatter_datum(polynomial_fit_t* fit,
   point_t* x0 = polynomial_x0(fit->poly[component]);
 
   // Weight.
-  real_t w = 1.0;
+  real_t sqrtW = 1.0;
   if (fit->compute_weight != NULL)
-    w = fit->compute_weight(&fit->weight_params, x, x0);
+    sqrtW = sqrt(fabs(fit->compute_weight(&fit->weight_params, x, x0)));
 
-  if (w > 0.0)
+  if (sqrtW > 0.0)
   {
     real_t* eq = append_equation(fit, component, x);
     int dim = polynomial_basis_dim(polynomial_degree(fit->poly[component]));
@@ -219,10 +219,10 @@ void polynomial_fit_add_scatter_datum(polynomial_fit_t* fit,
     real_t coeff;
     int pos = 0, x_pow, y_pow, z_pow, i = component*dim;
     while (polynomial_next(fit->poly[component], &pos, &coeff, &x_pow, &y_pow, &z_pow))
-      eq[i++] = w * pow(X, x_pow) * pow(Y, y_pow) * pow(Z, z_pow);
+      eq[i++] = sqrtW * pow(X, x_pow) * pow(Y, y_pow) * pow(Z, z_pow);
 
-    // Right hand side -- u.
-    eq[fit->num_components * dim] = w * u;
+    // Right hand side -- sqrt(W) * u.
+    eq[fit->num_components * dim] = sqrtW * u;
   }
 }
 
@@ -246,11 +246,11 @@ void polynomial_fit_add_robin_bc(polynomial_fit_t* fit,
   point_t* x0 = polynomial_x0(fit->poly[component]);
 
   // Weight.
-  real_t w = 1.0;
+  real_t sqrtW = 1.0;
   if (fit->compute_weight != NULL)
-    w = fit->compute_weight(&fit->weight_params, x, x0);
+    sqrtW = sqrt(fabs(fit->compute_weight(&fit->weight_params, x, x0)));
 
-  if (w > 0.0)
+  if (sqrtW > 0.0)
   {
     real_t* eq = append_equation(fit, component, x);
     int dim = polynomial_basis_dim(polynomial_degree(fit->poly[component]));
@@ -268,11 +268,11 @@ void polynomial_fit_add_robin_bc(polynomial_fit_t* fit,
       real_t dudy_term = y_pow * pow(X, x_pow) * poly_pow(Y, y_pow-1) * pow(Z, z_pow);
       real_t dudz_term = z_pow * pow(X, x_pow) * pow(Y, y_pow) * poly_pow(Z, z_pow-1);
       real_t n_o_grad_u_term = n->x * dudx_term + n->y * dudy_term + n->z * dudz_term;
-      eq[i++] = w * (alpha * u_term + beta * n_o_grad_u_term);
+      eq[i++] = sqrtW * (alpha * u_term + beta * n_o_grad_u_term);
     }
 
-    // Right hand side -- gamma.
-    eq[i] = w * gamma;
+    // Right hand side -- sqrt(W) * gamma.
+    eq[i] = sqrtW * gamma;
   }
 }
 
@@ -329,6 +329,7 @@ static void solve_direct_least_squares(polynomial_fit_t* fit)
   int num_cols = dim * num_components;
   ASSERT(num_rows >= num_cols);
 
+  // Assemble the linear system (matrix A, right hand side/soln X).
   real_t A[num_rows*num_cols], X[num_rows];
   int j = 0;
   for (int r = 0; r < num_rows; ++r)
@@ -360,9 +361,8 @@ static void solve_direct_least_squares(polynomial_fit_t* fit)
       rgelsy(&num_rows, &num_cols, &one, A, &num_rows, X, &num_rows, jpivot, &rcond, &rank, work, &lwork, &info);
       // This function always succeeds if the arguments are correct.
     }
-    else
+    else if (fit->solver_type == SINGULAR_VALUE_DECOMPOSITION)
     {
-      ASSERT(fit->solver_type == SINGULAR_VALUE_DECOMPOSITION);
       real_t S[MIN(num_cols, num_components*dim)];
       int rank, lwork = 3*num_rows + MAX(2*num_rows, num_rows) + 100;
       real_t rcond = -1.0, work[lwork];
@@ -374,6 +374,29 @@ static void solve_direct_least_squares(polynomial_fit_t* fit)
         polymec_error("polynomial_fit: SVD calculation for least-squares system failed:\n" \
                       "%d off-diagonal elements of intermediate bi-diagonal form did not converge to zero.", info);
       }
+    }
+    else 
+    {
+      ASSERT(fit->solver_type == NORMAL_EQUATIONS);
+
+      // Multiply A and X by A^T.
+      real_t AtA[num_cols*num_cols], AtX[num_cols];
+      char trans = 'T', no_trans = 'N';
+      real_t one = 1.0, zero = 0.0;
+      int stride = 1;
+      rgemv(&trans, &num_rows, &num_cols, &one, A, &num_rows, X, &stride, 
+            &zero, AtX, &stride);
+      rgemm(&trans, &no_trans, &num_cols, &num_cols, &num_rows, &one, A, 
+            &num_rows, A, &num_rows, &zero, AtA, &num_cols);
+
+      // Solve the system using LU factorization (should use Cholesky factorization!).
+      int single_rhs = 1, ipiv[num_cols], info;
+      dgesv(&num_cols, &single_rhs, AtA, &num_cols, ipiv, AtX, &num_cols, &info);
+      if (info > 0)
+        polymec_error("Row %d of linear system AtA*X = AtB is exactly zero -- U is singular!");
+
+      // Copy the solution into place.
+      memcpy(X, AtX, sizeof(real_t) * num_cols);
     }
 
     // Divide-n-conquer singular value decomposition.
