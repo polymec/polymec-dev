@@ -22,8 +22,8 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef POLYMEC_polynomial_fit_H
-#define POLYMEC_polynomial_fit_H
+#ifndef POLYMEC_POLYNOMIAL_FIT_H
+#define POLYMEC_POLYNOMIAL_FIT_H
 
 #include "core/polymec.h"
 #include "core/point.h"
@@ -129,6 +129,18 @@ void polynomial_fit_eval_deriv(polynomial_fit_t* fit,
                                int z_deriv,
                                point_t* x, 
                                real_t* deriv);
+
+// Returns the dimension of the polynomial basis for this fit. This is the 
+// number of coefficients in the polynomial that represents fitted data.
+int polynomial_fit_dimension(polynomial_fit_t* fit);
+
+// Retrieves the coefficients of the polynomial computed by this object for 
+// the given component, using polynomial_fit_compute(). These coefficients 
+// will be stored in the given coeffs array, which should be large enough to 
+// store all of the coefficients.
+void polynomial_fit_get_coeffs(polynomial_fit_t* fit, 
+                               int component,
+                               real_t* coeffs);
 
 // Writes a text representation of the polynomial fit to the given stream.
 void polynomial_fit_fprintf(polynomial_fit_t* fit, FILE* stream);

@@ -522,6 +522,24 @@ void polynomial_fit_eval_deriv(polynomial_fit_t* fit,
     deriv[c] = polynomial_deriv_value(fit->poly[c], x_deriv, y_deriv, z_deriv, x);
 }
 
+int polynomial_fit_dimension(polynomial_fit_t* fit)
+{
+  return polynomial_basis_dim(fit->p);
+}
+
+void polynomial_fit_get_coeffs(polynomial_fit_t* fit, 
+                               int component, 
+                               real_t* coeffs)
+{
+  ASSERT(component >= 0);
+  ASSERT(component < fit->num_components);
+  ASSERT(fit->computed);
+
+  int dim = polynomial_basis_dim(fit->p);
+  real_t* my_coeffs = polynomial_coeffs(fit->poly[component]);
+  memcpy(coeffs, my_coeffs, sizeof(real_t) * dim);
+}
+
 void polynomial_fit_fprintf(polynomial_fit_t* fit, FILE* stream)
 {
   if (stream == NULL) return;
