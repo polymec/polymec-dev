@@ -28,11 +28,6 @@
 #include "core/linear_algebra.h"
 #include "model/polynomial_fit.h"
 
-typedef struct 
-{
-  real_t W0, p, h, epsilon, coeffs[5];
-} weight_func_params_t;
-
 struct polynomial_fit_t 
 {
   int num_components, p;
@@ -42,32 +37,7 @@ struct polynomial_fit_t
   ptr_array_t** points;
   int* num_equations;
   bool computed;
-
-  // Weighted least squares stuff.
-  weight_func_params_t weight_params;
-  real_t (*compute_weight)(weight_func_params_t* params, point_t* x, point_t* x0);
 };
-
-static real_t spline_weight(weight_func_params_t* params, point_t* x, point_t* x0)
-{
-  real_t d = point_distance(x, x0) / params->h;
-  if (d <= 1.0)
-  {
-    real_t w = 0.0;
-    for (int i = 0; i < 5; ++i)
-      w += params->coeffs[i] * pow(d, i);
-    return w;
-  }
-  else
-    return 0.0;
-}
-
-static real_t inverse_power_weight(weight_func_params_t* params, point_t* x, point_t* x0)
-{
-  real_t d = point_distance(x, x0) / params->h;
-  real_t p = params->p;
-  return params->W0 / (pow(d, p) + pow(params->epsilon, p));
-}
 
 polynomial_fit_t* polynomial_fit_new(int num_components, 
                                      int p,
@@ -90,7 +60,6 @@ polynomial_fit_t* polynomial_fit_new(int num_components,
   fit->points = polymec_malloc(sizeof(ptr_array_t*) * num_components);
   fit->num_equations = polymec_malloc(sizeof(int) * num_components);
   fit->computed = false;
-  fit->compute_weight = NULL;
   for (int c = 0; c < num_components; ++c)
   {
     point_t O = {.x = 0.0, .y = 0.0, .z = 0.0};
@@ -115,49 +84,6 @@ void polynomial_fit_free(polynomial_fit_t* fit)
   polymec_free(fit->points);
   polymec_free(fit->num_equations);
   polymec_free(fit);
-}
-
-void polynomial_fit_set_unweighted(polynomial_fit_t* fit)
-{
-  fit->compute_weight = NULL;
-}
-
-void polynomial_fit_set_spline_weights(polynomial_fit_t* fit, 
-                                       int p,
-                                       real_t h)
-{
-  ASSERT(p >= 1);
-  ASSERT(p <= 4);
-  ASSERT(h > 0.0);
-  fit->weight_params.p = (real_t)p;
-  fit->weight_params.h = h;
-  fit->compute_weight = spline_weight;
-
-  // Assign spline coefficients that fit boundary conditions.
-  static const real_t spline_coeffs[4][5] = 
-    {{1.0, -1.0,  0.0,  0.0,  0.0},  // p = 1
-     {1.0,  0.0, -1.0,  0.0,  0.0},  // p = 2
-     {1.0,  0.0, -3.0,  2.0,  0.0},  // p = 3
-     {1.0,  0.0, -6.0,  8.0, -3.0}}; // p = 4
-  for (int i = 0; i < 5; ++i)
-    fit->weight_params.coeffs[i] = spline_coeffs[p][i];
-}
-
-void polynomial_fit_set_inverse_power_weights(polynomial_fit_t* fit, 
-                                              real_t W0, 
-                                              real_t p,
-                                              real_t h,
-                                              real_t epsilon)
-{
-  ASSERT(W0 > 0.0);
-  ASSERT(p >= 0.0);
-  ASSERT(h > 0.0);
-  ASSERT(epsilon >= 0.0);
-  fit->weight_params.W0 = W0;
-  fit->weight_params.p = p;
-  fit->weight_params.h = h;
-  fit->weight_params.epsilon = epsilon;
-  fit->compute_weight = inverse_power_weight;
 }
 
 // This constructs an array of coefficients representing an equation for the 
@@ -198,32 +124,27 @@ static real_t* append_equation(polynomial_fit_t* fit, int component, point_t* x)
 void polynomial_fit_add_scatter_datum(polynomial_fit_t* fit, 
                                       int component,
                                       real_t u, 
-                                      point_t* x)
+                                      point_t* x,
+                                      real_t weight)
 {
+  ASSERT(weight > 0.0);
+  real_t sqrtW = sqrt(weight);
   point_t* x0 = polynomial_x0(fit->poly[component]);
 
-  // Weight.
-  real_t sqrtW = 1.0;
-  if (fit->compute_weight != NULL)
-    sqrtW = sqrt(fabs(fit->compute_weight(&fit->weight_params, x, x0)));
+  real_t* eq = append_equation(fit, component, x);
+  int dim = polynomial_basis_dim(polynomial_degree(fit->poly[component]));
+  real_t X = x->x - x0->x;
+  real_t Y = x->y - x0->y;
+  real_t Z = x->z - x0->z;
 
-  if (sqrtW > 0.0)
-  {
-    real_t* eq = append_equation(fit, component, x);
-    int dim = polynomial_basis_dim(polynomial_degree(fit->poly[component]));
-    real_t X = x->x - x0->x;
-    real_t Y = x->y - x0->y;
-    real_t Z = x->z - x0->z;
+  // Left hand side -- powers of (x - x0) in the polynomial.
+  real_t coeff;
+  int pos = 0, x_pow, y_pow, z_pow, i = component*dim;
+  while (polynomial_next(fit->poly[component], &pos, &coeff, &x_pow, &y_pow, &z_pow))
+    eq[i++] = sqrtW * pow(X, x_pow) * pow(Y, y_pow) * pow(Z, z_pow);
 
-    // Left hand side -- powers of (x - x0) in the polynomial.
-    real_t coeff;
-    int pos = 0, x_pow, y_pow, z_pow, i = component*dim;
-    while (polynomial_next(fit->poly[component], &pos, &coeff, &x_pow, &y_pow, &z_pow))
-      eq[i++] = sqrtW * pow(X, x_pow) * pow(Y, y_pow) * pow(Z, z_pow);
-
-    // Right hand side -- sqrt(W) * u.
-    eq[fit->num_components * dim] = sqrtW * u;
-  }
+  // Right hand side -- sqrt(W) * u.
+  eq[fit->num_components * dim] = sqrtW * u;
 }
 
 // This version of pow() zeros out terms that would have negative powers.
@@ -241,39 +162,34 @@ void polynomial_fit_add_robin_bc(polynomial_fit_t* fit,
                                  real_t beta, 
                                  vector_t* n, 
                                  real_t gamma, 
-                                 point_t* x)
+                                 point_t* x,
+                                 real_t weight)
 {
+  ASSERT(weight > 0.0);
+  real_t sqrtW = sqrt(weight);
   point_t* x0 = polynomial_x0(fit->poly[component]);
 
-  // Weight.
-  real_t sqrtW = 1.0;
-  if (fit->compute_weight != NULL)
-    sqrtW = sqrt(fabs(fit->compute_weight(&fit->weight_params, x, x0)));
+  real_t* eq = append_equation(fit, component, x);
+  int dim = polynomial_basis_dim(polynomial_degree(fit->poly[component]));
+  real_t X = x->x - x0->x;
+  real_t Y = x->y - x0->y;
+  real_t Z = x->z - x0->z;
 
-  if (sqrtW > 0.0)
+  // Left hand side -- powers of (x - x0) in the polynomial expression.
+  real_t coeff;
+  int pos = 0, x_pow, y_pow, z_pow, i = component*dim;
+  while (polynomial_next(fit->poly[component], &pos, &coeff, &x_pow, &y_pow, &z_pow))
   {
-    real_t* eq = append_equation(fit, component, x);
-    int dim = polynomial_basis_dim(polynomial_degree(fit->poly[component]));
-    real_t X = x->x - x0->x;
-    real_t Y = x->y - x0->y;
-    real_t Z = x->z - x0->z;
-
-    // Left hand side -- powers of (x - x0) in the polynomial expression.
-    real_t coeff;
-    int pos = 0, x_pow, y_pow, z_pow, i = component*dim;
-    while (polynomial_next(fit->poly[component], &pos, &coeff, &x_pow, &y_pow, &z_pow))
-    {
-      real_t u_term = alpha * pow(X, x_pow) * pow(Y, y_pow) * pow(Z, z_pow);
-      real_t dudx_term = x_pow * poly_pow(X, x_pow-1) * pow(Y, y_pow) * pow(Z, z_pow);
-      real_t dudy_term = y_pow * pow(X, x_pow) * poly_pow(Y, y_pow-1) * pow(Z, z_pow);
-      real_t dudz_term = z_pow * pow(X, x_pow) * pow(Y, y_pow) * poly_pow(Z, z_pow-1);
-      real_t n_o_grad_u_term = n->x * dudx_term + n->y * dudy_term + n->z * dudz_term;
-      eq[i++] = sqrtW * (alpha * u_term + beta * n_o_grad_u_term);
-    }
-
-    // Right hand side -- sqrt(W) * gamma.
-    eq[i] = sqrtW * gamma;
+    real_t u_term = alpha * pow(X, x_pow) * pow(Y, y_pow) * pow(Z, z_pow);
+    real_t dudx_term = x_pow * poly_pow(X, x_pow-1) * pow(Y, y_pow) * pow(Z, z_pow);
+    real_t dudy_term = y_pow * pow(X, x_pow) * poly_pow(Y, y_pow-1) * pow(Z, z_pow);
+    real_t dudz_term = z_pow * pow(X, x_pow) * pow(Y, y_pow) * poly_pow(Z, z_pow-1);
+    real_t n_o_grad_u_term = n->x * dudx_term + n->y * dudy_term + n->z * dudz_term;
+    eq[i++] = sqrtW * (alpha * u_term + beta * n_o_grad_u_term);
   }
+
+  // Right hand side -- sqrt(W) * gamma.
+  eq[i] = sqrtW * gamma;
 }
 
 void polynomial_fit_reset(polynomial_fit_t* fit, point_t* x0)

@@ -53,38 +53,6 @@ polynomial_fit_t* polynomial_fit_new(int num_components,
 // Frees the polynomial fit.
 void polynomial_fit_free(polynomial_fit_t* fit);
 
-// Sets the polynomial fit to use uniform weighting. This is the default
-// setting for polynomial fits.
-void polynomial_fit_set_unweighted(polynomial_fit_t* fit);
-
-// Sets up an order-p spline weighting function to use for the next 
-// polynomial fit, in the form 
-//
-// W(x, x0) = { sum(i, ai * (|x - x0|/h)**i), |x - x0| <= h,
-//            { 0                           , |x - x0| >  h
-// 
-// where i runs from 0 to p, h is the radius of compact support, and 
-// {ai} are coefficients satisfying boundary conditions that cause W and its 
-// derivatives to vanish at the spherical boundary |x - x0| == h. Orders 1 
-// through 4 are supported.
-void polynomial_fit_set_spline_weights(polynomial_fit_t* fit, 
-                                       int p,
-                                       real_t h);
-
-// Sets up an inverse distance weighting function to use for the next 
-// polynomial fit, in the form 
-//                        W0
-// W(x, x0) = ----------------------------,
-//            ((|x - x0|/h)**p + epsilon**p)
-// 
-// where W0 is a constant, epsilon is a "softening parameter," h is a 
-// scaling parameter, and p is the exponent dictating the power law.
-void polynomial_fit_set_inverse_power_weights(polynomial_fit_t* fit, 
-                                              real_t W0, 
-                                              real_t p,
-                                              real_t h,
-                                              real_t epsilon);
-
 // Returns the degree of the polynomial fit.
 int polynomial_fit_degree(polynomial_fit_t* fit);
 
@@ -92,18 +60,20 @@ int polynomial_fit_degree(polynomial_fit_t* fit);
 int polynomial_fit_num_components(polynomial_fit_t* fit);
 
 // Adds an equation to the least squares fit that attempts to interpolate 
-// the scatter datum u for the given component at the point x.
+// the scatter datum u for the given component at the point x. The equation
+// is weighted with the given (positive) weight.
 void polynomial_fit_add_scatter_datum(polynomial_fit_t* fit, int component, 
-                                      real_t u, point_t* x);
+                                      real_t u, point_t* x, real_t weight);
 
 // Adds an equation to the least squares system that satisfies the 
 // relationship alpha * u + beta * n o grad u = gamma for the given component 
 // at the point x, where alpha, beta, and gamma are real-valued quantities, 
 // n is a vector, and u is the quantity being fitted to the polynomial. This 
-// constraint is often referred to as a Robin boundary condition.
+// constraint is often referred to as a Robin boundary condition. The equation
+// is weighted with the given (positive) weight.
 void polynomial_fit_add_robin_bc(polynomial_fit_t* fit, int component, 
                                  real_t alpha, real_t beta, vector_t* n, real_t gamma, 
-                                 point_t* x);
+                                 point_t* x, real_t weight);
 
 // Resets the least squares system governing the polynomial fit, removing all 
 // its equations and recentering it at the point x0. If x0 is NULL, it will 

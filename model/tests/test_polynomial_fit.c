@@ -36,6 +36,7 @@ void test_polynomial_fit_ctor(void** state, int num_components, int p, polynomia
   assert_int_equal(num_components, polynomial_fit_num_components(fit));
   assert_int_equal(p, polynomial_fit_degree(fit));
   assert_int_equal(0, polynomial_fit_num_equations(fit));
+  assert_int_equal(polynomial_basis_dim(p), polynomial_fit_dimension(fit));
   polynomial_fit_free(fit);
 }
 
@@ -110,7 +111,7 @@ void test_polynomial_fit(void** state, polynomial_t** polynomials,
   for (int i = 0; i < 7; ++i)
   {
     for (int c = 0; c < num_components; ++c)
-      polynomial_fit_add_scatter_datum(fit, c, polynomial_value(polynomials[c], &x[i]), &x[i]);
+      polynomial_fit_add_scatter_datum(fit, c, polynomial_value(polynomials[c], &x[i]), &x[i], 1.0);
   }
   assert_int_equal(7*num_components, polynomial_fit_num_equations(fit));
   polynomial_fit_compute(fit);
@@ -131,7 +132,7 @@ void test_polynomial_fit(void** state, polynomial_t** polynomials,
   for (int i = 0; i < 7; ++i)
   {
     for (int c = 0; c < num_components; ++c)
-      polynomial_fit_add_scatter_datum(fit, c, polynomial_value(polynomials[c], &x[i]), &x[i]);
+      polynomial_fit_add_scatter_datum(fit, c, polynomial_value(polynomials[c], &x[i]), &x[i], 1.0);
   }
   polynomial_fit_compute(fit);
   for (int c = 0; c < num_components; ++c)
