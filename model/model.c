@@ -1034,6 +1034,37 @@ static void driver_usage(const char* model_name)
   exit(-1);
 }
 
+// General help for runtime options.
+static void print_runtime_options_help()
+{
+  print_to_rank0("Generally meaningful runtime options (for run, benchmark):\n");
+  print_to_rank0("t1=T                        - Starts the simulation at time T.\n");
+  print_to_rank0("t2=T                        - Ends the simulation at time T.\n");
+  print_to_rank0("max_steps=N                 - Ends the simulation after N time steps.\n");
+  print_to_rank0("max_dt=DT                   - Limits the time step to DT.\n");
+  print_to_rank0("save_every=N                - Generates a save file every N steps.\n");
+  print_to_rank0("plot_every=N                - Generates a plot file every N steps.\n");
+  print_to_rank0("load_step=N                 - Attempts to load a saved simulation at step N.\n");
+  print_to_rank0("observe_every=T             - Records observations every T simulation\n");
+  print_to_rank0("                              time units.\n");
+  print_to_rank0("observation_times=T1,T2,... - Specifies times T1,T2,... at which observations\n");
+  print_to_rank0("                              will be recorded.\n");
+  print_to_rank0("observations=O1,O2,...      - Specifies observations O1,O2,... to record,\n");
+  print_to_rank0("                              provided that an observation frequency has been\n");
+  print_to_rank0("                              given. By default, all available observations\n");
+  print_to_rank0("                              are recorded.\n");
+  print_to_rank0("logging=LEVEL               - Enables logging output at the requested level.\n");
+  print_to_rank0("                              Levels are (in order of increasing verbosity):\n");
+  print_to_rank0("                              urgent, info, detail, debug\n\n");
+  print_to_rank0("Benchmark-specific runtime options:\n");
+  print_to_rank0("expected_conv_rate=R        - A multi-run benchmark will PASS if the\n");
+  print_to_rank0("                              convergence rate of its error norm meets or\n");
+  print_to_rank0("                              exceeds R, and will otherwise FAIL.\n");
+  print_to_rank0("expected_error_norm=E       - A benchmark will PASS if its error norm\n");
+  print_to_rank0("                              does not exceed E, and will otherwise FAIL.\n\n");
+  print_to_rank0("Note that no whitespace may appear in any of the above options.\n\n");
+}
+
 // Prints model-specific help.
 static void model_help(const char* exe_name, model_t* model, const char* arg)
 {
@@ -1048,11 +1079,11 @@ static void model_help(const char* exe_name, model_t* model, const char* arg)
         print_to_rank0("%s\n", line);
     }
     else
-    {
-      print_to_rank0("No documentation is available for the %s model.\n", model_name(model));
-      print_to_rank0("Use '%s help list' to list available functions, and \n", model_name(model));
-      print_to_rank0("'%s help <function>' for documentation on a given function.\n", model_name(model));
-    }
+      print_to_rank0("No documentation is available for the %s model.\n\n", model_name(model));
+
+    print_runtime_options_help();
+    print_to_rank0("Use '%s help list' to list available functions, and \n", model_name(model));
+    print_to_rank0("'%s help <function>' for documentation on a given function.\n", model_name(model));
   }
   else if (model->vtable.read_input != NULL)
   {
@@ -1284,11 +1315,11 @@ static void multi_model_help(const char* exe_name, model_t* model, const char* a
         print_to_rank0("%s\n", line);
     }
     else
-    {
-      print_to_rank0("No documentation is available for the %s model.\n", model_name(model));
-      print_to_rank0("Use '%s help %s list' to list available functions, and \n", exe_name, model_name(model));
-      print_to_rank0("'%s help %s <function>' for documentation on a given function.\n", exe_name, model_name(model));
-    }
+      print_to_rank0("No documentation is available for the %s model.\n\n", model_name(model));
+
+    print_runtime_options_help();
+    print_to_rank0("Use '%s help %s list' to list available functions, and \n", exe_name, model_name(model));
+    print_to_rank0("'%s help %s <function>' for documentation on a given function.\n", exe_name, model_name(model));
   }
   else if (model->vtable.read_input != NULL)
   {
