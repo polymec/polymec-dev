@@ -661,7 +661,7 @@ real_t model_advance(model_t* model, real_t max_dt)
 
   // Check the time step.
   ASSERT(model->dt > 0.0);
-  ASSERT(model->dt <= max_dt);
+  ASSERT(model->dt <= max_dt + REAL_EPSILON);
 
   model->time += model->dt;
   log_info("%s: Step %d (t = %g, dt = %g)", model->name, model->step, model->time, model->dt);
