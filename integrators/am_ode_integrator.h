@@ -38,12 +38,14 @@
 // of nonlinear solvers.
 
 // The functional iteration variant of the Adams-Moulton integrator is particularly 
-// simple and can be constructed on the communicator comm for N non-stiff 
-// ordinary differential equations, using a context pointer, a right-hand side 
-// function, and a destructor.
+// simple and can be constructed on the communicator comm for a number of 
+// non-stiff ordinary differential equations (with given numbers of local and 
+// remote values, for parallel capability), using a context pointer, a 
+// right-hand side function, and a destructor.
 ode_integrator_t* functional_am_ode_integrator_new(int order, 
                                                    MPI_Comm comm, 
-                                                   int N,
+                                                   int num_local_values,
+                                                   int num_remote_values,
                                                    void* context, 
                                                    int (*rhs)(void* context, real_t t, real_t* x, real_t* xdot),
                                                    void (*dtor)(void* context));
@@ -73,7 +75,8 @@ typedef enum
 
 ode_integrator_t* jfnk_am_ode_integrator_new(int order, 
                                              MPI_Comm comm,
-                                             int N, 
+                                             int num_local_equations, 
+                                             int num_remote_values, 
                                              void* context, 
                                              int (*rhs)(void* context, real_t t, real_t* x, real_t* xdot),
                                              int (*Jy)(void* context, real_t t, real_t* x, real_t* rhstx, real_t* y, real_t* temp, real_t* Jy),

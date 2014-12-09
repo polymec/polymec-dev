@@ -60,7 +60,8 @@ typedef enum
 
 ode_integrator_t* jfnk_bdf_ode_integrator_new(int order, 
                                               MPI_Comm comm,
-                                              int N, 
+                                              int num_local_values, 
+                                              int num_remote_values, 
                                               void* context, 
                                               int (*rhs)(void* context, real_t t, real_t* x, real_t* xdot),
                                               int (*Jy)(void* context, real_t t, real_t* x, real_t* rhstx, real_t* y, real_t* temp, real_t* Jy),

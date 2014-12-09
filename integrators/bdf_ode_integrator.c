@@ -36,7 +36,7 @@
 typedef struct
 {
   MPI_Comm comm;
-  int N;
+  int num_local_values, num_remote_values;
   void* context; 
   int (*rhs)(void* context, real_t t, real_t* x, real_t* xdot);
   void (*dtor)(void* context);
@@ -44,6 +44,7 @@ typedef struct
   // CVODE data structures.
   void* cvode;
   N_Vector x; 
+  real_t* x_with_ghosts;
   real_t t;
   char* status_message; // status of most recent integration.
 
@@ -99,8 +100,16 @@ static int bdf_evaluate_rhs(real_t t, N_Vector x, N_Vector x_dot, void* context)
   real_t* xx = NV_DATA(x);
   real_t* xxd = NV_DATA(x_dot);
 
-  // Evaluate the RHS.
-  return integ->rhs(integ->context, t, xx, xxd);
+  // Evaluate the RHS using a solution vector with ghosts.
+  memcpy(integ->x_with_ghosts, xx, sizeof(real_t) * integ->num_local_values);
+  int status = integ->rhs(integ->context, t, xx, xxd);
+  if (status == 0)
+  {
+    // Copy the local result into our solution vector.
+    memcpy(xx, integ->x_with_ghosts, sizeof(real_t) * integ->num_local_values);
+  }
+
+  return status;
 }
 
 static bool bdf_step(void* context, real_t max_dt, real_t* t, real_t* x)
@@ -146,7 +155,7 @@ static bool bdf_step(void* context, real_t max_dt, real_t* t, real_t* x)
   {
     // Copy out the solution.
     *t = integ->t;
-    memcpy(x, NV_DATA(integ->x), sizeof(real_t) * integ->N); 
+    memcpy(x, NV_DATA(integ->x), sizeof(real_t) * integ->num_local_values); 
     return true;
   }
   else
@@ -164,7 +173,7 @@ static bool bdf_advance(void* context, real_t t1, real_t t2, real_t* x)
   CVodeSetStopTime(integ->cvode, t2);
   
   // Copy in the solution.
-  memcpy(NV_DATA(integ->x), x, sizeof(real_t) * integ->N); 
+  memcpy(NV_DATA(integ->x), x, sizeof(real_t) * integ->num_local_values); 
 
   // Integrate.
   int status = CVode(integ->cvode, t2, integ->x, &integ->t, CV_NORMAL);
@@ -180,7 +189,7 @@ static bool bdf_advance(void* context, real_t t1, real_t t2, real_t* x)
   if ((status == CV_SUCCESS) || (status == CV_TSTOP_RETURN))
   {
     // Copy out the solution.
-    memcpy(x, NV_DATA(integ->x), sizeof(real_t) * integ->N); 
+    memcpy(x, NV_DATA(integ->x), sizeof(real_t) * integ->num_local_values); 
     return true;
   }
   else
@@ -195,7 +204,7 @@ static void bdf_reset(void* context, real_t t, real_t* x)
   bdf_ode_t* integ = context;
 
   // Copy in the solution and reinitialize.
-  memcpy(NV_DATA(integ->x), x, sizeof(real_t) * integ->N); 
+  memcpy(NV_DATA(integ->x), x, sizeof(real_t) * integ->num_local_values); 
   CVodeReInit(integ->cvode, t, integ->x);
   integ->t = t;
 }
@@ -209,6 +218,7 @@ static void bdf_dtor(void* context)
     preconditioner_free(integ->precond);
 
   // Kill the CVode stuff.
+  polymec_free(integ->x_with_ghosts);
   N_VDestroy(integ->x);
   CVodeFree(&integ->cvode);
 
@@ -252,7 +262,7 @@ static int solve_preconditioner_system(real_t t, N_Vector x, N_Vector F,
   
   // FIXME: Apply scaling if needed.
   // Copy the contents of the RHS to the output vector.
-  memcpy(NV_DATA(z), NV_DATA(r), sizeof(real_t) * integ->N);
+  memcpy(NV_DATA(z), NV_DATA(r), sizeof(real_t) * integ->num_local_values);
 
   // Solve it.
   if (preconditioner_solve(integ->precond, NV_DATA(z)))
@@ -275,7 +285,8 @@ static int eval_Jy(N_Vector y, N_Vector Jy, real_t t, N_Vector x, N_Vector rhstx
 
 ode_integrator_t* jfnk_bdf_ode_integrator_new(int order,
                                              MPI_Comm comm,
-                                             int N, 
+                                             int num_local_values, 
+                                             int num_remote_values, 
                                              void* context, 
                                              int (*rhs)(void* context, real_t t, real_t* x, real_t* xdot),
                                              int (*Jy)(void* context, real_t t, real_t* x, real_t* rhstx, real_t* y, real_t* temp, real_t* Jy),
@@ -286,14 +297,16 @@ ode_integrator_t* jfnk_bdf_ode_integrator_new(int order,
 {
   ASSERT(order >= 1);
   ASSERT(order <= 12);
-  ASSERT(N > 0);
+  ASSERT(num_local_values > 0);
+  ASSERT(num_remote_values >= 0);
   ASSERT(rhs != NULL);
   ASSERT(precond != NULL);
   ASSERT(max_krylov_dim > 3);
 
   bdf_ode_t* integ = polymec_malloc(sizeof(bdf_ode_t));
   integ->comm = comm;
-  integ->N = N;
+  integ->num_local_values = num_local_values;
+  integ->num_remote_values = num_remote_values;
   integ->context = context;
   integ->rhs = rhs;
   integ->dtor = dtor;
@@ -302,7 +315,8 @@ ode_integrator_t* jfnk_bdf_ode_integrator_new(int order,
   integ->t = 0.0;
 
   // Set up KINSol and accessories.
-  integ->x = N_VNew(integ->comm, integ->N);
+  integ->x = N_VNew(integ->comm, integ->num_local_values);
+  integ->x_with_ghosts = polymec_malloc(sizeof(real_t) * (integ->num_local_values + integ->num_remote_values));
   integ->cvode = CVodeCreate(CV_BDF, CV_NEWTON);
   CVodeSetMaxOrd(integ->cvode, order);
   CVodeSetUserData(integ->cvode, integ);
