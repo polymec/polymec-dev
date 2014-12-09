@@ -1031,7 +1031,7 @@ static void driver_usage(const char* model_name)
   print_to_rank0("  help                      -- Prints model-specific help information.\n");
   print_to_rank0("  help list                 -- Prints a list of available functions.\n");
   print_to_rank0("  help [function/symbol]    -- Prints documentation for a function/symbol.\n");
-  exit(-1);
+  exit(0);
 }
 
 // General help for runtime options.
@@ -1142,7 +1142,7 @@ int model_main(const char* model_name, model_ctor constructor, int argc, char* a
     if (valid_commands[c] == NULL)
     {
       print_to_rank0("%s: invalid command: '%s'\n", exe_name, command);
-      return -1;
+      exit(0);
     }
   }
   else
@@ -1157,7 +1157,7 @@ int model_main(const char* model_name, model_ctor constructor, int argc, char* a
   {
     model_help(exe_name, model, input);
     model_free(model);
-    return 0;
+    exit(0);
   }
 
   // Have we been asked to do something related to a benchmark?
@@ -1170,7 +1170,7 @@ int model_main(const char* model_name, model_ctor constructor, int argc, char* a
       print_to_rank0("%s benchmark all OR \n", exe_name);
       print_to_rank0("%s benchmark list OR \n", exe_name);
       print_to_rank0("%s benchmark describe [problem] OR \n", exe_name);
-      return -1;
+      exit(0);
     }
 
     if (!strcmp(input, "all")) // Run all benchmarks?
@@ -1208,7 +1208,7 @@ int model_main(const char* model_name, model_ctor constructor, int argc, char* a
       model_run_benchmark(model, input);
 
     model_free(model);
-    return 0;
+    exit(0);
   }
 
   // We are asked to run a simulation.
@@ -1217,7 +1217,7 @@ int model_main(const char* model_name, model_ctor constructor, int argc, char* a
   {
     print_to_rank0("%s: No input file given! Usage:\n", exe_name);
     print_to_rank0("%s run [input file]\n", exe_name);
-    return -1;
+    exit(0);
   }
 
   // Check to see whether the given file exists.
@@ -1225,7 +1225,7 @@ int model_main(const char* model_name, model_ctor constructor, int argc, char* a
   if (fp == NULL)
   {
     print_to_rank0("%s: Input file not found: %s\n", exe_name, input);
-    return -1;
+    exit(0);
   }
   fclose(fp);
 
@@ -1298,7 +1298,7 @@ static void multi_model_usage(const char* exe_name,
     print_to_rank0("  %s\n", models[i].model_name);
     ++i;
   }
-  exit(-1);
+  exit(0);
 }
 
 // Prints model-specific help for multi-model programs.
@@ -1374,7 +1374,7 @@ int multi_model_main(model_dispatch_t model_table[],
     if (valid_commands[c] == NULL)
     {
       print_to_rank0("%s: invalid command: '%s'\n", exe_name, command);
-      return -1;
+      exit(0);
     }
 
     // Show generic help for help with no model name.
@@ -1410,7 +1410,7 @@ int multi_model_main(model_dispatch_t model_table[],
       print_to_rank0("  %s\n", model_table[i].model_name);
       ++i;
     }
-    return -1;
+    exit(0);
   }
 
   // Have we been asked for help?
@@ -1418,7 +1418,7 @@ int multi_model_main(model_dispatch_t model_table[],
   {
     multi_model_help(exe_name, model, input);
     model_free(model);
-    return 0;
+    exit(0);
   }
 
   // Have we been asked to do something related to a benchmark?
@@ -1431,7 +1431,7 @@ int multi_model_main(model_dispatch_t model_table[],
       print_to_rank0("%s benchmark [model] all OR \n", exe_name);
       print_to_rank0("%s benchmark [model] list OR \n", exe_name);
       print_to_rank0("%s benchmark [model] describe [problem] OR \n", exe_name);
-      return -1;
+      exit(0);
     }
 
     if (!strcmp(input, "all")) // Run all benchmarks?
@@ -1469,7 +1469,7 @@ int multi_model_main(model_dispatch_t model_table[],
       model_run_benchmark(model, input);
 
     model_free(model);
-    return 0;
+    exit(0);
   }
 
   // We are asked to run a simulation.
@@ -1478,7 +1478,7 @@ int multi_model_main(model_dispatch_t model_table[],
   {
     print_to_rank0("%s: No input file given! Usage:\n", exe_name);
     print_to_rank0("%s run %s [input file]\n", exe_name, model_name);
-    return -1;
+    exit(0);
   }
 
   // Check to see whether the given file exists.
@@ -1486,7 +1486,7 @@ int multi_model_main(model_dispatch_t model_table[],
   if (fp == NULL)
   {
     print_to_rank0("%s: Input file not found: %s\n", exe_name, input);
-    return -1;
+    exit(0);
   }
   fclose(fp);
 
@@ -1535,7 +1535,7 @@ static void minimal_driver_usage(const char* model_name)
 {
   print_to_rank0("%s: usage:\n", model_name);
   print_to_rank0("%s input [option1=val [option2=val2 [...]]]\n\n", model_name);
-  exit(-1);
+  exit(0);
 }
 
 int model_minimal_main(const char* model_name, model_ctor constructor, int argc, char* argv[])
@@ -1562,7 +1562,7 @@ int model_minimal_main(const char* model_name, model_ctor constructor, int argc,
   if (fp == NULL)
   {
     print_to_rank0("%s: Input file not found: %s\n", model_name, input);
-    return -1;
+    exit(0);
   }
   fclose(fp);
 
