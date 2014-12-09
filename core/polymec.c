@@ -403,7 +403,7 @@ void polymec_enable_fpe()
 
 #ifdef APPLE
   // Catch all the interesting ones.
-  _MM_SET_EXCEPTION_MASK(_MM_MASK_INEXACT);
+  _MM_SET_EXCEPTION_MASK(_MM_MASK_INEXACT | _MM_MASK_UNDERFLOW);
 #endif
   signal(SIGFPE, handle_fpe_signal);
   log_debug("Enabled floating point exception support.");
