@@ -41,7 +41,7 @@ struct st_func_t
 static void st_func_free(void* ctx, void* dummy)
 {
   st_func_t* func = ctx;
-  if (func->vtable.dtor)
+  if ((func->vtable.dtor != NULL) && (func->context != NULL))
     func->vtable.dtor(func->context);
   func->context = NULL;
   polymec_free(func->name);
