@@ -47,54 +47,69 @@ static bool euler_step(void* context, real_t max_dt, real_t* t, real_t* x)
 {
   euler_ode_t* integ = context;
   real_t alpha = integ->alpha;
-
-  // Copy the solution into place.
   int N_local = integ->num_local_values;
-  memcpy(integ->x_new, x, sizeof(real_t) * N_local);
 
-  // Okay, let's do this iteration thing.
-  bool converged = false;
-  for (int i = 0; i < integ->max_iters; ++i)
+  if (alpha == 0.0)
   {
-    // Stash the old iterate for x_new in x_old.
-    memcpy(integ->x_old, integ->x_new, sizeof(real_t) * N_local);
-
-    // Form x_mid from our implicitness prescription.
-    for (int j = 0; j < N_local; ++j)
-      integ->x_mid[j] = (1.0 - alpha) * x[j] + alpha * integ->x_new[j]; 
-    
-    // Stuff it into the RHS function.
-    real_t tt = *t + integ->alpha * max_dt;
-    int status = integ->rhs(integ->context, tt, integ->x_mid, integ->f);
-    if (status != 0) break; // Error, not converged.
-
-    // Update x_new: x_new <- x_orig + max_dt * RHS.
-    real_t max_rel_change = 0.0, max_abs_change = 0.0;
-    for (int j = 0; j < N_local; ++j)
-    {
-      integ->x_new[j] = x[j] + max_dt * integ->f[j];
-      real_t x_new = integ->x_new[j], x_old = integ->x_old[j];
-      max_abs_change = MAX(max_abs_change, fabs(x_new - x_old));
-      if ((x_old == 0.0) && (x_new == 0.0))
-        max_rel_change = 0.0;
-      else if ((x_old == 0.0) || (x_new == 0.0))
-      {
-        real_t ref_value = MAX(fabs(x_old), fabs(x_new));
-        max_rel_change = MAX(max_rel_change, fabs((x_new - x_old)/ref_value));
-      }
-      else
-        max_rel_change = MAX(max_rel_change, fabs((x_new - x_old)/x_old));
-    }
-
-    // Check for convergence.
-    if ((max_rel_change < integ->rel_tol) && (max_abs_change < integ->abs_tol))
-    {
-      memcpy(x, integ->x_new, sizeof(real_t) * N_local);
-      converged = true;
-      break;
-    }
+    // No implicitness here! Just compute the RHS and mash it into 
+    // our solution.
+    int status = integ->rhs(integ->context, *t, x, integ->f);
+    if (status != 0)
+      return false;
+    for (int i = 0; i < N_local; ++i)
+      x[i] += max_dt * integ->f[i];
+    *t += max_dt;
   }
-  return converged;
+  else
+  {
+    // Copy the solution into place.
+    memcpy(integ->x_new, x, sizeof(real_t) * N_local);
+
+    // Okay, let's do this iteration thing.
+    bool converged = false;
+    for (int i = 0; i < integ->max_iters; ++i)
+    {
+      // Stash the old iterate for x_new in x_old.
+      memcpy(integ->x_old, integ->x_new, sizeof(real_t) * N_local);
+
+      // Form x_mid from our implicitness prescription.
+      for (int j = 0; j < N_local; ++j)
+        integ->x_mid[j] = (1.0 - alpha) * x[j] + alpha * integ->x_new[j]; 
+
+      // Stuff it into the RHS function.
+      real_t tt = *t + integ->alpha * max_dt;
+      int status = integ->rhs(integ->context, tt, integ->x_mid, integ->f);
+      if (status != 0) break; // Error, not converged.
+
+      // Update x_new: x_new <- x_orig + max_dt * RHS.
+      real_t max_rel_change = 0.0, max_abs_change = 0.0;
+      for (int j = 0; j < N_local; ++j)
+      {
+        integ->x_new[j] = x[j] + max_dt * integ->f[j];
+        real_t x_new = integ->x_new[j], x_old = integ->x_old[j];
+        max_abs_change = MAX(max_abs_change, fabs(x_new - x_old));
+        if ((x_old == 0.0) && (x_new == 0.0))
+          max_rel_change = 0.0;
+        else if ((x_old == 0.0) || (x_new == 0.0))
+        {
+          real_t ref_value = MAX(fabs(x_old), fabs(x_new));
+          max_rel_change = MAX(max_rel_change, fabs((x_new - x_old)/ref_value));
+        }
+        else
+          max_rel_change = MAX(max_rel_change, fabs((x_new - x_old)/x_old));
+      }
+
+      // Check for convergence.
+      if ((max_rel_change < integ->rel_tol) && (max_abs_change < integ->abs_tol))
+      {
+        memcpy(x, integ->x_new, sizeof(real_t) * N_local);
+        converged = true;
+        *t += max_dt;
+        break;
+      }
+    }
+    return converged;
+  }
 }
 
 static bool euler_advance(void* context, real_t t1, real_t t2, real_t* x)
