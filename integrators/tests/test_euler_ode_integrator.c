@@ -102,7 +102,7 @@ void test_symplectic_central_force(void** state)
   real_t A, B, sigma;
   linear_regression(log_n_ratios, log_L2_ratios, num_trials-1, &A, &B, &sigma);
   real_t L2_conv_rate = -A;
-  log_urgent("symplectic centrol force L2 error conv rate = %g\n", L2_conv_rate);
+  log_urgent("symplectic central force L2 error conv rate = %g\n", L2_conv_rate);
   assert_true(L2_conv_rate >= 2.0);
 
   // Clean up.
