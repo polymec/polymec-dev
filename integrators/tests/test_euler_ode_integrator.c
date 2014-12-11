@@ -48,7 +48,7 @@ static int central_force_rhs(void* null_context, real_t t, real_t* X, real_t* rh
 
 static ode_integrator_t* symplectic_central_force_integrator()
 {
-  return functional_euler_ode_integrator_new(0.5, MPI_COMM_SELF, 4, 0, NULL, 
+  return functional_euler_ode_integrator_new(0.5, 4, 0, NULL, 
                                              central_force_rhs, NULL);
 }
 

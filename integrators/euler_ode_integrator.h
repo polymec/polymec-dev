@@ -33,12 +33,13 @@
 // Creates an Euler integrator that uses functional, or fixed-point, iteration. 
 // The implicitness parameter alpha determines the degree of implicitness, with 
 // 0 signifying a forward Euler method, 0.5 a Crank-Nicolson method, and 
-// 1 a backward Euler method. The integrator is constructed on the communicator 
-// comm for a system of ordinary differential equations (with given numbers of 
-// local and remote values, for parallel capability), using a context pointer, a 
-// right-hand side function, and a destructor.
+// 1 a backward Euler method. The integrator is constructed for a system of 
+// ordinary differential equations (with given numbers of local and remote 
+// values, for parallel capability), using a context pointer, a 
+// right-hand side function, and a destructor. This integrator does not manage
+// parallelism--it only leaves room for remote values that you specify, and 
+// these values are assumed to be at the end of the solution vector.
 ode_integrator_t* functional_euler_ode_integrator_new(real_t alpha, 
-                                                      MPI_Comm comm, 
                                                       int num_local_values,
                                                       int num_remote_values,
                                                       void* context, 

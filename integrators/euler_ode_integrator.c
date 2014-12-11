@@ -27,7 +27,6 @@
 typedef struct
 {
   real_t alpha;
-  MPI_Comm comm;
 
   // Context and v-table.
   void* context; 
@@ -59,6 +58,7 @@ static bool euler_step(void* context, real_t max_dt, real_t* t, real_t* x)
     for (int i = 0; i < N_local; ++i)
       x[i] += max_dt * integ->f[i];
     *t += max_dt;
+    return true;
   }
   else
   {
@@ -136,7 +136,6 @@ static void euler_dtor(void* context)
 }
 
 ode_integrator_t* functional_euler_ode_integrator_new(real_t alpha, 
-                                                      MPI_Comm comm, 
                                                       int num_local_values,
                                                       int num_remote_values,
                                                       void* context, 
@@ -151,7 +150,6 @@ ode_integrator_t* functional_euler_ode_integrator_new(real_t alpha,
 
   euler_ode_t* integ = polymec_malloc(sizeof(euler_ode_t));
   integ->alpha = alpha;
-  integ->comm = comm;
   integ->num_local_values = num_local_values;
   integ->num_remote_values = num_remote_values;
   integ->context = context;
