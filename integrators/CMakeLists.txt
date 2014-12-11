@@ -1,8 +1,8 @@
 add_library(polymec_integrators newton_preconditioner.c 
             curtis_powell_reed_preconditioners.c newton_solver.c
             ode_integrator.c am_ode_integrator.c bdf_ode_integrator.c 
-            dae_integrator.c gauss_rules.c polyhedron_integrator.c 
-            sphere_integrator.c div_free_poly_basis.c)
+            euler_ode_integrator.c dae_integrator.c gauss_rules.c 
+            polyhedron_integrator.c sphere_integrator.c div_free_poly_basis.c)
 set(POLYMEC_LIBRARIES polymec_integrators;${POLYMEC_LIBRARIES} PARENT_SCOPE)
 set(POLYMEC_LIBRARIES polymec_integrators;${POLYMEC_LIBRARIES})
 
