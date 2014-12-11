@@ -40,8 +40,8 @@ struct sp_func_t
 static void sp_func_free(void* ctx, void* dummy)
 {
   sp_func_t* func = ctx;
-  if (func->vtable.dtor)
-    polymec_free(func->context);
+  if ((func->vtable.dtor != NULL) && (func->context != NULL))
+    func->vtable.dtor(func->context);
   func->context = NULL;
   polymec_free(func->name);
 }
