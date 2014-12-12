@@ -863,6 +863,7 @@ void exchanger_finish_exchange(exchanger_t* ex, int token)
 #if POLYMEC_HAVE_MPI
   ASSERT(token >= 0);
   ASSERT(token < ex->num_pending_msgs);
+  ASSERT(ex->transfer_counts[token] == NULL); // We can't finishing a transfer as an exchange!
 
   // Retrieve the message for the given token.
   mpi_message_t* msg = ex->pending_msgs[token];
@@ -906,6 +907,7 @@ void exchanger_finish_transfer(exchanger_t* ex, int token)
 #if POLYMEC_HAVE_MPI
   ASSERT(token >= 0);
   ASSERT(token < ex->num_pending_msgs);
+  ASSERT(ex->transfer_counts[token] != NULL); // We can't finish an exchange as a transfer!
 
   // This is like exchanger_finish_exchange, but with some rearranging.
 
