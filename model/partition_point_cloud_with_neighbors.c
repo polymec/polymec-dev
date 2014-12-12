@@ -22,6 +22,7 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+#include "core/partition_point_cloud.h"
 #include "model/partition_point_cloud_with_neighbors.h"
 
 // Defined in core/partition_mesh.c, but not part of API.
@@ -29,11 +30,6 @@ extern int64_t* partition_graph(adj_graph_t* global_graph,
                                 MPI_Comm comm, 
                                 int* weights, 
                                 real_t imbalance_tol);
-
-// Defined in core/partition_point_cloud.c, but not part of API. 
-extern void point_cloud_distribute(point_cloud_t** cloud, 
-                                   MPI_Comm comm,
-                                   int64_t* global_partition);
 
 static void neighbor_pairing_distribute(neighbor_pairing_t** neighbors,
                                         MPI_Comm comm,
@@ -293,7 +289,7 @@ exchanger_t* partition_point_cloud_with_neighbors(point_cloud_t** points,
                               (*points != NULL) ? (*points)->num_points : 0);
 
   // Distribute the point cloud.
-  point_cloud_distribute(points, comm, global_partition);
+  distribute_point_cloud(points, comm, global_partition);
 
   // Set up an exchanger to distribute field data.
   int num_vertices = (cloud != NULL) ? adj_graph_num_vertices(global_graph) : 0;

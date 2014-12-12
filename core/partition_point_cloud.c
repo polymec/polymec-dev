@@ -41,12 +41,82 @@ static point_cloud_t* create_subcloud(MPI_Comm comm,
   return subcloud;
 }
 
-// This function is not declared static because it can be used elsewhere in 
-// polymec, but is not part of the public API.
-void point_cloud_distribute(point_cloud_t** cloud, 
-                            MPI_Comm comm,
-                            int64_t* global_partition)
+static void point_cloud_migrate(point_cloud_t** cloud, 
+                                exchanger_t* migrator)
 {
+}
+
+// This helper creates a Hilbert space-filling curve from a set of points.
+static hilbert_t* hilbert_from_points(point_t* points, int num_points)
+{
+  bbox_t bbox = {.x1 = FLT_MAX, .x2 = -FLT_MAX, 
+                 .y1 = FLT_MAX, .y2 = -FLT_MAX, 
+                 .z1 = FLT_MAX, .z2 = -FLT_MAX};
+  for (int i = 0; i < num_points; ++i)
+    bbox_grow(&bbox, &points[i]);
+
+  // (Handle lower dimensional point distributions gracefully.)
+  if (fabs(bbox.x2 - bbox.x1) < FLT_MIN)
+  {
+    bbox.x1 -= 0.5;
+    bbox.x2 += 0.5;
+  }
+  if (fabs(bbox.y2 - bbox.y1) < FLT_MIN)
+  {
+    bbox.y1 -= 0.5;
+    bbox.y2 += 0.5;
+  }
+  if (fabs(bbox.z2 - bbox.z1) < FLT_MIN)
+  {
+    bbox.z1 -= 0.5;
+    bbox.z2 += 0.5;
+  }
+  return hilbert_new(&bbox);
+}
+
+// This helper is a comparison function used to sort (Hilbert index, weight) tuples.
+// Only the Hilbert index factors into the ordering.
+static int hilbert_comp(const void* l, const void* r)
+{
+  const index_t* li = l;
+  const index_t* ri = r;
+  return (li[1] < ri[1]) ? -1
+                         : (li[1] > ri[1]) ? 1
+                                           : 0;
+}
+
+// This creates a local partition vector using the information in the sorted 
+// distributed array. This is to be used only with repartition_point_cloud().
+static int* create_partition_from_sorted_array(MPI_Comm comm, 
+                                               index_t* array, 
+                                               int local_array_size)
+{
+  int nprocs, rank;
+  MPI_Comm_size(comm, &nprocs);
+  MPI_Comm_rank(comm, &rank);
+
+  // Find out who expects data from us.
+  int num_points_for_rank[nprocs], my_num_points_for_rank[nprocs];
+  memset(my_num_points_for_rank, 0, sizeof(int) * nprocs);
+  for (int i = 0; i < local_array_size; ++i)
+  {
+    int rank = array[4*i+1];
+    ++my_num_points_for_rank[rank];
+  }
+  MPI_Alltoall(my_num_points_for_rank, 1, MPI_INT, num_points_for_rank, 1, MPI_INT, comm);
+
+  // Now find out which ranks got our points.
+  // FIXME
+  return NULL;
+}
+
+#endif
+
+exchanger_t* distribute_point_cloud(point_cloud_t** cloud, 
+                                    MPI_Comm comm,
+                                    int64_t* global_partition)
+{
+#if POLYMEC_HAVE_MPI
   int nprocs, rank;
   MPI_Comm_size(comm, &nprocs);
   MPI_Comm_rank(comm, &rank);
@@ -55,6 +125,7 @@ void point_cloud_distribute(point_cloud_t** cloud,
   MPI_Barrier(comm);
 
   point_cloud_t* global_cloud = *cloud;
+  int num_global_points = (rank == 0) ? global_cloud->num_points : 0;
   point_cloud_t* local_cloud = NULL;
   uint64_t vtx_dist[nprocs+1];
   if (rank == 0)
@@ -139,104 +210,52 @@ void point_cloud_distribute(point_cloud_t** cloud,
   // Clean up.
   if (global_cloud != NULL)
     point_cloud_free(global_cloud);
-}
 
-static void point_cloud_migrate(point_cloud_t** cloud, 
-                                exchanger_t* migrator)
-{
-}
-
-// This helper creates a Hilbert space-filling curve from a set of points.
-static hilbert_t* hilbert_from_points(point_t* points, int num_points)
-{
-  bbox_t bbox = {.x1 = FLT_MAX, .x2 = -FLT_MAX, 
-                 .y1 = FLT_MAX, .y2 = -FLT_MAX, 
-                 .z1 = FLT_MAX, .z2 = -FLT_MAX};
-  for (int i = 0; i < num_points; ++i)
-    bbox_grow(&bbox, &points[i]);
-
-  // (Handle lower dimensional point distributions gracefully.)
-  if (fabs(bbox.x2 - bbox.x1) < FLT_MIN)
-  {
-    bbox.x1 -= 0.5;
-    bbox.x2 += 0.5;
-  }
-  if (fabs(bbox.y2 - bbox.y1) < FLT_MIN)
-  {
-    bbox.y1 -= 0.5;
-    bbox.y2 += 0.5;
-  }
-  if (fabs(bbox.z2 - bbox.z1) < FLT_MIN)
-  {
-    bbox.z1 -= 0.5;
-    bbox.z2 += 0.5;
-  }
-  return hilbert_new(&bbox);
-}
-
-// This helper is a comparison function used to sort (Hilbert index, weight) tuples.
-// Only the Hilbert index factors into the ordering.
-static int hilbert_comp(const void* l, const void* r)
-{
-  const index_t* li = l;
-  const index_t* ri = r;
-  return (li[1] < ri[1]) ? -1
-                         : (li[1] > ri[1]) ? 1
-                                           : 0;
-}
-
-// This creates a local partition vector using the information in the sorted 
-// distributed array. This is to be used only with repartition_point_cloud().
-static int* create_partition_from_sorted_array(MPI_Comm comm, 
-                                               index_t* array, 
-                                               int local_array_size)
-{
-  int nprocs, rank;
-  MPI_Comm_size(comm, &nprocs);
-  MPI_Comm_rank(comm, &rank);
-
-  // Find out who expects data from us.
-  int num_points_for_rank[nprocs], my_num_points_for_rank[nprocs];
-  memset(my_num_points_for_rank, 0, sizeof(int) * nprocs);
-  for (int i = 0; i < local_array_size; ++i)
-  {
-    int rank = array[4*i+1];
-    ++my_num_points_for_rank[rank];
-  }
-  MPI_Alltoall(my_num_points_for_rank, 1, MPI_INT, num_points_for_rank, 1, MPI_INT, comm);
-
-  // Now find out which ranks got our points.
-  // FIXME
-  return NULL;
-}
-
+  return create_distributor(comm, global_partition, num_global_points);
+#else
+  return exchanger_new(comm);
 #endif
+}
 
-exchanger_t* partition_point_cloud(point_cloud_t** cloud, MPI_Comm comm, int* weights, real_t imbalance_tol)
+int64_t* partition_vector_from_point_cloud(point_cloud_t* global_cloud, 
+                                           MPI_Comm comm, 
+                                           int* weights, 
+                                           real_t imbalance_tol)
 {
-  ASSERT(imbalance_tol > 0.0);
-  ASSERT(imbalance_tol <= 1.0);
-  point_cloud_t* cl = *cloud;
-
 #if POLYMEC_HAVE_MPI
-  ASSERT((*cloud == NULL) || ((*cloud)->comm == MPI_COMM_SELF));
+  ASSERT((weights == NULL) || (imbalance_tol > 0.0));
+  ASSERT((weights == NULL) || (imbalance_tol <= 1.0));
 
   int nprocs, rank;
   MPI_Comm_size(comm, &nprocs);
   MPI_Comm_rank(comm, &rank);
+  ASSERT((rank != 0) || (global_cloud != NULL));
 
   // On a single process, partitioning has no meaning.
   if (nprocs == 1)
-    return exchanger_new(comm);
+  {
+    // Dumb, but correct.
+    int64_t* global_partition = polymec_malloc(sizeof(int64_t) * global_cloud->num_points);
+    memset(global_partition, 0, sizeof(int64_t) * global_cloud->num_points);
+    return global_partition;
+  }
+
+#ifndef NDEBUG
+  // Make sure there are enough points to go around for the processes we're given.
+  if (rank == 0)
+  {
+    ASSERT(global_cloud->num_points > nprocs);
+  }
+#endif
 
   int64_t* global_partition = NULL;
   int num_global_points = 0;
   if (rank == 0)
   {
-    num_global_points = cl->num_points;
+    num_global_points = global_cloud->num_points;
 
     // Set up a Hilbert space filling curve that can map the given points to indices.
-    hilbert_t* hilbert = hilbert_from_points(cl->points, num_global_points);
+    hilbert_t* hilbert = hilbert_from_points(global_cloud->points, num_global_points);
 
     // Create an array of 2-tuples containing the (Hilbert index, weight) of each point. 
     // Partitioning the points amounts to sorting this array and breaking it into parts whose 
@@ -248,7 +267,7 @@ exchanger_t* partition_point_cloud(point_cloud_t** cloud, MPI_Comm comm, int* we
       for (int i = 0; i < num_global_points; ++i)
       {
         part_array[3*i]   = i;
-        part_array[3*i+1] = hilbert_index(hilbert, &cl->points[i]);
+        part_array[3*i+1] = hilbert_index(hilbert, &global_cloud->points[i]);
         part_array[3*i+2] = (index_t)weights[i];
         total_work += weights[i];
       }
@@ -258,7 +277,7 @@ exchanger_t* partition_point_cloud(point_cloud_t** cloud, MPI_Comm comm, int* we
       for (int i = 0; i < num_global_points; ++i)
       {
         part_array[3*i]   = i;
-        part_array[3*i+1] = hilbert_index(hilbert, &cl->points[i]);
+        part_array[3*i+1] = hilbert_index(hilbert, &global_cloud->points[i]);
         part_array[3*i+2] = 1;
       }
       total_work = num_global_points;
@@ -313,11 +332,38 @@ exchanger_t* partition_point_cloud(point_cloud_t** cloud, MPI_Comm comm, int* we
     polymec_free(part_array);
   }
 
-  // Distribute the point cloud.
-  point_cloud_distribute(cloud, comm, global_partition);
+  return global_partition;
 
-  // Set up an exchanger to distribute field data.
-  exchanger_t* distributor = create_distributor(comm, global_partition, num_global_points);
+#else
+  // This is dumb, but we were asked for it.
+  int64_t* global_partition = polymec_malloc(sizeof(int64_t) * global_cloud->num_points);
+  memset(global_partition, 0, sizeof(int64_t) * global_cloud->num_points);
+  return global_partition;
+#endif
+}
+
+exchanger_t* partition_point_cloud(point_cloud_t** cloud, MPI_Comm comm, int* weights, real_t imbalance_tol)
+{
+  ASSERT((weights == NULL) || (imbalance_tol > 0.0));
+  ASSERT((weights == NULL) || (imbalance_tol <= 1.0));
+  point_cloud_t* cl = *cloud;
+
+#if POLYMEC_HAVE_MPI
+  ASSERT((*cloud == NULL) || ((*cloud)->comm == MPI_COMM_SELF));
+
+  int nprocs, rank;
+  MPI_Comm_size(comm, &nprocs);
+  MPI_Comm_rank(comm, &rank);
+
+  // On a single process, partitioning has no meaning.
+  if (nprocs == 1)
+    return exchanger_new(comm);
+
+  // Now do the space-filling curve thing.
+  int64_t* global_partition = partition_vector_from_point_cloud(cl, comm, weights, imbalance_tol);
+
+  // Distribute the point cloud.
+  exchanger_t* distributor = distribute_point_cloud(cloud, comm, global_partition);
 
   // Clean up.
   polymec_free(global_partition);

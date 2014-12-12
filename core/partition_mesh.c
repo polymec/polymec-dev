@@ -1030,16 +1030,16 @@ static void mesh_migrate(mesh_t** mesh,
 
 exchanger_t* partition_mesh(mesh_t** mesh, MPI_Comm comm, int* weights, real_t imbalance_tol)
 {
-  ASSERT(imbalance_tol > 0.0);
-  ASSERT(imbalance_tol <= 1.0);
-
 #if POLYMEC_HAVE_MPI
+  ASSERT((weights == NULL) || (imbalance_tol > 0.0));
+  ASSERT((weights == NULL) || (imbalance_tol <= 1.0));
   ASSERT((*mesh == NULL) || ((*mesh)->comm == MPI_COMM_SELF));
   _Static_assert(sizeof(SCOTCH_Num) == sizeof(int64_t), "SCOTCH_Num must be 64-bit.");
 
   int nprocs, rank;
   MPI_Comm_size(comm, &nprocs);
   MPI_Comm_rank(comm, &rank);
+  ASSERT((rank != 0) || (*mesh != NULL));
 
   // On a single process, partitioning has no meaning.
   if (nprocs == 1)
@@ -1081,6 +1081,98 @@ exchanger_t* partition_mesh(mesh_t** mesh, MPI_Comm comm, int* weights, real_t i
     polymec_free(global_partition);
 
   // Return the migrator.
+  return distributor;
+#else
+  return exchanger_new(comm);
+#endif
+}
+
+int64_t* partition_vector_from_mesh(mesh_t* global_mesh, MPI_Comm comm, int* weights, real_t imbalance_tol)
+{
+#if POLYMEC_HAVE_MPI
+  ASSERT((weights == NULL) || (imbalance_tol > 0.0));
+  ASSERT((weights == NULL) || (imbalance_tol <= 1.0));
+  _Static_assert(sizeof(SCOTCH_Num) == sizeof(int64_t), "SCOTCH_Num must be 64-bit.");
+
+  int nprocs, rank;
+  MPI_Comm_size(comm, &nprocs);
+  MPI_Comm_rank(comm, &rank);
+  ASSERT((rank != 0) || (global_mesh != NULL));
+
+  // On a single process, partitioning has no meaning.
+  if (nprocs == 1)
+  {
+    // Dumb, but correct.
+    int64_t* global_partition = polymec_malloc(sizeof(int64_t) * global_mesh->num_cells);
+    memset(global_partition, 0, sizeof(int64_t) * global_mesh->num_cells);
+    return global_partition;
+  }
+
+  // Generate a global adjacency graph for the mesh.
+  adj_graph_t* global_graph = (rank == 0) ? graph_from_mesh_cells(global_mesh) : NULL;
+
+#ifndef NDEBUG
+  // Make sure there are enough cells to go around for the processes we're given.
+  if (rank == 0)
+  {
+    ASSERT(global_mesh->num_cells > nprocs);
+  }
+#endif
+
+  // Map the graph to the different domains, producing a local partition vector.
+  int64_t* global_partition = (rank == 0) ? partition_graph(global_graph, comm, weights, imbalance_tol): NULL;
+
+  // Get rid of the graph.
+  if (global_graph != NULL)
+    adj_graph_free(global_graph);
+
+  return global_partition;
+
+#else
+  // This is dumb, but we were asked for it.
+  int64_t* global_partition = polymec_malloc(sizeof(int64_t) * global_mesh->num_cells);
+  memset(global_partition, 0, sizeof(int64_t) * global_mesh->num_cells);
+  return global_partition;
+#endif
+}
+
+exchanger_t* distribute_mesh(mesh_t** mesh, MPI_Comm comm, int64_t* global_partition)
+{
+#if POLYMEC_HAVE_MPI
+  ASSERT((*mesh == NULL) || ((*mesh)->comm == MPI_COMM_SELF));
+  ASSERT(global_partition != NULL);
+
+  int nprocs, rank;
+  MPI_Comm_size(comm, &nprocs);
+  MPI_Comm_rank(comm, &rank);
+  ASSERT((rank != 0) || (*mesh != NULL));
+
+  // On a single process, partitioning has no meaning.
+  if (nprocs == 1)
+    return exchanger_new(comm);
+
+  // If meshes on rank != 0 are not NULL, we delete them.
+  mesh_t* m = *mesh;
+  if ((rank != 0) && (m != NULL))
+  {
+    mesh_free(m);
+    *mesh = m = NULL; 
+  }
+
+  // Generate a global adjacency graph for the mesh.
+  adj_graph_t* global_graph = (m != NULL) ? graph_from_mesh_cells(m) : NULL;
+
+  // Distribute the mesh.
+  mesh_distribute(mesh, comm, global_graph, global_partition);
+
+  // Set up an exchanger to distribute field data.
+  int num_vertices = (m != NULL) ? adj_graph_num_vertices(global_graph) : 0;
+  exchanger_t* distributor = create_distributor(comm, global_partition, num_vertices);
+
+  // Get rid of the graph.
+  if (global_graph != NULL)
+    adj_graph_free(global_graph);
+
   return distributor;
 #else
   return exchanger_new(comm);

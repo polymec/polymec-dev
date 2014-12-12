@@ -45,5 +45,23 @@ exchanger_t* partition_point_cloud(point_cloud_t** cloud, MPI_Comm comm, int* we
 // with a repartitioned cloud.
 //exchanger_t* repartition_point_cloud(point_cloud_t** cloud, int* weights, real_t imbalance_tol);
 
+// While partition_point_cloud and repartition_point_cloud are all-in-one 
+// point cloud partitioners, the following functions allow one to mix-n-match 
+// the pieces of the underlying algorithms.
+
+// This function creates a newly-allocated global partition vector that can be used 
+// to distribute a global point cloud on rank 0 to all processes on the given communicator, 
+// according to the given weights and the specified imbalance tolerance. Point clouds 
+// on non-zero ranks are ignored.
+int64_t* partition_vector_from_point_cloud(point_cloud_t* global_cloud, 
+                                           MPI_Comm comm, 
+                                           int* weights, 
+                                           real_t imbalance_tol);
+
+// Given a global partition vector, distribute the mesh to the given communicator, and 
+// return a distributor object that can be used to distribute its data. The mesh is 
+// replaced with a partitioned mesh.
+exchanger_t* distribute_point_cloud(point_cloud_t** cloud, MPI_Comm comm, int64_t* global_partition);
+
 #endif
 
