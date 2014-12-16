@@ -194,3 +194,54 @@ adj_graph_t* graph_from_point_cloud_and_neighbors(point_cloud_t* points,
   return g;
 }
 
+void silo_file_write_neighbor_pairing(silo_file_t* file,
+                                      const char* neighbors_name,
+                                      neighbor_pairing_t* neighbors)
+{
+  char name_name[FILENAME_MAX];
+  snprintf(name_name, FILENAME_MAX, "%s_neighbor_pairing_name", neighbors_name);
+  silo_file_write_string(file, name_name, neighbors->name);
+  char pairs_name[FILENAME_MAX];
+  snprintf(pairs_name, FILENAME_MAX, "%s_neighbor_pairing_pairs", neighbors_name);
+  silo_file_write_int_array(file, pairs_name, neighbors->pairs, 2*neighbors->num_pairs);
+  char weights_name[FILENAME_MAX];
+  snprintf(weights_name, FILENAME_MAX, "%s_neighbor_pairing_weights", neighbors_name);
+  if (neighbors->weights != NULL)
+    silo_file_write_real_array(file, weights_name, neighbors->weights, neighbors->num_pairs);
+  else
+    silo_file_write_real_array(file, weights_name, NULL, 0);
+
+  if (neighbors->ex != NULL)
+  {
+    char ex_name[FILENAME_MAX];
+    snprintf(ex_name, FILENAME_MAX, "%s_neighbor_pairing_ex", neighbors_name);
+    silo_file_write_exchanger(file, weights_name, neighbors->ex);
+  }
+}
+
+neighbor_pairing_t* silo_file_read_neighbor_pairing(silo_file_t* file,
+                                                    const char* neighbors_name,
+                                                    MPI_Comm comm)
+{
+  neighbor_pairing_t* p = polymec_malloc(sizeof(neighbor_pairing_t));
+  char name_name[FILENAME_MAX];
+  snprintf(name_name, FILENAME_MAX, "%s_neighbor_pairing_name", neighbors_name);
+  p->name = silo_file_read_string(file, name_name);
+  char pairs_name[FILENAME_MAX];
+  snprintf(pairs_name, FILENAME_MAX, "%s_neighbor_pairing_pairs", neighbors_name);
+  int size;
+  p->pairs = silo_file_read_int_array(file, pairs_name, &size);
+  ASSERT((size % 2) == 0);
+  p->num_pairs = size/2;
+  char weights_name[FILENAME_MAX];
+  snprintf(weights_name, FILENAME_MAX, "%s_neighbor_pairing_weights", neighbors_name);
+  int num_weights;
+  p->weights = silo_file_read_real_array(file, weights_name, &num_weights);
+  ASSERT((num_weights == p->num_pairs) || 
+         ((num_weights == 0) && (p->weights == NULL)));
+  char ex_name[FILENAME_MAX];
+  snprintf(ex_name, FILENAME_MAX, "%s_neighbor_pairing_ex", neighbors_name);
+  p->ex = silo_file_read_exchanger(file, ex_name, comm);
+  return p;
+}
+

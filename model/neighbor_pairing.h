@@ -30,6 +30,7 @@
 #include "core/serializer.h"
 #include "core/adj_graph.h"
 #include "core/point_cloud.h"
+#include "core/silo_file.h"
 
 // A neighbor pairing is a set of index pairs associated with some spatial 
 // discretization (usually a mesh-free method). Pairings can be constructed 
@@ -108,5 +109,20 @@ serializer_t* neighbor_pairing_serializer();
 // the given neighbor pairing.
 adj_graph_t* graph_from_point_cloud_and_neighbors(point_cloud_t* points, 
                                                   neighbor_pairing_t* neighbors);
+
+// This function extends the silo_file type to allow it to write out a 
+// neighbor_pairing object to an entry with the given name.
+void silo_file_write_neighbor_pairing(silo_file_t* file,
+                                      const char* neighbors_name,
+                                      neighbor_pairing_t* neighbors);
+
+// This function extends the silo_file type to allow it to read in and 
+// return a newly-allocated neighbor_pairing object from the entry in the 
+// file with the given name. The exchanger for the neighbor pairing is assigned
+// to the given MPI communicator.
+neighbor_pairing_t* silo_file_read_neighbor_pairing(silo_file_t* file,
+                                                    const char* neighbors_name,
+                                                    MPI_Comm comm);
+
 
 #endif
