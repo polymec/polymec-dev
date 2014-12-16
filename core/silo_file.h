@@ -173,4 +173,28 @@ void silo_file_write_tensor_expression(silo_file_t* file,
                                        const char* expression_name,
                                        const char* definition);
 
+// Writes an array of real numbers of the given size to the silo file.
+void silo_write_real_array(silo_file_t* file,
+                           const char* array_name,
+                           real_t* array_data,
+                           int array_size);
+
+// Reads an array of real numbers from the silo file, allocating it with 
+// polymec_malloc, and filling in the given size.
+real_t* silo_read_real_array(silo_file_t* file,
+                             const char* array_name,
+                             int* array_size);
+
+// Writes an array of integers of the given size to the silo file.
+void silo_write_int_array(silo_file_t* file,
+                          const char* array_name,
+                          int* array_data,
+                          int array_size);
+
+// Reads an array of integers from the silo file, allocating it with 
+// polymec_malloc, and filling in the given size.
+int* silo_read_int_array(silo_file_t* file,
+                         const char* array_name,
+                         int* array_size);
+
 #endif
