@@ -173,28 +173,48 @@ void silo_file_write_tensor_expression(silo_file_t* file,
                                        const char* expression_name,
                                        const char* definition);
 
+// Writes a named string to the silo file.
+void silo_file_write_string(silo_file_t* file,
+                            const char* string_name,
+                            char* string_data);
+
+// Reads a named string from the silo file, returning a newly-allocated copy.
+char* silo_file_read_string(silo_file_t* file,
+                            const char* string_name);
+
 // Writes an array of real numbers of the given size to the silo file.
-void silo_write_real_array(silo_file_t* file,
-                           const char* array_name,
-                           real_t* array_data,
-                           int array_size);
+// If the array has zero size, an empty entry will be written.
+void silo_file_write_real_array(silo_file_t* file,
+                                const char* array_name,
+                                real_t* array_data,
+                                int array_size);
 
 // Reads an array of real numbers from the silo file, allocating it with 
-// polymec_malloc, and filling in the given size.
-real_t* silo_read_real_array(silo_file_t* file,
-                             const char* array_name,
-                             int* array_size);
+// polymec_malloc, and filling in the given size. If the array exists but 
+// has zero size, NULL will be returned.
+real_t* silo_file_read_real_array(silo_file_t* file,
+                                  const char* array_name,
+                                  int* array_size);
 
-// Writes an array of integers of the given size to the silo file.
-void silo_write_int_array(silo_file_t* file,
-                          const char* array_name,
-                          int* array_data,
-                          int array_size);
+// Writes an array of integers of the given size to the silo file. If 
+// the array has zero size, an empty entry will be written.
+void silo_file_write_int_array(silo_file_t* file,
+                               const char* array_name,
+                               int* array_data,
+                               int array_size);
 
 // Reads an array of integers from the silo file, allocating it with 
-// polymec_malloc, and filling in the given size.
-int* silo_read_int_array(silo_file_t* file,
-                         const char* array_name,
-                         int* array_size);
+// polymec_malloc, and filling in the given size. If the array exists, but 
+// has zero size, NULL will be returned.
+int* silo_file_read_int_array(silo_file_t* file,
+                              const char* array_name,
+                              int* array_size);
+
+// Reads and returns a newly allocated exchanger from the silo file, assigning
+// it to the given communicator.
+exchanger_t* silo_file_read_exchanger(silo_file_t* file, const char* exchanger_name, MPI_Comm comm);
+
+// Writes an exchanger object with the given name.
+void silo_file_write_exchanger(silo_file_t* file, const char* exchanger_name, exchanger_t* ex);
 
 #endif
