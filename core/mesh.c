@@ -338,6 +338,14 @@ exchanger_t* mesh_exchanger(mesh_t* mesh)
   return mesh->storage->exchanger;
 }
 
+void mesh_set_exchanger(mesh_t* mesh, exchanger_t* ex)
+{
+  ASSERT(ex != NULL);
+  if (mesh->storage->exchanger != NULL)
+    exchanger_free(mesh->storage->exchanger);
+  mesh->storage->exchanger = ex;
+}
+
 void mesh_add_feature(mesh_t* mesh, const char* feature)
 {
   // Use the bogus tag to store our junk.

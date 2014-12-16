@@ -158,6 +158,9 @@ void mesh_delete_property(mesh_t* mesh, const char* property);
 // no data and exchanges have no effect.
 exchanger_t* mesh_exchanger(mesh_t* mesh);
 
+// Sets the exchanger to be used by the mesh, replacing any existing exchanger.
+void mesh_set_exchanger(mesh_t* mesh, exchanger_t* ex);
+
 // Adds a named "feature" to the mesh. A mesh either has a feature or it doesn't.
 // Features can be used to make algorithmic decisions about how to perform 
 // calculations on a given mesh. This function has no effect if the given 
