@@ -125,4 +125,16 @@ neighbor_pairing_t* silo_file_read_neighbor_pairing(silo_file_t* file,
                                                     MPI_Comm comm);
 
 
+// This is a shake-n-bake method for constructing pairs of neighboring 
+// points using a neighbor relationship that relates points (xi, xj) that are 
+// closer to each other than a specified distance Dij = max(R[i], R[j]), where 
+// R[i] and R[j] are radii of influence associated with point i and j.
+// This method finds all neighbors on processes within the MPI communicator 
+// of the given point cloud, and creates indices for ghost points corresponding
+// to points on remote processes. It also stores the number of created ghost 
+// indices in *num_ghost_points.
+neighbor_pairing_t* distance_based_neighbor_pairing_new(point_cloud_t* points,
+                                                        real_t* R,
+                                                        int* num_ghost_points);
+
 #endif

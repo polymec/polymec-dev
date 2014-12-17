@@ -427,7 +427,7 @@ kd_tree_pos_t kd_tree_start(kd_tree_t* tree)
   return pos; 
 }
 
-bool kd_tree_next(kd_tree_t* tree, kd_tree_pos_t* pos, int* index, real_t* coords)
+bool kd_tree_next(kd_tree_t* tree, kd_tree_pos_t* pos, int* index, point_t* coords)
 {
   ASSERT(pos != NULL);
   ASSERT(index != NULL);
@@ -443,9 +443,9 @@ bool kd_tree_next(kd_tree_t* tree, kd_tree_pos_t* pos, int* index, real_t* coord
     return kd_tree_next(tree, pos, index, coords);
   }
   *index = node->index;
-  coords[0] = node->pos[0];
-  coords[1] = node->pos[1];
-  coords[2] = node->pos[2];
+  coords->x = node->pos[0];
+  coords->y = node->pos[1];
+  coords->z = node->pos[2];
   if (node->right != NULL)
   {
     pos->node = node->right;
@@ -454,4 +454,86 @@ bool kd_tree_next(kd_tree_t* tree, kd_tree_pos_t* pos, int* index, real_t* coord
   return true;
 }
 
+exchanger_t* kd_tree_find_ghost_points(kd_tree_t* tree, MPI_Comm comm, real_t R_max)
+{
+  ASSERT(R_max > 0.0);
+  exchanger_t* ex = exchanger_new(comm);
+#if POLYMEC_HAVE_MPI
+
+  // Create a bounding box containing all the local points in the tree.
+  bbox_t bbox = {.x1 = FLT_MAX, .x2 = -FLT_MAX, 
+    .y1 = FLT_MAX, .y2 = -FLT_MAX,
+    .z1 = FLT_MAX, .z2 = -FLT_MAX};
+  {
+    int index;
+    point_t x;
+    kd_tree_pos_t pos = kd_tree_start(tree);
+    while (kd_tree_next(tree, &pos, &index, &x))
+    {
+      if (!bbox_contains(&bbox, &x))
+        bbox_grow(&bbox, &x);
+    }
+  }
+
+  // Grow our bounding box outward by the maximum radius.
+  bbox.x1 -= R_max;
+  bbox.x2 += R_max;
+  bbox.y1 -= R_max;
+  bbox.y2 += R_max;
+  bbox.z1 -= R_max;
+  bbox.z2 += R_max;
+
+  // Find out which processes we interact with by intersecting bounding boxes.
+  int num_neighbor_procs;
+  int* neighbor_procs = bbox_intersecting_processes(&bbox, comm, &num_neighbor_procs);
+
+  int rank;
+  MPI_Comm_rank(comm, &rank);
+
+  // Get bounding boxes and R_maxes from all of these processes.
+  bbox_t bboxes[num_neighbor_procs];
+  real_t R_maxes[num_neighbor_procs];
+  {
+    real_t data[num_neighbor_procs][7];
+    MPI_Request requests[2*num_neighbor_procs];
+    for (int p = 0; p < num_neighbor_procs; ++p)
+    {
+      int proc = neighbor_procs[p];
+      int err = MPI_Irecv(data[p], 7, MPI_REAL_T, proc, 0, comm, &requests[p]);
+      if (err != MPI_SUCCESS)
+        polymec_error("%d: Could not receive bounding box data from %d", rank, proc);
+    }
+
+    // Now send asynchronously.
+    real_t my_data[7] = {R_max, bbox.x1, bbox.x2, bbox.y1, bbox.y2, bbox.z1, bbox.z2};
+    for (int p = 0; p < num_neighbor_procs; ++p)
+    {
+      int proc = neighbor_procs[p];
+      int err = MPI_Isend(my_data, 7, MPI_REAL_T, proc, 0, comm, &requests[num_neighbor_procs + p]);
+      if (err != MPI_SUCCESS)
+        polymec_error("%d: Could not send bounding box data to %d", rank, proc);
+    }
+
+    // Wait for messages to fly.
+    MPI_Status statuses[2*num_neighbor_procs];
+    MPI_Waitall(2*num_neighbor_procs, requests, statuses);
+
+    // Copy the data into place.
+    for (int p = 0; p < num_neighbor_procs; ++p)
+    {
+      R_maxes[p] = data[p][0];
+      bboxes[p].x1 = data[p][1];
+      bboxes[p].x2 = data[p][2];
+      bboxes[p].y1 = data[p][3];
+      bboxes[p].y2 = data[p][4];
+      bboxes[p].z1 = data[p][5];
+      bboxes[p].z2 = data[p][6];
+    }
+  }
+
+  return ex;
+#else
+  return ex;
+#endif
+}
 

@@ -28,6 +28,7 @@
 #include "core/polymec.h"
 #include "core/point.h"
 #include "core/array.h"
+#include "core/exchanger.h"
 
 // A kd_tree is a collection of points in a 3D domain, stored in a kd-tree 
 // so that neighbor searches can be easily and cheaply performed.
@@ -69,7 +70,15 @@ typedef struct
 kd_tree_pos_t kd_tree_start(kd_tree_t* tree);
 
 // Traverses a kd tree.
-bool kd_tree_next(kd_tree_t* tree, kd_tree_pos_t* pos, int* index, real_t* coords);
+bool kd_tree_next(kd_tree_t* tree, kd_tree_pos_t* pos, int* index, point_t* coords);
+
+// This function communicates with other processes on the given MPI communicator, 
+// adding all points within R_max of the bounding box surrounding the set of 
+// local points within the given kd-tree. These "ghost points" will have 
+// indices that run from the original number of points upward. It creates 
+// and returns an exchanger that is capable of syncronizing data on these 
+// ghost points.
+exchanger_t* kd_tree_find_ghost_points(kd_tree_t* tree, MPI_Comm comm, real_t R_max);
 
 #endif
 

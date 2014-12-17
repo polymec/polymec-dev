@@ -22,6 +22,7 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+#include "core/kd_tree.h"
 #include "model/neighbor_pairing.h"
 
 neighbor_pairing_t* neighbor_pairing_new(const char* name, int num_pairs, 
@@ -245,3 +246,59 @@ neighbor_pairing_t* silo_file_read_neighbor_pairing(silo_file_t* file,
   return p;
 }
 
+neighbor_pairing_t* distance_based_neighbor_pairing_new(point_cloud_t* points,
+                                                        real_t* R,
+                                                        int* num_ghost_points)
+{
+  // Stick all the points into a kd-tree so that we can pair them up.
+  kd_tree_t* tree = kd_tree_new(points->points, points->num_points);
+
+  // Find the maximum radius of interaction.
+  real_t R_max = -FLT_MAX;
+  for (int i = 0; i < points->num_points; ++i)
+    R_max = MAX(R_max, R[i]);
+
+  // Add ghost points to the kd-tree and fetch an exchanger. This may add 
+  // too many ghost points, but hopefully that won't be an issue.
+  exchanger_t* ex = kd_tree_find_ghost_points(tree, points->comm, R_max);
+
+  // We'll toss neighbor pairs into this expandable array.
+  int_array_t* pair_array = int_array_new();
+
+  for (int i = 0; i < points->num_points; ++i)
+  {
+    // Find all the neighbors for this point. We only count those 
+    // neighbors {j} for which j > i.
+    point_t* xi = &points->points[i];
+    int_array_t* neighbors = kd_tree_within_radius(tree, xi, R_max);
+    for (int k = 0; k < neighbors->size; ++k)
+    {
+      int j = neighbors->data[k];
+      if (j > i)
+      {
+        real_t D = point_distance(xi, &points->points[j]);
+        if (D < MAX(R[i], R[j]))
+        {
+          int_array_append(pair_array, i);
+          int_array_append(pair_array, j);
+        }
+      }
+    }
+    int_array_free(neighbors);
+  }
+
+  // Create a neighbor pairing.
+  int num_pairs = pair_array->size/2;
+  neighbor_pairing_t* neighbors = 
+    unweighted_neighbor_pairing_new("Distance-based point pairs", 
+                                    num_pairs, pair_array->data, ex);
+
+  // Set the number of ghost points referred to within the neighbor pairing.
+  *num_ghost_points = kd_tree_size(tree) - points->num_points;
+
+  // Clean up.
+  int_array_release_data_and_free(pair_array); // Release control of data.
+  kd_tree_free(tree);
+
+  return neighbors;
+}
