@@ -60,17 +60,9 @@ int_array_t* kd_tree_within_radius(kd_tree_t* tree,
                                    point_t* point, 
                                    real_t radius);
 
-// This type allows iteration over trees.
-typedef struct 
-{ 
-  void* node; 
-} kd_tree_pos_t; 
-
-// Returns a new position/iterator type for iterating over a tree.
-kd_tree_pos_t kd_tree_start(kd_tree_t* tree);
-
-// Traverses a kd tree.
-bool kd_tree_next(kd_tree_t* tree, kd_tree_pos_t* pos, int* index, point_t* coords);
+// Traverses a kd tree, returning the index of the point within the tree and 
+// its coordinates. To initialiaze a traversal, set *pos to 0.
+bool kd_tree_next(kd_tree_t* tree, int* pos, int* index, point_t* coords);
 
 // This function communicates with other processes on the given MPI communicator, 
 // adding all points within R_max of the bounding box surrounding the set of 

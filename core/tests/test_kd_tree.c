@@ -86,13 +86,69 @@ void test_find_nearest(void** state)
   kd_tree_free(tree);
 }
 
+void test_find_ghost_points(void** state) 
+{
+  // Create a point set containing 100 random points within a bounding box 
+  // [0, 1] x [0, 1] x [0, 1] on each process.
+  rng_t* rng = host_rng_new();
+  int N = 100;
+  bbox_t bounding_box = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
+  point_t points[N];
+  for (int i = 0; i < N; ++i)
+    point_randomize(&points[i], rng, &bounding_box);
+  kd_tree_t* tree = kd_tree_new(points, N);
+
+  // Now find the points within this same bounding box on other processes.
+  // HINT: All points on other processes should be found! This is as much a 
+  // HINT: stress test as it is a necessary-but-insufficient test for 
+  // HINT: correctness.
+  real_t R_max = 0.5;
+  exchanger_t* ex = kd_tree_find_ghost_points(tree, MPI_COMM_WORLD, R_max);
+
+  // Make sure we've added all the ghost points to the tree.
+  int nprocs, rank;
+  MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  assert_int_equal(kd_tree_size(tree), nprocs * N);
+
+  // Make sure the exchanger has entries in it for each of the other processes.
+  assert_true(exchanger_num_sends(ex) == (nprocs-1));
+  assert_true(exchanger_num_receives(ex) == (nprocs-1));
+
+  int pos = 0, proc, *indices, num_indices;
+  while (exchanger_next_send(ex, &pos, &proc, &indices, &num_indices))
+  {
+    assert_true(proc != rank);
+    assert_int_equal(num_indices, N);
+    for (int i = 0; i < num_indices; ++i)
+    {
+      assert_true(indices[i] < N);
+    }
+  }
+  pos = 0;
+  while (exchanger_next_receive(ex, &pos, &proc, &indices, &num_indices))
+  {
+    assert_true(proc != rank);
+    assert_int_equal(num_indices, N);
+    for (int i = 0; i < num_indices; ++i)
+    {
+      assert_true(indices[i] >= N);
+    }
+  }
+
+  // Clean up.
+  exchanger_free(ex);
+  kd_tree_free(tree);
+}
+
 int main(int argc, char* argv[]) 
 {
   polymec_init(argc, argv);
   const UnitTest tests[] = 
   {
     unit_test(test_construct),
-    unit_test(test_find_nearest)
+    unit_test(test_find_nearest),
+    unit_test(test_find_ghost_points)
   };
   return run_tests(tests);
 }

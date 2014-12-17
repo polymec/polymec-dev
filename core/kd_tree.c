@@ -113,6 +113,9 @@ struct kd_tree_t
   kd_tree_node_t* root; // Root node of 3d-tree.
   kd_tree_rect_t* rect; // Containing rectangle.
   int size;               // Number of points.
+
+  // Point cache for traversal.
+  real_array_t* point_cache;
 };
 
 static void node_insert(kd_tree_node_t** node_ptr, real_t* pos, int index, int dir)
@@ -140,6 +143,11 @@ static void kd_tree_insert(kd_tree_t* tree, point_t* point, int index)
     tree->rect = rect_new(pos, pos);
   else
     rect_extend(tree->rect, pos);
+
+  // Update the point cache.
+  real_array_append(tree->point_cache, point->x);
+  real_array_append(tree->point_cache, point->y);
+  real_array_append(tree->point_cache, point->z);
 }
 
 kd_tree_t* kd_tree_new(point_t* points, int num_points)
@@ -148,12 +156,12 @@ kd_tree_t* kd_tree_new(point_t* points, int num_points)
   tree->root = NULL;
   tree->rect = NULL;
   tree->size = 0;
+  tree->point_cache = real_array_new();
 
   for (int i = 0; i < num_points; ++i)
     kd_tree_insert(tree, &points[i], i);
   return tree;
 }
-
 
 int kd_tree_size(kd_tree_t* tree)
 {
@@ -179,11 +187,15 @@ static void kd_tree_clear(kd_tree_t* tree)
     tree->rect = NULL;
   }
   tree->size = 0;
+
+  // Clear the point cache.
+  real_array_clear(tree->point_cache);
 }
 
 void kd_tree_free(kd_tree_t* tree)
 {
   kd_tree_clear(tree);
+  real_array_free(tree->point_cache);
   polymec_free(tree);
 }
 
@@ -421,53 +433,38 @@ int_array_t* kd_tree_within_radius(kd_tree_t* tree,
   return results;
 }
 
-kd_tree_pos_t kd_tree_start(kd_tree_t* tree)
+bool kd_tree_next(kd_tree_t* tree, int* pos, int* index, point_t* coords)
 {
-  kd_tree_pos_t pos = {.node = tree->root };
-  return pos; 
-}
-
-bool kd_tree_next(kd_tree_t* tree, kd_tree_pos_t* pos, int* index, point_t* coords)
-{
-  ASSERT(pos != NULL);
+  ASSERT(*pos >= 0);
   ASSERT(index != NULL);
   ASSERT(coords != NULL);
 
-  kd_tree_node_t* node = pos->node;
-  if (node == NULL)
+  int offset = 3 * (*pos);
+  if (offset >= tree->point_cache->size)
     return false;
 
-  if (node->left != NULL)
-  {
-    pos->node = node->left;
-    return kd_tree_next(tree, pos, index, coords);
-  }
-  *index = node->index;
-  coords->x = node->pos[0];
-  coords->y = node->pos[1];
-  coords->z = node->pos[2];
-  if (node->right != NULL)
-  {
-    pos->node = node->right;
-    return kd_tree_next(tree, pos, index, coords);
-  }
+  *index = *pos;
+  coords->x = tree->point_cache->data[offset];
+  coords->y = tree->point_cache->data[offset+1];
+  coords->z = tree->point_cache->data[offset+2];
+  ++(*pos);
+
   return true;
 }
 
 exchanger_t* kd_tree_find_ghost_points(kd_tree_t* tree, MPI_Comm comm, real_t R_max)
 {
-  ASSERT(R_max > 0.0);
+  ASSERT(R_max >= 0.0);
   exchanger_t* ex = exchanger_new(comm);
 #if POLYMEC_HAVE_MPI
 
   // Create a bounding box containing all the local points in the tree.
   bbox_t bbox = {.x1 = FLT_MAX, .x2 = -FLT_MAX, 
-    .y1 = FLT_MAX, .y2 = -FLT_MAX,
-    .z1 = FLT_MAX, .z2 = -FLT_MAX};
+                 .y1 = FLT_MAX, .y2 = -FLT_MAX,
+                 .z1 = FLT_MAX, .z2 = -FLT_MAX};
   {
-    int index;
+    int pos = 0, index;
     point_t x;
-    kd_tree_pos_t pos = kd_tree_start(tree);
     while (kd_tree_next(tree, &pos, &index, &x))
     {
       if (!bbox_contains(&bbox, &x))
@@ -490,26 +487,25 @@ exchanger_t* kd_tree_find_ghost_points(kd_tree_t* tree, MPI_Comm comm, real_t R_
   int rank;
   MPI_Comm_rank(comm, &rank);
 
-  // Get bounding boxes and R_maxes from all of these processes.
+  // Get bounding boxes from all of these processes.
   bbox_t bboxes[num_neighbor_procs];
-  real_t R_maxes[num_neighbor_procs];
   {
-    real_t data[num_neighbor_procs][7];
+    real_t data[num_neighbor_procs][6];
     MPI_Request requests[2*num_neighbor_procs];
     for (int p = 0; p < num_neighbor_procs; ++p)
     {
       int proc = neighbor_procs[p];
-      int err = MPI_Irecv(data[p], 7, MPI_REAL_T, proc, 0, comm, &requests[p]);
+      int err = MPI_Irecv(data[p], 6, MPI_REAL_T, proc, 0, comm, &requests[p]);
       if (err != MPI_SUCCESS)
         polymec_error("%d: Could not receive bounding box data from %d", rank, proc);
     }
 
     // Now send asynchronously.
-    real_t my_data[7] = {R_max, bbox.x1, bbox.x2, bbox.y1, bbox.y2, bbox.z1, bbox.z2};
+    real_t my_data[6] = {bbox.x1, bbox.x2, bbox.y1, bbox.y2, bbox.z1, bbox.z2};
     for (int p = 0; p < num_neighbor_procs; ++p)
     {
       int proc = neighbor_procs[p];
-      int err = MPI_Isend(my_data, 7, MPI_REAL_T, proc, 0, comm, &requests[num_neighbor_procs + p]);
+      int err = MPI_Isend(my_data, 6, MPI_REAL_T, proc, 0, comm, &requests[num_neighbor_procs + p]);
       if (err != MPI_SUCCESS)
         polymec_error("%d: Could not send point numbers to %d", rank, proc);
     }
@@ -521,13 +517,12 @@ exchanger_t* kd_tree_find_ghost_points(kd_tree_t* tree, MPI_Comm comm, real_t R_
     // Copy the data into place.
     for (int p = 0; p < num_neighbor_procs; ++p)
     {
-      R_maxes[p] = data[p][0];
-      bboxes[p].x1 = data[p][1];
-      bboxes[p].x2 = data[p][2];
-      bboxes[p].y1 = data[p][3];
-      bboxes[p].y2 = data[p][4];
-      bboxes[p].z1 = data[p][5];
-      bboxes[p].z2 = data[p][6];
+      bboxes[p].x1 = data[p][0];
+      bboxes[p].x2 = data[p][1];
+      bboxes[p].y1 = data[p][2];
+      bboxes[p].y2 = data[p][3];
+      bboxes[p].z1 = data[p][4];
+      bboxes[p].z2 = data[p][5];
     }
   }
 
@@ -555,9 +550,8 @@ exchanger_t* kd_tree_find_ghost_points(kd_tree_t* tree, MPI_Comm comm, real_t R_
 
       // Make a list of our points that fall into process p's 
       // bounding box, and populate the send info in our exchanger.
-      int index;
+      int pos = 0, index;
       point_t x;
-      kd_tree_pos_t pos = kd_tree_start(tree);
       while (kd_tree_next(tree, &pos, &index, &x))
       {
         if (bbox_contains(&bboxes[p], &x))
@@ -571,11 +565,13 @@ exchanger_t* kd_tree_find_ghost_points(kd_tree_t* tree, MPI_Comm comm, real_t R_
 
       // Set the send information in the exchanger.
       int proc = neighbor_procs[p];
-      exchanger_set_send(ex, proc, sent_point_indices->data, sent_point_indices->size, false);
+
+      if (sent_point_indices->size > 0)
+        exchanger_set_send(ex, proc, sent_point_indices->data, sent_point_indices->size, false);
       int_array_release_data_and_free(sent_point_indices);
 
       // Now send the number of points to process p.
-      int num_points_sent = points_sent[p]->size;
+      int num_points_sent = points_sent[p]->size/3;
       int err = MPI_Isend(&num_points_sent, 1, MPI_INT, 
                           proc, 0, comm, &requests[num_neighbor_procs + p]);
       if (err != MPI_SUCCESS)
@@ -593,7 +589,7 @@ exchanger_t* kd_tree_find_ghost_points(kd_tree_t* tree, MPI_Comm comm, real_t R_
       real_array_resize(points_received[p], 3*num_points_received[p]);
 
       int proc = neighbor_procs[p];
-      int err = MPI_Irecv(points_received[p]->data, 3*num_points_received[p], 
+      int err = MPI_Irecv(points_received[p]->data, points_received[p]->size,
                           MPI_REAL_T, proc, 0, comm, &requests[p]);
       if (err != MPI_SUCCESS)
         polymec_error("%d: Could not receive point data from %d", rank, proc);
@@ -604,7 +600,7 @@ exchanger_t* kd_tree_find_ghost_points(kd_tree_t* tree, MPI_Comm comm, real_t R_
     {
       // Now send the number of points to process p.
       int proc = neighbor_procs[p];
-      int err = MPI_Isend(&points_sent[p]->data, points_sent[p]->size, MPI_REAL_T, 
+      int err = MPI_Isend(points_sent[p]->data, points_sent[p]->size, MPI_REAL_T, 
                           proc, 0, comm, &requests[num_neighbor_procs + p]);
       if (err != MPI_SUCCESS)
         polymec_error("%d: Could not send point numbers to %d", rank, proc);
@@ -619,7 +615,7 @@ exchanger_t* kd_tree_find_ghost_points(kd_tree_t* tree, MPI_Comm comm, real_t R_
     {
       int_array_t* received_point_indices = int_array_new();
       real_array_t* point_data = points_received[p];
-      for (int i = 0; i < point_data->size; ++i)
+      for (int i = 0; i < point_data->size/3; ++i)
       {
         point_t x = {.x = point_data->data[3*i], 
                      .y = point_data->data[3*i+1],
@@ -631,7 +627,8 @@ exchanger_t* kd_tree_find_ghost_points(kd_tree_t* tree, MPI_Comm comm, real_t R_
 
       // Set the send information in the exchanger.
       int proc = neighbor_procs[p];
-      exchanger_set_receive(ex, proc, received_point_indices->data, received_point_indices->size, false);
+      if (received_point_indices->size > 0)
+        exchanger_set_receive(ex, proc, received_point_indices->data, received_point_indices->size, false);
       int_array_release_data_and_free(received_point_indices);
     }
 
