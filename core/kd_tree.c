@@ -511,7 +511,7 @@ exchanger_t* kd_tree_find_ghost_points(kd_tree_t* tree, MPI_Comm comm, real_t R_
       int proc = neighbor_procs[p];
       int err = MPI_Isend(my_data, 7, MPI_REAL_T, proc, 0, comm, &requests[num_neighbor_procs + p]);
       if (err != MPI_SUCCESS)
-        polymec_error("%d: Could not send bounding box data to %d", rank, proc);
+        polymec_error("%d: Could not send point numbers to %d", rank, proc);
     }
 
     // Wait for messages to fly.
@@ -528,6 +528,118 @@ exchanger_t* kd_tree_find_ghost_points(kd_tree_t* tree, MPI_Comm comm, real_t R_
       bboxes[p].y2 = data[p][4];
       bboxes[p].z1 = data[p][5];
       bboxes[p].z2 = data[p][6];
+    }
+  }
+
+  // Now send each neighboring process the points that fall within its 
+  // bounding box.
+  {
+    real_array_t* points_sent[num_neighbor_procs];
+    MPI_Request requests[2*num_neighbor_procs];
+    MPI_Status statuses[2*num_neighbor_procs];
+
+    // Post receives for the number of points we expect.
+    int num_points_received[num_neighbor_procs];
+    for (int p = 0; p < num_neighbor_procs; ++p)
+    {
+      int proc = neighbor_procs[p];
+      int err = MPI_Irecv(&num_points_received[p], 1, MPI_INT, proc, 0, comm, &requests[p]);
+      if (err != MPI_SUCCESS)
+        polymec_error("%d: Could not receive point numbers from %d", rank, proc);
+    }
+
+    for (int p = 0; p < num_neighbor_procs; ++p)
+    {
+      int_array_t* sent_point_indices = int_array_new();
+      points_sent[p] = real_array_new();
+
+      // Make a list of our points that fall into process p's 
+      // bounding box, and populate the send info in our exchanger.
+      int index;
+      point_t x;
+      kd_tree_pos_t pos = kd_tree_start(tree);
+      while (kd_tree_next(tree, &pos, &index, &x))
+      {
+        if (bbox_contains(&bboxes[p], &x))
+        {
+          real_array_append(points_sent[p], x.x);
+          real_array_append(points_sent[p], x.y);
+          real_array_append(points_sent[p], x.z);
+          int_array_append(sent_point_indices, index);
+        }
+      }
+
+      // Set the send information in the exchanger.
+      int proc = neighbor_procs[p];
+      exchanger_set_send(ex, proc, sent_point_indices->data, sent_point_indices->size, false);
+      int_array_release_data_and_free(sent_point_indices);
+
+      // Now send the number of points to process p.
+      int num_points_sent = points_sent[p]->size;
+      int err = MPI_Isend(&num_points_sent, 1, MPI_INT, 
+                          proc, 0, comm, &requests[num_neighbor_procs + p]);
+      if (err != MPI_SUCCESS)
+        polymec_error("%d: Could not send point numbers to %d", rank, proc);
+    }
+
+    // Finish the sends.
+    MPI_Waitall(2*num_neighbor_procs, requests, statuses);
+
+    // Post receives for the actual point coordinates.
+    real_array_t* points_received[num_neighbor_procs];
+    for (int p = 0; p < num_neighbor_procs; ++p)
+    {
+      points_received[p] = real_array_new();
+      real_array_resize(points_received[p], 3*num_points_received[p]);
+
+      int proc = neighbor_procs[p];
+      int err = MPI_Irecv(points_received[p]->data, 3*num_points_received[p], 
+                          MPI_REAL_T, proc, 0, comm, &requests[p]);
+      if (err != MPI_SUCCESS)
+        polymec_error("%d: Could not receive point data from %d", rank, proc);
+    }
+
+    // Now send the point coordinates.
+    for (int p = 0; p < num_neighbor_procs; ++p)
+    {
+      // Now send the number of points to process p.
+      int proc = neighbor_procs[p];
+      int err = MPI_Isend(&points_sent[p]->data, points_sent[p]->size, MPI_REAL_T, 
+                          proc, 0, comm, &requests[num_neighbor_procs + p]);
+      if (err != MPI_SUCCESS)
+        polymec_error("%d: Could not send point numbers to %d", rank, proc);
+    }
+
+    // Finish the sends.
+    MPI_Waitall(2*num_neighbor_procs, requests, statuses);
+
+    // Add the points to our tree and populate the receive entries in 
+    // our exchanger.
+    for (int p = 0; p < num_neighbor_procs; ++p)
+    {
+      int_array_t* received_point_indices = int_array_new();
+      real_array_t* point_data = points_received[p];
+      for (int i = 0; i < point_data->size; ++i)
+      {
+        point_t x = {.x = point_data->data[3*i], 
+                     .y = point_data->data[3*i+1],
+                     .z = point_data->data[3*i+2]};
+        int ghost_index = tree->size;
+        kd_tree_insert(tree, &x, ghost_index);
+        int_array_append(received_point_indices, ghost_index);
+      }
+
+      // Set the send information in the exchanger.
+      int proc = neighbor_procs[p];
+      exchanger_set_receive(ex, proc, received_point_indices->data, received_point_indices->size, false);
+      int_array_release_data_and_free(received_point_indices);
+    }
+
+    // Clean up.
+    for (int p = 0; p < num_neighbor_procs; ++p)
+    {
+      real_array_free(points_sent[p]);
+      real_array_free(points_received[p]);
     }
   }
 
