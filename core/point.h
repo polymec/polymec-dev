@@ -202,11 +202,34 @@ static inline bool bbox_contains_bbox(bbox_t* bbox, bbox_t* box)
           (box->z1 >= bbox->z1) && (box->z2 <= bbox->z2));
 }
 
+// Returns true if the two bounding boxes intersect, false otherwise.
+// If the boxes have touching edges, they are considered to intersect.
+static inline bool bbox_intersects_bbox(bbox_t* box1, bbox_t* box2)
+{
+  // The boxes intersect if their centers x1 and x2 are within the sum of 
+  // their spatial extents of one another along each axis.
+  point_t x1 = {.x = 0.5 * (box1->x1 + box1->x2),
+                .y = 0.5 * (box1->y1 = box1->y2),
+                .z = 0.5 * (box1->z1 = box1->z2)};
+  point_t x2 = {.x = 0.5 * (box2->x1 + box2->x2),
+                .y = 0.5 * (box2->y1 = box2->y2),
+                .z = 0.5 * (box2->z1 = box2->z2)};
+  return ((abs(x1.x - x2.x) * 2.0 <= (box1->x2 - box1->x1 + box2->x2 - box2->x1)) && 
+          (abs(x1.y - x2.y) * 2.0 <= (box1->y2 - box1->y1 + box2->y2 - box2->y1)) &&
+          (abs(x1.z - x2.z) * 2.0 <= (box1->z2 - box1->z1 + box2->z2 - box2->z1)));
+}
+
 // Grows the given bounding box to accommodate the given point.
 void bbox_grow(bbox_t* box, point_t* p);
 
 // Writes a text representation of the bounding box to the given file.
 void bbox_fprintf(bbox_t* box, FILE* stream);
+
+// Returns an array containing the ranks of the processes on the given MPI 
+// communicator whose given bbox intersects the one on this process. num_procs
+// will store the length of this array. If no processes supply bounding boxes 
+// that intersect the one given here, *num_procs == 0 and NULL is returned.
+int* bbox_intersecting_processes(bbox_t* bbox, MPI_Comm comm, int* num_procs);
 
 // Given a random number generator and a bounding box, generate random 
 // coordinates for the given point within the bounding box. The random 
