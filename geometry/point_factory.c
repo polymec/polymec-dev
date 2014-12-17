@@ -535,7 +535,7 @@ static void import_points_from_stl(const char* stl_file_name, int* num_points, p
   for (int i = 0; i < all_vertices->size; ++i)
   {
     point_t* point = all_vertices->data[i];
-    int_slist_t* coincident_points = kd_tree_within_radius(point_tree, point, 1e-12);
+    int_array_t* coincident_points = kd_tree_within_radius(point_tree, point, 1e-12);
 
     // NOTE: To find the normal vector at this point, we average 
     // NOTE: the normals of the triangles that include this point.
@@ -551,17 +551,16 @@ static void import_points_from_stl(const char* stl_file_name, int* num_points, p
     else
     {
       ASSERT(coincident_points->size > 0);
-      int_slist_node_t* iter = coincident_points->front;
       int min_index = INT_MAX;
       vector_t* n_avg = polymec_malloc(sizeof(vector_t)); 
-      while (iter != NULL)
+      for (int j = 0; j < coincident_points->size; ++j)
       {
-        min_index = MIN(iter->value, min_index);
-        vector_t* n = all_normals->data[iter->value];
+        int value = coincident_points->data[j];
+        min_index = MIN(value, min_index);
+        vector_t* n = all_normals->data[value];
         n_avg->x = n->x;
         n_avg->y = n->y;
         n_avg->z = n->z;
-        iter = iter->next;
       }
       if (i == min_index)
       {
@@ -573,7 +572,7 @@ static void import_points_from_stl(const char* stl_file_name, int* num_points, p
       }
       else
         polymec_free(n_avg);
-      int_slist_free(coincident_points);
+      int_array_free(coincident_points);
     }
   }
   ASSERT(unique_point_indices->size > 0);

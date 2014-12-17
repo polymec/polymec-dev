@@ -354,7 +354,7 @@ static void find_within_radius(kd_tree_node_t* node,
                                real_t* pos, 
                                real_t radius,
                                kd_tree_rect_t* rect,
-                               int_slist_t* results)
+                               int_array_t* results)
 {
   // Go left or right?
   int dir = node->dir;
@@ -388,7 +388,7 @@ static void find_within_radius(kd_tree_node_t* node,
   // Distance from point to current node.
   real_t my_r2 = square_dist(node->pos, pos);
   if (my_r2 < radius*radius)
-    int_slist_append(results, node->index);
+    int_array_append(results, node->index);
 
   if (far_subtree != NULL)
   {
@@ -401,7 +401,7 @@ static void find_within_radius(kd_tree_node_t* node,
   }
 }
 
-int_slist_t* kd_tree_within_radius(kd_tree_t* tree, 
+int_array_t* kd_tree_within_radius(kd_tree_t* tree, 
                                    point_t* point, 
                                    real_t radius)
 {
@@ -411,7 +411,7 @@ int_slist_t* kd_tree_within_radius(kd_tree_t* tree,
   real_t pos[3];
   pos[0] = point->x, pos[1] = point->y, pos[2] = point->z;
   kd_tree_rect_t rect;
-  int_slist_t* results = int_slist_new();
+  int_array_t* results = int_array_new();
   rect.min[0] = tree->rect->min[0]; rect.max[0] = tree->rect->max[0];
   rect.min[1] = tree->rect->min[1]; rect.max[1] = tree->rect->max[1];
   rect.min[2] = tree->rect->min[2]; rect.max[2] = tree->rect->max[2];

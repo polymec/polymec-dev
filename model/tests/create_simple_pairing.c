@@ -71,22 +71,21 @@ neighbor_pairing_t* create_simple_pairing(point_cloud_t* cloud, real_t h)
   for (int i = 0; i < cloud->num_points; ++i)
   {
     point_t* xi = &cloud->points[i];
-    int_slist_t* neighbors = kd_tree_within_radius(tree, &cloud->points[i], h);
-    int_slist_node_t* n = NULL;
-    int j;
-    while (int_slist_next(neighbors, &n, &j))
+    int_array_t* neighbors = kd_tree_within_radius(tree, &cloud->points[i], h);
+    for (int j = 0; j < neighbors->size; ++j)
     {
-      if (j > i)
+      int k = neighbors->data[j];
+      if (k > i)
       {
         int_array_append(pairs, i);
-        int_array_append(pairs, j);
-        point_t* xj = &cloud->points[j];
+        int_array_append(pairs, k);
+        point_t* xk = &cloud->points[k];
         vector_t y;
-        point_displacement(xj, xi, &y);
+        point_displacement(xk, xi, &y);
         real_array_append(weights, point_weight_function_value(W, &y));
       }
     }
-    int_slist_free(neighbors);
+    int_array_free(neighbors);
   }
   kd_tree_free(tree);
   point_weight_function_free(W);

@@ -27,7 +27,7 @@
 
 #include "core/polymec.h"
 #include "core/point.h"
-#include "core/slist.h"
+#include "core/array.h"
 
 // A kd_tree is a collection of points in a 3D domain, stored in a kd-tree 
 // so that neighbor searches can be easily and cheaply performed.
@@ -55,7 +55,7 @@ void kd_tree_nearest_n(kd_tree_t* tree, point_t* point, int n, int* neighbors);
 
 // Returns a linked list containing the indices of the points in the set 
 // found within the given radius of the given point.
-int_slist_t* kd_tree_within_radius(kd_tree_t* tree, 
+int_array_t* kd_tree_within_radius(kd_tree_t* tree, 
                                    point_t* point, 
                                    real_t radius);
 

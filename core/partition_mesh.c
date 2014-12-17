@@ -696,31 +696,27 @@ static mesh_t* fuse_submeshes(mesh_t** submeshes,
       // nodes on the problem boundary that don't necessary belong to a seam 
       // face.
       static const real_t epsilon = 1e-12;
-      int_slist_t* same_nodes = kd_tree_within_radius(node_tree, x, epsilon);
+      int_array_t* same_nodes = kd_tree_within_radius(node_tree, x, epsilon);
 
       if (same_nodes->size > 1)
       {
         // Merge the nodes by mapping all those with higher indices to the 
         // lowest index.
-        int_slist_node_t *pos = NULL, *min_node = NULL;
-        int index, min_index = INT_MAX;
-        while (int_slist_next(same_nodes, &pos, &index))
+        int min_index = INT_MAX;
+        for (int k = 0; k < same_nodes->size; ++k)
         {
+          int index = same_nodes->data[k];
           if (index < min_index)
-          {
             min_index = index;
-            min_node = pos;
-          }
         }
-        ASSERT(min_node != NULL);
-        pos = NULL;
-        while (int_slist_next(same_nodes, &pos, &index))
+        for (int k = 0; k < same_nodes->size; ++k)
         {
+          int index = same_nodes->data[k];
           if (index != min_index)
             int_int_unordered_map_insert(dup_node_map, index, min_index);
         }
       }
-      int_slist_free(same_nodes);
+      int_array_free(same_nodes);
     }
 
     // Clean up.
