@@ -741,6 +741,29 @@ static int value_in_set_display_error(
 }
 
 
+/* Returns 1 if the specified integer values are equal.  If the values are not equal
+ * an error is displayed and 0 is returned. */
+static int integers_equal_display_error(int left,
+                                        int right) {
+	const int equal = left == right;
+	if (!equal) {
+		print_error("%d != %d\n", left, right);
+	}
+	return equal;
+}
+
+/* Returns 1 if the specified values are not equal.  If the values are equal
+ * an error is displayed and 0 is returned. */
+static int integers_not_equal_display_error(int left,
+                                            int right) {
+	const int not_equal = left != right;
+	if (!not_equal) {
+		print_error("%d == %d\n", left, right);
+	}
+	return not_equal;
+}
+
+
 /* Determine whether a value is within the specified range.  If the value is
  * within the specified range 1 is returned.  If the value isn't within the 
  * specified range an error is displayed and 0 is returned. */
@@ -1156,7 +1179,7 @@ void _assert_true(const int result, const char * const expression,
 
 void _assert_int_equal(const int a, const int b, const char * const file, 
                        const int line) {
-	if (!values_equal_display_error((void*)a, (void*)b)) {
+	if (!integers_equal_display_error(a, b)) {
 		_fail(file, line);
 	}
 }
@@ -1164,7 +1187,7 @@ void _assert_int_equal(const int a, const int b, const char * const file,
 
 void _assert_int_not_equal(const int a, const int b, const char * const file, 
                            const int line) {
-	if (!values_not_equal_display_error((void*)a, (void*)b)) {
+	if (!integers_not_equal_display_error(a, b)) {
 		_fail(file, line);
 	}
 }
