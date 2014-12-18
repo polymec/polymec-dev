@@ -250,6 +250,13 @@ neighbor_pairing_t* distance_based_neighbor_pairing_new(point_cloud_t* points,
                                                         real_t* R,
                                                         int* num_ghost_points)
 {
+  ASSERT(R != NULL);
+  ASSERT(num_ghost_points != NULL);
+#ifndef NDEBUG
+  for (int i = 0; i < points->num_points; ++i)
+    ASSERT(R[i] > 0.0);
+#endif
+
   // Stick all the points into a kd-tree so that we can pair them up.
   kd_tree_t* tree = kd_tree_new(points->points, points->num_points);
 
