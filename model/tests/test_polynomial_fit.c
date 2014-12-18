@@ -81,10 +81,10 @@ void test_fit_consistency(void** state, polynomial_fit_t* fit, int component,
 //printf("dudx error: %g\n", fabs(dudx[component]-dqdx));
 //printf("dudy error: %g\n", fabs(dudy[component]-dqdy));
 //printf("dudz error: %g\n", fabs(dudz[component]-dqdz));
-    assert_true(fabs(u[component] - q) < 5e-15);
-    assert_true(fabs(dudx[component] - dqdx) < 5e-15);
-    assert_true(fabs(dudy[component] - dqdy) < 5e-15);
-    assert_true(fabs(dudz[component] - dqdz) < 5e-15);
+    assert_true(fabs(u[component] - q) < 5e-14);
+    assert_true(fabs(dudx[component] - dqdx) < 5e-14);
+    assert_true(fabs(dudy[component] - dqdy) < 5e-14);
+    assert_true(fabs(dudz[component] - dqdz) < 5e-14);
   }
 }
 
