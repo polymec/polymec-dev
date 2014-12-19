@@ -108,8 +108,11 @@ static mpi_message_t* mpi_message_new(MPI_Datatype type, int stride, int tag)
   return msg;
 }
 
-static void mpi_message_pack(mpi_message_t* msg, void* data, 
-                             exchanger_map_t* send_map, exchanger_map_t* receive_map)
+static void mpi_message_pack(mpi_message_t* msg, 
+                             void* data, 
+                             size_t send_offset,
+                             exchanger_map_t* send_map, 
+                             exchanger_map_t* receive_map)
 {
   ASSERT(send_map->size >= 0);
   ASSERT(receive_map->size >= 0);
@@ -124,7 +127,6 @@ static void mpi_message_pack(mpi_message_t* msg, void* data,
   msg->receive_buffer_sizes = polymec_malloc(sizeof(int)*msg->num_receives);
   msg->receive_buffers = polymec_malloc(sizeof(void*)*msg->num_receives);
 
-int rank; MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   int pos = 0, proc, i = 0;
   exchanger_channel_t* c;
   while (exchanger_map_next(send_map, &pos, &proc, &c))
@@ -142,7 +144,7 @@ int rank; MPI_Comm_rank(MPI_COMM_WORLD, &rank);
       real_t* dest = msg->send_buffers[i];
       for (int j = 0; j < msg->send_buffer_sizes[i]; ++j)
         for (int s = 0; s < stride; ++s)
-          dest[stride*j+s] = src[stride*send_indices[j]+s];
+          dest[stride*j+s] = src[send_offset+stride*send_indices[j]+s];
     }
     else if (msg->type == MPI_DOUBLE)
     {
@@ -150,7 +152,7 @@ int rank; MPI_Comm_rank(MPI_COMM_WORLD, &rank);
       double* dest = msg->send_buffers[i];
       for (int j = 0; j < msg->send_buffer_sizes[i]; ++j)
         for (int s = 0; s < stride; ++s)
-          dest[stride*j+s] = src[stride*send_indices[j]+s];
+          dest[stride*j+s] = src[send_offset+stride*send_indices[j]+s];
     }
     else if (msg->type == MPI_FLOAT)
     {
@@ -158,7 +160,7 @@ int rank; MPI_Comm_rank(MPI_COMM_WORLD, &rank);
       float* dest = msg->send_buffers[i];
       for (int j = 0; j < msg->send_buffer_sizes[i]; ++j)
         for (int s = 0; s < stride; ++s)
-          dest[stride*j+s] = src[stride*send_indices[j]+s];
+          dest[stride*j+s] = src[send_offset+stride*send_indices[j]+s];
     }
     else if (msg->type == MPI_INT)
     {
@@ -166,7 +168,7 @@ int rank; MPI_Comm_rank(MPI_COMM_WORLD, &rank);
       int* dest = msg->send_buffers[i];
       for (int j = 0; j < msg->send_buffer_sizes[i]; ++j)
         for (int s = 0; s < stride; ++s)
-          dest[stride*j+s] = src[stride*send_indices[j]+s];
+          dest[stride*j+s] = src[send_offset+stride*send_indices[j]+s];
     }
     else if (msg->type == MPI_LONG)
     {
@@ -174,7 +176,7 @@ int rank; MPI_Comm_rank(MPI_COMM_WORLD, &rank);
       long* dest = msg->send_buffers[i];
       for (int j = 0; j < msg->send_buffer_sizes[i]; ++j)
         for (int s = 0; s < stride; ++s)
-          dest[stride*j+s] = src[stride*send_indices[j]+s];
+          dest[stride*j+s] = src[send_offset+stride*send_indices[j]+s];
     }
     else if (msg->type == MPI_LONG_LONG)
     {
@@ -182,7 +184,7 @@ int rank; MPI_Comm_rank(MPI_COMM_WORLD, &rank);
       long long* dest = msg->send_buffers[i];
       for (int j = 0; j < msg->send_buffer_sizes[i]; ++j)
         for (int s = 0; s < stride; ++s)
-          dest[stride*j+s] = src[stride*send_indices[j]+s];
+          dest[stride*j+s] = src[send_offset+stride*send_indices[j]+s];
     }
     else if (msg->type == MPI_UINT64_T)
     {
@@ -190,7 +192,7 @@ int rank; MPI_Comm_rank(MPI_COMM_WORLD, &rank);
       uint64_t* dest = msg->send_buffers[i];
       for (int j = 0; j < msg->send_buffer_sizes[i]; ++j)
         for (int s = 0; s < stride; ++s)
-          dest[stride*j+s] = src[stride*send_indices[j]+s];
+          dest[stride*j+s] = src[send_offset+stride*send_indices[j]+s];
     }
     else if (msg->type == MPI_CHAR)
     {
@@ -198,7 +200,7 @@ int rank; MPI_Comm_rank(MPI_COMM_WORLD, &rank);
       char* dest = msg->send_buffers[i];
       for (int j = 0; j < msg->send_buffer_sizes[i]; ++j)
         for (int s = 0; s < stride; ++s)
-          dest[stride*j+s] = src[stride*send_indices[j]+s];
+          dest[stride*j+s] = src[send_offset+stride*send_indices[j]+s];
     }
     else if (msg->type == MPI_BYTE)
     {
@@ -206,7 +208,7 @@ int rank; MPI_Comm_rank(MPI_COMM_WORLD, &rank);
       uint8_t* dest = msg->send_buffers[i];
       for (int j = 0; j < msg->send_buffer_sizes[i]; ++j)
         for (int s = 0; s < stride; ++s)
-          dest[stride*j+s] = src[stride*send_indices[j]+s];
+          dest[stride*j+s] = src[send_offset+stride*send_indices[j]+s];
     }
     ++i;
   }
@@ -222,10 +224,11 @@ int rank; MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   }
 }
 
-static void mpi_message_unpack(mpi_message_t* msg, void* data, 
+static void mpi_message_unpack(mpi_message_t* msg, 
+                               void* data, 
+                               size_t receive_offset,
                                exchanger_map_t* receive_map)
 {
-int rank; MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   int pos = 0, proc, i = 0;
   exchanger_channel_t* c;
   while (exchanger_map_next(receive_map, &pos, &proc, &c))
@@ -238,7 +241,7 @@ int rank; MPI_Comm_rank(MPI_COMM_WORLD, &rank);
       real_t* dest = data;
       for (int j = 0; j < msg->receive_buffer_sizes[i]; ++j)
         for (int s = 0; s < stride; ++s)
-          dest[stride*recv_indices[j]+s] = src[stride*j+s];
+          dest[receive_offset+stride*recv_indices[j]+s] = src[stride*j+s];
     }
     else if (msg->type == MPI_DOUBLE)
     {
@@ -246,7 +249,7 @@ int rank; MPI_Comm_rank(MPI_COMM_WORLD, &rank);
       double* dest = data;
       for (int j = 0; j < msg->receive_buffer_sizes[i]; ++j)
         for (int s = 0; s < stride; ++s)
-          dest[stride*recv_indices[j]+s] = src[stride*j+s];
+          dest[receive_offset+stride*recv_indices[j]+s] = src[stride*j+s];
     }
     else if (msg->type == MPI_FLOAT)
     {
@@ -254,7 +257,7 @@ int rank; MPI_Comm_rank(MPI_COMM_WORLD, &rank);
       float* dest = data;
       for (int j = 0; j < msg->receive_buffer_sizes[i]; ++j)
         for (int s = 0; s < stride; ++s)
-          dest[stride*recv_indices[j]+s] = src[stride*j+s];
+          dest[receive_offset+stride*recv_indices[j]+s] = src[stride*j+s];
     }
     else if (msg->type == MPI_INT)
     {
@@ -262,7 +265,7 @@ int rank; MPI_Comm_rank(MPI_COMM_WORLD, &rank);
       int* dest = data;
       for (int j = 0; j < msg->receive_buffer_sizes[i]; ++j)
         for (int s = 0; s < stride; ++s)
-          dest[stride*recv_indices[j]+s] = src[stride*j+s];
+          dest[receive_offset+stride*recv_indices[j]+s] = src[stride*j+s];
     }
     else if (msg->type == MPI_LONG)
     {
@@ -270,7 +273,7 @@ int rank; MPI_Comm_rank(MPI_COMM_WORLD, &rank);
       long* dest = data;
       for (int j = 0; j < msg->receive_buffer_sizes[i]; ++j)
         for (int s = 0; s < stride; ++s)
-          dest[stride*recv_indices[j]+s] = src[stride*j+s];
+          dest[receive_offset+stride*recv_indices[j]+s] = src[stride*j+s];
     }
     else if (msg->type == MPI_LONG_LONG)
     {
@@ -278,7 +281,7 @@ int rank; MPI_Comm_rank(MPI_COMM_WORLD, &rank);
       long long* dest = data;
       for (int j = 0; j < msg->receive_buffer_sizes[i]; ++j)
         for (int s = 0; s < stride; ++s)
-          dest[stride*recv_indices[j]+s] = src[stride*j+s];
+          dest[receive_offset+stride*recv_indices[j]+s] = src[stride*j+s];
     }
     else if (msg->type == MPI_UINT64_T)
     {
@@ -286,7 +289,7 @@ int rank; MPI_Comm_rank(MPI_COMM_WORLD, &rank);
       uint64_t* dest = data;
       for (int j = 0; j < msg->receive_buffer_sizes[i]; ++j)
         for (int s = 0; s < stride; ++s)
-          dest[stride*recv_indices[j]+s] = src[stride*j+s];
+          dest[receive_offset+stride*recv_indices[j]+s] = src[stride*j+s];
     }
     else if (msg->type == MPI_CHAR)
     {
@@ -294,7 +297,7 @@ int rank; MPI_Comm_rank(MPI_COMM_WORLD, &rank);
       char* dest = data;
       for (int j = 0; j < msg->receive_buffer_sizes[i]; ++j)
         for (int s = 0; s < stride; ++s)
-          dest[stride*recv_indices[j]+s] = src[stride*j+s];
+          dest[receive_offset+stride*recv_indices[j]+s] = src[stride*j+s];
     }
     else if (msg->type == MPI_BYTE)
     {
@@ -302,7 +305,7 @@ int rank; MPI_Comm_rank(MPI_COMM_WORLD, &rank);
       uint8_t* dest = data;
       for (int j = 0; j < msg->receive_buffer_sizes[i]; ++j)
         for (int s = 0; s < stride; ++s)
-          dest[stride*recv_indices[j]+s] = src[stride*j+s];
+          dest[receive_offset+stride*recv_indices[j]+s] = src[stride*j+s];
     }
     ++i;
   }
@@ -375,6 +378,9 @@ struct exchanger_t
 
   int max_send, max_receive;
 
+  // Send, receive offsets.
+  size_t send_offset, receive_offset;
+
   // Pending messages.
   int num_pending_msgs;
   int pending_msg_cap;
@@ -394,6 +400,8 @@ exchanger_t* exchanger_new_with_rank(MPI_Comm comm, int rank)
   ex->comm = comm;
   ex->rank = rank;
   MPI_Comm_size(comm, &(ex->nprocs));
+  ex->send_offset = 0;
+  ex->receive_offset = 0;
   ex->dl_thresh = -1.0;
   ex->dl_output_rank = -1;
   ex->dl_output_stream = NULL;
@@ -479,6 +487,11 @@ void exchanger_set_sends(exchanger_t* ex, int_ptr_unordered_map_t* send_map)
     exchanger_set_send(ex, send_proc, send_indices->data, send_indices->size, true);   
 }
 
+void exchanger_set_send_offset(exchanger_t* ex, size_t offset)
+{
+  ex->send_offset = offset;
+}
+
 int exchanger_num_sends(exchanger_t* ex)
 {
   return ex->send_map->size;
@@ -526,6 +539,11 @@ void exchanger_set_receives(exchanger_t* ex, int_ptr_unordered_map_t* recv_map)
   int_array_t* recv_indices;
   while (int_ptr_unordered_map_next(recv_map, &pos, &recv_proc, (void**)&recv_indices))
     exchanger_set_receive(ex, recv_proc, recv_indices->data, recv_indices->size, true);   
+}
+
+void exchanger_set_receive_offset(exchanger_t* ex, size_t offset)
+{
+  ex->receive_offset = offset;
 }
 
 int exchanger_num_receives(exchanger_t* ex)
@@ -609,7 +627,7 @@ int exchanger_start_exchange(exchanger_t* ex, void* data, int stride, int tag, M
 #if POLYMEC_HAVE_MPI
   // Create a message for this array.
   mpi_message_t* msg = mpi_message_new(type, stride, tag);
-  mpi_message_pack(msg, data, ex->send_map, ex->receive_map);
+  mpi_message_pack(msg, data, ex->send_offset, ex->send_map, ex->receive_map);
 
   // If we are expecting data, post asynchronous receives. 
   int j = 0;
@@ -872,7 +890,7 @@ void exchanger_finish_exchange(exchanger_t* ex, int token)
 
   // Copy the received data into the original array.
   void* orig_buffer = ex->orig_buffers[token];
-  mpi_message_unpack(msg, orig_buffer, ex->receive_map);
+  mpi_message_unpack(msg, orig_buffer, ex->receive_offset, ex->receive_map);
 
   // Pull the message out of our list of pending messages and delete it.
   ex->pending_msgs[token] = NULL;
@@ -919,7 +937,7 @@ void exchanger_finish_transfer(exchanger_t* ex, int token)
 
   // Copy the received data into the original array.
   void* orig_buffer = ex->orig_buffers[token];
-  mpi_message_unpack(msg, orig_buffer, ex->receive_map);
+  mpi_message_unpack(msg, orig_buffer, ex->receive_offset, ex->receive_map);
 
   // Now cull the sent elements from the array.
   int num_sent = 0, pos = 0, proc;

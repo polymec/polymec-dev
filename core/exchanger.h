@@ -57,6 +57,12 @@ void exchanger_set_send(exchanger_t* ex, int remote_process, int* indices, int n
 // local rank on the exchanger's communicator.
 void exchanger_set_sends(exchanger_t* ex, int_ptr_unordered_map_t* send_map);
 
+// Sets an offset for indices in data arrays that are sent to other processes.
+// This can be used to allow multiple exchangers to exchange data correctly 
+// in arrays that are aggregates of data associated with different distributed 
+// objects.
+void exchanger_set_send_offset(exchanger_t* ex, size_t offset);
+
 // Returns the number of processes to which this exchanger sends data.
 int exchanger_num_sends(exchanger_t* ex);
 
@@ -78,6 +84,12 @@ void exchanger_set_receive(exchanger_t* ex, int remote_process, int* indices, in
 // locations where received data will be stored. Note that the remote_processes must differ from the 
 // local rank on the exchanger's communicator.
 void exchanger_set_receives(exchanger_t* ex, int_ptr_unordered_map_t* recv_map);
+
+// Sets an offset for indices in data arrays that are received from other 
+// processes. This can be used to allow multiple exchangers to exchange data 
+// correctly in arrays that are aggregates of data associated with different 
+// distributed objects.
+void exchanger_set_receive_offset(exchanger_t* ex, size_t offset);
 
 // Returns the number of processes from which this exchanger receives data.
 int exchanger_num_receives(exchanger_t* ex);
