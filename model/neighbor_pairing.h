@@ -65,6 +65,10 @@ neighbor_pairing_t* unweighted_neighbor_pairing_new(const char* name, int num_pa
 // Destroys the given neighbor pairing object.
 void neighbor_pairing_free(neighbor_pairing_t* pairing);
 
+// Returns an internal pointer to the exchanger associated with this 
+// neighbor pairing.
+exchanger_t* neighbor_pairing_exchanger(neighbor_pairing_t* pairing);
+
 // Performs a synchronous exchange of the values for this pairing for the 
 // given data. This method has the same signature as exchanger_exchange().
 void neighbor_pairing_exchange(neighbor_pairing_t* pairing, void* data, int stride, int tag, MPI_Datatype type);

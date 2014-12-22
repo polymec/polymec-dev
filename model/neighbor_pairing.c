@@ -55,6 +55,11 @@ void neighbor_pairing_free(neighbor_pairing_t* pairing)
   polymec_free(pairing);
 }
 
+exchanger_t* neighbor_pairing_exchanger(neighbor_pairing_t* pairing)
+{
+  return pairing->ex;
+}
+
 void neighbor_pairing_exchange(neighbor_pairing_t* pairing, void* data, int stride, int tag, MPI_Datatype type)
 {
   exchanger_exchange(pairing->ex, data, stride, tag, type);
