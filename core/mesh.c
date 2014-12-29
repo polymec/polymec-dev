@@ -731,6 +731,62 @@ serializer_t* mesh_serializer()
   return serializer_new(mesh_byte_size, mesh_byte_read, mesh_byte_write);
 }
 
+exchanger_t* mesh_face_exchanger_new(mesh_t* mesh)
+{
+  exchanger_t* ex = exchanger_new(mesh->comm);
+#if POLYMEC_HAVE_MPI
+  // Get the mesh cell exchanger.
+  exchanger_t* cell_ex = mesh_exchanger(mesh);
+
+  // Traverse the send cells and create send "faces."
+  {
+    int_array_t* send_faces = int_array_new();
+    int pos = 0, proc, *indices, size; 
+    while (exchanger_next_send(cell_ex, &pos, &proc, &indices, &size))
+    {
+      for (int i = 0; i < size; ++i)
+      {
+        int cell = indices[i];
+        int fpos = 0, face;
+        while (mesh_cell_next_face(mesh, cell, &fpos, &face))
+        {
+          int neighbor = mesh_face_opp_cell(mesh, face, cell);
+          if (neighbor >= mesh->num_cells)
+            int_array_append(send_faces, 2*face);
+        }
+      }
+      exchanger_set_send(ex, proc, send_faces->data, send_faces->size, true);
+      int_array_clear(send_faces);
+    }
+    int_array_free(send_faces);
+  }
+
+  // Traverse the receive cells and create receive "faces."
+  {
+    int_array_t* receive_faces = int_array_new();
+    int pos = 0, proc, *indices, size; 
+    while (exchanger_next_receive(cell_ex, &pos, &proc, &indices, &size))
+    {
+      for (int i = 0; i < size; ++i)
+      {
+        int cell = indices[i];
+        int fpos = 0, face;
+        while (mesh_cell_next_face(mesh, cell, &fpos, &face))
+        {
+          int neighbor = mesh_face_opp_cell(mesh, face, cell);
+          if (neighbor >= mesh->num_cells)
+            int_array_append(receive_faces, 2*face+1);
+        }
+      }
+      exchanger_set_receive(ex, proc, receive_faces->data, receive_faces->size, true);
+      int_array_clear(receive_faces);
+    }
+    int_array_free(receive_faces);
+  }
+#endif
+  return ex;
+}
+
 adj_graph_t* graph_from_mesh_cells(mesh_t* mesh)
 {
   // Create a graph whose vertices are the mesh's cells.
