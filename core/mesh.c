@@ -24,6 +24,7 @@
 
 #include "core/mesh.h"
 #include "core/table.h"
+#include "core/unordered_set.h"
 
 // Mesh features.
 const char* TETRAHEDRAL = "tetrahedral";
@@ -739,50 +740,50 @@ exchanger_t* mesh_face_exchanger_new(mesh_t* mesh)
   exchanger_t* cell_ex = mesh_exchanger(mesh);
 
   // Traverse the send cells and create send "faces."
+  int_array_t* send_faces = int_array_new();
+  int_array_t* receive_faces = int_array_new();
+  int_unordered_set_t* receive_cells = int_unordered_set_new();
+  int pos = 0, proc, *indices, size; 
+  while (exchanger_next_send(cell_ex, &pos, &proc, &indices, &size))
   {
-    int_array_t* send_faces = int_array_new();
-    int pos = 0, proc, *indices, size; 
-    while (exchanger_next_send(cell_ex, &pos, &proc, &indices, &size))
-    {
-      for (int i = 0; i < size; ++i)
-      {
-        int cell = indices[i];
-        int fpos = 0, face;
-        while (mesh_cell_next_face(mesh, cell, &fpos, &face))
-        {
-          int neighbor = mesh_face_opp_cell(mesh, face, cell);
-          if (neighbor >= mesh->num_cells)
-            int_array_append(send_faces, 2*face);
-        }
-      }
-      exchanger_set_send(ex, proc, send_faces->data, send_faces->size, true);
-      int_array_clear(send_faces);
-    }
-    int_array_free(send_faces);
-  }
+    int_array_clear(send_faces);
+    int_array_clear(receive_faces);
+    int_unordered_set_clear(receive_cells);
 
-  // Traverse the receive cells and create receive "faces."
-  {
-    int_array_t* receive_faces = int_array_new();
-    int pos = 0, proc, *indices, size; 
-    while (exchanger_next_receive(cell_ex, &pos, &proc, &indices, &size))
+    // Dump all the receive cells for this process into a set for 
+    // easy querying.
+    int rpos = 0, rproc, *r_indices, r_size; 
+    while (exchanger_next_receive(cell_ex, &rpos, &rproc, &r_indices, &r_size))
     {
-      for (int i = 0; i < size; ++i)
+      if (rproc == proc)
       {
-        int cell = indices[i];
-        int fpos = 0, face;
-        while (mesh_cell_next_face(mesh, cell, &fpos, &face))
+        for (int i = 0; i < r_size; ++i)
+          int_unordered_set_insert(receive_cells, r_indices[i]);
+      }
+    }
+
+    // Now find send/receive faces by associating send/receive cells.
+    for (int i = 0; i < size; ++i)
+    {
+      int cell = indices[i];
+      int fpos = 0, face;
+      while (mesh_cell_next_face(mesh, cell, &fpos, &face))
+      {
+        int neighbor = mesh_face_opp_cell(mesh, face, cell);
+        if ((neighbor >= mesh->num_cells) && 
+            (int_unordered_set_contains(receive_cells, neighbor)))
         {
-          int neighbor = mesh_face_opp_cell(mesh, face, cell);
-          if (neighbor >= mesh->num_cells)
-            int_array_append(receive_faces, 2*face+1);
+          int_array_append(send_faces, 2*face);
+          int_array_append(receive_faces, 2*face+1);
         }
       }
-      exchanger_set_receive(ex, proc, receive_faces->data, receive_faces->size, true);
-      int_array_clear(receive_faces);
     }
-    int_array_free(receive_faces);
+    exchanger_set_send(ex, proc, send_faces->data, send_faces->size, true);
+    exchanger_set_receive(ex, proc, receive_faces->data, receive_faces->size, true);
   }
+  int_array_free(send_faces);
+  int_array_free(receive_faces);
+  int_unordered_set_free(receive_cells);
 #endif
   return ex;
 }
