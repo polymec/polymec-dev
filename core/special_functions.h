@@ -25,12 +25,12 @@
 #ifndef POLYMEC_SPECIAL_FUNCTIONS_H
 #define POLYMEC_SPECIAL_FUNCTIONS_H
 
-#include <math.h>
-
 // These functions augment the special functions available in the standard C
 // math library. They are adapted from the Fortran 77 subroutines that 
 // accompany "Computation of Special Functions" by Shanjie Zhang and 
 // Jianming Jin (Copyright (c) 1996, John Wiley and Sons, Inc).
+// This copyright/attribution must accompany any reproduction of these 
+// functions.
 
 // Returns the gamma function with the given real argument. The argument 
 // cannot exceed 171.6, nor can it be a negative integer.
@@ -49,15 +49,15 @@ double i1(double x);
 double in(int n, double x);
 
 // Returns the value of the modified Bessel function of the second kind, of 
-// order zero at the given real value x, K0(x).
+// order zero at the given real value x: K0(x).
 double k0(double x);
 
 // Returns the value of the modified Bessel function of the second kind, of 
-// order one at the given real value x, K1(x).
+// order one at the given real value x: K1(x).
 double k1(double x);
 
 // Returns the value of the modified Bessel function of the second kind, of 
-// order n at the given real value x, Kn(x).
+// order n at the given real value x: Kn(x).
 double kn(int n, double x);
 
 // C++ doesn't have complex datatypes, so we don't expose them to C++ compilers.
@@ -101,16 +101,16 @@ double complex ci1(double complex z);
 double complex cin(int n, double complex z);
 
 // Returns the value of the complex modified Bessel function of the second 
-// kind, of order zero at the given complex value x, K0(x).
-double complex ck0(double complex x);
+// kind, of order zero at the given complex value z: K0(z).
+double complex ck0(double complex z);
 
 // Returns the value of the complex modified Bessel function of the second 
-// kind, of order one at the given complex value x, K1(x).
-double complex ck1(double complex x);
+// kind, of order one at the given complex value z: K1(z).
+double complex ck1(double complex z);
 
 // Returns the value of the complex modified Bessel function of the second 
-// kind, of order n at the given complex value x, Kn(x).
-double complex ckn(int n, double complex x);
+// kind, of order n at the given complex value z: Kn(z).
+double complex ckn(int n, double complex z);
 
 #endif
 
