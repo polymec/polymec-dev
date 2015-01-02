@@ -1,6 +1,6 @@
 """prepend_license.py -- prepends license information to all source files."""
 
-license_text = """Copyright (c) 2012-2014, Jeffrey N. Johnson
+license_text = """Copyright (c) 2012-2015, Jeffrey N. Johnson
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without 
@@ -24,7 +24,7 @@ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE."""
 
-old_license_text = """Copyright (c) 2012-2013, Jeffrey N. Johnson
+old_license_text = """Copyright (c) 2012-2014, Jeffrey N. Johnson
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without 
