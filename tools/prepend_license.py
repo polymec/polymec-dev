@@ -93,7 +93,7 @@ def add_new_license(source_file):
         f.write('// ' + line + '\n')
     if license_lines[0] in first_line:
         last_line = 1
-        while license_lines[-1] not in lines[i]:
+        while license_lines[-1] not in lines[last_line]:
             last_line += 1
         for line in lines[last_line+1:]:
             f.write(line)
