@@ -63,7 +63,7 @@ void point_cloud_free(point_cloud_t* cloud);
 // was generated, which can sometimes be useful. A destructor function can be 
 // passed in to handle freeing of resources. If the given property exists 
 // on the cloud, it is overwritten.
-void point_cloud_set_property(point_cloud_t* cloud, const char* property, void* data, void (*dtor)(void*));
+void point_cloud_set_property(point_cloud_t* cloud, const char* property, void* data, serializer_t* serializer);
 
 // Retrieves the given property from the cloud, if any. If the 
 // property is not found, this returns NULL.
@@ -91,7 +91,7 @@ bool point_cloud_has_tag(point_cloud_t* cloud, const char* tag);
 // If the tag is not found, this function has no effect. If the given property
 // exists on the tag, it is overwritten. Returns true if the property was 
 // added, false if not.
-bool point_cloud_tag_set_property(point_cloud_t* cloud, const char* tag, const char* property, void* data, void (*destructor)(void*));
+bool point_cloud_tag_set_property(point_cloud_t* cloud, const char* tag, const char* property, void* data, serializer_t* serializer);
 
 // Retrieves the given property associated with the given tag, if any. If the 
 // tag or property are not found, this returns NULL.

@@ -334,11 +334,13 @@ mesh_t* create_rectilinear_mesh(MPI_Comm comm,
   mesh_compute_geometry(mesh);
 
   // Stash the lattice in the "lattice" property.
-  mesh_set_property(mesh, "lattice", (void*)lattice, NULL);
+  serializer_t* cubic_lattice_ser = cubic_lattice_serializer();
+  mesh_set_property(mesh, "lattice", (void*)lattice, cubic_lattice_ser);
 
   // Stash a bounding box for easy reference.
+  serializer_t* bbox_ser = bbox_serializer();
   bbox_t* bbox = bbox_new(xs[0], xs[nxs-1], ys[0], ys[nys-1], zs[0], zs[nzs-1]);
-  mesh_set_property(mesh, "bbox", (void*)bbox, NULL);
+  mesh_set_property(mesh, "bbox", (void*)bbox, bbox_ser);
 
   return mesh;
 }

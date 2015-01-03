@@ -1101,7 +1101,7 @@ static void ex_write(void* obj, byte_array_t* bytes, size_t* offset)
 
 serializer_t* exchanger_serializer()
 {
-  return serializer_new(ex_size, ex_read, ex_write);
+  return serializer_new("exchanger", ex_size, ex_read, ex_write, DTOR(exchanger_free));
 }
 
 // This helper sets up the exchanger ex so that it can distribute data from the 

@@ -29,22 +29,24 @@
 typedef struct
 {
   void* data;
-  void (*dtor)(void*);
+  serializer_t* serializer;
 } tagger_data_property_t;
 
-static tagger_data_property_t* tagger_data_property_new(const char* key, void* data, void (*dtor)(void*))
+static tagger_data_property_t* tagger_data_property_new(const char* key, 
+                                                        void* data, 
+                                                        serializer_t* serializer)
 {
   ASSERT(data != NULL);
+  ASSERT(serializer != NULL);
   tagger_data_property_t* prop = polymec_malloc(sizeof(tagger_data_property_t));
   prop->data = data;
-  prop->dtor = dtor;
+  prop->serializer = serializer;
   return prop;
 }
 
 static void tagger_data_property_free(tagger_data_property_t* prop)
 {
-  if (prop->dtor != NULL)
-    (*prop->dtor)(prop->data);
+  serializer_destroy(prop->serializer, prop->data);
   polymec_free(prop);
 }
 
@@ -52,7 +54,6 @@ DEFINE_UNORDERED_MAP(tagger_data_property_map, char*, tagger_data_property_t*, s
 
 typedef struct 
 {
-//  char* key;
   int* indices;
   int  num_indices;
   tagger_data_property_map_t* properties;
@@ -165,7 +166,11 @@ bool tagger_has_tag(tagger_t* tagger, const char* tag)
   return (tagger_tag(tagger, tag, &dummy) != NULL);
 }
 
-bool tagger_set_property(tagger_t* tagger, const char* tag, const char* property, void* data, void (*destructor)(void*))
+bool tagger_set_property(tagger_t* tagger, 
+                         const char* tag, 
+                         const char* property, 
+                         void* data, 
+                         serializer_t* serializer)
 {
   ASSERT(data != NULL);
   tagger_data_t** data_p = tagger_data_map_get(tagger->data, (char*)tag);
@@ -174,7 +179,7 @@ bool tagger_set_property(tagger_t* tagger, const char* tag, const char* property
   // Insert the new property.
   char* prop_name = polymec_malloc(sizeof(char)*(strlen(property)+1));
   strcpy(prop_name, property);
-  tagger_data_property_t* prop = tagger_data_property_new(property, data, destructor);
+  tagger_data_property_t* prop = tagger_data_property_new(property, data, serializer);
   tagger_data_property_map_insert_with_kv_dtor((*data_p)->properties, prop_name, prop, destroy_tag_property_key_and_value);
   return true;
 }
@@ -196,6 +201,28 @@ void tagger_delete_property(tagger_t* tagger, const char* tag, const char* prope
   tagger_data_t** tag_data_p = tagger_data_map_get(tagger->data, (char*)tag);
   if (tag_data_p != NULL) 
     tagger_data_property_map_delete((*tag_data_p)->properties, (char*)property);
+}
+
+bool tagger_next_property(tagger_t* tagger, const char* tag, int* pos, 
+                          char** prop_name, void** prop_data, 
+                          serializer_t** prop_serializer)
+{
+  tagger_data_t** tag_data_p = tagger_data_map_get(tagger->data, (char*)tag);
+  if (tag_data_p != NULL) 
+  {
+    tagger_data_t* tag_data = *tag_data_p;
+    tagger_data_property_t* tag_prop_data;
+    bool result = tagger_data_property_map_next(tag_data->properties, pos, 
+                                                prop_name, &tag_prop_data);
+    if (result)
+    {
+      *prop_data = tag_prop_data->data;
+      *prop_serializer = tag_prop_data->serializer;
+    }
+    return result;
+  }
+  else
+    return false;
 }
 
 void tagger_rename_tag(tagger_t* tagger, const char* old_tag, const char* new_tag)
@@ -233,8 +260,22 @@ static size_t tagger_byte_size(void* obj)
   char* tag_name;
   while (tagger_next_tag(tagger, &pos, &tag_name, &tag, &tag_size))
   {
+    // Tag data.
     size += sizeof(int) + strlen(tag_name) * sizeof(char);
     size += sizeof(int) + tag_size * sizeof(int);
+
+    // Tag properties.
+    tagger_data_t* tagger_data = *tagger_data_map_get(tagger->data, tag_name);
+    int pos = 0;
+    char* prop_name;
+    tagger_data_property_t* property;
+    size += sizeof(int); // Number of properties.
+    while (tagger_data_property_map_next(tagger_data->properties, &pos, &prop_name, &property))
+    {
+      size += sizeof(int) + strlen(prop_name) + sizeof(char);        // Property name
+      size += sizeof(int) + strlen(serializer_name(property->serializer)); // Serializer name
+      size += serializer_size(property->serializer, property->data); // Property data
+    }
   }
   return size;
 }
@@ -247,6 +288,7 @@ static void* tagger_byte_read(byte_array_t* bytes, size_t* offset)
   byte_array_read_ints(bytes, 1, &num_tags, offset);
   for (int i = 0; i < num_tags; ++i)
   {
+    // Tag data.
     int tag_name_len;
     byte_array_read_ints(bytes, 1, &tag_name_len, offset);
     char tag_name[tag_name_len+1];
@@ -256,6 +298,33 @@ static void* tagger_byte_read(byte_array_t* bytes, size_t* offset)
     byte_array_read_ints(bytes, 1, &tag_size, offset);
     int* tag = tagger_create_tag(tagger, tag_name, tag_size);
     byte_array_read_ints(bytes, tag_size, tag, offset);
+
+    // Tag properties.
+    int num_properties;
+    byte_array_read_ints(bytes, 1, &num_properties, offset);
+    for (int i = 0; i < num_properties; ++i)
+    {
+      // Property name.
+      int pname_len;
+      byte_array_read_ints(bytes, 1, &pname_len, offset);
+      char pname[pname_len+1];
+      byte_array_read_chars(bytes, pname_len, pname, offset);
+      pname[pname_len] = '\0';
+
+      // Serializer name.
+      int sname_len;
+      byte_array_read_ints(bytes, 1, &sname_len, offset);
+      char sname[sname_len+1];
+      byte_array_read_chars(bytes, sname_len, sname, offset);
+      sname[sname_len] = '\0';
+      serializer_t* ser = serializer_from_name(sname);
+      ASSERT(ser != NULL); // Serializer must be registered!
+
+      // Property data.
+      void* pdata = serializer_read(ser, bytes, offset);
+      tagger_set_property(tagger, (const char*)tag_name, (const char*)pname,
+                          pdata, ser);
+    }
   }
 
   return tagger;
@@ -280,10 +349,36 @@ static void tagger_byte_write(void* obj, byte_array_t* bytes, size_t* offset)
     byte_array_write_chars(bytes, tag_name_len, tag_name, offset);
     byte_array_write_ints(bytes, 1, &tag_size, offset);
     byte_array_write_ints(bytes, tag_size, tag, offset);
+
+    // Tag properties.
+    int num_properties = 0, pos = 0;
+    char* prop_name;
+    void* property;
+    serializer_t* ser;
+    while (tagger_next_property(tagger, tag_name, &pos, &prop_name, &property, &ser))
+      ++num_properties;
+    byte_array_write_ints(bytes, 1, &num_properties, offset);
+    pos = 0;
+    while (tagger_next_property(tagger, tag_name, &pos, &prop_name, &property, &ser))
+    {
+      // Property name.
+      int pname_len = strlen(prop_name);
+      byte_array_write_ints(bytes, 1, &pname_len, offset);
+      byte_array_write_chars(bytes, pname_len, prop_name, offset);
+
+      // Serializer name.
+      const char* sname = serializer_name(ser);
+      int sname_len = strlen(sname);
+      byte_array_write_ints(bytes, 1, &sname_len, offset);
+      byte_array_write_chars(bytes, sname_len, (char*)sname, offset);
+
+      // Property data.
+      serializer_write(ser, property, bytes, offset);
+    }
   }
 }
 
 serializer_t* tagger_serializer()
 {
-  return serializer_new(tagger_byte_size, tagger_byte_read, tagger_byte_write);
+  return serializer_new("tagger", tagger_byte_size, tagger_byte_read, tagger_byte_write, NULL);
 }
