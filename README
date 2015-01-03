@@ -1,5 +1,5 @@
 Jeffrey N. Johnson
-April 22, 2014
+January 2, 2015
 
 Polymec is a set of libraries that can be used to construct models for 
 physical systems. Specifically, Polymec is designed with the goal of solving 
@@ -15,10 +15,15 @@ capabilities. Areas of emphasis are:
 - A strategy that favors a small code footprint and good scalability, likely 
   at the expense of implementations that run optimally on serial computers.
 
-Polymec is licensed under the 2-clause modified BSD License, which is 
-described in the LICENSE file. The 3rd-party libraries used by Polymec have 
-their own licenses which are described within the various source trees in the 
-3rdparty directory. No source files have been modified within these trees--
-they contain files extracted directly from distribution tarballs--and 
-instructions for obtaining the distributions are given within.
+Polymec is licensed under the Mozilla Public License (MPL) v. 2.0, License, 
+which is described/defined in the LICENSE file. This license requires you to 
+make available any changes you have made to Polymec that are required for any 
+software you distribute that uses it. It makes no other restrictions on your 
+distribution of software involving Polymec.
+
+The 3rd-party libraries used by Polymec have their own licenses which are 
+described within the various source trees in the 3rdparty directory. Source 
+files have been minimally modified within these trees; typically they contain 
+files extracted directly from distribution tarballs. Instructions for 
+obtaining the distributions are given within.
 
