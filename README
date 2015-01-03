@@ -15,9 +15,9 @@ capabilities. Areas of emphasis are:
 - A strategy that favors a small code footprint and good scalability, likely 
   at the expense of implementations that run optimally on serial computers.
 
-Polymec is licensed under the Mozilla Public License (MPL) v. 2.0, License, 
-which is described/defined in the LICENSE file. This license requires you to 
-make available any changes you have made to Polymec that are required for any 
+Polymec is licensed under the Mozilla Public License (MPL) v. 2.0, which is 
+described/defined in the LICENSE file. This license requires you to make 
+available any changes you have made to Polymec that are required for any 
 software you distribute that uses it. It makes no other restrictions on your 
 distribution of software involving Polymec.
 
