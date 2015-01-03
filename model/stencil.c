@@ -156,7 +156,7 @@ static void stencil_byte_write(void* obj, byte_array_t* bytes, size_t* offset)
 
 serializer_t* stencil_serializer()
 {
-  return serializer_new(stencil_byte_size, stencil_byte_read, stencil_byte_write);
+  return serializer_new("stencil", stencil_byte_size, stencil_byte_read, stencil_byte_write, DTOR(stencil_free));
 }
 
 stencil_t* cell_face_stencil_new(mesh_t* mesh)

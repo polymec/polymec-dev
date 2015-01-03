@@ -140,10 +140,14 @@ mesh_t* mesh_clone(mesh_t* mesh);
 
 // Associates a named piece of metadata (a "property") with the mesh itself.
 // This can be used to store information about (for example) how the mesh 
-// was generated, which can sometimes be useful. A destructor function can be 
-// passed in to handle freeing of resources. If the given property exists 
-// on the mesh, it is overwritten.
-void mesh_set_property(mesh_t* mesh, const char* property, void* data, void (*dtor)(void*));
+// was generated, which can sometimes be useful. A serializer should 
+// be given so that any partitioning or repartitioning of the mesh can 
+// preserve this property on subdomains. If the given property exists on the 
+// mesh, it is overwritten.
+void mesh_set_property(mesh_t* mesh, 
+                       const char* property, 
+                       void* data, 
+                       serializer_t* serializer);
 
 // Retrieves the given property from the mesh, if any. If the 
 // property is not found, this returns NULL.
@@ -188,11 +192,11 @@ bool mesh_has_tag(tagger_t* tagger, const char* tag);
 
 // Associates a named piece of metadata (a "property") with the given tag.
 // This can be used to store data related to tagged indices.
-// A destructor function can be passed in to handle freeing of resources.
+// A serializer should be provided for the property's data.
 // If the tag is not found, this function has no effect. If the given property
 // exists on the tag, it is overwritten. Returns true if the property was 
 // added, false if not.
-bool mesh_tag_set_property(tagger_t* tagger, const char* tag, const char* property, void* data, void (*destructor)(void*));
+bool mesh_tag_set_property(tagger_t* tagger, const char* tag, const char* property, void* data, serializer_t* serializer);
 
 // Retrieves the given property associated with the given tag, if any. If the 
 // tag or property are not found, this returns NULL.

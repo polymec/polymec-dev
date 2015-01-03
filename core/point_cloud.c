@@ -58,10 +58,10 @@ void point_cloud_free(point_cloud_t* cloud)
   polymec_free(cloud);
 }
 
-void point_cloud_set_property(point_cloud_t* cloud, const char* property, void* data, void (*dtor)(void*))
+void point_cloud_set_property(point_cloud_t* cloud, const char* property, void* data, serializer_t* serializer)
 {
   // Use the bogus tag to store our junk.
-  tagger_set_property(cloud->tags, "properties", property, data, dtor);
+  tagger_set_property(cloud->tags, "properties", property, data, serializer);
 }
 
 void* point_cloud_property(point_cloud_t* cloud, const char* property)
@@ -91,9 +91,9 @@ bool point_cloud_has_tag(point_cloud_t* cloud, const char* tag)
   return tagger_has_tag(cloud->tags, tag);
 }
 
-bool point_cloud_tag_set_property(point_cloud_t* cloud, const char* tag, const char* property, void* data, void (*destructor)(void*))
+bool point_cloud_tag_set_property(point_cloud_t* cloud, const char* tag, const char* property, void* data, serializer_t* serializer)
 {
-  return tagger_set_property(cloud->tags, tag, property, data, destructor);
+  return tagger_set_property(cloud->tags, tag, property, data, serializer);
 }
 
 void* point_cloud_tag_property(point_cloud_t* cloud, const char* tag, const char* property)
@@ -165,6 +165,6 @@ static void cloud_byte_write(void* obj, byte_array_t* bytes, size_t* offset)
 
 serializer_t* point_cloud_serializer()
 {
-  return serializer_new(cloud_byte_size, cloud_byte_read, cloud_byte_write);
+  return serializer_new("point_cloud", cloud_byte_size, cloud_byte_read, cloud_byte_write, NULL);
 }
 

@@ -150,7 +150,7 @@ static void np_byte_write(void* obj, byte_array_t* bytes, size_t* offset)
 
 serializer_t* neighbor_pairing_serializer()
 {
-  return serializer_new(np_byte_size, np_byte_read, np_byte_write);
+  return serializer_new("neighbor_pairing", np_byte_size, np_byte_read, np_byte_write, DTOR(neighbor_pairing_free));
 }
 
 adj_graph_t* graph_from_point_cloud_and_neighbors(point_cloud_t* points, 

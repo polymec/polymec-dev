@@ -102,6 +102,30 @@ static int_int_unordered_map_t* cubic_lattice_generate_z_periodic_map(void* cont
   return map;
 }
 
+static size_t cl_byte_size(void* obj)
+{
+  return 3 * sizeof(uint64_t);
+}
+
+static void* cl_byte_read(byte_array_t* bytes, size_t* offset)
+{
+  uint64_t data[3];
+  byte_array_read_uint64s(bytes, 3, data, offset);
+  return cubic_lattice_new(data[0], data[1], data[2]);
+}
+
+static void cl_byte_write(void* obj, byte_array_t* bytes, size_t* offset)
+{
+  uint64_t* l = obj;
+  byte_array_write_uint64s(bytes, 3, l, offset);
+}
+
+serializer_t* cubic_lattice_serializer()
+{
+  return serializer_new("cubic_lattice", cl_byte_size,
+                        cl_byte_read, cl_byte_write, NULL);
+}
+
 #if 0
 periodic_bc_t* cubic_lattice_x_periodic_bc_new(const char* tag1, const char* tag2)
 {

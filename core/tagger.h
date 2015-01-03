@@ -56,9 +56,13 @@ int* tagger_tag(tagger_t* tagger, const char* tag, int* num_indices);
 bool tagger_has_tag(tagger_t* tagger, const char* tag);
 
 // Associates a "property" (of unspecified size and type) with the given tag 
-// within the tagger. NOTE that since we do not store size/type information, 
-// properties are not copied automatically between tags.
-bool tagger_set_property(tagger_t* tagger, const char* tag, const char* property, void* data, void (*destructor)(void*));
+// within the tagger. A serializer should be given so that properties can be
+// copied automatically between tags.
+bool tagger_set_property(tagger_t* tagger, 
+                         const char* tag, 
+                         const char* property, 
+                         void* data, 
+                         serializer_t* serializer);
 
 // Returns a pointer to the data for the property of the given name 
 // associated with the given tag. Returns NULL if the property or tag are 
@@ -68,6 +72,12 @@ void* tagger_property(tagger_t* tagger, const char* tag, const char* property);
 // Deletes the property from the tag, calling its destructor. Has no effect 
 // if the property and/or tag are not found.
 void tagger_delete_property(tagger_t* tagger, const char* tag, const char* property);
+
+// Allows the traversal of properties for a tag. Set *pos to 0 to reset the 
+// iteration.
+bool tagger_next_property(tagger_t* tagger, const char* tag, int* pos, 
+                          char** prop_name, void** prop_data, 
+                          serializer_t** prop_serializer);
 
 // Renames a tag within the tagger, preserving all information and associations.
 void tagger_rename_tag(tagger_t* tagger, const char* old_tag, const char* new_tag);

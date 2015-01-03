@@ -26,6 +26,7 @@
 #define POLYMEC_CUBIC_LATTICE_H
 
 #include "core/unordered_map.h"
+#include "core/serializer.h"
 
 // This class defines an indexing scheme for a cubic lattice.
 // Objects of this type are garbage-collected.
@@ -160,6 +161,9 @@ static inline uint64_t cubic_lattice_node(cubic_lattice_t* l, uint64_t i, uint64
 {
   return (l->nx+1)*(l->ny+1)*k + (l->nx+1)*j + i;
 }
+
+// Returns a serializer for cubic lattice objects.
+serializer_t* cubic_lattice_serializer();
 
 // These functions can be used to generate mappings between faces on cubic 
 // lattice meshes with periodic boundary conditions. 

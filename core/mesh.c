@@ -317,10 +317,13 @@ mesh_t* mesh_clone(mesh_t* mesh)
   return clone;
 }
 
-void mesh_set_property(mesh_t* mesh, const char* property, void* data, void (*dtor)(void*))
+void mesh_set_property(mesh_t* mesh, 
+                       const char* property, 
+                       void* data, 
+                       serializer_t* serializer)
 {
   // Use the bogus tag to store our junk.
-  tagger_set_property(mesh->cell_tags, "properties", property, data, dtor);
+  tagger_set_property(mesh->cell_tags, "properties", property, data, serializer);
 }
 
 void* mesh_property(mesh_t* mesh, const char* property)
@@ -352,7 +355,8 @@ void mesh_add_feature(mesh_t* mesh, const char* feature)
   // Use the bogus tag to store our junk.
   bool* data = polymec_malloc(sizeof(bool));
   *data = true;
-  tagger_set_property(mesh->cell_tags, "features", feature, data, free);
+  serializer_t* ser = string_serializer();
+  tagger_set_property(mesh->cell_tags, "features", feature, data, ser);
 }
 
 bool mesh_has_feature(mesh_t* mesh, const char* feature)
@@ -381,9 +385,9 @@ bool mesh_has_tag(tagger_t* tagger, const char* tag)
   return tagger_has_tag(tagger, tag);
 }
 
-bool mesh_tag_set_property(tagger_t* tagger, const char* tag, const char* property, void* data, void (*destructor)(void*))
+bool mesh_tag_set_property(tagger_t* tagger, const char* tag, const char* property, void* data, serializer_t* serializer)
 {
-  return tagger_set_property(tagger, tag, property, data, destructor);
+  return tagger_set_property(tagger, tag, property, data, serializer);
 }
 
 void* mesh_tag_property(tagger_t* tagger, const char* tag, const char* property)
@@ -729,7 +733,7 @@ static void mesh_byte_write(void* obj, byte_array_t* bytes, size_t* offset)
 
 serializer_t* mesh_serializer()
 {
-  return serializer_new(mesh_byte_size, mesh_byte_read, mesh_byte_write);
+  return serializer_new("mesh", mesh_byte_size, mesh_byte_read, mesh_byte_write, NULL);
 }
 
 exchanger_t* mesh_face_exchanger_new(mesh_t* mesh)
