@@ -58,9 +58,12 @@ void serializer_write(serializer_t* s, void* object, byte_array_t* byte_stream, 
 // the offset in place.
 void* serializer_read(serializer_t* s, byte_array_t* byte_stream, size_t* offset);
 
+// Creates and returns a copy of the given object via serialization.
+void* serializer_clone_object(serializer_t* s, void* object);
+
 // Destroys the given object using the destructor registered with this 
 // serializer at construction time.
-void serializer_destroy(serializer_t* s, void* object);
+void serializer_destroy_object(serializer_t* s, void* object);
 
 //------------------------------------------------------------------------
 // The following functions allow us to read/write primitives from/to 

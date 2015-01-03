@@ -334,6 +334,17 @@ static mesh_t* create_submesh(MPI_Comm comm, mesh_t* mesh,
   polymec_free(face_map);
   polymec_free(node_map);
 
+  // Copy properties using their serializers.
+  int pos = 0;
+  char* prop_name;
+  void* prop_data;
+  serializer_t* prop_ser;
+  while (mesh_next_property(mesh, &pos, &prop_name, &prop_data, &prop_ser))
+  {
+    void* prop_data_copy = serializer_clone_object(prop_ser, prop_data);
+    mesh_set_property(submesh, prop_name, prop_data_copy, prop_ser);
+  }
+
   return submesh;
 }
 

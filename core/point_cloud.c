@@ -59,6 +59,14 @@ void point_cloud_delete_property(point_cloud_t* cloud, const char* property)
   tagger_delete_property(cloud->tags, "properties", (char*)property);
 }
 
+bool point_cloud_next_property(point_cloud_t* cloud, int* pos, 
+                               char** prop_name, void** prop_data, 
+                               serializer_t** prop_serializer)
+{
+  return tagger_next_property(cloud->tags, "properties", pos, prop_name, 
+                              prop_data, prop_serializer);
+}
+
 int* point_cloud_create_tag(point_cloud_t* cloud, const char* tag, int num_indices)
 {
   return tagger_create_tag(cloud->tags, tag, num_indices);

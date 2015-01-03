@@ -320,6 +320,14 @@ void mesh_delete_property(mesh_t* mesh, const char* property)
   tagger_delete_property(mesh->cell_tags, "properties", property);
 }
 
+bool mesh_next_property(mesh_t* mesh, int* pos, 
+                        char** prop_name, void** prop_data, 
+                        serializer_t** prop_serializer)
+{
+  return tagger_next_property(mesh->cell_tags, "properties", pos, prop_name, 
+                              prop_data, prop_serializer);
+}
+
 exchanger_t* mesh_exchanger(mesh_t* mesh)
 {
   return mesh->storage->exchanger;
@@ -381,6 +389,14 @@ void* mesh_tag_property(tagger_t* tagger, const char* tag, const char* property)
 void mesh_tag_delete_property(tagger_t* tagger, const char* tag, const char* property)
 {
   tagger_delete_property(tagger, tag, property);
+}
+
+bool mesh_tag_next_property(tagger_t* tagger, const char* tag, int* pos, 
+                            char** prop_name, void** prop_data, 
+                            serializer_t** prop_serializer)
+{
+  return tagger_next_property(tagger, tag, pos, prop_name, prop_data,
+                              prop_serializer);
 }
 
 void mesh_rename_tag(tagger_t* tagger, const char* old_tag, const char* new_tag)

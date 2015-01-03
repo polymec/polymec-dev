@@ -29,7 +29,7 @@ static tagger_data_property_t* tagger_data_property_new(const char* key,
 
 static void tagger_data_property_free(tagger_data_property_t* prop)
 {
-  serializer_destroy(prop->serializer, prop->data);
+  serializer_destroy_object(prop->serializer, prop->data);
   polymec_free(prop);
 }
 

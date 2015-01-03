@@ -140,6 +140,12 @@ void* mesh_property(mesh_t* mesh, const char* property);
 // property is not found.
 void mesh_delete_property(mesh_t* mesh, const char* property);
 
+// Allows the traversal of mesh properties. Set *pos to 0 to reset the 
+// iteration.
+bool mesh_next_property(mesh_t* mesh, int* pos, 
+                        char** prop_name, void** prop_data, 
+                        serializer_t** prop_serializer);
+
 // Returns an exchanger object that can be used to perform parallel exchanges
 // on cell-centered mesh data. In serial configurations, this exchanger holds 
 // no data and exchanges have no effect.
@@ -188,6 +194,12 @@ void* mesh_tag_property(tagger_t* tagger, const char* tag, const char* property)
 // Deletes the given property from the tag. This has no effect if the tag
 // or property are not found.
 void mesh_tag_delete_property(tagger_t* tagger, const char* tag, const char* property);
+
+// Allows the traversal of properties on a tag. Set *pos to 0 to reset the 
+// iteration.
+bool mesh_tag_next_property(tagger_t* tagger, const char* tag, int* pos, 
+                            char** prop_name, void** prop_data, 
+                            serializer_t** prop_serializer);
 
 // Renames the given tag. This has no effect if the tag is not found.
 void mesh_rename_tag(tagger_t* tagger, const char* old_tag, const char* new_tag);

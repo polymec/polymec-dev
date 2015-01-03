@@ -56,6 +56,12 @@ void* point_cloud_property(point_cloud_t* cloud, const char* property);
 // property is not found.
 void point_cloud_delete_property(point_cloud_t* cloud, const char* property);
 
+// Allows traversal over point cloud properties. Set *pos to 0 to reset the 
+// iteration.
+bool point_cloud_next_property(point_cloud_t* cloud, int* pos, 
+                               char** prop_name, void** prop_data, 
+                               serializer_t** prop_serializer);
+
 // Returns a newly-allocated list of indices that will define a tags for 
 // cells/faces/edges/nodes with the given descriptor. If the tag already 
 // exists, returns NULL.

@@ -110,7 +110,20 @@ void* serializer_read(serializer_t* s, byte_array_t* byte_stream, size_t* offset
   return object;
 }
 
-void serializer_destroy(serializer_t* s, void* object)
+void* serializer_clone_object(serializer_t* s, void* object)
+{
+  byte_array_t* bytes = byte_array_new();
+  size_t offset = 0;
+  serializer_write(s, object, bytes, &offset);
+  ASSERT(offset == serializer_size(s, object));
+
+  offset = 0;
+  void* clone = serializer_read(s, bytes, &offset);
+  byte_array_free(bytes);
+  return clone;
+}
+
+void serializer_destroy_object(serializer_t* s, void* object)
 {
   if ((s->dtor != NULL) && (object != NULL))
     s->dtor(object);
