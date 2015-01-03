@@ -781,8 +781,10 @@ exchanger_t* mesh_face_exchanger_new(mesh_t* mesh)
         }
       }
     }
-    exchanger_set_send(ex, proc, send_faces->data, send_faces->size, true);
-    exchanger_set_receive(ex, proc, receive_faces->data, receive_faces->size, true);
+    if (send_faces->size > 0)
+      exchanger_set_send(ex, proc, send_faces->data, send_faces->size, true);
+    if (receive_faces->size > 0)
+      exchanger_set_receive(ex, proc, receive_faces->data, receive_faces->size, true);
   }
   int_array_free(send_faces);
   int_array_free(receive_faces);
