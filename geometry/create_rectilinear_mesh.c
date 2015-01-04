@@ -355,18 +355,21 @@ void tag_rectilinear_mesh_faces(mesh_t* mesh,
   real_t face_tol = 1e-8;
   for (int f = 0; f < mesh->num_faces; ++f)
   {
-    if (fabs(mesh->face_centers[f].x - bbox->x1) < face_tol)
-      int_slist_append(x1_faces, f);
-    else if (fabs(mesh->face_centers[f].x - bbox->x2) < face_tol)
-      int_slist_append(x2_faces, f);
-    if (fabs(mesh->face_centers[f].y - bbox->y1) < face_tol)
-      int_slist_append(y1_faces, f);
-    else if (fabs(mesh->face_centers[f].y - bbox->y2) < face_tol)
-      int_slist_append(y2_faces, f);
-    if (fabs(mesh->face_centers[f].z - bbox->z1) < face_tol)
-      int_slist_append(z1_faces, f);
-    else if (fabs(mesh->face_centers[f].z - bbox->z2) < face_tol)
-      int_slist_append(z2_faces, f);
+    if (mesh->face_cells[2*f+1] == -1)
+    {
+      if (fabs(mesh->face_centers[f].x - bbox->x1) < face_tol)
+        int_slist_append(x1_faces, f);
+      else if (fabs(mesh->face_centers[f].x - bbox->x2) < face_tol)
+        int_slist_append(x2_faces, f);
+      if (fabs(mesh->face_centers[f].y - bbox->y1) < face_tol)
+        int_slist_append(y1_faces, f);
+      else if (fabs(mesh->face_centers[f].y - bbox->y2) < face_tol)
+        int_slist_append(y2_faces, f);
+      if (fabs(mesh->face_centers[f].z - bbox->z1) < face_tol)
+        int_slist_append(z1_faces, f);
+      else if (fabs(mesh->face_centers[f].z - bbox->z2) < face_tol)
+        int_slist_append(z2_faces, f);
+    }
   }
   
   // Now create the boundary tags and populate them.
