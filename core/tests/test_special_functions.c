@@ -26,7 +26,7 @@ void test_find_jn_roots(void** state)
   for (int n = 0; n <= 5; ++n)
   {
     double roots[5];
-    find_jn_roots(n, 5, roots);
+    bessel_find_jn_roots(n, 5, roots);
     for (int k = 0; k < 5; ++k)
     {
       assert_true(fabs(roots[k] - jn_roots[n][k])/jn_roots[n][k] < 1e-4);
@@ -48,7 +48,7 @@ void test_find_yn_roots(void** state)
   for (int n = 0; n <= 5; ++n)
   {
     double roots[5];
-    find_yn_roots(n, 5, roots);
+    bessel_find_yn_roots(n, 5, roots);
     for (int k = 0; k < 5; ++k)
     {
       assert_true(fabs(roots[k] - yn_roots[n][k])/yn_roots[n][k] < 1e-4);

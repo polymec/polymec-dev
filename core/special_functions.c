@@ -99,7 +99,7 @@ static double jy1_data_b[12] =
    -0.4043620325107754e+10, 0.3827011346598605e+12,
    -0.4406481417852278e+14, 0.6065091351222699e+16};
 
-double j0(double x)
+double bessel_j0(double x)
 {
   if (x == 0.0) 
     return 1.0;
@@ -138,7 +138,7 @@ double j0(double x)
   return val;
 }
 
-double j1(double x)
+double bessel_j1(double x)
 {
   if (x == 0.0) 
     return 0.0;
@@ -242,14 +242,14 @@ static double msta2(double x, int n, double mp)
 double jn(int n, double x)
 {
   if (n == 0)
-    return j0(x);
+    return bessel_j0(x);
   else if (n == 1)
-    return j1(x);
+    return bessel_j1(x);
 
   if (x < 1e-100)
     return 0.0;
 
-  double val, j0_val = j0(x), j1_val = j1(x);
+  double val, j0_val = bessel_j0(x), j1_val = bessel_j1(x);
   double jl = j0_val, jm = j1_val;
   if (n < (int)(0.9*x))
   {
@@ -293,12 +293,12 @@ double jn(int n, double x)
 
 double dj0dx(double x)
 {
-  return -j1(x);
+  return -bessel_j1(x);
 }
 
 double dj1dx(double x)
 {
-  return j0(x) - j1(x)/(x + 1e-15);
+  return bessel_j0(x) - bessel_j1(x)/(x + 1e-15);
 }
 
 double djndx(int n, double x)
@@ -311,7 +311,7 @@ double djndx(int n, double x)
     return jn(n-1, x) - (1.0*(n+1)/x) * jn(n, x);
 }
 
-void find_jn_roots(int n, int num_roots, double* roots)
+void bessel_find_jn_roots(int n, int num_roots, double* roots)
 {
   // Find a reasonable starting point.
   double x;
@@ -358,7 +358,7 @@ double y0(double x)
       cs0 += r;
       if (fabs(r) < 1e-15*fabs(cs0)) break;
     }
-    double j0_val = j0(x);
+    double j0_val = bessel_j0(x);
     val = jy_rp2 * (ec*j0_val - cs0);
   }
   else
@@ -401,7 +401,7 @@ double y1(double x)
       cs1 += r;
       if (fabs(r) < 1e-15*fabs(cs1)) break;
     }
-    double j1_val = j1(x);
+    double j1_val = bessel_j1(x);
     val = jy_rp2 * (ec*j1_val - 1.0/x - 0.25*x*cs1);
   }
   else
@@ -425,7 +425,7 @@ double y1(double x)
   return val;
 }
 
-double yn(int n, double x)
+double bessel_yn(int n, double x)
 {
   if (n == 0)
     return y0(x);
@@ -465,10 +465,10 @@ double dyndx(int n, double x)
   else if (n == 1)
     return dy1dx(x);
   else
-    return yn(n-1, x) - (1.0*(n+1)/x) * yn(n, x);
+    return bessel_yn(n-1, x) - (1.0*(n+1)/x) * bessel_yn(n, x);
 }
 
-void find_yn_roots(int n, int num_roots, double* roots)
+void bessel_find_yn_roots(int n, int num_roots, double* roots)
 {
   // Find a reasonable starting point.
   double x;
@@ -487,7 +487,7 @@ void find_yn_roots(int n, int num_roots, double* roots)
     do
     {
       x0 = x;
-      double yn_val = yn(n, x), dyndx_val = dyndx(n, x);
+      double yn_val = bessel_yn(n, x), dyndx_val = dyndx(n, x);
       x -= yn_val/dyndx_val;
     }
     while (fabs(x-x0) > 1e-9);
@@ -529,37 +529,37 @@ double kn(int n, double x)
 #ifndef __cplusplus
 #include <complex.h>
 
-double complex cj0(double complex z)
+double complex bessel_cj0(double complex z)
 {
   POLYMEC_NOT_IMPLEMENTED
 }
 
-double complex cj1(double complex z)
+double complex bessel_cj1(double complex z)
 {
   POLYMEC_NOT_IMPLEMENTED
 }
 
-double complex cjn(int n, double complex z)
+double complex bessel_cjn(int n, double complex z)
 {
   POLYMEC_NOT_IMPLEMENTED
 }
 
-double complex cy0(double complex z)
+double complex bessel_cy0(double complex z)
 {
   POLYMEC_NOT_IMPLEMENTED
 }
 
-double complex cy1(double complex z)
+double complex bessel_cy1(double complex z)
 {
   POLYMEC_NOT_IMPLEMENTED
 }
 
-double complex cyn(int n, double complex z)
+double complex bessel_cyn(int n, double complex z)
 {
   POLYMEC_NOT_IMPLEMENTED
 }
 
-double complex ci0(double complex z)
+double complex bessel_ci0(double complex z)
 {
   double a0 = cabs(z);
   double complex i0 = CMPLX(1.0, 0.0);
@@ -599,7 +599,7 @@ double complex ci0(double complex z)
   return i0;
 }
 
-double complex ci1(double complex z)
+double complex bessel_ci1(double complex z)
 {
   double a0 = cabs(z);
   if (a0 == 0.0)
@@ -642,19 +642,19 @@ double complex ci1(double complex z)
   return i1;
 }
 
-double complex cin(int n, double complex z)
+double complex bessel_cin(int n, double complex z)
 {
   POLYMEC_NOT_IMPLEMENTED
 }
 
-double complex ck0(double complex z)
+double complex bessel_ck0(double complex z)
 {
   double a0 = cabs(z);
   if (a0 == 0.0)
     return CMPLX(1e300, 0.0);
   double complex z1 = (creal(z) < 0.0) ? -z : z;
   double complex z2 = z * z;
-  double complex i0 = ci0(z);
+  double complex i0 = bessel_ci0(z);
   double complex k0;
   if (a0 <= 9.0)
   {
@@ -698,15 +698,15 @@ double complex ck0(double complex z)
   return k0;
 }
 
-double complex ck1(double complex z)
+double complex bessel_ck1(double complex z)
 {
   double a0 = cabs(z);
   if (a0 == 0.0)
     return CMPLX(1e300, 0.0);
   double complex z1 = (creal(z) < 0.0) ? -z : z;
-  double complex i0 = ci0(z);
-  double complex i1 = ci1(z);
-  double complex k0 = ck0(z);
+  double complex i0 = bessel_ci0(z);
+  double complex i1 = bessel_ci1(z);
+  double complex k0 = bessel_ck0(z);
   double complex k1 = (1.0/z1 - i1*k0) / i0;
   if (creal(z) < 0.0)
   {
@@ -718,7 +718,7 @@ double complex ck1(double complex z)
   return k1;
 }
 
-double complex ckn(int n, double complex z)
+double complex bessel_ckn(int n, double complex z)
 {
   POLYMEC_NOT_IMPLEMENTED
 }
