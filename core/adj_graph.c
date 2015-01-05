@@ -264,7 +264,7 @@ void adj_graph_fprintf(adj_graph_t* graph, FILE* stream)
 {
   if (stream == NULL) return;
   int num_vertices = adj_graph_num_vertices(graph);
-  fprintf(stream, "Adjacency graph (%d/%llu vertices locally):\n", num_vertices, graph->vtx_dist[graph->nproc]);
+  fprintf(stream, "Adjacency graph (%d/%" PRIu64 " vertices locally):\n", num_vertices, graph->vtx_dist[graph->nproc]);
   for (int i = 0; i < num_vertices; ++i)
   {
     fprintf(stream, " %d: ", i);

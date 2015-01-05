@@ -61,32 +61,117 @@ double gamma(double x)
   return ga;
 }
 
-double i0(double x)
+// These data are used in the computation of J0/Y0 and J1/Y1.
+static const double jy_rp2 = 0.63661977236758;
+static double jy0_data_a[12] = 
+  {-0.7031250000000000e-01, 0.1121520996093750e+00,
+   -0.5725014209747314e+00, 0.6074042001273483e+01,
+   -0.1100171402692467e+03, 0.3038090510922384e+04,
+   -0.1188384262567832e+06, 0.6252951493434797e+07,
+   -0.4259392165047669e+09, 0.3646840080706556e+11,
+   -0.3833534661393944e+13, 0.4854014686852901e+15};
+static double jy0_data_b[12] = 
+  { 0.7324218750000000e-01,-0.2271080017089844e+00,
+    0.1727727502584457e+01,-0.2438052969955606e+02,
+    0.5513358961220206e+03,-0.1825775547429318e+05,
+    0.8328593040162893e+06,-0.5006958953198893e+08,
+    0.3836255180230433e+10,-0.3649010818849833e+12,
+    0.4218971570284096e+14,-0.5827244631566907e+16};
+static double jy1_data_a[12] = 
+  { 0.1171875000000000e+00,-0.1441955566406250e+00,
+    0.6765925884246826e+00,-0.6883914268109947e+01,
+    0.1215978918765359e+03,-0.3302272294480852e+04,
+    0.1276412726461746e+06,-0.6656367718817688e+07,
+    0.4502786003050393e+09,-0.3833857520742790e+11,
+    0.4011838599133198e+13,-0.5060568503314727e+15};
+static double jy1_data_b[12] = 
+  {-0.1025390625000000e+00, 0.2775764465332031e+00,
+   -0.1993531733751297e+01, 0.2724882731126854e+02,
+   -0.6038440767050702e+03, 0.1971837591223663e+05,
+   -0.8902978767070678e+06, 0.5310411010968522e+08,
+   -0.4043620325107754e+10, 0.3827011346598605e+12,
+   -0.4406481417852278e+14, 0.6065091351222699e+16};
+
+double j0(double x)
 {
-  POLYMEC_NOT_IMPLEMENTED
+  if (x == 0.0) 
+    return 1.0;
+  
+  double x2 = x*x;
+  double val;
+  if (x < 12.0)
+  {
+    val = 1.0;
+    double r = 1.0;
+    for (int k = 1; k <= 30; ++k)
+    {
+      r = -0.25*r*x2/(k*k);
+      val += r;
+      if (fabs(r) < 1e-15*fabs(val)) break;
+    }
+  }
+  else
+  {
+    int k0 = 12;
+    if (x >= 50.0) 
+      k0 = 10;
+    else if (x >= 35.0)
+      k0 = 8;
+    double t1 = x - 0.25*M_PI;
+    double p0 = 1.0;
+    double q0 = -0.125/x;
+    for (int k = 1; k <= k0; ++k)
+    {
+      p0 += jy0_data_a[k-1] * pow(x, -2.0*k);
+      q0 += jy0_data_b[k-1] * pow(x, -2.0*k-1.0);
+    }
+    double cu = sqrt(jy_rp2/x);
+    val = cu * (p0*cos(t1) - q0*sin(t1));
+  }
+  return val;
 }
 
-double i1(double x)
+double j1(double x)
 {
-  POLYMEC_NOT_IMPLEMENTED
+  if (x == 0.0) 
+    return 0.0;
+  
+  double x2 = x*x;
+  double val;
+  if (x < 12.0)
+  {
+    val = 1.0;
+    double r = 1.0;
+    for (int k = 1; k <= 30; ++k)
+    {
+      r = -0.25*r*x2/(k*(k+1));
+      val += r;
+      if (fabs(r) < 1e-15*fabs(val)) break;
+    }
+    val *= 0.5*x;
+  }
+  else
+  {
+    int k0 = 12;
+    if (x >= 50.0) 
+      k0 = 10;
+    else if (x >= 35.0)
+      k0 = 8;
+    double t2 = x - 0.75*M_PI;
+    double p1 = 1.0;
+    double q1 = 0.375/x;
+    for (int k = 1; k <= k0; ++k)
+    {
+      p1 += jy1_data_a[k-1] * pow(x, -2.0*k);
+      q1 += jy1_data_b[k-1] * pow(x, -2.0*k-1.0);
+    }
+    double cu = sqrt(jy_rp2/x);
+    val = cu * (p1*cos(t2) - q1*sin(t2));
+  }
+  return val;
 }
 
-double in(int n, double x)
-{
-  POLYMEC_NOT_IMPLEMENTED
-}
-
-double k0(double x)
-{
-  POLYMEC_NOT_IMPLEMENTED
-}
-
-double k1(double x)
-{
-  POLYMEC_NOT_IMPLEMENTED
-}
-
-double kn(int n, double x)
+double jn(int n, double x)
 {
   POLYMEC_NOT_IMPLEMENTED
 }
@@ -99,26 +184,6 @@ double dj0dx(double x)
 double dj1dx(double x)
 {
   return j0(x) - j1(x)/(x + 1e-15);
-}
-
-double dy0dx(double x)
-{
-  return -y1(x);
-}
-
-double dy1dx(double x)
-{
-  return y0(x) - y1(x)/(x + 1e-15);
-}
-
-double djndx(int n, double x)
-{
-  return jn(n-1, x) - (1.0*(n+1)/x) * jn(n, x);
-}
-
-double dyndx(int n, double x)
-{
-  return yn(n-1, x) - (1.0*(n+1)/x) * yn(n, x);
 }
 
 void find_jn_roots(int n, int num_roots, double* roots)
@@ -149,6 +214,117 @@ void find_jn_roots(int n, int num_roots, double* roots)
   }
 }
 
+double y0(double x)
+{
+  if (x == 0.0) 
+    return -1.0e300;
+  
+  double x2 = x*x;
+  double val;
+  if (x < 12.0)
+  {
+    double ec = log(0.5*x) + 0.5772156649015329;
+    double cs0 = 0.0, w0 = 0.0, r0 = 1.0;
+    for (int k = 1; k <= 30; ++k)
+    {
+      w0 += 1.0/k;
+      r0 *= -0.25*x2 / (k*k);
+      double r = r0*w0;
+      cs0 += r;
+      if (fabs(r) < 1e-15*fabs(cs0)) break;
+    }
+    double j0_val = j0(x);
+    val = jy_rp2 * (ec*j0_val - cs0);
+  }
+  else
+  {
+    int k0 = 12;
+    if (x >= 50.0) 
+      k0 = 10;
+    else if (x >= 35.0)
+      k0 = 8;
+    double t1 = x - 0.25*M_PI;
+    double p0 = 1.0;
+    double q0 = -0.125/x;
+    for (int k = 1; k <= k0; ++k)
+    {
+      p0 += jy0_data_a[k-1] * pow(x, -2.0*k);
+      q0 += jy0_data_b[k-1] * pow(x, -2.0*k-1.0);
+    }
+    double cu = sqrt(jy_rp2/x);
+    val = cu * (p0*sin(t1) + q0*cos(t1));
+  }
+  return val;
+}
+
+double y1(double x)
+{
+  if (x == 0.0) 
+    return -1.0e300;
+  
+  double x2 = x*x;
+  double val;
+  if (x < 12.0)
+  {
+    double ec = log(0.5*x) + 0.5772156649015329;
+    double cs1 = 1.0, w1 = 0.0, r1 = 1.0;
+    for (int k = 1; k <= 30; ++k)
+    {
+      w1 += 1.0/k;
+      r1 *= -0.25*x2 / (k*(k+1));
+      double r = r1 * (2.0*w1 + 1.0/(k+1));
+      cs1 += r;
+      if (fabs(r) < 1e-15*fabs(cs1)) break;
+    }
+    double j1_val = j1(x);
+    val = jy_rp2 * (ec*j1_val - 1.0/x - 0.25*x*cs1);
+  }
+  else
+  {
+    int k0 = 12;
+    if (x >= 50.0) 
+      k0 = 10;
+    else if (x >= 35.0)
+      k0 = 8;
+    double t2 = x - 0.75*M_PI;
+    double p1 = 1.0;
+    double q1 = 0.375/x;
+    for (int k = 1; k <= k0; ++k)
+    {
+      p1 += jy1_data_a[k-1] * pow(x, -2.0*k);
+      q1 += jy1_data_b[k-1] * pow(x, -2.0*k-1.0);
+    }
+    double cu = sqrt(jy_rp2/x);
+    val = cu * (p1*sin(t2) + q1*cos(t2));
+  }
+  return val;
+}
+
+double yn(int n, double x)
+{
+  POLYMEC_NOT_IMPLEMENTED
+}
+
+double dy0dx(double x)
+{
+  return -y1(x);
+}
+
+double dy1dx(double x)
+{
+  return y0(x) - y1(x)/(x + 1e-15);
+}
+
+double djndx(int n, double x)
+{
+  return jn(n-1, x) - (1.0*(n+1)/x) * jn(n, x);
+}
+
+double dyndx(int n, double x)
+{
+  return yn(n-1, x) - (1.0*(n+1)/x) * yn(n, x);
+}
+
 void find_yn_roots(int n, int num_roots, double* roots)
 {
   // Find a reasonable starting point.
@@ -175,6 +351,36 @@ void find_yn_roots(int n, int num_roots, double* roots)
     roots[i] = x;
     x += M_PI + (0.312 + 0.0852*n - 0.000403*n*n)/(i+1);
   }
+}
+
+double i0(double x)
+{
+  POLYMEC_NOT_IMPLEMENTED
+}
+
+double i1(double x)
+{
+  POLYMEC_NOT_IMPLEMENTED
+}
+
+double in(int n, double x)
+{
+  POLYMEC_NOT_IMPLEMENTED
+}
+
+double k0(double x)
+{
+  POLYMEC_NOT_IMPLEMENTED
+}
+
+double k1(double x)
+{
+  POLYMEC_NOT_IMPLEMENTED
+}
+
+double kn(int n, double x)
+{
+  POLYMEC_NOT_IMPLEMENTED
 }
 
 #ifndef __cplusplus
