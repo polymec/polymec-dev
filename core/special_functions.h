@@ -129,6 +129,30 @@ double bessel_dkndx(int n, double x);
 #ifndef __cplusplus
 #include <complex.h>
 
+// Returns the value of H0, the Bessel function of the third kind (Hankel
+// function) of order zero, at the given real value x.
+double complex bessel_h0(double x);
+
+// Returns the value of H1, the Bessel function of the third kind (Hankel 
+// function) of order one, at the given real value x.
+double complex bessel_h1(double x);
+
+// Returns the value of H1, the Bessel function of the third kind (Hankel
+// function) of order n, at the given real value x.
+double complex bessel_hn(int n, double x);
+
+// Returns the value of the first derivative of H0, the Bessel function of 
+// the third kind (Hankel function) of order 0, at the given real value x.
+double complex bessel_dh0dx(double x);
+
+// Returns the value of the first derivative of H1, the Bessel function of 
+// the third kind (Hankel function) of order 1, at the given real value x.
+double complex bessel_dh1dx(double x);
+
+// Returns the value of the first derivative of Hn, the Bessel function of 
+// the third kind (Hankel function) of order n, at the given real value x.
+double complex bessel_dhndx(int n, double x);
+
 // Returns the value of J0, the Bessel function of the first kind of order 
 // zero, at the given complex value z.
 double complex bessel_cj0(double complex z);

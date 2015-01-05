@@ -559,6 +559,36 @@ double bessel_dkndx(int n, double x)
 #ifndef __cplusplus
 #include <complex.h>
 
+double complex bessel_h0(double x)
+{
+  return CMPLX(bessel_j0(x), bessel_y0(x));
+}
+
+double complex bessel_h1(double x)
+{
+  return CMPLX(bessel_j1(x), bessel_y1(x));
+}
+
+double complex bessel_hn(int n, double x)
+{
+  return CMPLX(bessel_jn(n, x), bessel_yn(n, x));
+}
+
+double complex bessel_dh0dx(double x)
+{
+  return CMPLX(bessel_dj0dx(x), bessel_dy0dx(x));
+}
+
+double complex bessel_dh1dx(double x)
+{
+  return CMPLX(bessel_dj1dx(x), bessel_dy1dx(x));
+}
+
+double complex bessel_dhndx(int n, double x)
+{
+  return CMPLX(bessel_djndx(n, x), bessel_dyndx(n, x));
+}
+
 double complex bessel_cj0(double complex z)
 {
   POLYMEC_NOT_IMPLEMENTED
