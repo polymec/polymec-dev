@@ -428,14 +428,14 @@ double bessel_y1(double x)
 double bessel_yn(int n, double x)
 {
   if (n == 0)
-    return y0(x);
+    return bessel_y0(x);
   else if (n == 1)
-    return y1(x);
+    return bessel_y1(x);
 
   if (x < 1e-100)
     return -1e300;
 
-  double val, y0_val = y0(x), y1_val = y1(x);
+  double val, y0_val = bessel_y0(x), y1_val = bessel_y1(x);
   double f0 = y0_val, f1 = y1_val;
   for (int k = 2; k <= n; ++k)
   {
@@ -450,12 +450,12 @@ double bessel_yn(int n, double x)
 
 double bessel_dy0dx(double x)
 {
-  return -y1(x);
+  return -bessel_y1(x);
 }
 
 double bessel_dy1dx(double x)
 {
-  return y0(x) - y1(x)/(x + 1e-15);
+  return bessel_y0(x) - bessel_y1(x)/(x + 1e-15);
 }
 
 double bessel_dyndx(int n, double x)
