@@ -8,6 +8,13 @@
 #include "core/polymec.h"
 #include "core/special_functions.h"
 
+// Much of the source code in this file originated from Fortran 77 subroutines 
+// accompanying "Computation of Special Functions" by Shanjie Zhang and 
+// Jianming Jin (Copyright 1996 by John Wiley & Sons, Inc). The Fortran code 
+// was downloaded from http://jin.ece.illinois.edu/routines/routines.html.
+// The C transcription is subject to Polymec's license, and the original 
+// copyright should be mentioned in any distribution.
+
 double gamma(double x)
 {
   ASSERT((x >= 0.0) || (x != 1.0 * (int)x));
@@ -171,9 +178,117 @@ double j1(double x)
   return val;
 }
 
+// These functions are used for the calculation of Jn and Yn.
+static inline double envj(int n, double x)
+{
+  return 0.5 * log10(6.28*n) - n * log10(1.36*x/n);
+}
+
+static double msta1(double x, double mp)
+{
+  double a0 = fabs(x);
+  int n0 = (int)(1.1*a0) + 1;
+  double f0 = envj(n0, a0) - mp;
+  int n1 = n0 + 5;
+  double f1 = envj(n1, a0) - mp;
+  double nn;
+  for (int it = 1; it <= 20; ++it)
+  {
+    nn = n1 - 1.0*(n1-n0)/(1.0 - f0/f1);
+    double f = envj(nn, a0) - mp;
+    if (fabs(nn-n1) < 1.0) break;
+    n0 = n1;
+    f0 = f1;
+    n1 = nn;
+    f1 = f;
+  }
+  return nn;
+}
+
+static double msta2(double x, int n, double mp)
+{
+  double a0 = fabs(x);
+  double hmp = 0.5 * mp;
+  double ejn = envj(n, a0);
+  double obj;
+  int n0;
+  if (ejn <= hmp)
+  {
+    obj = mp;
+    n0 = (int)(1.1*a0);
+  }
+  else
+  {
+    obj = hmp + ejn;
+    n0 = n;
+  }
+  double f0 = envj(n0, a0) - obj;
+  int n1 = n0 + 5;
+  double f1 = envj(n1, a0) - obj;
+  double nn;
+  for (int it = 1; it <= 20; ++it)
+  {
+    nn = 1.0*n1 - 1.0*(n1 - n0)/(1.0 - f0/f1);
+    double f = envj(nn, a0) - obj;
+    if (fabs(nn-n1) < 1.0) break;
+    n0 = n1;
+    f0 = f1;
+    n1 = nn;
+    f1 = f;
+  }
+  return nn + 10;
+}
+
 double jn(int n, double x)
 {
-  POLYMEC_NOT_IMPLEMENTED
+  if (n == 0)
+    return j0(x);
+  else if (n == 1)
+    return j1(x);
+
+  if (x < 1e-100)
+    return 0.0;
+
+  double val, j0_val = j0(x), j1_val = j1(x);
+  double jl = j0_val, jm = j1_val;
+  if (n < (int)(0.9*x))
+  {
+    for (int k = 2; k <= n; ++k)
+    {
+      double jk = 2.0 * jm * (k-1)/x - jl;
+      val = jk;
+      jl = jm;
+      jm = jk;
+    }
+  }
+  else
+  {
+    // Determine the order from which to recurse backwards.
+    int nm = n;
+    int m = msta1(x, 200.0);
+    if (m < n)
+      nm = m;
+    else
+      m = msta2(x, n, 15.0);
+
+    double f, f2 = 0.0, f1 = 99.0;
+    for (int k = m; k >= 0; --k)
+    {
+      f = 2.0*f1*(k+1)/x - f2;
+      if (k == n) 
+        val = f;
+      f2 = f1;
+      f1 = f;
+    }
+    double cs;
+    if (fabs(j0_val) > fabs(j1_val))
+      cs = j0_val / f;
+    else
+      cs = j1_val / f2;
+    val *= cs;
+  }
+
+  return val;
 }
 
 double dj0dx(double x)
@@ -184,6 +299,16 @@ double dj0dx(double x)
 double dj1dx(double x)
 {
   return j0(x) - j1(x)/(x + 1e-15);
+}
+
+double djndx(int n, double x)
+{
+  if (n == 0)
+    return dj0dx(x);
+  else if (n == 1)
+    return dj1dx(x);
+  else
+    return jn(n-1, x) - (1.0*(n+1)/x) * jn(n, x);
 }
 
 void find_jn_roots(int n, int num_roots, double* roots)
@@ -302,7 +427,25 @@ double y1(double x)
 
 double yn(int n, double x)
 {
-  POLYMEC_NOT_IMPLEMENTED
+  if (n == 0)
+    return y0(x);
+  else if (n == 1)
+    return y1(x);
+
+  if (x < 1e-100)
+    return -1e300;
+
+  double val, y0_val = y0(x), y1_val = y1(x);
+  double f0 = y0_val, f1 = y1_val;
+  for (int k = 2; k <= n; ++k)
+  {
+    double f = 2.0*f1*(k-1)/x - f0;
+    if (k == n)
+      val = f;
+    f0 = f1;
+    f1 = f;
+  }
+  return val;
 }
 
 double dy0dx(double x)
@@ -315,14 +458,14 @@ double dy1dx(double x)
   return y0(x) - y1(x)/(x + 1e-15);
 }
 
-double djndx(int n, double x)
-{
-  return jn(n-1, x) - (1.0*(n+1)/x) * jn(n, x);
-}
-
 double dyndx(int n, double x)
 {
-  return yn(n-1, x) - (1.0*(n+1)/x) * yn(n, x);
+  if (n == 0)
+    return dy0dx(x);
+  else if (n == 1)
+    return dy1dx(x);
+  else
+    return yn(n-1, x) - (1.0*(n+1)/x) * yn(n, x);
 }
 
 void find_yn_roots(int n, int num_roots, double* roots)
