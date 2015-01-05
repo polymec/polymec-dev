@@ -125,7 +125,9 @@ void find_jn_roots(int n, int num_roots, double* roots)
 {
   // Find a reasonable starting point.
   double x;
-  if (n <= 20) 
+  if (n == 0)
+    x = 3.8317;
+  else if (n <= 20) 
     x = 2.82141 + 1.15859 * n;
   else
   {
@@ -145,7 +147,7 @@ void find_jn_roots(int n, int num_roots, double* roots)
     }
     while (fabs(x-x0) > 1e-9);
     roots[i] = x;
-    x += M_PI + (0.0972 + 0.0679*n - 0.000354*n*n)/i;
+    x += M_PI + (0.0972 + 0.0679*n - 0.000354*n*n)/(i+1);
   }
 }
 
@@ -173,7 +175,7 @@ void find_yn_roots(int n, int num_roots, double* roots)
     }
     while (fabs(x-x0) > 1e-9);
     roots[i] = x;
-    x += M_PI + (0.312 + 0.0852*n - 0.000403*n*n)/i;
+    x += M_PI + (0.312 + 0.0852*n - 0.000403*n*n)/(i+1);
   }
 }
 
