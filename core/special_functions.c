@@ -91,6 +91,92 @@ double kn(int n, double x)
   POLYMEC_NOT_IMPLEMENTED
 }
 
+double dj0dx(double x)
+{
+  return -j1(x);
+}
+
+double dj1dx(double x)
+{
+  return j0(x) - j1(x)/(x + 1e-15);
+}
+
+double dy0dx(double x)
+{
+  return -y1(x);
+}
+
+double dy1dx(double x)
+{
+  return y0(x) - y1(x)/(x + 1e-15);
+}
+
+double djndx(int n, double x)
+{
+  return jn(n-1, x) - (1.0*(n+1)/x) * jn(n, x);
+}
+
+double dyndx(int n, double x)
+{
+  return yn(n-1, x) - (1.0*(n+1)/x) * yn(n, x);
+}
+
+void find_jn_roots(int n, int num_roots, double* roots)
+{
+  // Find a reasonable starting point.
+  double x;
+  if (n <= 20) 
+    x = 2.82141 + 1.15859 * n;
+  else
+  {
+    double n_third = pow(n, 0.33333);
+    x = 1.0*n + 1.85576 * n_third + 1.03315/n_third;
+  }
+
+  // Find the roots by Newton iteration.
+  double x0;
+  for (int i = 0; i < num_roots; ++i)
+  {
+    do
+    {
+      x0 = x;
+      double jn_val = jn(n, x), djndx_val = djndx(n, x);
+      x -= jn_val/djndx_val;
+    }
+    while (fabs(x-x0) > 1e-9);
+    roots[i] = x;
+    x += M_PI + (0.0972 + 0.0679*n - 0.000354*n*n)/i;
+  }
+}
+
+void find_yn_roots(int n, int num_roots, double* roots)
+{
+  // Find a reasonable starting point.
+  double x;
+  if (n <= 20) 
+    x = 1.19477 + 1.08933 * n;
+  else
+  {
+    double n_third = pow(n, 0.33333);
+    x = n + 0.93158 * n_third + 0.26035 / n_third;
+  }
+
+  // Find the roots by Newton iteration.
+  double x0;
+  for (int i = 0; i < num_roots; ++i)
+  {
+    do
+    {
+      x0 = x;
+      double jn_val = jn(n, x), djndx_val = djndx(n, x);
+      x -= jn_val/djndx_val;
+    }
+    while (fabs(x-x0) > 1e-9);
+    roots[i] = x;
+    x += M_PI + (0.312 + 0.0852*n - 0.000403*n*n)/i;
+  }
+}
+
 #ifndef __cplusplus
 #include <complex.h>
 

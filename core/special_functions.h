@@ -43,6 +43,40 @@ double k1(double x);
 // order n at the given real value x: Kn(x).
 double kn(int n, double x);
 
+// Returns the value of the first derivative of j0, the Bessel function of 
+// the first kind of order 0, at the given real value x.
+double dj0dx(double x);
+
+// Returns the value of the first derivative of j1, the Bessel function of 
+// the first kind of order 1, at the given real value x.
+double dj1dx(double x);
+
+// Returns the value of the first derivative of y0, the Bessel function of 
+// the second kind of order 0, at the given real value x.
+double dy0dx(double x);
+
+// Returns the value of the first derivative of y1, the Bessel function of 
+// the second kind of order 1, at the given real value x.
+double dy1dx(double x);
+
+// Returns the value of the first derivative of jn, the Bessel function of 
+// the first kind of order n, at the given real value x.
+double djndx(int n, double x);
+
+// Returns the value of the first derivative of yn, the Bessel function of 
+// the second kind of order n, at the given real value x.
+double dyndx(int n, double x);
+
+// Populates the given array with the specified number of positive roots of 
+// jn, the Bessel function of the first kind of order n. The roots array must 
+// be able to store the requested roots. 
+void find_jn_roots(int n, int num_roots, double* roots);
+
+// Populates the given array with the specified number of positive roots of 
+// yn, the Bessel function of the first second of order n. The roots array 
+// must be able to store the requested roots. 
+void find_yn_roots(int n, int num_roots, double* roots);
+
 // C++ doesn't have complex datatypes, so we don't expose them to C++ compilers.
 #ifndef __cplusplus
 #include <complex.h>
