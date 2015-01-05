@@ -13,7 +13,7 @@
 #include "core/polymec.h"
 #include "core/special_functions.h"
 
-void test_find_jn_roots(void** state)
+void test_bessel_find_jn_roots(void** state)
 {
   static double jn_roots[6][5] = 
     {{2.4048, 5.5201, 8.6537, 11.7915, 14.9309},    // J0
@@ -34,7 +34,49 @@ void test_find_jn_roots(void** state)
   }
 }
 
-void test_find_yn_roots(void** state)
+void test_bessel_jn(void** state, int n)
+{
+  int num_roots = 10;
+  double roots[num_roots];
+  bessel_find_jn_roots(n, num_roots, roots);
+  double sign = -1.0;
+  for (int i = 0; i < num_roots; ++i)
+  {
+    assert_true(fabs(bessel_jn(n, roots[i])) < 1e-12);
+    if (i < (num_roots-1))
+    {
+      assert_true(sign * bessel_jn(n, 0.5*(roots[i+1]+roots[i])) > 0.0);
+      sign *= -1.0;
+    }
+  }
+}
+
+void test_bessel_j(void** state)
+{
+  for (int n = 0; n < 20; ++n)
+    test_bessel_jn(state, n);
+}
+
+void test_bessel_djndx(void** state, int n)
+{
+  int num_roots = 10;
+  double roots[num_roots];
+  bessel_find_jn_roots(n, num_roots, roots);
+  double sign = -1.0;
+  for (int i = 0; i < num_roots; ++i)
+  {
+    assert_true(sign * bessel_djndx(n, roots[i]-0.01) > 0.0);
+    sign *= -1.0;
+  }
+}
+
+void test_bessel_djdx(void** state)
+{
+  for (int n = 0; n < 20; ++n)
+    test_bessel_djndx(state, n);
+}
+
+void test_bessel_find_yn_roots(void** state)
 {
   // These reference roots were taken from scipy.special.yn_zeros.
   static double yn_roots[6][5] = 
@@ -56,25 +98,59 @@ void test_find_yn_roots(void** state)
   }
 }
 
+void test_bessel_yn(void** state, int n)
+{
+  int num_roots = 10;
+  double roots[num_roots];
+  bessel_find_yn_roots(n, num_roots, roots);
+  double sign = 1.0;
+  for (int i = 0; i < num_roots; ++i)
+  {
+    assert_true(fabs(bessel_yn(n, roots[i])) < 1e-12);
+    if (i < (num_roots-1))
+    {
+      assert_true(sign * bessel_yn(n, 0.5*(roots[i+1]+roots[i])) > 0.0);
+      sign *= -1.0;
+    }
+  }
+}
+
+void test_bessel_y(void** state)
+{
+  for (int n = 0; n < 20; ++n)
+    test_bessel_yn(state, n);
+}
+
+void test_bessel_dyndx(void** state, int n)
+{
+  int num_roots = 10;
+  double roots[num_roots];
+  bessel_find_yn_roots(n, num_roots, roots);
+  double sign = 1.0;
+  for (int i = 0; i < num_roots; ++i)
+  {
+    assert_true(sign * bessel_dyndx(n, roots[i]-0.01) > 0.0);
+    sign *= -1.0;
+  }
+}
+
+void test_bessel_dydx(void** state)
+{
+  for (int n = 0; n < 20; ++n)
+    test_bessel_dyndx(state, n);
+}
+
 int main(int argc, char* argv[]) 
 {
   polymec_init(argc, argv);
   const UnitTest tests[] = 
   {
-    unit_test(test_find_jn_roots),
-//    unit_test(test_j0),
-//    unit_test(test_j1),
-//    unit_test(test_jn),
-//    unit_test(test_dj0dx),
-//    unit_test(test_dj1dx),
-//    unit_test(test_djndx),
-    unit_test(test_find_yn_roots),
-//    unit_test(test_y0),
-//    unit_test(test_y1),
-//    unit_test(test_yn),
-//    unit_test(test_dy0dx),
-//    unit_test(test_dy1dx),
-//    unit_test(test_dyndx)
+    unit_test(test_bessel_find_jn_roots),
+    unit_test(test_bessel_j),
+    unit_test(test_bessel_djdx),
+    unit_test(test_bessel_find_yn_roots),
+    unit_test(test_bessel_y),
+    unit_test(test_bessel_dydx)
   };
   return run_tests(tests);
 }
