@@ -89,6 +89,18 @@ double bessel_i1(double x);
 // order n, at the given real value x.
 double bessel_in(int n, double x);
 
+// Returns the value of the first derivative of I0, the modified Bessel function of 
+// the first kind of order 0, at the given real value x.
+double bessel_di0dx(double x);
+
+// Returns the value of the first derivative of I1, the modified Bessel function of 
+// the first kind of order 1, at the given real value x.
+double bessel_di1dx(double x);
+
+// Returns the value of the first derivative of In, the modified Bessel function of 
+// the first kind of order n, at the given real value x.
+double bessel_dindx(int n, double x);
+
 // Returns the value of K0, the modified Bessel function of the second kind of 
 // order zero, at the given real value x.
 double bessel_k0(double x);
@@ -100,6 +112,18 @@ double bessel_k1(double x);
 // Returns the value of Kn, the modified Bessel function of the second kind of 
 // order n, at the given real value x.
 double bessel_kn(int n, double x);
+
+// Returns the value of the first derivative of K0, the modified Bessel function of 
+// the second kind of order 0, at the given real value x.
+double bessel_dk0dx(double x);
+
+// Returns the value of the first derivative of K1, the modified Bessel function of 
+// the second kind of order 1, at the given real value x.
+double bessel_dk1dx(double x);
+
+// Returns the value of the first derivative of Kn, the modified Bessel function of 
+// the second kind of order n, at the given real value x.
+double bessel_dkndx(int n, double x);
 
 // C++ doesn't have complex datatypes, so we don't expose them to C++ compilers.
 #ifndef __cplusplus

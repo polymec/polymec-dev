@@ -239,7 +239,7 @@ static double msta2(double x, int n, double mp)
   return nn + 10;
 }
 
-double jn(int n, double x)
+double bessel_jn(int n, double x)
 {
   if (n == 0)
     return bessel_j0(x);
@@ -291,24 +291,24 @@ double jn(int n, double x)
   return val;
 }
 
-double dj0dx(double x)
+double bessel_dj0dx(double x)
 {
   return -bessel_j1(x);
 }
 
-double dj1dx(double x)
+double bessel_dj1dx(double x)
 {
   return bessel_j0(x) - bessel_j1(x)/(x + 1e-15);
 }
 
-double djndx(int n, double x)
+double bessel_djndx(int n, double x)
 {
   if (n == 0)
-    return dj0dx(x);
+    return bessel_dj0dx(x);
   else if (n == 1)
-    return dj1dx(x);
+    return bessel_dj1dx(x);
   else
-    return jn(n-1, x) - (1.0*(n+1)/x) * jn(n, x);
+    return bessel_jn(n-1, x) - (1.0*(n+1)/x) * bessel_jn(n, x);
 }
 
 void bessel_find_jn_roots(int n, int num_roots, double* roots)
@@ -330,7 +330,7 @@ void bessel_find_jn_roots(int n, int num_roots, double* roots)
     do
     {
       x0 = x;
-      double jn_val = jn(n, x), djndx_val = djndx(n, x);
+      double jn_val = bessel_jn(n, x), djndx_val = bessel_djndx(n, x);
       x -= jn_val/djndx_val;
     }
     while (fabs(x-x0) > 1e-9);
@@ -339,7 +339,7 @@ void bessel_find_jn_roots(int n, int num_roots, double* roots)
   }
 }
 
-double y0(double x)
+double bessel_y0(double x)
 {
   if (x == 0.0) 
     return -1.0e300;
@@ -382,7 +382,7 @@ double y0(double x)
   return val;
 }
 
-double y1(double x)
+double bessel_y1(double x)
 {
   if (x == 0.0) 
     return -1.0e300;
@@ -448,22 +448,22 @@ double bessel_yn(int n, double x)
   return val;
 }
 
-double dy0dx(double x)
+double bessel_dy0dx(double x)
 {
   return -y1(x);
 }
 
-double dy1dx(double x)
+double bessel_dy1dx(double x)
 {
   return y0(x) - y1(x)/(x + 1e-15);
 }
 
-double dyndx(int n, double x)
+double bessel_dyndx(int n, double x)
 {
   if (n == 0)
-    return dy0dx(x);
+    return bessel_dy0dx(x);
   else if (n == 1)
-    return dy1dx(x);
+    return bessel_dy1dx(x);
   else
     return bessel_yn(n-1, x) - (1.0*(n+1)/x) * bessel_yn(n, x);
 }
@@ -487,7 +487,7 @@ void bessel_find_yn_roots(int n, int num_roots, double* roots)
     do
     {
       x0 = x;
-      double yn_val = bessel_yn(n, x), dyndx_val = dyndx(n, x);
+      double yn_val = bessel_yn(n, x), dyndx_val = bessel_dyndx(n, x);
       x -= yn_val/dyndx_val;
     }
     while (fabs(x-x0) > 1e-9);
@@ -496,32 +496,62 @@ void bessel_find_yn_roots(int n, int num_roots, double* roots)
   }
 }
 
-double i0(double x)
+double bessel_i0(double x)
 {
   POLYMEC_NOT_IMPLEMENTED
 }
 
-double i1(double x)
+double bessel_i1(double x)
 {
   POLYMEC_NOT_IMPLEMENTED
 }
 
-double in(int n, double x)
+double bessel_in(int n, double x)
 {
   POLYMEC_NOT_IMPLEMENTED
 }
 
-double k0(double x)
+double bessel_di0dx(double x)
 {
   POLYMEC_NOT_IMPLEMENTED
 }
 
-double k1(double x)
+double bessel_di1dx(double x)
 {
   POLYMEC_NOT_IMPLEMENTED
 }
 
-double kn(int n, double x)
+double bessel_dindx(int n, double x)
+{
+  POLYMEC_NOT_IMPLEMENTED
+}
+
+double bessel_k0(double x)
+{
+  POLYMEC_NOT_IMPLEMENTED
+}
+
+double bessel_k1(double x)
+{
+  POLYMEC_NOT_IMPLEMENTED
+}
+
+double bessel_kn(int n, double x)
+{
+  POLYMEC_NOT_IMPLEMENTED
+}
+
+double bessel_dk0dx(double x)
+{
+  POLYMEC_NOT_IMPLEMENTED
+}
+
+double bessel_dk1dx(double x)
+{
+  POLYMEC_NOT_IMPLEMENTED
+}
+
+double bessel_dkndx(int n, double x)
 {
   POLYMEC_NOT_IMPLEMENTED
 }
