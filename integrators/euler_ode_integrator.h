@@ -30,11 +30,12 @@ ode_integrator_t* functional_euler_ode_integrator_new(real_t alpha,
                                                       void (*dtor)(void* context));
 
 // Sets the maximum number of iterations in an integration step.
+// The default is 100.
 void euler_ode_integrator_set_max_iterations(ode_integrator_t* integrator,
                                              int max_iters);
 
 // Sets the relative and absolute tolerances that determine successful
-// convergence of the iteration.
+// convergence of the iteration. The defaults are 1e-4 and 1.0, respectively.
 void euler_ode_integrator_set_tolerances(ode_integrator_t* integrator,
                                          real_t relative_tol, 
                                          real_t absolute_tol);

@@ -81,6 +81,8 @@ static bool euler_step(void* context, real_t max_dt, real_t* t, real_t* x)
         else
           max_rel_change = MAX(max_rel_change, fabs((x_new - x_old)/x_old));
       }
+      log_debug("euler_ode_integrator: iteration %d/%d", i+1, integ->max_iters);
+      log_debug("  max_rel_change = %g, max_abs_change = %g", max_rel_change, max_abs_change);
 
       // Check for convergence.
       if ((max_rel_change < integ->rel_tol) && (max_abs_change < integ->abs_tol))
