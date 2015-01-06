@@ -62,12 +62,17 @@ ifneq ($(FC), )
 endif
 
 # Debugging symbols
-ifneq ($(debug), not-set)
-  BUILDDIR := ${BUILDDIR}-Debug
-  CONFIG_FLAGS += -DCMAKE_BUILD_TYPE=Debug
-else
+ifeq ($(debug), not-set)
   BUILDDIR := ${BUILDDIR}-Release
   CONFIG_FLAGS += -DCMAKE_BUILD_TYPE=Release
+else
+  ifeq ($(debug), 0)
+    BUILDDIR := ${BUILDDIR}-Release
+    CONFIG_FLAGS += -DCMAKE_BUILD_TYPE=Release
+  else
+    BUILDDIR := ${BUILDDIR}-Debug
+    CONFIG_FLAGS += -DCMAKE_BUILD_TYPE=Debug
+  endif
 endif
 
 # Installation prefix.
