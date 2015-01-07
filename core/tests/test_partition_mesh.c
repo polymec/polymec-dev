@@ -24,6 +24,7 @@ void test_partition_linear_mesh(void** state)
 
   // Partition it.
   exchanger_t* distributor = partition_mesh(&mesh, MPI_COMM_WORLD, NULL, 0.05);
+  exchanger_verify(distributor);
   exchanger_free(distributor);
 
   // Check the ghost cells.
@@ -70,6 +71,9 @@ void test_partition_linear_mesh(void** state)
   MPI_Allreduce(&face_areas_are_ok, &cell_volumes_are_ok, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
   assert_true(cell_volumes_are_ok);
   assert_true(face_areas_are_ok);
+
+  // Check the resulting exchanger.
+  exchanger_verify(mesh_exchanger(mesh));
 
   // Plot it.
   double p[mesh->num_cells];

@@ -27,6 +27,7 @@ static void test_repartition_uniform_mesh_of_size(void** state, int nx, int ny, 
 
   // Repartition it.
   exchanger_t* migrator = repartition_mesh(&mesh, NULL, 0.05);
+  exchanger_verify(migrator);
   exchanger_free(migrator);
 
   // Since the mesh is uniform, we can check the properties of each cell.
@@ -46,6 +47,9 @@ printf("%d: V[%d] = %g, should be %g\n", rank, c, mesh->cell_volumes[c], V);
     real_t A = dx * dx;
     assert_true(fabs(mesh->face_areas[f] - A)/A < 1e-14);
   }
+
+  // Check the resulting exchanger.
+  exchanger_verify(mesh_exchanger(mesh));
 
   // Plot it.
   double r[mesh->num_cells];
