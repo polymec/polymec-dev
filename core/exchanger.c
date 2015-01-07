@@ -558,10 +558,59 @@ bool exchanger_next_receive(exchanger_t* ex, int* pos, int* remote_process, int*
   return result;
 }
 
-bool exchanger_is_valid(exchanger_t* ex)
+void exchanger_verify(exchanger_t* ex)
 {
-  // FIXME!!!
-  return true; 
+  // An exchanger is valid/consistent iff the number of elements that 
+  // are exchanged between any two processors are agreed upon between those 
+  // two processors. So we send our expected number of exchanged elements 
+  // to our neighbors, and receive their numbers, and then compare.
+  int num_send_procs = ex->send_map->size;
+  int num_receive_procs = ex->receive_map->size;
+  int num_sent_elements[num_send_procs], 
+      num_elements_expected_by_neighbors[num_send_procs],
+      send_procs[num_send_procs];
+  MPI_Request requests[num_send_procs + num_receive_procs];
+  int pos = 0, proc, *indices, num_indices;
+
+  // Post receives for numbers of elements we send to others.
+  int p = 0;
+  while (exchanger_next_send(ex, &pos, &proc, &indices, &num_indices))
+  {
+    num_sent_elements[p] = num_indices;
+    send_procs[p] = proc;
+    int err = MPI_Irecv(&num_elements_expected_by_neighbors[p], 1, 
+                        MPI_INT, proc, 0, ex->comm, &requests[p]);
+    if (err != MPI_SUCCESS)
+      polymec_error("%d: Could not receive sent element data from %d", ex->rank, proc);
+    ++p;
+  }
+
+  // Send our receive neighbors the number that we expect to receive. This 
+  // means that we will get the number that our neighbors expect to receive,
+  // which should be the same number as what we're sending.
+  pos = p = 0;
+  while (exchanger_next_receive(ex, &pos, &proc, &indices, &num_indices))
+  {
+    int err = MPI_Isend(&num_indices, 1, MPI_INT, proc, 0, ex->comm, &requests[num_send_procs + p]);
+    if (err != MPI_SUCCESS)
+      polymec_error("%d: Could not send number of received elements to %d", ex->rank, proc);
+    ++p;
+  }
+
+  // Wait for messages to fly.
+  MPI_Status statuses[num_send_procs + num_receive_procs];
+  MPI_Waitall(num_send_procs + num_receive_procs, requests, statuses);
+
+  // Now verify that the numbers are the same.
+  for (p = 0; p < num_send_procs; ++p)
+  {
+    if (num_sent_elements[p] != num_elements_expected_by_neighbors[p])
+    {
+      polymec_error("%d: Sending %d elements to proc %d, but %d elements are expected.", 
+                    ex->rank, num_sent_elements[p], send_procs[p],
+                    num_elements_expected_by_neighbors[p]);
+    }
+  }
 }
 
 int exchanger_max_send(exchanger_t* ex)
@@ -994,7 +1043,7 @@ exchanger_fprintf(exchanger_t* ex, FILE* stream)
       fprintf(stream, " [%d] -> [%d]: ", ex->rank, proc);
       for (int j = 0; j < c->num_indices; ++j)
         fprintf(stream, " %d ", c->indices[j]);
-      fprintf(stream, "\n");
+      fprintf(stream, " (%d elements)\n", c->num_indices);
     }
     pos = 0;
     while (exchanger_map_next(ex->receive_map, &pos, &proc, &c))
@@ -1002,7 +1051,7 @@ exchanger_fprintf(exchanger_t* ex, FILE* stream)
       fprintf(stream, " [%d] <- [%d]: ", ex->rank, proc);
       for (int j = 0; j < c->num_indices; ++j)
         fprintf(stream, " %d ", c->indices[j]);
-      fprintf(stream, "\n");
+      fprintf(stream, " (%d elements)\n", c->num_indices);
     }
   }
 #else
