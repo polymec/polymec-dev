@@ -560,6 +560,7 @@ bool exchanger_next_receive(exchanger_t* ex, int* pos, int* remote_process, int*
 
 void exchanger_verify(exchanger_t* ex)
 {
+#if POLYMEC_HAVE_MPI
   // An exchanger is valid/consistent iff the number of elements that 
   // are exchanged between any two processors are agreed upon between those 
   // two processors. So we send our expected number of exchanged elements 
@@ -611,6 +612,7 @@ void exchanger_verify(exchanger_t* ex)
                     num_elements_expected_by_neighbors[p]);
     }
   }
+#endif
 }
 
 int exchanger_max_send(exchanger_t* ex)
