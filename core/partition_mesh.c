@@ -448,7 +448,7 @@ static void mesh_distribute(mesh_t** mesh,
 
   // Now we create the exchanger using the encoded destination ranks.
   int_ptr_unordered_map_t* ghost_cell_indices = int_ptr_unordered_map_new();
-  int num_ghosts = 0;
+  int ghost_index = local_mesh->num_cells;
   for (int f = 0; f < local_mesh->num_faces; ++f)
   {
     if (local_mesh->face_cells[2*f+1] < -1) 
@@ -457,16 +457,18 @@ static void mesh_distribute(mesh_t** mesh,
       int proc = -local_mesh->face_cells[2*f+1] - 2;
       ASSERT(proc >= 0);
       ASSERT(proc < nprocs);
-      local_mesh->face_cells[2*f+1] = num_ghosts;
+
+      // "Decode" the ghost cell.
+      local_mesh->face_cells[2*f+1] = ghost_index;
 
       if (!int_ptr_unordered_map_contains(ghost_cell_indices, proc))
         int_ptr_unordered_map_insert_with_v_dtor(ghost_cell_indices, proc, int_array_new(), DTOR(int_array_free));
       int_array_t* indices = *int_ptr_unordered_map_get(ghost_cell_indices, proc);
       int_array_append(indices, local_mesh->face_cells[2*f]);
-      int_array_append(indices, num_ghosts++);
+      int_array_append(indices, ghost_index++);
     }
   }
-  ASSERT(num_ghosts == local_mesh->num_ghost_cells);
+  ASSERT(ghost_index - local_mesh->num_cells == local_mesh->num_ghost_cells);
   exchanger_t* ex = mesh_exchanger(local_mesh);
   int pos = 0, proc;
   int_array_t* indices;
