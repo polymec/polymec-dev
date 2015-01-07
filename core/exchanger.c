@@ -581,7 +581,7 @@ void exchanger_verify(exchanger_t* ex)
     int err = MPI_Irecv(&num_elements_expected_by_neighbors[p], 1, 
                         MPI_INT, proc, 0, ex->comm, &requests[p]);
     if (err != MPI_SUCCESS)
-      polymec_error("%d: Could not receive sent element data from %d", ex->rank, proc);
+      polymec_error("exchanger_verify: Could not receive sent element data from %d", proc);
     ++p;
   }
 
@@ -593,7 +593,7 @@ void exchanger_verify(exchanger_t* ex)
   {
     int err = MPI_Isend(&num_indices, 1, MPI_INT, proc, 0, ex->comm, &requests[num_send_procs + p]);
     if (err != MPI_SUCCESS)
-      polymec_error("%d: Could not send number of received elements to %d", ex->rank, proc);
+      polymec_error("exchanger_verify: Could not send number of received elements to %d", proc);
     ++p;
   }
 
@@ -606,7 +606,7 @@ void exchanger_verify(exchanger_t* ex)
   {
     if (num_sent_elements[p] != num_elements_expected_by_neighbors[p])
     {
-      polymec_error("%d: Sending %d elements to proc %d, but %d elements are expected.", 
+      polymec_error("exchanger_verify: Sending %d elements to proc %d, but %d elements are expected.", 
                     ex->rank, num_sent_elements[p], send_procs[p],
                     num_elements_expected_by_neighbors[p]);
     }
