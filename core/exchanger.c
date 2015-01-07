@@ -558,7 +558,7 @@ bool exchanger_next_receive(exchanger_t* ex, int* pos, int* remote_process, int*
   return result;
 }
 
-void exchanger_verify(exchanger_t* ex)
+void exchanger_verify(exchanger_t* ex, void (*handler)(const char* format, ...))
 {
 #if POLYMEC_HAVE_MPI
   // An exchanger is valid/consistent iff the number of elements that 
@@ -607,9 +607,9 @@ void exchanger_verify(exchanger_t* ex)
   {
     if (num_sent_elements[p] != num_elements_expected_by_neighbors[p])
     {
-      polymec_error("exchanger_verify: Sending %d elements to proc %d, but %d elements are expected.", 
-                    num_sent_elements[p], send_procs[p],
-                    num_elements_expected_by_neighbors[p]);
+      handler("exchanger_verify: Sending %d elements to proc %d, but %d elements are expected.", 
+              num_sent_elements[p], send_procs[p],
+              num_elements_expected_by_neighbors[p]);
     }
   }
 #endif

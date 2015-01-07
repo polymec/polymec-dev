@@ -24,7 +24,7 @@ void test_partition_linear_mesh(void** state)
 
   // Partition it.
   exchanger_t* distributor = partition_mesh(&mesh, MPI_COMM_WORLD, NULL, 0.05);
-  exchanger_verify(distributor);
+  exchanger_verify(distributor, polymec_error);
   exchanger_free(distributor);
 
   // Check the ghost cells.
@@ -73,7 +73,7 @@ void test_partition_linear_mesh(void** state)
   assert_true(face_areas_are_ok);
 
   // Check the resulting exchanger.
-  exchanger_verify(mesh_exchanger(mesh));
+  exchanger_verify(mesh_exchanger(mesh), polymec_error);
 
   // Plot it.
   double p[mesh->num_cells];

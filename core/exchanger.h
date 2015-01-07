@@ -84,10 +84,11 @@ void exchanger_delete_receive(exchanger_t* ex, int remote_process);
 // Allows the traversal of the set of receive indices for remote processes.
 bool exchanger_next_receive(exchanger_t* ex, int* pos, int* remote_process, int** indices, int* num_indices);
 
-// Verifies the consistency of the exchanger, raising a fatal error in the 
-// case of inconsistency.
-// WARNING: This involves non-local communication and is potentially expensive!
-void exchanger_verify(exchanger_t* ex);
+// Verifies the consistency of the exchanger, raising an error in the 
+// case of inconsistency, using the given error handler. Involves parallel 
+// communication, so make sure it is called by all processes on the communicator 
+// for the exchanger.
+void exchanger_verify(exchanger_t* ex, void (*handler)(const char* format, ...));
 
 // Returns the maximum index to be sent by this exchanger.
 int exchanger_max_send(exchanger_t* ex);
