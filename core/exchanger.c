@@ -607,7 +607,7 @@ void exchanger_verify(exchanger_t* ex)
     if (num_sent_elements[p] != num_elements_expected_by_neighbors[p])
     {
       polymec_error("exchanger_verify: Sending %d elements to proc %d, but %d elements are expected.", 
-                    ex->rank, num_sent_elements[p], send_procs[p],
+                    num_sent_elements[p], send_procs[p],
                     num_elements_expected_by_neighbors[p]);
     }
   }
