@@ -56,6 +56,11 @@ void exchanger_delete_send(exchanger_t* ex, int remote_process);
 // Allows the traversal of the set of send indices for remote processes.
 bool exchanger_next_send(exchanger_t* ex, int* pos, int* remote_process, int** indices, int* num_indices);
 
+// Retrieves the indices and number of indices for a send transaction 
+// with the given process, returning true if such a transaction exists, 
+// false if not.
+bool exchanger_get_send(exchanger_t* ex, int remote_process, int** indices, int* num_indices);
+
 // Establishes a communication pattern in which this exchanger receives data at 
 // the given indices of an array from the given remote process. Note that
 // remote_process must differ from the local rank on the exchanger's communicator.
@@ -83,6 +88,11 @@ void exchanger_delete_receive(exchanger_t* ex, int remote_process);
 
 // Allows the traversal of the set of receive indices for remote processes.
 bool exchanger_next_receive(exchanger_t* ex, int* pos, int* remote_process, int** indices, int* num_indices);
+
+// Retrieves the indices and number of indices for a receive transaction 
+// with the given process, returning true if such a transaction exists, 
+// false if not.
+bool exchanger_get_receive(exchanger_t* ex, int remote_process, int** indices, int* num_indices);
 
 // Verifies the consistency of the exchanger, raising an error in the 
 // case of inconsistency, using the given error handler. Involves parallel 

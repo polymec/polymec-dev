@@ -504,6 +504,20 @@ bool exchanger_next_send(exchanger_t* ex, int* pos, int* remote_process, int** i
   return result;
 }
 
+bool exchanger_get_send(exchanger_t* ex, int remote_process, int** indices, int* num_indices)
+{
+  exchanger_channel_t** c_ptr = exchanger_map_get(ex->send_map, remote_process);
+  if (c_ptr == NULL)
+    return false;
+  else
+  {
+    exchanger_channel_t* c = *c_ptr;
+    *indices = c->indices;
+    *num_indices = c->num_indices;
+    return true;
+  }
+}
+
 void exchanger_set_receive(exchanger_t* ex, int remote_process, int* indices, int num_indices, bool copy_indices)
 {
   ASSERT(remote_process >= 0);
@@ -557,6 +571,21 @@ bool exchanger_next_receive(exchanger_t* ex, int* pos, int* remote_process, int*
   }
   return result;
 }
+
+bool exchanger_get_receive(exchanger_t* ex, int remote_process, int** indices, int* num_indices)
+{
+  exchanger_channel_t** c_ptr = exchanger_map_get(ex->receive_map, remote_process);
+  if (c_ptr == NULL)
+    return false;
+  else
+  {
+    exchanger_channel_t* c = *c_ptr;
+    *indices = c->indices;
+    *num_indices = c->num_indices;
+    return true;
+  }
+}
+
 
 void exchanger_verify(exchanger_t* ex, void (*handler)(const char* format, ...))
 {
