@@ -190,9 +190,11 @@ static mesh_t* create_submesh(MPI_Comm comm, mesh_t* mesh,
     while (mesh_cell_next_face(mesh, cell, &fpos, &face))
     {
       int opp_cell = mesh_face_opp_cell(mesh, face, cell);
-      //if (opp_cell >= mesh->num_cells)
       if ((opp_cell != -1) && !int_unordered_set_contains(cell_set, opp_cell))
+      {
+        int_unordered_set_insert(cell_set, opp_cell);
         ++num_ghost_cells;
+      }
 
       int_unordered_set_insert(face_indices, face);
       int npos = 0, node;
@@ -264,6 +266,11 @@ static mesh_t* create_submesh(MPI_Comm comm, mesh_t* mesh,
     }
   }
 
+  // Create a mapping of parallel boundary faces to global "ghost" cells.
+  // We will use this to create an annotated "parallel_boundary_faces" tag 
+  // in the submesh.
+  int_int_unordered_map_t* parallel_bface_map = int_int_unordered_map_new();
+
   // Copy face cells and face nodes.
   for (int f = 0; f < submesh->num_faces; ++f)
   {
@@ -293,10 +300,12 @@ static mesh_t* create_submesh(MPI_Comm comm, mesh_t* mesh,
         ghost_cell = mesh->face_cells[2*orig_mesh_face];
       }
 
-      // We encode the destination process rank in the ghost cell.
+      // We encode the destination process rank in the ghost cell and stash 
+      // the original ghost index in our parallel boundary face map.
       if (ghost_cell != -1)
       {
         that_cell = -partition[ghost_cell] - 2;
+        int_int_unordered_map_insert(parallel_bface_map, f, ghost_cell);
       }
     }
     submesh->face_cells[2*f] = this_cell;
@@ -309,6 +318,24 @@ static mesh_t* create_submesh(MPI_Comm comm, mesh_t* mesh,
       int subnode = *int_int_unordered_map_get(inverse_node_map, mesh->face_nodes[mesh->face_node_offsets[orig_mesh_face]+n]);
       submesh->face_nodes[submesh->face_node_offsets[f]+n] = subnode;
     }
+  }
+
+  // Create a tag for boundary faces and an associated property for 
+  // global ghost cell indices.
+  {
+    int* pbf_tag = mesh_create_tag(submesh->face_tags, "parallel_boundary_faces", 
+                                   parallel_bface_map->size);
+    int_array_t* pbf_ghost_cells = int_array_new();
+    int pos = 0, face, gcell, i = 0;
+    while (int_int_unordered_map_next(parallel_bface_map, &pos, &face, &gcell))
+    {
+      pbf_tag[i] = face;
+      int_array_append(pbf_ghost_cells, gcell);
+      ++i;
+    }
+    serializer_t* s = int_array_serializer();
+    mesh_tag_set_property(submesh->face_tags, "parallel_boundary_faces", 
+                          "ghost_cell_indices", pbf_ghost_cells, s);
   }
 
   // Copy node positions.
@@ -359,6 +386,13 @@ static void mesh_distribute(mesh_t** mesh,
 
   // Make sure we're all here.
   MPI_Barrier(comm);
+
+  // We use the int_array serializer, so we need to make sure it's 
+  // registered on all processes. See serializer.h for details.
+  {
+    serializer_t* s = int_array_serializer();
+    s = NULL;
+  }
 
   mesh_t* global_mesh = *mesh;
   mesh_t* local_mesh = NULL;
@@ -446,29 +480,53 @@ static void mesh_distribute(mesh_t** mesh,
   if (global_mesh != NULL)
     mesh_free(global_mesh);
 
+  // Extract the boundary faces and the original (global) ghost cell indices
+  // associated with them.
+  ASSERT(mesh_has_tag(local_mesh->face_tags, "parallel_boundary_faces"));
+  int num_pbfaces;
+  int* pbfaces = mesh_tag(local_mesh->face_tags, "parallel_boundary_faces", &num_pbfaces);
+  int_array_t* pbgcells = mesh_tag_property(local_mesh->face_tags, "parallel_boundary_faces", 
+                                            "ghost_cell_indices");
+  ASSERT(pbgcells != NULL);
+
+  // We map the above global ghost cell indices to new local ones.
+  int_int_unordered_map_t* ghost_cell_map = int_int_unordered_map_new();
+
   // Now we create the exchanger using the encoded destination ranks.
   int_ptr_unordered_map_t* ghost_cell_indices = int_ptr_unordered_map_new();
-  int ghost_index = local_mesh->num_cells;
-  for (int f = 0; f < local_mesh->num_faces; ++f)
+  int next_ghost_index = local_mesh->num_cells;
+  for (int i = 0; i < num_pbfaces; ++i)
   {
-    if (local_mesh->face_cells[2*f+1] < -1) 
+    int f = pbfaces[i];
+    ASSERT(local_mesh->face_cells[2*f+1] < -1);
+    // Get the destination process for this ghost cell.
+    int proc = -local_mesh->face_cells[2*f+1] - 2;
+    ASSERT(proc >= 0);
+    ASSERT(proc < nprocs);
+
+    // "Decode" the ghost cell.
+    int global_ghost_index = pbgcells->data[i];
+    int* ghost_index_p = int_int_unordered_map_get(ghost_cell_map, global_ghost_index);
+    int ghost_index;
+    if (ghost_index_p != NULL)
+      ghost_index = *ghost_index_p;
+    else
     {
-      // Get the destination process for this ghost cell.
-      int proc = -local_mesh->face_cells[2*f+1] - 2;
-      ASSERT(proc >= 0);
-      ASSERT(proc < nprocs);
-
-      // "Decode" the ghost cell.
-      local_mesh->face_cells[2*f+1] = ghost_index;
-
-      if (!int_ptr_unordered_map_contains(ghost_cell_indices, proc))
-        int_ptr_unordered_map_insert_with_v_dtor(ghost_cell_indices, proc, int_array_new(), DTOR(int_array_free));
-      int_array_t* indices = *int_ptr_unordered_map_get(ghost_cell_indices, proc);
-      int_array_append(indices, local_mesh->face_cells[2*f]);
-      int_array_append(indices, ghost_index++);
+      ghost_index = next_ghost_index++;
+      int_int_unordered_map_insert(ghost_cell_map, global_ghost_index, ghost_index);
     }
+    local_mesh->face_cells[2*f+1] = ghost_index;
+
+    if (!int_ptr_unordered_map_contains(ghost_cell_indices, proc))
+      int_ptr_unordered_map_insert_with_v_dtor(ghost_cell_indices, proc, int_array_new(), DTOR(int_array_free));
+    int_array_t* indices = *int_ptr_unordered_map_get(ghost_cell_indices, proc);
+    int_array_append(indices, local_mesh->face_cells[2*f]);
+    int_array_append(indices, ghost_index++);
   }
-  ASSERT(ghost_index - local_mesh->num_cells == local_mesh->num_ghost_cells);
+
+  // Make sure everything lines up.
+  ASSERT(next_ghost_index - local_mesh->num_cells == local_mesh->num_ghost_cells);
+
   exchanger_t* ex = mesh_exchanger(local_mesh);
   int pos = 0, proc;
   int_array_t* indices;
@@ -491,6 +549,10 @@ static void mesh_distribute(mesh_t** mesh,
 
   // Clean up again.
   int_ptr_unordered_map_free(ghost_cell_indices);
+  int_int_unordered_map_free(ghost_cell_map);
+
+  // Destroy the parallel boundary tag and its data.
+  mesh_delete_tag(local_mesh->face_tags, "parallel_boundary_faces");
 }
 
 // This helper creates an array containing an index map that removes "holes" 
