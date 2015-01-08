@@ -93,14 +93,14 @@ static size_t cl_byte_size(void* obj)
 static void* cl_byte_read(byte_array_t* bytes, size_t* offset)
 {
   uint64_t data[3];
-  byte_array_read_uint64s(bytes, 3, data, offset);
+  byte_array_read_uint64_ts(bytes, 3, data, offset);
   return cubic_lattice_new(data[0], data[1], data[2]);
 }
 
 static void cl_byte_write(void* obj, byte_array_t* bytes, size_t* offset)
 {
   uint64_t* l = obj;
-  byte_array_write_uint64s(bytes, 3, l, offset);
+  byte_array_write_uint64_ts(bytes, 3, l, offset);
 }
 
 serializer_t* cubic_lattice_serializer()

@@ -185,28 +185,56 @@ void byte_array_write_long_longs(byte_array_t* byte_stream, size_t n, long long*
   *offset += sizeof(long long) * n;
 }
 
-void byte_array_read_uint64s(byte_array_t* byte_stream, size_t n, uint64_t* data, size_t* offset)
+void byte_array_read_index_ts(byte_array_t* byte_stream, size_t n, index_t* data, size_t* offset)
+{
+  ASSERT(*offset <= byte_stream->size - sizeof(index_t) * n);
+  memcpy(data, &byte_stream->data[*offset], sizeof(index_t) * n);
+  *offset += n * sizeof(index_t);
+}
+
+void byte_array_write_index_ts(byte_array_t* byte_stream, size_t n, index_t* data, size_t* offset)
+{
+  byte_array_resize(byte_stream, *offset + n * sizeof(index_t));
+  memcpy(&byte_stream->data[*offset], data, sizeof(index_t) * n);
+  *offset += sizeof(index_t) * n;
+}
+
+void byte_array_read_uint64_ts(byte_array_t* byte_stream, size_t n, uint64_t* data, size_t* offset)
 {
   ASSERT(*offset <= byte_stream->size - sizeof(uint64_t) * n);
   memcpy(data, &byte_stream->data[*offset], sizeof(uint64_t) * n);
   *offset += n * sizeof(uint64_t);
 }
 
-void byte_array_write_uint64s(byte_array_t* byte_stream, size_t n, uint64_t* data, size_t* offset)
+void byte_array_write_uint64_ts(byte_array_t* byte_stream, size_t n, uint64_t* data, size_t* offset)
 {
   byte_array_resize(byte_stream, *offset + n * sizeof(uint64_t));
   memcpy(&byte_stream->data[*offset], data, sizeof(uint64_t) * n);
   *offset += sizeof(uint64_t) * n;
 }
 
-void byte_array_read_reals(byte_array_t* byte_stream, size_t n, real_t* data, size_t* offset)
+void byte_array_read_size_ts(byte_array_t* byte_stream, size_t n, size_t* data, size_t* offset)
+{
+  ASSERT(*offset <= byte_stream->size - sizeof(size_t) * n);
+  memcpy(data, &byte_stream->data[*offset], sizeof(size_t) * n);
+  *offset += n * sizeof(size_t);
+}
+
+void byte_array_write_size_ts(byte_array_t* byte_stream, size_t n, size_t* data, size_t* offset)
+{
+  byte_array_resize(byte_stream, *offset + n * sizeof(size_t));
+  memcpy(&byte_stream->data[*offset], data, sizeof(size_t) * n);
+  *offset += sizeof(size_t) * n;
+}
+
+void byte_array_read_real_ts(byte_array_t* byte_stream, size_t n, real_t* data, size_t* offset)
 {
   ASSERT(*offset <= byte_stream->size - sizeof(real_t) * n);
   memcpy(data, &byte_stream->data[*offset], sizeof(real_t) * n);
   *offset += n * sizeof(real_t);
 }
 
-void byte_array_write_reals(byte_array_t* byte_stream, size_t n, real_t* data, size_t* offset)
+void byte_array_write_real_ts(byte_array_t* byte_stream, size_t n, real_t* data, size_t* offset)
 {
   byte_array_resize(byte_stream, *offset + n * sizeof(real_t));
   memcpy(&byte_stream->data[*offset], data, sizeof(real_t) * n);
@@ -279,14 +307,14 @@ static size_t bb_byte_size(void* obj)
 static void* bb_byte_read(byte_array_t* bytes, size_t* offset)
 {
   real_t data[6];
-  byte_array_read_reals(bytes, 6, data, offset);
+  byte_array_read_real_ts(bytes, 6, data, offset);
   return bbox_new(data[0], data[1], data[2], data[3], data[4], data[5]);
 }
 
 static void bb_byte_write(void* obj, byte_array_t* bytes, size_t* offset)
 {
   real_t* b = obj;
-  byte_array_write_reals(bytes, 6, b, offset);
+  byte_array_write_real_ts(bytes, 6, b, offset);
 }
 
 serializer_t* bbox_serializer()
@@ -294,4 +322,40 @@ serializer_t* bbox_serializer()
   return serializer_new("bbox", bb_byte_size,
                         bb_byte_read, bb_byte_write, NULL);
 }
+
+#define DEFINE_ARRAY_SERIALIZER(array_name, element) \
+static size_t array_name##_byte_size(void* obj) \
+{ \
+  array_name##_t* a = obj; \
+  return sizeof(size_t) + sizeof(size_t) + sizeof(element) * a->size; \
+} \
+\
+static void* array_name##_byte_read(byte_array_t* bytes, size_t* offset) \
+{ \
+  size_t size, capacity; \
+  byte_array_read_size_ts(bytes, 1, &size, offset); \
+  byte_array_read_size_ts(bytes, 1, &capacity, offset); \
+  ASSERT(capacity >= size); \
+  array_name##_t* a = array_name##_new_with_capacity(capacity); \
+  byte_array_read_##element##s(bytes, size, a->data, offset); \
+  return a; \
+} \
+\
+static void array_name##_byte_write(void* obj, byte_array_t* bytes, size_t* offset) \
+{ \
+  array_name##_t* a = obj; \
+  byte_array_write_size_ts(bytes, 1, &a->size, offset); \
+  byte_array_write_size_ts(bytes, 1, &a->capacity, offset); \
+  byte_array_write_##element##s(bytes, a->size, a->data, offset); \
+} \
+\
+serializer_t* array_name##_serializer() \
+{ \
+  return serializer_new(#array_name, array_name##_byte_size, \
+                        array_name##_byte_read, array_name##_byte_write, NULL); \
+} \
+
+DEFINE_ARRAY_SERIALIZER(int_array, int)
+DEFINE_ARRAY_SERIALIZER(index_array, index_t)
+DEFINE_ARRAY_SERIALIZER(real_array, real_t)
 

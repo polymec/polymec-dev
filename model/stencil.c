@@ -96,7 +96,7 @@ static void* stencil_byte_read(byte_array_t* bytes, size_t* offset)
   byte_array_read_ints(bytes, 1, &num_weights, offset);
   real_t* weights = NULL;
   if (num_weights > 0)
-    byte_array_read_reals(bytes, num_weights, weights, offset);
+    byte_array_read_real_ts(bytes, num_weights, weights, offset);
 
   // Exchanger stuff.
   serializer_t* ser = exchanger_serializer();
@@ -123,7 +123,7 @@ static void stencil_byte_write(void* obj, byte_array_t* bytes, size_t* offset)
   if (stencil->weights != NULL)
   {
     byte_array_write_ints(bytes, 1, &max_offset, offset);
-    byte_array_write_reals(bytes, max_offset, stencil->weights, offset);
+    byte_array_write_real_ts(bytes, max_offset, stencil->weights, offset);
   }
   else
   {

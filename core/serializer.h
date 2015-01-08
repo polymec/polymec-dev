@@ -98,19 +98,33 @@ void byte_array_read_long_longs(byte_array_t* byte_stream, size_t n, long long* 
 // Writes n long longs to the byte array at the given offset, updating the offset.
 void byte_array_write_long_longs(byte_array_t* byte_stream, size_t n, long long* data, size_t* offset);
 
-// Reads n uint64s from the byte array at the given offset, 
+// Reads n index_ts from the byte array at the given offset, 
 // placing it into the data array and updating the offset.
-void byte_array_read_uint64s(byte_array_t* byte_stream, size_t n, uint64_t* data, size_t* offset);
+void byte_array_read_index_ts(byte_array_t* byte_stream, size_t n, index_t* data, size_t* offset);
+
+// Writes n index_ts to the byte array at the given offset, updating the offset.
+void byte_array_write_index_ts(byte_array_t* byte_stream, size_t n, index_t* data, size_t* offset);
+
+// Reads n uint64_ts from the byte array at the given offset, 
+// placing it into the data array and updating the offset.
+void byte_array_read_uint64_ts(byte_array_t* byte_stream, size_t n, uint64_t* data, size_t* offset);
+
+// Writes n uint64_ts to the byte array at the given offset, updating the offset.
+void byte_array_write_uint64_ts(byte_array_t* byte_stream, size_t n, uint64_t* data, size_t* offset);
+
+// Reads n size_ts from the byte array at the given offset, 
+// placing it into the data array and updating the offset.
+void byte_array_read_size_ts(byte_array_t* byte_stream, size_t n, size_t* data, size_t* offset);
 
 // Writes n uint64s to the byte array at the given offset, updating the offset.
-void byte_array_write_uint64s(byte_array_t* byte_stream, size_t n, uint64_t* data, size_t* offset);
+void byte_array_write_size_ts(byte_array_t* byte_stream, size_t n, size_t* data, size_t* offset);
 
 // Reads n reals from the byte array at the given offset, 
 // placing it into the data array and updating the offset.
-void byte_array_read_reals(byte_array_t* byte_stream, size_t n, real_t* data, size_t* offset);
+void byte_array_read_real_ts(byte_array_t* byte_stream, size_t n, real_t* data, size_t* offset);
 
 // Writes n reals to the byte array at the given offset, updating the offset.
-void byte_array_write_reals(byte_array_t* byte_stream, size_t n, real_t* data, size_t* offset);
+void byte_array_write_real_ts(byte_array_t* byte_stream, size_t n, real_t* data, size_t* offset);
 
 // Reads n points from the byte array at the given offset, 
 // placing it into the data array and updating the offset.
@@ -129,7 +143,9 @@ void byte_array_write_vectors(byte_array_t* byte_stream, size_t n, vector_t* dat
 // Speaking of primitives, we bundle serializers for some primitive types.
 serializer_t* string_serializer();
 serializer_t* bbox_serializer();
-
+serializer_t* int_array_serializer();
+serializer_t* index_array_serializer();
+serializer_t* real_array_serializer();
 // FIXME: More to come as needed.
 
 #endif
