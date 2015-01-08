@@ -745,42 +745,38 @@ exchanger_t* mesh_face_exchanger_new(mesh_t* mesh)
   // Traverse the send cells and create send "faces."
   int_array_t* send_faces = int_array_new();
   int_array_t* receive_faces = int_array_new();
-  int_unordered_set_t* receive_cells = int_unordered_set_new();
-  int pos = 0, proc, *indices, size; 
-  while (exchanger_next_send(cell_ex, &pos, &proc, &indices, &size))
+  int pos = 0, proc, *s_indices, s_size; 
+  while (exchanger_next_send(cell_ex, &pos, &proc, &s_indices, &s_size))
   {
     int_array_clear(send_faces);
     int_array_clear(receive_faces);
-    int_unordered_set_clear(receive_cells);
 
-    // Dump all the receive cells for this process into a set for 
-    // easy querying.
-    int rpos = 0, rproc, *r_indices, r_size; 
-    while (exchanger_next_receive(cell_ex, &rpos, &rproc, &r_indices, &r_size))
-    {
-      if (rproc == proc)
-      {
-        for (int i = 0; i < r_size; ++i)
-          int_unordered_set_insert(receive_cells, r_indices[i]);
-      }
-    }
+    // Get the receive transaction corresponding to this send one.
+    int *r_indices, r_size; 
+    bool have_it = exchanger_get_receive(cell_ex, proc, &r_indices, &r_size);
+    ASSERT(have_it);
 
-    // Now find send/receive faces by associating send/receive cells.
-    for (int i = 0; i < size; ++i)
+    // Now find the face separating each pair of cells.
+    ASSERT(r_size == s_size);
+    for (int i = 0; i < s_size; ++i)
     {
-      int cell = indices[i];
+      int s_cell = s_indices[i];
+      int r_cell = r_indices[i];
+
       int fpos = 0, face;
-      while (mesh_cell_next_face(mesh, cell, &fpos, &face))
+      while (mesh_cell_next_face(mesh, s_cell, &fpos, &face))
       {
-        int neighbor = mesh_face_opp_cell(mesh, face, cell);
-        if ((neighbor >= mesh->num_cells) && 
-            (int_unordered_set_contains(receive_cells, neighbor)))
+        int neighbor = mesh_face_opp_cell(mesh, face, s_cell);
+        if (neighbor == r_cell)
         {
           int_array_append(send_faces, 2*face);
           int_array_append(receive_faces, 2*face+1);
+          break;
         }
       }
     }
+
+    // Set up the exchange.
     if (send_faces->size > 0)
       exchanger_set_send(ex, proc, send_faces->data, send_faces->size, true);
     if (receive_faces->size > 0)
@@ -788,7 +784,6 @@ exchanger_t* mesh_face_exchanger_new(mesh_t* mesh)
   }
   int_array_free(send_faces);
   int_array_free(receive_faces);
-  int_unordered_set_free(receive_cells);
 #endif
   return ex;
 }
