@@ -550,15 +550,40 @@ static void mesh_distribute(mesh_t** mesh,
 
       // Sort the indices array lexicographically by pairs so that all of the 
       // exchanger send/receive transactions have the same order across 
-      // processes.
+      // processes. First we need to arrange the integers within the pairs in
+      // ascending order, then switch them back afterward.
+      for (int i = 0; i < num_pairs; ++i)
+      {
+        if (indices->data[2*i] > indices->data[2*i+1])
+        {
+          int temp = indices->data[2*i];
+          indices->data[2*i] = indices->data[2*i+1];
+          indices->data[2*i+1] = temp;
+        }
+      }
       int_pair_qsort(indices->data, num_pairs);
+      for (int i = 0; i < num_pairs; ++i)
+      {
+        int first_local_cell = *int_int_unordered_map_get(inverse_cell_map, indices->data[2*i]);
+        if (first_local_cell >= local_mesh->num_cells) // we were switched!
+        {
+          int temp = indices->data[2*i];
+          indices->data[2*i] = indices->data[2*i+1];
+          indices->data[2*i+1] = temp;
+        }
+      }
 
       int send_indices[num_pairs], recv_indices[num_pairs];
+//printf("%d -> %d: ", rank, proc);
       for (int i = 0; i < num_pairs; ++i)
       {
         send_indices[i] = *int_int_unordered_map_get(inverse_cell_map, indices->data[2*i]);
         recv_indices[i] = *int_int_unordered_map_get(inverse_cell_map, indices->data[2*i+1]);
+//printf("(%d, %d) ", indices->data[2*i], indices->data[2*i+1]);
+//point_t* x = &local_mesh->cell_centers[i];
+//printf("%d: send cell to %d at (%g, %g, %g)\n", rank, proc, x->x, x->y, x->z);
       }
+//printf("\n");
       exchanger_set_send(ex, proc, send_indices, num_pairs, true);
       exchanger_set_receive(ex, proc, recv_indices, num_pairs, true);
     }
