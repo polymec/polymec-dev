@@ -8,6 +8,7 @@
 #include "core/partition_mesh.h"
 
 #if POLYMEC_HAVE_MPI
+#include "core/array_utils.h"
 #include "core/unordered_set.h"
 #include "core/kd_tree.h"
 #include "core/hilbert.h"
@@ -321,7 +322,7 @@ static mesh_t* create_submesh(MPI_Comm comm, mesh_t* mesh,
   }
 
   // Create a tag for boundary faces and an associated property for 
-  // global ghost cell indices.
+  // global ghost cell indices. 
   {
     int* pbf_tag = mesh_create_tag(submesh->face_tags, "parallel_boundary_faces", 
                                    parallel_bface_map->size);
@@ -336,7 +337,14 @@ static mesh_t* create_submesh(MPI_Comm comm, mesh_t* mesh,
     serializer_t* s = int_array_serializer();
     mesh_tag_set_property(submesh->face_tags, "parallel_boundary_faces", 
                           "ghost_cell_indices", pbf_ghost_cells, s);
+
+    // Also set up a copy of the  array of global cell indices.
+    int_array_t* global_cell_indices = int_array_new();
+    int_array_resize(global_cell_indices, num_indices);
+    memcpy(global_cell_indices->data, indices, sizeof(int) * num_indices);
+    mesh_set_property(submesh, "global_cell_indices", global_cell_indices, s);
   }
+  int_int_unordered_map_free(parallel_bface_map);
 
   // Copy node positions.
   for (int n = 0; n < submesh->num_nodes; ++n)
@@ -488,11 +496,15 @@ static void mesh_distribute(mesh_t** mesh,
   int_array_t* pbgcells = mesh_tag_property(local_mesh->face_tags, "parallel_boundary_faces", 
                                             "ghost_cell_indices");
   ASSERT(pbgcells != NULL);
+  int_array_t* global_cell_indices = mesh_property(local_mesh, "global_cell_indices");
+  ASSERT(global_cell_indices != NULL);
 
-  // We map the above global ghost cell indices to new local ones.
-  int_int_unordered_map_t* ghost_cell_map = int_int_unordered_map_new();
+  // Here's an inverse map for global cell indices to the local ones we have.
+  int_int_unordered_map_t* inverse_cell_map = int_int_unordered_map_new();
+  for (int i = 0; i < local_mesh->num_cells; ++i)
+    int_int_unordered_map_insert(inverse_cell_map, global_cell_indices->data[i], i);
 
-  // Now we create the exchanger using the encoded destination ranks.
+  // Now we create pairwise global cell indices for the exchanger.
   int_ptr_unordered_map_t* ghost_cell_indices = int_ptr_unordered_map_new();
   int next_ghost_index = local_mesh->num_cells;
   for (int i = 0; i < num_pbfaces; ++i)
@@ -504,24 +516,19 @@ static void mesh_distribute(mesh_t** mesh,
     ASSERT(proc >= 0);
     ASSERT(proc < nprocs);
 
-    // "Decode" the ghost cell.
+    // Generate a mapping from a global index to its ghost cell.
     int global_ghost_index = pbgcells->data[i];
-    int* ghost_index_p = int_int_unordered_map_get(ghost_cell_map, global_ghost_index);
-    int ghost_index;
-    if (ghost_index_p != NULL)
-      ghost_index = *ghost_index_p;
-    else
-    {
-      ghost_index = next_ghost_index++;
-      int_int_unordered_map_insert(ghost_cell_map, global_ghost_index, ghost_index);
-    }
-    local_mesh->face_cells[2*f+1] = ghost_index;
+    int* ghost_index_p = int_int_unordered_map_get(inverse_cell_map, global_ghost_index);
+    if (ghost_index_p == NULL)
+      int_int_unordered_map_insert(inverse_cell_map, global_ghost_index, next_ghost_index++);
 
     if (!int_ptr_unordered_map_contains(ghost_cell_indices, proc))
       int_ptr_unordered_map_insert_with_v_dtor(ghost_cell_indices, proc, int_array_new(), DTOR(int_array_free));
     int_array_t* indices = *int_ptr_unordered_map_get(ghost_cell_indices, proc);
-    int_array_append(indices, local_mesh->face_cells[2*f]);
-    int_array_append(indices, ghost_index++);
+    int local_cell = local_mesh->face_cells[2*f];
+    int global_cell = global_cell_indices->data[local_cell];
+    int_array_append(indices, global_cell);
+    int_array_append(indices, global_ghost_index);
   }
 
   // Make sure everything lines up.
@@ -536,11 +543,17 @@ static void mesh_distribute(mesh_t** mesh,
     {
       ASSERT((indices->size > 0) && ((indices->size % 2) == 0));
       int num_pairs = indices->size/2;
+
+      // Sort the indices array lexicographically by pairs so that all of the 
+      // exchanger send/receive transactions have the same order across 
+      // processes.
+      int_pair_qsort(indices->data, num_pairs);
+
       int send_indices[num_pairs], recv_indices[num_pairs];
       for (int i = 0; i < num_pairs; ++i)
       {
-        send_indices[i] = indices->data[2*i];
-        recv_indices[i] = indices->data[2*i+1];
+        send_indices[i] = *int_int_unordered_map_get(inverse_cell_map, indices->data[2*i]);
+        recv_indices[i] = *int_int_unordered_map_get(inverse_cell_map, indices->data[2*i+1]);
       }
       exchanger_set_send(ex, proc, send_indices, num_pairs, true);
       exchanger_set_receive(ex, proc, recv_indices, num_pairs, true);
@@ -549,10 +562,12 @@ static void mesh_distribute(mesh_t** mesh,
 
   // Clean up again.
   int_ptr_unordered_map_free(ghost_cell_indices);
-  int_int_unordered_map_free(ghost_cell_map);
+  int_int_unordered_map_free(inverse_cell_map);
 
-  // Destroy the parallel boundary tag and its data.
+  // Destroy the tag and global cell index properties. We don't want to have 
+  // to rely on them further.
   mesh_delete_tag(local_mesh->face_tags, "parallel_boundary_faces");
+  mesh_delete_property(local_mesh, "global_cell_indices");
 }
 
 // This helper creates an array containing an index map that removes "holes" 
