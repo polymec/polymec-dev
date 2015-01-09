@@ -37,6 +37,15 @@ static inline int real_bsearch_comp(const void* l, const void* r)
                                : 0;
 }
 
+// Integer pair binary search comparison function.
+static inline int int_pair_bsearch_comp(const void* l, const void* r)
+{
+  int *li = (int*)l, *ri = (int*)r;
+  return (li[0] < ri[0]) ? -1
+                   : (li[0] == ri[0]) ? ((li[1] < ri[1]) ? -1 : (li[1] > ri[1]) ? 1 : 0)
+                   : 1;
+}
+
 // Executes a linear search for an element in an unsorted array of integers, 
 // returning a pointer to the element if it's found and NULL if it's not.
 int* int_lsearch(int* array, int length, int element);
@@ -51,6 +60,9 @@ int int_lower_bound(int* array, int length, int element);
 
 // Sorts (in-place) the elements in an array of integers. Uses qsort().
 void int_qsort(int* array, int length);
+
+// Sorts (in-place) the elements in an array of integer pairs. Uses qsort().
+void int_pair_qsort(int* array, int length);
 
 // Executes a linear search for an element in an unsorted array of indices, 
 // returning a pointer to the element if it's found and NULL if it's not.

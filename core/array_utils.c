@@ -53,6 +53,11 @@ void int_qsort(int* array, int length)
   qsort(array, (size_t)length, sizeof(int), int_bsearch_comp);
 }
 
+void int_pair_qsort(int* array, int length)
+{
+  qsort(array, (size_t)length, 2*sizeof(int), int_pair_bsearch_comp);
+}
+
 index_t* index_lsearch(index_t* array, int length, index_t element)
 {
   for (int i = 0; i < length; ++i)
