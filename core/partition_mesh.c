@@ -520,7 +520,11 @@ static void mesh_distribute(mesh_t** mesh,
     int global_ghost_index = pbgcells->data[i];
     int* ghost_index_p = int_int_unordered_map_get(inverse_cell_map, global_ghost_index);
     if (ghost_index_p == NULL)
-      int_int_unordered_map_insert(inverse_cell_map, global_ghost_index, next_ghost_index++);
+    {
+      int local_ghost_index = next_ghost_index++;
+      local_mesh->face_cells[2*f+1] = local_ghost_index;
+      int_int_unordered_map_insert(inverse_cell_map, global_ghost_index, local_ghost_index);
+    }
 
     if (!int_ptr_unordered_map_contains(ghost_cell_indices, proc))
       int_ptr_unordered_map_insert_with_v_dtor(ghost_cell_indices, proc, int_array_new(), DTOR(int_array_free));
