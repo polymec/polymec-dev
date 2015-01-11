@@ -764,7 +764,6 @@ exchanger_t* mesh_face_exchanger_new(mesh_t* mesh)
       int r_cell = r_indices[i];
 
       int fpos = 0, face;
-bool foundit = false;
       while (mesh_cell_next_face(mesh, s_cell, &fpos, &face))
       {
         int neighbor = mesh_face_opp_cell(mesh, face, s_cell);
@@ -772,17 +771,10 @@ bool foundit = false;
         {
           int_array_append(send_faces, 2*face);
           int_array_append(receive_faces, 2*face+1);
-foundit = true;
           break;
         }
       }
-if (!foundit)
-{
-point_t* x = &mesh->cell_centers[s_cell];
-printf("cell %d at x = (%g, %g, %g) has no buddy!\n", s_cell, x->x, x->y, x->z);
-}
     }
-printf("%d send faces (vs %d)\n", send_faces->size, s_size);
     ASSERT(send_faces->size == s_size);
     ASSERT(receive_faces->size == r_size);
 

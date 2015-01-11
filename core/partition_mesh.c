@@ -383,6 +383,42 @@ static mesh_t* create_submesh(MPI_Comm comm, mesh_t* mesh,
   return submesh;
 }
 
+static void sort_global_cell_pairs(int* indices, int num_pairs)
+{
+  int data[3*num_pairs]; // (i, j, swapped) for each pair
+  for (int i = 0; i < num_pairs; ++i)
+  {
+    if (indices[2*i] > indices[2*i+1])
+    {
+      data[3*i]   = indices[2*i+1];
+      data[3*i+1] = indices[2*i];
+      data[3*i+2] = 1;
+    }
+    else
+    {
+      data[3*i]   = indices[2*i];
+      data[3*i+1] = indices[2*i+1];
+      data[3*i+2] = 0;
+    }
+  }
+  // We can sort using the ordinary integer pair comparator, since the 
+  // swapped flag doesn't affect the ordering.
+  qsort(data, (size_t)num_pairs, 3*sizeof(int), int_pair_bsearch_comp);
+  for (int i = 0; i < num_pairs; ++i)
+  {
+    if (data[3*i+2] == 1) // swapped
+    {
+      indices[2*i]   = data[3*i+1];
+      indices[2*i+1] = data[3*i];
+    }
+    else
+    {
+      indices[2*i]   = data[3*i];
+      indices[2*i+1] = data[3*i+1];
+    }
+  }
+}
+
 static void mesh_distribute(mesh_t** mesh, 
                             MPI_Comm comm,
                             adj_graph_t* global_graph, 
@@ -518,13 +554,16 @@ static void mesh_distribute(mesh_t** mesh,
 
     // Generate a mapping from a global index to its ghost cell.
     int global_ghost_index = pbgcells->data[i];
+    int local_ghost_index;
     int* ghost_index_p = int_int_unordered_map_get(inverse_cell_map, global_ghost_index);
     if (ghost_index_p == NULL)
     {
-      int local_ghost_index = next_ghost_index++;
-      local_mesh->face_cells[2*f+1] = local_ghost_index;
+      local_ghost_index = next_ghost_index++;
       int_int_unordered_map_insert(inverse_cell_map, global_ghost_index, local_ghost_index);
     }
+    else
+      local_ghost_index = *ghost_index_p;
+    local_mesh->face_cells[2*f+1] = local_ghost_index;
 
     if (!int_ptr_unordered_map_contains(ghost_cell_indices, proc))
       int_ptr_unordered_map_insert_with_v_dtor(ghost_cell_indices, proc, int_array_new(), DTOR(int_array_free));
@@ -550,40 +589,19 @@ static void mesh_distribute(mesh_t** mesh,
 
       // Sort the indices array lexicographically by pairs so that all of the 
       // exchanger send/receive transactions have the same order across 
-      // processes. First we need to arrange the integers within the pairs in
-      // ascending order, then switch them back afterward.
-      for (int i = 0; i < num_pairs; ++i)
-      {
-        if (indices->data[2*i] > indices->data[2*i+1])
-        {
-          int temp = indices->data[2*i];
-          indices->data[2*i] = indices->data[2*i+1];
-          indices->data[2*i+1] = temp;
-        }
-      }
-      int_pair_qsort(indices->data, num_pairs);
-      for (int i = 0; i < num_pairs; ++i)
-      {
-        int first_local_cell = *int_int_unordered_map_get(inverse_cell_map, indices->data[2*i]);
-        if (first_local_cell >= local_mesh->num_cells) // we were switched!
-        {
-          int temp = indices->data[2*i];
-          indices->data[2*i] = indices->data[2*i+1];
-          indices->data[2*i+1] = temp;
-        }
-      }
-
+      // processes. This requires a specialized sort, since we have to 
+      // arrange the integers within the pairs in ascending order, sort 
+      // them, and then switch them back.
+      sort_global_cell_pairs(indices->data, num_pairs);
+      
       int send_indices[num_pairs], recv_indices[num_pairs];
-//printf("%d -> %d: ", rank, proc);
       for (int i = 0; i < num_pairs; ++i)
       {
         send_indices[i] = *int_int_unordered_map_get(inverse_cell_map, indices->data[2*i]);
+        ASSERT(send_indices[i] < local_mesh->num_cells);
         recv_indices[i] = *int_int_unordered_map_get(inverse_cell_map, indices->data[2*i+1]);
-//printf("(%d, %d) ", indices->data[2*i], indices->data[2*i+1]);
-//point_t* x = &local_mesh->cell_centers[i];
-//printf("%d: send cell to %d at (%g, %g, %g)\n", rank, proc, x->x, x->y, x->z);
+        ASSERT(recv_indices[i] >= local_mesh->num_cells);
       }
-//printf("\n");
       exchanger_set_send(ex, proc, send_indices, num_pairs, true);
       exchanger_set_receive(ex, proc, recv_indices, num_pairs, true);
     }
