@@ -397,7 +397,19 @@ serializer_t* mesh_serializer();
 // the cth (0th or 1st) value of the (local) face. Local values are associated 
 // with cell 0 of local faces on parallel domain boundaries, and remote values
 // are associated with cell 1.
+// No communication is required to construct a face exchanger.
 exchanger_t* mesh_face_exchanger_new(mesh_t* mesh);
+
+// Creates and returns a newly-allocated exchanger that allows the exchange 
+// of node-related values from local to remote processes. The array to be 
+// exchanged should be of length stride * mesh->num_nodes, and the data on 
+// nodes is rendered "consistent" in the sense that the information on each 
+// node will be made the same on all processes. The "true" value used for the 
+// nodal information is taken from the process on which it appears, having the 
+// lowest rank. In this sense, this process "owns" the node and determines 
+// its true data.
+// Communication is required to construct a node exchanger.
+exchanger_t* mesh_node_exchanger_new(mesh_t* mesh);
 
 // This function constructs an adjacency graph expressing the connectivity of 
 // the cells of the given mesh.
