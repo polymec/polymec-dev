@@ -19,10 +19,9 @@
 // 1 a backward Euler method. The integrator is constructed for a system of 
 // ordinary differential equations (with given numbers of local and remote 
 // values, for parallel capability), using a context pointer, a 
-// right-hand side function, and a destructor. This integrator does not manage
-// parallelism--it only leaves room for remote values that you specify, and 
-// these values are assumed to be at the end of the solution vector.
-ode_integrator_t* functional_euler_ode_integrator_new(real_t alpha, 
+// right-hand side function, and a destructor. 
+ode_integrator_t* functional_euler_ode_integrator_new(real_t alpha,
+                                                      MPI_Comm comm,
                                                       int num_local_values,
                                                       int num_remote_values,
                                                       void* context, 
@@ -40,5 +39,17 @@ void euler_ode_integrator_set_tolerances(ode_integrator_t* integrator,
                                          real_t relative_tol, 
                                          real_t absolute_tol);
 
+// Sets the Lp norm to be used for measuring the change in the solution over 
+// an iteration. By default, the L-infinity norm is used. p may be 1 or 2, or 
+// 0 (L-infinity norm).
+void euler_ode_integrator_set_convergence_norm(ode_integrator_t* integrator,
+                                               int p);
+
+// By default, the Euler ODE integrator makes no attempt to adjust the 
+// given timestep size. If this is called with a factor between 0 and 1, 
+// the timestep will be adjusted to this factor times its old value when 
+// an iteration fails.
+void euler_ode_integrator_enable_dt_cuts(ode_integrator_t* integrator,
+                                         real_t dt_cut_factor);
 #endif
 
