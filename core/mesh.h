@@ -408,6 +408,11 @@ exchanger_t* mesh_face_exchanger_new(mesh_t* mesh);
 // nodal information is taken from the process on which it appears, having the 
 // lowest rank. In this sense, this process "owns" the node and determines 
 // its true data.
+// In order to construct a node exchanger, one must begin with a mesh whose 
+// node positions are geometrically consistent in the sense that each node 
+// on a domain is closest to or colocated with exactly one node on one or 
+// more other domains. If this requirement is not met, the node exchanger 
+// cannot be reliably created.
 // Communication is required to construct a node exchanger.
 exchanger_t* mesh_node_exchanger_new(mesh_t* mesh);
 
