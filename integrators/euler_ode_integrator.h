@@ -45,11 +45,5 @@ void euler_ode_integrator_set_tolerances(ode_integrator_t* integrator,
 void euler_ode_integrator_set_convergence_norm(ode_integrator_t* integrator,
                                                int p);
 
-// By default, the Euler ODE integrator makes no attempt to adjust the 
-// given timestep size. If this is called with a factor between 0 and 1, 
-// the timestep will be adjusted to this factor times its old value when 
-// an iteration fails.
-void euler_ode_integrator_enable_dt_cuts(ode_integrator_t* integrator,
-                                         real_t dt_cut_factor);
 #endif
 

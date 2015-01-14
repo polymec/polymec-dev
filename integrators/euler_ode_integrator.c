@@ -118,9 +118,6 @@ typedef struct
   // Iteration stuff.
   int max_iters;
   real_t abs_tol, rel_tol;
-
-  // A factor by which the timestep is cut on unsuccessful iterations.
-  real_t dt_cut_factor;
 } euler_ode_t;
 
 static bool euler_step(void* context, real_t max_dt, real_t* t, real_t* x)
@@ -162,8 +159,7 @@ static bool euler_step(void* context, real_t max_dt, real_t* t, real_t* x)
 
     // Okay, let's do this iteration thing.
     bool converged = false;
-    int i = 0;
-    while (true)
+    for (int i = 0; i < integ->max_iters; ++i)
     {
       // Copy our latest iterate into our previous one.
       memcpy(integ->x_old, integ->x_new, sizeof(real_t) * N_local);
@@ -196,23 +192,6 @@ static bool euler_step(void* context, real_t max_dt, real_t* t, real_t* x)
         converged = true;
         *t += dt;
         break;
-      }
-      ++i;
-
-      if (i >= integ->max_iters)
-      {
-        // Are we allowed to cut the timestep?
-        if (integ->dt_cut_factor > 0.0)
-        {  
-          dt *= integ->dt_cut_factor;
-          i = 0;
-          log_debug("  * dt cut to %g\n", dt);
-        }
-        else
-        {
-          // We didn't converge.
-          break;
-        }
       }
     }
 
@@ -288,9 +267,6 @@ ode_integrator_t* functional_euler_ode_integrator_new(real_t alpha,
   euler_ode_integrator_set_tolerances(I, 1e-4, 1.0);
   euler_ode_integrator_set_convergence_norm(I, 0);
 
-  // No time step cuts by default.
-  integ->dt_cut_factor = -1.0;
-
   return I;
 }
 
@@ -313,16 +289,6 @@ void euler_ode_integrator_set_tolerances(ode_integrator_t* integrator,
   euler_ode_t* integ = ode_integrator_context(integrator);
   integ->rel_tol = relative_tol;
   integ->abs_tol = absolute_tol;
-}
-
-void euler_ode_integrator_enable_dt_cuts(ode_integrator_t* integrator,
-                                         real_t dt_cut_factor)
-{
-  ASSERT(dt_cut_factor > 0.0);
-  ASSERT(dt_cut_factor < 1.0);
-
-  euler_ode_t* integ = ode_integrator_context(integrator);
-  integ->dt_cut_factor = dt_cut_factor;
 }
 
 void euler_ode_integrator_set_convergence_norm(ode_integrator_t* integrator,
