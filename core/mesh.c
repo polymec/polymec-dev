@@ -800,12 +800,14 @@ exchanger_t* mesh_node_exchanger_new(mesh_t* mesh)
   int rank;
   MPI_Comm_rank(mesh->comm, &rank);
 
+  //------------------------------------------------------------------------
   // We define the notion of a process "owning" a node thus: a process owns 
   // a node if it has the lowest rank of all processes on which the node 
   // is represented. The tricky thing about this definition is that a node 
   // represented on a process p can be owned by a process, q (say), that p 
   // does not interact with directly in the sense of face exchanges. This 
   // means we have to search for the owner in two sweeps.
+  //------------------------------------------------------------------------
 
   // Traverse the send faces and make a list of nodes associated with 
   // these faces/processes.
@@ -869,10 +871,12 @@ exchanger_t* mesh_node_exchanger_new(mesh_t* mesh)
   // of the process with the lower rank.
   pos = 0;
   int_array_t* matched_nodes[num_neighbors];
+  int_unordered_set_t* already_matched = int_unordered_set_new();
   while (exchanger_next_receive(face_ex, &pos, &proc, &indices, &size))
   {
     int p = pos - 1;
     int num_nodes = face_nodes[p]->size;
+    int_unordered_set_clear(already_matched);
     for (int n1 = 0; n1 < num_nodes; ++n1)
     {
       point_t* x1 = &local_node_positions[p][n1];
@@ -888,9 +892,17 @@ exchanger_t* mesh_node_exchanger_new(mesh_t* mesh)
           i_min = (rank < proc) ? n1 : n2;
         }
       }
+      if (int_unordered_set_contains(already_matched, i_min))
+      {
+        polymec_error("mesh_node_exchanger_new: inconsistent node geometry!\n"
+                      "  Cannot construct node exchanger.");
+      }
+      else
+        int_unordered_set_insert(already_matched, i_min);
       int_array_append(matched_nodes[p], i_min);
     }
   }
+  int_unordered_set_free(already_matched);
 
   // Preliminary cleanup.
   for (int p = 0; p < num_neighbors; ++p)
@@ -972,9 +984,13 @@ exchanger_t* mesh_node_exchanger_new(mesh_t* mesh)
     polymec_free(remote_node_owners[p]);
   }
 
+  //------------------------------------------------------------------------
   // Now matched_nodes[p] has indices of nodes corresponding to those on 
   // neighbor p, and matched_node_owners[p] has arrays containing the actual 
-  // owning process for each node in matched_nodes[p].
+  // owning process for each node in matched_nodes[p]. Next, we make sure 
+  // that the owners are sent node requests, and that the exchangers are 
+  // constructed accordingly.
+  //------------------------------------------------------------------------
 
   // Gather all the neighbors of our neighbors.
   int_array_t* all_neighbors_of_neighbors = int_array_new();
