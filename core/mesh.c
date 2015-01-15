@@ -967,12 +967,8 @@ exchanger_t* mesh_node_exchanger_new(mesh_t* mesh)
     remote_node_owners[p] = polymec_malloc(sizeof(int) * num_nodes);
     MPI_Irecv(remote_node_owners[p], num_nodes, MPI_INT, proc, 0, 
               mesh->comm, &requests[p]);
-  }
-  for (int p = 0; p < num_neighbors; ++p)
-  {
-    int num_nodes = matched_node_owners[p]->size;
     MPI_Isend(matched_node_owners[p]->data, num_nodes, MPI_INT, proc, 0, 
-              mesh->comm, &requests[p]);
+              mesh->comm, &requests[p + num_neighbors]);
   }
   MPI_Waitall(2 * num_neighbors, requests, statuses);
 
@@ -1054,7 +1050,7 @@ exchanger_t* mesh_node_exchanger_new(mesh_t* mesh)
           int_array_append(requested_nodes[p], matched_nodes[p]->data[j]);
       }
       MPI_Isend(&requested_nodes[p]->size, 1, MPI_INT, proc, 0, 
-                mesh->comm, &requests[p]);
+                mesh->comm, &requests[p + nn_of_n]);
     }
     MPI_Waitall(2 * nn_of_n, requests, statuses);
 
@@ -1068,7 +1064,7 @@ exchanger_t* mesh_node_exchanger_new(mesh_t* mesh)
                 proc, 0, mesh->comm, &requests[p]);
 
       MPI_Isend(requested_nodes[p]->data, requested_nodes[p]->size, 
-                MPI_INT, proc, 0, mesh->comm, &requests[p]);
+                MPI_INT, proc, 0, mesh->comm, &requests[p + nn_of_n]);
     }
     MPI_Waitall(2 * nn_of_n, requests, statuses);
 
