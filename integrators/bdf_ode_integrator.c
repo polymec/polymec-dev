@@ -98,7 +98,7 @@ static int bdf_evaluate_rhs(real_t t, N_Vector x, N_Vector x_dot, void* context)
 static bool bdf_step(void* context, real_t max_dt, real_t* t, real_t* x)
 {
   bdf_ode_t* integ = context;
-  int status = CVodeSetMaxStep(integ->cvode, max_dt);
+  int status;
 
   // If *t + max_dt is less than the time to which we've already integrated, 
   // we don't need to integrate; we only need to interpolate backward.
@@ -137,7 +137,6 @@ static bool bdf_step(void* context, real_t max_dt, real_t* t, real_t* x)
   if ((status == CV_SUCCESS) || (status == CV_TSTOP_RETURN))
   {
     // Copy out the solution.
-    *t = integ->t;
     memcpy(x, NV_DATA(integ->x), sizeof(real_t) * integ->num_local_values); 
     return true;
   }
