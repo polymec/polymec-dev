@@ -352,7 +352,8 @@ static void array_name##_byte_write(void* obj, byte_array_t* bytes, size_t* offs
 serializer_t* array_name##_serializer() \
 { \
   return serializer_new(#array_name, array_name##_byte_size, \
-                        array_name##_byte_read, array_name##_byte_write, NULL); \
+                        array_name##_byte_read, array_name##_byte_write, \
+                        DTOR(array_name##_free)); \
 } \
 
 DEFINE_ARRAY_SERIALIZER(int_array, int)
