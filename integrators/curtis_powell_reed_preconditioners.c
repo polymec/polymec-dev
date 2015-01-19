@@ -39,6 +39,9 @@ typedef struct
   adj_graph_t* sparsity;
   adj_graph_coloring_t* coloring;
 
+  // Numbers of local and remote rows.
+  int num_local_rows, num_remote_rows;
+
   // Work vectors.
   int num_work_vectors;
   real_t** work;
@@ -62,7 +65,8 @@ static void finite_diff_dFdx_v(int (*F)(void* context, real_t t, real_t* x, real
                                real_t t, 
                                real_t* x, 
                                real_t* xdot, 
-                               int num_rows,
+                               int num_local_rows,
+                               int num_remote_rows,
                                real_t* v, 
                                real_t** work, 
                                real_t* dFdx_v)
@@ -75,14 +79,14 @@ static void finite_diff_dFdx_v(int (*F)(void* context, real_t t, real_t* x, real
   // work[3] == F(t, x + eps*v)
 
   // x + eps*v -> work[2].
-  for (int i = 0; i < num_rows; ++i)
+  for (int i = 0; i < num_local_rows + num_remote_rows; ++i)
     work[2][i] = x[i] + eps*v[i];
 
   // F(t, x + eps*v, xdot) -> work[3].
   F(context, t, work[2], xdot, work[3]);
 
   // (F(t, x + eps*v, xdot) - F(t, x, xdot)) / eps -> (dF/dx) * v
-  for (int i = 0; i < num_rows; ++i)
+  for (int i = 0; i < num_local_rows; ++i)
     dFdx_v[i] = (work[3][i] - work[1][i]) / eps;
 }
 
@@ -92,7 +96,8 @@ static void finite_diff_dFdxdot_v(int (*F)(void* context, real_t t, real_t* x, r
                                   real_t t, 
                                   real_t* x, 
                                   real_t* xdot, 
-                                  int num_rows,
+                                  int num_local_rows,
+                                  int num_remote_rows,
                                   real_t* v, 
                                   real_t** work, 
                                   real_t* dFdxdot_v)
@@ -105,14 +110,14 @@ static void finite_diff_dFdxdot_v(int (*F)(void* context, real_t t, real_t* x, r
   // work[3] == F(t, x, xdot + eps*v)
 
   // xdot + eps*v -> work[2].
-  for (int i = 0; i < num_rows; ++i)
+  for (int i = 0; i < num_local_rows + num_remote_rows; ++i)
     work[2][i] = xdot[i] + eps*v[i];
 
   // F(t, x, xdot + eps*v) -> work[3].
   F(context, t, x, work[2], work[3]);
 
   // (F(t, x, xdot + eps*v) - F(t, x, xdot)) / eps -> (dF/dx) * v
-  for (int i = 0; i < num_rows; ++i)
+  for (int i = 0; i < num_local_rows; ++i)
     dFdxdot_v[i] = (work[3][i] - work[1][i]) / eps;
 }
 
@@ -147,13 +152,12 @@ static void cpr_compute_P(void* context,
   // First, set up an identity matrix.
   precond->vtable.set_identity_matrix(precond->context, alpha);
 
-  int num_rows = adj_graph_num_vertices(graph);
-  real_t* Jv = polymec_malloc(sizeof(real_t) * num_rows);
+  real_t* Jv = polymec_malloc(sizeof(real_t) * precond->num_local_rows);
   int num_colors = adj_graph_coloring_num_colors(coloring);
   for (int c = 0; c < num_colors; ++c)
   {
     // We construct d, the binary vector corresponding to this color, in work[0].
-    memset(work[0], 0, sizeof(real_t) * num_rows);
+    memset(work[0], 0, sizeof(real_t) * (precond->num_local_rows + precond->num_remote_rows));
     int pos = 0, i;
     while (adj_graph_coloring_next_vertex(coloring, c, &pos, &i))
       work[0][i] = 1.0;
@@ -162,15 +166,17 @@ static void cpr_compute_P(void* context,
     F(F_context, t, x, xdot, work[1]);
 
     // Evaluate dF/dx and stash it in P.
-    memset(Jv, 0, sizeof(real_t) * num_rows);
-    finite_diff_dFdx_v(F, F_context, t, x, xdot, num_rows, work[0], work, Jv);
+    memset(Jv, 0, sizeof(real_t) * precond->num_local_rows);
+    finite_diff_dFdx_v(F, F_context, t, x, xdot, precond->num_local_rows, 
+                       precond->num_remote_rows, work[0], work, Jv);
     precond->vtable.add_Jv_into_matrix(precond->context, graph, coloring, c, beta, Jv);
 
     if ((gamma != 0.0) && (xdot != NULL))
     {
       // Now evaluate dF/d(xdot) and do the same.
-      memset(Jv, 0, sizeof(real_t) * num_rows);
-      finite_diff_dFdxdot_v(F, F_context, t, x, xdot, num_rows, work[0], work, Jv);
+      memset(Jv, 0, sizeof(real_t) * precond->num_local_rows);
+      finite_diff_dFdxdot_v(F, F_context, t, x, xdot, precond->num_local_rows, 
+                            precond->num_remote_rows, work[0], work, Jv);
       precond->vtable.add_Jv_into_matrix(precond->context, graph, coloring, c, gamma, Jv);
     }
   }
@@ -206,9 +212,11 @@ static preconditioner_t* curtis_powell_reed_preconditioner_new(const char* name,
                                                                void* context,
                                                                cpr_vtable vtable,
                                                                adj_graph_t* sparsity,
-                                                               int num_block_rows,
+                                                               int num_local_block_rows,
+                                                               int num_remote_block_rows,
                                                                int block_size)
 {
+  ASSERT(num_remote_block_rows >= 0);
   ASSERT(vtable.set_identity_matrix != NULL);
   ASSERT(vtable.add_Jv_into_matrix != NULL);
   ASSERT(vtable.solve != NULL);
@@ -222,12 +230,20 @@ static preconditioner_t* curtis_powell_reed_preconditioner_new(const char* name,
   precond->vtable = vtable;
 
   // Do we have a block graph?
-  int num_rows = adj_graph_num_vertices(sparsity);
-  ASSERT((num_rows == num_block_rows) || (num_rows = block_size*num_block_rows));
-  if (num_rows == num_block_rows)
+  int num_local_rows = adj_graph_num_vertices(sparsity);
+  ASSERT((num_local_rows == num_local_block_rows) || (num_local_rows = block_size*num_local_block_rows));
+  if (num_local_rows == num_local_block_rows)
+  {
     precond->sparsity = adj_graph_new_with_block_size(block_size, sparsity);
+    precond->num_local_rows = num_local_block_rows * block_size;
+    precond->num_remote_rows = num_remote_block_rows * block_size;
+  }
   else
+  {
     precond->sparsity = adj_graph_clone(sparsity);
+    precond->num_local_rows = num_local_block_rows;
+    precond->num_remote_rows = num_remote_block_rows;
+  }
 
   precond->coloring = adj_graph_coloring_new(precond->sparsity, SMALLEST_LAST);
   log_debug("Curtis-Powell-Reed preconditioner: graph coloring produced %d colors.", 
@@ -236,8 +252,9 @@ static preconditioner_t* curtis_powell_reed_preconditioner_new(const char* name,
   // Make work vectors.
   precond->num_work_vectors = 4;
   precond->work = polymec_malloc(sizeof(real_t*) * precond->num_work_vectors);
+  int N = (num_local_block_rows + num_remote_block_rows) * block_size;
   for (int i = 0; i < precond->num_work_vectors; ++i)
-    precond->work[i] = polymec_malloc(sizeof(real_t) * num_block_rows * block_size);
+    precond->work[i] = polymec_malloc(sizeof(real_t) * N);
 
   newton_preconditioner_vtable nlpc_vtable = {.compute_P = cpr_compute_P,
                                               .solve = cpr_solve,
@@ -290,6 +307,8 @@ static void bjpc_add_Jv_into_matrix(void* context,
   int pos = 0, i;
   while (adj_graph_coloring_next_vertex(coloring, color, &pos, &i))
   {
+    if (i >= pc->num_block_rows) continue;
+
     int block_col = i / block_size;
     int c = i % block_size;
     for (int j = block_col*block_size; j < (block_col+1)*block_size; ++j)
@@ -358,23 +377,26 @@ preconditioner_t* block_jacobi_preconditioner_from_function(const char* name,
                                                             int (*F)(void* context, real_t t, real_t* x, real_t* Fval),
                                                             void (*dtor)(void* context),
                                                             adj_graph_t* sparsity,
-                                                            int num_block_rows,
+                                                            int num_local_block_rows,
+                                                            int num_remote_block_rows,
                                                             int block_size)
 {
   ASSERT(F != NULL);
   bjpc_t* pc = polymec_malloc(sizeof(bjpc_t));
   pc->context = context;
   pc->dtor = dtor;
-  pc->num_block_rows = num_block_rows;
+  pc->num_block_rows = num_local_block_rows;
   pc->block_size = block_size;
-  pc->D = polymec_malloc(sizeof(real_t) * num_block_rows * block_size * block_size);
+  pc->D = polymec_malloc(sizeof(real_t) * num_local_block_rows * block_size * block_size);
   cpr_vtable vtable = {.F = F,
                        .F_context = context,
                        .set_identity_matrix = bjpc_set_identity_matrix,
                        .add_Jv_into_matrix = bjpc_add_Jv_into_matrix,
                        .solve = bjpc_solve,
                        .dtor = bjpc_dtor};
-  return curtis_powell_reed_preconditioner_new(name, pc, vtable, sparsity, num_block_rows, block_size);
+  return curtis_powell_reed_preconditioner_new(name, pc, vtable, sparsity, 
+                                               num_local_block_rows, num_remote_block_rows, 
+                                               block_size);
 }
 
 preconditioner_t* block_jacobi_preconditioner_from_dae_function(const char* name, 
@@ -382,23 +404,26 @@ preconditioner_t* block_jacobi_preconditioner_from_dae_function(const char* name
                                                                 int (*F)(void* context, real_t t, real_t* x, real_t* xdot, real_t* Fval),
                                                                 void (*dtor)(void* context),
                                                                 adj_graph_t* sparsity,
-                                                                int num_block_rows,
+                                                                int num_local_block_rows,
+                                                                int num_remote_block_rows,
                                                                 int block_size)
 {
   ASSERT(F != NULL);
   bjpc_t* pc = polymec_malloc(sizeof(bjpc_t));
   pc->context = context;
   pc->dtor = dtor;
-  pc->num_block_rows = num_block_rows;
+  pc->num_block_rows = num_local_block_rows;
   pc->block_size = block_size;
-  pc->D = polymec_malloc(sizeof(real_t) * num_block_rows * block_size * block_size);
+  pc->D = polymec_malloc(sizeof(real_t) * num_local_block_rows * block_size * block_size);
   cpr_vtable vtable = {.F_dae = F,
                        .F_context = context,
                        .set_identity_matrix = bjpc_set_identity_matrix,
                        .add_Jv_into_matrix = bjpc_add_Jv_into_matrix,
                        .solve = bjpc_solve,
                        .dtor = bjpc_dtor};
-  return curtis_powell_reed_preconditioner_new(name, pc, vtable, sparsity, num_block_rows, block_size);
+  return curtis_powell_reed_preconditioner_new(name, pc, vtable, sparsity, 
+                                               num_local_block_rows, num_remote_block_rows,
+                                               block_size);
 }
 
 //------------------------------------------------------------------------
@@ -519,6 +544,8 @@ static void lupc_add_Jv_into_matrix(void* context,
   int pos = 0, i;
   while (adj_graph_coloring_next_vertex(coloring, color, &pos, &i))
   {
+    if (i >= precond->N) continue;
+
     // Add in the diagonal element.
     Jij[data->colptr[i]] += factor * Jv[i];
       
@@ -648,10 +675,13 @@ preconditioner_t* lu_preconditioner_from_function(const char* name,
                                                   int (*F)(void* context, real_t t, real_t* x, real_t* Fval),
                                                   void (*dtor)(void* context),
                                                   adj_graph_t* sparsity,
-                                                  int num_block_rows, 
+                                                  int num_local_block_rows, 
+                                                  int num_remote_block_rows, 
                                                   int block_size)
 {
-  return ilu_preconditioner_from_function(name, context, F, dtor, sparsity, num_block_rows, block_size, NULL);
+  return ilu_preconditioner_from_function(name, context, F, dtor, sparsity, 
+                                          num_local_block_rows, num_remote_block_rows, 
+                                          block_size, NULL);
 }
 
 preconditioner_t* lu_preconditioner_from_dae_function(const char* name, 
@@ -659,10 +689,13 @@ preconditioner_t* lu_preconditioner_from_dae_function(const char* name,
                                                       int (*F)(void* context, real_t t, real_t* x, real_t* xdot, real_t* Fval),
                                                       void (*dtor)(void* context),
                                                       adj_graph_t* sparsity,
-                                                      int num_block_rows, 
+                                                      int num_local_block_rows, 
+                                                      int num_remote_block_rows, 
                                                       int block_size)
 {
-  return ilu_preconditioner_from_dae_function(name, context, F, dtor, sparsity, num_block_rows, block_size, NULL);
+  return ilu_preconditioner_from_dae_function(name, context, F, dtor, sparsity, 
+                                              num_local_block_rows, num_remote_block_rows, 
+                                              block_size, NULL);
 }
 
 // Globals borrowed from SuperLU.
@@ -767,7 +800,8 @@ preconditioner_t* ilu_preconditioner_from_function(const char* name,
                                                    int (*F)(void* context, real_t t, real_t* x, real_t* Fval),
                                                    void (*dtor)(void* context),
                                                    adj_graph_t* sparsity,
-                                                   int num_block_rows, 
+                                                   int num_local_block_rows, 
+                                                   int num_remote_block_rows, 
                                                    int block_size,
                                                    ilu_params_t* ilu_params)
 {
@@ -786,7 +820,9 @@ preconditioner_t* ilu_preconditioner_from_function(const char* name,
                        .dtor = lupc_dtor};
   if (ilu_params != NULL)
     vtable.solve = ilupc_solve;
-  return curtis_powell_reed_preconditioner_new(name, precond, vtable, sparsity, num_block_rows, block_size);
+  return curtis_powell_reed_preconditioner_new(name, precond, vtable, sparsity, 
+                                               num_local_block_rows, num_remote_block_rows,
+                                               block_size);
 }
 
 preconditioner_t* ilu_preconditioner_from_dae_function(const char* name, 
@@ -794,7 +830,8 @@ preconditioner_t* ilu_preconditioner_from_dae_function(const char* name,
                                                        int (*F)(void* context, real_t t, real_t* x, real_t* xdot, real_t* Fval),
                                                        void (*dtor)(void* context),
                                                        adj_graph_t* sparsity,
-                                                       int num_block_rows, 
+                                                       int num_local_block_rows, 
+                                                       int num_remote_block_rows, 
                                                        int block_size,
                                                        ilu_params_t* ilu_params)
 {
@@ -813,6 +850,8 @@ preconditioner_t* ilu_preconditioner_from_dae_function(const char* name,
                        .dtor = lupc_dtor};
   if (ilu_params != NULL)
     vtable.solve = ilupc_solve;
-  return curtis_powell_reed_preconditioner_new(name, precond, vtable, sparsity, num_block_rows, block_size);
+  return curtis_powell_reed_preconditioner_new(name, precond, vtable, sparsity, 
+                                               num_local_block_rows, num_remote_block_rows,
+                                               block_size);
 }
 

@@ -25,6 +25,9 @@ struct adj_graph_t
 
   // The current capacity of adjacency.
   int edge_cap;
+
+  // The maximum vertex index referred to within the graph.
+  int max_vertex_index;
 };
 
 adj_graph_t* adj_graph_new(MPI_Comm comm, int num_local_vertices)
@@ -68,6 +71,8 @@ adj_graph_t* adj_graph_new_with_dist(MPI_Comm comm,
   memset(graph->adjacency, 0, sizeof(int) * graph->edge_cap);
   graph->xadj = polymec_malloc(sizeof(int) * (num_local_vertices + 1));
   memset(graph->xadj, 0, sizeof(int) * (num_local_vertices + 1));
+
+  graph->max_vertex_index = -1;
 
   return graph;
 }
@@ -121,7 +126,10 @@ adj_graph_t* adj_graph_new_with_block_size(int block_size,
       for (int e = 0; e < num_edges; ++e)
       {
         for (int bb = 0; bb < block_size; ++bb)
-          block_edges[block_size - 1 + block_size * e + bb] = block_size * edges[e] + bb;
+        {
+          int v = block_size * edges[e] + bb;
+          block_edges[block_size - 1 + block_size * e + bb] = v;
+        }
       }
     }
   }
@@ -165,6 +173,18 @@ MPI_Comm adj_graph_comm(adj_graph_t* graph)
 int adj_graph_num_vertices(adj_graph_t* graph)
 {
   return (int)(graph->vtx_dist[graph->rank+1] - graph->vtx_dist[graph->rank]);
+}
+
+int adj_graph_max_vertex_index(adj_graph_t* graph)
+{
+  if (graph->max_vertex_index == -1)
+  {
+    graph->max_vertex_index = adj_graph_num_vertices(graph) - 1;
+    int i_max = (int)graph->vtx_dist[graph->rank+1];
+    for (int i = 0; i < i_max; ++i)
+      graph->max_vertex_index = MAX(graph->max_vertex_index, graph->adjacency[i]);
+  }
+  return graph->max_vertex_index;
 }
 
 void adj_graph_set_num_edges(adj_graph_t* graph, int vertex, int num_edges)
@@ -311,49 +331,56 @@ static void sort_vertices_by_degree(int* v_degrees, int num_vertices)
 
 static void compute_largest_first_ordering(adj_graph_t* graph, int* vertices)
 {
+  int v_max = adj_graph_max_vertex_index(graph);
+
   // The vertices with the largest degree appear first in the list.
   int num_vertices = adj_graph_num_vertices(graph);
 
   // Compute the degree of each vertex. We compute the negative of the 
   // degree so that we can sort the vertices in "ascending" order.
-  int* v_degrees = polymec_malloc(sizeof(int) * 2 * num_vertices);
-  for (int v = 0; v < num_vertices; ++v)
+  int* v_degrees = polymec_malloc(sizeof(int) * 2 * (v_max + 1));
+  for (int v = 0; v <= v_max; ++v)
   {
     v_degrees[2*v] = v;
-    v_degrees[2*v+1] = -adj_graph_num_edges(graph, v);
+    v_degrees[2*v+1] = (v < num_vertices) ? -adj_graph_num_edges(graph, v) : 0;
   }
 
   // Now sort the vertices on their degree.
-  sort_vertices_by_degree(v_degrees, num_vertices);
+  sort_vertices_by_degree(v_degrees, v_max + 1);
   polymec_free(v_degrees);
 }
 
 static void compute_smallest_last_ordering(adj_graph_t* graph, int* vertices)
 {
+  int v_max = adj_graph_max_vertex_index(graph);
   int num_vertices = adj_graph_num_vertices(graph);
 
   // The vertices with the smallest degree appear last in the list, and 
   // the calculation of the degree of a vertex excludes all vertices that 
   // appear later in the list. We compute the negative of the degree so 
   // that we can sort the vertices in "ascending" order.
-  int* v_degrees = polymec_malloc(sizeof(int) * 2 * num_vertices);
-  for (int v = num_vertices-1; v > 0; --v)
-  for (int v = 0; v < num_vertices; ++v)
+  int* v_degrees = polymec_malloc(sizeof(int) * 2 * (v_max + 1));
+  for (int v = 0; v <= v_max; ++v)
   {
     v_degrees[2*v] = v;
-    int num_edges = adj_graph_num_edges(graph, v);
-    int* edges = adj_graph_edges(graph, v);
-    int degree = -num_edges;
-    for (int e = 0; e < num_edges; ++e)
+    if (v < num_vertices)
     {
-      if (edges[e] > v)
-        ++degree;
+      int num_edges = adj_graph_num_edges(graph, v);
+      int* edges = adj_graph_edges(graph, v);
+      int degree = -num_edges;
+      for (int e = 0; e < num_edges; ++e)
+      {
+        if (edges[e] > v)
+          ++degree;
+      }
+      v_degrees[2*v+1] = degree;
     }
-    v_degrees[2*v+1] = degree;
+    else
+      v_degrees[2*v+1] = 0;
   }
 
   // Now sort the vertices on their degree.
-  sort_vertices_by_degree(v_degrees, num_vertices);
+  sort_vertices_by_degree(v_degrees, v_max + 1);
   polymec_free(v_degrees);
 }
 
@@ -376,30 +403,41 @@ static void color_sequentially(adj_graph_t* graph, int* vertices,
 {
   *num_colors = 0;
   int num_vertices = adj_graph_num_vertices(graph);
-  int* forbidden_colors = polymec_malloc(sizeof(int) * 2 * num_vertices);
-  for (int v = 0; v < num_vertices; ++v)
+  int v_max = adj_graph_max_vertex_index(graph);
+  int* forbidden_colors = polymec_malloc(sizeof(int) * 2 * v_max);
+  for (int v = 0; v <= v_max; ++v)
   {
     forbidden_colors[v] = -1;
     colors[v] = -1;
   }
-  for (int v = 0; v < num_vertices; ++v)
+  for (int i = 0; i <= v_max; ++i)
   {
+    int v = vertices[i];
 
     // Determine which colors are forbidden by adjacency relations.
-    int num_edges = adj_graph_num_edges(graph, v);
-    int* N1 = adj_graph_edges(graph, v);
-    for (int e = 0; e < num_edges; ++e)
+    if (v < num_vertices)
     {
-      int w = N1[e];
-      if (colors[w] >= 0)
-        forbidden_colors[colors[w]] = v;
-      int num_edges = adj_graph_num_edges(graph, w);
-      int* N2 = adj_graph_edges(graph, w);
-      for (int ee = 0; ee < num_edges; ++ee)
+      int num_edges = adj_graph_num_edges(graph, v);
+      int* N1 = adj_graph_edges(graph, v);
+      for (int e = 0; e < num_edges; ++e)
       {
-        int x = N2[ee];
-        if ((x != v) && (colors[x] >= 0))
-          forbidden_colors[colors[x]] = v;
+        int w = N1[e];
+        if (w <= v_max)
+        {
+          if (colors[w] >= 0)
+            forbidden_colors[colors[w]] = v;
+          if (w < num_vertices)
+          {
+            int num_edges = adj_graph_num_edges(graph, w);
+            int* N2 = adj_graph_edges(graph, w);
+            for (int ee = 0; ee < num_edges; ++ee)
+            {
+              int x = N2[ee];
+              if ((x != v) && (x < num_vertices) && (colors[x] >= 0))
+                forbidden_colors[colors[x]] = v;
+            }
+          }
+        }
       }
     }
 
@@ -429,7 +467,10 @@ adj_graph_coloring_t* adj_graph_coloring_new(adj_graph_t* graph,
 {
   // Generate an ordered list of vertices.
   int num_vertices = adj_graph_num_vertices(graph);
-  int* vertices = polymec_malloc(sizeof(int) * num_vertices);
+  int v_max = adj_graph_max_vertex_index(graph);
+  int* vertices = polymec_malloc(sizeof(int) * (v_max + 1));
+  for (int i = 0; i <= v_max; ++i)
+    vertices[i] = i;
   if (ordering == LARGEST_FIRST)
     compute_largest_first_ordering(graph, vertices);
   else if (ordering == SMALLEST_LAST)
@@ -441,7 +482,7 @@ adj_graph_coloring_t* adj_graph_coloring_new(adj_graph_t* graph,
   }
 
   // Now color the graph using a (greedy) sequential algoritm. 
-  int* colors = polymec_malloc(sizeof(int) * num_vertices);
+  int* colors = polymec_malloc(sizeof(int) * (v_max + 1));
   int num_colors;
   color_sequentially(graph, vertices, colors, &num_colors);
   ASSERT(num_colors > 0);
@@ -452,7 +493,7 @@ adj_graph_coloring_t* adj_graph_coloring_new(adj_graph_t* graph,
   coloring->offsets = polymec_malloc(sizeof(int) * (num_colors+1));
   memset(coloring->offsets, 0, sizeof(int) * (num_colors+1));
   coloring->num_colors = num_colors;
-  for (int v = 0; v < num_vertices; ++v)
+  for (int v = 0; v <= v_max; ++v)
   {
     int color = colors[v];
     for (int c = color; c < num_colors; ++c)
@@ -461,7 +502,7 @@ adj_graph_coloring_t* adj_graph_coloring_new(adj_graph_t* graph,
 
   int tallies[num_colors];
   memset(tallies, 0, sizeof(int) * num_colors);
-  for (int v = 0; v < num_vertices; ++v)
+  for (int v = 0; v <= v_max; ++v)
   {
     int color = colors[v];
     ASSERT(color >= 0);

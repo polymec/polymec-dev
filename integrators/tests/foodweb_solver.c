@@ -397,7 +397,7 @@ newton_solver_t* block_jacobi_precond_foodweb_solver_new()
   newton_solver_t* integ = foodweb_solver_new();
   foodweb_t* data = newton_solver_context(integ);
   int block_size = NUM_SPECIES;
-  preconditioner_t* precond = block_jacobi_preconditioner_from_function("Food web", data, foodweb_func, NULL, data->sparsity, NEQ/block_size, block_size);
+  preconditioner_t* precond = block_jacobi_preconditioner_from_function("Food web", data, foodweb_func, NULL, data->sparsity, NEQ/block_size, 0, block_size);
   newton_solver_set_preconditioner(integ, precond);
   return integ;
 }
@@ -408,7 +408,7 @@ newton_solver_t* lu_precond_foodweb_solver_new()
   newton_solver_t* integ = foodweb_solver_new();
   foodweb_t* data = newton_solver_context(integ);
   int block_size = NUM_SPECIES;
-  preconditioner_t* precond = lu_preconditioner_from_function("Food web", data, foodweb_func, NULL, data->sparsity, NEQ/block_size, block_size);
+  preconditioner_t* precond = lu_preconditioner_from_function("Food web", data, foodweb_func, NULL, data->sparsity, NEQ/block_size, 0, block_size);
   newton_solver_set_preconditioner(integ, precond);
   return integ;
 }
@@ -420,7 +420,7 @@ newton_solver_t* ilu_precond_foodweb_solver_new()
   foodweb_t* data = newton_solver_context(integ);
   ilu_params_t* ilu_params = ilu_params_new();
   int block_size = NUM_SPECIES;
-  preconditioner_t* precond = ilu_preconditioner_from_function("Food web", data, foodweb_func, NULL, data->sparsity, NEQ/block_size, block_size, ilu_params);
+  preconditioner_t* precond = ilu_preconditioner_from_function("Food web", data, foodweb_func, NULL, data->sparsity, NEQ/block_size, 0, block_size, ilu_params);
   newton_solver_set_preconditioner(integ, precond);
   return integ;
 }

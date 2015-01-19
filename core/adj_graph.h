@@ -48,6 +48,10 @@ MPI_Comm adj_graph_comm(adj_graph_t* graph);
 // Returns the number of (local) vertices in the adjacency graph.
 int adj_graph_num_vertices(adj_graph_t* graph);
 
+// Returns the maximum vertex index referred to within this graph. Can exceed the 
+// number of vertices if there are edges that refer to "ghost" vertices.
+int adj_graph_max_vertex_index(adj_graph_t* graph);
+
 // Sets the number of edges for the given vertex in the graph.
 void adj_graph_set_num_edges(adj_graph_t* graph, int vertex, int num_edges);
 

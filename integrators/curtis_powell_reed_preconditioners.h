@@ -24,7 +24,8 @@ preconditioner_t* block_jacobi_preconditioner_from_function(const char* name,
                                                             int (*F)(void* context, real_t t, real_t* x, real_t* Fval),
                                                             void (*dtor)(void* context),
                                                             adj_graph_t* sparsity,
-                                                            int num_block_rows,
+                                                            int num_local_block_rows,
+                                                            int num_remote_block_rows,
                                                             int block_size);
                                         
 // Creates a block Jacobi preconditioner with the given sparsity graph, 
@@ -35,7 +36,8 @@ preconditioner_t* block_jacobi_preconditioner_from_dae_function(const char* name
                                                                 int (*F)(void* context, real_t t, real_t* x, real_t* xdot, real_t* Fval),
                                                                 void (*dtor)(void* context),
                                                                 adj_graph_t* sparsity,
-                                                                int num_block_rows,
+                                                                int num_local_block_rows,
+                                                                int num_remote_block_rows,
                                                                 int block_size);
 
 // Sparse (Supernode) LU preconditioner.
@@ -44,7 +46,8 @@ preconditioner_t* lu_preconditioner_from_function(const char* name,
                                                   int (*F)(void* context, real_t t, real_t* x, real_t* Fval),
                                                   void (*dtor)(void* context),
                                                   adj_graph_t* sparsity,
-                                                  int num_block_rows,
+                                                  int num_local_block_rows,
+                                                  int num_remote_block_rows,
                                                   int block_size);
  
 // Sparse (Supernode) LU preconditioner -- differential-algebraic version.
@@ -53,7 +56,8 @@ preconditioner_t* lu_preconditioner_from_dae_function(const char* name,
                                                       int (*F)(void* context, real_t t, real_t* x, real_t* xdot, real_t* Fval),
                                                       void (*dtor)(void* context),
                                                       adj_graph_t* sparsity,
-                                                      int num_block_rows,
+                                                      int num_local_block_rows,
+                                                      int num_remote_block_rows,
                                                       int block_size);
  
 // The following types give options to control ILU preconditioners for the 
@@ -116,7 +120,8 @@ preconditioner_t* ilu_preconditioner_from_function(const char* name,
                                                    int (*F)(void* context, real_t t, real_t* x, real_t* Fval),
                                                    void (*dtor)(void* context),
                                                    adj_graph_t* sparsity, 
-                                                   int num_block_rows,
+                                                   int num_local_block_rows,
+                                                   int num_remote_block_rows,
                                                    int block_size,
                                                    ilu_params_t* ilu_params);
 
@@ -126,7 +131,8 @@ preconditioner_t* ilu_preconditioner_from_dae_function(const char* name,
                                                        int (*F)(void* context, real_t t, real_t* x, real_t* xdot, real_t* Fval),
                                                        void (*dtor)(void* context),
                                                        adj_graph_t* sparsity, 
-                                                       int num_block_rows,
+                                                       int num_local_block_rows,
+                                                       int num_remote_block_rows,
                                                        int block_size,
                                                        ilu_params_t* ilu_params);
 
