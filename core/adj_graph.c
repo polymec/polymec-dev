@@ -181,7 +181,7 @@ int adj_graph_max_vertex_index(adj_graph_t* graph)
   if (graph->max_vertex_index == -1)
   {
     graph->max_vertex_index = adj_graph_num_vertices(graph) - 1;
-    int i_max = (int)graph->vtx_dist[graph->rank+1];
+    int i_max = (int)(graph->vtx_dist[graph->rank+1] - graph->vtx_dist[graph->rank]);
     for (int i = 0; i < i_max; ++i)
       graph->max_vertex_index = MAX(graph->max_vertex_index, graph->adjacency[i]);
   }
