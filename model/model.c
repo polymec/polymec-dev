@@ -889,7 +889,7 @@ static void override_interpreted_values(model_t* model,
   if (plot_every != NULL)
   {
     model->plot_every = atof(plot_every);
-    if (model->plot_every < 0.0)
+    if (model->plot_every <= 0.0)
       polymec_error("Invalid (non-positive) plot interval: %d\n", model->plot_every);
   }
 
@@ -999,7 +999,7 @@ void model_run(model_t* model, real_t t1, real_t t2, int max_steps)
       // Kick off the first set of observations!
       model_do_periodic_work(model);
     }
-    else if (model->plot_every > 0.0)
+    else if ((model->plot_every > 0.0) || (model->save_every > 0))
       model_do_periodic_work(model);
 
     // Now run the calculation.
