@@ -1161,6 +1161,8 @@ exchanger_t* partition_mesh(mesh_t** mesh, MPI_Comm comm, int* weights, real_t i
   if (nprocs == 1)
     return exchanger_new(comm);
 
+  log_debug("partition_mesh: Partitioning mesh into %d subdomains.", nprocs);
+
   // If meshes on rank != 0 are not NULL, we delete them.
   mesh_t* m = *mesh;
   if ((rank != 0) && (m != NULL))
@@ -1184,6 +1186,7 @@ exchanger_t* partition_mesh(mesh_t** mesh, MPI_Comm comm, int* weights, real_t i
   int64_t* global_partition = (rank == 0) ? partition_graph(global_graph, comm, weights, imbalance_tol): NULL;
 
   // Distribute the mesh.
+  log_debug("partition_mesh: Distributing mesh to %d processes.", nprocs);
   mesh_distribute(mesh, comm, global_graph, global_partition);
 
   // Set up an exchanger to distribute field data.
