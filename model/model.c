@@ -60,8 +60,8 @@ struct model_t
   docstring_t* doc; // Documentation string.
   model_benchmark_map_t* benchmarks;
 
-  int save_every; // Save frequency.
-  int plot_every; // Plot frequency.
+  int save_every;    // Save frequency (steps).
+  real_t plot_every; // Plot frequency (time units).
 
   int load_step; // -1 if starting a new sim, >= 0 if loading from a file.
 
@@ -125,7 +125,7 @@ model_t* model_new(const char* name, void* context, model_vtable vtable, docstri
   model->benchmarks = model_benchmark_map_new();
   model->sim_name = NULL;
   model->save_every = -1;
-  model->plot_every = -1;
+  model->plot_every = -FLT_MAX;
   model->load_step = -1;
   model->observe_every = -FLT_MAX;
   model->wall_time = 0.0;
@@ -344,7 +344,7 @@ static void model_read_input(model_t* model, interpreter_t* interp)
   if (interpreter_contains(interp, "plot_every", INTERPRETER_NUMBER))
   {
     model->plot_every = (int)interpreter_get_number(interp, "plot_every");
-    if (model->plot_every < 1)
+    if (model->plot_every <= 0.0)
       polymec_error("Invalid (non-positive) plot interval: %d\n", model->plot_every);
   }
   if (interpreter_contains(interp, "save_every", INTERPRETER_NUMBER))
@@ -559,8 +559,13 @@ void model_set_observation_times(model_t* model, real_t* times, int num_times)
 static void model_do_periodic_work(model_t* model)
 {
   // Do plots and saves.
-  if ((model->plot_every > 0) && (model->step % model->plot_every) == 0)
-    model_plot(model);
+  if (model->plot_every > 0.0)
+  {
+    int n = model->time / model->plot_every;
+    if (fabs(model->time - n * model->plot_every) < 1e-12) // FIXME: cheesy...
+      model_plot(model);
+  }
+
   if ((model->save_every > 0) && (model->step % model->save_every) == 0)
     model_save(model);
 
@@ -599,6 +604,32 @@ real_t model_max_dt(model_t* model, char* reason)
   {
     dt = model->max_dt;
     strcpy(reason, "Max dt set in options.");
+  }
+
+  // If we have a plot time coming up, perhaps the next one will 
+  // constrain the timestep.
+  if (model->plot_every > 0.0)
+  {
+    int n = model->time / model->plot_every;
+    real_t plot_time = (n+1) * model->plot_every;
+    real_t plot_dt = plot_time - model->time;
+    ASSERT(plot_dt >= 0.0);
+    if (plot_dt < 1e-12) 
+    {
+      // We're already at one plot time; set our sights on the next.
+      plot_dt = model->plot_every;
+      sprintf(reason, "Requested plot time: %g", plot_time);
+    }
+    else if (plot_dt < model->max_dt)
+    {
+      dt = plot_dt;
+      sprintf(reason, "Requested plot time: %g", plot_time);
+    }
+    else if (2.0 * plot_dt < model->max_dt)
+    {
+      dt = plot_dt;
+      sprintf(reason, "Requested plot time: %g", plot_time);
+    }
   }
 
   // If we have an observation time coming up, perhaps the next one will 
@@ -857,8 +888,8 @@ static void override_interpreted_values(model_t* model,
   char* plot_every = options_value(options, "plot_every");
   if (plot_every != NULL)
   {
-    model->plot_every = atoi(plot_every);
-    if (model->plot_every < 1)
+    model->plot_every = atof(plot_every);
+    if (model->plot_every < 0.0)
       polymec_error("Invalid (non-positive) plot interval: %d\n", model->plot_every);
   }
 
@@ -968,7 +999,7 @@ void model_run(model_t* model, real_t t1, real_t t2, int max_steps)
       // Kick off the first set of observations!
       model_do_periodic_work(model);
     }
-    else if (model->plot_every > 0)
+    else if (model->plot_every > 0.0)
       model_do_periodic_work(model);
 
     // Now run the calculation.
@@ -1026,7 +1057,8 @@ static void print_runtime_options_help()
   print_to_rank0("max_steps=N                 - Ends the simulation after N time steps.\n");
   print_to_rank0("max_dt=DT                   - Limits the time step to DT.\n");
   print_to_rank0("save_every=N                - Generates a save file every N steps.\n");
-  print_to_rank0("plot_every=N                - Generates a plot file every N steps.\n");
+  print_to_rank0("plot_every=T                - Generates a plot file every T simulation\n");
+  print_to_rank0("                              time units.\n");
   print_to_rank0("load_step=N                 - Attempts to load a saved simulation at step N.\n");
   print_to_rank0("observe_every=T             - Records observations every T simulation\n");
   print_to_rank0("                              time units.\n");
