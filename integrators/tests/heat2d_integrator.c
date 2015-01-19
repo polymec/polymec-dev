@@ -218,7 +218,7 @@ dae_integrator_t* ilu_precond_heat2d_integrator_new()
   dae_integrator_t* integ = heat2d_integrator_new();
   ilu_params_t* ilu_params = ilu_params_new();
   heat2d_t* data = dae_integrator_context(integ);
-  preconditioner_t* precond = ilu_preconditioner_from_dae_function("Heat 2D", data, heat2d_res, NULL, data->sparsity, NEQ, 1, 0, ilu_params);
+  preconditioner_t* precond = ilu_preconditioner_from_dae_function("Heat 2D", data, heat2d_res, NULL, data->sparsity, NEQ, 0, 1, ilu_params);
   dae_integrator_set_preconditioner(integ, precond);
   return integ;
 }
