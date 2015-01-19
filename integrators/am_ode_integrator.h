@@ -105,6 +105,11 @@ void am_ode_integrator_set_nonlinear_convergence_coeff(ode_integrator_t* integra
 // given solution X, placing the results in rhs.
 void am_ode_integrator_eval_rhs(ode_integrator_t* integ, real_t t, real_t* X, real_t* rhs);
 
+// Returns an internal pointer to the preconditioner passed to this 
+// integrator during construction time. (This returns NULL for the functional 
+// integrator, which doesn't need a preconditioner.)
+preconditioner_t* am_ode_integrator_preconditioner(ode_integrator_t* integrator);
+
 // Diagnostics for the time integrator.
 typedef struct
 {

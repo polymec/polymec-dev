@@ -452,6 +452,12 @@ void am_ode_integrator_eval_rhs(ode_integrator_t* integrator, real_t t, real_t* 
   integ->rhs(integ->context, t, X, rhs);
 }
 
+preconditioner_t* am_ode_integrator_preconditioner(ode_integrator_t* integrator)
+{
+  am_ode_t* integ = ode_integrator_context(integrator);
+  return integ->precond;
+}
+
 void am_ode_integrator_get_diagnostics(ode_integrator_t* integrator, 
                                        am_ode_integrator_diagnostics_t* diagnostics)
 {
