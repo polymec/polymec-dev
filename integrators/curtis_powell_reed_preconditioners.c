@@ -165,7 +165,7 @@ static void cpr_compute_P(void* context,
     // We evaluate F(t, x, xdot) and place it into work[1].
     F(F_context, t, x, xdot, work[1]);
 
-    // Evaluate dF/dx and stash it in P.
+    // Evaluate dF/dx * d and stash it in P.
     memset(Jv, 0, sizeof(real_t) * precond->num_local_rows);
     finite_diff_dFdx_v(F, F_context, t, x, xdot, precond->num_local_rows, 
                        precond->num_remote_rows, work[0], work, Jv);
@@ -173,7 +173,7 @@ static void cpr_compute_P(void* context,
 
     if ((gamma != 0.0) && (xdot != NULL))
     {
-      // Now evaluate dF/d(xdot) and do the same.
+      // Now evaluate dF/d(xdot) * d and do the same.
       memset(Jv, 0, sizeof(real_t) * precond->num_local_rows);
       finite_diff_dFdxdot_v(F, F_context, t, x, xdot, precond->num_local_rows, 
                             precond->num_remote_rows, work[0], work, Jv);
