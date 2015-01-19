@@ -151,6 +151,7 @@ adj_graph_t* adj_graph_clone(adj_graph_t* graph)
   int num_local_vertices = (int)(g->vtx_dist[g->rank+1] - g->vtx_dist[g->rank]);
   g->xadj = polymec_malloc(sizeof(int) * (num_local_vertices + 1));
   memcpy(g->xadj, graph->xadj, sizeof(int) * (num_local_vertices + 1));
+  g->max_vertex_index = graph->max_vertex_index;
   return g;
 }
 
@@ -404,7 +405,7 @@ static void color_sequentially(adj_graph_t* graph, int* vertices,
   *num_colors = 0;
   int num_vertices = adj_graph_num_vertices(graph);
   int v_max = adj_graph_max_vertex_index(graph);
-  int* forbidden_colors = polymec_malloc(sizeof(int) * 2 * v_max);
+  int* forbidden_colors = polymec_malloc(sizeof(int) * 2 * (v_max+1));
   for (int v = 0; v <= v_max; ++v)
   {
     forbidden_colors[v] = -1;

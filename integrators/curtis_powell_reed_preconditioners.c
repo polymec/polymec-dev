@@ -241,8 +241,8 @@ static preconditioner_t* curtis_powell_reed_preconditioner_new(const char* name,
   else
   {
     precond->sparsity = adj_graph_clone(sparsity);
-    precond->num_local_rows = num_local_block_rows;
-    precond->num_remote_rows = num_remote_block_rows;
+    precond->num_local_rows = num_local_block_rows * block_size;
+    precond->num_remote_rows = num_remote_block_rows * block_size;
   }
 
   precond->coloring = adj_graph_coloring_new(precond->sparsity, SMALLEST_LAST);
@@ -307,7 +307,7 @@ static void bjpc_add_Jv_into_matrix(void* context,
   int pos = 0, i;
   while (adj_graph_coloring_next_vertex(coloring, color, &pos, &i))
   {
-    if (i >= pc->num_block_rows) continue;
+    if (i >= block_size*pc->num_block_rows) continue;
 
     int block_col = i / block_size;
     int c = i % block_size;
