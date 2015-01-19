@@ -267,7 +267,9 @@ static int set_up_preconditioner(real_t t, N_Vector x, N_Vector F,
   am_ode_t* integ = context;
   if (!jacobian_is_current)
   {
-    newton_preconditioner_setup(integ->precond, 1.0, -gamma, 0.0, t, NV_DATA(x), NULL);
+    // Compute the approximate Jacobian using a solution vector with ghosts.
+    memcpy(integ->x_with_ghosts, NV_DATA(x), sizeof(real_t) * integ->num_local_values);
+    newton_preconditioner_setup(integ->precond, 1.0, -gamma, 0.0, t, integ->x_with_ghosts, NULL);
     *jacobian_was_updated = 1;
   }
   else
