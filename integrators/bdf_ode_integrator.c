@@ -411,6 +411,12 @@ void bdf_ode_integrator_eval_rhs(ode_integrator_t* integrator, real_t t, real_t*
   integ->rhs(integ->context, t, X, rhs);
 }
 
+preconditioner_t* bdf_ode_integrator_preconditioner(ode_integrator_t* integrator)
+{
+  bdf_ode_t* integ = ode_integrator_context(integrator);
+  return integ->precond;
+}
+
 void bdf_ode_integrator_get_diagnostics(ode_integrator_t* integrator, 
                                         bdf_ode_integrator_diagnostics_t* diagnostics)
 {

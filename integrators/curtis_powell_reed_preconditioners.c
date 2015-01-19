@@ -363,6 +363,27 @@ static bool bjpc_solve(void* context, real_t* B)
   return success;
 }
 
+static void bjpc_fprintf(void* context, FILE* stream)
+{
+  bjpc_t* precond = context;
+  int N = precond->num_block_rows;
+  int bs = precond->block_size;
+  real_t* D = precond->D;
+  fprintf(stream, "\nBlock diagonal matrix P (block size = %d):\n", bs);
+  for (int i = 0; i < N; ++i)
+  {
+    fprintf(stream, "%d: [", i);
+    for (int ii = 0; ii < bs; ++ii)
+    {
+      for (int jj = 0; jj < bs; ++jj)
+        fprintf(stream, "%g ", D[bs*bs*i+bs*ii+jj]);
+      if (ii < (bs - 1))
+        fprintf(stream, "; ");
+    }
+    fprintf(stream, "]\n");
+  }
+}
+
 static void bjpc_dtor(void* context)
 {
   bjpc_t* precond = context;
@@ -393,6 +414,7 @@ preconditioner_t* block_jacobi_preconditioner_from_function(const char* name,
                        .set_identity_matrix = bjpc_set_identity_matrix,
                        .add_Jv_into_matrix = bjpc_add_Jv_into_matrix,
                        .solve = bjpc_solve,
+                       .fprintf = bjpc_fprintf,
                        .dtor = bjpc_dtor};
   return curtis_powell_reed_preconditioner_new(name, pc, vtable, sparsity, 
                                                num_local_block_rows, num_remote_block_rows, 
