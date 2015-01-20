@@ -201,10 +201,10 @@ static void mpi_message_pack(mpi_message_t* msg,
   {
     msg->receive_buffer_sizes[i] = c->num_indices;
     msg->receive_buffers[i] = polymec_malloc(c->num_indices*msg->data_size*msg->stride);
-    msg->requests = polymec_malloc((num_sends+num_receives)*sizeof(MPI_Request));
     msg->source_procs[i] = proc;
     ++i;
   }
+  msg->requests = polymec_malloc((num_sends+num_receives)*sizeof(MPI_Request));
 }
 
 static void mpi_message_unpack(mpi_message_t* msg, 
