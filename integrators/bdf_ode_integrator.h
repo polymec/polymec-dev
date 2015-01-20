@@ -25,9 +25,9 @@
 // function and destructor are required, and a function to compute Jy, the 
 // product of the Jacobian with the vector y, can be optionally provided. Its 
 // signature is: 
-// Jy(context, t, x, rhstx, y, temp, Jy), where context is the context pointer, 
+// Jy(context, t, x, rhs, y, temp, Jy), where context is the context pointer, 
 // t is the time at which Jy is evaluated, y is the vector the Jacobian operator
-// J is applied to, rhsty is the right hand side function evaluated at t and y,
+// J is applied to, rhs is the right hand side function evaluated at t and y,
 // temp is a work vector the same size as y, and Jy is a vector that stores the 
 // product Jy.
 // If Jy is not given, a finite difference approximation of Jy will be used.
@@ -47,7 +47,7 @@ ode_integrator_t* jfnk_bdf_ode_integrator_new(int order,
                                               int num_remote_values, 
                                               void* context, 
                                               int (*rhs)(void* context, real_t t, real_t* x, real_t* xdot),
-                                              int (*Jy)(void* context, real_t t, real_t* x, real_t* rhstx, real_t* y, real_t* temp, real_t* Jy),
+                                              int (*Jy)(void* context, real_t t, real_t* x, real_t* rhs, real_t* y, real_t* temp, real_t* Jy),
                                               void (*dtor)(void* context),
                                               preconditioner_t* precond,
                                               jfnk_bdf_krylov_t solver_type,
