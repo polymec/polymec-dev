@@ -309,7 +309,7 @@ static ode_integrator_t* diurnal_integrator_new(diurnal_t* data, preconditioner_
 ode_integrator_t* block_jacobi_precond_diurnal_integrator_new()
 {
   diurnal_t* data = diurnal_new();
-  preconditioner_t* precond = block_jacobi_preconditioner_from_function("diurnal", data, diurnal_rhs, NULL, data->sparsity, NEQ/NUM_SPECIES, 0, NUM_SPECIES);
+  preconditioner_t* precond = block_jacobi_preconditioner_from_function("diurnal", MPI_COMM_WORLD, data, diurnal_rhs, NULL, data->sparsity, NEQ/NUM_SPECIES, 0, NUM_SPECIES);
   ode_integrator_t* integ = diurnal_integrator_new(data, precond);
   return integ;
 }
@@ -318,7 +318,7 @@ ode_integrator_t* block_jacobi_precond_diurnal_integrator_new()
 ode_integrator_t* lu_precond_diurnal_integrator_new()
 {
   diurnal_t* data = diurnal_new();
-  preconditioner_t* precond = lu_preconditioner_from_function("diurnal", data, diurnal_rhs, NULL, data->sparsity, NEQ/NUM_SPECIES, 0, NUM_SPECIES);
+  preconditioner_t* precond = lu_preconditioner_from_function("diurnal", MPI_COMM_WORLD, data, diurnal_rhs, NULL, data->sparsity, NEQ/NUM_SPECIES, 0, NUM_SPECIES);
   ode_integrator_t* integ = diurnal_integrator_new(data, precond);
   return integ;
 }
@@ -328,7 +328,7 @@ ode_integrator_t* ilu_precond_diurnal_integrator_new()
 {
   diurnal_t* data = diurnal_new();
   ilu_params_t* ilu_params = ilu_params_new();
-  preconditioner_t* precond = ilu_preconditioner_from_function("diurnal", data, diurnal_rhs, NULL, data->sparsity, NEQ/NUM_SPECIES, 0, NUM_SPECIES, ilu_params);
+  preconditioner_t* precond = ilu_preconditioner_from_function("diurnal", MPI_COMM_WORLD, data, diurnal_rhs, NULL, data->sparsity, NEQ/NUM_SPECIES, 0, NUM_SPECIES, ilu_params);
   ode_integrator_t* integ = diurnal_integrator_new(data, precond);
   return integ;
 }

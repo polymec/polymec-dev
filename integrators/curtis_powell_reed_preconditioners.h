@@ -20,6 +20,7 @@
 // (i.e. whether it is a block graph or not) is inferred from the number of 
 // block rows and the block size.
 preconditioner_t* block_jacobi_preconditioner_from_function(const char* name, 
+                                                            MPI_Comm comm,
                                                             void* context,
                                                             int (*F)(void* context, real_t t, real_t* x, real_t* Fval),
                                                             void (*dtor)(void* context),
@@ -32,6 +33,7 @@ preconditioner_t* block_jacobi_preconditioner_from_function(const char* name,
 // number of block rows, and block size, appropriate for preconditioning 
 // differential-algebraic systems.
 preconditioner_t* block_jacobi_preconditioner_from_dae_function(const char* name, 
+                                                                MPI_Comm comm,
                                                                 void* context,
                                                                 int (*F)(void* context, real_t t, real_t* x, real_t* xdot, real_t* Fval),
                                                                 void (*dtor)(void* context),
@@ -42,6 +44,7 @@ preconditioner_t* block_jacobi_preconditioner_from_dae_function(const char* name
 
 // Sparse (Supernode) LU preconditioner.
 preconditioner_t* lu_preconditioner_from_function(const char* name, 
+                                                  MPI_Comm comm,
                                                   void* context,
                                                   int (*F)(void* context, real_t t, real_t* x, real_t* Fval),
                                                   void (*dtor)(void* context),
@@ -52,6 +55,7 @@ preconditioner_t* lu_preconditioner_from_function(const char* name,
  
 // Sparse (Supernode) LU preconditioner -- differential-algebraic version.
 preconditioner_t* lu_preconditioner_from_dae_function(const char* name,
+                                                      MPI_Comm comm,
                                                       void* context,
                                                       int (*F)(void* context, real_t t, real_t* x, real_t* xdot, real_t* Fval),
                                                       void (*dtor)(void* context),
@@ -116,6 +120,7 @@ ilu_params_t* ilu_params_new();
 
 // ILU preconditioner.
 preconditioner_t* ilu_preconditioner_from_function(const char* name,
+                                                   MPI_Comm comm,
                                                    void* context,
                                                    int (*F)(void* context, real_t t, real_t* x, real_t* Fval),
                                                    void (*dtor)(void* context),
@@ -127,6 +132,7 @@ preconditioner_t* ilu_preconditioner_from_function(const char* name,
 
 // ILU preconditioner -- differential-algebraic version.
 preconditioner_t* ilu_preconditioner_from_dae_function(const char* name,
+                                                       MPI_Comm comm,
                                                        void* context,
                                                        int (*F)(void* context, real_t t, real_t* x, real_t* xdot, real_t* Fval),
                                                        void (*dtor)(void* context),

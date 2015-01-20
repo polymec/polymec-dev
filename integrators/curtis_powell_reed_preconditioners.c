@@ -32,12 +32,14 @@ typedef struct
 
 typedef struct
 {
+  MPI_Comm comm;
   void* context;
   cpr_vtable vtable;
 
   // Graph coloring stuff.
   adj_graph_t* sparsity;
   adj_graph_coloring_t* coloring;
+  int max_colors; // Maximum number of colors on all processes.
 
   // Numbers of local and remote rows.
   int num_local_rows, num_remote_rows;
@@ -148,10 +150,12 @@ static void cpr_compute_P(void* context,
 
   // We compute the system Jacobian using the method described in 
   // Curtis, Powell, and Reed.
+  log_debug("curtis_powell_reed_preconditioner: approximating Jacobian...");
 
   // First, set up an identity matrix.
   precond->vtable.set_identity_matrix(precond->context, alpha);
 
+  // Now iterate over all of the colors in our coloring. 
   real_t* Jv = polymec_malloc(sizeof(real_t) * precond->num_local_rows);
   int num_colors = adj_graph_coloring_num_colors(coloring);
   for (int c = 0; c < num_colors; ++c)
@@ -180,6 +184,23 @@ static void cpr_compute_P(void* context,
       precond->vtable.add_Jv_into_matrix(precond->context, graph, coloring, c, gamma, Jv);
     }
   }
+
+  // Now call the RHS functions in the same way as we would for all the colors
+  // we don't have, up through the maximum number, so our neighboring 
+  // processes can get exchanged data from us if they need it.
+  int num_neighbor_colors = precond->max_colors - num_colors;
+  for (int c = 0; c < num_neighbor_colors; ++c)
+  {
+    F(F_context, t, x, xdot, work[1]);
+    finite_diff_dFdx_v(F, F_context, t, x, xdot, precond->num_local_rows, 
+                       precond->num_remote_rows, work[0], work, Jv);
+    if ((gamma != 0.0) && (xdot != NULL))
+    {
+      finite_diff_dFdxdot_v(F, F_context, t, x, xdot, precond->num_local_rows, 
+                            precond->num_remote_rows, work[0], work, Jv);
+    }
+  }
+
   polymec_free(Jv);
 }
 
@@ -209,6 +230,7 @@ static void cpr_dtor(void* context)
 }
 
 static preconditioner_t* curtis_powell_reed_preconditioner_new(const char* name,
+                                                               MPI_Comm comm,
                                                                void* context,
                                                                cpr_vtable vtable,
                                                                adj_graph_t* sparsity,
@@ -226,6 +248,7 @@ static preconditioner_t* curtis_powell_reed_preconditioner_new(const char* name,
   ASSERT((vtable.F == NULL) || (vtable.F_dae == NULL));
 
   cpr_t* precond = polymec_malloc(sizeof(cpr_t));
+  precond->comm = comm;
   precond->context = context;
   precond->vtable = vtable;
 
@@ -245,9 +268,15 @@ static preconditioner_t* curtis_powell_reed_preconditioner_new(const char* name,
     precond->num_remote_rows = num_remote_block_rows * block_size;
   }
 
+  // Assemble a graph coloring for the preconditioner matrix.
   precond->coloring = adj_graph_coloring_new(precond->sparsity, SMALLEST_LAST);
-  log_debug("Curtis-Powell-Reed preconditioner: graph coloring produced %d colors.", 
-            adj_graph_coloring_num_colors(precond->coloring));
+
+  // Get the maximum number of colors on all MPI processes so that we can 
+  // still compute preconditioners in lockstep.
+  int num_colors = adj_graph_coloring_num_colors(precond->coloring);
+  MPI_Allreduce(&num_colors, &precond->max_colors, 1, MPI_INT, MPI_MAX, precond->comm);
+  log_debug("curtis_powell_reed_preconditioner: graph coloring produced %d colors.", 
+            precond->max_colors);
 
   // Make work vectors.
   precond->num_work_vectors = 4;
@@ -394,6 +423,7 @@ static void bjpc_dtor(void* context)
 }
 
 preconditioner_t* block_jacobi_preconditioner_from_function(const char* name, 
+                                                            MPI_Comm comm,
                                                             void* context,
                                                             int (*F)(void* context, real_t t, real_t* x, real_t* Fval),
                                                             void (*dtor)(void* context),
@@ -416,12 +446,13 @@ preconditioner_t* block_jacobi_preconditioner_from_function(const char* name,
                        .solve = bjpc_solve,
                        .fprintf = bjpc_fprintf,
                        .dtor = bjpc_dtor};
-  return curtis_powell_reed_preconditioner_new(name, pc, vtable, sparsity, 
+  return curtis_powell_reed_preconditioner_new(name, comm, pc, vtable, sparsity, 
                                                num_local_block_rows, num_remote_block_rows, 
                                                block_size);
 }
 
 preconditioner_t* block_jacobi_preconditioner_from_dae_function(const char* name, 
+                                                                MPI_Comm comm,
                                                                 void* context,
                                                                 int (*F)(void* context, real_t t, real_t* x, real_t* xdot, real_t* Fval),
                                                                 void (*dtor)(void* context),
@@ -443,7 +474,7 @@ preconditioner_t* block_jacobi_preconditioner_from_dae_function(const char* name
                        .add_Jv_into_matrix = bjpc_add_Jv_into_matrix,
                        .solve = bjpc_solve,
                        .dtor = bjpc_dtor};
-  return curtis_powell_reed_preconditioner_new(name, pc, vtable, sparsity, 
+  return curtis_powell_reed_preconditioner_new(name, comm, pc, vtable, sparsity, 
                                                num_local_block_rows, num_remote_block_rows,
                                                block_size);
 }
@@ -693,6 +724,7 @@ static void lupc_initialize_matrix_data(void* context, adj_graph_t* sparsity)
 }
    
 preconditioner_t* lu_preconditioner_from_function(const char* name, 
+                                                  MPI_Comm comm,
                                                   void* context,
                                                   int (*F)(void* context, real_t t, real_t* x, real_t* Fval),
                                                   void (*dtor)(void* context),
@@ -701,12 +733,13 @@ preconditioner_t* lu_preconditioner_from_function(const char* name,
                                                   int num_remote_block_rows, 
                                                   int block_size)
 {
-  return ilu_preconditioner_from_function(name, context, F, dtor, sparsity, 
+  return ilu_preconditioner_from_function(name, comm, context, F, dtor, sparsity, 
                                           num_local_block_rows, num_remote_block_rows, 
                                           block_size, NULL);
 }
 
 preconditioner_t* lu_preconditioner_from_dae_function(const char* name, 
+                                                      MPI_Comm comm, 
                                                       void* context,
                                                       int (*F)(void* context, real_t t, real_t* x, real_t* xdot, real_t* Fval),
                                                       void (*dtor)(void* context),
@@ -715,7 +748,7 @@ preconditioner_t* lu_preconditioner_from_dae_function(const char* name,
                                                       int num_remote_block_rows, 
                                                       int block_size)
 {
-  return ilu_preconditioner_from_dae_function(name, context, F, dtor, sparsity, 
+  return ilu_preconditioner_from_dae_function(name, comm, context, F, dtor, sparsity, 
                                               num_local_block_rows, num_remote_block_rows, 
                                               block_size, NULL);
 }
@@ -818,6 +851,7 @@ static void ilupc_set_ilu_params(lupc_t* precond, ilu_params_t* ilu_params)
 }
 
 preconditioner_t* ilu_preconditioner_from_function(const char* name, 
+                                                   MPI_Comm comm,
                                                    void* context,
                                                    int (*F)(void* context, real_t t, real_t* x, real_t* Fval),
                                                    void (*dtor)(void* context),
@@ -842,12 +876,13 @@ preconditioner_t* ilu_preconditioner_from_function(const char* name,
                        .dtor = lupc_dtor};
   if (ilu_params != NULL)
     vtable.solve = ilupc_solve;
-  return curtis_powell_reed_preconditioner_new(name, precond, vtable, sparsity, 
+  return curtis_powell_reed_preconditioner_new(name, comm, precond, vtable, sparsity, 
                                                num_local_block_rows, num_remote_block_rows,
                                                block_size);
 }
 
 preconditioner_t* ilu_preconditioner_from_dae_function(const char* name, 
+                                                       MPI_Comm comm,
                                                        void* context,
                                                        int (*F)(void* context, real_t t, real_t* x, real_t* xdot, real_t* Fval),
                                                        void (*dtor)(void* context),
@@ -872,7 +907,7 @@ preconditioner_t* ilu_preconditioner_from_dae_function(const char* name,
                        .dtor = lupc_dtor};
   if (ilu_params != NULL)
     vtable.solve = ilupc_solve;
-  return curtis_powell_reed_preconditioner_new(name, precond, vtable, sparsity, 
+  return curtis_powell_reed_preconditioner_new(name, comm, precond, vtable, sparsity, 
                                                num_local_block_rows, num_remote_block_rows,
                                                block_size);
 }

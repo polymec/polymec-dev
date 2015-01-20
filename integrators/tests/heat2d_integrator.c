@@ -197,7 +197,7 @@ dae_integrator_t* block_jacobi_precond_heat2d_integrator_new()
 {
   dae_integrator_t* integ = heat2d_integrator_new();
   heat2d_t* data = dae_integrator_context(integ);
-  preconditioner_t* precond = block_jacobi_preconditioner_from_dae_function("Heat 2D", data, heat2d_res, NULL, data->sparsity, NEQ, 0, 1);
+  preconditioner_t* precond = block_jacobi_preconditioner_from_dae_function("Heat 2D", MPI_COMM_WORLD, data, heat2d_res, NULL, data->sparsity, NEQ, 0, 1);
   dae_integrator_set_preconditioner(integ, precond);
   return integ;
 }
@@ -207,7 +207,7 @@ dae_integrator_t* lu_precond_heat2d_integrator_new()
 {
   dae_integrator_t* integ = heat2d_integrator_new();
   heat2d_t* data = dae_integrator_context(integ);
-  preconditioner_t* precond = lu_preconditioner_from_dae_function("Heat 2D", data, heat2d_res, NULL, data->sparsity, NEQ, 0, 1);
+  preconditioner_t* precond = lu_preconditioner_from_dae_function("Heat 2D", MPI_COMM_WORLD, data, heat2d_res, NULL, data->sparsity, NEQ, 0, 1);
   dae_integrator_set_preconditioner(integ, precond);
   return integ;
 }
@@ -218,7 +218,7 @@ dae_integrator_t* ilu_precond_heat2d_integrator_new()
   dae_integrator_t* integ = heat2d_integrator_new();
   ilu_params_t* ilu_params = ilu_params_new();
   heat2d_t* data = dae_integrator_context(integ);
-  preconditioner_t* precond = ilu_preconditioner_from_dae_function("Heat 2D", data, heat2d_res, NULL, data->sparsity, NEQ, 0, 1, ilu_params);
+  preconditioner_t* precond = ilu_preconditioner_from_dae_function("Heat 2D", MPI_COMM_WORLD, data, heat2d_res, NULL, data->sparsity, NEQ, 0, 1, ilu_params);
   dae_integrator_set_preconditioner(integ, precond);
   return integ;
 }
