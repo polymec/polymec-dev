@@ -25,12 +25,12 @@
 // function and destructor are required, and a function to compute Jy, the 
 // product of the Jacobian with the vector y, can be optionally provided. Its 
 // signature is: 
-// Jy(context, t, x, rhs, y, temp, Jy), where context is the context pointer, 
+// Jy_func(context, t, x, rhs, y, temp, Jy), where context is the context pointer, 
 // t is the time at which Jy is evaluated, y is the vector the Jacobian operator
 // J is applied to, rhs is the right hand side function evaluated at t and y,
 // temp is a work vector the same size as y, and Jy is a vector that stores the 
 // product Jy.
-// If Jy is not given, a finite difference approximation of Jy will be used.
+// If Jy_func is not given, a finite difference approximation of Jy will be used.
 // Additionally, the type of Krylov solver (JFNK_BDF_GMRES, JFNK_BDF_BICGSTAB, 
 // or JFNK_BDF_TFQMR) must be given, along with the maximum dimension of the 
 // Krylov subspace. 
@@ -46,8 +46,8 @@ ode_integrator_t* jfnk_bdf_ode_integrator_new(int order,
                                               int num_local_values, 
                                               int num_remote_values, 
                                               void* context, 
-                                              int (*rhs)(void* context, real_t t, real_t* x, real_t* xdot),
-                                              int (*Jy)(void* context, real_t t, real_t* x, real_t* rhs, real_t* y, real_t* temp, real_t* Jy),
+                                              int (*rhs_func)(void* context, real_t t, real_t* x, real_t* xdot),
+                                              int (*Jy_func)(void* context, real_t t, real_t* x, real_t* rhs, real_t* y, real_t* temp, real_t* Jy),
                                               void (*dtor)(void* context),
                                               preconditioner_t* precond,
                                               jfnk_bdf_krylov_t solver_type,

@@ -256,15 +256,15 @@ static int solve_preconditioner_system(real_t t, N_Vector x, N_Vector F,
 }
 
 // Adaptor for J*y function
-static int eval_Jy(N_Vector y, N_Vector Jy, real_t t, N_Vector x, N_Vector rhstx, void* context, N_Vector tmp)
+static int eval_Jy(N_Vector y, N_Vector Jy, real_t t, N_Vector x, N_Vector rhs, void* context, N_Vector tmp)
 {
   bdf_ode_t* integ = context;
   real_t* xx = NV_DATA(x);
   real_t* yy = NV_DATA(y);
-  real_t* rhs = NV_DATA(rhstx);
+  real_t* my_rhs = NV_DATA(rhs);
   real_t* temp = NV_DATA(tmp);
   real_t* jjy = NV_DATA(Jy);
-  return integ->Jy(integ->context, t, xx, rhs, yy, temp, jjy);
+  return integ->Jy(integ->context, t, xx, my_rhs, yy, temp, jjy);
 }
 
 ode_integrator_t* jfnk_bdf_ode_integrator_new(int order,
@@ -272,8 +272,8 @@ ode_integrator_t* jfnk_bdf_ode_integrator_new(int order,
                                              int num_local_values, 
                                              int num_remote_values, 
                                              void* context, 
-                                             int (*rhs)(void* context, real_t t, real_t* x, real_t* xdot),
-                                             int (*Jy)(void* context, real_t t, real_t* x, real_t* rhstx, real_t* y, real_t* temp, real_t* Jy),
+                                             int (*rhs_func)(void* context, real_t t, real_t* x, real_t* xdot),
+                                             int (*Jy_func)(void* context, real_t t, real_t* x, real_t* rhs, real_t* y, real_t* temp, real_t* Jy),
                                              void (*dtor)(void* context),
                                              preconditioner_t* precond,
                                              jfnk_bdf_krylov_t solver_type,
@@ -283,7 +283,7 @@ ode_integrator_t* jfnk_bdf_ode_integrator_new(int order,
   ASSERT(order <= 12);
   ASSERT(num_local_values > 0);
   ASSERT(num_remote_values >= 0);
-  ASSERT(rhs != NULL);
+  ASSERT(rhs_func != NULL);
   ASSERT(precond != NULL);
   ASSERT(max_krylov_dim > 3);
 
@@ -292,10 +292,11 @@ ode_integrator_t* jfnk_bdf_ode_integrator_new(int order,
   integ->num_local_values = num_local_values;
   integ->num_remote_values = num_remote_values;
   integ->context = context;
-  integ->rhs = rhs;
+  integ->rhs = rhs_func;
   integ->dtor = dtor;
   integ->status_message = NULL;
   integ->max_krylov_dim = max_krylov_dim;
+  integ->Jy = Jy_func;
   integ->t = 0.0;
 
   // Set up KINSol and accessories.
@@ -319,7 +320,7 @@ ode_integrator_t* jfnk_bdf_ode_integrator_new(int order,
     CVSptfqmr(integ->cvode, PREC_LEFT, max_krylov_dim);
 
   // Set up the Jacobian function and preconditioner.
-  if (Jy != NULL)
+  if (Jy_func != NULL)
     CVSpilsSetJacTimesVecFn(integ->cvode, eval_Jy);
   integ->precond = precond;
   CVSpilsSetPreconditioner(integ->cvode, set_up_preconditioner,
