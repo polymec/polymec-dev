@@ -292,10 +292,10 @@ void adj_graph_fprintf(adj_graph_t* graph, FILE* stream)
     int num_edges = adj_graph_num_edges(graph, i);
     int* edges = adj_graph_edges(graph, i);
     for (int i = 0; i < num_edges; ++i)
-      printf("%d ", edges[i]);
-    printf("\n");
+      fprintf(stream, "%d ", edges[i]);
+    fprintf(stream, "\n");
   }
-  printf("\n");
+  fprintf(stream, "\n");
 }
 
 struct adj_graph_coloring_t 
@@ -467,7 +467,6 @@ adj_graph_coloring_t* adj_graph_coloring_new(adj_graph_t* graph,
                                              adj_graph_vertex_ordering_t ordering)
 {
   // Generate an ordered list of vertices.
-  int num_vertices = adj_graph_num_vertices(graph);
   int v_max = adj_graph_max_vertex_index(graph);
   int* vertices = polymec_malloc(sizeof(int) * (v_max + 1));
   for (int i = 0; i <= v_max; ++i)
