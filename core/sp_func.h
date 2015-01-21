@@ -92,7 +92,7 @@ void sp_func_eval_deriv(sp_func_t* func, int n, point_t* x, real_t* result);
 
 // Creates a function that is constant everywhere in space, with the given 
 // components.
-sp_func_t* constant_sp_func_new(int num_comp, real_t comp[]);
+sp_func_t* constant_sp_func_new(real_t components[], int num_components);
 
 #endif
 

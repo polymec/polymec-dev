@@ -113,7 +113,7 @@ st_func_t* st_func_from_component(st_func_t* multicomp_func,
 
 // Creates a function that is constant in space and time, with the given 
 // components.
-st_func_t* constant_st_func_new(int num_comp, real_t comp[]);
+st_func_t* constant_st_func_new(real_t components[], int num_components);
 
 #endif
 

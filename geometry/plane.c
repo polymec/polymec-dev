@@ -132,7 +132,7 @@ void plane_reset(sp_func_t* plane, vector_t* n, point_t* x)
   // Register the negative of the normal as the derivative.
   real_t nn[3];
   nn[0] = -n->x, nn[1] = -n->y, nn[2] = -n->z; 
-  sp_func_t* G = constant_sp_func_new(3, nn);
+  sp_func_t* G = constant_sp_func_new(nn, 3);
   sp_func_register_deriv(plane, 1, G);
 
   // Set up our basis vectors.

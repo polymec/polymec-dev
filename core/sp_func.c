@@ -187,37 +187,37 @@ static void constant_dtor(void* ctx)
   polymec_free(f);
 }
 
-static sp_func_t* create_constant_sp_func(int num_comp, real_t comp[])
+static sp_func_t* create_constant_sp_func(real_t components[], int num_components)
 {
   sp_vtable vtable = {.eval = constant_eval, .dtor = constant_dtor};
   char name[1024];
   snprintf(name, 1024, "constant spatial function (");
-  for (int i = 0; i < num_comp; ++i)
+  for (int i = 0; i < num_components; ++i)
   {
     char comp_str[22];
-    if (i == (num_comp-1))
-      snprintf(comp_str, 20, "%g)", comp[i]);
+    if (i == (num_components-1))
+      snprintf(comp_str, 20, "%g)", components[i]);
     else
-      snprintf(comp_str, 20, "%g, ", comp[i]);
+      snprintf(comp_str, 20, "%g, ", components[i]);
     strncat(name, comp_str, 1024);
   }
   const_sp_func_t* f = polymec_malloc(sizeof(const_sp_func_t));
-  f->num_comp = num_comp;
-  f->comp = polymec_malloc(num_comp*sizeof(real_t));
-  for (int i = 0; i < num_comp; ++i)
-    f->comp[i] = comp[i];
-  return sp_func_new(name, (void*)f, vtable, SP_HOMOGENEOUS, num_comp);
+  f->num_comp = num_components;
+  f->comp = polymec_malloc(num_components*sizeof(real_t));
+  for (int i = 0; i < num_components; ++i)
+    f->comp[i] = components[i];
+  return sp_func_new(name, (void*)f, vtable, SP_HOMOGENEOUS, num_components);
 }
 
-sp_func_t* constant_sp_func_new(int num_comp, real_t comp[])
+sp_func_t* constant_sp_func_new(real_t components[], int num_components)
 {
-  sp_func_t* func = create_constant_sp_func(num_comp, comp);
+  sp_func_t* func = create_constant_sp_func(components, num_components);
 
   // Just to be complete, we register the 3-component zero function as this 
   // function's gradient.
-  real_t zeros[3*num_comp];
-  memset(zeros, 0, 3*num_comp*sizeof(real_t));
-  sp_func_t* zero = create_constant_sp_func(3*num_comp, zeros);
+  real_t zeros[3*num_components];
+  memset(zeros, 0, 3*num_components*sizeof(real_t));
+  sp_func_t* zero = create_constant_sp_func(zeros, 3*num_components);
   sp_func_register_deriv(func, 1, zero);
 
   return func;

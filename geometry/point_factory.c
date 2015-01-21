@@ -664,7 +664,7 @@ int point_factory_random_points(lua_State* lua)
     bbox = lua_toboundingbox(lua, 2);
     ASSERT(bbox != NULL);
     real_t one = 1.0;
-    density = constant_sp_func_new(1, &one);
+    density = constant_sp_func_new(&one, 1);
   }
   else
   {

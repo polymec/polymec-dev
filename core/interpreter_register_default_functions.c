@@ -147,7 +147,7 @@ static int constant_function(lua_State* lua)
     args[i] = (real_t)lua_tonumber(lua, i+1);
 
   // Push a constant function onto the stack.
-  st_func_t* func = constant_st_func_new(num_args, args);
+  st_func_t* func = constant_st_func_new(args, num_args);
   if (num_args == 1)
     lua_pushscalarfunction(lua, func);
   else if (num_args == 3)

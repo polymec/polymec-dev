@@ -1306,7 +1306,7 @@ st_func_t* interpreter_get_sym_tensor_function(interpreter_t* interp, const char
   {
     real_t F = *(real_t*)((*storage)->datum);
     real_t v[6] = {F, 0.0, 0.0, F, 0.0, F};
-    return constant_st_func_new(6, v);
+    return constant_st_func_new(v, 6);
   }
   if ((*storage)->type != INTERPRETER_SYM_TENSOR_FUNCTION)
     return NULL;
@@ -1331,7 +1331,7 @@ st_func_t* interpreter_get_tensor_function(interpreter_t* interp, const char* na
   {
     real_t F = *(real_t*)((*storage)->datum);
     real_t v[9] = {F, 0.0, 0.0, 0.0, F, 0.0, 0.0, 0.0, F};
-    return constant_st_func_new(9, v);
+    return constant_st_func_new(v, 9);
   }
   if ((*storage)->type != INTERPRETER_TENSOR_FUNCTION)
     return NULL;
@@ -2198,7 +2198,7 @@ st_func_t* lua_toscalarfunction(struct lua_State* lua, int index)
   if (lua_isnumber(lua, index))
   {
     real_t number = (real_t)lua_tonumber(lua, index);
-    return constant_st_func_new(1, &number);
+    return constant_st_func_new(&number, 1);
   }
   else if (lua_isfunction(lua, index))
     return scalarfunction_from_lua_func(lua, index);
@@ -2376,7 +2376,7 @@ st_func_t* lua_tosymtensorfunction(struct lua_State* lua, int index)
   {
     real_t F = (real_t)lua_tonumber(lua, index);
     real_t v[6] = {F, 0.0, 0.0, F, 0.0, F};
-    return constant_st_func_new(6, v);
+    return constant_st_func_new(v, 6);
   }
   if (!lua_isuserdata(lua, index))
     return NULL;
@@ -2387,7 +2387,7 @@ st_func_t* lua_tosymtensorfunction(struct lua_State* lua, int index)
   {
     real_t F = *(real_t*)storage->datum;
     real_t v[6] = {F, 0.0, 0.0, F, 0.0, F};
-    return constant_st_func_new(6, v);
+    return constant_st_func_new(v, 6);
   }
   else
     return NULL;
@@ -2477,7 +2477,7 @@ st_func_t* lua_totensorfunction(struct lua_State* lua, int index)
   {
     real_t F = (real_t)lua_tonumber(lua, index);
     real_t v[6] = {F, 0.0, 0.0, F, 0.0, F};
-    return constant_st_func_new(6, v);
+    return constant_st_func_new(v, 6);
   }
   if (!lua_isuserdata(lua, index))
     return NULL;
@@ -2488,7 +2488,7 @@ st_func_t* lua_totensorfunction(struct lua_State* lua, int index)
   {
     real_t F = *(real_t*)storage->datum;
     real_t v[9] = {F, 0.0, 0.0, 0.0, F, 0.0, 0.0, 0.0, F};
-    return constant_st_func_new(9, v);
+    return constant_st_func_new(v, 9);
   }
   else
     return NULL;
