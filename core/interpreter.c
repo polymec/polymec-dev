@@ -798,15 +798,7 @@ static void interpreter_store_chunk_contents(interpreter_t* interp)
       }
       else if (entry->type == INTERPRETER_SCALAR_FUNCTION)
       {
-        if (!lua_isuserdata(lua, val_index))
-        {
-          if (preexisting_var)
-            skip_this_var = true;
-          else
-            polymec_error("Type error: %s must be a scalar-valued function.", key);
-        }
-        interpreter_storage_t* var = (void*)lua_topointer(lua, val_index);
-        if (var->type != INTERPRETER_SCALAR_FUNCTION)
+        if (!lua_isscalarfunction(lua, val_index))
         {
           if (preexisting_var)
             skip_this_var = true;
@@ -928,10 +920,17 @@ static void interpreter_store_chunk_contents(interpreter_t* interp)
     // Jot down the variable.
     string_unordered_set_insert(variables_present, (char*)key);
 
-    // Now store the present lua variable in appropriate C storage.
+    // Now store the present lua variable in appropriate C storage. 
+    // FIXME: This logic is a little brittle and relies too heavily on 
+    // FIXME: entry types.
     interpreter_storage_t* var = NULL;
     if (lua_isnumber(lua, val_index))
-      var = store_number(NULL, (real_t)lua_tonumber(lua, val_index));
+    {
+      if ((entry != NULL) && (entry->type == INTERPRETER_SCALAR_FUNCTION))
+        var = store_scalar_function(NULL, lua_toscalarfunction(lua, val_index));
+      else
+        var = store_number(NULL, (real_t)lua_tonumber(lua, val_index));
+    }
     else if (lua_isboolean(lua, val_index))
       var = store_boolean(NULL, lua_toboolean(lua, val_index));
     else if (lua_isstring(lua, val_index))
@@ -970,6 +969,10 @@ static void interpreter_store_chunk_contents(interpreter_t* interp)
     else if (lua_isboundingbox(lua, val_index))
     {
       var = (void*)lua_topointer(lua, val_index);
+    }
+    else if (lua_isscalarfunction(lua, val_index))
+    {
+      var = store_scalar_function(NULL, lua_toscalarfunction(lua, val_index));
     }
     else if (lua_ispointlist(lua, val_index))
     {
@@ -2113,9 +2116,78 @@ void lua_pushboundingbox(struct lua_State* lua, bbox_t* bbox)
   set_metatable(lua, "boundingbox_metatable", metatable);
 }
 
+// This following logic is for constructing a scalar-valued function from a 
+// Lua function at a given index. 
+typedef struct
+{
+  struct lua_State* lua;
+  char function_name[1024];
+} lua_scalarfunction_t;
+static void lua_scalarfunction_eval(void* context, point_t* x, real_t t, real_t* F)
+{
+  // Unpack everything.
+  lua_scalarfunction_t* func = context;
+  struct lua_State* lua = func->lua;
+
+  // Push the function on top of the stack.
+  lua_getglobal(lua, func->function_name);
+
+  // Push (x, y, z, t).
+  lua_pushnumber(lua, x->x);
+  lua_pushnumber(lua, x->y);
+  lua_pushnumber(lua, x->z); 
+  lua_pushnumber(lua, t);
+
+  // Do the function call and expect a single result.
+  if (lua_pcall(lua, 4, 1, 0) != 0)
+  {
+    polymec_error("Error evaluating scalar function: %s", 
+                  lua_tostring(lua, -1));
+  }
+  
+  // Retrieve the result.
+  if (!lua_isnumber(lua, -1))
+    polymec_error("Lua scalar functions must return numbers.");
+  *F = (real_t)lua_tonumber(lua, -1);
+
+  // Pop returned value.
+  lua_pop(lua, 1); 
+}
+static st_func_t* scalarfunction_from_lua_func(struct lua_State* lua, 
+                                               int index)
+{
+  ASSERT(lua_isfunction(lua, index) && !lua_iscfunction(lua, index));
+
+  // Generate a context.
+  lua_scalarfunction_t* func = polymec_malloc(sizeof(lua_scalarfunction_t));
+  func->lua = lua;
+
+  // Generate a random function name and place this function into Lua's 
+  // list of named globals.
+  static int which_func = 0;
+  snprintf(func->function_name, 1024, "scalarfunction_%d", which_func++);
+  lua_pushvalue(lua, lua_absindex(lua, index));
+  lua_setglobal(lua, func->function_name);
+
+  // Now create and return our function.
+  st_vtable vtable = {.eval = lua_scalarfunction_eval, .dtor = polymec_free};
+  return st_func_new("Lua scalar function", func, vtable, ST_INHOMOGENEOUS,
+                     ST_NONCONSTANT, 1);
+}
+
 bool lua_isscalarfunction(struct lua_State* lua, int index)
 {
-  if (!lua_isuserdata(lua, index))
+  if (lua_isnumber(lua, index))
+    return true;
+  else if (lua_isfunction(lua, index) && !lua_iscfunction(lua, index))
+  {
+    // Try to create a function out of this lua function.
+    st_func_t* lua_func = scalarfunction_from_lua_func(lua, index);
+    bool result = (lua_func != NULL);
+    lua_func = NULL;
+    return result;
+  }
+  else if (!lua_isuserdata(lua, index))
     return false;
   interpreter_storage_t* storage = (interpreter_storage_t*)lua_topointer(lua, index);
   return (storage->type == INTERPRETER_SCALAR_FUNCTION);
@@ -2123,7 +2195,14 @@ bool lua_isscalarfunction(struct lua_State* lua, int index)
 
 st_func_t* lua_toscalarfunction(struct lua_State* lua, int index)
 {
-  if (!lua_isuserdata(lua, index))
+  if (lua_isnumber(lua, index))
+  {
+    real_t number = (real_t)lua_tonumber(lua, index);
+    return constant_st_func_new(1, &number);
+  }
+  else if (lua_isfunction(lua, index))
+    return scalarfunction_from_lua_func(lua, index);
+  else if (!lua_isuserdata(lua, index))
     return NULL;
   interpreter_storage_t* storage = (interpreter_storage_t*)lua_topointer(lua, index);
   if (storage->type == INTERPRETER_SCALAR_FUNCTION)

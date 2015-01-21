@@ -372,12 +372,13 @@ bbox_t* lua_toboundingbox(struct lua_State* lua, int index);
 // return value for a function).
 void lua_pushboundingbox(struct lua_State* lua, bbox_t* bbox);
 
-// This helper returns true if the object at the given index is a scalar-valued
-// function, false if not.
+// This helper returns true if the object at the given index is or can be 
+// interpreted as a scalar-valued function, false if not.
 bool lua_isscalarfunction(struct lua_State* lua, int index);
 
 // This helper retrieves a scalar-valued function from the given index on an 
-// active lua interpreter, or returns NULL if the index does not point to an st_func.
+// active lua interpreter, or returns NULL if the object at the index cannot 
+// be interpreted as one.
 st_func_t* lua_toscalarfunction(struct lua_State* lua, int index);
 
 // Pushes a scalar-valued function onto the interpreter's stack (as a 
