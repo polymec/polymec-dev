@@ -1126,6 +1126,26 @@ void model_set_sim_name(model_t* model, const char* sim_name)
   model->sim_name = string_dup(sim_name);
 }
 
+static void set_sim_name_to_input_file(model_t* model, const char* input)
+{
+  char dir_name[FILENAME_MAX], file_name[FILENAME_MAX];
+  parse_path(input, dir_name, file_name);
+  int len = strlen(file_name), end = 0;
+  while (end < len)
+  {
+    // We accept alphanumeric characters, underscores, and hyphens.
+    if (!isalnum(file_name[end]) && 
+        (file_name[end] != '_') && 
+        (file_name[end] != '-'))
+      break;
+    ++end;
+  }
+  char prefix[FILENAME_MAX];
+  strncpy(prefix, file_name, end);
+  prefix[end] = '\0';
+  model_set_sim_name(model, prefix);
+}
+
 int model_main(const char* model_name, model_ctor constructor, int argc, char* argv[])
 {
   // Start everything up.
@@ -1246,19 +1266,7 @@ int model_main(const char* model_name, model_ctor constructor, int argc, char* a
 
   // By default, the simulation is named after the input file (minus its path 
   // and anything after the first alphanumeric character).
-  char dir_name[FILENAME_MAX], file_name[FILENAME_MAX];
-  parse_path(input, dir_name, file_name);
-  int len = strlen(file_name), end = 0;
-  while (end < len)
-  {
-    if (!isalnum(file_name[end]))
-      break;
-    ++end;
-  }
-  char prefix[FILENAME_MAX];
-  strncpy(prefix, file_name, end);
-  prefix[end] = '\0';
-  model_set_sim_name(model, prefix);
+  set_sim_name_to_input_file(model, input);
 
   // Read the contents of the input file into the model's interpreter.
   model_read_input_file(model, input);
@@ -1507,19 +1515,7 @@ int multi_model_main(model_dispatch_t model_table[],
 
   // By default, the simulation is named after the input file (minus its path 
   // and anything after the first alphanumeric character).
-  char dir_name[FILENAME_MAX], file_name[FILENAME_MAX];
-  parse_path(input, dir_name, file_name);
-  int len = strlen(file_name), end = 0;
-  while (end < len)
-  {
-    if (!isalnum(file_name[end]))
-      break;
-    ++end;
-  }
-  char prefix[FILENAME_MAX];
-  strncpy(prefix, file_name, end);
-  prefix[end] = '\0';
-  model_set_sim_name(model, prefix);
+  set_sim_name_to_input_file(model, input);
 
   // Read the contents of the input file into the model's interpreter.
   model_read_input_file(model, input);
@@ -1581,8 +1577,9 @@ int model_minimal_main(const char* model_name, model_ctor constructor, int argc,
   }
   fclose(fp);
 
-  // By default, the simulation is named after the input file (minus its suffix).
-  model_set_sim_name(model, input);
+  // By default, the simulation is named after the input file (minus its path 
+  // and anything after the first alphanumeric character).
+  set_sim_name_to_input_file(model, input);
 
   // Read the contents of the input file into the model's interpreter.
   model_read_input_file(model, input);
