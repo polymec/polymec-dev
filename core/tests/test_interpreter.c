@@ -18,6 +18,9 @@ void test_interpreter_with_long_string(void** state)
     "f = constant_function(5)\n"
     "F = constant_function(1, 2, 3)\n"
     "V = vector_function(constant_function(1), constant_function(2), constant_function(3))\n"
+    "function Z(x, y, z, t)\n"
+    "  return math.sqrt(x*x + y*y + z*z - t*t)\n"
+    "end\n"
     "g = 2\n"
     "h = 3.0\n"
     "i = 'string cheese'\n";
@@ -25,6 +28,7 @@ void test_interpreter_with_long_string(void** state)
   interpreter_validation_t valid_inputs[] = {{"f", INTERPRETER_SCALAR_FUNCTION, REQUIRED},
                                              {"F", INTERPRETER_VECTOR_FUNCTION, REQUIRED},
                                              {"V", INTERPRETER_VECTOR_FUNCTION, REQUIRED},
+                                             {"Z", INTERPRETER_SCALAR_FUNCTION, REQUIRED},
                                              {"g", INTERPRETER_NUMBER, REQUIRED},
                                              {"h", INTERPRETER_NUMBER, REQUIRED},
                                              {"i", INTERPRETER_STRING, REQUIRED},
@@ -75,6 +79,24 @@ void test_interpreter_with_long_string(void** state)
   assert_true(fabs(one_two_three[0] - 1.0) < 1e-15);
   assert_true(fabs(one_two_three[1] - 2.0) < 1e-15);
   assert_true(fabs(one_two_three[2] - 3.0) < 1e-15);
+
+  assert_true(interpreter_contains(interp, "Z", INTERPRETER_SCALAR_FUNCTION));
+  assert_true(interpreter_get_scalar_function(interp, "Z") != NULL);
+  assert_true(!interpreter_contains(interp, "Z", INTERPRETER_VECTOR_FUNCTION));
+  assert_true(!interpreter_contains(interp, "Z", INTERPRETER_NUMBER));
+  assert_true(interpreter_get_number(interp, "Z") == -FLT_MAX);
+  assert_true(!interpreter_contains(interp, "Z", INTERPRETER_STRING));
+  assert_true(!interpreter_contains(interp, "Z", INTERPRETER_MESH));
+  st_func_t* Z = interpreter_get_scalar_function(interp, "Z");
+  assert_int_equal(1, st_func_num_comp(Z));
+  assert_true(!st_func_is_homogeneous(Z));
+  assert_true(!st_func_is_constant(Z));
+  point_set(&x, 1.0, 2.0, 3.0);
+  t = 2.0;
+  real_t answer;
+  st_func_eval(Z, &x, t, &answer);
+  printf("Z = %g\n", answer);
+  assert_true(fabs(answer - sqrt(10.0)) < 1e-15);
 
   assert_true(interpreter_contains(interp, "g", INTERPRETER_NUMBER));
   assert_true((int)interpreter_get_number(interp, "g") == 2);
@@ -243,6 +265,66 @@ void test_table_parsing(void** state)
   interpreter_free(interp);
 }
 
+void test_scalarfunction_parsing(void** state)
+{
+  point_t x = {.x = 1.0, .y = 2.0, .z = 3.0};
+  real_t val, t = 1.0;
+
+  // Constant function.
+  {
+    static const char* test_string = "f = 1";
+    interpreter_validation_t valid_inputs[] = {{"f", INTERPRETER_SCALAR_FUNCTION, REQUIRED},
+                                               END_OF_VALID_INPUTS};
+    interpreter_t* interp = interpreter_new(valid_inputs);
+    interpreter_parse_string(interp, (char*)test_string);
+
+    assert_true(interpreter_contains(interp, "f", INTERPRETER_SCALAR_FUNCTION));
+    st_func_t* f = interpreter_get_scalar_function(interp, "f");
+    assert_true(f != NULL);
+    assert_true(st_func_num_comp(f) == 1);
+    st_func_eval(f, &x, t, &val);
+    assert_true(fabs(val - 1.0) < 1e-15);
+    interpreter_free(interp);
+  }
+
+  // Constant function (in C).
+  {
+    static const char* test_string = "f = constant_function(1)";
+    interpreter_validation_t valid_inputs[] = {{"f", INTERPRETER_SCALAR_FUNCTION, REQUIRED},
+                                               END_OF_VALID_INPUTS};
+    interpreter_t* interp = interpreter_new(valid_inputs);
+    interpreter_parse_string(interp, (char*)test_string);
+
+    assert_true(interpreter_contains(interp, "f", INTERPRETER_SCALAR_FUNCTION));
+    st_func_t* f = interpreter_get_scalar_function(interp, "f");
+    assert_true(f != NULL);
+    assert_true(st_func_num_comp(f) == 1);
+    st_func_eval(f, &x, t, &val);
+    assert_true(fabs(val - 1.0) < 1e-15);
+    interpreter_free(interp);
+  }
+
+  // Lua function.
+  {
+    static const char* test_string = \
+      "function f(x, y, z, t)\n"
+      "  return math.sqrt(x*x + y*y + z*z - t*t)\n"
+      "end\n";
+    interpreter_validation_t valid_inputs[] = {{"f", INTERPRETER_SCALAR_FUNCTION, REQUIRED},
+                                               END_OF_VALID_INPUTS};
+    interpreter_t* interp = interpreter_new(valid_inputs);
+    interpreter_parse_string(interp, (char*)test_string);
+
+    assert_true(interpreter_contains(interp, "f", INTERPRETER_SCALAR_FUNCTION));
+    st_func_t* f = interpreter_get_scalar_function(interp, "f");
+    assert_true(f != NULL);
+    assert_true(st_func_num_comp(f) == 1);
+    st_func_eval(f, &x, t, &val);
+    assert_true(fabs(val - sqrt(13.0)) < 1e-15);
+    interpreter_free(interp);
+  }
+}
+
 int main(int argc, char* argv[]) 
 {
   polymec_init(argc, argv);
@@ -254,7 +336,8 @@ int main(int argc, char* argv[])
     unit_test(test_boundingbox_parsing),
     unit_test(test_pointlist_parsing),
     unit_test(test_vectorlist_parsing),
-    unit_test(test_table_parsing)
+    unit_test(test_table_parsing),
+    unit_test(test_scalarfunction_parsing)
   };
   return run_tests(tests);
 }
