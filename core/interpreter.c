@@ -684,10 +684,56 @@ static lua_State* interpreter_open_lua(interpreter_t* interp)
   return interp->lua;
 }
 
+// This machinery creates and maintains a symbol table in which are registered 
+// global symbols that will be added to Lua's global table AFTER parsing. This 
+// avoids interfering with the traversal of the globals table during the parsing 
+// process.
+static void create_deferred_symbol_table(struct lua_State* lua)
+{
+  lua_newtable(lua);
+  lua_setglobal(lua, "lua_global_symbols_to_add");
+}
+static void register_new_deferred_global_symbol(struct lua_State* lua,
+                                                const char* symbol_name,
+                                                int symbol_index)
+{
+  lua_getglobal(lua, "lua_global_symbols_to_add"); // index -2
+  lua_pushvalue(lua, symbol_index); // index -1
+  lua_setfield(lua, -2, symbol_name); // pops symbol_index off
+  lua_pop(lua, 1); // pops lua_global_symbols_to_add off
+}
+
+static void add_deferred_global_symbols(struct lua_State* lua)
+{
+  lua_getglobal(lua, "lua_global_symbols_to_add");
+  lua_pushnil(lua); 
+  while (lua_next(lua, -2)) // Traverse globals table.
+  {
+    // key is at index -2, value is at index -1.
+    static const int key_index = -2;
+    const char* key = lua_tostring(lua, key_index);
+    
+    // Stick the index at the top of the stack (the index of the global symbol 
+    // to be added) into the global table.
+    lua_setglobal(lua, key);
+  }
+}
+
+static bool key_matches_deferred_symbol_table(struct lua_State* lua, const char* key)
+{
+  return (strcmp(key, "lua_global_symbols_to_add") == 0);
+}
+
 static void interpreter_store_chunk_contents(interpreter_t* interp)
 {
   ASSERT(interp->lua != NULL);
   lua_State* lua = interp->lua;
+
+  // Before we do anything with the global table, add a table of symbols that 
+  // will store any globals that are registered during the parsing process. 
+  // This prevents any such registrations from disrupting the iteration below.
+  // Brain hurting yet? :-)
+  create_deferred_symbol_table(lua);
 
   // Get the global variables table from the registry.
   lua_pushglobaltable(lua);
@@ -906,6 +952,10 @@ static void interpreter_store_chunk_contents(interpreter_t* interp)
       }
     }
 
+    // We skip the table of deferred global symbols.
+    if (key_matches_deferred_symbol_table(lua, key))
+      skip_this_var = true;
+
     // We skip C functions altogether.
     if (lua_iscfunction(lua, val_index))
       skip_this_var = true;
@@ -1035,6 +1085,9 @@ static void interpreter_store_chunk_contents(interpreter_t* interp)
     }
   }
   string_unordered_set_free(variables_present);
+
+  // Finally, add the globals that we want to register.
+  add_deferred_global_symbols(lua);
 }
 
 void interpreter_parse_string(interpreter_t* interp, char* input_string)
@@ -2162,12 +2215,14 @@ static st_func_t* scalarfunction_from_lua_func(struct lua_State* lua,
   lua_scalarfunction_t* func = polymec_malloc(sizeof(lua_scalarfunction_t));
   func->lua = lua;
 
-  // Generate a random function name and place this function into Lua's 
-  // list of named globals.
+  // Generate a random function name and place this function into a table 
+  // that of entries that will later be added to Lua's list of named globals.
+  // If we add this function here right now using lua_setglobal, we will 
+  // disrupt any iteration over the globals using lua_next(), as we do in 
+  // the parsing code.
   static int which_func = 0;
   snprintf(func->function_name, 1024, "scalarfunction_%d", which_func++);
-  lua_pushvalue(lua, lua_absindex(lua, index));
-  lua_setglobal(lua, func->function_name);
+  register_new_deferred_global_symbol(lua, func->function_name, lua_absindex(lua, index));
 
   // Now create and return our function.
   st_vtable vtable = {.eval = lua_scalarfunction_eval, .dtor = polymec_free};

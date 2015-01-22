@@ -12,6 +12,7 @@
 #include "core/polymec.h"
 #include "core/array.h"
 #include "core/mesh.h"
+#include "core/partition_mesh.h"
 #include "core/kd_tree.h"
 #include "core/interpreter.h"
 #include "core/unordered_map.h"
@@ -55,7 +56,13 @@ int mesh_factory_uniform(lua_State* lua)
   lua_pop(lua, lua_gettop(lua));
 
   // Create the mesh.
-  mesh_t* mesh = create_uniform_mesh(MPI_COMM_WORLD, nx, ny, nz, bbox);
+  // FIXME: For now, we create the mesh on 1 proc and then distribute.
+  // FIXME: This will be changed when we have dynamic repartitioning 
+  // FIXME: working.
+//  mesh_t* mesh = create_uniform_mesh(MPI_COMM_WORLD, nx, ny, nz, bbox);
+  mesh_t* mesh = create_uniform_mesh(MPI_COMM_SELF, nx, ny, nz, bbox);
+  exchanger_t* ex = partition_mesh(&mesh, MPI_COMM_WORLD, NULL, 0.0);
+  exchanger_free(ex);
 
   // Tag its faces.
   tag_rectilinear_mesh_faces(mesh, "x1", "x2", "y1", "y2", "z1", "z2");
@@ -89,7 +96,11 @@ int mesh_factory_rectilinear(lua_State* lua)
   lua_pop(lua, lua_gettop(lua));
 
   // Create the mesh.
-  mesh_t* mesh = create_rectilinear_mesh(MPI_COMM_WORLD, xs, nxs, ys, nys, zs, nzs);
+  // FIXME: See above: this will be unnecessary for dynamic repartitioning.
+//  mesh_t* mesh = create_rectilinear_mesh(MPI_COMM_WORLD, xs, nxs, ys, nys, zs, nzs);
+  mesh_t* mesh = create_rectilinear_mesh(MPI_COMM_SELF, xs, nxs, ys, nys, zs, nzs);
+  exchanger_t* ex = partition_mesh(&mesh, MPI_COMM_WORLD, NULL, 0.0);
+  exchanger_free(ex);
 
   // Tag its faces.
   tag_rectilinear_mesh_faces(mesh, "x1", "x2", "y1", "y2", "z1", "z2");

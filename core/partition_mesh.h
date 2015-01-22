@@ -12,17 +12,19 @@
 
 // This function partitions the given mesh on rank 0 with the given cell-centered 
 // load weights, distributing the cells to parallel domains on the given 
-// communicator to balance the load. It creates and returns an exchanger 
+// communicator to balance the load. If weights is NULL, the cells are assumed 
+// all to have equal weights. The function creates and returns an exchanger 
 // object that can be used to distribute data from the rank 0 to the partition. 
 // The mesh on rank 0 (as well as any non-NULL mesh on rank != 0) is consumed. 
 // In each case, the mesh is replaced with a partitioned mesh.
 exchanger_t* partition_mesh(mesh_t** mesh, MPI_Comm comm, int* weights, real_t imbalance_tol);
 
 // This function repartitions the given mesh with the given load weights, 
-// alloting the cells to parallel domains to balance their load.
-// It creates and returns an exchanger object that can be used to migrate 
-// data from the old partition to the new. The mesh is consumed and replaced
-// with a repartitioned mesh.
+// alloting the cells to parallel domains to balance their load. If weights is 
+// NULL, the cells are all assumed to have equal weights. The function creates 
+// and returns an exchanger object that can be used to migrate data from the 
+// old partition to the new. The mesh is consumed and replaced with a 
+// repartitioned mesh.
 //exchanger_t* repartition_mesh(mesh_t** mesh, int* weights, real_t imbalance_tol);
 
 // While partition_mesh and repartition_mesh are all-in-one mesh partitioners, the 
