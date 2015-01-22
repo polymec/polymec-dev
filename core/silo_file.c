@@ -8,6 +8,8 @@
 #include <sys/stat.h>
 #include <dirent.h>
 #include "silo.h"
+#include "core/polymec_version.h"
+#include "core/logging.h"
 #include "core/silo_file.h"
 #include "core/array.h"
 #include "core/array_utils.h"
@@ -420,6 +422,24 @@ static void write_multivars_to_file(silo_file_t* file)
   DBFreeOptlist(optlist);
 }
 
+static void write_provenance_to_file(silo_file_t* file)
+{
+  char provenance_str[8192];
+  time_t now;
+  time(&now);
+  time_t invocation_time = polymec_invocation_time();
+  // Note: ctime() appends newlines.
+  snprintf(provenance_str, 8192, 
+           "Provenance information for %s:\n"
+           "Polymec SILO file, written at %s"
+           "Polymec version: %s\n"
+           "Invocation: %s\n"
+           "Invoked at: %s",
+           file->filename, ctime(&now), POLYMEC_VERSION, 
+           polymec_invocation(), ctime(&invocation_time));
+  silo_file_write_string(file, "provenance", provenance_str);
+}
+
 static void write_master_file(silo_file_t* file)
 {
   ASSERT(file->mode == DB_CLOBBER);
@@ -525,6 +545,9 @@ static void write_master_file(silo_file_t* file)
 
   // Don't forget to write expressions to the master file.
   write_expressions_to_file(file, master);
+
+  // Write provenance information, too.
+  write_provenance_to_file(file);
 
   DBFreeOptlist(optlist);
 
@@ -662,6 +685,19 @@ silo_file_t* silo_file_new(MPI_Comm comm,
   return file;
 }
 
+static void show_provenance_on_debug_log(silo_file_t* file)
+{
+  // If we're printing debug messages, show provenance of the file.
+  if (log_level() == LOG_DEBUG)
+  {
+    char* provenance = silo_file_read_string(file, "provenance");
+    log_debug("---------------------------------------------------------------\n");
+    log_debug(provenance);
+    log_debug("---------------------------------------------------------------");
+    string_free(provenance);
+  }
+}
+
 silo_file_t* silo_file_open(MPI_Comm comm,
                             const char* file_prefix,
                             const char* directory,
@@ -786,6 +822,8 @@ silo_file_t* silo_file_open(MPI_Comm comm,
     file->dbfile = (DBfile*)PMPIO_WaitForBaton(file->baton, file->filename, silo_dir_name);
     file->multimeshes = ptr_array_new();
     file->multivars = ptr_array_new();
+
+    show_provenance_on_debug_log(file);
   }
   else
   {
@@ -802,6 +840,8 @@ silo_file_t* silo_file_open(MPI_Comm comm,
     int driver = DB_HDF5;
     file->dbfile = DBOpen(file->filename, driver, file->mode);
     DBSetDir(file->dbfile, "/");
+
+    show_provenance_on_debug_log(file);
   }
 #else
   if (strlen(directory) == 0)
@@ -817,6 +857,8 @@ silo_file_t* silo_file_open(MPI_Comm comm,
   int driver = DB_HDF5;
   file->dbfile = DBOpen(file->filename, driver, file->mode);
   DBSetDir(file->dbfile, "/");
+
+  show_provenance_on_debug_log(file);
 #endif
 
   // Get cycle/time information.
@@ -850,6 +892,7 @@ void silo_file_close(silo_file_t* file)
       // Write multi-block objects to the file if needed.
       write_multivars_to_file(file);
       write_expressions_to_file(file, file->dbfile);
+      write_provenance_to_file(file);
     }
 
     PMPIO_HandOffBaton(file->baton, (void*)file->dbfile);
@@ -868,13 +911,19 @@ void silo_file_close(silo_file_t* file)
   else
   {
     if (file->mode == DB_CLOBBER)
+    {
       write_expressions_to_file(file, file->dbfile);
+      write_provenance_to_file(file);
+    }
     DBClose(file->dbfile);
   }
 #else
   // Write the file.
   if (file->mode == DB_CLOBBER)
+  {
     write_expressions_to_file(file, file->dbfile);
+    write_provenance_to_file(file);
+  }
   DBClose(file->dbfile);
 #endif
 
