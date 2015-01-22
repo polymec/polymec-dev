@@ -257,16 +257,21 @@ static preconditioner_t* curtis_powell_reed_preconditioner_new(const char* name,
   ASSERT((num_local_rows == num_local_block_rows) || (num_local_rows = block_size*num_local_block_rows));
   if (num_local_rows == num_local_block_rows)
   {
+    // We were given the number of vertices in the graph as the number of 
+    // block rows, so we create a graph with a block size of 1.
     precond->sparsity = adj_graph_new_with_block_size(block_size, sparsity);
-    precond->num_local_rows = num_local_block_rows * block_size;
-    precond->num_remote_rows = num_remote_block_rows * block_size;
   }
   else
   {
+    // The number of vertices in the graph is the number of degrees of freedom
+    // in the solution, so we don't need to create
     precond->sparsity = adj_graph_clone(sparsity);
-    precond->num_local_rows = num_local_block_rows * block_size;
-    precond->num_remote_rows = num_remote_block_rows * block_size;
   }
+
+  // In either case, we multiply by the block size to get the number of 
+  // degrees of freedom.
+  precond->num_local_rows = num_local_block_rows * block_size;
+  precond->num_remote_rows = num_remote_block_rows * block_size;
 
   // Assemble a graph coloring for the preconditioner matrix.
   precond->coloring = adj_graph_coloring_new(precond->sparsity, SMALLEST_LAST);
