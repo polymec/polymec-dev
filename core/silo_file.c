@@ -546,8 +546,7 @@ static void write_master_file(silo_file_t* file)
   // Don't forget to write expressions to the master file.
   write_expressions_to_file(file, master);
 
-  // Write provenance information, too.
-  write_provenance_to_file(file);
+  // NOTE: Master files don't get provenance information.
 
   DBFreeOptlist(optlist);
 
@@ -1612,7 +1611,7 @@ void silo_file_write_string(silo_file_t* file,
   int one = 1;
   int result = DBWrite(file->dbfile, size_name, &string_size, &one, 1, DB_INT);
   if (result != 0)
-    polymec_error("silo_file_write_string: write of string '%s' failed.", string_name);
+    polymec_error("silo_file_write_string: write of string '%s' (length) failed.", string_name);
   if (string_size > 0)
   {
     char string_data_name[FILENAME_MAX];
