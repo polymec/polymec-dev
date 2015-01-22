@@ -8,7 +8,7 @@
 #include <sys/stat.h>
 #include <dirent.h>
 #include "silo.h"
-#include "core/polymec_version.h"
+#include "core/arch.h"
 #include "core/logging.h"
 #include "core/silo_file.h"
 #include "core/array.h"
@@ -424,20 +424,15 @@ static void write_multivars_to_file(silo_file_t* file)
 
 static void write_provenance_to_file(silo_file_t* file)
 {
-  char provenance_str[8192];
-  time_t now;
-  time(&now);
-  time_t invocation_time = polymec_invocation_time();
-  // Note: ctime() appends newlines.
-  snprintf(provenance_str, 8192, 
-           "Provenance information for %s:\n"
-           "Polymec SILO file, written at %s"
-           "Polymec version: %s\n"
-           "Invocation: %s\n"
-           "Invoked at: %s",
-           file->filename, ctime(&now), POLYMEC_VERSION, 
-           polymec_invocation(), ctime(&invocation_time));
+  // We harvest provenance information from polymec.
+  char* provenance_str;
+  size_t provenance_strlen;
+  FILE* stream = open_memstream(&provenance_str, &provenance_strlen);
+  polymec_provenance_fprintf(stream);
+  fclose(stream);
+
   silo_file_write_string(file, "provenance", provenance_str);
+  string_free(provenance_str);
 }
 
 static void write_master_file(silo_file_t* file)
@@ -690,9 +685,14 @@ static void show_provenance_on_debug_log(silo_file_t* file)
   if (log_level() == LOG_DEBUG)
   {
     char* provenance = silo_file_read_string(file, "provenance");
-    log_debug("---------------------------------------------------------------\n");
+
+    // We may need to temporarily bump up the debug log's buffness.
+    int max_message_size, flush_every;
+    get_log_buffering(LOG_DEBUG, &max_message_size, &flush_every);
+    set_log_buffering(LOG_DEBUG, strlen(provenance)+10, 1); // SUPER DUPER!!!
     log_debug(provenance);
-    log_debug("---------------------------------------------------------------");
+    set_log_buffering(LOG_DEBUG, max_message_size, flush_every); // Back to normal
+
     string_free(provenance);
   }
 }

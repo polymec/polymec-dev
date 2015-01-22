@@ -111,6 +111,21 @@ static logger_t* get_logger(log_level_t level)
   return loggers[level];
 }
 
+void get_log_buffering(log_level_t level, int* message_size_limit, int* num_messages_between_flush)
+{
+  logger_t* logger = get_logger(level);
+  if (logger != NULL)
+  {
+    *message_size_limit = logger->message_size_limit;
+    *num_messages_between_flush = logger->flush_every;
+  }
+  else
+  {
+    *message_size_limit = -1;
+    *num_messages_between_flush = -1;
+  }
+}
+
 void set_log_buffering(log_level_t level, int message_size_limit, int num_messages_between_flush)
 {
   ASSERT(num_messages_between_flush > 0);
@@ -161,7 +176,7 @@ void log_debug(const char* message, ...)
   if (logger->stream != NULL)
   {
     // Extract the variadic arguments and splat them into a string.
-    char m[logger->message_size_limit];
+    char m[logger->message_size_limit+1];
     va_list argp;
     va_start(argp, message);
     vsnprintf(m, logger->message_size_limit, message, argp);
@@ -180,7 +195,7 @@ void log_detail(const char* message, ...)
   if (logger->stream != NULL)
   {
     // Extract the variadic arguments and splat them into a string.
-    char m[logger->message_size_limit];
+    char m[logger->message_size_limit+1];
     va_list argp;
     va_start(argp, message);
     vsnprintf(m, logger->message_size_limit, message, argp);
@@ -199,7 +214,7 @@ void log_info(const char* message, ...)
   if (logger->stream != NULL)
   {
     // Extract the variadic arguments and splat them into a string.
-    char m[logger->message_size_limit];
+    char m[logger->message_size_limit+1];
     va_list argp;
     va_start(argp, message);
     vsnprintf(m, logger->message_size_limit, message, argp);
@@ -218,7 +233,7 @@ void log_urgent(const char* message, ...)
   if (logger->stream != NULL)
   {
     // Extract the variadic arguments and splat them into a string.
-    char m[logger->message_size_limit];
+    char m[logger->message_size_limit+1];
     va_list argp;
     va_start(argp, message);
     vsnprintf(m, logger->message_size_limit, message, argp);

@@ -214,6 +214,10 @@ const char* polymec_invocation();
 // was invoked.
 time_t polymec_invocation_time();
 
+// Call this function with a string to append additional information for 
+// provenance.
+void polymec_append_provenance_data(const char* provenance_data);
+
 // This function returns the number of cores on the system, or 1 if it cannot
 // be determined.
 int polymec_num_cores();

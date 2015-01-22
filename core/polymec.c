@@ -15,6 +15,7 @@
 #include "core/polymec.h"
 #include "core/polymec_version.h"
 #include "core/options.h"
+#include "core/array.h"
 
 // Standard C support for floating point environment.
 #ifdef LINUX
@@ -56,6 +57,9 @@ char** polymec_argv = NULL;
 char* polymec_invoc_str = NULL;
 time_t polymec_invoc_time = 0;
 
+// Extra provenance information.
+string_array_t* polymec_extra_provenance = NULL;
+
 // Error handler.
 static polymec_error_handler_function error_handler = NULL;
 
@@ -78,6 +82,10 @@ static void shutdown()
   for (int i = 0; i < polymec_argc; ++i)
     free(polymec_argv[i]);
   free(polymec_argv);
+
+  // Kill extra provenance data.
+  if (polymec_extra_provenance != NULL)
+    string_array_free(polymec_extra_provenance);
 
   // Call shutdown functions.
   for (int i = 0; i < _num_atexit_funcs; ++i)
@@ -451,7 +459,22 @@ void polymec_provenance_fprintf(FILE* stream)
   fprintf(stream, "=======================================================================\n");
   fprintf(stream, "Version: %s\n", POLYMEC_VERSION);
   fprintf(stream, "Invoked with: %s\n", polymec_invoc_str);
-  fprintf(stream, "Invoked on: %s\n", ctime(&polymec_invoc_time));
+  fprintf(stream, "Invoked on: %s\n\n", ctime(&polymec_invoc_time));
+
+  if (polymec_extra_provenance != NULL)
+  {
+    fprintf(stream, "Additional provenance information:\n");
+    for (int i = 0; i < polymec_extra_provenance->size; ++i)
+    {
+      char* str = polymec_extra_provenance->data[i];
+      int len = strlen(str);
+      if (str[len-1] == '\n')
+        fprintf(stream, "%s", str);
+      else
+        fprintf(stream, "%s\n", str);
+    }
+    fprintf(stream, "\n");
+  }
 
   if (POLYMEC_NUM_GIT_DIFFS > 0)
   {
@@ -525,6 +548,13 @@ const char* polymec_invocation()
 time_t polymec_invocation_time()
 {
   return polymec_invoc_time;
+}
+
+void polymec_append_provenance_data(const char* provenance_data)
+{
+  if (polymec_extra_provenance == NULL)
+    polymec_extra_provenance = string_array_new();
+  string_array_append(polymec_extra_provenance, (char*)provenance_data);
 }
 
 int polymec_num_cores()

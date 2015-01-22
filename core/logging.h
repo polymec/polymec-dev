@@ -28,6 +28,11 @@ void set_log_level(log_level_t level);
 // Retrieves the current logging level.
 log_level_t log_level();
 
+// Retrieves the current buffering parameters for logging, including the size limit 
+// on log messages and the flush frequency. If a logger is not found at the 
+// given level, -1 is returned for each of these.
+void get_log_buffering(log_level_t level, int* message_size_limit, int* num_messages_between_flush);
+
 // Sets the buffering parameters for logging, including the size limit on log messages 
 // and the flush frequency.
 void set_log_buffering(log_level_t log_type, int size_limit, int num_messages_between_flush);
