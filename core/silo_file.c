@@ -919,21 +919,30 @@ static void silo_file_write_tags(silo_file_t* file, tagger_t* tagger, const char
 
 static void silo_file_read_tags(silo_file_t* file, const char* tag_list_name, tagger_t* tagger)
 {
-  ASSERT(DBInqVarExists(file->dbfile, tag_list_name));
-  DBcompoundarray* var = DBGetCompoundarray(file->dbfile, (char*)tag_list_name);
-  int num_tags = var->nelems;
-  char** tag_names = var->elemnames;
-  int* tag_sizes = var->elemlengths;
-  int* array = var->values;
-  int size = var->nvalues;
-  int j = 0;
-  for (int i = 0; i < num_tags; ++i)
+  if (DBInqVarExists(file->dbfile, tag_list_name))
   {
-    int* tag = tagger_create_tag(tagger, (const char*)tag_names[i], tag_sizes[i]);
-    memcpy(tag, &array[j], sizeof(int) * tag_sizes[i]);
-    j += tag_sizes[i];
+    DBcompoundarray* var = DBGetCompoundarray(file->dbfile, (char*)tag_list_name);
+    ASSERT(var != NULL);
+    int num_tags = var->nelems;
+    char** tag_names = var->elemnames;
+    int* tag_sizes = var->elemlengths;
+    int* array = var->values;
+    int size = var->nvalues;
+    int j = 0;
+    for (int i = 0; i < num_tags; ++i)
+    {
+      int* tag = tagger_create_tag(tagger, (const char*)tag_names[i], tag_sizes[i]);
+      if (tag == NULL) // Does the tag already exist?
+      {
+        int size;
+        tag = tagger_tag(tagger, (const char*)tag_names[i], &size);
+        ASSERT(size == tag_sizes[i]);
+      }
+      memcpy(tag, &array[j], sizeof(int) * tag_sizes[i]);
+      j += tag_sizes[i];
+    }
+    ASSERT(j == size);
   }
-  ASSERT(j == size);
 }
 
 void silo_file_write_exchanger(silo_file_t* file, const char* exchanger_name, exchanger_t* ex)
@@ -986,7 +995,7 @@ exchanger_t* silo_file_read_exchanger(silo_file_t* file, const char* exchanger_n
   int i = 0;
 #if POLYMEC_HAVE_MPI
   ASSERT(array[i++] == file->nproc);
-  ASSERT(array[i++] == file->nproc);
+  ASSERT(array[i++] == file->rank);
 #endif
   int num_sends = array[i++];
   for (int j = 0; j < num_sends; ++j)
@@ -1208,10 +1217,10 @@ mesh_t* silo_file_read_mesh(silo_file_t* file,
   // Set up cell face counts and face node counts.
   mesh->cell_face_offsets[0] = 0;
   for (int c = 0; c < num_cells; ++c)
-    mesh->cell_face_offsets[c+1] = ph_zonelist->facecnt[c];
+    mesh->cell_face_offsets[c+1] = mesh->cell_face_offsets[c] + ph_zonelist->facecnt[c];
   mesh->face_node_offsets[0] = 0;
   for (int f = 0; f < num_faces; ++f)
-    mesh->face_node_offsets[f+1] = ph_zonelist->nodecnt[f];
+    mesh->face_node_offsets[f+1] = mesh->face_node_offsets[f] + ph_zonelist->nodecnt[f];
   mesh_reserve_connectivity_storage(mesh);
 
   // Fill in cell faces and face nodes.
@@ -1238,7 +1247,7 @@ mesh_t* silo_file_read_mesh(silo_file_t* file,
   // Read in exchanger information.
   {
     char ex_name[FILENAME_MAX];
-    snprintf(ex_name, FILENAME_MAX, "%s_exchanger", ex_name);
+    snprintf(ex_name, FILENAME_MAX, "%s_exchanger", mesh_name);
     mesh_set_exchanger(mesh, silo_file_read_exchanger(file, ex_name, mesh->comm));
   }
 
