@@ -30,6 +30,9 @@ void options_parse(int argc, char** argv);
 // argument was given.
 char* options_argument(options_t* opts, int n);
 
+// Returns the number of arguments given on the command line.
+int options_num_arguments(options_t* opts);
+
 // Returns a string holding the given named value, or NULL if no such 
 // parameter exists within opts.
 char* options_value(options_t* opts, const char* name);

@@ -690,7 +690,7 @@ static void show_provenance_on_debug_log(silo_file_t* file)
     int max_message_size, flush_every;
     get_log_buffering(LOG_DEBUG, &max_message_size, &flush_every);
     set_log_buffering(LOG_DEBUG, strlen(provenance)+10, 1); // SUPER DUPER!!!
-    log_debug(provenance);
+    log_debug_literal(provenance); // No formatting.
     set_log_buffering(LOG_DEBUG, max_message_size, flush_every); // Back to normal
 
     string_free(provenance);

@@ -187,6 +187,18 @@ void log_debug(const char* message, ...)
   }
 }
 
+void log_debug_literal(const char* message)
+{
+  logger_t* logger = get_logger(LOG_DEBUG);
+  if (logging_level < LOG_DEBUG) return;
+  if (mpi_rank != logger->mpi_rank) return;
+  if (logger->stream != NULL)
+  {
+    // Log it directly.
+    logger_log(logger, (char*)message);
+  }
+}
+
 void log_detail(const char* message, ...)
 {
   logger_t* logger = get_logger(LOG_DETAIL);
@@ -203,6 +215,18 @@ void log_detail(const char* message, ...)
 
     // Log it.
     logger_log(logger, m);
+  }
+}
+
+void log_detail_literal(const char* message)
+{
+  logger_t* logger = get_logger(LOG_DETAIL);
+  if (logging_level < LOG_DETAIL) return;
+  if (mpi_rank != logger->mpi_rank) return;
+  if (logger->stream != NULL)
+  {
+    // Log it directly.
+    logger_log(logger, (char*)message);
   }
 }
 
@@ -225,6 +249,18 @@ void log_info(const char* message, ...)
   }
 }
 
+void log_info_literal(const char* message)
+{
+  logger_t* logger = get_logger(LOG_INFO);
+  if (logging_level < LOG_INFO) return;
+  if (mpi_rank != logger->mpi_rank) return;
+  if (logger->stream != NULL)
+  {
+    // Log it directly.
+    logger_log(logger, (char*)message);
+  }
+}
+
 void log_urgent(const char* message, ...)
 {
   logger_t* logger = get_logger(LOG_URGENT);
@@ -241,6 +277,18 @@ void log_urgent(const char* message, ...)
 
     // Log it.
     logger_log(logger, m);
+  }
+}
+
+void log_urgent_literal(const char* message)
+{
+  logger_t* logger = get_logger(LOG_URGENT);
+  if (logging_level < LOG_URGENT) return;
+  if (mpi_rank != logger->mpi_rank) return;
+  if (logger->stream != NULL)
+  {
+    // Log it directly.
+    logger_log(logger, (char*)message);
   }
 }
 

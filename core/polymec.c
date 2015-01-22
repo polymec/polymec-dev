@@ -53,9 +53,10 @@ extern void exactinit();
 int polymec_argc = 0;
 char** polymec_argv = NULL;
 
-// Invocation string and time.
+// Invocation string, time, directory.
 char* polymec_invoc_str = NULL;
 time_t polymec_invoc_time = 0;
+char* polymec_invoc_dir = NULL;
 
 // Extra provenance information.
 string_array_t* polymec_extra_provenance = NULL;
@@ -79,6 +80,7 @@ static void shutdown()
 
   // Kill command line arguments.
   free(polymec_invoc_str);
+  free(polymec_invoc_dir);
   for (int i = 0; i < polymec_argc; ++i)
     free(polymec_argv[i]);
   free(polymec_argv);
@@ -248,6 +250,11 @@ void polymec_init(int argc, char** argv)
         sprintf(arg, "%s ", polymec_argv[i]);
       strcat(polymec_invoc_str, arg);
     }
+    char* pwd = getenv("PWD");
+    if (pwd != NULL)
+      polymec_invoc_dir = string_dup(pwd);
+    else
+      polymec_invoc_dir = string_dup("(unknown)");
 
     // Start up MPI.
     MPI_Init(&argc, &argv);
@@ -459,7 +466,8 @@ void polymec_provenance_fprintf(FILE* stream)
   fprintf(stream, "=======================================================================\n");
   fprintf(stream, "Version: %s\n", POLYMEC_VERSION);
   fprintf(stream, "Invoked with: %s\n", polymec_invoc_str);
-  fprintf(stream, "Invoked on: %s\n\n", ctime(&polymec_invoc_time));
+  fprintf(stream, "Invoked on: %s", ctime(&polymec_invoc_time)); // No \n because of ctime
+  fprintf(stream, "Invocation dir: %s\n\n", polymec_invoc_dir);
 
   if (polymec_extra_provenance != NULL)
   {
@@ -487,16 +495,31 @@ void polymec_provenance_fprintf(FILE* stream)
 
   // If we received an input script, write out its contents.
   options_t* options = options_argv();
-  char* input = options_argument(options, 2);
-  if (input == NULL)
+
+  // Start going backwards through the arguments, throwing out all the ones
+  // with equals signs.
+  char* input = NULL;
+  int arg = options_num_arguments(options) - 1;
+  while ((input == NULL) && (arg > 0))
   {
-    // It's possible that the 1st argument is actually the input file.
-    char* arg = options_argument(options, 1);
-    FILE* fp = fopen(arg, "r");
-    if (fp != NULL)
+    char* candidate = options_argument(options, arg);
+    if (string_contains(candidate, "="))
+      --arg;
+    else 
     {
-      input = arg;
-      fclose(fp);
+      char path[FILENAME_MAX];
+      if (strcmp(polymec_invoc_dir, "(unknown)") != 0)
+        snprintf(path, FILENAME_MAX, "%s/%s", polymec_invoc_dir, candidate);
+      else
+        strcpy(path, candidate);
+      FILE* fp = fopen(candidate, "r");
+      if (fp != NULL)
+      {
+        input = candidate;
+        fclose(fp);
+      }
+      else
+        --arg;
     }
   }
   if (input != NULL)
@@ -554,7 +577,9 @@ void polymec_append_provenance_data(const char* provenance_data)
 {
   if (polymec_extra_provenance == NULL)
     polymec_extra_provenance = string_array_new();
-  string_array_append(polymec_extra_provenance, (char*)provenance_data);
+  string_array_append_with_dtor(polymec_extra_provenance, 
+                                string_dup(provenance_data),
+                                string_free);
 }
 
 int polymec_num_cores()

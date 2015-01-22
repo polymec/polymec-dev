@@ -114,6 +114,11 @@ char* options_argument(options_t* opts, int i)
     return NULL;
 }
 
+int options_num_arguments(options_t* opts)
+{
+  return opts->num_args;
+}
+
 char* options_value(options_t* opts, const char* name)
 {
   char** value = string_string_unordered_map_get(opts->params, (char*)name);
