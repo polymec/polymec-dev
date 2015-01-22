@@ -674,6 +674,7 @@ silo_file_t* silo_file_open(MPI_Comm comm,
   file->cycle = -1;
   file->time = -FLT_MAX;
   file->expressions = NULL;
+  file->comm = comm;
 
   // Strip .silo off of the prefix if it's there.
   {
@@ -691,14 +692,17 @@ silo_file_t* silo_file_open(MPI_Comm comm,
   if (!silo_file_query(file_prefix, directory, &num_files, &num_mpi_procs, cycles))
     polymec_error("silo_file_open: Invalid file.");
 
+  log_debug("silo_file_open: Opened file written by %d MPI processes.", num_mpi_procs);
+
   // For now, we only support reading files that were written with the same 
   // number of processes.
   int nproc = 1;
 #if POLYMEC_HAVE_MPI
-  MPI_Comm_rank(file->comm, &nproc); 
+  MPI_Comm_size(file->comm, &nproc); 
 #endif
   if (nproc != num_mpi_procs)
-    polymec_not_implemented("silo_file_open: reading files written with different number of MPI processes is not yet supported.");
+    polymec_not_implemented("silo_file_open: reading files written with different\n"
+                            "number of MPI processes is not yet supported.");
 
   // Check to see whether the requested cycle is available, or whether the 
   // latest one is requested (with -1).

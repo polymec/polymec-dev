@@ -389,14 +389,14 @@ void polymec_enable_fpe()
   _MM_SET_EXCEPTION_MASK(_MM_MASK_INEXACT | _MM_MASK_UNDERFLOW);
 #endif
   signal(SIGFPE, handle_fpe_signal);
-  log_debug("Enabled floating point exception support.");
+  log_debug("polymec: Enabled floating point exception support.");
 }
 
 void polymec_disable_fpe()
 {
   fesetenv(FE_DFL_ENV);
   signal(SIGFPE, SIG_DFL);
-  log_debug("Disabled floating point exception support.");
+  log_debug("polymec: Disabled floating point exception support.");
 }
 
 

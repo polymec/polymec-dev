@@ -709,6 +709,10 @@ void model_finalize(model_t* model)
 
 void model_load(model_t* model, int step)
 {
+  // Is loading supported by this model?
+  if (model->vtable.load == NULL)
+    polymec_error("Loading from save files is not supported by this model.");
+
   int nprocs;
   MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
 
@@ -716,7 +720,7 @@ void model_load(model_t* model, int step)
   if (model->sim_name == NULL)
     polymec_error("No simulation name was set with model_set_sim_name.");
   char prefix[FILENAME_MAX], dir[FILENAME_MAX];
-  snprintf(prefix, FILENAME_MAX, "%s", model->sim_name);
+  snprintf(prefix, FILENAME_MAX, "%s_save", model->sim_name);
   snprintf(dir, FILENAME_MAX, "%s-%d", model->sim_name, nprocs);
   log_detail("%s: Loading save file from directory %s...", model->name, dir);
   model->vtable.load(model->context, prefix, dir, &model->time, step);
@@ -735,7 +739,7 @@ void model_save(model_t* model)
   if (model->sim_name == NULL)
     polymec_error("No simulation name was set with model_set_sim_name.");
   char prefix[FILENAME_MAX], dir[FILENAME_MAX];
-  snprintf(prefix, FILENAME_MAX, "%s", model->sim_name);
+  snprintf(prefix, FILENAME_MAX, "%s_save", model->sim_name);
   snprintf(dir, FILENAME_MAX, "%s-%d", model->sim_name, nprocs);
   log_detail("%s: Writing save file to directory %s...", model->name, dir);
   model->vtable.save(model->context, prefix, dir, model->time, model->step);
@@ -749,7 +753,7 @@ void model_plot(model_t* model)
   if (model->sim_name == NULL)
     polymec_error("No simulation name was set with model_set_sim_name.");
   char prefix[FILENAME_MAX], dir[FILENAME_MAX];
-  snprintf(prefix, FILENAME_MAX, "%s", model->sim_name);
+  snprintf(prefix, FILENAME_MAX, "%s_plot", model->sim_name);
   snprintf(dir, FILENAME_MAX, "%s-%d", model->sim_name, nprocs);
   log_detail("%s: Writing plot to directory %s...", model->name, dir);
   model->vtable.plot(model->context, prefix, dir, model->time, model->step);
@@ -964,20 +968,31 @@ static void override_interpreted_values(model_t* model,
 
 void model_run(model_t* model, real_t t1, real_t t2, int max_steps)
 {
+  ASSERT(t2 >= t1);
+
   // Override options given at the command line.
   override_interpreted_values(model, &t1, &t2, &max_steps);
+  if (t2 < t1)
+    polymec_error("Overridden value of t2 < t1.");
 
-  ASSERT(t2 >= t1);
-  if (t2 > t1)
+  if (model->load_step == -1)
   {
-    if (max_steps == INT_MAX)
-      log_detail("%s: Running from time %g to %g.", model->name, t1, t2);
+    if (t2 > t1)
+    {
+      if (max_steps == INT_MAX)
+        log_detail("%s: Running from time %g to %g.", model->name, t1, t2);
+      else
+        log_detail("%s: Running from time %g to %g (or for %d steps).", model->name, t1, t2, max_steps);
+    }
     else
-      log_detail("%s: Running from time %g to %g (or for %d steps).", model->name, t1, t2, max_steps);
+      log_detail("%s: Running simulation at time %g.", model->name, t1);
+    model_init(model, t1);
   }
   else
-    log_detail("%s: Running simulation at time %g.", model->name, t1);
-  model_init(model, t1);
+  {
+    model_load(model, model->load_step);
+    t1 = model->time;
+  }
 
   if (t1 == t2)
   {
