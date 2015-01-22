@@ -440,7 +440,7 @@ void mesh_compute_geometry(mesh_t* mesh)
         xc.x += xn->x;
         xc.y += xn->y;
         xc.z += xn->z;
-        // NOTE: Only the primal cell of a face computes its center.
+        // The first cell on this face computes its center.
         if (cell == mesh->face_cells[2*actual_face])
         {
           xf.x += xn->x;
@@ -463,11 +463,14 @@ void mesh_compute_geometry(mesh_t* mesh)
     xc.y /= num_cell_nodes;
     xc.z /= num_cell_nodes;
     mesh->cell_centers[cell] = xc;
+  }
 
-    // Use the preceding geometry to compute face areas and the 
-    // cell's volume.
+  // Use the preceding geometry to compute face areas and the 
+  // cell's volume.
+  for (int cell = 0; cell < mesh->num_cells; ++cell)
+  {
     mesh->cell_volumes[cell] = 0.0;
-    pos = 0;
+    int pos = 0, face;
     while (mesh_cell_next_oriented_face(mesh, cell, &pos, &face))
     {
       int actual_face = (face >= 0) ? face : ~face;
@@ -482,8 +485,8 @@ void mesh_compute_geometry(mesh_t* mesh)
         // the face center, and the two nodes of this edge. The volume 
         // of this tetrahedron contributes to the cell volume.
         vector_t v1, v2, v3, v2xv3;
-        point_t* xf = &mesh->face_centers[actual_face];
-        point_displacement(xf, &mesh->cell_centers[cell], &v1);
+        point_t* xf = &(mesh->face_centers[actual_face]);
+        point_displacement(xf, &(mesh->cell_centers[cell]), &v1);
         point_t xn1 = mesh->nodes[mesh->edge_nodes[2*edge]];
         point_t xn2 = mesh->nodes[mesh->edge_nodes[2*edge+1]];
         point_displacement(xf, &xn1, &v2);
@@ -510,8 +513,8 @@ void mesh_compute_geometry(mesh_t* mesh)
         // Flip the normal vector if we need to.
         // FIXME: We should revisit the above code so this isn't needed.
         vector_t outward;
-        point_t* xf = &mesh->face_centers[actual_face];
-        point_displacement(&mesh->cell_centers[cell], xf, &outward);
+        point_t* xf = &(mesh->face_centers[actual_face]);
+        point_displacement(&(mesh->cell_centers[cell]), xf, &outward);
         real_t n_o_cf = vector_dot(&face_normal, &outward);
         if (n_o_cf < 0.0) 
         {

@@ -1013,7 +1013,7 @@ void silo_file_write_exchanger(silo_file_t* file, const char* exchanger_name, ex
     int_array_append(array, proc);
     int_array_append(array, num_indices);
     for (int i = 0; i < num_indices; ++i)
-    int_array_append(array, indices[i]);
+      int_array_append(array, indices[i]);
   }
   pos = 0;
   int_array_append(array, exchanger_num_receives(ex));
@@ -1022,7 +1022,7 @@ void silo_file_write_exchanger(silo_file_t* file, const char* exchanger_name, ex
     int_array_append(array, proc);
     int_array_append(array, num_indices);
     for (int i = 0; i < num_indices; ++i)
-    int_array_append(array, indices[i]);
+      int_array_append(array, indices[i]);
   }
 
   // Write the exchanger array to the file.
@@ -1050,16 +1050,14 @@ exchanger_t* silo_file_read_exchanger(silo_file_t* file, const char* exchanger_n
   {
     int proc = array[i++];
     int num_indices = array[i++];
-    exchanger_set_send(ex, proc, &array[i], num_indices, true);
-    array += num_indices;
+    exchanger_set_send(ex, proc, &array[i++], num_indices, true);
   }
   int num_receives = array[i++];
   for (int j = 0; j < num_receives; ++j)
   {
     int proc = array[i++];
     int num_indices = array[i++];
-    exchanger_set_receive(ex, proc, &array[i], num_indices, true);
-    array += num_indices;
+    exchanger_set_receive(ex, proc, &array[i++], num_indices, true);
   }
   ASSERT(i == size);
 
