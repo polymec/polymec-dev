@@ -28,7 +28,7 @@ typedef void (*model_read_input_func)(void* context, interpreter_t* interpreter,
 // A function for reading custom (non-Lua) input from a file into the model.
 typedef void (*model_read_custom_input_func)(void* context, const char* input_string, options_t* options);
 
-// A function for initializing the model.
+// A function for initializing the model at time t.
 typedef void (*model_init_func)(void* context, real_t t);
 
 // A function for calculating the maximum step size.
@@ -41,7 +41,10 @@ typedef real_t (*model_advance_func)(void* context, real_t max_dt, real_t t);
 // A function for work to be performed after a run completes.
 typedef void (*model_finalize_func)(void* context, int step, real_t t);
 
-// A function for loading the model's state.
+// A function for loading the model's state. All data within a model must be 
+// loaded from the file in order to ensure that the state is exactly 
+// preserved. This function is called INSTEAD OF model_init when saved data
+// is loaded.
 typedef void (*model_load_func)(void* context, const char* file_prefix, const char* directory, real_t* time, int step);
 
 // A function for saving the model's state to the given I/O interface.
@@ -159,6 +162,10 @@ void model_set_observation_times(model_t* model, real_t* times, int num_times);
 // Initializes the model at the given time.
 void model_init(model_t* model, real_t t);
 
+// Loads the model's state. This is called instead of model_init when 
+// input instructs the model to load from a given step.
+void model_load(model_t* model, int step);
+
 // Returns the largest permissible time step that can be taken by the model
 // starting at time t.
 real_t model_max_dt(model_t* model, char* reason);
@@ -172,9 +179,6 @@ real_t model_time(model_t* model);
 
 // Performs any post-simulation work for the model.
 void model_finalize(model_t* model);
-
-// Loads the model's state.
-void model_load(model_t* model, int step);
 
 // Saves the model's state.
 void model_save(model_t* model);
