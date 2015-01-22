@@ -51,25 +51,29 @@ FILE* log_stream(log_level_t log_type);
 // Issues a debug message.
 void log_debug(const char* message, ...);
 
-// Issues a debug message without formatting.
+// Issues a debug message without formatting. Use this for extremely large
+// log messages.
 void log_debug_literal(const char* message);
 
 // Issues a detail message (more probing than informational).
 void log_detail(const char* message, ...);
 
-// Issues a detail message without formatting.
+// Issues a detail message without formatting. Use this for extremely large
+// log messages.
 void log_detail_literal(const char* message);
 
 // Issues an informational message.
 void log_info(const char* message, ...);
 
-// Issues an informational message without formatting.
+// Issues an informational message without formatting. Use this for extremely 
+// large log messages.
 void log_info_literal(const char* message);
 
 // Issues an urgent message that cannot be filtered.
 void log_urgent(const char* message, ...);
 
-// Issues an urgent message without formatting.
+// Issues an urgent message without formatting. Use this for extremely large
+// log messages.
 void log_urgent_literal(const char* message);
 
 #endif
