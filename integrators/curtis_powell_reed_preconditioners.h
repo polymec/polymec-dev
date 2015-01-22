@@ -18,8 +18,7 @@
 // Creates a block Jacobi preconditioner with the given sparsity graph, 
 // number of block rows, and block size. The nature of the sparsity graph 
 // (i.e. whether it is a block graph or not) is inferred from the number of 
-// block rows and the block size. The block size is the number of degrees of 
-// freedom in the solution for each vertex in the graph.
+// block rows and the block size. 
 preconditioner_t* block_jacobi_preconditioner_from_function(const char* name, 
                                                             MPI_Comm comm,
                                                             void* context,
@@ -32,8 +31,7 @@ preconditioner_t* block_jacobi_preconditioner_from_function(const char* name,
                                         
 // Creates a block Jacobi preconditioner with the given sparsity graph, 
 // number of block rows, and block size, appropriate for preconditioning 
-// differential-algebraic systems.  The block size is the number of degrees of 
-// freedom in the solution for each vertex in the graph.
+// differential-algebraic systems.  
 preconditioner_t* block_jacobi_preconditioner_from_dae_function(const char* name, 
                                                                 MPI_Comm comm,
                                                                 void* context,
