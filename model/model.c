@@ -566,7 +566,10 @@ static void model_do_periodic_work(model_t* model)
       model_plot(model);
   }
 
-  if ((model->save_every > 0) && (model->step % model->save_every) == 0)
+  // Save if the step # is right and if we're not on a freshly-loaded step.
+  if ((model->save_every > 0) && 
+      ((model->step % model->save_every) == 0) &&
+      (model->load_step != model->step))
     model_save(model);
 
   // Now record any observations we need to, given that the time step makes 
