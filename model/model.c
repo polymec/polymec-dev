@@ -1503,6 +1503,12 @@ int multi_model_main(model_dispatch_t model_table[],
       if (rank == 0)
       {
         const char* benchmark = argv[4];
+        if (benchmark == NULL)
+        {
+          print_to_rank0("%s: No benchmark to describe!\n", exe_name);
+          print_to_rank0("%s benchmark %s describe [benchmark_name]\n", exe_name, model_name);
+          exit(0);
+        }
         model_describe_benchmark(model, benchmark, stderr);
       }
     }
