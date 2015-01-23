@@ -466,7 +466,9 @@ void am_ode_integrator_get_diagnostics(ode_integrator_t* integrator,
   diagnostics->status_message = integ->status_message; // borrowed!
   CVodeGetNumSteps(integ->cvode, &diagnostics->num_steps);
   CVodeGetLastOrder(integ->cvode, &diagnostics->order_of_last_step);
+  CVodeGetCurrentOrder(integ->cvode, &diagnostics->order_of_next_step);
   CVodeGetLastStep(integ->cvode, &diagnostics->last_step_size);
+  CVodeGetCurrentStep(integ->cvode, &diagnostics->next_step_size);
   CVodeGetNumRhsEvals(integ->cvode, &diagnostics->num_rhs_evaluations);
   CVodeGetNumErrTestFails(integ->cvode, &diagnostics->num_error_test_failures);
   CVodeGetNumNonlinSolvIters(integ->cvode, &diagnostics->num_nonlinear_solve_iterations);
@@ -498,7 +500,9 @@ void am_ode_integrator_diagnostics_fprintf(am_ode_integrator_diagnostics_t* diag
     fprintf(stream, "  Status: %s\n", diagnostics->status_message);
   fprintf(stream, "  Num steps: %d\n", (int)diagnostics->num_steps);
   fprintf(stream, "  Order of last step: %d\n", diagnostics->order_of_last_step);
+  fprintf(stream, "  Order of next step: %d\n", diagnostics->order_of_next_step);
   fprintf(stream, "  Last step size: %g\n", diagnostics->last_step_size);
+  fprintf(stream, "  Next step size: %g\n", diagnostics->next_step_size);
   fprintf(stream, "  Num RHS evaluations: %d\n", (int)diagnostics->num_rhs_evaluations);
   fprintf(stream, "  Num error test failures: %d\n", (int)diagnostics->num_error_test_failures);
   fprintf(stream, "  Num nonlinear solve iterations: %d\n", (int)diagnostics->num_nonlinear_solve_iterations);

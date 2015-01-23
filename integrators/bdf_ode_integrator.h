@@ -104,8 +104,8 @@ typedef struct
 {
   char* status_message; // borrowed pointer from integrator: do not free.
   long int num_steps;
-  int order_of_last_step;
-  real_t last_step_size;
+  int order_of_last_step, order_of_next_step;
+  real_t last_step_size, next_step_size;
   long int num_rhs_evaluations;
   long int num_linear_solve_setups;
   long int num_linear_solve_iterations;
