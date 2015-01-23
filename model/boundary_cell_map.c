@@ -116,8 +116,10 @@ boundary_cell_map_t* boundary_cell_map_from_mesh_and_bcs(mesh_t* mesh, string_pt
       if (mesh->face_cells[2*face+1] != -1)
         polymec_error("Boundary face tag '%s' contains an interior face (%d).", tag, face);
 
-      // Get the cell for this boundary face. This is the boundary cell.
+      // Get the cell for this boundary face. This is the "boundary" cell, 
+      // and must be on the interior of this domain.
       int bcell = mesh->face_cells[2*face];
+      ASSERT(bcell < mesh->num_cells);
 
       boundary_cell_t* boundary_cell;
       boundary_cell_t** bcell_ptr = (boundary_cell_t**)boundary_cell_map_get(boundary_cells, bcell);

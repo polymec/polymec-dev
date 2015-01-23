@@ -1186,6 +1186,13 @@ void silo_file_write_mesh(silo_file_t* file,
   polymec_free(ext_faces);
   polymec_free(cell_face_counts);
 
+  // Finally, write out the face_cells array.
+  {
+    char name[FILENAME_MAX];
+    snprintf(name, FILENAME_MAX, "%s_face_cells", mesh_name);
+    silo_file_write_int_array(file, name, mesh->face_cells, 2*mesh->num_faces);
+  }
+
   // Write out tag information.
   {
     char tag_name[FILENAME_MAX];
@@ -1237,7 +1244,7 @@ mesh_t* silo_file_read_mesh(silo_file_t* file,
     polymec_error("Mesh '%s' is not a polymec polyhedral mesh.", mesh_name);
 
   // Decipher the mesh object.
-  int num_cells = ph_zonelist->hi_offset;
+  int num_cells = ph_zonelist->hi_offset + 1;
   int num_ghost_cells = ph_zonelist->nzones - num_cells;
   int num_faces = ph_zonelist->nfaces;
   int num_nodes = ucd_mesh->nnodes;
@@ -1268,6 +1275,17 @@ mesh_t* silo_file_read_mesh(silo_file_t* file,
   for (int f = 0; f < num_faces; ++f)
     mesh->face_node_offsets[f+1] = mesh->face_node_offsets[f] + ph_zonelist->nodecnt[f];
   mesh_reserve_connectivity_storage(mesh);
+
+  // Read in the face_cells array.
+  {
+    char name[FILENAME_MAX];
+    snprintf(name, FILENAME_MAX, "%s_face_cells", mesh_name);
+    int num_face_cells;
+    int* face_cells = silo_file_read_int_array(file, name, &num_face_cells);
+    ASSERT(num_face_cells == 2*mesh->num_faces);
+    memcpy(mesh->face_cells, face_cells, sizeof(int) * 2 * mesh->num_faces);
+    polymec_free(face_cells);
+  }
 
   // Fill in cell faces and face nodes.
   memcpy(mesh->cell_faces, ph_zonelist->facelist, sizeof(int) * mesh->cell_face_offsets[mesh->num_cells]);
