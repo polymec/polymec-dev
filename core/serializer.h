@@ -146,6 +146,7 @@ serializer_t* bbox_serializer();
 serializer_t* int_array_serializer();
 serializer_t* index_array_serializer();
 serializer_t* real_array_serializer();
+serializer_t* string_array_serializer();
 // FIXME: More to come as needed.
 
 #endif

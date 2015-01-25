@@ -409,6 +409,17 @@ void tag_rectilinear_mesh_faces(mesh_t* mesh,
   while (int_slist_next(z2_faces, &iter, &face))
     z2tag[f++] = face;
 
+  // Now make our "rectilinear_boundary_tags" property.
+  string_array_t* btags = string_array_new();
+  string_array_append_with_dtor(btags, string_dup(x1_tag), string_free);
+  string_array_append_with_dtor(btags, string_dup(x2_tag), string_free);
+  string_array_append_with_dtor(btags, string_dup(y1_tag), string_free);
+  string_array_append_with_dtor(btags, string_dup(y2_tag), string_free);
+  string_array_append_with_dtor(btags, string_dup(z1_tag), string_free);
+  string_array_append_with_dtor(btags, string_dup(z2_tag), string_free);
+  serializer_t* s = string_array_serializer();
+  mesh_set_property(mesh, "rectilinear_boundary_tags", btags, s);
+
   // Clean up.
   int_slist_free(x1_faces);
   int_slist_free(x2_faces);

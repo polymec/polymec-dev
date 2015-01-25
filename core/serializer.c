@@ -360,3 +360,38 @@ DEFINE_ARRAY_SERIALIZER(int_array, int)
 DEFINE_ARRAY_SERIALIZER(index_array, index_t)
 DEFINE_ARRAY_SERIALIZER(real_array, real_t)
 
+// String array stuff -- a one-off.
+static size_t string_array_byte_size(void* obj) 
+{ 
+  string_array_t* a = obj; 
+  return sizeof(size_t) + sizeof(size_t) + sizeof(char*) * a->size; 
+} 
+
+static void* string_array_byte_read(byte_array_t* bytes, size_t* offset) 
+{ 
+  size_t size, capacity; 
+  byte_array_read_size_ts(bytes, 1, &size, offset); 
+  byte_array_read_size_ts(bytes, 1, &capacity, offset); 
+  ASSERT(capacity >= size); 
+  string_array_t* a = string_array_new_with_capacity(capacity); 
+  for (int i = 0; i < size; ++i)
+    string_array_append_with_dtor(a, string_byte_read(bytes, offset), string_free);
+  return a; 
+} 
+
+static void string_array_byte_write(void* obj, byte_array_t* bytes, size_t* offset) 
+{ 
+  string_array_t* a = obj; 
+  byte_array_write_size_ts(bytes, 1, &a->size, offset); 
+  byte_array_write_size_ts(bytes, 1, &a->capacity, offset); 
+  for (int i = 0; i < a->size; ++i)
+    string_byte_write(a->data[i], bytes, offset);
+} 
+
+serializer_t* string_array_serializer() 
+{ 
+  return serializer_new("string_array", string_array_byte_size, 
+                        string_array_byte_read, string_array_byte_write, 
+                        DTOR(string_array_free)); 
+} 
+
