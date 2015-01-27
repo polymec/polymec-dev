@@ -10,7 +10,7 @@
 #include "geometry/cubic_lattice.h"
 #include <gc/gc.h>
 
-cubic_lattice_t* cubic_lattice_new(uint64_t nx, uint64_t ny, uint64_t nz)
+cubic_lattice_t* cubic_lattice_new(index_t nx, index_t ny, index_t nz)
 {
   ASSERT(nx > 0);
   ASSERT(ny > 0);
@@ -87,20 +87,20 @@ static int_int_unordered_map_t* cubic_lattice_generate_z_periodic_map(void* cont
 
 static size_t cl_byte_size(void* obj)
 {
-  return 3 * sizeof(uint64_t);
+  return 3 * sizeof(index_t);
 }
 
 static void* cl_byte_read(byte_array_t* bytes, size_t* offset)
 {
-  uint64_t data[3];
-  byte_array_read_uint64_ts(bytes, 3, data, offset);
+  index_t data[3];
+  byte_array_read_index_ts(bytes, 3, data, offset);
   return cubic_lattice_new(data[0], data[1], data[2]);
 }
 
 static void cl_byte_write(void* obj, byte_array_t* bytes, size_t* offset)
 {
-  uint64_t* l = obj;
-  byte_array_write_uint64_ts(bytes, 3, l, offset);
+  index_t* l = obj;
+  byte_array_write_index_ts(bytes, 3, l, offset);
 }
 
 serializer_t* cubic_lattice_serializer()
