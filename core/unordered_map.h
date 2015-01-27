@@ -355,6 +355,7 @@ DEFINE_UNORDERED_MAP(int_pair_int_unordered_map, int*, int, int_pair_hash, int_p
 DEFINE_UNORDERED_MAP(int_tuple_int_unordered_map, int*, int, int_tuple_hash, int_tuple_equals)
 DEFINE_UNORDERED_MAP(index_index_unordered_map, index_t, index_t, index_hash, index_equals)
 DEFINE_UNORDERED_MAP(index_int_unordered_map, index_t, int, index_hash, index_equals)
+DEFINE_UNORDERED_MAP(index_pair_int_unordered_map, index_t*, int, index_pair_hash, index_pair_equals)
 DEFINE_UNORDERED_MAP(index_ptr_unordered_map, index_t, void*, index_hash, index_equals)
 DEFINE_UNORDERED_MAP(string_int_unordered_map, char*, int, string_hash, string_equals)
 DEFINE_UNORDERED_MAP(string_string_unordered_map, char*, char*, string_hash, string_equals)
