@@ -242,6 +242,7 @@ static preconditioner_t* curtis_powell_reed_preconditioner_new(const char* name,
   ASSERT(vtable.set_identity_matrix != NULL);
   ASSERT(vtable.add_Jv_into_matrix != NULL);
   ASSERT(vtable.solve != NULL);
+  ASSERT(block_size >= 1);
 
   // Exactly one of F and F_dae must be given.
   ASSERT((vtable.F != NULL) || (vtable.F_dae != NULL));
@@ -254,7 +255,7 @@ static preconditioner_t* curtis_powell_reed_preconditioner_new(const char* name,
 
   // Do we have a block graph?
   int num_local_rows = adj_graph_num_vertices(sparsity);
-  ASSERT((num_local_rows == num_local_block_rows) || (num_local_rows = block_size*num_local_block_rows));
+  ASSERT((num_local_rows == num_local_block_rows) || (num_local_rows == block_size*num_local_block_rows));
   if (num_local_rows == num_local_block_rows)
   {
     // We were given the number of vertices in the graph as the number of 
@@ -297,6 +298,89 @@ static preconditioner_t* curtis_powell_reed_preconditioner_new(const char* name,
   return newton_preconditioner_new(name, precond, nlpc_vtable);
 }
 
+// Variable block-size version.
+static preconditioner_t* vbs_curtis_powell_reed_preconditioner_new(const char* name,
+                                                                   MPI_Comm comm,
+                                                                   void* context,
+                                                                   cpr_vtable vtable,
+                                                                   adj_graph_t* sparsity,
+                                                                   int num_local_block_rows,
+                                                                   int num_remote_block_rows,
+                                                                   int* block_sizes)
+{
+  ASSERT(num_remote_block_rows >= 0);
+  ASSERT(vtable.set_identity_matrix != NULL);
+  ASSERT(vtable.add_Jv_into_matrix != NULL);
+  ASSERT(vtable.solve != NULL);
+  ASSERT(block_sizes != NULL);
+
+  // Exactly one of F and F_dae must be given.
+  ASSERT((vtable.F != NULL) || (vtable.F_dae != NULL));
+  ASSERT((vtable.F == NULL) || (vtable.F_dae == NULL));
+
+  cpr_t* precond = polymec_malloc(sizeof(cpr_t));
+  precond->comm = comm;
+  precond->context = context;
+  precond->vtable = vtable;
+
+  // Do we have a block graph?
+  int num_local_rows = adj_graph_num_vertices(sparsity);
+  int alleged_num_local_rows = 0;
+  int max_block_size = 1;
+  for (int r = 0; r < num_local_block_rows; ++r)
+  {
+    ASSERT(block_sizes[r] >= 1);
+    max_block_size = MAX(block_sizes[r], max_block_size);
+    alleged_num_local_rows += block_sizes[r];
+  }
+  ASSERT((num_local_rows == num_local_block_rows) || (num_local_rows == alleged_num_local_rows)); 
+  if (num_local_rows == num_local_block_rows)
+  {
+    // We were given the number of vertices in the graph as the number of 
+    // block rows, so we create a graph with a block size of 1.
+    precond->sparsity = adj_graph_new_with_block_sizes(block_sizes, sparsity);
+    ASSERT(adj_graph_num_vertices(precond->sparsity) == alleged_num_local_rows);
+  }
+  else
+  {
+    // The number of vertices in the graph is the number of degrees of freedom
+    // in the solution, so we don't need to create
+    precond->sparsity = adj_graph_clone(sparsity);
+  }
+
+  // The number of local rows is known at this point.
+  precond->num_local_rows = alleged_num_local_rows;
+
+  // However, we can't know the actual number of remote block rows without 
+  // knowing the specific communication pattern! However, it is safe to just 
+  // multiply the given number of remote block rows by the maximum block size, 
+  // since only the underlying RHS function will actually use the data.
+  precond->num_remote_rows = num_remote_block_rows * max_block_size;
+
+  // Assemble a graph coloring for the preconditioner matrix.
+  precond->coloring = adj_graph_coloring_new(precond->sparsity, SMALLEST_LAST);
+
+  // Get the maximum number of colors on all MPI processes so that we can 
+  // still compute preconditioners in lockstep.
+  int num_colors = adj_graph_coloring_num_colors(precond->coloring);
+  MPI_Allreduce(&num_colors, &precond->max_colors, 1, MPI_INT, MPI_MAX, precond->comm);
+  log_debug("curtis_powell_reed_preconditioner: graph coloring produced %d colors.", 
+            precond->max_colors);
+
+  // Make work vectors.
+  precond->num_work_vectors = 4;
+  precond->work = polymec_malloc(sizeof(real_t*) * precond->num_work_vectors);
+  int N = precond->num_local_rows + precond->num_remote_rows;
+  for (int i = 0; i < precond->num_work_vectors; ++i)
+    precond->work[i] = polymec_malloc(sizeof(real_t) * N);
+
+  newton_preconditioner_vtable nlpc_vtable = {.compute_P = cpr_compute_P,
+                                              .solve = cpr_solve,
+                                              .fprintf = cpr_fprintf,
+                                              .dtor = cpr_dtor};
+  return newton_preconditioner_new(name, precond, nlpc_vtable);
+}
+
 //------------------------------------------------------------------------
 //              Block-Jacobi Newton preconditioner.
 //------------------------------------------------------------------------
@@ -308,22 +392,50 @@ typedef struct
 
   // Preconditioner matrix data -- block diagonal.
   int num_block_rows, block_size;
+  int *D_offsets, *B_offsets; // For variable block sizes.
   real_t* D;
 } bjpc_t;
+
+static bjpc_t* bjpc_new(void* context, 
+                        void (*dtor)(void* context),
+                        int num_block_rows,
+                        int block_size, 
+                        int* block_sizes)
+{
+  bjpc_t* pc = polymec_malloc(sizeof(bjpc_t));
+  pc->context = context;
+  pc->dtor = dtor;
+  pc->num_block_rows = num_block_rows;
+  pc->block_size = block_size;
+  pc->D_offsets = polymec_malloc(sizeof(int) * (num_block_rows+1));
+  pc->B_offsets = polymec_malloc(sizeof(int) * (num_block_rows+1));
+  pc->D_offsets[0] = pc->B_offsets[0] = 0;
+  for (int i = 0; i < num_block_rows; ++i)
+  {
+    int bs = (block_size == -1) ? block_sizes[i] : block_size;
+    ASSERT(bs >= 1);
+    pc->D_offsets[i+1] = pc->D_offsets[i] + bs*bs;
+    pc->B_offsets[i+1] = pc->B_offsets[i] + bs;
+  }
+  int N = pc->D_offsets[pc->num_block_rows];
+  pc->D = polymec_malloc(sizeof(real_t) * N);
+  return pc;
+}
 
 static void bjpc_set_identity_matrix(void* context, real_t diag_val)
 {
   bjpc_t* pc = context;
-  int bs = pc->block_size;
 
   // Zero the matrix coefficients.
-  memset(pc->D, 0, sizeof(real_t) * pc->num_block_rows * bs * bs);
+  memset(pc->D, 0, sizeof(real_t) * pc->D_offsets[pc->num_block_rows]);
 
   // Set the diagonal values.
   for (int i = 0; i < pc->num_block_rows; ++i)
   {
+    int bs = pc->B_offsets[i+1] - pc->B_offsets[i];
+    int offset = pc->D_offsets[i];
     for (int j = 0; j < bs; ++j)
-      pc->D[bs*bs*i+bs*j+j] = diag_val;
+      pc->D[offset+bs*j+j] = diag_val;
   }
 }
 
@@ -335,37 +447,38 @@ static void bjpc_add_Jv_into_matrix(void* context,
                                     real_t* Jv)
 {
   bjpc_t* pc = context;
-  int block_size = pc->block_size;
   real_t* D = pc->D;
 
   int pos = 0, i;
   while (adj_graph_coloring_next_vertex(coloring, color, &pos, &i))
   {
-    if (i >= block_size*pc->num_block_rows) continue;
+    if (i >= pc->B_offsets[pc->num_block_rows]) continue;
 
-    int block_col = i / block_size;
-    int c = i % block_size;
-    for (int j = block_col*block_size; j < (block_col+1)*block_size; ++j)
+    int bs = (pc->block_size == -1) ? (pc->B_offsets[i+1] - pc->B_offsets[i]) : pc->block_size;
+    int block_col = i / bs;
+    int c = i % bs;
+    for (int j = block_col*bs; j < (block_col+1)*bs; ++j)
     {
-      int r = j % block_size;
-      D[block_col*block_size*block_size + c*block_size + r] += factor * Jv[j];
+      int r = j % bs;
+      D[pc->D_offsets[block_col] + c*bs + r] += factor * Jv[j];
     }
   }
 }
 
 static bool bjpc_solve(void* context, real_t* B)
 {
-  bjpc_t* precond = context;
-  int bs = precond->block_size;
-  real_t* D = precond->D;
+  bjpc_t* pc = context;
+  real_t* D = pc->D;
 
   bool success = false;
-  for (int i = 0; i < precond->num_block_rows; ++i)
+  for (int i = 0; i < pc->num_block_rows; ++i)
   {
     // Copy the block for this row into place.
+    int bs = pc->B_offsets[i+1] - pc->B_offsets[i];
+    int D_offset = pc->D_offsets[i], B_offset = pc->B_offsets[i];
     real_t Aij[bs*bs], bi[bs];
-    memcpy(Aij, &D[i*bs*bs], sizeof(real_t)*bs*bs);
-    memcpy(bi, &B[i*bs], sizeof(real_t)*bs);
+    memcpy(Aij, &D[D_offset], sizeof(real_t)*bs*bs);
+    memcpy(bi, &B[B_offset], sizeof(real_t)*bs);
 
     // Replace each zero on the diagonal of Aij with a small number.
     static const real_t epsilon = 1e-25;
@@ -383,7 +496,7 @@ static bool bjpc_solve(void* context, real_t* B)
     if (success)
     {
       // Copy the solution into place.
-      memcpy(&B[i*bs], bi, sizeof(real_t)*bs);
+      memcpy(&B[B_offset], bi, sizeof(real_t)*bs);
     }
     else
     {
@@ -392,6 +505,9 @@ static bool bjpc_solve(void* context, real_t* B)
       log_debug("(U is singular).", i);
       break;
     }
+
+    D_offset += bs*bs;
+    B_offset += bs;
   }
 
   return success;
@@ -399,18 +515,22 @@ static bool bjpc_solve(void* context, real_t* B)
 
 static void bjpc_fprintf(void* context, FILE* stream)
 {
-  bjpc_t* precond = context;
-  int N = precond->num_block_rows;
-  int bs = precond->block_size;
-  real_t* D = precond->D;
-  fprintf(stream, "\nBlock diagonal matrix P (block size = %d):\n", bs);
+  bjpc_t* pc = context;
+  int N = pc->num_block_rows;
+  real_t* D = pc->D;
+  if (pc->block_size != -1)
+    fprintf(stream, "\nBlock diagonal matrix P (block size = %d):\n", pc->block_size);
+  else
+    fprintf(stream, "\nBlock diagonal matrix P (variable block size):\n");
   for (int i = 0; i < N; ++i)
   {
     fprintf(stream, "%d: [", i);
+    int bs = pc->B_offsets[i+1] - pc->B_offsets[i];
+    int offset = pc->D_offsets[i];
     for (int ii = 0; ii < bs; ++ii)
     {
       for (int jj = 0; jj < bs; ++jj)
-        fprintf(stream, "%g ", D[bs*bs*i+bs*ii+jj]);
+        fprintf(stream, "%g ", D[offset+bs*ii+jj]);
       if (ii < (bs - 1))
         fprintf(stream, "; ");
     }
@@ -438,12 +558,7 @@ preconditioner_t* block_jacobi_preconditioner_from_function(const char* name,
                                                             int block_size)
 {
   ASSERT(F != NULL);
-  bjpc_t* pc = polymec_malloc(sizeof(bjpc_t));
-  pc->context = context;
-  pc->dtor = dtor;
-  pc->num_block_rows = num_local_block_rows;
-  pc->block_size = block_size;
-  pc->D = polymec_malloc(sizeof(real_t) * num_local_block_rows * block_size * block_size);
+  bjpc_t* pc = bjpc_new(context, dtor, num_local_block_rows, block_size, NULL);
   cpr_vtable vtable = {.F = F,
                        .F_context = context,
                        .set_identity_matrix = bjpc_set_identity_matrix,
@@ -467,12 +582,7 @@ preconditioner_t* block_jacobi_preconditioner_from_dae_function(const char* name
                                                                 int block_size)
 {
   ASSERT(F != NULL);
-  bjpc_t* pc = polymec_malloc(sizeof(bjpc_t));
-  pc->context = context;
-  pc->dtor = dtor;
-  pc->num_block_rows = num_local_block_rows;
-  pc->block_size = block_size;
-  pc->D = polymec_malloc(sizeof(real_t) * num_local_block_rows * block_size * block_size);
+  bjpc_t* pc = bjpc_new(context, dtor, num_local_block_rows, block_size, NULL);
   cpr_vtable vtable = {.F_dae = F,
                        .F_context = context,
                        .set_identity_matrix = bjpc_set_identity_matrix,
@@ -482,6 +592,59 @@ preconditioner_t* block_jacobi_preconditioner_from_dae_function(const char* name
   return curtis_powell_reed_preconditioner_new(name, comm, pc, vtable, sparsity, 
                                                num_local_block_rows, num_remote_block_rows,
                                                block_size);
+}
+
+//------------------------------------------------------------------------
+//          Variable block-size Block-Jacobi Newton preconditioner.
+//------------------------------------------------------------------------
+
+preconditioner_t* var_block_jacobi_preconditioner_from_function(const char* name, 
+                                                                MPI_Comm comm,
+                                                                void* context,
+                                                                int (*F)(void* context, real_t t, real_t* x, real_t* Fval),
+                                                                void (*dtor)(void* context),
+                                                                adj_graph_t* sparsity,
+                                                                int num_local_block_rows,
+                                                                int num_remote_block_rows,
+                                                                int* block_sizes)
+{
+  ASSERT(F != NULL);
+  ASSERT(block_sizes != NULL);
+  bjpc_t* pc = bjpc_new(context, dtor, num_local_block_rows, -1, block_sizes);
+  cpr_vtable vtable = {.F = F,
+                       .F_context = context,
+                       .set_identity_matrix = bjpc_set_identity_matrix,
+                       .add_Jv_into_matrix = bjpc_add_Jv_into_matrix,
+                       .solve = bjpc_solve,
+                       .fprintf = bjpc_fprintf,
+                       .dtor = bjpc_dtor};
+  return vbs_curtis_powell_reed_preconditioner_new(name, comm, pc, vtable, sparsity, 
+                                                   num_local_block_rows, num_remote_block_rows, 
+                                                   block_sizes);
+}
+
+preconditioner_t* var_block_jacobi_preconditioner_from_dae_function(const char* name, 
+                                                                    MPI_Comm comm,
+                                                                    void* context,
+                                                                    int (*F)(void* context, real_t t, real_t* x, real_t* xdot, real_t* Fval),
+                                                                    void (*dtor)(void* context),
+                                                                    adj_graph_t* sparsity,
+                                                                    int num_local_block_rows,
+                                                                    int num_remote_block_rows,
+                                                                    int* block_sizes)
+{
+  ASSERT(F != NULL);
+  ASSERT(block_sizes != NULL);
+  bjpc_t* pc = bjpc_new(context, dtor, num_local_block_rows, -1, block_sizes);
+  cpr_vtable vtable = {.F_dae = F,
+                       .F_context = context,
+                       .set_identity_matrix = bjpc_set_identity_matrix,
+                       .add_Jv_into_matrix = bjpc_add_Jv_into_matrix,
+                       .solve = bjpc_solve,
+                       .dtor = bjpc_dtor};
+  return vbs_curtis_powell_reed_preconditioner_new(name, comm, pc, vtable, sparsity, 
+                                                   num_local_block_rows, num_remote_block_rows,
+                                                   block_sizes);
 }
 
 //------------------------------------------------------------------------
@@ -758,6 +921,36 @@ preconditioner_t* lu_preconditioner_from_dae_function(const char* name,
                                               block_size, NULL);
 }
 
+preconditioner_t* var_lu_preconditioner_from_function(const char* name, 
+                                                      MPI_Comm comm,
+                                                      void* context,
+                                                      int (*F)(void* context, real_t t, real_t* x, real_t* Fval),
+                                                      void (*dtor)(void* context),
+                                                      adj_graph_t* sparsity,
+                                                      int num_local_block_rows, 
+                                                      int num_remote_block_rows, 
+                                                      int* block_sizes)
+{
+  return var_ilu_preconditioner_from_function(name, comm, context, F, dtor, sparsity, 
+                                              num_local_block_rows, num_remote_block_rows, 
+                                              block_sizes, NULL);
+}
+
+preconditioner_t* var_lu_preconditioner_from_dae_function(const char* name, 
+                                                          MPI_Comm comm, 
+                                                          void* context,
+                                                          int (*F)(void* context, real_t t, real_t* x, real_t* xdot, real_t* Fval),
+                                                          void (*dtor)(void* context),
+                                                          adj_graph_t* sparsity,
+                                                          int num_local_block_rows, 
+                                                          int num_remote_block_rows, 
+                                                          int* block_sizes)
+{
+  return var_ilu_preconditioner_from_dae_function(name, comm, context, F, dtor, sparsity, 
+                                                  num_local_block_rows, num_remote_block_rows, 
+                                                  block_sizes, NULL);
+}
+
 // Globals borrowed from SuperLU.
 const int ILU_DROP_BASIC = DROP_BASIC;
 const int ILU_DROP_PROWS = DROP_PROWS;
@@ -915,5 +1108,67 @@ preconditioner_t* ilu_preconditioner_from_dae_function(const char* name,
   return curtis_powell_reed_preconditioner_new(name, comm, precond, vtable, sparsity, 
                                                num_local_block_rows, num_remote_block_rows,
                                                block_size);
+}
+
+preconditioner_t* var_ilu_preconditioner_from_function(const char* name, 
+                                                       MPI_Comm comm,
+                                                       void* context,
+                                                       int (*F)(void* context, real_t t, real_t* x, real_t* Fval),
+                                                       void (*dtor)(void* context),
+                                                       adj_graph_t* sparsity,
+                                                       int num_local_block_rows, 
+                                                       int num_remote_block_rows, 
+                                                       int* block_sizes,
+                                                       ilu_params_t* ilu_params)
+{
+  ASSERT(F != NULL);
+  lupc_t* precond = polymec_malloc(sizeof(lupc_t));
+  precond->context = context;
+  precond->dtor = dtor;
+  lupc_initialize_matrix_data(precond, sparsity);
+  ilupc_set_ilu_params(precond, ilu_params);
+  cpr_vtable vtable = {.F = F,
+                       .F_context = context,
+                       .set_identity_matrix = lupc_set_identity_matrix,
+                       .add_Jv_into_matrix = lupc_add_Jv_into_matrix,
+                       .solve = lupc_solve,
+                       .fprintf = lupc_fprintf,
+                       .dtor = lupc_dtor};
+  if (ilu_params != NULL)
+    vtable.solve = ilupc_solve;
+  return vbs_curtis_powell_reed_preconditioner_new(name, comm, precond, vtable, sparsity, 
+                                                   num_local_block_rows, num_remote_block_rows,
+                                                   block_sizes);
+}
+
+preconditioner_t* var_ilu_preconditioner_from_dae_function(const char* name, 
+                                                           MPI_Comm comm,
+                                                           void* context,
+                                                           int (*F)(void* context, real_t t, real_t* x, real_t* xdot, real_t* Fval),
+                                                           void (*dtor)(void* context),
+                                                           adj_graph_t* sparsity,
+                                                           int num_local_block_rows, 
+                                                           int num_remote_block_rows, 
+                                                           int* block_sizes,
+                                                           ilu_params_t* ilu_params)
+{
+  ASSERT(F != NULL);
+  lupc_t* precond = polymec_malloc(sizeof(lupc_t));
+  precond->context = context;
+  precond->dtor = dtor;
+  lupc_initialize_matrix_data(precond, sparsity);
+  ilupc_set_ilu_params(precond, ilu_params);
+  cpr_vtable vtable = {.F_dae = F,
+                       .F_context = context,
+                       .set_identity_matrix = lupc_set_identity_matrix,
+                       .add_Jv_into_matrix = lupc_add_Jv_into_matrix,
+                       .solve = lupc_solve,
+                       .fprintf = lupc_fprintf,
+                       .dtor = lupc_dtor};
+  if (ilu_params != NULL)
+    vtable.solve = ilupc_solve;
+  return vbs_curtis_powell_reed_preconditioner_new(name, comm, precond, vtable, sparsity, 
+                                                   num_local_block_rows, num_remote_block_rows,
+                                                   block_sizes);
 }
 
