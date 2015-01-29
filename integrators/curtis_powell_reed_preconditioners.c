@@ -542,6 +542,8 @@ static void bjpc_dtor(void* context)
 {
   bjpc_t* precond = context;
   polymec_free(precond->D);
+  polymec_free(precond->D_offsets);
+  polymec_free(precond->B_offsets);
   if ((precond->dtor != NULL) && (precond->context != NULL))
     precond->dtor(precond->context);
   polymec_free(precond);
