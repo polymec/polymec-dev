@@ -39,10 +39,13 @@ mesh_t* welded_block_mesh(mesh_t** blocks, int num_blocks, real_t weld_tolerance
   int_tuple_int_unordered_map_t* node_welds = int_tuple_int_unordered_map_new();
   int total_num_cells = 0, total_num_faces = 0, total_num_nodes = 0, 
       num_face_welds = 0, num_node_welds = 0;
+  int block_cell_offsets[num_blocks+1];
+  block_cell_offsets[0] = 0;
   for (int i = 0; i < num_blocks; ++i)
   {
     mesh_t* blocki = blocks[i];
     total_num_cells += blocki->num_cells;
+    block_cell_offsets[i+1] = total_num_cells;
     total_num_faces += blocki->num_faces;
     total_num_nodes += blocki->num_nodes;
     string_array_t* btagsi = mesh_property(blocks[i], "rectilinear_boundary_tags");
@@ -141,49 +144,121 @@ mesh_t* welded_block_mesh(mesh_t** blocks, int num_blocks, real_t weld_tolerance
     welded_node_indices[i] = -1;
 
   // Hook everything up.
-  int next_face_index = 0;
+  int next_face_index = 0, next_node_index = 0;
   int* tuple = int_tuple_new(2);
   for (int i = 0; i < num_blocks; ++i)
   {
     mesh_t* block = blocks[i];
     for (int cell = 0; cell < block->num_cells; ++cell)
     {
+      int current_cell = block_cell_offsets[i] + cell;
+      int cell_face_offset = block_mesh->cell_face_offsets[current_cell];
+
       int pos = 0, face;
       while (mesh_cell_next_oriented_face(block, cell, &pos, &face))
       {
         int which_face = pos - 1;
         int actual_face = (face < 0) ? ~face : face;
 
-        // Has this face already been constructed? We orient the face so
-        // that its normal points outward w.r.t. its original cell.
+        // Has this face already been constructed? It has if we've already 
+        // constructed it within this block, or if it belongs to a weld on 
+        // a block we've already processed.
+        bool face_constructed = false;
+        int neighbor_cell = mesh_face_opp_cell(block, actual_face, cell);
+        if ((neighbor_cell != -1) && (neighbor_cell < cell))
+          face_constructed = true;
         tuple[0] = i;
         tuple[1] = actual_face;
         int* weld_p = int_tuple_int_unordered_map_get(face_welds, tuple);
-        if (weld_p == NULL)
+        if ((!face_constructed) && (weld_p != NULL) && 
+            (welded_face_indices[*weld_p] != -1))
+          face_constructed = true;
+
+        // Construct the face if it's not already constructed.
+        if (!face_constructed)
         {
-          int face_index = next_face_index;
-          block_mesh->cell_faces[which_face] = face_index;
+          // We orient the face so that its normal points outward w.r.t. 
+          // its original cell.
+          if (weld_p != NULL)
+          {
+            // This face is part of a weld and hasn't been processed yet.
+            int weld_index = *weld_p;
+            ASSERT(welded_face_indices[weld_index] == -1);
+            welded_face_indices[weld_index] = next_face_index;
+          }
+          block_mesh->cell_faces[cell_face_offset+which_face] = next_face_index;
+
+          // Attach the current cell to this face.
+          block_mesh->face_cells[2*next_face_index] = current_cell;
+
+          // Now set up the nodes.
+          int face_node_offset = block_mesh->face_node_offsets[next_face_index];
+          int npos = 0, node;
+          while (mesh_face_next_node(block, actual_face, &npos, &node))
+          {
+            int which_node = pos - 1;
+
+            // The only way that this node could already have been constructed
+            // (since its face previously hadn't been) is for it to be part 
+            // of a weld with another block.
+            bool node_constructed = false;
+            tuple[0] = i;
+            tuple[1] = node;
+            int* weld_p = int_tuple_int_unordered_map_get(node_welds, tuple);
+            if ((weld_p != NULL) && (welded_node_indices[*weld_p] != -1))
+              node_constructed = true;
+
+            if (!node_constructed)
+            {
+              // Create the node and copy its coordinates.
+              block_mesh->face_nodes[face_node_offset+which_node] = next_node_index;
+              block_mesh->nodes[next_node_index] = block->nodes[node];
+              ++next_node_index;
+            }
+            else
+            {
+              // Attach the existing node to the face.
+              block_mesh->face_nodes[face_node_offset+which_node] = *weld_p;
+            }
+          }
+
           ++next_face_index;
         }
         else
         {
-          int weld_index = *weld_p;
-          if (welded_face_indices[weld_index] == -1)
+          // Attach the existing face to this cell.
+          int face_index;
+          if (weld_p != NULL)
           {
-            welded_face_indices[weld_index] = next_face_index;
-            ++next_face_index;
+            int weld_index = *weld_p;
+            ASSERT(welded_face_indices[weld_index] != -1);
+            face_index = welded_face_indices[weld_index];
           }
-          int face_index = welded_face_indices[weld_index];
-          int oriented_face = (face < 0) ? ~face_index : face_index;
-          block_mesh->cell_faces[which_face] = oriented_face;
-        }
+          else
+          {
+            // Use the original block to look up the other cell, 
+            // map it to ours, and then read off the face.
+            ASSERT((neighbor_cell != -1) && (neighbor_cell < cell));
+            int current_neighbor_cell = neighbor_cell - block_cell_offsets[i];
+            int npos = 0, neighbor_of_neighbor;
+            while (mesh_cell_next_neighbor(block, neighbor_cell, 
+                                           &npos, &neighbor_of_neighbor))
+            {
+              int which = npos - 1;
+              if (neighbor_of_neighbor == cell)
+              {
+                int offset = block_mesh->cell_face_offsets[current_neighbor_cell];
+                face_index = block_mesh->cell_faces[offset + which];
+              }
+            }
+          }
+          // Stash the 1's complement to preserve orientation.
+          ASSERT(face_index >= 0);
+          block_mesh->cell_faces[cell_face_offset+which_face] = ~face_index;
 
-        // Now set up the nodes.
-        int npos = 0, node;
-        while (mesh_face_next_node(block, actual_face, &npos, &node))
-        {
-          int which_node = pos - 1;
-
+          // Attach the current cell to this face.
+          ASSERT(block_mesh->face_cells[2*face_index+1] == -1);
+          block_mesh->face_cells[2*face_index+1] = current_cell;
         }
       }
     }
