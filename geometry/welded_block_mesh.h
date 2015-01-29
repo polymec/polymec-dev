@@ -15,8 +15,10 @@
 // with identical tags, to produce a single block-structured mesh containing 
 // all of the cells, but only the nodes, edges, and faces that belong to the 
 // intersection of the meshes. The nodal coordinates and mesh geometry of the 
-// resulting mesh are the same as those of the input meshes.
-mesh_t* welded_block_mesh(mesh_t** blocks, int num_blocks);
+// resulting mesh are the same as those of the input meshes. If two blocks 
+// share a boundary tag but one of their faces or nodes is unmatched by another 
+// within a distance given by the weld tolerance, this function fails fatally.
+mesh_t* welded_block_mesh(mesh_t** blocks, int num_blocks, real_t weld_tolerance);
 
 #endif
 
