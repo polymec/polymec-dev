@@ -11,6 +11,8 @@ include(add_polymec_executable)
 
 add_subdirectory(tests)
 
-install(TARGETS polymec_integrators DESTINATION lib)
-file(GLOB HEADERS *.h)
-install(FILES ${HEADERS} DESTINATION include/polymec/integrators)
+if (NOT CMAKE_INSTALL_PREFIX STREQUAL "INSTALL_DISABLED")
+  install(TARGETS polymec_integrators DESTINATION lib)
+  file(GLOB HEADERS *.h)
+  install(FILES ${HEADERS} DESTINATION include/polymec/integrators)
+endif()

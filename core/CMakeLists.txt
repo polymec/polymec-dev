@@ -24,10 +24,12 @@ set(POLYMEC_LIBRARIES polymec_core;${POLYMEC_LIBRARIES})
 add_subdirectory(tests)
 
 # Install library.
-install(TARGETS polymec_core DESTINATION lib)
+if (NOT CMAKE_INSTALL_PREFIX STREQUAL "INSTALL_DISABLED")
+  install(TARGETS polymec_core DESTINATION lib)
 
-# Install headers, including generated files.
-file(GLOB HEADERS *.h)
-LIST(APPEND HEADERS ${CMAKE_CURRENT_BINARY_DIR}/polymec.h)
-LIST(APPEND HEADERS ${CMAKE_CURRENT_BINARY_DIR}/polymec_version.h)
-install(FILES ${HEADERS} DESTINATION include/polymec/core)
+  # Install headers, including generated files.
+  file(GLOB HEADERS *.h)
+  LIST(APPEND HEADERS ${CMAKE_CURRENT_BINARY_DIR}/polymec.h)
+  LIST(APPEND HEADERS ${CMAKE_CURRENT_BINARY_DIR}/polymec_version.h)
+  install(FILES ${HEADERS} DESTINATION include/polymec/core)
+endif()

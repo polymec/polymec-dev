@@ -111,6 +111,11 @@ if (ADDRESS_SANITIZER EQUAL 1)
   set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fsanitize=address")
 endif()
 
+# Give a warning about not setting the install prefix.
+if (CMAKE_INSTALL_PREFIX STREQUAL "INSTALL_DISABLED")
+  message("** WARNING: no installation prefix was set! Installation is disabled.")
+endif()
+
 # Basic libraries to be linked in.
 set(POLYMEC_LIBRARIES m)
 if (${NEED_LAPACK})
@@ -172,14 +177,18 @@ configure_file(
   "${CMAKE_CURRENT_BINARY_DIR}/polymec.cmake"
 )
 
-# Install all source headers.
-install(DIRECTORY ${PROJECT_BINARY_DIR}/include/ DESTINATION include/polymec)
+if (NOT CMAKE_INSTALL_PREFIX STREQUAL "INSTALL_DISABLED")
+  # Install all source headers.
+  install(DIRECTORY ${PROJECT_BINARY_DIR}/include/ DESTINATION include/polymec)
 
-# Install miscellaneous build/test files.
-install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/tools/update_version_h.py DESTINATION share/polymec)
-install(FILES ${CMAKE_CURRENT_BINARY_DIR}/polymec.cmake DESTINATION share/polymec)
-install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/cmake/Modules/add_polymec_executable.cmake DESTINATION share/polymec)
-install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/cmake/Modules/add_polymec_test.cmake DESTINATION share/polymec)
+  # Install miscellaneous build/test files.
+  install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/tools/update_version_h.py DESTINATION share/polymec)
+  install(FILES ${CMAKE_CURRENT_BINARY_DIR}/polymec.cmake DESTINATION share/polymec)
+  install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/cmake/Modules/add_polymec_executable.cmake DESTINATION share/polymec)
+  install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/cmake/Modules/add_polymec_test.cmake DESTINATION share/polymec)
+else()
+  message("Installation is not enabled. Please rerun make config with prefix=/your/prefix.")
+endif()
 
 # Mesher.
 add_subdirectory(polymesher)

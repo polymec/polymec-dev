@@ -8,9 +8,11 @@ set(POLYMEC_LIBRARIES polymec_model;${POLYMEC_LIBRARIES} PARENT_SCOPE)
 set(POLYMEC_LIBRARIES polymec_model;${POLYMEC_LIBRARIES})
 add_subdirectory(tests)
 
-# Install library.
-install(TARGETS polymec_model DESTINATION lib)
+if (NOT CMAKE_INSTALL_PREFIX STREQUAL "INSTALL_DISABLED")
+  # Install library.
+  install(TARGETS polymec_model DESTINATION lib)
 
-# Install headers, including generated files.
-file(GLOB HEADERS *.h)
-install(FILES ${HEADERS} DESTINATION include/polymec/model)
+  # Install headers, including generated files.
+  file(GLOB HEADERS *.h)
+  install(FILES ${HEADERS} DESTINATION include/polymec/model)
+endif()
