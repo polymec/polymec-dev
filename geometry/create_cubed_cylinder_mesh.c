@@ -68,8 +68,6 @@ static void create_radial_blocks(int nx, int nz,
     }
   }
   mesh_compute_geometry(blocks[0]);
-for (int f = 0; f < blocks[0]->num_faces; ++f)
-  printf("face[1][%d] = (%g, %g, %g)\n", f, blocks[0]->face_centers[f].x, blocks[0]->face_centers[f].y, blocks[0]->face_centers[f].z);
 silo_file_t* silo = silo_file_new(MPI_COMM_SELF, "block0", "", 1, 0, 0, 0.0);
 silo_file_write_mesh(silo, "mesh", blocks[0]);
 silo_file_write_scalar_cell_field(silo, "volume", "mesh", blocks[0]->cell_volumes);
@@ -112,8 +110,6 @@ silo_file_close(silo);
     }
   }
   mesh_compute_geometry(blocks[1]);
-for (int f = 0; f < blocks[1]->num_faces; ++f)
-  printf("face[2][%d] = (%g, %g, %g)\n", f, blocks[1]->face_centers[f].x, blocks[1]->face_centers[f].y, blocks[1]->face_centers[f].z);
 silo = silo_file_new(MPI_COMM_SELF, "block1", "", 1, 0, 0, 0.0);
 silo_file_write_mesh(silo, "mesh", blocks[1]);
 silo_file_write_scalar_cell_field(silo, "volume", "mesh", blocks[1]->cell_volumes);

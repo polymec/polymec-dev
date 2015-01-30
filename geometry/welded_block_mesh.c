@@ -107,15 +107,20 @@ mesh_t* welded_block_mesh(mesh_t** blocks, int num_blocks, real_t weld_tolerance
                                 "(Boundary tag: %s)", node, i, btagi);
                 }
 
+                // Because several nodes may be welded together, we need to be careful about how we keep track 
+                // of them in order to determine the number of unique nodes in the resulting block mesh.
                 int* tuplei = int_tuple_new(2);
                 tuplei[0] = i;
                 tuplei[1] = node;
                 int* tuplej = int_tuple_new(2);
                 tuplej[0] = j;
                 tuplej[1] = nearest;
+printf("Welding nodes (%d, %d) <-> (%d, %d)\n", i, node, j, nearest);
+                if (!int_tuple_int_unordered_map_contains(node_welds, tuplei) || 
+                    !int_tuple_int_unordered_map_contains(node_welds, tuplej))
+                  ++num_node_welds;
                 int_tuple_int_unordered_map_insert_with_k_dtor(node_welds, tuplei, num_node_welds, int_tuple_free);
                 int_tuple_int_unordered_map_insert_with_k_dtor(node_welds, tuplej, num_node_welds, int_tuple_free);
-                ++num_node_welds;
               }
             }
           }
@@ -179,6 +184,8 @@ mesh_t* welded_block_mesh(mesh_t** blocks, int num_blocks, real_t weld_tolerance
         // Construct the face if it's not already constructed.
         if (!face_constructed)
         {
+          ASSERT(next_face_index < block_mesh->num_faces);
+
           // We orient the face so that its normal points outward w.r.t. 
           // its original cell.
           if (weld_p != NULL)
@@ -212,6 +219,8 @@ mesh_t* welded_block_mesh(mesh_t** blocks, int num_blocks, real_t weld_tolerance
 
             if (!node_constructed)
             {
+              ASSERT(next_node_index < block_mesh->num_nodes);
+
               // Create the node and copy its coordinates.
               block_mesh->face_nodes[face_node_offset+which_node] = next_node_index;
               block_mesh->nodes[next_node_index] = block->nodes[node];
