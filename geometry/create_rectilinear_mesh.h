@@ -11,7 +11,9 @@
 #include "core/mesh.h"
 
 // This function creates and returns a rectilinear mesh whose nodes are 
-// given by the xs, ys, and zs arrays.
+// given by the xs, ys, and zs arrays. If comm == MPI_COMM_SELF, the 
+// indices of the cells, faces, and nodes can all be navigated using a
+// an (nxs-1) x (nys-1) x (nzs-1) cubic lattice object.
 mesh_t* create_rectilinear_mesh(MPI_Comm comm, 
                                 real_t* xs, int nxs, 
                                 real_t* ys, int nys, 
