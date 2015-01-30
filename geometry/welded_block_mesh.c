@@ -101,10 +101,11 @@ mesh_t* welded_block_mesh(mesh_t** blocks, int num_blocks, real_t weld_tolerance
                 int nearest = kd_tree_nearest(node_trees[j], xn);
                 ASSERT(nearest != -1);
                 point_t* xnn = &(blockj->nodes[nearest]);
-                if (point_distance(xn, xnn) > weld_tolerance)
+                real_t D = point_distance(xn, xnn);
+                if (D > weld_tolerance)
                 {
-                  polymec_error("No match found for node %d of block %d within a distance of %g.\n"
-                                "(Boundary tag: %s)", node, i, btagi);
+                  polymec_error("No match found for node %d of block %d within a distance\n"
+                                "  %g (Boundary tag: %s)", node, i, btagi, D);
                 }
 
                 // Because several nodes may be welded together, we need to be careful about how we keep track 
@@ -115,7 +116,6 @@ mesh_t* welded_block_mesh(mesh_t** blocks, int num_blocks, real_t weld_tolerance
                 int* tuplej = int_tuple_new(2);
                 tuplej[0] = j;
                 tuplej[1] = nearest;
-printf("Welding nodes (%d, %d) <-> (%d, %d)\n", i, node, j, nearest);
                 if (!int_tuple_int_unordered_map_contains(node_welds, tuplei) || 
                     !int_tuple_int_unordered_map_contains(node_welds, tuplej))
                   ++num_node_welds;
@@ -153,9 +153,11 @@ printf("Welding nodes (%d, %d) <-> (%d, %d)\n", i, node, j, nearest);
   // Hook everything up.
   int next_face_index = 0, next_node_index = 0;
   int* tuple = int_tuple_new(2);
+  int_int_unordered_map_t* block_node_map = int_int_unordered_map_new();
   for (int i = 0; i < num_blocks; ++i)
   {
     mesh_t* block = blocks[i];
+    int_int_unordered_map_clear(block_node_map);
     for (int cell = 0; cell < block->num_cells; ++cell)
     {
       int current_cell = block_cell_offsets[i] + cell;
@@ -205,12 +207,18 @@ printf("Welding nodes (%d, %d) <-> (%d, %d)\n", i, node, j, nearest);
           int npos = 0, node;
           while (mesh_face_next_node(block, actual_face, &npos, &node))
           {
-            int which_node = pos - 1;
+            int which_node = npos - 1;
 
-            // The only way that this node could already have been constructed
+            // Has this node been constructed? If we have seen it within this block, 
+            // already, then we've constructed.
+            bool node_constructed = false;
+            int* node_p = int_int_unordered_map_get(block_node_map, node);
+            if (node_p != NULL)
+              node_constructed = true;
+
+            // The only other way that this node could already have been constructed
             // (since its face previously hadn't been) is for it to be part 
             // of a weld with another block.
-            bool node_constructed = false;
             tuple[0] = i;
             tuple[1] = node;
             int* weld_p = int_tuple_int_unordered_map_get(node_welds, tuple);
@@ -224,12 +232,22 @@ printf("Welding nodes (%d, %d) <-> (%d, %d)\n", i, node, j, nearest);
               // Create the node and copy its coordinates.
               block_mesh->face_nodes[face_node_offset+which_node] = next_node_index;
               block_mesh->nodes[next_node_index] = block->nodes[node];
+
+              if (weld_p != NULL)
+                welded_node_indices[*weld_p] = next_node_index;
+
+              int_int_unordered_map_insert(block_node_map, node, next_node_index);
               ++next_node_index;
             }
             else
             {
+              ASSERT((node_p != NULL) || (weld_p != NULL));
+
               // Attach the existing node to the face.
-              block_mesh->face_nodes[face_node_offset+which_node] = *weld_p;
+              if (node_p != NULL)
+                block_mesh->face_nodes[face_node_offset+which_node] = *node_p;
+              else
+                block_mesh->face_nodes[face_node_offset+which_node] = *weld_p;
             }
           }
 
@@ -250,7 +268,7 @@ printf("Welding nodes (%d, %d) <-> (%d, %d)\n", i, node, j, nearest);
             // Use the original block to look up the other cell, 
             // map it to ours, and then read off the face.
             ASSERT((neighbor_cell != -1) && (neighbor_cell < cell));
-            int current_neighbor_cell = neighbor_cell - block_cell_offsets[i];
+            int current_neighbor_cell = neighbor_cell + block_cell_offsets[i];
             int npos = 0, neighbor_of_neighbor;
             while (mesh_cell_next_neighbor(block, neighbor_cell, 
                                            &npos, &neighbor_of_neighbor))
@@ -281,6 +299,7 @@ printf("Welding nodes (%d, %d) <-> (%d, %d)\n", i, node, j, nearest);
 
   // Clean up.
   int_tuple_free(tuple);
+  int_int_unordered_map_free(block_node_map);
   int_tuple_int_unordered_map_free(face_welds);
   int_tuple_int_unordered_map_free(node_welds);
 

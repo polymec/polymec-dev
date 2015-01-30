@@ -60,8 +60,8 @@ int main(int argc, char* argv[])
   polymec_init(argc, argv);
   const UnitTest tests[] = 
   {
-    unit_test(test_create_cubed_cylinder_mesh),
-    unit_test(test_create_cubed_cylindrical_shell_mesh)
+    unit_test(test_create_cubed_cylinder_mesh)
+//    unit_test(test_create_cubed_cylindrical_shell_mesh)
   };
   return run_tests(tests);
 }
