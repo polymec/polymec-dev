@@ -256,7 +256,7 @@ mesh_t* welded_block_mesh(mesh_t** blocks, int num_blocks, real_t weld_tolerance
         else
         {
           // Attach the existing face to this cell.
-          int face_index;
+          int face_index = -1;
           if (weld_p != NULL)
           {
             int weld_index = *weld_p;
