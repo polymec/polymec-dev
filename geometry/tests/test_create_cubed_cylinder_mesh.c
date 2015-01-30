@@ -17,7 +17,7 @@ void test_create_cubed_cylinder_mesh(void** state)
 {
   // Create a cubed cylinder mesh with a square center block.
   real_t R = 0.5, L = 1.0;
-  real_t l = 0.25, k = 0.0;
+  real_t l = 0.35, k = 0.0;
   mesh_t* mesh = create_cubed_cylinder_mesh(MPI_COMM_SELF, 10, 10, R, L, l, k);
   assert_true(mesh_verify_topology(mesh, polymec_error));
   assert_int_equal(5000, mesh->num_cells);

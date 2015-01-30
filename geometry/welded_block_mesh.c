@@ -53,7 +53,7 @@ mesh_t* welded_block_mesh(mesh_t** blocks, int num_blocks, real_t weld_tolerance
     for (int j = i+1; j < num_blocks; ++j)
     {
       mesh_t* blockj = blocks[j];
-      string_array_t* btagsj = mesh_property(blocks[i], "rectilinear_boundary_tags");
+      string_array_t* btagsj = mesh_property(blocks[j], "rectilinear_boundary_tags");
 
       // Find the face tags common to blocks i and j.
       for (int ii = 0; ii < btagsi->size; ++ii)
@@ -61,7 +61,7 @@ mesh_t* welded_block_mesh(mesh_t** blocks, int num_blocks, real_t weld_tolerance
         char* btagi = btagsi->data[ii];
         for (int jj = 0; jj < btagsj->size; ++jj)
         {
-          char* btagj = btagsi->data[ii];
+          char* btagj = btagsj->data[jj];
           if (strcmp(btagi, btagj) == 0)
           {
             // For each face in btagi, find the closest face in btagj.
@@ -75,10 +75,12 @@ mesh_t* welded_block_mesh(mesh_t** blocks, int num_blocks, real_t weld_tolerance
               int nearest = kd_tree_nearest(face_trees[j], xf);
               ASSERT(nearest != -1);
               point_t* xfn = &(blockj->face_centers[nearest]);
-              if (point_distance(xf, xfn) > weld_tolerance)
+              real_t D = point_distance(xf, xfn);
+              if (D > weld_tolerance)
               {
-                polymec_error("No match found for face %d of block %d within a distance of %g.\n"
-                              "(Boundary tag: %s)", face, i, btagi);
+                polymec_error("No match found for face %d of block %d within a distance\n"
+                              "  %g. (Boundary tag: %s, min distance is %g)", 
+                              face, i, weld_tolerance, btagi, D);
               }
 
               int* tuplei = int_tuple_new(2);

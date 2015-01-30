@@ -57,13 +57,10 @@ static void create_radial_blocks(int nx, int nz,
       point_displacement(&xc, &xR, &dR);
       dR.x /= nx;
       dR.y /= nx;
-printf("(i, %d, %d): xc = (%g, %g, %g), xR = (%g, %g, %g), dR = (%g, %g, %g)\n",
-        j, k, xc.x, xc.y, xc.z, xR.x, xR.y, xR.z, dR.x, dR.y, dR.z);
       for (int i = 0; i <= nx; ++i)
       {
         int n = (int)cubic_lattice_node(lattice, i, j, k);
         point_t xn = {.x = xc.x + i*dR.x, .y = xc.y + i*dR.y, .z = zk};
-printf("(%d, %d, %d): xn = (%g, %g, %g)\n", i, j, k, xn.x, xn.y, xn.z);
         blocks[0]->nodes[n] = xn;
       }
     }
@@ -73,7 +70,6 @@ silo_file_t* silo = silo_file_new(MPI_COMM_SELF, "block0", "", 1, 0, 0, 0.0);
 silo_file_write_mesh(silo, "mesh", blocks[0]);
 silo_file_write_scalar_cell_field(silo, "volume", "mesh", blocks[0]->cell_volumes);
 silo_file_close(silo);
-exit(0);
 
   // -y block
   blocks[1] = create_uniform_mesh(MPI_COMM_SELF, nx, nx, nz, &bbox);
@@ -81,7 +77,39 @@ exit(0);
                              "southwest_seam", "southeast_seam",
                              "south_outer", "south_seam",
                              "south_bottom", "south_top");
+  for (int k = 0; k <= nz; ++k)
+  {
+    real_t zk = -0.5*L + k*dz;
+    for (int i = 0; i <= nx; ++i)
+    {
+      // Compute the radial spacing for this j index.
+      real_t theta = 1.25*M_PI + i*dtheta;
+      real_t cos_theta = cos(theta), sin_theta = sin(theta);
 
+      // Find cx, the point of nearest approach on the center block surface.
+      point_t xc = {.x = -0.5*l + i*dx, .y = -0.5*l, .z = 0.0}; 
+
+      // Find xR, the point on the outside of the cylinder for this j.
+      point_t xR = {.x = R*cos_theta, .y = R*sin_theta, .z = 0.0};
+
+      // Now find dR, the increment of the vector that connects xc to xR.
+      vector_t dR;
+      point_displacement(&xc, &xR, &dR);
+      dR.x /= nx;
+      dR.y /= nx;
+      for (int j = 0; j <= nx; ++j)
+      {
+        int n = (int)cubic_lattice_node(lattice, i, j, k);
+        point_t xn = {.x = xc.x + j*dR.x, .y = xc.y + j*dR.y, .z = zk};
+        blocks[1]->nodes[n] = xn;
+      }
+    }
+  }
+  mesh_compute_geometry(blocks[1]);
+silo = silo_file_new(MPI_COMM_SELF, "block1", "", 1, 0, 0, 0.0);
+silo_file_write_mesh(silo, "mesh", blocks[1]);
+silo_file_write_scalar_cell_field(silo, "volume", "mesh", blocks[1]->cell_volumes);
+silo_file_close(silo);
 
   // +x block
   blocks[2] = create_uniform_mesh(MPI_COMM_SELF, nx, nx, nz, &bbox);
@@ -89,7 +117,39 @@ exit(0);
                              "east_seam", "east_outer",
                              "southeast_seam", "northeast_seam",
                              "east_bottom", "east_top");
+  for (int k = 0; k <= nz; ++k)
+  {
+    real_t zk = -0.5*L + k*dz;
+    for (int j = 0; j <= nx; ++j)
+    {
+      // Compute the radial spacing for this j index.
+      real_t theta = 1.75*M_PI + j*dtheta;
+      real_t cos_theta = cos(theta), sin_theta = sin(theta);
 
+      // Find cx, the point of nearest approach on the center block surface.
+      point_t xc = {.x = 0.5*l, .y = -0.5*l + j*dy, .z = 0.0}; 
+
+      // Find xR, the point on the outside of the cylinder for this j.
+      point_t xR = {.x = R*cos_theta, .y = R*sin_theta, .z = 0.0};
+
+      // Now find dR, the increment of the vector that connects xc to xR.
+      vector_t dR;
+      point_displacement(&xc, &xR, &dR);
+      dR.x /= nx;
+      dR.y /= nx;
+      for (int i = 0; i <= nx; ++i)
+      {
+        int n = (int)cubic_lattice_node(lattice, i, j, k);
+        point_t xn = {.x = xc.x + i*dR.x, .y = xc.y + i*dR.y, .z = zk};
+        blocks[2]->nodes[n] = xn;
+      }
+    }
+  }
+  mesh_compute_geometry(blocks[2]);
+silo = silo_file_new(MPI_COMM_SELF, "block2", "", 1, 0, 0, 0.0);
+silo_file_write_mesh(silo, "mesh", blocks[2]);
+silo_file_write_scalar_cell_field(silo, "volume", "mesh", blocks[2]->cell_volumes);
+silo_file_close(silo);
 
   // +y block
   blocks[3] = create_uniform_mesh(MPI_COMM_SELF, nx, nx, nz, &bbox);
@@ -97,6 +157,39 @@ exit(0);
                              "northwest_seam", "northeast_seam",
                              "north_outer", "north_seam",
                              "north_bottom", "north_top");
+  for (int k = 0; k <= nz; ++k)
+  {
+    real_t zk = -0.5*L + k*dz;
+    for (int i = 0; i <= nx; ++i)
+    {
+      // Compute the radial spacing for this j index.
+      real_t theta = 0.25*M_PI + i*dtheta;
+      real_t cos_theta = cos(theta), sin_theta = sin(theta);
+
+      // Find cx, the point of nearest approach on the center block surface.
+      point_t xc = {.x = 0.5*l - i*dx, .y = 0.5*l, .z = 0.0}; 
+
+      // Find xR, the point on the outside of the cylinder for this j.
+      point_t xR = {.x = R*cos_theta, .y = R*sin_theta, .z = 0.0};
+
+      // Now find dR, the increment of the vector that connects xc to xR.
+      vector_t dR;
+      point_displacement(&xc, &xR, &dR);
+      dR.x /= nx;
+      dR.y /= nx;
+      for (int j = 0; j <= nx; ++j)
+      {
+        int n = (int)cubic_lattice_node(lattice, i, j, k);
+        point_t xn = {.x = xc.x + j*dR.x, .y = xc.y + j*dR.y, .z = zk};
+        blocks[3]->nodes[n] = xn;
+      }
+    }
+  }
+  mesh_compute_geometry(blocks[3]);
+silo = silo_file_new(MPI_COMM_SELF, "block3", "", 1, 0, 0, 0.0);
+silo_file_write_mesh(silo, "mesh", blocks[3]);
+silo_file_write_scalar_cell_field(silo, "volume", "mesh", blocks[3]->cell_volumes);
+silo_file_close(silo);
 }
 
 mesh_t* create_cubed_cylinder_mesh(MPI_Comm comm, 
@@ -127,6 +220,10 @@ mesh_t* create_cubed_cylinder_mesh(MPI_Comm comm,
   {
     // FIXME!
   }
+silo_file_t* silo = silo_file_new(MPI_COMM_SELF, "block4", "", 1, 0, 0, 0.0);
+silo_file_write_mesh(silo, "mesh", center_block);
+silo_file_write_scalar_cell_field(silo, "volume", "mesh", center_block->cell_volumes);
+silo_file_close(silo);
 
   // Construct the radial blocks.
   mesh_t* radial_blocks[4];
