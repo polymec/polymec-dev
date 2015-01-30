@@ -43,11 +43,11 @@ static void create_radial_blocks(int nx, int nz,
     for (int j = 0; j <= nx; ++j)
     {
       // Compute the radial spacing for this j index.
-      real_t theta = 0.75*M_PI + j*dtheta;
+      real_t theta = 1.25*M_PI - j*dtheta;
       real_t cos_theta = cos(theta), sin_theta = sin(theta);
 
       // Find cx, the point of nearest approach on the center block surface.
-      point_t xc = {.x = -0.5*l, .y = 0.5*l - j*dy, .z = 0.0}; 
+      point_t xc = {.x = -0.5*l, .y = -0.5*l + j*dy, .z = 0.0}; 
 
       // Find xR, the point on the outside of the cylinder for this j.
       point_t xR = {.x = R*cos_theta, .y = R*sin_theta, .z = 0.0};
@@ -57,15 +57,19 @@ static void create_radial_blocks(int nx, int nz,
       point_displacement(&xc, &xR, &dR);
       dR.x /= nx;
       dR.y /= nx;
+
+      // Compute the node positions, proceeding from lower left to upper right.
       for (int i = 0; i <= nx; ++i)
       {
         int n = (int)cubic_lattice_node(lattice, i, j, k);
-        point_t xn = {.x = xc.x + i*dR.x, .y = xc.y + i*dR.y, .z = zk};
+        point_t xn = {.x = xR.x - i*dR.x, .y = xR.y - i*dR.y, .z = zk};
         blocks[0]->nodes[n] = xn;
       }
     }
   }
   mesh_compute_geometry(blocks[0]);
+for (int f = 0; f < blocks[0]->num_faces; ++f)
+  printf("face[1][%d] = (%g, %g, %g)\n", f, blocks[0]->face_centers[f].x, blocks[0]->face_centers[f].y, blocks[0]->face_centers[f].z);
 silo_file_t* silo = silo_file_new(MPI_COMM_SELF, "block0", "", 1, 0, 0, 0.0);
 silo_file_write_mesh(silo, "mesh", blocks[0]);
 silo_file_write_scalar_cell_field(silo, "volume", "mesh", blocks[0]->cell_volumes);
@@ -97,15 +101,19 @@ silo_file_close(silo);
       point_displacement(&xc, &xR, &dR);
       dR.x /= nx;
       dR.y /= nx;
+
+      // Compute the node positions, proceeding from lower left to upper right.
       for (int j = 0; j <= nx; ++j)
       {
         int n = (int)cubic_lattice_node(lattice, i, j, k);
-        point_t xn = {.x = xc.x + j*dR.x, .y = xc.y + j*dR.y, .z = zk};
+        point_t xn = {.x = xR.x - j*dR.x, .y = xR.y - j*dR.y, .z = zk};
         blocks[1]->nodes[n] = xn;
       }
     }
   }
   mesh_compute_geometry(blocks[1]);
+for (int f = 0; f < blocks[1]->num_faces; ++f)
+  printf("face[2][%d] = (%g, %g, %g)\n", f, blocks[1]->face_centers[f].x, blocks[1]->face_centers[f].y, blocks[1]->face_centers[f].z);
 silo = silo_file_new(MPI_COMM_SELF, "block1", "", 1, 0, 0, 0.0);
 silo_file_write_mesh(silo, "mesh", blocks[1]);
 silo_file_write_scalar_cell_field(silo, "volume", "mesh", blocks[1]->cell_volumes);
@@ -137,6 +145,8 @@ silo_file_close(silo);
       point_displacement(&xc, &xR, &dR);
       dR.x /= nx;
       dR.y /= nx;
+
+      // Compute the node positions, proceeding from lower left to upper right.
       for (int i = 0; i <= nx; ++i)
       {
         int n = (int)cubic_lattice_node(lattice, i, j, k);
@@ -163,11 +173,11 @@ silo_file_close(silo);
     for (int i = 0; i <= nx; ++i)
     {
       // Compute the radial spacing for this j index.
-      real_t theta = 0.25*M_PI + i*dtheta;
+      real_t theta = 0.75*M_PI - i*dtheta;
       real_t cos_theta = cos(theta), sin_theta = sin(theta);
 
       // Find cx, the point of nearest approach on the center block surface.
-      point_t xc = {.x = 0.5*l - i*dx, .y = 0.5*l, .z = 0.0}; 
+      point_t xc = {.x = -0.5*l + i*dx, .y = 0.5*l, .z = 0.0}; 
 
       // Find xR, the point on the outside of the cylinder for this j.
       point_t xR = {.x = R*cos_theta, .y = R*sin_theta, .z = 0.0};
@@ -177,6 +187,8 @@ silo_file_close(silo);
       point_displacement(&xc, &xR, &dR);
       dR.x /= nx;
       dR.y /= nx;
+
+      // Compute the node positions, proceeding from lower left to upper right.
       for (int j = 0; j <= nx; ++j)
       {
         int n = (int)cubic_lattice_node(lattice, i, j, k);
