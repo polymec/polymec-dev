@@ -47,8 +47,8 @@ mesh_t* create_rectilinear_mesh(MPI_Comm comm,
   int nproc, rank;
   MPI_Comm_size(comm, &nproc);
   MPI_Comm_rank(comm, &rank);
-  uint64_t total_num_cells = nx * ny * nz;
-  uint64_t cells_per_proc = total_num_cells / nproc;
+  index_t total_num_cells = nx * ny * nz;
+  index_t cells_per_proc = total_num_cells / nproc;
   int_int_unordered_map_t* local_faces = int_int_unordered_map_new();
   int_int_unordered_map_t* local_nodes = int_int_unordered_map_new();
   int num_cells = (rank == nproc-1) ? total_num_cells - cells_per_proc*rank
@@ -57,30 +57,30 @@ mesh_t* create_rectilinear_mesh(MPI_Comm comm,
   for (int c = 0; c < num_cells; ++c)
   {
     // Figure out (i, j, k) indices for this cell.
-    uint64_t global_cell_index = rank*cells_per_proc + c, i, j, k;
+    index_t global_cell_index = rank*cells_per_proc + c, i, j, k;
     cubic_lattice_get_cell_triple(lattice, global_cell_index, &i, &j, &k);
 
     // Count up faces and nodes and generate global-to-local mappings.
-    uint64_t faces[6] = {cubic_lattice_x_face(lattice, i, j, k),
-                         cubic_lattice_x_face(lattice, i+1, j, k),
-                         cubic_lattice_y_face(lattice, i, j, k),
-                         cubic_lattice_y_face(lattice, i, j+1, k),
-                         cubic_lattice_z_face(lattice, i, j, k),
-                         cubic_lattice_z_face(lattice, i, j, k+1)};
+    index_t faces[6] = {cubic_lattice_x_face(lattice, i, j, k),
+                        cubic_lattice_x_face(lattice, i+1, j, k),
+                        cubic_lattice_y_face(lattice, i, j, k),
+                        cubic_lattice_y_face(lattice, i, j+1, k),
+                        cubic_lattice_z_face(lattice, i, j, k),
+                        cubic_lattice_z_face(lattice, i, j, k+1)};
     for (int f = 0; f < 6; ++f)
     {
       if (!int_int_unordered_map_contains(local_faces, faces[f]))
         int_int_unordered_map_insert(local_faces, faces[f], num_faces++);
     }
 
-    uint64_t nodes[8] = {cubic_lattice_node(lattice, i, j, k),
-                         cubic_lattice_node(lattice, i, j, k+1),
-                         cubic_lattice_node(lattice, i, j+1, k),
-                         cubic_lattice_node(lattice, i, j+1, k+1),
-                         cubic_lattice_node(lattice, i+1, j, k),
-                         cubic_lattice_node(lattice, i+1, j, k+1),
-                         cubic_lattice_node(lattice, i+1, j+1, k),
-                         cubic_lattice_node(lattice, i+1, j+1, k+1)};
+    index_t nodes[8] = {cubic_lattice_node(lattice, i, j, k),
+                        cubic_lattice_node(lattice, i, j, k+1),
+                        cubic_lattice_node(lattice, i, j+1, k),
+                        cubic_lattice_node(lattice, i, j+1, k+1),
+                        cubic_lattice_node(lattice, i+1, j, k),
+                        cubic_lattice_node(lattice, i+1, j, k+1),
+                        cubic_lattice_node(lattice, i+1, j+1, k),
+                        cubic_lattice_node(lattice, i+1, j+1, k+1)};
     for (int n = 0; n < 8; ++n)
     {
       if (!int_int_unordered_map_contains(local_nodes, nodes[n]))
@@ -88,7 +88,7 @@ mesh_t* create_rectilinear_mesh(MPI_Comm comm,
     }
 
     // Ghost cells.
-    uint64_t neighboring_cells[6];
+    index_t neighboring_cells[6];
     neighboring_cells[0] = (i == 0) ? -1 : cubic_lattice_cell(lattice, i-1, j, k);
     neighboring_cells[1] = (i == nx-1) ? -1 : cubic_lattice_cell(lattice, i+1, j, k);
     neighboring_cells[2] = (j == 0) ? -1 : cubic_lattice_cell(lattice, i, j-1, k);
@@ -129,7 +129,7 @@ mesh_t* create_rectilinear_mesh(MPI_Comm comm,
   for (int cell = 0; cell < num_cells; ++cell)
   {
     // Figure out (i, j, k) indices for this cell.
-    uint64_t global_cell_index = rank*cells_per_proc + cell, i, j, k;
+    index_t global_cell_index = rank*cells_per_proc + cell, i, j, k;
     cubic_lattice_get_cell_triple(lattice, global_cell_index, &i, &j, &k);
 
     // Hook up the cell and faces.
@@ -237,7 +237,7 @@ mesh_t* create_rectilinear_mesh(MPI_Comm comm,
     }
 
     // Hook up ghost cells.
-    uint64_t neighboring_cells[6];
+    index_t neighboring_cells[6];
     neighboring_cells[0] = (i == 0) ? -1 : cubic_lattice_cell(lattice, i-1, j, k);
     neighboring_cells[1] = (i == nx-1) ? -1 : cubic_lattice_cell(lattice, i+1, j, k);
     neighboring_cells[2] = (j == 0) ? -1 : cubic_lattice_cell(lattice, i, j-1, k);
