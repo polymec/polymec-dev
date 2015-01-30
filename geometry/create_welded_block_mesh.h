@@ -5,8 +5,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef POLYMEC_WELDED_BLOCK_MESH_H
-#define POLYMEC_WELDED_BLOCK_MESH_H
+#ifndef POLYMEC_CREATE_WELDED_BLOCK_MESH_H
+#define POLYMEC_CREATE_WELDED_BLOCK_MESH_H
 
 #include "core/mesh.h"
 
@@ -18,7 +18,7 @@
 // resulting mesh are the same as those of the input meshes. If two blocks 
 // share a boundary tag but one of their faces or nodes is unmatched by another 
 // within a distance given by the weld tolerance, this function fails fatally.
-mesh_t* welded_block_mesh(mesh_t** blocks, int num_blocks, real_t weld_tolerance);
+mesh_t* create_welded_block_mesh(mesh_t** blocks, int num_blocks, real_t weld_tolerance);
 
 #endif
 

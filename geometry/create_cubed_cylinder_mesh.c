@@ -10,7 +10,7 @@
 #include "geometry/cubic_lattice.h"
 #include "geometry/create_uniform_mesh.h"
 #include "geometry/create_cubed_cylinder_mesh.h"
-#include "geometry/welded_block_mesh.h"
+#include "geometry/create_welded_block_mesh.h"
 
 static void create_radial_blocks(int nx, int nz, 
                                  real_t R, real_t L,
@@ -220,7 +220,7 @@ mesh_t* create_cubed_cylinder_mesh(MPI_Comm comm,
   // Weld'em blocks.
   mesh_t* blocks[5] = {center_block, radial_blocks[0], radial_blocks[1], 
                        radial_blocks[2], radial_blocks[3]};
-  mesh_t* mesh = welded_block_mesh(blocks, 5, 1e-10);
+  mesh_t* mesh = create_welded_block_mesh(blocks, 5, 1e-10);
 
   // Clean up.
   for (int i = 0; i < 4; ++i)
@@ -253,7 +253,7 @@ mesh_t* create_cubed_cylindrical_shell_mesh(MPI_Comm comm,
   create_radial_blocks(nx, nz, R, L, l, k, radial_blocks);
 
   // Weld'em blocks.
-  mesh_t* mesh = welded_block_mesh(radial_blocks, 4, 1e-10);
+  mesh_t* mesh = create_welded_block_mesh(radial_blocks, 4, 1e-10);
 
   // Clean up.
   for (int i = 0; i < 4; ++i)

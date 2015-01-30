@@ -7,10 +7,10 @@
 
 #include "core/unordered_map.h"
 #include "core/kd_tree.h"
-#include "geometry/welded_block_mesh.h"
+#include "geometry/create_welded_block_mesh.h"
 #include "geometry/cubic_lattice.h"
 
-mesh_t* welded_block_mesh(mesh_t** blocks, int num_blocks, real_t weld_tolerance)
+mesh_t* create_welded_block_mesh(mesh_t** blocks, int num_blocks, real_t weld_tolerance)
 {
 #ifndef NDEBUG
   for (int i = 0; i < num_blocks; ++i)
