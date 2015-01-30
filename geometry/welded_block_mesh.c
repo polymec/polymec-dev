@@ -278,6 +278,7 @@ mesh_t* welded_block_mesh(mesh_t** blocks, int num_blocks, real_t weld_tolerance
               {
                 int offset = block_mesh->cell_face_offsets[current_neighbor_cell];
                 face_index = block_mesh->cell_faces[offset + which];
+                break;
               }
             }
           }

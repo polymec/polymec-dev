@@ -68,10 +68,6 @@ static void create_radial_blocks(int nx, int nz,
     }
   }
   mesh_compute_geometry(blocks[0]);
-silo_file_t* silo = silo_file_new(MPI_COMM_SELF, "block0", "", 1, 0, 0, 0.0);
-silo_file_write_mesh(silo, "mesh", blocks[0]);
-silo_file_write_scalar_cell_field(silo, "volume", "mesh", blocks[0]->cell_volumes);
-silo_file_close(silo);
 
   // -y block
   blocks[1] = create_uniform_mesh(MPI_COMM_SELF, nx, nx, nz, &bbox);
@@ -110,10 +106,6 @@ silo_file_close(silo);
     }
   }
   mesh_compute_geometry(blocks[1]);
-silo = silo_file_new(MPI_COMM_SELF, "block1", "", 1, 0, 0, 0.0);
-silo_file_write_mesh(silo, "mesh", blocks[1]);
-silo_file_write_scalar_cell_field(silo, "volume", "mesh", blocks[1]->cell_volumes);
-silo_file_close(silo);
 
   // +x block
   blocks[2] = create_uniform_mesh(MPI_COMM_SELF, nx, nx, nz, &bbox);
@@ -152,10 +144,6 @@ silo_file_close(silo);
     }
   }
   mesh_compute_geometry(blocks[2]);
-silo = silo_file_new(MPI_COMM_SELF, "block2", "", 1, 0, 0, 0.0);
-silo_file_write_mesh(silo, "mesh", blocks[2]);
-silo_file_write_scalar_cell_field(silo, "volume", "mesh", blocks[2]->cell_volumes);
-silo_file_close(silo);
 
   // +y block
   blocks[3] = create_uniform_mesh(MPI_COMM_SELF, nx, nx, nz, &bbox);
@@ -194,10 +182,6 @@ silo_file_close(silo);
     }
   }
   mesh_compute_geometry(blocks[3]);
-silo = silo_file_new(MPI_COMM_SELF, "block3", "", 1, 0, 0, 0.0);
-silo_file_write_mesh(silo, "mesh", blocks[3]);
-silo_file_write_scalar_cell_field(silo, "volume", "mesh", blocks[3]->cell_volumes);
-silo_file_close(silo);
 }
 
 mesh_t* create_cubed_cylinder_mesh(MPI_Comm comm, 
@@ -228,10 +212,6 @@ mesh_t* create_cubed_cylinder_mesh(MPI_Comm comm,
   {
     // FIXME!
   }
-silo_file_t* silo = silo_file_new(MPI_COMM_SELF, "block4", "", 1, 0, 0, 0.0);
-silo_file_write_mesh(silo, "mesh", center_block);
-silo_file_write_scalar_cell_field(silo, "volume", "mesh", center_block->cell_volumes);
-silo_file_close(silo);
 
   // Construct the radial blocks.
   mesh_t* radial_blocks[4];
