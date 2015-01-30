@@ -146,7 +146,7 @@ mesh_t* welded_block_mesh(mesh_t** blocks, int num_blocks, real_t weld_tolerance
   // We'll use these arrays to help keep books when indexing welded faces/nodes.
   int welded_face_indices[num_face_welds], welded_node_indices[num_node_welds];
   for (int i = 0; i < num_face_welds; ++i)
-    welded_face_indices[i] = -1;
+    welded_face_indices[i] = -INT_MAX;
   for (int i = 0; i < num_node_welds; ++i)
     welded_node_indices[i] = -1;
 
@@ -180,7 +180,7 @@ mesh_t* welded_block_mesh(mesh_t** blocks, int num_blocks, real_t weld_tolerance
         tuple[1] = actual_face;
         int* weld_p = int_tuple_int_unordered_map_get(face_welds, tuple);
         if ((!face_constructed) && (weld_p != NULL) && 
-            (welded_face_indices[*weld_p] != -1))
+            (welded_face_indices[*weld_p] != -INT_MAX))
           face_constructed = true;
 
         // Construct the face if it's not already constructed.
@@ -188,16 +188,18 @@ mesh_t* welded_block_mesh(mesh_t** blocks, int num_blocks, real_t weld_tolerance
         {
           ASSERT(next_face_index < block_mesh->num_faces);
 
-          // We orient the face so that its normal points outward w.r.t. 
-          // its original cell.
+          // We orient the face according to the way it was in the block, since 
+          // that's where we get the node ordering.
+          int oriented_face_index = (face < 0) ? ~next_face_index : next_face_index;
+          block_mesh->cell_faces[cell_face_offset+which_face] = oriented_face_index;
+
+          // Is this face part of a weld? If so, record its (oriented) index.
           if (weld_p != NULL)
           {
-            // This face is part of a weld and hasn't been processed yet.
             int weld_index = *weld_p;
-            ASSERT(welded_face_indices[weld_index] == -1);
-            welded_face_indices[weld_index] = next_face_index;
+            ASSERT(welded_face_indices[weld_index] == -INT_MAX);
+            welded_face_indices[weld_index] = oriented_face_index;
           }
-          block_mesh->cell_faces[cell_face_offset+which_face] = next_face_index;
 
           // Attach the current cell to this face.
           block_mesh->face_cells[2*next_face_index] = current_cell;
@@ -256,12 +258,14 @@ mesh_t* welded_block_mesh(mesh_t** blocks, int num_blocks, real_t weld_tolerance
         else
         {
           // Attach the existing face to this cell.
-          int face_index = -1;
+
+          // Retrieve the oriented face index w.r.t. its opposite cell.
+          int oriented_face_index = -INT_MAX;
           if (weld_p != NULL)
           {
             int weld_index = *weld_p;
-            ASSERT(welded_face_indices[weld_index] != -1);
-            face_index = welded_face_indices[weld_index];
+            ASSERT(welded_face_indices[weld_index] != -INT_MAX);
+            oriented_face_index = welded_face_indices[weld_index];
           }
           else
           {
@@ -277,16 +281,19 @@ mesh_t* welded_block_mesh(mesh_t** blocks, int num_blocks, real_t weld_tolerance
               if (neighbor_of_neighbor == cell)
               {
                 int offset = block_mesh->cell_face_offsets[current_neighbor_cell];
-                face_index = block_mesh->cell_faces[offset + which];
+                oriented_face_index = block_mesh->cell_faces[offset + which];
                 break;
               }
             }
           }
-          // Stash the 1's complement to preserve orientation.
-          ASSERT(face_index >= 0);
-          block_mesh->cell_faces[cell_face_offset+which_face] = ~face_index;
+          ASSERT(oriented_face_index != -INT_MAX);
+
+          // This face index should be the one's complement of its opposite.
+          block_mesh->cell_faces[cell_face_offset+which_face] = ~oriented_face_index;
 
           // Attach the current cell to this face.
+          int face_index = (oriented_face_index < 0) ? ~oriented_face_index : oriented_face_index;
+          ASSERT(block_mesh->face_cells[2*face_index] >= 0);
           ASSERT(block_mesh->face_cells[2*face_index+1] == -1);
           block_mesh->face_cells[2*face_index+1] = current_cell;
         }
