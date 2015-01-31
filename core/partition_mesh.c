@@ -1157,9 +1157,15 @@ exchanger_t* partition_mesh(mesh_t** mesh, MPI_Comm comm, int* weights, real_t i
   MPI_Comm_rank(comm, &rank);
   ASSERT((rank != 0) || (*mesh != NULL));
 
-  // On a single process, partitioning has no meaning.
+  // On a single process, partitioning has no meaning, but we do replace the communicator
+  // if needed. NOTE: the exchanger will still have its original communicator, but this 
+  // shouldn't matter in any practical sense.
   if (nprocs == 1)
+  {
+    if (comm != (*mesh)->comm)
+      (*mesh)->comm = comm;
     return exchanger_new(comm);
+  }
 
   log_debug("partition_mesh: Partitioning mesh into %d subdomains.", nprocs);
 
