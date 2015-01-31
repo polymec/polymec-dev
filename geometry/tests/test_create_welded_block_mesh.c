@@ -58,27 +58,27 @@ void test_L_weld(void** state)
 {
   // Weld three blocks together in an L shape!
   bbox_t bbox1 = {.x1 = -0.5, .x2 = 0.0,
-                  .y1 = -0.5, .y2 = 0.5,
-                  .z1 = -0.5, .z2 = 0.5};
-  mesh_t* block1 = create_uniform_mesh(MPI_COMM_SELF, 5, 10, 10, &bbox1);
+                  .y1 = -0.5, .y2 = 0.0,
+                  .z1 = -0.25, .z2 = 0.25};
+  mesh_t* block1 = create_uniform_mesh(MPI_COMM_SELF, 10, 10, 10, &bbox1);
   tag_rectilinear_mesh_faces(block1, 
                              "left", "middle",
                              "front_left", "middle_left",
                              "bottom_left", "top_left");
 
   bbox_t bbox2 = {.x1 =  0.0, .x2 = 0.5,
-                  .y1 = -0.5, .y2 = 0.5,
-                  .z1 = -0.5, .z2 = 0.5};
-  mesh_t* block2 = create_uniform_mesh(MPI_COMM_SELF, 5, 10, 10, &bbox2);
+                  .y1 = -0.5, .y2 = 0.0,
+                  .z1 = -0.25, .z2 = 0.25};
+  mesh_t* block2 = create_uniform_mesh(MPI_COMM_SELF, 10, 10, 10, &bbox2);
   tag_rectilinear_mesh_faces(block2, 
                              "middle", "right",
                              "front_right", "back_right",
                              "bottom_right", "top_right");
 
   bbox_t bbox3 = {.x1 = -0.5, .x2 = 0.0,
-                  .y1 =  0.5, .y2 = 1.0,
-                  .z1 = -0.5, .z2 = 0.5};
-  mesh_t* block3 = create_uniform_mesh(MPI_COMM_SELF, 5, 10, 10, &bbox3);
+                  .y1 =  0.0, .y2 = 0.5,
+                  .z1 = -0.25, .z2 = 0.25};
+  mesh_t* block3 = create_uniform_mesh(MPI_COMM_SELF, 10, 10, 10, &bbox3);
   tag_rectilinear_mesh_faces(block3, 
                              "far_left", "far_middle",
                              "middle_left", "back_left",
@@ -87,7 +87,7 @@ void test_L_weld(void** state)
   mesh_t* blocks[3] = {block1, block2, block3};
   mesh_t* weld = create_welded_block_mesh(blocks, 3, 1e-8);
   assert_true(mesh_verify_topology(weld, polymec_error));
-  assert_int_equal(1500, weld->num_cells);
+  assert_int_equal(3000, weld->num_cells);
   assert_true(weld->comm == MPI_COMM_SELF);
 
   // Plot it!
