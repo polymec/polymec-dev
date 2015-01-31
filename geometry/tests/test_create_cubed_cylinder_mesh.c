@@ -18,7 +18,8 @@ void test_create_cubed_cylinder_mesh(void** state)
   // Create a cubed cylinder mesh with a square center block.
   real_t R = 0.5, L = 1.0;
   real_t l = 0.35, k = 0.0;
-  mesh_t* mesh = create_cubed_cylinder_mesh(MPI_COMM_WORLD, 10, 10, R, L, l, k);
+  mesh_t* mesh = create_cubed_cylinder_mesh(MPI_COMM_SELF, 10, 10, R, L, l, k,
+                                            "R", "bottom", "top");
   assert_true(mesh_verify_topology(mesh, polymec_error));
 //  assert_int_equal(5000, mesh->num_cells);
   assert_true(mesh->comm == MPI_COMM_WORLD);
@@ -35,7 +36,8 @@ void test_create_cubed_cylindrical_shell_mesh(void** state)
 {
   // Create a cubed cylindrcal shell mesh.
   real_t r = 0.25, R = 0.5, L = 1.0;
-  mesh_t* mesh = create_cubed_cylindrical_shell_mesh(MPI_COMM_WORLD, 10, 10, r, R, L);
+  mesh_t* mesh = create_cubed_cylindrical_shell_mesh(MPI_COMM_SELF, 10, 10, r, R, L,
+                                                     "r1", "r2", "bottom", "top");
   assert_true(mesh_verify_topology(mesh, polymec_error));
   assert_int_equal(4000, mesh->num_cells);
 

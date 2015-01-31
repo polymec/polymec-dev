@@ -23,10 +23,17 @@
 //     If k == 0, the middle block is an undeformed rectangular prism. If 
 //     k == 1/(l*sqrt(2)), the middle block will itself be a cylinder with 
 //     deformed cells.
+// The following tags are used to designate surfaces of interest:
+// R_tag      - the set of faces along the radius of the cylinder.
+// bottom_tag - the set of faces along the bottom of the cylinder.
+// top_tag    - the set of faces along the top of the cylinder.
 mesh_t* create_cubed_cylinder_mesh(MPI_Comm comm,
                                    int nx, int nz,
                                    real_t R, real_t L,
-                                   real_t l, real_t k);
+                                   real_t l, real_t k,
+                                   const char* R_tag,
+                                   const char* bottom_tag,
+                                   const char* top_tag);
 
 // This function creates a mesh consisting of 4 blocks of hexahedral 
 // cells in the shape of a cylindrical shell. The parameters of interest are:
@@ -35,9 +42,18 @@ mesh_t* create_cubed_cylinder_mesh(MPI_Comm comm,
 // r - The inner radius of the cylindrical shell.
 // R - The outer radius of the cylindrical shell.
 // L - The length of the cylinder along the z axis.
+// The following tags are used to designate surfaces of interest:
+// r_tag      - the set of faces along the inner radius of the shell.
+// R_tag      - the set of faces along the outer radius of the shell.
+// bottom_tag - the set of faces along the bottom of the shell.
+// top_tag    - the set of faces along the top of the shell.
 mesh_t* create_cubed_cylindrical_shell_mesh(MPI_Comm comm,
                                             int nx, int nz,
-                                            real_t r, real_t R, real_t L);
+                                            real_t r, real_t R, real_t L,
+                                            const char* r_tag,
+                                            const char* R_tag,
+                                            const char* bottom_tag,
+                                            const char* top_tag);
 
 #endif
 

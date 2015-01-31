@@ -187,7 +187,10 @@ static void create_radial_blocks(int nx, int nz,
 mesh_t* create_cubed_cylinder_mesh(MPI_Comm comm, 
                                    int nx, int nz,
                                    real_t R, real_t L,
-                                   real_t l, real_t k)
+                                   real_t l, real_t k,
+                                   const char* R_tag,
+                                   const char* bottom_tag,
+                                   const char* top_tag)
 {
   ASSERT(nx > 0);
   ASSERT(nz > 0);
@@ -222,6 +225,50 @@ mesh_t* create_cubed_cylinder_mesh(MPI_Comm comm,
                        radial_blocks[2], radial_blocks[3]};
   mesh_t* mesh = create_welded_block_mesh(blocks, 5, 1e-10);
 
+  // Replace the tags.
+  {
+    int N1, N2, N3, N4;
+    int* outer1 = mesh_tag(radial_blocks[0]->face_tags, "west_outer", &N1);
+    int* outer2 = mesh_tag(radial_blocks[1]->face_tags, "south_outer", &N2);
+    int* outer3 = mesh_tag(radial_blocks[2]->face_tags, "east_outer", &N3);
+    int* outer4 = mesh_tag(radial_blocks[3]->face_tags, "north_outer", &N4);
+    int* rtag = mesh_create_tag(mesh->face_tags, R_tag, N1+N2+N3+N4);
+    memcpy(&rtag[0], outer1, sizeof(int) * N1);
+    memcpy(&rtag[N1], outer2, sizeof(int) * N2);
+    memcpy(&rtag[N2], outer3, sizeof(int) * N3);
+    memcpy(&rtag[N3], outer4, sizeof(int) * N4);
+  }
+
+  {
+    int N1, N2, N3, N4, N5;
+    int* bot1 = mesh_tag(radial_blocks[0]->face_tags, "west_bottom", &N1);
+    int* bot2 = mesh_tag(radial_blocks[1]->face_tags, "south_bottom", &N2);
+    int* bot3 = mesh_tag(radial_blocks[2]->face_tags, "east_bottom", &N3);
+    int* bot4 = mesh_tag(radial_blocks[3]->face_tags, "north_bottom", &N4);
+    int* bot5 = mesh_tag(center_block->face_tags, "center_bottom", &N5);
+    int* btag = mesh_create_tag(mesh->face_tags, bottom_tag, N1+N2+N3+N4+N5);
+    memcpy(&btag[0], bot1, sizeof(int) * N1);
+    memcpy(&btag[N1], bot2, sizeof(int) * N2);
+    memcpy(&btag[N2], bot3, sizeof(int) * N3);
+    memcpy(&btag[N3], bot4, sizeof(int) * N4);
+    memcpy(&btag[N4], bot5, sizeof(int) * N5);
+  }
+
+  {
+    int N1, N2, N3, N4, N5;
+    int* top1 = mesh_tag(radial_blocks[0]->face_tags, "west_top", &N1);
+    int* top2 = mesh_tag(radial_blocks[1]->face_tags, "south_top", &N2);
+    int* top3 = mesh_tag(radial_blocks[2]->face_tags, "east_top", &N3);
+    int* top4 = mesh_tag(radial_blocks[3]->face_tags, "north_top", &N4);
+    int* top5 = mesh_tag(center_block->face_tags, "center_top", &N5);
+    int* ttag = mesh_create_tag(mesh->face_tags, top_tag, N1+N2+N3+N4+N5);
+    memcpy(&ttag[0], top1, sizeof(int) * N1);
+    memcpy(&ttag[N1], top2, sizeof(int) * N2);
+    memcpy(&ttag[N2], top3, sizeof(int) * N3);
+    memcpy(&ttag[N3], top4, sizeof(int) * N4);
+    memcpy(&ttag[N4], top5, sizeof(int) * N5);
+  }
+
   // Clean up.
   for (int i = 0; i < 4; ++i)
     mesh_free(radial_blocks[i]);
@@ -235,7 +282,11 @@ mesh_t* create_cubed_cylinder_mesh(MPI_Comm comm,
 
 mesh_t* create_cubed_cylindrical_shell_mesh(MPI_Comm comm, 
                                             int nx, int nz,
-                                            real_t r, real_t R, real_t L)
+                                            real_t r, real_t R, real_t L,
+                                            const char* r_tag,
+                                            const char* R_tag,
+                                            const char* bottom_tag,
+                                            const char* top_tag)
 {
   ASSERT(nx > 0);
   ASSERT(nz > 0);
@@ -254,6 +305,46 @@ mesh_t* create_cubed_cylindrical_shell_mesh(MPI_Comm comm,
 
   // Weld'em blocks.
   mesh_t* mesh = create_welded_block_mesh(radial_blocks, 4, 1e-10);
+
+  // Replace the tags.
+  {
+    int N1, N2, N3, N4;
+    int* outer1 = mesh_tag(radial_blocks[0]->face_tags, "west_outer", &N1);
+    int* outer2 = mesh_tag(radial_blocks[1]->face_tags, "south_outer", &N2);
+    int* outer3 = mesh_tag(radial_blocks[2]->face_tags, "east_outer", &N3);
+    int* outer4 = mesh_tag(radial_blocks[3]->face_tags, "north_outer", &N4);
+    int* rtag = mesh_create_tag(mesh->face_tags, R_tag, N1+N2+N3+N4);
+    memcpy(&rtag[0], outer1, sizeof(int) * N1);
+    memcpy(&rtag[N1], outer2, sizeof(int) * N2);
+    memcpy(&rtag[N2], outer3, sizeof(int) * N3);
+    memcpy(&rtag[N3], outer4, sizeof(int) * N4);
+  }
+
+  {
+    int N1, N2, N3, N4;
+    int* bot1 = mesh_tag(radial_blocks[0]->face_tags, "west_bottom", &N1);
+    int* bot2 = mesh_tag(radial_blocks[1]->face_tags, "south_bottom", &N2);
+    int* bot3 = mesh_tag(radial_blocks[2]->face_tags, "east_bottom", &N3);
+    int* bot4 = mesh_tag(radial_blocks[3]->face_tags, "north_bottom", &N4);
+    int* btag = mesh_create_tag(mesh->face_tags, bottom_tag, N1+N2+N3+N4);
+    memcpy(&btag[0], bot1, sizeof(int) * N1);
+    memcpy(&btag[N1], bot2, sizeof(int) * N2);
+    memcpy(&btag[N2], bot3, sizeof(int) * N3);
+    memcpy(&btag[N3], bot4, sizeof(int) * N4);
+  }
+
+  {
+    int N1, N2, N3, N4;
+    int* top1 = mesh_tag(radial_blocks[0]->face_tags, "west_top", &N1);
+    int* top2 = mesh_tag(radial_blocks[1]->face_tags, "south_top", &N2);
+    int* top3 = mesh_tag(radial_blocks[2]->face_tags, "east_top", &N3);
+    int* top4 = mesh_tag(radial_blocks[3]->face_tags, "north_top", &N4);
+    int* ttag = mesh_create_tag(mesh->face_tags, top_tag, N1+N2+N3+N4);
+    memcpy(&ttag[0], top1, sizeof(int) * N1);
+    memcpy(&ttag[N1], top2, sizeof(int) * N2);
+    memcpy(&ttag[N2], top3, sizeof(int) * N3);
+    memcpy(&ttag[N3], top4, sizeof(int) * N4);
+  }
 
   // Clean up.
   for (int i = 0; i < 4; ++i)
