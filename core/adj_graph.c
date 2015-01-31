@@ -137,6 +137,65 @@ adj_graph_t* adj_graph_new_with_block_size(int block_size,
   return block_graph;
 }
 
+adj_graph_t* adj_graph_new_with_block_sizes(int* block_sizes,
+                                            adj_graph_t* graph)
+{
+  ASSERT(block_sizes != NULL);
+
+  MPI_Comm comm = adj_graph_comm(graph);
+  int nproc, rank;
+  MPI_Comm_size(comm, &nproc);
+  MPI_Comm_rank(comm, &rank);
+
+  // Since the block size is variable, we have to be careful about 
+  // counting up the vertices in the resulting block graph. If this is 
+  // a distributed graph, we need to communicate.
+  int num_vertices = adj_graph_num_vertices(graph);
+  for (int v = 0; v < num_vertices; ++v)
+    num_vertices += block_sizes[v] * (1 + adj_graph_num_edges(graph, v));
+  adj_graph_t* block_graph = adj_graph_new(comm, num_vertices);
+
+  // Now traverse the original graph and set up the edges.
+  for (int v = 0; v < num_vertices; ++v)
+  {
+    int block_size = block_sizes[v];
+    ASSERT(block_size >= 1);
+    int num_edges = adj_graph_num_edges(graph, v);
+    int* edges = adj_graph_edges(graph, v);
+    for (int b = 0; b < block_size; ++b)
+    {
+      int block_vertex = block_size * v + b;
+      // Make sure to include "block diagonal" edges, too (block_size - 1 of these).
+      adj_graph_set_num_edges(block_graph, block_vertex, block_size * num_edges + (block_size - 1));
+      int* block_edges = adj_graph_edges(block_graph, block_vertex);
+      int diag_offset = 0;
+
+      // Block diagonal edges (excluding loops).
+      for (int bb = 0; bb < block_size; ++bb)
+      {
+        int other_vertex = block_size * v + bb;
+        if (other_vertex != block_vertex)
+        {
+          block_edges[diag_offset] = block_size * v + bb;
+          ++diag_offset;
+        }
+      }
+      ASSERT(diag_offset == (block_size - 1));
+      for (int e = 0; e < num_edges; ++e)
+      {
+        for (int bb = 0; bb < block_size; ++bb)
+        {
+          int v = block_size * edges[e] + bb;
+          block_edges[block_size - 1 + block_size * e + bb] = v;
+        }
+      }
+    }
+  }
+
+  return block_graph;
+}
+
+
 adj_graph_t* adj_graph_clone(adj_graph_t* graph)
 {
   adj_graph_t* g = polymec_malloc(sizeof(adj_graph_t));

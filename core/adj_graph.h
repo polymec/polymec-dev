@@ -36,6 +36,12 @@ adj_graph_t* adj_graph_new_with_dist(MPI_Comm comm,
 adj_graph_t* adj_graph_new_with_block_size(int block_size,
                                            adj_graph_t* graph);
 
+// Constructs an adjacency graph using the given graph and a row-specific 
+// block size expressed by block_sizes[row]. The data in the block_sizes 
+// array is copied.
+adj_graph_t* adj_graph_new_with_block_sizes(int* block_sizes,
+                                            adj_graph_t* graph);
+
 // Creates and returns a copy of the the given graph.
 adj_graph_t* adj_graph_clone(adj_graph_t* graph);
 

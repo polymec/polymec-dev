@@ -79,7 +79,8 @@ endif
 ifneq ($(prefix), not-set)
   CONFIG_FLAGS += -DCMAKE_INSTALL_PREFIX:PATH=$(prefix)
 else
-  CONFIG_FLAGS += -DCMAKE_INSTALL_PREFIX:PATH=/usr/local
+  # No default installation dir.
+  CONFIG_FLAGS += -DCMAKE_INSTALL_PREFIX:PATH=INSTALL_DISABLED
 endif
 
 # Special considerations for specific systems.
