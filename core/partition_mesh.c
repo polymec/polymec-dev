@@ -167,6 +167,30 @@ static int64_t* repartition_graph(adj_graph_t* local_graph,
   return local_partition;
 }
 
+// This creates tags for a submesh whose elements belong to the given set.
+static void create_submesh_tags(tagger_t* tagger, 
+                                int_int_unordered_map_t* element_map)
+{
+  int pos = 0, *indices, size;
+  char* tag_name;
+  int_array_t* sub_indices = int_array_new();
+  while (tagger_next_tag(tagger, &pos, &tag_name, &indices, &size))
+  {
+    int* tag = tagger_create_tag(tagger, tag_name, sub_indices->size);
+    if (tag != NULL) // Skip tags that already exist!
+    {
+      for (int i = 0; i < size; ++i)
+      {
+        int* elem_p = int_int_unordered_map_get(element_map, indices[i]);
+        if (elem_p != NULL)
+          int_array_append(sub_indices, *elem_p);
+      }
+      memcpy(tag, sub_indices->data, sizeof(int) * sub_indices->size);
+    }
+  }
+  int_array_free(sub_indices);
+}
+
 // This helper constructs and returns a mesh from the cells with the given
 // indices in the given mesh. The submesh is valid with the following 
 // exception:
@@ -361,6 +385,12 @@ static mesh_t* create_submesh(MPI_Comm comm, mesh_t* mesh,
 
   // Do geometry.
   mesh_compute_geometry(submesh);
+
+  // Dump any tags in the existing global mesh in, too.
+  // FIXME: Edge tags are not supported!
+  create_submesh_tags(submesh->cell_tags, inverse_cell_map);
+  create_submesh_tags(submesh->face_tags, inverse_face_map);
+  create_submesh_tags(submesh->node_tags, inverse_node_map);
 
   // Clean up.
   int_int_unordered_map_free(inverse_cell_map);
