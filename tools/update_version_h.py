@@ -50,6 +50,8 @@ try:
     git_revision += ')'
 except:
     git_revision = ''
+    git_diff = '""'
+    num_git_diffs = 0
 if len(git_diff) == 0: # Handle empty diffs case.
     git_diff = '""'
 contents = """
