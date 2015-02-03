@@ -1,7 +1,7 @@
-diff --git a/3rdparty/silo/src/silo/Makefile.am b/3rdparty/silo/src/silo/Makefile.am
+diff --git a/silo/src/silo/Makefile.am b/src/silo/Makefile.am
 index f7dd3bc..4b2dd24 100644
---- a/3rdparty/silo/src/silo/Makefile.am
-+++ b/3rdparty/silo/src/silo/Makefile.am
+--- a/src/silo/Makefile.am
++++ b/src/silo/Makefile.am
 @@ -79,9 +79,6 @@ EXTRA_DIST = \
   silo.h.in
  
@@ -29,10 +29,10 @@ index f7dd3bc..4b2dd24 100644
 -
 -silo_f9x.inc: silo.h.in silo_f.h
 -	cat ./silo.h $(srcdir)/silo_f.h | $(top_srcdir)/config/mkinc --f90 > $@
-diff --git a/3rdparty/silo/src/silo/Makefile.in b/3rdparty/silo/src/silo/Makefile.in
+diff --git a/src/silo/Makefile.in b/src/silo/Makefile.in
 index d785a95..b7db04f 100644
---- a/3rdparty/silo/src/silo/Makefile.in
-+++ b/3rdparty/silo/src/silo/Makefile.in
+--- a/src/silo/Makefile.in
++++ b/src/silo/Makefile.in
 @@ -139,8 +139,7 @@ LINK = $(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) \
  	$(LDFLAGS) -o $@
  SOURCES = $(libsilo_silo_la_SOURCES)
