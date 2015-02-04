@@ -251,7 +251,6 @@ void adj_graph_set_num_edges(adj_graph_t* graph, int vertex, int num_edges)
 {
   ASSERT(vertex >= 0);
   ASSERT(vertex < adj_graph_num_vertices(graph));
-  ASSERT(num_edges < adj_graph_num_vertices(graph));
   int old_num_edges = graph->xadj[vertex+1] - graph->xadj[vertex];
   int num_vertices = (int)(graph->vtx_dist[graph->rank+1] - graph->vtx_dist[graph->rank]);
   int tot_num_edges = graph->xadj[num_vertices];
