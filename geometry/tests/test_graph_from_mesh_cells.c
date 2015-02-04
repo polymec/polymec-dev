@@ -59,7 +59,7 @@ void test_block_graphs_from_uniform_mesh_cells(void** state)
   for (int b = 1; b <= 5; ++b)
   {
     // Make a block graph from the single one.
-    adj_graph_t* bg = adj_graph_new_with_block_size(b, g);
+    adj_graph_t* bg = adj_graph_new_with_block_size(g, b);
     int nv = adj_graph_num_vertices(bg);
     assert_int_equal(b * adj_graph_num_vertices(g), nv);
 

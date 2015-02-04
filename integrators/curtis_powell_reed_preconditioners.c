@@ -259,7 +259,7 @@ static preconditioner_t* curtis_powell_reed_preconditioner_new(const char* name,
   {
     // We were given the number of vertices in the graph as the number of 
     // block rows, so we create a graph with a block size of 1.
-    precond->sparsity = adj_graph_new_with_block_size(block_size, sparsity);
+    precond->sparsity = adj_graph_new_with_block_size(sparsity, block_size);
   }
   else
   {
@@ -337,7 +337,7 @@ static preconditioner_t* vbs_curtis_powell_reed_preconditioner_new(const char* n
   {
     // We were given the number of vertices in the graph as the number of 
     // block rows, so we create a graph with a block size of 1.
-    precond->sparsity = adj_graph_new_with_block_sizes(block_sizes, sparsity);
+    precond->sparsity = adj_graph_new_with_block_sizes(sparsity, block_sizes);
     ASSERT(adj_graph_num_vertices(precond->sparsity) == alleged_num_local_rows);
   }
   else

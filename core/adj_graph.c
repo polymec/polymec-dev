@@ -77,8 +77,8 @@ adj_graph_t* adj_graph_new_with_dist(MPI_Comm comm,
   return graph;
 }
 
-adj_graph_t* adj_graph_new_with_block_size(int block_size,
-                                           adj_graph_t* graph)
+adj_graph_t* adj_graph_new_with_block_size(adj_graph_t* graph,
+                                           int block_size)
 {
   ASSERT(block_size >= 1);
 
@@ -137,8 +137,8 @@ adj_graph_t* adj_graph_new_with_block_size(int block_size,
   return block_graph;
 }
 
-adj_graph_t* adj_graph_new_with_block_sizes(int* block_sizes,
-                                            adj_graph_t* graph)
+adj_graph_t* adj_graph_new_with_block_sizes(adj_graph_t* graph,
+                                            int* block_sizes)
 {
   ASSERT(block_sizes != NULL);
 

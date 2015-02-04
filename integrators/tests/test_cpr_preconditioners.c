@@ -56,7 +56,7 @@ void test_block_jacobi_ctor(void** state)
   adj_graph_t* g = linear_graph(N);
   preconditioner_t* precond = block_jacobi_preconditioner_from_function("test", MPI_COMM_WORLD, NULL, sys_func, NULL, g, N, 0, bs);
   preconditioner_free(precond);
-  adj_graph_t* bg = adj_graph_new_with_block_size(bs, g);
+  adj_graph_t* bg = adj_graph_new_with_block_size(g, bs);
   precond = block_jacobi_preconditioner_from_function("test", MPI_COMM_WORLD, NULL, sys_func, NULL, bg, N, 0, bs);
   preconditioner_free(precond);
   adj_graph_free(bg);

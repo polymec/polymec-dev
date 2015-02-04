@@ -161,7 +161,7 @@ static diurnal_t* diurnal_new()
       memcpy(adj_graph_edges(sparsity, idx), edges, sizeof(int) * num_edges);
     }
   }
-  data->sparsity = adj_graph_new_with_block_size(NUM_SPECIES, sparsity);
+  data->sparsity = adj_graph_new_with_block_size(sparsity, NUM_SPECIES);
   adj_graph_free(sparsity);
 
   return data;

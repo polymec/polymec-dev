@@ -61,7 +61,7 @@ void test_identity_jacobian_with_bs(void** state, int block_size)
   local_matrix_free(D);
 
   // Now try a sparse matrix.
-  adj_graph_t* block_sparsity = adj_graph_new_with_block_size(block_size, sparsity);
+  adj_graph_t* block_sparsity = adj_graph_new_with_block_size(sparsity, block_size);
   local_matrix_t* A = sparse_local_matrix_new(block_sparsity);
   cpr_differencer_compute(diff, 0.0, 1.0, 0.0, 0.0, x, NULL, A);
   local_matrix_fprintf(A, stdout);

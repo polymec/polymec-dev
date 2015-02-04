@@ -93,7 +93,7 @@ cpr_differencer_t* var_cpr_differencer_new(MPI_Comm comm,
   {
     // We were given the number of vertices in the graph as the number of 
     // block rows, so we create a graph with a block size of 1.
-    diff->sparsity = adj_graph_new_with_block_sizes(block_sizes, sparsity);
+    diff->sparsity = adj_graph_new_with_block_sizes(sparsity, block_sizes);
     ASSERT(adj_graph_num_vertices(diff->sparsity) == alleged_num_local_rows);
   }
   else
