@@ -48,7 +48,8 @@ cpr_differencer_t* var_cpr_differencer_new(MPI_Comm comm,
 void cpr_differencer_free(cpr_differencer_t* diff);
 
 // Uses the differencer to compute a generalized Jacobian matrix of the form
-// J = alpha * I + beta * dF/dx + gamma * dF/d(xdot).
+// J = alpha * I + beta * dF/dx + gamma * dF/d(xdot). NULL can be passed for 
+// xdot if gamma == 0.0.
 void cpr_differencer_compute(cpr_differencer_t* diff, 
                              real_t alpha, real_t beta, real_t gamma,  
                              real_t t, real_t* x, real_t* xdot,

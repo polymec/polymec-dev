@@ -150,10 +150,10 @@ adj_graph_t* adj_graph_new_with_block_sizes(int* block_sizes,
   // Since the block size is variable, we have to be careful about 
   // counting up the vertices in the resulting block graph. If this is 
   // a distributed graph, we need to communicate.
-  int num_vertices = adj_graph_num_vertices(graph);
+  int num_vertices = adj_graph_num_vertices(graph), tot_num_vertices = 0;
   for (int v = 0; v < num_vertices; ++v)
-    num_vertices += block_sizes[v] * (1 + adj_graph_num_edges(graph, v));
-  adj_graph_t* block_graph = adj_graph_new(comm, num_vertices);
+    tot_num_vertices += block_sizes[v] * (1 + adj_graph_num_edges(graph, v));
+  adj_graph_t* block_graph = adj_graph_new(comm, tot_num_vertices);
 
   // Now traverse the original graph and set up the edges.
   for (int v = 0; v < num_vertices; ++v)

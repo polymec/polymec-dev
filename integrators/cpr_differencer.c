@@ -77,7 +77,6 @@ cpr_differencer_t* var_cpr_differencer_new(MPI_Comm comm,
   diff->F_context = F_context;
   diff->F = F;
   diff->F_dae = F_dae;
-  diff->Jv = polymec_malloc(sizeof(real_t) * (diff->num_local_rows + diff->num_remote_rows));
 
   // Do we have a block graph?
   int num_local_rows = adj_graph_num_vertices(sparsity);
@@ -105,6 +104,7 @@ cpr_differencer_t* var_cpr_differencer_new(MPI_Comm comm,
   }
 
   // The number of local rows is known at this point.
+printf("Should be %d rows\n", alleged_num_local_rows);
   diff->num_local_rows = alleged_num_local_rows;
 
   // However, we can't know the actual number of remote block rows without 
@@ -128,6 +128,7 @@ cpr_differencer_t* var_cpr_differencer_new(MPI_Comm comm,
   int N = diff->num_local_rows + diff->num_remote_rows;
   for (int i = 0; i < diff->num_work_vectors; ++i)
     diff->work[i] = polymec_malloc(sizeof(real_t) * N);
+  diff->Jv = polymec_malloc(sizeof(real_t) * (diff->num_local_rows + diff->num_remote_rows));
 
   return diff;
 }

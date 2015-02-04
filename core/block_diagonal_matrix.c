@@ -13,7 +13,7 @@ typedef struct
   int num_block_rows;
   int *D_offsets, *B_offsets; // For variable block sizes.
   real_t* D;
-  bool constant_block_size;
+  int block_size; // -1 if variable, set to constant size if applicable.
 } bdm_t;
 
 static void bdm_zero(void* context)
@@ -41,10 +41,39 @@ static void bdm_add_column_vector(void* context,
 {
   bdm_t* A = context;
   real_t* D = A->D;
+
+  int i = column;
+
+  // We have to find the right block column.
+  int block_col = 0;
+  while ((A->B_offsets[block_col+1] < i) && (block_col < A->num_block_rows))
+    ++block_col;
+
+  if (block_col < A->num_block_rows)
+  {
+    int bs = A->B_offsets[block_col+1] - A->B_offsets[block_col];
+    int c = i % bs;
+    for (int j = block_col*bs; j < (block_col+1)*bs; ++j)
+    {
+      int r = j % bs;
+      D[A->D_offsets[block_col] + c*bs + r] += scale_factor * column_vector[j];
+    }
+  }
+}
+
+static void bdm_add_column_vector_constant_bs(void* context,
+                                              real_t scale_factor,
+                                              int column,
+                                              real_t* column_vector)
+{
+  bdm_t* A = context;
+  ASSERT(A->block_size > 0);
+  real_t* D = A->D;
+
   int i = column;
   if (i < A->B_offsets[A->num_block_rows])
   {
-    int bs = A->B_offsets[i+1] - A->B_offsets[i];
+    int bs = A->block_size;
     int block_col = i / bs;
     int c = i % bs;
     for (int j = block_col*bs; j < (block_col+1)*bs; ++j)
@@ -108,7 +137,7 @@ static void bdm_fprintf(void* context, FILE* stream)
   bdm_t* A = context;
   int N = A->num_block_rows;
   real_t* D = A->D;
-  fprintf(stream, "\nBlock diagonal matrix P:\n");
+  fprintf(stream, "\nBlock diagonal matrix (N = %d):\n", N);
   for (int i = 0; i < N; ++i)
   {
     fprintf(stream, "%d: [", i);
@@ -153,7 +182,7 @@ local_matrix_t* var_block_diagonal_matrix_new(int num_block_rows,
   A->D_offsets = polymec_malloc(sizeof(int) * (num_block_rows+1));
   A->B_offsets = polymec_malloc(sizeof(int) * (num_block_rows+1));
   A->D_offsets[0] = A->B_offsets[0] = 0;
-  A->constant_block_size = true;
+  bool constant_block_size = true;
   int bs0 = -1;
   for (int i = 0; i < num_block_rows; ++i)
   {
@@ -161,16 +190,20 @@ local_matrix_t* var_block_diagonal_matrix_new(int num_block_rows,
     if (bs0 == -1)
       bs0 = bs;
     else if (bs != bs0)
-      A->constant_block_size = false;
+      constant_block_size = false;
     ASSERT(bs >= 1);
     A->D_offsets[i+1] = A->D_offsets[i] + bs*bs;
     A->B_offsets[i+1] = A->B_offsets[i] + bs;
   }
+  if (constant_block_size)
+    A->block_size = bs0;
+  else
+    A->block_size = -1;
   int N = A->D_offsets[A->num_block_rows];
   A->D = polymec_malloc(sizeof(real_t) * N);
 
   char name[1024];
-  if (A->constant_block_size)
+  if (constant_block_size)
     snprintf(name, 1024, "Block diagonal matrix (bs = %d)", bs0);
   else
     snprintf(name, 1024, "Variable block diagonal matrix");
@@ -180,6 +213,8 @@ local_matrix_t* var_block_diagonal_matrix_new(int num_block_rows,
                                 .add_column_vector = bdm_add_column_vector,
                                 .solve = bdm_solve,
                                 .fprintf = bdm_fprintf};
+  if (constant_block_size)
+    vtable.add_column_vector = bdm_add_column_vector_constant_bs;
   return local_matrix_new(name, A, vtable);
 }
 
