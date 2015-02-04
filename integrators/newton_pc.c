@@ -37,9 +37,9 @@ void newton_pc_free(newton_pc_t* precond)
   polymec_free(precond);
 }
 
-void newton_pc_compute(newton_pc_t* precond, 
-                       real_t alpha, real_t beta, real_t gamma,
-                       real_t t, real_t* x, real_t* xdot)
+void newton_pc_setup(newton_pc_t* precond, 
+                     real_t alpha, real_t beta, real_t gamma,
+                     real_t t, real_t* x, real_t* xdot)
 {
   // Only certain combinations of alpha, beta, and gamma are allowed.
   ASSERT(((alpha == 1.0) && (beta != 0.0) && (gamma == 0.0)) || 

@@ -23,9 +23,9 @@ typedef struct cpr_differencer_t cpr_differencer_t;
 // function F *OR* F_dae and a graph, which represents the sparsity of the 
 // Jacobian matrix. This constructor assumes a fixed block size.
 cpr_differencer_t* cpr_differencer_new(MPI_Comm comm,
+                                       void* F_context,
                                        int (*F)(void* context, real_t, real_t* x, real_t* Fval),
                                        int (*F_dae)(void* context, real_t, real_t* x, real_t* xdot, real_t* Fval),
-                                       void* F_context,
                                        void (*F_dtor)(void* context),
                                        adj_graph_t* sparsity,
                                        int num_local_block_rows,
@@ -37,9 +37,9 @@ cpr_differencer_t* cpr_differencer_new(MPI_Comm comm,
 // Jacobian matrix. This constructor allows a variable block size, 
 // block_sizes[i], for the ith row of the matrix.
 cpr_differencer_t* var_cpr_differencer_new(MPI_Comm comm,
+                                           void* F_context,
                                            int (*F)(void* context, real_t, real_t* x, real_t* Fval),
                                            int (*F_dae)(void* context, real_t, real_t* x, real_t* xdot, real_t* Fval),
-                                           void* F_context,
                                            void (*F_dtor)(void* context),
                                            adj_graph_t* sparsity,
                                            int num_local_block_rows,

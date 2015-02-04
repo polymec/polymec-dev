@@ -7,7 +7,7 @@
 
 #include "core/polymec.h"
 #include "integrators/newton_solver.h"
-#include "integrators/curtis_powell_reed_preconditioners.h"
+#include "integrators/cpr_pc.h"
 
 // We use this for some of the underlying data structures.
 #include "sundials/sundials_direct.h"
@@ -397,7 +397,7 @@ newton_solver_t* block_jacobi_precond_foodweb_solver_new()
   newton_solver_t* integ = foodweb_solver_new();
   foodweb_t* data = newton_solver_context(integ);
   int block_size = NUM_SPECIES;
-  preconditioner_t* precond = block_jacobi_preconditioner_from_function("Food web", MPI_COMM_WORLD, data, foodweb_func, NULL, data->sparsity, NEQ/block_size, 0, block_size);
+  newton_pc_t* precond = block_jacobi_cpr_pc_from_function(MPI_COMM_WORLD, data, foodweb_func, NULL, data->sparsity, NEQ/block_size, 0, block_size);
   newton_solver_set_preconditioner(integ, precond);
   return integ;
 }
@@ -408,7 +408,7 @@ newton_solver_t* lu_precond_foodweb_solver_new()
   newton_solver_t* integ = foodweb_solver_new();
   foodweb_t* data = newton_solver_context(integ);
   int block_size = NUM_SPECIES;
-  preconditioner_t* precond = lu_preconditioner_from_function("Food web", MPI_COMM_WORLD, data, foodweb_func, NULL, data->sparsity, NEQ/block_size, 0, block_size);
+  newton_pc_t* precond = lu_cpr_pc_from_function(MPI_COMM_WORLD, data, foodweb_func, NULL, data->sparsity, NEQ/block_size, 0, block_size);
   newton_solver_set_preconditioner(integ, precond);
   return integ;
 }
@@ -420,7 +420,7 @@ newton_solver_t* ilu_precond_foodweb_solver_new()
   foodweb_t* data = newton_solver_context(integ);
   ilu_params_t* ilu_params = ilu_params_new();
   int block_size = NUM_SPECIES;
-  preconditioner_t* precond = ilu_preconditioner_from_function("Food web", MPI_COMM_WORLD, data, foodweb_func, NULL, data->sparsity, NEQ/block_size, 0, block_size, ilu_params);
+  newton_pc_t* precond = ilu_cpr_pc_from_function(MPI_COMM_WORLD, data, foodweb_func, NULL, data->sparsity, NEQ/block_size, 0, block_size, ilu_params);
   newton_solver_set_preconditioner(integ, precond);
   return integ;
 }

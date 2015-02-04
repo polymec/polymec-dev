@@ -55,7 +55,6 @@ void test_foodweb_solve(void** state, newton_solver_t* integ)
     newton_solver_diagnostics_t diagnostics;
     newton_solver_get_diagnostics(integ, &diagnostics);
     newton_solver_diagnostics_fprintf(&diagnostics, stdout);
-    preconditioner_fprintf(newton_solver_preconditioner(integ), stdout);
   }
   assert_true(solved);
   log_info("num iterations = %d\n", num_iters);

@@ -24,8 +24,8 @@
 
 // Block Jacobi, fixed block size.
 newton_pc_t* block_jacobi_cpr_pc_from_function(MPI_Comm comm,
-                                               int (*F)(void* context, real_t t, real_t* x, real_t* Fval),
                                                void* context,
+                                               int (*F)(void* context, real_t t, real_t* x, real_t* Fval),
                                                void (*dtor)(void* context),
                                                adj_graph_t* sparsity,
                                                int num_local_block_rows,
@@ -34,8 +34,8 @@ newton_pc_t* block_jacobi_cpr_pc_from_function(MPI_Comm comm,
                                         
 // Block Jacobi, variable block size.
 newton_pc_t* var_block_jacobi_cpr_pc_from_function(MPI_Comm comm,
-                                                   int (*F)(void* context, real_t t, real_t* x, real_t* Fval),
                                                    void* context,
+                                                   int (*F)(void* context, real_t t, real_t* x, real_t* Fval),
                                                    void (*dtor)(void* context),
                                                    adj_graph_t* sparsity,
                                                    int num_local_block_rows,
@@ -44,8 +44,8 @@ newton_pc_t* var_block_jacobi_cpr_pc_from_function(MPI_Comm comm,
  
 // LU decomposition, fixed block size.
 newton_pc_t* lu_cpr_pc_from_function(MPI_Comm comm,
-                                     int (*F)(void* context, real_t t, real_t* x, real_t* Fval),
                                      void* context,
+                                     int (*F)(void* context, real_t t, real_t* x, real_t* Fval),
                                      void (*dtor)(void* context),
                                      adj_graph_t* sparsity,
                                      int num_local_block_rows,
@@ -54,8 +54,8 @@ newton_pc_t* lu_cpr_pc_from_function(MPI_Comm comm,
                                         
 // LU decomposition, variable block size.
 newton_pc_t* var_lu_cpr_pc_from_function(MPI_Comm comm,
-                                         int (*F)(void* context, real_t t, real_t* x, real_t* Fval),
                                          void* context,
+                                         int (*F)(void* context, real_t t, real_t* x, real_t* Fval),
                                          void (*dtor)(void* context),
                                          adj_graph_t* sparsity,
                                          int num_local_block_rows,
@@ -64,8 +64,8 @@ newton_pc_t* var_lu_cpr_pc_from_function(MPI_Comm comm,
  
 // ILU decomposition, fixed block size.
 newton_pc_t* ilu_cpr_pc_from_function(MPI_Comm comm,
-                                      int (*F)(void* context, real_t t, real_t* x, real_t* Fval),
                                       void* context,
+                                      int (*F)(void* context, real_t t, real_t* x, real_t* Fval),
                                       void (*dtor)(void* context),
                                       adj_graph_t* sparsity,
                                       int num_local_block_rows,
@@ -75,8 +75,8 @@ newton_pc_t* ilu_cpr_pc_from_function(MPI_Comm comm,
                                         
 // ILU decomposition, variable block size.
 newton_pc_t* var_ilu_cpr_pc_from_function(MPI_Comm comm,
-                                          int (*F)(void* context, real_t t, real_t* x, real_t* Fval),
                                           void* context,
+                                          int (*F)(void* context, real_t t, real_t* x, real_t* Fval),
                                           void (*dtor)(void* context),
                                           adj_graph_t* sparsity,
                                           int num_local_block_rows,
@@ -93,8 +93,8 @@ newton_pc_t* var_ilu_cpr_pc_from_function(MPI_Comm comm,
 
 // Block Jacobi, fixed block size.
 newton_pc_t* block_jacobi_cpr_pc_from_dae_function(MPI_Comm comm,
-                                                   int (*F)(void* context, real_t t, real_t* x, real_t* xdot, real_t* Fval),
                                                    void* context,
+                                                   int (*F)(void* context, real_t t, real_t* x, real_t* xdot, real_t* Fval),
                                                    void (*dtor)(void* context),
                                                    adj_graph_t* sparsity,
                                                    int num_local_block_rows,
@@ -103,8 +103,8 @@ newton_pc_t* block_jacobi_cpr_pc_from_dae_function(MPI_Comm comm,
 
 // Block Jacobi, variable block size.
 newton_pc_t* var_block_jacobi_cpr_pc_from_dae_function(MPI_Comm comm,
-                                                       int (*F)(void* context, real_t t, real_t* x, real_t* xdot, real_t* Fval),
                                                        void* context,
+                                                       int (*F)(void* context, real_t t, real_t* x, real_t* xdot, real_t* Fval),
                                                        void (*dtor)(void* context),
                                                        adj_graph_t* sparsity,
                                                        int num_local_block_rows,
@@ -113,8 +113,8 @@ newton_pc_t* var_block_jacobi_cpr_pc_from_dae_function(MPI_Comm comm,
 
 // LU decomposition, fixed block size.
 newton_pc_t* lu_cpr_pc_from_dae_function(MPI_Comm comm,
-                                         int (*F)(void* context, real_t t, real_t* x, real_t* xdot, real_t* Fval),
                                          void* context,
+                                         int (*F)(void* context, real_t t, real_t* x, real_t* xdot, real_t* Fval),
                                          void (*dtor)(void* context),
                                          adj_graph_t* sparsity,
                                          int num_local_block_rows,
@@ -123,8 +123,8 @@ newton_pc_t* lu_cpr_pc_from_dae_function(MPI_Comm comm,
 
 // LU decomposition, variable block size.
 newton_pc_t* var_lu_cpr_pc_from_dae_function(MPI_Comm comm,
-                                             int (*F)(void* context, real_t t, real_t* x, real_t* xdot, real_t* Fval),
                                              void* context,
+                                             int (*F)(void* context, real_t t, real_t* x, real_t* xdot, real_t* Fval),
                                              void (*dtor)(void* context),
                                              adj_graph_t* sparsity,
                                              int num_local_block_rows,
@@ -133,8 +133,8 @@ newton_pc_t* var_lu_cpr_pc_from_dae_function(MPI_Comm comm,
 
 // ILU decomposition, fixed block size.
 newton_pc_t* ilu_cpr_pc_from_dae_function(MPI_Comm comm,
-                                          int (*F)(void* context, real_t t, real_t* x, real_t* xdot, real_t* Fval),
                                           void* context,
+                                          int (*F)(void* context, real_t t, real_t* x, real_t* xdot, real_t* Fval),
                                           void (*dtor)(void* context),
                                           adj_graph_t* sparsity,
                                           int num_local_block_rows,
@@ -144,8 +144,8 @@ newton_pc_t* ilu_cpr_pc_from_dae_function(MPI_Comm comm,
 
 // ILU decomposition, variable block size.
 newton_pc_t* var_ilu_cpr_pc_from_dae_function(MPI_Comm comm,
-                                              int (*F)(void* context, real_t t, real_t* x, real_t* xdot, real_t* Fval),
                                               void* context,
+                                              int (*F)(void* context, real_t t, real_t* x, real_t* xdot, real_t* Fval),
                                               void (*dtor)(void* context),
                                               adj_graph_t* sparsity,
                                               int num_local_block_rows,

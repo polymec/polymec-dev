@@ -31,6 +31,14 @@ typedef struct
   ilu_params_t* ilu_params;
 } slm_t;
 
+// Globals borrowed from SuperLU.
+const int ILU_DROP_BASIC = DROP_BASIC;
+const int ILU_DROP_PROWS = DROP_PROWS;
+const int ILU_DROP_COLUMN = DROP_COLUMN;
+const int ILU_DROP_AREA = DROP_AREA;
+const int ILU_DROP_DYNAMIC = DROP_DYNAMIC;
+const int ILU_DROP_INTERP = DROP_INTERP;
+
 ilu_params_t* ilu_params_new()
 {
   ilu_params_t* params = GC_MALLOC(sizeof(ilu_params_t));

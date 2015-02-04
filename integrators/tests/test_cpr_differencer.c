@@ -28,10 +28,10 @@ void test_identity_jacobian_with_bs(void** state, int block_size)
 {
   adj_graph_t* sparsity = adj_graph_new(MPI_COMM_SELF, 10);
   cpr_differencer_t* diff = cpr_differencer_new(MPI_COMM_SELF,
-                                                F_ident,
-                                                NULL,
-                                                NULL,
                                                 &block_size,
+                                                F_ident,
+                                                NULL, 
+                                                NULL,
                                                 sparsity, 
                                                 10, 0, block_size);
 
@@ -123,10 +123,10 @@ void test_dense_jacobian_with_bs(void** state, int block_size)
     }
   }
   cpr_differencer_t* diff = cpr_differencer_new(MPI_COMM_SELF,
+                                                &block_size,
                                                 F_dense,
                                                 NULL,
                                                 NULL,
-                                                &block_size,
                                                 sparsity, 
                                                 10, 0, block_size);
 

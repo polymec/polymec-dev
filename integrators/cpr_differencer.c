@@ -13,9 +13,9 @@ struct cpr_differencer_t
   MPI_Comm comm;
 
   // Function information.
+  void* F_context;
   int (*F)(void* context, real_t t, real_t* x, real_t* Fval);
   int (*F_dae)(void* context, real_t t, real_t* x, real_t* xdot, real_t* Fval);
-  void* F_context;
   void (*F_dtor)(void* context);
 
   // Matrix information.
@@ -31,9 +31,9 @@ struct cpr_differencer_t
 };
 
 cpr_differencer_t* cpr_differencer_new(MPI_Comm comm,
+                                       void* F_context,
                                        int (*F)(void* context, real_t, real_t* x, real_t* Fval),
                                        int (*F_dae)(void* context, real_t, real_t* x, real_t* xdot, real_t* Fval),
-                                       void* F_context,
                                        void (*F_dtor)(void* context),
                                        adj_graph_t* sparsity,
                                        int num_local_block_rows,
@@ -47,14 +47,14 @@ cpr_differencer_t* cpr_differencer_new(MPI_Comm comm,
   for (int i = 0; i < num_local_block_rows; ++i)
     block_sizes[i] = block_size;
 
-  return var_cpr_differencer_new(comm, F, F_dae, F_context, F_dtor, sparsity, num_local_block_rows,
+  return var_cpr_differencer_new(comm, F_context, F, F_dae, F_dtor, sparsity, num_local_block_rows,
                                  num_remote_block_rows, block_sizes);
 }
 
 cpr_differencer_t* var_cpr_differencer_new(MPI_Comm comm,
+                                           void* F_context,
                                            int (*F)(void* context, real_t, real_t* x, real_t* Fval),
                                            int (*F_dae)(void* context, real_t, real_t* x, real_t* xdot, real_t* Fval),
-                                           void* F_context,
                                            void (*F_dtor)(void* context),
                                            adj_graph_t* sparsity,
                                            int num_local_block_rows,
@@ -148,8 +148,8 @@ void cpr_differencer_free(cpr_differencer_t* diff)
 
 // Here's our finite difference implementation of the dF/dx matrix-vector 
 // product. 
-static void cpr_finite_diff_dFdx_v(int (*F)(void* context, real_t t, real_t* x, real_t* xdot, real_t* F), 
-                                   void* context, 
+static void cpr_finite_diff_dFdx_v(void* context, 
+                                   int (*F)(void* context, real_t t, real_t* x, real_t* xdot, real_t* F), 
                                    real_t t, 
                                    real_t* x, 
                                    real_t* xdot, 
@@ -179,8 +179,8 @@ static void cpr_finite_diff_dFdx_v(int (*F)(void* context, real_t t, real_t* x, 
 }
 
 // Here's the same finite difference calculation for dF/d(xdot).
-static void cpr_finite_diff_dFdxdot_v(int (*F)(void* context, real_t t, real_t* x, real_t* xdot, real_t* F), 
-                                      void* context, 
+static void cpr_finite_diff_dFdxdot_v(void* context, 
+                                      int (*F)(void* context, real_t t, real_t* x, real_t* xdot, real_t* F), 
                                       real_t t, 
                                       real_t* x, 
                                       real_t* xdot, 
@@ -291,7 +291,7 @@ void cpr_differencer_compute(cpr_differencer_t* diff,
 
     // Evaluate dF/dx * d.
     memset(diff->Jv, 0, sizeof(real_t) * diff->num_local_rows);
-    cpr_finite_diff_dFdx_v(F, F_context, t, x, xdot, diff->num_local_rows, 
+    cpr_finite_diff_dFdx_v(F_context, F, t, x, xdot, diff->num_local_rows, 
                            diff->num_remote_rows, work[0], work, diff->Jv);
     ++num_F_evals;
 
@@ -304,7 +304,7 @@ void cpr_differencer_compute(cpr_differencer_t* diff,
     {
       // Now evaluate dF/d(xdot) * d.
       memset(diff->Jv, 0, sizeof(real_t) * diff->num_local_rows);
-      cpr_finite_diff_dFdxdot_v(F, F_context, t, x, xdot, diff->num_local_rows, 
+      cpr_finite_diff_dFdxdot_v(F_context, F, t, x, xdot, diff->num_local_rows, 
                                 diff->num_remote_rows, work[0], work, diff->Jv);
       ++num_F_evals;
 
@@ -323,12 +323,12 @@ void cpr_differencer_compute(cpr_differencer_t* diff,
   {
     F(F_context, t, x, xdot, work[1]);
     ++num_F_evals;
-    cpr_finite_diff_dFdx_v(F, F_context, t, x, xdot, diff->num_local_rows, 
+    cpr_finite_diff_dFdx_v(F_context, F, t, x, xdot, diff->num_local_rows, 
                            diff->num_remote_rows, work[0], work, diff->Jv);
     ++num_F_evals;
     if ((gamma != 0.0) && (xdot != NULL))
     {
-      cpr_finite_diff_dFdxdot_v(F, F_context, t, x, xdot, diff->num_local_rows, 
+      cpr_finite_diff_dFdxdot_v(F_context, F, t, x, xdot, diff->num_local_rows, 
                                 diff->num_remote_rows, work[0], work, diff->Jv);
       ++num_F_evals;
     }
