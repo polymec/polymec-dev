@@ -33,15 +33,58 @@ void test_identity_jacobian_with_bs(void** state, int block_size)
                                                 &block_size,
                                                 sparsity, 
                                                 100, 0, block_size);
-  adj_graph_free(sparsity);
-  local_matrix_t* D = block_diagonal_matrix_new(100, block_size);
+
+  // x vector.
   real_t x[block_size * 100];
   for (int i = 0; i < block_size * 100; ++i)
     x[i] = 1.0*i;
+
+  // Try a block diagonal matrix.
+  local_matrix_t* D = block_diagonal_matrix_new(100, block_size);
   cpr_differencer_compute(diff, 0.0, 1.0, 0.0, 0.0, x, NULL, D);
-  cpr_differencer_free(diff);
-  local_matrix_fprintf(D, stdout);
+  local_matrix_fprintf(D, stdout); 
+
+  for (int i = 0; i < block_size * 100; ++i)
+  {
+    for (int j = 0; j < block_size * 100; ++j)
+    {
+      if (j == i)
+      {
+        assert_true(local_matrix_value(D, i, j) == 1.0);
+      }
+      else
+      {
+        assert_true(local_matrix_value(D, i, j) == 0.0);
+      }
+    }
+  }
   local_matrix_free(D);
+
+  // Now try a sparse matrix.
+  adj_graph_t* block_sparsity = adj_graph_new_with_block_size(block_size, sparsity);
+  local_matrix_t* A = sparse_local_matrix_new(block_sparsity);
+  cpr_differencer_compute(diff, 0.0, 1.0, 0.0, 0.0, x, NULL, A);
+  local_matrix_fprintf(A, stdout);
+  for (int i = 0; i < block_size * 100; ++i)
+  {
+    for (int j = 0; j < block_size * 100; ++j)
+    {
+      if (j == i)
+      {
+        assert_true(local_matrix_value(A, i, j) == 1.0);
+      }
+      else
+      {
+        assert_true(local_matrix_value(A, i, j) == 0.0);
+      }
+    }
+  }
+  local_matrix_free(A);
+
+  // Clean up.
+  adj_graph_free(sparsity);
+  adj_graph_free(block_sparsity);
+  cpr_differencer_free(diff);
 }
 
 void test_identity_jacobian(void** state)

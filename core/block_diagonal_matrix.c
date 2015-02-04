@@ -154,6 +154,55 @@ static void bdm_fprintf(void* context, FILE* stream)
   }
 }
 
+static real_t bdm_value(void* context, int i, int j)
+{
+  bdm_t* A = context;
+  real_t* D = A->D;
+
+  // We have to find the right block column.
+  int block_col = 0;
+  while ((A->B_offsets[block_col+1] < i) && (block_col < A->num_block_rows))
+    ++block_col;
+
+  if (block_col < A->num_block_rows)
+  {
+    int bs = A->B_offsets[block_col+1] - A->B_offsets[block_col];
+    int c = i % bs;
+    if ((j >= block_col*bs) && (j < (block_col+1)*bs))
+    {
+      int r = j % bs;
+      return D[A->D_offsets[block_col] + c*bs + r];
+    }
+    else
+      return 0.0;
+  }
+  else
+    return 0.0;
+}
+
+static real_t bdm_value_constant_bs(void* context, int i, int j)
+{
+  bdm_t* A = context;
+  ASSERT(A->block_size > 0);
+  real_t* D = A->D;
+
+  if (i < A->B_offsets[A->num_block_rows])
+  {
+    int bs = A->block_size;
+    int block_col = i / bs;
+    int c = i % bs;
+    if ((j >= block_col*bs) && (j < (block_col+1)*bs))
+    {
+      int r = j % bs;
+      return D[A->D_offsets[block_col] + c*bs + r];
+    }
+    else
+      return 0.0;
+  }
+  else
+    return 0.0;
+}
+
 static void bdm_dtor(void* context)
 {
   bdm_t* A = context;
@@ -212,9 +261,13 @@ local_matrix_t* var_block_diagonal_matrix_new(int num_block_rows,
                                 .add_identity = bdm_add_identity,
                                 .add_column_vector = bdm_add_column_vector,
                                 .solve = bdm_solve,
-                                .fprintf = bdm_fprintf};
+                                .fprintf = bdm_fprintf,
+                                .value = bdm_value};
   if (constant_block_size)
+  {
     vtable.add_column_vector = bdm_add_column_vector_constant_bs;
+    vtable.value = bdm_value_constant_bs;
+  }
   return local_matrix_new(name, A, vtable);
 }
 

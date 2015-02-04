@@ -11,16 +11,8 @@
 #include "core/local_matrix.h"
 #include "core/adj_graph.h"
 
-// This returns a sparse local matrix with a sparsity pattern given by a 
-// graph, assuming a fixed block size.
-local_matrix_t* sparse_local_matrix_new(adj_graph_t* sparsity,
-                                        int num_block_rows,
-                                        int block_size);
-
-// This returns a sparse local matrix with variable block sizes.
-local_matrix_t* var_sparse_local_matrix_new(adj_graph_t* sparsity,
-                                            int num_block_rows,
-                                            int* block_sizes);
+// This returns a sparse local matrix with a sparsity pattern given by a graph.
+local_matrix_t* sparse_local_matrix_new(adj_graph_t* sparsity);
 
 // The following types give options to control ILU preconditioners for the 
 // nonlinear and time integrators.
@@ -77,19 +69,9 @@ typedef struct
 ilu_params_t* ilu_params_new();
 
 // This returns an object representing a sparse local matrix with a
-// sparsity pattern given by a graph, assuming a fixed block size and
-// using incomplete LU factorization for the solution of its linear system.
+// sparsity pattern given by a graph, using incomplete LU factorization for 
+// the solution of its linear system.
 local_matrix_t* ilu_sparse_local_matrix_new(adj_graph_t* sparsity,
-                                            int num_block_rows,
-                                            int block_size,
                                             ilu_params_t* ilu_params);
-
-// This returns an object representing a sparse local matrix with a
-// sparsity pattern given by a graph, allowing a variable block size and
-// using incomplete LU factorization for the solution of its linear system.
-local_matrix_t* var_ilu_sparse_local_matrix_new(adj_graph_t* sparsity,
-                                                int num_block_rows,
-                                                int* block_sizes, 
-                                                ilu_params_t* ilu_params);
 
 #endif

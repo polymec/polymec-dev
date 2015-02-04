@@ -224,6 +224,29 @@ static void slm_fprintf(void* context, FILE* stream)
   fprintf(stream, "\n");
 }
 
+static real_t slm_value(void* context, int i, int j)
+{
+  slm_t* mat = context;
+  ASSERT(i < mat->N);
+  ASSERT(j < mat->N);
+
+  SuperMatrix* A = mat->A;
+
+  NCformat* data = A->Store;
+  real_t* Aij = data->nzval;
+
+  if (j == i) // diagonal value
+    return Aij[data->colptr[i]];
+
+  int col_index = data->colptr[i];
+  size_t num_rows = data->colptr[i+1] - col_index;
+  int* entry = int_bsearch(&data->rowind[col_index+1], num_rows - 1, j);
+  if (entry == NULL)
+    return 0.0;
+  size_t offset = entry - &data->rowind[col_index];
+  return Aij[data->colptr[i] + offset];
+}
+
 static void slm_dtor(void* context)
 {
   slm_t* mat = context;
@@ -246,41 +269,13 @@ static void slm_dtor(void* context)
   polymec_free(mat);
 }
 
-local_matrix_t* sparse_local_matrix_new(adj_graph_t* sparsity,
-                                        int num_block_rows,
-                                        int block_size)
+local_matrix_t* sparse_local_matrix_new(adj_graph_t* sparsity)
 {
-  ASSERT(block_size > 0);
-  int block_sizes[num_block_rows];
-  for (int i = 0; i < num_block_rows; ++i)
-    block_sizes[i] = block_size;
-  return var_sparse_local_matrix_new(sparsity, num_block_rows, block_sizes);
-}
-
-local_matrix_t* var_sparse_local_matrix_new(adj_graph_t* sparsity,
-                                            int num_block_rows,
-                                            int* block_sizes)
-{
-  return var_ilu_sparse_local_matrix_new(sparsity, num_block_rows, block_sizes, NULL);
+  return ilu_sparse_local_matrix_new(sparsity, NULL);
 }
 
 local_matrix_t* ilu_sparse_local_matrix_new(adj_graph_t* sparsity,
-                                            int num_block_rows,
-                                            int block_size,
                                             ilu_params_t* ilu_params)
-{
-  ASSERT(block_size > 0);
-  int block_sizes[num_block_rows];
-  for (int i = 0; i < num_block_rows; ++i)
-    block_sizes[i] = block_size;
-  return var_ilu_sparse_local_matrix_new(sparsity, num_block_rows, 
-                                         block_sizes, ilu_params);
-}
-
-local_matrix_t* var_ilu_sparse_local_matrix_new(adj_graph_t* sparsity,
-                                                int num_block_rows,
-                                                int* block_sizes, 
-                                                ilu_params_t* ilu_params)
 {
   slm_t* mat = polymec_malloc(sizeof(slm_t));
   mat->sparsity = adj_graph_clone(sparsity); // MINE!
@@ -308,7 +303,8 @@ local_matrix_t* var_ilu_sparse_local_matrix_new(adj_graph_t* sparsity,
                                 .add_identity = slm_add_identity,
                                 .add_column_vector = slm_add_column_vector,
                                 .solve = slm_solve,
-                                .fprintf = slm_fprintf};
+                                .fprintf = slm_fprintf,
+                                .value = slm_value};
   return local_matrix_new(name, mat, vtable);
 }
 

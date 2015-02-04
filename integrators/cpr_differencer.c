@@ -104,7 +104,6 @@ cpr_differencer_t* var_cpr_differencer_new(MPI_Comm comm,
   }
 
   // The number of local rows is known at this point.
-printf("Should be %d rows\n", alleged_num_local_rows);
   diff->num_local_rows = alleged_num_local_rows;
 
   // However, we can't know the actual number of remote block rows without 

@@ -23,6 +23,7 @@ local_matrix_t* local_matrix_new(const char* name,
   ASSERT(vtable.add_identity != NULL);
   ASSERT(vtable.solve != NULL);
   ASSERT(vtable.fprintf != NULL);
+  ASSERT(vtable.value != NULL);
   local_matrix_t* matrix = polymec_malloc(sizeof(local_matrix_t));
   matrix->name = string_dup(name);
   matrix->context = context;
@@ -66,8 +67,8 @@ void local_matrix_add_identity(local_matrix_t* matrix,
 }
 
 bool local_matrix_solve(local_matrix_t* matrix, 
-                       real_t* B,
-                       real_t* x)
+                        real_t* B,
+                        real_t* x)
 {
   return matrix->vtable.solve(matrix->context, B, x);
 }
@@ -77,3 +78,9 @@ void local_matrix_fprintf(local_matrix_t* matrix, FILE* stream)
   matrix->vtable.fprintf(matrix->context, stream);
 }
 
+real_t local_matrix_value(local_matrix_t* matrix, int i, int j)
+{
+  ASSERT(i >= 0);
+  ASSERT(j >= 0);
+  return matrix->vtable.value(matrix->context, i, j);
+}
