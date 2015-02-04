@@ -5,6 +5,9 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+#ifndef POLYMEC_CPR_DIFFERENCER_H
+#define POLYMEC_CPR_DIFFERENCER_H
+
 #include "core/polymec.h"
 #include "core/adj_graph.h"
 
@@ -21,20 +24,37 @@ typedef struct local_matrix_t local_matrix_t;
 
 // Creates a new Curtis-Powell-Reed differencer, associated with the given 
 // function F *OR* F_dae and a graph, which represents the sparsity of the 
-// Jacobian matrix. 
-cpr_differencer_t* cpr_differencer_new(int (*F)(void* context, real_t, real_t* x, real_t* Fval),
-                                       int (*F_dae)(void* context, real_t, real_t* x, real_t* Fval),
+// Jacobian matrix. This constructor assumes a fixed block size.
+cpr_differencer_t* cpr_differencer_new(MPI_Comm comm,
+                                       int (*F)(void* context, real_t, real_t* x, real_t* Fval),
+                                       int (*F_dae)(void* context, real_t, real_t* x, real_t* xdot, real_t* Fval),
                                        void* F_context,
+                                       adj_graph_t* sparsity,
                                        int num_local_block_rows,
                                        int num_remote_block_rows,
                                        int block_size);
 
+// Creates a new Curtis-Powell-Reed differencer, associated with the given 
+// function F *OR* F_dae and a graph, which represents the sparsity of the 
+// Jacobian matrix. This constructor allows a variable block size, 
+// block_sizes[i], for the ith row of the matrix.
+cpr_differencer_t* var_cpr_differencer_new(MPI_Comm comm,
+                                           int (*F)(void* context, real_t, real_t* x, real_t* Fval),
+                                           int (*F_dae)(void* context, real_t, real_t* x, real_t* xdot, real_t* Fval),
+                                           void* F_context,
+                                           adj_graph_t* sparsity,
+                                           int num_local_block_rows,
+                                           int num_remote_block_rows,
+                                           int* block_sizes);
+
 // Frees the differencer.
 void cpr_differencer_free(cpr_differencer_t* diff);
 
-// Uses the differencer to compute a Jacobian matrix, scaled by a scale factor. 
+// Uses the differencer to compute a generalized Jacobian matrix of the form
+// J = alpha * I + beta * dF/dx + gamma * dF/d(xdot).
 void cpr_differencer_compute(cpr_differencer_t* diff, 
-                             real_t scale_factor,   
+                             real_t alpha, real_t beta, real_t gamma,  
+                             real_t t, real_t* x, real_t* xdot,
                              local_matrix_t* matrix);
 
 // The following interface defines a local matrix representation.
@@ -100,3 +120,4 @@ local_matrix_t* var_block_diagonal_matrix_new(int num_block_rows,
 // sparsity pattern given by a graph.
 local_matrix_t* sparse_local_matrix_new(adj_graph_t* sparsity);
 
+#endif
