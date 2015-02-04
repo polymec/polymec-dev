@@ -116,6 +116,7 @@ preconditioner_t* var_lu_preconditioner_from_dae_function(const char* name,
                                                           int num_remote_block_rows,
                                                           int* block_sizes);
  
+#ifndef POLYMEC_CPR_DIFFERENCER_H
 // The following types give options to control ILU preconditioners for the 
 // nonlinear and time integrators.
 
@@ -169,6 +170,7 @@ typedef struct
 
 // Initializes a set of ILU parameters with reasonable defaults.
 ilu_params_t* ilu_params_new();
+#endif
 
 // ILU preconditioner.
 preconditioner_t* ilu_preconditioner_from_function(const char* name,
