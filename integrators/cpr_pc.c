@@ -312,3 +312,11 @@ newton_pc_t* var_ilu_cpr_pc_from_dae_function(MPI_Comm comm,
                                              num_remote_block_rows, block_sizes, P);
 }
 
+local_matrix_t* cpr_pc_matrix(newton_pc_t* cpr_pc)
+{
+  // Must be a Curtis-Powell-Reed preconditioner!
+  ASSERT(strcmp(newton_pc_name(cpr_pc), "Curtis-Powell-Reed preconditioner") == 0);
+
+  cpr_pc_t* pc = newton_pc_context(cpr_pc);
+  return pc->P;
+}

@@ -37,6 +37,16 @@ void newton_pc_free(newton_pc_t* precond)
   polymec_free(precond);
 }
 
+char* newton_pc_name(newton_pc_t* precond)
+{
+  return precond->name;
+}
+
+void* newton_pc_context(newton_pc_t* precond)
+{
+  return precond->context;
+}
+
 void newton_pc_setup(newton_pc_t* precond, 
                      real_t alpha, real_t beta, real_t gamma,
                      real_t t, real_t* x, real_t* xdot)

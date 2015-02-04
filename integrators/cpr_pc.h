@@ -153,5 +153,9 @@ newton_pc_t* var_ilu_cpr_pc_from_dae_function(MPI_Comm comm,
                                               int* block_sizes,
                                               ilu_params_t* ilu_params);
 
+// This function returns an internal pointer to the local matrix object
+// that is used internally by the given Curtis-Powell-Reed preconditioner.
+local_matrix_t* cpr_pc_matrix(newton_pc_t* cpr_pc);
+
 #endif
 

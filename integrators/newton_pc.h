@@ -44,6 +44,13 @@ newton_pc_t* newton_pc_new(const char* name,
 // Frees the preconditioner.
 void newton_pc_free(newton_pc_t* precond);
 
+// Returns an internal string containing the name of the preconditioner.
+char* newton_pc_name(newton_pc_t* precond);
+
+// Returns an internal pointer to the context originally given to this 
+// Newton preconditioner. Use at your own risk.
+void* newton_pc_context(newton_pc_t* precond);
+
 // Performs any setup required to computes the preconditioner matrix at the 
 // point (t, x, xdot) in solution space, computing 
 // alpha * I + beta * dF/dx + gamma * dF/d(xdot) 
