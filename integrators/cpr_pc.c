@@ -39,6 +39,47 @@ static void cpr_pc_dtor(void* context)
   polymec_free(pc);
 }
 
+// Constructs an appropriate sparse matrix given block information for a graph.
+static local_matrix_t* sparse_block_matrix_new(adj_graph_t* sparsity,
+                                               int num_local_block_rows,
+                                               int block_size,
+                                               ilu_params_t* ilu_params)
+{
+  local_matrix_t* P;
+  int num_vertices = adj_graph_num_vertices(sparsity);
+  if (num_local_block_rows == num_vertices)
+  {
+    adj_graph_t* P_sparsity = adj_graph_new_with_block_size(sparsity, block_size);
+    P = ilu_sparse_local_matrix_new(P_sparsity, ilu_params);
+    adj_graph_free(P_sparsity);
+  }
+  else
+  {
+    ASSERT(block_size * num_local_block_rows == num_vertices);
+    P = ilu_sparse_local_matrix_new(sparsity, ilu_params);
+  }
+  return P;
+}
+
+// Variable block size version of above.
+static local_matrix_t* var_sparse_block_matrix_new(adj_graph_t* sparsity,
+                                                   int num_local_block_rows,
+                                                   int* block_sizes,
+                                                   ilu_params_t* ilu_params)
+{
+  local_matrix_t* P;
+  int num_vertices = adj_graph_num_vertices(sparsity);
+  if (num_local_block_rows == num_vertices)
+  {
+    adj_graph_t* P_sparsity = adj_graph_new_with_block_sizes(sparsity, block_sizes);
+    P = ilu_sparse_local_matrix_new(P_sparsity, ilu_params);
+    adj_graph_free(P_sparsity);
+  }
+  else
+    P = ilu_sparse_local_matrix_new(sparsity, ilu_params);
+  return P;
+}
+
 static newton_pc_t* cpr_pc_from_function_and_matrix(MPI_Comm comm,
                                                     void* context,
                                                     int (*F)(void* context, real_t t, real_t* x, real_t* Fval),
@@ -51,7 +92,7 @@ static newton_pc_t* cpr_pc_from_function_and_matrix(MPI_Comm comm,
                                                     local_matrix_t* P)
 {
   cpr_pc_t* pc = polymec_malloc(sizeof(cpr_pc_t));
-  pc->diff = cpr_differencer_new(comm, context, F, NULL, dtor,
+  pc->diff = cpr_differencer_new(comm, context, F, dae_F, dtor,
                                  sparsity, num_local_block_rows,
                                  num_remote_block_rows, block_size);
   pc->P = P;
@@ -73,7 +114,7 @@ static newton_pc_t* var_cpr_pc_from_function_and_matrix(MPI_Comm comm,
                                                         local_matrix_t* P)
 {
   cpr_pc_t* pc = polymec_malloc(sizeof(cpr_pc_t));
-  pc->diff = var_cpr_differencer_new(comm, context, F, NULL, dtor,
+  pc->diff = var_cpr_differencer_new(comm, context, F, dae_F, dtor,
                                      sparsity, num_local_block_rows,
                                      num_remote_block_rows, block_sizes);
   pc->P = P;
@@ -122,9 +163,7 @@ newton_pc_t* lu_cpr_pc_from_function(MPI_Comm comm,
                                      int num_remote_block_rows,
                                      int block_size)
 {
-  adj_graph_t* block_sparsity = adj_graph_new_with_block_size(sparsity, block_size);
-  local_matrix_t* P = sparse_local_matrix_new(block_sparsity);
-  adj_graph_free(block_sparsity);
+  local_matrix_t* P = sparse_block_matrix_new(sparsity, num_local_block_rows, block_size, NULL);
   return cpr_pc_from_function_and_matrix(comm, context, F, NULL, dtor, 
                                          sparsity, num_local_block_rows, 
                                          num_remote_block_rows, block_size, P);
@@ -139,9 +178,7 @@ newton_pc_t* var_lu_cpr_pc_from_function(MPI_Comm comm,
                                          int num_remote_block_rows,
                                          int* block_sizes)
 {
-  adj_graph_t* block_sparsity = adj_graph_new_with_block_sizes(sparsity, block_sizes);
-  local_matrix_t* P = sparse_local_matrix_new(block_sparsity);
-  adj_graph_free(block_sparsity);
+  local_matrix_t* P = var_sparse_block_matrix_new(sparsity, num_local_block_rows, block_sizes, NULL);
   return var_cpr_pc_from_function_and_matrix(comm, context, F, NULL, dtor, 
                                              sparsity, num_local_block_rows, 
                                              num_remote_block_rows, block_sizes, P);
@@ -158,9 +195,7 @@ newton_pc_t* ilu_cpr_pc_from_function(MPI_Comm comm,
                                       ilu_params_t* ilu_params)
 {
   ASSERT(ilu_params != NULL);
-  adj_graph_t* block_sparsity = adj_graph_new_with_block_size(sparsity, block_size);
-  local_matrix_t* P = ilu_sparse_local_matrix_new(block_sparsity, ilu_params);
-  adj_graph_free(block_sparsity);
+  local_matrix_t* P = sparse_block_matrix_new(sparsity, num_local_block_rows, block_size, ilu_params);
   return cpr_pc_from_function_and_matrix(comm, context, F, NULL, dtor, 
                                          sparsity, num_local_block_rows, 
                                          num_remote_block_rows, block_size, P);
@@ -177,9 +212,7 @@ newton_pc_t* var_ilu_cpr_pc_from_function(MPI_Comm comm,
                                           ilu_params_t* ilu_params)
 {
   ASSERT(ilu_params != NULL);
-  adj_graph_t* block_sparsity = adj_graph_new_with_block_sizes(sparsity, block_sizes);
-  local_matrix_t* P = ilu_sparse_local_matrix_new(block_sparsity, ilu_params);
-  adj_graph_free(block_sparsity);
+  local_matrix_t* P = var_sparse_block_matrix_new(sparsity, num_local_block_rows, block_sizes, ilu_params);
   return var_cpr_pc_from_function_and_matrix(comm, context, F, NULL, dtor, 
                                              sparsity, num_local_block_rows, 
                                              num_remote_block_rows, block_sizes, P);
@@ -224,9 +257,7 @@ newton_pc_t* lu_cpr_pc_from_dae_function(MPI_Comm comm,
                                          int num_remote_block_rows,
                                          int block_size)
 {
-  adj_graph_t* block_sparsity = adj_graph_new_with_block_size(sparsity, block_size);
-  local_matrix_t* P = sparse_local_matrix_new(block_sparsity);
-  adj_graph_free(block_sparsity);
+  local_matrix_t* P = sparse_block_matrix_new(sparsity, num_local_block_rows, block_size, NULL);
   return cpr_pc_from_function_and_matrix(comm, context, NULL, F, dtor, 
                                          sparsity, num_local_block_rows, 
                                          num_remote_block_rows, block_size, P);
@@ -241,9 +272,7 @@ newton_pc_t* var_lu_cpr_pc_from_dae_function(MPI_Comm comm,
                                              int num_remote_block_rows,
                                              int* block_sizes)
 {
-  adj_graph_t* block_sparsity = adj_graph_new_with_block_sizes(sparsity, block_sizes);
-  local_matrix_t* P = sparse_local_matrix_new(block_sparsity);
-  adj_graph_free(block_sparsity);
+  local_matrix_t* P = var_sparse_block_matrix_new(sparsity, num_local_block_rows, block_sizes, NULL);
   return var_cpr_pc_from_function_and_matrix(comm, context, NULL, F, dtor, 
                                              sparsity, num_local_block_rows, 
                                              num_remote_block_rows, block_sizes, P);
@@ -260,9 +289,7 @@ newton_pc_t* ilu_cpr_pc_from_dae_function(MPI_Comm comm,
                                           ilu_params_t* ilu_params)
 {
   ASSERT(ilu_params != NULL);
-  adj_graph_t* block_sparsity = adj_graph_new_with_block_size(sparsity, block_size);
-  local_matrix_t* P = ilu_sparse_local_matrix_new(block_sparsity, ilu_params);
-  adj_graph_free(block_sparsity);
+  local_matrix_t* P = sparse_block_matrix_new(sparsity, num_local_block_rows, block_size, ilu_params);
   return cpr_pc_from_function_and_matrix(comm, context, NULL, F, dtor, 
                                          sparsity, num_local_block_rows, 
                                          num_remote_block_rows, block_size, P);
@@ -279,9 +306,7 @@ newton_pc_t* var_ilu_cpr_pc_from_dae_function(MPI_Comm comm,
                                               ilu_params_t* ilu_params)
 {
   ASSERT(ilu_params != NULL);
-  adj_graph_t* block_sparsity = adj_graph_new_with_block_sizes(sparsity, block_sizes);
-  local_matrix_t* P = ilu_sparse_local_matrix_new(block_sparsity, ilu_params);
-  adj_graph_free(block_sparsity);
+  local_matrix_t* P = var_sparse_block_matrix_new(sparsity, num_local_block_rows, block_sizes, ilu_params);
   return var_cpr_pc_from_function_and_matrix(comm, context, NULL, F, dtor, 
                                              sparsity, num_local_block_rows, 
                                              num_remote_block_rows, block_sizes, P);
