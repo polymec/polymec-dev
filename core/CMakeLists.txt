@@ -12,8 +12,9 @@ add_library(polymec_core polymec.c arch.c allocators.c logging.c
             partition_mesh.c partition_point_cloud.c
             text_buffer.c serializer.c interpreter_register_default_functions.c 
             thread_pool.c string_utils.c file_utils.c array_utils.c 
-            linear_algebra.c krylov_solver.c preconditioner.c
-            block_jacobi_preconditioner.c 
+            linear_algebra.c local_matrix.c block_diagonal_matrix.c
+            sparse_local_matrix.c
+            krylov_solver.c preconditioner.c block_jacobi_preconditioner.c 
             silo_file.c read_silo.c exchanger.c)
 
 # polymec.c depends on the creation of polymec_version.h.

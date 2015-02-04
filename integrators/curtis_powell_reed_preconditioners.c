@@ -5,7 +5,6 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#include <gc/gc.h>
 #include "slu_ddefs.h"
 #include "slu_util.h"
 #include "core/linear_algebra.h"
@@ -960,20 +959,6 @@ const int ILU_DROP_COLUMN = DROP_COLUMN;
 const int ILU_DROP_AREA = DROP_AREA;
 const int ILU_DROP_DYNAMIC = DROP_DYNAMIC;
 const int ILU_DROP_INTERP = DROP_INTERP;
-
-ilu_params_t* ilu_params_new()
-{
-  ilu_params_t* params = GC_MALLOC(sizeof(ilu_params_t));
-  params->diag_pivot_threshold = 0.1;
-  params->row_perm = ILU_LARGE_DIAG_PERM;
-  params->drop_rule = ILU_DROP_BASIC | ILU_DROP_AREA;
-  params->drop_tolerance = 1e-4;
-  params->fill_factor = 10.0;
-  params->milu_variant = ILU_SILU;
-  params->fill_tolerance = 0.01;
-  params->norm = ILU_LINF;
-  return params;
-}
 
 static bool ilupc_solve(void* context, real_t* B)
 {
