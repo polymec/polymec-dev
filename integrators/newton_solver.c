@@ -8,7 +8,6 @@
 #include <float.h>
 #include "core/sundials_helpers.h"
 #include "integrators/newton_solver.h"
-#include "integrators/newton_preconditioner.h"
 
 // We use KINSOL for doing the matrix-free nonlinear solve.
 #include "kinsol/kinsol.h"
@@ -45,7 +44,7 @@ struct newton_solver_t
   char* status_message; // status of most recent integration.
 
   // Preconditioning stuff.
-  preconditioner_t* precond;
+  newton_pc_t* precond;
 
   // Null space information.
   bool homogeneous_functions_in_null_space;
@@ -95,7 +94,7 @@ static int set_up_preconditioner(N_Vector x, N_Vector x_scale,
 {
   newton_solver_t* solver = context;
   real_t t = solver->current_time;
-  newton_preconditioner_setup(solver->precond, 0.0, 1.0, 0.0, t, NV_DATA(x), NULL);
+  newton_pc_setup(solver->precond, 0.0, 1.0, 0.0, t, NV_DATA(x), NULL);
   return 0;
 }
 
@@ -114,7 +113,7 @@ static int solve_preconditioner_system(N_Vector x, N_Vector x_scale,
   // Project r out of the null space.
   project_out_of_null_space(solver, NV_DATA(r));
 
-  if (preconditioner_solve(solver->precond, NV_DATA(r)))
+  if (newton_pc_solve(solver->precond, NV_DATA(r)))
     return 0;
   else 
   {
@@ -249,7 +248,7 @@ void newton_solver_free(newton_solver_t* solver)
 
   // Kill the preconditioner stuff.
   if (solver->precond != NULL)
-    preconditioner_free(solver->precond);
+    newton_pc_free(solver->precond);
 
   // Kill the KINSol stuff.
   N_VDestroy(solver->x);
@@ -297,7 +296,7 @@ void newton_solver_set_max_iterations(newton_solver_t* solver, int max_iteration
 }
 
 void newton_solver_set_preconditioner(newton_solver_t* solver,
-                                      preconditioner_t* precond)
+                                      newton_pc_t* precond)
 {
   solver->precond = precond;
 
@@ -309,7 +308,7 @@ void newton_solver_set_preconditioner(newton_solver_t* solver,
   }
 }
 
-preconditioner_t* newton_solver_preconditioner(newton_solver_t* solver)
+newton_pc_t* newton_solver_preconditioner(newton_solver_t* solver)
 {
   return solver->precond;
 }
@@ -350,9 +349,9 @@ void newton_solver_eval_residual(newton_solver_t* solver, real_t t, real_t* X, r
 }
 
 bool newton_solver_solve(newton_solver_t* solver,
-                            real_t t,
-                            real_t* X,
-                            int* num_iterations)
+                         real_t t,
+                         real_t* X,
+                         int* num_iterations)
 {
   ASSERT(X != NULL);
 

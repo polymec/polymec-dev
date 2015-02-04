@@ -16,6 +16,7 @@ struct cpr_differencer_t
   int (*F)(void* context, real_t t, real_t* x, real_t* Fval);
   int (*F_dae)(void* context, real_t t, real_t* x, real_t* xdot, real_t* Fval);
   void* F_context;
+  void (*F_dtor)(void* context);
 
   // Matrix information.
   adj_graph_t* sparsity;
@@ -33,6 +34,7 @@ cpr_differencer_t* cpr_differencer_new(MPI_Comm comm,
                                        int (*F)(void* context, real_t, real_t* x, real_t* Fval),
                                        int (*F_dae)(void* context, real_t, real_t* x, real_t* xdot, real_t* Fval),
                                        void* F_context,
+                                       void (*F_dtor)(void* context),
                                        adj_graph_t* sparsity,
                                        int num_local_block_rows,
                                        int num_remote_block_rows,
@@ -45,7 +47,7 @@ cpr_differencer_t* cpr_differencer_new(MPI_Comm comm,
   for (int i = 0; i < num_local_block_rows; ++i)
     block_sizes[i] = block_size;
 
-  return var_cpr_differencer_new(comm, F, F_dae, F_context, sparsity, num_local_block_rows,
+  return var_cpr_differencer_new(comm, F, F_dae, F_context, F_dtor, sparsity, num_local_block_rows,
                                  num_remote_block_rows, block_sizes);
 }
 
@@ -53,6 +55,7 @@ cpr_differencer_t* var_cpr_differencer_new(MPI_Comm comm,
                                            int (*F)(void* context, real_t, real_t* x, real_t* Fval),
                                            int (*F_dae)(void* context, real_t, real_t* x, real_t* xdot, real_t* Fval),
                                            void* F_context,
+                                           void (*F_dtor)(void* context),
                                            adj_graph_t* sparsity,
                                            int num_local_block_rows,
                                            int num_remote_block_rows,
@@ -77,6 +80,7 @@ cpr_differencer_t* var_cpr_differencer_new(MPI_Comm comm,
   diff->F_context = F_context;
   diff->F = F;
   diff->F_dae = F_dae;
+  diff->F_dtor = F_dtor;
 
   // Do we have a block graph?
   int num_local_rows = adj_graph_num_vertices(sparsity);
@@ -134,6 +138,8 @@ cpr_differencer_t* var_cpr_differencer_new(MPI_Comm comm,
 
 void cpr_differencer_free(cpr_differencer_t* diff)
 {
+  if ((diff->F_dtor != NULL) && (diff->F_context != NULL))
+    diff->F_dtor(diff->F_context);
   adj_graph_coloring_free(diff->coloring);
   adj_graph_free(diff->sparsity);
   polymec_free(diff->Jv);

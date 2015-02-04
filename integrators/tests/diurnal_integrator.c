@@ -7,7 +7,7 @@
 
 #include "core/polymec.h"
 #include "integrators/bdf_ode_integrator.h"
-#include "integrators/curtis_powell_reed_preconditioners.h"
+#include "integrators/cpr_pc.h"
 
 //------------------------------------------------------------------------
 //               Diurnal kinetic advection-diffusion problem
@@ -293,7 +293,7 @@ real_t* diurnal_initial_conditions(ode_integrator_t* integ)
 }
 
 // Constructor for diurnal integrator with the given preconditioner.
-static ode_integrator_t* diurnal_integrator_new(diurnal_t* data, preconditioner_t* precond)
+static ode_integrator_t* diurnal_integrator_new(diurnal_t* data, newton_pc_t* precond)
 {
   // Set up a time integrator using GMRES with a maximum order of 2 and 
   // a Krylov space of maximum dimension 5.
@@ -309,7 +309,7 @@ static ode_integrator_t* diurnal_integrator_new(diurnal_t* data, preconditioner_
 ode_integrator_t* block_jacobi_precond_diurnal_integrator_new()
 {
   diurnal_t* data = diurnal_new();
-  preconditioner_t* precond = block_jacobi_preconditioner_from_function("diurnal", MPI_COMM_WORLD, data, diurnal_rhs, NULL, data->sparsity, NEQ/NUM_SPECIES, 0, NUM_SPECIES);
+  newton_pc_t* precond = block_jacobi_cpr_from_function("diurnal", MPI_COMM_WORLD, data, diurnal_rhs, NULL, data->sparsity, NEQ/NUM_SPECIES, 0, NUM_SPECIES);
   ode_integrator_t* integ = diurnal_integrator_new(data, precond);
   return integ;
 }
@@ -318,7 +318,7 @@ ode_integrator_t* block_jacobi_precond_diurnal_integrator_new()
 ode_integrator_t* lu_precond_diurnal_integrator_new()
 {
   diurnal_t* data = diurnal_new();
-  preconditioner_t* precond = lu_preconditioner_from_function("diurnal", MPI_COMM_WORLD, data, diurnal_rhs, NULL, data->sparsity, NEQ/NUM_SPECIES, 0, NUM_SPECIES);
+  newton_pc_t* precond = lu_cpr_pc_from_function("diurnal", MPI_COMM_WORLD, data, diurnal_rhs, NULL, data->sparsity, NEQ/NUM_SPECIES, 0, NUM_SPECIES);
   ode_integrator_t* integ = diurnal_integrator_new(data, precond);
   return integ;
 }
@@ -328,7 +328,7 @@ ode_integrator_t* ilu_precond_diurnal_integrator_new()
 {
   diurnal_t* data = diurnal_new();
   ilu_params_t* ilu_params = ilu_params_new();
-  preconditioner_t* precond = ilu_preconditioner_from_function("diurnal", MPI_COMM_WORLD, data, diurnal_rhs, NULL, data->sparsity, NEQ/NUM_SPECIES, 0, NUM_SPECIES, ilu_params);
+  newton_pc* precond = ilu_cpr_pc_from_function("diurnal", MPI_COMM_WORLD, data, diurnal_rhs, NULL, data->sparsity, NEQ/NUM_SPECIES, 0, NUM_SPECIES, ilu_params);
   ode_integrator_t* integ = diurnal_integrator_new(data, precond);
   return integ;
 }

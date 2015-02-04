@@ -7,7 +7,7 @@
 
 #include "core/sundials_helpers.h"
 #include "integrators/am_ode_integrator.h"
-#include "integrators/newton_preconditioner.h"
+#include "integrators/newton_pc.h"
 #include "cvode/cvode.h"
 
 // JFNK stuff.
@@ -33,7 +33,7 @@ typedef struct
 
   // JFNK stuff.
   int max_krylov_dim;
-  preconditioner_t* precond;
+  newton_pc_t* precond;
   int (*Jy)(void* context, real_t t, real_t* x, real_t* rhs, real_t* y, real_t* temp, real_t* Jy);
 
   // Error weight function.
@@ -196,7 +196,7 @@ static void am_dtor(void* context)
 
   // Kill the preconditioner stuff.
   if (integ->precond != NULL)
-    preconditioner_free(integ->precond);
+    newton_pc_free(integ->precond);
 
   // Kill the CVode stuff.
   polymec_free(integ->x_with_ghosts);
@@ -269,7 +269,7 @@ static int set_up_preconditioner(real_t t, N_Vector x, N_Vector F,
   {
     // Compute the approximate Jacobian using a solution vector with ghosts.
     memcpy(integ->x_with_ghosts, NV_DATA(x), sizeof(real_t) * integ->num_local_values);
-    newton_preconditioner_setup(integ->precond, 1.0, -gamma, 0.0, t, integ->x_with_ghosts, NULL);
+    newton_pc_setup(integ->precond, 1.0, -gamma, 0.0, t, integ->x_with_ghosts, NULL);
     *jacobian_was_updated = 1;
   }
   else
@@ -295,7 +295,7 @@ static int solve_preconditioner_system(real_t t, N_Vector x, N_Vector F,
   memcpy(NV_DATA(z), NV_DATA(r), sizeof(real_t) * integ->num_local_values);
 
   // Solve it.
-  if (preconditioner_solve(integ->precond, NV_DATA(z)))
+  if (newton_pc_solve(integ->precond, NV_DATA(z)))
     return 0;
   else 
     return 1; // recoverable error.
@@ -321,7 +321,7 @@ ode_integrator_t* jfnk_am_ode_integrator_new(int order,
                                              int (*rhs_func)(void* context, real_t t, real_t* x, real_t* xdot),
                                              int (*Jy_func)(void* context, real_t t, real_t* x, real_t* rhs, real_t* y, real_t* temp, real_t* Jy),
                                              void (*dtor)(void* context),
-                                             preconditioner_t* precond,
+                                             newton_pc_t* precond,
                                              jfnk_am_krylov_t solver_type,
                                              int max_krylov_dim)
 {
@@ -453,7 +453,7 @@ void am_ode_integrator_eval_rhs(ode_integrator_t* integrator, real_t t, real_t* 
   integ->rhs(integ->context, t, X, rhs);
 }
 
-preconditioner_t* am_ode_integrator_preconditioner(ode_integrator_t* integrator)
+newton_pc_t* am_ode_integrator_preconditioner(ode_integrator_t* integrator)
 {
   am_ode_t* integ = ode_integrator_context(integrator);
   return integ->precond;

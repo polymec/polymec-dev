@@ -9,7 +9,7 @@
 #define POLYMEC_AM_ODE_INTEGRATOR_H
 
 #include "integrators/ode_integrator.h"
-#include "core/preconditioner.h"
+#include "integrators/newton_pc.h"
 
 // This type of ODE integrator integrates a non-stiff set of ordinary 
 // differential equations using the Adams-Moulton formulae. They can provide 
@@ -64,7 +64,7 @@ ode_integrator_t* jfnk_am_ode_integrator_new(int order,
                                              int (*rhs_func)(void* context, real_t t, real_t* x, real_t* xdot),
                                              int (*Jy_func)(void* context, real_t t, real_t* x, real_t* rhs, real_t* y, real_t* temp, real_t* Jy),
                                              void (*dtor)(void* context),
-                                             preconditioner_t* precond,
+                                             newton_pc_t* precond,
                                              jfnk_am_krylov_t solver_type,
                                              int max_krylov_dim);
 
@@ -108,7 +108,7 @@ void am_ode_integrator_eval_rhs(ode_integrator_t* integ, real_t t, real_t* X, re
 // Returns an internal pointer to the preconditioner passed to this 
 // integrator during construction time. (This returns NULL for the functional 
 // integrator, which doesn't need a preconditioner.)
-preconditioner_t* am_ode_integrator_preconditioner(ode_integrator_t* integrator);
+newton_pc_t* am_ode_integrator_preconditioner(ode_integrator_t* integrator);
 
 // Diagnostics for the time integrator.
 typedef struct

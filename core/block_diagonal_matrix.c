@@ -84,7 +84,7 @@ static void bdm_add_column_vector_constant_bs(void* context,
   }
 }
 
-static bool bdm_solve(void* context, real_t* B, real_t* x)
+static bool bdm_solve(void* context, real_t* B)
 {
   bdm_t* A = context;
   real_t* D = A->D;
@@ -115,7 +115,7 @@ static bool bdm_solve(void* context, real_t* B, real_t* x)
     if (success)
     {
       // Copy the solution into place.
-      memcpy(&x[B_offset], bi, sizeof(real_t)*bs);
+      memcpy(&B[B_offset], bi, sizeof(real_t)*bs);
     }
     else
     {

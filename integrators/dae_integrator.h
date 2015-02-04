@@ -10,7 +10,7 @@
 
 #include "core/polymec.h"
 #include "core/adj_graph.h"
-#include "core/preconditioner.h"
+#include "integrators/newton_pc.h"
 
 // This function evaluates the residual of a system of differential-algebraic 
 // equations (DAEs).
@@ -101,10 +101,10 @@ int dae_integrator_order(dae_integrator_t* integrator);
 // the preconditioner must be a DAE-enabled preconditioner, able to 
 // compute both dFdx and dFdxdot.
 void dae_integrator_set_preconditioner(dae_integrator_t* integrator,
-                                       preconditioner_t* precond);
+                                       newton_pc_t* precond);
 
 // Gets an internal pointer to the preconditioner.
-preconditioner_t* dae_integrator_preconditioner(dae_integrator_t* integrator);
+newton_pc_t* dae_integrator_preconditioner(dae_integrator_t* integrator);
 
 // Sets whether to use a stability limit detection algorithm to improve 
 // robustness on particularly stiff problems (2-10% overhead, depending 

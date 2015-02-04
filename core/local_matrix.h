@@ -27,7 +27,7 @@ typedef struct local_matrix_vtable
                             real_t scale_factor,
                             int column,
                             real_t* column_vector);
-  bool (*solve)(void* context, real_t* B, real_t* x); // Solves A*x = B.
+  bool (*solve)(void* context, real_t* B); // Solves A*x = B in place.
   void (*fprintf)(void* context, FILE* stream); // Prints matrix to stream.
   real_t (*value)(void* context, int i, int j); // A(i, j)
 } local_matrix_vtable;
@@ -58,11 +58,10 @@ void local_matrix_add_identity(local_matrix_t* matrix,
                                real_t scale_factor);
 
 // Solves the linear system A*x = B, where A is the local matrix. The 
-// solution is placed into x. Returns true if the solve is successful, 
+// solution is placed into B. Returns true if the solve is successful, 
 // false otherwise.
 bool local_matrix_solve(local_matrix_t* matrix, 
-                        real_t* B,
-                        real_t* x);
+                        real_t* B);
 
 // Prints a text representation of the matrix to the given stream.
 void local_matrix_fprintf(local_matrix_t* matrix, FILE* stream);

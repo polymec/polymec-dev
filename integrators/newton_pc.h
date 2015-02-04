@@ -9,7 +9,6 @@
 #define POLYMEC_NEWTON_PRECONDITIONER_H
 
 #include "core/polymec.h"
-#include "core/preconditioner.h"
 
 // The machinery in this file is used to construct preconditioners for 
 // large distributed Newton methods of the following types:
@@ -17,40 +16,47 @@
 // (2) Integrating a nonlinear system of ODEs dx/dt = F(t, x).
 // (3) Solving a system of nonlinear differential algebraic equations (DAE):
 //     F(t, x, xdot) = 0.
-// Newton preconditioners are subclasses of the basic preconditioner class.
+typedef struct newton_pc_t newton_pc_t;
 
 // Every Newton preconditioner has to implement the functions in the 
 // following virtual table.
 typedef struct
 {
   // Method for computing the preconditioner operator 
-  // P = alpha * I + beta * dF/dx + gamma * dF/dxdot.
+  // P = alpha * I + beta * dF/dx + gamma * dF/d(xdot).
   // where F(t, x, xdot) is a nonlinear function whose solution x is sought.
-  void (*compute_P)(void* context, real_t alpha, real_t beta, real_t gamma, real_t t, real_t* x, real_t* xdot);
-  // Method for solving the preconditioner system P * z = r. On input, z is 
-  // the right-hand side, and on output it is the solution.
-  bool (*solve)(void* context, real_t* z);
-  // fprintf function.
-  void (*fprintf)(void* context, FILE* stream);
-  // Context destructor.
+  void (*compute_p)(void* context, 
+                    real_t alpha, real_t beta, real_t gamma, 
+                    real_t t, real_t* x, real_t* xdot);
+  bool (*solve)(void* context, real_t* R);
   void (*dtor)(void* context);
-} newton_preconditioner_vtable;
+} newton_pc_vtable;
 
 // Constructs a preconditioner that represents the linear combination
 // alpha * I + beta * dF/dx + gamma * dF/dx, where F(t, x[, xdot]) = 0 is a 
 // function representing a nonlinear ODE [or differential/algebraic) system, 
 // I is the identity matrix, and dF/dx [and dF/dxdot] are the derivatives of 
 // F with respect to x [and xdot].
-preconditioner_t* newton_preconditioner_new(const char* name,
-                                            void* context,
-                                            newton_preconditioner_vtable vtable);
+newton_pc_t* newton_pc_new(const char* name,
+                           void* context,
+                           newton_pc_vtable vtable);
 
-// Sets up the preconditioner at the point (t, x, xdot) in solution space, computing
-// alpha * I + beta * dF/dx + gamma * dF/dx for the given alpha, beta, and gamma.
-// Note that xdot can be NULL if F is only a function of x.
-void newton_preconditioner_setup(preconditioner_t* precond, 
-                                 real_t alpha, real_t beta, real_t gamma,
-                                 real_t t, real_t* x, real_t* xdot);
+// Frees the preconditioner.
+void newton_pc_free(newton_pc_t* precond);
+
+// Performs any setup required to computes the preconditioner matrix at the 
+// point (t, x, xdot) in solution space, computing 
+// alpha * I + beta * dF/dx + gamma * dF/d(xdot) 
+// for the given alpha, beta, and gamma. Note that xdot should be NULL if F
+// is only a function of x.
+void newton_pc_setup(newton_pc_t* precond, 
+                     real_t alpha, real_t beta, real_t gamma,
+                     real_t t, real_t* x, real_t* xdot);
+
+// Solves the preconditioner system P*X = R in place (placing the solution X
+// in R). This can only be called after newton_pc_setup has been called.
+// Returns true if the solve succeeded, false otherwise.
+bool newton_pc_solve(newton_pc_t* precond, real_t* R);
 
 #endif
 

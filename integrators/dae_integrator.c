@@ -7,7 +7,6 @@
 
 #include "core/sundials_helpers.h"
 #include "integrators/dae_integrator.h"
-#include "integrators/newton_preconditioner.h"
 
 #include "ida/ida.h"
 #include "ida/ida_spils.h"
@@ -47,7 +46,7 @@ struct dae_integrator_t
   dae_integrator_error_weight_func compute_weights;
 
   // Preconditioning stuff. 
-  preconditioner_t* precond;
+  newton_pc_t* precond;
 };
 
 // This function wraps around the user-supplied right hand side.
@@ -71,7 +70,7 @@ static int set_up_preconditioner(real_t t, N_Vector x, N_Vector x_dot, N_Vector 
   dae_integrator_t* integ = context;
 
   // Form the linear combination dFdx + cj * dFdxdot.
-  newton_preconditioner_setup(integ->precond, 0.0, 1.0, cj, t, NV_DATA(x), NV_DATA(x_dot));
+  newton_pc_setup(integ->precond, 0.0, 1.0, cj, t, NV_DATA(x), NV_DATA(x_dot));
 
   return 0;
 }
@@ -91,7 +90,7 @@ static int solve_preconditioner_system(real_t t, N_Vector x, N_Vector x_dot,
   memcpy(NV_DATA(z), NV_DATA(r), sizeof(real_t) * integ->N);
 
   // Solve it.
-  if (preconditioner_solve(integ->precond, NV_DATA(z)))
+  if (newton_pc_solve(integ->precond, NV_DATA(z)))
     return 0;
   else 
     return 1; // recoverable error.
@@ -210,7 +209,7 @@ void dae_integrator_free(dae_integrator_t* integ)
 {
   // Kill the preconditioner stuff.
   if (integ->precond != NULL)
-    preconditioner_free(integ->precond);
+    newton_pc_free(integ->precond);
 
   // Kill the IDA stuff.
   N_VDestroy(integ->x_dot);
@@ -242,12 +241,12 @@ int dae_integrator_order(dae_integrator_t* integ)
 }
 
 void dae_integrator_set_preconditioner(dae_integrator_t* integrator,
-                                       preconditioner_t* precond)
+                                       newton_pc_t* precond)
 {
   integrator->precond = precond;
 }
 
-preconditioner_t* dae_integrator_preconditioner(dae_integrator_t* integrator)
+newton_pc_t* dae_integrator_preconditioner(dae_integrator_t* integrator)
 {
   return integrator->precond;
 }

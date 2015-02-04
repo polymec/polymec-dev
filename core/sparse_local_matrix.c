@@ -162,7 +162,7 @@ static void slm_add_column_vector(void* context,
   }
 }
 
-static bool slm_solve(void* context, real_t* B, real_t* x)
+static bool slm_solve(void* context, real_t* B)
 {
   slm_t* mat = context;
   SuperMatrix* A = mat->A;

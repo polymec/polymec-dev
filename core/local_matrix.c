@@ -67,10 +67,9 @@ void local_matrix_add_identity(local_matrix_t* matrix,
 }
 
 bool local_matrix_solve(local_matrix_t* matrix, 
-                        real_t* B,
-                        real_t* x)
+                        real_t* B)
 {
-  return matrix->vtable.solve(matrix->context, B, x);
+  return matrix->vtable.solve(matrix->context, B);
 }
 
 void local_matrix_fprintf(local_matrix_t* matrix, FILE* stream)

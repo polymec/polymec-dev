@@ -10,7 +10,7 @@
 
 #include "core/polymec.h"
 #include "core/adj_graph.h"
-#include "core/preconditioner.h"
+#include "integrators/newton_pc.h"
 
 // The different global strategies for the Newton iteration.
 typedef enum
@@ -144,10 +144,10 @@ void newton_solver_set_max_iterations(newton_solver_t* integrator, int max_itera
 
 // Sets the preconditioner to use to help solve the nonlinear system.
 void newton_solver_set_preconditioner(newton_solver_t* integrator,
-                                      preconditioner_t* precond);
+                                      newton_pc_t* precond);
 
 // Gets an internal pointer to the preconditioner.
-preconditioner_t* newton_solver_preconditioner(newton_solver_t* integrator);
+newton_pc_t* newton_solver_preconditioner(newton_solver_t* integrator);
 
 // Sets the null space associated with the nonlinear operator F(X).
 // The null space consists of the set of vectors {X: X != 0}: dF/dX * X = 0.
