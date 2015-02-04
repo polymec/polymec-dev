@@ -152,7 +152,7 @@ adj_graph_t* adj_graph_new_with_block_sizes(adj_graph_t* graph,
   // a distributed graph, we need to communicate.
   int num_vertices = adj_graph_num_vertices(graph), tot_num_vertices = 0;
   for (int v = 0; v < num_vertices; ++v)
-    tot_num_vertices += block_sizes[v] * (1 + adj_graph_num_edges(graph, v));
+    tot_num_vertices += block_sizes[v];
   adj_graph_t* block_graph = adj_graph_new(comm, tot_num_vertices);
 
   // Now traverse the original graph and set up the edges.
@@ -251,6 +251,7 @@ void adj_graph_set_num_edges(adj_graph_t* graph, int vertex, int num_edges)
 {
   ASSERT(vertex >= 0);
   ASSERT(vertex < adj_graph_num_vertices(graph));
+  ASSERT(num_edges < adj_graph_num_vertices(graph));
   int old_num_edges = graph->xadj[vertex+1] - graph->xadj[vertex];
   int num_vertices = (int)(graph->vtx_dist[graph->rank+1] - graph->vtx_dist[graph->rank]);
   int tot_num_edges = graph->xadj[num_vertices];
