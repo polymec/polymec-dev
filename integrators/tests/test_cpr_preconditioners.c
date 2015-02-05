@@ -53,10 +53,8 @@ void test_block_jacobi_ctor(void** state)
   int N = 10;
   int bs = 2;
   adj_graph_t* g = linear_graph(N);
-  newton_pc_t* precond = block_jacobi_cpr_pc_from_function(MPI_COMM_WORLD, NULL, sys_func, NULL, g, N, 0, bs);
-  newton_pc_free(precond);
   adj_graph_t* bg = adj_graph_new_with_block_size(g, bs);
-  precond = block_jacobi_cpr_pc_from_function(MPI_COMM_WORLD, NULL, sys_func, NULL, bg, N, 0, bs);
+  newton_pc_t* precond = block_jacobi_cpr_pc_from_function(MPI_COMM_WORLD, NULL, sys_func, NULL, bg, N, 0, bs);
   newton_pc_free(precond);
   adj_graph_free(bg);
   adj_graph_free(g);
@@ -67,8 +65,10 @@ void test_lu_ctor(void** state)
   int N = 10;
   int bs = 2;
   adj_graph_t* g = linear_graph(N);
-  newton_pc_t* precond = lu_cpr_pc_from_function(MPI_COMM_WORLD, NULL, sys_func, NULL, g, N, 0, bs);
+  adj_graph_t* bg = adj_graph_new_with_block_size(g, bs);
+  newton_pc_t* precond = lu_cpr_pc_from_function(MPI_COMM_WORLD, NULL, sys_func, NULL, bg, N*bs, 0);
   newton_pc_free(precond);
+  adj_graph_free(bg);
   adj_graph_free(g);
 }
 

@@ -36,40 +36,11 @@ cpr_differencer_t* cpr_differencer_new(MPI_Comm comm,
                                        int (*F_dae)(void* context, real_t, real_t* x, real_t* xdot, real_t* Fval),
                                        void (*F_dtor)(void* context),
                                        adj_graph_t* sparsity,
-                                       int num_local_block_rows,
-                                       int num_remote_block_rows,
-                                       int block_size)
+                                       int num_local_rows,
+                                       int num_remote_rows)
 {
-  ASSERT(num_local_block_rows > 0);
-  ASSERT(block_size >= 1);
-
-  int block_sizes[num_local_block_rows];
-  for (int i = 0; i < num_local_block_rows; ++i)
-    block_sizes[i] = block_size;
-
-  return var_cpr_differencer_new(comm, F_context, F, F_dae, F_dtor, sparsity, num_local_block_rows,
-                                 num_remote_block_rows, block_sizes);
-}
-
-cpr_differencer_t* var_cpr_differencer_new(MPI_Comm comm,
-                                           void* F_context,
-                                           int (*F)(void* context, real_t, real_t* x, real_t* Fval),
-                                           int (*F_dae)(void* context, real_t, real_t* x, real_t* xdot, real_t* Fval),
-                                           void (*F_dtor)(void* context),
-                                           adj_graph_t* sparsity,
-                                           int num_local_block_rows,
-                                           int num_remote_block_rows,
-                                           int* block_sizes)
-{
-  ASSERT(num_local_block_rows > 0);
-  ASSERT(num_remote_block_rows >= 0);
-  ASSERT(block_sizes != NULL);
-#ifndef NDEBUG
-  for (int i = 0; i < num_local_block_rows; ++i)
-  {
-    ASSERT(block_sizes[i] > 0);
-  }
-#endif
+  ASSERT(num_local_rows > 0);
+  ASSERT(num_remote_rows >= 0);
 
   // Exactly one of F and F_dae must be given.
   ASSERT((F != NULL) || (F_dae != NULL));
@@ -82,39 +53,17 @@ cpr_differencer_t* var_cpr_differencer_new(MPI_Comm comm,
   diff->F_dae = F_dae;
   diff->F_dtor = F_dtor;
 
-  // Do we have a block graph?
-  int num_local_rows = adj_graph_num_vertices(sparsity);
-  int alleged_num_local_rows = 0;
-  int max_block_size = 1;
-  for (int r = 0; r < num_local_block_rows; ++r)
-  {
-    ASSERT(block_sizes[r] >= 1);
-    max_block_size = MAX(block_sizes[r], max_block_size);
-    alleged_num_local_rows += block_sizes[r];
-  }
-  ASSERT((num_local_rows == num_local_block_rows) || (num_local_rows == alleged_num_local_rows)); 
-  if (num_local_rows == num_local_block_rows)
-  {
-    // We were given the number of vertices in the graph as the number of 
-    // block rows, so we create a graph with a block size of 1.
-    diff->sparsity = adj_graph_new_with_block_sizes(sparsity, block_sizes);
-    ASSERT(adj_graph_num_vertices(diff->sparsity) == alleged_num_local_rows);
-  }
-  else
-  {
-    // The number of vertices in the graph is the number of degrees of freedom
-    // in the solution, so we don't need to create
-    diff->sparsity = adj_graph_clone(sparsity);
-  }
+  // Steal the graph.
+  diff->sparsity = sparsity;
 
   // The number of local rows is known at this point.
-  diff->num_local_rows = alleged_num_local_rows;
+  diff->num_local_rows = num_local_rows;
 
   // However, we can't know the actual number of remote block rows without 
   // knowing the specific communication pattern! However, it is safe to just 
   // multiply the given number of remote block rows by the maximum block size, 
   // since only the underlying RHS function will actually use the data.
-  diff->num_remote_rows = num_remote_block_rows * max_block_size;
+  diff->num_remote_rows = num_remote_rows;
 
   // Assemble a graph coloring for any matrix we treat.
   diff->coloring = adj_graph_coloring_new(diff->sparsity, SMALLEST_LAST);

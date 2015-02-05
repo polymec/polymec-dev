@@ -21,30 +21,17 @@ typedef struct cpr_differencer_t cpr_differencer_t;
 
 // Creates a new Curtis-Powell-Reed differencer, associated with the given 
 // function F *OR* F_dae and a graph, which represents the sparsity of the 
-// Jacobian matrix. This constructor assumes a fixed block size.
+// Jacobian matrix. The numbers of rows local to this process and "remote"
+// (stored on other processes) are given to allow F to exchange data.
+// The sparsity graph is consumed by this constructor.
 cpr_differencer_t* cpr_differencer_new(MPI_Comm comm,
                                        void* F_context,
                                        int (*F)(void* context, real_t, real_t* x, real_t* Fval),
                                        int (*F_dae)(void* context, real_t, real_t* x, real_t* xdot, real_t* Fval),
                                        void (*F_dtor)(void* context),
                                        adj_graph_t* sparsity,
-                                       int num_local_block_rows,
-                                       int num_remote_block_rows,
-                                       int block_size);
-
-// Creates a new Curtis-Powell-Reed differencer, associated with the given 
-// function F *OR* F_dae and a graph, which represents the sparsity of the 
-// Jacobian matrix. This constructor allows a variable block size, 
-// block_sizes[i], for the ith row of the matrix.
-cpr_differencer_t* var_cpr_differencer_new(MPI_Comm comm,
-                                           void* F_context,
-                                           int (*F)(void* context, real_t, real_t* x, real_t* Fval),
-                                           int (*F_dae)(void* context, real_t, real_t* x, real_t* xdot, real_t* Fval),
-                                           void (*F_dtor)(void* context),
-                                           adj_graph_t* sparsity,
-                                           int num_local_block_rows,
-                                           int num_remote_block_rows,
-                                           int* block_sizes);
+                                       int num_local_rows,
+                                       int num_remote_rows);
 
 // Frees the differencer.
 void cpr_differencer_free(cpr_differencer_t* diff);

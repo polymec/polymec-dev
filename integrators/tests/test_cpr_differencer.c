@@ -27,13 +27,15 @@ static int F_ident(void* bs_p, real_t t, real_t* x, real_t* F)
 void test_identity_jacobian_with_bs(void** state, int block_size)
 {
   adj_graph_t* sparsity = adj_graph_new(MPI_COMM_SELF, 10);
+  adj_graph_t* block_sparsity = adj_graph_new_with_block_size(sparsity, block_size);
+  // Note: block_sparsity is consumed by diff!
   cpr_differencer_t* diff = cpr_differencer_new(MPI_COMM_SELF,
                                                 &block_size,
                                                 F_ident,
                                                 NULL, 
                                                 NULL,
-                                                sparsity, 
-                                                10, 0, block_size);
+                                                block_sparsity, 
+                                                10*block_size, 0);
 
   // x vector.
   real_t x[block_size * 10];
@@ -62,8 +64,9 @@ void test_identity_jacobian_with_bs(void** state, int block_size)
   local_matrix_free(D);
 
   // Now try a sparse matrix.
-  adj_graph_t* block_sparsity = adj_graph_new_with_block_size(sparsity, block_size);
+  block_sparsity = adj_graph_new_with_block_size(sparsity, block_size);
   local_matrix_t* A = sparse_local_matrix_new(block_sparsity);
+  adj_graph_free(block_sparsity);
   cpr_differencer_compute(diff, 0.0, 1.0, 0.0, 0.0, x, NULL, A);
   local_matrix_fprintf(A, stdout);
   for (int i = 0; i < block_size * 10; ++i)
@@ -84,7 +87,6 @@ void test_identity_jacobian_with_bs(void** state, int block_size)
 
   // Clean up.
   adj_graph_free(sparsity);
-  adj_graph_free(block_sparsity);
   cpr_differencer_free(diff);
 }
 
@@ -122,13 +124,15 @@ void test_dense_jacobian_with_bs(void** state, int block_size)
         edges[i++] = e;
     }
   }
+  adj_graph_t* block_sparsity = adj_graph_new_with_block_size(sparsity, block_size);
+  // Note: block_sparsity is consumed by diff!
   cpr_differencer_t* diff = cpr_differencer_new(MPI_COMM_SELF,
                                                 &block_size,
                                                 F_dense,
                                                 NULL,
                                                 NULL,
-                                                sparsity, 
-                                                10, 0, block_size);
+                                                block_sparsity, 
+                                                10*block_size, 0);
 
   // x vector.
   real_t x[block_size * 10];
@@ -158,8 +162,9 @@ void test_dense_jacobian_with_bs(void** state, int block_size)
   local_matrix_free(D);
 
   // Now try a sparse matrix.
-  adj_graph_t* block_sparsity = adj_graph_new_with_block_size(sparsity, block_size);
+  block_sparsity = adj_graph_new_with_block_size(sparsity, block_size);
   local_matrix_t* A = sparse_local_matrix_new(block_sparsity);
+  adj_graph_free(block_sparsity);
   cpr_differencer_compute(diff, 0.0, 1.0, 0.0, 0.0, x, NULL, A);
   local_matrix_fprintf(A, stdout);
   for (int i = 0; i < block_size * 10; ++i)
@@ -173,7 +178,6 @@ void test_dense_jacobian_with_bs(void** state, int block_size)
 
   // Clean up.
   adj_graph_free(sparsity);
-  adj_graph_free(block_sparsity);
   cpr_differencer_free(diff);
 }
 

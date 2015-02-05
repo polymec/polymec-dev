@@ -407,8 +407,7 @@ newton_solver_t* lu_precond_foodweb_solver_new()
 {
   newton_solver_t* integ = foodweb_solver_new();
   foodweb_t* data = newton_solver_context(integ);
-  int block_size = NUM_SPECIES;
-  newton_pc_t* precond = lu_cpr_pc_from_function(MPI_COMM_WORLD, data, foodweb_func, NULL, data->sparsity, NEQ/block_size, 0, block_size);
+  newton_pc_t* precond = lu_cpr_pc_from_function(MPI_COMM_WORLD, data, foodweb_func, NULL, data->sparsity, NEQ, 0);
   newton_solver_set_preconditioner(integ, precond);
   return integ;
 }
@@ -419,8 +418,7 @@ newton_solver_t* ilu_precond_foodweb_solver_new()
   newton_solver_t* integ = foodweb_solver_new();
   foodweb_t* data = newton_solver_context(integ);
   ilu_params_t* ilu_params = ilu_params_new();
-  int block_size = NUM_SPECIES;
-  newton_pc_t* precond = ilu_cpr_pc_from_function(MPI_COMM_WORLD, data, foodweb_func, NULL, data->sparsity, NEQ/block_size, 0, block_size, ilu_params);
+  newton_pc_t* precond = ilu_cpr_pc_from_function(MPI_COMM_WORLD, data, foodweb_func, NULL, data->sparsity, NEQ, 0, ilu_params);
   newton_solver_set_preconditioner(integ, precond);
   return integ;
 }
