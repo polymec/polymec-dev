@@ -13,18 +13,47 @@
 #include "core/silo_file.h"
 #include "geometry/create_cubed_cylinder_mesh.h"
 
-void test_create_cubed_cylinder_mesh(void** state)
+void test_cubed_cylinder_mesh(void** state, real_t R, real_t L, 
+                              real_t l, real_t k)
 {
   // Create a cubed cylinder mesh with a square center block.
-  real_t R = 0.5, L = 1.0;
-  real_t l = 0.35, k = 0.0;
   mesh_t* mesh = create_cubed_cylinder_mesh(MPI_COMM_WORLD, 10, 20, R, L, l, k,
                                             "R", "bottom", "top");
   assert_true(mesh_verify_topology(mesh, polymec_error));
 //  assert_int_equal(5000, mesh->num_cells);
   assert_true(mesh->comm == MPI_COMM_WORLD);
 
-  silo_file_t* silo = silo_file_new(MPI_COMM_WORLD, "cubed_cylinder", "", 1, 0, 0, 0.0);
+  char name[FILENAME_MAX];
+  snprintf(name, FILENAME_MAX, "cubed_cylinder_R=%g,L=%g,l=%g,k=%g", R, L, l, k);
+  silo_file_t* silo = silo_file_new(MPI_COMM_WORLD, name, "", 1, 0, 0, 0.0);
+  silo_file_write_mesh(silo, "mesh", mesh);
+  silo_file_close(silo);
+
+  // Clean up.
+  mesh_free(mesh);
+}
+
+void test_create_cubed_cylinder_mesh(void** state)
+{
+  test_cubed_cylinder_mesh(state, 0.5, 1.0, 0.35, 0.0);
+}
+
+void test_create_circular_cubed_cylinder_mesh(void** state)
+{
+  test_cubed_cylinder_mesh(state, 0.5, 1.0, 0.35, 2.0/0.35);
+}
+
+void test_cubed_cylindrical_shell_mesh(void** state, real_t r, real_t R, real_t L)
+{
+  // Create a cubed cylindrcal shell mesh.
+  mesh_t* mesh = create_cubed_cylindrical_shell_mesh(MPI_COMM_WORLD, 10, 20, r, R, L,
+                                                     "r1", "r2", "bottom", "top");
+  assert_true(mesh_verify_topology(mesh, polymec_error));
+  assert_int_equal(8000, mesh->num_cells);
+
+  char name[FILENAME_MAX];
+  snprintf(name, FILENAME_MAX, "cubed_cylindrical_shell_r=%g,R=%g,L=%g", r, R, L);
+  silo_file_t* silo = silo_file_new(MPI_COMM_WORLD, name, "", 1, 0, 0, 0.0);
   silo_file_write_mesh(silo, "mesh", mesh);
   silo_file_close(silo);
 
@@ -34,19 +63,7 @@ void test_create_cubed_cylinder_mesh(void** state)
 
 void test_create_cubed_cylindrical_shell_mesh(void** state)
 {
-  // Create a cubed cylindrcal shell mesh.
-  real_t r = 0.25, R = 0.5, L = 1.0;
-  mesh_t* mesh = create_cubed_cylindrical_shell_mesh(MPI_COMM_WORLD, 10, 20, r, R, L,
-                                                     "r1", "r2", "bottom", "top");
-  assert_true(mesh_verify_topology(mesh, polymec_error));
-  assert_int_equal(4000, mesh->num_cells);
-
-  silo_file_t* silo = silo_file_new(MPI_COMM_WORLD, "cubed_cylindrical_shell", "", 1, 0, 0, 0.0);
-  silo_file_write_mesh(silo, "mesh", mesh);
-  silo_file_close(silo);
-
-  // Clean up.
-  mesh_free(mesh);
+  test_cubed_cylindrical_shell_mesh(state, 0.35, 0.5, 1.0);
 }
 
 int main(int argc, char* argv[]) 
@@ -54,8 +71,9 @@ int main(int argc, char* argv[])
   polymec_init(argc, argv);
   const UnitTest tests[] = 
   {
-    unit_test(test_create_cubed_cylinder_mesh)
-//    unit_test(test_create_cubed_cylindrical_shell_mesh)
+    unit_test(test_create_cubed_cylinder_mesh),
+    unit_test(test_create_circular_cubed_cylinder_mesh),
+    unit_test(test_create_cubed_cylindrical_shell_mesh)
   };
   return run_tests(tests);
 }

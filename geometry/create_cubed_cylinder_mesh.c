@@ -12,12 +12,33 @@
 #include "geometry/create_cubed_cylinder_mesh.h"
 #include "geometry/create_welded_block_mesh.h"
 
+// This transformation maps a point x within the square 
+// [-L/2, -L/2] x [L/2, L/2] to its corresponding point y in the circle of 
+// radius L/2. The z coordinate of y is set to that of x.
+static void map_to_circle(real_t L, point_t* x, point_t* y)
+{
+  // First, map x to a point (X, Y) on the unit square.
+  real_t X = 2.0*x->x/L, Y = 2.0*x->y/L;
+
+  // Now map (X, Y) to (X1, Y1) in the unit circle.
+  // See http://mathproofs.blogspot.com/2005/07/mapping-square-to-circle.html.
+  real_t X1 = X * sqrt(1.0 - 0.5*Y*Y);
+  real_t Y1 = Y * sqrt(1.0 - 0.5*X*X);
+
+  // Finally, map to the circle with radius L/2.
+  real_t theta = atan2(Y1, X1);
+  real_t r = sqrt(X1*X1 + Y1*Y1);
+
+  y->x = 0.5*L * r * cos(theta);
+  y->y = 0.5*L * r * sin(theta);
+  y->z = x->z;
+}
+
 static void create_radial_blocks(int nx, int nz, 
-                                 real_t R, real_t L,
-                                 real_t l, real_t k,
+                                 real_t R, real_t L, real_t l, 
+                                 bool curved_center_block,
                                  mesh_t** blocks)
 {
-  ASSERT(k == 0.0); // For now.
   // Generic bounding box -- doesn't really matter.
   bbox_t bbox = {.x1 = -0.5, .x2 = 0.5,
                  .y1 = -0.5, .y2 = 0.5,
@@ -46,8 +67,13 @@ static void create_radial_blocks(int nx, int nz,
       real_t theta = 1.25*M_PI - j*dtheta;
       real_t cos_theta = cos(theta), sin_theta = sin(theta);
 
-      // Find cx, the point of nearest approach on the center block surface.
+      // Find xc, the point of nearest approach on the center block surface.
       point_t xc = {.x = -0.5*l, .y = -0.5*l + j*dy, .z = 0.0}; 
+      if (curved_center_block)
+      {
+        point_t x = xc;
+        map_to_circle(l, &x, &xc);
+      }
 
       // Find xR, the point on the outside of the cylinder for this j.
       point_t xR = {.x = R*cos_theta, .y = R*sin_theta, .z = 0.0};
@@ -84,8 +110,13 @@ static void create_radial_blocks(int nx, int nz,
       real_t theta = 1.25*M_PI + i*dtheta;
       real_t cos_theta = cos(theta), sin_theta = sin(theta);
 
-      // Find cx, the point of nearest approach on the center block surface.
+      // Find xc, the point of nearest approach on the center block surface.
       point_t xc = {.x = -0.5*l + i*dx, .y = -0.5*l, .z = 0.0}; 
+      if (curved_center_block)
+      {
+        point_t x = xc;
+        map_to_circle(l, &x, &xc);
+      }
 
       // Find xR, the point on the outside of the cylinder for this j.
       point_t xR = {.x = R*cos_theta, .y = R*sin_theta, .z = 0.0};
@@ -122,8 +153,13 @@ static void create_radial_blocks(int nx, int nz,
       real_t theta = 1.75*M_PI + j*dtheta;
       real_t cos_theta = cos(theta), sin_theta = sin(theta);
 
-      // Find cx, the point of nearest approach on the center block surface.
+      // Find xc, the point of nearest approach on the center block surface.
       point_t xc = {.x = 0.5*l, .y = -0.5*l + j*dy, .z = 0.0}; 
+      if (curved_center_block)
+      {
+        point_t x = xc;
+        map_to_circle(l, &x, &xc);
+      }
 
       // Find xR, the point on the outside of the cylinder for this j.
       point_t xR = {.x = R*cos_theta, .y = R*sin_theta, .z = 0.0};
@@ -160,8 +196,13 @@ static void create_radial_blocks(int nx, int nz,
       real_t theta = 0.75*M_PI - i*dtheta;
       real_t cos_theta = cos(theta), sin_theta = sin(theta);
 
-      // Find cx, the point of nearest approach on the center block surface.
+      // Find xc, the point of nearest approach on the center block surface.
       point_t xc = {.x = -0.5*l + i*dx, .y = 0.5*l, .z = 0.0}; 
+      if (curved_center_block)
+      {
+        point_t x = xc;
+        map_to_circle(l, &x, &xc);
+      }
 
       // Find xR, the point on the outside of the cylinder for this j.
       point_t xR = {.x = R*cos_theta, .y = R*sin_theta, .z = 0.0};
@@ -186,8 +227,8 @@ static void create_radial_blocks(int nx, int nz,
 
 mesh_t* create_cubed_cylinder_mesh(MPI_Comm comm, 
                                    int nx, int nz,
-                                   real_t R, real_t L,
-                                   real_t l, real_t k,
+                                   real_t R, real_t L, real_t l, 
+                                   bool curved_center_block,
                                    const char* R_tag,
                                    const char* bottom_tag,
                                    const char* top_tag)
@@ -198,7 +239,6 @@ mesh_t* create_cubed_cylinder_mesh(MPI_Comm comm,
   ASSERT(L > 0.0);
   ASSERT(l > 0.0);
   ASSERT(l < R);
-  ASSERT(k >= 0.0);
 
   // Construct the center block.
   bbox_t bbox = {.x1 = -0.5*l, .x2 = 0.5*l,
@@ -210,15 +250,29 @@ mesh_t* create_cubed_cylinder_mesh(MPI_Comm comm,
                              "south_seam", "north_seam",
                              "center_bottom", "center_top");
 
-  // If needed, deform its outer cells.
-  if (k != 0.0)
+  // If needed, deform the center block.
+  if (curved_center_block)
   {
-    // FIXME!
+    cubic_lattice_t* lattice = cubic_lattice_new(nx, nx, nz);
+    for (int i = 0; i <= nx; ++i)
+    {
+      for (int j = 0; j <= nx; ++j)
+      {
+
+        for (int k = 0; k <= nz; ++k)
+        {
+          int n = (int)cubic_lattice_node(lattice, i, j, k);
+          point_t x = center_block->nodes[n];
+          map_to_circle(l, &x, &(center_block->nodes[n]));
+        }
+      }
+    }
+    mesh_compute_geometry(center_block);
   }
 
   // Construct the radial blocks.
   mesh_t* radial_blocks[4];
-  create_radial_blocks(nx, nz, R, L, l, k, radial_blocks);
+  create_radial_blocks(nx, nz, R, L, l, curved_center_block, radial_blocks);
 
   // Weld'em blocks.
   mesh_t* blocks[5] = {center_block, radial_blocks[0], radial_blocks[1], 
@@ -296,12 +350,11 @@ mesh_t* create_cubed_cylindrical_shell_mesh(MPI_Comm comm,
   ASSERT(L > 0.0);
 
   // Construct the curvature and length of the inner interface.
-  real_t k = 1.0/r;
-  real_t l = 1.0/(k * sqrt(2.0));
+  real_t l = r;
 
   // Construct the radial blocks.
   mesh_t* radial_blocks[4];
-  create_radial_blocks(nx, nz, R, L, l, k, radial_blocks);
+  create_radial_blocks(nx, nz, R, L, l, true, radial_blocks);
 
   // Weld'em blocks.
   mesh_t* mesh = create_welded_block_mesh(radial_blocks, 4, 1e-10);
