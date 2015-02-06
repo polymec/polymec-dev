@@ -246,13 +246,13 @@ static real_t slm_value(void* context, int i, int j)
   if (j == i) // diagonal value
     return Aij[data->colptr[i]];
 
-  int col_index = data->colptr[i];
-  size_t num_rows = data->colptr[i+1] - col_index;
-  int* entry = int_bsearch(&data->rowind[col_index+1], num_rows - 1, j);
+  int col_index = data->colptr[j];
+  size_t num_rows = data->colptr[j+1] - col_index;
+  int* entry = int_bsearch(&data->rowind[col_index+1], num_rows - 1, i);
   if (entry == NULL)
     return 0.0;
   size_t offset = entry - &data->rowind[col_index];
-  return Aij[data->colptr[i] + offset];
+  return Aij[data->colptr[j] + offset];
 }
 
 static void slm_dtor(void* context)

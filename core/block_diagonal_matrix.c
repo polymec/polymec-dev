@@ -167,10 +167,10 @@ static real_t bdm_value(void* context, int i, int j)
   if (block_col < A->num_block_rows)
   {
     int bs = A->B_offsets[block_col+1] - A->B_offsets[block_col];
-    int c = i % bs;
+    int r = i % bs;
     if ((j >= block_col*bs) && (j < (block_col+1)*bs))
     {
-      int r = j % bs;
+      int c = j % bs;
       return D[A->D_offsets[block_col] + c*bs + r];
     }
     else
@@ -190,10 +190,10 @@ static real_t bdm_value_constant_bs(void* context, int i, int j)
   {
     int bs = A->block_size;
     int block_col = i / bs;
-    int c = i % bs;
+    int r = i % bs;
     if ((j >= block_col*bs) && (j < (block_col+1)*bs))
     {
-      int r = j % bs;
+      int c = j % bs;
       return D[A->D_offsets[block_col] + c*bs + r];
     }
     else
