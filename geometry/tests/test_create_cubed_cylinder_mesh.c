@@ -13,18 +13,20 @@
 #include "core/silo_file.h"
 #include "geometry/create_cubed_cylinder_mesh.h"
 
-void test_cubed_cylinder_mesh(void** state, real_t R, real_t L, 
-                              real_t l, real_t k)
+void test_cubed_cylinder_mesh(void** state, real_t R, real_t L, real_t l, bool curved)
 {
   // Create a cubed cylinder mesh with a square center block.
-  mesh_t* mesh = create_cubed_cylinder_mesh(MPI_COMM_WORLD, 10, 20, R, L, l, k,
+  mesh_t* mesh = create_cubed_cylinder_mesh(MPI_COMM_WORLD, 10, 20, R, L, l, curved,
                                             "R", "bottom", "top");
   assert_true(mesh_verify_topology(mesh, polymec_error));
 //  assert_int_equal(5000, mesh->num_cells);
   assert_true(mesh->comm == MPI_COMM_WORLD);
 
   char name[FILENAME_MAX];
-  snprintf(name, FILENAME_MAX, "cubed_cylinder_R=%g,L=%g,l=%g,k=%g", R, L, l, k);
+  if (curved)
+    snprintf(name, FILENAME_MAX, "cubed_circular_cylinder_R=%g,L=%g,l=%g", R, L, l);
+  else
+    snprintf(name, FILENAME_MAX, "cubed_cylinder_R=%g,L=%g,l=%g", R, L, l);
   silo_file_t* silo = silo_file_new(MPI_COMM_WORLD, name, "", 1, 0, 0, 0.0);
   silo_file_write_mesh(silo, "mesh", mesh);
   silo_file_close(silo);
@@ -35,12 +37,12 @@ void test_cubed_cylinder_mesh(void** state, real_t R, real_t L,
 
 void test_create_cubed_cylinder_mesh(void** state)
 {
-  test_cubed_cylinder_mesh(state, 0.5, 1.0, 0.35, 0.0);
+  test_cubed_cylinder_mesh(state, 0.5, 1.0, 0.35, false);
 }
 
 void test_create_circular_cubed_cylinder_mesh(void** state)
 {
-  test_cubed_cylinder_mesh(state, 0.5, 1.0, 0.35, 2.0/0.35);
+  test_cubed_cylinder_mesh(state, 0.5, 1.0, 0.35, true);
 }
 
 void test_cubed_cylindrical_shell_mesh(void** state, real_t r, real_t R, real_t L)
