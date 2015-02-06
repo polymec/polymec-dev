@@ -255,6 +255,32 @@ static real_t slm_value(void* context, int i, int j)
   return Aij[data->colptr[j] + offset];
 }
 
+static void slm_set_value(void* context, int i, int j, real_t value)
+{
+  slm_t* mat = context;
+  ASSERT(i < mat->N);
+  ASSERT(j < mat->N);
+
+  SuperMatrix* A = mat->A;
+
+  NCformat* data = A->Store;
+  real_t* Aij = data->nzval;
+
+  if (j == i) // diagonal value
+    Aij[data->colptr[i]] = value;
+  else
+  {
+    int col_index = data->colptr[j];
+    size_t num_rows = data->colptr[j+1] - col_index;
+    int* entry = int_bsearch(&data->rowind[col_index+1], num_rows - 1, i);
+    if (entry != NULL)
+    {
+      size_t offset = entry - &data->rowind[col_index];
+      Aij[data->colptr[j] + offset] = value;
+    }
+  }
+}
+
 static void slm_dtor(void* context)
 {
   slm_t* mat = context;
@@ -312,7 +338,8 @@ local_matrix_t* ilu_sparse_local_matrix_new(adj_graph_t* sparsity,
                                 .add_column_vector = slm_add_column_vector,
                                 .solve = slm_solve,
                                 .fprintf = slm_fprintf,
-                                .value = slm_value};
+                                .value = slm_value,
+                                .set_value = slm_set_value};
   return local_matrix_new(name, mat, vtable);
 }
 

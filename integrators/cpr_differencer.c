@@ -109,6 +109,7 @@ static void cpr_finite_diff_dFdx_v(void* context,
                                    real_t* dFdx_v)
 {
   real_t eps = sqrt(UNIT_ROUNDOFF);
+  real_t eps_inv = 1.0 / eps;
 
   // work[0] == v
   // work[1] contains F(t, x, xdot).
@@ -124,7 +125,7 @@ static void cpr_finite_diff_dFdx_v(void* context,
 
   // (F(t, x + eps*v, xdot) - F(t, x, xdot)) / eps -> (dF/dx) * v
   for (int i = 0; i < num_local_rows; ++i)
-    dFdx_v[i] = (work[3][i] - work[1][i]) / eps;
+    dFdx_v[i] = (work[3][i] - work[1][i]) * eps_inv;
 }
 
 // Here's the same finite difference calculation for dF/d(xdot).
@@ -140,6 +141,7 @@ static void cpr_finite_diff_dFdxdot_v(void* context,
                                       real_t* dFdxdot_v)
 {
   real_t eps = sqrt(UNIT_ROUNDOFF);
+  real_t eps_inv = 1.0 / eps;
 
   // work[0] == v
   // work[1] contains F(t, x, xdot).
@@ -155,7 +157,7 @@ static void cpr_finite_diff_dFdxdot_v(void* context,
 
   // (F(t, x, xdot + eps*v) - F(t, x, xdot)) / eps -> (dF/dx) * v
   for (int i = 0; i < num_local_rows; ++i)
-    dFdxdot_v[i] = (work[3][i] - work[1][i]) / eps;
+    dFdxdot_v[i] = (work[3][i] - work[1][i]) * eps_inv;
 }
 
 // This function adapts non-DAE functions F(t, x) to DAE ones F(t, x, xdot).

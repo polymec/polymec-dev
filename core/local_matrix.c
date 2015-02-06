@@ -24,6 +24,7 @@ local_matrix_t* local_matrix_new(const char* name,
   ASSERT(vtable.solve != NULL);
   ASSERT(vtable.fprintf != NULL);
   ASSERT(vtable.value != NULL);
+  ASSERT(vtable.set_value != NULL);
   local_matrix_t* matrix = polymec_malloc(sizeof(local_matrix_t));
   matrix->name = string_dup(name);
   matrix->context = context;
@@ -83,3 +84,11 @@ real_t local_matrix_value(local_matrix_t* matrix, int i, int j)
   ASSERT(j >= 0);
   return matrix->vtable.value(matrix->context, i, j);
 }
+
+void local_matrix_set_value(local_matrix_t* matrix, int i, int j, real_t value)
+{
+  ASSERT(i >= 0);
+  ASSERT(j >= 0);
+  matrix->vtable.set_value(matrix->context, i, j, value);
+}
+

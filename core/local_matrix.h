@@ -30,6 +30,7 @@ typedef struct local_matrix_vtable
   bool (*solve)(void* context, real_t* B); // Solves A*x = B in place.
   void (*fprintf)(void* context, FILE* stream); // Prints matrix to stream.
   real_t (*value)(void* context, int i, int j); // A(i, j)
+  void (*set_value)(void* context, int i, int j, real_t value); // A(i, j) = value
 } local_matrix_vtable;
 
 // This can be used to create a new type of local matrix representation.
@@ -69,5 +70,10 @@ void local_matrix_fprintf(local_matrix_t* matrix, FILE* stream);
 // Returns the value of the matrix at the ith row, jth column. This 
 // is useful for debugging, but probably not for doing heavy lifting.
 real_t local_matrix_value(local_matrix_t* matrix, int i, int j);
+
+// Sets the value of the matrix at the ith row, jth column. This 
+// is useful for fiddling, but probably not for doing heavy lifting.
+// If (i, j) is not a non-zero matrix index, this call has no effect.
+void local_matrix_set_value(local_matrix_t* matrix, int i, int j, real_t value);
 
 #endif
