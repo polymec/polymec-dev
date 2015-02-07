@@ -167,10 +167,10 @@ static real_t bdm_value(void* context, int i, int j)
   if (block_col < A->num_block_rows)
   {
     int bs = A->B_offsets[block_col+1] - A->B_offsets[block_col];
-    int c = i % bs;
+    int r = i % bs;
     if ((j >= block_col*bs) && (j < (block_col+1)*bs))
     {
-      int r = j % bs;
+      int c = j % bs;
       return D[A->D_offsets[block_col] + c*bs + r];
     }
     else
@@ -190,10 +190,10 @@ static real_t bdm_value_constant_bs(void* context, int i, int j)
   {
     int bs = A->block_size;
     int block_col = i / bs;
-    int c = i % bs;
+    int r = i % bs;
     if ((j >= block_col*bs) && (j < (block_col+1)*bs))
     {
-      int r = j % bs;
+      int c = j % bs;
       return D[A->D_offsets[block_col] + c*bs + r];
     }
     else
@@ -201,6 +201,47 @@ static real_t bdm_value_constant_bs(void* context, int i, int j)
   }
   else
     return 0.0;
+}
+
+static void bdm_set_value(void* context, int i, int j, real_t value)
+{
+  bdm_t* A = context;
+  real_t* D = A->D;
+
+  // We have to find the right block column.
+  int block_col = 0;
+  while ((A->B_offsets[block_col+1] < i) && (block_col < A->num_block_rows))
+    ++block_col;
+
+  if (block_col < A->num_block_rows)
+  {
+    int bs = A->B_offsets[block_col+1] - A->B_offsets[block_col];
+    int r = i % bs;
+    if ((j >= block_col*bs) && (j < (block_col+1)*bs))
+    {
+      int c = j % bs;
+      D[A->D_offsets[block_col] + c*bs + r] = value;
+    }
+  }
+}
+
+static void bdm_set_value_constant_bs(void* context, int i, int j, real_t value)
+{
+  bdm_t* A = context;
+  ASSERT(A->block_size > 0);
+  real_t* D = A->D;
+
+  if (i < A->B_offsets[A->num_block_rows])
+  {
+    int bs = A->block_size;
+    int block_col = i / bs;
+    int r = i % bs;
+    if ((j >= block_col*bs) && (j < (block_col+1)*bs))
+    {
+      int c = j % bs;
+      D[A->D_offsets[block_col] + c*bs + r] = value;
+    }
+  }
 }
 
 static void bdm_dtor(void* context)
@@ -262,11 +303,13 @@ local_matrix_t* var_block_diagonal_matrix_new(int num_block_rows,
                                 .add_column_vector = bdm_add_column_vector,
                                 .solve = bdm_solve,
                                 .fprintf = bdm_fprintf,
-                                .value = bdm_value};
+                                .value = bdm_value,
+                                .set_value = bdm_set_value};
   if (constant_block_size)
   {
     vtable.add_column_vector = bdm_add_column_vector_constant_bs;
     vtable.value = bdm_value_constant_bs;
+    vtable.set_value = bdm_set_value_constant_bs;
   }
   return local_matrix_new(name, A, vtable);
 }
