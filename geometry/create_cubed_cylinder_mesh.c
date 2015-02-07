@@ -6,7 +6,6 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include "core/partition_mesh.h"
-#include "core/silo_file.h"
 #include "geometry/cubic_lattice.h"
 #include "geometry/create_uniform_mesh.h"
 #include "geometry/create_cubed_cylinder_mesh.h"
