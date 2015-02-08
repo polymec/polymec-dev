@@ -8,6 +8,7 @@
 #include "core/partition_mesh.h"
 #include "geometry/cubic_lattice.h"
 #include "geometry/create_uniform_mesh.h"
+#include "geometry/rotate_mesh.h"
 #include "geometry/create_cubed_sphere_mesh.h"
 #include "geometry/create_welded_block_mesh.h"
 
@@ -22,25 +23,143 @@ static void map_to_sphere(real_t L, point_t* x, point_t* y)
   // Now map (X, Y, Z) to (X1, Y1, Z1) in the unit circle.
   // See http://mathproofs.blogspot.com/2005/07/mapping-cube-to-sphere.html.
   real_t one_third = 1.0/3.0;
-  real_t X1 = X * sqrt(1.0 - 0.5*Y*Y - 0.5*Z*Z - one_third*Y*Y*Z*Z);
-  real_t Y1 = Y * sqrt(1.0 - 0.5*Z*Z - 0.5*X*X - one_third*Z*Z*X*X);
-  real_t Z1 = Z * sqrt(1.0 - 0.5*X*X - 0.5*Y*Y - one_third*X*X*Y*Y);
+  real_t X1 = X * sqrt(1.0 - 0.5*Y*Y - 0.5*Z*Z + one_third*Y*Y*Z*Z);
+  real_t Y1 = Y * sqrt(1.0 - 0.5*Z*Z - 0.5*X*X + one_third*Z*Z*X*X);
+  real_t Z1 = Z * sqrt(1.0 - 0.5*X*X - 0.5*Y*Y + one_third*X*X*Y*Y);
 
   // Finally, map to the circle with radius L/2.
-  real_t theta = acos(Z1);
+  real_t r = sqrt(X1*X1 + Y1*Y1 + Z1*Z1);
+  real_t theta = acos(Z1/(r + 1e-8));
   real_t phi = atan2(Y1, X1);
 
-  y->x = 0.5*L * cos(phi) * sin(theta);
-  y->y = 0.5*L * sin(phi) * sin(theta);
-  y->z = 0.5*L * cos(theta);
+  y->x = 0.5*L * r * cos(phi) * sin(theta);
+  y->y = 0.5*L * r * sin(phi) * sin(theta);
+  y->z = 0.5*L * r * cos(theta);
 }
 
 mesh_t* create_cubed_sphere_mesh(MPI_Comm comm,
-                                 int n, real_t R, real_t l, 
-                                 bool curved_center_block,
+                                 int ns, int nr, 
+                                 real_t r, real_t R, 
                                  const char* R_tag)
 {
-  return NULL; // FIXME
+  // Construct the center block.
+  bbox_t bbox = {.x1 = -r, .x2 = r,
+                 .y1 = -r, .y2 = r,
+                 .z1 = -r, .z2 = r};
+  mesh_t* center_block = create_uniform_mesh(MPI_COMM_SELF, ns, ns, ns, &bbox);
+  tag_rectilinear_mesh_faces(center_block, 
+                             "center_0", "center_1",
+                             "center_2", "center_3",
+                             "center_4", "center_5");
+
+  // Deform the center block.
+  cubic_lattice_t* lattice = cubic_lattice_new(ns, ns, ns);
+  for (int i = 0; i <= ns; ++i)
+  {
+    for (int j = 0; j <= ns; ++j)
+    {
+      for (int k = 0; k <= ns; ++k)
+      {
+        int n = (int)cubic_lattice_node(lattice, i, j, k);
+        point_t x = center_block->nodes[n];
+        map_to_sphere(2.0*r, &x, &(center_block->nodes[n]));
+      }
+    }
+  }
+  mesh_compute_geometry(center_block);
+
+  // Construct the panels. By default, they're all North-pole panels.
+  mesh_t* panels[6];
+  for (int i = 0; i < 6; ++i)
+  {
+    char tag_prefix[1024];
+    snprintf(tag_prefix, 1024, "panel_%d", i);
+    panels[i] = create_cubed_sphere_panel(MPI_COMM_SELF, ns, nr, r, R, tag_prefix);
+  }
+
+  // Rotate the panels so that they are properly oriented.
+  // Panels 0-3 are equatorial panels, panel 4 is south, 5 is north.
+  point_t x0 = {.x = 0.0, .y = 0.0, .z = 0.0};
+  {
+    vector_t omega = {.x = 1.0, .y = 0.0, .z = 0.0};
+    rotate_mesh(panels[0], &x0, 0.5*M_PI, &omega);
+    rotate_mesh(panels[2], &x0, -0.5*M_PI, &omega);
+  }
+  {
+    vector_t omega = {.x = 0.0, .y = 1.0, .z = 0.0};
+    rotate_mesh(panels[1], &x0, 0.5*M_PI, &omega);
+    rotate_mesh(panels[3], &x0, -0.5*M_PI, &omega);
+  }
+  {
+    vector_t omega = {.x = 1.0, .y = 0.0};
+    rotate_mesh(panels[4], &x0, M_PI, &omega);
+  }
+
+  for (int i = 0; i < 6; ++i)
+    mesh_compute_geometry(panels[i]);
+
+  // Rename the lateral panel tags so that they can be welded.
+  mesh_rename_tag(panels[0]->face_tags, "panel_0_0", "seam_0_3");
+  mesh_rename_tag(panels[0]->face_tags, "panel_0_1", "seam_0_1");
+  mesh_rename_tag(panels[0]->face_tags, "panel_0_2", "seam_0_4");
+  mesh_rename_tag(panels[0]->face_tags, "panel_0_3", "seam_0_5");
+
+  mesh_rename_tag(panels[1]->face_tags, "panel_1_0", "seam_1_5");
+  mesh_rename_tag(panels[1]->face_tags, "panel_1_1", "seam_1_4");
+  mesh_rename_tag(panels[1]->face_tags, "panel_1_2", "seam_0_1");
+  mesh_rename_tag(panels[1]->face_tags, "panel_1_3", "seam_1_2");
+
+  mesh_rename_tag(panels[2]->face_tags, "panel_2_0", "seam_2_3");
+  mesh_rename_tag(panels[2]->face_tags, "panel_2_1", "seam_1_2");
+  mesh_rename_tag(panels[2]->face_tags, "panel_2_2", "seam_2_5");
+  mesh_rename_tag(panels[2]->face_tags, "panel_2_3", "seam_2_4");
+
+  mesh_rename_tag(panels[3]->face_tags, "panel_3_0", "seam_0_3");
+  mesh_rename_tag(panels[3]->face_tags, "panel_3_1", "seam_2_3");
+  mesh_rename_tag(panels[3]->face_tags, "panel_3_2", "seam_3_5");
+  mesh_rename_tag(panels[3]->face_tags, "panel_3_3", "seam_3_4");
+
+  mesh_rename_tag(panels[4]->face_tags, "panel_4_0", "seam_3_4");
+  mesh_rename_tag(panels[4]->face_tags, "panel_4_1", "seam_1_4");
+  mesh_rename_tag(panels[4]->face_tags, "panel_4_2", "seam_2_4");
+  mesh_rename_tag(panels[4]->face_tags, "panel_4_3", "seam_0_4");
+
+  mesh_rename_tag(panels[5]->face_tags, "panel_5_0", "seam_3_5");
+  mesh_rename_tag(panels[5]->face_tags, "panel_5_1", "seam_1_5");
+  mesh_rename_tag(panels[5]->face_tags, "panel_5_2", "seam_0_5");
+  mesh_rename_tag(panels[5]->face_tags, "panel_5_3", "seam_3_5");
+
+  // Weld'em panels.
+  mesh_t* blocks[7] = {center_block, panels[0], panels[1], panels[2],
+                       panels[3], panels[4], panels[5]};
+  mesh_t* mesh = create_welded_block_mesh(blocks, 7, 1e-10);
+
+#if 0
+  // Set up the inner / outer radius tags.
+  {
+    int N1, N2, N3, N4, N5, N6;
+    int* R1 = mesh_tag(panels[0]->face_tags, "panel_0_6", &N1);
+    int* R2 = mesh_tag(panels[1]->face_tags, "panel_1_6", &N2);
+    int* R3 = mesh_tag(panels[2]->face_tags, "panel_2_6", &N3);
+    int* R4 = mesh_tag(panels[3]->face_tags, "panel_3_6", &N4);
+    int* R5 = mesh_tag(panels[4]->face_tags, "panel_4_6", &N5);
+    int* R6 = mesh_tag(panels[5]->face_tags, "panel_5_6", &N6);
+    int* rtag = mesh_create_tag(mesh->face_tags, R_tag, N1+N2+N3+N4+N5+N6);
+    memcpy(&rtag[0], outer1, sizeof(int) * N1);
+    memcpy(&rtag[N1], outer2, sizeof(int) * N2);
+    memcpy(&rtag[N2], outer3, sizeof(int) * N3);
+    memcpy(&rtag[N3], outer4, sizeof(int) * N4);
+  }
+#endif
+  // Clean up.
+  for (int i = 0; i < 6; ++i)
+    mesh_free(panels[i]);
+
+  // Now partition the thing if we've been asked to.
+  if (comm != MPI_COMM_SELF)
+    partition_mesh(&mesh, comm, NULL, 0.0);
+
+  return mesh;
 }
 
 mesh_t* create_cubed_spherical_shell_mesh(MPI_Comm comm,
@@ -49,20 +168,108 @@ mesh_t* create_cubed_spherical_shell_mesh(MPI_Comm comm,
                                           const char* r_tag,
                                           const char* R_tag)
 {
-  return NULL; // FIXME
+  // Construct the panels. By default, they're all North-pole panels.
+  mesh_t* panels[6];
+  for (int i = 0; i < 6; ++i)
+  {
+    char tag_prefix[1024];
+    snprintf(tag_prefix, 1024, "panel_%d", i);
+    panels[i] = create_cubed_sphere_panel(MPI_COMM_SELF, ns, nr, r, R, tag_prefix);
+  }
+
+  // Rotate the panels so that they are properly oriented.
+  // Panels 0-3 are equatorial panels, panel 4 is south, 5 is north.
+  point_t x0 = {.x = 0.0, .y = 0.0, .z = 0.0};
+  {
+    vector_t omega = {.x = 1.0, .y = 0.0, .z = 0.0};
+    rotate_mesh(panels[0], &x0, 0.5*M_PI, &omega);
+    rotate_mesh(panels[2], &x0, -0.5*M_PI, &omega);
+  }
+  {
+    vector_t omega = {.x = 0.0, .y = 1.0, .z = 0.0};
+    rotate_mesh(panels[1], &x0, 0.5*M_PI, &omega);
+    rotate_mesh(panels[3], &x0, -0.5*M_PI, &omega);
+  }
+  {
+    vector_t omega = {.x = 1.0, .y = 0.0};
+    rotate_mesh(panels[4], &x0, M_PI, &omega);
+  }
+
+  for (int i = 0; i < 6; ++i)
+    mesh_compute_geometry(panels[i]);
+
+  // Rename the lateral panel tags so that they can be welded.
+  mesh_rename_tag(panels[0]->face_tags, "panel_0_0", "seam_0_3");
+  mesh_rename_tag(panels[0]->face_tags, "panel_0_1", "seam_0_1");
+  mesh_rename_tag(panels[0]->face_tags, "panel_0_2", "seam_0_4");
+  mesh_rename_tag(panels[0]->face_tags, "panel_0_3", "seam_0_5");
+
+  mesh_rename_tag(panels[1]->face_tags, "panel_1_0", "seam_1_5");
+  mesh_rename_tag(panels[1]->face_tags, "panel_1_1", "seam_1_4");
+  mesh_rename_tag(panels[1]->face_tags, "panel_1_2", "seam_0_1");
+  mesh_rename_tag(panels[1]->face_tags, "panel_1_3", "seam_1_2");
+
+  mesh_rename_tag(panels[2]->face_tags, "panel_2_0", "seam_2_3");
+  mesh_rename_tag(panels[2]->face_tags, "panel_2_1", "seam_1_2");
+  mesh_rename_tag(panels[2]->face_tags, "panel_2_2", "seam_2_5");
+  mesh_rename_tag(panels[2]->face_tags, "panel_2_3", "seam_2_4");
+
+  mesh_rename_tag(panels[3]->face_tags, "panel_3_0", "seam_0_3");
+  mesh_rename_tag(panels[3]->face_tags, "panel_3_1", "seam_2_3");
+  mesh_rename_tag(panels[3]->face_tags, "panel_3_2", "seam_3_5");
+  mesh_rename_tag(panels[3]->face_tags, "panel_3_3", "seam_3_4");
+
+  mesh_rename_tag(panels[4]->face_tags, "panel_4_0", "seam_3_4");
+  mesh_rename_tag(panels[4]->face_tags, "panel_4_1", "seam_1_4");
+  mesh_rename_tag(panels[4]->face_tags, "panel_4_2", "seam_2_4");
+  mesh_rename_tag(panels[4]->face_tags, "panel_4_3", "seam_0_4");
+
+  mesh_rename_tag(panels[5]->face_tags, "panel_5_0", "seam_3_5");
+  mesh_rename_tag(panels[5]->face_tags, "panel_5_1", "seam_1_5");
+  mesh_rename_tag(panels[5]->face_tags, "panel_5_2", "seam_0_5");
+  mesh_rename_tag(panels[5]->face_tags, "panel_5_3", "seam_3_5");
+
+  // Weld'em panels.
+  mesh_t* mesh = create_welded_block_mesh(panels, 6, 1e-10);
+
+#if 0
+  // Set up the inner / outer radius tags.
+  {
+    int N1, N2, N3, N4, N5, N6;
+    int* R1 = mesh_tag(panels[0]->face_tags, "panel_0_6", &N1);
+    int* R2 = mesh_tag(panels[1]->face_tags, "panel_1_6", &N2);
+    int* R3 = mesh_tag(panels[2]->face_tags, "panel_2_6", &N3);
+    int* R4 = mesh_tag(panels[3]->face_tags, "panel_3_6", &N4);
+    int* R5 = mesh_tag(panels[4]->face_tags, "panel_4_6", &N5);
+    int* R6 = mesh_tag(panels[5]->face_tags, "panel_5_6", &N6);
+    int* rtag = mesh_create_tag(mesh->face_tags, R_tag, N1+N2+N3+N4+N5+N6);
+    memcpy(&rtag[0], outer1, sizeof(int) * N1);
+    memcpy(&rtag[N1], outer2, sizeof(int) * N2);
+    memcpy(&rtag[N2], outer3, sizeof(int) * N3);
+    memcpy(&rtag[N3], outer4, sizeof(int) * N4);
+  }
+#endif
+  // Clean up.
+  for (int i = 0; i < 6; ++i)
+    mesh_free(panels[i]);
+
+  // Now partition the thing if we've been asked to.
+  if (comm != MPI_COMM_SELF)
+    partition_mesh(&mesh, comm, NULL, 0.0);
+
+  return mesh;
 }
 
 mesh_t* create_cubed_sphere_panel(MPI_Comm comm,
                                   int ns, int nr,
-                                  real_t R, real_t l,
-                                  bool curved_bottom,
-                                  cubed_sphere_panel_t which_panel)
+                                  real_t r, real_t R,
+                                  const char* tag_prefix)
 {
-  ASSERT(ns > 0);
-  ASSERT(nr > 0);
+  ASSERT(ns >= 2);
+  ASSERT(nr >= 2);
+  ASSERT(r >= 0.0);
   ASSERT(R >= 0.0);
-  ASSERT(l >= 0.0);
-  ASSERT(l < R);
+  ASSERT(r < R);
 
   // Generic bounding box -- doesn't really matter.
   bbox_t bbox = {.x1 = -0.5, .x2 = 0.5,
@@ -72,77 +279,48 @@ mesh_t* create_cubed_sphere_panel(MPI_Comm comm,
   // Indexing mechanism.
   cubic_lattice_t* lattice = cubic_lattice_new(ns, ns, nr);
 
-#if 0
-  // Constant spacings.
-  real_t dx = l / nx, dy = l / nx, dz = ;
-  real_t dz = L / nz;
-  real_t dtheta = 0.5*M_PI / nx;
-#endif
-
   mesh_t* panel = create_uniform_mesh(MPI_COMM_SELF, ns, ns, nr, &bbox);
-
-  // Determine a prefix for the panel's tags.
-  char tag_prefix[1024];
-  if (which_panel == X1_PANEL)
-    strcpy(tag_prefix, "x1_panel_");
-  else if (which_panel == X2_PANEL)
-    strcpy(tag_prefix, "x2_panel_");
-  else if (which_panel == Y1_PANEL)
-    strcpy(tag_prefix, "y1_panel_");
-  else if (which_panel == Y2_PANEL)
-    strcpy(tag_prefix, "y2_panel_");
-  else if (which_panel == Z1_PANEL)
-    strcpy(tag_prefix, "z1_panel_");
-  else 
-  {
-    ASSERT(which_panel == Z2_PANEL);
-    strcpy(tag_prefix, "z2_panel_");
-  }
 
   // Tag the panel's faces accordingly.
   char tags[6][1024];
   for (int i = 0; i < 6; ++i)
-    sprintf(tags[i], "%s_%d", tag_prefix, i);
+    snprintf(tags[i], 1024, "%s_%d", tag_prefix, i);
   tag_rectilinear_mesh_faces(panel, tags[0], tags[1], tags[2], tags[3],
                              tags[4], tags[5]);
-#if 0
-  for (int k = 0; k <= nz; ++k)
+
+  // Grid spacings.
+  real_t dr = (R - r) / (nr-1);
+  real_t dx = 2.0 / ns;
+  for (int k = 0; k <= nr; ++k)
   {
-    real_t zk = -0.5*L + k*dz;
-    for (int j = 0; j <= nx; ++j)
+    // Use even radial spacing for now.
+    real_t rk = r + k*dr;
+
+    // Compute the latitude/longitude according to the Gnomonic cubed-sphere
+    // projection for the North panel.
+    for (int j = 0; j <= ns; ++j)
     {
-      // Compute the radial spacing for this j index.
-      real_t theta = 1.25*M_PI - j*dtheta;
-      real_t cos_theta = cos(theta), sin_theta = sin(theta);
-
-      // Find xc, the point of nearest approach on the center block surface.
-      point_t xc = {.x = -0.5*l, .y = -0.5*l + j*dy, .z = 0.0}; 
-      if (curved_center_block)
+      real_t yj = -1.0 + j*dx;
+      for (int i = 0; i <= ns; ++i)
       {
-        point_t x = xc;
-        map_to_circle(l, &x, &xc);
-      }
+        real_t xi = -1.0 + i*dx;
+        real_t lon = atan2(xi, yj);
+        real_t lat = atan2(1.0, sqrt(xi*xi + yj*yj));
+        real_t theta = -lat + 0.5*M_PI, phi = lon; // spherical coordinates
 
-      // Find xR, the point on the outside of the cylinder for this j.
-      point_t xR = {.x = R*cos_theta, .y = R*sin_theta, .z = 0.0};
-
-      // Now find dR, the increment of the vector that connects xc to xR.
-      vector_t dR;
-      point_displacement(&xc, &xR, &dR);
-      dR.x /= nx;
-      dR.y /= nx;
-
-      // Compute the node positions, proceeding from lower left to upper right.
-      for (int i = 0; i <= nx; ++i)
-      {
         int n = (int)cubic_lattice_node(lattice, i, j, k);
-        point_t xn = {.x = xR.x - i*dR.x, .y = xR.y - i*dR.y, .z = zk};
+        point_t xn = {.x = rk * cos(phi) * sin(theta),
+                      .y = rk * sin(phi) * sin(theta),
+                      .z = rk * cos(theta)};
         panel->nodes[n] = xn;
       }
     }
   }
-#endif
   mesh_compute_geometry(panel);
+
+  // Now partition the thing if we've been asked to.
+  if (comm != MPI_COMM_SELF)
+    partition_mesh(&panel, comm, NULL, 0.0);
 
   return panel;
 }

@@ -12,21 +12,19 @@
 
 // This function creates a mesh consisting of 7 blocks of hexahedral 
 // cells in the shape of a cylinder. The parameters of interest are:
-// n - The number of cells on the side of each of the 7 blocks.
+// ns - The number of cells on the surface-facing sides of each block.
+// nr - The number of cells on the radial sides of each block.
+// r - The radius of the (spherical) center block.
 // R - The radius of the sphere being represented.
-// l - The length on a side of the center block of the sphere. This must 
-//     be less than R.
-// curved_center_block - If set to true, the center block is curved into a 
-//                       sphere. If not, it is kept as a cube.
 // R_tag - The name of the tag identifying faces along the surface of the sphere.
 mesh_t* create_cubed_sphere_mesh(MPI_Comm comm,
-                                 int n, real_t R, real_t l, 
-                                 bool curved_center_block,
+                                 int ns, int nr, 
+                                 real_t r, real_t R, 
                                  const char* R_tag);
 
 // This function creates a mesh consisting of 6 blocks of hexahedral 
 // cells in the shape of a spherical shell. The parameters of interest are:
-// na - The number of cells on the surface-facing sides of each block.
+// ns - The number of cells on the surface-facing sides of each block.
 // nr - The number of cells on the radial sides of each block.
 // r - The inner radius of the spherical shell.
 // R - The outer radius of the spherical shell.
@@ -39,24 +37,20 @@ mesh_t* create_cubed_spherical_shell_mesh(MPI_Comm comm,
                                           const char* r_tag,
                                           const char* R_tag);
 
-// This type identifies a specific cubed sphere panel.
-typedef enum
-{
-  X1_PANEL, // panel facing -x
-  X2_PANEL, // panel facing +x
-  Y1_PANEL, // panel facing -y
-  Y2_PANEL, // panel facing +y
-  Z1_PANEL, // panel facing -z
-  Z2_PANEL  // panel facing +z
-} cubed_sphere_panel_t;
-
-// This constructs a single panel of the cubed sphere with the given properties,
-// identified by which_panel.
+// This constructs a single panel of the cubed sphere with the given 
+// properties. The panel is the top panel (centered at theta = 0) of the 
+// sphere aligned with the z axis. The tags on this panel are prepended with 
+// the given tag prefix, and are:
+// - (tag_prefix)_0 - The faces that belong to the -x boundary.
+// - (tag_prefix)_1 - The faces that belong to the +x boundary.
+// - (tag_prefix)_2 - The faces that belong to the -y boundary.
+// - (tag_prefix)_3 - The faces that belong to the +y boundary.
+// - (tag_prefix)_4 - The faces that belong to the inner boundary.
+// - (tag_prefix)_5 - The faces that belong to the outer boundary.
 mesh_t* create_cubed_sphere_panel(MPI_Comm comm,
                                   int ns, int nr,
-                                  real_t R, real_t l,
-                                  bool curved_bottom,
-                                  cubed_sphere_panel_t which_panel);
+                                  real_t r, real_t R,
+                                  const char* tag_prefix);
 
 #endif
 

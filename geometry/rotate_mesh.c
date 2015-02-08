@@ -26,17 +26,20 @@ void rotate_mesh(mesh_t* mesh, point_t* x0, real_t theta, vector_t* omega)
     Y.z = vector_dot(&X, &e3);
 
     // Rotate.
-    Y.x =  Y.x * cos_theta + Y.y * sin_theta;
-    Y.y = -Y.x * sin_theta + Y.y * cos_theta;
+    vector_t Y1;
+    Y1.x = Y.x * cos_theta - Y.y * sin_theta;
+    Y1.y = Y.x * sin_theta + Y.y * cos_theta;
+    Y1.z = Y.z;
 
     // Project back.
-    X.x = Y.x * e1.x + Y.y * e2.x + Y.z * e3.x;
-    X.y = Y.x * e1.y + Y.y * e2.y + Y.z * e3.y;
-    X.z = Y.x * e1.z + Y.y * e2.z + Y.z * e3.z;
+    vector_t X1;
+    X1.x = Y1.x * e1.x + Y1.y * e2.x + Y1.z * e3.x;
+    X1.y = Y1.x * e1.y + Y1.y * e2.y + Y1.z * e3.y;
+    X1.z = Y1.x * e1.z + Y1.y * e2.z + Y1.z * e3.z;
 
-    mesh->nodes[n].x = x0->x + X.x;
-    mesh->nodes[n].y = x0->y + X.y;
-    mesh->nodes[n].z = x0->z + X.z;
+    mesh->nodes[n].x = x0->x + X1.x;
+    mesh->nodes[n].y = x0->y + X1.y;
+    mesh->nodes[n].z = x0->z + X1.z;
   }
 }
 
