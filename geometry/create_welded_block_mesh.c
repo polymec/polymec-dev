@@ -64,6 +64,8 @@ mesh_t* create_welded_block_mesh(mesh_t** blocks, int num_blocks, real_t weld_to
           char* btagj = btagsj->data[jj];
           if (strcmp(btagi, btagj) == 0)
           {
+            log_debug("create_welded_block_mesh: found seam tag '%s'.", btagi);
+
             // For each face in btagi, find the closest face in btagj.
             int num_btagi_faces;
             int* btagi_faces = mesh_tag(blocki->face_tags, btagi, &num_btagi_faces);
@@ -145,6 +147,9 @@ mesh_t* create_welded_block_mesh(mesh_t** blocks, int num_blocks, real_t weld_to
       }
     }
   }
+
+  log_debug("create_welded_block_mesh: welding %d faces and %d nodes.",
+            num_face_welds, num_node_welds);
 
   // Chop down'em trees.
   for (int i = 0; i < num_blocks; ++i)

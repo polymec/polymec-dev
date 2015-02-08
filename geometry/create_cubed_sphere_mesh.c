@@ -37,6 +37,64 @@ static void map_to_sphere(real_t L, point_t* x, point_t* y)
   y->z = 0.5*L * r * cos(theta);
 }
 
+// This renames the given boundary face tag on a block, also replacing any 
+// such entry found in the rectilinear_boundary_tags property, which is 
+// used by create_welded_block_mesh to identify seams.
+static void rename_boundary_tag(mesh_t* block, 
+                                const char* old_tag_name, 
+                                const char* new_tag_name)
+{
+  // Rename the tag itself.
+  mesh_rename_tag(block->face_tags, old_tag_name, new_tag_name);
+
+  // Now find its entry in rectilinear_boundary_tags and replace it.
+  string_array_t* btags = mesh_property(block, "rectilinear_boundary_tags");
+  ASSERT(btags != NULL);
+  for (int i = 0; i < btags->size; ++i)
+  {
+    if (strcmp(btags->data[i], old_tag_name) == 0)
+    {
+      // We simply replace the entry. The destructor for this entry doesn't 
+      // change, so we allocate a new string with string_dup.
+      string_free(btags->data[i]);
+      btags->data[i] = string_dup(new_tag_name);
+    }
+  }
+}
+
+static void rename_surface_seam_tags(mesh_t** panels)
+{
+  rename_boundary_tag(panels[0], "panel_0_0", "seam_0_3");
+  rename_boundary_tag(panels[0], "panel_0_1", "seam_0_1");
+  rename_boundary_tag(panels[0], "panel_0_2", "seam_0_4");
+  rename_boundary_tag(panels[0], "panel_0_3", "seam_0_5");
+
+  rename_boundary_tag(panels[1], "panel_1_0", "seam_1_5");
+  rename_boundary_tag(panels[1], "panel_1_1", "seam_1_4");
+  rename_boundary_tag(panels[1], "panel_1_2", "seam_0_1");
+  rename_boundary_tag(panels[1], "panel_1_3", "seam_1_2");
+
+  rename_boundary_tag(panels[2], "panel_2_0", "seam_2_3");
+  rename_boundary_tag(panels[2], "panel_2_1", "seam_1_2");
+  rename_boundary_tag(panels[2], "panel_2_2", "seam_2_5");
+  rename_boundary_tag(panels[2], "panel_2_3", "seam_2_4");
+
+  rename_boundary_tag(panels[3], "panel_3_0", "seam_0_3");
+  rename_boundary_tag(panels[3], "panel_3_1", "seam_2_3");
+  rename_boundary_tag(panels[3], "panel_3_2", "seam_3_5");
+  rename_boundary_tag(panels[3], "panel_3_3", "seam_3_4");
+
+  rename_boundary_tag(panels[4], "panel_4_0", "seam_3_4");
+  rename_boundary_tag(panels[4], "panel_4_1", "seam_1_4");
+  rename_boundary_tag(panels[4], "panel_4_2", "seam_2_4");
+  rename_boundary_tag(panels[4], "panel_4_3", "seam_0_4");
+
+  rename_boundary_tag(panels[5], "panel_5_0", "seam_3_5");
+  rename_boundary_tag(panels[5], "panel_5_1", "seam_1_5");
+  rename_boundary_tag(panels[5], "panel_5_2", "seam_0_5");
+  rename_boundary_tag(panels[5], "panel_5_3", "seam_3_5");
+}
+
 mesh_t* create_cubed_sphere_mesh(MPI_Comm comm,
                                  int ns, int nr, 
                                  real_t r, real_t R, 
@@ -98,36 +156,8 @@ mesh_t* create_cubed_sphere_mesh(MPI_Comm comm,
   for (int i = 0; i < 6; ++i)
     mesh_compute_geometry(panels[i]);
 
-  // Rename the lateral panel tags so that they can be welded.
-  mesh_rename_tag(panels[0]->face_tags, "panel_0_0", "seam_0_3");
-  mesh_rename_tag(panels[0]->face_tags, "panel_0_1", "seam_0_1");
-  mesh_rename_tag(panels[0]->face_tags, "panel_0_2", "seam_0_4");
-  mesh_rename_tag(panels[0]->face_tags, "panel_0_3", "seam_0_5");
-
-  mesh_rename_tag(panels[1]->face_tags, "panel_1_0", "seam_1_5");
-  mesh_rename_tag(panels[1]->face_tags, "panel_1_1", "seam_1_4");
-  mesh_rename_tag(panels[1]->face_tags, "panel_1_2", "seam_0_1");
-  mesh_rename_tag(panels[1]->face_tags, "panel_1_3", "seam_1_2");
-
-  mesh_rename_tag(panels[2]->face_tags, "panel_2_0", "seam_2_3");
-  mesh_rename_tag(panels[2]->face_tags, "panel_2_1", "seam_1_2");
-  mesh_rename_tag(panels[2]->face_tags, "panel_2_2", "seam_2_5");
-  mesh_rename_tag(panels[2]->face_tags, "panel_2_3", "seam_2_4");
-
-  mesh_rename_tag(panels[3]->face_tags, "panel_3_0", "seam_0_3");
-  mesh_rename_tag(panels[3]->face_tags, "panel_3_1", "seam_2_3");
-  mesh_rename_tag(panels[3]->face_tags, "panel_3_2", "seam_3_5");
-  mesh_rename_tag(panels[3]->face_tags, "panel_3_3", "seam_3_4");
-
-  mesh_rename_tag(panels[4]->face_tags, "panel_4_0", "seam_3_4");
-  mesh_rename_tag(panels[4]->face_tags, "panel_4_1", "seam_1_4");
-  mesh_rename_tag(panels[4]->face_tags, "panel_4_2", "seam_2_4");
-  mesh_rename_tag(panels[4]->face_tags, "panel_4_3", "seam_0_4");
-
-  mesh_rename_tag(panels[5]->face_tags, "panel_5_0", "seam_3_5");
-  mesh_rename_tag(panels[5]->face_tags, "panel_5_1", "seam_1_5");
-  mesh_rename_tag(panels[5]->face_tags, "panel_5_2", "seam_0_5");
-  mesh_rename_tag(panels[5]->face_tags, "panel_5_3", "seam_3_5");
+  // Rename the surface panel seam tags so that they can be welded.
+  rename_surface_seam_tags(panels);
 
   // Weld'em panels.
   mesh_t* blocks[7] = {center_block, panels[0], panels[1], panels[2],
@@ -198,36 +228,8 @@ mesh_t* create_cubed_spherical_shell_mesh(MPI_Comm comm,
   for (int i = 0; i < 6; ++i)
     mesh_compute_geometry(panels[i]);
 
-  // Rename the lateral panel tags so that they can be welded.
-  mesh_rename_tag(panels[0]->face_tags, "panel_0_0", "seam_0_3");
-  mesh_rename_tag(panels[0]->face_tags, "panel_0_1", "seam_0_1");
-  mesh_rename_tag(panels[0]->face_tags, "panel_0_2", "seam_0_4");
-  mesh_rename_tag(panels[0]->face_tags, "panel_0_3", "seam_0_5");
-
-  mesh_rename_tag(panels[1]->face_tags, "panel_1_0", "seam_1_5");
-  mesh_rename_tag(panels[1]->face_tags, "panel_1_1", "seam_1_4");
-  mesh_rename_tag(panels[1]->face_tags, "panel_1_2", "seam_0_1");
-  mesh_rename_tag(panels[1]->face_tags, "panel_1_3", "seam_1_2");
-
-  mesh_rename_tag(panels[2]->face_tags, "panel_2_0", "seam_2_3");
-  mesh_rename_tag(panels[2]->face_tags, "panel_2_1", "seam_1_2");
-  mesh_rename_tag(panels[2]->face_tags, "panel_2_2", "seam_2_5");
-  mesh_rename_tag(panels[2]->face_tags, "panel_2_3", "seam_2_4");
-
-  mesh_rename_tag(panels[3]->face_tags, "panel_3_0", "seam_0_3");
-  mesh_rename_tag(panels[3]->face_tags, "panel_3_1", "seam_2_3");
-  mesh_rename_tag(panels[3]->face_tags, "panel_3_2", "seam_3_5");
-  mesh_rename_tag(panels[3]->face_tags, "panel_3_3", "seam_3_4");
-
-  mesh_rename_tag(panels[4]->face_tags, "panel_4_0", "seam_3_4");
-  mesh_rename_tag(panels[4]->face_tags, "panel_4_1", "seam_1_4");
-  mesh_rename_tag(panels[4]->face_tags, "panel_4_2", "seam_2_4");
-  mesh_rename_tag(panels[4]->face_tags, "panel_4_3", "seam_0_4");
-
-  mesh_rename_tag(panels[5]->face_tags, "panel_5_0", "seam_3_5");
-  mesh_rename_tag(panels[5]->face_tags, "panel_5_1", "seam_1_5");
-  mesh_rename_tag(panels[5]->face_tags, "panel_5_2", "seam_0_5");
-  mesh_rename_tag(panels[5]->face_tags, "panel_5_3", "seam_3_5");
+  // Rename the surface panel seam tags so that they can be welded.
+  rename_surface_seam_tags(panels);
 
   // Weld'em panels.
   mesh_t* mesh = create_welded_block_mesh(panels, 6, 1e-10);
