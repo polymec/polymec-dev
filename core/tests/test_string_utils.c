@@ -40,6 +40,8 @@ void test_string_next_token(void** state)
   assert_int_equal(13, len);
   strncpy(token_copy, token, len);
   assert_true(strncmp("and the other", token_copy, 13) == 0);
+
+  assert_false(string_next_token(whole_string, ",", &pos, &token, &len));
 }
 
 void test_string_is_number(void** state)
