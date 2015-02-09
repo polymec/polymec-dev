@@ -349,6 +349,19 @@ static void write_expressions_to_file(silo_file_t* file, DBfile* dbfile)
   }
 }
 
+static void write_provenance_to_file(silo_file_t* file)
+{
+  // We harvest provenance information from polymec.
+  char* provenance_str;
+  size_t provenance_strlen;
+  FILE* stream = open_memstream(&provenance_str, &provenance_strlen);
+  polymec_provenance_fprintf(stream);
+  fclose(stream);
+
+  silo_file_write_string(file, "provenance", provenance_str);
+  string_free(provenance_str);
+}
+
 #if POLYMEC_HAVE_MPI
 static void write_multivars_to_file(silo_file_t* file)
 {
@@ -420,19 +433,6 @@ static void write_multivars_to_file(silo_file_t* file)
       polymec_free(var_names[j]);
   }
   DBFreeOptlist(optlist);
-}
-
-static void write_provenance_to_file(silo_file_t* file)
-{
-  // We harvest provenance information from polymec.
-  char* provenance_str;
-  size_t provenance_strlen;
-  FILE* stream = open_memstream(&provenance_str, &provenance_strlen);
-  polymec_provenance_fprintf(stream);
-  fclose(stream);
-
-  silo_file_write_string(file, "provenance", provenance_str);
-  string_free(provenance_str);
 }
 
 static void write_master_file(silo_file_t* file)
@@ -709,7 +709,6 @@ silo_file_t* silo_file_open(MPI_Comm comm,
   file->cycle = -1;
   file->time = -FLT_MAX;
   file->expressions = NULL;
-  file->comm = comm;
 
   // Strip .silo off of the prefix if it's there.
   {
@@ -733,6 +732,7 @@ silo_file_t* silo_file_open(MPI_Comm comm,
   // number of processes.
   int nproc = 1;
 #if POLYMEC_HAVE_MPI
+  file->comm = comm;
   MPI_Comm_size(file->comm, &nproc); 
 #endif
   if (nproc != num_mpi_procs)
@@ -975,7 +975,6 @@ static void silo_file_read_tags(silo_file_t* file, const char* tag_list_name, ta
     char** tag_names = var->elemnames;
     int* tag_sizes = var->elemlengths;
     int* array = var->values;
-    int size = var->nvalues;
     int j = 0;
     for (int i = 0; i < num_tags; ++i)
     {
@@ -989,7 +988,7 @@ static void silo_file_read_tags(silo_file_t* file, const char* tag_list_name, ta
       memcpy(tag, &array[j], sizeof(int) * tag_sizes[i]);
       j += tag_sizes[i];
     }
-    ASSERT(j == size);
+    ASSERT(j == var->nvalues);
   }
 }
 
