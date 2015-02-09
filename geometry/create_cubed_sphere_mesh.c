@@ -11,6 +11,7 @@
 #include "geometry/rotate_mesh.h"
 #include "geometry/create_cubed_sphere_mesh.h"
 #include "geometry/create_welded_block_mesh.h"
+#include "core/silo_file.h"
 
 // This transformation maps a point x within the cube 
 // [-L/2, -L/2, -L/2] x [L/2, L/2, L/2] to its corresponding point y in the 
@@ -64,35 +65,87 @@ static void rename_boundary_tag(mesh_t* block,
 
 static void rename_surface_seam_tags(mesh_t** panels)
 {
-  rename_boundary_tag(panels[0], "panel_0_0", "seam_0_3");
-  rename_boundary_tag(panels[0], "panel_0_1", "seam_0_1");
-  rename_boundary_tag(panels[0], "panel_0_2", "seam_0_4");
-  rename_boundary_tag(panels[0], "panel_0_3", "seam_0_5");
+  // Panel 0 is centered at phi = 0 and is produced by rotating
+  // the north panel about the y axis by pi/2.
+  rename_boundary_tag(panels[0], "panel_0_0", "seam_0_5");
+  rename_boundary_tag(panels[0], "panel_0_1", "seam_0_4");
+  rename_boundary_tag(panels[0], "panel_0_2", "seam_0_3");
+  rename_boundary_tag(panels[0], "panel_0_3", "seam_0_1");
 
-  rename_boundary_tag(panels[1], "panel_1_0", "seam_1_5");
-  rename_boundary_tag(panels[1], "panel_1_1", "seam_1_4");
-  rename_boundary_tag(panels[1], "panel_1_2", "seam_0_1");
-  rename_boundary_tag(panels[1], "panel_1_3", "seam_1_2");
+  // Panel 1 is centered at phi = pi/2 and is produced by rotating
+  // the north panel about the x axis by -pi/2.
+  rename_boundary_tag(panels[1], "panel_1_0", "seam_1_2");
+  rename_boundary_tag(panels[1], "panel_1_1", "seam_1_0");
+  rename_boundary_tag(panels[1], "panel_1_2", "seam_1_5");
+  rename_boundary_tag(panels[1], "panel_1_3", "seam_1_4");
 
-  rename_boundary_tag(panels[2], "panel_2_0", "seam_2_3");
-  rename_boundary_tag(panels[2], "panel_2_1", "seam_1_2");
-  rename_boundary_tag(panels[2], "panel_2_2", "seam_2_5");
-  rename_boundary_tag(panels[2], "panel_2_3", "seam_2_4");
+  // Panel 2 is centered at phi = pi and is produced by rotating
+  // the north panel about the y axis by -pi/2.
+  rename_boundary_tag(panels[2], "panel_2_0", "seam_2_4");
+  rename_boundary_tag(panels[2], "panel_2_1", "seam_2_5");
+  rename_boundary_tag(panels[2], "panel_2_2", "seam_2_3");
+  rename_boundary_tag(panels[2], "panel_2_3", "seam_1_2");
 
-  rename_boundary_tag(panels[3], "panel_3_0", "seam_0_3");
-  rename_boundary_tag(panels[3], "panel_3_1", "seam_2_3");
-  rename_boundary_tag(panels[3], "panel_3_2", "seam_3_5");
-  rename_boundary_tag(panels[3], "panel_3_3", "seam_3_4");
+  // Panel 3 is centered at phi = 3*pi/2 and is produced by rotating
+  // the north panel about the x axis by pi/2.
+  rename_boundary_tag(panels[3], "panel_3_0", "seam_2_3");
+  rename_boundary_tag(panels[3], "panel_3_1", "seam_0_3");
+  rename_boundary_tag(panels[3], "panel_3_2", "seam_3_4");
+  rename_boundary_tag(panels[3], "panel_3_3", "seam_3_5");
 
-  rename_boundary_tag(panels[4], "panel_4_0", "seam_3_4");
-  rename_boundary_tag(panels[4], "panel_4_1", "seam_1_4");
-  rename_boundary_tag(panels[4], "panel_4_2", "seam_2_4");
-  rename_boundary_tag(panels[4], "panel_4_3", "seam_0_4");
+  // Panel 4 is the south panel and is produced by rotating the 
+  // north panel about the x axis by pi.
+  rename_boundary_tag(panels[4], "panel_4_0", "seam_2_4");
+  rename_boundary_tag(panels[4], "panel_4_1", "seam_0_4");
+  rename_boundary_tag(panels[4], "panel_4_2", "seam_1_4");
+  rename_boundary_tag(panels[4], "panel_4_3", "seam_3_4");
 
-  rename_boundary_tag(panels[5], "panel_5_0", "seam_3_5");
-  rename_boundary_tag(panels[5], "panel_5_1", "seam_1_5");
-  rename_boundary_tag(panels[5], "panel_5_2", "seam_0_5");
-  rename_boundary_tag(panels[5], "panel_5_3", "seam_3_5");
+  // Panel 5 is the north panel itself.
+  rename_boundary_tag(panels[5], "panel_5_0", "seam_2_5");
+  rename_boundary_tag(panels[5], "panel_5_1", "seam_0_5");
+  rename_boundary_tag(panels[5], "panel_5_2", "seam_3_5");
+  rename_boundary_tag(panels[5], "panel_5_3", "seam_1_5");
+}
+
+static void construct_spherical_panels(int ns, int nr,
+                                       real_t r, real_t R,
+                                       mesh_t** panels)
+{
+  // Construct the panels. By default, they're all North-pole panels.
+  for (int i = 0; i < 6; ++i)
+  {
+    char tag_prefix[1024];
+    snprintf(tag_prefix, 1024, "panel_%d", i);
+    panels[i] = create_cubed_sphere_panel(MPI_COMM_SELF, ns, nr, r, R, tag_prefix);
+  }
+
+  // Panels 0-3 are equatorial panels, panel 4 is south, 5 is north.
+  // Panel 0 is centered at phi = 0, and panels 1-3 proceed clockwise 
+  // around the globe.
+  point_t x0 = {.x = 0.0, .y = 0.0, .z = 0.0};
+  {
+    vector_t omega = {.x = 1.0, .y = 0.0, .z = 0.0};
+    rotate_mesh(panels[1], &x0, -0.5*M_PI, &omega); // phi = pi/2
+    rotate_mesh(panels[3], &x0,  0.5*M_PI, &omega); // phi = 3*pi/2
+    rotate_mesh(panels[4], &x0,  M_PI,     &omega); // theta = pi
+  }
+  {
+    vector_t omega = {.x = 0.0, .y = 1.0, .z = 0.0};
+    rotate_mesh(panels[0], &x0,  0.5*M_PI, &omega); // phi = 0
+    rotate_mesh(panels[2], &x0, -0.5*M_PI, &omega); // phi = pi
+  }
+
+  for (int i = 0; i < 6; ++i)
+    mesh_compute_geometry(panels[i]);
+
+  silo_file_t* silo = silo_file_new(MPI_COMM_WORLD, "spherey", "", 1, 0, 0, 0.0);
+  silo_file_write_mesh(silo, "panel0", panels[0]);
+  silo_file_write_mesh(silo, "panel1", panels[1]);
+  silo_file_write_mesh(silo, "panel2", panels[2]);
+  silo_file_write_mesh(silo, "panel3", panels[3]);
+  silo_file_write_mesh(silo, "panel4", panels[4]);
+  silo_file_write_mesh(silo, "panel5", panels[5]);
+  silo_file_close(silo);
 }
 
 mesh_t* create_cubed_sphere_mesh(MPI_Comm comm,
@@ -126,35 +179,9 @@ mesh_t* create_cubed_sphere_mesh(MPI_Comm comm,
   }
   mesh_compute_geometry(center_block);
 
-  // Construct the panels. By default, they're all North-pole panels.
+  // Construct the spherical panels.
   mesh_t* panels[6];
-  for (int i = 0; i < 6; ++i)
-  {
-    char tag_prefix[1024];
-    snprintf(tag_prefix, 1024, "panel_%d", i);
-    panels[i] = create_cubed_sphere_panel(MPI_COMM_SELF, ns, nr, r, R, tag_prefix);
-  }
-
-  // Rotate the panels so that they are properly oriented.
-  // Panels 0-3 are equatorial panels, panel 4 is south, 5 is north.
-  point_t x0 = {.x = 0.0, .y = 0.0, .z = 0.0};
-  {
-    vector_t omega = {.x = 1.0, .y = 0.0, .z = 0.0};
-    rotate_mesh(panels[0], &x0, 0.5*M_PI, &omega);
-    rotate_mesh(panels[2], &x0, -0.5*M_PI, &omega);
-  }
-  {
-    vector_t omega = {.x = 0.0, .y = 1.0, .z = 0.0};
-    rotate_mesh(panels[1], &x0, 0.5*M_PI, &omega);
-    rotate_mesh(panels[3], &x0, -0.5*M_PI, &omega);
-  }
-  {
-    vector_t omega = {.x = 1.0, .y = 0.0};
-    rotate_mesh(panels[4], &x0, M_PI, &omega);
-  }
-
-  for (int i = 0; i < 6; ++i)
-    mesh_compute_geometry(panels[i]);
+  construct_spherical_panels(ns, nr, r, R, panels);
 
   // Rename the surface panel seam tags so that they can be welded.
   rename_surface_seam_tags(panels);
@@ -198,35 +225,9 @@ mesh_t* create_cubed_spherical_shell_mesh(MPI_Comm comm,
                                           const char* r_tag,
                                           const char* R_tag)
 {
-  // Construct the panels. By default, they're all North-pole panels.
+  // Construct the spherical panels.
   mesh_t* panels[6];
-  for (int i = 0; i < 6; ++i)
-  {
-    char tag_prefix[1024];
-    snprintf(tag_prefix, 1024, "panel_%d", i);
-    panels[i] = create_cubed_sphere_panel(MPI_COMM_SELF, ns, nr, r, R, tag_prefix);
-  }
-
-  // Rotate the panels so that they are properly oriented.
-  // Panels 0-3 are equatorial panels, panel 4 is south, 5 is north.
-  point_t x0 = {.x = 0.0, .y = 0.0, .z = 0.0};
-  {
-    vector_t omega = {.x = 1.0, .y = 0.0, .z = 0.0};
-    rotate_mesh(panels[0], &x0, 0.5*M_PI, &omega);
-    rotate_mesh(panels[2], &x0, -0.5*M_PI, &omega);
-  }
-  {
-    vector_t omega = {.x = 0.0, .y = 1.0, .z = 0.0};
-    rotate_mesh(panels[1], &x0, 0.5*M_PI, &omega);
-    rotate_mesh(panels[3], &x0, -0.5*M_PI, &omega);
-  }
-  {
-    vector_t omega = {.x = 1.0, .y = 0.0};
-    rotate_mesh(panels[4], &x0, M_PI, &omega);
-  }
-
-  for (int i = 0; i < 6; ++i)
-    mesh_compute_geometry(panels[i]);
+  construct_spherical_panels(ns, nr, r, R, panels);
 
   // Rename the surface panel seam tags so that they can be welded.
   rename_surface_seam_tags(panels);
@@ -291,7 +292,7 @@ mesh_t* create_cubed_sphere_panel(MPI_Comm comm,
                              tags[4], tags[5]);
 
   // Grid spacings.
-  real_t dr = (R - r) / (nr-1);
+  real_t dr = (R - r) / nr;
   real_t dx = 2.0 / ns;
   for (int k = 0; k <= nr; ++k)
   {

@@ -64,11 +64,19 @@ mesh_t* create_welded_block_mesh(mesh_t** blocks, int num_blocks, real_t weld_to
           char* btagj = btagsj->data[jj];
           if (strcmp(btagi, btagj) == 0)
           {
-            log_debug("create_welded_block_mesh: found seam tag '%s'.", btagi);
-
             // For each face in btagi, find the closest face in btagj.
-            int num_btagi_faces;
+            int num_btagi_faces, num_btagj_faces;
             int* btagi_faces = mesh_tag(blocki->face_tags, btagi, &num_btagi_faces);
+            int* btagj_faces = mesh_tag(blockj->face_tags, btagj, &num_btagj_faces);
+            if (num_btagj_faces != num_btagi_faces)
+            {
+              polymec_error("Number of faces for seam tag '%s' differs on blocks %d and %d\n"
+                            "(%d vs %d).", btagi, i, j, num_btagi_faces, num_btagj_faces);
+            }
+            btagj_faces = NULL;
+
+            log_debug("create_welded_block_mesh: found seam tag '%s' (%d faces).", btagi, num_btagi_faces);
+
             for (int f = 0; f < num_btagi_faces; ++f)
             {
               // Weld'em faces.
@@ -76,13 +84,20 @@ mesh_t* create_welded_block_mesh(mesh_t** blocks, int num_blocks, real_t weld_to
               point_t* xf = &(blocki->face_centers[face]);
               int nearest = kd_tree_nearest(face_trees[j], xf);
               ASSERT(nearest != -1);
+              ASSERT(nearest != -1);
               point_t* xfn = &(blockj->face_centers[nearest]);
               real_t D = point_distance(xf, xfn);
               if (D > weld_tolerance)
               {
-                polymec_error("No match found for face %d of block %d within a distance\n"
-                              "  %g. (Boundary tag: %s, min distance is %g)", 
-                              face, i, weld_tolerance, btagi, D);
+                polymec_error("No match found for face %d of block %d within %g.\n"
+                              "  Boundary tag: %s\n"
+                              "  Face coordinates:\n"
+                              "    face %d, block %d: x1 = (%g, %g, %g)\n"
+                              "    face %d, block %d: x2 = (%g, %g, %g) <-- closest\n"
+                              "  |x1 - x2| = %g",
+                              face, i, weld_tolerance, btagi, face, i, 
+                              xf->x, xf->y, xf->z, nearest, j, 
+                              xfn->x, xfn->y, xfn->z, D);
               }
 
               int* tuplei = int_tuple_new(2);
