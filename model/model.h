@@ -88,6 +88,9 @@ typedef struct
 static const model_dispatch_t END_OF_MODELS = {(char*)"END", NULL};
 
 // Creates an instance of a model with the given name and characteristics.
+// Constructors that use this function should return objects that can be 
+// safely destroyed with model_free below. This means that all data members 
+// should be properly initialized in a way that they can be destroyed.
 model_t* model_new(const char* name, void* context, model_vtable vtable, docstring_t* doc);
 
 // Destroys the model.
