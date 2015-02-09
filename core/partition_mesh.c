@@ -1238,6 +1238,9 @@ exchanger_t* partition_mesh(mesh_t** mesh, MPI_Comm comm, int* weights, real_t i
   // Return the migrator.
   return distributor;
 #else
+  // Replace the communicator if needed.
+  if (comm != (*mesh)->comm)
+    (*mesh)->comm = comm;
   return exchanger_new(comm);
 #endif
 }
