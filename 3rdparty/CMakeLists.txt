@@ -417,10 +417,12 @@ if (HAVE_MPI EQUAL 1)
     string(REPLACE "c11" "gnu99" SCOTCH_C_FLAGS ${CMAKE_C_FLAGS})
     string(REPLACE "-pedantic-errors" "" SCOTCH_C_FLAGS ${SCOTCH_C_FLAGS})
     string(REPLACE "-Werror-implicit-function-declaration" "" SCOTCH_C_FLAGS ${SCOTCH_C_FLAGS})
-    if (${APPLE})
-      # The "new" timing mechanism for Scotch only works on Linux?
-      set(SCOTCH_C_FLAGS "${SCOTCH_C_FLAGS} -DCOMMON_TIMING_OLD")
-    endif()
+
+    # For now, we use the "old" timing mechanism to simplify builds using 
+    # older GNU compilers.
+    set(SCOTCH_C_FLAGS "${SCOTCH_C_FLAGS} -DCOMMON_TIMING_OLD")
+
+    # Respect debug flags.
     if (CMAKE_BUILD_TYPE STREQUAL "Debug")
       set(SCOTCH_C_FLAGS "${SCOTCH_C_FLAGS} -g")
     endif()
