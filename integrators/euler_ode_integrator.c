@@ -5,6 +5,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+#include "core/array.h"
 #include "integrators/euler_ode_integrator.h"
 
 static real_t relative_difference(real_t x, real_t y)
@@ -95,12 +96,19 @@ static void compute_linf_norms(MPI_Comm comm,
   *abs_norm = norms[1];
 }
 
+struct euler_ode_observer_t 
+{
+  void* context;
+  void (*rhs_computed)(void* context, real_t t, real_t* x, real_t* rhs);
+  void (*dtor)(void* context);
+};
+
 typedef struct
 {
   MPI_Comm comm;
 
   // Implicitness factor.
-  real_t alpha;
+  real_t theta;
 
   // Context and v-table.
   void* context; 
@@ -118,19 +126,37 @@ typedef struct
   // Iteration stuff.
   int max_iters;
   real_t abs_tol, rel_tol;
+
+  // Observers.
+  ptr_array_t* observers;
 } euler_ode_t;
+
+static int eval_rhs(euler_ode_t* integ, real_t t, real_t* x, real_t* rhs)
+{
+  int status = integ->rhs(integ->context, t, x, rhs);
+
+  // Tell our observers we've computed the right hand side.
+  for (int i = 0; i < integ->observers->size; ++i)
+  {
+    euler_ode_observer_t* obs = integ->observers->data[i];
+    if (obs->rhs_computed != NULL)
+      obs->rhs_computed(obs->context, t, x, rhs);
+  }
+
+  return status;
+}
 
 static bool euler_step(void* context, real_t max_dt, real_t* t, real_t* x)
 {
   euler_ode_t* integ = context;
-  real_t alpha = integ->alpha;
+  real_t theta = integ->theta;
   int N_local = integ->num_local_values;
 
-  if (alpha == 0.0)
+  if (theta == 0.0)
   {
     // No implicitness here! Just compute the RHS and mash it into 
     // our solution.
-    int status = integ->rhs(integ->context, *t, x, integ->f1);
+    int status = eval_rhs(integ, *t, x, integ->f1);
     if (status != 0)
     {
       log_debug("euler_ode_integrator: explicit call to RHS failed.");
@@ -150,7 +176,7 @@ static bool euler_step(void* context, real_t max_dt, real_t* t, real_t* x)
 
     // Compute the right-hand function at t.
     real_t t1 = *t;
-    int status = integ->rhs(integ->context, t1, x, integ->f1);
+    int status = eval_rhs(integ, t1, x, integ->f1);
     if (status != 0) 
     {
       log_debug("euler_ode_integrator: implicit call to RHS at t failed.");
@@ -166,7 +192,7 @@ static bool euler_step(void* context, real_t max_dt, real_t* t, real_t* x)
 
       // Compute the right-hand function at t + dt.
       real_t t2 = t1 + dt;
-      status = integ->rhs(integ->context, t2, integ->x_new, integ->f2);
+      status = eval_rhs(integ, t2, integ->x_new, integ->f2);
       if (status != 0)
       {
         log_debug("euler_ode_integrator: implicit call to RHS at t + dt failed.");
@@ -175,7 +201,7 @@ static bool euler_step(void* context, real_t max_dt, real_t* t, real_t* x)
 
       // Update x_new: x_new <- x_orig + dt * RHS.
       for (int j = 0; j < N_local; ++j)
-        integ->x_new[j] = x[j] + dt * ((1.0 - alpha) * integ->f1[j] + alpha * integ->f2[j]);
+        integ->x_new[j] = x[j] + dt * ((1.0 - theta) * integ->f1[j] + theta * integ->f2[j]);
 
       // Compute the relative and absolute norms of the change to the solution.
       real_t rel_norm = 0.0, abs_norm = 0.0;
@@ -203,7 +229,7 @@ static bool euler_advance(void* context, real_t t1, real_t t2, real_t* x)
 {
   // Well, if you're not going to be picky, we're going to be greedy. After 
   // all, the backward Euler method is L-stable, so you're probably only 
-  // calling this if you're using alpha == 1. And if you're not, it's time 
+  // calling this if you're using theta == 1. And if you're not, it's time 
   // to learn from your mistakes.
   real_t max_dt = t2 - t1; // Take one honkin' step.
   real_t t = t1;
@@ -217,12 +243,13 @@ static void euler_dtor(void* context)
   polymec_free(integ->f2);
   polymec_free(integ->x_new);
   polymec_free(integ->x_old);
+  ptr_array_free(integ->observers);
   if ((integ->context != NULL) && (integ->dtor != NULL))
     integ->dtor(integ->context);
   polymec_free(integ);
 }
 
-ode_integrator_t* functional_euler_ode_integrator_new(real_t alpha, 
+ode_integrator_t* functional_euler_ode_integrator_new(real_t theta, 
                                                       MPI_Comm comm,
                                                       int num_local_values,
                                                       int num_remote_values,
@@ -230,20 +257,21 @@ ode_integrator_t* functional_euler_ode_integrator_new(real_t alpha,
                                                       int (*rhs)(void* context, real_t t, real_t* x, real_t* xdot),
                                                       void (*dtor)(void* context))
 {
-  ASSERT(alpha >= 0.0);
-  ASSERT(alpha <= 1.0);
+  ASSERT(theta >= 0.0);
+  ASSERT(theta <= 1.0);
   ASSERT(num_local_values > 0);
   ASSERT(num_remote_values >= 0);
   ASSERT(rhs != NULL);
 
   euler_ode_t* integ = polymec_malloc(sizeof(euler_ode_t));
-  integ->alpha = alpha;
+  integ->theta = theta;
   integ->comm = comm;
   integ->num_local_values = num_local_values;
   integ->num_remote_values = num_remote_values;
   integ->context = context;
   integ->rhs = rhs;
   integ->dtor = dtor;
+  integ->observers = ptr_array_new();
 
   integ->x_old = polymec_malloc(sizeof(real_t) * (num_local_values + num_remote_values));
   integ->x_new = polymec_malloc(sizeof(real_t) * (num_local_values + num_remote_values));
@@ -255,11 +283,11 @@ ode_integrator_t* functional_euler_ode_integrator_new(real_t alpha,
                                   .dtor = euler_dtor};
 
   int order = 1;
-  if (alpha == 0.5) 
+  if (theta == 0.5) 
     order = 2;
 
   char name[1024];
-  snprintf(name, 1024, "Functional Euler integrator(alpha = %g)", alpha);
+  snprintf(name, 1024, "Functional Euler integrator(theta = %g)", theta);
   ode_integrator_t* I = ode_integrator_new(name, integ, vtable, order);
 
   // Set default iteration criteria.

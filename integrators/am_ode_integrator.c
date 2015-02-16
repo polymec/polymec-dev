@@ -228,6 +228,7 @@ static void am_dtor(void* context)
     polymec_free(integ->status_message);
   if ((integ->context != NULL) && (integ->dtor != NULL))
     integ->dtor(integ->context);
+  ptr_array_free(integ->observers);
   polymec_free(integ);
 }
 

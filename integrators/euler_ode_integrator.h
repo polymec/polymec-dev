@@ -14,13 +14,13 @@
 // differential equations using an implicit Euler method.
 
 // Creates an Euler integrator that uses functional, or fixed-point, iteration. 
-// The implicitness parameter alpha determines the degree of implicitness, with 
+// The implicitness parameter theta determines the degree of implicitness, with 
 // 0 signifying a forward Euler method, 0.5 a Crank-Nicolson method, and 
 // 1 a backward Euler method. The integrator is constructed for a system of 
 // ordinary differential equations (with given numbers of local and remote 
 // values, for parallel capability), using a context pointer, a 
 // right-hand side function, and a destructor. 
-ode_integrator_t* functional_euler_ode_integrator_new(real_t alpha,
+ode_integrator_t* functional_euler_ode_integrator_new(real_t theta,
                                                       MPI_Comm comm,
                                                       int num_local_values,
                                                       int num_remote_values,
@@ -44,6 +44,27 @@ void euler_ode_integrator_set_tolerances(ode_integrator_t* integrator,
 // 0 (L-infinity norm).
 void euler_ode_integrator_set_convergence_norm(ode_integrator_t* integrator,
                                                int p);
+
+// This observer type can be used to define objects that respond to actions
+// taken by the euler_ode_integrator.
+typedef struct euler_ode_observer_t euler_ode_observer_t;
+
+// Creates and returns a newly-allocated observer that observes an 
+// am_ode_integrator. Responses are given by the following arguments:
+// rhs_computed - This function is called when the right hand side of the ODE
+//                system is computed by the integrator.
+// These functions are fed the given context object.
+euler_ode_observer_t* euler_ode_observer_new(void* context,
+                                             void (*rhs_computed)(void* context, real_t t, real_t* x, real_t* rhs),
+                                             void (*dtor)(void* context));
+
+// Destroys the given observer.
+void euler_ode_observer_free(euler_ode_observer_t* observer);
+
+// Adds the given observer to the given euler_ode_integrator. The observer 
+// is consumed.
+void euler_ode_integrator_add_observer(ode_integrator_t* integrator,
+                                       euler_ode_observer_t* observer);
 
 #endif
 
