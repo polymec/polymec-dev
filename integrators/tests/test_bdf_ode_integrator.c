@@ -51,10 +51,10 @@ void test_diurnal_step(void** state, ode_integrator_t* integ)
 //    preconditioner_matrix_fprintf(ode_integrator_preconditioner_matrix(integ), stdout);
     assert_true(integrated);
   }
-printf("u = [");
-for (int i = 0; i < 200; ++i)
-printf("%g ", u[i]);
-printf("]\n");
+//printf("u = [");
+//for (int i = 0; i < 200; ++i)
+//printf("%g ", u[i]);
+//printf("]\n");
   bdf_ode_integrator_diagnostics_t diags;
   bdf_ode_integrator_get_diagnostics(integ, &diags);
   bdf_ode_integrator_diagnostics_fprintf(&diags, stdout);

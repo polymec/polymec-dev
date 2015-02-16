@@ -6,6 +6,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include "core/sundials_helpers.h"
+#include "core/array.h"
 #include "integrators/am_ode_integrator.h"
 #include "integrators/newton_pc.h"
 #include "cvode/cvode.h"
@@ -15,6 +16,14 @@
 #include "cvode/cvode_spgmr.h"
 #include "cvode/cvode_spbcgs.h"
 #include "cvode/cvode_sptfqmr.h"
+
+struct am_ode_observer_t 
+{
+  void* context;
+  void (*rhs_computed)(void* context, real_t t, real_t* x, real_t* rhs);
+  void (*Jy_computed)(void* context, real_t t, real_t* x, real_t* rhs, real_t* y, real_t* Jy);
+  void (*dtor)(void* context);
+};
 
 typedef struct
 {
@@ -38,6 +47,9 @@ typedef struct
 
   // Error weight function.
   am_ode_integrator_error_weight_func compute_weights;
+
+  // Observers.
+  ptr_array_t* observers;
 } am_ode_t;
 
 static char* get_status_message(int status, real_t current_time)
@@ -90,6 +102,14 @@ static int am_evaluate_rhs(real_t t, N_Vector x, N_Vector x_dot, void* context)
   {
     // Copy the local result into our solution vector.
     memcpy(xx, integ->x_with_ghosts, sizeof(real_t) * integ->num_local_values);
+  }
+
+  // Tell our observers we've computed the right hand side.
+  for (int i = 0; i < integ->observers->size; ++i)
+  {
+    am_ode_observer_t* obs = integ->observers->data[i];
+    if (obs->rhs_computed != NULL)
+      obs->rhs_computed(obs->context, t, xx, xxd);
   }
 
   return status;
@@ -236,6 +256,7 @@ ode_integrator_t* functional_am_ode_integrator_new(int order,
   integ->max_krylov_dim = 0;
   integ->Jy = NULL;
   integ->precond = NULL;
+  integ->observers = ptr_array_new();
 
   // Set up KINSol and accessories.
   integ->x = N_VNew(integ->comm, integ->num_local_values);
@@ -310,7 +331,20 @@ static int eval_Jy(N_Vector y, N_Vector Jy, real_t t, N_Vector x, N_Vector rhs, 
   real_t* my_rhs = NV_DATA(rhs);
   real_t* temp = NV_DATA(tmp);
   real_t* jjy = NV_DATA(Jy);
-  return integ->Jy(integ->context, t, xx, my_rhs, yy, temp, jjy);
+
+  // Make sure we use ghosts.
+  memcpy(integ->x_with_ghosts, xx, sizeof(real_t) * integ->num_local_values);
+  int status = integ->Jy(integ->context, t, integ->x_with_ghosts, my_rhs, yy, temp, jjy);
+
+  // Tell our observers we've computed the right hand side.
+  for (int i = 0; i < integ->observers->size; ++i)
+  {
+    am_ode_observer_t* obs = integ->observers->data[i];
+    if (obs->Jy_computed != NULL)
+      obs->Jy_computed(obs->context, t, xx, my_rhs, yy, jjy);
+  }
+
+  return status;
 }
 
 ode_integrator_t* jfnk_am_ode_integrator_new(int order,
@@ -344,6 +378,7 @@ ode_integrator_t* jfnk_am_ode_integrator_new(int order,
   integ->max_krylov_dim = max_krylov_dim;
   integ->Jy = Jy_func;
   integ->t = 0.0;
+  integ->observers = ptr_array_new();
 
   // Set up KINSol and accessories.
   integ->x = N_VNew(integ->comm, integ->num_local_values);
@@ -517,5 +552,32 @@ void am_ode_integrator_diagnostics_fprintf(am_ode_integrator_diagnostics_t* diag
     fprintf(stream, "  Num preconditioner evaluations: %d\n", (int)diagnostics->num_preconditioner_evaluations);
   if (diagnostics->num_preconditioner_solves != -1)
     fprintf(stream, "  Num preconditioner solves: %d\n", (int)diagnostics->num_preconditioner_solves);
+}
+
+am_ode_observer_t* am_ode_observer_new(void* context,
+                                       void (*rhs_computed)(void* context, real_t t, real_t* x, real_t* rhs),
+                                       void (*Jy_computed)(void* context, real_t t, real_t* x, real_t* rhs, real_t* y, real_t* Jy),
+                                       void (*dtor)(void* context))
+{
+  am_ode_observer_t* obs = polymec_malloc(sizeof(am_ode_observer_t));
+  obs->context = context;
+  obs->rhs_computed = rhs_computed;
+  obs->Jy_computed = Jy_computed;
+  obs->dtor = dtor;
+  return obs;
+}
+
+void am_ode_observer_free(am_ode_observer_t* observer)
+{
+  if ((observer->dtor != NULL) && (observer->context != NULL))
+    observer->dtor(observer->context);
+  polymec_free(observer);
+}
+
+void am_ode_integrator_add_observer(ode_integrator_t* integrator,
+                                    am_ode_observer_t* observer)
+{
+  am_ode_t* integ = ode_integrator_context(integrator);
+  ptr_array_append_with_dtor(integ->observers, observer, DTOR(am_ode_observer_free));
 }
 

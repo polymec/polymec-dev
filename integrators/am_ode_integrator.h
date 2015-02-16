@@ -136,5 +136,29 @@ void am_ode_integrator_get_diagnostics(ode_integrator_t* integrator,
 void am_ode_integrator_diagnostics_fprintf(am_ode_integrator_diagnostics_t* diagnostics, 
                                            FILE* stream);
 
+// This observer type can be used to define objects that respond to actions
+// taken by the am_ode_integrator.
+typedef struct am_ode_observer_t am_ode_observer_t;
+
+// Creates and returns a newly-allocated observer that observes an 
+// am_ode_integrator. Responses are given by the following arguments:
+// rhs_computed - This function is called when the right hand side of the ODE
+//                system is computed by the integrator.
+// Jy_computed - This function is called when the Jacobian-vector product J*y 
+//               is computed by the integrator.
+// Both of these functions are fed the given context object.
+am_ode_observer_t* am_ode_observer_new(void* context,
+                                       void (*rhs_computed)(void* context, real_t t, real_t* x, real_t* rhs),
+                                       void (*Jy_computed)(void* context, real_t t, real_t* x, real_t* rhs, real_t* y, real_t* Jy),
+                                       void (*dtor)(void* context));
+
+// Destroys the given observer.
+void am_ode_observer_free(am_ode_observer_t* observer);
+
+// Adds the given observer to the given am_ode_integrator. The observer 
+// is consumed.
+void am_ode_integrator_add_observer(ode_integrator_t* integrator,
+                                    am_ode_observer_t* observer);
+
 #endif
 
