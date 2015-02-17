@@ -141,11 +141,8 @@ bdf_ode_observer_t* bdf_ode_observer_new(void* context,
                                          void (*Jy_computed)(void* context, real_t t, real_t* x, real_t* rhs, real_t* y, real_t* Jy),
                                          void (*dtor)(void* context));
 
-// Destroys the given observer.
-void bdf_ode_observer_free(bdf_ode_observer_t* observer);
-
 // Adds the given observer to the given am_ode_integrator. The observer 
-// is consumed.
+// is consumed by the integrator, so no destructor is needed.
 void bdf_ode_integrator_add_observer(ode_integrator_t* integrator,
                                      bdf_ode_observer_t* observer);
 

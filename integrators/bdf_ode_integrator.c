@@ -511,7 +511,7 @@ bdf_ode_observer_t* bdf_ode_observer_new(void* context,
   return obs;
 }
 
-void bdf_ode_observer_free(bdf_ode_observer_t* observer)
+static void bdf_ode_observer_free(bdf_ode_observer_t* observer)
 {
   if ((observer->dtor != NULL) && (observer->context != NULL))
     observer->dtor(observer->context);

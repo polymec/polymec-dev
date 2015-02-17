@@ -95,6 +95,13 @@ void polynomial_fit_get_coeffs(polynomial_fit_t* fit,
                                int component,
                                real_t* coeffs);
 
+// Sets the coefficients of the polynomial so that they can be used to evaluate
+// the polynomial. This can be useful for using cached coefficients to optimize
+// performance.
+void polynomial_fit_set_coeffs(polynomial_fit_t* fit, 
+                               int component,
+                               real_t* coeffs);
+
 // Writes a text representation of the polynomial fit to the given stream.
 void polynomial_fit_fprintf(polynomial_fit_t* fit, FILE* stream);
 

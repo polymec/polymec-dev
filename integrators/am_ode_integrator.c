@@ -568,7 +568,7 @@ am_ode_observer_t* am_ode_observer_new(void* context,
   return obs;
 }
 
-void am_ode_observer_free(am_ode_observer_t* observer)
+static void am_ode_observer_free(am_ode_observer_t* observer)
 {
   if ((observer->dtor != NULL) && (observer->context != NULL))
     observer->dtor(observer->context);
