@@ -14,14 +14,6 @@
 #include "ida/ida_spbcgs.h"
 #include "ida/ida_sptfqmr.h"
 
-// Types of linear solvers.
-typedef enum 
-{
-  GMRES,
-  BICGSTAB,
-  TFQMR
-} solver_type_t;
-
 struct dae_integrator_t 
 {
   char* name;
@@ -29,18 +21,21 @@ struct dae_integrator_t
   dae_integrator_vtable vtable;
   int order;
   MPI_Comm comm;
-  solver_type_t solver_type;
+  dae_krylov_t solver_type;
   bool initialized;
 
-  int N; // dimension of system.
+  int num_local_values, num_remote_values;
 
   // IDA data structures.
   void* ida;
   N_Vector x, x_dot;
-  real_t current_time;
+  real_t* x_with_ghosts;
   int max_krylov_dim;
   char* status_message; // status of most recent integration.
   real_t max_dt, stop_time;
+
+  // Current simulation time;
+  real_t t;
 
   // Error weight function.
   dae_integrator_error_weight_func compute_weights;
@@ -87,7 +82,7 @@ static int solve_preconditioner_system(real_t t, N_Vector x, N_Vector x_dot,
   
   // FIXME: Apply scaling if needed.
   // Copy the contents of the residual to the output vector.
-  memcpy(NV_DATA(z), NV_DATA(r), sizeof(real_t) * integ->N);
+  memcpy(NV_DATA(z), NV_DATA(r), sizeof(real_t) * integ->num_local_values);
 
   // Solve it.
   if (newton_pc_solve(integ->precond, NV_DATA(z)))
@@ -96,47 +91,52 @@ static int solve_preconditioner_system(real_t t, N_Vector x, N_Vector x_dot,
     return 1; // recoverable error.
 }
 
-static dae_integrator_t* dae_integrator_new(const char* name, 
-                                            void* context,
-                                            MPI_Comm comm,
-                                            int N,
-                                            dae_integrator_vtable vtable,
-                                            int order,
-                                            solver_type_t solver_type,
-                                            int max_krylov_dim)
+dae_integrator_t* dae_integrator_new(int order,
+                                     MPI_Comm comm,
+                                     int num_local_values,
+                                     int num_remote_values,
+                                     void* context,
+                                     dae_integrator_vtable vtable,
+                                     newton_pc_t* precond,
+                                     dae_krylov_t solver_type,
+                                     int max_krylov_dim)
 {
-  ASSERT(N > 0);
   ASSERT(order > 0);
   ASSERT(order <= 5);
+  ASSERT(num_local_values > 0);
+  ASSERT(num_remote_values >= 0);
   ASSERT(vtable.residual != NULL);
+  ASSERT(precond != NULL);
   ASSERT(max_krylov_dim >= 3);
 
   dae_integrator_t* integ = polymec_malloc(sizeof(dae_integrator_t));
-  integ->name = string_dup(name);
   integ->context = context;
   integ->comm = comm;
   integ->vtable = vtable;
   integ->order = order;
   integ->solver_type = solver_type;
-  integ->current_time = 0.0;
-  integ->N = N;
+  integ->t = 0.0;
+  integ->num_local_values = num_local_values;
+  integ->num_remote_values = num_remote_values;
+  integ->precond = precond;
   integ->max_krylov_dim = max_krylov_dim;
   integ->initialized = false;
   integ->max_dt = FLT_MAX;
   integ->status_message = NULL;
 
   // Set up KINSol and accessories.
-  integ->x = N_VNew(comm, N);
-  integ->x_dot = N_VNew(comm, N);
+  integ->x = N_VNew(comm, num_local_values);
+  integ->x_with_ghosts = polymec_malloc(sizeof(real_t) * (num_local_values + num_remote_values));
+  integ->x_dot = N_VNew(comm, num_local_values);
   integ->ida = IDACreate();
   IDASetMaxOrd(integ->ida, integ->order);
   IDASetUserData(integ->ida, integ);
-  IDAInit(integ->ida, evaluate_residual, integ->current_time, integ->x, integ->x_dot);
+  IDAInit(integ->ida, evaluate_residual, integ->t, integ->x, integ->x_dot);
 
   // Select the particular type of Krylov method for the underlying linear solves.
-  if (solver_type == GMRES)
+  if (solver_type == DAE_GMRES)
     IDASpgmr(integ->ida, max_krylov_dim); 
-  else if (solver_type == BICGSTAB)
+  else if (solver_type == DAE_BICGSTAB)
     IDASpbcg(integ->ida, max_krylov_dim);
   else
     IDASptfqmr(integ->ida, max_krylov_dim);
@@ -147,12 +147,11 @@ static dae_integrator_t* dae_integrator_new(const char* name,
   // Set up preconditioner machinery.
   IDASpilsSetPreconditioner(integ->ida, set_up_preconditioner,
                            solve_preconditioner_system);
-  integ->precond = NULL;
 
   // Algebraic constraints.
   if (integ->vtable.set_constraints != NULL)
   {
-    N_Vector constraints = N_VNew(integ->comm, N);
+    N_Vector constraints = N_VNew(integ->comm, num_local_values);
     integ->vtable.set_constraints(integ->context, NV_DATA(constraints));
     IDASetConstraints(integ->ida, constraints);
     N_VDestroy(constraints);
@@ -167,42 +166,6 @@ static dae_integrator_t* dae_integrator_new(const char* name,
 //  IDASetMaxNumSteps(integ->ida, 500); // default is 500.
 
   return integ;
-}
-
-dae_integrator_t* gmres_dae_integrator_new(const char* name,
-                                           void* context,
-                                           MPI_Comm comm,
-                                           int N,
-                                           dae_integrator_vtable vtable,
-                                           int order,
-                                           int max_krylov_dim)
-{
-  return dae_integrator_new(name, context, comm, N, vtable, order, GMRES, 
-                            max_krylov_dim);
-}
-
-dae_integrator_t* bicgstab_dae_integrator_new(const char* name,
-                                              void* context,
-                                              MPI_Comm comm,
-                                              int N,
-                                              dae_integrator_vtable vtable,
-                                              int order,
-                                              int max_krylov_dim)
-{
-  return dae_integrator_new(name, context, comm, N, vtable, order, BICGSTAB, 
-                            max_krylov_dim);
-}
-
-dae_integrator_t* tfqmr_dae_integrator_new(const char* name,
-                                           void* context,
-                                           MPI_Comm comm,
-                                           int N,
-                                           dae_integrator_vtable vtable,
-                                           int order,
-                                           int max_krylov_dim)
-{
-  return dae_integrator_new(name, context, comm, N, vtable, order, TFQMR, 
-                            max_krylov_dim);
 }
 
 void dae_integrator_free(dae_integrator_t* integ)
@@ -221,13 +184,7 @@ void dae_integrator_free(dae_integrator_t* integ)
     polymec_free(integ->status_message);
   if ((integ->context != NULL) && (integ->vtable.dtor != NULL))
     integ->vtable.dtor(integ->context);
-  polymec_free(integ->name);
   polymec_free(integ);
-}
-
-char* dae_integrator_name(dae_integrator_t* integ)
-{
-  return integ->name;
 }
 
 void* dae_integrator_context(dae_integrator_t* integ)
@@ -238,12 +195,6 @@ void* dae_integrator_context(dae_integrator_t* integ)
 int dae_integrator_order(dae_integrator_t* integ)
 {
   return integ->order;
-}
-
-void dae_integrator_set_preconditioner(dae_integrator_t* integrator,
-                                       newton_pc_t* precond)
-{
-  integrator->precond = precond;
 }
 
 newton_pc_t* dae_integrator_preconditioner(dae_integrator_t* integrator)
@@ -301,25 +252,25 @@ void dae_integrator_set_stop_time(dae_integrator_t* integ, real_t stop_time)
 bool dae_integrator_step(dae_integrator_t* integ, real_t* t, real_t* X, real_t* X_dot)
 {
   // Copy in the solution and its time derivative.
-  memcpy(NV_DATA(integ->x), X, sizeof(real_t) * integ->N); 
-  memcpy(NV_DATA(integ->x_dot), X_dot, sizeof(real_t) * integ->N); 
+  memcpy(NV_DATA(integ->x), X, sizeof(real_t) * integ->num_local_values); 
+  memcpy(NV_DATA(integ->x_dot), X_dot, sizeof(real_t) * integ->num_local_values); 
 
   if (!integ->initialized)
   {
-    integ->current_time = *t;
-    IDAReInit(integ->ida, integ->current_time, integ->x, integ->x_dot);
+    integ->t = *t;
+    IDAReInit(integ->ida, integ->t, integ->x, integ->x_dot);
     integ->initialized = true;
   }
-  else if (fabs(integ->current_time - *t) > 1e-14)
+  else if (fabs(integ->t - *t) > 1e-14)
   {
     // Reset the integrator if t != current_time.
-    integ->current_time = *t;
-    IDAReInit(integ->ida, integ->current_time, integ->x, integ->x_dot);
+    integ->t = *t;
+    IDAReInit(integ->ida, integ->t, integ->x, integ->x_dot);
   }
 
   // Integrate.
   real_t t2 = *t + integ->max_dt;
-  int status = IDASolve(integ->ida, t2, &integ->current_time, integ->x, integ->x_dot, IDA_ONE_STEP);
+  int status = IDASolve(integ->ida, t2, &integ->t, integ->x, integ->x_dot, IDA_ONE_STEP);
   
   // Clear the present status.
   if (integ->status_message != NULL)
@@ -332,9 +283,9 @@ bool dae_integrator_step(dae_integrator_t* integ, real_t* t, real_t* X, real_t* 
   if ((status == IDA_SUCCESS) || (status == IDA_TSTOP_RETURN))
   {
     // Copy out the solution.
-    *t = integ->current_time;
-    memcpy(X, NV_DATA(integ->x), sizeof(real_t) * integ->N); 
-    memcpy(X_dot, NV_DATA(integ->x_dot), sizeof(real_t) * integ->N); 
+    *t = integ->t;
+    memcpy(X, NV_DATA(integ->x), sizeof(real_t) * integ->num_local_values); 
+    memcpy(X_dot, NV_DATA(integ->x_dot), sizeof(real_t) * integ->num_local_values); 
     return true;
   }
   else
@@ -342,7 +293,7 @@ bool dae_integrator_step(dae_integrator_t* integ, real_t* t, real_t* X, real_t* 
     if (status == IDA_TOO_MUCH_WORK)
     {
       char err[1024];
-      snprintf(err, 1024, "Integrator stopped at t = %g after maximum number of steps.", integ->current_time);
+      snprintf(err, 1024, "Integrator stopped at t = %g after maximum number of steps.", integ->t);
       integ->status_message = string_dup(err);
     }
     else if (status == IDA_TOO_MUCH_ACC)
@@ -371,10 +322,10 @@ bool dae_integrator_step(dae_integrator_t* integ, real_t* t, real_t* X, real_t* 
 
 void dae_integrator_reset(dae_integrator_t* integ, real_t t, real_t* X, real_t* X_dot)
 {
-  integ->current_time = t;
-  memcpy(NV_DATA(integ->x), X, sizeof(real_t) * integ->N); 
-  memcpy(NV_DATA(integ->x_dot), X_dot, sizeof(real_t) * integ->N); 
-  IDAReInit(integ->ida, integ->current_time, integ->x, integ->x_dot);
+  integ->t = t;
+  memcpy(NV_DATA(integ->x), X, sizeof(real_t) * integ->num_local_values); 
+  memcpy(NV_DATA(integ->x_dot), X_dot, sizeof(real_t) * integ->num_local_values); 
+  IDAReInit(integ->ida, integ->t, integ->x, integ->x_dot);
   integ->initialized = true;
 }
 

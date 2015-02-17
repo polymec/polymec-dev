@@ -65,5 +65,19 @@ void newton_pc_setup(newton_pc_t* precond,
 // Returns true if the solve succeeded, false otherwise.
 bool newton_pc_solve(newton_pc_t* precond, real_t* R);
 
+// The following "lock/unlock" methods are for fixing the alpha, beta, and gamma coefficients,
+// and may only be used in tandem with the newton_solver, and not Newton-Krylov ODE/DAE solvers.
+
+// Locks the alpha, beta, gamma coefficients to fixed values so that newton_pc_setup always 
+// uses these fixed values instead of those requested.
+void newton_pc_lock_coefficients(newton_pc_t* precond, real_t alpha0, real_t beta0, real_t gamma0);
+
+// Unlocks the alpha, beta, gamma coefficients if they were previously locked. Has no effect 
+// if these coefficients weren't previously locked.
+void newton_pc_unlock_coefficients(newton_pc_t* precond);
+
+// Returns true if the alpha, beta, gamma coefficients have been locked, false if not.
+bool newton_pc_coefficients_locked(newton_pc_t* precond);
+
 #endif
 

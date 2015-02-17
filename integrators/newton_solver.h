@@ -38,7 +38,7 @@ typedef void (*newton_solver_constraints_func)(void* context, real_t* constraint
 // Context destructor.
 typedef void (*newton_solver_dtor)(void* context);
 
-// This virtual table determines the behavior of the nonlinear integrator.
+// This virtual table determines the behavior of the nonlinear solver.
 typedef struct
 {
   // This function evaluates the residual of the nonlinear system.
@@ -64,7 +64,7 @@ typedef struct
   // 2.0  - x[i] must be positive.
   newton_solver_constraints_func set_constraints;
 
-  // This (optional) function destroys the state (context) when the nonlinear integrator 
+  // This (optional) function destroys the state (context) when the nonlinear solver 
   // is destroyed.
   newton_solver_dtor dtor;
 
@@ -76,8 +76,8 @@ typedef struct
 // Newton-Krylov methods provided by KINSol.
 typedef struct newton_solver_t newton_solver_t;
 
-// The following functions define a nonlinear integrator with the given 
-// name, context, and virtual table for integrated a discretized system of 
+// The following functions define a nonlinear solver with the given 
+// context and virtual table for integrated a discretized system of 
 // partial differential equations represented by a sparse nonlinear system of 
 // equations. The virtual table defines accessor methods for the residual 
 // function and the adjacency graph, and the globalization strategy can be 
@@ -94,8 +94,7 @@ typedef enum
 // maximum subspace dimension of max_krylov_dim. If the solver_type is NEWTON_GMRES, 
 // the maximum number of restarts is given by max_restarts--otherwise that parameter 
 // is ignored. N is the dimension of the system.
-newton_solver_t* newton_solver_new(const char* name,
-                                   void* context,
+newton_solver_t* newton_solver_new(void* context,
                                    MPI_Comm comm,
                                    int num_local_values,
                                    int num_remote_values,
@@ -107,42 +106,41 @@ newton_solver_t* newton_solver_new(const char* name,
                                    int max_restarts);
 
 // Frees a solver.
-void newton_solver_free(newton_solver_t* integrator);
-
-// Returns an internal string storing the name of the solver.
-char* newton_solver_name(newton_solver_t* integrator);
+void newton_solver_free(newton_solver_t* solver);
 
 // Returns the context pointer for the solver.
-void* newton_solver_context(newton_solver_t* integrator);
+void* newton_solver_context(newton_solver_t* solver);
 
 // Returns the number of (local) equations in the nonlinear system.
-int newton_solver_num_equations(newton_solver_t* integrator);
+int newton_solver_num_equations(newton_solver_t* solver);
 
 // Sets the tolerances for the function norm (norm_tolerance) and the Newton
-// step (step_tolerance) for the nonlinear integrator. The default values 
+// step (step_tolerance) for the nonlinear solver. The default values 
 // for these tolerances are the machine roundoff threshold raised to the 
 // 1/3 and 1/2 powers, respectively.
-void newton_solver_set_tolerances(newton_solver_t* integrator, real_t norm_tolerance, real_t step_tolerance);
+void newton_solver_set_tolerances(newton_solver_t* solver, 
+                                  real_t norm_tolerance, 
+                                  real_t step_tolerance);
 
-// Sets the maximum number of Newton iterations for the integrator.
-void newton_solver_set_max_iterations(newton_solver_t* integrator, int max_iterations);
+// Sets the maximum number of Newton iterations for the solver.
+void newton_solver_set_max_iterations(newton_solver_t* solver, int max_iterations);
 
 // Gets an internal pointer to the preconditioner.
-newton_pc_t* newton_solver_preconditioner(newton_solver_t* integrator);
+newton_pc_t* newton_solver_preconditioner(newton_solver_t* solver);
 
 // Evaluates the residual vector, storing it in F.
-void newton_solver_eval_residual(newton_solver_t* integrator, real_t t, real_t* X, real_t* F);
+void newton_solver_eval_residual(newton_solver_t* solver, real_t t, real_t* X, real_t* F);
 
 // Integrates the nonlinear system of equations F(X, t) = 0 in place, 
 // using X as the initial guess. Returns true if the solution was obtained, 
 // false if not. The number of nonlinear iterations will be stored in 
 // num_iterations upon success.
-bool newton_solver_solve(newton_solver_t* integrator, real_t t, real_t* X, int* num_iterations);
+bool newton_solver_solve(newton_solver_t* solver, real_t t, real_t* X, int* num_iterations);
 
-// Diagnostics for the nonlinear integrator.
+// Diagnostics for the nonlinear solver.
 typedef struct
 {
-  char* status_message; // borrowed pointer from integrator: do not free.
+  char* status_message; // borrowed pointer from solver: do not free.
   long int num_function_evaluations;
   long int num_beta_condition_failures;
   long int num_backtrack_operations;
@@ -157,11 +155,11 @@ typedef struct
   long int num_difference_quotient_function_evaluations;
 } newton_solver_diagnostics_t;
 
-// Retrieve diagnostics for the nonlinear integrator.
-void newton_solver_get_diagnostics(newton_solver_t* integrator, 
+// Retrieve diagnostics for the nonlinear solver.
+void newton_solver_get_diagnostics(newton_solver_t* solver, 
                                    newton_solver_diagnostics_t* diagnostics);
 
-// Writes nonlinear integrator diagnostics to the given file.
+// Writes nonlinear solver diagnostics to the given file.
 void newton_solver_diagnostics_fprintf(newton_solver_diagnostics_t* diagnostics, 
                                        FILE* stream);
 

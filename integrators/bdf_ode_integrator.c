@@ -320,6 +320,7 @@ ode_integrator_t* jfnk_bdf_ode_integrator_new(int order,
   ASSERT(rhs_func != NULL);
   ASSERT(precond != NULL);
   ASSERT(max_krylov_dim > 3);
+  ASSERT(!newton_pc_coefficients_locked(precond));
 
   bdf_ode_t* integ = polymec_malloc(sizeof(bdf_ode_t));
   integ->comm = comm;

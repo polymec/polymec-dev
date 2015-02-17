@@ -175,19 +175,15 @@ void heat2d_set_initial_conditions(dae_integrator_t* integ, real_t** u, real_t**
 }
 
 // Constructor for heat2d integrator with no preconditioner.
-static dae_integrator_t* heat2d_integrator_new()
+static dae_integrator_t* heat2d_integrator_new(heat2d_t* data, newton_pc_t* precond)
 {
   // Set up a time integrator using GMRES with a Krylov space of maximum 
   // dimension 5.
-  heat2d_t* data = heat2d_new();
   dae_integrator_vtable vtable = {.residual = heat2d_res,
                                   .set_constraints = heat2d_set_constraints,
                                   .dtor = heat2d_dtor};
-  dae_integrator_t* integ = gmres_dae_integrator_new("heat2d",
-                                                     data,
-                                                     MPI_COMM_SELF,
-                                                     NEQ,
-                                                     vtable, 5, 5);
+  dae_integrator_t* integ = dae_integrator_new(5, MPI_COMM_SELF, NEQ, 0, data, vtable, 
+                                               precond, DAE_GMRES, 5);
 
   return integ;
 }
@@ -195,31 +191,25 @@ static dae_integrator_t* heat2d_integrator_new()
 // Constructor for block-Jacobi-preconditioned heat2d integrator.
 dae_integrator_t* block_jacobi_precond_heat2d_integrator_new()
 {
-  dae_integrator_t* integ = heat2d_integrator_new();
-  heat2d_t* data = dae_integrator_context(integ);
+  heat2d_t* data = heat2d_new();
   newton_pc_t* precond = block_jacobi_cpr_pc_from_dae_function(MPI_COMM_WORLD, data, heat2d_res, NULL, data->sparsity, NEQ, 0, 1);
-  dae_integrator_set_preconditioner(integ, precond);
-  return integ;
+  return heat2d_integrator_new(data, precond);
 }
 
 // Constructor for LU-preconditioned heat2d integrator.
 dae_integrator_t* lu_precond_heat2d_integrator_new()
 {
-  dae_integrator_t* integ = heat2d_integrator_new();
-  heat2d_t* data = dae_integrator_context(integ);
+  heat2d_t* data = heat2d_new();
   newton_pc_t* precond = lu_cpr_pc_from_dae_function(MPI_COMM_WORLD, data, heat2d_res, NULL, data->sparsity, NEQ, 0);
-  dae_integrator_set_preconditioner(integ, precond);
-  return integ;
+  return heat2d_integrator_new(data, precond);
 }
 
 // Constructor for ILU-preconditioned heat2d integrator.
 dae_integrator_t* ilu_precond_heat2d_integrator_new()
 {
-  dae_integrator_t* integ = heat2d_integrator_new();
+  heat2d_t* data = heat2d_new();
   ilu_params_t* ilu_params = ilu_params_new();
-  heat2d_t* data = dae_integrator_context(integ);
   newton_pc_t* precond = ilu_cpr_pc_from_dae_function(MPI_COMM_WORLD, data, heat2d_res, NULL, data->sparsity, NEQ, 0, ilu_params);
-  dae_integrator_set_preconditioner(integ, precond);
-  return integ;
+  return heat2d_integrator_new(data, precond);
 }
 

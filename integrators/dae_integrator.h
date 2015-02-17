@@ -12,6 +12,14 @@
 #include "core/adj_graph.h"
 #include "integrators/newton_pc.h"
 
+// Types of Krylov solver to use for our DAE method.
+typedef enum 
+{
+  DAE_GMRES,    // Generalized minimum residual Krylov solver
+  DAE_BICGSTAB, // Stabilized Biconjugate Gradient Krylov solver
+  DAE_TFQMR     // Transpose-Free QMR Krylov solver
+} dae_krylov_t;
+
 // This function evaluates the residual of a system of differential-algebraic 
 // equations (DAEs).
 typedef int (*dae_integrator_residual_func)(void* context, real_t t, real_t* x, real_t* x_dot, real_t* F);
@@ -52,56 +60,26 @@ typedef struct
 // nonlinear differential equations. 
 typedef struct dae_integrator_t dae_integrator_t;
 
-// Creates an integrator that uses a GMRES Krylov method with a given 
-// maximum subspace dimension of max_krylov_dim. No restarts are used.
-// N is the dimension of the system.
-dae_integrator_t* gmres_dae_integrator_new(const char* name, 
-                                           void* context,
-                                           MPI_Comm comm,
-                                           int N,
-                                           dae_integrator_vtable vtable,
-                                           int order,
-                                           int max_krylov_dim);
-
-// Creates an integrator that uses a stabilized bi-conjugate gradient Krylov 
-// method with a given maximum subspace dimension of max_krylov_dim.
-// N is the dimension of the system.
-dae_integrator_t* bicgs_dae_integrator_new(const char* name, 
-                                           void* context,
-                                           MPI_Comm comm,
-                                           int N,
-                                           dae_integrator_vtable vtable,
-                                           int order,
-                                           int max_krylov_dim);
-
-// Creates an integrator that uses a transpose-free quasi-minimum residual 
-// Krylov method with a given maximum subspace dimension of max_krylov_dim.
-// N is the dimension of the system.
-dae_integrator_t* tfqmr_dae_integrator_new(const char* name, 
-                                           void* context,
-                                           MPI_Comm comm,
-                                           int N,
-                                           dae_integrator_vtable vtable,
-                                           int order,
-                                           int max_krylov_dim);
+// Creates an integrator that uses a Newton-Krylov method with a given 
+// maximum subspace dimension of max_krylov_dim. 
+dae_integrator_t* dae_integrator_new(int order,
+                                     MPI_Comm comm,
+                                     int num_local_values,
+                                     int num_remote_values,
+                                     void* context,
+                                     dae_integrator_vtable vtable,
+                                     newton_pc_t* precond,
+                                     dae_krylov_t solver_type,
+                                     int max_krylov_dim);
 
 // Frees a time integrator.
 void dae_integrator_free(dae_integrator_t* integrator);
-
-// Returns the name of the integrator (internally stored).
-char* dae_integrator_name(dae_integrator_t* integrator);
 
 // Returns the context object for this integrator.
 void* dae_integrator_context(dae_integrator_t* integrator);
 
 // Returns the order of the integration method.
 int dae_integrator_order(dae_integrator_t* integrator);
-
-// Sets the preconditioner to use to help solve the equations. Note that 
-// the preconditioner must be a DAE-enabled preconditioner, able to 
-// compute both dFdx and dFdxdot.
-void dae_integrator_set_preconditioner(dae_integrator_t* integrator,
-                                       newton_pc_t* precond);
 
 // Gets an internal pointer to the preconditioner.
 newton_pc_t* dae_integrator_preconditioner(dae_integrator_t* integrator);

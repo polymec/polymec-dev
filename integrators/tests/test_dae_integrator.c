@@ -22,21 +22,18 @@ extern void heat2d_set_initial_conditions(dae_integrator_t* integ, real_t** u, r
 void test_block_jacobi_precond_heat2d_ctor(void** state)
 {
   dae_integrator_t* integ = block_jacobi_precond_heat2d_integrator_new();
-  assert_true(strcmp(dae_integrator_name(integ), "heat2d") == 0);
   dae_integrator_free(integ);
 }
 
 void test_lu_precond_heat2d_ctor(void** state)
 {
   dae_integrator_t* integ = lu_precond_heat2d_integrator_new();
-  assert_true(strcmp(dae_integrator_name(integ), "heat2d") == 0);
   dae_integrator_free(integ);
 }
 
 void test_ilu_precond_heat2d_ctor(void** state)
 {
   dae_integrator_t* integ = ilu_precond_heat2d_integrator_new();
-  assert_true(strcmp(dae_integrator_name(integ), "heat2d") == 0);
   dae_integrator_free(integ);
 }
 

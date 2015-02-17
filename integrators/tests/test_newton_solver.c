@@ -23,21 +23,18 @@ extern real_t* foodweb_initial_conditions();
 void test_block_jacobi_precond_foodweb_ctor(void** state)
 {
   newton_solver_t* integ = block_jacobi_precond_foodweb_solver_new();
-  assert_true(strcmp(newton_solver_name(integ), "Food web") == 0);
   newton_solver_free(integ);
 }
 
 void test_lu_precond_foodweb_ctor(void** state)
 {
   newton_solver_t* integ = lu_precond_foodweb_solver_new();
-  assert_true(strcmp(newton_solver_name(integ), "Food web") == 0);
   newton_solver_free(integ);
 }
 
 void test_ilu_precond_foodweb_ctor(void** state)
 {
   newton_solver_t* integ = ilu_precond_foodweb_solver_new();
-  assert_true(strcmp(newton_solver_name(integ), "Food web") == 0);
   newton_solver_free(integ);
 }
 

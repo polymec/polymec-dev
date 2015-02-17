@@ -256,6 +256,12 @@ static bool newton_euler_step(void* context, real_t max_dt, real_t* t, real_t* x
   int num_iters = 0;
   memcpy(integ->x_old, x, sizeof(real_t) * N_local);
   memcpy(integ->x_new, x, sizeof(real_t) * N_local);
+  
+  // Make sure the preconditioner computes P = I - dt * J.
+  newton_pc_t* precond = newton_solver_preconditioner(integ->newton);
+  newton_pc_lock_coefficients(precond, 1.0, -max_dt, 0.0);
+
+  // Now solve the thing.
   bool solved = newton_solver_solve(integ->newton, *t + max_dt, integ->x_new, &num_iters);
   if (solved)
   {
@@ -281,7 +287,8 @@ static bool euler_advance(void* context, real_t t1, real_t t2, real_t* x)
 static void euler_dtor(void* context)
 {
   euler_ode_t* integ = context;
-  polymec_free(integ->f1);
+  if (integ->f1 != NULL)
+    polymec_free(integ->f1);
   if (integ->f2 != NULL)
     polymec_free(integ->f2);
   polymec_free(integ->x_new);
@@ -370,17 +377,15 @@ ode_integrator_t* newton_euler_ode_integrator_new(MPI_Comm comm,
 
   // Set up the Newton solver.
   newton_solver_vtable newton_vtable = {.eval = evaluate_residual};
-  integ->newton = newton_solver_new("Backward Euler Newton", integ, comm,
-                                    num_local_values, num_remote_values,
-                                    newton_vtable, LINE_SEARCH,
+  integ->newton = newton_solver_new(integ, comm, num_local_values, num_remote_values,
+                                    newton_vtable, NO_GLOBAL_STRATEGY, //LINE_SEARCH,
                                     precond, solver_type, max_krylov_dim, 5);
 
   integ->observers = ptr_array_new();
 
   integ->x_old = polymec_malloc(sizeof(real_t) * (num_local_values + num_remote_values));
   integ->x_new = polymec_malloc(sizeof(real_t) * (num_local_values + num_remote_values));
-  integ->f1 = polymec_malloc(sizeof(real_t) * num_local_values); // no ghosts here!
-  integ->f2 = NULL;
+  integ->f1 = integ->f2 = NULL;
 
   ode_integrator_vtable vtable = {.step = newton_euler_step, 
                                   .advance = euler_advance, 
@@ -393,8 +398,6 @@ ode_integrator_t* newton_euler_ode_integrator_new(MPI_Comm comm,
 
   // Set default iteration criteria.
   euler_ode_integrator_set_max_iterations(I, 100);
-  euler_ode_integrator_set_tolerances(I, 1e-4, 1.0);
-  euler_ode_integrator_set_convergence_norm(I, 0);
 
   return I;
 }
@@ -405,7 +408,10 @@ void euler_ode_integrator_set_max_iterations(ode_integrator_t* integrator,
   ASSERT(max_iters > 0);
 
   euler_ode_t* integ = ode_integrator_context(integrator);
-  integ->max_iters = max_iters;
+  if (integ->newton != NULL)
+    newton_solver_set_max_iterations(integ->newton, max_iters);
+  else
+    integ->max_iters = max_iters;
 }
 
 void euler_ode_integrator_set_tolerances(ode_integrator_t* integrator,
@@ -416,8 +422,14 @@ void euler_ode_integrator_set_tolerances(ode_integrator_t* integrator,
   ASSERT(absolute_tol > 0.0);
 
   euler_ode_t* integ = ode_integrator_context(integrator);
-  integ->rel_tol = relative_tol;
-  integ->abs_tol = absolute_tol;
+
+  if (integ->newton != NULL)
+    newton_solver_set_tolerances(integ->newton, absolute_tol, relative_tol);
+  else
+  {
+    integ->rel_tol = relative_tol;
+    integ->abs_tol = absolute_tol;
+  }
 }
 
 void euler_ode_integrator_set_convergence_norm(ode_integrator_t* integrator,

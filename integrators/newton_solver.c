@@ -8,6 +8,7 @@
 #include <float.h>
 #include "core/sundials_helpers.h"
 #include "integrators/newton_solver.h"
+#include "integrators/cpr_pc.h"
 
 // We use KINSOL for doing the matrix-free nonlinear solve.
 #include "kinsol/kinsol.h"
@@ -21,7 +22,6 @@ struct newton_solver_t
   int rank, nprocs;
   MPI_Comm comm;
 
-  char* name;
   void* context;
   newton_solver_vtable vtable;
   newton_krylov_t solver_type;
@@ -70,7 +70,10 @@ static int set_up_preconditioner(N_Vector x, N_Vector x_scale,
 {
   newton_solver_t* solver = context;
   real_t t = solver->t;
+  log_debug("newton_solver: setting up preconditioner...");
   newton_pc_setup(solver->precond, 0.0, 1.0, 0.0, t, NV_DATA(x), NULL);
+local_matrix_fprintf(cpr_pc_matrix(solver->precond), stdout);
+
   return 0;
 }
 
@@ -86,6 +89,7 @@ static int solve_preconditioner_system(N_Vector x, N_Vector x_scale,
 
   // FIXME: Apply scaling if needed.
 
+  log_debug("newton_solver: solving preconditioner...");
   if (newton_pc_solve(solver->precond, NV_DATA(r)))
     return 0;
   else 
@@ -97,8 +101,7 @@ static int solve_preconditioner_system(N_Vector x, N_Vector x_scale,
 }
 
 // Generic constructor.
-newton_solver_t* newton_solver_new(const char* name, 
-                                   void* context,
+newton_solver_t* newton_solver_new(void* context,
                                    MPI_Comm comm,
                                    int num_local_values,
                                    int num_remote_values,
@@ -116,7 +119,6 @@ newton_solver_t* newton_solver_new(const char* name,
   ASSERT((solver_type != NEWTON_GMRES) || (max_restarts >= 0));
 
   newton_solver_t* solver = polymec_malloc(sizeof(newton_solver_t));
-  solver->name = string_dup(name);
   solver->context = context;
   solver->comm = comm;
   solver->vtable = vtable;
@@ -203,13 +205,7 @@ void newton_solver_free(newton_solver_t* solver)
   if (solver->status_message != NULL)
     polymec_free(solver->status_message);
   polymec_free(solver->x_with_ghosts);
-  polymec_free(solver->name);
   polymec_free(solver);
-}
-
-char* newton_solver_name(newton_solver_t* solver)
-{
-  return solver->name;
 }
 
 void* newton_solver_context(newton_solver_t* solver)

@@ -376,16 +376,12 @@ static newton_solver_t* foodweb_solver_new(foodweb_t* data, newton_pc_t* precond
   // Set up a nonlinear integrator using GMRES with no globalization 
   // strategy.
   newton_solver_vtable vtable = {.eval = foodweb_func,
-                                        .set_x_scale = foodweb_set_x_scale,
-                                        .set_F_scale = foodweb_set_F_scale,
-                                        .set_constraints = foodweb_set_constraints,
-                                        .dtor = foodweb_dtor};
-  newton_solver_t* integ = newton_solver_new("Food web",
-                                             data,
-                                             MPI_COMM_SELF,
-                                             NEQ, 0,
-                                             vtable, 
-                                             NO_GLOBAL_STRATEGY, 
+                                 .set_x_scale = foodweb_set_x_scale,
+                                 .set_F_scale = foodweb_set_F_scale,
+                                 .set_constraints = foodweb_set_constraints,
+                                 .dtor = foodweb_dtor};
+  newton_solver_t* integ = newton_solver_new(data, MPI_COMM_SELF, NEQ, 0,
+                                             vtable, NO_GLOBAL_STRATEGY, 
                                              precond, NEWTON_GMRES, 15, 2);
   return integ;
 }
