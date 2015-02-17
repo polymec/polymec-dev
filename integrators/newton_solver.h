@@ -80,46 +80,34 @@ typedef struct
 // Newton-Krylov methods provided by KINSol.
 typedef struct newton_solver_t newton_solver_t;
 
-// The following functions each create a nonlinear integrator with the given 
+// The following functions define a nonlinear integrator with the given 
 // name, context, and virtual table for integrated a discretized system of 
 // partial differential equations represented by a sparse nonlinear system of 
 // equations. The virtual table defines accessor methods for the residual 
 // function and the adjacency graph, and the globalization strategy can be 
 // NONE or LINE_SEARCH.
 
-// Creates an integrator that uses a GMRES Krylov method with a given 
-// maximum subspace dimension of max_krylov_dim, and a maximum number of 
-// restarts given by max_restarts. N is the dimension of the system.
-newton_solver_t* gmres_newton_solver_new(const char* name,
-                                         void* context,
-                                         MPI_Comm comm,
-                                         int N,
-                                         newton_solver_vtable vtable,
-                                         newton_solver_strategy_t global_strategy,
-                                         int max_krylov_dim,
-                                         int max_restarts);
+typedef enum 
+{
+  NEWTON_GMRES,    // Generalized minimum residual Krylov solver
+  NEWTON_BICGSTAB, // Stabilized Biconjugate Gradient Krylov solver
+  NEWTON_TFQMR     // Transpose-Free QMR Krylov solver
+} newton_krylov_t;
 
-// Creates an integrator that uses a stabilized bi-conjugate gradient Krylov 
-// method with a given maximum subspace dimension of max_krylov_dim.
-// N is the dimension of the system.
-newton_solver_t* bicgstab_newton_solver_new(const char* name,
-                                            void* context,
-                                            MPI_Comm comm,
-                                            int N,
-                                            newton_solver_vtable vtable,
-                                            newton_solver_strategy_t global_strategy,
-                                            int max_krylov_dim);
-
-// Creates an integrator that uses a transpose-free quasi-minimum residual 
-// Krylov method with a given maximum subspace dimension of max_krylov_dim.
-// N is the dimension of the system.
-newton_solver_t* tfqmr_newton_solver_new(const char* name,
-                                         void* context,
-                                         MPI_Comm comm,
-                                         int N,
-                                         newton_solver_vtable vtable,
-                                         newton_solver_strategy_t global_strategy,
-                                         int max_krylov_dim);
+// Creates a Newton solver that uses a Newton-Krylov method with a given 
+// maximum subspace dimension of max_krylov_dim. If the solver_type is NEWTON_GMRES, 
+// the maximum number of restarts is given by max_restarts--otherwise that parameter 
+// is ignored. N is the dimension of the system.
+newton_solver_t* newton_solver_new(const char* name,
+                                   void* context,
+                                   MPI_Comm comm,
+                                   int num_local_values,
+                                   int num_remote_values,
+                                   newton_solver_vtable vtable,
+                                   newton_solver_strategy_t global_strategy,
+                                   newton_krylov_t solver_type,
+                                   int max_krylov_dim,
+                                   int max_restarts);
 
 // Frees a solver.
 void newton_solver_free(newton_solver_t* integrator);
@@ -148,17 +136,6 @@ void newton_solver_set_preconditioner(newton_solver_t* integrator,
 
 // Gets an internal pointer to the preconditioner.
 newton_pc_t* newton_solver_preconditioner(newton_solver_t* integrator);
-
-// Sets the null space associated with the nonlinear operator F(X).
-// The null space consists of the set of vectors {X: X != 0}: dF/dX * X = 0.
-// If the null space contains the spatially homogeneous functions, the 
-// homogeneous_functions flag should be set to true, and no such homogeneous 
-// vector should be included in the null space. null_dim is the dimension of 
-// the null space excluding the homogeneous functions.
-void newton_solver_set_null_space(newton_solver_t* integrator,
-                                  bool homogeneous_functions,
-                                  real_t** null_space_vectors,
-                                  int null_dim);
 
 // Evaluates the residual vector, storing it in F.
 void newton_solver_eval_residual(newton_solver_t* integrator, real_t t, real_t* X, real_t* F);

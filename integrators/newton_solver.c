@@ -15,14 +15,6 @@
 #include "kinsol/kinsol_spbcgs.h"
 #include "kinsol/kinsol_sptfqmr.h"
 
-// Types of linear solvers.
-typedef enum 
-{
-  GMRES,
-  BICGSTAB,
-  TFQMR
-} solver_type_t;
-
 struct newton_solver_t 
 {
   // Parallel stuff.
@@ -32,46 +24,24 @@ struct newton_solver_t
   char* name;
   void* context;
   newton_solver_vtable vtable;
-  solver_type_t solver_type;
+  newton_krylov_t solver_type;
   int max_krylov_dim, max_restarts;
 
-  int N; // Number of degrees of freedom.
+  int num_local_values, num_remote_values;
 
   // KINSol data structures.
   void* kinsol;
   int strategy; // Global strategy.
   N_Vector x, x_scale, F_scale; // Stores solution vector and scaling vectors.
+  real_t* x_with_ghosts;
   char* status_message; // status of most recent integration.
 
   // Preconditioning stuff.
   newton_pc_t* precond;
 
-  // Null space information.
-  bool homogeneous_functions_in_null_space;
-  real_t** null_space_vectors;
-  int null_dim;
-
   // Current simulation time.
-  real_t current_time;
+  real_t t;
 };
-
-static void project_out_of_null_space(newton_solver_t* solver,
-                                      real_t* R)
-{
-  // If homogeneous functions are in the null space, subtract the spatial 
-  // mean from R.
-  if (solver->homogeneous_functions_in_null_space)
-  {
-    real_t mean = 0.0;
-    for (int i = 0; i < solver->N; ++i)
-      mean += R[i];
-    mean *= 1.0/solver->N;
-    for (int i = 0; i < solver->N; ++i)
-      R[i] -= mean;
-  }
-
-  // FIXME: Do the other stuff here.
-}
 
 // This function wraps around the user-supplied evaluation function.
 static int evaluate_F(N_Vector x, N_Vector F, void* context)
@@ -80,10 +50,16 @@ static int evaluate_F(N_Vector x, N_Vector F, void* context)
   real_t* xx = NV_DATA(x);
   real_t* FF = NV_DATA(F);
 
-  // Evaluate the residual.
-  int retval = solver->vtable.eval(solver->context, solver->current_time, xx, FF);
-  project_out_of_null_space(solver, FF);
-  return retval;
+  // Evaluate the residual using a solution vector with ghosts.
+  memcpy(solver->x_with_ghosts, xx, sizeof(real_t) * solver->num_local_values);
+  int status = solver->vtable.eval(solver->context, solver->t, solver->x_with_ghosts, FF);
+  if (status == 0)
+  {
+    // Copy the local result into our solution vector.
+    memcpy(xx, solver->x_with_ghosts, sizeof(real_t) * solver->num_local_values);
+  }
+
+  return status;
 }
 
 // This function sets up the preconditioner data within the solver.
@@ -93,7 +69,7 @@ static int set_up_preconditioner(N_Vector x, N_Vector x_scale,
                                  N_Vector work1, N_Vector work2)
 {
   newton_solver_t* solver = context;
-  real_t t = solver->current_time;
+  real_t t = solver->t;
   newton_pc_setup(solver->precond, 0.0, 1.0, 0.0, t, NV_DATA(x), NULL);
   return 0;
 }
@@ -110,9 +86,6 @@ static int solve_preconditioner_system(N_Vector x, N_Vector x_scale,
 
   // FIXME: Apply scaling if needed.
 
-  // Project r out of the null space.
-  project_out_of_null_space(solver, NV_DATA(r));
-
   if (newton_pc_solve(solver->precond, NV_DATA(r)))
     return 0;
   else 
@@ -124,20 +97,22 @@ static int solve_preconditioner_system(N_Vector x, N_Vector x_scale,
 }
 
 // Generic constructor.
-static newton_solver_t* newton_solver_new(const char* name, 
-                                          void* context,
-                                          MPI_Comm comm,
-                                          int N,
-                                          newton_solver_vtable vtable,
-                                          newton_solver_strategy_t global_strategy,
-                                          solver_type_t solver_type,
-                                          int max_krylov_dim, 
-                                          int max_restarts)
+newton_solver_t* newton_solver_new(const char* name, 
+                                   void* context,
+                                   MPI_Comm comm,
+                                   int num_local_values,
+                                   int num_remote_values,
+                                   newton_solver_vtable vtable,
+                                   newton_solver_strategy_t global_strategy,
+                                   newton_krylov_t solver_type,
+                                   int max_krylov_dim, 
+                                   int max_restarts)
 {
-  ASSERT(N > 0);
+  ASSERT(num_local_values > 0);
+  ASSERT(num_remote_values >= 0);
   ASSERT(vtable.eval != NULL);
   ASSERT(max_krylov_dim >= 3);
-  ASSERT(max_restarts >= 0);
+  ASSERT((solver_type != NEWTON_GMRES) || (max_restarts >= 0));
 
   newton_solver_t* solver = polymec_malloc(sizeof(newton_solver_t));
   solver->name = string_dup(name);
@@ -146,27 +121,29 @@ static newton_solver_t* newton_solver_new(const char* name,
   solver->vtable = vtable;
   solver->solver_type = solver_type;
   solver->strategy = (global_strategy == LINE_SEARCH) ? KIN_LINESEARCH : KIN_NONE;
-  solver->N = N;
+  solver->num_local_values = num_local_values;
+  solver->num_remote_values = num_remote_values;
   solver->max_krylov_dim = max_krylov_dim;
   solver->max_restarts = max_restarts;
 
   // Set up KINSol and accessories.
   solver->kinsol = KINCreate();
   KINSetUserData(solver->kinsol, solver);
-  solver->x = N_VNew(solver->comm, N);
-  solver->x_scale = N_VNew(solver->comm, N);
-  solver->F_scale = N_VNew(solver->comm, N);
+  solver->x = N_VNew(solver->comm, num_local_values);
+  solver->x_with_ghosts = polymec_malloc(sizeof(real_t) * (solver->num_local_values + solver->num_remote_values));
+  solver->x_scale = N_VNew(solver->comm, num_local_values);
+  solver->F_scale = N_VNew(solver->comm, num_local_values);
   solver->status_message = NULL;
 
   KINInit(solver->kinsol, evaluate_F, solver->x);
 
   // Select the particular type of Krylov method for the underlying linear solves.
-  if (solver->solver_type == GMRES)
+  if (solver->solver_type == NEWTON_GMRES)
   {
     KINSpgmr(solver->kinsol, solver->max_krylov_dim); 
     KINSpilsSetMaxRestarts(solver->kinsol, solver->max_restarts);
   }
-  else if (solver->solver_type == BICGSTAB)
+  else if (solver->solver_type == NEWTON_BICGSTAB)
     KINSpbcg(solver->kinsol, solver->max_krylov_dim);
   else
     KINSptfqmr(solver->kinsol, solver->max_krylov_dim);
@@ -187,65 +164,20 @@ static newton_solver_t* newton_solver_new(const char* name,
   // Set the constraints (if any) for the solution.
   if (solver->vtable.set_constraints != NULL)
   {
-    N_Vector constraints = N_VNew(solver->comm, N);
+    N_Vector constraints = N_VNew(solver->comm, num_local_values);
     solver->vtable.set_constraints(solver->context, NV_DATA(constraints));
     KINSetConstraints(solver->kinsol, constraints);
     N_VDestroy(constraints);
   }
 
   solver->precond = NULL;
-  solver->current_time = 0.0;
-
-  // Set up the null space.
-  solver->homogeneous_functions_in_null_space = false;
-  solver->null_space_vectors = NULL;
-  solver->null_dim = 0;
+  solver->t = 0.0;
 
   return solver;
 }
 
-newton_solver_t* gmres_newton_solver_new(const char* name,
-                                         void* context,
-                                         MPI_Comm comm,
-                                         int N,
-                                         newton_solver_vtable vtable,
-                                         newton_solver_strategy_t global_strategy,
-                                         int max_krylov_dim,
-                                         int max_restarts)
-{
-  return newton_solver_new(name, context, comm, N, vtable, global_strategy,
-                                  GMRES, max_krylov_dim, max_restarts);
-}
-
-newton_solver_t* bicgstab_newton_solver_new(const char* name,
-                                            void* context,
-                                            MPI_Comm comm,
-                                            int N,
-                                            newton_solver_vtable vtable,
-                                            newton_solver_strategy_t global_strategy,
-                                            int max_krylov_dim)
-{
-  return newton_solver_new(name, context, comm, N, vtable, global_strategy,
-                                  BICGSTAB, max_krylov_dim, 0);
-}
-
-newton_solver_t* tfqmr_newton_solver_new(const char* name,
-                                         void* context,
-                                         MPI_Comm comm,
-                                         int N,
-                                         newton_solver_vtable vtable,
-                                         newton_solver_strategy_t global_strategy,
-                                         int max_krylov_dim)
-{
-  return newton_solver_new(name, context, comm, N, vtable, global_strategy,
-                           TFQMR, max_krylov_dim, 0);
-}
-
 void newton_solver_free(newton_solver_t* solver)
 {
-  // Kill the null space.
-  newton_solver_set_null_space(solver, false, NULL, 0);
-
   // Kill the preconditioner stuff.
   if (solver->precond != NULL)
     newton_pc_free(solver->precond);
@@ -262,6 +194,7 @@ void newton_solver_free(newton_solver_t* solver)
   // Kill the rest.
   if (solver->status_message != NULL)
     polymec_free(solver->status_message);
+  polymec_free(solver->x_with_ghosts);
   polymec_free(solver->name);
   polymec_free(solver);
 }
@@ -278,7 +211,7 @@ void* newton_solver_context(newton_solver_t* solver)
 
 int newton_solver_num_equations(newton_solver_t* solver)
 {
-  return solver->N;
+  return solver->num_local_values;
 }
 
 void newton_solver_set_tolerances(newton_solver_t* solver, real_t norm_tolerance, real_t step_tolerance)
@@ -313,39 +246,9 @@ newton_pc_t* newton_solver_preconditioner(newton_solver_t* solver)
   return solver->precond;
 }
 
-void newton_solver_set_null_space(newton_solver_t* solver,
-                                  bool homogeneous_functions,
-                                  real_t** null_space_vectors,
-                                  int null_dim)
-{
-  ASSERT(((null_dim == 0) && (null_space_vectors == NULL)) ||
-         ((null_dim > 0) && (null_space_vectors != NULL)));
-
-  solver->homogeneous_functions_in_null_space = homogeneous_functions;
-  if (solver->null_space_vectors != NULL)
-  {
-    for (int i = 0; i < solver->null_dim; ++i)
-      polymec_free(solver->null_space_vectors[i]);
-    polymec_free(solver->null_space_vectors);
-    solver->null_dim = 0;
-    solver->null_space_vectors = NULL;
-  }
-  if (null_space_vectors != NULL)
-  {
-    solver->null_dim = null_dim;
-    solver->null_space_vectors = polymec_malloc(sizeof(real_t*));
-    for (int i = 0; i < null_dim; ++i)
-    {
-      solver->null_space_vectors[i] = polymec_malloc(sizeof(real_t) * solver->N);
-      memcpy(solver->null_space_vectors[i], null_space_vectors[i], solver->N * sizeof(real_t));
-    }
-  }
-}
-
 void newton_solver_eval_residual(newton_solver_t* solver, real_t t, real_t* X, real_t* F)
 {
   solver->vtable.eval(solver->context, t, X, F);
-  project_out_of_null_space(solver, F);
 }
 
 bool newton_solver_solve(newton_solver_t* solver,
@@ -356,11 +259,11 @@ bool newton_solver_solve(newton_solver_t* solver,
   ASSERT(X != NULL);
 
   // Set the current time in the state.
-  solver->current_time = t;
+  solver->t = t;
 
   // Set the x_scale and F_scale vectors. If we don't have methods for doing 
   // this, the scaling vectors are set to 1.
-  int N = solver->N;
+  int N = solver->num_local_values;
   if (solver->vtable.set_x_scale != NULL)
     solver->vtable.set_x_scale(solver->context, NV_DATA(solver->x_scale));
   else
