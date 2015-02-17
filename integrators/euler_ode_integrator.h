@@ -8,9 +8,10 @@
 #ifndef POLYMEC_EULER_ODE_INTEGRATOR_H
 #define POLYMEC_EULER_ODE_INTEGRATOR_H
 
+#include "integrators/newton_solver.h"
 #include "integrators/ode_integrator.h"
 
-// This type of ODE integrator integrates a non-stiff set of ordinary 
+// This type of ODE integrator integrates a set of ordinary 
 // differential equations using an implicit Euler method.
 
 // Creates an Euler integrator that uses functional, or fixed-point, iteration. 
@@ -27,6 +28,18 @@ ode_integrator_t* functional_euler_ode_integrator_new(real_t theta,
                                                       void* context, 
                                                       int (*rhs)(void* context, real_t t, real_t* x, real_t* xdot),
                                                       void (*dtor)(void* context));
+
+// Creates a backward Euler integrator that uses an inexact Newton-Krylov 
+// solver with the requested timestep.
+ode_integrator_t* newton_euler_ode_integrator_new(MPI_Comm comm,
+                                                  int num_local_values,
+                                                  int num_remote_values,
+                                                  void* context,
+                                                  int (*rhs)(void* context, real_t t, real_t* x, real_t* xdot),
+                                                  void (*dtor)(void* context),
+                                                  newton_pc_t* precond,
+                                                  newton_krylov_t solver_type,
+                                                  int max_krylov_dim);
 
 // Sets the maximum number of iterations in an integration step.
 // The default is 100.

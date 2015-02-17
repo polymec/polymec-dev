@@ -110,6 +110,9 @@ typedef struct
   // Implicitness factor.
   real_t theta;
 
+  // Requested time step.
+  real_t dt;
+
   // Context and v-table.
   void* context; 
   int (*rhs)(void* context, real_t t, real_t* x, real_t* xdot);
@@ -122,6 +125,9 @@ typedef struct
   // Solution data -- iterates.
   int num_local_values, num_remote_values;
   real_t *x_old, *x_new, *f1, *f2;
+
+  // Newton solver (if needed).
+  newton_solver_t* newton;
 
   // Iteration stuff.
   int max_iters;
@@ -149,6 +155,7 @@ static int eval_rhs(euler_ode_t* integ, real_t t, real_t* x, real_t* rhs)
 static bool euler_step(void* context, real_t max_dt, real_t* t, real_t* x)
 {
   euler_ode_t* integ = context;
+  integ->dt = max_dt;
   real_t theta = integ->theta;
   int N_local = integ->num_local_values;
 
@@ -156,7 +163,11 @@ static bool euler_step(void* context, real_t max_dt, real_t* t, real_t* x)
   {
     // No implicitness here! Just compute the RHS and mash it into 
     // our solution.
-    int status = eval_rhs(integ, *t, x, integ->f1);
+
+    // Copy the solution into place.
+    memcpy(integ->x_new, x, sizeof(real_t) * N_local);
+
+    int status = eval_rhs(integ, *t, integ->x_new, integ->f1);
     if (status != 0)
     {
       log_debug("euler_ode_integrator: explicit call to RHS failed.");
@@ -176,7 +187,7 @@ static bool euler_step(void* context, real_t max_dt, real_t* t, real_t* x)
 
     // Compute the right-hand function at t.
     real_t t1 = *t;
-    int status = eval_rhs(integ, t1, x, integ->f1);
+    int status = eval_rhs(integ, t1, integ->x_new, integ->f1);
     if (status != 0) 
     {
       log_debug("euler_ode_integrator: implicit call to RHS at t failed.");
@@ -225,6 +236,37 @@ static bool euler_step(void* context, real_t max_dt, real_t* t, real_t* x)
   }
 }
 
+static int evaluate_residual(void* context, real_t t, real_t* x, real_t* R)
+{
+  euler_ode_t* integ = context;
+  int status = eval_rhs(integ, t, x, R);
+  if (status == 0)
+  {
+    for (int i = 0; i < integ->num_local_values; ++i)
+      R[i] = x[i] - integ->x_old[i] - integ->dt * R[i];
+  }
+  return status;
+}
+
+static bool newton_euler_step(void* context, real_t max_dt, real_t* t, real_t* x)
+{
+  euler_ode_t* integ = context;
+  integ->dt = max_dt;
+  int N_local = integ->num_local_values;
+  int num_iters = 0;
+  memcpy(integ->x_old, x, sizeof(real_t) * N_local);
+  memcpy(integ->x_new, x, sizeof(real_t) * N_local);
+  bool solved = newton_solver_solve(integ->newton, *t + max_dt, integ->x_new, &num_iters);
+  if (solved)
+  {
+    *t += max_dt;
+    // x_new stores the increment. 
+    for (int i = 0; i < N_local; ++i)
+      x[i] += integ->x_new[i];
+  }
+  return solved;
+}
+
 static bool euler_advance(void* context, real_t t1, real_t t2, real_t* x)
 {
   // Well, if you're not going to be picky, we're going to be greedy. After 
@@ -240,9 +282,12 @@ static void euler_dtor(void* context)
 {
   euler_ode_t* integ = context;
   polymec_free(integ->f1);
-  polymec_free(integ->f2);
+  if (integ->f2 != NULL)
+    polymec_free(integ->f2);
   polymec_free(integ->x_new);
   polymec_free(integ->x_old);
+  if (integ->newton != NULL)
+    newton_solver_free(integ->newton);
   ptr_array_free(integ->observers);
   if ((integ->context != NULL) && (integ->dtor != NULL))
     integ->dtor(integ->context);
@@ -271,6 +316,7 @@ ode_integrator_t* functional_euler_ode_integrator_new(real_t theta,
   integ->context = context;
   integ->rhs = rhs;
   integ->dtor = dtor;
+  integ->newton = NULL;
   integ->observers = ptr_array_new();
 
   integ->x_old = polymec_malloc(sizeof(real_t) * (num_local_values + num_remote_values));
@@ -288,6 +334,61 @@ ode_integrator_t* functional_euler_ode_integrator_new(real_t theta,
 
   char name[1024];
   snprintf(name, 1024, "Functional Euler integrator(theta = %g)", theta);
+  ode_integrator_t* I = ode_integrator_new(name, integ, vtable, order);
+
+  // Set default iteration criteria.
+  euler_ode_integrator_set_max_iterations(I, 100);
+  euler_ode_integrator_set_tolerances(I, 1e-4, 1.0);
+  euler_ode_integrator_set_convergence_norm(I, 0);
+
+  return I;
+}
+
+ode_integrator_t* newton_euler_ode_integrator_new(MPI_Comm comm,
+                                                  int num_local_values,
+                                                  int num_remote_values,
+                                                  void* context,
+                                                  int (*rhs)(void* context, real_t t, real_t* x, real_t* xdot),
+                                                  void (*dtor)(void* context),
+                                                  newton_pc_t* precond,
+                                                  newton_krylov_t solver_type,
+                                                  int max_krylov_dim)
+{
+  ASSERT(num_local_values > 0);
+  ASSERT(num_remote_values >= 0);
+  ASSERT(max_krylov_dim > 3);
+  ASSERT(rhs != NULL);
+
+  euler_ode_t* integ = polymec_malloc(sizeof(euler_ode_t));
+  integ->theta = -FLT_MAX;
+  integ->comm = comm;
+  integ->num_local_values = num_local_values;
+  integ->num_remote_values = num_remote_values;
+  integ->context = context;
+  integ->rhs = rhs;
+  integ->dtor = dtor;
+
+  // Set up the Newton solver.
+  newton_solver_vtable newton_vtable = {.eval = evaluate_residual};
+  integ->newton = newton_solver_new("Backward Euler Newton", integ, comm,
+                                    num_local_values, num_remote_values,
+                                    newton_vtable, LINE_SEARCH,
+                                    precond, solver_type, max_krylov_dim, 5);
+
+  integ->observers = ptr_array_new();
+
+  integ->x_old = polymec_malloc(sizeof(real_t) * (num_local_values + num_remote_values));
+  integ->x_new = polymec_malloc(sizeof(real_t) * (num_local_values + num_remote_values));
+  integ->f1 = polymec_malloc(sizeof(real_t) * num_local_values); // no ghosts here!
+  integ->f2 = NULL;
+
+  ode_integrator_vtable vtable = {.step = newton_euler_step, 
+                                  .advance = euler_advance, 
+                                  .dtor = euler_dtor};
+
+  int order = 1;
+  char name[1024];
+  snprintf(name, 1024, "Backward Euler Newton integrator");
   ode_integrator_t* I = ode_integrator_new(name, integ, vtable, order);
 
   // Set default iteration criteria.

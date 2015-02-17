@@ -104,6 +104,7 @@ newton_solver_t* newton_solver_new(const char* name,
                                    int num_remote_values,
                                    newton_solver_vtable vtable,
                                    newton_solver_strategy_t global_strategy,
+                                   newton_pc_t* precond,
                                    newton_krylov_t solver_type,
                                    int max_krylov_dim, 
                                    int max_restarts)
@@ -119,6 +120,7 @@ newton_solver_t* newton_solver_new(const char* name,
   solver->context = context;
   solver->comm = comm;
   solver->vtable = vtable;
+  solver->precond = precond;
   solver->solver_type = solver_type;
   solver->strategy = (global_strategy == LINE_SEARCH) ? KIN_LINESEARCH : KIN_NONE;
   solver->num_local_values = num_local_values;
@@ -170,7 +172,13 @@ newton_solver_t* newton_solver_new(const char* name,
     N_VDestroy(constraints);
   }
 
-  solver->precond = NULL;
+  // Set up the preconditioner.
+  if (solver->precond != NULL)
+  {
+    KINSpilsSetPreconditioner(solver->kinsol, set_up_preconditioner,
+                              solve_preconditioner_system);
+  }
+
   solver->t = 0.0;
 
   return solver;
@@ -228,19 +236,6 @@ void newton_solver_set_max_iterations(newton_solver_t* solver, int max_iteration
   KINSetNumMaxIters(solver->kinsol, max_iterations);
 }
 
-void newton_solver_set_preconditioner(newton_solver_t* solver,
-                                      newton_pc_t* precond)
-{
-  solver->precond = precond;
-
-  // Set up the preconditioner.
-  if (solver->precond != NULL)
-  {
-    KINSpilsSetPreconditioner(solver->kinsol, set_up_preconditioner,
-                              solve_preconditioner_system);
-  }
-}
-
 newton_pc_t* newton_solver_preconditioner(newton_solver_t* solver)
 {
   return solver->precond;
@@ -280,17 +275,8 @@ bool newton_solver_solve(newton_solver_t* solver,
       NV_Ith(solver->F_scale, i) = 1.0;
   }
 
-  if (solver->vtable.initial_guess != NULL)
-  {
-    // Form the initial guess magically.
-    log_debug("newton_solver: forming initial guess...");
-    solver->vtable.initial_guess(solver->context, t, NV_DATA(solver->x));
-  }
-  else
-  {
-    // Copy the values in X to the internal solution vector.
-    memcpy(NV_DATA(solver->x), X, sizeof(real_t) * N);
-  }
+  // Copy the values in X to the internal solution vector.
+  memcpy(NV_DATA(solver->x), X, sizeof(real_t) * N);
 
   // Suspend the currently active floating point exceptions for now.
 //  polymec_suspend_fpe_exceptions();

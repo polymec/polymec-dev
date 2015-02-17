@@ -44,10 +44,6 @@ typedef struct
   // This function evaluates the residual of the nonlinear system.
   newton_solver_residual_func eval;
 
-  // This (optional) function forms an initial guess to use to initiate 
-  // the nonlinear iteration.
-  newton_solver_initial_guess_func initial_guess;
-
   // This (optional) function sets the "x-scaling vector," which contains the diagonal 
   // components of a matrix Dx such that the components of Dx * x all have 
   // roughly the same magnitude as F(x) approaches 0.
@@ -105,6 +101,7 @@ newton_solver_t* newton_solver_new(const char* name,
                                    int num_remote_values,
                                    newton_solver_vtable vtable,
                                    newton_solver_strategy_t global_strategy,
+                                   newton_pc_t* precond,
                                    newton_krylov_t solver_type,
                                    int max_krylov_dim,
                                    int max_restarts);
@@ -129,10 +126,6 @@ void newton_solver_set_tolerances(newton_solver_t* integrator, real_t norm_toler
 
 // Sets the maximum number of Newton iterations for the integrator.
 void newton_solver_set_max_iterations(newton_solver_t* integrator, int max_iterations);
-
-// Sets the preconditioner to use to help solve the nonlinear system.
-void newton_solver_set_preconditioner(newton_solver_t* integrator,
-                                      newton_pc_t* precond);
 
 // Gets an internal pointer to the preconditioner.
 newton_pc_t* newton_solver_preconditioner(newton_solver_t* integrator);
