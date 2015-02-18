@@ -370,49 +370,45 @@ static void foodweb_set_constraints(void* context, real_t* constraints)
     constraints[i] = 2.0;
 }
 
-// Constructor for food web integrator with no preconditioner.
+// Constructor for food web solver with no preconditioner.
 static newton_solver_t* foodweb_solver_new(foodweb_t* data, newton_pc_t* precond)
 {
-  // Set up a nonlinear integrator using GMRES with no globalization 
-  // strategy.
+  // Set up a nonlinear solver using GMRES with a full Newton step.
   newton_solver_vtable vtable = {.eval = foodweb_func,
                                  .set_x_scale = foodweb_set_x_scale,
                                  .set_F_scale = foodweb_set_F_scale,
                                  .set_constraints = foodweb_set_constraints,
                                  .dtor = foodweb_dtor};
-  newton_solver_t* integ = newton_solver_new(data, MPI_COMM_SELF, NEQ, 0,
-                                             vtable, NEWTON_FULL_STEP, 
-                                             precond, NEWTON_GMRES, 15, 2);
-  return integ;
+  newton_solver_t* solver = newton_solver_new(data, MPI_COMM_SELF, NEQ, 0,
+                                              vtable, NEWTON_FULL_STEP, 
+                                              precond, NEWTON_GMRES, 15, 2);
+  return solver;
 }
 
-// Constructor for block-Jacobi-preconditioned food web integrator.
+// Constructor for block-Jacobi-preconditioned food web solver.
 newton_solver_t* block_jacobi_precond_foodweb_solver_new()
 {
   foodweb_t* data = foodweb_new();
   int block_size = NUM_SPECIES;
   newton_pc_t* precond = block_jacobi_cpr_pc_from_function(MPI_COMM_WORLD, data, foodweb_func, NULL, data->sparsity, NEQ/block_size, 0, block_size);
-  newton_solver_t* integ = foodweb_solver_new(data, precond);
-  return integ;
+  return foodweb_solver_new(data, precond);
 }
 
-// Constructor for LU-preconditioned food web integrator.
+// Constructor for LU-preconditioned food web solver.
 newton_solver_t* lu_precond_foodweb_solver_new()
 {
   foodweb_t* data = foodweb_new();
   newton_pc_t* precond = lu_cpr_pc_from_function(MPI_COMM_WORLD, data, foodweb_func, NULL, data->sparsity, NEQ, 0);
-  newton_solver_t* integ = foodweb_solver_new(data, precond);
-  return integ;
+  return foodweb_solver_new(data, precond);
 }
 
-// Constructor for ILU-preconditioned food web integrator.
+// Constructor for ILU-preconditioned food web solver.
 newton_solver_t* ilu_precond_foodweb_solver_new()
 {
   foodweb_t* data = foodweb_new();
   ilu_params_t* ilu_params = ilu_params_new();
   newton_pc_t* precond = ilu_cpr_pc_from_function(MPI_COMM_WORLD, data, foodweb_func, NULL, data->sparsity, NEQ, 0, ilu_params);
-  newton_solver_t* integ = foodweb_solver_new(data, precond);
-  return integ;
+  return foodweb_solver_new(data, precond);
 }
 
 // Returns initial conditions.
