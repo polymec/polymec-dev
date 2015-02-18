@@ -43,8 +43,8 @@ void test_symplectic_central_force(void** state)
   // energy is conserved, and that the integration error converges to zero 
   // at second order accuracy.
   ode_integrator_t* I = symplectic_central_force_integrator();
-//  real_t rel_tol = 1e-6, abs_tol = 1.0;
-//  euler_ode_integrator_set_tolerances(I, rel_tol, abs_tol);
+  real_t rel_tol = 1e-4, abs_tol = 1e-6;
+  euler_ode_integrator_set_tolerances(I, rel_tol, abs_tol);
   real_t R = 1.0; // radius of circular orbit.
   real_t V = 1.0; // Linear velocity magnitude.
 
@@ -87,7 +87,7 @@ void test_symplectic_central_force(void** state)
   linear_regression(log_n_ratios, log_L2_ratios, num_trials-1, &A, &B, &sigma);
   real_t L2_conv_rate = -A;
   log_urgent("symplectic central force L2 error conv rate = %g\n", L2_conv_rate);
-  assert_true(L2_conv_rate >= 1.86);
+  assert_true(L2_conv_rate >= 1.9947);
 
   // Clean up.
   ode_integrator_free(I);
@@ -112,8 +112,8 @@ void test_stiffly_accurate_central_force(void** state)
   // energy is conserved, and that the integration error converges to zero 
   // at second order accuracy.
   ode_integrator_t* I = stiffly_accurate_central_force_integrator();
-  real_t rel_tol = 1e-4, abs_tol = 1.0;
-//  euler_ode_integrator_set_tolerances(I, rel_tol, abs_tol);
+  real_t rel_tol = 1e-6, abs_tol = 1e-4;
+  euler_ode_integrator_set_tolerances(I, rel_tol, abs_tol);
   real_t R = 1.0; // radius of circular orbit.
   real_t V = 1.0; // Linear velocity magnitude.
 
@@ -132,8 +132,8 @@ void test_stiffly_accurate_central_force(void** state)
     for (int j = 0; j < num_steps; ++j)
     {
       bool success = ode_integrator_step(I, dt, &t, X);
-//printf("%g %g %g %g %g\n", t, X[0], X[1], X[2], X[3]);
       assert_true(success);
+printf("%d %g %g %g %g %g\n", j, t, X[0], X[1], X[2], X[3]);
     }
 
     // Check energy conservation.

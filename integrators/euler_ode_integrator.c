@@ -261,14 +261,15 @@ static bool newton_euler_step(void* context, real_t max_dt, real_t* t, real_t* x
   newton_pc_t* precond = newton_solver_preconditioner(integ->newton);
   newton_pc_lock_coefficients(precond, 1.0, -max_dt, 0.0);
 
-  // Now solve the thing.
+  // Now solve the thing, storing the solution in integ->x_new.
   bool solved = newton_solver_solve(integ->newton, *t + max_dt, integ->x_new, &num_iters);
   if (solved)
   {
+    // Increment the time and the solution.
     *t += max_dt;
-    // x_new stores the increment. 
-    for (int i = 0; i < N_local; ++i)
-      x[i] += integ->x_new[i];
+    memcpy(x, integ->x_new, sizeof(real_t) * integ->num_local_values);
+//    for (int i = 0; i < N_local; ++i)
+//      x[i] += integ->x_new[i];
   }
   return solved;
 }
@@ -378,7 +379,7 @@ ode_integrator_t* newton_euler_ode_integrator_new(MPI_Comm comm,
   // Set up the Newton solver.
   newton_solver_vtable newton_vtable = {.eval = evaluate_residual};
   integ->newton = newton_solver_new(integ, comm, num_local_values, num_remote_values,
-                                    newton_vtable, NO_GLOBAL_STRATEGY, //LINE_SEARCH,
+                                    newton_vtable, NEWTON_LINE_SEARCH,
                                     precond, solver_type, max_krylov_dim, 5);
 
   integ->observers = ptr_array_new();
@@ -392,9 +393,7 @@ ode_integrator_t* newton_euler_ode_integrator_new(MPI_Comm comm,
                                   .dtor = euler_dtor};
 
   int order = 1;
-  char name[1024];
-  snprintf(name, 1024, "Backward Euler Newton integrator");
-  ode_integrator_t* I = ode_integrator_new(name, integ, vtable, order);
+  ode_integrator_t* I = ode_integrator_new("Backward Euler Newton integrator", integ, vtable, order);
 
   // Set default iteration criteria.
   euler_ode_integrator_set_max_iterations(I, 100);

@@ -72,7 +72,6 @@ static int set_up_preconditioner(N_Vector x, N_Vector x_scale,
   real_t t = solver->t;
   log_debug("newton_solver: setting up preconditioner...");
   newton_pc_setup(solver->precond, 0.0, 1.0, 0.0, t, NV_DATA(x), NULL);
-local_matrix_fprintf(cpr_pc_matrix(solver->precond), stdout);
 
   return 0;
 }
@@ -124,7 +123,7 @@ newton_solver_t* newton_solver_new(void* context,
   solver->vtable = vtable;
   solver->precond = precond;
   solver->solver_type = solver_type;
-  solver->strategy = (global_strategy == LINE_SEARCH) ? KIN_LINESEARCH : KIN_NONE;
+  solver->strategy = (global_strategy == NEWTON_LINE_SEARCH) ? KIN_LINESEARCH : KIN_NONE;
   solver->num_local_values = num_local_values;
   solver->num_remote_values = num_remote_values;
   solver->max_krylov_dim = max_krylov_dim;

@@ -15,8 +15,8 @@
 // The different global strategies for the Newton iteration.
 typedef enum
 {
-  LINE_SEARCH,
-  NO_GLOBAL_STRATEGY
+  NEWTON_LINE_SEARCH,  // Line-search with backtracking
+  NEWTON_FULL_STEP     // Full Newton step
 } newton_solver_strategy_t;
 
 // This is a pointer to a residual function used with a nonlinear solver.

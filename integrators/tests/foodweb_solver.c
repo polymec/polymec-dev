@@ -381,7 +381,7 @@ static newton_solver_t* foodweb_solver_new(foodweb_t* data, newton_pc_t* precond
                                  .set_constraints = foodweb_set_constraints,
                                  .dtor = foodweb_dtor};
   newton_solver_t* integ = newton_solver_new(data, MPI_COMM_SELF, NEQ, 0,
-                                             vtable, NO_GLOBAL_STRATEGY, 
+                                             vtable, NEWTON_FULL_STEP, 
                                              precond, NEWTON_GMRES, 15, 2);
   return integ;
 }
