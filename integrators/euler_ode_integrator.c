@@ -259,17 +259,15 @@ static bool newton_euler_step(void* context, real_t max_dt, real_t* t, real_t* x
   
   // Make sure the preconditioner computes P = I - dt * J.
   newton_pc_t* precond = newton_solver_preconditioner(integ->newton);
-  newton_pc_lock_coefficients(precond, 1.0, -max_dt, 0.0);
+  newton_pc_fix_coefficients(precond, 1.0, -integ->dt, 0.0);
 
   // Now solve the thing, storing the solution in integ->x_new.
-  bool solved = newton_solver_solve(integ->newton, *t + max_dt, integ->x_new, &num_iters);
+  bool solved = newton_solver_solve(integ->newton, *t + integ->dt, integ->x_new, &num_iters);
   if (solved)
   {
     // Increment the time and the solution.
-    *t += max_dt;
+    *t += integ->dt;
     memcpy(x, integ->x_new, sizeof(real_t) * integ->num_local_values);
-//    for (int i = 0; i < N_local; ++i)
-//      x[i] += integ->x_new[i];
   }
   return solved;
 }

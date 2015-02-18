@@ -13,8 +13,8 @@ struct newton_pc_t
   void* context;
   newton_pc_vtable vtable;
 
-  // Locked coefficients.
-  bool locked_coeffs;
+  // Fixed coefficients.
+  bool coeffs_fixed;
   real_t alpha0, beta0, gamma0;
 };
 
@@ -29,7 +29,7 @@ newton_pc_t* newton_pc_new(const char* name,
   pc->name = string_dup(name);
   pc->context = context;
   pc->vtable = vtable;
-  pc->locked_coeffs = false;
+  pc->coeffs_fixed = false;
   pc->alpha0 = pc->beta0 = pc->gamma0 = 0.0;
   
   return pc;
@@ -57,7 +57,7 @@ void newton_pc_setup(newton_pc_t* precond,
                      real_t alpha, real_t beta, real_t gamma,
                      real_t t, real_t* x, real_t* xdot)
 {
-  if (!precond->locked_coeffs)
+  if (!precond->coeffs_fixed)
   {
     // Only certain combinations of alpha, beta, and gamma are allowed.
     ASSERT(((alpha == 1.0) && (beta != 0.0) && (gamma == 0.0)) || 
@@ -77,21 +77,21 @@ bool newton_pc_solve(newton_pc_t* precond, real_t* R)
   return precond->vtable.solve(precond->context, R);
 }
 
-void newton_pc_lock_coefficients(newton_pc_t* precond, real_t alpha0, real_t beta0, real_t gamma0)
+void newton_pc_fix_coefficients(newton_pc_t* precond, real_t alpha0, real_t beta0, real_t gamma0)
 {
-  precond->locked_coeffs = true;
+  precond->coeffs_fixed = true;
   precond->alpha0 = alpha0;
   precond->beta0 = beta0;
   precond->gamma0 = gamma0;
 }
 
-void newton_pc_unlock_coefficients(newton_pc_t* precond)
+void newton_pc_unfix_coefficients(newton_pc_t* precond)
 {
-  precond->locked_coeffs = false;
+  precond->coeffs_fixed = false;
 }
 
-bool newton_pc_coefficients_locked(newton_pc_t* precond)
+bool newton_pc_coefficients_fixed(newton_pc_t* precond)
 {
-  return precond->locked_coeffs;
+  return precond->coeffs_fixed;
 }
 
