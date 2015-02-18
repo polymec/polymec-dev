@@ -19,8 +19,15 @@ if (LINUX EQUAL 1)
   enable_language(Fortran)
 endif()
 
-# Project and version numbers.
+# We declare the project here.
 project (polymec)
+
+# After declaring the project, we might have to force some compiler settings
+# on certain machines, so do that here.
+include(adjust_compilers)
+adjust_compilers()
+
+# Version numbers.
 set (POLYMEC_MAJOR_VERSION 0)
 set (POLYMEC_MINOR_VERSION 6)
 set (POLYMEC_PATCH_VERSION 0)

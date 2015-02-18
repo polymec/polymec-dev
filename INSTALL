@@ -42,3 +42,22 @@ Other make commands
           Performs clean and completely removes the build directory.
 
 ------------------------------------------------------------------------------
+                  Instructions for particular machines
+------------------------------------------------------------------------------
+
+NERSC Edison (last updated 2/18/2015)
+------------
+
+Make sure the following modules are loaded:
+  cmake 
+  silo
+  PrgEnv-Intel
+
+and then type
+
+make mpi=1 prefix=/prefix/for/polymec
+
+adding any additional desired flags. Then:
+
+make mpi=1 install
+

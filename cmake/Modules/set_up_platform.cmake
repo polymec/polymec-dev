@@ -33,6 +33,12 @@ macro(set_up_platform)
     set(CMAKE_CXX_COMPILER CC)
     set(CMAKE_Fortran_COMPILER ftn)
 
+    # Recent changes on Edison evidently require the following.
+    set(CMAKE_ADJUSTED_C_COMPILER "cc -fPIE")
+    set(CMAKE_ADJUSTED_C_COMPILER_ID INTEL)
+    set(CMAKE_ADJUSTED_CXX_COMPILER "CC -fPIE")
+    set(CMAKE_ADJUSTED_CXX_COMPILER_ID INTEL)
+
     # We are cared for mathematically.
     set(NEED_LAPACK FALSE)
 
