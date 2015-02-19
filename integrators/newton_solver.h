@@ -94,10 +94,10 @@ typedef enum
 // maximum subspace dimension of max_krylov_dim. If the solver_type is NEWTON_GMRES, 
 // the maximum number of restarts is given by max_restarts--otherwise that parameter 
 // is ignored. N is the dimension of the system.
-newton_solver_t* newton_solver_new(void* context,
-                                   MPI_Comm comm,
+newton_solver_t* newton_solver_new(MPI_Comm comm,
                                    int num_local_values,
                                    int num_remote_values,
+                                   void* context,
                                    newton_solver_vtable vtable,
                                    newton_solver_strategy_t global_strategy,
                                    newton_pc_t* precond,
