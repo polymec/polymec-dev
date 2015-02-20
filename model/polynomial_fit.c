@@ -148,6 +148,16 @@ void polynomial_fit_add_robin_bc(polynomial_fit_t* fit,
                                  point_t* x,
                                  real_t weight)
 {
+  polynomial_fit_add_mixed_bc(fit, component, alpha, 
+                              beta*n->x, beta*n->y, beta*n->z, 
+                              gamma, x, weight);
+}
+
+void polynomial_fit_add_mixed_bc(polynomial_fit_t* fit, int component, 
+                                 real_t alpha, real_t beta, real_t gamma, 
+                                 real_t delta, real_t epsilon,  
+                                 point_t* x, real_t weight)
+{
   ASSERT(weight > 0.0);
   real_t sqrtW = sqrt(weight);
   point_t* x0 = polynomial_x0(fit->poly[component]);
@@ -167,12 +177,12 @@ void polynomial_fit_add_robin_bc(polynomial_fit_t* fit,
     real_t dudx_term = x_pow * poly_pow(X, x_pow-1) * pow(Y, y_pow) * pow(Z, z_pow);
     real_t dudy_term = y_pow * pow(X, x_pow) * poly_pow(Y, y_pow-1) * pow(Z, z_pow);
     real_t dudz_term = z_pow * pow(X, x_pow) * pow(Y, y_pow) * poly_pow(Z, z_pow-1);
-    real_t n_o_grad_u_term = n->x * dudx_term + n->y * dudy_term + n->z * dudz_term;
-    eq[i++] = sqrtW * (alpha * u_term + beta * n_o_grad_u_term);
+    eq[i++] = sqrtW * (alpha * u_term + beta * dudx_term + gamma * dudy_term + 
+                       delta * dudz_term);
   }
 
-  // Right hand side -- sqrt(W) * gamma.
-  eq[i] = sqrtW * gamma;
+  // Right hand side -- sqrt(W) * epsilon.
+  eq[i] = sqrtW * epsilon;
 }
 
 void polynomial_fit_reset(polynomial_fit_t* fit, point_t* x0)

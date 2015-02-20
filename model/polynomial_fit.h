@@ -58,6 +58,16 @@ void polynomial_fit_add_robin_bc(polynomial_fit_t* fit, int component,
                                  real_t alpha, real_t beta, vector_t* n, real_t gamma, 
                                  point_t* x, real_t weight);
 
+// Adds an equation to the least squares system that satisfies the relationship 
+// alpha * u + beta * du/dx + gamma * du/dy + delta * du/dz = epsilon 
+// for the given component at the point x, where alpha, beta, gamma, delta, 
+// and epsilon are real-valued quantities, and u is the quantity being fitted 
+// to the polynomial. The equation is weighted with the given (positive) weight.
+void polynomial_fit_add_mixed_bc(polynomial_fit_t* fit, int component, 
+                                 real_t alpha, real_t beta, real_t gamma, 
+                                 real_t delta, real_t epsilon,  
+                                 point_t* x, real_t weight);
+
 // Resets the least squares system governing the polynomial fit, removing all 
 // its equations and recentering it at the point x0. If x0 is NULL, it will 
 // be set to the origin.
