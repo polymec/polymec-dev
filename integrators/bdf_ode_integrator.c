@@ -437,8 +437,8 @@ void bdf_ode_integrator_set_error_weight_function(ode_integrator_t* integrator,
   CVodeWFtolerances(integ->cvode, compute_error_weights);
 }
 
-void bdf_integrator_set_stability_limit_detection(ode_integrator_t* integrator,
-                                                  bool use_detection)
+void bdf_ode_integrator_set_stability_limit_detection(ode_integrator_t* integrator,
+                                                      bool use_detection)
 {
   bdf_ode_t* integ = ode_integrator_context(integrator);
   CVodeSetStabLimDet(integ->cvode, use_detection);
