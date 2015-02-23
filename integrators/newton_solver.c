@@ -231,6 +231,23 @@ void newton_solver_set_max_iterations(newton_solver_t* solver, int max_iteration
   KINSetNumMaxIters(solver->kinsol, max_iterations);
 }
 
+void newton_solver_set_linear_solver_stopping_criteria(newton_solver_t* solver,
+                                                       newton_solver_stopping_criteria_t criteria)
+{
+  if (criteria == NEWTON_EISENSTAT_WALKER1)
+    KINSetEtaForm(solver->kinsol, KIN_ETACHOICE1);
+  else if (criteria == NEWTON_EISENSTAT_WALKER2)
+    KINSetEtaForm(solver->kinsol, KIN_ETACHOICE2);
+  else // (criteria == NEWTON_CONSTANT_ETA)
+    KINSetEtaForm(solver->kinsol, KIN_ETACONSTANT);
+}
+
+void newton_solver_set_constant_eta(newton_solver_t* solver, real_t eta)
+{
+  ASSERT(eta > 0.0);
+  KINSetEtaConstValue(solver->kinsol, eta);
+}
+
 newton_pc_t* newton_solver_preconditioner(newton_solver_t* solver)
 {
   return solver->precond;

@@ -125,6 +125,24 @@ void newton_solver_set_tolerances(newton_solver_t* solver,
 // Sets the maximum number of Newton iterations for the solver.
 void newton_solver_set_max_iterations(newton_solver_t* solver, int max_iterations);
 
+// Sets the stopping critieria for the underlying linear solver.
+// The options are NEWTON_EISENSTAT_WALKER1, NEWTON_EISENSTAT_WALKER2, and 
+// NEWTON_CONSTANT_ETA. See the Kinsol documentation for details on these criteria.
+// The default setting is NEWTON_EISENSTAT_WALKER1.
+typedef enum
+{
+  NEWTON_EISENSTAT_WALKER1,
+  NEWTON_EISENSTAT_WALKER2,
+  NEWTON_CONSTANT_ETA,
+} newton_solver_stopping_criteria_t;
+void newton_solver_set_linear_solver_stopping_criteria(newton_solver_t* solver,
+                                                       newton_solver_stopping_criteria_t criteria);
+
+// In the case that the linear solver is set to NEWTON_CONSTANT_ETA, this function 
+// sets the value of the constant coefficient used to determine convergence of the 
+// linear solver. See Kinsol documentation for details.
+void newton_solver_set_constant_eta(newton_solver_t* solver, real_t eta);
+
 // Gets an internal pointer to the preconditioner.
 newton_pc_t* newton_solver_preconditioner(newton_solver_t* solver);
 

@@ -58,6 +58,10 @@ void euler_ode_integrator_set_tolerances(ode_integrator_t* integrator,
 void euler_ode_integrator_set_convergence_norm(ode_integrator_t* integrator,
                                                int p);
 
+// This method provides access to the underlying Newton solver in the Newton Euler 
+// ODE integrator.
+newton_solver_t* newton_euler_ode_integrator_solver(ode_integrator_t* integrator);
+
 // This observer type can be used to define objects that respond to actions
 // taken by the euler_ode_integrator.
 typedef struct euler_ode_observer_t euler_ode_observer_t;

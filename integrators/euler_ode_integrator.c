@@ -442,3 +442,10 @@ void euler_ode_integrator_set_convergence_norm(ode_integrator_t* integrator,
   else
     integ->compute_norms = compute_l2_norms;
 }
+
+newton_solver_t* newton_euler_ode_integrator_solver(ode_integrator_t* integrator)
+{
+  euler_ode_t* integ = ode_integrator_context(integrator);
+  ASSERT(integ->newton != NULL);
+  return integ->newton;
+}
