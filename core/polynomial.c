@@ -464,7 +464,12 @@ void polynomial_fprintf(polynomial_t* p, FILE* stream)
         fprintf(stream, "%g ", coeff);
     }
     else if ((x_pow + y_pow + z_pow) == 0)
-      fprintf(stream, "1");
+    {
+      if (coeff == 0.0)
+        fprintf(stream, "0");
+      else
+        fprintf(stream, "1");
+    }
     if (coeff != 0.0)
     {
       if (x_pow > 1)
