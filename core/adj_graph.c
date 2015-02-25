@@ -151,15 +151,14 @@ adj_graph_t* adj_graph_new_with_block_sizes(adj_graph_t* graph,
   // counting up the vertices in the resulting block graph. If this is 
   // a distributed graph, we need to communicate.
   int num_vertices = adj_graph_num_vertices(graph), tot_num_vertices = 0;
-  for (int v = 0; v < num_vertices; ++v)
-    tot_num_vertices += block_sizes[v];
-  adj_graph_t* block_graph = adj_graph_new(comm, tot_num_vertices);
-
-  // Set up the vertex offsets.
   int vertex_offsets[num_vertices+1];
   vertex_offsets[0] = 0;
   for (int v = 0; v < num_vertices; ++v)
+  {
     vertex_offsets[v+1] = vertex_offsets[v] + block_sizes[v];
+    tot_num_vertices += block_sizes[v];
+  }
+  adj_graph_t* block_graph = adj_graph_new(comm, tot_num_vertices);
 
   // Now traverse the original graph and set up the edges.
   for (int v = 0; v < num_vertices; ++v)
@@ -177,7 +176,6 @@ adj_graph_t* adj_graph_new_with_block_sizes(adj_graph_t* graph,
       // fact that some of these edges may connect v to a vertex with a 
       // different block size!!
       int num_edges = block_size - 1;
-      int* block_edges = adj_graph_edges(block_graph, block_vertex);
       for (int e = 0; e < num_block_edges; ++e)
       {
         int bs = (edges[e] < num_vertices) ? block_sizes[edges[e]] : block_size;
@@ -186,6 +184,7 @@ adj_graph_t* adj_graph_new_with_block_sizes(adj_graph_t* graph,
       adj_graph_set_num_edges(block_graph, block_vertex, num_edges);
 
       // Block diagonal edges (excluding loops).
+      int* block_edges = adj_graph_edges(block_graph, block_vertex);
       int diag_offset = 0;
       for (int bb = 0; bb < block_size; ++bb)
       {
