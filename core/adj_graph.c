@@ -176,10 +176,13 @@ adj_graph_t* adj_graph_new_with_block_sizes(adj_graph_t* graph,
       // fact that some of these edges may connect v to a vertex with a 
       // different block size!!
       int num_edges = block_size - 1;
+      int block_edge_offsets[num_block_edges+1];
+      block_edge_offsets[0] = num_edges;
       for (int e = 0; e < num_block_edges; ++e)
       {
         int bs = (edges[e] < num_vertices) ? block_sizes[edges[e]] : block_size;
         num_edges += bs;
+        block_edge_offsets[e+1] = num_edges;
       }
       adj_graph_set_num_edges(block_graph, block_vertex, num_edges);
 
@@ -202,7 +205,7 @@ adj_graph_t* adj_graph_new_with_block_sizes(adj_graph_t* graph,
         for (int bb = 0; bb < bs; ++bb)
         {
           int v = vertex_offsets[edges[e]] + bb;
-          block_edges[block_size - 1 + bs * e + bb] = v;
+          block_edges[block_edge_offsets[e] + bb] = v;
         }
       }
     }
