@@ -170,7 +170,7 @@ adj_graph_t* adj_graph_new_with_block_sizes(adj_graph_t* graph,
     int* edges = adj_graph_edges(graph, v);
     for (int b = 0; b < block_size; ++b)
     {
-      int block_vertex = block_size * v + b;
+      int block_vertex = vertex_offsets[v] + b;
 
       // Count up the edges in all the blocks. Be sure to include "block 
       // diagonal" edges, too (block_size - 1 of these), and accomodate the 
