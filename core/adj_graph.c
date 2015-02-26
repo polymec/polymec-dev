@@ -214,6 +214,25 @@ adj_graph_t* adj_graph_new_with_block_sizes(adj_graph_t* graph,
   return block_graph;
 }
 
+adj_graph_t* dense_adj_graph_new(MPI_Comm comm, 
+                                 int num_local_vertices,
+                                 int num_remote_vertices)
+{
+  adj_graph_t* graph = adj_graph_new(comm, num_local_vertices);
+  int num_vertices = adj_graph_num_vertices(graph);
+  for (int v = 0; v < num_vertices; ++v)
+  {
+    adj_graph_set_num_edges(graph, v, num_vertices+num_remote_vertices-1);
+    int* edges = adj_graph_edges(graph, v);
+    int k = 0;
+    for (int e = 0; e < num_vertices+num_remote_vertices; ++e)
+    {
+      if (e == v) continue;
+      edges[k++] = e;
+    }
+  }
+  return graph;
+}
 
 adj_graph_t* adj_graph_clone(adj_graph_t* graph)
 {

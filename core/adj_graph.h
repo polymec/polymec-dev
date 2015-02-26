@@ -42,6 +42,12 @@ adj_graph_t* adj_graph_new_with_block_size(adj_graph_t* graph,
 adj_graph_t* adj_graph_new_with_block_sizes(adj_graph_t* graph,
                                             int* block_sizes);
 
+// Constructs a dense graph on the given communicator with the given number 
+// of local and remote vertices. This is really only useful for debugging.
+adj_graph_t* dense_adj_graph_new(MPI_Comm comm, 
+                                 int num_local_vertices,
+                                 int num_remote_vertices);
+
 // Creates and returns a copy of the the given graph.
 adj_graph_t* adj_graph_clone(adj_graph_t* graph);
 
