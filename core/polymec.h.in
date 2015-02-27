@@ -223,6 +223,6 @@ void polymec_append_provenance_data(const char* provenance_data);
 int polymec_num_cores();
 
 // Use this macro to indicate that something hasn't been implemented.
-#define POLYMEC_NOT_IMPLEMENTED polymec_error("%s: line %d: Not implemented!", __FILE__, __LINE__);
+#define POLYMEC_NOT_IMPLEMENTED polymec_error("%s:\n  line %d: Function %s is not implemented!", __FILE__, __LINE__, __func__);
 
 #endif
