@@ -9,6 +9,7 @@
 #define POLYMEC_KRYLOV_SOLVER_H
 
 #include "core/polymec.h"
+#include "core/adj_graph.h"
 
 // Types of Krylov solver.
 typedef enum
@@ -17,6 +18,13 @@ typedef enum
   KRYLOV_BICGSTAB,
   KRYLOV_TFQMR,
 } krylov_t;
+
+// Types of Krylov preconditioner.
+typedef enum
+{
+  KRYLOV_BLOCK_JACOBI,
+  KRYLOV_LU,
+} krylov_pc_t;
 
 // Objects of this type solve linear systems A*x = b using preconditioned 
 // Krylov subspace methods (built from matrix-vector products A*x, A*Ax, etc).
@@ -56,6 +64,11 @@ void krylov_solver_set_tolerances(krylov_solver_t* solver,
 
 // Sets the maximum number of iterations for the solver.
 void krylov_solver_set_max_iterations(krylov_solver_t* solver, int max_iterations);
+
+// Sets up a preconditioner for the Krylov solver to use.
+void krylov_solver_set_preconditioner(krylov_solver_t* solver, 
+                                      krylov_pc_t pc_type, 
+                                      adj_graph_t* sparsity);
 
 // Solves the linear system of equations A * x = b in place, storing the solution
 // in the array b. Returns true if the solution was obtained, false if not. The 

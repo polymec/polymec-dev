@@ -7,6 +7,8 @@
 
 #include <float.h>
 #include "core/sundials_helpers.h"
+#include "core/block_diagonal_matrix.h"
+#include "core/sparse_local_matrix.h"
 #include "integrators/krylov_solver.h"
 
 // We use KINSOL for doing the matrix-free nonlinear solve.
@@ -37,8 +39,10 @@ struct krylov_solver_t
   real_t* b;
   char* status_message; // status of most recent integration.
 
-  // Preconditioning stuff.
-//  newton_pc_t* precond;
+  // Preconditioner matrix.
+  local_matrix_t* P;
+  krylov_pc_t pc_type;
+  adj_graph_t* P_graph;
 };
 
 // This function wraps around the user-supplied evaluation function.
@@ -61,6 +65,32 @@ static int evaluate_R(N_Vector x, N_Vector R, void* context)
   return status;
 }
 
+static int max_block_size(adj_graph_t* sparsity)
+{
+  int max_block_size = 1;
+  int nv = adj_graph_num_vertices(sparsity);
+  for (int i = 0; i < nv; ++i)
+  {
+    int block_size = 1;
+    int ne = adj_graph_num_edges(sparsity, i);
+    int found_edges[ne];
+    memset(found_edges, 0, sizeof(int) * ne);
+    int* edges = adj_graph_edges(sparsity, i);
+    for (int e = 0; e < ne; ++e)
+    {
+      if ((edges[e] > i) && (edges[e] <= i + ne))
+        found_edges[edges[i] - i - 1] = 1;
+    }
+    for (int e = 0; e < ne; ++e)
+    {
+      if (found_edges[e])
+        ++block_size;
+    }
+    max_block_size = MAX(max_block_size, block_size);
+  }
+  return max_block_size;
+}
+
 // This function sets up the preconditioner data within the solver.
 static int set_up_preconditioner(N_Vector x, N_Vector x_scale, 
                                  N_Vector F, N_Vector f_scale,
@@ -69,7 +99,44 @@ static int set_up_preconditioner(N_Vector x, N_Vector x_scale,
 {
   krylov_solver_t* solver = context;
   log_debug("krylov_solver: setting up preconditioner...");
-//  newton_pc_setup(solver->precond, 0.0, 1.0, 0.0, t, NV_DATA(x), NULL);
+  if (solver->P != NULL)
+  {
+    int nv = adj_graph_num_vertices(solver->P_graph);
+    if (solver->pc_type == KRYLOV_BLOCK_JACOBI)
+    {
+      int block_size = max_block_size(solver->P_graph);
+      solver->P = block_diagonal_matrix_new(nv/block_size, block_size);
+    }
+    else
+    {
+      solver->P = sparse_local_matrix_new(solver->P_graph);
+    }
+
+    // Create a coloring of the sparsity graph and iterate over it.
+    adj_graph_coloring_t* coloring = adj_graph_coloring_new(solver->P_graph, SMALLEST_LAST);
+    int num_colors = adj_graph_coloring_num_colors(coloring);
+    int num_Ay_evals = 0;
+    for (int c = 0; c < num_colors; ++c)
+    {
+      // We construct d, the binary vector corresponding to this color.
+      real_t d[nv];
+      memset(d, 0, sizeof(real_t) * nv);
+      int pos = 0, i;
+      while (adj_graph_coloring_next_vertex(coloring, c, &pos, &i))
+        d[i] = 1.0;
+
+      // Now evaluate A*d.
+      real_t Ad[nv];
+      solver->Ay(solver->context, d, Ad);
+      ++num_Ay_evals;
+
+      // Add the column vector A*d into our matrix.
+      pos = 0;
+      while (adj_graph_coloring_next_vertex(coloring, c, &pos, &i))
+        local_matrix_add_column_vector(solver->P, 1.0, i, Ad);
+    }
+    log_debug("krylov_solver: Evaluated A*y %d times.", num_Ay_evals);
+  }
 
   return 0;
 }
@@ -83,20 +150,15 @@ static int solve_preconditioner_system(N_Vector x, N_Vector x_scale,
                                        N_Vector work)
 {
   krylov_solver_t* solver = context;
-
-  // FIXME: Apply scaling if needed.
-
   log_debug("krylov_solver: solving preconditioner...");
-//  if (newton_pc_solve(solver->precond, NV_DATA(r)))
+  if (local_matrix_solve(solver->P, NV_DATA(r)))
     return 0;
-#if 0
   else 
   {
     // Recoverable error.
     log_debug("krylov_solver: preconditioner solve failed.");
     return 1; 
   }
-#endif
 }
 
 // Generic constructor.
@@ -121,7 +183,9 @@ krylov_solver_t* krylov_solver_new(MPI_Comm comm,
   solver->comm = comm;
   solver->Ay = matrix_vector_product;
   solver->dtor = dtor;
-//  solver->precond = precond;
+  solver->pc_type = KRYLOV_BLOCK_JACOBI;
+  solver->P_graph = NULL;
+  solver->P = NULL;
   solver->solver_type = solver_type;
   solver->num_local_values = num_local_values;
   solver->num_remote_values = num_remote_values;
@@ -162,21 +226,16 @@ krylov_solver_t* krylov_solver_new(MPI_Comm comm,
     KINSetInfoFile(solver->kinsol, NULL);
   }
 
-  // Set up the preconditioner.
-//  if (solver->precond != NULL)
-//  {
-//    KINSpilsSetPreconditioner(solver->kinsol, set_up_preconditioner,
-//                              solve_preconditioner_system);
-//  }
-
   return solver;
 }
 
 void krylov_solver_free(krylov_solver_t* solver)
 {
   // Kill the preconditioner stuff.
-//  if (solver->precond != NULL)
-//    newton_pc_free(solver->precond);
+  if (solver->P_graph != NULL)
+    adj_graph_free(solver->P_graph);
+  if (solver->P != NULL)
+    local_matrix_free(solver->P);
 
   // Kill the KINSol stuff.
   N_VDestroy(solver->x);
@@ -215,6 +274,17 @@ void krylov_solver_set_max_iterations(krylov_solver_t* solver, int max_iteration
 {
   ASSERT(max_iterations > 0);
   KINSetNumMaxIters(solver->kinsol, max_iterations);
+}
+
+void krylov_solver_set_preconditioner(krylov_solver_t* solver, 
+                                      krylov_pc_t pc_type, 
+                                      adj_graph_t* sparsity)
+{
+  // Set up the preconditioner.
+  solver->pc_type = pc_type;
+  solver->P_graph = adj_graph_clone(sparsity);
+  KINSpilsSetPreconditioner(solver->kinsol, set_up_preconditioner,
+                            solve_preconditioner_system);
 }
 
 bool krylov_solver_solve(krylov_solver_t* solver,
