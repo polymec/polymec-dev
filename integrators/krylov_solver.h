@@ -40,7 +40,7 @@ krylov_solver_t* krylov_solver_new(MPI_Comm comm,
                                    int num_local_values,
                                    int num_remote_values,
                                    void* context,
-                                   int (*matrix_vector_product)(void* context, real_t* y, real_t* Ay),
+                                   int (*matrix_vector_product)(void* context, real_t t, real_t* y, real_t* Ay),
                                    void (*dtor)(void* context),
                                    krylov_t solver_type,
                                    int max_krylov_dim,
@@ -73,7 +73,7 @@ void krylov_solver_set_preconditioner(krylov_solver_t* solver,
 // Solves the linear system of equations A * x = b in place, storing the solution
 // in the array b. Returns true if the solution was obtained, false if not. The 
 // number of linear iterations will be stored in num_iterations upon success.
-bool krylov_solver_solve(krylov_solver_t* solver, real_t* b, int* num_iterations);
+bool krylov_solver_solve(krylov_solver_t* solver, real_t t, real_t* b, int* num_iterations);
 
 // Diagnostics for the linear solver.
 typedef struct

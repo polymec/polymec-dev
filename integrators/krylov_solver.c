@@ -29,7 +29,7 @@ struct krylov_solver_t
 
   int num_local_values, num_remote_values;
 
-  int (*Ay)(void* context, real_t* y, real_t* Ay);
+  int (*Ay)(void* context, real_t t, real_t* y, real_t* Ay);
   void (*dtor)(void* context);
 
   // KINSol data structures.
@@ -39,10 +39,12 @@ struct krylov_solver_t
   real_t* b;
   char* status_message; // status of most recent integration.
 
+  real_t t; // time.
+
   // Preconditioner matrix.
   local_matrix_t* P;
   krylov_pc_t pc_type;
-  adj_graph_t* P_graph;
+  adj_graph_coloring_t* coloring;
 };
 
 // This function wraps around the user-supplied evaluation function.
@@ -54,7 +56,7 @@ static int evaluate_R(N_Vector x, N_Vector R, void* context)
 
   // Evaluate the residual using a solution vector with ghosts.
   memcpy(solver->x_with_ghosts, xx, sizeof(real_t) * solver->num_local_values);
-  int status = solver->Ay(solver->context, solver->x_with_ghosts, RR);
+  int status = solver->Ay(solver->context, solver->t, solver->x_with_ghosts, RR);
   if (status == 0)
   {
     // Subtract b.
@@ -101,38 +103,27 @@ static int set_up_preconditioner(N_Vector x, N_Vector x_scale,
   log_debug("krylov_solver: setting up preconditioner...");
   if (solver->P != NULL)
   {
-    int nv = adj_graph_num_vertices(solver->P_graph);
-    if (solver->pc_type == KRYLOV_BLOCK_JACOBI)
-    {
-      int block_size = max_block_size(solver->P_graph);
-      solver->P = block_diagonal_matrix_new(nv/block_size, block_size);
-    }
-    else
-    {
-      solver->P = sparse_local_matrix_new(solver->P_graph);
-    }
-
-    // Create a coloring of the sparsity graph and iterate over it.
-    adj_graph_coloring_t* coloring = adj_graph_coloring_new(solver->P_graph, SMALLEST_LAST);
-    int num_colors = adj_graph_coloring_num_colors(coloring);
+    local_matrix_zero(solver->P);
+    int num_colors = adj_graph_coloring_num_colors(solver->coloring);
     int num_Ay_evals = 0;
+    int nv = solver->num_local_values;
     for (int c = 0; c < num_colors; ++c)
     {
       // We construct d, the binary vector corresponding to this color.
       real_t d[nv];
       memset(d, 0, sizeof(real_t) * nv);
       int pos = 0, i;
-      while (adj_graph_coloring_next_vertex(coloring, c, &pos, &i))
+      while (adj_graph_coloring_next_vertex(solver->coloring, c, &pos, &i))
         d[i] = 1.0;
 
       // Now evaluate A*d.
       real_t Ad[nv];
-      solver->Ay(solver->context, d, Ad);
+      solver->Ay(solver->context, solver->t, d, Ad);
       ++num_Ay_evals;
 
       // Add the column vector A*d into our matrix.
       pos = 0;
-      while (adj_graph_coloring_next_vertex(coloring, c, &pos, &i))
+      while (adj_graph_coloring_next_vertex(solver->coloring, c, &pos, &i))
         local_matrix_add_column_vector(solver->P, 1.0, i, Ad);
     }
     log_debug("krylov_solver: Evaluated A*y %d times.", num_Ay_evals);
@@ -166,7 +157,7 @@ krylov_solver_t* krylov_solver_new(MPI_Comm comm,
                                    int num_local_values,
                                    int num_remote_values,
                                    void* context,
-                                   int (*matrix_vector_product)(void* context, real_t* y, real_t* Ay),
+                                   int (*matrix_vector_product)(void* context, real_t t, real_t* y, real_t* Ay),
                                    void (*dtor)(void* context),
                                    krylov_t solver_type,
                                    int max_krylov_dim,
@@ -183,8 +174,8 @@ krylov_solver_t* krylov_solver_new(MPI_Comm comm,
   solver->comm = comm;
   solver->Ay = matrix_vector_product;
   solver->dtor = dtor;
+  solver->t = 0.0;
   solver->pc_type = KRYLOV_BLOCK_JACOBI;
-  solver->P_graph = NULL;
   solver->P = NULL;
   solver->solver_type = solver_type;
   solver->num_local_values = num_local_values;
@@ -232,8 +223,8 @@ krylov_solver_t* krylov_solver_new(MPI_Comm comm,
 void krylov_solver_free(krylov_solver_t* solver)
 {
   // Kill the preconditioner stuff.
-  if (solver->P_graph != NULL)
-    adj_graph_free(solver->P_graph);
+  if (solver->coloring != NULL)
+    adj_graph_coloring_free(solver->coloring);
   if (solver->P != NULL)
     local_matrix_free(solver->P);
 
@@ -282,12 +273,27 @@ void krylov_solver_set_preconditioner(krylov_solver_t* solver,
 {
   // Set up the preconditioner.
   solver->pc_type = pc_type;
-  solver->P_graph = adj_graph_clone(sparsity);
   KINSpilsSetPreconditioner(solver->kinsol, set_up_preconditioner,
                             solve_preconditioner_system);
+
+  if (solver->P == NULL)
+  {
+    int nv = adj_graph_num_vertices(sparsity);
+    if (solver->pc_type == KRYLOV_BLOCK_JACOBI)
+    {
+      int block_size = max_block_size(sparsity);
+      solver->P = block_diagonal_matrix_new(nv/block_size, block_size);
+    }
+    else
+      solver->P = sparse_local_matrix_new(sparsity);
+
+    // Create a coloring of the sparsity graph and iterate over it.
+    solver->coloring = adj_graph_coloring_new(sparsity, SMALLEST_LAST);
+  }
 }
 
 bool krylov_solver_solve(krylov_solver_t* solver,
+                         real_t t,
                          real_t* b,
                          int* num_iterations)
 {
@@ -296,6 +302,9 @@ bool krylov_solver_solve(krylov_solver_t* solver,
   // Copy b into place.
   int N = solver->num_local_values;
   memcpy(solver->b, b, sizeof(real_t) * N);
+
+  // Set the time.
+  solver->t = t;
 
   // Set the x_scale and F_scale vectors. If we don't have methods for doing 
   // this, the scaling vectors are set to 1.
