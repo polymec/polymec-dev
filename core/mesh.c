@@ -738,7 +738,58 @@ serializer_t* mesh_serializer()
   return serializer_new("mesh", mesh_byte_size, mesh_byte_read, mesh_byte_write, NULL);
 }
 
-exchanger_t* mesh_face_exchanger_new(mesh_t* mesh)
+exchanger_t* mesh_1v_face_exchanger_new(mesh_t* mesh)
+{
+  // First construct the 2-valued face exchanger.
+  exchanger_t* face2_ex = mesh_2v_face_exchanger_new(mesh);
+
+  // Determine the owner of each face. We assign a face to the process on 
+  // which it is present, having the lowest rank.
+  int rank;
+  MPI_Comm_rank(mesh->comm, &rank);
+  int face_procs[2*mesh->num_faces];
+  for (int f = 0; f < mesh->num_faces; ++f)
+    face_procs[2*f] = rank;
+  exchanger_exchange(face2_ex, face_procs, 1, 0, MPI_INT);
+
+  // Now set up our facial DoF exchanger.
+  exchanger_t* ex = exchanger_new(mesh->comm);
+  int_ptr_unordered_map_t* send_map = int_ptr_unordered_map_new();
+  int_ptr_unordered_map_t* receive_map = int_ptr_unordered_map_new();
+  for (int f = 0; f < mesh->num_faces; ++f)
+  {
+    int face_sender = MIN(face_procs[2*f], face_procs[2*f+1]);
+    int face_receiver = MAX(face_procs[2*f], face_procs[2*f+1]);
+    if (face_sender == rank)
+    {
+      int_array_t** send_p = (int_array_t**)int_ptr_unordered_map_get(send_map, face_receiver);
+      if (send_p == NULL)
+      {
+        *send_p = int_array_new();
+        int_ptr_unordered_map_insert_with_v_dtor(send_map, face_receiver, *send_p, DTOR(int_array_free));
+      }
+      int_array_append(*send_p, f);
+    }
+    else
+    {
+      int_array_t** receive_p = (int_array_t**)int_ptr_unordered_map_get(send_map, face_sender);
+      if (receive_p == NULL)
+      {
+        *receive_p = int_array_new();
+        int_ptr_unordered_map_insert_with_v_dtor(receive_map, face_sender, *receive_p, DTOR(int_array_free));
+      }
+      int_array_append(*receive_p, f);
+    }
+  }
+  exchanger_set_sends(ex, send_map);
+  exchanger_set_receives(ex, send_map);
+  int_ptr_unordered_map_free(send_map);
+  int_ptr_unordered_map_free(receive_map);
+  exchanger_free(face2_ex);
+  return ex;
+}
+
+exchanger_t* mesh_2v_face_exchanger_new(mesh_t* mesh)
 {
   exchanger_t* ex = exchanger_new(mesh->comm);
 #if POLYMEC_HAVE_MPI
@@ -797,8 +848,8 @@ exchanger_t* mesh_node_exchanger_new(mesh_t* mesh)
 {
   exchanger_t* ex = exchanger_new(mesh->comm);
 #if POLYMEC_HAVE_MPI
-  // Create a face exchanger.
-  exchanger_t* face_ex = mesh_face_exchanger_new(mesh);
+  // Create a 2-valued face exchanger.
+  exchanger_t* face_ex = mesh_2v_face_exchanger_new(mesh);
 
   int rank;
   MPI_Comm_rank(mesh->comm, &rank);

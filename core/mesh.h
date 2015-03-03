@@ -390,15 +390,24 @@ static inline int mesh_face_opp_cell(mesh_t* mesh, int face, int cell)
 serializer_t* mesh_serializer();
 
 // Creates and returns a newly-allocated exchanger that allows the exchange 
-// of face-related values from local to remote processes. The array to be 
+// of a UNIQUE face-related value from local to remote processes. The array to be 
+// exchanged should be of length stride * mesh->num_faces, and the data is 
+// laid out thus:
+// data[face*stride + s] is the sth value of the data associated with 
+// the local face. The process with the lowest rank on which the face appears
+// owns that face. No communication is required to construct this face exchanger.
+exchanger_t* mesh_1v_face_exchanger_new(mesh_t* mesh);
+
+// Creates and returns a newly-allocated exchanger that allows the exchange 
+// of BOTH face-related values from local to remote processes. The array to be 
 // exchanged should be of length 2 * stride * mesh->num_faces, and the data is 
 // laid out thus:
 // data[(2*face+c)*stride + s] is the sth value of the data associated with 
 // the cth (0th or 1st) value of the (local) face. Local values are associated 
 // with cell 0 of local faces on parallel domain boundaries, and remote values
 // are associated with cell 1.
-// No communication is required to construct a face exchanger.
-exchanger_t* mesh_face_exchanger_new(mesh_t* mesh);
+// No communication is required to construct this face exchanger.
+exchanger_t* mesh_2v_face_exchanger_new(mesh_t* mesh);
 
 // Creates and returns a newly-allocated exchanger that allows the exchange 
 // of node-related values from local to remote processes. The array to be 
