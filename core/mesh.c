@@ -752,7 +752,7 @@ exchanger_t* mesh_1v_face_exchanger_new(mesh_t* mesh)
     face_procs[2*f] = rank;
   exchanger_exchange(face2_ex, face_procs, 1, 0, MPI_INT);
 
-  // Now set up our facial DoF exchanger.
+  // Now set up our single-valued exchanger.
   exchanger_t* ex = exchanger_new(mesh->comm);
   int_ptr_unordered_map_t* send_map = int_ptr_unordered_map_new();
   int_ptr_unordered_map_t* receive_map = int_ptr_unordered_map_new();
@@ -844,7 +844,64 @@ exchanger_t* mesh_2v_face_exchanger_new(mesh_t* mesh)
   return ex;
 }
 
-exchanger_t* mesh_node_exchanger_new(mesh_t* mesh)
+exchanger_t* mesh_1v_node_exchanger_new(mesh_t* mesh)
+{
+  // First construct the n-valued face exchanger and the associated offsets.
+  int offsets[mesh->num_nodes+1];
+  exchanger_t* noden_ex = mesh_nv_node_exchanger_new(mesh, offsets);
+
+  // Determine the owner of each node. We assign a face to the process on 
+  // which it is present, having the lowest rank.
+  int rank;
+  MPI_Comm_rank(mesh->comm, &rank);
+  int node_procs[offsets[mesh->num_nodes]];
+  for (int n = 0; n < mesh->num_nodes; ++n)
+    node_procs[offsets[n]] = rank;
+  exchanger_exchange(noden_ex, node_procs, 1, 0, MPI_INT);
+
+  // Now set up our single-valued exchanger.
+  exchanger_t* ex = exchanger_new(mesh->comm);
+  int_ptr_unordered_map_t* send_map = int_ptr_unordered_map_new();
+  int_ptr_unordered_map_t* receive_map = int_ptr_unordered_map_new();
+  for (int n = 0; n < mesh->num_nodes; ++n)
+  {
+    int node_sender = INT_MAX;
+    for (int i = offsets[n]; i < offsets[n+1]; ++i)
+      node_sender = MIN(node_sender, node_procs[i]);
+    if (node_sender == rank)
+    {
+      for (int i = offsets[n]+1; i < offsets[n+1]; ++i)
+      {
+        int node_receiver = node_procs[i];
+        int_array_t** send_p = (int_array_t**)int_ptr_unordered_map_get(send_map, node_receiver);
+        if (send_p == NULL)
+        {
+          *send_p = int_array_new();
+          int_ptr_unordered_map_insert_with_v_dtor(send_map, node_receiver, *send_p, DTOR(int_array_free));
+        }
+        int_array_append(*send_p, i);
+      }
+    }
+    else
+    {
+      int_array_t** receive_p = (int_array_t**)int_ptr_unordered_map_get(send_map, node_sender);
+      if (receive_p == NULL)
+      {
+        *receive_p = int_array_new();
+        int_ptr_unordered_map_insert_with_v_dtor(receive_map, node_sender, *receive_p, DTOR(int_array_free));
+      }
+      int_array_append(*receive_p, n);
+    }
+  }
+  exchanger_set_sends(ex, send_map);
+  exchanger_set_receives(ex, send_map);
+  int_ptr_unordered_map_free(send_map);
+  int_ptr_unordered_map_free(receive_map);
+  exchanger_free(noden_ex);
+  return ex;
+}
+
+exchanger_t* mesh_nv_node_exchanger_new(mesh_t* mesh, int* node_offsets)
 {
   exchanger_t* ex = exchanger_new(mesh->comm);
 #if POLYMEC_HAVE_MPI

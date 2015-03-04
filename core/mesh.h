@@ -389,17 +389,17 @@ static inline int mesh_face_opp_cell(mesh_t* mesh, int face, int cell)
 // Returns a serializer object that can read/write meshes from/to byte arrays.
 serializer_t* mesh_serializer();
 
-// Creates and returns a newly-allocated exchanger that allows the exchange 
-// of a UNIQUE face-related value from local to remote processes. The array to be 
+// 1-value face exchanger: creates and returns a newly-allocated exchanger that allows the 
+// exchange of a UNIQUE face-related value from local to remote processes. The array to be 
 // exchanged should be of length stride * mesh->num_faces, and the data is 
 // laid out thus:
 // data[face*stride + s] is the sth value of the data associated with 
 // the local face. The process with the lowest rank on which the face appears
-// owns that face. No communication is required to construct this face exchanger.
+// owns that face. Communication is required to construct this face exchanger.
 exchanger_t* mesh_1v_face_exchanger_new(mesh_t* mesh);
 
-// Creates and returns a newly-allocated exchanger that allows the exchange 
-// of BOTH face-related values from local to remote processes. The array to be 
+// 2-value face exchanger: creates and returns a newly-allocated exchanger that allows the 
+// exchange of BOTH face-related values from local to remote processes. The array to be 
 // exchanged should be of length 2 * stride * mesh->num_faces, and the data is 
 // laid out thus:
 // data[(2*face+c)*stride + s] is the sth value of the data associated with 
@@ -409,21 +409,30 @@ exchanger_t* mesh_1v_face_exchanger_new(mesh_t* mesh);
 // No communication is required to construct this face exchanger.
 exchanger_t* mesh_2v_face_exchanger_new(mesh_t* mesh);
 
-// Creates and returns a newly-allocated exchanger that allows the exchange 
-// of node-related values from local to remote processes. The array to be 
-// exchanged should be of length stride * mesh->num_nodes, and the data on 
-// nodes is rendered "consistent" in the sense that the information on each 
-// node will be made the same on all processes. The "true" value used for the 
-// nodal information is taken from the process on which it appears, having the 
-// lowest rank. In this sense, this process "owns" the node and determines 
-// its true data.
-// In order to construct a node exchanger, one must begin with a mesh whose 
-// node positions are geometrically consistent in the sense that each node 
-// on a domain is closest to or colocated with exactly one node on one or 
-// more other domains. If this requirement is not met, the node exchanger 
-// cannot be reliably created.
-// Communication is required to construct a node exchanger.
-exchanger_t* mesh_node_exchanger_new(mesh_t* mesh);
+// 1-value node exchanger: creates and returns a newly-allocated exchanger that allows the 
+// population of node-centered arrays with a unique value for each node shared between 
+// processes. The process on which a node is represented with the lowest rank owns that node.
+// NOTE: Currently, in order to construct a node exchanger, one must begin with a mesh whose node positions 
+// are geometrically consistent in the sense that each node on a domain is closest to or 
+// colocated with exactly one node on one or more other domains. If this requirement is not 
+// met, the node exchanger cannot be reliably created.
+// Communication is required to construct such a node exchanger.
+exchanger_t* mesh_1v_node_exchanger_new(mesh_t* mesh);
+
+// n-value node exchanger: creates and returns a newly-allocated exchanger that allows the 
+// exchange of multiple node-related values from local to remote processes, and populates 
+// the given node_offsets array (of length mesh->num_nodes + 1) with offsets that describe 
+// the layout of arrays to be arranged. The array to be exchanged should be of length 
+// node_offsets[mesh->num_nodes] * stride, and is laid out as follows for an array A:
+// - the local nodal value for node n is located at A[node_offsets[n-1]].
+// - the values of A at indices node_offsets[n-1]+1 through node_offsets[n] - 1 contain the 
+//   remote values of the node n as they exist on other processes.
+// NOTE: Currently, in order to construct a node exchanger, one must begin with a mesh whose node positions 
+// are geometrically consistent in the sense that each node on a domain is closest to or 
+// colocated with exactly one node on one or more other domains. If this requirement is not 
+// met, the node exchanger cannot be reliably created.
+// Communication is required to construct such a node exchanger.
+exchanger_t* mesh_nv_node_exchanger_new(mesh_t* mesh, int* node_offsets);
 
 // This function constructs an adjacency graph expressing the connectivity of 
 // the cells of the given mesh.
