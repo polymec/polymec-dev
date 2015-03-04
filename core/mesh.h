@@ -386,6 +386,13 @@ static inline int mesh_face_opp_cell(mesh_t* mesh, int face, int cell)
                                             : mesh->face_cells[2*face];
 }
 
+// Returns true if the given face in the mesh abuts an external boundary, 
+// false if it has an opposite cell.
+static inline bool mesh_face_is_external(mesh_t* mesh, int face)
+{
+  return (mesh->face_cells[2*face+1] == -1);
+}
+
 // Returns a serializer object that can read/write meshes from/to byte arrays.
 serializer_t* mesh_serializer();
 
