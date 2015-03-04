@@ -529,14 +529,13 @@ static void write_master_file(silo_file_t* file)
     DBPutMultivar(master, var->name, num_files*num_chunks, 
                   (char const* const *)var_names, var_types, optlist);
 
-    // Finally, write the number of files to the master file.
-    int one = 1;
-    DBWrite(master, "num_files", &num_files, &one, 1, DB_INT);
-
     // Clean up.
     for (int j = 0; j < num_files*num_chunks; ++j)
       polymec_free(var_names[j]);
   }
+
+  // Finally, write the number of files to the master file.
+  DBWrite(master, "num_files", &num_files, &one, 1, DB_INT);
 
   // Don't forget to write expressions to the master file.
   write_expressions_to_file(file, master);
@@ -1212,11 +1211,13 @@ void silo_file_write_mesh(silo_file_t* file,
     silo_file_write_exchanger(file, ex_name, mesh_exchanger(mesh));
   }
 
-  // Write out the number of mesh cells to a special variable.
-  char num_cells_var[FILENAME_MAX];
+  // Write out the number of mesh cells/faces to special variables.
+  char num_cells_var[FILENAME_MAX], num_faces_var[FILENAME_MAX];
   snprintf(num_cells_var, FILENAME_MAX, "%s_mesh_num_cells", mesh_name);
+  snprintf(num_faces_var, FILENAME_MAX, "%s_mesh_num_faces", mesh_name);
   int one = 1;
   DBWrite(file->dbfile, num_cells_var, &mesh->num_cells, &one, 1, DB_INT);
+  DBWrite(file->dbfile, num_faces_var, &mesh->num_faces, &one, 1, DB_INT);
   
   // Clean up.
   DBFreeOptlist(optlist);
@@ -1397,6 +1398,92 @@ real_t* silo_file_read_cell_field(silo_file_t* file,
   {
     real_t* comp_data = silo_file_read_scalar_cell_field(file, field_component_names[c], mesh_name);
     for (int i = 0; i < num_cells; ++i)
+      field[num_components*i+c] = comp_data[i];
+    polymec_free(comp_data);
+  }
+  return field;
+}
+
+void silo_file_write_scalar_face_field(silo_file_t* file,
+                                       const char* field_name,
+                                       const char* mesh_name,
+                                       real_t* field_data)
+{
+  ASSERT(file->mode == DB_CLOBBER);
+
+  // How many cells does our mesh have?
+  char num_faces_var[FILENAME_MAX];
+  snprintf(num_faces_var, FILENAME_MAX, "%s_mesh_num_faces", mesh_name);
+  ASSERT(DBInqVarExists(file->dbfile, num_faces_var));
+  int num_faces;
+  DBReadVar(file->dbfile, num_faces_var, &num_faces);
+
+  // Feed the field data into the file.
+  DBPutUcdvar1(file->dbfile, field_name, mesh_name, field_data, num_faces, 0, 0, SILO_FLOAT_TYPE, DB_FACECENT, NULL);
+
+  // Add a multi-object entry.
+  silo_file_add_multivar(file, mesh_name, field_name, DB_UCDVAR);
+}
+
+real_t* silo_file_read_scalar_face_field(silo_file_t* file,
+                                         const char* field_name,
+                                         const char* mesh_name)
+{
+  ASSERT(file->mode == DB_READ);
+
+  DBucdvar* var = DBGetUcdvar(file->dbfile, (char*)field_name);
+  if (var == NULL)
+    polymec_error("Field '%s' was not found in the Silo file.", field_name);
+  if (var->centering != DB_FACECENT)
+    polymec_error("Field '%s' is not a polymec face-centered field.", field_name);
+  real_t* field = polymec_malloc(sizeof(real_t) * var->nels);
+  memcpy(field, var->vals[0], sizeof(real_t) * var->nels);
+  return field;
+}
+
+void silo_file_write_face_field(silo_file_t* file,
+                                const char** field_component_names,
+                                const char* mesh_name,
+                                real_t* field_data,
+                                int num_components)
+{
+  ASSERT(file->mode == DB_CLOBBER);
+
+  // How many cells does our mesh have?
+  char num_faces_var[FILENAME_MAX];
+  snprintf(num_faces_var, FILENAME_MAX, "%s_mesh_num_faces", mesh_name);
+  ASSERT(DBInqVarExists(file->dbfile, num_faces_var));
+  int num_faces;
+  DBReadVar(file->dbfile, num_faces_var, &num_faces);
+  real_t* comp_data = polymec_malloc(sizeof(real_t) * num_faces); 
+  for (int c = 0; c < num_components; ++c)
+  {
+    for (int i = 0; i < num_faces; ++i)
+      comp_data[i] = field_data[num_components*i+c];
+    silo_file_write_scalar_face_field(file, field_component_names[c], 
+                                      mesh_name, comp_data);
+  }
+  polymec_free(comp_data);
+}
+
+real_t* silo_file_read_face_field(silo_file_t* file,
+                                  const char** field_component_names,
+                                  const char* mesh_name,
+                                  int num_components)
+{
+  ASSERT(file->mode == DB_READ);
+
+  // How many cells does our mesh have?
+  char num_faces_var[FILENAME_MAX];
+  snprintf(num_faces_var, FILENAME_MAX, "%s_mesh_num_faces", mesh_name);
+  ASSERT(DBInqVarExists(file->dbfile, num_faces_var));
+  int num_faces;
+  DBReadVar(file->dbfile, num_faces_var, &num_faces);
+  real_t* field = polymec_malloc(sizeof(real_t) * num_components * num_faces); 
+  for (int c = 0; c < num_components; ++c)
+  {
+    real_t* comp_data = silo_file_read_scalar_face_field(file, field_component_names[c], mesh_name);
+    for (int i = 0; i < num_faces; ++i)
       field[num_components*i+c] = comp_data[i];
     polymec_free(comp_data);
   }

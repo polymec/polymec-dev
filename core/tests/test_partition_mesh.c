@@ -76,7 +76,7 @@ void test_partition_linear_mesh(void** state)
   exchanger_verify(mesh_exchanger(mesh), polymec_error);
 
   // Plot it.
-  double p[mesh->num_cells];
+  real_t p[mesh->num_cells];
   for (int c = 0; c < mesh->num_cells; ++c)
     p[c] = 1.0*rank;
   silo_file_t* silo = silo_file_new(mesh->comm, "linear_mesh_partition", "linear_mesh_partition", 1, 0, 0, 0.0);
@@ -135,7 +135,7 @@ void test_partition_slab_mesh(void** state)
   int nprocs, rank;
   MPI_Comm_size(mesh->comm, &nprocs);
   MPI_Comm_rank(mesh->comm, &rank);
-  double p[mesh->num_cells];
+  real_t p[mesh->num_cells];
   for (int c = 0; c < mesh->num_cells; ++c)
     p[c] = 1.0*rank;
   silo_file_t* silo = silo_file_new(mesh->comm, "slab_mesh_partition", "slab_mesh_partition", 1, 0, 0, 0.0);

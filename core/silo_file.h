@@ -99,6 +99,35 @@ real_t* silo_file_read_cell_field(silo_file_t* file,
                                   const char* mesh_name,
                                   int num_components);
 
+// Writes a named scalar face-centered field, understood to exist on 
+// the mesh with the given name, to the given Silo file.
+void silo_file_write_scalar_face_field(silo_file_t* file,
+                                       const char* field_name,
+                                       const char* mesh_name,
+                                       real_t* field_data);
+
+// Reads a named scalar face-centered field from the Silo file, returning a newly-
+// allocated array of field data.
+real_t* silo_file_read_scalar_face_field(silo_file_t* file,
+                                         const char* field_name,
+                                         const char* mesh_name);
+
+// Writes a named multicomponent face-centered field, understood to exist on 
+// the mesh with the given name, to the given Silo file. The field data is 
+// interpreted to be in component-minor order.
+void silo_file_write_face_field(silo_file_t* file,
+                                const char** field_component_names,
+                                const char* mesh_name,
+                                real_t* field_data,
+                                int num_components);
+
+// Reads a named multicomponent cell-centered field from the Silo file, returning a 
+// newly-allocated array of field data.
+real_t* silo_file_read_face_field(silo_file_t* file,
+                                  const char** field_component_names,
+                                  const char* mesh_name,
+                                  int num_components);
+
 // Adds a point mesh to the given Silo file.
 void silo_file_write_point_cloud(silo_file_t* file,
                                  const char* cloud_name,
