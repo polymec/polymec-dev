@@ -121,9 +121,38 @@ void silo_file_write_face_field(silo_file_t* file,
                                 real_t* field_data,
                                 int num_components);
 
-// Reads a named multicomponent cell-centered field from the Silo file, returning a 
+// Reads a named multicomponent face-centered field from the Silo file, returning a 
 // newly-allocated array of field data.
 real_t* silo_file_read_face_field(silo_file_t* file,
+                                  const char** field_component_names,
+                                  const char* mesh_name,
+                                  int num_components);
+
+// Writes a named scalar node-centered field, understood to exist on 
+// the mesh with the given name, to the given Silo file.
+void silo_file_write_scalar_node_field(silo_file_t* file,
+                                       const char* field_name,
+                                       const char* mesh_name,
+                                       real_t* field_data);
+
+// Reads a named scalar node-centered field from the Silo file, returning a newly-
+// allocated array of field data.
+real_t* silo_file_read_scalar_face_field(silo_file_t* file,
+                                         const char* field_name,
+                                         const char* mesh_name);
+
+// Writes a named multicomponent node-centered field, understood to exist on 
+// the mesh with the given name, to the given Silo file. The field data is 
+// interpreted to be in component-minor order.
+void silo_file_write_node_field(silo_file_t* file,
+                                const char** field_component_names,
+                                const char* mesh_name,
+                                real_t* field_data,
+                                int num_components);
+
+// Reads a named multicomponent node-centered field from the Silo file, returning a 
+// newly-allocated array of field data.
+real_t* silo_file_read_node_field(silo_file_t* file,
                                   const char** field_component_names,
                                   const char* mesh_name,
                                   int num_components);
