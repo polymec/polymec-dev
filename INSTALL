@@ -55,7 +55,7 @@ Make sure the following modules are loaded:
 
 and then type
 
-make mpi=1 prefix=/prefix/for/polymec
+make config mpi=1 prefix=/prefix/for/polymec
 
 adding any additional desired flags. Then:
 
