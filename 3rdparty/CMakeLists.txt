@@ -414,7 +414,10 @@ if (HAVE_MPI EQUAL 1)
     # to be a little more accommodating, use the gnu99 standard instead 
     # of c11, and turn off some error checking. I'm not wild about this, 
     # but if Scotch does its job, it doesn't much matter.
-    string(REPLACE "c11" "gnu99" SCOTCH_C_FLAGS ${CMAKE_C_FLAGS})
+    set(SCOTCH_C_FLAGS ${CMAKE_C_FLAGS})
+    if (NOT CMAKE_C_COMPILER_ID STREQUAL "Intel")
+      string(REPLACE "c11" "gnu99" SCOTCH_C_FLAGS ${SCOTCH_C_FLAGS})
+    endif()
     string(REPLACE "-pedantic-errors" "" SCOTCH_C_FLAGS ${SCOTCH_C_FLAGS})
     string(REPLACE "-Werror-implicit-function-declaration" "" SCOTCH_C_FLAGS ${SCOTCH_C_FLAGS})
 
