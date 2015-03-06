@@ -102,7 +102,9 @@ if (NOT EXISTS ${Z_LIBRARY})
 
 endif()
 if (NOT CMAKE_INSTALL_PREFIX STREQUAL "INSTALL_DISABLED")
-  install(FILES ${PROJECT_BINARY_DIR}/lib/libz.a DESTINATION lib)
+  if (${Z_LIBRARY} STREQUAL "${PROJECT_BINARY_DIR}/lib/libz.a")
+    install(FILES ${PROJECT_BINARY_DIR}/lib/libz.a DESTINATION lib)
+  endif()
 endif()
 set(POLYMEC_TP_LIBS z;${POLYMEC_TP_LIBS})
 
@@ -214,7 +216,9 @@ if (NOT EXISTS ${SILO_LIBRARY})
 
 endif()
 if (NOT CMAKE_INSTALL_PREFIX STREQUAL "INSTALL_DISABLED")
-  install(FILES ${PROJECT_BINARY_DIR}/lib/libsiloh5.a DESTINATION lib)
+  if (${SILO_LIBRARY} STREQUAL "${PROJECT_BINARY_DIR}/lib/libsiloh5.a")
+    install(FILES ${PROJECT_BINARY_DIR}/lib/libsiloh5.a DESTINATION lib)
+  endif()
 endif()
 set(POLYMEC_TP_LIBS siloh5;${POLYMEC_TP_LIBS})
 
