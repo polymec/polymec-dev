@@ -13,6 +13,13 @@
 #include "core/point_cloud.h"
 #include "core/slist.h"
 
+// Enables GZIP compression at the given level for Silo files. This is 
+// invoked globally and effects all file writes until it is set to a different 
+// level. The level should be an integer from 0 to 9, where 0 is the fastest 
+// compression possible, and 9 is the maximum (and slowest) level of 
+// compression.
+void silo_enable_compression(int level);
+
 // A Silo file can store various geometries (meshes) and data, using 
 // "Poor Man's Parallel I/O" (PMPIO) to achieve scalable throughput.
 typedef struct silo_file_t silo_file_t;

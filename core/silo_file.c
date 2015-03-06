@@ -20,6 +20,21 @@
 #define SILO_FLOAT_TYPE DB_FLOAT
 #endif
 
+void silo_enable_compression(int level)
+{
+  ASSERT(level >= 0);
+  ASSERT(level <= 9);
+  // Global compression level for Silo.
+  static int silo_compression_level = -1; // Disabled by default.
+  if (level != silo_compression_level)
+  {
+    char options[1024];
+    snprintf(options, 1024, "METHOD=GZIP,LEVEL=%d", level);
+    DBSetCompression(options);
+    silo_compression_level = level; 
+  }
+}
+
 #if POLYMEC_HAVE_MPI
 #include "mpi.h"
 #include "pmpio.h"
