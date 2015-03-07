@@ -73,9 +73,6 @@ ode_integrator_t* jfnk_am_ode_integrator_new(int order,
 // ode_integrator_context!
 void* am_ode_integrator_context(ode_integrator_t* integrator);
 
-// This function evaluates error weights for use in the WRMS error norm.
-typedef void (*am_ode_integrator_error_weight_func)(void* context, real_t* y, real_t* weights);
-
 // Sets the relative and absolute tolerances for integrated quantities.
 void am_ode_integrator_set_tolerances(ode_integrator_t* integrator,
                                       real_t relative_tol, real_t absolute_tol);
@@ -84,7 +81,7 @@ void am_ode_integrator_set_tolerances(ode_integrator_t* integrator,
 // as a proxy for the quality of the solution. This may be used in lieu of 
 // relative and absolute tolerances.
 void am_ode_integrator_set_error_weight_function(ode_integrator_t* integrator,
-                                                 am_ode_integrator_error_weight_func compute_weights);                               
+                                                 void (*compute_weights)(void* context, real_t* y, real_t* weights));
 
 // Sets the maximum number of error test failures permitted in attempting 
 // a single time step. By default, this value is 7.
