@@ -441,11 +441,14 @@ void bdf_ode_integrator_set_error_weights(ode_integrator_t* integrator, real_t* 
 {
   bdf_ode_t* integ = ode_integrator_context(integrator);
 #ifndef NDEBUG
-  // Check for non-negativity.
+  // Check for non-negativity and total positivity.
+  real_t total = 0.0;
   for (int i = 0; i < integ->num_local_values; ++i)
   {
     ASSERT(weights[i] >= 0.0);
+    total += weights[i];
   }
+  ASSERT(total > 0.0);
 #endif
 
   if (integ->error_weights == NULL)
