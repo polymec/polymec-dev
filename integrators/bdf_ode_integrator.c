@@ -46,7 +46,7 @@ typedef struct
   int (*Jy)(void* context, real_t t, real_t* x, real_t* rhstx, real_t* y, real_t* temp, real_t* Jy);
 
   // Error weight function.
-  bdf_ode_integrator_error_weight_func compute_weights;
+  void (*compute_weights)(void* context, real_t* y, real_t* weights);
 
   // Observers.
   ptr_array_t* observers;
@@ -425,11 +425,19 @@ static int compute_error_weights(N_Vector y, N_Vector ewt, void* context)
 {
   bdf_ode_t* integ = context;
   integ->compute_weights(integ->context, NV_DATA(y), NV_DATA(ewt));
+
+  // Check that all the weights are non-negative.
+  int N = NV_LOCLENGTH(y);
+  for (int i = 0; i < N; ++i)
+  {
+    if (NV_Ith(y, i) < 0.0)
+      return -1;
+  }
   return 0;
 }
 
 void bdf_ode_integrator_set_error_weight_function(ode_integrator_t* integrator,
-                                                 bdf_ode_integrator_error_weight_func compute_weights)
+                                                  void (*compute_weights)(void* context, real_t* y, real_t* weights))
 {
   bdf_ode_t* integ = ode_integrator_context(integrator);
   ASSERT(compute_weights != NULL);
