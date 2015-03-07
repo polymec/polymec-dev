@@ -46,7 +46,8 @@ typedef struct
   int (*Jy)(void* context, real_t t, real_t* x, real_t* rhs, real_t* y, real_t* temp, real_t* Jy);
 
   // Error weight function.
-  void (*compute_weights)(void* context, real_t* y, real_t* weights);                               
+  void (*compute_weights)(void* context, real_t* y, real_t* weights);
+  real_t* error_weights;
 
   // Observers.
   ptr_array_t* observers;
@@ -229,6 +230,8 @@ static void am_dtor(void* context)
   if ((integ->context != NULL) && (integ->dtor != NULL))
     integ->dtor(integ->context);
   ptr_array_free(integ->observers);
+  if (integ->error_weights != NULL)
+    polymec_free(integ->error_weights);
   polymec_free(integ);
 }
 
@@ -258,6 +261,7 @@ ode_integrator_t* functional_am_ode_integrator_new(int order,
   integ->Jy = NULL;
   integ->precond = NULL;
   integ->observers = ptr_array_new();
+  integ->error_weights = NULL;
 
   // Set up KINSol and accessories.
   integ->x = N_VNew(integ->comm, integ->num_local_values);
@@ -462,9 +466,39 @@ void am_ode_integrator_set_tolerances(ode_integrator_t* integrator,
 
   // Clear any existing error weight function.
   integ->compute_weights = NULL;
+  if (integ->error_weights != NULL)
+  {
+    polymec_free(integ->error_weights);
+    integ->error_weights = NULL;
+  }
 
   // Set the tolerances.
   CVodeSStolerances(integ->cvode, relative_tol, absolute_tol);
+}
+
+// Constant error weight adaptor function.
+static void use_constant_weights(void* context, real_t* y, real_t* weights)
+{
+  am_ode_t* integ = context;
+  ASSERT(integ->error_weights != NULL);
+  memcpy(weights, integ->error_weights, sizeof(real_t) * integ->num_local_values);
+}
+
+void am_ode_integrator_set_error_weights(ode_integrator_t* integrator, real_t* weights)
+{
+  am_ode_t* integ = ode_integrator_context(integrator);
+#ifndef NDEBUG
+  // Check for non-negativity.
+  for (int i = 0; i < integ->num_local_values; ++i)
+  {
+    ASSERT(weights[i] >= 0.0);
+  }
+#endif
+
+  if (integ->error_weights == NULL)
+    integ->error_weights = polymec_malloc(sizeof(real_t) * integ->num_local_values);
+  memcpy(integ->error_weights, weights, sizeof(real_t) * integ->num_local_values);
+  am_ode_integrator_set_error_weight_function(integrator, use_constant_weights);
 }
 
 // Error weight adaptor function.

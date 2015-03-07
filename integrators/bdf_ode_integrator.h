@@ -62,6 +62,11 @@ void* bdf_ode_integrator_context(ode_integrator_t* integrator);
 void bdf_ode_integrator_set_tolerances(ode_integrator_t* integrator,
                                        real_t relative_tol, real_t absolute_tol);
 
+// Sets the error weights for evaluating the WRMS norm that is used 
+// as a proxy for the quality of the solution. This may be used in lieu of 
+// relative and absolute tolerances. Weights are copied into the integrator.
+void bdf_ode_integrator_set_error_weights(ode_integrator_t* integrator, real_t* weights);
+
 // Sets the error weight function for evaluating the WRMS norm that is used 
 // as a proxy for the quality of the solution. This may be used in lieu of 
 // relative and absolute tolerances.
