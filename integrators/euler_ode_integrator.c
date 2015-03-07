@@ -345,7 +345,7 @@ ode_integrator_t* functional_euler_ode_integrator_new(real_t theta,
   // Set default iteration criteria.
   euler_ode_integrator_set_max_iterations(I, 100);
   euler_ode_integrator_set_tolerances(I, 1e-4, 1.0);
-  euler_ode_integrator_set_convergence_norm(I, 0);
+  euler_ode_integrator_set_lp_convergence_norm(I, 0);
 
   return I;
 }
@@ -429,8 +429,8 @@ void euler_ode_integrator_set_tolerances(ode_integrator_t* integrator,
   }
 }
 
-void euler_ode_integrator_set_convergence_norm(ode_integrator_t* integrator,
-                                               int p)
+void euler_ode_integrator_set_lp_convergence_norm(ode_integrator_t* integrator,
+                                                  int p)
 {
   ASSERT((p == 0) || (p == 1) || (p == 2));
 
@@ -441,6 +441,14 @@ void euler_ode_integrator_set_convergence_norm(ode_integrator_t* integrator,
     integ->compute_norms = compute_l1_norms;
   else
     integ->compute_norms = compute_l2_norms;
+}
+
+void euler_ode_integrator_set_custom_convergence_norm(ode_integrator_t* integrator,
+                                                      void (*compute_norms)(MPI_Comm comm, real_t* x, real_t* y, int N, real_t* abs_norm, real_t* rel_norm))
+{
+  ASSERT(compute_norms != NULL);
+  euler_ode_t* integ = ode_integrator_context(integrator);
+  integ->compute_norms = compute_norms;
 }
 
 newton_solver_t* newton_euler_ode_integrator_solver(ode_integrator_t* integrator)
