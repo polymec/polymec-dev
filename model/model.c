@@ -677,8 +677,12 @@ real_t model_advance(model_t* model, real_t max_dt)
   model->dt = model->vtable.advance(model->context, max_dt, model->time);
 
   // Check the time step.
+  static real_t dt_fuzz = -1.0;
+  if (dt_fuzz < 0.0)
+    dt_fuzz = pow(REAL_EPSILON, 2.0/3.0);
+
   ASSERT(model->dt > 0.0);
-  ASSERT(model->dt <= max_dt + REAL_EPSILON);
+  ASSERT(model->dt <= max_dt + dt_fuzz);
 
   model->time += model->dt;
   log_info("%s: Step %d (t = %g, dt = %g)", model->name, model->step, model->time, model->dt);
