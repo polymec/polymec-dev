@@ -270,14 +270,11 @@ double bessel_jn(int n, double x)
   else
   {
     // Determine the order from which to recurse backwards.
-    int nm = n;
     int m = msta1(x, 200.0);
-    if (m < n)
-      nm = m;
-    else
+    if (m >= n)
       m = msta2(x, n, 15.0);
 
-    double f, f2 = 0.0, f1 = 99.0;
+    double f = 0.0, f2 = 0.0, f1 = 99.0;
     for (int k = m; k >= 0; --k)
     {
       f = 2.0*f1*(k+1)/x - f2;

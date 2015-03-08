@@ -763,22 +763,26 @@ exchanger_t* mesh_1v_face_exchanger_new(mesh_t* mesh)
     if (face_sender == rank)
     {
       int_array_t** send_p = (int_array_t**)int_ptr_unordered_map_get(send_map, face_receiver);
+      int_array_t* send = NULL;
       if (send_p == NULL)
       {
-        *send_p = int_array_new();
-        int_ptr_unordered_map_insert_with_v_dtor(send_map, face_receiver, *send_p, DTOR(int_array_free));
+        send = int_array_new();
+        int_ptr_unordered_map_insert_with_v_dtor(send_map, face_receiver, send, DTOR(int_array_free));
       }
-      int_array_append(*send_p, f);
+      else
+        send = *send_p;
+      int_array_append(send, f);
     }
     else
     {
       int_array_t** receive_p = (int_array_t**)int_ptr_unordered_map_get(send_map, face_sender);
+      int_array_t* receive = NULL;
       if (receive_p == NULL)
       {
-        *receive_p = int_array_new();
-        int_ptr_unordered_map_insert_with_v_dtor(receive_map, face_sender, *receive_p, DTOR(int_array_free));
+        receive = int_array_new();
+        int_ptr_unordered_map_insert_with_v_dtor(receive_map, face_sender, receive, DTOR(int_array_free));
       }
-      int_array_append(*receive_p, f);
+      int_array_append(receive, f);
     }
   }
   exchanger_set_sends(ex, send_map);
@@ -874,23 +878,25 @@ exchanger_t* mesh_1v_node_exchanger_new(mesh_t* mesh)
       {
         int node_receiver = node_procs[i];
         int_array_t** send_p = (int_array_t**)int_ptr_unordered_map_get(send_map, node_receiver);
+        int_array_t* send = NULL;
         if (send_p == NULL)
         {
-          *send_p = int_array_new();
-          int_ptr_unordered_map_insert_with_v_dtor(send_map, node_receiver, *send_p, DTOR(int_array_free));
+          send = int_array_new();
+          int_ptr_unordered_map_insert_with_v_dtor(send_map, node_receiver, send, DTOR(int_array_free));
         }
-        int_array_append(*send_p, i);
+        int_array_append(send, i);
       }
     }
     else
     {
       int_array_t** receive_p = (int_array_t**)int_ptr_unordered_map_get(send_map, node_sender);
+      int_array_t* receive = NULL;
       if (receive_p == NULL)
       {
-        *receive_p = int_array_new();
-        int_ptr_unordered_map_insert_with_v_dtor(receive_map, node_sender, *receive_p, DTOR(int_array_free));
+        receive = int_array_new();
+        int_ptr_unordered_map_insert_with_v_dtor(receive_map, node_sender, receive, DTOR(int_array_free));
       }
-      int_array_append(*receive_p, n);
+      int_array_append(receive, n);
     }
   }
   exchanger_set_sends(ex, send_map);

@@ -124,9 +124,6 @@ static bool bdm_solve(void* context, real_t* B)
       log_debug("bdm_solve: (U is singular).", i);
       break;
     }
-
-    D_offset += bs*bs;
-    B_offset += bs;
   }
 
   return success;

@@ -119,7 +119,7 @@ static int bdf_evaluate_rhs(real_t t, N_Vector x, N_Vector x_dot, void* context)
 static bool bdf_step(void* context, real_t max_dt, real_t* t, real_t* x)
 {
   bdf_ode_t* integ = context;
-  int status;
+  int status = CV_SUCCESS;
 
   // If *t + max_dt is less than the time to which we've already integrated, 
   // we don't need to integrate; we only need to interpolate backward.
