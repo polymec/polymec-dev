@@ -61,7 +61,7 @@ static polymec_timer_t* polymec_timer_new(const char* name)
 polymec_timer_t* polymec_timer_get(const char* name)
 {
   polymec_timer_t* t = NULL;
-  if (current_timer == NULL)
+  if (all_timers == NULL)
   {
     // Do we need timers?
     options_t* options = options_argv();
@@ -84,30 +84,56 @@ polymec_timer_t* polymec_timer_get(const char* name)
     if (use_timers)
     {
       // We don't have any timers yet! So make one.
-      current_timer = polymec_timer_new(name);
-      t = current_timer;
+      t = polymec_timer_new(name);
     }
   }
   else
   {
     if (use_timers)
     {
-      if (strcmp(name, current_timer->name) == 0)
-        t = current_timer;
+      if (current_timer != NULL) // A timer is running...
+      {
+        if (strcmp(name, current_timer->name) == 0)
+          t = current_timer;
+        else
+        {
+          // Search the current timer for a child of this name.
+          for (int i = 0; i < current_timer->children->size; ++i)
+          {
+            polymec_timer_t* child = current_timer->children->data[i];
+            if (strcmp(name, child->name) == 0)
+            {
+              t = child;
+              break;
+            }
+          }
+          if (t == NULL)
+            t = polymec_timer_new(name);
+        }
+      }
       else
       {
-        // Search the current timer for a child of this name.
-        for (int i = 0; i < current_timer->children->size; ++i)
+        // We shouldn't actually encounter this too often, but if we do, we can look for it
+        // in the root timer.
+        polymec_timer_t* root = all_timers->data[0];
+        if (strcmp(name, root->name) == 0)
+          t = root;
+        else
         {
-          polymec_timer_t* child = current_timer->children->data[i];
-          if (strcmp(name, child->name) == 0)
+          // Search the root timer for a child of this name.
+          for (int i = 0; i < root->children->size; ++i)
           {
-            t = child;
-            break;
+            polymec_timer_t* child = root->children->data[i];
+            if (strcmp(name, child->name) == 0)
+            {
+              t = child;
+              break;
+            }
           }
+          if (t == NULL)
+            t = polymec_timer_new(name);
         }
-        if (t == NULL)
-          t = polymec_timer_new(name);
+
       }
     }
   }
@@ -118,6 +144,9 @@ void polymec_timer_start(polymec_timer_t* timer)
 {
   if (use_timers)
   {
+    if (timer == current_timer)
+      polymec_error("polymec_timer_start: Can't start timer %s, which has already been started.", timer->name);
+
     // This timer becomes the "current" timer.
     current_timer = timer;
     timer->timestamp = MPI_Wtime();
@@ -129,6 +158,9 @@ void polymec_timer_stop(polymec_timer_t* timer)
 {
   if (use_timers)
   {
+    if (timer != current_timer)
+      polymec_error("polymec_timer_stop: Can't stop timer %s, which wasn't started.", timer->name);
+
     if (current_timer != all_timers->data[0])
     {
       // This timer's parent becomes the "current" timer.
