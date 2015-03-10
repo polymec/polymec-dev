@@ -16,6 +16,7 @@ struct polymec_timer_t
 
   // Timing data.
   double accum_time, timestamp;
+  unsigned long long count;
 
   // Hierarchy information.
   polymec_timer_t* parent;
@@ -41,6 +42,7 @@ static polymec_timer_t* polymec_timer_new(const char* name)
   polymec_timer_t* t = polymec_malloc(sizeof(polymec_timer_t));
   t->name = string_dup(name);
   t->accum_time = 0.0;
+  t->count = 0;
   t->timestamp = MPI_Wtime();
   t->parent = current_timer;
   t->children = ptr_array_new();
@@ -119,6 +121,7 @@ void polymec_timer_start(polymec_timer_t* timer)
     // This timer becomes the "current" timer.
     current_timer = timer;
     timer->timestamp = MPI_Wtime();
+    ++(timer->count);
   }
 }
 
@@ -137,6 +140,26 @@ void polymec_timer_stop(polymec_timer_t* timer)
   }
 }
 
+static void report_timer(polymec_timer_t* t, int indentation, FILE* file)
+{
+  polymec_timer_t* root = all_timers->data[0];
+  double percent = (double)(100.0 * t->accum_time / root->accum_time);
+  char call_string[9];
+  if (t->count > 1)
+    strcpy(call_string, "calls");
+  else
+    strcpy(call_string, "call");
+  int name_len = strlen(t->name);
+  fprintf(file, "%*s%*s%10.4f s  %5.1f%%  %10lld %s\n", indentation + name_len, t->name, 
+          45 - indentation - name_len, " ", t->accum_time, percent, t->count, call_string);
+  int num_children = t->children->size;
+  for (int i = 0; i < num_children; ++i)
+  {
+    polymec_timer_t* child = t->children->data[i];
+    report_timer(child, indentation+2, file);
+  }
+}
+
 void polymec_timer_report()
 {
   if (use_timers)
@@ -145,11 +168,21 @@ void polymec_timer_report()
     {
       // This is currently just a stupid enumeration to test that reporting 
       // is properly triggered.
-      for (int i = 0; i < all_timers->size; ++i)
-      {
-        polymec_timer_t* t = all_timers->data[i];
-        printf("Timer %s: %g s\n", t->name, t->accum_time);
-      }
+      FILE* report_file = fopen("timer_report.txt", "w");
+      if (report_file == NULL)
+        polymec_error("Could not open file 'timer_report.txt' for writing!");
+      fprintf(report_file, "-----------------------------------------------------------------------------------\n");
+      fprintf(report_file, "                                   Timer summary:\n");
+      fprintf(report_file, "-----------------------------------------------------------------------------------\n");
+
+      // Print a header.
+      fprintf(report_file, "%s%*s%s\n", "Name:", 49-5, " ", "Time:     Percent:     Count:");
+      fprintf(report_file, "-----------------------------------------------------------------------------------\n");
+
+
+      polymec_timer_t* t = all_timers->data[0];
+      report_timer(t, 0, report_file);
+      fclose(report_file);
     }
   }
 }
