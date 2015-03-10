@@ -44,6 +44,10 @@ static polymec_timer_t* polymec_timer_new(const char* name)
   t->parent = current_timer;
   t->children = ptr_array_new();
 
+  // Make sure our parent records us.
+  if (t->parent != NULL)
+    ptr_array_append(t->parent->children, t);
+
   // Register the timer with the global list of all timers.
   if (all_timers == NULL)
     all_timers = ptr_array_new();
@@ -80,18 +84,23 @@ polymec_timer_t* polymec_timer_get(const char* name)
   {
     if (use_timers)
     {
-      // Search the current timer for a child of this name.
-      for (int i = 0; i < current_timer->children->size; ++i)
+      if (strcmp(name, current_timer->name) == 0)
+        t = current_timer;
+      else
       {
-        polymec_timer_t* child = current_timer->children->data[i];
-        if (strcmp(name, child->name) == 0)
+        // Search the current timer for a child of this name.
+        for (int i = 0; i < current_timer->children->size; ++i)
         {
-          t = child;
-          break;
+          polymec_timer_t* child = current_timer->children->data[i];
+          if (strcmp(name, child->name) == 0)
+          {
+            t = child;
+            break;
+          }
         }
+        if (t == NULL)
+          t = polymec_timer_new(name);
       }
-      if (t == NULL)
-        t = polymec_timer_new(name);
     }
   }
   return t;
