@@ -7,6 +7,7 @@
 
 #include "core/sundials_helpers.h"
 #include "core/array.h"
+#include "core/timer.h"
 #include "integrators/bdf_ode_integrator.h"
 #include "integrators/newton_pc.h"
 #include "cvode/cvode.h"
@@ -92,6 +93,7 @@ static char* get_status_message(int status, real_t current_time)
 // This function wraps around the user-supplied right hand side.
 static int bdf_evaluate_rhs(real_t t, N_Vector x, N_Vector x_dot, void* context)
 {
+  START_FUNCTION_TIMER();
   bdf_ode_t* integ = context;
   real_t* xx = NV_DATA(x);
   real_t* xxd = NV_DATA(x_dot);
@@ -113,11 +115,13 @@ static int bdf_evaluate_rhs(real_t t, N_Vector x, N_Vector x_dot, void* context)
       obs->rhs_computed(obs->context, t, xx, xxd);
   }
 
+  STOP_FUNCTION_TIMER();
   return status;
 }
 
 static bool bdf_step(void* context, real_t max_dt, real_t* t, real_t* x)
 {
+  START_FUNCTION_TIMER();
   bdf_ode_t* integ = context;
   int status = CV_SUCCESS;
 
@@ -131,6 +135,7 @@ static bool bdf_step(void* context, real_t max_dt, real_t* t, real_t* x)
     if ((status != CV_SUCCESS) && (status != CV_TSTOP_RETURN))
     {
       integ->status_message = get_status_message(status, integ->t);
+      STOP_FUNCTION_TIMER();
       return false;
     }
 
@@ -159,11 +164,13 @@ static bool bdf_step(void* context, real_t max_dt, real_t* t, real_t* x)
   {
     // Copy out the solution.
     memcpy(x, NV_DATA(integ->x), sizeof(real_t) * integ->num_local_values); 
+    STOP_FUNCTION_TIMER();
     return true;
   }
   else
   {
     integ->status_message = get_status_message(status, integ->t);
+    STOP_FUNCTION_TIMER();
     return false;
   }
 }
@@ -242,6 +249,7 @@ static int set_up_preconditioner(real_t t, N_Vector x, N_Vector F,
                                  real_t gamma, void* context, 
                                  N_Vector work1, N_Vector work2, N_Vector work3)
 {
+  START_FUNCTION_TIMER();
   bdf_ode_t* integ = context;
   if (!jacobian_is_current)
   {
@@ -252,6 +260,7 @@ static int set_up_preconditioner(real_t t, N_Vector x, N_Vector F,
   }
   else
     *jacobian_was_updated = 0;
+  STOP_FUNCTION_TIMER();
   return 0;
 }
 
@@ -264,6 +273,7 @@ static int solve_preconditioner_system(real_t t, N_Vector x, N_Vector F,
                                        int lr, void* context, 
                                        N_Vector work)
 {
+  START_FUNCTION_TIMER();
   ASSERT(lr == 1); // Left preconditioning only.
 
   bdf_ode_t* integ = context;
@@ -273,15 +283,15 @@ static int solve_preconditioner_system(real_t t, N_Vector x, N_Vector F,
   memcpy(NV_DATA(z), NV_DATA(r), sizeof(real_t) * integ->num_local_values);
 
   // Solve it.
-  if (newton_pc_solve(integ->precond, NV_DATA(z)))
-    return 0;
-  else 
-    return 1; // recoverable error.
+  int result = (newton_pc_solve(integ->precond, NV_DATA(z))) ? 0 : 1;
+  STOP_FUNCTION_TIMER();
+  return result;
 }
 
 // Adaptor for J*y function
 static int eval_Jy(N_Vector y, N_Vector Jy, real_t t, N_Vector x, N_Vector rhs, void* context, N_Vector tmp)
 {
+  START_FUNCTION_TIMER();
   bdf_ode_t* integ = context;
   real_t* xx = NV_DATA(x);
   real_t* yy = NV_DATA(y);
@@ -301,6 +311,7 @@ static int eval_Jy(N_Vector y, N_Vector Jy, real_t t, N_Vector x, N_Vector rhs, 
       obs->Jy_computed(obs->context, t, xx, my_rhs, yy, jjy);
   }
 
+  STOP_FUNCTION_TIMER();
   return status;
 }
 

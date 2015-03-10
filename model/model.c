@@ -11,6 +11,7 @@
 #include "core/array.h"
 #include "core/array_utils.h"
 #include "core/text_buffer.h"
+#include "core/timer.h"
 #include "model/model.h"
 
 // This helper writes the given message out to stderr on rank 0.
@@ -236,6 +237,8 @@ void model_run_all_benchmarks(model_t* model)
 
 void model_run_benchmark(model_t* model, const char* benchmark)
 {
+  START_FUNCTION_TIMER();
+
   // Try to retrieve this benchmark.
   model_benchmark_t** metadata = model_benchmark_map_get(model->benchmarks, (char*)benchmark);
   options_t* options = options_argv();
@@ -312,10 +315,12 @@ void model_run_benchmark(model_t* model, const char* benchmark)
   {
     polymec_error("%s: Benchmark not found: '%s'.", model->name, benchmark);
   }
+  STOP_FUNCTION_TIMER();
 }
 
 static void model_read_input(model_t* model, interpreter_t* interp)
 {
+  START_FUNCTION_TIMER();
   options_t* options = options_argv();
 
   // We always read certain inputs.
@@ -395,6 +400,7 @@ static void model_read_input(model_t* model, interpreter_t* interp)
 
   // Read the model-specific inputs.
   model->vtable.read_input(model->context, interp, options);
+  STOP_FUNCTION_TIMER();
 }
 
 void model_read_input_string(model_t* model, const char* input)
@@ -586,6 +592,7 @@ static void model_do_periodic_work(model_t* model)
 // Initialize the model at the given time.
 void model_init(model_t* model, real_t t)
 {
+  START_FUNCTION_TIMER();
   log_detail("%s: Initializing at time %g.", model->name, t);
   model->vtable.init(model->context, t);
   model->step = 0;
@@ -593,6 +600,7 @@ void model_init(model_t* model, real_t t)
   model->time = t;
   model->wall_time0 = MPI_Wtime();
   model->wall_time = MPI_Wtime();
+  STOP_FUNCTION_TIMER();
 }
 
 // Returns the largest permissible time step that can be taken by the model
@@ -673,6 +681,7 @@ real_t model_max_dt(model_t* model, char* reason)
 
 real_t model_advance(model_t* model, real_t max_dt)
 {
+  START_FUNCTION_TIMER();
   real_t pre_wall_time = MPI_Wtime();
   model->dt = model->vtable.advance(model->context, max_dt, model->time);
 
@@ -699,6 +708,7 @@ real_t model_advance(model_t* model, real_t max_dt)
     model->sim_speed = FLT_MAX;
   model->wall_time = post_wall_time;
 
+  STOP_FUNCTION_TIMER();
   return model->dt;
 }
 
@@ -709,13 +719,16 @@ real_t model_time(model_t* model)
 
 void model_finalize(model_t* model)
 {
+  START_FUNCTION_TIMER();
   log_detail("%s: Finalizing model at t = %g", model->name, model->time);
   if (model->vtable.finalize != NULL)
     model->vtable.finalize(model->context, model->step, model->time);
+  STOP_FUNCTION_TIMER();
 }
 
 void model_load(model_t* model, int step)
 {
+  START_FUNCTION_TIMER();
   // Is loading supported by this model?
   if (model->vtable.load == NULL)
     polymec_error("Loading from save files is not supported by this model.");
@@ -736,10 +749,12 @@ void model_load(model_t* model, int step)
   // Reset the wall time(s).
   model->wall_time0 = MPI_Wtime();
   model->wall_time = MPI_Wtime();
+  STOP_FUNCTION_TIMER();
 }
 
 void model_save(model_t* model)
 {
+  START_FUNCTION_TIMER();
   int nprocs;
   MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
 
@@ -750,10 +765,12 @@ void model_save(model_t* model)
   snprintf(dir, FILENAME_MAX, "%s-%d", model->sim_name, nprocs);
   log_detail("%s: Writing save file to directory %s...", model->name, dir);
   model->vtable.save(model->context, prefix, dir, model->time, model->step);
+  STOP_FUNCTION_TIMER();
 }
 
 void model_plot(model_t* model)
 {
+  START_FUNCTION_TIMER();
   int nprocs;
   MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
 
@@ -764,10 +781,12 @@ void model_plot(model_t* model)
   snprintf(dir, FILENAME_MAX, "%s-%d", model->sim_name, nprocs);
   log_detail("%s: Writing plot to directory %s...", model->name, dir);
   model->vtable.plot(model->context, prefix, dir, model->time, model->step);
+  STOP_FUNCTION_TIMER();
 }
 
 void model_record_observations(model_t* model)
 {
+  START_FUNCTION_TIMER();
   if (model->sim_name == NULL)
     polymec_error("No simulation name was set with model_set_sim_name.");
 
@@ -842,14 +861,17 @@ void model_record_observations(model_t* model)
   // Close the file.
   if (rank == 0)
     fclose(obs);
+  STOP_FUNCTION_TIMER();
 }
 
 void model_compute_error_norms(model_t* model, st_func_t* solution, real_t* error_norms)
 { 
+  START_FUNCTION_TIMER();
   if (model->vtable.compute_error_norms != NULL)
     model->vtable.compute_error_norms(model->context, solution, model->time, error_norms);
   else
     polymec_error("%s: This model is not equipped to compute error norms.", model->name);
+  STOP_FUNCTION_TIMER();
 }
 
 // This helper overrides interpreted parameters with options from the 
@@ -975,6 +997,7 @@ static void override_interpreted_values(model_t* model,
 
 void model_run(model_t* model, real_t t1, real_t t2, int max_steps)
 {
+  START_FUNCTION_TIMER();
   ASSERT(t2 >= t1);
 
   // Override options given at the command line.
@@ -1043,6 +1066,7 @@ void model_run(model_t* model, real_t t1, real_t t2, int max_steps)
   model_finalize(model);
 
   log_detail("%s: Run concluded at time %g.", model->name, model->time);
+  STOP_FUNCTION_TIMER();
 }
 
 void* model_context(model_t* model)
