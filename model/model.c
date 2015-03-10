@@ -1116,8 +1116,12 @@ static void print_runtime_options_help()
   print_to_rank0("                              are recorded.\n");
   print_to_rank0("logging=LEVEL               - Enables logging output at the requested level.\n");
   print_to_rank0("                              Levels are (in order of increasing verbosity):\n");
-  print_to_rank0("                              urgent, info, detail, debug\n\n");
-  print_to_rank0("Benchmark-specific runtime options:\n");
+  print_to_rank0("                              urgent, info, detail, debug\n");
+  print_to_rank0("timers=1,yes,true,on        - Enables timers for performance profiling.\n");
+  print_to_rank0("timer_file=FILE             - When timers are enabled, specifies the name of\n");
+  print_to_rank0("                              the file to which timing summary information\n");
+  print_to_rank0("                              is written. Defaults to timer_report.txt.\n");
+  print_to_rank0("\nBenchmark-specific runtime options:\n");
   print_to_rank0("expected_conv_rate=R        - A multi-run benchmark will PASS if the\n");
   print_to_rank0("                              convergence rate of its error norm meets or\n");
   print_to_rank0("                              exceeds R, and will otherwise FAIL.\n");

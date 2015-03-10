@@ -28,6 +28,7 @@ int mpi_rank = -1;
 static bool use_timers = false;
 static ptr_array_t* all_timers = NULL;
 static polymec_timer_t* current_timer = NULL;
+static char timer_report_file[FILENAME_MAX];
 
 static void polymec_timer_free(polymec_timer_t* timer)
 {
@@ -74,6 +75,11 @@ polymec_timer_t* polymec_timer_get(const char* name)
     {
       use_timers = true;
       log_debug("polymec: Enabled timers.");
+
+      // Were we given a specific report file?
+      char* timer_file = options_value(options, "timer_file");
+      if (timer_file != NULL)
+        strncpy(timer_report_file, timer_file, FILENAME_MAX);
 
       // Record our MPI rank.
       MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
@@ -200,9 +206,9 @@ void polymec_timer_report()
     {
       // This is currently just a stupid enumeration to test that reporting 
       // is properly triggered.
-      FILE* report_file = fopen("timer_report.txt", "w");
+      FILE* report_file = fopen(timer_report_file, "w");
       if (report_file == NULL)
-        polymec_error("Could not open file 'timer_report.txt' for writing!");
+        polymec_error("Could not open file '%s' for writing!", timer_report_file);
       fprintf(report_file, "-----------------------------------------------------------------------------------\n");
       fprintf(report_file, "                                   Timer summary:\n");
       fprintf(report_file, "-----------------------------------------------------------------------------------\n");
