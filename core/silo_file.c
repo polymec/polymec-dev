@@ -13,6 +13,7 @@
 #include "core/silo_file.h"
 #include "core/array.h"
 #include "core/array_utils.h"
+#include "core/timer.h"
 
 #if POLYMEC_HAVE_DOUBLE_PRECISION
 #define SILO_FLOAT_TYPE DB_DOUBLE
@@ -561,7 +562,6 @@ static void write_master_file(silo_file_t* file)
 
   PMPIO_HandOffBaton(baton, (void*)master);
   PMPIO_Finish(baton);
-//  DBClose(master);
 }
 #endif
 
@@ -573,6 +573,7 @@ silo_file_t* silo_file_new(MPI_Comm comm,
                            int cycle,
                            real_t time)
 {
+  START_FUNCTION_TIMER();
   silo_file_t* file = polymec_malloc(sizeof(silo_file_t));
   file->expressions = string_ptr_unordered_map_new();
 
@@ -690,6 +691,7 @@ silo_file_t* silo_file_new(MPI_Comm comm,
   int one = 1;
   DBWrite(file->dbfile, "POLYMEC_SILO_FILE", &one, &one, 1, DB_INT);
 
+  STOP_FUNCTION_TIMER();
   return file;
 }
 
@@ -718,6 +720,7 @@ silo_file_t* silo_file_open(MPI_Comm comm,
                             int cycle, 
                             real_t* time)
 {
+  START_FUNCTION_TIMER();
   silo_file_t* file = polymec_malloc(sizeof(silo_file_t));
   file->mode = DB_READ;
   file->cycle = -1;
@@ -891,11 +894,13 @@ silo_file_t* silo_file_open(MPI_Comm comm,
   if (time != NULL)
     *time = file->time;
 
+  STOP_FUNCTION_TIMER();
   return file;
 }
 
 void silo_file_close(silo_file_t* file)
 {
+  START_FUNCTION_TIMER();
 #if POLYMEC_HAVE_MPI
   if (file->nproc > 1)
   {
@@ -944,6 +949,7 @@ void silo_file_close(silo_file_t* file)
   if (file->expressions != NULL)
     string_ptr_unordered_map_free(file->expressions);
   polymec_free(file);
+  STOP_FUNCTION_TIMER();
 }
 
 static void silo_file_write_tags(silo_file_t* file, tagger_t* tagger, const char* tag_list_name)
@@ -1008,6 +1014,7 @@ static void silo_file_read_tags(silo_file_t* file, const char* tag_list_name, ta
 
 void silo_file_write_exchanger(silo_file_t* file, const char* exchanger_name, exchanger_t* ex)
 {
+  START_FUNCTION_TIMER();
   // Collapse the exchanger into a set of integers.
   // Format is: [nprocs rank send_map receive_map]
   // where send_map and receive_map are sets of integers encoding mappings
@@ -1043,10 +1050,12 @@ void silo_file_write_exchanger(silo_file_t* file, const char* exchanger_name, ex
 
   // Clean up.
   int_array_free(array);
+  STOP_FUNCTION_TIMER();
 }
 
 exchanger_t* silo_file_read_exchanger(silo_file_t* file, const char* exchanger_name, MPI_Comm comm)
 {
+  START_FUNCTION_TIMER();
   // Read the exchanger array in.
   int size;
   int* array = silo_file_read_int_array(file, exchanger_name, &size);
@@ -1076,6 +1085,7 @@ exchanger_t* silo_file_read_exchanger(silo_file_t* file, const char* exchanger_n
 
   // Clean up.
   polymec_free(array);
+  STOP_FUNCTION_TIMER();
 
   return ex;
 }
@@ -1115,6 +1125,7 @@ void silo_file_write_mesh(silo_file_t* file,
                           const char* mesh_name,
                           mesh_t* mesh)
 {
+  START_FUNCTION_TIMER();
   ASSERT(file->mode == DB_CLOBBER);
 
   // This is optional for now, but we'll give it anyway.
@@ -1242,11 +1253,14 @@ void silo_file_write_mesh(silo_file_t* file,
 
   // Add a multi-object entry.
   silo_file_add_multimesh(file, mesh_name, DB_UCDMESH);
+
+  STOP_FUNCTION_TIMER();
 }
 
 mesh_t* silo_file_read_mesh(silo_file_t* file,
                             const char* mesh_name)
 {
+  START_FUNCTION_TIMER();
   ASSERT(file->mode == DB_READ);
 
   DBucdmesh* ucd_mesh = DBGetUcdmesh(file->dbfile, mesh_name);
@@ -1333,6 +1347,7 @@ mesh_t* silo_file_read_mesh(silo_file_t* file,
     mesh_set_exchanger(mesh, silo_file_read_exchanger(file, ex_name, mesh->comm));
   }
 
+  STOP_FUNCTION_TIMER();
   return mesh;
 }
 
@@ -1341,6 +1356,7 @@ void silo_file_write_scalar_cell_field(silo_file_t* file,
                                        const char* mesh_name,
                                        real_t* field_data)
 {
+  START_FUNCTION_TIMER();
   ASSERT(file->mode == DB_CLOBBER);
 
   // How many cells does our mesh have?
@@ -1355,12 +1371,14 @@ void silo_file_write_scalar_cell_field(silo_file_t* file,
 
   // Add a multi-object entry.
   silo_file_add_multivar(file, mesh_name, field_name, DB_UCDVAR);
+  STOP_FUNCTION_TIMER();
 }
 
 real_t* silo_file_read_scalar_cell_field(silo_file_t* file,
                                          const char* field_name,
                                          const char* mesh_name)
 {
+  START_FUNCTION_TIMER();
   ASSERT(file->mode == DB_READ);
 
   DBucdvar* var = DBGetUcdvar(file->dbfile, (char*)field_name);
@@ -1370,6 +1388,7 @@ real_t* silo_file_read_scalar_cell_field(silo_file_t* file,
     polymec_error("Field '%s' is not a polymec cell-centered field.", field_name);
   real_t* field = polymec_malloc(sizeof(real_t) * var->nels);
   memcpy(field, var->vals[0], sizeof(real_t) * var->nels);
+  STOP_FUNCTION_TIMER();
   return field;
 }
 
@@ -1379,6 +1398,7 @@ void silo_file_write_cell_field(silo_file_t* file,
                                 real_t* field_data,
                                 int num_components)
 {
+  START_FUNCTION_TIMER();
   ASSERT(file->mode == DB_CLOBBER);
 
   // How many cells does our mesh have?
@@ -1396,6 +1416,7 @@ void silo_file_write_cell_field(silo_file_t* file,
                                       mesh_name, comp_data);
   }
   polymec_free(comp_data);
+  STOP_FUNCTION_TIMER();
 }
 
 real_t* silo_file_read_cell_field(silo_file_t* file,
@@ -1403,6 +1424,7 @@ real_t* silo_file_read_cell_field(silo_file_t* file,
                                   const char* mesh_name,
                                   int num_components)
 {
+  START_FUNCTION_TIMER();
   ASSERT(file->mode == DB_READ);
 
   // How many cells does our mesh have?
@@ -1419,6 +1441,7 @@ real_t* silo_file_read_cell_field(silo_file_t* file,
       field[num_components*i+c] = comp_data[i];
     polymec_free(comp_data);
   }
+  STOP_FUNCTION_TIMER();
   return field;
 }
 
@@ -1427,6 +1450,7 @@ void silo_file_write_scalar_face_field(silo_file_t* file,
                                        const char* mesh_name,
                                        real_t* field_data)
 {
+  START_FUNCTION_TIMER();
   ASSERT(file->mode == DB_CLOBBER);
 
   // How many cells does our mesh have?
@@ -1441,12 +1465,14 @@ void silo_file_write_scalar_face_field(silo_file_t* file,
 
   // Add a multi-object entry.
   silo_file_add_multivar(file, mesh_name, field_name, DB_UCDVAR);
+  STOP_FUNCTION_TIMER();
 }
 
 real_t* silo_file_read_scalar_face_field(silo_file_t* file,
                                          const char* field_name,
                                          const char* mesh_name)
 {
+  START_FUNCTION_TIMER();
   ASSERT(file->mode == DB_READ);
 
   DBucdvar* var = DBGetUcdvar(file->dbfile, (char*)field_name);
@@ -1456,6 +1482,7 @@ real_t* silo_file_read_scalar_face_field(silo_file_t* file,
     polymec_error("Field '%s' is not a polymec face-centered field.", field_name);
   real_t* field = polymec_malloc(sizeof(real_t) * var->nels);
   memcpy(field, var->vals[0], sizeof(real_t) * var->nels);
+  STOP_FUNCTION_TIMER();
   return field;
 }
 
@@ -1465,6 +1492,7 @@ void silo_file_write_face_field(silo_file_t* file,
                                 real_t* field_data,
                                 int num_components)
 {
+  START_FUNCTION_TIMER();
   ASSERT(file->mode == DB_CLOBBER);
 
   // How many cells does our mesh have?
@@ -1482,6 +1510,7 @@ void silo_file_write_face_field(silo_file_t* file,
                                       mesh_name, comp_data);
   }
   polymec_free(comp_data);
+  STOP_FUNCTION_TIMER();
 }
 
 real_t* silo_file_read_face_field(silo_file_t* file,
@@ -1489,6 +1518,7 @@ real_t* silo_file_read_face_field(silo_file_t* file,
                                   const char* mesh_name,
                                   int num_components)
 {
+  START_FUNCTION_TIMER();
   ASSERT(file->mode == DB_READ);
 
   // How many cells does our mesh have?
@@ -1505,6 +1535,7 @@ real_t* silo_file_read_face_field(silo_file_t* file,
       field[num_components*i+c] = comp_data[i];
     polymec_free(comp_data);
   }
+  STOP_FUNCTION_TIMER();
   return field;
 }
 
@@ -1513,6 +1544,7 @@ void silo_file_write_scalar_node_field(silo_file_t* file,
                                        const char* mesh_name,
                                        real_t* field_data)
 {
+  START_FUNCTION_TIMER();
   ASSERT(file->mode == DB_CLOBBER);
 
   // How many cells does our mesh have?
@@ -1527,12 +1559,14 @@ void silo_file_write_scalar_node_field(silo_file_t* file,
 
   // Add a multi-object entry.
   silo_file_add_multivar(file, mesh_name, field_name, DB_UCDVAR);
+  STOP_FUNCTION_TIMER();
 }
 
 real_t* silo_file_read_scalar_node_field(silo_file_t* file,
                                          const char* field_name,
                                          const char* mesh_name)
 {
+  START_FUNCTION_TIMER();
   ASSERT(file->mode == DB_READ);
 
   DBucdvar* var = DBGetUcdvar(file->dbfile, (char*)field_name);
@@ -1542,6 +1576,7 @@ real_t* silo_file_read_scalar_node_field(silo_file_t* file,
     polymec_error("Field '%s' is not a polymec node-centered field.", field_name);
   real_t* field = polymec_malloc(sizeof(real_t) * var->nels);
   memcpy(field, var->vals[0], sizeof(real_t) * var->nels);
+  STOP_FUNCTION_TIMER();
   return field;
 }
 
@@ -1551,6 +1586,7 @@ void silo_file_write_node_field(silo_file_t* file,
                                 real_t* field_data,
                                 int num_components)
 {
+  START_FUNCTION_TIMER();
   ASSERT(file->mode == DB_CLOBBER);
 
   // How many cells does our mesh have?
@@ -1568,6 +1604,7 @@ void silo_file_write_node_field(silo_file_t* file,
                                       mesh_name, comp_data);
   }
   polymec_free(comp_data);
+  STOP_FUNCTION_TIMER();
 }
 
 real_t* silo_file_read_node_field(silo_file_t* file,
@@ -1575,6 +1612,7 @@ real_t* silo_file_read_node_field(silo_file_t* file,
                                   const char* mesh_name,
                                   int num_components)
 {
+  START_FUNCTION_TIMER();
   ASSERT(file->mode == DB_READ);
 
   // How many cells does our mesh have?
@@ -1591,6 +1629,7 @@ real_t* silo_file_read_node_field(silo_file_t* file,
       field[num_components*i+c] = comp_data[i];
     polymec_free(comp_data);
   }
+  STOP_FUNCTION_TIMER();
   return field;
 }
 
@@ -1598,6 +1637,7 @@ void silo_file_write_point_cloud(silo_file_t* file,
                                  const char* cloud_name,
                                  point_cloud_t* cloud)
 {
+  START_FUNCTION_TIMER();
   ASSERT(file->mode == DB_CLOBBER);
 
   // Point coordinates.
@@ -1638,11 +1678,13 @@ void silo_file_write_point_cloud(silo_file_t* file,
 
   // Add a multi-object entry.
   silo_file_add_multimesh(file, cloud_name, DB_POINTMESH);
+  STOP_FUNCTION_TIMER();
 }
 
 point_cloud_t* silo_file_read_point_cloud(silo_file_t* file,
                                           const char* cloud_name)
 {
+  START_FUNCTION_TIMER();
   ASSERT(file->mode == DB_READ);
 
   // How many points does our cloud have?
@@ -1679,6 +1721,7 @@ point_cloud_t* silo_file_read_point_cloud(silo_file_t* file,
     silo_file_read_tags(file, tag_name, cloud->tags);
   }
 
+  STOP_FUNCTION_TIMER();
   return cloud;
 }
 
@@ -1687,6 +1730,7 @@ void silo_file_write_scalar_point_field(silo_file_t* file,
                                         const char* cloud_name,
                                         real_t* field_data)
 {
+  START_FUNCTION_TIMER();
   ASSERT(file->mode == DB_CLOBBER);
 
   // How many points does our mesh have?
@@ -1701,12 +1745,14 @@ void silo_file_write_scalar_point_field(silo_file_t* file,
 
   // Add a multi-object entry.
   silo_file_add_multivar(file, cloud_name, field_name, DB_POINTVAR);
+  STOP_FUNCTION_TIMER();
 }
 
 real_t* silo_file_read_scalar_point_field(silo_file_t* file,
                                           const char* field_name,
                                           const char* cloud_name)
 {
+  START_FUNCTION_TIMER();
   ASSERT(file->mode == DB_READ);
 
   DBmeshvar* var = DBGetPointvar(file->dbfile, (char*)field_name);
@@ -1714,6 +1760,7 @@ real_t* silo_file_read_scalar_point_field(silo_file_t* file,
     polymec_error("Field '%s' was not found in the Silo file.", field_name);
   real_t* field = polymec_malloc(sizeof(real_t) * var->nels);
   memcpy(field, var->vals[0], sizeof(real_t) * var->nels);
+  STOP_FUNCTION_TIMER();
   return field;
 }
 
@@ -1723,6 +1770,7 @@ void silo_file_write_point_field(silo_file_t* file,
                                  real_t* field_data,
                                  int num_components)
 {
+  START_FUNCTION_TIMER();
   ASSERT(file->mode == DB_CLOBBER);
 
   for (int c = 0; c < num_components; ++c)
@@ -1730,6 +1778,7 @@ void silo_file_write_point_field(silo_file_t* file,
     silo_file_write_scalar_point_field(file, field_component_names[c], 
                                        cloud_name, field_data);
   }
+  STOP_FUNCTION_TIMER();
 }
 
 real_t* silo_file_read_point_field(silo_file_t* file,
@@ -1737,6 +1786,7 @@ real_t* silo_file_read_point_field(silo_file_t* file,
                                    const char* cloud_name,
                                    int num_components)
 {
+  START_FUNCTION_TIMER();
   ASSERT(file->mode == DB_READ);
 
   // How many points does our mesh have?
@@ -1753,6 +1803,7 @@ real_t* silo_file_read_point_field(silo_file_t* file,
       field[num_components*i+c] = comp_data[i];
     polymec_free(comp_data);
   }
+  STOP_FUNCTION_TIMER();
   return field;
 }
 
