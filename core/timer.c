@@ -121,27 +121,9 @@ polymec_timer_t* polymec_timer_get(const char* name)
       }
       else
       {
-        // We shouldn't actually encounter this too often, but if we do, we can look for it
-        // in the root timer.
-        polymec_timer_t* root = all_timers->data[0];
-        if (strcmp(name, root->name) == 0)
-          t = root;
-        else
-        {
-          // Search the root timer for a child of this name.
-          for (int i = 0; i < root->children->size; ++i)
-          {
-            polymec_timer_t* child = root->children->data[i];
-            if (strcmp(name, child->name) == 0)
-            {
-              t = child;
-              break;
-            }
-          }
-          if (t == NULL)
-            t = polymec_timer_new(name);
-        }
-
+        // polymec_init, which runs the 'polymec' timer, hasn't been called.
+        polymec_error("polymec_timer_get: tried to create a timer without first calling\n"
+                      "polymec_init. Please make sure to call polymec_init first.");
       }
     }
   }
@@ -196,7 +178,7 @@ static void report_timer(polymec_timer_t* t, int indentation, FILE* file)
   for (int i = 0; i < num_children; ++i)
   {
     polymec_timer_t* child = t->children->data[i];
-    report_timer(child, indentation+2, file);
+    report_timer(child, indentation+1, file);
   }
 }
 
