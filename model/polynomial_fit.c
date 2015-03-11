@@ -169,20 +169,30 @@ void polynomial_fit_add_mixed_bc(polynomial_fit_t* fit, int component,
   point_t* x0 = polynomial_x0(fit->poly[component]);
 
   real_t* eq = append_equation(fit, component, x);
-  int dim = polynomial_basis_dim(polynomial_degree(fit->poly[component]));
+  int p = polynomial_degree(fit->poly[component]);
+  int dim = polynomial_basis_dim(p);
   real_t X = x->x - x0->x;
   real_t Y = x->y - x0->y;
   real_t Z = x->z - x0->z;
+
+  // Cache powers of X, Y, Z.
+  real_t Xpow[p+1], Ypow[p+1], Zpow[p+1];
+  for (int i = 0; i <= p; ++i)
+  {
+    Xpow[i] = pow(X, i); 
+    Ypow[i] = pow(Y, i); 
+    Zpow[i] = pow(Z, i); 
+  }
 
   // Left hand side -- powers of (x - x0) in the polynomial expression.
   real_t coeff;
   int pos = 0, x_pow, y_pow, z_pow, i = component*dim;
   while (polynomial_next(fit->poly[component], &pos, &coeff, &x_pow, &y_pow, &z_pow))
   {
-    real_t u_term = alpha * pow(X, x_pow) * pow(Y, y_pow) * pow(Z, z_pow);
-    real_t dudx_term = x_pow * poly_pow(X, x_pow-1) * pow(Y, y_pow) * pow(Z, z_pow);
-    real_t dudy_term = y_pow * pow(X, x_pow) * poly_pow(Y, y_pow-1) * pow(Z, z_pow);
-    real_t dudz_term = z_pow * pow(X, x_pow) * pow(Y, y_pow) * poly_pow(Z, z_pow-1);
+    real_t u_term = alpha * Xpow[x_pow] * Ypow[y_pow] * Zpow[z_pow];
+    real_t dudx_term = x_pow * poly_pow(X, x_pow-1) * Ypow[x_pow] * Zpow[z_pow];
+    real_t dudy_term = y_pow * Xpow[x_pow] * poly_pow(Y, y_pow-1) * Zpow[z_pow];
+    real_t dudz_term = z_pow * Xpow[x_pow] * Ypow[y_pow] * poly_pow(Z, z_pow-1);
     eq[i++] = sqrtW * (alpha * u_term + beta * dudx_term + gamma * dudy_term + 
                        delta * dudz_term);
   }
