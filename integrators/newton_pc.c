@@ -5,6 +5,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+#include "core/timer.h"
 #include "integrators/newton_pc.h"
 
 struct newton_pc_t
@@ -57,6 +58,7 @@ void newton_pc_setup(newton_pc_t* precond,
                      real_t alpha, real_t beta, real_t gamma,
                      real_t t, real_t* x, real_t* xdot)
 {
+  START_FUNCTION_TIMER();
   if (!precond->coeffs_fixed)
   {
     // Only certain combinations of alpha, beta, and gamma are allowed.
@@ -70,11 +72,15 @@ void newton_pc_setup(newton_pc_t* precond,
     precond->vtable.compute_p(precond->context, precond->alpha0, precond->beta0, 
                               precond->gamma0, t, x, xdot);
   }
+  STOP_FUNCTION_TIMER();
 }
 
 bool newton_pc_solve(newton_pc_t* precond, real_t* R)
 {
-  return precond->vtable.solve(precond->context, R);
+  START_FUNCTION_TIMER();
+  int status = precond->vtable.solve(precond->context, R);
+  STOP_FUNCTION_TIMER();
+  return status;
 }
 
 void newton_pc_fix_coefficients(newton_pc_t* precond, real_t alpha0, real_t beta0, real_t gamma0)

@@ -9,6 +9,7 @@
 #include "core/array.h"
 #include "core/polynomial.h"
 #include "core/linear_algebra.h"
+#include "core/timer.h"
 #include "model/polynomial_fit.h"
 
 struct polynomial_fit_t 
@@ -74,6 +75,7 @@ void polynomial_fit_free(polynomial_fit_t* fit)
 // coefficients: dim for the polynomial basis, and 1 for the RHS.
 static real_t* append_equation(polynomial_fit_t* fit, int component, point_t* x)
 {
+  START_FUNCTION_TIMER();
   // After computing a fit, one should call polynomial_fit_reset() before
   // attempting to add more equations.
   ASSERT(!fit->computed); 
@@ -101,6 +103,7 @@ static real_t* append_equation(polynomial_fit_t* fit, int component, point_t* x)
   // Zero the equation.
   memset(eq, 0, sizeof(real_t) * (fit->num_components*dim+1));
 
+  STOP_FUNCTION_TIMER();
   return eq;
 }
 
@@ -110,6 +113,7 @@ void polynomial_fit_add_scatter_datum(polynomial_fit_t* fit,
                                       point_t* x,
                                       real_t weight)
 {
+  START_FUNCTION_TIMER();
   ASSERT(weight > 0.0);
   real_t sqrtW = sqrt(weight);
   point_t* x0 = polynomial_x0(fit->poly[component]);
@@ -128,6 +132,7 @@ void polynomial_fit_add_scatter_datum(polynomial_fit_t* fit,
 
   // Right hand side -- sqrt(W) * u.
   eq[fit->num_components * dim] = sqrtW * u;
+  STOP_FUNCTION_TIMER();
 }
 
 // This version of pow() zeros out terms that would have negative powers.
@@ -158,6 +163,7 @@ void polynomial_fit_add_mixed_bc(polynomial_fit_t* fit, int component,
                                  real_t delta, real_t epsilon,  
                                  point_t* x, real_t weight)
 {
+  START_FUNCTION_TIMER();
   ASSERT(weight > 0.0);
   real_t sqrtW = sqrt(weight);
   point_t* x0 = polynomial_x0(fit->poly[component]);
@@ -183,10 +189,12 @@ void polynomial_fit_add_mixed_bc(polynomial_fit_t* fit, int component,
 
   // Right hand side -- sqrt(W) * epsilon.
   eq[i] = sqrtW * epsilon;
+  STOP_FUNCTION_TIMER();
 }
 
 void polynomial_fit_reset(polynomial_fit_t* fit, point_t* x0)
 {
+  START_FUNCTION_TIMER();
   int dim = polynomial_basis_dim(fit->p);
   real_t coeffs[dim];
   for (int i = 0; i < dim; ++i)
@@ -207,6 +215,7 @@ void polynomial_fit_reset(polynomial_fit_t* fit, point_t* x0)
     fit->num_equations[c] = 0;
   }
   fit->computed = false;
+  STOP_FUNCTION_TIMER();
 }
 
 int polynomial_fit_degree(polynomial_fit_t* fit)
@@ -229,6 +238,7 @@ int polynomial_fit_num_equations(polynomial_fit_t* fit)
 
 static void solve_direct_least_squares(polynomial_fit_t* fit)
 {
+  START_FUNCTION_TIMER();
   int p = fit->p;
   int num_components = fit->num_components;
   ptr_array_t** equations = fit->equations;
@@ -325,6 +335,7 @@ static void solve_direct_least_squares(polynomial_fit_t* fit)
     for (int i = 0; i < dim; ++i)
       coeffs[i] = X[dim*c+i];
   }
+  STOP_FUNCTION_TIMER();
 }
 
 // The following functions contain logic that implements the Coupled Least 
@@ -392,6 +403,7 @@ static void solve_coupled_least_squares(polynomial_fit_t* fit)
 
 void polynomial_fit_compute(polynomial_fit_t* fit)
 {
+  START_FUNCTION_TIMER();
 #ifndef NDEBUG
   // Make sure we have the same number of equations for each component.
   int num_eq = fit->equations[0]->size;
@@ -412,12 +424,15 @@ void polynomial_fit_compute(polynomial_fit_t* fit)
     solve_coupled_least_squares(fit);
 
   fit->computed = true;
+  STOP_FUNCTION_TIMER();
 }
 
 void polynomial_fit_eval(polynomial_fit_t* fit, point_t* x, real_t* value)
 {
+  START_FUNCTION_TIMER();
   for (int c = 0; c < fit->num_components; ++c)
     value[c] = polynomial_value(fit->poly[c], x);
+  STOP_FUNCTION_TIMER();
 }
 
 void polynomial_fit_eval_deriv(polynomial_fit_t* fit, 
@@ -427,8 +442,10 @@ void polynomial_fit_eval_deriv(polynomial_fit_t* fit,
                                point_t* x, 
                                real_t* deriv)
 {
+  START_FUNCTION_TIMER();
   for (int c = 0; c < fit->num_components; ++c)
     deriv[c] = polynomial_deriv_value(fit->poly[c], x_deriv, y_deriv, z_deriv, x);
+  STOP_FUNCTION_TIMER();
 }
 
 int polynomial_fit_dimension(polynomial_fit_t* fit)
