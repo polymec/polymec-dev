@@ -378,6 +378,20 @@ static inline int mesh_face_edge_for_neighbor(mesh_t* mesh, int face, int neighb
   return -1;
 }
 
+// Returns the "first" cell attached to a face. A well-formed face has at least one 
+// cell with a non-negative index.
+static inline int mesh_face_cell1(mesh_t* mesh, int face)
+{
+  return mesh->face_cells[2*face];
+}
+
+// Returns the "second" cell attached to a face. If the face is only attached to 
+// one cell, the second cell is -1.
+static inline int mesh_face_cell2(mesh_t* mesh, int face)
+{
+  return mesh->face_cells[2*face+1];
+}
+
 // Given a face within the mesh and one of its cells, returns the cell on 
 // the opposite side of the face, or -1 if there is no such cell.
 static inline int mesh_face_opp_cell(mesh_t* mesh, int face, int cell)
