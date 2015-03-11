@@ -80,6 +80,8 @@ polymec_timer_t* polymec_timer_get(const char* name)
       char* timer_file = options_value(options, "timer_file");
       if (timer_file != NULL)
         strncpy(timer_report_file, timer_file, FILENAME_MAX);
+      else
+        strcpy(timer_report_file, "timer_report.txt");
 
       // Record our MPI rank.
       MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
@@ -202,6 +204,7 @@ void polymec_timer_report()
 {
   if (use_timers)
   {
+    log_debug("polymec: writing timer report file '%s'.", timer_report_file);
     if (mpi_rank == 0)
     {
       // This is currently just a stupid enumeration to test that reporting 
