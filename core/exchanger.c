@@ -8,6 +8,7 @@
 #include "exchanger.h"
 #include "core/unordered_map.h"
 #include "core/array.h"
+#include "core/timer.h"
 
 // This is a record of a single communications channel for an exchanger 
 // to send or receive data to or from a remote process.
@@ -590,6 +591,7 @@ bool exchanger_get_receive(exchanger_t* ex, int remote_process, int** indices, i
 void exchanger_verify(exchanger_t* ex, void (*handler)(const char* format, ...))
 {
 #if POLYMEC_HAVE_MPI
+  START_FUNCTION_TIMER();
   // An exchanger is valid/consistent iff the number of elements that 
   // are exchanged between any two processors are agreed upon between those 
   // two processors. So we send our expected number of exchanged elements 
@@ -641,6 +643,7 @@ void exchanger_verify(exchanger_t* ex, void (*handler)(const char* format, ...))
               num_elements_expected_by_neighbors[p]);
     }
   }
+  STOP_FUNCTION_TIMER();
 #endif
 }
 
@@ -681,13 +684,16 @@ bool exchanger_deadlock_detection_enabled(exchanger_t* ex)
 
 void exchanger_exchange(exchanger_t* ex, void* data, int stride, int tag, MPI_Datatype type)
 {
+  START_FUNCTION_TIMER();
   int token = exchanger_start_exchange(ex, data, stride, tag, type);
   exchanger_finish_exchange(ex, token);
+  STOP_FUNCTION_TIMER();
 }
 
 int exchanger_start_exchange(exchanger_t* ex, void* data, int stride, int tag, MPI_Datatype type)
 {
 #if POLYMEC_HAVE_MPI
+  START_FUNCTION_TIMER();
   // Create a message for this array.
   mpi_message_t* msg = mpi_message_new(type, stride, tag);
   mpi_message_pack(msg, data, ex->send_offset, ex->send_map, ex->receive_map);
@@ -747,6 +753,7 @@ int exchanger_start_exchange(exchanger_t* ex, void* data, int stride, int tag, M
   }
   ex->pending_msgs[token] = msg;
   ex->orig_buffers[token] = data;
+  STOP_FUNCTION_TIMER();
   return token;
 #else
   return 0;
@@ -942,6 +949,7 @@ static int exchanger_waitall(exchanger_t* ex, mpi_message_t* msg)
 void exchanger_finish_exchange(exchanger_t* ex, int token) 
 {
 #if POLYMEC_HAVE_MPI
+  START_FUNCTION_TIMER();
   ASSERT(token >= 0);
   ASSERT(token < ex->num_pending_msgs);
   ASSERT(ex->transfer_counts[token] == NULL); // We can't finishing a transfer as an exchange!
@@ -959,15 +967,16 @@ void exchanger_finish_exchange(exchanger_t* ex, int token)
   ex->pending_msgs[token] = NULL;
   ex->orig_buffers[token] = NULL;
   mpi_message_free(msg);
+  STOP_FUNCTION_TIMER();
 #endif
 }
 
 void exchanger_transfer(exchanger_t* ex, void* data, int* count, int stride, int tag, MPI_Datatype type)
 {
-#if POLYMEC_HAVE_MPI
+  START_FUNCTION_TIMER();
   int token = exchanger_start_transfer(ex, data, count, stride, tag, type);
   exchanger_finish_transfer(ex, token);
-#endif
+  STOP_FUNCTION_TIMER();
 }
 
 int exchanger_start_transfer(exchanger_t* ex, void* data, int* count, int stride, int tag, MPI_Datatype type)
@@ -986,6 +995,7 @@ int exchanger_start_transfer(exchanger_t* ex, void* data, int* count, int stride
 void exchanger_finish_transfer(exchanger_t* ex, int token)
 {
 #if POLYMEC_HAVE_MPI
+  START_FUNCTION_TIMER();
   ASSERT(token >= 0);
   ASSERT(token < ex->num_pending_msgs);
   ASSERT(ex->transfer_counts[token] != NULL); // We can't finish an exchange as a transfer!
@@ -1049,6 +1059,7 @@ void exchanger_finish_transfer(exchanger_t* ex, int token)
   ex->orig_buffers[token] = NULL;
   ex->transfer_counts[token] = NULL;
   mpi_message_free(msg);
+  STOP_FUNCTION_TIMER();
 #endif
 }
 
@@ -1174,6 +1185,7 @@ exchanger_t* create_distributor(MPI_Comm comm,
                                 int64_t* global_partition,
                                 int num_global_vertices)
 {
+  START_FUNCTION_TIMER();
   int nprocs, rank;
   MPI_Comm_size(comm, &nprocs);
   MPI_Comm_rank(comm, &rank);
@@ -1234,6 +1246,7 @@ exchanger_t* create_distributor(MPI_Comm comm,
     exchanger_set_receive(distributor, 0, local_vertices, num_local_vertices, true);
   }
 
+  STOP_FUNCTION_TIMER();
   return distributor;
 }
 
@@ -1243,6 +1256,7 @@ exchanger_t* create_migrator(MPI_Comm comm,
                              int64_t* local_partition,
                              int num_vertices)
 {
+  START_FUNCTION_TIMER();
   exchanger_t* migrator = exchanger_new(comm);
   
   // Tally up the number of vertices we're going to send to every other process, 
@@ -1341,6 +1355,7 @@ exchanger_t* create_migrator(MPI_Comm comm,
     polymec_free(receive_vertices);
   }
 
+  STOP_FUNCTION_TIMER();
   return migrator;
 }
 
