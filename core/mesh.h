@@ -260,7 +260,7 @@ static inline bool mesh_cell_next_oriented_face(mesh_t* mesh, int cell, int* pos
 
 // Allows iteration over the neighboring cells attached to the given cell in 
 // the mesh, in the same order as that given by mesh_cell_next_face(). If the 
-// next neighbor for a cell is non-existant, *neighbor_cell will be set to -1.
+// next neighbor for a cell is non-existent, *neighbor_cell will be set to -1.
 // Set *pos to 0 to reset the iteration. Returns true if the traversal over 
 // all faces of the cell is not complete, false otherwise. NOTE: the local 
 // index of the face separating the cells is *pos - 1 after the call.
