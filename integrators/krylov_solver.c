@@ -11,7 +11,7 @@
 #include "core/sparse_local_matrix.h"
 #include "integrators/krylov_solver.h"
 
-// We use KINSOL for doing the matrix-free nonlinear solve.
+// We use KINSOL as a bazooka for doing a matrix-free linear solve.
 #include "kinsol/kinsol.h"
 #include "kinsol/kinsol_spgmr.h"
 #include "kinsol/kinsol_spbcgs.h"
@@ -65,32 +65,6 @@ static int evaluate_R(N_Vector x, N_Vector R, void* context)
   }
 
   return status;
-}
-
-static int max_block_size(adj_graph_t* sparsity)
-{
-  int max_block_size = 1;
-  int nv = adj_graph_num_vertices(sparsity);
-  for (int i = 0; i < nv; ++i)
-  {
-    int block_size = 1;
-    int ne = adj_graph_num_edges(sparsity, i);
-    int found_edges[ne];
-    memset(found_edges, 0, sizeof(int) * ne);
-    int* edges = adj_graph_edges(sparsity, i);
-    for (int e = 0; e < ne; ++e)
-    {
-      if ((edges[e] > i) && (edges[e] <= i + ne))
-        found_edges[edges[e] - i - 1] = 1;
-    }
-    for (int e = 0; e < ne; ++e)
-    {
-      if (found_edges[e])
-        ++block_size;
-    }
-    max_block_size = MAX(max_block_size, block_size);
-  }
-  return max_block_size;
 }
 
 // This function sets up the preconditioner data within the solver.
@@ -187,7 +161,7 @@ krylov_solver_t* krylov_solver_new(MPI_Comm comm,
   solver->Ay = matrix_vector_product;
   solver->dtor = dtor;
   solver->t = 0.0;
-  solver->pc_type = KRYLOV_BLOCK_JACOBI;
+  solver->pc_type = KRYLOV_JACOBI;
   solver->P = NULL;
   solver->coloring = NULL;
   solver->solver_type = solver_type;
@@ -297,13 +271,16 @@ void krylov_solver_set_preconditioner(krylov_solver_t* solver,
   if (solver->P == NULL)
   {
     int nv = adj_graph_num_vertices(sparsity);
-    if (solver->pc_type == KRYLOV_BLOCK_JACOBI)
+    if (solver->pc_type == KRYLOV_JACOBI)
     {
-      int block_size = max_block_size(sparsity);
-      solver->P = block_diagonal_matrix_new(nv/block_size, block_size);
+      log_debug("krylov_solver: Using Jacobi preconditioner.");
+      solver->P = block_diagonal_matrix_new(nv, 1);
     }
     else
+    {
+      log_debug("krylov_solver: Using LU preconditioner.");
       solver->P = sparse_local_matrix_new(sparsity);
+    }
 
     // Create a coloring of the sparsity graph and iterate over it.
     solver->coloring = adj_graph_coloring_new(sparsity, SMALLEST_LAST);
@@ -367,13 +344,13 @@ bool krylov_solver_solve(krylov_solver_t* solver,
   else
   {
     if (status == KIN_STEP_LT_STPTOL)
-      solver->status_message = string_dup("Nonlinear solve stalled because scaled Newton step is too small.");
+      solver->status_message = string_dup("Solve stalled because scaled step is too small.");
     else if (status == KIN_LINESEARCH_NONCONV)
       solver->status_message = string_dup("Line search could not sufficiently decrease the error of the iterate.");
     else if (status == KIN_MAXITER_REACHED)
-      solver->status_message = string_dup("Maximum number of nonlinear iterations was reached.");
+      solver->status_message = string_dup("Maximum number of iterations was reached.");
     else if (status == KIN_MXNEWT_5X_EXCEEDED)
-      solver->status_message = string_dup("Maximum Newton step size was exceeded 5 times.");
+      solver->status_message = string_dup("Maximum step size was exceeded 5 times.");
     else if (status == KIN_LINESEARCH_BCFAIL)
       solver->status_message = string_dup("Line search could not satisfy beta condition.");
     else if (status == KIN_LINSOLV_NO_RECOVERY)
@@ -385,11 +362,11 @@ bool krylov_solver_solve(krylov_solver_t* solver,
     else if (status == KIN_LSOLVE_FAIL)
       solver->status_message = string_dup("Linear solve failed (or preconditioner solve failed unrecoverably).");
     else if (status == KIN_SYSFUNC_FAIL)
-      solver->status_message = string_dup("Nonlinear function evaluation failed unrecoverably.");
+      solver->status_message = string_dup("Function evaluation failed unrecoverably.");
     else if (status == KIN_FIRST_SYSFUNC_ERR)
-      solver->status_message = string_dup("First nonlinear function evaluation failed recoverably.");
+      solver->status_message = string_dup("First function evaluation failed recoverably.");
     else if (status == KIN_REPTD_SYSFUNC_ERR)
-      solver->status_message = string_dup("Nonlinear function evaluation repeatedly failed (no recovery possible).");
+      solver->status_message = string_dup("Function evaluation repeatedly failed (no recovery possible).");
   }
 
   // Failed!
@@ -426,7 +403,7 @@ void krylov_solver_diagnostics_fprintf(krylov_solver_diagnostics_t* diagnostics,
                                        FILE* stream)
 {
   if (stream == NULL) return;
-  fprintf(stream, "Nonlinear solver diagnostics:\n");
+  fprintf(stream, "Krylov solver diagnostics:\n");
   if (diagnostics->status_message != NULL)
     fprintf(stream, "  Status: %s\n", diagnostics->status_message);
   fprintf(stream, "  Num function evaluations: %d\n", (int)diagnostics->num_function_evaluations);

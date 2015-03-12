@@ -22,7 +22,7 @@ typedef enum
 // Types of Krylov preconditioner.
 typedef enum
 {
-  KRYLOV_BLOCK_JACOBI,
+  KRYLOV_JACOBI,
   KRYLOV_LU,
 } krylov_pc_t;
 

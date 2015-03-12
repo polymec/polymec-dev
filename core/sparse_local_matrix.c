@@ -206,6 +206,12 @@ static bool slm_solve(void* context, real_t* B)
     // Copy the rhs vector to B.
     memcpy(B, rhs->nzval, sizeof(real_t) * mat->N);
   }
+  else
+  {
+    ASSERT(info > 0);
+    log_debug("slm_solve: call to dgssv failed.");
+    log_debug("slm_solve: (U is singular: U(%d, %d) = 0.)", info-1, info-1);
+  }
 
   return success;
 }

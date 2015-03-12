@@ -211,6 +211,16 @@ static int laplace_Ay(void* context, real_t t, real_t* y, real_t* Ay)
     }
   }
 
+  // Finally, just fix the decoupled "corners."
+  Ayijk[0][0][0]          = yijk[0][0][0];
+  Ayijk[0][0][nz-1]       = yijk[0][0][nz-1];
+  Ayijk[0][ny-1][0]       = yijk[0][ny-1][0];
+  Ayijk[0][ny-1][nz-1]    = yijk[0][ny-1][nz-1];
+  Ayijk[nx-1][0][0]       = yijk[nx-1][0][0];
+  Ayijk[nx-1][0][nz-1]    = yijk[nx-1][0][nz-1];
+  Ayijk[nx-1][ny-1][0]    = yijk[nx-1][ny-1][0];
+  Ayijk[nx-1][ny-1][nz-1] = yijk[nx-1][ny-1][nz-1];
+
 //printf("y = ");
 //vector_fprintf(y, N, stdout);
 //printf("\n");
@@ -277,6 +287,16 @@ static real_t* laplace_rhs(laplace_t* laplace)
     }
   }
 
+  // Fix the "corners" at zero.
+  bijk[0][0][0]          = 0.0;
+  bijk[0][0][nz-1]       = 0.0;
+  bijk[0][ny-1][0]       = 0.0;
+  bijk[0][ny-1][nz-1]    = 0.0;
+  bijk[nx-1][0][0]       = 0.0;
+  bijk[nx-1][0][nz-1]    = 0.0;
+  bijk[nx-1][ny-1][0]    = 0.0;
+  bijk[nx-1][ny-1][nz-1] = 0.0;
+
 //printf("b = ");
 //vector_fprintf(rhs, N, stdout);
 //printf("\n");
@@ -289,12 +309,12 @@ void test_no_precond_laplace_ctor(void** state)
   krylov_solver_free(krylov);
 }
 
-void test_block_jacobi_precond_laplace_ctor(void** state)
+void test_jacobi_precond_laplace_ctor(void** state)
 {
   krylov_solver_t* krylov = laplace_solver_new();
   laplace_t* laplace = krylov_solver_context(krylov);
   adj_graph_t* g = laplace_graph(laplace);
-  krylov_solver_set_preconditioner(krylov, KRYLOV_BLOCK_JACOBI, g);
+  krylov_solver_set_preconditioner(krylov, KRYLOV_JACOBI, g);
   krylov_solver_free(krylov);
   adj_graph_free(g);
 }
@@ -349,12 +369,12 @@ void test_no_precond_laplace_solve(void** state)
   test_laplace_solve(state, krylov);
 }
 
-void test_block_jacobi_precond_laplace_solve(void** state)
+void test_jacobi_precond_laplace_solve(void** state)
 {
   krylov_solver_t* krylov = laplace_solver_new();
   laplace_t* laplace = krylov_solver_context(krylov);
   adj_graph_t* g = laplace_graph(laplace);
-  krylov_solver_set_preconditioner(krylov, KRYLOV_BLOCK_JACOBI, g);
+  krylov_solver_set_preconditioner(krylov, KRYLOV_JACOBI, g);
   adj_graph_free(g);
   test_laplace_solve(state, krylov);
 }
@@ -376,10 +396,10 @@ int main(int argc, char* argv[])
   const UnitTest tests[] = 
   {
     unit_test(test_no_precond_laplace_ctor),
-    unit_test(test_block_jacobi_precond_laplace_ctor),
+    unit_test(test_jacobi_precond_laplace_ctor),
     unit_test(test_lu_precond_laplace_ctor),
     unit_test(test_no_precond_laplace_solve),
-    unit_test(test_block_jacobi_precond_laplace_solve),
+    unit_test(test_jacobi_precond_laplace_solve),
     unit_test(test_lu_precond_laplace_solve)
   };
   return run_tests(tests);

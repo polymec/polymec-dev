@@ -121,7 +121,7 @@ static bool bdm_solve(void* context, real_t* B)
     {
       ASSERT(info > 0);
       log_debug("bdm_solve: call to dgesv failed for block row %d.", i);
-      log_debug("bdm_solve: (U is singular).", i);
+      log_debug("bdm_solve: (U is singular.)");
       break;
     }
   }
