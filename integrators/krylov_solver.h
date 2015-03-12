@@ -75,6 +75,9 @@ void krylov_solver_set_preconditioner(krylov_solver_t* solver,
 // number of linear iterations will be stored in num_iterations upon success.
 bool krylov_solver_solve(krylov_solver_t* solver, real_t t, real_t* b, int* num_iterations);
 
+// Computes the residual of the linear system, R = A*x - b for the given value of x.
+void krylov_solver_eval_residual(krylov_solver_t* solver, real_t t, real_t* x, real_t* b, real_t* R);
+
 // Diagnostics for the linear solver.
 typedef struct
 {

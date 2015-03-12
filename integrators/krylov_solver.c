@@ -81,7 +81,7 @@ static int max_block_size(adj_graph_t* sparsity)
     for (int e = 0; e < ne; ++e)
     {
       if ((edges[e] > i) && (edges[e] <= i + ne))
-        found_edges[edges[i] - i - 1] = 1;
+        found_edges[edges[e] - i - 1] = 1;
     }
     for (int e = 0; e < ne; ++e)
     {
@@ -152,6 +152,18 @@ static int solve_preconditioner_system(N_Vector x, N_Vector x_scale,
   }
 }
 
+// This converts our A*y product function to one understood by Kinsol.
+static int Ay_adaptor(N_Vector v, N_Vector Jv, N_Vector u, booleantype* new_u,
+                      void* user_data)
+{
+  krylov_solver_t* solver = user_data;
+  real_t* y = NV_DATA(v);
+  memcpy(solver->x_with_ghosts, y, sizeof(real_t) * solver->num_local_values);
+  real_t* Ay = NV_DATA(Jv);
+  int status = solver->Ay(solver->context, solver->t, solver->x_with_ghosts, Ay);
+  return status;
+}
+
 // Generic constructor.
 krylov_solver_t* krylov_solver_new(MPI_Comm comm,
                                    int num_local_values,
@@ -177,6 +189,7 @@ krylov_solver_t* krylov_solver_new(MPI_Comm comm,
   solver->t = 0.0;
   solver->pc_type = KRYLOV_BLOCK_JACOBI;
   solver->P = NULL;
+  solver->coloring = NULL;
   solver->solver_type = solver_type;
   solver->num_local_values = num_local_values;
   solver->num_remote_values = num_remote_values;
@@ -188,6 +201,8 @@ krylov_solver_t* krylov_solver_new(MPI_Comm comm,
   KINSetUserData(solver->kinsol, solver);
   solver->x = N_VNew(solver->comm, num_local_values);
   solver->x_with_ghosts = polymec_malloc(sizeof(real_t) * (solver->num_local_values + solver->num_remote_values));
+  solver->x_scale = N_VNew(solver->comm, num_local_values);
+  solver->F_scale = N_VNew(solver->comm, num_local_values);
   solver->b = polymec_malloc(sizeof(real_t) * solver->num_local_values);
   solver->status_message = NULL;
 
@@ -203,6 +218,9 @@ krylov_solver_t* krylov_solver_new(MPI_Comm comm,
     KINSpbcg(solver->kinsol, solver->max_krylov_dim);
   else
     KINSptfqmr(solver->kinsol, solver->max_krylov_dim);
+
+  // Instead of messing with Jacobians, we just use a linear matrix-vector product.
+  KINSpilsSetJacTimesVecFn(solver->kinsol, Ay_adaptor);
 
   // Enable debugging diagnostics if logging permits.
   FILE* info_stream = log_stream(LOG_DEBUG);
@@ -316,7 +334,7 @@ bool krylov_solver_solve(krylov_solver_t* solver,
 
   // Zero the internal solution vector.
   memset(NV_DATA(solver->x), 0, sizeof(real_t) * N);
-
+  
   // Suspend the currently active floating point exceptions for now.
 //  polymec_suspend_fpe_exceptions();
 
@@ -376,6 +394,19 @@ bool krylov_solver_solve(krylov_solver_t* solver,
 
   // Failed!
   return false;
+}
+
+void krylov_solver_eval_residual(krylov_solver_t* solver, real_t t, real_t* x, real_t* b, real_t* R)
+{
+  // Evaluate the residual using a solution vector with ghosts.
+  memcpy(solver->x_with_ghosts, x, sizeof(real_t) * solver->num_local_values);
+  int status = solver->Ay(solver->context, solver->t, solver->x_with_ghosts, R);
+  if (status == 0)
+  {
+    // Subtract b.
+    for (int i = 0; i < solver->num_local_values; ++i)
+      R[i] -= b[i];
+  }
 }
                                   
 void krylov_solver_get_diagnostics(krylov_solver_t* solver, 
