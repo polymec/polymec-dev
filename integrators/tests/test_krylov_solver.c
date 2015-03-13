@@ -84,7 +84,7 @@ static krylov_solver_t* laplace1d_solver_new()
   MPI_Comm comm = MPI_COMM_WORLD;
   real_t L = 1.0;
   laplace_t* laplace = polymec_malloc(sizeof(laplace_t));
-  laplace->nx = 10; 
+  laplace->nx = 100; 
   laplace->ny = 0; 
   laplace->nz = 0;
   laplace->phi1 = 0.0;
@@ -338,9 +338,6 @@ static real_t* laplace3d_rhs(laplace_t* laplace)
   bijk[nx-1][ny-1][0]    = 0.0;
   bijk[nx-1][ny-1][nz-1] = 0.0;
 
-//printf("b = ");
-//vector_fprintf(rhs, N, stdout);
-//printf("\n");
   return rhs;
 }
 
@@ -358,41 +355,35 @@ static krylov_solver_t* laplace3d_solver_new()
 
   int N = laplace->nx * laplace->ny * laplace->nz;
   return krylov_solver_new(comm, N, 0, laplace, laplace3d_Ay, polymec_free, 
-                           KRYLOV_GMRES, 15, 3);
+                           KRYLOV_GMRES, 15, 5);
 }
 
 void test_laplace1d_solve(void** state, krylov_solver_t* krylov)
 {
   // Set up the problem.
-  krylov_solver_set_tolerances(krylov, 1e-7, 1e-13);
+  krylov_solver_set_tolerance(krylov, 1e-7);
   laplace_t* laplace = krylov_solver_context(krylov);
   real_t* x = laplace1d_rhs(laplace);
-  int N = laplace->nx;
 
   // Solve it.
+  real_t res_norm;
   int num_iters;
-  bool solved = krylov_solver_solve(krylov, 0.0, x, &num_iters);
-  if (!solved)
-  {
-    krylov_solver_diagnostics_t diagnostics;
-    krylov_solver_get_diagnostics(krylov, &diagnostics);
-    krylov_solver_diagnostics_fprintf(&diagnostics, stdout);
-  }
+  bool solved = krylov_solver_solve(krylov, 0.0, x, &res_norm, &num_iters);
   assert_true(solved);
-  log_info("num iterations = %d\n", num_iters);
-  assert_true(num_iters < 10);
+real_t* b = laplace1d_rhs(laplace);
+real_t* R = laplace1d_rhs(laplace);
+krylov_solver_eval_residual(krylov, 0.0, x, b, R);
+  log_info("||R|| = %g, num iterations = %d\n", res_norm, num_iters);
+  assert_true(res_norm <= 1e-7);
 
-  // Evaluate the 2-norm of the residual.
-  real_t* b = laplace1d_rhs(laplace);
-  real_t R[N];
-  krylov_solver_eval_residual(krylov, 0.0, x, b, R);
-  real_t L2 = l2_norm(R, N);
-  log_info("||R||_L2 = %g\n", L2);
-  assert_true(L2 < sqrt(1e-7));
-
+printf("R = ");
+vector_fprintf(R, laplace->nx, stdout);
+printf("\n");
+printf("x = ");
+vector_fprintf(x, laplace->nx, stdout);
+printf("\n");
   krylov_solver_free(krylov);
   polymec_free(x);
-  polymec_free(b);
 }
 
 void test_no_precond_laplace1d_solve(void** state)
@@ -451,35 +442,20 @@ void test_lu_precond_laplace3d_ctor(void** state)
 void test_laplace3d_solve(void** state, krylov_solver_t* krylov)
 {
   // Set up the problem.
-  krylov_solver_set_tolerances(krylov, 1e-7, 1e-13);
+  krylov_solver_set_tolerance(krylov, 1e-7);
   laplace_t* laplace = krylov_solver_context(krylov);
   real_t* x = laplace3d_rhs(laplace);
-  int N = laplace->nx * laplace->ny * laplace->nz;
 
   // Solve it.
+  real_t res_norm;
   int num_iters;
-  bool solved = krylov_solver_solve(krylov, 0.0, x, &num_iters);
-  if (!solved)
-  {
-    krylov_solver_diagnostics_t diagnostics;
-    krylov_solver_get_diagnostics(krylov, &diagnostics);
-    krylov_solver_diagnostics_fprintf(&diagnostics, stdout);
-  }
+  bool solved = krylov_solver_solve(krylov, 0.0, x, &res_norm, &num_iters);
   assert_true(solved);
-  log_info("num iterations = %d\n", num_iters);
-  assert_true(num_iters < 10);
-
-  // Evaluate the 2-norm of the residual.
-  real_t* b = laplace3d_rhs(laplace);
-  real_t R[N];
-  krylov_solver_eval_residual(krylov, 0.0, x, b, R);
-  real_t L2 = l2_norm(R, N);
-  log_info("||R||_L2 = %g\n", L2);
-  assert_true(L2 < sqrt(1e-7));
+  log_info("||R|| = %g, num iterations = %d\n", res_norm, num_iters);
+  assert_true(res_norm <= 1e-7);
 
   krylov_solver_free(krylov);
   polymec_free(x);
-  polymec_free(b);
 }
 
 void test_no_precond_laplace3d_solve(void** state)
