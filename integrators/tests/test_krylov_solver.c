@@ -21,7 +21,7 @@
 
 typedef struct 
 {
-  real_t phi1, phi2, phi3, phi4, phi5, phi6;
+  real_t phi1, phi2;
   int nx, ny, nz; 
   real_t h; // Grid spacing.
 } laplace_t;
@@ -262,16 +262,16 @@ static int laplace3d_Ay(void* context, real_t t, real_t* y, real_t* Ay)
   {
     for (int i = 1; i < nx-1; ++i)
     {
-      Ayijk[i][0][k] = 0.5 * (yijk[i][0][k] + yijk[i][1][k]);
-      Ayijk[i][ny-1][k] = 0.5 * (yijk[i][ny-1][k] + yijk[i][ny-2][k]);
+      Ayijk[i][0][k] = -yijk[i][0][k] + yijk[i][1][k];
+      Ayijk[i][ny-1][k] = -yijk[i][ny-1][k] + yijk[i][ny-2][k];
     }
   }
   for (int i = 1; i < nx-1; ++i)
   {
     for (int j = 1; j < ny-1; ++j)
     {
-      Ayijk[i][j][0] = 0.5 * (yijk[i][j][0] + yijk[i][j][1]);
-      Ayijk[i][j][nz-1] = 0.5 * (yijk[i][j][nz-1] + yijk[i][j][nz-2]);
+      Ayijk[i][j][0] = -yijk[i][j][0] + yijk[i][j][1];
+      Ayijk[i][j][nz-1] = -yijk[i][j][nz-1] + yijk[i][j][nz-2];
     }
   }
 
@@ -317,16 +317,16 @@ static real_t* laplace3d_rhs(laplace_t* laplace)
   {
     for (int i = 1; i < nx-1; ++i)
     {
-      bijk[i][0][k] = laplace->phi3;
-      bijk[i][ny-1][k] = laplace->phi4;
+      bijk[i][0][k] = 0.0;
+      bijk[i][ny-1][k] = 0.0;
     }
   }
   for (int i = 1; i < nx-1; ++i)
   {
     for (int j = 1; j < ny-1; ++j)
     {
-      bijk[i][j][0] = laplace->phi5;
-      bijk[i][j][nz-1] = laplace->phi6;
+      bijk[i][j][0] = 0.0;
+      bijk[i][j][nz-1] = 0.0;
     }
   }
 
@@ -355,11 +355,7 @@ static krylov_solver_t* laplace3d_solver_new()
   laplace->ny = 10; 
   laplace->nz = 10;
   laplace->phi1 = 0.0;
-  laplace->phi2 = 0.0;
-  laplace->phi3 = 0.0;
-  laplace->phi4 = 0.0;
-  laplace->phi5 = 0.0;
-  laplace->phi6 = 1.0;
+  laplace->phi2 = 1.0;
   laplace->h = L / laplace->nx;
 
   int N = laplace->nx * laplace->ny * laplace->nz;
@@ -454,7 +450,6 @@ void test_lu_precond_laplace3d_ctor(void** state)
   adj_graph_free(g);
 }
 
-#if 0
 void test_laplace3d_solve(void** state, krylov_solver_t* krylov)
 {
   // Set up the problem.
@@ -515,7 +510,6 @@ void test_lu_precond_laplace3d_solve(void** state)
   adj_graph_free(g);
   test_laplace3d_solve(state, krylov);
 }
-#endif
 
 int main(int argc, char* argv[]) 
 {
@@ -527,10 +521,10 @@ int main(int argc, char* argv[])
     unit_test(test_lu_precond_laplace1d_solve),
     unit_test(test_no_precond_laplace3d_ctor),
     unit_test(test_jacobi_precond_laplace3d_ctor),
-    unit_test(test_lu_precond_laplace3d_ctor)
-//    unit_test(test_no_precond_laplace3d_solve),
-//    unit_test(test_jacobi_precond_laplace3d_solve),
-//    unit_test(test_lu_precond_laplace3d_solve)
+    unit_test(test_lu_precond_laplace3d_ctor),
+    unit_test(test_no_precond_laplace3d_solve),
+    unit_test(test_jacobi_precond_laplace3d_solve),
+    unit_test(test_lu_precond_laplace3d_solve)
   };
   return run_tests(tests);
 }
