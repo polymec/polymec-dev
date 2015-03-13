@@ -306,6 +306,7 @@ static void slm_dtor(void* context)
   if (mat->etree != NULL)
     polymec_free(mat->etree);
   mat->ilu_params = NULL;
+  adj_graph_free(mat->sparsity);
   polymec_free(mat);
 }
 

@@ -56,9 +56,8 @@ static int laplace1d_Ay(void* context, real_t t, real_t* y, real_t* Ay)
   // Zero everything.
   memset(Ay, 0, sizeof(real_t) * N);
 
-  real_t h2 = laplace->h * laplace->h;
-
   // Compute the interior part of Ay.
+  real_t h2 = laplace->h * laplace->h;
   for (int i = 1; i < N-1; ++i)
     Ay[i] = (y[i+1] - 2.0*y[i] + y[i-1])/h2; 
 
@@ -229,9 +228,8 @@ static int laplace3d_Ay(void* context, real_t t, real_t* y, real_t* Ay)
   DECLARE_3D_ARRAY(real_t, yijk, (void*)y, nx, ny, nz);
   DECLARE_3D_ARRAY(real_t, Ayijk, (void*)Ay, nx, ny, nz);
 
-  real_t h2 = laplace->h * laplace->h;
-
   // Compute the interior part of Ay.
+  real_t h2 = laplace->h * laplace->h;
   for (int i = 1; i < nx-1; ++i)
   {
     for (int j = 1; j < ny-1; ++j)

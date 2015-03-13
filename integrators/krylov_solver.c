@@ -222,6 +222,8 @@ void krylov_solver_free(krylov_solver_t* solver)
 
   // Kill the KINSol stuff.
   N_VDestroy(solver->x);
+  N_VDestroy(solver->x_scale);
+  N_VDestroy(solver->F_scale);
   KINFree(&solver->kinsol);
 
   // Kill the rest.
