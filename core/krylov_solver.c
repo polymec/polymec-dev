@@ -11,7 +11,7 @@
 #include "core/sparse_local_matrix.h"
 #include "core/rng.h"
 #include "core/linear_algebra.h"
-#include "integrators/krylov_solver.h"
+#include "core/krylov_solver.h"
 
 // We use Sundials for doing matrix-free linear solves.
 #include "sundials/sundials_spgmr.h"

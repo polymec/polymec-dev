@@ -16,8 +16,7 @@
 #include "core/norms.h"
 #include "core/silo_file.h"
 #include "core/linear_algebra.h"
-#include "geometry/create_uniform_mesh.h"
-#include "integrators/krylov_solver.h"
+#include "core/krylov_solver.h"
 
 typedef struct 
 {
@@ -62,8 +61,8 @@ static int laplace1d_Ay(void* context, real_t t, real_t* y, real_t* Ay)
     Ay[i] = (y[i+1] - 2.0*y[i] + y[i-1])/h2; 
 
   // Now handle Dirichlet boundary values.
-  Ay[0] =  0.5*(y[0] + y[1]);
-  Ay[N-1] = 0.5*(y[N-2] + y[N-1]);
+  Ay[0] = y[0];
+  Ay[N-1] = y[N-1];
 
   return 0;
 }
@@ -252,8 +251,8 @@ static int laplace3d_Ay(void* context, real_t t, real_t* y, real_t* Ay)
   {
     for (int k = 1; k < nz-1; ++k)
     {
-      Ayijk[0][j][k] = 0.5 * (yijk[0][j][k] + yijk[1][j][k]);
-      Ayijk[nx-1][j][k] = 0.5 * (yijk[nx-1][j][k] + yijk[nx-2][j][k]);
+      Ayijk[0][j][k] = yijk[0][j][k];
+      Ayijk[nx-1][j][k] = yijk[nx-1][j][k];
     }
   }
   for (int k = 1; k < nz-1; ++k)

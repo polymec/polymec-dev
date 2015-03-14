@@ -22,6 +22,7 @@ add_polymec_test(test_mesh test_mesh.c ../../geometry/create_uniform_mesh.c ../.
 add_polymec_test(test_polynomial test_polynomial.c)
 add_polymec_test(test_least_squares test_least_squares.c)
 add_polymec_test(test_interpreter test_interpreter.c)
+add_polymec_test(test_krylov_solver test_krylov_solver.c)
 add_polymec_test(test_cxx_program test_cxx_program.cpp)
 
 add_mpi_polymec_test(test_parallel_kd_tree test_kd_tree.c 1 2 3 4)
