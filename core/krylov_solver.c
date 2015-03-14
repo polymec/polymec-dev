@@ -9,7 +9,6 @@
 #include "core/sundials_helpers.h"
 #include "core/block_diagonal_matrix.h"
 #include "core/sparse_local_matrix.h"
-#include "core/rng.h"
 #include "core/linear_algebra.h"
 #include "core/krylov_solver.h"
 
@@ -114,12 +113,7 @@ static int solve_preconditioner_system(void* context,
     log_debug("krylov_solver: solving preconditioner...");
     memcpy(NV_DATA(z), NV_DATA(r), sizeof(real_t) * NV_LOCLENGTH(z));
     if (local_matrix_solve(P, NV_DATA(z)))
-{
-printf("X* = ");
-vector_fprintf(NV_DATA(z), NV_LOCLENGTH(z), stdout);
-printf("\n");
       return 0;
-}
     else 
     {
       // Recoverable error.
@@ -281,9 +275,6 @@ bool krylov_solver_solve(krylov_solver_t* solver,
 
   // Zero the internal solution vector.
   memset(NV_DATA(solver->x), 0, sizeof(real_t) * N);
-//  rng_t* rng = host_rng_new();
-//  for (int i = 0; i < N; ++i)
-//    NV_Ith(solver->x, i) = rng_uniform(rng);
   
   // Suspend the currently active floating point exceptions for now.
 //  polymec_suspend_fpe_exceptions();
@@ -293,7 +284,6 @@ bool krylov_solver_solve(krylov_solver_t* solver,
   {
     log_debug("krylov_solver: setting up preconditioner...");
     set_up_preconditioner(solver);
-local_matrix_fprintf(solver->P, stdout);
   }
 
   // Solve.
@@ -345,7 +335,11 @@ local_matrix_fprintf(solver->P, stdout);
     if ((status == SPGMR_RES_REDUCED) || 
         (status == SPBCG_RES_REDUCED) ||
         (status == SPTFQMR_RES_REDUCED))
+    {
       log_debug("krylov_solver: solve failed but the residual was reduced.");
+      // Copy the data back into b.
+      memcpy(b, NV_DATA(solver->x), sizeof(real_t) * N);
+    }
     else if ((status == SPGMR_PSOLVE_FAIL_REC) ||
              (status == SPBCG_PSOLVE_FAIL_REC) ||
              (status == SPTFQMR_PSOLVE_FAIL_REC))
