@@ -28,6 +28,7 @@ typedef struct
 static adj_graph_t* laplace1d_graph(laplace_t* laplace)
 {
   int N = laplace->nx;
+  return dense_adj_graph_new(MPI_COMM_WORLD, N, 0);
   adj_graph_t* g = adj_graph_new(MPI_COMM_WORLD, N);
   adj_graph_set_num_edges(g, 0, 1);
   for (int i = 1; i < N-1; ++i)
@@ -455,7 +456,7 @@ int main(int argc, char* argv[])
   const UnitTest tests[] = 
   {
 //    unit_test(test_no_precond_laplace1d_solve),
-//    unit_test(test_jacobi_precond_laplace1d_solve),
+//    unit_test(test_jacobi_precond_laplace1d_solve), <-- converges, but wayyyy too slowly.
     unit_test(test_lu_precond_laplace1d_solve),
     unit_test(test_no_precond_laplace3d_ctor),
     unit_test(test_jacobi_precond_laplace3d_ctor),
