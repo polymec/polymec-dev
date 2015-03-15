@@ -6,11 +6,12 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include <float.h>
+#include "core/krylov_solver.h"
 #include "core/sundials_helpers.h"
 #include "core/block_diagonal_matrix.h"
 #include "core/sparse_local_matrix.h"
 #include "core/linear_algebra.h"
-#include "core/krylov_solver.h"
+#include "core/timer.h"
 
 // We use Sundials for doing matrix-free linear solves.
 #include "sundials/sundials_spgmr.h"
@@ -257,6 +258,7 @@ bool krylov_solver_solve(krylov_solver_t* solver,
                          real_t* residual_norm,
                          int* num_iterations)
 {
+  START_FUNCTION_TIMER();
   ASSERT(b != NULL);
 
   // Copy b into place.
@@ -328,6 +330,7 @@ bool krylov_solver_solve(krylov_solver_t* solver,
 
     // Copy the data back into b.
     memcpy(b, NV_DATA(solver->x), sizeof(real_t) * N);
+    STOP_FUNCTION_TIMER();
     return true;
   }
   else
@@ -360,12 +363,14 @@ bool krylov_solver_solve(krylov_solver_t* solver,
       log_debug("krylov_solver: QR factorization failed.");
     else 
       log_debug("krylov_solver: solve failed to converge.");
+    STOP_FUNCTION_TIMER();
     return false;
   }
 }
 
 void krylov_solver_eval_residual(krylov_solver_t* solver, real_t t, real_t* x, real_t* b, real_t* R)
 {
+  START_FUNCTION_TIMER();
   // Evaluate the residual using a solution vector with ghosts.
   memcpy(solver->x_with_ghosts, x, sizeof(real_t) * solver->num_local_values);
   int status = solver->Ay(solver->context, solver->t, solver->x_with_ghosts, R);
@@ -375,5 +380,6 @@ void krylov_solver_eval_residual(krylov_solver_t* solver, real_t t, real_t* x, r
     for (int i = 0; i < solver->num_local_values; ++i)
       R[i] -= b[i];
   }
+  STOP_FUNCTION_TIMER();
 }
                                   
