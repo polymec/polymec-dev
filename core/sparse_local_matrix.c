@@ -193,18 +193,46 @@ static bool slm_solve(void* context, real_t* B)
 
   // Do the solve.
   int info;
-  dgssv(&mat->options, A, mat->cperm, mat->rperm, 
-        &mat->L, &mat->U, &mat->rhs, &mat->stat, &info);
-  // SuperLU claims that it can re-use factorization info with the same 
-  // sparsity pattern, but this appears not to be the case at the moment.
-  // mat->options.Fact = SamePattern;
+  if (mat->ilu_params == NULL)
+  {
+    // Complete LU factorization.
+    dgssv(&mat->options, A, mat->cperm, mat->rperm, 
+          &mat->L, &mat->U, &mat->rhs, &mat->stat, &info);
+    // SuperLU claims that it can re-use factorization info with the same 
+    // sparsity pattern, but this appears not to be the case at the moment.
+    // mat->options.Fact = SamePattern;
+  }
+  else
+  {
+    // Incomplete LU factorization.
+    int elim_tree[A->ncol];
+    char equil;
+    double row_scale_factors[A->nrow], col_scale_factors[A->ncol];
+    double recip_pivot_growth = 1.0, rcond = 1.0;
+    mem_usage_t mem_usage;
+    dgsisx(&mat->options, A, mat->cperm, mat->rperm,
+           elim_tree, &equil, row_scale_factors, col_scale_factors,
+           &mat->L, &mat->U, NULL, 0, &mat->rhs, &mat->X, &recip_pivot_growth,
+           &rcond, &mem_usage, &mat->stat, &info);
+    if (recip_pivot_growth < 0.01)
+    {
+      log_detail("slm_solve: WARNING: recip pivot growth for ILU factorization << 1.");
+      log_detail("slm_solve: WARNING: Stability of LU factorization could be poor.");
+    }
+  }
 
   bool success = (info == 0);
 
   if (success)
   {
-    // Copy the rhs vector to B.
-    memcpy(B, rhs->nzval, sizeof(real_t) * mat->N);
+    // Copy the output vector to B.
+    if (mat->ilu_params == NULL)
+      memcpy(B, rhs->nzval, sizeof(real_t) * mat->N);
+    else
+    {
+      DNformat* X = mat->X.Store;
+      memcpy(B, X->nzval, sizeof(real_t) * mat->N);
+    }
   }
   else
   {
@@ -320,7 +348,7 @@ local_matrix_t* ilu_sparse_local_matrix_new(adj_graph_t* sparsity,
 {
   slm_t* mat = polymec_malloc(sizeof(slm_t));
   mat->sparsity = adj_graph_clone(sparsity); // MINE!
-  mat->ilu_params = NULL;
+  mat->ilu_params = ilu_params;
   mat->A = supermatrix_new(sparsity);
 
   // Solver data.
@@ -332,9 +360,38 @@ local_matrix_t* ilu_sparse_local_matrix_new(adj_graph_t* sparsity,
   StatInit(&mat->stat);
   mat->cperm = NULL;
   mat->rperm = NULL;
-  set_default_options(&mat->options);
+  if (ilu_params != NULL)
+    ilu_set_default_options(&mat->options);
+  else
+    set_default_options(&mat->options);
   mat->options.ColPerm = NATURAL;
   mat->options.Fact = DOFACT;
+  if (ilu_params != NULL)
+  {
+    mat->options.DiagPivotThresh = ilu_params->diag_pivot_threshold;
+    if (ilu_params->row_perm == ILU_NO_ROW_PERM)
+      mat->options.RowPerm = NOROWPERM;
+    else
+      mat->options.RowPerm = LargeDiag;
+    mat->options.ILU_DropRule = ilu_params->drop_rule;
+    mat->options.ILU_DropTol = ilu_params->drop_tolerance;
+    mat->options.ILU_FillFactor = ilu_params->fill_factor;
+    if (ilu_params->milu_variant == ILU_SILU)
+      mat->options.ILU_MILU = SILU;
+    else if (ilu_params->milu_variant == ILU_MILU1)
+      mat->options.ILU_MILU = SMILU_1;
+    else if (ilu_params->milu_variant == ILU_MILU2)
+      mat->options.ILU_MILU = SMILU_2;
+    else 
+      mat->options.ILU_MILU = SMILU_3;
+    mat->options.ILU_FillTol = ilu_params->fill_tolerance;
+    if (ilu_params->norm == ILU_L1)
+      mat->options.ILU_Norm = ONE_NORM;
+    else if (ilu_params->norm == ILU_L2)
+      mat->options.ILU_Norm = TWO_NORM;
+    else
+      mat->options.ILU_Norm = INF_NORM;
+  }
   mat->etree = NULL;
 
   char name[1024];

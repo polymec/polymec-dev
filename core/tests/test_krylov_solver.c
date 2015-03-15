@@ -362,7 +362,7 @@ void test_jacobi_precond_laplace1d_solve(void** state)
   krylov_solver_t* krylov = laplace1d_solver_new();
   laplace_t* laplace = krylov_solver_context(krylov);
   adj_graph_t* g = laplace1d_graph(laplace);
-  krylov_solver_set_preconditioner(krylov, KRYLOV_JACOBI, g);
+  krylov_solver_set_jacobi_preconditioner(krylov, g);
   adj_graph_free(g);
   test_laplace1d_solve(state, krylov);
 }
@@ -373,7 +373,7 @@ void test_lu_precond_laplace1d_solve(void** state)
   krylov_solver_t* krylov = laplace1d_solver_new();
   laplace_t* laplace = krylov_solver_context(krylov);
   adj_graph_t* g = laplace1d_graph(laplace);
-  krylov_solver_set_preconditioner(krylov, KRYLOV_LU, g);
+  krylov_solver_set_lu_preconditioner(krylov, g);
   adj_graph_free(g);
   test_laplace1d_solve(state, krylov);
 }
@@ -389,7 +389,7 @@ void test_jacobi_precond_laplace3d_ctor(void** state)
   krylov_solver_t* krylov = laplace3d_solver_new();
   laplace_t* laplace = krylov_solver_context(krylov);
   adj_graph_t* g = laplace3d_graph(laplace);
-  krylov_solver_set_preconditioner(krylov, KRYLOV_JACOBI, g);
+  krylov_solver_set_jacobi_preconditioner(krylov, g);
   krylov_solver_free(krylov);
   adj_graph_free(g);
 }
@@ -399,7 +399,17 @@ void test_lu_precond_laplace3d_ctor(void** state)
   krylov_solver_t* krylov = laplace3d_solver_new();
   laplace_t* laplace = krylov_solver_context(krylov);
   adj_graph_t* g = laplace3d_graph(laplace);
-  krylov_solver_set_preconditioner(krylov, KRYLOV_LU, g);
+  krylov_solver_set_lu_preconditioner(krylov, g);
+  krylov_solver_free(krylov);
+  adj_graph_free(g);
+}
+
+void test_ilu_precond_laplace3d_ctor(void** state)
+{
+  krylov_solver_t* krylov = laplace3d_solver_new();
+  laplace_t* laplace = krylov_solver_context(krylov);
+  adj_graph_t* g = laplace3d_graph(laplace);
+  krylov_solver_set_ilu_preconditioner(krylov, ilu_params_new(), g);
   krylov_solver_free(krylov);
   adj_graph_free(g);
 }
@@ -434,7 +444,7 @@ void test_jacobi_precond_laplace3d_solve(void** state)
   krylov_solver_t* krylov = laplace3d_solver_new();
   laplace_t* laplace = krylov_solver_context(krylov);
   adj_graph_t* g = laplace3d_graph(laplace);
-  krylov_solver_set_preconditioner(krylov, KRYLOV_JACOBI, g);
+  krylov_solver_set_jacobi_preconditioner(krylov, g);
   adj_graph_free(g);
   test_laplace3d_solve(state, krylov);
 }
@@ -445,7 +455,20 @@ void test_lu_precond_laplace3d_solve(void** state)
   krylov_solver_t* krylov = laplace3d_solver_new();
   laplace_t* laplace = krylov_solver_context(krylov);
   adj_graph_t* g = laplace3d_graph(laplace);
-  krylov_solver_set_preconditioner(krylov, KRYLOV_LU, g);
+  krylov_solver_set_lu_preconditioner(krylov, g);
+  adj_graph_free(g);
+  test_laplace3d_solve(state, krylov);
+}
+
+void test_ilu_precond_laplace3d_solve(void** state)
+{
+  // Set up the problem.
+  krylov_solver_t* krylov = laplace3d_solver_new();
+  laplace_t* laplace = krylov_solver_context(krylov);
+  adj_graph_t* g = laplace3d_graph(laplace);
+  ilu_params_t* ilu = ilu_params_new();
+  ilu->drop_tolerance = 1e-2;
+  krylov_solver_set_ilu_preconditioner(krylov, ilu, g);
   adj_graph_free(g);
   test_laplace3d_solve(state, krylov);
 }
@@ -463,7 +486,8 @@ int main(int argc, char* argv[])
     unit_test(test_lu_precond_laplace3d_ctor),
 //    unit_test(test_no_precond_laplace3d_solve),
     unit_test(test_jacobi_precond_laplace3d_solve),
-    unit_test(test_lu_precond_laplace3d_solve)
+    unit_test(test_lu_precond_laplace3d_solve),
+    unit_test(test_ilu_precond_laplace3d_solve)
   };
   return run_tests(tests);
 }

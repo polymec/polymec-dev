@@ -18,6 +18,15 @@
 #include "sundials/sundials_spbcgs.h"
 #include "sundials/sundials_sptfqmr.h"
 
+typedef enum
+{
+  KRYLOV_NO_PC,
+  KRYLOV_JACOBI_PC,
+  KRYLOV_BLOCK_JACOBI_PC,
+  KRYLOV_LU_PC,
+  KRYLOV_ILU_PC
+} krylov_pc_t;
+
 struct krylov_solver_t 
 {
   // Parallel stuff.
@@ -149,7 +158,7 @@ krylov_solver_t* krylov_solver_new(MPI_Comm comm,
   solver->Ay = matrix_vector_product;
   solver->dtor = dtor;
   solver->t = 0.0;
-  solver->pc_type = KRYLOV_JACOBI;
+  solver->pc_type = KRYLOV_NO_PC;
   solver->P = NULL;
   solver->coloring = NULL;
   solver->solver_type = solver_type;
@@ -226,30 +235,62 @@ void krylov_solver_set_tolerance(krylov_solver_t* solver, real_t residual_tolera
   solver->res_tol = residual_tolerance;
 }
 
-void krylov_solver_set_preconditioner(krylov_solver_t* solver, 
-                                      krylov_pc_t pc_type, 
-                                      adj_graph_t* sparsity)
+void krylov_solver_set_jacobi_preconditioner(krylov_solver_t* solver, 
+                                             adj_graph_t* sparsity)
 {
-  // Set up the preconditioner.
-  solver->pc_type = pc_type;
+  solver->pc_type = KRYLOV_JACOBI_PC;
+  log_debug("krylov_solver: Using Jacobi preconditioner.");
 
-  if (solver->P == NULL)
-  {
-    int nv = adj_graph_num_vertices(sparsity);
-    if (solver->pc_type == KRYLOV_JACOBI)
-    {
-      log_debug("krylov_solver: Using Jacobi preconditioner.");
-      solver->P = block_diagonal_matrix_new(nv, 1);
-    }
-    else
-    {
-      log_debug("krylov_solver: Using LU preconditioner.");
-      solver->P = sparse_local_matrix_new(sparsity);
-    }
+  if (solver->P != NULL)
+    local_matrix_free(solver->P);
+  int nv = adj_graph_num_vertices(sparsity);
+  solver->P = block_diagonal_matrix_new(nv, 1);
 
-    // Create a coloring of the sparsity graph and iterate over it.
-    solver->coloring = adj_graph_coloring_new(sparsity, SMALLEST_LAST);
-  }
+  solver->coloring = adj_graph_coloring_new(sparsity, SMALLEST_LAST);
+}
+
+void krylov_solver_set_block_jacobi_preconditioner(krylov_solver_t* solver, 
+                                                   int block_size,
+                                                   adj_graph_t* sparsity)
+{
+  ASSERT(block_size >= 1);
+  solver->pc_type = KRYLOV_BLOCK_JACOBI_PC;
+  log_debug("krylov_solver: Using block Jacobi preconditioner (block size = %d).", block_size);
+
+  if (solver->P != NULL)
+    local_matrix_free(solver->P);
+  int nv = adj_graph_num_vertices(sparsity);
+  solver->P = block_diagonal_matrix_new(nv, block_size);
+
+  solver->coloring = adj_graph_coloring_new(sparsity, SMALLEST_LAST);
+}
+
+void krylov_solver_set_lu_preconditioner(krylov_solver_t* solver, 
+                                         adj_graph_t* sparsity)
+{
+  solver->pc_type = KRYLOV_LU_PC;
+  log_debug("krylov_solver: Using LU preconditioner.");
+
+  if (solver->P != NULL)
+    local_matrix_free(solver->P);
+  solver->P = sparse_local_matrix_new(sparsity);
+
+  solver->coloring = adj_graph_coloring_new(sparsity, SMALLEST_LAST);
+}
+
+void krylov_solver_set_ilu_preconditioner(krylov_solver_t* solver, 
+                                          ilu_params_t* ilu_params,
+                                          adj_graph_t* sparsity)
+{
+  solver->pc_type = KRYLOV_ILU_PC;
+  log_debug("krylov_solver: Using Incomplete LU preconditioner with");
+  log_debug("  drop tolerance %g and fill factor %g.", ilu_params->drop_tolerance, ilu_params->fill_factor);
+
+  if (solver->P != NULL)
+    local_matrix_free(solver->P);
+  solver->P = ilu_sparse_local_matrix_new(sparsity, ilu_params);
+
+  solver->coloring = adj_graph_coloring_new(sparsity, SMALLEST_LAST);
 }
 
 bool krylov_solver_solve(krylov_solver_t* solver,

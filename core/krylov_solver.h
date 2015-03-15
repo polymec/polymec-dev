@@ -10,6 +10,7 @@
 
 #include "core/polymec.h"
 #include "core/adj_graph.h"
+#include "core/sparse_local_matrix.h"
 
 // Types of Krylov solver.
 typedef enum
@@ -18,13 +19,6 @@ typedef enum
   KRYLOV_BICGSTAB,
   KRYLOV_TFQMR,
 } krylov_t;
-
-// Types of Krylov preconditioner.
-typedef enum
-{
-  KRYLOV_JACOBI,
-  KRYLOV_LU,
-} krylov_pc_t;
 
 // Objects of this type solve linear systems A*x = b using preconditioned 
 // Krylov subspace methods (built from matrix-vector products A*x, A*Ax, etc).
@@ -59,10 +53,27 @@ int krylov_solver_num_equations(krylov_solver_t* solver);
 // R = A*x - b.
 void krylov_solver_set_tolerance(krylov_solver_t* solver, real_t residual_tolerance);
 
-// Sets up a preconditioner for the Krylov solver to use.
-void krylov_solver_set_preconditioner(krylov_solver_t* solver, 
-                                      krylov_pc_t pc_type, 
-                                      adj_graph_t* sparsity);
+// Sets up the Jacobi preconditioner for the Krylov solver, using the given 
+// sparsity graph.
+void krylov_solver_set_jacobi_preconditioner(krylov_solver_t* solver, 
+                                             adj_graph_t* sparsity);
+
+// Sets up a block Jacobi preconditioner for the Krylov solver with the given 
+// block size and with the given sparsity graph.
+void krylov_solver_set_block_jacobi_preconditioner(krylov_solver_t* solver, 
+                                                   int block_size,
+                                                   adj_graph_t* sparsity);
+
+// Sets up an LU preconditioner for the Krylov solver with the given 
+// sparsity graph.
+void krylov_solver_set_lu_preconditioner(krylov_solver_t* solver, 
+                                         adj_graph_t* sparsity);
+
+// Sets up an incomplete LU preconditioner for the Krylov solver with the 
+// given ILU parameters and sparsity graph.
+void krylov_solver_set_ilu_preconditioner(krylov_solver_t* solver, 
+                                          ilu_params_t* ilu_params,
+                                          adj_graph_t* sparsity);
 
 // Solves the linear system of equations A * x = b in place, storing the solution
 // in the array b. Returns true if the solution was obtained, false if not. The 
