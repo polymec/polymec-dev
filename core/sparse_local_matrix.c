@@ -193,6 +193,7 @@ static bool slm_solve(void* context, real_t* B)
 
   // Do the solve.
   int info;
+  double rcond = 1.0;
   if (mat->ilu_params == NULL)
   {
     // Complete LU factorization.
@@ -208,16 +209,29 @@ static bool slm_solve(void* context, real_t* B)
     int elim_tree[A->ncol];
     char equil;
     double row_scale_factors[A->nrow], col_scale_factors[A->ncol];
-    double recip_pivot_growth = 1.0, rcond = 1.0;
+    double recip_pivot_growth = 1.0;
     mem_usage_t mem_usage;
     dgsisx(&mat->options, A, mat->cperm, mat->rperm,
            elim_tree, &equil, row_scale_factors, col_scale_factors,
            &mat->L, &mat->U, NULL, 0, &mat->rhs, &mat->X, &recip_pivot_growth,
            &rcond, &mem_usage, &mat->stat, &info);
-    if (recip_pivot_growth < 0.01)
+    if (equil != 'N')
     {
-      log_detail("slm_solve: WARNING: recip pivot growth for ILU factorization << 1.");
-      log_detail("slm_solve: WARNING: Stability of LU factorization could be poor.");
+      if (equil == 'R')
+        log_debug("slm_solve: performed row equilibration.");
+      else if (equil == 'C')
+        log_debug("slm_solve: performed column equilibration.");
+      else if (equil == 'B')
+        log_debug("slm_solve: performed row/column equilibration.");
+#ifndef NDEBUG
+      log_debug("slm_solve: recip pivot growth = %g, condition number = %g.", 
+                recip_pivot_growth, rcond);
+      if (recip_pivot_growth < 0.01)
+      {
+        log_detail("slm_solve: WARNING: recip pivot growth for ILU factorization << 1.");
+        log_detail("slm_solve: WARNING: Stability of LU factorization could be poor.");
+      }
+#endif
     }
   }
 
@@ -237,8 +251,21 @@ static bool slm_solve(void* context, real_t* B)
   else
   {
     ASSERT(info > 0);
-    log_debug("slm_solve: call to dgssv failed.");
-    log_debug("slm_solve: (U is singular: U(%d, %d) = 0.)", info-1, info-1);
+    if (mat->ilu_params == NULL)
+    {
+      log_debug("slm_solve: call to dgssv failed.");
+      log_debug("slm_solve: (U is singular: U(%d, %d) = 0.)", info-1, info-1);
+    }
+    else 
+    {
+      log_debug("slm_solve: call to dgsisx failed.");
+      if (info < A->ncol)
+        log_debug("slm_solve: (number of zero pivots in U = %d.)", info);
+      else if (info == (A->ncol + 1))
+        log_debug("slm_solve: (U is nonsingular but rcond = %g.)", rcond);
+      else
+        log_debug("slm_solve: (Memory allocation failure.)");
+    }
   }
 
   return success;
@@ -366,6 +393,10 @@ local_matrix_t* ilu_sparse_local_matrix_new(adj_graph_t* sparsity,
     set_default_options(&mat->options);
   mat->options.ColPerm = NATURAL;
   mat->options.Fact = DOFACT;
+#ifndef NDEBUG
+  mat->options.PivotGrowth = YES;
+  mat->options.ConditionNumber = YES;
+#endif
   if (ilu_params != NULL)
   {
     mat->options.DiagPivotThresh = ilu_params->diag_pivot_threshold;

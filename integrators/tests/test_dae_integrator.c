@@ -94,7 +94,7 @@ int main(int argc, char* argv[])
     unit_test(test_ilu_precond_heat2d_ctor),
     unit_test(test_block_jacobi_precond_heat2d_step),
     unit_test(test_lu_precond_heat2d_step),
-//    unit_test(test_ilu_precond_heat2d_step),
+//    unit_test(test_ilu_precond_heat2d_step)  <-- not cooperating.
   };
   return run_tests(tests);
 }

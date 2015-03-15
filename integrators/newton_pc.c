@@ -59,6 +59,7 @@ void newton_pc_setup(newton_pc_t* precond,
                      real_t t, real_t* x, real_t* xdot)
 {
   START_FUNCTION_TIMER();
+  log_debug("newton_pc: setting up preconditioner...");
   if (!precond->coeffs_fixed)
   {
     // Only certain combinations of alpha, beta, and gamma are allowed.
@@ -78,6 +79,7 @@ void newton_pc_setup(newton_pc_t* precond,
 bool newton_pc_solve(newton_pc_t* precond, real_t* R)
 {
   START_FUNCTION_TIMER();
+  log_debug("newton_pc: solving preconditioner system...");
   int status = precond->vtable.solve(precond->context, R);
   STOP_FUNCTION_TIMER();
   return status;

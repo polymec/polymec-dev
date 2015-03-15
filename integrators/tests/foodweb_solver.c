@@ -407,6 +407,7 @@ newton_solver_t* ilu_precond_foodweb_solver_new()
 {
   foodweb_t* data = foodweb_new();
   ilu_params_t* ilu_params = ilu_params_new();
+  ilu_params->drop_tolerance = 1e-5;
   newton_pc_t* precond = ilu_cpr_pc_from_function(MPI_COMM_WORLD, data, foodweb_func, NULL, data->sparsity, NEQ, 0, ilu_params);
   return foodweb_solver_new(data, precond);
 }
