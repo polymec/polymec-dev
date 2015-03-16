@@ -1,7 +1,7 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 1.3 $
- * $Date: 2011/11/23 23:53:02 $
+ * $Revision: 4272 $
+ * $Date: 2014-12-02 11:19:41 -0800 (Tue, 02 Dec 2014) $
  * -----------------------------------------------------------------
  * Programmer(s): Radu Serban @ LLNL
  * -----------------------------------------------------------------
@@ -468,7 +468,7 @@ static void SetIC(N_Vector u, UserData data)
     y = j*dy;
     for (i=1; i <= MX; i++) {
       x = i*dx;
-      IJth(udata,i,j) = x*(XMAX - x)*y*(YMAX - y)*EXP(RCONST(5.0)*x*y);
+      IJth(udata,i,j) = x*(XMAX - x)*y*(YMAX - y)*SUNRexp(RCONST(5.0)*x*y);
     }
   }  
 
@@ -494,7 +494,7 @@ static void PrintOutput(N_Vector uB, UserData data)
   for(j=1; j<= MY; j++) {
     for(i=1; i<=MX; i++) {
       uBij = IJth(uBdata, i, j);
-      if (ABS(uBij) > uBmax) {
+      if (SUNRabs(uBij) > uBmax) {
         uBmax = uBij;
         x = i*dx;
         y = j*dy;
@@ -506,7 +506,7 @@ static void PrintOutput(N_Vector uB, UserData data)
 #if defined(SUNDIALS_EXTENDED_PRECISION)
   printf("  lambda max = %Le\n", uBmax);
 #elif defined(SUNDIALS_DOUBLE_PRECISION)
-  printf("  lambda max = %le\n", uBmax);
+  printf("  lambda max = %e\n", uBmax);
 #else
   printf("  lambda max = %e\n", uBmax);
 #endif
@@ -514,7 +514,7 @@ static void PrintOutput(N_Vector uB, UserData data)
 #if defined(SUNDIALS_EXTENDED_PRECISION)
   printf("  x = %Le\n  y = %Le\n", x, y);
 #elif defined(SUNDIALS_DOUBLE_PRECISION)
-  printf("  x = %le\n  y = %le\n", x, y);
+  printf("  x = %e\n  y = %e\n", x, y);
 #else
   printf("  x = %e\n  y = %e\n", x, y);
 #endif

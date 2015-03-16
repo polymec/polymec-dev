@@ -1,7 +1,7 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 1.3 $
- * $Date: 2010/12/01 22:51:32 $
+ * $Revision: 4272 $
+ * $Date: 2014-12-02 11:19:41 -0800 (Tue, 02 Dec 2014) $
  * -----------------------------------------------------------------
  * Programmer(s): Scott D. Cohen, Alan C. Hindmarsh and
  *                Radu Serban @ LLNL
@@ -97,7 +97,7 @@
 #include <nvector/nvector_serial.h>  /* serial N_Vector types, fct. and macros */
 #include <sundials/sundials_dense.h> /* use generic DENSE solver in preconditioning */
 #include <sundials/sundials_types.h> /* definition of realtype */
-#include <sundials/sundials_math.h>  /* contains the macros ABS and SQR */
+#include <sundials/sundials_math.h>  /* contains the macros ABS and SUNSQR */
 
 /* Constants */
 
@@ -369,8 +369,8 @@ static void InitUserData(WebData wdata)
   dx = wdata->dx = DX;
   dy = wdata->dy = DY;
   for (i = 0; i < ns; i++) {
-    cox[i] = diff[i]/SQR(dx);
-    coy[i] = diff[i]/SQR(dy);
+    cox[i] = diff[i]/SUNSQR(dx);
+    coy[i] = diff[i]/SUNSQR(dy);
   }
 
   /* Set remaining method parameters */
@@ -379,7 +379,7 @@ static void InitUserData(WebData wdata)
   wdata->mq = MQ;
   wdata->mx = MX;
   wdata->my = MY;
-  wdata->srur = SQRT(UNIT_ROUNDOFF);
+  wdata->srur = SUNRsqrt(UNIT_ROUNDOFF);
   wdata->mxmp = MXMP;
   wdata->ngrp = NGRP;
   wdata->ngx = NGX;
@@ -428,15 +428,15 @@ static void CInit(N_Vector c, WebData wdata)
   dx = wdata->dx;
   dy = wdata->dy;
 
-  x_factor = RCONST(4.0)/SQR(AX);
-  y_factor = RCONST(4.0)/SQR(AY);
+  x_factor = RCONST(4.0)/SUNSQR(AX);
+  y_factor = RCONST(4.0)/SUNSQR(AY);
   for (jy = 0; jy < MY; jy++) {
     y = jy*dy;
-    argy = SQR(y_factor*y*(AY-y)); 
+    argy = SUNSQR(y_factor*y*(AY-y));
     iyoff = mxns*jy;
     for (jx = 0; jx < MX; jx++) {
       x = jx*dx;
-      argx = SQR(x_factor*x*(AX-x));
+      argx = SUNSQR(x_factor*x*(AX-x));
       ioff = iyoff + ns*jx;
       for (i = 1; i <= ns; i++) {
         ici = ioff + i-1;
@@ -459,12 +459,12 @@ static void PrintIntro(void)
          DPREY, DPRED);
   printf("Rate parameter alpha = %.2Lg\n\n", ALPH);
 #elif defined(SUNDIALS_DOUBLE_PRECISION)
-  printf("Matrix parameters: a = %.2lg   e = %.2lg   g = %.2lg\n",
+  printf("Matrix parameters: a = %.2g   e = %.2g   g = %.2g\n",
          AA, EE, GG);
-  printf("b parameter = %.2lg\n", BB);
-  printf("Diffusion coefficients: Dprey = %.2lg   Dpred = %.2lg\n",
+  printf("b parameter = %.2g\n", BB);
+  printf("Diffusion coefficients: Dprey = %.2g   Dpred = %.2g\n",
          DPREY, DPRED);
-  printf("Rate parameter alpha = %.2lg\n\n", ALPH);
+  printf("Rate parameter alpha = %.2g\n\n", ALPH);
 #else
   printf("Matrix parameters: a = %.2g   e = %.2g   g = %.2g\n",
          AA, EE, GG);
@@ -479,7 +479,7 @@ static void PrintIntro(void)
   printf("Tolerances: reltol = %.2Lg, abstol = %.2Lg \n\n",
          RTOL, ATOL);
 #elif defined(SUNDIALS_DOUBLE_PRECISION)
-  printf("Tolerances: reltol = %.2lg, abstol = %.2lg \n\n",
+  printf("Tolerances: reltol = %.2g, abstol = %.2g \n\n",
          RTOL, ATOL);
 #else
   printf("Tolerances: reltol = %.2g, abstol = %.2g \n\n",
@@ -518,7 +518,7 @@ static void PrintAllSpecies(N_Vector c, int ns, int mxns, realtype t)
 #if defined(SUNDIALS_EXTENDED_PRECISION)
   printf("c values at t = %Lg:\n\n", t);
 #elif defined(SUNDIALS_DOUBLE_PRECISION)
-  printf("c values at t = %lg:\n\n", t);
+  printf("c values at t = %g:\n\n", t);
 #else
   printf("c values at t = %g:\n\n", t);
 #endif
@@ -529,7 +529,7 @@ static void PrintAllSpecies(N_Vector c, int ns, int mxns, realtype t)
 #if defined(SUNDIALS_EXTENDED_PRECISION)
         printf("%-10.6Lg", cdata[(i-1) + jx*ns + jy*mxns]);
 #elif defined(SUNDIALS_DOUBLE_PRECISION)
-        printf("%-10.6lg", cdata[(i-1) + jx*ns + jy*mxns]);
+        printf("%-10.6g", cdata[(i-1) + jx*ns + jy*mxns]);
 #else
         printf("%-10.6g", cdata[(i-1) + jx*ns + jy*mxns]);
 #endif
@@ -561,8 +561,8 @@ static void PrintOutput(void *cvode_mem, realtype t)
   printf("t = %10.2Le  nst = %ld  nfe = %ld  nni = %ld", t, nst, nfe, nni);
   printf("  qu = %d  hu = %11.2Le\n\n", qu, hu);
 #elif defined(SUNDIALS_DOUBLE_PRECISION)
-  printf("t = %10.2le  nst = %ld  nfe = %ld  nni = %ld", t, nst, nfe, nni);
-  printf("  qu = %d  hu = %11.2le\n\n", qu, hu);
+  printf("t = %10.2e  nst = %ld  nfe = %ld  nni = %ld", t, nst, nfe, nni);
+  printf("  qu = %d  hu = %11.2e\n\n", qu, hu);
 #else
   printf("t = %10.2e  nst = %ld  nfe = %ld  nni = %ld", t, nst, nfe, nni);
   printf("  qu = %d  hu = %11.2e\n\n", qu, hu);
@@ -790,7 +790,7 @@ static int Precond(realtype t, N_Vector c, N_Vector fc,
   f1 = NV_DATA_S(vtemp1);
   
   fac = N_VWrmsNorm (fc, rewt);
-  r0 = RCONST(1000.0)*ABS(gamma)*uround*NEQ*fac;
+  r0 = RCONST(1000.0)*SUNRabs(gamma)*uround*NEQ*fac;
   if (r0 == ZERO) r0 = ONE;
   
   for (igy = 0; igy < ngy; igy++) {
@@ -805,7 +805,7 @@ static int Precond(realtype t, N_Vector c, N_Vector fc,
         /* Generate the jth column as a difference quotient */
         jj = if0 + j; 
         save = cdata[jj];
-        r = MAX(srur*ABS(save),r0/rewtdata[jj]);
+        r = SUNMAX(srur*SUNRabs(save),r0/rewtdata[jj]);
         cdata[jj] += r;
         fac = -gamma/r;
         fblock (t, cdata, jx, jy, f1, wdata);

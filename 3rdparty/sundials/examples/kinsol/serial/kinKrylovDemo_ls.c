@@ -1,14 +1,14 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 1.2 $
- * $Date: 2010/12/01 23:08:49 $
+ * $Revision: 4272 $
+ * $Date: 2014-12-02 11:19:41 -0800 (Tue, 02 Dec 2014) $
  * -----------------------------------------------------------------
  * Programmer(s): Allan Taylor, Alan Hindmarsh and
  *                Radu Serban @ LLNL
  * -----------------------------------------------------------------
  *
  * This example loops through the available iterative linear solvers:
- * SPGMR, SPBCG and SPTFQMR.
+ * SPGMR, SPBCG, SPTFQMR, and SPFGMR.
  *
  * Example (serial):
  *
@@ -89,6 +89,7 @@
 #include <kinsol/kinsol_spgmr.h>
 #include <kinsol/kinsol_spbcgs.h>
 #include <kinsol/kinsol_sptfqmr.h>
+#include <kinsol/kinsol_spfgmr.h>
 #include <nvector/nvector_serial.h>
 #include <sundials/sundials_dense.h>
 #include <sundials/sundials_types.h>
@@ -128,6 +129,7 @@
 #define USE_SPGMR   0
 #define USE_SPBCG   1
 #define USE_SPTFQMR 2
+#define USE_SPFGMR  3
 
 /* User-defined vector access macro: IJ_Vptr */
 
@@ -246,8 +248,8 @@ int main(void)
      creates a private copy for KINSOL to use. */
   N_VDestroy_Serial(constraints);
 
-  /* START: Loop through SPGMR, SPBCG and SPTFQMR linear solver modules */
-  for (linsolver = 0; linsolver < 3; ++linsolver) {
+  /* START: Loop through SPGMR, SPBCG, SPTFQMR and SPFGMR linear solver modules */
+  for (linsolver = 0; linsolver < 4; ++linsolver) {
 
     /* Re-initialize user data */
     if (linsolver != 0) SetInitialProfiles(cc, sc);
@@ -307,6 +309,26 @@ int main(void)
 
       break;
 
+    /* (d) SPFGMR */
+    case(USE_SPFGMR):
+
+      /* Print header */
+      printf(" -------");
+      printf(" \n| SPFGMR |\n");
+      printf(" -------\n");
+
+      /* Call KINSpfgmr to specify the linear solver KINSPFGMR with preconditioner
+	 routines PrecSetupBD and PrecSolveBD, and the pointer to the user block data. */
+      maxl = 15; 
+      maxlrst = 2;
+      flag = KINSpfgmr(kmem, maxl);
+      if (check_flag(&flag, "KINSpfgmr", 1)) return(1);
+
+      flag = KINSpilsSetMaxRestarts(kmem, maxlrst);
+      if (check_flag(&flag, "KINSpilsSetMaxRestarts", 1)) return(1);
+
+      break;
+
     }
 
     /* Set preconditioner functions */
@@ -321,7 +343,7 @@ int main(void)
     /* Call KINSol and print output concentration profile */
     flag = KINSol(kmem,           /* KINSol memory block */
 		  cc,             /* initial guess on input; solution vector */
-		  globalstrategy, /* global stragegy choice */
+		  globalstrategy, /* global strategy choice */
 		  sc,             /* scaling vector, for the variable cc */
 		  sc);            /* scaling vector for function values fval */
     if (check_flag(&flag, "KINSol", 1)) return(1);
@@ -332,7 +354,7 @@ int main(void)
     /* Print final statistics and free memory */  
     PrintFinalStats(kmem, linsolver);
 
-  }  /* END: Loop through SPGMR, SPBCG and SPTFQMR linear solver modules */
+  }  /* END: Loop through SPGMR, SPBCG, SPTFQMR, and SPFGMR linear solver modules */
 
   N_VDestroy_Serial(cc);
   N_VDestroy_Serial(sc);
@@ -455,7 +477,7 @@ static int PrecSetupBD(N_Vector cc, N_Vector cscale,
       for (j = 0; j < NUM_SPECIES; j++) {
         
         csave = cxy[j];  /* Save the j,jx,jy element of cc */
-        r = MAX(sqruround*ABS(csave), r0/scxy[j]);
+        r = SUNMAX(sqruround*SUNRabs(csave), r0/scxy[j]);
         cxy[j] += r; /* Perturb the j,jx,jy element of cc */
         fac = ONE/r;
         
@@ -604,7 +626,7 @@ static void InitUserData(UserData data)
   data->dx = (data->ax)/(MX-1);
   data->dy = (data->ay)/(MY-1);
   data->uround = UNIT_ROUNDOFF;
-  data->sqruround = SQRT(data->uround);
+  data->sqruround = SUNRsqrt(data->uround);
 
   /* Set up the coefficients a and b plus others found in the equations */
   np = data->np;
@@ -726,6 +748,11 @@ static void PrintHeader(int globalstrategy, int maxl, int maxlrst,
     printf("Linear solver is SPTFQMR with maxl = %d\n", maxl);
     break;
 
+  case(USE_SPFGMR):
+    printf("Linear solver is SPFGMR with maxl = %d, maxlrst = %d\n",
+	   maxl, maxlrst);
+    break;
+
   }
 
   printf("Preconditioning uses interaction-only block-diagonal matrix\n");
@@ -734,7 +761,7 @@ static void PrintHeader(int globalstrategy, int maxl, int maxlrst,
   printf("Tolerance parameters:  fnormtol = %Lg   scsteptol = %Lg\n",
          fnormtol, scsteptol);
 #elif defined(SUNDIALS_DOUBLE_PRECISION)
-  printf("Tolerance parameters:  fnormtol = %lg   scsteptol = %lg\n",
+  printf("Tolerance parameters:  fnormtol = %g   scsteptol = %g\n",
          fnormtol, scsteptol);
 #else
   printf("Tolerance parameters:  fnormtol = %g   scsteptol = %g\n",
@@ -747,7 +774,7 @@ static void PrintHeader(int globalstrategy, int maxl, int maxlrst,
          PREYIN, PREYIN, PREYIN,
          PREDIN, PREDIN, PREDIN);
 #elif defined(SUNDIALS_DOUBLE_PRECISION)
-  printf("At all mesh points:  %lg %lg %lg   %lg %lg %lg\n", 
+  printf("At all mesh points:  %g %g %g   %g %g %g\n", 
          PREYIN, PREYIN, PREYIN,
          PREDIN, PREDIN, PREDIN);
 #else
@@ -776,7 +803,7 @@ static void PrintOutput(N_Vector cc)
 #if defined(SUNDIALS_EXTENDED_PRECISION)
     printf(" %Lg",ct[is]);
 #elif defined(SUNDIALS_DOUBLE_PRECISION)
-    printf(" %lg",ct[is]);
+    printf(" %g",ct[is]);
 #else
     printf(" %g",ct[is]);
 #endif
@@ -792,7 +819,7 @@ static void PrintOutput(N_Vector cc)
 #if defined(SUNDIALS_EXTENDED_PRECISION)
     printf(" %Lg",ct[is]);
 #elif defined(SUNDIALS_DOUBLE_PRECISION)
-    printf(" %lg",ct[is]);
+    printf(" %g",ct[is]);
 #else
     printf(" %g",ct[is]);
 #endif
@@ -830,7 +857,7 @@ static void PrintFinalStats(void *kmem, int linsolver)
   printf("nfe    = %5ld    nfeSG = %5ld\n", nfe, nfeSG);
   printf("nps    = %5ld    npe   = %5ld     ncfl  = %5ld\n", nps, npe, ncfl);
 
-  if (linsolver < 2) printf("\n=========================================================\n\n");
+  if (linsolver < 3) printf("\n=========================================================\n\n");
 
 }
 

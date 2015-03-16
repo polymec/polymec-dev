@@ -40,7 +40,7 @@
 #include <nvector/nvector_serial.h>   /* serial N_Vector types, fct., macros */
 #include <sundials/sundials_dense.h>  /* use generic dense solver in precond. */
 #include <sundials/sundials_types.h>  /* definition of real_t */
-#include <sundials/sundials_math.h>   /* contains the macros ABS, SQR, EXP */
+#include <sundials/sundials_math.h>   /* contains the macros SUNABS, SUNSQR, SUNRexp*/
 
 /* Problem Constants */
 
@@ -125,9 +125,9 @@ static diurnal_t* diurnal_new()
   data->om = PI/HALFDAY;
   data->dx = (XMAX-XMIN)/(MX-1);
   data->dy = (YMAX-YMIN)/(MY-1);
-  data->hdco = KH/SQR(data->dx);
+  data->hdco = KH/SUNSQR(data->dx);
   data->haco = VEL/(TWO*data->dx);
-  data->vdco = (ONE/SQR(data->dy))*KV0;
+  data->vdco = (ONE/SUNSQR(data->dy))*KV0;
 
   // Construct a sparsity graph.
   adj_graph_t* sparsity = adj_graph_new(MPI_COMM_SELF, MX*MY);
@@ -183,8 +183,8 @@ static int diurnal_rhs(void* context, real_t t, real_t* u, real_t* udot)
 
   s = sin(data->om*t);
   if (s > ZERO) {
-    q3 = EXP(-A3/s);
-    data->q4 = EXP(-A4/s);
+    q3 = SUNRexp(-A3/s);
+    data->q4 = SUNRexp(-A4/s);
   } else {
       q3 = ZERO;
       data->q4 = ZERO;
@@ -206,8 +206,8 @@ static int diurnal_rhs(void* context, real_t t, real_t* u, real_t* udot)
 
     ydn = YMIN + (jy - RCONST(0.5))*dely;
     yup = ydn + dely;
-    cydn = verdco*EXP(RCONST(0.2)*ydn);
-    cyup = verdco*EXP(RCONST(0.2)*yup);
+    cydn = verdco*SUNRexp(RCONST(0.2)*ydn);
+    cyup = verdco*SUNRexp(RCONST(0.2)*yup);
     idn = (jy == 0) ? 1 : -1;
     iup = (jy == MY-1) ? -1 : 1;
     for (jx=0; jx < MX; jx++) {
@@ -279,12 +279,12 @@ real_t* diurnal_initial_conditions(ode_integrator_t* integ)
 
   for (jy=0; jy < MY; jy++) {
     y = YMIN + jy*dy;
-    cy = SQR(RCONST(0.1)*(y - YMID));
-    cy = ONE - cy + RCONST(0.5)*SQR(cy);
+    cy = SUNSQR(RCONST(0.1)*(y - YMID));
+    cy = ONE - cy + RCONST(0.5)*SUNSQR(cy);
     for (jx=0; jx < MX; jx++) {
       x = XMIN + jx*dx;
-      cx = SQR(RCONST(0.1)*(x - XMID));
-      cx = ONE - cx + RCONST(0.5)*SQR(cx);
+      cx = SUNSQR(RCONST(0.1)*(x - XMID));
+      cx = ONE - cx + RCONST(0.5)*SUNSQR(cx);
       IJKth(udata,1,jx,jy) = C1_SCALE*cx*cy; 
       IJKth(udata,2,jx,jy) = C2_SCALE*cx*cy;
     }

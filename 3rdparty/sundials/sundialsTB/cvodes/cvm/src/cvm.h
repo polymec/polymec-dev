@@ -1,14 +1,19 @@
 /*
  * -----------------------------------------------------------------
  * $Revision: 1.14 $
- * $Date: 2012/03/07 21:44:21 $
+ * $Date: 2012-03-07 21:44:21 $
  * -----------------------------------------------------------------
  * Programmer: Radu Serban @ LLNL
  * -----------------------------------------------------------------
- * Copyright (c) 2005, The Regents of the University of California.
+ * LLNS Copyright Start
+ * Copyright (c) 2014, Lawrence Livermore National Security
+ * This work was performed under the auspices of the U.S. Department 
+ * of Energy by Lawrence Livermore National Laboratory in part under 
+ * Contract W-7405-Eng-48 and in part under Contract DE-AC52-07NA27344.
  * Produced at the Lawrence Livermore National Laboratory.
  * All rights reserved.
- * For details, see sundials-x.y.z/src/cvodes/LICENSE.
+ * For details, see the LICENSE file.
+ * LLNS Copyright End
  * -----------------------------------------------------------------
  * Header file for the CVODES Matlab interface.
  * -----------------------------------------------------------------
@@ -16,10 +21,6 @@
 
 #ifndef _CVM_H
 #define _CVM_H
-
-#ifdef __cplusplus  /* wrapper to enable C++ usage */
-extern "C" {
-#endif
 
 #include <string.h>
 #include <stdlib.h>
@@ -33,6 +34,10 @@ extern "C" {
 #include <cvodes/cvodes_sptfqmr.h>
 #include <cvodes/cvodes_bandpre.h>
 #include <cvodes/cvodes_bbdpre.h>
+
+#ifdef __cplusplus  /* wrapper to enable C++ usage */
+extern "C" {
+#endif
 
 /*
  * ---------------------------------------------------------------------------------

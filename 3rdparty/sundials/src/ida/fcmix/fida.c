@@ -1,14 +1,19 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 1.10 $
- * $Date: 2010/12/01 22:37:20 $
+ * $Revision: 4402 $
+ * $Date: 2015-02-28 19:35:39 -0800 (Sat, 28 Feb 2015) $
  * ----------------------------------------------------------------- 
  * Programmer(s): Aaron Collier and Radu Serban @ LLNL
  * -----------------------------------------------------------------
- * Copyright (c) 2005, The Regents of the University of California.
+ * LLNS Copyright Start
+ * Copyright (c) 2014, Lawrence Livermore National Security
+ * This work was performed under the auspices of the U.S. Department 
+ * of Energy by Lawrence Livermore National Laboratory in part under 
+ * Contract W-7405-Eng-48 and in part under Contract DE-AC52-07NA27344.
  * Produced at the Lawrence Livermore National Laboratory.
  * All rights reserved.
  * For details, see the LICENSE file.
+ * LLNS Copyright End
  * -----------------------------------------------------------------
  * This is the implementation file for the Fortran interface to
  * the IDA package. See fida.h for usage.
@@ -26,6 +31,8 @@
 
 #include <ida/ida_band.h>    /* prototypes for IDABAND interface routines      */
 #include <ida/ida_dense.h>   /* prototypes for IDADENSE interface routines     */
+#include <ida/ida_klu.h>     /* prototypes for IDAKLU interface routines       */
+#include <ida/ida_superlumt.h> /* prototypes for IDASUPERLUMT interface routines */
 #include <ida/ida_sptfqmr.h> /* prototypes for IDASPTFQMR interface routines   */
 #include <ida/ida_spbcgs.h>  /* prototypes for IDASPBCG interface routines     */
 #include <ida/ida_spgmr.h>   /* prototypes for IDASPGMR interface routines     */
@@ -244,27 +251,27 @@ void FIDA_REINIT(realtype *t0, realtype *yy0, realtype *yp0,
 
 /*************************************************/
 
-void FIDA_SETIIN(char key_name[], long int *ival, int *ier, int key_len)
+void FIDA_SETIIN(char key_name[], long int *ival, int *ier)
 {
-  if (!strncmp(key_name,"MAX_ORD", (size_t)key_len)) 
+  if (!strncmp(key_name,"MAX_ORD",7))
     *ier = IDASetMaxOrd(IDA_idamem, (int) *ival);
-  else if (!strncmp(key_name,"MAX_NSTEPS", (size_t)key_len)) 
+  else if (!strncmp(key_name,"MAX_NSTEPS",10))
     *ier = IDASetMaxNumSteps(IDA_idamem, (int) *ival);
-  else if (!strncmp(key_name,"MAX_ERRFAIL", (size_t)key_len)) 
+  else if (!strncmp(key_name,"MAX_ERRFAIL",11))
     *ier = IDASetMaxErrTestFails(IDA_idamem, (int) *ival);
-  else if (!strncmp(key_name,"MAX_NITERS", (size_t)key_len)) 
+  else if (!strncmp(key_name,"MAX_NITERS",10))
     *ier = IDASetMaxNonlinIters(IDA_idamem, (int) *ival);
-  else if (!strncmp(key_name,"MAX_CONVFAIL", (size_t)key_len)) 
+  else if (!strncmp(key_name,"MAX_CONVFAIL",12))
     *ier = IDASetMaxConvFails(IDA_idamem, (int) *ival);
-  else if (!strncmp(key_name,"SUPPRESS_ALG", (size_t)key_len)) 
+  else if (!strncmp(key_name,"SUPPRESS_ALG",12))
     *ier = IDASetSuppressAlg(IDA_idamem, (int) *ival);
-  else if (!strncmp(key_name,"MAX_NSTEPS_IC", (size_t)key_len)) 
+  else if (!strncmp(key_name,"MAX_NSTEPS_IC",13))
     *ier = IDASetMaxNumStepsIC(IDA_idamem, (int) *ival);
-  else if (!strncmp(key_name,"MAX_NITERS_IC", (size_t)key_len)) 
+  else if (!strncmp(key_name,"MAX_NITERS_IC",13)) 
     *ier = IDASetMaxNumItersIC(IDA_idamem, (int) *ival);
-  else if (!strncmp(key_name,"MAX_NJE_IC", (size_t)key_len)) 
+  else if (!strncmp(key_name,"MAX_NJE_IC",10))
     *ier = IDASetMaxNumJacsIC(IDA_idamem, (int) *ival);
-  else if (!strncmp(key_name,"LS_OFF_IC", (size_t)key_len)) 
+  else if (!strncmp(key_name,"LS_OFF_IC",9))
     *ier = IDASetLineSearchOffIC(IDA_idamem, (int) *ival);
   else {
     *ier = -99;
@@ -275,20 +282,20 @@ void FIDA_SETIIN(char key_name[], long int *ival, int *ier, int key_len)
 
 /***************************************************************************/
 
-void FIDA_SETRIN(char key_name[], realtype *rval, int *ier, int key_len)
+void FIDA_SETRIN(char key_name[], realtype *rval, int *ier)
 {
 
-  if (!strncmp(key_name,"INIT_STEP", (size_t)key_len)) 
+  if (!strncmp(key_name,"INIT_STEP",9))
     *ier = IDASetInitStep(IDA_idamem, *rval);
-  else if (!strncmp(key_name,"MAX_STEP", (size_t)key_len)) 
+  else if (!strncmp(key_name,"MAX_STEP",8))
     *ier = IDASetMaxStep(IDA_idamem, *rval);
-  else if (!strncmp(key_name,"STOP_TIME", (size_t)key_len)) 
+  else if (!strncmp(key_name,"STOP_TIME",9))
     *ier = IDASetStopTime(IDA_idamem, *rval);
-  else if (!strncmp(key_name,"NLCONV_COEF", (size_t)key_len)) 
-    *ier = IDASetNonlinConvCoef(IDA_idamem, *rval);
-  else if (!strncmp(key_name,"NLCONV_COEF_IC", (size_t)key_len)) 
+  else if (!strncmp(key_name,"NLCONV_COEF_IC",14))
     *ier = IDASetNonlinConvCoefIC(IDA_idamem, *rval);
-  else if (!strncmp(key_name,"STEP_TOL_IC", (size_t)key_len)) 
+  else if (!strncmp(key_name,"NLCONV_COEF",11))
+    *ier = IDASetNonlinConvCoef(IDA_idamem, *rval);
+  else if (!strncmp(key_name,"STEP_TOL_IC",11))
     *ier = IDASetStepToleranceIC(IDA_idamem, *rval);
   else {
     *ier = -99;
@@ -299,13 +306,13 @@ void FIDA_SETRIN(char key_name[], realtype *rval, int *ier, int key_len)
 
 /*************************************************/
 
-void FIDA_SETVIN(char key_name[], realtype *vval, int *ier, int key_len)
+void FIDA_SETVIN(char key_name[], realtype *vval, int *ier)
 {
   N_Vector Vec;
 
   *ier = 0;
 
-  if (!strncmp(key_name,"ID_VEC", (size_t)key_len)) {
+  if (!strncmp(key_name,"ID_VEC",6)) {
     Vec = NULL;
     Vec = N_VCloneEmpty(F2C_IDA_vec);
     if (Vec == NULL) {
@@ -315,7 +322,7 @@ void FIDA_SETVIN(char key_name[], realtype *vval, int *ier, int key_len)
     N_VSetArrayPointer(vval, Vec);
     IDASetId(IDA_idamem, Vec);
     N_VDestroy(Vec);
-  } else if (!strncmp(key_name,"CONSTR_VEC", (size_t)key_len)) {
+  } else if (!strncmp(key_name,"CONSTR_VEC",10)) {
     Vec = NULL;
     Vec = N_VCloneEmpty(F2C_IDA_vec);
     if (Vec == NULL) {
@@ -628,6 +635,11 @@ void FIDA_SOLVE(realtype *tout, realtype *tret, realtype *yret,
     IDADlsGetLastFlag(IDA_idamem, &IDA_iout[14]);                   /* LSTF */
     IDADlsGetNumResEvals(IDA_idamem, &IDA_iout[15]);                /* NRE */
     IDADlsGetNumJacEvals(IDA_idamem, &IDA_iout[16]);                /* NJE */
+    break;
+  case IDA_LS_KLU:
+  case IDA_LS_SUPERLUMT:
+    IDASlsGetLastFlag(IDA_idamem, &IDA_iout[14]);                  /* LSTF  */
+    IDASlsGetNumJacEvals(IDA_idamem, &IDA_iout[16]);               /* NJE   */
     break;
   case IDA_LS_SPGMR:
   case IDA_LS_SPBCG:

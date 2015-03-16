@@ -1,15 +1,20 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 1.5 $
- * $Date: 2010/12/01 22:45:33 $
+ * $Revision: 4399 $
+ * $Date: 2015-02-28 16:53:24 -0800 (Sat, 28 Feb 2015) $
  * -----------------------------------------------------------------
  * Programmer(s): Allan Taylor, Alan Hindmarsh, Radu Serban, and
  *                Aaron Collier @ LLNL
  * -----------------------------------------------------------------
- * Copyright (c) 2002, The Regents of the University of California.
+ * LLNS Copyright Start
+ * Copyright (c) 2014, Lawrence Livermore National Security
+ * This work was performed under the auspices of the U.S. Department 
+ * of Energy by Lawrence Livermore National Laboratory in part under 
+ * Contract W-7405-Eng-48 and in part under Contract DE-AC52-07NA27344.
  * Produced at the Lawrence Livermore National Laboratory.
  * All rights reserved.
  * For details, see the LICENSE file.
+ * LLNS Copyright End
  * -----------------------------------------------------------------
  * This is the implementation file for the Fortran interface to
  * the KINSOL package. See fkinsol.h for usage.
@@ -29,9 +34,12 @@
 
 #include <kinsol/kinsol_band.h>    /* prototypes of KINBAND interface routines    */
 #include <kinsol/kinsol_dense.h>   /* prototypes of KINDENSE interface routines   */
+#include <kinsol/kinsol_klu.h>     /* prototypes of KINKLU interface routines     */
+#include <kinsol/kinsol_superlumt.h> /* prototypes of KINKLU interface routines     */
 #include <kinsol/kinsol_sptfqmr.h> /* prototypes of KINSPTFQMR interface routines */
 #include <kinsol/kinsol_spbcgs.h>  /* prototypes of KINSPBCG interface routines   */
 #include <kinsol/kinsol_spgmr.h>   /* prototypes of KINSPGMR interface routines   */
+#include <kinsol/kinsol_spfgmr.h>  /* prototypes of KINSPFGMR interface routines  */
 
 /*
  * ----------------------------------------------------------------
@@ -118,23 +126,23 @@ void FKIN_MALLOC(long int *iout, realtype *rout, int *ier)
  * ----------------------------------------------------------------
  */
 
-void FKIN_SETIIN(char key_name[], long int *ival, int *ier, int key_len)
+void FKIN_SETIIN(char key_name[], long int *ival, int *ier)
 {
-  if (!strncmp(key_name,"PRNT_LEVEL", (size_t)key_len)) 
+  if (!strncmp(key_name,"PRNT_LEVEL",10))
     *ier = KINSetPrintLevel(KIN_kinmem, (int) *ival);
-  else if (!strncmp(key_name,"MAX_NITERS", (size_t)key_len)) 
+  else if (!strncmp(key_name,"MAX_NITERS",10))
     *ier = KINSetNumMaxIters(KIN_kinmem, (int) *ival);
-  else if (!strncmp(key_name,"ETA_FORM", (size_t)key_len)) 
+  else if (!strncmp(key_name,"ETA_FORM",8))
     *ier = KINSetEtaForm(KIN_kinmem, (int) *ival);
-  else if (!strncmp(key_name,"MAX_SETUPS", (size_t)key_len)) 
+  else if (!strncmp(key_name,"MAX_SETUPS",10))
     *ier = KINSetMaxSetupCalls(KIN_kinmem, (int) *ival);
-  else if (!strncmp(key_name,"MAX_SP_SETUPS", (size_t)key_len)) 
+  else if (!strncmp(key_name,"MAX_SP_SETUPS",13))
     *ier = KINSetMaxSubSetupCalls(KIN_kinmem, (int) *ival);
-  else if (!strncmp(key_name,"NO_INIT_SETUP", (size_t)key_len)) 
+  else if (!strncmp(key_name,"NO_INIT_SETUP",13))
     *ier = KINSetNoInitSetup(KIN_kinmem, (int) *ival);
-  else if (!strncmp(key_name,"NO_MIN_EPS", (size_t)key_len)) 
+  else if (!strncmp(key_name,"NO_MIN_EPS",10))
     *ier = KINSetNoMinEps(KIN_kinmem, (int) *ival);
-  else if (!strncmp(key_name,"NO_RES_MON", (size_t)key_len)) 
+  else if (!strncmp(key_name,"NO_RES_MON",10))
     *ier = KINSetNoResMon(KIN_kinmem, (int) *ival);
   else {
     *ier = -99;
@@ -149,24 +157,24 @@ void FKIN_SETIIN(char key_name[], long int *ival, int *ier, int key_len)
  * ----------------------------------------------------------------
  */
 
-void FKIN_SETRIN(char key_name[], realtype *rval, int *ier, int key_len)
+void FKIN_SETRIN(char key_name[], realtype *rval, int *ier)
 {
 
-  if (!strncmp(key_name,"FNORM_TOL", (size_t)key_len)) 
+  if (!strncmp(key_name,"FNORM_TOL",9))
     *ier = KINSetFuncNormTol(KIN_kinmem, *rval);
-  else if (!strncmp(key_name,"SSTEP_TOL", (size_t)key_len)) 
+  else if (!strncmp(key_name,"SSTEP_TOL",9))
     *ier = KINSetScaledStepTol(KIN_kinmem, *rval);
-  else if (!strncmp(key_name,"MAX_STEP", (size_t)key_len)) 
+  else if (!strncmp(key_name,"MAX_STEP",8))
     *ier = KINSetMaxNewtonStep(KIN_kinmem, *rval);
-  else if (!strncmp(key_name,"RERR_FUNC", (size_t)key_len)) 
+  else if (!strncmp(key_name,"RERR_FUNC",9))
     *ier = KINSetRelErrFunc(KIN_kinmem, *rval);
-  else if (!strncmp(key_name,"ETA_CONST", (size_t)key_len)) 
+  else if (!strncmp(key_name,"ETA_CONST",9))
     *ier = KINSetEtaConstValue(KIN_kinmem, *rval);
-  else if (!strncmp(key_name,"ETA_PARAMS", (size_t)key_len)) 
+  else if (!strncmp(key_name,"ETA_PARAMS",10))
     *ier = KINSetEtaParams(KIN_kinmem, rval[0], rval[1]);
-  else if (!strncmp(key_name,"RMON_CONST", (size_t)key_len)) 
+  else if (!strncmp(key_name,"RMON_CONST",10))
     *ier = KINSetResMonConstValue(KIN_kinmem, *rval);
-  else if (!strncmp(key_name,"RMON_PARAMS", (size_t)key_len)) 
+  else if (!strncmp(key_name,"RMON_PARAMS",11))
     *ier = KINSetResMonParams(KIN_kinmem, rval[0], rval[1]);
   else {
     *ier = -99;
@@ -181,17 +189,18 @@ void FKIN_SETRIN(char key_name[], realtype *rval, int *ier, int key_len)
  * ----------------------------------------------------------------
  */
 
-void FKIN_SETVIN(char key_name[], realtype *vval, int *ier, int key_len)
+void FKIN_SETVIN(char key_name[], realtype *vval, int *ier)
 {
   N_Vector Vec;
 
-  if (!strncmp(key_name,"CONSTR_VEC", (size_t)key_len)) {
+  if (!strncmp(key_name,"CONSTR_VEC",10)) {
     Vec = NULL;
     Vec = N_VCloneEmpty(F2C_KINSOL_vec);
     if (Vec == NULL) {
       *ier = -1;
       return;
     }
+    *ier = 0;
     N_VSetArrayPointer(vval, Vec);
     KINSetConstraints(KIN_kinmem, Vec);
     N_VDestroy(Vec);
@@ -265,6 +274,19 @@ void FKIN_SPGMR(int *maxl, int *maxlrst, int *ier)
 
 /*
  * ----------------------------------------------------------------
+ * Function : FKIN_SPFGMR
+ * ----------------------------------------------------------------
+ */
+
+void FKIN_SPFGMR(int *maxl, int *maxlrst, int *ier)
+{
+  *ier = KINSpfgmr(KIN_kinmem, *maxl);
+  KINSpilsSetMaxRestarts(KIN_kinmem, *maxlrst);
+  KIN_ls = KIN_LS_SPFGMR;
+}
+
+/*
+ * ----------------------------------------------------------------
  * Function : FKIN_SOL
  * ----------------------------------------------------------------
  */
@@ -273,7 +295,6 @@ void FKIN_SOL(realtype *uu, int *globalstrategy,
               realtype *uscale , realtype *fscale, int *ier)
 
 {
-  int lsflag;
   N_Vector uuvec, uscalevec, fscalevec;
 
   *ier = 0;
@@ -330,8 +351,14 @@ void FKIN_SOL(realtype *uu, int *globalstrategy,
     KINDlsGetLastFlag(KIN_kinmem, &KIN_iout[8]);                /* LSTF */
     KINDlsGetNumFuncEvals(KIN_kinmem, &KIN_iout[9]);            /* NFE */
     KINDlsGetNumJacEvals(KIN_kinmem, &KIN_iout[10]);            /* NJE */    
+  case KIN_LS_KLU:
+  case KIN_LS_SUPERLUMT:
+    KINSlsGetLastFlag(KIN_kinmem, &KIN_iout[8]);                /* LSTF  */
+    KINSlsGetNumJacEvals(KIN_kinmem, &KIN_iout[10]);            /* NJE   */
+    break;
   case KIN_LS_SPTFQMR:
   case KIN_LS_SPBCG:
+  case KIN_LS_SPFGMR:
   case KIN_LS_SPGMR:
     KINSpilsGetWorkSpace(KIN_kinmem, &KIN_iout[6], &KIN_iout[7]); /* LRW & LIW */
     KINSpilsGetLastFlag(KIN_kinmem, &KIN_iout[8]);                /* LSTF */
@@ -391,5 +418,5 @@ int FKINfunc(N_Vector uu, N_Vector fval, void *user_data)
 
   FK_FUN(udata, fdata, &ier);
 
-  return(0);
+  return(ier);
 }

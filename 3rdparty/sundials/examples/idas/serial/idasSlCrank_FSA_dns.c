@@ -1,7 +1,7 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 1.3 $
- * $Date: 2009/04/29 20:40:07 $
+ * $Revision: 4272 $
+ * $Date: 2014-12-02 11:19:41 -0800 (Tue, 02 Dec 2014) $
  * -----------------------------------------------------------------
  * Programmer: Radu Serban and Cosmin Petra @ LLNL
  * -----------------------------------------------------------------
@@ -185,7 +185,7 @@ int main(void)
   
   IDAGetQuadSens(mem, &tret, qS);
   printf("-------------F O R W A R D------------------\n");
-  printf("   dG/dp:  %12.4le %12.4le\n", Ith(qS[0],1), Ith(qS[1],1));
+  printf("   dG/dp:  %12.4e %12.4e\n", Ith(qS[0],1), Ith(qS[1],1));
   printf("--------------------------------------------\n\n");
 
   IDAFree(&mem);
@@ -281,15 +281,15 @@ int main(void)
   printf("\n\n   Checking using Finite Differences \n\n");
 
   printf("---------------BACKWARD------------------\n");
-  printf("   dG/dp:  %12.4le %12.4le\n", (G-Gm[0])/dp, (G-Gm[1])/dp);
+  printf("   dG/dp:  %12.4e %12.4e\n", (G-Gm[0])/dp, (G-Gm[1])/dp);
   printf("-----------------------------------------\n\n");
 
   printf("---------------FORWARD-------------------\n");
-  printf("   dG/dp:  %12.4le %12.4le\n", (Gp[0]-G)/dp, (Gp[1]-G)/dp);
+  printf("   dG/dp:  %12.4e %12.4e\n", (Gp[0]-G)/dp, (Gp[1]-G)/dp);
   printf("-----------------------------------------\n\n");
 
   printf("--------------CENTERED-------------------\n");
-  printf("   dG/dp:  %12.4le %12.4le\n", (Gp[0]-Gm[0])/(TWO*dp) ,(Gp[1]-Gm[1])/(TWO*dp));
+  printf("   dG/dp:  %12.4e %12.4e\n", (Gp[0]-Gm[0])/(TWO*dp) ,(Gp[1]-Gm[1])/(TWO*dp));
   printf("-----------------------------------------\n\n");
 
 
@@ -368,7 +368,7 @@ static void force(N_Vector yy, realtype *Q, UserData data)
   c21 = c2*c1 + s2*s1;
 
   l2 = x*x - x*(c2+a*c1) + (ONE + a*a)/FOUR + a*c21/TWO;
-  l = RSqrt(l2);
+  l = SUNRsqrt(l2);
   ld = TWO*x*xd - xd*(c2+a*c1) + x*(s2*pd+a*s1*qd) - a*s21*(pd-qd)/TWO;
   ld /= TWO*l;
 

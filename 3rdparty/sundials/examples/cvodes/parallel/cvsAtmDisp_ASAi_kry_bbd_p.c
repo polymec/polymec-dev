@@ -1,7 +1,7 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 1.3 $
- * $Date: 2010/12/14 22:15:31 $
+ * $Revision: 4396 $
+ * $Date: 2015-02-26 16:59:39 -0800 (Thu, 26 Feb 2015) $
  * -----------------------------------------------------------------
  * Programmer(s): Lukas Jager and Radu Serban @ LLNL
  * -----------------------------------------------------------------
@@ -78,7 +78,7 @@
 
 #define DIFF_COEF RCONST(1.0)
 #define V_MAX     RCONST(1.0)
-#define L         (YMAX-YMIN)/RCONST(2.0)
+#define L         ((YMAX-YMIN)/RCONST(2.0))
 #define V_COEFF   V_MAX/L/L
 
 /* Initial and final times */
@@ -309,7 +309,7 @@ int main(int argc, char *argv[])
 #if defined(SUNDIALS_EXTENDED_PRECISION)
   if (myId == 0) printf("  G = %Le\n",G);
 #elif defined(SUNDIALS_DOUBLE_PRECISION)
-  if (myId == 0) printf("  G = %le\n",G);
+  if (myId == 0) printf("  G = %e\n",G);
 #else
   if (myId == 0) printf("  G = %e\n",G);
 #endif
@@ -532,14 +532,14 @@ static void SetSource(ProblemData d)
         x[2] = xmin[2] + (m_start[2]+i[2]) * dx[2];
         
         g = G1_AMPL 
-          * EXP( -SQR(G1_X-x[0])/SQR(G1_SIGMA) ) 
-          * EXP( -SQR(G1_Y-x[1])/SQR(G1_SIGMA) )
-          * EXP( -SQR(G1_Z-x[2])/SQR(G1_SIGMA) ); 
+          * SUNRexp( -SUNSQR(G1_X-x[0])/SUNSQR(G1_SIGMA) )
+          * SUNRexp( -SUNSQR(G1_Y-x[1])/SUNSQR(G1_SIGMA) )
+          * SUNRexp( -SUNSQR(G1_Z-x[2])/SUNSQR(G1_SIGMA) );
         
         g += G2_AMPL 
-          * EXP( -SQR(G2_X-x[0])/SQR(G2_SIGMA) ) 
-          * EXP( -SQR(G2_Y-x[1])/SQR(G2_SIGMA) )
-          * EXP( -SQR(G2_Z-x[2])/SQR(G2_SIGMA) ); 
+          * SUNRexp( -SUNSQR(G2_X-x[0])/SUNSQR(G2_SIGMA) )
+          * SUNRexp( -SUNSQR(G2_Y-x[1])/SUNSQR(G2_SIGMA) )
+          * SUNRexp( -SUNSQR(G2_Z-x[2])/SUNSQR(G2_SIGMA) );
         
         if( g < G_MIN ) g = ZERO;
 
@@ -547,12 +547,12 @@ static void SetSource(ProblemData d)
       }
 #else
       g = G1_AMPL 
-        * EXP( -SQR(G1_X-x[0])/SQR(G1_SIGMA) ) 
-        * EXP( -SQR(G1_Y-x[1])/SQR(G1_SIGMA) ); 
+        * SUNRexp( -SUNSQR(G1_X-x[0])/SUNSQR(G1_SIGMA) )
+        * SUNRexp( -SUNSQR(G1_Y-x[1])/SUNSQR(G1_SIGMA) );
 
       g += G2_AMPL 
-        * EXP( -SQR(G2_X-x[0])/SQR(G2_SIGMA) ) 
-        * EXP( -SQR(G2_Y-x[1])/SQR(G2_SIGMA) ); 
+        * SUNRexp( -SUNSQR(G2_X-x[0])/SUNSQR(G2_SIGMA) )
+        * SUNRexp( -SUNSQR(G2_Y-x[1])/SUNSQR(G2_SIGMA) );
       
       if( g < G_MIN ) g = ZERO;
 
@@ -774,7 +774,7 @@ static int f_local(long int Nlocal, realtype t, N_Vector y,
             cl[dim] = cr[dim];
 
           adv[dim]  = v[dim] * (cr[dim]-cl[dim]) / (TWO*dx[dim]);
-          diff[dim] = DIFF_COEF * (cr[dim]-TWO*c+cl[dim]) / SQR(dx[dim]);
+          diff[dim] = DIFF_COEF * (cr[dim]-TWO*c+cl[dim]) / SUNSQR(dx[dim]);
 
           IJth(dydata, i) += (diff[dim] - adv[dim]);
         } 
@@ -915,7 +915,7 @@ static int fB_local(long int NlocalB, realtype t,
 	      cl[dim] = cr[dim]+(TWO*dx[dim]*v[dim]/DIFF_COEF)*c;
 		  
           adv[dim]  = v[dim] * (cr[dim]-cl[dim]) / (TWO*dx[dim]);
-          diff[dim] = DIFF_COEF * (cr[dim]-TWO*c+cl[dim]) / SQR(dx[dim]);
+          diff[dim] = DIFF_COEF * (cr[dim]-TWO*c+cl[dim]) / SUNSQR(dx[dim]);
           
           IJth(dyBdata, i) -= (diff[dim] + adv[dim]);
         } 
@@ -1115,10 +1115,10 @@ static void OutputGradient(int myId, N_Vector qB, ProblemData d)
       fprintf(fid,"p%d(%d,%d) = %Le; \n", myId, i[1]+1, i[0]+1, p);
       fprintf(fid,"g%d(%d,%d) = %Le; \n", myId, i[1]+1, i[0]+1, g);
 #elif defined(SUNDIALS_DOUBLE_PRECISION)
-      fprintf(fid,"x%d(%d,1) = %le; \n",  myId, i[0]+1,         x[0]);
-      fprintf(fid,"y%d(%d,1) = %le; \n",  myId, i[1]+1,         x[1]);
-      fprintf(fid,"p%d(%d,%d) = %le; \n", myId, i[1]+1, i[0]+1, p);
-      fprintf(fid,"g%d(%d,%d) = %le; \n", myId, i[1]+1, i[0]+1, g);
+      fprintf(fid,"x%d(%d,1) = %e; \n",  myId, i[0]+1,         x[0]);
+      fprintf(fid,"y%d(%d,1) = %e; \n",  myId, i[1]+1,         x[1]);
+      fprintf(fid,"p%d(%d,%d) = %e; \n", myId, i[1]+1, i[0]+1, p);
+      fprintf(fid,"g%d(%d,%d) = %e; \n", myId, i[1]+1, i[0]+1, g);
 #else
       fprintf(fid,"x%d(%d,1) = %e; \n",  myId, i[0]+1,         x[0]);
       fprintf(fid,"y%d(%d,1) = %e; \n",  myId, i[1]+1,         x[1]);

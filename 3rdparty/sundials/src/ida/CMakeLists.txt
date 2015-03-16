@@ -1,13 +1,18 @@
 # ---------------------------------------------------------------
-# $Revision: 1.4 $
-# $Date: 2009/02/17 02:58:48 $
+# $Revision: 4138 $
+# $Date: 2014-06-15 13:50:39 -0700 (Sun, 15 Jun 2014) $
 # ---------------------------------------------------------------
 # Programmer:  Radu Serban @ LLNL
 # ---------------------------------------------------------------
-# Copyright (c) 2007, The Regents of the University of California.
+# LLNS Copyright Start
+# Copyright (c) 2014, Lawrence Livermore National Security
+# This work was performed under the auspices of the U.S. Department 
+# of Energy by Lawrence Livermore National Laboratory in part under 
+# Contract W-7405-Eng-48 and in part under Contract DE-AC52-07NA27344.
 # Produced at the Lawrence Livermore National Laboratory.
 # All rights reserved.
 # For details, see the LICENSE file.
+# LLNS Copyright End
 # ---------------------------------------------------------------
 # CMakeLists.txt file for the IDA library
 
@@ -21,12 +26,21 @@ SET(ida_SOURCES
   ida_direct.c
   ida_band.c
   ida_dense.c
+  ida_sparse.c
   ida_spils.c
   ida_spbcgs.c
   ida_spgmr.c
   ida_sptfqmr.c
   ida_bbdpre.c
   )
+
+IF(KLU_FOUND)
+    LIST(APPEND ida_SOURCES ida_klu.c)
+ENDIF()
+
+IF(SUPERLUMT_FOUND)
+    LIST(APPEND ida_SOURCES ida_superlumt.c)
+ENDIF()
 
 # Add variable shared_SOURCES with the common SUNDIALS sources which will
 # also be included in the IDA library
@@ -37,6 +51,7 @@ SET(shared_SOURCES
   sundials_band.c
   sundials_dense.c
   sundials_iterative.c
+  sundials_sparse.c
   sundials_spbcgs.c
   sundials_spgmr.c
   sundials_sptfqmr.c
@@ -57,6 +72,14 @@ SET(ida_HEADERS
   ida_spils.h
   ida_sptfqmr.h
   )
+
+IF(KLU_FOUND)
+    LIST(APPEND ida_HEADERS ida_klu.h ida_sparse.h)
+ENDIF()
+
+IF(SUPERLUMT_FOUND)
+    LIST(APPEND ida_HEADERS ida_superlumt.h ida_sparse.h)
+ENDIF()
 
 # Add prefix with complete path to the IDA header files
 ADD_PREFIX(${sundials_SOURCE_DIR}/include/ida/ ida_HEADERS)

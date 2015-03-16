@@ -1,15 +1,20 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 1.8 $
- * $Date: 2010/12/01 22:45:33 $
+ * $Revision: 4423 $
+ * $Date: 2015-03-08 17:23:10 -0700 (Sun, 08 Mar 2015) $
  * -----------------------------------------------------------------
  * Programmer(s): Allan Taylor, Alan Hindmarsh, Radu Serban, and
  *                Aaron Collier @ LLNL
  * -----------------------------------------------------------------
- * Copyright (c) 2002, The Regents of the University of California.
+ * LLNS Copyright Start
+ * Copyright (c) 2014, Lawrence Livermore National Security
+ * This work was performed under the auspices of the U.S. Department 
+ * of Energy by Lawrence Livermore National Laboratory in part under 
+ * Contract W-7405-Eng-48 and in part under Contract DE-AC52-07NA27344.
  * Produced at the Lawrence Livermore National Laboratory.
  * All rights reserved.
  * For details, see the LICENSE file.
+ * LLNS Copyright End
  * -----------------------------------------------------------------
  * This is the header file for the FKINSOL Interface Package.
  * See below for usage details.
@@ -25,19 +30,23 @@
  in a mixed Fortran/C setting. While KINSOL is written in C, it is assumed 
  here that the user's calling program and user-supplied problem-defining 
  routines are written in Fortran. This package provides the necessary
- interface to KINSOL for both the serial and the parallel NVECTOR
+ interface to KINSOL for the serial and parallel NVECTOR
  implementations.
 
  The user-callable functions, with the corresponding KINSOL functions,
  are as follows:
 
-   FNVINITS and FNVINITP initialize serial and parallel vector
-                         computations, respectively
+   FNVINITS, FNVINITP, FNVINITOMP, FNVINITPTS
+          initialize serial, distributed memory parallel, or threaded 
+          vector computations
    FKINMALLOC interfaces to KINInit
    FKINSETIIN, FKINSETRIN, FKINSETVIN interface to KINSet* functions
    FKINDENSE interfaces to KINDense
+   FKINKLU interfaces to KINKLU
+   FKINSUPERLUMT interfaces to KINSUPERLUMT
    FKINSPTFQMR interfaces to KINSptfqmr
    FKINSPGMR interfaces to KINSpgmr
+   FKINSPFGMR interfaces to KINSpfgmr
    FKINSPBCG interfaces to KINSpbcg
    FKINSOL interfaces to KINSol and KINGet* functions
    FKINFREE interfaces to KINFree
@@ -50,6 +59,8 @@
               KINDenseJacFn
    FKBJAC   : called by the interface function FKINBandJac of type
               KINBandJacFn
+   FKINSPJAC: called by the interface function FKINSparseJac of type 
+              KINSlsSparseJacFn
    FKJTIMES : called by the interface function FKINJtimes of type
               KINSpilsJacTimesVecFn
    FKPSOL   : called by the interface function FKINPSol of type
@@ -89,7 +100,10 @@
      It must set the FVAL array to f(u), the system function, as a
      function of the array UU = u. Here UU and FVAL are arrays representing
      vectors, which are distributed vectors in the parallel case.
-     IER is a return flag (currently not used).
+     IER is a return flag, which should be 0 if FKFUN was successful.
+     Return IER > 0 if a recoverable error occurred (and KINSOL is to try
+     to recover).  Return IER < 0 if an unrecoverable error occurred.
+     
 
  (2s) Optional user-supplied dense Jacobian approximation routine: FKDJAC
   
@@ -133,7 +147,43 @@
      distributed vectors in the parallel case. FKJTIMES should return IER = 0 
      if successful, or a nonzero IER otherwise.
 
- (5) Initialization:  FNVINITS/FNVINITP and FKINMALLOC
+  (4.1s) User-supplied sparse Jacobian approximation routine: FKINSPJAC
+
+     Required when using the KINKLU or KINSuperLUMT linear solvers, the 
+     user must supply a routine that computes a compressed-sparse-column 
+     approximation of the system Jacobian J = dF(y)/dy.  If supplied, 
+     it must have the following form:
+
+       SUBROUTINE FKINSPJAC(Y, FY, N, NNZ, JDATA, JRVALS, 
+      &                     JCPTRS, WK1, WK2, IER)
+
+     Typically this routine will use only N, NNZ, JDATA, JRVALS and 
+     JCPTRS. It must load the N by N compressed sparse column matrix 
+     with storage for NNZ nonzeros, stored in the arrays JDATA (nonzero
+     values), JRVALS (row indices for each nonzero), JCOLPTRS (indices 
+     for start of each column), with the Jacobian matrix at the current
+     (y) in CSC form (see sundials_sparse.h for more information).
+
+     The arguments are:
+         Y    -- array containing state variables [realtype, input]
+         FY   -- array containing residual values [realtype, input]
+         N    -- number of matrix rows/columns in Jacobian [int, input]
+         NNZ  -- allocated length of nonzero storage [int, input]
+        JDATA -- nonzero values in Jacobian
+                 [realtype of length NNZ, output]
+       JRVALS -- row indices for each nonzero in Jacobian
+                  [int of length NNZ, output]
+       JCPTRS -- pointers to each Jacobian column in preceding arrays
+                 [int of length N+1, output]
+         WK*  -- array containing temporary workspace of same size as Y 
+                 [realtype, input]
+         IER  -- return flag [int, output]:
+                    0 if successful, 
+                   >0 if a recoverable error occurred,
+                   <0 if an unrecoverable error ocurred.
+
+ (5) Initialization:  FNVINITS/FNVINITP/FNVINITOMP/FNVINITPTS and FKINMALLOC
+
 
  (5.1s) To initialize the serial machine environment, the user must make
         the following call:
@@ -144,8 +194,8 @@
           NEQ = size of vectors
           IER = return completion flag. Values are 0 = success, -1 = failure.
 
- (5.1p) To initialize the parallel machine environment, the user must make 
-        the following call:
+ (5.1p) To initialize the distributed memory parallel machine environment, 
+        the user must make the following call:
 
           CALL FNVINITP (3, NLOCAL, NGLOBAL, IER)
 
@@ -155,6 +205,26 @@
                     (the sum of all values of NLOCAL)
           IER     = return completion flag. Values are 0 = success,
                     -1 = failure.
+
+ (5.1omp) To initialize the openMP threaded vector kernel, 
+          the user must make the following call:
+
+          CALL FNVINITOMP (3, NEQ, NUM_THREADS, IER)
+
+        The arguments are:
+          NEQ = size of vectors
+          NUM_THREADS = number of threads
+          IER = return completion flag. Values are 0 = success, -1 = failure.
+
+ (5.1pts) To initialize the Pthreads threaded vector kernel, 
+          the user must make the following call:
+
+          CALL FNVINITOMP (3, NEQ, NUM_THREADS, IER)
+
+        The arguments are:
+          NEQ = size of vectors
+          NUM_THREADS = number of threads
+          IER = return completion flag. Values are 0 = success, -1 = failure.
 
  (5.2) To allocate internal memory, make the following call:
 
@@ -244,7 +314,78 @@
        with FLAG = 1 to specify that FKBJAC is provided.  (FLAG = 0 specifies
        using the internal finite difference approximation to the Jacobian.)
 
- (6.3) SPTFQMR treatment of the linear systems:
+
+ (6.3s) SPARSE treatment of the linear system using the KLU solver.
+
+     The user must make the call
+
+       CALL FKINKLU(NEQ, NNZ, ORDERING, IER)
+
+     The arguments are:
+        NEQ = the problem size [int; input]
+        NNZ = the maximum number of nonzeros [int; input]
+	ORDERING = the matrix ordering desired, possible values
+	   come from the KLU package (0 = AMD, 1 = COLAMD) [int; input]
+	IER = error return flag [int, output]: 
+	         0 = success, 
+		 negative = error.
+ 
+     The KINSOL KLU solver will reuse much of the factorization information from one
+     nonlinear iteration to the next.  If at any time the user wants to force a full
+     refactorization or if the number of nonzeros in the Jacobian matrix changes, the
+     user should make the call
+
+       CALL FKINKLUREINIT(NEQ, NNZ, REINIT_TYPE)
+
+     The arguments are:
+        NEQ = the problem size [int; input]
+        NNZ = the maximum number of nonzeros [int; input]
+	REINIT_TYPE = 1 or 2.  For a value of 1, the matrix will be destroyed and 
+          a new one will be allocated with NNZ nonzeros.  For a value of 2, 
+	  only symbolic and numeric factorizations will be completed. 
+ 
+     When using FKINKLU, the user is required to supply the FKINSPJAC 
+     routine for the evaluation of the sparse approximation to the 
+     Jacobian, as discussed above with the other user-supplied routines.
+ 
+     Optional outputs specific to the KLU case are:
+        LSTF    = IOUT(8)  from KINSlsGetLastFlag
+        NJES    = IOUT(10) from KINSlsGetNumJacEvals
+     See the KINSOL manual for descriptions.
+ 
+ (6.4s) SPARSE treatment of the linear system using the SuperLUMT solver.
+
+     The user must make the call
+
+       CALL FKINSUPERLUMT(NTHREADS, NEQ, NNZ, ORDERING, IER)
+
+     The arguments are:
+        NTHREADS = desired number of threads to use [int; input]
+        NEQ = the problem size [int; input]
+        NNZ = the maximum number of nonzeros [int; input]
+	ORDERING = the matrix ordering desired, possible values
+	   come from the SuperLU_MT package [int; input]
+           0 = Natural
+           1 = Minimum degree on A^T A
+           2 = Minimum degree on A^T + A
+           3 = COLAMD
+	IER = error return flag [int, output]: 
+	         0 = success, 
+		 negative = error.
+ 
+     At this time, there is no reinitialization capability for the SUNDIALS 
+     interfaces to the SuperLUMT solver.
+
+     When using FKINSUPERLUMT, the user is required to supply the FKINSPJAC 
+     routine for the evaluation of the sparse approximation to the 
+     Jacobian, as discussed above with the other user-supplied routines.
+ 
+     Optional outputs specific to the SUPERLUMT case are:
+        LSTF    = IOUT(8)  from KINSlsGetLastFlag
+        NJES    = IOUT(10) from KINSlsGetNumJacEvals
+     See the KINSOL manual for descriptions.
+  
+ (6.5) SPTFQMR treatment of the linear systems:
 
        For the Scaled Preconditioned TFQMR solution of the linear systems,
        the user must make the call:
@@ -258,7 +399,7 @@
 
        Note: See printed message for details in case of failure.
 
- (6.4) SPBCG treatment of the linear systems:
+ (6.6) SPBCG treatment of the linear systems:
 
        For the Scaled Preconditioned Bi-CGSTAB solution of the linear systems,
        the user must make the call:
@@ -272,23 +413,24 @@
 
        Note: See printed message for details in case of failure.
 
- (6.5) SPGMR treatment of the linear systems:
+ (6.7) SPGMR and SPFGMR treatment of the linear systems:
 
-       For the Scaled Preconditioned GMRES solution of the linear systems,
-       the user must make the call:
+       For the Scaled Preconditioned GMRES or Scaled Preconditioned Flexible 
+       GMRES solution of the linear systems, the user must make one of the calls:
 
          CALL FKINSPGMR(MAXL, MAXLRST, IER)
+         CALL FKINSPFGMR(MAXL, MAXLRST, IER)
 
        In the above routine, the arguments are as follows:
          MAXL     = maximum Krylov subspace dimension; 0 indicates default.
          MAXLRST  = maximum number of linear system restarts; 0 indicates
-                    default (SPGMR only).
+                    default (SPGMR and SPFGMR only).
          IER      = return completion flag.  Values are 0 = succes, and
                     -1 = failure.
 
        Note: See printed message for details in case of failure.
 
- (6.6) Specifying user-provided functions for the iterative linear solvers
+ (6.8) Specifying user-provided functions for the iterative linear solvers
 
        If the user program includes the FKJTIMES routine for the evaluation
        of the Jacobian-vector product, the following call must be made:
@@ -344,7 +486,8 @@
        UU          = array containing the initial guess on input, and the
                      solution on return
        GLOBALSTRAT = (INTEGER) a number defining the global strategy choice:
-                     0 = No globalization, 1 = LineSearch
+                     0 = No globalization, 1 = LineSearch, 2 = Picard, 
+                     3 = Fixed Point 
        USCALE      = array of scaling factors for the UU vector
        FSCALE      = array of scaling factors for the FVAL (function) vector
        IER         = INTEGER error flag as returned by KINSOL:
@@ -378,7 +521,7 @@
        FNORM  = ROUT(1) = final scaled norm of f(u)
        STEPL  = ROUT(2) = scaled last step length
 
-     The following optional outputs are specific to the SPGMR/SPBCG/SPTFQMR
+     The following optional outputs are specific to the SPGMR/SPFGMR/SPBCG/SPTFQMR
      module:
 
        LRW    = IOUT( 7) = real workspace size for the linear solver module
@@ -404,20 +547,20 @@
 #ifndef _FKINSOL_H
 #define _FKINSOL_H
 
-#ifdef __cplusplus  /* wrapper to enable C++ usage */
-extern "C" {
-#endif
-
 /*
  * -----------------------------------------------------------------
  * header files
  * -----------------------------------------------------------------
  */
-
 #include <kinsol/kinsol.h>
 #include <sundials/sundials_direct.h>  /* definition of type DlsMat   */
+#include <sundials/sundials_sparse.h>  /* definition of type SlsMat   */
 #include <sundials/sundials_nvector.h> /* definition of type N_Vector */
 #include <sundials/sundials_types.h>   /* definition of type realtype */
+
+#ifdef __cplusplus  /* wrapper to enable C++ usage */
+extern "C" {
+#endif
 
 /*
  * -----------------------------------------------------------------
@@ -439,9 +582,13 @@ extern "C" {
 #define FKIN_LAPACKDENSESETJAC SUNDIALS_F77_FUNC(fkinlapackdensesetjac, FKINLAPACKDENSESETJAC)
 #define FKIN_LAPACKBAND        SUNDIALS_F77_FUNC(fkinlapackband, FKINLAPACKBAND)
 #define FKIN_LAPACKBANDSETJAC  SUNDIALS_F77_FUNC(fkinlapackbandsetjac, FKINLAPACKBANDSETJAC)
+#define FKIN_KLU            SUNDIALS_F77_FUNC(fkinklu, FKLUKLU)
+#define FKIN_KLUREINIT      SUNDIALS_F77_FUNC(fkinklureinit, FKLUKLUREINIT)
+#define FKIN_SUPERLUMT      SUNDIALS_F77_FUNC(fkinsuperlumt, FKLUSUPERLUMT)
 #define FKIN_SPTFQMR        SUNDIALS_F77_FUNC(fkinsptfqmr, FKINSPTFQMR)
 #define FKIN_SPBCG          SUNDIALS_F77_FUNC(fkinspbcg, FKINSPBCG)
 #define FKIN_SPGMR          SUNDIALS_F77_FUNC(fkinspgmr, FKINSPGMR)
+#define FKIN_SPFGMR         SUNDIALS_F77_FUNC(fkinspfgmr, FKINSPFGMR)
 #define FKIN_SPILSSETJAC    SUNDIALS_F77_FUNC(fkinspilssetjac, FKINSPILSSETJAC)
 #define FKIN_SPILSSETPREC   SUNDIALS_F77_FUNC(fkinspilssetprec, FKINSPILSSETPREC)
 #define FKIN_SOL            SUNDIALS_F77_FUNC(fkinsol, FKINSOL)
@@ -467,9 +614,13 @@ extern "C" {
 #define FKIN_LAPACKDENSESETJAC fkinlapackdensesetjac_
 #define FKIN_LAPACKBAND        fkinlapackband_
 #define FKIN_LAPACKBANDSETJAC  fkinlapackbandsetjac_
+#define FKIN_KLU            fkinklu_
+#define FKIN_KLUREINIT      fkinklureinit_
+#define FKIN_SUPERLUMT      fkinsuperlumt_
 #define FKIN_SPTFQMR        fkinsptfqmr_
 #define FKIN_SPBCG          fkinspbcg_
 #define FKIN_SPGMR          fkinspgmr_
+#define FKIN_SPFGMR         fkinspgmr_
 #define FKIN_SPILSSETJAC    fkinspilssetjac_
 #define FKIN_SPILSSETPREC   fkinspilssetprec_
 #define FKIN_SOL            fkinsol_
@@ -491,9 +642,9 @@ extern "C" {
 
 void FKIN_MALLOC(long int *iout, realtype *rout, int *ier);
 
-void FKIN_SETIIN(char key_name[], long int *ival, int *ier, int key_len);
-void FKIN_SETRIN(char key_name[], realtype *rval, int *ier, int key_len);
-void FKIN_SETVIN(char key_name[], realtype *vval, int *ier, int key_len);
+void FKIN_SETIIN(char key_name[], long int *ival, int *ier);
+void FKIN_SETRIN(char key_name[], realtype *rval, int *ier);
+void FKIN_SETVIN(char key_name[], realtype *vval, int *ier);
 
 void FKIN_DENSE(long int *neq, int *ier);
 void FKIN_DENSESETJAC(int *flag, int *ier);
@@ -506,9 +657,14 @@ void FKIN_LAPACKDENSESETJAC(int *flag, int *ier);
 void FKIN_LAPACKBAND(int *neq, int *mupper, int *mlower, int *ier);
 void FKIN_LAPACKBANDSETJAC(int *flag, int *ier);
 
+void FKIN_KLU(int *neq, int *nnz, int *ordering, int *ier);
+void FKIN_KLUREINIT(int *neq, int *nnz, int *reinit_type, int *ier);
+void FKIN_SUPERLUMT(int *nthreads, int *neq, int *nnz, int *ordering, int *ier);
+
 void FKIN_SPTFQMR(int *maxl, int *ier);
 void FKIN_SPBCG(int *maxl, int *ier);
 void FKIN_SPGMR(int *maxl, int *maxlrst, int *ier);
+void FKIN_SPFGMR(int *maxl, int *maxlrst, int *ier);
 
 void FKIN_SPILSSETJAC(int *flag, int *ier);
 void FKIN_SPILSSETPREC(int *flag, int *ier);
@@ -546,6 +702,9 @@ int FKINLapackBandJac(long int N, long int mupper, long int mlower,
                       DlsMat J, void *user_data,
                       N_Vector vtemp1, N_Vector vtemp2);
 
+int FKINSparseJac(N_Vector y, N_Vector fval, SlsMat J,
+		  void *user_data, N_Vector vtemp1, N_Vector vtemp2);
+
 int FKINPSet(N_Vector uu, N_Vector uscale,
              N_Vector fval, N_Vector fscale,
              void *user_data,
@@ -575,9 +734,10 @@ extern int KIN_ls;
 
 /* Linear solver IDs */
 
-enum { KIN_LS_SPGMR = 1, KIN_LS_SPBCG = 2, KIN_LS_SPTFQMR = 3, 
-       KIN_LS_DENSE = 4, KIN_LS_BAND  = 5,
-       KIN_LS_LAPACKDENSE = 6, KIN_LS_LAPACKBAND = 7 };
+  enum { KIN_LS_SPGMR = 1, KIN_LS_SPFGMR = 2, KIN_LS_SPBCG = 3, KIN_LS_SPTFQMR = 4, 
+	 KIN_LS_DENSE = 5, KIN_LS_BAND  = 6,
+	 KIN_LS_LAPACKDENSE = 7, KIN_LS_LAPACKBAND = 8,
+         KIN_LS_KLU = 9, KIN_LS_SUPERLUMT = 10 };
 
 #ifdef __cplusplus
 }

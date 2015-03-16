@@ -1,15 +1,20 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 1.1 $
- * $Date: 2006/07/05 15:32:37 $
+ * $Revision: 4396 $
+ * $Date: 2015-02-26 16:59:39 -0800 (Thu, 26 Feb 2015) $
  * -----------------------------------------------------------------
  * Programmer(s): Scott D. Cohen, Alan C. Hindmarsh, Radu Serban,
  *                and Aaron Collier @ LLNL
  * -----------------------------------------------------------------
- * Copyright (c) 2002, The Regents of the University of California.
+ * LLNS Copyright Start
+ * Copyright (c) 2014, Lawrence Livermore National Security
+ * This work was performed under the auspices of the U.S. Department 
+ * of Energy by Lawrence Livermore National Laboratory in part under 
+ * Contract W-7405-Eng-48 and in part under Contract DE-AC52-07NA27344.
  * Produced at the Lawrence Livermore National Laboratory.
  * All rights reserved.
  * For details, see the LICENSE file.
+ * LLNS Copyright End
  * -----------------------------------------------------------------
  * This is the implementation file for a parallel MPI implementation
  * of the NVECTOR package.
@@ -284,7 +289,7 @@ void N_VPrint_Parallel(N_Vector x)
 #if defined(SUNDIALS_EXTENDED_PRECISION)
     printf("%Lg\n", xd[i]);
 #elif defined(SUNDIALS_DOUBLE_PRECISION)
-    printf("%lg\n", xd[i]);
+    printf("%g\n", xd[i]);
 #else
     printf("%g\n", xd[i]);
 #endif
@@ -607,7 +612,7 @@ void N_VAbs_Parallel(N_Vector x, N_Vector z)
   zd = NV_DATA_P(z);
 
   for (i = 0; i < N; i++)
-    zd[i] = ABS(xd[i]);
+    zd[i] = SUNRabs(xd[i]);
 
   return;
 }
@@ -681,7 +686,7 @@ realtype N_VMaxNorm_Parallel(N_Vector x)
   max = ZERO;
 
   for (i = 0; i < N; i++) {
-    if (ABS(xd[i]) > max) max = ABS(xd[i]);
+    if (SUNRabs(xd[i]) > max) max = SUNRabs(xd[i]);
   }
    
   gmax = VAllReduce_Parallel(max, 2, comm);
@@ -706,12 +711,12 @@ realtype N_VWrmsNorm_Parallel(N_Vector x, N_Vector w)
 
   for (i = 0; i < N; i++) {
     prodi = xd[i]*wd[i];
-    sum += SQR(prodi);
+    sum += SUNSQR(prodi);
   }
 
   gsum = VAllReduce_Parallel(sum, 1, comm);
 
-  return(RSqrt(gsum/N_global));
+  return(SUNRsqrt(gsum/N_global));
 }
 
 realtype N_VWrmsNormMask_Parallel(N_Vector x, N_Vector w, N_Vector id)
@@ -733,13 +738,13 @@ realtype N_VWrmsNormMask_Parallel(N_Vector x, N_Vector w, N_Vector id)
   for (i = 0; i < N; i++) {
     if (idd[i] > ZERO) {
       prodi = xd[i]*wd[i];
-      sum += SQR(prodi);
+      sum += SUNSQR(prodi);
     }
   }
 
   gsum = VAllReduce_Parallel(sum, 1, comm);
 
-  return(RSqrt(gsum/N_global));
+  return(SUNRsqrt(gsum/N_global));
 }
 
 realtype N_VMin_Parallel(N_Vector x)
@@ -788,12 +793,12 @@ realtype N_VWL2Norm_Parallel(N_Vector x, N_Vector w)
 
   for (i = 0; i < N; i++) {
     prodi = xd[i]*wd[i];
-    sum += SQR(prodi);
+    sum += SUNSQR(prodi);
   }
 
   gsum = VAllReduce_Parallel(sum, 1, comm);
 
-  return(RSqrt(gsum));
+  return(SUNRsqrt(gsum));
 }
 
 realtype N_VL1Norm_Parallel(N_Vector x)
@@ -810,7 +815,7 @@ realtype N_VL1Norm_Parallel(N_Vector x)
   comm = NV_COMM_P(x);
 
   for (i = 0; i<N; i++) 
-    sum += ABS(xd[i]);
+    sum += SUNRabs(xd[i]);
 
   gsum = VAllReduce_Parallel(sum, 1, comm);
 
@@ -829,7 +834,7 @@ void N_VCompare_Parallel(realtype c, N_Vector x, N_Vector z)
   zd = NV_DATA_P(z);
 
   for (i = 0; i < N; i++) {
-    zd[i] = (ABS(xd[i]) >= c) ? ONE : ZERO;
+    zd[i] = (SUNRabs(xd[i]) >= c) ? ONE : ZERO;
   }
 
   return;
@@ -919,7 +924,7 @@ realtype N_VMinQuotient_Parallel(N_Vector num, N_Vector denom)
   for (i = 0; i < N; i++) {
     if (dd[i] == ZERO) continue;
     else {
-      if (!notEvenOnce) min = MIN(min, nd[i]/dd[i]);
+      if (!notEvenOnce) min = SUNMIN(min, nd[i]/dd[i]);
       else {
         min = nd[i]/dd[i];
         notEvenOnce = FALSE;

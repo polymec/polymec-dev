@@ -1,7 +1,7 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 1.4 $
- * $Date: 2010/12/01 23:00:48 $
+ * $Revision: 4396 $
+ * $Date: 2015-02-26 16:59:39 -0800 (Thu, 26 Feb 2015) $
  * -----------------------------------------------------------------
  * Programmer(s): S. D. Cohen, A. C. Hindmarsh, Radu Serban,
  *                and M. R. Wittman @ LLNL
@@ -461,8 +461,8 @@ static int Precond(realtype tn, N_Vector u, N_Vector fu,
       jy = ly + isuby*MYSUB;
       ydn = YMIN + (jy - RCONST(0.5))*dely;
       yup = ydn + dely;
-      cydn = verdco*EXP(RCONST(0.2)*ydn);
-      cyup = verdco*EXP(RCONST(0.2)*yup);
+      cydn = verdco*SUNRexp(RCONST(0.2)*ydn);
+      cyup = verdco*SUNRexp(RCONST(0.2)*yup);
       diag = -(cydn + cyup + RCONST(2.0)*hordco);
       for (lx = 0; lx < MXSUB; lx++) {
         jx = lx + isubx*MXSUB;
@@ -624,9 +624,9 @@ static void InitUserData(int my_pe, MPI_Comm comm, UserData data)
   data->om = PI/HALFDAY;
   data->dx = (XMAX-XMIN)/((realtype)(MX-1));
   data->dy = (YMAX-YMIN)/((realtype)(MY-1));
-  data->hdco = KH/SQR(data->dx);
+  data->hdco = KH/SUNSQR(data->dx);
   data->haco = VEL/(RCONST(2.0)*data->dx);
-  data->vdco = (RCONST(1.0)/SQR(data->dy))*KV0;
+  data->vdco = (RCONST(1.0)/SUNSQR(data->dy))*KV0;
 
   /* Set machine-related constants */
   data->comm = comm;
@@ -699,13 +699,13 @@ static void SetInitialProfiles(N_Vector u, UserData data)
   for (ly = 0; ly < MYSUB; ly++) {
     jy = ly + isuby*MYSUB;
     y = YMIN + jy*dy;
-    cy = SQR(RCONST(0.1)*(y - ymid));
-    cy = RCONST(1.0) - cy + RCONST(0.5)*SQR(cy);
+    cy = SUNSQR(RCONST(0.1)*(y - ymid));
+    cy = RCONST(1.0) - cy + RCONST(0.5)*SUNSQR(cy);
     for (lx = 0; lx < MXSUB; lx++) {
       jx = lx + isubx*MXSUB;
       x = XMIN + jx*dx;
-      cx = SQR(RCONST(0.1)*(x - xmid));
-      cx = RCONST(1.0) - cx + RCONST(0.5)*SQR(cx);
+      cx = SUNSQR(RCONST(0.1)*(x - xmid));
+      cx = RCONST(1.0) - cx + RCONST(0.5)*SUNSQR(cx);
       udata[offset  ] = C1_SCALE*cx*cy; 
       udata[offset+1] = C2_SCALE*cx*cy;
       offset = offset + 2;
@@ -973,8 +973,8 @@ static void fcalc(realtype t, realtype udata[], realtype dudata[], UserData data
   data block for use by preconditioner evaluation routine */
   s = sin((data->om)*t);
   if (s > ZERO) {
-    q3 = EXP(-A3/s);
-    q4coef = EXP(-A4/s);
+    q3 = SUNRexp(-A3/s);
+    q4coef = SUNRexp(-A4/s);
   } else {
     q3 = ZERO;
     q4coef = ZERO;
@@ -988,8 +988,8 @@ static void fcalc(realtype t, realtype udata[], realtype dudata[], UserData data
     /* Set vertical diffusion coefficients at jy +- 1/2 */
     ydn = YMIN + (jy - .5)*dely;
     yup = ydn + dely;
-    cydn = verdco*EXP(RCONST(0.2)*ydn);
-    cyup = verdco*EXP(RCONST(0.2)*yup);
+    cydn = verdco*SUNRexp(RCONST(0.2)*ydn);
+    cyup = verdco*SUNRexp(RCONST(0.2)*yup);
     for (lx = 0; lx < MXSUB; lx++) {
       jx = lx + isubx*MXSUB;
 
@@ -1076,7 +1076,7 @@ static void PrintOutput(void *cvode_mem, int my_pe, MPI_Comm comm,
 #if defined(SUNDIALS_EXTENDED_PRECISION)
     printf("%8.3Le %2d  %8.3Le %5ld\n", t,qu,hu,nst);
 #elif defined(SUNDIALS_DOUBLE_PRECISION)
-    printf("%8.3le %2d  %8.3le %5ld\n", t,qu,hu,nst);
+    printf("%8.3e %2d  %8.3e %5ld\n", t,qu,hu,nst);
 #else
     printf("%8.3e %2d  %8.3e %5ld\n", t,qu,hu,nst);
 #endif
@@ -1085,7 +1085,7 @@ static void PrintOutput(void *cvode_mem, int my_pe, MPI_Comm comm,
 #if defined(SUNDIALS_EXTENDED_PRECISION)
     printf("%12.4Le %12.4Le \n", udata[0], tempu[0]); 
 #elif defined(SUNDIALS_DOUBLE_PRECISION)
-    printf("%12.4le %12.4le \n", udata[0], tempu[0]); 
+    printf("%12.4e %12.4e \n", udata[0], tempu[0]); 
 #else
     printf("%12.4e %12.4e \n", udata[0], tempu[0]); 
 #endif
@@ -1095,7 +1095,7 @@ static void PrintOutput(void *cvode_mem, int my_pe, MPI_Comm comm,
 #if defined(SUNDIALS_EXTENDED_PRECISION)
     printf("%12.4Le %12.4Le \n", udata[1], tempu[1]);
 #elif defined(SUNDIALS_DOUBLE_PRECISION)
-    printf("%12.4le %12.4le \n", udata[1], tempu[1]);
+    printf("%12.4e %12.4e \n", udata[1], tempu[1]);
 #else
     printf("%12.4e %12.4e \n", udata[1], tempu[1]);
 #endif
@@ -1139,7 +1139,7 @@ static void PrintOutputS(int my_pe, MPI_Comm comm, N_Vector *uS)
 #if defined(SUNDIALS_EXTENDED_PRECISION)
     printf("%12.4Le %12.4Le \n", sdata[0], temps[0]); 
 #elif defined(SUNDIALS_DOUBLE_PRECISION)
-    printf("%12.4le %12.4le \n", sdata[0], temps[0]); 
+    printf("%12.4e %12.4e \n", sdata[0], temps[0]); 
 #else
     printf("%12.4e %12.4e \n", sdata[0], temps[0]); 
 #endif
@@ -1147,7 +1147,7 @@ static void PrintOutputS(int my_pe, MPI_Comm comm, N_Vector *uS)
 #if defined(SUNDIALS_EXTENDED_PRECISION)
     printf("%12.4Le %12.4Le \n", sdata[1], temps[1]);
 #elif defined(SUNDIALS_DOUBLE_PRECISION)
-    printf("%12.4le %12.4le \n", sdata[1], temps[1]);
+    printf("%12.4e %12.4e \n", sdata[1], temps[1]);
 #else
     printf("%12.4e %12.4e \n", sdata[1], temps[1]);
 #endif
@@ -1176,7 +1176,7 @@ static void PrintOutputS(int my_pe, MPI_Comm comm, N_Vector *uS)
 #if defined(SUNDIALS_EXTENDED_PRECISION)
     printf("%12.4Le %12.4Le \n", sdata[0], temps[0]); 
 #elif defined(SUNDIALS_DOUBLE_PRECISION)
-    printf("%12.4le %12.4le \n", sdata[0], temps[0]); 
+    printf("%12.4e %12.4e \n", sdata[0], temps[0]); 
 #else
     printf("%12.4e %12.4e \n", sdata[0], temps[0]); 
 #endif
@@ -1184,7 +1184,7 @@ static void PrintOutputS(int my_pe, MPI_Comm comm, N_Vector *uS)
 #if defined(SUNDIALS_EXTENDED_PRECISION)
     printf("%12.4Le %12.4Le \n", sdata[1], temps[1]);
 #elif defined(SUNDIALS_DOUBLE_PRECISION)
-    printf("%12.4le %12.4le \n", sdata[1], temps[1]);
+    printf("%12.4e %12.4e \n", sdata[1], temps[1]);
 #else
     printf("%12.4e %12.4e \n", sdata[1], temps[1]);
 #endif

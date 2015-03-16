@@ -274,43 +274,19 @@ set(POLYMEC_TP_LIBS superlu;${POLYMEC_TP_LIBS})
 # Build Sundials, a C library for integrating stiff, nonlinear ODEs and 
 # differential-algebraic equations.
 if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libsundials_cvode.a)
-  set(SUNDIALS_CONFIG_OPTS --prefix=${PROJECT_BINARY_DIR} --with-precision=${POLYMEC_PRECISION} --enable-static --disable-shared --disable-fcmix)
-  set(SUNDIALS_CONFIG_OPTS ${SUNDIALS_CONFIG_OPTS})
-  if (HAVE_MPI EQUAL 1)
-    set(SUNDIALS_CONFIG_OPTS ${SUNDIALS_CONFIG_OPTS} --with-mpicc=${CMAKE_C_COMPILER})
-  else()
-    set(SUNDIALS_CONFIG_OPTS ${SUNDIALS_CONFIG_OPTS} --disable-mpi)
-  endif()
-  if (CMAKE_BUILD_TYPE STREQUAL "Debug")
-    set(SUNDIALS_CONFIG_OPTS ${SUNDIALS_CONFIG_OPTS} --with-cflags=-g)
-  elseif (CMAKE_BUILD_TYPE STREQUAL "Release")
-    set(SUNDIALS_CONFIG_OPTS ${SUNDIALS_CONFIG_OPTS} --with-cflags=-O3)
-  endif()
-  message("Preparing sundials...")
-  execute_process(COMMAND cmake -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/sundials ${CMAKE_CURRENT_BINARY_DIR}/sundials
-                  RESULT_VARIABLE stat)
-  if (NOT stat EQUAL 0)
-    message(FATAL_ERROR "Copying library source failed.")
-  endif()
-  execute_process(COMMAND patch -p1 -i ${CMAKE_CURRENT_SOURCE_DIR}/sundials.patch WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/sundials
-                  OUTPUT_VARIABLE patchy
-                  RESULT_VARIABLE stat)
-  message("${patchy}")
-  if (NOT stat EQUAL 0)
-    message(FATAL_ERROR "Patching library source failed.")
-  endif()
-
   message("Configuring sundials...")
-  execute_process(COMMAND env CC=${CMAKE_C_COMPILER} ./configure ${SUNDIALS_CONFIG_OPTS}
-                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/sundials
-                  OUTPUT_VARIABLE sundials_config_log ERROR_VARIABLE sundials_config_err
+  execute_process(COMMAND cmake -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/sundials
                   RESULT_VARIABLE stat)
-  file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/sundials_config.log ${sundials_config_log})
-  if (NOT stat EQUAL 0)
-    file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/sundials_config_errors.log ${sundials_config_err})
-    message(FATAL_ERROR "Configuration of sundials library failed.")
+  set(SUNDIALS_CMAKE_OPTS -DCMAKE_INSTALL_PREFIX=${PROJECT_BINARY_DIR} -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -DBUILD_SHARED_LIBS=OFF -DBUILD_STATIC_LIBS=ON -DCMAKE_C_FLAGS=${CMAKE_C_FLAGS} -DEXAMPLES_ENABLE=OFF -DSUNDIALS_PRECISION=${POLYMEC_PRECISION})
+  if (HAVE_MPI EQUAL 1)
+    set(SUNDIALS_CMAKE_OPTS ${SUNDIALS_CMAKE_OPTS} -DMPI_ENABLE=ON -DMPI_MPICC=${CMAKE_C_COMPILER})
+  else()
+    set(SUNDIALS_CMAKE_OPTS ${SUNDIALS_CMAKE_OPTS} -DMPI_ENABLE=OFF)
   endif()
-
+  execute_process(COMMAND cmake ${SUNDIALS_CMAKE_OPTS} ${CMAKE_CURRENT_SOURCE_DIR}/sundials
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/sundials
+                  OUTPUT_VARIABLE sundials_config.log
+                  RESULT_VARIABLE stat)
   message("Building and installing sundials...")
   execute_process(COMMAND make install -j4
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/sundials
@@ -327,7 +303,7 @@ if (HAVE_MPI EQUAL 0)
 else()
   set (NVEC_LIBS nvecparallel;nvecserial)
 endif()
-foreach(component cvode;cvodes;ida;idas;kinsol;${NVEC_LIBS})
+foreach(component arkode;cvode;cvodes;ida;idas;kinsol;${NVEC_LIBS})
   list(APPEND SUNDIALS_LIBS sundials_${component})
   if (NOT CMAKE_INSTALL_PREFIX STREQUAL "INSTALL_DISABLED")
     install(FILES ${PROJECT_BINARY_DIR}/lib/libsundials_${component}.a DESTINATION lib)

@@ -1,14 +1,19 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 1.2 $
- * $Date: 2010/12/01 22:57:59 $
+ * $Revision: 4075 $
+ * $Date: 2014-04-24 10:46:58 -0700 (Thu, 24 Apr 2014) $
  * ----------------------------------------------------------------- 
  * Programmer(s): Radu Serban @ LLNL
  * -----------------------------------------------------------------
- * Copyright (c) 2002, The Regents of the University of California.
+ * LLNS Copyright Start
+ * Copyright (c) 2014, Lawrence Livermore National Security
+ * This work was performed under the auspices of the U.S. Department 
+ * of Energy by Lawrence Livermore National Laboratory in part under 
+ * Contract W-7405-Eng-48 and in part under Contract DE-AC52-07NA27344.
  * Produced at the Lawrence Livermore National Laboratory.
  * All rights reserved.
  * For details, see the LICENSE file.
+ * LLNS Copyright End
  * -----------------------------------------------------------------
  *
  * Hessian through adjoint sensitivity example problem.
@@ -197,13 +202,13 @@ int main(int argc, char *argv[])
 
   printf("ncheck = %d\n", ncheck);
   printf("\n");
-  printf("     y:    %12.4le %12.4le %12.4le", Ith(y,1), Ith(y,2), Ith(y,3));
-  printf("     G:    %12.4le\n", Ith(yQ,1));
+  printf("     y:    %12.4e %12.4e %12.4e", Ith(y,1), Ith(y,2), Ith(y,3));
+  printf("     G:    %12.4e\n", Ith(yQ,1));
   printf("\n");
-  printf("     yS1:  %12.4le %12.4le %12.4le\n", Ith(yS[0],1), Ith(yS[0],2), Ith(yS[0],3));
-  printf("     yS2:  %12.4le %12.4le %12.4le\n", Ith(yS[1],1), Ith(yS[1],2), Ith(yS[1],3));
+  printf("     yS1:  %12.4e %12.4e %12.4e\n", Ith(yS[0],1), Ith(yS[0],2), Ith(yS[0],3));
+  printf("     yS2:  %12.4e %12.4e %12.4e\n", Ith(yS[1],1), Ith(yS[1],2), Ith(yS[1],3));
   printf("\n");
-  printf("   dG/dp:  %12.4le %12.4le\n", Ith(yQS[0],1), Ith(yQS[1],1));
+  printf("   dG/dp:  %12.4e %12.4e\n", Ith(yQS[0],1), Ith(yQS[1],1));
   printf("\n");
 
   printf("Final Statistics for forward pb.\n");
@@ -259,13 +264,13 @@ int main(int argc, char *argv[])
   flag = CVodeGetB(cvode_mem, indexB2, &time, yB2);
   flag = CVodeGetQuadB(cvode_mem, indexB2, &time, yQB2);
 
-  printf("   dG/dp:  %12.4le %12.4le   (from backward pb. 1)\n", -Ith(yQB1,1), -Ith(yQB1,2));
-  printf("           %12.4le %12.4le   (from backward pb. 2)\n", -Ith(yQB2,1), -Ith(yQB2,2));
+  printf("   dG/dp:  %12.4e %12.4e   (from backward pb. 1)\n", -Ith(yQB1,1), -Ith(yQB1,2));
+  printf("           %12.4e %12.4e   (from backward pb. 2)\n", -Ith(yQB2,1), -Ith(yQB2,2));
   printf("\n");
   printf("   H = d2G/dp2:\n");
   printf("        (1)            (2)\n");
-  printf("  %12.4le   %12.4le\n", -Ith(yQB1,3) , -Ith(yQB2,3));
-  printf("  %12.4le   %12.4le\n", -Ith(yQB1,4) , -Ith(yQB2,4));
+  printf("  %12.4e   %12.4e\n", -Ith(yQB1,3) , -Ith(yQB2,3));
+  printf("  %12.4e   %12.4e\n", -Ith(yQB1,4) , -Ith(yQB2,4));
   printf("\n");
 
   printf("Final Statistics for backward pb. 1\n");
@@ -307,8 +312,8 @@ int main(int argc, char *argv[])
   flag = CVode(cvode_mem, tf, y, &time, CV_NORMAL);
   flag = CVodeGetQuad(cvode_mem, &time, yQ);
   Gp = Ith(yQ,1);
-  printf("p1+  y:   %12.4le %12.4le %12.4le", Ith(y,1), Ith(y,2), Ith(y,3));
-  printf("     G:   %12.4le\n",Ith(yQ,1));
+  printf("p1+  y:   %12.4e %12.4e %12.4e", Ith(y,1), Ith(y,2), Ith(y,3));
+  printf("     G:   %12.4e\n",Ith(yQ,1));
 
   data->p1 -= 2.0*dp;
 
@@ -319,8 +324,8 @@ int main(int argc, char *argv[])
   flag = CVode(cvode_mem, tf, y, &time, CV_NORMAL);
   flag = CVodeGetQuad(cvode_mem, &time, yQ);
   Gm = Ith(yQ,1);
-  printf("p1-  y:   %12.4le %12.4le %12.4le", Ith(y,1), Ith(y,2), Ith(y,3));
-  printf("     G:   %12.4le\n",Ith(yQ,1));
+  printf("p1-  y:   %12.4e %12.4e %12.4e", Ith(y,1), Ith(y,2), Ith(y,3));
+  printf("     G:   %12.4e\n",Ith(yQ,1));
  
   data->p1 += dp;
 
@@ -338,8 +343,8 @@ int main(int argc, char *argv[])
   flag = CVode(cvode_mem, tf, y, &time, CV_NORMAL);
   flag = CVodeGetQuad(cvode_mem, &time, yQ);
   Gp = Ith(yQ,1);
-  printf("p2+  y:   %12.4le %12.4le %12.4le", Ith(y,1), Ith(y,2), Ith(y,3));
-  printf("     G:   %12.4le\n",Ith(yQ,1));
+  printf("p2+  y:   %12.4e %12.4e %12.4e", Ith(y,1), Ith(y,2), Ith(y,3));
+  printf("     G:   %12.4e\n",Ith(yQ,1));
  
   data->p2 -= 2.0*dp;
 
@@ -350,8 +355,8 @@ int main(int argc, char *argv[])
   flag = CVode(cvode_mem, tf, y, &time, CV_NORMAL);
   flag = CVodeGetQuad(cvode_mem, &time, yQ);
   Gm = Ith(yQ,1);
-  printf("p2-  y:   %12.4le %12.4le %12.4le", Ith(y,1), Ith(y,2), Ith(y,3));
-  printf("     G:   %12.4le\n",Ith(yQ,1));
+  printf("p2-  y:   %12.4e %12.4e %12.4e", Ith(y,1), Ith(y,2), Ith(y,3));
+  printf("     G:   %12.4e\n",Ith(yQ,1));
 
   data->p2 += dp;
 
@@ -362,12 +367,12 @@ int main(int argc, char *argv[])
 
   printf("\n");
 
-  printf("   dG/dp:  %12.4le %12.4le   (fwd FD)\n", grdG_fwd[0], grdG_fwd[1]);
-  printf("           %12.4le %12.4le   (bck FD)\n", grdG_bck[0], grdG_bck[1]);
-  printf("           %12.4le %12.4le   (cntr FD)\n", grdG_cntr[0], grdG_cntr[1]);
+  printf("   dG/dp:  %12.4e %12.4e   (fwd FD)\n", grdG_fwd[0], grdG_fwd[1]);
+  printf("           %12.4e %12.4e   (bck FD)\n", grdG_bck[0], grdG_bck[1]);
+  printf("           %12.4e %12.4e   (cntr FD)\n", grdG_cntr[0], grdG_cntr[1]);
   printf("\n");
-  printf("  H(1,1):  %12.4le\n", H11);
-  printf("  H(2,2):  %12.4le\n", H22);
+  printf("  H(1,1):  %12.4e\n", H11);
+  printf("  H(2,2):  %12.4e\n", H22);
 
 
   /* Free memory */
@@ -637,7 +642,7 @@ static int fB2(realtype t, N_Vector y, N_Vector *yS,
 
   Ith(yBdot,4) = 2.0*p1*y1 * m1     + l1 * 2.0*p1*s1              - s1;
   Ith(yBdot,5) = m2 + p2*p2*y3 * m3 + l3 * (2.0*p2*y3 + p2*p2*s3) - s2;
-  Ith(yBdot,6) = m1 + p2*p2*y2 * m3 + l3 * (2.0*p2*y3 + p2*p2*s2) - s3;
+  Ith(yBdot,6) = m1 + p2*p2*y2 * m3 + l3 * (2.0*p2*y2 + p2*p2*s2) - s3;
 
 
   return(0);

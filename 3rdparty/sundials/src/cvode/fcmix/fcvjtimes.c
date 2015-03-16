@@ -1,15 +1,20 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 1.3 $
- * $Date: 2007/04/30 19:28:59 $
+ * $Revision: 4294 $
+ * $Date: 2014-12-15 13:18:40 -0800 (Mon, 15 Dec 2014) $
  * ----------------------------------------------------------------- 
  * Programmer(s): Alan C. Hindmarsh, Radu Serban and
  *                Aaron Collier @ LLNL
  * -----------------------------------------------------------------
- * Copyright (c) 2002, The Regents of the University of California.
+ * LLNS Copyright Start
+ * Copyright (c) 2014, Lawrence Livermore National Security
+ * This work was performed under the auspices of the U.S. Department 
+ * of Energy by Lawrence Livermore National Laboratory in part under 
+ * Contract W-7405-Eng-48 and in part under Contract DE-AC52-07NA27344.
  * Produced at the Lawrence Livermore National Laboratory.
  * All rights reserved.
  * For details, see the LICENSE file.
+ * LLNS Copyright End
  * -----------------------------------------------------------------
  * The C function FCVJtimes is to interface between the
  * CVSP* module and the user-supplied Jacobian-vector
@@ -49,12 +54,9 @@ extern "C" {
 
 void FCV_SPILSSETJAC(int *flag, int *ier)
 {
-  CVodeMem cv_mem;
-
   if (*flag == 0) {
     *ier = CVSpilsSetJacTimesVecFn(CV_cvodemem, NULL);
   } else {
-    cv_mem = (CVodeMem) CV_cvodemem;
     *ier = CVSpilsSetJacTimesVecFn(CV_cvodemem, FCVJtimes);
   }
 }

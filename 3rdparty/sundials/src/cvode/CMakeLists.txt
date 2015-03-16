@@ -1,13 +1,18 @@
 # ---------------------------------------------------------------
-# $Revision: 1.4 $
-# $Date: 2009/02/17 02:58:47 $
+# $Revision: 4135 $
+# $Date: 2014-06-13 15:55:05 -0700 (Fri, 13 Jun 2014) $
 # ---------------------------------------------------------------
 # Programmer:  Radu Serban @ LLNL
 # ---------------------------------------------------------------
-# Copyright (c) 2007, The Regents of the University of California.
+# LLNS Copyright Start
+# Copyright (c) 2014, Lawrence Livermore National Security
+# This work was performed under the auspices of the U.S. Department 
+# of Energy by Lawrence Livermore National Laboratory in part under 
+# Contract W-7405-Eng-48 and in part under Contract DE-AC52-07NA27344.
 # Produced at the Lawrence Livermore National Laboratory.
 # All rights reserved.
 # For details, see the LICENSE file.
+# LLNS Copyright End
 # ---------------------------------------------------------------
 # CMakeLists.txt file for the CVODE library
 
@@ -25,9 +30,18 @@ SET(cvode_SOURCES
   cvode_spbcgs.c
   cvode_spgmr.c
   cvode_sptfqmr.c
+  cvode_sparse.c
   cvode_bandpre.c
   cvode_bbdpre.c
   )
+
+IF(KLU_FOUND)
+    LIST(APPEND cvode_SOURCES cvode_klu.c)
+ENDIF()
+
+IF(SUPERLUMT_FOUND)
+    LIST(APPEND cvode_SOURCES cvode_superlumt.c)
+ENDIF()
 
 # Add variable shared_SOURCES with the common SUNDIALS sources which will
 # also be included in the CVODE library
@@ -38,6 +52,7 @@ SET(shared_SOURCES
   sundials_band.c
   sundials_dense.c
   sundials_iterative.c
+  sundials_sparse.c
   sundials_spbcgs.c
   sundials_spgmr.c
   sundials_sptfqmr.c
@@ -55,11 +70,20 @@ SET(cvode_HEADERS
   cvode_diag.h
   cvode_direct.h
   cvode.h
+  cvode_sparse.h
   cvode_spbcgs.h
   cvode_spgmr.h
   cvode_spils.h
   cvode_sptfqmr.h
   )
+
+IF(KLU_FOUND)
+    LIST(APPEND cvode_HEADERS cvode_klu.h)
+ENDIF()
+
+IF(SUPERLUMT_FOUND)
+    LIST(APPEND cvode_HEADERS cvode_superlumt.h)
+ENDIF()
 
 # Add prefix with complete path to the CVODE header files
 ADD_PREFIX(${sundials_SOURCE_DIR}/include/cvode/ cvode_HEADERS)

@@ -1,7 +1,7 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 1.2 $
- * $Date: 2009/09/30 23:25:59 $
+ * $Revision: 4272 $
+ * $Date: 2014-12-02 11:19:41 -0800 (Tue, 02 Dec 2014) $
  * -----------------------------------------------------------------
  * Programmer: Radu Serban @ LLNL
  * -----------------------------------------------------------------
@@ -214,7 +214,7 @@ void force(N_Vector yy, realtype *Q, UserData data)
   c21 = c2*c1 + s2*s1;
 
   l2 = x*x - x*(c2+a*c1) + (ONE + a*a)/FOUR + a*c21/TWO;
-  l = RSqrt(l2);
+  l = SUNRsqrt(l2);
   ld = TWO*x*xd - xd*(c2+a*c1) + x*(s2*pd+a*s1*qd) - a*s21*(pd-qd)/TWO;
   ld /= TWO*l;
 
@@ -295,7 +295,7 @@ static void PrintHeader(realtype rtol, realtype atol, N_Vector y)
   printf("Tolerance parameters:  rtol = %Lg   atol = %Lg\n",
          rtol, atol);
 #elif defined(SUNDIALS_DOUBLE_PRECISION)
-  printf("Tolerance parameters:  rtol = %lg   atol = %lg\n",
+  printf("Tolerance parameters:  rtol = %g   atol = %g\n",
          rtol, atol);
 #else
   printf("Tolerance parameters:  rtol = %g   atol = %g\n",
@@ -320,7 +320,7 @@ static void PrintOutput(void *mem, realtype t, N_Vector y)
   flag = IDAGetNumSteps(mem, &nst);
   flag = IDAGetLastStep(mem, &hused);
 
-  printf("%10.4le %12.4le %12.4le %12.4le %3ld  %1d %12.4le\n", 
+  printf("%10.4e %12.4e %12.4e %12.4e %3ld  %1d %12.4e\n", 
          t, yval[0], yval[1], yval[2], nst, kused, hused);
 }
 

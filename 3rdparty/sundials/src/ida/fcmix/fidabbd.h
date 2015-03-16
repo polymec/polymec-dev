@@ -1,14 +1,19 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 1.9 $
- * $Date: 2010/12/15 19:40:08 $
+ * $Revision: 4378 $
+ * $Date: 2015-02-19 10:55:14 -0800 (Thu, 19 Feb 2015) $
  * ----------------------------------------------------------------- 
  * Programmer(s): Aaron Collier @ LLNL
  * -----------------------------------------------------------------
- * Copyright (c) 2005, The Regents of the University of California.
+ * LLNS Copyright Start
+ * Copyright (c) 2014, Lawrence Livermore National Security
+ * This work was performed under the auspices of the U.S. Department 
+ * of Energy by Lawrence Livermore National Laboratory in part under 
+ * Contract W-7405-Eng-48 and in part under Contract DE-AC52-07NA27344.
  * Produced at the Lawrence Livermore National Laboratory.
  * All rights reserved.
  * For details, see the LICENSE file.
+ * LLNS Copyright End
  * -----------------------------------------------------------------
  * This is the Fortran interface include file for the BBD
  * preconditioner (IDABBDPRE)
@@ -35,9 +40,6 @@
  * The user-callable functions in this package, with the corresponding
  * IDA and IDABBDPRE functions, are as follows: 
  *   FIDABBDININT   interfaces to IDABBDPrecInit
- *   FIDABBDSPGMR   interfaces to IDABBDSpgmr and IDASpilsSet*
- *   FIDABBDSPBCG   interfaces to IDABBDSpbcg and IDASpilsSet*
- *   FIDABBDSPTFQMR interfaces to IDABBDSptfqmr and IDASpilsSet*
  *   FIDABBDREINIT  interfaces to IDABBDPrecReInit
  *   FIDABBDOPT     accesses optional outputs
  *   FIDABBDFREE    interfaces to IDABBDPrecFree
@@ -202,7 +204,7 @@
  * The return flag IER is 0 if successful, and nonzero otherwise.
  *
  * (4.3) Attach one of the 3 SPILS linear solvers. Make one of the 
- * following calls (see fida.h) for more details.
+ * following calls (see fida.h for more details).
  *       CALL FIDASPGMR(MAXL, IGSTYPE, MAXRS, EPLIFAC, DQINCFAC, IER)
  *       CALL FIDASPBCG(MAXL, EPLIFAC, DQINCFAC, IER)
  *       CALL FIDASPTFQMR(MAXL, EPLIFAC, DQINCFAC, IER)
@@ -291,12 +293,12 @@
 #ifndef _FIDABBD_H
 #define _FIDABBD_H
 
+#include <sundials/sundials_nvector.h>
+#include <sundials/sundials_types.h>
+
 #ifdef __cplusplus  /* wrapper to enable C++ usage */
 extern "C" {
 #endif
-
-#include <sundials/sundials_nvector.h>
-#include <sundials/sundials_types.h>
 
 #if defined(SUNDIALS_F77_FUNC)
 

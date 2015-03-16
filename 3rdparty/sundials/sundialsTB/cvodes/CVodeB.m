@@ -32,8 +32,16 @@ function [varargout] = CVodeB(tout,itask)
 %   See also CVodeSetOptions, CVodeGetStatsB
 
 % Radu Serban <radu@llnl.gov>
-% Copyright (c) 2007, The Regents of the University of California.
-% $Revision: 1.7 $Date: 2011/06/01 22:30:55 $
+% LLNS Copyright Start
+% Copyright (c) 2014, Lawrence Livermore National Security
+% This work was performed under the auspices of the U.S. Department 
+% of Energy by Lawrence Livermore National Laboratory in part under 
+% Contract W-7405-Eng-48 and in part under Contract DE-AC52-07NA27344.
+% Produced at the Lawrence Livermore National Laboratory.
+% All rights reserved.
+% For details, see the LICENSE file.
+% LLNS Copyright End
+% $Revision: 4075 $Date: 2007/08/21 17:42:38 $
 
 mode = 21;
 

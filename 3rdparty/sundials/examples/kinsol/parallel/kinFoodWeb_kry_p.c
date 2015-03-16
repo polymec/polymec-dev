@@ -1,7 +1,7 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 1.3 $
- * $Date: 2010/12/01 23:09:24 $
+ * $Revision: 4396 $
+ * $Date: 2015-02-26 16:59:39 -0800 (Thu, 26 Feb 2015) $
  * -----------------------------------------------------------------
  * Programmer(s): Allan Taylor, Alan Hindmarsh and
  *                Radu Serban @ LLNL
@@ -400,7 +400,7 @@ static int Precondbd(N_Vector cc, N_Vector cscale,
       for (j = 0; j < NUM_SPECIES; j++) {
         
         csave = cxy[j];  /* Save the j,jx,jy element of cc */
-        r = MAX(sqruround*ABS(csave), r0/scxy[j]);
+        r = SUNMAX(sqruround*SUNRabs(csave), r0/scxy[j]);
         cxy[j] += r; /* Perturb the j,jx,jy element of cc */
         fac = ONE/r;
         
@@ -550,7 +550,7 @@ static void InitUserData(int my_pe, MPI_Comm comm, UserData data)
   data->dx = (data->ax)/(MX-1);
   data->dy = (data->ay)/(MY-1);
   data->uround = UNIT_ROUNDOFF;
-  data->sqruround = SQRT(data->uround);
+  data->sqruround = SUNRsqrt(data->uround);
   data->my_pe = my_pe;
   data->comm = comm;
   data->isuby = my_pe/NPEX;
@@ -673,7 +673,7 @@ static void PrintHeader(int globalstrategy, int maxl, int maxlrst,
   printf("Tolerance parameters:  fnormtol = %Lg   scsteptol = %Lg\n",
          fnormtol, scsteptol);
 #elif defined(SUNDIALS_DOUBLE_PRECISION)
-  printf("Tolerance parameters:  fnormtol = %lg   scsteptol = %lg\n",
+  printf("Tolerance parameters:  fnormtol = %g   scsteptol = %g\n",
          fnormtol, scsteptol);
 #else
   printf("Tolerance parameters:  fnormtol = %g   scsteptol = %g\n",
@@ -686,7 +686,7 @@ static void PrintHeader(int globalstrategy, int maxl, int maxlrst,
          PREYIN,PREYIN,PREYIN,
          PREDIN,PREDIN,PREDIN);
 #elif defined(SUNDIALS_DOUBLE_PRECISION)
-  printf("At all mesh points:  %lg %lg %lg   %lg %lg %lg\n", 
+  printf("At all mesh points:  %g %g %g   %g %g %g\n", 
          PREYIN,PREYIN,PREYIN,
          PREDIN,PREDIN,PREDIN);
 #else
@@ -732,7 +732,7 @@ static void PrintOutput(int my_pe, MPI_Comm comm, N_Vector cc)
 #if defined(SUNDIALS_EXTENDED_PRECISION) 
       printf(" %Lg",ct[is]);
 #elif defined(SUNDIALS_DOUBLE_PRECISION)
-      printf(" %lg",ct[is]);
+      printf(" %g",ct[is]);
 #else
       printf(" %g",ct[is]);
 #endif
@@ -744,7 +744,7 @@ static void PrintOutput(int my_pe, MPI_Comm comm, N_Vector cc)
 #if defined(SUNDIALS_EXTENDED_PRECISION) 
       printf(" %Lg",tempc[is]);
 #elif defined(SUNDIALS_DOUBLE_PRECISION)
-      printf(" %lg",tempc[is]);
+      printf(" %g",tempc[is]);
 #else
       printf(" %g",tempc[is]);
 #endif

@@ -1,7 +1,7 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 1.4 $
- * $Date: 2010/12/01 23:02:23 $
+ * $Revision: 4146 $
+ * $Date: 2014-06-24 09:04:33 -0700 (Tue, 24 Jun 2014) $
  * -----------------------------------------------------------------
  * Programmer(s): Allan Taylor, Alan Hindmarsh and
  *                Radu Serban @ LLNL
@@ -41,8 +41,8 @@
 #define NEQ   3
 #define NOUT  12
 
-#define ZERO RCONST(0.0);
-#define ONE  RCONST(1.0);
+#define ZERO RCONST(0.0)
+#define ONE  RCONST(1.0)
 
 /* Macro to define dense matrix elements, indexed from 1. */
 
@@ -274,9 +274,9 @@ static void PrintHeader(realtype rtol, N_Vector avtol, N_Vector y)
   printf("Initial conditions y0 = (%Lg %Lg %Lg)\n",
          yval[0], yval[1], yval[2]);
 #elif defined(SUNDIALS_DOUBLE_PRECISION)
-  printf("Tolerance parameters:  rtol = %lg   atol = %lg %lg %lg \n",
+  printf("Tolerance parameters:  rtol = %g   atol = %g %g %g \n",
          rtol, atval[0],atval[1],atval[2]);
-  printf("Initial conditions y0 = (%lg %lg %lg)\n",
+  printf("Initial conditions y0 = (%g %g %g)\n",
          yval[0], yval[1], yval[2]);
 #else
   printf("Tolerance parameters:  rtol = %g   atol = %g %g %g \n",
@@ -314,7 +314,7 @@ static void PrintOutput(void *mem, realtype t, N_Vector y)
   printf("%10.4Le %12.4Le %12.4Le %12.4Le | %3ld  %1d %12.4Le\n", 
          t, yval[0], yval[1], yval[2], nst, kused, hused);
 #elif defined(SUNDIALS_DOUBLE_PRECISION)
-  printf("%10.4le %12.4le %12.4le %12.4le | %3ld  %1d %12.4le\n", 
+  printf("%10.4e %12.4e %12.4e %12.4e | %3ld  %1d %12.4e\n", 
          t, yval[0], yval[1], yval[2], nst, kused, hused);
 #else
   printf("%10.4e %12.4e %12.4e %12.4e | %3ld  %1d %12.4e\n", 

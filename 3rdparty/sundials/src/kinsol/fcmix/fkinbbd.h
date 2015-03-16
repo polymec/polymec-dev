@@ -1,15 +1,20 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 1.8 $
- * $Date: 2010/12/15 19:40:08 $
+ * $Revision: 4398 $
+ * $Date: 2015-02-28 14:29:35 -0800 (Sat, 28 Feb 2015) $
  * -----------------------------------------------------------------
  * Programmer(s): Allan Taylor, Alan Hindmarsh, Radu Serban, and
  *                Aaron Collier @ LLNL
  * -----------------------------------------------------------------
- * Copyright (c) 2002, The Regents of the University of California.
+ * LLNS Copyright Start
+ * Copyright (c) 2014, Lawrence Livermore National Security
+ * This work was performed under the auspices of the U.S. Department 
+ * of Energy by Lawrence Livermore National Laboratory in part under 
+ * Contract W-7405-Eng-48 and in part under Contract DE-AC52-07NA27344.
  * Produced at the Lawrence Livermore National Laboratory.
  * All rights reserved.
  * For details, see the LICENSE file.
+ * LLNS Copyright End
  * -----------------------------------------------------------------
  * This is the Fortran interface include file for the BBD
  * preconditioner module KINBBDPRE.
@@ -24,7 +29,8 @@
  use of the KINSOL solver with the KINBBDPRE preconditioner module, for the
  solution of nonlinear systems in a mixed Fortran/C setting. The combination
  of KINSOL and KINBBDPRE solves systems f(u) = 0 with the SPGMR (scaled
- preconditioned GMRES), SPBCG (scaled preconditioned Bi-CGSTAB), or SPTFQMR
+ preconditioned GMRES), SPFGMR (scaled preconditioned flexible GMRES), 
+ SPBCG (scaled preconditioned Bi-CGSTAB), or SPTFQMR
  (scaled preconditioned TFQMR) method for the linear systems that arise, and
  with a preconditioner that is block-diagonal with banded blocks. While KINSOL
  and KINBBDPRE are written in C, it is assumed here that the user's calling
@@ -37,6 +43,7 @@
    FKINBBDSPTFQMR: interfaces with KINSptfqmr
    FKINBBDSPBCG : interfaces with KINSpbcg
    FKINBBDSPGMR : interfaces with KINSpgmr
+   FKINBBDSPFGMR : interfaces with KINSpfgmr
    FKINBBDOPT : accesses optional outputs
    FKINBBDFREE : interfaces to KINBBDPrecFree
 
@@ -179,9 +186,10 @@
 
        Note: See printed message for details in case of failure.
 
- (4.3) Attach one of the 3 SPILS linear solvers. Make one of the 
+ (4.3) Attach one of the SPILS linear solvers. Make one of the 
        following calls (see fkinsol.h) for more details.
           CALL FKINSPGMR (MAXL, MAXLRST, IER)
+          CALL FKINSPFGMR (MAXL, MAXLRST, IER)
           CALL FKINSPBCG (MAXL, IER)
           CALL FKINSPTFQMR (MAXL, IER)
 
@@ -242,18 +250,17 @@
 #ifndef _FKINBBD_H
 #define _FKINBBD_H
 
-#ifdef __cplusplus  /* wrapper to enable C++ usage */
-extern "C" {
-#endif
-
 /*
  * -----------------------------------------------------------------
  * header files
  * -----------------------------------------------------------------
  */
-
 #include <sundials/sundials_nvector.h> /* definition of type N_Vector */
 #include <sundials/sundials_types.h>   /* definition of type realtype */
+
+#ifdef __cplusplus  /* wrapper to enable C++ usage */
+extern "C" {
+#endif
 
 /*
  * -----------------------------------------------------------------

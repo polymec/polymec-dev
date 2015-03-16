@@ -1,7 +1,7 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 1.2 $
- * $Date: 2008/12/31 00:04:42 $
+ * $Revision: 4272 $
+ * $Date: 2014-12-02 11:19:41 -0800 (Tue, 02 Dec 2014) $
  * -----------------------------------------------------------------
  * Programmer(s): Scott D. Cohen, Alan C. Hindmarsh, George D. Byrne,
  *              and Radu Serban @ LLNL
@@ -362,7 +362,7 @@ static void SetIC(N_Vector u, realtype dx)
   /* Load initial profile into u vector */
   for (i=0; i<NEQ; i++) {
     x = (i+1)*dx;
-    udata[i] = x*(XMAX - x)*EXP(RCONST(2.0)*x);
+    udata[i] = x*(XMAX - x)*SUNRexp(RCONST(2.0)*x);
   }  
 }
 
@@ -386,7 +386,7 @@ static void PrintOutput(void *cvode_mem, realtype t, N_Vector u)
 #if defined(SUNDIALS_EXTENDED_PRECISION)
   printf("%8.3Le %2d  %8.3Le %5ld\n", t, qu, hu ,nst);
 #elif defined(SUNDIALS_DOUBLE_PRECISION)
-  printf("%8.3le %2d  %8.3le %5ld\n", t, qu, hu ,nst);
+  printf("%8.3e %2d  %8.3e %5ld\n", t, qu, hu ,nst);
 #else
   printf("%8.3e %2d  %8.3e %5ld\n", t, qu, hu ,nst);
 #endif
@@ -396,7 +396,7 @@ static void PrintOutput(void *cvode_mem, realtype t, N_Vector u)
 #if defined(SUNDIALS_EXTENDED_PRECISION)
   printf("%12.4Le \n", N_VMaxNorm(u));
 #elif defined(SUNDIALS_DOUBLE_PRECISION)
-  printf("%12.4le \n", N_VMaxNorm(u));
+  printf("%12.4e \n", N_VMaxNorm(u));
 #else
   printf("%12.4e \n", N_VMaxNorm(u));
 #endif
@@ -412,7 +412,7 @@ static void PrintOutputS(N_Vector *uS)
 #if defined(SUNDIALS_EXTENDED_PRECISION)
   printf("%12.4Le \n", N_VMaxNorm(uS[0]));
 #elif defined(SUNDIALS_DOUBLE_PRECISION)
-  printf("%12.4le \n", N_VMaxNorm(uS[0]));
+  printf("%12.4e \n", N_VMaxNorm(uS[0]));
 #else
   printf("%12.4e \n", N_VMaxNorm(uS[0]));
 #endif
@@ -421,7 +421,7 @@ static void PrintOutputS(N_Vector *uS)
 #if defined(SUNDIALS_EXTENDED_PRECISION)
   printf("%12.4Le \n", N_VMaxNorm(uS[1]));
 #elif defined(SUNDIALS_DOUBLE_PRECISION)
-  printf("%12.4le \n", N_VMaxNorm(uS[1]));
+  printf("%12.4e \n", N_VMaxNorm(uS[1]));
 #else
   printf("%12.4e \n", N_VMaxNorm(uS[1]));
 #endif

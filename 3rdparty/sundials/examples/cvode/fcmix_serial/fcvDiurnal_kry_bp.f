@@ -1,6 +1,6 @@
 C     ----------------------------------------------------------------
-C     $Revision: 1.1 $
-C     $Date: 2007/10/25 20:03:27 $
+C     $Revision: 4294 $
+C     $Date: 2014-12-15 13:18:40 -0800 (Mon, 15 Dec 2014) $
 C     ----------------------------------------------------------------
 C     FCVODE Example Problem: 2D kinetics-transport, 
 C     precond. Krylov solver. 
@@ -32,18 +32,20 @@ C     ----------------------------------------------------------------
 C
       IMPLICIT NONE
 C
-      INTEGER*4 MX, MY, NEQ
+      INTEGER MX, MY
       PARAMETER (MX=10, MY=10)
-      PARAMETER (NEQ=2*MX*MY)
 C
       INTEGER LNST, LNFE, LNSETUP, LNNI, LNCF, LNPE, LNLI, LNPS
       INTEGER LNCFL, LH, LQ, METH, ITMETH, IATOL, ITASK
       INTEGER LNETF, IER, MAXL, JPRETYPE, IGSTYPE, JOUT
       INTEGER LLENRW, LLENIW, LLENRWLS, LLENIWLS
-      INTEGER*4 IOUT(25), IPAR(4)
-      INTEGER*4 NST, NFE, NPSET, NPE, NPS, NNI
-      INTEGER*4 NLI, NCFN, NCFL, NETF, MU, ML
-      INTEGER*4 LENRW, LENIW, LENRWLS, LENIWLS, LENRWBP, LENIWBP, NFEBP
+C The following declaration specification should match C type long int.
+      INTEGER*8 NEQ, IOUT(25), IPAR(4)
+      INTEGER NST, NFE, NPSET, NPE, NPS, NNI
+      INTEGER NLI, NCFN, NCFL, NETF
+      INTEGER LENRW, LENIW, LENRWLS, LENIWLS
+C The following declaration specification should match C type long int.
+      INTEGER*8 MU, ML, LENRWBP, LENIWBP, NFEBP
       DOUBLE PRECISION ATOL, AVDIM, DELT, FLOOR, RTOL, T, TOUT, TWOHR
       DOUBLE PRECISION ROUT(10), U(2,MX,MY), RPAR(12)
 C
@@ -58,6 +60,7 @@ C Load IPAR, RPAR, and initial values
       CALL INITKX(MX, MY, U, IPAR, RPAR)
 C
 C     Set other input arguments.
+      NEQ = 2*MX*MY
       T = 0.0D0
       METH = 2
       ITMETH = 2
@@ -161,12 +164,12 @@ C     Print final statistics.
      &   ' number of conv. failures.. nonlinear =', I3,
      &   ' linear = ', I3/
      &   ' number of error test failures = ', I3/
-     &   ' main solver real/int workspace sizes   = ',2I5/
+     &   ' main solver real/int workspace sizes   = ',2I7/
      &   ' linear solver real/int workspace sizes = ',2I5)
       CALL FCVBPOPT(LENRWBP, LENIWBP, NFEBP)
       WRITE(6,82) LENRWBP, LENIWBP, NFEBP
  82   FORMAT('In CVBANDPRE:'/
-     &        ' real/int workspace sizes = ', 2I5/
+     &        ' real/int workspace sizes = ', 2I7/
      &        ' number of f evaluations  = ', I5)
 C     
       CALL FCVFREE
@@ -181,10 +184,12 @@ C Routine to set problem constants and initial values
 C
       IMPLICIT NONE
 C
-      INTEGER*4 MX, MY, IPAR(*)
+      INTEGER MX, MY
+C The following declaration specification should match C type long int.
+      INTEGER*8 IPAR(*)
       DOUBLE PRECISION RPAR(*)
 C
-      INTEGER*4 MM, JY, JX, NEQ
+      INTEGER MM, JY, JX, NEQ
       DOUBLE PRECISION U0
       DIMENSION U0(2,MX,MY)
       DOUBLE PRECISION Q1, Q2, Q3, Q4, A3, A4, OM, C3, DY, HDCO
@@ -199,6 +204,8 @@ C Problem constants
       NEQ = 2 * MM
       Q1 = 1.63D-16
       Q2 = 4.66D-16
+      Q3 = 0.D0
+      Q4 = 0.D0
       A3 = 22.62D0
       A4 = 7.601D0
       OM = PI / HALFDA
@@ -250,11 +257,13 @@ C     ----------------------------------------------------------------
 C     Routine for right-hand side function f
       IMPLICIT NONE
 C
-      INTEGER*4 IPAR(*), IER
+C The following declaration specification should match C type long int.
+      INTEGER*8 IPAR(*)
+      INTEGER IER
       DOUBLE PRECISION T, U(2,*), UDOT(2,*), RPAR(*)
 C
       INTEGER ILEFT, IRIGHT
-      INTEGER*4 MX, MY, MM, JY, JX, IBLOK0, IDN, IUP, IBLOK
+      INTEGER MX, MY, MM, JY, JX, IBLOK0, IDN, IUP, IBLOK
       DOUBLE PRECISION Q1,Q2,Q3,Q4, A3, A4, OM, C3, DY, HDCO, VDCO, HACO
       DOUBLE PRECISION C1, C2, C1DN, C2DN, C1UP, C2UP, C1LT, C2LT
       DOUBLE PRECISION C1RT, C2RT, CYDN, CYUP, HORD1, HORD2, HORAD1

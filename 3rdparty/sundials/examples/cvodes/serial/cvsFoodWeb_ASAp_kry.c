@@ -1,7 +1,7 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 1.4 $
- * $Date: 2011/11/23 23:53:02 $
+ * $Revision: 4272 $
+ * $Date: 2014-12-02 11:19:41 -0800 (Tue, 02 Dec 2014) $
  * -----------------------------------------------------------------
  * Programmer(s): Radu Serban @ LLNL
  * -----------------------------------------------------------------
@@ -460,7 +460,7 @@ static int Precond(realtype t, N_Vector c, N_Vector fc,
   f1 = NV_DATA_S(vtemp1);
 
   fac = N_VWrmsNorm (fc, rewt);
-  r0 = RCONST(1000.0)*ABS(gamma)*uround*NEQ*fac;
+  r0 = RCONST(1000.0)*SUNRabs(gamma)*uround*NEQ*fac;
   if (r0 == ZERO) r0 = ONE;
 
   for (igy = 0; igy < ngy; igy++) {
@@ -475,7 +475,7 @@ static int Precond(realtype t, N_Vector c, N_Vector fc,
         /* Generate the jth column as a difference quotient */
         jj = if0 + j; 
         save = cdata[jj];
-        r = MAX(srur*ABS(save),r0/rewtdata[jj]);
+        r = SUNMAX(srur*SUNRabs(save),r0/rewtdata[jj]);
         cdata[jj] += r;
         fac = -gamma/r;
         fblock (t, cdata, jx, jy, f1, wdata);
@@ -665,7 +665,7 @@ static int PrecondB(realtype t, N_Vector c,
   f1 = NV_DATA_S(vtemp1);
 
   fac = N_VWrmsNorm (fcB, rewt);
-  r0 = RCONST(1000.0)*ABS(gamma)*uround*NEQ*fac;
+  r0 = RCONST(1000.0)*SUNRabs(gamma)*uround*NEQ*fac;
   if (r0 == ZERO) r0 = ONE;
 
   for (igy = 0; igy < ngy; igy++) {
@@ -680,7 +680,7 @@ static int PrecondB(realtype t, N_Vector c,
         /* Generate the jth column as a difference quotient */
         jj = if0 + j; 
         save = cdata[jj];
-        r = MAX(srur*ABS(save),r0/rewtdata[jj]);
+        r = SUNMAX(srur*SUNRabs(save),r0/rewtdata[jj]);
         cdata[jj] += r;
         fac = gamma/r;
         fblock (t, cdata, jx, jy, f1, wdata);
@@ -815,8 +815,8 @@ static void InitUserData(WebData wdata)
   dx = wdata->dx = DX;
   dy = wdata->dy = DY;
   for (i = 0; i < ns; i++) {
-    cox[i] = diff[i]/SQR(dx);
-    coy[i] = diff[i]/SQR(dy);
+    cox[i] = diff[i]/SUNSQR(dx);
+    coy[i] = diff[i]/SUNSQR(dy);
   }
 
   /* Set remaining method parameters */
@@ -825,7 +825,7 @@ static void InitUserData(WebData wdata)
   wdata->mq = MQ;
   wdata->mx = MX;
   wdata->my = MY;
-  wdata->srur = SQRT(UNIT_ROUNDOFF);
+  wdata->srur = SUNRsqrt(UNIT_ROUNDOFF);
   wdata->mxmp = MXMP;
   wdata->ngrp = NGRP;
   wdata->ngx = NGX;
@@ -878,15 +878,15 @@ static void CInit(N_Vector c, WebData wdata)
   dx = wdata->dx;
   dy = wdata->dy;
   
-  x_factor = RCONST(4.0)/SQR(AX);
-  y_factor = RCONST(4.0)/SQR(AY);
+  x_factor = RCONST(4.0)/SUNSQR(AX);
+  y_factor = RCONST(4.0)/SUNSQR(AY);
   for (jy = 0; jy < MY; jy++) {
     y = jy*dy;
-    argy = SQR(y_factor*y*(AY-y)); 
+    argy = SUNSQR(y_factor*y*(AY-y));
     iyoff = mxns*jy;
     for (jx = 0; jx < MX; jx++) {
       x = jx*dx;
-      argx = SQR(x_factor*x*(AX-x));
+      argx = SUNSQR(x_factor*x*(AX-x));
       ioff = iyoff + ns*jx;
       for (i = 1; i <= ns; i++) {
         ici = ioff + i-1;
@@ -1216,7 +1216,7 @@ static void PrintOutput(N_Vector cB, int ns, int mxns, WebData wdata)
     for (jy=MY-1; jy >= 0; jy--) {
       for (jx=0; jx < MX; jx++) {
         cij = cdata[(i-1) + jx*ns + jy*mxns];
-        if (ABS(cij) > cmax) {
+        if (SUNRabs(cij) > cmax) {
           cmax = cij;
           x = jx * wdata->dx;
           y = jy * wdata->dy;
@@ -1228,7 +1228,7 @@ static void PrintOutput(N_Vector cB, int ns, int mxns, WebData wdata)
 #if defined(SUNDIALS_EXTENDED_PRECISION)
     printf("  mu max = %Le\n",cmax);
 #elif defined(SUNDIALS_DOUBLE_PRECISION)
-    printf("  mu max = %le\n",cmax);
+    printf("  mu max = %e\n",cmax);
 #else
     printf("  mu max = %e\n",cmax);
 #endif
@@ -1236,7 +1236,7 @@ static void PrintOutput(N_Vector cB, int ns, int mxns, WebData wdata)
 #if defined(SUNDIALS_EXTENDED_PRECISION)
     printf("  x = %Le\n  y = %Le\n", x, y);
 #elif defined(SUNDIALS_DOUBLE_PRECISION)
-    printf("  x = %le\n  y = %le\n", x, y);
+    printf("  x = %e\n  y = %e\n", x, y);
 #else
     printf("  x = %e\n  y = %e\n", x, y);
 #endif

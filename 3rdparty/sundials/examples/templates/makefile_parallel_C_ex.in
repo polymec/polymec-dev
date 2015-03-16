@@ -1,6 +1,6 @@
 # -----------------------------------------------------------------
-# $Revision: 1.2 $
-# $Date: 2009/02/17 02:58:47 $
+# $Revision: 4137 $
+# $Date: 2014-06-15 12:26:15 -0700 (Sun, 15 Jun 2014) $
 # -----------------------------------------------------------------
 # Programmer: Radu Serban @ LLNL
 # -----------------------------------------------------------------
@@ -51,6 +51,8 @@ MPI_FLAGS   = @MPI_FLAGS@
 INCLUDES = -I${includedir} -I${MPI_INC_DIR}
 LIBRARIES = -l@SOLVER_LIB@ -lsundials_nvecparallel ${LIBS}
 LIBRARIES_BL = @BLAS_LAPACK_LIBS@
+LIBRARIES_SLUMT = @SUPERLUMT_LIBS@
+LIBRARIES_KLU = @KLU_LIBRARY@ @AMD_LIBRARY@ @COLAMD_LIBRARY@ @BTF_LIBRARY@
 
 EXAMPLES = @EXAMPLES@
 
@@ -67,8 +69,8 @@ OBJECTS = ${EXAMPLES:=.o}
 
 all: ${OBJECTS}
 	@for i in ${EXAMPLES} ; do \
-	  echo "${MPICC} -o $${i} $${i}.o ${MPI_FLAGS} ${CFLAGS} ${LDFLAGS} -L${libdir} ${LIBRARIES} -L${MPI_LIB_DIR} ${MPI_LIBS} ${LIBRARIES_BL}" ; \
-	  ${MPICC} -o $${i} $${i}.o ${MPI_FLAGS} ${CFLAGS} ${LDFLAGS} -L${libdir} ${LIBRARIES} -L${MPI_LIB_DIR} ${MPI_LIBS} ${LIBRARIES_BL}; \
+	  echo "${MPICC} -o $${i} $${i}.o ${MPI_FLAGS} ${CFLAGS} ${LDFLAGS} ${INCLUDES} -L${libdir} ${LIBRARIES} -L${MPI_LIB_DIR} ${MPI_LIBS} ${LIBRARIES_BL} ${LIBRARIES_SLUMT} ${LIBRARIES_KLU}" ; \
+	  ${MPICC} -o $${i} $${i}.o ${MPI_FLAGS} ${CFLAGS} ${LDFLAGS} ${INCLUDES} -L${libdir} ${LIBRARIES} -L${MPI_LIB_DIR} ${MPI_LIBS} ${LIBRARIES_BL} ${LIBRARIES_SLUMT} ${LIBRARIES_KLU} ; \
 	done
 
 clean:

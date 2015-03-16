@@ -1,14 +1,19 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 1.4 $
- * $Date: 2011/11/23 23:53:02 $
+ * $Revision: 4272 $
+ * $Date: 2014-12-02 11:19:41 -0800 (Tue, 02 Dec 2014) $
  * ----------------------------------------------------------------- 
  * Programmer(s): Radu Serban @ LLNL
  * -----------------------------------------------------------------
- * Copyright (c) 2002, The Regents of the University of California.
+ * LLNS Copyright Start
+ * Copyright (c) 2014, Lawrence Livermore National Security
+ * This work was performed under the auspices of the U.S. Department 
+ * of Energy by Lawrence Livermore National Laboratory in part under 
+ * Contract W-7405-Eng-48 and in part under Contract DE-AC52-07NA27344.
  * Produced at the Lawrence Livermore National Laboratory.
  * All rights reserved.
  * For details, see the LICENSE file.
+ * LLNS Copyright End
  * -----------------------------------------------------------------
  * Adjoint sensitivity example problem.
  * The following is a simple example problem, with the coding
@@ -84,6 +89,7 @@
 
 #define TB1      RCONST(4e7)   /* starting point for adjoint problem   */
 #define TB2      RCONST(50.0)  /* starting point for adjoint problem   */
+#define TBout1   RCONST(40.0)  /* intermediate t for adjoint problem   */
 
 #define STEPS    150           /* number of steps between check points */
 
@@ -120,7 +126,9 @@ static int fQB(realtype t, N_Vector y, N_Vector yB,
 
 /* Prototypes of private functions */
 
-static void PrintOutput(realtype tfinal, N_Vector yB, N_Vector qB);
+static void PrintHead(realtype tB0);
+static void PrintOutput(realtype tfinal, N_Vector y, N_Vector yB, N_Vector qB);
+static void PrintOutput1(realtype time, realtype t, N_Vector y, N_Vector yB);
 static int check_flag(void *flagvalue, char *funcname, int opt);
 
 /*
@@ -247,7 +255,7 @@ int main(int argc, char *argv[])
 #if defined(SUNDIALS_EXTENDED_PRECISION)
   printf("G:          %12.4Le \n",Ith(q,1));
 #elif defined(SUNDIALS_DOUBLE_PRECISION)
-  printf("G:          %12.4le \n",Ith(q,1));
+  printf("G:          %12.4e \n",Ith(q,1));
 #else
   printf("G:          %12.4e \n",Ith(q,1));
 #endif
@@ -330,12 +338,28 @@ int main(int argc, char *argv[])
   if (check_flag(&flag, "CVodeSetQuadErrConB", 1)) return(1);
 
   /* Backward Integration */
-  printf("Backward integration ... ");
+
+  PrintHead(TB1);
+
+  /* First get results at t = TBout1 */
+
+  flag = CVodeB(cvode_mem, TBout1, CV_NORMAL);
+  if (check_flag(&flag, "CVodeB", 1)) return(1);
+
+  flag = CVodeGetB(cvode_mem, indexB, &time, yB);
+  if (check_flag(&flag, "CVodeGetB", 1)) return(1);
+
+  flag = CVodeGetAdjY(cvode_mem, TBout1, y);
+  if (check_flag(&flag, "CVodeGetAdjY", 1)) return(1);
+
+  PrintOutput1(time, TBout1, y, yB);
+
+  /* Then at t = T0 */
 
   flag = CVodeB(cvode_mem, T0, CV_NORMAL);
   if (check_flag(&flag, "CVodeB", 1)) return(1);
   CVodeGetNumSteps(CVodeGetAdjCVodeBmem(cvode_mem, indexB), &nstB);
-  printf("done ( nst = %ld )\n", nstB);
+  printf("Done ( nst = %ld )\n", nstB);
 
   flag = CVodeGetB(cvode_mem, indexB, &time, yB);
   if (check_flag(&flag, "CVodeGetB", 1)) return(1);
@@ -343,7 +367,10 @@ int main(int argc, char *argv[])
   flag = CVodeGetQuadB(cvode_mem, indexB, &time, qB);
   if (check_flag(&flag, "CVodeGetQuadB", 1)) return(1);
 
-  PrintOutput(TB1, yB, qB);
+  flag = CVodeGetAdjY(cvode_mem, T0, y);
+  if (check_flag(&flag, "CVodeGetAdjY", 1)) return(1);
+
+  PrintOutput(time, y, yB, qB);
 
   /* Reinitialize backward phase (new tB0) */
 
@@ -363,12 +390,27 @@ int main(int argc, char *argv[])
   flag = CVodeQuadReInitB(cvode_mem, indexB, qB); 
   if (check_flag(&flag, "CVodeQuadReInitB", 1)) return(1);
 
-  printf("Backward integration ... ");
+  PrintHead(TB2);
+
+  /* First get results at t = TBout1 */
+
+  flag = CVodeB(cvode_mem, TBout1, CV_NORMAL);
+  if (check_flag(&flag, "CVodeB", 1)) return(1);
+
+  flag = CVodeGetB(cvode_mem, indexB, &time, yB);
+  if (check_flag(&flag, "CVodeGetB", 1)) return(1);
+
+  flag = CVodeGetAdjY(cvode_mem, TBout1, y);
+  if (check_flag(&flag, "CVodeGetAdjY", 1)) return(1);
+
+  PrintOutput1(time, TBout1, y, yB);
+
+  /* Then at t = T0 */
 
   flag = CVodeB(cvode_mem, T0, CV_NORMAL);
   if (check_flag(&flag, "CVodeB", 1)) return(1);
   CVodeGetNumSteps(CVodeGetAdjCVodeBmem(cvode_mem, indexB), &nstB);
-  printf("done ( nst = %ld )\n", nstB);
+  printf("Done ( nst = %ld )\n", nstB);
 
   flag = CVodeGetB(cvode_mem, indexB, &time, yB);
   if (check_flag(&flag, "CVodeGetB", 1)) return(1);
@@ -376,7 +418,10 @@ int main(int argc, char *argv[])
   flag = CVodeGetQuadB(cvode_mem, indexB, &time, qB);
   if (check_flag(&flag, "CVodeGetQuadB", 1)) return(1);
 
-  PrintOutput(TB2, yB, qB);
+  flag = CVodeGetAdjY(cvode_mem, T0, y);
+  if (check_flag(&flag, "CVodeGetAdjY", 1)) return(1);
+
+  PrintOutput(time, y, yB, qB);
 
   /* Free memory */
   printf("Free memory\n\n");
@@ -472,7 +517,7 @@ static int ewt(N_Vector y, N_Vector w, void *user_data)
 
   for (i=1; i<=3; i++) {
     yy = Ith(y,i);
-    ww = rtol * ABS(yy) + atol[i-1];  
+    ww = rtol * SUNRabs(yy) + atol[i-1];
     if (ww <= 0.0) return (-1);
     Ith(w,i) = 1.0/ww;
   }
@@ -518,7 +563,7 @@ static int fB(realtype t, N_Vector y, N_Vector yB, N_Vector yBdot, void *user_da
 
 /* 
  * JacB routine. Compute JB(t,y,yB). 
-*/
+ */
 
 static int JacB(long int NB, realtype t,
                 N_Vector y, N_Vector yB, N_Vector fyB,
@@ -589,30 +634,83 @@ static int fQB(realtype t, N_Vector y, N_Vector yB,
  */
 
 /*
- * Print results after backward integration
+ * Print heading for backward integration
  */
 
-static void PrintOutput(realtype tfinal, N_Vector yB, N_Vector qB)
+static void PrintHead(realtype tB0)
+{
+#if defined(SUNDIALS_EXTENDED_PRECISION)
+  printf("Backward integration from tB0 = %12.4Le\n\n",tB0);
+#elif defined(SUNDIALS_DOUBLE_PRECISION)
+  printf("Backward integration from tB0 = %12.4e\n\n",tB0);
+#else
+  printf("Backward integration from tB0 = %12.4e\n\n",tB0);
+#endif
+}
+
+/*
+ * Print intermediate results during backward integration
+ */
+
+static void PrintOutput1(realtype time, realtype t, N_Vector y, N_Vector yB)
 {
   printf("--------------------------------------------------------\n");
 #if defined(SUNDIALS_EXTENDED_PRECISION)
-  printf("tB0:        %12.4Le\n",tfinal);
-  printf("dG/dp:      %12.4Le %12.4Le %12.4Le\n", 
-         -Ith(qB,1), -Ith(qB,2), -Ith(qB,3));
+  printf("returned t: %12.4Le\n",time);
+  printf("tout:       %12.4Le\n",t);
+  printf("lambda(t):  %12.4Le %12.4Le %12.4Le\n", 
+         Ith(yB,1), Ith(yB,2), Ith(yB,3));
+  printf("y(t):       %12.4Le %12.4Le %12.4Le\n", 
+         Ith(y,1), Ith(y,2), Ith(y,3));
+#elif defined(SUNDIALS_DOUBLE_PRECISION)
+  printf("returned t: %12.4e\n",time);
+  printf("tout:       %12.4e\n",t);
+  printf("lambda(t):  %12.4e %12.4e %12.4e\n", 
+         Ith(yB,1), Ith(yB,2), Ith(yB,3));
+  printf("y(t):       %12.4e %12.4e %12.4e\n", 
+         Ith(y,1), Ith(y,2), Ith(y,3));
+#else
+  printf("returned t: %12.4e\n",time);
+  printf("tout:       %12.4e\n",t);
+  printf("lambda(t):  %12.4e %12.4e %12.4e\n", 
+         Ith(yB,1), Ith(yB,2), Ith(yB,3));
+  printf("y(t)      : %12.4e %12.4e %12.4e\n", 
+         Ith(y,1), Ith(y,2), Ith(y,3));
+#endif
+  printf("--------------------------------------------------------\n\n");
+}
+
+/*
+ * Print final results of backward integration
+ */
+
+static void PrintOutput(realtype tfinal, N_Vector y, N_Vector yB, N_Vector qB)
+{
+  printf("--------------------------------------------------------\n");
+#if defined(SUNDIALS_EXTENDED_PRECISION)
+  printf("returned t: %12.4Le\n",tfinal);
   printf("lambda(t0): %12.4Le %12.4Le %12.4Le\n", 
          Ith(yB,1), Ith(yB,2), Ith(yB,3));
+  printf("y(t0):      %12.4Le %12.4Le %12.4Le\n", 
+         Ith(y,1), Ith(y,2), Ith(y,3));
+  printf("dG/dp:      %12.4Le %12.4Le %12.4Le\n", 
+         -Ith(qB,1), -Ith(qB,2), -Ith(qB,3));
 #elif defined(SUNDIALS_DOUBLE_PRECISION)
-  printf("tB0:        %12.4le\n",tfinal);
-  printf("dG/dp:      %12.4le %12.4le %12.4le\n", 
-         -Ith(qB,1), -Ith(qB,2), -Ith(qB,3));
-  printf("lambda(t0): %12.4le %12.4le %12.4le\n", 
-         Ith(yB,1), Ith(yB,2), Ith(yB,3));
-#else
-  printf("tB0:        %12.4e\n",tfinal);
-  printf("dG/dp:      %12.4e %12.4e %12.4e\n", 
-         -Ith(qB,1), -Ith(qB,2), -Ith(qB,3));
+  printf("returned t: %12.4e\n",tfinal);
   printf("lambda(t0): %12.4e %12.4e %12.4e\n", 
          Ith(yB,1), Ith(yB,2), Ith(yB,3));
+  printf("y(t0):      %12.4e %12.4e %12.4e\n", 
+         Ith(y,1), Ith(y,2), Ith(y,3));
+  printf("dG/dp:      %12.4e %12.4e %12.4e\n", 
+         -Ith(qB,1), -Ith(qB,2), -Ith(qB,3));
+#else
+  printf("returned t: %12.4e\n",tfinal);
+  printf("lambda(t0): %12.4e %12.4e %12.4e\n", 
+         Ith(yB,1), Ith(yB,2), Ith(yB,3));
+  printf("y(t0)     : %12.4e %12.4e %12.4e\n", 
+         Ith(y,1), Ith(y,2), Ith(y,3));
+  printf("dG/dp:      %12.4e %12.4e %12.4e\n", 
+         -Ith(qB,1), -Ith(qB,2), -Ith(qB,3));
 #endif
   printf("--------------------------------------------------------\n\n");
 }

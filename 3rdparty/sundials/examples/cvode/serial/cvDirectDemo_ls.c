@@ -1,7 +1,7 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 1.3 $
- * $Date: 2010/12/01 22:51:32 $
+ * $Revision: 4314 $
+ * $Date: 2015-01-07 15:46:45 -0800 (Wed, 07 Jan 2015) $
  * -----------------------------------------------------------------
  * Programmer(s): Scott D. Cohen, Alan C. Hindmarsh and
  *                Radu Serban @ LLNL
@@ -64,7 +64,7 @@
 #include <cvode/cvode_diag.h>        /* use CVDIAG linear solver */
 #include <nvector/nvector_serial.h>  /* serial N_Vector types, fct. and macros */
 #include <sundials/sundials_types.h> /* definition of realtype */
-#include <sundials/sundials_math.h>  /* contains the macros ABS, SQR, and EXP*/
+#include <sundials/sundials_math.h>  /* contains the macros ABS, SUNSQR, and EXP*/
 
 /* Shared Problem Constants */
 
@@ -208,7 +208,7 @@ static int Problem1(void)
         break;
       }
       if (iout%2 == 0) {
-        er = ABS(NV_Ith_S(y,0)) / abstol;
+        er = SUNRabs(NV_Ith_S(y,0)) / abstol;
         if (er > ero) ero = er;
         if (er > P1_TOL_FACTOR) {
           nerr++;
@@ -261,7 +261,7 @@ static int Problem1(void)
         break;
       }
       if (iout%2 == 0) {
-        er = ABS(NV_Ith_S(y,0)) / abstol;
+        er = SUNRabs(NV_Ith_S(y,0)) / abstol;
         if (er > ero) ero = er;
         if (er > P1_TOL_FACTOR) {
           nerr++;
@@ -289,7 +289,7 @@ static void PrintIntro1(void)
   printf(" neq = %d,  reltol = %.2Lg,  abstol = %.2Lg",
 	 P1_NEQ, RTOL, ATOL);
 #elif defined(SUNDIALS_DOUBLE_PRECISION)
-  printf(" neq = %d,  reltol = %.2lg,  abstol = %.2lg",
+  printf(" neq = %d,  reltol = %.2g,  abstol = %.2g",
 	 P1_NEQ, RTOL, ATOL);
 #else
   printf(" neq = %d,  reltol = %.2g,  abstol = %.2g",
@@ -309,7 +309,7 @@ static void PrintOutput1(realtype t, realtype y0, realtype y1, int qu, realtype 
 #if defined(SUNDIALS_EXTENDED_PRECISION)
   printf("%10.5Lf    %12.5Le   %12.5Le   %2d    %6.4Le\n", t, y0, y1, qu, hu);
 #elif defined(SUNDIALS_DOUBLE_PRECISION)
-  printf("%10.5f    %12.5le   %12.5le   %2d    %6.4le\n", t, y0, y1, qu, hu);
+  printf("%10.5f    %12.5e   %12.5e   %2d    %6.4e\n", t, y0, y1, qu, hu);
 #else
   printf("%10.5f    %12.5e   %12.5e   %2d    %6.4e\n", t, y0, y1, qu, hu);
 #endif
@@ -325,7 +325,7 @@ static int f1(realtype t, N_Vector y, N_Vector ydot, void *user_data)
   y1 = NV_Ith_S(y,1);
 
   NV_Ith_S(ydot,0) = y1;
-  NV_Ith_S(ydot,1) = (ONE - SQR(y0))* P1_ETA * y1 - y0;
+  NV_Ith_S(ydot,1) = (ONE - SUNSQR(y0))* P1_ETA * y1 - y0;
 
   return(0);
 } 
@@ -342,7 +342,7 @@ static int Jac1(long int N, realtype tn,
 
   DENSE_ELEM(J,0,1) = ONE;
   DENSE_ELEM(J,1,0) = -TWO * P1_ETA * y0 * y1 - ONE;
-  DENSE_ELEM(J,1,1) = P1_ETA * (ONE - SQR(y0));
+  DENSE_ELEM(J,1,1) = P1_ETA * (ONE - SUNSQR(y0));
 
   return(0);
 }
@@ -485,11 +485,10 @@ static void PrintIntro2(void)
 #if defined(SUNDIALS_EXTENDED_PRECISION)
   printf(" itol = %s, reltol = %.2Lg, abstol = %.2Lg", "CV_SS", RTOL, ATOL);
 #elif defined(SUNDIALS_DOUBLE_PRECISION)
-  printf(" itol = %s, reltol = %.2lg, abstol = %.2lg", "CV_SS", RTOL, ATOL);
+  printf(" itol = %s, reltol = %.2g, abstol = %.2g", "CV_SS", RTOL, ATOL);
 #else
   printf(" itol = %s, reltol = %.2g, abstol = %.2g", "CV_SS", RTOL, ATOL);
 #endif
-  printf("\n      t        max.err      qu     hu \n");
 }
 
 static void PrintHeader2(void)
@@ -504,7 +503,7 @@ static void PrintOutput2(realtype t, realtype erm, int qu, realtype hu)
 #if defined(SUNDIALS_EXTENDED_PRECISION)
   printf("%10.3Lf  %12.4Le   %2d   %12.4Le\n", t, erm, qu, hu);
 #elif defined(SUNDIALS_DOUBLE_PRECISION)
-  printf("%10.3f  %12.4le   %2d   %12.4le\n", t, erm, qu, hu);
+  printf("%10.3f  %12.4e   %2d   %12.4e\n", t, erm, qu, hu);
 #else
   printf("%10.3f  %12.4e   %2d   %12.4e\n", t, erm, qu, hu);
 #endif
@@ -585,14 +584,14 @@ static realtype MaxError(N_Vector y, realtype t)
   if (t == ZERO) return(ZERO);
 
   ydata = NV_DATA_S(y);
-  if (t <= THIRTY) ex = EXP(-TWO*t); 
+  if (t <= THIRTY) ex = SUNRexp(-TWO*t);
   
   for (j = 0; j < P2_MESHY; j++) {
     ifact_inv = ONE;
     for (i = 0; i < P2_MESHX; i++) {
       k = i + j * P2_MESHX;
-      yt = RPowerI(t,i+j) * ex * ifact_inv * jfact_inv;
-      er = ABS(ydata[k] - yt);
+      yt = SUNRpowerI(t,i+j) * ex * ifact_inv * jfact_inv;
+      er = SUNRabs(ydata[k] - yt);
       if (er > maxError) maxError = er;
       ifact_inv /= (i+1);
     }
@@ -664,7 +663,7 @@ static void PrintErrOutput(realtype tol_factor)
 #if defined(SUNDIALS_EXTENDED_PRECISION)
   printf("\n\n Error exceeds %Lg * tolerance \n\n", tol_factor);
 #elif defined(SUNDIALS_DOUBLE_PRECISION)
-  printf("\n\n Error exceeds %lg * tolerance \n\n", tol_factor);
+  printf("\n\n Error exceeds %g * tolerance \n\n", tol_factor);
 #else
   printf("\n\n Error exceeds %g * tolerance \n\n", tol_factor);
 #endif

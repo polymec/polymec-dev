@@ -1,6 +1,6 @@
 # -----------------------------------------------------------------
-# $Revision: 1.3 $
-# $Date: 2009/02/17 02:58:47 $
+# $Revision: 4419 $
+# $Date: 2015-03-06 11:49:01 -0800 (Fri, 06 Mar 2015) $
 # -----------------------------------------------------------------
 # Programmer: Radu Serban @ LLNL
 # -----------------------------------------------------------------
@@ -42,9 +42,13 @@ CFLAGS   = @CFLAGS@
 LDFLAGS  = @LDFLAGS@
 LIBS     = @LIBS@
 
+LINKFLAGS = -Wl,-rpath,@libdir@
+
 INCLUDES = -I${includedir}
 LIBRARIES = -l@SOLVER_LIB@ -lsundials_nvecserial ${LIBS}
 LIBRARIES_BL = @BLAS_LAPACK_LIBS@
+LIBRARIES_SLUMT = @SUPERLUMT_LIBS@
+LIBRARIES_KLU = @KLU_LIBRARY@ @AMD_LIBRARY@ @COLAMD_LIBRARY@ @BTF_LIBRARY@
 
 EXAMPLES = @EXAMPLES@ @EXAMPLES_BL@
 
@@ -61,8 +65,8 @@ OBJECTS = ${EXAMPLES:=.o}
 
 all: ${OBJECTS}
 	@for i in ${EXAMPLES} ; do \
-	  echo "${CC} -o $${i} $${i}.o ${CFLAGS} ${LDFLAGS} -L${libdir} ${LIBRARIES} ${LIBRARIES_BL}" ; \
-	  ${CC} -o $${i} $${i}.o ${CFLAGS} ${LDFLAGS} -L${libdir} ${LIBRARIES} ${LIBRARIES_BL}; \
+	  echo "${CC} -o $${i} $${i}.o ${CFLAGS} ${LDFLAGS} ${INCLUDES} -L${libdir} ${LIBRARIES} ${LIBRARIES_BL} ${LIBRARIES_SLUMT} ${LIBRARIES_KLU}" ${LINKFLAGS} ; \
+	  ${CC} -o $${i} $${i}.o ${CFLAGS} ${LDFLAGS} ${INCLUDES} -L${libdir} ${LIBRARIES} ${LIBRARIES_BL} ${LIBRARIES_SLUMT} ${LIBRARIES_KLU} ${LINKFLAGS} ; \
 	done
 
 clean:

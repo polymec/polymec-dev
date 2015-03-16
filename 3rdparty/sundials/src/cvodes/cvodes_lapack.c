@@ -1,14 +1,19 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 1.15 $
- * $Date: 2011/03/23 22:58:46 $
+ * $Revision: 4272 $
+ * $Date: 2014-12-02 11:19:41 -0800 (Tue, 02 Dec 2014) $
  * ----------------------------------------------------------------- 
  * Programmer: Radu Serban @ LLNL
  * -----------------------------------------------------------------
- * Copyright (c) 2006, The Regents of the University of California.
+ * LLNS Copyright Start
+ * Copyright (c) 2014, Lawrence Livermore National Security
+ * This work was performed under the auspices of the U.S. Department 
+ * of Energy by Lawrence Livermore National Laboratory in part under 
+ * Contract W-7405-Eng-48 and in part under Contract DE-AC52-07NA27344.
  * Produced at the Lawrence Livermore National Laboratory.
  * All rights reserved.
  * For details, see the LICENSE file.
+ * LLNS Copyright End
  * -----------------------------------------------------------------
  * This is the implementation file for a dense or banded CVODES 
  * linear solver using BLAS and LAPACK functions.
@@ -303,7 +308,7 @@ int CVLapackBand(void *cvode_mem, int N, int mupper, int mlower)
   }
 
   /* Set extended upper half-bandwith for M (required for pivoting) */
-  smu = MIN(n-1, mu + ml);
+  smu = mu + ml;
 
   /* Allocate memory for M, savedJ, and pivot arrays */
   M = NULL;
@@ -393,7 +398,7 @@ static int cvLapackDenseSetup(CVodeMem cv_mem, int convfail,
   lenmat = M->ldata;
 
   /* Use nst, gamma/gammap, and convfail to set J eval. flag jok */
-  dgamma = ABS((gamma/gammap) - ONE);
+  dgamma = SUNRabs((gamma/gammap) - ONE);
   jbad = (nst == 0) || (nst > nstlj + CVD_MSBJ) ||
     ((convfail == CV_FAIL_BAD_J) && (dgamma < CVD_DGMAX)) ||
     (convfail == CV_FAIL_OTHER);
@@ -549,7 +554,7 @@ static int cvLapackBandSetup(CVodeMem cv_mem, int convfail,
   ldmat = M->ldim;
 
   /* Use nst, gamma/gammap, and convfail to set J eval. flag jok */
-  dgamma = ABS((gamma/gammap) - ONE);
+  dgamma = SUNRabs((gamma/gammap) - ONE);
   jbad = (nst == 0) || (nst > nstlj + CVD_MSBJ) ||
     ((convfail == CV_FAIL_BAD_J) && (dgamma < CVD_DGMAX)) ||
     (convfail == CV_FAIL_OTHER);

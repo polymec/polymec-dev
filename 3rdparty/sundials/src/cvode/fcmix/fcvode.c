@@ -1,15 +1,20 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 1.9 $
- * $Date: 2010/12/09 19:36:24 $
+ * $Revision: 4401 $
+ * $Date: 2015-02-28 18:03:17 -0800 (Sat, 28 Feb 2015) $
  * ----------------------------------------------------------------- 
  * Programmer(s): Alan C. Hindmarsh, Radu Serban and
  *                Aaron Collier @ LLNL
  * -----------------------------------------------------------------
- * Copyright (c) 2002, The Regents of the University of California.
+ * LLNS Copyright Start
+ * Copyright (c) 2014, Lawrence Livermore National Security
+ * This work was performed under the auspices of the U.S. Department 
+ * of Energy by Lawrence Livermore National Laboratory in part under 
+ * Contract W-7405-Eng-48 and in part under Contract DE-AC52-07NA27344.
  * Produced at the Lawrence Livermore National Laboratory.
  * All rights reserved.
  * For details, see the LICENSE file.
+ * LLNS Copyright End
  * -----------------------------------------------------------------
  * This is the implementation file for the Fortran interface to
  * the CVODE package.  See fcvode.h for usage.
@@ -29,6 +34,8 @@
 #include <cvode/cvode_band.h>          /* prototypes for CVBAND interface routines       */
 #include <cvode/cvode_dense.h>         /* prototypes for CVDENSE interface routines      */
 #include <cvode/cvode_diag.h>          /* prototypes for CVDIAG interface routines       */
+#include <cvode/cvode_klu.h>           /* prototypes for CVKLU interface routines        */
+#include <cvode/cvode_superlumt.h>     /* prototypes for CVSUPERLUMT interface routines  */
 #include <cvode/cvode_spgmr.h>         /* prototypes for CVSPGMR interface routines      */
 #include <cvode/cvode_spbcgs.h>        /* prototypes for CVSPBCG interface routines      */
 #include <cvode/cvode_sptfqmr.h>       /* prototypes for CVSPTFQMR interface routines    */
@@ -227,21 +234,21 @@ void FCV_REINIT(realtype *t0, realtype *y0,
 
 /***************************************************************************/
 
-void FCV_SETIIN(char key_name[], long int *ival, int *ier, int key_len)
+void FCV_SETIIN(char key_name[], long int *ival, int *ier)
 {
-  if (!strncmp(key_name,"MAX_ORD", (size_t)key_len)) 
+  if (!strncmp(key_name,"MAX_ORD",7))
     *ier = CVodeSetMaxOrd(CV_cvodemem, (int) *ival);
-  else if (!strncmp(key_name,"MAX_NSTEPS", (size_t)key_len)) 
+  else if (!strncmp(key_name,"MAX_NSTEPS",10))
     *ier = CVodeSetMaxNumSteps(CV_cvodemem, (int) *ival);
-  else if (!strncmp(key_name,"MAX_ERRFAIL", (size_t)key_len)) 
+  else if (!strncmp(key_name,"MAX_ERRFAIL",11))
     *ier = CVodeSetMaxErrTestFails(CV_cvodemem, (int) *ival);
-  else if (!strncmp(key_name,"MAX_NITERS", (size_t)key_len)) 
+  else if (!strncmp(key_name,"MAX_NITERS",10))
     *ier = CVodeSetMaxNonlinIters(CV_cvodemem, (int) *ival);
-  else if (!strncmp(key_name,"MAX_CONVFAIL", (size_t)key_len)) 
+  else if (!strncmp(key_name,"MAX_CONVFAIL",12))
     *ier = CVodeSetMaxConvFails(CV_cvodemem, (int) *ival);
-  else if (!strncmp(key_name,"HNIL_WARNS", (size_t)key_len)) 
+  else if (!strncmp(key_name,"HNIL_WARNS",10))
     *ier = CVodeSetMaxHnilWarns(CV_cvodemem, (int) *ival);
-  else if (!strncmp(key_name,"STAB_LIM", (size_t)key_len)) 
+  else if (!strncmp(key_name,"STAB_LIM",8))
     *ier = CVodeSetStabLimDet(CV_cvodemem, (int) *ival);
   else {
     *ier = -99;
@@ -252,17 +259,17 @@ void FCV_SETIIN(char key_name[], long int *ival, int *ier, int key_len)
 
 /***************************************************************************/
 
-void FCV_SETRIN(char key_name[], realtype *rval, int *ier, int key_len)
+void FCV_SETRIN(char key_name[], realtype *rval, int *ier)
 {
-  if (!strncmp(key_name,"INIT_STEP", (size_t)key_len)) 
+  if (!strncmp(key_name,"INIT_STEP",9))
     *ier = CVodeSetInitStep(CV_cvodemem, *rval);
-  else if (!strncmp(key_name,"MAX_STEP", (size_t)key_len)) 
+  else if (!strncmp(key_name,"MAX_STEP",8))
     *ier = CVodeSetMaxStep(CV_cvodemem, *rval);
-  else if (!strncmp(key_name,"MIN_STEP", (size_t)key_len)) 
+  else if (!strncmp(key_name,"MIN_STEP",8))
     *ier = CVodeSetMinStep(CV_cvodemem, *rval);
-  else if (!strncmp(key_name,"STOP_TIME", (size_t)key_len)) 
+  else if (!strncmp(key_name,"STOP_TIME",9))
     *ier = CVodeSetStopTime(CV_cvodemem, *rval);
-  else if (!strncmp(key_name,"NLCONV_COEF", (size_t)key_len)) 
+  else if (!strncmp(key_name,"NLCONV_COEF",11))
     *ier = CVodeSetNonlinConvCoef(CV_cvodemem, *rval);
   else {
     *ier = -99;
@@ -495,6 +502,11 @@ void FCV_CVODE(realtype *tout, realtype *t, realtype *y, int *itask, int *ier)
     CVDiagGetWorkSpace(CV_cvodemem, &CV_iout[12], &CV_iout[13]);  /* LENRWLS,LENIWLS */
     CVDiagGetLastFlag(CV_cvodemem, &CV_iout[14]);                 /* LSTF */
     CVDiagGetNumRhsEvals(CV_cvodemem, &CV_iout[15]);              /* NFELS */
+    break;
+  case CV_LS_KLU:
+  case CV_LS_SUPERLUMT:
+    CVSlsGetLastFlag(CV_cvodemem, &CV_iout[14]);                  /* LSTF  */
+    CVSlsGetNumJacEvals(CV_cvodemem, &CV_iout[16]);               /* NJE   */
     break;
   case CV_LS_SPGMR:
   case CV_LS_SPBCG:
