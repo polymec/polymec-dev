@@ -123,6 +123,8 @@ endif()
 # Give a warning about not setting the install prefix.
 if (CMAKE_INSTALL_PREFIX STREQUAL "INSTALL_DISABLED")
   message("** WARNING: no installation prefix was set! Installation is disabled.")
+else()
+  message("-- Installation prefix is ${CMAKE_INSTALL_PREFIX}")
 endif()
 
 # Basic libraries to be linked in.
