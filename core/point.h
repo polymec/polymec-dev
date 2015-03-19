@@ -10,6 +10,7 @@
 
 #include "core/polymec.h"
 #include "core/rng.h"
+#include "core/array.h"
 
 // A point in 1, 2, or 3D space.
 typedef struct
@@ -248,6 +249,10 @@ typedef enum
   OUTWARD_NORMAL,
   INWARD_NORMAL
 } normal_orient_t;
+
+// Arrays of points and vectors.
+DEFINE_ARRAY(point_array, point_t)
+DEFINE_ARRAY(vector_array, vector_t)
 
 #endif
 
