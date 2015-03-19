@@ -8,6 +8,7 @@
 #include "core/mesh.h"
 #include "core/table.h"
 #include "core/unordered_set.h"
+#include "core/hilbert.h"
 
 // Mesh features.
 const char* TETRAHEDRAL = "tetrahedral";
@@ -917,200 +918,20 @@ exchanger_t* mesh_nv_node_exchanger_new(mesh_t* mesh, int* node_offsets)
   int rank;
   MPI_Comm_rank(mesh->comm, &rank);
 
-  //------------------------------------------------------------------------
-  // We define the notion of a process "owning" a node thus: a process owns 
-  // a node if it has the lowest rank of all processes on which the node 
-  // is represented. The tricky thing about this definition is that a node 
-  // represented on a process p can be owned by a process, q (say), that p 
-  // does not interact with directly in the sense of face exchanges. This 
-  // means we have to search for the owner in two sweeps.
-  //------------------------------------------------------------------------
-
-  // Traverse the send faces and make a list of nodes associated with 
-  // these faces/processes.
+  // Generate a list of all the neighbors of our set of neighbors.
+  int_array_t* all_neighbors_of_neighbors = int_array_new();
   int num_neighbors = exchanger_num_sends(face_ex);
   int neighbors[num_neighbors];
-  int_array_t* face_nodes[num_neighbors];
-  int pos = 0, proc, *indices, size, p = 0;
-  while (exchanger_next_send(face_ex, &pos, &proc, &indices, &size))
   {
-    neighbors[p] = proc;
-    int_unordered_set_t* face_node_set = int_unordered_set_new();
-    for (int f = 0; f < size; ++f)
-    {
-      int face = indices[f]/2; // see docs on face exchanger!
-      int npos = 0, node;
-      while (mesh_face_next_node(mesh, face, &npos, &node))
-        int_unordered_set_insert(face_node_set, node);
-    }
-    face_nodes[p] = int_array_new();
-    int npos = 0, node;
-    while (int_unordered_set_next(face_node_set, &npos, &node))
-      int_array_append(face_nodes[p], node);
-    int_unordered_set_free(face_node_set);
-    ++p;
-  }
+    MPI_Request requests[2*num_neighbors];
+    MPI_Status statuses[2*num_neighbors];
 
-  //------------------------------------------------------------------------
-  // Create a consistent indexing of our nodes with each of our neighbors
-  // by matching up pairs of locate/remote nodes.
-  //------------------------------------------------------------------------
+    // Identify our own neighbors.
+    int pos = 0, proc, *indices, size, p = 0;
+    while (exchanger_next_send(face_ex, &pos, &proc, &indices, &size))
+      neighbors[p] = proc;
 
-  MPI_Request requests[2*num_neighbors];
-  MPI_Status statuses[2*num_neighbors];
-
-  // First, gather the local and remote node positions.
-  pos = 0, p = 0;
-  point_t* remote_node_positions[num_neighbors];
-  while (exchanger_next_receive(face_ex, &pos, &proc, &indices, &size))
-  {
-    int num_nodes = face_nodes[p]->size;
-    remote_node_positions[p] = polymec_malloc(sizeof(point_t) * num_nodes);
-    MPI_Irecv(remote_node_positions[p], 3*num_nodes, MPI_REAL_T, proc, 0, 
-              mesh->comm, &requests[p]);
-    ++p;
-  }
-  pos = 0, p = 0;
-  point_t* local_node_positions[num_neighbors];
-  while (exchanger_next_send(face_ex, &pos, &proc, &indices, &size))
-  {
-    int num_nodes = face_nodes[p]->size;
-    local_node_positions[p] = polymec_malloc(sizeof(point_t) * num_nodes);
-    for (int n = 0; n < num_nodes; ++n)
-      local_node_positions[p][n] = mesh->nodes[face_nodes[p]->data[n]];
-    MPI_Isend(local_node_positions[p], 3*num_nodes, MPI_REAL_T, proc, 0, 
-              mesh->comm, &requests[p + num_neighbors]);
-    ++p;
-  }
-  MPI_Waitall(2 * num_neighbors, requests, statuses);
-
-  // Now match each remote node with a local node by picking the remote 
-  // node that is closest. The ordering of the pairs will adhere to that 
-  // of the process with the lower rank.
-  pos = 0, p = 0;
-  int_array_t* matched_nodes[num_neighbors];
-  int_unordered_set_t* already_matched = int_unordered_set_new();
-  while (exchanger_next_receive(face_ex, &pos, &proc, &indices, &size))
-  {
-    int num_nodes = face_nodes[p]->size;
-    int_unordered_set_clear(already_matched);
-    matched_nodes[p] = int_array_new();
-    for (int n1 = 0; n1 < num_nodes; ++n1)
-    {
-      point_t* x1 = &(local_node_positions[p][n1]);
-      real_t d_min = FLT_MAX;
-      int i_min = -1;
-      for (int n2 = 0; n2 < num_nodes; ++n2)
-      {
-        point_t* x2 = &(remote_node_positions[p][n2]);
-        real_t d12 = point_distance(x1, x2);
-        if (d12 < d_min)
-        {
-          d_min = d12;
-          i_min = (rank < proc) ? n1 : n2;
-        }
-      }
-      if (int_unordered_set_contains(already_matched, i_min))
-      {
-        polymec_error("mesh_node_exchanger_new: inconsistent node geometry!\n"
-                      "  Cannot construct node exchanger.");
-      }
-      else
-        int_unordered_set_insert(already_matched, i_min);
-      int_array_append(matched_nodes[p], i_min);
-    }
-    ++p;
-  }
-  int_unordered_set_free(already_matched);
-
-  // Preliminary cleanup.
-  for (int p = 0; p < num_neighbors; ++p)
-  {
-    polymec_free(local_node_positions[p]);
-    polymec_free(remote_node_positions[p]);
-  }
-
-  //------------------------------------------------------------------------
-  // At this point, matched_nodes[p] contains an ordered array of node 
-  // indices that can be used to construct send/receive arrays for this 
-  // process and its pth neighbor. It remains to cull nodes from these 
-  // arrays that are owned by a third process, and to construct separate 
-  // arrays to express the connection between that third process and this one.
-  //------------------------------------------------------------------------
-
-  // We begin by figuring out which process owns each of the nodes we are 
-  // "discussing."
-  int_int_unordered_map_t* node_owners = int_int_unordered_map_new();
-  for (int p = 0; p < num_neighbors; ++p)
-  {
-    int neighbor = neighbors[p];
-    for (int n = 0; n < matched_nodes[p]->size; ++n)
-    {
-      int node = matched_nodes[p]->data[n];
-      int owner = (neighbor < rank) ? neighbor : rank;
-      int* owner_p = int_int_unordered_map_get(node_owners, node);
-      if (owner_p == NULL)
-        int_int_unordered_map_insert(node_owners, node, owner);
-      else
-      {
-        if (owner < *owner_p)
-          int_int_unordered_map_insert(node_owners, node, owner);
-      }
-    }
-  }
-
-  // Construct an owner array for each of the nodes.
-  int_array_t* matched_node_owners[num_neighbors];
-  for (int p = 0; p < num_neighbors; ++p)
-  {
-    matched_node_owners[p] = int_array_new();
-    for (int n = 0; n < matched_nodes[p]->size; ++n)
-    {
-      int node = matched_nodes[p]->data[n];
-      int owner = *int_int_unordered_map_get(node_owners, node);
-      int_array_append(matched_node_owners[p], owner);
-    }
-  }
-
-  // More cleanup.
-  int_int_unordered_map_free(node_owners);
-
-  // Exchange and compare the node owners array to make sure everyone gets 
-  // the actual owners.
-  int* remote_node_owners[num_neighbors];
-  for (int p = 0; p < num_neighbors; ++p)
-  {
-    int num_nodes = matched_node_owners[p]->size;
-    remote_node_owners[p] = polymec_malloc(sizeof(int) * num_nodes);
-    MPI_Irecv(remote_node_owners[p], num_nodes, MPI_INT, proc, 0, 
-              mesh->comm, &requests[p]);
-    MPI_Isend(matched_node_owners[p]->data, num_nodes, MPI_INT, proc, 0, 
-              mesh->comm, &requests[p + num_neighbors]);
-  }
-  MPI_Waitall(2 * num_neighbors, requests, statuses);
-
-  for (int p = 0; p < num_neighbors; ++p)
-  {
-    int num_nodes = matched_node_owners[p]->size;
-    for (int n = 0; n < num_nodes; ++n)
-    {
-      matched_node_owners[p]->data[n] = MIN(matched_node_owners[p]->data[n],
-                                            remote_node_owners[p][n]); 
-    }
-    polymec_free(remote_node_owners[p]);
-  }
-
-  //------------------------------------------------------------------------
-  // Now matched_nodes[p] has indices of nodes corresponding to those on 
-  // neighbor p, and matched_node_owners[p] has arrays containing the actual 
-  // owning process for each node in matched_nodes[p]. Next, we make sure 
-  // that the owners are sent node requests, and that the exchangers are 
-  // constructed accordingly.
-  //------------------------------------------------------------------------
-
-  // Gather all the neighbors of our neighbors.
-  int_array_t* all_neighbors_of_neighbors = int_array_new();
-  {
+    // Get the number of neighbors for our pth neighbor.
     int num_neighbors_of_neighbors[num_neighbors];
     for (int p = 0; p < num_neighbors; ++p)
     {
@@ -1121,6 +942,7 @@ exchanger_t* mesh_nv_node_exchanger_new(mesh_t* mesh, int* node_offsets)
     }
     MPI_Waitall(2 * num_neighbors, requests, statuses);
 
+    // Get the ranks of the neighbors for our pth neighbor.
     int* neighbors_of_neighbors[num_neighbors];
     for (int p = 0; p < num_neighbors; ++p)
     {
@@ -1133,86 +955,162 @@ exchanger_t* mesh_nv_node_exchanger_new(mesh_t* mesh, int* node_offsets)
     MPI_Waitall(2 * num_neighbors, requests, statuses);
 
     // Mash them all together.
+    int_unordered_set_t* neighbor_neighbor_set = int_unordered_set_new();
     for (int p = 0; p < num_neighbors; ++p)
     {
       for (int pp = 0; pp < num_neighbors_of_neighbors[p]; ++pp)
       {
         if (neighbors_of_neighbors[p][pp] != rank)
         {
-          int_array_append(all_neighbors_of_neighbors, 
-                           neighbors_of_neighbors[p][pp]);
+          int_unordered_set_insert(neighbor_neighbor_set, 
+                                   neighbors_of_neighbors[p][pp]);
         }
       }
       polymec_free(neighbors_of_neighbors[p]);
     }
+    int npos = 0, neighbor;
+    while (int_unordered_set_next(neighbor_neighbor_set, &npos, &neighbor))
+      int_array_append(all_neighbors_of_neighbors, neighbor);
+    int_unordered_set_free(neighbor_neighbor_set);
   }
 
-  // Now we make a list of all the neighbors of neighbors from whom we 
-  // expect data and to whom we will send it.
+  // Make a list of all the nodes that can be communicated to neighboring 
+  // processes.
+  point_array_t* my_nodes = point_array_new();
   {
-    int nn_of_n = all_neighbors_of_neighbors->size;
-    MPI_Request requests[2 * nn_of_n];
-    MPI_Status statuses[2 * nn_of_n];
-    int num_nodes_to_send[nn_of_n];
-    int_array_t* requested_nodes[nn_of_n];
-    for (int p = 0; p < nn_of_n; ++p)
+    int_unordered_set_t* node_set = int_unordered_set_new();
+    int pos = 0, proc, *indices, size;
+    while (exchanger_next_send(face_ex, &pos, &proc, &indices, &size))
+    {
+      for (int f = 0; f < size; ++f)
+      {
+        int face = indices[f]/2; // see docs on face exchanger!
+        int npos = 0, node;
+        while (mesh_face_next_node(mesh, face, &npos, &node))
+          int_unordered_set_insert(node_set, node);
+      }
+    }
+    int npos = 0, node;
+    while (int_unordered_set_next(node_set, &npos, &node))
+      point_array_append(my_nodes, mesh->nodes[node]);
+    int_unordered_set_free(node_set);
+  }
+
+  // Sort our nodes so that they are in Hilbert order.
+  {
+    bbox_t bbox = {.x1 = FLT_MAX, .x2 = -FLT_MAX,
+                   .y1 = FLT_MAX, .y2 = -FLT_MAX,
+                   .z1 = FLT_MAX, .z2 = -FLT_MAX};
+    for (int i = 0; i < my_nodes->size; ++i)
+      bbox_grow(&bbox, &(my_nodes->data[i]));
+    hilbert_t* curve = hilbert_new(&bbox);
+    hilbert_sort_points(curve, my_nodes->data, my_nodes->size);
+  }
+
+  // Now send/receive the positions of all nodes that can interact with 
+  // neighbors of our neighbors. 
+  int num_neighbor_neighbors = all_neighbors_of_neighbors->size;
+  MPI_Request requests[2*num_neighbor_neighbors];
+  MPI_Status statuses[2*num_neighbor_neighbors];
+  int_ptr_unordered_map_t* neighbor_neighbor_nodes = int_ptr_unordered_map_new();
+  {
+    // How many nodes does each neighbor neighbor have?
+    int num_neighbor_neighbor_nodes[num_neighbor_neighbors];
+    for (int p = 0; p < num_neighbor_neighbors; ++p)
     {
       int proc = all_neighbors_of_neighbors->data[p];
-      MPI_Irecv(&num_nodes_to_send[p], 1, MPI_INT, proc, 0, 
+      MPI_Irecv(&num_neighbor_neighbor_nodes[p], 1, MPI_INT, proc, 0, 
                 mesh->comm, &requests[p]);
-      requested_nodes[p] = int_array_new();
-      for (int j = 0; j < matched_node_owners[p]->size; ++j)
-      {
-        if (matched_node_owners[p]->data[j] == proc)
-          int_array_append(requested_nodes[p], matched_nodes[p]->data[j]);
-      }
-      MPI_Isend(&requested_nodes[p]->size, 1, MPI_INT, proc, 0, 
-                mesh->comm, &requests[p + nn_of_n]);
     }
-    MPI_Waitall(2 * nn_of_n, requests, statuses);
-
-    int_array_t* nodes_to_send[nn_of_n];
-    for (int p = 0; p < nn_of_n; ++p)
+    for (int p = 0; p < num_neighbor_neighbors; ++p)
     {
-      nodes_to_send[p] = int_array_new();
       int proc = all_neighbors_of_neighbors->data[p];
-      int_array_resize(nodes_to_send[p], num_nodes_to_send[p]);
-      MPI_Irecv(nodes_to_send[p]->data, nodes_to_send[p]->size, MPI_INT, 
-                proc, 0, mesh->comm, &requests[p]);
-
-      MPI_Isend(requested_nodes[p]->data, requested_nodes[p]->size, 
-                MPI_INT, proc, 0, mesh->comm, &requests[p + nn_of_n]);
+      MPI_Isend(&(my_nodes->size), 1, MPI_INT, proc, 0, 
+                mesh->comm, &requests[p + num_neighbor_neighbors]);
     }
-    MPI_Waitall(2 * nn_of_n, requests, statuses);
+    MPI_Waitall(2 * num_neighbor_neighbors, requests, statuses);
 
-    // Set up the exchangers.
-    for (int p = 0; p < nn_of_n; ++p)
+    // Get 'em!
+    for (int p = 0; p < num_neighbor_neighbors; ++p)
     {
-      if (nodes_to_send[p]->size > 0)
-      {
-        exchanger_set_send(ex, all_neighbors_of_neighbors->data[p],
-                           nodes_to_send[p]->data, nodes_to_send[p]->size,
-                           true);
-      }
-      polymec_free(nodes_to_send[p]);
-      if (requested_nodes[p]->size > 0)
-      {
-        exchanger_set_receive(ex, all_neighbors_of_neighbors->data[p],
-                              requested_nodes[p]->data, requested_nodes[p]->size,
-                              true);
-      }
-      int_array_free(requested_nodes[p]);
+      int proc = all_neighbors_of_neighbors->data[p];
+      point_array_t* nn_nodes = point_array_new();
+      point_array_resize(nn_nodes, num_neighbor_neighbor_nodes[p]);
+      int_ptr_unordered_map_insert_with_v_dtor(neighbor_neighbor_nodes, proc, nn_nodes, DTOR(point_array_free));
+      MPI_Irecv(nn_nodes->data, 3*num_neighbor_neighbor_nodes[p], MPI_REAL_T, proc, 0, 
+                mesh->comm, &requests[p]);
     }
-  }
 
-  // Clean up.
-  int_array_free(all_neighbors_of_neighbors);
-  for (int p = 0; p < num_neighbors; ++p)
-  {
-    int_array_free(matched_node_owners[p]);
-    int_array_free(matched_nodes[p]);
+    // Send 'em!
+    for (int p = 0; p < num_neighbor_neighbors; ++p)
+    {
+      int proc = all_neighbors_of_neighbors->data[p];
+      MPI_Isend(my_nodes->data, 3*my_nodes->size, MPI_REAL_T, proc, 0, 
+                mesh->comm, &requests[p + num_neighbor_neighbors]);
+    }
+    MPI_Waitall(2 * num_neighbor_neighbors, requests, statuses);
   }
-  exchanger_free(face_ex);
+  int_array_free(all_neighbors_of_neighbors);
+
+  // At this point, neighbor_neighbor_nodes maps the ranks of all processes
+  // we can possibly interact with to the positions of the nodes on those 
+  // processes. 
+
+  // Now we cut out the nodes that don't match up.
+  {
+    // Post the receives for the numbers of culled nodes.
+    int num_culled_nodes[num_neighbor_neighbors];
+    for (int p = 0; p < num_neighbor_neighbors; ++p)
+    {
+      int proc = all_neighbors_of_neighbors->data[p];
+      MPI_Irecv(&num_culled_nodes[p], 1, MPI_INT, proc, 0, 
+                mesh->comm, &requests[p]);
+    }
+
+    // Figure out which nodes we will cull and send the number.
+    int_array_t* culled_nodes[num_neighbor_neighbors];
+    real_t tolerance = 1e-8; // FIXME: This is bad.
+    int pos = 0, proc, p = 0;
+    point_array_t* nn_nodes = NULL;
+    while (int_ptr_unordered_map_next(neighbor_neighbor_nodes, &pos, &proc, (void**)nn_nodes))
+    {
+      culled_nodes[p] = int_array_new();
+      for (int i = 0; i < my_nodes->size; ++i)
+      {
+        point_t* xi = &my_nodes->data[i];
+        for (int j = 0; j < nn_nodes->size; ++j)
+        {
+          point_t* xj = &nn_nodes->data[j];
+          if (point_distance(xi, xj) > tolerance)
+            int_array_append(culled_nodes[p], j);
+        }
+      }
+      MPI_Isend(&culled_nodes[p]->size, 1, MPI_INT, proc, 0, 
+                mesh->comm, &requests[p + num_neighbor_neighbors]);
+      ++p;
+    }
+    MPI_Waitall(2 * num_neighbor_neighbors, requests, statuses);
+
+    // Now receive/send the culled nodes.
+    int_array_t* my_culled_nodes[num_neighbor_neighbors];
+    for (int p = 0; p < num_neighbor_neighbors; ++p)
+    {
+      my_culled_nodes[p] = int_array_new();
+      int_array_resize(culled_nodes[p], num_culled_nodes[p]);
+      int proc = all_neighbors_of_neighbors->data[p];
+      MPI_Irecv(my_culled_nodes[p], num_culled_nodes[p], MPI_INT, proc, 0, 
+                mesh->comm, &requests[p]);
+    }
+    for (int p = 0; p < num_neighbor_neighbors; ++p)
+    {
+      MPI_Isend(culled_nodes[p]->data, culled_nodes[p]->size, MPI_INT, proc, 0, 
+                mesh->comm, &requests[p + num_neighbor_neighbors]);
+      ++p;
+    }
+    MPI_Waitall(2 * num_neighbor_neighbors, requests, statuses);
+
+
+  }
 #endif
   return ex;
 }
