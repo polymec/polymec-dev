@@ -132,3 +132,31 @@ void hilbert_create_point(hilbert_t* curve, index_t index, point_t* x)
   x->z = curve->bbox.z1 + X[2] * curve->dz;
 }
 
+typedef struct
+{
+  hilbert_t* curve;
+  point_t x;
+
+} hilbert_sort_t;
+
+static int hilbert_comp(const void* left, const void* right)
+{
+  hilbert_sort_t* l = (hilbert_sort_t*)left;
+  hilbert_sort_t* r = (hilbert_sort_t*)right;
+  index_t i1 = hilbert_index(l->curve, &(l->x));
+  index_t i2 = hilbert_index(r->curve, &(r->x));
+  return (i1 < i2) ? -1 : (i1 > i2) ? 1 : 0;
+}
+
+void hilbert_sort_points(hilbert_t* curve, point_t* points, int num_points)
+{
+  hilbert_sort_t elems[num_points];
+  for (int i = 0; i < num_points; ++i)
+  {
+    elems[i].curve = curve;
+    elems[i].x = points[i];
+  }
+  qsort(elems, (size_t)num_points, sizeof(hilbert_sort_t), hilbert_comp);
+  for (int i = 0; i < num_points; ++i)
+    points[i] = elems[i].x;
+}
