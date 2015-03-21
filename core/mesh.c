@@ -915,8 +915,17 @@ exchanger_t* mesh_nv_node_exchanger_new(mesh_t* mesh, int* node_offsets)
   // Create a 2-valued face exchanger.
   exchanger_t* face_ex = mesh_2v_face_exchanger_new(mesh);
 
+  int nprocs;
+  MPI_Comm_size(mesh->comm, &nprocs);
+  if (nprocs == 1)
+    return ex;
+
   int rank;
   MPI_Comm_rank(mesh->comm, &rank);
+
+  // Initialize the node offsets array for 1 value per node.
+  for (int n = 0; n < mesh->num_nodes+1; ++n)
+    node_offsets[n] = 1;
 
   // Generate a list of all the neighbors of our set of neighbors.
   int_array_t* all_neighbors_of_neighbors = int_array_new();
@@ -1128,7 +1137,8 @@ exchanger_t* mesh_nv_node_exchanger_new(mesh_t* mesh, int* node_offsets)
       int_array_free(culled_nodes[p]);
     }
 
-    // Set up the exchanger send/receive maps.
+    // Set up the exchanger send/receive maps and count up the number of 
+    // values per node.
     int_ptr_unordered_map_t* send_map = int_ptr_unordered_map_new();
     int_ptr_unordered_map_t* receive_map = int_ptr_unordered_map_new();
     for (int p = 0; p < num_neighbor_neighbors; ++p)
@@ -1152,6 +1162,7 @@ exchanger_t* mesh_nv_node_exchanger_new(mesh_t* mesh, int* node_offsets)
             }
           }
           int_array_append(send_nodes, node);
+          ++node_offsets[node+1];
         }
       }
       int_unordered_set_free(my_culled_node_sets[p]);
@@ -1188,7 +1199,14 @@ exchanger_t* mesh_nv_node_exchanger_new(mesh_t* mesh, int* node_offsets)
     int_ptr_unordered_map_free(send_map);
     int_ptr_unordered_map_free(receive_map);
   }
+
+  // Clean up.
   int_array_free(all_neighbors_of_neighbors);
+
+  // Finalize the node offsets array.
+  for (int n = 0; n < mesh->num_nodes; ++n)
+    node_offsets[n+1] += node_offsets[n];
+
 #endif
   return ex;
 }

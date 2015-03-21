@@ -36,9 +36,9 @@ index_t hilbert_index(hilbert_t* curve, point_t* x)
 
   // Create integer coordinates corresponding to x.
   uint16_t X[3];
-  X[0] = (uint16_t)((x->x - curve->bbox.x1)/curve->dx);
-  X[1] = (uint16_t)((x->y - curve->bbox.y1)/curve->dy);
-  X[2] = (uint16_t)((x->z - curve->bbox.z1)/curve->dz);
+  X[0] = (curve->dx != 0.0) ? (uint16_t)((x->x - curve->bbox.x1)/curve->dx) : 0;
+  X[1] = (curve->dy != 0.0) ? (uint16_t)((x->y - curve->bbox.y1)/curve->dy) : 0;
+  X[2] = (curve->dz != 0.0) ? (uint16_t)((x->z - curve->bbox.z1)/curve->dz) : 0;
   
   // Compute the Hilbert "transpose" (X[0], X[1], X[2]) corresponding to these 
   // discrete coordinates.
