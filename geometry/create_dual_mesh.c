@@ -722,7 +722,7 @@ mesh_t* create_dual_mesh(MPI_Comm comm,
   ASSERT(num_model_vertex_tags > 0);
 
   // Currently, we only support duals of tet meshes.
-  ASSERT(mesh_has_feature(original_mesh, TETRAHEDRAL));
+  ASSERT(mesh_has_feature(original_mesh, MESH_IS_TETRAHEDRAL));
   return create_dual_mesh_from_tet_mesh(comm, original_mesh, 
                                         external_model_face_tags, num_external_model_face_tags,
                                         internal_model_face_tags, num_internal_model_face_tags,

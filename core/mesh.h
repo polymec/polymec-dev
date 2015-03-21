@@ -24,8 +24,8 @@ typedef enum
   MESH_CELL
 } mesh_centering_t;
 
-// This mesh feature indicates that a mesh is tetrahedral.
-const char* TETRAHEDRAL;
+// Mesh features.
+const char* MESH_IS_TETRAHEDRAL; // indicates that a mesh is tetrahedral.
 
 typedef struct mesh_storage_t mesh_storage_t;
 

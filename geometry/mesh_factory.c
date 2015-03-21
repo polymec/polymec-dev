@@ -191,7 +191,7 @@ int mesh_factory_dual(lua_State* lua)
   }
 
   // For now, we only support duals of tet meshes.
-  if (!mesh_has_feature(orig_mesh, TETRAHEDRAL))
+  if (!mesh_has_feature(orig_mesh, MESH_IS_TETRAHEDRAL))
     return luaL_error(lua, "mesh_factory.dual: A dual mesh can only be created from a tetrahedral mesh.");
 
   mesh_t* mesh = create_dual_mesh(MPI_COMM_WORLD, orig_mesh, 

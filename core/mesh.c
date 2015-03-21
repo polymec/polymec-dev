@@ -11,7 +11,7 @@
 #include "core/hilbert.h"
 
 // Mesh features.
-const char* TETRAHEDRAL = "tetrahedral";
+const char* MESH_IS_TETRAHEDRAL = "mesh_is_tetrahedral";
 
 // This function rounds the given number up to the nearest power of 2.
 static int round_to_pow2(int x)
@@ -1109,7 +1109,19 @@ exchanger_t* mesh_nv_node_exchanger_new(mesh_t* mesh, int* node_offsets)
     }
     MPI_Waitall(2 * num_neighbor_neighbors, requests, statuses);
 
-
+    // Organized the culled nodes into sets for querying.
+    int_unordered_set_t* my_culled_node_sets[num_neighbor_neighbors];
+    int_unordered_set_t* their_culled_node_sets[num_neighbor_neighbors];
+    for (int p = 0; p < num_neighbor_neighbors; ++p)
+    {
+      my_culled_node_sets[p] = int_unordered_set_new();
+      for (int i = 0; i < my_culled_nodes[p]->size; ++i)
+        int_unordered_set_insert(my_culled_node_sets[p], my_culled_nodes[p]->data[i]);
+      int_array_free(my_culled_nodes[p]);
+      their_culled_node_sets[p] = int_unordered_set_new();
+      for (int i = 0; i < culled_nodes[p]->size; ++i)
+        int_unordered_set_insert(their_culled_node_sets[p], culled_nodes[p]->data[i]);
+    }
   }
 #endif
   return ex;
