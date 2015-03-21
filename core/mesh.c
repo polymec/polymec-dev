@@ -976,6 +976,7 @@ exchanger_t* mesh_nv_node_exchanger_new(mesh_t* mesh, int* node_offsets)
 
   // Make a list of all the nodes that can be communicated to neighboring 
   // processes.
+  int_array_t* my_node_indices = int_array_new();
   point_array_t* my_nodes = point_array_new();
   {
     int_unordered_set_t* node_set = int_unordered_set_new();
@@ -992,7 +993,10 @@ exchanger_t* mesh_nv_node_exchanger_new(mesh_t* mesh, int* node_offsets)
     }
     int npos = 0, node;
     while (int_unordered_set_next(node_set, &npos, &node))
+    {
+      int_array_append(my_node_indices, node);
       point_array_append(my_nodes, mesh->nodes[node]);
+    }
     int_unordered_set_free(node_set);
   }
 
@@ -1004,7 +1008,8 @@ exchanger_t* mesh_nv_node_exchanger_new(mesh_t* mesh, int* node_offsets)
     for (int i = 0; i < my_nodes->size; ++i)
       bbox_grow(&bbox, &(my_nodes->data[i]));
     hilbert_t* curve = hilbert_new(&bbox);
-    hilbert_sort_points(curve, my_nodes->data, my_nodes->size);
+    hilbert_sort_points(curve, my_nodes->data, my_node_indices->data, 
+                        my_nodes->size);
   }
 
   // Now send/receive the positions of all nodes that can interact with 
@@ -1050,7 +1055,6 @@ exchanger_t* mesh_nv_node_exchanger_new(mesh_t* mesh, int* node_offsets)
     }
     MPI_Waitall(2 * num_neighbor_neighbors, requests, statuses);
   }
-  int_array_free(all_neighbors_of_neighbors);
 
   // At this point, neighbor_neighbor_nodes maps the ranks of all processes
   // we can possibly interact with to the positions of the nodes on those 
@@ -1121,8 +1125,70 @@ exchanger_t* mesh_nv_node_exchanger_new(mesh_t* mesh, int* node_offsets)
       their_culled_node_sets[p] = int_unordered_set_new();
       for (int i = 0; i < culled_nodes[p]->size; ++i)
         int_unordered_set_insert(their_culled_node_sets[p], culled_nodes[p]->data[i]);
+      int_array_free(culled_nodes[p]);
     }
+
+    // Set up the exchanger send/receive maps.
+    int_ptr_unordered_map_t* send_map = int_ptr_unordered_map_new();
+    int_ptr_unordered_map_t* receive_map = int_ptr_unordered_map_new();
+    for (int p = 0; p < num_neighbor_neighbors; ++p)
+    {
+      int proc = all_neighbors_of_neighbors->data[p];
+      for (int i = 0; i < my_nodes->size; ++i)
+      {
+        int_array_t* send_nodes = NULL;
+        int node = my_node_indices->data[i];
+        if (!int_unordered_set_contains(my_culled_node_sets[p], node))
+        {
+          if (send_nodes == NULL)
+          {
+            int_array_t** send_nodes_p = (int_array_t**)int_ptr_unordered_map_get(send_map, proc);
+            if (send_nodes_p != NULL)
+              send_nodes = *send_nodes_p;
+            else
+            {
+              send_nodes = int_array_new();
+              int_ptr_unordered_map_insert_with_v_dtor(send_map, proc, send_nodes, DTOR(int_array_free));
+            }
+          }
+          int_array_append(send_nodes, node);
+        }
+      }
+      int_unordered_set_free(my_culled_node_sets[p]);
+
+      int_array_t* their_nodes = *int_ptr_unordered_map_get(neighbor_neighbor_nodes, proc);
+      for (int i = 0; i < their_nodes->size; ++i)
+      {
+        int_array_t* receive_nodes = NULL;
+        int node = their_nodes->data[i];
+        if (!int_unordered_set_contains(their_culled_node_sets[p], node))
+        {
+          if (receive_nodes == NULL)
+          {
+            int_array_t** receive_nodes_p = (int_array_t**)int_ptr_unordered_map_get(receive_map, proc);
+            if (receive_nodes_p != NULL)
+              receive_nodes = *receive_nodes_p;
+            else
+            {
+              receive_nodes = int_array_new();
+              int_ptr_unordered_map_insert_with_v_dtor(receive_map, proc, receive_nodes, DTOR(int_array_free));
+            }
+          }
+          int_array_append(receive_nodes, node);
+        }
+      }
+      int_unordered_set_free(their_culled_node_sets[p]);
+    }
+    int_array_free(my_node_indices);
+    point_array_free(my_nodes);
+
+    // Add the maps to the exchanger.
+    exchanger_set_sends(ex, send_map);
+    exchanger_set_receives(ex, receive_map);
+    int_ptr_unordered_map_free(send_map);
+    int_ptr_unordered_map_free(receive_map);
   }
+  int_array_free(all_neighbors_of_neighbors);
 #endif
   return ex;
 }
