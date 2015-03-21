@@ -1227,6 +1227,7 @@ int model_main(const char* model_name, model_ctor constructor, int argc, char* a
     if (valid_commands[c] == NULL)
     {
       print_to_rank0("%s: invalid command: '%s'\n", exe_name, command);
+      print_to_rank0("%s: valid commands are: run, benchmark, help'\n", exe_name);
       exit(0);
     }
   }
@@ -1447,6 +1448,7 @@ int multi_model_main(model_dispatch_t model_table[],
     if (valid_commands[c] == NULL)
     {
       print_to_rank0("%s: invalid command: '%s'\n", exe_name, command);
+      print_to_rank0("%s: valid commands are: run, benchmark, help'\n", exe_name);
       exit(0);
     }
 
