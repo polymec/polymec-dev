@@ -851,6 +851,14 @@ exchanger_t* mesh_2v_face_exchanger_new(mesh_t* mesh)
 
 exchanger_t* mesh_1v_node_exchanger_new(mesh_t* mesh)
 {
+  exchanger_t* ex = exchanger_new(mesh->comm);
+#if POLYMEC_HAVE_MPI
+
+  int nprocs;
+  MPI_Comm_size(mesh->comm, &nprocs);
+  if (nprocs == 1)
+    return ex;
+
   // First construct the n-valued face exchanger and the associated offsets.
   int offsets[mesh->num_nodes+1];
   exchanger_t* noden_ex = mesh_nv_node_exchanger_new(mesh, offsets);
@@ -865,7 +873,6 @@ exchanger_t* mesh_1v_node_exchanger_new(mesh_t* mesh)
   exchanger_exchange(noden_ex, node_procs, 1, 0, MPI_INT);
 
   // Now set up our single-valued exchanger.
-  exchanger_t* ex = exchanger_new(mesh->comm);
   int_ptr_unordered_map_t* send_map = int_ptr_unordered_map_new();
   int_ptr_unordered_map_t* receive_map = int_ptr_unordered_map_new();
   for (int n = 0; n < mesh->num_nodes; ++n)
@@ -905,6 +912,7 @@ exchanger_t* mesh_1v_node_exchanger_new(mesh_t* mesh)
   int_ptr_unordered_map_free(send_map);
   int_ptr_unordered_map_free(receive_map);
   exchanger_free(noden_ex);
+#endif
   return ex;
 }
 
@@ -912,8 +920,6 @@ exchanger_t* mesh_nv_node_exchanger_new(mesh_t* mesh, int* node_offsets)
 {
   exchanger_t* ex = exchanger_new(mesh->comm);
 #if POLYMEC_HAVE_MPI
-  // Create a 2-valued face exchanger.
-  exchanger_t* face_ex = mesh_2v_face_exchanger_new(mesh);
 
   int nprocs;
   MPI_Comm_size(mesh->comm, &nprocs);
@@ -922,6 +928,9 @@ exchanger_t* mesh_nv_node_exchanger_new(mesh_t* mesh, int* node_offsets)
 
   int rank;
   MPI_Comm_rank(mesh->comm, &rank);
+
+  // Create a 2-valued face exchanger.
+  exchanger_t* face_ex = mesh_2v_face_exchanger_new(mesh);
 
   // Initialize the node offsets array for 1 value per node.
   for (int n = 0; n < mesh->num_nodes+1; ++n)
