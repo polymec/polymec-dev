@@ -11,20 +11,37 @@
 #include <string.h>
 #include "cmockery.h"
 #include "core/mesh.h"
+#include "core/partition_mesh.h"
 #include "geometry/create_uniform_mesh.h"
 
 void test_1v_node_exchanger_on_line(void** state)
 {
   bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
-  mesh_t* mesh = create_uniform_mesh(MPI_COMM_SELF, 8, 1, 1, &bbox);
+  int nx = 8;
+  mesh_t* mesh = create_uniform_mesh(MPI_COMM_SELF, nx, 1, 1, &bbox);
+  partition_mesh(&mesh, MPI_COMM_WORLD, NULL, 0.0);
   exchanger_t* ex = mesh_1v_node_exchanger_new(mesh);
 
   int nprocs, rank;
   MPI_Comm_size(mesh->comm, &nprocs);
   MPI_Comm_rank(mesh->comm, &rank);
 
-  if (nprocs > 1)
+  if (nprocs == 2)
   {
+    if (rank == 0)
+    {
+      assert_int_equal(1, exchanger_num_sends(ex));
+      int* nodes, num_nodes;
+      exchanger_get_send(ex, 1, &nodes, &num_nodes);
+      assert_int_equal(4, num_nodes);
+    }
+    else
+    {
+      assert_int_equal(1, exchanger_num_receives(ex));
+      int* nodes, num_nodes;
+      exchanger_get_receive(ex, 0, &nodes, &num_nodes);
+      assert_int_equal(4, num_nodes);
+    }
   }
 
   exchanger_free(ex);
