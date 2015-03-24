@@ -15,7 +15,7 @@
 void test_int_array2(void** state) 
 { 
   void* storage = polymec_malloc(sizeof(int)*10*10);
-  DECLARE_2D_ARRAY(int, a, (void*)storage, 10, 10);
+  DECLARE_2D_ARRAY(int, a, storage, 10, 10);
   for (int i = 0; i < 10; ++i)
     for (int j = 0; j < 10; ++j)
       a[i][j] = 10*i + j;
@@ -32,7 +32,7 @@ void test_int_array2(void** state)
 void test_int_array3(void** state) 
 { 
   void* storage = polymec_malloc(sizeof(int)*10*10*10);
-  DECLARE_3D_ARRAY(int, a, (void*)storage, 10, 10, 10);
+  DECLARE_3D_ARRAY(int, a, storage, 10, 10, 10);
   for (int i = 0; i < 10; ++i)
     for (int j = 0; j < 10; ++j)
       for (int k = 0; k < 10; ++k)
@@ -53,7 +53,7 @@ void test_int_array3(void** state)
 void test_int_array4(void** state) 
 { 
   void* storage = polymec_malloc(sizeof(int)*10*10*10*10);
-  DECLARE_4D_ARRAY(int, a, (void*)storage, 10, 10, 10, 10);
+  DECLARE_4D_ARRAY(int, a, storage, 10, 10, 10, 10);
   for (int i = 0; i < 10; ++i)
     for (int j = 0; j < 10; ++j)
       for (int k = 0; k < 10; ++k)
@@ -78,7 +78,7 @@ void test_int_array4(void** state)
 void test_int_array5(void** state) 
 { 
   void* storage = polymec_malloc(sizeof(int)*2*2*2*2*2);
-  DECLARE_5D_ARRAY(int, a, (void*)storage, 2, 2, 2, 2, 2);
+  DECLARE_5D_ARRAY(int, a, storage, 2, 2, 2, 2, 2);
   for (int i = 0; i < 2; ++i)
     for (int j = 0; j < 2; ++j)
       for (int k = 0; k < 2; ++k)
@@ -107,7 +107,7 @@ void test_int_array5(void** state)
 void test_int_array6(void** state) 
 { 
   void* storage = polymec_malloc(sizeof(int)*2*2*2*2*2*2);
-  DECLARE_6D_ARRAY(int, a, (void*)storage, 2, 2, 2, 2, 2, 2);
+  DECLARE_6D_ARRAY(int, a, storage, 2, 2, 2, 2, 2, 2);
   for (int i = 0; i < 2; ++i)
     for (int j = 0; j < 2; ++j)
       for (int k = 0; k < 2; ++k)
@@ -143,7 +143,7 @@ void test_int_array6(void** state)
 void test_int_array7(void** state) 
 { 
   void* storage = polymec_malloc(sizeof(int)*2*2*2*2*2*2*2);
-  DECLARE_7D_ARRAY(int, a, (void*)storage, 2, 2, 2, 2, 2, 2, 2);
+  DECLARE_7D_ARRAY(int, a, storage, 2, 2, 2, 2, 2, 2, 2);
   for (int i = 0; i < 2; ++i)
     for (int j = 0; j < 2; ++j)
       for (int k = 0; k < 2; ++k)
@@ -180,7 +180,7 @@ void test_int_array7(void** state)
 void test_real_array2(void** state) 
 { 
   void* storage = polymec_malloc(sizeof(real_t)*10*10);
-  DECLARE_2D_ARRAY(real_t, a, (void*)storage, 10, 10);
+  DECLARE_2D_ARRAY(real_t, a, storage, 10, 10);
   for (int i = 0; i < 10; ++i)
     for (int j = 0; j < 10; ++j)
       a[i][j] = 10*i + j;
@@ -197,7 +197,7 @@ void test_real_array2(void** state)
 void test_real_array3(void** state) 
 { 
   void* storage = polymec_malloc(sizeof(real_t)*10*10*10);
-  DECLARE_3D_ARRAY(real_t, a, (void*)storage, 10, 10, 10);
+  DECLARE_3D_ARRAY(real_t, a, storage, 10, 10, 10);
   for (int i = 0; i < 10; ++i)
     for (int j = 0; j < 10; ++j)
       for (int k = 0; k < 10; ++k)
@@ -218,7 +218,7 @@ void test_real_array3(void** state)
 void test_real_array4(void** state) 
 { 
   void* storage = polymec_malloc(sizeof(real_t)*10*10*10*10);
-  DECLARE_4D_ARRAY(real_t, a, (void*)storage, 10, 10, 10, 10);
+  DECLARE_4D_ARRAY(real_t, a, storage, 10, 10, 10, 10);
   for (int i = 0; i < 10; ++i)
     for (int j = 0; j < 10; ++j)
       for (int k = 0; k < 10; ++k)
@@ -243,7 +243,7 @@ void test_real_array4(void** state)
 void test_real_array5(void** state) 
 { 
   void* storage = polymec_malloc(sizeof(real_t)*2*2*2*2*2);
-  DECLARE_5D_ARRAY(real_t, a, (void*)storage, 2, 2, 2, 2, 2);
+  DECLARE_5D_ARRAY(real_t, a, storage, 2, 2, 2, 2, 2);
   for (int i = 0; i < 2; ++i)
     for (int j = 0; j < 2; ++j)
       for (int k = 0; k < 2; ++k)
@@ -272,7 +272,7 @@ void test_real_array5(void** state)
 void test_real_array6(void** state) 
 { 
   void* storage = polymec_malloc(sizeof(real_t)*2*2*2*2*2*2);
-  DECLARE_6D_ARRAY(real_t, a, (void*)storage, 2, 2, 2, 2, 2, 2);
+  DECLARE_6D_ARRAY(real_t, a, storage, 2, 2, 2, 2, 2, 2);
   for (int i = 0; i < 2; ++i)
     for (int j = 0; j < 2; ++j)
       for (int k = 0; k < 2; ++k)
@@ -305,7 +305,7 @@ void test_real_array6(void** state)
 void test_real_array7(void** state) 
 { 
   void* storage = polymec_malloc(sizeof(real_t)*2*2*2*2*2*2*2);
-  DECLARE_7D_ARRAY(real_t, a, (void*)storage, 2, 2, 2, 2, 2, 2, 2);
+  DECLARE_7D_ARRAY(real_t, a, storage, 2, 2, 2, 2, 2, 2, 2);
   for (int i = 0; i < 2; ++i)
     for (int j = 0; j < 2; ++j)
       for (int k = 0; k < 2; ++k)
