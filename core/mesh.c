@@ -976,6 +976,7 @@ exchanger_t* mesh_nv_node_exchanger_new(mesh_t* mesh, int* node_offsets)
     int_unordered_set_t* neighbor_neighbor_set = int_unordered_set_new();
     for (int p = 0; p < num_neighbors; ++p)
     {
+      int_unordered_set_insert(neighbor_neighbor_set, neighbors[p]);
       for (int pp = 0; pp < num_neighbors_of_neighbors[p]; ++pp)
       {
         if (neighbors_of_neighbors[p][pp] != rank)
@@ -1094,7 +1095,7 @@ exchanger_t* mesh_nv_node_exchanger_new(mesh_t* mesh, int* node_offsets)
     real_t tolerance = 1e-8; // FIXME: This is bad.
     int pos = 0, proc, p = 0;
     point_array_t* nn_nodes = NULL;
-    while (int_ptr_unordered_map_next(neighbor_neighbor_nodes, &pos, &proc, (void**)nn_nodes))
+    while (int_ptr_unordered_map_next(neighbor_neighbor_nodes, &pos, &proc, (void**)&nn_nodes))
     {
       culled_nodes[p] = int_array_new();
       for (int i = 0; i < my_nodes->size; ++i)
@@ -1118,9 +1119,9 @@ exchanger_t* mesh_nv_node_exchanger_new(mesh_t* mesh, int* node_offsets)
     for (int p = 0; p < num_neighbor_neighbors; ++p)
     {
       my_culled_nodes[p] = int_array_new();
-      int_array_resize(culled_nodes[p], num_culled_nodes[p]);
+      int_array_resize(my_culled_nodes[p], num_culled_nodes[p]);
       int proc = all_neighbors_of_neighbors->data[p];
-      MPI_Irecv(my_culled_nodes[p], num_culled_nodes[p], MPI_INT, proc, 0, 
+      MPI_Irecv(my_culled_nodes[p]->data, num_culled_nodes[p], MPI_INT, proc, 0, 
                 mesh->comm, &requests[p]);
     }
     for (int p = 0; p < num_neighbor_neighbors; ++p)
