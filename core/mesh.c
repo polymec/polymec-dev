@@ -871,6 +871,12 @@ exchanger_t* mesh_1v_node_exchanger_new(mesh_t* mesh)
   for (int n = 0; n < mesh->num_nodes; ++n)
     node_procs[offsets[n]] = rank;
   exchanger_exchange(noden_ex, node_procs, 1, 0, MPI_INT);
+#ifndef NDEBUG
+  for (int n = 0; n < offsets[mesh->num_nodes]; ++n)
+  {
+    ASSERT(node_procs[n] < nprocs);
+  }
+#endif
 
   // Now set up our single-valued exchanger.
   int_ptr_unordered_map_t* send_map = int_ptr_unordered_map_new();
@@ -1098,16 +1104,23 @@ exchanger_t* mesh_nv_node_exchanger_new(mesh_t* mesh, int* node_offsets)
     while (int_ptr_unordered_map_next(neighbor_neighbor_nodes, &pos, &proc, (void**)&nn_nodes))
     {
       culled_nodes[p] = int_array_new();
+      int_unordered_set_t* kept_nodes = int_unordered_set_new();
       for (int i = 0; i < my_nodes->size; ++i)
       {
         point_t* xi = &my_nodes->data[i];
         for (int j = 0; j < nn_nodes->size; ++j)
         {
           point_t* xj = &nn_nodes->data[j];
-          if (point_distance(xi, xj) > tolerance)
-            int_array_append(culled_nodes[p], j);
+          if (point_distance(xi, xj) <= tolerance)
+            int_unordered_set_insert(kept_nodes, j);
         }
       }
+      for (int i = 0; i < my_nodes->size; ++i)
+      {
+        if (!int_unordered_set_contains(kept_nodes, i))
+          int_array_append(culled_nodes[p], i);
+      }
+      int_unordered_set_free(kept_nodes);
       MPI_Isend(&culled_nodes[p]->size, 1, MPI_INT, proc, 0, 
                 mesh->comm, &requests[p + num_neighbor_neighbors]);
       ++p;
@@ -1151,6 +1164,7 @@ exchanger_t* mesh_nv_node_exchanger_new(mesh_t* mesh, int* node_offsets)
     // values per node.
     int_ptr_unordered_map_t* send_map = int_ptr_unordered_map_new();
     int_ptr_unordered_map_t* receive_map = int_ptr_unordered_map_new();
+    int next_receive_node = mesh->num_nodes;
     for (int p = 0; p < num_neighbor_neighbors; ++p)
     {
       int proc = all_neighbors_of_neighbors->data[p];
@@ -1177,12 +1191,11 @@ exchanger_t* mesh_nv_node_exchanger_new(mesh_t* mesh, int* node_offsets)
       }
       int_unordered_set_free(my_culled_node_sets[p]);
 
-      int_array_t* their_nodes = *int_ptr_unordered_map_get(neighbor_neighbor_nodes, proc);
+      point_array_t* their_nodes = *int_ptr_unordered_map_get(neighbor_neighbor_nodes, proc);
       for (int i = 0; i < their_nodes->size; ++i)
       {
         int_array_t* receive_nodes = NULL;
-        int node = their_nodes->data[i];
-        if (!int_unordered_set_contains(their_culled_node_sets[p], node))
+        if (!int_unordered_set_contains(their_culled_node_sets[p], i))
         {
           if (receive_nodes == NULL)
           {
@@ -1195,7 +1208,8 @@ exchanger_t* mesh_nv_node_exchanger_new(mesh_t* mesh, int* node_offsets)
               int_ptr_unordered_map_insert_with_v_dtor(receive_map, proc, receive_nodes, DTOR(int_array_free));
             }
           }
-          int_array_append(receive_nodes, node);
+          int_array_append(receive_nodes, next_receive_node);
+          ++next_receive_node;
         }
       }
       int_unordered_set_free(their_culled_node_sets[p]);
@@ -1211,6 +1225,7 @@ exchanger_t* mesh_nv_node_exchanger_new(mesh_t* mesh, int* node_offsets)
   }
 
   // Clean up.
+  int_ptr_unordered_map_free(neighbor_neighbor_nodes);
   int_array_free(all_neighbors_of_neighbors);
 
   // Finalize the node offsets array.

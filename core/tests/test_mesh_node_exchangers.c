@@ -23,6 +23,7 @@ void test_nv_node_exchanger_on_line(void** state)
   int node_offsets[mesh->num_nodes+1];
   exchanger_t* ex = mesh_nv_node_exchanger_new(mesh, node_offsets);
 exchanger_fprintf(ex, stdout);
+  exchanger_verify(ex, polymec_error);
 
   int nprocs, rank;
   MPI_Comm_size(mesh->comm, &nprocs);
@@ -47,6 +48,7 @@ exchanger_fprintf(ex, stdout);
   }
 
   exchanger_free(ex);
+  mesh_free(mesh);
 }
 
 void test_1v_node_exchanger_on_line(void** state)
@@ -80,6 +82,7 @@ void test_1v_node_exchanger_on_line(void** state)
   }
 
   exchanger_free(ex);
+  mesh_free(mesh);
 }
 
 int main(int argc, char* argv[]) 
