@@ -22,7 +22,7 @@ void test_nv_node_exchanger_on_line(void** state)
   partition_mesh(&mesh, MPI_COMM_WORLD, NULL, 0.0);
   int node_offsets[mesh->num_nodes+1];
   exchanger_t* ex = mesh_nv_node_exchanger_new(mesh, node_offsets);
-exchanger_fprintf(ex, stdout);
+  exchanger_fprintf(ex, stdout);
   exchanger_verify(ex, polymec_error);
 
   int nprocs, rank;
@@ -58,6 +58,8 @@ void test_1v_node_exchanger_on_line(void** state)
   mesh_t* mesh = create_uniform_mesh(MPI_COMM_SELF, nx, 1, 1, &bbox);
   partition_mesh(&mesh, MPI_COMM_WORLD, NULL, 0.0);
   exchanger_t* ex = mesh_1v_node_exchanger_new(mesh);
+  exchanger_fprintf(ex, stdout);
+  exchanger_verify(ex, polymec_error);
 
   int nprocs, rank;
   MPI_Comm_size(mesh->comm, &nprocs);
