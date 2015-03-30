@@ -87,13 +87,71 @@ void test_1v_node_exchanger_on_line(void** state)
   mesh_free(mesh);
 }
 
+void test_nv_node_exchanger_in_plane(void** state)
+{
+  bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
+  int nx = 8, ny = 8;
+  mesh_t* mesh = create_uniform_mesh(MPI_COMM_SELF, nx, ny, 1, &bbox);
+  partition_mesh(&mesh, MPI_COMM_WORLD, NULL, 0.0);
+  int node_offsets[mesh->num_nodes+1];
+  exchanger_t* ex = mesh_nv_node_exchanger_new(mesh, node_offsets);
+  exchanger_fprintf(ex, stdout);
+  exchanger_verify(ex, polymec_error);
+  exchanger_free(ex);
+  mesh_free(mesh);
+}
+
+void test_1v_node_exchanger_in_plane(void** state)
+{
+  bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
+  int nx = 8, ny = 8;
+  mesh_t* mesh = create_uniform_mesh(MPI_COMM_SELF, nx, ny, 1, &bbox);
+  partition_mesh(&mesh, MPI_COMM_WORLD, NULL, 0.0);
+  exchanger_t* ex = mesh_1v_node_exchanger_new(mesh);
+  exchanger_fprintf(ex, stdout);
+  exchanger_verify(ex, polymec_error);
+  exchanger_free(ex);
+  mesh_free(mesh);
+}
+
+void test_nv_node_exchanger_in_cube(void** state)
+{
+  bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
+  int nx = 8, ny = 8, nz = 8;
+  mesh_t* mesh = create_uniform_mesh(MPI_COMM_SELF, nx, ny, nz, &bbox);
+  partition_mesh(&mesh, MPI_COMM_WORLD, NULL, 0.0);
+  int node_offsets[mesh->num_nodes+1];
+  exchanger_t* ex = mesh_nv_node_exchanger_new(mesh, node_offsets);
+  exchanger_fprintf(ex, stdout);
+  exchanger_verify(ex, polymec_error);
+  exchanger_free(ex);
+  mesh_free(mesh);
+}
+
+void test_1v_node_exchanger_in_cube(void** state)
+{
+  bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
+  int nx = 8, ny = 8, nz = 8;
+  mesh_t* mesh = create_uniform_mesh(MPI_COMM_SELF, nx, ny, nz, &bbox);
+  partition_mesh(&mesh, MPI_COMM_WORLD, NULL, 0.0);
+  exchanger_t* ex = mesh_1v_node_exchanger_new(mesh);
+  exchanger_fprintf(ex, stdout);
+  exchanger_verify(ex, polymec_error);
+  exchanger_free(ex);
+  mesh_free(mesh);
+}
+
 int main(int argc, char* argv[]) 
 {
   polymec_init(argc, argv);
   const UnitTest tests[] = 
   {
     unit_test(test_nv_node_exchanger_on_line),
-    unit_test(test_1v_node_exchanger_on_line)
+    unit_test(test_1v_node_exchanger_on_line),
+    unit_test(test_nv_node_exchanger_in_plane),
+    unit_test(test_1v_node_exchanger_in_plane),
+    unit_test(test_nv_node_exchanger_in_cube),
+    unit_test(test_1v_node_exchanger_in_cube)
   };
   return run_tests(tests);
 }

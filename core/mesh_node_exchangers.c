@@ -125,7 +125,7 @@ exchanger_t* mesh_nv_node_exchanger_new(mesh_t* mesh, int* node_offsets)
     // Identify our own neighbors.
     int pos = 0, proc, *indices, size, p = 0;
     while (exchanger_next_send(face_ex, &pos, &proc, &indices, &size))
-      neighbors[p] = proc;
+      neighbors[p++] = proc;
 
     // Get the number of neighbors for our pth neighbor.
     int num_neighbors_of_neighbors[num_neighbors];
