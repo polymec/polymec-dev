@@ -264,17 +264,17 @@ exchanger_t* mesh_nv_node_exchanger_new(mesh_t* mesh, int* node_offsets)
     for (int p = 0; p < num_neighbor_neighbors; ++p)
     {
       int proc = all_neighbors_of_neighbors->data[p];
-      MPI_Irecv(&num_culled_nodes[p], 1, MPI_INT, proc, 0, 
+      MPI_Irecv(&(num_culled_nodes[p]), 1, MPI_INT, proc, 0, 
                 mesh->comm, &requests[p]);
     }
 
     // Figure out which nodes we will cull and send the number.
     int_array_t* culled_nodes[num_neighbor_neighbors];
     real_t tolerance = 1e-8; // FIXME: This is bad.
-    int pos = 0, proc, p = 0;
-    point_array_t* nn_nodes = NULL;
-    while (int_ptr_unordered_map_next(neighbor_neighbor_nodes, &pos, &proc, (void**)&nn_nodes))
+    for (int p = 0; p < num_neighbor_neighbors; ++p)
     {
+      int proc = all_neighbors_of_neighbors->data[p];
+      point_array_t* nn_nodes = *int_ptr_unordered_map_get(neighbor_neighbor_nodes, proc);
       culled_nodes[p] = int_array_new();
       int_unordered_set_t* kept_nodes = int_unordered_set_new();
       for (int i = 0; i < my_nodes->size; ++i)
@@ -295,7 +295,6 @@ exchanger_t* mesh_nv_node_exchanger_new(mesh_t* mesh, int* node_offsets)
       int_unordered_set_free(kept_nodes);
       MPI_Isend(&culled_nodes[p]->size, 1, MPI_INT, proc, 0, 
                 mesh->comm, &requests[p + num_neighbor_neighbors]);
-      ++p;
     }
     MPI_Waitall(2 * num_neighbor_neighbors, requests, statuses);
 
@@ -311,9 +310,9 @@ exchanger_t* mesh_nv_node_exchanger_new(mesh_t* mesh, int* node_offsets)
     }
     for (int p = 0; p < num_neighbor_neighbors; ++p)
     {
+      int proc = all_neighbors_of_neighbors->data[p];
       MPI_Isend(culled_nodes[p]->data, culled_nodes[p]->size, MPI_INT, proc, 0, 
                 mesh->comm, &requests[p + num_neighbor_neighbors]);
-      ++p;
     }
     MPI_Waitall(2 * num_neighbor_neighbors, requests, statuses);
 
