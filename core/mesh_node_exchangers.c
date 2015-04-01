@@ -196,6 +196,10 @@ exchanger_t* mesh_nv_node_exchanger_new(mesh_t* mesh, int* node_offsets)
     }
     int_unordered_set_free(node_set);
   }
+//printf("%d: nodes = {", rank);
+//for (int n = 0; n < my_nodes->size; ++n)
+//  printf("(%g, %g, %g) ", my_nodes->data[n].x, my_nodes->data[n].y, my_nodes->data[n].z);
+//printf("}\n");
 
   // Sort our nodes so that they are in Hilbert order.
   {
@@ -269,6 +273,8 @@ exchanger_t* mesh_nv_node_exchanger_new(mesh_t* mesh, int* node_offsets)
     }
 
     // Figure out which nodes we will cull and send the number.
+    // culled_nodes[p] contains a list of the nodes on neighbor p 
+    // that DON'T correspond to any of my_nodes.
     int_array_t* culled_nodes[num_neighbor_neighbors];
     real_t tolerance = 1e-8; // FIXME: This is bad.
     for (int p = 0; p < num_neighbor_neighbors; ++p)
@@ -287,7 +293,7 @@ exchanger_t* mesh_nv_node_exchanger_new(mesh_t* mesh, int* node_offsets)
             int_unordered_set_insert(kept_nodes, j);
         }
       }
-      for (int i = 0; i < my_nodes->size; ++i)
+      for (int i = 0; i < nn_nodes->size; ++i)
       {
         if (!int_unordered_set_contains(kept_nodes, i))
           int_array_append(culled_nodes[p], i);
@@ -299,6 +305,8 @@ exchanger_t* mesh_nv_node_exchanger_new(mesh_t* mesh, int* node_offsets)
     MPI_Waitall(2 * num_neighbor_neighbors, requests, statuses);
 
     // Now receive/send the culled nodes.
+    // my_culled_nodes[p] is the list of indices of nodes in my_nodes
+    // that DON'T correspond to any of the nodes on neighbor p.
     int_array_t* my_culled_nodes[num_neighbor_neighbors];
     for (int p = 0; p < num_neighbor_neighbors; ++p)
     {
@@ -316,6 +324,13 @@ exchanger_t* mesh_nv_node_exchanger_new(mesh_t* mesh, int* node_offsets)
     }
     MPI_Waitall(2 * num_neighbor_neighbors, requests, statuses);
 
+//for (int p = 0; p < num_neighbor_neighbors; ++p)
+//{
+//printf("%d: culled nodes for %d = {", rank, all_neighbors_of_neighbors->data[p]);
+//for (int n = 0; n < my_culled_nodes[p]->size; ++n)
+//  printf("%d ", my_culled_nodes[p]->data[n]);
+//printf("}\n");
+//}
     // Organized the culled nodes into sets for querying.
     int_unordered_set_t* my_culled_node_sets[num_neighbor_neighbors];
     int_unordered_set_t* their_culled_node_sets[num_neighbor_neighbors];
@@ -342,8 +357,7 @@ exchanger_t* mesh_nv_node_exchanger_new(mesh_t* mesh, int* node_offsets)
       for (int i = 0; i < my_nodes->size; ++i)
       {
         int_array_t* send_nodes = NULL;
-        int node = my_node_indices->data[i];
-        if (!int_unordered_set_contains(my_culled_node_sets[p], node))
+        if (!int_unordered_set_contains(my_culled_node_sets[p], i))
         {
           if (send_nodes == NULL)
           {
@@ -356,6 +370,7 @@ exchanger_t* mesh_nv_node_exchanger_new(mesh_t* mesh, int* node_offsets)
               int_ptr_unordered_map_insert_with_v_dtor(send_map, proc, send_nodes, DTOR(int_array_free));
             }
           }
+          int node = my_node_indices->data[i];
           int_array_append(send_nodes, node);
         }
       }
