@@ -146,12 +146,12 @@ int main(int argc, char* argv[])
   polymec_init(argc, argv);
   const UnitTest tests[] = 
   {
-    unit_test(test_nv_node_exchanger_on_line),
+//    unit_test(test_nv_node_exchanger_on_line),
     unit_test(test_1v_node_exchanger_on_line),
-    unit_test(test_nv_node_exchanger_in_plane),
-    unit_test(test_1v_node_exchanger_in_plane),
-    unit_test(test_nv_node_exchanger_in_cube),
-    unit_test(test_1v_node_exchanger_in_cube)
+//    unit_test(test_nv_node_exchanger_in_plane),
+//    unit_test(test_1v_node_exchanger_in_plane),
+//    unit_test(test_nv_node_exchanger_in_cube),
+//    unit_test(test_1v_node_exchanger_in_cube)
   };
   return run_tests(tests);
 }

@@ -9,6 +9,7 @@
 #include "core/unordered_set.h"
 #include "core/hilbert.h"
 #include "core/kd_tree.h"
+#include "core/array_utils.h"
 
 exchanger_t* mesh_1v_node_exchanger_new(mesh_t* mesh)
 {
@@ -23,11 +24,16 @@ exchanger_t* mesh_1v_node_exchanger_new(mesh_t* mesh)
   // First construct the n-valued face exchanger and the associated offsets.
   int offsets[mesh->num_nodes+1];
   exchanger_t* noden_ex = mesh_nv_node_exchanger_new(mesh, offsets);
+exchanger_fprintf(noden_ex, stdout);
 
   // Determine the owner of each node. We assign a face to the process on 
   // which it is present, having the lowest rank.
   int rank;
   MPI_Comm_rank(mesh->comm, &rank);
+printf("%d: node offsets = {", rank);
+for (int n = 0; n < mesh->num_nodes; ++n)
+  printf("%d ", offsets[n]);
+printf("}\n");
   int node_procs[offsets[mesh->num_nodes]];
   for (int n = 0; n < mesh->num_nodes; ++n)
   {
@@ -35,6 +41,10 @@ exchanger_t* mesh_1v_node_exchanger_new(mesh_t* mesh)
       node_procs[i] = rank;
   }
   exchanger_exchange(noden_ex, node_procs, 1, 0, MPI_INT);
+printf("%d: node owners = {", rank);
+for (int n = 0; n < offsets[mesh->num_nodes]; ++n)
+  printf("%d ", node_procs[n]);
+printf("}\n");
 #ifndef NDEBUG
   for (int n = 0; n < offsets[mesh->num_nodes]; ++n)
   {
@@ -72,6 +82,7 @@ exchanger_t* mesh_1v_node_exchanger_new(mesh_t* mesh)
     }
     else
     {
+      ASSERT(node_sender < rank);
       int_array_t** receive_p = (int_array_t**)int_ptr_unordered_map_get(receive_map, node_sender);
       int_array_t* receive = NULL;
       if (receive_p == NULL)
@@ -196,10 +207,10 @@ exchanger_t* mesh_nv_node_exchanger_new(mesh_t* mesh, int* node_offsets)
     }
     int_unordered_set_free(node_set);
   }
-//printf("%d: nodes = {", rank);
-//for (int n = 0; n < my_nodes->size; ++n)
-//  printf("(%g, %g, %g) ", my_nodes->data[n].x, my_nodes->data[n].y, my_nodes->data[n].z);
-//printf("}\n");
+printf("%d: nodes = {", rank);
+for (int n = 0; n < my_nodes->size; ++n)
+  printf("(%g, %g, %g) ", my_nodes->data[n].x, my_nodes->data[n].y, my_nodes->data[n].z);
+printf("}\n");
 
   // Sort our nodes so that they are in Hilbert order.
   {
@@ -376,11 +387,21 @@ exchanger_t* mesh_nv_node_exchanger_new(mesh_t* mesh, int* node_offsets)
       }
       int_unordered_set_free(my_culled_node_sets[p]);
 
+      // Received nodes: received values from nodes go into the slots just 
+      // above the local nodal value in an exchanged array. Of course, we 
+      // have to sort these nodes by their indices so that we don't mess up 
+      // the ordering of offsets.
       point_array_t* their_nodes = *int_ptr_unordered_map_get(neighbor_neighbor_nodes, proc);
+      int sorted_indices[their_nodes->size];
+      for (int i = 0; i < their_nodes->size; ++i)
+        sorted_indices[i] = i;
+      int_qsort(sorted_indices, their_nodes->size);
+
       for (int i = 0; i < their_nodes->size; ++i)
       {
+        int j = sorted_indices[i];
         int_array_t* receive_nodes = NULL;
-        if (!int_unordered_set_contains(their_culled_node_sets[p], i))
+        if (!int_unordered_set_contains(their_culled_node_sets[p], j))
         {
           if (receive_nodes == NULL)
           {
@@ -393,8 +414,14 @@ exchanger_t* mesh_nv_node_exchanger_new(mesh_t* mesh, int* node_offsets)
               int_ptr_unordered_map_insert_with_v_dtor(receive_map, proc, receive_nodes, DTOR(int_array_free));
             }
           }
-          int node = kd_tree_nearest(node_tree, &their_nodes->data[i]);
+
+          // Find the node in "their_nodes" that matches our local node and 
+          // append it to our list of receives.
+          int node = kd_tree_nearest(node_tree, &their_nodes->data[j]);
           int_array_append(receive_nodes, node_offsets[node+1]);
+
+          // Now the offsets of this node and its successors have to be 
+          // incremented.
           for (int nn = node+1; nn <= mesh->num_nodes; ++nn)
             ++node_offsets[nn];
         }
