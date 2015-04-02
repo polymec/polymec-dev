@@ -317,7 +317,7 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/liblua.a)
   if (${APPLE})
     set(LUA_ARCH macosx)
   else() 
-    set(LUA_ARCH ansi)
+    set(LUA_ARCH generic)
   endif()
   message("Preparing lua...")
   execute_process(COMMAND cmake -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/lua ${CMAKE_CURRENT_BINARY_DIR}/lua
