@@ -27,7 +27,7 @@ Notes: This short instruction is written for users who want to quickly
             
          3. See the appendix at the bottom of this file for an example 
             of using a ctest script for building and testing. See 
-            CMake.txt for more information.
+            INSTALL_CMake.txt for more information.
 
 
 
@@ -37,7 +37,7 @@ I. Preconditions
 
    1. We suggest you obtain the latest CMake for windows from the Kitware
       web site. The HDF5 1.8.x product requires a minimum CMake version 
-      of 2.8.10.                     
+      of 2.8.12.                     
                                                                          
    2. You have installed the HDF5 library built with CMake, by executing 
       the HDF Install Utility (the *.exe file in the binary package for 
@@ -69,7 +69,7 @@ Go through these steps to build HDF5 applications with CMake.
    1. Run CMake
    2. Configure the cache settings
    3. Build HDF5 Applications
-   4. Test HDF5 Applications.
+   4. Test HDF5 Applications
 
 These steps are described in more detail below.
 
@@ -78,7 +78,7 @@ These steps are described in more detail below.
    1. Run CMake
 
       The visual CMake executable is named "cmake-gui.exe" on Windows and should be
-      available in your Start menu. For Linux, UNIX, and Mac users, the
+      available in your Start menu. For Linux, UNIX, and Mac users the
       executable is named "cmake-gui" and can be found where CMake was 
       installed. 
       
@@ -95,22 +95,15 @@ These steps are described in more detail below.
         cmake -G "<generator>"  [-D<options>]  <sourcepath>
         
         Where <generator> is    
-            * Borland Makefiles
-            * MSYS Makefiles
             * MinGW Makefiles
             * NMake Makefiles
             * Unix Makefiles
+            * Visual Studio 12
+            * Visual Studio 12 Win64
             * Visual Studio 11
             * Visual Studio 11 Win64
             * Visual Studio 10
             * Visual Studio 10 Win64
-            * Visual Studio 6
-            * Visual Studio 7
-            * Visual Studio 7 .NET 2003
-            * Visual Studio 8 2005
-            * Visual Studio 8 2005 Win64
-            * Visual Studio 9 2008
-            * Visual Studio 9 2008 Win64
 
         <options> is:
             * BUILD_TESTING:BOOL=ON
@@ -138,7 +131,7 @@ These steps are described in more detail below.
 
       2.2  Alternative command line example on Windows in c:\MyHDFstuff\hdf5\build directory:
       
-           cmake -G "Visual Studio 10" -DBUILD_TESTING:BOOL=ON -DUSE_SHARED_LIBS:BOOL=ON ..
+           cmake -G "Visual Studio 11" -DBUILD_TESTING:BOOL=ON -DUSE_SHARED_LIBS:BOOL=ON ..
 
    3. Build HDF5 Applications
    
@@ -182,28 +175,28 @@ These steps are described in more detail below.
 III. Minimum C Project Files for CMake
 ========================================================================
 
-   6. Create a CMakeLists.txt file at the source root. Include the 
-      following text in the file:
+Create a CMakeLists.txt file at the source root. Include the 
+following text in the file:
 
 ##########################################################
-cmake_minimum_required (VERSION 2.8.10)
+cmake_minimum_required (VERSION 2.8.12)
 PROJECT (HDF5MyApp C CXX)
 
 FIND_PACKAGE (HDF5 NAMES hdf5)
 # FIND_PACKAGE (HDF5) # Find non-cmake built HDF5
 INCLUDE_DIRECTORIES (${HDF5_INCLUDE_DIR})
-SET (LINK_LIBS ${LINK_LIBS} ${HDF5_LIBRARIES})
+set (LINK_LIBS ${LINK_LIBS} ${HDF5_LIBRARIES})
 
-SET (example hdf_example)
+set (example hdf_example)
 
-ADD_EXECUTABLE (${example} ${PROJECT_SOURCE_DIR}/${example}.c)
+add_executable (${example} ${PROJECT_SOURCE_DIR}/${example}.c)
 TARGET_C_PROPERTIES (${example} " " " ")
-TARGET_LINK_LIBRARIES (${example} ${LINK_LIBS})
+target_link_libraries (${example} ${LINK_LIBS})
 
 ENABLE_TESTING ()
-INCLUDE (CTest)
+include (CTest)
 
-ADD_TEST (NAME test_example COMMAND ${example})
+add_test (NAME test_example COMMAND ${example})
 ##########################################################
 
 
@@ -239,7 +232,7 @@ ctest
 # where hdf518Examples is the source folder relative to the location of these scripts
 ############################################################################
 
-cmake_minimum_required(VERSION 2.8.10 FATAL_ERROR)
+cmake_minimum_required(VERSION 2.8.12 FATAL_ERROR)
 
 set(CTEST_DASHBOARD_ROOT ${CTEST_SCRIPT_DIRECTORY})
 set(CTEST_SOURCE_NAME ${CTEST_SCRIPT_ARG})
@@ -261,7 +254,7 @@ set(SITE_COMPILER_NAME "compiler name")
 set(SITE_COMPILER_VERSION "compiler version")
 
 # needed for source updates, change as required
-set(REPOSITORY_URL "http://svn.hdfgroup.uiuc.edu/hdf5-examples/trunk/1_8")
+set(REPOSITORY_URL "http://svn.${hdfgroup_url}/hdf5-examples/trunk/1_8")
 
 set(ADD_BUILD_OPTIONS "${ADD_BUILD_OPTIONS} -DCMAKE_INSTALL_PREFIX:PATH=/usr/local/hdf5Examples-1.8")
 

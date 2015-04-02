@@ -820,8 +820,6 @@ print_float_type(h5tools_str_t *buffer, hid_t type, int ind)
  * Programmer: Robb Matzke
  *              Thursday, November  5, 1998
  *
- * Modifications:
- *
  *-------------------------------------------------------------------------
  */
 static hbool_t
@@ -836,8 +834,7 @@ print_cmpd_type(h5tools_str_t *buffer, hid_t type, int ind)
 
     if(H5T_COMPOUND != H5Tget_class(type))
         return FALSE;
-    nmembs = H5Tget_nmembers(type);
-    if(nmembs <= 0)
+    if((nmembs = H5Tget_nmembers(type)) < 0)
         return FALSE;
 
     h5tools_str_append(buffer, "struct {");
@@ -849,7 +846,7 @@ print_cmpd_type(h5tools_str_t *buffer, hid_t type, int ind)
         n = print_string(buffer, name, FALSE);
         h5tools_str_append(buffer, "\"%*s +%-4lu ", MAX(0, 16-n), "",
                (unsigned long)H5Tget_member_offset(type, i));
-        HDfree(name);
+        H5free_memory(name);
 
         /* Member's type */
         subtype = H5Tget_member_type(type, i);
@@ -859,6 +856,7 @@ print_cmpd_type(h5tools_str_t *buffer, hid_t type, int ind)
     size = H5Tget_size(type);
     h5tools_str_append(buffer, "\n%*s} %lu byte%s",
                 ind, "", (unsigned long)size, 1==size?"":"s");
+
     return TRUE;
 }
 
@@ -887,8 +885,7 @@ print_enum_type(h5tools_str_t *buffer, hid_t type, int ind)
 
     if(H5T_ENUM != H5Tget_class(type))
         return FALSE;
-    nmembs = H5Tget_nmembers(type);
-    if(nmembs < 0)
+    if((nmembs = H5Tget_nmembers(type)) < 0)
         return FALSE;
 
     super = H5Tget_super(type);
@@ -931,7 +928,7 @@ print_enum_type(h5tools_str_t *buffer, hid_t type, int ind)
             if(H5Tconvert(super, native, (size_t)nmembs, value, NULL, H5P_DEFAULT) < 0) {
                 /* Release resources */
                 for(i = 0; i < (unsigned)nmembs; i++)
-                    HDfree(name[i]);
+                    H5free_memory(name[i]);
                 HDfree(name);
                 HDfree(value);
 
@@ -1158,7 +1155,7 @@ print_opaque_type(h5tools_str_t *buffer, hid_t type, int ind)
         h5tools_str_append(buffer, "\n%*s(tag = \"", ind, "");
         print_string(buffer, tag, FALSE);
         h5tools_str_append(buffer, "\")");
-        HDfree(tag);
+        H5free_memory(tag);
     }
     return TRUE;
 }
@@ -1467,7 +1464,7 @@ dump_dataset_values(hid_t dset)
     h5tools_render_element(rawoutstream, info, &ctx, &buffer, &curr_pos, (size_t)info->line_ncols, (hsize_t)0, (hsize_t)0);
     ctx.need_prefix = TRUE;
     ctx.cur_column = (size_t)curr_pos;
-    if (h5tools_dump_dset(rawoutstream, info, &ctx, dset, -1, NULL) < 0) {
+    if (h5tools_dump_dset(rawoutstream, info, &ctx, dset, NULL) < 0) {
         h5tools_str_reset(&buffer);
         h5tools_str_append(&buffer, "        Unable to print data.");
         h5tools_render_element(rawoutstream, info, &ctx, &buffer, &curr_pos, (size_t)info->line_ncols, (hsize_t)0, (hsize_t)0);

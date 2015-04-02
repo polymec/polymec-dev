@@ -50,6 +50,7 @@ const char *FILENAME[] = {
     "chunk_expand",
     "copy_dcpl_newfile",
     "layout_extend",
+    "zero_chunk",
     NULL
 };
 #define FILENAME_BUF_SIZE       1024
@@ -482,7 +483,7 @@ test_simple_io(const char *env_h5_drvr, hid_t fapl)
 
         HDclose(f);
 
-        free (tconv_buf);
+        HDfree (tconv_buf);
         PASSED();
     } /* end if */
     else {
@@ -1853,13 +1854,13 @@ test_filter_internal(hid_t fid, const char *name, hid_t dcpl, int if_fletcher32,
     if(H5Dclose (dataset) < 0) goto error;
     if(H5Sclose (sid) < 0) goto error;
     if(H5Pclose (dxpl) < 0) goto error;
-    free (tconv_buf);
+    HDfree (tconv_buf);
 
     return(0);
 
 error:
     if(tconv_buf)
-        free (tconv_buf);
+        HDfree (tconv_buf);
     return -1;
 }
 
@@ -3855,7 +3856,7 @@ test_nbit_compound_3(hid_t file)
         for(k = 0; k < (i+1); k++) ((unsigned int *)orig_data[i].v.p)[k] = (unsigned int)(i*100 + k);
 
         /* Create reference to the dataset "nbit_obj_ref" */
-        if(H5Rcreate(&orig_data[i].r, file, "nbit_obj_ref", H5R_OBJECT, -1) < 0) goto error;
+        if(H5Rcreate(&orig_data[i].r, file, "nbit_obj_ref", H5R_OBJECT, (hid_t)-1) < 0) goto error;
 
         for(j = 0; j < 5; j++) orig_data[i].o[j] = (unsigned char)(i + j);
     }
@@ -4034,7 +4035,7 @@ test_nbit_int_size(hid_t file)
    */
    for (i=0; i < DSET_DIM1; i++)
        for (j=0; j < DSET_DIM2; j++)
-           orig_data[i][j] = rand() % (int)pow(2, precision-1) <<offset;
+           orig_data[i][j] = rand() % (int)pow((double)2, (double)(precision-1)) << offset;
 
 
    /* Describe the dataspace. */
@@ -6546,7 +6547,7 @@ auxread_fdata(hid_t fid, const char *name)
     if(H5Dclose(dset_id) < 0)
         goto error;
     if(buf)
-        free(buf);
+        HDfree(buf);
 
     return 0;
 
@@ -6558,7 +6559,7 @@ error:
         H5Tclose(ftype_id);
         H5Tclose(mtype_id);
         if(buf)
-            free(buf);
+            HDfree(buf);
     } H5E_END_TRY;
     return -1;
 }
@@ -6690,8 +6691,17 @@ test_zero_dims(hid_t file)
     if(H5Pset_chunk(dcpl, 1, &csize) < 0) FAIL_STACK_ERROR
     if((d = H5Dcreate2(file, ZERODIM_DATASET, H5T_NATIVE_INT, s, H5P_DEFAULT, dcpl, H5P_DEFAULT)) < 0) FAIL_STACK_ERROR
 
-    /* Just a no-op */
+    /* Various no-op writes */
     if(H5Dwrite(d, H5T_NATIVE_INT, s, s, H5P_DEFAULT, (void*)911) < 0) FAIL_STACK_ERROR
+    if(H5Dwrite(d, H5T_NATIVE_INT, s, s, H5P_DEFAULT, NULL) < 0) FAIL_STACK_ERROR
+    if(H5Dwrite(d, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, (void*)911) < 0) FAIL_STACK_ERROR
+    if(H5Dwrite(d, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, NULL) < 0) FAIL_STACK_ERROR
+
+    /* Various no-op reads */
+    if(H5Dread(d, H5T_NATIVE_INT, s, s, H5P_DEFAULT, (void*)911) < 0) FAIL_STACK_ERROR
+    if(H5Dread(d, H5T_NATIVE_INT, s, s, H5P_DEFAULT, NULL) < 0) FAIL_STACK_ERROR
+    if(H5Dread(d, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, (void*)911) < 0) FAIL_STACK_ERROR
+    if(H5Dread(d, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, NULL) < 0) FAIL_STACK_ERROR
 
     if(H5Dclose(d) < 0) FAIL_STACK_ERROR
     if(H5Pclose(dcpl) < 0) FAIL_STACK_ERROR
@@ -7824,13 +7834,15 @@ test_chunk_expand(hid_t fapl)
     H5D_alloc_time_t alloc_time;        /* Storage allocation time */
     unsigned    write_elem, read_elem;  /* Element written/read */
     unsigned    u;              /* Local index variable */
+    size_t      size;           /* Size of type */
     herr_t      status;         /* Generic return value */
 
     TESTING("filter expanding chunks too much");
 
     h5_fixname(FILENAME[10], fapl, filename, sizeof filename);
 
-    if(sizeof(size_t) <= 4) {
+    size = sizeof(size_t);
+    if(size <= 4) {
 	SKIPPED();
 	puts("    Current machine can't test for error");
     } /* end if */
@@ -8251,6 +8263,80 @@ error:
 
 
 /*-------------------------------------------------------------------------
+ * Function: test_zero_dim_dset
+ *
+ * Purpose:     Tests support for reading a 1D chunled dataset with 
+ *              dimension size = 0.
+ *
+ * Return:      Success: 0
+ *              Failure: -1
+ *
+ * Programmer:  Mohamad Chaarawi
+ *              Wednesdat, July 9, 2014
+ *
+ *-------------------------------------------------------------------------
+ */
+static herr_t
+test_zero_dim_dset(hid_t fapl)
+{
+    char        filename[FILENAME_BUF_SIZE];
+    hid_t       fid = -1;       /* File ID */
+    hid_t       dcpl = -1;      /* Dataset creation property list ID */
+    hid_t       sid = -1;       /* Dataspace ID */
+    hid_t       dsid = -1;      /* Dataset ID */
+    hsize_t     dim, chunk_dim; /* Dataset and chunk dimensions */
+    int         data[1];
+
+    TESTING("shrinking large chunk");
+
+    h5_fixname(FILENAME[13], fapl, filename, sizeof filename);
+
+    /* Create file */
+    if((fid = H5Fcreate(filename, H5F_ACC_TRUNC, H5P_DEFAULT, fapl)) < 0) FAIL_STACK_ERROR
+
+    /* Create dataset creation property list */
+    if((dcpl = H5Pcreate(H5P_DATASET_CREATE)) < 0) FAIL_STACK_ERROR
+
+    /* Set 1 chunk size */
+    chunk_dim = 1;
+    if(H5Pset_chunk(dcpl, 1, &chunk_dim) < 0) FAIL_STACK_ERROR
+
+    /* Create 1D dataspace with 0 dim size */
+    dim = 0;
+    if((sid = H5Screate_simple(1, &dim, NULL)) < 0) FAIL_STACK_ERROR
+
+    /* Create chunked dataset */
+    if((dsid = H5Dcreate2(fid, "dset", H5T_NATIVE_INT, sid, H5P_DEFAULT, dcpl, H5P_DEFAULT)) < 0)
+        FAIL_STACK_ERROR
+
+    /* write 0 elements from dataset */
+    if(H5Dwrite(dsid, H5T_NATIVE_INT, sid, sid, H5P_DEFAULT, data) < 0) FAIL_STACK_ERROR
+
+    /* Read 0 elements from dataset */
+    if(H5Dread(dsid, H5T_NATIVE_INT, sid, sid, H5P_DEFAULT, data) < 0) FAIL_STACK_ERROR
+
+    /* Close everything */
+    if(H5Sclose(sid) < 0) FAIL_STACK_ERROR
+    if(H5Dclose(dsid) < 0) FAIL_STACK_ERROR
+    if(H5Pclose(dcpl) < 0) FAIL_STACK_ERROR
+    if(H5Fclose(fid) < 0) FAIL_STACK_ERROR
+
+    PASSED();
+
+    return 0;
+
+error:
+    H5E_BEGIN_TRY {
+        H5Pclose(dcpl);
+        H5Dclose(dsid);
+        H5Sclose(sid);
+        H5Fclose(fid);
+    } H5E_END_TRY;
+    return -1;
+} /* end test_zero_dim_dset() */
+
+
+/*-------------------------------------------------------------------------
  * Function:    test_scatter
  *
  * Purpose:     Tests H5Dscatter with a variety of different selections
@@ -8357,7 +8443,7 @@ test_scatter(void)
         scatter_info.size = 8;
 
         /* Scatter data */
-        if(H5Dscatter(scatter_cb, &scatter_info, H5T_NATIVE_INT, sid, dst_buf) < 0)
+        if(H5Dscatter((H5D_scatter_func_t)scatter_cb, &scatter_info, H5T_NATIVE_INT, sid, dst_buf) < 0)
             TEST_ERROR
 
         /* Verify data */
@@ -8397,7 +8483,7 @@ test_scatter(void)
         scatter_info.size = 12;
 
         /* Scatter data */
-        if(H5Dscatter(scatter_cb, &scatter_info, H5T_NATIVE_INT, sid, dst_buf) < 0)
+        if(H5Dscatter((H5D_scatter_func_t)scatter_cb, &scatter_info, H5T_NATIVE_INT, sid, dst_buf) < 0)
             TEST_ERROR
 
         /* Verify data */
@@ -8455,7 +8541,7 @@ test_scatter(void)
         scatter_info.size = 36;
 
         /* Scatter data */
-        if(H5Dscatter(scatter_cb, &scatter_info, H5T_NATIVE_INT, sid, dst_buf) < 0)
+        if(H5Dscatter((H5D_scatter_func_t)scatter_cb, &scatter_info, H5T_NATIVE_INT, sid, dst_buf) < 0)
             TEST_ERROR
 
         /* Verify data */
@@ -8511,7 +8597,7 @@ test_scatter(void)
         scatter_info.size = 16;
 
         /* Scatter data */
-        if(H5Dscatter(scatter_cb, &scatter_info, H5T_NATIVE_INT, sid, dst_buf) < 0)
+        if(H5Dscatter((H5D_scatter_func_t)scatter_cb, &scatter_info, H5T_NATIVE_INT, sid, dst_buf) < 0)
             TEST_ERROR
 
         /* Verify data */
@@ -8545,7 +8631,7 @@ test_scatter(void)
         scatter_info.size = 4;
 
         /* Scatter data */
-        if(H5Dscatter(scatter_cb, &scatter_info, H5T_NATIVE_INT, sid, dst_buf) < 0)
+        if(H5Dscatter((H5D_scatter_func_t)scatter_cb, &scatter_info, H5T_NATIVE_INT, sid, dst_buf) < 0)
             TEST_ERROR
 
         /* Verify data */
@@ -9022,7 +9108,7 @@ test_scatter_error(void)
     scatter_info.src_buf = src_buf;
     scatter_info.block = sizeof(src_buf)/sizeof(src_buf[0]);
     scatter_info.size = 6;
-    if(H5Dscatter(scatter_cb, &scatter_info, H5T_NATIVE_INT, sid, dst_buf) < 0)
+    if(H5Dscatter((H5D_scatter_func_t)scatter_cb, &scatter_info, H5T_NATIVE_INT, sid, dst_buf) < 0)
         TEST_ERROR
 
 
@@ -9039,21 +9125,21 @@ test_scatter_error(void)
     scatter_info.src_buf = src_buf;
     scatter_info.size = 6;
     H5E_BEGIN_TRY {
-        ret = H5Dscatter(scatter_cb, &scatter_info, sid, sid, dst_buf);
+        ret = H5Dscatter((H5D_scatter_func_t)scatter_cb, &scatter_info, sid, sid, dst_buf);
     } H5E_END_TRY
     if(ret >= 0) TEST_ERROR
 
     scatter_info.src_buf = src_buf;
     scatter_info.size = 6;
     H5E_BEGIN_TRY {
-        ret = H5Dscatter(scatter_cb, &scatter_info, H5T_NATIVE_INT, H5T_NATIVE_INT, dst_buf);
+        ret = H5Dscatter((H5D_scatter_func_t)scatter_cb, &scatter_info, H5T_NATIVE_INT, H5T_NATIVE_INT, dst_buf);
     } H5E_END_TRY
     if(ret >= 0) TEST_ERROR
 
     scatter_info.src_buf = src_buf;
     scatter_info.size = 6;
     H5E_BEGIN_TRY {
-        ret = H5Dscatter(scatter_cb, &scatter_info, H5T_NATIVE_INT, sid, NULL);
+        ret = H5Dscatter((H5D_scatter_func_t)scatter_cb, &scatter_info, H5T_NATIVE_INT, sid, NULL);
     } H5E_END_TRY
     if(ret >= 0) TEST_ERROR
 
@@ -9064,7 +9150,7 @@ test_scatter_error(void)
     scatter_info.src_buf = src_buf;
     scatter_info.size = 7;
     H5E_BEGIN_TRY {
-        ret = H5Dscatter(scatter_cb, &scatter_info, H5T_NATIVE_INT, sid, dst_buf);
+        ret = H5Dscatter((H5D_scatter_func_t)scatter_cb, &scatter_info, H5T_NATIVE_INT, sid, dst_buf);
     } H5E_END_TRY
     if(ret >= 0) TEST_ERROR
 
@@ -9075,7 +9161,7 @@ test_scatter_error(void)
     scatter_info.src_buf = src_buf;
     scatter_info.size = 6;
     H5E_BEGIN_TRY {
-        ret = H5Dscatter(scatter_error_cb_fail, &scatter_info, H5T_NATIVE_INT, sid, dst_buf);
+        ret = H5Dscatter((H5D_scatter_func_t)scatter_error_cb_fail, &scatter_info, H5T_NATIVE_INT, sid, dst_buf);
     } H5E_END_TRY
     if(ret >= 0) TEST_ERROR
 
@@ -9086,7 +9172,7 @@ test_scatter_error(void)
     scatter_info.src_buf = src_buf;
     scatter_info.size = 6;
     H5E_BEGIN_TRY {
-        ret = H5Dscatter(scatter_error_cb_null, &scatter_info, H5T_NATIVE_INT, sid, dst_buf);
+        ret = H5Dscatter((H5D_scatter_func_t)scatter_error_cb_null, &scatter_info, H5T_NATIVE_INT, sid, dst_buf);
     } H5E_END_TRY
     if(ret >= 0) TEST_ERROR
 
@@ -9096,7 +9182,7 @@ test_scatter_error(void)
      */
     cb_unalign_nbytes = 0;
     H5E_BEGIN_TRY {
-        ret = H5Dscatter(scatter_error_cb_unalign, &cb_unalign_nbytes, H5T_NATIVE_INT, sid, dst_buf);
+        ret = H5Dscatter((H5D_scatter_func_t)scatter_error_cb_unalign, &cb_unalign_nbytes, H5T_NATIVE_INT, sid, dst_buf);
     } H5E_END_TRY
     if(ret >= 0) TEST_ERROR
 
@@ -9107,13 +9193,13 @@ test_scatter_error(void)
      */
     cb_unalign_nbytes = sizeof(src_buf[0]) - 1;
     H5E_BEGIN_TRY {
-        ret = H5Dscatter(scatter_error_cb_unalign, &cb_unalign_nbytes, H5T_NATIVE_INT, sid, dst_buf);
+        ret = H5Dscatter((H5D_scatter_func_t)scatter_error_cb_unalign, &cb_unalign_nbytes, H5T_NATIVE_INT, sid, dst_buf);
     } H5E_END_TRY
     if(ret >= 0) TEST_ERROR
 
     cb_unalign_nbytes = sizeof(src_buf[0]) + 1;
     H5E_BEGIN_TRY {
-        ret = H5Dscatter(scatter_error_cb_unalign, &cb_unalign_nbytes, H5T_NATIVE_INT, sid, dst_buf);
+        ret = H5Dscatter((H5D_scatter_func_t)scatter_error_cb_unalign, &cb_unalign_nbytes, H5T_NATIVE_INT, sid, dst_buf);
     } H5E_END_TRY
     if(ret >= 0) TEST_ERROR
 
@@ -9400,6 +9486,7 @@ main(void)
 	nerrors += (test_idx_compatible() < 0  			? 1 : 0);
 	nerrors += (test_layout_extend(my_fapl) < 0		? 1 : 0);
 	nerrors += (test_large_chunk_shrink(my_fapl) < 0        ? 1 : 0);
+	nerrors += (test_zero_dim_dset(my_fapl) < 0             ? 1 : 0);
 
         if(H5Fclose(file) < 0)
             goto error;

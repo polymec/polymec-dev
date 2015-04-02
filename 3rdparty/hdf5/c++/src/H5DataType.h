@@ -57,8 +57,12 @@ class H5_DLLCPP DataType : public H5Object {
 
 	// Commits a transient datatype to a file; this datatype becomes
 	// a named datatype which can be accessed from the location.
-	void commit( H5Location& loc, const char* name);
-	void commit( H5Location& loc, const H5std_string& name);
+	void commit(const H5Location& loc, const char* name);
+	void commit(const H5Location& loc, const H5std_string& name);
+	// These two overloaded functions are kept for backward compatibility
+	// only; they missed the const.
+	void commit(H5Location& loc, const char* name);
+	void commit(H5Location& loc, const H5std_string& name);
 
 	// Determines whether this datatype is a named datatype or
 	// a transient datatype.

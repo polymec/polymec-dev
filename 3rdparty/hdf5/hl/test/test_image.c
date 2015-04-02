@@ -13,8 +13,10 @@
 * access to either file, you may request a copy from help@hdfgroup.org.     *
 * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
+#include <limits.h>
 #include <stdlib.h>
 #include <string.h>
+
 #include "h5hltest.h"
 #include "H5srcdir.h"
 #include "H5LTpublic.h"
@@ -542,7 +544,7 @@ static int test_generate(void)
     int      imax, jmax, kmax;
     int      n_elements;
     float    valex, xmin, xmax, value;
-    FILE     *f;
+    FILE     *f = NULL;
     char     *srcdir = getenv("srcdir"); /* the source directory */
     char     data_file[512]="";          /* buffer to hold name of existing data file */
     int      i;
@@ -634,17 +636,20 @@ static int test_generate(void)
     if(n_elements > INT_MAX / (int)sizeof(float))
         goto out;
     
-    data = (float *)HDmalloc((size_t)n_elements * sizeof( float ));
-    HDassert(data);
-    image_data = (unsigned char *)HDmalloc((size_t)n_elements * sizeof( unsigned char ));
-    HDassert(image_data);
+    data = (float *)HDmalloc((size_t)n_elements * sizeof(float));
+    if(NULL == data)
+        goto out;
+    image_data = (unsigned char *)HDmalloc((size_t)n_elements * sizeof(unsigned char));
+    if(NULL == image_data)
+        goto out;
 
     for ( i = 0; i < n_elements; i++ )
     {
         fscanf( f, "%f ", &value );
         data[i] = value;
     }
-    HDfclose( f );
+    HDfclose(f);
+    f = NULL;
 
     /*-------------------------------------------------------------------------
     * transform the data from floating point to unsigned char
@@ -754,6 +759,8 @@ out:
     H5E_BEGIN_TRY {
         H5Fclose(fid);
     } H5E_END_TRY;
+    if(f)
+        HDfclose(f);
     H5_FAILED();
     return retval;
 }
@@ -776,9 +783,9 @@ out:
 *-------------------------------------------------------------------------
 */
 
-static int read_data( const char* fname, /*IN*/
+static int read_data(const char* fname, /*IN*/
                      hsize_t *width, /*OUT*/
-                     hsize_t *height /*OUT*/ )
+                     hsize_t *height /*OUT*/)
 {
     int    i, n;
     int    color_planes;
@@ -806,9 +813,6 @@ static int read_data( const char* fname, /*IN*/
     fscanf(f, "%s", str);
     fscanf(f, "%d", &w);
 
-    *width = (hsize_t)w;
-    *height = (hsize_t)h;
-
     /* Check product for overflow */
     if(w < 1 || h < 1 || color_planes < 1)
         goto out;
@@ -825,13 +829,16 @@ static int read_data( const char* fname, /*IN*/
         goto out;
 
     /* Release the buffer, if it was previously allocated */
-    if(image_data) {
+    if(image_data)
         HDfree(image_data);
-        image_data = NULL;
-    } /* end if */
 
     /* Allocate the image data buffer */
     image_data = (unsigned char *)HDmalloc((size_t)n_elements * sizeof(unsigned char));
+    if(NULL == image_data)
+        goto out;
+
+    *width = (hsize_t)w;
+    *height = (hsize_t)h;
 
     /* Read data elements */
     for(i = 0; i < n_elements; i++) {

@@ -36,11 +36,16 @@
 ! ***        H 5 F   T E S T S
 ! *****************************************
 
+MODULE TH5F_F03
+
+CONTAINS
+
 SUBROUTINE test_get_file_image(total_error)
   !
   !  Tests the wrapper for h5fget_file_image
   !
-  USE HDF5 
+  USE HDF5
+  USE TH5_MISC 
   USE ISO_C_BINDING
 
   IMPLICIT NONE
@@ -61,10 +66,6 @@ SUBROUTINE test_get_file_image(total_error)
   TYPE(C_PTR) :: f_ptr            ! Pointer
   INTEGER(hid_t) :: fapl          ! File access property
   INTEGER :: error                ! Error flag
-
-
-  RETURN ! DEBUG, PGI COMPILERS seem to have a bug in the INQUIRE functions,
-         ! waiting for an answer from PGI how to resolve the problem.
 
   ! Create new properties for file access
   CALL h5pcreate_f(H5P_FILE_ACCESS_F, fapl, error)
@@ -151,9 +152,9 @@ SUBROUTINE test_get_file_image(total_error)
   ALLOCATE(file_image_ptr(1:image_size))
 
   ! Open the test file using standard I/O calls 
-  OPEN(UNIT=10,FILE='tget_file_image.h5', ACCESS='STREAM')
+  OPEN(UNIT=10,FILE='tget_file_image.h5', FORM='UNFORMATTED', ACCESS='STREAM')
 
-  ! Read the test file from disk into the buffer 
+  ! Read the test file from disk into the buffer
   DO i = 1, image_size
      READ(10) file_image_ptr(i)
   ENDDO
@@ -173,3 +174,5 @@ SUBROUTINE test_get_file_image(total_error)
   DEALLOCATE(file_image_ptr,image_ptr)
 
 END SUBROUTINE test_get_file_image
+
+END MODULE TH5F_F03

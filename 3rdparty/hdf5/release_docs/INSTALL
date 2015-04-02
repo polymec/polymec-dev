@@ -130,22 +130,26 @@ CONTENTS
         datasets. For more information about Szip compression and license 
         terms, see http://hdfgroup.org/doc_resource/SZIP/.
 
-        Precompiled Szip binaries for each supported platform and a source 
-        tar file can be found at ftp://ftp.hdfgroup.org/lib-external/szip/.
-        
+        The Szip source code can be obtained from the HDF5 Download page
+        http://www.hdfgroup.org/HDF5/release/obtain5.html#extlibs. Building 
+        instructions are available with the Szip source code. 
+
+        The HDF Group does not distribute separate Szip precompiled libraries,
+        but the HDF5 binaries available from 
+        http://www.hdfgroup.org/HDF5/release/obtain5.html include 
+        the Szip encoder enabled binary for the corresponding platform.
+
         To configure the HDF5 Library with the Szip compression filter, use 
         the '--with-szlib=/PATH_TO_SZIP' flag. For more information, see 
         section 4.3.7, "Specifying other libraries and headers."
 
-        Starting with release 1.6.3, Szip library binaries are distributed 
-        with the encoder enabled (a license may be required to use this binary) 
-        and with the encoder disabled (freely usable without a license). 
-        If the encoder enabled binary is used, Szip compression encoding is 
-        available for an HDF5 application; if the encoder disabled binary is 
-        used, Szip compression is not available.  Szip decoding is always 
-        available for applications (i.e., an HDF5 application can always read 
-        Szip-compressed data) if the Szip filter is present, regardless of the 
-        binary used.
+        Please notice that if HDF5 configure cannot find a valid Szip library,
+        configure will not fail; in this case, the compression filter will 
+        not be available to the applications. 
+        
+        To check if Szip compression was successfully configured in, 
+        check the "I/O filters (external):" line in the configure output, 
+        summary section, printed to the standard output.
 
 3.3. MPI and MPI-IO
         The parallel version of the library is built upon the foundation
@@ -515,8 +519,8 @@ CONTENTS
 
             $ bin/deploy NEW_DIR
 
-        This will install HDF5 in NEW_DIR.  Alternately, if shared libraries 
-        were disabled, you can do this manually by issuing the command:
+        This will install HDF5 in NEW_DIR.  Alternately, you can do this
+        manually by issuing the command:
 
             $ make install prefix=NEW_DIR
 
@@ -524,11 +528,6 @@ CONTENTS
         If you do not use the deploy script, you should run h5redeploy in
         NEW_DIR/bin directory.  This utility will fix the h5cc, h5fc and
         h5c++ scripts to reflect the new NEW_DIR location.
-
-        If shared libraries were enabled, configure must be run with 
-        --prefix=<final install directory>.  HDF5 can then be installed 
-        directly with "make install" or using a stage directory with 
-        "make install DESTDIR=STAGE_DIR".
 
         The library can be used without installing it by pointing the
         compiler at the `src' and 'src/.libs' directory for include files and

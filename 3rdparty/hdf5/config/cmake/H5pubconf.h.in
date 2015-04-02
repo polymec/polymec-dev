@@ -91,6 +91,9 @@
 /* Define to 1 if you have the `alarm' function. */
 #cmakedefine H5_HAVE_ALARM @H5_HAVE_ALARM@
 
+/* Define to 1 if you have the `asprintf' function. */
+#cmakedefine H5_HAVE_ASPRINTF @H5_HAVE_ASPRINTF@
+
 /* Define if the __attribute__(()) extension is present */
 #cmakedefine H5_HAVE_ATTRIBUTE @H5_HAVE_ATTRIBUTE@
 
@@ -213,12 +216,6 @@
 /* Define to 1 if you have the `get_fpc_csr' function. */
 #cmakedefine H5_HAVE_GET_FPC_CSR @H5_HAVE_GET_FPC_CSR@
 
-/* Define if we have GPFS support */
-#cmakedefine H5_HAVE_GPFS @H5_HAVE_GPFS@
-
-/* Define to 1 if you have the <gpfs.h> header file. */
-#cmakedefine H5_HAVE_GPFS_H @H5_HAVE_GPFS_H@
-
 /* Define if library will contain instrumentation to detect correct
    optimization operation */
 #cmakedefine H5_HAVE_INSTRUMENTED_LIBRARY @H5_HAVE_INSTRUMENTED_LIBRARY@
@@ -295,9 +292,6 @@
 /* Define to 1 if you have the <mpe.h> header file. */
 #cmakedefine H5_HAVE_MPE_H @H5_HAVE_MPE_H@
 
-/* Define if MPI_File_get_size works correctly */
-#cmakedefine H5_HAVE_MPI_GET_SIZE @H5_HAVE_MPI_GET_SIZE@
-
 /* Define if `MPI_Comm_c2f' and `MPI_Comm_f2c' exists */
 #cmakedefine H5_HAVE_MPI_MULTI_LANG_Comm @H5_HAVE_MPI_MULTI_LANG_Comm@
 
@@ -319,7 +313,7 @@
 /* Define to 1 if you have the `rand_r' function. */
 #cmakedefine H5_HAVE_RAND_R @H5_HAVE_RAND_R@
 
-/* Define to 1 if you have the `sigsetjmp' function. */
+/* Define to 1 if you have the `setjmp' function. */
 #cmakedefine H5_HAVE_SETJMP @H5_HAVE_SETJMP@
 
 /* Define to 1 if you have the <setjmp.h> header file. */
@@ -459,6 +453,9 @@
 /* Define to 1 if you have the <unistd.h> header file. */
 #cmakedefine H5_HAVE_UNISTD_H @H5_HAVE_UNISTD_H@
 
+/* Define to 1 if you have the `asprintf' function. */
+#cmakedefine H5_HAVE_ASPRINTF @H5_HAVE_ASPRINTF@
+
 /* Define to 1 if you have the `vasprintf' function. */
 #cmakedefine H5_HAVE_VASPRINTF @H5_HAVE_VASPRINTF@
 
@@ -533,10 +530,6 @@
 /* Define if the metadata trace file code is to be compiled in */
 #cmakedefine H5_METADATA_TRACE_FILE @H5_METADATA_TRACE_FILE@
 
-/* Define if your system's `MPI_File_set_size' function works for files over
-   2GB. */
-#cmakedefine H5_MPI_FILE_SET_SIZE_BIG @H5_MPI_FILE_SET_SIZE_BIG@
-
 /* Define if we can violate pointer alignment restrictions */
 #cmakedefine H5_NO_ALIGNMENT_RESTRICTIONS @H5_NO_ALIGNMENT_RESTRICTIONS@
 
@@ -565,7 +558,7 @@
 #define H5_PACKAGE_URL "@HDF5_PACKAGE_URL@"
 
 /* Define to the version of this package. */
-#define H5_PACKAGE_VERSION "@HDF5_PACKAGE_VERSION@"
+#define H5_PACKAGE_VERSION "@HDF5_PACKAGE_VERSION_STRING@"
 
 /* Width for printf() for type `long long' or `__int64', use `ll' */
 #cmakedefine H5_PRINTF_LL_WIDTH @H5_PRINTF_LL_WIDTH@
@@ -747,7 +740,7 @@
 #cmakedefine H5_USING_MEMCHECKER @H5_USING_MEMCHECKER@
 
 /* Version number of package */
-#define H5_VERSION "@HDF5_PACKAGE_VERSION@"
+#define H5_VERSION "@HDF5_PACKAGE_VERSION_STRING@"
 
 /* Define if vsnprintf() returns the correct value for formatted strings that
    don't fit into size allowed */

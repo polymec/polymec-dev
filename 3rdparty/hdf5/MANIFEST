@@ -57,6 +57,7 @@
 ./bin/distdep
 ./bin/errors              _DO_NOT_DISTRIBUTE_
 ./bin/gcov_script            _DO_NOT_DISTRIBUTE_
+./bin/genltanalyze      _DO_NOT_DISTRIBUTE_
 ./bin/h5vers
 ./bin/install-sh
 ./bin/iostats
@@ -76,6 +77,7 @@
 ./bin/runtest        _DO_NOT_DISTRIBUTE_
 ./bin/snapshot
 ./bin/snapshot_version      _DO_NOT_DISTRIBUTE_
+./bin/test-driver
 ./bin/timekeeper      _DO_NOT_DISTRIBUTE_
 ./bin/trace
 ./bin/yodconfigure
@@ -247,6 +249,7 @@
 ./fortran/src/H5f90proto.h
 ./fortran/src/H5test_kind.f90
 ./fortran/src/H5test_kind_SIZEOF.f90
+./fortran/src/H5test_kind_STORAGE_SIZE.f90
 ./fortran/src/H5match_types.c
 ./fortran/src/HDF5.f90
 ./fortran/src/HDF5mpio.f90
@@ -267,6 +270,9 @@
 ./fortran/test/t.c
 ./fortran/test/t.h
 ./fortran/test/tf.f90
+./fortran/test/tf_F90.f90
+./fortran/test/tf_F03.f90
+./fortran/test/tf_F08.f90
 ./fortran/test/tH5A.f90
 ./fortran/test/tH5A_1_8.f90
 ./fortran/test/tH5D.f90
@@ -278,6 +284,7 @@
 ./fortran/test/tH5G_1_8.f90
 ./fortran/test/tH5I.f90
 ./fortran/test/tH5L_F03.f90
+./fortran/test/tH5MISC_1_8.f90
 ./fortran/test/tH5O.f90
 ./fortran/test/tH5O_F03.f90
 ./fortran/test/tH5P_F03.f90
@@ -289,6 +296,9 @@
 ./fortran/test/tH5T.f90
 ./fortran/test/tH5VL.f90
 ./fortran/test/tH5Z.f90
+./fortran/test/tHDF5_1_8.f90
+./fortran/test/tHDF5_F03.f90
+./fortran/test/tHDF5.f90
 
 ./fortran/testpar/Makefile.am
 ./fortran/testpar/Makefile.in
@@ -400,6 +410,8 @@
 ./c++/src/h5c++.in
 ./c++/src/header.html
 ./c++/src/header_files/filelist.xml
+./c++/src/header_files/hdf_logo.jpg
+./c++/src/header_files/help.jpg
 ./c++/src/header_files/image001.jpg
 ./c++/src/header_files/image002.jpg
 
@@ -411,12 +423,14 @@
 ./c++/test/h5cpputil.h
 ./c++/test/tattr.cpp
 ./c++/test/tcompound.cpp
+./c++/test/tdspl.cpp
 ./c++/test/testhdf5.cpp
 ./c++/test/tfile.cpp
 ./c++/test/tfilter.cpp
 ./c++/test/th5s.cpp
 ./c++/test/th5s.h5
 ./c++/test/tlinks.cpp
+./c++/test/tobject.cpp
 ./c++/test/ttypes.cpp
 ./c++/test/trefer.cpp
 ./c++/test/tvlstr.cpp
@@ -561,6 +575,7 @@
 ./src/H5Fdbg.c
 ./src/H5Fefc.c
 ./src/H5Ffake.c
+./src/H5Fint.c
 ./src/H5Fio.c
 ./src/H5Fmount.c
 ./src/H5Fmpi.c
@@ -586,8 +601,6 @@
 ./src/H5FDmpi.h
 ./src/H5FDmpio.c
 ./src/H5FDmpio.h
-./src/H5FDmpiposix.c
-./src/H5FDmpiposix.h
 ./src/H5FDmulti.c
 ./src/H5FDmulti.h
 ./src/H5FDpkg.h
@@ -811,8 +824,8 @@
 ./src/H5Tvlen.c
 ./src/H5TS.c
 ./src/H5TSprivate.h
-./src/H5V.c
-./src/H5Vprivate.h
+./src/H5VM.c
+./src/H5VMprivate.h
 ./src/H5WB.c
 ./src/H5WBprivate.h
 ./src/H5Z.c
@@ -1014,13 +1027,11 @@
 ./testpar/t_chunk_alloc.c
 ./testpar/t_coll_chunk.c
 ./testpar/t_filter_read.c
-./testpar/t_posix_compliant.c
 ./testpar/t_shapesame.c
 ./testpar/t_span_tree.c
 ./testpar/testpar.h
 ./testpar/testphdf5.c
 ./testpar/testphdf5.h
-./testpar/testph5.sh.in
 
 ./tools/COPYING
 ./tools/Makefile.am
@@ -1115,6 +1126,7 @@
 # h5repack sources
 ./tools/h5repack/Makefile.am
 ./tools/h5repack/Makefile.in
+./tools/h5repack/dynlib_rpk.c
 ./tools/h5repack/h5repack.sh.in
 ./tools/h5repack/h5repack_plugin.sh.in
 ./tools/h5repack/h5repack.c
@@ -1320,8 +1332,12 @@
 ./tools/testfiles/tcontents.ddl
 ./tools/testfiles/tcontiguos.ddl
 ./tools/testfiles/tcmpdattrintsize.ddl
+./tools/testfiles/tcmpdintarray.ddl
+./tools/testfiles/tcmpdints.ddl
 ./tools/testfiles/tcmpdintsize.ddl
 ./tools/testfiles/tcmpdattrintsize.h5
+./tools/testfiles/tcmpdintarray.h5
+./tools/testfiles/tcmpdints.h5
 ./tools/testfiles/tcmpdintsize.h5
 ./tools/testfiles/tcomp-1.ddl
 ./tools/testfiles/tcomp-2.ddl
@@ -1393,6 +1409,8 @@
 ./tools/testfiles/tindicessub3.ddl
 ./tools/testfiles/tindicessub4.ddl
 ./tools/testfiles/tindicessub1.ddl
+./tools/testfiles/tintsattrs.ddl
+./tools/testfiles/tintsattrs.h5
 ./tools/testfiles/tlarge_objname.ddl
 ./tools/testfiles/tlarge_objname.h5
 ./tools/testfiles/tldouble.h5
@@ -1438,11 +1456,15 @@
 ./tools/testfiles/trawdatafile.exp
 ./tools/testfiles/trawssetfile.ddl
 ./tools/testfiles/trawssetfile.exp
+./tools/testfiles/treadfilter.ddl
+./tools/testfiles/treadintfilter.ddl
 ./tools/testfiles/treference.ddl
 ./tools/testfiles/tsaf.ddl
 ./tools/testfiles/tsaf.h5
 ./tools/testfiles/tscalarattrintsize.ddl
 ./tools/testfiles/tscalarattrintsize.h5
+./tools/testfiles/tscalarintattrsize.ddl
+./tools/testfiles/tscalarintattrsize.h5
 ./tools/testfiles/tscalarintsize.ddl
 ./tools/testfiles/tscalarintsize.h5
 ./tools/testfiles/tscalarstring.ddl
@@ -1972,6 +1994,12 @@
 ./tools/h5diff/testfiles/compounds_array_vlen2.h5
 ./tools/h5diff/testfiles/non_comparables1.h5
 ./tools/h5diff/testfiles/non_comparables2.h5
+./tools/h5diff/testfiles/tmptest2.he5
+./tools/h5diff/testfiles/tmpSingleSiteBethe.reference.h5
+./tools/h5diff/testfiles/h5diff_tmp1.txt
+./tools/h5diff/testfiles/tmptest.he5
+./tools/h5diff/testfiles/h5diff_tmp2.txt
+./tools/h5diff/testfiles/tmpSingleSiteBethe.output.h5
 
 #test files for h5repack
 ./tools/h5repack/testfiles/h5repack_attr.h5
@@ -1989,6 +2017,7 @@
 ./tools/h5repack/testfiles/h5repack_layouto.h5
 ./tools/h5repack/testfiles/h5repack_layout2.h5
 ./tools/h5repack/testfiles/h5repack_layout3.h5
+./tools/h5repack/testfiles/h5repack_layout.UD.h5
 ./tools/h5repack/testfiles/h5repack_named_dtypes.h5
 ./tools/h5repack/testfiles/h5repack_nbit.h5
 ./tools/h5repack/testfiles/h5repack_objs.h5
@@ -1998,10 +2027,12 @@
 ./tools/h5repack/testfiles/h5repack_szip.h5
 ./tools/h5repack/testfiles/ublock.bin
 ./tools/h5repack/testfiles/deflate_limit.h5repack_layout.h5.ddl
+./tools/h5repack/testfiles/plugin_none.h5repack_layout.UD.h5.tst
 ./tools/h5repack/testfiles/plugin_test.h5repack_layout.h5.tst
 ./tools/h5repack/testfiles/h5repack-help.txt
 ./tools/h5repack/testfiles/h5repack_filters.h5.tst
 ./tools/h5repack/testfiles/h5repack_layout.h5.ddl
+./tools/h5repack/testfiles/h5repack_layout.UD.h5-plugin_none.ddl
 ./tools/h5repack/testfiles/h5repack_layout.h5-plugin_test.ddl
 
 # jam utility and tests
@@ -2085,7 +2116,6 @@
 ./hl/src/Makefile.am
 ./hl/src/Makefile.in
 ./hl/src/H5DO.c
-./hl/src/H5DOprivate.h
 ./hl/src/H5DOpublic.h
 ./hl/src/H5DS.c
 ./hl/src/H5DSprivate.h
@@ -2257,39 +2287,45 @@
 ./vms/tools/testfiles/tperror.ddl
 
 # CMake-specific Files
-./config/cmake/FindSZIP.cmake
+./config/cmake/cacheinit.cmake
 ./config/cmake/ConversionTests.c
-./config/cmake/GetTimeOfDayTest.cpp
-./config/cmake/HDF5CXXTests.cpp
-./config/cmake/HDF5Tests.c
-./config/cmake/xlatefile.c
-./config/cmake/CheckTypeSize.cmake
+./config/cmake/ConfigureChecks.cmake
+./config/cmake/CTestCustom.cmake
+./config/cmake/FindHDF5.cmake.in
 ./config/cmake/H5cxx_config.h.in
 ./config/cmake/H5pubconf.h.in
-./config/cmake/FindHDF5.cmake.in
-./config/cmake/FindMPI.cmake
 ./config/cmake/hdf5-config.cmake.build.in
 ./config/cmake/hdf5-config.cmake.install.in
 ./config/cmake/hdf5-config-version.cmake.in
-./config/cmake/HDFMacros.cmake
-./config/cmake/HDFLibMacros.cmake
 ./config/cmake/HDF5Macros.cmake
-./config/cmake/HDF5UseFortran.cmake
 ./config/cmake/libhdf5.settings.cmake.in
-./config/cmake/cacheinit.cmake
 ./config/cmake/mccacheinit.cmake
-./config/cmake/grepTest.cmake
-./config/cmake/prunTest.cmake
-./config/cmake/runTest.cmake
+./config/cmake/PkgInfo.in
+./config/cmake/README.txt.cmake.in
 ./config/cmake/userblockTest.cmake
 ./config/cmake/vfdTest.cmake
-./config/cmake/CTestCustom.cmake
-./config/cmake/ConfigureChecks.cmake
-./config/cmake/CPack.cmake
-./config/cmake/CPack.Info.plist.in
-./config/cmake/hdf.gif
-./config/cmake/NSIS.template.in
-./config/cmake/NSIS.InstallOptions.ini.in
+
+./config/cmake_ext_mod/CheckTypeSize.cmake
+./config/cmake_ext_mod/ConfigureChecks.cmake
+./config/cmake_ext_mod/CPack.Info.plist.in
+./config/cmake_ext_mod/CTestCustom.cmake
+./config/cmake_ext_mod/FindMPI.cmake
+./config/cmake_ext_mod/FindSZIP.cmake
+./config/cmake_ext_mod/GetTimeOfDayTest.cpp
+./config/cmake_ext_mod/grepTest.cmake
+./config/cmake_ext_mod/hdf.bmp
+./config/cmake_ext_mod/hdf.icns
+./config/cmake_ext_mod/hdf.ico
+./config/cmake_ext_mod/HDFCXXTests.cpp
+./config/cmake_ext_mod/HDFLibMacros.cmake
+./config/cmake_ext_mod/HDFMacros.cmake
+./config/cmake_ext_mod/HDFTests.c
+./config/cmake_ext_mod/HDFUseFortran.cmake
+./config/cmake_ext_mod/NSIS.InstallOptions.ini.in
+./config/cmake_ext_mod/NSIS.template.in
+./config/cmake_ext_mod/prunTest.cmake
+./config/cmake_ext_mod/runTest.cmake
+./config/cmake_ext_mod/version.plist.in
 
 # CMake-specific User Files
 ./config/cmake/UserMacros/Windows_MT.cmake

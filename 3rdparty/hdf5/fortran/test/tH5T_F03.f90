@@ -41,15 +41,23 @@
 !**
 !****************************************************************/
 !
+
+MODULE TH5T_F03
+
+  USE HDF5 
+  USE ISO_C_BINDING
+
+CONTAINS
+
 SUBROUTINE test_array_compound_atomic(total_error)
 
   USE HDF5 
+  USE TH5_MISC
   USE ISO_C_BINDING
   IMPLICIT NONE
 
   INTEGER, INTENT(INOUT) :: total_error
   ! 1-D dataset WITH fixed dimensions 
-  CHARACTER(LEN=6), PARAMETER :: SPACE1_NAME = "Space1"
   INTEGER, PARAMETER :: SPACE1_RANK = 1
   INTEGER, PARAMETER :: SPACE1_DIM1 = 4
   ! 1-D array datatype 
@@ -63,11 +71,11 @@ SUBROUTINE test_array_compound_atomic(total_error)
   END TYPE s1_t
   TYPE(s1_t), DIMENSION(:,:), ALLOCATABLE, TARGET :: wdata !  Information to write 
   TYPE(s1_t), DIMENSION(:,:), ALLOCATABLE, TARGET :: rdata !  Information read in 
-  INTEGER(hid_t)	:: fid1	! HDF5 File IDs		
-  INTEGER(hid_t) :: dataset	! Dataset ID			
-  INTEGER(hid_t)	:: sid1       ! Dataspace ID			
-  INTEGER(hid_t)	:: tid1       ! Array Datatype ID			
-  INTEGER(hid_t)	:: tid2       ! Compound Datatype ID			
+  INTEGER(hid_t) :: fid1       ! HDF5 File IDs		
+  INTEGER(hid_t) :: dataset    ! Dataset ID			
+  INTEGER(hid_t) :: sid1       ! Dataspace ID			
+  INTEGER(hid_t) :: tid1       ! Array Datatype ID			
+  INTEGER(hid_t) :: tid2       ! Compound Datatype ID			
 
   INTEGER(HSIZE_T), DIMENSION(1) :: sdims1 = (/SPACE1_DIM1/)
   INTEGER(HSIZE_T), DIMENSION(1) :: tdims1=(/ARRAY1_DIM1/)
@@ -79,12 +87,8 @@ SUBROUTINE test_array_compound_atomic(total_error)
   INTEGER(size_t) :: off   ! Offset of compound field 
   INTEGER(hid_t) :: mtid   ! Datatype ID for field 
   INTEGER :: i,j      !  counting variables  
-  INTEGER(SIZE_T) :: type_sizei  ! Size of the integer datatype 
-  INTEGER(SIZE_T) :: type_sizer  ! Size of the real datatype
 
-  INTEGER(SIZE_T) :: sizeof_compound ! total size of compound
   INTEGER :: error    !  Generic RETURN value 
-  INTEGER(SIZE_T)     ::   offset     ! Member's offset
   INTEGER :: namelen
   LOGICAL :: flag
 
@@ -254,7 +258,7 @@ SUBROUTINE test_array_compound_atomic(total_error)
            PRINT*, 'ERROR: Wrong integer data is read back by H5Dread_f '
            total_error = total_error + 1
         ENDIF
-        IF(wdata(i,j)%f.NE.rdata(i,j)%f)THEN
+        IF( .NOT.dreal_eq( REAL(wdata(i,j)%f,dp), REAL( rdata(i,j)%f, dp)) ) THEN
            PRINT*, 'ERROR: Wrong real data is read back by H5Dread_f '
            total_error = total_error + 1
         ENDIF
@@ -285,6 +289,7 @@ END SUBROUTINE test_array_compound_atomic
   SUBROUTINE test_array_compound_array(total_error)
     
     USE HDF5 
+    USE TH5_MISC
     USE ISO_C_BINDING
     IMPLICIT NONE
     
@@ -310,14 +315,13 @@ END SUBROUTINE test_array_compound_atomic
     TYPE(st_t_struct), DIMENSION(1:SPACE1_DIM1,1:ARRAY1_DIM1), TARGET :: rdata
 
 
-    INTEGER(hid_t) :: fid1		!  HDF5 File IDs		
-    INTEGER(hid_t) :: dataset	!  Dataset ID			
+    INTEGER(hid_t) :: fid1      !  HDF5 File IDs		
+    INTEGER(hid_t) :: dataset   !  Dataset ID			
     integer(hid_t) :: sid1      !  Dataspace ID			
     integer(hid_t) :: tid1      !  Array Datatype ID	
     integer(hid_t) :: tid2      !  Compound Datatype ID	
     integer(hid_t) :: tid3      !  Nested Array Datatype ID	
     integer(hid_t) :: tid4      !  Nested Array Datatype ID	
-    INTEGER(HID_T) :: dt5_id      ! Memory datatype identifier 
 
     INTEGER(HSIZE_T), DIMENSION(1) :: sdims1 = (/SPACE1_DIM1/)
     INTEGER(HSIZE_T), DIMENSION(1) :: tdims1=(/ARRAY1_DIM1/)
@@ -326,25 +330,18 @@ END SUBROUTINE test_array_compound_atomic
     INTEGER  ndims      ! Array rank for reading 
 
     INTEGER(HSIZE_T), ALLOCATABLE, DIMENSION(:) :: rdims1 ! Array dimensions for reading 
-    INTEGER(HSIZE_T), ALLOCATABLE, DIMENSION(:) :: rdims ! Array dimensions for reading 
 
     INTEGER :: nmemb ! Number of compound members 
     CHARACTER(LEN=20) :: mname ! Name of compound field 
     INTEGER(size_t) :: off   ! Offset of compound field 
-    INTEGER(size_t) :: offset   ! Offset of compound field 
     INTEGER(hid_t) :: mtid   ! Datatype ID for field  
     INTEGER(hid_t) :: mtid2   ! Datatype ID for field  
-    INTEGER(SIZE_T) :: type_sizei  ! Size of the integer datatype 
-    INTEGER(SIZE_T) :: type_sizer  ! Size of the real datatype 
-    INTEGER(SIZE_T) :: type_sizec  ! Size of the character datatype
-    INTEGER(SIZE_T) :: sizeof_compound ! total size of compound
 
     INTEGER :: mclass     !  Datatype class for field 
     INTEGER :: i,j,k      ! counting variables 
 
     INTEGER :: error
     CHARACTER(LEN=2) :: ichr2
-    INTEGER(SIZE_T) :: sizechar
     INTEGER :: namelen
     LOGICAL :: flag 
     INTEGER(HID_T) :: atype_id       !String Attribute Datatype identifier
@@ -623,6 +620,7 @@ END SUBROUTINE test_array_compound_atomic
              total_error = total_error + 1
           ENDIF
           DO k = 1, ARRAY2_DIM1
+             
              IF(wdata(i,j)%f(k).NE.rdata(i,j)%f(k))THEN
                 PRINT*, 'ERROR: Wrong real array data is read back by H5Dread_f '
                 total_error = total_error + 1
@@ -659,11 +657,9 @@ END SUBROUTINE test_array_compound_atomic
   SUBROUTINE test_array_bkg(total_error)
     
     USE HDF5 
+    USE TH5_MISC
     USE ISO_C_BINDING
     IMPLICIT NONE
-
-    INTEGER, PARAMETER :: r_k4 = SELECTED_REAL_KIND(5)
-    INTEGER, PARAMETER :: r_k8 = SELECTED_REAL_KIND(10)
 
     INTEGER, INTENT(INOUT) :: total_error
 
@@ -686,8 +682,8 @@ END SUBROUTINE test_array_compound_atomic
 
     TYPE CmpField_struct
        INTEGER, DIMENSION(1:ALEN) :: a
-       REAL(KIND=r_k4), DIMENSION(1:ALEN) :: b
-       REAL(KIND=r_k8), DIMENSION(1:ALEN) :: c
+       REAL(KIND=sp), DIMENSION(1:ALEN) :: b
+       REAL(KIND=dp), DIMENSION(1:ALEN) :: c
     ENDTYPE CmpField_struct
 
     TYPE(CmpField_struct), DIMENSION(1:LENGTH), TARGET :: cf
@@ -703,7 +699,7 @@ END SUBROUTINE test_array_compound_atomic
     TYPE(CmpDTSinfo_struct) :: dtsinfo
 
     TYPE fld_t_struct
-       REAL(KIND=r_k4), DIMENSION(1:ALEN) :: b
+       REAL(KIND=sp), DIMENSION(1:ALEN) :: b
     END TYPE fld_t_struct
  
     INTEGER(SIZE_T) :: type_sizei  ! Size of the integer datatype 
@@ -722,8 +718,6 @@ END SUBROUTINE test_array_compound_atomic
     INTEGER :: error
     TYPE(c_ptr) :: f_ptr
     
-    TYPE(c_funptr) :: func
-
 !     Initialize the data 
 !     ------------------- 
 
@@ -744,10 +738,10 @@ END SUBROUTINE test_array_compound_atomic
     ! ----------------------- 
     CALL h5tget_size_f(H5T_NATIVE_INTEGER, type_sizei, error)
     CALL check("h5tget_size_f", error, total_error)
-    IF(sizeof(cf(1)%b(1)).EQ.4)THEN
+    IF(h5_sizeof(cf(1)%b(1)).EQ.4_size_t)THEN
        CALL h5tget_size_f(H5T_NATIVE_REAL_4, type_sizer, error)
        CALL check("h5tget_size_f", error, total_error)
-    ELSE IF(sizeof(cf(1)%b(1)).EQ.8)THEN
+    ELSE IF(h5_sizeof(cf(1)%b(1)).EQ.8_size_t)THEN
        CALL h5tget_size_f(H5T_NATIVE_REAL_8, type_sizer, error)
        CALL check("h5tget_size_f", error, total_error)
     ENDIF
@@ -834,11 +828,11 @@ END SUBROUTINE test_array_compound_atomic
              PRINT*, 'ERROR: Wrong integer data is read back by H5Dread_f '
              total_error = total_error + 1
           ENDIF
-          IF( cf(i)%b(j) .NE. cfr(i)%b(j) )THEN
+          IF( .NOT.dreal_eq( REAL(cf(i)%b(j),dp), REAL( cfr(i)%b(j), dp)) ) THEN
              PRINT*, 'ERROR: Wrong real data is read back by H5Dread_f '
              total_error = total_error + 1
           ENDIF
-          IF( cf(i)%c(j) .NE. cfr(i)%c(j) )THEN
+          IF( .NOT.dreal_eq( REAL(cf(i)%c(j),dp), REAL( cfr(i)%c(j), dp)) ) THEN
              PRINT*, 'ERROR: Wrong double data is read back by H5Dread_f '
              total_error = total_error + 1
           ENDIF
@@ -901,7 +895,7 @@ END SUBROUTINE test_array_compound_atomic
 
     DO i = 1, LENGTH
        DO j = 1, ALEN
-          IF( fld(i)%b(j) .NE. fldr(i)%b(j) )THEN
+          IF( .NOT.dreal_eq( REAL(fld(i)%b(j),dp), REAL( fldr(i)%b(j), dp)) ) THEN
              PRINT*, 'ERROR: Wrong real data is read back by H5Dread_f '
              total_error = total_error + 1
           ENDIF
@@ -932,11 +926,11 @@ END SUBROUTINE test_array_compound_atomic
              PRINT*, 'ERROR: Wrong integer data is read back by H5Dread_f '
              total_error = total_error + 1
           ENDIF
-          IF( cf(i)%b(j) .NE. cfr(i)%b(j) )THEN
+          IF( .NOT.dreal_eq( REAL(cf(i)%b(j),dp), REAL(cfr(i)%b(j), dp)) ) THEN
              PRINT*, 'ERROR: Wrong real data is read back by H5Dread_f '
              total_error = total_error + 1
           ENDIF
-          IF( cf(i)%c(j) .NE. cfr(i)%c(j) )THEN
+          IF( .NOT.dreal_eq( REAL(cf(i)%c(j),dp), REAL(cfr(i)%c(j), dp)) ) THEN
              PRINT*, 'ERROR: Wrong double data is read back by H5Dread_f '
              total_error = total_error + 1
           ENDIF
@@ -990,11 +984,11 @@ END SUBROUTINE test_array_compound_atomic
              PRINT*, 'ERROR: Wrong integer data is read back by H5Dread_f '
              total_error = total_error + 1
           ENDIF
-          IF( cf(i)%b(j) .NE. cfr(i)%b(j) )THEN
+          IF( .NOT.dreal_eq( REAL(cf(i)%b(j),dp), REAL(cfr(i)%b(j), dp)) ) THEN
              PRINT*, 'ERROR: Wrong real data is read back by H5Dread_f '
              total_error = total_error + 1
           ENDIF
-          IF( cf(i)%c(j) .NE. cfr(i)%c(j) )THEN
+          IF( .NOT.dreal_eq( REAL(cf(i)%c(j),dp), REAL(cfr(i)%c(j), dp)) ) THEN
              PRINT*, 'ERROR: Wrong double data is read back by H5Dread_f '
              total_error = total_error + 1
           ENDIF
@@ -1018,6 +1012,7 @@ END SUBROUTINE test_array_compound_atomic
 
     USE ISO_C_BINDING
     USE HDF5 ! This module contains all necessary modules
+    USE TH5_MISC
 
     IMPLICIT NONE
     
@@ -1050,11 +1045,9 @@ END SUBROUTINE test_array_compound_atomic
     INTEGER(HID_T) :: dset_idr8      ! Dataset identifier 
     
     INTEGER :: error ! Error flag
-    INTEGER :: i, j
+    INTEGER :: i
     
 ! Data buffers:
-
-    INTEGER, DIMENSION(1:4) :: dset_data
 
     INTEGER(int_kind_1), DIMENSION(1:4), TARGET :: dset_data_i1, data_out_i1
     INTEGER(int_kind_4), DIMENSION(1:4), TARGET :: dset_data_i4, data_out_i4
@@ -1069,7 +1062,6 @@ END SUBROUTINE test_array_compound_atomic
     INTEGER(HID_T) :: dspace_id     ! Dataspace identifier
     
     TYPE(C_PTR) :: f_ptr
-    INTEGER(hid_t) :: datatype         ! Common datatype ID 
 
     !
     ! Initialize the dset_data array.
@@ -1179,7 +1171,7 @@ END SUBROUTINE test_array_compound_atomic
        CALL verify_Fortran_INTEGER_4("h5kind_to_type2",INT(dset_data_i4(i),int_kind_8),INT(data_out_i4(i),int_kind_8),total_error)
        CALL verify_Fortran_INTEGER_4("h5kind_to_type3",INT(dset_data_i8(i),int_kind_8),INT(data_out_i8(i),int_kind_8),total_error)
        CALL verify_Fortran_INTEGER_4("h5kind_to_type4",INT(dset_data_i16(i),int_kind_8),INT(data_out_i16(i),int_kind_8),total_error)
-
+       
        CALL verify_real_kind_7("h5kind_to_type5",REAL(dset_data_r(i),real_kind_7),REAL(data_out_r(i),real_kind_7),total_error)
        CALL verify_real_kind_7("h5kind_to_type6",REAL(dset_data_r7(i),real_kind_7),REAL(data_out_r7(i),real_kind_7),total_error)
        CALL verify_real_kind_7("h5kind_to_type7",REAL(dset_data_r15(i),real_kind_7),REAL(data_out_r15(i),real_kind_7),total_error)
@@ -1220,8 +1212,9 @@ END SUBROUTINE test_h5kind_to_type
 !************************************************************
 SUBROUTINE t_array(total_error)
 
-  USE HDF5
   USE ISO_C_BINDING
+  USE HDF5
+  USE TH5_MISC
   
   IMPLICIT NONE
     
@@ -1233,10 +1226,8 @@ SUBROUTINE t_array(total_error)
   INTEGER          , PARAMETER :: adim0     = 3
   INTEGER          , PARAMETER :: adim1     = 5
   INTEGER(HID_T)  :: file, filetype, memtype, space, dset ! Handles
-  INTEGER :: hdferr
   INTEGER(HSIZE_T), DIMENSION(1:1)   :: dims = (/dim0/)
   INTEGER(HSIZE_T), DIMENSION(1:2)   :: adims = (/adim0, adim1/)
-  INTEGER(HSIZE_T), DIMENSION(1:3)   :: bdims = (/dim0, adim0, adim1/)
   INTEGER(HSIZE_T), DIMENSION(1:2)   :: maxdims
   INTEGER, DIMENSION(1:dim0, 1:adim0, 1:adim1), TARGET :: wdata ! Write buffer 
   INTEGER, DIMENSION(:,:,:), ALLOCATABLE, TARGET :: rdata    ! Read buffer
@@ -1337,9 +1328,9 @@ SUBROUTINE t_array(total_error)
   !
   ! Output the data to the screen.
   !
-  i_loop: DO i = 1, dims(1)
-             DO j=1, adim0
-                DO k = 1, adim1
+  i_loop: DO i = 1, INT(dims(1))
+             DO j=1, INT(adim0)
+                DO k = 1, INT(adim1)
                    CALL VERIFY("H5Sget_simple_extent_dims_f",  rdata(i,j,k), wdata(i,j,k), total_error)
                    IF(total_error.NE.0) EXIT i_loop
                 ENDDO
@@ -1365,6 +1356,7 @@ END SUBROUTINE t_array
 SUBROUTINE t_enum(total_error)
 
   USE HDF5
+  USE TH5_MISC
   USE ISO_C_BINDING
 
   IMPLICIT NONE
@@ -1497,8 +1489,8 @@ SUBROUTINE t_enum(total_error)
   !
   ! Output the data to the screen.
   !
-  i_loop: DO i = 1, dims(1)
-             DO j = 1, dims(2)
+  i_loop: DO i = 1, INT(dims(1))
+             DO j = 1, INT(dims(2))
                 !
                 ! Get the name of the enumeration member.
                 !
@@ -1527,6 +1519,7 @@ END SUBROUTINE t_enum
 SUBROUTINE t_bit(total_error)
 
   USE HDF5
+  USE TH5_MISC
   USE ISO_C_BINDING
 
   IMPLICIT NONE
@@ -1617,8 +1610,8 @@ SUBROUTINE t_bit(total_error)
   !
   ! Output the data to the screen.
   !
-  i_loop: DO i = 1, dims(1)
-            DO j = 1, dims(2)
+  i_loop: DO i = 1, INT(dims(1))
+            DO j = 1, INT(dims(2))
                A = IAND(rdata(i,j), INT(hex,C_SIGNED_CHAR)) ! Retrieve field "A"
                B = IAND(ISHFT(rdata(i,j),-2), INT(hex,C_SIGNED_CHAR)) ! Retrieve field "B"
                C = IAND(ISHFT(rdata(i,j),-4), INT(hex,C_SIGNED_CHAR)) ! Retrieve field "C"
@@ -1652,6 +1645,7 @@ END SUBROUTINE t_bit
 SUBROUTINE t_opaque(total_error)
 
   USE HDF5
+  USE TH5_MISC
   USE ISO_C_BINDING
 
   IMPLICIT NONE
@@ -1675,7 +1669,7 @@ SUBROUTINE t_opaque(total_error)
 
   INTEGER :: taglen
   INTEGER(HSIZE_T), DIMENSION(1:1) :: maxdims
-  INTEGER :: i
+  INTEGER(hsize_t) :: i
   CHARACTER(LEN=1) :: ichr
   TYPE(C_PTR) :: f_ptr
   INTEGER :: error
@@ -1799,6 +1793,7 @@ END SUBROUTINE t_opaque
 SUBROUTINE t_objref(total_error)
 
   USE HDF5
+  USE TH5_MISC
   USE ISO_C_BINDING
 
   IMPLICIT NONE
@@ -1905,7 +1900,7 @@ SUBROUTINE t_objref(total_error)
   !
   ! Output the data to the screen.
   !
-  DO i = 1, maxdims(1)
+  DO i = 1, INT(maxdims(1))
      !
      ! Open the referenced object, get its name and type.
      !
@@ -1951,6 +1946,7 @@ END SUBROUTINE t_objref
 SUBROUTINE t_regref(total_error)
 
   USE HDF5
+  USE TH5_MISC
   USE ISO_C_BINDING
 
   IMPLICIT NONE
@@ -1984,7 +1980,7 @@ SUBROUTINE t_regref(total_error)
 
   CHARACTER(LEN=80),DIMENSION(1:1), TARGET :: rdata2
   CHARACTER(LEN=80) :: name
-  INTEGER :: i
+  INTEGER(hsize_t) :: i
   TYPE(C_PTR) :: f_ptr
   CHARACTER(LEN=ds2dim0) :: chrvar
   CHARACTER(LEN=20), DIMENSION(1:2) :: chrref_correct
@@ -2150,6 +2146,7 @@ END SUBROUTINE t_regref
 SUBROUTINE t_vlen(total_error)
 
   USE HDF5
+  USE TH5_MISC
   USE ISO_C_BINDING
 
   IMPLICIT NONE
@@ -2159,7 +2156,7 @@ SUBROUTINE t_vlen(total_error)
   CHARACTER(LEN=3) , PARAMETER :: dataset   = "DS1"
   INTEGER, PARAMETER :: LEN0 = 3
   INTEGER, PARAMETER :: LEN1 = 12
-  INTEGER :: dim0
+  INTEGER(hsize_t) :: dim0
 
   INTEGER(HID_T)  :: file, filetype, memtype, space, dset ! Handles
   INTEGER :: error
@@ -2266,7 +2263,7 @@ SUBROUTINE t_vlen(total_error)
   dim0 = dims(1)
   CALL H5Sget_simple_extent_dims_f(space, dims, maxdims, error) 
   CALL check("H5Sget_simple_extent_dims_f",error, total_error)
-  CALL VERIFY("H5Sget_simple_extent_dims_f", INT(dims(1)), dim0, total_error)
+  CALL VERIFY("H5Sget_simple_extent_dims_f", INT(dims(1)), INT(dim0), total_error)
 
   !
   ! Create the memory datatype.
@@ -2281,7 +2278,7 @@ SUBROUTINE t_vlen(total_error)
   CALL H5Dread_f(dset, memtype, f_ptr, error)
   CALL check("H5Dread_f",error, total_error)
 
-  DO i = 1, dims(1)
+  DO i = 1, INT(dims(1))
      CALL c_f_pointer(rdata(i)%p, ptr_r, [rdata(i)%len] )
      DO j = 1, rdata(i)%len
         CALL VERIFY("t_vlen", ptr_r(j), ptr(i)%data(j), total_error)
@@ -2307,6 +2304,7 @@ END SUBROUTINE t_vlen
 SUBROUTINE t_vlstring(total_error)
 
   USE HDF5
+  USE TH5_MISC
   USE ISO_C_BINDING
 
   IMPLICIT NONE
@@ -2328,7 +2326,7 @@ SUBROUTINE t_vlstring(total_error)
   CHARACTER(LEN=sdim), DIMENSION(:), ALLOCATABLE :: rdata ! Read buffer
   INTEGER(HSIZE_T), DIMENSION(2) :: data_dims = (/sdim,dim0/)
   INTEGER(SIZE_T), DIMENSION(4) :: str_len = (/7,7,5,7/)
-  INTEGER :: i
+  INTEGER(hsize_t) :: i
 
   !
   ! Create a new file using the default properties.
@@ -2427,6 +2425,7 @@ SUBROUTINE t_vlstring_readwrite(total_error)
 ! test writing and reading vl string using h5dread_f and h5dwrite_f, C_LOC and C_F_POINTER
 
   USE HDF5
+  USE TH5_MISC
   USE ISO_C_BINDING
 
   IMPLICIT NONE
@@ -2439,7 +2438,6 @@ SUBROUTINE t_vlstring_readwrite(total_error)
 
   INTEGER(HSIZE_T) , PARAMETER :: dim0 = 4
   INTEGER(HSIZE_T) , PARAMETER :: dim1 = 2
-  INTEGER(SIZE_T)  , PARAMETER :: sdim = 7
   INTEGER(HID_T)               :: file, filetype, space, dset ! Handles
   INTEGER(HSIZE_T), DIMENSION(1:1) :: dims = (/dim0/)
   INTEGER(HSIZE_T), DIMENSION(1:2) :: dims2D = (/dim1,dim0/)
@@ -2468,7 +2466,8 @@ SUBROUTINE t_vlstring_readwrite(total_error)
   CHARACTER(len=8, kind=c_char), DIMENSION(1:4) :: data_w ! A pointer to a Fortran string
   CHARACTER(len=8, kind=c_char), DIMENSION(1:dim1,1:dim0) :: data2D_w ! A pointer to a Fortran string
   TYPE(C_PTR) :: f_ptr
-  INTEGER :: i, j, len
+  INTEGER(hsize_t) :: i, j
+  INTEGER :: len
   INTEGER :: error
 
   ! Initialize array of C pointers
@@ -2677,6 +2676,7 @@ END SUBROUTINE t_vlstring_readwrite
 SUBROUTINE t_string(total_error)
 
   USE HDF5
+  USE TH5_MISC
   USE ISO_C_BINDING
 
   IMPLICIT NONE
@@ -2697,7 +2697,7 @@ SUBROUTINE t_string(total_error)
   CHARACTER(LEN=sdim), DIMENSION(1:dim0), TARGET :: &
        wdata = (/"Parting", "is such", "sweet  ", "sorrow."/)
   CHARACTER(LEN=sdim), DIMENSION(:), ALLOCATABLE, TARGET :: rdata
-  INTEGER :: i
+  INTEGER(hsize_t) :: i
   INTEGER(SIZE_T) :: size
   TYPE(C_PTR) :: f_ptr
   !
@@ -2800,23 +2800,23 @@ SUBROUTINE t_string(total_error)
 
 END SUBROUTINE t_string
 
-SUBROUTINE vl_test_special_char(cleanup, total_error)
+SUBROUTINE vl_test_special_char(total_error)
   
-  USE hdf5
+  USE HDF5
+  USE TH5_MISC
   IMPLICIT NONE
   
-  INTERFACE
-     SUBROUTINE setup_buffer(data_in, line_lengths, char_type)
-       USE hdf5
-       USE ISO_C_BINDING
-       IMPLICIT NONE
-       CHARACTER(len=*), DIMENSION(:) :: data_in
-       INTEGER(size_t), DIMENSION(:) :: line_lengths
-       CHARACTER(KIND=C_CHAR,LEN=*) :: char_type
-     END SUBROUTINE setup_buffer
-  END INTERFACE
+!  INTERFACE
+!     SUBROUTINE setup_buffer(data_in, line_lengths, char_type)
+!       USE HDF5
+!       USE ISO_C_BINDING
+!     IMPLICIT NONE
+!       CHARACTER(len=*), DIMENSION(:) :: data_in
+!       INTEGER(size_t), DIMENSION(:) :: line_lengths
+!       CHARACTER(KIND=C_CHAR,LEN=*) :: char_type
+!     END SUBROUTINE setup_buffer
+!  END INTERFACE
   
-  LOGICAL, INTENT(IN) :: cleanup
   INTEGER, INTENT(OUT) :: total_error
   
   CHARACTER(LEN=16), PARAMETER :: filename  = "t_controlchar.h5"
@@ -2967,14 +2967,14 @@ END SUBROUTINE setup_buffer
 !-------------------------------------------------------------------------
 !
 
-SUBROUTINE test_nbit(cleanup, total_error )
+SUBROUTINE test_nbit(total_error )
 
   USE HDF5
+  USE TH5_MISC
   USE ISO_C_BINDING
 
   IMPLICIT NONE
   INTEGER, PARAMETER :: wp = SELECTED_REAL_KIND(Fortran_REAL_4) !should map to REAL*4 on most modern processors
-  LOGICAL, INTENT(IN)  :: cleanup
   INTEGER, INTENT(INOUT) :: total_error
   INTEGER(hid_t) :: file
   
@@ -2991,7 +2991,7 @@ SUBROUTINE test_nbit(cleanup, total_error )
   INTEGER(size_t) :: PRECISION, offset
   INTEGER :: error
   LOGICAL :: status
-  INTEGER(size_t) :: i, j
+  INTEGER(hsize_t) :: i, j
   TYPE(C_PTR) :: f_ptr
 
   ! check to see if filter is available
@@ -3065,7 +3065,7 @@ SUBROUTINE test_nbit(cleanup, total_error )
   i_loop: DO i = 1, dims(1)
      j_loop: DO j = 1, dims(2)
         IF(.NOT.(orig_data(i,j).EQ.orig_data(i,j))) CYCLE  ! skip IF value is NaN
-        IF(new_data(i,j) .NE. orig_data(i,j))THEN
+        IF( .NOT.dreal_eq( REAL(new_data(i,j),dp), REAL( orig_data(i,j), dp)) ) THEN
            total_error = total_error + 1
            WRITE(*,'("    Read different values than written.")')
            WRITE(*,'("    At index ", 2(1X,I0))') i, j
@@ -3114,6 +3114,7 @@ SUBROUTINE t_enum_conv(total_error)
 !-------------------------------------------------------------------------
 !
   USE HDF5
+  USE TH5_MISC
   USE ISO_C_BINDING
 
   IMPLICIT NONE
@@ -3125,7 +3126,7 @@ SUBROUTINE t_enum_conv(total_error)
   
   INTEGER, PARAMETER :: real_kind_7 = SELECTED_REAL_KIND(Fortran_REAL_4)  !should map to REAL*4 on most modern processors
 
-  INTEGER(hid_t) :: cwg=-1, dtype=-1, space=-1, dset=-1, memtype ! Handles
+  INTEGER(hid_t) :: cwg=-1, dtype=-1, space=-1, dset=-1 ! Handles
   INTEGER(hid_t) :: file ! Handles
 
   ! Enumerated type
@@ -3137,10 +3138,15 @@ SUBROUTINE t_enum_conv(total_error)
 
   ! Enumerated data array 
   ! Some values are out of range for testing. The library should accept them
-  INTEGER(KIND(E1_RED)), DIMENSION(1:20), TARGET :: data1 = (/E1_RED,   E1_GREEN, E1_BLUE,  E1_GREEN, E1_WHITE,&
-       E1_WHITE, E1_BLACK, E1_GREEN, E1_BLUE,  E1_RED,&
-       E1_RED, E1_BLUE,  E1_GREEN, E1_BLACK, E1_WHITE,&
-       E1_RED, E1_WHITE, INT(0,KIND(E1_RED)), INT(-1,KIND(E1_RED)), INT(-2,KIND(E1_RED))/)
+  INTEGER(KIND(E1_RED)), DIMENSION(1:20), TARGET :: data1 = (/INT(E1_RED,KIND(E1_RED)), &
+       INT(E1_GREEN,KIND(E1_RED)), INT(E1_BLUE,KIND(E1_RED)),  &
+       INT(E1_GREEN,KIND(E1_RED)), INT(E1_WHITE,KIND(E1_RED)), &
+       INT(E1_WHITE,KIND(E1_RED)), INT(E1_BLACK,KIND(E1_RED)), &
+       INT(E1_GREEN,KIND(E1_RED)), INT(E1_BLUE,KIND(E1_RED)), &
+       INT(E1_RED,KIND(E1_RED)), INT(E1_RED,KIND(E1_RED)), INT(E1_BLUE,KIND(E1_RED)), &
+       INT(E1_GREEN,KIND(E1_RED)), INT(E1_BLACK,KIND(E1_RED)), INT(E1_WHITE,KIND(E1_RED)),&
+       INT(E1_RED,KIND(E1_RED)), INT(E1_WHITE,KIND(E1_RED)), &
+       INT(0,KIND(E1_RED)), INT(-1,KIND(E1_RED)), INT(-2,KIND(E1_RED))/)
 
   ! Reading array for enum data
   INTEGER(KIND(E1_RED)), DIMENSION(1:20), TARGET :: data2
@@ -3156,6 +3162,7 @@ SUBROUTINE t_enum_conv(total_error)
 
   INTEGER(hsize_t), DIMENSION(1:1) :: ds_size = (/20/)
   INTEGER(size_t) :: i
+  INTEGER(hsize_t) :: ih
   INTEGER :: error
   TYPE(C_PTR) :: f_ptr
   INTEGER(HID_T) :: m_baset  ! Memory base type
@@ -3218,10 +3225,10 @@ SUBROUTINE t_enum_conv(total_error)
   CALL check(" h5dread_f", error, total_error)
 
   ! Check values
-  DO i = 1, ds_size(1)
-     IF(data1(i) .NE. data2(i))THEN
+  DO ih = 1, ds_size(1)
+     IF(data1(ih) .NE. data2(ih))THEN
         total_error = total_error + 1
-        WRITE(*,'("    1. data1(",I0,")=",I0," .NE. data2(",I0,")=",I0)') i, data1(i),i,data2(i)
+        WRITE(*,'("    1. data1(",I0,")=",I0," .NE. data2(",I0,")=",I0)') ih, data1(ih),i,data2(ih)
         EXIT
      ENDIF
   ENDDO
@@ -3232,10 +3239,10 @@ SUBROUTINE t_enum_conv(total_error)
   CALL h5dread_f(dset, m_baset, f_ptr, error, space, space)
   CALL check("h5dread_f", error, total_error)
   ! Check values
-  DO i = 1, ds_size(1)
-     IF(data1(i) .NE. data_short(i))THEN
+  DO ih = 1, ds_size(1)
+     IF(data1(ih) .NE. data_short(ih))THEN
         total_error = total_error + 1
-        WRITE(*,'("    2. data1(",I0,")=",I0," .NE. data_short(",I0,")=",I0)') i, data1(i),i,data_short(i)
+        WRITE(*,'("    2. data1(",I0,")=",I0," .NE. data_short(",I0,")=",I0)') ih, data1(ih),i,data_short(ih)
         EXIT
      ENDIF
   ENDDO
@@ -3248,11 +3255,11 @@ SUBROUTINE t_enum_conv(total_error)
   CALL h5dread_f(dset,  m_baset, f_ptr, error, space, space)
   CALL check("h5dread_f", error, total_error)
   ! Check values
-  DO i = 1, ds_size(1)
-     IF(data1(i) .NE. INT(data_double(i)))THEN
+  DO ih = 1, ds_size(1)
+     IF(data1(ih) .NE. INT(data_double(ih)))THEN
         total_error = total_error + 1
         WRITE(*,'("    3. data_double(",I0,")=",I0," .NE. data_double(",I0,")=",I0)') &
-             i, INT(data1(i)), i, INT(data_double(i))
+             ih, INT(data1(ih)), ih, INT(data_double(ih))
         EXIT
      ENDIF
   ENDDO
@@ -3265,11 +3272,11 @@ SUBROUTINE t_enum_conv(total_error)
   CALL h5dread_f(dset,  m_baset, f_ptr, error, space, space)
   CALL check("h5dread_f", error, total_error)
   ! Check values
-  DO i = 1, ds_size(1)
-     IF(data1(i) .NE. INT(data_i8(i)))THEN
+  DO ih = 1, ds_size(1)
+     IF(data1(ih) .NE. INT(data_i8(ih)))THEN
         total_error = total_error + 1
         WRITE(*,'("    4. data_i8(",I0,")=",I0," .NE. data_i8(",I0,")=",I0)') &
-             i, INT(data1(i)), i, INT(data_i8(i))
+             ih, INT(data1(ih)), i, INT(data_i8(ih))
         EXIT
      ENDIF
   ENDDO
@@ -3282,11 +3289,11 @@ SUBROUTINE t_enum_conv(total_error)
   CALL h5dread_f(dset,  m_baset, f_ptr, error, space, space)
   CALL check("h5dread_f", error, total_error)
   ! Check values
-  DO i = 1, ds_size(1)
-     IF(data1(i) .NE. INT(data_i16(i)))THEN
+  DO ih = 1, ds_size(1)
+     IF(data1(ih) .NE. INT(data_i16(ih)))THEN
         total_error = total_error + 1
         WRITE(*,'("    5. data_i16(",I0,")=",I0," .NE. data_i16(",I0,")=",I0)') &
-             i, INT(data1(i)), i, INT(data_i16(i))
+             ih, INT(data1(ih)), i, INT(data_i16(ih))
         EXIT
      ENDIF
   ENDDO
@@ -3299,11 +3306,11 @@ SUBROUTINE t_enum_conv(total_error)
   CALL h5dread_f(dset,  m_baset, f_ptr, error, space, space)
   CALL check("h5dread_f", error, total_error)
   ! Check values
-  DO i = 1, ds_size(1)
-     IF(data1(i) .NE. INT(data_r7(i)))THEN
+  DO ih = 1, ds_size(1)
+     IF(data1(ih) .NE. INT(data_r7(ih)))THEN
         total_error = total_error + 1
         WRITE(*,'("    6. data_r7(",I0,")=",I0," .NE. data_r7(",I0,")=",I0)') &
-             i, INT(data1(i)), i, INT(data_r7(i))
+             ih, INT(data1(ih)), i, INT(data_r7(ih))
         EXIT
      ENDIF
   ENDDO
@@ -3330,10 +3337,10 @@ SUBROUTINE t_enum_conv(total_error)
   CALL h5dread_f(dset, m_baset, f_ptr, error, space, space)
   CALL check("h5dread_f", error, total_error)
 
-  DO i = 1, ds_size(1)
-     IF(data1(i) .NE. data_int(i))THEN
+  DO ih = 1, ds_size(1)
+     IF(data1(ih) .NE. data_int(ih))THEN
         total_error = total_error + 1
-        WRITE(*,'("    7. data1(",I0,")=",I0," .NE. data_int(",I0,")=",I0)') i, data1(i),i,data_int(i)
+        WRITE(*,'("    7. data1(",I0,")=",I0," .NE. data_int(",I0,")=",I0)') ih, data1(ih),i,data_int(ih)
         EXIT
      ENDIF
   ENDDO
@@ -3358,10 +3365,10 @@ SUBROUTINE t_enum_conv(total_error)
   CALL h5dread_f(dset, m_baset, f_ptr, error, space, space)
   CALL check("h5dread_f", error, total_error)
 
-  DO i = 1, ds_size(1)
-     IF(data1(i) .NE. INT(data_double(i)))THEN
+  DO ih = 1, ds_size(1)
+     IF(data1(ih) .NE. INT(data_double(ih)))THEN
         total_error = total_error + 1
-        WRITE(*,'("    8. data1(",I0,")=",I0," .NE. data_double(",I0,")=",I0)') i, data1(i),i,INT(data_double(i))
+        WRITE(*,'("    8. data1(",I0,")=",I0," .NE. data_double(",I0,")=",I0)') ih, data1(ih),ih,INT(data_double(ih))
         EXIT
      ENDIF
   ENDDO
@@ -3386,10 +3393,10 @@ SUBROUTINE t_enum_conv(total_error)
   CALL h5dread_f(dset, m_baset, f_ptr, error, space, space)
   CALL check("h5dread_f", error, total_error)
 
-  DO i = 1, ds_size(1)
-     IF(data1(i) .NE. INT(data_r7(i)))THEN
+  DO ih = 1, ds_size(1)
+     IF(data1(ih) .NE. INT(data_r7(ih)))THEN
         total_error = total_error + 1
-        WRITE(*,'("    9. data1(",I0,")=",I0," .NE. data_r7(",I0,")=",I0)') i, data1(i),i,INT(data_r7(i))
+        WRITE(*,'("    9. data1(",I0,")=",I0," .NE. data_r7(",I0,")=",I0)') ih, data1(ih),ih,INT(data_r7(ih))
         EXIT
      ENDIF
   ENDDO
@@ -3415,10 +3422,10 @@ SUBROUTINE t_enum_conv(total_error)
   CALL h5dread_f(dset, m_baset, f_ptr, error, space, space)
   CALL check("h5dread_f", error, total_error)
 
-  DO i = 1, ds_size(1)
-     IF(data1(i) .NE. data_i16(i))THEN
+  DO ih = 1, ds_size(1)
+     IF(data1(ih) .NE. data_i16(ih))THEN
         total_error = total_error + 1
-        WRITE(*,'("    10. data1(",I0,")=",I0," .NE. data_i16(",I0,")=",I0)') i, data1(i),i,data_i16(i)
+        WRITE(*,'("    10. data1(",I0,")=",I0," .NE. data_i16(",I0,")=",I0)') ih, data1(ih),ih,data_i16(ih)
         EXIT
      ENDIF
   ENDDO
@@ -3439,3 +3446,4 @@ SUBROUTINE t_enum_conv(total_error)
 
 END SUBROUTINE t_enum_conv
 
+END MODULE TH5T_F03

@@ -529,8 +529,7 @@ H5FL_DEFINE_STATIC(H5T_path_t);
 /* Datatype ID class */
 static const H5I_class_t H5I_DATATYPE_CLS[1] = {{
     H5I_DATATYPE,		/* ID class value */
-    0,				/* Class flags */
-    64,				/* Minimum hash size for class */
+    H5I_CLASS_REUSE_IDS,	/* Class flags */
     8,				/* # of reserved IDs for class */
     (H5I_free_t)H5T_close	/* Callback routine for closing objects of this class */
 }};
@@ -773,7 +772,6 @@ H5T_init_interface(void)
     hsize_t     dim[1]={1};             /* Dimension info for array datatype */
     herr_t	status;
     unsigned    copied_dtype=1;         /* Flag to indicate whether datatype was copied or allocated (for error cleanup) */
-    H5P_genclass_t  *crt_pclass;        /* Property list class for datatype creation properties */
     herr_t	ret_value = SUCCEED;    /* Return value */
 
     FUNC_ENTER_NOAPI_NOINIT
@@ -1050,11 +1048,9 @@ H5T_init_interface(void)
     status = 0;
 
     status |= H5T_register(H5T_PERS_SOFT, "i_i", fixedpt, fixedpt, H5T__conv_i_i, H5AC_dxpl_id, FALSE);
-    status |= H5T_register(H5T_PERS_SOFT, "f_f", floatpt, floatpt, H5T__conv_f_f, H5AC_dxpl_id, FALSE);
-
     status |= H5T_register(H5T_PERS_SOFT, "i_f", fixedpt, floatpt, H5T__conv_i_f, H5AC_dxpl_id, FALSE);
+    status |= H5T_register(H5T_PERS_SOFT, "f_f", floatpt, floatpt, H5T__conv_f_f, H5AC_dxpl_id, FALSE);
     status |= H5T_register(H5T_PERS_SOFT, "f_i", floatpt, fixedpt, H5T__conv_f_i, H5AC_dxpl_id, FALSE);
-
     status |= H5T_register(H5T_PERS_SOFT, "s_s", string, string, H5T__conv_s_s, H5AC_dxpl_id, FALSE);
     status |= H5T_register(H5T_PERS_SOFT, "b_b", bitfield, bitfield, H5T__conv_b_b, H5AC_dxpl_id, FALSE);
     status |= H5T_register(H5T_PERS_SOFT, "ibo", fixedpt, fixedpt, H5T__conv_order, H5AC_dxpl_id, FALSE);
@@ -1352,21 +1348,17 @@ H5T_init_interface(void)
     if (status<0)
 	HGOTO_ERROR(H5E_DATATYPE, H5E_CANTINIT, FAIL, "unable to register conversion function(s)")
 
-    /* ========== Datatype Creation Property Class Initialization ============*/
-    HDassert(H5P_CLS_DATATYPE_CREATE_g!=-1);
-
-    /* Get the pointer to group creation class */
-    if(NULL == (crt_pclass = (H5P_genclass_t *)H5I_object(H5P_CLS_DATATYPE_CREATE_g)))
-         HGOTO_ERROR(H5E_ARGS, H5E_BADTYPE, FAIL, "not a property list class")
-
     /* Register datatype creation property class properties here.  See similar
      * code in H5D_init_interface(), etc. for example.
      */
 
     /* Only register the default property list if it hasn't been created yet */
-    if(H5P_LST_DATATYPE_CREATE_g == (-1)) {
+    if(H5P_LST_DATATYPE_CREATE_ID_g == (-1)) {
+        /* ========== Datatype Creation Property Class Initialization ============*/
+        HDassert(H5P_CLS_DATATYPE_CREATE_g != NULL);
+
         /* Register the default datatype creation property list */
-        if((H5P_LST_DATATYPE_CREATE_g = H5P_create_id(crt_pclass, FALSE)) < 0)
+        if((H5P_LST_DATATYPE_CREATE_ID_g = H5P_create_id(H5P_CLS_DATATYPE_CREATE_g, FALSE)) < 0)
              HGOTO_ERROR(H5E_PLIST, H5E_CANTREGISTER, FAIL, "can't insert property into class")
     } /* end if */
 
@@ -1446,20 +1438,23 @@ H5T_unlock_cb(void *_dt, hid_t UNUSED id, void UNUSED *key)
 int
 H5T_term_interface(void)
 {
-    int	i, nprint=0, n=0;
-    H5T_path_t	*path = NULL;
+    int	n = 0;
 
     FUNC_ENTER_NOAPI_NOINIT_NOERR
 
     if(H5_interface_initialize_g) {
+        int i, nprint = 0;
+
 	/* Unregister all conversion functions */
 	for(i = 0; i < H5T_g.npaths; i++) {
+            H5T_path_t *path;
+
 	    path = H5T_g.path[i];
 	    HDassert(path);
 	    if(path->func) {
 		H5T__print_stats(path, &nprint/*in,out*/);
 		path->cdata.command = H5T_CONV_FREE;
-		if((path->func)(FAIL, FAIL, &(path->cdata), (size_t)0,
+		if((path->func)((hid_t)FAIL, (hid_t)FAIL, &(path->cdata), (size_t)0,
                         (size_t)0, (size_t)0, NULL, NULL,H5AC_dxpl_id) < 0) {
 #ifdef H5T_DEBUG
 		    if (H5DEBUG(T)) {
@@ -1492,7 +1487,13 @@ H5T_term_interface(void)
 	/* Unlock all datatypes, then free them */
 	/* note that we are ignoring the return value from H5I_iterate() */
 	H5I_iterate(H5I_DATATYPE, H5T_unlock_cb, NULL, FALSE);
-	H5I_dec_type_ref(H5I_DATATYPE);
+
+        /* Close deprecated interface */
+        n += H5T__term_deprec_interface();
+
+        /* Destroy the datatype object id group */
+	(void)H5I_dec_type_ref(H5I_DATATYPE);
+	n++; /*H5I*/
 
         /* Reset all the datatype IDs */
         H5T_IEEE_F32BE_g			= FAIL;
@@ -1592,7 +1593,6 @@ H5T_term_interface(void)
 
 	/* Mark interface as closed */
 	H5_interface_initialize_g = 0;
-	n = 1; /*H5I*/
     } /* end if */
 
     FUNC_LEAVE_NOAPI(n)
@@ -2586,7 +2586,7 @@ H5T_unregister(H5T_pers_t pers, const char *name, H5T_t *src, H5T_t *dst,
             /* Shut down path */
             H5T__print_stats(path, &nprint);
             path->cdata.command = H5T_CONV_FREE;
-            if((path->func)(FAIL, FAIL, &(path->cdata),
+            if((path->func)((hid_t)FAIL, (hid_t)FAIL, &(path->cdata),
                     (size_t)0, (size_t)0, (size_t)0, NULL, NULL, dxpl_id) < 0) {
 #ifdef H5T_DEBUG
                 if(H5DEBUG(T)) {
@@ -4400,7 +4400,7 @@ H5T_path_find(const H5T_t *src, const H5T_t *dst, const char *name,
         HDsnprintf(H5T_g.path[0]->name, sizeof(H5T_g.path[0]->name), "no-op");
 	H5T_g.path[0]->func = H5T__conv_noop;
 	H5T_g.path[0]->cdata.command = H5T_CONV_INIT;
-	if(H5T__conv_noop(FAIL, FAIL, &(H5T_g.path[0]->cdata), (size_t)0, (size_t)0, (size_t)0, NULL, NULL, dxpl_id) < 0) {
+	if(H5T__conv_noop((hid_t)FAIL, (hid_t)FAIL, &(H5T_g.path[0]->cdata), (size_t)0, (size_t)0, (size_t)0, NULL, NULL, dxpl_id) < 0) {
 #ifdef H5T_DEBUG
 	    if(H5DEBUG(T))
 		fprintf(H5DEBUG(T), "H5T: unable to initialize no-op conversion function (ignored)\n");
@@ -4559,7 +4559,7 @@ H5T_path_find(const H5T_t *src, const H5T_t *dst, const char *name,
 	HDassert(table == H5T_g.path[md]);
 	H5T__print_stats(table, &nprint/*in,out*/);
 	table->cdata.command = H5T_CONV_FREE;
-	if((table->func)(FAIL, FAIL, &(table->cdata), (size_t)0, (size_t)0, (size_t)0, NULL, NULL, dxpl_id) < 0) {
+	if((table->func)((hid_t)FAIL, (hid_t)FAIL, &(table->cdata), (size_t)0, (size_t)0, (size_t)0, NULL, NULL, dxpl_id) < 0) {
 #ifdef H5T_DEBUG
 	    if(H5DEBUG(T)) {
 		fprintf(H5DEBUG(T), "H5T: conversion function 0x%08lx free "

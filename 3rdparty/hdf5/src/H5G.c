@@ -133,8 +133,7 @@
 /* Group ID class */
 static const H5I_class_t H5I_GROUP_CLS[1] = {{
     H5I_GROUP,			/* ID class value */
-    0,				/* Class flags */
-    64,				/* Minimum hash size for class */
+    H5I_CLASS_REUSE_IDS,	/* Class flags */
     0,				/* # of reserved IDs for class */
     (H5I_free_t)H5G_close	/* Callback routine for closing objects of this class */
 }};
@@ -225,16 +224,21 @@ H5G_term_interface(void)
     FUNC_ENTER_NOAPI_NOINIT_NOERR
 
     if(H5_interface_initialize_g) {
-	if((n = H5I_nmembers(H5I_GROUP)))
-	    H5I_clear_type(H5I_GROUP, FALSE, FALSE);
-	else {
-	    /* Destroy the group object id group */
-	    H5I_dec_type_ref(H5I_GROUP);
+        if(H5I_nmembers(H5I_GROUP) > 0) {
+            (void)H5I_clear_type(H5I_GROUP, FALSE, FALSE);
+            n++; /*H5I*/
+        } /* end if */
+        else {
+            /* Close deprecated interface */
+            n += H5G__term_deprec_interface();
 
-	    /* Mark closed */
-	    H5_interface_initialize_g = 0;
-	    n = 1; /*H5I*/
-	} /* end else */
+            /* Destroy the group object id group */
+            (void)H5I_dec_type_ref(H5I_GROUP);
+            n++; /*H5I*/
+
+            /* Mark closed */
+            H5_interface_initialize_g = 0;
+        } /* end else */
     } /* end if */
 
     FUNC_LEAVE_NOAPI(n)
@@ -512,7 +516,6 @@ done:
     FUNC_LEAVE_API(ret_value)
 } /* end H5Gget_create_plist() */
 
-
 
 /*-------------------------------------------------------------------------
  * Function:	H5G_get_create_plist
@@ -545,7 +548,7 @@ H5G_get_create_plist(H5G_t *grp)
     FUNC_ENTER_NOAPI(FAIL)
 
     /* Copy the default group creation property list */
-    if(NULL == (gcpl_plist = (H5P_genplist_t *)H5I_object(H5P_LST_GROUP_CREATE_g)))
+    if(NULL == (gcpl_plist = (H5P_genplist_t *)H5I_object(H5P_LST_GROUP_CREATE_ID_g)))
          HGOTO_ERROR(H5E_ARGS, H5E_BADTYPE, FAIL, "can't get default group creation property list")
     if((new_gcpl_id = H5P_copy_plist(gcpl_plist, TRUE)) < 0)
         HGOTO_ERROR(H5E_SYM, H5E_CANTGET, FAIL, "unable to copy the creation property list")

@@ -46,7 +46,7 @@ const PropList PropList::DEFAULT;
 ///\brief	Default constructor: creates a stub property list object.
 // Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
-PropList::PropList() : IdComponent(), id(0) {}
+PropList::PropList() : IdComponent(), id(H5P_DEFAULT) {}
 
 //--------------------------------------------------------------------------
 // Function:	PropList copy constructor
@@ -74,7 +74,7 @@ PropList::PropList(const PropList& original) : IdComponent(original)
 //--------------------------------------------------------------------------
 PropList::PropList( const hid_t plist_id ) : IdComponent()
 {
-    if (plist_id == 0)
+    if (plist_id <= 0)
 	id = H5P_DEFAULT;
 
     H5I_type_t id_type = H5Iget_type(plist_id);
@@ -277,7 +277,7 @@ void PropList::close()
 	    throw PropListIException(inMemFunc("close"), "H5Pclose failed");
 	}
 	// reset the id
-	id = 0;
+	id = H5I_INVALID_HID;
     }
 }
 
@@ -390,13 +390,19 @@ void PropList::getProperty(const char* name, void* value) const
 //--------------------------------------------------------------------------
 H5std_string PropList::getProperty(const char* name) const
 {
+   // Get property size first
    size_t size = getPropSize(name);
+
+   // Allocate buffer then get the property
    char* prop_strg_C = new char[size+1];  // temporary C-string for C API
+   HDmemset(prop_strg_C, 0, size+1); // clear buffer
+
    herr_t ret_value = H5Pget(id, name, prop_strg_C); // call C API
 
    // Throw exception if H5Pget returns failure
    if (ret_value < 0)
    {
+      delete []prop_strg_C;
       throw PropListIException(inMemFunc("getProperty"), "H5Pget failed");
    }
 
@@ -485,7 +491,7 @@ H5std_string PropList::getClassName() const
    if (temp_str != NULL)
    {
       H5std_string class_name(temp_str);
-      HDfree(temp_str);
+      H5free_memory(temp_str);
       return(class_name);
    }
    else
