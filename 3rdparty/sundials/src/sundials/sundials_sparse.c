@@ -1,7 +1,7 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 4369 $
- * $Date: 2015-02-12 13:46:59 -0800 (Thu, 12 Feb 2015) $
+ * $Revision: 4433 $
+ * $Date: 2015-03-23 18:24:01 -0700 (Mon, 23 Mar 2015) $
  * -----------------------------------------------------------------
  * Programmers: Carol Woodward @ LLNL
  *              Daniel R. Reynolds @ SMU
@@ -490,7 +490,7 @@ int SlsAddMat(SlsMat A, SlsMat B)
       w[B->rowvals[i]] -= 1;
 
     /* if any entry of w is negative, A doesn't contain B's sparsity */
-    for (i=0; i<A->N; i++)
+    for (i=0; i<A->M; i++)
       if (w[i] < 0) {
 	newmat = 1;
 	break;

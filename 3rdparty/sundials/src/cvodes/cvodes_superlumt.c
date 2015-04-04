@@ -1,7 +1,7 @@
 /*
  * -----------------------------------------------------------------
  * $Rev $
- * $Date: 2015-01-13 14:53:37 -0800 (Tue, 13 Jan 2015) $
+ * $Date: 2015-03-23 18:26:14 -0700 (Mon, 23 Mar 2015) $
  * ----------------------------------------------------------------- 
  * Programmer(s): Carol S. Woodward @ LLNL
  * -----------------------------------------------------------------
@@ -24,6 +24,7 @@
 
 #include "cvodes_impl.h"
 #include "cvodes_sparse_impl.h"
+#include "cvodes/cvodes_superlumt.h"
 #include "sundials/sundials_superlumt_impl.h"
 #include "sundials/sundials_math.h"
 

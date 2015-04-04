@@ -1,7 +1,7 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 4137 $
- * $Date: 2014-06-15 12:26:15 -0700 (Sun, 15 Jun 2014) $
+ * $Revision: 4455 $
+ * $Date: 2015-03-28 18:28:53 -0700 (Sat, 28 Mar 2015) $
  * ----------------------------------------------------------------- 
  * Programmer(s): David J. Gardner @ LLNL
  * -----------------------------------------------------------------
@@ -42,7 +42,7 @@ int main(int argc, char *argv[])
 
   /* check input and set vector length */
   if (argc < 4){
-    printf("ERROR: two arguments required: <vector length> <number of threads> <print timing>\n");
+    printf("ERROR: THREE (3) arguments required: <vector length> <number of threads> <print timing>\n");
     return(-1);
   }
 

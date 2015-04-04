@@ -1,7 +1,7 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 4414 $
- * $Date: 2015-03-04 13:45:35 -0800 (Wed, 04 Mar 2015) $
+ * $Revision: 4435 $
+ * $Date: 2015-03-23 18:26:14 -0700 (Mon, 23 Mar 2015) $
  * ----------------------------------------------------------------- 
  * Programmer(s): Carol S. Woodward @ LLNL
  * -----------------------------------------------------------------
@@ -25,6 +25,7 @@
 #include "sundials/sundials_math.h"
 #include "sundials/sundials_superlumt_impl.h"
 
+#include "kinsol/kinsol_superlumt.h"
 #include "kinsol_impl.h"
 #include "kinsol_sparse_impl.h"
 

@@ -1,7 +1,7 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 4414 $
- * $Date: 2015-03-04 13:45:35 -0800 (Wed, 04 Mar 2015) $
+ * $Revision: 4435 $
+ * $Date: 2015-03-23 18:26:14 -0700 (Mon, 23 Mar 2015) $
  * ----------------------------------------------------------------- 
  * Programmer(s): Carol S. Woodward @ LLNL
  * -----------------------------------------------------------------
@@ -24,6 +24,7 @@
 
 #include <sundials/sundials_math.h>
 
+#include "kinsol/kinsol_klu.h"
 #include "kinsol_impl.h"
 #include "kinsol_sparse_impl.h"
 #include "sundials/sundials_klu_impl.h"
@@ -126,10 +127,9 @@ int KINKLU(void *kin_mem_v, int n, int nnz)
     return(KINSLS_MEM_FAIL);
   }
 
-  /* Allocate structures for KLU */
-
-  klu_data->s_Symbolic = (klu_symbolic *)malloc(sizeof(klu_symbolic));
-  klu_data->s_Numeric = (klu_numeric *)malloc(sizeof(klu_numeric));
+  /* Initialize KLU structures */
+  klu_data->s_Symbolic = NULL;
+  klu_data->s_Numeric = NULL;
 
   /* Set default parameters for KLU */
   flag = klu_defaults(&klu_data->s_Common);
@@ -488,8 +488,6 @@ static void kinKLUFree(KINMem kin_mem)
 
   klu_free_numeric(&(klu_data->s_Numeric), &(klu_data->s_Common));
   klu_free_symbolic(&(klu_data->s_Symbolic), &(klu_data->s_Common));
-
-  free(klu_data->s_Symbolic);
 
   if (kinsls_mem->s_JacMat) {
     DestroySparseMat(kinsls_mem->s_JacMat);

@@ -1,7 +1,7 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 4272 $
- * $Date: 2014-12-02 11:19:41 -0800 (Tue, 02 Dec 2014) $
+ * $Revision: 4463 $
+ * $Date: 2015-03-29 16:28:20 -0700 (Sun, 29 Mar 2015) $
  * ----------------------------------------------------------------- 
  * Programmer(s): David J. Gardner @ LLNL
  * -----------------------------------------------------------------
@@ -1269,7 +1269,7 @@ int Test_N_VDotProd(N_Vector X, N_Vector Y,
     fails++;
   }
   else if (myid == 0) {
-    printf("    PASSED test -- N_VAddConst \n");
+    printf("    PASSED test -- N_VDotProd \n");
     PRINT_TIME("    N_VDotProd Time: %22.15e \n \n", stop_time - start_time);
   }    
   

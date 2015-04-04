@@ -1,6 +1,6 @@
 # ---------------------------------------------------------------
-# $Revision: 4418 $
-# $Date: 2015-03-06 10:30:20 -0800 (Fri, 06 Mar 2015) $
+# $Revision: 4464 $
+# $Date: 2015-03-30 09:04:51 -0700 (Mon, 30 Mar 2015) $
 # ---------------------------------------------------------------
 # Programmer:  Radu Serban @ LLNL
 # ---------------------------------------------------------------
@@ -459,6 +459,10 @@ IF(WIN32)
   ADD_DEFINITIONS(-D_CRT_SECURE_NO_WARNINGS)
 ENDIF(WIN32)
 
+IF(APPLE)
+  SET(CMAKE_SHARED_LIBRARY_CREATE_C_FLAGS "${CMAKE_SHARED_LIBRARY_CREATE_C_FLAGS} -undefined dynamic_lookup")
+ENDIF(APPLE)
+
 # -------------------------------------------------------------
 # A Fortran compiler is needed if:
 # (a) FCMIX is enabled
@@ -619,7 +623,11 @@ IF(LAPACK_ENABLE)
   IF(LAPACK_LIBRARIES AND NOT LAPACK_FOUND)
     PRINT_WARNING("LAPACK not functional"
       "Blas/Lapack support will not be provided")
+  ELSE(LAPACK_LIBRARIES AND NOT LAPACK_FOUND)
+    #set sundials_config.h symbol via sundials_config.in
+    SET(SUNDIALS_BLAS_LAPACK TRUE)
   ENDIF(LAPACK_LIBRARIES AND NOT LAPACK_FOUND)
+  
 
 ELSE(LAPACK_ENABLE)
 

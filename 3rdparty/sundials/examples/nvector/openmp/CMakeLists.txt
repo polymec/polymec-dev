@@ -1,6 +1,6 @@
 # ---------------------------------------------------------------
-# $Revision: 4137 $
-# $Date: 2014-06-15 12:26:15 -0700 (Sun, 15 Jun 2014) $
+# $Revision: 4456 $
+# $Date: 2015-03-28 20:22:03 -0700 (Sat, 28 Mar 2015) $
 # ---------------------------------------------------------------
 # Programmer:  Steven Smith @ LLNL
 # ---------------------------------------------------------------
@@ -20,6 +20,11 @@
 
 SET(nvector_openmp_examples
   test_nvector_openmp
+)
+
+SET(nvector_examples_dependencies
+  test_nvector
+  sundials_nvector
 )
 
 # Add source directory to include directories
@@ -62,7 +67,7 @@ FOREACH(example ${nvector_openmp_examples})
   TARGET_LINK_LIBRARIES(${example} ${SUNDIALS_LIBS})
 
   IF(EXAMPLES_INSTALL)
-    INSTALL(FILES ${example}.c ../test_nvector.c ../test_nvector.h DESTINATION ${EXAMPLES_INSTALL_PATH}/nvector/openmp)
+    INSTALL(FILES ${example}.c ../test_nvector.c ../test_nvector.h ../../../src/sundials/sundials_nvector.c DESTINATION ${EXAMPLES_INSTALL_PATH}/nvector/openmp)
   ENDIF(EXAMPLES_INSTALL)
 ENDFOREACH(example ${nvector_openmp_examples})
 
@@ -74,6 +79,7 @@ IF(EXAMPLES_INSTALL)
   # Prepare substitution variables for Makefile and/or CMakeLists templates
   SET(SOLVER_LIB "sundials_nvecopenmp")
   LIST2STRING(nvector_openmp_examples EXAMPLES)
+  LIST2STRING(nvector_examples_dependencies EXAMPLES_DEPENDENCIES)
 
   # Regardless of the platform we're on, we will generate and install 
   # CMakeLists.txt file for building the examples. This file  can then 

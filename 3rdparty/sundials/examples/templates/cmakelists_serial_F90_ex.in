@@ -1,6 +1,6 @@
 # -----------------------------------------------------------------
-# $Revision: 4096 $
-# $Date: 2014-05-02 14:49:50 -0700 (Fri, 02 May 2014) $
+# $Revision: 4458 $
+# $Date: 2015-03-28 21:16:05 -0700 (Sat, 28 Mar 2015) $
 # -----------------------------------------------------------------
 # Programmer: Daniel R. Reynolds @ SMU
 # -----------------------------------------------------------------
@@ -29,6 +29,7 @@
 # for examples that do not use that module...
 #
 # -----------------------------------------------------------------
+cmake_minimum_required(VERSION 2.8)
 
 # Specify project name
 PROJECT(F90@SOLVER@_serial_examples Fortran90)
