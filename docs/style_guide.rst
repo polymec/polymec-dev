@@ -5,6 +5,7 @@
    License, v. 2.0. If a copy of the MPL was not distributed with this
    file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+===============================
 Polymec Development Style Guide
 ===============================
 
@@ -54,7 +55,8 @@ file, and that header file would be named after the function.  In others, a
 header file may contain a set of related functions, and its name should 
 concisely reflect the purpose of those functions.
 
-### Self-contained Headers ###
+Self-contained Headers 
+``````````````````````
 
 Header files should be self-contained and have a .h suffix. In other words, 
 it should be possible to include a header file without regard for rules 
