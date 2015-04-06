@@ -19,8 +19,8 @@ Overview
 ========
 
 Polymec is written in C. This language has come a long way since its inception, 
-and its maintainers have given considerable effort to making C a desireable 
-language for high-performance computing (HPC). Aside from the face that all of 
+and its maintainers have given considerable effort to making C a desirable 
+language for high-performance computing (HPC). Aside from the fact that all of 
 the HPC libraries that Polymec uses are written in C (as most modern high-quality 
 HPC scientific libraries have come to be), we find the following features of 
 the language especially appealing:
@@ -361,7 +361,7 @@ Use C++ style comments (``//``). C-style comments (``/\* */``) are clunkier
 and harder for editors to parse correctly.
 
 Class types, structs, and enumerated types should be commented with a brief 
-synopsis of that class's purpose. The comments should precede the ``typedef`` 
+synopsis of their purpose. The comments should precede the ``typedef`` 
 for the type.
 
 A function should be commented with a brief description of the function, its 
