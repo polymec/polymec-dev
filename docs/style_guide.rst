@@ -37,8 +37,8 @@ the language especially appealing:
 
 * Since 1999, C has had many scientific programming features previously 
   available only in Fortran, such as dynamically-allocated multidimensional 
-  arrays and complex numbers (neither of which is available in the C++ core
-  language).
+  arrays and complex numbers. Neither of these features is available in the 
+  C++ core language.
 
 * C is the common "hub" for several high-level and low-level programming 
   languages. Python, Ruby, C++, and Fortran all have standard mechanisms 
@@ -57,6 +57,30 @@ the language especially appealing:
 In general, one can use any part of the C language described in the latest 
 ISO standard, which at the time of this writing is the "C11" standard 
 (ISO/IEC 9899:2011).
+
+Source Code Organization
+========================
+
+Polymec comprises four C libraries:
+
+* The ``core`` library, which contains utilities, scientific data structures,
+  and components that can be used in applications. This library is used by the 
+  other three Polymec libraries.
+
+* The ``geometry`` library, which consists of various implementations of 
+  algorithms for mesh generation, implicit functions and space-time functions, 
+  and geometric operations in general. This library uses the ``core`` library.
+
+* The ``integrators`` library, which has classes and tools for integrating 
+  partial differential equations in space and in time. This library uses 
+  the ``core`` library.
+
+* The ``model`` library, which contains high-level data structures for 
+  constructing science applications and numerical models. This library uses 
+  the ``core`` library.
+
+Each Polymec source file belongs to one of these libraries, and is located 
+in the subdirectory of Polymec named after that library.
 
 Header Files
 ============
@@ -143,13 +167,19 @@ Other Symbols
 Inlined functions should be used instead of macros where possible. Similarly, 
 constants should be used instead of macros where possible.
 
-Special Types
-=============
+Special Datatypes
+=================
 
-In polymec, floating point variables should be stored using the 
+In Polymec, floating point variables should be stored using the 
 ``real_t`` type. Integers representing indices that can assume 
 large values should be stored using the ``index_t`` type. Both of 
 these types are declared in ``core/polymec.h``.
+
+Polymec's ``core`` library contains several standard data structures such as 
+dynamic arrays, tuples, linked lists, unordered and ordered sets, unordered 
+and ordered maps, tables, space-filling curves, space-time functions, sparse 
+matrices, random number generators, kd-trees, and so on. Please check here 
+before you decide to implement your own data structure.
 
 Scoping
 =======
@@ -302,10 +332,10 @@ methods: input arguments come before output arguments.
 Length of a Function Body
 -------------------------
 
-There is no formal limit to the length of a Polymec function. Use your 
-judgement. If breaking up a function into separate functions is practical, 
-feel free to do so. However, creating lots of ancillary structure just to 
-break up a long function is counterproductive. 
+There is no formal limit to the length of a Polymec function. If breaking up 
+a function into separate functions is practical, feel free to do so. However, 
+creating lots of ancillary structure just to break up a long function is 
+counterproductive. Use your judgement.
 
 The function indeed may be poorly designed if it is difficult to break up. 
 On the other hand, if the function is performing a complicated task with lots 
@@ -320,10 +350,21 @@ side effects, and/or excessive numbers of tightly-coupled "sub-functions."
 Memory Management
 =================
 
+Memory is typically allocated in polymec by calling the ``polymec_malloc`` 
+function. This function has the same signature as the standard C ``malloc`` 
+function, but allows access to some of Polymec's special memory allocation 
+features.
+
+Ownership
+---------
+
 To minimize complexity, try to assign a single owner to an allocated resource. 
 Try to avoid ownership transfers, as these can create complicated resource 
 management issues. In typical HPC programming patterns, ownership transfers 
 are not usually necessary for objects using large amounts of resources.
+
+Garbage Collection
+------------------
 
 Classes representing small objects whose ownership is not clear-cut may use 
 garbage collection, enabled by the ``gc`` library of Boehm. An 
@@ -334,28 +375,57 @@ destroyed.
 For an example of a garbage-collected type in Polymec, see the ``point``
 class in ``core/point.h``.
 
+Special Allocators
+------------------
+
+Polymec has a few specialized allocators intended to reduce the overhead of 
+requesting memory from the operating system. These are:
+
+* ``std_allocator`` - The standard C allocator ``malloc``. This is used by default.
+
+* ``arena_allocator`` - An allocator that preallocates a large "arena" from which 
+  memory is dispensed to requestors. The arena has a large initial size and then 
+  is resized as necessary. Like the operating system's heap, this arena can 
+  become fragmented over time if memory allocations are unstructured. However,
+  the number of memory requests to the operating system is minimized by 
+  pre-allocating the arena beforehand.
+
+* ``pool_allocator`` - An allocator that dispenses memory in several "pools". 
+  Essentially, this is a segmented version of the ``arena_allocator``, and can 
+  be more flexible.
+
+Allocators are controlled via an interface defined in ``core/allocators.h``. 
+You will need to experiment with these allocators to gain an understanding of 
+their benefits, drawbacks, and general capabilities.
+
 Naming
 ======
 
 Names of structs, classes, and enumerated types should all contain only 
 lower-case characters with words separated by underscores, ending in 
-``_t``. For example: ``mesh_t``, ``point_t``, ``ode_integrator_t``.
+``_t``. Abbreviations are allowed if their meaning is reasonably clear. For 
+example: ``mesh_t``, ``point_t``, ``ode_integrator_t``. ``adj_graph_t``.
 
 Function names should also use only lower-case letters with 
 words separated by underscores. Unintelligible abbreviations should not be 
-used for struct, class, or function names.
+used for struct, class, or function names. Examples are ``point_distance``, 
+``partition_mesh``, and ``polymec_timer_start``.
 
 Similarly, a variable (local or global, including fields in structs and classes)
 should strive to use only lower-case letters with words separated by 
 underscores. Exceptions can be made if it makes code clearer. For example, 
 capital letters and/or abbreviations may help a variable representing a 
 quantity resemble a mathematical symbol whose role is clear from the context 
-in which it is used. Use your judgement.
+in which it is used. Use your judgement. Examples of variables are ``adj_graph``, 
+``mesh``, ``model``, ``precond``, ``integ``, ``xc``.
 
 Constants, fields within enumerated types, and preprocessor macros should use 
 all capital letters with words separated by underscores. If these appear in 
 header files, they should have descriptive names that are unique within the 
-library.
+library. Examples of constants are  ; examples of enumerated type fields are
+``MESH_NODE``, ``MESH_EDGE``, ``MESH_FACE``, and ``MESH_CELL``. Examples of 
+preprocessor macros are ``START_FUNCTION_TIMER``, ``DECLARE_2D_ARRAY``, and
+``DEFINE_UNORDERED_SET``.
 
 Comments
 ========
