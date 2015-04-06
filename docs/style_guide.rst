@@ -15,6 +15,8 @@ prose were inspired by Google's C++ style guide, which appears at
 
 https://google-styleguide.googlecode.com/svn/trunk/cppguide.html
 
+.. contents:: Table of Contents
+
 Overview
 ========
 
