@@ -42,13 +42,14 @@ the language especially appealing:
 
 * C is the common "hub" for several high-level and low-level programming 
   languages. Python, Ruby, C++, and Fortran all have standard mechanisms 
-  for interfacing with it.
+  for interfacing with it, for example.
 
 * Link compatibility between C compilers removes much of the need for an 
   application to know "how polymec was built" (aside from specific 
   optimization settings).
 
-* C still enjoys better support within debuggers in UNIX environments.
+* C still enjoys better support than C++ or Fortran within debuggers in UNIX 
+  environments.
 
 * Compile times for C are much shorter than for C++ or Fortran, often by 
   orders of magnitude.
