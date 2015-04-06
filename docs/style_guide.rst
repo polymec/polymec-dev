@@ -431,7 +431,7 @@ preprocessor macros are ``START_FUNCTION_TIMER``, ``DECLARE_2D_ARRAY``, and
 Comments
 ========
 
-Use C++ style comments (``//``). C-style comments (``/\* */``) are clunkier 
+Use C++ style comments (``//``). C-style comments (``/* */``) are clunkier 
 and harder for editors to parse correctly.
 
 Class types, structs, and enumerated types should be commented with a brief 
