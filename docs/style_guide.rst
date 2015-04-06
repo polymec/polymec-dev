@@ -128,16 +128,17 @@ C construct.
 Global variables 
 ----------------
 
-No global variable should appear within a header file. Global variables should 
-be restricted to translation units in which they are manipulated. If a global 
-data structure needs to exist, an appropriate interface should be designed 
-and implemented in terms of functions.
+No global variables should appear within a header file, apart from constants 
+(which are preferred to macros, since they can be checked by the compiler). 
+Mutable global variables should be restricted to translation units in which 
+they are manipulated. If a global data structure needs to exist, an appropriate 
+interface should be designed and implemented in terms of functions.
 
 Other Symbols 
 -------------
 
 Inlined functions should be used instead of macros where possible. Similarly, 
-static constants should be used instead of macros where possible.
+constants should be used instead of macros where possible.
 
 Special Types
 =============
@@ -252,6 +253,34 @@ of the argument list followed by output values at the end.
 
 Polymorphism in C 
 -----------------
+
+Polymorphic classes in Polymec have "abstract" base classes with virtual 
+tables that dispatch calls to functions in the class interface. The base class 
+consists of:
+
+1. A class type struct possessing a context pointer for an instance
+2. A virtual table (vtable) struct consisting of a set of function pointers 
+   matching the interface for the class
+3. A constructor function that creates a descendant object using a context 
+   pointer, a vtable, and any other data needed.
+4. Any other functions needed to implement a destructor and/or methods for the 
+   polymorphic class.
+
+This approach to polymorphism is called "prototype polymorphism," and is used 
+in some other programming languages such as Lua. The idea is that the behavior 
+of a polymorphic class is tied to a specific instance of that class, not to its 
+type. 
+
+One virtue of this approach is that a single "object" (represented by a 
+context pointer) can assume many different roles as a subtype of several 
+base classes, using several different virtual tables. In a sense, this 
+ability resembles that of the ``interface`` idiom in the Java and C# 
+programming languages, avoiding the difficulties of multiple inheritance one 
+encounters in C++.
+
+See Polymec's ``model`` class in ``model/model.h`` and ``model/model.c`` for 
+an example of how polymorphic data structures can be implemented using this 
+model.
 
 Structs as "Plain Old Datatypes" (PODs)
 =======================================
