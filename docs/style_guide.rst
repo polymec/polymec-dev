@@ -373,7 +373,8 @@ is performed automatically some time after all references to it have been
 destroyed.
 
 For an example of a garbage-collected type in Polymec, see the ``point``
-class in ``core/point.h``.
+class in ``core/point.h`` (and its ``gc``-based implementation in 
+``core/point.c``.)
 
 Special Allocators
 ------------------
