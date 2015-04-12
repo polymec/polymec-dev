@@ -1453,7 +1453,7 @@ void silo_file_write_scalar_face_field(silo_file_t* file,
   START_FUNCTION_TIMER();
   ASSERT(file->mode == DB_CLOBBER);
 
-  // How many cells does our mesh have?
+  // How many faces does our mesh have?
   char num_faces_var[FILENAME_MAX];
   snprintf(num_faces_var, FILENAME_MAX, "%s_mesh_num_faces", mesh_name);
   ASSERT(DBInqVarExists(file->dbfile, num_faces_var));
@@ -1495,7 +1495,7 @@ void silo_file_write_face_field(silo_file_t* file,
   START_FUNCTION_TIMER();
   ASSERT(file->mode == DB_CLOBBER);
 
-  // How many cells does our mesh have?
+  // How many faces does our mesh have?
   char num_faces_var[FILENAME_MAX];
   snprintf(num_faces_var, FILENAME_MAX, "%s_mesh_num_faces", mesh_name);
   ASSERT(DBInqVarExists(file->dbfile, num_faces_var));
@@ -1521,7 +1521,7 @@ real_t* silo_file_read_face_field(silo_file_t* file,
   START_FUNCTION_TIMER();
   ASSERT(file->mode == DB_READ);
 
-  // How many cells does our mesh have?
+  // How many faces does our mesh have?
   char num_faces_var[FILENAME_MAX];
   snprintf(num_faces_var, FILENAME_MAX, "%s_mesh_num_faces", mesh_name);
   ASSERT(DBInqVarExists(file->dbfile, num_faces_var));
@@ -1547,7 +1547,7 @@ void silo_file_write_scalar_node_field(silo_file_t* file,
   START_FUNCTION_TIMER();
   ASSERT(file->mode == DB_CLOBBER);
 
-  // How many cells does our mesh have?
+  // How many nodes does our mesh have?
   char num_nodes_var[FILENAME_MAX];
   snprintf(num_nodes_var, FILENAME_MAX, "%s_mesh_num_nodes", mesh_name);
   ASSERT(DBInqVarExists(file->dbfile, num_nodes_var));
@@ -1589,7 +1589,7 @@ void silo_file_write_node_field(silo_file_t* file,
   START_FUNCTION_TIMER();
   ASSERT(file->mode == DB_CLOBBER);
 
-  // How many cells does our mesh have?
+  // How many nodes does our mesh have?
   char num_nodes_var[FILENAME_MAX];
   snprintf(num_nodes_var, FILENAME_MAX, "%s_mesh_num_nodes", mesh_name);
   ASSERT(DBInqVarExists(file->dbfile, num_nodes_var));
@@ -1615,7 +1615,7 @@ real_t* silo_file_read_node_field(silo_file_t* file,
   START_FUNCTION_TIMER();
   ASSERT(file->mode == DB_READ);
 
-  // How many cells does our mesh have?
+  // How many nodes does our mesh have?
   char num_nodes_var[FILENAME_MAX];
   snprintf(num_nodes_var, FILENAME_MAX, "%s_mesh_num_nodes", mesh_name);
   ASSERT(DBInqVarExists(file->dbfile, num_nodes_var));
@@ -1626,6 +1626,100 @@ real_t* silo_file_read_node_field(silo_file_t* file,
   {
     real_t* comp_data = silo_file_read_scalar_node_field(file, field_component_names[c], mesh_name);
     for (int i = 0; i < num_nodes; ++i)
+      field[num_components*i+c] = comp_data[i];
+    polymec_free(comp_data);
+  }
+  STOP_FUNCTION_TIMER();
+  return field;
+}
+
+void silo_file_write_scalar_edge_field(silo_file_t* file,
+                                       const char* field_name,
+                                       const char* mesh_name,
+                                       real_t* field_data)
+{
+  START_FUNCTION_TIMER();
+  ASSERT(file->mode == DB_CLOBBER);
+
+  // How many edges does our mesh have?
+  char num_edges_var[FILENAME_MAX];
+  snprintf(num_edges_var, FILENAME_MAX, "%s_mesh_num_edges", mesh_name);
+  ASSERT(DBInqVarExists(file->dbfile, num_edges_var));
+  int num_edges;
+  DBReadVar(file->dbfile, num_edges_var, &num_edges);
+
+  // Feed the field data into the file.
+  DBPutUcdvar1(file->dbfile, field_name, mesh_name, field_data, num_edges, 0, 0, SILO_FLOAT_TYPE, DB_EDGECENT, NULL);
+
+  // Add a multi-object entry.
+  silo_file_add_multivar(file, mesh_name, field_name, DB_UCDVAR);
+  STOP_FUNCTION_TIMER();
+}
+
+real_t* silo_file_read_scalar_edge_field(silo_file_t* file,
+                                         const char* field_name,
+                                         const char* mesh_name)
+{
+  START_FUNCTION_TIMER();
+  ASSERT(file->mode == DB_READ);
+
+  DBucdvar* var = DBGetUcdvar(file->dbfile, (char*)field_name);
+  if (var == NULL)
+    polymec_error("Field '%s' was not found in the Silo file.", field_name);
+  if (var->centering != DB_EDGECENT)
+    polymec_error("Field '%s' is not a polymec edge-centered field.", field_name);
+  real_t* field = polymec_malloc(sizeof(real_t) * var->nels);
+  memcpy(field, var->vals[0], sizeof(real_t) * var->nels);
+  STOP_FUNCTION_TIMER();
+  return field;
+}
+
+void silo_file_write_edge_field(silo_file_t* file,
+                                const char** field_component_names,
+                                const char* mesh_name,
+                                real_t* field_data,
+                                int num_components)
+{
+  START_FUNCTION_TIMER();
+  ASSERT(file->mode == DB_CLOBBER);
+
+  // How many edges does our mesh have?
+  char num_edges_var[FILENAME_MAX];
+  snprintf(num_edges_var, FILENAME_MAX, "%s_mesh_num_edges", mesh_name);
+  ASSERT(DBInqVarExists(file->dbfile, num_edges_var));
+  int num_edges;
+  DBReadVar(file->dbfile, num_edges_var, &num_edges);
+  real_t* comp_data = polymec_malloc(sizeof(real_t) * num_edges); 
+  for (int c = 0; c < num_components; ++c)
+  {
+    for (int i = 0; i < num_edges; ++i)
+      comp_data[i] = field_data[num_components*i+c];
+    silo_file_write_scalar_edge_field(file, field_component_names[c], 
+                                      mesh_name, comp_data);
+  }
+  polymec_free(comp_data);
+  STOP_FUNCTION_TIMER();
+}
+
+real_t* silo_file_read_edge_field(silo_file_t* file,
+                                  const char** field_component_names,
+                                  const char* mesh_name,
+                                  int num_components)
+{
+  START_FUNCTION_TIMER();
+  ASSERT(file->mode == DB_READ);
+
+  // How many edges does our mesh have?
+  char num_edges_var[FILENAME_MAX];
+  snprintf(num_edges_var, FILENAME_MAX, "%s_mesh_num_edges", mesh_name);
+  ASSERT(DBInqVarExists(file->dbfile, num_edges_var));
+  int num_edges;
+  DBReadVar(file->dbfile, num_edges_var, &num_edges);
+  real_t* field = polymec_malloc(sizeof(real_t) * num_components * num_edges); 
+  for (int c = 0; c < num_components; ++c)
+  {
+    real_t* comp_data = silo_file_read_scalar_edge_field(file, field_component_names[c], mesh_name);
+    for (int i = 0; i < num_edges; ++i)
       field[num_components*i+c] = comp_data[i];
     polymec_free(comp_data);
   }
