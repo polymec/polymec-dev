@@ -181,7 +181,6 @@ void test_nv_node_exchanger_in_cube(void** state)
     assert_int_equal(node_owners[node_offsets[n]], rank);
     for (int nn = node_offsets[n]+1; nn < node_offsets[n+1]; ++nn)
     {
-printf("%d: owners[%d] == %d /= %d\n", rank, nn, node_owners[nn], rank);
       assert_true(node_owners[nn] >= 0);
       assert_true(node_owners[nn] < nprocs);
       assert_int_not_equal(node_owners[nn], rank);

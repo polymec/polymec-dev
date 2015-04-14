@@ -107,6 +107,12 @@ printf("}\n");
 exchanger_t* mesh_nv_node_exchanger_new(mesh_t* mesh, int* node_offsets)
 {
   exchanger_t* ex = exchanger_new(mesh->comm);
+
+  // Initialize the node offsets array.
+  node_offsets[0] = 0;
+  for (int n = 0; n <= mesh->num_nodes; ++n)
+    node_offsets[n+1] = node_offsets[n] + 1;
+
 #if POLYMEC_HAVE_MPI
 
   int nprocs;
@@ -119,11 +125,6 @@ exchanger_t* mesh_nv_node_exchanger_new(mesh_t* mesh, int* node_offsets)
 
   // Create a 2-valued face exchanger.
   exchanger_t* face_ex = mesh_2v_face_exchanger_new(mesh);
-
-  // Initialize the node offsets array.
-  node_offsets[0] = 0;
-  for (int n = 0; n <= mesh->num_nodes; ++n)
-    node_offsets[n+1] = node_offsets[n] + 1;
 
   // Generate a list of all the neighbors of our set of neighbors.
   int_array_t* all_neighbors_of_neighbors = int_array_new();
@@ -207,10 +208,10 @@ exchanger_t* mesh_nv_node_exchanger_new(mesh_t* mesh, int* node_offsets)
     }
     int_unordered_set_free(node_set);
   }
-printf("%d: nodes = {", rank);
-for (int n = 0; n < my_nodes->size; ++n)
-  printf("(%g, %g, %g) ", my_nodes->data[n].x, my_nodes->data[n].y, my_nodes->data[n].z);
-printf("}\n");
+//printf("%d: nodes = {", rank);
+//for (int n = 0; n < my_nodes->size; ++n)
+//  printf("(%g, %g, %g) ", my_nodes->data[n].x, my_nodes->data[n].y, my_nodes->data[n].z);
+//printf("}\n");
 
   // Sort our nodes so that they are in Hilbert order.
   {
@@ -377,9 +378,9 @@ printf("}\n");
           // Find the node in "their_nodes" that matches our local node.
           int node = kd_tree_nearest(node_tree, &their_nodes->data[j]);
 
-          // Bumps all the nodes behind it back.
-          for (int nn = node+1; nn <= mesh->num_nodes; ++nn)
-            ++node_offsets[nn];
+          // Bump back all the nodes behind it.
+          for (int n = node+1; n <= mesh->num_nodes; ++n)
+            ++node_offsets[n];
         }
       }
     }
@@ -387,6 +388,7 @@ printf("}\n");
     // Now set up the exchanger send/receive maps and the node offsets.
     int_ptr_unordered_map_t* send_map = int_ptr_unordered_map_new();
     int_ptr_unordered_map_t* receive_map = int_ptr_unordered_map_new();
+    int_int_unordered_map_t* receive_offsets = int_int_unordered_map_new();
     for (int p = 0; p < num_neighbor_neighbors; ++p)
     {
       int proc = all_neighbors_of_neighbors->data[p];
@@ -443,13 +445,36 @@ printf("}\n");
           }
 
           // Find the node in "their_nodes" that matches our local node and 
-          // append it to our list of receives.
+          // append it to our list of receive nodes.
           int node = kd_tree_nearest(node_tree, &their_nodes->data[j]);
-          int_array_append(receive_nodes, node_offsets[node]+1);
+          int* offset_p = int_int_unordered_map_get(receive_offsets, node);
+          int receive_index;
+          if (offset_p == NULL)
+            receive_index = node_offsets[node] + 1;
+          else
+            receive_index = *offset_p + 1;
+          ASSERT(receive_index < node_offsets[node+1]);
+          int_int_unordered_map_insert(receive_offsets, node, receive_index);
+          int_array_append(receive_nodes, receive_index);
         }
       }
+
       int_unordered_set_free(their_culled_node_sets[p]);
     }
+
+#ifndef NDEBUG
+    // Check the node offsets.
+    for (int n = 0; n < mesh->num_nodes; ++n)
+    {
+      int* offset_p = int_int_unordered_map_get(receive_offsets, n);
+      if (offset_p != NULL)
+      {
+        ASSERT(*offset_p == node_offsets[n+1] - 1);
+      }
+    }
+#endif
+
+    int_int_unordered_map_free(receive_offsets);
 
     kd_tree_free(node_tree);
     int_array_free(my_node_indices);
