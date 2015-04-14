@@ -58,6 +58,11 @@ void stencil_finish_exchange(stencil_t* stencil, int token)
   exchanger_finish_exchange(stencil->ex, token);
 }
 
+exchanger_t* stencil_exchanger(stencil_t* stencil)
+{
+  return stencil->ex;
+}
+
 static size_t stencil_byte_size(void* obj)
 {
   stencil_t* stencil = obj;

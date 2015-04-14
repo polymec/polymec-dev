@@ -57,6 +57,9 @@ int stencil_start_exchange(stencil_t* stencil, void* data, int stride, int tag, 
 // this stencil. This method has the same signature as exchanger_finish_exchange().
 void stencil_finish_exchange(stencil_t* stencil, int token);
 
+// Provides direct access to the stencil's exchanger.
+exchanger_t* stencil_exchanger(stencil_t* stencil);
+
 // Returns the number of indices for which the stencil has data.
 static inline int stencil_num_indices(stencil_t* stencil)
 {
