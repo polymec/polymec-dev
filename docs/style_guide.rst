@@ -363,18 +363,48 @@ Try to avoid ownership transfers, as these can create complicated resource
 management issues. In typical HPC programming patterns, ownership transfers 
 are not usually necessary for objects using large amounts of resources.
 
+When an object needs to store dynamically-allocated data (e.g. from an array 
+or another object) that is assigned to it via a method, that data should 
+typically be copied to an array within the object. An alternative to copying 
+the data is to "transfer ownership" to the object, in which case the object 
+becomes responsible for deallocating the data when it is destroyed. In this 
+case, it is sometimes said that the object "consumes" the data, meaning that 
+the data cannot be assumed to be available after the object is deleted, and 
+that the integrity of the data cannot be guaranteed after the transfer of 
+ownership.
+
+Polymec does not use smart pointers. If two or more objects need access to a 
+resource that is not clearly owned by one or the other, try to consider the 
+relationship between these objects and determine whether the resource should 
+be owned by one of these objects or by another "service" object. If the 
+resource is small and/or it can safely be destroyed in a non-deterministic 
+fashion after it has been used, consider managing it with garbage collection.
+
+In any case, any functions/methods that perform ownership transfers should 
+describe the transfer in their documentation.
+
 Garbage Collection
 ------------------
 
 Classes representing small objects whose ownership is not clear-cut may use 
 garbage collection, enabled by the ``gc`` library of Boehm. An 
-object of a garbage-collected type has no destructor, since its destruction 
-is performed automatically some time after all references to it have been 
-destroyed.
+object of a garbage-collected type has no destructor in its API, since its 
+destruction is performed automatically some time after all references to it 
+have been destroyed.
 
-For an example of a garbage-collected type in Polymec, see the ``point``
+The Boehm garbage collector provides a malloc-replacement mechanism, 
+``GC_MALLOC``, that should be used to allocate memory for a garbage-collected
+object. Any resources managed by the garbage-collected object should be 
+allocated with ``polymec_malloc`` and freed with ``polymec_free``. The resources 
+should be freed in a private destructor that is registered with the garbage-
+collected object using the ``GC_register_finalizer`` function, also included 
+in the Boehm ``gc`` library.
+
+For an example of a simple garbage-collected type in Polymec, see the ``point``
 class in ``core/point.h`` (and its ``gc``-based implementation in 
-``core/point.c``.)
+``core/point.c``). For a more elaborate example of a garbage-collected type 
+that manages its own resources, see the ``st_func`` class in ``core/st_func.h`` 
+and ``core/st_func.c``.
 
 Special Allocators
 ------------------
@@ -418,7 +448,7 @@ underscores. Exceptions can be made if it makes code clearer. For example,
 capital letters and/or abbreviations may help a variable representing a 
 quantity resemble a mathematical symbol whose role is clear from the context 
 in which it is used. Use your judgement. Examples of variables are ``adj_graph``, 
-``mesh``, ``model``, ``precond``, ``integ``, ``xc``.
+``mesh``, ``model``, ``precond``, ``integ``, and ``xc``.
 
 Constants, fields within enumerated types, and preprocessor macros should use 
 all capital letters with words separated by underscores. If these appear in 
@@ -434,16 +464,17 @@ Comments
 Use C++ style comments (``//``). C-style comments (``/* */``) are clunkier 
 and harder for editors to parse correctly.
 
-Class types, structs, and enumerated types should be commented with a brief 
-synopsis of their purpose. The comments should precede the ``typedef`` 
-for the type.
+Polymec does not use an inline documentation generator like Doxygen, so there 
+are no documentation markup tags. Class types, structs, and enumerated types 
+should be commented with a brief synopsis of their purpose. The comments 
+should precede the ``typedef`` for the type.
 
 A function should be commented with a brief description of the function, its 
 preconditions, postconditions, and return values where applicable. The 
 comments should precede the function declaration in header files.
 
-Comments for a classes and/or a function need not appear in source files 
-unless that class and/or function is not documented in a header.
+Comments for a classes and/or a function need not appear in its source file 
+unless that class and/or function appears only in that source file.
 
 Formatting
 ==========
