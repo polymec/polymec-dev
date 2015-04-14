@@ -27,6 +27,8 @@ void test_nv_node_exchanger_on_line(void** state)
   int node_offsets[mesh->num_nodes+1];
   exchanger_t* ex = mesh_nv_node_exchanger_new(mesh, node_offsets);
   int node_owners[node_offsets[mesh->num_nodes]];
+  for (int n = 0; n < node_offsets[mesh->num_nodes]; ++n)
+    node_owners[n] = -1;
   for (int n = 0; n < mesh->num_nodes; ++n)
     node_owners[node_offsets[n]] = rank;
   exchanger_exchange(ex, node_owners, 1, 0, MPI_INT);
@@ -118,6 +120,8 @@ void test_nv_node_exchanger_in_plane(void** state)
   int node_offsets[mesh->num_nodes+1];
   exchanger_t* ex = mesh_nv_node_exchanger_new(mesh, node_offsets);
   int node_owners[node_offsets[mesh->num_nodes]];
+  for (int n = 0; n < node_offsets[mesh->num_nodes]; ++n)
+    node_owners[n] = -1;
   for (int n = 0; n < mesh->num_nodes; ++n)
     node_owners[node_offsets[n]] = rank;
   exchanger_exchange(ex, node_owners, 1, 0, MPI_INT);
@@ -167,6 +171,8 @@ void test_nv_node_exchanger_in_cube(void** state)
   int node_offsets[mesh->num_nodes+1];
   exchanger_t* ex = mesh_nv_node_exchanger_new(mesh, node_offsets);
   int node_owners[node_offsets[mesh->num_nodes]];
+  for (int n = 0; n < node_offsets[mesh->num_nodes]; ++n)
+    node_owners[n] = -1;
   for (int n = 0; n < mesh->num_nodes; ++n)
     node_owners[node_offsets[n]] = rank;
   exchanger_exchange(ex, node_owners, 1, 0, MPI_INT);
