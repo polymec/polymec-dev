@@ -10,7 +10,6 @@
 
 #include "core/polymec.h"
 #include "core/serializer.h"
-#include "core/mesh.h"
 #include "core/point_cloud.h"
 
 // A stencil is a set of indices and weights associated with a stencil for 
@@ -92,18 +91,6 @@ static inline bool stencil_next(stencil_t* stencil, int i, int* pos,
 
 // Returns a serializer object that can read/write stencils from/to byte arrays.
 serializer_t* stencil_serializer();
-
-// Creates a stencil for the cells that share at least one face with a given 
-// cell. The stencil is constructed for every cell in the given mesh.
-stencil_t* cell_face_stencil_new(mesh_t* mesh);
-
-// Creates a stencil for the cells that share at least one edge with a given 
-// cell. The stencil is constructed for every cell in the given mesh.
-stencil_t* cell_edge_stencil_new(mesh_t* mesh);
-
-// Creates a stencil for the cells that share at least one node with a given 
-// cell. The stencil is constructed for every cell in the given mesh.
-stencil_t* cell_node_stencil_new(mesh_t* mesh);
 
 // This function creates an adjacency graph for the given point cloud with 
 // the given stencil.
