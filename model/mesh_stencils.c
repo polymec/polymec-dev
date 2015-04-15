@@ -5,6 +5,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+#include "core/unordered_set.h"
 #include "model/mesh_stencils.h"
 
 stencil_t* cell_face_stencil_new(mesh_t* mesh)

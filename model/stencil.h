@@ -9,7 +9,9 @@
 #define POLYMEC_STENCIL_H
 
 #include "core/polymec.h"
+#include "core/exchanger.h"
 #include "core/serializer.h"
+#include "core/adj_graph.h"
 #include "core/point_cloud.h"
 
 // A stencil is a set of indices and weights associated with a stencil for 

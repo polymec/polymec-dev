@@ -13,7 +13,7 @@
 #include "core/unordered_set.h"
 #include "geometry/cubic_lattice.h"
 #include "geometry/create_uniform_mesh.h"
-#include "model/stencil.h"
+#include "model/mesh_stencils.h"
 
 void test_NXxNYxNZ_stencil(void** state, 
                            MPI_Comm comm,

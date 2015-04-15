@@ -12,7 +12,7 @@
 #include "core/text_buffer.h"
 #include "geometry/create_uniform_mesh.h"
 #include "model/model.h"
-#include "model/stencil.h"
+#include "model/mesh_stencils.h"
 
 typedef struct
 {
