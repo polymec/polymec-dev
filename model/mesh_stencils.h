@@ -11,16 +11,16 @@
 #include "core/mesh.h"
 #include "model/stencil.h"
 
-// Creates a stencil for the cells that share at least one face with a given 
-// cell. The stencil is constructed for every cell in the given mesh.
-stencil_t* cell_face_stencil_new(mesh_t* mesh);
+// Creates a star-shaped stencil for the cells in the given mesh. The stencil 
+// has the given "radius," which is the maximum number of faces separating a 
+// cell from one of its neighboring cells. The stencil is constructed for 
+// every cell in the given mesh.
+stencil_t* cell_star_stencil_new(mesh_t* mesh, int radius);
 
-// Creates a stencil for the cells that share at least one edge with a given 
-// cell. The stencil is constructed for every cell in the given mesh.
-stencil_t* cell_edge_stencil_new(mesh_t* mesh);
-
-// Creates a stencil for the cells that share at least one node with a given 
-// cell. The stencil is constructed for every cell in the given mesh.
-stencil_t* cell_node_stencil_new(mesh_t* mesh);
+// Creates a halo-shaped stencil for the cells in the given mesh. The stencil 
+// has the given "radius," which is the maximum number of layers surrounding
+// the nodes of each cell. The stencil is constructed for every cell in the 
+// given mesh.
+stencil_t* cell_halo_stencil_new(mesh_t* mesh, int radius);
 
 #endif

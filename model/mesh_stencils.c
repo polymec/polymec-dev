@@ -6,288 +6,191 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include "core/unordered_set.h"
+#include "core/hilbert.h"
+#include "core/kd_tree.h"
 #include "model/mesh_stencils.h"
 
-stencil_t* cell_face_stencil_new(mesh_t* mesh)
+static stencil_t* stencil_from_cells(const char* name, 
+                                     int_array_t** stencil_cells,
+                                     int num_cells,
+                                     exchanger_t* ex)
 {
-  // First we will make a big clumsy mapping from each cell to its list of 
+  int* offsets = polymec_malloc(sizeof(int) * (num_cells+1));
+  offsets[0] = 0;
+  for (int i = 0; i < num_cells; ++i)
+    offsets[i+1] = offsets[i] + stencil_cells[i]->size/2;
+  int* indices = polymec_malloc(sizeof(int) * offsets[num_cells]);
+  int k = 0;
+  for (int i = 0; i < num_cells; ++i)
+  {
+    int_array_t* neighbors = stencil_cells[i];
+    ASSERT((neighbors->size % 2) == 0);
+    for (int i = 0; i < neighbors->size/2; ++i, ++k)
+      indices[k] = neighbors->data[2*i];
+    ASSERT(k == offsets[i+1]);
+    int_array_free(neighbors);
+  }
+  polymec_free(stencil_cells);
+  return unweighted_stencil_new(name, num_cells, offsets, indices, ex);
+}
+
+stencil_t* cell_star_stencil_new(mesh_t* mesh, int radius)
+{
+  ASSERT(radius > 0);
+
+  // First, we'll exchange the mesh cell centers to make sure they're 
+  // consistent.
+  exchanger_t* cell_ex = mesh_exchanger(mesh);
+  exchanger_exchange(cell_ex, mesh->cell_centers, 3, 0, MPI_REAL_T);
+
+  // Now we stick all of our cell centers into a kd-tree.
+  kd_tree_t* cell_tree = kd_tree_new(mesh->cell_centers, mesh->num_cells);
+
+  // First we will make a mapping from each cell to its list of 
   // neighboring cells.
-  int_array_t** stencil_map = polymec_malloc(sizeof(int_array_t*) * mesh->num_cells);
+  int_array_t** stencil_cells = polymec_malloc(sizeof(int_array_t*) * mesh->num_cells);
+  int_unordered_set_t* neighbor_set = int_unordered_set_new();
   for (int cell = 0; cell < mesh->num_cells; ++cell)
   {
     int_array_t* neighbors = int_array_new();
 
-    int pos = 0, opp_cell;
-    while (mesh_cell_next_neighbor(mesh, cell, &pos, &opp_cell))
+    // Start at this cell and journey outward through faces.
+    int distance = 0;
+    int_array_t* cells = int_array_new();
+    int_array_t* new_cells = int_array_new();
+    int_array_append(cells, cell);
+    while (distance < radius)
     {
-      if (opp_cell != -1)
-        int_array_append(neighbors, opp_cell);
-    }
-    stencil_map[cell] = neighbors;
-  }
-
-  // The exchanger for this stencil is the same as that for the mesh.
-  exchanger_t* ex = exchanger_clone(mesh_exchanger(mesh));
-
-  // Create the stencil from the map.
-  int* offsets = polymec_malloc(sizeof(int) * (mesh->num_cells+1));
-  offsets[0] = 0;
-  for (int i = 0; i < mesh->num_cells; ++i)
-    offsets[i+1] = offsets[i] + stencil_map[i]->size;
-  int* indices = polymec_malloc(sizeof(int) * offsets[mesh->num_cells]);
-  int k = 0;
-  for (int i = 0; i < mesh->num_cells; ++i)
-  {
-    int_array_t* neighbors = stencil_map[i];
-    for (int j = 0; j < neighbors->size; ++j, ++k)
-      indices[k] = neighbors->data[j];
-    ASSERT(k == offsets[i+1]);
-    int_array_free(neighbors);
-  }
-  polymec_free(stencil_map);
-  return unweighted_stencil_new("cell-face stencil", mesh->num_cells, offsets, 
-                                indices, ex);
-}
-
-// Here's a struct holding cell connectivity properties.
-typedef struct
-{
-  int num_faces, num_edges, num_nodes;
-  int faces[64], edges[128], nodes[256];
-} cell_properties_t;
-
-static stencil_t* create_layered_mesh_stencil(mesh_t* mesh,
-                                              int num_layers,
-                                              bool (*cell_matches)(void* context, 
-                                                                   cell_properties_t* cell, 
-                                                                   int cell_index),
-                                              void* context)
-{
-  ASSERT(num_layers > 0);
-
-  // The first layer is identical to the cell-face stencil.
-  int layer = 1;
-  stencil_t* s = cell_face_stencil_new(mesh);
-
-  // Make a list of cells 
-
-  // Send the 
-
-  // Now we determine the cells that belong within the rest of the layers of 
-  // the stencil.
-  while (layer < num_layers)
-  {
-    ++layer;
-  }
-
-  // Send back all the cells that are attached to the cells near ghosts.
-
-  return s;
-}
-
-stencil_t* cell_edge_stencil_new(mesh_t* mesh)
-{
-  // First we will make a big clumsy mapping from each cell to its list of 
-  // neighboring cells.
-  int_array_t** stencil_map = polymec_malloc(sizeof(int_array_t*) * mesh->num_cells);
-  int_unordered_set_t* cell_edges = int_unordered_set_new();
-  int_unordered_set_t* cell_neighbors = int_unordered_set_new();
-  exchanger_t* ex = exchanger_new(mesh->comm);
-  for (int cell = 0; cell < mesh->num_cells; ++cell)
-  {
-    int_array_t* neighbors = int_array_new();
-
-    // Make a list of all the edges in the cell.
-    int_unordered_set_clear(cell_edges);
-    int pos = 0, face;
-    while (mesh_cell_next_face(mesh, cell, &pos, &face))
-    {
-      int fpos = 0, edge;
-      while (mesh_face_next_edge(mesh, face, &fpos, &edge))
-        int_unordered_set_insert(cell_edges, edge);
-    }
-//printf("cell %d has edges ", cell);
-//int epos = 0, e;
-//while (int_unordered_set_next(cell_edges, &epos, &e))
-//printf("%d ", e);
-//printf("\n");
-
-    int opp_cell;
-    pos = 0;
-    int_unordered_set_clear(cell_neighbors);
-    while (mesh_cell_next_neighbor(mesh, cell, &pos, &opp_cell))
-    {
-      if (opp_cell != -1)
+      for (int i = 0; i < cells->size; ++i)
       {
-        // This one's definitely a neighbor.
-        if (!int_unordered_set_contains(cell_neighbors, opp_cell))
+        int pos = 0, opp_cell;
+        while (mesh_cell_next_neighbor(mesh, cells->data[i], &pos, &opp_cell))
         {
-          int_array_append(neighbors, opp_cell);
-          int_unordered_set_insert(cell_neighbors, opp_cell);
-        }
-        
-        // Each neighbor of this opposite cell that shares an edge with our 
-        // original cell is a neighbor of that cell.
-        int opos = 0, face;
-        while (mesh_cell_next_face(mesh, opp_cell, &opos, &face))
-        {
-          int ncell = mesh_face_opp_cell(mesh, face, opp_cell);
-          if ((ncell != -1) && (ncell != cell) && 
-              !int_unordered_set_contains(cell_neighbors, ncell))
+          if ((opp_cell != -1) && (!int_unordered_set_contains(neighbor_set, opp_cell)))
           {
-            int fpos = 0, edge;
-            while (mesh_face_next_edge(mesh, face, &fpos, &edge))
-            {
-//printf("%d: %d\n", ncell, edge);
-              if (int_unordered_set_contains(cell_edges, edge) &&
-                  !int_unordered_set_contains(cell_neighbors, ncell))
-              {
-//printf("%d: has edge in common with %d (via face %d)\n", cell, ncell, face);
-                int_array_append(neighbors, ncell);
-                int_unordered_set_insert(cell_neighbors, ncell);
-              }
-            }
+            int_unordered_set_insert(neighbor_set, opp_cell);
+            int_array_append(neighbors, opp_cell);
+            int_array_append(neighbors, distance + 1);
+            int_array_append(new_cells, opp_cell);
           }
         }
       }
+
+      ++distance;
+      cells = new_cells;
+      int_array_free(cells);
+    }
+    stencil_cells[cell] = neighbors;
+    int_unordered_set_clear(neighbor_set);
+  }
+  int_unordered_set_free(neighbor_set);
+
+  // Construct the exchanger for this stencil.
+  exchanger_t* ex;
+  if (radius == 1)
+  {
+    // The exchanger for this stencil is the same as that for the mesh.
+    ex = exchanger_clone(mesh_exchanger(mesh));
+  }
+  else
+  {
+    POLYMEC_NOT_IMPLEMENTED;
+#if 0
+    // We count up our non-ghost neighbors and exchange with our neighbors.
+    exchanger_t* cell_ex = mesh_exchanger(mesh);
+    int num_interior_neighbors[mesh->num_cells];
+    int max_interior_neighbors = 0;
+    bbox_t bbox = {.x1 = FLT_MAX, .x2 = -FLT_MAX,
+                   .y1 = FLT_MAX, .y2 = -FLT_MAX,
+                   .z1 = FLT_MAX, .z2 = -FLT_MAX};
+    for (int cell = 0; cell < mesh->num_cells; ++cell)
+    {
+      num_interior_neighbors[cell] = 0;
+      bbox_grow(&bbox, &mesh->cell_centers[cell]);
+      for (int i = 0; i < neighbors[cell]->size; ++i)
+      {
+        int neighbor = neighbors[cell]->data[2*i];
+        if (neighbor < mesh->num_cells)
+        {
+          ++num_interior_neighbors[cell];
+          if (num_interior_neighbors[cell] > max_interior_neighbors)
+            max_interior_neighbors = num_interior_neighbors[cell];
+        }
+      }
+    }
+    exchanger_exchange(num_interior_neighbors, 1, 0, MPI_INT);
+    MPI_Allreduce(MPI_IN_PLACE, &max_interior_neighbors, 1, MPI_INT, MPI_MAX, mesh->comm);
+
+    // We'll need a Hilbert curve for sorting cell indices objectively.
+    hilbert_t* hilbert = hilbert_new(&bbox);
+
+    // Now pack the actual data for exchanging. 
+    int* interior_neighbors = polymec_malloc(sizeof(int) * 2 * max_interior_neighbors * mesh->num_cells);
+    for (int cell = 0; cell < mesh->num_cells; ++cell)
+    {
+      int i = 0;
+      point_t centers[num_interior_neighbors[cell]];
+      for (int i = 0; i < neighbors[cell]->size; ++i)
+      {
+        int neighbor = neighbors[cell]->data[2*i];
+      int pos = 0, pos1 = 0, neighbor, distance;
+      while (int_unordered_set_next(neighbors, &pos, &neighbor))
+      {
+        if (neighbor < mesh->num_cells)
+        {
+          interior_neighbors[2*(max_interior_neighbors*cell+i)] = neighbor;
+          centers[i] = mesh->cell_centers[interior_neighbors[max_interior_neighbors*cell+i]];
+          ++i;
+        }
+      }
+
+      // Sort the interior neighbors into Hilbert order.
+      hilbert_sort(hilbert, centers, 
+                   &interior_neighbors[max_interior_neighbors*cell],
+                   num_interior_neighbors[cell]);
     }
 
-    stencil_map[cell] = neighbors;
-  }
-  int_unordered_set_free(cell_edges);
-  int_unordered_set_free(cell_neighbors);
+    // Now exchange.
+    exchanger_exchange(interior_neighbors, max_interior_neighbors, 0, MPI_INT);
 
-  // FIXME: Still have to construct the exchanger for this stencil.
+    // Now construct the exchanger.
+    int_ptr_unordered_map_t* send_map = int_ptr_unordered_map_new();
+    int_ptr_unordered_map_t* receive_map = int_ptr_unordered_map_new();
+    for (int cell = 0; cell < mesh->num_cells; ++cell)
+    {
+      // Does this cell have any ghost neighbors?
+      if (num_interior_neighbors[cell] < stencil_sets[cell]->size)
+      {
+        // Pick through the neighbors for this cell and 
+      }
+    }
+    exchanger_set_sends(ex, send_map);
+    exchanger_set_sends(ex, receive_map);
 
-  // Create the stencil from the map.
-  int* offsets = polymec_malloc(sizeof(int) * (mesh->num_cells+1));
-  offsets[0] = 0;
-  for (int i = 0; i < mesh->num_cells; ++i)
-    offsets[i+1] = offsets[i] + stencil_map[i]->size;
-  int* indices = polymec_malloc(sizeof(int) * offsets[mesh->num_cells]);
-  int k = 0;
-  for (int i = 0; i < mesh->num_cells; ++i)
-  {
-    int_array_t* neighbors = stencil_map[i];
-    for (int j = 0; j < neighbors->size; ++j, ++k)
-      indices[k] = neighbors->data[j];
-    ASSERT(k == offsets[i+1]);
-    int_array_free(neighbors);
+    // Clean up.
+    int_ptr_unordered_map_free(send_map);
+    int_ptr_unordered_map_free(receive_map);
+    polymec_free(interior_neighbors);
+#endif
   }
-  polymec_free(stencil_map);
-  return unweighted_stencil_new("cell-edge stencil", mesh->num_cells, offsets, 
-                                indices, ex);
+
+  // Clean up.
+  kd_tree_free(cell_tree);
+
+  // Create the stencil from the sets.
+  char name[1025];
+  snprintf(name, 1024, "cell star stencil (R = %d)", radius);
+  return stencil_from_cells(name, stencil_cells, mesh->num_cells, ex);
 }
 
-stencil_t* cell_node_stencil_new(mesh_t* mesh)
+stencil_t* cell_halo_stencil_new(mesh_t* mesh, int radius)
 {
-  // First we will make a big clumsy mapping from each cell to its list of 
-  // neighboring cells.
-  int_array_t** stencil_map = polymec_malloc(sizeof(int_array_t*) * mesh->num_cells);
-  int_unordered_set_t* cell_nodes = int_unordered_set_new();
-  int_unordered_set_t* cell_neighbors = int_unordered_set_new();
-  int_unordered_set_t* cell_neighbor_candidates = int_unordered_set_new();
-  exchanger_t* ex = exchanger_new(mesh->comm);
-  for (int cell = 0; cell < mesh->num_cells; ++cell)
-  {
-    int_array_t* neighbors = int_array_new();
+  ASSERT(radius > 0);
+  POLYMEC_NOT_IMPLEMENTED;
 
-    // Make a list of all the nodes in the cell.
-    int_unordered_set_clear(cell_nodes);
-    int pos = 0, face;
-    while (mesh_cell_next_face(mesh, cell, &pos, &face))
-    {
-      int fpos = 0, node;
-      while (mesh_face_next_node(mesh, face, &fpos, &node))
-        int_unordered_set_insert(cell_nodes, node);
-    }
-//printf("cell %d has nodes ", cell);
-//int npos = 0, n;
-//while (int_unordered_set_next(cell_nodes, &npos, &n))
-//printf("%d ", n);
-//printf("\n");
-
-    // Now gather neighbor candidates.
-    int opp_cell;
-    pos = 0;
-    int_unordered_set_clear(cell_neighbor_candidates);
-    while (mesh_cell_next_neighbor(mesh, cell, &pos, &opp_cell))
-    {
-      if (opp_cell != -1)
-      {
-        int_unordered_set_insert(cell_neighbor_candidates, opp_cell);
-        
-        // Each neighbor of this opposite cell is also a candidate.
-        int opos = 0, ncell;
-        while (mesh_cell_next_neighbor(mesh, opp_cell, &opos, &ncell))
-        {
-          if ((ncell != -1) && (ncell != cell))
-          {
-            int_unordered_set_insert(cell_neighbor_candidates, ncell);
-          
-            // Finally, each neighbor of this opposite cell is also a candidate.
-            int npos = 0, nncell;
-            while (mesh_cell_next_neighbor(mesh, ncell, &npos, &nncell))
-            {
-              if ((nncell != -1) && (nncell != cell))
-                int_unordered_set_insert(cell_neighbor_candidates, nncell);
-            }
-          }
-        }
-      }
-    }
-
-    // Now search through the candidates and determine which ones share nodes
-    // with the original cell.
-    int cpos = 0, ncell;
-    int_unordered_set_clear(cell_neighbors);
-    while (int_unordered_set_next(cell_neighbor_candidates, &cpos, &ncell))
-    {
-      int fpos = 0, face;
-      bool cell_is_neighbor = false;
-      while (mesh_cell_next_face(mesh, ncell, &fpos, &face))
-      {
-        int npos = 0, node;
-        while (mesh_face_next_node(mesh, face, &npos, &node))
-        {
-          if (int_unordered_set_contains(cell_nodes, node) && 
-              !int_unordered_set_contains(cell_neighbors, ncell))
-          {
-            int_array_append(neighbors, ncell);
-            int_unordered_set_insert(cell_neighbors, ncell);
-            cell_is_neighbor = true;
-            break;
-          }
-        }
-        if (cell_is_neighbor) break;
-      }
-    }
-
-    stencil_map[cell] = neighbors;
-  }
-  int_unordered_set_free(cell_nodes);
-  int_unordered_set_free(cell_neighbors);
-  int_unordered_set_free(cell_neighbor_candidates);
-
-  // FIXME: Still have to construct the exchanger for this stencil.
-
-  // Create the stencil from the map.
-  int* offsets = polymec_malloc(sizeof(int) * (mesh->num_cells+1));
-  offsets[0] = 0;
-  for (int i = 0; i < mesh->num_cells; ++i)
-    offsets[i+1] = offsets[i] + stencil_map[i]->size;
-  int* indices = polymec_malloc(sizeof(int) * offsets[mesh->num_cells]);
-  int k = 0;
-  for (int i = 0; i < mesh->num_cells; ++i)
-  {
-    int_array_t* neighbors = stencil_map[i];
-    for (int j = 0; j < neighbors->size; ++j, ++k)
-      indices[k] = neighbors->data[j];
-    ASSERT(k == offsets[i+1]);
-    int_array_free(neighbors);
-  }
-  polymec_free(stencil_map);
-  return unweighted_stencil_new("cell-node stencil", mesh->num_cells, offsets, 
-                                indices, ex);
+//  // Create the stencil from the sets.
+//  char name[1025];
+//  snprintf(name, 1024, "cell halo stencil (R = %d)", radius);
+//  return stencil_from_cells(name, stencil_cells, mesh->num_cells, ex);
 }
 
