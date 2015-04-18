@@ -66,7 +66,9 @@ stencil_t* cell_star_stencil_new(mesh_t* mesh, int radius)
         int pos = 0, opp_cell;
         while (mesh_cell_next_neighbor(mesh, cells->data[i], &pos, &opp_cell))
         {
-          if ((opp_cell != -1) && (!int_unordered_set_contains(neighbor_set, opp_cell)))
+          if ((opp_cell != -1) && 
+              (!int_unordered_set_contains(neighbor_set, opp_cell)) && 
+              (opp_cell != cell))
           {
             int_unordered_set_insert(neighbor_set, opp_cell);
             int_array_append(neighbors, opp_cell);
@@ -77,8 +79,8 @@ stencil_t* cell_star_stencil_new(mesh_t* mesh, int radius)
       }
 
       ++distance;
-      cells = new_cells;
       int_array_free(cells);
+      cells = new_cells;
     }
     stencil_cells[cell] = neighbors;
     int_unordered_set_clear(neighbor_set);
@@ -186,11 +188,106 @@ stencil_t* cell_star_stencil_new(mesh_t* mesh, int radius)
 stencil_t* cell_halo_stencil_new(mesh_t* mesh, int radius)
 {
   ASSERT(radius > 0);
-  POLYMEC_NOT_IMPLEMENTED;
 
-//  // Create the stencil from the sets.
-//  char name[1025];
-//  snprintf(name, 1024, "cell halo stencil (R = %d)", radius);
-//  return stencil_from_cells(name, stencil_cells, mesh->num_cells, ex);
+  // First, we'll exchange the mesh cell centers to make sure they're 
+  // consistent.
+  exchanger_t* cell_ex = mesh_exchanger(mesh);
+  exchanger_exchange(cell_ex, mesh->cell_centers, 3, 0, MPI_REAL_T);
+
+  // Now we stick all of our cell centers into a kd-tree.
+  kd_tree_t* cell_tree = kd_tree_new(mesh->cell_centers, mesh->num_cells);
+
+  // First we will make a mapping from each cell to its list of 
+  // neighboring cells.
+  int_array_t** stencil_cells = polymec_malloc(sizeof(int_array_t*) * mesh->num_cells);
+  int_unordered_set_t* neighbor_set = int_unordered_set_new();
+  int_unordered_set_t* node_set = int_unordered_set_new();
+  for (int cell = 0; cell < mesh->num_cells; ++cell)
+  {
+    int_array_t* neighbors = int_array_new();
+
+    // Make a list of all the nodes attached to this cell.
+    int fpos = 0, face;
+    while (mesh_cell_next_face(mesh, cell, &fpos, &face))
+    {
+      int npos = 0, node;
+      while (mesh_face_next_node(mesh, face, &npos, &node))
+        int_unordered_set_insert(node_set, node);
+    }
+
+    // Start at this cell and journey outward through faces.
+    int distance = 0;
+    int_array_t* cells = int_array_new();
+    int_array_t* new_cells = int_array_new();
+    int_array_append(cells, cell);
+    while (distance <= radius)
+    {
+      for (int i = 0; i < cells->size; ++i)
+      {
+        int pos = 0, opp_cell;
+        while (mesh_cell_next_neighbor(mesh, cells->data[i], &pos, &opp_cell))
+        {
+          if ((opp_cell != -1) && 
+              (!int_unordered_set_contains(neighbor_set, opp_cell)) &&
+              (opp_cell != cell))
+          {
+            int_unordered_set_insert(neighbor_set, opp_cell);
+
+            // Does this cell share a node with our original cell?
+            bool shares_node = false;
+            int fpos = 0, face;
+            while (mesh_cell_next_face(mesh, opp_cell, &fpos, &face))
+            {
+              int npos = 0, node;
+              while (mesh_face_next_node(mesh, face, &npos, &node))
+              {
+                if (int_unordered_set_contains(node_set, node))
+                  shares_node = true;
+              }
+            }
+
+            if (shares_node)
+            {
+              int_array_append(neighbors, opp_cell);
+              int_array_append(neighbors, distance);
+              int_array_append(new_cells, opp_cell);
+            }
+            else if ((distance + 1) <= radius)
+            {
+              int_array_append(neighbors, opp_cell);
+              int_array_append(neighbors, distance + 1);
+              int_array_append(new_cells, opp_cell);
+            }
+          }
+        }
+      }
+
+      ++distance;
+      int_array_free(cells);
+      cells = new_cells;
+    }
+    stencil_cells[cell] = neighbors;
+    int_unordered_set_clear(neighbor_set);
+    int_unordered_set_clear(node_set);
+  }
+  int_unordered_set_free(neighbor_set);
+  int_unordered_set_free(node_set);
+
+  // Construct the exchanger for this stencil.
+  exchanger_t* ex;
+  if (radius == 1)
+  {
+    // The exchanger for this stencil is the same as that for the mesh.
+    ex = exchanger_clone(mesh_exchanger(mesh));
+  }
+  else
+  {
+    POLYMEC_NOT_IMPLEMENTED;
+  }
+
+  // Create the stencil from the sets.
+  char name[1025];
+  snprintf(name, 1024, "cell halo stencil (R = %d)", radius);
+  return stencil_from_cells(name, stencil_cells, mesh->num_cells, ex);
 }
 
