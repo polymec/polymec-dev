@@ -13,14 +13,15 @@
 
 // Creates a star-shaped stencil for the cells in the given mesh. The stencil 
 // has the given "radius," which is the maximum number of faces separating a 
-// cell from one of its neighboring cells. The stencil is constructed for 
-// every cell in the given mesh.
+// cell from one of its neighboring cells. This unweighted stencil is 
+// constructed for every cell in the given mesh, and does not include the 
+// "central" cell.
 stencil_t* cell_star_stencil_new(mesh_t* mesh, int radius);
 
 // Creates a halo-shaped stencil for the cells in the given mesh. The stencil 
 // has the given "radius," which is the maximum number of layers surrounding
-// the nodes of each cell. The stencil is constructed for every cell in the 
-// given mesh.
+// the nodes of each cell. This unweighted stencil is constructed for every 
+// cell in the given mesh, and does not include the "central" cell.
 stencil_t* cell_halo_stencil_new(mesh_t* mesh, int radius);
 
 #endif
