@@ -6,7 +6,6 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include "core/unordered_set.h"
-#include "core/hilbert.h"
 #include "core/kd_tree.h"
 #include "model/mesh_stencils.h"
 
@@ -34,6 +33,94 @@ static stencil_t* stencil_from_cells(const char* name,
   return unweighted_stencil_new(name, num_cells, offsets, indices, ex);
 }
 
+static exchanger_t* exchanger_from_cells(mesh_t* mesh,
+                                         int_array_t** stencil_cells, 
+                                         int radius)
+{
+  int num_cells = mesh->num_cells;
+  exchanger_t* cell_ex = mesh_exchanger(mesh);
+
+  // Exchange the number of interior neighbors with other processes.
+  int total_num_cells = num_cells + mesh->num_ghost_cells;
+  int our_num_interior_neighbors[total_num_cells];
+  int max_interior_neighbors = 0;
+  for (int i = 0; i < num_cells; ++i)
+  {
+    our_num_interior_neighbors[i] = 0;
+    for (int j = 0; j < stencil_cells[j]->size; ++j)
+    {
+      int neighbor = stencil_cells[j]->data[2*i];
+      if (neighbor < mesh->num_cells)
+        ++our_num_interior_neighbors[i];
+      if (our_num_interior_neighbors[i] > max_interior_neighbors)
+        max_interior_neighbors = our_num_interior_neighbors[i];
+    }
+  }
+  exchanger_exchange(cell_ex, our_num_interior_neighbors, 1, 0, MPI_INT);
+  MPI_Allreduce(MPI_IN_PLACE, &max_interior_neighbors, 1, MPI_INT, MPI_MAX, mesh->comm);
+
+  // Now pack the actual data for exchanging. 
+  int* remote_distances = polymec_malloc(sizeof(int) * max_interior_neighbors * total_num_cells);
+  memset(remote_distances, 0, sizeof(int) * max_interior_neighbors * total_num_cells);
+  for (int i = 0; i < num_cells; ++i)
+  {
+    int k = 0;
+    for (int j = 0; j < stencil_cells[i]->size; ++j)
+    {
+      int neighbor = stencil_cells[i]->data[2*j];
+      int distance = stencil_cells[i]->data[2*j+1];
+      if (neighbor >= mesh->num_cells)
+      {
+        remote_distances[max_interior_neighbors*i+k] = distance;
+        ++k;
+      }
+    }
+  }
+
+  // Now exchange.
+  exchanger_exchange(cell_ex, remote_distances, max_interior_neighbors, 0, MPI_INT);
+
+  // Now construct the send/receive maps for the exchanger.
+  int_ptr_unordered_map_t* send_map = int_ptr_unordered_map_new();
+  int_ptr_unordered_map_t* receive_map = int_ptr_unordered_map_new();
+  int next_ghost_index = mesh->num_ghost_cells;
+  for (int i = 0; i < mesh->num_cells; ++i)
+  {
+    // Pick through the neighbors for this cell and add the 
+    // ones that are close enough.
+    for (int j = 0; j < stencil_cells[i]->size; ++j)
+    {
+      int neighbor = stencil_cells[i]->data[2*j];
+      int base_distance = stencil_cells[i]->data[2*j+1];
+      if (neighbor < num_cells)
+      {
+        // We set up our send cells here.
+      }
+      else
+      {
+        int remote_distance = remote_distances[max_interior_neighbors*i+j];
+        if ((remote_distance > 0) && // remote neighbor!
+            (base_distance + remote_distance <= radius))
+        {
+          // We set up our receive cells here.
+        }
+      }
+    }
+  }
+
+  // Create the exchanger.
+  exchanger_t* ex = exchanger_new(mesh->comm);
+  exchanger_set_sends(ex, send_map);
+  exchanger_set_receives(ex, receive_map);
+
+  // Clean up.
+  int_ptr_unordered_map_free(send_map);
+  int_ptr_unordered_map_free(receive_map);
+  polymec_free(remote_distances);
+
+  return ex;
+}
+
 stencil_t* cell_star_stencil_new(mesh_t* mesh, int radius)
 {
   ASSERT(radius > 0);
@@ -42,9 +129,6 @@ stencil_t* cell_star_stencil_new(mesh_t* mesh, int radius)
   // consistent.
   exchanger_t* cell_ex = mesh_exchanger(mesh);
   exchanger_exchange(cell_ex, mesh->cell_centers, 3, 0, MPI_REAL_T);
-
-  // Now we stick all of our cell centers into a kd-tree.
-  kd_tree_t* cell_tree = kd_tree_new(mesh->cell_centers, mesh->num_cells);
 
   // First we will make a mapping from each cell to its list of 
   // neighboring cells.
@@ -95,89 +179,7 @@ stencil_t* cell_star_stencil_new(mesh_t* mesh, int radius)
     ex = exchanger_clone(mesh_exchanger(mesh));
   }
   else
-  {
-    POLYMEC_NOT_IMPLEMENTED;
-#if 0
-    // We count up our non-ghost neighbors and exchange with our neighbors.
-    exchanger_t* cell_ex = mesh_exchanger(mesh);
-    int num_interior_neighbors[mesh->num_cells];
-    int max_interior_neighbors = 0;
-    bbox_t bbox = {.x1 = FLT_MAX, .x2 = -FLT_MAX,
-                   .y1 = FLT_MAX, .y2 = -FLT_MAX,
-                   .z1 = FLT_MAX, .z2 = -FLT_MAX};
-    for (int cell = 0; cell < mesh->num_cells; ++cell)
-    {
-      num_interior_neighbors[cell] = 0;
-      bbox_grow(&bbox, &mesh->cell_centers[cell]);
-      for (int i = 0; i < neighbors[cell]->size; ++i)
-      {
-        int neighbor = neighbors[cell]->data[2*i];
-        if (neighbor < mesh->num_cells)
-        {
-          ++num_interior_neighbors[cell];
-          if (num_interior_neighbors[cell] > max_interior_neighbors)
-            max_interior_neighbors = num_interior_neighbors[cell];
-        }
-      }
-    }
-    exchanger_exchange(num_interior_neighbors, 1, 0, MPI_INT);
-    MPI_Allreduce(MPI_IN_PLACE, &max_interior_neighbors, 1, MPI_INT, MPI_MAX, mesh->comm);
-
-    // We'll need a Hilbert curve for sorting cell indices objectively.
-    hilbert_t* hilbert = hilbert_new(&bbox);
-
-    // Now pack the actual data for exchanging. 
-    int* interior_neighbors = polymec_malloc(sizeof(int) * 2 * max_interior_neighbors * mesh->num_cells);
-    for (int cell = 0; cell < mesh->num_cells; ++cell)
-    {
-      int i = 0;
-      point_t centers[num_interior_neighbors[cell]];
-      for (int i = 0; i < neighbors[cell]->size; ++i)
-      {
-        int neighbor = neighbors[cell]->data[2*i];
-      int pos = 0, pos1 = 0, neighbor, distance;
-      while (int_unordered_set_next(neighbors, &pos, &neighbor))
-      {
-        if (neighbor < mesh->num_cells)
-        {
-          interior_neighbors[2*(max_interior_neighbors*cell+i)] = neighbor;
-          centers[i] = mesh->cell_centers[interior_neighbors[max_interior_neighbors*cell+i]];
-          ++i;
-        }
-      }
-
-      // Sort the interior neighbors into Hilbert order.
-      hilbert_sort(hilbert, centers, 
-                   &interior_neighbors[max_interior_neighbors*cell],
-                   num_interior_neighbors[cell]);
-    }
-
-    // Now exchange.
-    exchanger_exchange(interior_neighbors, max_interior_neighbors, 0, MPI_INT);
-
-    // Now construct the exchanger.
-    int_ptr_unordered_map_t* send_map = int_ptr_unordered_map_new();
-    int_ptr_unordered_map_t* receive_map = int_ptr_unordered_map_new();
-    for (int cell = 0; cell < mesh->num_cells; ++cell)
-    {
-      // Does this cell have any ghost neighbors?
-      if (num_interior_neighbors[cell] < stencil_sets[cell]->size)
-      {
-        // Pick through the neighbors for this cell and 
-      }
-    }
-    exchanger_set_sends(ex, send_map);
-    exchanger_set_sends(ex, receive_map);
-
-    // Clean up.
-    int_ptr_unordered_map_free(send_map);
-    int_ptr_unordered_map_free(receive_map);
-    polymec_free(interior_neighbors);
-#endif
-  }
-
-  // Clean up.
-  kd_tree_free(cell_tree);
+    ex = exchanger_from_cells(mesh, stencil_cells, radius);
 
   // Create the stencil from the sets.
   char name[1025];
@@ -193,9 +195,6 @@ stencil_t* cell_halo_stencil_new(mesh_t* mesh, int radius)
   // consistent.
   exchanger_t* cell_ex = mesh_exchanger(mesh);
   exchanger_exchange(cell_ex, mesh->cell_centers, 3, 0, MPI_REAL_T);
-
-  // Now we stick all of our cell centers into a kd-tree.
-  kd_tree_t* cell_tree = kd_tree_new(mesh->cell_centers, mesh->num_cells);
 
   // First we will make a mapping from each cell to its list of 
   // neighboring cells.
@@ -274,16 +273,7 @@ stencil_t* cell_halo_stencil_new(mesh_t* mesh, int radius)
   int_unordered_set_free(node_set);
 
   // Construct the exchanger for this stencil.
-  exchanger_t* ex;
-  if (radius == 1)
-  {
-    // The exchanger for this stencil is the same as that for the mesh.
-    ex = exchanger_clone(mesh_exchanger(mesh));
-  }
-  else
-  {
-    POLYMEC_NOT_IMPLEMENTED;
-  }
+  exchanger_t* ex = exchanger_from_cells(mesh, stencil_cells, radius);
 
   // Create the stencil from the sets.
   char name[1025];
