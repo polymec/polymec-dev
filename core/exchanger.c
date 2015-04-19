@@ -94,7 +94,7 @@ static mpi_message_t* mpi_message_new(MPI_Datatype type, int stride, int tag)
 
 static void mpi_message_pack(mpi_message_t* msg, 
                              void* data, 
-                             size_t send_offset,
+                             ssize_t send_offset,
                              exchanger_map_t* send_map, 
                              exchanger_map_t* receive_map)
 {
@@ -210,7 +210,7 @@ static void mpi_message_pack(mpi_message_t* msg,
 
 static void mpi_message_unpack(mpi_message_t* msg, 
                                void* data, 
-                               size_t receive_offset,
+                               ssize_t receive_offset,
                                exchanger_map_t* receive_map)
 {
   int pos = 0, proc, i = 0;
@@ -363,7 +363,7 @@ struct exchanger_t
   int max_send, max_receive;
 
   // Send, receive offsets.
-  size_t send_offset, receive_offset;
+  ssize_t send_offset, receive_offset;
 
   // Pending messages.
   int num_pending_msgs;
@@ -471,7 +471,7 @@ void exchanger_set_sends(exchanger_t* ex, int_ptr_unordered_map_t* send_map)
     exchanger_set_send(ex, send_proc, send_indices->data, send_indices->size, true);   
 }
 
-void exchanger_set_send_offset(exchanger_t* ex, size_t offset)
+void exchanger_set_send_offset(exchanger_t* ex, ssize_t offset)
 {
   ex->send_offset = offset;
 }
@@ -539,7 +539,7 @@ void exchanger_set_receives(exchanger_t* ex, int_ptr_unordered_map_t* recv_map)
     exchanger_set_receive(ex, recv_proc, recv_indices->data, recv_indices->size, true);   
 }
 
-void exchanger_set_receive_offset(exchanger_t* ex, size_t offset)
+void exchanger_set_receive_offset(exchanger_t* ex, ssize_t offset)
 {
   ex->receive_offset = offset;
 }
