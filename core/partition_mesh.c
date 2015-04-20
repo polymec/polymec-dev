@@ -1321,11 +1321,11 @@ exchanger_t* distribute_mesh(mesh_t** mesh, MPI_Comm comm, int64_t* global_parti
 #if POLYMEC_HAVE_MPI
   START_FUNCTION_TIMER();
   ASSERT((*mesh == NULL) || ((*mesh)->comm == MPI_COMM_SELF));
-  ASSERT(global_partition != NULL);
 
   int nprocs, rank;
   MPI_Comm_size(comm, &nprocs);
   MPI_Comm_rank(comm, &rank);
+  ASSERT((rank != 0) || (global_partition != NULL));
   ASSERT((rank != 0) || (*mesh != NULL));
 
   // On a single process, partitioning has no meaning.

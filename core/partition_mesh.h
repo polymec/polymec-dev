@@ -39,9 +39,11 @@ int64_t* partition_vector_from_mesh(mesh_t* global_mesh,
                                     int* weights, 
                                     real_t imbalance_tol);
 
-// Given a global partition vector, distribute the mesh to the given communicator, and 
-// return a distributor object that can be used to distribute its data. The mesh is 
-// replaced with a partitioned mesh.
+// Given a global partition vector, distributes the mesh from rank 0 to all 
+// processes in the given communicator according to the global partition vector, 
+// and returns a distributor object that can be used to distribute its data. 
+// The mesh on rank 0 is replaced with a partitioned mesh, and meshes are 
+// written (or overwritten) on other ranks.
 exchanger_t* distribute_mesh(mesh_t** mesh, MPI_Comm comm, int64_t* global_partition);
 
 #endif
