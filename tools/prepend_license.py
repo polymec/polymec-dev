@@ -60,7 +60,6 @@ def remove_old_license(source_file):
             has_old_license = False
             break
 
-    first_line = lines[0]
     f = open(source_file, 'w')
     if has_old_license:
         last_line = 1
