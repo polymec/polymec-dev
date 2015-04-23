@@ -11,7 +11,7 @@
 #include "core/mesh.h"
 
 // Perpendicular-bisector mesh features.
-const char* PEBI;       // Is a PEBI mesh (has no edges or nodes)
+extern const char* PEBI;       // Is a PEBI mesh (has no edges or nodes)
 
 // Creates a PEBI mesh given a set of cell centers and adjacency (face) 
 // information. The faces array contains 2*num_faces entries, where 
