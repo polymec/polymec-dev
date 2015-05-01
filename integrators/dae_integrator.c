@@ -6,6 +6,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include "core/sundials_helpers.h"
+#include "core/timer.h"
 #include "integrators/dae_integrator.h"
 
 #include "ida/ida.h"
@@ -43,6 +44,38 @@ struct dae_integrator_t
   // Preconditioning stuff. 
   newton_pc_t* precond;
 };
+
+static char* get_status_message(int status, real_t current_time)
+{
+  char* status_message = NULL;
+  if (status == IDA_TOO_MUCH_WORK)
+  {
+    char err[1024];
+    snprintf(err, 1024, "Integrator stopped at t = %g after maximum number of steps.", current_time);
+    status_message = string_dup(err);
+  }
+  else if (status == IDA_TOO_MUCH_ACC)
+    status_message = string_dup("Integrator could not achieve desired level of accuracy.");
+  else if (status == IDA_ERR_FAIL)
+    status_message = string_dup("Integrator encountered too many error test failures.");
+  else if (status == IDA_CONV_FAIL)
+    status_message = string_dup("Integrator encountered too many convergence test failures.");
+  else if (status == IDA_LINIT_FAIL)
+    status_message = string_dup("Integrator's linear solver failed to initialize.");
+  else if (status == IDA_LSETUP_FAIL)
+    status_message = string_dup("Integrator's linear solver setup failed.");
+  else if (status == IDA_LSOLVE_FAIL)
+    status_message = string_dup("Integrator's linear solver failed.");
+  else if (status == IDA_CONSTR_FAIL)
+    status_message = string_dup("Integrator's inequality constraints were violated unrecoverably.");
+  else if (status == IDA_RES_FAIL)
+    status_message = string_dup("Integrator's residual function failed unrecoverably.");
+  else if (status == IDA_REP_RES_ERR)
+    status_message = string_dup("Integrator encountered too many recoverable RHS failures.");
+  else if (status == IDA_RTFUNC_FAIL)
+    status_message = string_dup("Integrator encountered a failure in the rootfinding function.");
+  return status_message;
+}
 
 // This function wraps around the user-supplied right hand side.
 static int evaluate_residual(real_t t, N_Vector x, N_Vector x_dot, 
@@ -249,28 +282,38 @@ void dae_integrator_set_stop_time(dae_integrator_t* integ, real_t stop_time)
   IDASetStopTime(integ->ida, stop_time);
 }
 
-bool dae_integrator_step(dae_integrator_t* integ, real_t* t, real_t* X, real_t* X_dot)
+bool dae_integrator_step(dae_integrator_t* integ, real_t max_dt, real_t* t, real_t* X, real_t* X_dot)
 {
-  // Copy in the solution and its time derivative.
-  memcpy(NV_DATA(integ->x), X, sizeof(real_t) * integ->num_local_values); 
-  memcpy(NV_DATA(integ->x_dot), X_dot, sizeof(real_t) * integ->num_local_values); 
+  START_FUNCTION_TIMER();
+  int status = IDA_SUCCESS;
 
-  if (!integ->initialized)
+  // If *t + max_dt is less than the time to which we've already integrated, 
+  // we don't need to integrate; we only need to interpolate backward.
+  real_t t2 = *t + max_dt;
+  if (t2 > integ->t)
   {
-    integ->t = *t;
-    IDAReInit(integ->ida, integ->t, integ->x, integ->x_dot);
-    integ->initialized = true;
-  }
-  else if (fabs(integ->t - *t) > 1e-14)
-  {
-    // Reset the integrator if t != current_time.
-    integ->t = *t;
-    IDAReInit(integ->ida, integ->t, integ->x, integ->x_dot);
+    // Integrate to at least t -> t + max_dt.
+    status = IDASolve(integ->ida, t2, &integ->t, integ->x, integ->x_dot, IDA_ONE_STEP);
+    if ((status != IDA_SUCCESS) && (status != IDA_TSTOP_RETURN))
+    {
+      integ->status_message = get_status_message(status, integ->t);
+      STOP_FUNCTION_TIMER();
+      return false;
+    }
+
+    if ((t2 - *t) < (integ->t - *t))
+      log_detail("dae_integrator: took internal step dt = %g", integ->t - *t);
   }
 
-  // Integrate.
-  real_t t2 = *t + integ->max_dt;
-  int status = IDASolve(integ->ida, t2, &integ->t, integ->x, integ->x_dot, IDA_ONE_STEP);
+  // If we integrated past t2, interpolate to t2.
+  if (integ->t > t2)
+  {
+    status = IDAGetDky(integ->ida, t2, 0, integ->x);
+    status = IDAGetDky(integ->ida, t2, 1, integ->x_dot);
+    *t = t2;
+  }
+  else
+    *t = integ->t;
   
   // Clear the present status.
   if (integ->status_message != NULL)
@@ -283,39 +326,15 @@ bool dae_integrator_step(dae_integrator_t* integ, real_t* t, real_t* X, real_t* 
   if ((status == IDA_SUCCESS) || (status == IDA_TSTOP_RETURN))
   {
     // Copy out the solution.
-    *t = integ->t;
     memcpy(X, NV_DATA(integ->x), sizeof(real_t) * integ->num_local_values); 
     memcpy(X_dot, NV_DATA(integ->x_dot), sizeof(real_t) * integ->num_local_values); 
+    STOP_FUNCTION_TIMER();
     return true;
   }
   else
   {
-    if (status == IDA_TOO_MUCH_WORK)
-    {
-      char err[1024];
-      snprintf(err, 1024, "Integrator stopped at t = %g after maximum number of steps.", integ->t);
-      integ->status_message = string_dup(err);
-    }
-    else if (status == IDA_TOO_MUCH_ACC)
-      integ->status_message = string_dup("Integrator could not achieve desired level of accuracy.");
-    else if (status == IDA_ERR_FAIL)
-      integ->status_message = string_dup("Integrator encountered too many error test failures.");
-    else if (status == IDA_CONV_FAIL)
-      integ->status_message = string_dup("Integrator encountered too many convergence test failures.");
-    else if (status == IDA_LINIT_FAIL)
-      integ->status_message = string_dup("Integrator's linear solver failed to initialize.");
-    else if (status == IDA_LSETUP_FAIL)
-      integ->status_message = string_dup("Integrator's linear solver setup failed.");
-    else if (status == IDA_LSOLVE_FAIL)
-      integ->status_message = string_dup("Integrator's linear solver failed.");
-    else if (status == IDA_CONSTR_FAIL)
-      integ->status_message = string_dup("Integrator's inequality constraints were violated unrecoverably.");
-    else if (status == IDA_RES_FAIL)
-      integ->status_message = string_dup("Integrator's residual function failed unrecoverably.");
-    else if (status == IDA_REP_RES_ERR)
-      integ->status_message = string_dup("Integrator encountered too many recoverable RHS failures.");
-    else if (status == IDA_RTFUNC_FAIL)
-      integ->status_message = string_dup("Integrator encountered a failure in the rootfinding function.");
+    integ->status_message = get_status_message(status, integ->t);
+    STOP_FUNCTION_TIMER();
     return false;
   }
 }

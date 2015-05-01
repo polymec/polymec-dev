@@ -60,8 +60,9 @@ typedef struct
 // nonlinear differential equations. 
 typedef struct dae_integrator_t dae_integrator_t;
 
-// Creates an integrator that uses a Newton-Krylov method with a given 
-// maximum subspace dimension of max_krylov_dim. 
+// Creates an integrator that uses a Newton-Krylov method to solve a system of 
+// Differential Algebraic Equations (DAE) with a given maximum subspace 
+// dimension of max_krylov_dim. 
 dae_integrator_t* dae_integrator_new(int order,
                                      MPI_Comm comm,
                                      int num_local_values,
@@ -114,7 +115,7 @@ void dae_integrator_set_stop_time(dae_integrator_t* integ, real_t stop_time);
 // taking a single step starting at time *t and storing the new time in *t as 
 // well. Also evolves X_dot. Returns true if the step succeeded, false if it 
 // failed for some reason. If a step fails, t, X, and X_dot remain unchanged.
-bool dae_integrator_step(dae_integrator_t* integrator, real_t* t, real_t* X, real_t* X_dot);
+bool dae_integrator_step(dae_integrator_t* integrator, real_t max_dt, real_t* t, real_t* X, real_t* X_dot);
 
 // Resets the integrator to prepare it to take a step when X, X_dot, and/or t 
 // have changed by some process outside of the integrator. This resets any 
