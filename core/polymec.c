@@ -264,8 +264,11 @@ void polymec_init(int argc, char** argv)
     else
       polymec_invoc_dir = string_dup("(unknown)");
 
-    // Start up MPI.
-    MPI_Init(&argc, &argv);
+    // Start up MPI if needed.
+    int initialized;
+    MPI_Initialized(&initialized);
+    if (!initialized)
+      MPI_Init(&argc, &argv);
 
 #if POLYMEC_HAVE_MPI
     // Set up the MPI error handler.
