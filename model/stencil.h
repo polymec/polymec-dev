@@ -43,6 +43,10 @@ stencil_t* stencil_new(const char* name, int num_indices,
 stencil_t* unweighted_stencil_new(const char* name, int num_indices, 
                                   int* offsets, int* indices, exchanger_t* ex);
 
+// This function sets the weights for the given stencil after its construction. 
+// Any existing weights are deleted, and the weights array is consumed.
+void stencil_set_weights(stencil_t* stencil, real_t* weights);
+
 // Destroys the given stencil object.
 void stencil_free(stencil_t* stencil);
 
@@ -101,5 +105,13 @@ serializer_t* stencil_serializer();
 // the given stencil.
 adj_graph_t* graph_from_point_cloud_and_stencil(point_cloud_t* points, 
                                                 stencil_t* stencil);
+
+// This pre-fab function creates a stencil for points in a cloud that have 
+// neighbors within a radius given by R[i] for the ith point. num_ghost_points
+// will store the number of ghost points in the stencil. No weights are 
+// assigned.
+stencil_t* distance_based_point_stencil_new(point_cloud_t* points,
+                                            real_t* R,
+                                            int* num_ghost_points);
 
 #endif

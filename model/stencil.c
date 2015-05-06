@@ -8,6 +8,7 @@
 #include "model/stencil.h"
 #include "core/unordered_set.h"
 #include "core/array.h"
+#include "core/kd_tree.h"
 
 stencil_t* stencil_new(const char* name, int num_indices, 
                        int* offsets, int* indices, real_t* weights,
@@ -30,6 +31,14 @@ stencil_t* unweighted_stencil_new(const char* name, int num_indices,
                                   int* offsets, int* indices, exchanger_t* ex)
 {
   return stencil_new(name, num_indices, offsets, indices, NULL, ex);
+}
+
+void stencil_set_weights(stencil_t* stencil, real_t* weights)
+{
+  ASSERT(weights != NULL);
+  if (stencil->weights != NULL)
+    polymec_free(stencil->weights);
+  stencil->weights = weights;
 }
 
 void stencil_free(stencil_t* stencil)
@@ -175,3 +184,64 @@ adj_graph_t* graph_from_point_cloud_and_stencil(point_cloud_t* points,
   return g;
 }
 
+stencil_t* distance_based_point_stencil_new(point_cloud_t* points,
+                                            real_t* R,
+                                            int* num_ghost_points)
+{
+  ASSERT(R != NULL);
+  ASSERT(num_ghost_points != NULL);
+#ifndef NDEBUG
+  for (int i = 0; i < points->num_points; ++i)
+    ASSERT(R[i] > 0.0);
+#endif
+
+  // Stick all the points into a kd-tree so that we can pair them up.
+  kd_tree_t* tree = kd_tree_new(points->points, points->num_points);
+
+  // Find the maximum radius of interaction.
+  real_t R_max = -FLT_MAX;
+  for (int i = 0; i < points->num_points; ++i)
+    R_max = MAX(R_max, R[i]);
+
+  // Add ghost points to the kd-tree and fetch an exchanger. This may add 
+  // too many ghost points, but hopefully that won't be an issue.
+  exchanger_t* ex = kd_tree_find_ghost_points(tree, points->comm, R_max);
+
+  // We'll toss stencil data into these arrays.
+  int* offsets = polymec_malloc(sizeof(int) * (points->num_points+1));
+  int_array_t* indices = int_array_new();
+  offsets[0] = 0;
+  for (int i = 0; i < points->num_points; ++i)
+  {
+    // Find all the neighbors for this point. We only count those 
+    // neighbors {j} for which j > i.
+    point_t* xi = &points->points[i];
+    int_array_t* neighbors = kd_tree_within_radius(tree, xi, R_max);
+    offsets[i+1] = offsets[i] + neighbors->size;
+    for (int k = 0; k < neighbors->size; ++k)
+    {
+      int j = neighbors->data[k];
+      if (j > i)
+      {
+        real_t D = point_distance(xi, &points->points[j]);
+        if (D < R[i])
+          int_array_append(indices, j);
+      }
+    }
+    int_array_free(neighbors);
+  }
+
+  // Create an unweighted stencil.
+  stencil_t* stencil = 
+    unweighted_stencil_new("Distance-based point stencil", points->num_points, 
+                           offsets, indices->data, ex);
+
+  // Set the number of ghost points referred to within the neighbor pairing.
+  *num_ghost_points = kd_tree_size(tree) - points->num_points;
+
+  // Clean up.
+  int_array_release_data_and_free(indices); // Release control of index data.
+  kd_tree_free(tree);
+
+  return stencil;
+}
