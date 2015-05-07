@@ -503,7 +503,8 @@ void bdf_ode_integrator_set_stability_limit_detection(ode_integrator_t* integrat
 void bdf_ode_integrator_eval_rhs(ode_integrator_t* integrator, real_t t, real_t* X, real_t* rhs)
 {
   bdf_ode_t* integ = ode_integrator_context(integrator);
-  integ->rhs(integ->context, t, X, rhs);
+  memcpy(integ->x_with_ghosts, X, sizeof(real_t) * integ->num_local_values);
+  integ->rhs(integ->context, t, integ->x_with_ghosts, rhs);
 }
 
 newton_pc_t* bdf_ode_integrator_preconditioner(ode_integrator_t* integrator)

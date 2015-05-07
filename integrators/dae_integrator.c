@@ -31,6 +31,7 @@ struct dae_integrator_t
   void* ida;
   N_Vector x, x_dot;
   real_t* x_with_ghosts;
+  real_t* x_dot_with_ghosts;
   int max_krylov_dim;
   char* status_message; // status of most recent integration.
   real_t max_dt, stop_time;
@@ -86,8 +87,11 @@ static int evaluate_residual(real_t t, N_Vector x, N_Vector x_dot,
   real_t* xxd = NV_DATA(x_dot);
   real_t* Fx = NV_DATA(F);
 
-  // Evaluate the residual.
-  return integ->vtable.residual(integ->context, t, xx, xxd, Fx);
+  // Evaluate the residual using vectors with ghosts.
+  memcpy(integ->x_with_ghosts, xx, sizeof(real_t) * integ->num_local_values);
+  memcpy(integ->x_dot_with_ghosts, xxd, sizeof(real_t) * integ->num_local_values);
+  return integ->vtable.residual(integ->context, t, integ->x_with_ghosts, 
+                                integ->x_dot_with_ghosts, Fx);
 }
 
 // This function sets up the preconditioner data within the integrator.
@@ -95,11 +99,14 @@ static int set_up_preconditioner(real_t t, N_Vector x, N_Vector x_dot, N_Vector 
                                  real_t cj, void* context,
                                  N_Vector work1, N_Vector work2, N_Vector work3)
 {
+  START_FUNCTION_TIMER();
   dae_integrator_t* integ = context;
 
   // Form the linear combination dFdx + cj * dFdxdot.
-  newton_pc_setup(integ->precond, 0.0, 1.0, cj, t, NV_DATA(x), NV_DATA(x_dot));
-
+  memcpy(integ->x_with_ghosts, NV_DATA(x), sizeof(real_t) * integ->num_local_values);
+  memcpy(integ->x_dot_with_ghosts, NV_DATA(x_dot), sizeof(real_t) * integ->num_local_values);
+  newton_pc_setup(integ->precond, 0.0, 1.0, cj, t, integ->x_with_ghosts, integ->x_dot_with_ghosts);
+  STOP_FUNCTION_TIMER();
   return 0;
 }
 
@@ -111,6 +118,7 @@ static int solve_preconditioner_system(real_t t, N_Vector x, N_Vector x_dot,
                                        real_t cj, real_t delta, 
                                        void* context, N_Vector work)
 {
+  START_FUNCTION_TIMER();
   dae_integrator_t* integ = context;
   
   // FIXME: Apply scaling if needed.
@@ -118,10 +126,9 @@ static int solve_preconditioner_system(real_t t, N_Vector x, N_Vector x_dot,
   memcpy(NV_DATA(z), NV_DATA(r), sizeof(real_t) * integ->num_local_values);
 
   // Solve it.
-  if (newton_pc_solve(integ->precond, NV_DATA(z)))
-    return 0;
-  else 
-    return 1; // recoverable error.
+  int result = (newton_pc_solve(integ->precond, NV_DATA(z))) ? 0 : 1;
+  STOP_FUNCTION_TIMER();
+  return result;
 }
 
 dae_integrator_t* dae_integrator_new(int order,
@@ -161,6 +168,10 @@ dae_integrator_t* dae_integrator_new(int order,
   integ->x = N_VNew(comm, num_local_values);
   integ->x_with_ghosts = polymec_malloc(sizeof(real_t) * (num_local_values + num_remote_values));
   integ->x_dot = N_VNew(comm, num_local_values);
+  integ->x_dot_with_ghosts = polymec_malloc(sizeof(real_t) * (num_local_values + num_remote_values));
+  memset(NV_DATA(integ->x), 0, sizeof(real_t) * num_local_values);
+  memset(NV_DATA(integ->x_dot), 0, sizeof(real_t) * num_local_values);
+
   integ->ida = IDACreate();
   IDASetMaxOrd(integ->ida, integ->order);
   IDASetUserData(integ->ida, integ);
@@ -209,7 +220,9 @@ void dae_integrator_free(dae_integrator_t* integ)
 
   // Kill the IDA stuff.
   N_VDestroy(integ->x_dot);
+  polymec_free(integ->x_with_ghosts);
   N_VDestroy(integ->x);
+  polymec_free(integ->x_dot_with_ghosts);
   IDAFree(&integ->ida);
 
   // Kill the rest.
@@ -266,7 +279,11 @@ void dae_integrator_set_error_weight_function(dae_integrator_t* integrator,
 
 void dae_integrator_eval_residual(dae_integrator_t* integ, real_t t, real_t* X, real_t* X_dot, real_t* F)
 {
-  integ->vtable.residual(integ->context, t, X, X_dot, F);
+  START_FUNCTION_TIMER();
+  memcpy(integ->x_with_ghosts, X, sizeof(real_t) * integ->num_local_values);
+  memcpy(integ->x_dot_with_ghosts, X_dot, sizeof(real_t) * integ->num_local_values);
+  integ->vtable.residual(integ->context, t, integ->x_with_ghosts, integ->x_dot_with_ghosts, F);
+  STOP_FUNCTION_TIMER();
 }
 
 void dae_integrator_set_max_dt(dae_integrator_t* integ, real_t max_dt)
