@@ -43,12 +43,19 @@ stencil_t* stencil_new(const char* name, int num_indices,
 stencil_t* unweighted_stencil_new(const char* name, int num_indices, 
                                   int* offsets, int* indices, exchanger_t* ex);
 
+// Destroys the given stencil object.
+void stencil_free(stencil_t* stencil);
+
+// Creates a (deep) copy of the given stencil.
+stencil_t* stencil_clone(stencil_t* stencil);
+
 // This function sets the weights for the given stencil after its construction. 
 // Any existing weights are deleted, and the weights array is consumed.
 void stencil_set_weights(stencil_t* stencil, real_t* weights);
 
-// Destroys the given stencil object.
-void stencil_free(stencil_t* stencil);
+// This operation "augments" the given stencil by associating the neighbors
+// of neighbors to each index.
+void stencil_augment(stencil_t* stencil);
 
 // Performs a synchronous exchange of the values for this stencil for the 
 // given data. This method has the same signature as exchanger_exchange().

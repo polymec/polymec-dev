@@ -446,6 +446,11 @@ exchanger_t* exchanger_clone(exchanger_t* ex)
   return clone;
 }
 
+MPI_Comm exchanger_comm(exchanger_t* ex)
+{
+  return ex->comm;
+}
+
 static void delete_map_entry(int key, exchanger_channel_t* value)
 {
   exchanger_channel_free(value);

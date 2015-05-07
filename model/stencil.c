@@ -33,14 +33,6 @@ stencil_t* unweighted_stencil_new(const char* name, int num_indices,
   return stencil_new(name, num_indices, offsets, indices, NULL, ex);
 }
 
-void stencil_set_weights(stencil_t* stencil, real_t* weights)
-{
-  ASSERT(weights != NULL);
-  if (stencil->weights != NULL)
-    polymec_free(stencil->weights);
-  stencil->weights = weights;
-}
-
 void stencil_free(stencil_t* stencil)
 {
   polymec_free(stencil->name);
@@ -50,6 +42,91 @@ void stencil_free(stencil_t* stencil)
     polymec_free(stencil->weights);
   exchanger_free(stencil->ex);
   polymec_free(stencil);
+}
+
+stencil_t* stencil_clone(stencil_t* stencil)
+{
+  int* offsets = polymec_malloc(sizeof(int) * (stencil->num_indices+1));
+  memcpy(offsets, stencil->offsets, sizeof(real_t) * (stencil->num_indices+1));
+  int size = offsets[stencil->num_indices];
+  int* indices = polymec_malloc(sizeof(int) * size);
+  memcpy(indices, stencil->indices, sizeof(real_t) * size);
+  real_t* weights = NULL;
+  if (stencil->weights != NULL)
+  {
+    weights = polymec_malloc(sizeof(real_t) * size);
+    memcpy(weights, stencil->weights, sizeof(real_t) * size);
+  }
+  exchanger_t* ex = exchanger_clone(stencil->ex);
+  return stencil_new(string_dup(stencil->name), stencil->num_indices, offsets, 
+                     indices, weights, ex);
+}
+
+void stencil_set_weights(stencil_t* stencil, real_t* weights)
+{
+  ASSERT(weights != NULL);
+  if (stencil->weights != NULL)
+    polymec_free(stencil->weights);
+  stencil->weights = weights;
+}
+
+void stencil_augment(stencil_t* stencil)
+{
+  // Gather the local neighbors of neighbors.
+  int_array_t* n_of_n[stencil->num_indices]; 
+  real_array_t* n_of_n_w[stencil->num_indices]; 
+  int_unordered_set_t* old_neighbors = int_unordered_set_new();
+  int max_index = stencil->num_indices - 1;
+  int max_nn = 0;
+  for (int i = 0; i < stencil->num_indices; ++i)
+  {
+    n_of_n[i] = int_array_new();
+    n_of_n_w[i] = real_array_new();
+
+    int posj = 0, j;
+    real_t wj;
+    while (stencil_next(stencil, i, &posj, &j, &wj))
+    {
+      max_index = MAX(max_index, j);
+      int_array_append(n_of_n[i], j);
+      real_array_append(n_of_n_w[i], wj);
+      int_unordered_set_insert(old_neighbors, j);
+      int posk = 0, k;
+      real_t wk;
+      while (stencil_next(stencil, i, &posk, &k, &wk))
+      {
+        if (!int_unordered_set_contains(old_neighbors, k))
+        {
+          max_index = MAX(max_index, k);
+          int_array_append(n_of_n[i], k);
+          real_array_append(n_of_n_w[i], wk);
+          int_unordered_set_insert(old_neighbors, k);
+        }
+      }
+    }
+
+    max_nn = MAX(max_nn, n_of_n[i]->size);
+    int_unordered_set_clear(old_neighbors);
+  }
+
+  // Exchange the number of neighbors for interior indices.
+  int nn[stencil->num_indices];
+  for (int i = 0; i < stencil->num_indices; ++i)
+    nn[i] = n_of_n[i]->size;
+  exchanger_exchange(stencil->ex, nn, 1, 0, MPI_INT);
+
+  // Set up a new exchanger.
+  exchanger_t* ex = exchanger_new(exchanger_comm(stencil->ex));
+  int_ptr_unordered_map_t* send_map = int_ptr_unordered_map_new();
+  int_ptr_unordered_map_t* recv_map = int_ptr_unordered_map_new();
+
+  // Clean up.
+  for (int i = 0; i < stencil->num_indices; ++i)
+  {
+    int_array_free(n_of_n[i]);
+    real_array_free(n_of_n_w[i]);
+  }
+  int_unordered_set_free(old_neighbors);
 }
 
 void stencil_exchange(stencil_t* stencil, void* data, int stride, int tag, MPI_Datatype type)
