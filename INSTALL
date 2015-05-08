@@ -67,7 +67,7 @@ NERSC Hopper (last updated 5/8/2015)
 Load the following modules
   cmake
   silo
-  PrgEnv-gnu
+  PrgEnv-intel
 
 and then type
 
