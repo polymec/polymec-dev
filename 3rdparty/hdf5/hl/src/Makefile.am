@@ -33,7 +33,7 @@ libhdf5_hl_la_LDFLAGS= -version-info $(LT_VERS_INTERFACE):$(LT_VERS_REVISION):$(
 # List sources to include in the HDF5 HL Library.
 libhdf5_hl_la_SOURCES=H5DO.c H5DS.c H5IM.c H5LT.c H5LTanalyze.c H5LTparse.c H5PT.c H5TB.c
 
-# HDF5 HL library depends on HDF5 Library.
+# HDF5 HL library depends on HDF5 Library. 
 libhdf5_hl_la_LIBADD=$(LIBHDF5)
 
 # Public header files (to be installed)

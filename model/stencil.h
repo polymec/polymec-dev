@@ -9,8 +9,9 @@
 #define POLYMEC_STENCIL_H
 
 #include "core/polymec.h"
+#include "core/exchanger.h"
 #include "core/serializer.h"
-#include "core/mesh.h"
+#include "core/adj_graph.h"
 #include "core/point_cloud.h"
 
 // A stencil is a set of indices and weights associated with a stencil for 
@@ -45,6 +46,17 @@ stencil_t* unweighted_stencil_new(const char* name, int num_indices,
 // Destroys the given stencil object.
 void stencil_free(stencil_t* stencil);
 
+// Creates a (deep) copy of the given stencil.
+stencil_t* stencil_clone(stencil_t* stencil);
+
+// This function sets the weights for the given stencil after its construction. 
+// Any existing weights are deleted, and the weights array is consumed.
+void stencil_set_weights(stencil_t* stencil, real_t* weights);
+
+// This operation "augments" the given stencil by associating the neighbors
+// of neighbors to each index.
+void stencil_augment(stencil_t* stencil);
+
 // Performs a synchronous exchange of the values for this stencil for the 
 // given data. This method has the same signature as exchanger_exchange().
 void stencil_exchange(stencil_t* stencil, void* data, int stride, int tag, MPI_Datatype type);
@@ -56,6 +68,9 @@ int stencil_start_exchange(stencil_t* stencil, void* data, int stride, int tag, 
 // Concludes the asynchronous exchange corresponding to the given token for 
 // this stencil. This method has the same signature as exchanger_finish_exchange().
 void stencil_finish_exchange(stencil_t* stencil, int token);
+
+// Provides direct access to the stencil's exchanger.
+exchanger_t* stencil_exchanger(stencil_t* stencil);
 
 // Returns the number of indices for which the stencil has data.
 static inline int stencil_num_indices(stencil_t* stencil)
@@ -93,21 +108,17 @@ static inline bool stencil_next(stencil_t* stencil, int i, int* pos,
 // Returns a serializer object that can read/write stencils from/to byte arrays.
 serializer_t* stencil_serializer();
 
-// Creates a stencil for the cells that share at least one face with a given 
-// cell. The stencil is constructed for every cell in the given mesh.
-stencil_t* cell_face_stencil_new(mesh_t* mesh);
-
-// Creates a stencil for the cells that share at least one edge with a given 
-// cell. The stencil is constructed for every cell in the given mesh.
-stencil_t* cell_edge_stencil_new(mesh_t* mesh);
-
-// Creates a stencil for the cells that share at least one node with a given 
-// cell. The stencil is constructed for every cell in the given mesh.
-stencil_t* cell_node_stencil_new(mesh_t* mesh);
-
 // This function creates an adjacency graph for the given point cloud with 
 // the given stencil.
 adj_graph_t* graph_from_point_cloud_and_stencil(point_cloud_t* points, 
                                                 stencil_t* stencil);
+
+// This pre-fab function creates a stencil for points in a cloud that have 
+// neighbors within a radius given by R[i] for the ith point. num_ghost_points
+// will store the number of ghost points in the stencil. No weights are 
+// assigned.
+stencil_t* distance_based_point_stencil_new(point_cloud_t* points,
+                                            real_t* R,
+                                            int* num_ghost_points);
 
 #endif

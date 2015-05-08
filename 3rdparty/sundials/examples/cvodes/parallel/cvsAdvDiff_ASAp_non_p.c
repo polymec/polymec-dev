@@ -1,7 +1,7 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 1.1 $
- * $Date: 2007/10/25 20:03:30 $
+ * $Revision: 4396 $
+ * $Date: 2015-02-26 16:59:39 -0800 (Thu, 26 Feb 2015) $
  * -----------------------------------------------------------------
  * Programmer(s): Radu Serban @ LLNL
  * -----------------------------------------------------------------
@@ -515,7 +515,7 @@ static void SetIC(N_Vector u, realtype dx, long int my_length, long int my_base)
   for (i=1; i<=my_length; i++) {
     iglobal = my_base + i;
     x = iglobal*dx;
-    udata[i-1] = x*(XMAX - x)*EXP(TWO*x);
+    udata[i-1] = x*(XMAX - x)*SUNRexp(TWO*x);
   }  
 }
 
@@ -618,8 +618,8 @@ static void PrintOutput(realtype g_val, N_Vector uB, UserData data)
     printf("\ng(tf) = %8Le\n\n", g_val);
     printf("dgdp(tf)\n  [ 1]: %8Le\n  [ 2]: %8Le\n\n", -uBdata[0], -uBdata[1]);
 #elif defined(SUNDIALS_DOUBLE_PRECISION)
-    printf("\ng(tf) = %8le\n\n", g_val);
-    printf("dgdp(tf)\n  [ 1]: %8le\n  [ 2]: %8le\n\n", -uBdata[0], -uBdata[1]);
+    printf("\ng(tf) = %8e\n\n", g_val);
+    printf("dgdp(tf)\n  [ 1]: %8e\n  [ 2]: %8e\n\n", -uBdata[0], -uBdata[1]);
 #else
     printf("\ng(tf) = %8e\n\n", g_val);
     printf("dgdp(tf)\n  [ 1]: %8e\n  [ 2]: %8e\n\n", -uBdata[0], -uBdata[1]);
@@ -642,7 +642,7 @@ static void PrintOutput(realtype g_val, N_Vector uB, UserData data)
       printf("  [%2ld]: %8Le\n", i+1, mu[i]);
 #elif defined(SUNDIALS_DOUBLE_PRECISION)
     for (i=0; i<NEQ; i++)
-      printf("  [%2ld]: %8le\n", i+1, mu[i]);
+      printf("  [%2ld]: %8e\n", i+1, mu[i]);
 #else
     for (i=0; i<NEQ; i++)
       printf("  [%2ld]: %8e\n", i+1, mu[i]);

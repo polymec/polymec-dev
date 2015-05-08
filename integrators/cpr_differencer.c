@@ -6,6 +6,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include "core/sundials_helpers.h" // For UNIT_ROUNDOFF
+#include "core/timer.h"
 #include "integrators/cpr_differencer.h"
 
 struct cpr_differencer_t
@@ -108,6 +109,7 @@ static void cpr_finite_diff_dFdx_v(void* context,
                                    real_t** work, 
                                    real_t* dFdx_v)
 {
+  START_FUNCTION_TIMER();
   real_t eps = sqrt(UNIT_ROUNDOFF);
   real_t eps_inv = 1.0 / eps;
 
@@ -126,6 +128,7 @@ static void cpr_finite_diff_dFdx_v(void* context,
   // (F(t, x + eps*v, xdot) - F(t, x, xdot)) / eps -> (dF/dx) * v
   for (int i = 0; i < num_local_rows; ++i)
     dFdx_v[i] = (work[3][i] - work[1][i]) * eps_inv;
+  STOP_FUNCTION_TIMER();
 }
 
 // Here's the same finite difference calculation for dF/d(xdot).
@@ -140,6 +143,7 @@ static void cpr_finite_diff_dFdxdot_v(void* context,
                                       real_t** work, 
                                       real_t* dFdxdot_v)
 {
+  START_FUNCTION_TIMER();
   real_t eps = sqrt(UNIT_ROUNDOFF);
   real_t eps_inv = 1.0 / eps;
 
@@ -158,6 +162,7 @@ static void cpr_finite_diff_dFdxdot_v(void* context,
   // (F(t, x, xdot + eps*v) - F(t, x, xdot)) / eps -> (dF/dx) * v
   for (int i = 0; i < num_local_rows; ++i)
     dFdxdot_v[i] = (work[3][i] - work[1][i]) * eps_inv;
+  STOP_FUNCTION_TIMER();
 }
 
 // This function adapts non-DAE functions F(t, x) to DAE ones F(t, x, xdot).
@@ -176,6 +181,7 @@ void cpr_differencer_compute(cpr_differencer_t* diff,
                              real_t t, real_t* x, real_t* xdot,
                              local_matrix_t* matrix)
 {
+  START_FUNCTION_TIMER();
   adj_graph_coloring_t* coloring = diff->coloring;
   real_t** work = diff->work;
 
@@ -201,14 +207,20 @@ void cpr_differencer_compute(cpr_differencer_t* diff,
 
   // If all the coefficients are zero, we're finished!
   if ((alpha == 0.0) && (beta == 0.0) && (gamma == 0.0))
+  {
+    STOP_FUNCTION_TIMER();
     return;
+  }
 
   // Then set up an identity matrix.
   local_matrix_add_identity(matrix, alpha);
 
   // If beta and gamma are zero, we're finished!
   if ((beta == 0.0) && (gamma == 0.0))
+  {
+    STOP_FUNCTION_TIMER();
     return;
+  }
 
   // Keep track of the number of function evaluations.
   int num_F_evals = 0;
@@ -286,5 +298,6 @@ void cpr_differencer_compute(cpr_differencer_t* diff,
   }
 
   log_debug("cpr_differencer: Evaluated F %d times.", num_F_evals);
+  STOP_FUNCTION_TIMER();
 }
 

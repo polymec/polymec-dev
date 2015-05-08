@@ -1,7 +1,7 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 1.2 $
- * $Date: 2010/12/01 23:08:49 $
+ * $Revision: 4272 $
+ * $Date: 2014-12-02 11:19:41 -0800 (Tue, 02 Dec 2014) $
  * -----------------------------------------------------------------
  * Programmer(s): Radu Serban @ LLNL
  * -----------------------------------------------------------------
@@ -126,7 +126,7 @@ int main()
   /* Initial guess */
 
   N_VConst_Serial(ONE, y);
-  for(i = 1; i <= NVAR; i++) Ith(y,i) = SQRT(TWO)/TWO;
+  for(i = 1; i <= NVAR; i++) Ith(y,i) = SUNRsqrt(TWO)/TWO;
 
   printf("Initial guess:\n");
   PrintOutput(y);
@@ -136,7 +136,7 @@ int main()
   N_VConst_Serial(ONE,scale);
   flag = KINSol(kmem,           /* KINSol memory block */
                 y,              /* initial guess on input; solution vector */
-                KIN_LINESEARCH, /* global stragegy choice */
+                KIN_LINESEARCH, /* global strategy choice */
                 scale,          /* scaling vector, for the variable cc */
                 scale);         /* scaling vector for function values fval */
   if (check_flag(&flag, "KINSol", 1)) return(1);
@@ -357,7 +357,7 @@ static void PrintOutput(N_Vector y)
     printf(" %10.6Lg   %10.6Lg   %10.6Lg\n", 
            Ith(y,i+NVAR), Ith(y,i), Ith(y,i+2*NVAR));
 #elif defined(SUNDIALS_DOUBLE_PRECISION)
-    printf(" %10.6lg   %10.6lg   %10.6lg\n", 
+    printf(" %10.6g   %10.6g   %10.6g\n", 
            Ith(y,i+NVAR), Ith(y,i), Ith(y,i+2*NVAR));
 #else
     printf(" %10.6g   %10.6g   %10.6g\n", 

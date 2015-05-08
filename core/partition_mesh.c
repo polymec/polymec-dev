@@ -12,6 +12,7 @@
 #include "core/unordered_set.h"
 #include "core/kd_tree.h"
 #include "core/hilbert.h"
+#include "core/timer.h"
 #include "ptscotch.h"
 
 // This helper partitions a (serial) global graph, creating and returning a 
@@ -23,6 +24,7 @@ int64_t* partition_graph(adj_graph_t* global_graph,
                          int* weights,
                          real_t imbalance_tol)
 {
+  START_FUNCTION_TIMER();
   ASSERT(adj_graph_comm(global_graph) == MPI_COMM_SELF);
 
   int nprocs, rank;
@@ -85,6 +87,7 @@ int64_t* partition_graph(adj_graph_t* global_graph,
   }
 
   // Return the global partition vector.
+  STOP_FUNCTION_TIMER();
   return global_partition;
 }
 
@@ -96,6 +99,7 @@ static int64_t* repartition_graph(adj_graph_t* local_graph,
                                   real_t imbalance_tol,
                                   exchanger_t* local_graph_ex)
 {
+  START_FUNCTION_TIMER();
   int nprocs, rank;
   MPI_Comm comm = adj_graph_comm(local_graph);
   MPI_Comm_size(comm, &nprocs);
@@ -164,6 +168,7 @@ static int64_t* repartition_graph(adj_graph_t* local_graph,
   exchanger_exchange(local_graph_ex, local_partition, 1, 0, MPI_UINT64_T);
 
   // Return the local partition vector.
+  STOP_FUNCTION_TIMER();
   return local_partition;
 }
 
@@ -200,6 +205,7 @@ static mesh_t* create_submesh(MPI_Comm comm, mesh_t* mesh,
                               int64_t* partition, index_t* vtx_dist, 
                               int* indices, int num_indices)
 {
+  START_FUNCTION_TIMER();
   // Make a set of cells for querying membership in this submesh.
   int_unordered_set_t* cell_set = int_unordered_set_new();
   for (int i = 0; i < num_indices; ++i)
@@ -410,11 +416,13 @@ static mesh_t* create_submesh(MPI_Comm comm, mesh_t* mesh,
     mesh_set_property(submesh, prop_name, prop_data_copy, prop_ser);
   }
 
+  STOP_FUNCTION_TIMER();
   return submesh;
 }
 
 static void sort_global_cell_pairs(int* indices, int num_pairs)
 {
+  START_FUNCTION_TIMER();
   int data[3*num_pairs]; // (i, j, swapped) for each pair
   for (int i = 0; i < num_pairs; ++i)
   {
@@ -447,6 +455,7 @@ static void sort_global_cell_pairs(int* indices, int num_pairs)
       indices[2*i+1] = data[3*i+1];
     }
   }
+  STOP_FUNCTION_TIMER();
 }
 
 static void mesh_distribute(mesh_t** mesh, 
@@ -454,6 +463,7 @@ static void mesh_distribute(mesh_t** mesh,
                             adj_graph_t* global_graph, 
                             int64_t* global_partition)
 {
+  START_FUNCTION_TIMER();
   int nprocs, rank;
   MPI_Comm_size(comm, &nprocs);
   MPI_Comm_rank(comm, &rank);
@@ -645,6 +655,7 @@ static void mesh_distribute(mesh_t** mesh,
   // to rely on them further.
   mesh_delete_tag(local_mesh->face_tags, "parallel_boundary_faces");
   mesh_delete_property(local_mesh, "global_cell_indices");
+  STOP_FUNCTION_TIMER();
 }
 
 // This helper creates an array containing an index map that removes "holes" 
@@ -654,6 +665,7 @@ static void mesh_distribute(mesh_t** mesh,
 static int* create_index_map_with_dups_removed(int num_indices, 
                                                int_int_unordered_map_t* dup_map)
 {
+  START_FUNCTION_TIMER();
   int* map = polymec_malloc(sizeof(int) * num_indices);
   int j = 0; // Mapped index.
   for (int i = 0; i < num_indices; ++i)
@@ -664,6 +676,7 @@ static int* create_index_map_with_dups_removed(int num_indices,
     else
       map[i] = *k_ptr;
   }
+  STOP_FUNCTION_TIMER();
   return map;
 }
 
@@ -673,6 +686,7 @@ static int* create_index_map_with_dups_removed(int num_indices,
 static mesh_t* fuse_submeshes(mesh_t** submeshes, 
                               int num_submeshes)
 {
+  START_FUNCTION_TIMER();
   ASSERT(num_submeshes > 0);
   int rank, nprocs;
   MPI_Comm_rank(submeshes[0]->comm, &rank);
@@ -1062,6 +1076,7 @@ static mesh_t* fuse_submeshes(mesh_t** submeshes,
   int_ptr_unordered_map_free(recv_map);
 
   // Return the final fused mesh.
+  STOP_FUNCTION_TIMER();
   return fused_mesh;
 }
 
@@ -1070,6 +1085,7 @@ static void mesh_migrate(mesh_t** mesh,
                          int64_t* local_partition,
                          exchanger_t* migrator)
 {
+  START_FUNCTION_TIMER();
   mesh_t* m = *mesh;
   index_t* vtx_dist = adj_graph_vertex_dist(local_graph);
 
@@ -1170,6 +1186,7 @@ static void mesh_migrate(mesh_t** mesh,
   int_unordered_set_free(sent_cells);
   mesh_free(m);
   *mesh = fuse_submeshes(submeshes, 1+num_receives);
+  STOP_FUNCTION_TIMER();
 }
 
 #endif
@@ -1177,6 +1194,7 @@ static void mesh_migrate(mesh_t** mesh,
 exchanger_t* partition_mesh(mesh_t** mesh, MPI_Comm comm, int* weights, real_t imbalance_tol)
 {
 #if POLYMEC_HAVE_MPI
+  START_FUNCTION_TIMER();
   ASSERT((weights == NULL) || (imbalance_tol > 0.0));
   ASSERT((weights == NULL) || (imbalance_tol <= 1.0));
   ASSERT((*mesh == NULL) || ((*mesh)->comm == MPI_COMM_SELF));
@@ -1194,6 +1212,7 @@ exchanger_t* partition_mesh(mesh_t** mesh, MPI_Comm comm, int* weights, real_t i
   {
     if (comm != (*mesh)->comm)
       (*mesh)->comm = comm;
+    STOP_FUNCTION_TIMER();
     return exchanger_new(comm);
   }
 
@@ -1236,6 +1255,7 @@ exchanger_t* partition_mesh(mesh_t** mesh, MPI_Comm comm, int* weights, real_t i
     polymec_free(global_partition);
 
   // Return the migrator.
+  STOP_FUNCTION_TIMER();
   return distributor;
 #else
   // Replace the communicator if needed.
@@ -1248,6 +1268,7 @@ exchanger_t* partition_mesh(mesh_t** mesh, MPI_Comm comm, int* weights, real_t i
 int64_t* partition_vector_from_mesh(mesh_t* global_mesh, MPI_Comm comm, int* weights, real_t imbalance_tol)
 {
 #if POLYMEC_HAVE_MPI
+  START_FUNCTION_TIMER();
   ASSERT((weights == NULL) || (imbalance_tol > 0.0));
   ASSERT((weights == NULL) || (imbalance_tol <= 1.0));
   _Static_assert(sizeof(SCOTCH_Num) == sizeof(int64_t), "SCOTCH_Num must be 64-bit.");
@@ -1284,6 +1305,7 @@ int64_t* partition_vector_from_mesh(mesh_t* global_mesh, MPI_Comm comm, int* wei
   if (global_graph != NULL)
     adj_graph_free(global_graph);
 
+  STOP_FUNCTION_TIMER();
   return global_partition;
 
 #else
@@ -1297,12 +1319,13 @@ int64_t* partition_vector_from_mesh(mesh_t* global_mesh, MPI_Comm comm, int* wei
 exchanger_t* distribute_mesh(mesh_t** mesh, MPI_Comm comm, int64_t* global_partition)
 {
 #if POLYMEC_HAVE_MPI
+  START_FUNCTION_TIMER();
   ASSERT((*mesh == NULL) || ((*mesh)->comm == MPI_COMM_SELF));
-  ASSERT(global_partition != NULL);
 
   int nprocs, rank;
   MPI_Comm_size(comm, &nprocs);
   MPI_Comm_rank(comm, &rank);
+  ASSERT((rank != 0) || (global_partition != NULL));
   ASSERT((rank != 0) || (*mesh != NULL));
 
   // On a single process, partitioning has no meaning.
@@ -1331,6 +1354,7 @@ exchanger_t* distribute_mesh(mesh_t** mesh, MPI_Comm comm, int64_t* global_parti
   if (global_graph != NULL)
     adj_graph_free(global_graph);
 
+  STOP_FUNCTION_TIMER();
   return distributor;
 #else
   return exchanger_new(comm);
@@ -1345,6 +1369,7 @@ exchanger_t* repartition_mesh(mesh_t** mesh, int* weights, real_t imbalance_tol)
   mesh_t* m = *mesh;
 
 #if POLYMEC_HAVE_MPI
+  START_FUNCTION_TIMER();
   _Static_assert(sizeof(SCOTCH_Num) == sizeof(int64_t), "SCOTCH_Num must be 64-bit.");
 
   int nprocs, rank;
@@ -1383,6 +1408,7 @@ exchanger_t* repartition_mesh(mesh_t** mesh, int* weights, real_t imbalance_tol)
   polymec_free(local_partition);
 
   // Return the migrator.
+  STOP_FUNCTION_TIMER();
   return migrator;
 #else
   return exchanger_new(m->comm);

@@ -4,16 +4,16 @@ configure_file(
   "${CMAKE_CURRENT_BINARY_DIR}/polymec.h"
 )
 
-add_library(polymec_core polymec.c arch.c allocators.c logging.c 
+add_library(polymec_core polymec.c arch.c allocators.c logging.c timer.c
             special_functions.c point.c point2.c tagger.c mesh.c 
             point_cloud.c hilbert.c kd_tree.c octree.c rng.c #parallel_qsort.c
             permutations.c adj_graph.c sp_func.c st_func.c polynomial.c 
             least_squares.c index_space.c newton.c options.c interpreter.c 
-            partition_mesh.c partition_point_cloud.c
+            mesh_node_exchangers.c partition_mesh.c partition_point_cloud.c
             text_buffer.c serializer.c interpreter_register_default_functions.c 
             thread_pool.c string_utils.c file_utils.c array_utils.c 
             linear_algebra.c local_matrix.c block_diagonal_matrix.c
-            sparse_local_matrix.c silo_file.c read_silo.c exchanger.c)
+            sparse_local_matrix.c krylov_solver.c silo_file.c exchanger.c)
 
 # polymec.c depends on the creation of polymec_version.h.
 add_dependencies(polymec_core update_version_h)

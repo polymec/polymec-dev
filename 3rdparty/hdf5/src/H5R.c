@@ -78,8 +78,7 @@ static ssize_t H5R_get_name(H5F_t *file, hid_t lapl_id, hid_t dxpl_id, hid_t id,
 /* Reference ID class */
 static const H5I_class_t H5I_REFERENCE_CLS[1] = {{
     H5I_REFERENCE,		/* ID class value */
-    0,				/* Class flags */
-    64,				/* Minimum hash size for class */
+    H5I_CLASS_REUSE_IDS,	/* Class flags */
     0,				/* # of reserved IDs for class */
     NULL			/* Callback routine for closing objects of this class */
 }};
@@ -160,22 +159,30 @@ done:
 int
 H5R_term_interface(void)
 {
-    int	n=0;
+    int	n = 0;
 
     FUNC_ENTER_NOAPI_NOINIT_NOERR
 
     if (H5_interface_initialize_g) {
-	if ((n=H5I_nmembers(H5I_REFERENCE))) {
-	    H5I_clear_type(H5I_REFERENCE, FALSE, FALSE);
-	} else {
-	    H5I_dec_type_ref(H5I_REFERENCE);
+	if(H5I_nmembers(H5I_REFERENCE) > 0) {
+	    (void)H5I_clear_type(H5I_REFERENCE, FALSE, FALSE);
+            n++; /*H5I*/
+	} /* end if */
+        else {
+            /* Close deprecated interface */
+            n += H5R__term_deprec_interface();
+
+            /* Destroy the reference id group */
+	    (void)H5I_dec_type_ref(H5I_REFERENCE);
+            n++; /*H5I*/
+
+            /* Mark closed */
 	    H5_interface_initialize_g = 0;
-	    n = 1; /*H5I*/
-	}
-    }
+	} /* end else */
+    } /* end if */
 
     FUNC_LEAVE_NOAPI(n)
-}
+} /* end H5R_term_interface() */
 
 
 /*--------------------------------------------------------------------------

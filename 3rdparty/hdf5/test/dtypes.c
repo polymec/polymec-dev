@@ -651,7 +651,7 @@ test_compound_1(void)
 
 error:
     if(tag)
-        HDfree(tag);
+        H5free_memory(tag);
     return retval;
 }
 
@@ -697,9 +697,9 @@ test_compound_2(void)
         FAIL_STACK_ERROR
 
     /* Sizes should be the same, but be careful just in case */
-    buf = (unsigned char*)malloc(nelmts * MAX(sizeof(struct st), sizeof(struct dt)));
-    bkg = (unsigned char*)malloc(nelmts * sizeof(struct dt));
-    orig = (unsigned char*)malloc(nelmts * sizeof(struct st));
+    buf = (unsigned char*)HDmalloc(nelmts * MAX(sizeof(struct st), sizeof(struct dt)));
+    bkg = (unsigned char*)HDmalloc(nelmts * sizeof(struct dt));
+    orig = (unsigned char*)HDmalloc(nelmts * sizeof(struct st));
     for (i=0; i<(int)nelmts; i++) {
 	s_ptr = ((struct st*)orig) + i;
 	s_ptr->a    = i*8+0;
@@ -762,9 +762,9 @@ test_compound_2(void)
     }
 
     /* Release resources */
-    free(buf);
-    free(bkg);
-    free(orig);
+    HDfree(buf);
+    HDfree(bkg);
+    HDfree(orig);
     CHECK_NMEMBS(nmembs , st, dt)
 
     PASSED();
@@ -818,9 +818,9 @@ test_compound_3(void)
         FAIL_STACK_ERROR
 
     /* Initialize */
-    buf = (unsigned char*)malloc(nelmts * MAX(sizeof(struct st), sizeof(struct dt)));
-    bkg = (unsigned char*)malloc(nelmts * sizeof(struct dt));
-    orig = (unsigned char*)malloc(nelmts * sizeof(struct st));
+    buf = (unsigned char*)HDmalloc(nelmts * MAX(sizeof(struct st), sizeof(struct dt)));
+    bkg = (unsigned char*)HDmalloc(nelmts * sizeof(struct dt));
+    orig = (unsigned char*)HDmalloc(nelmts * sizeof(struct st));
     for (i=0; i<(int)nelmts; i++) {
         s_ptr = ((struct st*)orig) + i;
         s_ptr->a    = i*8+0;
@@ -880,9 +880,9 @@ test_compound_3(void)
     }
 
     /* Release resources */
-    free(buf);
-    free(bkg);
-    free(orig);
+    HDfree(buf);
+    HDfree(bkg);
+    HDfree(orig);
     CHECK_NMEMBS(nmembs, st, dt)
 
     PASSED();
@@ -940,9 +940,9 @@ test_compound_4(void)
         FAIL_STACK_ERROR
 
     /* Sizes should be the same, but be careful just in case */
-    buf = (unsigned char*)malloc(nelmts * MAX(sizeof(struct st), sizeof(struct dt)));
-    bkg = (unsigned char*)malloc(nelmts * sizeof(struct dt));
-    orig = (unsigned char*)malloc(nelmts * sizeof(struct st));
+    buf = (unsigned char*)HDmalloc(nelmts * MAX(sizeof(struct st), sizeof(struct dt)));
+    bkg = (unsigned char*)HDmalloc(nelmts * sizeof(struct dt));
+    orig = (unsigned char*)HDmalloc(nelmts * sizeof(struct st));
     for (i=0; i<(int)nelmts; i++) {
         s_ptr = ((struct st*)orig) + i;
         s_ptr->a    = i*8+0;
@@ -1006,9 +1006,9 @@ test_compound_4(void)
     }
 
     /* Release resources */
-    free(buf);
-    free(bkg);
-    free(orig);
+    HDfree(buf);
+    HDfree(bkg);
+    HDfree(orig);
     CHECK_NMEMBS(nmembs, st, dt)
 
     PASSED();
@@ -1066,14 +1066,7 @@ test_compound_5(void)
     void        *bkg = HDcalloc((size_t)2, sizeof(dst_type_t));
     int          retval = 1;
 
-#if 1
     TESTING("optimized struct converter");
-#else
-    /* Turn off optimized compound conversion function to work around
-     * the problem. */
-    TESTING("optimized struct converter bug workaround");
-    H5Tunregister(H5T_PERS_DONTCARE, "struct(opt)", -1, -1, NULL);
-#endif
 
     /* Build datatypes */
     short_array = H5Tcreate(H5T_COMPOUND, 4*sizeof(short));
@@ -1175,9 +1168,9 @@ test_compound_6(void)
         FAIL_STACK_ERROR
 
     /* Sizes should be the same, but be careful just in case */
-    buf = (unsigned char*)malloc(nelmts * MAX(sizeof(struct st), sizeof(struct dt)));
-    bkg = (unsigned char*)malloc(nelmts * sizeof(struct dt));
-    orig = (unsigned char*)malloc(nelmts * sizeof(struct st));
+    buf = (unsigned char*)HDmalloc(nelmts * MAX(sizeof(struct st), sizeof(struct dt)));
+    bkg = (unsigned char*)HDmalloc(nelmts * sizeof(struct dt));
+    orig = (unsigned char*)HDmalloc(nelmts * sizeof(struct st));
     for (i=0; i<(int)nelmts; i++) {
         s_ptr = ((struct st*)orig) + i;
         s_ptr->b    = (i*8+1) & 0x7fff;
@@ -1223,9 +1216,9 @@ test_compound_6(void)
     }
 
     /* Release resources */
-    free(buf);
-    free(bkg);
-    free(orig);
+    HDfree(buf);
+    HDfree(bkg);
+    HDfree(orig);
     CHECK_NMEMBS(nmembs, st, dt)
 
     PASSED();
@@ -1408,8 +1401,7 @@ test_compound_8(void)
         char    c;
         s1      d;
     } s2;
-
-    hid_t  tid1,  tid1_copy, tid2, tid2_copy, tid3, arr_tid;
+    hid_t  tid1, tid1_copy, tid2, tid2_copy, tid3, arr_tid;
     size_t tsize;
     hsize_t dims[1] = {ARRAY_DIM};
     herr_t ret;
@@ -1561,7 +1553,7 @@ test_compound_8(void)
 
     if(tsize != (sizeof(char) + sizeof(char) + sizeof(int))) {
         H5_FAILED(); AT();
-        printf("The size of the packed compound datatype is incorrect: tsize=%d\n", tsize);
+        printf("The size of the packed compound datatype is incorrect: tsize = %zu\n", tsize);
         goto error;
     } /* end if */
 
@@ -1791,7 +1783,7 @@ test_compound_9(void)
     } /* end if */
 
     rdata.i1 = rdata.i2 = 0;
-    if(rdata.str) free(rdata.str);
+    if(rdata.str) HDfree(rdata.str);
 
     if(H5Dread(dset_id, dup_tid, H5S_ALL, H5S_ALL, H5P_DEFAULT, &rdata) < 0) {
         H5_FAILED(); AT();
@@ -1805,7 +1797,7 @@ test_compound_9(void)
         goto error;
     } /* end if */
 
-    if(rdata.str) free(rdata.str);
+    if(rdata.str) HDfree(rdata.str);
 
     if(H5Dclose(dset_id) < 0)
         goto error;
@@ -1984,10 +1976,10 @@ test_compound_10(void)
             goto error;
         }
 
-        free(t1);
-        free(t2);
-        free(wdata[i].str);
-        free(rdata[i].str);
+        HDfree(t1);
+        HDfree(t2);
+        HDfree(wdata[i].str);
+        HDfree(rdata[i].str);
     } /* end for */
 
     if(H5Dclose(dset_id) < 0)
@@ -4423,7 +4415,7 @@ error:
     if(buf) 
         HDfree(buf);
     if(tag)
-        HDfree(tag);
+        H5free_memory(tag); /* Technically allocated by API call */
 
     reset_hdf5();
     return ret_value;  /* Number of errors */
@@ -4548,7 +4540,7 @@ test_conv_enum_2(void)
         H5Tenum_insert(dsttype, mname[i], &i);
 
     /* Source data */
-    data = (int*)malloc(NTESTELEM*sizeof(int));
+    data = (int*)HDmalloc(NTESTELEM*sizeof(int));
     for (i=0; i<NTESTELEM; i++) {
         ((char*)data)[i*3+2] = (char)(i % 8);
         ((char*)data)[i*3+0] = 0;
@@ -4570,7 +4562,7 @@ test_conv_enum_2(void)
     }
 
     /* Cleanup */
-    free(data);
+    HDfree(data);
     H5Tclose(srctype);
     H5Tclose(dsttype);
     H5Tclose(oddsize);
@@ -4791,8 +4783,7 @@ test_bitfield_funcs(void)
  error:
 
     if (retval == -1) retval = 1;
-
-    HDfree(tag);
+    H5free_memory(tag);
     H5Tclose(ntype);
     H5Tclose(type);
     if (retval == 0) PASSED();
@@ -5388,7 +5379,7 @@ test_encode(void)
         printf("Can't close datatype\n");
         goto error;
     } /* end if */
-    free(cmpd_buf);
+    HDfree(cmpd_buf);
     cmpd_buf_size = 0;
 
     /* Commit enumeration datatype and close it */
@@ -5407,7 +5398,7 @@ test_encode(void)
         printf("Can't close datatype\n");
         goto error;
     } /* end if */
-    free(enum_buf);
+    HDfree(enum_buf);
     enum_buf_size = 0;
 
     /* Commit enumeration datatype and close it */
@@ -5426,7 +5417,7 @@ test_encode(void)
         printf("Can't close datatype\n");
         goto error;
     } /* end if */
-    free(vlstr_buf);
+    HDfree(vlstr_buf);
     vlstr_buf_size = 0;
 
     /* Open the dataytpe for query */
@@ -5544,7 +5535,7 @@ test_encode(void)
         printf("Can't decode VL string type\n");
         goto error;
     } /* end if */
-    free(vlstr_buf);
+    HDfree(vlstr_buf);
 
     /* Verify that the datatype was copied exactly */
     if(H5Tequal(decoded_tid3, tid3)<=0) {
@@ -5657,8 +5648,8 @@ test_encode(void)
         goto error;
     } /* end if */
 
-    free(cmpd_buf);
-    free(enum_buf);
+    HDfree(cmpd_buf);
+    HDfree(enum_buf);
 
     PASSED();
     return 0;
@@ -6474,7 +6465,7 @@ test_named_indirect_reopen(hid_t fapl)
     if(dt_size != H5Tget_size(type)) TEST_ERROR
     if(NULL == (tag_ret = H5Tget_tag(type))) TEST_ERROR
     if(HDstrcmp(tag, tag_ret)) TEST_ERROR
-    HDfree(tag_ret);
+    H5free_memory(tag_ret);
     tag_ret = NULL;
 
     /* Create dataset with opaque type */
@@ -6485,7 +6476,7 @@ test_named_indirect_reopen(hid_t fapl)
     if(dt_size != H5Tget_size(reopened_type)) TEST_ERROR
     if(NULL == (tag_ret = H5Tget_tag(type))) TEST_ERROR
     if(HDstrcmp(tag, tag_ret)) TEST_ERROR
-    HDfree(tag_ret);
+    H5free_memory(tag_ret);
     tag_ret = NULL;
 
     /* Close types and dataset */
@@ -6535,7 +6526,7 @@ error:
 	H5Fclose(file);
     } H5E_END_TRY;
     if(tag_ret)
-        HDfree(tag_ret);
+        H5free_memory(tag_ret);
     return 1;
 } /* end test_named_indirect_reopen() */
 

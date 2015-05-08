@@ -28,6 +28,9 @@ void exchanger_free(exchanger_t* ex);
 // Creates a complete copy of the given exchanger.
 exchanger_t* exchanger_clone(exchanger_t* ex);
 
+// Returns the MPI communicator on which this exchanger is defined.
+MPI_Comm exchanger_comm(exchanger_t* ex);
+
 // Establishes a communication pattern in which this exchanger sends data at 
 // the given indices of an array to the given remote process. Note that 
 // remote_process must differ from the local rank on the exchanger's communicator.
@@ -44,7 +47,7 @@ void exchanger_set_sends(exchanger_t* ex, int_ptr_unordered_map_t* send_map);
 // This can be used to allow multiple exchangers to exchange data correctly 
 // in arrays that are aggregates of data associated with different distributed 
 // objects.
-void exchanger_set_send_offset(exchanger_t* ex, size_t offset);
+void exchanger_set_send_offset(exchanger_t* ex, ssize_t offset);
 
 // Returns the number of processes to which this exchanger sends data.
 int exchanger_num_sends(exchanger_t* ex);
@@ -77,7 +80,7 @@ void exchanger_set_receives(exchanger_t* ex, int_ptr_unordered_map_t* recv_map);
 // processes. This can be used to allow multiple exchangers to exchange data 
 // correctly in arrays that are aggregates of data associated with different 
 // distributed objects.
-void exchanger_set_receive_offset(exchanger_t* ex, size_t offset);
+void exchanger_set_receive_offset(exchanger_t* ex, ssize_t offset);
 
 // Returns the number of processes from which this exchanger receives data.
 int exchanger_num_receives(exchanger_t* ex);

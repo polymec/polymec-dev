@@ -1,6 +1,6 @@
 add_library(polymec_model model.c boundary_cell_map.c periodic_bc.c 
-            point_weight_function.c stencil.c neighbor_pairing.c 
-            polynomial_fit.c 
+            point_weight_function.c stencil.c mesh_stencils.c 
+            neighbor_pairing.c polynomial_fit.c 
             partition_point_cloud_with_neighbors.c
             interpreter_register_model_functions.c)
 

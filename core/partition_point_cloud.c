@@ -8,6 +8,7 @@
 #include "core/partition_point_cloud.h"
 #include "core/hilbert.h"
 #include "core/parallel_qsort.h"
+#include "core/timer.h"
 
 #if POLYMEC_HAVE_MPI
 
@@ -17,10 +18,12 @@ static point_cloud_t* create_subcloud(MPI_Comm comm,
                                       point_cloud_t* cloud, 
                                       int* indices, int num_indices)
 {
+  START_FUNCTION_TIMER();
   // This is super easy--just pick out the points we want!
   point_cloud_t* subcloud = point_cloud_new(comm, num_indices);
   for (int i = 0; i < num_indices; ++i)
     subcloud->points[i] = cloud->points[indices[i]];
+  STOP_FUNCTION_TIMER();
   return subcloud;
 }
 
@@ -74,6 +77,7 @@ static int* create_partition_from_sorted_array(MPI_Comm comm,
                                                index_t* array, 
                                                int local_array_size)
 {
+  START_FUNCTION_TIMER();
   int nprocs, rank;
   MPI_Comm_size(comm, &nprocs);
   MPI_Comm_rank(comm, &rank);
@@ -90,6 +94,7 @@ static int* create_partition_from_sorted_array(MPI_Comm comm,
 
   // Now find out which ranks got our points.
   // FIXME
+  STOP_FUNCTION_TIMER();
   return NULL;
 }
 
@@ -100,6 +105,7 @@ exchanger_t* distribute_point_cloud(point_cloud_t** cloud,
                                     int64_t* global_partition)
 {
 #if POLYMEC_HAVE_MPI
+  START_FUNCTION_TIMER();
   int nprocs, rank;
   MPI_Comm_size(comm, &nprocs);
   MPI_Comm_rank(comm, &rank);
@@ -194,7 +200,9 @@ exchanger_t* distribute_point_cloud(point_cloud_t** cloud,
   if (global_cloud != NULL)
     point_cloud_free(global_cloud);
 
-  return create_distributor(comm, global_partition, num_global_points);
+  exchanger_t* ex = create_distributor(comm, global_partition, num_global_points);
+  STOP_FUNCTION_TIMER();
+  return ex;
 #else
   return exchanger_new(comm);
 #endif
@@ -206,6 +214,7 @@ int64_t* partition_vector_from_point_cloud(point_cloud_t* global_cloud,
                                            real_t imbalance_tol)
 {
 #if POLYMEC_HAVE_MPI
+  START_FUNCTION_TIMER();
   ASSERT((weights == NULL) || (imbalance_tol > 0.0));
   ASSERT((weights == NULL) || (imbalance_tol <= 1.0));
 
@@ -220,6 +229,7 @@ int64_t* partition_vector_from_point_cloud(point_cloud_t* global_cloud,
     // Dumb, but correct.
     int64_t* global_partition = polymec_malloc(sizeof(int64_t) * global_cloud->num_points);
     memset(global_partition, 0, sizeof(int64_t) * global_cloud->num_points);
+    STOP_FUNCTION_TIMER();
     return global_partition;
   }
 
@@ -315,6 +325,7 @@ int64_t* partition_vector_from_point_cloud(point_cloud_t* global_cloud,
     polymec_free(part_array);
   }
 
+  STOP_FUNCTION_TIMER();
   return global_partition;
 
 #else
@@ -332,6 +343,7 @@ exchanger_t* partition_point_cloud(point_cloud_t** cloud, MPI_Comm comm, int* we
   point_cloud_t* cl = *cloud;
 
 #if POLYMEC_HAVE_MPI
+  START_FUNCTION_TIMER();
   ASSERT((*cloud == NULL) || ((*cloud)->comm == MPI_COMM_SELF));
 
   int nprocs, rank;
@@ -340,7 +352,10 @@ exchanger_t* partition_point_cloud(point_cloud_t** cloud, MPI_Comm comm, int* we
 
   // On a single process, partitioning has no meaning.
   if (nprocs == 1)
+  {
+    STOP_FUNCTION_TIMER();
     return exchanger_new(comm);
+  }
 
   // Now do the space-filling curve thing.
   int64_t* global_partition = partition_vector_from_point_cloud(cl, comm, weights, imbalance_tol);
@@ -352,6 +367,7 @@ exchanger_t* partition_point_cloud(point_cloud_t** cloud, MPI_Comm comm, int* we
   polymec_free(global_partition);
 
   // Return the migrator.
+  STOP_FUNCTION_TIMER();
   return (distributor == NULL) ? exchanger_new(comm) : distributor;
 #else
   return exchanger_new(cl->comm);
@@ -361,6 +377,7 @@ exchanger_t* partition_point_cloud(point_cloud_t** cloud, MPI_Comm comm, int* we
 #if 0
 exchanger_t* repartition_point_cloud(point_cloud_t** cloud, int* weights, real_t imbalance_tol)
 {
+  START_FUNCTION_TIMER();
   ASSERT(imbalance_tol > 0.0);
   ASSERT(imbalance_tol <= 1.0);
   point_cloud_t* cl = *cloud;
@@ -372,7 +389,10 @@ exchanger_t* repartition_point_cloud(point_cloud_t** cloud, int* weights, real_t
 
   // On a single process, repartitioning has no meaning.
   if (nprocs == 1)
+  {
+    STOP_FUNCTION_TIMER();
     return exchanger_new(cl->comm);
+  }
 
   // Set up a Hilbert space filling curve that can map the given points to indices.
   hilbert_t* hilbert = hilbert_from_points(cl->points, cl->num_points);
@@ -433,6 +453,7 @@ exchanger_t* repartition_point_cloud(point_cloud_t** cloud, int* weights, real_t
   polymec_free(local_partition);
 
   // Return the migrator.
+  STOP_FUNCTION_TIMER();
   return (migrator == NULL) ? exchanger_new(cl->comm) : migrator;
 #endif
   return NULL;

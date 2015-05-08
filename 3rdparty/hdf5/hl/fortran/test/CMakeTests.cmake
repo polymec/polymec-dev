@@ -6,8 +6,8 @@
 ##############################################################################
 
 # Remove any output file left over from previous test run
-ADD_TEST (
-    NAME hl_fortran_test-clear-objects
+add_test (
+    NAME HL_FORTRAN_test-clear-objects
     COMMAND    ${CMAKE_COMMAND}
         -E remove 
         dsetf1.h5
@@ -20,10 +20,14 @@ ADD_TEST (
         tstds.h5
 )
 
-ADD_TEST (NAME hl_f90_tstds COMMAND $<TARGET_FILE:hl_f90_tstds>)
+add_test (NAME HL_FORTRAN_f90_tstds COMMAND $<TARGET_FILE:hl_f90_tstds>)
+set_tests_properties (HL_FORTRAN_f90_tstds PROPERTIES DEPENDS HL_FORTRAN_test-clear-objects)
 
-ADD_TEST (NAME hl_f90_tstlite COMMAND $<TARGET_FILE:hl_f90_tstlite>)
+add_test (NAME HL_FORTRAN_f90_tstlite COMMAND $<TARGET_FILE:hl_f90_tstlite>)
+set_tests_properties (HL_FORTRAN_f90_tstlite PROPERTIES DEPENDS HL_FORTRAN_test-clear-objects)
 
-ADD_TEST (NAME hl_f90_tstimage COMMAND $<TARGET_FILE:hl_f90_tstimage>)
+add_test (NAME HL_FORTRAN_f90_tstimage COMMAND $<TARGET_FILE:hl_f90_tstimage>)
+set_tests_properties (HL_FORTRAN_f90_tstimage PROPERTIES DEPENDS HL_FORTRAN_test-clear-objects)
 
-ADD_TEST (NAME hl_f90_tsttable COMMAND $<TARGET_FILE:hl_f90_tsttable>)
+add_test (NAME HL_FORTRAN_f90_tsttable COMMAND $<TARGET_FILE:hl_f90_tsttable>)
+set_tests_properties (HL_FORTRAN_f90_tsttable PROPERTIES DEPENDS HL_FORTRAN_test-clear-objects)

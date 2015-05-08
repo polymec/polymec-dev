@@ -81,7 +81,7 @@ typedef struct newton_solver_t newton_solver_t;
 // partial differential equations represented by a sparse nonlinear system of 
 // equations. The virtual table defines accessor methods for the residual 
 // function and the adjacency graph, and the globalization strategy can be 
-// NONE or LINE_SEARCH.
+// NEWTON_NONE or NEWTON_LINE_SEARCH.
 
 typedef enum 
 {

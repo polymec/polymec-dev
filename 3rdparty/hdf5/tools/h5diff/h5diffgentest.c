@@ -978,8 +978,8 @@ int test_attributes(const char *file,
     */
 
     write_attr_in(did,"dset",fid,make_diffs);
-    write_attr_in(gid,NULL,0,make_diffs);
-    write_attr_in(root_id,NULL,0,make_diffs);
+    write_attr_in(gid,NULL,(hid_t)0,make_diffs);
+    write_attr_in(root_id,NULL,(hid_t)0,make_diffs);
 
 
     /* Close */
@@ -4127,9 +4127,9 @@ static int test_comp_vlen_strings(const char *fname1, const char *grp_name, int 
     did_comp = H5Dcreate2(gid, "Compound_dset9", tid9_comp, sid_comp, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
 
     /* obj references */
-    status=H5Rcreate(&(comp9_buf.objref1),gid,"Compound_dset2",H5R_OBJECT,-1);
-    status=H5Rcreate(&(comp9_buf.objref2),gid,"Compound_dset3",H5R_OBJECT,-1);
-    status=H5Rcreate(&(comp9_buf.objref3),gid,"Compound_dset4",H5R_OBJECT,-1);
+    status=H5Rcreate(&(comp9_buf.objref1),gid,"Compound_dset2",H5R_OBJECT,(hid_t)-1);
+    status=H5Rcreate(&(comp9_buf.objref2),gid,"Compound_dset3",H5R_OBJECT,(hid_t)-1);
+    status=H5Rcreate(&(comp9_buf.objref3),gid,"Compound_dset4",H5R_OBJECT,(hid_t)-1);
 
     status = H5Dwrite(did_comp, tid9_comp, H5S_ALL, H5S_ALL, H5P_DEFAULT, &comp9_buf);
     if (status < 0)
@@ -4475,7 +4475,7 @@ static void test_comps_vlen (const char * fname, const char *dset, const char *a
     for(i=0; i<SDIM_DSET; i++)
     {
         wdata[i].i1 = i;
-        wdata[i].vl.p = malloc((i+1)*sizeof(cmpd2_t));
+        wdata[i].vl.p = HDmalloc((i+1)*sizeof(cmpd2_t));
         wdata[i].vl.len = i+1;
         for(j=0; j<(i+1); j++)
         {
@@ -4600,7 +4600,7 @@ static void test_comps_array_vlen (const char * fname, const char *dset,const ch
         for(j=0; j < SDIM_CMPD_ARRAY; j++) 
         {
             wdata[i].cmpd2[j].i2 = j*10;
-            wdata[i].cmpd2[j].vl.p = malloc((j+1)*sizeof(cmpd3_t));
+            wdata[i].cmpd2[j].vl.p = HDmalloc((j+1)*sizeof(cmpd3_t));
             wdata[i].cmpd2[j].vl.len = j+1;
             for(k=0; k<(j+1); k++) 
             {
@@ -4744,7 +4744,7 @@ static void test_comps_vlen_arry (const char * fname, const char *dset, const ch
     {
         /* compound 1 data */
         wdata[i].i1 = i;
-        wdata[i].vl.p = malloc((i+1)*sizeof(cmpd2_t));
+        wdata[i].vl.p = HDmalloc((i+1)*sizeof(cmpd2_t));
         wdata[i].vl.len = i+1;
         for(j=0; j<(i+1); j++)
         {
@@ -4874,7 +4874,7 @@ static void test_data_nocomparables (const char * fname, int make_diffs)
     int data1[DIM_ARRY] = {0,0,0};
     int data2[DIM_ARRY] = {1,1,1};
     int data3[DIM_ARRY+1] = {1,1,1,1};
-    int data1_dim2[DIM_ARRY][1] = {0,0,0};
+    int data1_dim2[DIM_ARRY][1] = {{0},{0},{0}};
     int rank_attr;
     char data1_str[DIM_ARRY][STR_SIZE]= {"ab","cd","ef"};
     herr_t  status = SUCCEED;
@@ -5416,8 +5416,8 @@ void write_attr_in(hid_t loc_id,
     /* Create references to dataset */
     if (dset_name)
     {
-        status=H5Rcreate(&buf4[0],fid,dset_name,H5R_OBJECT,-1);
-        status=H5Rcreate(&buf4[1],fid,dset_name,H5R_OBJECT,-1);
+        status=H5Rcreate(&buf4[0],fid,dset_name,H5R_OBJECT,(hid_t)-1);
+        status=H5Rcreate(&buf4[1],fid,dset_name,H5R_OBJECT,(hid_t)-1);
         write_attr(loc_id,1,dims,"reference",H5T_STD_REF_OBJ,buf4);
     }
 
@@ -5456,10 +5456,10 @@ void write_attr_in(hid_t loc_id,
     /* Allocate and initialize VL dataset to write */
 
     buf5[0].len = 1;
-    buf5[0].p = malloc( 1 * sizeof(int));
+    buf5[0].p = HDmalloc( 1 * sizeof(int));
     ((int *)buf5[0].p)[0]=1;
     buf5[1].len = 2;
-    buf5[1].p = malloc( 2 * sizeof(int));
+    buf5[1].p = HDmalloc( 2 * sizeof(int));
     ((int *)buf5[1].p)[0]=2;
     ((int *)buf5[1].p)[1]=3;
 
@@ -5698,7 +5698,7 @@ void write_attr_in(hid_t loc_id,
     {
         for (i = 0; i < 3; i++) {
             for (j = 0; j < 2; j++) {
-                status=H5Rcreate(&buf42[i][j],fid,dset_name,H5R_OBJECT,-1);
+                status=H5Rcreate(&buf42[i][j],fid,dset_name,H5R_OBJECT,(hid_t)-1);
             }
         }
         write_attr(loc_id,2,dims2,"reference2D",H5T_STD_REF_OBJ,buf42);
@@ -5743,7 +5743,7 @@ void write_attr_in(hid_t loc_id,
     n=0;
     for (i = 0; i < 3; i++) {
         for (j = 0; j < 2; j++) {
-            buf52[i][j].p = malloc((i + 1) * sizeof(int));
+            buf52[i][j].p = HDmalloc((i + 1) * sizeof(int));
             buf52[i][j].len = i + 1;
             for (l = 0; l < i + 1; l++)
                 if (make_diffs)((int *)buf52[i][j].p)[l] = 0;
@@ -6094,7 +6094,7 @@ void write_attr_in(hid_t loc_id,
         for (i = 0; i < 4; i++) {
             for (j = 0; j < 3; j++) {
                 for (k = 0; k < 2; k++)
-                    status=H5Rcreate(&buf43[i][j][k],fid,dset_name,H5R_OBJECT,-1);
+                    status=H5Rcreate(&buf43[i][j][k],fid,dset_name,H5R_OBJECT,(hid_t)-1);
             }
         }
         write_attr(loc_id,3,dims3,"reference3D",H5T_STD_REF_OBJ,buf43);
@@ -6159,7 +6159,7 @@ void write_attr_in(hid_t loc_id,
     for (i = 0; i < 4; i++) {
         for (j = 0; j < 3; j++) {
             for (k = 0; k < 2; k++) {
-                buf53[i][j][k].p = malloc((i + 1) * sizeof(int));
+                buf53[i][j][k].p = HDmalloc((i + 1) * sizeof(int));
                 buf53[i][j][k].len = i + 1;
                 for (l = 0; l < i + 1; l++)
                     if (make_diffs)((int *)buf53[i][j][k].p)[l] = 0;
@@ -6460,8 +6460,8 @@ void write_dset_in(hid_t loc_id,
     /* Create references to dataset */
     if (dset_name)
     {
-        status=H5Rcreate(&buf4[0],fid,dset_name,H5R_OBJECT,-1);
-        status=H5Rcreate(&buf4[1],fid,dset_name,H5R_OBJECT,-1);
+        status=H5Rcreate(&buf4[0],fid,dset_name,H5R_OBJECT,(hid_t)-1);
+        status=H5Rcreate(&buf4[1],fid,dset_name,H5R_OBJECT,(hid_t)-1);
         write_dset(loc_id,1,dims,"reference",H5T_STD_REF_OBJ,buf4);
     }
 
@@ -6490,10 +6490,10 @@ void write_dset_in(hid_t loc_id,
     /* Allocate and initialize VL dataset to write */
 
     buf5[0].len = 1;
-    buf5[0].p = malloc( 1 * sizeof(int));
+    buf5[0].p = HDmalloc( 1 * sizeof(int));
     ((int *)buf5[0].p)[0]=1;
     buf5[1].len = 2;
-    buf5[1].p = malloc( 2 * sizeof(int));
+    buf5[1].p = HDmalloc( 2 * sizeof(int));
     ((int *)buf5[1].p)[0]=2;
     ((int *)buf5[1].p)[1]=3;
 
@@ -6675,7 +6675,7 @@ void write_dset_in(hid_t loc_id,
     {
         for (i = 0; i < 3; i++) {
             for (j = 0; j < 2; j++) {
-                status=H5Rcreate(&buf42[i][j],fid,dset_name,H5R_OBJECT,-1);
+                status=H5Rcreate(&buf42[i][j],fid,dset_name,H5R_OBJECT,(hid_t)-1);
             }
         }
         write_dset(loc_id,2,dims2,"reference2D",H5T_STD_REF_OBJ,buf42);
@@ -6703,7 +6703,7 @@ void write_dset_in(hid_t loc_id,
     {
         for(j = 0; j < 2; j++)
         {
-            buf52[i][j].p = malloc((i + 1) * sizeof(int));
+            buf52[i][j].p = HDmalloc((i + 1) * sizeof(int));
             buf52[i][j].len = i + 1;
             for(l = 0; l < i + 1; l++)
             {
@@ -6886,7 +6886,7 @@ void write_dset_in(hid_t loc_id,
         for (i = 0; i < 4; i++) {
             for (j = 0; j < 3; j++) {
                 for (k = 0; k < 2; k++)
-                    status=H5Rcreate(&buf43[i][j][k],fid,dset_name,H5R_OBJECT,-1);
+                    status=H5Rcreate(&buf43[i][j][k],fid,dset_name,H5R_OBJECT,(hid_t)-1);
             }
         }
         write_dset(loc_id,3,dims3,"reference3D",H5T_STD_REF_OBJ,buf43);
@@ -6916,7 +6916,7 @@ void write_dset_in(hid_t loc_id,
         {
             for(k = 0; k < 2; k++)
             {
-                buf53[i][j][k].p = malloc((i + 1) * sizeof(int));
+                buf53[i][j][k].p = HDmalloc((i + 1) * sizeof(int));
                 buf53[i][j][k].len = i + 1;
                 for(l = 0; l < i + 1; l++)
                 {

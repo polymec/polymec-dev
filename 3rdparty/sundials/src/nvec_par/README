@@ -1,5 +1,7 @@
                      NVECTOR_PARALLEL
-                Release 2.5.0, March 2012
+                 released as part of SUNDIALS
+    SUite of Nonlinear and DIfferential/ALgebraic equation Solvers
+                   Release 2.6.1, March 2015
 
 
 MPI parallel implementation of the NVECTOR module for SUNDIALS. 
@@ -22,40 +24,23 @@ A. Documentation
 ----------------
 
 The MPI parallel NVECTOR implementation is fully described in the user documentation
-for any of the SUNDIALS solvers [1-5]. A PDF file for the user guide for a particular
+for any of the SUNDIALS solvers. A PDF file for the user guide for a particular
 solver is available in the solver's subdirectory under doc/.
 
 
 B. Installation
 ---------------
 
-For basic installation instructions see /sundials/INSTALL_NOTES. 
+For basic installation instructions see /sundials/INSTALL_GUIDE.pdf. 
 For complete installation instructions see any of the user guides.
 
 
-C. References
--------------
 
-[1] A. C. Hindmarsh and R. Serban, "User Documentation for CVODE v2.7.0," 
-    LLNL technical report UCRL-MA-208108, December 2011.
-
-[2] A. C. Hindmarsh and R. Serban, "User Documentation for CVODES v2.7.0," 
-    LLNL technical report UCRL-MA-208111, December 2011.
-
-[3] A. C. Hindmarsh and R. Serban, "User Documentation for IDA v2.7.0," 
-    LLNL technical report UCRL-MA-208112, December 2011.
-
-[4] R. Serban and C. Petra,  "User Documentation for IDAS v1.1.0," 
-    LLNL technical report UCRL-SM-234051, December 2011.
-
-[5] A. M. Collier, A. C. Hindmarsh, R. Serban,and C. S. Woodward, "User 
-    Documentation for KINSOL v2.7.0," LLNL technical report UCRL-MA-208116, 
-    December 2011.
-
-
-D. Releases
+C. Releases
 -----------
 
+v. 2.6.1 - Mar. 2015
+v. 2.6.0 - Mar. 2015
 v. 2.5.0 - Mar. 2012
 v. 2.4.0 - May  2009
 v. 2.3.0 - Nov. 2006
@@ -68,8 +53,18 @@ v. 2.0   - Dec. 2004
 v. 1.0   - Jul. 2002 (first SUNDIALS release)
 
 
-E. Revision History
+D. Revision History
 -------------------
+
+v. 2.6.0 (Mar. 2015) ---> v. 2.6.0 (Mar. 2015)
+---------------------------------------------
+
+- none
+
+v. 2.5.0 (Mar. 2012) ---> v. 2.6.0 (Mar.2015)
+---------------------------------------------
+
+- none
 
 v. 2.4.0 (May 2009) ---> v. 2.5.0 (Mar. 2012)
 ---------------------------------------------

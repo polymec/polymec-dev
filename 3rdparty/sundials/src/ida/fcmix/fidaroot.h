@@ -1,14 +1,19 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 1.5 $
- * $Date: 2010/12/15 19:40:08 $
+ * $Revision: 4378 $
+ * $Date: 2015-02-19 10:55:14 -0800 (Thu, 19 Feb 2015) $
  * ----------------------------------------------------------------- 
  * Programmer(s): Aaron Collier and Alan C. Hindmarsh @ LLNL
  * -----------------------------------------------------------------
- * Copyright (c) 2002, The Regents of the University of California.
+ * LLNS Copyright Start
+ * Copyright (c) 2014, Lawrence Livermore National Security
+ * This work was performed under the auspices of the U.S. Department 
+ * of Energy by Lawrence Livermore National Laboratory in part under 
+ * Contract W-7405-Eng-48 and in part under Contract DE-AC52-07NA27344.
  * Produced at the Lawrence Livermore National Laboratory.
  * All rights reserved.
  * For details, see the LICENSE file.
+ * LLNS Copyright End
  * -----------------------------------------------------------------
  * This is the Fortran interface include file for the rootfinding
  * feature of IDA.
@@ -96,14 +101,13 @@
 #ifndef _FIDAROOT_H
 #define _FIDAROOT_H
 
+/* header files */
+#include <sundials/sundials_nvector.h> /* definition of type N_Vector          */
+#include <sundials/sundials_types.h>   /* definition of SUNDIALS type realtype */
+
 #ifdef __cplusplus  /* wrapper to enable C++ usage */
 extern "C" {
 #endif
-
-/* header files */
-
-#include <sundials/sundials_nvector.h> /* definition of type N_Vector          */
-#include <sundials/sundials_types.h>   /* definition of SUNDIALS type realtype */
 
 /* Definitions of interface function names */
 

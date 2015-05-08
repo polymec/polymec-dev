@@ -1,7 +1,7 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 1.1 $
- * $Date: 2007/10/25 20:03:28 $
+ * $Revision: 4396 $
+ * $Date: 2015-02-26 16:59:39 -0800 (Thu, 26 Feb 2015) $
  * -----------------------------------------------------------------
  * Programmer(s): Scott D. Cohen, Alan C. Hindmarsh, George Byrne,
  *                and Radu Serban @ LLNL
@@ -202,7 +202,7 @@ static void SetIC(N_Vector u, realtype dx, long int my_length,
   for (i=1; i<=my_length; i++) {
     iglobal = my_base + i;
     x = iglobal*dx;
-    udata[i-1] = x*(XMAX - x)*EXP(RCONST(2.0)*x);
+    udata[i-1] = x*(XMAX - x)*SUNRexp(RCONST(2.0)*x);
   }  
 }
 
@@ -224,7 +224,7 @@ static void PrintData(realtype t, realtype umax, long int nst)
 #if defined(SUNDIALS_EXTENDED_PRECISION)
   printf("At t = %4.2Lf  max.norm(u) =%14.6Le  nst =%4ld \n", t, umax, nst);
 #elif defined(SUNDIALS_DOUBLE_PRECISION)
-  printf("At t = %4.2f  max.norm(u) =%14.6le  nst =%4ld \n", t, umax, nst);
+  printf("At t = %4.2f  max.norm(u) =%14.6e  nst =%4ld \n", t, umax, nst);
 #else
   printf("At t = %4.2f  max.norm(u) =%14.6e  nst =%4ld \n", t, umax, nst);
 #endif

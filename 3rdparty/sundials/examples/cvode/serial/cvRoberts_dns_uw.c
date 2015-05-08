@@ -1,7 +1,7 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 1.2 $
- * $Date: 2010/12/01 22:51:32 $
+ * $Revision: 4272 $
+ * $Date: 2014-12-02 11:19:41 -0800 (Tue, 02 Dec 2014) $
  * -----------------------------------------------------------------
  * Programmer(s): Scott D. Cohen, Alan C. Hindmarsh and
  *                Radu Serban @ LLNL
@@ -268,7 +268,7 @@ static int ewt(N_Vector y, N_Vector w, void *user_data)
 
   for (i=1; i<=3; i++) {
     yy = Ith(y,i);
-    ww = rtol * ABS(yy) + atol[i-1];  
+    ww = rtol * SUNRabs(yy) + atol[i-1];
     if (ww <= 0.0) return (-1);
     Ith(w,i) = 1.0/ww;
   }
@@ -287,7 +287,7 @@ static void PrintOutput(realtype t, realtype y1, realtype y2, realtype y3)
 #if defined(SUNDIALS_EXTENDED_PRECISION)
   printf("At t = %0.4Le      y =%14.6Le  %14.6Le  %14.6Le\n", t, y1, y2, y3);
 #elif defined(SUNDIALS_DOUBLE_PRECISION)
-  printf("At t = %0.4le      y =%14.6le  %14.6le  %14.6le\n", t, y1, y2, y3);
+  printf("At t = %0.4e      y =%14.6e  %14.6e  %14.6e\n", t, y1, y2, y3);
 #else
   printf("At t = %0.4e      y =%14.6e  %14.6e  %14.6e\n", t, y1, y2, y3);
 #endif

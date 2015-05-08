@@ -1,14 +1,19 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 1.2 $
- * $Date: 2010/12/01 23:05:10 $
+ * $Revision: 4272 $
+ * $Date: 2014-12-02 11:19:41 -0800 (Tue, 02 Dec 2014) $
  * ----------------------------------------------------------------- 
  * Programmer(s): Radu Serban and Cosmin Petra @ LLNL
  * -----------------------------------------------------------------
- * Copyright (c) 2007, The Regents of the University of California.
+ * LLNS Copyright Start
+ * Copyright (c) 2014, Lawrence Livermore National Security
+ * This work was performed under the auspices of the U.S. Department 
+ * of Energy by Lawrence Livermore National Laboratory in part under 
+ * Contract W-7405-Eng-48 and in part under Contract DE-AC52-07NA27344.
  * Produced at the Lawrence Livermore National Laboratory.
  * All rights reserved.
  * For details, see the LICENSE file.
+ * LLNS Copyright End
  * -----------------------------------------------------------------
  * Adjoint sensitivity example problem.
  *
@@ -271,7 +276,7 @@ int main(int argc, char *argv[])
 #if defined(SUNDIALS_EXTENDED_PRECISION)
   printf("G:          %12.4Le \n",Ith(q,1));
 #elif defined(SUNDIALS_DOUBLE_PRECISION)
-  printf("G:          %12.4le \n",Ith(q,1));
+  printf("G:          %12.4e \n",Ith(q,1));
 #else
   printf("G:          %12.4e \n",Ith(q,1));
 #endif
@@ -458,7 +463,7 @@ int main(int argc, char *argv[])
 
   printf("Free memory\n\n");
 
-  IDAFree(ida_mem);
+  IDAFree(&ida_mem);
   N_VDestroy_Serial(yy);
   N_VDestroy_Serial(yp);
   N_VDestroy_Serial(q);
@@ -566,7 +571,7 @@ static int ewt(N_Vector y, N_Vector w, void *user_data)
 
   for (i=1; i<=3; i++) {
     yy = Ith(y,i);
-    ww = rtol * ABS(yy) + atol[i-1];  
+    ww = rtol * SUNRabs(yy) + atol[i-1];
     if (ww <= 0.0) return (-1);
     Ith(w,i) = 1.0/ww;
   }
@@ -704,10 +709,10 @@ static void PrintOutput(realtype tfinal, N_Vector yB, N_Vector ypB, N_Vector qB)
   printf("lambda(t0): %12.4Le %12.4Le %12.4Le\n", 
          Ith(yB,1), Ith(yB,2), Ith(yB,3));
 #elif defined(SUNDIALS_DOUBLE_PRECISION)
-  printf("tB0:        %12.4le\n",tfinal);
-  printf("dG/dp:      %12.4le %12.4le %12.4le\n", 
+  printf("tB0:        %12.4e\n",tfinal);
+  printf("dG/dp:      %12.4e %12.4e %12.4e\n", 
          -Ith(qB,1), -Ith(qB,2), -Ith(qB,3));
-  printf("lambda(t0): %12.4le %12.4le %12.4le\n", 
+  printf("lambda(t0): %12.4e %12.4e %12.4e\n", 
          Ith(yB,1), Ith(yB,2), Ith(yB,3));
 #else
   printf("tB0:        %12.4e\n",tfinal);

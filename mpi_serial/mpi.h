@@ -59,6 +59,7 @@
 
 typedef void MPI_User_function(void *invec, void *inoutvec, int* len, MPI_Datatype *datatype);
 
+int MPI_Initialized(int* flag);
 int MPI_Init(int* argc, char ***argv);
 int MPI_Finalize();
 int MPI_Abort(MPI_Comm comm, int errorcode);

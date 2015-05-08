@@ -1,22 +1,27 @@
 # ---------------------------------------------------------------
-# $Revision: 1.4 $
-# $Date: 2009/02/17 02:58:47 $
+# $Revision: 4137 $
+# $Date: 2014-06-15 12:26:15 -0700 (Sun, 15 Jun 2014) $
 # ---------------------------------------------------------------
 # Programmer:  Radu Serban @ LLNL
 # ---------------------------------------------------------------
-# Copyright (c) 2007, The Regents of the University of California.
+# LLNS Copyright Start
+# Copyright (c) 2014, Lawrence Livermore National Security
+# This work was performed under the auspices of the U.S. Department 
+# of Energy by Lawrence Livermore National Laboratory in part under 
+# Contract W-7405-Eng-48 and in part under Contract DE-AC52-07NA27344.
 # Produced at the Lawrence Livermore National Laboratory.
 # All rights reserved.
 # For details, see the LICENSE file.
+# LLNS Copyright End
 # ---------------------------------------------------------------
 # CMakeLists.txt file for KINSOL parallel examples
 
 
 # Add variable KINSOL_examples with the names of the parallel KINSOL examples
-
+# "name\;nodes\;tasks"
 SET(KINSOL_examples
-  kinFoodWeb_kry_bbd_p
-  kinFoodWeb_kry_p
+  "kinFoodWeb_kry_bbd_p\;1\;4"
+  "kinFoodWeb_kry_p\;1\;4"
   )
 
 # Check whether we use MPI compiler scripts.
@@ -46,14 +51,27 @@ ENDIF(LINK_LIBRARY_TYPE MATCHES "static")
 
 SET(SUNDIALS_LIBS ${KINSOL_LIB} ${NVECP_LIB} ${EXTRA_LINK_LIBS})
 IF(LAPACK_FOUND)
-  SET(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${LAPACK_LINKER_FLAGS}")
-  SET(SUNDIALS_LIBS "${SUNDIALS_LIBS} ${LAPACK_LIBRARIES}")
+  LIST(APPEND SUNDIALS_LIBS ${LAPACK_LIBRARIES})
 ENDIF(LAPACK_FOUND)
+
+IF(KLU_FOUND)
+  LIST(APPEND SUNDIALS_LIBS ${KLU_LIBRARIES})
+ENDIF(KLU_FOUND)
+
+IF(SUPERLUMT_FOUND)
+  LIST(APPEND SUNDIALS_LIBS ${SUPERLUMT_LIBRARIES})
+ENDIF(SUPERLUMT_FOUND)
 
 # Add the build and install targets for each KINSOL example
 
-FOREACH(example ${KINSOL_examples})
+FOREACH(example_tuple ${KINSOL_examples})
+  list(GET example_tuple 0 example)
+  list(GET example_tuple 1 number_of_nodes)
+  list(GET example_tuple 2 number_of_tasks)
+  # first item is example
   ADD_EXECUTABLE(${example} ${example}.c)
+  SET_TARGET_PROPERTIES(${example} PROPERTIES FOLDER "Examples")
+  SUNDIALS_ADD_TEST(${example} ${example} MPI_NPROCS ${number_of_tasks})
   TARGET_LINK_LIBRARIES(${example} ${SUNDIALS_LIBS})
   IF(NOT MPI_MPICC)
     TARGET_LINK_LIBRARIES(${example} ${MPI_LIBRARY} ${MPI_EXTRA_LIBRARIES})
@@ -61,7 +79,7 @@ FOREACH(example ${KINSOL_examples})
   IF(EXAMPLES_INSTALL)
     INSTALL(FILES ${example}.c ${example}.out DESTINATION ${EXAMPLES_INSTALL_PATH}/kinsol/parallel)
   ENDIF(EXAMPLES_INSTALL)
-ENDFOREACH(example ${KINSOL_examples})
+ENDFOREACH(example_tuple ${KINSOL_examples})
 
 IF(EXAMPLES_INSTALL)
 
@@ -71,7 +89,10 @@ IF(EXAMPLES_INSTALL)
   # Prepare substitution variables for Makefile and/or CMakeLists templates
   SET(SOLVER "KINSOL")
   SET(SOLVER_LIB "sundials_kinsol")
-  LIST2STRING(KINSOL_examples EXAMPLES)
+  FOREACH(example_tuple ${KINSOL_examples})
+  	list(GET example_tuple 0 example)
+  	LIST2STRING(example EXAMPLES)
+  ENDFOREACH(example_tuple ${KINSOL_examples})
 
   # Regardless of the platform we're on, we will generate and install 
   # CMakeLists.txt file for building the examples. This file  can then 

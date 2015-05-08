@@ -1,14 +1,19 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 1.4 $
- * $Date: 2010/12/15 19:40:08 $
+ * $Revision: 4378 $
+ * $Date: 2015-02-19 10:55:14 -0800 (Thu, 19 Feb 2015) $
  * ----------------------------------------------------------------- 
  * Programmer(s): Radu Serban and Aaron Collier @ LLNL
  * -----------------------------------------------------------------
- * Copyright (c) 2002, The Regents of the University of California.
+ * LLNS Copyright Start
+ * Copyright (c) 2014, Lawrence Livermore National Security
+ * This work was performed under the auspices of the U.S. Department 
+ * of Energy by Lawrence Livermore National Laboratory in part under 
+ * Contract W-7405-Eng-48 and in part under Contract DE-AC52-07NA27344.
  * Produced at the Lawrence Livermore National Laboratory.
  * All rights reserved.
  * For details, see the LICENSE file.
+ * LLNS Copyright End
  * -----------------------------------------------------------------
  * This is the Fortran interface include file for the BAND
  * preconditioner (CVBANDPRE).
@@ -32,9 +37,6 @@
  * The user-callable functions in this package, with the corresponding
  * CVODE and CVBBDPRE functions, are as follows: 
  *   FCVBPINIT    interfaces to CVBandPrecInit
- *   FCVBPSPTFQMR interfaces to CVBPSptfqmr
- *   FCVBPSPBCG   interfaces to CVBPSpbcg
- *   FCVBPSPGMR   interfaces to CVBPSpgmr
  *   FCVBPOPT     accesses optional outputs
  * 
  * In addition to the Fortran right-hand side function FCVFUN, the
@@ -121,7 +123,7 @@
  *
  * (3.4A) To specify the SPGMR linear solver with the CVBANDPRE preconditioner,
  * make the following call
- *       CALL FCVBPSPGMR(IPRETYPE, IGSTYPE, MAXL, DELT, IER)
+ *       CALL FCVSPGMR(IPRETYPE, IGSTYPE, MAXL, DELT, IER)
  * The arguments are:
  * IPRETYPE  = preconditioner type: 
  *            0 = none
@@ -135,7 +137,7 @@
  *
  * (3.4B) To specify the SPBCG linear solver with the CVBANDPRE preconditioner,
  * make the following call
- *       CALL FCVBPSPBCG(IPRETYPE, MAXL, DELT, IER)
+ *       CALL FCVSPBCG(IPRETYPE, MAXL, DELT, IER)
  * The arguments are:
  * IPRETYPE  = preconditioner type: 
  *            0 = none
@@ -148,7 +150,7 @@
  *
  * (3.4C) To specify the SPTFQMR linear solver with the CVBANDPRE preconditioner,
  * make the following call
- *       CALL FCVBPSPTFQMR(IPRETYPE, MAXL, DELT, IER)
+ *       CALL FCVSPTFQMR(IPRETYPE, MAXL, DELT, IER)
  * The arguments are:
  * IPRETYPE  = preconditioner type: 
  *            0 = none
@@ -213,40 +215,30 @@
 #ifndef _FCVBP_H
 #define _FCVBP_H
 
+/* header files  */
+#include <sundials/sundials_nvector.h> /* definition of type N_Vector */
+#include <sundials/sundials_types.h>   /* definition of type realtype */
+
 #ifdef __cplusplus  /* wrapper to enable C++ usage */
 extern "C" {
 #endif
-
-/* header files  */
-
-#include <sundials/sundials_nvector.h> /* definition of type N_Vector */
-#include <sundials/sundials_types.h>   /* definition of type realtype */
 
 /* Definitions of interface function names */
 
 #if defined(SUNDIALS_F77_FUNC)
 
 #define FCV_BPINIT    SUNDIALS_F77_FUNC(fcvbpinit, FCVBPINIT)
-#define FCV_BPSPTFQMR SUNDIALS_F77_FUNC(fcvbpsptfqmr, FCVBPSPTFQMR)
-#define FCV_BPSPBCG   SUNDIALS_F77_FUNC(fcvbpspbcg, FCVBPSPBCG)
-#define FCV_BPSPGMR   SUNDIALS_F77_FUNC(fcvbpspgmr, FCVBPSPGMR)
 #define FCV_BPOPT     SUNDIALS_F77_FUNC(fcvbpopt, FCVBPOPT)
 
 #else
 
 #define FCV_BPINIT    fcvbpinit_
-#define FCV_BPSPTFQMR fcvbpsptfqmr_
-#define FCV_BPSPBCG   fcvbpspbcg_
-#define FCV_BPSPGMR   fcvbpspgmr_
 #define FCV_BPOPT     fcvbpopt_
 
 #endif
 
 /* Prototypes of exported function */
 void FCV_BPINIT(long int *N, long int *mu, long int *ml, int *ier);
-void FCV_BPSPTFQMR(int *pretype, int *maxl, realtype *delt, int *ier);
-void FCV_BPSPBCG(int *pretype, int *maxl, realtype *delt, int *ier);
-void FCV_BPSPGMR(int *pretype, int *gstype, int *maxl, realtype *delt, int *ier);
 void FCV_BPOPT(long int *lenrwbp, long int *leniwbp, long int *nfebp);
 
 #ifdef __cplusplus

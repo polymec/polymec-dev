@@ -1,7 +1,7 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 1.2 $
- * $Date: 2010/12/01 22:57:59 $
+ * $Revision: 4272 $
+ * $Date: 2014-12-02 11:19:41 -0800 (Tue, 02 Dec 2014) $
  * -----------------------------------------------------------------
  * Programmer(s): Scott D. Cohen, Alan C. Hindmarsh and
  *                Radu Serban @LLNL
@@ -40,7 +40,7 @@
 #include <cvodes/cvodes_bandpre.h>   /* prototypes & constants for CVBANDPRE module */
 #include <nvector/nvector_serial.h>  /* serial N_Vector types, fct. and macros */
 #include <sundials/sundials_types.h> /* definition of realtype */
-#include <sundials/sundials_math.h>  /* contains the macros ABS, SQR, and EXP */
+#include <sundials/sundials_math.h>  /* contains the macros ABS, SUNSQR, and EXP */
 
 /* Problem Constants */
 
@@ -253,9 +253,9 @@ static void InitUserData(UserData data)
   data->om = PI/HALFDAY;
   data->dx = (XMAX-XMIN)/(MX-1);
   data->dy = (YMAX-YMIN)/(MY-1);
-  data->hdco = KH/SQR(data->dx);
+  data->hdco = KH/SUNSQR(data->dx);
   data->haco = VEL/(TWO*data->dx);
-  data->vdco = (ONE/SQR(data->dy))*KV0;
+  data->vdco = (ONE/SUNSQR(data->dy))*KV0;
 }
 
 /* Set initial conditions in u */
@@ -274,12 +274,12 @@ static void SetInitialProfiles(N_Vector u, realtype dx, realtype dy)
 
   for (jy = 0; jy < MY; jy++) {
     y = YMIN + jy*dy;
-    cy = SQR(RCONST(0.1)*(y - YMID));
-    cy = ONE - cy + RCONST(0.5)*SQR(cy);
+    cy = SUNSQR(RCONST(0.1)*(y - YMID));
+    cy = ONE - cy + RCONST(0.5)*SUNSQR(cy);
     for (jx = 0; jx < MX; jx++) {
       x = XMIN + jx*dx;
-      cx = SQR(RCONST(0.1)*(x - XMID));
-      cx = ONE - cx + RCONST(0.5)*SQR(cx);
+      cx = SUNSQR(RCONST(0.1)*(x - XMID));
+      cx = ONE - cx + RCONST(0.5)*SUNSQR(cx);
       IJKth(udata,1,jx,jy) = C1_SCALE*cx*cy; 
       IJKth(udata,2,jx,jy) = C2_SCALE*cx*cy;
     }
@@ -290,7 +290,7 @@ static void PrintIntro(long int mu, long int ml)
 {
   printf("2-species diurnal advection-diffusion problem, %d by %d mesh\n",
          MX, MY);
-  printf("SPGMR solver; band preconditioner; mu = %d, ml = %d\n\n",
+  printf("SPGMR solver; band preconditioner; mu = %ld, ml = %ld\n\n",
          mu, ml);
 
   return;
@@ -322,11 +322,11 @@ static void PrintOutput(void *cvode_mem, N_Vector u,realtype t)
   printf("c2 (bot.left/middle/top rt.) = %12.3Le  %12.3Le  %12.3Le\n\n",
          IJKth(udata,2,0,0), IJKth(udata,2,mxh,myh), IJKth(udata,2,mx1,my1));
 #elif defined(SUNDIALS_DOUBLE_PRECISION)
-  printf("t = %.2le   no. steps = %ld   order = %d   stepsize = %.2le\n",
+  printf("t = %.2e   no. steps = %ld   order = %d   stepsize = %.2e\n",
          t, nst, qu, hu);
-  printf("c1 (bot.left/middle/top rt.) = %12.3le  %12.3le  %12.3le\n",
+  printf("c1 (bot.left/middle/top rt.) = %12.3e  %12.3e  %12.3e\n",
          IJKth(udata,1,0,0), IJKth(udata,1,mxh,myh), IJKth(udata,1,mx1,my1));
-  printf("c2 (bot.left/middle/top rt.) = %12.3le  %12.3le  %12.3le\n\n",
+  printf("c2 (bot.left/middle/top rt.) = %12.3e  %12.3e  %12.3e\n\n",
          IJKth(udata,2,0,0), IJKth(udata,2,mxh,myh), IJKth(udata,2,mx1,my1));
 #else
   printf("t = %.2e   no. steps = %ld   order = %d   stepsize = %.2e\n",
@@ -457,8 +457,8 @@ static int f(realtype t, N_Vector u, N_Vector udot,void *user_data)
 
   s = sin(data->om*t);
   if (s > ZERO) {
-    q3 = EXP(-A3/s);
-    data->q4 = EXP(-A4/s);
+    q3 = SUNRexp(-A3/s);
+    data->q4 = SUNRexp(-A4/s);
   } else {
     q3 = ZERO;
     data->q4 = ZERO;
@@ -480,8 +480,8 @@ static int f(realtype t, N_Vector u, N_Vector udot,void *user_data)
 
     ydn = YMIN + (jy - RCONST(0.5))*dely;
     yup = ydn + dely;
-    cydn = verdco*EXP(RCONST(0.2)*ydn);
-    cyup = verdco*EXP(RCONST(0.2)*yup);
+    cydn = verdco*SUNRexp(RCONST(0.2)*ydn);
+    cyup = verdco*SUNRexp(RCONST(0.2)*yup);
     idn = (jy == 0) ? 1 : -1;
     iup = (jy == MY-1) ? -1 : 1;
     for (jx = 0; jx < MX; jx++) {

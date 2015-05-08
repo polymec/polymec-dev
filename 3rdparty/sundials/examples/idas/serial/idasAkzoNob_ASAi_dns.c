@@ -1,14 +1,19 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 1.2 $
- * $Date: 2008/04/17 20:12:55 $
+ * $Revision: 4272 $
+ * $Date: 2014-12-02 11:19:41 -0800 (Tue, 02 Dec 2014) $
  * -----------------------------------------------------------------
  * Programmer(s): Radu Serban and Cosmin Petra @ LLNL
  * -----------------------------------------------------------------
- * Copyright (c) 2007, The Regents of the University of California.
+ * LLNS Copyright Start
+ * Copyright (c) 2014, Lawrence Livermore National Security
+ * This work was performed under the auspices of the U.S. Department 
+ * of Energy by Lawrence Livermore National Laboratory in part under 
+ * Contract W-7405-Eng-48 and in part under Contract DE-AC52-07NA27344.
  * Produced at the Lawrence Livermore National Laboratory.
  * All rights reserved.
  * For details, see the LICENSE file.
+ * LLNS Copyright End
  * -----------------------------------------------------------------
  * Adjoint sensitivity example problem
  *
@@ -282,11 +287,11 @@ static int res(realtype t, N_Vector yy, N_Vector yd, N_Vector res, void *userdat
   yd4 = Ith(yd,4);
   yd5 = Ith(yd,5);
 
-  r1 = k1 * RPowerI(y1,4) * RSqrt(y2);
+  r1 = k1 * SUNRpowerI(y1,4) * SUNRsqrt(y2);
   r2 = k2 * y3 * y4;
   r3 = k2/K * y1 * y5;
   r4 = k3 * y1 * y4 * y4;
-  r5 = k4 * y6 * y6 * RSqrt(y2);
+  r5 = k4 * y6 * y6 * SUNRsqrt(y2);
   Fin = klA * ( pCO2/H - y2 );
 
   Ith(res,1) = yd1 + TWO*r1 - r2 + r3 + r4;

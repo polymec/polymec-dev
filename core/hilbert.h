@@ -26,4 +26,10 @@ index_t hilbert_index(hilbert_t* curve, point_t* x);
 // Recreates a 3D point from the given Hilbert index, storing it in x.
 void hilbert_create_point(hilbert_t* curve, index_t index, point_t* x);
 
+// Performs a quick sort of the list of points by mapping them to indices 
+// using a Hilbert curve, reordering the indices corresponding to the points 
+// as well. The points and indices are sorted in place. If indices is NULL, 
+// no index reordering is performed.
+void hilbert_sort_points(hilbert_t* curve, point_t* points, int* indices, int num_points);
+
 #endif

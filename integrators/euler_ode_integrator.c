@@ -6,6 +6,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include "core/array.h"
+#include "core/timer.h"
 #include "integrators/euler_ode_integrator.h"
 
 static real_t relative_difference(real_t x, real_t y)
@@ -154,6 +155,7 @@ static int eval_rhs(euler_ode_t* integ, real_t t, real_t* x, real_t* rhs)
 
 static bool euler_step(void* context, real_t max_dt, real_t* t, real_t* x)
 {
+  START_FUNCTION_TIMER();
   euler_ode_t* integ = context;
   integ->dt = max_dt;
   real_t theta = integ->theta;
@@ -171,11 +173,13 @@ static bool euler_step(void* context, real_t max_dt, real_t* t, real_t* x)
     if (status != 0)
     {
       log_debug("euler_ode_integrator: explicit call to RHS failed.");
+      STOP_FUNCTION_TIMER();
       return false;
     }
     for (int i = 0; i < N_local; ++i)
       x[i] += max_dt * integ->f1[i];
     *t += max_dt;
+    STOP_FUNCTION_TIMER();
     return true;
   }
   else
@@ -191,6 +195,7 @@ static bool euler_step(void* context, real_t max_dt, real_t* t, real_t* x)
     if (status != 0) 
     {
       log_debug("euler_ode_integrator: implicit call to RHS at t failed.");
+      STOP_FUNCTION_TIMER();
       return false;
     }
 
@@ -232,12 +237,14 @@ static bool euler_step(void* context, real_t max_dt, real_t* t, real_t* x)
       }
     }
 
+    STOP_FUNCTION_TIMER();
     return converged;
   }
 }
 
 static int evaluate_residual(void* context, real_t t, real_t* x, real_t* R)
 {
+  START_FUNCTION_TIMER();
   euler_ode_t* integ = context;
   int status = eval_rhs(integ, t, x, R);
   if (status == 0)
@@ -245,11 +252,13 @@ static int evaluate_residual(void* context, real_t t, real_t* x, real_t* R)
     for (int i = 0; i < integ->num_local_values; ++i)
       R[i] = x[i] - integ->x_old[i] - integ->dt * R[i];
   }
+  STOP_FUNCTION_TIMER();
   return status;
 }
 
 static bool newton_euler_step(void* context, real_t max_dt, real_t* t, real_t* x)
 {
+  START_FUNCTION_TIMER();
   euler_ode_t* integ = context;
   integ->dt = max_dt;
   int N_local = integ->num_local_values;
@@ -269,6 +278,7 @@ static bool newton_euler_step(void* context, real_t max_dt, real_t* t, real_t* x
     *t += integ->dt;
     memcpy(x, integ->x_new, sizeof(real_t) * integ->num_local_values);
   }
+  STOP_FUNCTION_TIMER();
   return solved;
 }
 
@@ -345,7 +355,7 @@ ode_integrator_t* functional_euler_ode_integrator_new(real_t theta,
   // Set default iteration criteria.
   euler_ode_integrator_set_max_iterations(I, 100);
   euler_ode_integrator_set_tolerances(I, 1e-4, 1.0);
-  euler_ode_integrator_set_convergence_norm(I, 0);
+  euler_ode_integrator_set_lp_convergence_norm(I, 0);
 
   return I;
 }
@@ -429,8 +439,8 @@ void euler_ode_integrator_set_tolerances(ode_integrator_t* integrator,
   }
 }
 
-void euler_ode_integrator_set_convergence_norm(ode_integrator_t* integrator,
-                                               int p)
+void euler_ode_integrator_set_lp_convergence_norm(ode_integrator_t* integrator,
+                                                  int p)
 {
   ASSERT((p == 0) || (p == 1) || (p == 2));
 
@@ -441,6 +451,14 @@ void euler_ode_integrator_set_convergence_norm(ode_integrator_t* integrator,
     integ->compute_norms = compute_l1_norms;
   else
     integ->compute_norms = compute_l2_norms;
+}
+
+void euler_ode_integrator_set_custom_convergence_norm(ode_integrator_t* integrator,
+                                                      void (*compute_norms)(MPI_Comm comm, real_t* x, real_t* y, int N, real_t* abs_norm, real_t* rel_norm))
+{
+  ASSERT(compute_norms != NULL);
+  euler_ode_t* integ = ode_integrator_context(integrator);
+  integ->compute_norms = compute_norms;
 }
 
 newton_solver_t* newton_euler_ode_integrator_solver(ode_integrator_t* integrator)

@@ -1,7 +1,7 @@
       program fkinDiagon_kry_p
 c     ----------------------------------------------------------------
-c     $Revision: 1.2 $
-c     $Date: 2009/09/30 23:42:12 $
+c     $Revision: 4074 $
+c     $Date: 2014-04-23 14:13:52 -0700 (Wed, 23 Apr 2014) $
 c     ----------------------------------------------------------------
 c     Programmer(s): Allan G. Taylor, Alan C. Hindmarsh and
 c                    Radu Serban @ LLNL
@@ -25,18 +25,19 @@ c
 
       include "mpif.h"
 
+      integer localsize
+      parameter(localsize=32)
+      integer baseadd, i, ii
       integer ier, size, globalstrat, rank, mype, npes
       integer maxl, maxlrst
-      integer*4 localsize
-      parameter(localsize=32)
-      integer*4 neq, nlocal, msbpre, baseadd, i, ii
-      integer*4 iout(15)
+c The following declaration specification should match C type long int.
+      integer*8 neq, nlocal, iout(15), msbpre
       double precision rout(2)
       double precision pp, fnormtol, scsteptol
       double precision uu(localsize), scale(localsize)
       double precision constr(localsize)
 
-      common /pcom/ pp(localsize), mype, npes, baseadd, nlocal
+      common /pcom/ pp(localsize), nlocal, mype, npes, baseadd
 
       nlocal = localsize
       neq = 4 * nlocal
@@ -57,14 +58,14 @@ c     number of this process.
       call mpi_init(ier)
       if (ier .ne. 0) then
          write(6,1210) ier
- 1210    format('MPI_ERROR: MPI_INIT returned IER = ', i2)
+ 1210    format('MPI_ERROR: MPI_INIT returned IER = ', i4)
          stop
       endif
 
       call fnvinitp(mpi_comm_world, 3, nlocal, neq, ier)
       if (ier .ne. 0) then
          write(6,1220) ier
- 1220    format('SUNDIALS_ERROR: FNVINITP returned IER = ', i2)
+ 1220    format('SUNDIALS_ERROR: FNVINITP returned IER = ', i4)
          call mpi_finalize(ier)
          stop
       endif
@@ -72,7 +73,7 @@ c     number of this process.
       call mpi_comm_size(mpi_comm_world, size, ier)
       if (ier .ne. 0) then
          write(6,1222) ier
- 1222    format('MPI_ERROR: MPI_COMM_SIZE returned IER = ', i2)
+ 1222    format('MPI_ERROR: MPI_COMM_SIZE returned IER = ', i4)
          call mpi_abort(mpi_comm_world, 1, ier)
          stop
       endif
@@ -88,7 +89,7 @@ c     number of this process.
       call mpi_comm_rank(mpi_comm_world, rank, ier)
       if (ier .ne. 0) then
          write(6,1224) ier
- 1224    format('MPI_ERROR: MPI_COMM_RANK returned IER = ', i2)
+ 1224    format('MPI_ERROR: MPI_COMM_RANK returned IER = ', i4)
          call mpi_abort(mpi_comm_world, 1, ier)
          stop
       endif
@@ -107,7 +108,7 @@ c     number of this process.
       
       if (ier .ne. 0) then
          write(6,1231)ier
- 1231    format('SUNDIALS_ERROR: FKINMALLOC returned IER = ', i2)
+ 1231    format('SUNDIALS_ERROR: FKINMALLOC returned IER = ', i4)
          call mpi_abort(mpi_comm_world, 1, ier)
          stop
       endif
@@ -130,8 +131,8 @@ c     number of this process.
       call fkinsol(uu, globalstrat, scale, scale, ier)
       if (ier .lt. 0) then
          write(6,1242) ier, iout(9)
- 1242    format('SUNDIALS_ERROR: FKINSOL returned IER = ', i2, /,
-     1          '                Linear Solver returned IER = ', i2)
+ 1242    format('SUNDIALS_ERROR: FKINSOL returned IER = ', i4, /,
+     1          '                Linear Solver returned IER = ', i4)
          call mpi_abort(mpi_comm_world, 1, ier)
          stop
       endif
@@ -173,16 +174,20 @@ c     function with the following name and form.
 
       implicit none
 
-      integer mype, npes, ier
-      integer*4 baseadd, nlocal, i, localsize
+c The following declaration specification should match C type long int.
+      integer*8 nlocal
+      integer ier, mype, npes, baseadd, i
+      integer localsize
       parameter(localsize=32)
       double precision pp
       double precision fval(*), uu(*)
 
-      common /pcom/ pp(localsize), mype, npes, baseadd, nlocal
+      common /pcom/ pp(localsize), nlocal, mype, npes, baseadd
 
       do 10 i = 1, nlocal
  10      fval(i) = uu(i) * uu(i) - (i + baseadd) * (i + baseadd)
+      
+      ier = 0
       
       return
       end
@@ -198,15 +203,16 @@ c     to it.  The argument list must also be as illustrated below:
 
       implicit none
 
-      integer ier, mype, npes
-      integer*4 localsize
+c The following declaration specification should match C type long int.
+      integer*8 nlocal
+      integer ier, mype, npes, baseadd, i
+      integer localsize
       parameter(localsize=32)
-      integer*4 baseadd, nlocal, i
       double precision pp
       double precision udata(*), uscale(*), fdata(*), fscale(*)
       double precision vtemp1(*), vtemp2(*)
 
-      common /pcom/ pp(localsize), mype, npes, baseadd, nlocal
+      common /pcom/ pp(localsize), nlocal, mype, npes, baseadd
 
       do 10 i = 1, nlocal
  10      pp(i) = 0.5d0 / (udata(i)+ 5.0d0)
@@ -227,15 +233,16 @@ c     to it.  The argument list must also be as illustrated below:
 
       implicit none
 
-      integer ier, mype, npes
-      integer*4 baseadd, nlocal, i
-      integer*4 localsize
+c The following declaration specification should match C type long int.
+      integer*8 nlocal
+      integer ier, mype, npes, baseadd, i
+      integer localsize
       parameter(localsize=32)
       double precision udata(*), uscale(*), fdata(*), fscale(*)
       double precision vv(*), ftem(*)
       double precision pp
 
-      common /pcom/ pp(localsize), mype, npes, baseadd, nlocal
+      common /pcom/ pp(localsize), nlocal, mype, npes, baseadd
 
       do 10 i = 1, nlocal
  10      vv(i) = vv(i) * pp(i)

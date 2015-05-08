@@ -58,18 +58,20 @@ ode_integrator_t* jfnk_bdf_ode_integrator_new(int order,
 // ode_integrator_context!
 void* bdf_ode_integrator_context(ode_integrator_t* integrator);
 
-// This function evaluates error weights for use in the WRMS error norm.
-typedef void (*bdf_ode_integrator_error_weight_func)(void* context, real_t* y, real_t* weights);
-
 // Sets the relative and absolute tolerances for integrated quantities.
 void bdf_ode_integrator_set_tolerances(ode_integrator_t* integrator,
                                        real_t relative_tol, real_t absolute_tol);
+
+// Sets the error weights for evaluating the WRMS norm that is used 
+// as a proxy for the quality of the solution. This may be used in lieu of 
+// relative and absolute tolerances. Weights are copied into the integrator.
+void bdf_ode_integrator_set_error_weights(ode_integrator_t* integrator, real_t* weights);
 
 // Sets the error weight function for evaluating the WRMS norm that is used 
 // as a proxy for the quality of the solution. This may be used in lieu of 
 // relative and absolute tolerances.
 void bdf_ode_integrator_set_error_weight_function(ode_integrator_t* integrator,
-                                                  bdf_ode_integrator_error_weight_func compute_weights);                               
+                                                  void (*compute_weights)(void* context, real_t* y, real_t* weights));
 
 // Toggles stability limit detection, making the BDF method more robust at 
 // a cost of 10-20% overhead.

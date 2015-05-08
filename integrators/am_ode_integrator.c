@@ -7,6 +7,7 @@
 
 #include "core/sundials_helpers.h"
 #include "core/array.h"
+#include "core/timer.h"
 #include "integrators/am_ode_integrator.h"
 #include "integrators/newton_pc.h"
 #include "cvode/cvode.h"
@@ -46,7 +47,8 @@ typedef struct
   int (*Jy)(void* context, real_t t, real_t* x, real_t* rhs, real_t* y, real_t* temp, real_t* Jy);
 
   // Error weight function.
-  am_ode_integrator_error_weight_func compute_weights;
+  void (*compute_weights)(void* context, real_t* y, real_t* weights);
+  real_t* error_weights;
 
   // Observers.
   ptr_array_t* observers;
@@ -91,6 +93,7 @@ static char* get_status_message(int status, real_t current_time)
 // This function wraps around the user-supplied right hand side.
 static int am_evaluate_rhs(real_t t, N_Vector x, N_Vector x_dot, void* context)
 {
+  START_FUNCTION_TIMER();
   am_ode_t* integ = context;
   real_t* xx = NV_DATA(x);
   real_t* xxd = NV_DATA(x_dot);
@@ -112,13 +115,15 @@ static int am_evaluate_rhs(real_t t, N_Vector x, N_Vector x_dot, void* context)
       obs->rhs_computed(obs->context, t, xx, xxd);
   }
 
+  STOP_FUNCTION_TIMER();
   return status;
 }
 
 static bool am_step(void* context, real_t max_dt, real_t* t, real_t* x)
 {
+  START_FUNCTION_TIMER();
   am_ode_t* integ = context;
-  int status;
+  int status = CV_SUCCESS;
 
   // If *t + max_dt is less than the time to which we've already integrated, 
   // we don't need to integrate; we only need to interpolate backward.
@@ -130,6 +135,7 @@ static bool am_step(void* context, real_t max_dt, real_t* t, real_t* x)
     if ((status != CV_SUCCESS) && (status != CV_TSTOP_RETURN))
     {
       integ->status_message = get_status_message(status, integ->t);
+      STOP_FUNCTION_TIMER();
       return false;
     }
     if ((t2 - *t) < (integ->t - *t))
@@ -157,11 +163,13 @@ static bool am_step(void* context, real_t max_dt, real_t* t, real_t* x)
   {
     // Copy out the solution.
     memcpy(x, NV_DATA(integ->x), sizeof(real_t) * integ->num_local_values); 
+    STOP_FUNCTION_TIMER();
     return true;
   }
   else
   {
     integ->status_message = get_status_message(status, integ->t);
+    STOP_FUNCTION_TIMER();
     return false;
   }
 }
@@ -229,6 +237,8 @@ static void am_dtor(void* context)
   if ((integ->context != NULL) && (integ->dtor != NULL))
     integ->dtor(integ->context);
   ptr_array_free(integ->observers);
+  if (integ->error_weights != NULL)
+    polymec_free(integ->error_weights);
   polymec_free(integ);
 }
 
@@ -258,6 +268,7 @@ ode_integrator_t* functional_am_ode_integrator_new(int order,
   integ->Jy = NULL;
   integ->precond = NULL;
   integ->observers = ptr_array_new();
+  integ->error_weights = NULL;
 
   // Set up KINSol and accessories.
   integ->x = N_VNew(integ->comm, integ->num_local_values);
@@ -286,6 +297,7 @@ static int set_up_preconditioner(real_t t, N_Vector x, N_Vector F,
                                  real_t gamma, void* context, 
                                  N_Vector work1, N_Vector work2, N_Vector work3)
 {
+  START_FUNCTION_TIMER();
   am_ode_t* integ = context;
   if (!jacobian_is_current)
   {
@@ -296,6 +308,7 @@ static int set_up_preconditioner(real_t t, N_Vector x, N_Vector F,
   }
   else
     *jacobian_was_updated = 0;
+  STOP_FUNCTION_TIMER();
   return 0;
 }
 
@@ -308,6 +321,7 @@ static int solve_preconditioner_system(real_t t, N_Vector x, N_Vector F,
                                        int lr, void* context, 
                                        N_Vector work)
 {
+  START_FUNCTION_TIMER();
   ASSERT(lr == 1); // Left preconditioning only.
 
   am_ode_t* integ = context;
@@ -317,15 +331,15 @@ static int solve_preconditioner_system(real_t t, N_Vector x, N_Vector F,
   memcpy(NV_DATA(z), NV_DATA(r), sizeof(real_t) * integ->num_local_values);
 
   // Solve it.
-  if (newton_pc_solve(integ->precond, NV_DATA(z)))
-    return 0;
-  else 
-    return 1; // recoverable error.
+  int status = (newton_pc_solve(integ->precond, NV_DATA(z))) ? 0 : 1;
+  STOP_FUNCTION_TIMER();
+  return status;
 }
 
 // Adaptor for J*y function
 static int eval_Jy(N_Vector y, N_Vector Jy, real_t t, N_Vector x, N_Vector rhs, void* context, N_Vector tmp)
 {
+  START_FUNCTION_TIMER();
   am_ode_t* integ = context;
   real_t* xx = NV_DATA(x);
   real_t* yy = NV_DATA(y);
@@ -345,6 +359,7 @@ static int eval_Jy(N_Vector y, N_Vector Jy, real_t t, N_Vector x, N_Vector rhs, 
       obs->Jy_computed(obs->context, t, xx, my_rhs, yy, jjy);
   }
 
+  STOP_FUNCTION_TIMER();
   return status;
 }
 
@@ -462,9 +477,42 @@ void am_ode_integrator_set_tolerances(ode_integrator_t* integrator,
 
   // Clear any existing error weight function.
   integ->compute_weights = NULL;
+  if (integ->error_weights != NULL)
+  {
+    polymec_free(integ->error_weights);
+    integ->error_weights = NULL;
+  }
 
   // Set the tolerances.
   CVodeSStolerances(integ->cvode, relative_tol, absolute_tol);
+}
+
+// Constant error weight adaptor function.
+static void use_constant_weights(void* context, real_t* y, real_t* weights)
+{
+  am_ode_t* integ = context;
+  ASSERT(integ->error_weights != NULL);
+  memcpy(weights, integ->error_weights, sizeof(real_t) * integ->num_local_values);
+}
+
+void am_ode_integrator_set_error_weights(ode_integrator_t* integrator, real_t* weights)
+{
+  am_ode_t* integ = ode_integrator_context(integrator);
+#ifndef NDEBUG
+  // Check for non-negativity and total positivity.
+  real_t total = 0.0;
+  for (int i = 0; i < integ->num_local_values; ++i)
+  {
+    ASSERT(weights[i] >= 0.0);
+    total += weights[i];
+  }
+  ASSERT(total > 0.0);
+#endif
+
+  if (integ->error_weights == NULL)
+    integ->error_weights = polymec_malloc(sizeof(real_t) * integ->num_local_values);
+  memcpy(integ->error_weights, weights, sizeof(real_t) * integ->num_local_values);
+  am_ode_integrator_set_error_weight_function(integrator, use_constant_weights);
 }
 
 // Error weight adaptor function.
@@ -472,11 +520,19 @@ static int compute_error_weights(N_Vector y, N_Vector ewt, void* context)
 {
   am_ode_t* integ = context;
   integ->compute_weights(integ->context, NV_DATA(y), NV_DATA(ewt));
+
+  // Check that all the weights are non-negative.
+  int N = NV_LOCLENGTH(y);
+  for (int i = 0; i < N; ++i)
+  {
+    if (NV_Ith(y, i) < 0.0)
+      return -1;
+  }
   return 0;
 }
 
 void am_ode_integrator_set_error_weight_function(ode_integrator_t* integrator,
-                                                 am_ode_integrator_error_weight_func compute_weights)
+                                                 void (*compute_weights)(void* context, real_t* y, real_t* weights))
 {
   am_ode_t* integ = ode_integrator_context(integrator);
   ASSERT(compute_weights != NULL);

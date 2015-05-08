@@ -16,6 +16,7 @@
 #include "core/polymec_version.h"
 #include "core/options.h"
 #include "core/array.h"
+#include "core/timer.h"
 
 // Standard C support for floating point environment.
 #ifdef LINUX
@@ -76,6 +77,7 @@ static int _num_atexit_funcs = 0;
 
 static void shutdown()
 {
+  log_debug("polymec: Shutting down...");
   ASSERT(polymec_initialized);
 
   // Kill command line arguments.
@@ -89,7 +91,13 @@ static void shutdown()
   if (polymec_extra_provenance != NULL)
     string_array_free(polymec_extra_provenance);
 
+  // Stop timing and generate a report.
+  polymec_timer_t* polymec_timer = polymec_timer_get("polymec");
+  polymec_timer_stop(polymec_timer);
+  polymec_timer_report();
+
   // Call shutdown functions.
+  log_debug("polymec: Calling %d shutdown functions.", _num_atexit_funcs);
   for (int i = 0; i < _num_atexit_funcs; ++i)
     _atexit_funcs[i]();
 
@@ -256,8 +264,11 @@ void polymec_init(int argc, char** argv)
     else
       polymec_invoc_dir = string_dup("(unknown)");
 
-    // Start up MPI.
-    MPI_Init(&argc, &argv);
+    // Start up MPI if needed.
+    int initialized;
+    MPI_Initialized(&initialized);
+    if (!initialized)
+      MPI_Init(&argc, &argv);
 
 #if POLYMEC_HAVE_MPI
     // Set up the MPI error handler.
@@ -277,11 +288,15 @@ void polymec_init(int argc, char** argv)
     // Parse command line options.
     options_parse(argc, argv);
 
-    // Okay! We're initialized.
-    polymec_initialized = true;
-
     // If we are asked to set a specific logging level, do so.
     set_up_logging();
+
+    // Start timing the main program.
+    polymec_timer_t* polymec_timer = polymec_timer_get("polymec");
+    polymec_timer_start(polymec_timer);
+
+    // Okay! We're initialized.
+    polymec_initialized = true;
 
     // If we are asked to pause, do so.
     pause_if_requested();

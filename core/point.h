@@ -10,6 +10,7 @@
 
 #include "core/polymec.h"
 #include "core/rng.h"
+#include "core/array.h"
 
 // A point in 1, 2, or 3D space.
 typedef struct
@@ -197,9 +198,9 @@ static inline bool bbox_intersects_bbox(bbox_t* box1, bbox_t* box2)
   point_t x2 = {.x = 0.5 * (box2->x1 + box2->x2),
                 .y = 0.5 * (box2->y1 + box2->y2),
                 .z = 0.5 * (box2->z1 + box2->z2)};
-  return ((abs(x1.x - x2.x) * 2.0 <= (box1->x2 - box1->x1 + box2->x2 - box2->x1)) && 
-          (abs(x1.y - x2.y) * 2.0 <= (box1->y2 - box1->y1 + box2->y2 - box2->y1)) &&
-          (abs(x1.z - x2.z) * 2.0 <= (box1->z2 - box1->z1 + box2->z2 - box2->z1)));
+  return ((fabs(x1.x - x2.x) * 2.0 <= (box1->x2 - box1->x1 + box2->x2 - box2->x1)) && 
+          (fabs(x1.y - x2.y) * 2.0 <= (box1->y2 - box1->y1 + box2->y2 - box2->y1)) &&
+          (fabs(x1.z - x2.z) * 2.0 <= (box1->z2 - box1->z1 + box2->z2 - box2->z1)));
 }
 
 // Grows the given bounding box to accommodate the given point.
@@ -248,6 +249,10 @@ typedef enum
   OUTWARD_NORMAL,
   INWARD_NORMAL
 } normal_orient_t;
+
+// Arrays of points and vectors.
+DEFINE_ARRAY(point_array, point_t)
+DEFINE_ARRAY(vector_array, vector_t)
 
 #endif
 

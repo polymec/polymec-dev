@@ -11,6 +11,12 @@
 #include <stdint.h>
 #include "mpi.h"
 
+int MPI_Initialized(int *flag)
+{
+  *flag = 0;
+  return MPI_SUCCESS;
+}
+
 int MPI_Init(int *argc, char ***argv)
 {
   return MPI_SUCCESS;

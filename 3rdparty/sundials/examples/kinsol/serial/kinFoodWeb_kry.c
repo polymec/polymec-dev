@@ -1,7 +1,7 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 1.3 $
- * $Date: 2010/12/01 23:08:49 $
+ * $Revision: 4272 $
+ * $Date: 2014-12-02 11:19:41 -0800 (Tue, 02 Dec 2014) $
  * -----------------------------------------------------------------
  * Programmer(s): Allan Taylor, Alan Hindmarsh and
  *                Radu Serban @ LLNL
@@ -253,7 +253,7 @@ int main(void)
   /* Call KINSol and print output concentration profile */
   flag = KINSol(kmem,           /* KINSol memory block */
                 cc,             /* initial guess on input; solution vector */
-                globalstrategy, /* global stragegy choice */
+                globalstrategy, /* global strategy choice */
                 sc,             /* scaling vector, for the variable cc */
                 sc);            /* scaling vector for function values fval */
   if (check_flag(&flag, "KINSol", 1)) return(1);
@@ -385,7 +385,7 @@ static int PrecSetupBD(N_Vector cc, N_Vector cscale,
       for (j = 0; j < NUM_SPECIES; j++) {
         
         csave = cxy[j];  /* Save the j,jx,jy element of cc */
-        r = MAX(sqruround*ABS(csave), r0/scxy[j]);
+        r = SUNMAX(sqruround*SUNRabs(csave), r0/scxy[j]);
         cxy[j] += r; /* Perturb the j,jx,jy element of cc */
         fac = ONE/r;
         
@@ -534,7 +534,7 @@ static void InitUserData(UserData data)
   data->dx = (data->ax)/(MX-1);
   data->dy = (data->ay)/(MY-1);
   data->uround = UNIT_ROUNDOFF;
-  data->sqruround = SQRT(data->uround);
+  data->sqruround = SUNRsqrt(data->uround);
 
   /* Set up the coefficients a and b plus others found in the equations */
   np = data->np;
@@ -647,7 +647,7 @@ static void PrintHeader(int globalstrategy, int maxl, int maxlrst,
   printf("Tolerance parameters:  fnormtol = %Lg   scsteptol = %Lg\n",
          fnormtol, scsteptol);
 #elif defined(SUNDIALS_DOUBLE_PRECISION)
-  printf("Tolerance parameters:  fnormtol = %lg   scsteptol = %lg\n",
+  printf("Tolerance parameters:  fnormtol = %g   scsteptol = %g\n",
          fnormtol, scsteptol);
 #else
   printf("Tolerance parameters:  fnormtol = %g   scsteptol = %g\n",
@@ -660,7 +660,7 @@ static void PrintHeader(int globalstrategy, int maxl, int maxlrst,
          PREYIN, PREYIN, PREYIN,
          PREDIN, PREDIN, PREDIN);
 #elif defined(SUNDIALS_DOUBLE_PRECISION)
-  printf("At all mesh points:  %lg %lg %lg   %lg %lg %lg\n", 
+  printf("At all mesh points:  %g %g %g   %g %g %g\n", 
          PREYIN, PREYIN, PREYIN,
          PREDIN, PREDIN, PREDIN);
 #else
@@ -689,7 +689,7 @@ static void PrintOutput(N_Vector cc)
 #if defined(SUNDIALS_EXTENDED_PRECISION)
     printf(" %Lg",ct[is]);
 #elif defined(SUNDIALS_DOUBLE_PRECISION)
-    printf(" %lg",ct[is]);
+    printf(" %g",ct[is]);
 #else
     printf(" %g",ct[is]);
 #endif
@@ -705,7 +705,7 @@ static void PrintOutput(N_Vector cc)
 #if defined(SUNDIALS_EXTENDED_PRECISION)
     printf(" %Lg",ct[is]);
 #elif defined(SUNDIALS_DOUBLE_PRECISION)
-    printf(" %lg",ct[is]);
+    printf(" %g",ct[is]);
 #else
     printf(" %g",ct[is]);
 #endif

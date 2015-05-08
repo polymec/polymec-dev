@@ -27,7 +27,7 @@
 #define         INCREMENT       1024
 #define         TMP_LEN         256
 #define         MAX(a,b)        (((a)>(b)) ? (a) : (b))
-int  input_len;
+size_t  input_len;
 char *myinput;
 size_t  indent = 0;
 
@@ -524,6 +524,10 @@ H5LT_make_dataset_numerical( hid_t loc_id,
 {
     hid_t   did = -1, sid = -1;
 
+    /* check the arguments */
+    if (dset_name == NULL) 
+      return -1;
+
     /* Create the data space for the dataset. */
     if((sid = H5Screate_simple(rank, dims, NULL)) < 0)
         return -1;
@@ -799,6 +803,10 @@ herr_t H5LTmake_dataset_string(hid_t loc_id,
     hid_t   tid = -1;
     size_t  size;
 
+    /* check the arguments */
+    if (dset_name == NULL) 
+      return -1;
+
     /* create a string data type */
     if((tid = H5Tcopy(H5T_C_S1)) < 0 )
         goto out;
@@ -976,6 +984,10 @@ static herr_t
 H5LT_read_dataset_numerical(hid_t loc_id, const char *dset_name, hid_t tid, void *data)
 {
     hid_t   did;
+
+    /* check the arguments */
+    if (dset_name == NULL) 
+      return -1;
 
     /* Open the dataset. */
     if((did = H5Dopen2(loc_id, dset_name, H5P_DEFAULT)) < 0)
@@ -1168,6 +1180,10 @@ herr_t H5LTread_dataset_string( hid_t loc_id,
     hid_t   did = -1;
     hid_t   tid = -1;
 
+    /* check the arguments */
+    if (dset_name == NULL) 
+      return -1;
+
     /* Open the dataset. */
     if((did = H5Dopen2(loc_id, dset_name, H5P_DEFAULT)) < 0)
         return -1;
@@ -1216,6 +1232,10 @@ herr_t H5LTget_dataset_ndims( hid_t loc_id,
 {
     hid_t       did = -1;
     hid_t       sid = -1;
+
+    /* check the arguments */
+    if (dset_name == NULL) 
+      return -1;
 
     /* Open the dataset. */
     if((did = H5Dopen2(loc_id, dset_name, H5P_DEFAULT)) < 0)
@@ -1272,6 +1292,10 @@ herr_t H5LTget_dataset_info( hid_t loc_id,
     hid_t       did = -1;
     hid_t       tid = -1;
     hid_t       sid = -1;
+
+    /* check the arguments */
+    if (dset_name == NULL) 
+      return -1;
 
     /* open the dataset. */
     if((did = H5Dopen2(loc_id, dset_name, H5P_DEFAULT)) < 0)
@@ -1346,6 +1370,10 @@ find_dataset(hid_t loc_id, const char *name, const H5L_info_t *linfo, void *op_d
     */
     int ret = 0;
 
+    /* check the arguments */
+    if (name == NULL) 
+      return ret;
+    
     /* Shut the compiler up */
     loc_id = loc_id;
     linfo = linfo;
@@ -1354,7 +1382,7 @@ find_dataset(hid_t loc_id, const char *name, const H5L_info_t *linfo, void *op_d
     * cause the iterator to immediately return that positive value,
     * indicating short-circuit success
     */
-    if(HDstrcmp(name, (char *)op_data) == 0)
+    if(HDstrncmp(name, (char *)op_data, HDstrlen((char *)op_data)) == 0)
         ret = 1;
 
     return ret;
@@ -1428,6 +1456,14 @@ herr_t H5LTset_attribute_string( hid_t loc_id,
     hid_t      obj_id;
     int        has_attr;
     size_t     attr_size;
+
+    /* check the arguments */
+    if (obj_name == NULL) 
+      return -1;
+    if (attr_name == NULL) 
+      return -1;
+    if (attr_data == NULL) 
+      return -1;
 
     /* Open the object */
     if ((obj_id = H5Oopen(loc_id, obj_name, H5P_DEFAULT)) < 0)
@@ -1517,6 +1553,12 @@ herr_t H5LT_set_attribute_numerical( hid_t loc_id,
     hid_t      obj_id, sid, attr_id;
     hsize_t    dim_size=size;
     int        has_attr;
+
+    /* check the arguments */
+    if (obj_name == NULL) 
+      return -1;
+    if (attr_name == NULL) 
+      return -1;
 
     /* Open the object */
     if ((obj_id = H5Oopen(loc_id, obj_name, H5P_DEFAULT)) < 0)
@@ -1929,6 +1971,10 @@ find_attr(hid_t loc_id, const char *name, const H5A_info_t *ainfo,
 {
     int ret = H5_ITER_CONT;
 
+    /* check the arguments */
+    if (name == NULL) 
+      return H5_ITER_CONT;
+
     /* Shut compiler up */
     loc_id = loc_id; ainfo = ainfo;
 
@@ -1936,7 +1982,7 @@ find_attr(hid_t loc_id, const char *name, const H5A_info_t *ainfo,
     * cause the iterator to immediately return that positive value,
     * indicating short-circuit success
     */
-    if(HDstrcmp(name, (char *)op_data) == 0)
+    if(HDstrncmp(name, (char *)op_data, HDstrlen((char *)op_data)) == 0)
         ret = H5_ITER_STOP;
 
     return ret;
@@ -2021,6 +2067,12 @@ herr_t H5LTget_attribute_ndims( hid_t loc_id,
     hid_t       sid;
     hid_t       obj_id;
 
+    /* check the arguments */
+    if (obj_name == NULL) 
+      return -1;
+    if (attr_name == NULL) 
+      return -1;
+
     /* Open the object */
     if((obj_id = H5Oopen(loc_id, obj_name, H5P_DEFAULT)) < 0)
         return -1;
@@ -2087,6 +2139,12 @@ herr_t H5LTget_attribute_info( hid_t loc_id,
     hid_t       tid;
     hid_t       sid;
     hid_t       obj_id;
+
+    /* check the arguments */
+    if (obj_name == NULL) 
+      return -1;
+    if (attr_name == NULL) 
+      return -1;
 
     /* Open the object */
     if((obj_id = H5Oopen(loc_id, obj_name, H5P_DEFAULT)) < 0)
@@ -2163,6 +2221,10 @@ hid_t H5LTtext_to_dtype(const char *text, H5LT_lang_t lang_type)
 {
     hid_t   type_id;
 
+    /* check the arguments */
+    if (text == NULL) 
+      return -1;
+
     if(lang_type <= H5LT_LANG_ERR || lang_type >= H5LT_NO_LANG)
         goto out;
 
@@ -2206,6 +2268,8 @@ out:
 static char* 
 realloc_and_append(hbool_t _no_user_buf, size_t *len, char *buf, char *str_to_add)
 {
+    size_t size_str_to_add, size_str;
+
     if(_no_user_buf) {
         /* If the buffer isn't big enough, reallocate it.  Otherwise, go to do strcat. */
         if(str_to_add && ((ssize_t)(*len - (HDstrlen(buf) + HDstrlen(str_to_add) + 1)) < LIMIT)) {
@@ -2220,8 +2284,25 @@ realloc_and_append(hbool_t _no_user_buf, size_t *len, char *buf, char *str_to_ad
     if(!buf)
         goto out;
 
-    if(str_to_add)
-        HDstrcat(buf, str_to_add);
+    if(str_to_add) {
+      /* find the size of the buffer to add */
+      size_str_to_add = HDstrlen(str_to_add);
+      /* find the size of the current buffer */
+      size_str = HDstrlen(buf);
+
+      /* Check to make sure the appended string does not 
+       * extend past the allocated buffer; if it does then truncate the string
+       */
+      if(size_str < *len - 1) {
+	if( size_str + size_str_to_add < *len - 1) {
+	  HDstrncat(buf, str_to_add, size_str_to_add);
+	} else {
+	  HDstrncat(buf, str_to_add, (*len - 1) - size_str);
+	}
+      } else {
+	buf[*len-1] = '\0'; /* buffer is full, null terminate */
+      }
+    }
 
     return buf;
 
@@ -2291,9 +2372,9 @@ print_enum(hid_t type, char* str, size_t *str_len, hbool_t no_ubuf, size_t indt)
     size_t           dst_size;      /*destination value type size    */
     int              i;
 
-    if((nmembs = H5Tget_nmembers(type))==0)
+    if((nmembs = H5Tget_nmembers(type))<=0)
         goto out;
-    assert(nmembs>0);
+
     if((super = H5Tget_super(type)) < 0)
         goto out;
 
@@ -2360,7 +2441,7 @@ print_enum(hid_t type, char* str, size_t *str_len, hbool_t no_ubuf, size_t indt)
 
     /* Release resources */
     for(i = 0; i < nmembs; i++)
-        HDfree(name[i]);
+        H5free_memory(name[i]);
 
     HDfree(name);
     HDfree(value);
@@ -2745,7 +2826,7 @@ next:
             if(tag) {
                 HDsnprintf(tmp_str, TMP_LEN, "OPQ_TAG \"%s\";\n", tag);
                 if(tag)
-                    HDfree(tag);
+                    H5free_memory(tag);
                 tag = NULL;
             } else
                 HDsnprintf(tmp_str, TMP_LEN, "OPQ_TAG \"\";\n");
@@ -2951,7 +3032,7 @@ next:
                     if(!(dt_str = realloc_and_append(no_user_buf, slen, dt_str, tmp_str)))
                         goto out;
                     if(mname)
-                        HDfree(mname);
+                        H5free_memory(mname);
                     mname = NULL;
 
                     HDsnprintf(tmp_str, TMP_LEN, " : %lu;\n", (unsigned long)moffset);
@@ -3019,6 +3100,12 @@ herr_t H5LTget_attribute_string( hid_t loc_id,
 {
     /* identifiers */
     hid_t      obj_id;
+
+    /* check the arguments */
+    if (obj_name == NULL) 
+      return -1;
+    if (attr_name == NULL) 
+      return -1;
 
     /* Open the object */
     if ((obj_id = H5Oopen( loc_id, obj_name, H5P_DEFAULT)) < 0)
@@ -3440,6 +3527,12 @@ static herr_t H5LT_get_attribute_mem(hid_t loc_id,
     hid_t obj_id = -1;
     hid_t attr_id = -1;
 
+    /* check the arguments */
+    if (obj_name == NULL) 
+      return -1;
+    if (attr_name == NULL) 
+      return -1;
+
     /* Open the object */
     if((obj_id = H5Oopen(loc_id, obj_name, H5P_DEFAULT)) < 0)
         goto out;
@@ -3618,6 +3711,12 @@ H5LTpath_valid(hid_t loc_id, const char *path, hbool_t check_object_valid)
 
      /* Initialize */
      ret_value = FALSE;
+
+     /* check the arguments */
+     if (path == NULL) {
+       ret_value = FAIL;
+       goto done;
+     }
 
      /* Find the type of loc_id */
      if((obj_type = H5Iget_type(loc_id)) == H5I_BADID) {

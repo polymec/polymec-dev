@@ -279,7 +279,7 @@ H5S_class_t DataSpace::getSimpleExtentType () const
 ///\exception	H5::DataSpaceIException
 // Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
-void DataSpace::extentCopy ( DataSpace& dest_space ) const
+void DataSpace::extentCopy (const DataSpace& dest_space) const
 {
    hid_t dest_space_id = dest_space.getId();
    herr_t ret_value = H5Sextent_copy( dest_space_id, id );
@@ -287,6 +287,20 @@ void DataSpace::extentCopy ( DataSpace& dest_space ) const
    {
       throw DataSpaceIException("DataSpace::extentCopy", "H5Sextent_copy failed");
    }
+}
+
+//--------------------------------------------------------------------------
+// Function:	DataSpace::extentCopy
+///\brief	This is an overloaded member function, kept for backward
+///		compatibility.  It differs from the above function in that it
+///		misses const.  This wrapper will be removed in future release.
+///\param	dest_space  - IN: Dataspace to copy from
+///\exception	H5::DataSpaceIException
+// Programmer	Binh-Minh Ribler - 2000
+//--------------------------------------------------------------------------
+void DataSpace::extentCopy( DataSpace& dest_space ) const
+{
+    extentCopy((const DataSpace)dest_space);
 }
 
 //--------------------------------------------------------------------------
@@ -616,7 +630,7 @@ void DataSpace::close()
 	    throw DataSpaceIException("DataSpace::close", "H5Sclose failed");
 	}
 	// reset the id
-	id = 0;
+	id = H5I_INVALID_HID;
     }
 }
 

@@ -24,8 +24,8 @@ typedef enum
   MESH_CELL
 } mesh_centering_t;
 
-// This mesh feature indicates that a mesh is tetrahedral.
-const char* TETRAHEDRAL;
+// Mesh features.
+extern const char* MESH_IS_TETRAHEDRAL; // indicates that a mesh is tetrahedral.
 
 typedef struct mesh_storage_t mesh_storage_t;
 
@@ -260,7 +260,7 @@ static inline bool mesh_cell_next_oriented_face(mesh_t* mesh, int cell, int* pos
 
 // Allows iteration over the neighboring cells attached to the given cell in 
 // the mesh, in the same order as that given by mesh_cell_next_face(). If the 
-// next neighbor for a cell is non-existant, *neighbor_cell will be set to -1.
+// next neighbor for a cell is non-existent, *neighbor_cell will be set to -1.
 // Set *pos to 0 to reset the iteration. Returns true if the traversal over 
 // all faces of the cell is not complete, false otherwise. NOTE: the local 
 // index of the face separating the cells is *pos - 1 after the call.
@@ -376,6 +376,20 @@ static inline int mesh_face_edge_for_neighbor(mesh_t* mesh, int face, int neighb
     }
   }
   return -1;
+}
+
+// Returns the "first" cell attached to a face. A well-formed face has at least one 
+// cell with a non-negative index.
+static inline int mesh_face_cell1(mesh_t* mesh, int face)
+{
+  return mesh->face_cells[2*face];
+}
+
+// Returns the "second" cell attached to a face. If the face is only attached to 
+// one cell, the second cell is -1.
+static inline int mesh_face_cell2(mesh_t* mesh, int face)
+{
+  return mesh->face_cells[2*face+1];
 }
 
 // Given a face within the mesh and one of its cells, returns the cell on 

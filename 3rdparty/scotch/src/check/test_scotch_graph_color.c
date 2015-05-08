@@ -1,4 +1,4 @@
-/* Copyright 2012 IPB, Universite de Bordeaux, INRIA & CNRS
+/* Copyright 2012,2014 IPB, Universite de Bordeaux, INRIA & CNRS
 **
 ** This file is part of the Scotch software package for static mapping,
 ** graph partitioning and sparse matrix ordering.
@@ -39,7 +39,7 @@
 /**                the SCOTCH_graphColor() routine.        **/
 /**                                                        **/
 /**   DATES      : # Version 6.0  : from : 06 jan 2012     **/
-/**                                 to     26 sep 2012     **/
+/**                                 to     15 oct 2014     **/
 /**                                                        **/
 /************************************************************/
 
@@ -69,7 +69,6 @@ char *              argv[])
 {
   FILE *              fileptr;
   SCOTCH_Graph        grafdat;
-  SCOTCH_Num          baseval;
   SCOTCH_Num          vertnbr;
   SCOTCH_Num          vertnum;
   SCOTCH_Num          colonbr;

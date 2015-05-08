@@ -1,23 +1,29 @@
 # ---------------------------------------------------------------
-# $Revision: 1.4 $
-# $Date: 2009/02/17 02:58:47 $
+# $Revision: 4341 $
+# $Date: 2015-02-03 10:53:47 -0800 (Tue, 03 Feb 2015) $
 # ---------------------------------------------------------------
 # Programmer:  Radu Serban @ LLNL
 # ---------------------------------------------------------------
-# Copyright (c) 2007, The Regents of the University of California.
+# LLNS Copyright Start
+# Copyright (c) 2014, Lawrence Livermore National Security
+# This work was performed under the auspices of the U.S. Department 
+# of Energy by Lawrence Livermore National Laboratory in part under 
+# Contract W-7405-Eng-48 and in part under Contract DE-AC52-07NA27344.
 # Produced at the Lawrence Livermore National Laboratory.
 # All rights reserved.
 # For details, see the LICENSE file.
+# LLNS Copyright End
 # ---------------------------------------------------------------
 # CMakeLists.txt file for CVODE parallel examples
 
 
 # Add variable CVODE_examples with the names of the parallel CVODE examples
-
+# "name\;nodes\;tasks"
 SET(CVODE_examples
-  cvAdvDiff_non_p
-  cvDiurnal_kry_bbd_p
-  cvDiurnal_kry_p
+  "cvAdvDiff_diag_p\;2\;4"
+  "cvAdvDiff_non_p\;2\;2"
+  "cvDiurnal_kry_bbd_p\;2\;4"
+  "cvDiurnal_kry_p\;2\;4"
   )
 
 # Check whether we use MPI compiler scripts.
@@ -47,14 +53,27 @@ ENDIF(LINK_LIBRARY_TYPE MATCHES "static")
 
 SET(SUNDIALS_LIBS ${CVODE_LIB} ${NVECP_LIB} ${EXTRA_LINK_LIBS})
 IF(LAPACK_FOUND)
-  SET(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${LAPACK_LINKER_FLAGS}")
-  SET(SUNDIALS_LIBS "${SUNDIALS_LIBS} ${LAPACK_LIBRARIES}")
+  LIST(APPEND SUNDIALS_LIBS ${LAPACK_LIBRARIES})
 ENDIF(LAPACK_FOUND)
+
+IF(KLU_FOUND)
+  LIST(APPEND SUNDIALS_LIBS ${KLU_LIBRARIES})
+ENDIF(KLU_FOUND)
+
+IF(SUPERLUMT_FOUND)
+  LIST(APPEND SUNDIALS_LIBS ${SUPERLUMT_LIBRARIES})
+ENDIF(SUPERLUMT_FOUND)
 
 # Add the build and install targets for each CVODE example
 
-FOREACH(example ${CVODE_examples})
+FOREACH(example_tuple ${CVODE_examples})
+  list(GET example_tuple 0 example)
+  list(GET example_tuple 1 number_of_nodes)
+  list(GET example_tuple 2 number_of_tasks)
+  # first item is example
   ADD_EXECUTABLE(${example} ${example}.c)
+  SET_TARGET_PROPERTIES(${example} PROPERTIES FOLDER "Examples")
+  SUNDIALS_ADD_TEST(${example} ${example} MPI_NPROCS ${number_of_tasks})
   TARGET_LINK_LIBRARIES(${example} ${SUNDIALS_LIBS})
   IF(NOT MPI_MPICC)
     TARGET_LINK_LIBRARIES(${example} ${MPI_LIBRARY} ${MPI_EXTRA_LIBRARIES})
@@ -62,7 +81,7 @@ FOREACH(example ${CVODE_examples})
   IF(EXAMPLES_INSTALL)
     INSTALL(FILES ${example}.c ${example}.out DESTINATION ${EXAMPLES_INSTALL_PATH}/cvode/parallel)
   ENDIF(EXAMPLES_INSTALL)
-ENDFOREACH(example ${CVODE_examples})
+ENDFOREACH(example_tuple ${CVODE_examples})
 
 IF(EXAMPLES_INSTALL)
 
@@ -72,7 +91,10 @@ IF(EXAMPLES_INSTALL)
   # Prepare substitution variables for Makefile and/or CMakeLists templates
   SET(SOLVER "CVODE")
   SET(SOLVER_LIB "sundials_cvode")
-  LIST2STRING(CVODE_examples EXAMPLES)
+  FOREACH(example_tuple ${CVODE_examples})
+  	list(GET example_tuple 0 example)
+  	LIST2STRING(example EXAMPLES)
+  ENDFOREACH(example_tuple ${CVODE_examples})
 
   # Regardless of the platform we're on, we will generate and install 
   # CMakeLists.txt file for building the examples. This file  can then 

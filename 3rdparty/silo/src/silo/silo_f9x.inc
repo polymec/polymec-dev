@@ -2,7 +2,7 @@
 ! 
 !      SILO include file for Fortan applications.
 ! 
-!  Programmer:   miller86 Mon Sep 29 07:01:26 PDT 2014
+!  Programmer:   miller86 Tue Mar  3 11:29:33 PST 2015
 ! 
 !  WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING
 !     This file is generated automatically from C header files in the
@@ -47,9 +47,13 @@
       integer, external :: dbgethdfnms
       integer, external :: dbgetovrwrt
       integer, external :: dbgetqv1
+      integer, external :: dbinqblen
       integer, external :: dbinqca
+      integer, external :: dbinqdtyp
       integer, external :: dbinqfile
       integer, external :: dbinqlen
+      integer, external :: dbinqmtyp
+      integer, external :: dbinqvtyp
       integer, external :: dbmkdir
       integer, external :: dbmkmrgtree
       integer, external :: dbmkobject
@@ -104,7 +108,7 @@
 !...Parameters.
       integer, parameter :: SILO_VERS_MAJ = 4
       integer, parameter :: SILO_VERS_MIN = 10
-      integer, parameter :: SILO_VERS_PAT = 0
+      integer, parameter :: SILO_VERS_PAT = 2
       integer, parameter :: SILO_VERS_PRE = 0
       integer, parameter :: DB_NETCDF = 0
       integer, parameter :: DB_PDB = 2

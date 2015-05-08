@@ -13,11 +13,12 @@
 #include "core/unordered_set.h"
 #include "geometry/cubic_lattice.h"
 #include "geometry/create_uniform_mesh.h"
-#include "model/stencil.h"
+#include "model/mesh_stencils.h"
 
 void test_NXxNYxNZ_stencil(void** state, 
                            MPI_Comm comm,
-                           stencil_t* (*stencil_ctor)(mesh_t*),
+                           stencil_t* (*stencil_ctor)(mesh_t*, int),
+                           int radius,
                            int nx, int ny, int nz,
                            int num_interior_neighbors, 
                            int num_boundary_neighbors, 
@@ -27,7 +28,7 @@ void test_NXxNYxNZ_stencil(void** state,
   bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
   mesh_t* mesh = create_uniform_mesh(comm, nx, ny, nz, &bbox);
   cubic_lattice_t* lattice = cubic_lattice_new(nx, ny, nz);
-  stencil_t* stencil = stencil_ctor(mesh);
+  stencil_t* stencil = stencil_ctor(mesh, radius);
   for (int i = 0; i < nx; ++i)
   {
     for (int j = 0; j < ny; ++j)
@@ -76,124 +77,84 @@ void test_NXxNYxNZ_stencil(void** state,
   mesh_free(mesh);
 }
 
-void test_serial_1x1x1_cell_face_stencil(void** state)
+void test_serial_1x1x1_cell_star_stencil(void** state)
 {
-  test_NXxNYxNZ_stencil(state, MPI_COMM_SELF, cell_face_stencil_new, 1, 1, 1, 0, 0, 0, 0);
+  test_NXxNYxNZ_stencil(state, MPI_COMM_SELF, cell_star_stencil_new, 1, 1, 1, 1, 0, 0, 0, 0);
 }
 
-void test_serial_10x1x1_cell_face_stencil(void** state)
+void test_serial_10x1x1_cell_star_stencil(void** state)
 {
-  test_NXxNYxNZ_stencil(state, MPI_COMM_SELF, cell_face_stencil_new, 10, 1, 1, 0, 0, 2, 1);
+  test_NXxNYxNZ_stencil(state, MPI_COMM_SELF, cell_star_stencil_new, 1, 10, 1, 1, 0, 0, 2, 1);
 }
 
-void test_serial_10x10x1_cell_face_stencil(void** state)
+void test_serial_10x10x1_cell_star_stencil(void** state)
 {
-  test_NXxNYxNZ_stencil(state, MPI_COMM_SELF, cell_face_stencil_new, 10, 10, 1, 4, 4, 3, 2);
+  test_NXxNYxNZ_stencil(state, MPI_COMM_SELF, cell_star_stencil_new, 1, 10, 10, 1, 4, 4, 3, 2);
 }
 
-void test_serial_10x10x10_cell_face_stencil(void** state)
+void test_serial_10x10x10_cell_star_stencil(void** state)
 {
-  test_NXxNYxNZ_stencil(state, MPI_COMM_SELF, cell_face_stencil_new, 10, 10, 10, 6, 5, 4, 3);
+  test_NXxNYxNZ_stencil(state, MPI_COMM_SELF, cell_star_stencil_new, 1, 10, 10, 10, 6, 5, 4, 3);
 }
 
-void test_serial_1x1x1_cell_edge_stencil(void** state)
+void test_serial_1x1x1_cell_halo_stencil(void** state)
 {
-  test_NXxNYxNZ_stencil(state, MPI_COMM_SELF, cell_edge_stencil_new, 1, 1, 1, 0, 0, 0, 0);
+  test_NXxNYxNZ_stencil(state, MPI_COMM_SELF, cell_halo_stencil_new, 1, 1, 1, 1, 0, 0, 0, 0);
 }
 
-void test_serial_10x1x1_cell_edge_stencil(void** state)
+void test_serial_10x1x1_cell_halo_stencil(void** state)
 {
-  test_NXxNYxNZ_stencil(state, MPI_COMM_SELF, cell_edge_stencil_new, 10, 1, 1, 0, 0, 2, 1);
+  test_NXxNYxNZ_stencil(state, MPI_COMM_SELF, cell_halo_stencil_new, 1, 10, 1, 1, 0, 0, 2, 1);
 }
 
-void test_serial_10x10x1_cell_edge_stencil(void** state)
+void test_serial_10x10x1_cell_halo_stencil(void** state)
 {
-  test_NXxNYxNZ_stencil(state, MPI_COMM_SELF, cell_edge_stencil_new, 10, 10, 1, 8, 8, 5, 3);
+  test_NXxNYxNZ_stencil(state, MPI_COMM_SELF, cell_halo_stencil_new, 1, 10, 10, 1, 8, 8, 5, 3);
 }
 
-void test_serial_10x10x10_cell_edge_stencil(void** state)
+void test_serial_10x10x10_cell_halo_stencil(void** state)
 {
-  test_NXxNYxNZ_stencil(state, MPI_COMM_SELF, cell_edge_stencil_new, 10, 10, 10, 18, 13, 9, 6);
+  test_NXxNYxNZ_stencil(state, MPI_COMM_SELF, cell_halo_stencil_new, 1, 10, 10, 10, 26, 17, 11, 7);
 }
 
-void test_serial_1x1x1_cell_node_stencil(void** state)
+void test_parallel_1x1x1_cell_star_stencil(void** state)
 {
-  test_NXxNYxNZ_stencil(state, MPI_COMM_SELF, cell_node_stencil_new, 1, 1, 1, 0, 0, 0, 0);
+  test_NXxNYxNZ_stencil(state, MPI_COMM_WORLD, cell_star_stencil_new, 1, 1, 1, 1, 0, 0, 0, 0);
 }
 
-void test_serial_10x1x1_cell_node_stencil(void** state)
+void test_parallel_10x1x1_cell_star_stencil(void** state)
 {
-  test_NXxNYxNZ_stencil(state, MPI_COMM_SELF, cell_node_stencil_new, 10, 1, 1, 0, 0, 2, 1);
+  test_NXxNYxNZ_stencil(state, MPI_COMM_WORLD, cell_star_stencil_new, 1, 10, 1, 1, 0, 0, 2, 1);
 }
 
-void test_serial_10x10x1_cell_node_stencil(void** state)
+void test_parallel_10x10x1_cell_star_stencil(void** state)
 {
-  test_NXxNYxNZ_stencil(state, MPI_COMM_SELF, cell_node_stencil_new, 10, 10, 1, 8, 8, 5, 3);
+  test_NXxNYxNZ_stencil(state, MPI_COMM_WORLD, cell_star_stencil_new, 1, 10, 10, 1, 4, 4, 3, 2);
 }
 
-void test_serial_10x10x10_cell_node_stencil(void** state)
+void test_parallel_10x10x10_cell_star_stencil(void** state)
 {
-  test_NXxNYxNZ_stencil(state, MPI_COMM_SELF, cell_node_stencil_new, 10, 10, 10, 26, 17, 11, 7);
+  test_NXxNYxNZ_stencil(state, MPI_COMM_WORLD, cell_star_stencil_new, 1, 10, 10, 10, 6, 5, 4, 3);
 }
 
-void test_parallel_1x1x1_cell_face_stencil(void** state)
+void test_parallel_1x1x1_cell_halo_stencil(void** state)
 {
-  test_NXxNYxNZ_stencil(state, MPI_COMM_WORLD, cell_face_stencil_new, 1, 1, 1, 0, 0, 0, 0);
+  test_NXxNYxNZ_stencil(state, MPI_COMM_WORLD, cell_halo_stencil_new, 1, 1, 1, 1, 0, 0, 0, 0);
 }
 
-void test_parallel_10x1x1_cell_face_stencil(void** state)
+void test_parallel_10x1x1_cell_halo_stencil(void** state)
 {
-  test_NXxNYxNZ_stencil(state, MPI_COMM_WORLD, cell_face_stencil_new, 10, 1, 1, 0, 0, 2, 1);
+  test_NXxNYxNZ_stencil(state, MPI_COMM_WORLD, cell_halo_stencil_new, 1, 10, 1, 1, 0, 0, 2, 1);
 }
 
-void test_parallel_10x10x1_cell_face_stencil(void** state)
+void test_parallel_10x10x1_cell_halo_stencil(void** state)
 {
-  test_NXxNYxNZ_stencil(state, MPI_COMM_WORLD, cell_face_stencil_new, 10, 10, 1, 4, 4, 3, 2);
+  test_NXxNYxNZ_stencil(state, MPI_COMM_WORLD, cell_halo_stencil_new, 1, 10, 10, 1, 8, 8, 5, 3);
 }
 
-void test_parallel_10x10x10_cell_face_stencil(void** state)
+void test_parallel_10x10x10_cell_halo_stencil(void** state)
 {
-  test_NXxNYxNZ_stencil(state, MPI_COMM_WORLD, cell_face_stencil_new, 10, 10, 10, 6, 5, 4, 3);
-}
-
-void test_parallel_1x1x1_cell_edge_stencil(void** state)
-{
-  test_NXxNYxNZ_stencil(state, MPI_COMM_WORLD, cell_edge_stencil_new, 1, 1, 1, 0, 0, 0, 0);
-}
-
-void test_parallel_10x1x1_cell_edge_stencil(void** state)
-{
-  test_NXxNYxNZ_stencil(state, MPI_COMM_WORLD, cell_edge_stencil_new, 10, 1, 1, 0, 0, 2, 1);
-}
-
-void test_parallel_10x10x1_cell_edge_stencil(void** state)
-{
-  test_NXxNYxNZ_stencil(state, MPI_COMM_WORLD, cell_edge_stencil_new, 10, 10, 1, 8, 8, 5, 3);
-}
-
-void test_parallel_10x10x10_cell_edge_stencil(void** state)
-{
-  test_NXxNYxNZ_stencil(state, MPI_COMM_WORLD, cell_edge_stencil_new, 10, 10, 10, 18, 13, 9, 6);
-}
-
-void test_parallel_1x1x1_cell_node_stencil(void** state)
-{
-  test_NXxNYxNZ_stencil(state, MPI_COMM_WORLD, cell_node_stencil_new, 1, 1, 1, 0, 0, 0, 0);
-}
-
-void test_parallel_10x1x1_cell_node_stencil(void** state)
-{
-  test_NXxNYxNZ_stencil(state, MPI_COMM_WORLD, cell_node_stencil_new, 10, 1, 1, 0, 0, 2, 1);
-}
-
-void test_parallel_10x10x1_cell_node_stencil(void** state)
-{
-  test_NXxNYxNZ_stencil(state, MPI_COMM_WORLD, cell_node_stencil_new, 10, 10, 1, 8, 8, 5, 3);
-}
-
-void test_parallel_10x10x10_cell_node_stencil(void** state)
-{
-  test_NXxNYxNZ_stencil(state, MPI_COMM_WORLD, cell_node_stencil_new, 10, 10, 10, 26, 17, 11, 7);
+  test_NXxNYxNZ_stencil(state, MPI_COMM_WORLD, cell_halo_stencil_new, 1, 10, 10, 10, 26, 17, 11, 7);
 }
 
 int main(int argc, char* argv[]) 
@@ -201,31 +162,23 @@ int main(int argc, char* argv[])
   polymec_init(argc, argv);
   const UnitTest tests[] = 
   {
-    unit_test(test_serial_1x1x1_cell_face_stencil),
-    unit_test(test_serial_10x1x1_cell_face_stencil),
-    unit_test(test_serial_10x10x1_cell_face_stencil),
-    unit_test(test_serial_10x10x10_cell_face_stencil),
-    unit_test(test_serial_1x1x1_cell_edge_stencil),
-    unit_test(test_serial_10x1x1_cell_edge_stencil),
-    unit_test(test_serial_10x10x1_cell_edge_stencil),
-    unit_test(test_serial_10x10x10_cell_edge_stencil),
-    unit_test(test_serial_1x1x1_cell_node_stencil),
-    unit_test(test_serial_10x1x1_cell_node_stencil),
-    unit_test(test_serial_10x10x1_cell_node_stencil),
-    unit_test(test_serial_10x10x10_cell_node_stencil)
+    unit_test(test_serial_1x1x1_cell_star_stencil),
+    unit_test(test_serial_10x1x1_cell_star_stencil),
+    unit_test(test_serial_10x10x1_cell_star_stencil),
+    unit_test(test_serial_10x10x10_cell_star_stencil),
+    unit_test(test_serial_1x1x1_cell_halo_stencil),
+    unit_test(test_serial_10x1x1_cell_halo_stencil),
+    unit_test(test_serial_10x10x1_cell_halo_stencil),
+    unit_test(test_serial_10x10x10_cell_halo_stencil)
 #if POLYMEC_HAVE_MPI
-   ,unit_test(test_parallel_1x1x1_cell_face_stencil),
-    unit_test(test_parallel_10x1x1_cell_face_stencil),
-    unit_test(test_parallel_10x10x1_cell_face_stencil),
-    unit_test(test_parallel_10x10x10_cell_face_stencil),
-    unit_test(test_parallel_1x1x1_cell_edge_stencil),
-    unit_test(test_parallel_10x1x1_cell_edge_stencil),
-    unit_test(test_parallel_10x10x1_cell_edge_stencil),
-    unit_test(test_parallel_10x10x10_cell_edge_stencil),
-    unit_test(test_parallel_1x1x1_cell_node_stencil),
-    unit_test(test_parallel_10x1x1_cell_node_stencil),
-    unit_test(test_parallel_10x10x1_cell_node_stencil),
-    unit_test(test_parallel_10x10x10_cell_node_stencil)
+   ,unit_test(test_parallel_1x1x1_cell_star_stencil),
+    unit_test(test_parallel_10x1x1_cell_star_stencil),
+    unit_test(test_parallel_10x10x1_cell_star_stencil),
+    unit_test(test_parallel_10x10x10_cell_star_stencil),
+    unit_test(test_parallel_1x1x1_cell_halo_stencil),
+    unit_test(test_parallel_10x1x1_cell_halo_stencil),
+    unit_test(test_parallel_10x10x1_cell_halo_stencil),
+    unit_test(test_parallel_10x10x10_cell_halo_stencil)
 #endif
   };
   return run_tests(tests);

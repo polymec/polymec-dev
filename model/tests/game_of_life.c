@@ -12,7 +12,7 @@
 #include "core/text_buffer.h"
 #include "geometry/create_uniform_mesh.h"
 #include "model/model.h"
-#include "model/stencil.h"
+#include "model/mesh_stencils.h"
 
 typedef struct
 {
@@ -246,7 +246,7 @@ static void gol_init(void* context, real_t t)
                  .y1 = 1.0*gol->y_min - 0.5, .y2 = 1.0*gol->y_max + 0.5,
                  .z1 = -0.5, .z2 = 0.5};
   gol->grid = create_uniform_mesh(comm, nx, ny, 1, &bbox);
-  gol->stencil = cell_edge_stencil_new(gol->grid);
+  gol->stencil = cell_halo_stencil_new(gol->grid, 1);
   gol->state = polymec_malloc(sizeof(real_t) * gol->grid->num_cells);
   memset(gol->state, 0, sizeof(real_t) * gol->grid->num_cells);
 
@@ -311,7 +311,7 @@ static void gol_load(void* context, const char* file_prefix, const char* directo
   ASSERT(gol->grid == NULL);
   ASSERT(gol->state == NULL);
   gol->grid = silo_file_read_mesh(silo, "grid");
-  gol->stencil = cell_edge_stencil_new(gol->grid);
+  gol->stencil = cell_halo_stencil_new(gol->grid, 1);
   gol->state = silo_file_read_scalar_cell_field(silo, "state", "grid");
   silo_file_close(silo);
 }

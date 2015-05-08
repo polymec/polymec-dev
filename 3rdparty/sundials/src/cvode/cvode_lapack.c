@@ -1,14 +1,19 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 1.15 $
- * $Date: 2011/03/23 22:45:54 $
+ * $Revision: 4272 $
+ * $Date: 2014-12-02 11:19:41 -0800 (Tue, 02 Dec 2014) $
  * ----------------------------------------------------------------- 
  * Programmer: Radu Serban @ LLNL
  * -----------------------------------------------------------------
- * Copyright (c) 2006, The Regents of the University of California.
+ * LLNS Copyright Start
+ * Copyright (c) 2014, Lawrence Livermore National Security
+ * This work was performed under the auspices of the U.S. Department 
+ * of Energy by Lawrence Livermore National Laboratory in part under 
+ * Contract W-7405-Eng-48 and in part under Contract DE-AC52-07NA27344.
  * Produced at the Lawrence Livermore National Laboratory.
  * All rights reserved.
  * For details, see the LICENSE file.
+ * LLNS Copyright End
  * -----------------------------------------------------------------
  * This is the implementation file for a CVODE dense linear solver
  * using BLAS and LAPACK functions.
@@ -145,7 +150,7 @@ int CVLapackDense(void *cvode_mem, int N)
 
   /* Return immediately if cvode_mem is NULL */
   if (cvode_mem == NULL) {
-    CVProcessError(NULL, CVDLS_MEM_NULL, "CVLAPACK", "CVLapackDense", MSGD_CVMEM_NULL);
+    cvProcessError(NULL, CVDLS_MEM_NULL, "CVLAPACK", "CVLapackDense", MSGD_CVMEM_NULL);
     return(CVDLS_MEM_NULL);
   }
   cv_mem = (CVodeMem) cvode_mem;
@@ -153,7 +158,7 @@ int CVLapackDense(void *cvode_mem, int N)
   /* Test if the NVECTOR package is compatible with the LAPACK solver */
   if (tempv->ops->nvgetarraypointer == NULL ||
       tempv->ops->nvsetarraypointer == NULL) {
-    CVProcessError(cv_mem, CVDLS_ILL_INPUT, "CVLAPACK", "CVLapackDense", MSGD_BAD_NVECTOR);
+    cvProcessError(cv_mem, CVDLS_ILL_INPUT, "CVLAPACK", "CVLapackDense", MSGD_BAD_NVECTOR);
     return(CVDLS_ILL_INPUT);
   }
 
@@ -169,7 +174,7 @@ int CVLapackDense(void *cvode_mem, int N)
   cvdls_mem = NULL;
   cvdls_mem = (CVDlsMem) malloc(sizeof(struct CVDlsMemRec));
   if (cvdls_mem == NULL) {
-    CVProcessError(cv_mem, CVDLS_MEM_FAIL, "CVLAPACK", "CVLapackDense", MSGD_MEM_FAIL);
+    cvProcessError(cv_mem, CVDLS_MEM_FAIL, "CVLAPACK", "CVLapackDense", MSGD_MEM_FAIL);
     return(CVDLS_MEM_FAIL);
   }
 
@@ -194,20 +199,20 @@ int CVLapackDense(void *cvode_mem, int N)
 
   M = NewDenseMat(n, n);
   if (M == NULL) {
-    CVProcessError(cv_mem, CVDLS_MEM_FAIL, "CVLAPACK", "CVLapackDense", MSGD_MEM_FAIL);
+    cvProcessError(cv_mem, CVDLS_MEM_FAIL, "CVLAPACK", "CVLapackDense", MSGD_MEM_FAIL);
     free(cvdls_mem); cvdls_mem = NULL;
     return(CVDLS_MEM_FAIL);
   }
   pivots = NewIntArray(N);
   if (pivots == NULL) {
-    CVProcessError(cv_mem, CVDLS_MEM_FAIL, "CVLAPACK", "CVLapackDense", MSGD_MEM_FAIL);
+    cvProcessError(cv_mem, CVDLS_MEM_FAIL, "CVLAPACK", "CVLapackDense", MSGD_MEM_FAIL);
     DestroyMat(M);
     free(cvdls_mem); cvdls_mem = NULL;
     return(CVDLS_MEM_FAIL);
   }
   savedJ = NewDenseMat(n, n);
   if (savedJ == NULL) {
-    CVProcessError(cv_mem, CVDLS_MEM_FAIL, "CVLAPACK", "CVLapackDense", MSGD_MEM_FAIL);
+    cvProcessError(cv_mem, CVDLS_MEM_FAIL, "CVLAPACK", "CVLapackDense", MSGD_MEM_FAIL);
     DestroyMat(M);
     DestroyArray(pivots);
     free(cvdls_mem); cvdls_mem = NULL;
@@ -252,14 +257,14 @@ int CVLapackBand(void *cvode_mem, int N, int mupper, int mlower)
 
   /* Return immediately if cvode_mem is NULL */
   if (cvode_mem == NULL) {
-    CVProcessError(NULL, CVDLS_MEM_NULL, "CVLAPACK", "CVLapackBand", MSGD_CVMEM_NULL);
+    cvProcessError(NULL, CVDLS_MEM_NULL, "CVLAPACK", "CVLapackBand", MSGD_CVMEM_NULL);
     return(CVDLS_MEM_NULL);
   }
   cv_mem = (CVodeMem) cvode_mem;
 
   /* Test if the NVECTOR package is compatible with the BAND solver */
   if (tempv->ops->nvgetarraypointer == NULL) {
-    CVProcessError(cv_mem, CVDLS_ILL_INPUT, "CVLAPACK", "CVLapackBand", MSGD_BAD_NVECTOR);
+    cvProcessError(cv_mem, CVDLS_ILL_INPUT, "CVLAPACK", "CVLapackBand", MSGD_BAD_NVECTOR);
     return(CVDLS_ILL_INPUT);
   }
 
@@ -275,7 +280,7 @@ int CVLapackBand(void *cvode_mem, int N, int mupper, int mlower)
   cvdls_mem = NULL;
   cvdls_mem = (CVDlsMem) malloc(sizeof(struct CVDlsMemRec));
   if (cvdls_mem == NULL) {
-    CVProcessError(cv_mem, CVDLS_MEM_FAIL, "CVLAPACK", "CVLapackBand", MSGD_MEM_FAIL);
+    cvProcessError(cv_mem, CVDLS_MEM_FAIL, "CVLAPACK", "CVLapackBand", MSGD_MEM_FAIL);
     return(CVDLS_MEM_FAIL);
   }
 
@@ -299,13 +304,13 @@ int CVLapackBand(void *cvode_mem, int N, int mupper, int mlower)
 
   /* Test ml and mu for legality */
   if ((ml < 0) || (mu < 0) || (ml >= n) || (mu >= n)) {
-    CVProcessError(cv_mem, CVDLS_ILL_INPUT, "CVLAPACK", "CVLapackBand", MSGD_BAD_SIZES);
+    cvProcessError(cv_mem, CVDLS_ILL_INPUT, "CVLAPACK", "CVLapackBand", MSGD_BAD_SIZES);
     free(cvdls_mem); cvdls_mem = NULL;
     return(CVDLS_ILL_INPUT);
   }
 
   /* Set extended upper half-bandwith for M (required for pivoting) */
-  smu = MIN(n-1, mu + ml);
+  smu = mu + ml;
 
   /* Allocate memory for M, pivot array, and savedJ */
   M = NULL;
@@ -314,20 +319,20 @@ int CVLapackBand(void *cvode_mem, int N, int mupper, int mlower)
 
   M = NewBandMat(n, mu, ml, smu);
   if (M == NULL) {
-    CVProcessError(cv_mem, CVDLS_MEM_FAIL, "CVLAPACK", "CVLapackBand", MSGD_MEM_FAIL);
+    cvProcessError(cv_mem, CVDLS_MEM_FAIL, "CVLAPACK", "CVLapackBand", MSGD_MEM_FAIL);
     free(cvdls_mem); cvdls_mem = NULL;
     return(CVDLS_MEM_FAIL);
   }  
   pivots = NewIntArray(N);
   if (pivots == NULL) {
-    CVProcessError(cv_mem, CVDLS_MEM_FAIL, "CVLAPACK", "CVLapackBand", MSGD_MEM_FAIL);
+    cvProcessError(cv_mem, CVDLS_MEM_FAIL, "CVLAPACK", "CVLapackBand", MSGD_MEM_FAIL);
     DestroyMat(M);
     free(cvdls_mem); cvdls_mem = NULL;
     return(CVDLS_MEM_FAIL);
   }
   savedJ = NewBandMat(n, mu, ml, smu);
   if (savedJ == NULL) {
-    CVProcessError(cv_mem, CVDLS_MEM_FAIL, "CVLAPACK", "CVLapackBand", MSGD_MEM_FAIL);
+    cvProcessError(cv_mem, CVDLS_MEM_FAIL, "CVLAPACK", "CVLapackBand", MSGD_MEM_FAIL);
     DestroyMat(M);
     DestroyArray(pivots);
     free(cvdls_mem); cvdls_mem = NULL;
@@ -395,7 +400,7 @@ static int cvLapackDenseSetup(CVodeMem cv_mem, int convfail,
   lenmat = M->ldata ;
 
   /* Use nst, gamma/gammap, and convfail to set J eval. flag jok */
-  dgamma = ABS((gamma/gammap) - ONE);
+  dgamma = SUNRabs((gamma/gammap) - ONE);
   jbad = (nst == 0) || (nst > nstlj + CVD_MSBJ) ||
     ((convfail == CV_FAIL_BAD_J) && (dgamma < CVD_DGMAX)) ||
     (convfail == CV_FAIL_OTHER);
@@ -420,7 +425,7 @@ static int cvLapackDenseSetup(CVodeMem cv_mem, int convfail,
     if (retval == 0) {
       dcopy_f77(&lenmat, M->data, &one, savedJ->data, &one);
     } else if (retval < 0) {
-      CVProcessError(cv_mem, CVDLS_JACFUNC_UNRECVR, "CVLAPACK", "cvLapackDenseSetup", MSGD_JACFUNC_FAILED);
+      cvProcessError(cv_mem, CVDLS_JACFUNC_UNRECVR, "CVLAPACK", "cvLapackDenseSetup", MSGD_JACFUNC_FAILED);
       last_flag = CVDLS_JACFUNC_UNRECVR;
       return(-1);
     } else if (retval > 0) {
@@ -551,7 +556,7 @@ static int cvLapackBandSetup(CVodeMem cv_mem, int convfail,
   ldmat = M->ldim;
 
   /* Use nst, gamma/gammap, and convfail to set J eval. flag jok */
-  dgamma = ABS((gamma/gammap) - ONE);
+  dgamma = SUNRabs((gamma/gammap) - ONE);
   jbad = (nst == 0) || (nst > nstlj + CVD_MSBJ) ||
     ((convfail == CV_FAIL_BAD_J) && (dgamma < CVD_DGMAX)) ||
     (convfail == CV_FAIL_OTHER);
@@ -575,7 +580,7 @@ static int cvLapackBandSetup(CVodeMem cv_mem, int convfail,
     if (retval == 0) {
       dcopy_f77(&lenmat, M->data, &one, savedJ->data, &one);
     } else if (retval < 0) {
-      CVProcessError(cv_mem, CVDLS_JACFUNC_UNRECVR, "CVLAPACK", "cvLapackBandSetup", MSGD_JACFUNC_FAILED);
+      cvProcessError(cv_mem, CVDLS_JACFUNC_UNRECVR, "CVLAPACK", "cvLapackBandSetup", MSGD_JACFUNC_FAILED);
       last_flag = CVDLS_JACFUNC_UNRECVR;
       return(-1);
     } else if (retval > 0) {

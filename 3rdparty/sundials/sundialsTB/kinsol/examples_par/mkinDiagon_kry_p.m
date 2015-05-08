@@ -13,8 +13,16 @@ function [] = mkinDiagon_kry_p(comm)
 %   See also: mpirun
 
 % Radu Serban <radu@llnl.gov>
-% Copyright (c) 2005, The Regents of the University of California.
-% $Revision: 1.2 $Date: 2007/12/05 21:58:19 $
+% LLNS Copyright Start
+% Copyright (c) 2014, Lawrence Livermore National Security
+% This work was performed under the auspices of the U.S. Department 
+% of Energy by Lawrence Livermore National Laboratory in part under 
+% Contract W-7405-Eng-48 and in part under Contract DE-AC52-07NA27344.
+% Produced at the Lawrence Livermore National Laboratory.
+% All rights reserved.
+% For details, see the LICENSE file.
+% LLNS Copyright End
+% $Revision: 4075 $Date: 2007/10/26 16:30:49 $
 
 [status npes] = MPI_Comm_size(comm);
 [status mype] = MPI_Comm_rank(comm);

@@ -1,6 +1,6 @@
 # ---------------------------------------------------------------
-# $Revision: 1.1 $
-# $Date: 2009/02/17 02:58:46 $
+# $Revision: 4074 $
+# $Date: 2014-04-23 14:13:52 -0700 (Wed, 23 Apr 2014) $
 # ---------------------------------------------------------------
 # Programmer:  Radu Serban @ LLNL
 # ---------------------------------------------------------------
@@ -12,6 +12,11 @@
 # MPI-C tests for SUNDIALS CMake-based configuration.
 #
 # 
+
+# make sure valid mpi_run_command. If not, then warn and return
+If(MPI_RUN_COMMAND AND NOT MPI_RUN_COMMAND STREQUAL "mpirun" AND NOT MPI_RUN_COMMAND STREQUAL "srun")
+    PRINT_WARNING("Unknown mpi run command: ${MPI_RUN_COMMAND}" "Please enter mpirun or srun")
+ENDIF(MPI_RUN_COMMAND AND NOT MPI_RUN_COMMAND STREQUAL "mpirun" AND NOT MPI_RUN_COMMAND STREQUAL "srun")
 
 set(MPIC_FOUND FALSE)
 set(MPIC_MPI2 FALSE)
@@ -74,6 +79,7 @@ if(MPIC_PERFORM_TEST)
   # Create a CMakeLists.txt file which will generate the "mpictest" executable
   if(MPI_MPICC)
     file(WRITE ${MPITest_DIR}/CMakeLists.txt
+      "CMAKE_MINIMUM_REQUIRED(VERSION 2.2)\n"
       "PROJECT(mpictest C)\n"
       "SET(CMAKE_VERBOSE_MAKEFILE ON)\n"
       "SET(CMAKE_C_COMPILER ${MPI_MPICC})\n"
@@ -86,6 +92,7 @@ if(MPIC_PERFORM_TEST)
       "ADD_EXECUTABLE(mpictest mpictest.c)\n")
   else(MPI_MPICC)
     file(WRITE ${MPITest_DIR}/CMakeLists.txt
+      "CMAKE_MINIMUM_REQUIRED(VERSION 2.2)\n"
       "PROJECT(mpictest C)\n"
       "SET(CMAKE_VERBOSE_MAKEFILE ON)\n"
       "SET(CMAKE_BUILD_TYPE \"${CMAKE_BUILD_TYPE}\")\n"
@@ -110,7 +117,7 @@ if(MPIC_PERFORM_TEST)
     "}\n")
   # Use TRY_COMPILE to make the target "mpictest"
   try_compile(MPITEST_OK ${MPITest_DIR} ${MPITest_DIR}
-    mpitest OUTPUT_VARIABLE MY_OUTPUT)
+    mpictest OUTPUT_VARIABLE MY_OUTPUT)
   # To ensure we do not use stuff from the previous attempts, 
   # we must remove the CMakeFiles directory.
   file(REMOVE_RECURSE ${MPITest_DIR}/CMakeFiles)
@@ -128,6 +135,7 @@ if(MPIC_FOUND)
   # Create a CMakeLists.txt file which will generate the "mpi2test" executable
   if(MPI_MPICC)
     file(WRITE ${MPITest_DIR}/CMakeLists.txt
+      "CMAKE_MINIMUM_REQUIRED(VERSION 2.2)\n"
       "PROJECT(mpi2test C)\n"
       "SET(CMAKE_VERBOSE_MAKEFILE ON)\n"
       "SET(CMAKE_C_COMPILER ${MPI_MPICC})\n"
@@ -140,6 +148,7 @@ if(MPIC_FOUND)
       "ADD_EXECUTABLE(mpi2test mpi2test.c)\n")
   else(MPI_MPICC)
     file(WRITE ${MPITest_DIR}/CMakeLists.txt
+      "CMAKE_MINIMUM_REQUIRED(VERSION 2.2)\n"
       "PROJECT(mpi2test C)\n"
       "SET(CMAKE_VERBOSE_MAKEFILE ON)\n"
       "SET(CMAKE_BUILD_TYPE \"${CMAKE_BUILD_TYPE}\")\n"

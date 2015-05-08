@@ -1,13 +1,18 @@
 # ---------------------------------------------------------------
-# $Revision: 1.4 $
-# $Date: 2009/02/17 02:58:47 $
+# $Revision: 4135 $
+# $Date: 2014-06-13 15:55:05 -0700 (Fri, 13 Jun 2014) $
 # ---------------------------------------------------------------
 # Programmer:  Radu Serban @ LLNL
 # ---------------------------------------------------------------
-# Copyright (c) 2007, The Regents of the University of California.
+# LLNS Copyright Start
+# Copyright (c) 2014, Lawrence Livermore National Security
+# This work was performed under the auspices of the U.S. Department 
+# of Energy by Lawrence Livermore National Laboratory in part under 
+# Contract W-7405-Eng-48 and in part under Contract DE-AC52-07NA27344.
 # Produced at the Lawrence Livermore National Laboratory.
 # All rights reserved.
 # For details, see the LICENSE file.
+# LLNS Copyright End
 # ---------------------------------------------------------------
 # CMakeLists.txt file for the CVODES library
 
@@ -23,6 +28,7 @@ SET(cvodes_SOURCES
   cvodes_band.c
   cvodes_dense.c
   cvodes_diag.c
+  cvodes_sparse.c
   cvodes_spils.c
   cvodes_spbcgs.c
   cvodes_spgmr.c
@@ -30,6 +36,14 @@ SET(cvodes_SOURCES
   cvodes_bandpre.c
   cvodes_bbdpre.c
   )
+
+IF(KLU_FOUND)
+    LIST(APPEND cvodes_SOURCES cvodes_klu.c)
+ENDIF()
+
+IF(SUPERLUMT_FOUND)
+    LIST(APPEND cvodes_SOURCES cvodes_superlumt.c)
+ENDIF()
 
 # Add variable shared_SOURCES with the common SUNDIALS sources which will
 # also be included in the CVODES library
@@ -40,6 +54,7 @@ SET(shared_SOURCES
   sundials_band.c
   sundials_dense.c
   sundials_iterative.c
+  sundials_sparse.c
   sundials_spbcgs.c
   sundials_spgmr.c
   sundials_sptfqmr.c
@@ -57,11 +72,20 @@ SET(cvodes_HEADERS
   cvodes_diag.h
   cvodes_direct.h
   cvodes.h
+  cvodes_sparse.h
   cvodes_spbcgs.h
   cvodes_spgmr.h
   cvodes_spils.h
   cvodes_sptfqmr.h
   )
+
+IF(KLU_FOUND)
+    LIST(APPEND cvodes_HEADERS cvodes_klu.h)
+ENDIF()
+
+IF(SUPERLUMT_FOUND)
+    LIST(APPEND cvodes_HEADERS cvodes_superlumt.h)
+ENDIF()
 
 # Add prefix with complete path to the CVODES header files
 ADD_PREFIX(${sundials_SOURCE_DIR}/include/cvodes/ cvodes_HEADERS)

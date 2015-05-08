@@ -56,7 +56,7 @@ static int basic_id_test(void)
 
                 /* Try to access IDs with ficticious types */
 	H5E_BEGIN_TRY
-		testPtr = H5Iobject_verify(100, (H5I_type_t) 0);
+            testPtr = H5Iobject_verify((hid_t)100, (H5I_type_t) 0);
 	H5E_END_TRY
 
 	VERIFY(testPtr, NULL, "H5Iobject_verify");
@@ -64,7 +64,7 @@ static int basic_id_test(void)
 		goto out;
 
 	H5E_BEGIN_TRY
-		testPtr = H5Iobject_verify(700, (H5I_type_t) 700);
+            testPtr = H5Iobject_verify((hid_t)700, (H5I_type_t) 700);
 	H5E_END_TRY
 
 	VERIFY(testPtr, NULL, "H5Iobject_verify");
@@ -81,13 +81,13 @@ static int basic_id_test(void)
 	/* Register an ID and retrieve the object it points to.
 	 * Once the ID has been registered, testObj will be freed when
          * its ID type is destroyed. */
-	testObj = malloc(7 * sizeof(int));
+	testObj = HDmalloc(7 * sizeof(int));
 	arrayID = H5Iregister(myType, testObj);
 
 	CHECK(arrayID, H5I_INVALID_HID, "H5Iregister");
 	if(arrayID == H5I_INVALID_HID)
         {
-		free(testObj);
+		HDfree(testObj);
 		goto out;
         }
 
@@ -175,13 +175,13 @@ static int basic_id_test(void)
 	 * freed when the previous type was destroyed.  Allocate new
 	 * memory for it.
          */
-	testObj = malloc(7 * sizeof(int));
+	testObj = HDmalloc(7 * sizeof(int));
 	arrayID = H5Iregister(myType, testObj);
 
 	CHECK(arrayID, H5I_INVALID_HID, "H5Iregister");
 	if(arrayID == H5I_INVALID_HID)
 	{
-		free(testObj);
+		HDfree(testObj);
 		goto out;
 	}
 
@@ -250,7 +250,7 @@ static int id_predefined_test(void )
 	void * testPtr;
 	herr_t testErr;
 
-	testObj = malloc(sizeof(int));
+	testObj = HDmalloc(sizeof(int));
 
 	/* Try to perform illegal functions on various predefined types */
 	H5E_BEGIN_TRY
@@ -319,14 +319,14 @@ static int id_predefined_test(void )
 
 	/* testObj was never registered as an atom, so it will not be
          * automatically freed. */
-	free(testObj);
+	HDfree(testObj);
 	return 0;
 
 out:
 	if(typeID != H5I_INVALID_HID)
 		H5Tclose(typeID);
         if(testObj != NULL)
-		free(testObj);
+		HDfree(testObj);
 
 	return -1;
 }
@@ -393,7 +393,7 @@ static int test_is_valid(void)
         goto out;
 
     /* Check that an id of -1 is invalid */
-    tri_ret = H5Iis_valid(-1);
+    tri_ret = H5Iis_valid((hid_t)-1);
     VERIFY(tri_ret, FALSE, "H4Iis_valid");
     if (tri_ret != FALSE)
         goto out;
@@ -427,13 +427,13 @@ static int test_get_type(void)
         goto out;
 
     /* Check that the ID is correct */
-    type_ret = H5Iget_type(H5T_STRING);
+    type_ret = H5Iget_type((hid_t)H5T_STRING);
     VERIFY(type_ret, H5I_BADID, "H5Iget_type");
     if (type_ret != H5I_BADID)
         goto out;
 
     /* Check that the ID is correct */
-    type_ret = H5Iget_type(-1);
+    type_ret = H5Iget_type((hid_t)-1);
     VERIFY(type_ret, H5I_BADID, "H5Iget_type");
     if (type_ret != H5I_BADID)
         goto out;
@@ -533,6 +533,140 @@ out:
 	return -1;
 }
 
+/* 'Fake' free routine for ID wrapping test */
+static herr_t fake_free(void *obj)
+{
+    /* Shut compilers up */
+    obj = obj;
+
+    return(0);
+}
+
+	/* Test boundary cases with lots of IDs */
+
+/* Type IDs range from 0 to ID_MASK before wrapping around.  The code will assign */
+/* IDs in sequential order until ID_MASK IDs have been given out. */
+/* This test will allocate IDs up to ID_MASK, ensure that IDs wrap around */
+/* to low values successfully, then ensure that deleting types frees up their IDs. */
+/* NOTE: this test depends on the implementation of IDs, so may break */
+/*		if the implementation changes. */
+static int test_id_wrap(void)
+{
+    H5I_type_t testType;    /* ID class for testing */
+    hid_t *id_array=NULL;    /* Array of IDs allocated */
+    hid_t test_id;      /* Test ID */
+    void *obj;          /* Object pointer returned for ID */
+    unsigned u;         /* Local index variable */
+    hsize_t nids;       /* Number of IDs registered for type */
+    herr_t status;      /* Status from routine */
+
+    /* Allocate array for storing IDs */
+    id_array = (hid_t *)HDmalloc((ID_MASK + 1) * sizeof(hid_t));
+    CHECK(id_array, NULL, "HDmalloc");
+
+    /* Register type for testing */
+    testType = H5Iregister_type((size_t)8, 0, (H5I_free_t)fake_free);
+    CHECK(testType, H5I_BADID, "H5Iregister_type");
+    if(testType == H5I_BADID)
+        goto out;
+
+    /* Get IDs, up to the maximum possible */
+    for(u = 0; u <= ID_MASK; u++) {
+        id_array[u] = H5Iregister(testType, &id_array[u]);
+        CHECK(id_array[u], FAIL, "H5Iregister");
+        if(id_array[u] < 0)
+            goto out;
+        if(u > 0) {
+            /* IDs should be returned in increasing order */
+            /* (Since application-registered IDs don't reuse ID values) */
+            if(id_array[u] < id_array[u - 1])
+                goto out;
+
+            /* Release the previous ID in the array */
+            obj = H5Iremove_verify(id_array[u - 1], testType);
+            CHECK(obj, NULL, "H5Iremove_verify");
+            if(NULL == obj)
+                goto out;
+            VERIFY(obj, &id_array[u - 1], "H5Iremove_verify");
+            if(&id_array[u - 1] != obj)
+                goto out;
+        } /* end if */
+
+        /* Verify number of registered IDs */
+        /* (Should stay at 1) */
+        status = H5Inmembers(testType, &nids);
+        CHECK(status, FAIL, "H5Inmembers");
+        if(status < 0)
+            goto out;
+        VERIFY(nids, 1, "H5Inmembers");
+        if(nids != 1)
+            goto out;
+    } /* end for */
+
+    /* Register another object, will wraparound */
+    test_id = H5Iregister(testType, &id_array[0]);
+    CHECK(test_id, FAIL, "H5Iregister");
+    if(test_id < 0)
+        goto out;
+    VERIFY(test_id, id_array[0], "H5Iregister");
+    if(id_array[0] != test_id)
+        goto out;
+
+    /* Verify number of registered IDs */
+    /* (Should be 2 now) */
+    status = H5Inmembers(testType, &nids);
+    CHECK(status, FAIL, "H5Inmembers");
+    if(status < 0)
+        goto out;
+    VERIFY(nids, 2, "H5Inmembers");
+    if(nids != 2)
+        goto out;
+
+    /* Release the first ID in the array */
+    obj = H5Iremove_verify(id_array[0], testType);
+    CHECK(obj, NULL, "H5Iremove_verify");
+    if(NULL == obj)
+        goto out;
+    VERIFY(obj, &id_array[0], "H5Iremove_verify");
+    if(&id_array[0] != obj)
+        goto out;
+
+    /* Release the last ID in the array */
+    obj = H5Iremove_verify(id_array[ID_MASK], testType);
+    CHECK(obj, NULL, "H5Iremove_verify");
+    if(NULL == obj)
+        goto out;
+    VERIFY(obj, &id_array[ID_MASK], "H5Iremove_verify");
+    if(&id_array[ID_MASK] != obj)
+        goto out;
+
+    /* Verify number of registered IDs */
+    /* (Should be 0 now) */
+    status = H5Inmembers(testType, &nids);
+    CHECK(status, FAIL, "H5Inmembers");
+    if(status < 0)
+        goto out;
+    VERIFY(nids, 0, "H5Inmembers");
+    if(nids != 0)
+        goto out;
+
+    status = H5Idestroy_type(testType);
+    CHECK(status, FAIL, "H5Idestroy_type");
+    if(status < 0)
+        goto out;
+
+    HDfree(id_array);
+
+    return(0);
+
+out:
+    /* cleanup */
+    if (id_array)
+	HDfree(id_array);
+
+    return(-1);
+}
+
 void test_ids(void)
 {
 	if (basic_id_test() < 0) TestErrPrintf("Basic ID test failed\n");
@@ -540,5 +674,5 @@ void test_ids(void)
 	if (test_is_valid() < 0) TestErrPrintf("H5Iis_valid test failed\n");
 	if (test_get_type() < 0) TestErrPrintf("H5Iget_type test failed\n");
 	if (test_id_type_list() < 0) TestErrPrintf("ID type list test failed\n");
-
+	if (test_id_wrap() < 0) TestErrPrintf("ID wraparound test failed\n");
 }

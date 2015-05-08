@@ -1,14 +1,19 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 1.3 $
- * $Date: 2007/04/30 19:28:59 $
+ * $Revision: 4294 $
+ * $Date: 2014-12-15 13:18:40 -0800 (Mon, 15 Dec 2014) $
  * ----------------------------------------------------------------- 
  * Programmer: Radu Serban @ LLNL
  * -----------------------------------------------------------------
- * Copyright (c) 2002, The Regents of the University of California.
+ * LLNS Copyright Start
+ * Copyright (c) 2014, Lawrence Livermore National Security
+ * This work was performed under the auspices of the U.S. Department 
+ * of Energy by Lawrence Livermore National Laboratory in part under 
+ * Contract W-7405-Eng-48 and in part under Contract DE-AC52-07NA27344.
  * Produced at the Lawrence Livermore National Laboratory.
  * All rights reserved.
  * For details, see the LICENSE file.
+ * LLNS Copyright End
  * -----------------------------------------------------------------
  * Fortran/C interface routines for CVODE, for the case of a 
  * user-supplied error weight calculation routine.
@@ -43,10 +48,7 @@ extern "C" {
 
 void FCV_EWTSET(int *flag, int *ier)
 {
-  CVodeMem cv_mem;
-
   if (*flag != 0) {
-    cv_mem = (CVodeMem) CV_cvodemem;
     *ier = CVodeWFtolerances(CV_cvodemem, FCVEwtSet);
   }
 }

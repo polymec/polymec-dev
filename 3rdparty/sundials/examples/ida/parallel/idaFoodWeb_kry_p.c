@@ -1,7 +1,7 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 1.3 $
- * $Date: 2010/12/01 23:03:29 $
+ * $Revision: 4396 $
+ * $Date: 2015-02-26 16:59:39 -0800 (Thu, 26 Feb 2015) $
  * -----------------------------------------------------------------
  * Programmer(s): Allan Taylor, Alan Hindmarsh and
  *                Radu Serban @ LLNL
@@ -563,13 +563,13 @@ static void PrintHeader(long int SystemSize, int maxl,
   printf("\nidaFoodWeb_kry_p: Predator-prey DAE parallel example problem for IDA \n\n");
   printf("Number of species ns: %d", NUM_SPECIES);
   printf("     Mesh dimensions: %d x %d", MX, MY);
-  printf("     Total system size: %d\n",SystemSize);
+  printf("     Total system size: %ld\n",SystemSize);
   printf("Subgrid dimensions: %d x %d", MXSUB, MYSUB);
   printf("     Processor array: %d x %d\n", NPEX, NPEY);
 #if defined(SUNDIALS_EXTENDED_PRECISION)
   printf("Tolerance parameters:  rtol = %Lg   atol = %Lg\n", rtol, atol);
 #elif defined(SUNDIALS_DOUBLE_PRECISION)
-  printf("Tolerance parameters:  rtol = %lg   atol = %lg\n", rtol, atol);
+  printf("Tolerance parameters:  rtol = %g   atol = %g\n", rtol, atol);
 #else
   printf("Tolerance parameters:  rtol = %g   atol = %g\n", rtol, atol);
 #endif
@@ -632,10 +632,10 @@ static void PrintOutput(void *mem, N_Vector cc, realtype tt,
     for (i=1;i<NUM_SPECIES;i++)
       printf("         %12.4Le %12.4Le   |\n",cdata[i],clast[i]);
 #elif defined(SUNDIALS_DOUBLE_PRECISION)
-    printf("%8.2le %12.4le %12.4le   | %3ld  %1d %12.4le\n", 
+    printf("%8.2e %12.4e %12.4e   | %3ld  %1d %12.4e\n", 
          tt, cdata[0], clast[0], nst, kused, hused);
     for (i=1;i<NUM_SPECIES;i++)
-      printf("         %12.4le %12.4le   |\n",cdata[i],clast[i]);
+      printf("         %12.4e %12.4e   |\n",cdata[i],clast[i]);
 #else
     printf("%8.2e %12.4e %12.4e   | %3ld  %1d %12.4e\n", 
          tt, cdata[0], clast[0], nst, kused, hused);
@@ -1139,7 +1139,7 @@ static int Precondbd(realtype tt, N_Vector cc,
 
   webdata = (UserData)user_data;
   uround = UNIT_ROUNDOFF;
-  sqru = SQRT(uround); 
+  sqru = SUNRsqrt(uround);
   thispe = webdata->thispe;
 
   mem = webdata->ida_mem;
@@ -1161,7 +1161,7 @@ static int Precondbd(realtype tt, N_Vector cc,
       ratesxy = IJ_Vptr(rates,ix,jy);
 
       for (js = 0; js < ns; js++) {
-        inc = sqru*(MAX(ABS(cxy[js]), MAX(hh*ABS(cpxy[js]), ONE/ewtxy[js])));
+        inc = sqru*(SUNMAX(SUNRabs(cxy[js]), SUNMAX(hh*SUNRabs(cpxy[js]), ONE/ewtxy[js])));
         cctemp = cxy[js];  /* Save the (js,ix,jy) element of cc. */
         cxy[js] += inc;    /* Perturb the (js,ix,jy) element of cc. */
         fac = -ONE/inc;

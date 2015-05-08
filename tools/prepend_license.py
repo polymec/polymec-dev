@@ -40,7 +40,7 @@ def visit_files(sources, dirname, files):
             # Don't go there, girlfriend.
             files.remove(ex_dir)
     sources.extend([os.path.join(dirname, f) for f in files if f[-2:] == '.h'])
-    sources.extend([os.path.join(dirname, f) for f in files if f[-2:] == '.c'])
+    sources.extend([os.path.join(dirname, f) for f in files if (f[-2:] == '.c' or f[-4:] == '.cpp')])
 
 def find_sources(dirname):
     sources = []
@@ -51,10 +51,17 @@ def remove_old_license(source_file):
     f = open(source_file, 'r')
     lines = f.readlines()
     f.close()
-    first_line = lines[0]
-    f = open(source_file, 'w')
+
+    # Do we have the old license?
     old_license_lines = old_license_text.split('\n')
-    if old_license_lines[0] in first_line:
+    has_old_license = True
+    for i in xrange(len(lines)):
+        if old_license_lines[i] not in lines[i]:
+            has_old_license = False
+            break
+
+    f = open(source_file, 'w')
+    if has_old_license:
         last_line = 1
         while old_license_lines[-1] not in lines[last_line]:
             last_line += 1

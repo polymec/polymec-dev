@@ -36,9 +36,9 @@ index_t hilbert_index(hilbert_t* curve, point_t* x)
 
   // Create integer coordinates corresponding to x.
   uint16_t X[3];
-  X[0] = (uint16_t)((x->x - curve->bbox.x1)/curve->dx);
-  X[1] = (uint16_t)((x->y - curve->bbox.y1)/curve->dy);
-  X[2] = (uint16_t)((x->z - curve->bbox.z1)/curve->dz);
+  X[0] = (curve->dx != 0.0) ? (uint16_t)((x->x - curve->bbox.x1)/curve->dx) : 0;
+  X[1] = (curve->dy != 0.0) ? (uint16_t)((x->y - curve->bbox.y1)/curve->dy) : 0;
+  X[2] = (curve->dz != 0.0) ? (uint16_t)((x->z - curve->bbox.z1)/curve->dz) : 0;
   
   // Compute the Hilbert "transpose" (X[0], X[1], X[2]) corresponding to these 
   // discrete coordinates.
@@ -132,3 +132,38 @@ void hilbert_create_point(hilbert_t* curve, index_t index, point_t* x)
   x->z = curve->bbox.z1 + X[2] * curve->dz;
 }
 
+typedef struct
+{
+  hilbert_t* curve;
+  int index;
+  point_t x;
+
+} hilbert_sort_t;
+
+static int hilbert_comp(const void* left, const void* right)
+{
+  hilbert_sort_t* l = (hilbert_sort_t*)left;
+  hilbert_sort_t* r = (hilbert_sort_t*)right;
+  index_t i1 = hilbert_index(l->curve, &(l->x));
+  index_t i2 = hilbert_index(r->curve, &(r->x));
+  return (i1 < i2) ? -1 : (i1 > i2) ? 1 : 0;
+}
+
+void hilbert_sort_points(hilbert_t* curve, point_t* points, int* indices, int num_points)
+{
+  hilbert_sort_t elems[num_points];
+  for (int i = 0; i < num_points; ++i)
+  {
+    elems[i].curve = curve;
+    if (indices != NULL)
+      elems[i].index = indices[i];
+    elems[i].x = points[i];
+  }
+  qsort(elems, (size_t)num_points, sizeof(hilbert_sort_t), hilbert_comp);
+  for (int i = 0; i < num_points; ++i)
+  {
+    if (indices != NULL)
+      indices[i] = elems[i].index;
+    points[i] = elems[i].x;
+  }
+}

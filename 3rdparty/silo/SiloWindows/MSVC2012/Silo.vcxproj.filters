@@ -18,6 +18,9 @@
     <Filter Include="Source Files\pdb_drv">
       <UniqueIdentifier>{a5a05c0d-c9ff-479d-b704-e8e36367455a}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\hzip">
+      <UniqueIdentifier>{8e94745c-5c88-4e93-85dd-2deea4931e36}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Header Files\taurus_drv">
       <UniqueIdentifier>{5cfee3fc-3f25-4ace-9c79-58ec311615c4}</UniqueIdentifier>
     </Filter>
@@ -33,8 +36,14 @@
     <Filter Include="Header Files\filters">
       <UniqueIdentifier>{33c5d424-dd8d-4a6d-9e66-fd4b812b7486}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\fpzip">
+      <UniqueIdentifier>{0e50d8e5-08a2-43c9-bc5c-83cbfe085c4a}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Header Files\hdf5_drv">
       <UniqueIdentifier>{f1de1134-82ac-4e1a-ac70-9072c99a7dae}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\hzip">
+      <UniqueIdentifier>{ffad09ef-114d-4a38-9021-b8ef6275aabb}</UniqueIdentifier>
     </Filter>
     <Filter Include="Header Files\silo">
       <UniqueIdentifier>{0c828d0b-349d-4989-91c7-0d9a310af1b4}</UniqueIdentifier>
@@ -44,6 +53,9 @@
     </Filter>
     <Filter Include="Source Files\hdf5_drv">
       <UniqueIdentifier>{57a6a43e-8406-4fdf-9c59-35197de4a97f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\fpzip">
+      <UniqueIdentifier>{c5f18c01-2ec3-4865-a621-a61bc6e942cc}</UniqueIdentifier>
     </Filter>
     <Filter Include="Source Files\filters">
       <UniqueIdentifier>{9476e32e-ba96-4459-a75a-254258fcc5ef}</UniqueIdentifier>
@@ -140,11 +152,62 @@
     <ClCompile Include="..\..\src\pdb\pdconv.c">
       <Filter>Source Files\pdb</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\src\hzip\hzmdecoder.cpp">
+      <Filter>Source Files\hzip</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\hzip\hzmencoder.cpp">
+      <Filter>Source Files\hzip</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\hzip\hzmio.cpp">
+      <Filter>Source Files\hzip</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\hzip\hzmpredictor.cpp">
+      <Filter>Source Files\hzip</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\hzip\hzmread.cpp">
+      <Filter>Source Files\hzip</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\hzip\hzmwrite.cpp">
+      <Filter>Source Files\hzip</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\hzip\hznio.cpp">
+      <Filter>Source Files\hzip</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\hzip\hznpredictor.cpp">
+      <Filter>Source Files\hzip</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\hzip\hznread.cpp">
+      <Filter>Source Files\hzip</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\hzip\hznwrite.cpp">
+      <Filter>Source Files\hzip</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\hzip\hzutil.cpp">
+      <Filter>Source Files\hzip</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\src\hdf5_drv\H5FDsilo.c">
       <Filter>Source Files\hdf5_drv</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\hdf5_drv\silo_hdf5.c">
       <Filter>Source Files\hdf5_drv</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\fpzip\error.cpp">
+      <Filter>Source Files\fpzip</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\fpzip\rcdecoder.cpp">
+      <Filter>Source Files\fpzip</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\fpzip\rcencoder.cpp">
+      <Filter>Source Files\fpzip</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\fpzip\rcqsmodel.cpp">
+      <Filter>Source Files\fpzip</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\fpzip\read.cpp">
+      <Filter>Source Files\fpzip</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\fpzip\write.cpp">
+      <Filter>Source Files\fpzip</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\filters\f_ale3d.c">
       <Filter>Source Files\filters</Filter>
@@ -211,11 +274,104 @@
     <ClInclude Include="..\..\src\filters\filter.h">
       <Filter>Header Files\filters</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\src\fpzip\codec.h">
+      <Filter>Header Files\fpzip</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\fpzip\fpe.h">
+      <Filter>Header Files\fpzip</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\fpzip\fpzip.h">
+      <Filter>Header Files\fpzip</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\fpzip\front.h">
+      <Filter>Header Files\fpzip</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\fpzip\pccodec.h">
+      <Filter>Header Files\fpzip</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\fpzip\pcdecoder.h">
+      <Filter>Header Files\fpzip</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\fpzip\pcencoder.h">
+      <Filter>Header Files\fpzip</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\fpzip\pcmap.h">
+      <Filter>Header Files\fpzip</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\fpzip\rcdecoder.h">
+      <Filter>Header Files\fpzip</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\fpzip\rcencoder.h">
+      <Filter>Header Files\fpzip</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\fpzip\rcmodel.h">
+      <Filter>Header Files\fpzip</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\fpzip\rcqsmodel.h">
+      <Filter>Header Files\fpzip</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\fpzip\read.h">
+      <Filter>Header Files\fpzip</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\fpzip\write.h">
+      <Filter>Header Files\fpzip</Filter>
+    </ClInclude>
     <ClInclude Include="..\..\src\hdf5_drv\H5FDsilo.h">
       <Filter>Header Files\hdf5_drv</Filter>
     </ClInclude>
     <ClInclude Include="..\..\src\hdf5_drv\silo_hdf5_private.h">
       <Filter>Header Files\hdf5_drv</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\hzip\bitvector.h">
+      <Filter>Header Files\hzip</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\hzip\hzio.h">
+      <Filter>Header Files\hzip</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\hzip\hzip.h">
+      <Filter>Header Files\hzip</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\hzip\hzmap.h">
+      <Filter>Header Files\hzip</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\hzip\hzmcodec.h">
+      <Filter>Header Files\hzip</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\hzip\hzmdecoder.h">
+      <Filter>Header Files\hzip</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\hzip\hzmencoder.h">
+      <Filter>Header Files\hzip</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\hzip\hzmio.h">
+      <Filter>Header Files\hzip</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\hzip\hzmpredictor.h">
+      <Filter>Header Files\hzip</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\hzip\hzncodec.h">
+      <Filter>Header Files\hzip</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\hzip\hzndecoder.h">
+      <Filter>Header Files\hzip</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\hzip\hznencoder.h">
+      <Filter>Header Files\hzip</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\hzip\hznio.h">
+      <Filter>Header Files\hzip</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\hzip\hznpredictor.h">
+      <Filter>Header Files\hzip</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\hzip\hzresidual.h">
+      <Filter>Header Files\hzip</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\hzip\ibstream.h">
+      <Filter>Header Files\hzip</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\hzip\obstream.h">
+      <Filter>Header Files\hzip</Filter>
     </ClInclude>
     <ClInclude Include="..\..\src\unknown\silo_unknown_private.h">
       <Filter>Header Files\unknown</Filter>

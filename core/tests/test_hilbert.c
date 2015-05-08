@@ -51,6 +51,57 @@ void test_reproduce_point(void** state)
   assert_true(point_distance(&x, &y) < 1e-12);
 }
 
+void test_sort_points(void** state)
+{
+  bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
+  hilbert_t* h = hilbert_new(&bbox);
+  point_t points[4] = {{0.0, 0.0, 0.0},
+                       {1.0, 0.0, 0.0},
+                       {1.0, 1.0, 0.0},
+                       {1.0, 1.0, 1.0}};
+  hilbert_sort_points(h, points, NULL, 4);
+  assert_true(points[0].x == 0.0);
+  assert_true(points[0].y == 0.0);
+  assert_true(points[0].z == 0.0);
+  assert_true(points[1].x == 1.0);
+  assert_true(points[1].y == 1.0);
+  assert_true(points[1].z == 0.0);
+  assert_true(points[2].x == 1.0);
+  assert_true(points[2].y == 1.0);
+  assert_true(points[2].z == 1.0);
+  assert_true(points[3].x == 1.0);
+  assert_true(points[3].y == 0.0);
+  assert_true(points[3].z == 0.0);
+}
+
+void test_sort_points_and_indices(void** state)
+{
+  bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
+  hilbert_t* h = hilbert_new(&bbox);
+  point_t points[4] = {{0.0, 0.0, 0.0},
+                       {1.0, 0.0, 0.0},
+                       {1.0, 1.0, 0.0},
+                       {1.0, 1.0, 1.0}};
+  int indices[4] = {0, 1, 2, 3};
+  hilbert_sort_points(h, points, indices, 4);
+  assert_true(points[0].x == 0.0);
+  assert_true(points[0].y == 0.0);
+  assert_true(points[0].z == 0.0);
+  assert_int_equal(0, indices[0]);
+  assert_true(points[1].x == 1.0);
+  assert_true(points[1].y == 1.0);
+  assert_true(points[1].z == 0.0);
+  assert_int_equal(2, indices[1]);
+  assert_true(points[2].x == 1.0);
+  assert_true(points[2].y == 1.0);
+  assert_true(points[2].z == 1.0);
+  assert_int_equal(3, indices[2]);
+  assert_true(points[3].x == 1.0);
+  assert_true(points[3].y == 0.0);
+  assert_true(points[3].z == 0.0);
+  assert_int_equal(1, indices[3]);
+}
+
 int main(int argc, char* argv[]) 
 {
   polymec_init(argc, argv);
@@ -58,7 +109,9 @@ int main(int argc, char* argv[])
   {
     unit_test(test_ctor),
     unit_test(test_index),
-    unit_test(test_reproduce_point)
+    unit_test(test_reproduce_point),
+    unit_test(test_sort_points),
+    unit_test(test_sort_points_and_indices)
   };
   return run_tests(tests);
 }

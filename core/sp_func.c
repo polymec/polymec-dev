@@ -190,7 +190,7 @@ static void constant_dtor(void* ctx)
 static sp_func_t* create_constant_sp_func(real_t components[], int num_components)
 {
   sp_vtable vtable = {.eval = constant_eval, .dtor = constant_dtor};
-  char name[1024];
+  char name[1025];
   snprintf(name, 1024, "constant spatial function (");
   for (int i = 0; i < num_components; ++i)
   {

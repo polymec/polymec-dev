@@ -1,14 +1,19 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 1.1 $
- * $Date: 2006/07/05 15:32:37 $
+ * $Revision: 4075 $
+ * $Date: 2014-04-24 10:46:58 -0700 (Thu, 24 Apr 2014) $
  * ----------------------------------------------------------------- 
  * Programmer(s): Radu Serban @ LLNL
  * -----------------------------------------------------------------
- * Copyright (c) 2002, The Regents of the University of California.
+ * LLNS Copyright Start
+ * Copyright (c) 2014, Lawrence Livermore National Security
+ * This work was performed under the auspices of the U.S. Department 
+ * of Energy by Lawrence Livermore National Laboratory in part under 
+ * Contract W-7405-Eng-48 and in part under Contract DE-AC52-07NA27344.
  * Produced at the Lawrence Livermore National Laboratory.
  * All rights reserved.
  * For details, see the LICENSE file.
+ * LLNS Copyright End
  * -----------------------------------------------------------------
  * This file (companion of nvector_parallel.h) contains the 
  * implementation needed for the Fortran initialization of parallel 
@@ -36,6 +41,8 @@ N_Vector F2C_IDA_vecB;
 N_Vector F2C_IDA_vecQB;
 
 N_Vector F2C_KINSOL_vec;
+
+N_Vector F2C_ARKODE_vec;
 
 #ifndef SUNDIALS_MPI_COMM_F2C
 #define MPI_Fint int
@@ -70,6 +77,11 @@ void FNV_INITP(MPI_Fint *comm, int *code, long int *L, long int *N, int *ier)
     F2C_KINSOL_vec = NULL;
     F2C_KINSOL_vec = N_VNewEmpty_Parallel(F2C_comm, *L, *N);
     if (F2C_KINSOL_vec == NULL) *ier = -1;
+    break;
+  case FCMIX_ARKODE:
+    F2C_ARKODE_vec = NULL;
+    F2C_ARKODE_vec = N_VNewEmpty_Parallel(F2C_comm, *L, *N);
+    if (F2C_ARKODE_vec == NULL) *ier = -1;
     break;
   default:
     *ier = -1;

@@ -1,7 +1,7 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 1.4 $
- * $Date: 2010/12/01 23:00:48 $
+ * $Revision: 4396 $
+ * $Date: 2015-02-26 16:59:39 -0800 (Thu, 26 Feb 2015) $
  * -----------------------------------------------------------------
  * Programmer(s): S. D. Cohen, A. C. Hindmarsh, M. R. Wittman, and
  *                Radu Serban  @ LLNL
@@ -57,7 +57,7 @@
 #include <nvector/nvector_parallel.h>  /* definition N_Vector and macro NV_DATA_P  */
 #include <sundials/sundials_dense.h>   /* prototypes for small dense matrix fcts. */
 #include <sundials/sundials_types.h>   /* definitions of realtype, booleantype */
-#include <sundials/sundials_math.h>    /* definition of macros SQR and EXP */
+#include <sundials/sundials_math.h>    /* definition of macros SUNSQR and EXP */
 
 #include <mpi.h>                       /* MPI constants and types */
 
@@ -95,7 +95,7 @@
 #define MX           (NPEX*MXSUB)   /* MX = number of x mesh points */
 #define MY           (NPEY*MYSUB)   /* MY = number of y mesh points */
                                     /* Spatial mesh is MX by MY */
-/* CVodeMalloc Constants */
+/* CVodeInit Constants */
 
 #define RTOL    RCONST(1.0e-5)    /* scalar relative tolerance */
 #define FLOOR   RCONST(100.0)     /* value of C1 or C2 at which tolerances */
@@ -294,9 +294,9 @@ static void InitUserData(int my_pe, MPI_Comm comm, UserData data)
   data->om = PI/HALFDAY;
   data->dx = (XMAX-XMIN)/((realtype)(MX-1));
   data->dy = (YMAX-YMIN)/((realtype)(MY-1));
-  data->hdco = KH/SQR(data->dx);
+  data->hdco = KH/SUNSQR(data->dx);
   data->haco = VEL/(RCONST(2.0)*data->dx);
-  data->vdco = (RCONST(1.0)/SQR(data->dy))*KV0;
+  data->vdco = (RCONST(1.0)/SUNSQR(data->dy))*KV0;
 
   /* Set machine-related constants */
   data->comm = comm;
@@ -364,13 +364,13 @@ static void SetInitialProfiles(N_Vector u, UserData data)
   for (ly = 0; ly < MYSUB; ly++) {
     jy = ly + isuby*MYSUB;
     y = YMIN + jy*dy;
-    cy = SQR(RCONST(0.1)*(y - ymid));
-    cy = RCONST(1.0) - cy + RCONST(0.5)*SQR(cy);
+    cy = SUNSQR(RCONST(0.1)*(y - ymid));
+    cy = RCONST(1.0) - cy + RCONST(0.5)*SUNSQR(cy);
     for (lx = 0; lx < MXSUB; lx++) {
       jx = lx + isubx*MXSUB;
       x = XMIN + jx*dx;
-      cx = SQR(RCONST(0.1)*(x - xmid));
-      cx = RCONST(1.0) - cx + RCONST(0.5)*SQR(cx);
+      cx = SUNSQR(RCONST(0.1)*(x - xmid));
+      cx = RCONST(1.0) - cx + RCONST(0.5)*SUNSQR(cx);
       udata[offset  ] = C1_SCALE*cx*cy; 
       udata[offset+1] = C2_SCALE*cx*cy;
       offset = offset + 2;
@@ -422,10 +422,10 @@ static void PrintOutput(void *cvode_mem, int my_pe, MPI_Comm comm,
     printf("At bottom left:  c1, c2 = %12.3Le %12.3Le \n", udata[0], udata[1]);
     printf("At top right:    c1, c2 = %12.3Le %12.3Le \n\n", tempu[0], tempu[1]);
 #elif defined(SUNDIALS_DOUBLE_PRECISION)
-    printf("t = %.2le   no. steps = %ld   order = %d   stepsize = %.2le\n",
+    printf("t = %.2e   no. steps = %ld   order = %d   stepsize = %.2e\n",
            t, nst, qu, hu);
-    printf("At bottom left:  c1, c2 = %12.3le %12.3le \n", udata[0], udata[1]);
-    printf("At top right:    c1, c2 = %12.3le %12.3le \n\n", tempu[0], tempu[1]);
+    printf("At bottom left:  c1, c2 = %12.3e %12.3e \n", udata[0], udata[1]);
+    printf("At top right:    c1, c2 = %12.3e %12.3e \n\n", tempu[0], tempu[1]);
 #else
     printf("t = %.2e   no. steps = %ld   order = %d   stepsize = %.2e\n",
            t, nst, qu, hu);
@@ -727,8 +727,8 @@ static void fcalc(realtype t, realtype udata[],
   data block for use by preconditioner evaluation routine */
   s = sin((data->om)*t);
   if (s > RCONST(0.0)) {
-    q3 = EXP(-A3/s);
-    q4coef = EXP(-A4/s);
+    q3 = SUNRexp(-A3/s);
+    q4coef = SUNRexp(-A4/s);
   } else {
     q3 = RCONST(0.0);
     q4coef = RCONST(0.0);
@@ -743,8 +743,8 @@ static void fcalc(realtype t, realtype udata[],
     /* Set vertical diffusion coefficients at jy +- 1/2 */
     ydn = YMIN + (jy - RCONST(0.5))*dely;
     yup = ydn + dely;
-    cydn = verdco*EXP(RCONST(0.2)*ydn);
-    cyup = verdco*EXP(RCONST(0.2)*yup);
+    cydn = verdco*SUNRexp(RCONST(0.2)*ydn);
+    cyup = verdco*SUNRexp(RCONST(0.2)*yup);
     for (lx = 0; lx < MXSUB; lx++) {
 
       jx = lx + isubx*MXSUB;
@@ -861,8 +861,8 @@ static int Precond(realtype tn, N_Vector u, N_Vector fu,
       jy = ly + isuby*MYSUB;
       ydn = YMIN + (jy - RCONST(0.5))*dely;
       yup = ydn + dely;
-      cydn = verdco*EXP(RCONST(0.2)*ydn);
-      cyup = verdco*EXP(RCONST(0.2)*yup);
+      cydn = verdco*SUNRexp(RCONST(0.2)*ydn);
+      cyup = verdco*SUNRexp(RCONST(0.2)*yup);
       diag = -(cydn + cyup + RCONST(2.0)*hordco);
       for (lx = 0; lx < MXSUB; lx++) {
         jx = lx + isubx*MXSUB;

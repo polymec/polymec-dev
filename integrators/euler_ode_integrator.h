@@ -55,8 +55,16 @@ void euler_ode_integrator_set_tolerances(ode_integrator_t* integrator,
 // Sets the Lp norm to be used for measuring the change in the solution over 
 // an iteration. By default, the L-infinity norm is used. p may be 1 or 2, or 
 // 0 (L-infinity norm).
-void euler_ode_integrator_set_convergence_norm(ode_integrator_t* integrator,
-                                               int p);
+void euler_ode_integrator_set_lp_convergence_norm(ode_integrator_t* integrator,
+                                                  int p);
+
+// Sets a custom norm to be used for measuring the change in the solution 
+// over an iteration. The norm function takes an MPI communicator (over which 
+// the norm should be summed/maxed/etc), vectors x and y to be differenced, 
+// the length N of the vectors, and pointers to storage for the absolute and 
+// relative norms.
+void euler_ode_integrator_set_custom_convergence_norm(ode_integrator_t* integrator,
+                                                      void (*compute_norms)(MPI_Comm comm, real_t* x, real_t* y, int N, real_t* abs_norm, real_t* rel_norm));
 
 // This method provides access to the underlying Newton solver in the Newton Euler 
 // ODE integrator.

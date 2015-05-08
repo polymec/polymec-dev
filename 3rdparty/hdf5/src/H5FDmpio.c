@@ -44,6 +44,10 @@
  */
 static hid_t H5FD_MPIO_g = 0;
 
+/* Whether to allow collective I/O operations */
+/* (Value can be set from environment variable also) */
+hbool_t H5FD_mpi_opt_types_g = TRUE;
+
 /*
  * The view is set to this value
  */
@@ -187,13 +191,10 @@ H5FD_mpio_init_interface(void)
  *    library.
  *
  * Return:  Success:  The driver ID for the mpio driver.
- *
  *    Failure:  Negative.
  *
  * Programmer:  Robb Matzke
  *              Thursday, August 5, 1999
- *
- * Modifications:
  *
  *-------------------------------------------------------------------------
  */
@@ -201,37 +202,43 @@ hid_t
 H5FD_mpio_init(void)
 {
 #ifdef H5FDmpio_DEBUG
-    static int H5FD_mpio_Debug_inited=0;
+    static int H5FD_mpio_Debug_inited = 0;
 #endif /* H5FDmpio_DEBUG */
-    hid_t ret_value;          /* Return value */
+    const char *s;              /* String for environment variables */
+    hid_t ret_value;        	/* Return value */
 
     FUNC_ENTER_NOAPI(FAIL)
 
-    if (H5I_VFL!=H5I_get_type(H5FD_MPIO_g))
-        H5FD_MPIO_g = H5FD_register((const H5FD_class_t *)&H5FD_mpio_g,sizeof(H5FD_class_mpi_t),FALSE);
+    /* Register the MPI-IO VFD, if it isn't already */
+    if(H5I_VFL != H5I_get_type(H5FD_MPIO_g))
+        H5FD_MPIO_g = H5FD_register((const H5FD_class_t *)&H5FD_mpio_g, sizeof(H5FD_class_mpi_t), FALSE);
+
+    /* Allow MPI buf-and-file-type optimizations? */
+    s = HDgetenv("HDF5_MPI_OPT_TYPES");
+    if(s && HDisdigit(*s))
+        H5FD_mpi_opt_types_g = (hbool_t)HDstrtol(s, NULL, 0);
 
 #ifdef H5FDmpio_DEBUG
-    if (!H5FD_mpio_Debug_inited)
-    {
-  /* set debug mask */
-  /* Should this be done in H5F global initialization instead of here? */
-        const char *s = HDgetenv ("H5FD_mpio_Debug");
-        if (s) {
-      while (*s){
-    H5FD_mpio_Debug[(int)*s]++;
-    s++;
-      }
-        }
-  H5FD_mpio_Debug_inited++;
-    }
+    if(!H5FD_mpio_Debug_inited) {
+        /* Retrieve MPI-IO debugging environment variable */
+        s = HDgetenv("H5FD_mpio_Debug");
+        if(s) {
+            /* Set debug mask */
+	    while(*s) {
+		H5FD_mpio_Debug[(int)*s]++;
+		s++;
+	    } /* end while */
+        } /* end if */
+        H5FD_mpio_Debug_inited++;
+    } /* end if */
 #endif /* H5FDmpio_DEBUG */
 
     /* Set return value */
-    ret_value=H5FD_MPIO_g;
+    ret_value = H5FD_MPIO_g;
 
 done:
     FUNC_LEAVE_NOAPI(ret_value)
-}
+} /* end H5FD_mpio_init() */
 
 
 /*---------------------------------------------------------------------------
@@ -997,9 +1004,6 @@ H5FD_mpio_open(const char *name, unsigned flags, hid_t fapl_id,
     MPI_Comm                    comm_dup=MPI_COMM_NULL;
     MPI_Info                    info_dup=MPI_INFO_NULL;
     H5FD_t      *ret_value;     /* Return value */
-#ifndef H5_HAVE_MPI_GET_SIZE
-    h5_stat_t                 stat_buf;
-#endif
 
     FUNC_ENTER_NOAPI_NOINIT
 
@@ -1074,18 +1078,8 @@ H5FD_mpio_open(const char *name, unsigned flags, hid_t fapl_id,
 
     /* Only processor p0 will get the filesize and broadcast it. */
     if (mpi_rank == 0) {
-        /* Get current file size.  If MPI_File_get_size is disabled in configuration
-         * because it doesn't return correct value (SGI Altix Propack 4),
-         * use stat to get the file size. */
-#ifdef H5_HAVE_MPI_GET_SIZE
         if (MPI_SUCCESS != (mpi_code=MPI_File_get_size(fh, &size)))
             HMPI_GOTO_ERROR(NULL, "MPI_File_get_size failed", mpi_code)
-#else
-        if((mpi_code=HDstat(name, &stat_buf))<0)
-            HMPI_GOTO_ERROR(NULL, "stat failed", mpi_code)
-        /* Hopefully this casting is safe */
-        size = (MPI_Offset)(stat_buf.st_size);
-#endif
     } /* end if */
 
     /* Broadcast file size */
@@ -1980,38 +1974,14 @@ H5FD_mpio_truncate(H5FD_t *_file, hid_t UNUSED dxpl_id, hbool_t UNUSED closing)
         int    mpi_code;  /* mpi return code */
         MPI_Offset      mpi_off;
 
-#ifdef H5_MPI_FILE_SET_SIZE_BIG
         if(H5FD_mpi_haddr_to_MPIOff(file->eoa, &mpi_off) < 0)
             HGOTO_ERROR(H5E_INTERNAL, H5E_BADRANGE, FAIL, "cannot convert from haddr_t to MPI_Offset")
 
         /* Extend the file's size */
         if(MPI_SUCCESS != (mpi_code = MPI_File_set_size(file->f, mpi_off)))
             HMPI_GOTO_ERROR(FAIL, "MPI_File_set_size failed", mpi_code)
-#else /* H5_MPI_FILE_SET_SIZE_BIG */
-  /* Wait until all processes are here before reading/writing the byte at
-         * process 0's end of address space.  The window for corruption is
-         * probably tiny, but does exist...
-         */
-        if(MPI_SUCCESS != (mpi_code = MPI_Barrier(file->comm)))
-            HMPI_GOTO_ERROR(FAIL, "MPI_Barrier failed", mpi_code)
 
-        if(0 == file->mpi_rank) {
-            uint8_t             byte = 0;
-            MPI_Status          mpi_stat;
-
-            /* Portably initialize MPI status variable */
-            HDmemset(&mpi_stat, 0, sizeof(MPI_Status));
-
-            if(H5FD_mpi_haddr_to_MPIOff(file->eoa-1, &mpi_off) < 0)
-                HGOTO_ERROR(H5E_INTERNAL, H5E_BADRANGE, FAIL, "cannot convert from haddr_t to MPI_Offset")
-            if(MPI_SUCCESS != (mpi_code = MPI_File_read_at(file->f, mpi_off, &byte, 1, MPI_BYTE, &mpi_stat)))
-                HMPI_GOTO_ERROR(FAIL, "MPI_File_read_at failed", mpi_code)
-            if(MPI_SUCCESS != (mpi_code = MPI_File_write_at(file->f, mpi_off, &byte, 1, MPI_BYTE, &mpi_stat)))
-                HMPI_GOTO_ERROR(FAIL, "MPI_File_write_at failed", mpi_code)
-        } /* end if */
-#endif /* H5_MPI_FILE_SET_SIZE_BIG */
-
-  /* Don't let any proc return until all have extended the file.
+	/* Don't let any proc return until all have extended the file.
          * (Prevents race condition where some processes go ahead and write
          * more data to the file before all the processes have finished making
          * it the shorter length, potentially truncating the file and dropping

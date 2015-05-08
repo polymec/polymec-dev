@@ -1,6 +1,6 @@
 # -----------------------------------------------------------------
-# $Revision: 1.3 $
-# $Date: 2009/02/17 02:58:47 $
+# $Revision: 4458 $
+# $Date: 2015-03-28 21:16:05 -0700 (Sat, 28 Mar 2015) $
 # -----------------------------------------------------------------
 # Programmer: Radu Serban @ LLNL
 # -----------------------------------------------------------------
@@ -29,6 +29,8 @@
 # for examples that do not use that module...
 #
 # -----------------------------------------------------------------
+
+cmake_minimum_required(VERSION 2.8)
 
 # Specify project name
 PROJECT(F@SOLVER@_serial_examples Fortran)
@@ -71,7 +73,7 @@ SET(SUNDIALS_LIBS
   ${SUNDIALS_NVEC_FLIB} ${SUNDIALS_NVEC_LIB}
   ${SUNDIALS_EXTRA_LIB})
 IF(LAPACK_LIBRARIES)
-  SET(SUNDIALS_LIBS "${SUNDIALS_LIBS} ${LAPACK_LIBRARIES}")
+  LIST(APPEND SUNDIALS_LIBS ${LAPACK_LIBRARIES})
 ENDIF(LAPACK_LIBRARIES)
 
 # Build each example one by one
