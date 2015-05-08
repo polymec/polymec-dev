@@ -72,12 +72,24 @@
 
 #include <mpi.h>
 
-// Real number representation.
-typedef @POLYMEC_REAL_TYPE@ real_t;
+// Real number representation. 
 #define POLYMEC_HAVE_SINGLE_PRECISION @HAVE_SINGLE_PRECISION@
 #define POLYMEC_HAVE_DOUBLE_PRECISION @HAVE_DOUBLE_PRECISION@
 #define POLYMEC_PRECISION @POLYMEC_PRECISION@
 #define MPI_REAL_T @POLYMEC_MPI_REAL_TYPE@
+
+// In defining real_t, we have to accommodate Metis, which defines 
+// its own.
+#ifdef _METIS_H_
+#if POLYMEC_HAVE_SINGLE_PRECISION && REALTYPEWIDTH != 32
+#error "real_t defined in metis.h disagrees with our definition (float)."
+#elif POLYMEC_HAVE_DOUBLE_PRECISION && REALTYPEWIDTH != 64
+#error "real_t defined in metis.h disagrees with our definition (double)."
+#endif
+#else
+typedef @POLYMEC_REAL_TYPE@ real_t;
+#endif
+
 
 // Bad Fortran! No biscuit!
 #ifdef MPI_REAL
