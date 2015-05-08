@@ -98,10 +98,14 @@ typedef @POLYMEC_REAL_TYPE@ real_t;
 #define SIGN(x) ((x > 0) ? 1 : (x < 0) ? -1 : 0)
 
 // Machine epsilon.
+#ifndef REAL_EPSILON
+
 #if POLYMEC_HAVE_DOUBLE_PRECISION
 #define REAL_EPSILON DBL_EPSILON
 #else
 #define REAL_EPSILON FLT_EPSILON
+#endif
+
 #endif
 
 // Use polymec_unreachable() to tell the C compiler that a line in a function 

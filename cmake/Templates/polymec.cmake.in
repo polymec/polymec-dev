@@ -14,4 +14,7 @@ set(HAVE_MPI @HAVE_MPI@)
 
 include_directories("@CMAKE_INSTALL_PREFIX@/include/polymec")
 link_directories("@CMAKE_INSTALL_PREFIX@/lib")
+foreach (DIR @EXTRA_LINK_DIRECTORIES@)
+  link_directories(${DIR})
+endforeach()
 

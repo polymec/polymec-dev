@@ -186,6 +186,7 @@ add_subdirectory(model)
 configure_file(
   "${CMAKE_CURRENT_SOURCE_DIR}/cmake/Templates/polymec.cmake.in"
   "${CMAKE_CURRENT_BINARY_DIR}/polymec.cmake"
+  @ONLY
 )
 
 if (NOT CMAKE_INSTALL_PREFIX STREQUAL "INSTALL_DISABLED")

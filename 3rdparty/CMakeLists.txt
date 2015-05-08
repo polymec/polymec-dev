@@ -223,11 +223,7 @@ if (NOT CMAKE_INSTALL_PREFIX STREQUAL "INSTALL_DISABLED")
     install(FILES ${PROJECT_BINARY_DIR}/lib/libsiloh5.a DESTINATION lib)
   endif()
 endif()
-if (${SILO_LIBRARY} MATCHES "h5")
-  set(POLYMEC_TP_LIBS ${SILO_LIBRARIES};${POLYMEC_TP_LIBS})
-else()
-  set(POLYMEC_TP_LIBS ${SILO_LIBRARIES};${POLYMEC_TP_LIBS})
-endif()
+set(POLYMEC_TP_LIBS ${SILO_LIBRARIES};${POLYMEC_TP_LIBS})
 
 # Build SuperLU, a (serial) direct sparse linear solver library that 
 # we will use for preconditioning.
