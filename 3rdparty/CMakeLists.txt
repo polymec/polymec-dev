@@ -107,54 +107,56 @@ endif()
 set(POLYMEC_TP_LIBS z;${POLYMEC_TP_LIBS})
 
 # Build the HDF5 parallel I/O library. 
-if (NOT EXISTS ${HDF5_LIBRARY})
-  set(HDF5_CONFIG_OPTS --enable-static --disable-shared --with-zlib=${PROJECT_BINARY_DIR} --disable-dependency-tracking)
-  set(HDF5_CONFIG_OPTS ${HDF5_CONFIG_OPTS} --prefix=${PROJECT_BINARY_DIR})
-  if (${CMAKE_BUILD_TYPE} STREQUAL "Debug")
-    set(HDF5_CONFIG_OPTS ${HDF5_CONFIG_OPTS} --enable-debug=all)
-  else()
-    set(HDF5_CONFIG_OPTS ${HDF5_CONFIG_OPTS} --enable-production)
+if (${SILO_LIBRARY} MATCHES "h5")
+  if (NOT EXISTS ${HDF5_LIBRARY})
+    set(HDF5_CONFIG_OPTS --enable-static --disable-shared --with-zlib=${PROJECT_BINARY_DIR} --disable-dependency-tracking)
+    set(HDF5_CONFIG_OPTS ${HDF5_CONFIG_OPTS} --prefix=${PROJECT_BINARY_DIR})
+    if (${CMAKE_BUILD_TYPE} STREQUAL "Debug")
+      set(HDF5_CONFIG_OPTS ${HDF5_CONFIG_OPTS} --enable-debug=all)
+    else()
+      set(HDF5_CONFIG_OPTS ${HDF5_CONFIG_OPTS} --enable-production)
+    endif()
+    if (${HAVE_MPI} EQUAL 1)
+      set(HDF5_CONFIG_OPTS ${HDF5_CONFIG_OPTS} --enable-parallel)
+    endif()
+  
+    message("Preparing hdf5...")
+    execute_process(COMMAND cmake -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/hdf5 ${CMAKE_CURRENT_BINARY_DIR}/hdf5
+                    RESULT_VARIABLE stat)
+    if (NOT stat EQUAL 0)
+      message(FATAL_ERROR "Copying library source failed.")
+    endif()
+
+    message("Configuring hdf5...")
+    execute_process(COMMAND env CC=${CMAKE_C_COMPILER} FC=${MAKE_Fortran_COMPILER} ./configure ${HDF5_CONFIG_OPTS}
+                    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/hdf5
+                    OUTPUT_VARIABLE hdf5_config_log ERROR_VARIABLE hdf5_config_err
+                    RESULT_VARIABLE stat)
+    file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/hdf5_config.log ${hdf5_config_log})
+    if (NOT stat EQUAL 0)
+      file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/hdf5_config_errors.log ${hdf5_config_err})
+      message(FATAL_ERROR "Configuration of hdf5 library failed.")
+    endif()
+
+    message("Building and installing hdf5...")
+    execute_process(COMMAND make install -j4
+                    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/hdf5
+                    OUTPUT_VARIABLE hdf5_build_log ERROR_VARIABLE hdf5_build_err
+                    RESULT_VARIABLE stat)
+    file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/hdf5_build.log ${hdf5_build_log})
+    if (NOT stat EQUAL 0)
+      file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/hdf5_build_errors.log ${hdf5_build_err})
+      message(FATAL_ERROR "Build of hdf5 library failed.")
+    endif()
   endif()
-  if (${HAVE_MPI} EQUAL 1)
-    set(HDF5_CONFIG_OPTS ${HDF5_CONFIG_OPTS} --enable-parallel)
+  if (NOT CMAKE_INSTALL_PREFIX STREQUAL "INSTALL_DISABLED")
+    if (${HDF5_LIBRARY} STREQUAL "${PROJECT_BINARY_DIR}/lib/libhdf5.a")
+      install(FILES ${PROJECT_BINARY_DIR}/lib/libhdf5.a DESTINATION lib)
+    endif()
   endif()
 
-  message("Preparing hdf5...")
-  execute_process(COMMAND cmake -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/hdf5 ${CMAKE_CURRENT_BINARY_DIR}/hdf5
-                  RESULT_VARIABLE stat)
-  if (NOT stat EQUAL 0)
-    message(FATAL_ERROR "Copying library source failed.")
-  endif()
-
-  message("Configuring hdf5...")
-  execute_process(COMMAND env CC=${CMAKE_C_COMPILER} FC=${MAKE_Fortran_COMPILER} ./configure ${HDF5_CONFIG_OPTS}
-                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/hdf5
-                  OUTPUT_VARIABLE hdf5_config_log ERROR_VARIABLE hdf5_config_err
-                  RESULT_VARIABLE stat)
-  file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/hdf5_config.log ${hdf5_config_log})
-  if (NOT stat EQUAL 0)
-    file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/hdf5_config_errors.log ${hdf5_config_err})
-    message(FATAL_ERROR "Configuration of hdf5 library failed.")
-  endif()
-
-  message("Building and installing hdf5...")
-  execute_process(COMMAND make install -j4
-                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/hdf5
-                  OUTPUT_VARIABLE hdf5_build_log ERROR_VARIABLE hdf5_build_err
-                  RESULT_VARIABLE stat)
-  file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/hdf5_build.log ${hdf5_build_log})
-  if (NOT stat EQUAL 0)
-    file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/hdf5_build_errors.log ${hdf5_build_err})
-    message(FATAL_ERROR "Build of hdf5 library failed.")
-  endif()
-
+  set(POLYMEC_TP_LIBS ${HDF5_LIBRARIES};${POLYMEC_TP_LIBS})
 endif()
-if (NOT CMAKE_INSTALL_PREFIX STREQUAL "INSTALL_DISABLED")
-  if (${HDF5_LIBRARY} STREQUAL "${PROJECT_BINARY_DIR}/lib/libhdf5.a")
-    install(FILES ${PROJECT_BINARY_DIR}/lib/libhdf5.a DESTINATION lib)
-  endif()
-endif()
-set(POLYMEC_TP_LIBS ${HDF5_LIBRARIES};${POLYMEC_TP_LIBS})
 
 # Install silo with HDF5 support.
 if (NOT EXISTS ${SILO_LIBRARY})
@@ -216,7 +218,11 @@ endif()
 if (NOT CMAKE_INSTALL_PREFIX STREQUAL "INSTALL_DISABLED")
   install(FILES ${PROJECT_BINARY_DIR}/lib/libsiloh5.a DESTINATION lib)
 endif()
-set(POLYMEC_TP_LIBS siloh5;${POLYMEC_TP_LIBS})
+if (${SILO_LIBRARY} MATCHES "h5")
+  set(POLYMEC_TP_LIBS ${SILO_LIBRARIES};${POLYMEC_TP_LIBS})
+else()
+  set(POLYMEC_TP_LIBS ${SILO_LIBRARIES};${POLYMEC_TP_LIBS})
+endif()
 
 # Build SuperLU, a (serial) direct sparse linear solver library that 
 # we will use for preconditioning.

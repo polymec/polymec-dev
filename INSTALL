@@ -46,7 +46,7 @@ Other make commands
 ------------------------------------------------------------------------------
 
 NERSC Edison (last updated 2/18/2015)
-------------
+-------------------------------------
 
 Make sure the following modules are loaded:
   cmake 
@@ -61,3 +61,18 @@ adding any additional desired flags. Then:
 
 make mpi=1 install
 
+NERSC Hopper (last updated 5/8/2015)
+------------------------------------
+
+Load the following modules
+  cmake
+  silo
+  PrgEnv-gnu
+
+and then type
+
+make config mpi=1 prefix=/prefix/for/polymec 
+
+followed by
+
+make mpi=1 install
