@@ -11,6 +11,7 @@
 #include "core/polymec.h"
 #include "core/exchanger.h"
 #include "core/serializer.h"
+#include "core/unordered_set.h"
 #include "core/adj_graph.h"
 #include "core/point_cloud.h"
 
@@ -56,6 +57,12 @@ void stencil_set_weights(stencil_t* stencil, real_t* weights);
 // This operation "augments" the given stencil by associating the neighbors
 // of neighbors to each index.
 void stencil_augment(stencil_t* stencil);
+
+// Given an array of sets of neighbors to remove from each index (of length 
+// stencil->num_indices), removes those neighbors from their indices within 
+// the stencil. neighbors_to_trim[i] holds the set of neighbors to trim from 
+// index i (or can be NULL if there are no such neighbors).
+void stencil_trim(stencil_t* stencil, int_unordered_set_t** neighbors_to_trim);
 
 // Performs a synchronous exchange of the values for this stencil for the 
 // given data. This method has the same signature as exchanger_exchange().

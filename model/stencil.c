@@ -120,6 +120,13 @@ void stencil_augment(stencil_t* stencil)
   int_ptr_unordered_map_t* send_map = int_ptr_unordered_map_new();
   int_ptr_unordered_map_t* recv_map = int_ptr_unordered_map_new();
 
+  {
+    int pos = 0, proc, *indices, num_indices;
+    while (exchanger_next_send(stencil->ex, &pos, &proc, &indices, &num_indices))
+    {
+    }
+  }
+
   // Clean up.
   for (int i = 0; i < stencil->num_indices; ++i)
   {
@@ -127,6 +134,68 @@ void stencil_augment(stencil_t* stencil)
     real_array_free(n_of_n_w[i]);
   }
   int_unordered_set_free(old_neighbors);
+}
+
+static inline void swap_indices(int* i, int* j)
+{
+  int k = *i;
+  *i = *j;
+  *j = k;
+}
+
+static inline void swap_weights(real_t* wi, real_t* wj)
+{
+  real_t wk = *wi;
+  *wi = *wj;
+  *wj = wk;
+}
+
+void stencil_trim(stencil_t* stencil, int_unordered_set_t** neighbors_to_trim)
+{
+  int num_trimmed_indices[stencil->num_indices];
+  memset(num_trimmed_indices, 0, sizeof(int) * stencil->num_indices);
+
+  for (int i = 0; i < stencil->num_indices; ++i)
+  {
+    int_unordered_set_t* indices = neighbors_to_trim[i];
+    if ((indices != NULL) && (indices->size > 0))
+    {
+      int start = stencil->offsets[i];
+      int end = stencil->offsets[i+1];
+      for (int j = start; j < end; ++j)
+      {
+        int k = stencil->indices[j];
+        if (int_unordered_set_contains(indices, k))
+        {
+          // Remove k from i's neighbor list by swapping it to the back.
+          int last_index = end - 1 - num_trimmed_indices[i];
+          swap_indices(&stencil->indices[j], &stencil->indices[last_index]);
+          if (stencil->weights != NULL)
+            swap_weights(&stencil->weights[j], &stencil->weights[last_index]);
+          ++num_trimmed_indices[i];
+          if (num_trimmed_indices[i] == indices->size)
+            break;
+        }
+      }
+    }
+  }
+
+  // Now re-index the neighbors.
+  for (int i = 0; i < stencil->num_indices; ++i)
+  {
+    int decrease = 0;
+    for (int j = 0; j < i; ++j)
+      decrease += num_trimmed_indices[j];
+    if (decrease > 0)
+    {
+      int src = stencil->offsets[i];
+      int dest = stencil->offsets[i] - decrease;
+      int num_indices = stencil->offsets[i+1] - stencil->offsets[i] - num_trimmed_indices[i];
+      memmove(&stencil->indices[dest], &stencil->indices[src],
+              sizeof(int) * num_indices);
+      stencil->offsets[i] -= decrease;
+    }
+  }
 }
 
 void stencil_exchange(stencil_t* stencil, void* data, int stride, int tag, MPI_Datatype type)
