@@ -1319,7 +1319,6 @@ int64_t* partition_vector_from_mesh(mesh_t* global_mesh, MPI_Comm comm, int* wei
 exchanger_t* distribute_mesh(mesh_t** mesh, MPI_Comm comm, int64_t* global_partition)
 {
 #if POLYMEC_HAVE_MPI
-  START_FUNCTION_TIMER();
   ASSERT((*mesh == NULL) || ((*mesh)->comm == MPI_COMM_SELF));
 
   int nprocs, rank;
@@ -1331,6 +1330,8 @@ exchanger_t* distribute_mesh(mesh_t** mesh, MPI_Comm comm, int64_t* global_parti
   // On a single process, partitioning has no meaning.
   if (nprocs == 1)
     return exchanger_new(comm);
+
+  START_FUNCTION_TIMER();
 
   // If meshes on rank != 0 are not NULL, we delete them.
   mesh_t* m = *mesh;

@@ -105,13 +105,18 @@ exchanger_t* distribute_point_cloud(point_cloud_t** cloud,
                                     int64_t* global_partition)
 {
 #if POLYMEC_HAVE_MPI
-  START_FUNCTION_TIMER();
   int nprocs, rank;
   MPI_Comm_size(comm, &nprocs);
   MPI_Comm_rank(comm, &rank);
 
+  // On a single process, partitioning has no meaning.
+  if (nprocs == 1)
+    return exchanger_new(comm);
+
   // Make sure we're all here.
   MPI_Barrier(comm);
+
+  START_FUNCTION_TIMER();
 
   point_cloud_t* global_cloud = *cloud;
   int num_global_points = (rank == 0) ? global_cloud->num_points : 0;
