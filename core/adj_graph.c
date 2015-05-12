@@ -7,6 +7,7 @@
 
 #include "core/adj_graph.h"
 #include "core/array_utils.h"
+#include "core/timer.h"
 
 struct adj_graph_t 
 {
@@ -429,6 +430,8 @@ static void sort_vertices_by_degree(int* v_degrees, int num_vertices)
 
 static void compute_largest_first_ordering(adj_graph_t* graph, int* vertices)
 {
+  START_FUNCTION_TIMER();
+
   int v_max = adj_graph_max_vertex_index(graph);
 
   // The vertices with the largest degree appear first in the list.
@@ -446,10 +449,14 @@ static void compute_largest_first_ordering(adj_graph_t* graph, int* vertices)
   // Now sort the vertices on their degree.
   sort_vertices_by_degree(v_degrees, v_max + 1);
   polymec_free(v_degrees);
+
+  STOP_FUNCTION_TIMER();
 }
 
 static void compute_smallest_last_ordering(adj_graph_t* graph, int* vertices)
 {
+  START_FUNCTION_TIMER();
+
   int v_max = adj_graph_max_vertex_index(graph);
   int num_vertices = adj_graph_num_vertices(graph);
 
@@ -480,6 +487,8 @@ static void compute_smallest_last_ordering(adj_graph_t* graph, int* vertices)
   // Now sort the vertices on their degree.
   sort_vertices_by_degree(v_degrees, v_max + 1);
   polymec_free(v_degrees);
+
+  STOP_FUNCTION_TIMER();
 }
 
 static void compute_incidence_degree_ordering(adj_graph_t* graph, int* vertices)
@@ -499,6 +508,8 @@ static void compute_incidence_degree_ordering(adj_graph_t* graph, int* vertices)
 static void color_sequentially(adj_graph_t* graph, int* vertices, 
                                int* colors, int* num_colors)
 {
+  START_FUNCTION_TIMER();
+
   *num_colors = 0;
   int num_vertices = adj_graph_num_vertices(graph);
   int v_max = adj_graph_max_vertex_index(graph);
@@ -558,11 +569,15 @@ static void color_sequentially(adj_graph_t* graph, int* vertices,
     }
   }
   polymec_free(forbidden_colors);
+
+  STOP_FUNCTION_TIMER();
 }
 
 adj_graph_coloring_t* adj_graph_coloring_new(adj_graph_t* graph,
                                              adj_graph_vertex_ordering_t ordering)
 {
+  START_FUNCTION_TIMER();
+
   // Generate an ordered list of vertices.
   int v_max = adj_graph_max_vertex_index(graph);
   int* vertices = polymec_malloc(sizeof(int) * (v_max + 1));
@@ -609,6 +624,7 @@ adj_graph_coloring_t* adj_graph_coloring_new(adj_graph_t* graph,
   }
   polymec_free(colors);
 
+  STOP_FUNCTION_TIMER();
   return coloring;
 }
 
