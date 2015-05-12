@@ -5,6 +5,16 @@
 *~
 .*.swp
 
+# Binary files.
+*.pdf
+*.tar.gz
+*.h5
+*.he5
+*.stl
+*.ddl
+*.wri
+*.silo
+
 # Generated files
 build/
 
