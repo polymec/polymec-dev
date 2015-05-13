@@ -148,8 +148,14 @@ void polymec_timer_stop(polymec_timer_t* timer)
 {
   if (use_timers)
   {
+    if (current_timer == NULL)
+      polymec_error("polymec_timer_stop: Can't stop timer %s: no timers are running.", timer->name);
+
     if (timer != current_timer)
-      polymec_error("polymec_timer_stop: Can't stop timer %s, which wasn't started.", timer->name);
+    {
+      polymec_error("polymec_timer_stop: Can't stop timer %s, which isn't the currently running one.\n"
+                    "(current timer is %s)", timer->name, current_timer->name);
+    }
 
     if (current_timer != all_timers->data[0])
     {
@@ -196,6 +202,10 @@ void polymec_timer_report()
         polymec_error("Could not open file '%s' for writing!", timer_report_file);
       fprintf(report_file, "-----------------------------------------------------------------------------------\n");
       fprintf(report_file, "                                   Timer summary:\n");
+      fprintf(report_file, "-----------------------------------------------------------------------------------\n");
+      fprintf(report_file, "Invocation: %s\n", polymec_invocation());
+      time_t invoc_time = polymec_invocation_time();
+      fprintf(report_file, "At: %s", ctime(&invoc_time));
       fprintf(report_file, "-----------------------------------------------------------------------------------\n");
 
       // Print a header.

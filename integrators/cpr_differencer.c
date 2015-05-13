@@ -47,6 +47,8 @@ cpr_differencer_t* cpr_differencer_new(MPI_Comm comm,
   ASSERT((F != NULL) || (F_dae != NULL));
   ASSERT((F == NULL) || (F_dae == NULL));
 
+  START_FUNCTION_TIMER();
+
   cpr_differencer_t* diff = polymec_malloc(sizeof(cpr_differencer_t));
   diff->comm = comm;
   diff->F_context = F_context;
@@ -83,6 +85,7 @@ cpr_differencer_t* cpr_differencer_new(MPI_Comm comm,
     diff->work[i] = polymec_malloc(sizeof(real_t) * N);
   diff->Jv = polymec_malloc(sizeof(real_t) * (diff->num_local_rows + diff->num_remote_rows));
 
+  STOP_FUNCTION_TIMER();
   return diff;
 }
 

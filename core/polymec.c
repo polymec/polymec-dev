@@ -80,13 +80,6 @@ static void shutdown()
   log_debug("polymec: Shutting down...");
   ASSERT(polymec_initialized);
 
-  // Kill command line arguments.
-  free(polymec_invoc_str);
-  free(polymec_invoc_dir);
-  for (int i = 0; i < polymec_argc; ++i)
-    free(polymec_argv[i]);
-  free(polymec_argv);
-
   // Kill extra provenance data.
   if (polymec_extra_provenance != NULL)
     string_array_free(polymec_extra_provenance);
@@ -95,6 +88,13 @@ static void shutdown()
   polymec_timer_t* polymec_timer = polymec_timer_get("polymec");
   polymec_timer_stop(polymec_timer);
   polymec_timer_report();
+
+  // Kill command line arguments.
+  free(polymec_invoc_str);
+  free(polymec_invoc_dir);
+  for (int i = 0; i < polymec_argc; ++i)
+    free(polymec_argv[i]);
+  free(polymec_argv);
 
   // Call shutdown functions.
   log_debug("polymec: Calling %d shutdown functions.", _num_atexit_funcs);

@@ -304,6 +304,10 @@ bool dae_integrator_step(dae_integrator_t* integ, real_t max_dt, real_t* t, real
   START_FUNCTION_TIMER();
   int status = IDA_SUCCESS;
 
+  // if we haven't been initialized, we need to copy in the data.
+  if (integ->initialized)
+    dae_integrator_reset(integ, *t, X, X_dot);
+
   // If *t + max_dt is less than the time to which we've already integrated, 
   // we don't need to integrate; we only need to interpolate backward.
   real_t t2 = *t + max_dt;
