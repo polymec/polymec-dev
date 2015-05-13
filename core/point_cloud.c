@@ -159,3 +159,26 @@ serializer_t* point_cloud_serializer()
   return serializer_new("point_cloud", cloud_byte_size, cloud_byte_read, cloud_byte_write, NULL);
 }
 
+int_ptr_unordered_map_t* point_cloud_map_points_to_objects(point_cloud_t* cloud,
+                                                           string_ptr_unordered_map_t* objects_for_tags)
+{
+  int_ptr_unordered_map_t* point_map = int_ptr_unordered_map_new();
+
+  int pos = 0;
+  char* tag;
+  void* object;
+  while (string_ptr_unordered_map_next(objects_for_tags, &pos, &tag, &object))
+  {
+    // Retrieve the tag for this boundary condition.
+    ASSERT(point_cloud_has_tag(cloud, tag));
+    int num_points;
+    int* points = point_cloud_tag(cloud, tag, &num_points);
+
+    // Now create an entry for each boundary points.
+    for (int i = 0; i < num_points; ++i)
+      int_ptr_unordered_map_insert(point_map, points[i], object);
+  }
+
+  return point_map;
+}
+
