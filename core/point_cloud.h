@@ -11,6 +11,7 @@
 #include "core/polymec.h"
 #include "core/point.h"
 #include "core/tagger.h"
+#include "core/unordered_map.h"
 #include "core/serializer.h"
 
 // This data type represents a cloud consisting of points, possibly with 
@@ -98,6 +99,13 @@ void point_cloud_delete_tag(point_cloud_t* cloud, const char* tag);
 
 // Returns a serializer object that can read/write point clouds from/to byte arrays.
 serializer_t* point_cloud_serializer();
+
+// Given a map associating tag names to objects, this constructs and returns 
+// a mapping of point indices within the given cloud to these objects. The 
+// objects are assumed to be owned by the objects_for_tags map, so this 
+// map must persist for the life time of the the returned map.
+int_ptr_unordered_map_t* point_cloud_map_points_to_objects(point_cloud_t* cloud,
+                                                           string_ptr_unordered_map_t* objects_for_tags);
 
 #endif
 
