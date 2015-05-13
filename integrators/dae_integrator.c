@@ -305,7 +305,7 @@ bool dae_integrator_step(dae_integrator_t* integ, real_t max_dt, real_t* t, real
   int status = IDA_SUCCESS;
 
   // if we haven't been initialized, we need to copy in the data.
-  if (integ->initialized)
+  if (!integ->initialized)
     dae_integrator_reset(integ, *t, X, X_dot);
 
   // If *t + max_dt is less than the time to which we've already integrated, 
