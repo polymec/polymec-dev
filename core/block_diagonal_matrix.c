@@ -53,9 +53,9 @@ static void bdm_add_column_vector(void* context,
   {
     int bs = A->B_offsets[block_col+1] - A->B_offsets[block_col];
     int c = i % bs;
-    for (int j = block_col*bs; j < (block_col+1)*bs; ++j)
+    for (int r = 0; r < bs; ++r)
     {
-      int r = j % bs;
+      int j = A->B_offsets[block_col] + r;
       D[A->D_offsets[block_col] + c*bs + r] += scale_factor * column_vector[j];
     }
   }
