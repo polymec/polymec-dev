@@ -8,7 +8,6 @@
 #include <float.h>
 #include "core/sundials_helpers.h"
 #include "integrators/newton_solver.h"
-#include "integrators/cpr_pc.h"
 
 // We use KINSOL for doing the matrix-free nonlinear solve.
 #include "kinsol/kinsol.h"

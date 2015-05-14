@@ -33,7 +33,7 @@
 
 #include "core/polymec.h"
 #include "integrators/dae_integrator.h"
-#include "integrators/cpr_pc.h"
+#include "integrators/cpr_newton_pc.h"
 
 /* Problem Constants */
 
@@ -192,7 +192,7 @@ static dae_integrator_t* heat2d_integrator_new(heat2d_t* data, newton_pc_t* prec
 dae_integrator_t* block_jacobi_precond_heat2d_integrator_new()
 {
   heat2d_t* data = heat2d_new();
-  newton_pc_t* precond = block_jacobi_cpr_pc_from_dae_function(MPI_COMM_WORLD, data, heat2d_res, NULL, data->sparsity, NEQ, 0, 1);
+  newton_pc_t* precond = block_jacobi_cpr_newton_pc_from_dae_function(MPI_COMM_WORLD, data, heat2d_res, NULL, data->sparsity, NEQ, 0, 1);
   return heat2d_integrator_new(data, precond);
 }
 
@@ -200,7 +200,7 @@ dae_integrator_t* block_jacobi_precond_heat2d_integrator_new()
 dae_integrator_t* lu_precond_heat2d_integrator_new()
 {
   heat2d_t* data = heat2d_new();
-  newton_pc_t* precond = lu_cpr_pc_from_dae_function(MPI_COMM_WORLD, data, heat2d_res, NULL, data->sparsity, NEQ, 0);
+  newton_pc_t* precond = lu_cpr_newton_pc_from_dae_function(MPI_COMM_WORLD, data, heat2d_res, NULL, data->sparsity, NEQ, 0);
   return heat2d_integrator_new(data, precond);
 }
 
@@ -209,7 +209,7 @@ dae_integrator_t* ilu_precond_heat2d_integrator_new()
 {
   heat2d_t* data = heat2d_new();
   ilu_params_t* ilu_params = ilu_params_new();
-  newton_pc_t* precond = ilu_cpr_pc_from_dae_function(MPI_COMM_WORLD, data, heat2d_res, NULL, data->sparsity, NEQ, 0, ilu_params);
+  newton_pc_t* precond = ilu_cpr_newton_pc_from_dae_function(MPI_COMM_WORLD, data, heat2d_res, NULL, data->sparsity, NEQ, 0, ilu_params);
   return heat2d_integrator_new(data, precond);
 }
 

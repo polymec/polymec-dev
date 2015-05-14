@@ -7,7 +7,7 @@
 
 #include "core/polymec.h"
 #include "integrators/newton_solver.h"
-#include "integrators/cpr_pc.h"
+#include "integrators/cpr_newton_pc.h"
 
 // We use this for some of the underlying data structures.
 #include "sundials/sundials_direct.h"
@@ -390,7 +390,7 @@ newton_solver_t* block_jacobi_precond_foodweb_solver_new()
 {
   foodweb_t* data = foodweb_new();
   int block_size = NUM_SPECIES;
-  newton_pc_t* precond = block_jacobi_cpr_pc_from_function(MPI_COMM_WORLD, data, foodweb_func, NULL, data->sparsity, NEQ/block_size, 0, block_size);
+  newton_pc_t* precond = block_jacobi_cpr_newton_pc_from_function(MPI_COMM_WORLD, data, foodweb_func, NULL, data->sparsity, NEQ/block_size, 0, block_size);
   return foodweb_solver_new(data, precond);
 }
 
@@ -398,7 +398,7 @@ newton_solver_t* block_jacobi_precond_foodweb_solver_new()
 newton_solver_t* lu_precond_foodweb_solver_new()
 {
   foodweb_t* data = foodweb_new();
-  newton_pc_t* precond = lu_cpr_pc_from_function(MPI_COMM_WORLD, data, foodweb_func, NULL, data->sparsity, NEQ, 0);
+  newton_pc_t* precond = lu_cpr_newton_pc_from_function(MPI_COMM_WORLD, data, foodweb_func, NULL, data->sparsity, NEQ, 0);
   return foodweb_solver_new(data, precond);
 }
 
@@ -408,7 +408,7 @@ newton_solver_t* ilu_precond_foodweb_solver_new()
   foodweb_t* data = foodweb_new();
   ilu_params_t* ilu_params = ilu_params_new();
   ilu_params->drop_tolerance = 1e-5;
-  newton_pc_t* precond = ilu_cpr_pc_from_function(MPI_COMM_WORLD, data, foodweb_func, NULL, data->sparsity, NEQ, 0, ilu_params);
+  newton_pc_t* precond = ilu_cpr_newton_pc_from_function(MPI_COMM_WORLD, data, foodweb_func, NULL, data->sparsity, NEQ, 0, ilu_params);
   return foodweb_solver_new(data, precond);
 }
 
