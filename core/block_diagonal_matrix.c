@@ -46,7 +46,7 @@ static void bdm_add_column_vector(void* context,
 
   // We have to find the right block column.
   int block_col = 0;
-  while ((A->B_offsets[block_col+1] < i) && (block_col < A->num_block_rows))
+  while ((A->B_offsets[block_col] < i) && (block_col < A->num_block_rows))
     ++block_col;
 
   if (block_col < A->num_block_rows)
