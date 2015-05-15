@@ -182,7 +182,11 @@ static dae_integrator_t* heat2d_integrator_new(heat2d_t* data, newton_pc_t* prec
   dae_integrator_vtable vtable = {.residual = heat2d_res,
                                   .set_constraints = heat2d_set_constraints,
                                   .dtor = heat2d_dtor};
-  dae_integrator_t* integ = dae_integrator_new(5, MPI_COMM_SELF, NEQ, 0, data, vtable, 
+  // This is really a purely differential system.                                 
+  dae_equation_t eqn_types[NEQ];
+  for (int i = 0; i < NEQ; ++i)
+    eqn_types[i] = DAE_DIFFERENTIAL;
+  dae_integrator_t* integ = dae_integrator_new(5, MPI_COMM_SELF, eqn_types, NEQ, 0, data, vtable, 
                                                precond, DAE_GMRES, 5);
 
   return integ;

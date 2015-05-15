@@ -133,6 +133,7 @@ static int solve_preconditioner_system(real_t t, N_Vector x, N_Vector x_dot,
 
 dae_integrator_t* dae_integrator_new(int order,
                                      MPI_Comm comm,
+                                     dae_equation_t* equation_types,
                                      int num_local_values,
                                      int num_remote_values,
                                      void* context,
@@ -143,6 +144,7 @@ dae_integrator_t* dae_integrator_new(int order,
 {
   ASSERT(order > 0);
   ASSERT(order <= 5);
+  ASSERT(equation_types != NULL);
   ASSERT(num_local_values > 0);
   ASSERT(num_remote_values >= 0);
   ASSERT(vtable.residual != NULL);
@@ -164,7 +166,7 @@ dae_integrator_t* dae_integrator_new(int order,
   integ->max_dt = FLT_MAX;
   integ->status_message = NULL;
 
-  // Set up KINSol and accessories.
+  // Set up IDA and accessories.
   integ->x = N_VNew(comm, num_local_values);
   integ->x_with_ghosts = polymec_malloc(sizeof(real_t) * (num_local_values + num_remote_values));
   integ->x_dot = N_VNew(comm, num_local_values);
@@ -184,6 +186,27 @@ dae_integrator_t* dae_integrator_new(int order,
     IDASpbcg(integ->ida, max_krylov_dim);
   else
     IDASptfqmr(integ->ida, max_krylov_dim);
+
+  // We set the equation types.
+  N_Vector types = N_VNew(comm, num_local_values);
+  bool has_algebraic_eqns = false;
+  for (int i = 0; i < num_local_values; ++i)
+  {
+    if (equation_types[i] == DAE_ALGEBRAIC)
+    {
+      has_algebraic_eqns = true;
+      NV_Ith(types, i) = 0.0;
+    }
+    else
+      NV_Ith(types, i) = 1.0;
+  }
+  IDASetId(integ->ida, types);
+  N_VDestroy(types);
+
+  // If we have algebraic equations, we suppress their contributions to 
+  // the estimate of the truncation error.
+  if (has_algebraic_eqns)
+    IDASetSuppressAlg(integ->ida, 1);
 
   // We use modified Gram-Schmidt orthogonalization.
   IDASpilsSetGSType(integ->ida, MODIFIED_GS);

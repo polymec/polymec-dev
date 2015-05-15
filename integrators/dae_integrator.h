@@ -12,6 +12,14 @@
 #include "core/adj_graph.h"
 #include "integrators/newton_pc.h"
 
+// This type indicates whether a given equation in a DAE system is 
+// algebraic or differential.
+typedef enum
+{
+  DAE_ALGEBRAIC,
+  DAE_DIFFERENTIAL
+} dae_equation_t;
+
 // Types of Krylov solver to use for our DAE method.
 typedef enum 
 {
@@ -62,9 +70,12 @@ typedef struct dae_integrator_t dae_integrator_t;
 
 // Creates an integrator that uses a Newton-Krylov method to solve a system of 
 // Differential Algebraic Equations (DAE) with a given maximum subspace 
-// dimension of max_krylov_dim. 
+// dimension of max_krylov_dim. The equation_types array (of length num_local_values)
+// indicates whether each equation in the system is algebraic (DAE_ALGEBRAIC) 
+// or differential (DAE_DIFFERENTIAL).
 dae_integrator_t* dae_integrator_new(int order,
                                      MPI_Comm comm,
+                                     dae_equation_t* equation_types,
                                      int num_local_values,
                                      int num_remote_values,
                                      void* context,
