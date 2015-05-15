@@ -119,13 +119,6 @@ static int heat2d_res(void* context, real_t t, real_t* u, real_t* u_dot, real_t*
   return 0;
 }
 
-static void heat2d_set_constraints(void* context, real_t* constraints)
-{
-  // All solution values are non-negative.
-  for (int i = 0; i < NEQ; ++i)
-    constraints[i] = 1.0;
-}
-
 void heat2d_set_initial_conditions(dae_integrator_t* integ, real_t** u, real_t** u_dot)
 {
   heat2d_t* data = dae_integrator_context(integ);
@@ -180,13 +173,12 @@ static dae_integrator_t* heat2d_integrator_new(heat2d_t* data, newton_pc_t* prec
   // Set up a time integrator using GMRES with a Krylov space of maximum 
   // dimension 5.
   dae_integrator_vtable vtable = {.residual = heat2d_res,
-                                  .set_constraints = heat2d_set_constraints,
                                   .dtor = heat2d_dtor};
   // This is really a purely differential system.                                 
-  dae_equation_t eqn_types[NEQ];
-  for (int i = 0; i < NEQ; ++i)
-    eqn_types[i] = DAE_DIFFERENTIAL;
-  dae_integrator_t* integ = dae_integrator_new(5, MPI_COMM_SELF, eqn_types, NEQ, 0, data, vtable, 
+  dae_integrator_t* integ = dae_integrator_new(5, MPI_COMM_SELF, 
+                                               DAE_ALL_DIFFERENTIAL, 
+                                               DAE_ALL_NONNEGATIVE,
+                                               NEQ, 0, data, vtable, 
                                                precond, DAE_GMRES, 5);
 
   return integ;

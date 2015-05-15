@@ -20,6 +20,44 @@ typedef enum
   DAE_DIFFERENTIAL
 } dae_equation_t;
 
+// This can be passed as an argument to dae_integrator_new to indicate that 
+// all equations are algebraic.
+extern dae_equation_t* DAE_ALL_ALGEBRAIC;
+
+// This can be passed as an argument to dae_integrator_new to indicate that 
+// all equations are differential.
+extern dae_equation_t* DAE_ALL_DIFFERENTIAL;
+
+// This type indicates constraints (if any) on equations in a DAE system.
+typedef enum
+{
+  DAE_UNCONSTRAINED,
+  DAE_NEGATIVE,
+  DAE_NONPOSITIVE,
+  DAE_NONNEGATIVE,
+  DAE_POSITIVE
+} dae_constraint_t;
+
+// This can be passed as an argument to dae_integrator_new to indicate that 
+// no equations have constraints.
+extern dae_constraint_t* DAE_ALL_UNCONSTRAINED;
+
+// This can be passed as an argument to dae_integrator_new to indicate that 
+// all equations have solution values that are negative.
+extern dae_constraint_t* DAE_ALL_NEGATIVE;
+
+// This can be passed as an argument to dae_integrator_new to indicate that 
+// all equations have solution values that are non-positive.
+extern dae_constraint_t* DAE_ALL_NONPOSITIVE;
+
+// This can be passed as an argument to dae_integrator_new to indicate that 
+// all equations have solution values that are non-negative.
+extern dae_constraint_t* DAE_ALL_NONNEGATIVE;
+
+// This can be passed as an argument to dae_integrator_new to indicate that 
+// all equations have solution values that are positive.
+extern dae_constraint_t* DAE_ALL_POSITIVE;
+
 // Types of Krylov solver to use for our DAE method.
 typedef enum 
 {
@@ -50,14 +88,6 @@ typedef struct
   // for a fatal error.
   dae_integrator_residual_func residual;
 
-  // This (optional) function sets the contraints vector, which places algebraic 
-  // constraints on the components of the solution vector x. If constraints[i] is:
-  // 0.0  - no constraint is placed on x[i].
-  // 1.0  - x[i] must be non-negative.
-  // -1.0 - x[i] must be non-positive.
-  // 2.0  - x[i] must be positive.
-  dae_integrator_constraints_func set_constraints;
-
   // This (optional) function destroys the state (context) when the time integrator 
   // is destroyed.
   dae_integrator_dtor dtor;
@@ -72,10 +102,15 @@ typedef struct dae_integrator_t dae_integrator_t;
 // Differential Algebraic Equations (DAE) with a given maximum subspace 
 // dimension of max_krylov_dim. The equation_types array (of length num_local_values)
 // indicates whether each equation in the system is algebraic (DAE_ALGEBRAIC) 
-// or differential (DAE_DIFFERENTIAL).
+// or differential (DAE_DIFFERENTIAL). The constraints array indicates any 
+// constraints on the solution for a given component (DAE_UNCONSTRAINED, 
+// DAE_NEGATIVE, DAE_NONPOSITIVE, DAE_NONNEGATIVE, DAE_POSITIVE). See the 
+// DAE_ALL* symbols above for shorthand ways of expressing systems with 
+// simple equation types and constraints.
 dae_integrator_t* dae_integrator_new(int order,
                                      MPI_Comm comm,
                                      dae_equation_t* equation_types,
+                                     dae_constraint_t* constraints,
                                      int num_local_values,
                                      int num_remote_values,
                                      void* context,

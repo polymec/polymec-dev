@@ -15,6 +15,29 @@
 #include "ida/ida_spbcgs.h"
 #include "ida/ida_sptfqmr.h"
 
+// These symbols represent special short-hand arguments for equation types 
+// and constraints.
+static dae_equation_t DAE_ALL_ALGEBRAIC_LOC = DAE_ALGEBRAIC;
+dae_equation_t* DAE_ALL_ALGEBRAIC = &DAE_ALL_ALGEBRAIC_LOC;
+
+static dae_equation_t DAE_ALL_DIFFERENTIAL_LOC = DAE_DIFFERENTIAL;
+dae_equation_t* DAE_ALL_DIFFERENTIAL = &DAE_ALL_DIFFERENTIAL_LOC;
+
+static dae_constraint_t DAE_ALL_UNCONSTRAINED_LOC = DAE_UNCONSTRAINED;
+dae_constraint_t* DAE_ALL_UNCONSTRAINED = &DAE_ALL_UNCONSTRAINED_LOC;
+
+static dae_constraint_t DAE_ALL_NEGATIVE_LOC = DAE_NEGATIVE;
+dae_constraint_t* DAE_ALL_NEGATIVE = &DAE_ALL_NEGATIVE_LOC;
+
+static dae_constraint_t DAE_ALL_NONPOSITIVE_LOC = DAE_NONPOSITIVE;
+dae_constraint_t* DAE_ALL_NONPOSITIVE = &DAE_ALL_NONPOSITIVE_LOC;
+
+static dae_constraint_t DAE_ALL_NONNEGATIVE_LOC = DAE_NONNEGATIVE;
+dae_constraint_t* DAE_ALL_NONNEGATIVE = &DAE_ALL_NONNEGATIVE_LOC;
+
+static dae_constraint_t DAE_ALL_POSITIVE_LOC = DAE_POSITIVE;
+dae_constraint_t* DAE_ALL_POSITIVE = &DAE_ALL_POSITIVE_LOC;
+
 struct dae_integrator_t 
 {
   char* name;
@@ -134,6 +157,7 @@ static int solve_preconditioner_system(real_t t, N_Vector x, N_Vector x_dot,
 dae_integrator_t* dae_integrator_new(int order,
                                      MPI_Comm comm,
                                      dae_equation_t* equation_types,
+                                     dae_constraint_t* constraints,
                                      int num_local_values,
                                      int num_remote_values,
                                      void* context,
@@ -145,6 +169,7 @@ dae_integrator_t* dae_integrator_new(int order,
   ASSERT(order > 0);
   ASSERT(order <= 5);
   ASSERT(equation_types != NULL);
+  ASSERT(constraints != NULL);
   ASSERT(num_local_values > 0);
   ASSERT(num_remote_values >= 0);
   ASSERT(vtable.residual != NULL);
@@ -188,20 +213,79 @@ dae_integrator_t* dae_integrator_new(int order,
     IDASptfqmr(integ->ida, max_krylov_dim);
 
   // We set the equation types.
-  N_Vector types = N_VNew(comm, num_local_values);
+  N_Vector array = N_VNew(comm, num_local_values);
   bool has_algebraic_eqns = false;
-  for (int i = 0; i < num_local_values; ++i)
+  if (equation_types == DAE_ALL_ALGEBRAIC)
   {
-    if (equation_types[i] == DAE_ALGEBRAIC)
-    {
-      has_algebraic_eqns = true;
-      NV_Ith(types, i) = 0.0;
-    }
-    else
-      NV_Ith(types, i) = 1.0;
+    has_algebraic_eqns = true;
+    for (int i = 0; i < num_local_values; ++i)
+      NV_Ith(array, i) = 0.0;
   }
-  IDASetId(integ->ida, types);
-  N_VDestroy(types);
+  else if (equation_types == DAE_ALL_DIFFERENTIAL)
+  {
+    for (int i = 0; i < num_local_values; ++i)
+      NV_Ith(array, i) = 1.0;
+  }
+  else
+  {
+    for (int i = 0; i < num_local_values; ++i)
+    {
+      if (equation_types[i] == DAE_ALGEBRAIC)
+      {
+        has_algebraic_eqns = true;
+        NV_Ith(array, i) = 0.0;
+      }
+      else
+        NV_Ith(array, i) = 1.0;
+    }
+  }
+  IDASetId(integ->ida, array);
+
+  // Set up constraints.
+  if (constraints == DAE_ALL_UNCONSTRAINED)
+  {
+    for (int i = 0; i < num_local_values; ++i)
+      NV_Ith(array, i) = 0.0;
+  }
+  else if (constraints == DAE_ALL_NEGATIVE)
+  {
+    for (int i = 0; i < num_local_values; ++i)
+      NV_Ith(array, i) = -2.0;
+  }
+  else if (constraints == DAE_ALL_NONPOSITIVE)
+  {
+    for (int i = 0; i < num_local_values; ++i)
+      NV_Ith(array, i) = -1.0;
+  }
+  else if (constraints == DAE_ALL_NONNEGATIVE)
+  {
+    for (int i = 0; i < num_local_values; ++i)
+      NV_Ith(array, i) = 1.0;
+  }
+  else if (constraints == DAE_ALL_POSITIVE)
+  {
+    for (int i = 0; i < num_local_values; ++i)
+      NV_Ith(array, i) = 2.0;
+  }
+  else
+  {
+    for (int i = 0; i < num_local_values; ++i)
+    {
+      real_t constraint = constraints[i];
+      if (constraint == DAE_UNCONSTRAINED)
+        NV_Ith(array, i) = 0.0;
+      else if (constraint == DAE_NEGATIVE)
+        NV_Ith(array, i) = -2.0;
+      else if (constraint == DAE_NONPOSITIVE)
+        NV_Ith(array, i) = -1.0;
+      else if (constraint == DAE_NONNEGATIVE)
+        NV_Ith(array, i) = 1.0;
+      else // (constraint == DAE_POSITIVE)
+        NV_Ith(array, i) = 2.0;
+    }
+  }
+  IDASetConstraints(integ->ida, array);
+  N_VDestroy(array);
 
   // If we have algebraic equations, we suppress their contributions to 
   // the estimate of the truncation error.
@@ -214,15 +298,6 @@ dae_integrator_t* dae_integrator_new(int order,
   // Set up preconditioner machinery.
   IDASpilsSetPreconditioner(integ->ida, set_up_preconditioner,
                            solve_preconditioner_system);
-
-  // Algebraic constraints.
-  if (integ->vtable.set_constraints != NULL)
-  {
-    N_Vector constraints = N_VNew(integ->comm, num_local_values);
-    integ->vtable.set_constraints(integ->context, NV_DATA(constraints));
-    IDASetConstraints(integ->ida, constraints);
-    N_VDestroy(constraints);
-  }
 
   // Set some default tolerances:
   // relative error of 1e-4 means errors are controlled to 0.01%.
