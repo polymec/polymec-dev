@@ -83,6 +83,23 @@ adj_graph_t* adj_graph_new_with_block_size(adj_graph_t* graph,
 {
   ASSERT(block_size >= 1);
 
+#ifndef NDEBUG
+  // Check the validity of the given graph.
+  {
+    int num_vertices = adj_graph_num_vertices(graph);
+    for (int v = 0; v < num_vertices; ++v)
+    {
+      int num_edges = adj_graph_num_edges(graph, v);
+      ASSERT(num_edges >= 0);
+      int* edges = adj_graph_edges(graph, v);
+      for (int e = 0; e < num_edges; ++e)
+      {
+        ASSERT(edges[e] >= 0);
+      }
+    }
+  }
+#endif
+
   MPI_Comm comm = adj_graph_comm(graph);
   int nproc, rank;
   MPI_Comm_size(comm, &nproc);
@@ -101,35 +118,35 @@ adj_graph_t* adj_graph_new_with_block_size(adj_graph_t* graph,
 
   // Now traverse the original graph and set up the edges.
   int num_vertices = adj_graph_num_vertices(graph);
-  for (int v = 0; v < num_vertices; ++v)
+  for (int block_vertex = 0; block_vertex < num_vertices; ++block_vertex)
   {
-    int num_edges = adj_graph_num_edges(graph, v);
-    int* edges = adj_graph_edges(graph, v);
+    int num_block_edges = adj_graph_num_edges(graph, block_vertex);
+    int* block_edges = adj_graph_edges(graph, block_vertex);
     for (int b = 0; b < block_size; ++b)
     {
-      int block_vertex = block_size * v + b;
+      int vertex = block_size * block_vertex + b;
       // Make sure to include "block diagonal" edges, too (block_size - 1 of these).
-      adj_graph_set_num_edges(block_graph, block_vertex, block_size * num_edges + (block_size - 1));
-      int* block_edges = adj_graph_edges(block_graph, block_vertex);
+      adj_graph_set_num_edges(block_graph, vertex, block_size * num_block_edges + (block_size - 1));
+      int* edges = adj_graph_edges(block_graph, vertex);
       int diag_offset = 0;
 
       // Block diagonal edges (excluding loops).
       for (int bb = 0; bb < block_size; ++bb)
       {
-        int other_vertex = block_size * v + bb;
+        int other_vertex = block_size * block_vertex + bb;
         if (other_vertex != block_vertex)
         {
-          block_edges[diag_offset] = block_size * v + bb;
+          edges[diag_offset] = block_size * block_vertex + bb;
           ++diag_offset;
         }
       }
       ASSERT(diag_offset == (block_size - 1));
-      for (int e = 0; e < num_edges; ++e)
+      for (int e = 0; e < num_block_edges; ++e)
       {
         for (int bb = 0; bb < block_size; ++bb)
         {
-          int v = block_size * edges[e] + bb;
-          block_edges[block_size - 1 + block_size * e + bb] = v;
+          int v = block_size * block_edges[e] + bb;
+          edges[block_size - 1 + block_size * e + bb] = v;
         }
       }
     }
@@ -143,6 +160,23 @@ adj_graph_t* adj_graph_new_with_block_sizes(adj_graph_t* graph,
 {
   ASSERT(block_sizes != NULL);
 
+#ifndef NDEBUG
+  // Check the validity of the given graph.
+  {
+    int num_vertices = adj_graph_num_vertices(graph);
+    for (int v = 0; v < num_vertices; ++v)
+    {
+      int num_edges = adj_graph_num_edges(graph, v);
+      ASSERT(num_edges >= 0);
+      int* edges = adj_graph_edges(graph, v);
+      for (int e = 0; e < num_edges; ++e)
+      {
+        ASSERT(edges[e] >= 0);
+      }
+    }
+  }
+#endif
+
   MPI_Comm comm = adj_graph_comm(graph);
   int nproc, rank;
   MPI_Comm_size(comm, &nproc);
@@ -151,62 +185,60 @@ adj_graph_t* adj_graph_new_with_block_sizes(adj_graph_t* graph,
   // Since the block size is variable, we have to be careful about 
   // counting up the vertices in the resulting block graph. If this is 
   // a distributed graph, we need to communicate.
-  int num_vertices = adj_graph_num_vertices(graph), tot_num_vertices = 0;
-  int vertex_offsets[num_vertices+1];
+  int num_block_vertices = adj_graph_num_vertices(graph);
+  int vertex_offsets[num_block_vertices+1];
   vertex_offsets[0] = 0;
-  for (int v = 0; v < num_vertices; ++v)
-  {
+  for (int v = 0; v < num_block_vertices; ++v)
     vertex_offsets[v+1] = vertex_offsets[v] + block_sizes[v];
-    tot_num_vertices += block_sizes[v];
-  }
+  int tot_num_vertices = vertex_offsets[num_block_vertices];
   adj_graph_t* block_graph = adj_graph_new(comm, tot_num_vertices);
 
   // Now traverse the original graph and set up the edges.
-  for (int v = 0; v < num_vertices; ++v)
+  for (int block_vertex = 0; block_vertex < num_block_vertices; ++block_vertex)
   {
-    int block_size = block_sizes[v];
+    int block_size = block_sizes[block_vertex];
     ASSERT(block_size >= 1);
-    int num_block_edges = adj_graph_num_edges(graph, v);
-    int* edges = adj_graph_edges(graph, v);
+    int num_block_edges = adj_graph_num_edges(graph, block_vertex);
+    int* block_edges = adj_graph_edges(graph, block_vertex);
     for (int b = 0; b < block_size; ++b)
     {
-      int block_vertex = vertex_offsets[v] + b;
+      int vertex = vertex_offsets[block_vertex] + b;
 
       // Count up the edges in all the blocks. Be sure to include "block 
       // diagonal" edges, too (block_size - 1 of these), and accomodate the 
-      // fact that some of these edges may connect v to a vertex with a 
-      // different block size!!
+      // fact that some of these edges may connect block_vertex to a 
+      // vertex with a different block size!!
       int num_edges = block_size - 1;
-      int block_edge_offsets[num_block_edges+1];
-      block_edge_offsets[0] = num_edges;
+      int edge_offsets[num_block_edges+1];
+      edge_offsets[0] = num_edges;
       for (int e = 0; e < num_block_edges; ++e)
       {
-        int bs = (edges[e] < num_vertices) ? block_sizes[edges[e]] : block_size;
+        int bs = (block_edges[e] < num_block_vertices) ? block_sizes[block_edges[e]] : block_size;
         num_edges += bs;
-        block_edge_offsets[e+1] = num_edges;
+        edge_offsets[e+1] = num_edges;
       }
-      adj_graph_set_num_edges(block_graph, block_vertex, num_edges);
+      adj_graph_set_num_edges(block_graph, vertex, num_edges);
 
       // Block diagonal edges (excluding loops).
-      int* block_edges = adj_graph_edges(block_graph, block_vertex);
+      int* edges = adj_graph_edges(block_graph, vertex);
       int diag_offset = 0;
       for (int bb = 0; bb < block_size; ++bb)
       {
-        int other_vertex = vertex_offsets[v] + bb;
-        if (other_vertex != block_vertex)
+        int other_vertex = vertex_offsets[block_vertex] + bb;
+        if (other_vertex != vertex)
         {
-          block_edges[diag_offset] = other_vertex;
+          edges[diag_offset] = other_vertex;
           ++diag_offset;
         }
       }
       ASSERT(diag_offset == (block_size - 1));
       for (int e = 0; e < num_block_edges; ++e)
       {
-        int bs = (edges[e] < num_vertices) ? block_sizes[edges[e]] : block_size;
+        int bs = (block_edges[e] < num_block_vertices) ? block_sizes[block_edges[e]] : block_size;
         for (int bb = 0; bb < bs; ++bb)
         {
           int v = vertex_offsets[edges[e]] + bb;
-          block_edges[block_edge_offsets[e] + bb] = v;
+          edges[edge_offsets[e] + bb] = v;
         }
       }
     }
