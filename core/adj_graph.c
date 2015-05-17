@@ -134,7 +134,7 @@ adj_graph_t* adj_graph_new_with_block_size(adj_graph_t* graph,
       for (int bb = 0; bb < block_size; ++bb)
       {
         int other_vertex = block_size * block_vertex + bb;
-        if (other_vertex != block_vertex)
+        if (other_vertex != vertex)
         {
           edges[diag_offset] = block_size * block_vertex + bb;
           ++diag_offset;
