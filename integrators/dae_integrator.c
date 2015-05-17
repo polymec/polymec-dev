@@ -154,6 +154,29 @@ static int solve_preconditioner_system(real_t t, N_Vector x, N_Vector x_dot,
   return result;
 }
 
+// Adaptor for J*v function.
+static int eval_Jv(real_t tt, N_Vector yy, N_Vector yp, N_Vector rr,
+                   N_Vector v, N_Vector Jv, real_t cj, 
+                   void *context, N_Vector tmp1, N_Vector tmp2)
+{
+  START_FUNCTION_TIMER();
+  dae_integrator_t* integ = context;
+  real_t* x = NV_DATA(yy);
+  real_t* xdot = NV_DATA(yp);
+  real_t* R = NV_DATA(rr);
+  real_t* vv = NV_DATA(v);
+  real_t* Jvv = NV_DATA(Jv);
+  real_t* tmp11 = NV_DATA(tmp1);
+  real_t* tmp22 = NV_DATA(tmp2);
+
+  // Make sure we use ghosts.
+  memcpy(integ->x_with_ghosts, x, sizeof(real_t) * integ->num_local_values);
+  memcpy(integ->x_dot_with_ghosts, xdot, sizeof(real_t) * integ->num_local_values);
+  int status = integ->vtable.Jv(integ->context, tt, x, xdot, R, vv, Jvv, cj, tmp11, tmp22);
+  STOP_FUNCTION_TIMER();
+  return status;
+}
+
 dae_integrator_t* dae_integrator_new(int order,
                                      MPI_Comm comm,
                                      dae_equation_t* equation_types,
@@ -242,49 +265,47 @@ dae_integrator_t* dae_integrator_new(int order,
   IDASetId(integ->ida, array);
 
   // Set up constraints.
-  if (constraints == DAE_ALL_UNCONSTRAINED)
+  if (constraints != DAE_ALL_UNCONSTRAINED)
   {
-    for (int i = 0; i < num_local_values; ++i)
-      NV_Ith(array, i) = 0.0;
-  }
-  else if (constraints == DAE_ALL_NEGATIVE)
-  {
-    for (int i = 0; i < num_local_values; ++i)
-      NV_Ith(array, i) = -2.0;
-  }
-  else if (constraints == DAE_ALL_NONPOSITIVE)
-  {
-    for (int i = 0; i < num_local_values; ++i)
-      NV_Ith(array, i) = -1.0;
-  }
-  else if (constraints == DAE_ALL_NONNEGATIVE)
-  {
-    for (int i = 0; i < num_local_values; ++i)
-      NV_Ith(array, i) = 1.0;
-  }
-  else if (constraints == DAE_ALL_POSITIVE)
-  {
-    for (int i = 0; i < num_local_values; ++i)
-      NV_Ith(array, i) = 2.0;
-  }
-  else
-  {
-    for (int i = 0; i < num_local_values; ++i)
+    if (constraints == DAE_ALL_NEGATIVE)
     {
-      real_t constraint = constraints[i];
-      if (constraint == DAE_UNCONSTRAINED)
-        NV_Ith(array, i) = 0.0;
-      else if (constraint == DAE_NEGATIVE)
+      for (int i = 0; i < num_local_values; ++i)
         NV_Ith(array, i) = -2.0;
-      else if (constraint == DAE_NONPOSITIVE)
+    }
+    else if (constraints == DAE_ALL_NONPOSITIVE)
+    {
+      for (int i = 0; i < num_local_values; ++i)
         NV_Ith(array, i) = -1.0;
-      else if (constraint == DAE_NONNEGATIVE)
+    }
+    else if (constraints == DAE_ALL_NONNEGATIVE)
+    {
+      for (int i = 0; i < num_local_values; ++i)
         NV_Ith(array, i) = 1.0;
-      else // (constraint == DAE_POSITIVE)
+    }
+    else if (constraints == DAE_ALL_POSITIVE)
+    {
+      for (int i = 0; i < num_local_values; ++i)
         NV_Ith(array, i) = 2.0;
     }
+    else
+    {
+      for (int i = 0; i < num_local_values; ++i)
+      {
+        real_t constraint = constraints[i];
+        if (constraint == DAE_UNCONSTRAINED)
+          NV_Ith(array, i) = 0.0;
+        else if (constraint == DAE_NEGATIVE)
+          NV_Ith(array, i) = -2.0;
+        else if (constraint == DAE_NONPOSITIVE)
+          NV_Ith(array, i) = -1.0;
+        else if (constraint == DAE_NONNEGATIVE)
+          NV_Ith(array, i) = 1.0;
+        else // (constraint == DAE_POSITIVE)
+          NV_Ith(array, i) = 2.0;
+      }
+    }
+    IDASetConstraints(integ->ida, array);
   }
-  IDASetConstraints(integ->ida, array);
   N_VDestroy(array);
 
   // If we have algebraic equations, we suppress their contributions to 
@@ -295,9 +316,13 @@ dae_integrator_t* dae_integrator_new(int order,
   // We use modified Gram-Schmidt orthogonalization.
   IDASpilsSetGSType(integ->ida, MODIFIED_GS);
 
+  // Set up the Jacobian function if given.
+  if (vtable.Jv != NULL)
+    IDASpilsSetJacTimesVecFn(integ->ida, eval_Jv);
+
   // Set up preconditioner machinery.
   IDASpilsSetPreconditioner(integ->ida, set_up_preconditioner,
-                           solve_preconditioner_system);
+                            solve_preconditioner_system);
 
   // Set some default tolerances:
   // relative error of 1e-4 means errors are controlled to 0.01%.

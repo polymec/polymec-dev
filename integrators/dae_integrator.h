@@ -70,14 +70,17 @@ typedef enum
 // equations (DAEs).
 typedef int (*dae_integrator_residual_func)(void* context, real_t t, real_t* x, real_t* x_dot, real_t* F);
 
-// Constraints function.
-typedef void (*dae_integrator_constraints_func)(void* context, real_t* constraints);
-
-// This function destroys the state (context).
-typedef void (*dae_integrator_dtor)(void* context);
+// This function computes the Jacobian J = dF/dx + alpha * dF/d(xdot),
+// where F(t, x, xdot) is the residual and x is the solution vector 
+// (and xdot = dx/dt).
+typedef int (*dae_integrator_Jv_func)(void* context, real_t t, real_t* x, real_t* xdot, real_t* R, 
+                                      real_t* v, real_t* Jv, real_t alpha, real_t* tmp1, real_t* tmp2);
 
 // This function evaluates error weights for use in the WRMS error norm.
 typedef void (*dae_integrator_error_weight_func)(void* context, real_t* y, real_t* weights);
+
+// This function destroys the state (context).
+typedef void (*dae_integrator_dtor)(void* context);
 
 // This virtual table determines the behavior of the time integrator.
 typedef struct
@@ -87,6 +90,9 @@ typedef struct
   // in F. It should return 0 on success, 1 for a recoverable error, -1 
   // for a fatal error.
   dae_integrator_residual_func residual;
+
+  // Optional specification of Jacobian * vector.
+  dae_integrator_Jv_func Jv;
 
   // This (optional) function destroys the state (context) when the time integrator 
   // is destroyed.
