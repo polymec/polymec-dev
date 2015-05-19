@@ -39,13 +39,17 @@ void silo_enable_compression(int level)
 
 struct silo_field_metadata_t 
 {
+  char* label;
   char* units;
   bool conserved;
+  bool extensive;
 };
 
 static void silo_field_metadata_free(void* ctx, void* dummy)
 {
   silo_field_metadata_t* metadata = ctx;
+  if (metadata->label)
+    string_free(metadata->label);
   if (metadata->units)
     string_free(metadata->units);
 }
@@ -53,10 +57,23 @@ static void silo_field_metadata_free(void* ctx, void* dummy)
 silo_field_metadata_t* silo_field_metadata_new()
 {
   silo_field_metadata_t* metadata = GC_MALLOC(sizeof(silo_field_metadata_t));
+  metadata->label = NULL;
   metadata->units = NULL;
   metadata->conserved = false;
+  metadata->extensive = false;
   GC_register_finalizer(metadata, silo_field_metadata_free, metadata, NULL, NULL);
   return metadata;
+}
+
+void silo_field_metadata_set_label(silo_field_metadata_t* metadata,
+                                   const char* label)
+{
+  if (metadata->label != NULL)
+    string_free(metadata->label);
+  if (label != NULL)
+    metadata->label = string_dup(label);
+  else
+    metadata->label = NULL;
 }
 
 void silo_field_metadata_set_units(silo_field_metadata_t* metadata,
@@ -64,13 +81,27 @@ void silo_field_metadata_set_units(silo_field_metadata_t* metadata,
 {
   if (metadata->units != NULL)
     string_free(metadata->units);
-  metadata->units = string_dup(units);
+  if (units != NULL)
+    metadata->units = string_dup(units);
+  else
+    metadata->units = NULL;
 }
 
 void silo_field_metadata_set_conserved(silo_field_metadata_t* metadata,
                                        bool is_conserved)
 {
   metadata->conserved = is_conserved;
+}
+
+void silo_field_metadata_set_extensive(silo_field_metadata_t* metadata,
+                                       bool is_extensive)
+{
+  metadata->extensive = is_extensive;
+}
+
+char* silo_field_metadata_label(silo_field_metadata_t* metadata)
+{
+  return metadata->label;
 }
 
 char* silo_field_metadata_units(silo_field_metadata_t* metadata)
@@ -81,6 +112,105 @@ char* silo_field_metadata_units(silo_field_metadata_t* metadata)
 bool silo_field_metadata_conserved(silo_field_metadata_t* metadata)
 {
   return metadata->conserved;
+}
+
+bool silo_field_metadata_extensive(silo_field_metadata_t* metadata)
+{
+  return metadata->extensive;
+}
+
+// These helpers are used in the read/write operations.
+static void read_mesh_metadata(DBucdvar* var, silo_field_metadata_t* metadata)
+{
+  if (metadata != NULL)
+  {
+    silo_field_metadata_set_label(metadata, var->label);
+    silo_field_metadata_set_units(metadata, var->units);
+    silo_field_metadata_set_conserved(metadata, var->conserved);
+    silo_field_metadata_set_extensive(metadata, var->extensive);
+  }
+}
+
+static void read_point_metadata(DBmeshvar* var, silo_field_metadata_t* metadata)
+{
+  if (metadata != NULL)
+  {
+    silo_field_metadata_set_label(metadata, var->label);
+    silo_field_metadata_set_units(metadata, var->units);
+    silo_field_metadata_set_conserved(metadata, var->conserved);
+    silo_field_metadata_set_extensive(metadata, var->extensive);
+  }
+}
+
+// These helpers are used in the read/write operations.
+static DBoptlist* optlist_from_metadata(silo_field_metadata_t* metadata)
+{
+  DBoptlist* optlist = NULL;
+  if (metadata != NULL)
+  {
+    optlist = DBMakeOptlist(4);
+    if (metadata->label != NULL)
+      DBAddOption(optlist, DBOPT_LABEL, string_dup(metadata->label));
+    if (metadata->units != NULL)
+      DBAddOption(optlist, DBOPT_UNITS, string_dup(metadata->units));
+    int* conserved = polymec_malloc(sizeof(int));
+    *conserved = metadata->conserved;
+    int* extensive = polymec_malloc(sizeof(int));
+    *extensive = metadata->extensive;
+    DBAddOption(optlist, DBOPT_CONSERVED, conserved);
+    DBAddOption(optlist, DBOPT_EXTENSIVE, extensive);
+  }
+  return optlist;
+}
+
+static DBoptlist* optlist_clone(DBoptlist* optlist)
+{
+  DBoptlist* clone = NULL;
+  if (clone != NULL)
+  {
+    clone = DBMakeOptlist(4);
+    char* label = DBGetOption(optlist, DBOPT_LABEL);
+    if (label != NULL)
+      DBAddOption(clone, DBOPT_LABEL, string_dup(label));
+    char* units = DBGetOption(optlist, DBOPT_UNITS);
+    if (units != NULL)
+      DBAddOption(clone, DBOPT_UNITS, string_dup(units));
+    int* conserved = DBGetOption(optlist, DBOPT_CONSERVED);
+    if (conserved != NULL)
+    {
+      int* my_conserved = polymec_malloc(sizeof(int));
+      *my_conserved = *conserved;
+      DBAddOption(clone, DBOPT_CONSERVED, my_conserved);
+    }
+    int* extensive = DBGetOption(optlist, DBOPT_EXTENSIVE);
+    if (extensive != NULL)
+    {
+      int* my_extensive = polymec_malloc(sizeof(int));
+      *my_extensive = *extensive;
+      DBAddOption(clone, DBOPT_EXTENSIVE, my_extensive);
+    }
+  }
+  return clone;
+}
+
+static void free_metadata_optlist(DBoptlist* optlist)
+{
+  if (optlist != NULL)
+  {
+    char* label = DBGetOption(optlist, DBOPT_LABEL);
+    if (label != NULL)
+      string_free(label);
+    char* units = DBGetOption(optlist, DBOPT_UNITS);
+    if (units != NULL)
+      string_free(units);
+    int* conserved = DBGetOption(optlist, DBOPT_CONSERVED);
+    if (conserved != NULL)
+      polymec_free(conserved);
+    int* extensive = DBGetOption(optlist, DBOPT_EXTENSIVE);
+    if (extensive != NULL)
+      polymec_free(extensive);
+    DBFreeOptlist(optlist);
+  }
 }
 
 #if POLYMEC_HAVE_MPI
@@ -160,17 +290,20 @@ typedef struct
   char* mesh_name;
   char* name;
   int type;
+  DBoptlist* optlist;
 } multivar_t;
 
 // Constructors for various multi-objects.
 static multivar_t* multivar_new(const char* mesh_name,
                                 const char* var_name,
-                                int var_type)
+                                int var_type,
+                                DBoptlist* optlist)
 {
   multivar_t* var = polymec_malloc(sizeof(multivar_t));
   var->mesh_name = string_dup(mesh_name);
   var->name = string_dup(var_name);
   var->type = var_type;
+  var->optlist = optlist_clone(optlist);
   return var;
 }
 
@@ -178,6 +311,7 @@ static void multivar_free(multivar_t* var)
 {
   polymec_free(var->mesh_name);
   polymec_free(var->name);
+  free_metadata_optlist(var->optlist);
   polymec_free(var);
 }
 
@@ -468,6 +602,7 @@ static void write_multivars_to_file(silo_file_t* file)
     for (int j = 0; j < num_chunks; ++j)
       polymec_free(mesh_names[j]);
   }
+  DBFreeOptlist(optlist);
 
   // Multi variables.
   for (int i = 0; i < file->multivars->size; ++i)
@@ -489,13 +624,12 @@ static void write_multivars_to_file(silo_file_t* file)
     // Write the variable data.
     DBSetDir(file->dbfile, "/");
     DBPutMultivar(file->dbfile, var->name, num_chunks, 
-                  (char const* const*)var_names, var_types, optlist); 
+                  (char const* const*)var_names, var_types, var->optlist); 
 
     // Clean up.
     for (int j = 0; j < num_chunks; ++j)
       polymec_free(var_names[j]);
   }
-  DBFreeOptlist(optlist);
 }
 
 static void write_master_file(silo_file_t* file)
@@ -1155,14 +1289,15 @@ static void silo_file_add_multimesh(silo_file_t* file,
 static void silo_file_add_multivar(silo_file_t* file,
                                    const char* mesh_name, 
                                    const char* field_name,
-                                   int silo_var_type)
+                                   int silo_var_type,
+                                   DBoptlist* optlist)
 {
   ASSERT((file->mode == DB_CLOBBER) || (file->mode == DB_APPEND));
 
 #if POLYMEC_HAVE_MPI
   if (file->nproc > 1)
   {
-    multivar_t* var = multivar_new(mesh_name, field_name, silo_var_type);
+    multivar_t* var = multivar_new(mesh_name, field_name, silo_var_type, optlist);
     ptr_array_append_with_dtor(file->multivars, var, DTOR(multivar_free));
   }
 #endif
@@ -1415,10 +1550,12 @@ void silo_file_write_scalar_cell_field(silo_file_t* file,
   DBReadVar(file->dbfile, num_cells_var, &num_cells);
 
   // Feed the field data into the file.
-  DBPutUcdvar1(file->dbfile, field_name, mesh_name, field_data, num_cells, 0, 0, SILO_FLOAT_TYPE, DB_ZONECENT, NULL);
+  DBoptlist* optlist = optlist_from_metadata(field_metadata);
+  DBPutUcdvar1(file->dbfile, field_name, mesh_name, field_data, num_cells, 0, 0, SILO_FLOAT_TYPE, DB_ZONECENT, optlist);
+  free_metadata_optlist(optlist);
 
   // Add a multi-object entry.
-  silo_file_add_multivar(file, mesh_name, field_name, DB_UCDVAR);
+  silo_file_add_multivar(file, mesh_name, field_name, DB_UCDVAR, optlist);
   STOP_FUNCTION_TIMER();
 }
 
@@ -1437,6 +1574,7 @@ real_t* silo_file_read_scalar_cell_field(silo_file_t* file,
     polymec_error("Field '%s' is not a polymec cell-centered field.", field_name);
   real_t* field = polymec_malloc(sizeof(real_t) * var->nels);
   memcpy(field, var->vals[0], sizeof(real_t) * var->nels);
+  read_mesh_metadata(var, field_metadata);
   STOP_FUNCTION_TIMER();
   return field;
 }
@@ -1515,10 +1653,12 @@ void silo_file_write_scalar_face_field(silo_file_t* file,
   DBReadVar(file->dbfile, num_faces_var, &num_faces);
 
   // Feed the field data into the file.
+  DBoptlist* optlist = optlist_from_metadata(field_metadata);
   DBPutUcdvar1(file->dbfile, field_name, mesh_name, field_data, num_faces, 0, 0, SILO_FLOAT_TYPE, DB_FACECENT, NULL);
+  free_metadata_optlist(optlist);
 
   // Add a multi-object entry.
-  silo_file_add_multivar(file, mesh_name, field_name, DB_UCDVAR);
+  silo_file_add_multivar(file, mesh_name, field_name, DB_UCDVAR, optlist);
   STOP_FUNCTION_TIMER();
 }
 
@@ -1537,6 +1677,7 @@ real_t* silo_file_read_scalar_face_field(silo_file_t* file,
     polymec_error("Field '%s' is not a polymec face-centered field.", field_name);
   real_t* field = polymec_malloc(sizeof(real_t) * var->nels);
   memcpy(field, var->vals[0], sizeof(real_t) * var->nels);
+  read_mesh_metadata(var, field_metadata);
   STOP_FUNCTION_TIMER();
   return field;
 }
@@ -1615,10 +1756,12 @@ void silo_file_write_scalar_node_field(silo_file_t* file,
   DBReadVar(file->dbfile, num_nodes_var, &num_nodes);
 
   // Feed the field data into the file.
+  DBoptlist* optlist = optlist_from_metadata(field_metadata);
   DBPutUcdvar1(file->dbfile, field_name, mesh_name, field_data, num_nodes, 0, 0, SILO_FLOAT_TYPE, DB_NODECENT, NULL);
+  free_metadata_optlist(optlist);
 
   // Add a multi-object entry.
-  silo_file_add_multivar(file, mesh_name, field_name, DB_UCDVAR);
+  silo_file_add_multivar(file, mesh_name, field_name, DB_UCDVAR, optlist);
   STOP_FUNCTION_TIMER();
 }
 
@@ -1637,6 +1780,7 @@ real_t* silo_file_read_scalar_node_field(silo_file_t* file,
     polymec_error("Field '%s' is not a polymec node-centered field.", field_name);
   real_t* field = polymec_malloc(sizeof(real_t) * var->nels);
   memcpy(field, var->vals[0], sizeof(real_t) * var->nels);
+  read_mesh_metadata(var, field_metadata);
   STOP_FUNCTION_TIMER();
   return field;
 }
@@ -1715,10 +1859,12 @@ void silo_file_write_scalar_edge_field(silo_file_t* file,
   DBReadVar(file->dbfile, num_edges_var, &num_edges);
 
   // Feed the field data into the file.
+  DBoptlist* optlist = optlist_from_metadata(field_metadata);
   DBPutUcdvar1(file->dbfile, field_name, mesh_name, field_data, num_edges, 0, 0, SILO_FLOAT_TYPE, DB_EDGECENT, NULL);
+  free_metadata_optlist(optlist);
 
   // Add a multi-object entry.
-  silo_file_add_multivar(file, mesh_name, field_name, DB_UCDVAR);
+  silo_file_add_multivar(file, mesh_name, field_name, DB_UCDVAR, optlist);
   STOP_FUNCTION_TIMER();
 }
 
@@ -1737,6 +1883,7 @@ real_t* silo_file_read_scalar_edge_field(silo_file_t* file,
     polymec_error("Field '%s' is not a polymec edge-centered field.", field_name);
   real_t* field = polymec_malloc(sizeof(real_t) * var->nels);
   memcpy(field, var->vals[0], sizeof(real_t) * var->nels);
+  read_mesh_metadata(var, field_metadata);
   STOP_FUNCTION_TIMER();
   return field;
 }
@@ -1907,10 +2054,12 @@ void silo_file_write_scalar_point_field(silo_file_t* file,
   DBReadVar(file->dbfile, num_points_var, &num_points);
 
   // Write the field.
+  DBoptlist* optlist = optlist_from_metadata(field_metadata);
   DBPutPointvar1(file->dbfile, field_name, cloud_name, field_data, num_points, SILO_FLOAT_TYPE, NULL);
+  free_metadata_optlist(optlist);
 
   // Add a multi-object entry.
-  silo_file_add_multivar(file, cloud_name, field_name, DB_POINTVAR);
+  silo_file_add_multivar(file, cloud_name, field_name, DB_POINTVAR, optlist);
   STOP_FUNCTION_TIMER();
 }
 
@@ -1927,6 +2076,7 @@ real_t* silo_file_read_scalar_point_field(silo_file_t* file,
     polymec_error("Field '%s' was not found in the Silo file.", field_name);
   real_t* field = polymec_malloc(sizeof(real_t) * var->nels);
   memcpy(field, var->vals[0], sizeof(real_t) * var->nels);
+  read_point_metadata(var, field_metadata);
   STOP_FUNCTION_TIMER();
   return field;
 }

@@ -27,6 +27,11 @@ typedef struct silo_field_metadata_t silo_field_metadata_t;
 // Creates a new empty object for storing field metadata.
 silo_field_metadata_t* silo_field_metadata_new();
 
+// Sets the label associated with the field for this metadata. This label 
+// appears in visualizations.
+void silo_field_metadata_set_label(silo_field_metadata_t* metadata,
+                                   const char* label);
+
 // Sets the units associated with the field for this metadata. The units 
 // are contained in the given string in some descriptive fashion.
 void silo_field_metadata_set_units(silo_field_metadata_t* metadata,
@@ -37,6 +42,15 @@ void silo_field_metadata_set_units(silo_field_metadata_t* metadata,
 void silo_field_metadata_set_conserved(silo_field_metadata_t* metadata,
                                        bool is_conserved);
 
+// Sets a flag that indicates whether the field for this metadata is 
+// extensive.
+void silo_field_metadata_set_extensive(silo_field_metadata_t* metadata,
+                                       bool is_extensive);
+
+// Returns the internal string containing any label associated with the 
+// field for this metadata, or NULL if there are none.
+char* silo_field_metadata_label(silo_field_metadata_t* metadata);
+
 // Returns the internal string containing any units associated with the 
 // field for this metadata, or NULL if there are none.
 char* silo_field_metadata_units(silo_field_metadata_t* metadata);
@@ -44,6 +58,10 @@ char* silo_field_metadata_units(silo_field_metadata_t* metadata);
 // Returns a flag that indicates whether the field for this metadata is 
 // conserved.
 bool silo_field_metadata_conserved(silo_field_metadata_t* metadata);
+
+// Returns a flag that indicates whether the field for this metadata is 
+// extensive.
+bool silo_field_metadata_extensive(silo_field_metadata_t* metadata);
 
 // A Silo file can store various geometries (meshes) and data, using 
 // "Poor Man's Parallel I/O" (PMPIO) to achieve scalable throughput.
