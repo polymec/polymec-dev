@@ -54,7 +54,7 @@ void test_partition_linear_cloud(void** state, int N)
   snprintf(filename, FILENAME_MAX, "linear_cloud_partition_%d", N);
   silo_file_t* silo = silo_file_new(comm, filename, filename, 1, 0, 0, 0.0);
   silo_file_write_point_cloud(silo, "cloud", cloud);
-  silo_file_write_scalar_point_field(silo, "rank", "cloud", p);
+  silo_file_write_scalar_point_field(silo, "rank", "cloud", p, NULL);
   silo_file_close(silo);
 
   // Clean up.
@@ -94,7 +94,7 @@ void test_partition_planar_cloud(void** state, int nx, int ny)
   snprintf(filename, FILENAME_MAX, "planar_cloud_partition_%dx%d", nx, ny);
   silo_file_t* silo = silo_file_new(comm, filename, filename, 1, 0, 0, 0.0);
   silo_file_write_point_cloud(silo, "cloud", cloud);
-  silo_file_write_scalar_point_field(silo, "rank", "cloud", p);
+  silo_file_write_scalar_point_field(silo, "rank", "cloud", p, NULL);
   silo_file_close(silo);
 
   // Clean up.
@@ -134,7 +134,7 @@ void test_partition_cubic_cloud(void** state, int nx, int ny, int nz)
   snprintf(filename, FILENAME_MAX, "cubic_cloud_partition_%dx%dx%d", nx, ny, nz);
   silo_file_t* silo = silo_file_new(comm, filename, filename, 1, 0, 0, 0.0);
   silo_file_write_point_cloud(silo, "cloud", cloud);
-  silo_file_write_scalar_point_field(silo, "rank", "cloud", p);
+  silo_file_write_scalar_point_field(silo, "rank", "cloud", p, NULL);
   silo_file_close(silo);
 
   // Clean up.

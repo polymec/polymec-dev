@@ -312,7 +312,7 @@ static void gol_load(void* context, const char* file_prefix, const char* directo
   ASSERT(gol->state == NULL);
   gol->grid = silo_file_read_mesh(silo, "grid");
   gol->stencil = cell_halo_stencil_new(gol->grid, 1);
-  gol->state = silo_file_read_scalar_cell_field(silo, "state", "grid");
+  gol->state = silo_file_read_scalar_cell_field(silo, "state", "grid", NULL);
   silo_file_close(silo);
 }
 
@@ -325,11 +325,11 @@ static void gol_save(void* context, const char* file_prefix, const char* directo
 
   silo_file_t* silo = silo_file_new(gol->grid->comm, file_prefix, directory, 1, 0, step, t);
   silo_file_write_mesh(silo, "grid", gol->grid);
-  silo_file_write_scalar_cell_field(silo, "life", "grid", gol->state);
+  silo_file_write_scalar_cell_field(silo, "life", "grid", gol->state, NULL);
   real_t* rank_field = polymec_malloc(sizeof(real_t) * gol->grid->num_cells);
   for (int i = 0; i < gol->grid->num_cells; ++i)
     rank_field[i] = 1.0 * rank;
-  silo_file_write_scalar_cell_field(silo, "rank", "grid", rank_field);
+  silo_file_write_scalar_cell_field(silo, "rank", "grid", rank_field, NULL);
   polymec_free(rank_field);
   silo_file_close(silo);
 }

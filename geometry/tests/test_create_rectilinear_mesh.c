@@ -62,7 +62,7 @@ void test_plot_rectilinear_mesh(void** state)
     ones[c] = 1.0*c;
   silo_file_t* silo = silo_file_new(MPI_COMM_SELF, "rectilinear_4x4x4", "", 1, 0, 0, 0.0);
   silo_file_write_mesh(silo, "mesh", mesh);
-  silo_file_write_scalar_cell_field(silo, "solution", "mesh", ones);
+  silo_file_write_scalar_cell_field(silo, "solution", "mesh", ones, NULL);
   silo_file_close(silo);
 
   // Clean up.

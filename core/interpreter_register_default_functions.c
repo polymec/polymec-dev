@@ -367,7 +367,7 @@ static int lua_write_silo_mesh(lua_State* lua)
   char* field_name;
   void* field;
   while (string_ptr_unordered_map_next(fields, &pos, &field_name, &field))
-    silo_file_write_scalar_cell_field(silo, field_name, "mesh", field);
+    silo_file_write_scalar_cell_field(silo, field_name, "mesh", field, NULL);
   silo_file_close(silo);
 
   // Clean up.
@@ -491,7 +491,7 @@ static int lua_write_silo_points(lua_State* lua)
   char* field_name;
   void* field;
   while (string_ptr_unordered_map_next(fields, &pos, &field_name, &field))
-    silo_file_write_scalar_point_field(silo, field_name, "points", field);
+    silo_file_write_scalar_point_field(silo, field_name, "points", field, NULL);
   silo_file_close(silo);
 
   // Clean up.

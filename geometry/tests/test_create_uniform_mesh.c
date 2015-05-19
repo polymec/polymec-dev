@@ -61,7 +61,7 @@ void test_plot_uniform_mesh_with_num_files(void** state, int num_files)
   snprintf(prefix, FILENAME_MAX, "uniform_mesh_%dx%dx%d_%df", nx, ny, nz, num_files);
   silo_file_t* silo = silo_file_new(mesh->comm, prefix, "", num_files, 0, 0, 0.0);
   silo_file_write_mesh(silo, "mesh", mesh);
-  silo_file_write_scalar_cell_field(silo, "solution", "mesh", ones);
+  silo_file_write_scalar_cell_field(silo, "solution", "mesh", ones, NULL);
   silo_file_close(silo);
 
   // Query the plot file to make sure its numbers are good.

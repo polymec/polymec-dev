@@ -7,6 +7,7 @@
 
 #include <sys/stat.h>
 #include <dirent.h>
+#include <gc/gc.h>
 #include "silo.h"
 #include "core/arch.h"
 #include "core/logging.h"
@@ -34,6 +35,52 @@ void silo_enable_compression(int level)
     DBSetCompression(options);
     silo_compression_level = level; 
   }
+}
+
+struct silo_field_metadata_t 
+{
+  char* units;
+  bool conserved;
+};
+
+static void silo_field_metadata_free(void* ctx, void* dummy)
+{
+  silo_field_metadata_t* metadata = ctx;
+  if (metadata->units)
+    string_free(metadata->units);
+}
+
+silo_field_metadata_t* silo_field_metadata_new()
+{
+  silo_field_metadata_t* metadata = GC_MALLOC(sizeof(silo_field_metadata_t));
+  metadata->units = NULL;
+  metadata->conserved = false;
+  GC_register_finalizer(metadata, silo_field_metadata_free, metadata, NULL, NULL);
+  return metadata;
+}
+
+void silo_field_metadata_set_units(silo_field_metadata_t* metadata,
+                                   const char* units)
+{
+  if (metadata->units != NULL)
+    string_free(metadata->units);
+  metadata->units = string_dup(units);
+}
+
+void silo_field_metadata_set_conserved(silo_field_metadata_t* metadata,
+                                       bool is_conserved)
+{
+  metadata->conserved = is_conserved;
+}
+
+char* silo_field_metadata_units(silo_field_metadata_t* metadata)
+{
+  return metadata->units;
+}
+
+bool silo_field_metadata_conserved(silo_field_metadata_t* metadata)
+{
+  return metadata->conserved;
 }
 
 #if POLYMEC_HAVE_MPI
@@ -1354,7 +1401,8 @@ mesh_t* silo_file_read_mesh(silo_file_t* file,
 void silo_file_write_scalar_cell_field(silo_file_t* file,
                                        const char* field_name,
                                        const char* mesh_name,
-                                       real_t* field_data)
+                                       real_t* field_data,
+                                       silo_field_metadata_t* field_metadata)
 {
   START_FUNCTION_TIMER();
   ASSERT(file->mode == DB_CLOBBER);
@@ -1376,7 +1424,8 @@ void silo_file_write_scalar_cell_field(silo_file_t* file,
 
 real_t* silo_file_read_scalar_cell_field(silo_file_t* file,
                                          const char* field_name,
-                                         const char* mesh_name)
+                                         const char* mesh_name,
+                                         silo_field_metadata_t* field_metadata)
 {
   START_FUNCTION_TIMER();
   ASSERT(file->mode == DB_READ);
@@ -1396,7 +1445,8 @@ void silo_file_write_cell_field(silo_file_t* file,
                                 const char** field_component_names,
                                 const char* mesh_name,
                                 real_t* field_data,
-                                int num_components)
+                                int num_components,
+                                silo_field_metadata_t** field_metadata)
 {
   START_FUNCTION_TIMER();
   ASSERT(file->mode == DB_CLOBBER);
@@ -1412,8 +1462,9 @@ void silo_file_write_cell_field(silo_file_t* file,
   {
     for (int i = 0; i < num_cells; ++i)
       comp_data[i] = field_data[num_components*i+c];
+    silo_field_metadata_t* metadata = (field_metadata != NULL) ? field_metadata[c] : NULL;
     silo_file_write_scalar_cell_field(file, field_component_names[c], 
-                                      mesh_name, comp_data);
+                                      mesh_name, comp_data, metadata);
   }
   polymec_free(comp_data);
   STOP_FUNCTION_TIMER();
@@ -1422,7 +1473,8 @@ void silo_file_write_cell_field(silo_file_t* file,
 real_t* silo_file_read_cell_field(silo_file_t* file,
                                   const char** field_component_names,
                                   const char* mesh_name,
-                                  int num_components)
+                                  int num_components,
+                                  silo_field_metadata_t** field_metadata)
 {
   START_FUNCTION_TIMER();
   ASSERT(file->mode == DB_READ);
@@ -1436,7 +1488,8 @@ real_t* silo_file_read_cell_field(silo_file_t* file,
   real_t* field = polymec_malloc(sizeof(real_t) * num_components * num_cells); 
   for (int c = 0; c < num_components; ++c)
   {
-    real_t* comp_data = silo_file_read_scalar_cell_field(file, field_component_names[c], mesh_name);
+    silo_field_metadata_t* metadata = (field_metadata != NULL) ? field_metadata[c] : NULL;
+    real_t* comp_data = silo_file_read_scalar_cell_field(file, field_component_names[c], mesh_name, metadata);
     for (int i = 0; i < num_cells; ++i)
       field[num_components*i+c] = comp_data[i];
     polymec_free(comp_data);
@@ -1448,7 +1501,8 @@ real_t* silo_file_read_cell_field(silo_file_t* file,
 void silo_file_write_scalar_face_field(silo_file_t* file,
                                        const char* field_name,
                                        const char* mesh_name,
-                                       real_t* field_data)
+                                       real_t* field_data,
+                                       silo_field_metadata_t* field_metadata)
 {
   START_FUNCTION_TIMER();
   ASSERT(file->mode == DB_CLOBBER);
@@ -1470,7 +1524,8 @@ void silo_file_write_scalar_face_field(silo_file_t* file,
 
 real_t* silo_file_read_scalar_face_field(silo_file_t* file,
                                          const char* field_name,
-                                         const char* mesh_name)
+                                         const char* mesh_name,
+                                         silo_field_metadata_t* field_metadata)
 {
   START_FUNCTION_TIMER();
   ASSERT(file->mode == DB_READ);
@@ -1490,7 +1545,8 @@ void silo_file_write_face_field(silo_file_t* file,
                                 const char** field_component_names,
                                 const char* mesh_name,
                                 real_t* field_data,
-                                int num_components)
+                                int num_components,
+                                silo_field_metadata_t** field_metadata)
 {
   START_FUNCTION_TIMER();
   ASSERT(file->mode == DB_CLOBBER);
@@ -1506,8 +1562,9 @@ void silo_file_write_face_field(silo_file_t* file,
   {
     for (int i = 0; i < num_faces; ++i)
       comp_data[i] = field_data[num_components*i+c];
+    silo_field_metadata_t* metadata = (field_metadata != NULL) ? field_metadata[c] : NULL;
     silo_file_write_scalar_face_field(file, field_component_names[c], 
-                                      mesh_name, comp_data);
+                                      mesh_name, comp_data, metadata);
   }
   polymec_free(comp_data);
   STOP_FUNCTION_TIMER();
@@ -1516,7 +1573,8 @@ void silo_file_write_face_field(silo_file_t* file,
 real_t* silo_file_read_face_field(silo_file_t* file,
                                   const char** field_component_names,
                                   const char* mesh_name,
-                                  int num_components)
+                                  int num_components,
+                                  silo_field_metadata_t** field_metadata)
 {
   START_FUNCTION_TIMER();
   ASSERT(file->mode == DB_READ);
@@ -1530,7 +1588,8 @@ real_t* silo_file_read_face_field(silo_file_t* file,
   real_t* field = polymec_malloc(sizeof(real_t) * num_components * num_faces); 
   for (int c = 0; c < num_components; ++c)
   {
-    real_t* comp_data = silo_file_read_scalar_face_field(file, field_component_names[c], mesh_name);
+    silo_field_metadata_t* metadata = (field_metadata != NULL) ? field_metadata[c] : NULL;
+    real_t* comp_data = silo_file_read_scalar_face_field(file, field_component_names[c], mesh_name, metadata);
     for (int i = 0; i < num_faces; ++i)
       field[num_components*i+c] = comp_data[i];
     polymec_free(comp_data);
@@ -1542,7 +1601,8 @@ real_t* silo_file_read_face_field(silo_file_t* file,
 void silo_file_write_scalar_node_field(silo_file_t* file,
                                        const char* field_name,
                                        const char* mesh_name,
-                                       real_t* field_data)
+                                       real_t* field_data,
+                                       silo_field_metadata_t* field_metadata)
 {
   START_FUNCTION_TIMER();
   ASSERT(file->mode == DB_CLOBBER);
@@ -1564,7 +1624,8 @@ void silo_file_write_scalar_node_field(silo_file_t* file,
 
 real_t* silo_file_read_scalar_node_field(silo_file_t* file,
                                          const char* field_name,
-                                         const char* mesh_name)
+                                         const char* mesh_name,
+                                         silo_field_metadata_t* field_metadata)
 {
   START_FUNCTION_TIMER();
   ASSERT(file->mode == DB_READ);
@@ -1584,7 +1645,8 @@ void silo_file_write_node_field(silo_file_t* file,
                                 const char** field_component_names,
                                 const char* mesh_name,
                                 real_t* field_data,
-                                int num_components)
+                                int num_components,
+                                silo_field_metadata_t** field_metadata)
 {
   START_FUNCTION_TIMER();
   ASSERT(file->mode == DB_CLOBBER);
@@ -1600,8 +1662,9 @@ void silo_file_write_node_field(silo_file_t* file,
   {
     for (int i = 0; i < num_nodes; ++i)
       comp_data[i] = field_data[num_components*i+c];
+    silo_field_metadata_t* metadata = (field_metadata != NULL) ? field_metadata[c] : NULL;
     silo_file_write_scalar_node_field(file, field_component_names[c], 
-                                      mesh_name, comp_data);
+                                      mesh_name, comp_data, metadata);
   }
   polymec_free(comp_data);
   STOP_FUNCTION_TIMER();
@@ -1610,7 +1673,8 @@ void silo_file_write_node_field(silo_file_t* file,
 real_t* silo_file_read_node_field(silo_file_t* file,
                                   const char** field_component_names,
                                   const char* mesh_name,
-                                  int num_components)
+                                  int num_components,
+                                  silo_field_metadata_t** field_metadata)
 {
   START_FUNCTION_TIMER();
   ASSERT(file->mode == DB_READ);
@@ -1624,7 +1688,8 @@ real_t* silo_file_read_node_field(silo_file_t* file,
   real_t* field = polymec_malloc(sizeof(real_t) * num_components * num_nodes); 
   for (int c = 0; c < num_components; ++c)
   {
-    real_t* comp_data = silo_file_read_scalar_node_field(file, field_component_names[c], mesh_name);
+    silo_field_metadata_t* metadata = (field_metadata != NULL) ? field_metadata[c] : NULL;
+    real_t* comp_data = silo_file_read_scalar_node_field(file, field_component_names[c], mesh_name, metadata);
     for (int i = 0; i < num_nodes; ++i)
       field[num_components*i+c] = comp_data[i];
     polymec_free(comp_data);
@@ -1636,7 +1701,8 @@ real_t* silo_file_read_node_field(silo_file_t* file,
 void silo_file_write_scalar_edge_field(silo_file_t* file,
                                        const char* field_name,
                                        const char* mesh_name,
-                                       real_t* field_data)
+                                       real_t* field_data,
+                                       silo_field_metadata_t* field_metadata)
 {
   START_FUNCTION_TIMER();
   ASSERT(file->mode == DB_CLOBBER);
@@ -1658,7 +1724,8 @@ void silo_file_write_scalar_edge_field(silo_file_t* file,
 
 real_t* silo_file_read_scalar_edge_field(silo_file_t* file,
                                          const char* field_name,
-                                         const char* mesh_name)
+                                         const char* mesh_name,
+                                         silo_field_metadata_t* field_metadata)
 {
   START_FUNCTION_TIMER();
   ASSERT(file->mode == DB_READ);
@@ -1678,7 +1745,8 @@ void silo_file_write_edge_field(silo_file_t* file,
                                 const char** field_component_names,
                                 const char* mesh_name,
                                 real_t* field_data,
-                                int num_components)
+                                int num_components,
+                                silo_field_metadata_t** field_metadata)
 {
   START_FUNCTION_TIMER();
   ASSERT(file->mode == DB_CLOBBER);
@@ -1694,8 +1762,9 @@ void silo_file_write_edge_field(silo_file_t* file,
   {
     for (int i = 0; i < num_edges; ++i)
       comp_data[i] = field_data[num_components*i+c];
+    silo_field_metadata_t* metadata = (field_metadata != NULL) ? field_metadata[c] : NULL;
     silo_file_write_scalar_edge_field(file, field_component_names[c], 
-                                      mesh_name, comp_data);
+                                      mesh_name, comp_data, metadata);
   }
   polymec_free(comp_data);
   STOP_FUNCTION_TIMER();
@@ -1704,7 +1773,8 @@ void silo_file_write_edge_field(silo_file_t* file,
 real_t* silo_file_read_edge_field(silo_file_t* file,
                                   const char** field_component_names,
                                   const char* mesh_name,
-                                  int num_components)
+                                  int num_components,
+                                  silo_field_metadata_t** field_metadata)
 {
   START_FUNCTION_TIMER();
   ASSERT(file->mode == DB_READ);
@@ -1718,7 +1788,8 @@ real_t* silo_file_read_edge_field(silo_file_t* file,
   real_t* field = polymec_malloc(sizeof(real_t) * num_components * num_edges); 
   for (int c = 0; c < num_components; ++c)
   {
-    real_t* comp_data = silo_file_read_scalar_edge_field(file, field_component_names[c], mesh_name);
+    silo_field_metadata_t* metadata = (field_metadata != NULL) ? field_metadata[c] : NULL;
+    real_t* comp_data = silo_file_read_scalar_edge_field(file, field_component_names[c], mesh_name, metadata);
     for (int i = 0; i < num_edges; ++i)
       field[num_components*i+c] = comp_data[i];
     polymec_free(comp_data);
@@ -1822,7 +1893,8 @@ point_cloud_t* silo_file_read_point_cloud(silo_file_t* file,
 void silo_file_write_scalar_point_field(silo_file_t* file,
                                         const char* field_name,
                                         const char* cloud_name,
-                                        real_t* field_data)
+                                        real_t* field_data,
+                                        silo_field_metadata_t* field_metadata)
 {
   START_FUNCTION_TIMER();
   ASSERT(file->mode == DB_CLOBBER);
@@ -1844,7 +1916,8 @@ void silo_file_write_scalar_point_field(silo_file_t* file,
 
 real_t* silo_file_read_scalar_point_field(silo_file_t* file,
                                           const char* field_name,
-                                          const char* cloud_name)
+                                          const char* cloud_name,
+                                          silo_field_metadata_t* field_metadata)
 {
   START_FUNCTION_TIMER();
   ASSERT(file->mode == DB_READ);
@@ -1862,15 +1935,17 @@ void silo_file_write_point_field(silo_file_t* file,
                                  const char** field_component_names,
                                  const char* cloud_name,
                                  real_t* field_data,
-                                 int num_components)
+                                 int num_components,
+                                 silo_field_metadata_t** field_metadata)
 {
   START_FUNCTION_TIMER();
   ASSERT(file->mode == DB_CLOBBER);
 
   for (int c = 0; c < num_components; ++c)
   {
+    silo_field_metadata_t* metadata = (field_metadata != NULL) ? field_metadata[c] : NULL;
     silo_file_write_scalar_point_field(file, field_component_names[c], 
-                                       cloud_name, field_data);
+                                       cloud_name, field_data, metadata);
   }
   STOP_FUNCTION_TIMER();
 }
@@ -1878,7 +1953,8 @@ void silo_file_write_point_field(silo_file_t* file,
 real_t* silo_file_read_point_field(silo_file_t* file,
                                    const char** field_component_names,
                                    const char* cloud_name,
-                                   int num_components)
+                                   int num_components,
+                                   silo_field_metadata_t** field_metadata)
 {
   START_FUNCTION_TIMER();
   ASSERT(file->mode == DB_READ);
@@ -1892,7 +1968,8 @@ real_t* silo_file_read_point_field(silo_file_t* file,
   real_t* field = polymec_malloc(sizeof(real_t) * num_components * num_points); 
   for (int c = 0; c < num_components; ++c)
   {
-    real_t* comp_data = silo_file_read_scalar_cell_field(file, field_component_names[c], cloud_name);
+    silo_field_metadata_t* metadata = (field_metadata != NULL) ? field_metadata[c] : NULL;
+    real_t* comp_data = silo_file_read_scalar_cell_field(file, field_component_names[c], cloud_name, metadata);
     for (int i = 0; i < num_points; ++i)
       field[num_components*i+c] = comp_data[i];
     polymec_free(comp_data);

@@ -20,6 +20,31 @@
 // compression.
 void silo_enable_compression(int level);
 
+// This type represents a collection of metadata for field variables in 
+// Silo files. Objects of this type are garbage-collected.
+typedef struct silo_field_metadata_t silo_field_metadata_t;
+
+// Creates a new empty object for storing field metadata.
+silo_field_metadata_t* silo_field_metadata_new();
+
+// Sets the units associated with the field for this metadata. The units 
+// are contained in the given string in some descriptive fashion.
+void silo_field_metadata_set_units(silo_field_metadata_t* metadata,
+                                   const char* units);
+
+// Sets a flag that indicates whether the field for this metadata is 
+// conserved.
+void silo_field_metadata_set_conserved(silo_field_metadata_t* metadata,
+                                       bool is_conserved);
+
+// Returns the internal string containing any units associated with the 
+// field for this metadata, or NULL if there are none.
+char* silo_field_metadata_units(silo_field_metadata_t* metadata);
+
+// Returns a flag that indicates whether the field for this metadata is 
+// conserved.
+bool silo_field_metadata_conserved(silo_field_metadata_t* metadata);
+
 // A Silo file can store various geometries (meshes) and data, using 
 // "Poor Man's Parallel I/O" (PMPIO) to achieve scalable throughput.
 typedef struct silo_file_t silo_file_t;
@@ -78,120 +103,168 @@ mesh_t* silo_file_read_mesh(silo_file_t* file,
                             const char* mesh_name);
 
 // Writes a named scalar cell-centered field, understood to exist on 
-// the mesh with the given name, to the given Silo file.
+// the mesh with the given name, to the given Silo file. If a silo_field_metadata
+// object is passed as the last argument, the metadata for the field will also 
+// be written to the file--otherwise it can be NULL.
 void silo_file_write_scalar_cell_field(silo_file_t* file,
                                        const char* field_name,
                                        const char* mesh_name,
-                                       real_t* field_data);
+                                       real_t* field_data,
+                                       silo_field_metadata_t* field_metadata);
 
 // Reads a named scalar cell-centered field from the Silo file, returning a newly-
-// allocated array of field data.
+// allocated array of field data. If a silo_field_metadata object is passed as 
+// the last argument, the metadata for the field will be read into it--
+// otherwise it can be NULL.
 real_t* silo_file_read_scalar_cell_field(silo_file_t* file,
                                          const char* field_name,
-                                         const char* mesh_name);
+                                         const char* mesh_name,
+                                         silo_field_metadata_t* field_metadata);
 
 // Writes a named multicomponent cell-centered field, understood to exist on 
 // the mesh with the given name, to the given Silo file. The field data is 
-// interpreted to be in component-minor order.
+// interpreted to be in component-minor order. If an array of metadata
+// objects is passed as the last argument, the metadata for the field will also 
+// be written to the file--otherwise it can be NULL.
 void silo_file_write_cell_field(silo_file_t* file,
                                 const char** field_component_names,
                                 const char* mesh_name,
                                 real_t* field_data,
-                                int num_components);
+                                int num_components,
+                                silo_field_metadata_t** field_metadata);
 
 // Reads a named multicomponent cell-centered field from the Silo file, returning a 
-// newly-allocated array of field data.
+// newly-allocated array of field data. If an array of metadata objects is 
+// passed as the last argument, the metadata for the field will be read into 
+// it--otherwise it can be NULL.
 real_t* silo_file_read_cell_field(silo_file_t* file,
                                   const char** field_component_names,
                                   const char* mesh_name,
-                                  int num_components);
+                                  int num_components,
+                                  silo_field_metadata_t** field_metadata);
 
 // Writes a named scalar face-centered field, understood to exist on 
-// the mesh with the given name, to the given Silo file.
+// the mesh with the given name, to the given Silo file. If a silo_field_metadata
+// object is passed as the last argument, the metadata for the field will also 
+// be written to the file--otherwise it can be NULL.
 void silo_file_write_scalar_face_field(silo_file_t* file,
                                        const char* field_name,
                                        const char* mesh_name,
-                                       real_t* field_data);
+                                       real_t* field_data,
+                                       silo_field_metadata_t* field_metadata);
 
 // Reads a named scalar face-centered field from the Silo file, returning a newly-
-// allocated array of field data.
+// allocated array of field data. If a silo_field_metadata object is 
+// passed as the last argument, the metadata for the field will be read into 
+// it--otherwise it can be NULL.
 real_t* silo_file_read_scalar_face_field(silo_file_t* file,
                                          const char* field_name,
-                                         const char* mesh_name);
+                                         const char* mesh_name,
+                                         silo_field_metadata_t* field_metadata);
 
 // Writes a named multicomponent face-centered field, understood to exist on 
 // the mesh with the given name, to the given Silo file. The field data is 
-// interpreted to be in component-minor order.
+// interpreted to be in component-minor order. If an array of metadata
+// objects is passed as the last argument, the metadata for the field will also 
+// be written to the file--otherwise it can be NULL.
 void silo_file_write_face_field(silo_file_t* file,
                                 const char** field_component_names,
                                 const char* mesh_name,
                                 real_t* field_data,
-                                int num_components);
+                                int num_components,
+                                silo_field_metadata_t** field_metadata);
 
 // Reads a named multicomponent face-centered field from the Silo file, returning a 
-// newly-allocated array of field data.
+// newly-allocated array of field data. If an array of metadata objects is 
+// passed as the last argument, the metadata for the field will be read into 
+// it--otherwise it can be NULL.
 real_t* silo_file_read_face_field(silo_file_t* file,
                                   const char** field_component_names,
                                   const char* mesh_name,
-                                  int num_components);
+                                  int num_components,
+                                  silo_field_metadata_t** field_metadata);
 
 // Writes a named scalar node-centered field, understood to exist on 
-// the mesh with the given name, to the given Silo file.
+// the mesh with the given name, to the given Silo file. If a silo_field_metadata
+// object is passed as the last argument, the metadata for the field will also 
+// be written to the file--otherwise it can be NULL.
 void silo_file_write_scalar_node_field(silo_file_t* file,
                                        const char* field_name,
                                        const char* mesh_name,
-                                       real_t* field_data);
+                                       real_t* field_data,
+                                       silo_field_metadata_t* field_metadata);
 
 // Reads a named scalar node-centered field from the Silo file, returning a newly-
-// allocated array of field data.
+// allocated array of field data. If a silo_field_metadata object is 
+// passed as the last argument, the metadata for the field will be read into 
+// it--otherwise it can be NULL.
 real_t* silo_file_read_scalar_node_field(silo_file_t* file,
                                          const char* field_name,
-                                         const char* mesh_name);
+                                         const char* mesh_name,
+                                         silo_field_metadata_t* field_metadata);
 
 // Writes a named multicomponent node-centered field, understood to exist on 
 // the mesh with the given name, to the given Silo file. The field data is 
-// interpreted to be in component-minor order.
+// interpreted to be in component-minor order. If an array of metadata
+// objects is passed as the last argument, the metadata for the field will also 
+// be written to the file--otherwise it can be NULL.
 void silo_file_write_node_field(silo_file_t* file,
                                 const char** field_component_names,
                                 const char* mesh_name,
                                 real_t* field_data,
-                                int num_components);
+                                int num_components,
+                                silo_field_metadata_t** field_metadata);
 
 // Reads a named multicomponent node-centered field from the Silo file, returning a 
-// newly-allocated array of field data.
+// newly-allocated array of field data. If an array of metadata objects is 
+// passed as the last argument, the metadata for the field will be read into 
+// it--otherwise it can be NULL.
 real_t* silo_file_read_node_field(silo_file_t* file,
                                   const char** field_component_names,
                                   const char* mesh_name,
-                                  int num_components);
+                                  int num_components,
+                                  silo_field_metadata_t** field_metadata);
 
 // Writes a named scalar edge-centered field, understood to exist on 
-// the mesh with the given name, to the given Silo file.
+// the mesh with the given name, to the given Silo file. If a silo_field_metadata object is 
+// passed as the last argument, the metadata for the field will be read into 
+// it--otherwise it can be NULL.
 void silo_file_write_scalar_edge_field(silo_file_t* file,
                                        const char* field_name,
                                        const char* mesh_name,
-                                       real_t* field_data);
+                                       real_t* field_data,
+                                       silo_field_metadata_t* field_metadata);
 
 // Reads a named scalar edge-centered field from the Silo file, returning a newly-
-// allocated array of field data.
+// allocated array of field data. If an array of metadata objects is 
+// passed as the last argument, the metadata for the field will be read into 
+// it--otherwise it can be NULL.
 real_t* silo_file_read_scalar_edge_field(silo_file_t* file,
                                          const char* field_name,
-                                         const char* mesh_name);
+                                         const char* mesh_name,
+                                         silo_field_metadata_t* field_metadata);
 
 // Writes a named multicomponent edge-centered field, understood to exist on 
 // the mesh with the given name, to the given Silo file. The field data is 
-// interpreted to be in component-minor order.
+// interpreted to be in component-minor order. If an array of metadata
+// objects is passed as the last argument, the metadata for the field will also 
+// be written to the file--otherwise it can be NULL.
 void silo_file_write_edge_field(silo_file_t* file,
                                 const char** field_component_names,
                                 const char* mesh_name,
                                 real_t* field_data,
-                                int num_components);
+                                int num_components,
+                                silo_field_metadata_t** field_metadata);
 
 // Reads a named multicomponent edge-centered field from the Silo file, returning a 
-// newly-allocated array of field data.
+// newly-allocated array of field data. If an array of metadata objects is 
+// passed as the last argument, the metadata for the field will be read into 
+// it--otherwise it can be NULL.
 real_t* silo_file_read_edge_field(silo_file_t* file,
                                   const char** field_component_names,
                                   const char* mesh_name,
-                                  int num_components);
+                                  int num_components,
+                                  silo_field_metadata_t** field_metadata);
 
 // Adds a point mesh to the given Silo file.
 void silo_file_write_point_cloud(silo_file_t* file,
@@ -203,31 +276,44 @@ point_cloud_t* silo_file_read_point_cloud(silo_file_t* file,
                                           const char* cloud_name);
 
 // Writes a named scalar point field to the given Silo file, associated with 
-// the given point cloud.
+// the given point cloud. If a silo_field_metadata object is passed as the 
+// last argument, the metadata for the field will be read into it--otherwise 
+// it can be NULL.
 void silo_file_write_scalar_point_field(silo_file_t* file,
                                         const char* field_name,
                                         const char* cloud_name,
-                                        real_t* field_data);
+                                        real_t* field_data,
+                                        silo_field_metadata_t* field_metadata);
 
-// Reads a named scalar point field from the Silo file.
+// Reads a named scalar point field from the Silo file, 
+// allocated array of field data. If a silo_field_metadata object is 
+// passed as the last argument, the metadata for the field will be read into 
+// it--otherwise it can be NULL.
 real_t* silo_file_read_scalar_point_field(silo_file_t* file,
                                           const char* field_name,
-                                          const char* cloud_name);
+                                          const char* cloud_name,
+                                          silo_field_metadata_t* field_metadata);
 
 // Writes a named multicomponent point field to the given Silo file, 
 // associated with the given point cloud. The field data is interpreted to 
-// be in component-minor order.
+// be in component-minor order. If an array of metadata objects is passed as 
+// the last argument, the metadata for the field will also be written to the 
+// file--otherwise it can be NULL.
 void silo_file_write_point_field(silo_file_t* file,
                                  const char** field_component_names,
                                  const char* cloud_name,
                                  real_t* field_data,
-                                 int num_components);
+                                 int num_components,
+                                 silo_field_metadata_t** field_metadata);
 
 // Reads a named multicomponent point field from the Silo file.
+// If an array of metadata objects is passed as the last argument, the 
+// metadata for the field will be read into it--otherwise it can be NULL.
 real_t* silo_file_read_point_field(silo_file_t* file,
                                    const char** field_component_names,
                                    const char* cloud_name,
-                                   int num_components);
+                                   int num_components,
+                                   silo_field_metadata_t** field_metadata);
 
 // Adds a scalar expression (a definition of a new scalar variable in terms 
 // of existing variables) to this Silo file. See the Silo manual for
