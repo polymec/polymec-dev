@@ -237,7 +237,11 @@ adj_graph_t* adj_graph_new_with_block_sizes(adj_graph_t* graph,
         int bs = (block_edges[e] < num_block_vertices) ? block_sizes[block_edges[e]] : block_size;
         for (int bb = 0; bb < bs; ++bb)
         {
-          int v = vertex_offsets[block_edges[e]] + bb;
+          int v;
+          if (block_edges[e] < num_block_vertices)
+            v = vertex_offsets[block_edges[e]] + bb;
+          else // off-process vertex
+            v = tot_num_vertices + bs * (block_edges[e] - tot_num_vertices);
           edges[edge_offsets[e] + bb] = v;
         }
       }
