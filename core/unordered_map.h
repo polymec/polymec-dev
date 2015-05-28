@@ -31,6 +31,7 @@
 // bool x_map_contains(x_map_t* map, x_map_key_t key) - Returns true if the map contains the key, false if not.
 // void x_map_insert(x_map_t* map, x_map_key_t key, x_map_value_t value) - Sets the value for the given key.
 // void x_map_insert_with_kv_dtor(x_map_t* map, x_map_key_t key, x_map_value_t value, x_map_kv_dtor) - Sets the value for the given key and associates a destructor for the key/value pair.
+// void x_map_insert_with_kv_dtors(x_map_t* map, x_map_key_t key, x_map_value_t value, x_map_k_dtor, x_map_v_dtor) - Sets the value for the given key and associates separate destructors for the key and value.
 // void x_map_insert_with_k_dtor(x_map_t* map, x_map_key_t key, x_map_value_t value, x_map_k_dtor) - Sets the value for the given key and associates a destructor for the key.
 // void x_map_insert_with_v_dtor(x_map_t* map, x_map_key_t key, x_map_value_t value, x_map_v_dtor) - Sets the value for the given key and associates a destructor for the value.
 // key_type x_map_change_key(x_map_t* map, x_map_key_t old_key, x_map_key_t new_key) - Renames old_key to new_key, overwriting new_key if it exists. Returns old key.
@@ -234,6 +235,11 @@ static inline void map_name##_insert_with_dtors(map_name##_t* map, key_type key,
 static inline void map_name##_insert_with_kv_dtor(map_name##_t* map, key_type key, value_type value, map_name##_kv_dtor dtor) \
 { \
   map_name##_insert_with_dtors(map, key, value, dtor, NULL, NULL); \
+} \
+\
+static inline void map_name##_insert_with_kv_dtors(map_name##_t* map, key_type key, value_type value, map_name##_k_dtor k_dtor, map_name##_v_dtor v_dtor) \
+{ \
+  map_name##_insert_with_dtors(map, key, value, NULL, k_dtor, v_dtor); \
 } \
 \
 static inline void map_name##_insert_with_k_dtor(map_name##_t* map, key_type key, value_type value, map_name##_k_dtor dtor) \
