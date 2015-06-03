@@ -2,7 +2,7 @@ add_library(polymec_model model.c boundary_cell_map.c periodic_bc.c
             point_weight_function.c stencil.c mesh_stencils.c 
             neighbor_pairing.c polynomial_fit.c 
             partition_point_cloud_with_neighbors.c
-            shape_function.c mls_shape_function.c
+            shape_function.c shepard_shape_function.c mls_shape_function.c
             interpreter_register_model_functions.c)
 
 set(POLYMEC_LIBRARIES polymec_model;${POLYMEC_LIBRARIES} PARENT_SCOPE)
