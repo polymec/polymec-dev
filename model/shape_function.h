@@ -12,7 +12,8 @@
 
 // Here's a "kernel" that can be used to construct shape functions.
 // This interface is not strictly necessary for defining a given shape 
-// function, but is provided as a convenience here.
+// function, but is provided as a convenience here. Objects of this type 
+// are garbage-collected.
 typedef struct shape_function_kernel_t shape_function_kernel_t;
 
 // Creates a kernel function that can be used to construct a shape function.
@@ -20,9 +21,6 @@ shape_function_kernel_t* shape_function_kernel_new(const char* name,
                                                    void* context,
                                                    void (*compute)(void* context, point_t* points, real_t* extents, int num_points, point_t* x, real_t* values, vector_t* gradients),
                                                    void (*dtor)(void* context));
-
-// Destroys the given shape function kernel.
-void shape_function_kernel_free(shape_function_kernel_t* kernel);
 
 // Evaluates the kernel functions centered on the given points (with "extents"), computing 
 // their values and (if gradients != NULL) their gradients at the point x.
@@ -33,6 +31,10 @@ void shape_function_kernel_compute(shape_function_kernel_t* kernel,
                                    point_t* x, 
                                    real_t* values,
                                    vector_t* gradients);
+
+// This is a simple shape function kernel of the form 
+// W(x, x0, h) = MAX(0, 4 - (||x - x0||/h)**2).
+shape_function_kernel_t* simple_shape_function_kernel_new();
               
 // This class represents a shape function defined on a set of points in a 
 // neighborhood within a point cloud.
