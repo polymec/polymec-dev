@@ -20,6 +20,14 @@ typedef struct polynomial_t polynomial_t;
 // polynomials of a given degree.
 int polynomial_basis_dim(int degree);
 
+// This fills the given array with the components of the given partial 
+// derivative (of the standard polynomial basis of the given degree, 
+// evaluated at the point x. 
+void polynomial_compute_basis(int degree, 
+                              int x_deriv, int y_deriv, int z_deriv, 
+                              point_t* x, 
+                              real_t* basis);
+
 // Creates a polynomial of the given degree from the given set of coefficients,
 // expanded about the given point x0. If x0 is NULL, x0 = 0.
 // The coefficients correspond to monomial terms in the standard 3D polynomial 

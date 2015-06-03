@@ -39,13 +39,38 @@ static int std_x_pow[35] = {0, 1, 0, 0, 2, 1, 1, 0, 0, 0,
                             4, 3, 3, 2, 2, 2, 1, 1, 1, 1, 
                             0, 0, 0, 0, 0};
 static int std_y_pow[35] = {0, 0, 1, 0, 0, 1, 0, 2, 1, 0, 
-                        0, 1, 0, 2, 1, 0, 3, 2, 1, 0, 
-                        0, 1, 0, 2, 1, 0, 3, 2, 1, 0, 
-                        4, 3, 2, 1, 0};
+                            0, 1, 0, 2, 1, 0, 3, 2, 1, 0, 
+                            0, 1, 0, 2, 1, 0, 3, 2, 1, 0, 
+                            4, 3, 2, 1, 0};
 static int std_z_pow[35] = {0, 0, 0, 1, 0, 0, 1, 0, 1, 2, 
                             0, 0, 1, 0, 1, 2, 0, 1, 2, 3, 
                             0, 0, 1, 0, 1, 2, 0, 1, 2, 3, 
                             0, 1, 2, 3, 4};
+
+static int fact(int x)
+{
+  if ((x == 0) || (x == 1))
+    return 1;
+  else return x*fact(x-1);
+}
+
+void polynomial_compute_basis(int degree, 
+                              int x_deriv, int y_deriv, int z_deriv, 
+                              point_t* x, 
+                              real_t* basis)
+{
+  for (int i = 0; i < N_coeffs[degree]; ++i)
+  {
+    int x_pow = std_x_pow[i];
+    int y_pow = std_y_pow[i];
+    int z_pow = std_z_pow[i];
+    real_t x_term = (x_pow >= x_deriv) ? pow(x->x, x_pow - x_deriv) * fact(x_pow)/fact(x_deriv) : 0.0;
+    real_t y_term = (y_pow >= y_deriv) ? pow(x->y, y_pow - y_deriv) * fact(y_pow)/fact(y_deriv) : 0.0;
+    real_t z_term = (z_pow >= z_deriv) ? pow(x->z, z_pow - z_deriv) * fact(z_pow)/fact(z_deriv) : 0.0;
+    basis[i] = x_term * y_term * z_term;
+    ++i;
+  }
+}
 
 // Trims terms with zero coefficients from polynomials.
 static void polynomial_trim(polynomial_t* p)
@@ -189,13 +214,6 @@ real_t polynomial_value(polynomial_t* p, point_t* x)
                    pow(x->z - p->x0.z, z_pow);
   }
   return val;
-}
-
-static int fact(int x)
-{
-  if ((x == 0) || (x == 1))
-    return 1;
-  else return x*fact(x-1);
 }
 
 real_t polynomial_deriv_value(polynomial_t* p, int x_deriv, int y_deriv, int z_deriv, point_t* x)
