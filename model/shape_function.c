@@ -11,13 +11,13 @@ struct kernel_function_t
 {
   char* name;
   void* context;
-  void (*compute)(void* context, point_t* points, int num_points, point_t* x, real_t* value, vector_t* gradient);
+  void (*compute)(void* context, point_t* points, real_t* extents, int num_points, point_t* x, real_t* value, vector_t* gradient);
   void (*dtor)(void* context);
 };
 
 kernel_function_t* kernel_function_new(const char* name,
                                        void* context,
-                                       void (*compute)(void* context, point_t* points, int num_points, point_t* x, real_t* value, vector_t* gradient),
+                                       void (*compute)(void* context, point_t* points, real_t* extents, int num_points, point_t* x, real_t* value, vector_t* gradient),
                                        void (*dtor)(void* context))
 {
   kernel_function_t* W = polymec_malloc(sizeof(kernel_function_t));
@@ -38,12 +38,13 @@ void kernel_function_free(kernel_function_t* W)
 
 void kernel_function_compute(kernel_function_t* W, 
                              point_t* points, 
+                             real_t* extents, 
                              int num_points, 
                              point_t* x, 
                              real_t* values,
                              vector_t* gradients)
 {
-  W->compute(W->context, points, num_points, x, values, gradients);
+  W->compute(W->context, points, extents, num_points, x, values, gradients);
 }
 
 struct shape_function_t 

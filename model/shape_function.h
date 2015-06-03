@@ -17,16 +17,17 @@ typedef struct kernel_function_t kernel_function_t;
 // Creates a kernel function that can be used to construct a shape function.
 kernel_function_t* kernel_function_new(const char* name,
                                        void* context,
-                                       void (*compute)(void* context, point_t* points, int num_points, point_t* x, real_t* values, vector_t* gradients),
+                                       void (*compute)(void* context, point_t* points, real_t* extents, int num_points, point_t* x, real_t* values, vector_t* gradients),
                                        void (*dtor)(void* context));
 
 // Destroys the given kernel function.
 void kernel_function_free(kernel_function_t* W);
 
-// Evaluates the kernel functions centered on the given points, computing 
+// Evaluates the kernel functions centered on the given points (with "extents"), computing 
 // their values and (if gradients != NULL) their gradients at the point x.
 void kernel_function_compute(kernel_function_t* W, 
-                             point_t* points, 
+                             point_t* points,
+                             real_t* extents,
                              int num_points, 
                              point_t* x, 
                              real_t* values,
