@@ -17,7 +17,7 @@
 // smoothing_lengths is a field (array) assigning a characteristic extent, h, 
 // to each point in the domain.
 shape_function_t* mls_shape_function_new(int polynomial_order,
-                                         kernel_function_t* W,
+                                         shape_function_kernel_t* kernel,
                                          point_cloud_t* domain,
                                          stencil_t* neighborhoods,
                                          real_t* smoothing_lengths);

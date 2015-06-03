@@ -7,7 +7,7 @@
 
 #include "model/shape_function.h"
 
-struct kernel_function_t
+struct shape_function_kernel_t
 {
   char* name;
   void* context;
@@ -15,36 +15,37 @@ struct kernel_function_t
   void (*dtor)(void* context);
 };
 
-kernel_function_t* kernel_function_new(const char* name,
-                                       void* context,
-                                       void (*compute)(void* context, point_t* points, real_t* extents, int num_points, point_t* x, real_t* value, vector_t* gradient),
-                                       void (*dtor)(void* context))
+shape_function_kernel_t* shape_function_kernel_new(const char* name,
+                                                   void* context,
+                                                   void (*compute)(void* context, point_t* points, real_t* extents, int num_points, point_t* x, real_t* value, vector_t* gradient),
+                                                   void (*dtor)(void* context))
 {
-  kernel_function_t* W = polymec_malloc(sizeof(kernel_function_t));
-  W->name = string_dup(name);
-  W->context = context;
-  W->compute = compute;
-  W->dtor = dtor;
-  return W;
+  shape_function_kernel_t* kernel = polymec_malloc(sizeof(shape_function_kernel_t));
+  kernel->name = string_dup(name);
+  kernel->context = context;
+  kernel->compute = compute;
+  kernel->dtor = dtor;
+  return kernel;
 }
 
-void kernel_function_free(kernel_function_t* W)
+void shape_function_kernel_free(shape_function_kernel_t* kernel)
 {
-  string_free(W->name);
-  if ((W->dtor != NULL) && (W->context != NULL))
-    W->dtor(W->context);
-  polymec_free(W);
+  string_free(kernel->name);
+  if ((kernel->dtor != NULL) && (kernel->context != NULL))
+    kernel->dtor(kernel->context);
+  polymec_free(kernel);
 }
 
-void kernel_function_compute(kernel_function_t* W, 
-                             point_t* points, 
-                             real_t* extents, 
-                             int num_points, 
-                             point_t* x, 
-                             real_t* values,
-                             vector_t* gradients)
+void shape_function_kernel_compute(shape_function_kernel_t* kernel, 
+                                   point_t* points, 
+                                   real_t* extents, 
+                                   int num_points, 
+                                   point_t* x, 
+                                   real_t* values,
+                                   vector_t* gradients)
 {
-  W->compute(W->context, points, extents, num_points, x, values, gradients);
+  kernel->compute(kernel->context, points, extents, num_points, x, 
+                  values, gradients);
 }
 
 struct shape_function_t 

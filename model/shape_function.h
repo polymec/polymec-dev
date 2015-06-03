@@ -10,28 +10,29 @@
 
 #include "core/point.h"
 
-// Here's a "kernel function" that can be used to construct shape functions.
-// This interface is provided as a convenience here.
-typedef struct kernel_function_t kernel_function_t;
+// Here's a "kernel" that can be used to construct shape functions.
+// This interface is not strictly necessary for defining a given shape 
+// function, but is provided as a convenience here.
+typedef struct shape_function_kernel_t shape_function_kernel_t;
 
 // Creates a kernel function that can be used to construct a shape function.
-kernel_function_t* kernel_function_new(const char* name,
-                                       void* context,
-                                       void (*compute)(void* context, point_t* points, real_t* extents, int num_points, point_t* x, real_t* values, vector_t* gradients),
-                                       void (*dtor)(void* context));
+shape_function_kernel_t* shape_function_kernel_new(const char* name,
+                                                   void* context,
+                                                   void (*compute)(void* context, point_t* points, real_t* extents, int num_points, point_t* x, real_t* values, vector_t* gradients),
+                                                   void (*dtor)(void* context));
 
-// Destroys the given kernel function.
-void kernel_function_free(kernel_function_t* W);
+// Destroys the given shape function kernel.
+void shape_function_kernel_free(shape_function_kernel_t* kernel);
 
 // Evaluates the kernel functions centered on the given points (with "extents"), computing 
 // their values and (if gradients != NULL) their gradients at the point x.
-void kernel_function_compute(kernel_function_t* W, 
-                             point_t* points,
-                             real_t* extents,
-                             int num_points, 
-                             point_t* x, 
-                             real_t* values,
-                             vector_t* gradients);
+void shape_function_kernel_compute(shape_function_kernel_t* kernel, 
+                                   point_t* points,
+                                   real_t* extents,
+                                   int num_points, 
+                                   point_t* x, 
+                                   real_t* values,
+                                   vector_t* gradients);
               
 // This class represents a shape function defined on a set of points in a 
 // neighborhood within a point cloud.

@@ -14,7 +14,7 @@ typedef struct
   int i;
   int poly_degree, basis_dim;
   polynomial_t* P;
-  kernel_function_t* W;
+  shape_function_kernel_t* W;
   point_cloud_t* domain;
   stencil_t* neighborhoods;
   real_t* smoothing_lengths;
@@ -86,7 +86,7 @@ static void mls_compute(void* context,
   // Compute the kernels and their gradients at x.
   real_t W[N];
   vector_t grad_W[N];
-  kernel_function_compute(mls->W, mls->xj, mls->hj, N, x, W, grad_W);
+  shape_function_kernel_compute(mls->W, mls->xj, mls->hj, N, x, W, grad_W);
 
   // Compute the moment matrix A.
   int dim = mls->basis_dim;
@@ -233,7 +233,7 @@ static void mls_dtor(void* context)
 }
 
 shape_function_t* mls_shape_function_new(int polynomial_degree,
-                                         kernel_function_t* W,
+                                         shape_function_kernel_t* kernel,
                                          point_cloud_t* domain,
                                          stencil_t* neighborhoods,
                                          real_t* smoothing_lengths)
@@ -242,7 +242,7 @@ shape_function_t* mls_shape_function_new(int polynomial_degree,
   ASSERT(polynomial_degree <= 4);
 
   mls_t* mls = polymec_malloc(sizeof(mls_t));
-  mls->W = W;
+  mls->W = kernel;
 
   // Set up a polynomial to evaluate the moment matrix.
   mls->poly_degree = polynomial_degree;
