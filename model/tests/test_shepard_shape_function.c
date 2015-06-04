@@ -24,21 +24,22 @@ static void make_lattice(int nx, int ny, int nz, real_t h_over_dx,
   *domain = create_uniform_point_lattice(MPI_COMM_SELF, nx, ny, nz, &bbox);
   exchanger_t* ex = partition_point_cloud(domain, MPI_COMM_WORLD, NULL, 1.05);
   exchanger_free(ex);
-  int num_points = (*domain)->num_points;
-  *smoothing_lengths = polymec_malloc(sizeof(real_t) * num_points);
+  int num_local_points = (*domain)->num_points;
   real_t dx = 1.0 / nx;
 
-  // Set the "h" field to twice what it should be so we can use it as a radius field for the 
-  // creation of the stencil.
-  for (int i = 0; i < num_points; ++i)
-    (*smoothing_lengths)[i] = 2.0 * h_over_dx * dx;
+  // Set up a "radius" field to measure point extents.
+  real_t R[num_local_points];
+  for (int i = 0; i < num_local_points; ++i)
+    R[i] = 2.0 * h_over_dx * dx;
 
   // Create the stencil.
-  *neighborhoods = distance_based_point_stencil_new(*domain, *smoothing_lengths);
+  *neighborhoods = distance_based_point_stencil_new(*domain, R);
 
-  // Now revert h back to itself.
-  for (int i = 0; i < num_points; ++i)
-    (*smoothing_lengths)[i] *= 0.5;
+  // Now create the smoothing lengths field.
+  int num_remote_points = (*domain)->num_ghosts;
+  *smoothing_lengths = polymec_malloc(sizeof(real_t) * (num_local_points + num_remote_points));
+  for (int i = 0; i < num_local_points; ++i)
+    (*smoothing_lengths)[i] = 0.5 * R[i];
 }
 
 void test_shepard_shape_function_ctor(void** state)

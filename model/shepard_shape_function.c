@@ -42,8 +42,6 @@ static void shepard_set_neighborhood(void* context, int i)
 
   // Extract the points.
   shepard->N = stencil_size(shepard->neighborhoods, i);
-  shepard->xj = polymec_realloc(shepard->xj, sizeof(point_t) * shepard->N);
-  shepard->hj = polymec_realloc(shepard->hj, sizeof(real_t) * shepard->N);
   int pos = 0, j, k = 0;
   while (stencil_next(shepard->neighborhoods, i, &pos, &j, NULL))
   {
@@ -123,8 +121,13 @@ shape_function_t* shepard_shape_function_new(shape_function_kernel_t* kernel,
   shepard->domain = domain;
   shepard->neighborhoods = neighborhoods;
   shepard->smoothing_lengths = smoothing_lengths;
-  shepard->xj = NULL;
-  shepard->hj = NULL;
+
+  // Count up the maximum neighborhood size and allocate storage.
+  int max_neighborhood_size = -1;
+  for (int i = 0; i < shepard->domain->num_points; ++i)
+    max_neighborhood_size = MAX(max_neighborhood_size, stencil_size(shepard->neighborhoods, i));
+  shepard->xj = polymec_malloc(sizeof(point_t) * max_neighborhood_size);
+  shepard->hj = polymec_malloc(sizeof(real_t) * max_neighborhood_size);
 
   // Make sure our ghost points are consistent a representation of ghost points.
   stencil_exchange(shepard->neighborhoods, shepard->domain->points, 3, 0, MPI_REAL_T);

@@ -50,8 +50,6 @@ static void mls_set_neighborhood(void* context, int i)
 
   // Extract the points.
   mls->N = stencil_size(mls->neighborhoods, i);
-  mls->xj = polymec_realloc(mls->xj, sizeof(point_t) * mls->N);
-  mls->hj = polymec_realloc(mls->hj, sizeof(real_t) * mls->N);
   int pos = 0, j, k = 0;
   while (stencil_next(mls->neighborhoods, i, &pos, &j, NULL))
   {
@@ -254,8 +252,13 @@ shape_function_t* mls_shape_function_new(int polynomial_degree,
   mls->basis_ddx = NULL;
   mls->basis_ddy = NULL;
   mls->basis_ddz = NULL;
-  mls->xj = NULL;
-  mls->hj = NULL;
+
+  // Count up the maximum neighborhood size and allocate storage.
+  int max_neighborhood_size = -1;
+  for (int i = 0; i < mls->domain->num_points; ++i)
+    max_neighborhood_size = MAX(max_neighborhood_size, stencil_size(mls->neighborhoods, i));
+  mls->xj = polymec_malloc(sizeof(point_t) * max_neighborhood_size);
+  mls->hj = polymec_malloc(sizeof(real_t) * max_neighborhood_size);
 
   // Make sure our ghost points are consistent.
   stencil_exchange(mls->neighborhoods, mls->domain->points, 3, 0, MPI_REAL_T);

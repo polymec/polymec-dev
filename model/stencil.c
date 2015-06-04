@@ -386,8 +386,8 @@ stencil_t* distance_based_point_stencil_new(point_cloud_t* points,
   int_array_release_data_and_free(indices); // Release control of index data.
   kd_tree_free(tree);
 
-  // Add the ghost points to the point cloud.
-  point_cloud_set_num_ghosts(points, num_ghosts);
+  // Add the ghost points to the point cloud if needed.
+  point_cloud_set_num_ghosts(points, MAX(points->num_ghosts, num_ghosts));
 
   return stencil;
 }
