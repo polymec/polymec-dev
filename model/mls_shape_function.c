@@ -61,16 +61,17 @@ static void mls_set_neighborhood(void* context, int i)
   }
 
   // Compute the basis vectors for the points in the neighborhood.
-  mls->basis = polymec_realloc(mls->basis, sizeof(real_t) * mls->basis_dim * mls->N);
-  mls->basis_ddx = polymec_realloc(mls->basis_ddx, sizeof(real_t) * mls->basis_dim * mls->N);
-  mls->basis_ddy = polymec_realloc(mls->basis_ddy, sizeof(real_t) * mls->basis_dim * mls->N);
-  mls->basis_ddz = polymec_realloc(mls->basis_ddz, sizeof(real_t) * mls->basis_dim * mls->N);
-  for (int j = 0; j < mls->N; ++j)
+  int dim = mls->basis_dim;
+  mls->basis = polymec_realloc(mls->basis, sizeof(real_t) * dim * mls->N);
+  mls->basis_ddx = polymec_realloc(mls->basis_ddx, sizeof(real_t) * dim * mls->N);
+  mls->basis_ddy = polymec_realloc(mls->basis_ddy, sizeof(real_t) * dim * mls->N);
+  mls->basis_ddz = polymec_realloc(mls->basis_ddz, sizeof(real_t) * dim * mls->N);
+  for (int n = 0; n < mls->N; ++n)
   {
-    polynomial_compute_basis(mls->poly_degree, 0, 0, 0, &mls->domain->points[j], &mls->basis[mls->basis_dim*j]);
-    polynomial_compute_basis(mls->poly_degree, 1, 0, 0, &mls->xj[j], &mls->basis_ddx[mls->basis_dim*j]);
-    polynomial_compute_basis(mls->poly_degree, 0, 1, 0, &mls->xj[j], &mls->basis_ddx[mls->basis_dim*j]);
-    polynomial_compute_basis(mls->poly_degree, 0, 0, 1, &mls->xj[j], &mls->basis_ddx[mls->basis_dim*j]);
+    polynomial_compute_basis(mls->poly_degree, 0, 0, 0, &mls->xj[n], &mls->basis[dim*n]);
+    polynomial_compute_basis(mls->poly_degree, 1, 0, 0, &mls->xj[n], &mls->basis_ddx[dim*n]);
+    polynomial_compute_basis(mls->poly_degree, 0, 1, 0, &mls->xj[n], &mls->basis_ddy[dim*n]);
+    polynomial_compute_basis(mls->poly_degree, 0, 0, 1, &mls->xj[n], &mls->basis_ddz[dim*n]);
   }
 }
 
