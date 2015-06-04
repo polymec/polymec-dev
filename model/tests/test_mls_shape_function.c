@@ -117,8 +117,8 @@ void test_mls_shape_function_zero_consistency_p(void** state, int p)
       ++k;
     }
 
-printf("p = %d: %d points\n", p, N);
-printf("(%g, %g, %g), (%g, %g, %g), D/h = %g: %g %g %g %g\n", domain->points[i].x, domain->points[i].y, domain->points[i].z, x.x, x.y, x.z, point_distance(&domain->points[i], &x)/smoothing_lengths[i], val, grad.x, grad.y, grad.z);
+//printf("p = %d: %d points\n", p, N);
+//printf("(%g, %g, %g), (%g, %g, %g), D/h = %g: %g %g %g %g\n", domain->points[i].x, domain->points[i].y, domain->points[i].z, x.x, x.y, x.z, point_distance(&domain->points[i], &x)/smoothing_lengths[i], val, grad.x, grad.y, grad.z);
     assert_true(fabs(val - 1.0) < 5e-10);
     assert_true(fabs(grad.x) < 5e-10);
     assert_true(fabs(grad.y) < 5e-10);

@@ -267,11 +267,12 @@ shape_function_t* mls_shape_function_new(int polynomial_degree,
 
   // Make sure we have a representation of ghost points.
   int num_ghosts = stencil_num_ghosts(mls->neighborhoods);
-  mls->points = polymec_malloc(sizeof(point_t) * mls->domain->num_points + num_ghosts);
+  mls->points = polymec_malloc(sizeof(point_t) * (mls->domain->num_points + num_ghosts));
   memcpy(mls->points, mls->domain->points, sizeof(point_t) * mls->domain->num_points);
   stencil_exchange(mls->neighborhoods, mls->points, 3, 0, MPI_REAL_T);
-  mls->smoothing_lengths = polymec_malloc(sizeof(real_t) * mls->domain->num_points + num_ghosts);
-  memcpy(mls->smoothing_lengths, smoothing_lengths, sizeof(point_t) * mls->domain->num_points);
+
+  mls->smoothing_lengths = polymec_malloc(sizeof(real_t) * (mls->domain->num_points + num_ghosts));
+  memcpy(mls->smoothing_lengths, smoothing_lengths, sizeof(real_t) * mls->domain->num_points);
   stencil_exchange(mls->neighborhoods, mls->smoothing_lengths, 1, 0, MPI_REAL_T);
 
   shape_function_vtable vtable = {.neighborhood_size = mls_neighborhood_size,

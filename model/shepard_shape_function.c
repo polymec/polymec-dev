@@ -130,12 +130,12 @@ shape_function_t* shepard_shape_function_new(shape_function_kernel_t* kernel,
 
   // Make sure we have a representation of ghost points.
   int num_ghosts = stencil_num_ghosts(shepard->neighborhoods);
-  shepard->points = polymec_malloc(sizeof(point_t) * shepard->domain->num_points + num_ghosts);
-  memcpy(shepard->points, shepard->domain->points, sizeof(point_t) * shepard->domain->num_points);
+  shepard->points = polymec_malloc(sizeof(point_t) * (shepard->domain->num_points + num_ghosts));
+  memcpy(shepard->points, shepard->domain->points, sizeof(point_t) * (shepard->domain->num_points));
   stencil_exchange(shepard->neighborhoods, shepard->points, 3, 0, MPI_REAL_T);
 
-  shepard->smoothing_lengths = polymec_malloc(sizeof(real_t) * shepard->domain->num_points + num_ghosts);
-  memcpy(shepard->smoothing_lengths, smoothing_lengths, sizeof(point_t) * shepard->domain->num_points);
+  shepard->smoothing_lengths = polymec_malloc(sizeof(real_t) * (shepard->domain->num_points + num_ghosts));
+  memcpy(shepard->smoothing_lengths, smoothing_lengths, sizeof(real_t) * (shepard->domain->num_points));
   stencil_exchange(shepard->neighborhoods, shepard->smoothing_lengths, 1, 0, MPI_REAL_T);
 
   shape_function_vtable vtable = {.neighborhood_size = shepard_neighborhood_size,

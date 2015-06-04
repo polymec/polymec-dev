@@ -255,7 +255,8 @@ int64_t* partition_vector_from_point_cloud(point_cloud_t* global_cloud,
     // Set up a Hilbert space filling curve that can map the given points to indices.
     hilbert_t* hilbert = hilbert_from_points(global_cloud->points, num_global_points);
 
-    // Create an array of 2-tuples containing the (Hilbert index, weight) of each point. 
+    // Create an array of 3-tuples containing the 
+    // (point index, Hilbert index, weight) of each point. 
     // Partitioning the points amounts to sorting this array and breaking it into parts whose 
     // work is equal. Also sum up the work on the points.
     index_t* part_array = polymec_malloc(sizeof(index_t) * 3 * num_global_points);
