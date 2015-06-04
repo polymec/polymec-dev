@@ -55,7 +55,11 @@ void test_shepard_shape_function_ctor(void** state)
   for (int i = 0; i < domain->num_points; ++i)
     shape_function_set_neighborhood(phi, i);
 
+  // Clean up.
   shape_function_free(phi);
+  point_cloud_free(domain);
+  stencil_free(neighborhoods);
+  polymec_free(smoothing_lengths);
 }
 
 void test_shepard_shape_function_consistency(void** state)
@@ -110,7 +114,11 @@ void test_shepard_shape_function_consistency(void** state)
     assert_true(fabs(grad.z) < 1e-14);
   }
 
+  // Clean up.
   shape_function_free(phi);
+  point_cloud_free(domain);
+  stencil_free(neighborhoods);
+  polymec_free(smoothing_lengths);
 }
 
 int main(int argc, char* argv[]) 

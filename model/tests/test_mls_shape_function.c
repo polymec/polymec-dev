@@ -55,7 +55,11 @@ void test_mls_shape_function_ctor(void** state, int p)
   for (int i = 0; i < domain->num_points; ++i)
     shape_function_set_neighborhood(phi, i);
 
+  // Clean up.
   shape_function_free(phi);
+  point_cloud_free(domain);
+  stencil_free(neighborhoods);
+  polymec_free(smoothing_lengths);
 }
 
 void test_mls_shape_function_ctors(void** state)
@@ -119,13 +123,17 @@ void test_mls_shape_function_zero_consistency_p(void** state, int p)
 
 //printf("p = %d: %d points\n", p, N);
 //printf("(%g, %g, %g), (%g, %g, %g), D/h = %g: %g %g %g %g\n", domain->points[i].x, domain->points[i].y, domain->points[i].z, x.x, x.y, x.z, point_distance(&domain->points[i], &x)/smoothing_lengths[i], val, grad.x, grad.y, grad.z);
-    assert_true(fabs(val - 1.0) < 5e-10);
-    assert_true(fabs(grad.x) < 5e-10);
-    assert_true(fabs(grad.y) < 5e-10);
-    assert_true(fabs(grad.z) < 5e-10);
+    assert_true(fabs(val - 1.0) < 1e-14);
+    assert_true(fabs(grad.x) < 1e-14);
+    assert_true(fabs(grad.y) < 1e-14);
+    assert_true(fabs(grad.z) < 1e-14);
   }
 
+  // Clean up.
   shape_function_free(phi);
+  point_cloud_free(domain);
+  stencil_free(neighborhoods);
+  polymec_free(smoothing_lengths);
 }
 
 void test_mls_shape_function_zero_consistency(void** state)
