@@ -33,7 +33,7 @@ static void make_lattice(int nx, int ny, int nz, real_t h_over_dx,
     R[i] = 2.0 * h_over_dx * dx;
 
   // Create the stencil.
-  *neighborhoods = distance_based_point_stencil_new(*domain, *smoothing_lengths);
+  *neighborhoods = distance_based_point_stencil_new(*domain, R);
 
   // Now create the smoothing lengths field.
   int num_remote_points = (*domain)->num_ghosts;
