@@ -15,7 +15,7 @@
 #include "core/serializer.h"
 
 // This data type represents a cloud consisting of points, possibly with 
-// associated properties.
+// remotely-managed ghost points, and associated properties.
 typedef struct 
 {
   // MPI communicator.
@@ -24,23 +24,30 @@ typedef struct
   // The total number of (locally-owned) points in the cloud.
   int num_points;
 
-  // Coordinates of the points, indexed from 0 to N-1.
+  // The number of (remotely-owned) ghost points in the cloud.
+  int num_ghosts;
+
+  // Coordinates of the points, indexed from 0 to num_points + num_ghosts.
   point_t* points;
 
   // Point tagging mechanism.
   tagger_t* tags;
 } point_cloud_t;
 
-// Construct a new point cloud whose point coordinates are all set to the 
-// origin. 
+// Constructs a new point cloud whose point coordinates are all set to the 
+// origin. This cloud has no ghost points.
 point_cloud_t* point_cloud_new(MPI_Comm comm, int num_points);
 
 // Construct a new point cloud from the set of points with the given 
-// coordinates. Coordinates are copied. 
+// coordinates. Coordinates are copied, and there are no ghost points.
 point_cloud_t* point_cloud_from_points(MPI_Comm comm, point_t* coords, int num_points);
 
 // Destroys the given point cloud.
 void point_cloud_free(point_cloud_t* cloud);
+
+// Sets the number of ghost points for the cloud. This may reallocate
+// storage for the points array to accommodate the extra needed space.
+void point_cloud_set_num_ghosts(point_cloud_t* cloud, int num_ghosts);
 
 // Associates a named piece of metadata (a "property") with the point cloud itself.
 // This can be used to store information about (for example) how the cloud 

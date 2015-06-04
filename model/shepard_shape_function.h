@@ -15,7 +15,7 @@
 // Creates a Shepard shape function defined on the given point cloud with 
 // neighborhoods given by the given stencil. Here, smoothing_lengths is a 
 // field (array) assigning a characteristic extent, h, to each point in the 
-// domain.
+// domain, and must have enough storage for ghost points.
 shape_function_t* shepard_shape_function_new(shape_function_kernel_t* kernel,
                                              point_cloud_t* domain,
                                              stencil_t* neighborhoods,

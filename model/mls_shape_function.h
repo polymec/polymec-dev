@@ -15,7 +15,8 @@
 // Creates a moving-least-squares polynomial shape function defined on the 
 // given point cloud with neighborhoods given by the given stencil. Here,
 // smoothing_lengths is a field (array) assigning a characteristic extent, h, 
-// to each point in the domain.
+// to each point in the domain, and must have enough storage for ghost 
+// points.
 shape_function_t* mls_shape_function_new(int polynomial_order,
                                          shape_function_kernel_t* kernel,
                                          point_cloud_t* domain,

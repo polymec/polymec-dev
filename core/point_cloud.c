@@ -13,6 +13,7 @@ point_cloud_t* point_cloud_new(MPI_Comm comm, int num_points)
   point_cloud_t* cloud = polymec_malloc(sizeof(point_cloud_t));
   cloud->comm = comm;
   cloud->num_points = num_points;
+  cloud->num_ghosts = 0;
   cloud->points = polymec_malloc(sizeof(point_t)*num_points);
   memset(cloud->points, 0, sizeof(point_t)*num_points);
 
@@ -39,6 +40,15 @@ void point_cloud_free(point_cloud_t* cloud)
   tagger_free(cloud->tags);
   polymec_free(cloud->points);
   polymec_free(cloud);
+}
+
+void point_cloud_set_num_ghosts(point_cloud_t* cloud, 
+                                int num_ghosts)
+{
+  ASSERT(num_ghosts >= 0);
+  cloud->num_ghosts = num_ghosts;
+  cloud->points = polymec_realloc(cloud->points, 
+      sizeof(point_t) * (cloud->num_points + cloud->num_ghosts));
 }
 
 void point_cloud_set_property(point_cloud_t* cloud, const char* property, void* data, serializer_t* serializer)
