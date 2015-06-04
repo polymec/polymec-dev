@@ -113,15 +113,8 @@ void shape_function_free(shape_function_t* phi)
 
 void shape_function_set_neighborhood(shape_function_t* phi, int point_index)
 {
+  ASSERT(point_index >= 0);
   phi->i = point_index;
-#if 0
-  point_t* xi = &phi->domain->points[phi->i];
-  int Nj = stencil_size(phi->neighborhoods, phi->i);
-  point_t xj[Nj];
-  int pos = 0, j, k = 0;
-  while (stencil_next(phi->neighborhoods, phi->i, &pos, &j, NULL))
-    xj[k++] = phi->domain->points[
-#endif
   phi->N = phi->vtable.neighborhood_size(phi->context, point_index);
   if (phi->vtable.set_neighborhood != NULL)
     phi->vtable.set_neighborhood(phi->context, phi->i);

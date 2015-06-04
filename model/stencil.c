@@ -359,20 +359,14 @@ stencil_t* distance_based_point_stencil_new(point_cloud_t* points,
   offsets[0] = 0;
   for (int i = 0; i < points->num_points; ++i)
   {
-    // Find all the neighbors for this point. We only count those 
-    // neighbors {j} for which j > i.
+    // Find all the neighbors for this point.
     point_t* xi = &points->points[i];
-    int_array_t* neighbors = kd_tree_within_radius(tree, xi, R_max);
+    int_array_t* neighbors = kd_tree_within_radius(tree, xi, R[i]);
     offsets[i+1] = offsets[i] + neighbors->size;
     for (int k = 0; k < neighbors->size; ++k)
     {
       int j = neighbors->data[k];
-      if (j > i)
-      {
-        real_t D = point_distance(xi, &points->points[j]);
-        if (D < R[i])
-          int_array_append(indices, j);
-      }
+      int_array_append(indices, j);
     }
     int_array_free(neighbors);
   }

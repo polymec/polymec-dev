@@ -38,6 +38,7 @@ static void shepard_get_neighborhood_points(void* context, int i, point_t* point
 static void shepard_set_neighborhood(void* context, int i)
 {
   shepard_t* shepard = context;
+  ASSERT(i < shepard->domain->num_points); 
 
   // Extract the points.
   shepard->N = stencil_size(shepard->neighborhoods, i);
@@ -70,26 +71,36 @@ static void shepard_compute(void* context,
   real_t sum_Wi = 0.0;
   for (i = 0; i < N; ++i)
     sum_Wi += W[i];
-  for (i = 0; i < N; ++i)
-    values[i] = W[i] / sum_Wi;
+  if (sum_Wi == 0.0)
+    memset(values, 0, sizeof(real_t) * N);
+  else
+  {
+    for (i = 0; i < N; ++i)
+      values[i] = W[i] / sum_Wi;
+  }
 
   // Compute the gradients if needed.
   if (gradients != NULL)
   {
-    vector_t sum_grad_Wi = {.x = 0.0, .y = 0.0, .z = 0.0};
-    for (i = 0; i < N; ++i)
+    if (sum_Wi == 0.0)
+      memset(gradients, 0, sizeof(vector_t) * N);
+    else
     {
-      sum_grad_Wi.x += grad_W[i].x;
-      sum_grad_Wi.y += grad_W[i].y;
-      sum_grad_Wi.z += grad_W[i].z;
-    }
+      vector_t sum_grad_Wi = {.x = 0.0, .y = 0.0, .z = 0.0};
+      for (i = 0; i < N; ++i)
+      {
+        sum_grad_Wi.x += grad_W[i].x;
+        sum_grad_Wi.y += grad_W[i].y;
+        sum_grad_Wi.z += grad_W[i].z;
+      }
 
-    // Use the quotient rule!
-    for (i = 0; i < N; ++i)
-    {
-      gradients[i].x = (sum_Wi * grad_W[i].x - sum_grad_Wi.x * W[i]) / (sum_grad_Wi.x * sum_grad_Wi.x);
-      gradients[i].y = (sum_Wi * grad_W[i].y - sum_grad_Wi.y * W[i]) / (sum_grad_Wi.y * sum_grad_Wi.y);
-      gradients[i].z = (sum_Wi * grad_W[i].z - sum_grad_Wi.z * W[i]) / (sum_grad_Wi.z * sum_grad_Wi.z);
+      // Use the quotient rule!
+      for (i = 0; i < N; ++i)
+      {
+        gradients[i].x = (sum_Wi * grad_W[i].x - sum_grad_Wi.x * W[i]) / (sum_grad_Wi.x * sum_grad_Wi.x);
+        gradients[i].y = (sum_Wi * grad_W[i].y - sum_grad_Wi.y * W[i]) / (sum_grad_Wi.y * sum_grad_Wi.y);
+        gradients[i].z = (sum_Wi * grad_W[i].z - sum_grad_Wi.z * W[i]) / (sum_grad_Wi.z * sum_grad_Wi.z);
+      }
     }
   }
 }
@@ -116,6 +127,7 @@ shape_function_t* shepard_shape_function_new(shape_function_kernel_t* kernel,
   shepard->hj = NULL;
   shape_function_vtable vtable = {.neighborhood_size = shepard_neighborhood_size,
                                   .get_neighborhood_points = shepard_get_neighborhood_points,
+                                  .set_neighborhood = shepard_set_neighborhood,
                                   .compute = shepard_compute,
                                   .dtor = shepard_dtor};
   return shape_function_new("Shepard", shepard, vtable);

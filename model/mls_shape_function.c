@@ -262,6 +262,7 @@ shape_function_t* mls_shape_function_new(int polynomial_degree,
   mls->hj = NULL;
   shape_function_vtable vtable = {.neighborhood_size = mls_neighborhood_size,
                                   .get_neighborhood_points = mls_get_neighborhood_points,
+                                  .set_neighborhood = mls_set_neighborhood,
                                   .compute = mls_compute,
                                   .dtor = mls_dtor};
   char name[1024];
