@@ -65,9 +65,10 @@ static void simple_compute(void* context,
     real_t h = extents[i];
     real_t Di = point_distance(xi, x);
     values[i] = MAX(0.0, 2.0*eta_max - Di*Di/(h*h));
-    gradients[i].x = -2.0/(h*h) * Di * (xi->x - x->x) / Di;
-    gradients[i].y = -2.0/(h*h) * Di * (xi->y - x->y) / Di;
-    gradients[i].z = -2.0/(h*h) * Di * (xi->z - x->z) / Di;
+    real_t dWdDi = -2.0*Di/(h*h);
+    gradients[i].x = dWdDi * (xi->x-x->x)/Di;
+    gradients[i].y = dWdDi * (xi->y-x->y)/Di;
+    gradients[i].z = dWdDi * (xi->z-x->z)/Di;
   }
 }
 
@@ -90,10 +91,10 @@ static void spline4_compute(void* context,
     if (X < 1.0)
     {
       values[i] = 1.0 - 6.0*X*X + 8.0*X*X*X - 3.0*X*X*X*X;
-      real_t dXdDi = (-12.0*X + 24.0*X*X - 12.0*X*X*X)/h;
-      gradients[i].x = dXdDi * (xi->x - x->x) / Di;
-      gradients[i].y = dXdDi * (xi->y - x->y) / Di;
-      gradients[i].z = dXdDi * (xi->z - x->z) / Di;
+      real_t dWdDi = (-12.0*X + 24.0*X*X - 12.0*X*X*X)/(eta_max*h);
+      gradients[i].x = dWdDi * (xi->x-x->x)/Di;
+      gradients[i].y = dWdDi * (xi->y-x->y)/Di;
+      gradients[i].z = dWdDi * (xi->z-x->z)/Di;
     }
     else
     {
