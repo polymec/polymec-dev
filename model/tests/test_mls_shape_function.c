@@ -18,8 +18,7 @@
 static void make_lattice(int nx, int ny, int nz, real_t h_over_dx,
                          point_cloud_t** domain,
                          stencil_t** neighborhoods,
-                         real_t** smoothing_lengths,
-                         int* num_ghosts)
+                         real_t** smoothing_lengths)
 {
   bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
   *domain = create_uniform_point_lattice(MPI_COMM_SELF, nx, ny, nz, &bbox);
@@ -35,7 +34,7 @@ static void make_lattice(int nx, int ny, int nz, real_t h_over_dx,
     (*smoothing_lengths)[i] = 2.0 * h_over_dx * dx;
 
   // Create the stencil.
-  *neighborhoods = distance_based_point_stencil_new(*domain, *smoothing_lengths, num_ghosts);
+  *neighborhoods = distance_based_point_stencil_new(*domain, *smoothing_lengths);
 
   // Now revert h back to itself.
   for (int i = 0; i < num_points; ++i)
@@ -47,8 +46,7 @@ void test_mls_shape_function_ctor(void** state, int p)
   point_cloud_t* domain;
   stencil_t* neighborhoods;
   real_t* smoothing_lengths;
-  int num_ghosts;
-  make_lattice(10, 10, 10, 1.0, &domain, &neighborhoods, &smoothing_lengths, &num_ghosts);
+  make_lattice(10, 10, 10, 1.0, &domain, &neighborhoods, &smoothing_lengths);
 
   shape_function_kernel_t* W = simple_shape_function_kernel_new();
   shape_function_t* phi = mls_shape_function_new(p, W, domain, neighborhoods, smoothing_lengths);
@@ -71,19 +69,20 @@ void test_mls_shape_function_zero_consistency_p(void** state, int p)
   point_cloud_t* domain;
   stencil_t* neighborhoods;
   real_t* smoothing_lengths;
-  int num_ghosts;
-  make_lattice(10, 10, 10, 1.0, &domain, &neighborhoods, &smoothing_lengths, &num_ghosts);
+  static real_t h_over_dx[] = {1.0, 1.2, 1.5, 2.0, 2.4};
+  make_lattice(10, 10, 10, h_over_dx[p], &domain, &neighborhoods, &smoothing_lengths);
 
   shape_function_kernel_t* W = simple_shape_function_kernel_new();
   shape_function_t* phi = mls_shape_function_new(p, W, domain, neighborhoods, smoothing_lengths);
 
   // Set up a constant field.
+  int num_ghosts = stencil_num_ghosts(neighborhoods);
   int N = domain->num_points + num_ghosts;
   real_t one[N];
   for (int i = 0; i < N; ++i)
     one[i] = 1.0;
 
-  // See if we can exactly reproduce it.
+  // See if we can exactly reproduce it at random points within neighborhoods.
   rng_t* rng = host_rng_new();
   real_t dx = 0.1;
   for (int i = 0; i < domain->num_points; ++i)
@@ -93,7 +92,14 @@ void test_mls_shape_function_zero_consistency_p(void** state, int p)
     bbox_t jitterbox = {.x1 = x.x - 0.5*dx, .x2 = x.x + 0.5*dx, 
                         .y1 = x.y - 0.5*dx, .y2 = x.y + 0.5*dx, 
                         .z1 = x.z - 0.5*dx, .z2 = x.z + 0.5*dx};
+//    do
+//    {
     point_randomize(&x, rng, &jitterbox);
+//    }
+//    while ((x.x < 0.5*dx) || (x.x > 1.0-0.5*dx) ||
+//           (x.y < 0.5*dx) || (x.y > 1.0-0.5*dx) ||
+//           (x.z < 0.5*dx) || (x.z > 1.0-0.5*dx));
+           
     int N = shape_function_num_points(phi);
     real_t phi_val[N];
     vector_t phi_grad[N];
@@ -111,11 +117,12 @@ void test_mls_shape_function_zero_consistency_p(void** state, int p)
       ++k;
     }
 
-//printf("%g %g %g %g\n", val, grad.x, grad.y, grad.z);
-    assert_true(fabs(val - 1.0) < 1e-14);
-    assert_true(fabs(grad.x) < 1e-14);
-    assert_true(fabs(grad.y) < 1e-14);
-    assert_true(fabs(grad.z) < 1e-14);
+printf("p = %d: %d points\n", p, N);
+printf("(%g, %g, %g), (%g, %g, %g), D/h = %g: %g %g %g %g\n", domain->points[i].x, domain->points[i].y, domain->points[i].z, x.x, x.y, x.z, point_distance(&domain->points[i], &x)/smoothing_lengths[i], val, grad.x, grad.y, grad.z);
+    assert_true(fabs(val - 1.0) < 5e-10);
+    assert_true(fabs(grad.x) < 5e-10);
+    assert_true(fabs(grad.y) < 5e-10);
+    assert_true(fabs(grad.z) < 5e-10);
   }
 
   shape_function_free(phi);

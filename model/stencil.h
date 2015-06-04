@@ -26,6 +26,7 @@ typedef struct
   int* offsets;
   int* indices;
   real_t* weights;
+  int num_ghosts; // Number of remotely-owned indices.
   exchanger_t* ex; // Used to perform exchanges to fill all values for indices on a domain.
 } stencil_t;
 
@@ -37,12 +38,13 @@ typedef struct
 // exchanger is consumed by the stencil and is used for its exchanges.
 stencil_t* stencil_new(const char* name, int num_indices, 
                        int* offsets, int* indices, real_t* weights,
-                       exchanger_t* ex);
+                       int num_ghosts, exchanger_t* ex);
 
 // Creates a stencil object with weights all equal to one. See the other 
 // constructor for details.
 stencil_t* unweighted_stencil_new(const char* name, int num_indices, 
-                                  int* offsets, int* indices, exchanger_t* ex);
+                                  int* offsets, int* indices, 
+                                  int num_ghosts, exchanger_t* ex);
 
 // Destroys the given stencil object.
 void stencil_free(stencil_t* stencil);
@@ -112,6 +114,13 @@ static inline bool stencil_next(stencil_t* stencil, int i, int* pos,
   return true;
 }
 
+// Returns the number of remotely-owned indices in the stencil.
+static inline int stencil_num_ghosts(stencil_t* stencil)
+{
+  return stencil->num_ghosts;
+}
+
+
 // Returns a serializer object that can read/write stencils from/to byte arrays.
 serializer_t* stencil_serializer();
 
@@ -125,7 +134,6 @@ adj_graph_t* graph_from_point_cloud_and_stencil(point_cloud_t* points,
 // will store the number of ghost points in the stencil. No weights are 
 // assigned.
 stencil_t* distance_based_point_stencil_new(point_cloud_t* points,
-                                            real_t* R,
-                                            int* num_ghost_points);
+                                            real_t* R);
 
 #endif

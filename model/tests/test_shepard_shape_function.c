@@ -18,8 +18,7 @@
 static void make_lattice(int nx, int ny, int nz, real_t h_over_dx,
                          point_cloud_t** domain,
                          stencil_t** neighborhoods,
-                         real_t** smoothing_lengths,
-                         int* num_ghosts)
+                         real_t** smoothing_lengths)
 {
   bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
   *domain = create_uniform_point_lattice(MPI_COMM_SELF, nx, ny, nz, &bbox);
@@ -35,7 +34,7 @@ static void make_lattice(int nx, int ny, int nz, real_t h_over_dx,
     (*smoothing_lengths)[i] = 2.0 * h_over_dx * dx;
 
   // Create the stencil.
-  *neighborhoods = distance_based_point_stencil_new(*domain, *smoothing_lengths, num_ghosts);
+  *neighborhoods = distance_based_point_stencil_new(*domain, *smoothing_lengths);
 
   // Now revert h back to itself.
   for (int i = 0; i < num_points; ++i)
@@ -47,8 +46,7 @@ void test_shepard_shape_function_ctor(void** state)
   point_cloud_t* domain;
   stencil_t* neighborhoods;
   real_t* smoothing_lengths;
-  int num_ghosts;
-  make_lattice(10, 10, 10, 1.0, &domain, &neighborhoods, &smoothing_lengths, &num_ghosts);
+  make_lattice(10, 10, 10, 1.0, &domain, &neighborhoods, &smoothing_lengths);
 
   shape_function_kernel_t* W = simple_shape_function_kernel_new();
   shape_function_t* phi = shepard_shape_function_new(W, domain, neighborhoods, smoothing_lengths);
@@ -65,13 +63,13 @@ void test_shepard_shape_function_consistency(void** state)
   point_cloud_t* domain;
   stencil_t* neighborhoods;
   real_t* smoothing_lengths;
-  int num_ghosts;
-  make_lattice(10, 10, 10, 1.0, &domain, &neighborhoods, &smoothing_lengths, &num_ghosts);
+  make_lattice(10, 10, 10, 1.0, &domain, &neighborhoods, &smoothing_lengths);
 
   shape_function_kernel_t* W = simple_shape_function_kernel_new();
   shape_function_t* phi = shepard_shape_function_new(W, domain, neighborhoods, smoothing_lengths);
 
   // Set up a constant field.
+  int num_ghosts = stencil_num_ghosts(neighborhoods);
   int N = domain->num_points + num_ghosts;
   real_t one[N];
   for (int i = 0; i < N; ++i)

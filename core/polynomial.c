@@ -68,7 +68,6 @@ void polynomial_compute_basis(int degree,
     real_t y_term = (y_pow >= y_deriv) ? pow(x->y, y_pow - y_deriv) * fact(y_pow)/fact(y_deriv) : 0.0;
     real_t z_term = (z_pow >= z_deriv) ? pow(x->z, z_pow - z_deriv) * fact(z_pow)/fact(z_deriv) : 0.0;
     basis[i] = x_term * y_term * z_term;
-    ++i;
   }
 }
 

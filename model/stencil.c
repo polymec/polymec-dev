@@ -12,25 +12,28 @@
 
 stencil_t* stencil_new(const char* name, int num_indices, 
                        int* offsets, int* indices, real_t* weights,
-                       exchanger_t* ex)
+                       int num_ghosts, exchanger_t* ex)
 {
   ASSERT(num_indices > 0);
   ASSERT(offsets != NULL);
   ASSERT(indices != NULL);
+  ASSERT(num_ghosts >= 0);
   stencil_t* s = polymec_malloc(sizeof(stencil_t));
   s->name = string_dup(name);
   s->num_indices = num_indices;
   s->offsets = offsets;
   s->indices = indices;
   s->weights = weights;
+  s->num_ghosts = num_ghosts;
   s->ex = ex;
   return s;
 }
 
 stencil_t* unweighted_stencil_new(const char* name, int num_indices, 
-                                  int* offsets, int* indices, exchanger_t* ex)
+                                  int* offsets, int* indices, 
+                                  int num_ghosts, exchanger_t* ex)
 {
-  return stencil_new(name, num_indices, offsets, indices, NULL, ex);
+  return stencil_new(name, num_indices, offsets, indices, NULL, num_ghosts, ex);
 }
 
 void stencil_free(stencil_t* stencil)
@@ -59,7 +62,7 @@ stencil_t* stencil_clone(stencil_t* stencil)
   }
   exchanger_t* ex = exchanger_clone(stencil->ex);
   return stencil_new(string_dup(stencil->name), stencil->num_indices, offsets, 
-                     indices, weights, ex);
+                     indices, weights, stencil->num_ghosts, ex);
 }
 
 void stencil_set_weights(stencil_t* stencil, real_t* weights)
@@ -224,7 +227,7 @@ static size_t stencil_byte_size(void* obj)
   
   // Data.
   size_t basic_storage = sizeof(int) + sizeof(char) * strlen(stencil->name) + 
-                         sizeof(int) * (1 + stencil->num_indices + 1 + stencil->offsets[stencil->num_indices] + 1);
+                         sizeof(int) * (1 + stencil->num_indices + 1 + stencil->offsets[stencil->num_indices] + 1 + 1);
   if (stencil->weights != NULL)
     basic_storage += sizeof(real_t) * stencil->offsets[stencil->num_indices];
   
@@ -246,7 +249,7 @@ static void* stencil_byte_read(byte_array_t* bytes, size_t* offset)
   name[name_len] = '\0';
 
   // Read the offsets, indices, weights.
-  int num_indices, max_offset, num_weights;
+  int num_indices, max_offset, num_weights, num_ghosts;
   byte_array_read_ints(bytes, 1, &num_indices, offset);
   int* offsets = polymec_malloc(sizeof(int) * (num_indices+1));
   byte_array_read_ints(bytes, num_indices+1, offsets, offset);
@@ -257,12 +260,13 @@ static void* stencil_byte_read(byte_array_t* bytes, size_t* offset)
   real_t* weights = NULL;
   if (num_weights > 0)
     byte_array_read_real_ts(bytes, num_weights, weights, offset);
+  byte_array_read_ints(bytes, 1, &num_ghosts, offset);
 
   // Exchanger stuff.
   serializer_t* ser = exchanger_serializer();
   exchanger_t* ex = serializer_read(ser, bytes, offset);
 
-  return stencil_new(name, num_indices, offsets, indices, weights, ex);
+  return stencil_new(name, num_indices, offsets, indices, weights, num_ghosts, ex);
 }
 
 static void stencil_byte_write(void* obj, byte_array_t* bytes, size_t* offset)
@@ -290,6 +294,7 @@ static void stencil_byte_write(void* obj, byte_array_t* bytes, size_t* offset)
     int zero = 0;
     byte_array_write_ints(bytes, 1, &zero, offset);
   }
+  byte_array_write_ints(bytes, 1, &(stencil->num_ghosts), offset);
 
   // Exchanger.
   serializer_t* ser = exchanger_serializer();
@@ -331,11 +336,9 @@ adj_graph_t* graph_from_point_cloud_and_stencil(point_cloud_t* points,
 }
 
 stencil_t* distance_based_point_stencil_new(point_cloud_t* points,
-                                            real_t* R,
-                                            int* num_ghost_points)
+                                            real_t* R)
 {
   ASSERT(R != NULL);
-  ASSERT(num_ghost_points != NULL);
 #ifndef NDEBUG
   for (int i = 0; i < points->num_points; ++i)
     ASSERT(R[i] > 0.0);
@@ -371,13 +374,13 @@ stencil_t* distance_based_point_stencil_new(point_cloud_t* points,
     int_array_free(neighbors);
   }
 
+  // Find the number of ghost points referred to within the stencil.
+  int num_ghosts = kd_tree_size(tree) - points->num_points;
+
   // Create an unweighted stencil.
   stencil_t* stencil = 
     unweighted_stencil_new("Distance-based point stencil", points->num_points, 
-                           offsets, indices->data, ex);
-
-  // Set the number of ghost points referred to within the neighbor pairing.
-  *num_ghost_points = kd_tree_size(tree) - points->num_points;
+                           offsets, indices->data, num_ghosts, ex);
 
   // Clean up.
   int_array_release_data_and_free(indices); // Release control of index data.

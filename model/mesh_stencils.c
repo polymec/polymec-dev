@@ -12,6 +12,7 @@
 static stencil_t* stencil_from_cells(const char* name, 
                                      int_array_t** stencil_cells,
                                      int num_cells,
+                                     int num_ghost_cells,
                                      exchanger_t* ex)
 {
   int* offsets = polymec_malloc(sizeof(int) * (num_cells+1));
@@ -29,7 +30,7 @@ static stencil_t* stencil_from_cells(const char* name,
     int_array_free(neighbors);
   }
   polymec_free(stencil_cells);
-  return unweighted_stencil_new(name, num_cells, offsets, indices, ex);
+  return unweighted_stencil_new(name, num_cells, offsets, indices, num_ghost_cells, ex);
 }
 
 stencil_t* cell_star_stencil_new(mesh_t* mesh, int radius)
@@ -62,7 +63,7 @@ stencil_t* cell_star_stencil_new(mesh_t* mesh, int radius)
   // Create the stencil from the sets.
   char name[1025];
   snprintf(name, 1024, "cell star stencil (R = %d)", radius);
-  stencil_t* s = stencil_from_cells(name, stencil_cells, mesh->num_cells, ex);
+  stencil_t* s = stencil_from_cells(name, stencil_cells, mesh->num_cells, mesh->num_ghost_cells, ex);
 
   // Now augment it.
   for (int r = 0; r < radius-1; ++r)

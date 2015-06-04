@@ -14,6 +14,7 @@ typedef struct
   point_cloud_t* domain;
   stencil_t* neighborhoods;
   real_t* smoothing_lengths;
+  point_t* points;
 
   int N;
   point_t* xj;
@@ -32,7 +33,7 @@ static void shepard_get_neighborhood_points(void* context, int i, point_t* point
   int pos = 0, j, k = 0;
   points[k++] = shepard->domain->points[i];
   while (stencil_next(shepard->neighborhoods, i, &pos, &j, NULL))
-    points[k++] = shepard->domain->points[j];
+    points[k++] = shepard->points[j];
 }
 
 static void shepard_set_neighborhood(void* context, int i)
@@ -47,7 +48,7 @@ static void shepard_set_neighborhood(void* context, int i)
   int pos = 0, j, k = 0;
   while (stencil_next(shepard->neighborhoods, i, &pos, &j, NULL))
   {
-    shepard->xj[k] = shepard->domain->points[j];
+    shepard->xj[k] = shepard->points[j];
     shepard->hj[k] = shepard->smoothing_lengths[j];
     ++k;
   }
@@ -110,6 +111,8 @@ static void shepard_dtor(void* context)
   shepard_t* shepard = context;
   polymec_free(shepard->xj);
   polymec_free(shepard->hj);
+  polymec_free(shepard->points);
+  polymec_free(shepard->smoothing_lengths);
   polymec_free(shepard);
 }
 
@@ -122,9 +125,19 @@ shape_function_t* shepard_shape_function_new(shape_function_kernel_t* kernel,
   shepard->W = kernel;
   shepard->domain = domain;
   shepard->neighborhoods = neighborhoods;
-  shepard->smoothing_lengths = smoothing_lengths;
   shepard->xj = NULL;
   shepard->hj = NULL;
+
+  // Make sure we have a representation of ghost points.
+  int num_ghosts = stencil_num_ghosts(shepard->neighborhoods);
+  shepard->points = polymec_malloc(sizeof(point_t) * shepard->domain->num_points + num_ghosts);
+  memcpy(shepard->points, shepard->domain->points, sizeof(point_t) * shepard->domain->num_points);
+  stencil_exchange(shepard->neighborhoods, shepard->points, 3, 0, MPI_REAL_T);
+
+  shepard->smoothing_lengths = polymec_malloc(sizeof(real_t) * shepard->domain->num_points + num_ghosts);
+  memcpy(shepard->smoothing_lengths, smoothing_lengths, sizeof(point_t) * shepard->domain->num_points);
+  stencil_exchange(shepard->neighborhoods, shepard->smoothing_lengths, 1, 0, MPI_REAL_T);
+
   shape_function_vtable vtable = {.neighborhood_size = shepard_neighborhood_size,
                                   .get_neighborhood_points = shepard_get_neighborhood_points,
                                   .set_neighborhood = shepard_set_neighborhood,

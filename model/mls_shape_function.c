@@ -18,6 +18,7 @@ typedef struct
   point_cloud_t* domain;
   stencil_t* neighborhoods;
   real_t* smoothing_lengths;
+  point_t* points;
 
   int N;
   point_t* xj;
@@ -41,7 +42,7 @@ static void mls_get_neighborhood_points(void* context, int i, point_t* points)
   int pos = 0, j, k = 0;
   points[k++] = mls->domain->points[i];
   while (stencil_next(mls->neighborhoods, i, &pos, &j, NULL))
-    points[k++] = mls->domain->points[j];
+    points[k++] = mls->points[j];
 }
 
 static void mls_set_neighborhood(void* context, int i)
@@ -55,7 +56,7 @@ static void mls_set_neighborhood(void* context, int i)
   int pos = 0, j, k = 0;
   while (stencil_next(mls->neighborhoods, i, &pos, &j, NULL))
   {
-    mls->xj[k] = mls->domain->points[j];
+    mls->xj[k] = mls->points[j];
     mls->hj[k] = mls->smoothing_lengths[j];
     ++k;
   }
@@ -230,6 +231,8 @@ static void mls_dtor(void* context)
   polymec_free(mls->basis_ddz);
   polymec_free(mls->xj);
   polymec_free(mls->hj);
+  polymec_free(mls->points);
+  polymec_free(mls->smoothing_lengths);
   polymec_free(mls);
 }
 
@@ -261,6 +264,16 @@ shape_function_t* mls_shape_function_new(int polynomial_degree,
   mls->basis_ddz = NULL;
   mls->xj = NULL;
   mls->hj = NULL;
+
+  // Make sure we have a representation of ghost points.
+  int num_ghosts = stencil_num_ghosts(mls->neighborhoods);
+  mls->points = polymec_malloc(sizeof(point_t) * mls->domain->num_points + num_ghosts);
+  memcpy(mls->points, mls->domain->points, sizeof(point_t) * mls->domain->num_points);
+  stencil_exchange(mls->neighborhoods, mls->points, 3, 0, MPI_REAL_T);
+  mls->smoothing_lengths = polymec_malloc(sizeof(real_t) * mls->domain->num_points + num_ghosts);
+  memcpy(mls->smoothing_lengths, smoothing_lengths, sizeof(point_t) * mls->domain->num_points);
+  stencil_exchange(mls->neighborhoods, mls->smoothing_lengths, 1, 0, MPI_REAL_T);
+
   shape_function_vtable vtable = {.neighborhood_size = mls_neighborhood_size,
                                   .get_neighborhood_points = mls_get_neighborhood_points,
                                   .set_neighborhood = mls_set_neighborhood,
