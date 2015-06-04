@@ -50,7 +50,6 @@ void shape_function_kernel_compute(shape_function_kernel_t* kernel,
                   values, gradients);
 }
 
-#define SQUARE(x) ((x)*(x))
 static void simple_compute(void* context, 
                            point_t* points, 
                            real_t* extents, 
@@ -59,23 +58,69 @@ static void simple_compute(void* context,
                            real_t* values, 
                            vector_t* gradients)
 {
+  real_t eta_max = *((real_t*)context);
   for (int i = 0; i < num_points; ++i)
   {
     point_t* xi = &points[i];
     real_t h = extents[i];
     real_t Di = point_distance(xi, x);
-    values[i] = MAX(0.0, 4.0 - SQUARE(Di/h));
-    gradients[i].x = (xi->x - x->x) / (Di * h);
-    gradients[i].y = (xi->y - x->y) / (Di * h);
-    gradients[i].z = (xi->z - x->z) / (Di * h);
+    values[i] = MAX(0.0, 2.0*eta_max - Di*Di/(h*h));
+    gradients[i].x = -2.0/(h*h) * Di * (xi->x - x->x) / Di;
+    gradients[i].y = -2.0/(h*h) * Di * (xi->y - x->y) / Di;
+    gradients[i].z = -2.0/(h*h) * Di * (xi->z - x->z) / Di;
   }
 }
-#undef SQUARE
 
-shape_function_kernel_t* simple_shape_function_kernel_new()
+static void spline4_compute(void* context, 
+                            point_t* points, 
+                            real_t* extents, 
+                            int num_points, 
+                            point_t* x, 
+                            real_t* values, 
+                            vector_t* gradients)
 {
-  const char* name = "Simple kernel: W(x, x0, h) = 4 - (||x-x0||/h)**2";
-  return shape_function_kernel_new((char*)name, NULL, simple_compute, NULL);
+  real_t eta_max = *((real_t*)context);
+  for (int i = 0; i < num_points; ++i)
+  {
+    point_t* xi = &points[i];
+    real_t h = extents[i];
+    real_t Di = point_distance(xi, x);
+    real_t eta = Di/h;
+    real_t X = eta/eta_max;
+    if (X < 1.0)
+    {
+      values[i] = 1.0 - 6.0*X*X + 8.0*X*X*X - 3.0*X*X*X*X;
+      real_t dXdDi = (-12.0*X + 24.0*X*X - 12.0*X*X*X)/h;
+      gradients[i].x = dXdDi * (xi->x - x->x) / Di;
+      gradients[i].y = dXdDi * (xi->y - x->y) / Di;
+      gradients[i].z = dXdDi * (xi->z - x->z) / Di;
+    }
+    else
+    {
+      values[i] = 0.0;
+      gradients[i].x = 0.0;
+      gradients[i].y = 0.0;
+      gradients[i].z = 0.0;
+    }
+  }
+}
+
+shape_function_kernel_t* simple_shape_function_kernel_new(real_t eta_max)
+{
+  char name[1024];
+  snprintf(name, 1023, "Simple kernel: W(x, x0, h) = %g - (||x-x0||/h)**2", 2.0*eta_max);
+  real_t* context = polymec_malloc(sizeof(real_t));
+  *context = eta_max;
+  return shape_function_kernel_new((char*)name, context, simple_compute, polymec_free);
+}
+
+shape_function_kernel_t* spline4_shape_function_kernel_new(real_t eta_max)
+{
+  char name[1024];
+  snprintf(name, 1023, "Spline4 kernel");
+  real_t* context = polymec_malloc(sizeof(real_t));
+  *context = eta_max;
+  return shape_function_kernel_new((char*)name, context, spline4_compute, polymec_free);
 }
 
 struct shape_function_t 

@@ -49,7 +49,7 @@ void test_shepard_shape_function_ctor(void** state)
   real_t* smoothing_lengths;
   make_lattice(10, 10, 10, 1.0, &domain, &neighborhoods, &smoothing_lengths);
 
-  shape_function_kernel_t* W = simple_shape_function_kernel_new();
+  shape_function_kernel_t* W = simple_shape_function_kernel_new(2.0);
   shape_function_t* phi = shepard_shape_function_new(W, domain, neighborhoods, smoothing_lengths);
 
   // Try setting the neighborhoods.
@@ -70,7 +70,7 @@ void test_shepard_shape_function_consistency(void** state)
   real_t* smoothing_lengths;
   make_lattice(10, 10, 10, 1.0, &domain, &neighborhoods, &smoothing_lengths);
 
-  shape_function_kernel_t* W = simple_shape_function_kernel_new();
+  shape_function_kernel_t* W = simple_shape_function_kernel_new(2.0);
   shape_function_t* phi = shepard_shape_function_new(W, domain, neighborhoods, smoothing_lengths);
 
   // Set up a constant field.

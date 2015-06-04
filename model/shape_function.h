@@ -33,8 +33,15 @@ void shape_function_kernel_compute(shape_function_kernel_t* kernel,
                                    vector_t* gradients);
 
 // This is a simple shape function kernel of the form 
-// W(x, x0, h) = MAX(0, 4 - (||x - x0||/h)**2).
-shape_function_kernel_t* simple_shape_function_kernel_new();
+// W(x, x0, h) = MAX(0, 2*eta_max - (||x - x0||/h)**2).
+// Here, eta_max is the maximum value of ||x-x0||/h at which the kernel takes 
+// a nonzero value.
+shape_function_kernel_t* simple_shape_function_kernel_new(real_t eta_max);
+
+// This is a simple fourth-order spline-based kernel of the form
+// W(x, x0, h) = 1 - 6*(eta/eta_max)**2 + 8*(eta/eta_max)**3 - 3*(eta/eta_max)**4 
+// for 0 <= eta <= eta_max, 0 for eta > eta_max. Here, eta = ||x-x0||/h.
+shape_function_kernel_t* spline4_shape_function_kernel_new(real_t eta_max);
               
 // This class represents a shape function defined on a set of points in a 
 // neighborhood within a point cloud.

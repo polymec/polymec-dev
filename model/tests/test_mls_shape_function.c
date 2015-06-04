@@ -49,7 +49,7 @@ void test_mls_shape_function_ctor(void** state, int p)
   real_t* smoothing_lengths;
   make_lattice(10, 10, 10, 1.0, &domain, &neighborhoods, &smoothing_lengths);
 
-  shape_function_kernel_t* W = simple_shape_function_kernel_new();
+  shape_function_kernel_t* W = simple_shape_function_kernel_new(2.0);
   shape_function_t* phi = mls_shape_function_new(p, W, domain, neighborhoods, smoothing_lengths);
 
   // Try setting the neighborhoods.
@@ -63,10 +63,29 @@ void test_mls_shape_function_ctor(void** state, int p)
   polymec_free(smoothing_lengths);
 }
 
-void test_mls_shape_function_ctors(void** state)
+void test_mls_shape_function_ctor_0(void** state)
 {
-  for (int p = 0; p < 4; ++p)
-    test_mls_shape_function_ctor(state, p);
+    test_mls_shape_function_ctor(state, 0);
+}
+
+void test_mls_shape_function_ctor_1(void** state)
+{
+    test_mls_shape_function_ctor(state, 1);
+}
+
+void test_mls_shape_function_ctor_2(void** state)
+{
+    test_mls_shape_function_ctor(state, 2);
+}
+
+void test_mls_shape_function_ctor_3(void** state)
+{
+    test_mls_shape_function_ctor(state, 3);
+}
+
+void test_mls_shape_function_ctor_4(void** state)
+{
+    test_mls_shape_function_ctor(state, 4);
 }
 
 void test_mls_shape_function_zero_consistency_p(void** state, int p)
@@ -74,10 +93,10 @@ void test_mls_shape_function_zero_consistency_p(void** state, int p)
   point_cloud_t* domain;
   stencil_t* neighborhoods;
   real_t* smoothing_lengths;
-  static real_t h_over_dx[] = {1.0, 1.2, 1.5, 2.0, 2.4};
+  static real_t h_over_dx[] = {1.0, 1.2, 1.6, 2.0, 2.4};
   make_lattice(10, 10, 10, h_over_dx[p], &domain, &neighborhoods, &smoothing_lengths);
 
-  shape_function_kernel_t* W = simple_shape_function_kernel_new();
+  shape_function_kernel_t* W = simple_shape_function_kernel_new(2.0);
   shape_function_t* phi = mls_shape_function_new(p, W, domain, neighborhoods, smoothing_lengths);
 
   // Set up a constant field.
@@ -97,13 +116,7 @@ void test_mls_shape_function_zero_consistency_p(void** state, int p)
     bbox_t jitterbox = {.x1 = x.x - 0.5*dx, .x2 = x.x + 0.5*dx, 
                         .y1 = x.y - 0.5*dx, .y2 = x.y + 0.5*dx, 
                         .z1 = x.z - 0.5*dx, .z2 = x.z + 0.5*dx};
-//    do
-//    {
     point_randomize(&x, rng, &jitterbox);
-//    }
-//    while ((x.x < 0.5*dx) || (x.x > 1.0-0.5*dx) ||
-//           (x.y < 0.5*dx) || (x.y > 1.0-0.5*dx) ||
-//           (x.z < 0.5*dx) || (x.z > 1.0-0.5*dx));
            
     int N = shape_function_num_points(phi);
     real_t phi_val[N];
@@ -122,12 +135,12 @@ void test_mls_shape_function_zero_consistency_p(void** state, int p)
       ++k;
     }
 
-//printf("p = %d: %d points\n", p, N);
+//printf("%d neighbors\n", N);
 //printf("(%g, %g, %g), (%g, %g, %g), D/h = %g: %g %g %g %g\n", domain->points[i].x, domain->points[i].y, domain->points[i].z, x.x, x.y, x.z, point_distance(&domain->points[i], &x)/smoothing_lengths[i], val, grad.x, grad.y, grad.z);
-    assert_true(fabs(val - 1.0) < 1e-14);
-    assert_true(fabs(grad.x) < 1e-14);
-    assert_true(fabs(grad.y) < 1e-14);
-    assert_true(fabs(grad.z) < 1e-14);
+    assert_true(fabs(val - 1.0) < 1e-12);
+    assert_true(fabs(grad.x) < 1e-12);
+    assert_true(fabs(grad.y) < 1e-12);
+    assert_true(fabs(grad.z) < 1e-12);
   }
 
   // Clean up.
@@ -137,10 +150,29 @@ void test_mls_shape_function_zero_consistency_p(void** state, int p)
   polymec_free(smoothing_lengths);
 }
 
-void test_mls_shape_function_zero_consistency(void** state)
+void test_mls_shape_function_zero_consistency_0(void** state)
 {
-  for (int p = 0; p < 4; ++p)
-    test_mls_shape_function_zero_consistency_p(state, p);
+  test_mls_shape_function_zero_consistency_p(state, 0);
+}
+
+void test_mls_shape_function_zero_consistency_1(void** state)
+{
+  test_mls_shape_function_zero_consistency_p(state, 1);
+}
+
+void test_mls_shape_function_zero_consistency_2(void** state)
+{
+  test_mls_shape_function_zero_consistency_p(state, 2);
+}
+
+void test_mls_shape_function_zero_consistency_3(void** state)
+{
+  test_mls_shape_function_zero_consistency_p(state, 3);
+}
+
+void test_mls_shape_function_zero_consistency_4(void** state)
+{
+  test_mls_shape_function_zero_consistency_p(state, 4);
 }
 
 int main(int argc, char* argv[]) 
@@ -148,8 +180,16 @@ int main(int argc, char* argv[])
   polymec_init(argc, argv);
   const UnitTest tests[] = 
   {
-    unit_test(test_mls_shape_function_ctors),
-    unit_test(test_mls_shape_function_zero_consistency)
+    unit_test(test_mls_shape_function_ctor_0),
+    unit_test(test_mls_shape_function_ctor_1),
+    unit_test(test_mls_shape_function_ctor_2),
+    unit_test(test_mls_shape_function_ctor_3),
+    unit_test(test_mls_shape_function_ctor_4),
+    unit_test(test_mls_shape_function_zero_consistency_0),
+    unit_test(test_mls_shape_function_zero_consistency_1),
+    unit_test(test_mls_shape_function_zero_consistency_2),
+    unit_test(test_mls_shape_function_zero_consistency_3),
+    unit_test(test_mls_shape_function_zero_consistency_4)
   };
   return run_tests(tests);
 }
