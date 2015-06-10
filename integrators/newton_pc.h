@@ -22,13 +22,21 @@ typedef struct newton_pc_t newton_pc_t;
 // following virtual table.
 typedef struct
 {
+  // Method to reset the preconditioner to its original state at time t.
+  void (*reset)(void* context, real_t t);
+
   // Method for computing the preconditioner operator 
   // P = alpha * I + beta * dF/dx + gamma * dF/d(xdot).
   // where F(t, x, xdot) is a nonlinear function whose solution x is sought.
   void (*compute_p)(void* context, 
                     real_t alpha, real_t beta, real_t gamma, 
                     real_t t, real_t* x, real_t* xdot);
+
+  // Method to solve the preconditioner equation
+  // P * (Xnew - Xold) = R.
   bool (*solve)(void* context, real_t* R);
+
+  // Destructor.
   void (*dtor)(void* context);
 } newton_pc_vtable;
 
@@ -50,6 +58,9 @@ char* newton_pc_name(newton_pc_t* precond);
 // Returns an internal pointer to the context originally given to this 
 // Newton preconditioner. Use at your own risk.
 void* newton_pc_context(newton_pc_t* precond);
+
+// Resets the preconditioner to its original state at time t.
+void newton_pc_reset(newton_pc_t* precond, real_t t);
 
 // Performs any setup required to computes the preconditioner matrix at the 
 // point (t, x, xdot) in solution space, computing 

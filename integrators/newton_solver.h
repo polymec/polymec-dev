@@ -155,6 +155,9 @@ void newton_solver_eval_residual(newton_solver_t* solver, real_t t, real_t* X, r
 // num_iterations upon success.
 bool newton_solver_solve(newton_solver_t* solver, real_t t, real_t* X, int* num_iterations);
 
+// Resets the internal state of the solver to its original state at time t.
+void newton_solver_reset(newton_solver_t* solver, real_t t);
+
 // Diagnostics for the nonlinear solver.
 typedef struct
 {

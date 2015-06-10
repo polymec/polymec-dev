@@ -213,6 +213,9 @@ static void bdf_reset(void* context, real_t t, real_t* x)
 {
   bdf_ode_t* integ = context;
 
+  // Reset the preconditioner.
+  newton_pc_reset(integ->precond, t);
+
   // Copy in the solution and reinitialize.
   memcpy(NV_DATA(integ->x), x, sizeof(real_t) * integ->num_local_values); 
   CVodeReInit(integ->cvode, t, integ->x);

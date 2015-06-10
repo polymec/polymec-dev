@@ -485,6 +485,10 @@ bool dae_integrator_step(dae_integrator_t* integ, real_t max_dt, real_t* t, real
 
 void dae_integrator_reset(dae_integrator_t* integ, real_t t, real_t* X, real_t* X_dot)
 {
+  // Reset the preconditioner.
+  newton_pc_reset(integ->precond, t);
+
+  // Reset the integrator itself.
   integ->t = t;
   memcpy(NV_DATA(integ->x), X, sizeof(real_t) * integ->num_local_values); 
   memcpy(NV_DATA(integ->x_dot), X_dot, sizeof(real_t) * integ->num_local_values); 

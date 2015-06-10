@@ -344,6 +344,12 @@ bool newton_solver_solve(newton_solver_t* solver,
   return false;
 }
                                   
+void newton_solver_reset(newton_solver_t* solver, real_t t)
+{
+  // Reset the preconditioner.
+  newton_pc_reset(solver->precond, t);
+}
+
 void newton_solver_get_diagnostics(newton_solver_t* solver, 
                                    newton_solver_diagnostics_t* diagnostics)
 {

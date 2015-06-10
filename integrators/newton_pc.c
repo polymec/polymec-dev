@@ -54,6 +54,14 @@ void* newton_pc_context(newton_pc_t* precond)
   return precond->context;
 }
 
+void newton_pc_reset(newton_pc_t* precond, real_t t)
+{
+  START_FUNCTION_TIMER();
+  if (precond->vtable.reset != NULL)
+    precond->vtable.reset(precond->context, t);
+  STOP_FUNCTION_TIMER();
+}
+
 void newton_pc_setup(newton_pc_t* precond, 
                      real_t alpha, real_t beta, real_t gamma,
                      real_t t, real_t* x, real_t* xdot)
