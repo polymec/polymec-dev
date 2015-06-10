@@ -209,6 +209,11 @@ void polymec_restore_fpe();
 // with a fatal exit.
 noreturn void polymec_not_implemented(const char* component);
 
+// This registers a function to be called by polymec_init, after all of 
+// polymec's services have been started. This function gets passed argc and 
+// argv, and can make use of polymec's environment.
+void polymec_atinit(void (*func)(int argc, char** argv));
+
 // Initialize polymec's services. If polymec has already been initialized, 
 // this does nothing.
 void polymec_init(int argc, char** argv);

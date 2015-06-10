@@ -70,9 +70,14 @@ static polymec_error_handler_function error_handler = NULL;
 static MPI_Errhandler mpi_error_handler;
 #endif
 
+// Functions to call after initialization.
+typedef void (*atinit_func)(int argc, char** argv);
+static atinit_func _atinit_funcs[32];
+static int _num_atinit_funcs = 0;
+
 // Functions to call on exit.
-typedef void (*at_exit_func)();
-static at_exit_func _atexit_funcs[32];
+typedef void (*atexit_func)();
+static atexit_func _atexit_funcs[32];
 static int _num_atexit_funcs = 0;
 
 static void shutdown()
@@ -230,6 +235,12 @@ static void pause_if_requested()
   }
 }
 
+void polymec_atinit(void (*func)(int argc, char** argv))
+{
+  ASSERT(_num_atinit_funcs <= 32);
+  _atinit_funcs[_num_atinit_funcs++] = func;
+}
+
 void polymec_init(int argc, char** argv)
 {
   if (!polymec_initialized)
@@ -305,6 +316,11 @@ void polymec_init(int argc, char** argv)
     // By default, we enable floating point exceptions for debug builds.
     polymec_enable_fpe();
 #endif
+
+    // Call initialization functions.
+    log_debug("polymec: Calling %d initialization functions.", _num_atinit_funcs);
+    for (int i = 0; i < _num_atinit_funcs; ++i)
+      _atinit_funcs[i](argc, argv);
   }
 }
 
