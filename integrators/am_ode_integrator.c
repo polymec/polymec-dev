@@ -331,11 +331,9 @@ static int solve_preconditioner_system(real_t t, N_Vector x, N_Vector F,
   am_ode_t* integ = context;
   
   // FIXME: Apply scaling if needed.
-  // Copy the contents of the RHS to the output vector.
-  memcpy(NV_DATA(z), NV_DATA(r), sizeof(real_t) * integ->num_local_values);
 
   // Solve it.
-  int status = (newton_pc_solve(integ->precond, NV_DATA(z))) ? 0 : 1;
+  int status = (newton_pc_solve(integ->precond, NV_DATA(r), NV_DATA(r))) ? 0 : 1;
   STOP_FUNCTION_TIMER();
   return status;
 }

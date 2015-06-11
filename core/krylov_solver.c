@@ -121,8 +121,7 @@ static int solve_preconditioner_system(void* context,
     ASSERT(prec_type == PREC_LEFT);
     local_matrix_t* P = context;
     log_debug("krylov_solver: solving preconditioner...");
-    memcpy(NV_DATA(z), NV_DATA(r), sizeof(real_t) * NV_LOCLENGTH(z));
-    if (local_matrix_solve(P, NV_DATA(z)))
+    if (local_matrix_solve(P, NV_DATA(r), NV_DATA(z)))
       return 0;
     else 
     {

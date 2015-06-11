@@ -170,7 +170,7 @@ static void slm_add_column_vector(void* context,
   }
 }
 
-static bool slm_solve(void* context, real_t* B)
+static bool slm_solve(void* context, real_t* B, real_t* x)
 {
   slm_t* mat = context;
   SuperMatrix* A = mat->A;
@@ -239,13 +239,13 @@ static bool slm_solve(void* context, real_t* B)
 
   if (success)
   {
-    // Copy the output vector to B.
+    // Copy the output vector to x.
     if (mat->ilu_params == NULL)
-      memcpy(B, rhs->nzval, sizeof(real_t) * mat->N);
+      memcpy(x, rhs->nzval, sizeof(real_t) * mat->N);
     else
     {
       DNformat* X = mat->X.Store;
-      memcpy(B, X->nzval, sizeof(real_t) * mat->N);
+      memcpy(x, X->nzval, sizeof(real_t) * mat->N);
     }
   }
   else

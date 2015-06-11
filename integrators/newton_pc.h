@@ -32,9 +32,8 @@ typedef struct
                     real_t alpha, real_t beta, real_t gamma, 
                     real_t t, real_t* x, real_t* xdot);
 
-  // Method to solve the preconditioner equation
-  // P * (Xnew - Xold) = R.
-  bool (*solve)(void* context, real_t* R);
+  // Method to solve the preconditioner equation P * Z = R.
+  bool (*solve)(void* context, real_t* R, real_t* Z);
 
   // Destructor.
   void (*dtor)(void* context);
@@ -71,10 +70,10 @@ void newton_pc_setup(newton_pc_t* precond,
                      real_t alpha, real_t beta, real_t gamma,
                      real_t t, real_t* x, real_t* xdot);
 
-// Solves the preconditioner system P*X = R in place (placing the solution X
-// in R). This can only be called after newton_pc_setup has been called.
+// Solves the preconditioner system P*Z = R, placing the solution in Z.
+// This can only be called after newton_pc_setup has been called.
 // Returns true if the solve succeeded, false otherwise.
-bool newton_pc_solve(newton_pc_t* precond, real_t* R);
+bool newton_pc_solve(newton_pc_t* precond, real_t* R, real_t* Z);
 
 // The following "fix/unfix" methods are for fixing and unfixing the alpha, 
 // beta, and gamma coefficients, and should really only be used in tandem with 

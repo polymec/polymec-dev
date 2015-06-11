@@ -145,11 +145,9 @@ static int solve_preconditioner_system(real_t t, N_Vector x, N_Vector x_dot,
   dae_integrator_t* integ = context;
   
   // FIXME: Apply scaling if needed.
-  // Copy the contents of the residual to the output vector.
-  memcpy(NV_DATA(z), NV_DATA(r), sizeof(real_t) * integ->num_local_values);
 
   // Solve it.
-  int result = (newton_pc_solve(integ->precond, NV_DATA(z))) ? 0 : 1;
+  int result = (newton_pc_solve(integ->precond, NV_DATA(r), NV_DATA(z))) ? 0 : 1;
   STOP_FUNCTION_TIMER();
   return result;
 }
