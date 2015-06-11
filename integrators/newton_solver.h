@@ -86,6 +86,7 @@ typedef struct newton_solver_t newton_solver_t;
 typedef enum 
 {
   NEWTON_GMRES,    // Generalized minimum residual Krylov solver
+  NEWTON_FGMRES,   // Flexible GMRES Krylov solver
   NEWTON_BICGSTAB, // Stabilized Biconjugate Gradient Krylov solver
   NEWTON_TFQMR     // Transpose-Free QMR Krylov solver
 } newton_krylov_t;

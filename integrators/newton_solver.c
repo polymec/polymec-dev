@@ -13,6 +13,7 @@
 // We use KINSOL for doing the matrix-free nonlinear solve.
 #include "kinsol/kinsol.h"
 #include "kinsol/kinsol_spgmr.h"
+#include "kinsol/kinsol_spfgmr.h"
 #include "kinsol/kinsol_spbcgs.h"
 #include "kinsol/kinsol_sptfqmr.h"
 
@@ -111,7 +112,8 @@ newton_solver_t* newton_solver_new(MPI_Comm comm,
   ASSERT(num_remote_values >= 0);
   ASSERT(vtable.eval != NULL);
   ASSERT(max_krylov_dim >= 3);
-  ASSERT((solver_type != NEWTON_GMRES) || (max_restarts >= 0));
+  ASSERT(((solver_type != NEWTON_GMRES) && (solver_type != NEWTON_FGMRES)) || 
+         (max_restarts >= 0));
 
   newton_solver_t* solver = polymec_malloc(sizeof(newton_solver_t));
   solver->context = context;
@@ -140,6 +142,11 @@ newton_solver_t* newton_solver_new(MPI_Comm comm,
   if (solver->solver_type == NEWTON_GMRES)
   {
     KINSpgmr(solver->kinsol, solver->max_krylov_dim); 
+    KINSpilsSetMaxRestarts(solver->kinsol, solver->max_restarts);
+  }
+  else if (solver->solver_type == NEWTON_FGMRES)
+  {
+    KINSpfgmr(solver->kinsol, solver->max_krylov_dim); 
     KINSpilsSetMaxRestarts(solver->kinsol, solver->max_restarts);
   }
   else if (solver->solver_type == NEWTON_BICGSTAB)
