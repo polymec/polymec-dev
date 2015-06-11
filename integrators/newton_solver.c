@@ -62,7 +62,6 @@ static int set_up_preconditioner(N_Vector x, N_Vector x_scale,
 {
   newton_solver_t* solver = context;
   real_t t = solver->t;
-  log_debug("newton_solver: setting up preconditioner...");
   newton_pc_setup(solver->precond, 0.0, 1.0, 0.0, t, NV_DATA(x), NULL);
 
   return 0;
@@ -80,7 +79,6 @@ static int solve_preconditioner_system(N_Vector x, N_Vector x_scale,
 
   // FIXME: Apply scaling if needed.
 
-  log_debug("newton_solver: solving preconditioner...");
   if (newton_pc_solve(solver->precond, NV_DATA(r)))
     return 0;
   else 

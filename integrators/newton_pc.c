@@ -88,7 +88,7 @@ bool newton_pc_solve(newton_pc_t* precond, real_t* R)
 {
   START_FUNCTION_TIMER();
   log_debug("newton_pc: solving preconditioner system...");
-  int status = precond->vtable.solve(precond->context, R);
+  bool status = precond->vtable.solve(precond->context, R);
   STOP_FUNCTION_TIMER();
   return status;
 }
