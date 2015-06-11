@@ -212,13 +212,17 @@ noreturn void polymec_not_implemented(const char* component);
 // This registers a function to be called by polymec_init, after all of 
 // polymec's services have been started. This function gets passed argc and 
 // argv, and can make use of polymec's environment.
+// Use this function sparingly: currently only 32 functions may be registered 
+// in this fashion.
 void polymec_atinit(void (*func)(int argc, char** argv));
 
 // Initialize polymec's services. If polymec has already been initialized, 
 // this does nothing.
 void polymec_init(int argc, char** argv);
 
-// Register a function to be called upon exit.
+// Registers a function to be called upon exit.
+// Use this function sparingly: currently only 32 functions may be registered 
+// in this fashion.
 void polymec_atexit(void (*func)());
 
 // This function writes version information to the given file descriptor.

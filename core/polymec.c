@@ -237,7 +237,8 @@ static void pause_if_requested()
 
 void polymec_atinit(void (*func)(int argc, char** argv))
 {
-  ASSERT(_num_atinit_funcs <= 32);
+  ASSERT(!polymec_initialized);
+  ASSERT(_num_atinit_funcs < 32);
   _atinit_funcs[_num_atinit_funcs++] = func;
 }
 
@@ -477,7 +478,7 @@ void polymec_not_implemented(const char* component)
 
 void polymec_atexit(void (*func)()) 
 {
-  ASSERT(_num_atexit_funcs <= 32);
+  ASSERT(_num_atexit_funcs < 32);
   _atexit_funcs[_num_atexit_funcs++] = func;
 }
 
