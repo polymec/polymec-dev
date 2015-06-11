@@ -25,10 +25,12 @@ static void cpr_newton_pc_compute_p(void* context,
   cpr_differencer_compute(pc->diff, alpha, beta, gamma, t, x, xdot, pc->P);
 }
 
-static bool cpr_newton_pc_solve(void* context, real_t* R, real_t* Z)
+static bool cpr_newton_pc_solve(void* context, 
+                                real_t t, real_t* x, real_t* xdot,
+                                real_t* r, real_t* z)
 {
   cpr_newton_pc_t* pc = context;
-  return local_matrix_solve(pc->P, R, Z);
+  return local_matrix_solve(pc->P, r, z);
 }
 
 static void cpr_newton_pc_dtor(void* context)

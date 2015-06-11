@@ -79,7 +79,8 @@ static int solve_preconditioner_system(N_Vector x, N_Vector x_scale,
 
   // FIXME: Apply scaling if needed.
 
-  if (newton_pc_solve(solver->precond, NV_DATA(r), NV_DATA(work)))
+  if (newton_pc_solve(solver->precond, solver->t, NV_DATA(x), NULL,
+                      NV_DATA(r), NV_DATA(work)))
   {
     // Copy the solution to r.
     memcpy(NV_DATA(r), NV_DATA(work), sizeof(real_t) * NV_LOCLENGTH(r));

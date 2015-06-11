@@ -284,7 +284,8 @@ static int solve_preconditioner_system(real_t t, N_Vector x, N_Vector F,
   // FIXME: Apply scaling if needed.
 
   // Solve it.
-  int result = (newton_pc_solve(integ->precond, NV_DATA(r), NV_DATA(z))) ? 0 : 1;
+  int result = (newton_pc_solve(integ->precond, t, NV_DATA(x), NULL,
+                                NV_DATA(r), NV_DATA(z))) ? 0 : 1;
   STOP_FUNCTION_TIMER();
   return result;
 }
