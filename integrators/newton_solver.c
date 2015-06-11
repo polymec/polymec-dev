@@ -7,6 +7,7 @@
 
 #include <float.h>
 #include "core/sundials_helpers.h"
+#include "core/timer.h"
 #include "integrators/newton_solver.h"
 
 // We use KINSOL for doing the matrix-free nonlinear solve.
@@ -258,6 +259,7 @@ bool newton_solver_solve(newton_solver_t* solver,
                          real_t* X,
                          int* num_iterations)
 {
+  START_FUNCTION_TIMER();
   ASSERT(X != NULL);
 
   // Set the current time in the state.
@@ -313,6 +315,7 @@ bool newton_solver_solve(newton_solver_t* solver,
 
     // Copy the data back into X.
     memcpy(X, NV_DATA(solver->x), sizeof(real_t) * N);
+    STOP_FUNCTION_TIMER();
     return true;
   }
   else
@@ -344,6 +347,7 @@ bool newton_solver_solve(newton_solver_t* solver,
   }
 
   // Failed!
+  STOP_FUNCTION_TIMER();
   return false;
 }
                                   
