@@ -65,7 +65,15 @@ typedef struct
   ilu_norm_t norm;
 } ilu_params_t;
 
-// Initializes a set of ILU parameters with reasonable defaults.
+// Initializes a set of ILU parameters with reasonable defaults:
+// diagonal_pivot_threshold = 0.1
+// row_perm = ILU_LARGE_DIAG_PERM
+// drop_rule = ILU_DROP_BASIC | ILU_DROP_AREA
+// drop_tolerance = 1e-4
+// fill_factor = 10.0
+// milu_variant = ILU_SILU
+// fill_tolerance = 0.01
+// norm = ILU_INF
 ilu_params_t* ilu_params_new();
 
 // This returns an object representing a sparse local matrix with a

@@ -199,9 +199,9 @@ static bool slm_solve(void* context, real_t* B, real_t* x)
     // Complete LU factorization.
     dgssv(&mat->options, A, mat->cperm, mat->rperm, 
           &mat->L, &mat->U, &mat->rhs, &mat->stat, &info);
-    // SuperLU claims that it can re-use factorization info with the same 
-    // sparsity pattern, but this appears not to be the case at the moment.
-    // mat->options.Fact = SamePattern;
+
+    // Reuse the factorization (FIXME: currently not possible)
+//    mat->options.Fact = SamePattern;
   }
   else
   {
