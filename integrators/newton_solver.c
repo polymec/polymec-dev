@@ -242,11 +242,13 @@ void newton_solver_set_jacobian_vector_product(newton_solver_t* solver,
 
 void newton_solver_use_full_step(newton_solver_t* solver)
 {
+  log_debug("newton_solver: using full Newton step.");
   solver->strategy = KIN_NONE;
 }
 
 void newton_solver_use_line_search(newton_solver_t* solver)
 {
+  log_debug("newton_solver: using line search.");
   solver->strategy = KIN_LINESEARCH;
 }
 
@@ -254,6 +256,7 @@ void newton_solver_use_fixed_point(newton_solver_t* solver,
                                    int num_residuals)
 {
   ASSERT(num_residuals >= 0);
+  log_debug("newton_solver: using fixed point Anderson acceleration (%d residuals).", num_residuals);
   solver->strategy = KIN_FP;
   KINSetMAA(solver->kinsol, num_residuals);
 }
@@ -263,6 +266,7 @@ void newton_solver_use_picard(newton_solver_t* solver,
                               int num_residuals)
 {
   ASSERT(num_residuals >= 0);
+  log_debug("newton_solver: using Picard Anderson acceleration (%d residuals).", num_residuals);
   solver->strategy = KIN_PICARD;
   newton_solver_set_jacobian_vector_product(solver, Jv_func);
   KINSetMAA(solver->kinsol, num_residuals);
