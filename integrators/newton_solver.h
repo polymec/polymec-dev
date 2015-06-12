@@ -12,19 +12,17 @@
 #include "core/adj_graph.h"
 #include "integrators/newton_pc.h"
 
-// The different global strategies for the Newton iteration.
-typedef enum
-{
-  NEWTON_LINE_SEARCH,  // Line-search with backtracking
-  NEWTON_FULL_STEP     // Full Newton step
-} newton_solver_strategy_t;
-
 // This is a pointer to a residual function used with a nonlinear solver.
 // This function evaluates the residual function for the nonlinear system
 // of equations at the time t using the solution vector x and placing the 
 // result in F. It should return 0 on success, 1 for a recoverable error, 
 // -1 for a fatal error.
 typedef int (*newton_solver_residual_func)(void* context, real_t t, real_t* x, real_t* F);
+
+// This is used to define the Jacobian-vector project. Should return 0 on 
+// success, a positive value for a recoverable failure, and a negative number 
+// for an unrecoverable failure.
+typedef int (*newton_solver_Jv_func)(void* context, bool new_x, real_t t, real_t* x, real_t* v, real_t* Jv);
 
 // Initial guess function.
 typedef void (*newton_solver_initial_guess_func)(void* context, real_t t, real_t* x);
@@ -100,7 +98,6 @@ newton_solver_t* newton_solver_new(MPI_Comm comm,
                                    int num_remote_values,
                                    void* context,
                                    newton_solver_vtable vtable,
-                                   newton_solver_strategy_t global_strategy,
                                    newton_pc_t* precond,
                                    newton_krylov_t solver_type,
                                    int max_krylov_dim,
@@ -114,6 +111,34 @@ void* newton_solver_context(newton_solver_t* solver);
 
 // Returns the number of (local) equations in the nonlinear system.
 int newton_solver_num_equations(newton_solver_t* solver);
+
+// Sets a function to use to evaluate the product of the Jacobian with a 
+// vector v. If NULL, a difference quotient approximation will be used.
+void newton_solver_set_jacobian_vector_product(newton_solver_t* solver,
+                                               newton_solver_Jv_func Jv_func);
+
+// Call this function to have the Newton solver take a full Newton step on 
+// the next solve.
+void newton_solver_use_full_step(newton_solver_t* solver);
+
+// Call this function to have the Newton solver use a line search to determine 
+// the Newton step size on the next solve.
+void newton_solver_use_line_search(newton_solver_t* solver);
+
+// Call this function to have the Newton solver use a fixed point iteration 
+// with Anderson acceleration on the next solve. The given (non-negative) 
+// number of residuals will be stored and used in the acceleration.
+void newton_solver_use_fixed_point(newton_solver_t* solver, 
+                                   int num_residuals);
+
+// Call this function to have the Newton solver use a Picard iteration with 
+// Anderson acceleration on the next solve. This requires that a Jacobian-vector
+// product be given to form a linear matrix L for the iteration. The given 
+// (non-negative) number of residuals will be stored and used in the 
+// acceleration.
+void newton_solver_use_picard(newton_solver_t* solver, 
+                              newton_solver_Jv_func Jv_func,
+                              int num_residuals);
 
 // Sets the tolerances for the function norm (norm_tolerance) and the Newton
 // step (step_tolerance) for the nonlinear solver. The default values 

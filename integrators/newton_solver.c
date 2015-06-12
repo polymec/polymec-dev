@@ -37,6 +37,9 @@ struct newton_solver_t
   real_t* x_with_ghosts;
   char* status_message; // status of most recent integration.
 
+  // Jacobian-vector product function.
+  newton_solver_Jv_func Jv_func;
+
   // Preconditioning stuff.
   newton_pc_t* precond;
 
@@ -102,7 +105,6 @@ newton_solver_t* newton_solver_new(MPI_Comm comm,
                                    int num_remote_values,
                                    void* context,
                                    newton_solver_vtable vtable,
-                                   newton_solver_strategy_t global_strategy,
                                    newton_pc_t* precond,
                                    newton_krylov_t solver_type,
                                    int max_krylov_dim, 
@@ -121,11 +123,13 @@ newton_solver_t* newton_solver_new(MPI_Comm comm,
   solver->vtable = vtable;
   solver->precond = precond;
   solver->solver_type = solver_type;
-  solver->strategy = (global_strategy == NEWTON_LINE_SEARCH) ? KIN_LINESEARCH : KIN_NONE;
   solver->num_local_values = num_local_values;
   solver->num_remote_values = num_remote_values;
   solver->max_krylov_dim = max_krylov_dim;
   solver->max_restarts = max_restarts;
+
+  // By default, we take a full Newton step.
+  solver->strategy = KIN_NONE;
 
   // Set up KINSol and accessories.
   solver->kinsol = KINCreate();
@@ -183,6 +187,9 @@ newton_solver_t* newton_solver_new(MPI_Comm comm,
                               solve_preconditioner_system);
   }
 
+  // By default, we use a difference-quotient approximation to J*v.
+  solver->Jv_func = NULL;
+
   solver->t = 0.0;
 
   return solver;
@@ -208,6 +215,57 @@ void newton_solver_free(newton_solver_t* solver)
     polymec_free(solver->status_message);
   polymec_free(solver->x_with_ghosts);
   polymec_free(solver);
+}
+
+// This is a KINSOL Jacobian-vector product function that wraps our own.
+static int Jv_func_wrapper(N_Vector v, N_Vector Jv, N_Vector x,
+                           booleantype* new_x, void* context)
+{
+  newton_solver_t* solver = context;
+  ASSERT(solver->Jv_func != NULL);
+  int result = solver->Jv_func(solver->context, (*new_x != 0), solver->t, 
+                               NV_DATA(x), NV_DATA(v), NV_DATA(Jv));
+  if ((result == 0) && (*new_x == 0))
+    *new_x = 1;
+  return result;
+}
+
+void newton_solver_set_jacobian_vector_product(newton_solver_t* solver,
+                                               newton_solver_Jv_func Jv_func)
+{
+  solver->Jv_func = Jv_func;
+  if (Jv_func != NULL)
+    KINSpilsSetJacTimesVecFn(solver->kinsol, Jv_func_wrapper);
+  else
+    KINSpilsSetJacTimesVecFn(solver->kinsol, NULL);
+}
+
+void newton_solver_use_full_step(newton_solver_t* solver)
+{
+  solver->strategy = KIN_NONE;
+}
+
+void newton_solver_use_line_search(newton_solver_t* solver)
+{
+  solver->strategy = KIN_LINESEARCH;
+}
+
+void newton_solver_use_fixed_point(newton_solver_t* solver, 
+                                   int num_residuals)
+{
+  ASSERT(num_residuals >= 0);
+  solver->strategy = KIN_FP;
+  KINSetMAA(solver->kinsol, num_residuals);
+}
+
+void newton_solver_use_picard(newton_solver_t* solver, 
+                              newton_solver_Jv_func Jv_func,
+                              int num_residuals)
+{
+  ASSERT(num_residuals >= 0);
+  solver->strategy = KIN_PICARD;
+  newton_solver_set_jacobian_vector_product(solver, Jv_func);
+  KINSetMAA(solver->kinsol, num_residuals);
 }
 
 void* newton_solver_context(newton_solver_t* solver)
