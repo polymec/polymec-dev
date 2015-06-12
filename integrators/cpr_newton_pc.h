@@ -5,8 +5,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef POLYMEC_CPR_PC_H
-#define POLYMEC_CPR_PC_H
+#ifndef POLYMEC_CPR_NEWTON_PC_H
+#define POLYMEC_CPR_NEWTON_PC_H
 
 #include "core/sparse_local_matrix.h"
 #include "integrators/newton_pc.h"
