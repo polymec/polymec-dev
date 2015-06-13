@@ -79,7 +79,7 @@ void newton_pc_setup(newton_pc_t* precond,
 // Returns true if the solve succeeded, false otherwise.
 bool newton_pc_solve(newton_pc_t* precond, 
                      real_t t, real_t* x, real_t* xdot,
-                     real_t* R, real_t* Z);
+                     real_t* r, real_t* z);
 
 // The following "fix/unfix" methods are for fixing and unfixing the alpha, 
 // beta, and gamma coefficients, and should really only be used in tandem with 

@@ -23,7 +23,6 @@ newton_pc_t* newton_pc_new(const char* name,
                            void* context,
                            newton_pc_vtable vtable)
 {
-  ASSERT(vtable.compute_p != NULL);
   ASSERT(vtable.solve != NULL);
 
   newton_pc_t* pc = polymec_malloc(sizeof(newton_pc_t));
@@ -56,32 +55,37 @@ void* newton_pc_context(newton_pc_t* precond)
 
 void newton_pc_reset(newton_pc_t* precond, real_t t)
 {
-  START_FUNCTION_TIMER();
   if (precond->vtable.reset != NULL)
+  {
+    START_FUNCTION_TIMER();
     precond->vtable.reset(precond->context, t);
-  STOP_FUNCTION_TIMER();
+    STOP_FUNCTION_TIMER();
+  }
 }
 
 void newton_pc_setup(newton_pc_t* precond, 
                      real_t alpha, real_t beta, real_t gamma,
                      real_t t, real_t* x, real_t* xdot)
 {
-  START_FUNCTION_TIMER();
-  log_debug("newton_pc: setting up preconditioner...");
-  if (!precond->coeffs_fixed)
+  if (precond->vtable.compute_p != NULL)
   {
-    // Only certain combinations of alpha, beta, and gamma are allowed.
-    ASSERT(((alpha == 1.0) && (beta != 0.0) && (gamma == 0.0)) || 
-           ((alpha == 0.0) && (beta == 1.0)));
+    START_FUNCTION_TIMER();
+    log_debug("newton_pc: setting up preconditioner...");
+    if (!precond->coeffs_fixed)
+    {
+      // Only certain combinations of alpha, beta, and gamma are allowed.
+      ASSERT(((alpha == 1.0) && (beta != 0.0) && (gamma == 0.0)) || 
+          ((alpha == 0.0) && (beta == 1.0)));
 
-    precond->vtable.compute_p(precond->context, alpha, beta, gamma, t, x, xdot);
+      precond->vtable.compute_p(precond->context, alpha, beta, gamma, t, x, xdot);
+    }
+    else
+    {
+      precond->vtable.compute_p(precond->context, precond->alpha0, 
+                                precond->beta0, precond->gamma0, t, x, xdot);
+    }
+    STOP_FUNCTION_TIMER();
   }
-  else
-  {
-    precond->vtable.compute_p(precond->context, precond->alpha0, precond->beta0, 
-                              precond->gamma0, t, x, xdot);
-  }
-  STOP_FUNCTION_TIMER();
 }
 
 bool newton_pc_solve(newton_pc_t* precond, 

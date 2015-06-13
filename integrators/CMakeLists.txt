@@ -1,5 +1,5 @@
 add_library(polymec_integrators newton_pc.c cpr_differencer.c cpr_newton_pc.c
-            newton_solver.c ode_integrator.c am_ode_integrator.c 
+            ssor_newton_pc.c newton_solver.c ode_integrator.c am_ode_integrator.c 
             bdf_ode_integrator.c euler_ode_integrator.c dae_integrator.c gauss_rules.c 
             polyhedron_integrator.c sphere_integrator.c div_free_poly_basis.c)
 set(POLYMEC_LIBRARIES polymec_integrators;${POLYMEC_LIBRARIES} PARENT_SCOPE)
