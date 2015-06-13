@@ -30,18 +30,26 @@ static real_t problem_f(void* context, int i, real_t t, real_t* u)
   int N = prob->N;
   if ((i == 0) || (i == (N-1)))
     return 0.0;
+  real_t dudx = 0.5 * N * (u[i+1] - u[i-1]);
   real_t dudx2 = 1.0 * N * N * (u[i-1] - 2.0*u[i] + u[i+1]);
-  real_t dexp_udx = 2.0 * N * (exp(u[i+1]) - exp(u[i-1]));
+  real_t exp_u = exp(u[i]);
+  real_t dexp_udx = exp_u * dudx;
   real_t R = prob->c*exp(1.0);
-  printf("f[%d] = %g\n", i, -dudx2 + 2.0*prob->b*dexp_udx + prob->c*exp(u[i]) - R);
-  return -dudx2 + 2.0*prob->b*dexp_udx + prob->c*exp(u[i]) - R;
+  return -dudx2 + 2.0*prob->b*dexp_udx + prob->c*exp_u - R;
 }
 
 static real_t problem_DJ(void* context, int i, real_t t, real_t* u)
 {
   problem_t* prob = context;
-  printf("DJ[%d] = %g\n", i, -2.0 + prob->c * exp(u[i]));
-  return -2.0 + prob->c * exp(u[i]);
+  int N = prob->N;
+  real_t exp_u = exp(u[i]);
+  if ((i == 0) || (i == (N-1)))
+    return prob->c * exp_u;
+  else
+  {
+    real_t dudx = 0.5 * N * (u[i+1] - u[i-1]);
+    return 2.0*N*N + 2.0 * dudx * exp_u + prob->c * exp_u;
+  }
 }
 
 void test_ssor_pc_ctor(void** state)
@@ -67,7 +75,7 @@ void test_ssor_pc_solve(void** state)
   for (int i = 0; i < N; ++i)
     r[i] = problem_f(&prob, i, t, u);
   newton_pc_solve(pc, t, u, NULL, r, z);
-  vector_fprintf(z, N, stdout);
+//  vector_fprintf(z, N, stdout);
   newton_pc_free(pc);
 }
 

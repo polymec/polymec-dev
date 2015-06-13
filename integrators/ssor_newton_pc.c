@@ -33,8 +33,6 @@ static void ssor_compute_relaxed_value(ssor_pc_t* ssor, int i,
   real_t f_hi = ssor->f(ssor->context, i, t, ssor->x_pert);
   real_t f_lo = ssor->f(ssor->context, i, t, x);
   real_t Jz = (f_hi - f_lo) / ssor->d;
-printf("Jz[%d] = (%g - %g) / %g = %g\n", f_hi, f_lo, ssor->d, Jz);
-printf("r[%d] = %g\n", i, r[i]);
   real_t Fi = Jz - r[i];
 
   // Compute the diagonal element of J at i using the perturbed value of x.
@@ -42,7 +40,6 @@ printf("r[%d] = %g\n", i, r[i]);
 
   // Update zi.
   z[i] -= ssor->omega * Fi / DJi;
-printf("z[%d] -> %g - %g * (%g/%g) = %g\n", i, z[i] + ssor->omega * Fi / DJi, ssor->omega, Fi, DJi, z[i]);
 }
 
 static bool ssor_newton_pc_solve(void* context, 
