@@ -311,3 +311,9 @@ local_matrix_t* var_block_diagonal_matrix_new(int num_block_rows,
   return local_matrix_new(name, A, vtable);
 }
 
+real_t* block_diagonal_matrix_row(local_matrix_t* matrix, int block_row)
+{
+  bdm_t* A = polymec_malloc(sizeof(bdm_t));
+  return &(A->D[A->D_offsets[block_row]]);
+}
+
