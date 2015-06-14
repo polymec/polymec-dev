@@ -12,7 +12,7 @@
 
 // The SSOR Newton PC implements a nonlinear Symmetric Successive 
 // Overrelaxation Newton preconditioning method described by Chan and 
-// Jackson, Siam J. Sci. Stat. Comput. 5 (1984). It is mostly-matrix-free
+// Jackson, Siam J. Sci. Stat. Comput. 5 (1984). It is a mostly-matrix-free
 // preconditioner in that it requires only the diagonal of the Jacobian to 
 // be computed.
 

@@ -96,7 +96,7 @@ newton_pc_t* ssor_newton_pc_new(void* context,
   ssor->d = sqrt(UNIT_ROUNDOFF);
 
   newton_pc_vtable vtable = {.solve = ssor_newton_pc_solve,
-                             .dtor = polymec_free};
+                             .dtor = ssor_newton_pc_free};
   return newton_pc_new("SSOR preconditioner", ssor, vtable);
 }
                                         
