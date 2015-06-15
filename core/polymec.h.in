@@ -198,11 +198,11 @@ void polymec_enable_fpe();
 void polymec_disable_fpe();
 
 // This function suspends all currently-enabled floating point exceptions. 
-// They can be restored later with polymec_restore_fpe_exceptions().
+// They can be restored later with polymec_restore_fpe.
 void polymec_suspend_fpe();
 
 // This function restores the exceptions that were suspended by a prior call 
-// to polymec_suspend_fpe_exceptions.
+// to polymec_suspend_fpe.
 void polymec_restore_fpe();
 
 // Call this function to indicate that something is not implemented
