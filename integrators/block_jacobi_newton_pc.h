@@ -15,17 +15,18 @@
 
 // Creates a block Jacobi Newton preconditioner using the given function 
 // compute_diag_block, which computes the diagonal block of the Jacobian 
-// matrix for the ith block row at time t and given the solution x, storing 
-// the block in column-major format (so it is compatible with calls LAPACK).
+// matrix alpha*I + beta*dFdx + gamma*dFd(x_dot) for the ith block row at 
+// time t and given x and x_dot. The diagonal block is stored in column-major 
+// format (so it is compatible with calls to LAPACK).
 newton_pc_t* block_jacobi_newton_pc_new(void* context,
-                                        void (*compute_diag_block)(void* context, int i, real_t t, real_t* x, real_t* x_dot, real_t* diag_block),
+                                        void (*compute_diag_block)(void* context, int i, real_t alpha, real_t beta, real_t gamma, real_t t, real_t* x, real_t* x_dot, real_t* diag_block),
                                         void (*dtor)(void* context),
                                         int num_block_rows,
                                         int block_size);
  
  // Creates a block Jacobi Newton preconditioner with variable block sizes.
 newton_pc_t* var_block_jacobi_newton_pc_new(void* context,
-                                            void (*compute_diag_block)(void* context, int i, real_t t, real_t* x, real_t* x_dot, real_t* diag_block),
+                                            void (*compute_diag_block)(void* context, int i, real_t alpha, real_t beta, real_t gamma, real_t t, real_t* x, real_t* x_dot, real_t* diag_block),
                                             void (*dtor)(void* context),
                                             int num_block_rows,
                                             int* block_sizes);

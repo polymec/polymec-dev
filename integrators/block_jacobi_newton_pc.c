@@ -11,7 +11,9 @@
 typedef struct 
 {
   void* context;
-  void (*compute_diag_block)(void* context, int i, real_t t, real_t* x, real_t* x_dot, real_t* diag_block);
+  void (*compute_diag_block)(void* context, int i, 
+                             real_t alpha, real_t beta, real_t gamma,
+                             real_t t, real_t* x, real_t* x_dot, real_t* diag_block);
   void (*dtor)(void* context);
   int num_block_rows;
   local_matrix_t* D;
@@ -25,7 +27,7 @@ static void bj_compute_p(void* context,
   for (int i = 0; i < pc->num_block_rows; ++i)
   {
     real_t* J = block_diagonal_matrix_row(pc->D, i);
-    pc->compute_diag_block(pc->context, i, t, x, x_dot, J);
+    pc->compute_diag_block(pc->context, i, alpha, beta, gamma, t, x, x_dot, J);
   }
 }
 
@@ -45,7 +47,7 @@ static void bj_free(void* context)
 }
 
 newton_pc_t* block_jacobi_newton_pc_new(void* context,
-                                        void (*compute_diag_block)(void* context, int i, real_t t, real_t* x, real_t* x_dot, real_t* diag_block),
+                                        void (*compute_diag_block)(void* context, int i, real_t alpha, real_t beta, real_t gamma, real_t t, real_t* x, real_t* x_dot, real_t* diag_block),
                                         void (*dtor)(void* context),
                                         int num_block_rows,
                                         int block_size)
@@ -69,7 +71,7 @@ newton_pc_t* block_jacobi_newton_pc_new(void* context,
 }
                                         
 newton_pc_t* var_block_jacobi_newton_pc_new(void* context,
-                                            void (*compute_diag_block)(void* context, int i, real_t t, real_t* x, real_t* x_dot, real_t* diag_block),
+                                            void (*compute_diag_block)(void* context, int i, real_t alpha, real_t beta, real_t gamma, real_t t, real_t* x, real_t* x_dot, real_t* diag_block),
                                             void (*dtor)(void* context),
                                             int num_block_rows,
                                             int* block_sizes)
