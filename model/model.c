@@ -81,6 +81,7 @@ struct model_t
   real_t sim_speed;  // Simulation "speed" (sim time / wall time per step).
   int step;          // Current simulation step number.
   real_t dt;         // Current simulation time step.
+  real_t initial_dt; // Initial time step.
   real_t max_dt;     // Maximum time step.
 
   // Interpreter for parsing input files.
@@ -131,6 +132,7 @@ model_t* model_new(const char* name, void* context, model_vtable vtable, docstri
   model->observe_every = -FLT_MAX;
   model->wall_time = 0.0;
   model->wall_time0 = 0.0;
+  model->initial_dt = FLT_MAX;
   model->dt = 0.0;
   model->step = 0;
   model->max_dt = FLT_MAX;
@@ -596,15 +598,24 @@ void model_init(model_t* model, real_t t)
   log_detail("%s: Initializing at time %g.", model->name, t);
   model->vtable.init(model->context, t);
   model->step = 0;
-  model->dt = 0.0;
+  model->dt = model->initial_dt;
   model->time = t;
   model->wall_time0 = MPI_Wtime();
   model->wall_time = MPI_Wtime();
   STOP_FUNCTION_TIMER();
 }
 
-// Returns the largest permissible time step that can be taken by the model
-// starting at time t.
+real_t model_initial_dt(model_t* model)
+{
+  return model->initial_dt;
+}
+
+void model_set_initial_dt(model_t* model, real_t dt0)
+{
+  ASSERT(dt0 > 0.0);
+  model->initial_dt = dt0;
+}
+
 real_t model_max_dt(model_t* model, char* reason)
 {
   real_t dt = FLT_MAX;
@@ -677,6 +688,12 @@ real_t model_max_dt(model_t* model, char* reason)
   if (model->vtable.max_dt != NULL)
     dt = model->vtable.max_dt(model->context, model->time, reason);
   return dt;
+}
+
+void model_set_max_dt(model_t* model, real_t max_dt)
+{
+  ASSERT(max_dt > 0.0);
+  model->max_dt = max_dt;
 }
 
 real_t model_advance(model_t* model, real_t max_dt)
@@ -990,6 +1007,14 @@ static void override_interpreted_values(model_t* model,
       polymec_error("Invalid value for max_dt: %g", model->max_dt);
   }
 
+  char* initial_dt = options_value(options, "initial_dt");
+  if (initial_dt != NULL)
+  {
+    model->initial_dt = atof(initial_dt);
+    if (model->initial_dt <= 0.0)
+      polymec_error("Invalid value for initial_dt: %g", model->initial_dt);
+  }
+
   char* sim_name = options_value(options, "sim_name");
   if (sim_name != NULL)
     model_set_sim_name(model, sim_name);
@@ -1051,7 +1076,11 @@ void model_run(model_t* model, real_t t1, real_t t2, int max_steps)
     while ((model->time < t2) && (model->step < max_steps))
     {
       char reason[POLYMEC_MODEL_MAXDT_REASON_SIZE];
-      real_t max_dt = model_max_dt(model, reason);
+      real_t max_dt;
+      if (model->step == 0)
+        max_dt = model->initial_dt;
+      else 
+        max_dt = model_max_dt(model, reason);
       if (max_dt > t2 - model->time)
       {
         max_dt = t2 - model->time;
@@ -1102,6 +1131,7 @@ static void print_runtime_options_help()
   print_to_rank0("t2=T                        - Ends the simulation at time T.\n");
   print_to_rank0("max_steps=N                 - Ends the simulation after N time steps.\n");
   print_to_rank0("max_dt=DT                   - Limits the time step to DT.\n");
+  print_to_rank0("initial_dt=DT               - Sets the initial time step to DT.\n");
   print_to_rank0("save_every=N                - Generates a save file every N steps.\n");
   print_to_rank0("plot_every=T                - Generates a plot file every T simulation\n");
   print_to_rank0("                              time units.\n");

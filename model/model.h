@@ -169,8 +169,18 @@ void model_init(model_t* model, real_t t);
 // input instructs the model to load from a given step.
 void model_load(model_t* model, int step);
 
-// Returns the largest permissible time step that can be taken by the model
-// starting at time t.
+// Sets the initial time step to be taken by the model.
+void model_set_initial_dt(model_t* model, real_t dt0);
+
+// Returns the initial time step to be taken by the model 
+// (after initialization only).
+real_t model_initial_dt(model_t* model);
+
+// Sets the largest permissible (positive) time step that can be taken by the 
+// model.
+void model_set_max_dt(model_t* model, real_t max_dt);
+
+// Returns the largest permissible time step that can be taken by the model.
 real_t model_max_dt(model_t* model, char* reason);
 
 // Advances the model by a single time step of maximum size max_dt, returning 
