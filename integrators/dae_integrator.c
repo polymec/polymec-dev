@@ -493,6 +493,35 @@ void dae_integrator_reset(dae_integrator_t* integ, real_t t, real_t* X, real_t* 
   memcpy(NV_DATA(integ->x_dot), X_dot, sizeof(real_t) * integ->num_local_values); 
   IDAReInit(integ->ida, integ->t, integ->x, integ->x_dot);
   integ->initialized = true;
+
+  // Correct the initial conditions for X given those for X_dot.
+  log_detail("dae_integrator: correcting initial conditions...");
+  int err = IDACalcIC(integ->ida, IDA_Y_INIT, integ->max_dt);
+  if (err != IDA_SUCCESS)
+  {
+    log_urgent("dae_integrator: could not correct initial conditions!");
+    if (err == IDA_LSETUP_FAIL)
+      polymec_error("Linear solver setup failed unrecoverably.");
+    else if (err == IDA_LINIT_FAIL)
+      polymec_error("Linear solver initialization failed.");
+    else if (err == IDA_LSOLVE_FAIL)
+      polymec_error("Linear solve failed.");
+    else if (err == IDA_BAD_EWT)
+      polymec_error("Zero component of error weight function due to IC correction.");
+    else if (err == IDA_FIRST_RES_FAIL)
+      polymec_error("First call to residual failed, causing IC correction to fail.");
+    else if (err == IDA_RES_FAIL)
+      polymec_error("Call to residual failed unrecoverably.");
+    else if (err == IDA_CONSTR_FAIL)
+      polymec_error("IC corrections were unable to meet constraints.");
+    else if (err == IDA_LINESEARCH_FAIL)
+      polymec_error("IC correction failed in line search.");
+    else
+    {
+      ASSERT(err == IDA_CONV_FAIL);
+      polymec_error("IC correction failed to converge.");
+    }
+  }
 }
 
 void dae_integrator_get_diagnostics(dae_integrator_t* integrator, 
