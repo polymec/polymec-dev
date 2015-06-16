@@ -173,8 +173,11 @@ bool dae_integrator_step(dae_integrator_t* integrator, real_t max_dt, real_t* t,
 // have changed by some process outside of the integrator. This resets any 
 // history information stored within the integrator. Values of X are corrected
 // in order to be made consistent with the given values of X_dot.
+// If correct_initial_conditions is true, the integrator will attempt to 
+// correct X given X_dot.
 void dae_integrator_reset(dae_integrator_t* integrator, 
-                          real_t t, real_t* X, real_t* X_dot);
+                          real_t t, real_t* X, real_t* X_dot,
+                          bool correct_initial_conditions);
 
 // Diagnostics for the time integrator.
 typedef struct

@@ -428,7 +428,7 @@ bool dae_integrator_step(dae_integrator_t* integ, real_t max_dt, real_t* t, real
 
   // if we haven't been initialized, we need to copy in the data.
   if (!integ->initialized)
-    dae_integrator_reset(integ, *t, X, X_dot);
+    dae_integrator_reset(integ, *t, X, X_dot, false);
 
   // If *t + max_dt is less than the time to which we've already integrated, 
   // we don't need to integrate; we only need to interpolate backward.
@@ -482,7 +482,11 @@ bool dae_integrator_step(dae_integrator_t* integ, real_t max_dt, real_t* t, real
   }
 }
 
-void dae_integrator_reset(dae_integrator_t* integ, real_t t, real_t* X, real_t* X_dot)
+void dae_integrator_reset(dae_integrator_t* integ, 
+                          real_t t, 
+                          real_t* X, 
+                          real_t* X_dot,
+                          bool correct_initial_conditions)
 {
   // Reset the preconditioner.
   newton_pc_reset(integ->precond, t);
@@ -494,36 +498,39 @@ void dae_integrator_reset(dae_integrator_t* integ, real_t t, real_t* X, real_t* 
   IDAReInit(integ->ida, integ->t, integ->x, integ->x_dot);
   integ->initialized = true;
 
-  // Correct the initial conditions for X given those for X_dot.
-  log_detail("dae_integrator: correcting initial conditions...");
-  int err = IDACalcIC(integ->ida, IDA_Y_INIT, integ->max_dt);
-  if (err != IDA_SUCCESS)
+  if (correct_initial_conditions)
   {
-    log_detail("dae_integrator: could not correct initial conditions:");
-    if (err == IDA_LSETUP_FAIL)
-      log_detail("  linear solver setup failed unrecoverably.");
-    else if (err == IDA_LINIT_FAIL)
-      log_detail("  linear solver initialization failed.");
-    else if (err == IDA_LSOLVE_FAIL)
-      log_detail("  linear solve failed.");
-    else if (err == IDA_BAD_EWT)
-      log_detail("  zero component of error weight function due to IC correction.");
-    else if (err == IDA_FIRST_RES_FAIL)
-      log_detail("  first call to residual failed, causing IC correction to fail.");
-    else if (err == IDA_RES_FAIL)
-      log_detail("  call to residual failed unrecoverably.");
-    else if (err == IDA_CONSTR_FAIL)
-      log_detail("  IC corrections were unable to meet constraints.");
-    else if (err == IDA_LINESEARCH_FAIL)
-      log_detail("  IC correction failed in line search.");
-    else
+    // Correct the initial conditions for X given those for X_dot.
+    log_detail("dae_integrator: correcting initial conditions...");
+    int err = IDACalcIC(integ->ida, IDA_Y_INIT, integ->max_dt);
+    if (err != IDA_SUCCESS)
     {
-      log_detail("  IC correction failed to converge.");
+      log_detail("dae_integrator: could not correct initial conditions:");
+      if (err == IDA_LSETUP_FAIL)
+        log_detail("  linear solver setup failed unrecoverably.");
+      else if (err == IDA_LINIT_FAIL)
+        log_detail("  linear solver initialization failed.");
+      else if (err == IDA_LSOLVE_FAIL)
+        log_detail("  linear solve failed.");
+      else if (err == IDA_BAD_EWT)
+        log_detail("  zero component of error weight function due to IC correction.");
+      else if (err == IDA_FIRST_RES_FAIL)
+        log_detail("  first call to residual failed, causing IC correction to fail.");
+      else if (err == IDA_RES_FAIL)
+        log_detail("  call to residual failed unrecoverably.");
+      else if (err == IDA_CONSTR_FAIL)
+        log_detail("  IC corrections were unable to meet constraints.");
+      else if (err == IDA_LINESEARCH_FAIL)
+        log_detail("  IC correction failed in line search.");
+      else
+      {
+        log_detail("  IC correction failed to converge.");
+      }
     }
+    IDAGetConsistentIC(integ->ida, integ->x, integ->x_dot);
+    memcpy(X, NV_DATA(integ->x), sizeof(real_t) * integ->num_local_values); 
+    memcpy(X_dot, NV_DATA(integ->x_dot), sizeof(real_t) * integ->num_local_values); 
   }
-  IDAGetConsistentIC(integ->ida, integ->x, integ->x_dot);
-  memcpy(X, NV_DATA(integ->x), sizeof(real_t) * integ->num_local_values); 
-  memcpy(X_dot, NV_DATA(integ->x_dot), sizeof(real_t) * integ->num_local_values); 
 
   // Write out debugging info.
   if (log_level() == LOG_DEBUG)
