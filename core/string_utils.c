@@ -114,6 +114,9 @@ int string_find_in_list(const char* s,
                         bool case_sensitive)
 {
   ASSERT(string_list != NULL);
+  if (s == NULL)
+    return -1;
+
   int i = 0;
   int (*cmp)(const char* s1, const char* s2) = case_sensitive ? strcmp : strcasecmp;
   while (string_list[i] != NULL)
