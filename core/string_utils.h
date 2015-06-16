@@ -59,12 +59,12 @@ bool string_is_number(const char* s);
 // case-insensitive version thereof, and false otherwise.
 bool string_as_boolean(const char* s);
 
-// Returns true if the given string exactly matches one of the strings in 
-// the given (NULL-terminated) list, false if not. The case_sensitive 
-// flag determines whether the case has to match.
-bool string_appears_in_list(const char* s, 
-                            const char** string_list, 
-                            bool case_sensitive);
+// Returns the index of the entry in the (NULL-terminated) string list that 
+// matches the given string s, or -1 if s does not appear in string_list.
+// The case_sensitive flag determines whether the case has to match.
+int string_find_in_list(const char* s, 
+                        const char** string_list, 
+                        bool case_sensitive);
 
 // Returns true if the given string contains the given substring, 
 // false if not.

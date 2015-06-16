@@ -109,24 +109,20 @@ bool string_as_boolean(const char* s)
            (strcasecmp(s, "on") == 0)));
 }
 
-bool string_appears_in_list(const char* s, 
-                            const char** string_list, 
-                            bool case_sensitive)
+int string_find_in_list(const char* s, 
+                        const char** string_list, 
+                        bool case_sensitive)
 {
   ASSERT(string_list != NULL);
   int i = 0;
   int (*cmp)(const char* s1, const char* s2) = case_sensitive ? strcmp : strcasecmp;
-  bool match = false;
   while (string_list[i] != NULL)
   {
     if (cmp(s, string_list[i]) == 0)
-    {
-      match = true;
-      break;
-    }
+      return i;
     ++i;
   }
-  return match;
+  return -1;
 }
 
 bool string_contains(const char* s, const char* subs)

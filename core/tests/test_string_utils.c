@@ -66,17 +66,17 @@ void test_string_as_boolean(void** state)
   }
 }
 
-void test_string_appears_in_list(void** state)
+void test_string_find_in_list(void** state)
 {
   const char* string_list[] = {"truck", "not", "munkee", NULL};
-  assert_true(string_appears_in_list("truck", string_list, false));
-  assert_false(string_appears_in_list("TRUCK", string_list, true));
-  assert_true(string_appears_in_list("TRUCK", string_list, false));
-  assert_true(string_appears_in_list("not", string_list, false));
-  assert_false(string_appears_in_list("Not", string_list, true));
-  assert_true(string_appears_in_list("nOt", string_list, false));
-  assert_false(string_appears_in_list("monkey", string_list, false));
-  assert_false(string_appears_in_list("monkey", string_list, true));
+  assert_int_equal(0, string_find_in_list("truck", string_list, true));
+  assert_int_equal(-1, string_find_in_list("TRUCK", string_list, true));
+  assert_int_equal(0, string_find_in_list("TRUCK", string_list, false));
+  assert_int_equal(1, string_find_in_list("not", string_list, true));
+  assert_int_equal(-1, string_find_in_list("Not", string_list, true));
+  assert_int_equal(1, string_find_in_list("nOt", string_list, false));
+  assert_int_equal(-1, string_find_in_list("monkey", string_list, false));
+  assert_int_equal(-1, string_find_in_list("monkey", string_list, true));
 }
 
 void test_string_substitute(void** state)
@@ -103,7 +103,7 @@ int main(int argc, char* argv[])
     unit_test(test_string_next_token),
     unit_test(test_string_is_number),
     unit_test(test_string_as_boolean),
-    unit_test(test_string_appears_in_list),
+    unit_test(test_string_find_in_list),
     unit_test(test_string_substitute)
   };
   return run_tests(tests);
