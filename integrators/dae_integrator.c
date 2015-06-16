@@ -522,6 +522,17 @@ void dae_integrator_reset(dae_integrator_t* integ, real_t t, real_t* X, real_t* 
       polymec_error("IC correction failed to converge.");
     }
   }
+  IDAGetConsistentIC(integ->ida, integ->x, integ->x_dot);
+  memcpy(X, NV_DATA(integ->x), sizeof(real_t) * integ->num_local_values); 
+  memcpy(X_dot, NV_DATA(integ->x_dot), sizeof(real_t) * integ->num_local_values); 
+
+  // Write out debugging info.
+  if (log_level() == LOG_DEBUG)
+  {
+    long num_backtracks;
+    IDAGetNumBacktrackOps(integ->ida, &num_backtracks);
+    log_debug("dae_integrator: backtracked %ld times in IC correction.", num_backtracks);
+  }
 }
 
 void dae_integrator_get_diagnostics(dae_integrator_t* integrator, 
