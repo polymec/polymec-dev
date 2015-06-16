@@ -100,12 +100,41 @@ bool string_is_number(const char* s)
   return (*p == '\0');
 }
 
+bool string_as_boolean(const char* s)
+{
+  return ((s != NULL) && 
+          ((strcmp(s, "1") == 0) || 
+           (strcasecmp(s, "true") == 0) ||
+           (strcasecmp(s, "yes") == 0) ||
+           (strcasecmp(s, "on") == 0)));
+}
+
+bool string_appears_in_list(const char* s, 
+                            const char** string_list, 
+                            bool case_sensitive)
+{
+  ASSERT(string_list != NULL);
+  int i = 0;
+  int (*cmp)(const char* s1, const char* s2) = case_sensitive ? strcmp : strcasecmp;
+  bool match = false;
+  while (string_list[i] != NULL)
+  {
+    if (cmp(s, string_list[i]) == 0)
+    {
+      match = true;
+      break;
+    }
+    ++i;
+  }
+  return match;
+}
+
 bool string_contains(const char* s, const char* subs)
 {
   return (strstr(s, subs) != NULL);
 }
 
-// This stuff is used for string_subst, below.
+// This stuff is used for string_substitute, below.
 
 typedef struct
 {
@@ -120,7 +149,7 @@ static int string_subst_data_cmp(const void* left, const void* right)
   return (l->occ_index < r->occ_index) ? -1 : (l->occ_index == r->occ_index) ? 0 : 1;
 }
 
-char* string_subst(const char* string, string_subst_t substitutions[])
+char* string_substitute(const char* string, string_substitution_t substitutions[])
 {
   if (string == NULL) 
     return NULL;
@@ -129,7 +158,7 @@ char* string_subst(const char* string, string_subst_t substitutions[])
 
   // How many tokens have we got?
   int num_tokens = 0;
-  while (strcmp(substitutions[num_tokens++].value, END_OF_SUBST.value));
+  while (strcmp(substitutions[num_tokens++].value, END_OF_SUBSTITUTION.value));
 
   // What's the length of each token / value?
   int token_lengths[num_tokens], value_lengths[num_tokens];

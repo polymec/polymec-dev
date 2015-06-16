@@ -55,17 +55,41 @@ void test_string_is_number(void** state)
   }
 }
 
-void test_string_subst(void** state)
+void test_string_as_boolean(void** state)
 {
-  string_subst_t substitutions[] = {{"fox", "werewolf"}, 
-                                    {"lazy", "hungry"},
-                                    {"quick", "avuncular"},
-                                    {"brown", "purple"},
-                                    {"dog", "hyena"},
-                                    {"jump", "launch"},
-                                    END_OF_SUBST};
+  const char* trues[10] = {"1", "true", "True", "TRUE", "yes", "Yes", "YES", "on", "On", "ON"};
+  const char* falses[10] = {"0", "false", "Froggy", "off", "Wheelie", "garbage", "??", "", "radio", "dishwasher"};
+  for (int i = 0; i < 10; ++i)
+  {
+    assert_true(string_as_boolean(trues[i]));
+    assert_false(string_as_boolean(falses[i]));
+  }
+}
+
+void test_string_appears_in_list(void** state)
+{
+  const char* string_list[] = {"truck", "not", "munkee", NULL};
+  assert_true(string_appears_in_list("truck", string_list, false));
+  assert_false(string_appears_in_list("TRUCK", string_list, true));
+  assert_true(string_appears_in_list("TRUCK", string_list, false));
+  assert_true(string_appears_in_list("not", string_list, false));
+  assert_false(string_appears_in_list("Not", string_list, true));
+  assert_true(string_appears_in_list("nOt", string_list, false));
+  assert_false(string_appears_in_list("monkey", string_list, false));
+  assert_false(string_appears_in_list("monkey", string_list, true));
+}
+
+void test_string_substitute(void** state)
+{
+  string_substitution_t substitutions[] = {{"fox", "werewolf"}, 
+                                           {"lazy", "hungry"},
+                                           {"quick", "avuncular"},
+                                           {"brown", "purple"},
+                                           {"dog", "hyena"},
+                                           {"jump", "launch"},
+                                           END_OF_SUBSTITUTION};
   const char* string = "The quick brown fox jumped over lazy dogs.";
-  char* new_string = string_subst(string, substitutions);
+  char* new_string = string_substitute(string, substitutions);
   assert_true(!strcmp(new_string, "The avuncular purple werewolf launched over hungry hyenas."));
   free(new_string);
 }
@@ -78,7 +102,9 @@ int main(int argc, char* argv[])
     unit_test(test_string_dup),
     unit_test(test_string_next_token),
     unit_test(test_string_is_number),
-    unit_test(test_string_subst)
+    unit_test(test_string_as_boolean),
+    unit_test(test_string_appears_in_list),
+    unit_test(test_string_substitute)
   };
   return run_tests(tests);
 }

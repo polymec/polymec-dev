@@ -55,6 +55,17 @@ int string_trim(char* s);
 // Returns true if the given string is numeric, false if not.
 bool string_is_number(const char* s);
 
+// Returns true if the given string is "1", "TRUE", "YES", "ON", or any 
+// case-insensitive version thereof, and false otherwise.
+bool string_as_boolean(const char* s);
+
+// Returns true if the given string exactly matches one of the strings in 
+// the given (NULL-terminated) list, false if not. The case_sensitive 
+// flag determines whether the case has to match.
+bool string_appears_in_list(const char* s, 
+                            const char** string_list, 
+                            bool case_sensitive);
+
 // Returns true if the given string contains the given substring, 
 // false if not.
 bool string_contains(const char* s, const char* subs);
@@ -63,8 +74,8 @@ bool string_contains(const char* s, const char* subs);
 // returns a newly-allocated string containing the original string with 
 // all instances of tokens replaced with their substitution values. This 
 // string must be freed with polymec_free() or string_free().
-typedef struct { char* token; char* value; } string_subst_t;
-static const string_subst_t END_OF_SUBST = {(char*)"END_TOKEN", (char*)"END_VALUE"};
-char* string_subst(const char* string, string_subst_t substitutions[]);
+typedef struct { char* token; char* value; } string_substitution_t;
+static const string_substitution_t END_OF_SUBSTITUTION = {(char*)"END_TOKEN", (char*)"END_VALUE"};
+char* string_substitute(const char* string, string_substitution_t substitutions[]);
 
 #endif
