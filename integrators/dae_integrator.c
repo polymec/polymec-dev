@@ -518,7 +518,6 @@ void dae_integrator_reset(dae_integrator_t* integ, real_t t, real_t* X, real_t* 
       polymec_error("IC correction failed in line search.");
     else
     {
-      ASSERT(err == IDA_CONV_FAIL);
       polymec_error("IC correction failed to converge.");
     }
   }
