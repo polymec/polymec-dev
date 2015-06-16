@@ -128,7 +128,7 @@ static void cpr_finite_diff_dFdx_v(void* context,
   // F(t, x + eps*v, xdot) -> work[3].
   F(context, t, work[2], xdot, work[3]);
 
-  // (F(t, x + eps*v, xdot) - F(t, x, xdot)) / eps -> (dF/dx) * v
+  // (F(t, x + eps*v, xdot) - F(t, x, xdot)) / eps -> dF/dx * v
   for (int i = 0; i < num_local_rows; ++i)
     dFdx_v[i] = (work[3][i] - work[1][i]) * eps_inv;
   STOP_FUNCTION_TIMER();
@@ -162,7 +162,7 @@ static void cpr_finite_diff_dFdxdot_v(void* context,
   // F(t, x, xdot + eps*v) -> work[3].
   F(context, t, x, work[2], work[3]);
 
-  // (F(t, x, xdot + eps*v) - F(t, x, xdot)) / eps -> (dF/dx) * v
+  // (F(t, x, xdot + eps*v) - F(t, x, xdot)) / eps -> dF/d(xdot) * v
   for (int i = 0; i < num_local_rows; ++i)
     dFdxdot_v[i] = (work[3][i] - work[1][i]) * eps_inv;
   STOP_FUNCTION_TIMER();

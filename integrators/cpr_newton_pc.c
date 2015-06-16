@@ -80,8 +80,8 @@ newton_pc_t* block_jacobi_cpr_newton_pc_from_function(MPI_Comm comm,
   int num_remote_rows = block_size * num_remote_block_rows;
   local_matrix_t* P = block_diagonal_matrix_new(num_local_block_rows, block_size);
   return cpr_newton_pc_from_function_and_matrix(comm, context, F, NULL, dtor, 
-                                         sparsity, num_local_rows, 
-                                         num_remote_rows, P);
+                                                sparsity, num_local_rows, 
+                                                num_remote_rows, P);
 }
                                         
 newton_pc_t* var_block_jacobi_cpr_newton_pc_from_function(MPI_Comm comm,
@@ -106,8 +106,8 @@ newton_pc_t* var_block_jacobi_cpr_newton_pc_from_function(MPI_Comm comm,
   int num_remote_rows = max_block_size * num_remote_block_rows;
   local_matrix_t* P = var_block_diagonal_matrix_new(num_local_block_rows, block_sizes);
   return cpr_newton_pc_from_function_and_matrix(comm, context, F, NULL, dtor, 
-                                         sparsity, num_local_rows, 
-                                         num_remote_rows, P);
+                                                sparsity, num_local_rows, 
+                                                num_remote_rows, P);
 }
  
 newton_pc_t* lu_cpr_newton_pc_from_function(MPI_Comm comm,
@@ -121,8 +121,8 @@ newton_pc_t* lu_cpr_newton_pc_from_function(MPI_Comm comm,
   ASSERT(num_local_rows == adj_graph_num_vertices(sparsity));
   local_matrix_t* P = sparse_local_matrix_new(sparsity);
   return cpr_newton_pc_from_function_and_matrix(comm, context, F, NULL, dtor, 
-                                         sparsity, num_local_rows, 
-                                         num_remote_rows, P);
+                                                sparsity, num_local_rows, 
+                                                num_remote_rows, P);
 }
                                         
 newton_pc_t* ilu_cpr_newton_pc_from_function(MPI_Comm comm,
@@ -138,8 +138,8 @@ newton_pc_t* ilu_cpr_newton_pc_from_function(MPI_Comm comm,
   ASSERT(num_local_rows == adj_graph_num_vertices(sparsity));
   local_matrix_t* P = ilu_sparse_local_matrix_new(sparsity, ilu_params);
   return cpr_newton_pc_from_function_and_matrix(comm, context, F, NULL, dtor, 
-                                         sparsity, num_local_rows, 
-                                         num_remote_rows, P);
+                                                sparsity, num_local_rows, 
+                                                num_remote_rows, P);
 }
                                         
 newton_pc_t* block_jacobi_cpr_newton_pc_from_dae_function(MPI_Comm comm,
@@ -156,8 +156,8 @@ newton_pc_t* block_jacobi_cpr_newton_pc_from_dae_function(MPI_Comm comm,
   int num_remote_rows = block_size * num_remote_block_rows;
   local_matrix_t* P = block_diagonal_matrix_new(num_local_block_rows, block_size);
   return cpr_newton_pc_from_function_and_matrix(comm, context, NULL, F, dtor, 
-                                         sparsity, num_local_rows, 
-                                         num_remote_rows, P);
+                                                sparsity, num_local_rows, 
+                                                num_remote_rows, P);
 }
 
 newton_pc_t* var_block_jacobi_cpr_newton_pc_from_dae_function(MPI_Comm comm,
@@ -182,8 +182,8 @@ newton_pc_t* var_block_jacobi_cpr_newton_pc_from_dae_function(MPI_Comm comm,
   int num_remote_rows = max_block_size * num_remote_block_rows;
   local_matrix_t* P = var_block_diagonal_matrix_new(num_local_block_rows, block_sizes);
   return cpr_newton_pc_from_function_and_matrix(comm, context, NULL, F, dtor, 
-                                         sparsity, num_local_rows, 
-                                         num_remote_rows, P);
+                                                sparsity, num_local_rows, 
+                                                num_remote_rows, P);
 }
 
 newton_pc_t* lu_cpr_newton_pc_from_dae_function(MPI_Comm comm,
