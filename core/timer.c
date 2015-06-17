@@ -168,6 +168,15 @@ void polymec_timer_stop(polymec_timer_t* timer)
   }
 }
 
+void polymec_timer_stop_all()
+{
+  if (use_timers)
+  {
+    while ((current_timer != NULL) && (current_timer != all_timers->data[0]))
+      polymec_timer_stop(current_timer);
+  }
+}
+
 static void report_timer(polymec_timer_t* t, int indentation, FILE* file)
 {
   polymec_timer_t* root = all_timers->data[0];

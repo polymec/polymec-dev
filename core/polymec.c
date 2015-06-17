@@ -90,8 +90,7 @@ static void shutdown()
     string_array_free(polymec_extra_provenance);
 
   // Stop timing and generate a report.
-  polymec_timer_t* polymec_timer = polymec_timer_get("polymec");
-  polymec_timer_stop(polymec_timer);
+  polymec_timer_stop_all();
   polymec_timer_report();
 
   // Kill command line arguments.
@@ -110,6 +109,13 @@ static void shutdown()
 #ifndef NDEBUG
   polymec_disable_fpe();
 #endif
+}
+
+static void handle_sigint(int signal)
+{
+  log_detail("polymec: intercepted Ctrl-C: exiting.");
+  polymec_disable_fpe();
+  exit(0);
 }
 
 #if POLYMEC_HAVE_MPI
@@ -306,6 +312,9 @@ void polymec_init(int argc, char** argv)
     // Start timing the main program.
     polymec_timer_t* polymec_timer = polymec_timer_get("polymec");
     polymec_timer_start(polymec_timer);
+
+    // Set up any required signal handlers.
+    signal(SIGINT, handle_sigint);
 
     // Okay! We're initialized.
     polymec_initialized = true;
