@@ -174,6 +174,7 @@ void polymec_timer_stop_all()
   {
     while ((current_timer != NULL) && (current_timer != all_timers->data[0]))
       polymec_timer_stop(current_timer);
+    polymec_timer_stop(current_timer); // Last one!
   }
 }
 
