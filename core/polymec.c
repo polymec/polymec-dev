@@ -70,6 +70,9 @@ static polymec_error_handler_function error_handler = NULL;
 static MPI_Errhandler mpi_error_handler;
 #endif
 
+// Are we responsible for finalizing MPI?
+static bool polymec_initialized_mpi = false;
+
 // Functions to call after initialization.
 typedef void (*atinit_func)(int argc, char** argv);
 static atinit_func _atinit_funcs[32];
@@ -105,7 +108,10 @@ static void shutdown()
   for (int i = 0; i < _num_atexit_funcs; ++i)
     _atexit_funcs[i]();
 
-  MPI_Finalize();
+  // Shut down MPI if we're supposed to.
+  if (polymec_initialized_mpi)
+    MPI_Finalize();
+
 #ifndef NDEBUG
   polymec_disable_fpe();
 #endif
@@ -286,7 +292,10 @@ void polymec_init(int argc, char** argv)
     int initialized;
     MPI_Initialized(&initialized);
     if (!initialized)
+    {
       MPI_Init(&argc, &argv);
+      polymec_initialized_mpi = true;
+    }
 
 #if POLYMEC_HAVE_MPI
     // Set up the MPI error handler.
@@ -313,8 +322,11 @@ void polymec_init(int argc, char** argv)
     polymec_timer_t* polymec_timer = polymec_timer_get("polymec");
     polymec_timer_start(polymec_timer);
 
-    // Set up any required signal handlers.
-    signal(SIGINT, handle_sigint);
+    // Set up any required signal handlers (if they haven't already been 
+    // claimed).
+    sig_t prev_handler = signal(SIGINT, handle_sigint);
+    if (prev_handler != NULL)
+      signal(SIGINT, prev_handler);
 
     // Okay! We're initialized.
     polymec_initialized = true;
