@@ -324,7 +324,7 @@ void polymec_init(int argc, char** argv)
 
     // Set up any required signal handlers (if they haven't already been 
     // claimed).
-    sig_t prev_handler = signal(SIGINT, handle_sigint);
+    void (*prev_handler)(int) = signal(SIGINT, handle_sigint);
     if (prev_handler != NULL)
       signal(SIGINT, prev_handler);
 
