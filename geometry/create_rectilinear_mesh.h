@@ -19,6 +19,17 @@ mesh_t* create_rectilinear_mesh(MPI_Comm comm,
                                 real_t* ys, int nys, 
                                 real_t* zs, int nzs);
 
+// This function creates and returns a rectilinear mesh whose nodes are 
+// given by the xs, ys, and zs arrays on the given communicator 
+// ONLY ON THE GIVEN RANK. The function returns the mesh on that rank and 
+// a NULL pointer on all other ranks. MPI_COMM_SELF cannot be used as the 
+// communicator.
+mesh_t* create_rectilinear_mesh_on_rank(MPI_Comm comm,
+                                        int rank,
+                                        real_t* xs, int nxs, 
+                                        real_t* ys, int nys, 
+                                        real_t* zs, int nzs);
+
 // This function tags the faces of a rectilinear mesh for convenient boundary 
 // condition assignments. This also creates a property named 
 // "rectilinear_boundary_tags" containing an array of 6 strings:

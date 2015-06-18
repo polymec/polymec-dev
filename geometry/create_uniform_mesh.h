@@ -16,5 +16,11 @@
 // The mesh spans the rectangular region of space defined by the bounding box.
 mesh_t* create_uniform_mesh(MPI_Comm comm, int nx, int ny, int nz, bbox_t* bbox);
 
+// This function creates and returns a uniform mesh of nx x ny x nz cells
+// on the given communicator ONLY ON THE GIVEN RANK. The function returns the 
+// mesh on that rank and a NULL pointer on all other ranks. MPI_COMM_SELF 
+// cannot be used as the communicator.
+mesh_t* create_uniform_mesh_on_rank(MPI_Comm comm, int rank,
+                                    int nx, int ny, int nz, bbox_t* bbox);
 #endif
 

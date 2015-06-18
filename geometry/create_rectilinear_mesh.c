@@ -356,6 +356,34 @@ mesh_t* create_rectilinear_mesh(MPI_Comm comm,
   return mesh;
 }
 
+mesh_t* create_rectilinear_mesh_on_rank(MPI_Comm comm,
+                                        int rank,
+                                        real_t* xs, int nxs, 
+                                        real_t* ys, int nys, 
+                                        real_t* zs, int nzs)
+{
+  ASSERT(comm != MPI_COMM_SELF);
+  ASSERT(rank >= 0);
+
+  int my_rank, nprocs;
+  MPI_Comm_rank(comm, &my_rank);
+  MPI_Comm_rank(comm, &nprocs);
+
+  if (rank > nprocs)
+    polymec_error("create_rectilinear_mesh_on_rank: invalid rank: %d", rank);
+
+  mesh_t* mesh = NULL;
+  if (my_rank == rank)
+    mesh = create_rectilinear_mesh(comm, xs, nxs, ys, nys, zs, nzs);
+  else
+  {
+    // Initialize serializers.
+    serializer_t* s = cubic_lattice_serializer();
+    s = bbox_serializer();
+  }
+  return mesh;
+}
+
 void tag_rectilinear_mesh_faces(mesh_t* mesh, 
                                 const char* x1_tag, 
                                 const char* x2_tag, 

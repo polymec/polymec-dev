@@ -47,3 +47,27 @@ mesh_t* create_uniform_mesh(MPI_Comm comm, int nx, int ny, int nz, bbox_t* bbox)
   return mesh;
 }
 
+mesh_t* create_uniform_mesh_on_rank(MPI_Comm comm, int rank,
+                                    int nx, int ny, int nz, bbox_t* bbox)
+{
+  ASSERT(comm != MPI_COMM_SELF);
+  ASSERT(rank >= 0);
+
+  int my_rank, nprocs;
+  MPI_Comm_rank(comm, &my_rank);
+  MPI_Comm_rank(comm, &nprocs);
+
+  if (rank > nprocs)
+    polymec_error("create_uniform_mesh_on_rank: invalid rank: %d", rank);
+
+  mesh_t* mesh = NULL;
+  if (my_rank == rank)
+    mesh = create_uniform_mesh(comm, nx, ny, nz, bbox);
+  else
+  {
+    // Initialize serializers.
+    serializer_t* s = cubic_lattice_serializer();
+    s = bbox_serializer();
+  }
+  return mesh;
+}
