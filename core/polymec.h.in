@@ -216,8 +216,14 @@ noreturn void polymec_not_implemented(const char* component);
 // in this fashion.
 void polymec_atinit(void (*func)(int argc, char** argv));
 
-// Initialize polymec's services. If polymec has already been initialized, 
-// this does nothing.
+// Initializes polymec's services. In particular:
+// * If MPI has not been initialized, polymec will assume responsibility 
+//   for initializing and finalizing it.
+// * Timers are started if requested on the command line.
+// * Logging is started at the default level (or that requested).
+// * A signal handler is set up for SIGINT that cleanly shuts down polymec.
+// * Any functions registered using polymec_atinit are called.
+// If polymec has already been initialized, this does nothing.
 void polymec_init(int argc, char** argv);
 
 // Registers a function to be called upon exit.
