@@ -214,6 +214,10 @@ void model_run(model_t* model, real_t t1, real_t t2, int max_steps);
 // will be used to identify and/or generate names of plot and save files.
 void model_set_sim_name(model_t* model, const char* sim_name);
 
+// Sets the absolute path in which the simulation will be run. All output
+// will be generated relative to this path.
+void model_set_sim_path(model_t* model, const char* sim_path);
+
 // This function implements a simple driver for a model and behaves
 // in the same way as a main() function, returning 0 on success and nonzero
 // on failure. Arguments:

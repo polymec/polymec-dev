@@ -75,6 +75,7 @@ struct model_t
 
   // Data related to a given simulation.
   char* sim_name;    // Simulation name.
+  char* sim_path;    // Simulation directory.
   real_t time;       // Current simulation time.
   real_t wall_time0; // Wall time at simulation start.
   real_t wall_time;  // Current wall time.
@@ -126,6 +127,7 @@ model_t* model_new(const char* name, void* context, model_vtable vtable, docstri
   model->doc = doc;
   model->benchmarks = model_benchmark_map_new();
   model->sim_name = NULL;
+  model->sim_path = NULL;
   model->save_every = -1;
   model->plot_every = -FLT_MAX;
   model->load_step = -1;
@@ -159,6 +161,9 @@ void model_free(model_t* model)
 
   if (model->sim_name != NULL)
     polymec_free(model->sim_name);
+
+  if (model->sim_path != NULL)
+    polymec_free(model->sim_path);
 
   if (model->interpreter != NULL)
     interpreter_free(model->interpreter);
@@ -779,7 +784,10 @@ void model_save(model_t* model)
     polymec_error("No simulation name was set with model_set_sim_name.");
   char prefix[FILENAME_MAX], dir[FILENAME_MAX];
   snprintf(prefix, FILENAME_MAX, "%s_save", model->sim_name);
-  snprintf(dir, FILENAME_MAX, "%s-%d", model->sim_name, nprocs);
+  if (model->sim_path != NULL)
+    snprintf(dir, FILENAME_MAX, "%s/%s-%d", model->sim_path, model->sim_name, nprocs);
+  else
+    snprintf(dir, FILENAME_MAX, "%s-%d", model->sim_name, nprocs);
   log_detail("%s: Writing save file to directory %s...", model->name, dir);
   model->vtable.save(model->context, prefix, dir, model->time, model->step);
   STOP_FUNCTION_TIMER();
@@ -795,7 +803,10 @@ void model_plot(model_t* model)
     polymec_error("No simulation name was set with model_set_sim_name.");
   char prefix[FILENAME_MAX], dir[FILENAME_MAX];
   snprintf(prefix, FILENAME_MAX, "%s_plot", model->sim_name);
-  snprintf(dir, FILENAME_MAX, "%s-%d", model->sim_name, nprocs);
+  if (model->sim_path != NULL)
+    snprintf(dir, FILENAME_MAX, "%s/%s-%d", model->sim_path, model->sim_name, nprocs);
+  else
+    snprintf(dir, FILENAME_MAX, "%s-%d", model->sim_name, nprocs);
   log_detail("%s: Writing plot to directory %s...", model->name, dir);
   model->vtable.plot(model->context, prefix, dir, model->time, model->step);
   STOP_FUNCTION_TIMER();
@@ -814,14 +825,17 @@ void model_record_observations(model_t* model)
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
   // Open up the observation file.
-  char obs_fn[strlen(model->sim_name) + 5];
-  snprintf(obs_fn, strlen(model->sim_name) + 5, "%s.obs", model->sim_name);
+  char obs_fn[FILENAME_MAX];
+  if (model->sim_path != NULL)
+    snprintf(obs_fn, FILENAME_MAX, "%s/%s.obs", model->sim_path, model->sim_name);
+  else
+    snprintf(obs_fn, FILENAME_MAX, "%s.obs", model->sim_name);
   FILE* obs = (rank == 0) ? fopen(obs_fn, "a") : NULL;
 
   // If we haven't recorded any observations yet, write a header.
   if ((model->time <= model->obs_times[0]) && (rank == 0))
   {
-    log_detail("%s: Opening observation file %s.obs and writing header...", model->name, model->sim_name);
+    log_detail("%s: Opening observation file %s and writing header...", model->name, obs_fn);
 
     // Provenance-related header.
     fprintf(obs, "# %s\n", polymec_invocation());
@@ -1018,6 +1032,10 @@ static void override_interpreted_values(model_t* model,
   char* sim_name = options_value(options, "sim_name");
   if (sim_name != NULL)
     model_set_sim_name(model, sim_name);
+
+  char* sim_path = options_value(options, "sim_path");
+  if (sim_path != NULL)
+    model_set_sim_path(model, sim_path);
 }
 
 void model_run(model_t* model, real_t t1, real_t t2, int max_steps)
@@ -1151,6 +1169,8 @@ static void print_runtime_options_help()
   print_to_rank0("timer_file=FILE             - When timers are enabled, specifies the name of\n");
   print_to_rank0("                              the file to which timing summary information\n");
   print_to_rank0("                              is written. Defaults to timer_report.txt.\n");
+  print_to_rank0("sim_name=NAME               - Sets the prefix of simulation files, etc.");
+  print_to_rank0("sim_path=DIR                - Sets the directory for simulation output.");
   print_to_rank0("\nBenchmark-specific runtime options:\n");
   print_to_rank0("expected_conv_rate=R        - A multi-run benchmark will PASS if the\n");
   print_to_rank0("                              convergence rate of its error norm meets or\n");
@@ -1204,6 +1224,14 @@ void model_set_sim_name(model_t* model, const char* sim_name)
   if (model->sim_name != NULL)
     polymec_free(model->sim_name);
   model->sim_name = string_dup(sim_name);
+}
+
+void model_set_sim_path(model_t* model, const char* sim_path)
+{
+  ASSERT(sim_path != NULL);
+  if (model->sim_path != NULL)
+    polymec_free(model->sim_path);
+  model->sim_path = string_dup(sim_path);
 }
 
 static void set_sim_name_to_input_file(model_t* model, const char* input)
