@@ -15,7 +15,7 @@ typedef enum
 {
   GMRES_MODIFIED_GRAM_SCHMIDT,
   GMRES_CLASSICAL_GRAM_SCHMIDT
-} gmres_newton_pc_gram_schmidt_t;
+} gmres_gram_schmidt_t;
 
 // The Krylov Newton PCs are truly matrix-free preconditioners. They can be 
 // used with the Jacobian-Free Newton-Krylov, in particular the GMRES method, 
@@ -28,33 +28,107 @@ typedef enum
 // specified. Exactly one of F and Jv must be non-NULL. If F is NULL, Jv is 
 // used to compute the preconditioner matrix P. If Jv is NULL, a difference 
 // quotient is used to compute J*v.
-newton_pc_t* gmres_newton_pc_new(void* context,
-                                 int (*F)(void* context, int i, real_t t, real_t* x, real_t* F),
-                                 int (*Jv)(void* context, int i, real_t t, real_t* x, real_t* Jv),
+newton_pc_t* gmres_newton_pc_new(MPI_Comm comm,
+                                 void* context,
+                                 int (*F)(void* context, real_t t, real_t* x, real_t* F),
+                                 int (*Jv)(void* context, real_t t, real_t* x, real_t* v, real_t* Jv),
                                  void (*dtor)(void* context),
                                  int num_local_values, 
                                  int num_remote_values,
+                                 int krylov_dim,
                                  int max_restarts,
-                                 gmres_newton_pc_gram_schmidt_t gs);
+                                 gmres_gram_schmidt_t gs);
                                         
 // Creates a version of the GMRES Newton preconditioner for solving DAEs 
-// corresponding to the given function F(t, x, x_dot) = 0.
+// corresponding to the given function F(t, x, x_dot) = 0
 // OR the corresponding Jacobian J for which the product J*v is 
 // specified. Exactly one of F and Jv must be non-NULL. If F is NULL, Jv is 
 // used to compute the preconditioner matrix P. If Jv is NULL, a difference 
 // quotient is used to compute J*v.
-newton_pc_t* dae_gmres_newton_pc_new(void* context,
-                                     int (*f)(void* context, int i, real_t t, real_t* x, real_t* x_dot, real_t* F),
-                                     int (*Jv)(void* context, int i, real_t t, real_t* x, real_t* x_dot, real_t* Jv),
+newton_pc_t* dae_gmres_newton_pc_new(MPI_Comm comm,
+                                     void* context,
+                                     int (*F)(void* context, real_t t, real_t* x, real_t* x_dot, real_t* F),
+                                     int (*Jv)(void* context, real_t t, real_t* x, real_t* x_dot, real_t* v, real_t* Jv),
                                      void (*dtor)(void* context),
                                      int num_local_values, 
                                      int num_remote_values,
+                                     int krylov_dim,
                                      int max_restarts,
-                                     gmres_newton_pc_gram_schmidt_t gs);
+                                     gmres_gram_schmidt_t gs);
 
-bool newton_pc_is_gmres_newton_pc(newton_pc_t* gmres_pc);
+// Creates a Bi-CGSTAB Newton preconditioner corresponding to the given function 
+// F(t, x) OR the corresponding Jacobian J for which the product J*v is 
+// specified. Exactly one of F and Jv must be non-NULL. If F is NULL, Jv is 
+// used to compute the preconditioner matrix P. If Jv is NULL, a difference 
+// quotient is used to compute J*v.
+newton_pc_t* bicgstab_newton_pc_new(MPI_Comm comm,
+                                    void* context,
+                                    int (*F)(void* context, real_t t, real_t* x, real_t* F),
+                                    int (*Jv)(void* context, real_t t, real_t* x, real_t* v, real_t* Jv),
+                                    void (*dtor)(void* context),
+                                    int num_local_values, 
+                                    int num_remote_values,
+                                    int krylov_dim);
 
-void gmres_newton_pc_set_scaling(newton_pc_t* gmres_pc, real_t* scaling);
-                                        
+// Creates a version of the Bi-CGSTAB Newton preconditioner for solving DAEs
+// corresponding to the given function F(t, x, x_dot) = 0 OR the corresponding 
+// Jacobian J for which the product J*v is specified. Exactly one of F and Jv 
+// must be non-NULL. If F is NULL, Jv is used to compute the preconditioner 
+// matrix P. If Jv is NULL, a difference quotient is used to compute J*v.
+newton_pc_t* dae_bicgstab_newton_pc_new(MPI_Comm comm,
+                                        void* context,
+                                        int (*F)(void* context, real_t t, real_t* x, real_t* x_dot, real_t* F),
+                                        int (*Jv)(void* context, real_t t, real_t* x, real_t* x_dot, real_t* v, real_t* Jv),
+                                        void (*dtor)(void* context),
+                                        int num_local_values, 
+                                        int num_remote_values,
+                                        int krylov_dim);
+
+// Creates a transpose-free QMR Newton preconditioner corresponding to the 
+// given function F(t, x) OR the corresponding Jacobian J for which the 
+// product J*v is specified. Exactly one of F and Jv must be non-NULL. If F is 
+// NULL, Jv is used to compute the preconditioner matrix P. If Jv is NULL, a 
+// difference quotient is used to compute J*v.
+newton_pc_t* tfqmr_newton_pc_new(MPI_Comm comm,
+                                 void* context,
+                                 int (*F)(void* context, real_t t, real_t* x, real_t* F),
+                                 int (*Jv)(void* context, real_t t, real_t* x, real_t* v, real_t* Jv),
+                                 void (*dtor)(void* context),
+                                 int num_local_values, 
+                                 int num_remote_values,
+                                 int krylov_dim);
+
+// Creates a version of the TFQMR Newton preconditioner for solving DAEs
+// corresponding to the given function F(t, x, x_dot) = 0 OR the corresponding 
+// Jacobian J for which the product J*v is specified. Exactly one of F and Jv 
+// must be non-NULL. If F is NULL, Jv is used to compute the preconditioner 
+// matrix P. If Jv is NULL, a difference quotient is used to compute J*v.
+newton_pc_t* dae_tfqmr_newton_pc_new(MPI_Comm comm,
+                                     void* context,
+                                     int (*F)(void* context, real_t t, real_t* x, real_t* x_dot, real_t* F),
+                                     int (*Jv)(void* context, real_t t, real_t* x, real_t* x_dot, real_t* v, real_t* Jv),
+                                     void (*dtor)(void* context),
+                                     int num_local_values, 
+                                     int num_remote_values,
+                                     int krylov_dim);
+
+// Returns true if the given Newton preconditioner is a Krylov preconditioner, 
+// false if not.
+bool newton_pc_is_krylov_newton_pc(newton_pc_t* pc);
+
+// Sets the scaling factors to be applied (componentwise) to z and r in the 
+// preconditioner equation P*z = r, or NULL if z and r are not to be scaled.
+void krylov_newton_pc_set_scaling(newton_pc_t* pc, 
+                                  real_t* z_scaling, 
+                                  real_t* r_scaling);
+
+// Sets the tolerance for the residual norm that determines whether the 
+// Krylov preconditioner is converged.
+void krylov_newton_pc_set_tolerance(newton_pc_t* pc,
+                                    real_t res_norm);
+
+// Retrieves the number of linear iterations in the last preconditioner solve.
+int krylov_newton_pc_get_iterations(newton_pc_t* pc);
+
 #endif
 
