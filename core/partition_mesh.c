@@ -1008,6 +1008,7 @@ static mesh_t* fuse_submeshes(mesh_t** submeshes,
         int node_index = node_map[flattened_node];
 //        int* node_p = int_int_unordered_map_get(dup_node_map, flattened_node);
 //        int node_index = (node_p != NULL) ? node_map[*node_p] : node_map[flattened_node];
+printf("node index: %d of %d\n", node_index, fused_mesh->num_nodes);
         ASSERT(node_index < fused_mesh->num_nodes);
         fused_mesh->face_nodes[fused_mesh->face_node_offsets[face]+n] = node_index;
       }
@@ -1362,7 +1363,6 @@ exchanger_t* distribute_mesh(mesh_t** mesh, MPI_Comm comm, int64_t* global_parti
 #endif
 }
 
-#if 0
 exchanger_t* repartition_mesh(mesh_t** mesh, int* weights, real_t imbalance_tol)
 {
   ASSERT(imbalance_tol > 0.0);
@@ -1415,5 +1415,4 @@ exchanger_t* repartition_mesh(mesh_t** mesh, int* weights, real_t imbalance_tol)
   return exchanger_new(m->comm);
 #endif
 }
-#endif
 
