@@ -15,24 +15,49 @@ typedef struct
 {
   MPI_Comm comm;
   void* context;
-  void* F_context;
   SpgmrMemRec* gmr;
   SpbcgMemRec* bcg;
   SptfqmrMemRec* tfqmr;
   int N_local, N_remote, N_total;
   int (*F)(void* context, real_t t, real_t* x, real_t* F);
-  int (*dae_F)(void* context, real_t t, real_t* x, real_t* xdot, real_t* F);
-  int (*Jv)(void* context, real_t t, real_t* x, real_t* v, real_t* Jv);
-  int (*dae_Jv)(void* context, real_t t, real_t* x, real_t* xdot, real_t* v, real_t* Jv);
+  int (*dae_F)(void* context, real_t t, real_t* x, real_t* x_dot, real_t* F);
+  int (*Jv)(void* context, 
+            real_t alpha, real_t beta, real_t gamma, 
+            real_t t, real_t* x, real_t* v, real_t* Jv);
+  int (*dae_Jv)(void* context, 
+                real_t alpha, real_t beta, real_t gamma, 
+                real_t t, real_t* x, real_t* x_dot, 
+                real_t* v, real_t* Jv);
   int (*Atimes)(void* A_data, N_Vector v, N_Vector Av);
   void (*dtor)(void* context);
   int krylov_dim;
+
+  // State information.
+  real_t t;
+  N_Vector x, x_dot;
+
+  // Preconditioning parameters.
+  real_t alpha, beta, gamma;
+
+  // Bookkeeping.
   N_Vector z, r, z_scaling, r_scaling;
-  int max_restarts;
-  gmres_gram_schmidt_t gs;
   real_t delta;
   int num_iters;
+
+  // GMRES stuff.
+  int max_restarts;
+  gmres_gram_schmidt_t gs;
 } krylov_pc_t;
+
+static void krylov_compute_p(void* context, 
+                             real_t alpha, real_t beta, real_t gamma, 
+                             real_t t, real_t* x, real_t* xdot)
+{
+  krylov_pc_t* krylov = context;
+  krylov->alpha = alpha;
+  krylov->beta = beta;
+  krylov->gamma = gamma;
+}
 
 static void krylov_pc_dtor(void* context)
 {
@@ -45,6 +70,8 @@ static void krylov_pc_dtor(void* context)
     SpbcgFree(krylov->bcg);
   if (krylov->tfqmr != NULL)
     SptfqmrFree(krylov->tfqmr);
+  N_VDestroy(krylov->x);
+  N_VDestroy(krylov->x_dot);
   N_VDestroy(krylov->z);
   N_VDestroy(krylov->r);
   if (krylov->z_scaling != NULL)
@@ -67,29 +94,69 @@ static int dae_F_adaptor(void* context, real_t t, real_t* x, real_t* x_dot, real
   return krylov->F(krylov->context, t, x, F);
 }
 
-static int dae_Jv_adaptor(void* context, real_t t, real_t* x, real_t* x_dot, real_t* v, real_t* Jv)
+static int dae_Jv_adaptor(void* context, 
+                          real_t alpha, real_t beta, real_t gamma,
+                          real_t t, real_t* x, real_t* x_dot, 
+                          real_t* v, real_t* Jv)
 {
   // We are passed the actual preconditioner as our context pointer, so get the 
   // "real" one here.
   krylov_pc_t* krylov = context;
   ASSERT(krylov->Jv != NULL);
-  return krylov->Jv(krylov->context, t, x, v, Jv);
+  return krylov->Jv(krylov->context, alpha, beta, gamma, t, x, v, Jv);
 }
 
+// This approximates J*v using a difference quotient applied to a function F.
 static int Atimes_DQ_adaptor(void* A_data, N_Vector v, N_Vector Av)
 {
-  return 0; // FIXME
+  krylov_pc_t* krylov = A_data;
+  void* F_context = NULL;
+  int (*F)(void* context, real_t t, real_t* x, real_t* x_dot, real_t* F) = NULL;
+  if (krylov->dae_F != NULL)
+  {
+    F_context = krylov->context;
+    F = krylov->dae_F;
+  }
+  else
+  {
+    F_context = krylov;
+    F = dae_F_adaptor;
+  }
+
+  // FIXME: We need to fill in the blanks here. See kinsol_spils.c line 572 and 
+  // FIXME: Brown and Saad (1990), p 469 for details.
+  return 0; 
 }
 
 static int Atimes_Jv_adaptor(void* A_data, N_Vector v, N_Vector Av)
 {
-  return 0; // FIXME
+  krylov_pc_t* krylov = A_data;
+  void* Jv_context = NULL;
+  int (*Jv)(void* context, 
+            real_t alpha, real_t beta, real_t gamma, 
+            real_t t, real_t* x, real_t* x_dot, 
+            real_t* v, real_t* Jv) = NULL;
+  if (krylov->dae_Jv != NULL)
+  {
+    Jv_context = krylov->context;
+    Jv = krylov->dae_Jv;
+  }
+  else
+  {
+    Jv_context = krylov;
+    Jv = dae_Jv_adaptor;
+  }
+  return Jv(Jv_context, krylov->alpha, krylov->beta, krylov->gamma, 
+            krylov->t, NV_DATA(krylov->x), NV_DATA(krylov->x_dot), 
+            NV_DATA(v), NV_DATA(Av));
 }
 
 static krylov_pc_t* krylov_pc_new(MPI_Comm comm,
                                   void* context,
                                   int (*F)(void* context, real_t t, real_t* x, real_t* F),
-                                  int (*Jv)(void* context, real_t t, real_t* x, real_t* v, real_t* Jv),
+                                  int (*Jv)(void* context, 
+                                           real_t alpha, real_t beta, real_t gamma, 
+                                           real_t t, real_t* x, real_t* v, real_t* Jv),
                                   void (*dtor)(void* context),
                                   int num_local_values, 
                                   int num_remote_values,
@@ -102,7 +169,6 @@ static krylov_pc_t* krylov_pc_new(MPI_Comm comm,
   krylov_pc_t* krylov = polymec_malloc(sizeof(krylov_pc_t));
   krylov->comm = comm;
   krylov->context = context;
-  krylov->F_context = context;
   krylov->gmr = NULL;
   krylov->bcg = NULL;
   krylov->tfqmr = NULL;
@@ -115,17 +181,24 @@ static krylov_pc_t* krylov_pc_new(MPI_Comm comm,
   krylov->N_local = num_local_values;
   krylov->N_remote = num_remote_values;
   krylov->N_total = krylov->N_local + krylov->N_remote;
+  krylov->t = 0.0;
+  krylov->x = N_VNew(comm, krylov->N_local);
+  krylov->x_dot = N_VNew(comm, krylov->N_local);
   krylov->z = N_VNew(comm, krylov->N_local);
   krylov->r = N_VNew(comm, krylov->N_local);
   krylov->z_scaling = NULL;
   krylov->r_scaling = NULL;
+  krylov->delta = 1e-4;
   return krylov;
 }
 
 static krylov_pc_t* dae_krylov_pc_new(MPI_Comm comm,
                                       void* context,
                                       int (*F)(void* context, real_t t, real_t* x, real_t* x_dot, real_t* F),
-                                      int (*Jv)(void* context, real_t t, real_t* x, real_t* x_dot, real_t* v, real_t* Jv),
+                                      int (*Jv)(void* context, 
+                                                real_t alpha, real_t beta, real_t gamma, 
+                                                real_t t, real_t* x, real_t* x_dot, 
+                                                real_t* v, real_t* Jv),
                                       void (*dtor)(void* context),
                                       int num_local_values, 
                                       int num_remote_values,
@@ -138,7 +211,6 @@ static krylov_pc_t* dae_krylov_pc_new(MPI_Comm comm,
   krylov_pc_t* krylov = polymec_malloc(sizeof(krylov_pc_t));
   krylov->comm = comm;
   krylov->context = context;
-  krylov->F_context = krylov;
   krylov->gmr = NULL;
   krylov->bcg = NULL;
   krylov->tfqmr = NULL;
@@ -150,21 +222,29 @@ static krylov_pc_t* dae_krylov_pc_new(MPI_Comm comm,
   krylov->dtor = dtor;
   krylov->N_remote = num_remote_values;
   krylov->N_total = krylov->N_local + krylov->N_remote;
+  krylov->t = 0.0;
+  krylov->x = N_VNew(comm, krylov->N_local);
+  krylov->x_dot = N_VNew(comm, krylov->N_local);
   krylov->z = N_VNew(comm, krylov->N_local);
   krylov->r = N_VNew(comm, krylov->N_local);
   krylov->z_scaling = NULL;
   krylov->r_scaling = NULL;
+  krylov->delta = 1e-4;
   return krylov;
 }
 
 static bool gmres_solve(void* context, 
-                        real_t t, real_t* x, real_t* xdot,
+                        real_t t, real_t* x, real_t* x_dot,
                         real_t* r, real_t* z)
 {
   krylov_pc_t* krylov = context;
+  krylov->t = t;
+  memcpy(NV_DATA(krylov->x), x, sizeof(real_t) * krylov->N_local);
+  if (x_dot != NULL)
+    memcpy(NV_DATA(krylov->x_dot), x, sizeof(real_t) * krylov->N_local);
   real_t res_norm;
   int nli, nps;
-  int status = SpgmrSolve(krylov->gmr, krylov->F_context, krylov->z, krylov->r, PREC_NONE, krylov->gs,
+  int status = SpgmrSolve(krylov->gmr, krylov, krylov->z, krylov->r, PREC_NONE, krylov->gs,
                           krylov->delta, krylov->max_restarts, NULL, krylov->r_scaling, krylov->z_scaling,
                           krylov->Atimes, NULL, &res_norm, &nli, &nps);
   return (status == SPGMR_SUCCESS);
@@ -173,7 +253,9 @@ static bool gmres_solve(void* context,
 newton_pc_t* gmres_newton_pc_new(MPI_Comm comm,
                                  void* context,
                                  int (*F)(void* context, real_t t, real_t* x, real_t* F),
-                                 int (*Jv)(void* context, real_t t, real_t* x, real_t* v, real_t* Jv),
+                                 int (*Jv)(void* context, 
+                                           real_t alpha, real_t beta, real_t gamma, 
+                                           real_t t, real_t* x, real_t* v, real_t* Jv),
                                  void (*dtor)(void* context),
                                  int num_local_values, 
                                  int num_remote_values,
@@ -194,7 +276,10 @@ newton_pc_t* gmres_newton_pc_new(MPI_Comm comm,
 newton_pc_t* dae_gmres_newton_pc_new(MPI_Comm comm,
                                      void* context,
                                      int (*F)(void* context, real_t t, real_t* x, real_t* x_dot, real_t* F),
-                                     int (*Jv)(void* context, real_t t, real_t* x, real_t* x_dot, real_t* v, real_t* Jv),
+                                     int (*Jv)(void* context, 
+                                               real_t alpha, real_t beta, real_t gamma, 
+                                               real_t t, real_t* x, real_t* x_dot, 
+                                               real_t* v, real_t* Jv),
                                      void (*dtor)(void* context),
                                      int num_local_values, 
                                      int num_remote_values,
@@ -213,13 +298,17 @@ newton_pc_t* dae_gmres_newton_pc_new(MPI_Comm comm,
 }
 
 static bool bicgstab_solve(void* context, 
-                           real_t t, real_t* x, real_t* xdot,
+                           real_t t, real_t* x, real_t* x_dot,
                            real_t* r, real_t* z)
 {
   krylov_pc_t* krylov = context;
+  krylov->t = t;
+  memcpy(NV_DATA(krylov->x), x, sizeof(real_t) * krylov->N_local);
+  if (x_dot != NULL)
+    memcpy(NV_DATA(krylov->x_dot), x, sizeof(real_t) * krylov->N_local);
   real_t res_norm;
   int nli, nps;
-  int status = SpbcgSolve(krylov->bcg, krylov->F_context, krylov->z, krylov->r, PREC_NONE, krylov->delta, 
+  int status = SpbcgSolve(krylov->bcg, krylov, krylov->z, krylov->r, PREC_NONE, krylov->delta, 
                           NULL, krylov->z_scaling, krylov->r_scaling, krylov->Atimes, NULL, 
                           &res_norm, &nli, &nps);
   return (status == SPBCG_SUCCESS);
@@ -228,7 +317,9 @@ static bool bicgstab_solve(void* context,
 newton_pc_t* bicgstab_newton_pc_new(MPI_Comm comm,
                                     void* context,
                                     int (*F)(void* context, real_t t, real_t* x, real_t* F),
-                                    int (*Jv)(void* context, real_t t, real_t* x, real_t* v, real_t* Jv),
+                                    int (*Jv)(void* context, 
+                                              real_t alpha, real_t beta, real_t gamma, 
+                                              real_t t, real_t* x, real_t* v, real_t* Jv),
                                     void (*dtor)(void* context),
                                     int num_local_values, 
                                     int num_remote_values,
@@ -244,7 +335,10 @@ newton_pc_t* bicgstab_newton_pc_new(MPI_Comm comm,
 newton_pc_t* dae_bicgstab_newton_pc_new(MPI_Comm comm,
                                         void* context,
                                         int (*F)(void* context, real_t t, real_t* x, real_t* x_dot, real_t* F),
-                                        int (*Jv)(void* context, real_t t, real_t* x, real_t* x_dot, real_t* v, real_t* Jv),
+                                        int (*Jv)(void* context, 
+                                                  real_t alpha, real_t beta, real_t gamma, 
+                                                  real_t t, real_t* x, real_t* x_dot, 
+                                                  real_t* v, real_t* Jv),
                                         void (*dtor)(void* context),
                                         int num_local_values, 
                                         int num_remote_values,
@@ -258,13 +352,16 @@ newton_pc_t* dae_bicgstab_newton_pc_new(MPI_Comm comm,
 }
 
 static bool tfqmr_solve(void* context, 
-                        real_t t, real_t* x, real_t* xdot,
+                        real_t t, real_t* x, real_t* x_dot,
                         real_t* r, real_t* z)
 {
   krylov_pc_t* krylov = context;
+  memcpy(NV_DATA(krylov->x), x, sizeof(real_t) * krylov->N_local);
+  if (x_dot != NULL)
+    memcpy(NV_DATA(krylov->x_dot), x, sizeof(real_t) * krylov->N_local);
   real_t res_norm;
   int nli, nps;
-  int status = SptfqmrSolve(krylov->tfqmr, krylov->F_context, krylov->z, krylov->r, PREC_NONE, krylov->delta, 
+  int status = SptfqmrSolve(krylov->tfqmr, krylov, krylov->z, krylov->r, PREC_NONE, krylov->delta, 
                             NULL, krylov->z_scaling, krylov->r_scaling, krylov->Atimes, NULL, 
                             &res_norm, &nli, &nps);
   return (status == SPTFQMR_SUCCESS);
@@ -273,7 +370,9 @@ static bool tfqmr_solve(void* context,
 newton_pc_t* tfqmr_newton_pc_new(MPI_Comm comm, 
                                  void* context,
                                  int (*F)(void* context, real_t t, real_t* x, real_t* F),
-                                 int (*Jv)(void* context, real_t t, real_t* x, real_t* v, real_t* Jv),
+                                 int (*Jv)(void* context, 
+                                           real_t alpha, real_t beta, real_t gamma, 
+                                           real_t t, real_t* x, real_t* v, real_t* Jv),
                                  void (*dtor)(void* context),
                                  int num_local_values, 
                                  int num_remote_values,
@@ -289,7 +388,10 @@ newton_pc_t* tfqmr_newton_pc_new(MPI_Comm comm,
 newton_pc_t* dae_tfqmr_newton_pc_new(MPI_Comm comm,
                                      void* context,
                                      int (*F)(void* context, real_t t, real_t* x, real_t* x_dot, real_t* F),
-                                     int (*Jv)(void* context, real_t t, real_t* x, real_t* x_dot, real_t* v, real_t* Jv),
+                                     int (*Jv)(void* context, 
+                                               real_t alpha, real_t beta, real_t gamma, 
+                                               real_t t, real_t* x, real_t* x_dot, 
+                                               real_t* v, real_t* Jv),
                                      void (*dtor)(void* context),
                                      int num_local_values, 
                                      int num_remote_values,
