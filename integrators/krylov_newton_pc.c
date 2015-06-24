@@ -57,6 +57,16 @@ static void krylov_compute_p(void* context,
   krylov->alpha = alpha;
   krylov->beta = beta;
   krylov->gamma = gamma;
+  if ((alpha != 0.0) && (beta != 0.0) && (gamma != 0.0))
+    log_debug("krylov_newton_pc: approximating J = %g * I + %g * dF/dx + %g * dF/d(xdot)...", alpha, beta, gamma);
+  else if ((alpha == 0.0) && (beta != 0.0) && (gamma != 0.0))
+    log_debug("krylov_newton_pc: approximating J = %g * dF/dx + %g * dF/d(xdot)...", beta, gamma);
+  else if ((alpha == 0.0) && (beta == 0.0) && (gamma != 0.0))
+    log_debug("krylov_newton_pc: approximating J = %g * dF/d(xdot)...", gamma);
+  else if ((alpha != 0.0) && (beta != 0.0))
+    log_debug("krylov_newton_pc: approximating J = %g * I + %g * dF/dx...", alpha, beta);
+  else if ((alpha == 0.0) && (beta != 0.0))
+    log_debug("krylov_newton_pc: approximating J = %g * dF/dx...", beta);
 }
 
 static void krylov_pc_dtor(void* context)
@@ -119,7 +129,7 @@ static int Atimes_DQ_adaptor(void* A_data, N_Vector v, N_Vector Av)
   krylov_pc_t* krylov = A_data;
   void* F_context = NULL;
   int (*F)(void* context, real_t t, real_t* x, real_t* x_dot, real_t* F) = NULL;
-  if (krylov->dae_F != NULL)
+  if (krylov->F == NULL)
   {
     F_context = krylov->context;
     F = krylov->dae_F;
@@ -263,8 +273,8 @@ static krylov_pc_t* krylov_pc_new(MPI_Comm comm,
   krylov->tfqmr = NULL;
   krylov->F = F;
   krylov->Jv = Jv;
-  krylov->dae_F = (F != NULL) ? dae_F_adaptor : NULL;
-  krylov->dae_Jv = (Jv != NULL) ? dae_Jv_adaptor : NULL;
+  krylov->dae_F = NULL;
+  krylov->dae_Jv = NULL;
   krylov->Atimes = (F != NULL) ? Atimes_DQ_adaptor : Atimes_Jv_adaptor;
   krylov->dtor = dtor;
   krylov->N_local = num_local_values;
@@ -350,7 +360,7 @@ static bool gmres_solve(void* context,
   switch(status)
   {
     case SPGMR_RES_REDUCED:
-      log_debug("  GMRES: Residual was reduced, but not below tolerance");
+      log_debug("  GMRES: Residual norm was reduced (%g), but not below tolerance (%g)", res_norm, krylov->delta);
       break;
     case SPGMR_CONV_FAIL:
       log_debug("  GMRES: Failed to converge.");
@@ -443,7 +453,7 @@ static bool bicgstab_solve(void* context,
   switch(status)
   {
     case SPBCG_RES_REDUCED:
-      log_debug("  Bi-CGSTAB: Residual was reduced, but not below tolerance");
+      log_debug("  Bi-CGSTAB: Residual norm was reduced (%g), but not below tolerance (%g)", res_norm, krylov->delta);
       break;
     case SPBCG_CONV_FAIL:
       log_debug("  Bi-CGSTAB: Failed to converge.");
@@ -516,7 +526,7 @@ static bool tfqmr_solve(void* context,
   switch(status)
   {
     case SPTFQMR_RES_REDUCED:
-      log_debug("  TFQMR: Residual was reduced, but not below tolerance");
+      log_debug("  TFQMR: Residual norm was reduced (%g), but not below tolerance (%g)", res_norm, krylov->delta);
       break;
     case SPTFQMR_CONV_FAIL:
       log_debug("  TFQMR: Failed to converge.");
