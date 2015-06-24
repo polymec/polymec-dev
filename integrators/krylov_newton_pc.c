@@ -130,15 +130,7 @@ static int Atimes_DQ_adaptor(void* A_data, N_Vector v, N_Vector Av)
     F = dae_F_adaptor;
   }
 
-  // Evaluate the function F at its present value here, storing it in temp4.
-  int status = F(F_context, 
-                 krylov->t, NV_DATA(krylov->x), NV_DATA(krylov->x_dot), 
-                 NV_DATA(krylov->temp4));
-  if (status != 0)
-    return status;
-
-  // We estimate sigma here, following Brown and Saad (1990), p 469.
-  // See KINSpilsDQJTimes in kinsol_spils.c for a cheat sheet.
+  // Allocate workspaces if needed.
   if (krylov->temp1 == NULL)
   {
     krylov->temp1 = N_VNew(krylov->comm, krylov->N_local);
@@ -146,6 +138,26 @@ static int Atimes_DQ_adaptor(void* A_data, N_Vector v, N_Vector Av)
     krylov->temp3 = N_VNew(krylov->comm, krylov->N_local);
     krylov->temp4 = N_VNew(krylov->comm, krylov->N_local);
   }
+
+  // Evaluate the function F at its present value here, storing it in temp4.
+  int status;
+  if (krylov->x_dot != NULL)
+  {
+    status = F(F_context, 
+               krylov->t, NV_DATA(krylov->x), NV_DATA(krylov->x_dot), 
+               NV_DATA(krylov->temp4));
+  }
+  else
+  {
+    status = F(F_context, 
+               krylov->t, NV_DATA(krylov->x), NULL,
+               NV_DATA(krylov->temp4));
+  }
+  if (status != 0)
+    return status;
+
+  // We estimate sigma here, following Brown and Saad (1990), p 469.
+  // See KINSpilsDQJTimes in kinsol_spils.c for a cheat sheet.
   if (krylov->z_scaling != NULL)
   {
     N_VProd(v, krylov->z_scaling, krylov->temp1);
@@ -301,6 +313,7 @@ static krylov_pc_t* dae_krylov_pc_new(MPI_Comm comm,
   krylov->dae_Jv = Jv;
   krylov->Atimes = (F != NULL) ? Atimes_DQ_adaptor : Atimes_Jv_adaptor;
   krylov->dtor = dtor;
+  krylov->N_local = num_local_values;
   krylov->N_remote = num_remote_values;
   krylov->N_total = krylov->N_local + krylov->N_remote;
   krylov->t = 0.0;
@@ -324,6 +337,8 @@ static bool gmres_solve(void* context,
 {
   krylov_pc_t* krylov = context;
   krylov->t = t;
+  memcpy(NV_DATA(krylov->r), r, sizeof(real_t) * krylov->N_local);
+  memcpy(NV_DATA(krylov->z), z, sizeof(real_t) * krylov->N_local);
   memcpy(NV_DATA(krylov->x), x, sizeof(real_t) * krylov->N_local);
   if (x_dot != NULL)
     memcpy(NV_DATA(krylov->x_dot), x, sizeof(real_t) * krylov->N_local);
@@ -332,6 +347,31 @@ static bool gmres_solve(void* context,
   int status = SpgmrSolve(krylov->gmr, krylov, krylov->z, krylov->r, PREC_NONE, krylov->gs,
                           krylov->delta, krylov->max_restarts, NULL, krylov->r_scaling, krylov->z_scaling,
                           krylov->Atimes, NULL, &res_norm, &nli, &nps);
+  switch(status)
+  {
+    case SPGMR_RES_REDUCED:
+      log_debug("  GMRES: Residual was reduced, but not below tolerance");
+      break;
+    case SPGMR_CONV_FAIL:
+      log_debug("  GMRES: Failed to converge.");
+      break;
+    case SPGMR_QRFACT_FAIL:
+      log_debug("  GMRES: Singular matrix in QR factorization.");
+      break;
+    case SPGMR_ATIMES_FAIL_REC:
+      log_debug("  GMRES: Jacobian-vector product failed recoverably.");
+      break;
+    case SPGMR_ATIMES_FAIL_UNREC:
+      log_debug("  GMRES: Jacobian-vector product failed unrecoverably.");
+      break;
+    case SPGMR_GS_FAIL:
+      log_debug("  GMRES: Gram-Schmidt orthogonalization failed.");
+      break;
+    case SPGMR_QRSOL_FAIL:
+      log_debug("  GMRES: Singular matrix in QR solve.");
+    default:
+      break;
+  }
   return (status == SPGMR_SUCCESS);
 }
 
@@ -354,6 +394,7 @@ newton_pc_t* gmres_newton_pc_new(MPI_Comm comm,
   krylov->max_restarts = max_restarts;
   krylov->gs = gs;
   newton_pc_vtable vtable = {.solve = gmres_solve,
+                             .compute_p = krylov_compute_p,
                              .dtor = krylov_pc_dtor};
   return newton_pc_new("Krylov preconditioner (GMRES)", krylov, vtable);
 }
@@ -378,6 +419,7 @@ newton_pc_t* dae_gmres_newton_pc_new(MPI_Comm comm,
   krylov->max_restarts = max_restarts;
   krylov->gs = gs;
   newton_pc_vtable vtable = {.solve = gmres_solve,
+                             .compute_p = krylov_compute_p,
                              .dtor = krylov_pc_dtor};
   return newton_pc_new("Krylov DAE preconditioner (GMRES)", krylov, vtable);
 }
@@ -388,6 +430,8 @@ static bool bicgstab_solve(void* context,
 {
   krylov_pc_t* krylov = context;
   krylov->t = t;
+  memcpy(NV_DATA(krylov->r), r, sizeof(real_t) * krylov->N_local);
+  memcpy(NV_DATA(krylov->z), z, sizeof(real_t) * krylov->N_local);
   memcpy(NV_DATA(krylov->x), x, sizeof(real_t) * krylov->N_local);
   if (x_dot != NULL)
     memcpy(NV_DATA(krylov->x_dot), x, sizeof(real_t) * krylov->N_local);
@@ -396,6 +440,22 @@ static bool bicgstab_solve(void* context,
   int status = SpbcgSolve(krylov->bcg, krylov, krylov->z, krylov->r, PREC_NONE, krylov->delta, 
                           NULL, krylov->z_scaling, krylov->r_scaling, krylov->Atimes, NULL, 
                           &res_norm, &nli, &nps);
+  switch(status)
+  {
+    case SPBCG_RES_REDUCED:
+      log_debug("  Bi-CGSTAB: Residual was reduced, but not below tolerance");
+      break;
+    case SPBCG_CONV_FAIL:
+      log_debug("  Bi-CGSTAB: Failed to converge.");
+      break;
+    case SPBCG_ATIMES_FAIL_REC:
+      log_debug("  Bi-CGSTAB: Jacobian-vector product failed recoverably.");
+      break;
+    case SPBCG_ATIMES_FAIL_UNREC:
+      log_debug("  Bi-CGSTAB: Jacobian-vector product failed unrecoverably.");
+    default:
+      break;
+  }
   return (status == SPBCG_SUCCESS);
 }
 
@@ -413,6 +473,7 @@ newton_pc_t* bicgstab_newton_pc_new(MPI_Comm comm,
   krylov_pc_t* krylov = krylov_pc_new(comm, context, F, Jv, dtor, num_local_values, num_remote_values, krylov_dim);
   krylov->bcg = SpbcgMalloc(krylov_dim, krylov->z);
   newton_pc_vtable vtable = {.solve = bicgstab_solve,
+                             .compute_p = krylov_compute_p,
                              .dtor = krylov_pc_dtor};
   return newton_pc_new("Krylov preconditioner (Bi-CGSTAB)", krylov, vtable);
 }
@@ -432,6 +493,7 @@ newton_pc_t* dae_bicgstab_newton_pc_new(MPI_Comm comm,
   krylov_pc_t* krylov = dae_krylov_pc_new(comm, context, F, Jv, dtor, num_local_values, num_remote_values, krylov_dim);
   krylov->bcg = SpbcgMalloc(krylov_dim, krylov->z);
   newton_pc_vtable vtable = {.solve = bicgstab_solve,
+                             .compute_p = krylov_compute_p,
                              .dtor = krylov_pc_dtor};
   return newton_pc_new("Krylov DAE preconditioner (Bi-CGSTAB)", krylov, vtable);
 }
@@ -441,6 +503,8 @@ static bool tfqmr_solve(void* context,
                         real_t* r, real_t* z)
 {
   krylov_pc_t* krylov = context;
+  memcpy(NV_DATA(krylov->r), r, sizeof(real_t) * krylov->N_local);
+  memcpy(NV_DATA(krylov->z), z, sizeof(real_t) * krylov->N_local);
   memcpy(NV_DATA(krylov->x), x, sizeof(real_t) * krylov->N_local);
   if (x_dot != NULL)
     memcpy(NV_DATA(krylov->x_dot), x, sizeof(real_t) * krylov->N_local);
@@ -449,6 +513,22 @@ static bool tfqmr_solve(void* context,
   int status = SptfqmrSolve(krylov->tfqmr, krylov, krylov->z, krylov->r, PREC_NONE, krylov->delta, 
                             NULL, krylov->z_scaling, krylov->r_scaling, krylov->Atimes, NULL, 
                             &res_norm, &nli, &nps);
+  switch(status)
+  {
+    case SPTFQMR_RES_REDUCED:
+      log_debug("  TFQMR: Residual was reduced, but not below tolerance");
+      break;
+    case SPTFQMR_CONV_FAIL:
+      log_debug("  TFQMR: Failed to converge.");
+      break;
+    case SPTFQMR_ATIMES_FAIL_REC:
+      log_debug("  TFQMR: Jacobian-vector product failed recoverably.");
+      break;
+    case SPTFQMR_ATIMES_FAIL_UNREC:
+      log_debug("  TFQMR: Jacobian-vector product failed unrecoverably.");
+    default:
+      break;
+  }
   return (status == SPTFQMR_SUCCESS);
 }
 
@@ -466,6 +546,7 @@ newton_pc_t* tfqmr_newton_pc_new(MPI_Comm comm,
   krylov_pc_t* krylov = krylov_pc_new(comm, context, F, Jv, dtor, num_local_values, num_remote_values, krylov_dim);
   krylov->tfqmr = SptfqmrMalloc(krylov_dim, krylov->z);
   newton_pc_vtable vtable = {.solve = tfqmr_solve,
+                             .compute_p = krylov_compute_p,
                              .dtor = krylov_pc_dtor};
   return newton_pc_new("Krylov preconditioner (TFQMR)", krylov, vtable);
 }
@@ -485,6 +566,7 @@ newton_pc_t* dae_tfqmr_newton_pc_new(MPI_Comm comm,
   krylov_pc_t* krylov = dae_krylov_pc_new(comm, context, F, Jv, dtor, num_local_values, num_remote_values, krylov_dim);
   krylov->tfqmr = SptfqmrMalloc(krylov_dim, krylov->z);
   newton_pc_vtable vtable = {.solve = tfqmr_solve,
+                             .compute_p = krylov_compute_p,
                              .dtor = krylov_pc_dtor};
   return newton_pc_new("Krylov DAE preconditioner (TFQMR)", krylov, vtable);
 }
