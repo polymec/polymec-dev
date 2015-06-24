@@ -40,7 +40,7 @@ typedef struct
   real_t alpha, beta, gamma;
 
   // Bookkeeping.
-  N_Vector z, r, z_scaling, r_scaling;
+  N_Vector z, r, z_scaling, r_scaling, temp1, temp2, temp3, temp4;
   real_t delta;
   int num_iters;
 
@@ -81,6 +81,13 @@ static void krylov_pc_dtor(void* context)
   if (krylov->r_scaling != NULL)
   {
     N_VDestroy(krylov->r_scaling);
+  }
+  if (krylov->temp1 != NULL)
+  {
+    N_VDestroy(krylov->temp1);
+    N_VDestroy(krylov->temp2);
+    N_VDestroy(krylov->temp3);
+    N_VDestroy(krylov->temp4);
   }
   polymec_free(krylov);
 }
@@ -123,8 +130,78 @@ static int Atimes_DQ_adaptor(void* A_data, N_Vector v, N_Vector Av)
     F = dae_F_adaptor;
   }
 
-  // FIXME: We need to fill in the blanks here. See kinsol_spils.c line 572 and 
-  // FIXME: Brown and Saad (1990), p 469 for details.
+  // Evaluate the function F at its present value here, storing it in temp4.
+  int status = F(F_context, 
+                 krylov->t, NV_DATA(krylov->x), NV_DATA(krylov->x_dot), 
+                 NV_DATA(krylov->temp4));
+  if (status != 0)
+    return status;
+
+  // We estimate sigma here, following Brown and Saad (1990), p 469.
+  // See KINSpilsDQJTimes in kinsol_spils.c for a cheat sheet.
+  if (krylov->temp1 == NULL)
+  {
+    krylov->temp1 = N_VNew(krylov->comm, krylov->N_local);
+    krylov->temp2 = N_VNew(krylov->comm, krylov->N_local);
+    krylov->temp3 = N_VNew(krylov->comm, krylov->N_local);
+    krylov->temp4 = N_VNew(krylov->comm, krylov->N_local);
+  }
+  if (krylov->z_scaling != NULL)
+  {
+    N_VProd(v, krylov->z_scaling, krylov->temp1);
+    N_VProd(krylov->x, krylov->z_scaling, Av);
+  }
+  else
+  {
+    N_VScale(1.0, v, krylov->temp1);
+    N_VScale(1.0, krylov->x, Av);
+  }
+  real_t sutsv = N_VDotProd(Av, krylov->temp1);
+  real_t vtv = N_VDotProd(krylov->temp1, krylov->temp1);
+  real_t sq1norm = N_VL1Norm(krylov->temp1);
+  real_t sign = SIGN(sutsv);
+  real_t sqrt_relfunc = sqrt(UNIT_ROUNDOFF);
+  real_t sigma = sign * sqrt_relfunc * MAX(fabs(sutsv), sq1norm) / vtv;
+  real_t sigma_inv = 1.0 / sigma;
+
+  // Add the identity term into Av.
+  N_VScale(krylov->alpha, v, Av);
+
+  if (krylov->beta != 0.0)
+  {
+    // Compute the value of x at which to evaluate F -> temp1.
+    N_VLinearSum(1.0, krylov->x, sigma, v, krylov->temp1);
+    
+    // Call F -> temp2.
+    int status = F(F_context, 
+                   krylov->t, NV_DATA(krylov->temp1), NV_DATA(krylov->x_dot), 
+                   NV_DATA(krylov->temp2));
+    if (status != 0)
+      return status;
+
+    // Store the difference quotient in temp3 and add it into Av.
+    N_VLinearSum(sigma_inv, krylov->temp2, -sigma_inv, krylov->temp4, krylov->temp3);
+    N_VLinearSum(1.0, Av, krylov->beta, krylov->temp3, Av);
+  }
+
+  if (krylov->gamma != 0.0)
+  {
+    ASSERT(krylov->x_dot != NULL);
+    // Compute the value of x_dot at which to evaluate F -> temp1.
+    N_VLinearSum(1.0, krylov->x_dot, sigma, v, krylov->temp1);
+    
+    // Call F -> temp2.
+    int status = F(F_context, 
+                   krylov->t, NV_DATA(krylov->x), NV_DATA(krylov->temp1), 
+                   NV_DATA(krylov->temp2));
+    if (status != 0)
+      return status;
+
+    // Store the difference quotient in temp3 and add it into Av.
+    N_VLinearSum(sigma_inv, krylov->temp2, -sigma_inv, krylov->temp4, krylov->temp3);
+    N_VLinearSum(1.0, Av, krylov->gamma, krylov->temp3, Av);
+  }
+
   return 0; 
 }
 
@@ -188,6 +265,10 @@ static krylov_pc_t* krylov_pc_new(MPI_Comm comm,
   krylov->r = N_VNew(comm, krylov->N_local);
   krylov->z_scaling = NULL;
   krylov->r_scaling = NULL;
+  krylov->temp1 = NULL;
+  krylov->temp2 = NULL;
+  krylov->temp3 = NULL;
+  krylov->temp4 = NULL;
   krylov->delta = 1e-4;
   return krylov;
 }
@@ -229,6 +310,10 @@ static krylov_pc_t* dae_krylov_pc_new(MPI_Comm comm,
   krylov->r = N_VNew(comm, krylov->N_local);
   krylov->z_scaling = NULL;
   krylov->r_scaling = NULL;
+  krylov->temp1 = NULL;
+  krylov->temp2 = NULL;
+  krylov->temp3 = NULL;
+  krylov->temp4 = NULL;
   krylov->delta = 1e-4;
   return krylov;
 }
