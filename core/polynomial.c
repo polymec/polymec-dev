@@ -49,9 +49,10 @@ static int std_z_pow[35] = {0, 0, 0, 1, 0, 0, 1, 0, 1, 2,
 
 static int fact(int x)
 {
-  if ((x == 0) || (x == 1))
-    return 1;
-  else return x*fact(x-1);
+  int f = 1;
+  for (int i = 1; i < x; ++i)
+    f *= (i+1);
+  return f;
 }
 
 void polynomial_compute_basis(int degree, 
@@ -59,6 +60,8 @@ void polynomial_compute_basis(int degree,
                               point_t* x, 
                               real_t* basis)
 {
+  ASSERT(degree >= 0);
+  ASSERT(degree <= 4);
   for (int i = 0; i < N_coeffs[degree]; ++i)
   {
     int x_pow = std_x_pow[i];

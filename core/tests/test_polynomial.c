@@ -12,6 +12,7 @@
 #include <string.h>
 #include "cmockery.h"
 #include "core/polynomial.h"
+#include "core/rng.h"
 
 // Powers of x, y, and z for the various polynomial degrees.
 static const int x_powers[5][35] = {{0},
@@ -94,7 +95,102 @@ void test_p3_ctor(void** state)
 
 void test_p4_ctor(void** state)
 {
-  test_ctor(state, 3);
+  test_ctor(state, 4);
+}
+
+int factorial(int n)
+{
+  if (n <= 0)
+    return 1;
+  else
+    return n * factorial(n-1);
+}
+
+void test_basis(void** state, int p)
+{
+  // We test the polynomial with coefficients 1, 2, 3, 4, ... in the standard
+  // basis.
+  int dim = polynomial_basis_dim(p);
+  real_t coeffs[dim];
+  for (int i = 0; i < dim; ++i)
+    coeffs[i] = 1.0*i;
+  polynomial_t* poly = polynomial_new(p, coeffs, NULL);
+
+  // Evaluate the basis of the polynomial at a random point x.
+  rng_t* rng = host_rng_new();
+  bbox_t bbox = {.x1 = 0.0, .x2 = 1.0,
+                 .y1 = 0.0, .y2 = 1.0,
+                 .z1 = 0.0, .z2 = 1.0};
+  point_t x;
+  point_randomize(&x, rng, &bbox);
+
+  // Basis itself.
+  {
+    real_t basis[dim];
+    polynomial_compute_basis(p, 0, 0, 0, &x, basis);
+
+    // Now check everything.
+    int pos = 0, x_pow, y_pow, z_pow, index = 0;
+    double coeff;
+    while (polynomial_next(poly, &pos, &coeff, &x_pow, &y_pow, &z_pow))
+    {
+      real_t term = pow(x.x, x_pow) * pow(x.y, y_pow) * pow(x.z, z_pow);
+      assert_true(fabs(term - basis[index]) < 1e-14);
+      ++index;
+    }
+  }
+
+  // Basis derivatives.
+  for (int i = 0; i < p; ++i)
+  {
+    for (int j = 0; j < p; ++j)
+    {
+      for (int k = 0; k < p; ++k)
+      {
+        real_t basis_deriv[dim];
+        polynomial_compute_basis(p, i, j, k, &x, basis_deriv);
+
+        int pos = 0, x_pow, y_pow, z_pow, index = 0;
+        double coeff;
+        while (polynomial_next(poly, &pos, &coeff, &x_pow, &y_pow, &z_pow))
+        {
+          real_t x_term = (x_pow >= i) ? pow(x.x, x_pow - i) * factorial(x_pow) / factorial(x_pow - i) : 0.0;
+          real_t y_term = (y_pow >= j) ? pow(x.y, y_pow - j) * factorial(y_pow) / factorial(y_pow - j) : 0.0;
+          real_t z_term = (z_pow >= k) ? pow(x.z, z_pow - k) * factorial(z_pow) / factorial(z_pow - k) : 0.0;
+          real_t term = (i+j+k > p) ? 0.0 : x_term * y_term * z_term;
+          assert_true(fabs(term - basis_deriv[index]) < 1e-14);
+          ++index;
+        }
+      }
+    }
+  }
+
+  poly = NULL;
+}
+
+void test_p0_basis(void** state)
+{
+  test_basis(state, 0);
+}
+
+void test_p1_basis(void** state)
+{
+  test_basis(state, 1);
+}
+
+void test_p2_basis(void** state)
+{
+  test_basis(state, 2);
+}
+
+void test_p3_basis(void** state)
+{
+  test_basis(state, 3);
+}
+
+void test_p4_basis(void** state)
+{
+  test_basis(state, 4);
 }
 
 int main(int argc, char* argv[]) 
@@ -107,7 +203,12 @@ int main(int argc, char* argv[])
     unit_test(test_p1_ctor),
     unit_test(test_p2_ctor),
     unit_test(test_p3_ctor),
-    unit_test(test_p4_ctor)
+    unit_test(test_p4_ctor),
+    unit_test(test_p0_basis),
+    unit_test(test_p1_basis),
+    unit_test(test_p2_basis),
+    unit_test(test_p3_basis),
+    unit_test(test_p4_basis)
   };
   return run_tests(tests);
 }
