@@ -109,6 +109,9 @@ void test_mls_shape_function_zero_consistency_p(void** state, int p)
   // See if we can exactly reproduce it at random points within neighborhoods.
   rng_t* rng = host_rng_new();
   real_t dx = 0.1;
+  bbox_t domain_box = {.x1 = 0.5*dx, .x2 = 1.0-0.5*dx, 
+                       .y1 = 0.5*dx, .y2 = 1.0-0.5*dx, 
+                       .z1 = 0.5*dx, .z2 = 1.0-0.5*dx};
   for (int i = 0; i < domain->num_points; ++i)
   {
     shape_function_set_neighborhood(phi, i);
@@ -117,6 +120,11 @@ void test_mls_shape_function_zero_consistency_p(void** state, int p)
                         .y1 = x.y - 0.5*dx, .y2 = x.y + 0.5*dx, 
                         .z1 = x.z - 0.5*dx, .z2 = x.z + 0.5*dx};
     point_randomize(&x, rng, &jitterbox);
+    while (!bbox_contains(&domain_box, &x))
+    {
+      x = domain->points[i];
+      point_randomize(&x, rng, &jitterbox);
+    }
            
     int N = shape_function_num_points(phi);
     real_t phi_val[N];

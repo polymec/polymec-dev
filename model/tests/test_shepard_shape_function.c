@@ -83,6 +83,9 @@ void test_shepard_shape_function_consistency(void** state)
   // See if we can exactly reproduce it.
   rng_t* rng = host_rng_new();
   real_t dx = 0.1;
+  bbox_t domain_box = {.x1 = 0.5*dx, .x2 = 1.0-0.5*dx, 
+                       .y1 = 0.5*dx, .y2 = 1.0-0.5*dx, 
+                       .z1 = 0.5*dx, .z2 = 1.0-0.5*dx};
   for (int i = 0; i < domain->num_points; ++i)
   {
     shape_function_set_neighborhood(phi, i);
@@ -91,6 +94,11 @@ void test_shepard_shape_function_consistency(void** state)
                         .y1 = x.y - 0.5*dx, .y2 = x.y + 0.5*dx, 
                         .z1 = x.z - 0.5*dx, .z2 = x.z + 0.5*dx};
     point_randomize(&x, rng, &jitterbox);
+    while (!bbox_contains(&domain_box, &x))
+    {
+      x = domain->points[i];
+      point_randomize(&x, rng, &jitterbox);
+    }
     int N = shape_function_num_points(phi);
     real_t phi_val[N];
     vector_t phi_grad[N];
@@ -108,7 +116,7 @@ void test_shepard_shape_function_consistency(void** state)
       ++k;
     }
 
-//printf("%g %g %g %g\n", val, grad.x, grad.y, grad.z);
+//printf("(%g, %g, %g) with dx = %g: %g %g %g %g\n", x.x, x.y, x.z, dx, val, grad.x, grad.y, grad.z);
     assert_true(fabs(val - 1.0) < 1e-14);
     assert_true(fabs(grad.x) < 1e-14);
     assert_true(fabs(grad.y) < 1e-14);
