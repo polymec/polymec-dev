@@ -1096,7 +1096,10 @@ void model_run(model_t* model, real_t t1, real_t t2, int max_steps)
       char reason[POLYMEC_MODEL_MAXDT_REASON_SIZE];
       real_t max_dt;
       if (model->step == 0)
+      {
         max_dt = model->initial_dt;
+        snprintf(reason, POLYMEC_MODEL_MAXDT_REASON_SIZE, "Initial time step size");
+      }
       else 
         max_dt = model_max_dt(model, reason);
       if (max_dt > t2 - model->time)
