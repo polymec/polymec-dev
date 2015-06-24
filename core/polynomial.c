@@ -64,9 +64,9 @@ void polynomial_compute_basis(int degree,
     int x_pow = std_x_pow[i];
     int y_pow = std_y_pow[i];
     int z_pow = std_z_pow[i];
-    real_t x_term = (x_pow >= x_deriv) ? pow(x->x, x_pow - x_deriv) * fact(x_pow)/fact(x_deriv) : 0.0;
-    real_t y_term = (y_pow >= y_deriv) ? pow(x->y, y_pow - y_deriv) * fact(y_pow)/fact(y_deriv) : 0.0;
-    real_t z_term = (z_pow >= z_deriv) ? pow(x->z, z_pow - z_deriv) * fact(z_pow)/fact(z_deriv) : 0.0;
+    real_t x_term = (x_pow >= x_deriv) ? pow(x->x, x_pow - x_deriv) * fact(x_pow)/fact(x_pow-x_deriv) : 0.0;
+    real_t y_term = (y_pow >= y_deriv) ? pow(x->y, y_pow - y_deriv) * fact(y_pow)/fact(y_pow-y_deriv) : 0.0;
+    real_t z_term = (z_pow >= z_deriv) ? pow(x->z, z_pow - z_deriv) * fact(z_pow)/fact(z_pow-z_deriv) : 0.0;
     basis[i] = x_term * y_term * z_term;
   }
 }
@@ -228,9 +228,9 @@ real_t polynomial_deriv_value(polynomial_t* p, int x_deriv, int y_deriv, int z_d
   real_t coeff, val = 0.0;
   while (polynomial_next(p, &pos, &coeff, &x_pow, &y_pow, &z_pow))
   {
-    real_t x_term = (x_pow >= x_deriv) ? pow(x->x - p->x0.x, x_pow - x_deriv) * fact(x_pow)/fact(x_deriv) : 0.0;
-    real_t y_term = (y_pow >= y_deriv) ? pow(x->y - p->x0.y, y_pow - y_deriv) * fact(y_pow)/fact(y_deriv) : 0.0;
-    real_t z_term = (z_pow >= z_deriv) ? pow(x->z - p->x0.z, z_pow - z_deriv) * fact(z_pow)/fact(z_deriv) : 0.0;
+    real_t x_term = (x_pow >= x_deriv) ? pow(x->x - p->x0.x, x_pow - x_deriv) * fact(x_pow)/fact(x_pow-x_deriv) : 0.0;
+    real_t y_term = (y_pow >= y_deriv) ? pow(x->y - p->x0.y, y_pow - y_deriv) * fact(y_pow)/fact(y_pow-y_deriv) : 0.0;
+    real_t z_term = (z_pow >= z_deriv) ? pow(x->z - p->x0.z, z_pow - z_deriv) * fact(z_pow)/fact(z_pow-z_deriv) : 0.0;
     val += coeff * x_term * y_term * z_term;
   }
   return val;
@@ -370,9 +370,9 @@ polynomial_t* polynomial_derivative(polynomial_t* p, int x_deriv, int y_deriv, i
   int x_pow[p->num_terms], y_pow[p->num_terms], z_pow[p->num_terms];
   for (int i = 0; i < p->num_terms; ++i)
   {
-    coeffs[i] = p->coeffs[i] * fact(p->x_pow[i])/fact(x_deriv) 
-                             * fact(p->y_pow[i])/fact(y_deriv)
-                             * fact(p->z_pow[i])/fact(z_deriv);
+    coeffs[i] = p->coeffs[i] * fact(p->x_pow[i])/fact(p->x_pow[i]-x_deriv) 
+                             * fact(p->y_pow[i])/fact(p->y_pow[i]-y_deriv)
+                             * fact(p->z_pow[i])/fact(p->z_pow[i]-z_deriv);
     x_pow[i] = p->x_pow[i] - x_deriv;
     y_pow[i] = p->y_pow[i] - y_deriv;
     z_pow[i] = p->z_pow[i] - z_deriv;
