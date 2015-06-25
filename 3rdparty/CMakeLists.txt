@@ -1,5 +1,70 @@
 include_directories(${PROJECT_BINARY_DIR}/include)
 
+# Make sure that we have our proper BLAS/LAPACK libraries.
+if (${NEED_LAPACK})
+  include(FindBLAS)
+  include(FindLAPACK)
+  find_package(BLAS)
+  find_package(LAPACK)
+
+  # Before we take the system's word for it, build a tiny test program with 
+  # dgesvx/sgesvx in it.
+  set(lapack_test_source "int main() { char c\; int i\; double d\; float f\;\n")
+  set(lapack_test_source "${lapack_test_source} dgesvx(&c, &c, &i, &i, &d, &i, &d, &i, &i, &c, &d, &d, &d, &i, &d, &i, &d, &d, &d, &d, &i, &i)\;\n")
+  set(lapack_test_source "${lapack_test_source} sgesvx(&c, &c, &i, &i, &f, &i, &f, &i, &i, &c, &f, &f, &f, &i, &f, &i, &f, &f, &f, &f, &i, &i)\;\n")
+  set(lapack_test_source "${lapack_test_source} return 0\; }")
+  set(lapack_test_file ${PROJECT_BINARY_DIR}/3rdparty/test_lapack.c)
+  file(WRITE ${lapack_test_file} ${lapack_test_source})
+  execute_process(COMMAND ${CMAKE_C_COMPILER} ${lapack_test_file} -l${LAPACK_LIBRARIES} -L${LAPACK_LIBRARY_DIR} -L${BLAS_LIBRARY_DIR}
+                  RESULT_VARIABLE stat)
+  if (NOT stat EQUAL 0)
+    message(WARNING "System LAPACK doesn't have dgesvx/sgesvx. Building a later version...")
+    set(LAPACK_FOUND FALSE)
+  endif()
+
+  if (NOT ${LAPACK_FOUND})
+    # I guess we need to go get it!
+    find_package(Wget REQUIRED)
+    set(LAPACK_URL http://www.netlib.org/lapack)
+    set(LAPACK_VERSION 3.5.0)
+    set(LAPACK_DIR lapack-${LAPACK_VERSION})
+    set(LAPACK_TARBALL ${LAPACK_DIR}.tgz)
+message("Seeking ${PROJECT_BINARY_DIR}/3rdparty/${LAPACK_TARBALL}")
+    if (NOT ${PROJECT_BINARY_DIR}/3rdparty/${LAPACK_TARBALL})
+      execute_process(COMMAND wget ${LAPACK_URL}/${LAPACK_TARBALL}
+                      WORKING_DIRECTORY ${PROJECT_BINARY_DIR}/3rdparty)
+    endif()
+    execute_process(COMMAND ${CMAKE_COMMAND} -E tar xzf ${LAPACK_TARBALL}
+                    WORKING_DIRECTORY ${PROJECT_BINARY_DIR}/3rdparty)
+    execute_process(COMMAND ${CMAKE_COMMAND} -E make_directory build
+                    WORKING_DIRECTORY ${PROJECT_BINARY_DIR}/3rdparty/${LAPACK_DIR})
+    execute_process(COMMAND ${CMAKE_COMMAND} ${CMAKE_COMMAND} ..
+                    WORKING_DIRECTORY ${PROJECT_BINARY_DIR}/3rdparty/${LAPACK_DIR}/build)
+    execute_process(COMMAND make
+                    WORKING_DIRECTORY ${PROJECT_BINARY_DIR}/3rdparty/${LAPACK_DIR}/build)
+    execute_process(COMMAND ${CMAKE_COMMAND} -E copy ${LAPACK_DIR}/build/lib/liblapack.a ${PROJECT_BINARY_DIR}/lib/liblapack.a
+                    WORKING_DIRECTORY ${PROJECT_BINARY_DIR}/3rdparty)
+    execute_process(COMMAND ${CMAKE_COMMAND} -E copy ${LAPACK_DIR}/build/lib/libblas.a ${PROJECT_BINARY_DIR}/lib/libblas.a
+                    WORKING_DIRECTORY ${PROJECT_BINARY_DIR}/3rdparty)
+#    add_library(lapack STATIC IMPORTED)
+#    set_target_properties(lapack PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/liblapack.a)
+#    add_library(blas STATIC IMPORTED)
+#    set_target_properties(blas PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libblas.a)
+    set(LAPACK_LIBRARIES lapack;blas)
+  endif()
+  if (${LAPACK_LIBRARY_DIR})
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -L${LAPACK_LIBRARY_DIR}")
+  endif()
+  if (${BLAS_LIBRARY_DIR})
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -L${BLAS_LIBRARY_DIR}")
+  endif()
+  set(POLYMEC_LIBRARIES ${POLYMEC_LIBRARIES};${LAPACK_LIBRARIES};${BLAS_LIBRARIES})
+  if (EXISTS ${PROJECT_BINARY_DIR}/lib/liblapack.a)
+    install(FILES ${PROJECT_BINARY_DIR}/lib/libblas.a DESTINATION lib)
+    install(FILES ${PROJECT_BINARY_DIR}/lib/liblapack.a DESTINATION lib)
+  endif()
+endif()
+
 # Build libgc, the C garbage collector library.
 if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libgc.a)
   set(GC_CONFIG_OPTS --prefix=${PROJECT_BINARY_DIR} --enable-static --disable-shared --enable-threads=pthreads --disable-gcj-support)
