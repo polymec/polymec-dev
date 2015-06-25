@@ -17,6 +17,7 @@
 #include "core/options.h"
 #include "core/array.h"
 #include "core/timer.h"
+#include "core/memory_info.h"
 
 // Standard C support for floating point environment.
 #ifdef LINUX
@@ -85,8 +86,19 @@ static int _num_atexit_funcs = 0;
 
 static void shutdown()
 {
-  log_debug("polymec: Shutting down...");
   ASSERT(polymec_initialized);
+
+  // Print memory information if we're debugging.
+  if (log_level() == LOG_DEBUG)
+  {
+    memory_info_t meminfo;
+    get_memory_info(&meminfo);
+    log_debug("polymec: Shutting down...");
+    log_debug("polymec: Final memory usage: %zu kB resident, %zu kB virtual.", 
+              meminfo.process_resident_size, meminfo.process_virtual_size);
+    log_debug("polymec: Peak memory usage: %zu kB.", 
+              meminfo.process_peak_resident_size);
+  }
 
   // Kill extra provenance data.
   if (polymec_extra_provenance != NULL)
@@ -343,6 +355,15 @@ void polymec_init(int argc, char** argv)
     log_debug("polymec: Calling %d initialization functions.", _num_atinit_funcs);
     for (int i = 0; i < _num_atinit_funcs; ++i)
       _atinit_funcs[i](argc, argv);
+
+    // Print memory information if we're debugging.
+    if (log_level() == LOG_DEBUG)
+    {
+      memory_info_t meminfo;
+      get_memory_info(&meminfo);
+      log_debug("polymec: initialization complete (%zu kB resident, %zu kB virtual).", 
+                meminfo.process_resident_size, meminfo.process_virtual_size);
+    }
   }
 }
 
