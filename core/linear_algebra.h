@@ -18,6 +18,8 @@
 #define dgesv dgesv_
 #define dgetrf dgetrf_
 #define dgetrs dgetrs_
+#define dpotrf dpotrf_
+#define dpotrs dpotrs_
 #define dgeqrf dgeqrf_
 #define dorgqr dorgqr_
 #define dormqr dormqr_
@@ -71,19 +73,6 @@ void sgesv(int* n, int* nrhs, float* A, int* lda, int* ipiv,
 void rgesv(int* n, int* nrhs, real_t* A, int* lda, int* ipiv, 
            real_t* b, int* ldb, int* info);
 
-// Computes an LU factorization.
-void dgetrf(int* n, int* nrhs, double* A, int* lda, int* ipiv, int* info);
-void sgetrf(int* n, int* nrhs, float* A, int* lda, int* ipiv, int* info);
-void rgetrf(int* n, int* nrhs, real_t* A, int* lda, int* ipiv, int* info);
-
-// Solves a linear system using an existing LU factorization.
-void dgetrs(char* trans, int* n, int* nrhs, double* A, 
-            int* lda, int* ipiv, double* b, int* ldb, int* info);
-void sgetrs(char* trans, int* n, int* nrhs, float* A, 
-            int* lda, int* ipiv, float* b, int* ldb, int* info);
-void rgetrs(char* trans, int* n, int* nrhs, real_t* A, 
-            int* lda, int* ipiv, real_t* b, int* ldb, int* info);
-
 // Solves a linear system using LU factorization (existing or not), providing 
 // error bounds and an estimate of the condition number of the matrix A.
 // NOTE: Not universally available, seems to be new. 
@@ -102,6 +91,43 @@ void rgetrs(char* trans, int* n, int* nrhs, real_t* A,
 //            real_t* r, real_t* c, real_t* b, int* ldb, real_t* x, int* ldx,
 //            real_t* rcond, real_t* ferr, real_t* berr, real_t* work, 
 //            int* iwork, int* info);
+
+// Computes an LU factorization.
+void dgetrf(int* n, int* nrhs, double* A, int* lda, int* ipiv, int* info);
+void sgetrf(int* n, int* nrhs, float* A, int* lda, int* ipiv, int* info);
+void rgetrf(int* n, int* nrhs, real_t* A, int* lda, int* ipiv, int* info);
+
+// Solves a linear system using an existing LU factorization.
+void dgetrs(char* trans, int* n, int* nrhs, double* A, 
+            int* lda, int* ipiv, double* b, int* ldb, int* info);
+void sgetrs(char* trans, int* n, int* nrhs, float* A, 
+            int* lda, int* ipiv, float* b, int* ldb, int* info);
+void rgetrs(char* trans, int* n, int* nrhs, real_t* A, 
+            int* lda, int* ipiv, real_t* b, int* ldb, int* info);
+
+// Solves a linear system using Cholesky factorization (in one step).
+// Note that A should be symmetric and positive definite.
+void dposv(char* uplo, int* n, double* nrhs, double* A, int* lda, 
+           double* b, int* ldb, int* info);
+void sposv(char* uplo, int* n, float* nrhs, double* A, int* lda, 
+           float* b, int* ldb, int* info);
+void rposv(char* uplo, int* n, real_t* nrhs, double* A, int* lda, 
+           real_t* b, int* ldb, int* info);
+
+// Computes a Cholesky factorization.
+// Note that A should be symmetric and positive definite.
+void dpotrf(char* uplo, int* n, double* A, int* lda, int* info);
+void spotrf(char* uplo, int* n, float* A, int* lda, int* info);
+void rpotrf(char* uplo, int* n, real_t* A, int* lda, int* info);
+
+// Solves a linear system using an existing Cholesky factorization.
+// Note that A should be symmetric and positive definite.
+void dpotrs(char* uplo, int* n, int* nrhs, double* A, 
+            int* lda, double* b, int* ldb, int* info);
+void spotrs(char* uplo, int* n, int* nrhs, float* A, 
+            int* lda, float* b, int* ldb, int* info);
+void rpotrs(char* uplo, int* n, int* nrhs, real_t* A, 
+            int* lda, real_t* b, int* ldb, int* info);
 
 // QR factorization.
 // The matrix Q is represented as a product of elementary reflectors

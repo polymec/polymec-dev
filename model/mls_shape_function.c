@@ -102,13 +102,13 @@ static void mls_compute(void* context,
   }
 
   // Factor the moment matrix.
-  int pivot[dim], info;
-  rgetrf(&dim, &dim, A, &dim, pivot, &info);
+  char uplo = 'L';
+  int info;
+  rpotrf(&uplo, &dim, A, &dim, &info);
   ASSERT(info == 0);
 
   // Compute Ainv * B.
-  char no_trans = 'N';
-  rgetrs(&no_trans, &dim, &N, A, &dim, pivot, AinvB, &dim, &info);
+  rpotrs(&uplo, &dim, &N, A, &dim, AinvB, &dim, &info);
   ASSERT(info == 0);
 
   // values^T = basis^T * Ainv * B (or values = (Ainv * B)^T * basis.)
@@ -161,6 +161,7 @@ static void mls_compute(void* context,
     // in dAinvBdx, dAinvBdy, and dAinvBdz.
     real_t alpha = 1.0, beta = 0.0;
     real_t dAinvBdx[dim*N], dAinvBdy[dim*N], dAinvBdz[dim*N];
+    char no_trans = 'N';
     rgemm(&no_trans, &no_trans, &dim, &N, &dim, &alpha, 
           dAdx, &dim, AinvB, &dim, &beta, dAinvBdx, &dim);
     rgemm(&no_trans, &no_trans, &dim, &N, &dim, &alpha, 
@@ -178,11 +179,11 @@ static void mls_compute(void* context,
 
     // Now "left-multiply by Ainv" by solving the equation (e.g.)
     // A * (dAinvBdx) = (-dA * Ainv * B + dB).
-    rgetrs(&no_trans, &dim, &N, A, &dim, pivot, dAinvBdx, &dim, &info);
+    rpotrs(&uplo, &dim, &N, A, &dim, dAinvBdx, &dim, &info);
     ASSERT(info == 0);
-    rgetrs(&no_trans, &dim, &N, A, &dim, pivot, dAinvBdy, &dim, &info);
+    rpotrs(&uplo, &dim, &N, A, &dim, dAinvBdy, &dim, &info);
     ASSERT(info == 0);
-    rgetrs(&no_trans, &dim, &N, A, &dim, pivot, dAinvBdz, &dim, &info);
+    rpotrs(&uplo, &dim, &N, A, &dim, dAinvBdz, &dim, &info);
     ASSERT(info == 0);
 
     // Now compute the gradients.
