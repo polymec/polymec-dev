@@ -1,5 +1,18 @@
 include_directories(${PROJECT_BINARY_DIR}/include)
 
+# Build liblapack_extras, which includes things like *gesvx that evidently 
+# aren't universally available yet(?!).
+if (LINUX EQUAL 1)
+  if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/liblapack_extras.a)
+    set(lapack_extras_sources lapack_extras/dgesvx.f;lapack_extras/sgesvx.f)
+    add_library(lapack_extras ${lapack_extras_sources})
+  endif()
+  if (NOT CMAKE_INSTALL_PREFIX STREQUAL "INSTALL_DISABLED")
+    install(FILES ${PROJECT_BINARY_DIR}/lib/liblapack_extras.a DESTINATION lib)
+  endif()
+  set(POLYMEC_TP_LIBS lapack_extras;${POLYMEC_TP_LIBS})
+endif()
+
 # Build libgc, the C garbage collector library.
 if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libgc.a)
   set(GC_CONFIG_OPTS --prefix=${PROJECT_BINARY_DIR} --enable-static --disable-shared --enable-threads=pthreads --disable-gcj-support)
