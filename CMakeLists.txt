@@ -129,11 +129,50 @@ endif()
 
 # Basic libraries to be linked in.
 set(POLYMEC_LIBRARIES m)
-if (${NEED_LAPACK})
+if (NEED_LAPACK EQUAL TRUE)
   include(FindBLAS)
   include(FindLAPACK)
-  find_package(BLAS REQUIRED)
-  find_package(LAPACK REQUIRED)
+  find_package(BLAS)
+  find_package(LAPACK)
+
+  # Before we take the system's word for it, build a tiny test program with 
+  # dgesvx/sgesvx in it.
+  set(lapack_test_source "int main() { char c; int i; double d; float f;\n")
+  set(lapack_test_source "${lapack_test_source} dgesvx(&c, &c, &i, &i, &d, &i, &d, &i, &i, &c, &d, &d, &d, &i, &d, &i, &d, &d, &d, &d, &i, &i);\n")
+  set(lapack_test_source "${lapack_test_source} sgesvx(&c, &c, &i, &i, &f, &i, &f, &i, &i, &c, &f, &f, &f, &i, &f, &i, &f, &f, &f, &f, &i, &i);\n")
+  set(lapack_test_source "${lapack_test_source} return 0; }")
+  set(lapack_test_file ${PROJECT_BINARY_DIR}/3rdparty/test_lapack.c)
+  file(WRITE ${lapack_test_file} ${lapack_test_source})
+  execute_process(COMMAND ${CMAKE_C_COMPILER} ${lapack_test_file} -l${LAPACK_LIBRARIES} -L${LAPACK_LIBRARY_DIR} -L${BLAS_LIBRARY_DIR}
+                  RESULT_VARIABLE stat)
+  if (NOT stat EQUAL 0)
+    message(WARNING "System LAPACK doesn't have dgesvx/sgesvx. Downloading/building new version...")
+    set(LAPACK_FOUND FALSE)
+  endif()
+
+  if (LAPACK_FOUND EQUAL FALSE)
+    # I guess we need to go get it!
+    find_package(Wget REQUIRED)
+    set(LAPACK_URL http://www.netlib.org/lapack)
+    set(LAPACK_VERSION 3.5.0)
+    set(LAPACK_DIR lapack-${LAPACK_VERSION})
+    set(LAPACK_TARBALL ${LAPACK_PREFIX}.tgz)
+    add_custom_target(get_lapack_source wget ${LAPACK_URL}/${LAPACK_TARBALL}
+                      WORKING_DIRECTORY ${PROJECT_BINARY_DIR}/3rdparty)
+    add_custom_command(OUTPUT ${PROJECT_BINARY_DIR}/lib/liblapack.a
+                       COMMAND ${CMAKE_COMMAND} -E tar xzf ${LAPACK_TARBALL}
+                       COMMAND ${CMAKE_COMMAND} -E chdir ${LAPACK_DIR} mkdir build
+                       COMMAND ${CMAKE_COMMAND} -E chdir ${LAPACK_DIR}/build ${CMAKE_COMMAND} ..
+                       COMMAND ${CMAKE_COMMAND} -E copy ${LAPACK_DIR}/build/lib/liblapack.a ${PROJECT_BINARY_DIR}/lib
+                       COMMAND ${CMAKE_COMMAND} -E copy ${LAPACK_DIR}/build/lib/libblas.a ${PROJECT_BINARY_DIR}/lib
+                       WORKING_DIRECTORY ${PROJECT_BINARY_DIR}/3rdparty
+                       DEPENDS get_lapack_source)
+    add_library(lapack STATIC IMPORTED)
+    set_target_properties(lapack PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/liblapack.a)
+    add_library(blas STATIC IMPORTED)
+    set_target_properties(blas PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libblas.a)
+    set(LAPACK_LIBRARIES lapack;blas)
+  endif()
   if (${LAPACK_LIBRARY_DIR})
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -L${LAPACK_LIBRARY_DIR}")
   endif()
