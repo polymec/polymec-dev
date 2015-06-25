@@ -86,21 +86,22 @@ void rgetrs(char* trans, int* n, int* nrhs, real_t* A,
 
 // Solves a linear system using LU factorization (existing or not), providing 
 // error bounds and an estimate of the condition number of the matrix A.
-void dgesvx(char* fact, char* trans, int* n, int* nrhs, double* A,
-            int* lda, double* af, int* ldaf, int* ipiv, char* equed,
-            double* r, double* c, double* b, int* ldb, double* x, int* ldx,
-            double* rcond, double* ferr, double* berr, double* work, 
-            int* iwork, int* info);
-void sgesvx(char* fact, char* trans, int* n, int* nrhs, float* A,
-            int* lda, float* af, int* ldaf, int* ipiv, char* equed,
-            float* r, float* c, float* b, int* ldb, float* x, int* ldx,
-            float* rcond, float* ferr, float* berr, float* work, 
-            int* iwork, int* info);
-void rgesvx(char* fact, char* trans, int* n, int* nrhs, real_t* A,
-            int* lda, real_t* af, int* ldaf, int* ipiv, char* equed,
-            real_t* r, real_t* c, real_t* b, int* ldb, real_t* x, int* ldx,
-            real_t* rcond, real_t* ferr, real_t* berr, real_t* work, 
-            int* iwork, int* info);
+// NOTE: Not universally available, seems to be new. 
+//void dgesvx(char* fact, char* trans, int* n, int* nrhs, double* A,
+//            int* lda, double* af, int* ldaf, int* ipiv, char* equed,
+//            double* r, double* c, double* b, int* ldb, double* x, int* ldx,
+//            double* rcond, double* ferr, double* berr, double* work, 
+//            int* iwork, int* info);
+//void sgesvx(char* fact, char* trans, int* n, int* nrhs, float* A,
+//            int* lda, float* af, int* ldaf, int* ipiv, char* equed,
+//            float* r, float* c, float* b, int* ldb, float* x, int* ldx,
+//            float* rcond, float* ferr, float* berr, float* work, 
+//            int* iwork, int* info);
+//void rgesvx(char* fact, char* trans, int* n, int* nrhs, real_t* A,
+//            int* lda, real_t* af, int* ldaf, int* ipiv, char* equed,
+//            real_t* r, real_t* c, real_t* b, int* ldb, real_t* x, int* ldx,
+//            real_t* rcond, real_t* ferr, real_t* berr, real_t* work, 
+//            int* iwork, int* info);
 
 // QR factorization.
 // The matrix Q is represented as a product of elementary reflectors

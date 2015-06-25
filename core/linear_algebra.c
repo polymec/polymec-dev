@@ -62,20 +62,20 @@ void rgetrs(char* trans, int* n, int* nrhs, real_t* A,
 #endif
 }
 
-void rgesvx(char* fact, char* trans, int* n, int* nrhs, real_t* A,
-            int* lda, real_t* af, int* ldaf, int* ipiv, char* equed,
-            real_t* r, real_t* c, real_t* b, int* ldb, real_t* x, int* ldx,
-            real_t* rcond, real_t* ferr, real_t* berr, real_t* work, 
-            int* iwork, int* info)
-{
-#if POLYMEC_HAVE_DOUBLE_PRECISION
-  dgesvx(fact, trans, n, nrhs, A, lda, af, ldaf, ipiv, equed, r, c, b, ldb, 
-         x, ldx, rcond, ferr, berr, work, iwork, info);
-#else
-  sgesvx(fact, trans, n, nrhs, A, lda, af, ldaf, ipiv, equed, r, c, b, ldb, 
-         x, ldx, rcond, ferr, berr, work, iwork, info);
-#endif
-}
+//void rgesvx(char* fact, char* trans, int* n, int* nrhs, real_t* A,
+//            int* lda, real_t* af, int* ldaf, int* ipiv, char* equed,
+//            real_t* r, real_t* c, real_t* b, int* ldb, real_t* x, int* ldx,
+//            real_t* rcond, real_t* ferr, real_t* berr, real_t* work, 
+//            int* iwork, int* info)
+//{
+//#if POLYMEC_HAVE_DOUBLE_PRECISION
+//  dgesvx(fact, trans, n, nrhs, A, lda, af, ldaf, ipiv, equed, r, c, b, ldb, 
+//         x, ldx, rcond, ferr, berr, work, iwork, info);
+//#else
+//  sgesvx(fact, trans, n, nrhs, A, lda, af, ldaf, ipiv, equed, r, c, b, ldb, 
+//         x, ldx, rcond, ferr, berr, work, iwork, info);
+//#endif
+//}
 
 void rgeqrf(int* m, int* n, real_t* A, int* lda, real_t* tau, real_t* work,
             int* lwork, int* info)
