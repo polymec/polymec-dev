@@ -8,17 +8,85 @@
 #include "core/memory_info.h"
 
 // This stuff is not, ehm, "portable" in any sense of the word. So we do what
-// we can.
+// we can. This stuff is largely taken from the discussion at 
+// stackoverflow.com/questions/63166/how-to-determine-cpu-and-memory-consumption-from-inside-a-process.
 #ifdef LINUX
+#include <sys/types.h>
+#include <sys/sysinfo.h>
+#include <stdio.h>
+#include <string.h>
+#include <stdbool.h>
+#include "core/logging.h"
+
 void get_memory_info_linux(memory_info_t* info)
 {
-  info->total_virtual_memory = 0;
-  info->virtual_memory_used = 0;
-  info->total_physical_memory = 0;
-  info->physical_memory_used = 0;
+  // Available virtual memory.
+  struct sysinfo mem_info;
+  sysinfo (&mem_info);
+  long long vmem = mem_info.totalram;
+  vmem += mem_info.totalswap;
+  vmem *= mem_info.mem_unit;
+  info->total_virtual_memory = vmem / 1024;
+
+  // Used virtual memory.
+  long vmem_used = mem_info.totalram - mem_info.freeram;
+  vmem_used += mem_info.totalswap - mem_info.freeswap;
+  vmem_used *= mem_info.mem_unit;
+  info->virtual_memory_used = vmem / 1024;
+
+  // Available physical memory.
+  long long total_ram = mem_info.totalram;
+  total_ram *= mem_info.mem_unit;
+  info->total_physical_memory = total_ram / 1024;
+
+  // Used physical memory.
+  long long ram_used = mem_info.totalram - mem_info.freeram;
+  ram_used *= mem_info.mem_unit;
+  info->physical_memory_used = ram_used / 1024;
+
+  // Process memory usage.
   info->process_virtual_size = 0;
   info->process_resident_size = 0;
   info->process_peak_resident_size = 0;
+  FILE* proc = fopen("/proc/self/status", "r");
+  static bool first_time = true;
+  if (proc != NULL)
+  {
+    while (!feof(proc))
+    {
+      char proc_line[80];
+      fgets(proc_line, 80, proc);
+
+      // Read off the values of interest (they're already in kB).
+      char* p = strstr(proc_line, "VmHWM:");
+      if (p != NULL)
+      {
+        long long unsigned int hwm = 0;
+        sscanf(p, "VmHWM:"" %llu", &hwm);
+        info->process_peak_resident_size = hwm;
+      }
+      p = strstr(proc_line, "VmSize:");
+      if (p != NULL)
+      {
+        long long unsigned int size = 0;
+        sscanf(p, "VmSize:"" %llu", &size);
+        info->process_virtual_size = size;
+      }
+      p = strstr(proc_line, "VmRSS:");
+      if (p != NULL)
+      {
+        long long unsigned int rss = 0;
+        sscanf(p, "VmRSS:"" %llu", &rss);
+        info->process_resident_size = rss;
+      }
+    }
+  }
+  else if (first_time)
+  {
+    log_debug("get_memory_info: /proc/self/status is not available.");
+    log_debug("get_memory_info: Process memory information will be unreliable.");
+  }
+  first_time = true;
 }
 #endif
 
