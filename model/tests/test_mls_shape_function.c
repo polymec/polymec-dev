@@ -116,9 +116,12 @@ void test_mls_shape_function_zero_consistency_p(void** state, int p)
   {
     shape_function_set_neighborhood(phi, i);
     point_t x = domain->points[i];
-    bbox_t jitterbox = {.x1 = x.x - 0.5*dx, .x2 = x.x + 0.5*dx, 
-                        .y1 = x.y - 0.5*dx, .y2 = x.y + 0.5*dx, 
-                        .z1 = x.z - 0.5*dx, .z2 = x.z + 0.5*dx};
+    bbox_t jitterbox = {.x1 = MAX(domain_box.x1, x.x - 0.5*dx), 
+                        .x2 = MIN(domain_box.x2, x.x + 0.5*dx), 
+                        .y1 = MAX(domain_box.y1, x.y - 0.5*dx), 
+                        .y2 = MIN(domain_box.y2, x.y + 0.5*dx), 
+                        .z1 = MAX(domain_box.z1, x.z - 0.5*dx), 
+                        .z2 = MIN(domain_box.z2, x.z + 0.5*dx)};
     point_randomize(&x, rng, &jitterbox);
     while (!bbox_contains(&domain_box, &x))
     {
