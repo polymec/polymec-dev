@@ -43,20 +43,20 @@ void rgesv(int* n, int* nrhs, real_t* A, int* lda, int* ipiv,
 #endif
 }
 
-//void rgesvx(char* fact, char* trans, int* n, int* nrhs, real_t* A,
-//            int* lda, real_t* af, int* ldaf, int* ipiv, char* equed,
-//            real_t* r, real_t* c, real_t* b, int* ldb, real_t* x, int* ldx,
-//            real_t* rcond, real_t* ferr, real_t* berr, real_t* work, 
-//            int* iwork, int* info)
-//{
-//#if POLYMEC_HAVE_DOUBLE_PRECISION
-//  dgesvx(fact, trans, n, nrhs, A, lda, af, ldaf, ipiv, equed, r, c, b, ldb, 
-//         x, ldx, rcond, ferr, berr, work, iwork, info);
-//#else
-//  sgesvx(fact, trans, n, nrhs, A, lda, af, ldaf, ipiv, equed, r, c, b, ldb, 
-//         x, ldx, rcond, ferr, berr, work, iwork, info);
-//#endif
-//}
+void rgesvx(char* fact, char* trans, int* n, int* nrhs, real_t* A,
+            int* lda, real_t* af, int* ldaf, int* ipiv, char* equed,
+            real_t* r, real_t* c, real_t* b, int* ldb, real_t* x, int* ldx,
+            real_t* rcond, real_t* ferr, real_t* berr, real_t* work, 
+            int* iwork, int* info)
+{
+#if POLYMEC_HAVE_DOUBLE_PRECISION
+  dgesvx(fact, trans, n, nrhs, A, lda, af, ldaf, ipiv, equed, r, c, b, ldb, 
+         x, ldx, rcond, ferr, berr, work, iwork, info);
+#else
+  sgesvx(fact, trans, n, nrhs, A, lda, af, ldaf, ipiv, equed, r, c, b, ldb, 
+         x, ldx, rcond, ferr, berr, work, iwork, info);
+#endif
+}
 
 void rgetrf(int* n, int* nrhs, real_t* A, int* lda, int* ipiv, int* info)
 {
@@ -84,6 +84,21 @@ void rposv(char* uplo, int* n, real_t* nrhs, double* A, int* lda,
   dposv(uplo, n, nrhs, A, lda, b, ldb, info);
 #else
   sposv(uplo, n, nrhs, A, lda, b, ldb, info);
+#endif
+}
+
+void rposvx(char* fact, char* uplo, int* n, int* nrhs, real_t* A,
+            int* lda, real_t* af, int* ldaf, char* equed, real_t* s, 
+            real_t* b, int* ldb, real_t* x, int* ldx,
+            real_t* rcond, real_t* ferr, real_t* berr, real_t* work, 
+            int* iwork, int* info)
+{
+#if POLYMEC_HAVE_DOUBLE_PRECISION
+  dposvx(fact, uplo, n, nrhs, A, lda, af, ldaf, equed, s, b, ldb, 
+         x, ldx, rcond, ferr, berr, work, iwork, info);
+#else
+  sposvx(fact, uplo, n, nrhs, A, lda, af, ldaf, equed, s, b, ldb, 
+         x, ldx, rcond, ferr, berr, work, iwork, info);
 #endif
 }
 

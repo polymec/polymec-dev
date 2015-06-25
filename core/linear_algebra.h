@@ -16,8 +16,11 @@
 #define dgemv dgemv_
 #define dgemm dgemm_
 #define dgesv dgesv_
+#define dgesvx dgesvx_
 #define dgetrf dgetrf_
 #define dgetrs dgetrs_
+#define dposv dposv_
+#define dposvx dposvx_
 #define dpotrf dpotrf_
 #define dpotrs dpotrs_
 #define dgeqrf dgeqrf_
@@ -31,8 +34,13 @@
 #define sgemv sgemv_
 #define sgemm sgemm_
 #define sgesv sgesv_
+#define sgesvx sgesvx_
 #define sgetrf sgetrf_
 #define sgetrs sgetrs_
+#define sposv sposv_
+#define sposvx sposvx_
+#define spotrf spotrf_
+#define spotrs spotrs_
 #define sgeqrf sgeqrf_
 #define sorgqr sorgqr_
 #define sormqr sormqr_
@@ -75,22 +83,21 @@ void rgesv(int* n, int* nrhs, real_t* A, int* lda, int* ipiv,
 
 // Solves a linear system using LU factorization (existing or not), providing 
 // error bounds and an estimate of the condition number of the matrix A.
-// NOTE: Not universally available, seems to be new. 
-//void dgesvx(char* fact, char* trans, int* n, int* nrhs, double* A,
-//            int* lda, double* af, int* ldaf, int* ipiv, char* equed,
-//            double* r, double* c, double* b, int* ldb, double* x, int* ldx,
-//            double* rcond, double* ferr, double* berr, double* work, 
-//            int* iwork, int* info);
-//void sgesvx(char* fact, char* trans, int* n, int* nrhs, float* A,
-//            int* lda, float* af, int* ldaf, int* ipiv, char* equed,
-//            float* r, float* c, float* b, int* ldb, float* x, int* ldx,
-//            float* rcond, float* ferr, float* berr, float* work, 
-//            int* iwork, int* info);
-//void rgesvx(char* fact, char* trans, int* n, int* nrhs, real_t* A,
-//            int* lda, real_t* af, int* ldaf, int* ipiv, char* equed,
-//            real_t* r, real_t* c, real_t* b, int* ldb, real_t* x, int* ldx,
-//            real_t* rcond, real_t* ferr, real_t* berr, real_t* work, 
-//            int* iwork, int* info);
+void dgesvx(char* fact, char* trans, int* n, int* nrhs, double* A,
+            int* lda, double* af, int* ldaf, int* ipiv, char* equed,
+            double* r, double* c, double* b, int* ldb, double* x, int* ldx,
+            double* rcond, double* ferr, double* berr, double* work, 
+            int* iwork, int* info);
+void sgesvx(char* fact, char* trans, int* n, int* nrhs, float* A,
+            int* lda, float* af, int* ldaf, int* ipiv, char* equed,
+            float* r, float* c, float* b, int* ldb, float* x, int* ldx,
+            float* rcond, float* ferr, float* berr, float* work, 
+            int* iwork, int* info);
+void rgesvx(char* fact, char* trans, int* n, int* nrhs, real_t* A,
+            int* lda, real_t* af, int* ldaf, int* ipiv, char* equed,
+            real_t* r, real_t* c, real_t* b, int* ldb, real_t* x, int* ldx,
+            real_t* rcond, real_t* ferr, real_t* berr, real_t* work, 
+            int* iwork, int* info);
 
 // Computes an LU factorization.
 void dgetrf(int* n, int* nrhs, double* A, int* lda, int* ipiv, int* info);
@@ -113,6 +120,25 @@ void sposv(char* uplo, int* n, float* nrhs, double* A, int* lda,
            float* b, int* ldb, int* info);
 void rposv(char* uplo, int* n, real_t* nrhs, double* A, int* lda, 
            real_t* b, int* ldb, int* info);
+
+// Solves a linear system using Cholesky factorization (existing or not), 
+// providing error bounds and an estimate of the condition number of the 
+// (symmetric positive definite) matrix A.
+void dposvx(char* fact, char* uplo, int* n, int* nrhs, double* A,
+            int* lda, double* af, int* ldaf, char* equed, double* s, 
+            double* b, int* ldb, double* x, int* ldx,
+            double* rcond, double* ferr, double* berr, double* work, 
+            int* iwork, int* info);
+void sposvx(char* fact, char* uplo, int* n, int* nrhs, float* A,
+            int* lda, float* af, int* ldaf, char* equed, float* s, 
+            float* b, int* ldb, float* x, int* ldx,
+            float* rcond, float* ferr, float* berr, float* work, 
+            int* iwork, int* info);
+void rposvx(char* fact, char* uplo, int* n, int* nrhs, real_t* A,
+            int* lda, real_t* af, int* ldaf, char* equed, real_t* s, 
+            real_t* b, int* ldb, real_t* x, int* ldx,
+            real_t* rcond, real_t* ferr, real_t* berr, real_t* work, 
+            int* iwork, int* info);
 
 // Computes a Cholesky factorization.
 // Note that A should be symmetric and positive definite.
