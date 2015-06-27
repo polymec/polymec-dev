@@ -25,12 +25,10 @@ To install polymec, run
 
     $ make install
 
-The default installation prefix is /usr/local. To pick an installation 
-prefix for polymec pass prefix=[path] to make config. For example,
+There is no default installation prefix, so you must specify one with the 
+prefix=[path] argument to make config. For example:
 
     $ make config prefix=~/myroot/
-
-will cause polymec to be installed in ~/myroot/ when make install is run.
 
 Other make commands
 -------------------
