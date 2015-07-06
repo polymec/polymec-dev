@@ -17,13 +17,14 @@
 #include "arkode/arkode_spgmr.h"
 #include "arkode/arkode_spfgmr.h"
 #include "arkode/arkode_spbcgs.h"
-#include "arkode/arkode_sppcg.h"
+#include "arkode/arkode_pcg.h"
 #include "arkode/arkode_sptfqmr.h"
 
 struct ark_ode_observer_t 
 {
   void* context;
-  void (*rhs_computed)(void* context, real_t t, real_t* x, real_t* rhs);
+  void (*fe_computed)(void* context, real_t t, real_t* x, real_t* fe);
+  void (*fi_computed)(void* context, real_t t, real_t* x, real_t* fi);
   void (*Jy_computed)(void* context, real_t t, real_t* x, real_t* rhs, real_t* y, real_t* Jy);
   void (*dtor)(void* context);
 };
@@ -33,15 +34,19 @@ typedef struct
   MPI_Comm comm;
   int num_local_values, num_remote_values;
   void* context; 
-  int (*rhs)(void* context, real_t t, real_t* x, real_t* xdot);
+  int (*fe)(void* context, real_t t, real_t* x, real_t* fe);
+  int (*fi)(void* context, real_t t, real_t* x, real_t* fi);
+  real_t (*stable_dt)(void* context, real_t t, real_t* x);
   void (*dtor)(void* context);
 
-  // CVODE data structures.
-  void* cvode;
+  // ARKode data structures.
+  void* arkode;
   N_Vector x; 
   real_t* x_with_ghosts;
   real_t t;
   char* status_message; // status of most recent integration.
+
+  bool first_step;
 
   // JFNK stuff.
   int max_krylov_dim;
@@ -59,41 +64,39 @@ typedef struct
 static char* get_status_message(int status, real_t current_time)
 {
   char* status_message = NULL;
-  if (status == CV_TOO_CLOSE)
-    status_message = string_dup("t1 and t2 are too close to each other.");
-  else if (status == CV_TOO_MUCH_WORK)
+  if (status == ARK_TOO_MUCH_WORK)
   {
     char err[1024];
     snprintf(err, 1024, "Integrator stopped at t = %g after maximum number of steps.", current_time);
     status_message = string_dup(err);
   }
-  else if (status == CV_TOO_MUCH_ACC)
+  else if (status == ARK_TOO_MUCH_ACC)
     status_message = string_dup("Integrator could not achieve desired level of accuracy.");
-  else if (status == CV_ERR_FAILURE)
+  else if (status == ARK_ERR_FAILURE)
     status_message = string_dup("Integrator encountered too many error test failures.");
-  else if (status == CV_CONV_FAILURE)
+  else if (status == ARK_CONV_FAILURE)
     status_message = string_dup("Integrator encountered too many convergence test failures.");
-  else if (status == CV_LINIT_FAIL)
+  else if (status == ARK_LINIT_FAIL)
     status_message = string_dup("Integrator's linear solver failed to initialize.");
-  else if (status == CV_LSETUP_FAIL)
+  else if (status == ARK_LSETUP_FAIL)
     status_message = string_dup("Integrator's linear solver setup failed.");
-  else if (status == CV_LSOLVE_FAIL)
+  else if (status == ARK_LSOLVE_FAIL)
     status_message = string_dup("Integrator's linear solver failed.");
-  else if (status == CV_RHSFUNC_FAIL)
+  else if (status == ARK_RHSFUNC_FAIL)
     status_message = string_dup("Integrator's RHS function failed unrecoverably.");
-  else if (status == CV_FIRST_RHSFUNC_ERR)
+  else if (status == ARK_FIRST_RHSFUNC_ERR)
     status_message = string_dup("Integrator's first call to RHS function failed.");
-  else if (status == CV_REPTD_RHSFUNC_ERR)
+  else if (status == ARK_REPTD_RHSFUNC_ERR)
     status_message = string_dup("Integrator encountered too many recoverable RHS failures.");
-  else if (status == CV_UNREC_RHSFUNC_ERR)
+  else if (status == ARK_UNREC_RHSFUNC_ERR)
     status_message = string_dup("Integrator failed to recover from a recoverable RHS failure.");
-  else if (status == CV_RTFUNC_FAIL)
+  else if (status == ARK_RTFUNC_FAIL)
     status_message = string_dup("Integrator encountered a failure in the rootfinding function.");
   return status_message;
 }
 
-// This function wraps around the user-supplied right hand side.
-static int ark_evaluate_rhs(real_t t, N_Vector x, N_Vector x_dot, void* context)
+// This function wraps around the user-supplied explicit RHS.
+static int evaluate_fe(real_t t, N_Vector x, N_Vector x_dot, void* context)
 {
   START_FUNCTION_TIMER();
   ark_ode_t* integ = context;
@@ -102,7 +105,7 @@ static int ark_evaluate_rhs(real_t t, N_Vector x, N_Vector x_dot, void* context)
 
   // Evaluate the RHS using a solution vector with ghosts.
   memcpy(integ->x_with_ghosts, xx, sizeof(real_t) * integ->num_local_values);
-  int status = integ->rhs(integ->context, t, integ->x_with_ghosts, xxd);
+  int status = integ->fe(integ->context, t, integ->x_with_ghosts, xxd);
   if (status == 0)
   {
     // Copy the local result into our solution vector.
@@ -113,8 +116,37 @@ static int ark_evaluate_rhs(real_t t, N_Vector x, N_Vector x_dot, void* context)
   for (int i = 0; i < integ->observers->size; ++i)
   {
     ark_ode_observer_t* obs = integ->observers->data[i];
-    if (obs->rhs_computed != NULL)
-      obs->rhs_computed(obs->context, t, xx, xxd);
+    if (obs->fe_computed != NULL)
+      obs->fe_computed(obs->context, t, xx, xxd);
+  }
+
+  STOP_FUNCTION_TIMER();
+  return status;
+}
+
+// This function wraps around the user-supplied implicit RHS.
+static int evaluate_fi(real_t t, N_Vector x, N_Vector x_dot, void* context)
+{
+  START_FUNCTION_TIMER();
+  ark_ode_t* integ = context;
+  real_t* xx = NV_DATA(x);
+  real_t* xxd = NV_DATA(x_dot);
+
+  // Evaluate the RHS using a solution vector with ghosts.
+  memcpy(integ->x_with_ghosts, xx, sizeof(real_t) * integ->num_local_values);
+  int status = integ->fi(integ->context, t, integ->x_with_ghosts, xxd);
+  if (status == 0)
+  {
+    // Copy the local result into our solution vector.
+    memcpy(xx, integ->x_with_ghosts, sizeof(real_t) * integ->num_local_values);
+  }
+
+  // Tell our observers we've computed the right hand side.
+  for (int i = 0; i < integ->observers->size; ++i)
+  {
+    ark_ode_observer_t* obs = integ->observers->data[i];
+    if (obs->fi_computed != NULL)
+      obs->fi_computed(obs->context, t, xx, xxd);
   }
 
   STOP_FUNCTION_TIMER();
@@ -125,7 +157,13 @@ static bool ark_step(void* context, real_t max_dt, real_t* t, real_t* x)
 {
   START_FUNCTION_TIMER();
   ark_ode_t* integ = context;
-  int status = CV_SUCCESS;
+  int status = ARK_SUCCESS;
+
+  if (integ->first_step)
+  {
+    ARKodeSetInitStep(integ->arkode, max_dt);
+    integ->first_step = false;
+  }
 
   // If *t + max_dt is less than the time to which we've already integrated, 
   // we don't need to integrate; we only need to interpolate backward.
@@ -133,8 +171,8 @@ static bool ark_step(void* context, real_t max_dt, real_t* t, real_t* x)
   if (t2 > integ->t)
   {
     // Integrate to at least t -> t + max_dt.
-    status = CVode(integ->cvode, t2, integ->x, &integ->t, CV_ONE_STEP);
-    if ((status != CV_SUCCESS) && (status != CV_TSTOP_RETURN))
+    status = ARKode(integ->arkode, t2, integ->x, &integ->t, ARK_ONE_STEP);
+    if ((status != ARK_SUCCESS) && (status != ARK_TSTOP_RETURN))
     {
       integ->status_message = get_status_message(status, integ->t);
       STOP_FUNCTION_TIMER();
@@ -148,7 +186,7 @@ static bool ark_step(void* context, real_t max_dt, real_t* t, real_t* x)
   // If we integrated past t2, interpolate to t2.
   if (integ->t > t2)
   {
-    status = CVodeGetDky(integ->cvode, t2, 0, integ->x);
+    status = ARKodeGetDky(integ->arkode, t2, 0, integ->x);
     *t = t2;
   }
   else
@@ -162,7 +200,7 @@ static bool ark_step(void* context, real_t max_dt, real_t* t, real_t* x)
   }
 
   // Did it work?
-  if ((status == CV_SUCCESS) || (status == CV_TSTOP_RETURN))
+  if ((status == ARK_SUCCESS) || (status == ARK_TSTOP_RETURN))
   {
     // Copy out the solution.
     memcpy(x, NV_DATA(integ->x), sizeof(real_t) * integ->num_local_values); 
@@ -181,14 +219,14 @@ static bool ark_advance(void* context, real_t t1, real_t t2, real_t* x)
 {
   ark_ode_t* integ = context;
   integ->t = t1;
-  CVodeReInit(integ->cvode, t1, integ->x);
-  CVodeSetStopTime(integ->cvode, t2);
+  ARKodeReInit(integ->arkode, evaluate_fe, evaluate_fi, t1, integ->x);
+  ARKodeSetStopTime(integ->arkode, t2);
   
   // Copy in the solution.
   memcpy(NV_DATA(integ->x), x, sizeof(real_t) * integ->num_local_values); 
 
   // Integrate.
-  int status = CVode(integ->cvode, t2, integ->x, &integ->t, CV_NORMAL);
+  int status = ARKode(integ->arkode, t2, integ->x, &integ->t, ARK_NORMAL);
   
   // Clear the present status.
   if (integ->status_message != NULL)
@@ -198,7 +236,7 @@ static bool ark_advance(void* context, real_t t1, real_t t2, real_t* x)
   }
 
   // Did it work?
-  if ((status == CV_SUCCESS) || (status == CV_TSTOP_RETURN))
+  if ((status == ARK_SUCCESS) || (status == ARK_TSTOP_RETURN))
   {
     // Copy out the solution.
     memcpy(x, NV_DATA(integ->x), sizeof(real_t) * integ->num_local_values); 
@@ -214,13 +252,14 @@ static bool ark_advance(void* context, real_t t1, real_t t2, real_t* x)
 static void ark_reset(void* context, real_t t, real_t* x)
 {
   ark_ode_t* integ = context;
+  integ->first_step = true;
 
   // Reset the preconditioner.
   newton_pc_reset(integ->precond, t);
 
   // Copy in the solution and reinitialize.
   memcpy(NV_DATA(integ->x), x, sizeof(real_t) * integ->num_local_values); 
-  CVodeReInit(integ->cvode, t, integ->x);
+  ARKodeReInit(integ->arkode, evaluate_fe, evaluate_fi, t, integ->x);
   integ->t = t;
 }
 
@@ -232,10 +271,10 @@ static void ark_dtor(void* context)
   if (integ->precond != NULL)
     newton_pc_free(integ->precond);
 
-  // Kill the CVode stuff.
+  // Kill the ARKode stuff.
   polymec_free(integ->x_with_ghosts);
   N_VDestroy(integ->x);
-  CVodeFree(&integ->cvode);
+  ARKodeFree(&integ->arkode);
 
   // Kill the rest.
   if (integ->status_message != NULL)
@@ -292,6 +331,16 @@ static int solve_preconditioner_system(real_t t, N_Vector x, N_Vector F,
   return result;
 }
 
+// Adaptor for stable_dt function
+static int stable_dt(N_Vector y, real_t t, real_t* dt_stable, void* context)
+{
+  START_FUNCTION_TIMER();
+  ark_ode_t* integ = context;
+  *dt_stable = integ->stable_dt(integ->context, t, NV_DATA(y));
+  STOP_FUNCTION_TIMER();
+  return ARK_SUCCESS;
+}
+
 // Adaptor for J*y function
 static int eval_Jy(N_Vector y, N_Vector Jy, real_t t, N_Vector x, N_Vector rhs, void* context, N_Vector tmp)
 {
@@ -319,23 +368,110 @@ static int eval_Jy(N_Vector y, N_Vector Jy, real_t t, N_Vector x, N_Vector rhs, 
   return status;
 }
 
+ode_integrator_t* explicit_ark_ode_integrator_new(int order, 
+                                                  MPI_Comm comm,
+                                                  int num_local_values, 
+                                                  int num_remote_values, 
+                                                  void* context, 
+                                                  int (*fe_func)(void* context, real_t t, real_t* x, real_t* fe),
+                                                  real_t (*stable_dt_func)(void* context, real_t, real_t* x),
+                                                  void (*dtor)(void* context))
+{
+  return functional_ark_ode_integrator_new(order, comm, num_local_values, 
+                                           num_remote_values, context, fe_func, 
+                                           NULL, stable_dt_func, dtor, 0);
+}
+
+ode_integrator_t* functional_ark_ode_integrator_new(int order, 
+                                                    MPI_Comm comm,
+                                                    int num_local_values, 
+                                                    int num_remote_values, 
+                                                    void* context, 
+                                                    int (*fe_func)(void* context, real_t t, real_t* x, real_t* fe),
+                                                    int (*fi_func)(void* context, real_t t, real_t* x, real_t* fi),
+                                                    real_t (*stable_dt_func)(void* context, real_t, real_t* x),
+                                                    void (*dtor)(void* context),
+                                                    int max_anderson_accel_dim)
+{
+  ASSERT((max_anderson_accel_dim >= 1) || (fi_func == NULL));
+  ASSERT((order >= 3) || ((order >= 2) && ((fe_func == NULL) || (fi_func == NULL))));
+  ASSERT((order <= 5) || ((order <= 6) && (fi_func == NULL)));
+  ASSERT(num_local_values > 0);
+  ASSERT(num_remote_values >= 0);
+  ASSERT((fe_func != NULL) || (fi_func != NULL));
+
+  ark_ode_t* integ = polymec_malloc(sizeof(ark_ode_t));
+  integ->comm = comm;
+  integ->num_local_values = num_local_values;
+  integ->num_remote_values = num_remote_values;
+  integ->context = context;
+  integ->fe = fe_func;
+  integ->fi = fi_func;
+  integ->dtor = dtor;
+  integ->status_message = NULL;
+  integ->max_krylov_dim = 0;
+  integ->stable_dt = (fe_func != NULL) ? stable_dt_func : NULL;
+  integ->Jy = NULL;
+  integ->t = 0.0;
+  integ->observers = ptr_array_new();
+  integ->error_weights = NULL;
+  integ->first_step = true;
+
+  // Set up ARKode and accessories.
+  integ->x = N_VNew(integ->comm, integ->num_local_values);
+  integ->x_with_ghosts = polymec_malloc(sizeof(real_t) * (integ->num_local_values + integ->num_remote_values));
+  integ->arkode = ARKodeCreate();
+  ARKodeSetOrder(integ->arkode, order);
+  ARKodeSetUserData(integ->arkode, integ);
+  if (fi_func == NULL)
+    ARKodeSetExplicit(integ->arkode);
+  else if (fe_func == NULL)
+    ARKodeSetImplicit(integ->arkode);
+  else
+    ARKodeSetImEx(integ->arkode);
+  if ((integ->fe != NULL) && (integ->stable_dt != NULL))
+    ARKodeSetStabilityFn(integ->arkode, stable_dt, integ);
+  if (integ->fi != NULL)
+    ARKodeSetFixedPoint(integ->arkode, max_anderson_accel_dim);
+  ARKodeInit(integ->arkode, evaluate_fe, evaluate_fi, 0.0, integ->x);
+
+  ode_integrator_vtable vtable = {.step = ark_step, .advance = ark_advance, .reset = ark_reset, .dtor = ark_dtor};
+  char name[1024];
+  if (integ->fi != NULL)
+    snprintf(name, 1024, "Additive Runge-Kutta (fixed-point, order %d)", order);
+  else
+    snprintf(name, 1024, "Explicit Runge-Kutta (order %d)", order);
+  ode_integrator_t* I = ode_integrator_new(name, integ, vtable, order);
+
+  // Set default tolerances.
+  // relative error of 1e-4 means errors are controlled to 0.01%.
+  // absolute error is set to 1 because it's completely problem dependent.
+  ark_ode_integrator_set_tolerances(I, 1e-4, 1.0);
+
+  return I;
+}
+
 ode_integrator_t* jfnk_ark_ode_integrator_new(int order,
                                               MPI_Comm comm,
                                               int num_local_values, 
                                               int num_remote_values, 
                                               void* context, 
-                                              int (*rhs_func)(void* context, real_t t, real_t* x, real_t* xdot),
+                                              int (*fe_func)(void* context, real_t t, real_t* x, real_t* fe),
+                                              int (*fi_func)(void* context, real_t t, real_t* x, real_t* fi),
+                                              bool fi_is_linear,
+                                              bool fi_is_time_dependent,
+                                              real_t (*stable_dt_func)(void* context, real_t, real_t* x),
                                               int (*Jy_func)(void* context, real_t t, real_t* x, real_t* rhs, real_t* y, real_t* temp, real_t* Jy),
                                               void (*dtor)(void* context),
                                               newton_pc_t* precond,
                                               jfnk_ark_krylov_t solver_type,
                                               int max_krylov_dim)
 {
-  ASSERT(order >= 1);
-  ASSERT(order <= 12);
+  ASSERT((order >= 3) || ((order >= 2) && ((fe_func == NULL) || (fi_func == NULL))));
+  ASSERT((order <= 5) || ((order <= 6) && (fi_func == NULL)));
   ASSERT(num_local_values > 0);
   ASSERT(num_remote_values >= 0);
-  ASSERT(rhs_func != NULL);
+  ASSERT(fi_func != NULL);
   ASSERT(precond != NULL);
   ASSERT(max_krylov_dim > 3);
   ASSERT(!newton_pc_coefficients_fixed(precond));
@@ -345,45 +481,68 @@ ode_integrator_t* jfnk_ark_ode_integrator_new(int order,
   integ->num_local_values = num_local_values;
   integ->num_remote_values = num_remote_values;
   integ->context = context;
-  integ->rhs = rhs_func;
+  integ->fe = fe_func;
+  integ->fi = fi_func;
   integ->dtor = dtor;
   integ->status_message = NULL;
   integ->max_krylov_dim = max_krylov_dim;
+  integ->stable_dt = (fe_func != NULL) ? stable_dt_func : NULL;
   integ->Jy = Jy_func;
   integ->t = 0.0;
   integ->observers = ptr_array_new();
   integ->error_weights = NULL;
+  integ->first_step = true;
 
-  // Set up KINSol and accessories.
+  // Set up ARKode and accessories.
   integ->x = N_VNew(integ->comm, integ->num_local_values);
   integ->x_with_ghosts = polymec_malloc(sizeof(real_t) * (integ->num_local_values + integ->num_remote_values));
-  integ->cvode = CVodeCreate(CV_ARK, CV_NEWTON);
-  CVodeSetMaxOrd(integ->cvode, order);
-  CVodeSetUserData(integ->cvode, integ);
-  CVodeInit(integ->cvode, ark_evaluate_rhs, 0.0, integ->x);
+  integ->arkode = ARKodeCreate();
+  ARKodeSetOrder(integ->arkode, order);
+  ARKodeSetUserData(integ->arkode, integ);
+  if (fe_func == NULL)
+    ARKodeSetImplicit(integ->arkode);
+  else
+    ARKodeSetImEx(integ->arkode);
+  if (integ->stable_dt != NULL)
+    ARKodeSetStabilityFn(integ->arkode, stable_dt, integ);
+  if (fi_is_linear)
+    ARKodeSetLinear(integ->arkode, fi_is_time_dependent);
+  ARKodeSetErrFile(integ->arkode, log_stream(LOG_URGENT));
+  ARKodeInit(integ->arkode, evaluate_fe, evaluate_fi, 0.0, integ->x);
 
   // Set up the solver type.
   if (solver_type == JFNK_ARK_GMRES)
   {
-    CVSpgmr(integ->cvode, PREC_LEFT, max_krylov_dim); 
+    ARKSpgmr(integ->arkode, PREC_LEFT, max_krylov_dim); 
     // We use modified Gram-Schmidt orthogonalization.
-    CVSpilsSetGSType(integ->cvode, MODIFIED_GS);
+    ARKSpilsSetGSType(integ->arkode, MODIFIED_GS);
+  }
+  else if (solver_type == JFNK_ARK_FGMRES)
+  {
+    ARKSpfgmr(integ->arkode, PREC_LEFT, max_krylov_dim); 
+    // We use modified Gram-Schmidt orthogonalization.
+    ARKSpilsSetGSType(integ->arkode, MODIFIED_GS);
   }
   else if (solver_type == JFNK_ARK_BICGSTAB)
-    CVSpbcg(integ->cvode, PREC_LEFT, max_krylov_dim);
+    ARKSpbcg(integ->arkode, PREC_LEFT, max_krylov_dim);
+  else if (solver_type == JFNK_ARK_PCG)
+    ARKPcg(integ->arkode, PREC_LEFT, max_krylov_dim);
   else
-    CVSptfqmr(integ->cvode, PREC_LEFT, max_krylov_dim);
+    ARKSptfqmr(integ->arkode, PREC_LEFT, max_krylov_dim);
 
   // Set up the Jacobian function and preconditioner.
   if (Jy_func != NULL)
-    CVSpilsSetJacTimesVecFn(integ->cvode, eval_Jy);
+    ARKSpilsSetJacTimesVecFn(integ->arkode, eval_Jy);
   integ->precond = precond;
-  CVSpilsSetPreconditioner(integ->cvode, set_up_preconditioner,
-                           solve_preconditioner_system);
+  ARKSpilsSetPreconditioner(integ->arkode, set_up_preconditioner,
+                            solve_preconditioner_system);
 
   ode_integrator_vtable vtable = {.step = ark_step, .advance = ark_advance, .reset = ark_reset, .dtor = ark_dtor};
   char name[1024];
-  snprintf(name, 1024, "JFNK Backwards-Difference-Formulae (order %d)", order);
+  if (integ->fi != NULL)
+    snprintf(name, 1024, "JFNK Additive Runge-Kutta (fixed-point, order %d)", order);
+  else
+    snprintf(name, 1024, "Explicit Runge-Kutta (order %d)", order);
   ode_integrator_t* I = ode_integrator_new(name, integ, vtable, order);
 
   // Set default tolerances.
@@ -400,12 +559,54 @@ void* ark_ode_integrator_context(ode_integrator_t* integrator)
   return integ->context;
 }
 
+void ark_ode_integrator_set_step_controls(ode_integrator_t* integrator,
+                                          real_t max_growth,
+                                          real_t max_initial_growth,
+                                          real_t max_convergence_cut_factor,
+                                          real_t max_accuracy_cut_factor,
+                                          real_t safety_factor,
+                                          real_t cfl_fraction)
+{
+  ark_ode_t* integ = ode_integrator_context(integrator);
+  ASSERT(max_growth > 1.0);
+  ASSERT(max_initial_growth > 1.0);
+  ASSERT(max_convergence_cut_factor > 0.0);
+  ASSERT(max_convergence_cut_factor < 1.0);
+  ASSERT(max_accuracy_cut_factor > 0.0);
+  ASSERT(max_accuracy_cut_factor < 1.0);
+  ASSERT((cfl_fraction > 0.0) || (integ->fe == NULL));
+  ASSERT((cfl_fraction <= 1.0) || (integ->fe == NULL));
+  ARKodeSetMaxGrowth(integ->arkode, max_growth);
+  ARKodeSetMaxFirstGrowth(integ->arkode, max_initial_growth);
+  ARKodeSetMaxCFailGrowth(integ->arkode, max_convergence_cut_factor);
+  ARKodeSetMaxEFailGrowth(integ->arkode, max_accuracy_cut_factor);
+  ARKodeSetSafetyFactor(integ->arkode, safety_factor);
+  if (integ->fe != NULL)
+    ARKodeSetCFLFraction(integ->arkode, cfl_fraction);
+}
+
+void ark_ode_integrator_set_predictor(ode_integrator_t* integrator, 
+                                      ark_predictor_t predictor)
+{
+  ark_ode_t* integ = ode_integrator_context(integrator);
+  int pred = 3;
+  switch (predictor)
+  {
+    case ARK_TRIVIAL_PREDICTOR: pred = 0; break;
+    case ARK_MAXORDER_PREDICTOR: pred = 1; break;
+    case ARK_VARORDER_PREDICTOR: pred = 2; break;
+    case ARK_CUTOFF_PREDICTOR: pred = 3; break;
+    case ARK_BOOTSTRAP_PREDICTOR: pred = 4;
+  }
+  ARKodeSetPredictorMethod(integ->arkode, pred);
+}
+
 void ark_ode_integrator_set_max_err_test_failures(ode_integrator_t* integrator,
                                                   int max_failures)
 {
   ASSERT(max_failures > 0);
   ark_ode_t* integ = ode_integrator_context(integrator);
-  CVodeSetMaxErrTestFails(integ->cvode, max_failures);
+  ARKodeSetMaxErrTestFails(integ->arkode, max_failures);
 }
 
 void ark_ode_integrator_set_max_nonlinear_iterations(ode_integrator_t* integrator,
@@ -413,7 +614,7 @@ void ark_ode_integrator_set_max_nonlinear_iterations(ode_integrator_t* integrato
 {
   ASSERT(max_iterations > 0);
   ark_ode_t* integ = ode_integrator_context(integrator);
-  CVodeSetMaxNonlinIters(integ->cvode, max_iterations);
+  ARKodeSetMaxNonlinIters(integ->arkode, max_iterations);
 }
 
 void ark_ode_integrator_set_nonlinear_convergence_coeff(ode_integrator_t* integrator,
@@ -421,7 +622,7 @@ void ark_ode_integrator_set_nonlinear_convergence_coeff(ode_integrator_t* integr
 {
   ASSERT(coefficient > 0.0);
   ark_ode_t* integ = ode_integrator_context(integrator);
-  CVodeSetNonlinConvCoef(integ->cvode, (double)coefficient);
+  ARKodeSetNonlinConvCoef(integ->arkode, coefficient);
 }
 
 void ark_ode_integrator_set_tolerances(ode_integrator_t* integrator,
@@ -441,7 +642,7 @@ void ark_ode_integrator_set_tolerances(ode_integrator_t* integrator,
   }
 
   // Set the tolerances.
-  CVodeSStolerances(integ->cvode, relative_tol, absolute_tol);
+  ARKodeSStolerances(integ->arkode, relative_tol, absolute_tol);
 }
 
 // Constant error weight adaptor function.
@@ -494,21 +695,31 @@ void ark_ode_integrator_set_error_weight_function(ode_integrator_t* integrator,
   ark_ode_t* integ = ode_integrator_context(integrator);
   ASSERT(compute_weights != NULL);
   integ->compute_weights = compute_weights;
-  CVodeWFtolerances(integ->cvode, compute_error_weights);
+  ARKodeWFtolerances(integ->arkode, compute_error_weights);
 }
 
-void ark_ode_integrator_set_stability_limit_detection(ode_integrator_t* integrator,
-                                                      bool use_detection)
+void ark_ode_integrator_eval_fe(ode_integrator_t* integrator, real_t t, real_t* X, real_t* fe)
 {
   ark_ode_t* integ = ode_integrator_context(integrator);
-  CVodeSetStabLimDet(integ->cvode, use_detection);
+  if (integ->fe != NULL)
+  {
+    memcpy(integ->x_with_ghosts, X, sizeof(real_t) * integ->num_local_values);
+    integ->fe(integ->context, t, integ->x_with_ghosts, fe);
+  }
+  else
+    memset(fe, 0, sizeof(real_t) * integ->num_local_values);
 }
 
-void ark_ode_integrator_eval_rhs(ode_integrator_t* integrator, real_t t, real_t* X, real_t* rhs)
+void ark_ode_integrator_eval_fi(ode_integrator_t* integrator, real_t t, real_t* X, real_t* fi)
 {
   ark_ode_t* integ = ode_integrator_context(integrator);
-  memcpy(integ->x_with_ghosts, X, sizeof(real_t) * integ->num_local_values);
-  integ->rhs(integ->context, t, integ->x_with_ghosts, rhs);
+  if (integ->fi != NULL)
+  {
+    memcpy(integ->x_with_ghosts, X, sizeof(real_t) * integ->num_local_values);
+    integ->fi(integ->context, t, integ->x_with_ghosts, fi);
+  }
+  else
+    memset(fi, 0, sizeof(real_t) * integ->num_local_values);
 }
 
 newton_pc_t* ark_ode_integrator_preconditioner(ode_integrator_t* integrator)
@@ -522,35 +733,45 @@ void ark_ode_integrator_get_diagnostics(ode_integrator_t* integrator,
 {
   ark_ode_t* integ = ode_integrator_context(integrator);
   diagnostics->status_message = integ->status_message; // borrowed!
-  CVodeGetNumSteps(integ->cvode, &diagnostics->num_steps);
-  CVodeGetLastOrder(integ->cvode, &diagnostics->order_of_last_step);
-  CVodeGetCurrentOrder(integ->cvode, &diagnostics->order_of_next_step);
-  CVodeGetLastStep(integ->cvode, &diagnostics->last_step_size);
-  CVodeGetCurrentStep(integ->cvode, &diagnostics->next_step_size);
-  CVodeGetNumRhsEvals(integ->cvode, &diagnostics->num_rhs_evaluations);
-  CVodeGetNumLinSolvSetups(integ->cvode, &diagnostics->num_linear_solve_setups);
-  CVodeGetNumErrTestFails(integ->cvode, &diagnostics->num_error_test_failures);
-  CVodeGetNumNonlinSolvIters(integ->cvode, &diagnostics->num_nonlinear_solve_iterations);
-  CVodeGetNumNonlinSolvConvFails(integ->cvode, &diagnostics->num_nonlinear_solve_convergence_failures);
-  CVSpilsGetNumLinIters(integ->cvode, &diagnostics->num_linear_solve_iterations);
-  CVSpilsGetNumPrecEvals(integ->cvode, &diagnostics->num_preconditioner_evaluations);
-  CVSpilsGetNumPrecSolves(integ->cvode, &diagnostics->num_preconditioner_solves);
-  CVSpilsGetNumConvFails(integ->cvode, &diagnostics->num_linear_solve_convergence_failures);
+  ARKodeGetIntegratorStats(integ->arkode, 
+                           &diagnostics->num_steps,
+                           &diagnostics->num_explicit_steps,
+                           &diagnostics->num_accuracy_steps,
+                           &diagnostics->num_step_attempts,
+                           &diagnostics->num_fe_evaluations, 
+                           &diagnostics->num_fi_evaluations, 
+                           &diagnostics->num_linear_solve_setups, 
+                           &diagnostics->num_error_test_failures, 
+                           &diagnostics->initial_step_size, 
+                           &diagnostics->last_step_size, 
+                           &diagnostics->next_step_size, 
+                           &diagnostics->t);
+  ARKodeGetNonlinSolvStats(integ->arkode, 
+                           &diagnostics->num_nonlinear_solve_iterations,
+                           &diagnostics->num_nonlinear_solve_convergence_failures);
+  ARKSpilsGetNumLinIters(integ->arkode, &diagnostics->num_linear_solve_iterations);
+  ARKSpilsGetNumPrecEvals(integ->arkode, &diagnostics->num_preconditioner_evaluations);
+  ARKSpilsGetNumPrecSolves(integ->arkode, &diagnostics->num_preconditioner_solves);
+  ARKSpilsGetNumConvFails(integ->arkode, &diagnostics->num_linear_solve_convergence_failures);
 }
 
 void ark_ode_integrator_diagnostics_fprintf(ark_ode_integrator_diagnostics_t* diagnostics, 
                                             FILE* stream)
 {
   if (stream == NULL) return;
-  fprintf(stream, "ODE integrator diagnostics:\n");
+  fprintf(stream, "ARK ODE integrator diagnostics:\n");
   if (diagnostics->status_message != NULL)
     fprintf(stream, "  Status: %s\n", diagnostics->status_message);
   fprintf(stream, "  Num steps: %d\n", (int)diagnostics->num_steps);
-  fprintf(stream, "  Order of last step: %d\n", diagnostics->order_of_last_step);
-  fprintf(stream, "  Order of next step: %d\n", diagnostics->order_of_next_step);
+  fprintf(stream, "  Num explicit steps: %d\n", (int)diagnostics->num_explicit_steps);
+  fprintf(stream, "  Num accuracy-limited steps: %d\n", (int)diagnostics->num_accuracy_steps);
+  fprintf(stream, "  Num step attempts: %d\n", (int)diagnostics->num_step_attempts);
+  fprintf(stream, "  Initial step size: %g\n", diagnostics->initial_step_size);
   fprintf(stream, "  Last step size: %g\n", diagnostics->last_step_size);
   fprintf(stream, "  Next step size: %g\n", diagnostics->next_step_size);
-  fprintf(stream, "  Num RHS evaluations: %d\n", (int)diagnostics->num_rhs_evaluations);
+  fprintf(stream, "  Current time: %g\n", diagnostics->t);
+  fprintf(stream, "  Num fe evaluations: %d\n", (int)diagnostics->num_fe_evaluations);
+  fprintf(stream, "  Num fi evaluations: %d\n", (int)diagnostics->num_fi_evaluations);
   fprintf(stream, "  Num linear solve setups: %d\n", (int)diagnostics->num_linear_solve_setups);
   fprintf(stream, "  Num linear solve convergence failures: %d\n", (int)diagnostics->num_linear_solve_convergence_failures);
   fprintf(stream, "  Num error test failures: %d\n", (int)diagnostics->num_error_test_failures);

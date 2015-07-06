@@ -15,46 +15,87 @@
 // differential equations using semi-implicit Additive Runge Kutte (ARK) 
 // methods. The equations integrated take the form
 //
-// M * dx/dt = fe(t, x) + fi(t, x)
+// dx/dt = fe(t, x) + fi(t, x)
 //
-// where M is a "mass matrix" term, fe is a slowly-varying function that 
-// can be integrated explicitly, and fi is a quickly-varying function that 
-// should be integrated implicitly.
+// where fe is a slowly-varying function that can be integrated explicitly, 
+// and fi is a quickly-varying function that should be integrated implicitly.
 
+// This type identifies a predictor method to use for implicit integration.
+typedef enum
+{
+  ARK_TRIVIAL_PREDICTOR, // "trivial predictor" -- uses previous time solution
+  ARK_MAXORDER_PREDICTOR, // predictor with maximum order polynomial interpolant
+  ARK_VARORDER_PREDICTOR, // predictor with variable order polynomial interpolant
+  ARK_CUTOFF_PREDICTOR, // predictor with "cutoff" order -- max order in first half of dt,
+                        //                                  first order in last half
+  ARK_BOOTSTRAP_PREDICTOR // predictor that uses only current step information
+} ark_predictor_t;
+
+// This type identifies a Krylov method to use for the Jacobian-Free
+// Newton-Krylov version of this integrator.
 typedef enum 
 {
-  JFNK_BDF_GMRES,    // Generalized minimum residual Krylov solver
-  JFNK_BDF_FGMRES,   // Flexible GMRES Krylov solver
-  JFNK_BDF_BICGSTAB, // Stabilized Biconjugate Gradient Krylov solver
-  JFNK_BDF_TFQMR,    // Transpose-Free QMR Krylov solver
-  JFNK_BDF_PCG       // Preconditioned Conjugate Gradient Krylov solver
+  JFNK_ARK_GMRES,    // Generalized minimum residual Krylov solver
+  JFNK_ARK_FGMRES,   // Flexible GMRES Krylov solver
+  JFNK_ARK_BICGSTAB, // Stabilized Biconjugate Gradient Krylov solver
+  JFNK_ARK_TFQMR,    // Transpose-Free QMR Krylov solver
+  JFNK_ARK_PCG       // Preconditioned Conjugate Gradient Krylov solver
 } jfnk_ark_krylov_t;
 
+// This constructs an integrator for the slowly-varying system
+// dx/dt = fe(t, x) with the desired order of time accuracy.
+// The optional stable_dt_func argument supplies a function that computes the 
+// next timestep subject to stability constraints.
 ode_integrator_t* explicit_ark_ode_integrator_new(int order, 
                                                   MPI_Comm comm,
                                                   int num_local_values, 
                                                   int num_remote_values, 
                                                   void* context, 
-                                                  int (*fe_func)(void* context, real_t t, real_t* x, real_t* xdot),
+                                                  int (*fe_func)(void* context, real_t t, real_t* x, real_t* fe),
+                                                  real_t (*stable_dt_func)(void* context, real_t, real_t* x),
                                                   void (*dtor)(void* context));
 
+// This constructs an integrator for the system with given fe, fi,
+// with the desired order of time accuracy, using a fixed-point (functional) 
+// iteration method that does not require a Newton-Krylov solver. At least 
+// one of fe and fi must be non-NULL. If fi is NULL, the system is assumed to 
+// vary "slowly" and will be explicitly integrated; if fe is NULL, the system 
+// is assumed to be stiff, and will be implicitly integrated; if both are
+// non-NULL, they will be integrated using an adaptive IMEX method.
+// max_anderson_accel_dim is the maximum dimension of the underlying Anderson 
+// acceleration subspace.
 ode_integrator_t* functional_ark_ode_integrator_new(int order, 
                                                     MPI_Comm comm,
                                                     int num_local_values, 
                                                     int num_remote_values, 
                                                     void* context, 
-                                                    int (*fe_func)(void* context, real_t t, real_t* x, real_t* xdot),
-                                                    int (*fi_func)(void* context, real_t t, real_t* x, real_t* xdot),
-                                                    void (*dtor)(void* context));
+                                                    int (*fe_func)(void* context, real_t t, real_t* x, real_t* fe),
+                                                    int (*fi_func)(void* context, real_t t, real_t* x, real_t* fi),
+                                                    real_t (*stable_dt_func)(void* context, real_t, real_t* x),
+                                                    void (*dtor)(void* context),
+                                                    int max_anderson_accel_dim);
 
+// This constructs an integrator for the system with given fe, fi,
+// with the desired order of time accuracy, using the Jacobian-Free 
+// Newton-Krylov solver of the given type. If the Jacobian-vector 
+// product Jy is not given for this integrator, this product will be 
+// approximated using difference quotients. fi must be non-NULL, and fe can 
+// be either non-NULL or NULL. If fe is NULL, the system is assumed to be 
+// stiff, and will be implicitly integrated. The fi_is_linear and 
+// fi_is_time_dependent flags provide information about fi in order to help 
+// the integrator optimize its performance (and fi_is_time_dependent is 
+// ignored if fi is not linear in x).
 ode_integrator_t* jfnk_ark_ode_integrator_new(int order, 
                                               MPI_Comm comm,
                                               int num_local_values, 
                                               int num_remote_values, 
                                               void* context, 
-                                              int (*fe_func)(void* context, real_t t, real_t* x, real_t* xdot),
-                                              int (*fi_func)(void* context, real_t t, real_t* x, real_t* xdot),
-                                              int (*Jy_func)(void* context, real_t t, real_t* x, real_t* rhs, real_t* y, real_t* temp, real_t* Jy),
+                                              int (*fe_func)(void* context, real_t t, real_t* x, real_t* fe),
+                                              int (*fi_func)(void* context, real_t t, real_t* x, real_t* fi),
+                                              bool fi_is_linear,
+                                              bool fi_is_time_dependent,
+                                              real_t (*stable_dt_func)(void* context, real_t, real_t* x),
+                                              int (*Jy_func)(void* context, real_t t, real_t* x, real_t* fi, real_t* y, real_t* temp, real_t* Jy),
                                               void (*dtor)(void* context),
                                               newton_pc_t* precond,
                                               jfnk_ark_krylov_t solver_type,
@@ -64,6 +105,31 @@ ode_integrator_t* jfnk_ark_ode_integrator_new(int order,
 // constructor. In general, this will NOT return the same pointer as 
 // ode_integrator_context!
 void* ark_ode_integrator_context(ode_integrator_t* integrator);
+
+// Sets control parameters for adaptive time stepping. Specifically:
+// max_growth (> 1) - The maximum factor by which the step is allowed to grow 
+//                    between consecutive steps.
+// max_initial_growth (> 1) - The maximum factor by which the step is allowed to grow 
+//                            after the first step.
+// max_convergence_cut_factor (< 1) - The maximum factor by which the time step is 
+//                                    modified after successive convergence failures.
+// max_accuracy_cut_factor (< 1) - The maximum factor by which the time step is 
+//                                 modified after successive accuracy failures.
+// safety_factor - The factor by which the accuracy-based time step is multiplied
+//                 by the integrator in taking a step.
+// cfl_fraction (<= 1) - The factor by which the stability-based time step is multiplied
+//                       by the integrator in taking a step (ignored if there's no fe).
+void ark_ode_integrator_set_step_controls(ode_integrator_t* integrator,
+                                          real_t max_growth,
+                                          real_t max_initial_growth,
+                                          real_t max_convergence_cut_factor,
+                                          real_t max_accuracy_cut_factor,
+                                          real_t safety_factor,
+                                          real_t cfl_fraction);
+
+// Sets the method to use for predicting implicit terms in the RK integration.
+void ark_ode_integrator_set_predictor(ode_integrator_t* integrator, 
+                                      ark_predictor_t predictor);
 
 // Sets the relative and absolute tolerances for integrated quantities.
 void ark_ode_integrator_set_tolerances(ode_integrator_t* integrator,
@@ -95,9 +161,13 @@ void ark_ode_integrator_set_max_nonlinear_iterations(ode_integrator_t* integrato
 void ark_ode_integrator_set_nonlinear_convergence_coeff(ode_integrator_t* integrator,
                                                         real_t coefficient);
 
-// Evaluates the right-hand side of the system at the given time and with the 
-// given solution X, placing the results in rhs.
-void ark_ode_integrator_eval_rhs(ode_integrator_t* integ, real_t t, real_t* X, real_t* rhs);
+// Evaluates the explicit part of the system at the given time and with the 
+// given solution X, placing the results in fe.
+void ark_ode_integrator_eval_fe(ode_integrator_t* integ, real_t t, real_t* X, real_t* fe);
+
+// Evaluates the implicit part of the system at the given time and with the 
+// given solution X, placing the results in fi.
+void ark_ode_integrator_eval_fi(ode_integrator_t* integ, real_t t, real_t* X, real_t* fi);
 
 // Returns an internal pointer to the preconditioner passed to this 
 // integrator during construction time.
@@ -107,10 +177,11 @@ newton_pc_t* ark_ode_integrator_preconditioner(ode_integrator_t* integrator);
 typedef struct
 {
   char* status_message; // borrowed pointer from integrator: do not free.
-  long int num_steps;
-  int order_of_last_step, order_of_next_step;
-  real_t last_step_size, next_step_size;
-  long int num_rhs_evaluations;
+  long int num_steps, num_explicit_steps, num_accuracy_steps,
+           num_step_attempts;
+  real_t initial_step_size, last_step_size, next_step_size;
+  real_t t;
+  long int num_fe_evaluations, num_fi_evaluations;
   long int num_linear_solve_setups;
   long int num_linear_solve_iterations;
   long int num_linear_solve_convergence_failures;
