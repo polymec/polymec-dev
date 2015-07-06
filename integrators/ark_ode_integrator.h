@@ -79,11 +79,12 @@ ode_integrator_t* functional_ark_ode_integrator_new(int order,
 // with the desired order of time accuracy, using the Jacobian-Free 
 // Newton-Krylov solver of the given type. If the Jacobian-vector 
 // product Jy is not given for this integrator, this product will be 
-// approximated using difference quotients. At least one of fe and fi must 
-// be non-NULL. If fi is NULL, the system is assumed to vary "slowly" and 
-// will be explicitly integrated; if fe is NULL, the system is assumed to be 
-// stiff, and will be implicitly integrated; if both are non-NULL, they will 
-// be integrated using an adaptive IMEX method.
+// approximated using difference quotients. fi must be non-NULL, and fe can 
+// be either non-NULL or NULL. If fe is NULL, the system is assumed to be 
+// stiff, and will be implicitly integrated. The fi_is_linear and 
+// fi_is_time_dependent flags provide information about fi in order to help 
+// the integrator optimize its performance (and fi_is_time_dependent is 
+// ignored if fi is not linear in x).
 ode_integrator_t* jfnk_ark_ode_integrator_new(int order, 
                                               MPI_Comm comm,
                                               int num_local_values, 
@@ -91,6 +92,8 @@ ode_integrator_t* jfnk_ark_ode_integrator_new(int order,
                                               void* context, 
                                               int (*fe_func)(void* context, real_t t, real_t* x, real_t* fe),
                                               int (*fi_func)(void* context, real_t t, real_t* x, real_t* fi),
+                                              bool fi_is_linear,
+                                              bool fi_is_time_dependent,
                                               real_t (*stable_dt_func)(void* context, real_t, real_t* x),
                                               int (*Jy_func)(void* context, real_t t, real_t* x, real_t* fi, real_t* y, real_t* temp, real_t* Jy),
                                               void (*dtor)(void* context),
@@ -103,10 +106,26 @@ ode_integrator_t* jfnk_ark_ode_integrator_new(int order,
 // ode_integrator_context!
 void* ark_ode_integrator_context(ode_integrator_t* integrator);
 
-// Sets the (positive) safety factor that is applied to the accuracy-based 
-// time step.
-void ark_ode_integrator_set_safety_factor(ode_integrator_t* integrator,
-                                          real_t factor);
+// Sets control parameters for adaptive time stepping. Specifically:
+// max_growth (> 1) - The maximum factor by which the step is allowed to grow 
+//                    between consecutive steps.
+// max_initial_growth (> 1) - The maximum factor by which the step is allowed to grow 
+//                            after the first step.
+// max_convergence_cut_factor (< 1) - The maximum factor by which the time step is 
+//                                    modified after successive convergence failures.
+// max_accuracy_cut_factor (< 1) - The maximum factor by which the time step is 
+//                                 modified after successive accuracy failures.
+// safety_factor - The factor by which the accuracy-based time step is multiplied
+//                 by the integrator in taking a step.
+// cfl_fraction (<= 1) - The factor by which the stability-based time step is multiplied
+//                       by the integrator in taking a step (ignored if there's no fe).
+void ark_ode_integrator_set_step_controls(ode_integrator_t* integrator,
+                                          real_t max_growth,
+                                          real_t max_initial_growth,
+                                          real_t max_convergence_cut_factor,
+                                          real_t max_accuracy_cut_factor,
+                                          real_t safety_factor,
+                                          real_t cfl_fraction);
 
 // Sets the method to use for predicting implicit terms in the RK integration.
 void ark_ode_integrator_set_predictor(ode_integrator_t* integrator, 

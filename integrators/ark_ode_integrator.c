@@ -46,6 +46,8 @@ typedef struct
   real_t t;
   char* status_message; // status of most recent integration.
 
+  bool first_step;
+
   // JFNK stuff.
   int max_krylov_dim;
   newton_pc_t* precond;
@@ -157,6 +159,12 @@ static bool ark_step(void* context, real_t max_dt, real_t* t, real_t* x)
   ark_ode_t* integ = context;
   int status = ARK_SUCCESS;
 
+  if (integ->first_step)
+  {
+    ARKodeSetInitStep(integ->arkode, max_dt);
+    integ->first_step = false;
+  }
+
   // If *t + max_dt is less than the time to which we've already integrated, 
   // we don't need to integrate; we only need to interpolate backward.
   real_t t2 = *t + max_dt;
@@ -244,6 +252,7 @@ static bool ark_advance(void* context, real_t t1, real_t t2, real_t* x)
 static void ark_reset(void* context, real_t t, real_t* x)
 {
   ark_ode_t* integ = context;
+  integ->first_step = true;
 
   // Reset the preconditioner.
   newton_pc_reset(integ->precond, t);
@@ -406,6 +415,7 @@ ode_integrator_t* functional_ark_ode_integrator_new(int order,
   integ->t = 0.0;
   integ->observers = ptr_array_new();
   integ->error_weights = NULL;
+  integ->first_step = true;
 
   // Set up ARKode and accessories.
   integ->x = N_VNew(integ->comm, integ->num_local_values);
@@ -448,6 +458,8 @@ ode_integrator_t* jfnk_ark_ode_integrator_new(int order,
                                               void* context, 
                                               int (*fe_func)(void* context, real_t t, real_t* x, real_t* fe),
                                               int (*fi_func)(void* context, real_t t, real_t* x, real_t* fi),
+                                              bool fi_is_linear,
+                                              bool fi_is_time_dependent,
                                               real_t (*stable_dt_func)(void* context, real_t, real_t* x),
                                               int (*Jy_func)(void* context, real_t t, real_t* x, real_t* rhs, real_t* y, real_t* temp, real_t* Jy),
                                               void (*dtor)(void* context),
@@ -459,7 +471,7 @@ ode_integrator_t* jfnk_ark_ode_integrator_new(int order,
   ASSERT((order <= 5) || ((order <= 6) && (fi_func == NULL)));
   ASSERT(num_local_values > 0);
   ASSERT(num_remote_values >= 0);
-  ASSERT((fe_func != NULL) || (fi_func != NULL));
+  ASSERT(fi_func != NULL);
   ASSERT(precond != NULL);
   ASSERT(max_krylov_dim > 3);
   ASSERT(!newton_pc_coefficients_fixed(precond));
@@ -479,6 +491,7 @@ ode_integrator_t* jfnk_ark_ode_integrator_new(int order,
   integ->t = 0.0;
   integ->observers = ptr_array_new();
   integ->error_weights = NULL;
+  integ->first_step = true;
 
   // Set up ARKode and accessories.
   integ->x = N_VNew(integ->comm, integ->num_local_values);
@@ -486,14 +499,15 @@ ode_integrator_t* jfnk_ark_ode_integrator_new(int order,
   integ->arkode = ARKodeCreate();
   ARKodeSetOrder(integ->arkode, order);
   ARKodeSetUserData(integ->arkode, integ);
-  if (fi_func == NULL)
-    ARKodeSetExplicit(integ->arkode);
-  else if (fe_func == NULL)
+  if (fe_func == NULL)
     ARKodeSetImplicit(integ->arkode);
   else
     ARKodeSetImEx(integ->arkode);
   if (integ->stable_dt != NULL)
     ARKodeSetStabilityFn(integ->arkode, stable_dt, integ);
+  if (fi_is_linear)
+    ARKodeSetLinear(integ->arkode, fi_is_time_dependent);
+  ARKodeSetErrFile(integ->arkode, log_stream(LOG_URGENT));
   ARKodeInit(integ->arkode, evaluate_fe, evaluate_fi, 0.0, integ->x);
 
   // Set up the solver type.
@@ -545,14 +559,30 @@ void* ark_ode_integrator_context(ode_integrator_t* integrator)
   return integ->context;
 }
 
-void ark_ode_integrator_set_safety_factor(ode_integrator_t* integrator,
-                                          real_t factor)
+void ark_ode_integrator_set_step_controls(ode_integrator_t* integrator,
+                                          real_t max_growth,
+                                          real_t max_initial_growth,
+                                          real_t max_convergence_cut_factor,
+                                          real_t max_accuracy_cut_factor,
+                                          real_t safety_factor,
+                                          real_t cfl_fraction)
 {
-  ASSERT(factor > 0);
   ark_ode_t* integ = ode_integrator_context(integrator);
-  ARKodeSetSafetyFactor(integ->arkode, factor);
+  ASSERT(max_growth > 1.0);
+  ASSERT(max_initial_growth > 1.0);
+  ASSERT(max_convergence_cut_factor > 0.0);
+  ASSERT(max_convergence_cut_factor < 1.0);
+  ASSERT(max_accuracy_cut_factor > 0.0);
+  ASSERT(max_accuracy_cut_factor < 1.0);
+  ASSERT((cfl_fraction > 0.0) || (integ->fe == NULL));
+  ASSERT((cfl_fraction <= 1.0) || (integ->fe == NULL));
+  ARKodeSetMaxGrowth(integ->arkode, max_growth);
+  ARKodeSetMaxFirstGrowth(integ->arkode, max_initial_growth);
+  ARKodeSetMaxCFailGrowth(integ->arkode, max_convergence_cut_factor);
+  ARKodeSetMaxEFailGrowth(integ->arkode, max_accuracy_cut_factor);
+  ARKodeSetSafetyFactor(integ->arkode, safety_factor);
   if (integ->fe != NULL)
-    ARKodeSetCFLFraction(integ->arkode, factor);
+    ARKodeSetCFLFraction(integ->arkode, cfl_fraction);
 }
 
 void ark_ode_integrator_set_predictor(ode_integrator_t* integrator, 
