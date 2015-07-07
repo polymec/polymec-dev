@@ -219,7 +219,9 @@ static bool ark_advance(void* context, real_t t1, real_t t2, real_t* x)
 {
   ark_ode_t* integ = context;
   integ->t = t1;
-  ARKodeReInit(integ->arkode, evaluate_fe, evaluate_fi, t1, integ->x);
+  ARKRhsFn eval_fe = (integ->fe != NULL) ? evaluate_fe : NULL;
+  ARKRhsFn eval_fi = (integ->fi != NULL) ? evaluate_fi : NULL;
+  ARKodeReInit(integ->arkode, eval_fe, eval_fi, 0.0, integ->x);
   ARKodeSetStopTime(integ->arkode, t2);
   
   // Copy in the solution.
@@ -255,11 +257,14 @@ static void ark_reset(void* context, real_t t, real_t* x)
   integ->first_step = true;
 
   // Reset the preconditioner.
-  newton_pc_reset(integ->precond, t);
+  if (integ->precond != NULL)
+    newton_pc_reset(integ->precond, t);
 
   // Copy in the solution and reinitialize.
   memcpy(NV_DATA(integ->x), x, sizeof(real_t) * integ->num_local_values); 
-  ARKodeReInit(integ->arkode, evaluate_fe, evaluate_fi, t, integ->x);
+  ARKRhsFn eval_fe = (integ->fe != NULL) ? evaluate_fe : NULL;
+  ARKRhsFn eval_fi = (integ->fi != NULL) ? evaluate_fi : NULL;
+  ARKodeReInit(integ->arkode, eval_fe, eval_fi, 0.0, integ->x);
   integ->t = t;
 }
 
@@ -416,24 +421,28 @@ ode_integrator_t* functional_ark_ode_integrator_new(int order,
   integ->observers = ptr_array_new();
   integ->error_weights = NULL;
   integ->first_step = true;
+  integ->precond = NULL;
 
   // Set up ARKode and accessories.
   integ->x = N_VNew(integ->comm, integ->num_local_values);
   integ->x_with_ghosts = polymec_malloc(sizeof(real_t) * (integ->num_local_values + integ->num_remote_values));
   integ->arkode = ARKodeCreate();
+  ARKodeSetErrFile(integ->arkode, log_stream(LOG_URGENT));
   ARKodeSetOrder(integ->arkode, order);
   ARKodeSetUserData(integ->arkode, integ);
+  if ((integ->fe != NULL) && (integ->stable_dt != NULL))
+    ARKodeSetStabilityFn(integ->arkode, stable_dt, integ);
+  if (integ->fi != NULL)
+    ARKodeSetFixedPoint(integ->arkode, max_anderson_accel_dim);
+  ARKRhsFn eval_fe = (integ->fe != NULL) ? evaluate_fe : NULL;
+  ARKRhsFn eval_fi = (integ->fi != NULL) ? evaluate_fi : NULL;
+  ARKodeInit(integ->arkode, eval_fe, eval_fi, 0.0, integ->x);
   if (fi_func == NULL)
     ARKodeSetExplicit(integ->arkode);
   else if (fe_func == NULL)
     ARKodeSetImplicit(integ->arkode);
   else
     ARKodeSetImEx(integ->arkode);
-  if ((integ->fe != NULL) && (integ->stable_dt != NULL))
-    ARKodeSetStabilityFn(integ->arkode, stable_dt, integ);
-  if (integ->fi != NULL)
-    ARKodeSetFixedPoint(integ->arkode, max_anderson_accel_dim);
-  ARKodeInit(integ->arkode, evaluate_fe, evaluate_fi, 0.0, integ->x);
 
   ode_integrator_vtable vtable = {.step = ark_step, .advance = ark_advance, .reset = ark_reset, .dtor = ark_dtor};
   char name[1024];
@@ -497,18 +506,20 @@ ode_integrator_t* jfnk_ark_ode_integrator_new(int order,
   integ->x = N_VNew(integ->comm, integ->num_local_values);
   integ->x_with_ghosts = polymec_malloc(sizeof(real_t) * (integ->num_local_values + integ->num_remote_values));
   integ->arkode = ARKodeCreate();
+  ARKodeSetErrFile(integ->arkode, log_stream(LOG_URGENT));
   ARKodeSetOrder(integ->arkode, order);
   ARKodeSetUserData(integ->arkode, integ);
-  if (fe_func == NULL)
-    ARKodeSetImplicit(integ->arkode);
-  else
-    ARKodeSetImEx(integ->arkode);
   if (integ->stable_dt != NULL)
     ARKodeSetStabilityFn(integ->arkode, stable_dt, integ);
   if (fi_is_linear)
     ARKodeSetLinear(integ->arkode, fi_is_time_dependent);
-  ARKodeSetErrFile(integ->arkode, log_stream(LOG_URGENT));
-  ARKodeInit(integ->arkode, evaluate_fe, evaluate_fi, 0.0, integ->x);
+  ARKRhsFn eval_fe = (integ->fe != NULL) ? evaluate_fe : NULL;
+  ARKRhsFn eval_fi = (integ->fi != NULL) ? evaluate_fi : NULL;
+  ARKodeInit(integ->arkode, eval_fe, eval_fi, 0.0, integ->x);
+  if (fe_func == NULL)
+    ARKodeSetImplicit(integ->arkode);
+  else
+    ARKodeSetImEx(integ->arkode);
 
   // Set up the solver type.
   if (solver_type == JFNK_ARK_GMRES)
@@ -539,10 +550,10 @@ ode_integrator_t* jfnk_ark_ode_integrator_new(int order,
 
   ode_integrator_vtable vtable = {.step = ark_step, .advance = ark_advance, .reset = ark_reset, .dtor = ark_dtor};
   char name[1024];
-  if (integ->fi != NULL)
-    snprintf(name, 1024, "JFNK Additive Runge-Kutta (fixed-point, order %d)", order);
+  if (integ->fe != NULL)
+    snprintf(name, 1024, "JFNK IMEX Additive Runge-Kutta (fixed-point, order %d)", order);
   else
-    snprintf(name, 1024, "Explicit Runge-Kutta (order %d)", order);
+    snprintf(name, 1024, "JFNK implicit Runge-Kutta (order %d)", order);
   ode_integrator_t* I = ode_integrator_new(name, integ, vtable, order);
 
   // Set default tolerances.
@@ -749,10 +760,13 @@ void ark_ode_integrator_get_diagnostics(ode_integrator_t* integrator,
   ARKodeGetNonlinSolvStats(integ->arkode, 
                            &diagnostics->num_nonlinear_solve_iterations,
                            &diagnostics->num_nonlinear_solve_convergence_failures);
-  ARKSpilsGetNumLinIters(integ->arkode, &diagnostics->num_linear_solve_iterations);
-  ARKSpilsGetNumPrecEvals(integ->arkode, &diagnostics->num_preconditioner_evaluations);
-  ARKSpilsGetNumPrecSolves(integ->arkode, &diagnostics->num_preconditioner_solves);
-  ARKSpilsGetNumConvFails(integ->arkode, &diagnostics->num_linear_solve_convergence_failures);
+  if (integ->precond != NULL)
+  {
+    ARKSpilsGetNumLinIters(integ->arkode, &diagnostics->num_linear_solve_iterations);
+    ARKSpilsGetNumPrecEvals(integ->arkode, &diagnostics->num_preconditioner_evaluations);
+    ARKSpilsGetNumPrecSolves(integ->arkode, &diagnostics->num_preconditioner_solves);
+    ARKSpilsGetNumConvFails(integ->arkode, &diagnostics->num_linear_solve_convergence_failures);
+  }
 }
 
 void ark_ode_integrator_diagnostics_fprintf(ark_ode_integrator_diagnostics_t* diagnostics, 
