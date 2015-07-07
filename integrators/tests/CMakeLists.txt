@@ -9,5 +9,6 @@ add_polymec_test(test_ssor_newton_pc test_ssor_newton_pc.c)
 add_polymec_test(test_newton_solver foodweb_solver.c test_newton_solver.c)
 add_polymec_test(test_euler_ode_integrator test_euler_ode_integrator.c)
 add_polymec_test(test_bdf_ode_integrator diurnal_integrator.c test_bdf_ode_integrator.c)
+add_polymec_test(test_ark_ode_integrator diurnal_integrator.c test_ark_ode_integrator.c)
 add_polymec_test(test_dae_integrator heat2d_integrator.c test_dae_integrator.c)
 
