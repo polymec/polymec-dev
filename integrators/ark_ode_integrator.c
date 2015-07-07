@@ -767,6 +767,13 @@ void ark_ode_integrator_get_diagnostics(ode_integrator_t* integrator,
     ARKSpilsGetNumPrecSolves(integ->arkode, &diagnostics->num_preconditioner_solves);
     ARKSpilsGetNumConvFails(integ->arkode, &diagnostics->num_linear_solve_convergence_failures);
   }
+  else
+  {
+    diagnostics->num_linear_solve_iterations = -1;
+    diagnostics->num_preconditioner_evaluations = -1;
+    diagnostics->num_preconditioner_solves = -1;
+    diagnostics->num_linear_solve_convergence_failures = -1;
+  }
 }
 
 void ark_ode_integrator_diagnostics_fprintf(ark_ode_integrator_diagnostics_t* diagnostics, 
@@ -787,12 +794,17 @@ void ark_ode_integrator_diagnostics_fprintf(ark_ode_integrator_diagnostics_t* di
   fprintf(stream, "  Num fe evaluations: %d\n", (int)diagnostics->num_fe_evaluations);
   fprintf(stream, "  Num fi evaluations: %d\n", (int)diagnostics->num_fi_evaluations);
   fprintf(stream, "  Num linear solve setups: %d\n", (int)diagnostics->num_linear_solve_setups);
-  fprintf(stream, "  Num linear solve convergence failures: %d\n", (int)diagnostics->num_linear_solve_convergence_failures);
+  if (diagnostics->num_linear_solve_iterations != -1)
+    fprintf(stream, "  Num linear solve iterations: %d\n", (int)diagnostics->num_linear_solve_iterations);
+  if (diagnostics->num_linear_solve_convergence_failures != -1)
+    fprintf(stream, "  Num linear solve convergence failures: %d\n", (int)diagnostics->num_linear_solve_convergence_failures);
   fprintf(stream, "  Num error test failures: %d\n", (int)diagnostics->num_error_test_failures);
   fprintf(stream, "  Num nonlinear solve iterations: %d\n", (int)diagnostics->num_nonlinear_solve_iterations);
   fprintf(stream, "  Num nonlinear solve convergence failures: %d\n", (int)diagnostics->num_nonlinear_solve_convergence_failures);
-  fprintf(stream, "  Num preconditioner evaluations: %d\n", (int)diagnostics->num_preconditioner_evaluations);
-  fprintf(stream, "  Num preconditioner solves: %d\n", (int)diagnostics->num_preconditioner_solves);
+  if (diagnostics->num_preconditioner_evaluations != -1)
+    fprintf(stream, "  Num preconditioner evaluations: %d\n", (int)diagnostics->num_preconditioner_evaluations);
+  if (diagnostics->num_preconditioner_solves != -1)
+    fprintf(stream, "  Num preconditioner solves: %d\n", (int)diagnostics->num_preconditioner_solves);
 }
 
 ark_ode_observer_t* ark_ode_observer_new(void* context,
