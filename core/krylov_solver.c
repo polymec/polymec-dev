@@ -6,420 +6,583 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include <float.h>
+#include <dlfcn.h>
 #include "core/krylov_solver.h"
-#include "core/sundials_helpers.h"
-#include "core/block_diagonal_matrix.h"
-#include "core/sparse_local_matrix.h"
-#include "core/linear_algebra.h"
 #include "core/timer.h"
 
-// We use Sundials for doing matrix-free linear solves.
-#include "sundials/sundials_spgmr.h"
-#include "sundials/sundials_spbcgs.h"
-#include "sundials/sundials_sptfqmr.h"
+//------------------------------------------------------------------------
+//                Krylov data types and virtual tables
+//------------------------------------------------------------------------
 
-typedef enum
+typedef struct
 {
-  KRYLOV_NO_PC,
-  KRYLOV_JACOBI_PC,
-  KRYLOV_BLOCK_JACOBI_PC,
-  KRYLOV_LU_PC,
-  KRYLOV_ILU_PC
-} krylov_pc_t;
+  void (*set_tolerance)(void* context, real_t tolerance);
+  void (*set_operator)(void* context, void* op);
+  bool (*solve)(void* context, void* x, void* b, real_t* resnorm, int* num_iters);
+  void (*dtor)(void* context);
+} krylov_solver_vtable;
 
-struct krylov_solver_t 
+struct krylov_solver_t
+{
+  char* name;
+  void* context;
+  krylov_solver_vtable vtable;
+};
+
+typedef struct
+{
+  void (*zero)(void* context);
+  void (*scale)(void* context, real_t scale_factor);
+  void (*add_identity)(void* context, real_t scale_factor);
+  void (*set_diagonal)(void* context, void* D);
+  void (*set_values)(void* context, int num_rows, int* num_columns, int* rows, int* columns, real_t* values);
+  void (*add_values)(void* context, int num_rows, int* num_columns, int* rows, int* columns, real_t* values);
+  void (*start_assembly)(void* context);
+  void (*finish_assembly)(void* context);
+  void (*get_values)(void* context, int num_rows, int* num_columns, int* rows, int* columns, real_t* values);
+  void (*dtor)(void* context);
+} krylov_matrix_vtable;
+
+struct krylov_matrix_t
+{
+  void* context;
+  krylov_matrix_vtable vtable;
+  int num_local_rows, num_global_rows;
+  int num_local_columns, num_global_columns;
+};
+
+typedef struct
+{
+  void (*zero)(void* context);
+  void (*set_value)(void* context, real_t value);
+  void (*scale)(void* context, real_t scale_factor);
+  void (*set_values)(void* context, int num_values, int* indices, real_t* values);
+  void (*add_values)(void* context, int num_values, int* indices, real_t* values);
+  void (*start_assembly)(void* context);
+  void (*finish_assembly)(void* context);
+  void (*get_values)(void* context, int num_values, int* indices, real_t* values);
+  real_t (*norm)(void* context, int p);
+  void (*dtor)(void* context);
+} krylov_vector_vtable;
+
+struct krylov_vector_t
+{
+  void* context;
+  krylov_vector_vtable vtable;
+  int local_size, global_size;
+};
+
+typedef struct 
+{
+  char* name;
+  void* (*solver)(void* context, MPI_Comm comm, string_string_unordered_map_t* options);
+  void* (*matrix)(void* context, adj_graph_t* sparsity);
+  void* (*block_matrix)(void* context, adj_graph_t* sparsity, int block_size);
+  void* (*vector)(void* context, MPI_Comm comm, int N);
+  void (*dtor)(void* context);
+} krylov_factory_vtable;
+
+struct krylov_factory_t
 {
   // Parallel stuff.
   int rank, nprocs;
   MPI_Comm comm;
 
+  char* name;
   void* context;
-  int max_krylov_dim, max_restarts;
-
-  int num_local_values, num_remote_values;
-
-  int (*Ay)(void* context, real_t t, real_t* y, real_t* Ay);
-  void (*dtor)(void* context);
-
-  krylov_t solver_type;
-
-  // Sundials data structures.
-  SpgmrMem gmres;
-  SpbcgMem bicgstab;
-  SptfqmrMem tfqmr;
-  N_Vector x, b, s1, s2; // Stores solution vector, RHS, scaled vectors.
-  real_t* x_with_ghosts;
-  real_t res_tol; // Residual tolerance.
-
-  real_t t; // time.
-
-  // Preconditioner matrix.
-  local_matrix_t* P;
-  krylov_pc_t pc_type;
-  adj_graph_coloring_t* coloring;
-  int num_pc_solves;
+  krylov_factory_vtable vtable;
 };
 
-// This function wraps around the user-supplied Ay function.
-static int evaluate_Ay(void* context, N_Vector y, N_Vector Ay)
+
+//------------------------------------------------------------------------
+//                          Krylov solver
+//------------------------------------------------------------------------
+
+static krylov_solver_t* krylov_solver_new(const char* name,
+                                          void* context,
+                                          krylov_solver_vtable vtable)
 {
-  krylov_solver_t* solver = context;
-  real_t* x = NV_DATA(y);
-  real_t* Ax = NV_DATA(Ay);
-
-  // Evaluate the residual using a solution vector with ghosts.
-  memcpy(solver->x_with_ghosts, x, sizeof(real_t) * solver->num_local_values);
-  int status = solver->Ay(solver->context, solver->t, solver->x_with_ghosts, Ax);
-  return status;
-}
-
-// This function sets up the preconditioner data within the solver.
-static int set_up_preconditioner(void* context)
-{
-  krylov_solver_t* solver = context;
-  log_debug("krylov_solver: setting up preconditioner...");
-  if (solver->P != NULL)
-  {
-    local_matrix_zero(solver->P);
-    int num_colors = adj_graph_coloring_num_colors(solver->coloring);
-    int num_Ay_evals = 0;
-    int nv = solver->num_local_values;
-    for (int c = 0; c < num_colors; ++c)
-    {
-      // We construct d, the binary vector corresponding to this color.
-      real_t d[nv];
-      memset(d, 0, sizeof(real_t) * nv);
-      int pos = 0, i;
-      while (adj_graph_coloring_next_vertex(solver->coloring, c, &pos, &i))
-        d[i] = 1.0;
-
-      // Now evaluate A*d.
-      real_t Ad[nv];
-      solver->Ay(solver->context, solver->t, d, Ad);
-      ++num_Ay_evals;
-
-      // Add the column vector A*d into our matrix.
-      pos = 0;
-      while (adj_graph_coloring_next_vertex(solver->coloring, c, &pos, &i))
-        local_matrix_add_column_vector(solver->P, 1.0, i, Ad);
-    }
-    log_debug("krylov_solver: Evaluated A*y %d times.", num_Ay_evals);
-  }
-
-  return 0;
-}
-
-// This function solves the preconditioner equation P*z = r. On input, the vector r 
-// contains the right-hand side of the preconditioner system, and on output 
-// it contains the solution to the system.
-static int solve_preconditioner_system(void* context, 
-                                       N_Vector r, N_Vector z,
-                                       int prec_type)
-{
-  if (context != NULL)
-  {
-    ASSERT(prec_type == PREC_LEFT);
-    local_matrix_t* P = context;
-    log_debug("krylov_solver: solving preconditioner...");
-    if (local_matrix_solve(P, NV_DATA(r), NV_DATA(z)))
-      return 0;
-    else 
-    {
-      // Recoverable error.
-      log_debug("krylov_solver: preconditioner solve failed.");
-      return 1; 
-    }
-  }
-  else 
-    return 0;
-}
-
-// Generic constructor.
-krylov_solver_t* krylov_solver_new(MPI_Comm comm,
-                                   int num_local_values,
-                                   int num_remote_values,
-                                   void* context,
-                                   int (*matrix_vector_product)(void* context, real_t t, real_t* y, real_t* Ay),
-                                   void (*dtor)(void* context),
-                                   krylov_t solver_type,
-                                   int max_krylov_dim,
-                                   int max_restarts)
-{
-  ASSERT(num_local_values > 0);
-  ASSERT(num_remote_values >= 0);
-  ASSERT(matrix_vector_product != NULL);
-  ASSERT(max_krylov_dim >= 3);
-  ASSERT((solver_type != KRYLOV_GMRES) || (max_restarts >= 0));
-
   krylov_solver_t* solver = polymec_malloc(sizeof(krylov_solver_t));
+  solver->name = string_dup(name);
   solver->context = context;
-  solver->comm = comm;
-  solver->Ay = matrix_vector_product;
-  solver->dtor = dtor;
-  solver->t = 0.0;
-  solver->pc_type = KRYLOV_NO_PC;
-  solver->P = NULL;
-  solver->coloring = NULL;
-  solver->solver_type = solver_type;
-  solver->num_local_values = num_local_values;
-  solver->num_remote_values = num_remote_values;
-  solver->max_krylov_dim = max_krylov_dim;
-  solver->max_restarts = max_restarts;
-
-  // Set up Sundials and accessories.
-  solver->x = N_VNew(solver->comm, num_local_values);
-  solver->x_with_ghosts = polymec_malloc(sizeof(real_t) * (num_local_values + num_remote_values));
-  solver->s1 = N_VNew(solver->comm, num_local_values);
-  solver->s2 = N_VNew(solver->comm, num_local_values);
-  solver->b = N_VNew(solver->comm, num_local_values);
-
-  // Select the particular type of Krylov method for the linear solves.
-  solver->gmres = NULL;
-  solver->bicgstab = NULL;
-  solver->tfqmr = NULL;
-  if (solver->solver_type == KRYLOV_GMRES)
-    solver->gmres = SpgmrMalloc(max_krylov_dim, solver->x);
-  else if (solver->solver_type == KRYLOV_BICGSTAB)
-    solver->bicgstab = SpbcgMalloc(max_krylov_dim, solver->x);
-  else
-    solver->tfqmr = SptfqmrMalloc(max_krylov_dim, solver->x);
-
-  // By default, we don't do preconditioning.
-  solver->P = NULL;
-
+  solver->vtable = vtable;
   return solver;
+}
+
+char* krylov_solver_name(krylov_solver_t* solver)
+{
+  return solver->name;
 }
 
 void krylov_solver_free(krylov_solver_t* solver)
 {
-  // Kill the preconditioner stuff.
-  if (solver->coloring != NULL)
-    adj_graph_coloring_free(solver->coloring);
-  if (solver->P != NULL)
-    local_matrix_free(solver->P);
-
-  // Kill the Sundials stuff.
-  N_VDestroy(solver->x);
-  N_VDestroy(solver->b);
-  N_VDestroy(solver->s1);
-  N_VDestroy(solver->s2);
-  if (solver->solver_type == KRYLOV_GMRES)
-    SpgmrFree(solver->gmres);
-  else if (solver->solver_type == KRYLOV_BICGSTAB)
-    SpbcgFree(solver->bicgstab);
-  else 
-    SptfqmrFree(solver->tfqmr);
-
-  // Kill the rest.
-  if ((solver->dtor != NULL) && (solver->context != NULL))
-    solver->dtor(solver->context);
-  // Kill the rest.
-  polymec_free(solver->x_with_ghosts);
+  if ((solver->context != NULL) && (solver->vtable.dtor != NULL))
+    solver->vtable.dtor(solver->context);
+  string_free(solver->name);
   polymec_free(solver);
 }
 
-void* krylov_solver_context(krylov_solver_t* solver)
+void* krylov_solver_impl(krylov_solver_t* solver)
 {
   return solver->context;
 }
 
-int krylov_solver_num_equations(krylov_solver_t* solver)
+void krylov_solver_set_tolerance(krylov_solver_t* solver, 
+                                 real_t tolerance)
 {
-  return solver->num_local_values;
+  ASSERT(tolerance > 0.0);
+  solver->vtable.set_tolerance(solver->context, tolerance);
 }
 
-void krylov_solver_set_tolerance(krylov_solver_t* solver, real_t residual_tolerance)
+void krylov_solver_set_operator(krylov_solver_t* solver, 
+                                krylov_matrix_t* op)
 {
-  ASSERT(residual_tolerance > 0.0);
-  solver->res_tol = residual_tolerance;
+  solver->vtable.set_operator(solver->context, op->context);
 }
 
-void krylov_solver_set_jacobi_preconditioner(krylov_solver_t* solver, 
-                                             adj_graph_t* sparsity)
-{
-  solver->pc_type = KRYLOV_JACOBI_PC;
-  log_debug("krylov_solver: Using Jacobi preconditioner.");
-
-  if (solver->P != NULL)
-    local_matrix_free(solver->P);
-  int nv = adj_graph_num_vertices(sparsity);
-  solver->P = block_diagonal_matrix_new(nv, 1);
-
-  solver->coloring = adj_graph_coloring_new(sparsity, SMALLEST_LAST);
-}
-
-void krylov_solver_set_block_jacobi_preconditioner(krylov_solver_t* solver, 
-                                                   int block_size,
-                                                   adj_graph_t* sparsity)
-{
-  ASSERT(block_size >= 1);
-  solver->pc_type = KRYLOV_BLOCK_JACOBI_PC;
-  log_debug("krylov_solver: Using block Jacobi preconditioner (block size = %d).", block_size);
-
-  if (solver->P != NULL)
-    local_matrix_free(solver->P);
-  int nv = adj_graph_num_vertices(sparsity);
-  solver->P = block_diagonal_matrix_new(nv, block_size);
-
-  solver->coloring = adj_graph_coloring_new(sparsity, SMALLEST_LAST);
-}
-
-void krylov_solver_set_lu_preconditioner(krylov_solver_t* solver, 
-                                         adj_graph_t* sparsity)
-{
-  solver->pc_type = KRYLOV_LU_PC;
-  log_debug("krylov_solver: Using LU preconditioner.");
-
-  if (solver->P != NULL)
-    local_matrix_free(solver->P);
-  solver->P = sparse_local_matrix_new(sparsity);
-
-  solver->coloring = adj_graph_coloring_new(sparsity, SMALLEST_LAST);
-}
-
-void krylov_solver_set_ilu_preconditioner(krylov_solver_t* solver, 
-                                          ilu_params_t* ilu_params,
-                                          adj_graph_t* sparsity)
-{
-  solver->pc_type = KRYLOV_ILU_PC;
-  log_debug("krylov_solver: Using Incomplete LU preconditioner with");
-  log_debug("  drop tolerance %g and fill factor %g.", ilu_params->drop_tolerance, ilu_params->fill_factor);
-
-  if (solver->P != NULL)
-    local_matrix_free(solver->P);
-  solver->P = ilu_sparse_local_matrix_new(sparsity, ilu_params);
-
-  solver->coloring = adj_graph_coloring_new(sparsity, SMALLEST_LAST);
-}
-
-bool krylov_solver_solve(krylov_solver_t* solver,
-                         real_t t,
-                         real_t* b,
-                         real_t* residual_norm,
+bool krylov_solver_solve(krylov_solver_t* solver, 
+                         krylov_vector_t* x, 
+                         krylov_vector_t* b, 
+                         real_t* residual_norm, 
                          int* num_iterations)
 {
-  START_FUNCTION_TIMER();
-  ASSERT(b != NULL);
-
-  // Copy b into place.
-  int N = solver->num_local_values;
-  memcpy(NV_DATA(solver->b), b, sizeof(real_t) * N);
-
-  // Set the time.
-  solver->t = t;
-
-  // Set the scale vectors. 
-  for (int i = 0; i < N; ++i)
-  {
-    NV_Ith(solver->s1, i) = 1.0;
-    NV_Ith(solver->s2, i) = 1.0;
-  }
-
-  // Zero the internal solution vector.
-  memset(NV_DATA(solver->x), 0, sizeof(real_t) * N);
-  
-  // Suspend the currently active floating point exceptions for now.
-//  polymec_suspend_fpe_exceptions();
-
-  int pc_type = (solver->P != NULL) ? PREC_LEFT : PREC_NONE;
-  if (solver->P)
-  {
-    log_debug("krylov_solver: setting up preconditioner...");
-    set_up_preconditioner(solver);
-  }
-
-  // Solve.
-  log_debug("krylov_solver: solving...");
-  solver->num_pc_solves = 0;
-  bool success = false;
-  int status;
-  if (solver->solver_type == KRYLOV_GMRES)
-  {
-    status = SpgmrSolve(solver->gmres, solver, solver->x, solver->b, pc_type, 
-                        MODIFIED_GS, solver->res_tol, solver->max_restarts, solver->P,
-                        solver->s1, solver->s2, evaluate_Ay, solve_preconditioner_system, 
-                        residual_norm, num_iterations, &solver->num_pc_solves);
-    if (status == SPGMR_SUCCESS)
-      success = true;
-  }
-  else if (solver->solver_type == KRYLOV_BICGSTAB)
-  {
-    status = SpbcgSolve(solver->bicgstab, solver, solver->x, solver->b, pc_type, 
-                        solver->res_tol, solver->P, solver->s1, solver->s2, evaluate_Ay, 
-                        solve_preconditioner_system, residual_norm, num_iterations, 
-                        &solver->num_pc_solves);
-    if (status == SPBCG_SUCCESS)
-      success = true;
-  }
-  else
-  {
-    status = SptfqmrSolve(solver->tfqmr, solver, solver->x, solver->b, pc_type, 
-                          solver->res_tol, solver->P, solver->s1, solver->s2, 
-                          evaluate_Ay, solve_preconditioner_system, residual_norm, 
-                          num_iterations, &solver->num_pc_solves);
-    if (status == SPTFQMR_SUCCESS)
-      success = true;
-  }
-
-  // Reinstate the floating point exceptions.
-//  polymec_restore_fpe_exceptions();
-
-  if (success)
-  {
-    log_debug("krylov_solver: solved after %d iterations.", *num_iterations);
-
-    // Copy the data back into b.
-    memcpy(b, NV_DATA(solver->x), sizeof(real_t) * N);
-    STOP_FUNCTION_TIMER();
-    return true;
-  }
-  else
-  {
-    if ((status == SPGMR_RES_REDUCED) || 
-        (status == SPBCG_RES_REDUCED) ||
-        (status == SPTFQMR_RES_REDUCED))
-    {
-      log_debug("krylov_solver: solve failed but the residual was reduced.");
-      // Copy the data back into b.
-      memcpy(b, NV_DATA(solver->x), sizeof(real_t) * N);
-    }
-    else if ((status == SPGMR_PSOLVE_FAIL_REC) ||
-             (status == SPBCG_PSOLVE_FAIL_REC) ||
-             (status == SPTFQMR_PSOLVE_FAIL_REC))
-      log_debug("krylov_solver: preconditioner solve failed unrecoverably.");
-    else if ((status == SPGMR_PSOLVE_FAIL_UNREC) ||
-             (status == SPBCG_PSOLVE_FAIL_UNREC) ||
-             (status == SPTFQMR_PSOLVE_FAIL_UNREC))
-      log_debug("krylov_solver: preconditioner solve failed unrecoverably.");
-    else if ((status == SPGMR_ATIMES_FAIL_REC) ||
-             (status == SPBCG_ATIMES_FAIL_REC) ||
-             (status == SPTFQMR_ATIMES_FAIL_REC))
-      log_debug("krylov_solver: matrix-vector product failed recoverably.");
-    else if ((status == SPGMR_ATIMES_FAIL_UNREC) ||
-             (status == SPBCG_ATIMES_FAIL_UNREC) ||
-             (status == SPTFQMR_ATIMES_FAIL_UNREC))
-      log_debug("krylov_solver: matrix-vector product failed unrecoverably.");
-    else if (status == SPGMR_QRFACT_FAIL) 
-      log_debug("krylov_solver: QR factorization failed.");
-    else 
-      log_debug("krylov_solver: solve failed to converge.");
-    STOP_FUNCTION_TIMER();
-    return false;
-  }
+  return solver->vtable.solve(solver->context, x->context, b->context,
+                              residual_norm, num_iterations);
 }
 
-void krylov_solver_eval_residual(krylov_solver_t* solver, real_t t, real_t* x, real_t* b, real_t* R)
+//------------------------------------------------------------------------
+//                          Krylov matrix
+//------------------------------------------------------------------------
+
+static krylov_matrix_t* krylov_matrix_new(void* context,
+                                          krylov_matrix_vtable vtable)
 {
-  START_FUNCTION_TIMER();
-  // Evaluate the residual using a solution vector with ghosts.
-  memcpy(solver->x_with_ghosts, x, sizeof(real_t) * solver->num_local_values);
-  int status = solver->Ay(solver->context, solver->t, solver->x_with_ghosts, R);
-  if (status == 0)
-  {
-    // Subtract b.
-    for (int i = 0; i < solver->num_local_values; ++i)
-      R[i] -= b[i];
-  }
-  STOP_FUNCTION_TIMER();
+  ASSERT(vtable.zero != NULL);
+  ASSERT(vtable.set_diagonal != NULL);
+  ASSERT(vtable.set_values != NULL);
+  ASSERT(vtable.add_values != NULL);
+  ASSERT(vtable.get_values != NULL);
+  krylov_matrix_t* A = polymec_malloc(sizeof(krylov_matrix_t));
+  A->context = context;
+  A->vtable = vtable;
+  return A;
 }
-                                  
+
+void krylov_matrix_free(krylov_matrix_t* A)
+{
+  if ((A->context != NULL) && (A->vtable.dtor != NULL))
+    A->vtable.dtor(A->context);
+  polymec_free(A);
+}
+
+void* krylov_matrix_impl(krylov_matrix_t* A)
+{
+  return A->context;
+}
+
+int krylov_matrix_num_local_rows(krylov_matrix_t* A)
+{
+  return A->num_local_rows;
+}
+
+int krylov_matrix_num_local_columns(krylov_matrix_t* A)
+{
+  return A->num_local_columns;
+}
+
+int krylov_matrix_num_global_rows(krylov_matrix_t* A)
+{
+  return A->num_global_rows;
+}
+
+int krylov_matrix_num_global_columns(krylov_matrix_t* A)
+{
+  return A->num_global_columns;
+}
+
+void krylov_matrix_zero(krylov_matrix_t* A)
+{
+  A->vtable.zero(A->context);
+}
+
+void krylov_matrix_add_identity(krylov_matrix_t* A,
+                                real_t scale_factor)
+{
+  A->vtable.add_identity(A->context, scale_factor);
+}
+
+void krylov_matrix_scale(krylov_matrix_t* A,
+                         real_t scale_factor)
+{
+  A->vtable.scale(A->context, scale_factor);
+}
+
+void krylov_matrix_set_diagonal(krylov_matrix_t* A,
+                                krylov_matrix_t* D)
+{
+  A->vtable.set_diagonal(A->context, D->context);
+}
+
+void krylov_matrix_set_values(krylov_matrix_t* A,
+                              int num_rows,
+                              int* num_columns,
+                              int* rows, int* columns,
+                              real_t* values)
+{
+  A->vtable.set_values(A->context, num_rows, num_columns, rows, columns, values);
+}
+                              
+void krylov_matrix_add_values(krylov_matrix_t* A,
+                              int num_rows,
+                              int* num_columns,
+                              int* rows, int* columns,
+                              real_t* values)
+{
+  A->vtable.add_values(A->context, num_rows, num_columns, rows, columns, values);
+}
+                              
+void krylov_matrix_assemble(krylov_matrix_t* A)
+{
+  krylov_matrix_start_assembly(A);
+  krylov_matrix_finish_assembly(A);
+}
+
+void krylov_matrix_start_assembly(krylov_matrix_t* A)
+{
+  if (A->vtable.start_assembly != NULL);
+    A->vtable.start_assembly(A->context);
+}
+
+void krylov_matrix_finish_assembly(krylov_matrix_t* A)
+{
+  if (A->vtable.finish_assembly != NULL);
+    A->vtable.finish_assembly(A->context);
+}
+
+void krylov_matrix_get_values(krylov_matrix_t* A,
+                              int num_rows,
+                              int* num_columns,
+                              int* rows, int* columns,
+                              real_t* values)
+{
+  A->vtable.get_values(A->context, num_rows, num_columns, rows, columns, values);
+}
+
+//------------------------------------------------------------------------
+//                          Krylov vector
+//------------------------------------------------------------------------
+
+static krylov_vector_t* krylov_vector_new(void* context,
+                                          krylov_vector_vtable vtable)
+{
+  ASSERT(vtable.zero != NULL);
+  ASSERT(vtable.set_value != NULL);
+  ASSERT(vtable.scale != NULL);
+  ASSERT(vtable.set_values != NULL);
+  ASSERT(vtable.add_values != NULL);
+  ASSERT(vtable.get_values != NULL);
+  krylov_vector_t* v = polymec_malloc(sizeof(krylov_vector_t));
+  v->context = context;
+  v->vtable = vtable;
+  return v;
+}
+
+void krylov_vector_free(krylov_vector_t* v)
+{
+  if ((v->context != NULL) && (v->vtable.dtor != NULL))
+    v->vtable.dtor(v->context);
+  polymec_free(v);
+}
+
+void* krylov_vector_impl(krylov_vector_t* v)
+{
+  return v->context;
+}
+
+int krylov_vector_local_size(krylov_vector_t* v)
+{
+  return v->local_size;
+}
+
+int krylov_vector_global_size(krylov_vector_t* v)
+{
+  return v->global_size;
+}
+
+void krylov_vector_zero(krylov_vector_t* v)
+{
+  v->vtable.zero(v->context);
+}
+
+void krylov_vector_set_value(krylov_vector_t* v,
+                             real_t value)
+{
+  v->vtable.set_value(v->context, value);
+}
+
+void krylov_vector_scale(krylov_vector_t* v,
+                         real_t scale_factor)
+{
+  v->vtable.scale(v->context, scale_factor);
+}
+
+void krylov_vector_set_values(krylov_vector_t* v,
+                              int num_values,
+                              int* indices,
+                              real_t* values)
+{
+  v->vtable.set_values(v->context, num_values, indices, values);
+}
+                              
+void krylov_vector_add_values(krylov_vector_t* v,
+                              int num_values,
+                              int* indices,
+                              real_t* values)
+{
+  v->vtable.add_values(v->context, num_values, indices, values);
+}
+
+void krylov_vector_assemble(krylov_vector_t* v)
+{
+  krylov_vector_start_assembly(v);
+  krylov_vector_finish_assembly(v);
+}
+
+void krylov_vector_start_assembly(krylov_vector_t* v)
+{
+  if (v->vtable.start_assembly != NULL);
+    v->vtable.start_assembly(v->context);
+}
+
+void krylov_vector_finish_assembly(krylov_vector_t* v)
+{
+  if (v->vtable.finish_assembly != NULL);
+    v->vtable.finish_assembly(v->context);
+}
+
+void krylov_vector_get_values(krylov_vector_t* v,
+                              int num_values,
+                              int* indices,
+                              real_t* values)
+{
+  v->vtable.get_values(v->context, num_values, indices, values);
+}
+
+real_t krylov_vector_norm(krylov_vector_t* v, int p)
+{
+  ASSERT((p == 0) || (p == 1) || (p == 2));
+  return v->vtable.norm(v->context, p);
+}
+
+//------------------------------------------------------------------------
+//                  Factories for creating Krylov solvers
+//------------------------------------------------------------------------
+
+static krylov_factory_t* krylov_factory_new(const char* name,
+                                            void* context,
+                                            krylov_factory_vtable vtable)
+{
+  ASSERT(vtable.solver != NULL);
+  ASSERT(vtable.matrix != NULL);
+  ASSERT(vtable.block_matrix != NULL);
+  ASSERT(vtable.vector != NULL);
+  krylov_factory_t* factory = polymec_malloc(sizeof(krylov_factory_t));
+  factory->name = string_dup(name);
+  factory->context = context;
+  factory->vtable = vtable;
+  return factory;
+}
+
+void krylov_factory_free(krylov_factory_t* factory)
+{
+  if ((factory->context != NULL) && (factory->vtable.dtor != NULL))
+    factory->vtable.dtor(factory->context);
+  string_free(factory->name);
+  polymec_free(factory);
+}
+
+char* krylov_factory_name(krylov_factory_t* factory)
+{
+  return factory->name;
+}
+
+krylov_matrix_t* krylov_factory_matrix(krylov_factory_t* factory, 
+                                       adj_graph_t* sparsity)
+{
+  return factory->vtable.matrix(factory->context, sparsity);
+}
+
+krylov_matrix_t* krylov_factory_block_matrix(krylov_factory_t* factory, 
+                                             adj_graph_t* sparsity,
+                                             int block_size)
+{
+  ASSERT(block_size > 0);
+  return factory->vtable.block_matrix(factory->context, sparsity, block_size);
+}
+
+krylov_vector_t* krylov_factory_vector(krylov_factory_t* factory,
+                                       MPI_Comm comm,
+                                       int N)
+{
+  ASSERT(N > 0);
+  return factory->vtable.vector(factory->context, comm, N);
+}
+
+krylov_solver_t* krylov_factory_solver(krylov_factory_t* factory,
+                                       MPI_Comm comm,
+                                       string_string_unordered_map_t* options)
+{
+  return factory->vtable.solver(factory->context, comm, options);
+}
+
+//------------------------------------------------------------------------
+//                          PETSc implementation
+//------------------------------------------------------------------------
+
+// Here's a table of function pointers for the PETSc library.
+typedef real_t PetscScalar;
+typedef real_t PetscReal;
+typedef int PetscInt;
+typedef int PetscErrorCode;
+typedef void* KSP;
+typedef const char* KSPType;
+typedef void* Mat;
+typedef void* Vec;
+typedef enum {NORM_1=0,NORM_2=1,NORM_FROBENIUS=2,NORM_INFINITY=3,NORM_1_AND_2=4} NormType;
+typedef enum {MAT_FLUSH_ASSEMBLY=1,MAT_FINAL_ASSEMBLY=0} MatAssemblyType;
+typedef enum {INSERT_VALUES=1,ADD_VALUES=0} InsertMode;
+typedef struct
+{
+  PetscErrorCode (*KSPCreate)(MPI_Comm,KSP *);
+  PetscErrorCode (*KSPSetType)(KSP,KSPType);
+  PetscErrorCode (*KSPSetUp)(KSP);
+  PetscErrorCode (*KSPSetOperators)(KSP,Mat,Mat);
+  PetscErrorCode (*KSPSolve)(KSP,Vec,Vec);
+  PetscErrorCode (*KSPDestroy)(KSP*);
+
+  PetscErrorCode (*MatCreateSeqAIJ)(MPI_Comm,PetscInt,PetscInt,PetscInt,const PetscInt[],Mat*);
+  PetscErrorCode (*MatCreateAIJ)(MPI_Comm,PetscInt,PetscInt,PetscInt,PetscInt,PetscInt,const PetscInt[],PetscInt,const PetscInt[],Mat*);
+  PetscErrorCode (*MatCreateSeqBAIJ)(MPI_Comm,PetscInt,PetscInt,PetscInt,PetscInt,const PetscInt[],Mat*);
+  PetscErrorCode (*MatCreateBAIJ)(MPI_Comm,PetscInt,PetscInt,PetscInt,PetscInt,PetscInt,PetscInt,const PetscInt[],PetscInt,const PetscInt[],Mat*);
+  PetscErrorCode (*MatSetUp)(Mat);
+  PetscErrorCode (*MatDestroy)(Mat*);
+  PetscErrorCode (*MatScale)(Mat,PetscScalar);
+  PetscErrorCode (*MatShift)(Mat,PetscScalar);
+  PetscErrorCode (*MatDiagonalSet)(Mat,Vec,InsertMode);
+  PetscErrorCode (*MatZeroEntries)(Mat);
+  PetscErrorCode (*MatGetSize)(Mat,PetscInt*,PetscInt*);
+  PetscErrorCode (*MatGetLocalSize)(Mat,PetscInt*,PetscInt*);
+  PetscErrorCode (*MatSetValues)(Mat,PetscInt,const PetscInt[],PetscInt,const PetscInt[],const PetscScalar[],InsertMode);
+  PetscErrorCode (*MatGetValues)(Mat,PetscInt,const PetscInt[],PetscInt,const PetscInt[],PetscScalar[]);
+  PetscErrorCode (*MatAssemblyBegin)(Mat,MatAssemblyType);
+  PetscErrorCode (*MatAssemblyEnd)(Mat,MatAssemblyType);
+
+  PetscErrorCode (*VecCreateSeq)(MPI_Comm,PetscInt,Vec*);
+  PetscErrorCode (*VecCreateMPI)(MPI_Comm,PetscInt,PetscInt,Vec*);
+  PetscErrorCode (*VecSetUp)(Vec);
+  PetscErrorCode (*VecDestroy)(Vec*);
+  PetscErrorCode (*VecZeroEntries)(Vec);
+  PetscErrorCode (*VecScale)(Vec,PetscScalar);
+  PetscErrorCode (*VecSet)(Vec,PetscScalar);
+  PetscErrorCode (*VecSetValues)(Vec,PetscInt,const PetscInt[],const PetscScalar[],InsertMode);
+  PetscErrorCode (*VecGetValues)(Vec,PetscInt,const PetscInt[],PetscScalar[]);
+  PetscErrorCode (*VecAssemblyBegin)(Vec);
+  PetscErrorCode (*VecAssemblyEnd)(Vec);
+  PetscErrorCode (*VecNorm)(Vec,NormType,PetscReal *);
+
+} petsc_methods_table;
+
+typedef struct
+{
+  petsc_methods_table methods;
+} petsc_factory_t;
+
+typedef struct
+{
+  petsc_factory_t* factory;
+  KSP ksp;
+} petsc_solver_t;
+
+typedef struct
+{
+  petsc_factory_t* factory;
+  Mat A;
+} petsc_matrix_t;
+
+typedef struct
+{
+  petsc_factory_t* factory;
+  Vec v;
+} petsc_vector_t;
+
+krylov_factory_t* petsc_krylov_factory(const char* petsc_dir,
+                                       const char* petsc_arch)
+{
+  ASSERT(((petsc_dir == NULL) && (petsc_arch == NULL)) ||
+          (petsc_dir != NULL) && (petsc_arch != NULL));
+
+  char name[128];
+  petsc_factory_t* factory = polymec_malloc(sizeof(petsc_factory_t));
+
+  // Try to find PETSc.
+  char petsc_path[FILENAME_MAX+1];
+#ifdef APPLE
+  const char* dl_suffix = "dylib";
+#else
+  const char* dl_suffix = "so";
+#endif
+  char *my_petsc_dir, *my_petsc_arch;
+  if (petsc_dir == NULL)
+  {
+    my_petsc_dir = getenv("PETSC_DIR");
+    my_petsc_arch = getenv("PETSC_ARCH");
+  }
+  if ((petsc_dir == NULL) && (my_petsc_dir == NULL))
+    polymec_error("PETSC directory was not given. Please set PETSC_DIR.");
+  if ((petsc_arch == NULL) && (my_petsc_arch == NULL))
+    polymec_error("PETSC architecture was not given. Please set PETSC_ARCH.");
+  if (petsc_dir != NULL)
+    snprintf(petsc_path, FILENAME_MAX, "%s/%s/lib/libpetsc.%s", petsc_dir, petsc_arch, dl_suffix);
+  else
+    snprintf(petsc_path, FILENAME_MAX, "%s/%s/lib/libpetsc.%s", my_petsc_dir, my_petsc_arch, dl_suffix);
+
+  // Try to open libPETSc and mine it for symbols.
+  void* petsc = dlopen(petsc_path, RTLD_NOW);
+  if (petsc == NULL)
+  {
+    char* msg = dlerror();
+    polymec_error("petsc_krylov_factory: %s.", msg);
+  }
+
+  // Non-standard C (but POSIX compliant!). Thanks, dlsym.
+  *((void**)&(factory->methods.KSPCreate)) = dlsym(petsc, "KSPCreate");
+
+  // Finish up and construct the factory.
+  dlclose(petsc);
+  krylov_factory_vtable vtable;
+  return krylov_factory_new(name, factory, vtable);
+}
+
+//------------------------------------------------------------------------
+//                          HYPRE implementation
+//------------------------------------------------------------------------
+
+typedef struct
+{
+  int i;
+} hypre_methods_table;
+
+typedef struct
+{
+  hypre_methods_table methods;
+} hypre_factory_t;
+
+krylov_factory_t* hypre_krylov_factory(const char* library_path)
+{
+  POLYMEC_NOT_IMPLEMENTED;
+//  char name[128];
+//  hypre_factory_t* factory = polymec_malloc(sizeof(hypre_factory_t));
+//  krylov_factory_vtable vtable;
+//  return krylov_factory_new(name, factory, vtable);
+}
+
