@@ -117,6 +117,9 @@ bool krylov_solver_solve(krylov_solver_t* solver,
 // Frees a matrix.
 void krylov_matrix_free(krylov_matrix_t* A);
 
+// Creates and returns a deep copy of a matrix.
+krylov_matrix_t* krylov_matrix_clone(krylov_matrix_t* A);
+
 // Returns a pointer to the underlying matrix implementation. You can use 
 // this if you have explicitly linked your program to the library providing
 // the implementation.
@@ -150,7 +153,7 @@ void krylov_matrix_set_diagonal(krylov_matrix_t* A,
                                 krylov_matrix_t* D);
 
 // Sets the values of the elements in the matrix identified by the given 
-// rows and columns.
+// (locally-indexed) rows and columns.
 void krylov_matrix_set_values(krylov_matrix_t* A,
                               int num_rows,
                               int* num_columns,
@@ -158,7 +161,7 @@ void krylov_matrix_set_values(krylov_matrix_t* A,
                               real_t* values);
                               
 // Adds the given values of the elements to those in the matrix.
-// The values are identified by the given rows and columns.
+// The values are identified by the given (locally-indexed) rows and columns.
 void krylov_matrix_add_values(krylov_matrix_t* A,
                               int num_rows,
                               int* num_columns,
@@ -178,13 +181,12 @@ void krylov_matrix_start_assembly(krylov_matrix_t* A);
 void krylov_matrix_finish_assembly(krylov_matrix_t* A);
 
 // Retrieves the values of the elements in the matrix identified by the 
-// given rows and columns, storing them in the values array.
+// given (locally-indexed) rows and columns, storing them in the values array.
 void krylov_matrix_get_values(krylov_matrix_t* A,
                               int num_rows,
                               int* num_columns,
                               int* rows, int* columns,
                               real_t* values);
-                              
 
 //------------------------------------------------------------------------
 //                          Krylov vector
@@ -192,6 +194,9 @@ void krylov_matrix_get_values(krylov_matrix_t* A,
 
 // Frees a vector.
 void krylov_vector_free(krylov_vector_t* v);
+
+// Creates and returns a deep copy of a vector.
+krylov_vector_t* krylov_vector_clone(krylov_vector_t* v);
 
 // Returns a pointer to the underlying vector implementation. You can use 
 // this if you have explicitly linked your program to the library providing

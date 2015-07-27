@@ -31,6 +31,7 @@ struct krylov_solver_t
 
 typedef struct
 {
+  void* (*clone)(void* context);
   void (*zero)(void* context);
   void (*scale)(void* context, real_t scale_factor);
   void (*add_identity)(void* context, real_t scale_factor);
@@ -53,6 +54,7 @@ struct krylov_matrix_t
 
 typedef struct
 {
+  void* (*clone)(void* context);
   void (*zero)(void* context);
   void (*set_value)(void* context, real_t value);
   void (*scale)(void* context, real_t scale_factor);
@@ -74,11 +76,10 @@ struct krylov_vector_t
 
 typedef struct 
 {
-  char* name;
-  void* (*solver)(void* context, MPI_Comm comm, string_string_unordered_map_t* options);
-  void* (*matrix)(void* context, adj_graph_t* sparsity);
-  void* (*block_matrix)(void* context, adj_graph_t* sparsity, int block_size);
-  void* (*vector)(void* context, MPI_Comm comm, int N);
+  krylov_solver_t* (*solver)(void* context, MPI_Comm comm, string_string_unordered_map_t* options);
+  krylov_matrix_t* (*matrix)(void* context, adj_graph_t* sparsity);
+  krylov_matrix_t* (*block_matrix)(void* context, adj_graph_t* sparsity, int block_size);
+  krylov_vector_t* (*vector)(void* context, MPI_Comm comm, int N);
   void (*dtor)(void* context);
 } krylov_factory_vtable;
 
@@ -173,6 +174,18 @@ void krylov_matrix_free(krylov_matrix_t* A)
   if ((A->context != NULL) && (A->vtable.dtor != NULL))
     A->vtable.dtor(A->context);
   polymec_free(A);
+}
+
+krylov_matrix_t* krylov_matrix_clone(krylov_matrix_t* A)
+{
+  krylov_matrix_t* B = polymec_malloc(sizeof(krylov_matrix_t));
+  B->context = A->vtable.clone(A->context);
+  B->vtable = A->vtable;
+  B->num_local_rows = A->num_local_rows;
+  B->num_local_columns = A->num_local_columns;
+  B->num_global_rows = A->num_global_rows;
+  B->num_global_columns = A->num_global_columns;
+  return B;
 }
 
 void* krylov_matrix_impl(krylov_matrix_t* A)
@@ -292,6 +305,16 @@ void krylov_vector_free(krylov_vector_t* v)
   if ((v->context != NULL) && (v->vtable.dtor != NULL))
     v->vtable.dtor(v->context);
   polymec_free(v);
+}
+
+krylov_vector_t* krylov_vector_clone(krylov_vector_t* v)
+{
+  krylov_vector_t* u = polymec_malloc(sizeof(krylov_vector_t));
+  u->context = v->vtable.clone(v->context);
+  u->vtable = v->vtable;
+  u->local_size = v->local_size;
+  u->global_size = v->global_size;
+  return u;
 }
 
 void* krylov_vector_impl(krylov_vector_t* v)
@@ -447,10 +470,18 @@ typedef int PetscErrorCode;
 typedef void* KSP;
 typedef const char* KSPType;
 typedef void* Mat;
+typedef const char* MatType;
 typedef void* Vec;
 typedef enum {NORM_1=0,NORM_2=1,NORM_FROBENIUS=2,NORM_INFINITY=3,NORM_1_AND_2=4} NormType;
 typedef enum {MAT_FLUSH_ASSEMBLY=1,MAT_FINAL_ASSEMBLY=0} MatAssemblyType;
 typedef enum {INSERT_VALUES=1,ADD_VALUES=0} InsertMode;
+typedef enum {MAT_INITIAL_MATRIX,MAT_REUSE_MATRIX,MAT_IGNORE_MATRIX} MatReuse;
+const char* MATSEQAIJ = "seqaij";
+const char* MATMPIAIJ = "mpiaij";
+const char* MATSEQBAIJ = "seqbaij";
+const char* MATMPIBAIJ = "mpibaij";
+#define PETSC_DECIDE -1
+#define PETSC_DETERMINE PETSC_DECIDE
 typedef struct
 {
   PetscErrorCode (*KSPCreate)(MPI_Comm,KSP *);
@@ -459,11 +490,10 @@ typedef struct
   PetscErrorCode (*KSPSetOperators)(KSP,Mat,Mat);
   PetscErrorCode (*KSPSolve)(KSP,Vec,Vec);
   PetscErrorCode (*KSPDestroy)(KSP*);
-
-  PetscErrorCode (*MatCreateSeqAIJ)(MPI_Comm,PetscInt,PetscInt,PetscInt,const PetscInt[],Mat*);
-  PetscErrorCode (*MatCreateAIJ)(MPI_Comm,PetscInt,PetscInt,PetscInt,PetscInt,PetscInt,const PetscInt[],PetscInt,const PetscInt[],Mat*);
-  PetscErrorCode (*MatCreateSeqBAIJ)(MPI_Comm,PetscInt,PetscInt,PetscInt,PetscInt,const PetscInt[],Mat*);
-  PetscErrorCode (*MatCreateBAIJ)(MPI_Comm,PetscInt,PetscInt,PetscInt,PetscInt,PetscInt,PetscInt,const PetscInt[],PetscInt,const PetscInt[],Mat*);
+  PetscErrorCode (*MatCreate)(MPI_Comm,Mat*);
+  PetscErrorCode (*MatConvert)(Mat, MatType, MatReuse, Mat*);
+  PetscErrorCode (*MatSetType)(Mat, MatType);
+  PetscErrorCode (*MatSetSizes)(Mat, PetscInt m, PetscInt n, PetscInt M, PetscInt N);
   PetscErrorCode (*MatSetUp)(Mat);
   PetscErrorCode (*MatDestroy)(Mat*);
   PetscErrorCode (*MatScale)(Mat,PetscScalar);
@@ -479,6 +509,8 @@ typedef struct
 
   PetscErrorCode (*VecCreateSeq)(MPI_Comm,PetscInt,Vec*);
   PetscErrorCode (*VecCreateMPI)(MPI_Comm,PetscInt,PetscInt,Vec*);
+  PetscErrorCode (*VecDuplicate)(Vec,Vec*);
+  PetscErrorCode (*VecCopy)(Vec,Vec);
   PetscErrorCode (*VecSetUp)(Vec);
   PetscErrorCode (*VecDestroy)(Vec*);
   PetscErrorCode (*VecZeroEntries)(Vec);
@@ -489,7 +521,6 @@ typedef struct
   PetscErrorCode (*VecAssemblyBegin)(Vec);
   PetscErrorCode (*VecAssemblyEnd)(Vec);
   PetscErrorCode (*VecNorm)(Vec,NormType,PetscReal *);
-
 } petsc_methods_table;
 
 typedef struct
@@ -514,6 +545,71 @@ typedef struct
   petsc_factory_t* factory;
   Vec v;
 } petsc_vector_t;
+
+static krylov_solver_t* petsc_factory_solver(void* context,
+                                             MPI_Comm comm,
+                                             string_string_unordered_map_t* options)
+{
+  petsc_solver_t* solver = polymec_malloc(sizeof(petsc_solver_t));
+  solver->factory = context;
+  solver->factory->methods.KSPCreate(comm, &solver->ksp);
+  char** type_p = string_string_unordered_map_get(options, "type");
+  if (type_p == NULL)
+    solver->factory->methods.KSPSetType(solver->ksp, "gmres");
+  else
+    solver->factory->methods.KSPSetType(solver->ksp, *type_p);
+  krylov_solver_vtable vtable; // FIXME
+  return krylov_solver_new("KSP", solver, vtable);
+}
+
+static krylov_matrix_t* petsc_factory_matrix(void* context,
+                                             adj_graph_t* sparsity)
+{
+  petsc_matrix_t* A = polymec_malloc(sizeof(petsc_matrix_t));
+  A->factory = context;
+  int N_local = adj_graph_num_vertices(sparsity);
+  index_t* vtx_dist = adj_graph_vertex_dist(sparsity);
+  MPI_Comm comm = adj_graph_comm(sparsity);
+  int nprocs;
+  MPI_Comm_size(comm, &nprocs);
+  int N_global = (int)vtx_dist[nprocs];
+  A->factory->methods.MatCreate(comm, &A->A);
+  if (nprocs == 1)
+    A->factory->methods.MatSetType(A->A, MATSEQAIJ);
+  else
+    A->factory->methods.MatSetType(A->A, MATMPIAIJ);
+  A->factory->methods.MatSetSizes(A->A, N_local, N_local, N_global, N_global);
+  // FIXME: Do preallocation here!
+  krylov_matrix_vtable vtable; // FIXME
+  return krylov_matrix_new(A, vtable);
+}
+
+static krylov_matrix_t* petsc_factory_block_matrix(void* context,
+                                                   adj_graph_t* sparsity,
+                                                   int block_size)
+{
+  petsc_matrix_t* A = polymec_malloc(sizeof(petsc_matrix_t));
+  A->factory = context;
+  // FIXME
+  krylov_matrix_vtable vtable; // FIXME
+  return krylov_matrix_new(A, vtable);
+}
+
+static krylov_vector_t* petsc_factory_vector(void* context,
+                                             MPI_Comm comm,
+                                             int N)
+{
+  petsc_vector_t* v = polymec_malloc(sizeof(petsc_vector_t));
+  v->factory = context;
+  int nprocs;
+  MPI_Comm_size(comm, &nprocs);
+  if (nprocs == 1)
+    v->factory->methods.VecCreateSeq(comm, N, &v->v);
+  else
+    v->factory->methods.VecCreateMPI(comm, N, PETSC_DETERMINE, &v->v);
+  krylov_vector_vtable vtable; // FIXME
+  return krylov_vector_new(v, vtable);
+}
 
 krylov_factory_t* petsc_krylov_factory(const char* petsc_dir,
                                        const char* petsc_arch)
@@ -556,10 +652,50 @@ krylov_factory_t* petsc_krylov_factory(const char* petsc_dir,
 
   // Non-standard C (but POSIX compliant!). Thanks, dlsym.
   *((void**)&(factory->methods.KSPCreate)) = dlsym(petsc, "KSPCreate");
+  *((void**)&(factory->methods.KSPSetType)) = dlsym(petsc, "KSPSetType");
+  *((void**)&(factory->methods.KSPSetUp)) = dlsym(petsc, "KSPSetUp");
+  *((void**)&(factory->methods.KSPSetOperators)) = dlsym(petsc, "KSPSetOperators");
+  *((void**)&(factory->methods.KSPSolve)) = dlsym(petsc, "KSPSolve");
+  *((void**)&(factory->methods.KSPDestroy)) = dlsym(petsc, "KSPDestroy");
+
+  *((void**)&(factory->methods.MatCreate)) = dlsym(petsc, "MatCreate");
+  *((void**)&(factory->methods.MatConvert)) = dlsym(petsc, "MatConvert");
+  *((void**)&(factory->methods.MatSetType)) = dlsym(petsc, "MatSetType");
+  *((void**)&(factory->methods.MatSetSizes)) = dlsym(petsc, "MatSetSizes");
+  *((void**)&(factory->methods.MatSetUp)) = dlsym(petsc, "MatSetUp");
+  *((void**)&(factory->methods.MatDestroy)) = dlsym(petsc, "MatDestroy");
+  *((void**)&(factory->methods.MatScale)) = dlsym(petsc, "MatScale");
+  *((void**)&(factory->methods.MatShift)) = dlsym(petsc, "MatShift");
+  *((void**)&(factory->methods.MatDiagonalSet)) = dlsym(petsc, "MatDiagonalSet");
+  *((void**)&(factory->methods.MatZeroEntries)) = dlsym(petsc, "MatZeroEntries");
+  *((void**)&(factory->methods.MatGetSize)) = dlsym(petsc, "MatGetSize");
+  *((void**)&(factory->methods.MatGetLocalSize)) = dlsym(petsc, "MatGetLocalSize");
+  *((void**)&(factory->methods.MatSetValues)) = dlsym(petsc, "MatSetValues");
+  *((void**)&(factory->methods.MatGetValues)) = dlsym(petsc, "MatGetValues");
+  *((void**)&(factory->methods.MatAssemblyBegin)) = dlsym(petsc, "MatAssemblyBegin");
+  *((void**)&(factory->methods.MatAssemblyEnd)) = dlsym(petsc, "MatAssemblyEnd");
+  
+  *((void**)&(factory->methods.VecCreateSeq)) = dlsym(petsc, "VecCreateSeq");
+  *((void**)&(factory->methods.VecCreateMPI)) = dlsym(petsc, "VecCreateMPI");
+  *((void**)&(factory->methods.VecDuplicate)) = dlsym(petsc, "VecDuplicate");
+  *((void**)&(factory->methods.VecCopy)) = dlsym(petsc, "VecCopy");
+  *((void**)&(factory->methods.VecSetUp)) = dlsym(petsc, "VecSetUp");
+  *((void**)&(factory->methods.VecDestroy)) = dlsym(petsc, "VecDestroy");
+  *((void**)&(factory->methods.VecZeroEntries)) = dlsym(petsc, "VecZeroEntries");
+  *((void**)&(factory->methods.VecScale)) = dlsym(petsc, "VecScale");
+  *((void**)&(factory->methods.VecSet)) = dlsym(petsc, "VecSet");
+  *((void**)&(factory->methods.VecSetValues)) = dlsym(petsc, "VecSetValues");
+  *((void**)&(factory->methods.VecGetValues)) = dlsym(petsc, "VecGetValues");
+  *((void**)&(factory->methods.VecAssemblyBegin)) = dlsym(petsc, "VecAssemblyBegin");
+  *((void**)&(factory->methods.VecAssemblyEnd)) = dlsym(petsc, "VecAssemblyEnd");
+  *((void**)&(factory->methods.VecNorm)) = dlsym(petsc, "VecNorm");
 
   // Finish up and construct the factory.
   dlclose(petsc);
-  krylov_factory_vtable vtable;
+  krylov_factory_vtable vtable = {.solver = petsc_factory_solver,
+                                  .matrix = petsc_factory_matrix,
+                                  .block_matrix = petsc_factory_block_matrix,
+                                  .vector = petsc_factory_vector};
   return krylov_factory_new(name, factory, vtable);
 }
 
