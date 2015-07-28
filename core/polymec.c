@@ -115,6 +115,13 @@ static void shutdown()
     free(polymec_argv[i]);
   free(polymec_argv);
 
+  // Finalize any remaining garbage-collected objects.
+  if (GC_should_invoke_finalizers())
+  {
+    int num_finalized = GC_invoke_finalizers();
+    log_debug("polymec: finalized %d garbage-collected objects.", num_finalized);
+  }
+
   // Call shutdown functions.
   log_debug("polymec: Calling %d shutdown functions.", _num_atexit_funcs);
   for (int i = 0; i < _num_atexit_funcs; ++i)

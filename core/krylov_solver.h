@@ -24,8 +24,8 @@ typedef struct krylov_solver_t krylov_solver_t;
 
 // Objects of this type construct Krylov matrices, vectors, and solvers. 
 // A Krylov factory exposes capabilities within a given library (PETSc, HYPRE, 
-// etc). Objects of this type are garbage-collected, since they have to be 
-// around to service the requests of the solvers, matrices, and vectors.
+// etc). The factory must continue to exist as long as any of the solvers, 
+// matrices, and vectors it has created.
 typedef struct krylov_factory_t krylov_factory_t;
 
 //------------------------------------------------------------------------
@@ -45,6 +45,9 @@ krylov_factory_t* petsc_krylov_factory(const char* petsc_dir,
 // path. If no such underlying implementation can be found, this function 
 // returns NULL.
 krylov_factory_t* hypre_krylov_factory(const char* library_path);
+
+// Destroys an existing krylov_factory.
+void krylov_factory_free(krylov_factory_t* factory);
 
 // Returns an internal string containing the name of the given Krylov 
 // factory implementation.
@@ -159,7 +162,7 @@ void krylov_matrix_set_diagonal(krylov_matrix_t* A,
 void krylov_matrix_set_values(krylov_matrix_t* A,
                               int num_rows,
                               int* num_columns,
-                              index_t* rows, index_t* columns,
+                              int* rows, int* columns,
                               real_t* values);
                               
 // Adds the given values of the elements to those in the matrix.
@@ -167,7 +170,7 @@ void krylov_matrix_set_values(krylov_matrix_t* A,
 void krylov_matrix_add_values(krylov_matrix_t* A,
                               int num_rows,
                               int* num_columns,
-                              index_t* rows, index_t* columns,
+                              int* rows, int* columns,
                               real_t* values);
                               
 // Assemble the matrix. This should be called after setting or adding to its 
@@ -187,7 +190,7 @@ void krylov_matrix_finish_assembly(krylov_matrix_t* A);
 void krylov_matrix_get_values(krylov_matrix_t* A,
                               int num_rows,
                               int* num_columns,
-                              index_t* rows, index_t* columns,
+                              int* rows, int* columns,
                               real_t* values);
 
 //------------------------------------------------------------------------
@@ -226,14 +229,14 @@ void krylov_vector_scale(krylov_vector_t* v,
 // indices.
 void krylov_vector_set_values(krylov_vector_t* v,
                               int num_values,
-                              index_t* indices,
+                              int* indices,
                               real_t* values);
                               
 // Adds the given values of the elements to those in the vector.
 // The values are identified by the given indices.
 void krylov_vector_add_values(krylov_vector_t* v,
                               int num_values,
-                              index_t* indices,
+                              int* indices,
                               real_t* values);
                               
 // Assemble the vector. This should be called after setting or adding to its 
@@ -252,7 +255,7 @@ void krylov_vector_finish_assembly(krylov_vector_t* v);
 // given indices, storing them in the values array.
 void krylov_vector_get_values(krylov_vector_t* v,
                               int num_values,
-                              index_t* indices,
+                              int* indices,
                               real_t* values);
 
 // Computes and returns the Lp norm for this vector, where p can be 

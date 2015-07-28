@@ -7,7 +7,6 @@
 
 #include <float.h>
 #include <dlfcn.h>
-#include <gc/gc.h>
 #include "core/krylov_solver.h"
 #include "core/timer.h"
 #include "core/text_buffer.h"
@@ -41,11 +40,11 @@ typedef struct
   void (*add_identity)(void* context, real_t scale_factor);
   void (*add_diagonal)(void* context, void* D);
   void (*set_diagonal)(void* context, void* D);
-  void (*set_values)(void* context, int num_rows, int* num_columns, index_t* rows, index_t* columns, real_t* values);
-  void (*add_values)(void* context, int num_rows, int* num_columns, index_t* rows, index_t* columns, real_t* values);
+  void (*set_values)(void* context, int num_rows, int* num_columns, int* rows, int* columns, real_t* values);
+  void (*add_values)(void* context, int num_rows, int* num_columns, int* rows, int* columns, real_t* values);
   void (*start_assembly)(void* context);
   void (*finish_assembly)(void* context);
-  void (*get_values)(void* context, int num_rows, int* num_columns, index_t* rows, index_t* columns, real_t* values);
+  void (*get_values)(void* context, int num_rows, int* num_columns, int* rows, int* columns, real_t* values);
   void (*dtor)(void* context);
 } krylov_matrix_vtable;
 
@@ -54,7 +53,7 @@ struct krylov_matrix_t
   void* context;
   krylov_matrix_vtable vtable;
   int num_local_rows;
-  index_t num_global_rows;
+  int num_global_rows;
 };
 
 typedef struct
@@ -63,11 +62,11 @@ typedef struct
   void (*zero)(void* context);
   void (*set_value)(void* context, real_t value);
   void (*scale)(void* context, real_t scale_factor);
-  void (*set_values)(void* context, int num_values, index_t* indices, real_t* values);
-  void (*add_values)(void* context, int num_values, index_t* indices, real_t* values);
+  void (*set_values)(void* context, int num_values, int* indices, real_t* values);
+  void (*add_values)(void* context, int num_values, int* indices, real_t* values);
   void (*start_assembly)(void* context);
   void (*finish_assembly)(void* context);
-  void (*get_values)(void* context, int num_values, index_t* indices, real_t* values);
+  void (*get_values)(void* context, int num_values, int* indices, real_t* values);
   real_t (*norm)(void* context, int p);
   void (*dtor)(void* context);
 } krylov_vector_vtable;
@@ -77,7 +76,7 @@ struct krylov_vector_t
   void* context;
   krylov_vector_vtable vtable;
   int local_size;
-  index_t global_size;
+  int global_size;
 };
 
 typedef struct 
@@ -91,10 +90,6 @@ typedef struct
 
 struct krylov_factory_t
 {
-  // Parallel stuff.
-  int rank, nprocs;
-  MPI_Comm comm;
-
   char* name;
   void* context;
   krylov_factory_vtable vtable;
@@ -178,7 +173,7 @@ bool krylov_solver_solve(krylov_solver_t* solver,
 static krylov_matrix_t* krylov_matrix_new(void* context,
                                           krylov_matrix_vtable vtable,
                                           int num_local_rows,
-                                          index_t num_global_rows)
+                                          int num_global_rows)
 {
   ASSERT(vtable.zero != NULL);
   ASSERT(vtable.add_diagonal != NULL);
@@ -260,7 +255,7 @@ void krylov_matrix_set_diagonal(krylov_matrix_t* A,
 void krylov_matrix_set_values(krylov_matrix_t* A,
                               int num_rows,
                               int* num_columns,
-                              index_t* rows, index_t* columns,
+                              int* rows, int* columns,
                               real_t* values)
 {
   A->vtable.set_values(A->context, num_rows, num_columns, rows, columns, values);
@@ -269,7 +264,7 @@ void krylov_matrix_set_values(krylov_matrix_t* A,
 void krylov_matrix_add_values(krylov_matrix_t* A,
                               int num_rows,
                               int* num_columns,
-                              index_t* rows, index_t* columns,
+                              int* rows, int* columns,
                               real_t* values)
 {
   A->vtable.add_values(A->context, num_rows, num_columns, rows, columns, values);
@@ -296,7 +291,7 @@ void krylov_matrix_finish_assembly(krylov_matrix_t* A)
 void krylov_matrix_get_values(krylov_matrix_t* A,
                               int num_rows,
                               int* num_columns,
-                              index_t* rows, index_t* columns,
+                              int* rows, int* columns,
                               real_t* values)
 {
   A->vtable.get_values(A->context, num_rows, num_columns, rows, columns, values);
@@ -309,7 +304,7 @@ void krylov_matrix_get_values(krylov_matrix_t* A,
 static krylov_vector_t* krylov_vector_new(void* context,
                                           krylov_vector_vtable vtable,
                                           int local_size,
-                                          index_t global_size)
+                                          int global_size)
 {
   ASSERT(vtable.zero != NULL);
   ASSERT(vtable.set_value != NULL);
@@ -378,7 +373,7 @@ void krylov_vector_scale(krylov_vector_t* v,
 
 void krylov_vector_set_values(krylov_vector_t* v,
                               int num_values,
-                              index_t* indices,
+                              int* indices,
                               real_t* values)
 {
   v->vtable.set_values(v->context, num_values, indices, values);
@@ -386,7 +381,7 @@ void krylov_vector_set_values(krylov_vector_t* v,
                               
 void krylov_vector_add_values(krylov_vector_t* v,
                               int num_values,
-                              index_t* indices,
+                              int* indices,
                               real_t* values)
 {
   v->vtable.add_values(v->context, num_values, indices, values);
@@ -412,7 +407,7 @@ void krylov_vector_finish_assembly(krylov_vector_t* v)
 
 void krylov_vector_get_values(krylov_vector_t* v,
                               int num_values,
-                              index_t* indices,
+                              int* indices,
                               real_t* values)
 {
   v->vtable.get_values(v->context, num_values, indices, values);
@@ -428,15 +423,6 @@ real_t krylov_vector_norm(krylov_vector_t* v, int p)
 //                  Factories for creating Krylov solvers
 //------------------------------------------------------------------------
 
-static void krylov_factory_free(void* ctx, void* dummy)
-{
-  krylov_factory_t* factory = ctx;
-printf("Freeballin\n");
-  if ((factory->context != NULL) && (factory->vtable.dtor != NULL))
-    factory->vtable.dtor(factory->context);
-  string_free(factory->name);
-}
-
 static krylov_factory_t* krylov_factory_new(const char* name,
                                             void* context,
                                             krylov_factory_vtable vtable)
@@ -445,12 +431,19 @@ static krylov_factory_t* krylov_factory_new(const char* name,
   ASSERT(vtable.matrix != NULL);
   ASSERT(vtable.block_matrix != NULL);
   ASSERT(vtable.vector != NULL);
-  krylov_factory_t* factory = GC_MALLOC(sizeof(krylov_factory_t));
+  krylov_factory_t* factory = polymec_malloc(sizeof(krylov_factory_t));
   factory->name = string_dup(name);
   factory->context = context;
   factory->vtable = vtable;
-  GC_register_finalizer(factory, krylov_factory_free, factory, NULL, NULL);
   return factory;
+}
+
+void krylov_factory_free(krylov_factory_t* factory)
+{
+  if ((factory->context != NULL) && (factory->vtable.dtor != NULL))
+    factory->vtable.dtor(factory->context);
+  string_free(factory->name);
+  polymec_free(factory);
 }
 
 char* krylov_factory_name(krylov_factory_t* factory)
@@ -507,7 +500,7 @@ krylov_solver_t* krylov_factory_solver(krylov_factory_t* factory,
 typedef real_t PetscScalar;
 typedef real_t PetscReal;
 typedef int PetscMPIInt;
-typedef index_t PetscInt;
+typedef int PetscInt; // 32-bit indices for PETSc.
 typedef enum { PETSC_FALSE,PETSC_TRUE } PetscBool;
 typedef int PetscErrorCode;
 typedef void* KSP;
@@ -668,6 +661,7 @@ static void petsc_solver_dtor(void* context)
 {
   petsc_solver_t* solver = context;
   solver->factory->methods.KSPDestroy(&solver->ksp);
+  solver->factory = NULL;
   polymec_free(solver);
 }
 
@@ -736,7 +730,7 @@ static void petsc_matrix_add_diagonal(void* context, void* D)
 }
 
 static void petsc_matrix_enter_values(void* context, int num_rows,
-                                      int* num_columns, index_t* rows, index_t* columns,
+                                      int* num_columns, int* rows, int* columns,
                                       real_t* values, InsertMode insert_mode)
 {
   petsc_matrix_t* A = context;
@@ -757,14 +751,14 @@ static void petsc_matrix_enter_values(void* context, int num_rows,
 }
 
 static void petsc_matrix_set_values(void* context, int num_rows,
-                                    int* num_columns, index_t* rows, index_t* columns,
+                                    int* num_columns, int* rows, int* columns,
                                     real_t* values)
 {
   petsc_matrix_enter_values(context, num_rows, num_columns, rows, columns, values, INSERT_VALUES);
 }
 
 static void petsc_matrix_add_values(void* context, int num_rows,
-                                    int* num_columns, index_t* rows, index_t* columns,
+                                    int* num_columns, int* rows, int* columns,
                                     real_t* values)
 {
   petsc_matrix_enter_values(context, num_rows, num_columns, rows, columns, values, ADD_VALUES);
@@ -783,7 +777,7 @@ static void petsc_matrix_finish_assembly(void* context)
 }
 
 static void petsc_matrix_get_values(void* context, int num_rows,
-                                    int* num_columns, index_t* rows, index_t* columns,
+                                    int* num_columns, int* rows, int* columns,
                                     real_t* values)
 {
   petsc_matrix_t* A = context;
@@ -803,6 +797,7 @@ static void petsc_matrix_dtor(void* context)
 {
   petsc_matrix_t* A = context;
   A->factory->methods.MatDestroy(&(A->A));
+  A->factory = NULL;
   polymec_free(A);
 }
 
@@ -969,14 +964,14 @@ static void petsc_vector_scale(void* context, real_t scale_factor)
 }
 
 static void petsc_vector_set_values(void* context, int num_values,
-                                    index_t* indices, real_t* values)
+                                    int* indices, real_t* values)
 {
   petsc_vector_t* v = context;
   v->factory->methods.VecSetValues(v->v, num_values, indices, values, INSERT_VALUES);
 }
 
 static void petsc_vector_add_values(void* context, int num_values,
-                                    index_t* indices, real_t* values)
+                                    int* indices, real_t* values)
 {
   petsc_vector_t* v = context;
   v->factory->methods.VecSetValues(v->v, num_values, indices, values, ADD_VALUES);
@@ -995,7 +990,7 @@ static void petsc_vector_finish_assembly(void* context)
 }
 
 static void petsc_vector_get_values(void* context, int num_values,
-                                    index_t* indices, real_t* values)
+                                    int* indices, real_t* values)
 {
   petsc_vector_t* v = context;
   v->factory->methods.VecGetValues(v->v, num_values, indices, values);
@@ -1020,6 +1015,7 @@ static void petsc_vector_dtor(void* context)
 {
   petsc_vector_t* v = context;
   v->factory->methods.VecDestroy(&(v->v));
+  v->factory = NULL;
   polymec_free(v);
 }
 
@@ -1154,6 +1150,7 @@ krylov_factory_t* petsc_krylov_factory(const char* petsc_dir,
     }
     text_buffer_free(buffer);
   }
+#if 0
   if (sizeof(index_t) == sizeof(int64_t))
   {
     if (!petsc_uses_64bit_indices)
@@ -1171,6 +1168,12 @@ krylov_factory_t* petsc_krylov_factory(const char* petsc_dir,
                  "  PETSc must be built with 32-bit indices (not using --with-64-bit-indices).");
       goto failure;
     }
+  }
+#endif
+  if (petsc_uses_64bit_indices)
+  {
+    log_urgent("petsc_krylov_factory: Currently, PETSc must be configured to use 32-bit indices.");
+    goto failure;
   }
 
   // Get the other symbols.

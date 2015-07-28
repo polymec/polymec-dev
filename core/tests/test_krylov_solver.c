@@ -26,7 +26,7 @@ void test_petsc_krylov_factory(void** state)
       if (petsc != NULL)
       {
         assert_true(krylov_factory_name(petsc) != NULL);
-        petsc = NULL;
+        krylov_factory_free(petsc);
       }
       else
         log_urgent("Could not load PETSc. Skipping test_petsc_krylov_factory.");
@@ -63,7 +63,7 @@ void test_petsc_krylov_vector(void** state)
         // Put everything away.
         krylov_vector_free(vec);
         krylov_vector_free(vec1);
-        petsc = NULL;
+        krylov_factory_free(petsc);
       }
       else
         log_urgent("Could not load PETSc. Skipping test_petsc_krylov_vector.");
