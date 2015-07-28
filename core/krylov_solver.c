@@ -481,6 +481,15 @@ krylov_solver_t* krylov_factory_solver(krylov_factory_t* factory,
   return factory->vtable.solver(factory->context, comm, options);
 }
 
+// Use this 
+#define FETCH_SYMBOL(dylib, symbol_name, function_ptr) \
+  { \
+    void* ptr = dlsym(dylib, symbol_name); \
+    if (ptr == NULL) \
+      polymec_error("%s: unable to find %s in dynamic library.", __func__, symbol_name); \
+    *((void**)&(function_ptr)) = ptr; \
+  } 
+
 //------------------------------------------------------------------------
 //                          PETSc implementation
 //------------------------------------------------------------------------
@@ -489,6 +498,7 @@ krylov_solver_t* krylov_factory_solver(krylov_factory_t* factory,
 typedef real_t PetscScalar;
 typedef real_t PetscReal;
 typedef index_t PetscInt;
+typedef enum { PETSC_FALSE,PETSC_TRUE } PetscBool;
 typedef int PetscErrorCode;
 typedef void* KSP;
 typedef const char* KSPType;
@@ -504,10 +514,15 @@ const char* MATMPIAIJ = "mpiaij";
 const char* MATSEQBAIJ = "seqbaij";
 const char* MATMPIBAIJ = "mpibaij";
 const char* MATSAME = "same";
+#define PETSC_DEFAULT -2
 #define PETSC_DECIDE -1
 #define PETSC_DETERMINE PETSC_DECIDE
 typedef struct
 {
+  PetscErrorCode (*PetscInitializeNoArguments)();
+  PetscErrorCode (*PetscInitialized)(PetscBool*);
+  PetscErrorCode (*PetscFinalize)();
+
   PetscErrorCode (*KSPCreate)(MPI_Comm,KSP *);
   PetscErrorCode (*KSPSetType)(KSP,KSPType);
   PetscErrorCode (*KSPSetUp)(KSP);
@@ -523,6 +538,11 @@ typedef struct
   PetscErrorCode (*MatConvert)(Mat, MatType, MatReuse, Mat*);
   PetscErrorCode (*MatSetType)(Mat, MatType);
   PetscErrorCode (*MatSetSizes)(Mat, PetscInt m, PetscInt n, PetscInt M, PetscInt N);
+  PetscErrorCode (*MatSeqAIJSetPreallocation)(Mat, PetscInt, PetscInt[]);
+  PetscErrorCode (*MatMPIAIJSetPreallocation)(Mat, PetscInt, PetscInt[], PetscInt, PetscInt[]);
+  PetscErrorCode (*MatSeqBAIJSetPreallocation)(Mat, PetscInt, PetscInt, PetscInt[]);
+  PetscErrorCode (*MatMPIBAIJSetPreallocation)(Mat, PetscInt, PetscInt, PetscInt[], PetscInt, PetscInt[]);
+  PetscErrorCode (*MatSetBlockSize)(Mat, PetscInt);
   PetscErrorCode (*MatSetUp)(Mat);
   PetscErrorCode (*MatDestroy)(Mat*);
   PetscErrorCode (*MatScale)(Mat,PetscScalar);
@@ -550,11 +570,13 @@ typedef struct
   PetscErrorCode (*VecAssemblyBegin)(Vec);
   PetscErrorCode (*VecAssemblyEnd)(Vec);
   PetscErrorCode (*VecNorm)(Vec,NormType,PetscReal *);
+
 } petsc_methods_table;
 
 typedef struct
 {
   petsc_methods_table methods;
+  bool finalize_petsc;
 } petsc_factory_t;
 
 typedef struct
@@ -789,7 +811,36 @@ static krylov_matrix_t* petsc_factory_matrix(void* context,
   else
     A->factory->methods.MatSetType(A->A, MATMPIAIJ);
   A->factory->methods.MatSetSizes(A->A, N_local, N_local, N_global, N_global);
-  // FIXME: Do preallocation here!
+
+  // Perform preallocation.
+  if (nprocs == 1)
+  {
+    PetscInt nnz[N_local];
+    for (int v = 0; v < N_local; ++v)
+      nnz[v] = (PetscInt)(1 + adj_graph_num_edges(sparsity, v));
+      A->factory->methods.MatSeqAIJSetPreallocation(A->A, PETSC_DEFAULT, nnz);
+  }
+  else
+  {
+    PetscInt d_nnz[N_local], o_nnz[N_local];
+    for (int v = 0; v < N_local; ++v)
+    {
+      d_nnz[v] = 1; // Diagonal entry.
+      o_nnz[v] = 0; // Diagonal entry.
+      int num_edges = adj_graph_num_edges(sparsity, v);
+      int* edges = adj_graph_edges(sparsity, v);
+      for (int e = 0; e < num_edges; ++e)
+      {
+        int edge = edges[e];
+        if (edge >= N_local)
+          o_nnz[v] += 1;
+        else
+          d_nnz[v] += 1;
+      }
+    }
+    A->factory->methods.MatMPIAIJSetPreallocation(A->A, PETSC_DEFAULT, d_nnz, PETSC_DEFAULT, o_nnz);
+  }
+  A->factory->methods.MatSetUp(A->A);
 
   // Set up the virtual table.
   krylov_matrix_vtable vtable = {.clone = petsc_matrix_clone,
@@ -813,12 +864,56 @@ static krylov_matrix_t* petsc_factory_block_matrix(void* context,
 {
   petsc_matrix_t* A = polymec_malloc(sizeof(petsc_matrix_t));
   A->factory = context;
-  // FIXME
+  int N_local = adj_graph_num_vertices(sparsity);
+  index_t* vtx_dist = adj_graph_vertex_dist(sparsity);
+  MPI_Comm comm = adj_graph_comm(sparsity);
+  int nprocs;
+  MPI_Comm_size(comm, &nprocs);
+  int N_global = (int)vtx_dist[nprocs];
+  A->factory->methods.MatCreate(comm, &A->A);
+  if (nprocs == 1)
+    A->factory->methods.MatSetType(A->A, MATSEQBAIJ);
+  else
+    A->factory->methods.MatSetType(A->A, MATMPIBAIJ);
+  A->factory->methods.MatSetSizes(A->A, N_local, N_local, N_global, N_global);
+  A->factory->methods.MatSetBlockSize(A->A, block_size);
+
+  // Perform preallocation.
+  if (nprocs == 1)
+  {
+    PetscInt nnz[N_local];
+    for (int v = 0; v < N_local; ++v)
+      nnz[v] = (PetscInt)(1 + adj_graph_num_edges(sparsity, v));
+      A->factory->methods.MatSeqBAIJSetPreallocation(A->A, (PetscInt)block_size, PETSC_DEFAULT, nnz);
+  }
+  else
+  {
+    PetscInt d_nnz[N_local], o_nnz[N_local];
+    for (int v = 0; v < N_local; ++v)
+    {
+      d_nnz[v] = 1; // Diagonal entry.
+      o_nnz[v] = 0; // Diagonal entry.
+      int num_edges = adj_graph_num_edges(sparsity, v);
+      int* edges = adj_graph_edges(sparsity, v);
+      for (int e = 0; e < num_edges; ++e)
+      {
+        int edge = edges[e];
+        if (edge >= N_local)
+          o_nnz[v] += 1;
+        else
+          d_nnz[v] += 1;
+      }
+    }
+    A->factory->methods.MatMPIBAIJSetPreallocation(A->A, (PetscInt)block_size, PETSC_DEFAULT, d_nnz, PETSC_DEFAULT, o_nnz);
+  }
+  A->factory->methods.MatSetUp(A->A);
+
   // Set up the virtual table.
   krylov_matrix_vtable vtable = {.clone = petsc_matrix_clone,
                                  .zero = petsc_matrix_zero,
                                  .scale = petsc_matrix_scale,
                                  .add_identity = petsc_matrix_add_identity,
+                                 .add_diagonal = petsc_matrix_add_diagonal,
                                  .set_diagonal = petsc_matrix_set_diagonal,
                                  .set_values = petsc_matrix_set_values,
                                  .add_values = petsc_matrix_add_values,
@@ -943,13 +1038,20 @@ static krylov_vector_t* petsc_factory_vector(void* context,
   return krylov_vector_new(v, vtable);
 }
 
+static void petsc_factory_dtor(void* context)
+{
+  petsc_factory_t* factory = context;
+  if (factory->finalize_petsc)
+    factory->methods.PetscFinalize();
+  polymec_free(factory);
+}
+
 krylov_factory_t* petsc_krylov_factory(const char* petsc_dir,
                                        const char* petsc_arch)
 {
   ASSERT(((petsc_dir == NULL) && (petsc_arch == NULL)) ||
           (petsc_dir != NULL) && (petsc_arch != NULL));
 
-  char name[128];
   petsc_factory_t* factory = polymec_malloc(sizeof(petsc_factory_t));
 
   // Try to find PETSc.
@@ -982,57 +1084,86 @@ krylov_factory_t* petsc_krylov_factory(const char* petsc_dir,
     polymec_error("petsc_krylov_factory: %s.", msg);
   }
 
-  // Non-standard C (but POSIX compliant!). Thanks, dlsym.
-  *((void**)&(factory->methods.KSPCreate)) = dlsym(petsc, "KSPCreate");
-  *((void**)&(factory->methods.KSPSetType)) = dlsym(petsc, "KSPSetType");
-  *((void**)&(factory->methods.KSPSetUp)) = dlsym(petsc, "KSPSetUp");
-  *((void**)&(factory->methods.KSPSetTolerances)) = dlsym(petsc, "KSPSetTolerances");
-  *((void**)&(factory->methods.KSPGetTolerances)) = dlsym(petsc, "KSPGetTolerances");
-  *((void**)&(factory->methods.KSPSetOperators)) = dlsym(petsc, "KSPSetOperators");
-  *((void**)&(factory->methods.KSPSolve)) = dlsym(petsc, "KSPSolve");
-  *((void**)&(factory->methods.KSPGetIterationNumber)) = dlsym(petsc, "KSPGetIterationNumber");
-  *((void**)&(factory->methods.KSPGetResidualNorm)) = dlsym(petsc, "KSPGetResidualNorm");
-  *((void**)&(factory->methods.KSPDestroy)) = dlsym(petsc, "KSPDestroy");
+  // Fetch the version.
+  char version[128];
+  PetscErrorCode (*PetscGetVersion)(char* version, size_t len);
+  FETCH_SYMBOL(petsc, "PetscGetVersion", PetscGetVersion);
+  PetscErrorCode err = PetscGetVersion(version, 128);
+  if (err != 0)
+    polymec_error("petsc_krylov_factory: Error getting PETSc version string.");
 
-  *((void**)&(factory->methods.MatCreate)) = dlsym(petsc, "MatCreate");
-  *((void**)&(factory->methods.MatConvert)) = dlsym(petsc, "MatConvert");
-  *((void**)&(factory->methods.MatSetType)) = dlsym(petsc, "MatSetType");
-  *((void**)&(factory->methods.MatSetSizes)) = dlsym(petsc, "MatSetSizes");
-  *((void**)&(factory->methods.MatSetUp)) = dlsym(petsc, "MatSetUp");
-  *((void**)&(factory->methods.MatDestroy)) = dlsym(petsc, "MatDestroy");
-  *((void**)&(factory->methods.MatScale)) = dlsym(petsc, "MatScale");
-  *((void**)&(factory->methods.MatShift)) = dlsym(petsc, "MatShift");
-  *((void**)&(factory->methods.MatDiagonalSet)) = dlsym(petsc, "MatDiagonalSet");
-  *((void**)&(factory->methods.MatZeroEntries)) = dlsym(petsc, "MatZeroEntries");
-  *((void**)&(factory->methods.MatGetSize)) = dlsym(petsc, "MatGetSize");
-  *((void**)&(factory->methods.MatGetLocalSize)) = dlsym(petsc, "MatGetLocalSize");
-  *((void**)&(factory->methods.MatSetValues)) = dlsym(petsc, "MatSetValues");
-  *((void**)&(factory->methods.MatGetValues)) = dlsym(petsc, "MatGetValues");
-  *((void**)&(factory->methods.MatAssemblyBegin)) = dlsym(petsc, "MatAssemblyBegin");
-  *((void**)&(factory->methods.MatAssemblyEnd)) = dlsym(petsc, "MatAssemblyEnd");
+  // Get the other symbols.
+  FETCH_SYMBOL(petsc, "PetscInitializeNoArguments", factory->methods.PetscInitializeNoArguments);
+  FETCH_SYMBOL(petsc, "PetscInitialized", factory->methods.PetscInitialized);
+  FETCH_SYMBOL(petsc, "PetscFinalize", factory->methods.PetscFinalize);
+
+  FETCH_SYMBOL(petsc, "KSPCreate", factory->methods.KSPCreate);
+  FETCH_SYMBOL(petsc, "KSPSetType", factory->methods.KSPSetType);
+  FETCH_SYMBOL(petsc, "KSPSetUp", factory->methods.KSPSetUp);
+  FETCH_SYMBOL(petsc, "KSPSetTolerances", factory->methods.KSPSetTolerances);
+  FETCH_SYMBOL(petsc, "KSPGetTolerances", factory->methods.KSPGetTolerances);
+  FETCH_SYMBOL(petsc, "KSPSetOperators", factory->methods.KSPSetOperators);
+  FETCH_SYMBOL(petsc, "KSPSolve", factory->methods.KSPSolve);
+  FETCH_SYMBOL(petsc, "KSPGetIterationNumber", factory->methods.KSPGetIterationNumber);
+  FETCH_SYMBOL(petsc, "KSPGetResidualNorm", factory->methods.KSPGetResidualNorm);
+  FETCH_SYMBOL(petsc, "KSPDestroy", factory->methods.KSPDestroy);
+
+  FETCH_SYMBOL(petsc, "MatCreate", factory->methods.MatCreate);
+  FETCH_SYMBOL(petsc, "MatConvert", factory->methods.MatConvert);
+  FETCH_SYMBOL(petsc, "MatSetType", factory->methods.MatSetType);
+  FETCH_SYMBOL(petsc, "MatSetSizes", factory->methods.MatSetSizes);
+  FETCH_SYMBOL(petsc, "MatSeqAIJSetPreallocation", factory->methods.MatSeqAIJSetPreallocation);
+  FETCH_SYMBOL(petsc, "MatMPIAIJSetPreallocation", factory->methods.MatMPIAIJSetPreallocation);
+  FETCH_SYMBOL(petsc, "MatSeqBAIJSetPreallocation", factory->methods.MatSeqBAIJSetPreallocation);
+  FETCH_SYMBOL(petsc, "MatMPIBAIJSetPreallocation", factory->methods.MatMPIBAIJSetPreallocation);
+  FETCH_SYMBOL(petsc, "MatSetBlockSize", factory->methods.MatSetBlockSize);
+  FETCH_SYMBOL(petsc, "MatSetUp", factory->methods.MatSetUp);
+  FETCH_SYMBOL(petsc, "MatDestroy", factory->methods.MatDestroy);
+  FETCH_SYMBOL(petsc, "MatScale", factory->methods.MatScale);
+  FETCH_SYMBOL(petsc, "MatShift", factory->methods.MatShift);
+  FETCH_SYMBOL(petsc, "MatDiagonalSet", factory->methods.MatDiagonalSet);
+  FETCH_SYMBOL(petsc, "MatZeroEntries", factory->methods.MatZeroEntries);
+  FETCH_SYMBOL(petsc, "MatGetSize", factory->methods.MatGetSize);
+  FETCH_SYMBOL(petsc, "MatGetLocalSize", factory->methods.MatGetLocalSize);
+  FETCH_SYMBOL(petsc, "MatSetValues", factory->methods.MatSetValues);
+  FETCH_SYMBOL(petsc, "MatGetValues", factory->methods.MatGetValues);
+  FETCH_SYMBOL(petsc, "MatAssemblyBegin", factory->methods.MatAssemblyBegin);
+  FETCH_SYMBOL(petsc, "MatAssemblyEnd", factory->methods.MatAssemblyEnd);
   
-  *((void**)&(factory->methods.VecCreateSeq)) = dlsym(petsc, "VecCreateSeq");
-  *((void**)&(factory->methods.VecCreateMPI)) = dlsym(petsc, "VecCreateMPI");
-  *((void**)&(factory->methods.VecDuplicate)) = dlsym(petsc, "VecDuplicate");
-  *((void**)&(factory->methods.VecCopy)) = dlsym(petsc, "VecCopy");
-  *((void**)&(factory->methods.VecSetUp)) = dlsym(petsc, "VecSetUp");
-  *((void**)&(factory->methods.VecDestroy)) = dlsym(petsc, "VecDestroy");
-  *((void**)&(factory->methods.VecZeroEntries)) = dlsym(petsc, "VecZeroEntries");
-  *((void**)&(factory->methods.VecScale)) = dlsym(petsc, "VecScale");
-  *((void**)&(factory->methods.VecSet)) = dlsym(petsc, "VecSet");
-  *((void**)&(factory->methods.VecSetValues)) = dlsym(petsc, "VecSetValues");
-  *((void**)&(factory->methods.VecGetValues)) = dlsym(petsc, "VecGetValues");
-  *((void**)&(factory->methods.VecAssemblyBegin)) = dlsym(petsc, "VecAssemblyBegin");
-  *((void**)&(factory->methods.VecAssemblyEnd)) = dlsym(petsc, "VecAssemblyEnd");
-  *((void**)&(factory->methods.VecNorm)) = dlsym(petsc, "VecNorm");
+  FETCH_SYMBOL(petsc, "VecCreateSeq", factory->methods.VecCreateSeq);
+  FETCH_SYMBOL(petsc, "VecCreateMPI", factory->methods.VecCreateMPI);
+  FETCH_SYMBOL(petsc, "VecDuplicate", factory->methods.VecDuplicate);
+  FETCH_SYMBOL(petsc, "VecCopy", factory->methods.VecCopy);
+  FETCH_SYMBOL(petsc, "VecSetUp", factory->methods.VecSetUp);
+  FETCH_SYMBOL(petsc, "VecDestroy", factory->methods.VecDestroy);
+  FETCH_SYMBOL(petsc, "VecZeroEntries", factory->methods.VecZeroEntries);
+  FETCH_SYMBOL(petsc, "VecScale", factory->methods.VecScale);
+  FETCH_SYMBOL(petsc, "VecSet", factory->methods.VecSet);
+  FETCH_SYMBOL(petsc, "VecSetValues", factory->methods.VecSetValues);
+  FETCH_SYMBOL(petsc, "VecGetValues", factory->methods.VecGetValues);
+  FETCH_SYMBOL(petsc, "VecAssemblyBegin", factory->methods.VecAssemblyBegin);
+  FETCH_SYMBOL(petsc, "VecAssemblyEnd", factory->methods.VecAssemblyEnd);
+  FETCH_SYMBOL(petsc, "VecNorm", factory->methods.VecNorm);
 
-  // Finish up and construct the factory.
+  // Finish up.
   dlclose(petsc);
+
+  // Initialize PETSc if needed.
+  PetscBool initialized;
+  factory->methods.PetscInitialized(&initialized);
+  if (initialized == PETSC_FALSE)
+  {
+    factory->methods.PetscInitializeNoArguments();
+    factory->finalize_petsc = true;
+  }
+
+  // Construct the factory.
   krylov_factory_vtable vtable = {.solver = petsc_factory_solver,
                                   .matrix = petsc_factory_matrix,
                                   .block_matrix = petsc_factory_block_matrix,
-                                  .vector = petsc_factory_vector};
-  return krylov_factory_new(name, factory, vtable);
+                                  .vector = petsc_factory_vector,
+                                  .dtor = petsc_factory_dtor};
+  return krylov_factory_new(version, factory, vtable);
 }
 
 //------------------------------------------------------------------------
