@@ -134,14 +134,8 @@ void* krylov_matrix_impl(krylov_matrix_t* A);
 // Returns the number of locally stored rows in the matrix.
 int krylov_matrix_num_local_rows(krylov_matrix_t* A);
 
-// Returns the number of locally stored columns in the matrix.
-int krylov_matrix_num_local_columns(krylov_matrix_t* A);
-
 // Returns the number of globally stored rows in the matrix.
 int krylov_matrix_num_global_rows(krylov_matrix_t* A);
-
-// Returns the number of globally stored columns in the matrix.
-int krylov_matrix_num_global_columns(krylov_matrix_t* A);
 
 // Zeros all of the entries in the given matrix.
 void krylov_matrix_zero(krylov_matrix_t* A);

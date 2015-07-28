@@ -45,6 +45,7 @@ void test_petsc_krylov_vector(void** state)
     {
       krylov_factory_t* petsc = petsc_krylov_factory(petsc_dir, petsc_arch);
       krylov_vector_t* vec = krylov_factory_vector(petsc, MPI_COMM_WORLD, 100);
+      assert_int_equal(100, krylov_vector_local_size(vec));
       krylov_vector_free(vec);
       krylov_factory_free(petsc);
     }

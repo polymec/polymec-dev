@@ -50,8 +50,8 @@ struct krylov_matrix_t
 {
   void* context;
   krylov_matrix_vtable vtable;
-  int num_local_rows, num_global_rows;
-  int num_local_columns, num_global_columns;
+  int num_local_rows;
+  index_t num_global_rows;
 };
 
 typedef struct
@@ -73,7 +73,8 @@ struct krylov_vector_t
 {
   void* context;
   krylov_vector_vtable vtable;
-  int local_size, global_size;
+  int local_size;
+  index_t global_size;
 };
 
 typedef struct 
@@ -172,7 +173,9 @@ bool krylov_solver_solve(krylov_solver_t* solver,
 //------------------------------------------------------------------------
 
 static krylov_matrix_t* krylov_matrix_new(void* context,
-                                          krylov_matrix_vtable vtable)
+                                          krylov_matrix_vtable vtable,
+                                          int num_local_rows,
+                                          index_t num_global_rows)
 {
   ASSERT(vtable.zero != NULL);
   ASSERT(vtable.add_diagonal != NULL);
@@ -180,9 +183,13 @@ static krylov_matrix_t* krylov_matrix_new(void* context,
   ASSERT(vtable.set_values != NULL);
   ASSERT(vtable.add_values != NULL);
   ASSERT(vtable.get_values != NULL);
+  ASSERT(num_local_rows > 0);
+  ASSERT(num_global_rows > 0);
   krylov_matrix_t* A = polymec_malloc(sizeof(krylov_matrix_t));
   A->context = context;
   A->vtable = vtable;
+  A->num_local_rows = num_local_rows;
+  A->num_global_rows = num_global_rows;
   return A;
 }
 
@@ -199,9 +206,7 @@ krylov_matrix_t* krylov_matrix_clone(krylov_matrix_t* A)
   B->context = A->vtable.clone(A->context);
   B->vtable = A->vtable;
   B->num_local_rows = A->num_local_rows;
-  B->num_local_columns = A->num_local_columns;
   B->num_global_rows = A->num_global_rows;
-  B->num_global_columns = A->num_global_columns;
   return B;
 }
 
@@ -215,19 +220,9 @@ int krylov_matrix_num_local_rows(krylov_matrix_t* A)
   return A->num_local_rows;
 }
 
-int krylov_matrix_num_local_columns(krylov_matrix_t* A)
-{
-  return A->num_local_columns;
-}
-
 int krylov_matrix_num_global_rows(krylov_matrix_t* A)
 {
   return A->num_global_rows;
-}
-
-int krylov_matrix_num_global_columns(krylov_matrix_t* A)
-{
-  return A->num_global_columns;
 }
 
 void krylov_matrix_zero(krylov_matrix_t* A)
@@ -309,7 +304,9 @@ void krylov_matrix_get_values(krylov_matrix_t* A,
 //------------------------------------------------------------------------
 
 static krylov_vector_t* krylov_vector_new(void* context,
-                                          krylov_vector_vtable vtable)
+                                          krylov_vector_vtable vtable,
+                                          int local_size,
+                                          index_t global_size)
 {
   ASSERT(vtable.zero != NULL);
   ASSERT(vtable.set_value != NULL);
@@ -317,9 +314,13 @@ static krylov_vector_t* krylov_vector_new(void* context,
   ASSERT(vtable.set_values != NULL);
   ASSERT(vtable.add_values != NULL);
   ASSERT(vtable.get_values != NULL);
+  ASSERT(local_size > 0);
+  ASSERT(global_size > 0);
   krylov_vector_t* v = polymec_malloc(sizeof(krylov_vector_t));
   v->context = context;
   v->vtable = vtable;
+  v->local_size = local_size;
+  v->global_size = global_size;
   return v;
 }
 
@@ -562,6 +563,7 @@ typedef struct
   PetscErrorCode (*VecCopy)(Vec,Vec);
   PetscErrorCode (*VecSetUp)(Vec);
   PetscErrorCode (*VecDestroy)(Vec*);
+  PetscErrorCode (*VecGetSize)(Vec, PetscInt*);
   PetscErrorCode (*VecZeroEntries)(Vec);
   PetscErrorCode (*VecScale)(Vec,PetscScalar);
   PetscErrorCode (*VecSet)(Vec,PetscScalar);
@@ -575,6 +577,7 @@ typedef struct
 
 typedef struct
 {
+  void* petsc;
   petsc_methods_table methods;
   bool finalize_petsc;
 } petsc_factory_t;
@@ -855,7 +858,7 @@ static krylov_matrix_t* petsc_factory_matrix(void* context,
                                  .finish_assembly = petsc_matrix_finish_assembly,
                                  .get_values = petsc_matrix_get_values,
                                  .dtor = petsc_matrix_dtor};
-  return krylov_matrix_new(A, vtable);
+  return krylov_matrix_new(A, vtable, N_local, N_global);
 }
 
 static krylov_matrix_t* petsc_factory_block_matrix(void* context,
@@ -921,7 +924,7 @@ static krylov_matrix_t* petsc_factory_block_matrix(void* context,
                                  .finish_assembly = petsc_matrix_finish_assembly,
                                  .get_values = petsc_matrix_get_values,
                                  .dtor = petsc_matrix_dtor};
-  return krylov_matrix_new(A, vtable);
+  return krylov_matrix_new(A, vtable, N_local, N_global);
 }
 
 static void* petsc_vector_clone(void* context)
@@ -1023,6 +1026,8 @@ static krylov_vector_t* petsc_factory_vector(void* context,
     v->factory->methods.VecCreateSeq(comm, N, &v->v);
   else
     v->factory->methods.VecCreateMPI(comm, N, PETSC_DETERMINE, &v->v);
+  PetscInt N_global;
+  v->factory->methods.VecGetSize(v->v, &N_global);
   // Set up the virtual table.
   krylov_vector_vtable vtable = {.clone = petsc_vector_clone,
                                  .zero = petsc_vector_zero,
@@ -1035,7 +1040,7 @@ static krylov_vector_t* petsc_factory_vector(void* context,
                                  .get_values = petsc_vector_get_values,
                                  .norm = petsc_vector_norm,
                                  .dtor = petsc_vector_dtor};
-  return krylov_vector_new(v, vtable);
+  return krylov_vector_new(v, vtable, N, N_global);
 }
 
 static void petsc_factory_dtor(void* context)
@@ -1043,6 +1048,7 @@ static void petsc_factory_dtor(void* context)
   petsc_factory_t* factory = context;
   if (factory->finalize_petsc)
     factory->methods.PetscFinalize();
+  dlclose(factory->petsc);
   polymec_free(factory);
 }
 
@@ -1104,6 +1110,7 @@ krylov_factory_t* petsc_krylov_factory(const char* petsc_dir,
   FETCH_SYMBOL(petsc, "KSPGetTolerances", factory->methods.KSPGetTolerances);
   FETCH_SYMBOL(petsc, "KSPSetOperators", factory->methods.KSPSetOperators);
   FETCH_SYMBOL(petsc, "KSPSolve", factory->methods.KSPSolve);
+  FETCH_SYMBOL(petsc, "KSPGetConvergedReason", factory->methods.KSPGetConvergedReason);
   FETCH_SYMBOL(petsc, "KSPGetIterationNumber", factory->methods.KSPGetIterationNumber);
   FETCH_SYMBOL(petsc, "KSPGetResidualNorm", factory->methods.KSPGetResidualNorm);
   FETCH_SYMBOL(petsc, "KSPDestroy", factory->methods.KSPDestroy);
@@ -1136,6 +1143,7 @@ krylov_factory_t* petsc_krylov_factory(const char* petsc_dir,
   FETCH_SYMBOL(petsc, "VecCopy", factory->methods.VecCopy);
   FETCH_SYMBOL(petsc, "VecSetUp", factory->methods.VecSetUp);
   FETCH_SYMBOL(petsc, "VecDestroy", factory->methods.VecDestroy);
+  FETCH_SYMBOL(petsc, "VecGetSize", factory->methods.VecGetSize);
   FETCH_SYMBOL(petsc, "VecZeroEntries", factory->methods.VecZeroEntries);
   FETCH_SYMBOL(petsc, "VecScale", factory->methods.VecScale);
   FETCH_SYMBOL(petsc, "VecSet", factory->methods.VecSet);
@@ -1145,9 +1153,6 @@ krylov_factory_t* petsc_krylov_factory(const char* petsc_dir,
   FETCH_SYMBOL(petsc, "VecAssemblyEnd", factory->methods.VecAssemblyEnd);
   FETCH_SYMBOL(petsc, "VecNorm", factory->methods.VecNorm);
 
-  // Finish up.
-  dlclose(petsc);
-
   // Initialize PETSc if needed.
   PetscBool initialized;
   factory->methods.PetscInitialized(&initialized);
@@ -1156,6 +1161,9 @@ krylov_factory_t* petsc_krylov_factory(const char* petsc_dir,
     factory->methods.PetscInitializeNoArguments();
     factory->finalize_petsc = true;
   }
+
+  // Stash the library.
+  factory->petsc = petsc; 
 
   // Construct the factory.
   krylov_factory_vtable vtable = {.solver = petsc_factory_solver,
