@@ -89,10 +89,16 @@ void krylov_solver_free(krylov_solver_t* solver);
 // the implementation.
 void* krylov_solver_impl(krylov_solver_t* solver);
 
-// Sets the tolerance for the residual norm (norm_tolerance) = |R|, where 
+// Sets the tolerances for the residual norm (norm_tolerance) = |R|, where 
 // R = A*x - b.
-void krylov_solver_set_tolerance(krylov_solver_t* solver, 
-                                 real_t tolerance);
+void krylov_solver_set_tolerances(krylov_solver_t* solver, 
+                                  real_t relative_tolerance,
+                                  real_t absolute_tolerance,
+                                  real_t divergence_tolerance);
+
+// Sets the maximum number of iterations for a linear solve.
+void krylov_solver_set_max_iterations(krylov_solver_t* solver, 
+                                      int max_iterations);
 
 // Sets the operator A in the linear system to be solved.
 void krylov_solver_set_operator(krylov_solver_t* solver, 
@@ -148,24 +154,28 @@ void krylov_matrix_scale(krylov_matrix_t* A,
 void krylov_matrix_add_identity(krylov_matrix_t* A,
                                 real_t scale_factor);
 
+// Adds the entries of the given vector to the diagonal of the given matrix.
+void krylov_matrix_add_diagonal(krylov_matrix_t* A,
+                                krylov_matrix_t* D);
+
 // Sets the diagonal entries in the given matrix to those in the given vector.
 void krylov_matrix_set_diagonal(krylov_matrix_t* A,
                                 krylov_matrix_t* D);
 
 // Sets the values of the elements in the matrix identified by the given 
-// (locally-indexed) rows and columns.
+// (globally-indexed) rows and columns.
 void krylov_matrix_set_values(krylov_matrix_t* A,
                               int num_rows,
                               int* num_columns,
-                              int* rows, int* columns,
+                              index_t* rows, index_t* columns,
                               real_t* values);
                               
 // Adds the given values of the elements to those in the matrix.
-// The values are identified by the given (locally-indexed) rows and columns.
+// The values are identified by the given (globally-indexed) rows and columns.
 void krylov_matrix_add_values(krylov_matrix_t* A,
                               int num_rows,
                               int* num_columns,
-                              int* rows, int* columns,
+                              index_t* rows, index_t* columns,
                               real_t* values);
                               
 // Assemble the matrix. This should be called after setting or adding to its 
@@ -181,11 +191,11 @@ void krylov_matrix_start_assembly(krylov_matrix_t* A);
 void krylov_matrix_finish_assembly(krylov_matrix_t* A);
 
 // Retrieves the values of the elements in the matrix identified by the 
-// given (locally-indexed) rows and columns, storing them in the values array.
+// given (globally-indexed) rows and columns, storing them in the values array.
 void krylov_matrix_get_values(krylov_matrix_t* A,
                               int num_rows,
                               int* num_columns,
-                              int* rows, int* columns,
+                              index_t* rows, index_t* columns,
                               real_t* values);
 
 //------------------------------------------------------------------------
@@ -224,14 +234,14 @@ void krylov_vector_scale(krylov_vector_t* v,
 // indices.
 void krylov_vector_set_values(krylov_vector_t* v,
                               int num_values,
-                              int* indices,
+                              index_t* indices,
                               real_t* values);
                               
 // Adds the given values of the elements to those in the vector.
 // The values are identified by the given indices.
 void krylov_vector_add_values(krylov_vector_t* v,
                               int num_values,
-                              int* indices,
+                              index_t* indices,
                               real_t* values);
                               
 // Assemble the vector. This should be called after setting or adding to its 
@@ -250,7 +260,7 @@ void krylov_vector_finish_assembly(krylov_vector_t* v);
 // given indices, storing them in the values array.
 void krylov_vector_get_values(krylov_vector_t* v,
                               int num_values,
-                              int* indices,
+                              index_t* indices,
                               real_t* values);
 
 // Computes and returns the Lp norm for this vector, where p can be 

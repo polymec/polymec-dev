@@ -16,9 +16,10 @@
 
 typedef struct
 {
-  void (*set_tolerance)(void* context, real_t tolerance);
+  void (*set_tolerances)(void* context, real_t rel_tol, real_t abs_tol, real_t div_tol);
+  void (*set_max_iterations)(void* context, int max_iters);
   void (*set_operator)(void* context, void* op);
-  bool (*solve)(void* context, void* x, void* b, real_t* resnorm, int* num_iters);
+  bool (*solve)(void* context, void* x, void* b, real_t* res_norm, int* num_iters);
   void (*dtor)(void* context);
 } krylov_solver_vtable;
 
@@ -35,12 +36,13 @@ typedef struct
   void (*zero)(void* context);
   void (*scale)(void* context, real_t scale_factor);
   void (*add_identity)(void* context, real_t scale_factor);
+  void (*add_diagonal)(void* context, void* D);
   void (*set_diagonal)(void* context, void* D);
-  void (*set_values)(void* context, int num_rows, int* num_columns, int* rows, int* columns, real_t* values);
-  void (*add_values)(void* context, int num_rows, int* num_columns, int* rows, int* columns, real_t* values);
+  void (*set_values)(void* context, int num_rows, int* num_columns, index_t* rows, index_t* columns, real_t* values);
+  void (*add_values)(void* context, int num_rows, int* num_columns, index_t* rows, index_t* columns, real_t* values);
   void (*start_assembly)(void* context);
   void (*finish_assembly)(void* context);
-  void (*get_values)(void* context, int num_rows, int* num_columns, int* rows, int* columns, real_t* values);
+  void (*get_values)(void* context, int num_rows, int* num_columns, index_t* rows, index_t* columns, real_t* values);
   void (*dtor)(void* context);
 } krylov_matrix_vtable;
 
@@ -58,11 +60,11 @@ typedef struct
   void (*zero)(void* context);
   void (*set_value)(void* context, real_t value);
   void (*scale)(void* context, real_t scale_factor);
-  void (*set_values)(void* context, int num_values, int* indices, real_t* values);
-  void (*add_values)(void* context, int num_values, int* indices, real_t* values);
+  void (*set_values)(void* context, int num_values, index_t* indices, real_t* values);
+  void (*add_values)(void* context, int num_values, index_t* indices, real_t* values);
   void (*start_assembly)(void* context);
   void (*finish_assembly)(void* context);
-  void (*get_values)(void* context, int num_values, int* indices, real_t* values);
+  void (*get_values)(void* context, int num_values, index_t* indices, real_t* values);
   real_t (*norm)(void* context, int p);
   void (*dtor)(void* context);
 } krylov_vector_vtable;
@@ -128,11 +130,25 @@ void* krylov_solver_impl(krylov_solver_t* solver)
   return solver->context;
 }
 
-void krylov_solver_set_tolerance(krylov_solver_t* solver, 
-                                 real_t tolerance)
+void krylov_solver_set_tolerances(krylov_solver_t* solver, 
+                                  real_t relative_tolerance,
+                                  real_t absolute_tolerance,
+                                  real_t divergence_tolerance)
 {
-  ASSERT(tolerance > 0.0);
-  solver->vtable.set_tolerance(solver->context, tolerance);
+  ASSERT(relative_tolerance > 0.0);
+  ASSERT(absolute_tolerance > 0.0);
+  ASSERT(divergence_tolerance > 0.0);
+  solver->vtable.set_tolerances(solver->context, 
+                                relative_tolerance,
+                                absolute_tolerance,
+                                divergence_tolerance);
+}
+
+void krylov_solver_set_max_iterations(krylov_solver_t* solver, 
+                                      int max_iterations)
+{
+  ASSERT(max_iterations > 0);
+  solver->vtable.set_max_iterations(solver->context, max_iterations);
 }
 
 void krylov_solver_set_operator(krylov_solver_t* solver, 
@@ -159,6 +175,7 @@ static krylov_matrix_t* krylov_matrix_new(void* context,
                                           krylov_matrix_vtable vtable)
 {
   ASSERT(vtable.zero != NULL);
+  ASSERT(vtable.add_diagonal != NULL);
   ASSERT(vtable.set_diagonal != NULL);
   ASSERT(vtable.set_values != NULL);
   ASSERT(vtable.add_values != NULL);
@@ -230,6 +247,12 @@ void krylov_matrix_scale(krylov_matrix_t* A,
   A->vtable.scale(A->context, scale_factor);
 }
 
+void krylov_matrix_add_diagonal(krylov_matrix_t* A,
+                                krylov_matrix_t* D)
+{
+  A->vtable.add_diagonal(A->context, D->context);
+}
+
 void krylov_matrix_set_diagonal(krylov_matrix_t* A,
                                 krylov_matrix_t* D)
 {
@@ -239,7 +262,7 @@ void krylov_matrix_set_diagonal(krylov_matrix_t* A,
 void krylov_matrix_set_values(krylov_matrix_t* A,
                               int num_rows,
                               int* num_columns,
-                              int* rows, int* columns,
+                              index_t* rows, index_t* columns,
                               real_t* values)
 {
   A->vtable.set_values(A->context, num_rows, num_columns, rows, columns, values);
@@ -248,7 +271,7 @@ void krylov_matrix_set_values(krylov_matrix_t* A,
 void krylov_matrix_add_values(krylov_matrix_t* A,
                               int num_rows,
                               int* num_columns,
-                              int* rows, int* columns,
+                              index_t* rows, index_t* columns,
                               real_t* values)
 {
   A->vtable.add_values(A->context, num_rows, num_columns, rows, columns, values);
@@ -275,7 +298,7 @@ void krylov_matrix_finish_assembly(krylov_matrix_t* A)
 void krylov_matrix_get_values(krylov_matrix_t* A,
                               int num_rows,
                               int* num_columns,
-                              int* rows, int* columns,
+                              index_t* rows, index_t* columns,
                               real_t* values)
 {
   A->vtable.get_values(A->context, num_rows, num_columns, rows, columns, values);
@@ -351,7 +374,7 @@ void krylov_vector_scale(krylov_vector_t* v,
 
 void krylov_vector_set_values(krylov_vector_t* v,
                               int num_values,
-                              int* indices,
+                              index_t* indices,
                               real_t* values)
 {
   v->vtable.set_values(v->context, num_values, indices, values);
@@ -359,7 +382,7 @@ void krylov_vector_set_values(krylov_vector_t* v,
                               
 void krylov_vector_add_values(krylov_vector_t* v,
                               int num_values,
-                              int* indices,
+                              index_t* indices,
                               real_t* values)
 {
   v->vtable.add_values(v->context, num_values, indices, values);
@@ -385,7 +408,7 @@ void krylov_vector_finish_assembly(krylov_vector_t* v)
 
 void krylov_vector_get_values(krylov_vector_t* v,
                               int num_values,
-                              int* indices,
+                              index_t* indices,
                               real_t* values)
 {
   v->vtable.get_values(v->context, num_values, indices, values);
@@ -465,7 +488,7 @@ krylov_solver_t* krylov_factory_solver(krylov_factory_t* factory,
 // Here's a table of function pointers for the PETSc library.
 typedef real_t PetscScalar;
 typedef real_t PetscReal;
-typedef int PetscInt;
+typedef index_t PetscInt;
 typedef int PetscErrorCode;
 typedef void* KSP;
 typedef const char* KSPType;
@@ -480,6 +503,7 @@ const char* MATSEQAIJ = "seqaij";
 const char* MATMPIAIJ = "mpiaij";
 const char* MATSEQBAIJ = "seqbaij";
 const char* MATMPIBAIJ = "mpibaij";
+const char* MATSAME = "same";
 #define PETSC_DECIDE -1
 #define PETSC_DETERMINE PETSC_DECIDE
 typedef struct
@@ -487,8 +511,13 @@ typedef struct
   PetscErrorCode (*KSPCreate)(MPI_Comm,KSP *);
   PetscErrorCode (*KSPSetType)(KSP,KSPType);
   PetscErrorCode (*KSPSetUp)(KSP);
+  PetscErrorCode (*KSPSetTolerances)(KSP,PetscReal,PetscReal,PetscReal,PetscInt);
+  PetscErrorCode (*KSPGetTolerances)(KSP,PetscReal*,PetscReal*,PetscReal*,PetscInt*);
   PetscErrorCode (*KSPSetOperators)(KSP,Mat,Mat);
   PetscErrorCode (*KSPSolve)(KSP,Vec,Vec);
+  PetscErrorCode (*KSPGetConvergedReason)(KSP,int*);
+  PetscErrorCode (*KSPGetIterationNumber)(KSP,PetscInt*);
+  PetscErrorCode (*KSPGetResidualNorm)(KSP,PetscReal*);
   PetscErrorCode (*KSPDestroy)(KSP*);
   PetscErrorCode (*MatCreate)(MPI_Comm,Mat*);
   PetscErrorCode (*MatConvert)(Mat, MatType, MatReuse, Mat*);
@@ -503,9 +532,9 @@ typedef struct
   PetscErrorCode (*MatGetSize)(Mat,PetscInt*,PetscInt*);
   PetscErrorCode (*MatGetLocalSize)(Mat,PetscInt*,PetscInt*);
   PetscErrorCode (*MatSetValues)(Mat,PetscInt,const PetscInt[],PetscInt,const PetscInt[],const PetscScalar[],InsertMode);
-  PetscErrorCode (*MatGetValues)(Mat,PetscInt,const PetscInt[],PetscInt,const PetscInt[],PetscScalar[]);
   PetscErrorCode (*MatAssemblyBegin)(Mat,MatAssemblyType);
   PetscErrorCode (*MatAssemblyEnd)(Mat,MatAssemblyType);
+  PetscErrorCode (*MatGetValues)(Mat,PetscInt,const PetscInt[],PetscInt,const PetscInt[],PetscScalar[]);
 
   PetscErrorCode (*VecCreateSeq)(MPI_Comm,PetscInt,Vec*);
   PetscErrorCode (*VecCreateMPI)(MPI_Comm,PetscInt,PetscInt,Vec*);
@@ -546,6 +575,68 @@ typedef struct
   Vec v;
 } petsc_vector_t;
 
+static void petsc_solver_set_tolerances(void* context,
+                                        real_t rel_tol,
+                                        real_t abs_tol,
+                                        real_t div_tol)
+
+{
+  petsc_solver_t* solver = context;
+  PetscReal r, a, d;
+  PetscInt iters;
+  solver->factory->methods.KSPGetTolerances(solver->ksp, &r, &a, &d, &iters);
+  solver->factory->methods.KSPSetTolerances(solver->ksp, rel_tol, abs_tol, 
+                                            div_tol, iters);
+}
+
+static void petsc_solver_set_max_iterations(void* context,
+                                            int max_iters)
+{
+  petsc_solver_t* solver = context;
+  PetscReal r, a, d;
+  PetscInt iters;
+  solver->factory->methods.KSPGetTolerances(solver->ksp, &r, &a, &d, &iters);
+  solver->factory->methods.KSPSetTolerances(solver->ksp, r, a, d, max_iters);
+}
+
+static void petsc_solver_set_operator(void* context,
+                                      void* op)
+{
+  petsc_solver_t* solver = context;
+  Mat A = op;
+  PetscErrorCode err = solver->factory->methods.KSPSetOperators(solver->ksp, A, A);
+  if (err != 0)
+    polymec_error("petsc_solver_set_operator failed!");
+}
+
+static bool petsc_solver_solve(void* context,
+                               void* x,
+                               void* b,
+                               real_t* res_norm,
+                               int* num_iters)
+{
+  petsc_solver_t* solver = context;
+  Vec X = x;
+  Vec B = b;
+  PetscErrorCode err = solver->factory->methods.KSPSolve(solver->ksp, X, B);
+  if (err != 0)
+    polymec_error("petsc_solver_solve: Call to linear solve failed!");
+  int code;
+  PetscInt niters;
+  solver->factory->methods.KSPGetConvergedReason(solver->ksp, &code);
+  solver->factory->methods.KSPGetIterationNumber(solver->ksp, &niters);
+  *num_iters = (int)niters;
+  solver->factory->methods.KSPGetResidualNorm(solver->ksp, res_norm);
+  return (code > 0);
+}
+
+static void petsc_solver_dtor(void* context)
+{
+  petsc_solver_t* solver = context;
+  solver->factory->methods.KSPDestroy(&solver->ksp);
+  polymec_free(solver);
+}
+
 static krylov_solver_t* petsc_factory_solver(void* context,
                                              MPI_Comm comm,
                                              string_string_unordered_map_t* options)
@@ -558,8 +649,127 @@ static krylov_solver_t* petsc_factory_solver(void* context,
     solver->factory->methods.KSPSetType(solver->ksp, "gmres");
   else
     solver->factory->methods.KSPSetType(solver->ksp, *type_p);
-  krylov_solver_vtable vtable; // FIXME
+  // Set up the virtual table.
+  krylov_solver_vtable vtable = {.set_tolerances = petsc_solver_set_tolerances,
+                                 .set_max_iterations = petsc_solver_set_max_iterations,
+                                 .set_operator = petsc_solver_set_operator,
+                                 .solve = petsc_solver_solve,
+                                 .dtor = petsc_solver_dtor};
   return krylov_solver_new("KSP", solver, vtable);
+}
+
+static void* petsc_matrix_clone(void* context)
+{
+  petsc_matrix_t* A = context;
+  petsc_matrix_t* clone = polymec_malloc(sizeof(petsc_matrix_t));
+  clone->factory = A->factory;
+  PetscErrorCode err = A->factory->methods.MatConvert(A->A, MATSAME, MAT_INITIAL_MATRIX, &(clone->A));
+  if (err != 0)
+    polymec_error("petsc_matrix_clone: Error!");
+  return clone;
+}
+
+static void petsc_matrix_zero(void* context)
+{
+  petsc_matrix_t* A = context;
+  A->factory->methods.MatZeroEntries(A->A);
+}
+
+static void petsc_matrix_scale(void* context, real_t scale_factor)
+{
+  petsc_matrix_t* A = context;
+  A->factory->methods.MatScale(A->A, scale_factor);
+}
+
+static void petsc_matrix_add_identity(void* context, real_t scale_factor)
+{
+  petsc_matrix_t* A = context;
+  A->factory->methods.MatShift(A->A, scale_factor);
+}
+
+static void petsc_matrix_set_diagonal(void* context, void* D)
+{
+  petsc_matrix_t* A = context;
+  Vec diag = D;
+  A->factory->methods.MatDiagonalSet(A->A, diag, INSERT_VALUES);
+}
+
+static void petsc_matrix_add_diagonal(void* context, void* D)
+{
+  petsc_matrix_t* A = context;
+  Vec diag = D;
+  A->factory->methods.MatDiagonalSet(A->A, diag, INSERT_VALUES);
+}
+
+static void petsc_matrix_enter_values(void* context, int num_rows,
+                                      int* num_columns, index_t* rows, index_t* columns,
+                                      real_t* values, InsertMode insert_mode)
+{
+  petsc_matrix_t* A = context;
+  int col_offset = 0;
+  for (int r = 0; r < num_rows; ++r)
+  {
+    int num_cols = num_columns[r];
+    PetscInt row = rows[r];
+    PetscInt cols[num_cols];
+    real_t vals[num_cols];
+    for (int c = 0; c < num_cols; ++c, ++col_offset)
+    {
+      cols[c] = columns[col_offset];
+      vals[c] = values[col_offset];
+    }
+    A->factory->methods.MatSetValues(A->A, 1, &row, num_cols, cols, vals, insert_mode);
+  }
+}
+
+static void petsc_matrix_set_values(void* context, int num_rows,
+                                    int* num_columns, index_t* rows, index_t* columns,
+                                    real_t* values)
+{
+  petsc_matrix_enter_values(context, num_rows, num_columns, rows, columns, values, INSERT_VALUES);
+}
+
+static void petsc_matrix_add_values(void* context, int num_rows,
+                                    int* num_columns, index_t* rows, index_t* columns,
+                                    real_t* values)
+{
+  petsc_matrix_enter_values(context, num_rows, num_columns, rows, columns, values, ADD_VALUES);
+}
+
+static void petsc_matrix_start_assembly(void* context)
+{
+  petsc_matrix_t* A = context;
+  A->factory->methods.MatAssemblyBegin(A->A, MAT_FINAL_ASSEMBLY);
+}
+
+static void petsc_matrix_finish_assembly(void* context)
+{
+  petsc_matrix_t* A = context;
+  A->factory->methods.MatAssemblyEnd(A->A, MAT_FINAL_ASSEMBLY);
+}
+
+static void petsc_matrix_get_values(void* context, int num_rows,
+                                    int* num_columns, index_t* rows, index_t* columns,
+                                    real_t* values)
+{
+  petsc_matrix_t* A = context;
+  int col_offset = 0;
+  for (int r = 0; r < num_rows; ++r)
+  {
+    int num_cols = num_columns[r];
+    PetscInt row = rows[r];
+    PetscInt cols[num_cols];
+    for (int c = 0; c < num_cols; ++c, ++col_offset)
+      cols[c] = columns[col_offset];
+    A->factory->methods.MatGetValues(A->A, 1, &row, num_cols, cols, &values[col_offset-num_cols]);
+  }
+}
+
+static void petsc_matrix_dtor(void* context)
+{
+  petsc_matrix_t* A = context;
+  A->factory->methods.MatDestroy(&(A->A));
+  polymec_free(A);
 }
 
 static krylov_matrix_t* petsc_factory_matrix(void* context,
@@ -580,7 +790,20 @@ static krylov_matrix_t* petsc_factory_matrix(void* context,
     A->factory->methods.MatSetType(A->A, MATMPIAIJ);
   A->factory->methods.MatSetSizes(A->A, N_local, N_local, N_global, N_global);
   // FIXME: Do preallocation here!
-  krylov_matrix_vtable vtable; // FIXME
+
+  // Set up the virtual table.
+  krylov_matrix_vtable vtable = {.clone = petsc_matrix_clone,
+                                 .zero = petsc_matrix_zero,
+                                 .scale = petsc_matrix_scale,
+                                 .add_identity = petsc_matrix_add_identity,
+                                 .add_diagonal = petsc_matrix_add_diagonal,
+                                 .set_diagonal = petsc_matrix_set_diagonal,
+                                 .set_values = petsc_matrix_set_values,
+                                 .add_values = petsc_matrix_add_values,
+                                 .start_assembly = petsc_matrix_start_assembly,
+                                 .finish_assembly = petsc_matrix_finish_assembly,
+                                 .get_values = petsc_matrix_get_values,
+                                 .dtor = petsc_matrix_dtor};
   return krylov_matrix_new(A, vtable);
 }
 
@@ -591,8 +814,106 @@ static krylov_matrix_t* petsc_factory_block_matrix(void* context,
   petsc_matrix_t* A = polymec_malloc(sizeof(petsc_matrix_t));
   A->factory = context;
   // FIXME
-  krylov_matrix_vtable vtable; // FIXME
+  // Set up the virtual table.
+  krylov_matrix_vtable vtable = {.clone = petsc_matrix_clone,
+                                 .zero = petsc_matrix_zero,
+                                 .scale = petsc_matrix_scale,
+                                 .add_identity = petsc_matrix_add_identity,
+                                 .set_diagonal = petsc_matrix_set_diagonal,
+                                 .set_values = petsc_matrix_set_values,
+                                 .add_values = petsc_matrix_add_values,
+                                 .start_assembly = petsc_matrix_start_assembly,
+                                 .finish_assembly = petsc_matrix_finish_assembly,
+                                 .get_values = petsc_matrix_get_values,
+                                 .dtor = petsc_matrix_dtor};
   return krylov_matrix_new(A, vtable);
+}
+
+static void* petsc_vector_clone(void* context)
+{
+  petsc_vector_t* v = context;
+  petsc_vector_t* clone = polymec_malloc(sizeof(petsc_vector_t));
+  clone->factory = v->factory;
+  PetscErrorCode err = v->factory->methods.VecDuplicate(v->v, &(clone->v));
+  if (err != 0)
+    polymec_error("petsc_vector_clone: Error in VecDuplicate!");
+  err = v->factory->methods.VecCopy(v->v, clone->v);
+  if (err != 0)
+    polymec_error("petsc_vector_clone: Error in VecCopy!");
+  return clone;
+}
+
+static void petsc_vector_zero(void* context)
+{
+  petsc_vector_t* v = context;
+  v->factory->methods.VecZeroEntries(v->v);
+}
+
+static void petsc_vector_set_value(void* context, real_t value)
+{
+  petsc_vector_t* v = context;
+  v->factory->methods.VecSet(v->v, value);
+}
+
+static void petsc_vector_scale(void* context, real_t scale_factor)
+{
+  petsc_vector_t* v = context;
+  v->factory->methods.VecScale(v->v, scale_factor);
+}
+
+static void petsc_vector_set_values(void* context, int num_values,
+                                    index_t* indices, real_t* values)
+{
+  petsc_vector_t* v = context;
+  v->factory->methods.VecSetValues(v->v, num_values, indices, values, INSERT_VALUES);
+}
+
+static void petsc_vector_add_values(void* context, int num_values,
+                                    index_t* indices, real_t* values)
+{
+  petsc_vector_t* v = context;
+  v->factory->methods.VecSetValues(v->v, num_values, indices, values, ADD_VALUES);
+}
+
+static void petsc_vector_start_assembly(void* context)
+{
+  petsc_vector_t* v = context;
+  v->factory->methods.VecAssemblyBegin(v->v);
+}
+
+static void petsc_vector_finish_assembly(void* context)
+{
+  petsc_vector_t* v = context;
+  v->factory->methods.VecAssemblyEnd(v->v);
+}
+
+static void petsc_vector_get_values(void* context, int num_values,
+                                    index_t* indices, real_t* values)
+{
+  petsc_vector_t* v = context;
+  v->factory->methods.VecGetValues(v->v, num_values, indices, values);
+}
+
+static real_t petsc_vector_norm(void* context, int p)
+{
+  petsc_vector_t* v = context;
+  real_t norm;
+  NormType norm_type;
+  if (p == 0)
+    norm_type = NORM_INFINITY;
+  else if (p == 1)
+    norm_type = NORM_1;
+  else
+    norm_type = NORM_2;
+  v->factory->methods.VecNorm(v->v, norm_type, &norm);
+  return norm;
+}
+
+static void petsc_vector_dtor(void* context)
+{
+  petsc_vector_t* v = context;
+  v->factory->methods.VecDestroy(&(v->v));
+  polymec_free(v);
 }
 
 static krylov_vector_t* petsc_factory_vector(void* context,
@@ -607,7 +928,18 @@ static krylov_vector_t* petsc_factory_vector(void* context,
     v->factory->methods.VecCreateSeq(comm, N, &v->v);
   else
     v->factory->methods.VecCreateMPI(comm, N, PETSC_DETERMINE, &v->v);
-  krylov_vector_vtable vtable; // FIXME
+  // Set up the virtual table.
+  krylov_vector_vtable vtable = {.clone = petsc_vector_clone,
+                                 .zero = petsc_vector_zero,
+                                 .set_value = petsc_vector_set_value,
+                                 .scale = petsc_vector_scale,
+                                 .set_values = petsc_vector_set_values,
+                                 .add_values = petsc_vector_add_values,
+                                 .start_assembly = petsc_vector_start_assembly,
+                                 .finish_assembly = petsc_vector_finish_assembly,
+                                 .get_values = petsc_vector_get_values,
+                                 .norm = petsc_vector_norm,
+                                 .dtor = petsc_vector_dtor};
   return krylov_vector_new(v, vtable);
 }
 
@@ -654,8 +986,12 @@ krylov_factory_t* petsc_krylov_factory(const char* petsc_dir,
   *((void**)&(factory->methods.KSPCreate)) = dlsym(petsc, "KSPCreate");
   *((void**)&(factory->methods.KSPSetType)) = dlsym(petsc, "KSPSetType");
   *((void**)&(factory->methods.KSPSetUp)) = dlsym(petsc, "KSPSetUp");
+  *((void**)&(factory->methods.KSPSetTolerances)) = dlsym(petsc, "KSPSetTolerances");
+  *((void**)&(factory->methods.KSPGetTolerances)) = dlsym(petsc, "KSPGetTolerances");
   *((void**)&(factory->methods.KSPSetOperators)) = dlsym(petsc, "KSPSetOperators");
   *((void**)&(factory->methods.KSPSolve)) = dlsym(petsc, "KSPSolve");
+  *((void**)&(factory->methods.KSPGetIterationNumber)) = dlsym(petsc, "KSPGetIterationNumber");
+  *((void**)&(factory->methods.KSPGetResidualNorm)) = dlsym(petsc, "KSPGetResidualNorm");
   *((void**)&(factory->methods.KSPDestroy)) = dlsym(petsc, "KSPDestroy");
 
   *((void**)&(factory->methods.MatCreate)) = dlsym(petsc, "MatCreate");
