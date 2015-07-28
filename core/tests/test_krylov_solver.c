@@ -23,10 +23,13 @@ void test_petsc_krylov_factory(void** state)
     if (petsc_arch != NULL)
     {
       krylov_factory_t* petsc = petsc_krylov_factory(petsc_dir, petsc_arch);
-      assert_true(petsc != NULL);
-      assert_true(krylov_factory_name(petsc) != NULL);
-      log_urgent("Created krylov_factory '%s'.", krylov_factory_name(petsc));
-      krylov_factory_free(petsc);
+      if (petsc != NULL)
+      {
+        assert_true(krylov_factory_name(petsc) != NULL);
+        petsc = NULL;
+      }
+      else
+        log_urgent("Could not load PETSc. Skipping test_petsc_krylov_factory.");
     }
     else
       log_urgent("PETSC_ARCH not set. Skipping test_petsc_krylov_factory.");
@@ -44,10 +47,26 @@ void test_petsc_krylov_vector(void** state)
     if (petsc_arch != NULL)
     {
       krylov_factory_t* petsc = petsc_krylov_factory(petsc_dir, petsc_arch);
-      krylov_vector_t* vec = krylov_factory_vector(petsc, MPI_COMM_WORLD, 100);
-      assert_int_equal(100, krylov_vector_local_size(vec));
-      krylov_vector_free(vec);
-      krylov_factory_free(petsc);
+      if (petsc != NULL)
+      {
+        // Create a vector.
+        krylov_vector_t* vec = krylov_factory_vector(petsc, MPI_COMM_WORLD, 100);
+        assert_int_equal(100, krylov_vector_local_size(vec));
+        int nprocs;
+        MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
+        assert_int_equal(100*nprocs, krylov_vector_global_size(vec));
+
+        // Clone it.
+        krylov_vector_t* vec1 = krylov_vector_clone(vec);
+        assert_int_equal(100, krylov_vector_local_size(vec1));
+
+        // Put everything away.
+        krylov_vector_free(vec);
+        krylov_vector_free(vec1);
+        petsc = NULL;
+      }
+      else
+        log_urgent("Could not load PETSc. Skipping test_petsc_krylov_vector.");
     }
     else
       log_urgent("PETSC_ARCH not set. Skipping test_petsc_krylov_vector.");

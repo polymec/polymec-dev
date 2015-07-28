@@ -24,7 +24,8 @@ typedef struct krylov_solver_t krylov_solver_t;
 
 // Objects of this type construct Krylov matrices, vectors, and solvers. 
 // A Krylov factory exposes capabilities within a given library (PETSc, HYPRE, 
-// etc).
+// etc). Objects of this type are garbage-collected, since they have to be 
+// around to service the requests of the solvers, matrices, and vectors.
 typedef struct krylov_factory_t krylov_factory_t;
 
 //------------------------------------------------------------------------
@@ -44,9 +45,6 @@ krylov_factory_t* petsc_krylov_factory(const char* petsc_dir,
 // path. If no such underlying implementation can be found, this function 
 // returns NULL.
 krylov_factory_t* hypre_krylov_factory(const char* library_path);
-
-// Destroys the given factory.
-void krylov_factory_free(krylov_factory_t* factory);
 
 // Returns an internal string containing the name of the given Krylov 
 // factory implementation.
@@ -78,11 +76,11 @@ krylov_solver_t* krylov_factory_solver(krylov_factory_t* factory,
 //                          Krylov solver
 //------------------------------------------------------------------------
 
-// Returns an internal string containing the name of the solver.
-char* krylov_solver_name(krylov_solver_t* solver);
-
 // Frees a solver.
 void krylov_solver_free(krylov_solver_t* solver);
+
+// Returns an internal string containing the name of the solver.
+char* krylov_solver_name(krylov_solver_t* solver);
 
 // Returns a pointer to the underlying solver implementation. You can use 
 // this if you have explicitly linked your program to the library providing
