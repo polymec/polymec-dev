@@ -674,7 +674,9 @@ static krylov_solver_t* petsc_factory_solver(void* context,
   petsc_solver_t* solver = polymec_malloc(sizeof(petsc_solver_t));
   solver->factory = context;
   solver->factory->methods.KSPCreate(comm, &solver->ksp);
-  char** type_p = string_string_unordered_map_get(options, "type");
+
+  // Default KSP type is GMRES.
+  char** type_p = (options != NULL) ? string_string_unordered_map_get(options, "type") : NULL;
   if (type_p == NULL)
     solver->factory->methods.KSPSetType(solver->ksp, "gmres");
   else
