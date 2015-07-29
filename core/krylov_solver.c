@@ -8,6 +8,7 @@
 #include <float.h>
 #include <dlfcn.h>
 #include "core/krylov_solver.h"
+#include "core/options.h"
 #include "core/timer.h"
 #include "core/text_buffer.h"
 #include "core/string_utils.h"
@@ -522,13 +523,14 @@ const char* MATSAME = "same";
 #define PETSC_DETERMINE PETSC_DECIDE
 typedef struct
 {
-  PetscErrorCode (*PetscInitializeNoArguments)();
+  PetscErrorCode (*PetscInitialize)(int*, char***, const char[], const char[]);
   PetscErrorCode (*PetscInitialized)(PetscBool*);
   PetscErrorCode (*PetscFinalize)();
 
   PetscErrorCode (*KSPCreate)(MPI_Comm,KSP *);
   PetscErrorCode (*KSPSetType)(KSP,KSPType);
   PetscErrorCode (*KSPSetUp)(KSP);
+  PetscErrorCode (*KSPSetFromOptions)(KSP);
   PetscErrorCode (*KSPSetTolerances)(KSP,PetscReal,PetscReal,PetscReal,PetscInt);
   PetscErrorCode (*KSPGetTolerances)(KSP,PetscReal*,PetscReal*,PetscReal*,PetscInt*);
   PetscErrorCode (*KSPSetOperators)(KSP,Mat,Mat);
@@ -677,6 +679,11 @@ static krylov_solver_t* petsc_factory_solver(void* context,
     solver->factory->methods.KSPSetType(solver->ksp, "gmres");
   else
     solver->factory->methods.KSPSetType(solver->ksp, *type_p);
+
+  // Set the thing up.
+  solver->factory->methods.KSPSetFromOptions(solver->ksp);
+  solver->factory->methods.KSPSetUp(solver->ksp);
+
   // Set up the virtual table.
   krylov_solver_vtable vtable = {.set_tolerances = petsc_solver_set_tolerances,
                                  .set_max_iterations = petsc_solver_set_max_iterations,
@@ -1177,12 +1184,13 @@ krylov_factory_t* petsc_krylov_factory(const char* petsc_dir,
   }
 
   // Get the other symbols.
-  FETCH_SYMBOL(petsc, "PetscInitializeNoArguments", factory->methods.PetscInitializeNoArguments, failure);
+  FETCH_SYMBOL(petsc, "PetscInitialize", factory->methods.PetscInitialize, failure);
   FETCH_SYMBOL(petsc, "PetscInitialized", factory->methods.PetscInitialized, failure);
   FETCH_SYMBOL(petsc, "PetscFinalize", factory->methods.PetscFinalize, failure);
 
   FETCH_SYMBOL(petsc, "KSPCreate", factory->methods.KSPCreate, failure);
   FETCH_SYMBOL(petsc, "KSPSetType", factory->methods.KSPSetType, failure);
+  FETCH_SYMBOL(petsc, "KSPSetFromOptions", factory->methods.KSPSetFromOptions, failure);
   FETCH_SYMBOL(petsc, "KSPSetUp", factory->methods.KSPSetUp, failure);
   FETCH_SYMBOL(petsc, "KSPSetTolerances", factory->methods.KSPSetTolerances, failure);
   FETCH_SYMBOL(petsc, "KSPGetTolerances", factory->methods.KSPGetTolerances, failure);
@@ -1239,7 +1247,14 @@ krylov_factory_t* petsc_krylov_factory(const char* petsc_dir,
   if (initialized == PETSC_FALSE)
   {
     log_debug("petsc_krylov_factory: Initializing PETSc.");
-    factory->methods.PetscInitializeNoArguments();
+    // Build a list of command line arguments.
+    options_t* opts = options_argv();
+    int argc = options_num_arguments(opts);
+    char** argv = polymec_malloc(sizeof(char*));
+    for (int i = 0; i < argc; ++i)
+      argv[i] = options_argument(opts, i);
+    factory->methods.PetscInitialize(&argc, &argv, NULL, NULL);
+    polymec_free(argv);
     factory->finalize_petsc = true;
   }
 
