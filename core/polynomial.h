@@ -96,4 +96,86 @@ sp_func_t* polynomial_sp_func(polynomial_t* p);
 // Writes a text representation of the polynomial to the given stream.
 void polynomial_fprintf(polynomial_t* p, FILE* stream);
 
+// This is a simple class that represents a non-standard polynomial basis.
+// Objects of this type are garbage-collected.
+typedef struct poly_basis_t poly_basis_t;
+
+// Creates a new polynomial basis from the given set of polynomials.
+poly_basis_t* poly_basis_new(int dimension, polynomial_t** polynomials);
+
+// Creates a new standard polynomial basis of the given dimension.
+poly_basis_t* standard_poly_basis_new(int degree);
+
+// Returns the dimension of the polynomial basis.
+int poly_basis_dim(poly_basis_t* basis);
+
+// Returns the degree of the polynomial basis.
+int poly_basis_degree(poly_basis_t* basis);
+
+// Steps through the vectors for the polynomial basis, placing each polynomial
+// into *p. Set *pos to 0 to reset the traversal. Returns true if the 
+// traversal yields another vector, false if it is finished.
+bool poly_basis_next(poly_basis_t* basis,
+                     int* pos,
+                     polynomial_t** p);
+
+// Computes the polynomial basis, evaluated at the point x. The basis 
+// values are placed in the values array (sized to match the dimension of the 
+// basis). x_deriv, y_deriv, and z_deriv are the indices of the desired x, y, 
+// and z derivatives for the computed basis.
+void poly_basis_compute(poly_basis_t* basis, 
+                        int x_deriv, int y_deriv, int z_deriv,
+                        point_t* x,
+                        real_t* values);
+
+// This is a simple class that represents a multi-component polynomial basis.
+// Objects of this type are garbage-collected.
+typedef struct multicomp_poly_basis_t multicomp_poly_basis_t;
+
+// Creates a new multi-component polynomial basis from the given array of
+// single-component polynomial bases.
+multicomp_poly_basis_t* multicomp_poly_basis_new(int num_components, 
+                                                 poly_basis_t** component_bases);
+
+// Creates a new multi-component polynomial from a set of standard 
+// component-wise polynomial bases, all of the given degree.
+multicomp_poly_basis_t* standard_multicomp_poly_basis_new(int num_components,
+                                                          int degree);
+
+// Creates a new multi-component polynomial from a set of standard 
+// component-wise polynomial bases, with the ith component having degree
+// degrees[i].
+multicomp_poly_basis_t* var_standard_multicomp_poly_basis_new(int num_components,
+                                                              int* degrees);
+
+// Returns the number of solution components in the GMLS polynomial basis.
+int multicomp_poly_basis_num_comp(multicomp_poly_basis_t* basis);
+
+// Returns the dimension of the multi-component polynomial basis, which is 
+// the maximum dimension found for the underlying polynomial bases.
+int multicomp_poly_basis_dim(multicomp_poly_basis_t* basis);
+
+// Returns the degree of the multi-component polynomial basis.
+int multicomp_poly_basis_degree(multicomp_poly_basis_t* basis);
+
+
+// Steps through the vectors for the multi-component polynomial basis. p[i] 
+// is set to a polynomial representing the present vector for component i.
+// Returns true if the traversal yields another vector, false if it is 
+// finished.
+bool multicomp_poly_basis_next(multicomp_poly_basis_t* basis,
+                               int* pos,
+                               polynomial_t*** p);
+
+// Computes the polynomial basis for the given component, evaluated at 
+// the point x, storing the values in the values array (sized to match 
+// the maximum dimension of the basis for all components). x_deriv, y_deriv, 
+// and z_deriv are the indices of the desired x, y, and z derivatives for the 
+// computed basis.
+void multicomp_poly_basis_compute(multicomp_poly_basis_t* basis,
+                                  int component, 
+                                  int x_deriv, int y_deriv, int z_deriv,
+                                  point_t* x,
+                                  real_t* values);
+
 #endif

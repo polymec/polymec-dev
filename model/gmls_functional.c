@@ -15,32 +15,32 @@ struct gmls_functional_t
   void* context;
   gmls_functional_vtable vtable;
 
+  multicomp_poly_basis_t* basis;
   point_weight_function_t* W;
-  int degree, dim;
+  int dim, num_comps;
 };
 
 gmls_functional_t* gmls_functional_new(const char* name,
-                                       int poly_degree,
-                                       point_weight_function_t* W,
                                        void* context,
-                                       gmls_functional_vtable vtable)
+                                       gmls_functional_vtable vtable,
+                                       multicomp_poly_basis_t* poly_basis,
+                                       point_weight_function_t* W)
 {
-  ASSERT(poly_degree >= 2);
   ASSERT(vtable.num_nodes != NULL);
   ASSERT(vtable.get_nodes != NULL);
   ASSERT(vtable.get_points != NULL);
   ASSERT(vtable.num_quad_points != NULL);
   ASSERT(vtable.get_quadrature != NULL);
-  ASSERT(vtable.compute_basis != NULL);
   ASSERT(vtable.eval_integrands != NULL);
 
   gmls_functional_t* functional = polymec_malloc(sizeof(gmls_functional_t));
   functional->name = string_dup(name);
   functional->context = context;
   functional->vtable = vtable;
+  functional->dim = multicomp_poly_basis_dim(poly_basis);
+  functional->basis = poly_basis;
+  functional->num_comps = multicomp_poly_basis_num_comp(poly_basis);
   functional->W = W;
-  functional->degree = poly_degree;
-  functional->dim = polynomial_basis_dim(poly_degree);
   return functional;
 }
 
@@ -51,6 +51,11 @@ void gmls_functional_free(gmls_functional_t* functional)
   point_weight_function_free(functional->W);
   polymec_free(functional->name);
   polymec_free(functional);
+}
+
+int gmls_functional_num_components(gmls_functional_t* functional)
+{
+  return functional->num_comps;
 }
 
 int gmls_functional_num_nodes(gmls_functional_t* functional, int i)
@@ -80,13 +85,9 @@ void gmls_functional_compute_coeffs(gmls_functional_t* functional,
     point_t* xq = &quad_points[q];
     real_t wq = quad_weights[q];
 
-    // Compute the polynomial basis for the integrand at this point.
-    real_t p[Q];
-    functional->vtable.compute_basis(functional->context, functional->degree, xq, p);
-
     // Now compute the integrands for the functional at this point.
     real_t integrands[Q];
-    functional->vtable.eval_integrands(functional->context, t, xq, p, integrands);
+    functional->vtable.eval_integrands(functional->context, t, xq, functional->basis, integrands);
 
     // Integrate.
     for (int l = 0; l < Q; ++l)
@@ -110,9 +111,10 @@ void gmls_functional_compute_coeffs(gmls_functional_t* functional,
   }
 
   // Compute the matrix [P]_ij = pi(xj), in column major order.
+  // FIXME: Single component version only!
   real_t P[num_nodes*Q];
   for (int j = 0; j < num_nodes; ++j)
-    functional->vtable.compute_basis(functional->context, functional->degree, &xjs[j], &P[j*Q]);
+    multicomp_poly_basis_compute(functional->basis, 0, 0, 0, 0, &xjs[j], &P[j*Q]);
 
   // Compute the moment matrix A = P * W * Pt.
   real_t A[Q*Q], Ainv_lambda[Q];

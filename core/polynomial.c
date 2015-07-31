@@ -509,3 +509,185 @@ void polynomial_fprintf(polynomial_t* p, FILE* stream)
   fprintf(stream, "\n");
 }
 
+struct poly_basis_t 
+{
+  polynomial_t** polynomials;
+  int degree, dim;
+};
+
+static void poly_basis_free(void* ctx, void* dummy)
+{
+  poly_basis_t* basis = ctx;
+  for (int i = 0; i < basis->dim; ++i)
+    basis->polynomials[i] = NULL;
+  polymec_free(basis->polynomials);
+}
+
+poly_basis_t* poly_basis_new(int dimension, polynomial_t** polynomials)
+{
+  ASSERT(dimension > 0);
+  poly_basis_t* basis = GC_MALLOC(sizeof(poly_basis_t));
+  basis->dim = dimension;
+  basis->polynomials = polymec_malloc(sizeof(polynomial_t*) * dimension);
+  basis->degree = 0;
+  for (int i = 0; i < dimension; ++i)
+  {
+    basis->polynomials[i] = polynomials[i];
+    basis->degree = MAX(basis->degree, polynomial_degree(polynomials[i]));
+  }
+  GC_register_finalizer(basis, poly_basis_free, basis, NULL, NULL);
+  return basis;
+}
+
+poly_basis_t* standard_poly_basis_new(int degree)
+{
+  int dim = polynomial_basis_dim(degree);
+  polynomial_t* polynomials[dim];
+  for (int i = 0; i < dim; ++i)
+  {
+    real_t coeffs[dim];
+    memset(coeffs, 0, sizeof(real_t) * dim);
+    coeffs[i] = 1.0;
+    polynomials[i] = polynomial_new(degree, coeffs, NULL);
+  }
+  return poly_basis_new(dim, polynomials);
+}
+
+int poly_basis_dim(poly_basis_t* basis)
+{
+  return basis->dim;
+}
+
+int poly_basis_degree(poly_basis_t* basis)
+{
+  return basis->degree;
+}
+
+bool poly_basis_next(poly_basis_t* basis,
+                     int* pos,
+                     polynomial_t** p)
+{
+  if (*pos >= basis->dim)
+    return false;
+  *p = basis->polynomials[*pos];
+  ++(*pos);
+  return true;
+}
+
+void poly_basis_compute(poly_basis_t* basis, 
+                        int x_deriv, int y_deriv, int z_deriv,
+                        point_t* x,
+                        real_t* values)
+{
+  for (int i = 0; i < basis->dim; ++i)
+    values[i] = polynomial_deriv_value(basis->polynomials[i], x_deriv, y_deriv, z_deriv, x);
+}
+
+struct multicomp_poly_basis_t 
+{
+  poly_basis_t** bases;
+  int num_comp, degree, dim;
+};
+
+static void multicomp_poly_basis_free(void* ctx, void* dummy)
+{
+  multicomp_poly_basis_t* basis = ctx;
+  for (int c = 0; c < basis->num_comp; ++c)
+    basis->bases[c] = NULL;
+  polymec_free(basis->bases);
+}
+
+multicomp_poly_basis_t* multicomp_poly_basis_new(int num_components, 
+                                                 poly_basis_t** component_bases)
+{
+  ASSERT(num_components > 0);
+  multicomp_poly_basis_t* basis = GC_MALLOC(sizeof(multicomp_poly_basis_t));
+  basis->num_comp = num_components;
+  basis->bases = polymec_malloc(sizeof(poly_basis_t*) * num_components);
+  basis->degree = 0;
+  for (int c = 0; c < num_components; ++c)
+  {
+    basis->bases[c] = component_bases[c];
+    basis->degree = MAX(basis->degree, poly_basis_degree(component_bases[c]));
+  }
+  GC_register_finalizer(basis, multicomp_poly_basis_free, basis, NULL, NULL);
+  return basis;
+}
+                                                 
+
+multicomp_poly_basis_t* standard_multicomp_poly_basis_new(int num_components,
+                                                          int degree)
+{
+  ASSERT(degree >= 0);
+  poly_basis_t* bases[num_components];
+  for (int c = 0; c < num_components; ++c)
+    bases[c] = standard_poly_basis_new(degree);
+  return multicomp_poly_basis_new(num_components, bases);
+}
+
+multicomp_poly_basis_t* var_standard_multicomp_poly_basis_new(int num_components,
+                                                              int* degrees)
+{
+  poly_basis_t* bases[num_components];
+  for (int c = 0; c < num_components; ++c)
+  {
+    ASSERT(degrees[c] > 0);
+    bases[c] = standard_poly_basis_new(degrees[c]);
+  }
+  return multicomp_poly_basis_new(num_components, bases);
+}
+
+int multicomp_poly_basis_num_comp(multicomp_poly_basis_t* basis)
+{
+  return basis->num_comp;
+}
+
+int multicomp_poly_basis_dim(multicomp_poly_basis_t* basis)
+{
+  return basis->dim;
+}
+
+int multicomp_poly_basis_degree(multicomp_poly_basis_t* basis)
+{
+  return basis->degree;
+}
+
+bool multicomp_poly_basis_next(multicomp_poly_basis_t* basis,
+                               int* pos,
+                               polynomial_t*** p)
+{
+  // Here's the zero polynomial.
+  real_t z = 0.0;
+  polynomial_t* zero = polynomial_new(1, &z, NULL);
+
+  int poses[basis->num_comp];
+  memset(pos, 0, sizeof(int) * basis->num_comp);
+  bool more;
+  for (int c = 0; c < basis->num_comp; ++c)
+  {
+    more = false;
+    polynomial_t* poly;
+    if (poly_basis_next(basis->bases[c], &poses[c], &poly))
+    {
+      more = true;
+      (*p)[c] = poly;
+      *pos = poses[c];
+    }
+    else
+      (*p)[c] = zero; // Pad with zero polynomial.
+    if (!more) break;
+  }
+  return more;
+}
+
+void multicomp_poly_basis_compute(multicomp_poly_basis_t* basis,
+                                  int component, 
+                                  int x_deriv, int y_deriv, int z_deriv,
+                                  point_t* x,
+                                  real_t* values)
+{
+  ASSERT(component >= 0);
+  ASSERT(component < basis->num_comp);
+  poly_basis_compute(basis->bases[component], x_deriv, y_deriv, z_deriv, x, values);
+}
+
