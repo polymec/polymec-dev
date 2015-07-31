@@ -506,6 +506,8 @@ typedef enum { PETSC_FALSE,PETSC_TRUE } PetscBool;
 typedef int PetscErrorCode;
 typedef void* KSP;
 typedef const char* KSPType;
+typedef void* PC;
+typedef const char* PCType;
 typedef void* Mat;
 typedef const char* MatType;
 typedef void* Vec;
@@ -530,7 +532,9 @@ typedef struct
   PetscErrorCode (*KSPCreate)(MPI_Comm,KSP *);
   PetscErrorCode (*KSPSetType)(KSP,KSPType);
   PetscErrorCode (*KSPSetUp)(KSP);
+  PetscErrorCode (*KSPGetPC)(KSP,PC*);
   PetscErrorCode (*KSPSetFromOptions)(KSP);
+  PetscErrorCode (*PCSetFromOptions)(PC);
   PetscErrorCode (*KSPSetTolerances)(KSP,PetscReal,PetscReal,PetscReal,PetscInt);
   PetscErrorCode (*KSPGetTolerances)(KSP,PetscReal*,PetscReal*,PetscReal*,PetscInt*);
   PetscErrorCode (*KSPSetOperators)(KSP,Mat,Mat);
@@ -681,6 +685,11 @@ static krylov_solver_t* petsc_factory_solver(void* context,
     solver->factory->methods.KSPSetType(solver->ksp, "gmres");
   else
     solver->factory->methods.KSPSetType(solver->ksp, *type_p);
+
+  // Handle the preconditioner's options.
+  PC pc;
+  solver->factory->methods.KSPGetPC(solver->ksp, &pc);
+  solver->factory->methods.PCSetFromOptions(pc);
 
   // Set the thing up.
   solver->factory->methods.KSPSetFromOptions(solver->ksp);
@@ -1194,6 +1203,8 @@ krylov_factory_t* petsc_krylov_factory(const char* petsc_dir,
   FETCH_SYMBOL(petsc, "KSPSetType", factory->methods.KSPSetType, failure);
   FETCH_SYMBOL(petsc, "KSPSetFromOptions", factory->methods.KSPSetFromOptions, failure);
   FETCH_SYMBOL(petsc, "KSPSetUp", factory->methods.KSPSetUp, failure);
+  FETCH_SYMBOL(petsc, "KSPGetPC", factory->methods.KSPGetPC, failure);
+  FETCH_SYMBOL(petsc, "PCSetFromOptions", factory->methods.PCSetFromOptions, failure);
   FETCH_SYMBOL(petsc, "KSPSetTolerances", factory->methods.KSPSetTolerances, failure);
   FETCH_SYMBOL(petsc, "KSPGetTolerances", factory->methods.KSPGetTolerances, failure);
   FETCH_SYMBOL(petsc, "KSPSetOperators", factory->methods.KSPSetOperators, failure);
