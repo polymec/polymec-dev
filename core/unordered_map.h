@@ -356,6 +356,7 @@ static inline bool map_name##_empty(map_name##_t* map) \
 // Define some unordered maps.
 DEFINE_UNORDERED_MAP(int_int_unordered_map, int, int, int_hash, int_equals)
 DEFINE_UNORDERED_MAP(int_index_unordered_map, int, index_t, int_hash, int_equals)
+DEFINE_UNORDERED_MAP(int_real_unordered_map, int, real_t, int_hash, int_equals)
 DEFINE_UNORDERED_MAP(int_ptr_unordered_map, int, void*, int_hash, int_equals)
 DEFINE_UNORDERED_MAP(int_pair_int_unordered_map, int*, int, int_pair_hash, int_pair_equals)
 DEFINE_UNORDERED_MAP(int_tuple_int_unordered_map, int*, int, int_tuple_hash, int_tuple_equals)

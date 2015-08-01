@@ -8,6 +8,7 @@
 #include <gc/gc.h>
 #include "core/polynomial.h"
 #include "core/slist.h"
+#include "core/unordered_map.h"
 
 struct polynomial_t 
 {
@@ -399,6 +400,50 @@ int polynomial_index(polynomial_t* p, int x_power, int y_power, int z_power)
   return -1;
 }
 
+bool polynomial_equals(polynomial_t* p, polynomial_t* q)
+{
+  if (p == q) 
+    return true; 
+
+  // Encode the x, y, z powers of p into integers, and map those integers to 
+  // coefficients.
+  int_real_unordered_map_t* coeff_map = int_real_unordered_map_new();
+  int pos = 0, x_pow, y_pow, z_pow;
+  real_t coeff;
+  while (polynomial_next(p, &pos, &coeff, &x_pow, &y_pow, &z_pow))
+  {
+    int D1 = p->degree+1;
+    int key = D1*D1*z_pow + D1*y_pow + x_pow;
+    int_real_unordered_map_insert(coeff_map, key, coeff);
+  }
+
+  // Now go through the terms in q and make sure that (1) all of them exist 
+  // in our map, and (2) the map contains no terms that do not exist in q.
+  // To verify (2), we remove q terms that we find in the map. If p == q, 
+  // we should end up with an empty map.
+  pos = 0;
+  while (polynomial_next(q, &pos, &coeff, &x_pow, &y_pow, &z_pow))
+  {
+    int D1 = q->degree+1;
+    int key = D1*D1*z_pow + D1*y_pow + x_pow;
+    real_t* coeff_ptr = int_real_unordered_map_get(coeff_map, key);
+    if ((coeff_ptr == NULL) || (*coeff_ptr != coeff))
+    {
+      // q != p, since this term in q was not found in p.
+      int_real_unordered_map_free(coeff_map);
+      return false;
+    }
+
+    // Okay, we found the term. Remove it from the map.
+    int_real_unordered_map_delete(coeff_map, key);
+  }
+
+  // If our map is empty, p == q. Otherwise, p != q.
+  bool equal = int_real_unordered_map_empty(coeff_map);
+  int_real_unordered_map_free(coeff_map);
+  return equal;
+}
+
 static void wrap_eval(void* context, point_t* x, real_t* result)
 {
   polynomial_t* p = context;
@@ -583,6 +628,34 @@ void poly_basis_compute(poly_basis_t* basis,
     values[i] = polynomial_deriv_value(basis->polynomials[i], x_deriv, y_deriv, z_deriv, x);
 }
 
+bool poly_basis_equals(poly_basis_t* basis1, poly_basis_t* basis2)
+{
+  if (basis1 == basis2) 
+    return true;
+
+  if ((basis1->dim != basis2->dim) || (basis1->degree != basis2->degree))
+    return false;
+
+  // We count the number of vectors in basis1 that equal one of the vectors 
+  // in basis2. If the number of these vectors equals its dimension, the 
+  // two bases are equal. Otherwise they are not.
+  int equal_vectors = 0;
+  for (int i = 0; i < basis1->dim; ++i)
+  {
+    polynomial_t* p = basis1->polynomials[i];
+    for (int j = 0; j < basis2->dim; ++j)
+    {
+      polynomial_t* q = basis2->polynomials[i];
+      if (polynomial_equals(p, q))
+      {
+        ++equal_vectors;
+        break;
+      }
+    }
+  }
+  return (equal_vectors == basis1->dim);
+}
+
 struct multicomp_poly_basis_t 
 {
   poly_basis_t** bases;
@@ -691,3 +764,39 @@ void multicomp_poly_basis_compute(multicomp_poly_basis_t* basis,
   poly_basis_compute(basis->bases[component], x_deriv, y_deriv, z_deriv, x, values);
 }
 
+bool multicomp_poly_basis_equals(multicomp_poly_basis_t* basis1, 
+                                 multicomp_poly_basis_t* basis2)
+{
+  if (basis1 == basis2) 
+    return true;
+
+  if ((basis1->num_comp != basis2->num_comp) ||
+      (basis1->dim != basis2->dim) || 
+      (basis1->degree != basis2->degree))
+    return false;
+
+  // For two multi-component polynomial bases to be equal, they must have 
+  // equal bases for each of their components.
+  for (int c = 0; c < basis1->num_comp; ++c)
+  {
+    if (!poly_basis_equals(basis1->bases[c], basis2->bases[c]))
+      return false;
+  }
+
+  return true;
+}
+
+bool multicomp_poly_basis_components_equal(multicomp_poly_basis_t* basis)
+{
+  if (basis->num_comp == 1)
+    return true;
+
+  poly_basis_t* P = basis->bases[0];
+  for (int c = 1; c < basis->num_comp; ++c)
+  {
+    if (!poly_basis_equals(basis->bases[c], P))
+      return false;
+  }
+
+  return true;
+}

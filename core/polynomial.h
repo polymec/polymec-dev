@@ -90,6 +90,9 @@ polynomial_t* polynomial_derivative(polynomial_t* p, int x_deriv, int y_deriv, i
 // found in the polynomial, returns -1.
 int polynomial_index(polynomial_t* p, int x_power, int y_power, int z_power);
 
+// Returns true if the two given polynomials are equal, false if not.
+bool polynomial_equals(polynomial_t* p, polynomial_t* q);
+
 // Returns an sp_func corresponding to the given polynomial.
 sp_func_t* polynomial_sp_func(polynomial_t* p);
 
@@ -127,6 +130,9 @@ void poly_basis_compute(poly_basis_t* basis,
                         int x_deriv, int y_deriv, int z_deriv,
                         point_t* x,
                         real_t* values);
+
+// Returns true if the two given polynomial bases are equal, false if not.
+bool poly_basis_equals(poly_basis_t* basis1, poly_basis_t* basis2);
 
 // This is a simple class that represents a multi-component polynomial basis.
 // Objects of this type are garbage-collected.
@@ -177,5 +183,14 @@ void multicomp_poly_basis_compute(multicomp_poly_basis_t* basis,
                                   int x_deriv, int y_deriv, int z_deriv,
                                   point_t* x,
                                   real_t* values);
+
+// Returns true if the two multi-component polynomial bases are equal, 
+// false if not.
+bool multicomp_poly_basis_equals(multicomp_poly_basis_t* basis1, 
+                                 multicomp_poly_basis_t* basis2);
+
+// Returns true if all of the components have equal polynomial bases, 
+// false if not.
+bool multicomp_poly_basis_components_equal(multicomp_poly_basis_t* basis);
 
 #endif
