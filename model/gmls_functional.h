@@ -18,10 +18,14 @@
 // approximation that is referred to as Generalized Moving Least Squares 
 // (see Mirzaei et al, "On generalized moving least squares and diffuse 
 // derivatives", IMA J. Numer. Anal. 32, 983 (2012)).
-// The output of a GMLS functional is a set of coefficients {a_j} for this 
-// linear combination. This construct is useful in constructing Meshless 
-// Local Petrov-Galerkin (MLPG) methods that do not rely on shape functions, 
-// such as the Direct MLPG (DMLPG) method.
+// The output of a GMLS functional is a set of coefficients {A_ij} for the 
+// matrix A in the linear combination 
+//
+// lambda(u) = A * u.
+//
+// This construct is useful in constructing Meshless Local Petrov-Galerkin 
+// (MLPG) methods that do not rely on shape functions, such as the Direct 
+// MLPG (DMLPG) method.
 typedef struct gmls_functional_t gmls_functional_t;
 
 // This virtual table defines the behavior of a GMLS functional.
@@ -58,7 +62,8 @@ typedef struct
 
 // Creates a generalized MLS functional with the given name, context, virtual 
 // table, (multicomponent) polynomial basis, and weight function. The 
-// weight function is consumed by the functional.
+// weight function is consumed by the functional. The solution is assumed to 
+// be a vector of degrees of freedom expressed in node-major order.
 gmls_functional_t* gmls_functional_new(const char* name,
                                        void* context,
                                        gmls_functional_vtable vtable,
@@ -75,17 +80,21 @@ int gmls_functional_num_components(gmls_functional_t* functional);
 // subdomain.
 int gmls_functional_num_nodes(gmls_functional_t* functional, int i);
 
-// Evaluates the GMLS coefficients that directly approximate the functional 
-// on the ith subdomain at time t. The values of these coefficients are placed 
-// in the coeffs array. The coeffs array is a (num_nodes * num_components) 
-// array stored in node-major order, where num_nodes is the number of nodes 
-// contributing to in the ith subdomain and num_components is the number of 
-// solution components. The indices of the nodes contributing to the 
-// subdomain are stored in the nodes array.
-void gmls_functional_compute_coeffs(gmls_functional_t* functional,
-                                    real_t t,
-                                    int i,
-                                    real_t* coeffs, 
-                                    int* nodes);
+// Evaluates the block row of the GMLS matrix that directly approximates the 
+// functional, corresponding to the ith subdomain, and evaluated at time t. 
+// The block size of the matrix is num_components. The rows, nonzero-columns, 
+// and matrix coefficients are stored in the rows, columns, and coeffs arrays.
+// These are all arrays of size (num_components * (num_components * num_nodes)) 
+// and are all stored in row-major order. Here, num_nodes is the number of 
+// nodes contributing to the functional over the ith subdomain. The indices of 
+// the rows and the nonzero columns 
+// within the block row are stored in the columns array in row-major order, so 
+// that coeffs[i] is placed in the matrix at (rows[i], columns[i]).
+void gmls_functional_compute_block_row(gmls_functional_t* functional,
+                                       real_t t,
+                                       int i,
+                                       int* rows,
+                                       int* columns,
+                                       real_t* coeffs);
 
 #endif
