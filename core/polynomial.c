@@ -693,8 +693,9 @@ multicomp_poly_basis_t* standard_multicomp_poly_basis_new(int num_components,
 {
   ASSERT(degree >= 0);
   poly_basis_t* bases[num_components];
+  poly_basis_t* P = standard_poly_basis_new(degree);
   for (int c = 0; c < num_components; ++c)
-    bases[c] = standard_poly_basis_new(degree);
+    bases[c] = P;
   return multicomp_poly_basis_new(num_components, bases);
 }
 

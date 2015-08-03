@@ -94,6 +94,14 @@ static inline int stencil_size(stencil_t* stencil, int i)
   return stencil->offsets[i+1] - stencil->offsets[i];
 }
 
+// Copies the indices of the neighbors for the index i into the given neighbors array.
+static inline void stencil_get_neighbors(stencil_t* stencil, int i, int* neighbors)
+{
+  ASSERT(i < stencil->num_indices);
+  int j1 = stencil->offsets[i], j2 = stencil->offsets[i+1];
+  memcpy(neighbors, &stencil->indices[j1], sizeof(int) * (j2 - j1));
+}
+
 // Traverses the stencil for a given index i, returning true if the traversal
 // has more indices remaining and false if it has completed. The pos pointer 
 // must be set to zero to reset the traversal. The j and weight pointers will 
